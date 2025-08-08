@@ -2,20 +2,22 @@
 import React from "react";
 import { motion } from "framer-motion";
 import MotionSection from "./MotionSection";
+import { ExternalLink } from "lucide-react";
 
 const projects = [
   {
     title: "Portfolio",
-    blurb: "This site — Vite + React + Tailwind, resume embed, routing, and deploy.",
+    blurb: "This site — Vite + React + Tailwind, resume embed, animations, and deploy.",
     tech: ["React", "Vite", "Tailwind"],
     gh: "https://github.com/whoisaldo/Portfolio",
-    live: "",
   },
   {
     title: "Exerly-Fitness",
     blurb: "Gym/health tracker: workouts, calories, sleep, auth, dashboards.",
     tech: ["React", "Node", "MongoDB"],
     gh: "https://github.com/whoisaldo/Exerly-Fitness",
+    live: "https://whoisaldo.github.io/Exerly-Fitness/#/",
+    featured: true,
   },
   {
     title: "CS3520-Summer-2025",
@@ -54,21 +56,41 @@ export default function Projects() {
             className="group rounded-2xl border border-black/5 dark:border-white/10
                        bg-white/80 dark:bg-neutral-900/60 backdrop-blur p-5 shadow-sm"
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold">{p.title}</h3>
-              <div className="text-[10px] uppercase tracking-widest text-neutral-500">
-                {p.tech.slice(0, 3).join(" • ")}
+              <div className="flex items-center gap-2">
+                <div className="text-[10px] uppercase tracking-widest text-neutral-500">
+                  {p.tech.slice(0, 3).join(" • ")}
+                </div>
+                {p.featured && (
+                  <span className="ml-1 rounded-full bg-indigo-600/10 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 text-[10px] font-semibold">
+                    Featured
+                  </span>
+                )}
               </div>
             </div>
+
             <p className="mt-2 text-sm text-neutral-700 dark:text-neutral-300">{p.blurb}</p>
 
-            <div className="mt-4 flex gap-4 text-sm">
-              <a className="text-indigo-600 hover:underline" href={p.gh} target="_blank" rel="noreferrer">
-                GitHub →
-              </a>
+            <div className="mt-4 flex flex-wrap gap-4 text-sm">
+              {p.gh && (
+                <a
+                  className="text-indigo-600 hover:underline"
+                  href={p.gh}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  GitHub →
+                </a>
+              )}
               {p.live && (
-                <a className="text-indigo-600 hover:underline" href={p.live} target="_blank" rel="noreferrer">
-                  Live →
+                <a
+                  className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+                  href={p.live}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Live Demo <ExternalLink size={14} />
                 </a>
               )}
             </div>

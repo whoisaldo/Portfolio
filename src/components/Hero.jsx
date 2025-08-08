@@ -1,15 +1,20 @@
 // src/components/Hero.jsx
 import React from "react";
-import { Github, Linkedin } from "lucide-react";
+import { Github, Linkedin, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import MotionSection from "./MotionSection";
 
 export default function Hero() {
+  // Use base-aware path so resume works on GitHub Pages (/Portfolio/)
+  const pdf = import.meta.env.BASE_URL + "resume.pdf";
+
   return (
     <MotionSection className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 -top-40 h-64
-                      bg-gradient-to-r from-indigo-400/20 via-fuchsia-400/20 to-purple-400/20
-                      blur-3xl" />
+      <div
+        className="pointer-events-none absolute inset-x-0 -top-40 h-64
+                    bg-gradient-to-r from-indigo-400/20 via-fuchsia-400/20 to-purple-400/20
+                    blur-3xl"
+      />
       <div className="max-w-6xl mx-auto px-4 pt-14 pb-10">
         <p className="text-xs uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
           Lebanese-American • Boston, MA • Northeastern ’27
@@ -47,13 +52,24 @@ export default function Hero() {
           >
             See Projects
           </a>
+
           <a
-            href="/resume.pdf"
+            href={pdf}
             className="rounded-full border px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5"
             download
           >
             Download Resume
           </a>
+
+          <a
+            href="https://whoisaldo.github.io/Exerly-Fitness/#/"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 hover:bg-black/5 dark:hover:bg-white/5"
+          >
+            <ExternalLink size={16} /> Try Exerly
+          </a>
+
           <a
             href="https://github.com/whoisaldo"
             target="_blank"
@@ -62,6 +78,7 @@ export default function Hero() {
           >
             <Github size={16} /> GitHub
           </a>
+
           <a
             href="https://linkedin.com/in/aliyounes"
             target="_blank"
