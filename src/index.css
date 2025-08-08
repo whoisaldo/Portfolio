@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body {
+    @apply font-sans bg-gradient-to-b from-white to-purple-50 text-neutral-900
+           dark:from-neutral-950 dark:to-neutral-900 dark:text-neutral-100;
+  }
+}
