@@ -6,6 +6,14 @@ import { ExternalLink } from "lucide-react";
 
 const projects = [
   {
+    title: "Moops Bookstore",
+    blurb: "Full-stack social book tracking platform with user auth, reading lists, reviews, and Google Books API integration. Deployed on Heroku + GitHub Pages with MongoDB Atlas.",
+    tech: ["React", "TypeScript", "Node.js", "MongoDB"],
+    gh: "https://github.com/whoisaldo/MoopBookstore",
+    live: "https://whoisaldo.github.io/MoopBookstore",
+    featured: true,
+  },
+  {
     title: "Portfolio",
     blurb: "This site — Vite + React + Tailwind, resume embed, animations, and deploy.",
     tech: ["React", "Vite", "Tailwind"],
@@ -13,7 +21,7 @@ const projects = [
   },
   {
     title: "Exerly-Fitness",
-    blurb: "Gym/health tracker: workouts, calories, sleep, auth, dashboards.",
+    blurb: "Comprehensive fitness platform with workout tracking, nutrition logging, sleep monitoring, progress analytics, and user authentication. Working on implementing OpenAI's API for 'Exerly Coach' AI assistant.",
     tech: ["React", "Node", "MongoDB"],
     gh: "https://github.com/whoisaldo/Exerly-Fitness",
     live: "https://whoisaldo.github.io/Exerly-Fitness/#/",
