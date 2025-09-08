@@ -80,7 +80,7 @@ export default function Hero() {
           </a>
 
           <a
-            href="https://linkedin.com/in/aliyounes"
+            href="https://www.linkedin.com/in/ali-younes-41a2b4296/"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 rounded-full border px-4 py-2"
