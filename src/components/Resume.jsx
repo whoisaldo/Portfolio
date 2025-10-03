@@ -7,7 +7,7 @@ import MotionSection from "./MotionSection";
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 export default function Resume() {
-  const pdf = "/resume.pdf";
+  const pdf = import.meta.env.BASE_URL + "resume.pdf";
   const [pdfError, setPdfError] = useState(false);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
@@ -29,11 +29,18 @@ export default function Resume() {
   // Test PDF accessibility on component mount
   useEffect(() => {
     console.log('Testing PDF accessibility:', pdf);
+    console.log('Base URL:', import.meta.env.BASE_URL);
+    console.log('Full PDF URL:', window.location.origin + pdf);
+    
     fetch(pdf, { method: 'HEAD' })
       .then(response => {
         console.log('PDF fetch response:', response.status, response.ok);
         if (!response.ok) {
+          console.error('PDF not accessible, status:', response.status);
           setPdfError(true);
+        } else {
+          console.log('PDF is accessible!');
+          setPdfError(false);
         }
       })
       .catch(error => {
@@ -121,7 +128,7 @@ export default function Resume() {
           ) : useIframe ? (
             <div className="flex-1">
               <iframe
-                src={`${window.location.origin}${pdf}`}
+                src={pdf}
                 className="w-full h-full"
                 title="Ali Younes Resume"
                 style={{ border: 'none' }}
