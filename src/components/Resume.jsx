@@ -23,7 +23,9 @@ export default function Resume() {
     console.error('PDF load error:', error);
     console.error('PDF path:', pdf);
     console.error('Full error details:', error);
-    setPdfError(true);
+    console.log('Falling back to iframe view...');
+    setUseIframe(true);
+    setPdfError(false); // Don't show error state, just switch to iframe
   };
 
   // Test PDF accessibility on component mount
@@ -47,7 +49,17 @@ export default function Resume() {
         console.error('PDF fetch error:', error);
         setPdfError(true);
       });
-  }, [pdf]);
+
+    // Auto-fallback to iframe after a timeout if PDF viewer doesn't load
+    const fallbackTimer = setTimeout(() => {
+      if (!numPages && !pdfError) {
+        console.log('PDF viewer taking too long, switching to iframe...');
+        setUseIframe(true);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(fallbackTimer);
+  }, [pdf, numPages, pdfError]);
 
   return (
     <MotionSection id="resume" className="max-w-6xl mx-auto px-4 py-16">
@@ -127,10 +139,10 @@ export default function Resume() {
             </div>
           ) : useIframe ? (
             <div className="flex-1">
-              <iframe
+        <iframe
                 src={pdf}
                 className="w-full h-full"
-                title="Ali Younes Resume"
+          title="Ali Younes Resume"
                 style={{ border: 'none' }}
                 onLoad={() => console.log('Iframe loaded successfully')}
                 onError={(e) => console.error('Iframe error:', e)}
@@ -145,11 +157,27 @@ export default function Resume() {
                     onLoadSuccess={onDocumentLoadSuccess}
                     onLoadError={onDocumentLoadError}
                     loading={
-                      <div className="flex items-center justify-center h-64">
+                      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                         <div className="text-gray-600 dark:text-gray-400">Loading PDF...</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500 mb-4">
+                          If this takes too long, try Browser View
+                        </div>
+                        <button
+                          onClick={() => setUseIframe(true)}
+                          className="px-4 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 
+                                     bg-indigo-50 dark:bg-indigo-900/20 rounded-lg hover:bg-indigo-100 
+                                     dark:hover:bg-indigo-900/30 transition-colors duration-200"
+                        >
+                          Switch to Browser View
+                        </button>
                       </div>
                     }
                     className="pdf-document"
+                    options={{
+                      cMapUrl: `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/cmaps/`,
+                      cMapPacked: true,
+                    }}
                   >
                     <Page 
                       pageNumber={pageNumber} 
