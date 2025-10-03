@@ -14,64 +14,113 @@ export default function About() {
         I also love to travel and explore new ideas.
       </p>
 
-      <div className="mt-10 grid gap-8 md:grid-cols-2">
+      <div className="mt-12 grid gap-8 md:grid-cols-2">
         {/* Quick facts */}
-        <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white/80 dark:bg-neutral-900/60 backdrop-blur p-6">
-          <h3 className="font-semibold">Quick Facts</h3>
-          <ul className="mt-4 space-y-3 text-sm">
-            <li className="flex items-center gap-3">
-              <Terminal size={16} className="opacity-70" />
-              Full-stack dev who enjoys both frontend polish and backend APIs.
+        <div className="group rounded-2xl border border-gray-200/50 dark:border-gray-700/50 
+                        bg-white/90 dark:bg-neutral-900/80 backdrop-blur-xl p-8 
+                        shadow-lg hover:shadow-xl transition-all duration-300
+                        hover:border-gray-300/50 dark:hover:border-gray-600/50">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500">
+              <Brain size={20} className="text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Quick Facts</h3>
+          </div>
+          <ul className="space-y-4">
+            <li className="flex items-start gap-4 group/item">
+              <div className="p-1.5 rounded-md bg-indigo-100 dark:bg-indigo-900/30 mt-0.5">
+                <Terminal size={16} className="text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Full-stack dev who enjoys both frontend polish and backend APIs.
+              </span>
             </li>
-            <li className="flex items-center gap-3">
-              <Gamepad2 size={16} className="opacity-70" />
-              Game dev fan — experienced with Roblox Studio (Lua), Unity basics (C#).
+            <li className="flex items-start gap-4 group/item">
+              <div className="p-1.5 rounded-md bg-purple-100 dark:bg-purple-900/30 mt-0.5">
+                <Gamepad2 size={16} className="text-purple-600 dark:text-purple-400" />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Game dev fan — experienced with Roblox Studio (Lua), Unity basics (C#).
+              </span>
             </li>
-            <li className="flex items-center gap-3">
-              <Car size={16} className="opacity-70" />
-              Car enthusiast — German cars, performance, and clean builds.
+            <li className="flex items-start gap-4 group/item">
+              <div className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 mt-0.5">
+                <Car size={16} className="text-red-600 dark:text-red-400" />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Car enthusiast — German cars, performance, and clean builds.
+              </span>
             </li>
-            <li className="flex items-center gap-3">
-              <Dumbbell size={16} className="opacity-70" />
-              Gym + wrestling mentality: consistent reps, steady progress.
+            <li className="flex items-start gap-4 group/item">
+              <div className="p-1.5 rounded-md bg-green-100 dark:bg-green-900/30 mt-0.5">
+                <Dumbbell size={16} className="text-green-600 dark:text-green-400" />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Gym + wrestling mentality: consistent reps, steady progress.
+              </span>
             </li>
-            <li className="flex items-center gap-3">
-              <Puzzle size={16} className="opacity-70" />
-              Rubik’s Cube, chess, and logic puzzles for fun.
+            <li className="flex items-start gap-4 group/item">
+              <div className="p-1.5 rounded-md bg-yellow-100 dark:bg-yellow-900/30 mt-0.5">
+                <Puzzle size={16} className="text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Rubik's Cube, chess, and logic puzzles for fun.
+              </span>
             </li>
-            <li className="flex items-center gap-3">
-              <Globe size={16} className="opacity-70" />
-              Love to travel and learn from different cultures.
+            <li className="flex items-start gap-4 group/item">
+              <div className="p-1.5 rounded-md bg-blue-100 dark:bg-blue-900/30 mt-0.5">
+                <Globe size={16} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Love to travel and learn from different cultures.
+              </span>
             </li>
-            <li className="flex items-center gap-3">
-              <Brain size={16} className="opacity-70" />
-              Interested in systems, reasoning, and clean abstractions.
+            <li className="flex items-start gap-4 group/item">
+              <div className="p-1.5 rounded-md bg-pink-100 dark:bg-pink-900/30 mt-0.5">
+                <Brain size={16} className="text-pink-600 dark:text-pink-400" />
+              </div>
+              <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                Interested in systems, reasoning, and clean abstractions.
+              </span>
             </li>
           </ul>
         </div>
 
         {/* Tech stack */}
-        <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-white/80 dark:bg-neutral-900/60 backdrop-blur p-6">
-          <h3 className="font-semibold">What I Work With</h3>
-          <div className="mt-4 flex flex-wrap gap-2">
+        <div className="group rounded-2xl border border-gray-200/50 dark:border-gray-700/50 
+                        bg-white/90 dark:bg-neutral-900/80 backdrop-blur-xl p-8 
+                        shadow-lg hover:shadow-xl transition-all duration-300
+                        hover:border-gray-300/50 dark:hover:border-gray-600/50">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500">
+              <Terminal size={20} className="text-white" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">What I Work With</h3>
+          </div>
+          <div className="flex flex-wrap gap-3">
             {[
               "React", "Vite", "Tailwind CSS", "Node.js", "Express",
               "MongoDB", "Java", "C++", "C#", "Lua (Roblox)", "TypeScript", "Git/GitHub",
             ].map((item) => (
               <span
                 key={item}
-                className="rounded-full border border-black/10 dark:border-white/10 px-3 py-1 text-xs
-                           bg-white/60 dark:bg-neutral-800/60"
+                className="group/tag rounded-full border border-gray-200 dark:border-gray-700 
+                           px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300
+                           bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50
+                           hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200
+                           hover:scale-105 hover:shadow-sm"
               >
                 {item}
               </span>
             ))}
           </div>
 
-          <div className="mt-6 text-sm">
-            <p>
-              Currently building <strong>Exerly Fitness</strong>: sleep tracking, calorie counter,
-              maintenance calculator, and more—full-stack with auth and dashboards.
+          <div className="mt-8 p-4 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 
+                          dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-200/50 
+                          dark:border-indigo-700/50">
+            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+              Currently building <strong className="text-indigo-600 dark:text-indigo-400">Exerly Fitness</strong>: 
+              sleep tracking, calorie counter, maintenance calculator, and more—full-stack with auth and dashboards.
             </p>
           </div>
         </div>

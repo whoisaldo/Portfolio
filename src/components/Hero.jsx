@@ -26,7 +26,7 @@ export default function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
         >
-          Building clean, human-centered software.
+          Building clean, intuitive software.
         </motion.h1>
 
         <motion.p
@@ -40,22 +40,29 @@ export default function Hero() {
         </motion.p>
 
         <motion.div
-          className="mt-6 flex flex-wrap gap-3"
+          className="mt-8 flex flex-wrap gap-4"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <a
             href="#projects"
-            className="rounded-full bg-gradient-to-r from-indigo-600 to-fuchsia-600
-                       px-5 py-2 text-white shadow-glow hover:translate-y-[-1px] transition"
+            className="group relative rounded-full bg-gradient-to-r from-indigo-600 to-fuchsia-600
+                       px-6 py-3 text-white font-medium shadow-lg hover:shadow-xl 
+                       hover:translate-y-[-2px] transition-all duration-300
+                       before:absolute before:inset-0 before:rounded-full before:bg-gradient-to-r 
+                       before:from-indigo-700 before:to-fuchsia-700 before:opacity-0 
+                       hover:before:opacity-100 before:transition-opacity before:duration-300"
           >
-            See Projects
+            <span className="relative z-10">See Projects</span>
           </a>
 
           <a
             href={pdf}
-            className="rounded-full border px-5 py-2 hover:bg-black/5 dark:hover:bg-white/5"
+            className="group rounded-full border border-gray-200 dark:border-gray-700 
+                       px-6 py-3 font-medium text-gray-700 dark:text-gray-300
+                       hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600
+                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md"
             download
           >
             Download Resume
@@ -65,27 +72,39 @@ export default function Hero() {
             href="https://whoisaldo.github.io/Exerly-Fitness/#/"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 hover:bg-black/5 dark:hover:bg-white/5"
+            className="group inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 
+                       px-5 py-3 font-medium text-gray-700 dark:text-gray-300
+                       hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600
+                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md"
           >
-            <ExternalLink size={16} /> Try Exerly
+            <ExternalLink size={16} className="group-hover:scale-110 transition-transform duration-300" /> 
+            Try Exerly
           </a>
 
           <a
             href="https://github.com/whoisaldo"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-2"
+            className="group inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 
+                       px-5 py-3 font-medium text-gray-700 dark:text-gray-300
+                       hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600
+                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md"
           >
-            <Github size={16} /> GitHub
+            <Github size={16} className="group-hover:scale-110 transition-transform duration-300" /> 
+            GitHub
           </a>
 
           <a
             href="https://www.linkedin.com/in/ali-younes-41a2b4296/"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-2"
+            className="group inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 
+                       px-5 py-3 font-medium text-gray-700 dark:text-gray-300
+                       hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600
+                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md"
           >
-            <Linkedin size={16} /> LinkedIn
+            <Linkedin size={16} className="group-hover:scale-110 transition-transform duration-300" /> 
+            LinkedIn
           </a>
         </motion.div>
       </div>

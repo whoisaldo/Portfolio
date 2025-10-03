@@ -4,20 +4,58 @@ import ThemeToggle from "./ThemeToggle";
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b border-black/5 dark:border-white/10
-                       bg-white/70 dark:bg-neutral-950/60 backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-        <a href="#" className="font-display text-lg font-semibold">
-          <span className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 bg-clip-text text-transparent">
+    <header className="sticky top-0 z-50 border-b border-gray-200/50 dark:border-gray-700/50
+                       bg-white/80 dark:bg-neutral-950/80 backdrop-blur-xl shadow-sm">
+      <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <a 
+          href="#" 
+          className="group font-display text-xl font-bold transition-all duration-300 hover:scale-105"
+        >
+          <span className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 bg-clip-text text-transparent
+                          group-hover:from-indigo-600 group-hover:to-fuchsia-600 transition-all duration-300">
             Ali Younes
           </span>
         </a>
-        <nav className="hidden sm:flex items-center gap-6 text-sm">
-          <a href="#about" className="hover:opacity-80">About</a>
-          <a href="#projects" className="hover:opacity-80">Projects</a>
-          <a href="#resume" className="hover:opacity-80">Resume</a>
-          <a href="#contact" className="hover:opacity-80">Contact</a>
-          <ThemeToggle />
+        <nav className="hidden sm:flex items-center gap-8 text-sm">
+          <a 
+            href="#about" 
+            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 
+                       transition-colors duration-300 group"
+          >
+            About
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 
+                            group-hover:w-full transition-all duration-300"></span>
+          </a>
+          <a 
+            href="#projects" 
+            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 
+                       transition-colors duration-300 group"
+          >
+            Projects
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 
+                            group-hover:w-full transition-all duration-300"></span>
+          </a>
+          <a 
+            href="#resume" 
+            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 
+                       transition-colors duration-300 group"
+          >
+            Resume
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 
+                            group-hover:w-full transition-all duration-300"></span>
+          </a>
+          <a 
+            href="#contact" 
+            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 
+                       transition-colors duration-300 group"
+          >
+            Contact
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 
+                            group-hover:w-full transition-all duration-300"></span>
+          </a>
+          <div className="ml-2">
+            <ThemeToggle />
+          </div>
         </nav>
         <div className="sm:hidden">
           <ThemeToggle />
