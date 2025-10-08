@@ -15,7 +15,7 @@
 
   /* Improved focus styles */
   *:focus-visible {
-    @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
+    @apply outline-none ring-2 ring-indigo-400 ring-offset-2 ring-offset-neutral-900;
   }
 
   /* Better selection styles */
@@ -44,10 +44,12 @@
 
   /* Enhanced card styles */
   .card {
-    @apply rounded-2xl border border-gray-200/50 dark:border-gray-700/50 
-           bg-white/90 dark:bg-neutral-900/80 backdrop-blur-xl 
-           shadow-lg hover:shadow-xl transition-all duration-300
-           hover:border-gray-300/50 dark:hover:border-gray-600/50;
+    @apply rounded-2xl border border-white/10 bg-neutral-900/60 backdrop-blur p-6 shadow-lg shadow-black/20;
+  }
+
+  /* Gradient heading utility */
+  .gradient-heading {
+    @apply bg-gradient-to-r from-indigo-400 via-fuchsia-400 to-sky-400 bg-clip-text text-transparent;
   }
 
   /* Smooth animations */

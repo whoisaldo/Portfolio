@@ -3,7 +3,9 @@ import React from "react";
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import About from "./components/About";
+import TechStack from "./components/TechStack";
 import Projects from "./components/Projects";
+import Interests from "./components/Interests";
 import Resume from "./components/Resume";
 
 export default function App() {
@@ -13,16 +15,21 @@ export default function App() {
       <main>
         <Hero />
         <About />
+        <TechStack />
         <Projects />
+        <Interests />
         <Resume />
 
-        <section id="contact" className="max-w-6xl mx-auto px-4 py-20">
+        <section id="contact" className="max-w-6xl mx-auto px-4 py-16 md:py-20" aria-labelledby="contact-heading">
           <div className="text-center mb-12">
-            <h2 className="font-display text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+            <h2 id="contact-heading" className="text-3xl md:text-4xl font-bold tracking-tight gradient-heading mb-4">
               Let's Connect
             </h2>
             <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
               I'm always interested in new opportunities, collaborations, or just having a chat about tech, cars, or anything interesting!
+            </p>
+            <p className="text-sm text-neutral-400 mt-2">
+              Based in Boston, MA · Open to internships/part-time while in classes.
             </p>
           </div>
 
@@ -114,9 +121,10 @@ export default function App() {
                   href="https://github.com/whoisaldo"
                   target="_blank"
                   rel="noreferrer"
-                  className="group/link flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 
+                  className="group/link w-full sm:w-auto flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 
                              hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-200 dark:hover:border-indigo-700
-                             border border-transparent transition-all duration-300 hover:scale-105 hover:shadow-md"
+                             border border-transparent transition-all duration-300 hover:scale-105 hover:shadow-md
+                             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   <div className="p-2 rounded-lg bg-gray-900 dark:bg-gray-100">
                     <svg className="w-5 h-5 text-white dark:text-gray-900" fill="currentColor" viewBox="0 0 20 20">
@@ -138,9 +146,10 @@ export default function App() {
                   href="https://www.linkedin.com/in/ali-younes-41a2b4296/"
                   target="_blank"
                   rel="noreferrer"
-                  className="group/link flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 
+                  className="group/link w-full sm:w-auto flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 
                              hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-200 dark:hover:border-blue-700
-                             border border-transparent transition-all duration-300 hover:scale-105 hover:shadow-md"
+                             border border-transparent transition-all duration-300 hover:scale-105 hover:shadow-md
+                             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   <div className="p-2 rounded-lg bg-blue-600">
                     <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -162,9 +171,10 @@ export default function App() {
                   href="https://whoisaldo.github.io/Exerly-Fitness/#/"
                   target="_blank"
                   rel="noreferrer"
-                  className="group/link flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 
+                  className="group/link w-full sm:w-auto flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 
                              hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 dark:hover:border-purple-700
-                             border border-transparent transition-all duration-300 hover:scale-105 hover:shadow-md"
+                             border border-transparent transition-all duration-300 hover:scale-105 hover:shadow-md
+                             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

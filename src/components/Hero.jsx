@@ -6,7 +6,7 @@ import MotionSection from "./MotionSection";
 
 export default function Hero() {
   // Use base-aware path so resume works on GitHub Pages (/Portfolio/)
-  const pdf = import.meta.env.BASE_URL + "resume.pdf";
+  const pdf = (import.meta.env.BASE_URL || '/') + "resume.pdf";
 
   return (
     <MotionSection className="relative overflow-hidden">
@@ -15,13 +15,13 @@ export default function Hero() {
                     bg-gradient-to-r from-indigo-400/20 via-fuchsia-400/20 to-purple-400/20
                     blur-3xl"
       />
-      <div className="max-w-6xl mx-auto px-4 pt-14 pb-10">
+      <div className="max-w-6xl mx-auto px-4 pt-14 pb-16 md:pb-20">
         <p className="text-xs uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
           Lebanese-American • Boston, MA • Northeastern ’27
         </p>
 
         <motion.h1
-          className="mt-3 font-display text-4xl sm:text-5xl font-extrabold leading-tight"
+          className="mt-3 font-display text-3xl md:text-4xl font-bold tracking-tight gradient-heading"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
@@ -30,7 +30,7 @@ export default function Hero() {
         </motion.h1>
 
         <motion.p
-          className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-300"
+          className="mt-3 max-w-2xl text-neutral-600 dark:text-neutral-300"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
@@ -40,7 +40,7 @@ export default function Hero() {
         </motion.p>
 
         <motion.div
-          className="mt-8 flex flex-wrap gap-4"
+          className="mt-6 flex flex-wrap gap-3"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -52,7 +52,8 @@ export default function Hero() {
                        hover:translate-y-[-2px] transition-all duration-300
                        before:absolute before:inset-0 before:rounded-full before:bg-gradient-to-r 
                        before:from-indigo-700 before:to-fuchsia-700 before:opacity-0 
-                       hover:before:opacity-100 before:transition-opacity before:duration-300"
+                       hover:before:opacity-100 before:transition-opacity before:duration-300
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
           >
             <span className="relative z-10">See Projects</span>
           </a>
@@ -62,7 +63,8 @@ export default function Hero() {
             className="group rounded-full border border-gray-200 dark:border-gray-700 
                        px-6 py-3 font-medium text-gray-700 dark:text-gray-300
                        hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600
-                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md"
+                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
             download
           >
             Download Resume
@@ -75,7 +77,8 @@ export default function Hero() {
             className="group inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 
                        px-5 py-3 font-medium text-gray-700 dark:text-gray-300
                        hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600
-                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md"
+                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
           >
             <ExternalLink size={16} className="group-hover:scale-110 transition-transform duration-300" /> 
             Try Exerly
@@ -88,7 +91,8 @@ export default function Hero() {
             className="group inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 
                        px-5 py-3 font-medium text-gray-700 dark:text-gray-300
                        hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600
-                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md"
+                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
           >
             <Github size={16} className="group-hover:scale-110 transition-transform duration-300" /> 
             GitHub
@@ -101,7 +105,8 @@ export default function Hero() {
             className="group inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-700 
                        px-5 py-3 font-medium text-gray-700 dark:text-gray-300
                        hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600
-                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md"
+                       hover:translate-y-[-1px] transition-all duration-300 shadow-sm hover:shadow-md
+                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
           >
             <Linkedin size={16} className="group-hover:scale-110 transition-transform duration-300" /> 
             LinkedIn
