@@ -1,0 +1,14 @@
+# Node / build
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+
+# Tooling
+.vercel/
+.netlify/
+
+# Env (if you add one later)
+.env
+.env.*
