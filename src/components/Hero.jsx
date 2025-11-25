@@ -17,7 +17,7 @@ export default function Hero() {
       />
       <div className="max-w-6xl mx-auto px-4 pt-14 pb-16 md:pb-20">
         <p className="text-xs uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
-          Lebanese-American • Boston, MA • Northeastern ’27
+          Lebanese-American • Boston, MA • Northeastern '27
         </p>
 
         <motion.h1

@@ -3,6 +3,7 @@ import React from "react";
 import MotionSection from "./MotionSection";
 import { Car, Dumbbell, Gamepad2, Globe, Brain, Puzzle, Terminal } from "lucide-react";
 import personalPhoto from "../assets/personal pictures/PersonalFacePicture.jpg";
+import PhilipsLogo from "../assets/PreviousExperience/PhilipsLogo.svg";
 
 export default function About() {
 
@@ -28,9 +29,25 @@ export default function About() {
 
           {/* Introduction Text and Quick Facts */}
           <div className="flex-1 text-left lg:text-left">
-            <h2 id="about-heading" className="font-display text-3xl md:text-4xl font-bold tracking-tight gradient-heading mb-6">
-              About Me
-            </h2>
+            <div className="flex items-baseline justify-between mb-6 max-w-2xl">
+              <h2 id="about-heading" className="font-display text-3xl md:text-4xl font-bold tracking-tight gradient-heading">
+                About Me
+              </h2>
+              <div className="flex items-center gap-2.5 flex-shrink-0">
+                <span className="text-xs uppercase tracking-wider font-medium px-3 py-1.5 rounded-full 
+                                bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30
+                                border border-indigo-200/50 dark:border-indigo-700/50
+                                text-indigo-700 dark:text-indigo-300
+                                shadow-sm whitespace-nowrap">
+                  Previously at
+                </span>
+                <img 
+                  src={PhilipsLogo} 
+                  alt="Philips" 
+                  className="h-20 w-auto opacity-80 hover:opacity-100 transition-opacity duration-200"
+                />
+              </div>
+            </div>
             <p className="text-lg text-neutral-700 dark:text-neutral-300 leading-relaxed max-w-2xl mb-8">
               I'm a Lebanese-American developer from Massachusetts, studying Computer Science & Political Science
               at Northeastern (Class of 2027). I love building polished, intuitive software—from full-stack web apps
