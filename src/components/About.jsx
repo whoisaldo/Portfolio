@@ -33,20 +33,11 @@ export default function About() {
               <h2 id="about-heading" className="font-display text-3xl md:text-4xl font-bold tracking-tight gradient-heading">
                 About Me
               </h2>
-              <div className="flex items-center gap-2.5 flex-shrink-0">
-                <span className="text-xs uppercase tracking-wider font-medium px-3 py-1.5 rounded-full 
-                                bg-gradient-to-r from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30
-                                border border-indigo-200/50 dark:border-indigo-700/50
-                                text-indigo-700 dark:text-indigo-300
-                                shadow-sm whitespace-nowrap">
-                  Previously at
-                </span>
-                <img 
-                  src={PhilipsLogo} 
-                  alt="Philips" 
-                  className="h-20 w-auto opacity-80 hover:opacity-100 transition-opacity duration-200"
-                />
-              </div>
+              <img 
+                src={PhilipsLogo} 
+                alt="Philips" 
+                className="h-20 w-auto opacity-80 hover:opacity-100 transition-opacity duration-200 flex-shrink-0"
+              />
             </div>
             <p className="text-lg text-neutral-700 dark:text-neutral-300 leading-relaxed max-w-2xl mb-8">
               I'm a Lebanese-American developer from Massachusetts, studying Computer Science & Political Science
