@@ -18,6 +18,11 @@ import exerlyImage2 from "../assets/Exerly-Fitness/image1.png";
 import exerlyImage3 from "../assets/Exerly-Fitness/image3.png";
 import exerlyImage4 from "../assets/Exerly-Fitness/image4.png";
 
+// Import Fade Empire images
+import fadeEmpireImage1 from "../assets/ChicopeeFadeEmpire/MobileFrontFadeEmpire.png";
+import fadeEmpireImage2 from "../assets/ChicopeeFadeEmpire/MobileMiddleFadeEmpire.png";
+import fadeEmpireImage3 from "../assets/ChicopeeFadeEmpire/MobileBookingFormFadeEmpire.png";
+
 const projects = [
   {
     title: "Moops Bookstore",
@@ -52,31 +57,8 @@ const projects = [
   {
     title: "Portfolio Website",
     blurb: "Modern, responsive portfolio website showcasing projects, skills, and experience. Features interactive elements, smooth animations, and a built-in resume viewer with PDF integration.",
-    description: "A personal portfolio website built with modern web technologies to showcase my work, skills, and experience. Features include interactive animations, responsive design, and seamless PDF integration for resume viewing.",
-    features: [
-      "Responsive design for all screen sizes",
-      "Interactive animations with Framer Motion",
-      "Built-in PDF resume viewer",
-      "Dark/light mode toggle",
-      "Smooth scrolling navigation",
-      "Contact form integration"
-    ],
-    challenges: [
-      "Implementing smooth animations without performance issues",
-      "Creating responsive design for all devices",
-      "Integrating PDF viewer with fallback options",
-      "Optimizing for fast loading times"
-    ],
-    accomplishments: [
-      "Achieved 95+ Lighthouse performance score",
-      "Implemented accessible design patterns",
-      "Created smooth, engaging user experience",
-      "Successfully deployed to GitHub Pages"
-    ],
     tech: ["React", "Vite", "Tailwind CSS", "Framer Motion", "React-PDF", "Lucide React"],
     gh: "https://github.com/whoisaldo/Portfolio",
-    featured: true,
-    buildLog: "Vite + Tailwind → Resume embed → GH Pages."
   },
   {
     title: "Exerly Fitness Platform",
@@ -108,6 +90,36 @@ const projects = [
     live: "https://whoisaldo.github.io/Exerly-Fitness/#/",
     featured: true,
     buildLog: "Auth (JWT) → Workout/Nutrition models → Dashboards → Heroku deploy."
+  },
+  {
+    title: "Fade Empire Barbershop Website",
+    blurb: "A modern, luxury barbershop website built with vanilla HTML, CSS, and JavaScript. Features a mobile-first responsive design with optimized image loading, WhatsApp/SMS booking integration, and a dynamic portfolio gallery. Deployed as a static site via GitHub Pages to minimize hosting costs while delivering a premium user experience across all devices.",
+    description: "A premium barbershop website designed to showcase services, portfolio, and provide an easy booking experience for clients. Built as a static site to minimize hosting costs while delivering a luxury user experience.",
+    features: [
+      "Mobile-first responsive design",
+      "WhatsApp/SMS booking integration",
+      "Dynamic portfolio gallery",
+      "Optimized image loading",
+      "Service showcase with pricing",
+      "Static site deployment (GitHub Pages)"
+    ],
+    challenges: [
+      "Creating luxury aesthetic with vanilla CSS",
+      "Implementing mobile-first responsive design",
+      "Optimizing performance for static hosting",
+      "Integrating WhatsApp/SMS booking without backend"
+    ],
+    accomplishments: [
+      "Delivered premium user experience with static site",
+      "Achieved fast loading times with optimized images",
+      "Successfully deployed cost-effective solution",
+      "Created responsive design for all devices"
+    ],
+    tech: ["HTML5", "CSS3", "JavaScript (ES6+)", "React (booking form)"],
+    gh: "https://github.com/whoisaldo/FadeEmpire",
+    live: "https://chicopeefadeempire.com",
+    featured: true,
+    buildLog: "Vanilla HTML/CSS/JS → React booking form → GitHub Pages deploy."
   },
   {
     title: "CS3520-Summer-2025",
@@ -156,6 +168,13 @@ export default function Projects() {
     { src: exerlyImage4, title: "Progress Analytics", description: "Data visualization and fitness progress tracking" }
   ];
 
+  // Fade Empire images data
+  const fadeEmpireImages = [
+    { src: fadeEmpireImage1, title: "Mobile Homepage", description: "Modern, luxury barbershop homepage with service showcase" },
+    { src: fadeEmpireImage2, title: "Portfolio Gallery", description: "Dynamic portfolio gallery displaying client transformations" },
+    { src: fadeEmpireImage3, title: "Booking Form", description: "WhatsApp/SMS booking integration for easy appointment scheduling" }
+  ];
+
   const openImageModal = (index, projectTitle) => {
     setCurrentImageIndex(index);
     if (projectTitle === "Moops Bookstore") {
@@ -164,6 +183,9 @@ export default function Projects() {
     } else if (projectTitle === "Exerly Fitness Platform") {
       setCurrentImageSet(exerlyImages);
       setSelectedImage(exerlyImages[index]);
+    } else if (projectTitle === "Fade Empire Barbershop Website") {
+      setCurrentImageSet(fadeEmpireImages);
+      setSelectedImage(fadeEmpireImages[index]);
     }
   };
 
@@ -304,6 +326,35 @@ export default function Projects() {
                       <h5 className="text-xs font-semibold text-gray-800 dark:text-gray-200 mb-2">Screenshots:</h5>
                       <div className="grid grid-cols-2 gap-2">
                         {exerlyImages.slice(0, 4).map((image, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => openImageModal(idx, p.title)}
+                            className="group relative overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 aspect-video hover:scale-105 transition-transform duration-200"
+                          >
+                            <img
+                              src={image.src}
+                              alt={image.title}
+                              className="w-full h-full object-cover group-hover:brightness-110 transition-all duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Fade Empire Image Gallery */}
+                  {p.title === "Fade Empire Barbershop Website" && (
+                    <div className="mb-4">
+                      <h5 className="text-xs font-semibold text-gray-800 dark:text-gray-200 mb-2">Screenshots:</h5>
+                      <div className="grid grid-cols-3 gap-2">
+                        {fadeEmpireImages.slice(0, 3).map((image, idx) => (
                           <button
                             key={idx}
                             onClick={() => openImageModal(idx, p.title)}
@@ -469,8 +520,8 @@ export default function Projects() {
 
       {/* Image Modal */}
       {selectedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="relative max-w-4xl max-h-[90vh] mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center">
             {/* Close Button */}
             <button
               onClick={closeImageModal}
@@ -482,14 +533,14 @@ export default function Projects() {
             {/* Navigation Buttons */}
             <button
               onClick={prevImage}
-              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30 transition-all duration-200"
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30 transition-all duration-200"
             >
               <ChevronLeft size={24} className="text-white" />
             </button>
 
             <button
               onClick={nextImage}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30 transition-all duration-200"
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30 transition-all duration-200"
             >
               <ChevronRight size={24} className="text-white" />
             </button>
@@ -498,7 +549,7 @@ export default function Projects() {
             <img
               src={selectedImage.src}
               alt={selectedImage.title}
-              className="w-full h-full object-contain rounded-lg shadow-2xl"
+              className="max-w-full max-h-[85vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
             />
 
             {/* Image Info */}
