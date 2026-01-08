@@ -2,7 +2,7 @@
 import React from "react";
 import MotionSection from "./MotionSection";
 import { Car, Dumbbell, Gamepad2, Globe, Brain, Puzzle, Terminal } from "lucide-react";
-import personalPhoto from "../assets/personal pictures/PersonalFacePicture.jpg";
+import personalPhoto from "../assets/personal pictures/PersonalFacePictureNEW.png";
 import PhilipsLogo from "../assets/PreviousExperience/PhilipsLogo.svg";
 
 export default function About() {

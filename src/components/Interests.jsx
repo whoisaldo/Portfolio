@@ -7,6 +7,8 @@ import bmwModule from "../assets/personal pictures/BMWTuningModule.jpg";
 import wrestlingPhoto from "../assets/personal pictures/WrestlingPicture.jpg";
 import computerBuild from "../assets/personal pictures/ComputerBuilds.jpg";
 import sumoBot from "../assets/personal pictures/CornerstoneEngineeringSumoWrestlingBot.png";
+import robloxGame from "../assets/personal pictures/RobloxGameDevelopment.png";
+import carplayRetrofit from "../assets/personal pictures/CarplayRetrofitting.JPG";
 
 export default function Interests() {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -47,6 +49,20 @@ export default function Interests() {
       description: "Engineering project building autonomous sumo wrestling robots. Combines mechanical design, programming, and strategy in competitive robotics.",
       gradient: "from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20",
       textColor: "text-purple-600 dark:text-purple-400"
+    },
+    {
+      image: robloxGame,
+      title: "Roblox Game Development",
+      description: "Creating immersive games and experiences in Roblox Studio using Lua scripting. Building interactive worlds, game mechanics, and engaging gameplay systems.",
+      gradient: "from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20",
+      textColor: "text-orange-600 dark:text-orange-400"
+    },
+    {
+      image: carplayRetrofit,
+      title: "CarPlay Retrofit",
+      description: "Modernizing older vehicles by retrofitting Apple CarPlay systems. Combining automotive electronics knowledge with hands-on installation work.",
+      gradient: "from-slate-50 to-gray-50 dark:from-slate-900/20 dark:to-gray-900/20",
+      textColor: "text-slate-600 dark:text-slate-400"
     }
   ];
 
