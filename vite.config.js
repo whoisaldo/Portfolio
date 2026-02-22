@@ -4,5 +4,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: process.env.NODE_ENV === 'production' ? '/Portfolio/' : '/', // Only use /Portfolio/ for production
+  base: '/', // Root base for aliyounes.dev and GitHub Pages
 })
