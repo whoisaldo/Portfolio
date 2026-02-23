@@ -13,41 +13,41 @@ const experiences = [
   {
     type: "work",
     title: "Software Engineering Co-op",
-    subtitle: "System Integration",
+    subtitle: "System Integration and Automation",
     company: "Philips",
     period: "2025 - Present",
     location: "Cambridge, MA",
     logo: philipsLogo,
-    description: "Working on enterprise-level healthcare imaging systems, focusing on system integration, performance optimization, and automation.",
+    description: "Building and scaling VM automation and automated deployment pipelines for Philips' PicIX enterprise imaging platform—from single-node setups to large-scale infrastructure.",
     metrics: [
-      { value: "100s", label: "Servers Automated" },
-      { value: "Global", label: "Healthcare Impact" },
+      { value: "VM", label: "Automation" },
       { value: "PicIX", label: "Platform" },
-      { value: "24/7", label: "System Uptime" },
+      { value: "DevOps", label: "Pipelines" },
+      { value: "24/7", label: "Uptime" },
     ],
     highlights: [
       {
-        icon: Server,
-        title: "PicIX Platform Development",
-        description: "Contributing to PicIX, Philips' enterprise imaging infrastructure that manages medical imaging data across healthcare systems worldwide."
+        icon: Cpu,
+        title: "Virtual Machine Automation",
+        description: "Designing and implementing large- and small-scale VM automation workflows—provisioning, configuration, and lifecycle management for PicIX infrastructure."
       },
       {
         icon: Zap,
-        title: "Performance Testing & Optimization",
-        description: "Conducting comprehensive performance testing and optimization to ensure system reliability and speed for critical healthcare applications."
+        title: "Automated PicIX Setups",
+        description: "Building end-to-end automated setups and deployment pipelines for the PicIX platform, enabling consistent, repeatable deployments across environments."
       },
       {
-        icon: Cpu,
-        title: "Server Automation",
-        description: "Automated system server configurations and deployments, impacting hundreds of computers across the organization and significantly accelerating workflow efficiency."
+        icon: Server,
+        title: "DevOps & Infrastructure",
+        description: "Leveraging C#, PowerShell, and .NET Framework to drive infrastructure-as-code practices, CI/CD, and operational automation for enterprise imaging systems."
       },
       {
         icon: Users,
         title: "Enterprise Impact",
-        description: "Work directly impacts healthcare providers globally, ensuring medical imaging systems run efficiently and reliably for patient care."
+        description: "Automation and tooling directly support healthcare providers globally, ensuring PicIX imaging systems deploy and run reliably at scale."
       }
     ],
-    skills: ["System Integration", "Performance Testing", "Server Automation", "Python", "Enterprise Software", "Healthcare IT"],
+    skills: ["C#", ".NET Framework", "PowerShell", "DevOps", "VM Automation", "PicIX", "Infrastructure as Code", "Healthcare IT"],
     icon: Briefcase,
   },
   {

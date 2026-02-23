@@ -8,7 +8,7 @@ const fileSystem = {
   "~": {
     type: "dir",
     children: {
-      "about.txt": { type: "file", content: `Ali Younes - Full-Stack Developer\n\nCS student at Northeastern University.\nCurrently working at Philips on Systems Integration.\nPassionate about building clean, performant software.\n\nType 'cat skills.md' to see my technical abilities.` },
+      "about.txt": { type: "file", content: `Ali Younes - Full-Stack Developer\n\nCS student at Northeastern University.\nCurrently at Philips: VM automation, automated PicIX setups, DevOps—using C#, PowerShell, .NET.\nPassionate about building clean, performant software.\n\nType 'cat skills.md' to see my technical abilities.` },
       "skills.md": { type: "file", content: `# Technical Skills\n\n## Languages\n- JavaScript/TypeScript ████████████████████ Expert\n- C++                  ████████████████░░░░ Advanced  \n- Java                 ██████████████░░░░░░ Proficient\n- Python               ████████████░░░░░░░░ Proficient\n- Lua                  ████████████████░░░░ Advanced\n\n## Frontend\nReact, Tailwind CSS, Framer Motion, HTML5, CSS3\n\n## Backend\nNode.js, Express, MongoDB, REST APIs, JWT` },
       "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "phone": "(413) 409-9563",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/ali-younes-41a2b4296",\n  "status": "Open to opportunities!"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file - use 'open resume.pdf' to download]` },
@@ -34,7 +34,7 @@ const fileSystem = {
       "experience": {
         type: "dir",
         children: {
-          "philips.md": { type: "file", content: `# Philips - Software Engineering Co-op\nSystem Integration | 2025 - Present | Cambridge, MA\n\n- PicIX platform development & enterprise imaging\n- Performance testing & optimization\n- Server automation (100s of computers)\n- Healthcare IT systems impact` },
+          "philips.md": { type: "file", content: `# Philips - Software Engineering Co-op\nSystem Integration and Automation | 2025 - Present | Cambridge, MA\n\n- Large- and small-scale virtual machine automation\n- Automated setups & deployment pipelines for PicIX platform\n- C#, .NET Framework, PowerShell, DevOps\n- Enterprise imaging infrastructure at scale` },
           "topchoice.md": { type: "file", content: `# Top Choice Realty - Frontend Developer Intern\nApr 2024 - Aug 2024 | New York, NY\n\n- Built full-stack app (React, Python, SQL)\n- 85% faster lookups, 3x query speed\n- Managed 800+ client records\n- Saved team 15+ hours/week` },
           "defalco.md": { type: "file", content: `# Robert DeFalco Realty - Computer Technician\nJun 2023 - Sep 2023 | New York, NY\n\n- On-site support across 3+ offices\n- Configured 15+ systems (Win/Mac/Linux)\n- Maintained 95%+ system uptime` },
         }
@@ -434,7 +434,7 @@ AUTHOR
      Northeastern University with a passion for 
      building clean, performant software.
 
-  💼 Currently: Systems Integration Engineering @ Philips
+  💼 Currently: System Integration and Automation @ Philips (C#, PowerShell, .NET)
 
   🎯 I love solving complex problems and shipping
      products that make a difference.
@@ -471,13 +471,13 @@ AUTHOR
 ════════════════════════════════════════════════════════════
 
 ┌─ PHILIPS ──────────────────────────────────────────────────
-│  Software Engineering Co-op (System Integration)
+│  Software Engineering Co-op (System Integration and Automation)
 │  📅 2025 - Present  │  📍 Cambridge, MA
 │
-│  • PicIX platform development & enterprise imaging
-│  • Performance testing & optimization at scale
-│  • Server automation affecting 100s of computers
-│  • Healthcare IT systems with global impact
+│  • Large- & small-scale VM automation
+│  • Automated PicIX setups & deployment pipelines
+│  • C#, DevOps, PowerShell, .NET Framework
+│  • Enterprise imaging infrastructure at scale
 └────────────────────────────────────────────────────────────
 
 ┌─ TOP CHOICE REALTY ────────────────────────────────────────

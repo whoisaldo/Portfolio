@@ -52,7 +52,7 @@ export default function Hero() {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
           </span>
           <span className="text-sm font-medium text-purple-300">
-            Software Engineering (System Integration) @ Philips
+            Software Engineering (System Integration and Automation) @ Philips
           </span>
         </motion.div>
 
