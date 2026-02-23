@@ -1,5 +1,5 @@
 // src/App.jsx - OPTIMIZED
-import React from "react";
+import React, { useEffect } from "react";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import BentoProjects from "./components/BentoProjects";
@@ -10,6 +10,14 @@ import { Github, Linkedin, Mail, Phone } from "lucide-react";
 
 export default function App() {
   const pdf = (import.meta.env.BASE_URL || '/') + "resume.pdf";
+
+  // Always start at top on load; prevent scroll restoration from previous visit
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.history.scrollRestoration = 'manual';
+      window.scrollTo(0, 0);
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-neutral-100">

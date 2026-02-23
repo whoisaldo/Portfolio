@@ -921,7 +921,6 @@ Date:   ${new Date().toDateString()}
                   style={{ caretColor: '#a855f7' }}
                   autoComplete="off"
                   spellCheck="false"
-                  autoFocus
                 />
                 {/* Suggestions dropdown */}
                 {suggestions.length > 0 && (
