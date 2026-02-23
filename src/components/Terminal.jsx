@@ -8,8 +8,8 @@ const fileSystem = {
   "~": {
     type: "dir",
     children: {
-      "about.txt": { type: "file", content: `Ali Younes - Full-Stack Developer\n\nCS student at Northeastern University.\nCurrently at Philips: VM automation, automated PicIX setups, DevOps—using C#, PowerShell, .NET.\nPassionate about building clean, performant software.\n\nType 'cat skills.md' to see my technical abilities.` },
-      "skills.md": { type: "file", content: `# Technical Skills\n\n## Languages\n- JavaScript/TypeScript ████████████████████ Expert\n- C++                  ████████████████░░░░ Advanced  \n- Java                 ██████████████░░░░░░ Proficient\n- Python               ████████████░░░░░░░░ Proficient\n- Lua                  ████████████████░░░░ Advanced\n\n## Frontend\nReact, Tailwind CSS, Framer Motion, HTML5, CSS3\n\n## Backend\nNode.js, Express, MongoDB, REST APIs, JWT` },
+      "about.txt": { type: "file", content: `Ali Younes - Software Engineer & Architect\n\nCS student at Northeastern University.\nCurrently at Philips: VM automation, automated PicIX setups, DevOps—using C#, PowerShell, .NET.\nPassionate about architecting scalable, high-performance systems.\n\nType 'cat skills.md' to see my technical abilities.` },
+      "skills.md": { type: "file", content: `# Technical Skills\n\n## Core Technologies\n- JavaScript/TypeScript ████████████████████ Expert\n- C++                  ████████████████░░░░ Advanced  \n- C# / .NET            ██████████████░░░░░░ Proficient\n- Python               ████████████░░░░░░░░ Proficient\n- Lua                  ████████████████░░░░ Advanced\n\n## Frontend Architecture\nReact, TypeScript, Tailwind CSS, Framer Motion\n\n## Backend & Infrastructure\nNode.js, Express, MongoDB, DevOps, PowerShell` },
       "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "phone": "(413) 409-9563",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/ali-younes-41a2b4296",\n  "status": "Open to opportunities!"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file - use 'open resume.pdf' to download]` },
       ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@portfolio:\\w$ "\nalias ll="ls -la"\nalias cls="clear"\necho "Welcome back, Ali!"` },
@@ -427,12 +427,12 @@ AUTHOR
         setHistory(prev => [...prev, { type: "output", text: `
 ┌─────────────────────────────────────────────────────────────┐
 │                       ALI YOUNES                            │
-│                  Full-Stack Developer                       │
+│                  Software Engineer & Architect              │
 └─────────────────────────────────────────────────────────────┘
 
   👋 Hey! I'm Ali, a Computer Science student at 
      Northeastern University with a passion for 
-     building clean, performant software.
+     architecting scalable, high-performance systems.
 
   💼 Currently: System Integration and Automation @ Philips (C#, PowerShell, .NET)
 
@@ -459,9 +459,10 @@ AUTHOR
  Lua                      ████████████████░░░░  Advanced
  Swift                    ██████████░░░░░░░░░░  Intermediate
 
- FRONTEND          React • Tailwind CSS • Framer Motion • HTML5/CSS3
- BACKEND           Node.js • Express • MongoDB • REST APIs • JWT
- TOOLS             Git • Linux • GDB • Docker • VS Code • Vercel
+ FRONTEND          React • TypeScript • Tailwind CSS • Framer Motion
+ BACKEND           Node.js • Express • MongoDB • C# • .NET
+ INFRASTRUCTURE    DevOps • PowerShell • VMs • CI/CD
+ TOOLS             Git • Linux • GDB • Docker • VS Code
 ` }]);
         break;
 
@@ -580,12 +581,12 @@ Run 'cd ~/projects && ls' to explore project directories
 
       case "neofetch":
         setHistory(prev => [...prev, { type: "neofetch", text: `
-        \x1b[35m/\\         \x1b[0mali@portfolio
-       \x1b[35m/  \\        \x1b[0m─────────────────────
-      \x1b[35m/\\   \\       \x1b[33mOS:\x1b[0m React 18.x
-     \x1b[35m/  ..  \\      \x1b[33mHost:\x1b[0m Northeastern University
-    \x1b[35m/  .'''.\\     \x1b[33mKernel:\x1b[0m Node.js 20.x
-   \x1b[35m/.''     '.\\   \x1b[33mShell:\x1b[0m TypeScript 5.x
+        \x1b[31m/\\         \x1b[0mali@portfolio
+       \x1b[31m/  \\        \x1b[0m─────────────────────
+      \x1b[31m/\\   \\       \x1b[33mOS:\x1b[0m React 18.x
+     \x1b[31m/  ..  \\      \x1b[33mHost:\x1b[0m Northeastern University
+    \x1b[31m/  .'''.\\     \x1b[33mKernel:\x1b[0m Node.js 20.x
+   \x1b[31m/.''     '.\\   \x1b[33mShell:\x1b[0m TypeScript 5.x
                     \x1b[33mTerminal:\x1b[0m Portfolio v2.0
                     \x1b[33mCPU:\x1b[0m Coffee-Powered™
                     \x1b[33mMemory:\x1b[0m Unlimited Ambition
@@ -783,7 +784,7 @@ Date:   ${new Date().toDateString()}
   );
 
   return (
-    <section id="terminal" className="relative py-24 px-6 bg-[#0a0a0f]">
+    <section id="terminal" className="relative py-24 md:py-28 px-6 bg-[#0a0a0f]">
       <div className={`mx-auto transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-4xl'}`}>
         {/* Header */}
         {!isMaximized && (
@@ -792,7 +793,7 @@ Date:   ${new Date().toDateString()}
               <Cpu className="w-4 h-4 text-red-500" />
               <span className="text-sm font-medium text-red-400">Interactive Shell</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent mb-3">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent mb-3">
               Terminal
             </h2>
             <p className="text-neutral-500">A fully interactive terminal — try real commands!</p>

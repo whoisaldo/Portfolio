@@ -228,7 +228,7 @@ export default function Projects() {
             transition={{ duration: 0.4, delay: index * 0.05, type: "spring", stiffness: 300, damping: 25 }}
             viewport={{ once: true }}
             className="group relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50
-                       bg-white/90 dark:bg-neutral-900/80 backdrop-blur-xl p-6 
+                       bg-white/90 dark:bg-[#12121a] backdrop-blur-xl p-6 
                        shadow-lg hover:shadow-2xl transition-all duration-300
                        hover:border-red-400/40 hover:shadow-red-500/20
                        before:absolute before:inset-0 before:rounded-2xl before:bg-gradient-to-r 
@@ -442,7 +442,7 @@ export default function Projects() {
               transition={{ duration: 0.4, delay: index * 0.05 }}
               viewport={{ once: true }}
               className="group relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50
-                         bg-white/90 dark:bg-neutral-900/80 backdrop-blur-xl p-6 
+                         bg-white/90 dark:bg-[#12121a] backdrop-blur-xl p-6 
                          shadow-lg hover:shadow-xl transition-all duration-300
                          hover:border-gray-300/50 dark:hover:border-gray-600/50"
             >

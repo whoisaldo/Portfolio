@@ -34,8 +34,8 @@ const featuredProjects = [
   {
     title: "Moops Bookstore",
     tagline: "Your Social Reading Companion",
-    description: "A full-stack social book tracking platform where users can discover, track, and share their reading journey with friends.",
-    longDescription: "Built from the ground up, Moops Bookstore combines the joy of reading with social features. Users can search millions of books via Google Books API, create personalized reading lists, write reviews, and connect with fellow book lovers.",
+    description: "A full-stack social platform solving the fragmentation of reading lists by combining book discovery, tracking, and social features.",
+    longDescription: "Problem: Readers struggle to track books across platforms and discover what friends are reading.\n\nSolution: Engineered a centralized social reading platform that combines tracking, discovery, and community into one seamless interface.\n\nImpact: Successfully integrated the Google Books API (1M+ books) with a custom MongoDB backend, implementing secure JWT authentication and real-time social features.",
     tech: ["React", "TypeScript", "Node.js", "MongoDB", "Express", "Google Books API"],
     features: [
       "User authentication with JWT",
@@ -56,8 +56,8 @@ const featuredProjects = [
   {
     title: "Exerly Fitness",
     tagline: "Your Complete Fitness Dashboard",
-    description: "A comprehensive fitness platform with workout tracking, nutrition logging, sleep monitoring, and detailed progress analytics.",
-    longDescription: "Exerly is designed for fitness enthusiasts who want complete control over their health journey. Track workouts with detailed exercise logs, monitor nutrition with macro calculations, analyze sleep patterns, and visualize progress with interactive charts.",
+    description: "A comprehensive health platform engineered to centralize fragmented fitness data into a single, actionable dashboard.",
+    longDescription: "Problem: Fitness enthusiasts often juggle multiple apps for workouts, nutrition, and sleep, losing sight of the big picture.\n\nSolution: Developed a unified, full-stack fitness dashboard featuring complex data visualization, macro calculations, and progress tracking.\n\nImpact: Delivered a scalable architecture using React and Node.js that securely handles multi-faceted user health data and provides intuitive analytics via Chart.js.",
     tech: ["React", "Node.js", "MongoDB", "JWT Auth", "Chart.js", "REST API"],
     features: [
       "Workout logging with exercises",
@@ -78,8 +78,8 @@ const featuredProjects = [
   {
     title: "Fade Empire",
     tagline: "Premium Barbershop Experience",
-    description: "A modern, mobile-first website for a local barbershop featuring WhatsApp booking integration and a dynamic portfolio gallery.",
-    longDescription: "Designed and developed for Chicopee Fade Empire barbershop. The site focuses on converting visitors to customers with easy booking via WhatsApp, showcasing the barbers' work through a sleek gallery, and providing all essential business information.",
+    description: "A modern, mobile-first business website engineered to drive customer conversions via automated WhatsApp booking integration.",
+    longDescription: "Problem: A local barbershop relied on manual phone bookings and had no digital footprint to showcase their portfolio.\n\nSolution: Designed and developed a premium, mobile-first static site focused on high-performance image loading and streamlined UX.\n\nImpact: Eliminated friction in the booking process by integrating direct WhatsApp scheduling, and improved the business's local SEO and professional brand presence.",
     tech: ["HTML5", "CSS3", "JavaScript", "Responsive Design", "WhatsApp API"],
     features: [
       "Mobile-first responsive design",
@@ -100,8 +100,8 @@ const featuredProjects = [
   {
     title: "Real-Time Face Analytics",
     tagline: "AI-Powered Facial Recognition",
-    description: "A sophisticated web app that performs real-time facial recognition and emotion analysis using advanced machine learning models.",
-    longDescription: "Built with TensorFlow.js and face-api.js, this application detects multiple faces from webcam or uploaded images, estimates age and gender with confidence percentages, and recognizes 7 different emotions. Everything runs locally in the browser with no data sent to servers.",
+    description: "A sophisticated web application demonstrating client-side machine learning by performing real-time facial and emotion analysis.",
+    longDescription: "Problem: Many AI vision tools rely on expensive, latency-heavy cloud processing that compromises user privacy.\n\nSolution: Engineered a 100% client-side computer vision application utilizing TensorFlow.js to process video streams locally in the browser.\n\nImpact: Achieved real-time performance for multi-face detection, age/gender estimation, and emotion tracking, while ensuring zero data leaves the user's device.",
     tech: ["React", "TypeScript", "TensorFlow.js", "face-api.js", "Redux Toolkit", "Tailwind CSS"],
     features: [
       "Real-time multi-face detection",
@@ -290,7 +290,7 @@ function ProjectModal({ project, isOpen, onClose }) {
             </div>
 
             {/* Description */}
-            <p className="text-neutral-300 leading-relaxed mb-6">
+            <p className="text-neutral-300 leading-relaxed mb-6 whitespace-pre-wrap">
               {project.longDescription}
             </p>
 
@@ -485,7 +485,7 @@ export default function BentoProjects() {
   const [selectedProject, setSelectedProject] = useState(null);
 
   return (
-    <section id="projects" className="relative py-28 px-6 bg-[#0a0a0f]">
+    <section id="projects" className="relative py-24 md:py-28 px-6 bg-[#0a0a0f]">
       {/* Background accent */}
       <div 
         className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-10 pointer-events-none"
@@ -506,7 +506,7 @@ export default function BentoProjects() {
             <span className="text-sm font-semibold text-red-400">Featured Work</span>
           </div>
           
-          <h2 className="text-5xl md:text-6xl font-black mb-5 bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-5 bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
             Projects
           </h2>
           <p className="text-neutral-500 text-lg max-w-xl mx-auto">

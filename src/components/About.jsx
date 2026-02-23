@@ -40,10 +40,7 @@ export default function About() {
               />
             </div>
             <p className="text-lg text-neutral-700 dark:text-neutral-300 leading-relaxed max-w-2xl mb-8">
-              I'm a Lebanese-American developer from Massachusetts, studying Computer Science & Political Science
-              at Northeastern (Class of 2027). I love building polished, intuitive software—from full-stack web apps
-              to game prototypes. Outside the editor: cars, the gym, wrestling, soccer, and any puzzle I can get my hands on.
-              I also love to travel and explore new ideas.
+              I'm a software engineer and architect studying Computer Science & Political Science at Northeastern University (Class of 2027). I specialize in building highly scalable enterprise systems, automated deployment pipelines, and high-performance full-stack applications. Beyond engineering robust solutions, I enjoy German automotive tuning, competitive wrestling, and pushing the limits of game development in my free time.
             </p>
 
             {/* Integrated Quick Facts */}
@@ -53,7 +50,7 @@ export default function About() {
                   <Terminal size={16} className="text-red-600 dark:text-red-400" />
                 </div>
                 <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Full-stack dev who enjoys both frontend polish and backend APIs.
+                  Architecting robust backend APIs and highly optimized, modern frontend interfaces.
                 </span>
               </div>
 
@@ -62,7 +59,7 @@ export default function About() {
                   <Gamepad2 size={16} className="text-red-600 dark:text-red-400" />
                 </div>
                 <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Game dev fan — experienced with Roblox Studio (Lua), Unity basics (C#).
+                  Engineering advanced game mechanics and immersive virtual environments.
                 </span>
               </div>
 
@@ -71,34 +68,34 @@ export default function About() {
                   <Car size={16} className="text-red-600 dark:text-red-400" />
                 </div>
                 <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Car enthusiast — German cars, performance, and clean builds.
+                  Passionate about high-performance automotive engineering and tuning.
                 </span>
               </div>
 
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-200/50 dark:border-gray-700/50">
-                <div className="p-1.5 rounded-md bg-green-100 dark:bg-green-900/30 mt-0.5">
-                  <Dumbbell size={16} className="text-green-600 dark:text-green-400" />
+                <div className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 mt-0.5">
+                  <Dumbbell size={16} className="text-red-600 dark:text-red-400" />
                 </div>
                 <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Gym + wrestling mentality: consistent reps, steady progress.
+                  Competitive wrestling & fitness: discipline, resilience, and continuous growth.
                 </span>
               </div>
 
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-200/50 dark:border-gray-700/50">
-                <div className="p-1.5 rounded-md bg-yellow-100 dark:bg-yellow-900/30 mt-0.5">
-                  <Puzzle size={16} className="text-yellow-600 dark:text-yellow-400" />
+                <div className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 mt-0.5">
+                  <Puzzle size={16} className="text-red-600 dark:text-red-400" />
                 </div>
                 <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Rubik's Cube, chess, and logic puzzles for fun.
+                  Analytical problem solver thriving on complex algorithmic and logic challenges.
                 </span>
               </div>
 
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-200/50 dark:border-gray-700/50">
-                <div className="p-1.5 rounded-md bg-blue-100 dark:bg-blue-900/30 mt-0.5">
-                  <Globe size={16} className="text-blue-600 dark:text-blue-400" />
+                <div className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 mt-0.5">
+                  <Globe size={16} className="text-red-600 dark:text-red-400" />
                 </div>
                 <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                  Love to travel and learn from different cultures.
+                  Global perspective, eager to continuously learn and embrace new challenges.
                 </span>
               </div>
             </div>

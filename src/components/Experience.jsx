@@ -146,7 +146,7 @@ export default function Experience() {
   const [expandedIndex, setExpandedIndex] = useState(0); // Philips expanded by default
 
   return (
-    <section id="experience" className="relative py-28 px-6 bg-[#0a0a0f]">
+    <section id="experience" className="relative py-24 md:py-28 px-6 bg-[#0a0a0f]">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <motion.div
@@ -156,7 +156,7 @@ export default function Experience() {
           transition={{ duration: 0.4 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
             Experience
           </h2>
         </motion.div>

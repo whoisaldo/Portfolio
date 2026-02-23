@@ -1,25 +1,60 @@
 // src/components/Hero.jsx - OPTIMIZED
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Github, Linkedin, Download, ArrowRight } from "lucide-react";
 
 export default function Hero() {
   const pdf = (import.meta.env.BASE_URL || '/') + "resume.pdf";
 
+  // Terminal typing effect state
+  const [prefixText, setPrefixText] = useState("");
+  const [nameText, setNameText] = useState("");
+  const [showCursor, setShowCursor] = useState(true);
+
+  useEffect(() => {
+    const prefix = "Hi, I'm ";
+    const name = "Ali";
+    let pIdx = 0;
+    let nIdx = 0;
+
+    const typeNext = () => {
+      if (pIdx < prefix.length) {
+        setPrefixText(prefix.slice(0, pIdx + 1));
+        pIdx++;
+        setTimeout(typeNext, 60); // typing speed
+      } else if (nIdx < name.length) {
+        setNameText(name.slice(0, nIdx + 1));
+        nIdx++;
+        setTimeout(typeNext, 120); // slightly slower for the name
+      }
+    };
+
+    const startTimeout = setTimeout(typeNext, 500); // initial delay
+    return () => clearTimeout(startTimeout);
+  }, []);
+
+  // Blinking cursor
+  useEffect(() => {
+    const cursorInterval = setInterval(() => {
+      setShowCursor(prev => !prev);
+    }, 530);
+    return () => clearInterval(cursorInterval);
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0f]">
       {/* Static gradient orbs - NO ANIMATION, just CSS */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div 
-          className="absolute top-1/4 -left-32 w-[400px] h-[400px] rounded-full opacity-40"
+          className="absolute top-1/4 -left-32 w-[400px] h-[400px] rounded-full opacity-60 blur-[100px]"
           style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.4) 0%, transparent 70%)' }}
         />
         <div 
-          className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] rounded-full opacity-30"
+          className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] rounded-full opacity-50 blur-[100px]"
           style={{ background: 'radial-gradient(circle, rgba(244,63,94,0.35) 0%, transparent 70%)' }}
         />
         <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full opacity-25"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full opacity-40 blur-[100px]"
           style={{ background: 'radial-gradient(circle, rgba(220,38,38,0.35) 0%, transparent 70%)' }}
         />
       </div>
@@ -61,11 +96,19 @@ export default function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight mb-6"
+          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight mb-6 flex items-center justify-center min-h-[1.2em]"
         >
-          <span className="text-white">Hi, I'm </span>
-          <span className="bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
-            Ali
+          <span>
+            <span className="text-white">{prefixText}</span>
+            <span className="bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
+              {nameText}
+            </span>
+            <span 
+              className={`text-red-500 font-mono ml-1 md:ml-2 ${showCursor ? 'opacity-100' : 'opacity-0'} transition-opacity duration-100`}
+              style={{ textShadow: '0 0 15px rgba(239, 68, 68, 0.8)' }}
+            >
+              _
+            </span>
           </span>
         </motion.h1>
 
@@ -76,8 +119,8 @@ export default function Hero() {
           transition={{ duration: 0.4, delay: 0.15 }}
           className="text-lg md:text-xl text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed"
         >
-          Full-stack developer crafting clean, performant software. 
-          Passionate about great UX, game development, and solving complex problems.
+          Architecting scalable enterprise infrastructure & high-performance full-stack applications.<br/>
+          Computer Science @ Northeastern University (Class of 2027).
         </motion.p>
 
         {/* CTA Buttons - simple CSS hover */}
