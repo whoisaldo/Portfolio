@@ -50,10 +50,10 @@ export default function TechStack() {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: index * 0.08 }}
             viewport={{ once: true, margin: "-50px" }}
-            className="card hover:border-indigo-400/40 hover:shadow-indigo-500/20 transition-all duration-300"
+            className="card hover:border-red-400/40 hover:shadow-red-500/20 transition-all duration-300"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500">
+              <div className="p-2 rounded-lg bg-gradient-to-r from-red-500 to-rose-500">
                 <group.icon size={20} className="text-white" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">

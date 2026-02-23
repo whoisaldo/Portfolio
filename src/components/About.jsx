@@ -15,7 +15,7 @@ export default function About() {
           {/* Personal Photo */}
           <div className="flex-shrink-0 mx-auto lg:mx-0">
             <div className="relative group">
-              <div className="absolute -inset-4 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
+              <div className="absolute -inset-4 bg-gradient-to-r from-red-500 to-rose-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-300"></div>
               <div className="relative shadow-[0_0_80px_rgba(99,102,241,0.25)]">
                 <img 
                   src={personalPhoto} 
@@ -49,8 +49,8 @@ export default function About() {
             {/* Integrated Quick Facts */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-200/50 dark:border-gray-700/50">
-                <div className="p-1.5 rounded-md bg-indigo-100 dark:bg-indigo-900/30 mt-0.5">
-                  <Terminal size={16} className="text-indigo-600 dark:text-indigo-400" />
+                <div className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 mt-0.5">
+                  <Terminal size={16} className="text-red-600 dark:text-red-400" />
                 </div>
                 <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   Full-stack dev who enjoys both frontend polish and backend APIs.
@@ -58,8 +58,8 @@ export default function About() {
               </div>
 
               <div className="flex items-start gap-3 p-3 rounded-xl bg-white/50 dark:bg-gray-800/50 backdrop-blur border border-gray-200/50 dark:border-gray-700/50">
-                <div className="p-1.5 rounded-md bg-purple-100 dark:bg-purple-900/30 mt-0.5">
-                  <Gamepad2 size={16} className="text-purple-600 dark:text-purple-400" />
+                <div className="p-1.5 rounded-md bg-red-100 dark:bg-red-900/30 mt-0.5">
+                  <Gamepad2 size={16} className="text-red-600 dark:text-red-400" />
                 </div>
                 <span className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   Game dev fan — experienced with Roblox Studio (Lua), Unity basics (C#).

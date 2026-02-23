@@ -33,7 +33,7 @@ export default function App() {
         {/* Resume Section */}
         <section id="resume" className="py-20 px-6 bg-[#0a0a0f]">
           <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent">
+            <h2 className="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
               Resume
             </h2>
             <p className="text-neutral-400 mb-8 max-w-xl mx-auto">
@@ -44,9 +44,9 @@ export default function App() {
                 href={pdf}
                 download
                 className="px-6 py-3 rounded-full text-white font-semibold 
-                           bg-gradient-to-r from-purple-500 to-fuchsia-500 
-                           shadow-[0_0_30px_-8px_rgba(168,85,247,0.5)]
-                           hover:shadow-[0_0_40px_-8px_rgba(168,85,247,0.7)]
+                           bg-gradient-to-r from-red-500 to-rose-500 
+                           shadow-[0_0_30px_-8px_rgba(239,68,68,0.5)]
+                           hover:shadow-[0_0_40px_-8px_rgba(239,68,68,0.7)]
                            hover:-translate-y-0.5 transition-all duration-200"
               >
                 Download PDF
@@ -56,7 +56,7 @@ export default function App() {
                 target="_blank"
                 rel="noreferrer"
                 className="px-6 py-3 rounded-full text-white font-semibold 
-                           border border-purple-500/50 hover:border-purple-500 hover:bg-purple-500/10
+                           border border-red-500/50 hover:border-red-500 hover:bg-red-500/10
                            hover:-translate-y-0.5 transition-all duration-200"
               >
                 View in Browser
@@ -69,7 +69,7 @@ export default function App() {
         <section id="contact" className="py-20 px-6 bg-[#0a0a0f]">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-10">
-              <h2 className="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent">
+              <h2 className="text-4xl md:text-5xl font-black mb-4 bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
                 Let's Connect
               </h2>
               <p className="text-neutral-400 max-w-xl mx-auto">
@@ -82,19 +82,19 @@ export default function App() {
 
             <div className="grid md:grid-cols-2 gap-5">
               {/* Contact Info */}
-              <div className="p-5 rounded-xl bg-[#12121a]/70 border border-white/5 hover:border-purple-500/20 transition-colors">
+              <div className="p-5 rounded-xl bg-[#12121a]/70 border border-white/5 hover:border-red-500/20 transition-colors">
                 <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-purple-500" />
+                  <Mail className="w-5 h-5 text-red-500" />
                   Get in Touch
                 </h3>
                 <div className="space-y-3">
-                  <a href="mailto:younes.al@northeastern.edu" className="flex items-center gap-3 text-neutral-400 hover:text-purple-400 transition-colors text-sm">
+                  <a href="mailto:younes.al@northeastern.edu" className="flex items-center gap-3 text-neutral-400 hover:text-red-400 transition-colors text-sm">
                     younes.al@northeastern.edu
                   </a>
-                  <a href="mailto:whois.younes@gmail.com" className="flex items-center gap-3 text-neutral-400 hover:text-purple-400 transition-colors text-sm">
+                  <a href="mailto:whois.younes@gmail.com" className="flex items-center gap-3 text-neutral-400 hover:text-red-400 transition-colors text-sm">
                     whois.younes@gmail.com
                   </a>
-                  <a href="tel:+14134099563" className="flex items-center gap-3 text-neutral-400 hover:text-purple-400 transition-colors text-sm">
+                  <a href="tel:+14134099563" className="flex items-center gap-3 text-neutral-400 hover:text-red-400 transition-colors text-sm">
                     <Phone className="w-4 h-4" />
                     (413) 409-9563
                   </a>
@@ -102,9 +102,9 @@ export default function App() {
               </div>
 
               {/* Social Links */}
-              <div className="p-5 rounded-xl bg-[#12121a]/70 border border-white/5 hover:border-purple-500/20 transition-colors">
+              <div className="p-5 rounded-xl bg-[#12121a]/70 border border-white/5 hover:border-red-500/20 transition-colors">
                 <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
-                  <Github className="w-5 h-5 text-purple-500" />
+                  <Github className="w-5 h-5 text-red-500" />
                   Connect Online
                 </h3>
                 <div className="space-y-2">
@@ -113,7 +113,7 @@ export default function App() {
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/5 
-                               hover:border-purple-500/30 hover:bg-purple-500/5 transition-all"
+                               hover:border-red-500/30 hover:bg-red-500/5 transition-all"
                   >
                     <Github className="w-5 h-5 text-neutral-400" />
                     <span className="text-neutral-300 font-medium">GitHub</span>
@@ -123,7 +123,7 @@ export default function App() {
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/5 
-                               hover:border-purple-500/30 hover:bg-purple-500/5 transition-all"
+                               hover:border-red-500/30 hover:bg-red-500/5 transition-all"
                   >
                     <Linkedin className="w-5 h-5 text-neutral-400" />
                     <span className="text-neutral-300 font-medium">LinkedIn</span>
@@ -143,15 +143,15 @@ export default function App() {
           </p>
           <div className="flex items-center gap-6">
             <a href="https://github.com/whoisaldo" target="_blank" rel="noreferrer" 
-               className="text-neutral-500 hover:text-purple-400 transition-colors text-sm">
+               className="text-neutral-500 hover:text-red-400 transition-colors text-sm">
               GitHub
             </a>
             <a href="https://www.linkedin.com/in/ali-younes-41a2b4296/" target="_blank" rel="noreferrer"
-               className="text-neutral-500 hover:text-purple-400 transition-colors text-sm">
+               className="text-neutral-500 hover:text-red-400 transition-colors text-sm">
               LinkedIn
             </a>
             <a href="mailto:younes.al@northeastern.edu"
-               className="text-neutral-500 hover:text-purple-400 transition-colors text-sm">
+               className="text-neutral-500 hover:text-red-400 transition-colors text-sm">
               Email
             </a>
           </div>

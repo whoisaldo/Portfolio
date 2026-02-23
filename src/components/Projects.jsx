@@ -230,19 +230,19 @@ export default function Projects() {
             className="group relative rounded-2xl border border-gray-200/50 dark:border-gray-700/50
                        bg-white/90 dark:bg-neutral-900/80 backdrop-blur-xl p-6 
                        shadow-lg hover:shadow-2xl transition-all duration-300
-                       hover:border-indigo-400/40 hover:shadow-indigo-500/20
+                       hover:border-red-400/40 hover:shadow-red-500/20
                        before:absolute before:inset-0 before:rounded-2xl before:bg-gradient-to-r 
-                       before:from-indigo-500/5 before:to-purple-500/5 before:opacity-0 
+                       before:from-red-500/5 before:to-rose-500/5 before:opacity-0 
                        hover:before:opacity-100 before:transition-opacity before:duration-300"
           >
             <div className="relative z-10">
               <div className="flex items-start justify-between gap-4 mb-4">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors duration-300">
                   {p.title}
                 </h3>
                 <div className="flex items-center gap-3">
                 {p.featured && (
-                    <span className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 
+                    <span className="rounded-full bg-gradient-to-r from-red-500 to-rose-500 
                                    text-white px-3 py-1 text-xs font-semibold shadow-sm">
                     Featured
                   </span>
@@ -256,9 +256,9 @@ export default function Projects() {
                     key={tech}
                     className="rounded-full border border-gray-200 dark:border-gray-700 
                                px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400
-                               bg-gray-50 dark:bg-gray-800/50 group-hover:bg-indigo-50 
-                               dark:group-hover:bg-indigo-900/20 group-hover:border-indigo-300 
-                               dark:group-hover:border-indigo-600 transition-all duration-200"
+                               bg-gray-50 dark:bg-gray-800/50 group-hover:bg-red-50 
+                               dark:group-hover:bg-red-900/20 group-hover:border-red-300 
+                               dark:group-hover:border-red-600 transition-all duration-200"
                   >
                     {tech}
                   </span>
@@ -283,7 +283,7 @@ export default function Projects() {
                       <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
                         {p.features.slice(0, 3).map((feature, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="text-indigo-500 dark:text-indigo-400 mt-0.5">•</span>
+                            <span className="text-red-500 dark:text-red-400 mt-0.5">•</span>
                             <span>{feature}</span>
                           </li>
                         ))}
@@ -391,8 +391,8 @@ export default function Projects() {
                 <a
                     className="group/link inline-flex items-center gap-2 px-4 py-2 rounded-lg 
                                text-sm font-medium text-gray-700 dark:text-gray-300
-                               bg-gray-100 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/20
-                               hover:text-indigo-600 dark:hover:text-indigo-400
+                               bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/20
+                               hover:text-red-600 dark:hover:text-red-400
                                transition-all duration-200 hover:scale-105 hover:shadow-md"
                   href={p.gh}
                   target="_blank"
@@ -410,8 +410,8 @@ export default function Projects() {
               {p.live && (
                 <a
                     className="group/link inline-flex items-center gap-2 px-4 py-2 rounded-lg 
-                               text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-500
-                               hover:from-indigo-600 hover:to-purple-600 transition-all duration-200 
+                               text-sm font-medium text-white bg-gradient-to-r from-red-500 to-rose-500
+                               hover:from-red-600 hover:to-rose-600 transition-all duration-200 
                                hover:scale-105 hover:shadow-lg"
                   href={p.live}
                   target="_blank"
@@ -447,7 +447,7 @@ export default function Projects() {
                          hover:border-gray-300/50 dark:hover:border-gray-600/50"
             >
               <div className="relative z-10">
-                <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors duration-300">
+                <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors duration-300">
                   {p.title}
                 </h4>
 
@@ -457,9 +457,9 @@ export default function Projects() {
                       key={tech}
                       className="rounded-full border border-gray-200 dark:border-gray-700 
                                  px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400
-                                 bg-gray-50 dark:bg-gray-800/50 group-hover:bg-indigo-50 
-                                 dark:group-hover:bg-indigo-900/20 group-hover:border-indigo-300 
-                                 dark:group-hover:border-indigo-600 transition-all duration-200"
+                                 bg-gray-50 dark:bg-gray-800/50 group-hover:bg-red-50 
+                                 dark:group-hover:bg-red-900/20 group-hover:border-red-300 
+                                 dark:group-hover:border-red-600 transition-all duration-200"
                     >
                       {tech}
                     </span>
@@ -482,10 +482,10 @@ export default function Projects() {
                     <a
                       className="group/link inline-flex items-center gap-2 px-4 py-2 rounded-lg 
                                  text-sm font-medium text-gray-700 dark:text-gray-300
-                                 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/20
-                                 hover:text-indigo-600 dark:hover:text-indigo-400
+                                 bg-gray-100 dark:bg-gray-800 hover:bg-red-100 dark:hover:bg-red-900/20
+                                 hover:text-red-600 dark:hover:text-red-400
                                  transition-all duration-200 hover:scale-105 hover:shadow-md
-                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                       href={p.gh}
                       target="_blank"
                       rel="noreferrer"
@@ -499,10 +499,10 @@ export default function Projects() {
                   {p.live && (
                     <a
                       className="group/link inline-flex items-center gap-2 px-4 py-2 rounded-lg 
-                                 text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-purple-500
-                                 hover:from-indigo-600 hover:to-purple-600 transition-all duration-200 
+                                 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-rose-500
+                                 hover:from-red-600 hover:to-rose-600 transition-all duration-200 
                                  hover:scale-105 hover:shadow-lg
-                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                       href={p.live}
                       target="_blank"
                       rel="noreferrer"

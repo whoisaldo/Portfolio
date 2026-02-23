@@ -28,12 +28,12 @@
   /* Focus */
   *:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #0a0a0f, 0 0 0 4px #a855f7;
+    box-shadow: 0 0 0 2px #0a0a0f, 0 0 0 4px #ef4444;
   }
 
   /* Selection */
   ::selection {
-    background-color: rgba(168, 85, 247, 0.3);
+    background-color: rgba(239, 68, 68, 0.3);
     color: white;
   }
 }
@@ -64,12 +64,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(168, 85, 247, 0.3);
+  background: rgba(239, 68, 68, 0.3);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(168, 85, 247, 0.5);
+  background: rgba(239, 68, 68, 0.5);
 }
 
 /* Utility classes */

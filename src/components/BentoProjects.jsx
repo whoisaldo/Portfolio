@@ -50,7 +50,7 @@ const featuredProjects = [
     images: [moopsLanding, moopsDashboard, moopsReview, moopsProfile, moopsSignup],
     imageLabels: ["Landing Page", "Dashboard", "Book Reviews", "User Profile", "Sign Up"],
     icon: BookOpen,
-    accentColor: "#a855f7",
+    accentColor: "#ef4444",
     stats: { users: "Social", books: "1M+ Books", reviews: "Reviews" },
   },
   {
@@ -72,7 +72,7 @@ const featuredProjects = [
     images: [exerlyMain, exerly1, exerly3, exerly4],
     imageLabels: ["Dashboard", "Workouts", "Analytics", "Progress"],
     icon: Dumbbell,
-    accentColor: "#d946ef",
+    accentColor: "#f43f5e",
     stats: { workouts: "Workouts", nutrition: "Nutrition", sleep: "Sleep" },
   },
   {
@@ -246,7 +246,7 @@ function ProjectModal({ project, isOpen, onClose }) {
                   onClick={() => setCurrentImageIndex(index)}
                   className={`flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${
                     index === currentImageIndex
-                      ? 'border-purple-500 scale-105'
+                      ? 'border-red-500 scale-105'
                       : 'border-transparent opacity-60 hover:opacity-100'
                   }`}
                 >
@@ -439,7 +439,7 @@ function FeaturedProjectCard({ project, index, onClick }) {
             <Icon className="w-5 h-5" style={{ color: project.accentColor }} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-white group-hover:text-purple-300 transition-colors">
+            <h3 className="text-lg font-bold text-white group-hover:text-red-300 transition-colors">
               {project.title}
             </h3>
             <p className="text-sm" style={{ color: project.accentColor }}>{project.tagline}</p>
@@ -472,7 +472,7 @@ function FeaturedProjectCard({ project, index, onClick }) {
         </div>
 
         {/* Click to view hint */}
-        <div className="flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 text-neutral-400 text-sm font-medium group-hover:bg-purple-500/10 group-hover:text-purple-400 transition-all">
+        <div className="flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 text-neutral-400 text-sm font-medium group-hover:bg-red-500/10 group-hover:text-red-400 transition-all">
           <Maximize2 className="w-4 h-4" />
           Click to view details
         </div>
@@ -489,7 +489,7 @@ export default function BentoProjects() {
       {/* Background accent */}
       <div 
         className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-10 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, #ef4444 0%, transparent 70%)' }}
       />
 
       <div className="max-w-6xl mx-auto relative z-10">
@@ -501,12 +501,12 @@ export default function BentoProjects() {
           transition={{ duration: 0.4 }}
           className="text-center mb-16"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-6">
-            <Star className="w-4 h-4 text-purple-500" fill="#a855f7" />
-            <span className="text-sm font-semibold text-purple-400">Featured Work</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 mb-6">
+            <Star className="w-4 h-4 text-red-500" fill="#ef4444" />
+            <span className="text-sm font-semibold text-red-400">Featured Work</span>
           </div>
           
-          <h2 className="text-5xl md:text-6xl font-black mb-5 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent">
+          <h2 className="text-5xl md:text-6xl font-black mb-5 bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
             Projects
           </h2>
           <p className="text-neutral-500 text-lg max-w-xl mx-auto">
@@ -534,7 +534,7 @@ export default function BentoProjects() {
           className="mb-6"
         >
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <Code className="w-5 h-5 text-purple-500" />
+            <Code className="w-5 h-5 text-red-500" />
             Other Projects
           </h3>
         </motion.div>
@@ -553,14 +553,14 @@ export default function BentoProjects() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
                 className="group p-4 rounded-xl bg-[#12121a]/60 border border-white/5
-                           hover:border-purple-500/20 hover:-translate-y-1
+                           hover:border-red-500/20 hover:-translate-y-1
                            transition-all duration-200"
               >
                 <div className="flex items-center gap-2.5 mb-2">
-                  <div className="p-1.5 rounded-md bg-purple-500/10">
-                    <Icon className="w-4 h-4 text-purple-500" />
+                  <div className="p-1.5 rounded-md bg-red-500/10">
+                    <Icon className="w-4 h-4 text-red-500" />
                   </div>
-                  <h4 className="font-semibold text-white text-sm group-hover:text-purple-400 transition-colors">
+                  <h4 className="font-semibold text-white text-sm group-hover:text-red-400 transition-colors">
                     {project.title}
                   </h4>
                 </div>

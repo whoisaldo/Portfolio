@@ -30,7 +30,7 @@ export default function Navbar() {
       <nav className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
         <a
           href="#"
-          className="text-xl font-bold bg-gradient-to-r from-purple-500 to-fuchsia-500 bg-clip-text text-transparent
+          className="text-xl font-bold bg-gradient-to-r from-red-500 to-rose-500 bg-clip-text text-transparent
                      hover:opacity-80 transition-opacity"
         >
           Ali Younes
@@ -45,14 +45,14 @@ export default function Navbar() {
               className="text-sm font-medium text-neutral-400 hover:text-white transition-colors relative group"
             >
               {link.name}
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-500 to-fuchsia-500 group-hover:w-full transition-all duration-300" />
+              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-red-500 to-rose-500 group-hover:w-full transition-all duration-300" />
             </a>
           ))}
           <a
             href="#resume"
-            className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-500 
-                       text-white text-sm font-semibold shadow-[0_0_20px_-8px_rgba(168,85,247,0.5)]
-                       hover:shadow-[0_0_25px_-8px_rgba(168,85,247,0.7)] hover:-translate-y-0.5
+            className="px-4 py-2 rounded-full bg-gradient-to-r from-red-500 to-rose-500 
+                       text-white text-sm font-semibold shadow-[0_0_20px_-8px_rgba(239,68,68,0.5)]
+                       hover:shadow-[0_0_25px_-8px_rgba(239,68,68,0.7)] hover:-translate-y-0.5
                        transition-all duration-200"
           >
             Resume
@@ -85,7 +85,7 @@ export default function Navbar() {
             <a
               href="#resume"
               onClick={() => setIsMobileOpen(false)}
-              className="block w-full text-center px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-fuchsia-500 text-white font-semibold"
+              className="block w-full text-center px-4 py-2 rounded-full bg-gradient-to-r from-red-500 to-rose-500 text-white font-semibold"
             >
               Resume
             </a>

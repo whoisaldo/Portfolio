@@ -156,14 +156,14 @@ export default function Experience() {
           transition={{ duration: 0.4 }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent">
+          <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
             Experience
           </h2>
         </motion.div>
 
         <div className="relative">
           {/* Timeline line */}
-          <div className="absolute left-8 md:left-12 top-0 bottom-0 w-0.5 bg-gradient-to-b from-purple-500 via-fuchsia-500 to-purple-500/20" />
+          <div className="absolute left-8 md:left-12 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-500 via-rose-500 to-red-500/20" />
 
           <div className="space-y-8">
             {experiences.map((exp, index) => {
@@ -184,9 +184,9 @@ export default function Experience() {
                   <div className="absolute left-4 md:left-8 top-0 z-10">
                     <div 
                       className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-4 border-[#0a0a0f]
-                                 ${isWork ? 'bg-gradient-to-br from-purple-500 to-fuchsia-500' : 'bg-gradient-to-br from-fuchsia-500 to-pink-500'}
+                                 ${isWork ? 'bg-gradient-to-br from-red-500 to-rose-500' : 'bg-gradient-to-br from-rose-500 to-rose-600'}
                                  shadow-lg`}
-                      style={{ boxShadow: `0 0 20px ${isWork ? 'rgba(168,85,247,0.4)' : 'rgba(236,72,153,0.4)'}` }}
+                      style={{ boxShadow: `0 0 20px ${isWork ? 'rgba(239,68,68,0.4)' : 'rgba(244,63,94,0.4)'}` }}
                     >
                       <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
                     </div>
@@ -195,7 +195,7 @@ export default function Experience() {
                   {/* Content card */}
                   <div 
                     className={`rounded-2xl overflow-hidden transition-all duration-300 
-                               ${isExpanded ? 'ring-1 ring-purple-500/30' : ''}`}
+                               ${isExpanded ? 'ring-1 ring-red-500/30' : ''}`}
                     style={{ backgroundColor: '#12121a' }}
                   >
                     {/* Card Header - Clickable */}
@@ -213,8 +213,8 @@ export default function Experience() {
                             <span 
                               className={`px-2.5 py-0.5 text-xs font-semibold rounded-full
                                          ${isWork 
-                                           ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
-                                           : 'bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30'}`}
+                                           ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                                           : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}
                             >
                               {isWork ? 'Work' : 'Education'}
                             </span>
@@ -245,7 +245,7 @@ export default function Experience() {
                               <img 
                                 src={exp.logo} 
                                 alt={exp.company}
-                                className="h-full w-full object-contain drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                                className="h-full w-full object-contain drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]"
                                 style={{ filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.4)) drop-shadow(0 0 40px rgba(217, 70, 239, 0.2))' }}
                               />
                             </div>
@@ -270,7 +270,7 @@ export default function Experience() {
                         >
                           <div className="px-5 md:px-6 pb-6 space-y-5">
                             {/* Divider */}
-                            <div className="h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+                            <div className="h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent" />
 
                             {/* Description */}
                             <p className="text-neutral-400 leading-relaxed">
@@ -283,9 +283,9 @@ export default function Experience() {
                                 {exp.metrics.map((metric, i) => (
                                   <div 
                                     key={i}
-                                    className="p-3 rounded-xl bg-gradient-to-br from-purple-500/10 to-fuchsia-500/10 border border-purple-500/20 text-center"
+                                    className="p-3 rounded-xl bg-gradient-to-br from-red-500/10 to-rose-500/10 border border-red-500/20 text-center"
                                   >
-                                    <div className="text-2xl font-black text-purple-400">{metric.value}</div>
+                                    <div className="text-2xl font-black text-red-400">{metric.value}</div>
                                     <div className="text-xs text-neutral-500">{metric.label}</div>
                                   </div>
                                 ))}
@@ -296,7 +296,7 @@ export default function Experience() {
                             {exp.highlights && (
                               <div className="space-y-4">
                                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                                  <Zap className="w-4 h-4 text-purple-500" />
+                                  <Zap className="w-4 h-4 text-red-500" />
                                   Key Responsibilities & Impact
                                 </h4>
                                 <div className="grid gap-3">
@@ -305,11 +305,11 @@ export default function Experience() {
                                     return (
                                       <div 
                                         key={i}
-                                        className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10"
+                                        className="p-4 rounded-xl bg-red-500/5 border border-red-500/10"
                                       >
                                         <div className="flex items-start gap-3">
-                                          <div className="p-2 rounded-lg bg-purple-500/10 shrink-0">
-                                            <HighlightIcon className="w-4 h-4 text-purple-400" />
+                                          <div className="p-2 rounded-lg bg-red-500/10 shrink-0">
+                                            <HighlightIcon className="w-4 h-4 text-red-400" />
                                           </div>
                                           <div>
                                             <h5 className="font-semibold text-white text-sm mb-1">
@@ -331,7 +331,7 @@ export default function Experience() {
                             {exp.skills && (
                               <div>
                                 <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                                  <Cpu className="w-4 h-4 text-purple-500" />
+                                  <Cpu className="w-4 h-4 text-red-500" />
                                   Technologies & Skills
                                 </h4>
                                 <div className="flex flex-wrap gap-2">
@@ -339,7 +339,7 @@ export default function Experience() {
                                     <span
                                       key={skill}
                                       className="px-3 py-1.5 text-xs font-medium rounded-lg
-                                                 bg-purple-500/15 text-purple-400 border border-purple-500/20"
+                                                 bg-red-500/15 text-red-400 border border-red-500/20"
                                     >
                                       {skill}
                                     </span>
@@ -352,7 +352,7 @@ export default function Experience() {
                             {exp.coursework && (
                               <div>
                                 <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                                  <CheckCircle2 className="w-4 h-4 text-fuchsia-500" />
+                                  <CheckCircle2 className="w-4 h-4 text-rose-500" />
                                   Relevant Coursework
                                 </h4>
                                 <div className="flex flex-wrap gap-2">
@@ -360,7 +360,7 @@ export default function Experience() {
                                     <span
                                       key={course}
                                       className="px-3 py-1.5 text-xs font-medium rounded-lg
-                                                 bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/20"
+                                                 bg-rose-500/15 text-rose-400 border border-rose-500/20"
                                     >
                                       {course}
                                     </span>

@@ -41,7 +41,7 @@ export default function MagneticButton({ children, href, download, className = "
       style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
       whileHover={{ scale: 1.05 }}
       whileTap={{ scale: 0.95 }}
-      className={`relative px-6 py-3 rounded-full bg-gradient-to-r from-accent-purple to-accent-fuchsia 
+      className={`relative px-6 py-3 rounded-full bg-gradient-to-r from-red-500 to-rose-500 
                  text-white font-semibold shadow-glow hover:shadow-glow-lg 
                  transition-shadow duration-300 cursor-pointer ${className}`}
       {...props}
@@ -51,7 +51,7 @@ export default function MagneticButton({ children, href, download, className = "
       </span>
       
       <motion.div
-        className="absolute inset-0 rounded-full bg-gradient-to-r from-accent-purple to-accent-fuchsia blur-xl"
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-red-500 to-rose-500 blur-xl"
         animate={{ opacity: isHovered ? 0.4 : 0, scale: isHovered ? 1.2 : 1 }}
         transition={{ duration: 0.3 }}
       />

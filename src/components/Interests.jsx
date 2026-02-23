@@ -19,8 +19,8 @@ export default function Interests() {
       image: bmwEngine,
       title: "BMW Engine Tuning",
       description: "Passionate about German automotive engineering and performance tuning. Working on ECU modifications and understanding the mechanics behind high-performance engines.",
-      gradient: "from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20",
-      textColor: "text-indigo-600 dark:text-indigo-400"
+      gradient: "from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20",
+      textColor: "text-red-600 dark:text-red-400"
     },
     {
       image: wrestlingPhoto,
@@ -47,8 +47,8 @@ export default function Interests() {
       image: sumoBot,
       title: "Sumo Wrestling Bot",
       description: "Engineering project building autonomous sumo wrestling robots. Combines mechanical design, programming, and strategy in competitive robotics.",
-      gradient: "from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20",
-      textColor: "text-purple-600 dark:text-purple-400"
+      gradient: "from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20",
+      textColor: "text-red-600 dark:text-red-400"
     },
     {
       image: robloxGame,
@@ -187,7 +187,7 @@ export default function Interests() {
               onClick={() => goToSlide(index)}
               className={`w-3 h-3 rounded-full transition-all duration-300 ${
                 index === currentSlide
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-500 scale-125 shadow-lg'
+                  ? 'bg-gradient-to-r from-red-500 to-rose-500 scale-125 shadow-lg'
                   : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
               }`}
               aria-label={`Go to slide ${index + 1}`}

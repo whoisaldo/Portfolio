@@ -11,46 +11,46 @@ export default function Header() {
           href="#" 
           className="group font-display text-xl font-bold transition-all duration-300 hover:scale-105"
         >
-          <span className="bg-gradient-to-r from-indigo-500 to-fuchsia-500 bg-clip-text text-transparent
-                          group-hover:from-indigo-600 group-hover:to-fuchsia-600 transition-all duration-300">
+          <span className="bg-gradient-to-r from-red-500 to-rose-500 bg-clip-text text-transparent
+                          group-hover:from-red-600 group-hover:to-rose-600 transition-all duration-300">
             Ali Younes
           </span>
         </a>
         <nav className="hidden sm:flex items-center gap-8 text-sm">
           <a 
             href="#about" 
-            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 
+            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 
                        transition-colors duration-300 group"
           >
             About
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-red-500 to-rose-500 
                             group-hover:w-full transition-all duration-300"></span>
           </a>
           <a 
             href="#projects" 
-            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 
+            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 
                        transition-colors duration-300 group"
           >
             Projects
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-red-500 to-rose-500 
                             group-hover:w-full transition-all duration-300"></span>
           </a>
           <a 
             href="#resume" 
-            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 
+            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 
                        transition-colors duration-300 group"
           >
             Resume
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-red-500 to-rose-500 
                             group-hover:w-full transition-all duration-300"></span>
           </a>
           <a 
             href="#contact" 
-            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 
+            className="relative font-medium text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 
                        transition-colors duration-300 group"
           >
             Contact
-            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-500 to-fuchsia-500 
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-red-500 to-rose-500 
                             group-hover:w-full transition-all duration-300"></span>
           </a>
           <div className="ml-2">

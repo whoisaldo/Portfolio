@@ -775,7 +775,7 @@ Date:   ${new Date().toDateString()}
     <span className="select-none">
       <span className="text-green-400 font-semibold">ali</span>
       <span className="text-neutral-500">@</span>
-      <span className="text-purple-400">portfolio</span>
+      <span className="text-red-400">portfolio</span>
       <span className="text-neutral-500">:</span>
       <span className="text-blue-400">{path}</span>
       <span className="text-neutral-500">$</span>
@@ -788,11 +788,11 @@ Date:   ${new Date().toDateString()}
         {/* Header */}
         {!isMaximized && (
           <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 mb-5">
-              <Cpu className="w-4 h-4 text-purple-500" />
-              <span className="text-sm font-medium text-purple-400">Interactive Shell</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 mb-5">
+              <Cpu className="w-4 h-4 text-red-500" />
+              <span className="text-sm font-medium text-red-400">Interactive Shell</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent mb-3">
+            <h2 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent mb-3">
               Terminal
             </h2>
             <p className="text-neutral-500">A fully interactive terminal — try real commands!</p>
@@ -805,7 +805,7 @@ Date:   ${new Date().toDateString()}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4 }}
-          className={`rounded-xl overflow-hidden border border-purple-500/20 shadow-[0_0_60px_-15px_rgba(168,85,247,0.4)] transition-all duration-300 ${
+          className={`rounded-xl overflow-hidden border border-red-500/20 shadow-[0_0_60px_-15px_rgba(239,68,68,0.4)] transition-all duration-300 ${
             isMaximized ? 'fixed inset-4 z-50' : ''
           }`}
           style={{ backgroundColor: '#0d0d14' }}
@@ -887,7 +887,7 @@ Date:   ${new Date().toDateString()}
                 {line.type === "neofetch" && (
                   <pre className="whitespace-pre-wrap my-1" dangerouslySetInnerHTML={{ 
                     __html: line.text
-                      .replace(/\x1b\[35m/g, '<span class="text-purple-500">')
+                      .replace(/\x1b\[35m/g, '<span class="text-red-500">')
                       .replace(/\x1b\[33m/g, '<span class="text-yellow-500">')
                       .replace(/\x1b\[0m/g, '</span>')
                   }} />
@@ -896,13 +896,13 @@ Date:   ${new Date().toDateString()}
                   <pre className="text-red-400 whitespace-pre-wrap my-1">{line.text}</pre>
                 )}
                 {line.type === "system" && (
-                  <pre className="text-purple-400 whitespace-pre-wrap my-1">{line.text}</pre>
+                  <pre className="text-red-400 whitespace-pre-wrap my-1">{line.text}</pre>
                 )}
                 {line.type === "success" && (
                   <pre className="text-emerald-400 whitespace-pre-wrap my-1">{line.text}</pre>
                 )}
                 {line.type === "ascii" && (
-                  <pre className="text-[7px] md:text-[9px] leading-none bg-gradient-to-r from-purple-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent font-bold my-2">{line.text}</pre>
+                  <pre className="text-[7px] md:text-[9px] leading-none bg-gradient-to-r from-red-400 via-red-500 to-rose-400 bg-clip-text text-transparent font-bold my-2">{line.text}</pre>
                 )}
               </div>
             ))}
@@ -918,18 +918,18 @@ Date:   ${new Date().toDateString()}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   className="w-full bg-transparent text-neutral-200 outline-none"
-                  style={{ caretColor: '#a855f7' }}
+                  style={{ caretColor: '#ef4444' }}
                   autoComplete="off"
                   spellCheck="false"
                 />
                 {/* Suggestions dropdown */}
                 {suggestions.length > 0 && (
-                  <div className="absolute left-0 top-6 bg-[#1a1a24] border border-purple-500/30 rounded-lg overflow-hidden shadow-xl z-10 min-w-[150px]">
+                  <div className="absolute left-0 top-6 bg-[#1a1a24] border border-red-500/30 rounded-lg overflow-hidden shadow-xl z-10 min-w-[150px]">
                     {suggestions.map((s, i) => (
                       <div
                         key={s}
                         className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${
-                          i === selectedSuggestion ? 'bg-purple-500/20 text-purple-300' : 'text-neutral-400 hover:bg-white/5'
+                          i === selectedSuggestion ? 'bg-red-500/20 text-red-300' : 'text-neutral-400 hover:bg-white/5'
                         }`}
                         onClick={() => { setInput(s); setSuggestions([]); inputRef.current?.focus(); }}
                       >
@@ -942,7 +942,7 @@ Date:   ${new Date().toDateString()}
                   </div>
                 )}
               </div>
-              <span className="animate-pulse text-purple-500">▊</span>
+              <span className="animate-pulse text-red-500">▊</span>
             </div>
           </div>
 
@@ -969,41 +969,41 @@ Date:   ${new Date().toDateString()}
         {/* Hint */}
         {!isMaximized && (
           <div className="text-center mt-6">
-            <div className="inline-flex flex-wrap items-center justify-center gap-3 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 backdrop-blur-sm">
+            <div className="inline-flex flex-wrap items-center justify-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm">
               <span className="text-neutral-400 text-xs font-medium">💡 Quick Commands:</span>
               <button 
                 onClick={() => { executeCommand("help"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-colors border border-purple-500/30"
+                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
               >
                 help
               </button>
               <button 
                 onClick={() => { executeCommand("about"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-colors border border-purple-500/30"
+                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
               >
                 about
               </button>
               <button 
                 onClick={() => { executeCommand("skills"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-colors border border-purple-500/30"
+                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
               >
                 skills
               </button>
               <button 
                 onClick={() => { executeCommand("experience"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-colors border border-purple-500/30"
+                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
               >
                 experience
               </button>
               <button 
                 onClick={() => { executeCommand("resume"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-colors border border-purple-500/30"
+                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
               >
                 resume
               </button>
               <button 
                 onClick={() => { executeCommand("contact"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-purple-400 hover:text-purple-300 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-colors border border-purple-500/30"
+                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
               >
                 contact
               </button>

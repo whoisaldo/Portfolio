@@ -12,7 +12,7 @@ export default function Resume() {
       {/* Background glow */}
       <div 
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full opacity-10 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, #ef4444 0%, transparent 70%)' }}
       />
 
       <div className="max-w-5xl mx-auto relative z-10">
@@ -23,12 +23,12 @@ export default function Resume() {
           viewport={{ once: true }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-6">
-            <FileText className="w-4 h-4 text-purple-500" />
-            <span className="text-sm font-semibold text-purple-400">Resume</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 mb-6">
+            <FileText className="w-4 h-4 text-red-500" />
+            <span className="text-sm font-semibold text-red-400">Resume</span>
           </div>
           
-          <h2 className="text-5xl md:text-6xl font-black mb-4 bg-gradient-to-r from-purple-500 via-fuchsia-500 to-pink-500 bg-clip-text text-transparent">
+          <h2 className="text-5xl md:text-6xl font-black mb-4 bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
             My Resume
           </h2>
           <p className="text-neutral-400 text-lg max-w-xl mx-auto">
@@ -49,7 +49,7 @@ export default function Resume() {
             download="Ali_Younes_Resume.pdf"
             className="group inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white transition-all hover:-translate-y-1"
             style={{
-              background: 'linear-gradient(135deg, #a855f7, #d946ef)',
+              background: 'linear-gradient(135deg, #ef4444, #f43f5e)',
               boxShadow: '0 10px 40px -10px rgba(168, 85, 247, 0.5)'
             }}
           >
@@ -60,7 +60,7 @@ export default function Resume() {
             href={pdf}
             target="_blank"
             rel="noreferrer"
-            className="group inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white border border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50 transition-all hover:-translate-y-1"
+            className="group inline-flex items-center gap-2 px-8 py-4 rounded-xl font-bold text-white border border-red-500/30 hover:bg-red-500/10 hover:border-red-500/50 transition-all hover:-translate-y-1"
           >
             <ExternalLink className="w-5 h-5 group-hover:scale-110 transition-transform" />
             Open in New Tab
@@ -73,11 +73,11 @@ export default function Resume() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.2 }}
-          className="rounded-2xl overflow-hidden border border-purple-500/20"
+          className="rounded-2xl overflow-hidden border border-red-500/20"
           style={{ backgroundColor: '#0f0f18' }}
         >
           {/* Viewer Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-purple-500/20 bg-black/30">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-red-500/20 bg-black/30">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-500" />
               <div className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -105,7 +105,7 @@ export default function Resume() {
             href={pdf} 
             target="_blank" 
             rel="noreferrer"
-            className="text-purple-400 hover:text-purple-300 underline"
+            className="text-red-400 hover:text-red-300 underline"
           >
             Open in new tab
           </a>
@@ -113,7 +113,7 @@ export default function Resume() {
           <a 
             href={pdf} 
             download="Ali_Younes_Resume.pdf"
-            className="text-purple-400 hover:text-purple-300 underline"
+            className="text-red-400 hover:text-red-300 underline"
           >
             download directly
           </a>
