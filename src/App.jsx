@@ -7,7 +7,7 @@ import BentoProjects from "./components/BentoProjects";
 import Experience from "./components/Experience";
 import TechStackMarquee from "./components/TechStackMarquee";
 import Terminal from "./components/Terminal";
-import { Github, Linkedin, Mail, Phone, Download } from "lucide-react";
+import { Github, Linkedin, Mail, Download } from "lucide-react";
 
 export default function App() {
   const pdf = (import.meta.env.BASE_URL || '/') + "resume.pdf";
@@ -131,9 +131,8 @@ export default function App() {
                   <a href="mailto:whois.younes@gmail.com" className="flex items-center gap-3 text-neutral-400 hover:text-red-400 transition-colors text-sm">
                     whois.younes@gmail.com
                   </a>
-                  <a href="tel:+14134099563" className="flex items-center gap-3 text-neutral-400 hover:text-red-400 transition-colors text-sm">
-                    <Phone className="w-4 h-4" />
-                    (413) 409-9563
+                  <a href="mailto:Aliyounes@eternalreverse.com" className="flex items-center gap-3 text-neutral-400 hover:text-red-400 transition-colors text-sm">
+                    Aliyounes@eternalreverse.com
                   </a>
                 </div>
               </div>
