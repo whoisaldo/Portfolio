@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   ExternalLink, Github, BookOpen, Dumbbell, Scissors, Code, Key, Calculator, 
   Star, ChevronDown, Users, Database, Globe, Sparkles, Check, Brain,
-  X, ChevronLeft, ChevronRight, Maximize2
+  X, ChevronLeft, ChevronRight, Maximize2,
+  Music, MessageCircle, Home, Gauge, Gamepad2
 } from "lucide-react";
 
 // Import project images - Moops
@@ -142,6 +143,41 @@ const otherProjects = [
     tech: ["Java", "GUI"],
     github: "https://github.com/whoisaldo/Grade-Calculator",
     icon: Calculator,
+  },
+  {
+    title: "BetterAppleMusic",
+    description: "A custom Windows desktop client for Apple Music built with Electron and MusicKit JS integration.",
+    tech: ["TypeScript", "Electron", "React"],
+    github: "https://github.com/whoisaldo/BetterAppleMusic",
+    icon: Music,
+  },
+  {
+    title: "Eternal-Rich-Presence",
+    description: "Discord Rich Presence bridge for Apple Music and Spotify with live cover art and cross-platform Listen Along sync.",
+    tech: ["Python", "Discord API"],
+    github: "https://github.com/whoisaldo/Eternal-Rich-Presence",
+    icon: MessageCircle,
+  },
+  {
+    title: "topchoicerealty",
+    description: "Real estate tracking system to cross-reference and manage property listing information.",
+    tech: ["TypeScript", "React"],
+    github: "https://github.com/whoisaldo/topchoicerealty",
+    icon: Home,
+  },
+  {
+    title: "VirtualDyno",
+    description: "Virtual dynamometer simulation tool for estimating vehicle horsepower and torque curves.",
+    tech: ["Simulation"],
+    github: "https://github.com/whoisaldo/VirtualDyno",
+    icon: Gauge,
+  },
+  {
+    title: "Lua-Roblox-Commands",
+    description: "Collection of quick utility commands for Roblox game development.",
+    tech: ["Lua", "Roblox"],
+    github: "https://github.com/whoisaldo/Lua-Roblox-Commands",
+    icon: Gamepad2,
   },
 ];
 
@@ -539,7 +575,7 @@ export default function BentoProjects() {
           </h3>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {otherProjects.map((project, index) => {
             const Icon = project.icon;
             return (

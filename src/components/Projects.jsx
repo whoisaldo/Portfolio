@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import MotionSection from "./MotionSection";
-import { ExternalLink, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ExternalLink, ChevronLeft, ChevronRight, X, Code2, KeyRound, Calculator, Music, MessageCircle, Home, Gauge, Gamepad2, Layout } from "lucide-react";
 
 // Import MoopsBookstore images
 import landingPage from "../assets/MoopsBookStore 2/LandingPage.png";
@@ -59,6 +59,7 @@ const projects = [
     blurb: "Modern, responsive portfolio website showcasing projects, skills, and experience. Features interactive elements, smooth animations, and a built-in resume viewer with PDF integration.",
     tech: ["React", "Vite", "Tailwind CSS", "Framer Motion", "React-PDF", "Lucide React"],
     gh: "https://github.com/whoisaldo/Portfolio",
+    icon: Layout,
   },
   {
     title: "Exerly Fitness Platform",
@@ -126,18 +127,56 @@ const projects = [
     blurb: "C++ coursework: nested containers, Makefiles, GDB, CLI formatting.",
     tech: ["C++", "GDB", "Makefile"],
     gh: "https://github.com/whoisaldo/CS3520-Summer-2025",
+    icon: Code2,
   },
   {
     title: "Password-Generator",
     blurb: "Configurable generator across Java + Swift experiments.",
     tech: ["Java", "Swift"],
     gh: "https://github.com/whoisaldo/Password-Generator",
+    icon: KeyRound,
   },
   {
     title: "Grade-Calculator",
     blurb: "Weighted categories, simple desktop UI, export support.",
     tech: ["Java", "GUI"],
     gh: "https://github.com/whoisaldo/Grade-Calculator",
+    icon: Calculator,
+  },
+  {
+    title: "BetterAppleMusic",
+    blurb: "A custom Windows desktop client for Apple Music built with Electron and MusicKit JS integration.",
+    tech: ["TypeScript", "Electron", "React"],
+    gh: "https://github.com/whoisaldo/BetterAppleMusic",
+    icon: Music,
+  },
+  {
+    title: "Eternal-Rich-Presence",
+    blurb: "Discord Rich Presence bridge for Apple Music and Spotify with live cover art and cross-platform Listen Along sync.",
+    tech: ["Python", "Discord API"],
+    gh: "https://github.com/whoisaldo/Eternal-Rich-Presence",
+    icon: MessageCircle,
+  },
+  {
+    title: "topchoicerealty",
+    blurb: "Real estate tracking system to cross-reference and manage property listing information.",
+    tech: ["TypeScript", "React"],
+    gh: "https://github.com/whoisaldo/topchoicerealty",
+    icon: Home,
+  },
+  {
+    title: "VirtualDyno",
+    blurb: "Virtual dynamometer simulation tool for estimating vehicle horsepower and torque curves.",
+    tech: ["Simulation"],
+    gh: "https://github.com/whoisaldo/VirtualDyno",
+    icon: Gauge,
+  },
+  {
+    title: "Lua-Roblox-Commands",
+    blurb: "Collection of quick utility commands for Roblox game development.",
+    tech: ["Lua", "Roblox"],
+    gh: "https://github.com/whoisaldo/Lua-Roblox-Commands",
+    icon: Gamepad2,
   },
 ];
 
@@ -447,9 +486,16 @@ export default function Projects() {
                          hover:border-gray-300/50 dark:hover:border-gray-600/50"
             >
               <div className="relative z-10">
-                <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-3 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors duration-300">
-                  {p.title}
-                </h4>
+                <div className="flex items-center gap-3 mb-3">
+                  {p.icon && (
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 group-hover:bg-red-100 dark:group-hover:bg-red-900/20 group-hover:text-red-600 dark:group-hover:text-red-400 transition-all duration-200">
+                      {React.createElement(p.icon, { size: 20 })}
+                    </div>
+                  )}
+                  <h4 className="text-lg font-bold text-gray-900 dark:text-gray-100 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors duration-300">
+                    {p.title}
+                  </h4>
+                </div>
 
                 <div className="flex flex-wrap gap-2 mb-4">
                   {p.tech.slice(0, 3).map((tech) => (

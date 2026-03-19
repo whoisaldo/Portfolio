@@ -10,7 +10,7 @@ const fileSystem = {
     children: {
       "about.txt": { type: "file", content: `Ali Younes - Software Engineer & Architect\n\nCS student at Northeastern University.\nCurrently at Philips: VM automation, automated PicIX setups, DevOps—using C#, PowerShell, .NET.\nPassionate about architecting scalable, high-performance systems.\n\nType 'cat skills.md' to see my technical abilities.` },
       "skills.md": { type: "file", content: `# Technical Skills\n\n## Core Technologies\n- JavaScript/TypeScript ████████████████████ Expert\n- C++                  ████████████████░░░░ Advanced  \n- C# / .NET            ██████████████░░░░░░ Proficient\n- Python               ████████████░░░░░░░░ Proficient\n- Lua                  ████████████████░░░░ Advanced\n\n## Frontend Architecture\nReact, TypeScript, Tailwind CSS, Framer Motion\n\n## Backend & Infrastructure\nNode.js, Express, MongoDB, DevOps, PowerShell` },
-      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "phone": "(413) 409-9563",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/ali-younes-41a2b4296",\n  "status": "Open to opportunities!"\n}` },
+      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/ali-younes-41a2b4296",\n  "status": "Open to opportunities!"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file - use 'open resume.pdf' to download]` },
       ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@portfolio:\\w$ "\nalias ll="ls -la"\nalias cls="clear"\necho "Welcome back, Ali!"` },
       ".gitconfig": { type: "file", content: `[user]\n  name = Ali Younes\n  email = younes.al@northeastern.edu\n[core]\n  editor = vim` },
@@ -28,6 +28,15 @@ const fileSystem = {
           }},
           "face-analytics": { type: "dir", children: {
             "README.md": { type: "file", content: `# Real-Time Face Analytics\nAI-powered facial recognition & emotion detection\n\nTech: React, TensorFlow.js, face-api.js\nRepo: github.com/whoisaldo/real-time-face-analytics` }
+          }},
+          "better-apple-music": { type: "dir", children: {
+            "README.md": { type: "file", content: `# BetterAppleMusic\nCustom Windows desktop client for Apple Music\n\nTech: TypeScript, Electron, React\nRepo: github.com/whoisaldo/BetterAppleMusic` }
+          }},
+          "eternal-rich-presence": { type: "dir", children: {
+            "README.md": { type: "file", content: `# Eternal-Rich-Presence\nDiscord Rich Presence bridge for Apple Music & Spotify\n\nTech: Python, Discord API\nRepo: github.com/whoisaldo/Eternal-Rich-Presence` }
+          }},
+          "virtual-dyno": { type: "dir", children: {
+            "README.md": { type: "file", content: `# VirtualDyno\nVirtual dynamometer simulation tool\n\nTech: Simulation\nRepo: github.com/whoisaldo/VirtualDyno` }
           }},
         }
       },
@@ -542,6 +551,21 @@ AUTHOR
      Tech: HTML5, CSS3, JavaScript
      → chicopeefadeempire.com
 
+  🎵 BETTER APPLE MUSIC
+     Custom Windows desktop client for Apple Music
+     Tech: TypeScript, Electron, React
+     → github.com/whoisaldo/BetterAppleMusic
+
+  💬 ETERNAL-RICH-PRESENCE
+     Discord Rich Presence bridge for Apple Music & Spotify
+     Tech: Python, Discord API
+     → github.com/whoisaldo/Eternal-Rich-Presence
+
+  🏎️  VIRTUAL DYNO
+     Virtual dynamometer simulation tool
+     Tech: Simulation
+     → github.com/whoisaldo/VirtualDyno
+
 Run 'cd ~/projects && ls' to explore project directories
 ` }]);
         break;
@@ -553,7 +577,7 @@ Run 'cd ~/projects && ls' to explore project directories
 
   📧 Email:     younes.al@northeastern.edu
   📧 Personal:  whois.younes@gmail.com
-  📱 Phone:     (413) 409-9563
+  📧 Business:  Aliyounes@eternalreverse.com
   📍 Location:  Boston, MA
 
   💼 Status:    Open to opportunities!
@@ -619,8 +643,8 @@ Date:   ${new Date().toDateString()}
       case "sudo":
         if (args.join(" ").includes("rm -rf")) {
           setHistory(prev => [...prev, { type: "error", text: "Nice try! 🛡️ System protected." }]);
-        } else if (args[0] === "hire") {
-          setHistory(prev => [...prev, { type: "system", text: "🎉 SUDO HIRE ACTIVATED!\n\nEmail: younes.al@northeastern.edu\nPhone: (413) 409-9563\n\nLet's talk!" }]);
+        } else         if (args[0] === "hire") {
+          setHistory(prev => [...prev, { type: "system", text: "🎉 SUDO HIRE ACTIVATED!\n\nEmail: younes.al@northeastern.edu\nBusiness: Aliyounes@eternalreverse.com\n\nLet's talk!" }]);
         } else {
           setHistory(prev => [...prev, { type: "output", text: "ali is not in the sudoers file. This incident will be reported. 😄" }]);
         }
@@ -633,8 +657,8 @@ Date:   ${new Date().toDateString()}
 
   I'm actively looking for opportunities!
 
-  📧 Email:  younes.al@northeastern.edu
-  📱 Phone:  (413) 409-9563
+  📧 Email:     younes.al@northeastern.edu
+  📧 Business:  Aliyounes@eternalreverse.com
 
   Let's build something amazing together! 🚀
 
