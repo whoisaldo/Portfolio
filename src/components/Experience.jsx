@@ -1,9 +1,13 @@
-// src/components/Experience.jsx - Enhanced with Philips & Top Choice Realty
+// src/components/Experience.jsx — Editorial redesign + AWS ADC card
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Briefcase, GraduationCap, ChevronDown, Server, Zap, Cpu, Users, CheckCircle2, Code, Database, BarChart3, Building2, Monitor, Wrench, Settings } from "lucide-react";
+import {
+  Briefcase, GraduationCap, ChevronDown, Server, Zap, Cpu, Users,
+  CheckCircle2, Code, Database, BarChart3, Building2, Monitor,
+  Wrench, Settings, Cloud, Shield,
+} from "lucide-react";
 
-// Import logos
+import awsLogo from "../assets/PreviousExperience/awslogosvg.svg";
 import philipsLogo from "../assets/PreviousExperience/PhilipsLogo.svg";
 import neuLogo from "../assets/PreviousExperience/NEULOGO.png";
 import topChoiceLogo from "../assets/PreviousExperience/Topchoicerealtylogo.jpeg";
@@ -12,40 +16,94 @@ import robertDefalcoLogo from "../assets/PreviousExperience/RobertDefalcoRealty.
 const experiences = [
   {
     type: "work",
+    title: "Software Development Engineer Intern",
+    subtitle: "Amazon Dedicated Cloud (ADC)",
+    company: "Amazon Web Services",
+    period: "Jun 2026 — Sep 2026",
+    location: "Seattle, WA",
+    logo: awsLogo,
+
+    badge: "Incoming",
+    badgeColor: "text-[#FF9900] border-[#FF9900]/50 bg-[#FF9900]/10",
+    badgeDot: "bg-[#FF9900]",
+    description:
+      "Incoming SDE Intern on AWS Amazon Dedicated Cloud (ADC) — the isolated AWS partitions that power U.S. Intelligence Community, DoD, and other mission-critical government workloads. Owning a scoped service project across distributed systems, automation, and operational tooling.",
+    metrics: [
+      { value: "AWS",   label: "Cloud Platform" },
+      { value: "ADC",   label: "Dedicated Cloud" },
+      { value: "SDE",   label: "Intern" },
+      { value: "2026",  label: "Summer" },
+    ],
+    highlights: [
+      {
+        icon: Cloud,
+        title: "Distributed Systems at Scale",
+        description:
+          "Building on the infra that runs AWS' air-gapped, ITAR / IL5 / IL6-compliant partitions — where every deployment is high-stakes and low margin-of-error."
+      },
+      {
+        icon: Shield,
+        title: "Security-First Engineering",
+        description:
+          "Designing with Well-Architected + ADC hardening in mind: IAM, KMS, least-privilege by default, auditability from day one."
+      },
+      {
+        icon: Server,
+        title: "Service Ownership",
+        description:
+          "Full intern-scope project — design doc, code, deploy pipeline, on-call playbook — under a Senior/Principal SDE mentor."
+      },
+      {
+        icon: Users,
+        title: "Customer Obsession (Regulated)",
+        description:
+          "Delivering for customers who can't use commercial AWS. Every feature must earn its way through security review before it ships."
+      },
+    ],
+    skills: [
+      "AWS", "Distributed Systems", "Linux", "Python", "Java",
+      "Go", "IaC (CDK/CloudFormation)", "Security Engineering",
+    ],
+    icon: Cloud,
+  },
+  {
+    type: "work",
     title: "Software Engineering Co-op",
-    subtitle: "System Integration and Automation",
+    subtitle: "System Integration & Automation",
     company: "Philips",
-    period: "2025 - Present",
+    period: "2025 — Present",
     location: "Cambridge, MA",
     logo: philipsLogo,
-    description: "Building and scaling VM automation and automated deployment pipelines for Philips' PicIX enterprise imaging platform—from single-node setups to large-scale infrastructure.",
+
+    description:
+      "Building and scaling VM automation and automated deployment pipelines for Philips' PicIX enterprise imaging platform — from single-node setups to large-scale infrastructure.",
     metrics: [
-      { value: "VM", label: "Automation" },
-      { value: "PicIX", label: "Platform" },
+      { value: "VM",     label: "Automation" },
+      { value: "PicIX",  label: "Platform" },
       { value: "DevOps", label: "Pipelines" },
-      { value: "24/7", label: "Uptime" },
+      { value: "24/7",   label: "Uptime" },
     ],
     highlights: [
       {
         icon: Cpu,
         title: "Virtual Machine Automation",
-        description: "Designing and implementing large- and small-scale VM automation workflows—provisioning, configuration, and lifecycle management for PicIX infrastructure."
+        description: "Designing and implementing large- and small-scale VM automation workflows — provisioning, configuration, and lifecycle management for PicIX infrastructure."
       },
       {
         icon: Zap,
         title: "Automated PicIX Setups",
-        description: "Building end-to-end automated setups and deployment pipelines for the PicIX platform, enabling consistent, repeatable deployments across environments."
+        description: "Building end-to-end automated setups and deployment pipelines for PicIX, enabling consistent, repeatable deployments across environments."
       },
       {
         icon: Server,
         title: "DevOps & Infrastructure",
-        description: "Leveraging C#, PowerShell, and .NET Framework to drive infrastructure-as-code practices, CI/CD, and operational automation for enterprise imaging systems."
+        description: "Leveraging C#, PowerShell, and .NET Framework to drive infrastructure-as-code, CI/CD, and operational automation for enterprise imaging systems."
       },
       {
         icon: Users,
         title: "Enterprise Impact",
         description: "Automation and tooling directly support healthcare providers globally, ensuring PicIX imaging systems deploy and run reliably at scale."
-      }
+      },
     ],
     skills: ["C#", ".NET Framework", "PowerShell", "DevOps", "VM Automation", "PicIX", "Infrastructure as Code", "Healthcare IT"],
     icon: Briefcase,
@@ -54,88 +112,63 @@ const experiences = [
     type: "work",
     title: "Frontend Developer Intern",
     company: "Top Choice Realty",
-    period: "Apr 2024 - Aug 2024",
+    period: "Apr 2024 — Aug 2024",
     location: "New York, NY",
     logo: topChoiceLogo,
-    description: "Built a full-stack client management application that transformed how 20+ real estate agents access and manage over 800 client records, delivering measurable business impact.",
+    logoBg: "bg-bone/5 border-bone/15",
+    description: "Built a full-stack client management application that transformed how 20+ real estate agents access and manage 800+ client records, with measurable business impact.",
     highlights: [
-      {
-        icon: Code,
-        title: "Full-Stack Web Application",
-        description: "Engineered and launched a client management web application using React, Python, and SQL, reducing average client lookup time by 85% (from 5+ minutes to 45 seconds)."
-      },
-      {
-        icon: Users,
-        title: "User-Friendly Interface Design",
-        description: "Created intuitive interfaces with guided navigation and visual search tools, empowering non-technical real estate agents to independently manage 800+ client records."
-      },
-      {
-        icon: Database,
-        title: "Database Optimization",
-        description: "Optimized database queries and implemented caching mechanisms that accelerated data retrieval by 3x, saving the team 15+ hours weekly in administrative tasks."
-      },
-      {
-        icon: BarChart3,
-        title: "Measurable Business Impact",
-        description: "Eliminated 90% of IT support requests and improved client response times by 60%, directly contributing to better customer service and agent productivity."
-      }
+      { icon: Code,       title: "Full-Stack Web Application",   description: "Engineered and launched a client management web application using React, Python, and SQL, reducing average client lookup time by 85% (from 5+ minutes to 45 seconds)." },
+      { icon: Users,      title: "User-Friendly Interface",       description: "Created intuitive interfaces with guided navigation and visual search, empowering non-technical agents to independently manage 800+ client records." },
+      { icon: Database,   title: "Database Optimization",         description: "Optimized queries and implemented caching, accelerating data retrieval 3x and saving the team 15+ hours weekly in admin tasks." },
+      { icon: BarChart3,  title: "Measurable Business Impact",    description: "Eliminated 90% of IT support requests and improved client response times by 60%." },
     ],
     metrics: [
       { value: "85%", label: "Faster Lookups" },
-      { value: "3x", label: "Query Speed" },
+      { value: "3x",  label: "Query Speed" },
       { value: "90%", label: "Less IT Tickets" },
       { value: "15+", label: "Hours Saved/Week" },
     ],
-    skills: ["React", "Python", "SQL", "Full-Stack Development", "UI/UX Design", "Database Optimization", "REST APIs"],
+    skills: ["React", "Python", "SQL", "Full-Stack", "UI/UX Design", "Database Optimization", "REST APIs"],
     icon: Building2,
   },
   {
     type: "work",
     title: "Computer Technician Intern",
     company: "Robert DeFalco Realty",
-    period: "Jun 2023 - Sep 2023",
+    period: "Jun 2023 — Sep 2023",
     location: "New York, NY",
     logo: robertDefalcoLogo,
-    description: "Provided hands-on IT support across multiple office locations, configuring systems and troubleshooting technical issues to maintain optimal performance.",
+    logoBg: "bg-bone/5 border-bone/15",
+    description: "Hands-on IT support across multiple office locations — configuring systems and troubleshooting technical issues to maintain optimal performance.",
     metrics: [
-      { value: "3+", label: "Office Locations" },
-      { value: "15+", label: "Systems Configured" },
-      { value: "25+", label: "Issues Resolved" },
+      { value: "3+",   label: "Office Locations" },
+      { value: "15+",  label: "Systems Configured" },
+      { value: "25+",  label: "Issues Resolved" },
       { value: "95%+", label: "System Uptime" },
     ],
     highlights: [
-      {
-        icon: Monitor,
-        title: "Multi-Location Technical Support",
-        description: "Provided on-site technical support across 3+ office locations, setting up and configuring 15+ computer systems with Windows, macOS, and Linux operating systems."
-      },
-      {
-        icon: Wrench,
-        title: "Troubleshooting & Issue Resolution",
-        description: "Troubleshot and resolved 25+ technical issues spanning different OS platforms and hardware configurations, optimizing performance across all systems."
-      },
-      {
-        icon: Settings,
-        title: "System Maintenance & Uptime",
-        description: "Maintained 95%+ system uptime across all office sites through proactive maintenance and quick issue resolution, ensuring seamless hardware and software operation."
-      }
+      { icon: Monitor,  title: "Multi-Location Support",    description: "On-site support across 3+ offices; configured 15+ systems across Windows, macOS, and Linux." },
+      { icon: Wrench,   title: "Troubleshooting",           description: "Resolved 25+ technical issues spanning OS platforms and hardware configurations." },
+      { icon: Settings, title: "System Maintenance",        description: "Maintained 95%+ uptime across all sites through proactive maintenance and fast issue resolution." },
     ],
-    skills: ["Windows", "macOS", "Linux", "Hardware Configuration", "Troubleshooting", "IT Support", "System Administration"],
+    skills: ["Windows", "macOS", "Linux", "Hardware Config", "Troubleshooting", "IT Support", "System Administration"],
     icon: Monitor,
   },
   {
     type: "education",
     title: "Computer Science & Engineering",
     company: "Northeastern University",
-    period: "2023 - 2027",
+    period: "2023 — 2027",
     location: "Boston, MA",
     logo: neuLogo,
-    description: "Pursuing a Bachelor's degree with focus on software development, systems programming, and algorithm design. Active in co-op program gaining real-world experience.",
+
+    description: "Bachelor's in CS with a focus on software development, systems programming, and algorithm design. Active in the co-op program for real-world engineering experience.",
     metrics: [
-      { value: "B.S.", label: "Degree" },
-      { value: "2027", label: "Expected" },
+      { value: "B.S.",  label: "Degree" },
+      { value: "2027",  label: "Expected" },
       { value: "Co-op", label: "Program" },
-      { value: "3.5+", label: "GPA Target" },
+      { value: "3.5+",  label: "GPA" },
     ],
     coursework: ["Data Structures & Algorithms", "Object-Oriented Design", "Systems Programming", "Database Management", "Computer Networks"],
     icon: GraduationCap,
@@ -143,122 +176,138 @@ const experiences = [
 ];
 
 export default function Experience() {
-  const [expandedIndex, setExpandedIndex] = useState(0); // Philips expanded by default
+  const [expandedIndex, setExpandedIndex] = useState(0); // AWS open by default
 
   return (
-    <section id="experience" className="relative py-24 md:py-28 px-6 bg-[#0a0a0f]">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="text-center mb-16"
-        >
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
-            Experience
+    <section id="experience" className="relative py-28 md:py-36 px-6 bg-ink overflow-hidden grain">
+      {/* Diagonal hairline */}
+      <div className="diag-rule top-20 left-[-60%]" />
+
+      <div className="max-w-5xl mx-auto relative z-10">
+        {/* Editorial header */}
+        <div className="mb-16 md:mb-20">
+          <div className="mono-label text-signal/80 mb-4">§ 02 — Experience</div>
+          <h2 className="serif-display text-[14vw] md:text-[9rem] leading-[0.88] text-bone italic">
+            <span className="text-bone">what</span>
+            <span className="text-signal"> i’ve</span>
+            <span className="text-bone italic"> built.</span>
           </h2>
-        </motion.div>
+          <div className="wipe-divider mt-10" />
+        </div>
 
         <div className="relative">
-          {/* Timeline line */}
-          <div className="absolute left-8 md:left-12 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-500 via-rose-500 to-red-500/20" />
+          {/* Timeline rail */}
+          <div className="absolute left-6 md:left-10 top-0 bottom-0 w-px bg-bone/10" />
 
-          <div className="space-y-8">
+          <div className="space-y-10">
             {experiences.map((exp, index) => {
               const Icon = exp.icon;
               const isExpanded = expandedIndex === index;
               const isWork = exp.type === "work";
+              const num = String(index + 1).padStart(2, "0");
 
               return (
                 <motion.div
                   key={index}
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -16 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="relative pl-20 md:pl-28"
+                  transition={{ duration: 0.45, delay: index * 0.08 }}
+                  className="relative pl-16 md:pl-24"
                 >
-                  {/* Timeline dot */}
-                  <div className="absolute left-4 md:left-8 top-0 z-10">
-                    <div 
-                      className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-4 border-[#0a0a0f]
-                                 ${isWork ? 'bg-gradient-to-br from-red-500 to-rose-500' : 'bg-gradient-to-br from-rose-500 to-rose-600'}
-                                 shadow-lg`}
-                      style={{ boxShadow: `0 0 20px ${isWork ? 'rgba(239,68,68,0.4)' : 'rgba(244,63,94,0.4)'}` }}
-                    >
-                      <Icon className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                  {/* Numbered timeline marker */}
+                  <div className="absolute left-0 md:left-4 top-1 z-10 flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full bg-ink border border-signal flex items-center justify-center">
+                      <div className={`w-1.5 h-1.5 rounded-full ${isWork ? 'bg-signal' : 'bg-bone'}`} />
                     </div>
+                    <span className="mono-label text-bone/40 hidden md:block">{num}</span>
                   </div>
 
-                  {/* Content card */}
-                  <div 
-                    className={`rounded-2xl overflow-hidden transition-all duration-300 
-                               ${isExpanded ? 'ring-1 ring-red-500/30' : ''}`}
-                    style={{ backgroundColor: '#12121a' }}
+                  {/* Card */}
+                  <div
+                    className={`relative border transition-all duration-300
+                                ${isExpanded
+                                  ? 'border-signal/40 bg-smoke'
+                                  : 'border-bone/10 bg-ink hover:border-bone/25 hover:translate-x-1'}`}
                   >
-                    {/* Card Header - Clickable */}
+                    {/* Left accent on expand */}
+                    {isExpanded && (
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-signal" />
+                    )}
+
                     <button
                       onClick={() => setExpandedIndex(isExpanded ? -1 : index)}
-                      className="w-full p-5 md:p-6 text-left hover:bg-white/5 transition-colors"
+                      className="w-full p-6 md:p-7 text-left"
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start justify-between gap-5">
                         <div className="flex-1 min-w-0">
-                          {/* Company name and badge */}
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="text-lg font-black tracking-wide text-white">
-                              {exp.company.toUpperCase()}
-                            </span>
-                            <span 
-                              className={`px-2.5 py-0.5 text-xs font-semibold rounded-full
-                                         ${isWork 
-                                           ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
-                                           : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}
+                          {/* meta row */}
+                          <div className="flex flex-wrap items-center gap-2 mb-3">
+                            <span className="mono-label text-bone/35">{num} /</span>
+                            {/* Type badge */}
+                            <span
+                              className={`inline-flex items-center gap-1.5 mono-label px-2.5 py-1 border font-bold
+                                         ${isWork
+                                           ? 'text-signal border-signal/50 bg-signal/8'
+                                           : 'text-bone/80 border-bone/30 bg-bone/5'}`}
                             >
+                              <span className={`w-1.5 h-1.5 rounded-full ${isWork ? 'bg-signal' : 'bg-bone/60'}`} />
                               {isWork ? 'Work' : 'Education'}
                             </span>
-                          </div>
-
-                          {/* Title */}
-                          <h3 className="text-xl font-bold text-white mb-1">
-                            {exp.title}
-                            {exp.subtitle && (
-                              <span className="text-neutral-400 font-normal text-base ml-2">
-                                ({exp.subtitle})
+                            {/* Custom badge (Incoming, etc.) */}
+                            {exp.badge && (
+                              <span className={`inline-flex items-center gap-1.5 mono-label px-2.5 py-1 border font-bold ${exp.badgeColor || 'text-ember border-ember/50 bg-ember/10'}`}>
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${exp.badgeDot || 'bg-ember'}`} />
+                                  <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${exp.badgeDot || 'bg-ember'}`} />
+                                </span>
+                                {exp.badge}
                               </span>
                             )}
-                          </h3>
-
-                          {/* Meta */}
-                          <div className="flex flex-wrap items-center gap-3 text-sm text-neutral-500">
-                            <span>{exp.period}</span>
-                            <span>•</span>
-                            <span>{exp.location}</span>
+                            <span className="mono-label text-bone/40 ml-auto hidden sm:block">
+                              {exp.period} · {exp.location}
+                            </span>
                           </div>
+
+                          {/* Company + title */}
+                          <div className="mb-1">
+                            <h3 className="serif-display italic text-3xl md:text-5xl text-bone leading-[0.95]">
+                              {exp.company}
+                            </h3>
+                          </div>
+                          <p className="font-mono text-[13px] md:text-sm text-bone/70">
+                            <span className="text-signal">›</span> {exp.title}
+                            {exp.subtitle && (
+                              <span className="text-bone/45"> · {exp.subtitle}</span>
+                            )}
+                          </p>
+
+                          {/* Mobile meta */}
+                          <p className="mono-label text-bone/40 mt-2 sm:hidden">
+                            {exp.period} · {exp.location}
+                          </p>
                         </div>
 
-                        {/* Logo on right side */}
-                        <div className="flex items-center gap-3">
+                        {/* Logo + chevron */}
+                        <div className="flex items-center gap-4 shrink-0">
                           {exp.logo && (
-                            <div className="h-20 md:h-24 w-28 md:w-36 flex items-center justify-center">
-                              <img 
-                                src={exp.logo} 
-                                alt={exp.company}
-                                className="h-full w-full object-contain drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                                style={{ filter: 'drop-shadow(0 0 20px rgba(168, 85, 247, 0.4)) drop-shadow(0 0 40px rgba(217, 70, 239, 0.2))' }}
-                              />
-                            </div>
+                            <img
+                              src={exp.logo}
+                              alt={exp.company}
+                              className="h-16 md:h-24 w-auto max-w-[140px] md:max-w-[200px] object-contain drop-shadow-[0_0_20px_rgba(255,59,48,0.15)] group-hover:drop-shadow-[0_0_30px_rgba(255,59,48,0.35)] transition-all duration-300"
+                            />
                           )}
-                          {/* Expand button */}
-                          <div className={`p-2 rounded-full bg-white/5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
-                            <ChevronDown className="w-5 h-5 text-neutral-400" />
+                          <div
+                            className={`p-2 border border-bone/20 transition-transform duration-300
+                                        ${isExpanded ? 'rotate-180 border-signal/50 text-signal' : 'text-bone/60'}`}
+                          >
+                            <ChevronDown className="w-4 h-4" />
                           </div>
                         </div>
                       </div>
                     </button>
 
-                    {/* Expanded Content */}
+                    {/* Expanded content */}
                     <AnimatePresence>
                       {isExpanded && (
                         <motion.div
@@ -268,55 +317,49 @@ export default function Experience() {
                           transition={{ duration: 0.3 }}
                           className="overflow-hidden"
                         >
-                          <div className="px-5 md:px-6 pb-6 space-y-5">
-                            {/* Divider */}
-                            <div className="h-px bg-gradient-to-r from-transparent via-red-500/30 to-transparent" />
+                          <div className="px-6 md:px-7 pb-7 space-y-6">
+                            <div className="h-px bg-gradient-to-r from-signal/40 via-signal/10 to-transparent" />
 
-                            {/* Description */}
-                            <p className="text-neutral-400 leading-relaxed">
+                            <p className="text-bone/75 text-[15px] leading-relaxed max-w-3xl">
                               {exp.description}
                             </p>
 
-                            {/* Metrics Grid (for Top Choice Realty) */}
+                            {/* Metrics — mono table style */}
                             {exp.metrics && (
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              <div className="grid grid-cols-2 md:grid-cols-4 border border-bone/10 divide-x divide-bone/10">
                                 {exp.metrics.map((metric, i) => (
-                                  <div 
-                                    key={i}
-                                    className="p-3 rounded-xl bg-gradient-to-br from-red-500/10 to-rose-500/10 border border-red-500/20 text-center"
-                                  >
-                                    <div className="text-2xl font-black text-red-400">{metric.value}</div>
-                                    <div className="text-xs text-neutral-500">{metric.label}</div>
+                                  <div key={i} className="p-4 text-center">
+                                    <div className="serif-display italic text-2xl md:text-3xl text-signal">
+                                      {metric.value}
+                                    </div>
+                                    <div className="mono-label text-bone/50 mt-1">{metric.label}</div>
                                   </div>
                                 ))}
                               </div>
                             )}
 
-                            {/* Work Highlights */}
+                            {/* Highlights */}
                             {exp.highlights && (
-                              <div className="space-y-4">
-                                <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                                  <Zap className="w-4 h-4 text-red-500" />
-                                  Key Responsibilities & Impact
+                              <div className="space-y-3">
+                                <h4 className="mono-label text-bone/60 flex items-center gap-2">
+                                  <Zap className="w-3.5 h-3.5 text-signal" />
+                                  Key Responsibilities &amp; Impact
                                 </h4>
-                                <div className="grid gap-3">
-                                  {exp.highlights.map((highlight, i) => {
-                                    const HighlightIcon = highlight.icon;
+                                <div className="grid md:grid-cols-2 gap-3">
+                                  {exp.highlights.map((h, i) => {
+                                    const HIcon = h.icon;
                                     return (
-                                      <div 
-                                        key={i}
-                                        className="p-4 rounded-xl bg-red-500/5 border border-red-500/10"
-                                      >
+                                      <div key={i} className="p-4 border border-bone/10 hover:border-signal/30 transition-colors">
                                         <div className="flex items-start gap-3">
-                                          <div className="p-2 rounded-lg bg-red-500/10 shrink-0">
-                                            <HighlightIcon className="w-4 h-4 text-red-400" />
+                                          <div className="p-1.5 border border-signal/40 shrink-0">
+                                            <HIcon className="w-3.5 h-3.5 text-signal" />
                                           </div>
                                           <div>
-                                            <h5 className="font-semibold text-white text-sm mb-1">
-                                              {highlight.title}
+                                            <h5 className="font-mono text-sm font-bold text-bone mb-1">
+                                              {h.title}
                                             </h5>
-                                            <p className="text-neutral-400 text-sm leading-relaxed">
-                                              {highlight.description}
+                                            <p className="text-bone/65 text-[13px] leading-relaxed">
+                                              {h.description}
                                             </p>
                                           </div>
                                         </div>
@@ -327,20 +370,17 @@ export default function Experience() {
                               </div>
                             )}
 
-                            {/* Skills/Technologies */}
+                            {/* Skills */}
                             {exp.skills && (
                               <div>
-                                <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                                  <Cpu className="w-4 h-4 text-red-500" />
-                                  Technologies & Skills
+                                <h4 className="mono-label text-bone/60 mb-3 flex items-center gap-2">
+                                  <Cpu className="w-3.5 h-3.5 text-signal" />
+                                  Stack
                                 </h4>
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-1.5">
                                   {exp.skills.map((skill) => (
-                                    <span
-                                      key={skill}
-                                      className="px-3 py-1.5 text-xs font-medium rounded-lg
-                                                 bg-red-500/15 text-red-400 border border-red-500/20"
-                                    >
+                                    <span key={skill}
+                                      className="mono-label px-2.5 py-1 border border-bone/15 text-bone/80 hover:border-signal/40 hover:text-signal transition-colors">
                                       {skill}
                                     </span>
                                   ))}
@@ -348,21 +388,17 @@ export default function Experience() {
                               </div>
                             )}
 
-                            {/* Coursework for Education */}
+                            {/* Coursework */}
                             {exp.coursework && (
                               <div>
-                                <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                                  <CheckCircle2 className="w-4 h-4 text-rose-500" />
+                                <h4 className="mono-label text-bone/60 mb-3 flex items-center gap-2">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-signal" />
                                   Relevant Coursework
                                 </h4>
-                                <div className="flex flex-wrap gap-2">
-                                  {exp.coursework.map((course) => (
-                                    <span
-                                      key={course}
-                                      className="px-3 py-1.5 text-xs font-medium rounded-lg
-                                                 bg-rose-500/15 text-rose-400 border border-rose-500/20"
-                                    >
-                                      {course}
+                                <div className="flex flex-wrap gap-1.5">
+                                  {exp.coursework.map((c) => (
+                                    <span key={c} className="mono-label px-2.5 py-1 border border-bone/15 text-bone/80">
+                                      {c}
                                     </span>
                                   ))}
                                 </div>

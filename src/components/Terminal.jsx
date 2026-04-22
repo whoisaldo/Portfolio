@@ -1,64 +1,59 @@
-// src/components/Terminal.jsx - Advanced Interactive Terminal
+// src/components/Terminal.jsx — Editorial mono terminal
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Terminal as TerminalIcon, Cpu, Wifi, Battery, Clock } from "lucide-react";
+import { Terminal as TerminalIcon, Wifi, Battery, Clock } from "lucide-react";
 
 // Virtual file system
 const fileSystem = {
   "~": {
     type: "dir",
     children: {
-      "about.txt": { type: "file", content: `Ali Younes - Software Engineer & Architect\n\nCS student at Northeastern University.\nCurrently at Philips: VM automation, automated PicIX setups, DevOps—using C#, PowerShell, .NET.\nPassionate about architecting scalable, high-performance systems.\n\nType 'cat skills.md' to see my technical abilities.` },
-      "skills.md": { type: "file", content: `# Technical Skills\n\n## Core Technologies\n- JavaScript/TypeScript ████████████████████ Expert\n- C++                  ████████████████░░░░ Advanced  \n- C# / .NET            ██████████████░░░░░░ Proficient\n- Python               ████████████░░░░░░░░ Proficient\n- Lua                  ████████████████░░░░ Advanced\n\n## Frontend Architecture\nReact, TypeScript, Tailwind CSS, Framer Motion\n\n## Backend & Infrastructure\nNode.js, Express, MongoDB, DevOps, PowerShell` },
-      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/ali-younes-41a2b4296",\n  "status": "Open to opportunities!"\n}` },
-      "resume.pdf": { type: "file", content: `[Binary file - use 'open resume.pdf' to download]` },
-      ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@portfolio:\\w$ "\nalias ll="ls -la"\nalias cls="clear"\necho "Welcome back, Ali!"` },
+      "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\nIncoming: SDE Intern at AWS Amazon Dedicated Cloud (ADC) — Seattle, Summer '26.\n\nI architect distributed, high-stakes systems — and I build the tools that keep them running.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
+      "skills.md": { type: "file", content: `# Technical Skills\n\n## Languages\n- TypeScript / JavaScript  ████████████████████  Expert\n- C++                      ████████████████░░░░  Advanced\n- C# / .NET                ██████████████░░░░░░  Proficient\n- Python                   ████████████░░░░░░░░  Proficient\n- Rust                     ████████████░░░░░░░░  Proficient\n- Swift / SwiftUI          ██████████░░░░░░░░░░  Intermediate\n- Go                       ████████░░░░░░░░░░░░  Learning\n\n## Frontend\nReact · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · MongoDB · .NET · PowerShell\n\n## Cloud & Infra\nAWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD` },
+      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA → Seattle, WA (Summer '26)",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/ali-younes-41a2b4296",\n  "status": "Open to opportunities"\n}` },
+      "resume.pdf": { type: "file", content: `[Binary file — use 'open resume.pdf' to download]` },
+      ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@eternalreverse:\\w %"\nalias ll="ls -la"\nalias cls="clear"` },
       ".gitconfig": { type: "file", content: `[user]\n  name = Ali Younes\n  email = younes.al@northeastern.edu\n[core]\n  editor = vim` },
       "projects": {
         type: "dir",
         children: {
-          "moops-bookstore": { type: "dir", children: { 
-            "README.md": { type: "file", content: `# Moops Bookstore\nFull-stack social book tracking platform\n\nTech: React, TypeScript, Node.js, MongoDB\nRepo: github.com/whoisaldo/MoopBookstore` }
+          "eternal-monitor": { type: "dir", children: {
+            "README.md": { type: "file", content: `# Eternal Monitor\nLow-latency remote desktop — Rust host + SwiftUI iPad client\n\nTech: Rust, SwiftUI, DXGI, H.264, VideoToolbox, UDP\nLive: eternalmonitor.dev\nRepo: github.com/whoisaldo/EternalMonitor` }
           }},
           "exerly-fitness": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Exerly Fitness\nComprehensive fitness tracking platform\n\nTech: React, Node.js, MongoDB, JWT Auth\nRepo: github.com/whoisaldo/Exerly-Fitness` }
+            "README.md": { type: "file", content: `# Exerly Fitness\niOS (SwiftUI) + Web (React 19) + Node/Express API + Gemini 2.0 AI coach\n\nTech: SwiftUI, React 19, Node.js, Express, MongoDB, Gemini 2.0, JWT\nLive: exerlyfitness.com\nRepo: github.com/whoisaldo/Exerly-Fitness` }
           }},
-          "fade-empire": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Fade Empire Barbershop\nModern barbershop website\n\nTech: HTML5, CSS3, JavaScript\nLive: chicopeefadeempire.com` }
-          }},
-          "face-analytics": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Real-Time Face Analytics\nAI-powered facial recognition & emotion detection\n\nTech: React, TensorFlow.js, face-api.js\nRepo: github.com/whoisaldo/real-time-face-analytics` }
-          }},
-          "better-apple-music": { type: "dir", children: {
-            "README.md": { type: "file", content: `# BetterAppleMusic\nCustom Windows desktop client for Apple Music\n\nTech: TypeScript, Electron, React\nRepo: github.com/whoisaldo/BetterAppleMusic` }
+          "moops-bookstore": { type: "dir", children: {
+            "README.md": { type: "file", content: `# Moops Bookstore\nSocial book tracking platform\n\nTech: React, TypeScript, Node.js, MongoDB, Google Books API\nRepo: github.com/whoisaldo/MoopBookstore` }
           }},
           "eternal-rich-presence": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Eternal-Rich-Presence\nDiscord Rich Presence bridge for Apple Music & Spotify\n\nTech: Python, Discord API\nRepo: github.com/whoisaldo/Eternal-Rich-Presence` }
+            "README.md": { type: "file", content: `# Eternal Rich Presence\nWindows tray app bridging Apple Music & Spotify → Discord Rich Presence\n\nTech: Python 3.8, pypresence, spotipy, winrt, PyInstaller\nRepo: github.com/whoisaldo/Eternal-Rich-Presence` }
           }},
-          "virtual-dyno": { type: "dir", children: {
-            "README.md": { type: "file", content: `# VirtualDyno\nVirtual dynamometer simulation tool\n\nTech: Simulation\nRepo: github.com/whoisaldo/VirtualDyno` }
+          "signature-cuts-413": { type: "dir", children: {
+            "README.md": { type: "file", content: `# Signature Cuts 413\nProduction barbershop site (Chicopee, MA)\n\nTech: Next.js 14, TypeScript, Tailwind, Framer Motion (SSG on GitHub Pages)\nLive: signaturecutschicopee.com` }
+          }},
+          "face-analytics": { type: "dir", children: {
+            "README.md": { type: "file", content: `# Real-Time Face Analytics\nClient-side facial recognition & emotion detection\n\nTech: React, TensorFlow.js, face-api.js\nRepo: github.com/whoisaldo/real-time-face-analytics` }
           }},
         }
       },
       "experience": {
         type: "dir",
         children: {
-          "philips.md": { type: "file", content: `# Philips - Software Engineering Co-op\nSystem Integration and Automation | 2025 - Present | Cambridge, MA\n\n- Large- and small-scale virtual machine automation\n- Automated setups & deployment pipelines for PicIX platform\n- C#, .NET Framework, PowerShell, DevOps\n- Enterprise imaging infrastructure at scale` },
-          "topchoice.md": { type: "file", content: `# Top Choice Realty - Frontend Developer Intern\nApr 2024 - Aug 2024 | New York, NY\n\n- Built full-stack app (React, Python, SQL)\n- 85% faster lookups, 3x query speed\n- Managed 800+ client records\n- Saved team 15+ hours/week` },
-          "defalco.md": { type: "file", content: `# Robert DeFalco Realty - Computer Technician\nJun 2023 - Sep 2023 | New York, NY\n\n- On-site support across 3+ offices\n- Configured 15+ systems (Win/Mac/Linux)\n- Maintained 95%+ system uptime` },
+          "aws.md": { type: "file", content: `# AWS — SDE Intern (Incoming)\nAmazon Dedicated Cloud (ADC) | Jun 2026 — Sep 2026 | Seattle, WA\n\n- Building on AWS' air-gapped ITAR/IL5/IL6-compliant partitions\n- Service-level project across distributed systems & operational tooling\n- Security-first engineering under Principal/Senior SDE mentorship\n- Customers: U.S. Intelligence Community, DoD, regulated workloads` },
+          "philips.md": { type: "file", content: `# Philips — Software Engineering Co-op\nSystem Integration and Automation | 2025 — Present | Cambridge, MA\n\n- Large- and small-scale VM automation\n- Automated setups & deployment pipelines for PicIX platform\n- C#, .NET Framework, PowerShell, DevOps\n- Enterprise imaging infrastructure at scale` },
+          "topchoice.md": { type: "file", content: `# Top Choice Realty — Frontend Developer Intern\nApr 2024 — Aug 2024 | New York, NY\n\n- Built full-stack app (React, Python, SQL)\n- 85% faster lookups, 3x query speed\n- Managed 800+ client records` },
+          "defalco.md": { type: "file", content: `# Robert DeFalco Realty — Computer Technician\nJun 2023 — Sep 2023 | New York, NY\n\n- On-site support across 3+ offices\n- Configured 15+ systems (Win/Mac/Linux)\n- Maintained 95%+ system uptime` },
         }
       }
     }
   }
 };
 
-// Get directory contents
 const getDir = (path) => {
   const parts = path.replace(/^~/, "~").split("/").filter(Boolean);
   let current = fileSystem["~"];
-  
   if (path === "~" || path === "") return current;
-  
   for (const part of parts) {
     if (part === "~") continue;
     if (current.children && current.children[part]) {
@@ -70,24 +65,18 @@ const getDir = (path) => {
   return current;
 };
 
-// Resolve path
 const resolvePath = (currentPath, targetPath) => {
   if (targetPath.startsWith("~")) return targetPath;
   if (targetPath.startsWith("/")) return "~" + targetPath;
-  
   let parts = currentPath.split("/").filter(Boolean);
   const targetParts = targetPath.split("/");
-  
   for (const part of targetParts) {
     if (part === "..") {
-      if (parts.length > 1 || (parts.length === 1 && parts[0] !== "~")) {
-        parts.pop();
-      }
+      if (parts.length > 1 || (parts.length === 1 && parts[0] !== "~")) parts.pop();
     } else if (part !== ".") {
       parts.push(part);
     }
   }
-  
   return parts.join("/") || "~";
 };
 
@@ -102,25 +91,19 @@ export default function Terminal() {
 
   const [history, setHistory] = useState([
     { type: "ascii", text: asciiArt },
-    { type: "system", text: "Portfolio Terminal v2.0 — Welcome!" },
+    { type: "system", text: "eternalreverse shell — portfolio edition iv" },
     { type: "system", text: `Last login: ${new Date().toLocaleString()} on ttys000\n` },
-    { type: "output", text: `
-╔══════════════════════════════════════════════════════════════╗
-║           🚀 QUICK START - Try these commands:              ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  📋 help          - Show all available commands             ║
-║  👤 about         - Learn about me                          ║
-║  💼 experience    - View work history                       ║
-║  🚀 projects      - See featured projects                   ║
-║  📄 resume        - Download my resume                       ║
-║  📧 contact       - Get contact information                 ║
-║  💻 skills        - Technical skills breakdown              ║
-║  📁 ls            - List files in current directory         ║
-║                                                              ║
-║  💡 Tip: Type 'help' for the full command list              ║
-║  💡 Tip: Use Tab for autocomplete, ↑↓ for history           ║
-╚══════════════════════════════════════════════════════════════╝
+    { type: "output", text: `  QUICK START
+  ───────────────────────────────────────────────
+    help         all available commands
+    about        personal brief
+    experience   work history (AWS · Philips · ...)
+    projects     featured builds
+    skills       stack breakdown
+    contact      how to reach me
+    resume       open resume.pdf
+
+  Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
 ` },
   ]);
   const [input, setInput] = useState("");
@@ -135,13 +118,11 @@ export default function Terminal() {
   const inputRef = useRef(null);
   const terminalRef = useRef(null);
 
-  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // All available commands
   const allCommands = useMemo(() => [
     "help", "man", "clear", "ls", "cd", "cat", "pwd", "whoami", "hostname",
     "date", "uptime", "echo", "history", "banner", "about", "skills",
@@ -150,95 +131,31 @@ export default function Terminal() {
     "git", "vim", "nano", "touch", "mkdir", "rm", "cp", "mv", "head", "tail"
   ], []);
 
-  // Handle command execution
   const executeCommand = (cmd) => {
     const trimmed = cmd.trim();
     if (!trimmed) return;
-
     const [command, ...args] = trimmed.split(/\s+/);
     const lowerCmd = command.toLowerCase();
-    
+
     setHistory(prev => [...prev, { type: "prompt", path: currentDir, text: trimmed }]);
     setCommandHistory(prev => [...prev, trimmed]);
     setHistoryIndex(-1);
     setSuggestions([]);
 
-    // Command handlers
     switch (lowerCmd) {
       case "help":
         setHistory(prev => [...prev, { type: "output", text: `
-╔══════════════════════════════════════════════════════════════╗
-║              📚 AVAILABLE COMMANDS - Portfolio Terminal      ║
-╚══════════════════════════════════════════════════════════════╝
+  AVAILABLE COMMANDS
+  ═══════════════════════════════════════════════
 
-  ═══════════════════════════════════════════════════════════
-  🎯 QUICK START (Most Popular)
-  ═══════════════════════════════════════════════════════════
-  help            Show this help menu
-  about           Learn about me
-  skills          Technical skills breakdown
-  experience      Work history & internships
-  projects        Featured projects with links
-  contact         Contact information (email, phone)
-  resume          Download my resume (PDF)
-  hire            Want to hire me? Get in touch!
+  core           help · about · skills · experience · projects · contact · resume · hire
+  fs             ls · cd · pwd · cat · tree · find · open · head · tail · grep
+  system         whoami · hostname · date · uptime · neofetch · history · clear · banner
+  fun            sudo hire · git status · git log · vim · nano
 
-  ═══════════════════════════════════════════════════════════
-  📁 Navigation & Files
-  ═══════════════════════════════════════════════════════════
-  ls [path]       List directory contents
-                  Examples: ls, ls projects, ls -a (show hidden)
-  cd <dir>        Change directory
-                  Examples: cd projects, cd ~, cd ..
-  pwd             Show current directory
-  cat <file>      Display file contents
-                  Examples: cat about.txt, cat skills.md
-  tree [path]     Show directory tree structure
-  find <name>     Search for files by name
-  open resume.pdf Download resume PDF
+  keys           Tab = complete   ↑↓ = history   Ctrl+L = clear   Enter = run
 
-  ═══════════════════════════════════════════════════════════
-  ℹ️  Information Commands
-  ═══════════════════════════════════════════════════════════
-  about           Personal introduction
-  skills          Technical skills with proficiency levels
-  experience      Work experience details
-  education       Academic background
-  projects        Featured projects with GitHub links
-  contact         Email, phone, location
-  socials         GitHub, LinkedIn links
-  resume          Download resume
-
-  ═══════════════════════════════════════════════════════════
-  🖥️  System Commands
-  ═══════════════════════════════════════════════════════════
-  whoami          Current user
-  hostname        System hostname
-  date            Current date/time
-  uptime          System uptime
-  neofetch        System information display
-  history         Show command history
-  clear           Clear terminal screen
-  banner          Show ASCII art banner
-
-  ═══════════════════════════════════════════════════════════
-  🎮 Fun Commands
-  ═══════════════════════════════════════════════════════════
-  sudo hire       VIP hiring access 😄
-  git status      Git repository status
-  git log         Recent commits
-  vim/nano        Text editor (simulated)
-
-  ═══════════════════════════════════════════════════════════
-  ⌨️  Keyboard Shortcuts
-  ═══════════════════════════════════════════════════════════
-  Tab             Auto-complete commands
-  ↑ / ↓           Navigate command history
-  Ctrl+L          Clear terminal
-  Enter           Execute command
-
-  💡 TIP: Start with 'about', 'skills', or 'experience' to learn more!
-  💡 TIP: Type 'ls' to see available files, then 'cat <filename>' to read them
+  Start with 'about', 'experience', or 'projects'.
 ` }]);
         break;
 
@@ -250,7 +167,7 @@ export default function Terminal() {
 ${args[0].toUpperCase()}(1)                   User Commands                   ${args[0].toUpperCase()}(1)
 
 NAME
-       ${args[0]} - ${args[0] === "ls" ? "list directory contents" : 
+       ${args[0]} — ${args[0] === "ls" ? "list directory contents" :
                       args[0] === "cd" ? "change directory" :
                       args[0] === "cat" ? "concatenate and print files" :
                       args[0] === "hire" ? "initiate hiring process for Ali" :
@@ -278,21 +195,21 @@ AUTHOR
         const targetPath = args.find(a => !a.startsWith("-")) || currentDir;
         const resolved = resolvePath(currentDir, targetPath);
         const dir = getDir(resolved);
-        
+
         if (!dir || dir.type !== "dir") {
           setHistory(prev => [...prev, { type: "error", text: `ls: cannot access '${targetPath}': No such file or directory` }]);
         } else {
           let items = Object.keys(dir.children || {});
           if (!showHidden) items = items.filter(i => !i.startsWith("."));
-          
+
           if (showLong) {
             const output = items.map(name => {
               const item = dir.children[name];
               const isDir = item.type === "dir";
               const perms = isDir ? "drwxr-xr-x" : "-rw-r--r--";
               const size = isDir ? "4096" : String(item.content?.length || 0).padStart(5);
-              const date = "Jan 19 12:00";
-              const colorClass = isDir ? "text-blue-400" : name.endsWith(".md") ? "text-yellow-400" : "text-neutral-300";
+              const date = "Apr 20 12:00";
+              const colorClass = isDir ? "text-signal" : "text-bone/80";
               return `${perms}  1 ali  staff  ${size}  ${date}  <span class="${colorClass}">${name}${isDir ? "/" : ""}</span>`;
             }).join("\n");
             setHistory(prev => [...prev, { type: "html", text: `total ${items.length * 8}\n${output}` }]);
@@ -300,10 +217,10 @@ AUTHOR
             const output = items.map(name => {
               const item = dir.children[name];
               const isDir = item.type === "dir";
-              return isDir ? `<span class="text-blue-400 font-bold">${name}/</span>` : 
-                     name.endsWith(".md") ? `<span class="text-yellow-400">${name}</span>` :
-                     name.endsWith(".json") ? `<span class="text-green-400">${name}</span>` :
-                     `<span class="text-neutral-300">${name}</span>`;
+              return isDir ? `<span class="text-signal font-bold">${name}/</span>` :
+                     name.endsWith(".md") ? `<span class="text-ember">${name}</span>` :
+                     name.endsWith(".json") ? `<span class="text-bone/90">${name}</span>` :
+                     `<span class="text-bone/70">${name}</span>`;
             }).join("  ");
             setHistory(prev => [...prev, { type: "html", text: output }]);
           }
@@ -315,7 +232,6 @@ AUTHOR
         const target = args[0] || "~";
         const resolved = resolvePath(currentDir, target);
         const dir = getDir(resolved);
-        
         if (!dir) {
           setHistory(prev => [...prev, { type: "error", text: `cd: no such file or directory: ${target}` }]);
         } else if (dir.type !== "dir") {
@@ -332,7 +248,6 @@ AUTHOR
         } else {
           const resolved = resolvePath(currentDir, args[0]);
           const file = getDir(resolved);
-          
           if (!file) {
             setHistory(prev => [...prev, { type: "error", text: `cat: ${args[0]}: No such file or directory` }]);
           } else if (file.type === "dir") {
@@ -349,11 +264,11 @@ AUTHOR
         break;
 
       case "whoami":
-        setHistory(prev => [...prev, { type: "output", text: "ali" }]);
+        setHistory(prev => [...prev, { type: "output", text: "younes" }]);
         break;
 
       case "hostname":
-        setHistory(prev => [...prev, { type: "output", text: "portfolio.local" }]);
+        setHistory(prev => [...prev, { type: "output", text: "eternalreverse" }]);
         break;
 
       case "date":
@@ -376,21 +291,20 @@ AUTHOR
         const targetPath = args[0] || currentDir;
         const resolved = resolvePath(currentDir, targetPath);
         const dir = getDir(resolved);
-        
         if (!dir || dir.type !== "dir") {
           setHistory(prev => [...prev, { type: "error", text: `tree: ${targetPath}: No such directory` }]);
         } else {
-          const buildTree = (node, prefix = "", isLast = true) => {
+          const buildTree = (node, prefix = "") => {
             let result = [];
             const children = Object.entries(node.children || {}).filter(([name]) => !name.startsWith("."));
             children.forEach(([name, child], idx) => {
               const isLastChild = idx === children.length - 1;
               const connector = isLastChild ? "└── " : "├── ";
               const isDir = child.type === "dir";
-              result.push(`${prefix}${connector}${isDir ? `\x1b[34m${name}/\x1b[0m` : name}`);
+              result.push(`${prefix}${connector}${isDir ? `${name}/` : name}`);
               if (isDir) {
                 const newPrefix = prefix + (isLastChild ? "    " : "│   ");
-                result = result.concat(buildTree(child, newPrefix, isLastChild));
+                result = result.concat(buildTree(child, newPrefix));
               }
             });
             return result;
@@ -421,7 +335,7 @@ AUTHOR
 
       case "open":
         if (args[0] === "resume.pdf" || args[0] === "~/resume.pdf") {
-          setHistory(prev => [...prev, { type: "system", text: "Opening resume.pdf... (Check your downloads)" }]);
+          setHistory(prev => [...prev, { type: "system", text: "Opening resume.pdf..." }]);
           window.open("/resume.pdf", "_blank");
         } else {
           setHistory(prev => [...prev, { type: "output", text: `open: ${args[0] || "missing argument"}` }]);
@@ -434,93 +348,91 @@ AUTHOR
 
       case "about":
         setHistory(prev => [...prev, { type: "output", text: `
-┌─────────────────────────────────────────────────────────────┐
-│                       ALI YOUNES                            │
-│                  Software Engineer & Architect              │
-└─────────────────────────────────────────────────────────────┘
+  ALI YOUNES
+  ─────────────────────────────────────────────
+  Software Engineer — Boston → Seattle
 
-  👋 Hey! I'm Ali, a Computer Science student at 
-     Northeastern University with a passion for 
-     architecting scalable, high-performance systems.
+  CS & Political Science · Northeastern University · Class of '27
 
-  💼 Currently: System Integration and Automation @ Philips (C#, PowerShell, .NET)
+  now       SWE Co-op @ Philips · Cambridge, MA
+  incoming  SDE Intern @ AWS Amazon Dedicated Cloud · Seattle, Summer '26
 
-  🎯 I love solving complex problems and shipping
-     products that make a difference.
+  I architect distributed, high-stakes systems and
+  build the tools that keep them running.
 
-  🎮 Fun fact: I also do game development in Lua!
-
-  → Type 'cat ~/skills.md' or 'skills' to see my abilities
+  → try:  skills   experience   projects   contact
 ` }]);
         break;
 
       case "skills":
         setHistory(prev => [...prev, { type: "output", text: `
-📊 TECHNICAL SKILLS
-════════════════════════════════════════════════════════════
+  TECHNICAL SKILLS
+  ═══════════════════════════════════════════════════
 
- LANGUAGES                           PROFICIENCY
- ─────────────────────────────────────────────────────────
- JavaScript/TypeScript    ████████████████████  Expert
- C++                      ████████████████░░░░  Advanced
- Java                     ██████████████░░░░░░  Proficient
- Python                   ████████████░░░░░░░░  Proficient
- Lua                      ████████████████░░░░  Advanced
- Swift                    ██████████░░░░░░░░░░  Intermediate
+  LANGUAGES
+    TypeScript / JavaScript   ████████████████████  expert
+    C++                       ████████████████░░░░  advanced
+    C# / .NET                 ██████████████░░░░░░  proficient
+    Python                    ████████████░░░░░░░░  proficient
+    Rust                      ████████████░░░░░░░░  proficient
+    Swift / SwiftUI           ██████████░░░░░░░░░░  intermediate
+    Go                        ████████░░░░░░░░░░░░  learning
 
- FRONTEND          React • TypeScript • Tailwind CSS • Framer Motion
- BACKEND           Node.js • Express • MongoDB • C# • .NET
- INFRASTRUCTURE    DevOps • PowerShell • VMs • CI/CD
- TOOLS             Git • Linux • GDB • Docker • VS Code
+  FRONTEND        React · TypeScript · Tailwind · Framer Motion · Next.js
+  BACKEND         Node.js · Express · MongoDB · .NET · PowerShell
+  SYSTEMS         Rust · C++ · DXGI · Metal · VideoToolbox · H.264
+  CLOUD & INFRA   AWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD
+  TOOLS           Git · Docker · Vim · VS Code · Xcode
 ` }]);
         break;
 
       case "experience":
         setHistory(prev => [...prev, { type: "output", text: `
-💼 WORK EXPERIENCE
-════════════════════════════════════════════════════════════
+  WORK EXPERIENCE
+  ═══════════════════════════════════════════════════
 
-┌─ PHILIPS ──────────────────────────────────────────────────
-│  Software Engineering Co-op (System Integration and Automation)
-│  📅 2025 - Present  │  📍 Cambridge, MA
-│
-│  • Large- & small-scale VM automation
-│  • Automated PicIX setups & deployment pipelines
-│  • C#, DevOps, PowerShell, .NET Framework
-│  • Enterprise imaging infrastructure at scale
-└────────────────────────────────────────────────────────────
+  ┌─ AWS — Amazon Dedicated Cloud (ADC) ────────────────
+  │  SDE Intern · Incoming
+  │  Jun 2026 — Sep 2026 · Seattle, WA
+  │
+  │  • Distributed systems on AWS' air-gapped partitions
+  │  • ITAR / IL5 / IL6 compliant workloads
+  │  • Service-level project under Principal/Senior SDE mentor
+  └──────────────────────────────────────────────────────
 
-┌─ TOP CHOICE REALTY ────────────────────────────────────────
-│  Frontend Developer Intern
-│  📅 Apr - Aug 2024  │  📍 New York, NY
-│
-│  • Built full-stack app (React, Python, SQL)
-│  • Achieved 85% faster lookups, 3x query speed
-│  • Managed 800+ client records
-│  • Saved team 15+ hours/week
-└────────────────────────────────────────────────────────────
+  ┌─ PHILIPS ────────────────────────────────────────────
+  │  SWE Co-op · System Integration and Automation
+  │  2025 — Present · Cambridge, MA
+  │
+  │  • VM automation at scale · PicIX deployment pipelines
+  │  • C# · .NET · PowerShell · DevOps
+  └──────────────────────────────────────────────────────
 
-→ Run 'cat ~/experience/philips.md' for full details
+  ┌─ TOP CHOICE REALTY ──────────────────────────────────
+  │  Frontend Developer Intern
+  │  Apr — Aug 2024 · New York, NY
+  │
+  │  • Full-stack app (React · Python · SQL)
+  │  • 85% faster lookups · 3x query speed · 800+ records
+  └──────────────────────────────────────────────────────
+
+  → cat ~/experience/aws.md  ·  cat ~/experience/philips.md
 ` }]);
         break;
 
       case "education":
         setHistory(prev => [...prev, { type: "output", text: `
-🎓 EDUCATION
-════════════════════════════════════════════════════════════
+  EDUCATION
+  ═══════════════════════════════════════════════════
 
-  ┌─────────────────────────────────────────────────────┐
-  │  NORTHEASTERN UNIVERSITY                            │
-  │  B.S. Computer Science & Engineering                │
-  │  📅 2023 - 2027 (Expected)  │  📍 Boston, MA        │
-  └─────────────────────────────────────────────────────┘
+  Northeastern University · Boston, MA
+  B.S. Computer Science & Political Science
+  2023 — 2027 (expected)
 
-  Relevant Coursework:
-  • Data Structures & Algorithms
-  • Object-Oriented Design  
-  • Systems Programming (C++)
-  • Database Management
-  • Software Engineering
+  Coursework
+    Data Structures & Algorithms · Object-Oriented Design
+    Systems Programming (C++) · Database Management
+    Software Engineering · Discrete Structures
 
   Co-op Program: 3 work experiences integrated into degree
 ` }]);
@@ -528,61 +440,59 @@ AUTHOR
 
       case "projects":
         setHistory(prev => [...prev, { type: "output", text: `
-🚀 FEATURED PROJECTS
-════════════════════════════════════════════════════════════
+  FEATURED PROJECTS
+  ═══════════════════════════════════════════════════
 
-  📚 MOOPS BOOKSTORE
-     Full-stack social book tracking platform
-     Tech: React, TypeScript, Node.js, MongoDB
-     → github.com/whoisaldo/MoopBookstore
+  01  ETERNAL MONITOR
+      Low-latency remote desktop — Rust host + SwiftUI iPad client
+      Rust · SwiftUI · DXGI · H.264 · VideoToolbox · UDP
+      → eternalmonitor.dev  ·  github.com/whoisaldo/EternalMonitor
 
-  💪 EXERLY FITNESS
-     Comprehensive fitness tracking platform
-     Tech: React, Node.js, MongoDB, JWT
-     → github.com/whoisaldo/Exerly-Fitness
+  02  EXERLY FITNESS
+      iOS (SwiftUI) + Web (React 19) + Node API + Gemini 2.0 AI coach
+      SwiftUI · React · Node · Express · MongoDB · Gemini · JWT
+      → exerlyfitness.com  ·  github.com/whoisaldo/Exerly-Fitness
 
-  🧠 FACE ANALYTICS
-     AI-powered real-time facial recognition
-     Tech: React, TensorFlow.js, face-api.js
-     → github.com/whoisaldo/real-time-face-analytics
+  03  MOOPS BOOKSTORE
+      Social book tracking platform
+      React · TypeScript · Node · MongoDB · Google Books API
+      → github.com/whoisaldo/MoopBookstore
 
-  ✂️  FADE EMPIRE
-     Modern barbershop website
-     Tech: HTML5, CSS3, JavaScript
-     → chicopeefadeempire.com
+  04  ETERNAL RICH PRESENCE
+      Windows tray bridge — Apple Music & Spotify → Discord RPC
+      Python 3.8 · pypresence · spotipy · winrt · PyInstaller
+      → github.com/whoisaldo/Eternal-Rich-Presence
 
-  🎵 BETTER APPLE MUSIC
-     Custom Windows desktop client for Apple Music
-     Tech: TypeScript, Electron, React
-     → github.com/whoisaldo/BetterAppleMusic
+  05  SIGNATURE CUTS 413
+      Production barbershop site (Chicopee, MA)
+      Next.js 14 · TypeScript · Tailwind · Framer Motion · SSG
+      → signaturecutschicopee.com
 
-  💬 ETERNAL-RICH-PRESENCE
-     Discord Rich Presence bridge for Apple Music & Spotify
-     Tech: Python, Discord API
-     → github.com/whoisaldo/Eternal-Rich-Presence
+  06  REAL-TIME FACE ANALYTICS
+      Client-side facial recognition & emotion detection
+      React · TensorFlow.js · face-api.js
+      → github.com/whoisaldo/real-time-face-analytics
 
-  🏎️  VIRTUAL DYNO
-     Virtual dynamometer simulation tool
-     Tech: Simulation
-     → github.com/whoisaldo/VirtualDyno
-
-Run 'cd ~/projects && ls' to explore project directories
+  Run 'cd ~/projects && ls' to explore project directories
 ` }]);
         break;
 
       case "contact":
         setHistory(prev => [...prev, { type: "output", text: `
-📬 CONTACT
-════════════════════════════════════════════════════════════
+  CONTACT
+  ═══════════════════════════════════════════════════
 
-  📧 Email:     younes.al@northeastern.edu
-  📧 Personal:  whois.younes@gmail.com
-  📧 Business:  Aliyounes@eternalreverse.com
-  📍 Location:  Boston, MA
+  email      younes.al@northeastern.edu
+  personal   whois.younes@gmail.com
+  business   Aliyounes@eternalreverse.com
+  location   Boston, MA → Seattle, WA (Summer '26)
 
-  💼 Status:    Open to opportunities!
+  github     github.com/whoisaldo
+  linkedin   linkedin.com/in/ali-younes-41a2b4296
 
-→ Run 'cat ~/contact.json' for structured data
+  status     open to opportunities
+
+  → cat ~/contact.json  for structured data
 ` }]);
         break;
 
@@ -593,43 +503,36 @@ Run 'cd ~/projects && ls' to explore project directories
 
       case "socials":
         setHistory(prev => [...prev, { type: "output", text: `
-🌐 SOCIAL LINKS
-════════════════════════════════════════════════════════════
+  SOCIAL LINKS
+  ═══════════════════════════════════════════════════
 
-  🐙 GitHub:    github.com/whoisaldo
-  💼 LinkedIn:  linkedin.com/in/ali-younes-41a2b4296
+  github     github.com/whoisaldo
+  linkedin   linkedin.com/in/ali-younes-41a2b4296
 
-→ Type 'hire' to discuss opportunities!
+  → type 'hire' to discuss opportunities
 ` }]);
         break;
 
       case "neofetch":
-        setHistory(prev => [...prev, { type: "neofetch", text: `
-        \x1b[31m/\\         \x1b[0mali@portfolio
-       \x1b[31m/  \\        \x1b[0m─────────────────────
-      \x1b[31m/\\   \\       \x1b[33mOS:\x1b[0m React 18.x
-     \x1b[31m/  ..  \\      \x1b[33mHost:\x1b[0m Northeastern University
-    \x1b[31m/  .'''.\\     \x1b[33mKernel:\x1b[0m Node.js 20.x
-   \x1b[31m/.''     '.\\   \x1b[33mShell:\x1b[0m TypeScript 5.x
-                    \x1b[33mTerminal:\x1b[0m Portfolio v2.0
-                    \x1b[33mCPU:\x1b[0m Coffee-Powered™
-                    \x1b[33mMemory:\x1b[0m Unlimited Ambition
-                    \x1b[33mUptime:\x1b[0m 999 days
+        setHistory(prev => [...prev, { type: "output", text: `
+         /\\         younes@eternalreverse
+        /  \\        ─────────────────────
+       /\\   \\       OS:        React 18.x
+      /  ..  \\      Host:      Northeastern University
+     /  .''.  \\     Kernel:    Node.js 20.x
+    /.''    '.\\    Shell:     TypeScript 5.x
+                    Terminal:  portfolio · edition iv
+                    CPU:       coffee-powered
+                    Memory:    unlimited ambition
+                    Uptime:    999 days
 ` }]);
         break;
 
       case "git":
         if (args[0] === "status") {
-          setHistory(prev => [...prev, { type: "output", text: `On branch main
-Your branch is up to date with 'origin/main'.
-
-nothing to commit, working tree clean` }]);
+          setHistory(prev => [...prev, { type: "output", text: `On branch main\nYour branch is up to date with 'origin/main'.\n\nnothing to commit, working tree clean` }]);
         } else if (args[0] === "log") {
-          setHistory(prev => [...prev, { type: "output", text: `commit abc1234 (HEAD -> main, origin/main)
-Author: Ali Younes <younes.al@northeastern.edu>
-Date:   ${new Date().toDateString()}
-
-    Updated portfolio with new projects` }]);
+          setHistory(prev => [...prev, { type: "output", text: `commit abc1234 (HEAD -> main, origin/main)\nAuthor: Ali Younes <younes.al@northeastern.edu>\nDate:   ${new Date().toDateString()}\n\n    portfolio: editorial redesign + AWS ADC incoming` }]);
         } else {
           setHistory(prev => [...prev, { type: "output", text: `git: '${args[0] || ""}' is not a git command. Try 'git status' or 'git log'` }]);
         }
@@ -637,37 +540,35 @@ Date:   ${new Date().toDateString()}
 
       case "vim":
       case "nano":
-        setHistory(prev => [...prev, { type: "system", text: `${command}: This is a web terminal, but nice try! 😄\nUse 'cat <file>' to view file contents.` }]);
+        setHistory(prev => [...prev, { type: "system", text: `${command}: web terminal — use 'cat <file>' to view contents.` }]);
         break;
 
       case "sudo":
         if (args.join(" ").includes("rm -rf")) {
-          setHistory(prev => [...prev, { type: "error", text: "Nice try! 🛡️ System protected." }]);
-        } else         if (args[0] === "hire") {
-          setHistory(prev => [...prev, { type: "system", text: "🎉 SUDO HIRE ACTIVATED!\n\nEmail: younes.al@northeastern.edu\nBusiness: Aliyounes@eternalreverse.com\n\nLet's talk!" }]);
+          setHistory(prev => [...prev, { type: "error", text: "Nice try. System protected." }]);
+        } else if (args[0] === "hire") {
+          setHistory(prev => [...prev, { type: "system", text: "SUDO HIRE ACTIVATED\n\nemail:    younes.al@northeastern.edu\nbusiness: Aliyounes@eternalreverse.com\n\nlet's talk." }]);
         } else {
-          setHistory(prev => [...prev, { type: "output", text: "ali is not in the sudoers file. This incident will be reported. 😄" }]);
+          setHistory(prev => [...prev, { type: "output", text: "younes is not in the sudoers file. This incident will be reported." }]);
         }
         break;
 
       case "hire":
         setHistory(prev => [...prev, { type: "success", text: `
-🎉 GREAT DECISION!
-════════════════════════════════════════════════════════════
+  HIRE
+  ═══════════════════════════════════════════════════
 
-  I'm actively looking for opportunities!
+  Actively open to opportunities.
 
-  📧 Email:     younes.al@northeastern.edu
-  📧 Business:  Aliyounes@eternalreverse.com
+  email      younes.al@northeastern.edu
+  business   Aliyounes@eternalreverse.com
 
-  Let's build something amazing together! 🚀
-
-  Pro tip: Try 'sudo hire' for VIP access 😄
+  pro tip    try 'sudo hire' for VIP access
 ` }]);
         break;
 
       case "exit":
-        setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to portfolio.local closed.\n\n(Scroll down to continue exploring! 👋)" }]);
+        setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to eternalreverse closed.\n\n(scroll to continue)" }]);
         break;
 
       case "touch":
@@ -707,33 +608,31 @@ Date:   ${new Date().toDateString()}
           if (!file || file.type !== "file") {
             setHistory(prev => [...prev, { type: "error", text: `grep: ${args[1]}: No such file` }]);
           } else {
-            const matches = file.content.split("\n").filter(line => 
+            const matches = file.content.split("\n").filter(line =>
               line.toLowerCase().includes(pattern.toLowerCase())
             );
-            setHistory(prev => [...prev, { 
-              type: "output", 
-              text: matches.length ? matches.map(m => m.replace(new RegExp(`(${pattern})`, 'gi'), '\x1b[31m$1\x1b[0m')).join("\n") : `No matches for '${pattern}'`
+            setHistory(prev => [...prev, {
+              type: "output",
+              text: matches.length ? matches.join("\n") : `No matches for '${pattern}'`
             }]);
           }
         }
         break;
 
       default:
-        setHistory(prev => [...prev, { 
-          type: "error", 
-          text: `zsh: command not found: ${command}\n\n💡 Type 'help' to see all available commands.\n💡 Quick start: Try 'about', 'skills', 'experience', or 'projects'`
+        setHistory(prev => [...prev, {
+          type: "error",
+          text: `zsh: command not found: ${command}\n\nType 'help' for the full command list.\nQuick start: about · experience · projects`
         }]);
     }
   };
 
-  // Auto-scroll
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [history]);
 
-  // ESC to exit fullscreen
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") {
@@ -745,7 +644,6 @@ Date:   ${new Date().toDateString()}
     return () => window.removeEventListener("keydown", handleEsc);
   }, [isMaximized]);
 
-  // Update suggestions
   useEffect(() => {
     if (input.length > 0) {
       const matches = allCommands.filter(c => c.startsWith(input.toLowerCase())).slice(0, 6);
@@ -795,81 +693,72 @@ Date:   ${new Date().toDateString()}
     }
   };
 
-  // Render prompt
+  // Prompt — younes@eternalreverse ~ %
   const renderPrompt = (path) => (
-    <span className="select-none">
-      <span className="text-green-400 font-semibold">ali</span>
-      <span className="text-neutral-500">@</span>
-      <span className="text-red-400">portfolio</span>
-      <span className="text-neutral-500">:</span>
-      <span className="text-blue-400">{path}</span>
-      <span className="text-neutral-500">$</span>
+    <span className="select-none font-mono">
+      <span className="text-signal font-semibold">younes</span>
+      <span className="text-bone/30">@</span>
+      <span className="text-bone">eternalreverse</span>
+      <span className="text-bone/30"> </span>
+      <span className="text-bone/60">{path}</span>
+      <span className="text-signal"> %</span>
     </span>
   );
 
   return (
-    <section id="terminal" className="relative py-24 md:py-28 px-6 bg-[#0a0a0f]">
-      <div className={`mx-auto transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-4xl'}`}>
-        {/* Header */}
+    <section id="terminal" className="relative py-20 md:py-28 px-6 bg-ink grain border-y border-bone/10">
+      <div className={`mx-auto transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-5xl'}`}>
+        {/* Editorial header */}
         {!isMaximized && (
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 mb-5">
-              <Cpu className="w-4 h-4 text-red-500" />
-              <span className="text-sm font-medium text-red-400">Interactive Shell</span>
+          <div className="mb-10 flex items-baseline justify-between gap-4">
+            <div>
+              <div className="mono-label text-signal/80 mb-2">§ 04 — Terminal</div>
+              <h2 className="serif-display italic text-3xl md:text-5xl text-bone">a real shell.</h2>
             </div>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent mb-3">
-              Terminal
-            </h2>
-            <p className="text-neutral-500">A fully interactive terminal — try real commands!</p>
+            <div className="mono-label text-bone/45 hidden sm:block">zsh · interactive</div>
           </div>
         )}
 
-        {/* Terminal */}
+        {/* Terminal frame */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.4 }}
-          className={`rounded-xl overflow-hidden border border-red-500/20 shadow-[0_0_60px_-15px_rgba(239,68,68,0.4)] transition-all duration-300 ${
+          className={`border border-bone/15 bg-ink transition-all duration-300 ${
             isMaximized ? 'fixed inset-4 z-50' : ''
           }`}
-          style={{ backgroundColor: '#0d0d14' }}
           onClick={focusInput}
         >
           {/* Title bar */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a1a24] border-b border-white/5">
+          <div className="relative flex items-center justify-between px-4 py-2.5 bg-smoke border-b border-bone/10">
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
                 className="w-3 h-3 rounded-full bg-[#ff5f57] hover:brightness-110 transition-all"
                 title="Minimize"
               />
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); setIsMinimized(true); }}
                 className="w-3 h-3 rounded-full bg-[#febc2e] hover:brightness-110 transition-all"
                 title="Minimize"
               />
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); setIsMaximized(!isMaximized); setIsMinimized(false); }}
                 className="w-3 h-3 rounded-full bg-[#28c840] hover:brightness-110 transition-all"
                 title={isMaximized ? "Exit Fullscreen" : "Fullscreen"}
               />
             </div>
-            
-            {/* Center title */}
+
             <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-              <TerminalIcon className="w-3.5 h-3.5 text-neutral-500" />
-              <span className="text-xs text-neutral-500 font-medium">ali@portfolio: {currentDir}</span>
+              <TerminalIcon className="w-3.5 h-3.5 text-bone/50" />
+              <span className="text-[11px] text-bone/60 font-mono uppercase tracking-[0.18em]">younes@eternalreverse — {currentDir}</span>
             </div>
 
-            {/* Right status */}
-            <div className="flex items-center gap-3 text-[10px] text-neutral-600">
+            <div className="flex items-center gap-3 text-[10px] text-bone/50 font-mono">
+              <div className="flex items-center gap-1"><Wifi className="w-3 h-3" /></div>
               <div className="flex items-center gap-1">
-                <Wifi className="w-3 h-3" />
-              </div>
-              <div className="flex items-center gap-1">
-                <Battery className="w-3 h-3" />
-                <span>100%</span>
+                <Battery className="w-3 h-3" /><span>100%</span>
               </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
@@ -879,59 +768,47 @@ Date:   ${new Date().toDateString()}
           </div>
 
           {/* Terminal content */}
-          <div 
+          <div
             ref={terminalRef}
             className={`p-4 font-mono text-[13px] leading-relaxed overflow-auto cursor-text transition-all duration-300 ${
               isMinimized ? 'h-0 p-0' : isMaximized ? 'h-[calc(100vh-120px)]' : 'h-[500px]'
             }`}
-            style={{ 
-              backgroundColor: '#0d0d14',
-              textShadow: '0 0 1px rgba(255,255,255,0.1)'
-            }}
           >
             {history.map((line, i) => (
               <div key={i} className="mb-1">
                 {line.type === "prompt" && (
                   <div className="flex items-start gap-2 flex-wrap">
                     {renderPrompt(line.path)}
-                    <span className="text-neutral-200 ml-2">{line.text}</span>
+                    <span className="text-bone ml-2">{line.text}</span>
                   </div>
                 )}
                 {line.type === "output" && (
-                  <pre className="text-neutral-400 whitespace-pre-wrap pl-0 my-1">{line.text}</pre>
+                  <pre className="text-bone/75 whitespace-pre-wrap pl-0 my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "file" && (
-                  <pre className="text-emerald-400/90 whitespace-pre-wrap my-1 pl-0">{line.text}</pre>
+                  <pre className="text-bone/90 whitespace-pre-wrap my-1 pl-0 font-mono">{line.text}</pre>
                 )}
                 {line.type === "html" && (
-                  <pre className="my-1" dangerouslySetInnerHTML={{ __html: line.text }} />
+                  <pre className="my-1 font-mono" dangerouslySetInnerHTML={{ __html: line.text }} />
                 )}
                 {line.type === "tree" && (
-                  <pre className="text-neutral-400 whitespace-pre-wrap my-1">{line.text.replace(/\x1b\[34m/g, '<span class="text-blue-400">').replace(/\x1b\[0m/g, '</span>')}</pre>
-                )}
-                {line.type === "neofetch" && (
-                  <pre className="whitespace-pre-wrap my-1" dangerouslySetInnerHTML={{ 
-                    __html: line.text
-                      .replace(/\x1b\[35m/g, '<span class="text-red-500">')
-                      .replace(/\x1b\[33m/g, '<span class="text-yellow-500">')
-                      .replace(/\x1b\[0m/g, '</span>')
-                  }} />
+                  <pre className="text-bone/75 whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "error" && (
-                  <pre className="text-red-400 whitespace-pre-wrap my-1">{line.text}</pre>
+                  <pre className="text-signal whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "system" && (
-                  <pre className="text-red-400 whitespace-pre-wrap my-1">{line.text}</pre>
+                  <pre className="text-ember whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "success" && (
-                  <pre className="text-emerald-400 whitespace-pre-wrap my-1">{line.text}</pre>
+                  <pre className="text-signal whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "ascii" && (
-                  <pre className="text-[7px] md:text-[9px] leading-none bg-gradient-to-r from-red-400 via-red-500 to-rose-400 bg-clip-text text-transparent font-bold my-2">{line.text}</pre>
+                  <pre className="text-[7px] md:text-[9px] leading-none text-signal font-bold my-2">{line.text}</pre>
                 )}
               </div>
             ))}
-            
+
             {/* Input line */}
             <div className="flex items-center gap-2 relative">
               {renderPrompt(currentDir)}
@@ -942,100 +819,71 @@ Date:   ${new Date().toDateString()}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="w-full bg-transparent text-neutral-200 outline-none"
-                  style={{ caretColor: '#ef4444' }}
+                  className="w-full bg-transparent text-bone outline-none font-mono"
+                  style={{ caretColor: '#ff3b30' }}
                   autoComplete="off"
                   spellCheck="false"
                 />
-                {/* Suggestions dropdown */}
                 {suggestions.length > 0 && (
-                  <div className="absolute left-0 top-6 bg-[#1a1a24] border border-red-500/30 rounded-lg overflow-hidden shadow-xl z-10 min-w-[150px]">
+                  <div className="absolute left-0 top-6 bg-smoke border border-bone/20 overflow-hidden shadow-xl z-10 min-w-[180px]">
                     {suggestions.map((s, i) => (
                       <div
                         key={s}
-                        className={`px-3 py-1.5 text-xs cursor-pointer transition-colors ${
-                          i === selectedSuggestion ? 'bg-red-500/20 text-red-300' : 'text-neutral-400 hover:bg-white/5'
+                        className={`px-3 py-1.5 text-xs cursor-pointer transition-colors font-mono uppercase tracking-[0.14em] ${
+                          i === selectedSuggestion ? 'bg-signal/20 text-signal' : 'text-bone/60 hover:bg-bone/5'
                         }`}
                         onClick={() => { setInput(s); setSuggestions([]); inputRef.current?.focus(); }}
                       >
                         {s}
                       </div>
                     ))}
-                    <div className="px-3 py-1 text-[10px] text-neutral-600 border-t border-white/5">
+                    <div className="px-3 py-1 text-[10px] text-bone/40 border-t border-bone/10 font-mono uppercase tracking-[0.14em]">
                       Tab to complete
                     </div>
                   </div>
                 )}
               </div>
-              <span className="animate-pulse text-red-500">▊</span>
+              <span className="animate-pulse text-signal">▊</span>
             </div>
           </div>
 
           {/* Status bar */}
-          <div className={`px-4 py-1.5 bg-[#16161e] border-t border-white/5 flex items-center justify-between text-[10px] transition-all ${isMinimized ? 'hidden' : ''}`}>
-            <div className="flex items-center gap-4 text-neutral-500">
+          <div className={`px-4 py-1.5 bg-smoke border-t border-bone/10 flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em] transition-all ${isMinimized ? 'hidden' : ''}`}>
+            <div className="flex items-center gap-4 text-bone/50">
               <span>zsh</span>
               <span>utf-8</span>
-              <span>{history.filter(h => h.type === "prompt").length} commands</span>
+              <span>{history.filter(h => h.type === "prompt").length} cmds</span>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-neutral-600">↑↓ history</span>
-              <span className="text-neutral-600">Tab complete</span>
-              <span className="text-neutral-600">Ctrl+L clear</span>
+            <div className="flex items-center gap-3 text-bone/40">
+              <span>↑↓ history</span>
+              <span>Tab complete</span>
+              <span>Ctrl+L clear</span>
             </div>
           </div>
         </motion.div>
 
         {/* Fullscreen backdrop */}
         {isMaximized && (
-          <div className="fixed inset-0 bg-black/90 z-40" onClick={() => setIsMaximized(false)} />
+          <div className="fixed inset-0 bg-ink/90 z-40" onClick={() => setIsMaximized(false)} />
         )}
 
-        {/* Hint */}
+        {/* Hint chips — hard edges, mono */}
         {!isMaximized && (
-          <div className="text-center mt-6">
-            <div className="inline-flex flex-wrap items-center justify-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 backdrop-blur-sm">
-              <span className="text-neutral-400 text-xs font-medium">💡 Quick Commands:</span>
-              <button 
-                onClick={() => { executeCommand("help"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
-              >
-                help
-              </button>
-              <button 
-                onClick={() => { executeCommand("about"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
-              >
-                about
-              </button>
-              <button 
-                onClick={() => { executeCommand("skills"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
-              >
-                skills
-              </button>
-              <button 
-                onClick={() => { executeCommand("experience"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
-              >
-                experience
-              </button>
-              <button 
-                onClick={() => { executeCommand("resume"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
-              >
-                resume
-              </button>
-              <button 
-                onClick={() => { executeCommand("contact"); setInput(""); }}
-                className="px-3 py-1 text-xs font-medium text-red-400 hover:text-red-300 bg-red-500/20 hover:bg-red-500/30 rounded-lg transition-colors border border-red-500/30"
-              >
-                contact
-              </button>
+          <div className="mt-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mono-label text-bone/50 mr-2">try:</span>
+              {["help", "about", "skills", "experience", "projects", "resume", "contact"].map(c => (
+                <button
+                  key={c}
+                  onClick={() => { executeCommand(c); setInput(""); }}
+                  className="px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.18em] text-bone/70
+                             border border-bone/20 hover:border-signal hover:text-signal
+                             hover:bg-signal/5 transition-colors"
+                >
+                  {c}
+                </button>
+              ))}
             </div>
-            <p className="text-neutral-600 text-xs mt-3">
-              Click any command above to run it instantly, or type your own command
-            </p>
           </div>
         )}
       </div>

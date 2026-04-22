@@ -1,200 +1,267 @@
-// src/components/BentoProjects.jsx - Enhanced with Modal Gallery
+// src/components/BentoProjects.jsx — Editorial bento with modal gallery
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  ExternalLink, Github, BookOpen, Dumbbell, Scissors, Code, Key, Calculator, 
-  Star, ChevronDown, Users, Database, Globe, Sparkles, Check, Brain,
-  X, ChevronLeft, ChevronRight, Maximize2,
-  Music, MessageCircle, Home, Gauge, Gamepad2
+import {
+  ExternalLink, Github, BookOpen, Dumbbell, Scissors, Code, Key, Calculator,
+  Brain, X, ChevronLeft, ChevronRight, Maximize2, Monitor as MonitorIcon,
+  Music, MessageCircle, Home, Gauge, Gamepad2, Check, Sparkles, Database,
 } from "lucide-react";
 
-// Import project images - Moops
-import moopsLanding from "../assets/MoopsBookStore 2/LandingPage.png";
-import moopsReview from "../assets/MoopsBookStore 2/BookReview.png";
-import moopsSignup from "../assets/MoopsBookStore 2/Signup.png";
+// Moops
+import moopsLanding  from "../assets/MoopsBookStore 2/LandingPage.png";
+import moopsReview   from "../assets/MoopsBookStore 2/BookReview.png";
+import moopsSignup   from "../assets/MoopsBookStore 2/Signup.png";
 import moopsDashboard from "../assets/MoopsBookStore 2/UserDashboard.png";
-import moopsProfile from "../assets/MoopsBookStore 2/UserProfile.png";
+import moopsProfile  from "../assets/MoopsBookStore 2/UserProfile.png";
 
-// Import project images - Exerly
-import exerlyMain from "../assets/ExerlyFitness/ExerlyWebViewLandingPage.png";
-import exerly1 from "../assets/ExerlyFitness/ExerlyFitnessPhoneView1.png";
-import exerly3 from "../assets/ExerlyFitness/ExerlyWebViewDashboard.png";
-import exerly4 from "../assets/ExerlyFitness/ExerlyWebViewProfileView.png";
+// Exerly Fitness (new ecosystem)
+import exerlyLanding  from "../assets/ExerlyFitness/ExerlyWebViewLandingPage.png";
+import exerlyDash     from "../assets/ExerlyFitness/ExerlyWebViewDashboard.png";
+import exerlyAICoach  from "../assets/ExerlyFitness/ExerlyWebViewAICoach.png";
+import exerlyFood     from "../assets/ExerlyFitness/ExerlyWebViewFoodTracker.png";
+import exerlyProfile  from "../assets/ExerlyFitness/ExerlyWebViewProfileView.png";
+import exerlySignup   from "../assets/ExerlyFitness/ExerlyWebViewSignup-Login.png";
+import exerlyiOS1     from "../assets/ExerlyFitness/ExerlyFitnessPhoneView1.png";
+import exerlyiOS2     from "../assets/ExerlyFitness/ExerlyFitnessPhoneView2.png";
+import exerlyiOS3     from "../assets/ExerlyFitness/ExerlyFitnessPhoneView3.png";
 
-// Import project images - Fade Empire
-import fadeMain from "../assets/ChicopeeFadeEmpire/MobileFrontFadeEmpire.png";
-import fadeBooking from "../assets/ChicopeeFadeEmpire/MobileBookingFormFadeEmpire.png";
-import fadeMiddle from "../assets/ChicopeeFadeEmpire/MobileMiddleFadeEmpire.png";
+// Signature Cuts 413 (supersedes Fade Empire)
+import sigCutsWeb   from "../assets/SignatureCuts/SignatureCutsWebView.png";
+import sigCutsPhone from "../assets/SignatureCuts/SignatureCutsPhoneView.png";
 
-// Import project images - Facial Recognition
+// Eternal Rich Presence
+import erpDiscord  from "../assets/EternalRichPresence/EternalRichPresenceDiscordProfileView.png";
+import erpTerminal from "../assets/EternalRichPresence/EternalRichPresenceTerminal.png";
+
+// Eternal Monitor
+import emPC   from "../assets/EternalMonitor/EternalMonitorPCView.png";
+import emIpad from "../assets/EternalMonitor/EternalMonitorIpadView.png";
+
+// Facial Recognition
 import facialFront from "../assets/Facial/FacialRecognitionFrontPage.png";
 import facialHappy from "../assets/Facial/FacialRecognitionHappy.png";
 import facialAngry from "../assets/Facial/FacialRegocnitionAngryFace.png";
 
 const featuredProjects = [
   {
-    title: "Moops Bookstore",
-    tagline: "Your Social Reading Companion",
-    description: "A full-stack social platform solving the fragmentation of reading lists by combining book discovery, tracking, and social features.",
-    longDescription: "Problem: Readers struggle to track books across platforms and discover what friends are reading.\n\nSolution: Engineered a centralized social reading platform that combines tracking, discovery, and community into one seamless interface.\n\nImpact: Successfully integrated the Google Books API (1M+ books) with a custom MongoDB backend, implementing secure JWT authentication and real-time social features.",
-    tech: ["React", "TypeScript", "Node.js", "MongoDB", "Express", "Google Books API"],
+    title: "Eternal Monitor",
+    tagline: "Windows → iPad over UDP · < 30ms",
+    description: "Rust host + SwiftUI iPad client streaming a Windows desktop as a wireless second monitor with hardware H.264 encode/decode.",
+    longDescription:
+      "Problem: Wireless second-monitor apps either cost a fortune or buckle under latency.\n\n" +
+      "Solution: Wrote a Rust host that captures the Windows desktop via DXGI, encodes H.264 through NVENC / AMF / QSV (software libx264 fallback), fragments frames into a custom 16-byte UDP header, and streams to an iPad client that decodes via VideoToolbox and renders through Metal.\n\n" +
+      "Impact: Low-latency mirroring over a local network with multi-vendor GPU auto-detection. Demo at eternalmonitor.dev.",
+    tech: ["Rust", "SwiftUI", "DXGI", "H.264", "VideoToolbox", "Metal", "FlatBuffers", "tokio", "mDNS"],
     features: [
-      "User authentication with JWT",
-      "Search millions of books via API",
+      "DXGI desktop capture with hardware acceleration",
+      "NVENC / AMF / QSV / libx264 encoder auto-selection",
+      "Custom UDP fragmentation w/ u16 sequence counters",
+      "H.264 Baseline for VideoToolbox compatibility",
+      "Metal-backed MTKView rendering on iPad",
+      "FlatBuffers serialization for FramePacket",
+    ],
+    github: "https://github.com/whoisaldo/EternalMonitor",
+    live: "https://eternalmonitor.dev",
+    images: [emPC, emIpad],
+    imageLabels: ["Windows Host", "iPad Client"],
+    icon: MonitorIcon,
+    accentColor: "#ff3b30",
+    stats: { platform: "Rust · Swift", transport: "UDP / H.264", latency: "< 30ms" },
+    size: "tall",
+  },
+  {
+    title: "Exerly Fitness",
+    tagline: "iOS + Web + AI Coach · exerlyfitness.com",
+    description: "Cross-platform fitness ecosystem: native SwiftUI iOS, React 19 web, Node/Express API, and a Gemini-powered AI coach.",
+    longDescription:
+      "Problem: Fitness enthusiasts juggle a half-dozen apps for workouts, nutrition, and sleep — and none of them actually coach.\n\n" +
+      "Solution: Built a monorepo-backed ecosystem (apps/api, apps/web, apps/ios) with a unified REST backend, HealthKit-integrated iOS app, and a Gemini 2.0 Flash AI coach that adapts to each user's TDEE, goals, and logged progress.\n\n" +
+      "Impact: Active production deployment on DigitalOcean + GH Pages. 12-step onboarding computes maintenance calories via Mifflin-St Jeor, nutrition logging falls back FatSecret → Open Food Facts, AI credits are rate-limited to keep API costs sane.",
+    tech: ["SwiftUI", "React 19", "TypeScript", "Node.js", "Express 5", "MongoDB", "SQLite", "Gemini 2.0", "HealthKit"],
+    features: [
+      "Native iOS w/ HealthKit bi-directional sync",
+      "React 19 web dashboard + admin panel",
+      "Gemini 2.0 AI coach w/ rate-limited credits",
+      "Dual-mode DB: MongoDB (prod) / SQLite (dev)",
+      "Barcode scanning w/ FatSecret + OFF fallback",
+      "12-step TDEE onboarding wizard",
+    ],
+    github: "https://github.com/whoisaldo/Exerly-Fitness",
+    live: "https://exerlyfitness.com",
+    images: [exerlyLanding, exerlyDash, exerlyAICoach, exerlyFood, exerlyProfile, exerlySignup, exerlyiOS1, exerlyiOS2, exerlyiOS3],
+    imageLabels: ["Landing", "Dashboard", "AI Coach", "Food Tracker", "Profile", "Sign Up", "iOS Home", "iOS Workouts", "iOS Sleep"],
+    icon: Dumbbell,
+    accentColor: "#ff3b30",
+    stats: { clients: "iOS + Web", ai: "Gemini 2.0", api: "Express 5" },
+    size: "tall",
+  },
+  {
+    title: "Moops Bookstore",
+    tagline: "social reading, full-stack",
+    description: "Full-stack social platform combining book discovery, tracking, and community features on a custom MongoDB backend.",
+    longDescription:
+      "Problem: Readers juggle Goodreads, Amazon, and a notes app to track what they're reading.\n\n" +
+      "Solution: Built a unified MERN app that integrates the Google Books API (1M+ titles) with JWT-authenticated social features.\n\n" +
+      "Impact: Friends can share reading lists, write reviews, and discover in one place.",
+    tech: ["React", "TypeScript", "Node.js", "MongoDB", "Express", "Google Books API", "JWT"],
+    features: [
+      "JWT auth + secure sessions",
+      "Search 1M+ books via Google Books API",
       "Personal reading lists & tracking",
-      "Write and share book reviews",
-      "Social features & friend system",
-      "Responsive mobile-first design"
+      "Write and share reviews",
+      "Friend system & social feed",
+      "Mobile-first responsive",
     ],
     github: "https://github.com/whoisaldo/MoopBookstore",
     live: "https://whoisaldo.github.io/MoopBookstore",
     images: [moopsLanding, moopsDashboard, moopsReview, moopsProfile, moopsSignup],
-    imageLabels: ["Landing Page", "Dashboard", "Book Reviews", "User Profile", "Sign Up"],
+    imageLabels: ["Landing", "Dashboard", "Reviews", "Profile", "Sign Up"],
     icon: BookOpen,
-    accentColor: "#ef4444",
-    stats: { users: "Social", books: "1M+ Books", reviews: "Reviews" },
+    accentColor: "#ff3b30",
+    stats: { books: "1M+ API", auth: "JWT", social: "Full" },
+    size: "short",
   },
   {
-    title: "Exerly Fitness",
-    tagline: "Your Complete Fitness Dashboard",
-    description: "A comprehensive health platform engineered to centralize fragmented fitness data into a single, actionable dashboard.",
-    longDescription: "Problem: Fitness enthusiasts often juggle multiple apps for workouts, nutrition, and sleep, losing sight of the big picture.\n\nSolution: Developed a unified, full-stack fitness dashboard featuring complex data visualization, macro calculations, and progress tracking.\n\nImpact: Delivered a scalable architecture using React and Node.js that securely handles multi-faceted user health data and provides intuitive analytics via Chart.js.",
-    tech: ["React", "Node.js", "MongoDB", "JWT Auth", "Chart.js", "REST API"],
+    title: "Eternal Rich Presence",
+    tagline: "Apple Music → Discord",
+    description: "Windows system-tray bridge between Apple Music / Spotify and Discord Rich Presence with custom Listen-Along via named-pipes.",
+    longDescription:
+      "Problem: Apple Music doesn't talk to Discord, period. And Listen Along is Spotify-only.\n\n" +
+      "Solution: Python tray app interfacing iTunes COM and Windows SMTC to extract 'Now Playing' metadata, scrapes high-res cover art, and pushes to Discord via pypresence. A custom DiscordEventListener taps raw Windows named pipes to catch ACTIVITY_JOIN events, handled through a registered eternalrp:// URI protocol.\n\n" +
+      "Impact: Cross-platform Listen Along sync between Apple Music and Spotify listeners, packaged as a single portable .exe.",
+    tech: ["Python 3.8", "pypresence", "spotipy", "winrt", "pywin32", "pystray", "PyInstaller"],
     features: [
-      "Workout logging with exercises",
-      "Nutrition tracking & macros",
-      "Sleep pattern monitoring",
-      "Progress analytics & charts",
-      "Goal setting & achievements",
-      "Dark mode interface"
+      "iTunes COM + Windows SMTC metadata extraction",
+      "Raw named-pipe Discord event listener",
+      "eternalrp:// + discord-{client_id}:// URI schemes",
+      "High-res cover art scrape → catbox.moe",
+      "Single-file portable .exe via PyInstaller",
+      "First-run Tkinter config GUI",
     ],
-    github: "https://github.com/whoisaldo/Exerly-Fitness",
-    live: "https://whoisaldo.github.io/Exerly-Fitness/#/",
-    images: [exerlyMain, exerly1, exerly3, exerly4],
-    imageLabels: ["Dashboard", "Workouts", "Analytics", "Progress"],
-    icon: Dumbbell,
-    accentColor: "#f43f5e",
-    stats: { workouts: "Workouts", nutrition: "Nutrition", sleep: "Sleep" },
+    github: "https://github.com/whoisaldo/Eternal-Rich-Presence",
+    live: null,
+    images: [erpTerminal, erpDiscord],
+    imageLabels: ["Terminal", "Discord Profile"],
+    icon: MessageCircle,
+    accentColor: "#ff3b30",
+    stats: { lang: "Python 3.8", dist: "Single EXE", os: "Windows" },
+    size: "short",
   },
   {
-    title: "Fade Empire",
-    tagline: "Premium Barbershop Experience",
-    description: "A modern, mobile-first business website engineered to drive customer conversions via automated WhatsApp booking integration.",
-    longDescription: "Problem: A local barbershop relied on manual phone bookings and had no digital footprint to showcase their portfolio.\n\nSolution: Designed and developed a premium, mobile-first static site focused on high-performance image loading and streamlined UX.\n\nImpact: Eliminated friction in the booking process by integrating direct WhatsApp scheduling, and improved the business's local SEO and professional brand presence.",
-    tech: ["HTML5", "CSS3", "JavaScript", "Responsive Design", "WhatsApp API"],
+    title: "Signature Cuts 413",
+    tagline: "signaturecutschicopee.com",
+    description: "Production marketing + lead-gen site for a Chicopee barbershop. Next.js 14 SSG, static export, WhatsApp-driven booking flow.",
+    longDescription:
+      "Problem: Local barbershop with no digital footprint and 100% phone-based bookings.\n\n" +
+      "Solution: Next.js 14 App Router site with configuration-driven content (team, services, hours, gallery), Framer Motion animations, and a booking flow that compiles form state into a URI-encoded WhatsApp/SMS deeplink — no backend required.\n\n" +
+      "Impact: Deployed via GH Pages SSG. Bebas Neue + Plus Jakarta Sans typography, glassmorphic 'Quartz' palette, JSON-LD BarberShop schema for local SEO. Premium 'Ali Younes' booking mode supports out-of-hours / at-home appointments.",
+    tech: ["Next.js 14", "TypeScript", "Tailwind CSS", "Framer Motion", "LazyMotion", "SSG"],
     features: [
-      "Mobile-first responsive design",
-      "WhatsApp booking integration",
-      "Dynamic portfolio gallery",
-      "Service menu & pricing",
-      "Google Maps integration",
-      "Fast loading & SEO optimized"
+      "Static export to GH Pages (zero backend)",
+      "Config-driven content (team / services / hours)",
+      "'Book with [Barber]' custom event → form pre-fill",
+      "WhatsApp + SMS URI deeplink booking",
+      "JSON-LD BarberShop schema for local SEO",
+      "Custom 'Quartz' palette + glassmorphism",
     ],
     github: "https://github.com/whoisaldo/FadeEmpire",
-    live: "https://chicopeefadeempire.com",
-    images: [fadeMain, fadeMiddle, fadeBooking],
-    imageLabels: ["Home", "Services", "Booking"],
+    live: "https://signaturecutschicopee.com",
+    images: [sigCutsWeb, sigCutsPhone],
+    imageLabels: ["Desktop", "Mobile"],
     icon: Scissors,
-    accentColor: "#ec4899",
-    stats: { mobile: "Mobile-First", booking: "WhatsApp", seo: "SEO Ready" },
+    accentColor: "#ff3b30",
+    stats: { stack: "Next 14", deploy: "GH Pages SSG", booking: "WhatsApp" },
+    size: "short",
   },
   {
     title: "Real-Time Face Analytics",
-    tagline: "AI-Powered Facial Recognition",
-    description: "A sophisticated web application demonstrating client-side machine learning by performing real-time facial and emotion analysis.",
-    longDescription: "Problem: Many AI vision tools rely on expensive, latency-heavy cloud processing that compromises user privacy.\n\nSolution: Engineered a 100% client-side computer vision application utilizing TensorFlow.js to process video streams locally in the browser.\n\nImpact: Achieved real-time performance for multi-face detection, age/gender estimation, and emotion tracking, while ensuring zero data leaves the user's device.",
+    tagline: "client-side CV, zero cloud",
+    description: "100%-in-browser face + emotion + age/gender detection with TensorFlow.js. No frames leave the device.",
+    longDescription:
+      "Problem: Most face-analytics tools ship frames to a cloud endpoint — privacy-hostile and slow.\n\n" +
+      "Solution: TensorFlow.js + face-api.js running the full inference pipeline client-side. Multi-face detection, 7-emotion classification, age + gender estimation, all in-browser.\n\n" +
+      "Impact: Real-time performance on consumer hardware; zero data egress.",
     tech: ["React", "TypeScript", "TensorFlow.js", "face-api.js", "Redux Toolkit", "Tailwind CSS"],
     features: [
-      "Real-time multi-face detection",
+      "Multi-face detection",
       "Age & gender estimation",
-      "7 emotion recognition types",
-      "Analytics tracking over time",
-      "100% client-side processing",
-      "No data sent to servers"
+      "7 emotion classes",
+      "Analytics over time",
+      "100% client-side",
+      "No cloud calls",
     ],
     github: "https://github.com/whoisaldo/real-time-face-analytics",
     live: "https://whoisaldo.github.io/real-time-face-analytics/",
     images: [facialFront, facialHappy, facialAngry],
-    imageLabels: ["Main Interface", "Happy Detection", "Emotion Analysis"],
+    imageLabels: ["Main", "Happy", "Angry"],
     icon: Brain,
-    accentColor: "#06b6d4",
-    stats: { ai: "AI/ML", faces: "Multi-Face", privacy: "Local Only" },
+    accentColor: "#ff3b30",
+    stats: { engine: "TF.js", privacy: "Local", faces: "Multi" },
+    size: "short",
   },
 ];
 
 const otherProjects = [
   {
-    title: "CS3520 - C++ Programming",
-    description: "C++ coursework: nested containers, Makefiles, GDB debugging, and CLI formatting.",
+    title: "CS3520 · C++",
+    description: "Course work: nested containers, Makefiles, GDB, CLI formatting.",
     tech: ["C++", "GDB", "Makefile"],
     github: "https://github.com/whoisaldo/CS3520-Summer-2025",
     icon: Code,
   },
   {
     title: "Password Generator",
-    description: "Configurable password generator with experiments in Java and Swift.",
+    description: "Configurable password generator across Java and Swift.",
     tech: ["Java", "Swift"],
     github: "https://github.com/whoisaldo/Password-Generator",
     icon: Key,
   },
   {
     title: "Grade Calculator",
-    description: "Weighted grade calculator with simple desktop UI and export support.",
+    description: "Weighted grade calculator with simple desktop UI.",
     tech: ["Java", "GUI"],
     github: "https://github.com/whoisaldo/Grade-Calculator",
     icon: Calculator,
   },
   {
     title: "BetterAppleMusic",
-    description: "A custom Windows desktop client for Apple Music built with Electron and MusicKit JS integration.",
+    description: "Windows desktop Apple Music client — Electron + MusicKit JS.",
     tech: ["TypeScript", "Electron", "React"],
     github: "https://github.com/whoisaldo/BetterAppleMusic",
     icon: Music,
   },
   {
-    title: "Eternal-Rich-Presence",
-    description: "Discord Rich Presence bridge for Apple Music and Spotify with live cover art and cross-platform Listen Along sync.",
-    tech: ["Python", "Discord API"],
-    github: "https://github.com/whoisaldo/Eternal-Rich-Presence",
-    icon: MessageCircle,
-  },
-  {
     title: "topchoicerealty",
-    description: "Real estate tracking system to cross-reference and manage property listing information.",
+    description: "Cross-referencing tool for real estate property listing data.",
     tech: ["TypeScript", "React"],
     github: "https://github.com/whoisaldo/topchoicerealty",
     icon: Home,
   },
   {
     title: "VirtualDyno",
-    description: "Virtual dynamometer simulation tool for estimating vehicle horsepower and torque curves.",
+    description: "Virtual dynamometer — vehicle horsepower + torque estimation.",
     tech: ["Simulation"],
     github: "https://github.com/whoisaldo/VirtualDyno",
     icon: Gauge,
   },
   {
     title: "Lua-Roblox-Commands",
-    description: "Collection of quick utility commands for Roblox game development.",
+    description: "Quick utility commands for Roblox game development.",
     tech: ["Lua", "Roblox"],
     github: "https://github.com/whoisaldo/Lua-Roblox-Commands",
     icon: Gamepad2,
   },
 ];
 
-// Project Modal Component
+// ============================================================================
+// Modal
+// ============================================================================
 function ProjectModal({ project, isOpen, onClose }) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const Icon = project?.icon;
-
+  const [idx, setIdx] = useState(0);
   if (!isOpen || !project) return null;
-
-  const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % project.images.length);
-  };
-
-  const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + project.images.length) % project.images.length);
-  };
+  const Icon = project.icon;
+  const next = () => setIdx(i => (i + 1) % project.images.length);
+  const prev = () => setIdx(i => (i - 1 + project.images.length) % project.images.length);
 
   return (
     <AnimatePresence>
@@ -202,89 +269,62 @@ function ProjectModal({ project, isOpen, onClose }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8"
+        className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-8"
         onClick={onClose}
       >
-        {/* Backdrop */}
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-
-        {/* Modal Content */}
+        <div className="absolute inset-0 bg-ink/92 backdrop-blur-sm" />
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          transition={{ type: "spring", damping: 25 }}
-          className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-3xl"
-          style={{ backgroundColor: '#0f0f18' }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.3 }}
+          className="relative w-full max-w-6xl max-h-[94vh] overflow-y-auto bg-ink border border-bone/15"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+            className="absolute top-4 right-4 z-10 p-2 border border-bone/30 text-bone/80 hover:bg-signal hover:text-ink hover:border-signal transition-colors"
           >
-            <X className="w-6 h-6 text-white" />
+            <X className="w-5 h-5" />
           </button>
 
-          {/* Image Gallery */}
-          <div className="relative h-64 md:h-96 bg-black/50">
+          {/* Image viewport */}
+          <div className="relative h-72 md:h-[480px] bg-ink-deep border-b border-bone/10">
             <img
-              src={project.images[currentImageIndex]}
-              alt={project.imageLabels?.[currentImageIndex] || project.title}
+              src={project.images[idx]}
+              alt={project.imageLabels?.[idx] || project.title}
               className="w-full h-full object-contain"
             />
-
-            {/* Image Navigation */}
             {project.images.length > 1 && (
               <>
                 <button
-                  onClick={prevImage}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 hover:bg-black/80 transition-colors"
+                  onClick={prev}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2.5 border border-bone/30 text-bone/80 bg-ink/60 hover:bg-signal hover:border-signal hover:text-ink transition-colors"
                 >
-                  <ChevronLeft className="w-6 h-6 text-white" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
-                  onClick={nextImage}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/60 hover:bg-black/80 transition-colors"
+                  onClick={next}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2.5 border border-bone/30 text-bone/80 bg-ink/60 hover:bg-signal hover:border-signal hover:text-ink transition-colors"
                 >
-                  <ChevronRight className="w-6 h-6 text-white" />
+                  <ChevronRight className="w-5 h-5" />
                 </button>
-
-                {/* Image Dots */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                  {project.images.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        index === currentImageIndex
-                          ? 'w-6 bg-white'
-                          : 'bg-white/40 hover:bg-white/60'
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                {/* Image Label */}
-                <div className="absolute top-4 left-4 px-3 py-1.5 rounded-full bg-black/60 text-white text-sm">
-                  {project.imageLabels?.[currentImageIndex] || `Image ${currentImageIndex + 1}`}
+                <div className="absolute top-4 left-4 mono-label text-bone/80 px-2 py-1 bg-ink/70 border border-bone/20">
+                  {String(idx + 1).padStart(2, '0')} / {String(project.images.length).padStart(2, '0')} · {project.imageLabels?.[idx]}
                 </div>
               </>
             )}
           </div>
 
-          {/* Thumbnail Strip */}
+          {/* Thumbs */}
           {project.images.length > 1 && (
-            <div className="flex gap-2 p-4 overflow-x-auto bg-black/30">
-              {project.images.map((img, index) => (
+            <div className="flex gap-2 p-4 overflow-x-auto border-b border-bone/10 bg-ink-deep">
+              {project.images.map((img, i) => (
                 <button
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                    index === currentImageIndex
-                      ? 'border-red-500 scale-105'
-                      : 'border-transparent opacity-60 hover:opacity-100'
-                  }`}
+                  key={i}
+                  onClick={() => setIdx(i)}
+                  className={`flex-shrink-0 w-24 h-16 overflow-hidden border transition-all
+                              ${i === idx ? 'border-signal' : 'border-bone/20 opacity-50 hover:opacity-100'}`}
                 >
                   <img src={img} alt="" className="w-full h-full object-cover" />
                 </button>
@@ -292,110 +332,91 @@ function ProjectModal({ project, isOpen, onClose }) {
             </div>
           )}
 
-          {/* Project Details */}
-          <div className="p-6 md:p-8">
-            {/* Header */}
-            <div className="flex items-start gap-4 mb-6">
-              <div
-                className="p-4 rounded-2xl"
-                style={{ backgroundColor: `${project.accentColor}20` }}
-              >
-                <Icon className="w-8 h-8" style={{ color: project.accentColor }} />
-              </div>
-              <div className="flex-1">
-                <h2 className="text-3xl font-black text-white mb-1">{project.title}</h2>
-                <p className="text-lg" style={{ color: project.accentColor }}>{project.tagline}</p>
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="flex flex-wrap gap-3 mb-6">
-              {Object.entries(project.stats).map(([key, value]) => (
-                <div
-                  key={key}
-                  className="px-4 py-2 rounded-full text-sm font-semibold"
-                  style={{
-                    backgroundColor: `${project.accentColor}15`,
-                    color: project.accentColor,
-                    border: `1px solid ${project.accentColor}30`
-                  }}
-                >
-                  {value}
+          {/* Content */}
+          <div className="p-6 md:p-10 grid md:grid-cols-[1fr_280px] gap-10">
+            <div>
+              <div className="mono-label text-signal mb-3">— Project</div>
+              <div className="flex items-start gap-4 mb-6">
+                <div className="p-3 border border-signal/40">
+                  <Icon className="w-6 h-6 text-signal" />
                 </div>
-              ))}
-            </div>
+                <div>
+                  <h2 className="serif-display italic text-4xl md:text-6xl text-bone leading-[0.9]">
+                    {project.title}
+                  </h2>
+                  <p className="font-mono text-sm text-bone/60 mt-2">{project.tagline}</p>
+                </div>
+              </div>
 
-            {/* Description */}
-            <p className="text-neutral-300 leading-relaxed mb-6 whitespace-pre-wrap">
-              {project.longDescription}
-            </p>
+              <p className="font-mono text-[13px] md:text-sm text-bone/80 leading-relaxed whitespace-pre-wrap mb-8">
+                {project.longDescription}
+              </p>
 
-            {/* Features */}
-            <div className="mb-6">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Sparkles className="w-5 h-5" style={{ color: project.accentColor }} />
-                Key Features
-              </h3>
-              <div className="grid md:grid-cols-2 gap-3">
-                {project.features.map((feature, i) => (
-                  <div key={i} className="flex items-start gap-2">
-                    <Check className="w-5 h-5 mt-0.5 shrink-0" style={{ color: project.accentColor }} />
-                    <span className="text-neutral-300">{feature}</span>
-                  </div>
-                ))}
+              {/* Features */}
+              <div className="mb-8">
+                <h3 className="mono-label text-bone/55 mb-4 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-signal" /> Features
+                </h3>
+                <div className="grid md:grid-cols-2 gap-2.5">
+                  {project.features.map((f, i) => (
+                    <div key={i} className="flex items-start gap-2 font-mono text-[13px] text-bone/80">
+                      <Check className="w-4 h-4 mt-0.5 shrink-0 text-signal" />
+                      <span>{f}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stack */}
+              <div className="mb-8">
+                <h3 className="mono-label text-bone/55 mb-4 flex items-center gap-2">
+                  <Database className="w-3.5 h-3.5 text-signal" /> Stack
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {project.tech.map((t) => (
+                    <span key={t} className="mono-label px-2.5 py-1 border border-bone/20 text-bone/80">
+                      {t}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
 
-            {/* Tech Stack */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Database className="w-5 h-5" style={{ color: project.accentColor }} />
-                Tech Stack
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {project.tech.map((t) => (
-                  <span
-                    key={t}
-                    className="px-4 py-2 text-sm font-semibold rounded-xl"
-                    style={{
-                      backgroundColor: `${project.accentColor}15`,
-                      color: project.accentColor,
-                      border: `1px solid ${project.accentColor}30`
-                    }}
+            {/* Sidebar: metadata table + CTAs */}
+            <aside className="space-y-6">
+              <div className="border border-bone/15">
+                <div className="mono-label text-bone/50 px-4 pt-4 pb-2">— Metadata</div>
+                <dl className="divide-y divide-bone/10">
+                  {Object.entries(project.stats).map(([k, v]) => (
+                    <div key={k} className="flex justify-between gap-4 px-4 py-2.5 font-mono text-[12px]">
+                      <dt className="uppercase tracking-wider text-bone/45">{k}</dt>
+                      <dd className="text-bone text-right">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+
+              <div className="space-y-2">
+                {project.live && (
+                  <a
+                    href={project.live}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-signal text-ink font-mono text-xs uppercase tracking-[0.2em] font-bold border-2 border-signal hover:bg-transparent hover:text-signal transition-colors"
                   >
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-4">
-              {project.live && (
+                    <ExternalLink className="w-4 h-4" /> Visit Live
+                  </a>
+                )}
                 <a
-                  href={project.live}
+                  href={project.github}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 min-w-[200px] flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-white transition-all hover:-translate-y-1"
-                  style={{
-                    background: `linear-gradient(135deg, ${project.accentColor}, ${project.accentColor}cc)`,
-                    boxShadow: `0 10px 40px -10px ${project.accentColor}60`
-                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-bone/30 text-bone font-mono text-xs uppercase tracking-[0.2em] font-bold hover:bg-bone hover:text-ink hover:border-bone transition-colors"
                 >
-                  <ExternalLink className="w-5 h-5" />
-                  View Live Site
+                  <Github className="w-4 h-4" /> Source
                 </a>
-              )}
-              <a
-                href={project.github}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 min-w-[200px] flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-white border border-white/20 hover:bg-white/5 transition-all hover:-translate-y-1"
-              >
-                <Github className="w-5 h-5" />
-                View Source Code
-              </a>
-            </div>
+              </div>
+            </aside>
           </div>
         </motion.div>
       </motion.div>
@@ -403,207 +424,164 @@ function ProjectModal({ project, isOpen, onClose }) {
   );
 }
 
-// Featured Card Component
+// ============================================================================
+// Featured card
+// ============================================================================
 function FeaturedProjectCard({ project, index, onClick }) {
   const Icon = project.icon;
+  const num = String(index + 1).padStart(2, "0");
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      transition={{ duration: 0.5, delay: index * 0.15 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.5, delay: index * 0.06 }}
       onClick={onClick}
-      className="group relative rounded-3xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-      style={{
-        backgroundColor: '#0f0f18',
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}
+      className="group relative flex flex-col cursor-pointer bg-ink border border-bone/10
+                 hover:border-signal/50 hover:-translate-y-1 transition-all duration-300"
     >
-      {/* Image */}
-      <div className="relative h-52 overflow-hidden">
+      {/* Image — uniform aspect ratio, contained (no crop), dark backdrop */}
+      <div className="relative aspect-[16/10] overflow-hidden bg-smoke border-b border-bone/10 flex items-center justify-center">
         <img
           src={project.images[0]}
           alt={project.title}
           loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-[1.03]"
         />
-        
-        {/* Gradient overlay */}
-        <div 
-          className="absolute inset-0"
+
+        {/* Subtle bottom fade for meta legibility */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
           style={{
-            background: `linear-gradient(to top, #0f0f18 0%, transparent 60%), 
-                         linear-gradient(135deg, ${project.accentColor}20, transparent 50%)`
+            background: "linear-gradient(to top, rgba(11,11,12,0.92) 0%, rgba(11,11,12,0.3) 60%, transparent 100%)",
           }}
         />
 
-        {/* Featured badge */}
-        <div 
-          className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
-          style={{ backgroundColor: `${project.accentColor}30`, color: project.accentColor }}
-        >
-          <Star className="w-3 h-3" fill={project.accentColor} />
-          Featured
-        </div>
-
-        {/* Image count badge */}
-        {project.images.length > 1 && (
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 text-white text-xs font-medium">
-            <Maximize2 className="w-3 h-3" />
-            {project.images.length} images
-          </div>
-        )}
-
-        {/* Stats bar */}
-        <div className="absolute bottom-0 left-0 right-0 flex justify-around py-2.5 px-4 bg-black/40 backdrop-blur-sm">
-          {Object.entries(project.stats).map(([key, value]) => (
-            <div key={key} className="text-center">
-              <div className="text-xs font-bold text-white">{value}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="p-5">
-        <div className="flex items-start gap-3 mb-3">
-          <div
-            className="p-2.5 rounded-xl transition-all group-hover:scale-110"
-            style={{ backgroundColor: `${project.accentColor}20` }}
-          >
-            <Icon className="w-5 h-5" style={{ color: project.accentColor }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-bold text-white group-hover:text-red-300 transition-colors">
-              {project.title}
-            </h3>
-            <p className="text-sm" style={{ color: project.accentColor }}>{project.tagline}</p>
-          </div>
-        </div>
-
-        <p className="text-neutral-400 text-sm leading-relaxed mb-4 line-clamp-2">
-          {project.description}
-        </p>
-
-        {/* Tech tags */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {project.tech.slice(0, 3).map((t) => (
-            <span
-              key={t}
-              className="px-2.5 py-1 text-xs font-medium rounded-lg"
-              style={{
-                backgroundColor: `${project.accentColor}15`,
-                color: project.accentColor,
-              }}
-            >
-              {t}
-            </span>
-          ))}
-          {project.tech.length > 3 && (
-            <span className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white/5 text-neutral-400">
-              +{project.tech.length - 3}
+        {/* Top meta strip */}
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-ink/70 to-transparent">
+          <span className="mono-label text-bone/85 flex items-center gap-2">
+            <span className="inline-block w-1.5 h-1.5 bg-signal" />
+            {num} / Project
+          </span>
+          {project.images.length > 1 && (
+            <span className="mono-label text-bone/75 flex items-center gap-1.5">
+              <Maximize2 className="w-3 h-3" />
+              {project.images.length}
             </span>
           )}
         </div>
+      </div>
 
-        {/* Click to view hint */}
-        <div className="flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 text-neutral-400 text-sm font-medium group-hover:bg-red-500/10 group-hover:text-red-400 transition-all">
-          <Maximize2 className="w-4 h-4" />
-          Click to view details
+      {/* Content — flex-1 so every card body is equal height */}
+      <div className="flex flex-col flex-1 p-5 md:p-6">
+        <div className="flex items-start gap-3 mb-3">
+          <div className="p-2 border border-signal/40 shrink-0">
+            <Icon className="w-4 h-4 text-signal" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="serif-display italic text-2xl md:text-3xl text-bone leading-[0.95]">
+              {project.title}
+            </h3>
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-bone/50 mt-1.5 line-clamp-1">
+              {project.tagline}
+            </p>
+          </div>
+        </div>
+
+        <p className="font-mono text-[12px] md:text-[13px] text-bone/65 leading-relaxed mb-4 line-clamp-3 flex-1">
+          {project.description}
+        </p>
+
+        <div className="flex flex-wrap gap-1.5 mb-4 min-h-[28px]">
+          {project.tech.slice(0, 4).map((t) => (
+            <span key={t} className="mono-label px-2 py-0.5 border border-bone/15 text-bone/70">
+              {t}
+            </span>
+          ))}
+          {project.tech.length > 4 && (
+            <span className="mono-label px-2 py-0.5 text-bone/45">+{project.tech.length - 4}</span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between pt-3 border-t border-bone/10 mt-auto">
+          <span className="mono-label text-bone/50">Open project</span>
+          <span className="mono-label text-signal group-hover:translate-x-1 transition-transform">→</span>
         </div>
       </div>
     </motion.div>
   );
 }
 
+// ============================================================================
+// Section
+// ============================================================================
 export default function BentoProjects() {
-  const [selectedProject, setSelectedProject] = useState(null);
+  const [selected, setSelected] = useState(null);
 
   return (
-    <section id="projects" className="relative py-24 md:py-28 px-6 bg-[#0a0a0f]">
-      {/* Background accent */}
-      <div 
-        className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full opacity-10 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #ef4444 0%, transparent 70%)' }}
-      />
+    <section id="projects" className="relative py-28 md:py-36 px-6 bg-ink grain overflow-hidden">
+      <div className="diag-rule top-16 left-[-55%] opacity-20" />
 
-      <div className="max-w-6xl mx-auto relative z-10">
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className="text-center mb-16"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-500/10 border border-red-500/20 mb-6">
-            <Star className="w-4 h-4 text-red-500" fill="#ef4444" />
-            <span className="text-sm font-semibold text-red-400">Featured Work</span>
-          </div>
-          
-          <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-5 bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
-            Projects
+        <div className="mb-16 md:mb-20">
+          <div className="mono-label text-signal/80 mb-4">§ 01 — Selected Work</div>
+          <h2 className="serif-display text-[14vw] md:text-[9rem] leading-[0.88] text-bone">
+            <span className="italic">the</span>
+            <span> </span>
+            <span className="text-signal">projects.</span>
           </h2>
-          <p className="text-neutral-500 text-lg max-w-xl mx-auto">
-            Click on any project to explore screenshots, features, and more
+          <p className="font-mono text-xs md:text-sm text-bone/55 mt-6 max-w-xl">
+            <span className="text-signal">›</span> Production systems and research prototypes.
+            Tap any card for deep specs, gallery, and source.
           </p>
-        </motion.div>
+          <div className="wipe-divider mt-10" />
+        </div>
 
-        {/* Featured Projects Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-20">
-          {featuredProjects.map((project, index) => (
-            <FeaturedProjectCard
-              key={project.title}
-              project={project}
-              index={index}
-              onClick={() => setSelectedProject(project)}
-            />
+        {/* Uniform grid — equal cards, no row-spans */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-24">
+          {featuredProjects.map((p, i) => (
+            <FeaturedProjectCard key={p.title} project={p} index={i} onClick={() => setSelected(p)} />
           ))}
         </div>
 
-        {/* Other Projects */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          className="mb-6"
-        >
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <Code className="w-5 h-5 text-red-500" />
-            Other Projects
-          </h3>
-        </motion.div>
+        {/* Other */}
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <div className="mono-label text-signal/80 mb-2">§ 01.5</div>
+            <h3 className="serif-display italic text-3xl md:text-5xl text-bone">other work.</h3>
+          </div>
+          <span className="mono-label text-bone/40 hidden sm:block">experiments · coursework · tools</span>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {otherProjects.map((project, index) => {
-            const Icon = project.icon;
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {otherProjects.map((p, i) => {
+            const Icon = p.icon;
             return (
               <motion.a
-                key={project.title}
-                href={project.github}
+                key={p.title}
+                href={p.github}
                 target="_blank"
                 rel="noreferrer"
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className="group p-4 rounded-xl bg-[#12121a]/60 border border-white/5
-                           hover:border-red-500/20 hover:-translate-y-1
-                           transition-all duration-200"
+                transition={{ duration: 0.3, delay: i * 0.04 }}
+                className="group p-4 bg-ink border border-bone/10 hover:border-signal/40 hover:-translate-y-1 transition-all duration-200"
               >
                 <div className="flex items-center gap-2.5 mb-2">
-                  <div className="p-1.5 rounded-md bg-red-500/10">
-                    <Icon className="w-4 h-4 text-red-500" />
+                  <div className="p-1.5 border border-signal/30">
+                    <Icon className="w-3.5 h-3.5 text-signal" />
                   </div>
-                  <h4 className="font-semibold text-white text-sm group-hover:text-red-400 transition-colors">
-                    {project.title}
+                  <h4 className="font-mono text-[13px] font-bold text-bone group-hover:text-signal transition-colors">
+                    {p.title}
                   </h4>
                 </div>
-                <p className="text-xs text-neutral-500 mb-3 line-clamp-2">{project.description}</p>
+                <p className="font-mono text-[11px] text-bone/55 mb-3 line-clamp-2">{p.description}</p>
                 <div className="flex flex-wrap gap-1">
-                  {project.tech.map((t) => (
-                    <span key={t} className="px-2 py-0.5 text-xs text-neutral-500 bg-white/5 rounded">
+                  {p.tech.map((t) => (
+                    <span key={t} className="mono-label px-1.5 py-0.5 text-bone/55 bg-bone/5">
                       {t}
                     </span>
                   ))}
@@ -614,11 +592,10 @@ export default function BentoProjects() {
         </div>
       </div>
 
-      {/* Project Modal */}
       <ProjectModal
-        project={selectedProject}
-        isOpen={!!selectedProject}
-        onClose={() => setSelectedProject(null)}
+        project={selected}
+        isOpen={!!selected}
+        onClose={() => setSelected(null)}
       />
     </section>
   );

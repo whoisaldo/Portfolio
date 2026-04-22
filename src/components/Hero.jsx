@@ -1,4 +1,4 @@
-// src/components/Hero.jsx - OPTIMIZED
+// src/components/Hero.jsx — Editorial brutalist hero
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Github, Linkedin, Download, ArrowRight } from "lucide-react";
@@ -6,192 +6,169 @@ import { Github, Linkedin, Download, ArrowRight } from "lucide-react";
 export default function Hero() {
   const pdf = (import.meta.env.BASE_URL || '/') + "resume.pdf";
 
-  // Terminal typing effect state
-  const [prefixText, setPrefixText] = useState("");
-  const [nameText, setNameText] = useState("");
-  const [showCursor, setShowCursor] = useState(true);
+  const [subtitleText, setSubtitleText] = useState("");
+  const fullSubtitle = "architecting scalable enterprise infrastructure.";
+  const [cursorOn, setCursorOn] = useState(true);
 
   useEffect(() => {
-    const prefix = "Hi, I'm ";
-    const name = "Ali";
-    let pIdx = 0;
-    let nIdx = 0;
-
-    const typeNext = () => {
-      if (pIdx < prefix.length) {
-        setPrefixText(prefix.slice(0, pIdx + 1));
-        pIdx++;
-        setTimeout(typeNext, 60); // typing speed
-      } else if (nIdx < name.length) {
-        setNameText(name.slice(0, nIdx + 1));
-        nIdx++;
-        setTimeout(typeNext, 120); // slightly slower for the name
+    let i = 0;
+    const tick = () => {
+      if (i <= fullSubtitle.length) {
+        setSubtitleText(fullSubtitle.slice(0, i));
+        i++;
+        setTimeout(tick, 32);
       }
     };
-
-    const startTimeout = setTimeout(typeNext, 500); // initial delay
-    return () => clearTimeout(startTimeout);
+    const t = setTimeout(tick, 700);
+    return () => clearTimeout(t);
   }, []);
 
-  // Blinking cursor
   useEffect(() => {
-    const cursorInterval = setInterval(() => {
-      setShowCursor(prev => !prev);
-    }, 530);
-    return () => clearInterval(cursorInterval);
+    const id = setInterval(() => setCursorOn(v => !v), 540);
+    return () => clearInterval(id);
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0a0a0f]">
-      {/* Static gradient orbs - NO ANIMATION, just CSS */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div 
-          className="absolute top-1/4 -left-32 w-[400px] h-[400px] rounded-full opacity-60 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.4) 0%, transparent 70%)' }}
-        />
-        <div 
-          className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] rounded-full opacity-50 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(244,63,94,0.35) 0%, transparent 70%)' }}
-        />
-        <div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full opacity-40 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(220,38,38,0.35) 0%, transparent 70%)' }}
-        />
+    <section className="relative min-h-screen flex items-center overflow-hidden bg-ink grain">
+      {/* Diagonal hairlines */}
+      <div className="diag-rule top-[30%] left-[-50%]" />
+      <div className="diag-rule top-[62%] left-[-60%] opacity-20" />
+
+      {/* Corner mono metadata */}
+      <div className="absolute top-24 left-6 md:left-10 z-20 mono-label text-bone/35 hidden md:block">
+        <div>N 42.3601°</div>
+        <div>W 71.0589°</div>
+        <div className="mt-1 text-bone/25">Boston / Seattle</div>
+      </div>
+      <div className="absolute top-24 right-6 md:right-10 z-20 mono-label text-bone/35 text-right hidden md:block">
+        <div>v04.20.26</div>
+        <div>portfolio · edition iv</div>
       </div>
 
-      {/* Grid pattern - static */}
-      <div 
-        className="absolute inset-0 opacity-30 pointer-events-none"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(239,68,68,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(239,68,68,0.08) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-          maskImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, #000 30%, transparent 100%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 50% 50% at 50% 50%, #000 30%, transparent 100%)'
-        }}
-      />
+      <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-10 w-full py-32">
 
-      <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
-        {/* Status badge */}
+        {/* Status stack */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="inline-flex items-center gap-2 px-4 py-2 mb-8 rounded-full"
-          style={{ 
-            backgroundColor: 'rgba(239, 68, 68, 0.15)', 
-            border: '1px solid rgba(239, 68, 68, 0.4)' 
-          }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col gap-2 mb-12 max-w-xl"
         >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-          </span>
-          <span className="text-sm font-medium text-red-300">
-            Software Engineering (System Integration and Automation) @ Philips
-          </span>
+          <div className="flex items-center gap-3 px-3 py-2 border border-signal/40 bg-signal/5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-signal opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-signal" />
+            </span>
+            <span className="mono-label text-signal">Now</span>
+            <span className="font-mono text-xs text-bone/85">SWE Co-op @ Philips · Cambridge, MA</span>
+          </div>
+          <div className="flex items-center gap-3 px-3 py-2 border border-ember/50 bg-ember/5">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ember opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-ember" />
+            </span>
+            <span className="mono-label text-ember">Incoming · Summer ’26</span>
+            <span className="font-mono text-xs text-bone/85">SDE Intern @ AWS ADC · Seattle, WA</span>
+          </div>
         </motion.div>
 
-        {/* Main heading */}
+        {/* Display headline */}
         <motion.h1
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight mb-6 flex items-center justify-center min-h-[1.2em]"
+          transition={{ duration: 0.6, delay: 0.15 }}
+          className="serif-display text-bone mb-8"
+          style={{ fontSize: 'clamp(3.2rem, 12vw, 11rem)', lineHeight: 0.9 }}
         >
-          <span>
-            <span className="text-white">{prefixText}</span>
-            <span className="bg-gradient-to-r from-red-500 via-red-600 to-rose-500 bg-clip-text text-transparent">
-              {nameText}
-            </span>
-            <span 
-              className={`text-red-500 font-mono ml-1 md:ml-2 ${showCursor ? 'opacity-100' : 'opacity-0'} transition-opacity duration-100`}
-              style={{ textShadow: '0 0 15px rgba(239, 68, 68, 0.8)' }}
-            >
-              _
-            </span>
+          <span className="block italic">Ali</span>
+          <span className="block">
+            <span className="text-bone/40">/</span>
+            <span className="text-signal"> Younes</span>
+            <span
+              className={`align-middle inline-block w-3 md:w-5 h-[0.85em] bg-signal ml-2 md:ml-3 ${cursorOn ? 'opacity-100' : 'opacity-0'} transition-opacity duration-75`}
+              aria-hidden
+            />
           </span>
         </motion.h1>
 
-        {/* Subtitle */}
+        {/* Mono subtitle */}
         <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="text-lg md:text-xl text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="font-mono text-sm md:text-base text-bone/65 max-w-2xl mb-2"
         >
-          Architecting scalable enterprise infrastructure & high-performance full-stack applications.<br/>
-          Computer Science @ Northeastern University (Class of 2027).
+          <span className="text-signal">›</span>{" "}
+          <span className="text-bone">ali@eternalreverse:~$</span>{" "}
+          <span className="text-bone/80">{subtitleText}</span>
+          <span className={`inline-block w-2 h-4 align-middle bg-bone/70 ml-0.5 ${cursorOn ? 'opacity-100' : 'opacity-0'}`} />
+        </motion.p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 1.8 }}
+          className="font-mono text-xs md:text-sm text-bone/45 max-w-2xl mb-12"
+        >
+          CS &amp; Political Science · Northeastern University · Class of ’27
         </motion.p>
 
-        {/* CTA Buttons - simple CSS hover */}
+        {/* CTAs — hard-edged */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="flex flex-wrap items-center justify-center gap-4 mb-12"
+          transition={{ duration: 0.5, delay: 0.5 }}
+          className="flex flex-wrap gap-3 mb-10"
         >
           <a
             href="#projects"
-            className="group flex items-center gap-2 px-6 py-3 rounded-full text-white font-semibold 
-                       bg-gradient-to-r from-red-500 to-rose-500 
-                       shadow-[0_0_30px_-8px_rgba(239,68,68,0.5)]
-                       hover:shadow-[0_0_40px_-8px_rgba(239,68,68,0.7)]
-                       hover:-translate-y-0.5 active:translate-y-0
-                       transition-all duration-200"
+            className="group inline-flex items-center gap-3 px-6 py-3 bg-signal text-ink font-mono text-sm uppercase tracking-[0.2em] font-bold
+                       border-2 border-signal hover:bg-transparent hover:text-signal transition-colors duration-200"
           >
-            View My Work
+            View Work
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
           </a>
-          
           <a
             href={pdf}
             download
-            className="flex items-center gap-2 px-6 py-3 rounded-full text-white font-semibold 
-                       border border-red-500/50 hover:border-red-500 hover:bg-red-500/10
-                       hover:-translate-y-0.5 active:translate-y-0
-                       transition-all duration-200"
+            className="group inline-flex items-center gap-3 px-6 py-3 border-2 border-bone/40 text-bone
+                       font-mono text-sm uppercase tracking-[0.2em] font-bold
+                       hover:bg-bone hover:text-ink hover:border-bone transition-colors duration-200"
           >
             <Download className="w-4 h-4" />
-            Resume
+            Résumé
+          </a>
+          <a
+            href="#contact"
+            className="group inline-flex items-center gap-3 px-6 py-3 border-2 border-transparent text-bone/60
+                       font-mono text-sm uppercase tracking-[0.2em] font-bold
+                       hover:text-signal transition-colors duration-200"
+          >
+            Let’s Talk ↘
           </a>
         </motion.div>
 
-        {/* Social links */}
+        {/* Social */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.25 }}
-          className="flex items-center justify-center gap-4"
+          transition={{ duration: 0.5, delay: 0.7 }}
+          className="flex items-center gap-6"
         >
-          <a
-            href="https://github.com/whoisaldo"
-            target="_blank"
-            rel="noreferrer"
-            className="p-3 rounded-full bg-white/5 border border-white/10 
-                       hover:bg-red-500/20 hover:border-red-500/50
-                       transition-colors duration-200"
-          >
-            <Github className="w-5 h-5 text-neutral-300" />
+          <a href="https://github.com/whoisaldo" target="_blank" rel="noreferrer"
+             className="flex items-center gap-2 text-bone/60 hover:text-signal transition-colors font-mono text-xs uppercase tracking-[0.2em]">
+            <Github className="w-4 h-4" /> github
           </a>
-          <a
-            href="https://www.linkedin.com/in/ali-younes-41a2b4296/"
-            target="_blank"
-            rel="noreferrer"
-            className="p-3 rounded-full bg-white/5 border border-white/10 
-                       hover:bg-red-500/20 hover:border-red-500/50
-                       transition-colors duration-200"
-          >
-            <Linkedin className="w-5 h-5 text-neutral-300" />
+          <a href="https://www.linkedin.com/in/ali-younes-41a2b4296/" target="_blank" rel="noreferrer"
+             className="flex items-center gap-2 text-bone/60 hover:text-signal transition-colors font-mono text-xs uppercase tracking-[0.2em]">
+            <Linkedin className="w-4 h-4" /> linkedin
+          </a>
+          <a href="mailto:younes.al@northeastern.edu"
+             className="text-bone/60 hover:text-signal transition-colors font-mono text-xs uppercase tracking-[0.2em]">
+            ✉ email
           </a>
         </motion.div>
       </div>
 
-      {/* Scroll indicator - CSS animation only */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-        <div className="w-6 h-10 rounded-full border-2 border-red-500/50 flex justify-center pt-2">
-          <div className="w-1 h-2 rounded-full bg-red-500" />
-        </div>
-      </div>
     </section>
   );
 }
