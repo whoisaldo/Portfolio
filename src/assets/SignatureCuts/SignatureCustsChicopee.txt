@@ -1,0 +1,56 @@
+Project Overview: Signature Cuts 413 Website
+
+Production URL: https://signaturecutschicopee.com
+
+Project Purpose:
+A professional, high-performance marketing and lead-generation website for "Signature Cuts 413," a local barbershop in Chicopee, MA. The application serves to showcase the shop's craft, introduce the team of barbers, display pricing for various services, and provide a streamlined booking interface that connects clients directly to barbers via mobile communication channels.
+
+Full Tech Stack:
+
+    Framework: Next.js 14 (App Router)
+
+    Language: TypeScript
+
+    Styling: Tailwind CSS
+
+    Animations: Framer Motion (utilizing LazyMotion for performance optimization)
+
+    Fonts: Google Fonts via next/font (Bebas Neue for display, Plus Jakarta Sans for body)
+
+    Deployment: GitHub Pages (Static Site Generation / SSG)
+
+    Linting/Formatting: ESLint
+
+Key Architecture Decisions:
+
+    Static Export: The project is configured for static export (output: "export"), allowing it to be hosted on GitHub Pages without a Node.js backend.
+
+    Configuration-Driven Content: Team data, services, shop hours, and gallery images are managed via centralized configuration files in src/config/. This allows for content updates without modifying core component logic.
+
+    Component-Based Sectioning: The main landing page is composed of modular components (Hero, Services, Gallery, About, Team, Hours, BookingForm), ensuring high maintainability.
+
+    Mobile-First Design: Includes a MobileBottomBar that appears after scrolling, providing persistent access to booking, calling, and directions for mobile users.
+
+Component Interaction & Data Flow:
+
+    Booking System: The BookingForm component tracks user input (name, service, date, time) and interacts with src/config/hours.ts to dynamically generate available time slots based on the selected day of the week.
+
+    Team to Booking Integration: The Team component features "Book with [Barber]" buttons. When clicked, these dispatch a CustomEvent ("select-barber"), which the BookingForm listens for to automatically pre-select that barber for the user.
+
+    External Integration: Rather than a database-driven booking system, the application uses helper functions in src/lib/booking.ts to format user data into a URI-encoded string. This triggers the user's native WhatsApp or SMS application to send the booking request directly to the selected barber's phone number.
+
+Notable Implementation Details:
+
+    Custom Theming: A specialized "Quartz" color palette (#D4C5B0) and glassmorphism effects (.glass class) are implemented via Tailwind extensions.
+
+    SEO/Metadata: Comprehensive metadata, OpenGraph tags, and JSON-LD structured data (BarberShop type) are configured in the Root Layout for local SEO optimization.
+
+    Animations: A custom AnimateIn wrapper component uses useInView to trigger entrance animations as the user scrolls, improving the premium aesthetic of the site.
+
+    Premium Appointments: The system supports a "Premium" booking mode for specific barbers (e.g., Ali Younes) who offer out-of-hours and at-home services, altering the form logic to allow free-form time input instead of standard shop-hour slots.
+
+Current Status/Version:
+
+    Version: 0.1.0
+
+    Status: Production-ready and deployed.

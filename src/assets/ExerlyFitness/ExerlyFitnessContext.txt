@@ -1,0 +1,56 @@
+Establishing a technical foundation for Exerly Fitness based on the repository contents:
+
+Project Overview
+Exerly is a cross-platform fitness ecosystem that centralizes workout, nutrition, and sleep tracking. It features a native iOS application and a web-based dashboard, both served by a unified Node.js backend. A core differentiator is the integrated AI Coach, which utilizes large language models to provide personalized fitness plans and progress analysis.
+
+Full Tech Stack
+
+    iOS: Native SwiftUI, HealthKit for biometric data, AVFoundation for barcode scanning, and SwiftData for local persistence.
+
+    Web: React 19, TypeScript, Vite, Tailwind CSS, and Framer Motion for animations.
+
+    API: Node.js, Express 5, JWT for authentication, and bcrypt for password hashing.
+
+    Database: Dual-mode architecture supporting MongoDB Atlas for production and SQLite for local development.
+
+    AI Engine: Google Gemini 2.0 Flash (and Flash-lite).
+
+    Third-Party APIs: FatSecret (primary) and Open Food Facts (fallback) for nutritional data.
+
+    Hosting/Deployment: DigitalOcean App Platform (API), GitHub Pages (Web).
+
+Key Architecture Decisions
+
+    Monorepo Structure: Managed via npm workspaces, containing apps/api, apps/web, and apps/ios.
+
+    Unified Backend: Both web and mobile clients communicate with the same REST API, ensuring data parity across platforms.
+
+    Environment-Driven DB Mode: The backend uses a DB_MODE flag to switch between a production MongoDB environment and a zero-dependency local SQLite/Mock AI environment for developers.
+
+    AI Credit System: Implements a tiered rate-limiting system for AI interactions (5 hourly credits, 20 daily credits) to manage API costs and prevent abuse.
+
+Component Interaction
+
+    Client-to-Server: Standard RESTful communication secured by JWT Bearer tokens.
+
+    iOS to HealthKit: Bi-directional integration; reads step counts and active energy, writes completed workouts back to Apple Health.
+
+    AI Coach Flow: The API retrieves user profile data (age, weight, goals, etc.) to build a contextual prompt for Gemini, ensuring responses are tailored to the individual's current stats.
+
+Notable Implementation Details
+
+    12-Step Onboarding: A comprehensive wizard that calculates TDEE (Total Daily Energy Expenditure) and maintenance calories using the Mifflin-St Jeor equation.
+
+    Metric/Imperial Sensing: Auto-detects units based on the device locale.
+
+    Admin Panel: Includes specialized tools for system monitoring, user management, and AI error log tracking.
+
+    Resilient Food Logging: Combines barcode scanning with multi-source API fallbacks to maximize food database coverage.
+
+Current Status and Metadata
+
+    Version: 1.0.0.
+
+    Status: Active/Production-ready; auto-deploys to DigitalOcean on main branch pushes.
+
+    Production URL: Exerlyfitness.com.

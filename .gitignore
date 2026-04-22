@@ -12,3 +12,5 @@ dist/
 # Env (if you add one later)
 .env
 .env.*
+
+.claude/

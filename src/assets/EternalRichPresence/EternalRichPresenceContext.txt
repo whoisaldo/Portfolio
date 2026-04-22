@@ -1,0 +1,49 @@
+Based on the project source code and documentation, here is the technical summary for the EternalRichPresence repository:
+Project Overview
+
+EternalRichPresence is a Windows system tray application that bridges Apple Music and Spotify playback to Discord Rich Presence. It displays current track metadata, live cover art, and supports a "Listen Along" feature via custom URI schemes.
+Full Tech Stack
+
+    Language: Python 3.8+.
+
+    Libraries: * pypresence: Interfaces with the Discord RPC.
+
+        spotipy: Connects to the Spotify Web API.
+
+        winrt: Accesses Windows System Media Transport Controls (SMTC).
+
+        pywin32: Handles iTunes COM automation and Windows Registry modifications.
+
+        pystray & Pillow: Manages the system tray icon and menu.
+
+        tkinter: Provides the first-run configuration GUI.
+
+    Deployment: PyInstaller for single-file portable executable generation.
+
+Key Architecture & Component Interaction
+
+    Provider Management: The ProviderManager polls active music sources, giving priority to Apple Music over Spotify.
+
+    Dual-Channel Discord Connection: * Outgoing: Uses pypresence to push track updates to Discord.
+
+        Incoming: A custom DiscordEventListener uses raw Windows named-pipes to listen for ACTIVITY_JOIN events when a friend clicks "Join".
+
+    Protocol Registration: The app automatically registers eternalrp:// and discord-{client_id}:// in the Windows Registry so that "Listen Along" invites can launch the executable with the necessary track arguments.
+
+Notable Implementation Details
+
+    Local Metadata Extraction: The application retrieves "Now Playing" data by interfacing with the iTunes COM automation interface for the legacy desktop app and the Windows System Media Transport Controls (SMTC) for the modern Apple Music app.
+
+    Protocol Handling: It registers a custom URI scheme (eternalrp://) and a Discord-specific launch protocol (discord-{client_id}://) to handle "Listen Along" requests.
+
+    Search Fallback: When a listener joins a host playing Apple Music, the app performs a web-based search (https://music.apple.com/search?term=...) in the user's default browser to locate the track, rather than using a MusicKit API call to trigger playback directly.
+
+    Cover Art: High-resolution album artwork is scraped from the local Windows media session (SMTC) or Spotify and uploaded to catbox.moe to serve as a public asset for the Discord Rich Presence.
+
+Project Status
+
+    Current Version: 1.0.0.0.
+
+    License: Source-available; personal, non-commercial use only.
+
+    GitHub Repository: https://github.com/whoisaldo/Eternal-Rich-Presence.

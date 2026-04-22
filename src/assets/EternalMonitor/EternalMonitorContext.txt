@@ -1,0 +1,76 @@
+Based on the repository contents, here is the technical summary for EternalMonitor:
+
+Project Overview
+EternalMonitor is a low-latency Windows display receiver for iPad. It allows a Windows PC to mirror its primary display to an iPad over a local-network UDP connection, effectively using the iPad as a wireless second monitor.
+
+Current Status & Version
+
+    Version: v0.1.1-mirror
+
+    Status: Functional Windows host (capture/encode/transport) and iPad client (receive/decode/render).
+
+    Demo/Website: https://eternalmonitor.dev
+
+    Known Limitations: Mirroring only (no extended display yet); no touch/input relay; discovery is unreliable (manual IP entry preferred).
+
+Full Tech Stack
+
+    Windows Host (Rust):
+
+        Capture: DXGI Desktop Duplication API.
+
+        Encoding: ffmpeg-next with hardware acceleration (NVENC, AMF, QSV) or software fallback (libx264).
+
+        Concurrency: tokio runtime and standard threads.
+
+        Discovery: mDNS/DNS-SD (Bonjour) via mdns-sd.
+
+    iPad Client (Swift):
+
+        UI: SwiftUI.
+
+        Networking: NWConnection (Network framework) for UDP.
+
+        Decoding: VideoToolbox (VTDecompressionSession) for hardware H.264 decoding.
+
+        Rendering: Metal (MTKView) for low-latency frame presentation.
+
+    Shared:
+
+        Serialization: FlatBuffers for FramePacket structure.
+
+Key Architecture Decisions
+
+    UDP Transport: Chosen over TCP to prioritize low latency and avoid head-of-line blocking.
+
+    Custom Fragmentation: Implements a custom 16-byte header to handle MTU-sized UDP datagrams and reassemble them into full FramePacket payloads.
+
+    Multi-Vendor GPU Support: Automatically detects and prefers hardware encoders in the order: NVENC (NVIDIA) → AMF (AMD) → QSV (Intel) → libx264 (Software).
+
+    H.264 Baseline Profile: Used for maximum compatibility with the iPad VideoToolbox hardware decoder.
+
+Component Interaction & Pipeline
+
+    Capture: The Windows host uses DXGI to capture the primary display into a CPU-readable staging texture.
+
+    Encode: The frame is converted to YUV420P and encoded into H.264 Annex B byte streams using the detected hardware encoder.
+
+    Packetization: Encoded frames are wrapped in FlatBuffer FramePacket messages, fragmented, and sent over UDP.
+
+    Handshake: The iPad client initiates a connection by sending an ETERNALHELLO packet to the host.
+
+    Reassembly & Decode: The iPad client reassembles UDP fragments by sequence number, parses the FlatBuffer, and passes the H.264 data to VideoToolbox.
+
+    Render: The decoded texture is rendered to the screen using a Metal-backed view.
+
+Notable Implementation Details
+
+    Large-Frame Support: Uses u16 for fragment counts to prevent overflow on high-resolution/high-detail frames.
+
+    Low-Latency Settings: Encoders are configured with zerolatency=1, max_b_frames=0, and gop=30.
+
+    AMD Hotfix: Version 0.1.1 includes a specific fix for AMF output normalization to ensure compatibility with Apple's VideoToolbox.
+
+    mDNS Logging: Explicitly suppresses log spam from virtual interfaces like Tailscale to clean up discovery logs.
+
+https://github.com/whoisaldo/EternalMonitor
