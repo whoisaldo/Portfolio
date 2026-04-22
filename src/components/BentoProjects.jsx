@@ -16,10 +16,10 @@ import moopsDashboard from "../assets/MoopsBookStore 2/UserDashboard.png";
 import moopsProfile from "../assets/MoopsBookStore 2/UserProfile.png";
 
 // Import project images - Exerly
-import exerlyMain from "../assets/Exerly-Fitness/image.png";
-import exerly1 from "../assets/Exerly-Fitness/image1.png";
-import exerly3 from "../assets/Exerly-Fitness/image3.png";
-import exerly4 from "../assets/Exerly-Fitness/image4.png";
+import exerlyMain from "../assets/ExerlyFitness/ExerlyWebViewLandingPage.png";
+import exerly1 from "../assets/ExerlyFitness/ExerlyFitnessPhoneView1.png";
+import exerly3 from "../assets/ExerlyFitness/ExerlyWebViewDashboard.png";
+import exerly4 from "../assets/ExerlyFitness/ExerlyWebViewProfileView.png";
 
 // Import project images - Fade Empire
 import fadeMain from "../assets/ChicopeeFadeEmpire/MobileFrontFadeEmpire.png";
