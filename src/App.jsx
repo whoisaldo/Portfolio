@@ -81,8 +81,7 @@ export default function App() {
                 transition={{ duration: 0.7, delay: 0.1 }}
                 className="font-serif italic text-bone/80 text-base md:text-lg max-w-xl leading-[1.6]"
               >
-                One page. <span className="text-bone not-italic">Philips co-op</span>, incoming <span className="text-signal not-italic">AWS ADC</span>,
-                a running inventory of what I&rsquo;ve shipped.
+                <span className="text-bone not-italic">Philips co-op</span>, incoming <span className="text-signal not-italic">AWS ADC</span> &mdash; the current rundown of what I&rsquo;m working on and what I&rsquo;ve shipped.
               </motion.p>
 
               <motion.div
