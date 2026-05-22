@@ -368,7 +368,7 @@ AUTHOR
   incoming   SDE Intern @ AWS ADC · Seattle, WA
              Summer '26
   current    CS & Political Science · Northeastern
-             Class of '27 · GPA 3.5+
+             Class of '27
   open to    full-time '27, interesting side-quests
   ───────────────────────────────────────────────
   contact    younes.al@northeastern.edu` }]);

@@ -187,7 +187,6 @@ const experiences = [
       { value: "B.S.",  label: "Degree" },
       { value: "2027",  label: "Expected" },
       { value: "Co-op", label: "Program" },
-      { value: "3.5+",  label: "GPA" },
     ],
     coursework: ["Data Structures & Algorithms", "Object-Oriented Design", "Systems Programming", "Database Management", "Computer Networks"],
     icon: GraduationCap,
@@ -469,7 +468,13 @@ export default function Experience() {
 
                             {/* Metrics — mono table style */}
                             {exp.metrics && (
-                              <div className="grid grid-cols-2 md:grid-cols-4 border border-bone/10 divide-x divide-bone/10">
+                              <div
+                                className={`grid border border-bone/10 divide-x divide-bone/10 ${
+                                  exp.metrics.length === 3
+                                    ? "grid-cols-3"
+                                    : "grid-cols-2 md:grid-cols-4"
+                                }`}
+                              >
                                 {exp.metrics.map((metric, i) => (
                                   <div key={i} className="p-4 text-center">
                                     <div className="serif-display italic text-2xl md:text-3xl text-signal">
