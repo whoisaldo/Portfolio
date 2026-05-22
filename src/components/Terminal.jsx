@@ -1,7 +1,26 @@
-// src/components/Terminal.jsx — Editorial mono terminal
+// src/components/Terminal.jsx — Direct Console (cyberpunk-restrained)
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Terminal as TerminalIcon, Wifi, Battery, Clock } from "lucide-react";
+
+// Fun facts pool — surfaced on boot and via `funfact`
+const FUN_FACTS = [
+  "Daily driver is a fully built supercharged Audi S4 (B8.5). 540 whp. Tuned it myself.",
+  "Ranked top-3 in Massachusetts during high school for powerlifting. Still take the gym seriously — diet + sleep + lifts dialed in.",
+  "Spends weekends building agentic workflows in Claude Code. The same toolchain you're talking to right now helped ship this portfolio.",
+  "Built Exerly Fitness because every commercial fitness app is paywalled. Wanted a free, open-source platform that actually coaches.",
+  "VirtualDyno exists because I’m obsessed with cars and wanted to estimate horsepower without renting a dyno.",
+  "Moops Bookstore started because I was reading more and wanted a social platform for me and my friends — Goodreads is fine, but it’s not ours.",
+  "Has hosted Minecraft + Ark Survival servers for friends — running them and tuning the configs taught me more about Linux than any class.",
+  "Currently watching / re-watching: Mr Robot, Pantheon, Vinland Saga. All-time list includes Breaking Bad, Better Call Saul, Snowfall, Invincible, Bojack Horseman.",
+  "Plays Cyberpunk 2077 between sprints. The HUD on this portfolio is a love-letter to that game’s UI language.",
+  "Eternal Monitor exists because I refused to pay $40 for an iPad-as-second-display app that lagged. Wrote my own in Rust + SwiftUI; sub-30ms.",
+  "Eternal Rich Presence exists because Apple Music doesn’t talk to Discord. So I made it talk.",
+];
+
+function pickFact() {
+  return FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)];
+}
 
 // Virtual file system
 const fileSystem = {
@@ -89,10 +108,14 @@ export default function Terminal() {
   ██║  ██║███████╗██║       ██║   ╚██████╔╝╚██████╔╝██║ ╚████║███████╗███████║
   ╚═╝  ╚═╝╚══════╝╚═╝       ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═══╝╚══════╝╚══════╝`;
 
-  const [history, setHistory] = useState([
+  const [history, setHistory] = useState(() => [
     { type: "ascii", text: asciiArt },
-    { type: "system", text: "eternalreverse shell — portfolio edition iv" },
-    { type: "system", text: `Last login: ${new Date().toLocaleString()} on ttys000\n` },
+    { type: "system", text: "eternalreverse.system v4.0 — direct console" },
+    { type: "system", text: `last login: ${new Date().toLocaleString()} on ttys000` },
+    { type: "system", text: "uplink: stable · auth: ok · subject: ali_younes\n" },
+    { type: "output", text: `  ▸ fact_of_the_session
+    ${pickFact()}
+` },
     { type: "output", text: `  QUICK START
   ───────────────────────────────────────────────
     help         all available commands
@@ -102,6 +125,11 @@ export default function Terminal() {
     skills       stack breakdown
     contact      how to reach me
     resume       open resume.pdf
+
+    funfact      random fact about me
+    interests    what i'm into (tv · cars · fitness · gaming · ai)
+    vitals       current status
+    uplink       system uplink status
 
   Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
 ` },
@@ -128,7 +156,8 @@ export default function Terminal() {
     "date", "uptime", "echo", "history", "banner", "about", "skills",
     "experience", "education", "projects", "contact", "resume", "socials",
     "neofetch", "tree", "grep", "find", "open", "sudo", "exit", "hire",
-    "git", "vim", "nano", "touch", "mkdir", "rm", "cp", "mv", "head", "tail"
+    "git", "vim", "nano", "touch", "mkdir", "rm", "cp", "mv", "head", "tail",
+    "funfact", "interests", "uplink", "vitals"
   ], []);
 
   const executeCommand = (cmd) => {
@@ -264,7 +293,85 @@ AUTHOR
         break;
 
       case "whoami":
-        setHistory(prev => [...prev, { type: "output", text: "younes" }]);
+        setHistory(prev => [...prev, { type: "output", text: `  ali_younes // operator
+  ─────────────────────────────────────────────
+  rank      sde-intern (incoming) · swe co-op (active)
+  loc       boston, ma → seattle, wa (summer '26)
+  edition   iv · v05.10.26
+  signal    online · uplink stable
+  ─────────────────────────────────────────────
+  try:  about · interests · funfact · vitals` }]);
+        break;
+
+      case "funfact":
+        setHistory(prev => [...prev, { type: "output", text: `  ▸ ${pickFact()}` }]);
+        break;
+
+      case "interests":
+        setHistory(prev => [...prev, { type: "output", text: `
+  INTERESTS — ali_younes
+  ═══════════════════════════════════════════════
+
+  ▣ film/tv
+    Cyberpunk 2077 · Mr Robot · Pantheon · Snowfall
+    Breaking Bad · Better Call Saul · Vinland Saga
+    Invincible · Bojack Horseman
+
+  ▣ cars
+    Daily: Audi S4 (B8.5) — fully built, supercharged,
+    540 whp. Tuned it myself. VirtualDyno (in the
+    'other work' list) is a side-effect of this hobby.
+
+  ▣ fitness
+    Top-3 ranked in Massachusetts during high school.
+    Gym is serious — programmed lifts, nutrition,
+    sleep. Exerly Fitness exists because i wanted a
+    coaching platform that's free + open-source.
+
+  ▣ tech / ai
+    Building agentic workflows with Claude Code. The
+    same toolchain you're talking to right now helped
+    ship this portfolio.
+
+  ▣ gaming / homelab
+    Self-hosted Ark Survival + Minecraft servers for
+    friends. The server-admin grind taught me more
+    about Linux than any class.
+
+  ▸ try 'projects' to see what these interests turned into.
+` }]);
+        break;
+
+      case "uplink":
+        setHistory(prev => [...prev, { type: "output", text: `
+  ╔═══════════════════════════════════════════╗
+  ║         UPLINK STATUS // EDITION_IV       ║
+  ╠═══════════════════════════════════════════╣
+  ║                                           ║
+  ║   ▮  signal............................OK ║
+  ║   ▮  auth..............................OK ║
+  ║   ▮  channel.encrypted..........STABLE_AES║
+  ║   ▮  edition.................IV · v05.10.26║
+  ║   ◆  boston, ma · 42.36°n 71.06°w         ║
+  ║   ⏵  next.............AWS_ADC // seattle  ║
+  ║                                           ║
+  ╚═══════════════════════════════════════════╝
+` }]);
+        break;
+
+      case "vitals":
+        setHistory(prev => [...prev, { type: "output", text: `
+  CURRENT STATUS // ${new Date().toLocaleTimeString()}
+  ───────────────────────────────────────────────
+  now        SWE Co-op @ Philips · Cambridge, MA
+             (FOG Zero-Touch · VM Deployment Mgr)
+  incoming   SDE Intern @ AWS ADC · Seattle, WA
+             Summer '26
+  current    CS & Political Science · Northeastern
+             Class of '27 · GPA 3.5+
+  open to    full-time '27, interesting side-quests
+  ───────────────────────────────────────────────
+  contact    younes.al@northeastern.edu` }]);
         break;
 
       case "hostname":
@@ -708,28 +815,44 @@ AUTHOR
   return (
     <section id="terminal" className="relative py-20 md:py-28 px-6 bg-ink grain border-y border-bone/10">
       <div className={`mx-auto transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-5xl'}`}>
-        {/* Editorial header */}
+        {/* Editorial header — Roman-numeral kicker */}
         {!isMaximized && (
-          <div className="mb-10 flex items-baseline justify-between gap-4">
-            <div>
-              <div className="mono-label text-signal/80 mb-2">§ 04 — Terminal</div>
-              <h2 className="serif-display italic text-3xl md:text-5xl text-bone">a real shell.</h2>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.7 }}
+            className="mb-10 flex items-baseline justify-between gap-4 border-b border-hud/15 pb-6"
+          >
+            <div className="flex items-baseline gap-6">
+              <span className="font-display italic text-hud text-3xl lg:text-4xl leading-none">IV.</span>
+              <div>
+                <p className="font-mono text-[10px] tracking-editorial text-hud/70 uppercase mb-2">// direct_console</p>
+                <h2 className="serif-display italic text-3xl md:text-5xl text-bone">a real shell.</h2>
+              </div>
             </div>
-            <div className="mono-label text-bone/45 hidden sm:block">zsh · interactive</div>
-          </div>
+            <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-bone/45 hidden sm:block text-right">
+              <div>zsh · interactive</div>
+              <div className="text-hud/70 mt-1">try: funfact · interests</div>
+            </div>
+          </motion.div>
         )}
 
         {/* Terminal frame */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.4 }}
-          className={`border border-bone/15 bg-ink transition-all duration-300 ${
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }}
+          className={`crt-curve bracket-frame border border-hud/20 bg-ink transition-all duration-300 ${
             isMaximized ? 'fixed inset-4 z-50' : ''
           }`}
           onClick={focusInput}
         >
+          <span aria-hidden className="bracket-corner tl" />
+          <span aria-hidden className="bracket-corner tr" />
+          <span aria-hidden className="bracket-corner bl" />
+          <span aria-hidden className="bracket-corner br" />
           {/* Title bar */}
           <div className="relative flex items-center justify-between px-4 py-2.5 bg-smoke border-b border-bone/10">
             <div className="flex gap-2">
@@ -771,7 +894,7 @@ AUTHOR
           <div
             ref={terminalRef}
             className={`p-4 font-mono text-[13px] leading-relaxed overflow-auto cursor-text transition-all duration-300 ${
-              isMinimized ? 'h-0 p-0' : isMaximized ? 'h-[calc(100vh-120px)]' : 'h-[500px]'
+              isMinimized ? 'h-0 p-0' : isMaximized ? 'h-[calc(100vh-120px)]' : 'h-[340px] sm:h-[420px] md:h-[500px]'
             }`}
           >
             {history.map((line, i) => (
@@ -819,8 +942,9 @@ AUTHOR
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  aria-label="Terminal command input"
                   className="w-full bg-transparent text-bone outline-none font-mono"
-                  style={{ caretColor: '#ff3b30' }}
+                  style={{ caretColor: '#a855f7' }}
                   autoComplete="off"
                   spellCheck="false"
                 />

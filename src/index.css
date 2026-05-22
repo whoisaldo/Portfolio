@@ -5,13 +5,13 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    background-color: #0b0b0c;
+    background-color: #0e0d14;
   }
 
   body {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
-    background-color: #0b0b0c;
+    background-color: #0e0d14;
     color: #efece5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -28,12 +28,12 @@
 
   *:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px #0b0b0c, 0 0 0 4px #ff3b30;
+    box-shadow: 0 0 0 2px #0e0d14, 0 0 0 4px #a855f7;
   }
 
   ::selection {
-    background-color: #ff3b30;
-    color: #0b0b0c;
+    background-color: #a855f7;
+    color: #0e0d14;
   }
 }
 
@@ -59,7 +59,7 @@
   position: absolute;
   width: 220%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #ff3b30 40%, #ff3b30 60%, transparent);
+  background: linear-gradient(90deg, transparent, #a855f7 40%, #a855f7 60%, transparent);
   transform-origin: center;
   transform: rotate(-23deg);
   opacity: 0.35;
@@ -79,12 +79,12 @@
 
 /* === Scrollbar ========================================================== */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0b0b0c; }
+::-webkit-scrollbar-track { background: #0e0d14; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 59, 48, 0.35);
+  background: rgba(168,85,247, 0.35);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 59, 48, 0.6); }
+::-webkit-scrollbar-thumb:hover { background: rgba(168,85,247, 0.6); }
 
 /* === Line clamp ========================================================= */
 .line-clamp-2 {
@@ -133,10 +133,361 @@
   pointer-events: none;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(255,59,48,0.03) 0px,
-    rgba(255,59,48,0.03) 1px,
+    rgba(168,85,247,0.03) 0px,
+    rgba(168,85,247,0.03) 1px,
     transparent 1px,
     transparent 3px
   );
   z-index: 2;
+}
+
+/* === Editorial primitives ported from sister portfolio =================== */
+
+/* Body-level paper grain — dual-layer. Coexists with section-level .grain. */
+.paper-grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+.paper-grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.025;
+  mix-blend-mode: overlay;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 2px,
+    rgba(239, 236, 229, 0.6) 2px 3px
+  );
+}
+
+/* Radial blooms — retinted from orchid/gilt → signal/ember */
+.signal-bloom {
+  background: radial-gradient(circle at center,
+    rgba(168,85,247, 0.55) 0%,
+    rgba(168,85,247, 0.15) 35%,
+    transparent 70%);
+}
+.ember-bloom {
+  background: radial-gradient(circle at center,
+    rgba(168,85,247, 0.35) 0%,
+    transparent 65%);
+}
+
+/* Signal hairline rule */
+.signal-rule {
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(239, 236, 229, 0.18) 12%,
+    rgba(239, 236, 229, 0.18) 88%,
+    transparent);
+}
+
+/* Drop cap — Fraunces italic, signal color */
+.drop-cap::first-letter {
+  font-family: 'Fraunces', ui-serif, Georgia, serif;
+  float: left;
+  font-size: 5.4em;
+  line-height: 0.82;
+  padding: 0.08em 0.12em 0 0;
+  color: #a855f7;
+  font-style: italic;
+  font-weight: 400;
+  font-feature-settings: "ss01";
+}
+
+/* Dot leaders */
+.dot-leaders {
+  background-image: radial-gradient(circle, rgba(239, 236, 229, 0.45) 1px, transparent 1.2px);
+  background-size: 8px 6px;
+  background-repeat: repeat-x;
+  background-position: 0 60%;
+}
+
+/* Ink-spread underline — currentColor scaleX 0 → 1 on hover */
+.ink-underline {
+  position: relative;
+  display: inline-block;
+}
+.ink-underline::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ink-underline:hover::after,
+.ink-underline:focus-visible::after { transform: scaleX(1); }
+
+/* Vertical writing mode */
+.vertical-rl {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
+/* Letter-stagger reveal system */
+.letter-mask {
+  display: inline-block;
+  overflow: hidden;
+  line-height: 1;
+  vertical-align: bottom;
+}
+.letter-mask > span {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+.letter-mask.reveal > span {
+  transform: translateY(110%);
+  opacity: 0;
+  animation: letter-rise 0.85s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+/* Editorial caps */
+.editorial-caps {
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  font-feature-settings: "smcp";
+}
+
+/* === Keyframes (mirrored from Tailwind config so utilities + raw classes both work) */
+@keyframes letter-rise {
+  0%   { transform: translateY(110%); opacity: 0; }
+  100% { transform: translateY(0);    opacity: 1; }
+}
+@keyframes quote-swell {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes dot-drift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+/* === Cyberpunk HUD primitives ============================================ */
+
+/* CRT grid background — 64×64 hud-cyan hairline */
+.crt-grid {
+  background-image:
+    linear-gradient(rgba(168,85,247,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,85,247,0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+/* HUD bloom — cyan radial glow */
+.hud-bloom {
+  background: radial-gradient(circle at center,
+    rgba(168,85,247,0.35) 0%,
+    rgba(168,85,247,0.08) 35%,
+    transparent 70%);
+}
+
+/* Diagonal scan-line accent — single hud-cyan hairline at -23deg */
+.scan-rule {
+  position: absolute;
+  width: 220%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168,85,247,0.5) 40%, rgba(168,85,247,0.5) 60%, transparent);
+  transform-origin: center;
+  transform: rotate(-23deg);
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+/* Bracket frame — four corner brackets via pseudo-elements on the wrapper.
+   Use `.bracket-frame` + `.bf-tl/.bf-tr/.bf-bl/.bf-br` child spans for SSR safety. */
+.bracket-frame {
+  position: relative;
+}
+.bracket-corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(168,85,247,0.65);
+  pointer-events: none;
+  transition: all 0.4s cubic-bezier(0.2,0.7,0.2,1);
+}
+.bracket-corner.tl { top: -1px; left: -1px;  border-right: none; border-bottom: none; }
+.bracket-corner.tr { top: -1px; right: -1px; border-left: none;  border-bottom: none; }
+.bracket-corner.bl { bottom: -1px; left: -1px;  border-right: none; border-top: none; }
+.bracket-corner.br { bottom: -1px; right: -1px; border-left: none;  border-top: none; }
+.bracket-corner.signal { border-color: rgba(168,85,247,0.7); }
+.bracket-corner.ember  { border-color: rgba(168,85,247,0.7); }
+.bracket-corner.lg     { width: 18px; height: 18px; }
+.bracket-corner.sm     { width: 8px;  height: 8px;  }
+.bracket-frame:hover .bracket-corner,
+.bracket-frame:focus-within .bracket-corner {
+  width: 16px;
+  height: 16px;
+  border-color: rgba(168,85,247,1);
+}
+
+/* Scan beam — sweeps across parent on hover */
+.scan-beam-host { position: relative; overflow: hidden; }
+.scan-beam-host::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168,85,247,0.9), transparent);
+  transform: translateX(-110%);
+  pointer-events: none;
+  transition: transform 0s;
+  z-index: 4;
+}
+.scan-beam-host:hover::after,
+.scan-beam-host:focus-within::after {
+  animation: beam-trace 0.9s cubic-bezier(0.2,0.7,0.2,1) forwards;
+}
+
+/* Chromatic-aberration — RGB text-shadow for focused/key text */
+.chromatic-aberration {
+  text-shadow:
+    1px 0 rgba(168,85,247,0.55),
+    -1px 0 rgba(168,85,247,0.55);
+}
+
+/* CRT curve — Terminal frame chrome */
+.crt-curve {
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 80px rgba(0,0,0,0.4),
+    0 0 60px -20px rgba(168,85,247,0.18);
+}
+
+/* HUD rule — horizontal hud-cyan hairline with bracket caps */
+.hud-rule {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(168,85,247,0.45) 8%,
+    rgba(168,85,247,0.45) 92%,
+    transparent);
+}
+.hud-rule::before, .hud-rule::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  width: 1px;
+  height: 7px;
+  background: rgba(168,85,247,0.5);
+}
+.hud-rule::before { left: 8%; }
+.hud-rule::after  { right: 8%; }
+
+/* Dossier shell — concrete card with subtle inner glow */
+.dossier-shell {
+  background: #16171a;
+  border: 1px solid rgba(239,236,229,0.08);
+  position: relative;
+  isolation: isolate;
+}
+.dossier-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(168,85,247,0.03) 0%, transparent 30%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Boot cursor — blinking caret */
+.boot-cursor {
+  display: inline-block;
+  animation: boot-cursor 1s steps(2) infinite;
+}
+
+/* Telemetry — small mono caps with hud color */
+.telemetry {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(168,85,247,0.7);
+}
+
+/* (Custom HUD cursor was removed — native cursor stays.) */
+
+/* === Cyberpunk keyframes (also in Tailwind config, mirrored here) ====== */
+@keyframes scan-sweep {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+@keyframes beam-trace {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateX(110%); opacity: 0; }
+}
+@keyframes signal-ping {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.4); }
+}
+@keyframes hud-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+@keyframes boot-cursor {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+@keyframes glitch-rgb-x {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-2px, 0); }
+  40% { transform: translate(2px, 0); }
+  60% { transform: translate(-1px, 1px); }
+  80% { transform: translate(1px, -1px); }
+}
+
+/* Chromatic burst — runs alongside letter-rise to make the RGB split fade out
+   as the character settles. Used by GlitchText. */
+@keyframes glitch-burst {
+  0%   { text-shadow: 3px 0 rgba(168,85,247,0.9), -3px 0 rgba(168,85,247,0.9); }
+  30%  { text-shadow: 2px 0 rgba(168,85,247,0.8), -2px 0 rgba(168,85,247,0.8); }
+  60%  { text-shadow: 1px 0 rgba(168,85,247,0.5), -1px 0 rgba(168,85,247,0.5); }
+  100% { text-shadow: 0 0 transparent; }
+}
+
+.glitch-text .letter-mask.reveal > span {
+  animation:
+    letter-rise 0.85s cubic-bezier(0.2, 0.7, 0.2, 1) forwards,
+    glitch-burst 0.95s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+
+/* === Respect prefers-reduced-motion ==================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  html { scroll-behavior: auto; }
+  .letter-mask.reveal > span {
+    transform: none !important;
+    opacity: 1 !important;
+    animation: none !important;
+  }
+  .scan-beam-host::after,
+  .bracket-corner {
+    animation: none !important;
+    transition: none !important;
+  }
 }

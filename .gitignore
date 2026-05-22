@@ -12,3 +12,15 @@ dist/
 # Env (if you add one later)
 .env
 .env.*
+
+# Local-only sources / scratch / sensitive context — never commit
+LATESTCONTEXT.md
+*Context.md
+*Context.txt
+*-Context.md
+*-Context.txt
+MayResumeAldo.pdf
+friendsportfolio/
+Eternal-Reverse-Assets/
+image.png
+*.local.md

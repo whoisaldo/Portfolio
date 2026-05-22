@@ -1,21 +1,35 @@
-# Aldo’s Portfolio
+# Ali Younes — Portfolio
 
-Welcome to my personal portfolio website! I’m Aldo—a student of Computer Science, and Political Science at Northeastern University.
+Personal portfolio for Ali Younes — Computer Science & Political Science at Northeastern University, currently SWE Co-op at Philips, incoming SDE Intern at AWS ADC (Summer ’26).
 
-This site showcases my projects, resume, and a bit about who I am all wrapped up in a clean, responsive layout.
+Live: **[aliyounes.dev](https://aliyounes.dev)**
 
-##  About the Project
+## Stack
 
-- Built with **HTML5**, **CSS3**, and **JavaScript**.
-- Features a toolbar (header), followed by a headline/intro section.
+- React 19 + Vite 7
+- Tailwind CSS 3 (custom `ink` / `bone` / `signal` design tokens)
+- Framer Motion for entrances and micro-interactions
+- Editorial brutalist visual direction — Fraunces (display) paired with JetBrains Mono (UI)
 
-##  Live Demo
+## Run locally
 
-View the live site here:  
-[https://whoisaldo.github.io/Portfolio/](https://whoisaldo.github.io/Portfolio/)
+```bash
+git clone https://github.com/whoisaldo/portfolio.git
+cd portfolio
+npm install
+npm run dev
+```
 
-##  How to Run Locally
+Build:
 
-1. Clone the repository:  
-   ```bash
-   git clone https://github.com/whois.aldo/Portfolio.git
+```bash
+npm run build      # outputs to dist/
+npm run preview    # serves the build locally
+```
+
+## Structure
+
+- `src/App.jsx` — root composition (Hero → Projects → Experience → Terminal → Resume → Contact)
+- `src/components/` — section components
+- `src/assets/` — project screenshots and logos
+- `public/resume.pdf` — current résumé (served at `/resume.pdf`)
