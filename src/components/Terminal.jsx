@@ -27,7 +27,7 @@ const fileSystem = {
   "~": {
     type: "dir",
     children: {
-      "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\nIncoming: SDE Intern at AWS Amazon Dedicated Cloud (ADC) — Seattle, Summer '26.\n\nI architect distributed, high-stakes systems — and I build the tools that keep them running.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
+      "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code — Seattle, WA.\nPreviously: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nI architect distributed, high-stakes systems — and I build the tools that keep them running.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
       "skills.md": { type: "file", content: `# Technical Skills\n\n## Languages\n- TypeScript / JavaScript  ████████████████████  Expert\n- C++                      ████████████████░░░░  Advanced\n- C# / .NET                ██████████████░░░░░░  Proficient\n- Python                   ████████████░░░░░░░░  Proficient\n- Rust                     ████████████░░░░░░░░  Proficient\n- Swift / SwiftUI          ██████████░░░░░░░░░░  Intermediate\n- Go                       ████████░░░░░░░░░░░░  Learning\n\n## Frontend\nReact · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · MongoDB · .NET · PowerShell\n\n## Cloud & Infra\nAWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD` },
       "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA → Seattle, WA (Summer '26)",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/ali-younes-41a2b4296",\n  "status": "Open to opportunities"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file — use 'open resume.pdf' to download]` },
@@ -59,8 +59,8 @@ const fileSystem = {
       "experience": {
         type: "dir",
         children: {
-          "aws.md": { type: "file", content: `# AWS — SDE Intern (Incoming)\nAmazon Dedicated Cloud (ADC) | Jun 2026 — Sep 2026 | Seattle, WA\n\n- Building on AWS' air-gapped ITAR/IL5/IL6-compliant partitions\n- Service-level project across distributed systems & operational tooling\n- Security-first engineering under Principal/Senior SDE mentorship\n- Customers: U.S. Intelligence Community, DoD, regulated workloads` },
-          "philips.md": { type: "file", content: `# Philips — Software Engineering Co-op\nSystem Integration and Automation | 2025 — Present | Cambridge, MA\n\n- Large- and small-scale VM automation\n- Automated setups & deployment pipelines for PicIX platform\n- C#, .NET Framework, PowerShell, DevOps\n- Enterprise imaging infrastructure at scale` },
+          "aws.md": { type: "file", content: `# AWS — SDE Intern (Current)\nCloudFormation · Infrastructure as Code | Jun 2026 — Present | Seattle, WA\n\n- Defining cloud infrastructure as version-controlled CloudFormation templates\n- Service-level project across distributed systems & operational tooling\n- Security-first engineering under Principal/Senior SDE mentorship\n- Repeatable, auditable, declarative deployments at AWS scale` },
+          "philips.md": { type: "file", content: `# Philips — Software Engineering Co-op\nSystem Integration and Automation | Jan 2026 — Jun 2026 | Cambridge, MA\n\n- Large- and small-scale VM automation\n- Automated setups & deployment pipelines for PicIX platform\n- C#, .NET Framework, PowerShell, DevOps\n- Enterprise imaging infrastructure at scale` },
           "topchoice.md": { type: "file", content: `# Top Choice Realty — Frontend Developer Intern\nApr 2024 — Aug 2024 | New York, NY\n\n- Built full-stack app (React, Python, SQL)\n- 85% faster lookups, 3x query speed\n- Managed 800+ client records` },
           "defalco.md": { type: "file", content: `# Robert DeFalco Realty — Computer Technician\nJun 2023 — Sep 2023 | New York, NY\n\n- On-site support across 3+ offices\n- Configured 15+ systems (Win/Mac/Linux)\n- Maintained 95%+ system uptime` },
         }
@@ -295,7 +295,7 @@ AUTHOR
       case "whoami":
         setHistory(prev => [...prev, { type: "output", text: `  ali_younes // operator
   ─────────────────────────────────────────────
-  rank      sde-intern (incoming) · swe co-op (active)
+  rank      sde-intern @ aws (active) · swe co-op @ philips (prev)
   loc       boston, ma → seattle, wa (summer '26)
   edition   iv · v05.10.26
   signal    online · uplink stable
@@ -353,7 +353,7 @@ AUTHOR
   ║   ▮  channel.encrypted..........STABLE_AES║
   ║   ▮  edition.................IV · v05.10.26║
   ║   ◆  boston, ma · 42.36°n 71.06°w         ║
-  ║   ⏵  next.............AWS_ADC // seattle  ║
+  ║   ⏵  next.............AWS_CFN // seattle  ║
   ║                                           ║
   ╚═══════════════════════════════════════════╝
 ` }]);
@@ -363,10 +363,10 @@ AUTHOR
         setHistory(prev => [...prev, { type: "output", text: `
   CURRENT STATUS // ${new Date().toLocaleTimeString()}
   ───────────────────────────────────────────────
-  now        SWE Co-op @ Philips · Cambridge, MA
-             (FOG Zero-Touch · VM Deployment Mgr)
-  incoming   SDE Intern @ AWS ADC · Seattle, WA
-             Summer '26
+  now        SDE Intern @ AWS CloudFormation · IaC · Seattle, WA
+             (Infrastructure as Code · CloudFormation)
+  prev       SWE Co-op @ Philips · Cambridge, MA
+             Jan–Jun '26
   current    CS & Political Science · Northeastern
              Class of '27
   open to    full-time '27, interesting side-quests
@@ -461,8 +461,8 @@ AUTHOR
 
   CS & Political Science · Northeastern University · Class of '27
 
-  now       SWE Co-op @ Philips · Cambridge, MA
-  incoming  SDE Intern @ AWS Amazon Dedicated Cloud · Seattle, Summer '26
+  now       SDE Intern @ AWS CloudFormation · Infrastructure as Code · Seattle, WA
+  prev      SWE Co-op @ Philips · Cambridge, MA · Jan–Jun '26
 
   I architect distributed, high-stakes systems and
   build the tools that keep them running.
@@ -498,18 +498,18 @@ AUTHOR
   WORK EXPERIENCE
   ═══════════════════════════════════════════════════
 
-  ┌─ AWS — Amazon Dedicated Cloud (ADC) ────────────────
-  │  SDE Intern · Incoming
-  │  Jun 2026 — Sep 2026 · Seattle, WA
+  ┌─ AWS — CloudFormation · Infrastructure as Code ─────
+  │  SDE Intern · Current
+  │  Jun 2026 — Present · Seattle, WA
   │
-  │  • Distributed systems on AWS' air-gapped partitions
-  │  • ITAR / IL5 / IL6 compliant workloads
+  │  • Infrastructure as version-controlled CloudFormation
+  │  • Repeatable, auditable, declarative deployments
   │  • Service-level project under Principal/Senior SDE mentor
   └──────────────────────────────────────────────────────
 
   ┌─ PHILIPS ────────────────────────────────────────────
   │  SWE Co-op · System Integration and Automation
-  │  2025 — Present · Cambridge, MA
+  │  Jan 2026 — Jun 2026 · Cambridge, MA
   │
   │  • VM automation at scale · PicIX deployment pipelines
   │  • C# · .NET · PowerShell · DevOps
@@ -639,7 +639,7 @@ AUTHOR
         if (args[0] === "status") {
           setHistory(prev => [...prev, { type: "output", text: `On branch main\nYour branch is up to date with 'origin/main'.\n\nnothing to commit, working tree clean` }]);
         } else if (args[0] === "log") {
-          setHistory(prev => [...prev, { type: "output", text: `commit abc1234 (HEAD -> main, origin/main)\nAuthor: Ali Younes <younes.al@northeastern.edu>\nDate:   ${new Date().toDateString()}\n\n    portfolio: editorial redesign + AWS ADC incoming` }]);
+          setHistory(prev => [...prev, { type: "output", text: `commit abc1234 (HEAD -> main, origin/main)\nAuthor: Ali Younes <younes.al@northeastern.edu>\nDate:   ${new Date().toDateString()}\n\n    portfolio: editorial redesign + AWS CloudFormation current` }]);
         } else {
           setHistory(prev => [...prev, { type: "output", text: `git: '${args[0] || ""}' is not a git command. Try 'git status' or 'git log'` }]);
         }

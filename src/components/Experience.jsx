@@ -1,4 +1,4 @@
-// src/components/Experience.jsx — Editorial redesign + AWS ADC card
+// src/components/Experience.jsx — Editorial redesign + AWS CloudFormation card
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -17,35 +17,35 @@ const experiences = [
   {
     type: "work",
     title: "Software Development Engineer Intern",
-    subtitle: "Amazon Dedicated Cloud (ADC)",
+    subtitle: "CloudFormation · Infrastructure as Code",
     company: "Amazon Web Services",
-    period: "Jun 2026 — Sep 2026",
+    period: "Jun 2026 — Present",
     location: "Seattle, WA",
     logo: awsLogo,
 
-    badge: "Incoming",
+    badge: "Current",
     badgeColor: "text-[#FF9900] border-[#FF9900]/50 bg-[#FF9900]/10",
     badgeDot: "bg-[#FF9900]",
     description:
-      "Incoming SDE Intern on AWS Amazon Dedicated Cloud (ADC) — the isolated AWS partitions that power U.S. Intelligence Community, DoD, and other mission-critical government workloads. Owning a scoped service project across distributed systems, automation, and operational tooling.",
+      "SDE Intern on AWS — focused on CloudFormation and Infrastructure as Code, codifying and automating cloud infrastructure for mission-critical, regulated workloads. Owning a scoped service project across distributed systems, automation, and operational tooling.",
     metrics: [
       { value: "AWS",   label: "Cloud Platform" },
-      { value: "ADC",   label: "Dedicated Cloud" },
+      { value: "IaC",   label: "Infra as Code" },
       { value: "SDE",   label: "Intern" },
       { value: "2026",  label: "Summer" },
     ],
     highlights: [
       {
         icon: Cloud,
-        title: "Distributed Systems at Scale",
+        title: "Infrastructure as Code at Scale",
         description:
-          "Building on the infra that runs AWS' air-gapped, ITAR / IL5 / IL6-compliant partitions — where every deployment is high-stakes and low margin-of-error."
+          "Defining cloud infrastructure as version-controlled CloudFormation templates — repeatable, reviewable deployments where every change is declarative and auditable."
       },
       {
         icon: Shield,
         title: "Security-First Engineering",
         description:
-          "Designing with Well-Architected + ADC hardening in mind: IAM, KMS, least-privilege by default, auditability from day one."
+          "Designing with Well-Architected + IaC hardening in mind: IAM, KMS, least-privilege by default, auditability from day one."
       },
       {
         icon: Server,
@@ -55,9 +55,9 @@ const experiences = [
       },
       {
         icon: Users,
-        title: "Customer Obsession (Regulated)",
+        title: "Customer Obsession",
         description:
-          "Delivering for customers who can't use commercial AWS. Every feature must earn its way through security review before it ships."
+          "Building tooling that AWS customers rely on to provision infrastructure safely. Every feature earns its way through design and code review before it ships."
       },
     ],
     skills: [
@@ -71,7 +71,7 @@ const experiences = [
     title: "Software Engineering Co-op",
     subtitle: "FOG Zero-Touch Deployment · VM Automation",
     company: "Philips",
-    period: "2025 — Present",
+    period: "Jan 2026 — Jun 2026",
     location: "Cambridge, MA",
     logo: philipsLogo,
 

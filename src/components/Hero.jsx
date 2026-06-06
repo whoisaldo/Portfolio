@@ -93,15 +93,14 @@ export default function Hero() {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-signal" />
                 </span>
                 <span className="mono-label text-signal">now</span>
-                <span className="font-mono text-xs text-bone/85">SWE Co-op @ Philips · Cambridge, MA</span>
+                <span className="font-mono text-xs text-bone/85">SDE Intern @ AWS CloudFormation · Infrastructure as Code · Seattle, WA</span>
               </BracketFrame>
               <BracketFrame size="sm" className="flex items-center gap-3 px-3 py-2 bg-concrete/40">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ember opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-ember" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-bone/40" />
                 </span>
-                <span className="mono-label text-ember">incoming · summer ’26</span>
-                <span className="font-mono text-xs text-bone/85">SDE Intern @ AWS ADC · Seattle, WA</span>
+                <span className="mono-label text-bone/50">prev · jan–jun ’26</span>
+                <span className="font-mono text-xs text-bone/60">SWE Co-op @ Philips · Cambridge, MA</span>
               </BracketFrame>
             </motion.div>
 
@@ -278,8 +277,8 @@ export default function Hero() {
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px]">next</span>
-                  <span className="text-ember tracking-tight">⏵ aws_adc // seattle</span>
+                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px]">now</span>
+                  <span className="text-ember tracking-tight">⏵ aws_cfn // seattle</span>
                 </div>
               </div>
             </BracketFrame>
