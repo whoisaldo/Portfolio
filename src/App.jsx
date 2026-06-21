@@ -200,7 +200,7 @@ export default function App() {
                     <ArrowRight className="w-4 h-4 text-bone/40 group-hover:text-signal group-hover:translate-x-1 transition-all" />
                   </motion.a>
                   <motion.a
-                    href="https://www.linkedin.com/in/ali-younes-41a2b4296/"
+                    href="https://www.linkedin.com/in/alialdoyounes/"
                     target="_blank"
                     rel="noreferrer"
                     data-hud-target="link"
@@ -271,7 +271,7 @@ export default function App() {
                className="text-bone/55 hover:text-signal transition-colors">
               <span className="ink-underline">github</span>
             </a>
-            <a href="https://www.linkedin.com/in/ali-younes-41a2b4296/" target="_blank" rel="noreferrer"
+            <a href="https://www.linkedin.com/in/alialdoyounes/" target="_blank" rel="noreferrer"
                className="text-bone/55 hover:text-signal transition-colors">
               <span className="ink-underline">linkedin</span>
             </a>

@@ -29,7 +29,7 @@ const fileSystem = {
     children: {
       "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code — Seattle, WA.\nPreviously: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nI architect distributed, high-stakes systems — and I build the tools that keep them running.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
       "skills.md": { type: "file", content: `# Technical Skills\n\n## Languages\n- TypeScript / JavaScript  ████████████████████  Expert\n- C++                      ████████████████░░░░  Advanced\n- C# / .NET                ██████████████░░░░░░  Proficient\n- Python                   ████████████░░░░░░░░  Proficient\n- Rust                     ████████████░░░░░░░░  Proficient\n- Swift / SwiftUI          ██████████░░░░░░░░░░  Intermediate\n- Go                       ████████░░░░░░░░░░░░  Learning\n\n## Frontend\nReact · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · MongoDB · .NET · PowerShell\n\n## Cloud & Infra\nAWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD` },
-      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA → Seattle, WA (Summer '26)",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/ali-younes-41a2b4296",\n  "status": "Open to opportunities"\n}` },
+      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA → Seattle, WA (Summer '26)",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file — use 'open resume.pdf' to download]` },
       ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@eternalreverse:\\w %"\nalias ll="ls -la"\nalias cls="clear"` },
       ".gitconfig": { type: "file", content: `[user]\n  name = Ali Younes\n  email = younes.al@northeastern.edu\n[core]\n  editor = vim` },
@@ -595,7 +595,7 @@ AUTHOR
   location   Boston, MA → Seattle, WA (Summer '26)
 
   github     github.com/whoisaldo
-  linkedin   linkedin.com/in/ali-younes-41a2b4296
+  linkedin   linkedin.com/in/alialdoyounes
 
   status     open to opportunities
 
@@ -614,7 +614,7 @@ AUTHOR
   ═══════════════════════════════════════════════════
 
   github     github.com/whoisaldo
-  linkedin   linkedin.com/in/ali-younes-41a2b4296
+  linkedin   linkedin.com/in/alialdoyounes
 
   → type 'hire' to discuss opportunities
 ` }]);

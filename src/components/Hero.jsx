@@ -204,7 +204,7 @@ export default function Hero() {
                 <Github className="w-4 h-4" /> <span className="ink-underline">github</span>
               </a>
               <a
-                href="https://www.linkedin.com/in/ali-younes-41a2b4296/"
+                href="https://www.linkedin.com/in/alialdoyounes/"
                 target="_blank"
                 rel="noreferrer"
                 data-hud-target="link"
