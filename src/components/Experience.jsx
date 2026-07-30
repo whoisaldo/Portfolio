@@ -12,12 +12,12 @@
 //   Expanded   the depth, one entry at a time, on a ~70ch measure with real
 //              room around it.
 //
-// Logos moved into the expanded panel and out of the index. Two reasons: the
-// index is cleaner as pure typography, and these logos cannot share one
-// treatment at small size — awslogosvg.svg is `fill="#000000"`, invisible on
-// ink without a light plate, while Topchoicerealtylogo.jpeg is opaque with its
-// own white ground. One bone plate in the panel is consistent and deliberate;
-// the same plate shrunk into a row reads as a sticker.
+// Logos sit in the index row, not behind the toggle — they identify the entry,
+// so they have to be there before anything is opened. They are rendered with
+// no plate and no blend mode because the assets are pre-normalised by
+// `npm run logos` (trimmed to the mark, keyed to transparency). An earlier pass
+// put them on a bone plate, which was solving a problem the assets did not
+// have: the three opaque ones ship a #000 ground, not a white one.
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus } from "lucide-react";
@@ -83,10 +83,31 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls={panelId}
-        className="group w-full text-left py-7 md:py-9 grid grid-cols-12 gap-x-6 gap-y-2 items-baseline"
+        className="group w-full text-left py-7 md:py-9 grid grid-cols-12 gap-x-6 gap-y-3 items-center"
       >
-        <span className="col-span-12 md:col-span-4 serif-display italic text-primary text-2xl md:text-3xl leading-none">
-          {exp.company}
+        <span className="col-span-12 md:col-span-4 flex items-center gap-5">
+          {/* No plate, no blend mode. The logos are pre-normalised by
+              `npm run logos`: trimmed to the mark so all five carry the same
+              optical weight at one height, and keyed to transparency so the
+              three assets that shipped an opaque #000 ground no longer need
+              anything painted behind them. */}
+          <img
+            src={exp.logo}
+            alt=""
+            aria-hidden="true"
+            width="132"
+            height="56"
+            // An explicit height is load-bearing: awslogosvg.svg declares
+            // width="100%" with only a viewBox, so it has no intrinsic width
+            // and `w-auto h-auto` collapsed every logo to 0x0.
+            className="h-12 md:h-14 w-auto max-w-[132px] shrink-0 object-contain opacity-95
+                       transition-all duration-300 group-hover:opacity-100"
+            style={{ filter: "drop-shadow(0 0 22px rgb(var(--accent) / 0.35))" }}
+            loading="lazy"
+          />
+          <span className="serif-display italic text-primary text-2xl md:text-3xl leading-none">
+            {exp.company}
+          </span>
         </span>
 
         <span className="col-span-12 md:col-span-5 text-sm text-muted">
@@ -124,28 +145,9 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
           >
             <div className="grid gap-x-12 gap-y-10 lg:grid-cols-12 pb-14 md:pb-20">
               {/* identity */}
+              {/* The logo lives in the index row, not here — it identifies the
+                  entry, so it has to be visible before anything is opened. */}
               <div className="lg:col-span-3">
-                {/* One bone plate for every logo. The set is heterogeneous —
-                    a black-fill SVG, a blue-fill SVG, a red PNG, a JPEG with
-                    its own opaque white ground — so no filter or blend mode
-                    normalises them; a light plate does. Sized generously
-                    because the AWS asset is a cloud glyph with "aws" knocked
-                    out of it, which is unreadable much below this. */}
-                <span className="inline-flex h-20 w-[132px] items-center justify-center bg-bone px-4 mb-7">
-                  <img
-                    src={exp.logo}
-                    alt={exp.company}
-                    width="120"
-                    height="56"
-                    // An explicit height is load-bearing, not cosmetic:
-                    // awslogosvg.svg declares width="100%" with only a viewBox,
-                    // so it has no intrinsic width. Under `w-auto h-auto` the
-                    // image resolved to 0x0 and every logo silently vanished.
-                    // Fixing the height lets the viewBox supply the ratio.
-                    className="h-14 w-auto max-w-[104px] object-contain"
-                    loading="lazy"
-                  />
-                </span>
                 <dl className="space-y-4">
                   {exp.subtitle && (
                     <div>
