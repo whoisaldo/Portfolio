@@ -6,9 +6,11 @@
 //     a four-column grid, rendered in the same treatment as Philips' real
 //     "~1,000 machines". A grid that expects four numbers is not a reason to
 //     manufacture four numbers.
-//   - The AWS entry carries no `highlights`. The four it had ("Customer
-//     Obsession", "Security-First Engineering", …) were AWS Leadership
-//     Principles recited as personal accomplishments one month into the role.
+//   - The AWS entry's original `highlights` are gone. The four it had
+//     ("Customer Obsession", "Security-First Engineering", …) were AWS
+//     Leadership Principles recited as personal accomplishments one month into
+//     the role. The three that replaced them describe the actual project, and
+//     the last one says outright that it has not shipped.
 //
 // The Philips case study is the strongest content on the site — a real
 // two-attempt arc that documents its own failed first approach. Preserved
@@ -40,7 +42,24 @@ export const experiences = [
     accent: "#FF9900",
     badge: "Current",
     description:
-      "SDE intern on CloudFormation — the service that turns declarative templates into provisioned AWS infrastructure. Owning a scoped service project end to end under a senior mentor: design doc, implementation, deploy pipeline. Started June 2026, so the work is still in flight.",
+      "SDE intern on CloudFormation — the service that turns declarative templates into provisioned AWS infrastructure. My project is policy-based resource sharing: a way for accounts inside an AWS Organization to share CloudFormation resources across account boundaries, where access is governed by a policy attached to the share instead of by copying templates between accounts.",
+    highlights: [
+      {
+        title: "Sharing scoped to an Organization",
+        description:
+          "A team can publish a resource once and let other accounts in the org consume it, rather than every account keeping and drifting its own copy.",
+      },
+      {
+        title: "The policy is the control surface",
+        description:
+          "Who may consume what is expressed declaratively, so sharing is reviewable and auditable the same way the rest of a CloudFormation deployment is.",
+      },
+      {
+        title: "Owned end to end",
+        description:
+          "Design doc through implementation and deploy pipeline, under a senior mentor. Started June 2026 and still in flight — no outcomes to quote yet.",
+      },
+    ],
     skills: [
       "AWS", "Distributed Systems", "Linux", "Python", "Java",
       "Go", "IaC (CDK/CloudFormation)", "Security Engineering",

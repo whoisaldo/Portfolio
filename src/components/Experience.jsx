@@ -143,12 +143,20 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
             transition={{ duration: 0.4, ease: [0.2, 0.7, 0.2, 1] }}
             className="overflow-hidden"
           >
-            <div className="grid gap-x-12 gap-y-10 lg:grid-cols-12 pb-14 md:pb-20">
-              {/* identity */}
-              {/* The logo lives in the index row, not here — it identifies the
-                  entry, so it has to be visible before anything is opened. */}
+            {/* Three tracks, all carrying content. A single 70ch measure alone
+                in a nine-column track left the right third of every panel
+                empty, which is what made the section look unfinished: prose
+                wants ~65ch, but the row is ~1440px wide, so something has to
+                occupy the rest. Narrative runs in the middle at a readable
+                measure; the supporting block (what I built / the numbers /
+                the coursework) takes the right; identity and stack take the
+                left. The case study is long-form, so it runs underneath at
+                full width rather than being squeezed into a column. */}
+            <div className="grid gap-x-12 gap-y-12 lg:grid-cols-12 pb-14 md:pb-20">
+              {/* left: identity + stack. The logo is in the index row, since it
+                  identifies the entry and must be visible before any click. */}
               <div className="lg:col-span-3">
-                <dl className="space-y-4">
+                <dl className="space-y-5">
                   {exp.subtitle && (
                     <div>
                       <dt className="mono-label text-faint mb-1.5">Focus</dt>
@@ -159,17 +167,32 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
                     <dt className="mono-label text-faint mb-1.5">Where</dt>
                     <dd className="text-sm text-muted">{exp.location}</dd>
                   </div>
+                  {exp.skills && (
+                    <div className="pt-5 border-t border-hud/15">
+                      <dt className="mono-label text-faint mb-2.5">Stack</dt>
+                      <dd>
+                        <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
+                          {exp.skills.map((s) => (
+                            <li key={s} className="mono-label text-dim">{s}</li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  )}
                 </dl>
               </div>
 
-              {/* substance, on a readable measure */}
-              <div className="lg:col-span-9 max-w-[70ch]">
+              {/* middle: the narrative */}
+              <div className="lg:col-span-5">
                 <p className="font-serif text-muted text-[15px] md:text-base leading-[1.65]">
                   {exp.description}
                 </p>
+              </div>
 
+              {/* right: the supporting block */}
+              <div className="lg:col-span-4">
                 {exp.metrics && (
-                  <dl className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-6">
+                  <dl className="grid grid-cols-2 gap-x-8 gap-y-7">
                     {exp.metrics.map((m) => (
                       <div key={m.label}>
                         <dt
@@ -184,41 +207,38 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
                   </dl>
                 )}
 
-                {exp.caseStudy && <CaseStudy cs={exp.caseStudy} company={exp.company} />}
-
-                {exp.highlights && !exp.caseStudy && (
-                  <ul className="mt-10 grid md:grid-cols-2 gap-x-10 gap-y-7">
+                {exp.highlights && (
+                  <ul className={exp.metrics ? "mt-10 space-y-6" : "space-y-6"}>
                     {exp.highlights.map((h) => (
                       <li key={h.title}>
                         <h4 className="text-primary text-sm mb-1.5">{h.title}</h4>
-                        <p className="text-sm text-dim leading-relaxed">{h.description}</p>
+                        <p className="font-serif text-[15px] text-dim leading-[1.6]">{h.description}</p>
                       </li>
                     ))}
                   </ul>
                 )}
 
+                {/* Needs the same conditional gap as `highlights`: the education
+                    entry carries metrics AND coursework, and without it the
+                    coursework heading collided with the last metric's label. */}
                 {exp.coursework && (
-                  <div className="mt-10">
+                  <div className={exp.metrics ? "mt-10" : undefined}>
                     <h4 className="mono-label text-faint mb-3">Coursework</h4>
-                    <ul className="flex flex-wrap gap-x-5 gap-y-2">
+                    <ul className="space-y-1.5">
                       {exp.coursework.map((c) => (
-                        <li key={c} className="text-sm text-dim">{c}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {exp.skills && (
-                  <div className="mt-10 pt-7 border-t border-hud/15">
-                    <h4 className="mono-label text-faint mb-3">Stack</h4>
-                    <ul className="flex flex-wrap gap-x-5 gap-y-2">
-                      {exp.skills.map((s) => (
-                        <li key={s} className="mono-label text-dim">{s}</li>
+                        <li key={c} className="font-serif text-[15px] text-dim">{c}</li>
                       ))}
                     </ul>
                   </div>
                 )}
               </div>
+
+              {/* full width: long-form */}
+              {exp.caseStudy && (
+                <div className="lg:col-span-9 lg:col-start-4 max-w-[72ch]">
+                  <CaseStudy cs={exp.caseStudy} company={exp.company} />
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -231,7 +251,7 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
 // and saying so is what makes the second one credible. It gets equal space.
 function CaseStudy({ cs, company }) {
   return (
-    <div className="mt-12">
+    <div>
       <p className="serif-display italic text-primary text-xl md:text-2xl leading-[1.3] mb-9">
         {cs.tagline}
       </p>
