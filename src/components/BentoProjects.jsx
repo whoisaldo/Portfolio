@@ -5,169 +5,226 @@ import {
   ExternalLink, Github, BookOpen, Dumbbell, Scissors, Code, Key, Calculator,
   Brain, X, ChevronLeft, ChevronRight, Maximize2, Monitor as MonitorIcon,
   Music, MessageCircle, Home, Gauge, Gamepad2, Check, Sparkles, Database,
-  ArrowUpRight, ChevronDown, Hexagon,
+  ArrowUpRight, ChevronDown, Hexagon, Gem,
 } from "lucide-react";
 import BracketFrame from "./hud/BracketFrame";
 
-// Moops
-import moopsLanding   from "../assets/MoopsBookStore 2/moopsbooks_Landing_page.png";
-import moopsHome      from "../assets/MoopsBookStore 2/moopsbooks_Home.png";
-import moopsDashboard from "../assets/MoopsBookStore 2/moopsbooks_dashboard.png";
-import moopsClubs     from "../assets/MoopsBookStore 2/moopsbooks_clubs.png";
+// Key art — generated plates (src: scratchpad/keyart/plates.html). Each one
+// draws real data from its project: EternalExchange's seeded EMC values,
+// Exerly's macro split, the studio's actual product roster. These lead each
+// dossier because a full-page screenshot shrunk into a 680px card is unreadable;
+// the real screenshots follow, where the modal renders them large enough to read.
+import kaEternalReverse from "../assets/KeyArt/KeyArt_EternalReverse.png";
+import kaExerly         from "../assets/KeyArt/KeyArt_Exerly.png";
+import kaEternalExchange from "../assets/KeyArt/KeyArt_EternalExchange.png";
+import kaMoops          from "../assets/KeyArt/KeyArt_Moops.png";
+import kaEternalMonitor from "../assets/KeyArt/KeyArt_EternalMonitor.png";
+import kaERP            from "../assets/KeyArt/KeyArt_EternalRichPresence.png";
+import kaFace           from "../assets/KeyArt/KeyArt_FaceAnalytics.png";
+import kaSignatureCuts  from "../assets/KeyArt/KeyArt_SignatureCuts.png";
 
-// Exerly Fitness (new ecosystem)
-import exerlyLanding  from "../assets/ExerlyFitness/ExerlyWebViewLandingPage.png";
-import exerlyDash     from "../assets/ExerlyFitness/ExerlyWebViewDashboard.png";
-import exerlyAICoach  from "../assets/ExerlyFitness/ExerlyWebViewAICoach.png";
-import exerlyFood     from "../assets/ExerlyFitness/ExerlyWebViewFoodTracker.png";
-import exerlyProfile  from "../assets/ExerlyFitness/ExerlyWebViewProfileView.png";
-import exerlySignup   from "../assets/ExerlyFitness/ExerlyWebViewSignup-Login.png";
+// Moops — moopsbooks.com (captured live, 2026-07)
+import moopsLanding   from "../assets/MoopsBookStore 2/moopsbooks_Landing2026.png";
+import moopsBrowse    from "../assets/MoopsBookStore 2/moopsbooks_Browse2026.png";
+
+// Exerly Fitness — web captured live 2026-07; iOS shots from the device build
+import exerlyLanding  from "../assets/ExerlyFitness/ExerlyWebLanding2026.png";
+import exerlyDayLog   from "../assets/ExerlyFitness/ExerlyWebDayLogged2026.png";
+import exerlyFeatures from "../assets/ExerlyFitness/ExerlyWebFeatures2026.png";
+import exerlyIOSWeb   from "../assets/ExerlyFitness/ExerlyWebIOS2026.png";
 import exerlyiOS1     from "../assets/ExerlyFitness/ExerlyFitnessPhoneView1.png";
 import exerlyiOS2     from "../assets/ExerlyFitness/ExerlyFitnessPhoneView2.png";
 import exerlyiOS3     from "../assets/ExerlyFitness/ExerlyFitnessPhoneView3.png";
+
+// EternalExchange — eternalexchangemod.com
+import eeLanding    from "../assets/EternalExchange/EternalExchangeLanding.png";
+import eeEMC        from "../assets/EternalExchange/EternalExchangeEMCValues.png";
+import eeHowItWorks from "../assets/EternalExchange/EternalExchangeHowItWorks.png";
+import eeFeatures   from "../assets/EternalExchange/EternalExchangeFeatures.png";
+import eeInstall    from "../assets/EternalExchange/EternalExchangeInstall.png";
 
 // Signature Cuts 413
 import sigCutsWeb   from "../assets/SignatureCuts/SignatureCutsWebView.png";
 import sigCutsPhone from "../assets/SignatureCuts/SignatureCutsPhoneView.png";
 
-// Eternal Rich Presence
-import erpDiscord  from "../assets/EternalRichPresence/EternalRichPresenceDiscordProfileView.png";
-import erpTerminal from "../assets/EternalRichPresence/EternalRichPresenceTerminal.png";
+// Eternal Rich Presence — eternalrichpresence.dev + real app captures
+import erpWeb         from "../assets/EternalRichPresence/EternalRichPresenceWebLanding.png";
+import erpWebFeatures from "../assets/EternalRichPresence/EternalRichPresenceWebFeatures.png";
+import erpWebSetup    from "../assets/EternalRichPresence/EternalRichPresenceWebSetup.png";
+import erpDiscord     from "../assets/EternalRichPresence/EternalRichPresenceDiscordProfileView.png";
+import erpTerminal    from "../assets/EternalRichPresence/EternalRichPresenceTerminal.png";
 
-// Eternal Monitor
-import emPC   from "../assets/EternalMonitor/EternalMonitorPCView.png";
-import emIpad from "../assets/EternalMonitor/EternalMonitorIpadView.png";
+// Eternal Monitor — eternalmonitor.dev + real device captures
+import emWeb         from "../assets/EternalMonitor/EternalMonitorWebLanding.png";
+import emWebFeatures from "../assets/EternalMonitor/EternalMonitorWebFeatures.png";
+import emPC          from "../assets/EternalMonitor/EternalMonitorPCView.png";
+import emIpad        from "../assets/EternalMonitor/EternalMonitorIpadView.png";
 
 // Facial Recognition
 import facialFront from "../assets/Facial/FacialRecognitionFrontPage.png";
 import facialHappy from "../assets/Facial/FacialRecognitionHappy.png";
 import facialAngry from "../assets/Facial/FacialRegocnitionAngryFace.png";
 
-// Eternal Reverse Studio
-import erLanding       from "../assets/EternalReverseStudio/Eternal-Reverse-LandingPage.png";
-import erProductsEM    from "../assets/EternalReverseStudio/Eternal-Reverse_ProductsEternalMonitor.png";
-import erProductsExerly from "../assets/EternalReverseStudio/Eternal-Reverse_ProductsExerly-Fitness.png";
+// Eternal Reverse Studio — eternalreverse.com (captured live, 2026-07)
+import erLanding        from "../assets/EternalReverseStudio/EternalReverseLanding2026.png";
+import erProducts       from "../assets/EternalReverseStudio/EternalReverseProducts2026.png";
+import erProductsEM     from "../assets/EternalReverseStudio/EternalReverseProductEternalMonitor2026.png";
+import erProductsExerly from "../assets/EternalReverseStudio/EternalReverseProductExerly2026.png";
+import erAbout          from "../assets/EternalReverseStudio/EternalReverseAbout2026.png";
 
 const featuredProjects = [
   {
     title: "Eternal Reverse",
     tagline: "indie software studio · eternalreverse.com",
-    description: "An indie software studio I co-founded in Boston. Ships its own technically-ambitious products instead of doing client work — six and counting.",
+    description: "A two-person indie software studio I co-founded in Boston. Ships its own technically-ambitious products instead of doing client work — six of them, four already live.",
     longDescription:
       "Premise: too many indie tools ship half-baked, bloat with features nobody asked for, and get abandoned the moment trends shift. Eternal Reverse exists to ship the opposite — software that's technically honest, built to last, and respects the person on the other end.\n\n" +
-      "What it is: a two-person studio founded in Boston in 2025, with an open contributor model that lets outside engineers ship real features into live products and walk away with real credit. Six products live or in development across systems engineering (Rust + Swift display streaming), native iOS (HealthKit + SwiftUI), video pipelines (DaVinci + OpenCV), and modern web (Next.js + browser extensions).\n\n" +
-      "What I do here: co-founder, lead engineer. Wrote the Rust host + Swift client behind Eternal Monitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and the studio's marketing site itself — Next.js 14 + custom design system, dynamic per-product detail pages, animated terminal boot on the hero.",
-    tech: ["Next.js 14", "TypeScript", "React", "Tailwind CSS", "Framer Motion", "Rust", "SwiftUI", "Node.js"],
+      "What it is: a two-person studio founded in Boston in 2025. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Four are live — EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary — with EternalMonitor and Exerly Fitness still in active development.\n\n" +
+      "What I do here: co-founder and lead engineer. Wrote the Rust host + Swift client behind EternalMonitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and the studio site itself — Next.js + a custom design system, per-product detail routes, and an animated terminal boot on the hero.",
+    tech: ["Next.js", "TypeScript", "React", "Tailwind CSS", "Framer Motion", "Rust", "SwiftUI", "Node.js"],
     features: [
-      "6 products live or in active development",
-      "Studio marketing site — Next.js 14 + dynamic product routes",
-      "Custom design system (per-product accent colours + device frames)",
+      "6 products — 4 live, 2 in active development",
+      "Studio site: Next.js + per-product detail routes",
       "Animated terminal boot sequence on the hero",
-      "Open contributor model — outside engineers ship real features",
+      "Custom design system w/ per-product accents",
+      "Systems, iOS, video-pipeline and web work under one roof",
       "Boston-based, two-person core, founded 2025",
     ],
     github: null,
     live: "https://eternalreverse.com",
-    images: [erLanding, erProductsEM, erProductsExerly],
-    imageLabels: ["Landing", "Products — Eternal Monitor", "Products — Exerly Fitness"],
+    images: [kaEternalReverse, erLanding, erProducts, erProductsEM, erProductsExerly, erAbout],
+    imageLabels: ["Studio Index", "Landing", "Products", "Product — EternalMonitor", "Product — Exerly Fitness", "About"],
     icon: Hexagon,
-    stats: { role: "Co-founder", since: "2025", products: "6 shipped" },
+    stats: { role: "Co-founder", since: "2025", products: "6 active" },
   },
   {
     title: "Exerly Fitness",
-    tagline: "iOS + Web + AI Coach · exerlyfitness.com",
-    description: "Cross-platform fitness ecosystem: native SwiftUI iOS, React 19 web, Node/Express API, and a Gemini-powered AI coach.",
+    tagline: "web live · native iOS in the wings · exerlyfitness.com",
+    description: "Cross-platform fitness ecosystem — React 19 web, a Node/Express API, an AI coach, and a native SwiftUI iOS client built and waiting on the App Store.",
     longDescription:
-      "Problem: Fitness enthusiasts juggle a half-dozen apps for workouts, nutrition, and sleep — and none of them actually coach.\n\n" +
-      "Solution: Built a monorepo-backed ecosystem (apps/api, apps/web, apps/ios) with a unified REST backend, HealthKit-integrated iOS app, and a Gemini 2.0 Flash AI coach that adapts to each user's TDEE, goals, and logged progress.\n\n" +
-      "Impact: Active production deployment on DigitalOcean + GH Pages. 12-step onboarding computes maintenance calories via Mifflin-St Jeor, nutrition logging falls back FatSecret → Open Food Facts, AI credits are rate-limited to keep API costs sane.",
-    tech: ["SwiftUI", "React 19", "TypeScript", "Node.js", "Express 5", "MongoDB", "SQLite", "Gemini 2.0", "HealthKit"],
+      "Problem: Fitness enthusiasts juggle a half-dozen apps for workouts, nutrition and sleep — and none of them actually coach.\n\n" +
+      "Solution: An npm-workspaces monorepo (apps/api, apps/web, apps/ios) behind one REST backend, so the browser and the phone read the same account and the same data. The AI coach builds its prompt from your real profile — age, weight, goals, logged progress — instead of answering in a vacuum.\n\n" +
+      "Where it stands: the web app is live at exerlyfitness.com (GitHub Pages) against an Express API on DigitalOcean. The iOS client is real and written — 71 Swift files, ~9k lines, a full 12-step onboarding that computes maintenance calories via Mifflin-St Jeor — but it hasn't shipped to the App Store yet, so the site says 'coming soon' and so do I.\n\n" +
+      "Details worth keeping: nutrition lookups fall back FatSecret → Open Food Facts so a barcode scan rarely dead-ends, the API runs MongoDB in production and SQLite locally so a contributor can boot it with zero services, and AI usage is capped at 5 credits an hour / 20 a day to keep the bill sane.",
+    tech: ["SwiftUI", "React 19", "TypeScript", "Node.js", "Express 5", "MongoDB", "SQLite", "Gemini 2.0 Flash-Lite", "HealthKit"],
     features: [
-      "Native iOS w/ HealthKit bi-directional sync",
+      "51 REST endpoints shared by web + iOS",
       "React 19 web dashboard + admin panel",
-      "Gemini 2.0 AI coach w/ rate-limited credits",
-      "Dual-mode DB: MongoDB (prod) / SQLite (dev)",
-      "Barcode scanning w/ FatSecret + OFF fallback",
-      "12-step TDEE onboarding wizard",
+      "AI coach on gemini-2.0-flash-lite, 5/hr · 20/day credits",
+      "Dual-mode DB: MongoDB (prod) / SQLite (local)",
+      "Barcode scanning w/ FatSecret → Open Food Facts fallback",
+      "12-step Mifflin-St Jeor onboarding on iOS",
+      "Apple Health reads steps + active energy",
     ],
     github: "https://github.com/whoisaldo/Exerly-Fitness",
     live: "https://exerlyfitness.com",
-    images: [exerlyLanding, exerlyDash, exerlyAICoach, exerlyFood, exerlyProfile, exerlySignup, exerlyiOS1, exerlyiOS2, exerlyiOS3],
-    imageLabels: ["Landing", "Dashboard", "AI Coach", "Food Tracker", "Profile", "Sign Up", "iOS Home", "iOS Workouts", "iOS Sleep"],
+    images: [kaExerly, exerlyLanding, exerlyDayLog, exerlyFeatures, exerlyIOSWeb, exerlyiOS1, exerlyiOS2, exerlyiOS3],
+    imageLabels: ["A Logged Day", "Landing", "Dashboard & AI Coach", "Features", "iOS — Coming Soon", "iOS — Welcome", "iOS — 12-Step Onboarding", "iOS — AI Coach"],
     icon: Dumbbell,
-    stats: { clients: "iOS + Web", ai: "Gemini 2.0", api: "Express 5" },
+    stats: { web: "Live", ios: "Built · pre-App Store", api: "51 endpoints" },
+  },
+  {
+    title: "EternalExchange",
+    tagline: "equivalent-exchange alchemy for Fabric · eternalexchangemod.com",
+    description: "A 39K-line Minecraft alchemy mod for Fabric 1.21.1 — a spin-off of ProjectE with a recipe-graph solver that prices every item in the game at world load.",
+    longDescription:
+      "Premise: 'equivalent exchange' is one of the oldest ideas in modded Minecraft — every item has an energy value (EMC), and once you've learned an item you can break matter down and rebuild it into anything else you know. ProjectE is the canonical take on it, and it's MIT-licensed but Forge/NeoForge-only. Fabric — the other half of the modern modding ecosystem — had nothing comparable.\n\n" +
+      "What this is: a Fabric-native spin-off of ProjectE, credited openly in the README and the LICENSE. The interesting part isn't re-listing the alchemy — it's that Fabric simply doesn't have the primitives the original assumes. Capabilities, attachments, item handlers, a TOML config spec, fluid stacks, an event bus: none of it exists. So the mod carries its own 2,031-line compatibility layer that reimplements that surface, 9 Mixins standing in for vanilla hooks Fabric never fires, and a networking stack rebuilt on Fabric's PayloadTypeRegistry with a deferred client-receiver install so packets stay loadable on a dedicated server.\n\n" +
+      "The EMC solver is the centrepiece: at server start and after every /reload it walks the entire loaded recipe graph and propagates values outward from a seed set, using exact BigFraction arithmetic so fractional intermediates don't drift into rounding errors. Add another mod and its recipes get priced automatically — no patch required. Every value is overridable via custom_emc.json, a datapack, or the TOML config.\n\n" +
+      "Status: v1.0.0 pre-release, MIT, a 4.5 MB jar built and attached by CI. Save-compatible with the NeoForge original — knowledge, bags and custom EMC carry across. Original gameplay content beyond the classic set is on the roadmap, not in the jar yet.",
+    tech: ["Java 21", "Minecraft 1.21.1", "Fabric Loader", "Fabric API", "Gradle · Loom", "Mixin", "night-config", "Commons Math"],
+    features: [
+      "Recipe-graph EMC solver runs at world load and /reload",
+      "Exact BigFraction arithmetic — no rounding drift",
+      "86 items · 21 blocks · 12 block entities",
+      "15 GUI screens, incl. 104-slot alchemical bags",
+      "2,031-line compatibility layer for Fabric primitives",
+      "9 Mixins + accesswidener for hooks Fabric doesn't fire",
+      "363 world transmutations · 209 seeded EMC values as datapack JSON",
+      "Save-compatible with the NeoForge original",
+    ],
+    github: "https://github.com/whoisaldo/EternalExchange",
+    live: "https://eternalexchangemod.com",
+    images: [kaEternalExchange, eeLanding, eeEMC, eeHowItWorks, eeFeatures, eeInstall],
+    imageLabels: ["EMC Ladder", "Landing", "EMC Values", "How It Works", "What's in the Mod", "Install"],
+    icon: Gem,
+    stats: { code: "39,399 LOC · 450 files", content: "86 items · 21 blocks", target: "MC 1.21.1 · Fabric" },
   },
   {
     title: "Moops Bookstore",
-    tagline: "social reading, full-stack",
-    description: "Full-stack social platform combining book discovery, tracking, and community features on a custom MongoDB backend.",
+    tagline: "a calm place for your reading life · moopsbooks.com",
+    description: "Full-stack social reading tracker — shelves, reviews, clubs and a streak counter, on a MongoDB backend with the Google Books catalogue behind search.",
     longDescription:
-      "Problem: Readers juggle Goodreads, Amazon, and a notes app to track what they're reading.\n\n" +
-      "Solution: Built a unified MERN app that integrates the Google Books API (1M+ titles) with JWT-authenticated social features.\n\n" +
-      "Impact: Friends can share reading lists, write reviews, and discover in one place.",
+      "Problem: Readers juggle Goodreads, Amazon and a notes app to track what they're reading, and every one of them is louder than it needs to be.\n\n" +
+      "Solution: A single MERN app built around the idea that tracking should feel quiet. Search runs against the Google Books catalogue, shelves and reviews are yours, and the social side — activity feed, clubs, leaderboard — is opt-in rather than the default surface.\n\n" +
+      "Impact: Live at moopsbooks.com with JWT-authenticated accounts, a read / reading / streak dashboard, and a warm dark theme that stays out of the way. The source repository is private.",
     tech: ["React", "TypeScript", "Node.js", "MongoDB", "Express", "Google Books API", "JWT"],
     features: [
       "JWT auth + secure sessions",
-      "Search 1M+ books via Google Books API",
-      "Personal reading lists & tracking",
-      "Write and share reviews",
-      "Friend system & social feed",
-      "Mobile-first responsive",
+      "Book search via the Google Books catalogue",
+      "Personal shelves & reading tracking",
+      "Read / reading / streak dashboard",
+      "Clubs, activity feed & leaderboard",
+      "Light + dark themes, mobile-first",
     ],
-    github: "https://github.com/whoisaldo/MoopBookstore",
-    live: "https://whoisaldo.github.io/MoopBookstore",
-    images: [moopsLanding, moopsHome, moopsDashboard, moopsClubs],
-    imageLabels: ["Landing", "Home", "Dashboard", "Clubs"],
+    github: null,
+    live: "https://moopsbooks.com",
+    images: [kaMoops, moopsLanding, moopsBrowse],
+    imageLabels: ["Reading Shelf", "Landing", "What's Being Read"],
     icon: BookOpen,
-    stats: { books: "1M+ API", auth: "JWT", social: "Full" },
+    stats: { live: "moopsbooks.com", auth: "JWT", source: "Private" },
   },
   {
     title: "Eternal Monitor",
-    tagline: "Windows → iPad over UDP · < 30ms",
-    description: "Rust host + SwiftUI iPad client streaming a Windows desktop as a wireless second monitor with hardware H.264 encode/decode.",
+    tagline: "Windows → iPad over UDP · eternalmonitor.dev",
+    description: "Rust host + SwiftUI iPad client that turns an iPad into a wireless second display for Windows, with hardware H.264 encode and decode end to end.",
     longDescription:
-      "Problem: Wireless second-monitor apps either cost a fortune or buckle under latency.\n\n" +
-      "Solution: Wrote a Rust host that captures the Windows desktop via DXGI, encodes H.264 through NVENC / AMF / QSV (software libx264 fallback), fragments frames into a custom 16-byte UDP header, and streams to an iPad client that decodes via VideoToolbox and renders through Metal.\n\n" +
-      "Impact: Low-latency mirroring over a local network with multi-vendor GPU auto-detection. Demo at eternalmonitor.dev.",
+      "Problem: Wireless second-monitor apps either cost a subscription, need a dongle, or buckle the moment the network gets busy.\n\n" +
+      "Solution: A Rust host captures the Windows desktop through DXGI Desktop Duplication, encodes H.264 via NVENC → AMF → QSV with a libx264 software fallback (the chain auto-probes and reorders by GPU vendor), fragments each frame behind a custom 16-byte UDP header, and streams to an iPad client that decodes on VideoToolbox and presents through a Metal-backed MTKView. UDP over TCP was deliberate — a dropped frame should be a dropped frame, not head-of-line blocking.\n\n" +
+      "Design details I'd defend: H.264 Baseline specifically because that's what the iPad's hardware decoder is happiest with; fragment counters widened u8 → u16 once frames started exceeding 255 fragments; packets carry a FlatBuffers FramePacket; discovery is mDNS with manual IP entry as the reliable path.\n\n" +
+      "Honest status: v0.1.2-mirror, in active development. It mirrors the primary display — no extended desktop and no input relay yet — and I haven't instrumented true glass-to-glass latency, so I don't quote a number for it. 5,900 lines of Rust and 3,700 of Swift, MIT.",
     tech: ["Rust", "SwiftUI", "DXGI", "H.264", "VideoToolbox", "Metal", "FlatBuffers", "tokio", "mDNS"],
     features: [
-      "DXGI desktop capture with hardware acceleration",
+      "DXGI Desktop Duplication capture on the Windows host",
       "NVENC / AMF / QSV / libx264 encoder auto-selection",
-      "Custom UDP fragmentation w/ u16 sequence counters",
+      "Custom 16-byte UDP header w/ u16 fragment counters",
       "H.264 Baseline for VideoToolbox compatibility",
       "Metal-backed MTKView rendering on iPad",
-      "FlatBuffers serialization for FramePacket",
+      "FlatBuffers FramePacket over the wire",
+      "mDNS discovery w/ manual-IP fallback",
     ],
     github: "https://github.com/whoisaldo/EternalMonitor",
     live: "https://eternalmonitor.dev",
-    images: [emPC, emIpad],
-    imageLabels: ["Windows Host", "iPad Client"],
+    images: [kaEternalMonitor, emWeb, emWebFeatures, emPC, emIpad],
+    imageLabels: ["Frame Transport", "eternalmonitor.dev", "Features", "Windows Host", "iPad Client"],
     icon: MonitorIcon,
-    stats: { platform: "Rust · Swift", transport: "UDP / H.264", latency: "< 30ms" },
+    stats: { platform: "Rust · Swift", transport: "UDP / H.264", status: "v0.1.2 · in dev" },
   },
   {
     title: "Eternal Rich Presence",
-    tagline: "Apple Music → Discord",
-    description: "Windows system-tray bridge between Apple Music / Spotify and Discord Rich Presence with custom Listen-Along via named-pipes.",
+    tagline: "Apple Music → Discord · eternalrichpresence.dev",
+    description: "Windows system-tray bridge putting Apple Music and Spotify on your Discord profile — with a Listen Along built on raw named pipes.",
     longDescription:
-      "Problem: Apple Music doesn't talk to Discord, period. And Listen Along is Spotify-only.\n\n" +
-      "Solution: Python tray app interfacing iTunes COM and Windows SMTC to extract 'Now Playing' metadata, scrapes high-res cover art, and pushes to Discord via pypresence. A custom DiscordEventListener taps raw Windows named pipes to catch ACTIVITY_JOIN events, handled through a registered eternalrp:// URI protocol.\n\n" +
-      "Impact: Cross-platform Listen Along sync between Apple Music and Spotify listeners, packaged as a single portable .exe.",
-    tech: ["Python 3.8", "pypresence", "spotipy", "winrt", "pywin32", "pystray", "PyInstaller"],
+      "Problem: Apple Music doesn't talk to Discord, period. And Discord's Listen Along is Spotify-only, so an Apple Music listener can't share what they're playing at all.\n\n" +
+      "Solution: A Python tray app that reads Now Playing from the iTunes COM interface and Windows' System Media Transport Controls, then pushes it to Discord through pypresence. Cover art is pulled from the media session and uploaded so Discord has a public URL to show, with a fallback chain (litterbox → 0x0 → catbox) so a single host being down doesn't kill the artwork.\n\n" +
+      "The part I'm actually proud of: pypresence is send-only, so Listen Along was impossible with it. The app opens Discord's IPC named pipes (\\\\.\\pipe\\discord-ipc-0..9) directly over ctypes/kernel32, speaks the frame protocol by hand, and subscribes to ACTIVITY_JOIN — so when a friend clicks Join, it registers eternalrp:// and discord-{client_id}:// in HKCU and catches the launch. That's how an Apple Music listener and a Spotify listener end up in sync.\n\n" +
+      "Shipped as v1.0.0-beta: a PyInstaller --onefile build distributed through GitHub Releases, with a SHA-256 published for every build. Windows-only by construction — it's built on the registry, COM and WinRT.",
+    tech: ["Python 3.9+", "pypresence", "spotipy", "WinRT", "pywin32", "pystray", "PyInstaller", "Astro"],
     features: [
       "iTunes COM + Windows SMTC metadata extraction",
-      "Raw named-pipe Discord event listener",
-      "eternalrp:// + discord-{client_id}:// URI schemes",
-      "High-res cover art scrape → catbox.moe",
-      "Single-file portable .exe via PyInstaller",
-      "First-run Tkinter config GUI",
+      "Raw named-pipe Discord listener for ACTIVITY_JOIN",
+      "eternalrp:// + discord-{client_id}:// URI schemes, no admin",
+      "Cover-art upload w/ litterbox → 0x0 → catbox fallback",
+      "PyInstaller --onefile build, SHA-256 per release",
+      "Tkinter settings window + pystray tray menu",
+      "74 tests across ~3.9k lines of Python",
     ],
     github: "https://github.com/whoisaldo/Eternal-Rich-Presence",
-    live: null,
-    images: [erpTerminal, erpDiscord],
-    imageLabels: ["Terminal", "Discord Profile"],
+    live: "https://eternalrichpresence.dev",
+    images: [kaERP, erpWeb, erpWebFeatures, erpWebSetup, erpTerminal, erpDiscord],
+    imageLabels: ["Now Playing", "eternalrichpresence.dev", "Features", "Setup Guide", "Terminal", "Discord Profile"],
     icon: MessageCircle,
-    stats: { lang: "Python 3.8", dist: "Single EXE", os: "Windows" },
+    stats: { lang: "Python 3.9+", tests: "74", os: "Windows" },
   },
   {
     title: "Real-Time Face Analytics",
@@ -188,8 +245,8 @@ const featuredProjects = [
     ],
     github: "https://github.com/whoisaldo/real-time-face-analytics",
     live: "https://whoisaldo.github.io/real-time-face-analytics/",
-    images: [facialFront, facialHappy, facialAngry],
-    imageLabels: ["Main", "Happy", "Angry"],
+    images: [kaFace, facialFront, facialHappy, facialAngry],
+    imageLabels: ["Local Inference", "Main", "Happy", "Angry"],
     icon: Brain,
     stats: { engine: "TF.js", privacy: "Local", faces: "Multi" },
   },
@@ -212,8 +269,8 @@ const featuredProjects = [
     ],
     github: "https://github.com/whoisaldo/FadeEmpire",
     live: "https://signaturecutschicopee.com",
-    images: [sigCutsWeb, sigCutsPhone],
-    imageLabels: ["Desktop", "Mobile"],
+    images: [kaSignatureCuts, sigCutsWeb, sigCutsPhone],
+    imageLabels: ["Booking Flow", "Desktop", "Mobile"],
     icon: Scissors,
     stats: { stack: "Next 14", deploy: "GH Pages SSG", booking: "WhatsApp" },
   },
@@ -355,9 +412,15 @@ function ProjectModal({ project, isOpen, onClose }) {
                     <ExternalLink className="w-4 h-4" /> visit live
                   </a>
                 )}
-                <a href={project.github} target="_blank" rel="noreferrer" className="scan-beam-host w-full flex items-center justify-center gap-2 py-3.5 border-2 border-bone/30 text-bone font-mono text-xs uppercase tracking-[0.2em] font-bold hover:bg-bone hover:text-ink hover:border-bone transition-colors">
-                  <Github className="w-4 h-4" /> source
-                </a>
+                {project.github ? (
+                  <a href={project.github} target="_blank" rel="noreferrer" className="scan-beam-host w-full flex items-center justify-center gap-2 py-3.5 border-2 border-bone/30 text-bone font-mono text-xs uppercase tracking-[0.2em] font-bold hover:bg-bone hover:text-ink hover:border-bone transition-colors">
+                    <Github className="w-4 h-4" /> source
+                  </a>
+                ) : (
+                  <div className="w-full flex items-center justify-center gap-2 py-3.5 border-2 border-bone/12 text-bone/35 font-mono text-xs uppercase tracking-[0.2em] font-bold cursor-default">
+                    <Github className="w-4 h-4" /> source private
+                  </div>
+                )}
               </div>
             </aside>
           </div>
@@ -466,15 +529,17 @@ function DossierPanel({ project, idx, total, onOpen, active = true }) {
                 ↗ live
               </a>
             )}
-            <a
-              href={project.github}
-              target="_blank"
-              rel="noreferrer"
-              data-hud-target="link"
-              className="scan-beam-host group inline-flex items-center gap-2 px-5 py-2.5 border-2 border-bone/25 text-bone/85 font-mono text-xs uppercase tracking-[0.2em] font-bold hover:border-bone hover:text-bone transition-colors"
-            >
-              <Github className="w-3.5 h-3.5" /> source
-            </a>
+            {project.github && (
+              <a
+                href={project.github}
+                target="_blank"
+                rel="noreferrer"
+                data-hud-target="link"
+                className="scan-beam-host group inline-flex items-center gap-2 px-5 py-2.5 border-2 border-bone/25 text-bone/85 font-mono text-xs uppercase tracking-[0.2em] font-bold hover:border-bone hover:text-bone transition-colors"
+              >
+                <Github className="w-3.5 h-3.5" /> source
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -753,7 +818,7 @@ export default function BentoProjects() {
           {otherProjects.map((p, i) => {
             const Icon = p.icon;
             const isOpen = expanded === i;
-            const n = String(i + 7).padStart(2, "0");
+            const n = String(featuredProjects.length + i + 1).padStart(2, "0");
             return (
               <div key={p.title} className="scan-beam-host">
                 <button

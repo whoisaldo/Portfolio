@@ -14,8 +14,9 @@ const FUN_FACTS = [
   "Has hosted Minecraft + Ark Survival servers for friends — running them and tuning the configs taught me more about Linux than any class.",
   "Currently watching / re-watching: Mr Robot, Pantheon, Vinland Saga. All-time list includes Breaking Bad, Better Call Saul, Snowfall, Invincible, Bojack Horseman.",
   "Plays Cyberpunk 2077 between sprints. The HUD on this portfolio is a love-letter to that game’s UI language.",
-  "Eternal Monitor exists because I refused to pay $40 for an iPad-as-second-display app that lagged. Wrote my own in Rust + SwiftUI; sub-30ms.",
-  "Eternal Rich Presence exists because Apple Music doesn’t talk to Discord. So I made it talk.",
+  "Eternal Monitor exists because I refused to pay $40 for an iPad-as-second-display app that lagged. Wrote my own in Rust + SwiftUI.",
+  "Eternal Rich Presence exists because Apple Music doesn’t talk to Discord. So I made it talk — over Discord’s raw IPC named pipes.",
+  "EternalExchange is my Fabric spin-off of ProjectE: a solver walks Minecraft’s whole recipe graph at world load and prices every item in the game.",
 ];
 
 function pickFact() {
@@ -40,13 +41,16 @@ const fileSystem = {
             "README.md": { type: "file", content: `# Eternal Monitor\nLow-latency remote desktop — Rust host + SwiftUI iPad client\n\nTech: Rust, SwiftUI, DXGI, H.264, VideoToolbox, UDP\nLive: eternalmonitor.dev\nRepo: github.com/whoisaldo/EternalMonitor` }
           }},
           "exerly-fitness": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Exerly Fitness\niOS (SwiftUI) + Web (React 19) + Node/Express API + Gemini 2.0 AI coach\n\nTech: SwiftUI, React 19, Node.js, Express, MongoDB, Gemini 2.0, JWT\nLive: exerlyfitness.com\nRepo: github.com/whoisaldo/Exerly-Fitness` }
+            "README.md": { type: "file", content: `# Exerly Fitness\nWeb (React 19) + Node/Express API + AI coach, with a native SwiftUI iOS client built and awaiting the App Store\n\nTech: SwiftUI, React 19, Node.js, Express 5, MongoDB/SQLite, gemini-2.0-flash-lite, JWT\n51 REST endpoints · AI capped at 5/hr · 20/day\nLive: exerlyfitness.com\nRepo: github.com/whoisaldo/Exerly-Fitness` }
+          }},
+          "eternal-exchange": { type: "dir", children: {
+            "README.md": { type: "file", content: `# EternalExchange\nEquivalent-exchange alchemy for Minecraft 1.21.1 on Fabric — a spin-off of ProjectE\n\nA recipe-graph solver prices every item at world load using exact BigFraction math.\nCarries a 2,031-line compatibility layer + 9 Mixins for primitives Fabric doesn't provide.\n\n39,399 LOC · 450 Java files · 86 items · 21 blocks · 15 GUIs\nTech: Java 21, Fabric Loader, Fabric API, Gradle/Loom, Mixin\nLive: eternalexchangemod.com\nRepo: github.com/whoisaldo/EternalExchange` }
           }},
           "moops-bookstore": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Moops Bookstore\nSocial book tracking platform\n\nTech: React, TypeScript, Node.js, MongoDB, Google Books API\nRepo: github.com/whoisaldo/MoopBookstore` }
+            "README.md": { type: "file", content: `# Moops Bookstore\nSocial reading tracker — shelves, reviews, clubs, streaks\n\nTech: React, TypeScript, Node.js, MongoDB, Google Books API, JWT\nLive: moopsbooks.com\nRepo: private` }
           }},
           "eternal-rich-presence": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Eternal Rich Presence\nWindows tray app bridging Apple Music & Spotify → Discord Rich Presence\n\nTech: Python 3.8, pypresence, spotipy, winrt, PyInstaller\nRepo: github.com/whoisaldo/Eternal-Rich-Presence` }
+            "README.md": { type: "file", content: `# Eternal Rich Presence\nWindows tray app bridging Apple Music & Spotify → Discord Rich Presence\n\nListen Along built on Discord's raw IPC named pipes (pypresence is send-only).\n\nTech: Python 3.9+, pypresence, spotipy, WinRT, pywin32, PyInstaller\n74 tests · ~3.9k lines\nLive: eternalrichpresence.dev\nRepo: github.com/whoisaldo/Eternal-Rich-Presence` }
           }},
           "signature-cuts-413": { type: "dir", children: {
             "README.md": { type: "file", content: `# Signature Cuts 413\nProduction barbershop site (Chicopee, MA)\n\nTech: Next.js 14, TypeScript, Tailwind, Framer Motion (SSG on GitHub Pages)\nLive: signaturecutschicopee.com` }
@@ -551,31 +555,36 @@ AUTHOR
   ═══════════════════════════════════════════════════
 
   01  ETERNAL MONITOR
-      Low-latency remote desktop — Rust host + SwiftUI iPad client
-      Rust · SwiftUI · DXGI · H.264 · VideoToolbox · UDP
+      iPad as a wireless second display — Rust host + SwiftUI client
+      Rust · SwiftUI · DXGI · H.264 · VideoToolbox · Metal · UDP
       → eternalmonitor.dev  ·  github.com/whoisaldo/EternalMonitor
 
   02  EXERLY FITNESS
-      iOS (SwiftUI) + Web (React 19) + Node API + Gemini 2.0 AI coach
-      SwiftUI · React · Node · Express · MongoDB · Gemini · JWT
+      Web live · native SwiftUI iOS built, awaiting the App Store
+      React 19 · SwiftUI · Node · Express 5 · MongoDB · Gemini · JWT
       → exerlyfitness.com  ·  github.com/whoisaldo/Exerly-Fitness
 
-  03  MOOPS BOOKSTORE
-      Social book tracking platform
+  03  ETERNALEXCHANGE
+      Equivalent-exchange alchemy for Fabric 1.21.1 — ProjectE spin-off
+      Java 21 · Fabric · Mixin · Gradle/Loom  ·  39,399 LOC
+      → eternalexchangemod.com  ·  github.com/whoisaldo/EternalExchange
+
+  04  MOOPS BOOKSTORE
+      Social reading tracker — shelves, reviews, clubs, streaks
       React · TypeScript · Node · MongoDB · Google Books API
-      → github.com/whoisaldo/MoopBookstore
+      → moopsbooks.com  (source private)
 
-  04  ETERNAL RICH PRESENCE
+  05  ETERNAL RICH PRESENCE
       Windows tray bridge — Apple Music & Spotify → Discord RPC
-      Python 3.8 · pypresence · spotipy · winrt · PyInstaller
-      → github.com/whoisaldo/Eternal-Rich-Presence
+      Python 3.9+ · pypresence · spotipy · WinRT · PyInstaller
+      → eternalrichpresence.dev  ·  github.com/whoisaldo/Eternal-Rich-Presence
 
-  05  SIGNATURE CUTS 413
+  06  SIGNATURE CUTS 413
       Production barbershop site (Chicopee, MA)
       Next.js 14 · TypeScript · Tailwind · Framer Motion · SSG
       → signaturecutschicopee.com
 
-  06  REAL-TIME FACE ANALYTICS
+  07  REAL-TIME FACE ANALYTICS
       Client-side facial recognition & emotion detection
       React · TensorFlow.js · face-api.js
       → github.com/whoisaldo/real-time-face-analytics
