@@ -1,20 +1,13 @@
-<!-- public/favicon.svg -->
+<!-- public/favicon.svg
+     Was an indigo -> fuchsia gradient ring. Two problems: that gradient is the
+     exact stock "AI portfolio" gradient, and it was a circle on a site whose
+     border-radius is zero everywhere by design. Now it matches: hard edges,
+     the ink ground, and the bone/violet split the hero name uses. -->
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#4f46e5"></stop>
-      <stop offset="100%" stop-color="#d946ef"></stop>
-    </linearGradient>
-    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-opacity=".25"></feDropShadow>
-    </filter>
-  </defs>
-  <!-- gradient ring -->
-  <circle cx="256" cy="256" r="220" fill="url(#g)" filter="url(#shadow)"></circle>
-  <circle cx="256" cy="256" r="185" fill="#0b0b0b"></circle>
-  <!-- monogram -->
-  <g fill="#fff">
-    <!-- stylized A -->
-    <path d="M256 150l-98 212h44l20-44h68l20 44h44L256 150zm-10 128l24-54 24 54h-48z"></path>
-  </g>
+  <rect width="512" height="512" fill="#08070d"></rect>
+  <rect x="18" y="18" width="476" height="476" fill="none" stroke="#7b45f7" stroke-width="20"></rect>
+  <!-- Monogram: the counter is violet and the strokes are bone, echoing
+       "Ali" in bone and "Younes" in violet on the page itself. -->
+  <path d="M256 116L128 396h62l24-56h84l24 56h62L256 116zm-24 168l24-58 24 58h-48z" fill="#efece5"></path>
+  <rect x="214" y="340" width="84" height="20" fill="#7b45f7"></rect>
 </svg>

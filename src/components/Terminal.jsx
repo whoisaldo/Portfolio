@@ -1,19 +1,18 @@
 // src/components/Terminal.jsx — Direct Console (cyberpunk-restrained)
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Terminal as TerminalIcon, Wifi, Battery, Clock } from "lucide-react";
+import { Terminal as TerminalIcon, Clock } from "lucide-react";
 
 // Fun facts pool — surfaced on boot and via `funfact`
 const FUN_FACTS = [
   "Daily driver is a fully built supercharged Audi S4 (B8.5). 540 whp. Tuned it myself.",
   "Ranked top-3 in Massachusetts during high school for powerlifting. Still take the gym seriously — diet + sleep + lifts dialed in.",
-  "Spends weekends building agentic workflows in Claude Code. The same toolchain you're talking to right now helped ship this portfolio.",
   "Built Exerly Fitness because every commercial fitness app is paywalled. Wanted a free, open-source platform that actually coaches.",
   "VirtualDyno exists because I’m obsessed with cars and wanted to estimate horsepower without renting a dyno.",
   "Moops Bookstore started because I was reading more and wanted a social platform for me and my friends — Goodreads is fine, but it’s not ours.",
   "Has hosted Minecraft + Ark Survival servers for friends — running them and tuning the configs taught me more about Linux than any class.",
   "Currently watching / re-watching: Mr Robot, Pantheon, Vinland Saga. All-time list includes Breaking Bad, Better Call Saul, Snowfall, Invincible, Bojack Horseman.",
-  "Plays Cyberpunk 2077 between sprints. The HUD on this portfolio is a love-letter to that game’s UI language.",
+  "Plays a lot of Cyberpunk 2077. Also ran Minecraft and Ark servers for friends long enough to learn Linux the hard way.",
   "Eternal Monitor exists because I refused to pay $40 for an iPad-as-second-display app that lagged. Wrote my own in Rust + SwiftUI.",
   "Eternal Rich Presence exists because Apple Music doesn’t talk to Discord. So I made it talk — over Discord’s raw IPC named pipes.",
   "EternalExchange is my Fabric spin-off of ProjectE: a solver walks Minecraft’s whole recipe graph at world load and prices every item in the game.",
@@ -29,7 +28,14 @@ const fileSystem = {
     type: "dir",
     children: {
       "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code — Seattle, WA.\nPreviously: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nI architect distributed, high-stakes systems — and I build the tools that keep them running.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
-      "skills.md": { type: "file", content: `# Technical Skills\n\n## Languages\n- TypeScript / JavaScript  ████████████████████  Expert\n- C++                      ████████████████░░░░  Advanced\n- C# / .NET                ██████████████░░░░░░  Proficient\n- Python                   ████████████░░░░░░░░  Proficient\n- Rust                     ████████████░░░░░░░░  Proficient\n- Swift / SwiftUI          ██████████░░░░░░░░░░  Intermediate\n- Go                       ████████░░░░░░░░░░░░  Learning\n\n## Frontend\nReact · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · MongoDB · .NET · PowerShell\n\n## Cloud & Infra\nAWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD` },
+      "skills.md": { type: "file", content: `# Skills
+
+Grouped, not ranked — a self-assigned proficiency bar is a claim nobody can check.
+
+## Languages
+TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
+
+## Frontend\nReact · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · MongoDB · .NET · PowerShell\n\n## Cloud & Infra\nAWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD` },
       "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA → Seattle, WA (Summer '26)",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file — use 'open resume.pdf' to download]` },
       ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@eternalreverse:\\w %"\nalias ll="ls -la"\nalias cls="clear"` },
@@ -116,7 +122,6 @@ export default function Terminal() {
     { type: "ascii", text: asciiArt },
     { type: "system", text: "eternalreverse.system v4.0 — direct console" },
     { type: "system", text: `last login: ${new Date().toLocaleString()} on ttys000` },
-    { type: "system", text: "uplink: stable · auth: ok · subject: ali_younes\n" },
     { type: "output", text: `  ▸ fact_of_the_session
     ${pickFact()}
 ` },
@@ -133,7 +138,7 @@ export default function Terminal() {
     funfact      random fact about me
     interests    what i'm into (tv · cars · fitness · gaming · ai)
     vitals       current status
-    uplink       system uplink status
+    uplink       (try it)
 
   Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
 ` },
@@ -301,8 +306,8 @@ AUTHOR
   ─────────────────────────────────────────────
   rank      sde-intern @ aws (active) · swe co-op @ philips (prev)
   loc       boston, ma → seattle, wa (summer '26)
-  edition   iv · v05.10.26
-  signal    online · uplink stable
+  now       aws cloudformation · infrastructure as code
+  studying  cs & political science · northeastern '27
   ─────────────────────────────────────────────
   try:  about · interests · funfact · vitals` }]);
         break;
@@ -333,9 +338,9 @@ AUTHOR
     coaching platform that's free + open-source.
 
   ▣ tech / ai
-    Building agentic workflows with Claude Code. The
-    same toolchain you're talking to right now helped
-    ship this portfolio.
+    Interested in where LLM tooling is actually load
+    bearing versus where it's a demo. Mostly systems
+    work: Rust, capture pipelines, codecs, transports.
 
   ▣ gaming / homelab
     Self-hosted Ark Survival + Minecraft servers for
@@ -348,18 +353,14 @@ AUTHOR
 
       case "uplink":
         setHistory(prev => [...prev, { type: "output", text: `
-  ╔═══════════════════════════════════════════╗
-  ║         UPLINK STATUS // EDITION_IV       ║
-  ╠═══════════════════════════════════════════╣
-  ║                                           ║
-  ║   ▮  signal............................OK ║
-  ║   ▮  auth..............................OK ║
-  ║   ▮  channel.encrypted..........STABLE_AES║
-  ║   ▮  edition.................IV · v05.10.26║
-  ║   ◆  boston, ma · 42.36°n 71.06°w         ║
-  ║   ⏵  next.............AWS_CFN // seattle  ║
-  ║                                           ║
-  ╚═══════════════════════════════════════════╝
+  There is no uplink. This shell is a React component running in your
+  browser — no server, no session, nothing to connect to. The filesystem
+  below is an object literal in Terminal.jsx.
+
+  Real things you can check instead:
+    projects     what I shipped, with repo links
+    experience   where I have worked
+    resume       the PDF
 ` }]);
         break;
 
@@ -387,7 +388,7 @@ AUTHOR
         break;
 
       case "uptime":
-        setHistory(prev => [...prev, { type: "output", text: `${new Date().toLocaleTimeString()}  up 999 days,  1 user,  load average: 0.42, 0.38, 0.35` }]);
+        setHistory(prev => [...prev, { type: "output", text: `${new Date().toLocaleTimeString()}  ·  this shell is a React component, so: up since you loaded the page` }]);
         break;
 
       case "echo":
@@ -477,23 +478,20 @@ AUTHOR
 
       case "skills":
         setHistory(prev => [...prev, { type: "output", text: `
-  TECHNICAL SKILLS
+  SKILLS
   ═══════════════════════════════════════════════════
 
-  LANGUAGES
-    TypeScript / JavaScript   ████████████████████  expert
-    C++                       ████████████████░░░░  advanced
-    C# / .NET                 ██████████████░░░░░░  proficient
-    Python                    ████████████░░░░░░░░  proficient
-    Rust                      ████████████░░░░░░░░  proficient
-    Swift / SwiftUI           ██████████░░░░░░░░░░  intermediate
-    Go                        ████████░░░░░░░░░░░░  learning
+  Grouped, not ranked. A self-assigned "expert" bar is a claim nobody
+  can check — these are just the things I reach for.
 
-  FRONTEND        React · TypeScript · Tailwind · Framer Motion · Next.js
+  LANGUAGES       TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
+  FRONTEND        React · Next.js · Tailwind · Framer Motion
   BACKEND         Node.js · Express · MongoDB · .NET · PowerShell
   SYSTEMS         Rust · C++ · DXGI · Metal · VideoToolbox · H.264
-  CLOUD & INFRA   AWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD
-  TOOLS           Git · Docker · Vim · VS Code · Xcode
+  CLOUD & INFRA   AWS · Linux · IaC (CDK/CloudFormation) · CI/CD · Docker
+  TOOLS           Git · Vim · VS Code · Xcode
+
+  For what I actually shipped with each, run 'projects'.
 ` }]);
         break;
 
@@ -637,10 +635,9 @@ AUTHOR
       /  ..  \\      Host:      Northeastern University
      /  .''.  \\     Kernel:    Node.js 20.x
     /.''    '.\\    Shell:     TypeScript 5.x
-                    Terminal:  portfolio · edition iv
-                    CPU:       coffee-powered
-                    Memory:    unlimited ambition
-                    Uptime:    999 days
+                    Editor:    VS Code · Vim
+                    Languages: TypeScript · Rust · Swift · Java
+                    Repos:     github.com/whoisaldo
 ` }]);
         break;
 
@@ -822,28 +819,35 @@ AUTHOR
   );
 
   return (
-    <section id="terminal" className="relative py-20 md:py-28 px-6 bg-ink grain border-y border-bone/10">
-      <div className={`mx-auto transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-5xl'}`}>
-        {/* Editorial header — Roman-numeral kicker */}
+    <section id="terminal" className="relative gutter py-24 md:py-32 bg-ink grain border-y border-hud/15">
+      {/* Left-aligned on the page gutter rather than centred in a max-w-5xl
+          column, so it sits on the same wide grid as every other section. The
+          cap keeps shell lines from running to an unreadable length. */}
+      <div className={`transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-[1180px]'}`}>
+        {/* Section device: a prompt line. Every other section on the page uses
+            a different opener — this is the last one that still used the shared
+            formula (roman numeral -> // snake_case kicker -> lowercase italic
+            heading with a trailing period), repeated six times with no
+            variation. Here the heading IS the invitation to type. */}
         {!isMaximized && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.7 }}
-            className="mb-10 flex items-baseline justify-between gap-4 border-b border-hud/15 pb-6"
+            className="mb-10"
           >
-            <div className="flex items-baseline gap-6">
-              <span className="font-display italic text-hud text-3xl lg:text-4xl leading-none">IV.</span>
-              <div>
-                <p className="font-mono text-[10px] tracking-editorial text-hud/70 uppercase mb-2">// direct_console</p>
-                <h2 className="serif-display italic text-3xl md:text-5xl text-bone">a real shell.</h2>
-              </div>
-            </div>
-            <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-bone/45 hidden sm:block text-right">
-              <div>zsh · interactive</div>
-              <div className="text-hud/70 mt-1">try: funfact · interests</div>
-            </div>
+            <h2 className="serif-display italic text-primary text-3xl md:text-5xl mb-3">
+              This one actually works.
+            </h2>
+            <p className="font-serif text-muted max-w-[52ch] leading-[1.6]">
+              A real shell, not a screenshot of one — 40-odd commands, a
+              filesystem you can <code className="font-mono text-signal-soft">cd</code> into,
+              tab completion and history. Start with{" "}
+              <code className="font-mono text-signal-soft">help</code>, or{" "}
+              <code className="font-mono text-signal-soft">funfact</code> if you
+              are only here to snoop.
+            </p>
           </motion.div>
         )}
 
@@ -863,7 +867,7 @@ AUTHOR
           <span aria-hidden className="bracket-corner bl" />
           <span aria-hidden className="bracket-corner br" />
           {/* Title bar */}
-          <div className="relative flex items-center justify-between px-4 py-2.5 bg-smoke border-b border-bone/10">
+          <div className="relative flex items-center justify-between px-4 py-2.5 bg-ink-raised border-b border-bone/10">
             <div className="flex gap-2">
               <button
                 onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
@@ -888,10 +892,6 @@ AUTHOR
             </div>
 
             <div className="flex items-center gap-3 text-[10px] text-bone/50 font-mono">
-              <div className="flex items-center gap-1"><Wifi className="w-3 h-3" /></div>
-              <div className="flex items-center gap-1">
-                <Battery className="w-3 h-3" /><span>100%</span>
-              </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 <span>{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -927,13 +927,13 @@ AUTHOR
                   <pre className="text-bone/75 whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "error" && (
-                  <pre className="text-signal whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
+                  <pre className="text-err whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "system" && (
                   <pre className="text-ember whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "success" && (
-                  <pre className="text-signal whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
+                  <pre className="text-ok whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "ascii" && (
                   <pre className="text-[7px] md:text-[9px] leading-none text-signal font-bold my-2">{line.text}</pre>
@@ -953,12 +953,12 @@ AUTHOR
                   onKeyDown={handleKeyDown}
                   aria-label="Terminal command input"
                   className="w-full bg-transparent text-bone outline-none font-mono"
-                  style={{ caretColor: '#a855f7' }}
+                  style={{ caretColor: '#7b45f7' }}
                   autoComplete="off"
                   spellCheck="false"
                 />
                 {suggestions.length > 0 && (
-                  <div className="absolute left-0 top-6 bg-smoke border border-bone/20 overflow-hidden shadow-xl z-10 min-w-[180px]">
+                  <div className="absolute left-0 top-6 bg-ink-raised border border-bone/20 overflow-hidden shadow-xl z-10 min-w-[180px]">
                     {suggestions.map((s, i) => (
                       <div
                         key={s}
@@ -981,7 +981,7 @@ AUTHOR
           </div>
 
           {/* Status bar */}
-          <div className={`px-4 py-1.5 bg-smoke border-t border-bone/10 flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em] transition-all ${isMinimized ? 'hidden' : ''}`}>
+          <div className={`px-4 py-1.5 bg-ink-raised border-t border-bone/10 flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em] transition-all ${isMinimized ? 'hidden' : ''}`}>
             <div className="flex items-center gap-4 text-bone/50">
               <span>zsh</span>
               <span>utf-8</span>

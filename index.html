@@ -1,22 +1,46 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<!-- `class="scroll-smooth"` was removed alongside `html { scroll-behavior: smooth }`
+     in index.css: the projects reel is a 460vh pinned section, so a smooth jump
+     across it animates for seconds and strobes every project on the way.
+     src/lib/scroll.js decides per jump instead. -->
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Ali's Portfolio</title>
-    <meta name="description" content="Projects, resume, and contact for Ali Younes." />
-    <link rel="canonical" href="https://aliyounes.dev/" />
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-
-    <!-- Fonts: Fraunces (display) + Newsreader (editorial body) + JetBrains Mono (UI) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;0,9..144,900;1,9..144,400;1,9..144,800;1,9..144,900&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400;1,6..72,500&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap"
-      rel="stylesheet"
+    <title>Ali Younes — Software Engineer</title>
+    <meta
+      name="description"
+      content="Software engineer. SDE intern on AWS CloudFormation, previously a Philips co-op. Eight shipped projects: a Rust/SwiftUI display streamer, a Fabric alchemy mod, a fitness platform, and more."
     />
+    <link rel="canonical" href="https://aliyounes.dev/" />
+    <meta name="theme-color" content="#0e0d14" />
+    <meta name="color-scheme" content="dark" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Open Graph / Twitter. None of this existed before, so every link to the
+         site unfurled as a bare URL. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://aliyounes.dev/" />
+    <meta property="og:title" content="Ali Younes — Software Engineer" />
+    <meta
+      property="og:description"
+      content="Eight shipped projects, and every number on them is checkable against the source."
+    />
+    <meta property="og:image" content="https://aliyounes.dev/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ali Younes — Software Engineer" />
+    <meta
+      name="twitter:description"
+      content="Eight shipped projects, and every number on them is checkable against the source."
+    />
+    <meta name="twitter:image" content="https://aliyounes.dev/og.png" />
+
+    <!-- Fonts are self-hosted and imported from src/main.jsx; see the note
+         there for why these particular variable-font axes. -->
   </head>
   <body class="bg-ink text-bone paper-grain">
     <div id="root"></div>
