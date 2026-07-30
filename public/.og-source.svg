@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="bloom" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#7b45f7" stop-opacity="0.50"/>
+      <stop offset="35%"  stop-color="#7b45f7" stop-opacity="0.14"/>
+      <stop offset="70%"  stop-color="#7b45f7" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0 L0 0 0 64" fill="none" stroke="#6d5fa8" stroke-width="1" opacity="0.07"/>
+    </pattern>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"  stop-color="#6d5fa8" stop-opacity="0.5"/>
+      <stop offset="80%" stop-color="#6d5fa8" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#6d5fa8" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="#0e0d14"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  <circle cx="1010" cy="120" r="380" fill="url(#bloom)"/>
+
+  <path d="M 34 60 L 34 34 L 60 34"
+         fill="none" stroke="#7b45f7" stroke-width="3" opacity="0.75"/>
+  <path d="M 1166 60 L 1166 34 L 1140 34"
+         fill="none" stroke="#7b45f7" stroke-width="3" opacity="0.75"/>
+  <path d="M 34 570 L 34 596 L 60 596"
+         fill="none" stroke="#7b45f7" stroke-width="3" opacity="0.75"/>
+  <path d="M 1166 570 L 1166 596 L 1140 596"
+         fill="none" stroke="#7b45f7" stroke-width="3" opacity="0.75"/>
+
+  <text x="72" y="268" font-family="Didot, 'Bodoni 72', Georgia, serif" font-style="italic"
+        font-size="164" letter-spacing="-5">
+    <tspan fill="#efece5">Ali</tspan><tspan fill="#7b45f7" dx="24">Younes</tspan>
+  </text>
+
+  <text x="76" y="352" font-family="Didot, 'Bodoni 72', Georgia, serif" font-style="italic"
+        font-size="34" fill="#efece5" opacity="0.72">
+    I build the tools I wanted to exist.
+  </text>
+
+  <rect x="72" y="416" width="1056" height="1" fill="url(#rule)"/>
+
+  <circle cx="79" cy="462" r="5" fill="#ff9538"/>
+  <text x="98" y="468" font-family="Menlo, monospace" font-size="18"
+        letter-spacing="3.4" fill="#ff9538">SDE INTERN · AWS CLOUDFORMATION</text>
+  <text x="640" y="468" font-family="Menlo, monospace" font-size="18"
+        letter-spacing="3.4" fill="#efece5" opacity="0.46">8 SHIPPED PROJECTS</text>
+  <text x="952" y="468" font-family="Menlo, monospace" font-size="18"
+        letter-spacing="3.4" fill="#efece5" opacity="0.46">ALIYOUNES.DEV</text>
+</svg>

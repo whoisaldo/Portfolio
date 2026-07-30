@@ -80,7 +80,9 @@ export default function Contact() {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="grid gap-x-10 gap-y-12 border-t border-hud/15 mt-16 md:mt-20 pt-12 lg:grid-cols-12"
         >
-          <div className="lg:col-span-5 xl:col-span-4">
+          {/* 5 / 4 / 3 at every breakpoint — equal thirds would put the
+              section back in the middle of the page it is trying to get out of. */}
+          <div className="lg:col-span-5">
             <h3 className="mono-label text-hud-soft">Other addresses</h3>
             <ul className="mt-6 space-y-5">
               {secondary.map((email) => (
@@ -99,7 +101,7 @@ export default function Contact() {
             </ul>
           </div>
 
-          <div className="lg:col-span-4 xl:col-span-4">
+          <div className="lg:col-span-4">
             <h3 className="mono-label text-hud-soft">Résumé</h3>
             <p className="font-serif text-muted text-[15px] leading-[1.7] mt-6 max-w-[38ch]">
               One page, kept current with the AWS role.
@@ -116,7 +118,7 @@ export default function Contact() {
             </a>
           </div>
 
-          <div className="lg:col-span-3 xl:col-span-4">
+          <div className="lg:col-span-3">
             <h3 className="mono-label text-hud-soft">Elsewhere</h3>
             <ul className="mt-6 space-y-4">
               {elsewhere.map((link) => (

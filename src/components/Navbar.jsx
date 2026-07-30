@@ -1,14 +1,24 @@
-// src/components/Navbar.jsx — Editorial mono ribbon
+// src/components/Navbar.jsx — the fixed header.
+//
+// Three things changed. The `[01]`–`[04]` prefixes are gone: they were the
+// first of three competing numbering systems on the page and they numbered
+// four links that any reader can count. The `ALI_YOUNES // ETERNALREVERSE`
+// wordmark is now just his name, set in the display face — snake_case is for
+// identifiers, and this is a person. And the link list comes from
+// src/data/site.js rather than a fourth private copy of the same array.
+//
+// In-page links go through scrollToSection(): the projects reel is ~460vh of
+// pinned scrolling, so a native smooth jump past it strobes through every
+// project for several seconds. scroll.js picks smooth or instant by distance.
+// The href stays a real `#id` so middle-click, copy-link and no-JS still work.
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
+import { navSections } from "../data/site";
+import { profile } from "../data/profile";
+import { scrollToSection } from "../lib/scroll";
 
-const navLinks = [
-  { num: "01", name: "projects",   href: "#projects" },
-  { num: "02", name: "experience", href: "#experience" },
-  { num: "03", name: "terminal",   href: "#terminal" },
-  { num: "04", name: "contact",    href: "#contact" },
-];
+const pdf = (import.meta.env.BASE_URL || "/") + "resume.pdf";
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -16,53 +26,60 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const jumpTo = (event, id) => {
+    event.preventDefault();
+    setIsMobileOpen(false);
+    scrollToSection(id);
+  };
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300
-                  ${isScrolled ? "bg-ink/90 backdrop-blur-md border-b border-hud/15" : "bg-transparent"}`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300
+                  ${isScrolled ? "bg-ink/90 backdrop-blur-md border-b border-hud/20" : "bg-transparent"}`}
     >
-      <nav className="max-w-7xl mx-auto px-6 md:px-10 py-4 flex items-center justify-between">
-        {/* Brand mark */}
-        <a href="#hero" data-hud-target="link" className="group flex items-center gap-3 font-mono text-xs uppercase tracking-[0.22em]">
-          <span className="relative inline-flex">
-            <span className="w-2 h-2 bg-hud group-hover:rotate-45 transition-transform duration-300" />
-            <span className="absolute inset-0 w-2 h-2 bg-hud animate-ping opacity-50" />
-          </span>
-          <span className="text-bone">ali_younes</span>
-          <span className="hidden sm:inline text-bone/30">//</span>
-          <span className="hidden sm:inline text-hud/70">eternalreverse</span>
+      <nav className="gutter py-4 flex items-center justify-between gap-6">
+        <a
+          href="#hero"
+          onClick={(e) => jumpTo(e, "hero")}
+          className="serif-display text-primary text-base md:text-lg leading-none transition-colors duration-200 hover:text-signal-soft"
+        >
+          {profile.name}
         </a>
 
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-7">
-          {navLinks.map((link) => (
+        <div className="hidden md:flex items-center gap-8">
+          {navSections.map((section) => (
             <a
-              key={link.name}
-              href={link.href}
-              data-hud-target="link"
-              className="group flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-bone/70 hover:text-bone transition-colors"
+              key={section.id}
+              href={`#${section.id}`}
+              onClick={(e) => jumpTo(e, section.id)}
+              className="mono-label text-dim transition-colors duration-200 hover:text-primary"
             >
-              <span className="text-hud/60 group-hover:text-hud transition-colors">[{link.num}]</span>
-              <span className="ink-underline">{link.name}</span>
+              <span className="ink-underline">{section.label}</span>
             </a>
           ))}
+
           <a
-            href="#resume"
-            data-hud-target="link"
-            className="scan-beam-host font-mono text-[11px] uppercase tracking-[0.22em] font-bold px-3 py-1.5
-                       border border-signal text-signal hover:bg-signal hover:text-ink transition-colors"
+            href={pdf}
+            download="Ali_Younes_Resume.pdf"
+            className="scan-beam-host mono-label font-bold border border-signal px-4 py-2 text-signal
+                       transition-colors duration-200 hover:bg-signal hover:text-ink"
           >
-            ▶ résumé
+            Résumé
           </a>
         </div>
 
         <button
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="md:hidden p-2 text-bone/70 hover:text-signal transition-colors"
+          type="button"
+          onClick={() => setIsMobileOpen((open) => !open)}
+          aria-expanded={isMobileOpen}
+          aria-controls="mobile-nav"
+          aria-label={isMobileOpen ? "Close menu" : "Open menu"}
+          className="md:hidden p-2 text-muted transition-colors duration-200 hover:text-signal-soft"
         >
           {isMobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -71,36 +88,38 @@ export default function Navbar() {
       <AnimatePresence>
         {isMobileOpen && (
           <motion.div
+            id="mobile-nav"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden bg-ink/98 backdrop-blur-md border-t border-bone/10"
+            className="md:hidden bg-ink/95 backdrop-blur-md border-t border-hud/20"
           >
-            <div className="px-6 py-4 space-y-2">
-              {navLinks.map((link, i) => (
+            <div className="gutter py-5 flex flex-col gap-1">
+              {navSections.map((section, i) => (
                 <motion.a
-                  key={link.name}
-                  href={link.href}
-                  onClick={() => setIsMobileOpen(false)}
+                  key={section.id}
+                  href={`#${section.id}`}
+                  onClick={(e) => jumpTo(e, section.id)}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.22em] text-bone/70 hover:text-hud py-2 transition-colors"
+                  className="mono-label text-dim py-3 transition-colors duration-200 hover:text-primary"
                 >
-                  <span className="text-hud/60">[{link.num}]</span>
-                  <span className="ink-underline">{link.name}</span>
+                  {section.label}
                 </motion.a>
               ))}
+
               <motion.a
-                href="#resume"
+                href={pdf}
+                download="Ali_Younes_Resume.pdf"
                 onClick={() => setIsMobileOpen(false)}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: navLinks.length * 0.04 }}
-                className="block font-mono text-[12px] uppercase tracking-[0.22em] font-bold w-full text-center px-4 py-2 border border-signal text-signal"
+                transition={{ delay: navSections.length * 0.04 }}
+                className="mono-label font-bold border border-signal text-signal text-center px-4 py-3 mt-3"
               >
-                ▶ résumé ↘
+                Résumé
               </motion.a>
             </div>
           </motion.div>

@@ -122,7 +122,6 @@ export default function Terminal() {
     { type: "ascii", text: asciiArt },
     { type: "system", text: "eternalreverse.system v4.0 — direct console" },
     { type: "system", text: `last login: ${new Date().toLocaleString()} on ttys000` },
-    { type: "system", text: "uplink: stable · auth: ok · subject: ali_younes\n" },
     { type: "output", text: `  ▸ fact_of_the_session
     ${pickFact()}
 ` },
@@ -139,7 +138,7 @@ export default function Terminal() {
     funfact      random fact about me
     interests    what i'm into (tv · cars · fitness · gaming · ai)
     vitals       current status
-    uplink       system uplink status
+    uplink       (try it)
 
   Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
 ` },
@@ -307,8 +306,8 @@ AUTHOR
   ─────────────────────────────────────────────
   rank      sde-intern @ aws (active) · swe co-op @ philips (prev)
   loc       boston, ma → seattle, wa (summer '26)
-  edition   iv · v05.10.26
-  signal    online · uplink stable
+  now       aws cloudformation · infrastructure as code
+  studying  cs & political science · northeastern '27
   ─────────────────────────────────────────────
   try:  about · interests · funfact · vitals` }]);
         break;
@@ -354,17 +353,14 @@ AUTHOR
 
       case "uplink":
         setHistory(prev => [...prev, { type: "output", text: `
-  ╔═══════════════════════════════════════════╗
-  ║         UPLINK STATUS // EDITION_IV       ║
-  ╠═══════════════════════════════════════════╣
-  ║                                           ║
-  ║   ▮  signal............................OK ║
-  ║   ▮  auth..............................OK ║
-  ║   ▮  edition.................IV · v05.10.26║
-  ║   ◆  boston, ma · 42.36°n 71.06°w         ║
-  ║   ⏵  next.............AWS_CFN // seattle  ║
-  ║                                           ║
-  ╚═══════════════════════════════════════════╝
+  There is no uplink. This shell is a React component running in your
+  browser — no server, no session, nothing to connect to. The filesystem
+  below is an object literal in Terminal.jsx.
+
+  Real things you can check instead:
+    projects     what I shipped, with repo links
+    experience   where I have worked
+    resume       the PDF
 ` }]);
         break;
 
@@ -823,28 +819,35 @@ AUTHOR
   );
 
   return (
-    <section id="terminal" className="relative py-20 md:py-28 px-6 bg-ink grain border-y border-bone/10">
-      <div className={`mx-auto transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-5xl'}`}>
-        {/* Editorial header — Roman-numeral kicker */}
+    <section id="terminal" className="relative gutter py-24 md:py-32 bg-ink grain border-y border-hud/15">
+      {/* Left-aligned on the page gutter rather than centred in a max-w-5xl
+          column, so it sits on the same wide grid as every other section. The
+          cap keeps shell lines from running to an unreadable length. */}
+      <div className={`transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-[1180px]'}`}>
+        {/* Section device: a prompt line. Every other section on the page uses
+            a different opener — this is the last one that still used the shared
+            formula (roman numeral -> // snake_case kicker -> lowercase italic
+            heading with a trailing period), repeated six times with no
+            variation. Here the heading IS the invitation to type. */}
         {!isMaximized && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.7 }}
-            className="mb-10 flex items-baseline justify-between gap-4 border-b border-hud/15 pb-6"
+            className="mb-10"
           >
-            <div className="flex items-baseline gap-6">
-              <span className="font-display italic text-hud text-3xl lg:text-4xl leading-none">IV.</span>
-              <div>
-                <p className="font-mono text-[10px] tracking-editorial text-hud/70 uppercase mb-2">// direct_console</p>
-                <h2 className="serif-display italic text-3xl md:text-5xl text-bone">a real shell.</h2>
-              </div>
-            </div>
-            <div className="font-mono text-[10px] tracking-[0.22em] uppercase text-bone/45 hidden sm:block text-right">
-              <div>zsh · interactive</div>
-              <div className="text-hud/70 mt-1">try: funfact · interests</div>
-            </div>
+            <h2 className="serif-display italic text-primary text-3xl md:text-5xl mb-3">
+              This one actually works.
+            </h2>
+            <p className="font-serif text-muted max-w-[52ch] leading-[1.6]">
+              A real shell, not a screenshot of one — 40-odd commands, a
+              filesystem you can <code className="font-mono text-signal-soft">cd</code> into,
+              tab completion and history. Start with{" "}
+              <code className="font-mono text-signal-soft">help</code>, or{" "}
+              <code className="font-mono text-signal-soft">funfact</code> if you
+              are only here to snoop.
+            </p>
           </motion.div>
         )}
 
@@ -864,7 +867,7 @@ AUTHOR
           <span aria-hidden className="bracket-corner bl" />
           <span aria-hidden className="bracket-corner br" />
           {/* Title bar */}
-          <div className="relative flex items-center justify-between px-4 py-2.5 bg-smoke border-b border-bone/10">
+          <div className="relative flex items-center justify-between px-4 py-2.5 bg-ink-raised border-b border-bone/10">
             <div className="flex gap-2">
               <button
                 onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }}
@@ -950,12 +953,12 @@ AUTHOR
                   onKeyDown={handleKeyDown}
                   aria-label="Terminal command input"
                   className="w-full bg-transparent text-bone outline-none font-mono"
-                  style={{ caretColor: '#a855f7' }}
+                  style={{ caretColor: '#7b45f7' }}
                   autoComplete="off"
                   spellCheck="false"
                 />
                 {suggestions.length > 0 && (
-                  <div className="absolute left-0 top-6 bg-smoke border border-bone/20 overflow-hidden shadow-xl z-10 min-w-[180px]">
+                  <div className="absolute left-0 top-6 bg-ink-raised border border-bone/20 overflow-hidden shadow-xl z-10 min-w-[180px]">
                     {suggestions.map((s, i) => (
                       <div
                         key={s}
@@ -978,7 +981,7 @@ AUTHOR
           </div>
 
           {/* Status bar */}
-          <div className={`px-4 py-1.5 bg-smoke border-t border-bone/10 flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em] transition-all ${isMinimized ? 'hidden' : ''}`}>
+          <div className={`px-4 py-1.5 bg-ink-raised border-t border-bone/10 flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.16em] transition-all ${isMinimized ? 'hidden' : ''}`}>
             <div className="flex items-center gap-4 text-bone/50">
               <span>zsh</span>
               <span>utf-8</span>

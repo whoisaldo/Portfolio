@@ -21,10 +21,10 @@ export default class ErrorBoundary extends React.Component {
               [ system_error ]
             </div>
             <h1 className="serif-display italic text-4xl text-bone mb-6">render fault.</h1>
-            <pre className="bg-concrete border border-signal/40 p-4 text-xs text-bone/80 whitespace-pre-wrap overflow-auto max-h-[40vh]">
+            <pre className="bg-ink-raised border border-signal/40 p-4 text-xs text-muted whitespace-pre-wrap overflow-auto max-h-[40vh]">
               {String(this.state.error?.stack || this.state.error)}
             </pre>
-            <p className="font-mono text-xs text-bone/45 mt-4">
+            <p className="font-mono text-xs text-dim mt-4">
               open devtools → console for full trace, then reload.
             </p>
           </div>

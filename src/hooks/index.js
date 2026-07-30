@@ -88,6 +88,15 @@ const FOCUSABLE =
 export function useFocusTrap(ref, active, onEscape) {
   const restoreTo = useRef(null);
 
+  // The callback is read through a ref so a caller passing an inline arrow
+  // (`onClose={() => setOpen(null)}`) does not change the effect's identity.
+  // When it did, the effect re-ran on every render: each cleanup restored
+  // focus and each re-run re-captured `document.activeElement` — which by then
+  // was the modal's own close button. On close, focus landed on <body> instead
+  // of the card that opened it.
+  const escapeRef = useRef(onEscape);
+  useEffect(() => { escapeRef.current = onEscape; });
+
   useEffect(() => {
     if (!active) return;
     restoreTo.current = document.activeElement;
@@ -103,7 +112,7 @@ export function useFocusTrap(ref, active, onEscape) {
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onEscape?.();
+        escapeRef.current?.();
         return;
       }
       if (e.key !== "Tab" || !node) return;
@@ -129,7 +138,7 @@ export function useFocusTrap(ref, active, onEscape) {
       document.body.style.paddingRight = paddingRight;
       restoreTo.current?.focus?.();
     };
-  }, [active, ref, onEscape]);
+  }, [active, ref]);
 }
 
 /** Stable callback ref for values that change every render. */
