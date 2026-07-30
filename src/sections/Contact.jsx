@@ -104,7 +104,7 @@ export default function Contact() {
           <div className="lg:col-span-4">
             <h3 className="mono-label text-hud-soft">Résumé</h3>
             <p className="font-serif text-muted text-[15px] leading-[1.7] mt-6 max-w-[38ch]">
-              One page, kept current with the AWS role.
+              Kept current with the AWS role.
             </p>
             <a
               href={pdf}
