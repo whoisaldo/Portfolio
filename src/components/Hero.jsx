@@ -14,12 +14,10 @@
 //                                                     on the site — four words,
 //                                                     three of them LinkedIn
 //
-// The replacement line is not invented either. It is the through-line of the
-// work itself: EternalMonitor exists because he refused to pay $40 for an
-// iPad-as-second-display app, Moops because "Goodreads is fine, but it's not
-// ours", Eternal Rich Presence because Apple Music does not talk to Discord,
-// EternalExchange because Fabric had no equivalent-exchange mod. The Philips
-// case study ends on the same note: "Nobody had shipped it."
+// The replacement states scope and stops. No thesis, no claim — the eight
+// projects and the Philips case study do the arguing, which is the rule
+// docs/PROJECT_CONTEXT.md sets for this repo: a reader should find the
+// portfolio understated, never overstated.
 //
 // What stayed: the Fraunces italic name at display scale. It is the strongest
 // piece of design on the site and it does not need help.
@@ -72,7 +70,7 @@ export default function Hero() {
           className="mt-8 font-serif italic text-muted max-w-[34ch]"
           style={{ fontSize: "clamp(1.15rem, 2vw, 1.75rem)", lineHeight: 1.35 }}
         >
-          I build the tools I wanted to exist.
+          Systems, iOS and web. Boston.
         </motion.p>
 
         {/* ---- ledger ----------------------------------------------------- */}

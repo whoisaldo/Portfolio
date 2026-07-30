@@ -15,7 +15,7 @@
   }
 
   body {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
     background-color: #0e0d14;
     color: #efece5;
@@ -24,8 +24,8 @@
   }
 
   h1, h2, h3, h4, h5 {
-    font-family: 'Fraunces', ui-serif, Georgia, serif;
-    font-variation-settings: "opsz" 144, "SOFT" 50;
+    font-family: 'Fraunces Variable', Fraunces, ui-serif, Georgia, serif;
+    font-variation-settings: "opsz" 144;
     letter-spacing: -0.02em;
   }
 
@@ -65,20 +65,20 @@
    Typography primitives
    =========================================================================== */
 .serif-display {
-  font-family: 'Fraunces', ui-serif, Georgia, serif;
-  font-variation-settings: "opsz" 144, "SOFT" 60;
+  font-family: 'Fraunces Variable', Fraunces, ui-serif, Georgia, serif;
+  font-variation-settings: "opsz" 144;
   letter-spacing: -0.03em;
 }
 
 .mono-label {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.625rem;
   text-transform: uppercase;
   letter-spacing: 0.22em;
 }
 
 .telemetry {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.625rem;
   text-transform: lowercase;
   letter-spacing: 0.18em;

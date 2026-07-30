@@ -82,9 +82,9 @@ export default {
       },
 
       fontFamily: {
-        display: ["Fraunces", "ui-serif", "Georgia", "serif"],
-        serif: ["Newsreader", "ui-serif", "Georgia", "serif"],
-        mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        display: ["'Fraunces Variable'", "Fraunces", "ui-serif", "Georgia", "serif"],
+        serif: ["'Newsreader Variable'", "Newsreader", "ui-serif", "Georgia", "serif"],
+        mono: ["'JetBrains Mono Variable'", "'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
       letterSpacing: {
         label: "0.22em",

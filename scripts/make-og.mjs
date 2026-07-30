@@ -68,7 +68,7 @@ const svg = `
 
   <text x="76" y="352" font-family="${FONT_DISPLAY}" font-style="italic"
         font-size="34" fill="${BONE}" opacity="0.72">
-    ${esc("I build the tools I wanted to exist.")}
+    ${esc("Systems, iOS and web. Boston.")}
   </text>
 
   <rect x="72" y="416" width="${W - 72 - 72}" height="1" fill="url(#rule)"/>

@@ -39,24 +39,8 @@
     />
     <meta name="twitter:image" content="https://aliyounes.dev/og.png" />
 
-    <!-- Fonts: Fraunces (display) + Newsreader (body) + JetBrains Mono (UI).
-         `media="print"` + the onload swap makes this non-render-blocking; the
-         previous version blocked first paint on a third-party stylesheet.
-         JetBrains Mono italic was dropped — it is not used anywhere. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      media="print"
-      onload="this.media='all'"
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,400;1,9..144,900&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap"
-    />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,400;1,9..144,900&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;1,6..72,300;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap"
-      />
-    </noscript>
+    <!-- Fonts are self-hosted and imported from src/main.jsx; see the note
+         there for why these particular variable-font axes. -->
   </head>
   <body class="bg-ink text-bone paper-grain">
     <div id="root"></div>
