@@ -1,0 +1,165 @@
+// src/data/experience.js — work history and education.
+//
+// Two deliberate omissions, both cases where layout was driving content:
+//   - The AWS entry carries no `metrics`. It previously held
+//     { AWS / IaC / SDE / 2026 } — the job title cut into four boxes to fill
+//     a four-column grid, rendered in the same treatment as Philips' real
+//     "~1,000 machines". A grid that expects four numbers is not a reason to
+//     manufacture four numbers.
+//   - The AWS entry carries no `highlights`. The four it had ("Customer
+//     Obsession", "Security-First Engineering", …) were AWS Leadership
+//     Principles recited as personal accomplishments one month into the role.
+//
+// The Philips case study is the strongest content on the site — a real
+// two-attempt arc that documents its own failed first approach. Preserved
+// verbatim; do not compress it.
+
+import awsLogo from "../assets/PreviousExperience/awslogosvg.svg";
+import philipsLogo from "../assets/PreviousExperience/PhilipsLogo.svg";
+import neuLogo from "../assets/PreviousExperience/NEULOGO.png";
+import topChoiceLogo from "../assets/PreviousExperience/Topchoicerealtylogo.jpeg";
+import robertDefalcoLogo from "../assets/PreviousExperience/RobertDefalcoRealty.webp";
+
+export const experiences = [
+  {
+    type: "work",
+    title: "Software Development Engineer Intern",
+    subtitle: "CloudFormation · Infrastructure as Code",
+    company: "Amazon Web Services",
+    period: "Jun 2026 — Present",
+    location: "Seattle, WA",
+    logo: awsLogo,
+    accent: "#FF9900",
+    badge: "Current",
+    description:
+      "SDE intern on CloudFormation — the service that turns declarative templates into provisioned AWS infrastructure. Owning a scoped service project end to end under a senior mentor: design doc, implementation, deploy pipeline. Started June 2026, so the work is still in flight.",
+    skills: [
+      "AWS", "Distributed Systems", "Linux", "Python", "Java",
+      "Go", "IaC (CDK/CloudFormation)", "Security Engineering",
+    ],
+  },
+  {
+    type: "work",
+    title: "Software Engineering Co-op",
+    subtitle: "FOG Zero-Touch Deployment · VM Automation",
+    company: "Philips",
+    period: "Jan 2026 — Jun 2026",
+    location: "Cambridge, MA",
+    logo: philipsLogo,
+    accent: "#4FC3F7",
+    description:
+      "Designed and shipped a zero-touch deployment platform for ~1,000 medical-device-grade Windows machines under FDA-regulated UEFI Secure Boot. Owned it end-to-end and presented the architecture to 50+ engineers. Also contributed to an internal VM deployment platform (guest post-provisioning + environment validation).",
+    metrics: [
+      { value: "~1,000", label: "Machines / Zero Touch" },
+      { value: "50+", label: "Engineers Presented" },
+      { value: "FDA", label: "Secure Boot Preserved" },
+      { value: "Solo", label: "Owned End-to-End" },
+    ],
+    caseStudy: {
+      tagline: "Replaced ~1,000 per-machine technician touches with a true zero-touch refresh cycle — under FDA-regulated UEFI Secure Boot constraints.",
+      problem:
+        "Imaging new machines was manual end-to-end: a technician brought up each one, plugged in a USB stick, and ran scripts off a network file share. For roughly a thousand industrial PCs supporting an FDA-regulated medical-device platform, that meant a thousand technician-touches per refresh cycle. The compliance constraint is the catch — UEFI Secure Boot must stay enabled the entire time, which rules out every standard fleet-imaging shortcut at this scale. Many engineers had wanted this automated. Nobody had shipped it.",
+      attempts: [
+        {
+          label: "Attempt 1",
+          title: "Custom-signed boot chain — proof of concept",
+          body: "Booted a Microsoft-signed loader, handed off to a custom-signed network bootloader, then into Windows PE. The model reached PE on a Secure Boot target — proof the architecture worked. Real debugging along the way: a webserver routing issue silently corrupting payload delivery, plus a path case-sensitivity bug that made the boot loader fetch a redirected login page instead of an EFI binary, invisibly 'booting garbage.' Abandoned for production because the custom signing key isn't in any firmware trust store by default — first boot would require a human keypress on each machine to enroll the key. At ~1,000 machines, that isn't zero-touch.",
+        },
+        {
+          label: "Attempt 2",
+          title: "OEM-signed boot manager as PXE NBP — production",
+          body: "Re-architected around Microsoft's own signed Windows Boot Manager as the network boot program. It's signed by a CA already trusted by every Secure Boot firmware shipped since 2012 — no enrollment, no custom signing, no Secure Boot disable, no per-machine console touch. Power on → proxyDHCP advertises the bootfile → TFTP delivers it → firmware validates the OEM signature → loads the boot configuration and image → Windows PE → orchestrator → vendor installer → fully provisioned OS.",
+        },
+      ],
+      deepDives: [
+        {
+          title: "The shim binary",
+          body: "Switching to the production chain broke a specific Windows PE protocol call that the locked vendor installer relied on to detect UEFI vs BIOS state. Solved with a small self-contained .NET single-file shim that replaces the affected utility inside the boot image: the broken call becomes a no-op return-0; every other invocation forwards to the renamed original. A small registry write before launch tells the installer what it expects to see. The vendor installer was never modified — the broken protocol was simply removed from its dependency graph.",
+        },
+        {
+          title: "Server stack & operational mindedness",
+          body: "An Ubuntu PXE host running proxyDHCP and TFTP, configured to coexist cleanly with the corporate DHCP infrastructure without touching IP allocations. The boot image is hardlinked across multiple lookup paths so an edit anywhere is an edit everywhere. Byte-identical boot configuration data sits at every path firmware might query, so different hardware revisions behave identically. The earlier proof-of-concept chain stays archived under a documented revert runbook as the emergency fallback.",
+        },
+      ],
+      pullQuote: "\"Many engineers had wanted this automated. Nobody had shipped it.\"",
+      outcome: [
+        "Replaced ~1,000 per-machine technician touches with a true zero-touch workflow.",
+        "Secure Boot enforced end-to-end across the refresh cycle; FDA compliance preserved.",
+        "Architecture and live workflow presented to 50+ engineers and stakeholders.",
+        "Earlier proof-of-concept chain preserved under a documented revert runbook as emergency fallback.",
+      ],
+      contributor: "Separately contributed to an internal VM deployment platform — wrote the Windows guest post-provisioning automation layer (hostname assignment, service enablement, certificate imports, disk expansion, OpenSSH setup, license activation, deployment validation) and built a JSON-driven environment-validation pipeline that standardised how teams verify test environments at scale.",
+    },
+    skills: [
+      "PowerShell", "Python", ".NET", "C#", "Ubuntu",
+      "PXE", "TFTP", "UEFI Secure Boot", "Windows PE",
+      "Nutanix", "VMware", "Healthcare IT",
+    ],
+  },
+  {
+    type: "work",
+    title: "Frontend Developer Intern",
+    company: "Top Choice Realty",
+    period: "Apr 2024 — Aug 2024",
+    location: "New York, NY",
+    logo: topChoiceLogo,
+    logoPlate: true,
+    accent: "#7C5CFF",
+    description:
+      "Built a full-stack client management application that transformed how 20+ real estate agents access and manage 800+ client records, with measurable business impact.",
+    highlights: [
+      { title: "Full-Stack Web Application", description: "Engineered and launched a client management web application using React, Python, and SQL, reducing average client lookup time by 85% (from 5+ minutes to 45 seconds)." },
+      { title: "User-Friendly Interface", description: "Created intuitive interfaces with guided navigation and visual search, empowering non-technical agents to independently manage 800+ client records." },
+      { title: "Database Optimization", description: "Optimized queries and implemented caching, accelerating data retrieval 3x and saving the team 15+ hours weekly in admin tasks." },
+      { title: "Measurable Business Impact", description: "Eliminated 90% of IT support requests and improved client response times by 60%." },
+    ],
+    metrics: [
+      { value: "85%", label: "Faster Lookups" },
+      { value: "3x", label: "Query Speed" },
+      { value: "90%", label: "Less IT Tickets" },
+      { value: "15+", label: "Hours Saved/Week" },
+    ],
+    skills: ["React", "Python", "SQL", "Full-Stack", "UI/UX Design", "Database Optimization", "REST APIs"],
+  },
+  {
+    type: "work",
+    title: "Computer Technician Intern",
+    company: "Robert DeFalco Realty",
+    period: "Jun 2023 — Sep 2023",
+    location: "New York, NY",
+    logo: robertDefalcoLogo,
+    logoPlate: true,
+    accent: "#7C5CFF",
+    description:
+      "Hands-on IT support across multiple office locations — configuring systems and troubleshooting technical issues to maintain optimal performance.",
+    metrics: [
+      { value: "3+", label: "Office Locations" },
+      { value: "15+", label: "Systems Configured" },
+      { value: "25+", label: "Issues Resolved" },
+      { value: "95%+", label: "System Uptime" },
+    ],
+    highlights: [
+      { title: "Multi-Location Support", description: "On-site support across 3+ offices; configured 15+ systems across Windows, macOS, and Linux." },
+      { title: "Troubleshooting", description: "Resolved 25+ technical issues spanning OS platforms and hardware configurations." },
+      { title: "System Maintenance", description: "Maintained 95%+ uptime across all sites through proactive maintenance and fast issue resolution." },
+    ],
+    skills: ["Windows", "macOS", "Linux", "Hardware Config", "Troubleshooting", "IT Support", "System Administration"],
+  },
+  {
+    type: "education",
+    title: "Computer Science & Political Science",
+    company: "Northeastern University",
+    period: "2023 — 2027",
+    location: "Boston, MA",
+    logo: neuLogo,
+    accent: "#C8102E",
+    description:
+      "Combined-major B.S. in Computer Science and Political Science, with a focus on software development, systems programming, and algorithm design. Active in the co-op program for real-world engineering experience.",
+    metrics: [
+      { value: "B.S.", label: "Degree" },
+      { value: "2027", label: "Expected" },
+      { value: "Co-op", label: "Program" },
+    ],
+    coursework: ["Data Structures & Algorithms", "Object-Oriented Design", "Systems Programming", "Database Management", "Computer Networks"],
+  },
+];

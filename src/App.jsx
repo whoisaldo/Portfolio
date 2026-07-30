@@ -1,55 +1,39 @@
 // src/App.jsx — Cyberpunk-restrained Heads-Up Portfolio
-import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect } from "react";
+import { motion, AnimatePresence, MotionConfig } from "framer-motion";
 import Navbar from "./components/Navbar";
-import SideRail from "./components/SideRail";
+import Chrome from "./components/Chrome";
 import Hero from "./components/Hero";
-import BentoProjects from "./components/BentoProjects";
+import ProjectsSection from "./components/projects/ProjectsSection";
 import Experience from "./components/Experience";
 import Terminal from "./components/Terminal";
-import BootSequence from "./components/hud/BootSequence";
-import HUDOverlay from "./components/hud/HUDOverlay";
+import BootSequence from "./components/BootSequence";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { Github, Linkedin, Download, ArrowRight } from "lucide-react";
 import eternalReverseMark from "./assets/EternalReverse/EternalReverseMiniLogo.png";
 
 export default function App() {
   const pdf = (import.meta.env.BASE_URL || '/') + "resume.pdf";
-  const [showResumeButton, setShowResumeButton] = useState(false);
-  const [bootDone, setBootDone] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return sessionStorage.getItem("er.boot.v2.seen") === "1";
-  });
-
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.history.scrollRestoration = 'manual';
-      window.scrollTo(0, 0);
-    }
-    const handleScroll = () => setShowResumeButton(window.scrollY > 800);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-
-    // Hard fallback: if the boot doesn't fire onDone within 4s, force-reveal.
-    const bootFallback = setTimeout(() => setBootDone(true), 4000);
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      clearTimeout(bootFallback);
-    };
-  }, []);
+      // Only reset when there is no deep link; otherwise this races the
+      // browser's own hash scroll and dumps /#experience at the top.
+      if (!window.location.hash) window.scrollTo(0, 0);
+    }  }, []);
 
   return (
     <ErrorBoundary>
+    <MotionConfig reducedMotion="user">
     <div className="min-h-screen bg-ink text-bone font-mono">
-      <BootSequence onDone={() => setBootDone(true)} />
-      <HUDOverlay visible={bootDone} />
+      <BootSequence />
 
       <Navbar />
-      <SideRail />
+      <Chrome />
 
       <main>
         <Hero />
-        <BentoProjects />
+        <ProjectsSection />
         <Experience />
         <Terminal />
 
@@ -285,24 +269,8 @@ export default function App() {
         </div>
       </motion.footer>
 
-      <AnimatePresence>
-        {showResumeButton && (
-          <motion.a
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            href={pdf}
-            download="Ali_Younes_Resume.pdf"
-            className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3
-                       bg-signal text-ink font-mono text-xs uppercase tracking-[0.2em] font-bold
-                       border-2 border-signal hover:bg-ink hover:text-signal transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            Résumé
-          </motion.a>
-        )}
-      </AnimatePresence>
     </div>
+    </MotionConfig>
     </ErrorBoundary>
   );
 }

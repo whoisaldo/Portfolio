@@ -1,301 +1,178 @@
-// src/components/Hero.jsx — Mission Briefing
-import React, { useState, useEffect } from "react";
+// src/components/Hero.jsx
+//
+// What was removed and why:
+//
+//   "MISSION_BRIEFING // 001 — SUBJECT: ALI_YOUNES"   invented framing
+//   a 7-row "vitals" panel                            six of its seven rows were
+//                                                     ornament: a live clock,
+//                                                     42.3601°N 71.0589°W,
+//                                                     "IV — vol. xxvi",
+//                                                     "uplink ● stable", and a
+//                                                     version string
+//   "architecting scalable enterprise infrastructure" typed one character at a
+//                                                     time as the first sentence
+//                                                     on the site — four words,
+//                                                     three of them LinkedIn
+//
+// The replacement line is not invented either. It is the through-line of the
+// work itself: EternalMonitor exists because he refused to pay $40 for an
+// iPad-as-second-display app, Moops because "Goodreads is fine, but it's not
+// ours", Eternal Rich Presence because Apple Music does not talk to Discord,
+// EternalExchange because Fabric had no equivalent-exchange mod. The Philips
+// case study ends on the same note: "Nobody had shipped it."
+//
+// What stayed: the Fraunces italic name at display scale. It is the strongest
+// piece of design on the site and it does not need help.
+//
+// The layout is wide rather than a centred column — the name runs across the
+// gutter and the facts sit under it as a horizontal ledger.
+import React from "react";
 import { motion } from "framer-motion";
-import { Github, Linkedin, Download, ArrowRight, MapPin, Radio } from "lucide-react";
-import GlitchText from "./hud/GlitchText";
-import BracketFrame from "./hud/BracketFrame";
+import { ArrowRight, Github, Linkedin, Mail } from "lucide-react";
+import { profile, links } from "../data/profile";
+import { scrollToSection } from "../lib/scroll";
+
+const rise = {
+  initial: { opacity: 0, y: 22 },
+  animate: { opacity: 1, y: 0 },
+};
 
 export default function Hero() {
-  const pdf = (import.meta.env.BASE_URL || '/') + "resume.pdf";
-
-  const [subtitleText, setSubtitleText] = useState("");
-  const fullSubtitle = "architecting scalable enterprise infrastructure.";
-  const [cursorOn, setCursorOn] = useState(true);
-  const [clock, setClock] = useState("--:--:--");
-
-  useEffect(() => {
-    let i = 0;
-    const tick = () => {
-      if (i <= fullSubtitle.length) {
-        setSubtitleText(fullSubtitle.slice(0, i));
-        i++;
-        setTimeout(tick, 32);
-      }
-    };
-    const t = setTimeout(tick, 1200);
-    return () => clearTimeout(t);
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => setCursorOn(v => !v), 540);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const pad = (n) => String(n).padStart(2, "0");
-    const tick = () => {
-      const d = new Date();
-      setClock(`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
+  const pdf = (import.meta.env.BASE_URL || "/") + "resume.pdf";
 
   return (
     <section
       id="hero"
-      className="relative min-h-screen flex items-center overflow-hidden bg-ink grain"
+      className="relative min-h-[100svh] flex flex-col justify-center gutter pt-32 pb-16 overflow-hidden"
     >
-      {/* Background layers — lighter blur to reduce GPU cost */}
-      <div className="absolute inset-0 crt-grid opacity-40 pointer-events-none" />
+      {/* One bloom, one grid. The old hero stacked a bloom, a CRT grid, a
+          diagonal rule, film grain and scanlines simultaneously. */}
+      <div className="absolute inset-0 crt-grid opacity-40 pointer-events-none" aria-hidden="true" />
       <div
-        className="absolute -top-44 -right-40 h-[520px] w-[520px] rounded-full signal-bloom opacity-40 blur-2xl pointer-events-none"
-        aria-hidden
+        className="absolute -top-40 right-[-10%] w-[46rem] h-[46rem] signal-bloom blur-3xl opacity-40 pointer-events-none"
+        aria-hidden="true"
       />
-      <div className="scan-rule top-[26%] left-[-50%]" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full py-32">
-        {/* Top kicker — mission briefing tag */}
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="mb-10"
+      <div className="relative w-full">
+        {/* ---- name ------------------------------------------------------- */}
+        <motion.h1
+          {...rise}
+          transition={{ duration: 0.9, ease: [0.2, 0.7, 0.2, 1] }}
+          className="serif-display text-primary leading-[0.82] tracking-[-0.04em]"
+          style={{ fontSize: "clamp(4rem, 16vw, 17rem)" }}
         >
-          <BracketFrame as="div" size="sm" className="inline-flex items-center gap-3 px-3 py-1.5 bg-concrete/60">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-hud opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-hud" />
-            </span>
-            <span className="font-mono text-[10px] tracking-[0.3em] text-hud uppercase">
-              mission_briefing // 001
-            </span>
-            <span className="font-mono text-[10px] tracking-[0.3em] text-bone/45 uppercase hidden sm:inline">
-              — subject: ali_younes
-            </span>
-          </BracketFrame>
-        </motion.div>
+          <span className="italic">{profile.first}</span>{" "}
+          <span className="italic text-signal">{profile.last}</span>
+        </motion.h1>
 
-        <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-start">
-          {/* Left 8 cols */}
-          <div className="lg:col-span-8">
-            {/* Status pills */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="flex flex-col gap-2 mb-10 max-w-xl"
-            >
-              <BracketFrame size="sm" className="flex items-center gap-3 px-3 py-2 bg-concrete/40">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-signal opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-signal" />
-                </span>
-                <span className="mono-label text-signal">now</span>
-                <span className="font-mono text-xs text-bone/85">SDE Intern @ AWS CloudFormation · Infrastructure as Code · Seattle, WA</span>
-              </BracketFrame>
-              <BracketFrame size="sm" className="flex items-center gap-3 px-3 py-2 bg-concrete/40">
-                <span className="relative flex h-2 w-2">
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-bone/40" />
-                </span>
-                <span className="mono-label text-bone/50">prev · jan–jun ’26</span>
-                <span className="font-mono text-xs text-bone/60">SWE Co-op @ Philips · Cambridge, MA</span>
-              </BracketFrame>
-            </motion.div>
+        {/* ---- the line --------------------------------------------------- */}
+        <motion.p
+          {...rise}
+          transition={{ duration: 0.8, delay: 0.12, ease: [0.2, 0.7, 0.2, 1] }}
+          className="mt-8 font-serif italic text-muted max-w-[34ch]"
+          style={{ fontSize: "clamp(1.15rem, 2vw, 1.75rem)", lineHeight: 1.35 }}
+        >
+          I build the tools I wanted to exist.
+        </motion.p>
 
-            {/* Display headline — GlitchText reveal */}
-            <h1
-              className="serif-display text-bone mb-8"
-              style={{ fontSize: 'clamp(3.2rem, 12vw, 12rem)', lineHeight: 0.88 }}
-            >
-              <span className="block">
-                <GlitchText text="Ali" delay={0.3} italic />
+        {/* ---- ledger ----------------------------------------------------- */}
+        {/* A row across the full gutter rather than a boxed panel in a right
+            column. Three facts, all checkable. */}
+        <motion.dl
+          {...rise}
+          transition={{ duration: 0.8, delay: 0.2, ease: [0.2, 0.7, 0.2, 1] }}
+          className="mt-14 grid gap-px bg-hud/15 border-y border-hud/15 sm:grid-cols-3"
+        >
+          <div className="bg-ink px-5 py-5">
+            <dt className="mono-label text-ember mb-2 flex items-center gap-2">
+              {/* The one pulsing dot on the page. There were seven. */}
+              <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+                <span className="animate-signal-ping absolute inline-flex h-full w-full rounded-full bg-ember" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ember" />
               </span>
-              <span className="block">
-                <span className="text-bone/40">
-                  <GlitchText text="/" delay={0.7} />
-                </span>
-                <span className="text-signal">
-                  <GlitchText text=" Younes" delay={0.8} />
-                </span>
-                <span
-                  className={`align-middle inline-block w-3 md:w-5 h-[0.85em] bg-signal ml-2 md:ml-3 ${cursorOn ? 'opacity-100' : 'opacity-0'} transition-opacity duration-75`}
-                  aria-hidden
-                />
+              Now
+            </dt>
+            <dd className="text-sm text-muted leading-relaxed">
+              {profile.now.role} at {profile.now.org}
+              <span className="block text-dim">
+                {profile.now.detail} · {profile.now.location}
               </span>
-            </h1>
-
-            {/* Subtitle */}
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 1.1 }}
-              className="font-mono text-sm md:text-base text-bone/70 max-w-2xl mb-2"
-            >
-              <span className="text-hud">›</span>{" "}
-              <span className="text-bone">ali@eternalreverse:~$</span>{" "}
-              <span className="text-bone/85">{subtitleText}</span>
-              <span className={`inline-block w-2 h-4 align-middle bg-bone/70 ml-0.5 ${cursorOn ? 'opacity-100' : 'opacity-0'}`} />
-            </motion.p>
-
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 2.0 }}
-              className="font-serif italic text-sm md:text-base text-bone/60 max-w-2xl mb-10"
-            >
-              CS &amp; Political Science · Northeastern University · Class of ’27
-            </motion.p>
-
-            {/* CTAs */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.7 }}
-              className="flex flex-wrap gap-3 mb-10"
-            >
-              <a
-                href="#projects"
-                data-hud-target="link"
-                className="scan-beam-host group relative inline-flex items-center gap-3 px-6 py-3 bg-signal text-ink font-mono text-sm uppercase tracking-[0.2em] font-bold
-                           border-2 border-signal hover:bg-transparent hover:text-signal transition-colors duration-200"
-              >
-                view work
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-              </a>
-              <a
-                href={pdf}
-                download
-                data-hud-target="link"
-                className="scan-beam-host group relative inline-flex items-center gap-3 px-6 py-3 border-2 border-bone/40 text-bone
-                           font-mono text-sm uppercase tracking-[0.2em] font-bold
-                           hover:bg-bone hover:text-ink hover:border-bone transition-colors duration-200"
-              >
-                <Download className="w-4 h-4" />
-                résumé
-              </a>
-              <a
-                href="#contact"
-                data-hud-target="link"
-                className="scan-beam-host group relative inline-flex items-center gap-3 px-6 py-3 border-2 border-hud/40 text-hud/85
-                           font-mono text-sm uppercase tracking-[0.2em] font-bold
-                           hover:text-hud hover:border-hud transition-colors duration-200"
-              >
-                let’s talk
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
-              </a>
-            </motion.div>
-
-            {/* Social */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.9 }}
-              className="flex items-center gap-6"
-            >
-              <a
-                href="https://github.com/whoisaldo"
-                target="_blank"
-                rel="noreferrer"
-                data-hud-target="link"
-                className="flex items-center gap-2 text-bone/60 hover:text-hud transition-colors font-mono text-xs uppercase tracking-[0.2em]"
-              >
-                <Github className="w-4 h-4" /> <span className="ink-underline">github</span>
-              </a>
-              <a
-                href="https://www.linkedin.com/in/alialdoyounes/"
-                target="_blank"
-                rel="noreferrer"
-                data-hud-target="link"
-                className="flex items-center gap-2 text-bone/60 hover:text-hud transition-colors font-mono text-xs uppercase tracking-[0.2em]"
-              >
-                <Linkedin className="w-4 h-4" /> <span className="ink-underline">linkedin</span>
-              </a>
-              <a
-                href="mailto:younes.al@northeastern.edu"
-                data-hud-target="link"
-                className="text-bone/60 hover:text-hud transition-colors font-mono text-xs uppercase tracking-[0.2em]"
-              >
-                ✉ <span className="ink-underline">email</span>
-              </a>
-            </motion.div>
+            </dd>
           </div>
 
-          {/* Right 4 cols — Vitals panel */}
-          <motion.aside
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 1.2 }}
-            className="lg:col-span-4 lg:mt-4"
-          >
-            <BracketFrame className="dossier-shell p-5 lg:p-6">
-              <div className="flex items-center justify-between mb-5">
-                <span className="telemetry text-hud/85">// current_status</span>
-                <span className="font-mono text-[10px] text-bone/35">v.05.10.26</span>
-              </div>
+          <div className="bg-ink px-5 py-5">
+            <dt className="mono-label text-dim mb-2">Previously</dt>
+            <dd className="text-sm text-muted leading-relaxed">
+              {profile.prev.role} at {profile.prev.org}
+              <span className="block text-dim">
+                {profile.prev.period} · {profile.prev.location}
+              </span>
+            </dd>
+          </div>
 
-              <div className="space-y-3 font-mono text-[12px]">
-                <div className="flex items-center justify-between border-b border-bone/8 pb-2">
-                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px]">clock</span>
-                  <span className="text-hud font-bold tabular-nums">{clock}</span>
-                </div>
+          <div className="bg-ink px-5 py-5">
+            <dt className="mono-label text-dim mb-2">Studying</dt>
+            <dd className="text-sm text-muted leading-relaxed">
+              {profile.degree}
+              <span className="block text-dim">
+                {profile.school} · Class of {profile.gradYear}
+              </span>
+            </dd>
+          </div>
+        </motion.dl>
 
-                <div className="flex items-center justify-between border-b border-bone/8 pb-2">
-                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px] flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> loc
-                  </span>
-                  <span className="text-bone">boston, ma</span>
-                </div>
-
-                <div className="flex items-center justify-between border-b border-bone/8 pb-2">
-                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px]">coords</span>
-                  <span className="text-bone/75 tabular-nums">42.3601°N 71.0589°W</span>
-                </div>
-
-                <div className="flex items-center justify-between border-b border-bone/8 pb-2">
-                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px]">edition</span>
-                  <span className="text-bone/75">IV — vol. xxvi</span>
-                </div>
-
-                <div className="flex items-center justify-between border-b border-bone/8 pb-2">
-                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px]">subject</span>
-                  <span className="text-bone/75">cs · polisci · neu ’27</span>
-                </div>
-
-                <div className="flex items-center justify-between border-b border-bone/8 pb-2">
-                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px] flex items-center gap-1">
-                    <Radio className="w-3 h-3" /> uplink
-                  </span>
-                  <span className="flex items-center gap-1.5 text-hud">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-hud opacity-75" />
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-hud" />
-                    </span>
-                    stable
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-bone/45 uppercase tracking-[0.2em] text-[10px]">now</span>
-                  <span className="text-ember tracking-tight">⏵ aws_cfn // seattle</span>
-                </div>
-              </div>
-            </BracketFrame>
-          </motion.aside>
-        </div>
-
-        {/* Scroll prompt */}
+        {/* ---- actions ---------------------------------------------------- */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 2.5 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none"
+          {...rise}
+          transition={{ duration: 0.8, delay: 0.28, ease: [0.2, 0.7, 0.2, 1] }}
+          className="mt-10 flex flex-wrap items-center gap-x-3 gap-y-4"
         >
-          <span className="font-mono text-[10px] tracking-[0.4em] text-hud/60 uppercase">
-            ▼ initialize_scroll
-          </span>
-          <span className="h-8 w-px bg-gradient-to-b from-hud/60 to-transparent animate-dot-drift" />
+          <button
+            type="button"
+            onClick={() => scrollToSection("projects")}
+            className="scan-beam-host group inline-flex items-center gap-2.5 px-6 py-3 bg-signal text-ink
+                       mono-label font-bold hover:bg-signal-soft transition-colors duration-200"
+          >
+            See the work
+            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+          </button>
+
+          <a
+            href={pdf}
+            download="Ali_Younes_Resume.pdf"
+            className="inline-flex items-center gap-2 px-6 py-3 mono-label border border-hud/40 text-muted
+                       hover:border-hud-soft hover:text-primary transition-colors duration-200"
+          >
+            Résumé
+          </a>
+
+          <div className="flex items-center gap-5 sm:ml-4">
+            <a
+              href={links.github}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="GitHub"
+              className="text-dim hover:text-signal-soft transition-colors"
+            >
+              <Github className="w-4 h-4" />
+            </a>
+            <a
+              href={links.linkedin}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="LinkedIn"
+              className="text-dim hover:text-signal-soft transition-colors"
+            >
+              <Linkedin className="w-4 h-4" />
+            </a>
+            <a
+              href={links.email}
+              aria-label="Email"
+              className="text-dim hover:text-signal-soft transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+            </a>
+          </div>
         </motion.div>
       </div>
     </section>

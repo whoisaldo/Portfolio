@@ -1,6 +1,6 @@
 # Ali Younes — Portfolio
 
-Personal portfolio for Ali Younes — Computer Science & Political Science at Northeastern University, currently SWE Co-op at Philips, incoming SDE Intern at AWS ADC (Summer ’26).
+Personal portfolio for Ali Younes — Computer Science & Political Science at Northeastern University, previous SWE Co-op at Philips, current SDE Intern at AWS CloudFormation (IaC).
 
 Live: **[aliyounes.dev](https://aliyounes.dev)**
 
