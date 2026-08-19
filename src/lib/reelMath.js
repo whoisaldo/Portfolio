@@ -58,7 +58,12 @@ export function progressForIndex(i, n) {
 // Track geometry, in vw. Kept in viewport units on purpose: a `translateX`
 // expressed in vw survives a window resize with no listener and no
 // recalculation, which removes a whole class of desync.
-export const CARD_VW = 72;
+// 72 previously. At that width the card's content block came to ~1037px on a
+// 1440 screen and the key-art plate to ~590px — a third of the viewport on a
+// section that pins and owns the whole screen, which is what made the reel
+// read as small. 84 leaves 8vw of each neighbour showing, still enough to see
+// what is coming and what you passed.
+export const CARD_VW = 84;
 export const GAP_VW = 4;
 export const STEP_VW = CARD_VW + GAP_VW;
 /** Offset that centres card 0 in the viewport. */

@@ -66,7 +66,7 @@ export default function Navbar() {
           <a
             href={pdf}
             download="Ali_Younes_Resume.pdf"
-            className="scan-beam-host mono-label font-bold border border-signal px-4 py-2 text-signal
+            className="scan-beam-host mono-ui font-bold border border-signal px-5 py-2.5 text-signal
                        transition-colors duration-200 hover:bg-signal hover:text-ink"
           >
             Résumé
@@ -104,7 +104,7 @@ export default function Navbar() {
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className="mono-label text-dim py-3 transition-colors duration-200 hover:text-primary"
+                  className="mono-ui text-dim py-3 transition-colors duration-200 hover:text-primary"
                 >
                   {section.label}
                 </motion.a>
@@ -117,7 +117,7 @@ export default function Navbar() {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: navSections.length * 0.04 }}
-                className="mono-label font-bold border border-signal text-signal text-center px-4 py-3 mt-3"
+                className="mono-ui font-bold border border-signal text-signal text-center px-5 py-3 mt-3"
               >
                 Résumé
               </motion.a>

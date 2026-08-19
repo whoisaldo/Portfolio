@@ -81,7 +81,7 @@ export default function ProjectFrame({
       inert={!active}
       aria-hidden={!active}
     >
-      <div className="relative w-full max-w-[1180px] mx-auto grid grid-cols-12 gap-8 items-center">
+      <div className="relative w-full max-w-[1560px] mx-auto grid grid-cols-12 gap-x-10 gap-y-8 items-center">
         {/* ---- plate ------------------------------------------------------ */}
         <div className="col-span-12 lg:col-span-7 relative">
           <div className="relative aspect-[3/2] bracket-frame">
@@ -156,17 +156,17 @@ export default function ProjectFrame({
               style={{ backgroundColor: "rgb(var(--accent))" }}
               aria-hidden="true"
             />
-            <span className="mono-label text-dim">
+            <span className="mono-ui text-dim">
               {String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}
             </span>
             {project.status === "live" && (
-              <span className="mono-label text-ember">live</span>
+              <span className="mono-ui text-ember">live</span>
             )}
             {project.status === "in-dev" && (
-              <span className="mono-label text-dim">in development</span>
+              <span className="mono-ui text-dim">in development</span>
             )}
             {project.status === "pre-release" && (
-              <span className="mono-label text-dim">pre-release</span>
+              <span className="mono-ui text-dim">pre-release</span>
             )}
           </div>
 
@@ -174,21 +174,19 @@ export default function ProjectFrame({
             as="h3"
             text={project.title}
             active={active}
-            className="serif-display italic text-primary text-4xl xl:text-6xl leading-[0.95] mb-4 chromatic-aberration"
+            className="serif-display italic text-primary text-5xl xl:text-6xl leading-[0.95] mb-5 chromatic-aberration"
           />
 
-          <p className="mono-label text-dim mb-6">{project.tagline}</p>
+          <p className="mono-ui text-signal-soft mb-7">{project.tagline}</p>
 
-          <p className="font-serif text-muted text-[15px] xl:text-base leading-[1.6] mb-7 max-w-[46ch]">
-            {project.description}
-          </p>
+          <p className="prose-dark mb-8 max-w-[46ch]">{project.description}</p>
 
-          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 mb-8" aria-label="Stack">
+          <ul className="flex flex-wrap gap-x-4 gap-y-2 mb-9" aria-label="Stack">
             {project.tech.slice(0, 6).map((t) => (
-              <li key={t} className="mono-label text-faint">{t}</li>
+              <li key={t} className="mono-ui text-dim">{t}</li>
             ))}
             {project.tech.length > 6 && (
-              <li className="mono-label text-faint">+{project.tech.length - 6}</li>
+              <li className="mono-ui text-dim">+{project.tech.length - 6}</li>
             )}
           </ul>
 
@@ -196,12 +194,12 @@ export default function ProjectFrame({
             <button
               type="button"
               onClick={onOpen}
-              className="scan-beam-host group inline-flex items-center gap-2.5 px-5 py-2.5 mono-label font-bold
+              className="scan-beam-host group inline-flex items-center gap-2.5 px-6 py-3.5 mono-ui font-bold
                          text-ink transition-colors duration-200"
               style={{ backgroundColor: "rgb(var(--accent))" }}
             >
               Open
-              <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </button>
 
             {project.live && (
@@ -209,10 +207,10 @@ export default function ProjectFrame({
                 href={project.live}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 mono-label border border-hud/40 text-muted
+                className="inline-flex items-center gap-2 px-6 py-3.5 mono-ui border border-hud/40 text-muted
                            hover:border-hud-soft hover:text-primary transition-colors duration-200"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink className="w-4 h-4" />
                 Live
               </a>
             )}
@@ -222,14 +220,14 @@ export default function ProjectFrame({
                 href={project.github}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 mono-label border border-hud/25 text-dim
+                className="inline-flex items-center gap-2 px-6 py-3.5 mono-ui border border-hud/25 text-dim
                            hover:border-hud hover:text-muted transition-colors duration-200"
               >
-                <Github className="w-3.5 h-3.5" />
+                <Github className="w-4 h-4" />
                 Source
               </a>
             ) : (
-              <span className="inline-flex items-center gap-2 px-5 py-2.5 mono-label border border-hud/15 text-faint">
+              <span className="inline-flex items-center gap-2 px-6 py-3.5 mono-ui border border-hud/15 text-faint">
                 Source private
               </span>
             )}

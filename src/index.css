@@ -117,11 +117,30 @@
   .prose-lede { font-size: 1.375rem; }
 }
 
+/* Peripheral chrome ONLY — section labels, field names, status flags. Things
+   you read once to orient yourself and then stop seeing.
+
+   Was 0.625rem. At 10px with 0.22em of tracking this is at the floor of what
+   is comfortably legible, which was fine for chrome but not for the four other
+   jobs it had drifted into doing: taglines, stack lists, key/value pairs and
+   button labels were all set in it. Those moved to `.mono-ui` below; the 11px
+   here is the small lift the remaining chrome still wanted. */
 .mono-label {
   font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.2em;
+}
+
+/* Mono that carries content or takes a click: buttons, taglines, stack lists,
+   spec tables. Bigger than chrome and tracked far less tightly, because these
+   are strings you actually read rather than glance past — 0.22em tracking on a
+   word you have to parse is what made the old buttons feel like fine print. */
+.mono-ui {
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 .telemetry {
