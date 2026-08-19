@@ -199,20 +199,19 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
                   </dl>
                 </div>
 
-                {/* The one paragraph everyone reads, so it gets the size of a
-                    lede rather than of body copy — and `muted` rather than the
-                    old `dim`, which sat at 48% opacity and under 4.5:1. */}
-                <p className="lg:col-span-9 font-serif text-muted text-[17px] md:text-xl leading-[1.65] max-w-[68ch]">
+                {/* The one paragraph everyone reads, so it is set as a lede. */}
+                <p className="lg:col-span-9 prose-dark prose-lede max-w-[62ch]">
                   {exp.description}
                 </p>
               </div>
 
-              {/* band 2 — the numbers, as an instrument strip. Four across the
-                  full width: in the old 400px track, two-up meant labels like
-                  "line + branch on new code" wrapped and collided. */}
+              {/* band 2 — the numbers, as an instrument strip. Hairline
+                  dividers rather than four figures floating in a row: the
+                  rules are what make it read as one panel instead of four
+                  unrelated statistics. */}
               {exp.metrics && (
                 <dl
-                  className={`mt-14 md:mt-16 pt-10 border-t border-hud/20 grid grid-cols-2 gap-x-10 gap-y-10 ${
+                  className={`mt-12 md:mt-14 border-y border-hud/20 divide-y divide-hud/15 md:divide-y-0 md:divide-x md:divide-hud/15 grid grid-cols-1 sm:grid-cols-2 ${
                     // Northeastern carries three, everything else four. Hard-coding
                     // four columns left that entry with an empty quarter — the same
                     // hole this pass exists to remove, just smaller.
@@ -220,38 +219,47 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
                   }`}
                 >
                   {exp.metrics.map((m) => (
-                    <div key={m.label}>
+                    <div key={m.label} className="px-0 md:px-8 first:md:pl-0 py-7 md:py-8">
                       <dt
-                        className="serif-display italic text-3xl md:text-4xl leading-none"
+                        className="serif-display italic text-3xl md:text-[2.75rem] leading-none"
                         style={{ color: "rgb(var(--accent))" }}
                       >
                         {m.value}
                       </dt>
-                      <dd className="mono-label text-faint mt-3">{m.label}</dd>
+                      <dd className="mono-label text-dim mt-3.5">{m.label}</dd>
                     </div>
                   ))}
                 </dl>
               )}
 
-              {/* band 3 — the depth, two-up. Numbered because the section is
-                  built as an index, and the numerals give each entry a hard
-                  left edge to start from. */}
+              {/* band 3 — the depth, two-up on real surfaces.
+
+                  These were bare paragraphs sitting directly on the page
+                  ground, which is most of why the panel read as unstyled text
+                  rather than as an interface: nothing contained them, so the
+                  space around them was void rather than margin. On a raised
+                  card each one fills its cell, and the rule under the numeral
+                  gives the block an internal edge to hang from. */}
               {exp.highlights && (
-                <ol className="mt-14 md:mt-16 grid gap-x-14 gap-y-12 md:grid-cols-2">
+                <ol className="mt-12 md:mt-14 grid gap-5 md:grid-cols-2">
                   {exp.highlights.map((h, i) => (
-                    <li key={h.title} className="max-w-[56ch]">
-                      <span
-                        className="mono-label block mb-3"
-                        style={{ color: "rgb(var(--accent) / 0.7)" }}
-                      >
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <h4 className="text-primary text-base md:text-lg mb-2.5 leading-snug">
+                    <li
+                      key={h.title}
+                      className="border border-hud/20 bg-ink-raised/50 p-7 md:p-9"
+                    >
+                      <div className="flex items-center gap-4 mb-6">
+                        <span
+                          className="mono-label"
+                          style={{ color: "rgb(var(--accent))" }}
+                        >
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <span className="h-px flex-1 bg-hud/20" aria-hidden="true" />
+                      </div>
+                      <h4 className="heading-text text-primary text-lg md:text-xl mb-3.5 leading-snug">
                         {h.title}
                       </h4>
-                      <p className="font-serif text-muted text-[16px] md:text-[17px] leading-[1.65]">
-                        {h.description}
-                      </p>
+                      <p className="prose-dark">{h.description}</p>
                     </li>
                   ))}
                 </ol>
@@ -261,13 +269,13 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
                   in the old right-hand track, which made five short strings
                   five lines tall. */}
               {exp.coursework && (
-                <div className="mt-14 md:mt-16">
+                <div className="mt-12 md:mt-14">
                   <h4 className="mono-label text-faint mb-5">Coursework</h4>
-                  <ul className="flex flex-wrap gap-x-3 gap-y-3">
+                  <ul className="flex flex-wrap gap-3">
                     {exp.coursework.map((c) => (
                       <li
                         key={c}
-                        className="font-serif text-muted text-[16px] border border-hud/20 px-4 py-2"
+                        className="prose-dark border border-hud/20 bg-ink-raised/50 px-5 py-3"
                       >
                         {c}
                       </li>
@@ -314,38 +322,49 @@ function CaseStudy({ cs, company }) {
         {cs.tagline}
       </p>
 
-      <Row label="The problem" className="mb-12">
-        <p className="font-serif text-muted text-[16px] md:text-[17px] leading-[1.65]">
-          {cs.problem}
-        </p>
+      <Row label="The problem" className="mb-14">
+        <p className="prose-dark">{cs.problem}</p>
       </Row>
 
-      <Row label="Two attempts" className="mb-12">
-      <ol className="space-y-8">
-        {cs.attempts.map((a, i) => {
-          const shipped = i === cs.attempts.length - 1;
-          return (
-            <li key={a.label} className="pl-7 relative">
-              <span
-                className="absolute left-0 top-[0.45rem] h-2.5 w-2.5"
-                style={{
-                  backgroundColor: shipped ? "#36d686" : "transparent",
-                  border: shipped ? "none" : "1px solid #ff3d64",
-                }}
-                aria-hidden="true"
-              />
-              <h5 className="text-primary text-base mb-2">
-                <span className="mono-label text-faint mr-3">{a.label}</span>
-                {a.title}
-              </h5>
-              <p className="font-serif text-muted text-[16px] md:text-[17px] leading-[1.65]">
-                {a.body}
-              </p>
-            </li>
-          );
-        })}
-      </ol>
-      </Row>
+      {/* Side by side rather than stacked. The two attempts are the argument
+          of this entry — one abandoned, one shipped — and putting them in a
+          row lets the pair be compared at a glance instead of remembered
+          across a scroll. It also gives the widest band on the panel real
+          content to occupy. */}
+      <div className="mb-14">
+        <h4 className="mono-label text-faint mb-5">Two attempts</h4>
+        <ol className="grid gap-5 lg:grid-cols-2">
+          {cs.attempts.map((a, i) => {
+            const shipped = i === cs.attempts.length - 1;
+            const status = shipped ? "#36d686" : "#ff3d64";
+            return (
+              <li
+                key={a.label}
+                className="border border-hud/20 bg-ink-raised/50 p-7 md:p-9 border-t-2"
+                style={{ borderTopColor: status }}
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <span
+                    className="h-2 w-2 shrink-0"
+                    style={{
+                      backgroundColor: shipped ? status : "transparent",
+                      border: shipped ? "none" : `1px solid ${status}`,
+                    }}
+                    aria-hidden="true"
+                  />
+                  <span className="mono-label" style={{ color: status }}>
+                    {a.label} · {shipped ? "Shipped" : "Abandoned"}
+                  </span>
+                </div>
+                <h5 className="heading-text text-primary text-lg md:text-xl mb-3.5 leading-snug">
+                  {a.title}
+                </h5>
+                <p className="prose-dark">{a.body}</p>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
 
       <blockquote className="border-y border-hud/20 py-8 mb-12">
         <p className="serif-display italic text-primary text-xl md:text-2xl leading-[1.3]">
@@ -353,38 +372,49 @@ function CaseStudy({ cs, company }) {
         </p>
       </blockquote>
 
-      <Row label="Deep dives" className="mb-12">
-      <div className="space-y-3">
-        {cs.deepDives.map((d) => (
-          <details key={d.title} className="group border border-hud/20">
-            <summary className="cursor-pointer list-none px-5 py-4 flex items-center justify-between gap-4 text-sm text-muted hover:text-primary transition-colors">
-              {d.title}
-              <span className="mono-label text-faint group-open:hidden">open</span>
-              <span className="mono-label text-faint hidden group-open:inline">close</span>
-            </summary>
-            <p className="font-serif text-muted text-[16px] md:text-[17px] leading-[1.65] px-5 pb-5">
-              {d.body}
-            </p>
-          </details>
-        ))}
+      <div className="mb-14">
+        <h4 className="mono-label text-faint mb-5">Deep dives</h4>
+        <div className="grid gap-4 lg:grid-cols-2">
+          {cs.deepDives.map((d) => (
+            <details
+              key={d.title}
+              className="group border border-hud/20 bg-ink-raised/50 open:bg-ink-raised"
+            >
+              <summary className="cursor-pointer list-none px-7 py-5 flex items-center justify-between gap-4 heading-text text-primary text-base hover:text-signal-soft transition-colors">
+                {d.title}
+                <span className="mono-label text-faint shrink-0 group-open:hidden">open</span>
+                <span className="mono-label text-faint shrink-0 hidden group-open:inline">
+                  close
+                </span>
+              </summary>
+              <p className="prose-dark px-7 pb-7">{d.body}</p>
+            </details>
+          ))}
+        </div>
       </div>
-      </Row>
 
-      <Row label="Outcome" className="mb-12">
-        <ul className="space-y-3">
+      {/* Two-up: four one-line results stacked in a column left three quarters
+          of the band empty beside them. */}
+      <div className="mb-14">
+        <h4 className="mono-label text-faint mb-5">Outcome</h4>
+        <ul className="grid gap-x-10 gap-y-4 lg:grid-cols-2">
           {cs.outcome.map((o) => (
-            <li key={o} className="flex gap-3 text-[16px] text-muted leading-relaxed">
-              <span style={{ color: "rgb(var(--accent))" }} aria-hidden="true">—</span>
+            <li key={o} className="flex gap-3.5 prose-dark">
+              <span
+                className="shrink-0 pt-[0.42em]"
+                style={{ color: "rgb(var(--accent))" }}
+                aria-hidden="true"
+              >
+                <span className="block h-px w-4 bg-current" />
+              </span>
               <span>{o}</span>
             </li>
           ))}
         </ul>
-      </Row>
+      </div>
 
       <Row label={`Also at ${company}`}>
-        <p className="font-serif text-muted text-[16px] md:text-[17px] leading-[1.65]">
-          {cs.contributor}
-        </p>
+        <p className="prose-dark">{cs.contributor}</p>
       </Row>
     </div>
   );
