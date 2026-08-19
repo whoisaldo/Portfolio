@@ -70,6 +70,53 @@
   letter-spacing: -0.03em;
 }
 
+/* Fraunces at a TEXT optical size, for headings that sit at body sizes.
+   The base rule pins every h1-h5 to `opsz 144` — the display cut, whose
+   hairlines are drawn to be seen at 60px and up. At the 16-18px a subheading
+   actually renders, those hairlines thin out to nearly nothing on the ink
+   ground, which is why small headings here read as mush. Same family, correct
+   cut, plus the weight small sizes need. */
+.heading-text {
+  font-family: 'Fraunces Variable', Fraunces, ui-serif, Georgia, serif;
+  font-variation-settings: "opsz" 20;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+/* Body prose on the dark ground.
+
+   Light text on a dark field looks thinner than the same face on paper — the
+   glyphs bleed outward into the background rather than the other way round —
+   so Newsreader at its regular weight reads spindly here even at a size that
+   would be comfortable in print. The `wght` axis is loaded for exactly this;
+   420 puts the stroke back. The rest is ordinary reading comfort: a longer
+   leading than UI text wants, and a hair of tracking to stop the serifs from
+   knitting together at 17px. */
+.prose-dark {
+  font-family: 'Newsreader Variable', Newsreader, ui-serif, Georgia, serif;
+  font-weight: 420;
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  letter-spacing: 0.004em;
+  color: rgb(239 236 229 / 0.86);
+}
+
+@media (min-width: 768px) {
+  .prose-dark { font-size: 1.125rem; }
+}
+
+/* The one paragraph in a panel that everybody reads. */
+.prose-lede {
+  font-weight: 400;
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  color: rgb(239 236 229 / 0.92);
+}
+
+@media (min-width: 768px) {
+  .prose-lede { font-size: 1.375rem; }
+}
+
 .mono-label {
   font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
   font-size: 0.625rem;
