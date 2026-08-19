@@ -103,14 +103,14 @@ export default function Contact() {
 
           <div className="lg:col-span-4">
             <h3 className="mono-label text-hud-soft">Résumé</h3>
-            <p className="font-serif text-muted text-[15px] leading-[1.7] mt-6 max-w-[38ch]">
+            <p className="prose-dark mt-6 max-w-[38ch]">
               Kept current with the AWS role.
             </p>
             <a
               href={pdf}
               download="Ali_Younes_Resume.pdf"
               className="scan-beam-host group inline-flex items-center gap-3 border border-signal bg-signal px-6 py-3 mt-7
-                         mono-label font-bold text-ink transition-colors duration-200
+                         mono-ui font-bold text-ink transition-colors duration-200
                          hover:bg-transparent hover:text-signal-soft"
             >
               <Download className="w-3.5 h-3.5" />

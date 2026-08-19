@@ -128,17 +128,17 @@ export default function Hero() {
           <button
             type="button"
             onClick={() => scrollToSection("projects")}
-            className="scan-beam-host group inline-flex items-center gap-2.5 px-6 py-3 bg-signal text-ink
-                       mono-label font-bold hover:bg-signal-soft transition-colors duration-200"
+            className="scan-beam-host group inline-flex items-center gap-2.5 px-7 py-3.5 bg-signal text-ink
+                       mono-ui font-bold hover:bg-signal-soft transition-colors duration-200"
           >
             See the work
-            <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
           </button>
 
           <a
             href={pdf}
             download="Ali_Younes_Resume.pdf"
-            className="inline-flex items-center gap-2 px-6 py-3 mono-label border border-hud/40 text-muted
+            className="inline-flex items-center gap-2 px-7 py-3.5 mono-ui border border-hud/40 text-muted
                        hover:border-hud-soft hover:text-primary transition-colors duration-200"
           >
             Résumé

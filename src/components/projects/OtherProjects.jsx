@@ -18,9 +18,14 @@ export default function OtherProjects({ projects, startIndex = 0 }) {
         </span>
       </div>
 
-      <ul className="grid gap-px bg-hud/15 border border-hud/15 sm:grid-cols-2 xl:grid-cols-3">
+      {/* Hairlines come from a border on each cell, not from `gap-px` over a
+          tinted container. The old technique draws the rules by letting the
+          container's background show through one-pixel gaps, which works only
+          while the last row is full — with seven items in a three-up grid the
+          two unfilled cells showed that background as a solid lighter block. */}
+      <ul className="grid border-t border-l border-hud/15 sm:grid-cols-2 xl:grid-cols-3">
         {projects.map((p, i) => (
-          <li key={p.title} className="bg-ink">
+          <li key={p.title} className="bg-ink border-r border-b border-hud/15">
             <a
               href={p.github}
               target="_blank"
@@ -33,15 +38,15 @@ export default function OtherProjects({ projects, startIndex = 0 }) {
                 </span>
                 <ArrowUpRight className="w-3.5 h-3.5 text-faint transition-all group-hover:text-signal-soft group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </div>
-              <h3 className="font-serif text-primary text-lg leading-snug">
+              <h3 className="heading-text text-primary text-xl leading-snug">
                 {p.title}
               </h3>
-              <p className="text-sm text-dim leading-relaxed grow">
+              <p className="prose-dark grow">
                 {p.description}
               </p>
               <ul className="flex flex-wrap gap-x-3 gap-y-1">
                 {p.tech.map((t) => (
-                  <li key={t} className="mono-label text-faint">{t}</li>
+                  <li key={t} className="mono-ui text-dim">{t}</li>
                 ))}
               </ul>
             </a>

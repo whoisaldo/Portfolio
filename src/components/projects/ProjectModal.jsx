@@ -156,15 +156,15 @@ export default function ProjectModal({ project, onClose }) {
         {/* ---- detail ----------------------------------------------------- */}
         <div className="px-6 md:px-8 py-8 grid md:grid-cols-[1fr_280px] gap-10">
           <div>
-            <p className="mono-label text-dim mb-6">{project.tagline}</p>
-            <p className="font-serif text-[15px] md:text-base text-muted leading-relaxed whitespace-pre-wrap mb-8">
+            <p className="mono-ui text-signal-soft mb-6">{project.tagline}</p>
+            <p className="prose-dark whitespace-pre-wrap mb-9">
               {project.longDescription}
             </p>
 
             <h3 className="mono-label text-dim mb-4">Features</h3>
             <ul className="grid md:grid-cols-2 gap-2.5">
               {project.features.map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-sm text-muted">
+                <li key={f} className="flex items-start gap-3 prose-dark">
                   <Check
                     className="w-3.5 h-3.5 mt-1 shrink-0"
                     style={{ color: "rgb(var(--accent))" }}
@@ -180,7 +180,7 @@ export default function ProjectModal({ project, onClose }) {
               <h3 className="mono-label text-dim mb-4">Stack</h3>
               <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
                 {project.tech.map((t) => (
-                  <li key={t} className="mono-label text-faint">{t}</li>
+                  <li key={t} className="mono-ui text-dim">{t}</li>
                 ))}
               </ul>
             </div>
@@ -191,8 +191,8 @@ export default function ProjectModal({ project, onClose }) {
                 <dl className="space-y-2.5">
                   {Object.entries(project.stats).map(([k, v]) => (
                     <div key={k} className="flex justify-between gap-3 border-b border-hud/15 pb-2">
-                      <dt className="mono-label text-faint">{k}</dt>
-                      <dd className="mono-label text-muted text-right">{v}</dd>
+                      <dt className="mono-ui text-dim">{k}</dt>
+                      <dd className="mono-ui text-primary text-right">{v}</dd>
                     </div>
                   ))}
                 </dl>
@@ -205,7 +205,7 @@ export default function ProjectModal({ project, onClose }) {
                   href={project.live}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center justify-between gap-2 px-4 py-2.5 mono-label font-bold text-ink"
+                  className="inline-flex items-center justify-between gap-2 px-5 py-3.5 mono-ui font-bold text-ink"
                   style={{ backgroundColor: "rgb(var(--accent))" }}
                 >
                   Visit live
@@ -217,13 +217,13 @@ export default function ProjectModal({ project, onClose }) {
                   href={project.github}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center justify-between gap-2 px-4 py-2.5 mono-label border border-hud/35 text-muted hover:text-primary hover:border-hud-soft transition-colors"
+                  className="inline-flex items-center justify-between gap-2 px-5 py-3.5 mono-ui border border-hud/35 text-muted hover:text-primary hover:border-hud-soft transition-colors"
                 >
                   Source
                   <Github className="w-3.5 h-3.5" />
                 </a>
               ) : (
-                <span className="inline-flex items-center justify-between gap-2 px-4 py-2.5 mono-label border border-hud/15 text-faint">
+                <span className="inline-flex items-center justify-between gap-2 px-5 py-3.5 mono-ui border border-hud/15 text-faint">
                   Source private
                 </span>
               )}
