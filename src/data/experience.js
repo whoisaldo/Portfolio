@@ -1,16 +1,15 @@
 // src/data/experience.js — work history and education.
 //
-// Two deliberate omissions, both cases where layout was driving content:
-//   - The AWS entry carries no `metrics`. It previously held
+// Two notes on the AWS entry, both about numbers:
+//   - It spent the summer with no `metrics`. The grid previously held
 //     { AWS / IaC / SDE / 2026 } — the job title cut into four boxes to fill
-//     a four-column grid, rendered in the same treatment as Philips' real
-//     "~1,000 machines". A grid that expects four numbers is not a reason to
-//     manufacture four numbers.
-//   - The AWS entry's original `highlights` are gone. The four it had
-//     ("Customer Obsession", "Security-First Engineering", …) were AWS
-//     Leadership Principles recited as personal accomplishments one month into
-//     the role. The three that replaced them describe the actual project, and
-//     the last one says outright that it has not shipped.
+//     a four-column layout, and a grid that expects four numbers is not a
+//     reason to manufacture four numbers. The grid it carries now appeared
+//     only once the internship closed out and produced real ones.
+//   - The copy is drawn from the internship close-out summary but stated at
+//     the level of the public resume. Internal review IDs, account numbers,
+//     incident figures and launch timing stay out — keep it that way when
+//     editing this entry.
 //
 // The Philips case study is the strongest content on the site — a real
 // two-attempt arc that documents its own failed first approach. Preserved
@@ -34,35 +33,46 @@ export const experiences = [
   {
     type: "work",
     title: "Software Development Engineer Intern",
-    subtitle: "CloudFormation · Infrastructure as Code",
+    subtitle: "CloudFormation Registry · Policy-Based Resource Sharing",
     company: "Amazon Web Services",
-    period: "Jun 2026 — Present",
+    period: "Jun 2026 — Sep 2026",
     location: "Seattle, WA",
     logo: awsLogo,
     accent: "#FF9900",
     badge: "Current",
     description:
-      "SDE intern on CloudFormation — the service that turns declarative templates into provisioned AWS infrastructure. My project is policy-based resource sharing: a way for accounts inside an AWS Organization to share CloudFormation resources across account boundaries, where access is governed by a policy attached to the share instead of by copying templates between accounts.",
+      "SDE intern on the CloudFormation Registry — the control plane behind the resource types CloudFormation can provision. My project, owned end to end from low-level design through production infrastructure: policy-based sharing of private resource types across an AWS Organization. Before it, an enterprise reusing a private type re-registered it in every account; now the org's management account publishes one ALLOW/DENY policy and every permitted account references the type by bare name — nothing to install, and a consumer's own type always wins, so turning sharing on can never break an existing workload. Shipped as two new APIs, a DynamoDB data layer, an IAM-style deny-by-default policy evaluator, and org-aware type resolution on the service's read paths — all merged, with the launch itself landing after my term ends.",
+    metrics: [
+      { value: "2", label: "New Public APIs" },
+      { value: "100%", label: "Line + Branch on New Code" },
+      { value: "13/13", label: "Live E2E Scenarios" },
+      { value: "Same-day", label: "Team Pipeline Unblock" },
+    ],
     highlights: [
       {
-        title: "Sharing scoped to an Organization",
+        title: "Reads ordered by cost, not priority",
         description:
-          "A team can publish a resource once and let other accounts in the org consume it, rather than every account keeping and drifting its own copy.",
+          "Review caught the org lookup — a strongly-consistent, uncached read — firing on ~90% of DescribeType traffic that cached tiers already answered. Resolution now tries the cheap tiers first so the expensive read fires only on true misses, and pagination was redesigned to bound the work evaluated rather than the results returned.",
       },
       {
-        title: "The policy is the control surface",
+        title: "Impersonation made unrepresentable",
         description:
-          "Who may consume what is expressed declaratively, so sharing is reviewable and auditable the same way the rest of a CloudFormation deployment is.",
+          "CloudFormation resolves types by name, not ARN, so the central risk was an attacker sharing a same-named type to a victim. The consumer's lookup is keyed by its own organization, which makes cross-org resolution structurally impossible rather than merely validated away — with resolution order, write-time checks, and a single trusted sharer layered on top.",
       },
       {
-        title: "Owned end to end",
+        title: "The team's pipeline, nobody's job",
         description:
-          "Design doc through implementation and deploy pipeline, under a senior mentor. Started June 2026 and still in flight — no outcomes to quote yet.",
+          "Beta deployments were blocked for the whole team by an infrastructure defect outside my project's scope, with no owner. Reading the built template instead of trusting the source assumptions surfaced it; the fix shipped the same day.",
+      },
+      {
+        title: "A second opinion for code review",
+        description:
+          "Built a dual-model AI review tool on the side: two frontier models critique the same diff in parallel and what they agree on leads the report. Presented it to the entire CloudFormation org, and spoke about the workflow at a Kiro launch event — featured on Kiro's official LinkedIn.",
       },
     ],
     skills: [
-      "AWS", "Distributed Systems", "Linux", "Python", "Java",
-      "Go", "IaC (CDK/CloudFormation)", "Security Engineering",
+      "Java", "AWS", "DynamoDB", "AWS Organizations", "IAM Authorization",
+      "Policy Engines", "Distributed Systems", "API Design", "IaC (CDK/CloudFormation)",
     ],
   },
   {
