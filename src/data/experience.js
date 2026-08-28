@@ -32,6 +32,7 @@ import robertDefalcoLogo from "../assets/PreviousExperience/RobertDefalcoRealty.
 export const experiences = [
   {
     type: "work",
+    slug: "aws-cloudformation",
     title: "Software Development Engineer Intern",
     subtitle: "CloudFormation Registry · Policy-Based Resource Sharing",
     company: "Amazon Web Services",
@@ -77,6 +78,7 @@ export const experiences = [
   },
   {
     type: "work",
+    slug: "philips-zero-touch",
     title: "Software Engineering Co-op",
     subtitle: "FOG Zero-Touch Deployment · VM Automation",
     company: "Philips",
@@ -135,6 +137,7 @@ export const experiences = [
   },
   {
     type: "work",
+    slug: "top-choice-realty",
     title: "Frontend Developer Intern",
     company: "Top Choice Realty",
     period: "Apr 2024 — Aug 2024",
@@ -160,6 +163,7 @@ export const experiences = [
   },
   {
     type: "work",
+    slug: "robert-defalco-realty",
     title: "Computer Technician Intern",
     company: "Robert DeFalco Realty",
     period: "Jun 2023 — Sep 2023",
@@ -184,6 +188,7 @@ export const experiences = [
   },
   {
     type: "education",
+    slug: "northeastern",
     title: "Computer Science & Political Science",
     company: "Northeastern University",
     period: "2023 — 2027",

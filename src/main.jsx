@@ -1,6 +1,7 @@
 // src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 // Self-hosted fonts. Previously a render-blocking third-party stylesheet from
 // Google that requested 7 Fraunces variants and 8 Newsreader axes; same-origin
@@ -25,6 +26,8 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </React.StrictMode>
 );

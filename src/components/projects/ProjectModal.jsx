@@ -13,7 +13,9 @@
 // project behind the modal stops matching the one inside it.
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, ExternalLink, Github, Check } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ExternalLink, Github, Check, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { hasWorkPage } from "../../data/work";
 import ProjectImage from "./ProjectImage";
 import { hexToRgbTriplet } from "../../lib/image";
 import { useFocusTrap } from "../../hooks";
@@ -200,13 +202,27 @@ export default function ProjectModal({ project, onClose }) {
             )}
 
             <div className="flex flex-col gap-2.5">
+              {/* The modal is the quick look; the case study is the long read.
+                  Listed first because it is the only one of these three that
+                  keeps the reader on the site, and it is the link worth
+                  sending to somebody. */}
+              {hasWorkPage(project.slug) && (
+                <Link
+                  to={`/work/${project.slug}`}
+                  className="scan-beam-host inline-flex items-center justify-between gap-2 px-5 py-3.5
+                             mono-ui font-bold bg-signal text-ink hover:bg-signal-soft transition-colors"
+                >
+                  Full case study
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
               {project.live && (
                 <a
                   href={project.live}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center justify-between gap-2 px-5 py-3.5 mono-ui font-bold text-ink"
-                  style={{ backgroundColor: "rgb(var(--accent))" }}
+                  className="inline-flex items-center justify-between gap-2 px-5 py-3.5 mono-ui border transition-colors"
+                  style={{ borderColor: "rgb(var(--accent) / 0.5)", color: "rgb(var(--accent))" }}
                 >
                   Visit live
                   <ExternalLink className="w-3.5 h-3.5" />

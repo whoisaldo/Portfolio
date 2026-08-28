@@ -12,6 +12,7 @@
 // project for several seconds. scroll.js picks smooth or instant by distance.
 // The href stays a real `#id` so middle-click, copy-link and no-JS still work.
 import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { navSections } from "../data/site";
@@ -23,6 +24,9 @@ const pdf = (import.meta.env.BASE_URL || "/") + "resume.pdf";
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const onHome = pathname === "/";
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -31,10 +35,14 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // scrollToSection() looks the element up by id and returns silently when it
+  // is not there, so from a case study every header link would appear dead.
+  // Off the home page, route there and let Home's hash effect do the scrolling.
   const jumpTo = (event, id) => {
     event.preventDefault();
     setIsMobileOpen(false);
-    scrollToSection(id);
+    if (onHome) scrollToSection(id);
+    else navigate(`/#${id}`);
   };
 
   return (
@@ -44,7 +52,7 @@ export default function Navbar() {
     >
       <nav className="gutter py-4 flex items-center justify-between gap-6">
         <a
-          href="#hero"
+          href={onHome ? "#hero" : "/"}
           onClick={(e) => jumpTo(e, "hero")}
           className="serif-display text-primary text-base md:text-lg leading-none transition-colors duration-200 hover:text-signal-soft"
         >
@@ -55,7 +63,7 @@ export default function Navbar() {
           {navSections.map((section) => (
             <a
               key={section.id}
-              href={`#${section.id}`}
+              href={onHome ? `#${section.id}` : `/#${section.id}`}
               onClick={(e) => jumpTo(e, section.id)}
               className="mono-label text-dim transition-colors duration-200 hover:text-primary"
             >
@@ -99,7 +107,7 @@ export default function Navbar() {
               {navSections.map((section, i) => (
                 <motion.a
                   key={section.id}
-                  href={`#${section.id}`}
+                  href={onHome ? `#${section.id}` : `/#${section.id}`}
                   onClick={(e) => jumpTo(e, section.id)}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}

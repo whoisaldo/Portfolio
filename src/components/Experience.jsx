@@ -27,9 +27,11 @@
 // have: the three opaque ones ship a #000 ground, not a white one.
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus } from "lucide-react";
+import { Plus, Minus, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { experiences } from "../data/experience";
 import { workPhotos } from "../data/life";
+import { hasWorkPage } from "../data/work";
 import { hexToRgbTriplet } from "../lib/image";
 import Picture from "./Picture";
 
@@ -327,6 +329,28 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
               {exp.caseStudy && (
                 <div className="mt-14 md:mt-16">
                   <CaseStudy cs={exp.caseStudy} company={exp.company} />
+                </div>
+              )}
+
+              {/* band 6 — the permalink.
+                  The accordion is fine for reading top to bottom, but it has no
+                  address: you cannot send someone to this entry, only to the
+                  page it is buried in. The case study page is the same content
+                  at a URL, which is what goes in an application. */}
+              {hasWorkPage(exp.slug) && (
+                <div className="mt-12 md:mt-14 pt-8 border-t border-hud/15">
+                  <Link
+                    to={`/work/${exp.slug}`}
+                    className="scan-beam-host group inline-flex items-center gap-3 px-6 py-3.5
+                               mono-ui font-bold border transition-colors"
+                    style={{ borderColor: "rgb(var(--accent) / 0.55)", color: "rgb(var(--accent))" }}
+                  >
+                    {exp.caseStudy ? "Read the full case study" : "Open as a page"}
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                  <p className="mt-3 mono-label text-faint">
+                    aliyounes.dev/work/{exp.slug}
+                  </p>
                 </div>
               )}
             </div>

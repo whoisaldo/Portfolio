@@ -1,72 +1,64 @@
-// src/App.jsx — composition root.
+// src/App.jsx — the shell and the router.
+//
+// This used to be the whole page. It is now the frame around two of them: the
+// scrolling home page, and a case study at /work/:slug.
+//
+// GitHub Pages has no server-side routing, so the deploy workflow copies
+// index.html to 404.html and every unknown path falls through to this app,
+// which then matches the route on the client. That works for a reader, with
+// one caveat worth knowing: the fallback is served with an HTTP 404 status, so
+// a crawler asked to index /work/philips-zero-touch is told the page does not
+// exist even though it renders. Links shared with a person are fine; search
+// engines are not. Fixing that properly means either pre-rendering each route
+// to its own index.html at build time, or moving to a host that can rewrite —
+// not worth doing until it matters.
 import React, { useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import Navbar from "./components/Navbar";
-import Chrome from "./components/Chrome";
-import Hero from "./components/Hero";
-import ProjectsSection from "./components/projects/ProjectsSection";
-import Experience from "./components/Experience";
-import Terminal from "./components/Terminal";
-import Teardown from "./sections/Teardown";
-import Contact from "./sections/Contact";
 import Footer from "./sections/Footer";
 import BootSequence from "./components/BootSequence";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { scrollToSection } from "./lib/scroll";
+import Home from "./routes/Home";
+import WorkPage from "./routes/WorkPage";
 import { initBeacon } from "./lib/beacon";
 
 export default function App() {
+  const { pathname } = useLocation();
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.history.scrollRestoration = "manual";
-
-    const hash = window.location.hash.slice(1);
-    if (!hash) {
-      window.scrollTo(0, 0);
-      return;
+    if (typeof window !== "undefined") {
+      window.history.scrollRestoration = "manual";
     }
-
-    // Deep links need to be re-applied after mount: at parse time the target
-    // section does not exist yet (React has not rendered), so the browser's own
-    // hash scroll has nothing to find and silently gives up at the top. Doing
-    // it again on `load` corrects for the layout shift as fonts and key art
-    // land — without that, /#contact lands short by a screen or more.
-    const go = () => scrollToSection(hash);
-    const raf = requestAnimationFrame(go);
-    window.addEventListener("load", go, { once: true });
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("load", go);
-    };
   }, []);
 
-  // Analytics. Deliberately its own effect: it must not be able to interfere
-  // with the deep-link restoration above, and it returns its own teardown so a
-  // hot reload does not leave a second set of listeners attached.
+  // Analytics. Its own effect so it cannot interfere with anything a page does
+  // on mount, and it returns its own teardown so a hot reload does not leave a
+  // second set of listeners attached.
   useEffect(() => initBeacon(), []);
 
   return (
     <ErrorBoundary>
-    <MotionConfig reducedMotion="user">
-    <div className="min-h-screen bg-ink text-bone font-mono">
-      <BootSequence />
+      <MotionConfig reducedMotion="user">
+        <div className="min-h-screen bg-ink text-bone font-mono">
+          {/* The boot sequence is an entrance for the site, not for every page.
+              Replaying it when someone follows a link from one case study to
+              the next would be theatre in the way of the content. */}
+          {pathname === "/" && <BootSequence />}
 
-      <Navbar />
-      <Chrome />
+          <Navbar />
 
-      <main>
-        <Hero />
-        <ProjectsSection />
-        <Experience />
-        <Terminal />
-        <Teardown />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/work/:slug" element={<WorkPage />} />
+            {/* Anything else is a mistyped URL. On a site with six sections the
+                home page is a better answer than a 404 screen. */}
+            <Route path="*" element={<Home />} />
+          </Routes>
 
-        <Contact />
-      </main>
-
-      <Footer />
-    </div>
-    </MotionConfig>
+          <Footer />
+        </div>
+      </MotionConfig>
     </ErrorBoundary>
   );
 }
