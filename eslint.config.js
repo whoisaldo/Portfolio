@@ -33,4 +33,20 @@ export default defineConfig([
       'react/jsx-uses-vars': 'error',
     },
   },
+  // stats-api/ is a separate Vercel project that happens to live in this repo.
+  // It is Node, not a browser: `process`, `Buffer` and friends are real there
+  // and `globals.browser` alone reports every one of them as undefined. The
+  // build scripts under scripts/ are Node for the same reason.
+  {
+    files: ['stats-api/**/*.{js,mjs}', 'scripts/**/*.mjs'],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },
+    },
+    rules: {
+      // Vite's React fast-refresh rule has no meaning outside the React app,
+      // and every serverless handler is a default-exported function.
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

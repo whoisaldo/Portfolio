@@ -13,6 +13,7 @@ import Footer from "./sections/Footer";
 import BootSequence from "./components/BootSequence";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { scrollToSection } from "./lib/scroll";
+import { initBeacon } from "./lib/beacon";
 
 export default function App() {
   useEffect(() => {
@@ -38,6 +39,11 @@ export default function App() {
       window.removeEventListener("load", go);
     };
   }, []);
+
+  // Analytics. Deliberately its own effect: it must not be able to interfere
+  // with the deep-link restoration above, and it returns its own teardown so a
+  // hot reload does not leave a second set of listeners attached.
+  useEffect(() => initBeacon(), []);
 
   return (
     <ErrorBoundary>
