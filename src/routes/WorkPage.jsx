@@ -181,8 +181,15 @@ export default function WorkPage() {
 
         {/* ---- the lede --------------------------------------------------- */}
         <motion.div {...reveal} transition={{ duration: 0.6 }}>
-          <Band label={kind === "project" ? "What it is" : "The role"}>
-            <p className="prose-dark prose-lede max-w-[62ch]">{entry.description}</p>
+          <Band label={kind === "project" ? "Why it exists" : "The role"}>
+            {entry.why && (
+              <p className="prose-dark prose-lede max-w-[62ch]">{entry.why}</p>
+            )}
+            <p
+              className={`prose-dark max-w-[64ch] ${entry.why ? "mt-5 text-[0.9375rem] leading-[1.7]" : "prose-lede"}`}
+            >
+              {entry.description}
+            </p>
           </Band>
         </motion.div>
 

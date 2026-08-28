@@ -84,7 +84,7 @@ function elapsed() {
 }
 
 /** Section order, so "deepest reached" is a rank rather than a guess. */
-const ORDER = ["hero", "projects", "experience", "terminal", "teardown", "contact"];
+const ORDER = ["hero", "projects", "experience", "teardown", "contact"];
 
 function payload() {
   const events = queue;

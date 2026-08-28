@@ -19,6 +19,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./sections/Footer";
 import BootSequence from "./components/BootSequence";
 import ErrorBoundary from "./components/ErrorBoundary";
+import Console from "./components/Console";
 import Home from "./routes/Home";
 import WorkPage from "./routes/WorkPage";
 import { initBeacon } from "./lib/beacon";
@@ -47,6 +48,8 @@ export default function App() {
           {pathname === "/" && <BootSequence />}
 
           <Navbar />
+          {/* Backtick anywhere, or /console. Not in the nav. */}
+          <Console />
 
           <Routes>
             <Route path="/" element={<Home />} />

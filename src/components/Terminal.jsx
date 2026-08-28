@@ -1,4 +1,19 @@
-// src/components/Terminal.jsx — Direct Console (cyberpunk-restrained)
+// src/components/Terminal.jsx — the console, now an easter egg.
+//
+// This used to be a full section in the page, fifth in the nav. It is 1,000
+// lines carrying a virtual filesystem (about.txt, skills.md, contact.json, a
+// README per project) and 44 commands, of which `about`, `skills`, `projects`,
+// `experience`, `education`, `contact` and `resume` all restated content the
+// page already showed. That made it a fourth copy of the site, inside the site.
+//
+// It is kept because it is genuinely fun and someone built it, but it is behind
+// a keystroke now rather than in the reading path — see Console.jsx. The two
+// things in here that were not duplicates, the fun facts and the `interests`
+// output, were moved into src/data/life.js and src/data/projects.js so they
+// stay on the page.
+//
+// Rendered by Console.jsx inside an overlay, so this component owns no page
+// chrome of its own: no <section>, no id, no vertical rhythm.
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Terminal as TerminalIcon, Clock } from "lucide-react";
@@ -27,7 +42,7 @@ const fileSystem = {
   "~": {
     type: "dir",
     children: {
-      "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code — Seattle, WA.\nPreviously: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nI architect distributed, high-stakes systems — and I build the tools that keep them running.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
+      "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code — Seattle, WA.\nPreviously: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nMostly systems work: Rust, capture pipelines, codecs, transports.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
       "skills.md": { type: "file", content: `# Skills
 
 Grouped, not ranked — a self-assigned proficiency bar is a claim nobody can check.
@@ -109,7 +124,7 @@ const resolvePath = (currentPath, targetPath) => {
   return parts.join("/") || "~";
 };
 
-export default function Terminal() {
+export default function Terminal({ onExit }) {
   const asciiArt = `
    █████╗ ██╗     ██╗    ██╗   ██╗ ██████╗ ██╗   ██╗███╗   ██╗███████╗███████╗
   ██╔══██╗██║     ██║    ╚██╗ ██╔╝██╔═══██╗██║   ██║████╗  ██║██╔════╝██╔════╝
@@ -681,7 +696,10 @@ AUTHOR
         break;
 
       case "exit":
-        setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to eternalreverse closed.\n\n(scroll to continue)" }]);
+        setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to eternalreverse closed." }]);
+        // The console is an overlay now, so `exit` can actually exit. The delay
+        // is only so the logout line is readable before the panel goes.
+        if (onExit) setTimeout(onExit, 450);
         break;
 
       case "touch":
@@ -819,7 +837,7 @@ AUTHOR
   );
 
   return (
-    <section id="terminal" className="relative gutter py-24 md:py-32 bg-ink grain border-y border-hud/15">
+    <div className="relative gutter py-10 md:py-14">
       {/* Left-aligned on the page gutter rather than centred in a max-w-5xl
           column, so it sits on the same wide grid as every other section. The
           cap keeps shell lines from running to an unreadable length. */}
@@ -1020,6 +1038,6 @@ AUTHOR
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }

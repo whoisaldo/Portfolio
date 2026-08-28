@@ -179,7 +179,13 @@ export default function ProjectFrame({
 
           <p className="mono-ui text-signal-soft mb-7">{project.tagline}</p>
 
-          <p className="prose-dark mb-8 max-w-[46ch]">{project.description}</p>
+          {/* Why it exists, then what it is. In Ali's own words — see the note
+              on `why` in src/data/projects.js. A reader who only takes one
+              sentence off this card should get the reason, not the stack. */}
+          <p className="prose-dark prose-lede mb-4 max-w-[46ch]">{project.why}</p>
+          <p className="prose-dark text-[0.9375rem] leading-[1.65] text-dim mb-8 max-w-[46ch]">
+            {project.description}
+          </p>
 
           <ul className="flex flex-wrap gap-x-4 gap-y-2 mb-9" aria-label="Stack">
             {project.tech.slice(0, 6).map((t) => (

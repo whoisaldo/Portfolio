@@ -65,7 +65,8 @@ export default function ProjectStack({ projects, onOpen }) {
               {p.title}
             </h3>
             <p className="mono-ui text-signal-soft mb-5">{p.tagline}</p>
-            <p className="prose-dark mb-7 max-w-[54ch]">
+            <p className="prose-dark prose-lede mb-4 max-w-[54ch]">{p.why}</p>
+            <p className="prose-dark text-[0.9375rem] leading-[1.65] text-dim mb-7 max-w-[54ch]">
               {p.description}
             </p>
 

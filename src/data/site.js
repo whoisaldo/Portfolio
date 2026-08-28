@@ -5,11 +5,12 @@
 // I-VI) and HUDOverlay.jsx (as SCREAMING_SNAKE codenames). Three numbering
 // systems on screen at once, none of which agreed. One list now.
 
+// The console is not in this list on purpose. It used to be section five; it
+// is an easter egg now (backtick, or /console) — see src/components/Console.jsx.
 export const sections = [
   { id: "hero", label: "Top", nav: false },
   { id: "projects", label: "Work", nav: true },
   { id: "experience", label: "Experience", nav: true },
-  { id: "terminal", label: "Terminal", nav: true },
   { id: "teardown", label: "Teardown", nav: true },
   { id: "contact", label: "Contact", nav: true },
 ];

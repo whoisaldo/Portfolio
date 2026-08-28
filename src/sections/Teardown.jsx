@@ -9,8 +9,11 @@
 // rendered explicitly rather than implied by position.
 //
 // Captions are never hover-gated. A caption that only exists on :hover is a
-// caption that does not exist on a phone, and five of these seven photos need
-// their sentence to make sense at all.
+// caption that does not exist on a phone.
+//
+// Three of the seven have no caption body at all, by design — see the note in
+// src/data/life.js. They carry a title and a date and stop there, because the
+// rest needs context only Ali has.
 import React from "react";
 import { motion } from "framer-motion";
 import { teardown } from "../data/life";
@@ -98,13 +101,41 @@ export default function Teardown() {
                 <h3 className="heading-text text-primary text-[1.0625rem]">
                   {p.title}
                 </h3>
-                <p className="mt-2 prose-dark text-[0.9375rem] leading-[1.65]">
-                  {p.body}
-                </p>
+                {p.body && (
+                  <p className="mt-2 prose-dark text-[0.9375rem] leading-[1.65]">
+                    {p.body}
+                  </p>
+                )}
               </figcaption>
             </motion.figure>
           ))}
         </div>
+
+        {/* The rest of it. These used to live in the console's `interests`
+            output; the console is an easter egg now, so without this they would
+            have left the site with it. */}
+        {teardown.notPictured?.length > 0 && (
+          <motion.div
+            {...reveal}
+            transition={{ duration: 0.6 }}
+            className="mt-6 grid gap-x-10 gap-y-4 lg:grid-cols-12"
+          >
+            <h3 className="mono-label text-hud-soft lg:col-span-2 lg:pt-1">
+              Not pictured
+            </h3>
+            <ul className="min-w-0 lg:col-span-10 space-y-3 max-w-[68ch]">
+              {teardown.notPictured.map((line) => (
+                <li key={line} className="flex gap-4 prose-dark">
+                  <span
+                    className="mt-[0.7em] h-px w-5 shrink-0 bg-hud/60"
+                    aria-hidden="true"
+                  />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
       </div>
     </section>
   );

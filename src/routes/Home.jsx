@@ -11,7 +11,6 @@ import Chrome from "../components/Chrome";
 import Hero from "../components/Hero";
 import ProjectsSection from "../components/projects/ProjectsSection";
 import Experience from "../components/Experience";
-import Terminal from "../components/Terminal";
 import Teardown from "../sections/Teardown";
 import Contact from "../sections/Contact";
 import { scrollToSection } from "../lib/scroll";
@@ -62,7 +61,6 @@ export default function Home() {
         <Hero />
         <ProjectsSection />
         <Experience />
-        <Terminal />
         <Teardown />
 
         <Contact />
