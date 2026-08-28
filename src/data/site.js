@@ -10,6 +10,7 @@ export const sections = [
   { id: "projects", label: "Work", nav: true },
   { id: "experience", label: "Experience", nav: true },
   { id: "terminal", label: "Terminal", nav: true },
+  { id: "teardown", label: "Teardown", nav: true },
   { id: "contact", label: "Contact", nav: true },
 ];
 

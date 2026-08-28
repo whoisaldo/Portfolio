@@ -29,7 +29,9 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus } from "lucide-react";
 import { experiences } from "../data/experience";
+import { workPhotos } from "../data/life";
 import { hexToRgbTriplet } from "../lib/image";
+import Picture from "./Picture";
 
 const roleCount = experiences.filter((e) => e.type === "work").length;
 const degreeCount = experiences.length - roleCount;
@@ -263,6 +265,42 @@ function ExperienceRow({ exp, isOpen, onToggle }) {
                     </li>
                   ))}
                 </ol>
+              )}
+
+              {/* band 3b — photographs, where the entry has any.
+                  Keyed by company in src/data/life.js, so an entry with no
+                  photos renders exactly as it did before. These sit after the
+                  highlights on purpose: for the AWS row the Kiro still is
+                  evidence for highlight 04, and evidence belongs after the
+                  claim rather than in front of it. */}
+              {workPhotos[exp.company] && (
+                <ul className="mt-12 md:mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {workPhotos[exp.company].map((p) => (
+                    <li key={p.caption} className="group">
+                      <div className="relative overflow-hidden border border-hud/20 bg-ink-raised">
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 bg-cover bg-center"
+                          style={{ backgroundImage: `url("${p.image.lqip}")` }}
+                        />
+                        <Picture
+                          sources={p.image}
+                          alt={p.alt}
+                          loading="lazy"
+                          sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+                          className="relative w-full h-auto saturate-[0.85]
+                                     transition-[filter] duration-500 group-hover:saturate-100"
+                        />
+                      </div>
+                      <p className="mt-3 mono-label text-dim">{p.caption}</p>
+                      {p.note && (
+                        <p className="mt-2 prose-dark text-[0.9375rem] leading-[1.6]">
+                          {p.note}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               )}
 
               {/* band 4 — coursework, as a wrapped row. It was a stacked list

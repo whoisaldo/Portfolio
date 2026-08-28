@@ -7,6 +7,7 @@ import Hero from "./components/Hero";
 import ProjectsSection from "./components/projects/ProjectsSection";
 import Experience from "./components/Experience";
 import Terminal from "./components/Terminal";
+import Teardown from "./sections/Teardown";
 import Contact from "./sections/Contact";
 import Footer from "./sections/Footer";
 import BootSequence from "./components/BootSequence";
@@ -52,6 +53,7 @@ export default function App() {
         <ProjectsSection />
         <Experience />
         <Terminal />
+        <Teardown />
 
         <Contact />
       </main>

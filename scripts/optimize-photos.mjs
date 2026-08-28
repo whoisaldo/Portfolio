@@ -1,0 +1,256 @@
+// scripts/optimize-photos.mjs — the photo pipeline.
+//
+//   npm run photos
+//
+// Encodes everything in src/assets/Photos into AVIF/WebP at three widths, plus
+// a 320px thumbnail and a 20px LQIP, then regenerates src/data/photos.js.
+//
+// Why this is not scripts/optimize-images.mjs:
+//
+//   1. That script cannot be run any more. It prunes its own sources after a
+//      successful encode, and those PNGs are no longer in the repo — so every
+//      invocation now takes its `missing.length` branch, verifies the derived
+//      files and refuses to rewrite src/data/images.js. Adding photos to its
+//      SOURCES list would encode them and then silently not emit them.
+//   2. Photos are a different class of input. They arrive straight off a phone
+//      with EXIF attached, in whatever orientation the camera recorded, at
+//      wildly mixed aspect ratios. Screenshots arrive flat, upright and clean.
+//
+// The sources here are committed deliberately. They are already normalised —
+// auto-rotated, capped at 2400px, re-encoded at q90 with all metadata dropped —
+// so they cost ~2.9 MB total and keep this script re-runnable forever. Do not
+// prune them; that is the trap the other pipeline fell into.
+//
+// sharp is a devDependency imported by this script only. The encoded files and
+// the generated module are committed, so `vite build` on CI never needs it.
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const PHOTOS = path.join(ROOT, "src/assets/Photos");
+const DATA = path.join(ROOT, "src/data");
+
+// Photographic content, mostly shot handheld in poor light. AVIF is very good
+// at this and takes q50 without visible damage; WebP q80 is the safety net for
+// the browsers that need it. Neither number is chasing bytes — the engine-bay
+// and dash shots are dark and full of fine cable detail, which is exactly what
+// over-compression turns to mud.
+const WIDTHS = [1600, 1024, 640];
+const AVIF = { quality: 50, effort: 6 };
+const WEBP = { quality: 80, effort: 6, smartSubsample: true };
+
+const THUMB_WIDTH = 320;
+const THUMB = { quality: 74, effort: 6, smartSubsample: true };
+
+// 20px wide, inlined as a data URI. Same trick the key art uses: scaled up it
+// is the blur behind a photo that has not decoded yet.
+const LQIP_WIDTH = 20;
+const LQIP = { quality: 90, effort: 6, smartSubsample: true };
+
+const kb = (n) => `${(n / 1024).toFixed(1)} KB`;
+const mb = (n) => `${(n / 1024 / 1024).toFixed(2)} MB`;
+
+/** True when `out` exists and is at least as new as `src`. */
+async function isFresh(out, src) {
+  try {
+    const [o, s] = await Promise.all([fs.stat(out), fs.stat(src)]);
+    return o.mtimeMs >= s.mtimeMs;
+  } catch {
+    return false;
+  }
+}
+
+/** Encode one variant, skipping when the output is already current. */
+async function encode(src, out, width, format, options) {
+  if (await isFresh(out, src)) {
+    const meta = await sharp(out).metadata();
+    const { size } = await fs.stat(out);
+    return { bytes: size, width: meta.width, height: meta.height, skipped: true };
+  }
+  const info = await sharp(src)
+    .resize({ width, withoutEnlargement: true })
+    [format](options)
+    .toFile(out);
+  return { bytes: info.size, width: info.width, height: info.height, skipped: false };
+}
+
+/** A unique, readable JS identifier for a generated import. */
+function identFor(slug, suffix, taken) {
+  const base = `${slug.replace(/[^a-zA-Z0-9]+/g, "_")}_${suffix}`;
+  let ident = base.replace(/^(\d)/, "_$1");
+  let n = 2;
+  while (taken.has(ident)) ident = `${base}_${n++}`;
+  taken.add(ident);
+  return ident;
+}
+
+function writeModule(entries) {
+  const taken = new Set();
+  const byFile = new Map();
+  const imports = [];
+  const bodies = [];
+
+  const importOnce = (file, slug, suffix) => {
+    const existing = byFile.get(file);
+    if (existing) return existing;
+    const ident = identFor(slug, suffix, taken);
+    byFile.set(file, ident);
+    imports.push(`import ${ident} from "../assets/Photos/${file}";`);
+    return ident;
+  };
+
+  for (const e of entries) {
+    const fields = [
+      `    src: ${importOnce(e.fallbackFile, e.slug, "src")},`,
+      `    width: ${e.width},`,
+      `    height: ${e.height},`,
+    ];
+    for (const format of ["avif", "webp"]) {
+      const widths = Object.keys(e[format]).map(Number).sort((a, b) => a - b);
+      if (!widths.length) continue;
+      const pairs = widths.map(
+        (w) => `${w}: ${importOnce(e[format][w], e.slug, `${w}${format}`)}`,
+      );
+      fields.push(`    ${format}: { ${pairs.join(", ")} },`);
+    }
+    fields.push(`    thumb: ${importOnce(e.thumbFile, e.slug, "thumb")},`);
+    fields.push(`    lqip: "${e.lqip}",`);
+    bodies.push([`  ${JSON.stringify(e.slug)}: {`, ...fields, `  },`].join("\n"));
+  }
+
+  return `// GENERATED by scripts/optimize-photos.mjs — do not edit by hand.
+//
+// Encoded variants for every photo in src/assets/Photos, keyed by slug. The
+// entry shape matches what src/components/Picture.jsx consumes, so a photo
+// renders through the same component as everything else:
+//
+//   { src, width, height, avif: { <w>: url }, webp: { <w>: url }, thumb, lqip }
+//
+// Captions and placement are NOT here — they live in src/data/life.js, which
+// is hand-written. This module is pure encoder output.
+${imports.join("\n")}
+
+export const photos = {
+${bodies.join("\n")}
+};
+
+/** Look up one photo. Throws loudly rather than rendering a blank box. */
+export function photo(slug) {
+  const entry = photos[slug];
+  if (!entry) throw new Error(\`photo(): unknown photo slug "\${slug}"\`);
+  return entry;
+}
+
+export default photos;
+`;
+}
+
+async function main() {
+  const files = (await fs.readdir(PHOTOS))
+    .filter((f) => /\.jpe?g$/i.test(f))
+    .sort();
+
+  if (!files.length) {
+    console.error(`  ! no photos found in ${path.relative(ROOT, PHOTOS)}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const entries = [];
+  const rows = [];
+  let beforeTotal = 0;
+  let afterTotal = 0;
+  let encoded = 0;
+  let skipped = 0;
+
+  for (const file of files) {
+    const src = path.join(PHOTOS, file);
+    const slug = file.replace(/\.[^.]+$/, "");
+    const { size: before } = await fs.stat(src);
+    beforeTotal += before;
+
+    const out = { avif: {}, webp: {} };
+    let width = 0;
+    let height = 0;
+    let after = 0;
+
+    for (const w of WIDTHS) {
+      for (const [format, options] of [["avif", AVIF], ["webp", WEBP]]) {
+        const name = `${slug}-${w}.${format}`;
+        const r = await encode(src, path.join(PHOTOS, name), w, format, options);
+        // Key by the real emitted width, not the bucket: a 1440px-wide source
+        // stays 1440 in the 1600 bucket, and the srcset descriptor has to say
+        // so or the browser picks the wrong candidate.
+        out[format][r.width] = name;
+        after += r.bytes;
+        r.skipped ? skipped++ : encoded++;
+        if (r.width > width) {
+          width = r.width;
+          height = r.height;
+        }
+      }
+    }
+
+    // The <img> fallback is the widest WebP — already emitted above, so this
+    // costs nothing extra. Every browser in support range decodes WebP.
+    const fallbackFile = Object.entries(out.webp)
+      .sort((a, b) => Number(b[0]) - Number(a[0]))[0][1];
+
+    const thumbFile = `${slug}-${THUMB_WIDTH}.webp`;
+    const t = await encode(src, path.join(PHOTOS, thumbFile), THUMB_WIDTH, "webp", THUMB);
+    after += t.bytes;
+    t.skipped ? skipped++ : encoded++;
+
+    const lqipBuf = await sharp(src).resize({ width: LQIP_WIDTH }).webp(LQIP).toBuffer();
+
+    // What a browser actually downloads for this photo at the largest size:
+    // one AVIF, not the whole variant set. Summing all seven files and calling
+    // the total "after" would compare a menu against a meal.
+    const deliveredFile = Object.entries(out.avif)
+      .sort((a, b) => Number(b[0]) - Number(a[0]))[0][1];
+    const { size: delivered } = await fs.stat(path.join(PHOTOS, deliveredFile));
+
+    afterTotal += delivered;
+    rows.push({ slug, before, delivered, after, width, height, lqip: lqipBuf.length });
+    entries.push({
+      slug,
+      width,
+      height,
+      avif: out.avif,
+      webp: out.webp,
+      fallbackFile,
+      thumbFile,
+      lqip: `data:image/webp;base64,${lqipBuf.toString("base64")}`,
+    });
+  }
+
+  await fs.writeFile(path.join(DATA, "photos.js"), writeModule(entries));
+
+  rows.sort((a, b) => b.before - a.before);
+  const w = Math.max(...rows.map((r) => r.slug.length));
+  console.log("");
+  console.log(`  ${"photo".padEnd(w + 2)}${"size".padStart(11)}${"source".padStart(10)}${"served".padStart(10)}${"saved".padStart(8)}${"all vars".padStart(11)}`);
+  console.log(`  ${"-".repeat(w + 2 + 50)}`);
+  for (const r of rows) {
+    const pct = `${(100 - (100 * r.delivered) / r.before).toFixed(0)}%`;
+    const dim = `${r.width}x${r.height}`;
+    console.log(`  ${r.slug.padEnd(w + 2)}${dim.padStart(11)}${kb(r.before).padStart(10)}${kb(r.delivered).padStart(10)}${pct.padStart(8)}${kb(r.after).padStart(11)}`);
+  }
+  console.log(`  ${"-".repeat(w + 2 + 50)}`);
+  console.log(`  ${"TOTAL".padEnd(w + 2 + 11)}${mb(beforeTotal).padStart(10)}${mb(afterTotal).padStart(10)}${`${(100 - (100 * afterTotal) / beforeTotal).toFixed(1)}%`.padStart(8)}`);
+  console.log("");
+  console.log(`  "served" is the widest AVIF — what one browser downloads at full size.`);
+  console.log(`  "all vars" is every emitted file for that photo; the set exists so the`);
+  console.log(`  browser can pick, not so it can download all of them.`);
+  console.log("");
+  console.log(`  ${rows.length} photos · ${encoded} encoded · ${skipped} already current`);
+  console.log(`  wrote src/data/photos.js`);
+  console.log("");
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
