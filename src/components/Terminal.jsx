@@ -21,15 +21,15 @@ import { Terminal as TerminalIcon, Clock } from "lucide-react";
 // Fun facts pool — surfaced on boot and via `funfact`
 const FUN_FACTS = [
   "Daily driver is a fully built supercharged Audi S4 (B8.5). 540 whp. Tuned it myself.",
-  "Ranked top-3 in Massachusetts during high school for powerlifting. Still take the gym seriously — diet + sleep + lifts dialed in.",
+  "Ranked top-3 in Massachusetts during high school for powerlifting. Still train seriously. Diet, sleep and lifts dialed in.",
   "Built Exerly Fitness because every commercial fitness app is paywalled. Wanted a free, open-source platform that actually coaches.",
   "VirtualDyno exists because I’m obsessed with cars and wanted to estimate horsepower without renting a dyno.",
-  "Moops Bookstore started because I was reading more and wanted a social platform for me and my friends — Goodreads is fine, but it’s not ours.",
-  "Has hosted Minecraft + Ark Survival servers for friends — running them and tuning the configs taught me more about Linux than any class.",
+  "Moops Bookstore started because I was reading more and wanted a social platform for me and my friends. Goodreads is fine, but it is not ours.",
+  "Has hosted Minecraft + Ark Survival servers for friends. Running them and tuning the configs taught me more about Linux than any class.",
   "Currently watching / re-watching: Mr Robot, Pantheon, Vinland Saga. All-time list includes Breaking Bad, Better Call Saul, Snowfall, Invincible, Bojack Horseman.",
   "Plays a lot of Cyberpunk 2077. Also ran Minecraft and Ark servers for friends long enough to learn Linux the hard way.",
   "Eternal Monitor exists because I refused to pay $40 for an iPad-as-second-display app that lagged. Wrote my own in Rust + SwiftUI.",
-  "Eternal Rich Presence exists because Apple Music doesn’t talk to Discord. So I made it talk — over Discord’s raw IPC named pipes.",
+  "Eternal Rich Presence exists because Apple Music does not talk to Discord. So I made it talk, over Discord's raw IPC named pipes.",
   "EternalExchange is my Fabric spin-off of ProjectE: a solver walks Minecraft’s whole recipe graph at world load and prices every item in the game.",
 ];
 
@@ -45,7 +45,7 @@ const fileSystem = {
       "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code — Seattle, WA.\nPreviously: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nMostly systems work: Rust, capture pipelines, codecs, transports.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
       "skills.md": { type: "file", content: `# Skills
 
-Grouped, not ranked — a self-assigned proficiency bar is a claim nobody can check.
+Grouped, not ranked. A self-assigned proficiency bar is a claim nobody can check.
 
 ## Languages
 TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
@@ -342,13 +342,13 @@ AUTHOR
     Invincible · Bojack Horseman
 
   ▣ cars
-    Daily: Audi S4 (B8.5) — fully built, supercharged,
+    Daily: Audi S4 (B8.5), fully built, supercharged,
     540 whp. Tuned it myself. VirtualDyno (in the
     'other work' list) is a side-effect of this hobby.
 
   ▣ fitness
     Top-3 ranked in Massachusetts during high school.
-    Gym is serious — programmed lifts, nutrition,
+    Gym is serious: programmed lifts, nutrition,
     sleep. Exerly Fitness exists because i wanted a
     coaching platform that's free + open-source.
 
@@ -369,7 +369,7 @@ AUTHOR
       case "uplink":
         setHistory(prev => [...prev, { type: "output", text: `
   There is no uplink. This shell is a React component running in your
-  browser — no server, no session, nothing to connect to. The filesystem
+  browser. No server, no session, nothing to connect to. The filesystem
   below is an object literal in Terminal.jsx.
 
   Real things you can check instead:
@@ -386,7 +386,7 @@ AUTHOR
   now        SDE Intern @ AWS CloudFormation · IaC · Seattle, WA
              (Infrastructure as Code · CloudFormation)
   prev       SWE Co-op @ Philips · Cambridge, MA
-             Jan–Jun '26
+             Jan to Jun 2026
   current    CS & Political Science · Northeastern
              Class of '27
   open to    full-time '27, interesting side-quests
@@ -482,7 +482,7 @@ AUTHOR
   CS & Political Science · Northeastern University · Class of '27
 
   now       SDE Intern @ AWS CloudFormation · Infrastructure as Code · Seattle, WA
-  prev      SWE Co-op @ Philips · Cambridge, MA · Jan–Jun '26
+  prev      SWE Co-op @ Philips · Cambridge, MA · Jan to Jun 2026
 
   I architect distributed, high-stakes systems and
   build the tools that keep them running.
@@ -497,7 +497,7 @@ AUTHOR
   ═══════════════════════════════════════════════════
 
   Grouped, not ranked. A self-assigned "expert" bar is a claim nobody
-  can check — these are just the things I reach for.
+  can check. These are the things I reach for.
 
   LANGUAGES       TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
   FRONTEND        React · Next.js · Tailwind · Framer Motion

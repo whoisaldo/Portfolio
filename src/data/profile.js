@@ -23,7 +23,7 @@ export const profile = {
   prev: {
     role: "SWE Co-op",
     org: "Philips",
-    period: "Jan–Jun ’26",
+    period: "Jan to Jun 2026",
     location: "Cambridge, MA",
   },
 };

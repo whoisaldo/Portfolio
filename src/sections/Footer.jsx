@@ -81,9 +81,9 @@ export default function Footer() {
         <p className="telemetry max-w-[70ch] leading-relaxed">
           this site counts page views, which sections get read, and the
           organisation your network belongs to. no cookies, no names, no
-          cross-site tracking, and your ip is hashed rather than stored. global
-          privacy control and “do not track” are respected — if your browser
-          sends either, nothing above is recorded.
+          cross-site tracking. your ip is hashed, not stored. if your browser
+          sends global privacy control or "do not track", none of it is
+          recorded.
         </p>
       </div>
     </motion.footer>

@@ -1,6 +1,5 @@
-// src/hooks/index.js — small shared hooks. No dependencies.
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useMotionValue } from "framer-motion";
+// src/hooks/index.js - small shared hooks. No dependencies.
+import { useState, useEffect, useRef } from "react";
 
 /** Subscribe to a media query. */
 export function useMediaQuery(query) {
@@ -20,80 +19,25 @@ export function useMediaQuery(query) {
 export const usePrefersReducedMotion = () =>
   useMediaQuery("(prefers-reduced-motion: reduce)");
 
-/**
- * True when the pinned reel is appropriate: a real pointer, enough width, and
- * no reduced-motion preference. Everything else gets the plain stacked list.
- */
-export const useCanPin = () =>
-  useMediaQuery(
-    "(min-width: 1024px) and (hover: hover) and (prefers-reduced-motion: no-preference)"
-  );
-
-/**
- * Decode a list of images ahead of time, sequentially.
- *
- * The reel must never show a blank frame. Mounting all eight <img> elements is
- * necessary but not sufficient — a 1.5 MB plate still takes time to decode, and
- * decode happens on first paint. `img.decode()` resolves once the bitmap is
- * ready, so painting afterwards is free.
- *
- * Sequential on purpose: eight parallel requests saturate the connection and
- * make the FIRST frame — the one the user actually sees — arrive later.
- */
-export function useImageWarmup(srcs, enabled = true) {
-  const [warmed, setWarmed] = useState(0);
-  useEffect(() => {
-    if (!enabled || !srcs?.length) return;
-    let cancelled = false;
-    // Absolute count, reset per run. Incrementing across runs let the number
-    // accumulate past the list length over repeated effect invocations
-    // (StrictMode's double-mount, HMR), producing "warming 41/8".
-    let done = 0;
-    setWarmed(0);
-    const run = async () => {
-      for (const src of srcs) {
-        if (cancelled) return;
-        try {
-          const img = new Image();
-          img.decoding = "async";
-          img.src = src;
-          await img.decode();
-        } catch {
-          // A failed decode must not stall the queue; the <img> in the DOM
-          // still gets its own chance, and the LQIP backplate covers the gap.
-        }
-        if (!cancelled) setWarmed(++done);
-      }
-    };
-    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
-    const handle = idle(run);
-    return () => {
-      cancelled = true;
-      if (window.cancelIdleCallback) window.cancelIdleCallback(handle);
-    };
-  }, [srcs, enabled]);
-  return warmed;
-}
-
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 /**
  * Trap focus inside `ref`, restore it on unmount, and lock body scroll.
  *
- * The scroll lock matters more than usual here: without it a wheel event over
- * the modal scrolls the reel underneath, and the project behind the modal
- * silently stops matching the project inside it.
+ * The scroll lock is the reason this owns body.overflow. Do not add a second
+ * lock in a caller: both would save the previous value to restore, and
+ * whichever ran second would capture "hidden" and never give scrolling back.
  */
 export function useFocusTrap(ref, active, onEscape) {
   const restoreTo = useRef(null);
 
   // The callback is read through a ref so a caller passing an inline arrow
   // (`onClose={() => setOpen(null)}`) does not change the effect's identity.
-  // When it did, the effect re-ran on every render: each cleanup restored
-  // focus and each re-run re-captured `document.activeElement` — which by then
-  // was the modal's own close button. On close, focus landed on <body> instead
-  // of the card that opened it.
+  // When it did, the effect re-ran on every render. Each cleanup restored
+  // focus and each re-run re-captured `document.activeElement`, which by then
+  // was the panel's own close button, so closing landed focus on <body>
+  // instead of the thing that opened it.
   const escapeRef = useRef(onEscape);
   useEffect(() => { escapeRef.current = onEscape; });
 
@@ -141,74 +85,5 @@ export function useFocusTrap(ref, active, onEscape) {
   }, [active, ref]);
 }
 
-/** Stable callback ref for values that change every render. */
-export function useEvent(fn) {
-  const ref = useRef(fn);
-  useEffect(() => { ref.current = fn; });
-  return useCallback((...args) => ref.current?.(...args), []);
-}
 
-/** Viewport width, updated on resize. The reel's track transform needs px. */
-export function useViewportWidth() {
-  const [w, setW] = useState(() =>
-    typeof window === "undefined" ? 1440 : window.innerWidth
-  );
-  useEffect(() => {
-    const on = () => setW(window.innerWidth);
-    window.addEventListener("resize", on, { passive: true });
-    return () => window.removeEventListener("resize", on);
-  }, []);
-  return w;
-}
 
-/**
- * Scroll progress (0..1) across a tall pinned wrapper, as a motion value.
- *
- * Replaces framer-motion's `useScroll({ target, offset })`, which silently
- * reported a constant 0 for this element and never recovered — not on resize,
- * not on remeasure. Rather than keep guessing at its measurement heuristics,
- * the reel owns the single number everything else derives from. That is also
- * the property that makes the indicator/track desync impossible, so it is
- * worth having in plain sight.
- */
-export function useElementScrollProgress(ref) {
-  const progress = useMotionValue(0);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    let top = 0;
-    let span = 1;
-
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      top = rect.top + window.scrollY;
-      // How far the page scrolls while the sticky child is pinned.
-      span = Math.max(1, el.offsetHeight - window.innerHeight);
-    };
-
-    const update = () => {
-      progress.set(Math.min(1, Math.max(0, (window.scrollY - top) / span)));
-    };
-
-    const onResize = () => { measure(); update(); };
-
-    measure();
-    update();
-
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", onResize, { passive: true });
-    // Layout settles after fonts and images land; re-measure when it does.
-    const ro = new ResizeObserver(onResize);
-    ro.observe(document.documentElement);
-
-    return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", onResize);
-      ro.disconnect();
-    };
-  }, [ref, progress]);
-
-  return progress;
-}

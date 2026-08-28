@@ -102,13 +102,13 @@ export const featuredProjects = [
     accent: "#7C5CFF",
     status: "live",
     description:
-      "A two-person indie software studio I co-founded in Boston. Ships its own technically-ambitious products instead of doing client work — six of them, four already live.",
+      "A two-person indie software studio I co-founded in Boston. Ships its own technically-ambitious products instead of doing client work. Six of them, four already live.",
     longDescription:
-      "What it is: a two-person studio founded in Boston in 2025. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Four are live — EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary — with EternalMonitor and Exerly Fitness still in active development.\n\n" +
-      "What I do here: co-founder and lead engineer. Wrote the Rust host + Swift client behind EternalMonitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and the studio site itself — Next.js + a custom design system, per-product detail routes, and an animated terminal boot on the hero.",
+      "What it is: a two-person studio founded in Boston in 2025. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Four are live: EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. EternalMonitor and Exerly Fitness are still in development.\n\n" +
+      "What I do here: co-founder and lead engineer. Wrote the Rust host + Swift client behind EternalMonitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and the studio site itself, which is Next.js with a custom design system, per-product detail routes, and an animated terminal boot on the hero.",
     tech: ["Next.js", "TypeScript", "React", "Tailwind CSS", "Framer Motion", "Rust", "SwiftUI", "Node.js"],
     features: [
-      "6 products — 4 live, 2 in active development",
+      "6 products: 4 live, 2 in development",
       "Studio site: Next.js + per-product detail routes",
       "Animated terminal boot sequence on the hero",
       "Custom design system w/ per-product accents",
@@ -118,7 +118,7 @@ export const featuredProjects = [
     github: null,
     live: "https://eternalreverse.com",
     images: [kaEternalReverse, erLanding, erProducts, erProductsEM, erProductsExerly, erAbout],
-    imageLabels: ["Studio Index", "Landing", "Products", "Product — EternalMonitor", "Product — Exerly Fitness", "About"],
+    imageLabels: ["Studio Index", "Landing", "Products", "Product: EternalMonitor", "Product: Exerly Fitness", "About"],
     stats: { role: "Co-founder", since: "2025", products: "6 active" },
   },
   {
@@ -130,10 +130,10 @@ export const featuredProjects = [
     accent: "#9B5CFF",
     status: "live",
     description:
-      "Cross-platform fitness ecosystem — React 19 web, a Node/Express API, an AI coach, and a native SwiftUI iOS client built and waiting on the App Store.",
+      "React 19 on the web, a Node/Express API, an AI coach, and a native SwiftUI iOS client built and waiting on App Store review.",
     longDescription:
-      "An npm-workspaces monorepo (apps/api, apps/web, apps/ios) behind one REST backend, so the browser and the phone read the same account and the same data. The AI coach builds its prompt from your real profile — age, weight, goals, logged progress — instead of answering in a vacuum.\n\n" +
-      "Where it stands: the web app is live at exerlyfitness.com (GitHub Pages) against an Express API on DigitalOcean. The iOS client is real and written — 71 Swift files, ~9k lines, a full 12-step onboarding that computes maintenance calories via Mifflin-St Jeor — but it hasn't shipped to the App Store yet, so the site says 'coming soon' and so do I.\n\n" +
+      "An npm-workspaces monorepo (apps/api, apps/web, apps/ios) behind one REST backend, so the browser and the phone read the same account and the same data. The AI coach builds its prompt from your real profile: age, weight, goals, logged progress. It does not answer in a vacuum.\n\n" +
+      "Where it stands: the web app is live at exerlyfitness.com (GitHub Pages) against an Express API on DigitalOcean. The iOS client is real and written. 71 Swift files, roughly 9k lines, and a 12-step onboarding that computes maintenance calories via Mifflin-St Jeor. It has not shipped to the App Store yet, so the site says 'coming soon' and so do I.\n\n" +
       "Details worth keeping: nutrition lookups fall back FatSecret → Open Food Facts so a barcode scan rarely dead-ends, the API runs MongoDB in production and SQLite locally so a contributor can boot it with zero services, and AI usage is capped at 5 credits an hour / 20 a day to keep the bill sane.",
     tech: ["SwiftUI", "React 19", "TypeScript", "Node.js", "Express 5", "MongoDB", "SQLite", "Gemini 2.0 Flash-Lite", "HealthKit"],
     features: [
@@ -148,7 +148,7 @@ export const featuredProjects = [
     github: "https://github.com/whoisaldo/Exerly-Fitness",
     live: "https://exerlyfitness.com",
     images: [kaExerly, exerlyLanding, exerlyDayLog, exerlyFeatures, exerlyIOSWeb, exerlyiOS1, exerlyiOS2, exerlyiOS3],
-    imageLabels: ["A Logged Day", "Landing", "Dashboard & AI Coach", "Features", "iOS — Coming Soon", "iOS — Welcome", "iOS — 12-Step Onboarding", "iOS — AI Coach"],
+    imageLabels: ["A Logged Day", "Landing", "Dashboard & AI Coach", "Features", "iOS: Coming Soon", "iOS: Welcome", "iOS: 12-Step Onboarding", "iOS: AI Coach"],
     stats: { web: "Live", ios: "Built · pre-App Store", api: "51 endpoints" },
   },
   {
@@ -156,20 +156,20 @@ export const featuredProjects = [
     title: "EternalExchange",
     tagline: "equivalent-exchange alchemy for Fabric · eternalexchangemod.com",
     why:
-      "ProjectE is the canonical equivalent-exchange mod and it is Forge-only. Fabric had nothing comparable, so I built the spin-off — plus a solver that walks Minecraft's whole recipe graph at world load and prices every item in the game.",
+      "ProjectE is the canonical equivalent-exchange mod and it is Forge-only. Fabric had nothing comparable, so I built the spin-off, plus a solver that walks Minecraft's whole recipe graph at world load and prices every item in the game.",
     accent: "#2FD37A",
     status: "pre-release",
     description:
-      "A 39K-line Minecraft alchemy mod for Fabric 1.21.1 — a spin-off of ProjectE with a recipe-graph solver that prices every item in the game at world load.",
+      "A 39K-line Minecraft alchemy mod for Fabric 1.21.1. A spin-off of ProjectE with a recipe-graph solver that prices every item in the game at world load.",
     longDescription:
-      "'equivalent exchange' is one of the oldest ideas in modded Minecraft — every item has an energy value (EMC), and once you've learned an item you can break matter down and rebuild it into anything else you know. ProjectE is the canonical take on it, and it's MIT-licensed but Forge/NeoForge-only. Fabric — the other half of the modern modding ecosystem — had nothing comparable.\n\n" +
-      "What this is: a Fabric-native spin-off of ProjectE, credited openly in the README and the LICENSE. The interesting part isn't re-listing the alchemy — it's that Fabric simply doesn't have the primitives the original assumes. Capabilities, attachments, item handlers, a TOML config spec, fluid stacks, an event bus: none of it exists. So the mod carries its own 2,031-line compatibility layer that reimplements that surface, 9 Mixins standing in for vanilla hooks Fabric never fires, and a networking stack rebuilt on Fabric's PayloadTypeRegistry with a deferred client-receiver install so packets stay loadable on a dedicated server.\n\n" +
-      "The EMC solver is the centrepiece: at server start and after every /reload it walks the entire loaded recipe graph and propagates values outward from a seed set, using exact BigFraction arithmetic so fractional intermediates don't drift into rounding errors. Add another mod and its recipes get priced automatically — no patch required. Every value is overridable via custom_emc.json, a datapack, or the TOML config.\n\n" +
-      "Status: v1.0.0 pre-release, MIT, a 4.5 MB jar built and attached by CI. Save-compatible with the NeoForge original — knowledge, bags and custom EMC carry across. Original gameplay content beyond the classic set is on the roadmap, not in the jar yet.",
+      "'equivalent exchange' is one of the oldest ideas in modded Minecraft. Every item has an energy value (EMC), and once you've learned an item you can break matter down and rebuild it into anything else you know. ProjectE is the canonical take on it, and it's MIT-licensed but Forge/NeoForge-only. Fabric, the other half of the modern modding ecosystem, had nothing comparable.\n\n" +
+      "What this is: a Fabric-native spin-off of ProjectE, credited openly in the README and the LICENSE. The interesting part isn't re-listing the alchemy. It is that Fabric does not have the primitives the original assumes. Capabilities, attachments, item handlers, a TOML config spec, fluid stacks, an event bus: none of it exists. So the mod carries its own 2,031-line compatibility layer that reimplements that surface, 9 Mixins standing in for vanilla hooks Fabric never fires, and a networking stack rebuilt on Fabric's PayloadTypeRegistry with a deferred client-receiver install so packets stay loadable on a dedicated server.\n\n" +
+      "The EMC solver is the centrepiece: at server start and after every /reload it walks the entire loaded recipe graph and propagates values outward from a seed set, using exact BigFraction arithmetic so fractional intermediates don't drift into rounding errors. Add another mod and its recipes get priced automatically. No patch required. Every value is overridable via custom_emc.json, a datapack, or the TOML config.\n\n" +
+      "Status: v1.0.0 pre-release, MIT, a 4.5 MB jar built and attached by CI. Save-compatible with the NeoForge original: knowledge, bags and custom EMC carry across. Original gameplay content beyond the classic set is on the roadmap, not in the jar yet.",
     tech: ["Java 21", "Minecraft 1.21.1", "Fabric Loader", "Fabric API", "Gradle · Loom", "Mixin", "night-config", "Commons Math"],
     features: [
       "Recipe-graph EMC solver runs at world load and /reload",
-      "Exact BigFraction arithmetic — no rounding drift",
+      "Exact BigFraction arithmetic, no rounding drift",
       "86 items · 21 blocks · 12 block entities",
       "15 GUI screens, incl. 104-slot alchemical bags",
       "2,031-line compatibility layer for Fabric primitives",
@@ -192,10 +192,10 @@ export const featuredProjects = [
     accent: "#FF9147",
     status: "live",
     description:
-      "Full-stack social reading tracker — shelves, reviews, clubs and a streak counter, on a MongoDB backend with the Google Books catalogue behind search.",
+      "Full-stack social reading tracker: shelves, reviews, clubs and a streak counter, on a MongoDB backend with the Google Books catalogue behind search.",
     longDescription:
       "Readers juggle Goodreads, Amazon and a notes app to track what they're reading, and every one of them is louder than it needs to be.\n\n" +
-      "A single MERN app built around the idea that tracking should feel quiet. Search runs against the Google Books catalogue, shelves and reviews are yours, and the social side — activity feed, clubs, leaderboard — is opt-in rather than the default surface.\n\n" +
+      "A single MERN app built around the idea that tracking should feel quiet. Search runs against the Google Books catalogue, shelves and reviews are yours, and the activity feed, clubs and leaderboard are opt-in rather than the default surface.\n\n" +
       "Live at moopsbooks.com with JWT-authenticated accounts, a read / reading / streak dashboard, and a warm dark theme that stays out of the way. The source repository is private.",
     tech: ["React", "TypeScript", "Node.js", "MongoDB", "Express", "Google Books API", "JWT"],
     features: [
@@ -224,9 +224,9 @@ export const featuredProjects = [
       "Rust host + SwiftUI iPad client that turns an iPad into a wireless second display for Windows, with hardware H.264 encode and decode end to end.",
     longDescription:
       "Wireless second-monitor apps either cost a subscription, need a dongle, or buckle the moment the network gets busy.\n\n" +
-      "A Rust host captures the Windows desktop through DXGI Desktop Duplication, encodes H.264 via NVENC → AMF → QSV with a libx264 software fallback (the chain auto-probes and reorders by GPU vendor), fragments each frame behind a custom 16-byte UDP header, and streams to an iPad client that decodes on VideoToolbox and presents through a Metal-backed MTKView. UDP over TCP was deliberate — a dropped frame should be a dropped frame, not head-of-line blocking.\n\n" +
+      "A Rust host captures the Windows desktop through DXGI Desktop Duplication, encodes H.264 via NVENC → AMF → QSV with a libx264 software fallback (the chain auto-probes and reorders by GPU vendor), fragments each frame behind a custom 16-byte UDP header, and streams to an iPad client that decodes on VideoToolbox and presents through a Metal-backed MTKView. UDP over TCP was deliberate. A dropped frame should be a dropped frame, not head-of-line blocking.\n\n" +
       "Design details I'd defend: H.264 Baseline specifically because that's what the iPad's hardware decoder is happiest with; fragment counters widened u8 → u16 once frames started exceeding 255 fragments; packets carry a FlatBuffers FramePacket; discovery is mDNS with manual IP entry as the reliable path.\n\n" +
-      "Honest status: v0.1.2-mirror, in active development. It mirrors the primary display — no extended desktop and no input relay yet — and I haven't instrumented true glass-to-glass latency, so I don't quote a number for it. 5,900 lines of Rust and 3,700 of Swift, MIT.",
+      "Honest status: v0.1.2-mirror, in active development. It mirrors the primary display. No extended desktop and no input relay yet, and I have not instrumented true glass-to-glass latency, so I don't quote a number for it. 5,900 lines of Rust and 3,700 of Swift, MIT.",
     tech: ["Rust", "SwiftUI", "DXGI", "H.264", "VideoToolbox", "Metal", "FlatBuffers", "tokio", "mDNS"],
     features: [
       "DXGI Desktop Duplication capture on the Windows host",
@@ -252,12 +252,12 @@ export const featuredProjects = [
     accent: "#FF3B54",
     status: "live",
     description:
-      "Windows system-tray bridge putting Apple Music and Spotify on your Discord profile — with a Listen Along built on raw named pipes.",
+      "Windows system-tray bridge putting Apple Music and Spotify on your Discord profile, with a Listen Along built on raw named pipes.",
     longDescription:
       "Apple Music doesn't talk to Discord, period. And Discord's Listen Along is Spotify-only, so an Apple Music listener can't share what they're playing at all.\n\n" +
       "A Python tray app that reads Now Playing from the iTunes COM interface and Windows' System Media Transport Controls, then pushes it to Discord through pypresence. Cover art is pulled from the media session and uploaded so Discord has a public URL to show, with a fallback chain (litterbox → 0x0 → catbox) so a single host being down doesn't kill the artwork.\n\n" +
-      "The part I'm actually proud of: pypresence is send-only, so Listen Along was impossible with it. The app opens Discord's IPC named pipes (\\\\.\\pipe\\discord-ipc-0..9) directly over ctypes/kernel32, speaks the frame protocol by hand, and subscribes to ACTIVITY_JOIN — so when a friend clicks Join, it registers eternalrp:// and discord-{client_id}:// in HKCU and catches the launch. That's how an Apple Music listener and a Spotify listener end up in sync.\n\n" +
-      "Shipped as v1.0.0-beta: a PyInstaller --onefile build distributed through GitHub Releases, with a SHA-256 published for every build. Windows-only by construction — it's built on the registry, COM and WinRT.",
+      "The part I'm actually proud of: pypresence is send-only, so Listen Along was impossible with it. The app opens Discord's IPC named pipes (\\\\.\\pipe\\discord-ipc-0..9) directly over ctypes/kernel32, speaks the frame protocol by hand, and subscribes to ACTIVITY_JOIN, so when a friend clicks Join, it registers eternalrp:// and discord-{client_id}:// in HKCU and catches the launch. That's how an Apple Music listener and a Spotify listener end up in sync.\n\n" +
+      "Shipped as v1.0.0-beta: a PyInstaller --onefile build distributed through GitHub Releases, with a SHA-256 published for every build. Windows-only by construction, because it is built on the registry, COM and WinRT.",
     tech: ["Python 3.9+", "pypresence", "spotipy", "WinRT", "pywin32", "pystray", "PyInstaller", "Astro"],
     features: [
       "iTunes COM + Windows SMTC metadata extraction",
@@ -313,7 +313,7 @@ export const featuredProjects = [
     description:
       "Production marketing + lead-gen site for a Chicopee barbershop. Next.js 14 SSG, static export, WhatsApp-driven booking flow.",
     longDescription:
-      "Next.js 14 App Router site with configuration-driven content (team, services, hours, gallery), Framer Motion animations, and a booking flow that compiles form state into a URI-encoded WhatsApp/SMS deeplink — no backend required.\n\n" +
+      "Next.js 14 App Router site with configuration-driven content (team, services, hours, gallery), Framer Motion animations, and a booking flow that compiles form state into a URI-encoded WhatsApp/SMS deeplink. No backend required.\n\n" +
       "Deployed via GH Pages SSG. Bebas Neue + Plus Jakarta Sans typography, glassmorphic 'Quartz' palette, JSON-LD BarberShop schema for local SEO. Premium 'Ali Younes' booking mode supports out-of-hours / at-home appointments.",
     tech: ["Next.js 14", "TypeScript", "Tailwind CSS", "Framer Motion", "LazyMotion", "SSG"],
     features: [
@@ -336,8 +336,8 @@ export const otherProjects = [
   { title: "CS3520 · C++", description: "Course work: nested containers, Makefiles, GDB, CLI formatting.", tech: ["C++", "GDB", "Makefile"], github: "https://github.com/whoisaldo/CS3520-Summer-2025" },
   { title: "Password Generator", description: "Configurable password generator across Java and Swift.", tech: ["Java", "Swift"], github: "https://github.com/whoisaldo/Password-Generator" },
   { title: "Grade Calculator", description: "Weighted grade calculator with simple desktop UI.", tech: ["Java", "GUI"], github: "https://github.com/whoisaldo/Grade-Calculator" },
-  { title: "BetterAppleMusic", description: "Windows desktop Apple Music client — Electron + MusicKit JS.", tech: ["TypeScript", "Electron", "React"], github: "https://github.com/whoisaldo/BetterAppleMusic" },
+  { title: "BetterAppleMusic", description: "Windows desktop Apple Music client. Electron and MusicKit JS.", tech: ["TypeScript", "Electron", "React"], github: "https://github.com/whoisaldo/BetterAppleMusic" },
   { title: "topchoicerealty", description: "Cross-referencing tool for real estate property listing data.", tech: ["TypeScript", "React"], github: "https://github.com/whoisaldo/topchoicerealty" },
-  { title: "VirtualDyno", description: "Virtual dynamometer — vehicle horsepower + torque estimation.", tech: ["Simulation"], github: "https://github.com/whoisaldo/VirtualDyno" },
+  { title: "VirtualDyno", description: "Virtual dynamometer. Estimates vehicle horsepower and torque.", tech: ["Simulation"], github: "https://github.com/whoisaldo/VirtualDyno" },
   { title: "Lua-Roblox-Commands", description: "Quick utility commands for Roblox game development.", tech: ["Lua", "Roblox"], github: "https://github.com/whoisaldo/Lua-Roblox-Commands" },
 ];

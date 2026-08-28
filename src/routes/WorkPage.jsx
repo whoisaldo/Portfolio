@@ -367,7 +367,7 @@ export default function WorkPage() {
                       )}
                       <ProjectImage
                         image={img}
-                        alt={`${entry.title} — ${entry.imageLabels?.[i] ?? `screen ${i + 1}`}`}
+                        alt={`${entry.title}, ${entry.imageLabels?.[i] ?? `screen ${i + 1}`}`}
                         loading={i === 0 ? "eager" : "lazy"}
                         sizes="(min-width: 1024px) 78vw, 92vw"
                         className="relative w-full h-auto"

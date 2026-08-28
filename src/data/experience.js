@@ -36,13 +36,13 @@ export const experiences = [
     title: "Software Development Engineer Intern",
     subtitle: "CloudFormation Registry · Policy-Based Resource Sharing",
     company: "Amazon Web Services",
-    period: "Jun 2026 — Sep 2026",
+    period: "Jun 2026 to Sep 2026",
     location: "Seattle, WA",
     logo: awsLogo,
     accent: "#FF9900",
     badge: "Current",
     description:
-      "SDE intern on the CloudFormation Registry — the control plane behind the resource types CloudFormation can provision. My project, owned end to end from low-level design through production infrastructure: policy-based sharing of private resource types across an AWS Organization. Before it, an enterprise reusing a private type re-registered it in every account; now the org's management account publishes one ALLOW/DENY policy and every permitted account references the type by bare name — nothing to install, and a consumer's own type always wins, so turning sharing on can never break an existing workload. Shipped as two new APIs, a DynamoDB data layer, an IAM-style deny-by-default policy evaluator, and org-aware type resolution on the service's read paths — all merged, with the launch itself landing after my term ends.",
+      "SDE intern on the CloudFormation Registry, the control plane behind the resource types CloudFormation can provision. My project, owned end to end from low-level design through production infrastructure: policy-based sharing of private resource types across an AWS Organization. Before it, an enterprise reusing a private type re-registered it in every account; now the org's management account publishes one ALLOW/DENY policy and every permitted account references the type by bare name. Nothing to install, and a consumer's own type always wins, so turning sharing on can never break an existing workload. Shipped as two new APIs, a DynamoDB data layer, an IAM-style deny-by-default policy evaluator, and org-aware type resolution on the service's read paths. All of it merged, with the launch landing after my term ends.",
     metrics: [
       { value: "2", label: "New Public APIs" },
       { value: "100%", label: "Line + Branch on New Code" },
@@ -53,12 +53,12 @@ export const experiences = [
       {
         title: "Reads ordered by cost, not priority",
         description:
-          "Review caught the org lookup — a strongly-consistent, uncached read — firing on ~90% of DescribeType traffic that cached tiers already answered. Resolution now tries the cheap tiers first so the expensive read fires only on true misses, and pagination was redesigned to bound the work evaluated rather than the results returned.",
+          "Review caught the org lookup, a strongly consistent uncached read, firing on ~90% of DescribeType traffic that cached tiers already answered. Resolution now tries the cheap tiers first so the expensive read fires only on true misses, and pagination was redesigned to bound the work evaluated rather than the results returned.",
       },
       {
         title: "Impersonation made unrepresentable",
         description:
-          "CloudFormation resolves types by name, not ARN, so the central risk was an attacker sharing a same-named type to a victim. The consumer's lookup is keyed by its own organization, which makes cross-org resolution structurally impossible rather than merely validated away — with resolution order, write-time checks, and a single trusted sharer layered on top.",
+          "CloudFormation resolves types by name, not ARN, so the central risk was an attacker sharing a same-named type to a victim. The consumer's lookup is keyed by its own organization, which makes cross-org resolution structurally impossible rather than merely validated away, with resolution order, write-time checks, and a single trusted sharer layered on top.",
       },
       {
         title: "The team's pipeline, nobody's job",
@@ -68,7 +68,7 @@ export const experiences = [
       {
         title: "A second opinion for code review",
         description:
-          "Built a dual-model AI review tool on the side: two frontier models critique the same diff in parallel and what they agree on leads the report. Presented it to the entire CloudFormation org, and spoke about the workflow at a Kiro launch event — featured on Kiro's official LinkedIn.",
+          "Built a dual-model AI review tool on the side: two frontier models critique the same diff in parallel and what they agree on leads the report. Presented it to the entire CloudFormation org, and spoke about the workflow at a Kiro launch event, and Kiro put it on their official LinkedIn.",
       },
     ],
     skills: [
@@ -82,7 +82,7 @@ export const experiences = [
     title: "Software Engineering Co-op",
     subtitle: "FOG Zero-Touch Deployment · VM Automation",
     company: "Philips",
-    period: "Jan 2026 — Jun 2026",
+    period: "Jan 2026 to Jun 2026",
     location: "Cambridge, MA",
     logo: philipsLogo,
     accent: "#4FC3F7",
@@ -95,25 +95,25 @@ export const experiences = [
       { value: "Solo", label: "Owned End-to-End" },
     ],
     caseStudy: {
-      tagline: "Replaced ~1,000 per-machine technician touches with a true zero-touch refresh cycle — under FDA-regulated UEFI Secure Boot constraints.",
+      tagline: "Replaced ~1,000 per-machine technician touches with a true zero-touch refresh cycle, under FDA-regulated UEFI Secure Boot constraints.",
       problem:
-        "Imaging new machines was manual end-to-end: a technician brought up each one, plugged in a USB stick, and ran scripts off a network file share. For roughly a thousand industrial PCs supporting an FDA-regulated medical-device platform, that meant a thousand technician-touches per refresh cycle. The compliance constraint is the catch — UEFI Secure Boot must stay enabled the entire time, which rules out every standard fleet-imaging shortcut at this scale. Many engineers had wanted this automated. Nobody had shipped it.",
+        "Imaging new machines was manual end-to-end: a technician brought up each one, plugged in a USB stick, and ran scripts off a network file share. For roughly a thousand industrial PCs supporting an FDA-regulated medical-device platform, that meant a thousand technician-touches per refresh cycle. The compliance constraint is the catch. UEFI Secure Boot must stay enabled the entire time, which rules out every standard fleet-imaging shortcut at this scale. Many engineers had wanted this automated. Nobody had shipped it.",
       attempts: [
         {
           label: "Attempt 1",
-          title: "Custom-signed boot chain — proof of concept",
-          body: "Booted a Microsoft-signed loader, handed off to a custom-signed network bootloader, then into Windows PE. The model reached PE on a Secure Boot target — proof the architecture worked. Real debugging along the way: a webserver routing issue silently corrupting payload delivery, plus a path case-sensitivity bug that made the boot loader fetch a redirected login page instead of an EFI binary, invisibly 'booting garbage.' Abandoned for production because the custom signing key isn't in any firmware trust store by default — first boot would require a human keypress on each machine to enroll the key. At ~1,000 machines, that isn't zero-touch.",
+          title: "Custom-signed boot chain, proof of concept",
+          body: "Booted a Microsoft-signed loader, handed off to a custom-signed network bootloader, then into Windows PE. The model reached PE on a Secure Boot target, proof the architecture worked. Real debugging along the way: a webserver routing issue silently corrupting payload delivery, plus a path case-sensitivity bug that made the boot loader fetch a redirected login page instead of an EFI binary, invisibly 'booting garbage.' Abandoned for production because the custom signing key isn't in any firmware trust store by default. First boot would require a human keypress on each machine to enroll the key. At ~1,000 machines, that isn't zero-touch.",
         },
         {
           label: "Attempt 2",
-          title: "OEM-signed boot manager as PXE NBP — production",
-          body: "Re-architected around Microsoft's own signed Windows Boot Manager as the network boot program. It's signed by a CA already trusted by every Secure Boot firmware shipped since 2012 — no enrollment, no custom signing, no Secure Boot disable, no per-machine console touch. Power on → proxyDHCP advertises the bootfile → TFTP delivers it → firmware validates the OEM signature → loads the boot configuration and image → Windows PE → orchestrator → vendor installer → fully provisioned OS.",
+          title: "OEM-signed boot manager as PXE NBP, production",
+          body: "Re-architected around Microsoft's own signed Windows Boot Manager as the network boot program. It's signed by a CA already trusted by every Secure Boot firmware shipped since 2012. No enrollment, no custom signing, no Secure Boot disable, no per-machine console touch. Power on → proxyDHCP advertises the bootfile → TFTP delivers it → firmware validates the OEM signature → loads the boot configuration and image → Windows PE → orchestrator → vendor installer → fully provisioned OS.",
         },
       ],
       deepDives: [
         {
           title: "The shim binary",
-          body: "Switching to the production chain broke a specific Windows PE protocol call that the locked vendor installer relied on to detect UEFI vs BIOS state. Solved with a small self-contained .NET single-file shim that replaces the affected utility inside the boot image: the broken call becomes a no-op return-0; every other invocation forwards to the renamed original. A small registry write before launch tells the installer what it expects to see. The vendor installer was never modified — the broken protocol was simply removed from its dependency graph.",
+          body: "Switching to the production chain broke a specific Windows PE protocol call that the locked vendor installer relied on to detect UEFI vs BIOS state. Solved with a small self-contained .NET single-file shim that replaces the affected utility inside the boot image: the broken call becomes a no-op return-0; every other invocation forwards to the renamed original. A small registry write before launch tells the installer what it expects to see. The vendor installer was never modified. The broken protocol was simply removed from its dependency graph.",
         },
         {
           title: "Server stack & operational mindedness",
@@ -127,7 +127,7 @@ export const experiences = [
         "Architecture and live workflow presented to 50+ engineers and stakeholders.",
         "Earlier proof-of-concept chain preserved under a documented revert runbook as emergency fallback.",
       ],
-      contributor: "Separately contributed to an internal VM deployment platform — wrote the Windows guest post-provisioning automation layer (hostname assignment, service enablement, certificate imports, disk expansion, OpenSSH setup, license activation, deployment validation) and built a JSON-driven environment-validation pipeline that standardised how teams verify test environments at scale.",
+      contributor: "Separately contributed to an internal VM deployment platform. I wrote the Windows guest post-provisioning automation layer (hostname assignment, service enablement, certificate imports, disk expansion, OpenSSH setup, license activation, deployment validation) and built a JSON-driven environment-validation pipeline that standardised how teams verify test environments at scale.",
     },
     skills: [
       "PowerShell", "Python", ".NET", "C#", "Ubuntu",
@@ -140,7 +140,7 @@ export const experiences = [
     slug: "top-choice-realty",
     title: "Frontend Developer Intern",
     company: "Top Choice Realty",
-    period: "Apr 2024 — Aug 2024",
+    period: "Apr 2024 to Aug 2024",
     location: "New York, NY",
     logo: topChoiceLogo,
     logoPlate: true,
@@ -166,13 +166,13 @@ export const experiences = [
     slug: "robert-defalco-realty",
     title: "Computer Technician Intern",
     company: "Robert DeFalco Realty",
-    period: "Jun 2023 — Sep 2023",
+    period: "Jun 2023 to Sep 2023",
     location: "New York, NY",
     logo: robertDefalcoLogo,
     logoPlate: true,
     accent: "#7C5CFF",
     description:
-      "Hands-on IT support across multiple office locations — configuring systems and troubleshooting technical issues to maintain optimal performance.",
+      "Hands-on IT support across multiple office locations, configuring systems and troubleshooting technical issues to maintain optimal performance.",
     metrics: [
       { value: "3+", label: "Office Locations" },
       { value: "15+", label: "Systems Configured" },
@@ -191,7 +191,7 @@ export const experiences = [
     slug: "northeastern",
     title: "Computer Science & Political Science",
     company: "Northeastern University",
-    period: "2023 — 2027",
+    period: "2023 to 2027",
     location: "Boston, MA",
     logo: neuLogo,
     accent: "#C8102E",
