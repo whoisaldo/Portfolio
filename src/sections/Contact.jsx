@@ -19,6 +19,8 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight, Download } from "lucide-react";
 import { emails, links, profile } from "../data/profile";
+import Panel from "../components/ui/Panel";
+import Glitch from "../components/ui/Glitch";
 
 const pdf = (import.meta.env.BASE_URL || "/") + "resume.pdf";
 
@@ -45,29 +47,32 @@ const reveal = {
 
 export default function Contact() {
   return (
-    <section id="contact" className="relative bg-ink border-t border-hud/15">
+    <section id="contact" className="relative bg-ink border-t border-ink-line">
       <div className="gutter pt-24 md:pt-32 pb-24 md:pb-32">
         {/* ---- the address, at headline size ------------------------------ */}
         <motion.div
           {...reveal}
           transition={{ duration: 0.7 }}
-          className="grid gap-x-10 gap-y-6 lg:grid-cols-12"
+          className="grid gap-x-10 gap-y-6 lg:grid-cols-12 rail-clear"
         >
-          <h2 className="mono-label text-hud-soft lg:col-span-2 lg:pt-3">
-            Contact
-          </h2>
+          <div className="lg:col-span-2 lg:pt-3">
+            <p className="mono-label text-volt mb-3">06</p>
+            <Glitch as="h2" className="mono-label text-primary block">
+              Contact
+            </Glitch>
+          </div>
 
           <div className="min-w-0 lg:col-span-10">
             <a
               href={`mailto:${primary.value}`}
               className="group inline-block max-w-full"
             >
-              <span className="serif-display text-primary text-2xl sm:text-4xl lg:text-5xl xl:text-6xl leading-[1.05] break-words transition-colors duration-200 group-hover:text-signal-soft">
+              <span className="font-display uppercase font-semibold text-primary text-xl sm:text-3xl lg:text-4xl xl:text-5xl leading-[1.05] tracking-tight break-words transition-colors duration-200 group-hover:text-volt">
                 <span className="ink-underline">{primary.value}</span>
               </span>
             </a>
 
-            <p className="font-serif text-muted text-base xl:text-lg leading-[1.7] mt-7 max-w-[54ch]">
+            <p className="prose-dark mt-7 max-w-[54ch]">
               Best place to reach me. Based in {profile.base}; in{" "}
               {profile.now.location} through the {profile.now.org} internship.
             </p>
@@ -78,12 +83,12 @@ export default function Contact() {
         <motion.div
           {...reveal}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="grid gap-x-10 gap-y-12 border-t border-hud/15 mt-16 md:mt-20 pt-12 lg:grid-cols-12"
+          className="grid gap-x-10 gap-y-12 border-t border-ink-line mt-16 md:mt-20 pt-12 lg:grid-cols-12 rail-clear"
         >
           {/* 5 / 4 / 3 at every breakpoint — equal thirds would put the
               section back in the middle of the page it is trying to get out of. */}
           <div className="lg:col-span-5">
-            <h3 className="mono-label text-hud-soft">Other addresses</h3>
+            <h3 className="mono-label text-volt">Other addresses</h3>
             <ul className="mt-6 space-y-5">
               {secondary.map((email) => (
                 <li key={email.key}>
@@ -92,7 +97,7 @@ export default function Contact() {
                   </p>
                   <a
                     href={`mailto:${email.value}`}
-                    className="font-mono text-sm text-muted break-all transition-colors duration-200 hover:text-primary"
+                    className="mono-ui normal-case text-muted break-all transition-colors duration-200 hover:text-volt"
                   >
                     <span className="ink-underline">{email.value}</span>
                   </a>
@@ -102,24 +107,27 @@ export default function Contact() {
           </div>
 
           <div className="lg:col-span-4">
-            <h3 className="mono-label text-hud-soft">Résumé</h3>
+            <h3 className="mono-label text-volt">Résumé</h3>
             <p className="prose-dark mt-6 max-w-[38ch]">
               Kept current with the AWS role.
             </p>
-            <a
+            <Panel
+              as="a"
+              size="sm"
               href={pdf}
               download="Ali_Younes_Resume.pdf"
-              className="scan-beam-host group inline-flex items-center gap-3 border border-signal bg-signal px-6 py-3 mt-7
-                         mono-ui font-bold text-ink transition-colors duration-200
-                         hover:bg-transparent hover:text-signal-soft"
+              edge="bg-volt hover:bg-volt-deep transition-colors duration-200"
+              fill="bg-volt"
+              className="scan-beam-host mt-7 inline-block"
+              innerClassName="inline-flex items-center gap-3 px-6 py-3 mono-ui font-bold text-ink"
             >
               <Download className="w-3.5 h-3.5" />
               Download résumé
-            </a>
+            </Panel>
           </div>
 
           <div className="lg:col-span-3">
-            <h3 className="mono-label text-hud-soft">Elsewhere</h3>
+            <h3 className="mono-label text-volt">Elsewhere</h3>
             <ul className="mt-6 space-y-4">
               {elsewhere.map((link) => (
                 <li key={link.label}>
@@ -127,10 +135,10 @@ export default function Contact() {
                     href={link.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="group inline-flex items-center gap-2.5 font-mono text-sm text-muted transition-colors duration-200 hover:text-primary"
+                    className="group inline-flex items-center gap-2.5 mono-ui text-muted transition-colors duration-200 hover:text-volt"
                   >
                     <span className="ink-underline">{link.label}</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-faint transition-all duration-200 group-hover:text-signal-soft group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    <ArrowUpRight className="w-3.5 h-3.5 text-faint transition-all duration-200 group-hover:text-volt group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </a>
                 </li>
               ))}

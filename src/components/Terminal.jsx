@@ -262,7 +262,7 @@ AUTHOR
               const perms = isDir ? "drwxr-xr-x" : "-rw-r--r--";
               const size = isDir ? "4096" : String(item.content?.length || 0).padStart(5);
               const date = "Apr 20 12:00";
-              const colorClass = isDir ? "text-signal" : "text-bone/80";
+              const colorClass = isDir ? "text-volt" : "text-bone/80";
               return `${perms}  1 ali  staff  ${size}  ${date}  <span class="${colorClass}">${name}${isDir ? "/" : ""}</span>`;
             }).join("\n");
             setHistory(prev => [...prev, { type: "html", text: `total ${items.length * 8}\n${output}` }]);
@@ -270,8 +270,8 @@ AUTHOR
             const output = items.map(name => {
               const item = dir.children[name];
               const isDir = item.type === "dir";
-              return isDir ? `<span class="text-signal font-bold">${name}/</span>` :
-                     name.endsWith(".md") ? `<span class="text-ember">${name}</span>` :
+              return isDir ? `<span class="text-volt font-bold">${name}/</span>` :
+                     name.endsWith(".md") ? `<span class="text-fuchsia">${name}</span>` :
                      name.endsWith(".json") ? `<span class="text-bone/90">${name}</span>` :
                      `<span class="text-bone/70">${name}</span>`;
             }).join("  ");
@@ -827,12 +827,12 @@ AUTHOR
   // Prompt — younes@eternalreverse ~ %
   const renderPrompt = (path) => (
     <span className="select-none font-mono">
-      <span className="text-signal font-semibold">younes</span>
+      <span className="text-volt font-semibold">younes</span>
       <span className="text-bone/30">@</span>
       <span className="text-bone">eternalreverse</span>
       <span className="text-bone/30"> </span>
       <span className="text-bone/60">{path}</span>
-      <span className="text-signal"> %</span>
+      <span className="text-volt"> %</span>
     </span>
   );
 
@@ -855,15 +855,15 @@ AUTHOR
             transition={{ duration: 0.7 }}
             className="mb-10"
           >
-            <h2 className="serif-display italic text-primary text-3xl md:text-5xl mb-3">
+            <h2 className="font-display uppercase text-display-2 text-primary mb-3">
               This one actually works.
             </h2>
             <p className="font-serif text-muted max-w-[52ch] leading-[1.6]">
               A real shell, not a screenshot of one — 40-odd commands, a
-              filesystem you can <code className="font-mono text-signal-soft">cd</code> into,
+              filesystem you can <code className="font-mono text-volt">cd</code> into,
               tab completion and history. Start with{" "}
-              <code className="font-mono text-signal-soft">help</code>, or{" "}
-              <code className="font-mono text-signal-soft">funfact</code> if you
+              <code className="font-mono text-volt">help</code>, or{" "}
+              <code className="font-mono text-volt">funfact</code> if you
               are only here to snoop.
             </p>
           </motion.div>
@@ -875,15 +875,15 @@ AUTHOR
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.8, ease: [0.2, 0.7, 0.2, 1] }}
-          className={`crt-curve bracket-frame border border-hud/20 bg-ink transition-all duration-300 ${
+          className={`chamfer tick-frame border border-ink-line bg-ink transition-all duration-300 ${
             isMaximized ? 'fixed inset-4 z-50' : ''
           }`}
           onClick={focusInput}
         >
-          <span aria-hidden className="bracket-corner tl" />
-          <span aria-hidden className="bracket-corner tr" />
-          <span aria-hidden className="bracket-corner bl" />
-          <span aria-hidden className="bracket-corner br" />
+          <span aria-hidden className="tick tl" />
+          <span aria-hidden className="tick tr" />
+          <span aria-hidden className="tick bl" />
+          <span aria-hidden className="tick br" />
           {/* Title bar */}
           <div className="relative flex items-center justify-between px-4 py-2.5 bg-ink-raised border-b border-bone/10">
             <div className="flex gap-2">
@@ -945,16 +945,16 @@ AUTHOR
                   <pre className="text-bone/75 whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "error" && (
-                  <pre className="text-err whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
+                  <pre className="text-blood whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "system" && (
-                  <pre className="text-ember whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
+                  <pre className="text-fuchsia whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "success" && (
                   <pre className="text-ok whitespace-pre-wrap my-1 font-mono">{line.text}</pre>
                 )}
                 {line.type === "ascii" && (
-                  <pre className="text-[7px] md:text-[9px] leading-none text-signal font-bold my-2">{line.text}</pre>
+                  <pre className="text-[7px] md:text-[9px] leading-none text-volt font-bold my-2">{line.text}</pre>
                 )}
               </div>
             ))}
@@ -971,7 +971,7 @@ AUTHOR
                   onKeyDown={handleKeyDown}
                   aria-label="Terminal command input"
                   className="w-full bg-transparent text-bone outline-none font-mono"
-                  style={{ caretColor: '#7b45f7' }}
+                  style={{ caretColor: '#fcee0a' }}
                   autoComplete="off"
                   spellCheck="false"
                 />
@@ -981,7 +981,7 @@ AUTHOR
                       <div
                         key={s}
                         className={`px-3 py-1.5 text-xs cursor-pointer transition-colors font-mono uppercase tracking-[0.14em] ${
-                          i === selectedSuggestion ? 'bg-signal/20 text-signal' : 'text-bone/60 hover:bg-bone/5'
+                          i === selectedSuggestion ? 'bg-volt/20 text-volt' : 'text-bone/60 hover:bg-bone/5'
                         }`}
                         onClick={() => { setInput(s); setSuggestions([]); inputRef.current?.focus(); }}
                       >
@@ -994,7 +994,7 @@ AUTHOR
                   </div>
                 )}
               </div>
-              <span className="animate-pulse text-signal">▊</span>
+              <span className="animate-pulse text-volt">▊</span>
             </div>
           </div>
 
@@ -1028,8 +1028,8 @@ AUTHOR
                   key={c}
                   onClick={() => { executeCommand(c); setInput(""); }}
                   className="px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.18em] text-bone/70
-                             border border-bone/20 hover:border-signal hover:text-signal
-                             hover:bg-signal/5 transition-colors"
+                             border border-bone/20 hover:border-volt hover:text-volt
+                             hover:bg-volt/5 transition-colors"
                 >
                   {c}
                 </button>

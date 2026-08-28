@@ -5,12 +5,13 @@
 // Roman-numeral index, four corner brackets, a live clock, a scroll
 // percentage, map coordinates, and an "uplink_stable" dot. Two of those
 // duplicated the same IntersectionObserver logic, and five of the readouts
-// were invented — the site's own rule is that a reader should be able to check
-// what it claims.
+// were invented.
 //
 // What survives is what reports real state: where you are in the document, and
 // how far through it you are. Both are true, both are useful, and neither
-// needs a costume.
+// needs a costume. That rule is worth restating here because a cyberpunk theme
+// is a standing invitation to put the fake coordinates back. It is not an
+// invitation this file accepts.
 import React, { useEffect, useState } from "react";
 import { sections } from "../data/site";
 import { scrollToSection } from "../lib/scroll";
@@ -24,11 +25,11 @@ export default function Chrome() {
       .map((s) => document.getElementById(s.id))
       .filter(Boolean);
 
-    // Deliberately NOT an IntersectionObserver ranked by intersectionRatio:
-    // the projects section is 460vh tall, so its ratio (viewport / section) is
-    // always small and a short neighbouring section outranks it even when it
-    // fills the screen. "Which section covers the middle of the viewport" is
-    // the question actually being asked, so ask it directly.
+    // Deliberately NOT an IntersectionObserver ranked by intersectionRatio: a
+    // tall section's ratio (viewport / section) is always small, so a short
+    // neighbour outranks it even when it fills the screen. "Which section
+    // covers the middle of the viewport" is the question actually being asked,
+    // so ask it directly.
     let raf = 0;
     const onScroll = () => {
       if (raf) return;
@@ -64,13 +65,14 @@ export default function Chrome() {
         aria-hidden="true"
       >
         <div
-          className="h-full bg-signal origin-left transition-transform duration-150 ease-out"
+          className="h-full bg-volt origin-left transition-transform duration-150 ease-out"
           style={{ transform: `scaleX(${progress})` }}
         />
       </div>
 
       {/* Section index, right edge. Clickable, so it is navigation rather than
-          decoration — the Roman numerals it replaces were neither. */}
+          decoration — the Roman numerals it replaces were neither. It carries
+          all seven sections, including the two the top bar leaves out. */}
       <nav
         aria-label="Sections"
         className="hidden xl:flex fixed right-6 top-1/2 -translate-y-1/2 z-50 flex-col gap-1 items-end"
@@ -86,17 +88,19 @@ export default function Chrome() {
               className="group flex items-center gap-3 py-1.5 focus-visible:outline-none"
             >
               <span
-                className={`mono-label px-2 py-0.5 transition-colors duration-300 ${
+                className={`mono-micro chamfer chamfer-sm px-2 py-1 transition-colors duration-300 ${
                   on
-                    ? "text-muted bg-ink/85"
-                    : "text-transparent group-hover:text-faint group-hover:bg-ink/85"
+                    ? "text-primary bg-ink/90"
+                    : "text-transparent group-hover:text-dim group-hover:bg-ink/90"
                 }`}
               >
                 {s.label}
               </span>
+              {/* The tick itself is the indicator: it lengthens and goes volt
+                  for the section you are in. */}
               <span
                 className={`block h-px transition-all duration-300 ease-out ${
-                  on ? "w-8 bg-signal-soft" : "w-4 bg-hud/50 group-hover:w-6"
+                  on ? "w-8 bg-volt" : "w-4 bg-ink-line group-hover:w-6"
                 }`}
               />
             </button>

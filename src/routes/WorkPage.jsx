@@ -1,9 +1,9 @@
 // src/routes/WorkPage.jsx — /work/:slug, one piece of work at full length.
 //
 // The home page has to hold eight projects and five roles at once, so every
-// one of them is compressed: a project gets a card in a pinned reel, a role
-// gets an accordion row. This is the other half of that trade. Here there is
-// exactly one subject and the page can be as long as the material deserves.
+// one of them is compressed to a card. This is the other half of that trade:
+// here there is exactly one subject and the page can be as long as the
+// material deserves.
 //
 // It renders two shapes from one component. A project has a repository, a
 // stack and a set of screenshots; a role has a period, a metrics grid and
@@ -13,8 +13,11 @@
 // genuinely differs.
 //
 // The measure is capped at 68ch throughout. This page is prose in a way the
-// rest of the site is not, and prose set to the full width of a 1500px viewport
-// is unreadable no matter how good the typeface is.
+// rest of the site is not, and prose set to the full width of a 1500px
+// viewport is unreadable no matter how good the typeface is. That is also why
+// the cyberpunk chrome is thinner here than on the home page: chamfered panels
+// and hazard stripes around a 900-word case study would be reading against
+// the content instead of for it.
 import React, { useEffect } from "react";
 import { Link, useParams, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -24,6 +27,7 @@ import { workPhotos } from "../data/life";
 import { hexToRgbTriplet } from "../lib/image";
 import ProjectImage from "../components/projects/ProjectImage";
 import Picture from "../components/Picture";
+import Panel from "../components/ui/Panel";
 import { track } from "../lib/beacon";
 
 const reveal = {
@@ -36,7 +40,7 @@ const reveal = {
 function Band({ label, children, className = "" }) {
   return (
     <section className={`grid gap-x-10 gap-y-4 lg:grid-cols-12 ${className}`}>
-      <h2 className="mono-label text-hud-soft lg:col-span-2 lg:pt-1">{label}</h2>
+      <h2 className="mono-label text-volt lg:col-span-2 lg:pt-1">{label}</h2>
       <div className="min-w-0 lg:col-span-10">{children}</div>
     </section>
   );
@@ -85,29 +89,22 @@ export default function WorkPage() {
   return (
     <div
       className="min-h-screen"
-      style={{ "--accent": hexToRgbTriplet(entry.accent || "#7b45f7") }}
+      style={{ "--accent": hexToRgbTriplet(entry.accent || "#fcee0a") }}
     >
       {/* ---- header ------------------------------------------------------- */}
       <header className="gutter pt-32 md:pt-40 pb-12 md:pb-16 relative overflow-hidden">
-        <div className="absolute inset-0 crt-grid opacity-30 pointer-events-none" aria-hidden="true" />
-        <div
-          className="absolute -top-32 right-[-12%] w-[38rem] h-[38rem] signal-bloom blur-3xl opacity-25 pointer-events-none"
-          aria-hidden="true"
-        />
+        <div className="absolute inset-0 crt-grid opacity-50 pointer-events-none" aria-hidden="true" />
 
         <div className="relative">
           <Link
             to={kind === "project" ? "/#projects" : "/#experience"}
-            className="inline-flex items-center gap-2 mono-label text-dim hover:text-primary transition-colors"
+            className="inline-flex items-center gap-2 mono-label text-dim hover:text-volt transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             {kind === "project" ? "All work" : "All experience"}
           </Link>
 
-          <h1
-            className="mt-8 serif-display text-primary leading-[0.92]"
-            style={{ fontSize: "clamp(2.5rem, 7vw, 5.5rem)" }}
-          >
+          <h1 className="mt-8 font-display uppercase text-display-1 text-primary">
             {entry.title}
           </h1>
 
@@ -121,35 +118,43 @@ export default function WorkPage() {
           {(entry.live || entry.github) && (
             <div className="mt-8 flex flex-wrap items-center gap-3">
               {entry.live && (
-                <a
+                <Panel
+                  as="a"
+                  size="sm"
                   href={entry.live}
                   target="_blank"
                   rel="noreferrer"
-                  className="scan-beam-host inline-flex items-center gap-2.5 px-6 py-3 bg-signal text-ink
-                             mono-ui font-bold hover:bg-signal-soft transition-colors"
+                  edge="bg-volt hover:bg-volt-deep transition-colors duration-200"
+                  fill="bg-volt"
+                  className="scan-beam-host"
+                  innerClassName="inline-flex items-center gap-2.5 px-6 py-3 mono-ui font-bold text-ink"
                 >
                   <ExternalLink className="w-4 h-4" />
                   Visit
-                </a>
+                </Panel>
               )}
               {entry.github && (
-                <a
+                <Panel
+                  as="a"
+                  size="sm"
                   href={entry.github}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2.5 px-6 py-3 mono-ui border border-hud/40
-                             text-muted hover:border-hud-soft hover:text-primary transition-colors"
+                  edge="bg-ink-line hover:bg-volt transition-colors duration-200"
+                  fill="bg-ink"
+                  className="group"
+                  innerClassName="inline-flex items-center gap-2.5 px-6 py-3 mono-ui text-muted transition-colors group-hover:text-primary"
                 >
                   <Github className="w-4 h-4" />
                   Source
-                </a>
+                </Panel>
               )}
             </div>
           )}
         </div>
       </header>
 
-      <div className="hud-rule" aria-hidden="true" />
+      <div className="edge-rule" aria-hidden="true" />
 
       <main className="gutter py-14 md:py-20 space-y-16 md:space-y-24">
         {/* ---- the numbers ------------------------------------------------ */}
@@ -157,7 +162,7 @@ export default function WorkPage() {
           <motion.dl
             {...reveal}
             transition={{ duration: 0.6 }}
-            className={`border-y border-hud/20 divide-y divide-hud/15 md:divide-y-0 md:divide-x md:divide-hud/15
+            className={`border-y border-ink-line divide-y divide-ink-line md:divide-y-0 md:divide-x
                         grid grid-cols-1 sm:grid-cols-2 ${
                           entry.metrics.length === 3 ? "md:grid-cols-3" : "md:grid-cols-4"
                         }`}
@@ -167,7 +172,7 @@ export default function WorkPage() {
                 <dt className="sr-only">{m.label}</dt>
                 <dd>
                   <span
-                    className="serif-display block text-3xl md:text-4xl leading-none"
+                    className="font-display font-bold block text-3xl md:text-4xl leading-none"
                     style={{ color: "rgb(var(--accent))" }}
                   >
                     {m.value}
@@ -224,20 +229,19 @@ export default function WorkPage() {
               <Band label="How it went">
                 <ol className="space-y-5">
                   {cs.attempts.map((a, i) => (
-                    <li
-                      key={a.title}
-                      className="border border-hud/20 bg-ink-raised/50 p-7 md:p-9"
-                    >
-                      <div className="flex items-center gap-4 mb-5">
-                        <span className="mono-label" style={{ color: "rgb(var(--accent))" }}>
-                          {a.label ?? `Attempt ${i + 1}`}
-                        </span>
-                        <span className="h-px flex-1 bg-hud/20" aria-hidden="true" />
-                      </div>
-                      <h3 className="heading-text text-primary text-lg md:text-xl mb-3.5 leading-snug">
-                        {a.title}
-                      </h3>
-                      <p className="prose-dark max-w-[68ch]">{a.body}</p>
+                    <li key={a.title}>
+                      <Panel innerClassName="p-7 md:p-9">
+                        <div className="flex items-center gap-4 mb-5">
+                          <span className="mono-label" style={{ color: "rgb(var(--accent))" }}>
+                            {a.label ?? `Attempt ${i + 1}`}
+                          </span>
+                          <span className="h-px flex-1 bg-ink-line" aria-hidden="true" />
+                        </div>
+                        <h3 className="font-display uppercase text-display-3 text-primary mb-3.5">
+                          {a.title}
+                        </h3>
+                        <p className="prose-dark max-w-[68ch]">{a.body}</p>
+                      </Panel>
                     </li>
                   ))}
                 </ol>
@@ -248,25 +252,21 @@ export default function WorkPage() {
               <Band label="Deep dives">
                 <div className="grid gap-5 lg:grid-cols-2">
                   {cs.deepDives.map((d) => (
-                    <div
-                      key={d.title}
-                      className="border border-hud/20 bg-ink-raised/50 p-7 md:p-8"
-                    >
-                      <h3 className="heading-text text-primary text-lg mb-3 leading-snug">
+                    <Panel key={d.title} className="h-full" innerClassName="p-7 md:p-8 h-full">
+                      <h3 className="font-display uppercase text-display-3 text-primary mb-3">
                         {d.title}
                       </h3>
                       <p className="prose-dark text-[0.9375rem] leading-[1.7]">{d.body}</p>
-                    </div>
+                    </Panel>
                   ))}
                 </div>
               </Band>
             )}
 
             {cs.pullQuote && (
-              <figure className="max-w-[46ch] mx-auto py-4 text-center">
-                <blockquote
-                  className="serif-display italic text-primary leading-[1.15]"
-                  style={{ fontSize: "clamp(1.5rem, 3.4vw, 2.5rem)" }}
+              <figure className="max-w-[42ch] mx-auto py-4 text-center">
+                <blockquote className="font-display uppercase font-semibold text-primary leading-[1.1]"
+                  style={{ fontSize: "clamp(1.375rem, 3vw, 2.25rem)", letterSpacing: "-0.015em" }}
                 >
                   {cs.pullQuote}
                 </blockquote>
@@ -304,22 +304,21 @@ export default function WorkPage() {
             <Band label="Highlights">
               <ol className="grid gap-5 md:grid-cols-2">
                 {entry.highlights.map((h, i) => (
-                  <li
-                    key={h.title}
-                    className="border border-hud/20 bg-ink-raised/50 p-7 md:p-8"
-                  >
-                    <div className="flex items-center gap-4 mb-5">
-                      <span className="mono-label" style={{ color: "rgb(var(--accent))" }}>
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <span className="h-px flex-1 bg-hud/20" aria-hidden="true" />
-                    </div>
-                    <h3 className="heading-text text-primary text-lg mb-3 leading-snug">
-                      {h.title}
-                    </h3>
-                    <p className="prose-dark text-[0.9375rem] leading-[1.7]">
-                      {h.description}
-                    </p>
+                  <li key={h.title} className="h-full">
+                    <Panel className="h-full" innerClassName="p-7 md:p-8 h-full">
+                      <div className="flex items-center gap-4 mb-5">
+                        <span className="mono-label" style={{ color: "rgb(var(--accent))" }}>
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <span className="h-px flex-1 bg-ink-line" aria-hidden="true" />
+                      </div>
+                      <h3 className="font-display uppercase text-display-3 text-primary mb-3">
+                        {h.title}
+                      </h3>
+                      <p className="prose-dark text-[0.9375rem] leading-[1.7]">
+                        {h.description}
+                      </p>
+                    </Panel>
                   </li>
                 ))}
               </ol>
@@ -347,6 +346,29 @@ export default function WorkPage() {
           </motion.div>
         )}
 
+        {/* ---- coursework -------------------------------------------------
+            Only the degree entry carries this. Before all five roles got a
+            page it never rendered anywhere except the home page, so opening
+            /work/northeastern would have dropped its course list silently —
+            the page reads `tech ?? skills` for the stack band and education
+            has neither. */}
+        {entry.coursework && (
+          <motion.div {...reveal} transition={{ duration: 0.6 }}>
+            <Band label="Coursework">
+              <ul className="flex flex-wrap gap-2">
+                {entry.coursework.map((c) => (
+                  <li
+                    key={c}
+                    className="chamfer chamfer-sm bg-ink-raised px-3.5 py-2 mono-label text-muted"
+                  >
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </Band>
+          </motion.div>
+        )}
+
         {/* ---- screenshots ------------------------------------------------
             Full width and stacked, not a carousel. A carousel on a detail page
             hides most of the evidence behind an interaction; this page has the
@@ -357,7 +379,7 @@ export default function WorkPage() {
               <div className="space-y-8">
                 {entry.images.map((img, i) => (
                   <figure key={i}>
-                    <div className="relative overflow-hidden border border-hud/20 bg-ink-raised">
+                    <Panel corner="br" innerClassName="relative overflow-hidden">
                       {img?.lqip && (
                         <div
                           aria-hidden="true"
@@ -372,9 +394,9 @@ export default function WorkPage() {
                         sizes="(min-width: 1024px) 78vw, 92vw"
                         className="relative w-full h-auto"
                       />
-                    </div>
+                    </Panel>
                     {entry.imageLabels?.[i] && (
-                      <figcaption className="mt-3 mono-label text-dim">
+                      <figcaption className="mt-3 mono-micro text-dim">
                         {String(i + 1).padStart(2, "0")} · {entry.imageLabels[i]}
                       </figcaption>
                     )}
@@ -392,7 +414,7 @@ export default function WorkPage() {
               <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {photos.map((p) => (
                   <li key={p.caption}>
-                    <div className="relative overflow-hidden border border-hud/20 bg-ink-raised">
+                    <Panel corner="br" innerClassName="relative overflow-hidden">
                       <div
                         aria-hidden="true"
                         className="absolute inset-0 bg-cover bg-center"
@@ -405,8 +427,8 @@ export default function WorkPage() {
                         sizes="(min-width: 1024px) 26vw, (min-width: 640px) 45vw, 90vw"
                         className="relative w-full h-auto"
                       />
-                    </div>
-                    <p className="mt-3 mono-label text-dim">{p.caption}</p>
+                    </Panel>
+                    <p className="mt-3 mono-micro text-dim">{p.caption}</p>
                     {p.note && (
                       <p className="mt-2 prose-dark text-[0.9375rem] leading-[1.6]">{p.note}</p>
                     )}
@@ -421,9 +443,12 @@ export default function WorkPage() {
         {(entry.tech || entry.skills) && (
           <motion.div {...reveal} transition={{ duration: 0.6 }}>
             <Band label="Stack">
-              <ul className="flex flex-wrap gap-x-3 gap-y-2">
+              <ul className="flex flex-wrap gap-2">
                 {(entry.tech ?? entry.skills).map((t) => (
-                  <li key={t} className="mono-label text-dim border border-hud/20 px-3 py-1.5">
+                  <li
+                    key={t}
+                    className="chamfer chamfer-sm bg-ink-raised px-3.5 py-2 mono-label text-muted"
+                  >
                     {t}
                   </li>
                 ))}
@@ -436,7 +461,7 @@ export default function WorkPage() {
       {/* ---- next ---------------------------------------------------------- */}
       <nav
         aria-label="More work"
-        className="gutter py-12 border-t border-hud/20 flex flex-wrap items-center justify-between gap-6"
+        className="gutter py-12 border-t border-ink-line flex flex-wrap items-center justify-between gap-6"
       >
         {prev ? (
           <Link
@@ -445,8 +470,8 @@ export default function WorkPage() {
           >
             <ArrowLeft className="w-4 h-4 text-dim shrink-0 transition-transform group-hover:-translate-x-0.5" />
             <span className="min-w-0">
-              <span className="mono-label text-hud block">Previous</span>
-              <span className="heading-text text-muted group-hover:text-primary transition-colors truncate block">
+              <span className="mono-micro text-dim block">Previous</span>
+              <span className="font-display uppercase font-semibold text-muted group-hover:text-volt transition-colors truncate block">
                 {prev.title}
               </span>
             </span>
@@ -461,8 +486,8 @@ export default function WorkPage() {
             className="group inline-flex items-center gap-3 min-w-0 text-right ml-auto"
           >
             <span className="min-w-0">
-              <span className="mono-label text-hud block">Next</span>
-              <span className="heading-text text-muted group-hover:text-primary transition-colors truncate block">
+              <span className="mono-micro text-dim block">Next</span>
+              <span className="font-display uppercase font-semibold text-muted group-hover:text-volt transition-colors truncate block">
                 {next.title}
               </span>
             </span>
@@ -471,7 +496,7 @@ export default function WorkPage() {
         ) : (
           <Link
             to="/#contact"
-            className="group inline-flex items-center gap-2 mono-ui text-muted hover:text-primary transition-colors ml-auto"
+            className="group inline-flex items-center gap-2 mono-ui text-muted hover:text-volt transition-colors ml-auto"
           >
             Get in touch
             <ArrowUpRight className="w-4 h-4" />

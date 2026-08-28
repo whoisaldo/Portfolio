@@ -18,6 +18,8 @@ import React from "react";
 import { motion } from "framer-motion";
 import { teardown } from "../data/life";
 import Picture from "../components/Picture";
+import Panel from "../components/ui/Panel";
+import Glitch from "../components/ui/Glitch";
 
 const reveal = {
   initial: { opacity: 0, y: 18 },
@@ -31,7 +33,7 @@ export default function Teardown() {
   return (
     <section
       id={teardown.id}
-      className="relative bg-ink border-t border-hud/15 grain"
+      className="relative bg-ink border-t border-ink-line grain"
     >
       <div className="gutter pt-24 md:pt-32 pb-24 md:pb-32">
         {/* ---- header ------------------------------------------------------
@@ -41,24 +43,23 @@ export default function Teardown() {
           transition={{ duration: 0.7 }}
           className="max-w-3xl"
         >
-          <h2
-            className="serif-display text-primary leading-[0.9]"
-            style={{ fontSize: "clamp(2.75rem, 7vw, 5.5rem)" }}
+          <p className="mono-label text-volt mb-4">05 — Teardown</p>
+          <Glitch
+            as="h2"
+            className="font-display uppercase text-display-1 text-primary block"
           >
             {teardown.title}
-          </h2>
+          </Glitch>
           <p className="mt-6 prose-dark max-w-[60ch]">{teardown.lede}</p>
         </motion.div>
 
-        <div className="hud-rule mt-12 mb-10" aria-hidden="true" />
+        <div className="edge-rule mt-12 mb-10" aria-hidden="true" />
 
         {/* ---- the wall ----------------------------------------------------
-            `xl:mr-20` keeps the third column clear of the section index in
-            Chrome.jsx, which is `fixed right-6` from xl up. `.gutter` sets
-            padding-inline and is emitted after Tailwind's utilities, so a
-            `pr-*` class here would lose to it — the clearance has to be a
-            margin. Same reason as the hero portrait. */}
-        <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 lg:gap-8 xl:mr-20">
+            `.rail-clear` keeps the third column clear of the section index
+            in Chrome.jsx. See the note on that class in index.css for why the
+            clearance has to be a margin and not padding. */}
+        <div className="columns-1 sm:columns-2 lg:columns-3 gap-6 lg:gap-8 rail-clear">
           {teardown.photos.map((p, i) => (
             <motion.figure
               key={p.slug}
@@ -69,7 +70,11 @@ export default function Teardown() {
               // next column from its photograph.
               className="group mb-6 lg:mb-8 break-inside-avoid"
             >
-              <div className="relative overflow-hidden border border-hud/20 bg-ink-raised">
+              <Panel
+                corner="br"
+                edge="bg-ink-line group-hover:bg-volt transition-colors duration-300"
+                innerClassName="relative overflow-hidden"
+              >
                 <div
                   aria-hidden="true"
                   className="absolute inset-0 bg-cover bg-center"
@@ -87,18 +92,18 @@ export default function Teardown() {
                 {/* Index and date ride on the image so the caption below stays
                     prose and nothing else. */}
                 <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3
-                                bg-gradient-to-b from-ink/80 to-transparent pointer-events-none">
-                  <span className="mono-label text-hud-soft">
+                                bg-gradient-to-b from-ink/85 to-transparent pointer-events-none">
+                  <span className="mono-micro text-dim">
                     {String(i + 1).padStart(2, "0")} / {total}
                   </span>
                   {p.date && (
-                    <span className="mono-label text-dim text-right">{p.date}</span>
+                    <span className="mono-micro text-dim text-right">{p.date}</span>
                   )}
                 </div>
-              </div>
+              </Panel>
 
               <figcaption className="mt-4">
-                <h3 className="heading-text text-primary text-[1.0625rem]">
+                <h3 className="font-display uppercase font-semibold text-primary text-[1.0625rem] tracking-tight">
                   {p.title}
                 </h3>
                 {p.body && (
@@ -120,14 +125,14 @@ export default function Teardown() {
             transition={{ duration: 0.6 }}
             className="mt-6 grid gap-x-10 gap-y-4 lg:grid-cols-12"
           >
-            <h3 className="mono-label text-hud-soft lg:col-span-2 lg:pt-1">
+            <h3 className="mono-label text-volt lg:col-span-2 lg:pt-1">
               Not pictured
             </h3>
             <ul className="min-w-0 lg:col-span-10 space-y-3 max-w-[68ch]">
               {teardown.notPictured.map((line) => (
                 <li key={line} className="flex gap-4 prose-dark">
                   <span
-                    className="mt-[0.7em] h-px w-5 shrink-0 bg-hud/60"
+                    className="mt-[0.7em] h-px w-5 shrink-0 bg-volt/60"
                     aria-hidden="true"
                   />
                   <span>{line}</span>

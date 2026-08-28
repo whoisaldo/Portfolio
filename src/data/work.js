@@ -12,15 +12,24 @@
 import { featuredProjects } from "./projects";
 import { experiences } from "./experience";
 
-/** Roles worth a page of their own. */
-// Education has no narrative beyond what the accordion already shows, and the
-// two early IT roles are four bullets each — a dedicated page for either would
-// be a heading, a paragraph and a lot of whitespace. They stay in the
-// accordion, which is the right size for them.
+/** Roles with a page of their own — which is now all of them. */
+// This used to hold three. The reasoning for leaving two out was that the
+// early IT role and the degree are four bullets each, so a page for either
+// would be a heading, a paragraph and a lot of whitespace — and the accordion
+// they lived in was the right size for them.
+//
+// The accordion is gone. Experience is a grid of five cards now, and a grid
+// where three cards open and two are dead ends teaches a reader that cards do
+// not reliably open, which costs more than a short page does. Both of the
+// added entries carry real content: Robert DeFalco has four metrics and three
+// highlights, and Northeastern has metrics and a coursework list that
+// WorkPage renders in a band of its own.
 const ROLE_SLUGS = new Set([
   "aws-cloudformation",
   "philips-zero-touch",
   "top-choice-realty",
+  "robert-defalco-realty",
+  "northeastern",
 ]);
 
 export const workRoles = experiences.filter(

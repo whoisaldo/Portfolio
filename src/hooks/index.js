@@ -87,3 +87,76 @@ export function useFocusTrap(ref, active, onEscape) {
 
 
 
+/**
+ * Resolve `text` out of character noise, left to right.
+ *
+ * Generalised out of BootSequence.jsx, which had this loop inlined for the one
+ * string it animates. Section headings want the same effect on entry, so it
+ * lives here now and the boot sequence uses it too.
+ *
+ * Returns the string to display. It starts scrambled and ends exactly equal to
+ * `text`, so a caller can render it directly — but callers should render the
+ * real string alongside it for assistive technology; see ui/Glitch.jsx.
+ *
+ * Under `prefers-reduced-motion` this never animates: it returns `text` from
+ * the first render, which is why the initial state is computed from `reduced`
+ * rather than being corrected in an effect afterwards.
+ */
+const DECODE_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/\\<>[]{}*+=_";
+
+const scrambleOf = (text) => {
+  let out = "";
+  for (const ch of text) {
+    out += ch === " " ? " " : DECODE_GLYPHS[(Math.random() * DECODE_GLYPHS.length) | 0];
+  }
+  return out;
+};
+
+export function useDecode(text, { active = true, duration = 650 } = {}) {
+  const reduced = usePrefersReducedMotion();
+  const [out, setOut] = useState(() => (reduced ? text : scrambleOf(text)));
+  const settled = useRef(false);
+
+  useEffect(() => {
+    if (reduced) {
+      setOut(text);
+      return;
+    }
+    // `settled` keeps a heading from re-scrambling if the observer that drives
+    // `active` flickers, which it does at a viewport boundary during a fast
+    // scroll. Decoding twice reads as a bug, not as an effect.
+    if (!active || settled.current) return;
+
+    let raf = 0;
+    const start = performance.now();
+
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      // The 1.15 overshoot locks the final character slightly before t reaches
+      // 1, so the string holds still for a beat instead of resolving on the
+      // very last frame.
+      const locked = Math.floor(t * text.length * 1.15);
+      let s = "";
+      for (let i = 0; i < text.length; i++) {
+        s +=
+          text[i] === " "
+            ? " "
+            : i < locked
+            ? text[i]
+            : DECODE_GLYPHS[(Math.random() * DECODE_GLYPHS.length) | 0];
+      }
+      setOut(s);
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        settled.current = true;
+        setOut(text);
+      }
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, active, duration, reduced]);
+
+  return out;
+}

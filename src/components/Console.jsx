@@ -45,10 +45,10 @@ export default function Console() {
     window.__ay_hint = true;
     console.log(
       `%c${HINT}%c\n\nThere is a shell in here. Press %c\`%c to open it.`,
-      "color:#9b72ff;font:600 15px ui-monospace,monospace",
-      "color:#8b7fc4;font:13px ui-monospace,monospace",
-      "color:#efece5;background:#221f2e;padding:1px 5px;border-radius:3px;font:13px ui-monospace,monospace",
-      "color:#8b7fc4;font:13px ui-monospace,monospace",
+      "color:#fcee0a;font:600 15px ui-monospace,monospace",
+      "color:#8a8780;font:13px ui-monospace,monospace",
+      "color:#eceae4;background:#24242a;padding:1px 5px;border-radius:3px;font:13px ui-monospace,monospace",
+      "color:#8a8780;font:13px ui-monospace,monospace",
     );
   }, []);
 
@@ -113,7 +113,7 @@ export default function Console() {
               onClick={close}
               aria-label="Close console"
               className="absolute right-6 top-6 z-10 inline-flex h-9 w-9 items-center justify-center
-                         border border-hud/35 text-dim hover:text-primary hover:border-hud-soft
+                         border border-ink-line text-dim hover:text-primary hover:border-volt
                          transition-colors"
             >
               <X className="w-4 h-4" />
@@ -121,7 +121,7 @@ export default function Console() {
 
             <Suspense
               fallback={
-                <p className="gutter py-16 mono-label text-hud">opening shell…</p>
+                <p className="gutter py-16 mono-label text-dim">opening shell…</p>
               }
             >
               <Terminal onExit={close} />

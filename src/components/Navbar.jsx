@@ -1,16 +1,22 @@
 // src/components/Navbar.jsx — the fixed header.
 //
-// Three things changed. The `[01]`–`[04]` prefixes are gone: they were the
-// first of three competing numbering systems on the page and they numbered
-// four links that any reader can count. The `ALI_YOUNES // ETERNALREVERSE`
-// wordmark is now just his name, set in the display face — snake_case is for
-// identifiers, and this is a person. And the link list comes from
-// src/data/site.js rather than a fourth private copy of the same array.
+// The `[01]`–`[04]` prefixes were removed a while back: they were the first of
+// three competing numbering systems on the page and they numbered four links
+// any reader can count. The link list comes from src/data/site.js rather than
+// a fourth private copy of the same array.
 //
-// In-page links go through scrollToSection(): the projects reel is ~460vh of
-// pinned scrolling, so a native smooth jump past it strobes through every
-// project for several seconds. scroll.js picks smooth or instant by distance.
-// The href stays a real `#id` so middle-click, copy-link and no-JS still work.
+// In-page links go through scrollToSection(). The href stays a real `#id` so
+// middle-click, copy-link and no-JS still work.
+//
+// The wordmark is set in the display face at a size the rest of the bar is
+// not, because a header with six items all at 11px has no entry point. It is
+// his name; it should look like the thing everything else hangs off.
+//
+// Opacity modifiers here must come from Tailwind's scale (…/85, /90, /95).
+// This bar was written with `bg-ink/92` and the mobile panel with `bg-ink/96`,
+// neither of which is a scale step — so Tailwind emitted no rule at all and
+// both surfaces rendered fully transparent. It fails silently: no build error,
+// no console warning, just a menu you can read the page through.
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -18,6 +24,7 @@ import { Menu, X } from "lucide-react";
 import { navSections } from "../data/site";
 import { profile } from "../data/profile";
 import { scrollToSection } from "../lib/scroll";
+import Panel from "./ui/Panel";
 
 const pdf = (import.meta.env.BASE_URL || "/") + "resume.pdf";
 
@@ -48,18 +55,19 @@ export default function Navbar() {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300
-                  ${isScrolled ? "bg-ink/90 backdrop-blur-md border-b border-hud/20" : "bg-transparent"}`}
+                  ${isScrolled ? "bg-ink/95 backdrop-blur-md border-b border-ink-line" : "bg-transparent"}`}
     >
       <nav className="gutter py-4 flex items-center justify-between gap-6">
         <a
           href={onHome ? "#hero" : "/"}
           onClick={(e) => jumpTo(e, "hero")}
-          className="serif-display text-primary text-base md:text-lg leading-none transition-colors duration-200 hover:text-signal-soft"
+          className="font-display font-bold uppercase tracking-tight text-primary text-lg md:text-xl
+                     leading-none transition-colors duration-200 hover:text-volt"
         >
           {profile.name}
         </a>
 
-        <div className="hidden md:flex items-center gap-8">
+        <div className="hidden md:flex items-center gap-7">
           {navSections.map((section) => (
             <a
               key={section.id}
@@ -71,14 +79,20 @@ export default function Navbar() {
             </a>
           ))}
 
-          <a
+          {/* The one filled control in the bar. Volt is signage: it marks the
+              thing you can act on, and there is exactly one of those here. */}
+          <Panel
+            as="a"
+            size="sm"
             href={pdf}
             download="Ali_Younes_Resume.pdf"
-            className="scan-beam-host mono-ui font-bold border border-signal px-5 py-2.5 text-signal
-                       transition-colors duration-200 hover:bg-signal hover:text-ink"
+            edge="bg-volt hover:bg-volt-deep transition-colors duration-200"
+            fill="bg-volt"
+            className="scan-beam-host"
+            innerClassName="px-5 py-2.5 mono-ui font-bold text-ink"
           >
             Résumé
-          </a>
+          </Panel>
         </div>
 
         <button
@@ -87,7 +101,7 @@ export default function Navbar() {
           aria-expanded={isMobileOpen}
           aria-controls="mobile-nav"
           aria-label={isMobileOpen ? "Close menu" : "Open menu"}
-          className="md:hidden p-2 text-muted transition-colors duration-200 hover:text-signal-soft"
+          className="md:hidden p-2 text-muted transition-colors duration-200 hover:text-volt"
         >
           {isMobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
@@ -101,7 +115,7 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="md:hidden bg-ink/95 backdrop-blur-md border-t border-hud/20"
+            className="md:hidden bg-ink/95 backdrop-blur-md border-t border-ink-line"
           >
             <div className="gutter py-5 flex flex-col gap-1">
               {navSections.map((section, i) => (
@@ -125,7 +139,7 @@ export default function Navbar() {
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: navSections.length * 0.04 }}
-                className="mono-ui font-bold border border-signal text-signal text-center px-5 py-3 mt-3"
+                className="chamfer chamfer-sm bg-volt mono-ui font-bold text-ink text-center px-5 py-3 mt-3"
               >
                 Résumé
               </motion.a>

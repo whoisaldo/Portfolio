@@ -15,12 +15,18 @@
 // carries the what, below it. If a project ever needs a new `why`, write it the
 // way these are written: first person, one concrete detail, no build-up.
 //
-// `accent` is sampled from each project's own key-art plate (scripted, not
-// picked by eye): the dominant chromatic hue after excluding the violet rim
-// light the eight plates share. Where a plate carries no distinct product
-// hue, the accent stays in the violet family the art actually contains.
-// The rail tints its chrome to the focused project, so colour here means
-// "which project you are looking at" rather than decoration.
+// `accent` used to be sampled from each project's own key-art plate — the
+// dominant chromatic hue after excluding the violet rim light all eight plates
+// share. That was a real derivation and it stopped meaning anything the moment
+// the site's chrome stopped being violet: eight sampled violets under a yellow
+// interface read as leftovers from the previous design.
+//
+// It carries information now instead. Volt means the thing is running today;
+// fuchsia means it is still being built. Six of the eight are live, so the
+// grid reads mostly yellow with two magenta exceptions, and the exception is
+// the point — a reader can see which projects are shipped without reading a
+// single status flag. Derived from `status` directly below each one, so the
+// two can never disagree.
 
 // Every `images[]` entry below is an encoded variant set rather than a bare
 // URL — `{ src, width, height, avif, webp, thumb, lqip, lqipKey }`. The source
@@ -29,6 +35,9 @@
 // and src/data/images.js for the generated map. Render them through
 // <Picture> / <ProjectImage>, not a bare <img src>.
 import { img } from "./images";
+
+const LIVE = "#fcee0a";
+const BUILDING = "#ff2e88";
 
 // Key art — generated device-mockup plates, 3:2 (1536x1024). Each is a
 // photorealistic shot of the real product running on real hardware; the
@@ -99,7 +108,7 @@ export const featuredProjects = [
     tagline: "indie software studio · eternalreverse.com",
     why:
       "Too many indie tools ship half-baked, bloat with features nobody asked for, and get abandoned the moment trends shift. Two of us in Boston, shipping the opposite.",
-    accent: "#7C5CFF",
+    accent: LIVE,
     status: "live",
     description:
       "A two-person indie software studio I co-founded in Boston. Ships its own technically-ambitious products instead of doing client work. Six of them, four already live.",
@@ -127,7 +136,7 @@ export const featuredProjects = [
     tagline: "web live · native iOS in the wings · exerlyfitness.com",
     why:
       "Every commercial fitness app is paywalled. I wanted a free, open-source one that actually coaches.",
-    accent: "#9B5CFF",
+    accent: LIVE,
     status: "live",
     description:
       "React 19 on the web, a Node/Express API, an AI coach, and a native SwiftUI iOS client built and waiting on App Store review.",
@@ -157,7 +166,7 @@ export const featuredProjects = [
     tagline: "equivalent-exchange alchemy for Fabric · eternalexchangemod.com",
     why:
       "ProjectE is the canonical equivalent-exchange mod and it is Forge-only. Fabric had nothing comparable, so I built the spin-off, plus a solver that walks Minecraft's whole recipe graph at world load and prices every item in the game.",
-    accent: "#2FD37A",
+    accent: BUILDING,
     status: "pre-release",
     description:
       "A 39K-line Minecraft alchemy mod for Fabric 1.21.1. A spin-off of ProjectE with a recipe-graph solver that prices every item in the game at world load.",
@@ -189,7 +198,7 @@ export const featuredProjects = [
     tagline: "a calm place for your reading life · moopsbooks.com",
     why:
       "I was reading more and wanted somewhere to track it with my friends. Goodreads is fine, but it is not ours.",
-    accent: "#FF9147",
+    accent: LIVE,
     status: "live",
     description:
       "Full-stack social reading tracker: shelves, reviews, clubs and a streak counter, on a MongoDB backend with the Google Books catalogue behind search.",
@@ -218,7 +227,7 @@ export const featuredProjects = [
     tagline: "Windows → iPad over UDP · eternalmonitor.dev",
     why:
       "I refused to pay $40 for an iPad-as-second-display app that lagged. So I wrote my own.",
-    accent: "#C4D62E",
+    accent: BUILDING,
     status: "in-dev",
     description:
       "Rust host + SwiftUI iPad client that turns an iPad into a wireless second display for Windows, with hardware H.264 encode and decode end to end.",
@@ -249,7 +258,7 @@ export const featuredProjects = [
     tagline: "Apple Music → Discord · eternalrichpresence.dev",
     why:
       "Apple Music does not talk to Discord. So I made it talk, over Discord's raw IPC named pipes.",
-    accent: "#FF3B54",
+    accent: LIVE,
     status: "live",
     description:
       "Windows system-tray bridge putting Apple Music and Spotify on your Discord profile, with a Listen Along built on raw named pipes.",
@@ -280,7 +289,7 @@ export const featuredProjects = [
     tagline: "client-side CV, zero cloud",
     why:
       "Most face-analytics tools ship your webcam frames to a cloud endpoint. This one runs the whole pipeline in the browser. Nothing leaves the machine.",
-    accent: "#5B9DFF",
+    accent: LIVE,
     status: "live",
     description:
       "100%-in-browser face + emotion + age/gender detection with TensorFlow.js. No frames leave the device.",
@@ -308,7 +317,7 @@ export const featuredProjects = [
     tagline: "signaturecutschicopee.com",
     why:
       "A barbershop in Chicopee with nothing online, taking every booking by phone. The booking flow compiles into a WhatsApp deeplink, so there is no backend to keep alive.",
-    accent: "#6E63E8",
+    accent: LIVE,
     status: "live",
     description:
       "Production marketing + lead-gen site for a Chicopee barbershop. Next.js 14 SSG, static export, WhatsApp-driven booking flow.",

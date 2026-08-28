@@ -1,6 +1,6 @@
 // src/components/projects/ProjectIndex.jsx — the work, all of it, at once.
 //
-// This replaces a scroll-pinned reel that showed eight projects one at a time
+// This replaced a scroll-pinned reel that showed eight projects one at a time
 // across roughly 460vh. The reel looked good and cost too much: a reader with
 // forty seconds saw two projects, could not compare any of them, and could not
 // tell how many there were without scrolling to the end. Nobody scans a
@@ -10,20 +10,23 @@
 // there. Which one is worth opening. Every card carries the same four things
 // in the same place, so comparing them takes no effort.
 //
-// The depth moved to /work/:slug, which is why the home page no longer needs
-// to hold it. Each card is one link to one page. There is no modal any more.
+// Colour is load-bearing here rather than decorative: `--accent` is volt on a
+// live project and fuchsia on one still in development (see the note above
+// `const LIVE` in src/data/projects.js). Six yellow cards and two magenta ones
+// means a reader can see what is shipped before reading a word.
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import ProjectImage from "./ProjectImage";
+import Panel from "../ui/Panel";
 import { hexToRgbTriplet } from "../../lib/image";
 
 export default function ProjectIndex({ projects }) {
   const total = String(projects.length).padStart(2, "0");
 
   return (
-    <ol className="gutter grid gap-x-8 gap-y-14 lg:grid-cols-2 xl:mr-20">
+    <ol className="gutter rail-clear grid gap-x-8 gap-y-14 lg:grid-cols-2">
       {projects.map((p, i) => (
         <motion.li
           key={p.slug}
@@ -34,9 +37,16 @@ export default function ProjectIndex({ projects }) {
           style={{ "--accent": hexToRgbTriplet(p.accent) }}
         >
           <Link to={`/work/${p.slug}`} className="group block focus-visible:outline-none">
-            {/* Key art. The 20px LQIP scaled up sits behind it, so the frame is
-                never an empty box while the plate decodes. */}
-            <div className="relative aspect-[3/2] overflow-hidden border border-hud/20 bg-ink-raised">
+            {/* Key art, in a frame cut at the bottom-right only. The top-left
+                corner carries the index and the status flag, and a 45° cut
+                under a label just eats the label. */}
+            <Panel
+              corner="br"
+              edge="bg-ink-line transition-colors duration-300"
+              fill="bg-ink-raised"
+              className="group-hover:bg-accent group-focus-visible:bg-accent"
+              innerClassName="relative aspect-[3/2] overflow-hidden"
+            >
               {p.images?.[0]?.lqip && (
                 <div
                   aria-hidden="true"
@@ -59,39 +69,33 @@ export default function ProjectIndex({ projects }) {
                   layer of shade for decoration. */}
               <div
                 aria-hidden="true"
-                className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-ink/75 to-transparent"
+                className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-ink/85 to-transparent"
               />
 
               <div className="absolute inset-x-0 top-0 flex items-center gap-3 p-4">
-                <span className="mono-label text-hud-soft">
+                <span className="mono-micro text-dim">
                   {String(i + 1).padStart(2, "0")} / {total}
                 </span>
-                {p.status === "live" && (
-                  <span className="mono-label text-ember">Live</span>
-                )}
-                {p.status && p.status !== "live" && (
-                  <span className="mono-label text-dim">{p.status}</span>
-                )}
+                <span
+                  className="chamfer chamfer-sm mono-micro px-2 py-1 text-ink font-bold"
+                  style={{ backgroundColor: "rgb(var(--accent))" }}
+                >
+                  {p.status === "live" ? "Live" : p.status}
+                </span>
               </div>
-
-              {/* The border lights to the project's own accent on hover, so the
-                  card you are pointing at is unambiguous in a grid of eight. */}
-              <div
-                aria-hidden="true"
-                className="absolute inset-0 border opacity-0 transition-opacity duration-300
-                           group-hover:opacity-100 group-focus-visible:opacity-100"
-                style={{ borderColor: "rgb(var(--accent))" }}
-              />
-            </div>
+            </Panel>
 
             <div className="pt-5">
               <div className="flex items-baseline justify-between gap-4">
-                <h3 className="serif-display italic text-primary text-3xl md:text-4xl leading-none">
+                <h3
+                  className="font-display uppercase text-display-2 text-primary
+                             transition-colors duration-200 group-hover:text-accent"
+                >
                   {p.title}
                 </h3>
                 <ArrowUpRight
                   className="w-5 h-5 shrink-0 text-dim transition-all duration-200
-                             group-hover:text-primary group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                             group-hover:text-accent group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
                   aria-hidden="true"
                 />
               </div>
@@ -100,10 +104,10 @@ export default function ProjectIndex({ projects }) {
 
               <ul className="mt-5 flex flex-wrap gap-x-3 gap-y-1.5" aria-label="Stack">
                 {p.tech.slice(0, 5).map((t) => (
-                  <li key={t} className="mono-label text-dim">{t}</li>
+                  <li key={t} className="mono-micro text-dim">{t}</li>
                 ))}
                 {p.tech.length > 5 && (
-                  <li className="mono-label text-faint">+{p.tech.length - 5}</li>
+                  <li className="mono-micro text-faint">+{p.tech.length - 5}</li>
                 )}
               </ul>
             </div>

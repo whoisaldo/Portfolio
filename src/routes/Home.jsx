@@ -10,7 +10,9 @@ import React, { useEffect } from "react";
 import Chrome from "../components/Chrome";
 import Hero from "../components/Hero";
 import ProjectsSection from "../components/projects/ProjectsSection";
-import Experience from "../components/Experience";
+import ExperienceIndex from "../components/ExperienceIndex";
+import About from "../sections/About";
+import Stack from "../sections/Stack";
 import Teardown from "../sections/Teardown";
 import Contact from "../sections/Contact";
 import { scrollToSection } from "../lib/scroll";
@@ -60,9 +62,10 @@ export default function Home() {
       <main>
         <Hero />
         <ProjectsSection />
-        <Experience />
+        <ExperienceIndex />
+        <About />
+        <Stack />
         <Teardown />
-
         <Contact />
       </main>
     </>

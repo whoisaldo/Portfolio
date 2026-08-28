@@ -6,22 +6,44 @@
 import React from "react";
 import ProjectIndex from "./ProjectIndex";
 import OtherProjects from "./OtherProjects";
+import Glitch from "../ui/Glitch";
 import { featuredProjects, otherProjects } from "../../data/projects";
 
 export default function ProjectsSection() {
+  const live = featuredProjects.filter((p) => p.status === "live").length;
+
   return (
     <section id="projects" className="relative bg-ink">
-      <header className="gutter pt-28 md:pt-36 pb-14">
-        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
-          <h2 className="serif-display italic text-primary text-5xl md:text-7xl xl:text-8xl leading-[0.85]">
-            Work
-          </h2>
-          <p className="font-serif text-muted text-base md:text-lg max-w-[42ch] leading-[1.6]">
-            Eight things I built and shipped. Every number on these pages is
-            checkable against the source.
-          </p>
+      <header className="gutter rail-clear pt-28 md:pt-36 pb-14">
+        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
+          <div>
+            <p className="mono-label text-volt mb-4">01 — Work</p>
+            <Glitch
+              as="h2"
+              className="font-display uppercase text-display-1 text-primary block"
+            >
+              Work
+            </Glitch>
+          </div>
+
+          <div className="max-w-[42ch]">
+            <p className="prose-dark">
+              Eight things I built and shipped. Every number on these pages is
+              checkable against the source.
+            </p>
+            {/* Derived from the data, not typed. If a project's status changes
+                this line changes with it, which is the only way a count on a
+                page stays true. */}
+            <p className="mono-label text-dim mt-4">
+              {String(featuredProjects.length).padStart(2, "0")} projects ·{" "}
+              <span className="text-volt">{live} live</span> ·{" "}
+              <span className="text-fuchsia">
+                {featuredProjects.length - live} in development
+              </span>
+            </p>
+          </div>
         </div>
-        <div className="hud-rule mt-10" />
+        <div className="edge-rule mt-10" />
       </header>
 
       <ProjectIndex projects={featuredProjects} />
