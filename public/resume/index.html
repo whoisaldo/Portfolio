@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Resume — Ali Younes</title>
+<!--
+  /resume is the URL worth handing out; /resume.pdf is where the file lives.
+  Without this file the SPA's 404 fallback catches /resume and renders the
+  whole site, which looks like the link is broken.
+
+  Meta refresh rather than a real 3xx because GitHub Pages serves static files
+  only and cannot issue redirects. Keep the anchor below: it is what a reader
+  sees if the refresh is blocked or slow.
+-->
+<meta http-equiv="refresh" content="0; url=/resume.pdf">
+<link rel="canonical" href="https://aliyounes.dev/resume.pdf">
+<meta name="robots" content="noindex">
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: #0b0b0f;
+    color: #e7e7ea;
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  a { color: inherit; text-underline-offset: 3px; }
+</style>
+<p>Opening the resume… <a href="/resume.pdf">continue to the PDF</a>.</p>
