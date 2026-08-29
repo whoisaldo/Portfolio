@@ -233,9 +233,14 @@ export function setSoundEnabled(on) {
   }
 }
 
-/** Ask BootSequence to run again. No-op when nothing is listening. */
-export function replayBoot() {
-  window.dispatchEvent(new CustomEvent(BOOT_REPLAY));
+/**
+ * Ask BootSequence to run again. No-op when nothing is listening.
+ *
+ * `detail.greeting` overrides the line of voice for that run, which is how the
+ * Konami easter egg says something the normal rotation never will.
+ */
+export function replayBoot(detail = {}) {
+  window.dispatchEvent(new CustomEvent(BOOT_REPLAY, { detail }));
 }
 
 /**

@@ -35,14 +35,21 @@
 // cue arms a silent unlock, so the reader's next click makes later boots
 // audible. The toggle in Chrome.jsx replays the sequence when switched on, so
 // the gesture that enables sound is also the one that demonstrates it.
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { usePrefersReducedMotion, useDecode } from "../hooks";
+import { usePrefersReducedMotion, useDecode, useKonami } from "../hooks";
 import { profile } from "../data/profile";
 import { featuredProjects } from "../data/projects";
 import { experiences } from "../data/experience";
 import { workSlugs } from "../data/work";
-import { BOOT_REPLAY, armAudioUnlock, playBootSound, soundEnabled } from "../lib/boot-audio";
+import {
+  BOOT_REPLAY,
+  replayBoot,
+  armAudioUnlock,
+  hasBeenAsked,
+  playBootSound,
+  soundEnabled,
+} from "../lib/boot-audio";
 
 const SEEN_KEY = "aly.boot.v5";
 
@@ -50,14 +57,24 @@ const SEEN_KEY = "aly.boot.v5";
 // the same numbers rather than guessed at.
 const T = {
   aperture: 260,   // the CRT opening out of a hairline
-  readout: 340,    // first readout line
-  line: 110,       // gap between readout lines
-  name: 600,       // the name starts resolving
-  greet: 1180,     // the line of voice under it
-  burst: 1500,     // chromatic split as it lands
-  glitch: 900,     // scanline tears start
-  total: 2200,     // everything is gone by here
+  breach: 380,     // the hex matrix builds
+  readout: 520,    // first readout line
+  line: 100,       // gap between readout lines
+  breachOut: 1650, // matrix clears, name takes the centre
+  name: 1700,      // the name starts resolving
+  glitch: 1150,    // signal tears
+  greet: 2500,     // the line of voice under it
+  burst: 2780,     // chromatic split as it lands
+  total: 3400,     // everything is gone by here
 };
+
+// Breach protocol. The hex pairs are the ones Cyberpunk 2077's hacking
+// minigame uses, and they are the closest this design gets to quoting the
+// game directly. It is unambiguously ornament, which is the point: it is a
+// picture of a code matrix, not a readout claiming to be one, so it sits on
+// the correct side of rule 2 while the corner keeps counting real things.
+const HEX = ["1C", "55", "E9", "BD", "7A", "FF"];
+const GRID = 5;
 
 // Voice, not data. These are the only invented words in the sequence and they
 // are deliberately shaped so nobody could mistake them for a readout: centred,
@@ -83,6 +100,10 @@ export default function BootSequence() {
 
   const [show, setShow] = useState(() => {
     if (typeof window === "undefined") return false;
+    // On a first visit the entry gate owns the opening, and fires the replay
+    // signal once the reader is through it. Starting here as well would run
+    // the sequence behind a full-screen door nobody has opened yet.
+    if (!hasBeenAsked()) return false;
     return sessionStorage.getItem(SEEN_KEY) !== "1";
   });
   // Bumped on replay. Used as a key so the subtree remounts, which is what
@@ -91,6 +112,23 @@ export default function BootSequence() {
   const [runId, setRunId] = useState(0);
   const [burst, setBurst] = useState(false);
   const [tear, setTear] = useState(false);
+  const [breaching, setBreaching] = useState(true);
+  // Set by the Konami code so that run says something the rotation never does.
+  const [override, setOverride] = useState(null);
+
+  // A fresh matrix per run. Two cells per row are marked as the "solution",
+  // which is the only part that lights volt.
+  const matrix = useMemo(
+    () =>
+      Array.from({ length: GRID }, () =>
+        Array.from({ length: GRID }, () => ({
+          hex: HEX[Math.floor(Math.random() * HEX.length)],
+          hot: Math.random() < 0.18,
+        })),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [runId],
+  );
   const doneRef = useRef(false);
 
   // Measured, not invented. Rule 2. Read on every render rather than memoised,
@@ -104,10 +142,12 @@ export default function BootSequence() {
 
   // The sound toggle asks for a rerun.
   useEffect(() => {
-    const onReplay = () => {
+    const onReplay = (e) => {
+      setOverride(e?.detail?.greeting ?? null);
       doneRef.current = false;
       setBurst(false);
       setTear(false);
+      setBreaching(true);
       setRunId((n) => n + 1);
       setShow(true);
     };
@@ -116,10 +156,13 @@ export default function BootSequence() {
   }, []);
 
   // Re-picked whenever runId changes, so a replay says something different.
-  const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  const greeting = override ?? GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+
+  // Up up down down left right left right B A, anywhere on the page.
+  useKonami(() => replayBoot({ greeting: "breach protocol accepted, choom." }));
 
   const target = profile.name.toUpperCase();
-  const text = useDecode(target, { active: show, duration: T.total - T.name - 200 });
+  const text = useDecode(target, { active: show, duration: T.total - T.name - 400 });
 
   useEffect(() => {
     if (!show) return;
@@ -137,6 +180,7 @@ export default function BootSequence() {
 
     const burstTimer = setTimeout(() => setBurst(true), T.burst);
     const tearTimer = setTimeout(() => setTear(true), T.glitch);
+    const breachTimer = setTimeout(() => setBreaching(false), T.breachOut);
     const endTimer = setTimeout(finish, T.total);
     const skip = () => finish();
 
@@ -148,6 +192,7 @@ export default function BootSequence() {
       disarm?.();
       clearTimeout(burstTimer);
       clearTimeout(tearTimer);
+      clearTimeout(breachTimer);
       clearTimeout(endTimer);
       window.removeEventListener("keydown", skip);
       window.removeEventListener("pointerdown", skip);
@@ -185,6 +230,60 @@ export default function BootSequence() {
             transition={{ duration: T.aperture / 1000, delay: 0.04, ease: [0.16, 0.9, 0.25, 1] }}
           >
             <div className="absolute inset-0 crt-grid opacity-70" />
+
+            {/* Breach protocol. Builds cell by cell, holds, then clears out of
+                the way of the name. Pure ornament, and labelled as such. */}
+            <AnimatePresence>
+              {breaching && (
+                <motion.div
+                  className="absolute inset-0 flex flex-col items-center justify-center gutter"
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.3, ease: [0.16, 0.9, 0.25, 1] }}
+                >
+                  <motion.p
+                    className="mono-label text-volt mb-6"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: T.breach / 1000 }}
+                  >
+                    Breach protocol
+                  </motion.p>
+
+                  <div
+                    className="grid gap-x-4 gap-y-2.5"
+                    style={{ gridTemplateColumns: `repeat(${GRID}, minmax(0, 1fr))` }}
+                  >
+                    {matrix.flatMap((row, y) =>
+                      row.map((cell, x) => (
+                        <motion.span
+                          key={`${y}-${x}`}
+                          className={`mono-ui tabular-nums text-center ${
+                            cell.hot ? "text-volt" : "text-dim"
+                          }`}
+                          initial={{ opacity: 0, y: -4 }}
+                          animate={{ opacity: cell.hot ? 1 : 0.5, y: 0 }}
+                          transition={{
+                            duration: 0.16,
+                            // Sweeps left to right, top to bottom, the way the
+                            // grid fills in the game.
+                            delay: (T.breach + (y * GRID + x) * 26) / 1000,
+                          }}
+                        >
+                          {cell.hex}
+                        </motion.span>
+                      )),
+                    )}
+                  </div>
+
+                  <motion.span
+                    className="mt-6 block h-px bg-volt/50"
+                    initial={{ width: 0 }}
+                    animate={{ width: "min(18rem, 50vw)" }}
+                    transition={{ duration: 0.9, delay: (T.breach + 200) / 1000, ease: "linear" }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* The name, centred, resolving out of character noise. */}
             <div className="absolute inset-0 flex flex-col items-center justify-center gutter">

@@ -25,7 +25,6 @@ import {
   unlockAudio,
 } from "../lib/boot-audio";
 import { applyVolume, startAmbient, stopAmbient } from "../lib/ambient";
-import SoundPrompt from "./SoundPrompt";
 
 export default function Chrome() {
   const [active, setActive] = useState(sections[0].id);
@@ -193,10 +192,6 @@ export default function Chrome() {
 
       {/* Asks once, on a first visit, and only because a browser will not let
           audio start without a click to hang it on. */}
-      {/* The callback only syncs this component's own state. Starting the
-          audio is the prompt's job and it already does it; having both do it
-          is what caused two concurrent starts to race. */}
-      <SoundPrompt onDecided={setSound} />
     </>
   );
 }

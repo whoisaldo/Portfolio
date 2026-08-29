@@ -160,3 +160,42 @@ export function useDecode(text, { active = true, duration = 650 } = {}) {
 
   return out;
 }
+
+/**
+ * Fire `onTrigger` when the Konami code is typed.
+ *
+ * Ignores keystrokes aimed at a text field, so typing "b" then "a" into the
+ * console easter egg cannot accidentally complete the sequence. Comparison is
+ * case-insensitive because the last two keys are letters and a reader with
+ * caps lock on has still typed the code.
+ */
+const KONAMI = [
+  "arrowup", "arrowup", "arrowdown", "arrowdown",
+  "arrowleft", "arrowright", "arrowleft", "arrowright",
+  "b", "a",
+];
+
+export function useKonami(onTrigger) {
+  const fire = useRef(onTrigger);
+  useEffect(() => { fire.current = onTrigger; });
+
+  useEffect(() => {
+    let i = 0;
+    const onKey = (e) => {
+      const el = document.activeElement;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      // Restart rather than reset to zero: a wrong key that happens to be the
+      // first key of the sequence should begin a new attempt, not discard it.
+      i = key === KONAMI[i] ? i + 1 : key === KONAMI[0] ? 1 : 0;
+      if (i === KONAMI.length) {
+        i = 0;
+        fire.current?.();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+}

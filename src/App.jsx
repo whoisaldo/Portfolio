@@ -18,6 +18,7 @@ import { MotionConfig } from "framer-motion";
 import Navbar from "./components/Navbar";
 import Footer from "./sections/Footer";
 import BootSequence from "./components/BootSequence";
+import EntryGate from "./components/EntryGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Console from "./components/Console";
 import Home from "./routes/Home";
@@ -45,6 +46,11 @@ export default function App() {
           {/* The boot sequence is an entrance for the site, not for every page.
               Replaying it when someone follows a link from one case study to
               the next would be theatre in the way of the content. */}
+          {/* The door, then the boot, then the site. The gate mounts in the
+              shell rather than on the home page because a reader who arrives
+              on a deep link to a case study is still arriving for the first
+              time. It shows once, ever. */}
+          <EntryGate />
           {pathname === "/" && <BootSequence />}
 
           <Navbar />
