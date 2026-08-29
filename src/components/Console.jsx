@@ -1,8 +1,8 @@
-// src/components/Console.jsx — the console, behind a keystroke.
+// src/components/Console.jsx: the console, behind a keystroke.
 //
 // Terminal.jsx used to be the fifth section of the page. It is a thousand
 // lines of virtual filesystem and forty-four commands, most of which restated
-// content the page already showed — so as a section it was a second website
+// content the page already showed, so as a section it was a second website
 // inside the website, and it sat between Experience and Contact in the reading
 // path of every recruiter who ever opened the site.
 //
@@ -12,7 +12,7 @@
 // Discoverability is deliberately low but not zero. Three ways in:
 //
 //   1. `  or ~ from anywhere (not while typing in a field)
-//   2. a console.log printed once on load, for anyone who opens devtools —
+//   2. a console.log printed once on load, for anyone who opens devtools,
 //      which, on a software engineer's portfolio, is a decent share of the
 //      people worth impressing
 //   3. /console as a URL
@@ -55,7 +55,7 @@ export default function Console() {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "`" && e.key !== "~") return;
-      // Never steal the key from someone typing — including from the console's
+      // Never steal the key from someone typing, including from the console's
       // own input once it is open, where a backtick is just a character.
       const t = e.target;
       const tag = t?.tagName;

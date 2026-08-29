@@ -1,9 +1,9 @@
-// src/data/work.js — one address space for everything that has a detail page.
+// src/data/work.js: one address space for everything that has a detail page.
 //
 // Projects and roles are stored separately because they are different shapes:
 // a project has a repository and a set of screenshots, a role has a period, a
 // company and a metrics grid. But a reader does not care about that
-// distinction, and neither does a URL — /work/philips-zero-touch and
+// distinction, and neither does a URL: /work/philips-zero-touch and
 // /work/eternal-exchange are the same kind of thing to whoever was sent one.
 //
 // So this module does exactly two jobs: give every entry a stable slug, and
@@ -12,10 +12,10 @@
 import { featuredProjects } from "./projects";
 import { experiences } from "./experience";
 
-/** Roles with a page of their own — which is now all of them. */
+/** Roles with a page of their own, which is now all of them. */
 // This used to hold three. The reasoning for leaving two out was that the
 // early IT role and the degree are four bullets each, so a page for either
-// would be a heading, a paragraph and a lot of whitespace — and the accordion
+// would be a heading, a paragraph and a lot of whitespace, and the accordion
 // they lived in was the right size for them.
 //
 // The accordion is gone. Experience is a grid of five cards now, and a grid

@@ -1,4 +1,4 @@
-// src/data/life.js — the photographs, and what they are.
+// src/data/life.js: the photographs, and what they are.
 //
 // scripts/optimize-photos.mjs owns the pixels; this file owns the words. Kept
 // apart on purpose: regenerating the encoder output must never be able to
@@ -15,12 +15,12 @@
 //    Wrote my own in Rust + SwiftUI."
 //
 // Short sentences. A real number where there is one. No build-up, and no
-// sentence that states a thing and then inverts it to sound clever — an
+// sentence that states a thing and then inverts it to sound clever. An
 // earlier pass wrote all seven captions that way and they read as written to
 // sound good rather than to say something.
 //
 // `body: null` is not an oversight. Several of these need context only Ali
-// has — which car, how many years wrestling, a solve time — and a caption that
+// has (which car, how many years wrestling, a solve time), and a caption that
 // guesses is worse than no caption. The UI omits the paragraph entirely when
 // body is null. Each one carries a TODO naming exactly what is missing.
 //
@@ -31,8 +31,10 @@ import { photo } from "./photos";
 // Shot on the walk to the office in Seattle during the AWS term, which is why
 // the sleeve reads AWS CloudFormation.
 //
-// The source is a mirrored front-camera selfie; the encoded asset is flipped
-// back so the sleeve badge reads forwards. See scripts/optimize-photos.mjs.
+// Kept as the front camera saw it, mirrored. It was un-mirrored for a while so
+// the sleeve badge would read AWS CloudFormation the right way round, which is
+// a detail nobody was reading and which made the frame look subtly unlike him.
+// The photo is of a person, not of a logo.
 export const portrait = {
   image: photo("portrait-seattle"),
   alt: "Ali Younes on a residential street in Seattle, wearing an AWS CloudFormation hoodie and over-ear headphones.",
@@ -70,7 +72,7 @@ export const teardown = {
       date: "December 2023",
       title: "CarPlay retrofit",
       // TODO(Ali): which car, and what it took. The marque is deliberately not
-      // named here — the console says the daily is an Audi S4 B8.5, the source
+      // named here: the console says the daily is an Audi S4 B8.5, the source
       // filename says BMW, and guessing between them is exactly the kind of
       // unverifiable claim docs/PROJECT_CONTEXT.md exists to prevent.
       alt: "A car dashboard with the trim, vents and head unit removed and the wiring exposed, photographed from the driver's seat at night.",
@@ -122,7 +124,7 @@ export const teardown = {
       image: photo("wrestling"),
       date: "February 2023",
       title: "Wrestling",
-      // TODO(Ali): years wrestled, weight class, record — any of it. None of
+      // TODO(Ali): years wrestled, weight class, record, any of it. None of
       // that is in the repo, so none of it is asserted here.
       alt: "A wrestling match in progress on a mat, two wrestlers on the ground, spectators in the bleachers behind.",
       body: null,
@@ -141,7 +143,7 @@ export const teardown = {
   ],
 
   // The things with no photograph. Lifted verbatim in substance from the
-  // console's `interests` output, which is where all of this used to live —
+  // console's `interests` output, which is where all of this used to live,
   // and which is now an easter egg, so without this the facts would have left
   // the site entirely. Ali's own words, trimmed.
   notPictured: [

@@ -1,4 +1,4 @@
-// src/components/projects/ProjectsSection.jsx — the work section.
+// src/components/projects/ProjectsSection.jsx: the work section.
 //
 // Was a shell that picked between a scroll-pinned reel and a stacked fallback,
 // and owned the modal both of them opened. All three are gone. One grid, one
@@ -17,7 +17,7 @@ export default function ProjectsSection() {
       <header className="gutter rail-clear pt-28 md:pt-36 pb-14">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
           <div>
-            <p className="mono-label text-volt mb-4">01 — Work</p>
+            <p className="mono-label text-volt mb-4">01 // Work</p>
             <Glitch
               as="h2"
               className="font-display uppercase text-display-1 text-primary block"

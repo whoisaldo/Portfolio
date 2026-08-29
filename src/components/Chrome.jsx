@@ -1,4 +1,4 @@
-// src/components/Chrome.jsx — the single persistent overlay.
+// src/components/Chrome.jsx: the single persistent overlay.
 //
 // Replaces SideRail.jsx and hud/HUDOverlay.jsx, which between them put six
 // things on screen at once: a left "Vol. XXVI / Edition IV" spine, a right
@@ -71,7 +71,7 @@ export default function Chrome() {
       </div>
 
       {/* Section index, right edge. Clickable, so it is navigation rather than
-          decoration — the Roman numerals it replaces were neither. It carries
+          decoration; the Roman numerals it replaces were neither. It carries
           all seven sections, including the two the top bar leaves out. */}
       <nav
         aria-label="Sections"

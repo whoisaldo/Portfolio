@@ -1,4 +1,4 @@
-// src/sections/Stack.jsx — the stack, grouped.
+// src/sections/Stack.jsx: the stack, grouped.
 //
 // `skills` has lived in src/data/profile.js this whole time and rendered
 // nowhere except inside the terminal easter egg, which meant the answer to the
@@ -6,8 +6,8 @@
 // keystroke nobody is told about.
 //
 // The note in profile.js is worth repeating here, because this is the section
-// that would break it: an earlier version rendered ASCII proficiency bars —
-// 20/20 for TypeScript, 16/20 for C++ — which is "React 90%" wearing a
+// that would break it: an earlier version rendered ASCII proficiency bars
+// (20/20 for TypeScript, 16/20 for C++), which is "React 90%" wearing a
 // monospace hat. Self-declared proficiency is not a fact, and this repo only
 // prints facts. So these are grouped, never ranked, and there is no meter
 // anywhere in this file.
@@ -34,7 +34,7 @@ export default function Stack() {
         <motion.header {...reveal} transition={{ duration: 0.6 }} className="rail-clear">
           <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">
             <div>
-              <p className="mono-label text-volt mb-4">04 — Stack</p>
+              <p className="mono-label text-volt mb-4">04 // Stack</p>
               <Glitch
                 as="h2"
                 className="font-display uppercase text-display-1 text-primary block"

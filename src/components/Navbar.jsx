@@ -1,4 +1,4 @@
-// src/components/Navbar.jsx — the fixed header.
+// src/components/Navbar.jsx: the fixed header.
 //
 // The `[01]`–`[04]` prefixes were removed a while back: they were the first of
 // three competing numbering systems on the page and they numbered four links
@@ -14,7 +14,7 @@
 //
 // Opacity modifiers here must come from Tailwind's scale (…/85, /90, /95).
 // This bar was written with `bg-ink/92` and the mobile panel with `bg-ink/96`,
-// neither of which is a scale step — so Tailwind emitted no rule at all and
+// neither of which is a scale step, so Tailwind emitted no rule at all and
 // both surfaces rendered fully transparent. It fails silently: no build error,
 // no console warning, just a menu you can read the page through.
 import React, { useState, useEffect } from "react";

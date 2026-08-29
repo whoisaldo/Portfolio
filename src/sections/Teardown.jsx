@@ -1,17 +1,17 @@
-// src/sections/Teardown.jsx — the photographs that are not screenshots.
+// src/sections/Teardown.jsx: the photographs that are not screenshots.
 //
 // Layout is CSS multi-column, not a grid. The seven photos run from 1022x850
 // to 1440x1800; forcing them into fixed grid cells means either cropping them
 // all to one ratio or leaving ragged gaps under the short ones. Columns let
-// each plate keep its own height and simply stack. The cost is reading order —
-// content flows down each column and then across, rather than left-to-right —
+// each plate keep its own height and simply stack. The cost is reading order:
+// content flows down each column and then across, rather than left-to-right,
 // which is the normal contract for a photo wall and is why the numbering is
 // rendered explicitly rather than implied by position.
 //
 // Captions are never hover-gated. A caption that only exists on :hover is a
 // caption that does not exist on a phone.
 //
-// Three of the seven have no caption body at all, by design — see the note in
+// Three of the seven have no caption body at all, by design. See the note in
 // src/data/life.js. They carry a title and a date and stop there, because the
 // rest needs context only Ali has.
 import React from "react";
@@ -43,7 +43,7 @@ export default function Teardown() {
           transition={{ duration: 0.7 }}
           className="max-w-3xl"
         >
-          <p className="mono-label text-volt mb-4">05 — Teardown</p>
+          <p className="mono-label text-volt mb-4">05 // Teardown</p>
           <Glitch
             as="h2"
             className="font-display uppercase text-display-1 text-primary block"

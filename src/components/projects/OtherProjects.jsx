@@ -1,8 +1,8 @@
-// src/components/projects/OtherProjects.jsx — the auxiliary index.
+// src/components/projects/OtherProjects.jsx: the auxiliary index.
 //
 // A wide multi-column list rather than the narrow accordion stack it replaced.
 // These are small things and the layout should say so: no images, no expand,
-// no per-row hover recipe — just a scannable index.
+// no per-row hover recipe, just a scannable index.
 //
 // These get no chamfered panel each. Seven chamfers in a row would flatten the
 // distinction between this list and the eight things above it that actually
@@ -25,7 +25,7 @@ export default function OtherProjects({ projects, startIndex = 0 }) {
       {/* Hairlines come from a border on each cell, not from `gap-px` over a
           tinted container. The old technique draws the rules by letting the
           container's background show through one-pixel gaps, which works only
-          while the last row is full — with seven items in a three-up grid the
+          while the last row is full: with seven items in a three-up grid the
           two unfilled cells showed that background as a solid lighter block. */}
       <ul className="grid border-t border-l border-ink-line sm:grid-cols-2 xl:grid-cols-3 rail-clear">
         {projects.map((p, i) => (

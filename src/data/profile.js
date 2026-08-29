@@ -1,4 +1,4 @@
-// src/data/profile.js — identity facts that appear in more than one place.
+// src/data/profile.js: identity facts that appear in more than one place.
 //
 // These used to be retyped in Hero.jsx, Terminal.jsx, App.jsx and the footer.
 // The degree line had already drifted: five places said "CS & Political
@@ -43,7 +43,7 @@ export const links = {
 };
 
 // Grouped rather than ranked. The previous version rendered ASCII proficiency
-// bars — 20/20 for TypeScript, 16/20 for C++ — which is "React 90%" wearing a
+// bars (20/20 for TypeScript, 16/20 for C++), which is "React 90%" wearing a
 // monospace hat, and self-declaring "expert" cuts against this repo's own rule
 // that a reader should find the portfolio understated.
 export const skills = [

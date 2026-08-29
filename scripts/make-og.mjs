@@ -1,4 +1,4 @@
-// scripts/make-og.mjs — generate public/og.png (and the apple-touch-icon).
+// scripts/make-og.mjs: generate public/og.png (and the apple-touch-icon).
 //
 //   node scripts/make-og.mjs
 //
@@ -8,7 +8,7 @@
 // site's webfonts: Didot is the closest local match to Fraunces (both are
 // high-contrast didone-ish serifs, and both are used here in italic), and
 // Menlo stands in for JetBrains Mono. If you want exact Fraunces, install it
-// locally and change FONT_DISPLAY below — the layout does not need to change.
+// locally and change FONT_DISPLAY below; the layout does not need to change.
 import sharp from "sharp";
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

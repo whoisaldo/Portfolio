@@ -1,4 +1,4 @@
-// src/sections/Contact.jsx — the contact section, with the résumé folded in.
+// src/sections/Contact.jsx: the contact section, with the résumé folded in.
 //
 // This was two sections in App.jsx: a `#resume` block whose entire content was
 // one PDF behind a section heading, a Roman numeral and a kicker, followed by a
@@ -8,7 +8,7 @@
 //
 // Section device: no display heading at all. The heading is a small mono label
 // sitting out in the left margin, and the largest type on the screen is the
-// primary email address itself — the content is the headline. Projects opens
+// primary email address itself: the content is the headline. Projects opens
 // with a big word plus a sentence, experience opens with mono meta beside a
 // sentence; this one opens with the thing you came for.
 //
@@ -85,7 +85,7 @@ export default function Contact() {
           transition={{ duration: 0.7, delay: 0.1 }}
           className="grid gap-x-10 gap-y-12 border-t border-ink-line mt-16 md:mt-20 pt-12 lg:grid-cols-12 rail-clear"
         >
-          {/* 5 / 4 / 3 at every breakpoint — equal thirds would put the
+          {/* 5 / 4 / 3 at every breakpoint; equal thirds would put the
               section back in the middle of the page it is trying to get out of. */}
           <div className="lg:col-span-5">
             <h3 className="mono-label text-volt">Other addresses</h3>

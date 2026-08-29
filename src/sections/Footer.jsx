@@ -1,4 +1,4 @@
-// src/sections/Footer.jsx — extracted from App.jsx.
+// src/sections/Footer.jsx: extracted from App.jsx.
 //
 // Two things did not survive that move and have not come back:
 //   - `v05.10.26`. The page carried a version string in three inconsistent
@@ -30,7 +30,7 @@ export default function Footer() {
       className="border-t border-ink-line bg-ink"
     >
       {/* One of the two hazard strips on the site. The other closes the Work
-          section. Two is the budget — a page striped in yellow everywhere is
+          section. Two is the budget. A page striped in yellow everywhere is
           the failure mode this design is built to avoid. */}
       <div className="hazard h-1.5 opacity-25" aria-hidden="true" />
 

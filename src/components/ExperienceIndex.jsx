@@ -1,9 +1,9 @@
-// src/components/ExperienceIndex.jsx — the roles, as files you open.
+// src/components/ExperienceIndex.jsx: the roles, as files you open.
 //
 // History of this section, because it explains the shape:
 //
 //   v1  a 483-line accordion. Every row collapsed by default, so the Philips
-//       case study — the best writing on the site — was invisible until
+//       case study, the best writing on the site, was invisible until
 //       someone thought to click a plus sign.
 //   v2  a flat ledger you read straight down. Better, but it buried the way
 //       in: the only route to a detail page was a text link at the end of a
@@ -17,8 +17,8 @@
 // have to compare five equal boxes to find out.
 //
 // Logos sit in the card because they identify the entry faster than the name
-// does. They are pre-normalised by `npm run logos` — trimmed to the mark and
-// keyed to transparency — so one CSS height gives five logos of equal optical
+// does. They are pre-normalised by `npm run logos`, trimmed to the mark and
+// keyed to transparency, so one CSS height gives five logos of equal optical
 // weight with no plate and no blend mode.
 //
 // `--accent` here is the company's REAL brand colour, unlike the project grid
@@ -51,7 +51,7 @@ export default function ExperienceIndex() {
       <header className="rail-clear mb-14 md:mb-16">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
           <div>
-            <p className="mono-label text-volt mb-4">02 — Experience</p>
+            <p className="mono-label text-volt mb-4">02 // Experience</p>
             <Glitch
               as="h2"
               className="font-display uppercase text-display-1 text-primary block"
@@ -61,7 +61,7 @@ export default function ExperienceIndex() {
           </div>
           <div className="max-w-[42ch]">
             <p className="prose-dark">
-              Most recent first. Read the Philips one — it took two attempts to
+              Most recent first. Read the Philips one. It took two attempts to
               get right and the first attempt is in there too.
             </p>
             <p className="mono-label text-dim mt-4">
@@ -189,7 +189,7 @@ function ExperienceCard({ exp, index, featured = false }) {
       {openable && (
         // `mt-auto` pins this to the bottom of the card. Two cards side by
         // side hold different amounts of copy, and an affordance that floats
-        // at the end of the text lands at a different height in each one —
+        // at the end of the text lands at a different height in each one,
         // which is exactly the inconsistency that made the previous version's
         // click target hard to find.
         <span className="mt-auto block pt-8">

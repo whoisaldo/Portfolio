@@ -1,4 +1,4 @@
-// src/components/projects/ProjectIndex.jsx — the work, all of it, at once.
+// src/components/projects/ProjectIndex.jsx: the work, all of it, at once.
 //
 // This replaced a scroll-pinned reel that showed eight projects one at a time
 // across roughly 460vh. The reel looked good and cost too much: a reader with

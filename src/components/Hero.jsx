@@ -2,11 +2,11 @@
 //
 // What was removed a while back, and stays removed:
 //
-//   "MISSION_BRIEFING // 001 — SUBJECT: ALI_YOUNES"   invented framing
+//   "MISSION_BRIEFING // 001 · SUBJECT: ALI_YOUNES"   invented framing
 //   a 7-row "vitals" panel                            six of its seven rows
 //                                                     were ornament: a live
 //                                                     clock, 42.3601°N
-//                                                     71.0589°W, "IV — vol.
+//                                                     71.0589°W, "IV · vol.
 //                                                     xxvi", "uplink ● stable"
 //                                                     and a version string
 //   "architecting scalable enterprise infrastructure" typed one character at a
@@ -19,7 +19,7 @@
 //
 // The name is the design. It runs the full width of the gutter at a size
 // nothing else on the site approaches, and it resolves out of character noise
-// once, on load — the only place the decode fires without a scroll.
+// once, on load: the only place the decode fires without a scroll.
 import React from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Github, Linkedin, Mail } from "lucide-react";
@@ -46,7 +46,7 @@ export default function Hero() {
       {/* One grid, and nothing else. The violet radial bloom that used to sit
           behind this is gone: an ambient glow with no light source behind it
           is decoration, and this design spends its glow budget on the two
-          places something is actually emitting — the boot line-scan and the
+          places something is actually emitting: the boot line-scan and the
           focus ring. */}
       <div className="absolute inset-0 crt-grid opacity-60 pointer-events-none" aria-hidden="true" />
 
@@ -192,7 +192,7 @@ export default function Hero() {
           {/* ---- portrait ------------------------------------------------- */}
           {/* Framed like the rest of the chrome rather than dropped in as a
               round avatar, and held at 82% saturation so it sits in the page
-              instead of on top of it. Full colour on hover — the one place an
+              instead of on top of it. Full colour on hover: the one place an
               image reacts to the cursor, which is affordable precisely because
               nothing else here does.
 
@@ -212,8 +212,8 @@ export default function Hero() {
             {/* `.tick-frame` wraps the plate ONLY, not the whole <figure>. The
                 ticks are absolutely positioned against their frame, so with
                 the figure as the frame the two bottom marks landed at the
-                bottom of the caption instead of the bottom of the photograph
-                — reading as stray glyphs in the text rather than as corner
+                bottom of the caption instead of the bottom of the photograph,
+                reading as stray glyphs in the text rather than as corner
                 registration on the image. */}
             <div className="tick-frame relative">
               <Panel
@@ -249,7 +249,7 @@ export default function Hero() {
             {/* No index number here. The Teardown wall numbers its plates
                 "01 / 07" because there are seven of them and the reading order
                 is non-obvious in a column layout. There is exactly one
-                photograph in the hero, so a "01" beside it counts nothing — it
+                photograph in the hero, so a "01" beside it counts nothing: it
                 is the same decorative metadata this page already had stripped
                 out once, and at 160px wide it was also shoving the caption
                 onto two lines. */}

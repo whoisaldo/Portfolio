@@ -1,4 +1,4 @@
-// src/lib/beacon.js — the client half of the analytics.
+// src/lib/beacon.js: the client half of the analytics.
 //
 // Sends batches of events to stats.aliyounes.dev. Everything here is written
 // under one rule: the page must behave identically whether this file works,

@@ -10,7 +10,7 @@
 // AVIF is offered first and WebP second, which is the order the formats
 // actually want: every browser that decodes AVIF also decodes WebP, so listing
 // WebP first would make the AVIF unreachable. The encoder compensates for the
-// one place that ordering could hurt — small UI text — by holding screenshot
+// one place that ordering could hurt (small UI text) by holding screenshot
 // AVIF at a conservative quality rather than chasing bytes. See
 // scripts/optimize-images.mjs.
 //

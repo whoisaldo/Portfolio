@@ -1,4 +1,4 @@
-// src/routes/WorkPage.jsx — /work/:slug, one piece of work at full length.
+// src/routes/WorkPage.jsx: /work/:slug, one piece of work at full length.
 //
 // The home page has to hold eight projects and five roles at once, so every
 // one of them is compressed to a card. This is the other half of that trade:
@@ -7,8 +7,8 @@
 //
 // It renders two shapes from one component. A project has a repository, a
 // stack and a set of screenshots; a role has a period, a metrics grid and
-// sometimes a case study. What they share is the frame — the same header, the
-// same rules, the same measure — because to a reader who was handed a link
+// sometimes a case study. What they share is the frame (the same header, the
+// same rules, the same measure) because to a reader who was handed a link
 // they are the same kind of page. The branches below are only where the data
 // genuinely differs.
 //
@@ -349,7 +349,7 @@ export default function WorkPage() {
         {/* ---- coursework -------------------------------------------------
             Only the degree entry carries this. Before all five roles got a
             page it never rendered anywhere except the home page, so opening
-            /work/northeastern would have dropped its course list silently —
+            /work/northeastern would have dropped its course list silently:
             the page reads `tech ?? skills` for the stack band and education
             has neither. */}
         {entry.coursework && (

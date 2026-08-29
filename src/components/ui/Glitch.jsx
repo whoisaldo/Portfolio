@@ -1,7 +1,7 @@
-// src/components/ui/Glitch.jsx — text that resolves out of noise on entry.
+// src/components/ui/Glitch.jsx: text that resolves out of noise on entry.
 //
 // The effect is punctuation, not atmosphere. It fires once, when the heading
-// arrives, and then the page is still. Nothing here loops — an earlier version
+// arrives, and then the page is still. Nothing here loops. An earlier version
 // of this site had seven things pulsing at once and the fix was to cut it to
 // one, which is a discipline worth keeping through a theme change.
 //

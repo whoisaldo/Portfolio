@@ -1,4 +1,4 @@
-// src/App.jsx — the shell and the router.
+// src/App.jsx: the shell and the router.
 //
 // This used to be the whole page. It is now the frame around two of them: the
 // scrolling home page, and a case study at /work/:slug.
@@ -10,8 +10,8 @@
 // a crawler asked to index /work/philips-zero-touch is told the page does not
 // exist even though it renders. Links shared with a person are fine; search
 // engines are not. Fixing that properly means either pre-rendering each route
-// to its own index.html at build time, or moving to a host that can rewrite —
-// not worth doing until it matters.
+// to its own index.html at build time, or moving to a host that can rewrite. Not
+// worth doing until it matters.
 import React, { useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";

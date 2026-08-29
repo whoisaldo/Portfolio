@@ -1,9 +1,9 @@
-// src/components/ui/Panel.jsx — the chamfered frame, written once.
+// src/components/ui/Panel.jsx: the chamfered frame, written once.
 //
 // A 45° corner cut is the structural signature of the Cyberpunk 2077
 // interface, and a chamfered 1px *frame* cannot be built with a border:
 // `clip-path` clips the border away along with everything else the element
-// paints. It takes two boxes. The outer one is the frame — it carries the
+// paints. It takes two boxes. The outer one is the frame: it carries the
 // clip, the edge colour and exactly 1px of padding. The inner one carries the
 // same clip and the fill, and covers all of the outer except that 1px.
 //
@@ -11,7 +11,7 @@
 // hand-writing the pair anywhere else is a mistake. Use this.
 //
 // It renders `as` whatever it is handed, so a Panel can be a <div>, a <Link>,
-// or a <button> without a wrapper element in between — which matters, because
+// or a <button> without a wrapper element in between, which matters, because
 // an interactive Panel needs the click target and the frame to be the same
 // box for the focus rule in index.css to fire.
 import React from "react";

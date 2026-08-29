@@ -1,4 +1,4 @@
-// src/components/ErrorBoundary.jsx — surfaces render errors so they don't show as blank page
+// src/components/ErrorBoundary.jsx: surfaces render errors so they don't show as blank page
 import React from "react";
 
 export default class ErrorBoundary extends React.Component {

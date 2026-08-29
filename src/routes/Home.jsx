@@ -1,4 +1,4 @@
-// src/routes/Home.jsx — the single scrolling page.
+// src/routes/Home.jsx: the single scrolling page.
 //
 // Everything that used to be App.jsx's body lives here, unchanged. App.jsx is
 // now the router and the shell; this is one of two things the shell can show.
@@ -31,7 +31,7 @@ export default function Home() {
     // section does not exist yet (React has not rendered), so the browser's own
     // hash scroll has nothing to find and silently gives up at the top. Doing
     // it again on `load` corrects for the layout shift as fonts and key art
-    // land — without that, /#contact lands short by a screen or more.
+    // land. Without that, /#contact lands short by a screen or more.
     //
     // This now also carries the return trip from a case study: /work/x links
     // back to /#projects, which arrives as a client-side navigation with no
@@ -43,7 +43,7 @@ export default function Home() {
     //
     // Deliberately not requestAnimationFrame alone: rAF is throttled to a
     // crawl in a background tab, so a link opened with cmd-click would never
-    // scroll at all — it would just sit at the top when the reader switched to
+    // scroll at all: it would just sit at the top when the reader switched to
     // it. A timeout still fires there.
     const go = () => scrollToSection(hash);
     const raf = requestAnimationFrame(go);

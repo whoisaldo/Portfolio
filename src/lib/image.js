@@ -1,4 +1,4 @@
-// src/lib/image.js — helpers shared by the image components.
+// src/lib/image.js: helpers shared by the image components.
 // Kept out of the .jsx files so React Fast Refresh keeps working (a module
 // that exports both a component and plain functions loses it).
 

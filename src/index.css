@@ -7,7 +7,7 @@
    =========================================================================== */
 @layer base {
   :root {
-    /* The chamfer. ONE value for the whole site — a panel cut at 14px next to
+    /* The chamfer. ONE value for the whole site: a panel cut at 14px next to
        a panel cut at 9px next to a panel cut at 20px is not a system, it is
        three accidents. `.chamfer-sm` is the single sanctioned exception, for
        elements too short for a 14px cut to fit (buttons, chips, flags). */
@@ -44,7 +44,7 @@
 
   /* Focus, in two forms, because one of them cannot work.
      A chamfered element is clipped by `clip-path`, and clip-path removes
-     everything the element paints outside its own shape — including an outline
+     everything the element paints outside its own shape, including an outline
      and including a box-shadow ring. So a chamfered control cannot wear a ring
      at all, and the rule below would silently do nothing on roughly half the
      interactive elements on this site.
@@ -96,7 +96,7 @@
    =========================================================================== */
 
 /* Long-form body. Barlow 400 at 17px.
-   Light text on a dark ground reads thinner than the same face on paper — the
+   Light text on a dark ground reads thinner than the same face on paper: the
    glyphs bleed outward rather than inward. Barlow is a low-contrast grotesk
    with fairly sturdy stems, so unlike the Newsreader it replaces it does not
    need a weight bump to survive here; what it does need is the leading, and a
@@ -136,7 +136,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Peripheral chrome — section labels, field names, status flags. Things you
+/* Peripheral chrome: section labels, field names, status flags. Things you
    read once to orient yourself and then stop seeing. */
 .mono-label {
   font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
@@ -178,7 +178,7 @@ a:hover .ink-underline,
    Everything here is one polygon and no images.
 
    Building a chamfered 1px FRAME needs two elements, because clip-path clips
-   a border along with the box — there is no `border` that survives it. So the
+   a border along with the box, and there is no `border` that survives it. So the
    outer element is the frame: it carries the clip and the edge colour, with
    1px of padding. The inner element carries the same clip and the fill, and
    covers all but that 1px. See src/components/ui/Panel.jsx, which is the only
@@ -198,7 +198,7 @@ a:hover .ink-underline,
 /* For elements too short for a 14px cut: buttons, chips, status flags. */
 .chamfer-sm { --chamfer: 9px; }
 
-/* One corner only. Used where a full pair of cuts would fight a neighbour —
+/* One corner only. Used where a full pair of cuts would fight a neighbour:
    the key-art frames, whose top-left corner carries the index label. */
 .chamfer-br {
   clip-path: polygon(
@@ -245,7 +245,7 @@ a:hover .ink-underline,
 
 /* Hazard tape. Deliberately rationed: two instances on the home page, as
    section dividers. The restraint is the entire reason it reads as signage
-   rather than as a pattern swatch — a page striped in yellow everywhere is
+   rather than as a pattern swatch. A page striped in yellow everywhere is
    the exact failure this design is trying to avoid. */
 .hazard {
   background-image: repeating-linear-gradient(
@@ -277,7 +277,7 @@ a:hover .ink-underline,
   100%      { transform: translateX(110%);  opacity: 0; }
 }
 
-/* Chromatic split, driven by --burst. Two genuinely opposed hues — an earlier
+/* Chromatic split, driven by --burst. Two genuinely opposed hues. An earlier
    version offset the same colour both ways, which is a blur, not an
    aberration. This is the ONLY place cyan appears in the entire site: it is a
    glitch artifact, not a colour anything is painted in, which is why there is
@@ -304,7 +304,7 @@ a:hover .ink-underline,
    ---------------------------------------------------------------------------
    Two fixed layers, no more. The sheet this replaces once ran an inline-SVG
    feTurbulence filter on body::before, a stripe overlay on body::after, AND
-   another feTurbulence per section — up to three full-viewport filters at
+   another feTurbulence per section, up to three full-viewport filters at
    once, each of which some browsers re-rasterize on the CPU during repaint.
    The turbulence below rasterizes once and tiles; the scanlines are a plain
    repeating gradient, which costs effectively nothing.
@@ -312,8 +312,8 @@ a:hover .ink-underline,
    The scanline period is 5px with a single 1px line at 0.13 alpha. It started
    at 4px and 0.22, which was wrong in a way only visible on the hero: at body
    size it read as texture, but across a 200px letterform it resolved into
-   distinct stripes and the name — the single most important element on the
-   site — looked like a damaged video signal rather than a design. Texture
+   distinct stripes and the name, the single most important element on the
+   site, looked like a damaged video signal rather than a design. Texture
    should be felt and not seen. Anything darker than this also starts eating
    case-study prose, and a portfolio whose writing is hard to read has traded
    its whole purpose for an effect.
@@ -350,7 +350,7 @@ a:hover .ink-underline,
    Imagery
    =========================================================================== */
 
-/* The ambient backplate. A 20px LQIP blown up to fill the frame IS the blur —
+/* The ambient backplate. A 20px LQIP blown up to fill the frame IS the blur:
    no GPU filter, ~350 bytes, and it is the same data already emitted as the
    loading placeholder. It means a frame whose full image has not decoded yet
    still looks deliberate rather than black. */

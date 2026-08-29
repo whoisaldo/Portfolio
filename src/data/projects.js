@@ -1,21 +1,21 @@
-// src/data/projects.js — single source of truth for project content.
+// src/data/projects.js: single source of truth for project content.
 //
 // Every claim here is backed by docs/PROJECT_CONTEXT.md, which records a
 // line-by-line audit against source code, live sites and the GitHub API.
 // Read it before editing any copy. Three rules carried over from that pass:
-//   1. Never cite Exerly's landing-page stats or testimonials — both are
+//   1. Never cite Exerly's landing-page stats or testimonials: both are
 //      hardcoded fiction in that repo, not telemetry.
-//   2. Never restore EternalMonitor's "<30ms latency" — no benchmark exists.
+//   2. Never restore EternalMonitor's "<30ms latency": no benchmark exists.
 //   3. EternalExchange is a ProjectE "spin-off", never a "port".
 //
 // `why` is the first thing a reader sees on a card and at the top of the case
-// study, and every one of them is Ali's own sentence — lifted out of the
+// study, and every one of them is Ali's own sentence, lifted out of the
 // terminal's `funfact` / `interests` output, or out of the "Problem:" line the
 // entry already carried. It says why the thing exists. `description` still
 // carries the what, below it. If a project ever needs a new `why`, write it the
 // way these are written: first person, one concrete detail, no build-up.
 //
-// `accent` used to be sampled from each project's own key-art plate — the
+// `accent` used to be sampled from each project's own key-art plate: the
 // dominant chromatic hue after excluding the violet rim light all eight plates
 // share. That was a real derivation and it stopped meaning anything the moment
 // the site's chrome stopped being violet: eight sampled violets under a yellow
@@ -24,12 +24,12 @@
 // It carries information now instead. Volt means the thing is running today;
 // fuchsia means it is still being built. Six of the eight are live, so the
 // grid reads mostly yellow with two magenta exceptions, and the exception is
-// the point — a reader can see which projects are shipped without reading a
+// the point: a reader can see which projects are shipped without reading a
 // single status flag. Derived from `status` directly below each one, so the
 // two can never disagree.
 
 // Every `images[]` entry below is an encoded variant set rather than a bare
-// URL — `{ src, width, height, avif, webp, thumb, lqip, lqipKey }`. The source
+// URL: `{ src, width, height, avif, webp, thumb, lqip, lqipKey }`. The source
 // PNGs were replaced by AVIF/WebP (plus a mozjpeg fallback for key art) by
 // `npm run images`; see scripts/optimize-images.mjs for the encoder settings
 // and src/data/images.js for the generated map. Render them through
@@ -39,7 +39,7 @@ import { img } from "./images";
 const LIVE = "#fcee0a";
 const BUILDING = "#ff2e88";
 
-// Key art — generated device-mockup plates, 3:2 (1536x1024). Each is a
+// Key art: generated device-mockup plates, 3:2 (1536x1024). Each is a
 // photorealistic shot of the real product running on real hardware; the
 // genuine screenshot is passed to the generator so the screen shows actual UI,
 // never invented interface. Regeneration recipe: docs/mock.sh + docs/post.sh.
@@ -52,11 +52,11 @@ const kaERP = img("KeyArt/KeyArt_EternalRichPresence");
 const kaFace = img("KeyArt/KeyArt_FaceAnalytics");
 const kaSignatureCuts = img("KeyArt/KeyArt_SignatureCuts");
 
-// Moops — moopsbooks.com (captured live, 2026-07)
+// Moops: moopsbooks.com (captured live, 2026-07)
 const moopsLanding = img("MoopsBookStore 2/moopsbooks_Landing2026");
 const moopsBrowse = img("MoopsBookStore 2/moopsbooks_Browse2026");
 
-// Exerly Fitness — web captured live 2026-07; iOS shots from the device build
+// Exerly Fitness: web captured live 2026-07; iOS shots from the device build
 const exerlyLanding = img("ExerlyFitness/ExerlyWebLanding2026");
 const exerlyDayLog = img("ExerlyFitness/ExerlyWebDayLogged2026");
 const exerlyFeatures = img("ExerlyFitness/ExerlyWebFeatures2026");
@@ -65,7 +65,7 @@ const exerlyiOS1 = img("ExerlyFitness/ExerlyFitnessPhoneView1");
 const exerlyiOS2 = img("ExerlyFitness/ExerlyFitnessPhoneView2");
 const exerlyiOS3 = img("ExerlyFitness/ExerlyFitnessPhoneView3");
 
-// EternalExchange — eternalexchangemod.com
+// EternalExchange: eternalexchangemod.com
 const eeLanding = img("EternalExchange/EternalExchangeLanding");
 const eeEMC = img("EternalExchange/EternalExchangeEMCValues");
 const eeHowItWorks = img("EternalExchange/EternalExchangeHowItWorks");
@@ -76,25 +76,25 @@ const eeInstall = img("EternalExchange/EternalExchangeInstall");
 const sigCutsWeb = img("SignatureCuts/SignatureCutsWebView");
 const sigCutsPhone = img("SignatureCuts/SignatureCutsPhoneView");
 
-// Eternal Rich Presence — eternalrichpresence.dev + real app captures
+// Eternal Rich Presence: eternalrichpresence.dev + real app captures
 const erpWeb = img("EternalRichPresence/EternalRichPresenceWebLanding");
 const erpWebFeatures = img("EternalRichPresence/EternalRichPresenceWebFeatures");
 const erpWebSetup = img("EternalRichPresence/EternalRichPresenceWebSetup");
 const erpDiscord = img("EternalRichPresence/EternalRichPresenceDiscordProfileView");
 const erpTerminal = img("EternalRichPresence/EternalRichPresenceTerminal");
 
-// Eternal Monitor — eternalmonitor.dev + real device captures
+// Eternal Monitor: eternalmonitor.dev + real device captures
 const emWeb = img("EternalMonitor/EternalMonitorWebLanding");
 const emWebFeatures = img("EternalMonitor/EternalMonitorWebFeatures");
 const emPC = img("EternalMonitor/EternalMonitorPCView");
 const emIpad = img("EternalMonitor/EternalMonitorIpadView");
 
-// Facial Recognition — the "Regocnition" spelling is the real filename
+// Facial Recognition: the "Regocnition" spelling is the real filename
 const facialFront = img("Facial/FacialRecognitionFrontPage");
 const facialHappy = img("Facial/FacialRecognitionHappy");
 const facialAngry = img("Facial/FacialRegocnitionAngryFace");
 
-// Eternal Reverse Studio — eternalreverse.com (captured live, 2026-07)
+// Eternal Reverse Studio: eternalreverse.com (captured live, 2026-07)
 const erLanding = img("EternalReverseStudio/EternalReverseLanding2026");
 const erProducts = img("EternalReverseStudio/EternalReverseProducts2026");
 const erProductsEM = img("EternalReverseStudio/EternalReverseProductEternalMonitor2026");

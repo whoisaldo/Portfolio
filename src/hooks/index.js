@@ -95,7 +95,7 @@ export function useFocusTrap(ref, active, onEscape) {
  * lives here now and the boot sequence uses it too.
  *
  * Returns the string to display. It starts scrambled and ends exactly equal to
- * `text`, so a caller can render it directly — but callers should render the
+ * `text`, so a caller can render it directly, but callers should render the
  * real string alongside it for assistive technology; see ui/Glitch.jsx.
  *
  * Under `prefers-reduced-motion` this never animates: it returns `text` from

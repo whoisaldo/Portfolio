@@ -1,4 +1,4 @@
-// src/components/BootSequence.jsx — first-visit power-on.
+// src/components/BootSequence.jsx: first-visit power-on.
 //
 // The version before last was a gate: a full-screen z-[100] overlay that held
 // the page hostage for 1.6s behind fake terminal output --
@@ -18,7 +18,7 @@
 //     put the fake boot log back, and it should stay out.
 //
 // The character scramble that used to be inlined here is now useDecode() in
-// src/hooks — section headings wanted the same effect, so there is one copy.
+// src/hooks: section headings wanted the same effect, so there is one copy.
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrefersReducedMotion, useDecode } from "../hooks";
@@ -85,7 +85,7 @@ export default function BootSequence({ onDone }) {
           aria-hidden="true"
         >
           {/* CRT line-scan across the void. One of exactly two places on the
-              site where anything glows — the other is the focus ring. A glow
+              site where anything glows; the other is the focus ring. A glow
               needs an implied light source, and a scanning beam is one. */}
           <motion.div
             className="absolute left-0 right-0 h-px bg-volt"

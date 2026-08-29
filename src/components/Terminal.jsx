@@ -1,4 +1,4 @@
-// src/components/Terminal.jsx — the console, now an easter egg.
+// src/components/Terminal.jsx: the console, now an easter egg.
 //
 // This used to be a full section in the page, fifth in the nav. It is 1,000
 // lines carrying a virtual filesystem (about.txt, skills.md, contact.json, a
@@ -7,7 +7,7 @@
 // page already showed. That made it a fourth copy of the site, inside the site.
 //
 // It is kept because it is genuinely fun and someone built it, but it is behind
-// a keystroke now rather than in the reading path — see Console.jsx. The two
+// a keystroke now rather than in the reading path. See Console.jsx. The two
 // things in here that were not duplicates, the fun facts and the `interests`
 // output, were moved into src/data/life.js and src/data/projects.js so they
 // stay on the page.
@@ -18,7 +18,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Terminal as TerminalIcon, Clock } from "lucide-react";
 
-// Fun facts pool — surfaced on boot and via `funfact`
+// Fun facts pool, surfaced on boot and via `funfact`
 const FUN_FACTS = [
   "Daily driver is a fully built supercharged Audi S4 (B8.5). 540 whp. Tuned it myself.",
   "Ranked top-3 in Massachusetts during high school for powerlifting. Still train seriously. Diet, sleep and lifts dialed in.",
@@ -42,7 +42,7 @@ const fileSystem = {
   "~": {
     type: "dir",
     children: {
-      "about.txt": { type: "file", content: `Ali Younes — Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code — Seattle, WA.\nPreviously: SWE Co-op at Philips — VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nMostly systems work: Rust, capture pipelines, codecs, transports.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
+      "about.txt": { type: "file", content: `Ali Younes · Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code · Seattle, WA.\nPreviously: SWE Co-op at Philips · VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nMostly systems work: Rust, capture pipelines, codecs, transports.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
       "skills.md": { type: "file", content: `# Skills
 
 Grouped, not ranked. A self-assigned proficiency bar is a claim nobody can check.
@@ -52,23 +52,23 @@ TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
 
 ## Frontend\nReact · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · MongoDB · .NET · PowerShell\n\n## Cloud & Infra\nAWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD` },
       "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA → Seattle, WA (Summer '26)",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
-      "resume.pdf": { type: "file", content: `[Binary file — use 'open resume.pdf' to download]` },
+      "resume.pdf": { type: "file", content: `[Binary file. Use 'open resume.pdf' to download]` },
       ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@eternalreverse:\\w %"\nalias ll="ls -la"\nalias cls="clear"` },
       ".gitconfig": { type: "file", content: `[user]\n  name = Ali Younes\n  email = younes.al@northeastern.edu\n[core]\n  editor = vim` },
       "projects": {
         type: "dir",
         children: {
           "eternal-monitor": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Eternal Monitor\nLow-latency remote desktop — Rust host + SwiftUI iPad client\n\nTech: Rust, SwiftUI, DXGI, H.264, VideoToolbox, UDP\nLive: eternalmonitor.dev\nRepo: github.com/whoisaldo/EternalMonitor` }
+            "README.md": { type: "file", content: `# Eternal Monitor\nLow-latency remote desktop: Rust host + SwiftUI iPad client\n\nTech: Rust, SwiftUI, DXGI, H.264, VideoToolbox, UDP\nLive: eternalmonitor.dev\nRepo: github.com/whoisaldo/EternalMonitor` }
           }},
           "exerly-fitness": { type: "dir", children: {
             "README.md": { type: "file", content: `# Exerly Fitness\nWeb (React 19) + Node/Express API + AI coach, with a native SwiftUI iOS client built and awaiting the App Store\n\nTech: SwiftUI, React 19, Node.js, Express 5, MongoDB/SQLite, gemini-2.0-flash-lite, JWT\n51 REST endpoints · AI capped at 5/hr · 20/day\nLive: exerlyfitness.com\nRepo: github.com/whoisaldo/Exerly-Fitness` }
           }},
           "eternal-exchange": { type: "dir", children: {
-            "README.md": { type: "file", content: `# EternalExchange\nEquivalent-exchange alchemy for Minecraft 1.21.1 on Fabric — a spin-off of ProjectE\n\nA recipe-graph solver prices every item at world load using exact BigFraction math.\nCarries a 2,031-line compatibility layer + 9 Mixins for primitives Fabric doesn't provide.\n\n39,399 LOC · 450 Java files · 86 items · 21 blocks · 15 GUIs\nTech: Java 21, Fabric Loader, Fabric API, Gradle/Loom, Mixin\nLive: eternalexchangemod.com\nRepo: github.com/whoisaldo/EternalExchange` }
+            "README.md": { type: "file", content: `# EternalExchange\nEquivalent-exchange alchemy for Minecraft 1.21.1 on Fabric, a spin-off of ProjectE\n\nA recipe-graph solver prices every item at world load using exact BigFraction math.\nCarries a 2,031-line compatibility layer + 9 Mixins for primitives Fabric doesn't provide.\n\n39,399 LOC · 450 Java files · 86 items · 21 blocks · 15 GUIs\nTech: Java 21, Fabric Loader, Fabric API, Gradle/Loom, Mixin\nLive: eternalexchangemod.com\nRepo: github.com/whoisaldo/EternalExchange` }
           }},
           "moops-bookstore": { type: "dir", children: {
-            "README.md": { type: "file", content: `# Moops Bookstore\nSocial reading tracker — shelves, reviews, clubs, streaks\n\nTech: React, TypeScript, Node.js, MongoDB, Google Books API, JWT\nLive: moopsbooks.com\nRepo: private` }
+            "README.md": { type: "file", content: `# Moops Bookstore\nSocial reading tracker: shelves, reviews, clubs, streaks\n\nTech: React, TypeScript, Node.js, MongoDB, Google Books API, JWT\nLive: moopsbooks.com\nRepo: private` }
           }},
           "eternal-rich-presence": { type: "dir", children: {
             "README.md": { type: "file", content: `# Eternal Rich Presence\nWindows tray app bridging Apple Music & Spotify → Discord Rich Presence\n\nListen Along built on Discord's raw IPC named pipes (pypresence is send-only).\n\nTech: Python 3.9+, pypresence, spotipy, WinRT, pywin32, PyInstaller\n74 tests · ~3.9k lines\nLive: eternalrichpresence.dev\nRepo: github.com/whoisaldo/Eternal-Rich-Presence` }
@@ -84,10 +84,10 @@ TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
       "experience": {
         type: "dir",
         children: {
-          "aws.md": { type: "file", content: `# AWS — SDE Intern (Current)\nCloudFormation · Infrastructure as Code | Jun 2026 — Present | Seattle, WA\n\n- Defining cloud infrastructure as version-controlled CloudFormation templates\n- Service-level project across distributed systems & operational tooling\n- Security-first engineering under Principal/Senior SDE mentorship\n- Repeatable, auditable, declarative deployments at AWS scale` },
-          "philips.md": { type: "file", content: `# Philips — Software Engineering Co-op\nSystem Integration and Automation | Jan 2026 — Jun 2026 | Cambridge, MA\n\n- Large- and small-scale VM automation\n- Automated setups & deployment pipelines for PicIX platform\n- C#, .NET Framework, PowerShell, DevOps\n- Enterprise imaging infrastructure at scale` },
-          "topchoice.md": { type: "file", content: `# Top Choice Realty — Frontend Developer Intern\nApr 2024 — Aug 2024 | New York, NY\n\n- Built full-stack app (React, Python, SQL)\n- 85% faster lookups, 3x query speed\n- Managed 800+ client records` },
-          "defalco.md": { type: "file", content: `# Robert DeFalco Realty — Computer Technician\nJun 2023 — Sep 2023 | New York, NY\n\n- On-site support across 3+ offices\n- Configured 15+ systems (Win/Mac/Linux)\n- Maintained 95%+ system uptime` },
+          "aws.md": { type: "file", content: `# AWS · SDE Intern (Current)\nCloudFormation · Infrastructure as Code | Jun 2026 to Present | Seattle, WA\n\n- Defining cloud infrastructure as version-controlled CloudFormation templates\n- Service-level project across distributed systems & operational tooling\n- Security-first engineering under Principal/Senior SDE mentorship\n- Repeatable, auditable, declarative deployments at AWS scale` },
+          "philips.md": { type: "file", content: `# Philips · Software Engineering Co-op\nSystem Integration and Automation | Jan 2026 to Jun 2026 | Cambridge, MA\n\n- Large- and small-scale VM automation\n- Automated setups & deployment pipelines for PicIX platform\n- C#, .NET Framework, PowerShell, DevOps\n- Enterprise imaging infrastructure at scale` },
+          "topchoice.md": { type: "file", content: `# Top Choice Realty · Frontend Developer Intern\nApr 2024 to Aug 2024 | New York, NY\n\n- Built full-stack app (React, Python, SQL)\n- 85% faster lookups, 3x query speed\n- Managed 800+ client records` },
+          "defalco.md": { type: "file", content: `# Robert DeFalco Realty · Computer Technician\nJun 2023 to Sep 2023 | New York, NY\n\n- On-site support across 3+ offices\n- Configured 15+ systems (Win/Mac/Linux)\n- Maintained 95%+ system uptime` },
         }
       }
     }
@@ -135,7 +135,7 @@ export default function Terminal({ onExit }) {
 
   const [history, setHistory] = useState(() => [
     { type: "ascii", text: asciiArt },
-    { type: "system", text: "eternalreverse.system v4.0 — direct console" },
+    { type: "system", text: "eternalreverse.system v4.0 · direct console" },
     { type: "system", text: `last login: ${new Date().toLocaleString()} on ttys000` },
     { type: "output", text: `  ▸ fact_of_the_session
     ${pickFact()}
@@ -220,7 +220,7 @@ export default function Terminal({ onExit }) {
 ${args[0].toUpperCase()}(1)                   User Commands                   ${args[0].toUpperCase()}(1)
 
 NAME
-       ${args[0]} — ${args[0] === "ls" ? "list directory contents" :
+       ${args[0]} · ${args[0] === "ls" ? "list directory contents" :
                       args[0] === "cd" ? "change directory" :
                       args[0] === "cat" ? "concatenate and print files" :
                       args[0] === "hire" ? "initiate hiring process for Ali" :
@@ -333,7 +333,7 @@ AUTHOR
 
       case "interests":
         setHistory(prev => [...prev, { type: "output", text: `
-  INTERESTS — ali_younes
+  INTERESTS · ali_younes
   ═══════════════════════════════════════════════
 
   ▣ film/tv
@@ -477,7 +477,7 @@ AUTHOR
         setHistory(prev => [...prev, { type: "output", text: `
   ALI YOUNES
   ─────────────────────────────────────────────
-  Software Engineer — Boston → Seattle
+  Software Engineer · Boston → Seattle
 
   CS & Political Science · Northeastern University · Class of '27
 
@@ -515,9 +515,9 @@ AUTHOR
   WORK EXPERIENCE
   ═══════════════════════════════════════════════════
 
-  ┌─ AWS — CloudFormation · Infrastructure as Code ─────
+  ┌─ AWS · CloudFormation · Infrastructure as Code ─────
   │  SDE Intern · Current
-  │  Jun 2026 — Present · Seattle, WA
+  │  Jun 2026 to Present · Seattle, WA
   │
   │  • Infrastructure as version-controlled CloudFormation
   │  • Repeatable, auditable, declarative deployments
@@ -526,7 +526,7 @@ AUTHOR
 
   ┌─ PHILIPS ────────────────────────────────────────────
   │  SWE Co-op · System Integration and Automation
-  │  Jan 2026 — Jun 2026 · Cambridge, MA
+  │  Jan 2026 to Jun 2026 · Cambridge, MA
   │
   │  • VM automation at scale · PicIX deployment pipelines
   │  • C# · .NET · PowerShell · DevOps
@@ -534,7 +534,7 @@ AUTHOR
 
   ┌─ TOP CHOICE REALTY ──────────────────────────────────
   │  Frontend Developer Intern
-  │  Apr — Aug 2024 · New York, NY
+  │  Apr to Aug 2024 · New York, NY
   │
   │  • Full-stack app (React · Python · SQL)
   │  • 85% faster lookups · 3x query speed · 800+ records
@@ -551,7 +551,7 @@ AUTHOR
 
   Northeastern University · Boston, MA
   B.S. Computer Science & Political Science
-  2023 — 2027 (expected)
+  2023 to 2027 (expected)
 
   Coursework
     Data Structures & Algorithms · Object-Oriented Design
@@ -568,7 +568,7 @@ AUTHOR
   ═══════════════════════════════════════════════════
 
   01  ETERNAL MONITOR
-      iPad as a wireless second display — Rust host + SwiftUI client
+      iPad as a wireless second display. Rust host + SwiftUI client
       Rust · SwiftUI · DXGI · H.264 · VideoToolbox · Metal · UDP
       → eternalmonitor.dev  ·  github.com/whoisaldo/EternalMonitor
 
@@ -578,17 +578,17 @@ AUTHOR
       → exerlyfitness.com  ·  github.com/whoisaldo/Exerly-Fitness
 
   03  ETERNALEXCHANGE
-      Equivalent-exchange alchemy for Fabric 1.21.1 — ProjectE spin-off
+      Equivalent-exchange alchemy for Fabric 1.21.1, a ProjectE spin-off
       Java 21 · Fabric · Mixin · Gradle/Loom  ·  39,399 LOC
       → eternalexchangemod.com  ·  github.com/whoisaldo/EternalExchange
 
   04  MOOPS BOOKSTORE
-      Social reading tracker — shelves, reviews, clubs, streaks
+      Social reading tracker: shelves, reviews, clubs, streaks
       React · TypeScript · Node · MongoDB · Google Books API
       → moopsbooks.com  (source private)
 
   05  ETERNAL RICH PRESENCE
-      Windows tray bridge — Apple Music & Spotify → Discord RPC
+      Windows tray bridge: Apple Music & Spotify → Discord RPC
       Python 3.9+ · pypresence · spotipy · WinRT · PyInstaller
       → eternalrichpresence.dev  ·  github.com/whoisaldo/Eternal-Rich-Presence
 
@@ -668,7 +668,7 @@ AUTHOR
 
       case "vim":
       case "nano":
-        setHistory(prev => [...prev, { type: "system", text: `${command}: web terminal — use 'cat <file>' to view contents.` }]);
+        setHistory(prev => [...prev, { type: "system", text: `${command}: web terminal. Use 'cat <file>' to view contents.` }]);
         break;
 
       case "sudo":
@@ -824,7 +824,7 @@ AUTHOR
     }
   };
 
-  // Prompt — younes@eternalreverse ~ %
+  // Prompt: younes@eternalreverse ~ %
   const renderPrompt = (path) => (
     <span className="select-none font-mono">
       <span className="text-volt font-semibold">younes</span>
@@ -843,7 +843,7 @@ AUTHOR
           cap keeps shell lines from running to an unreadable length. */}
       <div className={`transition-all duration-300 ${isMaximized ? 'max-w-none' : 'max-w-[1180px]'}`}>
         {/* Section device: a prompt line. Every other section on the page uses
-            a different opener — this is the last one that still used the shared
+            a different opener. This is the last one that still used the shared
             formula (roman numeral -> // snake_case kicker -> lowercase italic
             heading with a trailing period), repeated six times with no
             variation. Here the heading IS the invitation to type. */}
@@ -859,7 +859,7 @@ AUTHOR
               This one actually works.
             </h2>
             <p className="font-serif text-muted max-w-[52ch] leading-[1.6]">
-              A real shell, not a screenshot of one — 40-odd commands, a
+              A real shell, not a screenshot of one: 40-odd commands, a
               filesystem you can <code className="font-mono text-volt">cd</code> into,
               tab completion and history. Start with{" "}
               <code className="font-mono text-volt">help</code>, or{" "}
@@ -906,7 +906,7 @@ AUTHOR
 
             <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
               <TerminalIcon className="w-3.5 h-3.5 text-bone/50" />
-              <span className="text-[11px] text-bone/60 font-mono uppercase tracking-[0.18em]">younes@eternalreverse — {currentDir}</span>
+              <span className="text-[11px] text-bone/60 font-mono uppercase tracking-[0.18em]">younes@eternalreverse · {currentDir}</span>
             </div>
 
             <div className="flex items-center gap-3 text-[10px] text-bone/50 font-mono">
@@ -1018,7 +1018,7 @@ AUTHOR
           <div className="fixed inset-0 bg-ink/90 z-40" onClick={() => setIsMaximized(false)} />
         )}
 
-        {/* Hint chips — hard edges, mono */}
+        {/* Hint chips: hard edges, mono */}
         {!isMaximized && (
           <div className="mt-6">
             <div className="flex flex-wrap items-center gap-2">
