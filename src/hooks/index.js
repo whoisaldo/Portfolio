@@ -199,3 +199,41 @@ export function useKonami(onTrigger) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 }
+
+/**
+ * Reveal `text` one character at a time.
+ *
+ * Distinct from useDecode on purpose. Decode resolves noise into a word and
+ * suits the name, which is a thing being identified. Typing suits a line
+ * someone is saying to you, which is what the boot greeting is, and it lets
+ * the line take its time without the sequence feeling stalled.
+ *
+ * Returns `[shown, done]` so a caller can hold a caret while it types and
+ * blink it after.
+ */
+export function useTypewriter(text, { active = true, duration = 700 } = {}) {
+  const reduced = usePrefersReducedMotion();
+  const [count, setCount] = useState(() => (reduced ? text.length : 0));
+
+  useEffect(() => {
+    if (reduced) {
+      setCount(text.length);
+      return;
+    }
+    if (!active) {
+      setCount(0);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      setCount(Math.round(t * text.length));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, active, duration, reduced]);
+
+  return [text.slice(0, count), count >= text.length];
+}

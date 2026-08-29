@@ -1,4 +1,4 @@
-// stats-api/lib/db.js — one `sql` tagged template, two drivers behind it.
+// stats-api/lib/db.js: one `sql` tagged template, two drivers behind it.
 //
 // Production is Neon over HTTP: no connection pool to exhaust, which is the
 // property that matters when every request is a cold-ish serverless function.
@@ -8,8 +8,8 @@
 // untestable outside production, and "deploy it and see" is not a way to find
 // out whether the schema is right.
 //
-// Both paths expose the same interface — a tagged template that returns an
-// array of rows — so api/*.js never learns which one it is using.
+// Both paths expose the same interface, a tagged template that returns an
+// array of rows, so api/*.js never learns which one it is using.
 //
 //   const rows = await sql`SELECT * FROM session WHERE id = ${id}`
 //

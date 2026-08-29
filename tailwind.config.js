@@ -18,18 +18,18 @@
 //      If it covers much more than about 5% of a screen it has stopped meaning
 //      anything, which is the failure mode of every neon mockup.
 //   3. `cyan` is NOT a UI token. It exists only as one half of the chromatic
-//      split in .chromatic-aberration — an artifact of a glitch, never a
+//      split in .chromatic-aberration. It is an artifact of a glitch, never a
 //      colour anything is painted in. Do not add `text-cyan` utilities.
 //
 // Three interactive roles, three genuinely different values:
-//   volt    — primary. CTAs, focus, status, the current thing. Advances.
-//   fuchsia — secondary. Links, hovers, the Edgerunners register.
-//   line    — structural chrome. Rules, panel edges, brackets. Recedes.
+//   volt    : primary. CTAs, focus, status, the current thing. Advances.
+//   fuchsia : secondary. Links, hovers, the Edgerunners register.
+//   line    : structural chrome. Rules, panel edges, brackets. Recedes.
 //
 // Per-project accents live on in `--accent`, but their values changed. See the
 // note at the top of src/data/projects.js: the old ones were sampled from the
 // violet rim light every KeyArt plate shares, which read as leftovers the
-// moment the chrome stopped being violet. Experience accents did NOT change —
+// moment the chrome stopped being violet. Experience accents did NOT change:
 // #FF9900, #4FC3F7 and #C8102E are AWS, Philips and Northeastern's real brand
 // colours, which is identity rather than decoration.
 
@@ -45,7 +45,7 @@ export default {
           raised: "#131316",
           line: "#24242a",
         },
-        // Warm off-white. Never #fff — pure white on true black vibrates, and
+        // Warm off-white. Never #fff, because pure white on true black vibrates, and
         // the whole page is true black.
         bone: "#eceae4",
 
@@ -70,7 +70,7 @@ export default {
         accent: "rgb(var(--accent) / <alpha-value>)",
       },
 
-      // Four text levels, rebased on the new bone. Same structure as before —
+      // Four text levels, rebased on the new bone. Same structure as before:
       // it replaced a seventeen-step `text-bone/NN` slider and that fix holds.
       textColor: {
         primary: "#eceae4",
@@ -91,14 +91,14 @@ export default {
       // Anything reaching for text-[13.5px] is reaching for a step that should
       // have been named here instead.
       fontSize: {
-        // Display — Chakra Petch, uppercase. Sizes are fluid because the hero
+        // Display: Chakra Petch, uppercase. Sizes are fluid because the hero
         // has to survive a 375px phone and a 1920px monitor with one value.
         "display-hero": ["clamp(3.5rem, 13vw, 13rem)", { lineHeight: "0.86", letterSpacing: "-0.02em", fontWeight: "700" }],
         "display-1": ["clamp(2.75rem, 7vw, 5.5rem)", { lineHeight: "0.92", letterSpacing: "-0.02em", fontWeight: "700" }],
         "display-2": ["clamp(1.75rem, 3.5vw, 2.75rem)", { lineHeight: "1", letterSpacing: "-0.015em", fontWeight: "600" }],
         "display-3": ["1.375rem", { lineHeight: "1.15", letterSpacing: "-0.01em", fontWeight: "600" }],
 
-        // Mono — data, chrome, anything you read as a value rather than a
+        // Mono: data, chrome, anything you read as a value rather than a
         // sentence. Tracking loosens as size drops, which is the only way 10px
         // uppercase stays legible.
         "mono-ui": ["0.8125rem", { lineHeight: "1.3", letterSpacing: "0.1em" }],
@@ -118,6 +118,7 @@ export default {
       animation: {
         "signal-ping": "signal-ping 1.6s ease-in-out infinite",
         "beam-trace": "beam-trace 0.7s cubic-bezier(0.16,0.9,0.25,1) forwards",
+        caret: "caret 1s steps(2) infinite",
       },
 
       keyframes: {
@@ -126,6 +127,11 @@ export default {
         "signal-ping": {
           "0%, 100%": { opacity: "0.4", transform: "scale(1)" },
           "50%": { opacity: "1", transform: "scale(1.4)" },
+        },
+        // The block caret after the boot greeting, once it finishes typing.
+        caret: {
+          "0%, 50%": { opacity: "1" },
+          "51%, 100%": { opacity: "0" },
         },
         "beam-trace": {
           "0%": { transform: "translateX(-110%)", opacity: "0" },

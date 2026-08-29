@@ -37,7 +37,7 @@
 // the gesture that enables sound is also the one that demonstrates it.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { usePrefersReducedMotion, useDecode, useKonami } from "../hooks";
+import { usePrefersReducedMotion, useDecode, useKonami, useTypewriter } from "../hooks";
 import { profile } from "../data/profile";
 import { featuredProjects } from "../data/projects";
 import { experiences } from "../data/experience";
@@ -63,9 +63,10 @@ const T = {
   breachOut: 1650, // matrix clears, name takes the centre
   name: 1700,      // the name starts resolving
   glitch: 1150,    // signal tears
-  greet: 2500,     // the line of voice under it
-  burst: 2780,     // chromatic split as it lands
-  total: 3400,     // everything is gone by here
+  greet: 2450,     // the line of voice starts typing
+  greetType: 760,  // how long it takes to type
+  burst: 3050,     // chromatic split, once the line has landed
+  total: 4700,     // everything is gone by here
 };
 
 // Breach protocol. The hex pairs are the ones Cyberpunk 2077's hacking
@@ -113,6 +114,11 @@ export default function BootSequence() {
   const [burst, setBurst] = useState(false);
   const [tear, setTear] = useState(false);
   const [breaching, setBreaching] = useState(true);
+  // Gates the greeting. One flag drives both its fade and its typing, because
+  // when they were driven separately the typing started when the matrix
+  // cleared and finished before the fade-in delay had even elapsed, so the
+  // line simply appeared complete and the effect was never seen.
+  const [greetOn, setGreetOn] = useState(false);
   // Set by the Konami code so that run says something the rotation never does.
   const [override, setOverride] = useState(null);
 
@@ -148,6 +154,7 @@ export default function BootSequence() {
       setBurst(false);
       setTear(false);
       setBreaching(true);
+      setGreetOn(false);
       setRunId((n) => n + 1);
       setShow(true);
     };
@@ -155,14 +162,34 @@ export default function BootSequence() {
     return () => window.removeEventListener(BOOT_REPLAY, onReplay);
   }, []);
 
-  // Re-picked whenever runId changes, so a replay says something different.
-  const greeting = override ?? GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
+  // Picked once per run. Memoising is load-bearing rather than an
+  // optimisation: an unmemoised Math.random() here re-picks on every render,
+  // and this component re-renders on every frame of the name decode. That made
+  // the line flicker between phrases while the name resolved, and it reset the
+  // typewriter's effect on each render so the greeting never typed past its
+  // first character. Both symptoms, one cause.
+  const greeting = useMemo(
+    () => override ?? GREETINGS[Math.floor(Math.random() * GREETINGS.length)],
+    // runId is not read inside, which is exactly why it is listed: it is the
+    // signal that a new run started and a new line should be drawn. Same
+    // reason the matrix above depends on it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [override, runId],
+  );
 
   // Up up down down left right left right B A, anywhere on the page.
   useKonami(() => replayBoot({ greeting: "breach protocol accepted, choom." }));
 
   const target = profile.name.toUpperCase();
-  const text = useDecode(target, { active: show, duration: T.total - T.name - 400 });
+  const text = useDecode(target, { active: show, duration: 900 });
+
+  // The greeting types rather than fading in. It is a line someone is saying,
+  // not a word being identified, and typing gives it the beat of presence the
+  // old 300ms fade did not.
+  const [typed, typedDone] = useTypewriter(greeting, {
+    active: show && greetOn,
+    duration: T.greetType,
+  });
 
   useEffect(() => {
     if (!show) return;
@@ -181,6 +208,7 @@ export default function BootSequence() {
     const burstTimer = setTimeout(() => setBurst(true), T.burst);
     const tearTimer = setTimeout(() => setTear(true), T.glitch);
     const breachTimer = setTimeout(() => setBreaching(false), T.breachOut);
+    const greetTimer = setTimeout(() => setGreetOn(true), T.greet);
     const endTimer = setTimeout(finish, T.total);
     const skip = () => finish();
 
@@ -193,6 +221,7 @@ export default function BootSequence() {
       clearTimeout(burstTimer);
       clearTimeout(tearTimer);
       clearTimeout(breachTimer);
+      clearTimeout(greetTimer);
       clearTimeout(endTimer);
       window.removeEventListener("keydown", skip);
       window.removeEventListener("pointerdown", skip);
@@ -217,7 +246,7 @@ export default function BootSequence() {
           className="fixed inset-0 z-[100] pointer-events-none bg-ink-deep overflow-hidden"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.32, ease: [0.16, 0.9, 0.25, 1] }}
+          transition={{ duration: 0.5, ease: [0.16, 0.9, 0.25, 1] }}
           aria-hidden="true"
         >
           {/* The aperture. Everything scales out of a 4px-tall hairline, which
@@ -311,14 +340,24 @@ export default function BootSequence() {
                 transition={{ duration: 0.5, delay: (T.name + 120) / 1000, ease: [0.16, 0.9, 0.25, 1] }}
               />
 
-              {/* The one line of voice. See GREETINGS. */}
+              {/* The one line of voice. See GREETINGS. Typed, with a caret
+                  that blinks once the line has landed, so the hold at the end
+                  of the sequence reads as a terminal waiting rather than as a
+                  still frame. */}
               <motion.span
                 className="mt-5 mono-ui text-volt"
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: T.greet / 1000 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: greetOn ? 1 : 0 }}
+                transition={{ duration: 0.2 }}
               >
-                {greeting}
+                <span className="sr-only">{greeting}</span>
+                <span aria-hidden="true">{typed}</span>
+                <span
+                  aria-hidden="true"
+                  className={`inline-block w-[0.55em] h-[1em] translate-y-[0.15em] ml-1 bg-volt ${
+                    typedDone ? "animate-caret" : ""
+                  }`}
+                />
               </motion.span>
             </div>
 
