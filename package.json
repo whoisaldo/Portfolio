@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "og": "node scripts/make-og.mjs",
-    "logos": "node scripts/normalize-logos.mjs"
+    "logos": "node scripts/normalize-logos.mjs",
+    "check:audio": "node scripts/check-audio-single.mjs"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",

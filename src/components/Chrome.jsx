@@ -16,12 +16,22 @@ import React, { useEffect, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { sections } from "../data/site";
 import { scrollToSection } from "../lib/scroll";
-import { replayBoot, setSoundEnabled, soundEnabled, unlockAudio } from "../lib/boot-audio";
+import {
+  getVolume,
+  replayBoot,
+  setSoundEnabled,
+  setVolume,
+  soundEnabled,
+  unlockAudio,
+} from "../lib/boot-audio";
+import { applyVolume, startAmbient, stopAmbient } from "../lib/ambient";
+import SoundPrompt from "./SoundPrompt";
 
 export default function Chrome() {
   const [active, setActive] = useState(sections[0].id);
   const [progress, setProgress] = useState(0);
   const [sound, setSound] = useState(() => soundEnabled());
+  const [volume, setVol] = useState(() => getVolume());
 
   // Turning sound on replays the boot. Two reasons, and the second is the load
   // bearing one: it shows the reader what they just switched on, and the click
@@ -34,8 +44,20 @@ export default function Chrome() {
     setSoundEnabled(next);
     if (next) {
       await unlockAudio();
+      startAmbient();
       replayBoot();
+    } else {
+      stopAmbient();
     }
+  };
+
+  // The slider writes through to the running mix on every input event rather
+  // than on release, because a volume control you cannot hear while dragging
+  // is a volume control you have to guess at.
+  const onVolume = (e) => {
+    const v = setVolume(parseFloat(e.target.value));
+    setVol(v);
+    applyVolume();
   };
 
   useEffect(() => {
@@ -129,19 +151,52 @@ export default function Chrome() {
       {/* Sound. Bottom left, quiet until you look for it. It is a preference
           control on a page that has deliberately little chrome, so it stays at
           icon size and only names itself on hover. */}
-      <button
-        type="button"
-        onClick={toggleSound}
-        aria-pressed={sound}
-        aria-label={sound ? "Turn boot sound off" : "Turn boot sound on and replay it"}
-        className="group fixed bottom-5 left-5 z-50 flex items-center gap-2.5 p-2
-                   text-faint transition-colors duration-200 hover:text-volt"
-      >
-        {sound ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-        <span className="mono-micro opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-          {sound ? "Sound on" : "Sound off"}
-        </span>
-      </button>
+      <div className="group fixed bottom-5 left-5 z-50 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleSound}
+          aria-pressed={sound}
+          aria-label={sound ? "Turn sound off" : "Turn sound on and replay the boot"}
+          className="p-2 text-faint transition-colors duration-200 hover:text-volt
+                     focus-visible:text-volt"
+        >
+          {sound ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+        </button>
+
+        {/* The slider is revealed rather than always shown: it is only
+            meaningful while something is audible, and a permanent control in
+            the corner of a page this quiet would be the loudest thing on it.
+            `focus-within` is in the condition so it is reachable by keyboard
+            without a pointer ever hovering. */}
+        <div
+          className={`flex items-center gap-3 transition-opacity duration-200 ${
+            sound
+              ? "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+              : "opacity-0 pointer-events-none"
+          }`}
+        >
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={onVolume}
+            aria-label="Volume"
+            className="w-24 h-1 cursor-pointer [accent-color:#fcee0a]"
+          />
+          <span className="mono-micro text-dim tabular-nums w-8">
+            {Math.round(volume * 100)}
+          </span>
+        </div>
+      </div>
+
+      {/* Asks once, on a first visit, and only because a browser will not let
+          audio start without a click to hang it on. */}
+      {/* The callback only syncs this component's own state. Starting the
+          audio is the prompt's job and it already does it; having both do it
+          is what caused two concurrent starts to race. */}
+      <SoundPrompt onDecided={setSound} />
     </>
   );
 }

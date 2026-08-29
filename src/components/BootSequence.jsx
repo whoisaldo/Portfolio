@@ -50,12 +50,29 @@ const SEEN_KEY = "aly.boot.v5";
 // the same numbers rather than guessed at.
 const T = {
   aperture: 260,   // the CRT opening out of a hairline
-  readout: 360,    // first readout line
-  line: 120,       // gap between readout lines
-  name: 620,       // the name starts resolving
-  burst: 1450,     // chromatic split as it lands
-  total: 1780,     // everything is gone by here
+  readout: 340,    // first readout line
+  line: 110,       // gap between readout lines
+  name: 600,       // the name starts resolving
+  greet: 1180,     // the line of voice under it
+  burst: 1500,     // chromatic split as it lands
+  glitch: 900,     // scanline tears start
+  total: 2200,     // everything is gone by here
 };
+
+// Voice, not data. These are the only invented words in the sequence and they
+// are deliberately shaped so nobody could mistake them for a readout: centred,
+// in the prose voice, under the name. The measured lines stay in the corner in
+// mono where they have always been. Flavour is fine; flavour dressed up as
+// instrumentation is what rule 2 forbids.
+//
+// One is picked per run, which also means a replay is not identical to the
+// boot that preceded it.
+const GREETINGS = [
+  "wake up, choom.",
+  "eyes up, choom.",
+  "deck's warm, choom.",
+  "preem. you're in.",
+];
 
 // Constants of the build rather than of the render, so they are counted once.
 const LIVE_COUNT = featuredProjects.filter((p) => p.status === "live").length;
@@ -73,6 +90,7 @@ export default function BootSequence() {
   // its own.
   const [runId, setRunId] = useState(0);
   const [burst, setBurst] = useState(false);
+  const [tear, setTear] = useState(false);
   const doneRef = useRef(false);
 
   // Measured, not invented. Rule 2. Read on every render rather than memoised,
@@ -89,12 +107,16 @@ export default function BootSequence() {
     const onReplay = () => {
       doneRef.current = false;
       setBurst(false);
+      setTear(false);
       setRunId((n) => n + 1);
       setShow(true);
     };
     window.addEventListener(BOOT_REPLAY, onReplay);
     return () => window.removeEventListener(BOOT_REPLAY, onReplay);
   }, []);
+
+  // Re-picked whenever runId changes, so a replay says something different.
+  const greeting = GREETINGS[Math.floor(Math.random() * GREETINGS.length)];
 
   const target = profile.name.toUpperCase();
   const text = useDecode(target, { active: show, duration: T.total - T.name - 200 });
@@ -114,6 +136,7 @@ export default function BootSequence() {
     if (soundEnabled() && !playBootSound()) disarm = armAudioUnlock();
 
     const burstTimer = setTimeout(() => setBurst(true), T.burst);
+    const tearTimer = setTimeout(() => setTear(true), T.glitch);
     const endTimer = setTimeout(finish, T.total);
     const skip = () => finish();
 
@@ -124,6 +147,7 @@ export default function BootSequence() {
     return () => {
       disarm?.();
       clearTimeout(burstTimer);
+      clearTimeout(tearTimer);
       clearTimeout(endTimer);
       window.removeEventListener("keydown", skip);
       window.removeEventListener("pointerdown", skip);
@@ -173,9 +197,9 @@ export default function BootSequence() {
                   letterSpacing: "0.02em",
                   "--burst": burst ? 1 : 0,
                 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.2, delay: T.name / 1000 }}
+                initial={{ opacity: 0, scaleX: 1.06 }}
+                animate={{ opacity: 1, scaleX: 1 }}
+                transition={{ duration: 0.35, delay: T.name / 1000, ease: [0.16, 0.9, 0.25, 1] }}
               >
                 {text}
               </motion.span>
@@ -187,6 +211,16 @@ export default function BootSequence() {
                 animate={{ width: "min(22rem, 60vw)" }}
                 transition={{ duration: 0.5, delay: (T.name + 120) / 1000, ease: [0.16, 0.9, 0.25, 1] }}
               />
+
+              {/* The one line of voice. See GREETINGS. */}
+              <motion.span
+                className="mt-5 mono-ui text-volt"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: T.greet / 1000 }}
+              >
+                {greeting}
+              </motion.span>
             </div>
 
             {/* Measured readout, bottom left. Four lines, none of them made up. */}
@@ -206,6 +240,29 @@ export default function BootSequence() {
             </div>
           </motion.div>
 
+          {/* Signal tears. Three bands that displace horizontally for a few
+              frames each, the way a bad feed drops sync. They are the flash in
+              the sequence, and they are cheap: three divs, transform only, all
+              of them gone before the exit fade starts. */}
+          {tear && (
+            <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+              {[
+                { top: "22%", h: 14, dur: 0.24, dx: 26, delay: 0 },
+                { top: "54%", h: 8, dur: 0.18, dx: -34, delay: 0.12 },
+                { top: "71%", h: 20, dur: 0.3, dx: 18, delay: 0.26 },
+              ].map((band, i) => (
+                <motion.div
+                  key={i}
+                  className="absolute left-0 right-0 bg-volt/12 backdrop-brightness-150"
+                  style={{ top: band.top, height: band.h }}
+                  initial={{ x: 0, opacity: 0 }}
+                  animate={{ x: [0, band.dx, -band.dx / 2, 0], opacity: [0, 1, 1, 0] }}
+                  transition={{ duration: band.dur, delay: band.delay, times: [0, 0.3, 0.7, 1] }}
+                />
+              ))}
+            </div>
+          )}
+
           {/* The scan line, travelling the full height. One of exactly two
               places on the site where anything glows; the other is the focus
               ring. A glow needs an implied light source, and a beam is one. */}
@@ -215,6 +272,18 @@ export default function BootSequence() {
             animate={{ top: "100%", opacity: [0, 1, 1, 0] }}
             transition={{ duration: (T.total - 200) / 1000, delay: 0.1, ease: "linear" }}
             style={{ boxShadow: "0 0 24px 2px rgb(252 238 10 / 0.5)" }}
+          />
+
+          {/* Hazard tape sweeps across as it closes. The third and last place
+              this pattern appears on the site, after the Work divider and the
+              footer, which is the whole budget for it. */}
+          <motion.div
+            className="hazard absolute inset-x-0 top-1/2 -translate-y-1/2 h-16 opacity-0"
+            aria-hidden="true"
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: [0, 1, 1], opacity: [0, 0.22, 0] }}
+            transition={{ duration: 0.6, delay: (T.total - 700) / 1000, times: [0, 0.45, 1] }}
+            style={{ transformOrigin: "left center" }}
           />
         </motion.div>
       )}

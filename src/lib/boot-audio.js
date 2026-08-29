@@ -22,16 +22,51 @@
 // caller simply gets a silent boot.
 
 const MASTER_GAIN = 0.16;
+const VOLUME_KEY = "aly.volume.v1";
+const DEFAULT_VOLUME = 0.55;
 
 let ctx = null;
 
-/** Lazily construct the context. Safe to call from a click handler. */
-function context() {
+/**
+ * Lazily construct the context. Safe to call from a click handler, and the one
+ * place a context is ever made: the boot cue and the ambient loop share it, so
+ * a browser only ever sees this site open one.
+ */
+export function audioContext() {
   if (ctx) return ctx;
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
   ctx = new AC();
   return ctx;
+}
+
+const context = audioContext;
+
+/**
+ * One volume for everything, 0 to 1, persisted.
+ *
+ * Scaled rather than absolute: it multiplies each source's own gain, so the
+ * cue and the music keep their relative balance and neither can be pushed past
+ * the ceiling its own mix sets. Turning this to 1 does not make the site loud,
+ * it makes it as loud as it was designed to get.
+ */
+export function getVolume() {
+  try {
+    const v = parseFloat(localStorage.getItem(VOLUME_KEY));
+    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_VOLUME;
+  } catch {
+    return DEFAULT_VOLUME;
+  }
+}
+
+export function setVolume(v) {
+  const clamped = Math.min(1, Math.max(0, v));
+  try {
+    localStorage.setItem(VOLUME_KEY, String(clamped));
+  } catch {
+    // Storage unavailable. The value still applies for this page.
+  }
+  return clamped;
 }
 
 /** One short noise burst, band-passed. The static behind the power-on. */
@@ -109,7 +144,7 @@ export function playBootSound() {
   if (ac.state !== "running") return false;
 
   const master = ac.createGain();
-  master.gain.value = MASTER_GAIN;
+  master.gain.value = MASTER_GAIN * getVolume();
   master.connect(ac.destination);
 
   const t = ac.currentTime + 0.02;
@@ -220,4 +255,28 @@ export function armAudioUnlock() {
   };
   events.forEach((e) => window.addEventListener(e, once, { once: true, passive: true }));
   return () => events.forEach((e) => window.removeEventListener(e, once));
+}
+
+// ---------------------------------------------------------------------------
+// First-run prompt
+// ---------------------------------------------------------------------------
+// Asked once, ever. The answer either way is recorded, because a prompt that
+// reappears after being dismissed is worse than no prompt.
+
+const ASKED_KEY = "aly.sound.asked.v1";
+
+export function hasBeenAsked() {
+  try {
+    return localStorage.getItem(ASKED_KEY) === "1";
+  } catch {
+    return true; // No storage means no way to remember a dismissal. Do not ask.
+  }
+}
+
+export function markAsked() {
+  try {
+    localStorage.setItem(ASKED_KEY, "1");
+  } catch {
+    // Nothing to do. The prompt simply will not persist its dismissal.
+  }
 }
