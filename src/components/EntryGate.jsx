@@ -25,7 +25,11 @@
 //   It cannot fail to dismiss. Dismissal is a state change from a click. No
 //   audio call is awaited before it closes, so a browser refusing to start
 //   audio still gets you inside.
-//   It is shown once, ever, and never again.
+//   It appears on every page load for anyone who wants sound, because that is
+//   how often a browser needs the gesture. Showing it once and never again was
+//   the first version, and it meant every visit after the first was silent
+//   unless the reader went looking for the toggle. Anyone who explicitly chose
+//   silence never sees it at all.
 //   The page underneath is fully rendered the whole time, so a crawler that
 //   ignores overlays reads a complete document.
 import React, { useEffect, useRef, useState } from "react";
@@ -36,6 +40,7 @@ import { profile } from "../data/profile";
 import {
   hasBeenAsked,
   markAsked,
+  shouldGate,
   replayBoot,
   setSoundEnabled,
   unlockAudio,
@@ -43,8 +48,15 @@ import {
 import { startAmbient } from "../lib/ambient";
 import Panel from "./ui/Panel";
 
+// The gate's exit fade, plus a beat of black. The boot starts after it.
+const HANDOFF = 620;
+
 export default function EntryGate({ onEnter }) {
-  const [open, setOpen] = useState(() => !hasBeenAsked());
+  const [open, setOpen] = useState(shouldGate);
+  // Someone who has been here before does not need the explanation again, just
+  // the click. Read once on mount, because markAsked() runs before the exit
+  // animation finishes and would otherwise reword the panel mid-fade.
+  const [returning] = useState(hasBeenAsked);
   const panelRef = useRef(null);
 
   const enter = (withSound) => {
@@ -56,10 +68,18 @@ export default function EntryGate({ onEnter }) {
     onEnter?.(withSound);
 
     if (withSound) {
-      // This click is the gesture the whole screen exists to collect.
+      // This click is the gesture the whole screen exists to collect. Audio is
+      // started here rather than after the handoff, so the music is already
+      // running underneath by the time the boot finishes and the site appears.
       unlockAudio().then(() => startAmbient());
     }
-    replayBoot();
+
+    // Handing off to the boot on the next tick would start it behind a gate
+    // that is still fading, so the aperture would open through a translucent
+    // panel and the first half second would be lost. Waiting for the fade
+    // instead gives a cut to black and then a cold start, which is the reboot
+    // the sequence is pretending to be.
+    setTimeout(() => replayBoot(), HANDOFF);
   };
 
   // Escape leaves silent. useFocusTrap owns the scroll lock and focus
@@ -79,7 +99,7 @@ export default function EntryGate({ onEnter }) {
           className="fixed inset-0 z-[120] bg-ink-deep flex items-center justify-center gutter"
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 0.9, 0.25, 1] }}
+          transition={{ duration: 0.42, ease: [0.16, 0.9, 0.25, 1] }}
           role="dialog"
           aria-modal="true"
           aria-label="Enter the site"
@@ -110,7 +130,9 @@ export default function EntryGate({ onEnter }) {
               </h1>
 
               <p className="mt-5 prose-dark">
-                Turn your sound on for the best experience, choom :)
+                {returning
+                  ? "Welcome back, choom. One click and the sound is on :)"
+                  : "Turn your sound on for the best experience, choom :)"}
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -126,7 +148,7 @@ export default function EntryGate({ onEnter }) {
                   innerClassName="inline-flex items-center gap-2.5 px-5 py-3.5 mono-ui font-bold text-ink"
                 >
                   <Volume2 className="w-4 h-4" />
-                  Enter with sound
+                  {returning ? "Enter" : "Enter with sound"}
                 </Panel>
 
                 <Panel
@@ -145,8 +167,9 @@ export default function EntryGate({ onEnter }) {
               </div>
 
               <p className="mt-6 mono-micro text-faint leading-relaxed">
-                Your browser needs a click before it will play audio. Volume
-                lives bottom left, and either choice is changeable there.
+                {returning
+                  ? "Browsers need a click on every page load before they will play audio. Entering silent stops this appearing again."
+                  : "Your browser needs a click before it will play audio. Volume lives bottom left, and either choice is changeable there."}
               </p>
 
             </Panel>

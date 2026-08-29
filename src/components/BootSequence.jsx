@@ -46,8 +46,8 @@ import {
   BOOT_REPLAY,
   replayBoot,
   armAudioUnlock,
-  hasBeenAsked,
   playBootSound,
+  shouldGate,
   soundEnabled,
 } from "../lib/boot-audio";
 
@@ -100,10 +100,10 @@ export default function BootSequence() {
 
   const [show, setShow] = useState(() => {
     if (typeof window === "undefined") return false;
-    // On a first visit the entry gate owns the opening, and fires the replay
-    // signal once the reader is through it. Starting here as well would run
-    // the sequence behind a full-screen door nobody has opened yet.
-    if (!hasBeenAsked()) return false;
+    // Whenever the gate is going to appear, it owns the opening and fires the
+    // replay signal once the reader is through. Starting here as well would
+    // run the sequence behind a full-screen door nobody has opened yet.
+    if (shouldGate()) return false;
     return sessionStorage.getItem(SEEN_KEY) !== "1";
   });
   // Bumped on replay. Used as a key so the subtree remounts, which is what

@@ -61,6 +61,13 @@ const BARS = [
 const LOOKAHEAD_MS = 250;
 const SCHEDULE_AHEAD = 0.6;
 
+// Fade-in time constant. This was 2.6s, which reaches only about 17% of
+// target after half a second and 32% after one. Music that quiet for that long
+// does not read as "fading in", it reads as "not working", and that is exactly
+// how it was reported. 0.7s is still a fade and is clearly audible inside a
+// second.
+const FADE_IN = 0.7;
+
 // Each layer's own level. The user volume multiplies these rather than
 // replacing them, so the balance between pad, arp and bass never changes.
 const PAD = 0.045;
@@ -221,7 +228,7 @@ function startSynth() {
   // reads as a mistake; music that fades up reads as a choice.
   master.gain.cancelScheduledValues(ac.currentTime);
   master.gain.setValueAtTime(0.0001, ac.currentTime);
-  master.gain.setTargetAtTime(getVolume(), ac.currentTime, 2.6);
+  master.gain.setTargetAtTime(getVolume(), ac.currentTime, FADE_IN);
 
   nextBar = ac.currentTime + 0.15;
   barIndex = 0;
@@ -280,7 +287,7 @@ export async function playFile(url, { loop = true } = {}) {
 
   master.gain.cancelScheduledValues(ac.currentTime);
   master.gain.setValueAtTime(0.0001, ac.currentTime);
-  master.gain.setTargetAtTime(getVolume(), ac.currentTime, 2.6);
+  master.gain.setTargetAtTime(getVolume(), ac.currentTime, FADE_IN);
 
   fileSource.start();
   return true;

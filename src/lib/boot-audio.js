@@ -93,6 +93,31 @@ function noise(ac, out, at, duration, freq, gain) {
   src.stop(at + duration);
 }
 
+/** Noise with a bandpass sliding across it. The sound of losing tracking. */
+function sweep(ac, out, at, duration, fromHz, toHz, gain) {
+  const frames = Math.max(1, Math.floor(ac.sampleRate * duration));
+  const buffer = ac.createBuffer(1, frames, ac.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+
+  const src = ac.createBufferSource();
+  src.buffer = buffer;
+
+  const band = ac.createBiquadFilter();
+  band.type = "bandpass";
+  band.Q.value = 4;
+  band.frequency.setValueAtTime(fromHz, at);
+  band.frequency.exponentialRampToValueAtTime(toHz, at + duration);
+
+  const g = ac.createGain();
+  g.gain.setValueAtTime(gain, at);
+  g.gain.exponentialRampToValueAtTime(0.0001, at + duration);
+
+  src.connect(band).connect(g).connect(out);
+  src.start(at);
+  src.stop(at + duration);
+}
+
 /** One oscillator with an exponential decay envelope. */
 function tone(ac, out, { at, duration, type, from, to, gain, filter }) {
   const osc = ac.createOscillator();
@@ -123,9 +148,16 @@ function tone(ac, out, { at, duration, type, from, to, gain, filter }) {
 /**
  * Schedule the boot cue. Returns true if it will actually be heard.
  *
- * The shape follows what is on screen rather than being decorative: a sub
- * thump under the CRT opening, a filtered sweep while the scan line travels,
- * three pips as the readout prints, and a two-note resolve as the name lands.
+ * It is a VHS deck, and every layer is a real artefact of one rather than a
+ * synth patch chosen to sound futuristic: a transport spinning up with wow and
+ * flutter on it, tape hiss under everything, 60Hz mains hum from an unshielded
+ * analogue path, the head-switching clicks that land at the bottom of a frame,
+ * and two tracking errors where a bandpass runs across noise.
+ *
+ * The shape follows what is on screen. Engage under the aperture, data blips
+ * while the breach matrix fills, tracking errors timed to the visual signal
+ * tears at T.glitch, a low thump as the name locks, and a bare fifth under the
+ * greeting. If BootSequence's timeline moves, these move with it.
  */
 export function playBootSound() {
   // Bail before constructing anything if the page has not been interacted with
@@ -149,29 +181,80 @@ export function playBootSound() {
 
   const t = ac.currentTime + 0.02;
 
-  // Power-on: a sub that drops away, plus the static of a tube waking up.
-  tone(ac, master, { at: t, duration: 0.42, type: "sine", from: 62, to: 28, gain: 0.9 });
-  noise(ac, master, t, 0.18, 2400, 0.10);
+  // --- tape engage --------------------------------------------------------
+  // A saw dragged up through a closing filter with vibrato on it. This is the
+  // sound of a transport spinning up to speed: the pitch is unstable while it
+  // gets there, which is what the LFO on `detune` is doing.
+  const engage = ac.createOscillator();
+  engage.type = "sawtooth";
+  engage.frequency.setValueAtTime(70, t);
+  engage.frequency.exponentialRampToValueAtTime(210, t + 0.55);
 
-  // The scan line travelling: a saw pulled up through a closing lowpass.
-  tone(ac, master, {
-    at: t + 0.12, duration: 0.5, type: "sawtooth",
-    from: 140, to: 900, gain: 0.05,
-    filter: { from: 400, to: 2600 },
+  const wow = ac.createOscillator();          // wow and flutter
+  wow.type = "sine";
+  wow.frequency.value = 7.5;
+  const wowDepth = ac.createGain();
+  wowDepth.gain.setValueAtTime(90, t);
+  wowDepth.gain.exponentialRampToValueAtTime(6, t + 0.7);
+  wow.connect(wowDepth).connect(engage.detune);
+  wow.start(t);
+  wow.stop(t + 0.9);
+
+  const engageLp = ac.createBiquadFilter();
+  engageLp.type = "lowpass";
+  engageLp.frequency.setValueAtTime(300, t);
+  engageLp.frequency.exponentialRampToValueAtTime(1800, t + 0.6);
+
+  const engageGain = ac.createGain();
+  engageGain.gain.setValueAtTime(0.0001, t);
+  engageGain.gain.exponentialRampToValueAtTime(0.075, t + 0.05);
+  engageGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.85);
+
+  engage.connect(engageLp).connect(engageGain).connect(master);
+  engage.start(t);
+  engage.stop(t + 0.9);
+
+  // --- static bed ---------------------------------------------------------
+  // Runs under the whole sequence. Tape hiss is the thing that makes the rest
+  // read as VHS rather than as generic synth.
+  noise(ac, master, t, 2.9, 3200, 0.028);
+
+  // --- mains hum ----------------------------------------------------------
+  // 60Hz, barely there. Cheap and it does a lot: an unshielded analogue path
+  // is the reason old tape captures buzz.
+  tone(ac, master, { at: t, duration: 2.6, type: "sine", from: 60, gain: 0.02 });
+
+  // --- head-switching pops ------------------------------------------------
+  // The clicks at the bottom of a VHS frame where the head swaps. Short,
+  // bright and irregular, because a regular one would read as a metronome.
+  [0.34, 0.72, 1.06, 1.94].forEach((at, i) => {
+    noise(ac, master, t + at, 0.03, 5200 + i * 700, 0.075);
   });
 
-  // Three pips for the readout lines.
-  [0, 1, 2].forEach((i) => {
+  // --- data blips over the breach matrix ----------------------------------
+  // Four pips while the hex grid fills. Quiet, high, and out of the way.
+  [0.45, 0.62, 0.79, 0.96].forEach((at, i) => {
     tone(ac, master, {
-      at: t + 0.34 + i * 0.1, duration: 0.05,
-      type: "square", from: 1180 + i * 320, gain: 0.045,
+      at: t + at, duration: 0.04,
+      type: "square", from: 1500 + i * 260, gain: 0.028,
     });
   });
 
-  // The name landing: a bare fifth, slightly detuned so it is not sterile.
-  tone(ac, master, { at: t + 0.78, duration: 0.55, type: "sine", from: 330, gain: 0.13 });
-  tone(ac, master, { at: t + 0.78, duration: 0.55, type: "sine", from: 494.5, gain: 0.09 });
-  noise(ac, master, t + 0.78, 0.3, 5200, 0.03);
+  // --- tracking error -----------------------------------------------------
+  // Timed to the visual signal tears at T.glitch. A noise sweep with a bandpass
+  // running down it, which is the sound of a head losing the track.
+  sweep(ac, master, t + 1.12, 0.3, 4800, 500, 0.09);
+  sweep(ac, master, t + 1.38, 0.18, 900, 3600, 0.055);
+
+  // --- lock ---------------------------------------------------------------
+  // The name arriving. A low thump as the picture settles.
+  tone(ac, master, { at: t + 1.68, duration: 0.4, type: "sine", from: 90, to: 42, gain: 0.5 });
+
+  // --- resolve ------------------------------------------------------------
+  // A bare fifth under the greeting, slightly detuned so it is not sterile.
+  tone(ac, master, { at: t + 2.42, duration: 0.6, type: "sine", from: 330, gain: 0.12 });
+  tone(ac, master, { at: t + 2.42, duration: 0.6, type: "sine", from: 494.5, gain: 0.085 });
+  noise(ac, master, t + 2.42, 0.35, 5600, 0.03);
 
   return true;
 }
@@ -263,12 +346,35 @@ export function armAudioUnlock() {
 }
 
 // ---------------------------------------------------------------------------
-// First-run prompt
+// The door
 // ---------------------------------------------------------------------------
-// Asked once, ever. The answer either way is recorded, because a prompt that
-// reappears after being dismissed is worse than no prompt.
+// Whether to show the entry gate, which is NOT the same question as whether
+// the reader has seen it before.
+//
+// A browser grants audio permission per document, not per person. Every page
+// load starts with the context suspended and needs its own gesture, so a gate
+// shown only on a first visit means every visit after that is silent unless
+// the reader hunts for the toggle. That is what shipped first and it was
+// wrong.
+//
+// So the rule is about the preference, not the history:
+//
+//   sound on (or never chosen)  -> show the door, every load. One click is
+//                                  the price of audio and there is no way
+//                                  around it.
+//   sound explicitly off        -> never show it. They answered already, and
+//                                  the answer does not need a gesture to
+//                                  honour.
+//
+// `hasBeenAsked` survives, demoted: it no longer decides whether the door
+// appears, only how much explaining it does when it does.
 
 const ASKED_KEY = "aly.sound.asked.v1";
+
+/** Does the entry gate need to appear on this page load? */
+export function shouldGate() {
+  return soundEnabled();
+}
 
 export function hasBeenAsked() {
   try {
