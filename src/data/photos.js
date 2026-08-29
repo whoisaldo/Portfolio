@@ -15,6 +15,27 @@ import amazon_orientation_1206avif from "../assets/Photos/amazon-orientation-160
 import amazon_orientation_640webp from "../assets/Photos/amazon-orientation-640.webp";
 import amazon_orientation_1024webp from "../assets/Photos/amazon-orientation-1024.webp";
 import amazon_orientation_thumb from "../assets/Photos/amazon-orientation-320.webp";
+import audi_s4_engine_bay_src from "../assets/Photos/audi-s4-engine-bay-1600.webp";
+import audi_s4_engine_bay_640avif from "../assets/Photos/audi-s4-engine-bay-640.avif";
+import audi_s4_engine_bay_1024avif from "../assets/Photos/audi-s4-engine-bay-1024.avif";
+import audi_s4_engine_bay_1600avif from "../assets/Photos/audi-s4-engine-bay-1600.avif";
+import audi_s4_engine_bay_640webp from "../assets/Photos/audi-s4-engine-bay-640.webp";
+import audi_s4_engine_bay_1024webp from "../assets/Photos/audi-s4-engine-bay-1024.webp";
+import audi_s4_engine_bay_thumb from "../assets/Photos/audi-s4-engine-bay-320.webp";
+import audi_s4_front_src from "../assets/Photos/audi-s4-front-1600.webp";
+import audi_s4_front_640avif from "../assets/Photos/audi-s4-front-640.avif";
+import audi_s4_front_1024avif from "../assets/Photos/audi-s4-front-1024.avif";
+import audi_s4_front_1206avif from "../assets/Photos/audi-s4-front-1600.avif";
+import audi_s4_front_640webp from "../assets/Photos/audi-s4-front-640.webp";
+import audi_s4_front_1024webp from "../assets/Photos/audi-s4-front-1024.webp";
+import audi_s4_front_thumb from "../assets/Photos/audi-s4-front-320.webp";
+import audi_s4_rear_src from "../assets/Photos/audi-s4-rear-1600.webp";
+import audi_s4_rear_640avif from "../assets/Photos/audi-s4-rear-640.avif";
+import audi_s4_rear_1024avif from "../assets/Photos/audi-s4-rear-1024.avif";
+import audi_s4_rear_1206avif from "../assets/Photos/audi-s4-rear-1600.avif";
+import audi_s4_rear_640webp from "../assets/Photos/audi-s4-rear-640.webp";
+import audi_s4_rear_1024webp from "../assets/Photos/audi-s4-rear-1024.webp";
+import audi_s4_rear_thumb from "../assets/Photos/audi-s4-rear-320.webp";
 import bmw_carplay_retrofit_src from "../assets/Photos/bmw-carplay-retrofit-1600.webp";
 import bmw_carplay_retrofit_640avif from "../assets/Photos/bmw-carplay-retrofit-640.avif";
 import bmw_carplay_retrofit_1024avif from "../assets/Photos/bmw-carplay-retrofit-1024.avif";
@@ -69,6 +90,13 @@ import rubiks_cube_1600avif from "../assets/Photos/rubiks-cube-1600.avif";
 import rubiks_cube_640webp from "../assets/Photos/rubiks-cube-640.webp";
 import rubiks_cube_1024webp from "../assets/Photos/rubiks-cube-1024.webp";
 import rubiks_cube_thumb from "../assets/Photos/rubiks-cube-320.webp";
+import sumo_robot_src from "../assets/Photos/sumo-robot-1600.webp";
+import sumo_robot_640avif from "../assets/Photos/sumo-robot-640.avif";
+import sumo_robot_1024avif from "../assets/Photos/sumo-robot-1024.avif";
+import sumo_robot_1472avif from "../assets/Photos/sumo-robot-1600.avif";
+import sumo_robot_640webp from "../assets/Photos/sumo-robot-640.webp";
+import sumo_robot_1024webp from "../assets/Photos/sumo-robot-1024.webp";
+import sumo_robot_thumb from "../assets/Photos/sumo-robot-320.webp";
 import wrestling_src from "../assets/Photos/wrestling-1600.webp";
 import wrestling_640avif from "../assets/Photos/wrestling-640.avif";
 import wrestling_1024avif from "../assets/Photos/wrestling-1024.avif";
@@ -86,6 +114,33 @@ export const photos = {
     webp: { 640: amazon_orientation_640webp, 1024: amazon_orientation_1024webp, 1206: amazon_orientation_src },
     thumb: amazon_orientation_thumb,
     lqip: "data:image/webp;base64,UklGRmgBAABXRUJQVlA4IFwBAACQBgCdASoUABgAPjEUiEKiISEYDAYAIAMEoAnTKEfhBme8UftqRqwXlmiBD7HPYDIvPGeglluzYKZHDg4AAP7/B0A3lV+h57/95Q//D+sXcn0tYx/wEZzf05OL0gXJmv9/TVGYl8vf/9OEzXUJvjH/gZVg3/k6z/xyv/fqRajvN2M09f9UARzPt434yQzSRxZef0JibgTHt3icm3xrvS1jRlZSh9a6gq+ZVOU3JOqeG075pBzbNl0yJNNcdnNbZzG2hj1cf2G2wcFZh9n0sqBX/4z8ZcG4VJ/q4KXYYAzDsCKo/yQ0yrjEEYPfc9wvWqf19OcXLWgCrWQZX9fRqX6Z+Nlb62Mf6pSi7qN4tk3l12njqYuSsXotqWSNFpLZ4gK33xN+KyzhXxLRck1+hdXtmFu3yG9xdY3D2m+gUG3e39br4zQVXMF+tyvopgNhmS8+9itF8uNiP19pAAA=",
+  },
+  "audi-s4-engine-bay": {
+    src: audi_s4_engine_bay_src,
+    width: 1600,
+    height: 1200,
+    avif: { 640: audi_s4_engine_bay_640avif, 1024: audi_s4_engine_bay_1024avif, 1600: audi_s4_engine_bay_1600avif },
+    webp: { 640: audi_s4_engine_bay_640webp, 1024: audi_s4_engine_bay_1024webp, 1600: audi_s4_engine_bay_src },
+    thumb: audi_s4_engine_bay_thumb,
+    lqip: "data:image/webp;base64,UklGRkwBAABXRUJQVlA4IEABAAAwBwCdASoUAA8APjEUiEKiISEYBAAgAwSygE6ZQjuMgB+md6AbywZIBjlf+B5Kfmv2AP1CGkBBTDN4abBkM2IeNcAA/v8R4VW/2OotOquf/n/1wv+DXGv3t4+9f5WO80jB5dDxP/+yv+5Ja0D8qds8/xp3Wy9ixsXGVfSE346ABkI87T9j3GrbL8VC/vQHf8Txt0LQrXCjOsHvkQ7iLziciBX5LYnfsxL9PuX2uZ2vaePZd9pkAIGDPEixjsoZ0GH2xdWhf8CfzS/PagQBZIyV1Oyv27ODwicUgJAvOZMhIvtU0MwiE13LHnm563WFfGGX9f7kWb4fp5qr1FOmeuBDeM4f8Nf8lbsSv/lLUcShOC+6lhSVmB7K+v90/44CMyE/BE2xE2sa3m16hvDraeu9mYbxIWMBm1RwGeZXkoAAAA==",
+  },
+  "audi-s4-front": {
+    src: audi_s4_front_src,
+    width: 1206,
+    height: 2144,
+    avif: { 640: audi_s4_front_640avif, 1024: audi_s4_front_1024avif, 1206: audi_s4_front_1206avif },
+    webp: { 640: audi_s4_front_640webp, 1024: audi_s4_front_1024webp, 1206: audi_s4_front_src },
+    thumb: audi_s4_front_thumb,
+    lqip: "data:image/webp;base64,UklGRn4BAABXRUJQVlA4IHIBAACwBwCdASoUACQAPjESh0KiIQ1WAgAQAYJYwCsM4PAOYAby+RGwgILTixqGYVFMTLPk0a7NoDDQ3WdFJ/ZXIs1pg1SL9TkgAP77J5Xy9ITBnF/uCDueeeWa8cMaxvf+ZByPwbchMQ95KGK6o6RYJjkqiQ04gaE2MClGY4+LWn4yT/w2dhVtsnGCIrHfDQE1P0zYUgVaWMyxtXty/a72RwfJBs8j/w5BL9KgslcDD4fVTm9D1sG9V0FrAhKc/UUU8vebr3+UCa55DF2T9RcumwD/Br7Bs5qDS8FfFlv9U2ff9yf7GjPwxekZJQQ2CEOXprN/irI0RWt3rLOQczIC7pQyvO3t+sA3KSXfUH9CLy1pTQr+8QBfYDpcGfrdzeemYWG5NdK2QG4oj6lJPnPbT+l3DPrqhxZczva8Ze8rnZfWo6FufQeHflIW5IfQH+zxEyRetM+MdO/pelwCpdUThA+QI0TvELy7xST2Cx+Nx2ADa04A",
+  },
+  "audi-s4-rear": {
+    src: audi_s4_rear_src,
+    width: 1206,
+    height: 2144,
+    avif: { 640: audi_s4_rear_640avif, 1024: audi_s4_rear_1024avif, 1206: audi_s4_rear_1206avif },
+    webp: { 640: audi_s4_rear_640webp, 1024: audi_s4_rear_1024webp, 1206: audi_s4_rear_src },
+    thumb: audi_s4_rear_thumb,
+    lqip: "data:image/webp;base64,UklGRuQBAABXRUJQVlA4INgBAACQCQCdASoUACQAPjEUh0KiIQqrABABglAE6ZZdn2QJVn7XiwXa/ntNMa3kzyjrlf+HMoA5R/0eHi3CT1Q73LSazDMxOF23sSt9g4s53CVOM/HsT7DwAP73n3u3AiUutaqfW1CqoIWmBgcd1VGwGSp5jYktKfGjjI/vzup1P7z6qL1aqb8vUsxe6tvO5KDlHM+xbj+xjE7/JuhRmixrLdd7QhnypI/5jZsqoZ5v30BzaCc4Hfe5HGGDoMsa3j+NKdd9m+xBJz0oh1F9fmrwqoYG+hcicTVRGKZj1FUg0KzMjeutmTqS38KMO5kHJTKFtzF4DO33GEY19TK7bPpFlcZA288D1vL8CWvzDb+2DYBLhTZ3B82rR6bQ7qx42wqOrax4QuKRSmctmNxHRGaVTskejeCx4qkOUxbaXFB3Ljg4D9j/96FcInK8fiI+BODbw0Dgnho1ARMXLHaTW/NUJP87kuT8IfcDJfzc8yKZOKyFQxjzAe2MZZ/kY1ICEo/oOOBbJoParvTVl7vnHCG3Dyy9iW6Sd6flB1ydd67n+Hweu7Aq7cuDM/k21/iFDvvTGjyEBGPSr0G1lkPUGbyaezefiH7k14ewKxHA7DUmVqPDxYXw3v4wgAAA",
   },
   "bmw-carplay-retrofit": {
     src: bmw_carplay_retrofit_src,
@@ -158,6 +213,15 @@ export const photos = {
     webp: { 640: rubiks_cube_640webp, 1024: rubiks_cube_1024webp, 1600: rubiks_cube_src },
     thumb: rubiks_cube_thumb,
     lqip: "data:image/webp;base64,UklGRqQBAABXRUJQVlA4IJgBAABwCQCdASoUABsAPjEWiUMiISEUBVQgAwS2AE6ZQj8bznhyN7eQAfoB1oX7Afrd7N1ylf0lzvOgH5o85ELs1uxknhkgKGXowlL+bUExngwHt4royNAA/vm7+lIv/VzXQkQea8m3N0LxNjNRfcsMT9QIOi0ogTm6cJuG1iMUTFUjDtxxX36eLICfhqbyJb29aTnOiUUQBvP58jhta7tJSz6Yu9tzdW37wK8qCFlPd/SVZ1f2W9ShKD/MYQ/1OLZh1+hiXFqJE5C1d55Tqw+ciZCiirMaaaadoDtHrFXTUns//sh/86W8Yjeen6YAFf8VBJY0W+Zv8Pu/SVKOvQWsNP5Lqjc8lNiv5muX/y2f+YVUcKjszPkWLtnrWoJJEB2on0sYy+bhZWo5oanicw4yicw7WQOsFvl02TLCYzOI6QgTu3khH9e/2Ay4SsLBakf+kZpmfa5hiHEQfAggCBVYM0KgtfVRe3p4xIJhHu7yyv0hEr1wTqpzXB+6jDuCMd2g2Bji2yL77Dhx//3ijSSVMJdpDIqjXAUhwAA=",
+  },
+  "sumo-robot": {
+    src: sumo_robot_src,
+    width: 1472,
+    height: 1332,
+    avif: { 640: sumo_robot_640avif, 1024: sumo_robot_1024avif, 1472: sumo_robot_1472avif },
+    webp: { 640: sumo_robot_640webp, 1024: sumo_robot_1024webp, 1472: sumo_robot_src },
+    thumb: sumo_robot_thumb,
+    lqip: "data:image/webp;base64,UklGRngBAABXRUJQVlA4IGwBAABwBgCdASoUABIAPjEWiUOiISEUBAAgAwSgCdMuBAAdJv+3fpFUbc7PY3WO8xJABLcspv2crBgW59N5oJAA/vthMfnYP/yosnCUX4Y6NVSWkwPzL6pMR3WdfIPJXTOORjJJhaxwLbfT/SwPOwm/xc3d3IuXu5nP4MBR7Bi8T3XeO/R4YmbC/mWNGaNh1Psvs8CCvsX5BO/B+vfjz2clX6Hopk+YniX+bi4GbSgwdEN8FdgbOr7fxAxerjQ3i0BzGs64oukzzchKA/dn4nH/xloNXYgT2g/rmZn/mPFhuG72AQq4GlbjI/KPfi9h5O/MZp0b/qtu+c3jlMSKvnptffJfZk/jLcRnBadaM+ZbdcyXj8a783Qe0m7ymmGhvmV5Oi8yJ2s3+vMWtj1GxXuo/Vp7wU6F+WgOMFJZGKma7LfdXmZH4999gU9ulo7ukGoe2IuNSmyc84E5ytdSc5Wj2JevGT3YAy2vVl/KSJAA",
   },
   "wrestling": {
     src: wrestling_src,
