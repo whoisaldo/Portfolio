@@ -149,33 +149,6 @@ export default function Teardown() {
             );
           })}
         </div>
-
-        {/* ---- not pictured ----------------------------------------------
-            The rest of it. These used to live in the console's `interests`
-            output; the console is an easter egg now, so without this they
-            would have left the site with it. */}
-        {teardown.notPictured?.length > 0 && (
-          <motion.div
-            {...reveal}
-            transition={{ duration: 0.6 }}
-            className="mt-16 md:mt-20 pt-10 border-t border-ink-line grid gap-x-10 gap-y-4 lg:grid-cols-12 rail-clear"
-          >
-            <h3 className="mono-label text-volt lg:col-span-2 lg:pt-1">
-              Not pictured
-            </h3>
-            <ul className="min-w-0 lg:col-span-10 space-y-3 max-w-[68ch]">
-              {teardown.notPictured.map((line) => (
-                <li key={line} className="flex gap-4 prose-dark">
-                  <span
-                    className="mt-[0.7em] h-px w-5 shrink-0 bg-volt/60"
-                    aria-hidden="true"
-                  />
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
-          </motion.div>
-        )}
       </div>
     </section>
   );

@@ -223,18 +223,4 @@ export const teardown = {
       body: "Wanted to see how fast I could get. Down to 45 seconds on the speed cube.",
     },
   ],
-
-  // The things with no photograph. Ali's own words, trimmed.
-  //
-  // The Audi line that used to sit here has moved into the wall above, since
-  // there are now three photographs of it.
-  //
-  // NOTE: the powerlifting line and the wrestling caption both describe a
-  // top-three finish in Massachusetts in high school. They are kept separate
-  // because they are stated as separate things, but if one of them is a
-  // garbled version of the other, this is the place to fix it.
-  notPictured: [
-    "Ranked top-3 in Massachusetts for powerlifting in high school. Still train seriously.",
-    "Ran Minecraft and Ark servers for friends. The server-admin grind taught me more about Linux than any class did.",
-  ],
 };
