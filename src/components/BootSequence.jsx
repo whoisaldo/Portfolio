@@ -63,10 +63,11 @@ const T = {
   breachOut: 1650, // matrix clears, name takes the centre
   name: 1700,      // the name starts resolving
   glitch: 1150,    // signal tears
-  greet: 2450,     // the line of voice starts typing
-  greetType: 760,  // how long it takes to type
-  burst: 3050,     // chromatic split, once the line has landed
-  total: 4700,     // everything is gone by here
+  greet: 2400,     // the first line of voice starts typing
+  greetStep: 1150, // gap between one line starting and the next
+  greetType: 640,  // how long each line takes to type
+  burst: 3000,     // chromatic split as the voice starts
+  total: 7000,     // everything is gone by here
 };
 
 // Breach protocol. The hex pairs are the ones Cyberpunk 2077's hacking
@@ -83,18 +84,72 @@ const GRID = 5;
 // mono where they have always been. Flavour is fine; flavour dressed up as
 // instrumentation is what rule 2 forbids.
 //
-// One is picked per run, which also means a replay is not identical to the
-// boot that preceded it.
-const GREETINGS = [
+// Three lines rather than one. A single random line meant the good ones showed
+// up a quarter of the time and the closer everybody actually wanted was mostly
+// never seen. So the opener and the middle rotate, and the last line is fixed,
+// which gives variety on every run and still lands the payoff every time.
+const OPENERS = [
   "wake up, choom.",
   "eyes up, choom.",
   "deck's warm, choom.",
-  "preem. you're in.",
+  "rise and shine, choom.",
 ];
+
+const MIDDLES = [
+  "signal's clean.",
+  "ice is down.",
+  "no daemons on the line.",
+  "flatlined the handshake.",
+];
+
+// Always last. It is the one the reader is meant to leave on.
+const CLOSER = "preem. you're in.";
 
 // Constants of the build rather than of the render, so they are counted once.
 const LIVE_COUNT = featuredProjects.filter((p) => p.status === "live").length;
 const ROLE_COUNT = experiences.filter((e) => e.type === "work").length;
+
+/**
+ * One typed line of the boot's voice.
+ *
+ * A component per line rather than a loop inside one, because each line needs
+ * its own timer and its own typewriter, and hooks cannot be called in a loop.
+ * The key includes runId so a replay remounts these and they retype.
+ */
+function VoiceLine({ text, at, show, caret }) {
+  const [on, setOn] = useState(false);
+
+  useEffect(() => {
+    if (!show) {
+      setOn(false);
+      return;
+    }
+    const t = setTimeout(() => setOn(true), at);
+    return () => clearTimeout(t);
+  }, [show, at]);
+
+  const [typed, done] = useTypewriter(text, { active: on, duration: T.greetType });
+
+  return (
+    <motion.span
+      className="mono-ui text-volt"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: on ? 1 : 0 }}
+      transition={{ duration: 0.18 }}
+    >
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true">{typed}</span>
+      {caret && (
+        <span
+          aria-hidden="true"
+          className={`inline-block w-[0.55em] h-[1em] translate-y-[0.15em] ml-1 bg-volt ${
+            done ? "animate-caret" : ""
+          }`}
+        />
+      )}
+    </motion.span>
+  );
+}
 
 export default function BootSequence() {
   const reduced = usePrefersReducedMotion();
@@ -114,11 +169,6 @@ export default function BootSequence() {
   const [burst, setBurst] = useState(false);
   const [tear, setTear] = useState(false);
   const [breaching, setBreaching] = useState(true);
-  // Gates the greeting. One flag drives both its fade and its typing, because
-  // when they were driven separately the typing started when the matrix
-  // cleared and finished before the fade-in delay had even elapsed, so the
-  // line simply appeared complete and the effect was never seen.
-  const [greetOn, setGreetOn] = useState(false);
   // Set by the Konami code so that run says something the rotation never does.
   const [override, setOverride] = useState(null);
 
@@ -154,7 +204,6 @@ export default function BootSequence() {
       setBurst(false);
       setTear(false);
       setBreaching(true);
-      setGreetOn(false);
       setRunId((n) => n + 1);
       setShow(true);
     };
@@ -168,11 +217,20 @@ export default function BootSequence() {
   // the line flicker between phrases while the name resolved, and it reset the
   // typewriter's effect on each render so the greeting never typed past its
   // first character. Both symptoms, one cause.
-  const greeting = useMemo(
-    () => override ?? GREETINGS[Math.floor(Math.random() * GREETINGS.length)],
+  // Memoising is load-bearing rather than an optimisation: unmemoised
+  // Math.random() here re-picks on every render, and this component re-renders
+  // on every frame of the name decode. That made the lines flicker while the
+  // name resolved and reset each typewriter's effect so nothing ever typed
+  // past its first character.
+  const lines = useMemo(
+    () => [
+      OPENERS[Math.floor(Math.random() * OPENERS.length)],
+      MIDDLES[Math.floor(Math.random() * MIDDLES.length)],
+      override ?? CLOSER,
+    ],
     // runId is not read inside, which is exactly why it is listed: it is the
-    // signal that a new run started and a new line should be drawn. Same
-    // reason the matrix above depends on it.
+    // signal that a new run started and new lines should be drawn. Same reason
+    // the matrix above depends on it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [override, runId],
   );
@@ -186,11 +244,6 @@ export default function BootSequence() {
   // The greeting types rather than fading in. It is a line someone is saying,
   // not a word being identified, and typing gives it the beat of presence the
   // old 300ms fade did not.
-  const [typed, typedDone] = useTypewriter(greeting, {
-    active: show && greetOn,
-    duration: T.greetType,
-  });
-
   useEffect(() => {
     if (!show) return;
     if (reduced) {
@@ -208,7 +261,6 @@ export default function BootSequence() {
     const burstTimer = setTimeout(() => setBurst(true), T.burst);
     const tearTimer = setTimeout(() => setTear(true), T.glitch);
     const breachTimer = setTimeout(() => setBreaching(false), T.breachOut);
-    const greetTimer = setTimeout(() => setGreetOn(true), T.greet);
     const endTimer = setTimeout(finish, T.total);
     const skip = () => finish();
 
@@ -221,7 +273,6 @@ export default function BootSequence() {
       clearTimeout(burstTimer);
       clearTimeout(tearTimer);
       clearTimeout(breachTimer);
-      clearTimeout(greetTimer);
       clearTimeout(endTimer);
       window.removeEventListener("keydown", skip);
       window.removeEventListener("pointerdown", skip);
@@ -340,25 +391,20 @@ export default function BootSequence() {
                 transition={{ duration: 0.5, delay: (T.name + 120) / 1000, ease: [0.16, 0.9, 0.25, 1] }}
               />
 
-              {/* The one line of voice. See GREETINGS. Typed, with a caret
-                  that blinks once the line has landed, so the hold at the end
-                  of the sequence reads as a terminal waiting rather than as a
-                  still frame. */}
-              <motion.span
-                className="mt-5 mono-ui text-volt"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: greetOn ? 1 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <span className="sr-only">{greeting}</span>
-                <span aria-hidden="true">{typed}</span>
-                <span
-                  aria-hidden="true"
-                  className={`inline-block w-[0.55em] h-[1em] translate-y-[0.15em] ml-1 bg-volt ${
-                    typedDone ? "animate-caret" : ""
-                  }`}
-                />
-              </motion.span>
+              {/* The voice. Three lines typed one after another, the last one
+                  holding a blinking caret so the tail of the sequence reads as
+                  a terminal waiting rather than as a still frame. */}
+              <div className="mt-6 flex flex-col items-center gap-2">
+                {lines.map((line, i) => (
+                  <VoiceLine
+                    key={`${runId}-${i}`}
+                    text={line}
+                    at={T.greet + i * T.greetStep}
+                    show={show}
+                    caret={i === lines.length - 1}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Measured readout, bottom left. Four lines, none of them made up. */}

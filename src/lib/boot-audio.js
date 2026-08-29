@@ -217,17 +217,17 @@ export function playBootSound() {
   // --- static bed ---------------------------------------------------------
   // Runs under the whole sequence. Tape hiss is the thing that makes the rest
   // read as VHS rather than as generic synth.
-  noise(ac, master, t, 4.3, 3200, 0.028);
+  noise(ac, master, t, 6.6, 3200, 0.028);
 
   // --- mains hum ----------------------------------------------------------
   // 60Hz, barely there. Cheap and it does a lot: an unshielded analogue path
   // is the reason old tape captures buzz.
-  tone(ac, master, { at: t, duration: 4.0, type: "sine", from: 60, gain: 0.02 });
+  tone(ac, master, { at: t, duration: 6.3, type: "sine", from: 60, gain: 0.02 });
 
   // --- head-switching pops ------------------------------------------------
   // The clicks at the bottom of a VHS frame where the head swaps. Short,
   // bright and irregular, because a regular one would read as a metronome.
-  [0.34, 0.72, 1.06, 1.94, 3.35, 4.05].forEach((at, i) => {
+  [0.34, 0.72, 1.06, 1.94, 2.38, 3.53, 4.68, 5.9].forEach((at, i) => {
     noise(ac, master, t + at, 0.03, 5200 + i * 700, 0.075);
   });
 
@@ -250,15 +250,23 @@ export function playBootSound() {
   // The name arriving. A low thump as the picture settles.
   tone(ac, master, { at: t + 1.68, duration: 0.4, type: "sine", from: 90, to: 42, gain: 0.5 });
 
+  // --- the voice ----------------------------------------------------------
+  // A note under each of the three typed lines, walking up a minor triad so
+  // the sequence has somewhere to arrive rather than just stopping.
+  [[2.38, 293.66], [3.53, 349.23], [4.68, 440]].forEach(([at, hz]) => {
+    tone(ac, master, { at: t + at, duration: 0.9, type: "sine", from: hz, gain: 0.07 });
+  });
+
   // --- resolve ------------------------------------------------------------
-  // A bare fifth under the greeting, slightly detuned so it is not sterile.
-  tone(ac, master, { at: t + 2.42, duration: 1.5, type: "sine", from: 330, gain: 0.12 });
-  tone(ac, master, { at: t + 2.42, duration: 1.5, type: "sine", from: 494.5, gain: 0.085 });
-  noise(ac, master, t + 2.42, 0.35, 5600, 0.03);
+  // A bare fifth under the closing line, slightly detuned so it is not
+  // sterile, sustained through the hold on the caret.
+  tone(ac, master, { at: t + 4.68, duration: 1.9, type: "sine", from: 330, gain: 0.12 });
+  tone(ac, master, { at: t + 4.68, duration: 1.9, type: "sine", from: 494.5, gain: 0.085 });
+  noise(ac, master, t + 4.68, 0.4, 5600, 0.03);
 
   // A last tape flutter under the caret, so the hold at the end is a deck
   // still turning rather than dead air.
-  sweep(ac, master, t + 3.6, 0.22, 2600, 700, 0.045);
+  sweep(ac, master, t + 6.0, 0.26, 2600, 700, 0.045);
 
   return true;
 }
