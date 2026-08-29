@@ -7,10 +7,11 @@
 //
 // Two rules this module will not break:
 //
-//   1. It never creates an AudioContext at import time. Chrome logs a warning
-//      for a context constructed outside a user gesture and leaves it
-//      suspended anyway, so the context is built lazily on the first real
-//      click and reused after that.
+//   1. It never creates an AudioContext before the page has been interacted
+//      with. Chrome logs a warning for a context constructed outside a user
+//      gesture and leaves it suspended anyway, so there is nothing to gain and
+//      a dirty console to lose. The context is built lazily on the first real
+//      gesture and reused after that.
 //   2. Master gain is capped. Everything routes through one gain node held at
 //      a level that cannot startle someone who forgot their volume was up.
 //      A portfolio that shouts at a recruiter in an open-plan office has cost
@@ -92,6 +93,13 @@ function tone(ac, out, { at, duration, type, from, to, gain, filter }) {
  * three pips as the readout prints, and a two-note resolve as the name lands.
  */
 export function playBootSound() {
+  // Bail before constructing anything if the page has not been interacted with
+  // yet. Chrome logs "The AudioContext was not allowed to start" for a context
+  // built outside a gesture, and with sound defaulting to on that warning would
+  // greet every first load. `userActivation` is not universal, so where it is
+  // missing we fall through and let the state check below do the work.
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return false;
+
   const ac = context();
   if (!ac) return false;
 
@@ -161,12 +169,24 @@ const SOUND_KEY = "aly.sound.v1";
 
 export const BOOT_REPLAY = "aly:boot-replay";
 
-/** Sound is opt-in. Absent preference means off. */
+/**
+ * Sound is on unless it has been switched off.
+ *
+ * Note what this can and cannot do. It sets the preference, not the
+ * permission: browsers keep an AudioContext suspended until the page has seen
+ * a user gesture, so the very first load in a fresh browser is silent whatever
+ * this returns. Chrome relaxes that for origins the user actually engages
+ * with, so it starts working by itself on repeat visits, and armAudioUnlock()
+ * below gets there sooner.
+ *
+ * The three states are deliberate: absent means never chosen, so default on;
+ * "0" means chosen off and must survive; "1" means chosen on.
+ */
 export function soundEnabled() {
   try {
-    return localStorage.getItem(SOUND_KEY) === "1";
+    return localStorage.getItem(SOUND_KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -181,4 +201,23 @@ export function setSoundEnabled(on) {
 /** Ask BootSequence to run again. No-op when nothing is listening. */
 export function replayBoot() {
   window.dispatchEvent(new CustomEvent(BOOT_REPLAY));
+}
+
+/**
+ * Unlock audio on the reader's next interaction, without making a sound.
+ *
+ * Called when the boot cue was blocked by autoplay policy. It deliberately
+ * does NOT play anything when it fires: a chime that goes off because someone
+ * clicked a project card reads as a bug, not as a feature. All it does is get
+ * the context out of `suspended`, so the next boot in this session is audible
+ * and the browser sees the engagement that makes future loads audible too.
+ */
+export function armAudioUnlock() {
+  const events = ["pointerdown", "keydown", "touchstart"];
+  const once = () => {
+    events.forEach((e) => window.removeEventListener(e, once));
+    unlockAudio();
+  };
+  events.forEach((e) => window.addEventListener(e, once, { once: true, passive: true }));
+  return () => events.forEach((e) => window.removeEventListener(e, once));
 }

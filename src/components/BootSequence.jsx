@@ -28,10 +28,13 @@
 //   3. IT ENDS ON ITS OWN. One timeout owns dismissal. No second timer exists
 //      to rescue it, because there is nothing for one to rescue.
 //
-// Sound is opt-in and off by default. See src/lib/boot-audio.js: browsers
-// suspend audio until a user gesture, so a first visit is silent whatever the
-// preference says, and the toggle in Chrome.jsx replays the sequence on click
-// so the gesture that enables sound is also the one that demonstrates it.
+// Sound is on by default and can be switched off, which is a preference, not
+// a permission. See src/lib/boot-audio.js: browsers suspend audio until a user
+// gesture, so a first visit in a fresh browser is silent regardless, and there
+// is no way around that from script. What happens instead is that a blocked
+// cue arms a silent unlock, so the reader's next click makes later boots
+// audible. The toggle in Chrome.jsx replays the sequence when switched on, so
+// the gesture that enables sound is also the one that demonstrates it.
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePrefersReducedMotion, useDecode } from "../hooks";
@@ -39,7 +42,7 @@ import { profile } from "../data/profile";
 import { featuredProjects } from "../data/projects";
 import { experiences } from "../data/experience";
 import { workSlugs } from "../data/work";
-import { BOOT_REPLAY, playBootSound, soundEnabled } from "../lib/boot-audio";
+import { BOOT_REPLAY, armAudioUnlock, playBootSound, soundEnabled } from "../lib/boot-audio";
 
 const SEEN_KEY = "aly.boot.v5";
 
@@ -103,7 +106,12 @@ export default function BootSequence() {
       return;
     }
 
-    if (soundEnabled()) playBootSound();
+    // playBootSound() reports false when autoplay policy has the context
+    // suspended, which is the normal case on a first load. Rather than lose
+    // the preference to it, arm a silent unlock so the reader's next click
+    // makes every later boot in this session audible.
+    let disarm;
+    if (soundEnabled() && !playBootSound()) disarm = armAudioUnlock();
 
     const burstTimer = setTimeout(() => setBurst(true), T.burst);
     const endTimer = setTimeout(finish, T.total);
@@ -114,6 +122,7 @@ export default function BootSequence() {
     window.addEventListener("wheel", skip, { passive: true });
 
     return () => {
+      disarm?.();
       clearTimeout(burstTimer);
       clearTimeout(endTimer);
       window.removeEventListener("keydown", skip);
