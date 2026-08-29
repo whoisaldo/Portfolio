@@ -1,0 +1,17 @@
+{
+  "name": "aliyounes-stats",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Analytics collector and private dashboard for aliyounes.dev",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "schema": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f schema.sql"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  },
+  "devDependencies": {
+    "pg": "^8.13.1"
+  }
+}

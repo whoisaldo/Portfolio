@@ -1,4 +1,4 @@
-// scripts/normalize-logos.mjs — normalise the Experience logos.
+// scripts/normalize-logos.mjs: normalise the Experience logos.
 //
 //   node scripts/normalize-logos.mjs
 //
@@ -15,8 +15,8 @@
 //
 //   1. Baked-in padding. Each asset has a different amount of dead margin
 //      around its mark, so rendering them all at one CSS height makes some
-//      look twice the weight of others. `trim()` removes the uniform border
-//      — black for the opaque three, transparent for the other two.
+//      look twice the weight of others. `trim()` removes the uniform border:
+//      black for the opaque three, transparent for the other two.
 //   2. The opaque black grounds. They vanish against the ink page under
 //      `mix-blend-mode: screen`, but relying on a blend mode makes the mark
 //      hostage to whatever is painted behind it. Deriving alpha from luminance
@@ -24,7 +24,7 @@
 //      These marks are all light-on-black, so luminance is the right key.
 //
 // Output is a transparent PNG per logo at a consistent cap height, written
-// beside the source as `<name>.norm.png`. Sources are kept — rerun after
+// beside the source as `<name>.norm.png`. Sources are kept; rerun after
 // replacing one.
 import sharp from "sharp";
 import { readdirSync, statSync } from "node:fs";
@@ -48,7 +48,7 @@ for (const { file, keyOnLuminance } of SOURCES) {
   const src = join(DIR, file);
   const out = src.replace(/\.(svg|png|jpe?g|webp)$/i, ".norm.png");
 
-  // density matters for the SVGs — rasterise well above the target so the
+  // density matters for the SVGs: rasterise well above the target so the
   // trim and the downscale both have pixels to work with.
   let img = sharp(src, { density: 600 }).ensureAlpha();
 

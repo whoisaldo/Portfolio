@@ -1,4 +1,4 @@
-// src/lib/scroll.js — scrolling that behaves across a multi-viewport page.
+// src/lib/scroll.js: scrolling that behaves across a multi-viewport page.
 //
 // `html { scroll-behavior: smooth }` used to be global. With a 460vh pinned
 // reel in the middle of the page, a smooth jump from the hero to the contact

@@ -1,6 +1,5 @@
-// src/hooks/index.js — small shared hooks. No dependencies.
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useMotionValue } from "framer-motion";
+// src/hooks/index.js - small shared hooks. No dependencies.
+import { useState, useEffect, useRef } from "react";
 
 /** Subscribe to a media query. */
 export function useMediaQuery(query) {
@@ -20,80 +19,25 @@ export function useMediaQuery(query) {
 export const usePrefersReducedMotion = () =>
   useMediaQuery("(prefers-reduced-motion: reduce)");
 
-/**
- * True when the pinned reel is appropriate: a real pointer, enough width, and
- * no reduced-motion preference. Everything else gets the plain stacked list.
- */
-export const useCanPin = () =>
-  useMediaQuery(
-    "(min-width: 1024px) and (hover: hover) and (prefers-reduced-motion: no-preference)"
-  );
-
-/**
- * Decode a list of images ahead of time, sequentially.
- *
- * The reel must never show a blank frame. Mounting all eight <img> elements is
- * necessary but not sufficient — a 1.5 MB plate still takes time to decode, and
- * decode happens on first paint. `img.decode()` resolves once the bitmap is
- * ready, so painting afterwards is free.
- *
- * Sequential on purpose: eight parallel requests saturate the connection and
- * make the FIRST frame — the one the user actually sees — arrive later.
- */
-export function useImageWarmup(srcs, enabled = true) {
-  const [warmed, setWarmed] = useState(0);
-  useEffect(() => {
-    if (!enabled || !srcs?.length) return;
-    let cancelled = false;
-    // Absolute count, reset per run. Incrementing across runs let the number
-    // accumulate past the list length over repeated effect invocations
-    // (StrictMode's double-mount, HMR), producing "warming 41/8".
-    let done = 0;
-    setWarmed(0);
-    const run = async () => {
-      for (const src of srcs) {
-        if (cancelled) return;
-        try {
-          const img = new Image();
-          img.decoding = "async";
-          img.src = src;
-          await img.decode();
-        } catch {
-          // A failed decode must not stall the queue; the <img> in the DOM
-          // still gets its own chance, and the LQIP backplate covers the gap.
-        }
-        if (!cancelled) setWarmed(++done);
-      }
-    };
-    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
-    const handle = idle(run);
-    return () => {
-      cancelled = true;
-      if (window.cancelIdleCallback) window.cancelIdleCallback(handle);
-    };
-  }, [srcs, enabled]);
-  return warmed;
-}
-
 const FOCUSABLE =
   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 /**
  * Trap focus inside `ref`, restore it on unmount, and lock body scroll.
  *
- * The scroll lock matters more than usual here: without it a wheel event over
- * the modal scrolls the reel underneath, and the project behind the modal
- * silently stops matching the project inside it.
+ * The scroll lock is the reason this owns body.overflow. Do not add a second
+ * lock in a caller: both would save the previous value to restore, and
+ * whichever ran second would capture "hidden" and never give scrolling back.
  */
 export function useFocusTrap(ref, active, onEscape) {
   const restoreTo = useRef(null);
 
   // The callback is read through a ref so a caller passing an inline arrow
   // (`onClose={() => setOpen(null)}`) does not change the effect's identity.
-  // When it did, the effect re-ran on every render: each cleanup restored
-  // focus and each re-run re-captured `document.activeElement` — which by then
-  // was the modal's own close button. On close, focus landed on <body> instead
-  // of the card that opened it.
+  // When it did, the effect re-ran on every render. Each cleanup restored
+  // focus and each re-run re-captured `document.activeElement`, which by then
+  // was the panel's own close button, so closing landed focus on <body>
+  // instead of the thing that opened it.
   const escapeRef = useRef(onEscape);
   useEffect(() => { escapeRef.current = onEscape; });
 
@@ -141,74 +85,155 @@ export function useFocusTrap(ref, active, onEscape) {
   }, [active, ref]);
 }
 
-/** Stable callback ref for values that change every render. */
-export function useEvent(fn) {
-  const ref = useRef(fn);
-  useEffect(() => { ref.current = fn; });
-  return useCallback((...args) => ref.current?.(...args), []);
-}
 
-/** Viewport width, updated on resize. The reel's track transform needs px. */
-export function useViewportWidth() {
-  const [w, setW] = useState(() =>
-    typeof window === "undefined" ? 1440 : window.innerWidth
-  );
+
+/**
+ * Resolve `text` out of character noise, left to right.
+ *
+ * Generalised out of BootSequence.jsx, which had this loop inlined for the one
+ * string it animates. Section headings want the same effect on entry, so it
+ * lives here now and the boot sequence uses it too.
+ *
+ * Returns the string to display. It starts scrambled and ends exactly equal to
+ * `text`, so a caller can render it directly, but callers should render the
+ * real string alongside it for assistive technology; see ui/Glitch.jsx.
+ *
+ * Under `prefers-reduced-motion` this never animates: it returns `text` from
+ * the first render, which is why the initial state is computed from `reduced`
+ * rather than being corrected in an effect afterwards.
+ */
+const DECODE_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&/\\<>[]{}*+=_";
+
+const scrambleOf = (text) => {
+  let out = "";
+  for (const ch of text) {
+    out += ch === " " ? " " : DECODE_GLYPHS[(Math.random() * DECODE_GLYPHS.length) | 0];
+  }
+  return out;
+};
+
+export function useDecode(text, { active = true, duration = 650 } = {}) {
+  const reduced = usePrefersReducedMotion();
+  const [out, setOut] = useState(() => (reduced ? text : scrambleOf(text)));
+  const settled = useRef(false);
+
   useEffect(() => {
-    const on = () => setW(window.innerWidth);
-    window.addEventListener("resize", on, { passive: true });
-    return () => window.removeEventListener("resize", on);
-  }, []);
-  return w;
+    if (reduced) {
+      setOut(text);
+      return;
+    }
+    // `settled` keeps a heading from re-scrambling if the observer that drives
+    // `active` flickers, which it does at a viewport boundary during a fast
+    // scroll. Decoding twice reads as a bug, not as an effect.
+    if (!active || settled.current) return;
+
+    let raf = 0;
+    const start = performance.now();
+
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      // The 1.15 overshoot locks the final character slightly before t reaches
+      // 1, so the string holds still for a beat instead of resolving on the
+      // very last frame.
+      const locked = Math.floor(t * text.length * 1.15);
+      let s = "";
+      for (let i = 0; i < text.length; i++) {
+        s +=
+          text[i] === " "
+            ? " "
+            : i < locked
+            ? text[i]
+            : DECODE_GLYPHS[(Math.random() * DECODE_GLYPHS.length) | 0];
+      }
+      setOut(s);
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        settled.current = true;
+        setOut(text);
+      }
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, active, duration, reduced]);
+
+  return out;
 }
 
 /**
- * Scroll progress (0..1) across a tall pinned wrapper, as a motion value.
+ * Fire `onTrigger` when the Konami code is typed.
  *
- * Replaces framer-motion's `useScroll({ target, offset })`, which silently
- * reported a constant 0 for this element and never recovered — not on resize,
- * not on remeasure. Rather than keep guessing at its measurement heuristics,
- * the reel owns the single number everything else derives from. That is also
- * the property that makes the indicator/track desync impossible, so it is
- * worth having in plain sight.
+ * Ignores keystrokes aimed at a text field, so typing "b" then "a" into the
+ * console easter egg cannot accidentally complete the sequence. Comparison is
+ * case-insensitive because the last two keys are letters and a reader with
+ * caps lock on has still typed the code.
  */
-export function useElementScrollProgress(ref) {
-  const progress = useMotionValue(0);
+const KONAMI = [
+  "arrowup", "arrowup", "arrowdown", "arrowdown",
+  "arrowleft", "arrowright", "arrowleft", "arrowright",
+  "b", "a",
+];
+
+export function useKonami(onTrigger) {
+  const fire = useRef(onTrigger);
+  useEffect(() => { fire.current = onTrigger; });
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    let top = 0;
-    let span = 1;
-
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      top = rect.top + window.scrollY;
-      // How far the page scrolls while the sticky child is pinned.
-      span = Math.max(1, el.offsetHeight - window.innerHeight);
+    let i = 0;
+    const onKey = (e) => {
+      const el = document.activeElement;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) {
+        return;
+      }
+      const key = e.key.toLowerCase();
+      // Restart rather than reset to zero: a wrong key that happens to be the
+      // first key of the sequence should begin a new attempt, not discard it.
+      i = key === KONAMI[i] ? i + 1 : key === KONAMI[0] ? 1 : 0;
+      if (i === KONAMI.length) {
+        i = 0;
+        fire.current?.();
+      }
     };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+}
 
-    const update = () => {
-      progress.set(Math.min(1, Math.max(0, (window.scrollY - top) / span)));
+/**
+ * Reveal `text` one character at a time.
+ *
+ * Distinct from useDecode on purpose. Decode resolves noise into a word and
+ * suits the name, which is a thing being identified. Typing suits a line
+ * someone is saying to you, which is what the boot greeting is, and it lets
+ * the line take its time without the sequence feeling stalled.
+ *
+ * Returns `[shown, done]` so a caller can hold a caret while it types and
+ * blink it after.
+ */
+export function useTypewriter(text, { active = true, duration = 700 } = {}) {
+  const reduced = usePrefersReducedMotion();
+  const [count, setCount] = useState(() => (reduced ? text.length : 0));
+
+  useEffect(() => {
+    if (reduced) {
+      setCount(text.length);
+      return;
+    }
+    if (!active) {
+      setCount(0);
+      return;
+    }
+    let raf = 0;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      setCount(Math.round(t * text.length));
+      if (t < 1) raf = requestAnimationFrame(tick);
     };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, active, duration, reduced]);
 
-    const onResize = () => { measure(); update(); };
-
-    measure();
-    update();
-
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", onResize, { passive: true });
-    // Layout settles after fonts and images land; re-measure when it does.
-    const ro = new ResizeObserver(onResize);
-    ro.observe(document.documentElement);
-
-    return () => {
-      window.removeEventListener("scroll", update);
-      window.removeEventListener("resize", onResize);
-      ro.disconnect();
-    };
-  }, [ref, progress]);
-
-  return progress;
+  return [text.slice(0, count), count >= text.length];
 }

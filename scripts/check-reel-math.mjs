@@ -1,4 +1,4 @@
-// scripts/check-reel-math.mjs — asserts the reel's index<->scroll invariant.
+// scripts/check-reel-math.mjs: asserts the reel's index<->scroll invariant.
 //
 // The bug this guards against shipped to production: the rail's click target
 // and the panel's index were computed by two different formulas, so clicking
@@ -28,7 +28,7 @@ for (const n of [1, 2, 3, 5, 8, 13]) {
     prev = v;
   }
 
-  // 3. Endpoints are exact — the last project must be fully reachable.
+  // 3. Endpoints are exact: the last project must be fully reachable.
   if (easedIndex(0, n) !== 0) fail(`n=${n} p=0 -> ${easedIndex(0, n)}, expected 0`);
   if (easedIndex(1, n) !== n - 1) fail(`n=${n} p=1 -> ${easedIndex(1, n)}, expected ${n - 1}`);
 
@@ -36,7 +36,7 @@ for (const n of [1, 2, 3, 5, 8, 13]) {
   if (easedIndex(-0.5, n) !== 0) fail(`n=${n} negative progress did not clamp`);
   if (easedIndex(1.5, n) !== n - 1) fail(`n=${n} progress > 1 did not clamp`);
 
-  // 5. Every project gets a real dwell — no project is only ever mid-wipe.
+  // 5. Every project gets a real dwell: no project is only ever mid-wipe.
   const settled = new Set();
   for (let s = 0; s <= 4000; s++) {
     const v = easedIndex(s / 4000, n);

@@ -24,3 +24,7 @@ friendsportfolio/
 Eternal-Reverse-Assets/
 image.png
 *.local.md
+
+# stats-api is a separate Vercel project living in this repo.
+stats-api/node_modules/
+stats-api/.vercel/

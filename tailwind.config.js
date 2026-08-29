@@ -2,27 +2,36 @@
 
 // Palette notes
 // -------------
-// The previous accent was #a855f7 — stock Tailwind `purple-500`, with
-// #c084fc (`purple-400`) and #7e22ce (`purple-700`) as its variants. Worse,
-// `signal`, `hud` and `ember` were three names pointing at those same two
-// values, so every hierarchy decision made with them was a no-op: gradients
-// ran from a colour to itself, and the terminal rendered errors and successes
-// identically.
+// The previous system was violet: `signal` #7b45f7, `hud` #6d5fa8 and `ember`
+// #ff9538 over near-blacks with a violet undertone, derived by sampling the
+// eight KeyArt plates. That was correct for an editorial-HUD site and it is
+// wrong for this one.
 //
-// The violets below are derived from the artwork rather than picked. Sampling
-// the eight KeyArt plates (scripts in scratchpad; hue-bucketed, weighted by
-// saturation x value) shows every plate shares a rim light at hue 251-262 —
-// that shared light is why the eight read as a set. These tokens sit at hue
-// 256, a luminous version of the same light.
+// Cyberpunk 2077's UI is not "neon everything". It is a dirty sodium yellow on
+// carbon black, used at a fraction of the surface, with one hot secondary and
+// a red reserved for danger. The three rules that keep it from becoming the
+// generic neon-cyberpunk pastiche:
 //
-// Three roles, three genuinely different values:
-//   signal — interactive. CTAs, links, the focused thing. Advances.
-//   hud    — structural chrome. Rules, labels, brackets. Recedes.
-//   ember  — status: shipped / live / now. The only warm hue on the site.
+//   1. The ground is NEUTRAL carbon black. No violet undertone, no blue-black.
+//      CP2077's black is the absence of light, not a dark colour.
+//   2. `volt` is signage. It marks the thing you can act on and nothing else.
+//      If it covers much more than about 5% of a screen it has stopped meaning
+//      anything, which is the failure mode of every neon mockup.
+//   3. `cyan` is NOT a UI token. It exists only as one half of the chromatic
+//      split in .chromatic-aberration. It is an artifact of a glitch, never a
+//      colour anything is painted in. Do not add `text-cyan` utilities.
 //
-// Per-project accents live in src/data/projects.js, also sampled from each
-// plate. The reel writes the focused project's hex to --accent, so `accent-*`
-// utilities tint chrome to whatever you are currently looking at.
+// Three interactive roles, three genuinely different values:
+//   volt    : primary. CTAs, focus, status, the current thing. Advances.
+//   fuchsia : secondary. Links, hovers, the Edgerunners register.
+//   line    : structural chrome. Rules, panel edges, brackets. Recedes.
+//
+// Per-project accents live on in `--accent`, but their values changed. See the
+// note at the top of src/data/projects.js: the old ones were sampled from the
+// violet rim light every KeyArt plate shares, which read as leftovers the
+// moment the chrome stopped being violet. Experience accents did NOT change:
+// #FF9900, #4FC3F7 and #C8102E are AWS, Philips and Northeastern's real brand
+// colours, which is identity rather than decoration.
 
 export default {
   darkMode: "class",
@@ -30,90 +39,97 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Near-blacks with a violet undertone, so the canvas sits in the same
-        // family as the accents and as the KeyArt ground (#08070d is the
-        // literal backdrop those plates were rendered on).
         ink: {
-          DEFAULT: "#0e0d14",
-          deep: "#08070d",
-          raised: "#16151c",
-          line: "#221f2e",
+          DEFAULT: "#0a0a0c",
+          deep: "#050506",
+          raised: "#131316",
+          line: "#24242a",
         },
-        bone: "#efece5",
+        // Warm off-white. Never #fff, because pure white on true black vibrates, and
+        // the whole page is true black.
+        bone: "#eceae4",
 
-        // Interactive.
-        signal: {
-          DEFAULT: "#7b45f7",
-          soft: "#9b72ff",
-          deep: "#4c1fb8",
+        // Primary. The 2077 yellow.
+        volt: {
+          DEFAULT: "#fcee0a",
+          deep: "#b8ad00",
+          dim: "#5f5a10",
         },
-        // Structural chrome — deliberately quieter than `signal` so labels and
-        // rules sit behind the things you can actually click.
-        hud: {
-          DEFAULT: "#6d5fa8",
-          soft: "#8b7fc4",
-          deep: "#3a3358",
-        },
-        // Status: live / shipped / current. Sodium-vapour amber — street
-        // lighting rather than synthwave, and the only warm hue in the system.
-        ember: {
-          DEFAULT: "#ff9538",
-          soft: "#ffb473",
-          deep: "#b35f14",
+        // Secondary. Edgerunners magenta.
+        fuchsia: {
+          DEFAULT: "#ff2e88",
+          deep: "#c4004f",
+          dim: "#5e1436",
         },
 
-        // Terminal semantics. These used to all render as the same violet.
-        ok: "#36d686",
-        err: "#ff3d64",
+        // Status.
+        blood: "#ff003c",
+        ok: "#00e5a0",
 
-        // Per-project accent, written to --accent by the reel.
+        // Per-project accent, written to --accent by the card and the page.
         accent: "rgb(var(--accent) / <alpha-value>)",
       },
 
-      // Four text levels replacing the seventeen-step `text-bone/NN` slider
-      // the old sheet had drifted into (/15 /20 /25 /30 /35 /40 /45 /50 /55
-      // /60 /65 /70 /75 /80 /85 /90 /95 — several of which are perceptually
-      // identical and were used interchangeably).
+      // Four text levels, rebased on the new bone. Same structure as before:
+      // it replaced a seventeen-step `text-bone/NN` slider and that fix holds.
       textColor: {
-        primary: "#efece5",
-        muted: "rgb(239 236 229 / 0.72)",
-        dim: "rgb(239 236 229 / 0.48)",
-        faint: "rgb(239 236 229 / 0.28)",
+        primary: "#eceae4",
+        muted: "rgb(236 234 228 / 0.72)",
+        dim: "rgb(236 234 228 / 0.46)",
+        faint: "rgb(236 234 228 / 0.26)",
       },
 
       fontFamily: {
-        display: ["'Fraunces Variable'", "Fraunces", "ui-serif", "Georgia", "serif"],
-        serif: ["'Newsreader Variable'", "Newsreader", "ui-serif", "Georgia", "serif"],
+        // Chakra Petch carries clipped corners in the glyphs themselves, which
+        // is the thing Orbitron only imitates with a rounded geometric skeleton.
+        display: ["'Chakra Petch'", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["Barlow", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["'JetBrains Mono Variable'", "'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
       },
-      letterSpacing: {
-        label: "0.22em",
-        editorial: "0.32em",
-      },
-      // A real scale, replacing twelve arbitrary pixel values (including a
-      // `text-[12.5px]` that appeared twice — nobody designs a 12.5px step).
+
+      // Ten named steps and no others. Four display, three prose, three mono.
+      // Anything reaching for text-[13.5px] is reaching for a step that should
+      // have been named here instead.
       fontSize: {
-        micro: ["0.625rem", { lineHeight: "1.2", letterSpacing: "0.22em" }],
-        label: ["0.6875rem", { lineHeight: "1.3", letterSpacing: "0.18em" }],
+        // Display: Chakra Petch, uppercase. Sizes are fluid because the hero
+        // has to survive a 375px phone and a 1920px monitor with one value.
+        "display-hero": ["clamp(3.5rem, 13vw, 13rem)", { lineHeight: "0.86", letterSpacing: "-0.02em", fontWeight: "700" }],
+        "display-1": ["clamp(2.75rem, 7vw, 5.5rem)", { lineHeight: "0.92", letterSpacing: "-0.02em", fontWeight: "700" }],
+        "display-2": ["clamp(1.75rem, 3.5vw, 2.75rem)", { lineHeight: "1", letterSpacing: "-0.015em", fontWeight: "600" }],
+        "display-3": ["1.375rem", { lineHeight: "1.15", letterSpacing: "-0.01em", fontWeight: "600" }],
+
+        // Mono: data, chrome, anything you read as a value rather than a
+        // sentence. Tracking loosens as size drops, which is the only way 10px
+        // uppercase stays legible.
+        "mono-ui": ["0.8125rem", { lineHeight: "1.3", letterSpacing: "0.1em" }],
+        "mono-label": ["0.6875rem", { lineHeight: "1.3", letterSpacing: "0.18em" }],
+        "mono-micro": ["0.625rem", { lineHeight: "1.2", letterSpacing: "0.22em" }],
       },
+
       spacing: {
         gutter: "clamp(1.25rem, 4vw, 5rem)",
       },
+
       transitionTimingFunction: {
-        out: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+        // Fast out, hard stop. CP2077 UI does not ease gently into place.
+        out: "cubic-bezier(0.16, 0.9, 0.25, 1)",
       },
+
       animation: {
         "signal-ping": "signal-ping 1.6s ease-in-out infinite",
-        "boot-cursor": "boot-cursor 1s steps(2) infinite",
-        "beam-trace": "beam-trace 0.7s cubic-bezier(0.2,0.7,0.2,1) forwards",
-        marquee: "marquee 40s linear infinite",
+        "beam-trace": "beam-trace 0.7s cubic-bezier(0.16,0.9,0.25,1) forwards",
+        caret: "caret 1s steps(2) infinite",
       },
+
       keyframes: {
+        // The one looping animation on the site. It belongs to the "Now" flag,
+        // which reports something true.
         "signal-ping": {
           "0%, 100%": { opacity: "0.4", transform: "scale(1)" },
           "50%": { opacity: "1", transform: "scale(1.4)" },
         },
-        "boot-cursor": {
+        // The block caret after the boot greeting, once it finishes typing.
+        caret: {
           "0%, 50%": { opacity: "1" },
           "51%, 100%": { opacity: "0" },
         },
@@ -121,10 +137,6 @@ export default {
           "0%": { transform: "translateX(-110%)", opacity: "0" },
           "10%, 90%": { opacity: "1" },
           "100%": { transform: "translateX(110%)", opacity: "0" },
-        },
-        marquee: {
-          "0%": { transform: "translateX(0%)" },
-          "100%": { transform: "translateX(-50%)" },
         },
       },
     },

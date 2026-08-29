@@ -1,30 +1,44 @@
 // src/main.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
-// Self-hosted fonts. Previously a render-blocking third-party stylesheet from
-// Google that requested 7 Fraunces variants and 8 Newsreader axes; same-origin
-// woff2 means one connection, immutable caching via Vite's content hashes, and
-// no third-party request at all.
+
+// Self-hosted fonts. Same-origin woff2 means one connection, immutable caching
+// via Vite's content hashes, and no third-party request at all.
 //
-// Axis choices, since these are the largest assets on the site after the key art:
-//   Fraunces   `opsz` (wght + optical size). Optical size is what gives the
-//              display cut its contrast at 17rem — it is the signature. The
-//              `full` build also carries SOFT/WONK for +122 KB; SOFT 50 was a
-//              detail nobody will miss, so index.css no longer requests it.
-//   Newsreader `wght` only. Body-size text does not need an optical-size axis,
-//              and `opsz` costs +156 KB.
-//   JetBrains  `wght` normal only — italic mono is not used anywhere.
-// Latin-ext is declared with a unicode-range, so English never downloads it.
-import "@fontsource-variable/fraunces/opsz.css";
-import "@fontsource-variable/fraunces/opsz-italic.css";
-import "@fontsource-variable/newsreader/wght.css";
-import "@fontsource-variable/newsreader/wght-italic.css";
+// Three faces, three jobs, and the weights are enumerated rather than imported
+// wholesale because each line below is a separate file on the wire:
+//
+//   Chakra Petch  display. The closest free relative of Blender Pro, the face
+//                 Cyberpunk 2077 actually brands with. Its corners are cut in
+//                 the glyph outlines themselves rather than faked in CSS.
+//                 500/600/700; no italics, because italic on a squared techno
+//                 face reads as a rendering error.
+//   Barlow        prose. The case studies are long and a display face cannot
+//                 carry them. 400 for body, 500 for UI, 600 so that any bold
+//                 is a real cut instead of a synthesized smear.
+//   JetBrains     data. Variable `wght`, normal only; italic mono is unused.
+//
+// The `latin-` prefix is the point: these are the latin-subset stylesheets, so
+// nothing declares a font-face for the vietnamese or latin-ext ranges the site
+// will never render.
+//
+// This replaced Fraunces (`opsz` + `opsz-italic`) and Newsreader (`wght` +
+// `wght-italic`): four large variable files for six small static subsets.
+import "@fontsource/chakra-petch/latin-500.css";
+import "@fontsource/chakra-petch/latin-600.css";
+import "@fontsource/chakra-petch/latin-700.css";
+import "@fontsource/barlow/latin-400.css";
+import "@fontsource/barlow/latin-500.css";
+import "@fontsource/barlow/latin-600.css";
 import "@fontsource-variable/jetbrains-mono/wght.css";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </React.StrictMode>
 );

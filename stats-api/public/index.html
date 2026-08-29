@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Signal — aliyounes.dev</title>
+<!--
+  The private dashboard.
+
+  Served from stats.aliyounes.dev, never from the portfolio itself. That is the
+  whole reason it is a separate page rather than a /stats route in the SPA: the
+  key never touches a public bundle, and none of this markup ships to a visitor.
+
+  No framework and no build step. It is one fetch and some DOM, it is looked at
+  by one person, and a toolchain here would be more code than the page.
+
+  Palette is lifted from the portfolio's tailwind.config.js so the two read as
+  one system: ink #0e0d14, signal #7b45f7, hud #6d5fa8, ember #ff9538.
+-->
+<style>
+  :root{
+    --ink:#0e0d14; --ink-raised:#16151c; --line:#221f2e;
+    --bone:#efece5; --muted:rgb(239 236 229/.72); --dim:rgb(239 236 229/.48);
+    --faint:rgb(239 236 229/.3);
+    --signal:#7b45f7; --signal-soft:#9b72ff; --hud:#6d5fa8;
+    --ember:#ff9538; --ok:#36d686; --err:#ff3d64;
+    --mono:ui-monospace,"JetBrains Mono",SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--ink);color:var(--bone);font-family:var(--mono);
+    font-size:13px;line-height:1.6;-webkit-font-smoothing:antialiased;
+    padding:clamp(1rem,3vw,2.5rem);
+  }
+  a{color:var(--signal-soft)}
+  h1{font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0;font-weight:600}
+  h2{
+    font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--hud);margin:2.5rem 0 .75rem;font-weight:500;
+  }
+  header{
+    display:flex;flex-wrap:wrap;gap:1rem;align-items:baseline;
+    justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:1rem;
+  }
+  .ctl{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center}
+  .ctl button{
+    font:inherit;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    background:transparent;color:var(--dim);border:1px solid var(--line);
+    padding:.35rem .7rem;cursor:pointer;transition:.15s;
+  }
+  .ctl button:hover{color:var(--bone);border-color:var(--hud)}
+  .ctl button[aria-pressed="true"]{background:var(--signal);border-color:var(--signal);color:var(--ink);font-weight:700}
+
+  /* Headline tiles. Value dominant, label subordinate, no chrome. */
+  .tiles{display:grid;gap:1px;background:var(--line);grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:1.5rem}
+  .tile{background:var(--ink);padding:1rem 1.1rem}
+  .tile .v{font-size:26px;line-height:1.15;letter-spacing:-.02em}
+  .tile .l{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--hud);margin-top:.35rem}
+  .tile .s{font-size:11px;color:var(--dim);margin-top:.15rem}
+
+  .wrap{overflow-x:auto;border:1px solid var(--line)}
+  table{border-collapse:collapse;width:100%;min-width:520px}
+  th,td{text-align:left;padding:.5rem .8rem;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hud);font-weight:500;position:sticky;top:0;background:var(--ink-raised)}
+  tbody tr:hover{background:var(--ink-raised)}
+  tbody tr:last-child td{border-bottom:0}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  td.w{white-space:normal;max-width:34ch}
+
+  .tag{font-size:9px;letter-spacing:.14em;text-transform:uppercase;padding:.1rem .4rem;border:1px solid currentColor}
+  .corporate{color:var(--ember)} .education{color:var(--signal-soft)}
+  .consumer,.unknown{color:var(--faint)} .hosting{color:var(--err)}
+
+  /* Inline bar. A number you can compare at a glance without a chart library. */
+  .bar{display:block;height:3px;background:var(--signal);opacity:.75;margin-top:.3rem;min-width:1px}
+  .spark{display:flex;align-items:flex-end;gap:2px;height:52px;margin-top:.5rem}
+  .spark i{flex:1;min-width:2px;background:var(--hud);min-height:1px;position:relative}
+  .spark i.has{background:var(--signal)}
+  .spark i:hover{background:var(--signal-soft)}
+  .axis{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:.35rem}
+  .cols{display:grid;gap:2rem;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+  .muted{color:var(--dim)} .ok{color:var(--ok)} .em{color:var(--ember)}
+  .empty{padding:1.2rem;color:var(--dim)}
+  #gate{max-width:34rem;margin:12vh auto;text-align:left}
+  #gate input{
+    font:inherit;width:100%;background:var(--ink-raised);border:1px solid var(--line);
+    color:var(--bone);padding:.7rem .9rem;margin-top:.75rem;
+  }
+  #err{color:var(--err);margin-top:.75rem;min-height:1.2em}
+</style>
+</head>
+<body>
+<div id="gate" hidden>
+  <h1>Signal</h1>
+  <p class="muted" style="margin-top:.75rem">
+    Private dashboard for aliyounes.dev. Paste the key, or open this page with
+    <code>?k=…</code> once and it will be remembered on this device.
+  </p>
+  <input id="key" type="password" placeholder="stats key" autocomplete="off" spellcheck="false">
+  <div id="err"></div>
+</div>
+
+<main id="app" hidden></main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const qs = new URLSearchParams(location.search);
+
+// The key arrives once in the URL and is then kept locally so the address bar
+// (and anything that reads it — history sync, screen shares) stops carrying it.
+let KEY = qs.get("k") || localStorage.getItem("ay.statskey") || "";
+if (qs.get("k")) {
+  localStorage.setItem("ay.statskey", qs.get("k"));
+  history.replaceState(null, "", location.pathname);
+}
+
+let DAYS = Number(localStorage.getItem("ay.days")) || 30;
+let BOTS = localStorage.getItem("ay.bots") === "1";
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const dur = (ms) => {
+  if (!ms || ms < 1000) return "—";
+  const s = Math.round(ms / 1000);
+  if (s < 60) return s + "s";
+  return Math.floor(s / 60) + "m " + String(s % 60).padStart(2, "0") + "s";
+};
+const when = (iso) => {
+  const d = new Date(iso), now = Date.now();
+  const mins = Math.round((now - d) / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return mins + "m ago";
+  if (mins < 1440) return Math.floor(mins / 60) + "h ago";
+  if (mins < 10080) return Math.floor(mins / 1440) + "d ago";
+  return d.toISOString().slice(5, 10);
+};
+const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) + "%" : "—");
+const place = (r) => [r.city, r.region, r.country].filter(Boolean).join(", ") || "—";
+
+function table(head, rows, empty) {
+  if (!rows.length) return `<div class="wrap"><p class="empty">${esc(empty)}</p></div>`;
+  return `<div class="wrap"><table><thead><tr>${
+    head.map((h) => `<th${h.n ? ' style="text-align:right"' : ""}>${esc(h.t ?? h)}</th>`).join("")
+  }</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+}
+
+async function load() {
+  const res = await fetch(`/api/query?k=${encodeURIComponent(KEY)}&days=${DAYS}${BOTS ? "&bots=1" : ""}`);
+  if (!res.ok) throw new Error(res.status === 404 ? "Key rejected." : "Query failed (" + res.status + ").");
+  return res.json();
+}
+
+/**
+ * The daily query returns only days that had traffic. Rendering those rows
+ * directly draws four fat bars for a thirty-day window and reads as four
+ * consecutive busy days, which is the opposite of the truth. Fill the window
+ * so every day gets a slot and the gaps are visible as gaps.
+ */
+function densify(daily, days) {
+  const byDay = new Map(daily.map((x) => [x.day, x]));
+  const out = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    out.push(byDay.get(day) || { day, sessions: 0, named: 0, resume_hits: 0 });
+  }
+  return out;
+}
+
+function render(d) {
+  const t = d.totals;
+  const daily = densify(d.daily, d.days);
+  const maxDay = Math.max(1, ...daily.map((x) => x.sessions));
+
+  const tiles = [
+    { v: t.sessions, l: "Sessions", s: `${t.visitors} distinct` },
+    { v: t.named_org_sessions, l: "From named orgs", s: pct(t.named_org_sessions, t.sessions) + " of traffic", em: true },
+    { v: t.resume_sessions, l: "Résumé opened", s: pct(t.resume_sessions, t.sessions) + " conversion", ok: true },
+    { v: dur(t.median_ms), l: "Median visit", s: `mean ${dur(t.avg_ms)}` },
+    { v: t.avg_scroll + "%", l: "Mean scroll depth" },
+    { v: pct(t.bounces, t.sessions), l: "Bounced", s: `${t.bounces} one-event visits` },
+  ];
+
+  $("#app").innerHTML = `
+    <header>
+      <div>
+        <h1>Signal</h1>
+        <p class="muted" style="margin:.3rem 0 0">
+          aliyounes.dev · last ${d.days} days ·
+          <span class="muted">${d.bots.n} bot session${d.bots.n === 1 ? "" : "s"} filtered</span>
+        </p>
+      </div>
+      <div class="ctl">
+        ${[7, 30, 90, 365].map((n) =>
+          `<button data-days="${n}" aria-pressed="${n === d.days}">${n}d</button>`).join("")}
+        <button data-bots="1" aria-pressed="${d.include_bots}">Bots</button>
+        <button data-refresh="1">↻</button>
+      </div>
+    </header>
+
+    <div class="tiles">
+      ${tiles.map((x) => `<div class="tile">
+        <div class="v ${x.em ? "em" : x.ok ? "ok" : ""}">${esc(x.v)}</div>
+        <div class="l">${esc(x.l)}</div>
+        ${x.s ? `<div class="s">${esc(x.s)}</div>` : ""}
+      </div>`).join("")}
+    </div>
+
+    <h2>Sessions per day</h2>
+    <div class="spark">${daily.map((x) =>
+      `<i class="${x.named ? "has" : ""}" style="height:${x.sessions ? Math.max(4, (x.sessions / maxDay) * 100) : 1}%"
+          title="${esc(x.day)} — ${x.sessions} session${x.sessions === 1 ? "" : "s"}, ${x.named} from named orgs, ${x.resume_hits} r\u00e9sum\u00e9"></i>`
+    ).join("")}</div>
+    <div class="axis"><span>${esc(daily[0]?.day || "")}</span><span>${esc(daily[daily.length - 1]?.day || "")}</span></div>
+
+    <h2>Who — organisations behind the traffic</h2>
+    ${table(
+      ["Organisation", "Kind", "Where", { t: "Sess", n: 1 }, { t: "People", n: 1 }, { t: "Avg time", n: 1 }, { t: "Scroll", n: 1 }, { t: "Résumé", n: 1 }, "Deepest", "Last seen"],
+      d.orgs.map((o) => `<tr>
+        <td>${esc(o.label)}</td>
+        <td><span class="tag ${esc(o.org_kind)}">${esc(o.org_kind)}</span></td>
+        <td class="muted">${esc((o.cities || []).filter(Boolean).join(", ") || "—")}</td>
+        <td class="n">${o.sessions}</td>
+        <td class="n">${o.visitors}</td>
+        <td class="n">${dur(o.avg_ms)}</td>
+        <td class="n">${o.max_scroll}%</td>
+        <td class="n ${o.resume_hits ? "ok" : "muted"}">${o.resume_hits || "—"}</td>
+        <td class="muted">${esc(o.deepest || "—")}</td>
+        <td class="muted">${esc(when(o.last_seen))}</td>
+      </tr>`),
+      "Nothing yet. Deploy the collector and open the site once.",
+    )}
+
+    <h2>Résumé opened by</h2>
+    ${table(
+      ["When", "Organisation", "Where", "Came from", { t: "Scroll", n: 1 }, { t: "Time", n: 1 }, "Deepest"],
+      d.resume_sessions.map((r) => `<tr>
+        <td class="muted">${esc(when(r.started_at))}</td>
+        <td class="${r.org_kind === "corporate" || r.org_kind === "education" ? "em" : ""}">${esc(r.org)}</td>
+        <td class="muted">${esc(place(r))}</td>
+        <td class="muted">${esc(r.referrer_host || "direct")}</td>
+        <td class="n">${r.max_scroll_pct}%</td>
+        <td class="n">${dur(r.total_ms)}</td>
+        <td class="muted">${esc(r.deepest_section || "—")}</td>
+      </tr>`),
+      "No résumé opens in this window.",
+    )}
+
+    <div class="cols">
+      <div>
+        <h2>What gets read</h2>
+        ${table(
+          ["Section", { t: "Sess", n: 1 }, { t: "Avg dwell", n: 1 }],
+          d.sections.map((s) => {
+            const max = Math.max(...d.sections.map((x) => x.avg_ms), 1);
+            return `<tr>
+              <td>${esc(s.section)}<span class="bar" style="width:${(s.avg_ms / max) * 100}%"></span></td>
+              <td class="n">${s.sessions}</td>
+              <td class="n">${dur(s.avg_ms)}</td>
+            </tr>`;
+          }),
+          "No section events yet.",
+        )}
+      </div>
+      <div>
+        <h2>Where they come from</h2>
+        ${table(
+          ["Referrer", { t: "Sess", n: 1 }, { t: "Scroll", n: 1 }, { t: "Résumé", n: 1 }],
+          d.referrers.map((r) => `<tr>
+            <td>${esc(r.host)}</td>
+            <td class="n">${r.sessions}</td>
+            <td class="n">${r.avg_scroll}%</td>
+            <td class="n ${r.resume_hits ? "ok" : "muted"}">${r.resume_hits || "—"}</td>
+          </tr>`),
+          "No referrers yet.",
+        )}
+      </div>
+    </div>
+
+    <h2>Recent sessions</h2>
+    ${table(
+      ["When", "Organisation", "Where", "From", "Device", { t: "Scroll", n: 1 }, { t: "Time", n: 1 }, { t: "Events", n: 1 }, "Deepest"],
+      d.recent.map((r) => `<tr>
+        <td class="muted">${esc(when(r.started_at))}</td>
+        <td class="${r.org_kind === "corporate" || r.org_kind === "education" ? "em" : "muted"}">
+          ${esc(r.org || (r.org_kind === "consumer" ? "consumer ISP" : r.org_kind))}
+          ${r.is_bot ? `<span class="tag hosting">${esc(r.bot_reason)}</span>` : ""}
+        </td>
+        <td class="muted">${esc(place(r))}</td>
+        <td class="muted">${esc(r.referrer_host || "direct")}</td>
+        <td class="muted">${esc(r.browser)} · ${esc(r.os)}${r.is_mobile ? " · mob" : ""}</td>
+        <td class="n">${r.max_scroll_pct}%</td>
+        <td class="n">${dur(r.total_ms)}</td>
+        <td class="n">${r.event_count}</td>
+        <td class="muted">${esc(r.deepest_section || "—")}</td>
+      </tr>`),
+      "No sessions in this window.",
+    )}
+
+    <div class="cols">
+      <div>
+        <h2>Devices</h2>
+        ${table(["Browser", "OS", { t: "Sess", n: 1 }],
+          d.devices.map((x) => `<tr><td>${esc(x.browser)}</td><td class="muted">${esc(x.os)}${x.is_mobile ? " · mob" : ""}</td><td class="n">${x.sessions}</td></tr>`),
+          "—")}
+      </div>
+      <div>
+        <h2>Places</h2>
+        ${table(["Country", "Region", { t: "Sess", n: 1 }],
+          d.countries.map((x) => `<tr><td>${esc(x.country)}</td><td class="muted">${esc(x.region || "—")}</td><td class="n">${x.sessions}</td></tr>`),
+          "—")}
+      </div>
+    </div>
+
+    <p class="muted" style="margin:2.5rem 0 1rem;font-size:11px">
+      generated ${esc(new Date(d.generated_at).toLocaleString())} ·
+      ${d.bots.n} bots filtered (${d.bots.datacenter} datacentre, ${d.bots.ua} by user-agent) ·
+      <a href="#" data-signout="1">sign out of this device</a>
+    </p>
+  `;
+
+  $("#app").onclick = (e) => {
+    const b = e.target.closest("button, a[data-signout]");
+    if (!b) return;
+    if (b.dataset.days) { DAYS = +b.dataset.days; localStorage.setItem("ay.days", DAYS); boot(); }
+    else if (b.dataset.bots) { BOTS = !BOTS; localStorage.setItem("ay.bots", BOTS ? "1" : "0"); boot(); }
+    else if (b.dataset.refresh) boot();
+    else if (b.dataset.signout) { e.preventDefault(); localStorage.removeItem("ay.statskey"); location.reload(); }
+  };
+}
+
+function gate(msg) {
+  $("#app").hidden = true;
+  $("#gate").hidden = false;
+  $("#err").textContent = msg || "";
+  $("#key").focus();
+  $("#key").onkeydown = (e) => {
+    if (e.key !== "Enter") return;
+    KEY = $("#key").value.trim();
+    localStorage.setItem("ay.statskey", KEY);
+    boot();
+  };
+}
+
+async function boot() {
+  if (!KEY) return gate();
+  try {
+    const d = await load();
+    $("#gate").hidden = true;
+    $("#app").hidden = false;
+    render(d);
+  } catch (err) {
+    localStorage.removeItem("ay.statskey");
+    KEY = "";
+    gate(err.message);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
