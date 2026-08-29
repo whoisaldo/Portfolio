@@ -158,15 +158,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.telemetry {
-  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.625rem;
-  line-height: 1.7;
-  letter-spacing: 0.14em;
-  text-transform: lowercase;
-  color: rgb(236 234 228 / 0.34);
-}
-
 /* Underline that draws in on hover rather than sitting there permanently. */
 .ink-underline {
   background-image: linear-gradient(currentColor, currentColor);

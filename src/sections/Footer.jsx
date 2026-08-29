@@ -73,23 +73,6 @@ export default function Footer() {
           ))}
         </nav>
       </div>
-
-      {/* Analytics disclosure.
-          The site records which sections were read and resolves the visiting
-          network to an organisation, which is enough to be worth saying out
-          loud. Stated plainly and in one sentence rather than behind a
-          "privacy policy" link nobody opens, and with the opt-out that
-          actually works named — src/lib/beacon.js honours GPC and DNT before
-          it sends anything. */}
-      <div className="gutter pb-10 -mt-2">
-        <p className="telemetry max-w-[70ch]">
-          this site counts page views, which sections get read, and the
-          organisation your network belongs to. no cookies, no names, no
-          cross-site tracking. your ip is hashed, not stored. if your browser
-          sends global privacy control or "do not track", none of it is
-          recorded.
-        </p>
-      </div>
     </motion.footer>
   );
 }
