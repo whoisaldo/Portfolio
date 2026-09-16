@@ -12,6 +12,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { profile, links } from "../data/profile";
+import { replayIntro } from "../lib/intro";
 import eternalReverseMark from "../assets/EternalReverse/EternalReverseMiniLogo.png";
 
 const footerLinks = [
@@ -31,8 +32,9 @@ export default function Footer() {
     >
       {/* One of the two hazard strips on the site. The other closes the Work
           section. Two is the budget. A page striped in yellow everywhere is
-          the failure mode this design is built to avoid. */}
-      <div className="hazard h-1.5 opacity-25" aria-hidden="true" />
+          the failure mode this design is built to avoid. Both brighten with
+          the kick while the track plays; see src/lib/reactive.js. */}
+      <div className="hazard hazard-live h-1.5" aria-hidden="true" />
 
       <div className="gutter py-10 flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-5">
@@ -71,6 +73,15 @@ export default function Footer() {
               <span className="ink-underline">{link.label}</span>
             </a>
           ))}
+          {/* The full intro, on demand. The short one plays itself on a
+              repeat visit; this is the way back to the moon. */}
+          <button
+            type="button"
+            onClick={() => replayIntro()}
+            className="mono-label text-dim transition-colors duration-200 hover:text-volt"
+          >
+            <span className="ink-underline">Replay the intro</span>
+          </button>
         </nav>
       </div>
     </motion.footer>

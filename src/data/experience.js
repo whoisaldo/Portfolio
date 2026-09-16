@@ -14,6 +14,16 @@
 // The Philips case study is the strongest content on the site: a real
 // two-attempt arc that documents its own failed first approach. Preserved
 // verbatim; do not compress it.
+//
+// Three roles run at once as of September 2026: Philips (returned part-time
+// to the co-op team), Pinnatec Auto (lead, part-time) and Pawtograder. All
+// three, and the numbers on them, follow the résumé (github.com/whoisaldo/
+// resume, private), whose AGENTS.md records where every figure came from:
+// the Pinnatec pull-request counts were taken with `gh pr list` on
+// 2026-09-16 and can be re-run; the Pawtograder team size and ownership are
+// the owner's account, and its stack is verified against the public repos.
+// Order is the résumé's: Philips first, then Pinnatec, then Pawtograder,
+// then AWS, most recent start within each block.
 
 // `accent` is the organisation's own brand colour, and it is the one colour on
 // the site the palette does not get to choose: AWS orange, Philips blue and
@@ -41,66 +51,25 @@ import philipsLogo from "../assets/PreviousExperience/PhilipsLogo.norm.png";
 import neuLogo from "../assets/PreviousExperience/NEULOGO.norm.png";
 import topChoiceLogo from "../assets/PreviousExperience/Topchoicerealtylogo.norm.png";
 import robertDefalcoLogo from "../assets/PreviousExperience/RobertDefalcoRealty.norm.png";
+import pinnatecLogo from "../assets/PreviousExperience/PinnatecAuto.norm.png";
+import pawtograderLogo from "../assets/PreviousExperience/Pawtograder.norm.png";
 
 export const experiences = [
   {
     type: "work",
-    slug: "aws-cloudformation",
-    title: "Software Development Engineer Intern",
-    subtitle: "CloudFormation Registry · Policy-Based Resource Sharing",
-    company: "Amazon Web Services",
-    period: "Jun 2026 to Sep 2026",
-    location: "Seattle, WA",
-    logo: awsLogo,
-    accent: "#FF9900",
-    badge: "Current",
-    description:
-      "SDE intern on the CloudFormation Registry, the control plane behind the resource types CloudFormation can provision. My project, owned end to end from low-level design through production infrastructure: policy-based sharing of private resource types across an AWS Organization. Before it, an enterprise reusing a private type re-registered it in every account; now the org's management account publishes one ALLOW/DENY policy and every permitted account references the type by bare name. Nothing to install, and a consumer's own type always wins, so turning sharing on can never break an existing workload. Shipped as two new APIs, a DynamoDB data layer, an IAM-style deny-by-default policy evaluator, and org-aware type resolution on the service's read paths. All of it merged, with the launch landing after my term ends.",
-    metrics: [
-      { value: "2", label: "New Public APIs" },
-      { value: "100%", label: "Line + Branch on New Code" },
-      { value: "13/13", label: "Live E2E Scenarios" },
-      { value: "Same-day", label: "Team Pipeline Unblock" },
-    ],
-    highlights: [
-      {
-        title: "Reads ordered by cost, not priority",
-        description:
-          "Review caught the org lookup, a strongly consistent uncached read, firing on ~90% of DescribeType traffic that cached tiers already answered. Resolution now tries the cheap tiers first so the expensive read fires only on true misses, and pagination was redesigned to bound the work evaluated rather than the results returned.",
-      },
-      {
-        title: "Impersonation made unrepresentable",
-        description:
-          "CloudFormation resolves types by name, not ARN, so the central risk was an attacker sharing a same-named type to a victim. The consumer's lookup is keyed by its own organization, which makes cross-org resolution structurally impossible rather than merely validated away, with resolution order, write-time checks, and a single trusted sharer layered on top.",
-      },
-      {
-        title: "The team's pipeline, nobody's job",
-        description:
-          "Beta deployments were blocked for the whole team by an infrastructure defect outside my project's scope, with no owner. Reading the built template instead of trusting the source assumptions surfaced it; the fix shipped the same day.",
-      },
-      {
-        title: "A second opinion for code review",
-        description:
-          "Built a dual-model AI review tool on the side: two frontier models critique the same diff in parallel and what they agree on leads the report. Presented it to the entire CloudFormation org, and spoke about the workflow at a Kiro launch event, and Kiro put it on their official LinkedIn.",
-      },
-    ],
-    skills: [
-      "Java", "AWS", "DynamoDB", "AWS Organizations", "IAM Authorization",
-      "Policy Engines", "Distributed Systems", "API Design", "IaC (CDK/CloudFormation)",
-    ],
-  },
-  {
-    type: "work",
     slug: "philips-zero-touch",
-    title: "Software Engineering Co-op",
-    subtitle: "FOG Zero-Touch Deployment · VM Automation",
+    title: "Software Development Engineer Co-op",
+    subtitle: "System Integration · FOG Zero-Touch Deployment · VM Automation",
     company: "Philips",
-    period: "Jan 2026 to Jun 2026",
+    // Two stints on one line, because it is one role: the co-op, then a
+    // part-time return to the same team while the degree continues.
+    period: "Jan to Jun 2026, and part-time since Aug 2026",
     location: "Cambridge, MA",
     logo: philipsLogo,
     accent: "#4FC3F7",
+    badge: "Current",
     description:
-      "Designed and shipped a zero-touch deployment platform for ~1,000 medical-device-grade Windows machines under FDA-regulated UEFI Secure Boot. Owned it end-to-end and presented the architecture to 50+ engineers. Also contributed to an internal VM deployment platform (guest post-provisioning + environment validation).",
+      "Pitched, designed and shipped a zero-touch PXE mass-deployment platform for ~1,000 medical-device-grade Windows machines under FDA-regulated UEFI Secure Boot. Owned it end-to-end and presented the architecture to 50+ engineers and stakeholders. Also contributed to an internal VM deployment platform (guest post-provisioning + environment validation). Returned to the same team part-time in August 2026, alongside the degree.",
     metrics: [
       { value: "~1,000", label: "Machines / Zero Touch" },
       { value: "50+", label: "Engineers Presented" },
@@ -130,7 +99,7 @@ export const experiences = [
         },
         {
           title: "Server stack & operational mindedness",
-          body: "An Ubuntu PXE host running proxyDHCP and TFTP, configured to coexist cleanly with the corporate DHCP infrastructure without touching IP allocations. The boot image is hardlinked across multiple lookup paths so an edit anywhere is an edit everywhere. Byte-identical boot configuration data sits at every path firmware might query, so different hardware revisions behave identically. The earlier proof-of-concept chain stays archived under a documented revert runbook as the emergency fallback.",
+          body: "An Ubuntu 24.04 FOG host running dnsmasq as proxyDHCP and tftpd-hpa for TFTP, configured to coexist cleanly with the corporate DHCP infrastructure without touching IP allocations. A PowerShell orchestrator runs inside Windows PE and talks to a FastAPI service that hands each machine its MAC-keyed host configuration and secrets and reports live deployment status back. The boot image is hardlinked across multiple lookup paths so an edit anywhere is an edit everywhere. Byte-identical boot configuration data sits at every path firmware might query, so different hardware revisions behave identically. The earlier proof-of-concept chain stays archived under a documented revert runbook as the emergency fallback.",
         },
       ],
       pullQuote: "\"Many engineers had wanted this automated. Nobody had shipped it.\"",
@@ -143,11 +112,136 @@ export const experiences = [
       contributor: "Separately contributed to an internal VM deployment platform. I wrote the Windows guest post-provisioning automation layer (hostname assignment, service enablement, certificate imports, disk expansion, OpenSSH setup, license activation, deployment validation) and built a JSON-driven environment-validation pipeline that standardised how teams verify test environments at scale.",
     },
     skills: [
-      "PowerShell", "Python", ".NET", "C#", "Ubuntu",
-      "PXE", "TFTP", "UEFI Secure Boot", "Windows PE",
+      "PowerShell", "Python", "FastAPI", ".NET", "C#", "Ubuntu 24.04",
+      "PXE", "dnsmasq", "tftpd-hpa", "UEFI Secure Boot", "Windows PE",
       "Nutanix", "VMware", "Healthcare IT",
     ],
   },
+  {
+    type: "work",
+    slug: "pinnatec-auto",
+    title: "Lead Full Stack Engineer (Part-time)",
+    subtitle: "Virtual Link · Expo app, WordPress backend, ESP32 firmware",
+    company: "Pinnatec Auto",
+    period: "Sep 2026 to present",
+    location: "Worcester, MA",
+    logo: pinnatecLogo,
+    // The mint from the wordmark, sampled from the logo file.
+    accent: "#98F8C8",
+    badge: "Current",
+    description:
+      "Lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: a customer-facing Expo/React Native app, a WordPress/PHP backend, and ESP32 firmware, on a three-person team. Seventeen pull requests authored in the first week, twelve merged, and both repositories went from no CI at all to a branch ruleset that requires every check on every pull request.",
+    metrics: [
+      { value: "17", label: "Pull requests, 12 merged" },
+      { value: "7", label: "Firmware-to-app contract checks" },
+      { value: "2", label: "Repositories, CI from zero" },
+      { value: "214k+", label: "Lines of dead weight removed" },
+    ],
+    highlights: [
+      {
+        title: "CI from zero",
+        description:
+          "GitHub Actions typecheck, lint and test the app on every pull request, verify the seven contracts the firmware and the app share, and build and size-check both firmware images. Branch rulesets require all of it before a merge, on both repositories.",
+      },
+      {
+        title: "The audit",
+        description:
+          "Audited the 463-file firmware and app monorepo and removed 214,000+ lines of dead code, duplicated research trees and tracked build output in five reviewed commits, with zero compiler warnings before and after.",
+      },
+      {
+        title: "Code owner",
+        description:
+          "Lead maintainer with merge and force-push bypass on both repositories, the CODEOWNERS entry on the firmware, and the contribution guidelines and codebase notes both repositories now open with.",
+      },
+    ],
+    skills: ["TypeScript", "React Native (Expo)", "PHP", "WordPress", "C++", "ESP32", "GitHub Actions"],
+  },
+  {
+    type: "work",
+    slug: "pawtograder",
+    title: "Backend Engineer, Grading Server",
+    subtitle: "Northeastern's open-source autograder · github.com/pawtograder",
+    company: "Pawtograder",
+    period: "Aug 2026 to present",
+    location: "Boston, MA",
+    logo: pawtograderLogo,
+    // Pawtograder's own colour is a navy (#080742) that vanishes on ink, so
+    // this card is monochrome, like its black-and-white seal.
+    accent: "#ECEAE4",
+    badge: "Current",
+    description:
+      "Northeastern's open-source autograder, in production for the university's CS courses. I own the grading server end to end with two other students on an eleven-person team, in person, with standups and code review. Its scoring algorithm, the most complex part of the project, turns build, lint, instructor-test and pitest mutation-testing results into grades.",
+    metrics: [
+      { value: "11", label: "Engineers on the team" },
+      { value: "3", label: "Own the grading server" },
+      { value: "Prod", label: "Runs at Northeastern" },
+    ],
+    highlights: [
+      {
+        title: "The scoring algorithm",
+        description:
+          "Every submission runs through a TypeScript GitHub Action in the student's own repository: lint, build, the instructor's tests, and optional mutation and coverage analysis. The results come back to Deno edge functions on Supabase, and the scoring logic turns them into a grade.",
+      },
+      {
+        title: "Where it runs",
+        description:
+          "Deno edge functions on Supabase, authenticated per submission with a GitHub OIDC token, with gradebook recalculation in Postgres and PL/pgSQL. The JVM mutation testing runs on a fork of pitest.",
+      },
+    ],
+    github: "https://github.com/pawtograder",
+    skills: ["TypeScript", "Deno", "Supabase", "Postgres", "PL/pgSQL", "GitHub Actions", "pitest"],
+  },
+  {
+    type: "work",
+    slug: "aws-cloudformation",
+    title: "Software Development Engineer Intern",
+    subtitle: "CloudFormation Registry · Policy-Based Resource Sharing",
+    company: "Amazon Web Services",
+    period: "Jun 2026 to Sep 2026",
+    location: "Seattle, WA",
+    logo: awsLogo,
+    accent: "#FF9900",
+    description:
+      "SDE intern on the CloudFormation Registry, the control plane behind the resource types CloudFormation can provision. My project, owned end to end from low-level design through production infrastructure: policy-based sharing of private resource types across an AWS Organization. Before it, an enterprise reusing a private type re-registered it in every account, a pattern that had cloned one resource type into 8,000+ accounts across 8 regions; now the org's management account publishes one ALLOW/DENY policy and every permitted account references the type by bare name. Nothing to install, and a consumer's own type always wins, so turning sharing on can never break an existing workload. Shipped in production Java across 12 merged code reviews as two new APIs, a DynamoDB table and DAO, an IAM-style deny-by-default policy evaluator, and org-aware type resolution on the service's read paths. All of it merged, with the launch landing after my term ended.",
+    metrics: [
+      { value: "8,000+", label: "Accounts, 8 regions, one pattern retired" },
+      { value: "~90%", label: "Of DescribeType traffic off the hot read" },
+      { value: "12", label: "Merged code reviews" },
+      { value: "2", label: "New public APIs" },
+    ],
+    highlights: [
+      {
+        title: "Reads ordered by cost, not priority",
+        description:
+          "Review caught the org lookup, a strongly consistent uncached read, firing on ~90% of DescribeType traffic that cached tiers already answered. Resolution now tries the cheap tiers first so the expensive read fires only on true misses, and pagination was redesigned to bound the work evaluated rather than the results returned.",
+      },
+      {
+        title: "Impersonation made unrepresentable",
+        description:
+          "CloudFormation resolves types by name, not ARN, so the central risk was an attacker sharing a same-named type to a victim. The consumer's lookup is keyed by its own organization, which makes cross-org resolution structurally impossible rather than merely validated away, with resolution order, write-time checks, and a single trusted sharer layered on top.",
+      },
+      {
+        title: "The team's pipeline, nobody's job",
+        description:
+          "Beta deployments were blocked for the whole team by an infrastructure defect outside my project's scope, with no owner. Reading the built template instead of trusting the source assumptions surfaced it; the fix shipped the same day.",
+      },
+      {
+        title: "A second opinion for code review",
+        description:
+          "Built a native Kiro tool for dual-model AI code review on the side: GPT and Claude critique the same diff in parallel and what they agree on leads the report. Presented it to the entire CloudFormation org, spoke about the workflow at a Kiro launch event, and Kiro put it on their official LinkedIn.",
+      },
+      {
+        title: "An agent that works the ticket",
+        description:
+          "Built a Slack bot backed by an LLM agent on AWS Bedrock that takes a handoff ticket through to final review and staging. It runs sandboxed on the caller's own cloud desktop under a scoped IAM role, and scoping that role was the hard part: it went through AppSec review and was approved.",
+      },
+    ],
+    skills: [
+      "Java", "AWS", "DynamoDB", "AWS Organizations", "IAM Authorization",
+      "Policy Engines", "Distributed Systems", "API Design", "IaC (CDK/CloudFormation)",
+    ],
+  },
+
   {
     type: "work",
     slug: "top-choice-realty",

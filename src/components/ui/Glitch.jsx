@@ -18,6 +18,10 @@ export default function Glitch({
   as: As = "span",
   className = "",
   duration = 650,
+  // Callers that know better than the viewport when to fire. The hero passes
+  // the intro's state here: its name is "in view" from the first frame, under
+  // an overlay, and must not resolve until the overlay has torn off it.
+  active = true,
   ...rest
 }) {
   const ref = useRef(null);
@@ -26,7 +30,7 @@ export default function Glitch({
   const inView = useInView(ref, { once: true, margin: "-12% 0px" });
 
   const text = String(children);
-  const shown = useDecode(text, { active: inView, duration });
+  const shown = useDecode(text, { active: inView && active, duration });
 
   return (
     <As ref={ref} className={className} {...rest}>

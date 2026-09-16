@@ -57,6 +57,12 @@ class FakeContext {
     });
   }
   createBuffer(ch, len) { return { getChannelData: () => new Float32Array(len) }; }
+  createAnalyser() {
+    return node({
+      fftSize: 0, smoothingTimeConstant: 0, minDecibels: 0, maxDecibels: 0,
+      getByteFrequencyData() {},
+    });
+  }
   createBufferSource() {
     return node({
       buffer: null, loop: false,
@@ -92,6 +98,9 @@ const amb = await import("../src/lib/ambient.js");
 
 const reset = () => {
   amb.stopAmbient();
+  // The module caches the decoded track across restarts, which is right for
+  // a replay and wrong for a test that wants the 404 path.
+  amb.forgetTrack();
   log.fetches = 0;
   log.sourcesStarted = 0;
   log.sourcesStopped = 0;

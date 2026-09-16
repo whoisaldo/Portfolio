@@ -18,13 +18,13 @@ import { sections } from "../data/site";
 import { scrollToSection } from "../lib/scroll";
 import {
   getVolume,
-  replayBoot,
   setSoundEnabled,
   setVolume,
   soundEnabled,
   unlockAudio,
-} from "../lib/boot-audio";
+} from "../lib/audio";
 import { applyVolume, startAmbient, stopAmbient } from "../lib/ambient";
+import { CRUISE_GAIN, DROP } from "../lib/cues";
 
 export default function Chrome() {
   const [active, setActive] = useState(sections[0].id);
@@ -32,19 +32,20 @@ export default function Chrome() {
   const [sound, setSound] = useState(() => soundEnabled());
   const [volume, setVol] = useState(() => getVolume());
 
-  // Turning sound on replays the boot. Two reasons, and the second is the load
-  // bearing one: it shows the reader what they just switched on, and the click
-  // itself is the user gesture browsers require before an AudioContext will
-  // leave the suspended state. Enabling and demonstrating are the same action,
-  // so there is no way to end up with sound "on" and nothing ever audible.
+  // Turning sound on starts the track from the drop, so the beat is the first
+  // thing heard rather than thirty seconds of arpeggio. The click itself is
+  // the user gesture browsers require before an AudioContext will leave the
+  // suspended state, so enabling and hearing are the same action and there is
+  // no way to end up with sound "on" and nothing ever audible. It does not
+  // replay the intro: that is the footer's job, and a 25-second cinematic is
+  // the wrong answer to a volume toggle.
   const toggleSound = async () => {
     const next = !sound;
     setSound(next);
     setSoundEnabled(next);
     if (next) {
       await unlockAudio();
-      startAmbient();
-      replayBoot();
+      startAmbient({ offset: DROP, gain: CRUISE_GAIN });
     } else {
       stopAmbient();
     }
@@ -155,12 +156,22 @@ export default function Chrome() {
           type="button"
           onClick={toggleSound}
           aria-pressed={sound}
-          aria-label={sound ? "Turn sound off" : "Turn sound on and replay the boot"}
+          aria-label={sound ? "Turn sound off" : "Turn sound on"}
           className="p-2 text-faint transition-colors duration-200 hover:text-volt
                      focus-visible:text-volt"
         >
           {sound ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
         </button>
+
+        {/* Three bars that move with the track, driven entirely by the CSS
+            variables src/lib/reactive.js writes. Still when nothing plays. */}
+        {sound && (
+          <span className="vu" aria-hidden="true">
+            <span className="vu-bar" style={{ "--vu": "var(--bass, 0)" }} />
+            <span className="vu-bar" style={{ "--vu": "var(--level, 0)" }} />
+            <span className="vu-bar" style={{ "--vu": "calc(var(--bass, 0) * 0.6 + var(--level, 0) * 0.4)" }} />
+          </span>
+        )}
 
         {/* The slider is revealed rather than always shown: it is only
             meaningful while something is audible, and a permanent control in

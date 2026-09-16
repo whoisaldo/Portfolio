@@ -3,10 +3,10 @@
 // This site spent three versions removing a gate and now has one again, so the
 // distinction is worth writing down rather than discovering later.
 //
-// The gate that was removed (see BootSequence.jsx) held the page for 1.6s
-// behind fake terminal output, asked for nothing, gave nothing, rendered over
-// the navbar, and needed a rescue timer because it could fail to dismiss
-// itself. It was a loading screen that was not loading anything.
+// The gate that was removed held the page for 1.6s behind fake terminal
+// output, asked for nothing, gave nothing, rendered over the navbar, and
+// needed a rescue timer because it could fail to dismiss itself. It was a
+// loading screen that was not loading anything.
 //
 // This one asks a question that genuinely has to be asked. An AudioContext
 // stays suspended until the page sees a real gesture, so there is no
@@ -26,30 +26,48 @@
 //   audio call is awaited before it closes, so a browser refusing to start
 //   audio still gets you inside.
 //   It appears on every page load for anyone who wants sound, because that is
-//   how often a browser needs the gesture. Showing it once and never again was
-//   the first version, and it meant every visit after the first was silent
-//   unless the reader went looking for the toggle. Anyone who explicitly chose
+//   how often a browser needs the gesture. Anyone who explicitly chose
 //   silence never sees it at all.
 //   The page underneath is fully rendered the whole time, so a crawler that
 //   ignores overlays reads a complete document.
+//
+// It is also, quietly, the loading screen the intro needs: the seconds a
+// reader spends on this panel are the seconds the track's 3.8 MB and the two
+// intro plates take to arrive, so the click that follows starts the song in a
+// few hundred milliseconds. See prefetchTrack() and <Preload /> below.
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Volume2, VolumeX } from "lucide-react";
 import { useFocusTrap } from "../hooks";
 import { profile } from "../data/profile";
+import { img } from "../data/images";
 import {
   hasBeenAsked,
   markAsked,
   shouldGate,
-  replayBoot,
   setSoundEnabled,
   unlockAudio,
-} from "../lib/boot-audio";
-import { startAmbient } from "../lib/ambient";
+} from "../lib/audio";
+import { prefetchTrack, startAmbient } from "../lib/ambient";
+import { introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
+import { CRUISE_GAIN, DROP, INTRO_GAIN, SHORT_START, SONG_START } from "../lib/cues";
 import Panel from "./ui/Panel";
+import Picture from "./Picture";
 
-// The gate's exit fade, plus a beat of black. The boot starts after it.
-const HANDOFF = 620;
+/**
+ * The intro's two plates, rendered invisibly with the exact markup and
+ * `sizes` the cinematic uses, so the browser picks and caches the same
+ * candidate. A <link rel=preload> cannot express a <picture>'s format
+ * negotiation; this can.
+ */
+function Preload() {
+  return (
+    <div aria-hidden="true" className="fixed w-px h-px overflow-hidden opacity-0 pointer-events-none -z-10">
+      <Picture sources={img("Intro/Moon")} sizes="100vw" loading="eager" fetchPriority="low" />
+      <Picture sources={img("Intro/Car")} sizes="72vw" loading="eager" fetchPriority="low" />
+    </div>
+  );
+}
 
 export default function EntryGate({ onEnter }) {
   const [open, setOpen] = useState(shouldGate);
@@ -57,7 +75,13 @@ export default function EntryGate({ onEnter }) {
   // the click. Read once on mount, because markAsked() runs before the exit
   // animation finishes and would otherwise reword the panel mid-fade.
   const [returning] = useState(hasBeenAsked);
+  const [mode] = useState(introModeForThisLoad);
   const panelRef = useRef(null);
+
+  // Start the download the moment the door is on screen.
+  useEffect(() => {
+    if (open) prefetchTrack();
+  }, [open]);
 
   const enter = (withSound) => {
     // Close first, unconditionally. Whatever audio does next, the reader is
@@ -68,18 +92,19 @@ export default function EntryGate({ onEnter }) {
     onEnter?.(withSound);
 
     if (withSound) {
-      // This click is the gesture the whole screen exists to collect. Audio is
-      // started here rather than after the handoff, so the music is already
-      // running underneath by the time the boot finishes and the site appears.
-      unlockAudio().then(() => startAmbient());
+      // This click is the gesture the whole screen exists to collect. The
+      // song starts here, from the point the intro is choreographed to, and
+      // the cinematic reads its clock from there on.
+      const offset = mode === "short" ? SHORT_START : mode === "off" ? DROP : SONG_START;
+      const gain = mode === "off" ? CRUISE_GAIN : INTRO_GAIN;
+      unlockAudio().then(() => startAmbient({ offset, gain, fade: 0.25 }));
     }
 
-    // Handing off to the boot on the next tick would start it behind a gate
-    // that is still fading, so the aperture would open through a translucent
-    // panel and the first half second would be lost. Waiting for the fade
-    // instead gives a cut to black and then a cold start, which is the reboot
-    // the sequence is pretending to be.
-    setTimeout(() => replayBoot(), HANDOFF);
+    if (mode === "off") {
+      setIntroDone(true);
+      return;
+    }
+    startIntro({ mode, withSound });
   };
 
   // Escape leaves silent. useFocusTrap owns the scroll lock and focus
@@ -91,6 +116,13 @@ export default function EntryGate({ onEnter }) {
     document.documentElement.setAttribute("data-gated", "true");
     return () => document.documentElement.removeAttribute("data-gated");
   }, [open]);
+
+  const intro =
+    mode === "off"
+      ? null
+      : mode === "short"
+        ? "Short intro this time: one bar, then the drift. The full one is in the footer."
+        : "The intro runs about twenty-five seconds and is skippable at any point.";
 
   return (
     <AnimatePresence>
@@ -108,6 +140,7 @@ export default function EntryGate({ onEnter }) {
           <div className="absolute inset-0 crt-grid opacity-70 pointer-events-none" aria-hidden="true" />
           <div className="hazard absolute inset-x-0 top-0 h-1.5 opacity-30" aria-hidden="true" />
           <div className="hazard absolute inset-x-0 bottom-0 h-1.5 opacity-30" aria-hidden="true" />
+          {mode !== "off" && <Preload />}
 
           <motion.div
             ref={panelRef}
@@ -170,8 +203,8 @@ export default function EntryGate({ onEnter }) {
                 {returning
                   ? "Browsers need a click on every page load before they will play audio. Entering silent stops this appearing again."
                   : "Your browser needs a click before it will play audio. Volume lives bottom left, and either choice is changeable there."}
+                {intro && <span className="block mt-2">{intro}</span>}
               </p>
-
             </Panel>
 
             {/* Outside the Panel on purpose. `clip-path` removes anything the

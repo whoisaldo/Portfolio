@@ -73,8 +73,7 @@ export default function Contact() {
             </a>
 
             <p className="prose-dark mt-7 max-w-[54ch]">
-              Best place to reach me. Based in {profile.base}; in{" "}
-              {profile.now.location} through the {profile.now.org} internship.
+              Best place to reach me. Based in {profile.base}.
             </p>
           </div>
         </motion.div>
@@ -109,7 +108,8 @@ export default function Contact() {
           <div className="lg:col-span-4">
             <h3 className="mono-label text-volt">Résumé</h3>
             <p className="prose-dark mt-6 max-w-[38ch]">
-              Kept current with the AWS role.
+              Rebuilt from source on every change, so it is never older than
+              the roles on this page.
             </p>
             <Panel
               as="a"

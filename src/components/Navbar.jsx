@@ -24,6 +24,7 @@ import { Menu, X } from "lucide-react";
 import { navSections } from "../data/site";
 import { profile } from "../data/profile";
 import { scrollToSection } from "../lib/scroll";
+import { useIntroDone } from "../lib/intro";
 import Panel from "./ui/Panel";
 
 const pdf = (import.meta.env.BASE_URL || "/") + "resume.pdf";
@@ -34,6 +35,9 @@ export default function Navbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const onHome = pathname === "/";
+  // The bar arrives a beat after the intro's reveal rather than sitting
+  // there fully formed the moment the black tears off.
+  const done = useIntroDone();
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -53,7 +57,10 @@ export default function Navbar() {
   };
 
   return (
-    <header
+    <motion.header
+      initial={false}
+      animate={done ? { y: 0, opacity: 1 } : { y: -18, opacity: 0 }}
+      transition={{ duration: 0.7, delay: done ? 0.3 : 0, ease: [0.16, 0.9, 0.25, 1] }}
       className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300
                   ${isScrolled ? "bg-ink/95 backdrop-blur-md border-b border-ink-line" : "bg-transparent"}`}
     >
@@ -147,6 +154,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-    </header>
+    </motion.header>
   );
 }

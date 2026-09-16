@@ -386,3 +386,157 @@ a:hover .ink-underline,
   .chromatic-aberration { text-shadow: none; }
   .ambient-plate { filter: brightness(0.45); }
 }
+
+/* ===========================================================================
+   The intro, and the things that move with the track
+   ---------------------------------------------------------------------------
+   Everything below is used by src/components/IntroCinematic.jsx, the reticle
+   in Cursor.jsx, and the two or three surfaces on the page that react to the
+   music through the --bass / --level variables src/lib/reactive.js writes
+   onto <html>. In silence both are 0 and all of this is still.
+   =========================================================================== */
+
+/* One element, one box-shadow, a hundred and forty stars. */
+.intro-star {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  animation: twinkle 3.2s ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  from { opacity: 0.55; }
+  to   { opacity: 1; }
+}
+
+/* The intro's own scanlines. The site's live on body::after at z-index 1,
+   which the overlay covers, so it carries a copy. */
+.intro-scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.16) 0 1px,
+    transparent 1px 5px
+  );
+  pointer-events: none;
+}
+
+/* Perspective lane marks on the road, sliding toward the viewer. */
+.intro-road {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(252 238 10 / 0.16) 0 1px,
+    transparent 1px 22px
+  );
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 30%, transparent);
+  animation: road-run 0.9s linear infinite;
+}
+@keyframes road-run {
+  from { background-position-y: 0; }
+  to   { background-position-y: 22px; }
+}
+
+/* Tyre smoke. One puff, expanding, rising, drifting the way it was thrown. */
+.intro-puff {
+  position: absolute;
+  transform: translate(-50%, -50%) scale(0.35);
+  background: radial-gradient(circle, rgb(236 234 228 / 0.42) 0%, rgb(236 234 228 / 0.16) 38%, transparent 68%);
+  filter: blur(9px);
+  pointer-events: none;
+  animation: puff 1.25s ease-out forwards;
+}
+@keyframes puff {
+  from { opacity: 0.95; transform: translate(-50%, -50%) scale(0.35); }
+  to   { opacity: 0; transform: translate(calc(-50% + var(--puff-dx, 60px)), calc(-50% - 70px)) scale(2.6); }
+}
+
+/* Tail-light trails: long exposure, magenta to nothing. */
+.intro-trail {
+  background: linear-gradient(90deg, rgb(255 46 136 / 0.9), rgb(255 0 60 / 0.45) 35%, transparent 100%);
+  filter: blur(1.5px);
+}
+
+/* Headlight cones, thrown left and slightly down from each lamp. */
+.intro-beam {
+  position: absolute;
+  width: 44vw;
+  height: 14vh;
+  transform: translate(-100%, -50%) rotate(7deg);
+  transform-origin: right center;
+  background: linear-gradient(to left, rgb(252 238 10 / 0.34), rgb(252 238 10 / 0.1) 45%, transparent 85%);
+  clip-path: polygon(100% 42%, 0 0, 0 100%, 100% 58%);
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+/* The car's reflection on the road, upside down and fading downward. */
+.intro-reflection {
+  transform: scaleY(-1);
+  opacity: 0.22;
+  filter: blur(5px) brightness(0.85);
+  -webkit-mask-image: linear-gradient(to top, transparent 20%, #000 75%);
+  mask-image: linear-gradient(to top, transparent 20%, #000 75%);
+  pointer-events: none;
+}
+
+/* Hazard tape that brightens on the kick. */
+.hazard-live {
+  opacity: calc(0.25 + var(--bass, 0) * 0.4);
+}
+
+/* The three bars beside the volume control. */
+.vu {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.vu-bar {
+  display: block;
+  width: 2px;
+  height: calc(15% + var(--vu, 0) * 85%);
+  background: #fcee0a;
+  transition: height 60ms linear;
+}
+
+/* The reticle. Four ticks and a dot, trailing the pointer. */
+.reticle {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 130;
+  width: 22px;
+  height: 22px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  will-change: transform;
+  mix-blend-mode: difference;
+}
+.reticle-tick {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border: 1px solid rgb(252 238 10 / 0.9);
+  transition: border-color 0.2s ease;
+}
+.reticle-tick.tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.reticle-tick.tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.reticle-tick.bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.reticle-tick.br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.reticle-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 2px;
+  margin: -1px 0 0 -1px;
+  background: #fcee0a;
+}
+.reticle.is-hot .reticle-tick { border-color: #ff2e88; }
+.reticle.is-hot .reticle-dot { background: #ff2e88; }
+@media (pointer: coarse) {
+  .reticle { display: none; }
+}

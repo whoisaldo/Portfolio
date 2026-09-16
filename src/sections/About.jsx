@@ -68,13 +68,18 @@ export default function About() {
 
             <div className="mt-8 space-y-5 max-w-[64ch]">
               <p className="prose-dark">
-                Right now I am an SDE intern on AWS CloudFormation in Seattle,
-                working on the Registry, the control plane behind the resource
-                types CloudFormation can provision. Before that I spent six
-                months as a co-op at Philips in Cambridge, shipping a zero-touch
-                deployment platform for roughly a thousand medical-device-grade
-                machines under FDA-regulated Secure Boot. Both of those have a
-                full write-up on this site rather than a bullet point.
+                Right now I am doing three things at once: back at Philips
+                part-time on the team I co-opped with, lead full stack
+                engineer at Pinnatec Auto, and one of the three students who
+                own the grading server on Pawtograder, Northeastern&apos;s
+                open-source autograder. This past summer I was an SDE intern
+                on AWS CloudFormation in Seattle, on the Registry, the control
+                plane behind the resource types CloudFormation can provision.
+                Before that, six months as a Philips co-op in Cambridge,
+                shipping a zero-touch deployment platform for roughly a
+                thousand medical-device-grade machines under FDA-regulated
+                Secure Boot. The AWS and Philips work each have a full
+                write-up on this site rather than a bullet point.
               </p>
               <p className="prose-dark">
                 I also co-founded Eternal Reverse, a two-person studio in Boston
@@ -110,7 +115,7 @@ export default function About() {
                 <Row label="Base" value={profile.base} />
                 <Row
                   label="Now"
-                  value={`${profile.now.org} · ${profile.now.location}`}
+                  value={profile.current.map((r) => r.org).join(" · ")}
                   accent
                 />
                 <Row

@@ -165,6 +165,21 @@ import Facial_FacialRecognitionHappy_thumb from "../assets/Facial/FacialRecognit
 import Facial_FacialRegocnitionAngryFace_1600avif from "../assets/Facial/FacialRegocnitionAngryFace-1600.avif";
 import Facial_FacialRegocnitionAngryFace_1600webp from "../assets/Facial/FacialRegocnitionAngryFace-1600.webp";
 import Facial_FacialRegocnitionAngryFace_thumb from "../assets/Facial/FacialRegocnitionAngryFace-320.webp";
+import Intro_Moon_2048avif from "../assets/Intro/Moon-2048.avif";
+import Intro_Moon_2048webp from "../assets/Intro/Moon-2048.webp";
+import Intro_Moon_1280avif from "../assets/Intro/Moon-1280.avif";
+import Intro_Moon_1280webp from "../assets/Intro/Moon-1280.webp";
+import Intro_Moon_thumb from "../assets/Intro/Moon-320.webp";
+import Intro_Skyline_2048avif from "../assets/Intro/Skyline-2048.avif";
+import Intro_Skyline_2048webp from "../assets/Intro/Skyline-2048.webp";
+import Intro_Skyline_1280avif from "../assets/Intro/Skyline-1280.avif";
+import Intro_Skyline_1280webp from "../assets/Intro/Skyline-1280.webp";
+import Intro_Skyline_thumb from "../assets/Intro/Skyline-320.webp";
+import Intro_Car_1536avif from "../assets/Intro/Car-1536.avif";
+import Intro_Car_1536webp from "../assets/Intro/Car-1536.webp";
+import Intro_Car_1024avif from "../assets/Intro/Car-1024.avif";
+import Intro_Car_1024webp from "../assets/Intro/Car-1024.webp";
+import Intro_Car_thumb from "../assets/Intro/Car-320.webp";
 
 export const images = {
   "KeyArt/KeyArt_EternalReverse": {
@@ -576,6 +591,35 @@ export const images = {
     thumb: Facial_FacialRegocnitionAngryFace_thumb,
     lqip: lqip["Facial/FacialRegocnitionAngryFace"],
     lqipKey: "Facial/FacialRegocnitionAngryFace",
+  },  "Intro/Moon": {
+    src: Intro_Moon_2048webp,
+    width: 1672,
+    height: 941,
+    avif: { 1280: Intro_Moon_1280avif, 1672: Intro_Moon_2048avif },
+    webp: { 1280: Intro_Moon_1280webp, 1672: Intro_Moon_2048webp },
+    thumb: Intro_Moon_thumb,
+    lqip: lqip["Intro/Moon"],
+    lqipKey: "Intro/Moon",
+  },
+  "Intro/Skyline": {
+    src: Intro_Skyline_2048webp,
+    width: 1672,
+    height: 941,
+    avif: { 1280: Intro_Skyline_1280avif, 1672: Intro_Skyline_2048avif },
+    webp: { 1280: Intro_Skyline_1280webp, 1672: Intro_Skyline_2048webp },
+    thumb: Intro_Skyline_thumb,
+    lqip: lqip["Intro/Skyline"],
+    lqipKey: "Intro/Skyline",
+  },
+  "Intro/Car": {
+    src: Intro_Car_1536webp,
+    width: 1536,
+    height: 1024,
+    avif: { 1024: Intro_Car_1024avif, 1536: Intro_Car_1536avif },
+    webp: { 1024: Intro_Car_1024webp, 1536: Intro_Car_1536webp },
+    thumb: Intro_Car_thumb,
+    lqip: lqip["Intro/Car"],
+    lqipKey: "Intro/Car",
   },
 };
 

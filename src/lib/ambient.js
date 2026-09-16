@@ -1,4 +1,4 @@
-// src/lib/ambient.js: the background loop.
+// src/lib/ambient.js: the background track, and the clock the intro runs on.
 //
 // TWO SOURCES, ONE BUS
 //
@@ -12,24 +12,40 @@
 //
 //   Drop an audio file at  public/audio/ambient.m4a
 //
-// and it plays. Nothing else changes. On start the loop looks for that file
-// first and uses it if it is there; if it is absent, or the request fails, it
-// falls back to the synthesised piece below without an error and without the
-// reader noticing a difference in how anything behaves.
+// and it plays. On start the loop looks for that file first and uses it if it
+// is there; if it is absent, or the request fails, it falls back to the
+// synthesised piece below without an error.
 //
 // The file currently there was supplied by the owner. It arrived as a 9.4 MB
 // 320kbps MP3 and ships as a 3.8 MB 128kbps AAC, which is transparent for
-// something playing quietly under a page and is 60% less to download. It is
-// fetched only when a reader turns sound on, never on load, so anyone who
-// declines the prompt never pays for it at all.
+// something playing under a page and is 60% less to download. It is fetched
+// only once the door is on screen for a reader who has sound on, never for
+// anyone who declined, so a silent visit never pays for it at all.
 //
 // The fallback is an original piece written to sit in the same room as the
 // song: dreamy minor synthpop, slow, no drums, meant to be noticed once and
-// then forgotten about. Both sources route through the same gain node and the
-// same volume preference, so the rest of the app never has to know which one
-// is playing.
+// then forgotten about. Both sources route through the same bus and the same
+// volume preference, so the rest of the app never has to know which one is
+// playing.
 //
-// HOW IT RUNS
+// THE CLOCK
+//
+// The intro cinematic is choreographed to the track, so this module also
+// reports where in the file playback is (songTime), to the sample. A buffer
+// source has no currentTime of its own; it is derived from the context clock
+// and the offset the source was started at. See src/lib/cues.js for what the
+// numbers mean.
+//
+// THE BUS
+//
+//   source -> master (the reader's volume) -> duck (intro vs cruise)
+//          -> analyser (levels for the music-reactive chrome) -> out
+//
+// The car sounds and the UI blips join at `master`, so they follow the volume
+// slider and show up in the analyser, but they never fight the reader's
+// setting.
+//
+// HOW THE SYNTH RUNS
 //
 // A lookahead scheduler, which is the standard shape for Web Audio timing:
 // setInterval cannot be trusted to fire on the beat, so the interval only asks
@@ -40,7 +56,7 @@
 // ESM will not resolve an extensionless specifier and
 // scripts/check-audio-single.mjs imports this file directly. Vite is happy
 // either way.
-import { audioContext, getVolume } from "./boot-audio.js";
+import { audioContext, getVolume } from "./audio.js";
 
 // A minor, 85bpm, four bars. i - VI - III - VII, which is the most durable
 // wistful progression there is and the reason half of synthwave uses it.
@@ -61,11 +77,12 @@ const BARS = [
 const LOOKAHEAD_MS = 250;
 const SCHEDULE_AHEAD = 0.6;
 
-// Fade-in time constant. This was 2.6s, which reaches only about 17% of
-// target after half a second and 32% after one. Music that quiet for that long
-// does not read as "fading in", it reads as "not working", and that is exactly
-// how it was reported. 0.7s is still a fade and is clearly audible inside a
-// second.
+// Default fade-in time constant. This was 2.6s, which reaches only about 17%
+// of target after half a second and 32% after one. Music that quiet for that
+// long does not read as "fading in", it reads as "not working", and that is
+// exactly how it was reported. 0.7s is still a fade and is clearly audible
+// inside a second. The intro passes something shorter, because its first
+// phrase starts a tenth of a second after playback does.
 const FADE_IN = 0.7;
 
 // Each layer's own level. The user volume multiplies these rather than
@@ -74,7 +91,14 @@ const PAD = 0.045;
 const ARP = 0.03;
 const BASS = 0.06;
 
+/** Fired on window with { detail: { playing } } whenever playback starts or
+ *  stops. The music-reactive chrome listens for it. */
+export const AMBIENT_EVENT = "aly:ambient";
+
 let master = null;
+let duck = null;
+let analyser = null;
+let duckTarget = 1;
 let timer = null;
 let nextBar = 0;
 let barIndex = 0;
@@ -82,12 +106,43 @@ let fileSource = null;
 // Non-null while a start is in flight. See startAmbient().
 let starting = null;
 
+// The clock. All three are only meaningful while fileSource is non-null.
+let fileStartedAt = 0; // context time at which the source started
+let fileOffset = 0; // seconds into the file it started from
+let fileDuration = 0;
+
+// The track's bytes, fetched ahead of the click, and the decoded buffer,
+// kept so a replay never fetches or decodes twice.
+let prefetched = null;
+let decodedTrack = null;
+
+function announce(playing) {
+  if (typeof window === "undefined" || typeof CustomEvent === "undefined") return;
+  window.dispatchEvent?.(new CustomEvent(AMBIENT_EVENT, { detail: { playing } }));
+}
+
 function ensureMaster(ac) {
   if (master) return master;
   master = ac.createGain();
   master.gain.value = 0;
-  master.connect(ac.destination);
+  duck = ac.createGain();
+  duck.gain.value = duckTarget;
+  analyser = ac.createAnalyser();
+  analyser.fftSize = 512;
+  analyser.smoothingTimeConstant = 0.55;
+  // A narrower window than the default -100..-30 dB, so a track playing at
+  // half volume still moves the meter.
+  analyser.minDecibels = -72;
+  analyser.maxDecibels = -12;
+  master.connect(duck).connect(analyser).connect(ac.destination);
   return master;
+}
+
+/** The bus everything else joins. Creates it if needed; null without audio. */
+export function ambientBus() {
+  const ac = audioContext();
+  if (!ac) return null;
+  return ensureMaster(ac);
 }
 
 /** A soft sustained voice for the pad. */
@@ -174,12 +229,77 @@ export function isPlaying() {
   return timer !== null || fileSource !== null;
 }
 
+/** True only while the real track is running, which is when songTime() is
+ *  meaningful. The synth has no timeline to choreograph against. */
+export function isTrackPlaying() {
+  return fileSource !== null;
+}
+
+/**
+ * Seconds into the file, or null when the track is not playing. Wraps at the
+ * end of the file because the source loops.
+ */
+export function songTime() {
+  const ac = audioContext();
+  if (!ac || !fileSource) return null;
+  const t = fileOffset + (ac.currentTime - fileStartedAt);
+  return fileDuration > 0 ? t % fileDuration : t;
+}
+
 /** Push the current volume preference into the running mix. */
 export function applyVolume() {
   const ac = audioContext();
   if (!ac || !master) return;
   master.gain.cancelScheduledValues(ac.currentTime);
   master.gain.setTargetAtTime(getVolume(), ac.currentTime, 0.08);
+}
+
+/**
+ * The intro-versus-cruise multiplier, on top of the reader's volume. Takes
+ * `seconds` to get there; 0 is immediate. Remembered, so a call before the
+ * bus exists is honoured when it is built.
+ */
+export function setDuck(scale, seconds = 0) {
+  duckTarget = scale;
+  const ac = audioContext();
+  if (!ac || !duck) return;
+  duck.gain.cancelScheduledValues(ac.currentTime);
+  if (seconds <= 0) {
+    duck.gain.setValueAtTime(scale, ac.currentTime);
+  } else {
+    // setTargetAtTime reaches ~95% of the way in three time constants.
+    duck.gain.setTargetAtTime(scale, ac.currentTime, seconds / 3);
+  }
+}
+
+const bins = new Uint8Array(256);
+
+/**
+ * Where the music is right now, 0 to 1, for the chrome that moves with it.
+ *
+ *   bass   the kick region, roughly 90 to 280 Hz
+ *   level  everything up to about 4.5 kHz
+ *
+ * Both are shaped so that a sustained pad reads as a low floor and a kick
+ * reads as a hit: the raw meter sits high on a dense master and would peg
+ * anything driven straight from it.
+ */
+export function getLevels() {
+  if (!analyser || !isPlaying()) return { level: 0, bass: 0 };
+  analyser.getByteFrequencyData(bins);
+  let b = 0;
+  for (let i = 1; i <= 3; i++) b += bins[i];
+  b /= 3 * 255;
+  let l = 0;
+  for (let i = 1; i <= 48; i++) l += bins[i];
+  l /= 48 * 255;
+  const shape = (v, floor, span) => Math.min(1, Math.max(0, (v - floor) / span));
+  // The raw means are returned as well, for calibrating the two floors
+  // against a real track rather than guessing.
+  // Floors measured against the supplied track on 2026-09-16: the quiet
+  // intro sits around 0.15 / 0.25 raw, the drums around 0.35 / 0.6, and the
+  // site plays 3.5 dB under the intro, which is roughly 0.06 on this scale.
+  return { level: shape(l, 0.16, 0.4), bass: shape(b, 0.36, 0.38), rawLevel: l, rawBass: b };
 }
 
 /** Where a supplied track is looked for. See the note at the top of the file. */
@@ -189,12 +309,40 @@ export function applyVolume() {
 const TRACK_URL = (import.meta.env?.BASE_URL || "/") + "audio/ambient.m4a";
 
 /**
+ * Fetch the track's bytes without playing them. Called by the gate the moment
+ * it appears, so the seconds a reader spends reading the door are the seconds
+ * the 3.8 MB download needs, and the click that follows starts the song
+ * inside a few hundred milliseconds instead of after a spinner.
+ *
+ * Needs no gesture: a fetch is not an AudioContext.
+ */
+/** Forget the fetched and decoded track. For a replaced file, and for the
+ *  test harness, which needs each case to start cold. */
+export function forgetTrack() {
+  prefetched = null;
+  decodedTrack = null;
+}
+
+export function prefetchTrack() {
+  if (!prefetched) {
+    prefetched = fetch(TRACK_URL)
+      .then((res) => (res.ok ? res.arrayBuffer() : null))
+      .catch(() => null);
+  }
+  return prefetched;
+}
+
+/**
  * Start playing. Must be called from, or after, a user gesture.
+ *
+ *   offset  seconds into the file to start from
+ *   gain    the duck multiplier to start at (INTRO_GAIN or CRUISE_GAIN)
+ *   fade    fade-in time constant, seconds
  *
  * Prefers a real file at TRACK_URL and falls back to the synthesised loop when
  * there is not one. Returns false only when audio is still suspended.
  */
-export function startAmbient() {
+export function startAmbient(opts = {}) {
   const ac = audioContext();
   if (!ac || ac.state !== "running") return Promise.resolve(false);
   if (isPlaying()) return Promise.resolve(true);
@@ -211,21 +359,20 @@ export function startAmbient() {
   // async span, not just its endpoints.
   if (!starting) {
     starting = (async () => {
-      if (await playFile(TRACK_URL)) return true;
-      return startSynth();
+      if (await playFile(TRACK_URL, opts)) return true;
+      return startSynth(opts);
     })().finally(() => { starting = null; });
   }
   return starting;
 }
 
 /** The synthesised fallback. */
-function startSynth() {
+function startSynth({ gain = 1 } = {}) {
   const ac = audioContext();
   if (!ac || ac.state !== "running" || timer !== null) return isPlaying();
 
   ensureMaster(ac);
-  // Eight seconds to reach full. Music that arrives abruptly on a portfolio
-  // reads as a mistake; music that fades up reads as a choice.
+  setDuck(gain);
   master.gain.cancelScheduledValues(ac.currentTime);
   master.gain.setValueAtTime(0.0001, ac.currentTime);
   master.gain.setTargetAtTime(getVolume(), ac.currentTime, FADE_IN);
@@ -234,12 +381,14 @@ function startSynth() {
   barIndex = 0;
   tick();
   timer = setInterval(tick, LOOKAHEAD_MS);
+  announce(true);
   return true;
 }
 
 /** Fade out and stop scheduling. */
 export function stopAmbient() {
   const ac = audioContext();
+  const was = isPlaying();
   if (timer !== null) {
     clearInterval(timer);
     timer = null;
@@ -252,6 +401,7 @@ export function stopAmbient() {
     master.gain.cancelScheduledValues(ac.currentTime);
     master.gain.setTargetAtTime(0.0001, ac.currentTime, 0.4);
   }
+  if (was) announce(false);
 }
 
 /**
@@ -262,23 +412,39 @@ export function stopAmbient() {
  * module learns that no track has been supplied. A missing file must never
  * surface as an error, because "no track" is a valid state.
  */
-export async function playFile(url, { loop = true } = {}) {
+export async function playFile(url, { loop = true, offset = 0, gain = 1, fade = FADE_IN } = {}) {
   const ac = audioContext();
   if (!ac || ac.state !== "running") return false;
 
   let buffer;
   try {
-    const res = await fetch(url);
-    // A dev server and a static host both answer a missing path with HTML, so
-    // check the status rather than trusting decodeAudioData to reject.
-    if (!res.ok) return false;
-    buffer = await ac.decodeAudioData(await res.arrayBuffer());
+    if (url === TRACK_URL && decodedTrack) {
+      buffer = decodedTrack;
+    } else {
+      let bytes = null;
+      if (url === TRACK_URL && prefetched) {
+        bytes = await prefetched;
+      }
+      if (!bytes) {
+        // A dev server and a static host both answer a missing path with
+        // HTML, so check the status rather than trusting decodeAudioData to
+        // reject.
+        const res = await fetch(url);
+        if (!res.ok) return false;
+        bytes = await res.arrayBuffer();
+      }
+      // decodeAudioData detaches the buffer it is handed. Decode a copy so the
+      // prefetched bytes stay usable if this decode is ever repeated.
+      buffer = await ac.decodeAudioData(bytes.slice(0));
+      if (url === TRACK_URL) decodedTrack = buffer;
+    }
   } catch {
     return false;
   }
 
   stopAmbient();
   ensureMaster(ac);
+  setDuck(gain);
 
   fileSource = ac.createBufferSource();
   fileSource.buffer = buffer;
@@ -287,8 +453,12 @@ export async function playFile(url, { loop = true } = {}) {
 
   master.gain.cancelScheduledValues(ac.currentTime);
   master.gain.setValueAtTime(0.0001, ac.currentTime);
-  master.gain.setTargetAtTime(getVolume(), ac.currentTime, FADE_IN);
+  master.gain.setTargetAtTime(getVolume(), ac.currentTime, fade);
 
-  fileSource.start();
+  fileOffset = offset;
+  fileStartedAt = ac.currentTime;
+  fileDuration = buffer.duration || 0;
+  fileSource.start(0, offset);
+  announce(true);
   return true;
 }

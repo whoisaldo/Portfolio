@@ -95,6 +95,13 @@ const SOURCES = [
   ["ui", "Facial/FacialRecognitionFrontPage.png"],
   ["ui", "Facial/FacialRecognitionHappy.png"],
   ["ui", "Facial/FacialRegocnitionAngryFace.png"],
+
+  // The intro cinematic and the hero backdrop. Generated plates, see
+  // docs/PROJECT_CONTEXT.md ("Intro art"). The car is a transparent cutout
+  // and keeps its alpha through both encoders; it never gets a JPEG.
+  ["plate", "Intro/Moon.png"],
+  ["plate", "Intro/Skyline.png"],
+  ["sprite", "Intro/Car.png"],
 ];
 
 // ---------------------------------------------------------------------------
@@ -125,6 +132,26 @@ const PROFILES = {
     widths: [1600],
     avif: { quality: 65, effort: 6 },
     webp: { quality: 82, effort: 6, smartSubsample: true },
+    jpegWidth: null,
+    jpeg: null,
+  },
+  // Full-bleed painted backdrops. Near-black with points of light, which is
+  // the case AVIF is best at, so it can go a little lower than key art. Two
+  // widths: one for phones, one for everything else.
+  plate: {
+    widths: [2048, 1280],
+    avif: { quality: 50, effort: 6 },
+    webp: { quality: 76, effort: 6 },
+    jpegWidth: null,
+    jpeg: null,
+  },
+  // Transparent cutouts. Quality is held higher because the alpha edge is
+  // the first thing to fall apart, and the car crosses the screen at full
+  // size for two seconds where every artefact shows.
+  sprite: {
+    widths: [1536, 1024],
+    avif: { quality: 62, effort: 6 },
+    webp: { quality: 86, effort: 6, alphaQuality: 90 },
     jpegWidth: null,
     jpeg: null,
   },
