@@ -25,8 +25,10 @@ import { experiences } from "./experience";
 // highlights, and Northeastern has metrics and a coursework list that
 // WorkPage renders in a band of its own.
 const ROLE_SLUGS = new Set([
-  "aws-cloudformation",
   "philips-zero-touch",
+  "pinnatec-auto",
+  "pawtograder",
+  "aws-cloudformation",
   "top-choice-realty",
   "robert-defalco-realty",
   "northeastern",

@@ -10,6 +10,11 @@
 //   NEULOGO.png                750x750 PNG, transparent, red seal
 //   Topchoicerealtylogo.jpeg   225x225 JPEG, opaque #000 ground
 //   RobertDefalcoRealty.webp   512x512 WebP, opaque #000 ground
+//   PinnatecAuto.png           1600x513 PNG, transparent, white and mint
+//                             wordmark from pinnatecauto.com
+//   Pawtograder.png            460x460 PNG, transparent, a BLACK husky seal
+//                             (the GitHub org avatar), inverted to white here
+//                             because a black mark on an ink page is no mark
 //
 // Two problems that no amount of CSS fixes properly:
 //
@@ -42,15 +47,21 @@ const SOURCES = [
   { file: "NEULOGO.png", keyOnLuminance: false },
   { file: "Topchoicerealtylogo.jpeg", keyOnLuminance: true },
   { file: "RobertDefalcoRealty.webp", keyOnLuminance: true },
+  { file: "PinnatecAuto.png", keyOnLuminance: false },
+  { file: "Pawtograder.png", keyOnLuminance: false, invert: true },
 ];
 
-for (const { file, keyOnLuminance } of SOURCES) {
+for (const { file, keyOnLuminance, invert } of SOURCES) {
   const src = join(DIR, file);
   const out = src.replace(/\.(svg|png|jpe?g|webp)$/i, ".norm.png");
 
   // density matters for the SVGs: rasterise well above the target so the
   // trim and the downscale both have pixels to work with.
   let img = sharp(src, { density: 600 }).ensureAlpha();
+
+  // Flip the RGB only. `negate()` on its own would invert the alpha too and
+  // turn the transparent ground opaque.
+  if (invert) img = img.negate({ alpha: false });
 
   if (keyOnLuminance) {
     const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });

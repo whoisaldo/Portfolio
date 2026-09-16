@@ -14,17 +14,18 @@ export const profile = {
   gradYear: "’27",
   educationLine: "CS & Political Science · Northeastern University · Class of ’27",
   base: "Boston, MA",
-  now: {
+  // Three at once, in the résumé's order. `detail` is the one qualifier each
+  // needs to be read correctly; the full entries are in experience.js.
+  current: [
+    { role: "SDE Co-op", short: "SDE Co-op, part-time", org: "Philips", detail: "back part-time since Aug 2026", location: "Cambridge, MA" },
+    { role: "Lead Full Stack Engineer", short: "Lead Full Stack, part-time", org: "Pinnatec Auto", detail: "part-time, since Sep 2026", location: "Worcester, MA" },
+    { role: "Backend Engineer", short: "Backend, grading server", org: "Pawtograder", detail: "grading server, since Aug 2026", location: "Boston, MA" },
+  ],
+  prev: {
     role: "SDE Intern",
     org: "AWS CloudFormation",
-    detail: "Infrastructure as Code",
+    period: "Jun to Sep 2026",
     location: "Seattle, WA",
-  },
-  prev: {
-    role: "SWE Co-op",
-    org: "Philips",
-    period: "Jan to Jun 2026",
-    location: "Cambridge, MA",
   },
 };
 
@@ -46,11 +47,17 @@ export const links = {
 // bars (20/20 for TypeScript, 16/20 for C++), which is "React 90%" wearing a
 // monospace hat, and self-declaring "expert" cuts against this repo's own rule
 // that a reader should find the portfolio understated.
+//
+// The two AI groups follow the résumé: `AI` is what has been built with, and
+// `Agents` is the agentic tooling in daily use. Every entry can be discussed
+// in an interview, which is the bar for appearing here.
 export const skills = [
-  { group: "Languages", items: ["TypeScript", "JavaScript", "C++", "Python", "Java", "C#", "Rust", "Swift", "Go"] },
-  { group: "Frontend", items: ["React", "Next.js", "Tailwind CSS", "Framer Motion"] },
-  { group: "Backend", items: ["Node.js", "Express", "MongoDB", ".NET", "PowerShell"] },
-  { group: "Systems", items: ["Rust", "C++", "DXGI", "Metal", "VideoToolbox", "H.264"] },
-  { group: "Cloud & infra", items: ["AWS", "Linux", "IaC (CDK/CloudFormation)", "CI/CD", "Docker"] },
+  { group: "Languages", items: ["TypeScript", "JavaScript", "Python", "SQL", "Java", "C++", "C#", "Rust", "Swift", "PowerShell", "Bash", "Go"] },
+  { group: "Frontend", items: ["React", "React Native (Expo)", "Next.js", "Tailwind CSS", "Framer Motion"] },
+  { group: "Backend", items: ["Node.js", "Express", "FastAPI", "Postgres", "MongoDB", "Deno", "Supabase", "PHP", ".NET"] },
+  { group: "Systems", items: ["Rust", "C++", "ESP32", "DXGI", "Metal", "VideoToolbox", "H.264"] },
+  { group: "Cloud & infra", items: ["AWS (CloudFormation, DynamoDB, IAM)", "Linux", "Docker", "GitHub Actions", "CI/CD"] },
+  { group: "AI", items: ["OpenAI SDK", "Claude SDK", "MCP", "Ollama", "AWS Bedrock"] },
+  { group: "Agents", items: ["Kiro", "Codex", "Claude Code", "OpenCode", "Windsurf", "T3 Code", "Cursor Bugbot", "CodeRabbit"] },
   { group: "Tools", items: ["Git", "Vim", "VS Code", "Xcode"] },
 ];

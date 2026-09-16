@@ -13,21 +13,22 @@
 // to its own index.html at build time, or moving to a host that can rewrite. Not
 // worth doing until it matters.
 import React, { useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import Navbar from "./components/Navbar";
 import Footer from "./sections/Footer";
-import BootSequence from "./components/BootSequence";
+import IntroCinematic from "./components/IntroCinematic";
 import EntryGate from "./components/EntryGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Console from "./components/Console";
+import Cursor from "./components/Cursor";
 import Home from "./routes/Home";
 import WorkPage from "./routes/WorkPage";
 import { initBeacon } from "./lib/beacon";
+import { attachUiSfx } from "./lib/ui-sfx";
+import { startReactive } from "./lib/reactive";
 
 export default function App() {
-  const { pathname } = useLocation();
-
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.history.scrollRestoration = "manual";
@@ -39,23 +40,27 @@ export default function App() {
   // second set of listeners attached.
   useEffect(() => initBeacon(), []);
 
+  // The interface blips and the music-reactive CSS variables. Both are
+  // document-level listeners that return their own teardown.
+  useEffect(() => attachUiSfx(), []);
+  useEffect(() => startReactive(), []);
+
   return (
     <ErrorBoundary>
       <MotionConfig reducedMotion="user">
         <div className="min-h-screen bg-ink text-bone font-mono">
-          {/* The boot sequence is an entrance for the site, not for every page.
-              Replaying it when someone follows a link from one case study to
-              the next would be theatre in the way of the content. */}
-          {/* The door, then the boot, then the site. The gate mounts in the
+          {/* The door, then the intro, then the site. Both mount in the
               shell rather than on the home page because a reader who arrives
               on a deep link to a case study is still arriving for the first
-              time. It shows once, ever. */}
+              time. The intro runs once per tab; following a link from one
+              case study to the next never replays it. */}
           <EntryGate />
-          {pathname === "/" && <BootSequence />}
+          <IntroCinematic />
 
           <Navbar />
           {/* Backtick anywhere, or /console. Not in the nav. */}
           <Console />
+          <Cursor />
 
           <Routes>
             <Route path="/" element={<Home />} />

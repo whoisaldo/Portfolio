@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80">
+  <g id="car" color="#fcee0a">
+    <defs>
+      <filter id="underglow-blur" filterUnits="userSpaceOnUse" x="-61" y="-26" width="122" height="52">
+        <feGaussianBlur stdDeviation="2.5"/>
+      </filter>
+      <filter id="headlight-blur" filterUnits="userSpaceOnUse" x="-5" y="-28" width="27" height="56">
+        <feGaussianBlur stdDeviation="4"/>
+      </filter>
+      <filter id="taillight-blur" filterUnits="userSpaceOnUse" x="-19" y="-27" width="24" height="54">
+        <feGaussianBlur stdDeviation="3"/>
+      </filter>
+    </defs>
+    <g id="underglow" transform="translate(0 0)">
+      <ellipse rx="58" ry="23" fill="#ff2e88" opacity="0.45" filter="url(#underglow-blur)"/>
+    </g>
+    <g id="headlight-glow" transform="translate(58 0)">
+      <ellipse cx="5" rx="7" ry="18" fill="#ffffff" opacity="0.55" filter="url(#headlight-blur)"/>
+    </g>
+    <g id="taillight-glow" transform="translate(-58 0)">
+      <ellipse cx="-5" rx="5" ry="18" fill="#ff2e88" opacity="0.55" filter="url(#taillight-blur)"/>
+    </g>
+    <g id="wheel-fl" transform="translate(36 -20.5)">
+      <rect x="-10" y="-4.5" width="20" height="9" rx="2" fill="#141414"/>
+      <rect x="-6" y="-3" width="12" height="6" rx="1.5" fill="#2a2a30"/>
+    </g>
+    <g id="wheel-fr" transform="translate(36 20.5)">
+      <rect x="-10" y="-4.5" width="20" height="9" rx="2" fill="#141414"/>
+      <rect x="-6" y="-3" width="12" height="6" rx="1.5" fill="#2a2a30"/>
+    </g>
+    <g id="wheel-rl" transform="translate(-36 -20.5)">
+      <rect x="-10" y="-4.5" width="20" height="9" rx="2" fill="#141414"/>
+      <rect x="-6" y="-3" width="12" height="6" rx="1.5" fill="#2a2a30"/>
+    </g>
+    <g id="wheel-rr" transform="translate(-36 20.5)">
+      <rect x="-10" y="-4.5" width="20" height="9" rx="2" fill="#141414"/>
+      <rect x="-6" y="-3" width="12" height="6" rx="1.5" fill="#2a2a30"/>
+    </g>
+    <g id="body" transform="translate(0 0)">
+      <path d="M-58-18-50-23H-46V-20H-26V-23H-22L-17-19H18L23-23H26V-20H46V-23H48L58-18V18L48 23H46V20H26V23H23L18 19H-17L-22 23H-26V20H-46V23H-50L-58 18Z" fill="currentColor" stroke="#050506" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M16-15H48L52-12V-9H21L16-4ZM-48-17H-25L-22-14H-48Z" fill="#ffffff" opacity="0.25"/>
+    </g>
+    <g id="roof" transform="translate(-14 0)">
+      <path d="M-20-15H15L26-11V11L15 15H-20L-25 10V-10Z" fill="#0b1016" stroke="#050506" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M-18-11H-2L2-7V-4H-18Z" fill="#ffffff" opacity="0.25"/>
+      <path d="M4-14H7V14H4Z" fill="currentColor"/>
+      <path d="M8-12H14L22-9V9L14 12H8" fill="none" stroke="#34e5ff" stroke-linejoin="round"/>
+    </g>
+    <g id="headlights" transform="translate(55.5 0)">
+      <path d="M-2-17H2V17H-2Z" fill="#dff6ff"/>
+    </g>
+    <g id="taillights" transform="translate(-56 0)">
+      <path d="M-1.5-17H1.5V17H-1.5Z" fill="#ff2e88"/>
+    </g>
+    <g id="wing" transform="translate(-47 0)">
+      <path d="M-1-15H7V-10H-1ZM-1 10H7V15H-1Z" fill="#0b1016"/>
+      <path d="M-5-25H2L5-20V20L2 25H-5Z" fill="currentColor" stroke="#050506" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M-3-22H1L2-19V19L1 22H-3Z" fill="#ffffff" opacity="0.25"/>
+    </g>
+  </g>
+</svg>

@@ -1,10 +1,12 @@
 // src/components/projects/ProjectsSection.jsx: the work section.
 //
 // Was a shell that picked between a scroll-pinned reel and a stacked fallback,
-// and owned the modal both of them opened. All three are gone. One grid, one
-// destination per card, no modal, no branch on input device.
+// and owned the modal both of them opened. Then a grid. Now a deck: one
+// machine with a rail of every project down its side and a screen showing
+// one at a time, which can be expanded to the viewport. See WorkDeck.jsx for
+// why the rail keeps what the grid was good at.
 import React from "react";
-import ProjectIndex from "./ProjectIndex";
+import WorkDeck from "./WorkDeck";
 import OtherProjects from "./OtherProjects";
 import Glitch from "../ui/Glitch";
 import { featuredProjects, otherProjects } from "../../data/projects";
@@ -46,7 +48,7 @@ export default function ProjectsSection() {
         <div className="edge-rule mt-10" />
       </header>
 
-      <ProjectIndex projects={featuredProjects} />
+      <WorkDeck projects={featuredProjects} />
 
       <OtherProjects projects={otherProjects} startIndex={featuredProjects.length} />
     </section>

@@ -5,10 +5,14 @@
 // The site had no og:image, so every shared link unfurled as a bare URL.
 //
 // Text is rendered by sharp's SVG renderer using system fonts rather than the
-// site's webfonts: Didot is the closest local match to Fraunces (both are
-// high-contrast didone-ish serifs, and both are used here in italic), and
-// Menlo stands in for JetBrains Mono. If you want exact Fraunces, install it
-// locally and change FONT_DISPLAY below; the layout does not need to change.
+// site's webfonts: Avenir Next Condensed is the closest local match to Chakra
+// Petch (both squared, condensed, uppercase-friendly), and Menlo stands in for
+// JetBrains Mono. Install Chakra Petch locally and change FONT_DISPLAY below
+// for the exact face; the layout does not need to change.
+//
+// Palette follows tailwind.config.js: ink, bone, volt, fuchsia. The card was
+// violet for a while after the site stopped being, which is the kind of drift
+// this script exists to prevent.
 import sharp from "sharp";
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -16,14 +20,14 @@ import { dirname, join } from "node:path";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-const FONT_DISPLAY = "Didot, 'Bodoni 72', Georgia, serif";
+const FONT_DISPLAY = "'Avenir Next Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif";
 const FONT_MONO = "Menlo, monospace";
 
-const INK = "#0e0d14";
-const BONE = "#efece5";
-const VIOLET = "#7b45f7";
-const EMBER = "#ff9538";
-const HUD = "#6d5fa8";
+const INK = "#0a0a0c";
+const BONE = "#eceae4";
+const VIOLET = "#fcee0a"; // volt. The variable name survives for the diff's sake.
+const EMBER = "#ff2e88"; // fuchsia
+const HUD = "#fcee0a";
 
 const W = 1200;
 const H = 630;
@@ -54,30 +58,30 @@ const svg = `
 
   <rect width="${W}" height="${H}" fill="${INK}"/>
   <rect width="${W}" height="${H}" fill="url(#grid)"/>
-  <circle cx="1010" cy="120" r="380" fill="url(#bloom)"/>
+  <circle cx="1010" cy="120" r="380" fill="url(#bloom)" opacity="0.35"/>
 
   ${corner(34, 34, 1, 1)}
   ${corner(W - 34, 34, -1, 1)}
   ${corner(34, H - 34, 1, -1)}
   ${corner(W - 34, H - 34, -1, -1)}
 
-  <text x="72" y="268" font-family="${FONT_DISPLAY}" font-style="italic"
-        font-size="164" letter-spacing="-5">
-    <tspan fill="${BONE}">Ali</tspan><tspan fill="${VIOLET}" dx="24">Younes</tspan>
+  <text x="72" y="268" font-family="${FONT_DISPLAY}" font-weight="700"
+        font-size="164" letter-spacing="-4">
+    <tspan fill="${BONE}">ALI</tspan><tspan fill="${VIOLET}" dx="28">YOUNES</tspan>
   </text>
 
-  <text x="76" y="352" font-family="${FONT_DISPLAY}" font-style="italic"
-        font-size="34" fill="${BONE}" opacity="0.72">
-    ${esc("Systems, iOS and web. Boston.")}
+  <text x="76" y="352" font-family="${FONT_DISPLAY}" font-weight="500"
+        font-size="34" letter-spacing="2" fill="${BONE}" opacity="0.72">
+    ${esc("SYSTEMS, IOS AND WEB. BOSTON.")}
   </text>
 
   <rect x="72" y="416" width="${W - 72 - 72}" height="1" fill="url(#rule)"/>
 
   <circle cx="79" cy="462" r="5" fill="${EMBER}"/>
   <text x="98" y="468" font-family="${FONT_MONO}" font-size="18"
-        letter-spacing="3.4" fill="${EMBER}">SDE INTERN · AWS CLOUDFORMATION</text>
-  <text x="640" y="468" font-family="${FONT_MONO}" font-size="18"
-        letter-spacing="3.4" fill="${BONE}" opacity="0.46">8 SHIPPED PROJECTS</text>
+        letter-spacing="3.4" fill="${EMBER}">PHILIPS · PINNATEC AUTO · PAWTOGRADER</text>
+  <text x="700" y="468" font-family="${FONT_MONO}" font-size="18"
+        letter-spacing="3.4" fill="${BONE}" opacity="0.46">8 PROJECTS</text>
   <text x="952" y="468" font-family="${FONT_MONO}" font-size="18"
         letter-spacing="3.4" fill="${BONE}" opacity="0.46">ALIYOUNES.DEV</text>
 </svg>`;

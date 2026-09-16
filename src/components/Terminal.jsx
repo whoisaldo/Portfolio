@@ -17,6 +17,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Terminal as TerminalIcon, Clock } from "lucide-react";
+import { replayIntro } from "../lib/intro";
 
 // Fun facts pool, surfaced on boot and via `funfact`
 const FUN_FACTS = [
@@ -42,7 +43,7 @@ const fileSystem = {
   "~": {
     type: "dir",
     children: {
-      "about.txt": { type: "file", content: `Ali Younes · Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: SDE Intern at AWS CloudFormation · Infrastructure as Code · Seattle, WA.\nPreviously: SWE Co-op at Philips · VM automation & PicIX deployment pipelines (C#, PowerShell, .NET).\n\nMostly systems work: Rust, capture pipelines, codecs, transports.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
+      "about.txt": { type: "file", content: `Ali Younes · Software Engineer\n\nCS & Political Science @ Northeastern University (Class of '27).\nCurrently: back at Philips part-time (System Integration) · Lead Full Stack Engineer at Pinnatec Auto (part-time) · Backend Engineer on Pawtograder's grading server.\nPreviously: SDE Intern at AWS CloudFormation · Seattle, WA · summer 2026.\n\nMostly systems work: Rust, capture pipelines, codecs, transports.\n\nType 'cat skills.md' or 'skills' for the full stack.` },
       "skills.md": { type: "file", content: `# Skills
 
 Grouped, not ranked. A self-assigned proficiency bar is a claim nobody can check.
@@ -50,8 +51,8 @@ Grouped, not ranked. A self-assigned proficiency bar is a claim nobody can check
 ## Languages
 TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
 
-## Frontend\nReact · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · MongoDB · .NET · PowerShell\n\n## Cloud & Infra\nAWS · Linux · DevOps · IaC (CDK/CloudFormation) · CI/CD` },
-      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA → Seattle, WA (Summer '26)",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
+## Frontend\nReact · React Native (Expo) · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · FastAPI · Postgres · MongoDB · Deno · Supabase · PHP · .NET · PowerShell\n\n## Cloud & Infra\nAWS (CloudFormation · DynamoDB · IAM) · Linux · Docker · GitHub Actions · CI/CD\n\n## AI & Agents\nOpenAI SDK · Claude SDK · MCP · Ollama · AWS Bedrock · Kiro · Codex · Claude Code` },
+      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file. Use 'open resume.pdf' to download]` },
       ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@eternalreverse:\\w %"\nalias ll="ls -la"\nalias cls="clear"` },
       ".gitconfig": { type: "file", content: `[user]\n  name = Ali Younes\n  email = younes.al@northeastern.edu\n[core]\n  editor = vim` },
@@ -84,8 +85,10 @@ TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
       "experience": {
         type: "dir",
         children: {
-          "aws.md": { type: "file", content: `# AWS · SDE Intern (Current)\nCloudFormation · Infrastructure as Code | Jun 2026 to Present | Seattle, WA\n\n- Defining cloud infrastructure as version-controlled CloudFormation templates\n- Service-level project across distributed systems & operational tooling\n- Security-first engineering under Principal/Senior SDE mentorship\n- Repeatable, auditable, declarative deployments at AWS scale` },
-          "philips.md": { type: "file", content: `# Philips · Software Engineering Co-op\nSystem Integration and Automation | Jan 2026 to Jun 2026 | Cambridge, MA\n\n- Large- and small-scale VM automation\n- Automated setups & deployment pipelines for PicIX platform\n- C#, .NET Framework, PowerShell, DevOps\n- Enterprise imaging infrastructure at scale` },
+          "philips.md": { type: "file", content: `# Philips · Software Development Engineer Co-op (Current, part-time)\nSystem Integration | Jan 2026 to Jun 2026, back part-time since Aug 2026 | Cambridge, MA\n\n- Zero-touch PXE mass deployment for a ~1,000-machine fleet under FDA-regulated Secure Boot\n- FOG/TFTP on Ubuntu 24.04, PowerShell WinPE orchestrator, FastAPI config service\n- Presented to 50+ engineers and stakeholders\n- Returned to the same team part-time alongside the degree` },
+          "pinnatec.md": { type: "file", content: `# Pinnatec Auto · Lead Full Stack Engineer (Current, part-time)\nVirtual Link | Sep 2026 to Present | Worcester, MA\n\n- Lead maintainer and code owner: Expo/React Native app, WordPress/PHP backend, ESP32 firmware\n- 17 pull requests authored, 12 merged, on a 3-person team\n- CI from zero on both repos: typecheck, lint, test, 7 firmware-to-app contract checks, firmware builds\n- 214,000+ lines of dead code and tracked build output removed in 5 reviewed commits` },
+          "pawtograder.md": { type: "file", content: `# Pawtograder · Backend Engineer, Grading Server (Current)\nNortheastern's open-source autograder | Aug 2026 to Present | Boston, MA\n\n- Own the grading server end to end with two other students on an 11-person team\n- The scoring algorithm: build, lint, instructor tests and pitest mutation results into grades\n- TypeScript · Deno edge functions on Supabase · Postgres/PLpgSQL\n- github.com/pawtograder` },
+          "aws.md": { type: "file", content: `# AWS · SDE Intern\nCloudFormation Registry | Jun 2026 to Sep 2026 | Seattle, WA\n\n- Org-wide policy-based sharing of private resource types: retired a pattern that cloned one type into 8,000+ accounts across 8 regions\n- 2 new APIs, a DynamoDB table and DAO, a deny-by-default policy evaluator, 12 merged code reviews\n- ~90% of DescribeType traffic taken off a strongly consistent read\n- Native Kiro dual-model code review tool (GPT + Claude), featured on Kiro's LinkedIn\n- Slack bot backed by an LLM agent on AWS Bedrock, AppSec-approved IAM scope` },
           "topchoice.md": { type: "file", content: `# Top Choice Realty · Frontend Developer Intern\nApr 2024 to Aug 2024 | New York, NY\n\n- Built full-stack app (React, Python, SQL)\n- 85% faster lookups, 3x query speed\n- Managed 800+ client records` },
           "defalco.md": { type: "file", content: `# Robert DeFalco Realty · Computer Technician\nJun 2023 to Sep 2023 | New York, NY\n\n- On-site support across 3+ offices\n- Configured 15+ systems (Win/Mac/Linux)\n- Maintained 95%+ system uptime` },
         }
@@ -144,7 +147,7 @@ export default function Terminal({ onExit }) {
   ───────────────────────────────────────────────
     help         all available commands
     about        personal brief
-    experience   work history (AWS · Philips · ...)
+    experience   work history (Philips · Pinnatec · Pawtograder · AWS · ...)
     projects     featured builds
     skills       stack breakdown
     contact      how to reach me
@@ -153,6 +156,7 @@ export default function Terminal({ onExit }) {
     funfact      random fact about me
     interests    what i'm into (tv · cars · fitness · gaming · ai)
     vitals       current status
+    intro        replay the intro
     uplink       (try it)
 
   Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
@@ -204,7 +208,7 @@ export default function Terminal({ onExit }) {
   core           help · about · skills · experience · projects · contact · resume · hire
   fs             ls · cd · pwd · cat · tree · find · open · head · tail · grep
   system         whoami · hostname · date · uptime · neofetch · history · clear · banner
-  fun            sudo hire · git status · git log · vim · nano
+  fun            intro · sudo hire · git status · git log · vim · nano
 
   keys           Tab = complete   ↑↓ = history   Ctrl+L = clear   Enter = run
 
@@ -319,9 +323,9 @@ AUTHOR
       case "whoami":
         setHistory(prev => [...prev, { type: "output", text: `  ali_younes // operator
   ─────────────────────────────────────────────
-  rank      sde-intern @ aws (active) · swe co-op @ philips (prev)
-  loc       boston, ma → seattle, wa (summer '26)
-  now       aws cloudformation · infrastructure as code
+  rank      lead full stack @ pinnatec auto · sde co-op @ philips (part-time) · backend @ pawtograder
+  loc       boston, ma
+  prev      sde intern @ aws cloudformation · seattle, wa · summer '26
   studying  cs & political science · northeastern '27
   ─────────────────────────────────────────────
   try:  about · interests · funfact · vitals` }]);
@@ -383,10 +387,11 @@ AUTHOR
         setHistory(prev => [...prev, { type: "output", text: `
   CURRENT STATUS // ${new Date().toLocaleTimeString()}
   ───────────────────────────────────────────────
-  now        SDE Intern @ AWS CloudFormation · IaC · Seattle, WA
-             (Infrastructure as Code · CloudFormation)
-  prev       SWE Co-op @ Philips · Cambridge, MA
-             Jan to Jun 2026
+  now        Philips · SDE Co-op, back part-time · Cambridge, MA
+             Pinnatec Auto · Lead Full Stack Engineer (part-time) · Worcester, MA
+             Pawtograder · Backend Engineer, grading server · Boston, MA
+  prev       SDE Intern @ AWS CloudFormation · Seattle, WA
+             Jun to Sep 2026
   current    CS & Political Science · Northeastern
              Class of '27
   open to    full-time '27, interesting side-quests
@@ -477,12 +482,12 @@ AUTHOR
         setHistory(prev => [...prev, { type: "output", text: `
   ALI YOUNES
   ─────────────────────────────────────────────
-  Software Engineer · Boston → Seattle
+  Software Engineer · Boston
 
   CS & Political Science · Northeastern University · Class of '27
 
-  now       SDE Intern @ AWS CloudFormation · Infrastructure as Code · Seattle, WA
-  prev      SWE Co-op @ Philips · Cambridge, MA · Jan to Jun 2026
+  now       Philips (part-time) · Pinnatec Auto (lead, part-time) · Pawtograder
+  prev      SDE Intern @ AWS CloudFormation · Seattle, WA · Jun to Sep 2026
 
   I architect distributed, high-stakes systems and
   build the tools that keep them running.
@@ -499,11 +504,13 @@ AUTHOR
   Grouped, not ranked. A self-assigned "expert" bar is a claim nobody
   can check. These are the things I reach for.
 
-  LANGUAGES       TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
-  FRONTEND        React · Next.js · Tailwind · Framer Motion
-  BACKEND         Node.js · Express · MongoDB · .NET · PowerShell
-  SYSTEMS         Rust · C++ · DXGI · Metal · VideoToolbox · H.264
-  CLOUD & INFRA   AWS · Linux · IaC (CDK/CloudFormation) · CI/CD · Docker
+  LANGUAGES       TypeScript · JavaScript · Python · SQL · Java · C++ · C# · Rust · Swift · PowerShell · Bash · Go
+  FRONTEND        React · React Native (Expo) · Next.js · Tailwind · Framer Motion
+  BACKEND         Node.js · Express · FastAPI · Postgres · MongoDB · Deno · Supabase · PHP · .NET
+  SYSTEMS         Rust · C++ · ESP32 · DXGI · Metal · VideoToolbox · H.264
+  CLOUD & INFRA   AWS (CloudFormation · DynamoDB · IAM) · Linux · Docker · GitHub Actions · CI/CD
+  AI              OpenAI SDK · Claude SDK · MCP · Ollama · AWS Bedrock
+  AGENTS          Kiro · Codex · Claude Code · OpenCode · Windsurf · T3 Code · Cursor Bugbot · CodeRabbit
   TOOLS           Git · Vim · VS Code · Xcode
 
   For what I actually shipped with each, run 'projects'.
@@ -515,21 +522,36 @@ AUTHOR
   WORK EXPERIENCE
   ═══════════════════════════════════════════════════
 
-  ┌─ AWS · CloudFormation · Infrastructure as Code ─────
-  │  SDE Intern · Current
-  │  Jun 2026 to Present · Seattle, WA
+  ┌─ PHILIPS ────────────────────────────────────────────
+  │  SDE Co-op · System Integration · Current, part-time
+  │  Jan to Jun 2026, back since Aug 2026 · Cambridge, MA
   │
-  │  • Infrastructure as version-controlled CloudFormation
-  │  • Repeatable, auditable, declarative deployments
-  │  • Service-level project under Principal/Senior SDE mentor
+  │  • Zero-touch PXE deployment for a ~1,000-machine fleet
+  │  • FOG/TFTP · PowerShell WinPE orchestrator · FastAPI
   └──────────────────────────────────────────────────────
 
-  ┌─ PHILIPS ────────────────────────────────────────────
-  │  SWE Co-op · System Integration and Automation
-  │  Jan 2026 to Jun 2026 · Cambridge, MA
+  ┌─ PINNATEC AUTO ──────────────────────────────────────
+  │  Lead Full Stack Engineer · Current, part-time
+  │  Sep 2026 to Present · Worcester, MA
   │
-  │  • VM automation at scale · PicIX deployment pipelines
-  │  • C# · .NET · PowerShell · DevOps
+  │  • Virtual Link: Expo app · WordPress backend · ESP32 firmware
+  │  • 17 PRs, 12 merged · CI from zero · 214k+ lines removed
+  └──────────────────────────────────────────────────────
+
+  ┌─ PAWTOGRADER ────────────────────────────────────────
+  │  Backend Engineer, Grading Server · Current
+  │  Aug 2026 to Present · Boston, MA
+  │
+  │  • The scoring algorithm, owned with two other students
+  │  • TypeScript · Deno on Supabase · Postgres/PLpgSQL
+  └──────────────────────────────────────────────────────
+
+  ┌─ AWS · CloudFormation Registry ──────────────────────
+  │  SDE Intern
+  │  Jun 2026 to Sep 2026 · Seattle, WA
+  │
+  │  • Org-wide sharing of private resource types: 8,000+ accounts
+  │  • 2 new APIs · 12 merged reviews · ~90% of DescribeType off the hot read
   └──────────────────────────────────────────────────────
 
   ┌─ TOP CHOICE REALTY ──────────────────────────────────
@@ -540,7 +562,7 @@ AUTHOR
   │  • 85% faster lookups · 3x query speed · 800+ records
   └──────────────────────────────────────────────────────
 
-  → cat ~/experience/aws.md  ·  cat ~/experience/philips.md
+  → cat ~/experience/philips.md  ·  ~/experience/pinnatec.md  ·  ~/experience/pawtograder.md  ·  ~/experience/aws.md
 ` }]);
         break;
 
@@ -614,7 +636,7 @@ AUTHOR
   email      younes.al@northeastern.edu
   personal   whois.younes@gmail.com
   business   Aliyounes@eternalreverse.com
-  location   Boston, MA → Seattle, WA (Summer '26)
+  location   Boston, MA
 
   github     github.com/whoisaldo
   linkedin   linkedin.com/in/alialdoyounes
@@ -693,6 +715,12 @@ AUTHOR
 
   pro tip    try 'sudo hire' for VIP access
 ` }]);
+        break;
+
+      case "intro":
+        setHistory(prev => [...prev, { type: "system", text: "Replaying the intro. Escape skips it." }]);
+        onExit?.();
+        replayIntro();
         break;
 
       case "exit":
