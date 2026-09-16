@@ -5,6 +5,13 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/', // Root base for aliyounes.dev and GitHub Pages
+  server: {
+    // The dev server is reached over Tailscale, as devbox1 or
+    // devbox1.tail4a5f8f.ts.net, from a laptop and from T3 Code's preview.
+    // Vite 7 refuses any Host it was not told about, so the preview showed
+    // "Blocked request" while the bare IP worked.
+    allowedHosts: ['devbox1', '.ts.net'],
+  },
   build: {
     // The 320px modal thumbnails land just under Vite's 4 KB inline limit, so
     // by default all 29 of them were base64'd into the entry chunk, about 107 KB

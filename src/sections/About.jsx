@@ -82,12 +82,13 @@ export default function About() {
                 write-up on this site rather than a bullet point.
               </p>
               <p className="prose-dark">
-                I also co-founded Eternal Reverse, a two-person studio in Boston
-                that ships its own products instead of doing client work. Six so
-                far, four of them live. The work runs from a Rust and SwiftUI
-                display streamer to a Fabric mod with 39,000 lines of Java in
-                it, which is less scattered than it sounds. It is mostly the
-                same interest in what happens underneath an interface.
+                I also co-founded Sideband, a four-person independent software
+                studio in Boston that ships its own products instead of doing
+                client work. Six so far, four of them live. The work runs from
+                a Rust and SwiftUI display streamer to a Fabric mod with 39,000
+                lines of Java in it, which is less scattered than it sounds. It
+                is mostly the same interest in what happens underneath an
+                interface.
               </p>
               <p className="prose-dark">
                 Everything claimed on this site is checkable. Where a repository
@@ -137,7 +138,7 @@ export default function About() {
                   rel="noreferrer"
                   className="group inline-flex items-center gap-2 mono-ui text-muted transition-colors hover:text-volt"
                 >
-                  <span className="ink-underline">Eternal Reverse</span>
+                  <span className="ink-underline">Sideband</span>
                   <ArrowUpRight className="w-3.5 h-3.5 text-faint transition-all group-hover:text-volt group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                 </a>
                 <a

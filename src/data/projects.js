@@ -43,7 +43,7 @@ const BUILDING = "#ff2e88";
 // photorealistic shot of the real product running on real hardware; the
 // genuine screenshot is passed to the generator so the screen shows actual UI,
 // never invented interface. Regeneration recipe: docs/mock.sh + docs/post.sh.
-const kaEternalReverse = img("KeyArt/KeyArt_EternalReverse");
+const kaSideband = img("KeyArt/KeyArt_Sideband");
 const kaExerly = img("KeyArt/KeyArt_Exerly");
 const kaEternalExchange = img("KeyArt/KeyArt_EternalExchange");
 const kaMoops = img("KeyArt/KeyArt_Moops");
@@ -94,41 +94,42 @@ const facialFront = img("Facial/FacialRecognitionFrontPage");
 const facialHappy = img("Facial/FacialRecognitionHappy");
 const facialAngry = img("Facial/FacialRegocnitionAngryFace");
 
-// Eternal Reverse Studio: eternalreverse.com (captured live, 2026-07)
-const erLanding = img("EternalReverseStudio/EternalReverseLanding2026");
-const erProducts = img("EternalReverseStudio/EternalReverseProducts2026");
-const erProductsEM = img("EternalReverseStudio/EternalReverseProductEternalMonitor2026");
-const erProductsExerly = img("EternalReverseStudio/EternalReverseProductExerly2026");
-const erAbout = img("EternalReverseStudio/EternalReverseAbout2026");
+// Sideband: sideband.studio (captured live, 2026-09, after the rename from
+// Eternal Reverse; eternalreverse.com now redirects there)
+const sbLanding = img("SidebandStudio/SidebandLanding2026");
+const sbProducts = img("SidebandStudio/SidebandProducts2026");
+const sbProductEM = img("SidebandStudio/SidebandProductEternalMonitor2026");
+const sbProductExerly = img("SidebandStudio/SidebandProductExerly2026");
+const sbAbout = img("SidebandStudio/SidebandAbout2026");
 
 export const featuredProjects = [
   {
-    slug: "eternal-reverse",
-    title: "Eternal Reverse",
-    tagline: "indie software studio · eternalreverse.com",
+    slug: "sideband",
+    title: "Sideband",
+    tagline: "independent software studio · sideband.studio",
     why:
-      "Too many indie tools ship half-baked, bloat with features nobody asked for, and get abandoned the moment trends shift. Two of us in Boston, shipping the opposite.",
+      "Too many indie tools ship half-baked, bloat with features nobody asked for, and get abandoned the moment trends shift. Four of us now, a studio in Boston, shipping the opposite.",
     accent: LIVE,
     status: "live",
     description:
-      "A two-person indie software studio I co-founded in Boston. Ships its own technically-ambitious products instead of doing client work. Six of them, four already live.",
+      "An independent software studio I co-founded in Boston, four founders now. Ships its own products instead of doing client work. Six of them, four already live.",
     longDescription:
-      "What it is: a two-person studio founded in Boston in 2025. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Four are live: EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. EternalMonitor and Exerly Fitness are still in development.\n\n" +
-      "What I do here: co-founder and lead engineer. Wrote the Rust host + Swift client behind EternalMonitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and the studio site itself, which is Next.js with a custom design system, per-product detail routes, and an animated terminal boot on the hero.",
-    tech: ["Next.js", "TypeScript", "React", "Tailwind CSS", "Framer Motion", "Rust", "SwiftUI", "Node.js"],
+      "What it is: an independent studio founded in Boston in 2025 as Eternal Reverse and renamed Sideband in 2026. It started as two of us and is four founders now. Six products span systems engineering (Rust + Swift display streaming), native iOS (SwiftUI + HealthKit), video pipelines (DaVinci Resolve + OpenCV), and modern web (Next.js + a Chrome MV3 extension). Four are live: EternalRichPresence, Signature Cuts 413, Eternal2x and Eternal Summary. EternalMonitor and Exerly Fitness are still in development. Products shipped before the rename kept their names.\n\n" +
+      "What I do here: co-founder and lead engineer. Wrote the Rust host + Swift client behind EternalMonitor (DXGI capture, hardware H.264, Metal render); the SwiftUI iOS app + Node API behind Exerly Fitness; and most of the studio site itself, which is Next.js 14 with a page per product, an engineer dossier per founder, and an interactive terminal on the hero.",
+    tech: ["Next.js 14", "TypeScript", "React", "Tailwind CSS", "Framer Motion", "Rust", "SwiftUI", "Node.js"],
     features: [
       "6 products: 4 live, 2 in development",
-      "Studio site: Next.js + per-product detail routes",
-      "Animated terminal boot sequence on the hero",
-      "Custom design system w/ per-product accents",
+      "Studio site: Next.js 14, a page per product",
+      "An engineer dossier for each of the four founders",
+      "Interactive terminal on the hero",
       "Systems, iOS, video-pipeline and web work under one roof",
-      "Boston-based, two-person core, founded 2025",
+      "Boston-based, founded 2025 as Eternal Reverse, Sideband since 2026",
     ],
-    github: null,
-    live: "https://eternalreverse.com",
-    images: [kaEternalReverse, erLanding, erProducts, erProductsEM, erProductsExerly, erAbout],
+    github: "https://github.com/sidebandstudio/sideband.studio",
+    live: "https://sideband.studio",
+    images: [kaSideband, sbLanding, sbProducts, sbProductEM, sbProductExerly, sbAbout],
     imageLabels: ["Studio Index", "Landing", "Products", "Product: EternalMonitor", "Product: Exerly Fitness", "About"],
-    stats: { role: "Co-founder", since: "2025", products: "6 active" },
+    stats: { role: "Co-founder", since: "2025", founders: "4" },
   },
   {
     slug: "exerly-fitness",

@@ -22,7 +22,7 @@ import React, { useEffect } from "react";
 import { Link, useParams, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Github, ExternalLink } from "lucide-react";
-import { findWork, neighbours, subtitleOf } from "../data/work";
+import { findWork, neighbours, subtitleOf, RENAMED_SLUGS } from "../data/work";
 import { workPhotos } from "../data/life";
 import { hexToRgbTriplet } from "../lib/image";
 import ProjectImage from "../components/projects/ProjectImage";
@@ -76,6 +76,9 @@ export default function WorkPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
+
+  // A renamed entry forwards to its new address; see RENAMED_SLUGS.
+  if (!hit && RENAMED_SLUGS[slug]) return <Navigate to={`/work/${RENAMED_SLUGS[slug]}`} replace />;
 
   // An unknown slug is a wrong URL, not a crash. Send them to the work index
   // rather than rendering an apology.

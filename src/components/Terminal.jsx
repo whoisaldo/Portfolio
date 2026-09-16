@@ -52,9 +52,9 @@ Grouped, not ranked. A self-assigned proficiency bar is a claim nobody can check
 TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
 
 ## Frontend\nReact · React Native (Expo) · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · FastAPI · Postgres · MongoDB · Deno · Supabase · PHP · .NET · PowerShell\n\n## Cloud & Infra\nAWS (CloudFormation · DynamoDB · IAM) · Linux · Docker · GitHub Actions · CI/CD\n\n## AI & Agents\nOpenAI SDK · Claude SDK · MCP · Ollama · AWS Bedrock · Kiro · Codex · Claude Code` },
-      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "Aliyounes@eternalreverse.com",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
+      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "hello@sideband.studio",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file. Use 'open resume.pdf' to download]` },
-      ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@eternalreverse:\\w %"\nalias ll="ls -la"\nalias cls="clear"` },
+      ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@sideband:\\w %"\nalias ll="ls -la"\nalias cls="clear"` },
       ".gitconfig": { type: "file", content: `[user]\n  name = Ali Younes\n  email = younes.al@northeastern.edu\n[core]\n  editor = vim` },
       "projects": {
         type: "dir",
@@ -138,7 +138,7 @@ export default function Terminal({ onExit }) {
 
   const [history, setHistory] = useState(() => [
     { type: "ascii", text: asciiArt },
-    { type: "system", text: "eternalreverse.system v4.0 · direct console" },
+    { type: "system", text: "sideband.system v4.0 · direct console" },
     { type: "system", text: `last login: ${new Date().toLocaleString()} on ttys000` },
     { type: "output", text: `  ▸ fact_of_the_session
     ${pickFact()}
@@ -400,7 +400,7 @@ AUTHOR
         break;
 
       case "hostname":
-        setHistory(prev => [...prev, { type: "output", text: "eternalreverse" }]);
+        setHistory(prev => [...prev, { type: "output", text: "sideband" }]);
         break;
 
       case "date":
@@ -635,7 +635,7 @@ AUTHOR
 
   email      younes.al@northeastern.edu
   personal   whois.younes@gmail.com
-  business   Aliyounes@eternalreverse.com
+  business   hello@sideband.studio
   location   Boston, MA
 
   github     github.com/whoisaldo
@@ -666,8 +666,8 @@ AUTHOR
 
       case "neofetch":
         setHistory(prev => [...prev, { type: "output", text: `
-         /\\         younes@eternalreverse
-        /  \\        ─────────────────────
+         /\\         younes@sideband
+        /  \\        ───────────────
        /\\   \\       OS:        React 18.x
       /  ..  \\      Host:      Northeastern University
      /  .''.  \\     Kernel:    Node.js 20.x
@@ -697,7 +697,7 @@ AUTHOR
         if (args.join(" ").includes("rm -rf")) {
           setHistory(prev => [...prev, { type: "error", text: "Nice try. System protected." }]);
         } else if (args[0] === "hire") {
-          setHistory(prev => [...prev, { type: "system", text: "SUDO HIRE ACTIVATED\n\nemail:    younes.al@northeastern.edu\nbusiness: Aliyounes@eternalreverse.com\n\nlet's talk." }]);
+          setHistory(prev => [...prev, { type: "system", text: "SUDO HIRE ACTIVATED\n\nemail:    younes.al@northeastern.edu\nbusiness: hello@sideband.studio\n\nlet's talk." }]);
         } else {
           setHistory(prev => [...prev, { type: "output", text: "younes is not in the sudoers file. This incident will be reported." }]);
         }
@@ -711,7 +711,7 @@ AUTHOR
   Actively open to opportunities.
 
   email      younes.al@northeastern.edu
-  business   Aliyounes@eternalreverse.com
+  business   hello@sideband.studio
 
   pro tip    try 'sudo hire' for VIP access
 ` }]);
@@ -724,7 +724,7 @@ AUTHOR
         break;
 
       case "exit":
-        setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to eternalreverse closed." }]);
+        setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to sideband closed." }]);
         // The console is an overlay now, so `exit` can actually exit. The delay
         // is only so the logout line is readable before the panel goes.
         if (onExit) setTimeout(onExit, 450);
@@ -852,12 +852,12 @@ AUTHOR
     }
   };
 
-  // Prompt: younes@eternalreverse ~ %
+  // Prompt: younes@sideband ~ %
   const renderPrompt = (path) => (
     <span className="select-none font-mono">
       <span className="text-volt font-semibold">younes</span>
       <span className="text-bone/30">@</span>
-      <span className="text-bone">eternalreverse</span>
+      <span className="text-bone">sideband</span>
       <span className="text-bone/30"> </span>
       <span className="text-bone/60">{path}</span>
       <span className="text-volt"> %</span>
@@ -934,7 +934,7 @@ AUTHOR
 
             <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
               <TerminalIcon className="w-3.5 h-3.5 text-bone/50" />
-              <span className="text-[11px] text-bone/60 font-mono uppercase tracking-[0.18em]">younes@eternalreverse · {currentDir}</span>
+              <span className="text-[11px] text-bone/60 font-mono uppercase tracking-[0.18em]">younes@sideband · {currentDir}</span>
             </div>
 
             <div className="flex items-center gap-3 text-[10px] text-bone/50 font-mono">

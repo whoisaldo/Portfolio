@@ -46,7 +46,7 @@ const DATA = path.join(ROOT, "src/data");
 //   ui     : product screenshots, text-heavy, up to 3200x2000. Capped at 1600.
 // ---------------------------------------------------------------------------
 const SOURCES = [
-  ["keyart", "KeyArt/KeyArt_EternalReverse.png"],
+  ["keyart", "KeyArt/KeyArt_Sideband.png"],
   ["keyart", "KeyArt/KeyArt_Exerly.png"],
   ["keyart", "KeyArt/KeyArt_EternalExchange.png"],
   ["keyart", "KeyArt/KeyArt_Moops.png"],
@@ -55,11 +55,11 @@ const SOURCES = [
   ["keyart", "KeyArt/KeyArt_FaceAnalytics.png"],
   ["keyart", "KeyArt/KeyArt_SignatureCuts.png"],
 
-  ["ui", "EternalReverseStudio/EternalReverseLanding2026.png"],
-  ["ui", "EternalReverseStudio/EternalReverseProducts2026.png"],
-  ["ui", "EternalReverseStudio/EternalReverseProductEternalMonitor2026.png"],
-  ["ui", "EternalReverseStudio/EternalReverseProductExerly2026.png"],
-  ["ui", "EternalReverseStudio/EternalReverseAbout2026.png"],
+  ["ui", "SidebandStudio/SidebandLanding2026.png"],
+  ["ui", "SidebandStudio/SidebandProducts2026.png"],
+  ["ui", "SidebandStudio/SidebandProductEternalMonitor2026.png"],
+  ["ui", "SidebandStudio/SidebandProductExerly2026.png"],
+  ["ui", "SidebandStudio/SidebandAbout2026.png"],
 
   ["ui", "ExerlyFitness/ExerlyWebLanding2026.png"],
   ["ui", "ExerlyFitness/ExerlyWebDayLogged2026.png"],
@@ -100,7 +100,7 @@ const SOURCES = [
   // docs/PROJECT_CONTEXT.md ("Intro art"). The car is a transparent cutout
   // and keeps its alpha through both encoders; it never gets a JPEG.
   ["plate", "Intro/Moon.png"],
-  ["plate", "Intro/MoonPortrait.png"],
+  ["portrait", "Intro/MoonPortrait.png"],
   ["plate", "Intro/Skyline.png"],
   ["sprite", "Intro/Car.png"],
 ];
@@ -141,6 +141,17 @@ const PROFILES = {
   // widths: one for phones, one for everything else.
   plate: {
     widths: [2048, 1280],
+    avif: { quality: 50, effort: 6 },
+    webp: { quality: 76, effort: 6 },
+    jpegWidth: null,
+    jpeg: null,
+  },
+  // The portrait moon is painted at 1024 wide and only ever shown on phones,
+  // so it gets the plate encoder at its own width. Under the plate profile
+  // it came out as two copies of the same pixels under the 2048 and 1280
+  // bucket names.
+  portrait: {
+    widths: [1024],
     avif: { quality: 50, effort: 6 },
     webp: { quality: 76, effort: 6 },
     jpegWidth: null,
@@ -462,15 +473,15 @@ async function main() {
   rows.sort((a, b) => b.before - a.before);
   const w = Math.max(...rows.map((r) => r.key.length));
   console.log("");
-  console.log(`  ${"class".padEnd(7)}${"image".padEnd(w + 2)}${"before".padStart(10)}${"after".padStart(10)}${"saved".padStart(8)}`);
-  console.log(`  ${"-".repeat(7 + w + 2 + 28)}`);
+  console.log(`  ${"class".padEnd(9)}${"image".padEnd(w + 2)}${"before".padStart(10)}${"after".padStart(10)}${"saved".padStart(8)}`);
+  console.log(`  ${"-".repeat(9 + w + 2 + 28)}`);
   for (const r of rows) {
     const pct = `${(100 - (100 * r.after) / r.before).toFixed(0)}%`;
-    console.log(`  ${r.cls.padEnd(7)}${r.key.padEnd(w + 2)}${kb(r.before).padStart(10)}${kb(r.after).padStart(10)}${pct.padStart(8)}`);
+    console.log(`  ${r.cls.padEnd(9)}${r.key.padEnd(w + 2)}${kb(r.before).padStart(10)}${kb(r.after).padStart(10)}${pct.padStart(8)}`);
   }
   const lqipTotal = rows.reduce((n, r) => n + r.lqip, 0);
-  console.log(`  ${"-".repeat(7 + w + 2 + 28)}`);
-  console.log(`  ${"TOTAL".padEnd(7 + w + 2)}${mb(beforeTotal).padStart(10)}${mb(afterTotal).padStart(10)}${`${(100 - (100 * afterTotal) / beforeTotal).toFixed(1)}%`.padStart(8)}`);
+  console.log(`  ${"-".repeat(9 + w + 2 + 28)}`);
+  console.log(`  ${"TOTAL".padEnd(9 + w + 2)}${mb(beforeTotal).padStart(10)}${mb(afterTotal).padStart(10)}${`${(100 - (100 * afterTotal) / beforeTotal).toFixed(1)}%`.padStart(8)}`);
   console.log("");
   console.log(`  ${rows.length} images · ${encoded} encoded · ${skipped} already current`);
   console.log(`  LQIP: ${rows.length} inline previews, ${kb(lqipTotal)} raw / ~${kb((lqipTotal * 4) / 3)} base64`);
