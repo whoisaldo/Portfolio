@@ -691,7 +691,8 @@ export default function IntroCinematic() {
 
               {/* Credit, top left. Only while the track is really playing. */}
               <motion.p
-                className="absolute top-6 left-6 md:top-8 md:left-10 mono-micro text-dim max-w-[50vw] md:max-w-[60vw]"
+                className="absolute top-6 left-6 md:top-8 md:left-10 mono-micro text-muted max-w-[50vw] md:max-w-[60vw]"
+                style={{ textShadow: "0 1px 2px rgb(5 5 6 / 0.9), 0 0 12px rgb(5 5 6 / 0.9)" }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: flags.credit ? 1 : 0 }}
                 transition={{ duration: 0.6 }}
@@ -700,23 +701,29 @@ export default function IntroCinematic() {
               </motion.p>
 
               {/* The cards, then the name, in the same place: centre of the
-                  frame, a little above the middle, where the sky is. */}
-              <div className="absolute inset-x-0 top-[42%] -translate-y-1/2 px-6 text-center">
-                <AnimatePresence>
-                  {flags.card >= 0 && (
-                    <TitleCard key={`${run.id}-card-${flags.card}`} text={lines[flags.card]} out={flags.cardOut} />
-                  )}
-                </AnimatePresence>
+                  frame, a little above the middle, where the sky is. One
+                  grid cell holds both, so the name waiting invisibly under a
+                  card never pushes the card up; they share a centre. */}
+              <div className="absolute inset-x-0 top-[42%] -translate-y-1/2 px-6 text-center grid place-items-center">
+                <div className="col-start-1 row-start-1 w-full">
+                  <AnimatePresence>
+                    {flags.card >= 0 && (
+                      <TitleCard key={`${run.id}-card-${flags.card}`} text={lines[flags.card]} out={flags.cardOut} />
+                    )}
+                  </AnimatePresence>
+                </div>
                 {flags.card >= 0 && !flags.cardOut && (
                   <span key={`flare-${run.id}-${flags.card}`} className="intro-flare" aria-hidden="true" />
                 )}
-                <NameDecode key={`name-${run.id}`} text={target} on={flags.name} burst={flags.kicked} />
-                <motion.span
-                  className="mt-5 block h-px bg-volt mx-auto"
-                  initial={{ width: 0 }}
-                  animate={{ width: flags.name ? "min(24rem, 62vw)" : 0 }}
-                  transition={{ duration: 0.5, delay: 0.12, ease: [0.16, 0.9, 0.25, 1] }}
-                />
+                <div className="col-start-1 row-start-1 w-full">
+                  <NameDecode key={`name-${run.id}`} text={target} on={flags.name} burst={flags.kicked} />
+                  <motion.span
+                    className="mt-5 block h-px bg-volt mx-auto"
+                    initial={{ width: 0 }}
+                    animate={{ width: flags.name ? "min(24rem, 62vw)" : 0 }}
+                    transition={{ duration: 0.5, delay: 0.12, ease: [0.16, 0.9, 0.25, 1] }}
+                  />
+                </div>
               </div>
 
               {/* Waiting on the download, said plainly. */}
