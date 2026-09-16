@@ -14,9 +14,11 @@ Live: **[aliyounes.dev](https://aliyounes.dev)**
 - Framer Motion for entrances and micro-interactions
 - Cyberpunk 2077 / Edgerunners visual direction: Chakra Petch for display,
   Barlow for prose, JetBrains Mono for data
-- An intro cinematic choreographed to the track: the moon, then a car that
-  drifts the page in on the beat. Every cue is a measurement of the audio
-  file, recorded in `src/lib/cues.js`
+- An intro cinematic choreographed to the track: the moon, three title
+  cards, then a car that drifts the page in on the beat. Every cue is a
+  measurement of the audio file, recorded in `src/lib/cues.js`
+- three.js for the car, loaded on demand for the four seconds it is on
+  screen and never part of the main bundle
 
 ## Run locally
 
@@ -55,14 +57,22 @@ npm run og       # regenerates public/og.png
 - `src/components/IntroCinematic.jsx` the intro. Runs on the song's clock;
   `?intro=off`, `?intro=short` and `?intro=full` override the default of
   full once per tab, short after
+- `src/components/projects/WorkDeck.jsx` the work section: a rail of every
+  project, a screen for one, and an expanded view with the screenshots
+- `src/components/RoadTraffic.jsx` the four small cars on the hero's road
 - `src/components/ui/` the chamfered `Panel` primitive and the decode effect
 - `src/data/` all content. Copy lives here, never in a component
 - `src/lib/` scroll behaviour, the analytics beacon, and the audio:
   `audio.js` (the context and the volume), `ambient.js` (the track, its
-  clock, the analyser), `cues.js` (the timeline), `intro-sfx.js` (the car),
-  `ui-sfx.js` (the blips), `reactive.js` (the `--bass` / `--level` variables)
-- `src/assets/Intro/` the three generated plates: the moon, the car, the
-  skyline. See `docs/PROJECT_CONTEXT.md`, "Intro art"
+  clock, the analyser), `cues.js` (the timeline), `intro-sfx.js` (the car,
+  the glitch, the decode ticks), `ui-sfx.js` (the blips), `reactive.js` (the
+  `--bass` / `--level` variables), `drift.js` and `drift-scene.js` (the 3D
+  drift: the path, the camera, the smoke, the trails, the light on the floor)
+- `src/three/car/` the car itself, a three.js module built by GPT-6-Astra
+  through the codex-3d skill; `notes.md` beside it lists the part names
+- `src/assets/Intro/` the generated art: the moon plate, the skyline, the
+  flat car the intro falls back to without WebGL, and the small top-down car
+  the hero's traffic uses. See `docs/PROJECT_CONTEXT.md`, "Intro art"
 - `public/audio/ambient.m4a` background track, prefetched while the door is
   up and played only after the reader clicks through it
 - `public/resume.pdf` current résumé, served at `/resume.pdf` and `/resume`
@@ -74,5 +84,5 @@ site, or the GitHub API. `docs/PROJECT_CONTEXT.md` records that audit, including
 what was removed for failing it. Read it before editing any copy.
 
 Two house rules that are easy to break by accident: no em dashes anywhere, and
-no invented telemetry. The intro's readout prints measured values only; the
-car and the hex matrix are staged as the fiction they are.
+no invented telemetry. The deck's status bar reports which entry and how many;
+the intro's car and its title cards are staged as the fiction they are.

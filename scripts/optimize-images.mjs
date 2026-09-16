@@ -100,6 +100,7 @@ const SOURCES = [
   // docs/PROJECT_CONTEXT.md ("Intro art"). The car is a transparent cutout
   // and keeps its alpha through both encoders; it never gets a JPEG.
   ["plate", "Intro/Moon.png"],
+  ["plate", "Intro/MoonPortrait.png"],
   ["plate", "Intro/Skyline.png"],
   ["sprite", "Intro/Car.png"],
 ];

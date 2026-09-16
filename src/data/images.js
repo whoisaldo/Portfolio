@@ -170,6 +170,9 @@ import Intro_Moon_2048webp from "../assets/Intro/Moon-2048.webp";
 import Intro_Moon_1280avif from "../assets/Intro/Moon-1280.avif";
 import Intro_Moon_1280webp from "../assets/Intro/Moon-1280.webp";
 import Intro_Moon_thumb from "../assets/Intro/Moon-320.webp";
+import Intro_MoonPortrait_1024avif from "../assets/Intro/MoonPortrait-1024.avif";
+import Intro_MoonPortrait_1024webp from "../assets/Intro/MoonPortrait-1024.webp";
+import Intro_MoonPortrait_thumb from "../assets/Intro/MoonPortrait-320.webp";
 import Intro_Skyline_2048avif from "../assets/Intro/Skyline-2048.avif";
 import Intro_Skyline_2048webp from "../assets/Intro/Skyline-2048.webp";
 import Intro_Skyline_1280avif from "../assets/Intro/Skyline-1280.avif";
@@ -600,6 +603,16 @@ export const images = {
     thumb: Intro_Moon_thumb,
     lqip: lqip["Intro/Moon"],
     lqipKey: "Intro/Moon",
+  },
+  "Intro/MoonPortrait": {
+    src: Intro_MoonPortrait_1024webp,
+    width: 1024,
+    height: 1536,
+    avif: { 1024: Intro_MoonPortrait_1024avif },
+    webp: { 1024: Intro_MoonPortrait_1024webp },
+    thumb: Intro_MoonPortrait_thumb,
+    lqip: lqip["Intro/MoonPortrait"],
+    lqipKey: "Intro/MoonPortrait",
   },
   "Intro/Skyline": {
     src: Intro_Skyline_2048webp,

@@ -25,8 +25,11 @@
 // see docs/PROJECT_CONTEXT.md) held almost black, with a parallax a third of
 // the scroll, so the intro's moon-to-city descent lands somewhere. The tyre
 // marks are the car's: two curves drawn across the floor of the section in
-// the second after the reveal, then left there faint. Continuity, not
-// decoration, and the only thing in this section that moves on its own.
+// the second after the reveal, then left there faint, and then driven: four
+// small cars run the curve in both lanes (RoadTraffic.jsx). It is the one
+// thing in this section that keeps moving, and it moves in the background,
+// at the size of a fingernail, which is the only size at which a looping
+// animation on a hero is company rather than noise.
 import React from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRight, Github, Linkedin, Mail } from "lucide-react";
@@ -36,6 +39,7 @@ import { img } from "../data/images";
 import { scrollToSection } from "../lib/scroll";
 import { useIntroDone } from "../lib/intro";
 import Picture from "./Picture";
+import RoadTraffic from "./RoadTraffic";
 import Panel from "./ui/Panel";
 import Glitch from "./ui/Glitch";
 
@@ -82,8 +86,9 @@ export default function Hero() {
       </motion.div>
       <div className="absolute inset-0 crt-grid opacity-50 pointer-events-none" aria-hidden="true" />
 
-      {/* The tyre marks. Two parallel curves, the track of a car that came
-          through from the right and left toward the bottom left. */}
+      {/* The road. Two parallel curves, the track of a car that came through
+          from the right and left toward the bottom left, and the traffic
+          that followed it. */}
       <svg
         aria-hidden="true"
         className="absolute inset-x-0 bottom-0 h-[42%] w-full pointer-events-none"
@@ -106,6 +111,7 @@ export default function Hero() {
             transition={{ duration: 1.15, delay: 0.05 + i * 0.05, ease: "easeOut" }}
           />
         ))}
+        <RoadTraffic active={done} />
       </svg>
 
       <div className="relative w-full">

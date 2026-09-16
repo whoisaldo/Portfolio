@@ -32,13 +32,14 @@
 //   ignores overlays reads a complete document.
 //
 // It is also, quietly, the loading screen the intro needs: the seconds a
-// reader spends on this panel are the seconds the track's 3.8 MB and the two
-// intro plates take to arrive, so the click that follows starts the song in a
-// few hundred milliseconds. See prefetchTrack() and <Preload /> below.
+// reader spends on this panel are the seconds the track's 3.8 MB, the two
+// intro plates and the 3D car's chunk take to arrive, so the click that
+// follows starts the song in a few hundred milliseconds. See prefetchTrack(),
+// loadDrift() and <Preload /> below.
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Volume2, VolumeX } from "lucide-react";
-import { useFocusTrap } from "../hooks";
+import { useFocusTrap, useMediaQuery } from "../hooks";
 import { profile } from "../data/profile";
 import { img } from "../data/images";
 import {
@@ -49,6 +50,7 @@ import {
   unlockAudio,
 } from "../lib/audio";
 import { prefetchTrack, startAmbient } from "../lib/ambient";
+import { loadDrift } from "../lib/drift";
 import { introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
 import { CRUISE_GAIN, DROP, INTRO_GAIN, SHORT_START, SONG_START } from "../lib/cues";
 import Panel from "./ui/Panel";
@@ -61,9 +63,10 @@ import Picture from "./Picture";
  * negotiation; this can.
  */
 function Preload() {
+  const portrait = useMediaQuery("(orientation: portrait)");
   return (
     <div aria-hidden="true" className="fixed w-px h-px overflow-hidden opacity-0 pointer-events-none -z-10">
-      <Picture sources={img("Intro/Moon")} sizes="100vw" loading="eager" fetchPriority="low" />
+      <Picture sources={img(portrait ? "Intro/MoonPortrait" : "Intro/Moon")} sizes="100vw" loading="eager" fetchPriority="low" />
       <Picture sources={img("Intro/Car")} sizes="72vw" loading="eager" fetchPriority="low" />
     </div>
   );
@@ -78,10 +81,14 @@ export default function EntryGate({ onEnter }) {
   const [mode] = useState(introModeForThisLoad);
   const panelRef = useRef(null);
 
-  // Start the download the moment the door is on screen.
+  // Start the downloads the moment the door is on screen: the track, and
+  // the 3D chunk the drift needs. Neither is awaited anywhere; the intro
+  // simply finds them ready.
   useEffect(() => {
-    if (open) prefetchTrack();
-  }, [open]);
+    if (!open) return;
+    prefetchTrack();
+    if (mode !== "off") loadDrift().catch(() => {});
+  }, [open, mode]);
 
   const enter = (withSound) => {
     // Close first, unconditionally. Whatever audio does next, the reader is
@@ -199,7 +206,7 @@ export default function EntryGate({ onEnter }) {
                 </Panel>
               </div>
 
-              <p className="mt-6 mono-micro text-faint leading-relaxed">
+              <p className="mt-6 mono-label text-dim leading-relaxed">
                 {returning
                   ? "Browsers need a click on every page load before they will play audio. Entering silent stops this appearing again."
                   : "Your browser needs a click before it will play audio. Volume lives bottom left, and either choice is changeable there."}

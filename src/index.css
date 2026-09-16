@@ -438,6 +438,140 @@ a:hover .ink-underline,
   to   { background-position-y: 22px; }
 }
 
+/* Moon dust. Motes that rise through the frame over ten seconds or so,
+   each on its own delay, so the sky is never still and never busy. */
+.intro-mote {
+  position: absolute;
+  width: var(--s, 3px);
+  height: var(--s, 3px);
+  border-radius: 50%;
+  background: rgb(236 234 228 / 0.9);
+  box-shadow: 0 0 6px 1px rgb(252 238 10 / 0.3);
+  opacity: 0;
+  animation: mote var(--d, 10s) linear var(--delay, 0s) infinite;
+  pointer-events: none;
+}
+@keyframes mote {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  12%  { opacity: var(--o, 0.6); }
+  82%  { opacity: var(--o, 0.6); }
+  100% { transform: translate3d(var(--dx, 10px), -24vh, 0); opacity: 0; }
+}
+
+/* Earth's glow. Its opacity follows the music through --level, which
+   src/lib/reactive.js writes while the track plays; in silence it holds
+   still at its floor. */
+.intro-earthglow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(56vw 44vh at 50% 36%, rgb(140 190 255 / 0.30), rgb(140 190 255 / 0.08) 46%, transparent 72%);
+  opacity: calc(0.4 + var(--level, 0) * 0.6);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* A falling star: a streak with a bright head, travelling down and left
+   along its own axis, once. */
+.intro-meteor {
+  position: absolute;
+  left: var(--mx, 60%);
+  top: var(--my, 10%);
+  width: 24vw;
+  height: 2px;
+  background: linear-gradient(90deg, #fff, rgb(236 234 228 / 0.9) 18%, rgb(236 234 228 / 0.35) 55%, transparent);
+  transform-origin: left center;
+  filter: drop-shadow(0 0 4px rgb(236 234 228 / 0.85));
+  opacity: 0;
+  animation: meteor 1.35s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  pointer-events: none;
+}
+@keyframes meteor {
+  0%   { opacity: 0; transform: rotate(var(--ma, 20deg)) translateX(0) scaleX(0.15); }
+  8%   { opacity: 1; }
+  70%  { opacity: 0.9; }
+  100% { opacity: 0; transform: rotate(var(--ma, 20deg)) translateX(-46vw) scaleX(1); }
+}
+
+/* Anamorphic flare across the frame as a title card lands. */
+.intro-flare {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 92vw;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgb(255 46 136 / 0.55) 30%, rgb(236 234 228 / 0.95) 50%, rgb(0 229 255 / 0.55) 70%, transparent);
+  filter: blur(1px);
+  opacity: 0;
+  transform: translate(-50%, -50%) scaleX(0.15);
+  animation: flare 0.6s cubic-bezier(0.16, 0.9, 0.25, 1) forwards;
+  pointer-events: none;
+}
+@keyframes flare {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scaleX(0.15); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scaleX(1.1); }
+}
+
+/* The dark behind the words. */
+.intro-textscrim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(64vw 44vh at 50% 42%, rgb(5 5 6 / 0.72), rgb(5 5 6 / 0.3) 55%, transparent 76%);
+  pointer-events: none;
+}
+
+/* Title cards. The text tears in through horizontal slices, with a magenta
+   copy and a cyan copy jumping around behind it for half a second, then
+   holds clean. `steps()` because a glitch that eases is a wobble. The
+   copies are pseudo-elements reading data-text, so the DOM holds the line
+   once. */
+.intro-card-text {
+  position: relative;
+  display: inline-block;
+  text-shadow: 0 0 32px rgb(252 238 10 / 0.22), 0 0 2px rgb(236 234 228 / 0.5);
+}
+.intro-card-text::before,
+.intro-card-text::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  text-shadow: none;
+  pointer-events: none;
+}
+.intro-card-text.is-in { animation: card-slices 0.5s steps(1, end) both; }
+.intro-card-text.is-in::before { color: #ff2e88; animation: card-split-a 0.5s steps(1, end) both; }
+.intro-card-text.is-in::after  { color: #00e5ff; animation: card-split-b 0.5s steps(1, end) both; }
+.intro-card-text.is-out { animation: card-out 0.24s steps(1, end) both; }
+@keyframes card-slices {
+  0%   { clip-path: inset(38% 0 42% 0); transform: translate(-12px, 0); }
+  18%  { clip-path: inset(8% 0 64% 0);  transform: translate(9px, 0); }
+  36%  { clip-path: inset(0 0 26% 0);   transform: translate(-5px, 1px); }
+  54%  { clip-path: inset(58% 0 0 0);   transform: translate(4px, -1px); }
+  72%  { clip-path: inset(0);           transform: translate(-2px, 0); }
+  100% { clip-path: inset(0);           transform: none; }
+}
+@keyframes card-split-a {
+  0%   { opacity: 0.85; transform: translate(-8px, -2px); clip-path: inset(20% 0 45% 0); }
+  30%  { opacity: 0.75; transform: translate(6px, 1px);   clip-path: inset(55% 0 10% 0); }
+  60%  { opacity: 0.6;  transform: translate(-3px, 0);    clip-path: inset(0 0 70% 0); }
+  85%  { opacity: 0.35; transform: translate(2px, 0);     clip-path: inset(40% 0 40% 0); }
+  100% { opacity: 0; }
+}
+@keyframes card-split-b {
+  0%   { opacity: 0.85; transform: translate(8px, 2px);   clip-path: inset(50% 0 15% 0); }
+  30%  { opacity: 0.75; transform: translate(-6px, -1px); clip-path: inset(5% 0 60% 0); }
+  60%  { opacity: 0.6;  transform: translate(3px, 0);     clip-path: inset(65% 0 0 0); }
+  85%  { opacity: 0.35; transform: translate(-2px, 0);    clip-path: inset(30% 0 50% 0); }
+  100% { opacity: 0; }
+}
+@keyframes card-out {
+  0%   { clip-path: inset(0); transform: none; opacity: 1; }
+  35%  { clip-path: inset(30% 0 30% 0); transform: translate(9px, 0); opacity: 0.9; }
+  70%  { clip-path: inset(0 0 60% 0);   transform: translate(-11px, 0); opacity: 0.7; }
+  100% { clip-path: inset(50% 0 50% 0); opacity: 0; }
+}
+
 /* Tyre smoke. One puff, expanding, rising, drifting the way it was thrown. */
 .intro-puff {
   position: absolute;
@@ -499,6 +633,36 @@ a:hover .ink-underline,
   height: calc(15% + var(--vu, 0) * 85%);
   background: #fcee0a;
   transition: height 60ms linear;
+}
+
+/* ===========================================================================
+   The work deck
+   ---------------------------------------------------------------------------
+   Used by src/components/projects/WorkDeck.jsx. The screen inside the frame
+   switches on with a horizontal line that opens into the picture, which is
+   what a CRT did and what makes a tab change read as a channel change.
+   =========================================================================== */
+.deck-screen-on {
+  animation: deck-on 0.36s cubic-bezier(0.16, 0.9, 0.25, 1) both;
+}
+@keyframes deck-on {
+  0%   { clip-path: inset(49% 0 49% 0); filter: brightness(2.2); }
+  45%  { clip-path: inset(0);           filter: brightness(1.5); }
+  100% { clip-path: inset(0);           filter: brightness(1); }
+}
+.deck-scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.14) 0 1px,
+    transparent 1px 4px
+  );
+}
+/* The status square beside each entry: volt for live, fuchsia for building. */
+.deck-led {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: none;
 }
 
 /* The reticle. Four ticks and a dot, trailing the pointer. */

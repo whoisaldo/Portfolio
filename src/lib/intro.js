@@ -13,6 +13,7 @@
 import { useSyncExternalStore } from "react";
 import { shouldGate, soundEnabled, unlockAudio } from "./audio";
 import { startAmbient, stopAmbient } from "./ambient";
+import { loadDrift } from "./drift";
 import { INTRO_GAIN, SONG_START } from "./cues";
 
 const SEEN_KEY = "aly.intro.v1";
@@ -65,6 +66,7 @@ export function startIntro(detail) {
  */
 export function replayIntro(extra = {}) {
   const withSound = soundEnabled();
+  loadDrift().catch(() => {});
   setIntroDone(false);
   window.scrollTo({ top: 0, behavior: "instant" });
   if (withSound) {

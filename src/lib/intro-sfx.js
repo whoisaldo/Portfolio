@@ -11,6 +11,11 @@
 // settling to an idle, revs climbing through the run-up to the drop, tyres
 // breaking loose on the beat, and the doppler drop of a car that has left.
 //
+// Two sounds here are not the car. A digital stutter tears in with each
+// title card, and a run of rising ticks plays while the name resolves out of
+// noise: the sound of the text, so the text is not silent while everything
+// else in the scene has a voice.
+//
 // Everything joins the ambient bus, so it follows the reader's volume and is
 // heard by the analyser like anything else. Nothing here plays unless the
 // cinematic asks, and cancel() silences all of it on a skip.
@@ -83,14 +88,57 @@ function tone(ac, out, { at, duration, type = "sawtooth", from, to, gain, filter
 }
 
 /**
+ * A digital stutter: a square wave whose pitch is re-rolled every 24 ms,
+ * gated in bursts, with a crackle of noise under it and a short falling
+ * blip as the text lands. About a third of a second.
+ */
+function glitch(ac, out, at) {
+  const step = 0.024;
+  const notes = [220, 1760, 440, 1320, 880, 330, 1980, 660, 1100, 495, 2640, 740];
+  const osc = ac.createOscillator();
+  osc.type = "square";
+  const band = ac.createBiquadFilter();
+  band.type = "bandpass";
+  band.frequency.value = 1700;
+  band.Q.value = 0.9;
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, at);
+  notes.forEach((f, i) => {
+    const t = at + i * step;
+    osc.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(i % 3 === 2 ? 0.0001 : 0.05, t);
+  });
+  const end = at + notes.length * step;
+  g.gain.setValueAtTime(0.0001, end);
+  osc.connect(band).connect(g).connect(out);
+  osc.start(at);
+  osc.stop(end + 0.05);
+  live.push(osc);
+
+  noise(ac, out, { at, duration: 0.16, freq: 3600, q: 2.5, gain: 0.035, attack: 0.005, release: 0.08 });
+  tone(ac, out, { at: end, duration: 0.07, type: "sine", from: 1400, to: 620, gain: 0.05, attack: 0.004, release: 0.07 });
+}
+
+/** Nine short ticks climbing in pitch: the name resolving. */
+function decodeTicks(ac, out, at) {
+  for (let i = 0; i < 9; i++) {
+    tone(ac, out, { at: at + i * 0.075, duration: 0.014, type: "sine", from: 900 + i * 190, gain: 0.03, attack: 0.003, release: 0.03 });
+  }
+}
+
+/**
  * Schedule the whole car against the song.
  *
  * `at(cue)` converts seconds-of-song into AudioContext time, which is the
  * cinematic's job to know: it owns the clock. Cues already in the past are
  * skipped rather than played late, so a short intro that starts a bar before
  * the drop simply never hears the ignition.
+ *
+ * `cards` are the song seconds each title card tears in on, and `name` is
+ * when the name starts to resolve; both vary with the intro's mode, so the
+ * cinematic passes them rather than this file guessing.
  */
-export function scheduleIntroSfx(at) {
+export function scheduleIntroSfx(at, { cards = [], name = IGNITION } = {}) {
   const ac = audioContext();
   const out = ambientBus();
   if (!ac || !out || ac.state !== "running") return;
@@ -99,6 +147,12 @@ export function scheduleIntroSfx(at) {
   const now = ac.currentTime + 0.02;
   const future = (cue) => Math.max(now, at(cue));
   const skipped = (cue) => at(cue) < now - 0.05;
+
+  // --- the text ------------------------------------------------------------
+  for (const cue of cards) {
+    if (!skipped(cue)) glitch(ac, out, future(cue));
+  }
+  if (!skipped(name)) decodeTicks(ac, out, future(name) + 0.05);
 
   // --- ignition -----------------------------------------------------------
   if (!skipped(IGNITION)) {
