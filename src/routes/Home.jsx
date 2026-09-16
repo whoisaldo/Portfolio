@@ -13,7 +13,7 @@ import ProjectsSection from "../components/projects/ProjectsSection";
 import ExperienceIndex from "../components/ExperienceIndex";
 import About from "../sections/About";
 import Stack from "../sections/Stack";
-import Teardown from "../sections/Teardown";
+import Garage from "../sections/Garage";
 import Contact from "../sections/Contact";
 import { scrollToSection } from "../lib/scroll";
 
@@ -21,7 +21,9 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const hash = window.location.hash.slice(1);
+    // The Teardown section became the garage; a link to #teardown still lands.
+    const raw = window.location.hash.slice(1);
+    const hash = raw === "teardown" ? "garage" : raw;
     if (!hash) {
       window.scrollTo(0, 0);
       return;
@@ -65,7 +67,7 @@ export default function Home() {
         <ExperienceIndex />
         <About />
         <Stack />
-        <Teardown />
+        <Garage />
         <Contact />
       </main>
     </>

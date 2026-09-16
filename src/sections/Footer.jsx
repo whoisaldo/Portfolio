@@ -10,6 +10,7 @@
 // Neither did. What is left is what a footer is for: whose site this is, and
 // where else to find him.
 import React from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { profile, links } from "../data/profile";
 import { replayIntro } from "../lib/intro";
@@ -73,6 +74,15 @@ export default function Footer() {
               <span className="ink-underline">{link.label}</span>
             </a>
           ))}
+          {/* The plain version. The header carries this link from lg up and
+              the door carries it on arrival; the footer carries it for
+              everyone else. */}
+          <Link
+            to="/recruiters"
+            className="mono-label text-dim transition-colors duration-200 hover:text-volt"
+          >
+            <span className="ink-underline">Recruiters press this</span>
+          </Link>
           {/* The full intro, on demand. The short one plays itself on a
               repeat visit; this is the way back to the moon. */}
           <button

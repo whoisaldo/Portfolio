@@ -31,6 +31,9 @@ jobs:
           # any build made before stats-api is deployed. See stats-api/README.md.
           VITE_STATS_ENDPOINT: https://stats.aliyounes.dev/api/collect
       - run: cp dist/index.html dist/404.html     # SPA refresh fix
+      # /recruiters is the address on the résumé, so it gets a real page and
+      # a 200 rather than the 404 fallback the other client-side routes use.
+      - run: mkdir -p dist/recruiters && cp dist/index.html dist/recruiters/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

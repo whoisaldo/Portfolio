@@ -22,7 +22,7 @@ export const sections = [
   { id: "experience", label: "Experience", nav: true },
   { id: "about", label: "About", nav: true },
   { id: "stack", label: "Stack", nav: false },
-  { id: "teardown", label: "Teardown", nav: true },
+  { id: "garage", label: "Garage", nav: true },
   { id: "contact", label: "Contact", nav: true },
 ];
 

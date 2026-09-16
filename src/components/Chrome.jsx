@@ -60,6 +60,17 @@ export default function Chrome() {
     applyVolume();
   };
 
+  // The console can switch the sound and the volume too (`sound on`,
+  // `volume 40`); this control follows, so the icon never lies.
+  useEffect(() => {
+    const onSound = (e) => {
+      if (typeof e.detail?.on === "boolean") setSound(e.detail.on);
+      if (typeof e.detail?.volume === "number") setVol(e.detail.volume);
+    };
+    window.addEventListener("aly:sound", onSound);
+    return () => window.removeEventListener("aly:sound", onSound);
+  }, []);
+
   useEffect(() => {
     const els = sections
       .map((s) => document.getElementById(s.id))

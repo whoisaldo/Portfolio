@@ -23,27 +23,28 @@
 //
 // Behind it now: the city. A painted skyline (src/assets/Intro/Skyline.png,
 // see docs/PROJECT_CONTEXT.md) held almost black, with a parallax a third of
-// the scroll, so the intro's moon-to-city descent lands somewhere. The tyre
-// marks are the car's: two curves drawn across the floor of the section in
-// the second after the reveal, then left there faint, and then driven: four
-// small cars run the curve in both lanes (RoadTraffic.jsx). It is the one
-// thing in this section that keeps moving, and it moves in the background,
-// at the size of a fingernail, which is the only size at which a looping
-// animation on a hero is company rather than noise.
+// the scroll, so the intro's moon-to-city descent lands somewhere. Since the
+// skyline came alive (Skyline.jsx: rooftop signage, haze, the signs in the
+// water, all of it breathing with the track) the city is company too, but it
+// is company in the background: nothing in it sits behind text, and every
+// part of it can be switched off from the console. The tyre marks are the
+// car's: two curves drawn across the floor of the section in the second
+// after the reveal, then left there faint, and then driven: four small cars
+// run the curve in both lanes (RoadTraffic.jsx), at the size of a
+// fingernail, which is the only size at which a looping animation on a hero
+// is company rather than noise.
 import React from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ArrowRight, Github, Linkedin, Mail } from "lucide-react";
 import { profile, links } from "../data/profile";
 import { portrait } from "../data/life";
-import { img } from "../data/images";
 import { scrollToSection } from "../lib/scroll";
 import { useIntroDone } from "../lib/intro";
 import Picture from "./Picture";
 import RoadTraffic from "./RoadTraffic";
+import Skyline from "./Skyline";
 import Panel from "./ui/Panel";
 import Glitch from "./ui/Glitch";
-
-const SKYLINE = img("Intro/Skyline");
 
 // Every block below shares this pair and picks its own delay. `animate` is
 // held at "initial" until the intro is over, so nothing here spends its
@@ -68,21 +69,25 @@ export default function Hero() {
     >
       {/* The city. Taller than the section so the parallax never shows an
           edge, graded to ink on the left where the name sits and along the
-          bottom where the section hands off. */}
+          bottom where the section hands off. From lg up it sits higher in
+          the section than it did, so the rooftops (and the signs mounted on
+          them, see Skyline.jsx) rise into the band between the name and the
+          ledger instead of hiding behind the ledger's panels and the
+          portrait. */}
       <motion.div
         aria-hidden="true"
-        className="absolute inset-x-0 -top-[14%] -bottom-[14%] pointer-events-none"
+        className="absolute inset-x-0 -top-[14%] -bottom-[14%] lg:-top-[26%] lg:-bottom-[2%] pointer-events-none"
         style={{ y: skyY }}
       >
-        <Picture
-          sources={SKYLINE}
-          alt=""
-          sizes="100vw"
-          fetchPriority="high"
-          className="absolute inset-0 w-full h-full object-cover object-[64%_58%] opacity-90"
-        />
+        <Skyline className="absolute inset-0" />
         <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/55 to-ink/5" />
-        <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-ink via-ink/80 to-transparent" />
+        {/* Two bands rather than one: a soft one over the lower half so the
+            ledger reads, and a solid one at the foot so the section hands
+            off to the next in ink. Lighter than it was, because the water
+            with the signs in it lives here and a wall of ink over it would
+            leave nothing to reflect. */}
+        <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-ink/60 via-ink/30 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-[9%] bg-gradient-to-t from-ink to-transparent" />
       </motion.div>
       <div className="absolute inset-0 crt-grid opacity-50 pointer-events-none" aria-hidden="true" />
 

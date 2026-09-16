@@ -71,6 +71,12 @@ export const workPhotos = {
 // was which. The groups carry that, and each one gets a line of context so a
 // reader knows what they are looking at before they read a caption.
 //
+// The S4 is no longer in here. Its three photographs, and the caption on each,
+// moved to src/data/garage.js when the section became the garage, where the
+// car is opened up part by part rather than captioned. What stays is the rest
+// of the shop: the 328xi, the bench, and the two competitions, rendered under
+// the garage bay by src/sections/Garage.jsx.
+//
 // Every `body` here is Ali's own account, supplied 2026-08-28. The seven
 // TODO(Ali) markers that used to sit in this file are gone because the
 // questions behind them have been answered: which car, what was being done to
@@ -79,11 +85,11 @@ export const workPhotos = {
 // the 328xi while the S4 is the daily, which is exactly the ambiguity the old
 // comment refused to guess at.
 //
-// `date` is still read from EXIF and never estimated. The three S4 shots
-// carry theirs; the sumo robot has none, so it has no date line.
+// `date` is still read from EXIF and never estimated. The sumo robot has
+// none, so it has no date line.
 export const teardown = {
-  id: "teardown",
-  title: "Teardown",
+  id: "shop",
+  title: "Also in the shop",
   lede: "Cars, phones, breadboards. If it has screws in it I have probably had it open.",
 
   groups: [
@@ -91,11 +97,6 @@ export const teardown = {
       id: "bmw",
       label: "2013 BMW 328xi",
       note: "Tuned, retrofitted, and taken apart more than once.",
-    },
-    {
-      id: "audi",
-      label: "Audi S4 B8.5",
-      note: "The daily. Supercharged, built, and tuned by hand.",
     },
     {
       id: "bench",
@@ -136,40 +137,6 @@ export const teardown = {
       title: "Tuning module",
       alt: "A tuning module with its case opened, exposing a green circuit board with several ICs, sitting in an engine bay next to a flash cable.",
       body: "Loading a custom tune onto the 328xi through this module.",
-    },
-
-    {
-      slug: "audi-s4-front",
-      group: "audi",
-      image: photo("audi-s4-front"),
-      date: "May 2026",
-      title: "The daily",
-      alt: "A grey Audi S4 parked on a city street at night, seen head on, with a honeycomb grille and front lip.",
-      body: "Fully built supercharged S4 (B8.5). 540 whp, tuned it myself.",
-      focus: "object-[center_64%]",
-    },
-    {
-      slug: "audi-s4-engine-bay",
-      group: "audi",
-      image: photo("audi-s4-engine-bay"),
-      date: "July 2025",
-      title: "Supercharged V6",
-      alt: "The open engine bay of an Audi S4, showing a 3.0 V6 TFSI with its supercharger under the intake manifold and a carbon fibre intake feeding it.",
-      body: "The 3.0 TFSI, with the supercharger sitting under the intake manifold and a carbon intake feeding it.",
-    },
-    {
-      slug: "audi-s4-rear",
-      group: "audi",
-      image: photo("audi-s4-rear"),
-      date: "April 2026",
-      title: "Rear three-quarter",
-      // The Massachusetts plate in the source frame is blurred in the encoded
-      // asset. A plate is readable to anyone walking past the car, but putting
-      // it on an indexed page next to his name makes the association
-      // searchable, which is a different thing.
-      alt: "A grey Audi S4 parked at night on a residential street, seen from behind, with a rear diffuser and the tail lights lit.",
-      body: "Diffuser, quad tips, and a registration plate blurred out on purpose.",
-      focus: "object-[center_58%]",
     },
 
     {

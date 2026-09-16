@@ -14,10 +14,26 @@
 //
 // Rendered by Console.jsx inside an overlay, so this component owns no page
 // chrome of its own: no <section>, no id, no vertical rhythm.
+//
+// Since 2026-09 it also does things to the page, which is what made a
+// visible button for it justified: `garage` opens the bay on a part, `goto`
+// jumps to a section, `sound` and `volume` drive the track, and `fx` (with
+// `signs`, `haze`, `wet`, `cursor`, `scanlines`, `traffic`, `reactive` as
+// shortcuts) switches the environment through src/lib/env.js. `recruiters`
+// leaves for the plain version of the site.
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Terminal as TerminalIcon, Clock } from "lucide-react";
 import { replayIntro } from "../lib/intro";
+import { openGarage } from "../lib/garage";
+import { scrollToSection } from "../lib/scroll";
+import { sections } from "../data/site";
+import { mods } from "../data/garage";
+import { FX, getEnv, setEnv, resetEnv } from "../lib/env";
+import { getVolume, setSoundEnabled, setVolume, soundEnabled, unlockAudio } from "../lib/audio";
+import { applyVolume, isPlaying, startAmbient, stopAmbient } from "../lib/ambient";
+import { CRUISE_GAIN, DROP } from "../lib/cues";
 
 // Fun facts pool, surfaced on boot and via `funfact`
 const FUN_FACTS = [
@@ -127,7 +143,11 @@ const resolvePath = (currentPath, targetPath) => {
   return parts.join("/") || "~";
 };
 
+const FX_NAMES = Object.keys(FX);
+const onOff = (v) => (v ? "on" : "off");
+
 export default function Terminal({ onExit }) {
+  const navigate = useNavigate();
   const asciiArt = `
    █████╗ ██╗     ██╗    ██╗   ██╗ ██████╗ ██╗   ██╗███╗   ██╗███████╗███████╗
   ██╔══██╗██║     ██║    ╚██╗ ██╔╝██╔═══██╗██║   ██║████╗  ██║██╔════╝██╔════╝
@@ -159,6 +179,15 @@ export default function Terminal({ onExit }) {
     intro        replay the intro
     uplink       (try it)
 
+  THE ENVIRONMENT
+  ───────────────────────────────────────────────
+    garage       open the garage (garage tune · garage wheels ...)
+    goto         jump to a section (goto work · goto contact)
+    sound        sound on · sound off
+    volume       volume 40
+    fx           fx · fx haze off · fx signs on · fx reset
+    recruiters   the plain version of this site
+
   Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
 ` },
   ]);
@@ -179,14 +208,62 @@ export default function Terminal({ onExit }) {
     return () => clearInterval(timer);
   }, []);
 
+  // The shell is loaded lazily, so it mounts after the console's focus trap
+  // has already placed focus. Take it: a terminal you have to click into
+  // before you can type is a terminal with a bug.
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
   const allCommands = useMemo(() => [
     "help", "man", "clear", "ls", "cd", "cat", "pwd", "whoami", "hostname",
     "date", "uptime", "echo", "history", "banner", "about", "skills",
     "experience", "education", "projects", "contact", "resume", "socials",
     "neofetch", "tree", "grep", "find", "open", "sudo", "exit", "hire",
     "git", "vim", "nano", "touch", "mkdir", "rm", "cp", "mv", "head", "tail",
-    "funfact", "interests", "uplink", "vitals"
+    "funfact", "interests", "uplink", "vitals",
+    "garage", "goto", "sound", "volume", "fx", "env", "recruiters",
+    "signs", "haze", "wet", "cursor", "scanlines", "traffic", "reactive",
   ], []);
+
+  const say = (type, text) => setHistory((prev) => [...prev, { type, text }]);
+
+  // One switch, or all of them, printed as a table.
+  const printEnv = () => {
+    const env = getEnv();
+    const rows = FX_NAMES.map((k) => `  ${k.padEnd(10)} ${onOff(env[k]).padEnd(4)} ${FX[k]}`).join("\n");
+    say("output", `\n  ENVIRONMENT\n  ───────────────────────────────────────────────\n${rows}\n\n  fx <name> on|off · fx all off · fx reset`);
+  };
+
+  const setSwitch = (name, value) => {
+    if (name === "all") {
+      setEnv(Object.fromEntries(FX_NAMES.map((k) => [k, value])));
+      say("system", `every effect ${onOff(value)}`);
+      return;
+    }
+    if (!FX_NAMES.includes(name)) {
+      say("error", `fx: no such effect '${name}'. One of: ${FX_NAMES.join(" · ")}`);
+      return;
+    }
+    const next = setEnv({ [name]: value });
+    say("system", `${name} ${onOff(next[name])}: ${FX[name]}`);
+  };
+
+  // `fx haze off`, `fx signs`, `fx all on`, `fx reset`, or bare `fx`.
+  const fx = (args) => {
+    const [name, state] = args;
+    if (!name) return printEnv();
+    if (name === "reset") {
+      resetEnv();
+      say("system", "environment reset: everything on");
+      return;
+    }
+    if (state === "on" || state === "off") return setSwitch(name, state === "on");
+    if (name === "all") return setSwitch("all", true);
+    if (!FX_NAMES.includes(name)) return setSwitch(name, true);
+    // No state given: toggle.
+    setSwitch(name, !getEnv()[name]);
+  };
 
   const executeCommand = (cmd) => {
     const trimmed = cmd.trim();
@@ -209,6 +286,7 @@ export default function Terminal({ onExit }) {
   fs             ls · cd · pwd · cat · tree · find · open · head · tail · grep
   system         whoami · hostname · date · uptime · neofetch · history · clear · banner
   fun            intro · sudo hire · git status · git log · vim · nano
+  environment    garage · goto · sound · volume · fx · env · recruiters
 
   keys           Tab = complete   ↑↓ = history   Ctrl+L = clear   Enter = run
 
@@ -723,6 +801,103 @@ AUTHOR
         replayIntro();
         break;
 
+      case "garage": {
+        // `garage` opens the bay; `garage pulley` opens it on a part, matched
+        // on the part's id or any word of its name.
+        const q = args.join(" ").toLowerCase();
+        const hit = q
+          ? mods.find((m) => m.id === q) ??
+            mods.find((m) => m.id.includes(q) || m.name.toLowerCase().includes(q))
+          : null;
+        if (q && !hit) {
+          say("error", `garage: no part matching '${q}'.\nParts: ${mods.map((m) => m.id).join(" · ")}`);
+          break;
+        }
+        say("system", hit ? `Opening the garage on: ${hit.name}` : "Opening the garage.");
+        onExit?.();
+        // After the overlay has released the scroll lock.
+        setTimeout(() => openGarage(hit?.id ?? null), 60);
+        break;
+      }
+
+      case "goto": {
+        const target = (args[0] || "").toLowerCase();
+        if (target === "recruiters") {
+          say("system", "Leaving for the plain version.");
+          navigate("/recruiters");
+          break;
+        }
+        const hit = sections.find((x) => x.id === target || x.label.toLowerCase() === target);
+        if (!hit) {
+          say("error", `goto: no section '${target}'.\nSections: ${sections.map((x) => x.id).join(" · ")} · recruiters`);
+          break;
+        }
+        say("system", `Going to ${hit.label}.`);
+        onExit?.();
+        setTimeout(() => scrollToSection(hit.id), 60);
+        break;
+      }
+
+      case "sound": {
+        const want = args[0] === "on" ? true : args[0] === "off" ? false : null;
+        if (want === null) {
+          say("output", `  sound is ${onOff(soundEnabled())}${isPlaying() ? ", and the track is playing" : ""}.\n  sound on · sound off`);
+          break;
+        }
+        setSoundEnabled(want);
+        if (want) {
+          // The keystroke that ran this command is the gesture the browser
+          // needs, so the track can start from here.
+          unlockAudio().then((ok) => {
+            if (ok) startAmbient({ offset: DROP, gain: CRUISE_GAIN });
+          });
+          say("system", "sound on. Volume lives bottom left, or `volume 40`.");
+        } else {
+          stopAmbient();
+          say("system", "sound off. The door will not ask again.");
+        }
+        window.dispatchEvent(new CustomEvent("aly:sound", { detail: { on: want } }));
+        break;
+      }
+
+      case "volume": {
+        if (!args[0]) {
+          say("output", `  volume ${Math.round(getVolume() * 100)}. Usage: volume <0-100>`);
+          break;
+        }
+        const n = parseInt(args[0], 10);
+        if (!Number.isFinite(n) || n < 0 || n > 100) {
+          say("error", "volume: give a number from 0 to 100");
+          break;
+        }
+        setVolume(n / 100);
+        applyVolume();
+        window.dispatchEvent(new CustomEvent("aly:sound", { detail: { volume: n / 100 } }));
+        say("system", `volume ${n}`);
+        break;
+      }
+
+      case "fx":
+        fx(args);
+        break;
+      case "env":
+        printEnv();
+        break;
+      case "signs":
+      case "haze":
+      case "wet":
+      case "cursor":
+      case "scanlines":
+      case "traffic":
+      case "reactive":
+        fx([lowerCmd, ...args]);
+        break;
+
+      case "recruiters":
+        say("system", "Leaving for the plain version: /recruiters");
+        navigate("/recruiters");
+        break;
+
       case "exit":
         setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to sideband closed." }]);
         // The console is an overlay now, so `exit` can actually exit. The delay
@@ -998,6 +1173,7 @@ AUTHOR
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   aria-label="Terminal command input"
+                  data-autofocus
                   className="w-full bg-transparent text-bone outline-none font-mono"
                   style={{ caretColor: '#fcee0a' }}
                   autoComplete="off"
@@ -1051,7 +1227,7 @@ AUTHOR
           <div className="mt-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="mono-label text-bone/50 mr-2">try:</span>
-              {["help", "about", "skills", "experience", "projects", "resume", "contact"].map(c => (
+              {["help", "about", "garage", "projects", "experience", "fx", "resume", "contact"].map(c => (
                 <button
                   key={c}
                   onClick={() => { executeCommand(c); setInput(""); }}
