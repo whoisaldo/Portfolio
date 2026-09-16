@@ -18,12 +18,12 @@
 //   }
 import { lqip } from "./lqip";
 
-import KeyArt_KeyArt_EternalReverse_1024avif from "../assets/KeyArt/KeyArt_EternalReverse-1024.avif";
-import KeyArt_KeyArt_EternalReverse_1536avif from "../assets/KeyArt/KeyArt_EternalReverse-1600.avif";
-import KeyArt_KeyArt_EternalReverse_1024webp from "../assets/KeyArt/KeyArt_EternalReverse-1024.webp";
-import KeyArt_KeyArt_EternalReverse_1536webp from "../assets/KeyArt/KeyArt_EternalReverse-1600.webp";
-import KeyArt_KeyArt_EternalReverse_jpg from "../assets/KeyArt/KeyArt_EternalReverse-1600.jpg";
-import KeyArt_KeyArt_EternalReverse_thumb from "../assets/KeyArt/KeyArt_EternalReverse-320.webp";
+import KeyArt_KeyArt_Sideband_1024avif from "../assets/KeyArt/KeyArt_Sideband-1024.avif";
+import KeyArt_KeyArt_Sideband_1536avif from "../assets/KeyArt/KeyArt_Sideband-1600.avif";
+import KeyArt_KeyArt_Sideband_1024webp from "../assets/KeyArt/KeyArt_Sideband-1024.webp";
+import KeyArt_KeyArt_Sideband_1536webp from "../assets/KeyArt/KeyArt_Sideband-1600.webp";
+import KeyArt_KeyArt_Sideband_jpg from "../assets/KeyArt/KeyArt_Sideband-1600.jpg";
+import KeyArt_KeyArt_Sideband_thumb from "../assets/KeyArt/KeyArt_Sideband-320.webp";
 import KeyArt_KeyArt_Exerly_1024avif from "../assets/KeyArt/KeyArt_Exerly-1024.avif";
 import KeyArt_KeyArt_Exerly_1536avif from "../assets/KeyArt/KeyArt_Exerly-1600.avif";
 import KeyArt_KeyArt_Exerly_1024webp from "../assets/KeyArt/KeyArt_Exerly-1024.webp";
@@ -66,21 +66,21 @@ import KeyArt_KeyArt_SignatureCuts_1024webp from "../assets/KeyArt/KeyArt_Signat
 import KeyArt_KeyArt_SignatureCuts_1536webp from "../assets/KeyArt/KeyArt_SignatureCuts-1600.webp";
 import KeyArt_KeyArt_SignatureCuts_jpg from "../assets/KeyArt/KeyArt_SignatureCuts-1600.jpg";
 import KeyArt_KeyArt_SignatureCuts_thumb from "../assets/KeyArt/KeyArt_SignatureCuts-320.webp";
-import EternalReverseStudio_EternalReverseLanding2026_1600avif from "../assets/EternalReverseStudio/EternalReverseLanding2026-1600.avif";
-import EternalReverseStudio_EternalReverseLanding2026_1600webp from "../assets/EternalReverseStudio/EternalReverseLanding2026-1600.webp";
-import EternalReverseStudio_EternalReverseLanding2026_thumb from "../assets/EternalReverseStudio/EternalReverseLanding2026-320.webp";
-import EternalReverseStudio_EternalReverseProducts2026_1600avif from "../assets/EternalReverseStudio/EternalReverseProducts2026-1600.avif";
-import EternalReverseStudio_EternalReverseProducts2026_1600webp from "../assets/EternalReverseStudio/EternalReverseProducts2026-1600.webp";
-import EternalReverseStudio_EternalReverseProducts2026_thumb from "../assets/EternalReverseStudio/EternalReverseProducts2026-320.webp";
-import EternalReverseStudio_EternalReverseProductEternalMonitor2026_1600avif from "../assets/EternalReverseStudio/EternalReverseProductEternalMonitor2026-1600.avif";
-import EternalReverseStudio_EternalReverseProductEternalMonitor2026_1600webp from "../assets/EternalReverseStudio/EternalReverseProductEternalMonitor2026-1600.webp";
-import EternalReverseStudio_EternalReverseProductEternalMonitor2026_thumb from "../assets/EternalReverseStudio/EternalReverseProductEternalMonitor2026-320.webp";
-import EternalReverseStudio_EternalReverseProductExerly2026_1600avif from "../assets/EternalReverseStudio/EternalReverseProductExerly2026-1600.avif";
-import EternalReverseStudio_EternalReverseProductExerly2026_1600webp from "../assets/EternalReverseStudio/EternalReverseProductExerly2026-1600.webp";
-import EternalReverseStudio_EternalReverseProductExerly2026_thumb from "../assets/EternalReverseStudio/EternalReverseProductExerly2026-320.webp";
-import EternalReverseStudio_EternalReverseAbout2026_1600avif from "../assets/EternalReverseStudio/EternalReverseAbout2026-1600.avif";
-import EternalReverseStudio_EternalReverseAbout2026_1600webp from "../assets/EternalReverseStudio/EternalReverseAbout2026-1600.webp";
-import EternalReverseStudio_EternalReverseAbout2026_thumb from "../assets/EternalReverseStudio/EternalReverseAbout2026-320.webp";
+import SidebandStudio_SidebandLanding2026_1600avif from "../assets/SidebandStudio/SidebandLanding2026-1600.avif";
+import SidebandStudio_SidebandLanding2026_1600webp from "../assets/SidebandStudio/SidebandLanding2026-1600.webp";
+import SidebandStudio_SidebandLanding2026_thumb from "../assets/SidebandStudio/SidebandLanding2026-320.webp";
+import SidebandStudio_SidebandProducts2026_1600avif from "../assets/SidebandStudio/SidebandProducts2026-1600.avif";
+import SidebandStudio_SidebandProducts2026_1600webp from "../assets/SidebandStudio/SidebandProducts2026-1600.webp";
+import SidebandStudio_SidebandProducts2026_thumb from "../assets/SidebandStudio/SidebandProducts2026-320.webp";
+import SidebandStudio_SidebandProductEternalMonitor2026_1600avif from "../assets/SidebandStudio/SidebandProductEternalMonitor2026-1600.avif";
+import SidebandStudio_SidebandProductEternalMonitor2026_1600webp from "../assets/SidebandStudio/SidebandProductEternalMonitor2026-1600.webp";
+import SidebandStudio_SidebandProductEternalMonitor2026_thumb from "../assets/SidebandStudio/SidebandProductEternalMonitor2026-320.webp";
+import SidebandStudio_SidebandProductExerly2026_1600avif from "../assets/SidebandStudio/SidebandProductExerly2026-1600.avif";
+import SidebandStudio_SidebandProductExerly2026_1600webp from "../assets/SidebandStudio/SidebandProductExerly2026-1600.webp";
+import SidebandStudio_SidebandProductExerly2026_thumb from "../assets/SidebandStudio/SidebandProductExerly2026-320.webp";
+import SidebandStudio_SidebandAbout2026_1600avif from "../assets/SidebandStudio/SidebandAbout2026-1600.avif";
+import SidebandStudio_SidebandAbout2026_1600webp from "../assets/SidebandStudio/SidebandAbout2026-1600.webp";
+import SidebandStudio_SidebandAbout2026_thumb from "../assets/SidebandStudio/SidebandAbout2026-320.webp";
 import ExerlyFitness_ExerlyWebLanding2026_1600avif from "../assets/ExerlyFitness/ExerlyWebLanding2026-1600.avif";
 import ExerlyFitness_ExerlyWebLanding2026_1600webp from "../assets/ExerlyFitness/ExerlyWebLanding2026-1600.webp";
 import ExerlyFitness_ExerlyWebLanding2026_thumb from "../assets/ExerlyFitness/ExerlyWebLanding2026-320.webp";
@@ -165,35 +165,35 @@ import Facial_FacialRecognitionHappy_thumb from "../assets/Facial/FacialRecognit
 import Facial_FacialRegocnitionAngryFace_1600avif from "../assets/Facial/FacialRegocnitionAngryFace-1600.avif";
 import Facial_FacialRegocnitionAngryFace_1600webp from "../assets/Facial/FacialRegocnitionAngryFace-1600.webp";
 import Facial_FacialRegocnitionAngryFace_thumb from "../assets/Facial/FacialRegocnitionAngryFace-320.webp";
-import Intro_Moon_2048avif from "../assets/Intro/Moon-2048.avif";
-import Intro_Moon_2048webp from "../assets/Intro/Moon-2048.webp";
 import Intro_Moon_1280avif from "../assets/Intro/Moon-1280.avif";
+import Intro_Moon_1672avif from "../assets/Intro/Moon-2048.avif";
 import Intro_Moon_1280webp from "../assets/Intro/Moon-1280.webp";
+import Intro_Moon_1672webp from "../assets/Intro/Moon-2048.webp";
 import Intro_Moon_thumb from "../assets/Intro/Moon-320.webp";
 import Intro_MoonPortrait_1024avif from "../assets/Intro/MoonPortrait-1024.avif";
 import Intro_MoonPortrait_1024webp from "../assets/Intro/MoonPortrait-1024.webp";
 import Intro_MoonPortrait_thumb from "../assets/Intro/MoonPortrait-320.webp";
-import Intro_Skyline_2048avif from "../assets/Intro/Skyline-2048.avif";
-import Intro_Skyline_2048webp from "../assets/Intro/Skyline-2048.webp";
 import Intro_Skyline_1280avif from "../assets/Intro/Skyline-1280.avif";
+import Intro_Skyline_1672avif from "../assets/Intro/Skyline-2048.avif";
 import Intro_Skyline_1280webp from "../assets/Intro/Skyline-1280.webp";
+import Intro_Skyline_1672webp from "../assets/Intro/Skyline-2048.webp";
 import Intro_Skyline_thumb from "../assets/Intro/Skyline-320.webp";
-import Intro_Car_1536avif from "../assets/Intro/Car-1536.avif";
-import Intro_Car_1536webp from "../assets/Intro/Car-1536.webp";
 import Intro_Car_1024avif from "../assets/Intro/Car-1024.avif";
+import Intro_Car_1536avif from "../assets/Intro/Car-1536.avif";
 import Intro_Car_1024webp from "../assets/Intro/Car-1024.webp";
+import Intro_Car_1536webp from "../assets/Intro/Car-1536.webp";
 import Intro_Car_thumb from "../assets/Intro/Car-320.webp";
 
 export const images = {
-  "KeyArt/KeyArt_EternalReverse": {
-    src: KeyArt_KeyArt_EternalReverse_jpg,
+  "KeyArt/KeyArt_Sideband": {
+    src: KeyArt_KeyArt_Sideband_jpg,
     width: 1536,
     height: 1024,
-    avif: { 1024: KeyArt_KeyArt_EternalReverse_1024avif, 1536: KeyArt_KeyArt_EternalReverse_1536avif },
-    webp: { 1024: KeyArt_KeyArt_EternalReverse_1024webp, 1536: KeyArt_KeyArt_EternalReverse_1536webp },
-    thumb: KeyArt_KeyArt_EternalReverse_thumb,
-    lqip: lqip["KeyArt/KeyArt_EternalReverse"],
-    lqipKey: "KeyArt/KeyArt_EternalReverse",
+    avif: { 1024: KeyArt_KeyArt_Sideband_1024avif, 1536: KeyArt_KeyArt_Sideband_1536avif },
+    webp: { 1024: KeyArt_KeyArt_Sideband_1024webp, 1536: KeyArt_KeyArt_Sideband_1536webp },
+    thumb: KeyArt_KeyArt_Sideband_thumb,
+    lqip: lqip["KeyArt/KeyArt_Sideband"],
+    lqipKey: "KeyArt/KeyArt_Sideband",
   },
   "KeyArt/KeyArt_Exerly": {
     src: KeyArt_KeyArt_Exerly_jpg,
@@ -265,55 +265,55 @@ export const images = {
     lqip: lqip["KeyArt/KeyArt_SignatureCuts"],
     lqipKey: "KeyArt/KeyArt_SignatureCuts",
   },
-  "EternalReverseStudio/EternalReverseLanding2026": {
-    src: EternalReverseStudio_EternalReverseLanding2026_1600webp,
+  "SidebandStudio/SidebandLanding2026": {
+    src: SidebandStudio_SidebandLanding2026_1600webp,
     width: 1600,
     height: 1000,
-    avif: { 1600: EternalReverseStudio_EternalReverseLanding2026_1600avif },
-    webp: { 1600: EternalReverseStudio_EternalReverseLanding2026_1600webp },
-    thumb: EternalReverseStudio_EternalReverseLanding2026_thumb,
-    lqip: lqip["EternalReverseStudio/EternalReverseLanding2026"],
-    lqipKey: "EternalReverseStudio/EternalReverseLanding2026",
+    avif: { 1600: SidebandStudio_SidebandLanding2026_1600avif },
+    webp: { 1600: SidebandStudio_SidebandLanding2026_1600webp },
+    thumb: SidebandStudio_SidebandLanding2026_thumb,
+    lqip: lqip["SidebandStudio/SidebandLanding2026"],
+    lqipKey: "SidebandStudio/SidebandLanding2026",
   },
-  "EternalReverseStudio/EternalReverseProducts2026": {
-    src: EternalReverseStudio_EternalReverseProducts2026_1600webp,
+  "SidebandStudio/SidebandProducts2026": {
+    src: SidebandStudio_SidebandProducts2026_1600webp,
     width: 1600,
     height: 1000,
-    avif: { 1600: EternalReverseStudio_EternalReverseProducts2026_1600avif },
-    webp: { 1600: EternalReverseStudio_EternalReverseProducts2026_1600webp },
-    thumb: EternalReverseStudio_EternalReverseProducts2026_thumb,
-    lqip: lqip["EternalReverseStudio/EternalReverseProducts2026"],
-    lqipKey: "EternalReverseStudio/EternalReverseProducts2026",
+    avif: { 1600: SidebandStudio_SidebandProducts2026_1600avif },
+    webp: { 1600: SidebandStudio_SidebandProducts2026_1600webp },
+    thumb: SidebandStudio_SidebandProducts2026_thumb,
+    lqip: lqip["SidebandStudio/SidebandProducts2026"],
+    lqipKey: "SidebandStudio/SidebandProducts2026",
   },
-  "EternalReverseStudio/EternalReverseProductEternalMonitor2026": {
-    src: EternalReverseStudio_EternalReverseProductEternalMonitor2026_1600webp,
+  "SidebandStudio/SidebandProductEternalMonitor2026": {
+    src: SidebandStudio_SidebandProductEternalMonitor2026_1600webp,
     width: 1600,
     height: 1000,
-    avif: { 1600: EternalReverseStudio_EternalReverseProductEternalMonitor2026_1600avif },
-    webp: { 1600: EternalReverseStudio_EternalReverseProductEternalMonitor2026_1600webp },
-    thumb: EternalReverseStudio_EternalReverseProductEternalMonitor2026_thumb,
-    lqip: lqip["EternalReverseStudio/EternalReverseProductEternalMonitor2026"],
-    lqipKey: "EternalReverseStudio/EternalReverseProductEternalMonitor2026",
+    avif: { 1600: SidebandStudio_SidebandProductEternalMonitor2026_1600avif },
+    webp: { 1600: SidebandStudio_SidebandProductEternalMonitor2026_1600webp },
+    thumb: SidebandStudio_SidebandProductEternalMonitor2026_thumb,
+    lqip: lqip["SidebandStudio/SidebandProductEternalMonitor2026"],
+    lqipKey: "SidebandStudio/SidebandProductEternalMonitor2026",
   },
-  "EternalReverseStudio/EternalReverseProductExerly2026": {
-    src: EternalReverseStudio_EternalReverseProductExerly2026_1600webp,
+  "SidebandStudio/SidebandProductExerly2026": {
+    src: SidebandStudio_SidebandProductExerly2026_1600webp,
     width: 1600,
     height: 1000,
-    avif: { 1600: EternalReverseStudio_EternalReverseProductExerly2026_1600avif },
-    webp: { 1600: EternalReverseStudio_EternalReverseProductExerly2026_1600webp },
-    thumb: EternalReverseStudio_EternalReverseProductExerly2026_thumb,
-    lqip: lqip["EternalReverseStudio/EternalReverseProductExerly2026"],
-    lqipKey: "EternalReverseStudio/EternalReverseProductExerly2026",
+    avif: { 1600: SidebandStudio_SidebandProductExerly2026_1600avif },
+    webp: { 1600: SidebandStudio_SidebandProductExerly2026_1600webp },
+    thumb: SidebandStudio_SidebandProductExerly2026_thumb,
+    lqip: lqip["SidebandStudio/SidebandProductExerly2026"],
+    lqipKey: "SidebandStudio/SidebandProductExerly2026",
   },
-  "EternalReverseStudio/EternalReverseAbout2026": {
-    src: EternalReverseStudio_EternalReverseAbout2026_1600webp,
+  "SidebandStudio/SidebandAbout2026": {
+    src: SidebandStudio_SidebandAbout2026_1600webp,
     width: 1600,
     height: 1000,
-    avif: { 1600: EternalReverseStudio_EternalReverseAbout2026_1600avif },
-    webp: { 1600: EternalReverseStudio_EternalReverseAbout2026_1600webp },
-    thumb: EternalReverseStudio_EternalReverseAbout2026_thumb,
-    lqip: lqip["EternalReverseStudio/EternalReverseAbout2026"],
-    lqipKey: "EternalReverseStudio/EternalReverseAbout2026",
+    avif: { 1600: SidebandStudio_SidebandAbout2026_1600avif },
+    webp: { 1600: SidebandStudio_SidebandAbout2026_1600webp },
+    thumb: SidebandStudio_SidebandAbout2026_thumb,
+    lqip: lqip["SidebandStudio/SidebandAbout2026"],
+    lqipKey: "SidebandStudio/SidebandAbout2026",
   },
   "ExerlyFitness/ExerlyWebLanding2026": {
     src: ExerlyFitness_ExerlyWebLanding2026_1600webp,
@@ -594,12 +594,13 @@ export const images = {
     thumb: Facial_FacialRegocnitionAngryFace_thumb,
     lqip: lqip["Facial/FacialRegocnitionAngryFace"],
     lqipKey: "Facial/FacialRegocnitionAngryFace",
-  },  "Intro/Moon": {
-    src: Intro_Moon_2048webp,
+  },
+  "Intro/Moon": {
+    src: Intro_Moon_1672webp,
     width: 1672,
     height: 941,
-    avif: { 1280: Intro_Moon_1280avif, 1672: Intro_Moon_2048avif },
-    webp: { 1280: Intro_Moon_1280webp, 1672: Intro_Moon_2048webp },
+    avif: { 1280: Intro_Moon_1280avif, 1672: Intro_Moon_1672avif },
+    webp: { 1280: Intro_Moon_1280webp, 1672: Intro_Moon_1672webp },
     thumb: Intro_Moon_thumb,
     lqip: lqip["Intro/Moon"],
     lqipKey: "Intro/Moon",
@@ -615,11 +616,11 @@ export const images = {
     lqipKey: "Intro/MoonPortrait",
   },
   "Intro/Skyline": {
-    src: Intro_Skyline_2048webp,
+    src: Intro_Skyline_1672webp,
     width: 1672,
     height: 941,
-    avif: { 1280: Intro_Skyline_1280avif, 1672: Intro_Skyline_2048avif },
-    webp: { 1280: Intro_Skyline_1280webp, 1672: Intro_Skyline_2048webp },
+    avif: { 1280: Intro_Skyline_1280avif, 1672: Intro_Skyline_1672avif },
+    webp: { 1280: Intro_Skyline_1280webp, 1672: Intro_Skyline_1672webp },
     thumb: Intro_Skyline_thumb,
     lqip: lqip["Intro/Skyline"],
     lqipKey: "Intro/Skyline",

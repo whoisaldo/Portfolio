@@ -38,6 +38,15 @@ export const workRoles = experiences.filter(
   (e) => e.slug && ROLE_SLUGS.has(e.slug),
 );
 
+/**
+ * Addresses that were shared and then renamed. The studio was Eternal Reverse
+ * until its 2026 rebrand, and /work/eternal-reverse was on a résumé, so it
+ * forwards to the entry under its new name rather than to the index.
+ */
+export const RENAMED_SLUGS = {
+  "eternal-reverse": "sideband",
+};
+
 /** slug -> { kind: "project" | "role", entry } */
 const index = new Map();
 for (const p of featuredProjects) index.set(p.slug, { kind: "project", entry: p });

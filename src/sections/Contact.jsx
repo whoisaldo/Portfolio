@@ -36,7 +36,7 @@ const SECONDARY_LABELS = {
 const elsewhere = [
   { label: "GitHub", href: links.github },
   { label: "LinkedIn", href: links.linkedin },
-  { label: "Eternal Reverse", href: links.studio },
+  { label: "Sideband", href: links.studio },
 ];
 
 const reveal = {

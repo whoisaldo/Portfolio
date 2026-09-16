@@ -13,7 +13,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { profile, links } from "../data/profile";
 import { replayIntro } from "../lib/intro";
-import eternalReverseMark from "../assets/EternalReverse/EternalReverseMiniLogo.png";
+import sidebandMark from "../assets/Sideband/SidebandMark.png";
 
 const footerLinks = [
   { label: "GitHub", href: links.github, external: true },
@@ -42,12 +42,12 @@ export default function Footer() {
             href={links.studio}
             target="_blank"
             rel="noreferrer"
-            aria-label="Eternal Reverse"
+            aria-label="Sideband"
             className="shrink-0 opacity-55 transition-opacity duration-200 hover:opacity-100"
           >
             <img
-              src={eternalReverseMark}
-              alt="Eternal Reverse"
+              src={sidebandMark}
+              alt="Sideband"
               width={50}
               height={32}
               loading="lazy"
