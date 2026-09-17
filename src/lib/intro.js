@@ -1,8 +1,8 @@
 // src/lib/intro.js: the intro's state, shared without a provider.
 //
-// Three things need to know whether the intro is over: the hero (its entrance
-// waits for the reveal), the navbar (slides in after), and the footer's replay
-// button. A context provider for one boolean is more ceremony than the
+// Two things need to know whether the intro is over: the hero (its entrance
+// waits for the reveal) and the navbar (slides in after). A reopened door
+// puts both back. A context provider for one boolean is more ceremony than the
 // boolean deserves, so this is a module-level value with a subscribe function
 // and a useSyncExternalStore hook over it. Same shape as the DOM-event
 // signalling the boot used to use, with a readable current value added.
@@ -10,7 +10,8 @@
 // Also owns the two decisions the gate has to make before it starts anything:
 // which version of the intro this page load gets, and whether the reader has
 // already watched it in this tab.
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { shouldGate, soundEnabled, unlockAudio } from "./audio";
 import { startAmbient, stopAmbient } from "./ambient";
 import { loadDrift } from "./drift";
@@ -74,6 +75,51 @@ export function replayIntro(extra = {}) {
     unlockAudio().then(() => startAmbient({ offset: SONG_START, gain: INTRO_GAIN, fade: 0.25 }));
   }
   startIntro({ mode: "full", withSound, replay: true, ...extra });
+}
+
+/** Fired to put the door back up after the reader is already inside. */
+export const DOOR_OPEN = "aly:door-open";
+
+/**
+ * Back to the entrance.
+ *
+ * The front of this site is the door, not the cinematic on its own: it is
+ * where the reader chooses sound, silence, or the plain version at
+ * /recruiters. So the footer's way back reopens the door rather than throwing
+ * the intro at whatever page happens to be on screen. From a case study it
+ * routes home first, and the gate takes it from there.
+ */
+export function useReturnToDoor() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  return useCallback(() => {
+    if (pathname !== "/") navigate("/");
+    window.dispatchEvent(new CustomEvent(DOOR_OPEN));
+  }, [navigate, pathname]);
+}
+
+/**
+ * The cinematic itself, with no door in front of it: the console's `intro`
+ * and the Konami code, both of which ask for the film by name and one of
+ * which has its own closing line to deliver.
+ *
+ * It still plays on the landing page and nowhere else. Asked for from a case
+ * study it goes home first, rather than running the whole entrance over a
+ * page that is not the entrance and leaving the reader where they started.
+ */
+export function useReplayIntro() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  return useCallback(
+    (extra) => {
+      // Both in the one handler, so React commits the route change and the
+      // overlay in the same render and no frame of the landing page is ever
+      // shown before the black drops.
+      if (pathname !== "/") navigate("/");
+      replayIntro(extra);
+    },
+    [navigate, pathname],
+  );
 }
 
 export function hasSeenIntro() {

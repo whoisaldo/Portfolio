@@ -132,7 +132,9 @@ export function PlainFooter() {
         <a href={links.linkedin} target="_blank" rel="noreferrer">
           <Linkedin size={15} aria-hidden="true" /> LinkedIn
         </a>
-        <Link to="/" className="rp-cinematic-link">
+        {/* The entrance, not the page behind it: the cinematic shell reads
+            this and puts the door up, the same one a first visit gets. */}
+        <Link to="/" state={{ door: true }} className="rp-cinematic-link">
           <Play size={13} aria-hidden="true" /> Cinematic experience{" "}
           <ArrowUpRight size={14} aria-hidden="true" />
         </Link>

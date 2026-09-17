@@ -64,6 +64,12 @@ export const CRUISE_GAIN = 1.0;
 /** How long the duck takes after the reveal. */
 export const DUCK_SECONDS = 2.5;
 
+/** How long the track takes to leave when the reader steps out of the
+ *  cinematic: across to the plain version, or back out to the door. Long
+ *  enough to read as a fade rather than a cut, short enough to be gone by the
+ *  time whatever they asked for has finished arriving. */
+export const LEAVE_SECONDS = 0.8;
+
 // Measurement notes, so they do not have to be redone from scratch:
 //   full-band RMS steps from -26 dB to -15 dB at 30.10s (hats and snare in),
 //   bass steps to -14 dB at 30.85s (first kick), bass exceeds -10 dB at

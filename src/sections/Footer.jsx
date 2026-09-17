@@ -13,7 +13,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { profile, links } from "../data/profile";
-import { replayIntro } from "../lib/intro";
+import { useReturnToDoor } from "../lib/intro";
 import sidebandMark from "../assets/Sideband/SidebandMark.png";
 
 const footerLinks = [
@@ -23,6 +23,8 @@ const footerLinks = [
 ];
 
 export default function Footer() {
+  const returnToDoor = useReturnToDoor();
+
   return (
     <motion.footer
       initial={{ opacity: 0 }}
@@ -83,14 +85,14 @@ export default function Footer() {
           >
             <span className="ink-underline">Recruiters press this</span>
           </Link>
-          {/* The full intro, on demand. The short one plays itself on a
-              repeat visit; this is the way back to the moon. */}
+          {/* The way back to the front: the door, with both ways in offered
+              again, and the full intro behind whichever one is chosen. */}
           <button
             type="button"
-            onClick={() => replayIntro()}
+            onClick={() => returnToDoor()}
             className="mono-label text-dim transition-colors duration-200 hover:text-volt"
           >
-            <span className="ink-underline">Replay the intro</span>
+            <span className="ink-underline">Back to the entrance</span>
           </button>
         </nav>
       </div>

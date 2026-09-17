@@ -40,7 +40,7 @@
 // follows starts the song in a few hundred milliseconds. See prefetchTrack(),
 // loadDrift() and <Preload /> below.
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpRight, Volume2, VolumeX } from "lucide-react";
 import { useFocusTrap, useMediaQuery } from "../hooks";
@@ -54,10 +54,10 @@ import {
   setSoundEnabled,
   unlockAudio,
 } from "../lib/audio";
-import { prefetchTrack, startAmbient } from "../lib/ambient";
+import { prefetchTrack, startAmbient, stopAmbient } from "../lib/ambient";
 import { loadDrift } from "../lib/drift";
-import { introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
-import { CRUISE_GAIN, DROP, INTRO_GAIN, SHORT_START, SONG_START } from "../lib/cues";
+import { DOOR_OPEN, introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
+import { CRUISE_GAIN, DROP, INTRO_GAIN, LEAVE_SECONDS, SHORT_START, SONG_START } from "../lib/cues";
 import Panel from "./ui/Panel";
 import Picture from "./Picture";
 
@@ -78,13 +78,35 @@ function Preload() {
 }
 
 export default function EntryGate({ onEnter }) {
-  const [open, setOpen] = useState(shouldGate);
+  // /recruiters links back here with this. The plain version's way across is
+  // to the entrance, not to the page behind it, so the door goes up whatever
+  // the sound preference says and the intro behind it is the whole one.
+  const asked = useLocation().state?.door === true;
+  const [open, setOpen] = useState(() => asked || shouldGate());
   // Someone who has been here before does not need the explanation again, just
-  // the click. Read once on mount, because markAsked() runs before the exit
-  // animation finishes and would otherwise reword the panel mid-fade.
-  const [returning] = useState(hasBeenAsked);
-  const [mode] = useState(introModeForThisLoad);
+  // the click. Read on mount and then only when the door is deliberately
+  // reopened, because markAsked() runs before the exit animation finishes and
+  // would otherwise reword the panel mid-fade.
+  const [returning, setReturning] = useState(hasBeenAsked);
+  const [mode, setMode] = useState(() => (asked ? "full" : introModeForThisLoad()));
   const panelRef = useRef(null);
+
+  // The way back, from the footer. Reopening the door means the whole choice
+  // again, not just the film: sound, silence, or the plain version. The music
+  // stops because the door is the one part of this site that is always quiet,
+  // and the intro is the full one, because a reader who asks for the entrance
+  // by name is not asking for the short version.
+  useEffect(() => {
+    const onDoor = () => {
+      stopAmbient({ fade: LEAVE_SECONDS });
+      setMode("full");
+      setReturning(hasBeenAsked());
+      setOpen(true);
+      window.scrollTo({ top: 0, behavior: "instant" });
+    };
+    window.addEventListener(DOOR_OPEN, onDoor);
+    return () => window.removeEventListener(DOOR_OPEN, onDoor);
+  }, []);
 
   // Start the downloads the moment the door is on screen: the track, and
   // the 3D chunk the drift needs. Neither is awaited anywhere; the intro
@@ -116,6 +138,10 @@ export default function EntryGate({ onEnter }) {
       setIntroDone(true);
       return;
     }
+    // Put the site back in its pre-intro state. Already true on a first load;
+    // it matters when the door has been reopened over a page that is live, so
+    // the navbar arrives after the reveal the way it does on arrival.
+    setIntroDone(false);
     startIntro({ mode, withSound });
   };
 

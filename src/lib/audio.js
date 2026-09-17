@@ -106,6 +106,11 @@ export function setSoundEnabled(on) {
   } catch {
     // Private mode, or storage disabled. The preference just does not persist.
   }
+  // Say so. The control bottom left reads this preference once, when it
+  // mounts, and it mounts under the door: without this, a reader who chose
+  // "Enter silent" was left looking at a button offering to turn sound off,
+  // and had to press it twice to get any.
+  window.dispatchEvent(new CustomEvent("aly:sound", { detail: { on } }));
 }
 
 // ---------------------------------------------------------------------------
