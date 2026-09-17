@@ -15,6 +15,13 @@ import amazon_orientation_1206avif from "../assets/Photos/amazon-orientation-160
 import amazon_orientation_640webp from "../assets/Photos/amazon-orientation-640.webp";
 import amazon_orientation_1024webp from "../assets/Photos/amazon-orientation-1024.webp";
 import amazon_orientation_thumb from "../assets/Photos/amazon-orientation-320.webp";
+import audi_s4_cabin_src from "../assets/Photos/audi-s4-cabin-1600.webp";
+import audi_s4_cabin_640avif from "../assets/Photos/audi-s4-cabin-640.avif";
+import audi_s4_cabin_1024avif from "../assets/Photos/audi-s4-cabin-1024.avif";
+import audi_s4_cabin_1600avif from "../assets/Photos/audi-s4-cabin-1600.avif";
+import audi_s4_cabin_640webp from "../assets/Photos/audi-s4-cabin-640.webp";
+import audi_s4_cabin_1024webp from "../assets/Photos/audi-s4-cabin-1024.webp";
+import audi_s4_cabin_thumb from "../assets/Photos/audi-s4-cabin-320.webp";
 import audi_s4_engine_bay_src from "../assets/Photos/audi-s4-engine-bay-1600.webp";
 import audi_s4_engine_bay_640avif from "../assets/Photos/audi-s4-engine-bay-640.avif";
 import audi_s4_engine_bay_1024avif from "../assets/Photos/audi-s4-engine-bay-1024.avif";
@@ -25,7 +32,7 @@ import audi_s4_engine_bay_thumb from "../assets/Photos/audi-s4-engine-bay-320.we
 import audi_s4_front_src from "../assets/Photos/audi-s4-front-1600.webp";
 import audi_s4_front_640avif from "../assets/Photos/audi-s4-front-640.avif";
 import audi_s4_front_1024avif from "../assets/Photos/audi-s4-front-1024.avif";
-import audi_s4_front_1206avif from "../assets/Photos/audi-s4-front-1600.avif";
+import audi_s4_front_1600avif from "../assets/Photos/audi-s4-front-1600.avif";
 import audi_s4_front_640webp from "../assets/Photos/audi-s4-front-640.webp";
 import audi_s4_front_1024webp from "../assets/Photos/audi-s4-front-1024.webp";
 import audi_s4_front_thumb from "../assets/Photos/audi-s4-front-320.webp";
@@ -36,6 +43,13 @@ import audi_s4_rear_1206avif from "../assets/Photos/audi-s4-rear-1600.avif";
 import audi_s4_rear_640webp from "../assets/Photos/audi-s4-rear-640.webp";
 import audi_s4_rear_1024webp from "../assets/Photos/audi-s4-rear-1024.webp";
 import audi_s4_rear_thumb from "../assets/Photos/audi-s4-rear-320.webp";
+import audi_s4_wheel_src from "../assets/Photos/audi-s4-wheel-1600.webp";
+import audi_s4_wheel_640avif from "../assets/Photos/audi-s4-wheel-640.avif";
+import audi_s4_wheel_1024avif from "../assets/Photos/audi-s4-wheel-1024.avif";
+import audi_s4_wheel_1600avif from "../assets/Photos/audi-s4-wheel-1600.avif";
+import audi_s4_wheel_640webp from "../assets/Photos/audi-s4-wheel-640.webp";
+import audi_s4_wheel_1024webp from "../assets/Photos/audi-s4-wheel-1024.webp";
+import audi_s4_wheel_thumb from "../assets/Photos/audi-s4-wheel-320.webp";
 import bmw_carplay_retrofit_src from "../assets/Photos/bmw-carplay-retrofit-1600.webp";
 import bmw_carplay_retrofit_640avif from "../assets/Photos/bmw-carplay-retrofit-640.avif";
 import bmw_carplay_retrofit_1024avif from "../assets/Photos/bmw-carplay-retrofit-1024.avif";
@@ -115,6 +129,15 @@ export const photos = {
     thumb: amazon_orientation_thumb,
     lqip: "data:image/webp;base64,UklGRmgBAABXRUJQVlA4IFwBAACQBgCdASoUABgAPjEUiEKiISEYDAYAIAMEoAnTKEfhBme8UftqRqwXlmiBD7HPYDIvPGeglluzYKZHDg4AAP7/B0A3lV+h57/95Q//D+sXcn0tYx/wEZzf05OL0gXJmv9/TVGYl8vf/9OEzXUJvjH/gZVg3/k6z/xyv/fqRajvN2M09f9UARzPt434yQzSRxZef0JibgTHt3icm3xrvS1jRlZSh9a6gq+ZVOU3JOqeG075pBzbNl0yJNNcdnNbZzG2hj1cf2G2wcFZh9n0sqBX/4z8ZcG4VJ/q4KXYYAzDsCKo/yQ0yrjEEYPfc9wvWqf19OcXLWgCrWQZX9fRqX6Z+Nlb62Mf6pSi7qN4tk3l12njqYuSsXotqWSNFpLZ4gK33xN+KyzhXxLRck1+hdXtmFu3yG9xdY3D2m+gUG3e39br4zQVXMF+tyvopgNhmS8+9itF8uNiP19pAAA=",
   },
+  "audi-s4-cabin": {
+    src: audi_s4_cabin_src,
+    width: 1600,
+    height: 2133,
+    avif: { 640: audi_s4_cabin_640avif, 1024: audi_s4_cabin_1024avif, 1600: audi_s4_cabin_1600avif },
+    webp: { 640: audi_s4_cabin_640webp, 1024: audi_s4_cabin_1024webp, 1600: audi_s4_cabin_src },
+    thumb: audi_s4_cabin_thumb,
+    lqip: "data:image/webp;base64,UklGRtIBAABXRUJQVlA4IMYBAABwCQCdASoUABsAPjEWiEKiISEYDAQAIAMEoAnTLiOhlqFYA5U89T/AZxPGW/5SnV/5n02c/70V7Af6ef7EMyFnczEDSqHd0rTS/K6+2PgWw5943oAA/vSJ8LZ29pC3IilumnulNiC3ujEpOwyoCrlcT0PczhzjQCnEtt4n2WhxJt0qpDCrrkhn4ucBEAdNcxyDu27cflPlTBzNHFtXQIxeLu3/rvDGPibzjdq47/E7+voWeJpGazTWeAfEVYXDYg9FvB/fs+V3F8nFpl9rn6Ox7NtfWiHdVZQM/0RyuhlMri4COpGb0KdPXZ/5sopqdx/0uoBHoRsH//Idx/qFjC/wlNLL8ix2YXf4fs0YfhMv+8cNrzkNrivrs34Me/1YCopV+/vNjq3oypn7QDsHD7d7wpdDyX4mDdtxkJo/CGdLT8uPpl/+VZqmdvAts748/ZoQ8zv/cU3gezaIB/OT733rRJpfQy6sU0Ex/YolMmKkRu931huIsCl/lvkvbqBju2XmZHMx/gqy02OcSOoBYb2t0ufcfX5JPEclzDqhQ6NAEgoJt2JfRz5nVgWUV2h/0komZjPe/8RuaHl8lV4SpLQPY4AofAAA",
+  },
   "audi-s4-engine-bay": {
     src: audi_s4_engine_bay_src,
     width: 1600,
@@ -126,12 +149,12 @@ export const photos = {
   },
   "audi-s4-front": {
     src: audi_s4_front_src,
-    width: 1206,
-    height: 2144,
-    avif: { 640: audi_s4_front_640avif, 1024: audi_s4_front_1024avif, 1206: audi_s4_front_1206avif },
-    webp: { 640: audi_s4_front_640webp, 1024: audi_s4_front_1024webp, 1206: audi_s4_front_src },
+    width: 1600,
+    height: 2133,
+    avif: { 640: audi_s4_front_640avif, 1024: audi_s4_front_1024avif, 1600: audi_s4_front_1600avif },
+    webp: { 640: audi_s4_front_640webp, 1024: audi_s4_front_1024webp, 1600: audi_s4_front_src },
     thumb: audi_s4_front_thumb,
-    lqip: "data:image/webp;base64,UklGRn4BAABXRUJQVlA4IHIBAACwBwCdASoUACQAPjESh0KiIQ1WAgAQAYJYwCsM4PAOYAby+RGwgILTixqGYVFMTLPk0a7NoDDQ3WdFJ/ZXIs1pg1SL9TkgAP77J5Xy9ITBnF/uCDueeeWa8cMaxvf+ZByPwbchMQ95KGK6o6RYJjkqiQ04gaE2MClGY4+LWn4yT/w2dhVtsnGCIrHfDQE1P0zYUgVaWMyxtXty/a72RwfJBs8j/w5BL9KgslcDD4fVTm9D1sG9V0FrAhKc/UUU8vebr3+UCa55DF2T9RcumwD/Br7Bs5qDS8FfFlv9U2ff9yf7GjPwxekZJQQ2CEOXprN/irI0RWt3rLOQczIC7pQyvO3t+sA3KSXfUH9CLy1pTQr+8QBfYDpcGfrdzeemYWG5NdK2QG4oj6lJPnPbT+l3DPrqhxZczva8Ze8rnZfWo6FufQeHflIW5IfQH+zxEyRetM+MdO/pelwCpdUThA+QI0TvELy7xST2Cx+Nx2ADa04A",
+    lqip: "data:image/webp;base64,UklGRmoBAABXRUJQVlA4IF4BAADwBgCdASoUABsAPjEUh0KiIQwDABABgljAJ0yhID/kLpQXAskAiJhl86fdRMwtj/XXNrLaFUk5uURRLeTVzT4AAP7/l7F++SKw7cyiBwaMfh6uz3jmfojuMpfwX8nZOeXRQdRew3edezibojZGbGW+5jJ6YGduVzjdhtFUFyNW3fGN12eRiTamn/6MOb7f6fw4s0pcaxfPRjeI+WfdxczSbAInp0NemHbTBi/YVtfJrCotMPvS2aB+fHucdKXMn/k0kuzWOcxJA7EQNcmruv39nm7A3eUkOtz66egu964UQVRIX8f9j8JET5lvMiucw55xhKdQnur/5Hiyv/t7NWLdHxU6tAnu/RdeZwdZfB5zE5srKa7nqGKgo6d4gmHJk6yvC11JQdULfmCgUohw1WGv7tQ6iWSzk+BhkHrr5ERp5HQYhJw6OpHdhCRedtMrs1dgNVJiyY5zWVTJcAAAAA==",
   },
   "audi-s4-rear": {
     src: audi_s4_rear_src,
@@ -140,7 +163,16 @@ export const photos = {
     avif: { 640: audi_s4_rear_640avif, 1024: audi_s4_rear_1024avif, 1206: audi_s4_rear_1206avif },
     webp: { 640: audi_s4_rear_640webp, 1024: audi_s4_rear_1024webp, 1206: audi_s4_rear_src },
     thumb: audi_s4_rear_thumb,
-    lqip: "data:image/webp;base64,UklGRuQBAABXRUJQVlA4INgBAACQCQCdASoUACQAPjEUh0KiIQqrABABglAE6ZZdn2QJVn7XiwXa/ntNMa3kzyjrlf+HMoA5R/0eHi3CT1Q73LSazDMxOF23sSt9g4s53CVOM/HsT7DwAP73n3u3AiUutaqfW1CqoIWmBgcd1VGwGSp5jYktKfGjjI/vzup1P7z6qL1aqb8vUsxe6tvO5KDlHM+xbj+xjE7/JuhRmixrLdd7QhnypI/5jZsqoZ5v30BzaCc4Hfe5HGGDoMsa3j+NKdd9m+xBJz0oh1F9fmrwqoYG+hcicTVRGKZj1FUg0KzMjeutmTqS38KMO5kHJTKFtzF4DO33GEY19TK7bPpFlcZA288D1vL8CWvzDb+2DYBLhTZ3B82rR6bQ7qx42wqOrax4QuKRSmctmNxHRGaVTskejeCx4qkOUxbaXFB3Ljg4D9j/96FcInK8fiI+BODbw0Dgnho1ARMXLHaTW/NUJP87kuT8IfcDJfzc8yKZOKyFQxjzAe2MZZ/kY1ICEo/oOOBbJoParvTVl7vnHCG3Dyy9iW6Sd6flB1ydd67n+Hweu7Aq7cuDM/k21/iFDvvTGjyEBGPSr0G1lkPUGbyaezefiH7k14ewKxHA7DUmVqPDxYXw3v4wgAAA",
+    lqip: "data:image/webp;base64,UklGRloCAABXRUJQVlA4IE4CAADQDACdASoUACQAPjEWiUMiISEVVAAgAwSgCxHvaCwCA5Abd/pPsY2DP1Afrx61XoW3h3eQv2+9Ie5m8rOe9IjMWOnA//H8u/0Z7Av5VbzMI2XP36ZGBLMqRutFe27AyoQBo+DChJQOvqWLfORDH4AA/v6efnGYFNNsAcFtfxG3TSwzXvK91Lv8b/d7m7r10dxsWVMX/jYcSOygy38nf4+RotZk7HE2ujaoQ3iUeJi2MBZvBrDCklawZrBu8nbUFaXi7oDgPFlO5M/dw/VJ96gtiVuwhvUX+KOOYPDPV+JuzlwxXioMWtZjlxEgEVb/2UJ+7/lM7Po5v/NS63+VjW2+g3GLevEOGUeX/8id+BaL3zvIGfveOZD9Lczgjsq/9qhC+wNE/fb7M6MbgQHIO134lPW+dFWCLaHyftnhpJmHTLlLNCE7t3SoeEbyYPdVolNcW4yKUtP+bTV9AOWObb0o4BnzY11a1Rt1f1q5KzV1R8Z5Oqk9EMDU3/unQ7iOP2a8zG9PQXD/RzmDyNyALiKD9PfPRhLjGjOu8RY5f88L0KnlTz52wCfEHEI2dHYml12EPhT/48c+elpd5wRf6Y/it+awJpzzeHpjsvTKwwefLIF1zKoA5lo56bmqfsCBI/4OQqJU5APXtFzYz9ek7HMj51jQuj/sQAUXxU4G+JIGG5m1zvfV/sgPPXPhF5Erxf4jwlYw/+Ve/gpToXP4gxfQ6BrgN0uazP7+lz9jvO/jRdnDXQv5/+fjCMvX8byvwMdrfFrcIgODTH4bLC8AAA==",
+  },
+  "audi-s4-wheel": {
+    src: audi_s4_wheel_src,
+    width: 1600,
+    height: 1200,
+    avif: { 640: audi_s4_wheel_640avif, 1024: audi_s4_wheel_1024avif, 1600: audi_s4_wheel_1600avif },
+    webp: { 640: audi_s4_wheel_640webp, 1024: audi_s4_wheel_1024webp, 1600: audi_s4_wheel_src },
+    thumb: audi_s4_wheel_thumb,
+    lqip: "data:image/webp;base64,UklGRjgBAABXRUJQVlA4ICwBAADwBQCdASoUAA8APjEUiEKiISEYBAAgAwS0AE6ZQjgbys/FBvsFVkz0agAusylZZKt5Ny26so1MAAD+8Jim/9kv8ZVtn+7664zfRbXmQ08fPsytploOb0zc+ARGOdxr9yoGc2CPNlVf/W8VJXTJFXv1Bc6BlZXYqnbUPz3QgOQ7XDsQnyACVcYRev7B3tI9T7/cTb3bu8mhR5i5B/P8dSttg0Oj3AZjTRNh03LnwMKLFGK/zQ/lbYiKPLahsF99MPj5Wf/Kv/6jn/91/4//a+qrfE+nUZZ7XZqP8a9fDgAoTbyR4TW/yBQeTGkl8kNtNgAPp9BZ0FV6sMLtXs5P2Q8fbp50s8yYq1kfwTzAusQUJzWyWrIwr8m+eXktT4wF6nf9sltEy/XIgSnoAAA=",
   },
   "bmw-carplay-retrofit": {
     src: bmw_carplay_retrofit_src,

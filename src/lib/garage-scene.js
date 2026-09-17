@@ -28,14 +28,17 @@ import { createObject } from "../three/car/object.js";
 
 export { preloadCar } from "../three/car/object.js";
 
-// Where the camera stands for each of the bay's three tabs, plus a side
-// view for the running gear. Position and target in metres; the car faces
-// +Z, its driver's side is +X, and it rests on y = 0.
+// Where the camera stands for each of the bay's five tabs. Position and
+// target in metres; the car faces +Z, its driver's side is +X, and it rests
+// on y = 0. The wheel tab stands as close as the controls allow (ZOOM_MIN)
+// at the front left wheel; the cabin tab looks down through the windshield
+// at the MMI.
 export const PRESETS = {
   front: { position: [3.8, 1.65, 5.6], target: [0, 0.55, 0.2], hood: false },
   bay: { position: [-1.0, 3.9, 5.6], target: [0.05, 0.85, 1.2], hood: true },
   rear: { position: [-3.6, 1.5, -5.1], target: [0, 0.55, -0.3], hood: false },
-  side: { position: [5.6, 1.05, 0.9], target: [0, 0.55, 0.3], hood: false },
+  wheel: { position: [3.5, 0.92, 3.2], target: [0.8, 0.36, 1.4], hood: false },
+  cabin: { position: [0.9, 1.75, 3.6], target: [0, 1.0, 0.55], hood: false },
 };
 
 const ZOOM_MIN = 3.2;

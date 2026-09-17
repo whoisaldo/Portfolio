@@ -71,11 +71,11 @@ npm run og       # regenerates public/og.png
   (`src/components/GarageModel.jsx`, a three.js scene in
   `src/lib/garage-scene.js` around Ali's own S4, the GLB from
   `design/audi-s4` that the intro drifts too, with its hood on a hinge)
-  and the photographs themselves. This branch opens on the model.
-  `src/data/garage.js` is the data, transcribed from Ali's own build list,
-  with an anchor on a named node of the model for every part; the rest of
-  the old Teardown (the 328xi, the bench, the two competitions) sits under
-  the bay
+  and five photographs (front, engine bay, rear, a wheel, the cabin). This
+  branch opens on the model. `src/data/garage.js` is the data, transcribed
+  from Ali's own build list, with an anchor on a named node of the model
+  for every part; the rest of the old Teardown (the 328xi, the bench, the
+  two competitions) sits under the bay
 - `src/components/Skyline.jsx` the city behind the hero, alive: rooftop
   signage, drifting haze, the signs mirrored in the water, all of it
   breathing with the track through the same `--bass` / `--level` variables

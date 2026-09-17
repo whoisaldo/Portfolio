@@ -3,7 +3,7 @@
 // This was Teardown: eleven photographs in four groups with a caption each,
 // and the three of the S4 said "540 whp, tuned it myself" and nothing about
 // how. The car is the most built thing on the site that is not software, so
-// it gets the deck treatment: one bay, three views of the car, and a marker
+// it gets the deck treatment: one bay, five views of the car, and a marker
 // on every part that has been changed. Click a marker, or a line in the
 // sheet under the bay, and the part is named, priced where Ali priced it,
 // and shown close up in a crop of the same photograph.
@@ -15,9 +15,9 @@
 //
 // The markers are positioned in percentages of the photograph, not of the
 // frame. CoverBox does the cover-fit arithmetic so a pin on the grille stays
-// on the grille whether the frame is 4:3 on a monitor or 4:5 on a phone. The
-// two phone shots are tall; without that, a 4:3 crop would have put half the
-// pins on the wrong part of the car.
+// on the grille whether the frame is 4:3 on a monitor or 4:5 on a phone.
+// Three of the shots are tall phone portraits; without that, a 4:3 crop would
+// have put half the pins on the wrong part of the car.
 //
 // Keyboard: the view tabs are a tablist (arrow keys switch views); the
 // markers are a roving-tabindex group (arrow keys walk them, Enter or Space
@@ -29,8 +29,8 @@
 // model (GarageModel.jsx: Ali's S4 in three dimensions, orbitable, hood on
 // a hinge). Both pin the same sixteen parts and both select into the same
 // detail card, whose close crop is always the real photograph. The three
-// tabs mean the same thing in either: which side of the car you are looking
-// at. This branch opens on the model (DEFAULT_BAY in garage.js).
+// view tabs mean the same thing in either: where you are looking at the
+// car. This branch opens on the model (DEFAULT_BAY in garage.js).
 //
 // What used to be the rest of Teardown (the 328xi, the bench, the two
 // competitions) sits under the bay as "Also in the shop", captions intact.
@@ -50,6 +50,9 @@ import Glitch from "../components/ui/Glitch";
 const pad = (n) => String(n).padStart(2, "0");
 const groupOf = (m) => groups.find((g) => g.id === m.group);
 const indexOf = (m) => mods.findIndex((x) => x.id === m.id);
+// A pin label after a comma: first letter down, the rest as written, so the
+// MMI and the RS4 keep their capitals.
+const lower = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
 // The sheet under the bay, in three columns that come out roughly level:
 // seven power parts on the left, the running gear in the middle, the
@@ -193,7 +196,7 @@ export default function Garage() {
         {/* ---- the bay --------------------------------------------------- */}
         <motion.div {...reveal} transition={{ duration: 0.6, delay: 0.05 }} className="mt-12 tick-frame relative rail-clear">
           <Panel edge="bg-ink-line" fill="bg-ink" innerClassName="flex flex-col">
-            {/* Bezel: the name of the machine, and the three views. */}
+            {/* Bezel: the name of the machine, and the views. */}
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 md:px-5 py-3 border-b border-ink-line">
               <div className="flex items-center gap-4 min-w-0">
                 <span className="hazard h-1.5 w-10 opacity-40 shrink-0" aria-hidden="true" />
@@ -215,7 +218,7 @@ export default function Garage() {
                     </button>
                   ))}
                 </div>
-              <div role="tablist" aria-label="Views of the car" onKeyDown={onTabKey} className="flex gap-1 -mx-1">
+              <div role="tablist" aria-label="Views of the car" onKeyDown={onTabKey} className="flex flex-wrap gap-1 -mx-1">
                 {views.map((v, i) => {
                   const on = v.id === view.id;
                   return (
@@ -229,7 +232,7 @@ export default function Garage() {
                       aria-controls={`${idBase}-view`}
                       tabIndex={on ? 0 : -1}
                       onClick={() => setViewId(v.id)}
-                      className={`relative px-3 py-2 mono-label transition-colors focus-visible:outline-none
+                      className={`relative px-3 py-2 mono-label whitespace-nowrap transition-colors focus-visible:outline-none
                                   ${on ? "text-primary" : "text-dim hover:text-primary"}`}
                     >
                       <span
@@ -349,7 +352,7 @@ export default function Garage() {
                                 onClick={() => setViewId(p.view)}
                                 className={`ink-underline text-left transition-colors hover:text-volt ${p.view === view.id ? "text-primary" : ""}`}
                               >
-                                {v?.label}, {p.label.toLowerCase()}
+                                {v?.label}, {lower(p.label)}
                               </button>
                             </span>
                           );
@@ -366,7 +369,7 @@ export default function Garage() {
                         <Panel corner="br" edge="bg-ink-line" innerClassName="relative aspect-square overflow-hidden">
                           <div
                             role="img"
-                            aria-label={`Close crop of the ${cropView.label.toLowerCase()} photograph: ${cropPin.label.toLowerCase()}.`}
+                            aria-label={`Close crop of the ${cropView.label.toLowerCase()} photograph: ${lower(cropPin.label)}.`}
                             className="absolute inset-0 bg-no-repeat"
                             style={crop}
                           />
