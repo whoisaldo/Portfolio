@@ -65,9 +65,9 @@ npm run og       # regenerates public/og.png
   screens switch to a working model of the project ("Try it"); the models
   are `src/components/demos/`, each flagged SIMULATED, none of them talking
   to the real product
-- `src/sections/Garage.jsx` the garage: the S4 in three photographs with a
-  numbered marker on every part, a detail card with a close crop, and the
-  parts sheet. `src/data/garage.js` is the data, transcribed from Ali's own
+- `src/sections/Garage.jsx` the garage: the S4 in five photographs (front,
+  engine bay, rear, a wheel, the cabin) with a numbered marker on every
+  part, a detail card with a close crop, and the parts sheet. `src/data/garage.js` is the data, transcribed from Ali's own
   build list; the rest of the old Teardown (the 328xi, the bench, the two
   competitions) sits under the bay
 - `src/components/Skyline.jsx` the city behind the hero, alive: rooftop

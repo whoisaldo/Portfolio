@@ -44,16 +44,17 @@ export const car = {
     "The daily. A supercharged S4 I built and tuned myself. Take a look around in 3D, or pick a part from the photos and the build sheet.",
 };
 
-// The three views. `focus` is where the frame should centre when it has to
-// crop: the two phone shots are tall and the car sits low in each.
+// The five views. `focus` is where the frame should centre when it has to
+// crop: three are phone portraits, tall against a 4:3 frame, and the car
+// sits low in each.
 export const views = [
   {
     id: "front",
     label: "Front",
     image: photo("audi-s4-front"),
-    alt: "A grey Audi S4 parked on a city street at night, seen head on, with a honeycomb grille and front lip.",
-    date: "May 2026",
-    focus: { x: 50, y: 60 },
+    alt: "My grey Audi S4 at night in front of the Boston Public Library, seen from the front left: the RS4 honeycomb grille and bumper, the headlights on, twenty-inch R8 wheels.",
+    date: "March 2026",
+    focus: { x: 50, y: 63 },
   },
   {
     id: "bay",
@@ -67,9 +68,25 @@ export const views = [
     id: "rear",
     label: "Rear",
     image: photo("audi-s4-rear"),
-    alt: "A grey Audi S4 parked at night on a residential street, seen from behind, with a rear diffuser, quad tips and the tail lights lit. The registration plate is blurred.",
-    date: "April 2026",
-    focus: { x: 50, y: 55 },
+    alt: "My S4 from behind on a Boston street at dusk: the carbon trunk spoiler, the carbon diffuser with the four AWE tips, and the S4 badge. The plate is blurred.",
+    date: "February 2026",
+    focus: { x: 52, y: 52 },
+  },
+  {
+    id: "wheel",
+    label: "Wheel",
+    image: photo("audi-s4-wheel"),
+    alt: "Close on one twenty-inch Audi R8 wheel: the center cap and the spokes, and the ECS caliper and drilled rotor behind them.",
+    date: "October 2024",
+    focus: { x: 52, y: 50 },
+  },
+  {
+    id: "cabin",
+    label: "Cabin",
+    image: photo("audi-s4-cabin"),
+    alt: "From the driver's seat: the flat-bottomed wheel, the cluster, and Apple CarPlay on the MMI screen.",
+    date: "May 2026",
+    focus: { x: 55, y: 58 },
   },
 ];
 
@@ -138,7 +155,7 @@ export const mods = [
     price: 1100,
     note: "Replaces the stock charge-cooler radiator behind the grille, ahead of the engine's own radiator. It cools the water that cools the supercharged intake air.",
     pins: [
-      { view: "front", x: 63, y: 60, label: "Behind the grille" },
+      { view: "front", x: 19, y: 67, label: "Behind the grille" },
       { view: "bay", x: 74, y: 86, label: "Ahead of the radiator" },
     ],
   },
@@ -149,7 +166,7 @@ export const mods = [
     brand: "AWE",
     price: 3000,
     note: "Downpipes off both banks and the full system back to the quad tips.",
-    pins: [{ view: "rear", x: 46, y: 68, label: "Quad tips" }],
+    pins: [{ view: "rear", x: 41, y: 64, label: "Quad tips" }],
   },
 
   {
@@ -159,7 +176,7 @@ export const mods = [
     brand: "ECS",
     price: 5500,
     note: "The brake set and drilled hubs, behind the R8 wheels.",
-    pins: [{ view: "rear", x: 79, y: 63, label: "Behind the spokes" }],
+    pins: [{ view: "wheel", x: 66, y: 52, label: "Caliper and drilled rotor" }],
   },
   {
     id: "suspension",
@@ -168,7 +185,7 @@ export const mods = [
     brand: "ECS",
     price: 1300,
     note: "The RS4 suspension set, which is where the ride height in the photographs comes from.",
-    pins: [{ view: "front", x: 24, y: 68, label: "Ride height" }],
+    pins: [{ view: "front", x: 59, y: 61, label: "Ride height" }],
   },
   {
     id: "wheels",
@@ -178,8 +195,8 @@ export const mods = [
     price: null,
     note: "Twenty-inch Audi R8 wheels with 255/35 R20 tires.",
     pins: [
-      { view: "front", x: 21, y: 59, label: "Front left" },
-      { view: "rear", x: 77, y: 56, label: "Rear right" },
+      { view: "wheel", x: 41, y: 55, label: "Center cap and spokes" },
+      { view: "front", x: 58, y: 71, label: "Front left" },
     ],
   },
 
@@ -191,7 +208,7 @@ export const mods = [
     price: 700,
     priceNote: "plus paint match and install",
     note: "The RS4 bumper and honeycomb grille on an S4 body, colour-matched and fitted.",
-    pins: [{ view: "front", x: 44, y: 68, label: "The RS4 face" }],
+    pins: [{ view: "front", x: 34, y: 77, label: "The RS4 face" }],
   },
   {
     id: "diffuser",
@@ -200,7 +217,7 @@ export const mods = [
     brand: null,
     price: 800,
     note: "Carbon diffuser under the rear bumper, around the quad tips.",
-    pins: [{ view: "rear", x: 26, y: 62, label: "Under the bumper" }],
+    pins: [{ view: "rear", x: 62, y: 64, label: "Under the bumper" }],
   },
   {
     id: "spoiler",
@@ -209,7 +226,7 @@ export const mods = [
     brand: null,
     price: 200,
     note: "A carbon lip on the trunk lid.",
-    pins: [{ view: "rear", x: 30, y: 45, label: "Trunk lid" }],
+    pins: [{ view: "rear", x: 62, y: 43, label: "Trunk lid" }],
   },
   {
     id: "rear-bumper",
@@ -218,7 +235,7 @@ export const mods = [
     brand: null,
     price: 250,
     note: "A replacement rear bumper from a junkyard, which is the cheapest line on the list that is not a rain guard.",
-    pins: [{ view: "rear", x: 13, y: 57, label: "Rear bumper" }],
+    pins: [{ view: "rear", x: 17, y: 59, label: "Rear bumper" }],
   },
   {
     id: "rain-guards",
@@ -227,7 +244,10 @@ export const mods = [
     brand: null,
     price: 100,
     note: "Window visors on all four doors.",
-    pins: [{ view: "rear", x: 84, y: 43, label: "Rear door" }],
+    pins: [
+      { view: "rear", x: 24, y: 36, label: "Rear door" },
+      { view: "front", x: 69, y: 50, label: "Front door" },
+    ],
   },
 
   {
@@ -237,7 +257,7 @@ export const mods = [
     brand: "Apple",
     price: 400,
     note: "CarPlay retrofitted onto the MMI, the same job as on the 328xi below, with less of the dash out this time.",
-    pins: [{ view: "front", x: 47, y: 46, label: "On the MMI, behind the glass" }],
+    pins: [{ view: "cabin", x: 72, y: 52, label: "On the MMI screen" }],
   },
 ];
 
