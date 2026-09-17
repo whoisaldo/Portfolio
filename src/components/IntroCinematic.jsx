@@ -53,7 +53,7 @@ import { profile } from "../data/profile";
 import { img } from "../data/images";
 import { s4Poster } from "../data/s4";
 import Picture from "./Picture";
-import { INTRO_START, markIntroSeen, replayIntro, setIntroDone } from "../lib/intro";
+import { INTRO_START, markIntroSeen, setIntroDone, useReplayIntro } from "../lib/intro";
 import { audioContext } from "../lib/audio";
 import { AMBIENT_EVENT, getLevels, isPlaying, isTrackPlaying, setDuck, songTime } from "../lib/ambient";
 import { cancelIntroSfx, scheduleIntroSfx } from "../lib/intro-sfx";
@@ -249,9 +249,10 @@ export default function IntroCinematic() {
   const flagsRef = useRef(FLAGS);
 
   // Up up down down left right left right B A, anywhere on the page.
+  const replayIntro = useReplayIntro();
   useKonami(() => replayIntro({ greeting: "breach protocol accepted, choom." }));
 
-  // The gate, the footer and the Konami code all start it the same way.
+  // The gate, the console and the Konami code all start it the same way.
   useEffect(() => {
     const onStart = (e) => {
       const d = e.detail || {};
@@ -265,6 +266,8 @@ export default function IntroCinematic() {
       setPhase("moon");
       setRun({
         id: Date.now(),
+        // Same clock as a key event's timeStamp; see the skip handler below.
+        startedAt: performance.now(),
         mode: d.mode === "short" ? "short" : "full",
         withSound: Boolean(d.withSound),
         greeting: d.greeting ?? null,
@@ -333,6 +336,13 @@ export default function IntroCinematic() {
   useEffect(() => {
     if (!run) return;
     const onKey = (e) => {
+      // A key that asked for this run cannot also skip it. The console's
+      // `intro` runs on the Enter that submits the line, and that keydown is
+      // still on its way up when this listener is attached, with window its
+      // last stop: without this the command started the cinematic and killed
+      // it in the same keystroke. (A button is safe either way, because the
+      // browser fires its click after the keydown is finished with.)
+      if (e.timeStamp < run.startedAt) return;
       if (e.key === "Escape" || e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         finish();

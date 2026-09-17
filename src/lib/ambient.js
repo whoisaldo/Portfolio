@@ -103,6 +103,13 @@ let timer = null;
 let nextBar = 0;
 let barIndex = 0;
 let fileSource = null;
+// A source that has been told to stop at the end of a fade and is still
+// sounding. Held only so the next start can cut it dead; see stopAmbient().
+let fading = null;
+// Bumped by every stop. A start that was still fetching when one happened
+// checks this and abandons: crossing to the plain version while the track is
+// mid-download should not start it a few seconds later, over there.
+let stopSeq = 0;
 // Non-null while a start is in flight. See startAmbient().
 let starting = null;
 
@@ -359,7 +366,11 @@ export function startAmbient(opts = {}) {
   // async span, not just its endpoints.
   if (!starting) {
     starting = (async () => {
+      const seq = stopSeq;
       if (await playFile(TRACK_URL, opts)) return true;
+      // Nothing to fall back to if the reason there is no file is that the
+      // reader left while it was loading.
+      if (seq !== stopSeq) return false;
       return startSynth(opts);
     })().finally(() => { starting = null; });
   }
@@ -385,21 +396,53 @@ function startSynth({ gain = 1 } = {}) {
   return true;
 }
 
-/** Fade out and stop scheduling. */
-export function stopAmbient() {
+/**
+ * Stop.
+ *
+ *   fade  seconds to fade over. Zero, the default, cuts.
+ *
+ * Without a fade the source is stopped on the spot, which is what every
+ * caller that is about to start something else wants: playFile() calls this
+ * before it begins, and a tail bleeding into the new start would be two
+ * copies of the same track a few bars apart.
+ *
+ * With one, the gain ramps down and the source is told to stop at the end of
+ * it, so the music leaves rather than disappears. The ramp is exponential, so
+ * the time constant is a third of the fade: inaudible well before the source
+ * actually ends. The fading source is kept in `fading` because the master
+ * gain is shared, and a start during the tail would drag it back up and play
+ * both at once. Any stop, including the one inside playFile(), cuts it first.
+ */
+export function stopAmbient({ fade = 0 } = {}) {
   const ac = audioContext();
   const was = isPlaying();
+  stopSeq += 1;
+  // Already leaving, and nothing new has started since: let the tail finish.
+  // Two route changes inside the plain version should not chop the fade the
+  // first one began.
+  if (!was && fading && fade > 0) return;
+  if (fading) {
+    try { fading.stop(); } catch { /* already ended */ }
+    fading = null;
+  }
   if (timer !== null) {
     clearInterval(timer);
     timer = null;
   }
-  if (fileSource) {
-    try { fileSource.stop(); } catch { /* already stopped */ }
-    fileSource = null;
-  }
   if (ac && master) {
     master.gain.cancelScheduledValues(ac.currentTime);
-    master.gain.setTargetAtTime(0.0001, ac.currentTime, 0.4);
+    master.gain.setTargetAtTime(0.0001, ac.currentTime, fade > 0 ? fade / 3 : 0.4);
+  }
+  if (fileSource) {
+    const source = fileSource;
+    fileSource = null;
+    if (fade > 0 && ac) {
+      fading = source;
+      source.onended = () => { if (fading === source) fading = null; };
+      try { source.stop(ac.currentTime + fade); } catch { /* already stopped */ }
+    } else {
+      try { source.stop(); } catch { /* already stopped */ }
+    }
   }
   if (was) announce(false);
 }
@@ -416,6 +459,7 @@ export async function playFile(url, { loop = true, offset = 0, gain = 1, fade = 
   const ac = audioContext();
   if (!ac || ac.state !== "running") return false;
 
+  const seq = stopSeq;
   let buffer;
   try {
     if (url === TRACK_URL && decodedTrack) {
@@ -441,6 +485,10 @@ export async function playFile(url, { loop = true, offset = 0, gain = 1, fade = 
   } catch {
     return false;
   }
+
+  // A stop landed while this was fetching or decoding. The reader has moved
+  // on; do not start behind them.
+  if (seq !== stopSeq) return false;
 
   stopAmbient();
   ensureMaster(ac);

@@ -25,7 +25,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Terminal as TerminalIcon, Clock } from "lucide-react";
-import { replayIntro } from "../lib/intro";
+import { useReplayIntro } from "../lib/intro";
 import { openGarage } from "../lib/garage";
 import { scrollToSection } from "../lib/scroll";
 import { sections } from "../data/site";
@@ -148,6 +148,7 @@ const onOff = (v) => (v ? "on" : "off");
 
 export default function Terminal({ onExit }) {
   const navigate = useNavigate();
+  const replayIntro = useReplayIntro();
   const asciiArt = `
    █████╗ ██╗     ██╗    ██╗   ██╗ ██████╗ ██╗   ██╗███╗   ██╗███████╗███████╗
   ██╔══██╗██║     ██║    ╚██╗ ██╔╝██╔═══██╗██║   ██║████╗  ██║██╔════╝██╔════╝
@@ -856,7 +857,6 @@ AUTHOR
           stopAmbient();
           say("system", "sound off. The door will not ask again.");
         }
-        window.dispatchEvent(new CustomEvent("aly:sound", { detail: { on: want } }));
         break;
       }
 

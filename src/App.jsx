@@ -33,6 +33,8 @@ import Console from "./components/Console";
 import Cursor from "./components/Cursor";
 import Home from "./routes/Home";
 import WorkPage from "./routes/WorkPage";
+import { stopAmbient } from "./lib/ambient";
+import { LEAVE_SECONDS } from "./lib/cues";
 import { initBeacon } from "./lib/beacon";
 import { attachUiSfx } from "./lib/ui-sfx";
 import { startReactive } from "./lib/reactive";
@@ -59,6 +61,16 @@ export default function App() {
   // on mount, and it returns its own teardown so a hot reload does not leave a
   // second set of listeners attached. Both shells count.
   useEffect(() => initBeacon(), []);
+
+  // The music belongs to the cinematic. Crossing to the plain version takes it
+  // with it, because the AudioContext is module state and nothing over there
+  // unmounts it: the track simply kept playing over a page that has no volume
+  // control on it to stop with. The preference is left alone, so the door is
+  // still there with the sound on when the reader comes back, and a stop this
+  // side of a download in flight cancels that too.
+  useEffect(() => {
+    if (isRecruiters(pathname)) stopAmbient({ fade: LEAVE_SECONDS });
+  }, [pathname]);
 
   if (isRecruiters(pathname)) {
     return (
