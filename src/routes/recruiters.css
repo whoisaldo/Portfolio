@@ -1,0 +1,1979 @@
+/* Loaded by recruiter routes only. Every selector stays inside their shell.
+
+   Colour lives in the tokens on .rp and nowhere else: the dark theme below is
+   the same forest green and ivory as the light one, with the ground and the
+   ink swapped. Every text pair was checked against WCAG AA (most clear AAA);
+   --rp-control is the one border that has to reach 3:1, because it is what
+   draws the edge of a button. */
+body.recruiters {
+  background: #f8f7f3;
+  color: #3b463e;
+}
+html:has(body.recruiters) {
+  background: #f8f7f3;
+}
+
+/* Georgia, widened to Fraunces' set width, so the name does not jump sideways
+   when the real face swaps in. */
+@font-face {
+  font-family: "Fraunces Fallback";
+  src: local("Georgia");
+  size-adjust: 105%;
+}
+
+.rp {
+  --rp-paper: #f8f7f3;
+  --rp-raise: #fffefa;
+  --rp-soft: #ecf0e6;
+  --rp-line: #dfe3d8;
+  --rp-line-strong: #bcc8b5;
+  --rp-control: #7f9178;
+  --rp-ink: #1f3529;
+  --rp-text: #3b463e;
+  --rp-muted: #5a655c;
+  --rp-accent: #29543f;
+  --rp-accent-soft: #6f8a5a;
+  --rp-cta: #29543f;
+  --rp-cta-hover: #1d4030;
+  --rp-cta-ink: #fffefa;
+  --rp-warn: #85601f;
+  --rp-plate: #fffefa;
+  --rp-panel: #21402f;
+  --rp-panel-ink: #f6f4ea;
+  --rp-panel-text: #cfdac8;
+  --rp-panel-muted: #a9bd9f;
+  --rp-panel-line: #3f5f4b;
+  --rp-glow: rgb(41 84 63 / 0.07);
+  --rp-serif: "Fraunces", "Fraunces Fallback", Georgia, serif;
+  --rp-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, monospace;
+  background:
+    radial-gradient(62rem 32rem at 90% -7rem, var(--rp-glow), transparent 70%)
+      no-repeat,
+    var(--rp-paper);
+  color: var(--rp-text);
+  font-family: Barlow, ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.rp :is(h1, h2, h3, h4, h5) {
+  font-family: Barlow, ui-sans-serif, system-ui, sans-serif;
+  color: var(--rp-ink);
+  letter-spacing: -0.015em;
+}
+.rp svg {
+  flex-shrink: 0;
+}
+.rp .rp-wrap {
+  width: min(100% - 5rem, 70rem);
+  margin-inline: auto;
+}
+.rp .rp-ink {
+  color: var(--rp-ink);
+}
+.rp .rp-muted {
+  color: var(--rp-muted);
+}
+.rp .rp-rule-strong {
+  border-color: var(--rp-line-strong);
+}
+.rp .rp-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  color: var(--rp-muted);
+}
+.rp .rp-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--rp-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+.rp .rp-text-link:hover {
+  text-decoration: underline;
+}
+.rp .rp-text-link > svg {
+  transition: transform 160ms;
+}
+.rp .rp-text-link:hover > svg:last-child {
+  transform: translateX(2px);
+}
+.rp .rp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 2.875rem;
+  padding: 0.75rem 1.2rem;
+  border: 1px solid var(--rp-cta);
+  border-radius: 6px;
+  background: var(--rp-cta);
+  color: var(--rp-cta-ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  transition:
+    background-color 160ms,
+    border-color 160ms;
+}
+.rp .rp-button:hover {
+  background: var(--rp-cta-hover);
+  border-color: var(--rp-cta-hover);
+}
+.rp .rp-button-secondary {
+  border-color: var(--rp-control);
+  background: transparent;
+  color: var(--rp-ink);
+  font-weight: 500;
+}
+.rp .rp-button-secondary:hover {
+  border-color: var(--rp-accent);
+  background: var(--rp-soft);
+}
+.rp .rp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.rp .rp-chip {
+  padding: 0.22rem 0.5rem;
+  border: 0;
+  border-radius: 4px;
+  background: var(--rp-soft);
+  color: var(--rp-text);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.rp .rp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  color: var(--rp-accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.rp .rp-status > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.rp .rp-status-building {
+  color: var(--rp-warn);
+}
+.rp .rp-bullets {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+.rp .rp-bullets li::marker {
+  color: var(--rp-accent-soft);
+}
+.rp :focus-visible {
+  outline: 2px solid var(--rp-accent);
+  outline-offset: 4px;
+  box-shadow: none;
+}
+.rp main:focus {
+  outline: none;
+  box-shadow: none;
+}
+.rp ::selection {
+  background: var(--rp-accent);
+  color: var(--rp-paper);
+}
+
+/* Navigation */
+.rp .rp-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--rp-paper);
+  border-bottom: 1px solid var(--rp-line);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.rp .rp-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  min-height: 4.5rem;
+}
+.rp .rp-brand {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.7rem;
+  color: var(--rp-ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.rp .rp-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--rp-line-strong);
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.rp .rp-brand-caption {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--rp-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+.rp .rp-bar-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.6rem;
+}
+.rp .rp-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--rp-control);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--rp-ink);
+  cursor: pointer;
+  transition:
+    background-color 160ms,
+    border-color 160ms;
+}
+.rp .rp-theme-toggle:hover {
+  border-color: var(--rp-accent);
+  background: var(--rp-soft);
+}
+.rp .rp-nav {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  gap: 1.6rem;
+}
+.rp .rp-nav a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  color: var(--rp-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 160ms;
+}
+.rp .rp-nav a:hover,
+.rp .rp-nav a[aria-current] {
+  color: var(--rp-ink);
+}
+.rp .rp-nav a[aria-current]::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--rp-accent);
+}
+.rp .rp-nav-download {
+  min-height: 2.5rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.875rem;
+}
+.rp .rp-file-type {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+.rp .rp-skip {
+  position: absolute;
+  left: 1rem;
+  top: -5rem;
+  z-index: 40;
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  background: var(--rp-raise);
+  color: var(--rp-ink);
+}
+.rp .rp-skip:focus {
+  top: 0.75rem;
+}
+
+/* Introduction. Three cells rather than one column of copy, so a phone can
+   put the portrait beside the name and still give the prose the full width. */
+.rp .rp-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18.5rem;
+  grid-template-areas:
+    "head portrait"
+    "body portrait";
+  align-content: center;
+  column-gap: 6rem;
+  padding: 5rem 0 4.25rem;
+}
+.rp .rp-hero-head {
+  grid-area: head;
+}
+.rp .rp-hero-body {
+  grid-area: body;
+}
+.rp .rp-hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--rp-accent);
+}
+.rp .rp-hero-eyebrow > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rp-accent-soft);
+}
+.rp .rp-hero h1 {
+  margin: 0.9rem 0 0;
+  font-family: var(--rp-serif);
+  font-size: clamp(3.5rem, 6.4vw, 5.75rem);
+  font-weight: 400;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+}
+.rp .rp-hero h1 > span {
+  color: var(--rp-accent-soft);
+}
+.rp .rp-hero-tagline {
+  margin-top: 0.85rem;
+  color: var(--rp-ink);
+  font-size: 1.75rem;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+.rp .rp-hero-intro {
+  max-width: 50ch;
+  margin-top: 1.5rem;
+  font-size: 1.125rem;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+.rp .rp-hero-current {
+  max-width: 56ch;
+  margin-top: 0.85rem;
+  color: var(--rp-muted);
+  font-size: 1rem;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+.rp .rp-hero-current strong {
+  color: var(--rp-ink);
+  font-weight: 500;
+}
+.rp .rp-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.9rem;
+}
+.rp .rp-hero-socials {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1.4rem;
+}
+.rp .rp-hero-socials a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.75rem;
+  color: var(--rp-muted);
+  font-size: 0.875rem;
+  transition: color 160ms;
+}
+.rp .rp-hero-socials a:hover {
+  color: var(--rp-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rp .rp-portrait {
+  grid-area: portrait;
+  align-self: center;
+  padding: 0.55rem 0.55rem 0;
+  border: 1px solid var(--rp-line-strong);
+  border-radius: 8px;
+  background: var(--rp-raise);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.05),
+    0 14px 34px rgb(0 0 0 / 0.1);
+}
+.rp .rp-portrait img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.rp .rp-portrait figcaption {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.7rem 0.2rem;
+  color: var(--rp-muted);
+  font-size: 0.75rem;
+}
+.rp .rp-portrait figcaption > span {
+  margin-left: auto;
+  font-family: var(--rp-mono);
+  font-size: 0.6875rem;
+}
+
+.rp .rp-at-a-glance {
+  padding: 1.5rem 0 1.65rem;
+  border-block: 1px solid var(--rp-line);
+}
+.rp .rp-organizations {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 1.1rem;
+}
+.rp .rp-organization {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  padding-inline: 1.25rem;
+  border-left: 1px solid var(--rp-line);
+}
+.rp .rp-organization:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.rp .rp-organization:last-child {
+  padding-right: 0;
+}
+.rp .rp-organization > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.rp .rp-organization strong {
+  color: var(--rp-ink);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.rp .rp-organization > span > span {
+  margin-top: 0.1rem;
+  color: var(--rp-muted);
+  font-size: 0.75rem;
+}
+.rp .rp-organization:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Logos sit on an ivory plate in both themes: four of the seven marks are
+   dark line work. The three below carry their own dark ground instead. */
+.rp .rp-company-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 4rem;
+  height: 4rem;
+  padding: 0.55rem;
+  border: 1px solid var(--rp-line);
+  border-radius: 10px;
+  background: var(--rp-plate);
+}
+.rp .rp-company-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.rp .rp-company-logo-pinnatec-auto {
+  padding: 0.3rem;
+  border-color: #18322a;
+  background: #18322a;
+}
+.rp .rp-company-logo-aws-cloudformation {
+  border-color: #243342;
+  background: #243342;
+}
+.rp .rp-company-logo-robert-defalco-realty {
+  /* The supplied wordmark has white lettering and needs a dark plate. */
+  padding: 0.3rem;
+  border-color: #2a2a2c;
+  background: #0b0b0c;
+}
+.rp .rp-organization .rp-company-logo {
+  width: 3rem;
+  height: 2.75rem;
+  padding: 0.4rem;
+  border-radius: 6px;
+}
+.rp .rp-organization .rp-company-logo-pinnatec-auto,
+.rp .rp-organization .rp-company-logo-robert-defalco-realty {
+  padding: 0.2rem;
+}
+
+/* Section rhythm */
+.rp .rp-section {
+  margin-top: 6rem;
+  scroll-margin-top: 6.5rem;
+}
+.rp .rp-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+.rp .rp-section-heading::after {
+  content: "";
+  flex: 1;
+  order: 1;
+  height: 1px;
+  background: var(--rp-line);
+}
+.rp .rp-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+}
+.rp .rp-section-number {
+  color: var(--rp-accent);
+  font-family: var(--rp-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.rp .rp-section-heading h2 {
+  font-family: var(--rp-serif);
+  font-size: 2.25rem;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+.rp .rp-section-heading > p {
+  order: 2;
+  color: var(--rp-muted);
+  font-size: 0.875rem;
+}
+
+/* Experience. Logo rail, the write-up, and the numbers beside it, so a role
+   reads across instead of stacking everything into one tall column. */
+.rp .rp-timeline {
+  position: relative;
+}
+.rp .rp-timeline::before {
+  content: "";
+  position: absolute;
+  top: 1rem;
+  bottom: 4rem;
+  left: 2rem;
+  width: 1px;
+  background: var(--rp-line);
+}
+.rp .rp-role {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr) 19rem;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "logo head aside"
+    "logo main aside";
+  column-gap: 1.75rem;
+  padding-bottom: 2.75rem;
+}
+.rp .rp-role + .rp-role {
+  padding-top: 2.75rem;
+}
+.rp .rp-role + .rp-role::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 5.75rem;
+  height: 1px;
+  background: var(--rp-line);
+}
+.rp .rp-role:last-child {
+  padding-bottom: 0;
+}
+.rp .rp-role > .rp-company-logo {
+  grid-area: logo;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 0 0 7px var(--rp-paper);
+}
+.rp .rp-role-head {
+  grid-area: head;
+  min-width: 0;
+}
+.rp .rp-role-main {
+  grid-area: main;
+  min-width: 0;
+}
+.rp .rp-role-aside {
+  grid-area: aside;
+  position: sticky;
+  top: 6rem;
+  align-self: start;
+  min-width: 0;
+  margin-left: 1.75rem;
+  padding-top: 0.35rem;
+}
+.rp .rp-role-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+}
+.rp .rp-role-heading h3 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rp .rp-role-heading .rp-status {
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--rp-line-strong);
+  border-radius: 20px;
+  background: var(--rp-soft);
+  font-size: 0.6875rem;
+}
+.rp .rp-role-title {
+  margin-top: 0.2rem;
+  color: var(--rp-ink);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.rp .rp-role-meta,
+.rp .rp-role-subtitle {
+  margin-top: 0.3rem;
+  color: var(--rp-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.rp .rp-role-subtitle {
+  margin-top: 0.1rem;
+}
+.rp .rp-role-description {
+  max-width: 68ch;
+  margin-top: 1rem;
+  font-size: 1rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+.rp .rp-role-highlights {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 70ch;
+  margin-top: 1.15rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.rp .rp-role-highlights li {
+  position: relative;
+  padding-left: 1.15rem;
+  text-wrap: pretty;
+}
+.rp .rp-role-highlights li::before {
+  content: "";
+  position: absolute;
+  top: 0.62em;
+  left: 0.1rem;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 1px;
+  background: var(--rp-accent-soft);
+}
+.rp .rp-role-highlights strong {
+  color: var(--rp-ink);
+  font-weight: 600;
+}
+.rp .rp-role-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1.25rem;
+}
+.rp .rp-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.15rem 1.25rem;
+}
+.rp .rp-stats > div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.rp .rp-stats dd {
+  color: var(--rp-ink);
+  font-size: 1.375rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.rp .rp-stats dt {
+  margin-top: 0.2rem;
+  color: var(--rp-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.rp .rp-role-aside > .rp-chips {
+  margin-top: 1.4rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rp-line);
+}
+.rp .rp-role-aside > .rp-chips:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Projects use actual product screens, framed in a quiet browser window. */
+.rp .rp-project-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+.rp .rp-project {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--rp-line);
+  border-radius: 10px;
+  background: var(--rp-raise);
+  transition: border-color 160ms;
+}
+.rp .rp-project:hover {
+  border-color: var(--rp-control);
+}
+.rp .rp-project-cover {
+  display: block;
+  margin: 0.75rem 0.75rem 0;
+  overflow: hidden;
+  border: 1px solid var(--rp-line);
+  border-radius: 6px;
+  background: var(--rp-soft);
+}
+.rp .rp-browser-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 1.875rem;
+  padding: 0 0.7rem;
+  background: var(--rp-soft);
+  color: var(--rp-muted);
+  font-size: 0.6875rem;
+}
+.rp .rp-browser-dots {
+  display: flex;
+  gap: 4px;
+}
+.rp .rp-browser-dots i {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--rp-line-strong);
+}
+.rp .rp-project-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  object-position: top;
+  transition: transform 500ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rp .rp-project:hover .rp-project-image {
+  transform: scale(1.02);
+}
+.rp .rp-project-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 1.4rem 1.5rem 1.25rem;
+}
+.rp .rp-project-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+}
+.rp .rp-project h3 {
+  margin-top: 0.55rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.rp .rp-project h3 a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 5px;
+}
+.rp .rp-project-content > p {
+  margin-top: 0.6rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+.rp .rp-project-content > .rp-chips {
+  margin-top: auto;
+}
+.rp .rp-project-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rp-line);
+}
+.rp .rp-project-links > div,
+.rp .rp-mini-links {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+}
+.rp .rp-mini-links {
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+.rp .rp-project-links > div a,
+.rp .rp-mini-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.75rem;
+  white-space: nowrap;
+  color: var(--rp-muted);
+  font-size: 0.8125rem;
+  transition: color 160ms;
+}
+.rp .rp-project-links > div a:hover,
+.rp .rp-mini-links a:hover {
+  color: var(--rp-accent);
+}
+.rp .rp-subheading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 3rem 0 1.1rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+.rp .rp-subheading > span {
+  color: var(--rp-muted);
+  font-family: var(--rp-mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* The other four projects: same facts, a quarter of the height. */
+.rp .rp-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.5rem;
+}
+.rp .rp-mini {
+  display: grid;
+  grid-template-columns: 10.5rem minmax(0, 1fr);
+  align-items: start;
+  gap: 1.15rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--rp-line);
+  border-radius: 10px;
+  background: var(--rp-raise);
+  transition: border-color 160ms;
+}
+.rp .rp-mini:hover {
+  border-color: var(--rp-control);
+}
+.rp .rp-mini-cover {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--rp-line);
+  border-radius: 6px;
+  background: var(--rp-soft);
+}
+.rp .rp-mini-cover img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  object-fit: cover;
+  object-position: top;
+}
+.rp .rp-mini-content {
+  min-width: 0;
+  padding: 0.15rem 0.35rem 0 0;
+}
+.rp .rp-mini h4 {
+  margin-top: 0.3rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rp .rp-mini h4 a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+.rp .rp-mini-content > p {
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+.rp .rp-mini-links {
+  margin-top: 0.5rem;
+}
+.rp .rp-mini-links .rp-text-link {
+  color: var(--rp-accent);
+  font-size: 0.8125rem;
+}
+
+.rp .rp-repositories {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 2.5rem;
+  border-top: 1px solid var(--rp-line);
+}
+.rp .rp-repositories li {
+  border-bottom: 1px solid var(--rp-line);
+}
+.rp .rp-repositories a {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0;
+}
+.rp .rp-repositories strong {
+  display: block;
+  color: var(--rp-ink);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+.rp .rp-repositories a > span > span {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--rp-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.rp .rp-repositories svg {
+  margin-top: 0.25rem;
+  color: var(--rp-muted);
+  transition: color 160ms;
+}
+.rp .rp-repositories a:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rp .rp-repositories a:hover svg {
+  color: var(--rp-accent);
+}
+
+/* Skills, education, résumé */
+.rp .rp-skills-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 3rem;
+  border-top: 1px solid var(--rp-line);
+}
+.rp .rp-skill-group {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--rp-line);
+}
+.rp .rp-skill-group dt {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--rp-ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.rp .rp-skill-group dt svg {
+  color: var(--rp-accent-soft);
+}
+.rp .rp-skill-group dd {
+  margin-top: 0.5rem;
+  padding-left: 1.85rem;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+.rp .rp-education {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  padding: 2rem;
+  border: 1px solid var(--rp-line);
+  border-radius: 10px;
+  background: var(--rp-raise);
+}
+.rp .rp-education-logo {
+  width: 4.5rem;
+  height: 4.5rem;
+  padding: 0.5rem;
+  flex-shrink: 0;
+  border: 1px solid var(--rp-line);
+  border-radius: 10px;
+  background: var(--rp-plate);
+}
+.rp .rp-education-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.rp .rp-education-content {
+  min-width: 0;
+  flex: 1;
+}
+.rp .rp-education-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+.rp .rp-education-heading h3 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.rp .rp-education-heading > span {
+  color: var(--rp-muted);
+  font-size: 0.8125rem;
+}
+.rp .rp-degree {
+  margin-top: 0.3rem;
+  color: var(--rp-ink);
+  font-size: 1.0625rem;
+  font-weight: 500;
+}
+.rp .rp-education-content > .rp-muted {
+  max-width: 68ch;
+  margin-top: 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+.rp .rp-coursework {
+  margin-top: 1.2rem;
+}
+.rp .rp-coursework > span {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: var(--rp-muted);
+  font-size: 0.75rem;
+}
+
+/* The résumé panel. The sheet on the right is the PDF itself, so it cannot go
+   stale, but it is only a picture of it: it takes no pointer events, so it can
+   never swallow the page's scroll, and the link laid over it opens the file.
+   Shown only where an embedded PDF renders, which is a desktop with a mouse. */
+.rp .rp-resume {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 33rem;
+  min-height: 27rem;
+  overflow: hidden;
+  border: 1px solid var(--rp-line);
+  border-radius: 12px;
+  background: var(--rp-raise);
+}
+.rp .rp-resume-card {
+  align-self: center;
+  padding: 3rem;
+}
+.rp .rp-resume-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 4.25rem;
+  border: 1px solid var(--rp-line-strong);
+  border-radius: 4px;
+  background: var(--rp-soft);
+  color: var(--rp-accent);
+}
+.rp .rp-resume-card h3 {
+  margin-top: 1.4rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.rp .rp-resume-card p {
+  max-width: 36ch;
+  margin-top: 0.5rem;
+  color: var(--rp-muted);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+.rp .rp-resume-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.9rem 1.4rem;
+  margin-top: 1.6rem;
+}
+.rp .rp-resume-preview {
+  position: relative;
+  margin: 2.5rem 3rem 0 0;
+  overflow: hidden;
+  border: 1px solid var(--rp-line-strong);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: #fff;
+  box-shadow: 0 10px 40px rgb(0 0 0 / 0.16);
+  color-scheme: light;
+  transition: transform 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.rp .rp-resume-preview:hover,
+.rp .rp-resume-preview:focus-within {
+  transform: translateY(-6px);
+}
+/* Overscanned by 4px a side: Chrome's viewer keeps a 3px dark margin around
+   the page, which reads as a heavy black outline on the light theme. */
+.rp .rp-resume-preview iframe {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  display: block;
+  width: calc(100% + 8px);
+  aspect-ratio: 8.5 / 11;
+  border: 0;
+  background: #fff;
+  pointer-events: none;
+}
+.rp .rp-resume-preview a {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.rp .rp-resume-preview a:focus-visible {
+  outline-offset: -4px;
+}
+
+/* Contact and footer */
+.rp .rp-contact {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  column-gap: 3.75rem;
+  padding: 3.25rem;
+  border: 1px solid var(--rp-panel-line);
+  border-radius: 12px;
+  background:
+    radial-gradient(40rem 20rem at 100% 0%, rgb(255 255 255 / 0.06), transparent 70%),
+    var(--rp-panel);
+  color: var(--rp-panel-text);
+}
+.rp .rp-contact .rp-eyebrow,
+.rp .rp-contact-other dt {
+  color: var(--rp-panel-muted);
+}
+.rp .rp-contact h2 {
+  margin-top: 0.8rem;
+  color: var(--rp-panel-ink);
+  font-family: var(--rp-serif);
+  font-size: 3.5rem;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+.rp .rp-contact-main > p:not(.rp-eyebrow) {
+  max-width: 44ch;
+  margin-top: 1rem;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+.rp .rp-contact-email {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  max-width: 100%;
+  margin-top: 1.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--rp-panel-muted);
+  color: var(--rp-panel-ink);
+  font-size: clamp(1.0625rem, 2.1vw, 1.625rem);
+  letter-spacing: -0.015em;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  transition: border-color 160ms;
+}
+.rp .rp-contact-email:hover {
+  border-bottom-color: var(--rp-panel-ink);
+}
+.rp .rp-contact-other {
+  padding-left: 2.5rem;
+  border-left: 1px solid var(--rp-panel-line);
+}
+.rp .rp-contact-other dl {
+  display: grid;
+  gap: 1.15rem;
+  margin-top: 1.5rem;
+}
+.rp .rp-contact-other dt {
+  font-size: 0.75rem;
+}
+.rp .rp-contact-other dd {
+  margin-top: 0.1rem;
+  font-size: 0.9375rem;
+}
+.rp .rp-contact-other dd a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--rp-panel-ink);
+  overflow-wrap: anywhere;
+}
+.rp .rp-contact-socials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.3rem;
+  margin-top: 1.6rem;
+}
+.rp .rp-contact-socials a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.75rem;
+  font-size: 0.875rem;
+}
+.rp .rp-contact-other a:hover {
+  color: var(--rp-panel-ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rp .rp-contact :focus-visible {
+  outline-color: var(--rp-panel-ink);
+}
+.rp .rp-contact ::selection {
+  background: var(--rp-panel-ink);
+  color: var(--rp-panel);
+}
+.rp .rp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 3rem;
+  padding-block: 1.75rem 2.5rem;
+  border-top: 1px solid var(--rp-line);
+  color: var(--rp-muted);
+  font-size: 0.8125rem;
+}
+.rp .rp-footer-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.3rem;
+}
+.rp .rp-footer-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.75rem;
+  transition: color 160ms;
+}
+.rp .rp-footer-links a:hover {
+  color: var(--rp-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rp .rp-cinematic-link {
+  padding-left: 1.3rem;
+  border-left: 1px solid var(--rp-line-strong);
+}
+
+/* The long-form recruiter pages use the same type, spacing and paper. */
+.rp .rp-detail {
+  padding-top: 2.75rem;
+}
+.rp .rp-detail-header {
+  padding: 1.5rem 0 2.5rem;
+  border-bottom: 1px solid var(--rp-line);
+}
+.rp .rp-detail-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+.rp .rp-detail-heading > div:last-child {
+  min-width: 0;
+}
+.rp .rp-detail-heading h1 {
+  max-width: 22ch;
+  margin-top: 0.5rem;
+  font-family: var(--rp-serif);
+  font-size: clamp(2.25rem, 4.2vw, 3.75rem);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+.rp .rp-detail-subtitle {
+  margin-top: 1rem;
+  color: var(--rp-muted);
+  font-size: 1rem;
+}
+.rp .rp-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+.rp .rp-detail > .rp-detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1.5rem;
+  padding: 1.75rem 2rem;
+  border: 1px solid var(--rp-line);
+  border-radius: 10px;
+  background: var(--rp-raise);
+}
+.rp .rp-detail-metrics dt {
+  color: var(--rp-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.rp .rp-detail-metrics dd {
+  margin-top: 0.3rem;
+  color: var(--rp-ink);
+  font-size: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.rp .rp-detail-block {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 1rem 3rem;
+}
+.rp .rp-detail-block > h2 {
+  padding-top: 0.3rem;
+  color: var(--rp-accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.rp .rp-detail-block > div {
+  min-width: 0;
+}
+.rp .rp-detail-block p {
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+.rp .rp-detail blockquote {
+  max-width: 40ch;
+  padding: 2.25rem 2rem;
+  border-block: 1px solid var(--rp-line-strong);
+  color: var(--rp-ink);
+  font-family: var(--rp-serif);
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+.rp .rp-detail-screen {
+  overflow: hidden;
+  border: 1px solid var(--rp-line);
+  border-radius: 10px;
+  background: var(--rp-raise);
+}
+.rp .rp-detail-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--rp-line);
+}
+.rp .rp-detail-pagination > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  max-width: 45%;
+  color: var(--rp-accent);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+.rp .rp-detail-pagination > a:last-child {
+  margin-left: auto;
+  text-align: right;
+}
+.rp .rp-detail-pagination > a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Dark is the screen default. Light remains an explicit recruiter preference.
+   No global .dark class, root variables, or cinematic settings are changed.
+   Print falls outside this block on purpose, so paper is always light. */
+@media screen {
+  .rp[data-rp-theme="light"] {
+    color-scheme: light;
+  }
+  .rp:not([data-rp-theme="light"]) {
+    --rp-paper: #0b0f0d;
+    --rp-raise: #111613;
+    --rp-soft: #19211c;
+    --rp-line: #222b25;
+    --rp-line-strong: #3a4840;
+    --rp-control: #5a6d62;
+    --rp-ink: #f3f1e8;
+    --rp-text: #c5ccc3;
+    --rp-muted: #8f9b91;
+    --rp-accent: #a5cf9e;
+    --rp-accent-soft: #6f9a6c;
+    --rp-cta: #b9dcae;
+    --rp-cta-hover: #d3ecc9;
+    --rp-cta-ink: #0c1710;
+    --rp-warn: #dcb978;
+    --rp-plate: #f3f1e8;
+    --rp-panel: #14261c;
+    --rp-panel-ink: #f3f1e8;
+    --rp-panel-text: #c2cfbe;
+    --rp-panel-muted: #94ab90;
+    --rp-panel-line: #2c4536;
+    --rp-glow: rgb(126 184 128 / 0.1);
+    color-scheme: dark;
+  }
+  body.recruiters:has(.rp:not([data-rp-theme="light"])) {
+    background: #0b0f0d;
+    color: #c5ccc3;
+  }
+  html:has(body.recruiters .rp:not([data-rp-theme="light"])) {
+    background: #0b0f0d;
+    color-scheme: dark;
+  }
+  html:has(body.recruiters .rp[data-rp-theme="light"]) {
+    background: #f8f7f3;
+    color-scheme: light;
+  }
+  /* An ivory plate needs no edge on a dark ground; the dark plates do. */
+  .rp:not([data-rp-theme="light"]) .rp-company-logo,
+  .rp:not([data-rp-theme="light"]) .rp-education-logo {
+    border-color: var(--rp-plate);
+  }
+  .rp:not([data-rp-theme="light"]) .rp-company-logo-pinnatec-auto,
+  .rp:not([data-rp-theme="light"]) .rp-company-logo-aws-cloudformation,
+  .rp:not([data-rp-theme="light"]) .rp-company-logo-robert-defalco-realty {
+    border-color: var(--rp-line-strong);
+  }
+  .rp:not([data-rp-theme="light"]) .rp-portrait,
+  .rp:not([data-rp-theme="light"]) .rp-resume-preview {
+    box-shadow: 0 18px 44px rgb(0 0 0 / 0.5);
+  }
+}
+
+@media (max-width: 1100px) {
+  .rp .rp-bar-inner {
+    gap: 1.25rem;
+  }
+  .rp .rp-nav {
+    gap: 1.1rem;
+  }
+  .rp .rp-hero {
+    column-gap: 3rem;
+    grid-template-columns: minmax(0, 1fr) 16.5rem;
+  }
+  .rp .rp-organization {
+    gap: 0.55rem;
+    padding-inline: 0.75rem;
+  }
+  .rp .rp-organization strong {
+    font-size: 0.8125rem;
+  }
+  .rp .rp-role {
+    grid-template-columns: 4rem minmax(0, 1fr) 16rem;
+  }
+  .rp .rp-role-aside {
+    margin-left: 0.75rem;
+  }
+  .rp .rp-resume {
+    grid-template-columns: minmax(0, 1fr) 29rem;
+  }
+  .rp .rp-contact {
+    column-gap: 2rem;
+    padding: 2.5rem;
+  }
+  .rp .rp-contact-other {
+    padding-left: 1.75rem;
+  }
+}
+
+/* Below this the numbers move under the write-up, and the embedded PDF goes:
+   a tablet is a touch screen, where the frame shows a still of page one at
+   best. The card's two links do the job there. */
+@media (max-width: 1023px), (pointer: coarse) {
+  .rp .rp-resume {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .rp .rp-resume-preview {
+    display: none;
+  }
+  .rp .rp-resume-card {
+    display: grid;
+    grid-template-columns: 3.5rem minmax(0, 1fr);
+    column-gap: 1.5rem;
+    align-items: start;
+    padding: 2rem;
+  }
+  .rp .rp-resume-icon {
+    grid-row: 1 / span 3;
+  }
+  .rp .rp-resume-card h3 {
+    margin-top: 0;
+  }
+  .rp .rp-resume-card p {
+    max-width: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .rp .rp-role {
+    grid-template-columns: 4rem minmax(0, 1fr);
+    grid-template-areas:
+      "logo head"
+      "logo main"
+      "logo aside";
+  }
+  .rp .rp-role-aside {
+    position: static;
+    margin: 1.5rem 0 0;
+    padding-top: 0;
+  }
+  .rp .rp-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .rp .rp-mini-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .rp .rp-wrap {
+    width: calc(100% - 3rem);
+  }
+  /* Two rows here, and only the second one sticks: the bar pins itself one
+     row above the viewport, so the name and the buttons scroll away and the
+     section links stay. */
+  .rp .rp-bar {
+    top: -3.75rem;
+  }
+  .rp .rp-bar-inner {
+    flex-wrap: wrap;
+    gap: 0;
+    min-height: 0;
+  }
+  .rp .rp-brand,
+  .rp .rp-bar-actions {
+    height: 3.75rem;
+  }
+  .rp .rp-bar-actions {
+    margin-left: auto;
+  }
+  .rp .rp-nav {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+    gap: 1.25rem;
+    min-height: 2.75rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .rp .rp-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .rp .rp-hero {
+    grid-template-columns: minmax(0, 1fr) 14rem;
+    column-gap: 2rem;
+    padding: 3.25rem 0 3rem;
+  }
+  .rp .rp-hero-tagline {
+    font-size: 1.5rem;
+  }
+  .rp .rp-hero-intro {
+    font-size: 1.0625rem;
+  }
+  .rp .rp-organizations {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 1.5rem;
+  }
+  .rp .rp-organization {
+    gap: 0.75rem;
+    padding-inline: 0;
+    border: 0;
+  }
+  .rp .rp-organization strong {
+    font-size: 0.9375rem;
+  }
+  .rp .rp-section {
+    margin-top: 4.5rem;
+    scroll-margin-top: 4.25rem;
+  }
+  .rp .rp-project-content {
+    padding: 1.25rem;
+  }
+  .rp .rp-contact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2rem;
+  }
+  .rp .rp-contact-other {
+    padding: 1.75rem 0 0;
+    border-top: 1px solid var(--rp-panel-line);
+    border-left: 0;
+  }
+  .rp .rp-contact-other dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rp .rp-detail-block {
+    grid-template-columns: 8rem minmax(0, 1fr);
+    column-gap: 2rem;
+  }
+}
+
+@media (max-width: 719px) {
+  .rp .rp-nav {
+    gap: 0.75rem;
+  }
+  .rp .rp-nav a {
+    font-size: 0.8125rem;
+  }
+  .rp .rp-hero {
+    grid-template-columns: minmax(0, 1fr) 7.5rem;
+    grid-template-areas:
+      "head portrait"
+      "body body";
+    align-items: end;
+    gap: 0 1.25rem;
+    padding: 2.25rem 0 2.5rem;
+  }
+  .rp .rp-hero h1 {
+    font-size: clamp(2.75rem, 12.5vw, 3.75rem);
+  }
+  .rp .rp-hero-tagline {
+    margin-top: 0.6rem;
+    font-size: 1.3125rem;
+  }
+  .rp .rp-portrait {
+    align-self: end;
+    padding: 0.3rem;
+  }
+  .rp .rp-portrait img {
+    aspect-ratio: 1 / 1;
+    object-position: 50% 35%;
+  }
+  .rp .rp-portrait figcaption {
+    display: none;
+  }
+  .rp .rp-section-heading {
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .rp .rp-section-heading h2 {
+    font-size: 1.875rem;
+  }
+  /* The rail costs a fifth of a phone's width, so the logo moves up beside
+     the company name and the prose gets the whole column. */
+  .rp .rp-timeline::before {
+    display: none;
+  }
+  .rp .rp-role {
+    grid-template-columns: 3rem minmax(0, 1fr);
+    grid-template-areas:
+      "logo head"
+      "main main"
+      "aside aside";
+    column-gap: 1rem;
+    padding-bottom: 2.25rem;
+  }
+  .rp .rp-role + .rp-role {
+    padding-top: 2.25rem;
+  }
+  .rp .rp-role + .rp-role::before {
+    left: 0;
+  }
+  .rp .rp-role > .rp-company-logo {
+    width: 3rem;
+    height: 3rem;
+    padding: 0.4rem;
+    border-radius: 8px;
+    box-shadow: none;
+  }
+  .rp .rp-role > .rp-company-logo-pinnatec-auto,
+  .rp .rp-role > .rp-company-logo-robert-defalco-realty {
+    padding: 0.2rem;
+  }
+  .rp .rp-role-heading h3 {
+    font-size: 1.25rem;
+  }
+  .rp .rp-role-title {
+    font-size: 1rem;
+  }
+  .rp .rp-role-description {
+    font-size: 0.9375rem;
+  }
+  .rp .rp-role-highlights {
+    font-size: 0.875rem;
+  }
+  .rp .rp-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rp .rp-project-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rp .rp-mini {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 0.9rem;
+  }
+  .rp .rp-mini-cover img {
+    aspect-ratio: 1 / 1;
+  }
+  .rp .rp-repositories {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rp .rp-skills-grid {
+    column-gap: 1.5rem;
+  }
+  .rp .rp-skill-group dd {
+    padding-left: 0;
+  }
+  .rp .rp-education {
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+  .rp .rp-education-logo {
+    width: 3rem;
+    height: 3rem;
+    padding: 0.35rem;
+    border-radius: 8px;
+  }
+  .rp .rp-education-heading h3 {
+    font-size: 1.1875rem;
+  }
+  .rp .rp-degree {
+    font-size: 1rem;
+  }
+  .rp .rp-resume-card {
+    padding: 1.5rem;
+    column-gap: 1rem;
+  }
+  .rp .rp-contact {
+    padding: 2rem;
+  }
+  .rp .rp-contact h2 {
+    font-size: 3rem;
+  }
+  .rp .rp-contact-email {
+    font-size: 1.25rem;
+  }
+  .rp .rp-contact-other dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rp .rp-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .rp .rp-footer-links {
+    column-gap: 1rem;
+  }
+  .rp .rp-cinematic-link {
+    padding-left: 1rem;
+  }
+  .rp .rp-detail {
+    padding-top: 1.25rem;
+  }
+  .rp .rp-detail-heading {
+    gap: 1rem;
+  }
+  .rp .rp-detail-heading > .rp-company-logo {
+    width: 3rem;
+    height: 3rem;
+    padding: 0.4rem;
+  }
+  .rp .rp-detail-heading h1 {
+    font-size: 2.375rem;
+  }
+  .rp .rp-detail-block {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rp .rp-detail-block > h2 {
+    font-size: 1rem;
+  }
+  .rp .rp-detail > .rp-detail-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+  .rp .rp-detail blockquote {
+    padding: 1.75rem 0.5rem;
+    font-size: 1.4375rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .rp .rp-wrap {
+    width: calc(100% - 2.5rem);
+  }
+  .rp .rp-file-type {
+    display: none;
+  }
+  .rp .rp-nav-download {
+    gap: 0.4rem;
+    padding-inline: 0.7rem;
+  }
+  .rp .rp-bar-actions {
+    gap: 0.4rem;
+  }
+  .rp .rp-hero {
+    grid-template-columns: minmax(0, 1fr) 6.25rem;
+  }
+  .rp .rp-hero-actions {
+    gap: 0.5rem;
+  }
+  .rp .rp-hero-actions .rp-button {
+    flex: 1 1 auto;
+    padding-inline: 0.9rem;
+  }
+  .rp .rp-organizations {
+    gap: 1.1rem 0.75rem;
+  }
+  .rp .rp-organization {
+    gap: 0.55rem;
+  }
+  .rp .rp-organization strong {
+    font-size: 0.8125rem;
+  }
+  .rp .rp-organization .rp-company-logo {
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 0.3rem;
+  }
+  .rp .rp-project-content {
+    padding: 1.15rem;
+  }
+  .rp .rp-skills-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rp .rp-education {
+    flex-wrap: wrap;
+    padding: 1.25rem;
+  }
+  .rp .rp-education-content {
+    flex-basis: 100%;
+  }
+  .rp .rp-contact {
+    padding: 1.5rem;
+  }
+  .rp .rp-contact-email {
+    gap: 0.4rem;
+    font-size: 1.0625rem;
+  }
+  .rp .rp-detail-heading {
+    flex-direction: column;
+  }
+}
+
+/* 320px is a small phone and also what any phone-sized window becomes at
+   400% zoom. Six links need two rows there, which is too much to pin, so the
+   bar scrolls away with the page; the caption goes so the top row still fits. */
+@media (max-width: 359px) {
+  .rp .rp-bar {
+    position: static;
+  }
+  .rp .rp-brand-caption {
+    display: none;
+  }
+  .rp .rp-nav {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0 0.5rem;
+  }
+  .rp .rp-nav a {
+    justify-content: center;
+    min-height: 2.4rem;
+  }
+  .rp .rp-section {
+    scroll-margin-top: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rp *,
+  .rp *::before,
+  .rp *::after {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .rp .rp-project:hover .rp-project-image,
+  .rp .rp-resume-preview:hover,
+  .rp .rp-resume-preview:focus-within,
+  .rp .rp-text-link:hover > svg:last-child {
+    transform: none;
+  }
+}
+
+@media print {
+  body.recruiters,
+  .rp {
+    /* The logo plates ring themselves in the paper colour. */
+    --rp-paper: white;
+    background: white;
+    color: black;
+  }
+  .rp .rp-wrap {
+    width: 100%;
+  }
+  .rp .rp-bar,
+  .rp .rp-footer,
+  .rp .rp-hero-actions,
+  .rp #resume,
+  .rp .rp-section-heading::after {
+    display: none;
+  }
+  .rp .rp-section {
+    margin-top: 2rem;
+  }
+  .rp .rp-hero {
+    padding-block: 1rem;
+  }
+  .rp .rp-role,
+  .rp .rp-project,
+  .rp .rp-mini,
+  .rp .rp-education {
+    break-inside: avoid;
+  }
+  .rp .rp-contact {
+    border-color: #ccc;
+    background: #eee;
+    color: black;
+  }
+  .rp .rp-contact :is(h2, p, a, dt, dd) {
+    color: black;
+  }
+}

@@ -63,7 +63,10 @@ export default function App() {
   if (isRecruiters(pathname)) {
     return (
       <ErrorBoundary>
-        <Suspense fallback={<div className="rp min-h-screen" />}>
+        {/* No placeholder. An empty .rp picked up index.css's old ivory ground
+            before recruiters.css had loaded, and flashed it across a page that
+            opens dark. The body underneath is already near-black. */}
+        <Suspense fallback={null}>
           <Routes>
             <Route path="/recruiters" element={<Recruiters />} />
             <Route path="/recruiters/work/:slug" element={<RecruiterWork />} />

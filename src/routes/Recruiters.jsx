@@ -1,234 +1,628 @@
-// src/routes/Recruiters.jsx: the plain version.
-//
-// /recruiters. One column, light, conventional: who, experience, projects,
-// skills, education, the résumé, contact. Every fact on it is imported from
-// the same files the cinematic site reads (profile.js, experience.js,
-// projects.js), so editing a role or a project once changes both. Nothing on
-// this page animates, plays, or asks for a click first; the intro, the door,
-// the reticle and the effects are not mounted here at all (see App.jsx).
-//
-// The link back to the full site is in the bar's footer and at the end of
-// the page, worded as what it is.
+// The recruiter portfolio. Presentation stays here; shared source data is read-only.
 import React, { useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import {
+  ArrowDownToLine,
+  ArrowRight,
+  ArrowUpRight,
+  Bot,
+  Braces,
+  Cloud,
+  Cpu,
+  Database,
+  FileText,
+  Github,
+  Linkedin,
+  Mail,
+  MapPin,
+  PanelsTopLeft,
+  Wrench,
+  Workflow,
+} from "lucide-react";
 import { profile, emails, links, skills } from "../data/profile";
 import { experiences } from "../data/experience";
 import { featuredProjects, otherProjects } from "../data/projects";
 import { hasWorkPage } from "../data/work";
+import ProjectImage from "../components/projects/ProjectImage";
+import portrait from "../assets/Photos/portrait-seattle-640.webp";
 import { PlainBar, PlainFooter, PlainSection, Chip } from "./recruiters-shared";
-import { usePlainDocument, pdf } from "./recruiters-lib";
+import {
+  usePlainDocument,
+  pdf,
+  projectLabels,
+  statusLabel,
+} from "./recruiters-lib";
 
 const work = experiences.filter((e) => e.type === "work");
 const education = experiences.filter((e) => e.type === "education");
 const primary = emails.find((e) => e.primary) ?? emails[0];
+const selectedSlugs = [
+  "eternal-monitor",
+  "exerly-fitness",
+  "sideband",
+  "eternal-rich-presence",
+];
+const selectedProjects = selectedSlugs
+  .map((slug) => featuredProjects.find((p) => p.slug === slug))
+  .filter(Boolean);
+const moreProjects = featuredProjects.filter(
+  (p) => !selectedSlugs.includes(p.slug),
+);
+const liveCount = featuredProjects.filter((p) => p.status === "live").length;
+const skillIcons = {
+  Languages: Braces,
+  Frontend: PanelsTopLeft,
+  Backend: Database,
+  Systems: Cpu,
+  "Cloud & infra": Cloud,
+  AI: Bot,
+  Agents: Workflow,
+  Tools: Wrench,
+};
+const emailLabels = {
+  school: "University",
+  personal: "Personal",
+  studio: "Studio",
+};
 
-const EMAIL_LABELS = { school: "University", personal: "Personal", studio: "Studio" };
+function ExperienceItem({ entry }) {
+  // Only a role with a case study has a page that says more than this does.
+  const hasCaseStudy = entry.caseStudy && hasWorkPage(entry.slug);
+  return (
+    <li className="rp-role">
+      <div className={`rp-company-logo rp-company-logo-${entry.slug}`}>
+        <img src={entry.logo} alt="" width="64" height="64" loading="lazy" />
+      </div>
+      <header className="rp-role-head">
+        <div className="rp-role-heading">
+          <h3>{entry.company}</h3>
+          {entry.badge && (
+            <span className="rp-status">
+              <span aria-hidden="true" />
+              {entry.badge}
+            </span>
+          )}
+        </div>
+        <p className="rp-role-title">{entry.title}</p>
+        <p className="rp-role-meta">
+          {entry.period}
+          <span aria-hidden="true"> · </span>
+          {entry.location}
+        </p>
+        {entry.subtitle && <p className="rp-role-subtitle">{entry.subtitle}</p>}
+      </header>
+      <div className="rp-role-main">
+        <p className="rp-role-description">{entry.description}</p>
+        {entry.highlights && (
+          <ul className="rp-role-highlights">
+            {entry.highlights.map((highlight) => (
+              <li key={highlight.title}>
+                <strong>{highlight.title}.</strong> {highlight.description}
+              </li>
+            ))}
+          </ul>
+        )}
+        {(hasCaseStudy || entry.github) && (
+          <div className="rp-role-links">
+            {hasCaseStudy && (
+              <Link
+                to={`/recruiters/work/${entry.slug}`}
+                className="rp-text-link"
+              >
+                Read case study
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            )}
+            {entry.github && (
+              <a
+                href={entry.github}
+                target="_blank"
+                rel="noreferrer"
+                className="rp-text-link"
+              >
+                <Github size={15} aria-hidden="true" />
+                Source
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+      <aside className="rp-role-aside">
+        {/* Labels print as written. Lowercasing them turned DescribeType, IT
+            and CI into describetype, it and ci. */}
+        {entry.metrics && (
+          <dl className="rp-stats">
+            {entry.metrics.map((m) => (
+              <div key={m.label}>
+                <dt>{m.label}</dt>
+                <dd>{m.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {entry.skills && (
+          <ul className="rp-chips" aria-label={`${entry.company} technologies`}>
+            {entry.skills.map((s) => (
+              <Chip key={s}>{s}</Chip>
+            ))}
+          </ul>
+        )}
+      </aside>
+    </li>
+  );
+}
+
+function ProjectMeta({ project }) {
+  return (
+    <div className="rp-project-meta">
+      <span className="rp-eyebrow">
+        {projectLabels[project.slug] ?? "Independent project"}
+      </span>
+      <span
+        className={`rp-status${project.status === "live" ? "" : " rp-status-building"}`}
+      >
+        <span aria-hidden="true" />
+        {statusLabel(project.status)}
+      </span>
+    </div>
+  );
+}
+
+/** The second tier: every fact a card carries, at a quarter of the height. */
+function ProjectRow({ project }) {
+  const image = project.images[1] ?? project.images[0];
+  return (
+    <li className="rp-mini">
+      <Link
+        to={`/recruiters/work/${project.slug}`}
+        className="rp-mini-cover"
+        tabIndex={-1}
+        aria-hidden="true"
+      >
+        <img
+          src={image.thumb ?? image.src}
+          alt=""
+          width="320"
+          height="220"
+          loading="lazy"
+          decoding="async"
+        />
+      </Link>
+      <div className="rp-mini-content">
+        <ProjectMeta project={project} />
+        <h4>
+          <Link to={`/recruiters/work/${project.slug}`}>{project.title}</Link>
+        </h4>
+        <p>{project.description}</p>
+        <div className="rp-mini-links">
+          <Link
+            className="rp-text-link"
+            to={`/recruiters/work/${project.slug}`}
+          >
+            View project
+            <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+          {project.github && (
+            <a
+              href={project.github}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`${project.title} source on GitHub`}
+            >
+              <Github size={16} aria-hidden="true" />
+            </a>
+          )}
+          {project.live && (
+            <a href={project.live} target="_blank" rel="noreferrer">
+              Live site
+              <ArrowUpRight size={13} aria-hidden="true" />
+            </a>
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function ProjectCard({ project }) {
+  return (
+    <li className={`rp-project rp-project-${project.slug}`}>
+      <Link
+        to={`/recruiters/work/${project.slug}`}
+        className="rp-project-cover"
+        tabIndex={-1}
+        aria-hidden="true"
+      >
+        <div className="rp-browser-bar" aria-hidden="true">
+          <span className="rp-browser-dots">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>
+            {project.live
+              ? new URL(project.live).hostname.replace(/^www\./, "")
+              : project.title}
+          </span>
+          <ArrowUpRight size={13} />
+        </div>
+        <ProjectImage
+          image={project.images[1] ?? project.images[0]}
+          alt=""
+          loading="lazy"
+          sizes="(min-width: 1200px) 500px, (min-width: 720px) 44vw, 90vw"
+          className="rp-project-image"
+        />
+      </Link>
+      <div className="rp-project-content">
+        <ProjectMeta project={project} />
+        <h3>
+          <Link to={`/recruiters/work/${project.slug}`}>{project.title}</Link>
+        </h3>
+        <p>{project.description}</p>
+        <ul className="rp-chips" aria-label={`${project.title} technologies`}>
+          {project.tech.map((t) => (
+            <Chip key={t}>{t}</Chip>
+          ))}
+        </ul>
+        <div className="rp-project-links">
+          <Link
+            className="rp-text-link"
+            to={`/recruiters/work/${project.slug}`}
+          >
+            View project
+            <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+          <div>
+            {project.github && (
+              <a
+                href={project.github}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`${project.title} source on GitHub`}
+              >
+                <Github size={17} aria-hidden="true" />
+              </a>
+            )}
+            {project.live && (
+              <a href={project.live} target="_blank" rel="noreferrer">
+                Live site
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
 
 export default function Recruiters() {
-  usePlainDocument(`${profile.name} · Software engineer · Résumé and portfolio`);
+  const theme = usePlainDocument(
+    `${profile.name} · Software engineer · Résumé and portfolio`,
+  );
+  const { hash } = useLocation();
 
-  // A detail page links back to /recruiters#experience or #projects. That
-  // arrives as a client-side navigation, so the browser's own hash scroll
-  // never runs; do it here, twice, because the page's height settles as
-  // the fonts land. Same reason Home.jsx does it for the cinematic.
   useEffect(() => {
-    const hash = window.location.hash.slice(1);
     if (!hash) {
       window.scrollTo(0, 0);
       return;
     }
-    const go = () => document.getElementById(hash)?.scrollIntoView({ block: "start" });
-    go();
-    const t = setTimeout(go, 150);
-    return () => clearTimeout(t);
-  }, []);
+    const go = () =>
+      document
+        .getElementById(hash.slice(1))
+        ?.scrollIntoView({ block: "start" });
+    const frame = requestAnimationFrame(go);
+    const timer = setTimeout(go, 150);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [hash]);
 
   return (
-    <div className="rp min-h-screen">
+    <div className="rp min-h-screen" data-rp-theme={theme}>
       <PlainBar home />
-
-      <main className="rp-wrap">
-        {/* ---- who ------------------------------------------------------ */}
-        <section className="pt-12 md:pt-16">
-          <p className="text-[0.875rem] rp-muted">Software engineer · {profile.base}</p>
-          <h1 className="mt-2 text-[2.25rem] md:text-[2.75rem] font-semibold tracking-tight leading-[1.05] rp-ink">
-            {profile.name}
-          </h1>
-          <p className="mt-5 text-[1.125rem] leading-[1.6] max-w-[62ch]">
-            Systems, iOS and web. {profile.degree} at {profile.school}, class of {profile.gradYear.replace("’", "'")}.
-            Currently {profile.current.map((r, i) => (
-              <span key={r.org}>
-                {i > 0 && (i === profile.current.length - 1 ? " and " : ", ")}
-                {r.role} at {r.org}
-              </span>
-            ))}. Last summer, {profile.prev.role} at {profile.prev.org} in Seattle.
-          </p>
-          <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-[0.9375rem]">
-            <li><a className="rp-link" href={`mailto:${primary.value}`}>{primary.value}</a></li>
-            <li><a className="rp-link" href={links.github} target="_blank" rel="noreferrer">github.com/whoisaldo</a></li>
-            <li><a className="rp-link" href={links.linkedin} target="_blank" rel="noreferrer">linkedin.com/in/alialdoyounes</a></li>
-          </ul>
-          <p className="mt-8 text-[0.9375rem] rp-muted">
-            Prefer the full site? <Link to="/" className="rp-link font-medium">Open the cinematic experience</Link>. Same content, with an intro and a soundtrack.
-          </p>
+      <main id="main-content" className="rp-wrap" tabIndex={-1}>
+        <section className="rp-hero" aria-labelledby="intro-heading">
+          <div className="rp-hero-head">
+            <p className="rp-eyebrow rp-hero-eyebrow">
+              <span aria-hidden="true" />
+              Software engineer · {profile.base}
+            </p>
+            <h1 id="intro-heading">
+              {profile.name}
+              <span>.</span>
+            </h1>
+            <p className="rp-hero-tagline">Systems, iOS & the web.</p>
+          </div>
+          <div className="rp-hero-body">
+            <p className="rp-hero-intro">
+              {profile.degree} at {profile.school}, class of{" "}
+              {profile.gradYear.replace("’", "'")}. I build cloud
+              infrastructure, native apps, and the tools that connect them.
+            </p>
+            <p className="rp-hero-current">
+              Currently at{" "}
+              {profile.current.map((role, i) => (
+                <React.Fragment key={role.org}>
+                  {i > 0 &&
+                    (i === profile.current.length - 1 ? ", and " : ", ")}
+                  <strong>{role.org}</strong>
+                </React.Fragment>
+              ))}
+              . Previously {profile.prev.role} at{" "}
+              <strong>{profile.prev.org}</strong>.
+            </p>
+            <div className="rp-hero-actions">
+              <a
+                href={pdf}
+                download="Ali_Younes_Resume.pdf"
+                className="rp-button"
+              >
+                <ArrowDownToLine size={17} aria-hidden="true" />
+                Download résumé
+              </a>
+              <a
+                href={`mailto:${primary.value}`}
+                className="rp-button rp-button-secondary"
+              >
+                <Mail size={17} aria-hidden="true" />
+                Get in touch
+              </a>
+            </div>
+            <div className="rp-hero-socials">
+              <a href={links.github} target="_blank" rel="noreferrer">
+                <Github size={16} aria-hidden="true" />
+                GitHub
+                <ArrowUpRight size={13} aria-hidden="true" />
+              </a>
+              <a href={links.linkedin} target="_blank" rel="noreferrer">
+                <Linkedin size={16} aria-hidden="true" />
+                LinkedIn
+                <ArrowUpRight size={13} aria-hidden="true" />
+              </a>
+              <a href={links.studio} target="_blank" rel="noreferrer">
+                Co-founder, Sideband
+                <ArrowUpRight size={13} aria-hidden="true" />
+              </a>
+            </div>
+          </div>
+          <figure className="rp-portrait">
+            <img
+              src={portrait}
+              alt="Ali Younes in Seattle"
+              width="640"
+              height="800"
+              fetchPriority="high"
+            />
+            <figcaption>
+              <MapPin size={14} aria-hidden="true" />A summer in Seattle
+              <span>2026</span>
+            </figcaption>
+          </figure>
         </section>
 
-        {/* ---- experience ----------------------------------------------- */}
-        <PlainSection id="experience" title="Experience" aside="Most recent first">
-          <ol className="space-y-10">
+        <div className="rp-at-a-glance" aria-label="Recent organizations">
+          <p className="rp-eyebrow">Where I've been building</p>
+          <div className="rp-organizations">
+            {work.slice(0, 4).map((entry) => (
+              <a
+                href="#experience"
+                key={entry.slug}
+                className="rp-organization"
+              >
+                <span
+                  className={`rp-company-logo rp-company-logo-${entry.slug}`}
+                >
+                  <img src={entry.logo} alt="" width="52" height="36" />
+                </span>
+                <span>
+                  <strong>{entry.company}</strong>
+                  <span>{entry.badge ? "Current" : entry.period}</span>
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        <PlainSection id="experience" title="Experience" number="01">
+          <ol className="rp-timeline">
             {work.map((e) => (
-              <li key={e.slug} className="grid gap-x-8 gap-y-2 md:grid-cols-[11rem_minmax(0,1fr)]">
-                <div className="text-[0.875rem] rp-muted md:pt-1">
-                  <p>{e.period}</p>
-                  <p>{e.location}</p>
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-[1.125rem] font-semibold tracking-tight rp-ink">
-                    {e.title} <span className="font-normal rp-muted">· {e.company}</span>
-                  </h3>
-                  {e.subtitle && <p className="mt-0.5 text-[0.875rem] rp-muted">{e.subtitle}</p>}
-                  <p className="mt-3 text-[0.9375rem] leading-[1.6] max-w-[68ch]">{e.description}</p>
-                  {e.highlights && (
-                    <ul className="mt-3 space-y-1.5 text-[0.9375rem] leading-[1.55] max-w-[68ch] rp-bullets">
-                      {e.highlights.map((h) => (
-                        <li key={h.title}>
-                          <span className="font-medium rp-ink">{h.title}.</span> {h.description}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {e.metrics && (
-                    <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[0.875rem] rp-muted">
-                      {e.metrics.map((m) => (
-                        <li key={m.label}><span className="font-semibold rp-ink">{m.value}</span> {m.label.toLowerCase()}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {e.skills && (
-                    <ul className="mt-3 flex flex-wrap gap-1.5">
-                      {e.skills.map((s) => <Chip key={s}>{s}</Chip>)}
-                    </ul>
-                  )}
-                  {hasWorkPage(e.slug) && (
-                    <p className="mt-3 text-[0.9375rem]">
-                      <Link to={`/recruiters/work/${e.slug}`} className="rp-link font-medium">
-                        {e.caseStudy ? "Read the case study" : "Full details"}
-                      </Link>
-                    </p>
-                  )}
-                </div>
-              </li>
+              <ExperienceItem key={e.slug} entry={e} />
             ))}
           </ol>
         </PlainSection>
 
-        {/* ---- projects -------------------------------------------------- */}
-        <PlainSection id="projects" title="Projects" aside={`${featuredProjects.length} shipped, every number checkable against the source`}>
-          <ol className="grid gap-x-10 gap-y-9 md:grid-cols-2">
-            {featuredProjects.map((p) => (
-              <li key={p.slug} className="min-w-0">
-                <h3 className="text-[1.0625rem] font-semibold tracking-tight rp-ink">
-                  {p.title}
-                  <span className="ml-2 font-normal text-[0.8125rem] rp-muted">
-                    {p.status === "live" ? "live" : p.status}
-                  </span>
-                </h3>
-                <p className="mt-1.5 text-[0.9375rem] leading-[1.55]">{p.description}</p>
-                <ul className="mt-2.5 flex flex-wrap gap-1.5">
-                  {p.tech.slice(0, 6).map((t) => <Chip key={t}>{t}</Chip>)}
-                </ul>
-                <p className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[0.9375rem]">
-                  <Link to={`/recruiters/work/${p.slug}`} className="rp-link font-medium">Details</Link>
-                  {p.live && <a className="rp-link" href={p.live} target="_blank" rel="noreferrer">Live site</a>}
-                  {p.github ? (
-                    <a className="rp-link" href={p.github} target="_blank" rel="noreferrer">Source</a>
-                  ) : (
-                    <span className="rp-muted">Source private</span>
-                  )}
-                </p>
-              </li>
+        <PlainSection
+          id="projects"
+          title="Projects"
+          number="02"
+          aside={`${featuredProjects.length} projects, ${liveCount} live`}
+        >
+          <ol className="rp-project-grid">
+            {selectedProjects.map((p) => (
+              <ProjectCard key={p.slug} project={p} />
             ))}
           </ol>
-
-          <h3 className="mt-12 text-[0.875rem] font-semibold uppercase tracking-wide rp-muted">Also</h3>
-          <ul className="mt-3 grid gap-x-10 gap-y-2 sm:grid-cols-2 text-[0.9375rem]">
+          <h3 className="rp-subheading">
+            More projects <span>{moreProjects.length}</span>
+          </h3>
+          <ol className="rp-mini-grid">
+            {moreProjects.map((p) => (
+              <ProjectRow key={p.slug} project={p} />
+            ))}
+          </ol>
+          <h3 className="rp-subheading">
+            Smaller builds & coursework <span>{otherProjects.length}</span>
+          </h3>
+          <ul className="rp-repositories">
             {otherProjects.map((p) => (
               <li key={p.title}>
-                <a className="rp-link font-medium" href={p.github} target="_blank" rel="noreferrer">{p.title}</a>
-                <span className="rp-muted"> · {p.description}</span>
+                <a href={p.github} target="_blank" rel="noreferrer">
+                  <span>
+                    <strong>{p.title}</strong>
+                    <span>{p.description}</span>
+                  </span>
+                  <ArrowUpRight size={17} aria-hidden="true" />
+                </a>
               </li>
             ))}
           </ul>
         </PlainSection>
 
-        {/* ---- skills ---------------------------------------------------- */}
-        <PlainSection id="skills" title="Skills" aside="Grouped, not ranked">
-          <dl className="grid gap-x-8 gap-y-4 md:grid-cols-[11rem_minmax(0,1fr)]">
-            {skills.map((g) => (
-              <React.Fragment key={g.group}>
-                <dt className="text-[0.9375rem] font-medium rp-ink md:pt-0.5">{g.group}</dt>
-                <dd className="text-[0.9375rem] leading-[1.6]">{g.items.join(", ")}</dd>
-              </React.Fragment>
-            ))}
+        <PlainSection
+          id="skills"
+          title="Skills"
+          number="03"
+          aside="Grouped, not ranked"
+        >
+          <dl className="rp-skills-grid">
+            {skills.map((group) => {
+              const Icon = skillIcons[group.group];
+              return (
+                <div key={group.group} className="rp-skill-group">
+                  <dt>
+                    {Icon && <Icon size={19} aria-hidden="true" />}
+                    {group.group}
+                  </dt>
+                  <dd>{group.items.join(" · ")}</dd>
+                </div>
+              );
+            })}
           </dl>
         </PlainSection>
 
-        {/* ---- education ------------------------------------------------- */}
-        <PlainSection id="education" title="Education">
-          {education.map((e) => (
-            <div key={e.slug} className="grid gap-x-8 gap-y-2 md:grid-cols-[11rem_minmax(0,1fr)]">
-              <div className="text-[0.875rem] rp-muted md:pt-1">
-                <p>{e.period}</p>
-                <p>{e.location}</p>
+        <PlainSection id="education" title="Education" number="04">
+          {education.map((entry) => (
+            <article key={entry.slug} className="rp-education">
+              <div className="rp-education-logo">
+                <img
+                  src={entry.logo}
+                  alt=""
+                  width="72"
+                  height="72"
+                  loading="lazy"
+                />
               </div>
-              <div>
-                <h3 className="text-[1.125rem] font-semibold tracking-tight rp-ink">
-                  {e.company} <span className="font-normal rp-muted">· B.S. {e.title}</span>
-                </h3>
-                <p className="mt-3 text-[0.9375rem] leading-[1.6] max-w-[68ch]">{e.description}</p>
-                {e.coursework && (
-                  <p className="mt-3 text-[0.9375rem] rp-muted">Coursework: {e.coursework.join(", ")}.</p>
+              <div className="rp-education-content">
+                <div className="rp-education-heading">
+                  <h3>{entry.company}</h3>
+                  <span>{entry.period}</span>
+                </div>
+                <p className="rp-degree">B.S. {entry.title}</p>
+                <p className="rp-muted">{entry.description}</p>
+                {entry.coursework && (
+                  <div className="rp-coursework">
+                    <span>Relevant coursework</span>
+                    <ul className="rp-chips">
+                      {entry.coursework.map((course) => (
+                        <Chip key={course}>{course}</Chip>
+                      ))}
+                    </ul>
+                  </div>
                 )}
               </div>
-            </div>
+            </article>
           ))}
         </PlainSection>
 
-        {/* ---- résumé ---------------------------------------------------- */}
-        <PlainSection id="resume" title="Résumé" aside="Rebuilt from source on every change">
-          <p className="text-[0.9375rem] leading-[1.6] max-w-[68ch]">
-            One page, PDF. <a href={pdf} download="Ali_Younes_Resume.pdf" className="rp-link font-medium">Download it</a> or{" "}
-            <a href={pdf} target="_blank" rel="noreferrer" className="rp-link">open it in a tab</a>.
-          </p>
-          <div className="mt-5 hidden md:block border rp-rule bg-white">
-            <iframe
-              src={`${pdf}#toolbar=0&navpanes=0`}
-              title="Résumé, one page"
-              loading="lazy"
-              className="block w-full h-[46rem]"
-            />
+        <PlainSection id="resume" title="Résumé" number="05">
+          <div className="rp-resume">
+            <div className="rp-resume-card">
+              <span className="rp-resume-icon">
+                <FileText size={27} strokeWidth={1.4} aria-hidden="true" />
+              </span>
+              <h3>{profile.name} · Résumé</h3>
+              <p>Experience, education, and technical skills. One page, PDF.</p>
+              <div className="rp-resume-actions">
+                <a
+                  href={pdf}
+                  download="Ali_Younes_Resume.pdf"
+                  className="rp-button"
+                >
+                  <ArrowDownToLine size={16} aria-hidden="true" />
+                  Download PDF
+                </a>
+                <a
+                  href={pdf}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rp-text-link"
+                >
+                  Open in a new tab
+                  <ArrowUpRight size={14} aria-hidden="true" />
+                </a>
+              </div>
+            </div>
+            {/* A picture of the PDF, made of the PDF: the frame takes no
+                pointer events, and the link laid over it opens the file. */}
+            <div className="rp-resume-preview">
+              <iframe
+                src={`${pdf}#toolbar=0&navpanes=0&view=FitH`}
+                title={`${profile.name}, one-page résumé`}
+                loading="lazy"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+              <a
+                href={pdf}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open the résumé in a new tab"
+              />
+            </div>
           </div>
         </PlainSection>
 
-        {/* ---- contact --------------------------------------------------- */}
-        <PlainSection id="contact" title="Contact" aside={`Based in ${profile.base}`}>
-          <dl className="grid gap-x-8 gap-y-3 md:grid-cols-[11rem_minmax(0,1fr)] text-[0.9375rem]">
-            {emails.map((e) => (
-              <React.Fragment key={e.key}>
-                <dt className="font-medium rp-ink">{EMAIL_LABELS[e.key] ?? e.key}{e.primary ? " (best)" : ""}</dt>
-                <dd><a className="rp-link break-all" href={`mailto:${e.value}`}>{e.value}</a></dd>
-              </React.Fragment>
-            ))}
-            <dt className="font-medium rp-ink">GitHub</dt>
-            <dd><a className="rp-link" href={links.github} target="_blank" rel="noreferrer">github.com/whoisaldo</a></dd>
-            <dt className="font-medium rp-ink">LinkedIn</dt>
-            <dd><a className="rp-link" href={links.linkedin} target="_blank" rel="noreferrer">linkedin.com/in/alialdoyounes</a></dd>
-            <dt className="font-medium rp-ink">Studio</dt>
-            <dd><a className="rp-link" href={links.studio} target="_blank" rel="noreferrer">sideband.studio</a></dd>
-          </dl>
-        </PlainSection>
+        <section
+          id="contact"
+          className="rp-contact rp-section"
+          aria-labelledby="contact-heading"
+        >
+          <div className="rp-contact-main">
+            <p className="rp-eyebrow">06 / Get in touch</p>
+            <h2 id="contact-heading">Let's talk.</h2>
+            <p>
+              For engineering opportunities, collaborations, or a conversation
+              about the work.
+            </p>
+            <a href={`mailto:${primary.value}`} className="rp-contact-email">
+              {primary.value}
+              <ArrowUpRight size={23} aria-hidden="true" />
+            </a>
+          </div>
+          <div className="rp-contact-other">
+            <p className="rp-eyebrow">Also find me here</p>
+            <dl>
+              {emails
+                .filter((e) => !e.primary)
+                .map((e) => (
+                  <div key={e.key}>
+                    <dt>{emailLabels[e.key] ?? e.key}</dt>
+                    <dd>
+                      <a href={`mailto:${e.value}`}>
+                        {e.value}
+                        <ArrowUpRight size={14} aria-hidden="true" />
+                      </a>
+                    </dd>
+                  </div>
+                ))}
+            </dl>
+            <div className="rp-contact-socials">
+              <a href={links.github} target="_blank" rel="noreferrer">
+                <Github size={16} aria-hidden="true" />
+                GitHub
+              </a>
+              <a href={links.linkedin} target="_blank" rel="noreferrer">
+                <Linkedin size={16} aria-hidden="true" />
+                LinkedIn
+              </a>
+            </div>
+          </div>
+        </section>
       </main>
-
       <PlainFooter />
     </div>
   );
