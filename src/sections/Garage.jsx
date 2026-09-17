@@ -25,16 +25,24 @@
 // region so a screen reader hears the part it just selected. Under
 // prefers-reduced-motion the markers hold still instead of pulsing.
 //
+// Two bays, one card. The bezel switches between the photographs and the
+// model (GarageModel.jsx: the S4 in three dimensions, orbitable, bonnet on a
+// hinge). Both pin the same sixteen parts and both select into the same
+// detail card, whose close crop is always the real photograph. The three
+// tabs mean the same thing in either: which side of the car you are looking
+// at. This branch opens on the model (DEFAULT_BAY in garage.js).
+//
 // What used to be the rest of Teardown (the 328xi, the bench, the two
 // competitions) sits under the bay as "Also in the shop", captions intact.
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
-import { car, views, groups, mods, modsIn, pins, findMod, priceLabel, alsoOnTheList } from "../data/garage";
+import { car, views, groups, mods, modsIn, pins, findMod, priceLabel, alsoOnTheList, DEFAULT_BAY } from "../data/garage";
 import { teardown } from "../data/life";
 import { GARAGE_EVENT } from "../lib/garage";
 import { useMediaQuery } from "../hooks";
 import CoverBox from "../components/ui/CoverBox";
+import GarageModel from "../components/GarageModel";
 import Picture from "../components/Picture";
 import Panel from "../components/ui/Panel";
 import Glitch from "../components/ui/Glitch";
@@ -68,6 +76,7 @@ function centred(p, k) {
 
 export default function Garage() {
   const [viewId, setViewId] = useState(views[0].id);
+  const [mode, setMode] = useState(DEFAULT_BAY);
   const [selected, setSelected] = useState(null);
   const [pinFocus, setPinFocus] = useState(0);
   const idBase = useId().replace(/:/g, "");
@@ -79,6 +88,13 @@ export default function Garage() {
   const viewIndex = views.indexOf(view);
   const viewPins = useMemo(() => pins.filter((p) => p.view === view.id), [view.id]);
   const mod = selected ? findMod(selected) : null;
+  const model = mode === "model";
+
+  // The model's markers: every part once, in sheet order.
+  const modelMarkers = useMemo(
+    () => mods.map((m, i) => ({ id: m.id, index: i, name: m.name, where: m.pins[0].label, anchor: m.anchor })),
+    [],
+  );
 
   // Selecting a part from the sheet, or from the console, may need a
   // different view: the tips are only in the rear shot.
@@ -184,6 +200,21 @@ export default function Garage() {
                 <span className="mono-label text-volt">Bay 01</span>
                 <span className="mono-micro text-dim hidden sm:inline tabular-nums">{pad(mods.length)} parts</span>
               </div>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <div role="group" aria-label="Bay" className="flex border border-ink-line">
+                  {[["model", "3D model"], ["photos", "Photographs"]].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      aria-pressed={mode === id}
+                      onClick={() => setMode(id)}
+                      className={`px-2.5 py-1.5 mono-micro transition-colors focus-visible:shadow-none focus-visible:bg-volt focus-visible:text-ink
+                                  ${mode === id ? "bg-volt text-ink font-bold" : "text-muted hover:text-primary"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               <div role="tablist" aria-label="Views of the car" onKeyDown={onTabKey} className="flex gap-1 -mx-1">
                 {views.map((v, i) => {
                   const on = v.id === view.id;
@@ -210,6 +241,7 @@ export default function Garage() {
                   );
                 })}
               </div>
+              </div>
             </div>
 
             <div className="grid md:grid-cols-[minmax(0,3fr)_minmax(19rem,2fr)]">
@@ -221,6 +253,15 @@ export default function Garage() {
                 tabIndex={-1}
                 className="relative min-w-0 border-b md:border-b-0 md:border-r border-ink-line focus-visible:outline-none"
               >
+                {model ? (
+                  <GarageModel
+                    markers={modelMarkers}
+                    selected={selected}
+                    onSelect={select}
+                    view={view.id}
+                    onFallback={() => setMode("photos")}
+                  />
+                ) : (
                 <CoverBox
                   key={view.id}
                   width={view.image.width}
@@ -260,11 +301,16 @@ export default function Garage() {
                     })}
                   </div>
                 </CoverBox>
+                )}
                 <div className="absolute top-0 left-0 m-3 flex items-center gap-2 pointer-events-none">
                   <span className="mono-micro text-dim bg-ink/80 px-2 py-1 tabular-nums">
                     {pad(viewIndex + 1)} / {pad(views.length)}
                   </span>
-                  {view.date && <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.date}</span>}
+                  {model ? (
+                    <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.label}</span>
+                  ) : (
+                    view.date && <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.date}</span>
+                  )}
                 </div>
               </div>
 
@@ -418,10 +464,12 @@ export default function Garage() {
             {/* Status bar. Only true things. */}
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line mono-label text-dim">
               <span>
-                <span className="text-muted">{view.label}</span> · {viewPins.length} markers
+                <span className="text-muted">{model ? "3D model" : view.label}</span> · {model ? mods.length : viewPins.length} markers
                 {mod && <span> · <span className="text-muted">{mod.name}</span></span>}
               </span>
-              <span className="hidden md:inline">arrow keys walk the markers · tab reaches the sheet</span>
+              <span className="hidden md:inline">
+                {model ? "drag to turn · arrow keys walk the markers" : "arrow keys walk the markers · tab reaches the sheet"}
+              </span>
             </div>
           </Panel>
           <span className="tick tl" aria-hidden="true" />

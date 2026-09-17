@@ -65,11 +65,16 @@ npm run og       # regenerates public/og.png
   screens switch to a working model of the project ("Try it"); the models
   are `src/components/demos/`, each flagged SIMULATED, none of them talking
   to the real product
-- `src/sections/Garage.jsx` the garage: the S4 in three photographs with a
-  numbered marker on every part, a detail card with a close crop, and the
-  parts sheet. `src/data/garage.js` is the data, transcribed from Ali's own
-  build list; the rest of the old Teardown (the 328xi, the bench, the two
-  competitions) sits under the bay
+- `src/sections/Garage.jsx` the garage: the S4 with a numbered marker on
+  every part, a detail card with a close crop of the real photograph, and
+  the parts sheet. Two bays behind one bezel switch: the model
+  (`src/components/GarageModel.jsx`, a three.js scene in
+  `src/lib/garage-scene.js` around the car in `src/three/s4/`, built by
+  GPT-6-Astra through the codex-3d skill from the three photographs) and
+  the photographs themselves. This branch opens on the model.
+  `src/data/garage.js` is the data, transcribed from Ali's own build list,
+  with an anchor on the model for every part; the rest of the old Teardown
+  (the 328xi, the bench, the two competitions) sits under the bay
 - `src/components/Skyline.jsx` the city behind the hero, alive: rooftop
   signage, drifting haze, the signs mirrored in the water, all of it
   breathing with the track through the same `--bass` / `--level` variables

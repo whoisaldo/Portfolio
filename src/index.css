@@ -1146,3 +1146,17 @@ html:has(body.recruiters) { background-color: #f7f6f2; }
 .rp-bullets li::marker { color: #9a988f; }
 .rp *:focus-visible { box-shadow: 0 0 0 2px #f7f6f2, 0 0 0 4px #141416; }
 .rp ::selection { background: #fcee0a; color: #141416; }
+
+/* The 3D bay (src/components/GarageModel.jsx). The markers are the same
+   buttons as the photograph's; two states are added for a point that faces
+   away from the camera or sits under a closed bonnet, and one for a point
+   behind the camera. */
+.garage-model .garage-pin { transition: background-color 0.15s, color 0.15s, opacity 0.2s; }
+.garage-model .garage-pin.is-dim { opacity: 0.38; }
+.garage-model .garage-pin.is-dim:hover,
+.garage-model .garage-pin.is-dim:focus-visible,
+.garage-model .garage-pin.is-dim.is-on { opacity: 1; }
+/* Off means gone: behind the camera, or under a closed bonnet. Hidden, not
+   transparent, so it leaves the tab order too. */
+.garage-model .garage-pin.is-off { visibility: hidden; }
+.garage-model canvas:focus-visible { box-shadow: inset 0 0 0 2px #fcee0a; }

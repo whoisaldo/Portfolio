@@ -1,0 +1,17 @@
+// src/lib/garage3d.js: the door to the 3D garage.
+//
+// Same shape as drift.js: three.js is never in the main bundle, and the
+// garage's scene is only fetched when the reader switches the bay to the
+// model. The promise is shared so a second switch never fetches twice, and
+// a failed load resets so a retry gets a second chance.
+let promise = null;
+
+export function loadGarage3d() {
+  if (!promise) {
+    promise = import("./garage-scene.js").catch((err) => {
+      promise = null;
+      throw err;
+    });
+  }
+  return promise;
+}
