@@ -4,6 +4,14 @@ dist/
 .vite/
 *.log
 .DS_Store
+*.blend1
+*.blend2
+scripts/blender/__pycache__/
+design/audi-s4/*-review.png
+design/audi-s4/garage-*.png
+design/audi-s4/intro-*.png
+design/audi-s4/*-source.glb
+design/audi-s4/*-viewport.png
 
 # Tooling
 .vercel/

@@ -9,20 +9,26 @@
 // It is too good to delete and wrong to put in the way. So: press the backtick
 // key anywhere on the site and it opens.
 //
-// Discoverability is deliberately low but not zero. Three ways in:
+// Four ways in:
 //
 //   1. `  or ~ from anywhere (not while typing in a field)
-//   2. a console.log printed once on load, for anyone who opens devtools,
+//   2. the terminal button in the header (and a row in the phone menu),
+//      which fires openConsole() from src/lib/console.js
+//   3. a console.log printed once on load, for anyone who opens devtools,
 //      which, on a software engineer's portfolio, is a decent share of the
 //      people worth impressing
-//   3. /console as a URL
+//   4. /console as a URL
 //
-// No visible button. A hint in the UI would make it a feature again, and the
-// whole point is that it is not one.
+// It was a secret for a while, with no button, on the theory that a hint in
+// the UI would make it a feature again. It became one anyway once it grew
+// commands that do things to the page (open the garage, switch the skyline's
+// haze off, turn the sound on), because a control nobody can find is not a
+// control. The keystroke stays for the people who already knew.
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useFocusTrap } from "../hooks";
+import { CONSOLE_EVENT } from "../lib/console";
 
 // Code-split. This is a thousand lines that most visitors will never open;
 // making everyone download it on first paint to support an easter egg would be
@@ -68,10 +74,17 @@ export default function Console() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // /console is the third way in, and the one you can put in a message.
+  // /console is the way in you can put in a message.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.location.pathname.replace(/\/+$/, "") === "/console") setOpen(true);
+  }, []);
+
+  // The header button.
+  useEffect(() => {
+    const onOpen = (e) => setOpen(e.detail?.open !== false);
+    window.addEventListener(CONSOLE_EVENT, onOpen);
+    return () => window.removeEventListener(CONSOLE_EVENT, onOpen);
   }, []);
 
   // NOTE: no body-scroll lock here. useFocusTrap already does it, and also

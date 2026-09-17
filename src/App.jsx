@@ -11,9 +11,18 @@
 // exist even though it renders. Links shared with a person are fine; search
 // engines are not. Fixing that properly means either pre-rendering each route
 // to its own index.html at build time, or moving to a host that can rewrite. Not
-// worth doing until it matters.
-import React, { useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+// worth doing until it matters. (/recruiters is the one exception: the
+// workflow writes it a real index.html, because it is the address that goes
+// on a résumé.)
+//
+// Two shells, not one. Everything under / is the cinematic: the door, the
+// intro, the reticle, the console, the music-reactive chrome. Everything
+// under /recruiters is the plain version of the same content, and it mounts
+// NONE of that: no gate, no audio, no cursor, no scanlines, no effects. The
+// split is made here, above both, so that nothing from one can leak into the
+// other by accident. The two shells share the data files and nothing else.
+import React, { lazy, Suspense, useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import Navbar from "./components/Navbar";
 import Footer from "./sections/Footer";
@@ -27,8 +36,19 @@ import WorkPage from "./routes/WorkPage";
 import { initBeacon } from "./lib/beacon";
 import { attachUiSfx } from "./lib/ui-sfx";
 import { startReactive } from "./lib/reactive";
+import { initEnv } from "./lib/env";
+
+// The plain version is its own chunk: the cinematic never downloads it, and
+// it never downloads the cinematic.
+const Recruiters = lazy(() => import("./routes/Recruiters"));
+const RecruiterWork = lazy(() => import("./routes/RecruiterWork"));
+
+const isRecruiters = (pathname) =>
+  pathname === "/recruiters" || pathname.startsWith("/recruiters/");
 
 export default function App() {
+  const { pathname } = useLocation();
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.history.scrollRestoration = "manual";
@@ -37,13 +57,35 @@ export default function App() {
 
   // Analytics. Its own effect so it cannot interfere with anything a page does
   // on mount, and it returns its own teardown so a hot reload does not leave a
-  // second set of listeners attached.
+  // second set of listeners attached. Both shells count.
   useEffect(() => initBeacon(), []);
 
+  if (isRecruiters(pathname)) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="rp min-h-screen" />}>
+          <Routes>
+            <Route path="/recruiters" element={<Recruiters />} />
+            <Route path="/recruiters/work/:slug" element={<RecruiterWork />} />
+            <Route path="/recruiters/*" element={<Recruiters />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  return <Cinematic />;
+}
+
+/** The site as designed: the door, the intro, and the page. */
+function Cinematic() {
   // The interface blips and the music-reactive CSS variables. Both are
-  // document-level listeners that return their own teardown.
+  // document-level listeners that return their own teardown. The environment
+  // switches are mirrored onto <html> once so the CSS sees them from the
+  // first frame.
   useEffect(() => attachUiSfx(), []);
   useEffect(() => startReactive(), []);
+  useEffect(() => { initEnv(); }, []);
 
   return (
     <ErrorBoundary>
@@ -58,7 +100,7 @@ export default function App() {
           <IntroCinematic />
 
           <Navbar />
-          {/* Backtick anywhere, or /console. Not in the nav. */}
+          {/* Backtick anywhere, the button in the header, or /console. */}
           <Console />
           <Cursor />
 

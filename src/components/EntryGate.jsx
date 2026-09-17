@@ -30,6 +30,9 @@
 //   silence never sees it at all.
 //   The page underneath is fully rendered the whole time, so a crawler that
 //   ignores overlays reads a complete document.
+//   It offers the way out. "Recruiters press this" goes to /recruiters, a
+//   plain version of the site with none of this on it, because the reader
+//   with the least time is the one this door most needs to not detain.
 //
 // It is also, quietly, the loading screen the intro needs: the seconds a
 // reader spends on this panel are the seconds the track's 3.8 MB, the two
@@ -37,11 +40,13 @@
 // follows starts the song in a few hundred milliseconds. See prefetchTrack(),
 // loadDrift() and <Preload /> below.
 import React, { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Volume2, VolumeX } from "lucide-react";
+import { ArrowUpRight, Volume2, VolumeX } from "lucide-react";
 import { useFocusTrap, useMediaQuery } from "../hooks";
 import { profile } from "../data/profile";
 import { img } from "../data/images";
+import { s4Poster } from "../data/s4";
 import {
   hasBeenAsked,
   markAsked,
@@ -67,7 +72,7 @@ function Preload() {
   return (
     <div aria-hidden="true" className="fixed w-px h-px overflow-hidden opacity-0 pointer-events-none -z-10">
       <Picture sources={img(portrait ? "Intro/MoonPortrait" : "Intro/Moon")} sizes="100vw" loading="eager" fetchPriority="low" />
-      <Picture sources={img("Intro/Car")} sizes="72vw" loading="eager" fetchPriority="low" />
+      <Picture sources={s4Poster} sizes="72vw" loading="eager" fetchPriority="low" />
     </div>
   );
 }
@@ -212,6 +217,21 @@ export default function EntryGate({ onEnter }) {
                   : "Your browser needs a click before it will play audio. Volume lives bottom left, and either choice is changeable there."}
                 {intro && <span className="block mt-2">{intro}</span>}
               </p>
+
+              {/* The way out, for the reader with the least time. A plain
+                  page: no intro, no sound, no effects, the same content. */}
+              <Link
+                to="/recruiters"
+                className="group mt-6 flex items-center justify-between gap-4 border-t border-ink-line pt-5 transition-colors"
+              >
+                <span className="min-w-0">
+                  <span className="mono-ui font-bold text-volt block">Recruiters press this</span>
+                  <span className="mono-label text-dim block mt-1.5">
+                    The plain version. Experience, projects, skills and the résumé, with none of the above.
+                  </span>
+                </span>
+                <ArrowUpRight className="w-4 h-4 shrink-0 text-volt transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
             </Panel>
 
             {/* Outside the Panel on purpose. `clip-path` removes anything the

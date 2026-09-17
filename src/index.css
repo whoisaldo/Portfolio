@@ -704,3 +704,555 @@ a:hover .ink-underline,
 @media (pointer: coarse) {
   .reticle { display: none; }
 }
+
+/* ===========================================================================
+   The garage
+   ---------------------------------------------------------------------------
+   Used by src/sections/Garage.jsx. A marker is a small square on the
+   photograph, numbered like the sheet below it, with a ring that breathes
+   until it is chosen. Squares, not circles: the one border-radius on the site
+   belongs to the "Now" flag in the hero.
+   =========================================================================== */
+.s4-viewer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 35%, #29313b 0%, #171d26 48%, #0c1119 100%);
+}
+.s4-viewer-floor {
+  position: absolute;
+  inset: 58% -30% -40%;
+  z-index: -1;
+  opacity: .2;
+  background-image: linear-gradient(#455363 1px, transparent 1px), linear-gradient(90deg, #455363 1px, transparent 1px);
+  background-size: 44px 44px;
+  transform: perspective(300px) rotateX(55deg);
+  mask-image: linear-gradient(transparent, #000 35%);
+}
+.s4-viewer-poster {
+  position: absolute;
+  inset: 12% 0 18%;
+  width: 100%;
+  height: 70%;
+  object-fit: contain;
+}
+.s4-viewer-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: grab;
+}
+.s4-viewer-canvas.is-ready { opacity: 1; }
+.s4-viewer-canvas:active { cursor: grabbing; }
+.s4-viewer-canvas:focus-visible { outline: 2px solid #fcee0a; outline-offset: -3px; }
+.s4-viewer-heading {
+  position: absolute;
+  top: 1rem;
+  inset-inline: 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  pointer-events: none;
+}
+.s4-viewer-start {
+  position: absolute;
+  inset-inline: 1rem;
+  bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .75rem;
+}
+.s4-explore {
+  display: inline-flex;
+  align-items: center;
+  gap: .75rem;
+  min-height: 44px;
+  padding: .75rem 1.25rem;
+  border: 1px solid #fcee0a;
+  background: #fcee0a;
+  color: #111318;
+  font-family: var(--font-mono, 'JetBrains Mono Variable', monospace);
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.s4-explore:hover { background: #fff56b; }
+.s4-explore:disabled { opacity: .6; cursor: wait; }
+.s4-control {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: .5rem .65rem;
+  color: #c2c8d0;
+  background: #101722e8;
+  border: 1px solid #354152;
+  font-family: var(--font-mono, 'JetBrains Mono Variable', monospace);
+  font-size: .6875rem;
+}
+.s4-control:hover, .s4-control[aria-pressed='true'] { border-color: #fcee0a; color: #fcee0a; }
+.s4-control:focus-visible, .s4-explore:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+.s4-viewer-presets { position: absolute; top: 3.1rem; left: 1rem; right: 1rem; display: flex; flex-wrap: wrap; gap: .25rem; }
+.s4-viewer-tools { position: absolute; right: 1rem; bottom: 5.25rem; display: flex; gap: .25rem; }
+.s4-viewer-footer {
+  position: absolute;
+  inset-inline: 1rem;
+  bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.s4-viewer-footer p { max-width: 25ch; }
+.garage-frame {
+  isolation: isolate;
+}
+.garage-pin {
+  position: absolute;
+  z-index: 2;
+  width: 1.75rem;
+  height: 1.75rem;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  background: rgb(10 10 12 / 0.84);
+  color: #fcee0a;
+  border: 1px solid rgb(252 238 10 / 0.9);
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.garage-pin::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid rgb(252 238 10 / 0.7);
+  animation: pin-pulse 2.4s cubic-bezier(0.16, 0.9, 0.25, 1) infinite;
+  pointer-events: none;
+}
+@keyframes pin-pulse {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.garage-pin:hover,
+.garage-pin:focus-visible,
+.garage-pin.is-on {
+  background: #fcee0a;
+  color: #0a0a0c;
+}
+.garage-pin.is-on::before,
+.garage-pin:hover::before {
+  animation: none;
+  opacity: 0;
+}
+.garage-pin:focus-visible {
+  box-shadow: 0 0 0 2px #0a0a0c, 0 0 0 4px #fcee0a;
+}
+/* The name, on hover or focus, under the marker (or above it when the marker
+   is near the bottom edge of the frame). */
+.garage-pin-label {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, 7px);
+  white-space: nowrap;
+  background: rgb(10 10 12 / 0.92);
+  color: #eceae4;
+  padding: 4px 7px;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.garage-pin.is-low .garage-pin-label {
+  top: auto;
+  bottom: 100%;
+  transform: translate(-50%, -7px);
+}
+.garage-pin:hover .garage-pin-label,
+.garage-pin:focus-visible .garage-pin-label {
+  opacity: 1;
+}
+.garage-row[aria-pressed="true"] .mono-micro:first-child {
+  color: #fcee0a;
+}
+@media (prefers-reduced-motion: reduce) {
+  .garage-pin::before { animation: none; opacity: 0.45; }
+}
+
+/* ===========================================================================
+   The living skyline
+   ---------------------------------------------------------------------------
+   Used by src/components/Skyline.jsx, behind the hero. Everything here is
+   positioned in percentages of the plate (see CoverBox.jsx) and every effect
+   answers to a switch in src/lib/env.js through a data attribute on <html>,
+   and to the music through --level / --bass. In silence, with the switches
+   on, the signs are lit, the haze drifts, and the water ripples; with them
+   off, the plate is the still it was.
+   =========================================================================== */
+.sky { isolation: isolate; }
+
+/* A rooftop sign: a dark board on a thin mast, a neon face on it. Size is a
+   fraction of the plate's width, so distance is what sets it, not the
+   viewport. */
+.sky-sign {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  font-size: calc(var(--cover-w, 1600px) * var(--sign-size, 0.01));
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.sky-sign::after {
+  /* The mast. */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: 0.9em;
+  background: rgb(236 234 228 / 0.25);
+}
+.sky-sign-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.28em 0.55em;
+  background: rgb(5 5 6 / 0.72);
+  border: 1px solid color-mix(in srgb, var(--sign) 35%, transparent);
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sign);
+  /* The tube: a white core, then the colour bleeding out. Brightens with the
+     track through --level; the multiplier is the sign's own. */
+  --lit: calc(var(--sign-glow, 1) * (0.75 + var(--level, 0) * 0.5));
+  text-shadow:
+    0 0 1px rgb(255 255 255 / 0.9),
+    0 0 0.35em var(--sign),
+    0 0 0.9em color-mix(in srgb, var(--sign) 70%, transparent),
+    0 0 1.8em color-mix(in srgb, var(--sign) 40%, transparent);
+  filter: brightness(var(--lit));
+}
+.sky-sign-cross {
+  display: inline-block;
+  width: 0.72em;
+  height: 0.72em;
+  background:
+    linear-gradient(#ff003c, #ff003c) center / 100% 0.22em no-repeat,
+    linear-gradient(#ff003c, #ff003c) center / 0.22em 100% no-repeat;
+  filter: drop-shadow(0 0 0.3em #ff003c);
+}
+/* A tube that is not quite right: out for a frame now and then. steps(),
+   because neon does not fade, it cuts. */
+.sky-sign-flicker .sky-sign-face {
+  animation: neon-flicker 11s steps(1, end) infinite;
+}
+.sky-sign:nth-child(2n) .sky-sign-face { animation-delay: -4.6s; }
+@keyframes neon-flicker {
+  0%, 88.0% { opacity: 1; }
+  88.4%     { opacity: 0.35; }
+  88.9%     { opacity: 1; }
+  90.2%     { opacity: 0.5; }
+  90.5%     { opacity: 1; }
+  96.0%     { opacity: 1; }
+  96.2%     { opacity: 0.6; }
+  96.5%, 100% { opacity: 1; }
+}
+
+/* The signs in the water. The same elements, flipped about the waterline,
+   stretched a little into streaks, blurred, and rippled with a mask that
+   drifts down the way water does. The mirror layer is clipped to the water
+   so a tall sign's reflection never lands on a building. */
+.sky-reflect {
+  position: absolute;
+  inset: 0;
+  transform: scaleY(-1.2);
+  opacity: 0.8;
+  filter: blur(1px);
+  -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgb(0 0 0 / 0.35) 2px 4px);
+  mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgb(0 0 0 / 0.35) 2px 4px);
+  -webkit-mask-size: 100% 4px;
+  mask-size: 100% 4px;
+  animation: water-ripple 1.6s linear infinite;
+}
+.sky-reflect .sky-sign::after { display: none; }
+.sky-reflect .sky-sign-face {
+  background: transparent;
+  border-color: transparent;
+  --lit: calc(var(--sign-glow, 1) * (0.55 + var(--level, 0) * 0.6));
+}
+@keyframes water-ripple {
+  from { -webkit-mask-position: 0 0; mask-position: 0 0; }
+  to   { -webkit-mask-position: 0 4px; mask-position: 0 4px; }
+}
+
+/* Light on the water: the city's own glow pulled down into slow vertical
+   streaks. Screen-blended, so it only ever adds light. */
+.sky-water {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 3.1%,
+      rgb(252 238 10 / 0.09) 3.1% 3.4%,
+      transparent 3.4% 7.3%,
+      rgb(255 46 136 / 0.07) 7.3% 7.5%,
+      transparent 7.5% 11%
+    ),
+    linear-gradient(to bottom, rgb(252 238 10 / 0.12), transparent 55%);
+  background-size: 220% 100%, 100% 100%;
+  mix-blend-mode: screen;
+  opacity: calc(0.5 + var(--level, 0) * 0.5);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%);
+  mask-image: linear-gradient(to bottom, #000, transparent 85%);
+  animation: water-drift 38s linear infinite;
+}
+@keyframes water-drift {
+  from { background-position: 0 0, 0 0; }
+  to   { background-position: 100% 0, 0 0; }
+}
+
+/* Haze. Two bodies of coloured air, a few percent of white each, drifting
+   across the city on long, offset cycles so the pattern never repeats. */
+.sky-haze {
+  position: absolute;
+  top: 38%;
+  height: 46%;
+  width: 62%;
+  border-radius: 50%;
+  filter: blur(26px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: calc(0.75 + var(--level, 0) * 0.5);
+  will-change: transform;
+}
+.sky-haze-a {
+  left: 22%;
+  background: radial-gradient(ellipse at center, rgb(252 238 10 / 0.16), rgb(252 238 10 / 0.05) 45%, transparent 68%);
+  animation: haze-a 52s ease-in-out infinite alternate;
+}
+.sky-haze-b {
+  left: 45%;
+  top: 44%;
+  width: 54%;
+  height: 34%;
+  background: radial-gradient(ellipse at center, rgb(255 46 136 / 0.12), rgb(255 46 136 / 0.03) 45%, transparent 68%);
+  animation: haze-b 67s ease-in-out infinite alternate;
+  animation-delay: -21s;
+}
+@keyframes haze-a {
+  from { transform: translate3d(-8%, 0, 0) scale(1); }
+  to   { transform: translate3d(14%, 3%, 0) scale(1.12); }
+}
+@keyframes haze-b {
+  from { transform: translate3d(12%, 2%, 0) scale(1.08); }
+  to   { transform: translate3d(-10%, -2%, 0) scale(0.96); }
+}
+
+/* The switches. Each attribute is written by src/lib/env.js. */
+html[data-fx-signs="off"] .sky-signs,
+html[data-fx-signs="off"] .sky-reflect { display: none; }
+html[data-fx-haze="off"] .sky-haze { display: none; }
+html[data-fx-wet="off"] .sky-reflect,
+html[data-fx-wet="off"] .sky-water { display: none; }
+html[data-fx-cursor="off"] .reticle { display: none; }
+html[data-fx-scanlines="off"] .paper-grain::before,
+html[data-fx-scanlines="off"] .paper-grain::after { display: none; }
+/* Off: the variables the music writes are pinned at silence. !important is
+   needed because reactive.js writes them as inline styles on <html>. */
+html[data-fx-reactive="off"] { --bass: 0 !important; --level: 0 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sky-haze, .sky-water, .sky-reflect, .sky-sign-flicker .sky-sign-face { animation: none; }
+}
+
+/* ===========================================================================
+   The deck demos
+   ---------------------------------------------------------------------------
+   src/components/demos/*. Inputs and selects inside a demo take the site's
+   frame; the Eternal Monitor wire is the one drawn thing.
+   =========================================================================== */
+/* Layout inside a demo answers to the demo's own width, not the viewport:
+   the inline deck screen is about 550px wide on a 1440px monitor, and a
+   viewport breakpoint would give it a two-column layout it cannot hold. */
+.demo { container-type: inline-size; }
+.demo-split { display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1fr); }
+.demo-aside { min-width: 0; border-top: 1px solid #24242a; padding-top: 1rem; }
+.demo-fields { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 420px) {
+  .demo-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .demo-fields-qty { grid-template-columns: minmax(0, 1fr) 6rem; }
+  .demo-fields > .demo-span { grid-column: 1 / -1; }
+}
+@container (min-width: 640px) {
+  .demo-split { grid-template-columns: minmax(0, 3fr) minmax(13rem, 2fr); }
+  .demo-split-even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .demo-aside { border-top: 0; padding-top: 0; border-left: 1px solid #24242a; padding-left: 1.25rem; }
+}
+.demo select {
+  background-image: linear-gradient(45deg, transparent 50%, #8a8780 50%), linear-gradient(135deg, #8a8780 50%, transparent 50%);
+  background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 2rem;
+}
+.demo input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+.deck-demo { scrollbar-width: thin; scrollbar-color: #24242a transparent; }
+
+/* The wire: seven stages in a row with packets running along it when the
+   demo is wide enough for a row. Narrower, it wraps into a grid and the
+   packets stop, because a dot running along a wrapped line reads as a bug. */
+.em-wire {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.375rem;
+  padding-top: 0.5rem;
+}
+.em-wire::before, .em-packet { display: none; }
+@container (min-width: 440px) {
+  .em-wire { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container (min-width: 760px) {
+  .em-wire { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .em-wire::before, .em-packet { display: block; }
+}
+.em-wire::before {
+  content: "";
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(252 238 10 / 0.15), rgb(252 238 10 / 0.55) 45%, rgb(255 46 136 / 0.55) 55%, rgb(255 46 136 / 0.15));
+}
+.em-node {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.4rem;
+  text-align: left;
+  border: 1px solid #24242a;
+  background: #0a0a0c;
+  color: rgb(236 234 228 / 0.72);
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+.em-node:hover { border-color: rgb(252 238 10 / 0.6); color: #eceae4; }
+.em-node.is-on { border-color: #fcee0a; color: #eceae4; background: #131316; }
+.em-side-ipad .em-node.is-on { border-color: #ff2e88; }
+.em-node.is-drop { background: rgb(255 46 136 / 0.25); }
+.em-packet {
+  position: absolute;
+  top: -2px;
+  left: 4%;
+  width: 5px;
+  height: 5px;
+  background: #fcee0a;
+  box-shadow: 0 0 6px #fcee0a;
+  animation: em-run 2.4s linear infinite;
+}
+.em-packet-2 { animation-delay: -1.2s; background: #ff2e88; box-shadow: 0 0 6px #ff2e88; }
+@keyframes em-run {
+  from { left: 4%; opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 1; }
+  to   { left: 96%; opacity: 0; }
+}
+
+/* ===========================================================================
+   The plain version (/recruiters)
+   ---------------------------------------------------------------------------
+   src/routes/Recruiters.jsx and RecruiterWork.jsx. Light, one column, no
+   effects: the grain and the scanlines on <body> are switched off by the
+   `recruiters` class the page adds while it is mounted, and none of the
+   cinematic's components are rendered under it (see App.jsx).
+   =========================================================================== */
+body.recruiters { background-color: #f7f6f2; color: #1b1b1d; }
+body.recruiters.paper-grain::before,
+body.recruiters.paper-grain::after { display: none; }
+html:has(body.recruiters) { background-color: #f7f6f2; }
+
+.rp {
+  background-color: #f7f6f2;
+  color: #1b1b1d;
+  font-family: Barlow, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: auto;
+}
+.rp-wrap { width: min(100% - 2.5rem, 52rem); margin-inline: auto; }
+.rp-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgb(247 246 242 / 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #e3e1da;
+  box-shadow: inset 0 3px 0 #fcee0a;
+}
+.rp-ink { color: #141416; }
+.rp-muted { color: #5e5d58; }
+.rp-rule { border-color: #e3e1da; }
+.rp-rule-strong { border-color: #c9c7bf; }
+.rp-section { margin-top: 3.5rem; scroll-margin-top: 4.5rem; }
+.rp-link {
+  color: #141416;
+  text-decoration: underline;
+  text-decoration-color: #b9b7ae;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.rp-link:hover { text-decoration-color: #141416; }
+.rp-button {
+  display: inline-block;
+  padding: 0.5rem 0.9rem;
+  background: #141416;
+  color: #f7f6f2;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  border-radius: 3px;
+}
+.rp-button:hover { background: #2a2a2e; }
+.rp-chip {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid #dad8d0;
+  border-radius: 3px;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  color: #3a3a3e;
+  background: #fff;
+}
+.rp-bullets { list-style: disc; padding-left: 1.25rem; }
+.rp-bullets li::marker { color: #9a988f; }
+.rp *:focus-visible { box-shadow: 0 0 0 2px #f7f6f2, 0 0 0 4px #141416; }
+.rp ::selection { background: #fcee0a; color: #141416; }
+
+/* The 3D bay (src/components/GarageModel.jsx). The markers are the same
+   buttons as the photograph's; two states are added for a point that faces
+   away from the camera or sits under a closed bonnet, and one for a point
+   behind the camera. */
+.garage-model .garage-pin { transition: background-color 0.15s, color 0.15s, opacity 0.2s; }
+.garage-model .garage-pin.is-dim { opacity: 0.38; }
+.garage-model .garage-pin.is-dim:hover,
+.garage-model .garage-pin.is-dim:focus-visible,
+.garage-model .garage-pin.is-dim.is-on { opacity: 1; }
+/* Off means gone: behind the camera, or under a closed bonnet. Hidden, not
+   transparent, so it leaves the tab order too. */
+.garage-model .garage-pin.is-off { visibility: hidden; }
+.garage-model canvas:focus-visible { box-shadow: inset 0 0 0 2px #fcee0a; }

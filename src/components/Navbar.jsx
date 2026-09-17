@@ -12,19 +12,28 @@
 // not, because a header with six items all at 11px has no entry point. It is
 // his name; it should look like the thing everything else hangs off.
 //
+// Two things joined the bar in 2026-09. A terminal button, because the
+// console grew commands that do things to the page and a control nobody can
+// find is not a control (the backtick still works). And "Recruiters press
+// this", the way out to /recruiters, the plain version of the site: it is
+// deliberately labelled as an instruction rather than a section, because it
+// is addressed to one kind of reader and it should be the first thing that
+// reader sees. On the phone menu both are rows.
+//
 // Opacity modifiers here must come from Tailwind's scale (…/85, /90, /95).
 // This bar was written with `bg-ink/92` and the mobile panel with `bg-ink/96`,
 // neither of which is a scale step, so Tailwind emitted no rule at all and
 // both surfaces rendered fully transparent. It fails silently: no build error,
 // no console warning, just a menu you can read the page through.
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { ArrowUpRight, Menu, SquareTerminal, X } from "lucide-react";
 import { navSections } from "../data/site";
 import { profile } from "../data/profile";
 import { scrollToSection } from "../lib/scroll";
 import { useIntroDone } from "../lib/intro";
+import { openConsole } from "../lib/console";
 import Panel from "./ui/Panel";
 
 const pdf = (import.meta.env.BASE_URL || "/") + "resume.pdf";
@@ -86,6 +95,24 @@ export default function Navbar() {
             </a>
           ))}
 
+          <Link
+            to="/recruiters"
+            className="group hidden lg:inline-flex items-center gap-1.5 mono-label text-muted transition-colors duration-200 hover:text-volt"
+          >
+            <span className="ink-underline">Recruiters press this</span>
+            <ArrowUpRight className="w-3 h-3 text-faint transition-all group-hover:text-volt group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
+          </Link>
+
+          <button
+            type="button"
+            onClick={openConsole}
+            aria-label="Open the terminal"
+            title="Terminal (or press `)"
+            className="p-1.5 text-dim transition-colors duration-200 hover:text-volt focus-visible:text-volt"
+          >
+            <SquareTerminal className="w-[18px] h-[18px]" aria-hidden="true" />
+          </button>
+
           {/* The one filled control in the bar. Volt is signage: it marks the
               thing you can act on, and there is exactly one of those here. */}
           <Panel
@@ -139,13 +166,40 @@ export default function Navbar() {
                 </motion.a>
               ))}
 
+              <motion.button
+                type="button"
+                onClick={() => { setIsMobileOpen(false); openConsole(); }}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: navSections.length * 0.04 }}
+                className="mono-ui text-dim py-3 text-left inline-flex items-center gap-2.5 transition-colors duration-200 hover:text-primary"
+              >
+                <SquareTerminal className="w-4 h-4" aria-hidden="true" />
+                Terminal
+              </motion.button>
+
+              <motion.div
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: (navSections.length + 1) * 0.04 }}
+              >
+                <Link
+                  to="/recruiters"
+                  onClick={() => setIsMobileOpen(false)}
+                  className="mono-ui text-volt py-3 inline-flex items-center gap-2 transition-colors duration-200 hover:text-primary"
+                >
+                  Recruiters press this
+                  <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </Link>
+              </motion.div>
+
               <motion.a
                 href={pdf}
                 download="Ali_Younes_Resume.pdf"
                 onClick={() => setIsMobileOpen(false)}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: navSections.length * 0.04 }}
+                transition={{ delay: (navSections.length + 2) * 0.04 }}
                 className="chamfer chamfer-sm bg-volt mono-ui font-bold text-ink text-center px-5 py-3 mt-3"
               >
                 Résumé

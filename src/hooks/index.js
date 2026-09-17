@@ -50,8 +50,11 @@ export function useFocusTrap(ref, active, onEscape) {
     document.body.style.overflow = "hidden";
     if (scrollbar > 0) document.body.style.paddingRight = `${scrollbar}px`;
 
+    // A panel can say which control should take focus first with
+    // `data-autofocus` (the console's input, not its close button); failing
+    // that, the first focusable element.
     const node = ref.current;
-    node?.querySelector(FOCUSABLE)?.focus();
+    (node?.querySelector("[data-autofocus]") ?? node?.querySelector(FOCUSABLE))?.focus();
 
     const onKey = (e) => {
       if (e.key === "Escape") {

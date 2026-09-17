@@ -18,6 +18,7 @@
 // at all: the road stays, the traffic does not.
 import React, { useEffect, useRef } from "react";
 import { usePrefersReducedMotion } from "../hooks";
+import { useEnv } from "../lib/env";
 import sprite from "../assets/Intro/MiniCar.svg?raw";
 
 // The sprite's markup without its <svg> wrapper, hoisted into a <g> that the
@@ -46,6 +47,7 @@ const CARS = [
 
 export default function RoadTraffic({ active = true }) {
   const reduced = usePrefersReducedMotion();
+  const { traffic } = useEnv();
   const ref = useRef(null);
 
   // SMIL keeps running for an <svg> that has scrolled away. Pause the whole
@@ -63,9 +65,10 @@ export default function RoadTraffic({ active = true }) {
       io.disconnect();
       svg.unpauseAnimations?.();
     };
-  }, [active, reduced]);
+  }, [active, reduced, traffic]);
 
-  if (reduced || !active) return null;
+  // `traffic` is the console's switch (src/lib/env.js).
+  if (reduced || !active || !traffic) return null;
 
   return (
     <g ref={ref} aria-hidden="true">

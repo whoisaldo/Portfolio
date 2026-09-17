@@ -21,12 +21,19 @@
 // live project and fuchsia on one still in development (see the note above
 // `const LIVE` in src/data/projects.js), on the rail's squares and the
 // screen's flag.
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+//
+// Five of the eight screens can switch from the key art to a working model
+// of the project (src/components/demos): a connection diagram, a calculator,
+// a sample log. "Try it" in the screen's top bar switches; "Art" switches
+// back. Every model is flagged SIMULATED in its own header because none of
+// them talks to the real product, and the status bar says so too.
+import React, { Suspense, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ExternalLink, Github, Maximize2, X } from "lucide-react";
 import ProjectImage from "./ProjectImage";
 import Panel from "../ui/Panel";
+import { DEMOS } from "../demos";
 import { useFocusTrap, useMediaQuery } from "../../hooks";
 import { hexToRgbTriplet } from "../../lib/image";
 
@@ -99,11 +106,33 @@ function Rail({ projects, index, onSelect, expanded, idBase }) {
   );
 }
 
+/** "Art" or "Try it", for the screens that have a model. */
+function ModeToggle({ demo, setDemo }) {
+  return (
+    <div role="group" aria-label="Screen" className="ml-auto flex border border-ink-line bg-ink/90 backdrop-blur-sm">
+      {[[false, "Art"], [true, "Try it"]].map(([on, label]) => (
+        <button
+          key={label}
+          type="button"
+          aria-pressed={demo === on}
+          onClick={() => setDemo(on)}
+          className={`px-2.5 py-1.5 mono-micro transition-colors focus-visible:shadow-none focus-visible:bg-volt focus-visible:text-ink
+                      ${demo === on ? "bg-volt text-ink font-bold" : "text-muted hover:text-primary"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** The screen: one project, with the gallery when expanded. */
-function Screen({ p, index, total, expanded, shot, setShot, idBase }) {
+function Screen({ p, index, total, expanded, shot, setShot, demo, setDemo, idBase }) {
   const images = p.images || [];
   const image = images[expanded ? shot : 0] || images[0];
   const gallery = expanded && images.length > 1;
+  const Demo = DEMOS[p.slug];
+  const showDemo = Boolean(demo && Demo);
 
   return (
     <div
@@ -132,32 +161,52 @@ function Screen({ p, index, total, expanded, shot, setShot, idBase }) {
               corner="br"
               edge="bg-ink-line"
               fill="bg-ink-deep"
-              innerClassName="relative overflow-hidden deck-screen-on"
+              innerClassName={`relative overflow-hidden ${showDemo ? "" : "deck-screen-on"}`}
             >
-              {image?.lqip && (
-                <div aria-hidden="true" className="ambient-plate" style={{ backgroundImage: `url("${image.lqip}")` }} />
+              {showDemo ? (
+                // The model. On a monitor it keeps the art's frame and
+                // scrolls inside it, so the deck never changes height when
+                // the screen switches; on a phone it takes the height it
+                // needs, because a 3:2 box at 340px wide is 227px tall.
+                <div className={`deck-demo relative md:overflow-y-auto ${expanded ? "md:aspect-[16/10]" : "md:aspect-[3/2]"}`}>
+                  <Suspense fallback={<p className="p-6 mono-label text-dim">loading the model…</p>}>
+                    <Demo toolbar={<ModeToggle demo={showDemo} setDemo={setDemo} />} />
+                  </Suspense>
+                </div>
+              ) : (
+                <>
+                  {image?.lqip && (
+                    <div aria-hidden="true" className="ambient-plate" style={{ backgroundImage: `url("${image.lqip}")` }} />
+                  )}
+                  <div className={`relative ${expanded ? "aspect-[16/10]" : "aspect-[3/2]"}`}>
+                    <ProjectImage
+                      key={image?.src || "none"}
+                      image={image}
+                      alt={shot > 0 && expanded ? `${p.title}, screen ${shot + 1}` : `${p.title} key art`}
+                      loading={index === 0 ? "eager" : "lazy"}
+                      sizes={expanded ? "(min-width: 1024px) 58vw, 94vw" : "(min-width: 768px) 60vw, 92vw"}
+                      className={`absolute inset-0 w-full h-full ${expanded && shot > 0 ? "object-contain" : "object-cover"}`}
+                    />
+                  </div>
+                  <div className="deck-scanlines absolute inset-0 pointer-events-none" aria-hidden="true" />
+                  <div aria-hidden="true" className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-ink/85 to-transparent" />
+                </>
               )}
-              <div className={`relative ${expanded ? "aspect-[16/10]" : "aspect-[3/2]"}`}>
-                <ProjectImage
-                  key={image?.src || "none"}
-                  image={image}
-                  alt={shot > 0 && expanded ? `${p.title}, screen ${shot + 1}` : `${p.title} key art`}
-                  loading={index === 0 ? "eager" : "lazy"}
-                  sizes={expanded ? "(min-width: 1024px) 58vw, 94vw" : "(min-width: 768px) 60vw, 92vw"}
-                  className={`absolute inset-0 w-full h-full ${expanded && shot > 0 ? "object-contain" : "object-cover"}`}
-                />
-              </div>
-              <div className="deck-scanlines absolute inset-0 pointer-events-none" aria-hidden="true" />
-              <div aria-hidden="true" className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-ink/85 to-transparent" />
-              <div className="absolute inset-x-0 top-0 flex items-center gap-3 p-4">
-                <span className="mono-micro text-dim tabular-nums">{pad(index + 1)} / {pad(total)}</span>
-                <span
-                  className="chamfer chamfer-sm mono-micro px-2 py-1 text-ink font-bold"
-                  style={{ backgroundColor: "rgb(var(--accent))" }}
-                >
-                  {statusOf(p)}
-                </span>
-              </div>
+              {/* Over the art: the index, the status flag and, where there is
+                  a model, the toggle. In model mode the toggle sits in the
+                  model's own header instead (DemoFrame.jsx). */}
+              {!showDemo && (
+                <div className="absolute inset-x-0 top-0 flex items-center gap-3 p-4">
+                  <span className="mono-micro text-dim tabular-nums">{pad(index + 1)} / {pad(total)}</span>
+                  <span
+                    className="chamfer chamfer-sm mono-micro px-2 py-1 text-ink font-bold"
+                    style={{ backgroundColor: "rgb(var(--accent))" }}
+                  >
+                    {statusOf(p)}
+                  </span>
+                  {Demo && <ModeToggle demo={false} setDemo={setDemo} />}
+                </div>
+              )}
             </Panel>
 
             {gallery && (
@@ -166,9 +215,9 @@ function Screen({ p, index, total, expanded, shot, setShot, idBase }) {
                   <button
                     key={im.src || i}
                     type="button"
-                    onClick={() => setShot(i)}
+                    onClick={() => { setDemo(false); setShot(i); }}
                     aria-label={i === 0 ? "Key art" : `Screen ${i}`}
-                    aria-pressed={i === shot}
+                    aria-pressed={i === shot && !showDemo}
                     className={`shrink-0 border transition-colors ${i === shot ? "border-volt" : "border-ink-line hover:border-dim"}`}
                   >
                     <ProjectImage image={im} alt="" sizes="112px" loading="lazy" className="block w-28 h-[4.5rem] object-cover" />
@@ -257,8 +306,9 @@ function Screen({ p, index, total, expanded, shot, setShot, idBase }) {
 }
 
 /** The machine: bezel, rail, screen, status bar. Inline or filling the viewport. */
-function Deck({ projects, index, onSelect, expanded, onExpand, onClose, shot, setShot, idBase }) {
+function Deck({ projects, index, onSelect, expanded, onExpand, onClose, shot, setShot, demo, setDemo, idBase }) {
   const p = projects[index];
+  const modelled = Boolean(demo && DEMOS[p.slug]);
   const tall = expanded ? "h-full" : "";
   return (
     <div className={`tick-frame relative ${tall}`}>
@@ -298,7 +348,7 @@ function Deck({ projects, index, onSelect, expanded, onExpand, onClose, shot, se
         <div className={`grid md:grid-cols-[15rem_minmax(0,1fr)] ${expanded ? "min-h-0 grow" : ""}`}>
           <Rail projects={projects} index={index} onSelect={onSelect} expanded={expanded} idBase={idBase} />
           <div className={`p-4 md:p-6 ${expanded ? "min-h-0 overflow-y-auto" : ""}`}>
-            <Screen p={p} index={index} total={projects.length} expanded={expanded} shot={shot} setShot={setShot} idBase={idBase} />
+            <Screen p={p} index={index} total={projects.length} expanded={expanded} shot={shot} setShot={setShot} demo={demo} setDemo={setDemo} idBase={idBase} />
           </div>
         </div>
 
@@ -306,6 +356,7 @@ function Deck({ projects, index, onSelect, expanded, onExpand, onClose, shot, se
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line mono-label text-dim">
           <span className="tabular-nums">
             <span className="text-muted">{pad(index + 1)} / {pad(projects.length)}</span> · {statusOf(p)}
+            {modelled && <span> · <span className="text-fuchsia">simulated model on screen</span></span>}
           </span>
           <span className="hidden md:inline">
             arrow keys switch entries{expanded ? " · esc closes" : ""}
@@ -327,12 +378,17 @@ export default function WorkDeck({ projects }) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [shot, setShot] = useState(0);
+  // Whether the screen shows the project's model rather than its art. Reset
+  // on every switch of entry: a reader who opens EternalExchange's calculator
+  // and then arrows to Moops should see Moops, not a blank "Try it".
+  const [demo, setDemo] = useState(false);
   const idBase = useId().replace(/:/g, "");
   const fullRef = useRef(null);
 
   const select = useCallback((i) => {
     setIndex(i);
     setShot(0);
+    setDemo(false);
   }, []);
   const close = useCallback(() => setExpanded(false), []);
 
@@ -356,6 +412,8 @@ export default function WorkDeck({ projects }) {
           onExpand={() => setExpanded(true)}
           shot={0}
           setShot={setShot}
+          demo={demo}
+          setDemo={setDemo}
           idBase={`${idBase}-inline`}
         />
       </div>
@@ -388,6 +446,8 @@ export default function WorkDeck({ projects }) {
                 onClose={close}
                 shot={shot}
                 setShot={setShot}
+                demo={demo}
+                setDemo={setDemo}
                 idBase={`${idBase}-full`}
               />
             </motion.div>

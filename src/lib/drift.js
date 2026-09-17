@@ -11,7 +11,10 @@ let promise = null;
 
 export function loadDrift() {
   if (!promise) {
-    promise = import("./drift-scene.js").catch((err) => {
+    promise = import("./drift-scene.js").then(async (module) => {
+      await module.preloadCar();
+      return module;
+    }).catch((err) => {
       promise = null;
       throw err;
     });
