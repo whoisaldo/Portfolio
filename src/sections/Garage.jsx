@@ -38,6 +38,7 @@ import CoverBox from "../components/ui/CoverBox";
 import Picture from "../components/Picture";
 import Panel from "../components/ui/Panel";
 import Glitch from "../components/ui/Glitch";
+import GarageModel from "../components/GarageModel";
 
 const pad = (n) => String(n).padStart(2, "0");
 const groupOf = (m) => groups.find((g) => g.id === m.group);
@@ -47,6 +48,7 @@ const indexOf = (m) => mods.findIndex((x) => x.id === m.id);
 // seven power parts on the left, the running gear in the middle, the
 // bodywork and the cabin on the right.
 const SHEET = [["power"], ["brakes", "suspension", "wheels"], ["cosmetic", "cabin"]];
+const VIEW_TABS = [{ id: "model", label: "3D" }, ...views];
 
 const reveal = {
   initial: { opacity: 0, y: 18 },
@@ -67,7 +69,7 @@ function centred(p, k) {
 }
 
 export default function Garage() {
-  const [viewId, setViewId] = useState(views[0].id);
+  const [viewId, setViewId] = useState("model");
   const [selected, setSelected] = useState(null);
   const [pinFocus, setPinFocus] = useState(0);
   const idBase = useId().replace(/:/g, "");
@@ -76,7 +78,7 @@ export default function Garage() {
   const wide = useMediaQuery("(min-width: 768px)");
 
   const view = views.find((v) => v.id === viewId) ?? views[0];
-  const viewIndex = views.indexOf(view);
+  const viewIndex = VIEW_TABS.findIndex((v) => v.id === viewId);
   const viewPins = useMemo(() => pins.filter((p) => p.view === view.id), [view.id]);
   const mod = selected ? findMod(selected) : null;
 
@@ -118,7 +120,7 @@ export default function Garage() {
   };
 
   const onTabKey = (e) => {
-    const n = views.length;
+    const n = VIEW_TABS.length;
     let next = null;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (viewIndex + 1) % n;
     else if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = (viewIndex - 1 + n) % n;
@@ -126,7 +128,7 @@ export default function Garage() {
     else if (e.key === "End") next = n - 1;
     if (next === null) return;
     e.preventDefault();
-    setViewId(views[next].id);
+    setViewId(VIEW_TABS[next].id);
     tabRefs.current[next]?.focus();
   };
 
@@ -185,8 +187,8 @@ export default function Garage() {
                 <span className="mono-micro text-dim hidden sm:inline tabular-nums">{pad(mods.length)} parts</span>
               </div>
               <div role="tablist" aria-label="Views of the car" onKeyDown={onTabKey} className="flex gap-1 -mx-1">
-                {views.map((v, i) => {
-                  const on = v.id === view.id;
+                {VIEW_TABS.map((v, i) => {
+                  const on = v.id === viewId;
                   return (
                     <button
                       key={v.id}
@@ -217,10 +219,11 @@ export default function Garage() {
               <div
                 role="tabpanel"
                 id={`${idBase}-view`}
-                aria-labelledby={`${idBase}-tab-${view.id}`}
+                aria-labelledby={`${idBase}-tab-${viewId}`}
                 tabIndex={-1}
                 className="relative min-w-0 border-b md:border-b-0 md:border-r border-ink-line focus-visible:outline-none"
               >
+                {viewId === "model" ? <GarageModel /> : <>
                 <CoverBox
                   key={view.id}
                   width={view.image.width}
@@ -262,10 +265,11 @@ export default function Garage() {
                 </CoverBox>
                 <div className="absolute top-0 left-0 m-3 flex items-center gap-2 pointer-events-none">
                   <span className="mono-micro text-dim bg-ink/80 px-2 py-1 tabular-nums">
-                    {pad(viewIndex + 1)} / {pad(views.length)}
+                    {pad(views.indexOf(view) + 1)} / {pad(views.length)}
                   </span>
                   {view.date && <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.date}</span>}
                 </div>
+                </>}
               </div>
 
               {/* The detail card. */}
@@ -347,7 +351,7 @@ export default function Garage() {
                     </dl>
                     <p className="mt-4 prose-dark text-[0.9375rem] leading-[1.6]">{car.outputNote}</p>
                     <p className="mt-3 prose-dark text-[0.9375rem] leading-[1.6] text-dim">
-                      Pick a marker on the photograph, or a line in the sheet below.
+                      {viewId === "model" ? "20-inch Audi R8 wheels on 255/35 tires. RS4 front bumper, carbon diffuser and a carbon lip on the trunk. Open the 3D view to look around, or choose a photograph to see the parts up close." : "Pick a marker on the photograph, or a line in the sheet below."}
                     </p>
                   </>
                 )}

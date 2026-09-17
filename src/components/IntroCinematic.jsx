@@ -51,6 +51,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDecode, useKonami, useMediaQuery } from "../hooks";
 import { profile } from "../data/profile";
 import { img } from "../data/images";
+import { s4Poster } from "../data/s4";
 import Picture from "./Picture";
 import { INTRO_START, markIntroSeen, replayIntro, setIntroDone } from "../lib/intro";
 import { audioContext } from "../lib/audio";
@@ -63,7 +64,7 @@ import * as C from "../lib/cues";
 // for phones, where a cover-fit of the wide one lost both sides of Earth.
 const MOON = img("Intro/Moon");
 const MOON_PORTRAIT = img("Intro/MoonPortrait");
-const CAR = img("Intro/Car");
+const CAR = s4Poster;
 
 // The track, credited. Only shown while it is actually playing.
 const TRACK = {
@@ -812,7 +813,7 @@ export default function IntroCinematic() {
               </div>
               <Picture
                 sources={CAR}
-                alt="A yellow sports car mid-drift, headlights on."
+                alt="My grey Audi S4 mid-drift."
                 sizes="72vw"
                 loading="eager"
                 className="relative w-full h-auto"

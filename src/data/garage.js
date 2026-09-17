@@ -41,7 +41,7 @@ export const car = {
   output: "540 whp",
   outputNote: "My number, for the whole car. No part below claims a share of it.",
   lede:
-    "The daily. A supercharged S4 I built and tuned myself, and every part on it is on the list I keep. Click a marker, or a line in the sheet.",
+    "The daily. A supercharged S4 I built and tuned myself. Take a look around in 3D, or pick a part from the photos and the build sheet.",
 };
 
 // The three views. `focus` is where the frame should centre when it has to
@@ -176,7 +176,7 @@ export const mods = [
     name: "Audi R8 wheels, 20 inch",
     brand: "Audi",
     price: null,
-    note: "Twenty-inch R8 wheels on an S4.",
+    note: "Twenty-inch Audi R8 wheels with 255/35 R20 tires.",
     pins: [
       { view: "front", x: 21, y: 59, label: "Front left" },
       { view: "rear", x: 77, y: 56, label: "Rear right" },

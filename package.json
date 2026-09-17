@@ -12,7 +12,9 @@
     "preview": "vite preview",
     "og": "node scripts/make-og.mjs",
     "logos": "node scripts/normalize-logos.mjs",
-    "check:audio": "node scripts/check-audio-single.mjs"
+    "check:audio": "node scripts/check-audio-single.mjs",
+    "car:assets": "node scripts/optimize-s4.mjs",
+    "check:s4": "node scripts/check-s4.mjs"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
@@ -27,6 +29,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^4.7.0",
@@ -36,6 +41,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.3.0",
+    "meshoptimizer": "^1.2.0",
     "postcss": "^8.5.6",
     "sharp": "^0.35.3",
     "tailwindcss": "^3.4.14",

@@ -89,10 +89,11 @@ npm run og       # regenerates public/og.png
   the glitch, the decode ticks), `ui-sfx.js` (the blips), `reactive.js` (the
   `--bass` / `--level` variables), `drift.js` and `drift-scene.js` (the 3D
   drift: the path, the camera, the smoke, the trails, the light on the floor)
-- `src/three/car/` the car itself, a three.js module built by GPT-6-Astra
-  through the codex-3d skill; `notes.md` beside it lists the part names
+- `src/three/car/` loads the custom Audi S4 GLB for the intro and Garage.
+  The Blender source, reference decisions and rebuild instructions are in
+  `design/audi-s4/README.md`. `npm run check:s4` validates its wheel rig.
 - `src/assets/Intro/` the generated art: the moon plate, the skyline, the
-  flat car the intro falls back to without WebGL, and the small top-down car
+  original flat car art, and the small top-down car
   the hero's traffic uses. See `docs/PROJECT_CONTEXT.md`, "Intro art"
 - `public/audio/ambient.m4a` background track, prefetched while the door is
   up and played only after the reader clicks through it
