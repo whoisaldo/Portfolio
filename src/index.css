@@ -713,6 +713,102 @@ a:hover .ink-underline,
    until it is chosen. Squares, not circles: the one border-radius on the site
    belongs to the "Now" flag in the hero.
    =========================================================================== */
+.s4-viewer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 35%, #29313b 0%, #171d26 48%, #0c1119 100%);
+}
+.s4-viewer-floor {
+  position: absolute;
+  inset: 58% -30% -40%;
+  z-index: -1;
+  opacity: .2;
+  background-image: linear-gradient(#455363 1px, transparent 1px), linear-gradient(90deg, #455363 1px, transparent 1px);
+  background-size: 44px 44px;
+  transform: perspective(300px) rotateX(55deg);
+  mask-image: linear-gradient(transparent, #000 35%);
+}
+.s4-viewer-poster {
+  position: absolute;
+  inset: 12% 0 18%;
+  width: 100%;
+  height: 70%;
+  object-fit: contain;
+}
+.s4-viewer-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: grab;
+}
+.s4-viewer-canvas.is-ready { opacity: 1; }
+.s4-viewer-canvas:active { cursor: grabbing; }
+.s4-viewer-canvas:focus-visible { outline: 2px solid #fcee0a; outline-offset: -3px; }
+.s4-viewer-heading {
+  position: absolute;
+  top: 1rem;
+  inset-inline: 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  pointer-events: none;
+}
+.s4-viewer-start {
+  position: absolute;
+  inset-inline: 1rem;
+  bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .75rem;
+}
+.s4-explore {
+  display: inline-flex;
+  align-items: center;
+  gap: .75rem;
+  min-height: 44px;
+  padding: .75rem 1.25rem;
+  border: 1px solid #fcee0a;
+  background: #fcee0a;
+  color: #111318;
+  font-family: var(--font-mono, 'JetBrains Mono Variable', monospace);
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.s4-explore:hover { background: #fff56b; }
+.s4-explore:disabled { opacity: .6; cursor: wait; }
+.s4-control {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: .5rem .65rem;
+  color: #c2c8d0;
+  background: #101722e8;
+  border: 1px solid #354152;
+  font-family: var(--font-mono, 'JetBrains Mono Variable', monospace);
+  font-size: .6875rem;
+}
+.s4-control:hover, .s4-control[aria-pressed='true'] { border-color: #fcee0a; color: #fcee0a; }
+.s4-control:focus-visible, .s4-explore:focus-visible { outline: 2px solid #fcee0a; outline-offset: 3px; }
+.s4-viewer-presets { position: absolute; top: 3.1rem; left: 1rem; right: 1rem; display: flex; flex-wrap: wrap; gap: .25rem; }
+.s4-viewer-tools { position: absolute; right: 1rem; bottom: 5.25rem; display: flex; gap: .25rem; }
+.s4-viewer-footer {
+  position: absolute;
+  inset-inline: 1rem;
+  bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+}
+.s4-viewer-footer p { max-width: 25ch; }
 .garage-frame {
   isolation: isolate;
 }

@@ -15,11 +15,12 @@
 // car, the car's lights sweep the page underneath instead of a black plane
 // covering it.
 //
-// The car itself comes from src/three/car/object.js, built by GPT-6-Astra
-// through the codex-3d skill; see the notes beside it for the part names.
+// The supplied B8.5 model was customized in Blender. The same GLB is used
+// in the Garage viewer; each scene owns its materials and geometry.
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { createObject } from "../three/car/object.js";
+export { preloadCar } from "../three/car/object.js";
 import { CAR_GONE, DROP } from "./cues";
 
 // ---------------------------------------------------------------------------
@@ -473,8 +474,8 @@ export function createDriftScene(canvas) {
   scene.add(car);
 
   const carBox = localBox(car) || new THREE.Box3(new THREE.Vector3(-1, 0, -2.3), new THREE.Vector3(1, 1.2, 2.3));
-  const headBox = (parts.headlights && localBox(parts.headlights)) || new THREE.Box3(new THREE.Vector3(-0.8, 0.5, 2.2), new THREE.Vector3(0.8, 0.6, 2.3));
-  const tailBox = (parts.taillights && localBox(parts.taillights)) || new THREE.Box3(new THREE.Vector3(-0.85, 0.55, -2.3), new THREE.Vector3(0.85, 0.65, -2.2));
+  const headBox = new THREE.Box3(new THREE.Vector3(-0.84, 0.57, 2.06), new THREE.Vector3(0.84, 0.67, 2.13));
+  const tailBox = new THREE.Box3(new THREE.Vector3(-0.82, 0.73, -2.37), new THREE.Vector3(0.82, 0.90, -2.28));
   const headY = (headBox.min.y + headBox.max.y) / 2;
   const headZ = headBox.max.z;
   const lampL = new THREE.Vector3(headBox.max.x - 0.18, headY, headZ);
@@ -506,8 +507,8 @@ export function createDriftScene(canvas) {
   };
   glow(0xdff6ff, 1.5, 0.9, lampL);
   glow(0xdff6ff, 1.5, 0.9, lampR);
-  glow(0xff2e88, 1.1, 0.8, tailL);
-  glow(0xff2e88, 1.1, 0.8, tailR);
+  glow(0xff261c, 0.8, 0.55, tailL);
+  glow(0xff261c, 0.8, 0.55, tailR);
 
   // Beams. Cones with the apex at the lamp, pointing forward and a touch
   // down, fading along their length.
@@ -584,7 +585,7 @@ export function createDriftScene(canvas) {
   const wheels = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"].map((n) => parts[n]).filter(Boolean);
   const steers = ["steer_fl", "steer_fr"].map((n) => parts[n]).filter(Boolean);
   const rears = ["wheel_rl", "wheel_rr"].map((n) => parts[n]).filter(Boolean);
-  const WHEEL_R = 0.34;
+  const WHEEL_R = car.userData.wheelRadius;
 
   let last = null;
   let carry = 0;
@@ -697,12 +698,7 @@ export function createDriftScene(canvas) {
     groundMat.dispose();
     glowTex.dispose();
     scene.environment?.dispose?.();
-    car.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        for (const m of Array.isArray(o.material) ? o.material : [o.material]) m.dispose();
-      }
-    });
+    car.userData.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
   };

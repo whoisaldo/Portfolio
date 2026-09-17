@@ -46,6 +46,7 @@ import { ArrowUpRight, Volume2, VolumeX } from "lucide-react";
 import { useFocusTrap, useMediaQuery } from "../hooks";
 import { profile } from "../data/profile";
 import { img } from "../data/images";
+import { s4Poster } from "../data/s4";
 import {
   hasBeenAsked,
   markAsked,
@@ -71,7 +72,7 @@ function Preload() {
   return (
     <div aria-hidden="true" className="fixed w-px h-px overflow-hidden opacity-0 pointer-events-none -z-10">
       <Picture sources={img(portrait ? "Intro/MoonPortrait" : "Intro/Moon")} sizes="100vw" loading="eager" fetchPriority="low" />
-      <Picture sources={img("Intro/Car")} sizes="72vw" loading="eager" fetchPriority="low" />
+      <Picture sources={s4Poster} sizes="72vw" loading="eager" fetchPriority="low" />
     </div>
   );
 }

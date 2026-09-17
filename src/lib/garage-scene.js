@@ -1,10 +1,13 @@
 // src/lib/garage-scene.js: the bay, in three dimensions.
 //
-// Loaded on demand through garage3d.js. One car on a dark floor under a
-// studio light, orbitable, with its bonnet on a hinge and a set of anchor
-// points the page turns into numbered markers. Everything the page needs is
-// on the object this returns: presets for the three views, the hood, a
-// per-frame projection of every anchor to canvas pixels, and dispose().
+// Loaded on demand through garage3d.js. Ali's S4, the model he built in
+// Blender from the photographs (design/audi-s4/README.md), on a dark floor
+// under a studio light, orbitable, with its hood on a hinge and a set of
+// anchor points the page turns into numbered markers. It is the same GLB the
+// intro drifts (src/three/car/object.js): one download, and each scene its
+// own copy on the GPU. Everything the page needs is on the object this
+// returns: presets for the three views, the hood, a per-frame projection of
+// every anchor to canvas pixels, and dispose().
 //
 // Rules:
 //   - The canvas is transparent; the panel behind it is the ink. The floor
@@ -13,24 +16,30 @@
 //   - No React state changes per frame. The page hands in a callback and
 //     this module calls it with the projected markers; the page writes them
 //     to the DOM directly.
+//   - The wheel scrolls the page, not the camera: a canvas in the middle of
+//     a long page must not catch the reader's scroll. Pinch, the buttons and
+//     the keys zoom, and so does the wheel with ctrl or command held.
 //   - Under prefers-reduced-motion nothing moves on its own: no idle turn,
-//     and the camera and the bonnet jump instead of tweening.
+//     and the camera and the hood jump instead of tweening.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { createObject } from "../three/s4/index.js";
+import { createObject } from "../three/car/object.js";
+
+export { preloadCar } from "../three/car/object.js";
 
 // Where the camera stands for each of the bay's three tabs, plus a side
 // view for the running gear. Position and target in metres; the car faces
 // +Z, its driver's side is +X, and it rests on y = 0.
 export const PRESETS = {
-  front: { position: [4.3, 1.8, 6.3], target: [0, 0.55, 0.2], hood: false },
-  bay: { position: [-1.2, 4.4, 6.4], target: [0.05, 0.85, 1.2], hood: true },
-  rear: { position: [-4.0, 1.6, -5.6], target: [0, 0.55, -0.3], hood: false },
-  side: { position: [6.2, 1.1, 1.0], target: [0, 0.55, 0.3], hood: false },
+  front: { position: [3.8, 1.65, 5.6], target: [0, 0.55, 0.2], hood: false },
+  bay: { position: [-1.0, 3.9, 5.6], target: [0.05, 0.85, 1.2], hood: true },
+  rear: { position: [-3.6, 1.5, -5.1], target: [0, 0.55, -0.3], hood: false },
+  side: { position: [5.6, 1.05, 0.9], target: [0, 0.55, 0.3], hood: false },
 };
 
-const HOOD_OPEN = THREE.MathUtils.degToRad(-55);
+const ZOOM_MIN = 3.2;
+const ZOOM_MAX = 10;
 const deg = THREE.MathUtils.degToRad;
 const easeOut = (p) => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
 
@@ -80,13 +89,13 @@ function floorAlpha() {
 }
 
 /**
- * Build the scene on `canvas`.
+ * Build the scene on `canvas`. Call preloadCar() first (garage3d.js does).
  *
- *   markers   [{ id, anchor }]; anchor is { part, offset? } for a point on
- *             a named part of the model, { at: [x, y, z] } for a point in
- *             car space, or { box: [fx, fy, fz] } for a fraction of the
- *             car's bounding box. Any may carry `inBay: true` for a part
- *             under the bonnet.
+ *   markers   [{ id, anchor }]; anchor is { part, offset? } for a point at
+ *             the centre of a named node of the model, { at: [x, y, z] }
+ *             for a point in car space, or { box: [fx, fy, fz] } for a
+ *             fraction of the car's bounding box. Any may carry
+ *             `inBay: true` for a part under the hood.
  *   onFrame   called every rendered frame with [{ id, x, y, front, bay }]:
  *             canvas pixels, whether the point faces the camera, and
  *             whether it is a bay point.
@@ -97,15 +106,16 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  // A touch under 1: the paint is a dark grey in the photographs and the
-  // environment map alone lifts it to silver.
-  renderer.toneMappingExposure = 0.86;
+  renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  // The paint is a dark metallic grey that reads as silver under a full
+  // room; this keeps it the grey of the photographs.
+  scene.environmentIntensity = 0.8;
   pmrem.dispose();
 
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 80);
@@ -116,8 +126,8 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.enablePan = false;
-  controls.minDistance = 3.2;
-  controls.maxDistance = 10;
+  controls.minDistance = ZOOM_MIN;
+  controls.maxDistance = ZOOM_MAX;
   controls.maxPolarAngle = Math.PI * 0.49;
   controls.autoRotate = !reduced;
   controls.autoRotateSpeed = 0.45;
@@ -127,29 +137,40 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   // who has taken hold of the car does not want it taken back.
   controls.addEventListener("start", () => { controls.autoRotate = false; });
 
+  // The wheel belongs to the page. OrbitControls listens on the canvas in
+  // the bubbling phase; this capture listener runs first and, unless ctrl
+  // or command is held (which is also what a trackpad pinch sends), stops
+  // the event there, so it goes on to scroll the page.
+  const onWheel = (e) => {
+    if (!e.ctrlKey && !e.metaKey) e.stopImmediatePropagation();
+  };
+  canvas.addEventListener("wheel", onWheel, { capture: true, passive: true });
+
   // ---- the car -----------------------------------------------------------
   const car = createObject();
+  // The body is thin, overlapping panels: they cast the silhouette onto the
+  // floor but do not shade each other.
   car.traverse((o) => {
-    if (o.isMesh) {
-      o.castShadow = true;
-      o.receiveShadow = false;
-    }
+    if (o.isMesh) o.receiveShadow = false;
   });
-  const parts = car.userData.parts || {};
   scene.add(car);
   car.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(car);
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-  // Centre it on the origin and set it on the floor, whatever the module did.
+  // Centre it on the origin and set it on the floor, whatever the file did.
   car.position.x -= center.x;
   car.position.z -= center.z;
   car.position.y -= box.min.y;
   car.updateMatrixWorld(true);
   box.setFromObject(car);
 
-  const hood = parts.hood || null;
+  // The hood: object.js drives the hinge and the gas strut from a 0 to 1
+  // progress; this only tweens the number.
+  const setHoodProgress = car.userData.setHoodProgress;
+  const hasHood = typeof setHoodProgress === "function" && Boolean(car.userData.parts?.hood_hinge);
   let hoodOpen = false;
+  let hoodAt = 0;
   let hoodFrom = 0;
   let hoodTo = 0;
   let hoodT0 = 0;
@@ -162,9 +183,10 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     const a = m.anchor || {};
     const obj = new THREE.Object3D();
     obj.name = `anchor_${m.id}`;
+    const node = a.part ? car.getObjectByName(a.part) : null;
     let p = null;
-    if (a.part && parts[a.part]) {
-      _b.setFromObject(parts[a.part]);
+    if (node) {
+      _b.setFromObject(node);
       _b.getCenter(_c);
       // World -> car local, so the anchor rides with the car.
       car.worldToLocal(_c);
@@ -189,21 +211,30 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   }
   if (import.meta.env.DEV) {
     // For placing anchors: `window.__garage.anchors()` lists where each
-    // marker resolved, in car space.
+    // marker resolved, in car space; `.parts` is every named node.
+    const parts = [];
+    car.traverse((o) => { if (o.name && !o.name.startsWith("anchor_")) parts.push(o.name); });
     window.__garage = {
       anchors: () => [...anchorObjs].map(([id, a]) => [id, ...a.obj.position.toArray().map((n) => +n.toFixed(2))]),
-      parts: Object.keys(parts),
+      parts,
       size: size.toArray().map((n) => +n.toFixed(2)),
+      distance: () => +camera.position.distanceTo(controls.target).toFixed(3),
     };
   }
 
   // ---- the floor and the lights ------------------------------------------
+  // The colour multiplies the map, and the roughness and the low
+  // environment share keep the floor matte: the key light is bright enough
+  // for the paint, and from a low camera its reflection would otherwise
+  // wash the whole floor grey.
   const floorMat = new THREE.MeshStandardMaterial({
     map: floorTexture(),
     alphaMap: floorAlpha(),
+    color: "#4a4a4e",
     transparent: true,
-    roughness: 0.6,
-    metalness: 0.05,
+    roughness: 1,
+    metalness: 0,
+    envMapIntensity: 0.2,
   });
   const floor = new THREE.Mesh(new THREE.CircleGeometry(9, 72), floorMat);
   floor.rotation.x = -Math.PI / 2;
@@ -268,13 +299,14 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   }
 
   function setHood(open) {
-    if (!hood || hoodOpen === open) return;
+    if (!hasHood || hoodOpen === open) return;
     hoodOpen = open;
-    hoodFrom = hood.rotation.x;
-    hoodTo = open ? HOOD_OPEN : 0;
+    hoodFrom = hoodAt;
+    hoodTo = open ? 1 : 0;
     hoodT0 = performance.now();
     if (reduced) {
-      hood.rotation.x = hoodTo;
+      hoodAt = hoodTo;
+      setHoodProgress(hoodAt);
       hoodT0 = 0;
     }
   }
@@ -290,6 +322,16 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     _sph.theta += dAz;
     _sph.phi = Math.min(controls.maxPolarAngle, Math.max(0.15, _sph.phi + dPol));
     _off.setFromSpherical(_sph);
+    camera.position.copy(controls.target).add(_off);
+    controls.update();
+  }
+
+  /** Move the camera along its line of sight: under 1 is closer. */
+  function zoomBy(factor) {
+    controls.autoRotate = false;
+    tween = null;
+    _off.copy(camera.position).sub(controls.target);
+    _off.setLength(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, _off.length() * factor)));
     camera.position.copy(controls.target).add(_off);
     controls.update();
   }
@@ -314,9 +356,10 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
       controls.target.lerpVectors(_fromT, _toT, p);
       if (p >= 1) tween = null;
     }
-    if (hood && hoodT0) {
+    if (hasHood && hoodT0) {
       const p = easeOut((now - hoodT0) / 900);
-      hood.rotation.x = hoodFrom + (hoodTo - hoodFrom) * p;
+      hoodAt = hoodFrom + (hoodTo - hoodFrom) * p;
+      setHoodProgress(hoodAt);
       if (p >= 1) hoodT0 = 0;
     }
     controls.update();
@@ -340,7 +383,7 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
         const cx = _cam.x - _mid.x, cz = _cam.z - _mid.z;
         const dot = (dx * cx + dz * cz) / (Math.hypot(dx, dz) * Math.hypot(cx, cz) || 1);
         o.front = dot > -0.25;
-        // Under a closed bonnet a bay part is not there to point at.
+        // Under a closed hood a bay part is not there to point at.
         o.bay = a.bay && !hoodOpen;
         if (o.bay) o.visible = false;
       }
@@ -372,17 +415,18 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   function dispose() {
     stop();
     controls.dispose();
-    scene.traverse((o) => {
-      if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
-          for (const k of ["map", "alphaMap", "normalMap", "roughnessMap", "metalnessMap"]) m[k]?.dispose?.();
-          m.dispose();
-        }
-      }
-    });
+    canvas.removeEventListener("wheel", onWheel, { capture: true });
+    car.userData.dispose();
+    for (const mesh of [floor, ring]) {
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+    }
+    floorMat.map.dispose();
+    floorMat.alphaMap.dispose();
+    key.shadow.map?.dispose();
     scene.environment?.dispose?.();
     renderer.dispose();
+    renderer.forceContextLoss();
   }
 
   return {
@@ -392,8 +436,9 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     setPreset,
     setHood,
     isHoodOpen: () => hoodOpen,
-    hasHood: Boolean(hood),
+    hasHood,
     orbitBy,
+    zoomBy,
     dispose,
     size,
   };

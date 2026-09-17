@@ -69,12 +69,13 @@ npm run og       # regenerates public/og.png
   every part, a detail card with a close crop of the real photograph, and
   the parts sheet. Two bays behind one bezel switch: the model
   (`src/components/GarageModel.jsx`, a three.js scene in
-  `src/lib/garage-scene.js` around the car in `src/three/s4/`, built by
-  GPT-6-Astra through the codex-3d skill from the three photographs) and
-  the photographs themselves. This branch opens on the model.
+  `src/lib/garage-scene.js` around Ali's own S4, the GLB from
+  `design/audi-s4` that the intro drifts too, with its hood on a hinge)
+  and the photographs themselves. This branch opens on the model.
   `src/data/garage.js` is the data, transcribed from Ali's own build list,
-  with an anchor on the model for every part; the rest of the old Teardown
-  (the 328xi, the bench, the two competitions) sits under the bay
+  with an anchor on a named node of the model for every part; the rest of
+  the old Teardown (the 328xi, the bench, the two competitions) sits under
+  the bay
 - `src/components/Skyline.jsx` the city behind the hero, alive: rooftop
   signage, drifting haze, the signs mirrored in the water, all of it
   breathing with the track through the same `--bass` / `--level` variables
@@ -94,10 +95,11 @@ npm run og       # regenerates public/og.png
   the glitch, the decode ticks), `ui-sfx.js` (the blips), `reactive.js` (the
   `--bass` / `--level` variables), `drift.js` and `drift-scene.js` (the 3D
   drift: the path, the camera, the smoke, the trails, the light on the floor)
-- `src/three/car/` the car itself, a three.js module built by GPT-6-Astra
-  through the codex-3d skill; `notes.md` beside it lists the part names
+- `src/three/car/` loads the custom Audi S4 GLB for the intro and Garage.
+  The Blender source, reference decisions and rebuild instructions are in
+  `design/audi-s4/README.md`. `npm run check:s4` validates its wheel rig.
 - `src/assets/Intro/` the generated art: the moon plate, the skyline, the
-  flat car the intro falls back to without WebGL, and the small top-down car
+  original flat car art, and the small top-down car
   the hero's traffic uses. See `docs/PROJECT_CONTEXT.md`, "Intro art"
 - `public/audio/ambient.m4a` background track, prefetched while the door is
   up and played only after the reader clicks through it

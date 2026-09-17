@@ -30,13 +30,16 @@
 // view: the heat exchanger is behind the grille in the front shot and ahead
 // of the radiator in the bay.
 //
-// ANCHORS. The 3D bay (GarageModel.jsx) pins the same parts on the model.
-// `anchor.part` names a part the model exposes in userData.parts (see
-// src/three/s4/notes.md) and the marker sits at its centre, plus `offset` in
-// metres; `box` is the fallback, a fraction of the car's bounding box (x from
-// the passenger side to the driver's side, y from the floor, z from the tail
-// to the nose), used when the model has no part of that name. `inBay` marks
-// a part under the bonnet, which the model dims until the bonnet is up.
+// ANCHORS. The 3D bay (GarageModel.jsx) pins the same parts on the model,
+// Ali's own GLB (src/three/car/object.js, built in design/audi-s4). An
+// `anchor.part` names a node in that file, exactly as Blender named it (in
+// dev, `window.__garage.parts` lists them), and the marker sits at its
+// centre, plus `offset` in metres: the car faces +Z, its driver's side is
+// +X, and y is up. `at` is a point in car space for a part the file does
+// not name (the MMI screen). `box` is the fallback, a fraction of the car's
+// bounding box (x from the passenger side to the driver's side, y from the
+// floor, z from the tail to the nose), used when the model has no such
+// node. `inBay` marks a part under the hood, hidden until the hood is up.
 import { photo } from "./photos";
 
 export const SHOW_PRICES = true;
@@ -53,7 +56,7 @@ export const car = {
   output: "540 whp",
   outputNote: "My number, for the whole car. No part below claims a share of it.",
   lede:
-    "The daily. A supercharged S4 I built and tuned myself, and every part on it is on the list I keep. Click a marker, or a line in the sheet.",
+    "The daily. A supercharged S4 I built and tuned myself. Take a look around in 3D, or pick a part from the photos and the build sheet.",
 };
 
 // The three views. `focus` is where the frame should centre when it has to
@@ -99,7 +102,7 @@ export const groups = [
 export const mods = [
   {
     id: "tune",
-    anchor: { part: "engine_cover", offset: [0, 0.08, -0.22], box: [0.5, 0.72, 0.68], inBay: true },
+    anchor: { part: "V6_centre_cover", offset: [0, 0.06, 0.05], box: [0.5, 0.55, 0.8], inBay: true },
     group: "power",
     name: "Stage 2+ Jackal tune",
     brand: "Jackal",
@@ -109,7 +112,7 @@ export const mods = [
   },
   {
     id: "pulley",
-    anchor: { part: "pulley", box: [0.5, 0.62, 0.86], inBay: true },
+    anchor: { part: "V6_front_cover", offset: [0, 0.04, 0.02], box: [0.5, 0.5, 0.88], inBay: true },
     group: "power",
     name: "APR dual pulley",
     brand: "APR",
@@ -119,7 +122,7 @@ export const mods = [
   },
   {
     id: "intake",
-    anchor: { part: "intake_box", box: [0.8, 0.68, 0.72], inBay: true },
+    anchor: { part: "APR_carbon_airbox", offset: [0, 0.05, 0], box: [0.25, 0.46, 0.88], inBay: true },
     group: "power",
     name: "APR carbon fibre intake",
     brand: "APR",
@@ -129,7 +132,7 @@ export const mods = [
   },
   {
     id: "coils",
-    anchor: { part: "engine_cover", offset: [0.34, 0.02, 0.05], box: [0.63, 0.76, 0.66], inBay: true },
+    anchor: { part: "APR_red_ignition_coil", offset: [0.3, 0.04, 0], box: [0.63, 0.5, 0.85], inBay: true },
     group: "power",
     name: "6x APR ignition coils",
     brand: "APR",
@@ -139,7 +142,7 @@ export const mods = [
   },
   {
     id: "plugs",
-    anchor: { part: "engine_cover", offset: [-0.34, 0.02, 0.05], box: [0.37, 0.76, 0.66], inBay: true },
+    anchor: { part: "APR_red_ignition_coil", offset: [-0.3, 0.04, 0], box: [0.37, 0.5, 0.85], inBay: true },
     group: "power",
     name: "6x NGK spark plugs",
     brand: "NGK",
@@ -149,7 +152,7 @@ export const mods = [
   },
   {
     id: "heat-exchanger",
-    anchor: { part: "heat_exchanger", box: [0.5, 0.42, 0.97] },
+    anchor: { part: "intake_central", offset: [0, -0.05, 0.05], box: [0.5, 0.25, 0.98] },
     group: "power",
     name: "MercRacing heat exchanger",
     brand: "MercRacing",
@@ -162,7 +165,7 @@ export const mods = [
   },
   {
     id: "exhaust",
-    anchor: { part: "exhaust_tips", box: [0.5, 0.2, 0.01] },
+    anchor: { part: "AWE_exhaust_left_outer", offset: [0.05, 0, -0.05], box: [0.2, 0.2, 0.01] },
     group: "power",
     name: "AWE exhaust and downpipes",
     brand: "AWE",
@@ -173,7 +176,7 @@ export const mods = [
 
   {
     id: "brakes",
-    anchor: { part: "brake_rr", box: [0.06, 0.25, 0.2] },
+    anchor: { part: "fixed_brake_caliper_rr", box: [0.1, 0.25, 0.2] },
     group: "brakes",
     name: "ECS brakes and drilled hubs",
     brand: "ECS",
@@ -183,7 +186,7 @@ export const mods = [
   },
   {
     id: "suspension",
-    anchor: { part: "wheel_fl", offset: [0, 0.34, 0], box: [0.96, 0.42, 0.8] },
+    anchor: { part: "wheel_fl", offset: [0.02, 0.36, 0], box: [0.9, 0.5, 0.8] },
     group: "suspension",
     name: "ECS RS4 suspension",
     brand: "ECS",
@@ -193,12 +196,12 @@ export const mods = [
   },
   {
     id: "wheels",
-    anchor: { part: "wheel_fl", box: [0.99, 0.25, 0.8] },
+    anchor: { part: "wheel_fl", offset: [0.1, 0, 0], box: [0.95, 0.25, 0.8] },
     group: "wheels",
     name: "Audi R8 wheels, 20 inch",
     brand: "Audi",
     price: null,
-    note: "Twenty-inch R8 wheels on an S4.",
+    note: "Twenty-inch Audi R8 wheels with 255/35 R20 tires.",
     pins: [
       { view: "front", x: 21, y: 59, label: "Front left" },
       { view: "rear", x: 77, y: 56, label: "Rear right" },
@@ -207,7 +210,7 @@ export const mods = [
 
   {
     id: "front-bumper",
-    anchor: { part: "front_bumper", box: [0.5, 0.32, 1.0] },
+    anchor: { part: "RS4_diagonal_blade.001", offset: [0.02, 0.05, 0.05], box: [0.8, 0.18, 0.96] },
     group: "cosmetic",
     name: "RS4 front bumper",
     brand: "Audi",
@@ -218,7 +221,7 @@ export const mods = [
   },
   {
     id: "diffuser",
-    anchor: { part: "diffuser", box: [0.5, 0.15, 0.0] },
+    anchor: { part: "carbon_rear_diffuser", offset: [0, 0, -0.05], box: [0.5, 0.18, 0.02] },
     group: "cosmetic",
     name: "Rear carbon diffuser",
     brand: null,
@@ -228,7 +231,7 @@ export const mods = [
   },
   {
     id: "spoiler",
-    anchor: { part: "spoiler", box: [0.5, 0.7, 0.05] },
+    anchor: { part: "carbon_trunk_spoiler", offset: [0, 0.03, 0], box: [0.5, 0.72, 0.04] },
     group: "cosmetic",
     name: "Carbon trunk spoiler",
     brand: null,
@@ -238,7 +241,7 @@ export const mods = [
   },
   {
     id: "rear-bumper",
-    anchor: { part: "rear_bumper", offset: [-0.55, 0, 0], box: [0.2, 0.38, 0.02] },
+    anchor: { part: "detach_bumper_back_25_carpaint.001", offset: [-0.86, 0.05, 0.2], box: [0.06, 0.36, 0.1] },
     group: "cosmetic",
     name: "Rear bumper, junkyard",
     brand: null,
@@ -248,7 +251,7 @@ export const mods = [
   },
   {
     id: "rain-guards",
-    anchor: { part: "rain_guard_rl", box: [0.97, 0.86, 0.35] },
+    anchor: { part: "smoked_rain_guard_rear", offset: [-0.02, 0, 0], box: [0.2, 0.88, 0.34] },
     group: "cosmetic",
     name: "Rain guards",
     brand: null,
@@ -259,7 +262,7 @@ export const mods = [
 
   {
     id: "carplay",
-    anchor: { part: "mmi_screen", box: [0.5, 0.7, 0.42] },
+    anchor: { at: [0, 1.0, 0.55], box: [0.5, 0.72, 0.62] },
     group: "cabin",
     name: "Apple CarPlay retrofit",
     brand: "Apple",

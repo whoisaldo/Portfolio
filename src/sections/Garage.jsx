@@ -26,8 +26,8 @@
 // prefers-reduced-motion the markers hold still instead of pulsing.
 //
 // Two bays, one card. The bezel switches between the photographs and the
-// model (GarageModel.jsx: the S4 in three dimensions, orbitable, bonnet on a
-// hinge). Both pin the same sixteen parts and both select into the same
+// model (GarageModel.jsx: Ali's S4 in three dimensions, orbitable, hood on
+// a hinge). Both pin the same sixteen parts and both select into the same
 // detail card, whose close crop is always the real photograph. The three
 // tabs mean the same thing in either: which side of the car you are looking
 // at. This branch opens on the model (DEFAULT_BAY in garage.js).
@@ -393,7 +393,7 @@ export default function Garage() {
                     </dl>
                     <p className="mt-4 prose-dark text-[0.9375rem] leading-[1.6]">{car.outputNote}</p>
                     <p className="mt-3 prose-dark text-[0.9375rem] leading-[1.6] text-dim">
-                      Pick a marker on the photograph, or a line in the sheet below.
+                      Pick a marker on the {model ? "model" : "photograph"}, or a line in the sheet below.
                     </p>
                   </>
                 )}
