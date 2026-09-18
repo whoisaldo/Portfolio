@@ -60,6 +60,8 @@ import { loadDrift } from "../lib/drift";
 import { DOOR_OPEN, introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
 import { CRUISE_GAIN, DROP, INTRO_GAIN, LEAVE_SECONDS, SHORT_START, SONG_START } from "../lib/cues";
 import Panel from "./ui/Panel";
+import { GpuNoticeShort } from "./GpuNotice";
+import { hasGpuAcceleration } from "../lib/gpu";
 import Picture from "./Picture";
 
 /**
@@ -330,6 +332,16 @@ export default function EntryGate({ onEnter }) {
                   : "Your browser needs a click before it will play audio. Volume lives bottom left, and either choice is changeable there."}
                 {intro && <span className="block mt-2 text-dim">{intro}</span>}
               </p>
+
+              {/* A browser drawing on the CPU is told so here, before it
+                  chooses the twenty-five seconds. The long form, with where
+                  the switch is, is the toast in GpuNotice.jsx, which waits
+                  until the door is down. See src/lib/gpu.js. */}
+              {!hasGpuAcceleration() && (
+                <div className="mt-6">
+                  <GpuNoticeShort />
+                </div>
+              )}
 
               {/* The way out, for the reader with the least time. A plain
                   page: no intro, no sound, no effects, the same content. */}

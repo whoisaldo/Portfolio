@@ -30,7 +30,7 @@ import { openGarage } from "../lib/garage";
 import { scrollToSection } from "../lib/scroll";
 import { sections } from "../data/site";
 import { mods } from "../data/garage";
-import { FX, getEnv, setEnv, resetEnv } from "../lib/env";
+import { FX, getEnv, isLowPower, setEnv, resetEnv } from "../lib/env";
 import { getVolume, setSoundEnabled, setVolume, soundEnabled, unlockAudio } from "../lib/audio";
 import { applyVolume, isPlaying, startAmbient, stopAmbient } from "../lib/ambient";
 import { CRUISE_GAIN, DROP } from "../lib/cues";
@@ -234,7 +234,12 @@ export default function Terminal({ onExit }) {
   const printEnv = () => {
     const env = getEnv();
     const rows = FX_NAMES.map((k) => `  ${k.padEnd(10)} ${onOff(env[k]).padEnd(4)} ${FX[k]}`).join("\n");
-    say("output", `\n  ENVIRONMENT\n  ───────────────────────────────────────────────\n${rows}\n\n  fx <name> on|off · fx all off · fx reset`);
+    // The GPU fallback (src/lib/gpu.js) holds switches off for this visit
+    // only; say so, or the table reads as if the reader chose it.
+    const note = isLowPower()
+      ? "\n\n  no graphics acceleration: turned down for this visit. fx reset puts it all back."
+      : "";
+    say("output", `\n  ENVIRONMENT\n  ───────────────────────────────────────────────\n${rows}${note}\n\n  fx <name> on|off · fx all off · fx reset`);
   };
 
   const setSwitch = (name, value) => {
