@@ -20,8 +20,8 @@
 //   It resolves on input, not on a timer. Nothing here counts down. It waits,
 //   and the moment the reader answers it leaves.
 //   Both answers are equal. "Enter silent" is a real button, not a grey link
-//   under the real button. Escape does the same thing, and so does clicking
-//   the backdrop.
+//   under the real button. Only activating a button enters the site;
+//   background clicks and Escape leave the choice unanswered.
 //   It cannot fail to dismiss. Dismissal is a state change from a click. No
 //   audio call is awaited before it closes, so a browser refusing to start
 //   audio still gets you inside.
@@ -139,6 +139,8 @@ export default function EntryGate({ onEnter }) {
   //   counts as user activation, and the first one that arrives is the
   //   earliest moment a tick can be audible. Before it there is nothing any
   //   code can do, which is the sentence this panel is on screen to say.
+  //   These listeners only unlock the glitch sound. Entering the site and
+  //   starting the track stay on the buttons below.
   useEffect(() => {
     if (!open) return undefined;
     let done = false;
@@ -219,9 +221,11 @@ export default function EntryGate({ onEnter }) {
     startIntro({ mode, withSound });
   };
 
-  // Escape leaves silent. useFocusTrap owns the scroll lock and focus
-  // restoration; see the note in src/hooks about not adding a second lock.
-  useFocusTrap(panelRef, open, () => enter(false));
+  // Keep focus and the scroll lock inside the door until a button is chosen.
+  // Escape and backdrop clicks used to call enter(false), which started the
+  // silent intro and saved a sound preference without a button being used.
+  // The trap's optional Escape callback stays unset so it makes no choice.
+  useFocusTrap(panelRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -247,7 +251,6 @@ export default function EntryGate({ onEnter }) {
           role="dialog"
           aria-modal="true"
           aria-label="Enter the site"
-          onClick={(e) => { if (e.target === e.currentTarget) enter(false); }}
         >
           <div className="absolute inset-0 crt-grid opacity-70 pointer-events-none" aria-hidden="true" />
           <div className="hazard absolute inset-x-0 top-0 h-1.5 opacity-30" aria-hidden="true" />
