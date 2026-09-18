@@ -185,7 +185,10 @@ export default function Garage() {
             </div>
             <div className="max-w-[42ch]">
               <p className="prose-dark">{car.lede}</p>
-              <p className="mono-label text-dim mt-4">
+              {/* The spec line. Machine type, because that is what it is: a
+                  year, an engine code and a number. Sentence case, though,
+                  and no longer tracked out to the width of a licence plate. */}
+              <p className="mono-ui mono-cased text-dim mt-4">
                 {car.year} {car.name} · {car.engine} · <span className="text-volt">{car.output}</span>
               </p>
             </div>
@@ -464,14 +467,16 @@ export default function Garage() {
               ))}
             </div>
 
-            {/* Status bar. Only true things. */}
-            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line mono-label text-dim">
-              <span>
+            {/* Status bar. Only true things. The left half is machine state and
+                is set like it; the right half is an instruction somebody has to
+                read, so it is not in uppercase mono at all. */}
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 md:px-5 py-2.5 border-t border-ink-line">
+              <span className="mono-label text-dim">
                 <span className="text-muted">{model ? "3D model" : view.label}</span> · {model ? mods.length : viewPins.length} markers
                 {mod && <span> · <span className="text-muted">{mod.name}</span></span>}
               </span>
-              <span className="hidden md:inline">
-                {model ? "drag to turn · arrow keys walk the markers" : "arrow keys walk the markers · tab reaches the sheet"}
+              <span className="hidden md:inline text-[0.8125rem] text-dim">
+                {model ? "Drag to turn. Arrow keys walk the markers." : "Arrow keys walk the markers. Tab reaches the sheet."}
               </span>
             </div>
           </Panel>
@@ -481,7 +486,9 @@ export default function Garage() {
           <span className="tick br" aria-hidden="true" />
         </motion.div>
 
-        <p className="mt-5 mono-label text-dim rail-clear">{alsoOnTheList}</p>
+        {/* A sentence, so it is set as one. This was uppercase mono at 0.18em,
+            which is the single least readable thing the section did. */}
+        <p className="mt-5 prose-dark text-[0.9375rem] text-dim rail-clear">{alsoOnTheList}</p>
 
         {/* ---- the rest of the shop ---------------------------------------- */}
         <Shop />
@@ -508,7 +515,8 @@ function Shop() {
             <section key={group.id} aria-label={group.label}>
               <header className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2 pb-4 border-b border-ink-line">
                 <h4 className="font-display uppercase text-display-3 text-primary">{group.label}</h4>
-                <p className="mono-label text-dim">{group.note}</p>
+                <p className="text-[0.9375rem] text-dim">{group.note}</p>
+
               </header>
               <ul className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {photos.map((p, i) => (

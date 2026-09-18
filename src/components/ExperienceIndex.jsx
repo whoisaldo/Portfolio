@@ -34,9 +34,6 @@ import { hexToRgbTriplet } from "../lib/image";
 import Panel from "./ui/Panel";
 import Glitch from "./ui/Glitch";
 
-const roleCount = experiences.filter((e) => e.type === "work").length;
-const degreeCount = experiences.length - roleCount;
-
 const reveal = {
   initial: { opacity: 0, y: 20 },
   whileInView: { opacity: 1, y: 0 },
@@ -61,11 +58,9 @@ export default function ExperienceIndex() {
           </div>
           <div className="max-w-[42ch]">
             <p className="prose-dark">
-              Most recent first. Read the Philips one. It took two attempts to
-              get right and the first attempt is in there too.
-            </p>
-            <p className="mono-label text-dim mt-4">
-              {roleCount} roles · {degreeCount} degree · every one opens
+              Three jobs at once right now, newest first. The Philips and the
+              AWS entries open into the whole write-up rather than stopping at
+              a bullet point.
             </p>
           </div>
         </div>
@@ -131,8 +126,12 @@ function ExperienceCard({ exp, index, featured = false }) {
       </h3>
 
       <p className="mt-2.5 text-[0.9375rem] text-muted leading-snug">{exp.title}</p>
+      {/* The subtitle was set in `mono-micro`: 10px uppercase at 0.22em, which
+          turned "System Integration · FOG Zero-Touch Deployment" into
+          something you decode rather than read. It is a sentence about the
+          work, so it is set like one. */}
       {exp.subtitle && (
-        <p className="mt-1.5 mono-micro text-dim">{exp.subtitle}</p>
+        <p className="mt-2 text-[0.875rem] text-dim leading-snug">{exp.subtitle}</p>
       )}
 
       <p className="mt-4 mono-label text-dim">

@@ -38,7 +38,8 @@ import { CRUISE_GAIN, DROP } from "../lib/cues";
 // Fun facts pool, surfaced on boot and via `funfact`
 const FUN_FACTS = [
   "Daily driver is a fully built supercharged Audi S4 (B8.5). 540 whp. Tuned it myself.",
-  "Ranked top-3 in Massachusetts during high school for powerlifting. Still train seriously. Diet, sleep and lifts dialed in.",
+  "Placed third in Massachusetts in wrestling. The team took the Western Mass Division III title the same season.",
+  "285 lb bench at 145 lbs bodyweight. Still train seriously. Did not place in powerlifting.",
   "Built Exerly Fitness because every commercial fitness app is paywalled. Wanted a free, open-source platform that actually coaches.",
   "VirtualDyno exists because I’m obsessed with cars and wanted to estimate horsepower without renting a dyno.",
   "Moops Bookstore started because I was reading more and wanted a social platform for me and my friends. Goodreads is fine, but it is not ours.",
@@ -429,11 +430,14 @@ AUTHOR
     540 whp. Tuned it myself. VirtualDyno (in the
     'other work' list) is a side-effect of this hobby.
 
-  ▣ fitness
-    Top-3 ranked in Massachusetts during high school.
-    Gym is serious: programmed lifts, nutrition,
-    sleep. Exerly Fitness exists because i wanted a
-    coaching platform that's free + open-source.
+  ▣ competing
+    Placed third in Massachusetts in wrestling; the
+    team took the Western Mass D-III title the same
+    season. 285 lb bench at 145 lbs. Speed cube down
+    to 45 seconds. Exerly Fitness exists because i
+    wanted a coaching platform that's free and
+    open-source.
+
 
   ▣ tech / ai
     Interested in where LLM tooling is actually load
@@ -568,8 +572,9 @@ AUTHOR
   now       Philips (part-time) · Pinnatec Auto (lead, part-time) · Pawtograder
   prev      SDE Intern @ AWS CloudFormation · Seattle, WA · Jun to Sep 2026
 
-  I architect distributed, high-stakes systems and
-  build the tools that keep them running.
+  I write systems software, iOS apps, and the web front-ends
+  that sit on top of them. Most of it exists because something
+  I wanted did not do what I asked, or cost too much.
 
   → try:  skills   experience   projects   contact
 ` }]);

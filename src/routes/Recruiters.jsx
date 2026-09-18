@@ -340,8 +340,8 @@ export default function Recruiters() {
           <div className="rp-hero-body">
             <p className="rp-hero-intro">
               {profile.degree} at {profile.school}, class of{" "}
-              {profile.gradYear.replace("’", "'")}. I build cloud
-              infrastructure, native apps, and the tools that connect them.
+              {profile.gradYear.replace("’", "'")}. I write systems software,
+              iOS apps, and the web front-ends that sit on top of them.
             </p>
             <p className="rp-hero-current">
               Currently at{" "}
@@ -585,8 +585,7 @@ export default function Recruiters() {
             <p className="rp-eyebrow">06 / Get in touch</p>
             <h2 id="contact-heading">Let's talk.</h2>
             <p>
-              For engineering opportunities, collaborations, or a conversation
-              about the work.
+              For engineering work, or a conversation about any of the above.
             </p>
             <a href={`mailto:${primary.value}`} className="rp-contact-email">
               {primary.value}

@@ -90,6 +90,13 @@ import kiro_launch_1071avif from "../assets/Photos/kiro-launch-1600.avif";
 import kiro_launch_640webp from "../assets/Photos/kiro-launch-640.webp";
 import kiro_launch_1024webp from "../assets/Photos/kiro-launch-1024.webp";
 import kiro_launch_thumb from "../assets/Photos/kiro-launch-320.webp";
+import portrait_drive_src from "../assets/Photos/portrait-drive-1600.webp";
+import portrait_drive_640avif from "../assets/Photos/portrait-drive-640.avif";
+import portrait_drive_1024avif from "../assets/Photos/portrait-drive-1024.avif";
+import portrait_drive_1600avif from "../assets/Photos/portrait-drive-1600.avif";
+import portrait_drive_640webp from "../assets/Photos/portrait-drive-640.webp";
+import portrait_drive_1024webp from "../assets/Photos/portrait-drive-1024.webp";
+import portrait_drive_thumb from "../assets/Photos/portrait-drive-320.webp";
 import portrait_seattle_src from "../assets/Photos/portrait-seattle-1600.webp";
 import portrait_seattle_640avif from "../assets/Photos/portrait-seattle-640.avif";
 import portrait_seattle_1024avif from "../assets/Photos/portrait-seattle-1024.avif";
@@ -227,6 +234,15 @@ export const photos = {
     webp: { 640: kiro_launch_640webp, 1024: kiro_launch_1024webp, 1071: kiro_launch_src },
     thumb: kiro_launch_thumb,
     lqip: "data:image/webp;base64,UklGRhACAABXRUJQVlA4IAQCAAAQCgCdASoUAB8APjEUiEKiISEYBAAgAwS1AE6ZQjgb2vignA6sFYA0wDpKP259JKsBa9W6C3s/Sv60fAH+rIwufMTwQ5RYe5DNczyMrHkm1sI7cmEWH26oAAD+8+g3X36e/lP61GlQFT0mTKyzsnuHl56p5mku+16FunvOtFQoIIm6fQX7r9nvkqRC/2GbWalzOQY9H06JZcWvDS1nhCgv7LP8Ku975aei5BQVpRLlTPanikqQT6pqycL3ZKjoL62NHtN0I3EZpZTb+ZQz7m2pmcPXkxKObjUxcJmSPDngY/0BQlfy49nFHSgcyrqK8MJOu/UJpsVfa59ycvfW+gMThkjyFrVdWuSA4ZsH4EhPB0bvPpT/6nR+MUJB3n4QIa8os/iRTnQbxuWgMI1Gav4ncXf99zdP7+K3OLJ+9OO+BLjVuS5h/n9q9hj/3+0X/GsvhfBWs4avKztUJe5/99awuuVFy1nOuvbDX/KA6qYHgdhFj4ty6xvFP50Lqswn+lGbFdDaAkC7tzH3jjJzx4GIGTVHpkfX+lFonaAPVlWqOP+uK9K/+ku/jXGHvu4d8eNu9vZsPHR+gkpJHvKgvwjoIVIGcD7CeMQKUefTr+iRsV+fuAomWFUv4babWYT6Axziwbj80xdi0IgLmafnrCNUf2s9S8Dv8vzBPb0Syf+eCBPAAAA=",
+  },
+  "portrait-drive": {
+    src: portrait_drive_src,
+    width: 1600,
+    height: 1600,
+    avif: { 640: portrait_drive_640avif, 1024: portrait_drive_1024avif, 1600: portrait_drive_1600avif },
+    webp: { 640: portrait_drive_640webp, 1024: portrait_drive_1024webp, 1600: portrait_drive_src },
+    thumb: portrait_drive_thumb,
+    lqip: "data:image/webp;base64,UklGRnoBAABXRUJQVlA4IG4BAACwBwCdASoUABQAPjEUiEMiISEUBqggAwSxgE6Zmh2ndFwG9A54rTQPQA6VwlUP+x8rPzyE3yw/NPC2GHqslxWlGBgOVaIAAP7335/zHtmkdXh+6ONbxvwdbnRf66CPkPzcey3w1/2z7ovn81H7txL6G53ZWNxN34SiXl5JUtYfBN4cHrdpb/4uIRxHyneHw1+6zbZ47sHaNnzfyT/6UdJ2hkg0q8Ib/ImCzf717v116bU/X1Zei08yYUofd4bbE8/76OUXPxnSAw5MGe/SUCpPzV/3W9ERa3ZNMwEdVKULyaJOr+QjDjLAsdDC/2Jy7XAu53+gu/3fvqeBLX5unFxh2tNaiFFj5G/hb7BeSM0RjmRJWLdYzOWUoFSiDEywmHJZOAfKYPIHHkxE8Sf9ZunR9dClf7PzR8+HiXB65ix8E2o+NXitYan3/5oqHyfJRMvh+/bFtpUICsWZ/f/BBSewpRGgP4nAAzb5PxsAAAA=",
   },
   "portrait-seattle": {
     src: portrait_seattle_src,

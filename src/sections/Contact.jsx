@@ -96,7 +96,7 @@ export default function Contact() {
                   </p>
                   <a
                     href={`mailto:${email.value}`}
-                    className="mono-ui normal-case text-muted break-all transition-colors duration-200 hover:text-volt"
+                    className="mono-ui mono-cased text-muted break-all transition-colors duration-200 hover:text-volt"
                   >
                     <span className="ink-underline">{email.value}</span>
                   </a>

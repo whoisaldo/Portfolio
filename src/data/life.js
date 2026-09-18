@@ -44,6 +44,19 @@ export const portrait = {
   caption: "Seattle, July 2026.",
 };
 
+// The second portrait, for the dossier card in the About section. Square at
+// source rather than cropped in CSS: it renders at 96px and a 4:3 frame
+// squeezed into a square box by object-fit is a crop nobody chose.
+//
+// No caption and no date. The source arrived with its EXIF already stripped,
+// so there is no capture date to read and this file does not estimate one,
+// which is the same rule every photo below follows. The car is not named
+// either, for the same reason.
+export const operator = {
+  image: photo("portrait-drive"),
+  alt: "Ali Younes in the driver's seat of a car on a highway, in round sunglasses and a black t-shirt, seatbelt across his chest.",
+};
+
 // Photos belonging to a specific job, keyed by the `company` field in
 // src/data/experience.js. Experience.jsx and WorkPage.jsx look them up by that
 // key, so a company with no photos renders exactly as it did before.
@@ -146,7 +159,8 @@ export const teardown = {
       date: null,
       title: "Screen replacement",
       alt: "An iPhone opened like a book on a desk, display assembly lifted away from the battery and logic board, a backlit keyboard behind it.",
-      body: "I always thought it would be interesting to learn how iPhone screens come apart, so I took it on. The adhesive is the part that takes the time.",
+      body: "My OLED screen broke and I could not afford what Apple wanted for it, so I opened the phone myself. It turned into a side gig doing screens for family and friends. The adhesive is the part that takes the time.",
+
     },
     {
       slug: "breadboard",

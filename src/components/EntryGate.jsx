@@ -44,6 +44,7 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpRight, Volume2, VolumeX } from "lucide-react";
 import { useFocusTrap, useMediaQuery } from "../hooks";
+import { glitchTick } from "../lib/ui-sfx";
 import { profile } from "../data/profile";
 import { img } from "../data/images";
 import { s4Poster } from "../data/s4";
@@ -77,6 +78,13 @@ function Preload() {
   );
 }
 
+// How often the panel takes a hit, and by how much that is allowed to wander.
+// Exactly three seconds would read as a metronome; a glitch that arrives on
+// the beat is a progress bar.
+const GLITCH_EVERY_MS = 3000;
+const GLITCH_JITTER_MS = 900;
+const GLITCH_LENGTH_MS = 300; // must match `gate-hit` in index.css
+
 export default function EntryGate({ onEnter }) {
   // /recruiters links back here with this. The plain version's way across is
   // to the entrance, not to the page behind it, so the door goes up whatever
@@ -89,6 +97,7 @@ export default function EntryGate({ onEnter }) {
   // would otherwise reword the panel mid-fade.
   const [returning, setReturning] = useState(hasBeenAsked);
   const [mode, setMode] = useState(() => (asked ? "full" : introModeForThisLoad()));
+  const [hit, setHit] = useState(false);
   const panelRef = useRef(null);
 
   // The way back, from the footer. Reopening the door means the whole choice
@@ -116,6 +125,71 @@ export default function EntryGate({ onEnter }) {
     prefetchTrack();
     if (mode !== "off") loadDrift().catch(() => {});
   }, [open, mode]);
+
+  // Get audio running as early as the browser will allow, so the glitch has
+  // its tick. Two attempts, because there are two kinds of visit:
+  //
+  //   On mount, for the reader whose context is already running (the door
+  //   reopened from the footer) and for the browser that has decided this
+  //   origin may play without asking. unlockAudio() is a no-op when it cannot
+  //   work; it does not throw and it does not block the door.
+  //
+  //   Then on the first gesture of any kind. Not the buttons: a pointerdown
+  //   on the heading, a Tab, a touch on a phone. Those are what the spec
+  //   counts as user activation, and the first one that arrives is the
+  //   earliest moment a tick can be audible. Before it there is nothing any
+  //   code can do, which is the sentence this panel is on screen to say.
+  useEffect(() => {
+    if (!open) return undefined;
+    let done = false;
+    unlockAudio().then((ok) => { done = ok; });
+
+    const wake = () => {
+      if (done) return;
+      done = true;
+      unlockAudio();
+    };
+    const opts = { passive: true, capture: true };
+    document.addEventListener("pointerdown", wake, opts);
+    document.addEventListener("keydown", wake, opts);
+    document.addEventListener("touchstart", wake, opts);
+    return () => {
+      document.removeEventListener("pointerdown", wake, opts);
+      document.removeEventListener("keydown", wake, opts);
+      document.removeEventListener("touchstart", wake, opts);
+    };
+  }, [open]);
+
+  // The hit. A self-rescheduling timeout rather than setInterval, because the
+  // gap is different every time and an interval cannot vary. The class comes
+  // off after the animation's own length so the next hit can put it back on:
+  // re-adding a class that is already there restarts nothing.
+  //
+  // Not requestAnimationFrame: this tab can be in the background while the
+  // door waits, rAF is throttled to a crawl there, and a glitch that stalls
+  // and then fires six times when you switch back is worse than no glitch.
+  useEffect(() => {
+    if (!open) return undefined;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
+
+    let next = 0;
+    let clear = 0;
+    const fire = () => {
+      setHit(true);
+      // Sound and picture on the same tick. Silent until audio is permitted,
+      // which on a first load is exactly what the panel is explaining.
+      glitchTick();
+      clear = window.setTimeout(() => setHit(false), GLITCH_LENGTH_MS);
+      next = window.setTimeout(fire, GLITCH_EVERY_MS + Math.random() * GLITCH_JITTER_MS);
+    };
+    next = window.setTimeout(fire, 1200);
+    return () => {
+      window.clearTimeout(next);
+      window.clearTimeout(clear);
+      setHit(false);
+    };
+  }, [open]);
+
 
   const enter = (withSound) => {
     // Close first, unconditionally. Whatever audio does next, the reader is
@@ -182,11 +256,17 @@ export default function EntryGate({ onEnter }) {
 
           <motion.div
             ref={panelRef}
-            className="tick-frame relative w-full max-w-[34rem]"
+            className="relative w-full max-w-[34rem]"
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 0.9, 0.25, 1] }}
           >
+          {/* The glitch owns its own element. It has to: Framer animates
+              `transform` on this panel's entrance, and a CSS animation on the
+              same element fights it for the same property, which is how the
+              first version of the hit came out as a 2px nudge with none of the
+              chroma on it. Nothing else ever animates this wrapper. */}
+          <div className={`tick-frame gate-glitch relative ${hit ? "is-hit" : ""}`}>
             <Panel edge="bg-volt" fill="bg-ink" innerClassName="p-7 md:p-9">
               <p className="mono-label text-volt flex items-center gap-2.5">
                 <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
@@ -237,36 +317,48 @@ export default function EntryGate({ onEnter }) {
                 </Panel>
               </div>
 
-              <p className="mt-6 mono-label text-dim leading-relaxed">
+              {/* This was 11px uppercase mono at 0.18em tracking and 46%
+                  opacity: two paragraphs of explanation set in the face this
+                  design reserves for one-word labels, on the first screen
+                  anybody sees. It is prose, so it is prose. */}
+              <p className="mt-6 text-[0.9375rem] leading-[1.6] text-muted">
                 {returning
                   ? "Browsers need a click on every page load before they will play audio. Entering silent stops this appearing again."
                   : "Your browser needs a click before it will play audio. Volume lives bottom left, and either choice is changeable there."}
-                {intro && <span className="block mt-2">{intro}</span>}
+                {intro && <span className="block mt-2 text-dim">{intro}</span>}
               </p>
 
               {/* The way out, for the reader with the least time. A plain
                   page: no intro, no sound, no effects, the same content. */}
               <Link
                 to="/recruiters"
-                className="group mt-6 flex items-center justify-between gap-4 border-t border-ink-line pt-5 transition-colors"
+                // `items-start`, not `items-center`: on a phone the sentence
+                // wraps to four lines and a vertically centred arrow lands in
+                // the middle of them, reading as a glyph inside the text.
+                className="group mt-6 flex items-start justify-between gap-4 border-t border-ink-line pt-5 transition-colors"
               >
                 <span className="min-w-0">
                   <span className="mono-ui font-bold text-volt block">Recruiters press this</span>
-                  <span className="mono-label text-dim block mt-1.5">
+                  <span className="block mt-1.5 text-[0.9375rem] leading-[1.6] text-muted">
                     The plain version. Experience, projects, skills and the résumé, with none of the above.
                   </span>
                 </span>
-                <ArrowUpRight className="w-4 h-4 shrink-0 text-volt transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
+                <ArrowUpRight className="w-4 h-4 mt-0.5 shrink-0 text-volt transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
               </Link>
             </Panel>
+
+            {/* The tear, over the panel and under the corner marks. */}
+            <span className="gate-tear chamfer" aria-hidden="true" />
 
             {/* Outside the Panel on purpose. `clip-path` removes anything the
                 element paints past the cut, so ticks placed inside a chamfered
                 box are clipped away at exactly the corners they mark. */}
             <span className="tick tl" aria-hidden="true" />
+
             <span className="tick tr" aria-hidden="true" />
             <span className="tick bl" aria-hidden="true" />
             <span className="tick br" aria-hidden="true" />
+          </div>
           </motion.div>
         </motion.div>
       )}
