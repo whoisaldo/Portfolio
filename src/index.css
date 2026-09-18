@@ -385,6 +385,26 @@ a:hover .ink-underline,
   .affil-mark { animation: none; }
 }
 
+/* The eddies mark on the dossier's job-board line.
+   ---------------------------------------------------------------------------
+   "Will do hard job for Eddies" is a Night City line, and to a reader who has
+   never played the game the last word is a drug. The mark after it is what the
+   word means: a credit shard, the fanned stack of payment tags with a
+   eurodollar knocked out of the front one.
+
+   Drawn solid with the glyph as negative space rather than as an outline with
+   a glyph inside it. At the 25px it renders at, two thin strokes competing
+   inside twenty pixels both turn to mush; a solid mass with holes punched in
+   it survives. Built by GPT-6-Astra through the codex-3d skill, source at
+   src/assets/About/EddieShard.svg, and painted in currentColor so it takes the
+   volt from the line it follows. */
+.eddie-mark { display: inline-flex; }
+.eddie-mark > svg {
+  display: block;
+  height: 1.9em;
+  width: auto;
+}
+
 /* ===========================================================================
    The door's glitch
    ---------------------------------------------------------------------------
