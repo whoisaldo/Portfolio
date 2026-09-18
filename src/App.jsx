@@ -21,7 +21,7 @@
 // NONE of that: no gate, no audio, no cursor, no scanlines, no effects. The
 // split is made here, above both, so that nothing from one can leak into the
 // other by accident. The two shells share the data files and nothing else.
-import React, { lazy, Suspense, useEffect } from "react";
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import Navbar from "./components/Navbar";
@@ -31,6 +31,7 @@ import EntryGate from "./components/EntryGate";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Console from "./components/Console";
 import Cursor from "./components/Cursor";
+import GpuNotice from "./components/GpuNotice";
 import Home from "./routes/Home";
 import WorkPage from "./routes/WorkPage";
 import { stopAmbient } from "./lib/ambient";
@@ -38,7 +39,8 @@ import { LEAVE_SECONDS } from "./lib/cues";
 import { initBeacon } from "./lib/beacon";
 import { attachUiSfx } from "./lib/ui-sfx";
 import { startReactive } from "./lib/reactive";
-import { initEnv } from "./lib/env";
+import { initEnv, LOW_POWER, setSessionEnv } from "./lib/env";
+import { hasGpuAcceleration } from "./lib/gpu";
 
 // The plain version is its own chunk: the cinematic never downloads it, and
 // it never downloads the cinematic.
@@ -102,6 +104,17 @@ function Cinematic() {
   useEffect(() => startReactive(), []);
   useEffect(() => { initEnv(); }, []);
 
+  // A browser drawing on the CPU gets the city turned down for this visit,
+  // and is told so. The probe is one WebGL request, answered once per load
+  // (src/lib/gpu.js). The switches it flips are the console's own, held in
+  // a session layer that never reaches storage (src/lib/env.js), so
+  // `fx reset` puts everything back for a reader who wants it regardless.
+  // Only this shell: the plain version has nothing on it that needs a GPU.
+  const [lowPower] = useState(() => !hasGpuAcceleration());
+  useEffect(() => {
+    if (lowPower) setSessionEnv(LOW_POWER);
+  }, [lowPower]);
+
   return (
     <ErrorBoundary>
       <MotionConfig reducedMotion="user">
@@ -118,6 +131,7 @@ function Cinematic() {
           {/* Backtick anywhere, the button in the header, or /console. */}
           <Console />
           <Cursor />
+          <GpuNotice show={lowPower} />
 
           <Routes>
             <Route path="/" element={<Home />} />
