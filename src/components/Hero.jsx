@@ -130,6 +130,7 @@ export default function Hero() {
           transition={{ duration: 0.9, ease: [0.16, 0.9, 0.25, 1] }}
           className="font-display uppercase text-display-hero text-primary chromatic-aberration"
           style={{ "--burst": "var(--bass, 0)" }}
+          data-reactive=""
         >
           <Glitch duration={780} active={done}>{profile.first.toUpperCase()}</Glitch>{" "}
           <Glitch duration={780} active={done} className="text-volt">

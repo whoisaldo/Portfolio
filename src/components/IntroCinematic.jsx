@@ -640,7 +640,7 @@ export default function IntroCinematic() {
 
               {/* Earth's glow, breathing with the music through --level. */}
               <div ref={earthRef} className="absolute inset-0 pointer-events-none" aria-hidden="true">
-                <div className="intro-earthglow" />
+                <div className="intro-earthglow" data-reactive="" />
                 {/* Moon dust. */}
                 {motes.map((m) => (
                   <span

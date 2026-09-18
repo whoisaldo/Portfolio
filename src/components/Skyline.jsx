@@ -6,7 +6,9 @@
 // towers, lit in the world's own brands; haze drifting across the buildings;
 // the signs mirrored in the water below the waterline, with a ripple; and all
 // of the light breathing with the track through the --level and --bass
-// variables src/lib/reactive.js writes onto <html>. In silence it holds.
+// variables src/lib/reactive.js writes onto this skyline's root. Keeping
+// them here avoids resolving the whole page's styles on every music frame.
+// In silence it holds.
 //
 // The signs are HTML text, not paint, for three reasons: they stay crisp at
 // any size, they can flicker, and a screen reader is told they are
@@ -90,6 +92,7 @@ export default function Skyline({ className = "" }) {
       height={SKYLINE.height}
       focus={{ x: portrait ? 80 : 64, y: 58 }}
       className={`sky ${className}`}
+      data-reactive=""
       aria-hidden="true"
     >
       <Picture sources={SKYLINE} alt="" sizes="100vw" fetchPriority="high" className="absolute inset-0 w-full h-full opacity-90" />
