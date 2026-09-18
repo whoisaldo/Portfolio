@@ -1,24 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80">
   <g id="car" color="#fcee0a">
     <defs>
-      <filter id="underglow-blur" filterUnits="userSpaceOnUse" x="-61" y="-26" width="122" height="52">
-        <feGaussianBlur stdDeviation="2.5"/>
-      </filter>
-      <filter id="headlight-blur" filterUnits="userSpaceOnUse" x="-5" y="-28" width="27" height="56">
-        <feGaussianBlur stdDeviation="4"/>
-      </filter>
-      <filter id="taillight-blur" filterUnits="userSpaceOnUse" x="-19" y="-27" width="24" height="54">
-        <feGaussianBlur stdDeviation="3"/>
-      </filter>
+      <!-- SMIL repaints each moving car. Gaussian blur used to rasterize
+           these three lights on every frame; soft gradient fills retain
+           their colours and the old filter bounds without filter passes. -->
+      <radialGradient id="underglow-soft" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1" gradientTransform="scale(61 26)">
+        <stop offset="0.74" stop-color="#ff2e88"/>
+        <stop offset="0.88" stop-color="#ff2e88" stop-opacity="0.85"/>
+        <stop offset="0.96" stop-color="#ff2e88" stop-opacity="0.4"/>
+        <stop offset="1" stop-color="#ff2e88" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="headlight-soft" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1" gradientTransform="translate(5 0) scale(17 28)">
+        <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+        <stop offset="0.35" stop-color="#ffffff" stop-opacity="0.85"/>
+        <stop offset="0.6" stop-color="#ffffff" stop-opacity="0.5"/>
+        <stop offset="0.8" stop-color="#ffffff" stop-opacity="0.16"/>
+        <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="taillight-soft" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="1" gradientTransform="translate(-5 0) scale(14 27)">
+        <stop offset="0" stop-color="#ff2e88" stop-opacity="0.9"/>
+        <stop offset="0.35" stop-color="#ff2e88" stop-opacity="0.85"/>
+        <stop offset="0.6" stop-color="#ff2e88" stop-opacity="0.5"/>
+        <stop offset="0.8" stop-color="#ff2e88" stop-opacity="0.16"/>
+        <stop offset="1" stop-color="#ff2e88" stop-opacity="0"/>
+      </radialGradient>
     </defs>
     <g id="underglow" transform="translate(0 0)">
-      <ellipse rx="58" ry="23" fill="#ff2e88" opacity="0.45" filter="url(#underglow-blur)"/>
+      <rect x="-61" y="-26" width="122" height="52" fill="url(#underglow-soft)" opacity="0.45"/>
     </g>
     <g id="headlight-glow" transform="translate(58 0)">
-      <ellipse cx="5" rx="7" ry="18" fill="#ffffff" opacity="0.55" filter="url(#headlight-blur)"/>
+      <rect x="-5" y="-28" width="27" height="56" fill="url(#headlight-soft)" opacity="0.55"/>
     </g>
     <g id="taillight-glow" transform="translate(-58 0)">
-      <ellipse cx="-5" rx="5" ry="18" fill="#ff2e88" opacity="0.55" filter="url(#taillight-blur)"/>
+      <rect x="-19" y="-27" width="24" height="54" fill="url(#taillight-soft)" opacity="0.55"/>
     </g>
     <g id="wheel-fl" transform="translate(36 -20.5)">
       <rect x="-10" y="-4.5" width="20" height="9" rx="2" fill="#141414"/>

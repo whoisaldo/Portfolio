@@ -552,9 +552,12 @@ a:hover .ink-underline,
    The intro, and the things that move with the track
    ---------------------------------------------------------------------------
    Everything below is used by src/components/IntroCinematic.jsx, the reticle
-   in Cursor.jsx, and the two or three surfaces on the page that react to the
+   in Cursor.jsx, and the few surfaces on the page that react to the
    music through the --bass / --level variables src/lib/reactive.js writes
-   onto <html>. In silence both are 0 and all of this is still.
+   onto data-reactive consumers. Writing inherited variables on <html> used
+   to resolve styles throughout the page each music frame; keeping them on
+   their readers limits that work to the lighting. In silence both are 0
+   and the music-reactive effects hold still.
    =========================================================================== */
 
 /* One element, one box-shadow, a hundred and forty stars. */
@@ -583,20 +586,30 @@ a:hover .ink-underline,
   pointer-events: none;
 }
 
-/* Perspective lane marks on the road, sliding toward the viewer. */
+/* Perspective lane marks on the road, sliding toward the viewer. Moving
+   background-position repainted the whole road every frame of the intro.
+   The extra 22px is one repeat of the same marks: paint them on a taller
+   strip and translate that cached strip behind the stationary mask. */
 .intro-road {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 30%, transparent);
+}
+.intro-road::before {
+  content: "";
+  position: absolute;
+  inset: -22px 0 0;
   background-image: repeating-linear-gradient(
     to bottom,
     rgb(252 238 10 / 0.16) 0 1px,
     transparent 1px 22px
   );
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%, transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 30%, transparent);
+  will-change: transform;
   animation: road-run 0.9s linear infinite;
 }
 @keyframes road-run {
-  from { background-position-y: 0; }
-  to   { background-position-y: 22px; }
+  from { transform: translateY(0); }
+  to   { transform: translateY(22px); }
 }
 
 /* Moon dust. Motes that rise through the frame over ten seconds or so,
@@ -1135,20 +1148,25 @@ a:hover .ink-underline,
 }
 
 /* The signs in the water. The same elements, flipped about the waterline,
-   stretched a little into streaks, blurred, and rippled with a mask that
+   stretched a little into streaks, softened, and rippled with a mask that
    drifts down the way water does. The mirror layer is clipped to the water
-   so a tall sign's reflection never lands on a building. */
+   so a tall sign's reflection never lands on a building.
+
+   A smoothly animated mask-position repainted this plate every frame, then
+   blur(1px) filtered the entire plate again. Eight steps over 1.6 seconds
+   move the 4px pattern half a pixel at a time, keeping the ripple at five
+   paints a second in silence. The faces already carry soft text shadows;
+   keeping that softness on the letters avoids filtering a full plate. */
 .sky-reflect {
   position: absolute;
   inset: 0;
   transform: scaleY(-1.2);
   opacity: 0.8;
-  filter: blur(1px);
   -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgb(0 0 0 / 0.35) 2px 4px);
   mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgb(0 0 0 / 0.35) 2px 4px);
   -webkit-mask-size: 100% 4px;
   mask-size: 100% 4px;
-  animation: water-ripple 1.6s linear infinite;
+  animation: water-ripple 1.6s steps(8, end) infinite;
 }
 .sky-reflect .sky-sign::after { display: none; }
 .sky-reflect .sky-sign-face {
@@ -1162,12 +1180,29 @@ a:hover .ink-underline,
 }
 
 /* Light on the water: the city's own glow pulled down into slow vertical
-   streaks. Screen-blended, so it only ever adds light. */
+   streaks. Screen-blended, so it only ever adds light. Animating the old
+   background-position repainted the bay every frame, even in silence.
+   The same gradients now sit on a 220% wide strip that the compositor can
+   move without painting again. The streaks fill the strip; the top wash
+   repeats at the parent's width, 45.45% of the strip. A -54.55% translation
+   travels the same 120% of the parent as the old background did. The blend,
+   music-driven opacity and fading mask belong to the stationary water. */
 .sky-water {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
+  overflow: hidden;
+  mix-blend-mode: screen;
+  opacity: calc(0.5 + var(--level, 0) * 0.5);
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%);
+  mask-image: linear-gradient(to bottom, #000, transparent 85%);
+}
+.sky-water::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 220%;
   background:
     repeating-linear-gradient(
       90deg,
@@ -1178,27 +1213,27 @@ a:hover .ink-underline,
       transparent 7.5% 11%
     ),
     linear-gradient(to bottom, rgb(252 238 10 / 0.12), transparent 55%);
-  background-size: 220% 100%, 100% 100%;
-  mix-blend-mode: screen;
-  opacity: calc(0.5 + var(--level, 0) * 0.5);
-  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%);
-  mask-image: linear-gradient(to bottom, #000, transparent 85%);
+  background-size: 100% 100%, 45.45% 100%;
+  will-change: transform;
   animation: water-drift 38s linear infinite;
 }
 @keyframes water-drift {
-  from { background-position: 0 0, 0 0; }
-  to   { background-position: 100% 0, 0 0; }
+  from { transform: translateX(0); }
+  to   { transform: translateX(-54.55%); }
 }
 
 /* Haze. Two bodies of coloured air, a few percent of white each, drifting
-   across the city on long, offset cycles so the pattern never repeats. */
+   across the city on long, offset cycles so the pattern never repeats.
+   Each moving, screen-blended layer used to carry a 26px blur, making the
+   GPU filter those large surfaces again each frame. The gradients now bake
+   in the same soft falloff, reaching their mid stop at 38% and fading out
+   at 72%. Only their cached textures move; the blend and brightness stay. */
 .sky-haze {
   position: absolute;
   top: 38%;
   height: 46%;
   width: 62%;
   border-radius: 50%;
-  filter: blur(26px);
   mix-blend-mode: screen;
   pointer-events: none;
   opacity: calc(0.75 + var(--level, 0) * 0.5);
@@ -1206,7 +1241,7 @@ a:hover .ink-underline,
 }
 .sky-haze-a {
   left: 22%;
-  background: radial-gradient(ellipse at center, rgb(252 238 10 / 0.16), rgb(252 238 10 / 0.05) 45%, transparent 68%);
+  background: radial-gradient(ellipse at center, rgb(252 238 10 / 0.16), rgb(252 238 10 / 0.05) 38%, transparent 72%);
   animation: haze-a 52s ease-in-out infinite alternate;
 }
 .sky-haze-b {
@@ -1214,7 +1249,7 @@ a:hover .ink-underline,
   top: 44%;
   width: 54%;
   height: 34%;
-  background: radial-gradient(ellipse at center, rgb(255 46 136 / 0.12), rgb(255 46 136 / 0.03) 45%, transparent 68%);
+  background: radial-gradient(ellipse at center, rgb(255 46 136 / 0.12), rgb(255 46 136 / 0.03) 38%, transparent 72%);
   animation: haze-b 67s ease-in-out infinite alternate;
   animation-delay: -21s;
 }
@@ -1237,11 +1272,13 @@ html[data-fx-cursor="off"] .reticle { display: none; }
 html[data-fx-scanlines="off"] .paper-grain::before,
 html[data-fx-scanlines="off"] .paper-grain::after { display: none; }
 /* Off: the variables the music writes are pinned at silence. !important is
-   needed because reactive.js writes them as inline styles on <html>. */
-html[data-fx-reactive="off"] { --bass: 0 !important; --level: 0 !important; }
+   needed because reactive.js writes inline styles on each data-reactive
+   consumer. Pinning only <html> would lose to those local values and let
+   the lighting keep moving after the console's reactive off command. */
+html[data-fx-reactive="off"] [data-reactive] { --bass: 0 !important; --level: 0 !important; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sky-haze, .sky-water, .sky-reflect, .sky-sign-flicker .sky-sign-face { animation: none; }
+  .sky-haze, .sky-water::before, .sky-reflect, .sky-sign-flicker .sky-sign-face { animation: none; }
 }
 
 /* ===========================================================================

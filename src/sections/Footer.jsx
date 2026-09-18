@@ -37,7 +37,7 @@ export default function Footer() {
           section. Two is the budget. A page striped in yellow everywhere is
           the failure mode this design is built to avoid. Both brighten with
           the kick while the track plays; see src/lib/reactive.js. */}
-      <div className="hazard hazard-live h-1.5" aria-hidden="true" />
+      <div className="hazard hazard-live h-1.5" data-reactive="" aria-hidden="true" />
 
       <div className="gutter py-10 flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-5">

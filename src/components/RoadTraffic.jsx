@@ -16,6 +16,11 @@
 // the codex-3d skill. Its body is painted with currentColor, so a lane's
 // colour is a CSS `color`. Under prefers-reduced-motion nothing here renders
 // at all: the road stays, the traffic does not.
+//
+// SMIL repaints a sprite as it moves and scales. The lights used to carry
+// three Gaussian blur filters per car, rasterized again on each of those
+// frames. Their softness now lives in radial-gradient fills in the sprite,
+// keeping the same light without twelve moving filter surfaces.
 import React, { useEffect, useRef } from "react";
 import { usePrefersReducedMotion } from "../hooks";
 import { useEnv } from "../lib/env";
@@ -52,7 +57,7 @@ export default function RoadTraffic({ active = true }) {
 
   // SMIL keeps running for an <svg> that has scrolled away. Pause the whole
   // document's animations while the hero is off screen, resume when it is
-  // back; four filtered sprites are cheap, but not free.
+  // back; four moving sprites are cheap, but not free.
   useEffect(() => {
     const svg = ref.current?.ownerSVGElement;
     if (!svg || typeof IntersectionObserver === "undefined") return;

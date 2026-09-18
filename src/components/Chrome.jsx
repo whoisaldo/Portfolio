@@ -177,7 +177,7 @@ export default function Chrome() {
         {/* Three bars that move with the track, driven entirely by the CSS
             variables src/lib/reactive.js writes. Still when nothing plays. */}
         {sound && (
-          <span className="vu" aria-hidden="true">
+          <span className="vu" data-reactive="" aria-hidden="true">
             <span className="vu-bar" style={{ "--vu": "var(--bass, 0)" }} />
             <span className="vu-bar" style={{ "--vu": "var(--level, 0)" }} />
             <span className="vu-bar" style={{ "--vu": "calc(var(--bass, 0) * 0.6 + var(--level, 0) * 0.4)" }} />
