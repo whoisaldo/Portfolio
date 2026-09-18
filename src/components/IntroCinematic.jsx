@@ -702,7 +702,7 @@ export default function IntroCinematic() {
 
               {/* Credit, top left. Only while the track is really playing. */}
               <motion.p
-                className="absolute top-6 left-6 md:top-8 md:left-10 mono-micro text-muted max-w-[50vw] md:max-w-[60vw]"
+                className="absolute top-6 left-6 md:top-8 md:left-10 mono-micro cine-micro text-muted max-w-[50vw] md:max-w-[60vw]"
                 style={{ textShadow: "0 1px 2px rgb(5 5 6 / 0.9), 0 0 12px rgb(5 5 6 / 0.9)" }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: flags.credit ? 1 : 0 }}
@@ -739,7 +739,7 @@ export default function IntroCinematic() {
 
               {/* Waiting on the download, said plainly. */}
               <motion.p
-                className="absolute bottom-16 md:bottom-8 inset-x-0 text-center mono-micro text-dim"
+                className="absolute bottom-16 md:bottom-8 inset-x-0 text-center mono-micro cine-micro cine-dim"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: flags.tuning ? 1 : 0 }}
                 transition={{ duration: 0.4 }}
@@ -782,10 +782,10 @@ export default function IntroCinematic() {
             <button
               type="button"
               onClick={finish}
-              className="pointer-events-auto absolute bottom-5 right-5 md:bottom-8 md:right-10 mono-label text-muted hover:text-volt focus-visible:text-volt transition-colors py-2"
+              className="pointer-events-auto absolute bottom-5 right-5 md:bottom-8 md:right-10 mono-label cine-label text-muted hover:text-volt focus-visible:text-volt transition-colors py-2"
             >
               <span className="ink-underline">Skip intro</span>
-              <span className="ml-3 text-dim" aria-hidden="true">esc</span>
+              <span className="ml-3 cine-dim" aria-hidden="true">esc</span>
             </button>
           </div>
 

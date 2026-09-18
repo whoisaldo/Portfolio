@@ -20,17 +20,32 @@ import React from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { profile, links } from "../data/profile";
-import { featuredProjects } from "../data/projects";
+import { operator } from "../data/life";
+// The same normalised marks the Experience cards use: trimmed to the logo and
+// keyed to transparency by `npm run logos`, so one CSS height gives three
+// logos of equal optical weight with no plate behind them.
+import awsLogo from "../assets/PreviousExperience/awslogosvg.norm.png";
+import philipsLogo from "../assets/PreviousExperience/PhilipsLogo.norm.png";
+import pinnatecLogo from "../assets/PreviousExperience/PinnatecAuto.norm.png";
 import Panel from "../components/ui/Panel";
+import Picture from "../components/Picture";
 import Glitch from "../components/ui/Glitch";
+
+// Three of the six organisations in experience.js, the ones Ali named. Not
+// derived from that file on purpose: this is a short list he picked, not a
+// filter over the work history, and writing it as a filter would mean the row
+// silently grows the next time a job is added.
+const AFFILIATIONS = [
+  { name: "Amazon Web Services", logo: awsLogo },
+  { name: "Philips Healthcare", logo: philipsLogo },
+  { name: "Pinnatec Auto", logo: pinnatecLogo },
+];
 
 const reveal = {
   initial: { opacity: 0, y: 18 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, margin: "-70px" },
 };
-
-const liveCount = featuredProjects.filter((p) => p.status === "live").length;
 
 export default function About() {
   return (
@@ -63,41 +78,59 @@ export default function About() {
             <p className="prose-dark prose-lede max-w-[54ch]">
               I write systems software, iOS apps, and the web front-ends that
               sit on top of them. Most of what is on this site exists because
-              something I wanted did not, or cost more than it was worth.
+              something I wanted did not do what I asked, or cost too much.
             </p>
 
             <div className="mt-8 space-y-5 max-w-[64ch]">
               <p className="prose-dark">
-                Right now I am doing three things at once: back at Philips
-                part-time on the team I co-opped with, lead full stack
-                engineer at Pinnatec Auto, and one of the three students who
-                own the grading server on Pawtograder, Northeastern&apos;s
-                open-source autograder. This past summer I was an SDE intern
-                on AWS CloudFormation in Seattle, on the Registry, the control
-                plane behind the resource types CloudFormation can provision.
-                Before that, six months as a Philips co-op in Cambridge,
-                shipping a zero-touch deployment platform for roughly a
-                thousand medical-device-grade machines under FDA-regulated
-                Secure Boot. The AWS and Philips work each have a full
-                write-up on this site rather than a bullet point.
+                It started at 12. I scripted other people&apos;s Roblox games,
+                got paid in Robux, and cashed it out through DevEx for gaming
+                PC parts my family could not have bought me. The pattern has
+                not changed since. In 2020 I wrote a Python bot to watch for
+                GPU restocks so I could get one at MSRP, because I was 15 and
+                wanted a better machine.
               </p>
               <p className="prose-dark">
-                I also co-founded Sideband, a four-person independent software
-                studio in Boston that ships its own products instead of doing
-                client work. Six so far, four of them live. The work runs from
-                a Rust and SwiftUI display streamer to a Fabric mod with 39,000
-                lines of Java in it, which is less scattered than it sounds. It
-                is mostly the same interest in what happens underneath an
-                interface.
+                I over-engineer, and I keep the result intuitive. Whoever is
+                using it should never have to know what is underneath. The $40
+                iPad app I refused to buy became a Rust host with a hardware
+                encoder chain and my own UDP protocol, and the person using it
+                just sees a second screen.
               </p>
               <p className="prose-dark">
-                Everything claimed on this site is checkable. Where a repository
-                is public, the numbers came out of the source rather than the
-                README; where a claim could not be verified, it was removed
-                instead of softened. There is a list of what was cut and why in
-                the repo.
+                Three jobs at once at the moment. Philips part-time, back on
+                the team I co-opped with. Lead full stack engineer at Pinnatec
+                Auto. One of three students who own the grading server on
+                Pawtograder, Northeastern&apos;s open-source autograder, which
+                runs in production against real submissions. This past summer I
+                was an SDE intern on AWS CloudFormation in Seattle. Before
+                that, six months at Philips in Cambridge, where I shipped
+                zero-touch imaging for about a thousand medical-device-grade
+                Windows machines with FDA-regulated Secure Boot left on the
+                whole time. Many engineers had wanted that automated. Nobody
+                had shipped it. Both of those open into a full write-up here.
+              </p>
+              <p className="prose-dark">
+                I co-founded Sideband, a four-person studio in Boston that
+                ships its own products and takes no client work. Six so far,
+                four live. I started it because I want somewhere younger
+                engineers can get mentoring for free as I get better at this.
+              </p>
+              <p className="prose-dark">
+                Most of my work has been automating something tedious. For
+                years that meant deterministic code. Frontier models handle the
+                parts that never fit a fixed script, and that is the part I
+                find amazing. I spend my free time on whatever people are using
+                right now, looking for the piece of my routine it can take.
+              </p>
+              <p className="prose-dark">
+                Everything on this site is checkable. Where the repository is
+                public the numbers came out of the source, not the README.
+                Where a claim could not be verified it was cut rather than
+                softened.
               </p>
             </div>
+
           </motion.div>
 
           {/* ---- the dossier card ----------------------------------------- */}
@@ -107,12 +140,74 @@ export default function About() {
             className="lg:col-span-5"
           >
             <Panel innerClassName="p-6 md:p-8">
-              <div className="pb-5 border-b border-ink-line">
-                <h3 className="mono-label text-volt">Operator</h3>
+              {/* The card says it is a character sheet, so it gets the one
+                  thing a character sheet actually opens with. The frame is the
+                  site's own chrome and nothing new: a chamfered 1px edge in
+                  volt, the deck's scanlines over the image, and two corner
+                  registration ticks.
+
+                  The ticks sit on the two corners the chamfer does NOT cut.
+                  A tick drawn over a 45° cut reads as a rendering fault; on a
+                  square corner it reads as a mark. Same rule as the hero
+                  portrait, and the reason both live outside their Panel:
+                  clip-path removes anything an element paints past the cut. */}
+              <div className="flex items-center gap-5 pb-5 border-b border-ink-line">
+                <div className="tick-frame relative shrink-0">
+                  <Panel
+                    size="sm"
+                    edge="bg-volt"
+                    fill="bg-ink-raised"
+                    innerClassName="relative w-20 h-20 md:w-24 md:h-24 overflow-hidden"
+                  >
+                    {/* The 20px LQIP, scaled up, so the frame is never an
+                        empty box on a cold load. */}
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `url("${operator.image.lqip}")` }}
+                    />
+                    <Picture
+                      sources={operator.image}
+                      alt={operator.alt}
+                      sizes="96px"
+                      loading="lazy"
+                      className="relative w-full h-full object-cover saturate-[0.85] contrast-[1.06]"
+                    />
+                    <div className="deck-scanlines absolute inset-0 pointer-events-none" aria-hidden="true" />
+                  </Panel>
+                  <span className="tick tr" aria-hidden="true" />
+                  <span className="tick bl" aria-hidden="true" />
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="mono-label text-volt">Operator</h3>
+                  {/* The name moved up here out of the list below it. An ID
+                      card that carries a face and then names the person four
+                      rows further down is two cards. */}
+                  <p className="mt-2 font-display uppercase font-semibold text-primary text-xl md:text-2xl leading-none tracking-tight">
+                    {profile.name}
+                  </p>
+                </div>
               </div>
 
+              {/* Vitals first, then the working life. The project count that
+                  used to close this list has gone: it said the same thing the
+                  Work section says eight times over, with pictures. */}
               <dl className="mt-6 space-y-5">
-                <Row label="Name" value={profile.name} />
+                <Row label="Age" value={profile.age} />
+                <Row label="Languages" value={profile.languages.join(" · ")} />
+                <Row
+                  label="Occupation"
+                  // The handle in volt and the job in the margin voice. Night
+                  // City on the left, the résumé on the right, and neither one
+                  // pretending to be the other.
+                  value={
+                    <>
+                      <span className="text-volt">{profile.occupation.handle}</span>
+                      <span className="text-dim"> · {profile.occupation.real}</span>
+                    </>
+                  }
+                />
                 <Row label="Base" value={profile.base} />
                 <Row
                   label="Now"
@@ -124,14 +219,45 @@ export default function About() {
                   value={`${profile.school} · ${profile.degree} · ${profile.gradYear}`}
                 />
                 <Row
-                  label="Shipped"
-                  // Counted, not typed. A number on a page that a human keeps
-                  // in sync is a number that eventually stops being true.
-                  value={`${featuredProjects.length} projects · ${liveCount} live`}
+                  label="Affiliations"
+                  value={
+                    <ul className="affil-list flex flex-wrap items-center gap-x-4 gap-y-2">
+                      {AFFILIATIONS.map((a, i) => (
+                        <li key={a.name} className="leading-none">
+                          <img
+                            src={a.logo}
+                            alt={a.name}
+                            width="60"
+                            height="18"
+                            loading="lazy"
+                            className="affil-mark h-5 w-auto max-w-[6rem] object-contain opacity-90"
+                            // Staggered here rather than with :nth-child, so
+                            // the delay follows the entry and not its position
+                            // in the DOM.
+                            style={{ animationDelay: `${i * 2.3}s` }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  }
                 />
               </dl>
 
-              <div className="mt-8 pt-6 border-t border-ink-line flex flex-wrap gap-x-6 gap-y-3">
+              {/* The line off a Night City job board, which is what this card
+                  has been dressed as since it was written. It sits under the
+                  vitals and above the two real links, because that is where a
+                  merc's card puts the pitch: after what you are, before how to
+                  reach you.
+
+                  Hazard tick rather than the pinging dot in the hero. That dot
+                  belongs to the one row on the site reporting something live,
+                  and a second one would spend it. */}
+              <p className="mt-8 flex items-center gap-3">
+                <span className="hazard h-1.5 w-6 shrink-0 opacity-50" aria-hidden="true" />
+                <span className="mono-ui text-volt">Will do hard job for Eddies</span>
+              </p>
+
+              <div className="mt-6 pt-6 border-t border-ink-line flex flex-wrap gap-x-6 gap-y-3">
                 <a
                   href={links.studio}
                   target="_blank"
@@ -159,11 +285,18 @@ export default function About() {
   );
 }
 
-/** One field of the dossier. Label in the margin, value on the right. */
+/** One field of the dossier. Label in the margin, value on the right.
+ *
+ *  The labels were `mono-micro text-dim`: 11px at 56% opacity, which is the
+ *  preset this design reserves for index numbers and corner marks, on a word
+ *  the reader has to read before the value beside it means anything. Up to
+ *  `mono-label` at `text-muted`: a step larger, half again the contrast.
+ *  Everything in the card moved together, because one louder label next to
+ *  six quiet ones is not a hierarchy, it is a mistake. */
 function Row({ label, value, accent = false }) {
   return (
-    <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-4 items-baseline">
-      <dt className="mono-micro text-dim">{label}</dt>
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-4 items-baseline">
+      <dt className="mono-label text-muted">{label}</dt>
       <dd className={`text-[0.9375rem] leading-snug ${accent ? "text-volt" : "text-muted"}`}>
         {value}
       </dd>

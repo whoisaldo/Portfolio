@@ -30,9 +30,11 @@ export default function ProjectsSection() {
 
           <div className="max-w-[42ch]">
             <p className="prose-dark">
-              Eight things I built and shipped. Every number on these pages is
-              checkable against the source.
+              Eight things I built because what existed did not do what I
+              wanted, or cost too much. Every number on these pages came out of
+              the source, not the README.
             </p>
+
             {/* Derived from the data, not typed. If a project's status changes
                 this line changes with it, which is the only way a count on a
                 page stays true. */}

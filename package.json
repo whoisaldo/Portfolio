@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "og": "node scripts/make-og.mjs",
     "logos": "node scripts/normalize-logos.mjs",
+    "icons": "node scripts/make-stack-icons.mjs",
     "check:audio": "node scripts/check-audio-single.mjs",
     "car:assets": "node scripts/optimize-s4.mjs",
     "check:s4": "node scripts/check-s4.mjs"
@@ -45,6 +46,7 @@
     "meshoptimizer": "^1.2.0",
     "postcss": "^8.5.6",
     "sharp": "^0.35.3",
+    "simple-icons": "^16.31.0",
     "tailwindcss": "^3.4.14",
     "vite": "^7.1.0"
   }

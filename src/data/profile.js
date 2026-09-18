@@ -14,6 +14,19 @@ export const profile = {
   gradYear: "’27",
   educationLine: "CS & Political Science · Northeastern University · Class of ’27",
   base: "Boston, MA",
+  // The character-sheet fields, for the dossier card in the About section.
+  //
+  // `age` is the one number on this site a human has to keep in sync. Ali gave
+  // the birth date and asked for the number typed rather than computed from
+  // it, which is the right call for a public repo: a full date of birth next
+  // to a name, a school and an employer is the back half of an identity, and
+  // this file is on GitHub. Next increment is September 2027.
+  age: 21,
+  languages: ["English", "Arabic"],
+  // The joke, and the answer. A Ripperdoc in Night City is the one who opens
+  // the thing up and puts something better in it, which is close enough to
+  // the truth that it earns its place next to the real job title.
+  occupation: { handle: "Ripperdoc", real: "software engineer" },
   // Three at once, in the résumé's order. `detail` is the one qualifier each
   // needs to be read correctly; the full entries are in experience.js.
   current: [

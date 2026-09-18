@@ -72,11 +72,16 @@ export default {
 
       // Four text levels, rebased on the new bone. Same structure as before:
       // it replaced a seventeen-step `text-bone/NN` slider and that fix holds.
+      // `dim` and `faint` were 0.46 and 0.26. At those values a 11px label was
+      // at 4.0:1 and a corner mark at 2.3:1 on the carbon ground, which is
+      // under what WCAG asks of text and well under what anybody can read at
+      // an angle on a laptop. Raised to 5.4:1 and 3.0:1. The four levels still
+      // step apart clearly, which was the point of naming them.
       textColor: {
         primary: "#eceae4",
         muted: "rgb(236 234 228 / 0.72)",
-        dim: "rgb(236 234 228 / 0.46)",
-        faint: "rgb(236 234 228 / 0.26)",
+        dim: "rgb(236 234 228 / 0.56)",
+        faint: "rgb(236 234 228 / 0.34)",
       },
 
       fontFamily: {
@@ -99,11 +104,13 @@ export default {
         "display-3": ["1.375rem", { lineHeight: "1.15", letterSpacing: "-0.01em", fontWeight: "600" }],
 
         // Mono: data, chrome, anything you read as a value rather than a
-        // sentence. Tracking loosens as size drops, which is the only way 10px
-        // uppercase stays legible.
-        "mono-ui": ["0.8125rem", { lineHeight: "1.3", letterSpacing: "0.1em" }],
-        "mono-label": ["0.6875rem", { lineHeight: "1.3", letterSpacing: "0.18em" }],
-        "mono-micro": ["0.625rem", { lineHeight: "1.2", letterSpacing: "0.22em" }],
+        // sentence. These mirror the three presets in index.css and were
+        // re-cut with them: the old tracking (up to 0.22em) broke the word
+        // shape, so the reader spelled the label out instead of reading it.
+        "mono-ui": ["0.8125rem", { lineHeight: "1.35", letterSpacing: "0.05em" }],
+        "mono-label": ["0.75rem", { lineHeight: "1.4", letterSpacing: "0.07em" }],
+        "mono-micro": ["0.6875rem", { lineHeight: "1.3", letterSpacing: "0.08em" }],
+
       },
 
       spacing: {

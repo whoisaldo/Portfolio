@@ -56,7 +56,8 @@ export const car = {
   output: "540 whp",
   outputNote: "My number, for the whole car. No part below claims a share of it.",
   lede:
-    "The daily. A supercharged S4 I built and tuned myself. Take a look around in 3D, or pick a part from the photos and the build sheet.",
+    "My daily. Fully built, and I tuned it myself because I knew that engine had more in it. Turn it around in 3D, or pick a part off the build sheet.",
+
 };
 
 // The five views. `focus` is where the frame should centre when it has to

@@ -69,7 +69,7 @@ export const experiences = [
     accent: "#4FC3F7",
     badge: "Current",
     description:
-      "Pitched, designed and shipped a zero-touch PXE mass-deployment platform for ~1,000 medical-device-grade Windows machines under FDA-regulated UEFI Secure Boot. Owned it end-to-end and presented the architecture to 50+ engineers and stakeholders. Also contributed to an internal VM deployment platform (guest post-provisioning + environment validation). Returned to the same team part-time in August 2026, alongside the degree.",
+      "Every new machine was imaged by a technician with a USB stick, about a thousand of them per refresh cycle, and FDA-regulated UEFI Secure Boot had to stay on the whole time, which kills every standard fleet-imaging shortcut. Many engineers had wanted this automated. Nobody had shipped it. I pitched it, designed it and shipped it solo, threw the first attempt out, and presented the second to 50+ engineers and stakeholders. I also wrote the guest post-provisioning and environment-validation layers on an internal VM deployment platform. I went back to the same team part-time in August 2026, alongside the degree.",
     metrics: [
       { value: "~1,000", label: "Machines / Zero Touch" },
       { value: "50+", label: "Engineers Presented" },
@@ -130,7 +130,7 @@ export const experiences = [
     accent: "#98F8C8",
     badge: "Current",
     description:
-      "Lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: a customer-facing Expo/React Native app, a WordPress/PHP backend, and ESP32 firmware, on a three-person team. Seventeen pull requests authored in the first week, twelve merged, and both repositories went from no CI at all to a branch ruleset that requires every check on every pull request.",
+      "I am the lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: an Expo/React Native app, a WordPress/PHP backend and ESP32 firmware, on a three-person team. Seventeen pull requests in my first week, twelve merged. Both repositories had no CI at all; they now refuse a pull request until every check passes.",
     metrics: [
       { value: "17", label: "Pull requests, 12 merged" },
       { value: "7", label: "Firmware-to-app contract checks" },
@@ -253,12 +253,12 @@ export const experiences = [
     logoPlate: true,
     accent: "#B5B606",
     description:
-      "Built a full-stack client management application that transformed how 20+ real estate agents access and manage 800+ client records, with measurable business impact.",
+      "Twenty real estate agents, none of them technical, and 800+ client records they had to ask someone else to look up. I built them a client management app in React, Python and SQL so they could do it themselves. A lookup went from 5+ minutes to 45 seconds.",
     highlights: [
-      { title: "Full-Stack Web Application", description: "Engineered and launched a client management web application using React, Python, and SQL, reducing average client lookup time by 85% (from 5+ minutes to 45 seconds)." },
-      { title: "User-Friendly Interface", description: "Created intuitive interfaces with guided navigation and visual search, empowering non-technical agents to independently manage 800+ client records." },
-      { title: "Database Optimization", description: "Optimized queries and implemented caching, accelerating data retrieval 3x and saving the team 15+ hours weekly in admin tasks." },
-      { title: "Measurable Business Impact", description: "Eliminated 90% of IT support requests and improved client response times by 60%." },
+      { title: "The app", description: "React front end, Python and SQL behind it. Guided navigation and visual search, because the people using it were not going to learn a query syntax." },
+      { title: "The lookup", description: "5+ minutes down to 45 seconds. That one number is the whole reason the thing exists." },
+      { title: "The database", description: "Reworked the queries and added caching. Data retrieval came back 3x faster and the team got back 15+ hours a week of admin." },
+      { title: "After it shipped", description: "IT support requests dropped 90%. Same instinct as the app I wrote for my mom: build it so the person never has to ask for help." },
     ],
     metrics: [
       { value: "85%", label: "Faster Lookups" },
@@ -279,7 +279,7 @@ export const experiences = [
     logoPlate: true,
     accent: "#F52333",
     description:
-      "Hands-on IT support across multiple office locations, configuring systems and troubleshooting technical issues to maintain optimal performance.",
+      "IT support across three offices. I set up the machines, fixed them when they broke, and kept them running. If it has screws in it I have probably had it open, and this is where that started paying.",
     metrics: [
       { value: "3+", label: "Office Locations" },
       { value: "15+", label: "Systems Configured" },
@@ -287,9 +287,9 @@ export const experiences = [
       { value: "95%+", label: "System Uptime" },
     ],
     highlights: [
-      { title: "Multi-Location Support", description: "On-site support across 3+ offices; configured 15+ systems across Windows, macOS, and Linux." },
-      { title: "Troubleshooting", description: "Resolved 25+ technical issues spanning OS platforms and hardware configurations." },
-      { title: "System Maintenance", description: "Maintained 95%+ uptime across all sites through proactive maintenance and fast issue resolution." },
+      { title: "Three offices", description: "On-site across all three. Configured 15+ machines on Windows, macOS and Linux." },
+      { title: "The tickets", description: "25+ issues resolved, across operating systems and hardware." },
+      { title: "Uptime", description: "95%+ across every site. Mostly by getting to things before anyone had to report them." },
     ],
     skills: ["Windows", "macOS", "Linux", "Hardware Config", "Troubleshooting", "IT Support", "System Administration"],
   },
@@ -303,7 +303,8 @@ export const experiences = [
     logo: neuLogo,
     accent: "#C8102E",
     description:
-      "Combined-major B.S. in Computer Science and Political Science, with a focus on software development, systems programming, and algorithm design. Active in the co-op program for real-world engineering experience.",
+      "Combined-major B.S. Computer Science and Political Science. The CS half is systems, algorithms and software design; the co-op program is why three of the roles above overlap with it.",
+
     metrics: [
       { value: "B.S.", label: "Degree" },
       { value: "2027", label: "Expected" },

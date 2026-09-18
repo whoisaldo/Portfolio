@@ -108,7 +108,7 @@ export const featuredProjects = [
     title: "Sideband",
     tagline: "independent software studio · sideband.studio",
     why:
-      "Too many indie tools ship half-baked, bloat with features nobody asked for, and get abandoned the moment trends shift. Four of us now, a studio in Boston, shipping the opposite.",
+      "I want somewhere younger engineers can get mentoring for free as I get better at this. Four of us now, in Boston, shipping our own products and taking no client work.",
     accent: LIVE,
     status: "live",
     description:
