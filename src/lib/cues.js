@@ -32,24 +32,27 @@ export const IGNITION = 26.1;
 /** The drums enter at 30.10s. The car launches on this frame. */
 export const DROP = 30.1;
 
-/** The first kick lands at 30.85s: hazard flash and the hardest shake. */
+/** The first kick lands at 30.85s: a light pulse and the hardest shake. */
 export const KICK = 30.85;
 
-/** The car has slid to its apex and launches out of frame; the overlay
- *  starts tearing away behind it. */
+/** The car reaches its apex and starts powering away. */
 export const WIPE_START = 31.5;
 
-/** The hero starts its entrance. Slightly before the overlay is gone, so the
- *  name is still resolving out of noise as the last of the black tears off it
- *  rather than sitting there finished. */
-export const HERO_IN = 33.15;
+/** The moon gives way to the street during the ignition swell. */
+export const CITY_IN = 27.0;
+export const CITY_READY = 30.45;
 
-/** The overlay is gone and the site is live. */
-export const REVEAL = 33.6;
+/** Let the drift establish the street before any portfolio content enters. */
+export const HANDOFF = 33.8;
+export const HERO_IN = 33.9;
 
-/** The car is fully off screen. Slightly after REVEAL so the exit is never
- *  cut. */
-export const CAR_GONE = 33.9;
+/** The original spline continues on its existing end tangent into the
+ *  street. Haze hides the car as it reaches the distant buildings. */
+export const CAR_GONE = 35.1;
+
+/** The same city is now the portfolio backdrop. Release the intro here,
+ *  after the car has left and the page has finished arriving. */
+export const REVEAL = 35.65;
 
 /** The chorus, for anyone who wants to time something to it later. */
 export const CHORUS = 61.07;

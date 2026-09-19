@@ -12,6 +12,15 @@ design/audi-s4/garage-*.png
 design/audi-s4/intro-*.png
 design/audi-s4/*-source.glb
 design/audi-s4/*-viewport.png
+design/night-city/preview.mp4
+design/night-city/preview-v*.mp4
+design/night-city/*-preview.png
+design/night-city/verification.json
+design/night-city-garage/*-preview.png
+design/night-city-garage/preview.mp4
+design/night-city-garage/verification.json
+design/night-city-garage/*-source.glb
+design/night-city-garage/references/
 
 # Tooling
 .vercel/

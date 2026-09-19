@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+.intro-signal-slice { position: absolute; inset: 0; }
+.intro-signal-slice::after { content: ""; position: absolute; inset: 0; background: #39dcec; mix-blend-mode: color; opacity: .65; }
+.intro-signal-slice-1::after { background: #ff249d; }
+.intro-signal-scan { background: repeating-linear-gradient(0deg, transparent 0 3px, #54dbec 3px 4px); }
+.garage-model:fullscreen { width: 100vw; height: 100dvh; aspect-ratio: auto; }
+
 /* ===========================================================================
    Base
    =========================================================================== */
@@ -1321,6 +1327,7 @@ html[data-fx-reactive="off"] [data-reactive] { --bass: 0 !important; --level: 0 
    over the door covered the door's way out on a laptop-height viewport. */
 html[data-gated="true"] .gpu-notice,
 html[data-intro="true"] .gpu-notice { display: none; }
+html[data-intro="true"] .reticle { visibility: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .sky-haze, .sky-water::before, .sky-reflect, .sky-sign-flicker .sky-sign-face { animation: none; }

@@ -2,7 +2,7 @@
 //
 // The garage's other bay. Where the photograph view pins parts on a picture,
 // this pins them on the model: a three.js scene (src/lib/garage-scene.js)
-// with Ali's S4, the one he built in Blender, on a lit floor, a hood that
+// with Ali's S4 inside a Blender-built Night City workshop, a hood that
 // opens over the engine bay, and a numbered marker floating at every part,
 // projected from its position on the car each frame. Dragging turns the
 // car, the buttons and the keys zoom it, the three tabs in the bezel move
@@ -10,7 +10,7 @@
 // on a marker selects the part exactly as a click on a photograph's pin
 // does. The detail card is the same card.
 //
-// three.js and the model never load until this mounts (garage3d.js), so a
+// three.js and the room load as this approaches the viewport, so a
 // reader who keeps the photographs pays nothing for the model. If WebGL is
 // missing or the download fails, the bay says so and offers the photographs.
 //
@@ -20,7 +20,7 @@
 // positions straight to the DOM every frame; React never rerenders for a
 // camera move.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ZoomIn, ZoomOut } from "lucide-react";
+import { Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import { loadGarage3d } from "../lib/garage3d";
 import { usePrefersReducedMotion } from "../hooks";
 
@@ -37,6 +37,8 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
   const [hoodOpen, setHoodOpen] = useState(false);
   const [hasHood, setHasHood] = useState(false);
   const [focus, setFocus] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const [showParts, setShowParts] = useState(true);
   const focusRef = useRef(0);
   focusRef.current = focus;
   const markersRef = useRef(markers);
@@ -47,6 +49,13 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
     let alive = true;
     let ro = null;
     let io = null;
+    let near = null;
+    let visible = false;
+    const visibility = () => {
+      const scene = sceneRef.current;
+      if (visible && !document.hidden) scene?.start();
+      else scene?.stop();
+    };
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return undefined;
@@ -69,7 +78,7 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
       if (cur && !cur.visible && firstVisible >= 0) setFocus(firstVisible);
     };
 
-    loadGarage3d()
+    const load = () => loadGarage3d()
       .then((mod) => {
         if (!alive) return;
         const scene = mod.createGarageScene(canvas, { markers: markersRef.current, onFrame, reduced });
@@ -81,8 +90,9 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
         ro = new ResizeObserver(() => scene.resize(wrap.clientWidth, wrap.clientHeight));
         ro.observe(wrap);
         // Render only while on screen.
-        io = new IntersectionObserver(([e]) => (e.isIntersecting ? scene.start() : scene.stop()), { threshold: 0.05 });
+        io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; visibility(); }, { threshold: 0.05 });
         io.observe(wrap);
+        document.addEventListener("visibilitychange", visibility);
         setState("ready");
       })
       .catch((err) => {
@@ -90,16 +100,33 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
         if (alive) setState("failed");
       });
 
+    // Room decoding and reflection capture wait until the garage is near
+    // the viewport, keeping that work out of the opening cinematic.
+    near = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      near.disconnect();
+      load();
+    }, { rootMargin: "500px 0px" });
+    near.observe(wrap);
+
     return () => {
       alive = false;
       ro?.disconnect();
       io?.disconnect();
+      near?.disconnect();
+      document.removeEventListener("visibilitychange", visibility);
       sceneRef.current?.dispose();
       sceneRef.current = null;
     };
     // The scene is built once for the markers it was given; the view and
     // the selection are pushed to it below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const changed = () => setExpanded(document.fullscreenElement === wrapRef.current);
+    document.addEventListener("fullscreenchange", changed);
+    return () => document.removeEventListener("fullscreenchange", changed);
   }, []);
 
   // The bezel's tabs move the camera and the hood.
@@ -125,6 +152,18 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
   }, [view]);
 
   const zoom = (factor) => sceneRef.current?.zoomBy(factor);
+  const explore = () => {
+    sceneRef.current?.setPreset("room");
+    setHoodOpen(false);
+    setShowParts(false);
+  };
+  const expand = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else {
+      setShowParts(false);
+      wrapRef.current?.requestFullscreen?.().catch(() => {});
+    }
+  };
 
   // Roving tabindex over the markers; arrows walk them in sheet order,
   // skipping the ones the hood is hiding.
@@ -173,18 +212,20 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
   };
 
   return (
-    <div ref={wrapRef} className="garage-model relative aspect-[4/5] md:aspect-[4/3] bg-ink-deep overflow-clip">
+    <div ref={wrapRef} className="garage-model relative aspect-[4/5] md:aspect-[4/3] bg-ink-deep overflow-clip" onKeyDown={(e) => {
+      if (e.key === "Escape" && document.fullscreenElement === wrapRef.current) document.exitFullscreen();
+    }}>
       <canvas
         ref={canvasRef}
         tabIndex={0}
         role="img"
-        aria-label="A 3D model of the car. Drag to turn it; arrow keys turn it too, and plus and minus zoom."
+        aria-label="Ali's Audi S4 in a Night City garage. Drag or use arrow keys to orbit the room; plus and minus zoom."
         onKeyDown={onCanvasKey}
         className="absolute inset-0 w-full h-full block outline-none touch-none"
       />
 
       {state === "loading" && (
-        <p className="absolute inset-0 grid place-items-center mono-label text-dim" aria-live="polite">loading the model…</p>
+        <p className="absolute inset-0 grid place-items-center mono-label text-dim" aria-live="polite">opening the garage…</p>
       )}
       {state === "failed" && (
         <div className="absolute inset-0 grid place-items-center p-6 text-center">
@@ -199,6 +240,17 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
 
       {/* The markers. */}
       {state === "ready" && (
+        <div className="absolute top-3 right-3 flex gap-2">
+          <button type="button" onClick={() => setShowParts((on) => !on)} aria-pressed={showParts} className={`${BUTTON} px-2.5 py-2`}>{showParts ? "Hide parts" : "Show parts"}</button>
+          <button type="button" onClick={explore} className={`${BUTTON} px-2.5 py-2`}>Explore garage</button>
+          {document.fullscreenEnabled && (
+            <button type="button" onClick={expand} aria-label={expanded ? "Exit full screen" : "Expand garage"} className={`${BUTTON} p-2`}>
+              {expanded ? <Minimize2 className="w-4 h-4" aria-hidden="true" /> : <Maximize2 className="w-4 h-4" aria-hidden="true" />}
+            </button>
+          )}
+        </div>
+      )}
+      {state === "ready" && showParts && (
         <div role="group" aria-label="Parts pinned on the model" onKeyDown={onPinKey} className="absolute inset-0 pointer-events-none">
           {markers.map((m, i) => {
             const on = selected === m.id;

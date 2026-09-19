@@ -1,50 +1,14 @@
-// src/components/Hero.jsx
-//
-// What was removed a while back, and stays removed:
-//
-//   "MISSION_BRIEFING // 001 · SUBJECT: ALI_YOUNES"   invented framing
-//   a 7-row "vitals" panel                            six of its seven rows
-//                                                     were ornament: a live
-//                                                     clock, 42.3601°N
-//                                                     71.0589°W, "IV · vol.
-//                                                     xxvi", "uplink ● stable"
-//                                                     and a version string
-//   "architecting scalable enterprise infrastructure" typed one character at a
-//                                                     time as the first
-//                                                     sentence on the site
-//
-// Every one of those would look completely at home in a Cyberpunk 2077 hero,
-// which is exactly why this file names them. The theme changed; the rule did
-// not. Three facts sit under the name and all three are checkable.
-//
-// The name is the design. It runs the full width of the gutter at a size
-// nothing else on the site approaches, and it resolves out of character noise
-// once, as the intro's last black tears off it.
-//
-// Behind it now: the city. A painted skyline (src/assets/Intro/Skyline.png,
-// see docs/PROJECT_CONTEXT.md) held almost black, with a parallax a third of
-// the scroll, so the intro's moon-to-city descent lands somewhere. Since the
-// skyline came alive (Skyline.jsx: rooftop signage, haze, the signs in the
-// water, all of it breathing with the track) the city is company too, but it
-// is company in the background: nothing in it sits behind text, and every
-// part of it can be switched off from the console. The tyre marks are the
-// car's: two curves drawn across the floor of the section in the second
-// after the reveal, then left there faint, and then driven: four small cars
-// run the curve in both lanes (RoadTraffic.jsx), at the size of a
-// fingernail, which is the only size at which a looping animation on a hero
-// is company rather than noise.
+// The city holds its framing from the intro while the portfolio appears.
 import React from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowRight, Github, Linkedin, Mail } from "lucide-react";
 import { profile, links } from "../data/profile";
 import { portrait } from "../data/life";
 import { scrollToSection } from "../lib/scroll";
 import { useIntroDone } from "../lib/intro";
 import Picture from "./Picture";
-import RoadTraffic from "./RoadTraffic";
-import Skyline from "./Skyline";
+import NightCity from "./NightCity";
 import Panel from "./ui/Panel";
-import Glitch from "./ui/Glitch";
 
 // Every block below shares this pair and picks its own delay. `animate` is
 // held at "initial" until the intro is over, so nothing here spends its
@@ -59,67 +23,18 @@ export default function Hero() {
   const done = useIntroDone();
   const state = done ? "animate" : "initial";
 
-  const { scrollY } = useScroll();
-  const skyY = useTransform(scrollY, [0, 1200], [0, 190]);
-
   return (
     <section
       id="hero"
       className="relative min-h-[100svh] flex flex-col justify-center gutter pt-32 pb-16 overflow-hidden"
     >
-      {/* The city. Taller than the section so the parallax never shows an
-          edge, graded to ink on the left where the name sits and along the
-          bottom where the section hands off. From lg up it sits higher in
-          the section than it did, so the rooftops (and the signs mounted on
-          them, see Skyline.jsx) rise into the band between the name and the
-          ledger instead of hiding behind the ledger's panels and the
-          portrait. */}
-      <motion.div
-        aria-hidden="true"
-        className="absolute inset-x-0 -top-[14%] -bottom-[14%] lg:-top-[26%] lg:-bottom-[2%] pointer-events-none"
-        style={{ y: skyY }}
-      >
-        <Skyline className="absolute inset-0" />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/55 to-ink/5" />
-        {/* Two bands rather than one: a soft one over the lower half so the
-            ledger reads, and a solid one at the foot so the section hands
-            off to the next in ink. Lighter than it was, because the water
-            with the signs in it lives here and a wall of ink over it would
-            leave nothing to reflect. */}
-        <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-ink/60 via-ink/30 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-[9%] bg-gradient-to-t from-ink to-transparent" />
-      </motion.div>
-      <div className="absolute inset-0 crt-grid opacity-50 pointer-events-none" aria-hidden="true" />
+      <div className="absolute inset-x-0 top-0 h-[100svh] pointer-events-none" aria-hidden="true">
+        <NightCity className="absolute inset-0 block" />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink/90 via-ink/65 to-ink/35" />
+        <div className="absolute inset-0 bg-gradient-to-b from-ink/25 via-transparent to-ink" />
+      </div>
 
-      {/* The road. Two parallel curves, the track of a car that came through
-          from the right and left toward the bottom left, and the traffic
-          that followed it. */}
-      <svg
-        aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-[42%] w-full pointer-events-none"
-        viewBox="0 0 1000 300"
-        preserveAspectRatio="xMidYMax slice"
-      >
-        {[
-          "M 1060 30 C 820 55, 700 205, 470 195 S 210 125, -60 275",
-          "M 1060 82 C 840 107, 720 250, 490 240 S 230 178, -60 318",
-        ].map((d, i) => (
-          <motion.path
-            key={i}
-            d={d}
-            fill="none"
-            stroke="rgb(252 238 10 / 0.34)"
-            strokeWidth="7"
-            strokeLinecap="round"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={done ? { pathLength: 1, opacity: [0, 0.9, 0.55] } : { pathLength: 0, opacity: 0 }}
-            transition={{ duration: 1.15, delay: 0.05 + i * 0.05, ease: "easeOut" }}
-          />
-        ))}
-        <RoadTraffic active={done} />
-      </svg>
-
-      <div className="relative w-full">
+      <div className="relative w-full" data-handoff-content="">
         {/* ---- name ------------------------------------------------------- */}
         {/* The chromatic split is driven by the kick while the track plays:
             --bass comes from src/lib/reactive.js and is 0 in silence. */}
@@ -132,10 +47,10 @@ export default function Hero() {
           style={{ "--burst": "var(--bass, 0)" }}
           data-reactive=""
         >
-          <Glitch duration={780} active={done}>{profile.first.toUpperCase()}</Glitch>{" "}
-          <Glitch duration={780} active={done} className="text-volt">
+          {profile.first.toUpperCase()}{" "}
+          <span className="text-volt">
             {profile.last.toUpperCase()}
-          </Glitch>
+          </span>
         </motion.h1>
 
         {/* Everything under the name shares a row with the portrait at lg and

@@ -1,32 +1,19 @@
-// src/lib/garage-scene.js: the bay, in three dimensions.
-//
-// Loaded on demand through garage3d.js. Ali's S4, the model he built in
-// Blender from the photographs (design/audi-s4/README.md), on a dark floor
-// under a studio light, orbitable, with its hood on a hinge and a set of
-// anchor points the page turns into numbered markers. It is the same GLB the
-// intro drifts (src/three/car/object.js): one download, and each scene its
-// own copy on the GPU. Everything the page needs is on the object this
-// returns: presets for the three views, the hood, a per-frame projection of
-// every anchor to canvas pixels, and dispose().
-//
-// Rules:
-//   - The canvas is transparent; the panel behind it is the ink. The floor
-//     is a disc that fades to nothing, so the car sits in the page rather
-//     than in a box.
-//   - No React state changes per frame. The page hands in a callback and
-//     this module calls it with the projected markers; the page writes them
-//     to the DOM directly.
-//   - The wheel scrolls the page, not the camera: a canvas in the middle of
-//     a long page must not catch the reader's scroll. Pinch, the buttons and
-//     the keys zoom, and so does the wheel with ctrl or command held.
-//   - Under prefers-reduced-motion nothing moves on its own: no idle turn,
-//     and the camera and the hood jump instead of tweening.
+// The S4 inside the Blender-built Night City garage. Camera, hood and
+// marker projection share the original controls. The room owns its media.
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { SSAOPass } from "three/addons/postprocessing/SSAOPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
+import { createGarageRoom, preloadGarageRoom } from "../three/garage-room.js";
+import { preloadCar } from "../three/car/object.js";
+import { createGarageFloor } from "../three/garage-floor.js";
 import { createObject } from "../three/car/object.js";
 
-export { preloadCar } from "../three/car/object.js";
+export const preloadGarage = () => Promise.all([preloadCar(), preloadGarageRoom()]);
 
 // Where the camera stands for each of the bay's five tabs. Position and
 // target in metres; the car faces +Z, its driver's side is +X, and it rests
@@ -34,7 +21,8 @@ export { preloadCar } from "../three/car/object.js";
 // at the front left wheel; the cabin tab looks down through the windshield
 // at the MMI.
 export const PRESETS = {
-  front: { position: [3.8, 1.65, 5.6], target: [0, 0.55, 0.2], hood: false },
+  front: { position: [3.6, 1.75, 5.8], target: [0, 1.4, -1], hood: false },
+  room: { position: [0.5, 2.5, 2.4], target: [-2.4, 2.6, -5.6], hood: false },
   bay: { position: [-1.0, 3.9, 5.6], target: [0.05, 0.85, 1.2], hood: true },
   rear: { position: [-3.6, 1.5, -5.1], target: [0, 0.55, -0.3], hood: false },
   wheel: { position: [3.5, 0.92, 3.2], target: [0.8, 0.36, 1.4], hood: false },
@@ -42,57 +30,11 @@ export const PRESETS = {
 };
 
 const ZOOM_MIN = 3.2;
-const ZOOM_MAX = 10;
-const deg = THREE.MathUtils.degToRad;
+const ZOOM_MAX = 9.5;
 const easeOut = (p) => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
 
-/** The floor: a dark disc with a warm pool of light under the car and a
- *  faint grid, drawn once to a canvas. */
-function floorTexture() {
-  const s = 1024;
-  const c = document.createElement("canvas");
-  c.width = c.height = s;
-  const ctx = c.getContext("2d");
-  ctx.fillStyle = "#0b0b0d";
-  ctx.fillRect(0, 0, s, s);
-  // The grid.
-  ctx.strokeStyle = "rgba(252, 238, 10, 0.05)";
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= s; i += 64) {
-    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, s); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i); ctx.stroke();
-  }
-  // The pool of light.
-  const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  g.addColorStop(0, "rgba(252, 238, 10, 0.12)");
-  g.addColorStop(0.45, "rgba(252, 238, 10, 0.04)");
-  g.addColorStop(0.7, "rgba(11, 11, 13, 0)");
-  g.addColorStop(1, "rgba(11, 11, 13, 0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, s, s);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  return tex;
-}
-
-/** The floor's alpha: solid under the car, gone at the edge of the disc. */
-function floorAlpha() {
-  const s = 512;
-  const c = document.createElement("canvas");
-  c.width = c.height = s;
-  const ctx = c.getContext("2d");
-  const g = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  g.addColorStop(0, "#fff");
-  g.addColorStop(0.55, "#fff");
-  g.addColorStop(1, "#000");
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, s, s);
-  return new THREE.CanvasTexture(c);
-}
-
 /**
- * Build the scene on `canvas`. Call preloadCar() first (garage3d.js does).
+ * Build the scene on `canvas`. Call preloadGarage() first (garage3d.js does).
  *
  *   markers   [{ id, anchor }]; anchor is { part, offset? } for a point at
  *             the centre of a named node of the model, { at: [x, y, z] }
@@ -109,19 +51,17 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
+  renderer.toneMappingExposure = 0.86;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
 
   const scene = new THREE.Scene();
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  // The paint is a dark metallic grey that reads as silver under a full
-  // room; this keeps it the grey of the photographs.
-  scene.environmentIntensity = 0.8;
-  pmrem.dispose();
+  scene.background = new THREE.Color("#060a10");
+  const room = createGarageRoom(scene, renderer, { reduced });
 
-  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 80);
+  const camera = new THREE.PerspectiveCamera(48, 1, 0.08, 50);
   camera.position.set(...PRESETS.front.position);
 
   const controls = new OrbitControls(camera, canvas);
@@ -132,7 +72,8 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   controls.minDistance = ZOOM_MIN;
   controls.maxDistance = ZOOM_MAX;
   controls.maxPolarAngle = Math.PI * 0.49;
-  controls.autoRotate = !reduced;
+  controls.minPolarAngle = Math.PI * 0.23;
+  controls.autoRotate = false;
   controls.autoRotateSpeed = 0.45;
   controls.update();
 
@@ -167,6 +108,8 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   car.position.y -= box.min.y;
   car.updateMatrixWorld(true);
   box.setFromObject(car);
+  renderer.shadowMap.needsUpdate = true;
+  const wetFloor = createGarageFloor(scene);
 
   // The hood: object.js drives the hinge and the gas strut from a 0 to 1
   // progress; this only tweens the number.
@@ -222,55 +165,23 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
       parts,
       size: size.toArray().map((n) => +n.toFixed(2)),
       distance: () => +camera.position.distanceTo(controls.target).toFixed(3),
+      room: () => ({ nodes: room.room.children.map((o) => o.name), active: room.active, videoPaused: room.video.paused, videoTime: room.video.currentTime, camera: camera.position.toArray() }),
+      preset: (name) => setPreset(name),
     };
   }
 
-  // ---- the floor and the lights ------------------------------------------
-  // The colour multiplies the map, and the roughness and the low
-  // environment share keep the floor matte: the key light is bright enough
-  // for the paint, and from a low camera its reflection would otherwise
-  // wash the whole floor grey.
-  const floorMat = new THREE.MeshStandardMaterial({
-    map: floorTexture(),
-    alphaMap: floorAlpha(),
-    color: "#4a4a4e",
-    transparent: true,
-    roughness: 1,
-    metalness: 0,
-    envMapIntensity: 0.2,
-  });
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(9, 72), floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
-
-  // A ring on the floor marks the bay.
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(3.42, 3.46, 96),
-    new THREE.MeshBasicMaterial({ color: "#fcee0a", transparent: true, opacity: 0.32, depthWrite: false }),
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.004;
-  scene.add(ring);
-
-  const key = new THREE.SpotLight("#fff4dc", 90, 30, deg(38), 0.6, 1.4);
-  key.position.set(2.5, 6.5, 3.5);
-  key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
-  key.shadow.bias = -0.0004;
-  key.shadow.normalBias = 0.02;
-  key.target.position.set(0, 0.5, 0.3);
-  scene.add(key, key.target);
-
-  const rim = new THREE.DirectionalLight("#fcee0a", 1.1);
-  rim.position.set(-4, 3, -6);
-  scene.add(rim);
-
-  const fill = new THREE.DirectionalLight("#ff2e88", 0.35);
-  fill.position.set(5, 2, -3);
-  scene.add(fill);
-
-  scene.add(new THREE.HemisphereLight("#3c3c46", "#050506", 0.7));
+  const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
+  const composer = new EffectComposer(renderer, target);
+  composer.addPass(new RenderPass(scene, camera));
+  const ambientOcclusion = new SSAOPass(scene, camera, 1, 1, 16);
+  ambientOcclusion.kernelRadius = 0.42;
+  ambientOcclusion.minDistance = 0.001;
+  ambientOcclusion.maxDistance = 0.16;
+  composer.addPass(ambientOcclusion);
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.14, 0.25, 1.8));
+  composer.addPass(new OutputPass());
+  composer.addPass(new SMAAPass());
+  if (import.meta.env.DEV) window.__garage.rendering = { scene, camera, renderer, composer, ambientOcclusion };
 
   // ---- camera moves --------------------------------------------------------
   let tween = null;
@@ -282,10 +193,11 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   function setPreset(name) {
     const p = PRESETS[name] || PRESETS.front;
     _toT.set(...p.target);
+    if (camera.aspect < 1 && name === "front") _toT.z = 0;
     // The presets were framed for a 4:3 canvas. A portrait frame is
     // narrower than the car is long, so the camera stands further back
     // along the same line of sight.
-    const back = camera.aspect < 1 ? 1.4 : 1;
+    const back = camera.aspect < 1 ? (name === "front" ? 1.2 : 1.08) : 1;
     _to.set(...p.position).sub(_toT).multiplyScalar(back).add(_toT);
     controls.autoRotate = false;
     if (reduced) {
@@ -310,6 +222,7 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     if (reduced) {
       hoodAt = hoodTo;
       setHoodProgress(hoodAt);
+      renderer.shadowMap.needsUpdate = true;
       hoodT0 = 0;
     }
   }
@@ -323,7 +236,7 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     _off.copy(camera.position).sub(controls.target);
     _sph.setFromVector3(_off);
     _sph.theta += dAz;
-    _sph.phi = Math.min(controls.maxPolarAngle, Math.max(0.15, _sph.phi + dPol));
+    _sph.phi = Math.min(controls.maxPolarAngle, Math.max(controls.minPolarAngle, _sph.phi + dPol));
     _off.setFromSpherical(_sph);
     camera.position.copy(controls.target).add(_off);
     controls.update();
@@ -363,10 +276,16 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
       const p = easeOut((now - hoodT0) / 900);
       hoodAt = hoodFrom + (hoodTo - hoodFrom) * p;
       setHoodProgress(hoodAt);
+      renderer.shadowMap.needsUpdate = true;
       if (p >= 1) hoodT0 = 0;
     }
     controls.update();
-    renderer.render(scene, camera);
+    // The enclosed room bounds also apply while a preset is tweening.
+    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -6.6, 6.6);
+    camera.position.y = THREE.MathUtils.clamp(camera.position.y, 0.3, 5.1);
+    camera.position.z = THREE.MathUtils.clamp(camera.position.z, -6.5, 8.3);
+    room.update(now);
+    composer.render();
 
     if (onFrame) {
       camera.getWorldPosition(_cam);
@@ -397,11 +316,13 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   function start() {
     if (!running) {
       running = true;
+      room.start();
       raf = requestAnimationFrame(frame);
     }
   }
   function stop() {
     running = false;
+    room.stop();
     cancelAnimationFrame(raf);
     raf = 0;
   }
@@ -409,10 +330,16 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   function resize(w, h) {
     width = Math.max(1, w);
     height = Math.max(1, h);
+    // Keep small retina canvases crisp without rendering a five-million-
+    // pixel postprocessing stack when the garage enters full screen.
+    const ratio = Math.min(window.devicePixelRatio || 1, 2, Math.max(1, Math.sqrt(1_300_000 / (width * height))));
+    renderer.setPixelRatio(ratio);
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    if (!running) renderer.render(scene, camera);
+    composer.setPixelRatio(ratio);
+    composer.setSize(width, height);
+    if (!running) composer.render();
   }
 
   function dispose() {
@@ -420,14 +347,13 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     controls.dispose();
     canvas.removeEventListener("wheel", onWheel, { capture: true });
     car.userData.dispose();
-    for (const mesh of [floor, ring]) {
-      mesh.geometry.dispose();
-      mesh.material.dispose();
-    }
-    floorMat.map.dispose();
-    floorMat.alphaMap.dispose();
-    key.shadow.map?.dispose();
-    scene.environment?.dispose?.();
+    room.dispose();
+    wetFloor.dispose();
+    for (const pass of composer.passes) pass.dispose?.();
+    ambientOcclusion.ssaoMaterial.dispose();
+    ambientOcclusion.noiseTexture.dispose();
+    composer.dispose();
+    if (import.meta.env.DEV) delete window.__garage;
     renderer.dispose();
     renderer.forceContextLoss();
   }
