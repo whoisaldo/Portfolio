@@ -385,6 +385,45 @@ a:hover .ink-underline,
   .affil-mark { animation: none; }
 }
 
+/* The eddies mark on the dossier's job-board line.
+   ---------------------------------------------------------------------------
+   "Will do hard job for Eddies" is a Night City line, and to a reader who has
+   never played the game the last word is a drug. The mark after it is what the
+   word means: a credit shard, the fanned stack of payment tags with a
+   eurodollar knocked out of the front one.
+
+   Drawn solid with the glyph as negative space rather than as an outline with
+   a glyph inside it. At the 25px it renders at, two thin strokes competing
+   inside twenty pixels both turn to mush; a solid mass with holes punched in
+   it survives. Built by GPT-6-Astra through the codex-3d skill, source at
+   src/assets/About/EddieShard.svg, and painted in currentColor so it takes the
+   volt from the line it follows.
+
+   It takes the same hit the affiliation marks take, on its own clock. Same
+   keyframes on purpose: this card already glitches three logos a few rows up,
+   and a second kind of hit inside one card would be two ideas where there is
+   one. The duration is deliberately not theirs, so the shard drifts against
+   that row over a few minutes instead of firing with it. `steps(1, end)`
+   means the filter is only recomputed on the six keyframe boundaries rather
+   than every frame, which is what keeps an always-running drop-shadow off the
+   compositor's back. */
+.eddie-mark { display: inline-flex; }
+.eddie-mark > svg {
+  display: block;
+  height: 2.2em;
+  width: auto;
+  animation: affil-glitch 8.3s steps(1, end) infinite;
+}
+
+/* The same trap the affiliation marks fell into, and it has to be answered
+   after the rule above rather than up in their block: `.eddie-mark > svg` is
+   a more specific selector than `.affil-mark`, so an `animation: none` sitting
+   earlier in the file would lose to it and the shard would keep glitching for
+   a reader who asked everything to hold still. */
+@media (prefers-reduced-motion: reduce) {
+  .eddie-mark > svg { animation: none; }
+}
+
 /* ===========================================================================
    The door's glitch
    ---------------------------------------------------------------------------

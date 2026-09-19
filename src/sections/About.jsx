@@ -27,6 +27,9 @@ import { operator } from "../data/life";
 import awsLogo from "../assets/PreviousExperience/awslogosvg.norm.png";
 import philipsLogo from "../assets/PreviousExperience/PhilipsLogo.norm.png";
 import pinnatecLogo from "../assets/PreviousExperience/PinnatecAuto.norm.png";
+// Inlined rather than used as an <img> src, because the mark is painted in
+// currentColor and has to take the volt from the line it sits in.
+import eddieShard from "../assets/About/EddieShard.svg?raw";
 import Panel from "../components/ui/Panel";
 import Picture from "../components/Picture";
 import Glitch from "../components/ui/Glitch";
@@ -251,10 +254,22 @@ export default function About() {
 
                   Hazard tick rather than the pinging dot in the hero. That dot
                   belongs to the one row on the site reporting something live,
-                  and a second one would spend it. */}
+                  and a second one would spend it.
+
+                  The shard closes the line because "Eddies" is the one word
+                  here that a reader outside Night City can take for something
+                  else entirely, and a eurodollar on a payment tag says which
+                  one it is faster than any rewording would. */}
               <p className="mt-8 flex items-center gap-3">
                 <span className="hazard h-1.5 w-6 shrink-0 opacity-50" aria-hidden="true" />
-                <span className="mono-ui text-volt">Will do hard job for Eddies</span>
+                <span className="mono-ui text-volt inline-flex items-center gap-2">
+                  Will do hard job for Eddies
+                  <span
+                    className="eddie-mark"
+                    aria-hidden="true"
+                    dangerouslySetInnerHTML={{ __html: eddieShard }}
+                  />
+                </span>
               </p>
 
               <div className="mt-6 pt-6 border-t border-ink-line flex flex-wrap gap-x-6 gap-y-3">
