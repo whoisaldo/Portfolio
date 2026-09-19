@@ -21,7 +21,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { createObject } from "../three/car/object.js";
 export { preloadCar } from "../three/car/object.js";
-import { CAR_GONE, DROP } from "./cues";
+import { DROP } from "./cues";
 
 // ---------------------------------------------------------------------------
 // The path. Seconds after the drop, x (right), z (toward the camera), and the
@@ -48,48 +48,110 @@ const KEYS = [
   [3.8, -8.5, -14.0, 0],
 ];
 const APEX_Z = 5.6;
-const LAST = KEYS[KEYS.length - 1][0];
-
-const curve = new THREE.CatmullRomCurve3(
-  KEYS.map((k) => new THREE.Vector3(k[1], 0, k[2])),
-  false,
-  "catmullrom",
-  0.5,
-);
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (p) => p * p * (3 - 2 * p);
 const deg = Math.PI / 180;
 
-/** Curve parameter for `d` seconds after the drop. Keys are spaced by time,
- *  the curve by index, so this maps one onto the other. */
-function uOf(d) {
-  const n = KEYS.length;
-  if (d <= KEYS[0][0]) return 0;
-  if (d >= LAST) return 1;
-  let i = 0;
-  while (i < n - 2 && d >= KEYS[i + 1][0]) i++;
-  const f = (d - KEYS[i][0]) / (KEYS[i + 1][0] - KEYS[i][0]);
-  return (i + f) / (n - 1);
-}
-
-/** Slip angle in radians at `d`, eased between keys. */
-function slipOf(d) {
-  const n = KEYS.length;
-  if (d <= KEYS[0][0]) return KEYS[0][3] * deg;
-  if (d >= LAST) return KEYS[n - 1][3] * deg;
-  let i = 0;
-  while (i < n - 2 && d >= KEYS[i + 1][0]) i++;
-  const f = smooth((d - KEYS[i][0]) / (KEYS[i + 1][0] - KEYS[i][0]));
-  return (KEYS[i][3] + (KEYS[i + 1][3] - KEYS[i][3]) * f) * deg;
-}
-
-const _p = new THREE.Vector3();
-const _q = new THREE.Vector3();
-const _t = new THREE.Vector3();
+// ---------------------------------------------------------------------------
+// How the keys become motion.
+//
+// The first cut ran a Catmull-Rom curve through the key positions and mapped
+// time onto it a segment at a time, with the slip eased between keys on its
+// own. That put the car on every key on its beat and moved it badly in
+// between: a curve's speed is a property of its shape, not of the clock, so
+// the car's velocity jumped at every key (by 40% at the apex); the curve's
+// tangent wobbled through the short segments around the apex, so the yaw
+// rate swung between +90 and -300 degrees a second a few metres from the
+// lens; and the eased slip stopped and restarted its swing at every key.
+// Measured at 60 fps, the yaw rate changed by 200 degrees a second between
+// two consecutive frames. That was the hitch in the drift.
+//
+// Now x, z and slip are each a cubic spline in TIME through the same keys.
+// Position is C2, so the velocity the heading is read from is smooth and the
+// yaw is smooth with it; slip is clamped flat at both ends so it arrives at
+// and leaves zero without a kink. The choreography is unchanged: the car is
+// at every key on the same beat, and the path between them is within a few
+// centimetres of the old one. Before the first key and after the last the
+// car continues along the end tangent at the end speed, which is how it
+// arrives at speed and how it leaves without the dead stop the old curve
+// ended in.
+// ---------------------------------------------------------------------------
 
 /**
- * Position, heading, yaw, slip and speed at `d` seconds after the drop.
+ * A cubic spline through (t[i], y[i]). Natural by default (zero curvature at
+ * both ends, and it continues straight beyond them); `flat` clamps the slope
+ * to zero at both ends and holds the end values beyond them.
+ *
+ * Returns an evaluator that writes the value and its time derivative into
+ * `out`, so the frame loop allocates nothing.
+ */
+function spline(t, y, flat = false) {
+  const n = t.length;
+  const h = new Float64Array(n - 1);
+  for (let i = 0; i < n - 1; i++) h[i] = t[i + 1] - t[i];
+  // Tridiagonal solve for the second-derivative coefficients c[i].
+  const mu = new Float64Array(n);
+  const z = new Float64Array(n);
+  const c = new Float64Array(n);
+  if (flat) {
+    mu[0] = 0.5;
+    z[0] = ((3 * (y[1] - y[0])) / h[0]) / (2 * h[0]);
+  }
+  for (let i = 1; i < n - 1; i++) {
+    const alpha = (3 / h[i]) * (y[i + 1] - y[i]) - (3 / h[i - 1]) * (y[i] - y[i - 1]);
+    const l = 2 * (t[i + 1] - t[i - 1]) - h[i - 1] * mu[i - 1];
+    mu[i] = h[i] / l;
+    z[i] = (alpha - h[i - 1] * z[i - 1]) / l;
+  }
+  if (flat) {
+    const alpha = (-3 * (y[n - 1] - y[n - 2])) / h[n - 2];
+    const l = h[n - 2] * (2 - mu[n - 2]);
+    z[n - 1] = (alpha - h[n - 2] * z[n - 2]) / l;
+    c[n - 1] = z[n - 1];
+  }
+  const b = new Float64Array(n - 1);
+  const d = new Float64Array(n - 1);
+  for (let j = n - 2; j >= 0; j--) {
+    c[j] = z[j] - mu[j] * c[j + 1];
+    b[j] = (y[j + 1] - y[j]) / h[j] - (h[j] * (c[j + 1] + 2 * c[j])) / 3;
+    d[j] = (c[j + 1] - c[j]) / (3 * h[j]);
+  }
+  const hl = h[n - 2];
+  const vEnd = flat ? 0 : b[n - 2] + 2 * c[n - 2] * hl + 3 * d[n - 2] * hl * hl;
+  const v0 = flat ? 0 : b[0];
+  return (x, out) => {
+    if (x <= t[0]) {
+      out.v = y[0] + v0 * (x - t[0]);
+      out.dv = v0;
+      return out;
+    }
+    if (x >= t[n - 1]) {
+      out.v = y[n - 1] + vEnd * (x - t[n - 1]);
+      out.dv = vEnd;
+      return out;
+    }
+    let i = 0;
+    while (i < n - 2 && x >= t[i + 1]) i++;
+    const s = x - t[i];
+    out.v = y[i] + b[i] * s + c[i] * s * s + d[i] * s * s * s;
+    out.dv = b[i] + 2 * c[i] * s + 3 * d[i] * s * s;
+    return out;
+  };
+}
+
+const TIMES = KEYS.map((k) => k[0]);
+const pathX = spline(TIMES, KEYS.map((k) => k[1]));
+const pathZ = spline(TIMES, KEYS.map((k) => k[2]));
+const pathSlip = spline(TIMES, KEYS.map((k) => k[3] * deg), true);
+const _x = { v: 0, dv: 0 };
+const _z = { v: 0, dv: 0 };
+const _s = { v: 0, dv: 0 };
+const _pose = { x: 0, z: 0, heading: 0, slip: 0, speed: 0 };
+
+/**
+ * Position, heading, slip and speed at `d` seconds after the drop. Heading
+ * is the direction of travel; the car's yaw is heading plus slip.
  *
  * `xScale` squeezes the path sideways for narrow viewports. The keys were
  * laid out for a 16:10 screen; on a phone the frustum is a third as wide,
@@ -97,28 +159,17 @@ const _t = new THREE.Vector3();
  * the frame long before it is far enough away to be small.
  */
 function poseAt(d, xScale = 1) {
-  if (d < 0) {
-    // Before the drop the car is off the right edge, backed up along its
-    // own entry tangent so it arrives at speed rather than from rest.
-    curve.getPoint(0, _p);
-    curve.getTangent(0, _t);
-    const v0 = 26;
-    _p.addScaledVector(_t, v0 * d);
-    _p.x *= xScale;
-    _t.x *= xScale;
-    return { x: _p.x, z: _p.z, heading: Math.atan2(_t.x, _t.z), slip: 0, speed: v0 };
-  }
-  const u = uOf(d);
-  curve.getPoint(u, _p);
-  curve.getTangent(u, _t);
-  // Speed from the curve itself: where it is now against where it will be
-  // twenty milliseconds on.
-  curve.getPoint(uOf(Math.min(LAST, d + 0.02)), _q);
-  _p.x *= xScale;
-  _q.x *= xScale;
-  _t.x *= xScale;
-  const speed = _q.distanceTo(_p) / 0.02;
-  return { x: _p.x, z: _p.z, heading: Math.atan2(_t.x, _t.z), slip: slipOf(d), speed };
+  pathX(d, _x);
+  pathZ(d, _z);
+  pathSlip(d, _s);
+  const vx = _x.dv * xScale;
+  const vz = _z.dv;
+  _pose.x = _x.v * xScale;
+  _pose.z = _z.v;
+  _pose.heading = Math.atan2(vx, vz);
+  _pose.slip = _s.v;
+  _pose.speed = Math.hypot(vx, vz);
+  return _pose;
 }
 
 // ---------------------------------------------------------------------------
@@ -596,9 +647,16 @@ export function createDriftScene(canvas) {
   const _side = new THREE.Vector3();
   const _back = new THREE.Vector3();
   const _v = new THREE.Vector3();
+  const _jit = new THREE.Vector3();
   let edge = null;
+  // `live` once the intro has drawn a real frame; `warming` during the one
+  // hidden frame the warm-up draws, which must leave no smoke or trail
+  // behind for the real frames to find.
+  let live = false;
+  let warming = false;
+  let disposed = false;
 
-  const render = (s) => {
+  const draw = (s) => {
     // Everything that moves on its own (wheels, smoke, trails) runs on the
     // song clock too, so the whole scene freezes when the clock does.
     const now = s;
@@ -606,12 +664,13 @@ export function createDriftScene(canvas) {
     last = now;
 
     const d = s - DROP;
-    const pose = poseAt(Math.min(d, CAR_GONE - DROP + 0.4), xScale);
+    const pose = poseAt(d, xScale);
     const yaw = pose.heading + pose.slip;
     const slipN = clamp(Math.abs(pose.slip) / (47 * deg), 0, 1);
     // Launch wheelspin: the rears light up again as the car straightens
-    // and goes.
-    const launch = d > 1.35 && d < 2.3 ? smooth(1 - Math.abs((d - 1.8) / 0.5)) : 0;
+    // and goes. The window is exactly where the ramp reaches zero, so it
+    // fades in from nothing rather than switching on.
+    const launch = d > 1.3 && d < 2.3 ? smooth(1 - Math.abs((d - 1.8) / 0.5)) : 0;
     const spin = Math.max(slipN, launch);
 
     car.position.set(pose.x, 0, pose.z);
@@ -638,7 +697,7 @@ export function createDriftScene(canvas) {
     groundMat.uniforms.uCam.value.copy(camera.position);
 
     // Smoke off the rear tyres while they are sliding or spinning.
-    if (d >= 0 && spin > 0.12) {
+    if (d >= 0 && spin > 0.12 && !warming) {
       // The outside of the turn: the car's left in a right-hand drift.
       _side.set(pose.slip < 0 ? 1 : -1, 0, 0).applyQuaternion(car.quaternion);
       _back.set(0, 0, -1).applyQuaternion(car.quaternion);
@@ -652,7 +711,7 @@ export function createDriftScene(canvas) {
           _w.z += (Math.random() - 0.5) * 0.35;
           _v.copy(_side).multiplyScalar(0.9 + 2.4 * slipN + Math.random() * 0.6)
             .addScaledVector(_back, 1.4 + Math.random() * 1.2)
-            .add(new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.25 + Math.random() * 0.4, (Math.random() - 0.5) * 0.8));
+            .add(_jit.set((Math.random() - 0.5) * 0.8, 0.25 + Math.random() * 0.4, (Math.random() - 0.5) * 0.8));
           smoke.emit(_w, _v, now, 0.45 + Math.random() * 0.45 + 0.5 * spin);
         }
       }
@@ -660,7 +719,7 @@ export function createDriftScene(canvas) {
     smoke.update(now);
 
     // Trails.
-    if (d >= 0) {
+    if (d >= 0 && !warming) {
       const strength = clamp(0.35 + pose.speed / 30, 0, 1);
       trailL.push(_w.copy(tailL).applyMatrix4(car.matrixWorld), now, strength);
       trailR.push(_w.copy(tailR).applyMatrix4(car.matrixWorld), now, strength);
@@ -685,7 +744,39 @@ export function createDriftScene(canvas) {
     edge = max === -Infinity ? null : (max + 1) * 50;
   };
 
+  const render = (s) => {
+    live = true;
+    draw(s);
+  };
+
+  // ---- warm-up -----------------------------------------------------------
+  // A shader compiles the first time its material is drawn, and three only
+  // draws what is inside the frustum. So a car that starts off the right
+  // edge has compiled nothing when it arrives, and every one of its
+  // materials compiled on the frame it appeared: measured at 1.4 seconds of
+  // frozen page a third of a second into the drift. Compile everything
+  // first, in the background where the browser allows it, then draw one
+  // frame with the car in front of the lens while the canvas is still
+  // invisible, so the first frame anyone sees has nothing left to set up.
+  const warm = async () => {
+    if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
+    else renderer.compile(scene, camera);
+    // Too late to draw a hidden frame if the real ones have started, and
+    // nothing to draw into if the scene is gone.
+    if (disposed || live) return;
+    warming = true;
+    try {
+      draw(DROP + 1.4);
+    } finally {
+      warming = false;
+      last = null;
+      carry = 0;
+      edge = null;
+    }
+  };
+
   const dispose = () => {
+    disposed = true;
     window.removeEventListener("resize", fit);
     smoke.dispose();
     trailL.dispose();
@@ -705,6 +796,9 @@ export function createDriftScene(canvas) {
 
   return {
     render,
+    /** Compile the shaders and draw one hidden frame. Call once, as soon as
+     *  the scene exists and well before the canvas is shown. */
+    warm,
     /** Right edge of the car on screen in vw, or null when it has left. */
     edgeVw: () => edge,
     dispose,

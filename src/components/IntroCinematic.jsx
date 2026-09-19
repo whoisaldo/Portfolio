@@ -127,6 +127,21 @@ function carPose(s) {
 /** 0 before ignition, 1 at the drop: how far the moon has receded. */
 const recede = (s) => easeIn(clamp((s - C.IGNITION) / (C.DROP - C.IGNITION)));
 
+/**
+ * Camera shake of amplitude `amp` px at song time `s`: three sines per axis
+ * at unrelated frequencies, so the frame rumbles. The first cut drew a fresh
+ * random offset every frame, and a car moving smoothly through a frame that
+ * lands somewhere new sixty times a second is a car that jitters. This is
+ * continuous between frames, and a function of the song, so a still is the
+ * same still every time.
+ */
+function rumble(s, amp) {
+  const t = s * Math.PI * 2;
+  const x = 0.5 * Math.sin(t * 7.3) + 0.3 * Math.sin(t * 11.9 + 1.7) + 0.2 * Math.sin(t * 15.1 + 0.4);
+  const y = 0.5 * Math.sin(t * 8.1 + 2.1) + 0.3 * Math.sin(t * 12.7 + 0.9) + 0.2 * Math.sin(t * 16.3 + 2.6);
+  return `translate(${(x * amp * 0.5).toFixed(2)}px, ${(y * amp * 0.5).toFixed(2)}px)`;
+}
+
 /** One title card. Tears in through CSS slices with a magenta and a cyan
  *  copy offset behind it, holds, and tears out. */
 function TitleCard({ text, out }) {
@@ -385,19 +400,86 @@ export default function IntroCinematic() {
       }
     };
 
-    // Song seconds right now, or null while still waiting for the track.
-    const now = () => {
+    // The song clock, smoothed.
+    //
+    // songTime() is read off AudioContext.currentTime, which does not flow:
+    // it steps once per render quantum, and the main thread sees the steps
+    // land in bursts. Sampled once per frame, the song advanced 0 ms on one
+    // frame and 26 ms on the next against a 16 ms frame. A car crossing the
+    // screen at a thousand pixels a second was therefore up to twenty pixels
+    // from where it belonged, a different amount every frame, which is what
+    // judder is. So the frame runs on its own timestamp, which is regular,
+    // and the audio clock only steers it: the estimate is pulled toward the
+    // audio clock by a fraction of the gap each frame, which averages the
+    // steps out, while a gap too large to be quantisation (a stalled track,
+    // a seek) is honoured at once. Position in the song is still what
+    // decides every beat; only the sub-frame noise is gone.
+    const sync = { song: 0, frame: 0, live: false };
+    const steer = (raw, frame) => {
+      if (!sync.live) {
+        sync.song = raw;
+        sync.frame = frame;
+        sync.live = true;
+        return raw;
+      }
+      const est = sync.song + (frame - sync.frame) / 1000;
+      sync.frame = frame;
+      const gap = raw - est;
+      if (gap > 0.1) {
+        // The track is well ahead: it jumped, or we were away. Catch up.
+        sync.song = raw;
+      } else if (gap < -0.1) {
+        // The track is well behind: it has stalled. Hold with it.
+        // (sync.song stays where it is.)
+      } else {
+        sync.song = est + gap * 0.04;
+      }
+      return sync.song;
+    };
+
+    // Song seconds at the frame stamped `frame`, or null while still
+    // waiting for the track.
+    const now = (frame) => {
       const c = clockRef.current;
       if (!c) return null;
       if (c.kind === "song") {
-        const s = songTime();
-        if (s !== null) return s;
+        const raw = songTime();
+        if (raw !== null) return steer(raw, frame);
+        // The track has gone (the reader turned it off mid-run). Carry on
+        // from where it left, on a timer, rather than stopping the film.
+        clockRef.current = { kind: "timer", origin: frame, base: sync.live ? sync.song : base };
+        return clockRef.current.base;
       }
       if (c.hold) return c.base;
-      return c.base + (performance.now() - c.origin) / 1000;
+      return c.base + (frame - c.origin) / 1000;
     };
 
-    const arm = () => {
+    // The 3D scene, built the moment its chunk and the model have arrived,
+    // which is normally before the first frame: the gate started them
+    // downloading when it appeared. Building it is the one expensive
+    // synchronous thing the intro does, and here it lands on the black
+    // before the moon, or at worst somewhere in the quiet, instead of
+    // right before a title card. The scene then compiles its shaders and
+    // draws a hidden frame with the car in view (see warm() in
+    // drift-scene.js), so the first frame of the drift has nothing left
+    // to set up. Its canvas stays at opacity 0 until the car is due.
+    const buildScene = () => {
+      const mod = driftModRef.current;
+      if (threeRef.current || threeFailedRef.current || !mod || !canvasRef.current) return;
+      try {
+        const three = mod.createDriftScene(canvasRef.current);
+        threeRef.current = three;
+        three.warm().catch((err) => {
+          if (import.meta.env.DEV) console.warn("[intro] 3D warm-up failed; the first frame compiles instead", err);
+        });
+      } catch (err) {
+        threeFailedRef.current = true;
+        threeRef.current = null;
+        if (import.meta.env.DEV) console.warn("[intro] 3D car unavailable, using the flat one", err);
+      }
+    };
+
+    const arm = (frame) => {
       if (clockRef.current) return true;
       const ac = audioContext();
       if (run.withSound && isTrackPlaying() && ac) {
@@ -408,12 +490,12 @@ export default function IntroCinematic() {
         performance.now() - armedAt > WAIT_FOR_TRACK_MS
       ) {
         // No track, or the synth fallback: the same timeline on a timer.
-        clockRef.current = { kind: "timer", origin: performance.now(), base };
+        clockRef.current = { kind: "timer", origin: frame, base };
       } else {
         return false;
       }
       if (run.withSound && ac && ac.state === "running") {
-        const s0 = now();
+        const s0 = now(frame);
         const t0 = ac.currentTime;
         scheduleIntroSfx((cue) => t0 + (cue - s0), { cards: cards.map((c) => c[0]), name: nameAt });
       }
@@ -452,13 +534,19 @@ export default function IntroCinematic() {
       overlayRef.current.style.clipPath = `polygon(0 0, ${(e + 10).toFixed(2)}vw 0, ${e.toFixed(2)}vw 100%, 0 100%)`;
     };
 
-    const frame = () => {
+    // `stamp` is the frame's own timestamp, the time this frame is for: the
+    // same clock as performance.now(), read at the start of the frame rather
+    // than at whatever point in it this callback happened to run.
+    let lastS = null;
+    const frame = (stamp) => {
       raf = requestAnimationFrame(frame);
-      if (!arm()) {
+      buildScene();
+      if (!arm(stamp)) {
         setFlag({ tuning: run.withSound && performance.now() - armedAt > 900 });
         return;
       }
-      const s = now();
+      const s = now(stamp);
+      lastS = s;
       if (s === null) return;
 
       if (s >= C.REVEAL) {
@@ -512,27 +600,11 @@ export default function IntroCinematic() {
       const d = s - C.DROP;
       if (d >= 0 && d < 1.2) amp = 6 * (1 - d / 1.2);
       if (s >= C.KICK && s < C.KICK + 0.35) amp += 10 * (1 - (s - C.KICK) / 0.35);
-      const shake = amp
-        ? `translate(${((Math.random() - 0.5) * amp).toFixed(1)}px, ${((Math.random() - 0.5) * amp).toFixed(1)}px)`
-        : "";
+      const shake = amp ? rumble(s, amp) : "";
       if (worldRef.current) worldRef.current.style.transform = shake;
       if (canvasRef.current) canvasRef.current.style.transform = shake;
 
       // ---- the car ----------------------------------------------------
-      // The scene is built a few seconds before it is needed, so its
-      // shaders compile while the moon is still on screen, and its first
-      // frame is rendered with the car off the right edge.
-      const mod = driftModRef.current;
-      if (!threeRef.current && !threeFailedRef.current && mod && canvasRef.current && s >= C.IGNITION - 1.6) {
-        try {
-          threeRef.current = mod.createDriftScene(canvasRef.current);
-          threeRef.current.render(C.DROP - 3);
-        } catch (err) {
-          threeFailedRef.current = true;
-          threeRef.current = null;
-          if (import.meta.env.DEV) console.warn("[intro] 3D car unavailable, using the flat one", err);
-        }
-      }
       const three = threeRef.current;
 
       if (three && s >= C.DROP - 0.4 && s < C.CAR_GONE) {
@@ -585,7 +657,7 @@ export default function IntroCinematic() {
           clockRef.current = { kind: "timer", origin: performance.now(), base: s, hold };
         },
         levels: getLevels,
-        now,
+        now: () => lastS,
         three: () => Boolean(threeRef.current),
       };
     }
@@ -618,7 +690,10 @@ export default function IntroCinematic() {
             role="dialog"
             aria-label="Intro"
           >
-            <div ref={worldRef} className="absolute inset-0">
+            {/* Its own layer, because the shake moves it every frame of the
+                drop and a transform on a layer costs nothing, where a
+                transform on a painted box repaints the moon. */}
+            <div ref={worldRef} className="absolute inset-0 will-change-transform">
               {/* Stars behind the plate, so the push-in has something to
                   move against. */}
               <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
