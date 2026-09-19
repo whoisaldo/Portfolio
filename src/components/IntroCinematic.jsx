@@ -20,9 +20,12 @@
 //   30.1  the drop. The drums enter and a car comes in from the right, in
 //         three dimensions this time: it yaws into a slide with its tail to
 //         the camera, the front wheels counter-steer, smoke pours off the
-//         rears, the page is revealed in its wake right to left, and the car
-//         powers away up the road toward the skyline.
-//   33.6  the car is gone, the overlay with it, and the music ducks to a bed.
+//         rears, and the moon dissolves into the skyline as the car powers
+//         away up the road. The title clears before the drift's apex.
+//   33.8  the car is receding down the street. Brief signal distortions
+//         accompany the portfolio arriving over the same camera view.
+//   35.1  the last of the car and smoke disappears into the street's haze.
+//   35.65 the page has arrived, and the music ducks to a bed.
 //
 // An earlier cut of this filled the quiet phrase with a breach-protocol hex
 // matrix and a four-line measured readout. Both were honest, and both were
@@ -53,6 +56,7 @@ import { profile } from "../data/profile";
 import { img } from "../data/images";
 import { s4Poster } from "../data/s4";
 import Picture from "./Picture";
+import NightCity from "./NightCity";
 import { INTRO_START, markIntroSeen, setIntroDone, useReplayIntro } from "../lib/intro";
 import { audioContext } from "../lib/audio";
 import { AMBIENT_EVENT, getLevels, isPlaying, isTrackPlaying, setDuck, songTime } from "../lib/ambient";
@@ -94,6 +98,10 @@ const METEORS = [
 const clamp = (p) => Math.min(1, Math.max(0, p));
 const easeOut = (p) => 1 - Math.pow(1 - clamp(p), 3);
 const easeIn = (p) => Math.pow(clamp(p), 3);
+const smooth = (p) => {
+  const t = clamp(p);
+  return t * t * (3 - 2 * t);
+};
 
 /** The flat car's rendered width, in CSS px, for the viewport we have. */
 function carWidthPx() {
@@ -111,7 +119,7 @@ function carPose(s) {
   const d = s - C.DROP;
   const inDur = 1.15;
   const holdEnd = C.WIPE_START - C.DROP;
-  const outEnd = C.CAR_GONE - C.DROP;
+  const outEnd = 3.8; // Preserve the flat fallback's original departure.
   if (d < inDur) {
     const p = easeOut(d / inDur);
     return { x: 82 - p * 94, y: 3 - p * 5, rot: 5 - p * 24, scale: 0.72 + p * 0.23, speed: 1 - p * 0.75 };
@@ -248,10 +256,13 @@ export default function IntroCinematic() {
   const worldRef = useRef(null);
   const moonRef = useRef(null);
   const earthRef = useRef(null);
-  const dimRef = useRef(null);
-  const roadRef = useRef(null);
+  const cityRef = useRef(null);
+  const signalRefs = useRef([]);
+  const signalScanRef = useRef(null);
   const glowRef = useRef(null);
+  const nameRef = useRef(null);
   const carRef = useRef(null);
+  const fallbackRef = useRef(null);
   const trailRef = useRef(null);
   const canvasRef = useRef(null);
   const threeRef = useRef(null);
@@ -383,6 +394,7 @@ export default function IntroCinematic() {
     const base = run.mode === "short" ? C.SHORT_START : C.SONG_START;
     const armedAt = performance.now();
     let raf = 0;
+    const heroContent = document.querySelector("[data-handoff-content]");
 
     const setFlag = (patch) => {
       const cur = flagsRef.current;
@@ -528,12 +540,6 @@ export default function IntroCinematic() {
       setPuffs((prev) => [...prev.filter((p) => stamp - p.born < 1300), ...fresh].slice(-48));
     };
 
-    const wipe = (edge) => {
-      if (!overlayRef.current) return;
-      const e = Math.max(-25, edge);
-      overlayRef.current.style.clipPath = `polygon(0 0, ${(e + 10).toFixed(2)}vw 0, ${e.toFixed(2)}vw 100%, 0 100%)`;
-    };
-
     // `stamp` is the frame's own timestamp, the time this frame is for: the
     // same clock as performance.now(), read at the start of the frame rather
     // than at whatever point in it this callback happened to run.
@@ -573,7 +579,7 @@ export default function IntroCinematic() {
       }
       setFlag({
         tuning: false,
-        credit: withTrack && s >= base + 0.8,
+        credit: withTrack && s >= base + 0.8 && s < C.DROP,
         card,
         cardOut,
         name: s >= nameAt,
@@ -583,15 +589,45 @@ export default function IntroCinematic() {
       const nextPhase = s >= C.DROP ? "drift" : s >= C.IGNITION ? "ignition" : "moon";
       setPhase((p) => (p === nextPhase ? p : nextPhase));
 
-      // ---- the world: moon, dim, road, glow, shake ---------------------
+      // Establish the street through the swell. The drift plays in full,
+      // then its city becomes the portfolio's background without reframing.
+      const titleOut = smooth((s - C.DROP) / (C.KICK - C.DROP));
+      if (nameRef.current) {
+        nameRef.current.style.opacity = (1 - titleOut).toFixed(3);
+        nameRef.current.style.transform = `translate3d(0, ${(-12 * titleOut).toFixed(2)}px, 0)`;
+      }
+      const sceneOut = smooth((s - C.HANDOFF) / (C.REVEAL - C.HANDOFF));
+      if (overlayRef.current) overlayRef.current.style.opacity = (1 - sceneOut).toFixed(3);
+
+      // Brief registration errors while the city signal becomes the page.
+      // Fixed, narrow slices preserve the camera. Only their opacity and
+      // translation change; seeking the song produces the same distortion.
+      const signalTime = s - C.HERO_IN;
+      const signalOn = signalTime > 0 && signalTime < 1.15;
+      const pulse = signalOn
+        ? 0.8 * Math.exp(-Math.pow((signalTime - 0.24) / 0.055, 2))
+          + 0.6 * Math.exp(-Math.pow((signalTime - 0.55) / 0.08, 2))
+          + 0.28 * Math.exp(-Math.pow((signalTime - 0.86) / 0.09, 2))
+        : 0;
+      const shift = Math.sin(Math.floor(signalTime * 24) * 7.3);
+      signalRefs.current.forEach((el, i) => {
+        if (!el) return;
+        el.style.opacity = (pulse * (i === 1 ? 0.7 : 0.5)).toFixed(3);
+        el.style.transform = `translate3d(${(shift * pulse * (i === 1 ? -24 : 17)).toFixed(2)}px,0,0)`;
+        el.style.willChange = signalOn ? "transform, opacity" : "auto";
+      });
+      if (signalScanRef.current) signalScanRef.current.style.opacity = (pulse * 0.13).toFixed(3);
+      if (heroContent) heroContent.style.transform = pulse > 0.01 ? `translate3d(${(shift * pulse * 2.5).toFixed(2)}px,0,0)` : "";
+
+      // ---- the world: moon, city, headlights ---------------------------
       const r = recede(s);
       const push = clamp((s - C.SONG_START) / (C.IGNITION - C.SONG_START));
       if (moonRef.current) {
         moonRef.current.style.transform = `translate3d(0, ${(-7 * r).toFixed(2)}vh, 0) scale(${(1 + 0.06 * push + 0.14 * r).toFixed(4)})`;
       }
       if (earthRef.current) earthRef.current.style.opacity = (1 - r).toFixed(3);
-      if (dimRef.current) dimRef.current.style.opacity = (0.62 * r).toFixed(3);
-      if (roadRef.current) roadRef.current.style.opacity = r.toFixed(3);
+      const cityIn = smooth((s - C.CITY_IN) / (C.CITY_READY - C.CITY_IN));
+      if (cityRef.current) cityRef.current.style.opacity = cityIn.toFixed(3);
       if (glowRef.current) {
         const fade = s < C.DROP ? 1 : Math.max(0, 1 - (s - C.DROP) / 0.6);
         glowRef.current.style.opacity = (r * fade).toFixed(3);
@@ -606,27 +642,19 @@ export default function IntroCinematic() {
 
       // ---- the car ----------------------------------------------------
       const three = threeRef.current;
+      const carOpacity = 1 - smooth((s - (C.CAR_GONE - 1.15)) / 1.15);
+      if (fallbackRef.current) fallbackRef.current.style.opacity = carOpacity.toFixed(3);
 
       if (three && s >= C.DROP - 0.4 && s < C.CAR_GONE) {
-        // The car dissolves into the distance over the last half second
-        // before the reveal, so the page never sees it cut off.
+        // The spline and its timing are unchanged. Its existing end
+        // tangent carries the car into the street as the page arrives.
         if (canvasRef.current) {
-          canvasRef.current.style.opacity = clamp((C.REVEAL - s) / 0.5).toFixed(3);
+          canvasRef.current.style.opacity = carOpacity.toFixed(3);
         }
         three.render(s);
-        if (s >= C.DROP) {
-          // The edge trails the car's rear while it is close, then runs
-          // ahead of it as the car recedes: a car driving off toward the
-          // horizon stops moving across the screen long before the black
-          // is gone, and the reveal has to finish for HERO_IN.
-          const e = three.edgeVw();
-          const lead = 45 * Math.pow(clamp((s - C.DROP - 2.2) / 1.1), 1.6);
-          wipe(e === null ? -25 : e + 1.5 - lead);
-        }
       } else if (!three && s >= C.DROP && s < C.CAR_GONE) {
         const pose = carPose(s);
         const W = carWidthPx();
-        const Wvw = (W / window.innerWidth) * 100;
         if (carRef.current) {
           carRef.current.style.opacity = "1";
           carRef.current.style.width = `${W}px`;
@@ -635,14 +663,10 @@ export default function IntroCinematic() {
             `rotate(${pose.rot.toFixed(2)}deg) scale(${pose.scale.toFixed(3)})`;
         }
         if (trailRef.current) trailRef.current.style.transform = `scaleX(${pose.speed.toFixed(3)})`;
-        wipe(50 + pose.x + 0.42 * Wvw * pose.scale + 2);
         if (pose.speed > 0.2) spawnPuffs(s, pose, W);
       } else {
         if (carRef.current) carRef.current.style.opacity = "0";
-        if (s >= C.CAR_GONE) {
-          wipe(-25);
-          if (canvasRef.current) canvasRef.current.style.opacity = "0";
-        }
+        if (canvasRef.current) canvasRef.current.style.opacity = "0";
       }
     };
 
@@ -665,6 +689,7 @@ export default function IntroCinematic() {
     raf = requestAnimationFrame(frame);
     return () => {
       cancelAnimationFrame(raf);
+      if (heroContent) heroContent.style.transform = "";
       threeRef.current?.dispose();
       threeRef.current = null;
       if (import.meta.env.DEV) delete window.__intro;
@@ -679,11 +704,18 @@ export default function IntroCinematic() {
     <AnimatePresence>
       {run && (
         <React.Fragment key={run.id}>
-          {/* The overlay. Everything but the car lives in here, because this
-              is the element the wipe clips away. */}
+          <div className="fixed inset-0 z-[113] pointer-events-none overflow-hidden" aria-hidden="true" data-handoff-signal="">
+            {["inset(24% 0 74.7% 0)", "inset(48% 0 48.8% 0)", "inset(72% 0 27.3% 0)"].map((clipPath, i) => (
+              <div key={clipPath} ref={(el) => { signalRefs.current[i] = el; }} className={`intro-signal-slice intro-signal-slice-${i}`} style={{ clipPath, opacity: 0 }}>
+                <NightCity className="absolute inset-0 block" />
+              </div>
+            ))}
+            <div ref={signalScanRef} className="intro-signal-scan absolute inset-0 opacity-0" />
+          </div>
+          {/* The scene dissolves as one layer; the car finishes above it. */}
           <motion.div
             ref={overlayRef}
-            className="fixed inset-0 z-[110] overflow-hidden bg-ink-deep select-none"
+            className="fixed inset-0 z-[110] overflow-hidden bg-ink-deep select-none will-change-opacity"
             // Opaque from its first frame: the gate's own fade is the
             // transition, and this has to be solid black underneath it.
             initial={false}
@@ -736,18 +768,10 @@ export default function IntroCinematic() {
                 />
               )}
 
-              {/* Darkens the moon as the car's world takes over. */}
-              <div ref={dimRef} className="absolute inset-0 bg-ink-deep opacity-0" aria-hidden="true" />
-
-              {/* The road: a floor for the car, and a horizon. The line sits
-                  a third of the way down because that is where the 3D
-                  scene's own horizon falls; the two floors have to agree or
-                  the car drives above the road as it recedes. */}
-              <div ref={roadRef} className="absolute inset-0 opacity-0" aria-hidden="true">
-                <div className="absolute inset-x-0 bottom-0 h-[66%] bg-ink-deep" />
-                <div className="absolute inset-x-0 bottom-[66%] h-[10%] bg-gradient-to-t from-ink-deep to-transparent" />
-                <div className="absolute inset-x-0 top-[34%] h-px bg-volt/30" />
-                <div className="absolute inset-x-0 top-[34%] h-48 intro-road" />
+              {/* The street stays behind the live car and the portfolio.
+                  Hero uses this exact frame, so the handoff has no cut. */}
+              <div ref={cityRef} className="absolute inset-0 opacity-0" aria-hidden="true" data-intro-city="">
+                <NightCity className="absolute inset-0 block" />
               </div>
 
               {/* Headlights before the car: a bloom from the bottom right. */}
@@ -760,9 +784,6 @@ export default function IntroCinematic() {
                     "radial-gradient(60vw 34vh at 88% 74%, rgb(252 238 10 / 0.3), rgb(252 238 10 / 0.06) 45%, transparent 70%)",
                 }}
               />
-
-              <div className="absolute inset-0 crt-grid opacity-30" aria-hidden="true" />
-              <div className="absolute inset-0 intro-scanlines" aria-hidden="true" />
 
               {/* ---- text ---------------------------------------------- */}
 
@@ -801,12 +822,12 @@ export default function IntroCinematic() {
                 {flags.card >= 0 && !flags.cardOut && (
                   <span key={`flare-${run.id}-${flags.card}`} className="intro-flare" aria-hidden="true" />
                 )}
-                <div className="col-start-1 row-start-1 w-full">
+                <div ref={nameRef} className="intro-name col-start-1 row-start-1 w-full will-change-[transform,opacity]">
                   <NameDecode key={`name-${run.id}`} text={target} on={flags.name} burst={flags.kicked} />
                   <motion.span
-                    className="mt-5 block h-px bg-volt mx-auto"
-                    initial={{ width: 0 }}
-                    animate={{ width: flags.name ? "min(24rem, 62vw)" : 0 }}
+                    className="mt-5 block h-px w-[min(24rem,62vw)] bg-volt mx-auto"
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: flags.name ? 1 : 0 }}
                     transition={{ duration: 0.5, delay: 0.12, ease: [0.16, 0.9, 0.25, 1] }}
                   />
                 </div>
@@ -824,35 +845,21 @@ export default function IntroCinematic() {
                 {flags.tuning && <span className="inline-block w-[0.5em] h-[0.9em] translate-y-[0.15em] ml-1 bg-volt animate-caret" aria-hidden="true" />}
               </motion.p>
 
-              {/* Hazard flash on the first kick, as the car's tail swings at
-                  the lens. */}
+              {/* A brief light pulse on the kick as the tail swings past. */}
               {flags.kicked && (
-                <>
-                  <motion.div
-                    className="absolute inset-0 bg-volt pointer-events-none"
-                    initial={{ opacity: 0.4 }}
-                    animate={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    aria-hidden="true"
-                  />
-                  <motion.div
-                    className="hazard absolute inset-x-0 top-1/2 -translate-y-1/2 h-16 pointer-events-none"
-                    initial={{ scaleX: 0, opacity: 0.35 }}
-                    animate={{ scaleX: 1, opacity: 0 }}
-                    transition={{ duration: 0.55, ease: "linear" }}
-                    style={{ transformOrigin: "right center" }}
-                    aria-hidden="true"
-                  />
-                </>
+                <motion.div
+                  className="absolute inset-0 bg-volt pointer-events-none"
+                  initial={{ opacity: 0.12 }}
+                  animate={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  aria-hidden="true"
+                />
               )}
             </div>
 
           </motion.div>
 
-          {/* Skip. Always there, always the same place. In its own layer
-              above the overlay, because the overlay is the element the wipe
-              clips away, and a control that vanishes two seconds before the
-              thing it controls has ended is not always there. */}
+          {/* Skip stays above the dissolve until the car has finished. */}
           <div className="fixed inset-0 z-[112] pointer-events-none" aria-hidden="false">
             <button
               type="button"
@@ -864,8 +871,7 @@ export default function IntroCinematic() {
             </button>
           </div>
 
-          {/* The 3D car, above the overlay and outside its clip, so it stays
-              whole while the black tears away behind it. */}
+          {/* The car stays solid while the scene dissolves underneath it. */}
           <canvas
             ref={canvasRef}
             className="fixed inset-0 z-[111] w-full h-full pointer-events-none opacity-0"
@@ -874,7 +880,7 @@ export default function IntroCinematic() {
 
           {/* The flat car, for when there is no WebGL. Same place in the
               stack; driven only if the scene above could not be built. */}
-          <div className="fixed inset-0 z-[111] pointer-events-none overflow-hidden" aria-hidden="true">
+          <div ref={fallbackRef} className="fixed inset-0 z-[111] pointer-events-none overflow-hidden" aria-hidden="true">
             {puffs.map((p) => (
               <span
                 key={p.id}

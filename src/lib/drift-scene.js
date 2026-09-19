@@ -9,17 +9,16 @@
 // of one: the earlier version slid a flat cutout across the screen and
 // rotated it, and the rear never stepped out because a cutout has no rear.
 //
-// The canvas is transparent and sits above the intro overlay. Nothing here
-// paints the floor. The ground is a shader that adds only light (the
-// headlight cones, the underglow), so when the overlay tears away behind the
-// car, the car's lights sweep the page underneath instead of a black plane
-// covering it.
+// The canvas composites over a rendered Japantown street. Its contact
+// shadow, planar reflection and lamp pools share that street's ground plane.
 //
 // The supplied B8.5 model was customized in Blender. The same GLB is used
 // in the Garage viewer; each scene owns its materials and geometry.
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { createObject } from "../three/car/object.js";
+import { createStreetContact } from "../three/car/street-contact.js";
+import { getEnv } from "./env.js";
 export { preloadCar } from "../three/car/object.js";
 import { DROP } from "./cues";
 
@@ -431,7 +430,7 @@ class Trail {
           uniform vec3 uColor;
           varying float vA;
           void main() {
-            gl_FragColor = vec4(uColor * vA * 1.8, 0.0);
+            gl_FragColor = vec4(uColor * vA * 0.65, 0.0);
           }
         `,
         side: THREE.DoubleSide,
@@ -448,7 +447,7 @@ class Trail {
     if (this.pts.length > this.n) this.pts.shift();
   }
 
-  update(now, life = 0.55) {
+  update(now, life = 0.24) {
     const { n, pos, alpha, pts } = this;
     const last = pts.length - 1;
     for (let i = 0; i < n; i++) {
@@ -457,7 +456,7 @@ class Trail {
       const p = pts[Math.max(0, last - (n - 1 - i))] || { x: 0, y: -10, z: 0, t: -1e9, s: 0 };
       const age = now - p.t;
       const a = Math.max(0, 1 - age / life) * p.s;
-      const h = 0.03 + 0.05 * a;
+      const h = 0.012 + 0.025 * a;
       pos[i * 6] = p.x;
       pos[i * 6 + 1] = p.y + h;
       pos[i * 6 + 2] = p.z;
@@ -506,16 +505,16 @@ export function createDriftScene(canvas) {
   // colour coming from the two rim lights instead.
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.45;
+  scene.environmentIntensity = 0.32;
   pmrem.dispose();
 
   scene.add(new THREE.HemisphereLight(0x8fb4ff, 0x1a0a14, 0.5));
-  const key = new THREE.DirectionalLight(0xfff4d6, 1.7);
+  const key = new THREE.DirectionalLight(0xd0e4e7, 0.85);
   key.position.set(6, 9, 9);
-  const rimM = new THREE.DirectionalLight(0xff2e88, 3.6);
-  rimM.position.set(-9, 4, -6);
-  const rimC = new THREE.DirectionalLight(0x34e5ff, 2.2);
-  rimC.position.set(10, 3, -8);
+  const rimM = new THREE.DirectionalLight(0xff68ad, 1.8);
+  rimM.position.set(12, 6, -20);
+  const rimC = new THREE.DirectionalLight(0x79ffd7, 1.4);
+  rimC.position.set(-5, 5, -28);
   scene.add(key, rimM, rimC);
 
   // ---- the car ----------------------------------------------------------
@@ -523,6 +522,7 @@ export function createDriftScene(canvas) {
   car.rotation.order = "YXZ";
   const parts = car.userData.parts || {};
   scene.add(car);
+  const contact = createStreetContact(scene, camera, car);
 
   const carBox = localBox(car) || new THREE.Box3(new THREE.Vector3(-1, 0, -2.3), new THREE.Vector3(1, 1.2, 2.3));
   const headBox = new THREE.Box3(new THREE.Vector3(-0.84, 0.57, 2.06), new THREE.Vector3(0.84, 0.67, 2.13));
@@ -556,15 +556,15 @@ export function createDriftScene(canvas) {
     car.add(m);
     return m;
   };
-  glow(0xdff6ff, 1.5, 0.9, lampL);
-  glow(0xdff6ff, 1.5, 0.9, lampR);
+  glow(0xdff6ff, 1.5, 0.52, lampL);
+  glow(0xdff6ff, 1.5, 0.52, lampR);
   glow(0xff261c, 0.8, 0.55, tailL);
   glow(0xff261c, 0.8, 0.55, tailR);
 
   // Beams. Cones with the apex at the lamp, pointing forward and a touch
   // down, fading along their length.
   const beamMat = new THREE.ShaderMaterial({
-    uniforms: { uOpacity: { value: 0.12 } },
+    uniforms: { uOpacity: { value: 0.055 } },
     vertexShader: BEAM_VERT,
     fragmentShader: BEAM_FRAG,
     side: THREE.DoubleSide,
@@ -594,7 +594,7 @@ export function createDriftScene(canvas) {
       uGlow: { value: new THREE.Vector3() },
       uCam: { value: new THREE.Vector3() },
       uLamps: { value: 1 },
-      uGlowOn: { value: 1 },
+      uGlowOn: { value: 0.35 },
     },
     vertexShader: GROUND_VERT,
     fragmentShader: GROUND_FRAG,
@@ -686,6 +686,7 @@ export function createDriftScene(canvas) {
     for (const st of steers) st.rotation.y = steer;
 
     car.updateMatrixWorld(true);
+    contact.update(getEnv().wet);
 
     // Floor lights follow the lamps.
     _dir.set(0, -0.11, 1).applyQuaternion(car.quaternion).normalize();
@@ -787,6 +788,7 @@ export function createDriftScene(canvas) {
     for (const m of glowMats) m.dispose();
     ground.geometry.dispose();
     groundMat.dispose();
+    contact.dispose();
     glowTex.dispose();
     scene.environment?.dispose?.();
     car.userData.dispose();

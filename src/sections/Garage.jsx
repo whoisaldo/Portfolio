@@ -308,16 +308,12 @@ export default function Garage() {
                   </div>
                 </CoverBox>
                 )}
-                <div className="absolute top-0 left-0 m-3 flex items-center gap-2 pointer-events-none">
+                {!model && <div className="absolute top-0 left-0 m-3 flex items-center gap-2 pointer-events-none">
                   <span className="mono-micro text-dim bg-ink/80 px-2 py-1 tabular-nums">
                     {pad(viewIndex + 1)} / {pad(views.length)}
                   </span>
-                  {model ? (
-                    <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.label}</span>
-                  ) : (
-                    view.date && <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.date}</span>
-                  )}
-                </div>
+                  {view.date && <span className="mono-micro text-dim bg-ink/80 px-2 py-1">{view.date}</span>}
+                </div>}
               </div>
 
               {/* The detail card. */}

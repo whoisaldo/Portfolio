@@ -12,7 +12,7 @@ export function loadGarage3d() {
   if (!promise) {
     promise = import("./garage-scene.js")
       .then(async (mod) => {
-        await mod.preloadCar();
+        await mod.preloadGarage();
         return mod;
       })
       .catch((err) => {
