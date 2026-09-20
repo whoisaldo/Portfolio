@@ -236,11 +236,9 @@ export default function EntryGate({ onEnter }) {
   }, [open]);
 
   const intro =
-    mode === "off"
-      ? null
-      : mode === "short"
-        ? "Short intro this time: one bar, then the drift. The full one is in the footer."
-        : "The intro runs about twenty-five seconds and is skippable at any point.";
+    mode === "full"
+      ? "The intro runs about twenty-five seconds and is skippable at any point."
+      : null;
 
   return (
     <AnimatePresence>

@@ -14,7 +14,6 @@ import {
   Github,
   Linkedin,
   Mail,
-  MapPin,
   PanelsTopLeft,
   Wrench,
   Workflow,
@@ -397,10 +396,6 @@ export default function Recruiters() {
               height="800"
               fetchPriority="high"
             />
-            <figcaption>
-              <MapPin size={14} aria-hidden="true" />A summer in Seattle
-              <span>2026</span>
-            </figcaption>
           </figure>
         </section>
 
