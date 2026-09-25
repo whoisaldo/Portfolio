@@ -103,7 +103,7 @@ TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
         type: "dir",
         children: {
           "philips.md": { type: "file", content: `# Philips · Software Development Engineer Co-op (Current, part-time)\nSystem Integration | Jan 2026 to Jun 2026, back part-time since Aug 2026 | Cambridge, MA\n\n- Zero-touch PXE mass deployment for a ~1,000-machine fleet under FDA-regulated Secure Boot\n- FOG/TFTP on Ubuntu 24.04, PowerShell WinPE orchestrator, FastAPI config service\n- Presented to 50+ engineers and stakeholders\n- Returned to the same team part-time alongside the degree` },
-          "pinnatec.md": { type: "file", content: `# Pinnatec Auto · Lead Full Stack Engineer (Current, part-time)\nVirtual Link | Sep 2026 to Present | Worcester, MA\n\n- Lead maintainer and code owner: Expo/React Native app, WordPress/PHP backend, ESP32 firmware\n- CI from zero on both repos: typecheck, lint, test, firmware-to-app contract checks, firmware builds` },
+          "pinnatec.md": { type: "file", content: `# Pinnatec Auto · Lead Full Stack Engineer (Current, part-time)\nVirtual Link | Sep 2026 to Present | Worcester, MA\n\n- Lead maintainer and code owner: Expo/React Native app, WordPress/PHP backend, ESP32 firmware\n- 17 pull requests merged on a 3-person team\n- CI from zero on both repos: typecheck, lint, test, 7 firmware-to-app contract checks, firmware builds` },
           "pawtograder.md": { type: "file", content: `# Pawtograder · Backend Engineer, Grading Server (Current)\nNortheastern's open-source autograder | Aug 2026 to Present | Boston, MA\n\n- Own the grading server end to end with two other students on an 11-person team\n- The scoring algorithm: build, lint, instructor tests and pitest mutation results into grades\n- TypeScript · Deno edge functions on Supabase · Postgres/PLpgSQL\n- github.com/pawtograder` },
           "aws.md": { type: "file", content: `# AWS · SDE Intern\nCloudFormation Registry | Jun 2026 to Sep 2026 | Seattle, WA\n\n- Org-wide policy-based sharing of private resource types: retired a pattern that cloned one type into 8,000+ accounts across 8 regions\n- 2 new APIs, a DynamoDB table and DAO, a deny-by-default policy evaluator, 12 merged code reviews\n- ~90% of DescribeType traffic taken off a strongly consistent read\n- Native Kiro dual-model code review tool (GPT + Claude), featured on Kiro's LinkedIn\n- Slack bot backed by an LLM agent on AWS Bedrock, AppSec-approved IAM scope` },
           "topchoice.md": { type: "file", content: `# Top Choice Realty · Frontend Developer Intern\nApr 2024 to Aug 2024 | New York, NY\n\n- Built full-stack app (React, Python, SQL)\n- 85% faster lookups, 3x query speed\n- Managed 800+ client records` },
@@ -624,7 +624,7 @@ AUTHOR
   │  Sep 2026 to Present · Worcester, MA
   │
   │  • Virtual Link: Expo app · WordPress backend · ESP32 firmware
-  │  • CI from zero on both repositories
+  │  • 17 PRs merged · CI from zero on both repositories
   └──────────────────────────────────────────────────────
 
   ┌─ PAWTOGRADER ────────────────────────────────────────

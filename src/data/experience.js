@@ -19,8 +19,10 @@
 // to the co-op team), Pinnatec Auto (lead, part-time) and Pawtograder. All
 // three, and the numbers on them, follow the résumé (github.com/whoisaldo/
 // resume, private), whose AGENTS.md records where every figure came from:
-// the Pawtograder team size and ownership are the owner's account, and its
-// stack is verified against the public repos.
+// the Pinnatec pull-request counts were taken with `gh pr list` on
+// 2026-09-16, recounted 2026-09-23 (all 17 merged), and can be re-run; the
+// Pawtograder team size and ownership are the owner's account, and its stack
+// is verified against the public repos.
 // Order is the résumé's: Philips first, then Pinnatec, then Pawtograder,
 // then AWS, most recent start within each block.
 
@@ -129,7 +131,12 @@ export const experiences = [
     accent: "#98F8C8",
     badge: "Current",
     description:
-      "I am the lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: an Expo/React Native app, a WordPress/PHP backend and ESP32 firmware, on a three-person team. Both repositories had no CI when I joined; they now refuse a pull request until every check passes.",
+      "I am the lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: an Expo/React Native app, a WordPress/PHP backend and ESP32 firmware, on a three-person team. Seventeen pull requests merged so far. Both repositories had no CI when I joined; they now refuse a pull request until every check passes.",
+    metrics: [
+      { value: "17", label: "Pull requests merged" },
+      { value: "7", label: "Firmware-to-app contract checks" },
+      { value: "2", label: "Repositories, CI from zero" },
+    ],
     highlights: [
       {
         title: "CI from zero",
