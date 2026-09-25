@@ -69,10 +69,10 @@ Grouped, not ranked. A self-assigned proficiency bar is a claim nobody can check
 TypeScript · JavaScript · C++ · Python · Java · C# · Rust · Swift · Go
 
 ## Frontend\nReact · React Native (Expo) · TypeScript · Tailwind · Framer Motion · Next.js\n\n## Backend & Systems\nNode.js · Express · FastAPI · Postgres · MongoDB · Deno · Supabase · PHP · .NET · PowerShell\n\n## Cloud & Infra\nAWS (CloudFormation · DynamoDB · IAM) · Linux · Docker · GitHub Actions · CI/CD\n\n## AI & Agents\nOpenAI SDK · Claude SDK · MCP · Ollama · AWS Bedrock · Kiro · Codex · Claude Code` },
-      "contact.json": { type: "file", content: `{\n  "email": "younes.al@northeastern.edu",\n  "personal": "whois.younes@gmail.com",\n  "business": "hello@sideband.studio",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
+      "contact.json": { type: "file", content: `{\n  "email": "aldo@sideband.studio",\n  "business": "hello@sideband.studio",\n  "location": "Boston, MA",\n  "github": "github.com/whoisaldo",\n  "linkedin": "linkedin.com/in/alialdoyounes",\n  "status": "Open to opportunities"\n}` },
       "resume.pdf": { type: "file", content: `[Binary file. Use 'open resume.pdf' to download]` },
       ".bashrc": { type: "file", content: `# Ali's bashrc\nexport PS1="\\u@sideband:\\w %"\nalias ll="ls -la"\nalias cls="clear"` },
-      ".gitconfig": { type: "file", content: `[user]\n  name = Ali Younes\n  email = younes.al@northeastern.edu\n[core]\n  editor = vim` },
+      ".gitconfig": { type: "file", content: `[user]\n  name = Ali Younes\n  email = aldo@sideband.studio\n[core]\n  editor = vim` },
       "projects": {
         type: "dir",
         children: {
@@ -484,7 +484,7 @@ AUTHOR
              Class of '27
   open to    full-time '27, interesting side-quests
   ───────────────────────────────────────────────
-  contact    younes.al@northeastern.edu` }]);
+  contact    aldo@sideband.studio` }]);
         break;
 
       case "hostname":
@@ -722,8 +722,7 @@ AUTHOR
   CONTACT
   ═══════════════════════════════════════════════════
 
-  email      younes.al@northeastern.edu
-  personal   whois.younes@gmail.com
+  email      aldo@sideband.studio
   business   hello@sideband.studio
   location   Boston, MA
 
@@ -771,7 +770,7 @@ AUTHOR
         if (args[0] === "status") {
           setHistory(prev => [...prev, { type: "output", text: `On branch main\nYour branch is up to date with 'origin/main'.\n\nnothing to commit, working tree clean` }]);
         } else if (args[0] === "log") {
-          setHistory(prev => [...prev, { type: "output", text: `commit abc1234 (HEAD -> main, origin/main)\nAuthor: Ali Younes <younes.al@northeastern.edu>\nDate:   ${new Date().toDateString()}\n\n    portfolio: editorial redesign + AWS CloudFormation current` }]);
+          setHistory(prev => [...prev, { type: "output", text: `commit abc1234 (HEAD -> main, origin/main)\nAuthor: Ali Younes <aldo@sideband.studio>\nDate:   ${new Date().toDateString()}\n\n    portfolio: editorial redesign + AWS CloudFormation current` }]);
         } else {
           setHistory(prev => [...prev, { type: "output", text: `git: '${args[0] || ""}' is not a git command. Try 'git status' or 'git log'` }]);
         }
@@ -786,7 +785,7 @@ AUTHOR
         if (args.join(" ").includes("rm -rf")) {
           setHistory(prev => [...prev, { type: "error", text: "Nice try. System protected." }]);
         } else if (args[0] === "hire") {
-          setHistory(prev => [...prev, { type: "system", text: "SUDO HIRE ACTIVATED\n\nemail:    younes.al@northeastern.edu\nbusiness: hello@sideband.studio\n\nlet's talk." }]);
+          setHistory(prev => [...prev, { type: "system", text: "SUDO HIRE ACTIVATED\n\nemail:    aldo@sideband.studio\nbusiness: hello@sideband.studio\n\nlet's talk." }]);
         } else {
           setHistory(prev => [...prev, { type: "output", text: "younes is not in the sudoers file. This incident will be reported." }]);
         }
@@ -799,7 +798,7 @@ AUTHOR
 
   Actively open to opportunities.
 
-  email      younes.al@northeastern.edu
+  email      aldo@sideband.studio
   business   hello@sideband.studio
 
   pro tip    try 'sudo hire' for VIP access
