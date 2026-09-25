@@ -131,15 +131,15 @@ export const experiences = [
     accent: "#98F8C8",
     badge: "Current",
     description:
-      "I am the lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: an Expo/React Native app, a WordPress/PHP backend and ESP32 firmware. Seventeen pull requests merged so far. Both repositories had no CI when I joined; they now refuse a pull request until every check passes.",
+      "I am the lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: an Expo/React Native app, a WordPress/PHP backend and ESP32 firmware. Seventeen pull requests merged so far. I built the CI both repositories run on: a pull request merges only when every check passes.",
     metrics: [
       { value: "17", label: "Pull requests merged" },
       { value: "7", label: "Firmware-to-app contract checks" },
-      { value: "2", label: "Repositories, CI from zero" },
+      { value: "2", label: "Repositories behind required checks" },
     ],
     highlights: [
       {
-        title: "CI from zero",
+        title: "CI",
         description:
           "GitHub Actions typecheck, lint and test the app on every pull request, verify the seven contracts the firmware and the app share, and build and size-check both firmware images. Branch rulesets require all of it before a merge, on both repositories.",
       },
