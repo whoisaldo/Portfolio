@@ -131,7 +131,7 @@ export const experiences = [
     accent: "#98F8C8",
     badge: "Current",
     description:
-      "I am the lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: an Expo/React Native app, a WordPress/PHP backend and ESP32 firmware, on a three-person team. Seventeen pull requests merged so far. Both repositories had no CI when I joined; they now refuse a pull request until every check passes.",
+      "I am the lead maintainer and code owner of Virtual Link, Pinnatec's app-controlled lowering module: an Expo/React Native app, a WordPress/PHP backend and ESP32 firmware. Seventeen pull requests merged so far. Both repositories had no CI when I joined; they now refuse a pull request until every check passes.",
     metrics: [
       { value: "17", label: "Pull requests merged" },
       { value: "7", label: "Firmware-to-app contract checks" },
