@@ -43,15 +43,14 @@ export const profile = {
 };
 
 export const emails = [
-  { key: "school", value: "younes.al@northeastern.edu", primary: true },
-  { key: "personal", value: "whois.younes@gmail.com" },
+  { key: "personal", value: "aldo@sideband.studio", primary: true },
   { key: "studio", value: "hello@sideband.studio" },
 ];
 
 export const links = {
   github: "https://github.com/whoisaldo",
   linkedin: "https://www.linkedin.com/in/alialdoyounes/",
-  email: "mailto:younes.al@northeastern.edu",
+  email: "mailto:aldo@sideband.studio",
   studio: "https://sideband.studio",
   site: "https://aliyounes.dev/",
 };
