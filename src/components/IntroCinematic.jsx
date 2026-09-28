@@ -62,6 +62,7 @@ import { audioContext } from "../lib/audio";
 import { AMBIENT_EVENT, getLevels, isPlaying, isTrackPlaying, setDuck, songTime } from "../lib/ambient";
 import { cancelIntroSfx, scheduleIntroSfx } from "../lib/intro-sfx";
 import { loadDrift } from "../lib/drift";
+import { holdScroll } from "../lib/scroll";
 import * as C from "../lib/cues";
 
 // Two cuts of the moon: the 16:9 plate, and a portrait plate painted from it
@@ -358,7 +359,8 @@ export default function IntroCinematic() {
   }, []);
 
   // Escape, Enter or Space leaves. The wheel is swallowed so the page under
-  // the overlay stays at the top for the reveal.
+  // the overlay stays at the top for the reveal, and Lenis is held for the
+  // same reason until the reveal lets it go.
   useEffect(() => {
     if (!run) return;
     const onKey = (e) => {
@@ -380,11 +382,13 @@ export default function IntroCinematic() {
     el?.addEventListener("wheel", swallow, { passive: false });
     el?.addEventListener("touchmove", swallow, { passive: false });
     document.documentElement.setAttribute("data-intro", "true");
+    holdScroll("intro", true);
     return () => {
       window.removeEventListener("keydown", onKey);
       el?.removeEventListener("wheel", swallow);
       el?.removeEventListener("touchmove", swallow);
       document.documentElement.removeAttribute("data-intro");
+      holdScroll("intro", false);
     };
   }, [run, finish]);
 

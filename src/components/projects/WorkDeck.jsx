@@ -65,6 +65,7 @@ function Rail({ projects, index, onSelect, expanded, idBase }) {
       aria-label="Projects"
       aria-orientation={vertical ? "vertical" : "horizontal"}
       onKeyDown={onKey}
+      data-lenis-prevent=""
       className={`flex overflow-x-auto md:flex-col md:overflow-visible border-b md:border-b-0 md:border-r border-ink-line
                   ${expanded ? "md:overflow-y-auto md:min-h-0" : ""}`}
     >
@@ -168,7 +169,7 @@ function Screen({ p, index, total, expanded, shot, setShot, demo, setDemo, idBas
                 // scrolls inside it, so the deck never changes height when
                 // the screen switches; on a phone it takes the height it
                 // needs, because a 3:2 box at 340px wide is 227px tall.
-                <div className={`deck-demo relative md:overflow-y-auto ${expanded ? "md:aspect-[16/10]" : "md:aspect-[3/2]"}`}>
+                <div className={`deck-demo relative md:overflow-y-auto ${expanded ? "md:aspect-[16/10]" : "md:aspect-[3/2]"}`} data-lenis-prevent="">
                   <Suspense fallback={<p className="p-6 mono-label text-dim">loading the model…</p>}>
                     <Demo toolbar={<ModeToggle demo={showDemo} setDemo={setDemo} />} />
                   </Suspense>
@@ -423,6 +424,7 @@ export default function WorkDeck({ projects }) {
           <motion.div
             ref={fullRef}
             className="fixed inset-0 z-[100] bg-ink-deep/92 backdrop-blur-sm p-3 md:p-6"
+            data-lenis-prevent=""
             role="dialog"
             aria-modal="true"
             aria-label="Projects, expanded"

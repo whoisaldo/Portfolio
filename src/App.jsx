@@ -21,7 +21,7 @@
 // NONE of that: no gate, no audio, no cursor, no scanlines, no effects. The
 // split is made here, above both, so that nothing from one can leak into the
 // other by accident. The two shells share the data files and nothing else.
-import React, { lazy, Suspense, useEffect, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { MotionConfig } from "framer-motion";
 import Navbar from "./components/Navbar";
@@ -41,6 +41,8 @@ import { attachUiSfx } from "./lib/ui-sfx";
 import { startReactive } from "./lib/reactive";
 import { initEnv, LOW_POWER, setSessionEnv } from "./lib/env";
 import { hasGpuAcceleration } from "./lib/gpu";
+import { prefersReducedMotion } from "./lib/scroll";
+import { startScrollStage } from "./world/scroll-stage";
 
 // The plain version is its own chunk: the cinematic never downloads it, and
 // it never downloads the cinematic.
@@ -114,6 +116,23 @@ function Cinematic() {
   useEffect(() => {
     if (lowPower) setSessionEnv(LOW_POWER);
   }, [lowPower]);
+
+  // The page, measured in shots, and smoothed by Lenis (src/world/scroll-stage.js).
+  // Never under reduced motion: a glide is motion the reader did not ask for.
+  const { pathname } = useLocation();
+  const stageRef = useRef(null);
+  useEffect(() => {
+    if (prefersReducedMotion()) return undefined;
+    const s = startScrollStage();
+    stageRef.current = s;
+    return () => {
+      stageRef.current = null;
+      s.stop();
+    };
+  }, []);
+  useEffect(() => {
+    stageRef.current?.resync();
+  }, [pathname]);
 
   return (
     <ErrorBoundary>

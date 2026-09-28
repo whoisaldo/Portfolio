@@ -7,6 +7,10 @@
 .intro-signal-slice-1::after { background: #ff249d; }
 .intro-signal-scan { background: repeating-linear-gradient(0deg, transparent 0 3px, #54dbec 3px 4px); }
 .garage-model:fullscreen { width: 100vw; height: 100dvh; aspect-ratio: auto; }
+/* Panes that scroll on their own under Lenis (src/world/scroll-stage.js):
+   the console, the deck's rail and models, the garage canvas. Their wheel is
+   theirs, and reaching the end of one does not scroll the page behind it. */
+.lenis [data-lenis-prevent] { overscroll-behavior: contain; }
 
 /* ===========================================================================
    Base

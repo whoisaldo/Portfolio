@@ -221,6 +221,7 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
         role="img"
         aria-label="Ali's Audi S4 in a Night City garage. Drag or use arrow keys to orbit the room; plus and minus zoom."
         onKeyDown={onCanvasKey}
+        data-lenis-prevent=""
         className="absolute inset-0 w-full h-full block outline-none touch-none"
       />
 

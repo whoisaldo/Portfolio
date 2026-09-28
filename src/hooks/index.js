@@ -1,5 +1,6 @@
 // src/hooks/index.js - small shared hooks. No dependencies.
 import { useState, useEffect, useRef } from "react";
+import { holdScroll } from "../lib/scroll";
 
 /** Subscribe to a media query. */
 export function useMediaQuery(query) {
@@ -28,9 +29,15 @@ const FOCUSABLE =
  * The scroll lock is the reason this owns body.overflow. Do not add a second
  * lock in a caller: both would save the previous value to restore, and
  * whichever ran second would capture "hidden" and never give scrolling back.
+ *
+ * It also holds Lenis (src/lib/scroll.js) while the trap is up. Lenis
+ * scrolls the window from script, and `overflow: hidden` only stops a
+ * reader's own scrolling, so without the hold a wheel over the door or the
+ * console glided the page away underneath it.
  */
 export function useFocusTrap(ref, active, onEscape) {
   const restoreTo = useRef(null);
+  const holdKey = useRef(Symbol("focus-trap"));
 
   // The callback is read through a ref so a caller passing an inline arrow
   // (`onClose={() => setOpen(null)}`) does not change the effect's identity.
@@ -49,6 +56,8 @@ export function useFocusTrap(ref, active, onEscape) {
     const { overflow, paddingRight } = document.body.style;
     document.body.style.overflow = "hidden";
     if (scrollbar > 0) document.body.style.paddingRight = `${scrollbar}px`;
+    const hold = holdKey.current;
+    holdScroll(hold, true);
 
     // A panel can say which control should take focus first with
     // `data-autofocus` (the console's input, not its close button); failing
@@ -83,6 +92,7 @@ export function useFocusTrap(ref, active, onEscape) {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = overflow;
       document.body.style.paddingRight = paddingRight;
+      holdScroll(hold, false);
       restoreTo.current?.focus?.();
     };
   }, [active, ref]);

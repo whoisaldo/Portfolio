@@ -47,7 +47,7 @@ const reveal = {
 
 export default function Contact() {
   return (
-    <section id="contact" className="relative bg-ink border-t border-ink-line">
+    <section id="contact" data-shot="contact" className="relative bg-ink border-t border-ink-line">
       <div className="gutter pt-24 md:pt-32 pb-24 md:pb-32">
         {/* ---- the address, at headline size ------------------------------ */}
         <motion.div

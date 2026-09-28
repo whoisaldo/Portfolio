@@ -99,6 +99,7 @@ export default function Console() {
       {open && (
         <motion.div
           className="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto"
+          data-lenis-prevent=""
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

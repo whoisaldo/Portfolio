@@ -26,6 +26,7 @@ export default function Hero() {
   return (
     <section
       id="hero"
+      data-shot="hero"
       className="relative min-h-[100svh] flex flex-col justify-center gutter pt-32 pb-16 overflow-hidden"
     >
       <div className="absolute inset-x-0 top-0 h-[100svh] pointer-events-none" aria-hidden="true">
