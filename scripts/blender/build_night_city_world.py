@@ -215,6 +215,16 @@ NEON = {
 }
 for key, hex_color in NEON.items():
     material("neon_" + key, hex_color, emit=6.0)
+# The garage's own fixtures are tubes, not neon: the site strikes them on as
+# the camera turns to the door (src/world/garage.js). One material, each
+# tube's colour on its vertices, so the whole room is one draw. Its door,
+# its monitor and its shop furniture are here too.
+material("tube", "ffffff", emit=6.0)
+TUBE = {key: (*rgb(NEON[key]), 1) for key in ("pink", "cyan", "white", "amber")}
+material("door_panel", "4a4e55", metal=0.6, rough=0.4)
+material("screen", "0d1016", emit=1.0)
+material("tool_red", "6e1c22", metal=0.35, rough=0.45)
+material("hazard", "d1a51e", rough=0.6)
 
 # The window shader, approximated in nodes for the viewport and Cycles.
 # UV is in window cells (1 u = one bay, 1 v = one storey); the colour
@@ -1229,11 +1239,12 @@ ground((RF, "sidewalk", 0), STREET_X + 8, STREET_X + 12, -300, -190, y=0.15, sca
 ground((RF, "sidewalk", 0), STREET_X - 12, STREET_X - 8, -300, -190, y=0.15, scale=2.0)
 
 # ---------------------------------------------------------------------------
-# THE GARAGE. A workshop on the street below the rooftop with its roll-up
-# door open: magenta fixtures on one wall, cyan on the other, as in the
-# garage room. The car pulls in forward and stops on anchor_garage_bay
-# facing +x, and the flight ends on GarageModel's front preset in the car's
-# own space: in front of the car, looking back at it and out of the door.
+# THE GARAGE. A workshop on the street below the rooftop with a roll-up door
+# (garage_door, which the site rolls up as the car comes): magenta fixtures
+# on one wall, cyan on the other, as in the garage room. The car pulls in
+# forward and stops on anchor_garage_bay facing +x, and the flight ends on
+# GarageModel's front preset in the car's own space: in front of the car,
+# looking back at it and out of the door.
 # ---------------------------------------------------------------------------
 GA = "garage"
 GX0, GX1, GZ0, GZ1, GH = 452.0, 476.0, -230.0, -200.0, 8.0
@@ -1245,7 +1256,8 @@ box((GA, "garage_wall", 0), GX0, GX0 + 0.5, DOOR_H, GH, DOOR_Z0, DOOR_Z1, scale=
 box((GA, "garage_wall", 0), GX1 - 0.5, GX1, 0, GH, GZ0, GZ1, scale=2.0)
 box((GA, "garage_wall", 0), GX0, GX1, 0, GH, GZ0, GZ0 + 0.5, scale=2.0)
 box((GA, "garage_wall", 0), GX0, GX1, 0, GH, GZ1 - 0.5, GZ1, scale=2.0)
-box((GA, "roof", 0), GX0, GX1, GH - 0.3, GH, GZ0, GZ1, scale=4.0)
+# Closed underneath: from inside, the ceiling the tubes hang from.
+box((GA, "roof", 0), GX0, GX1, GH - 0.3, GH, GZ0, GZ1, scale=4.0, bottom=True)
 mass(GA, GX0 - 0.02, GX1, GZ0, GZ1, SHOP_H, GH, 8002, faces=("-x", "+z"), roof=False)
 ground((GA, "garage_floor", 0), GX0 + 0.5, GX1 - 0.5, GZ0 + 0.5, GZ1 - 0.5, y=0.01, scale=3.0)
 box((GA, "door", 0), GX0 - 0.1, GX0 + 0.6, DOOR_H, DOOR_H + 0.55, DOOR_Z0 - 0.2, DOOR_Z1 + 0.2, scale=0.6)
@@ -1254,17 +1266,51 @@ box((GA, "neon_yellow", 0), GX0 - 0.12, GX0 - 0.08, 0.1, DOOR_H, DOOR_Z1 + 0.05,
 # Fixtures, as in the garage room: magenta on the car's passenger side
 # (car -X, which is world +z in this bay), cyan on the driver's side, white
 # overhead, so from GarageModel's front preset magenta is on the left.
-box((GA, "neon_pink", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ1 - 0.62, GZ1 - 0.5, scale=1.0)
-box((GA, "neon_cyan", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ0 + 0.5, GZ0 + 0.62, scale=1.0)
+box((GA, "tube", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ1 - 0.62, GZ1 - 0.5, scale=1.0, col=TUBE["pink"])
+box((GA, "tube", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ0 + 0.5, GZ0 + 0.62, scale=1.0, col=TUBE["cyan"])
 # The washes the strips throw: wide soft panels high on each wall, which is
 # what lights the room in the garage's own scene.
-box((GA, "neon_pink", 0), GX0 + 3, GX1 - 3, 4.4, 6.8, GZ1 - 0.56, GZ1 - 0.52, scale=1.0)
-box((GA, "neon_cyan", 0), GX0 + 3, GX1 - 3, 4.4, 6.8, GZ0 + 0.52, GZ0 + 0.56, scale=1.0)
+box((GA, "tube", 0), GX0 + 3, GX1 - 3, 4.4, 6.8, GZ1 - 0.56, GZ1 - 0.52, scale=1.0, col=TUBE["pink"])
+box((GA, "tube", 0), GX0 + 3, GX1 - 3, 4.4, 6.8, GZ0 + 0.52, GZ0 + 0.56, scale=1.0, col=TUBE["cyan"])
 for z in (-219.5, -210.5):
-    box((GA, "neon_white", 0), GX0 + 3, GX1 - 3, GH - 0.42, GH - 0.36, z - 0.06, z + 0.06, scale=1.0)
-    box((GA, "neon_white", 0), GX0 + 3, GX1 - 3, GH - 0.36, GH - 0.33, z - 0.9, z + 0.9, scale=1.0)
+    box((GA, "tube", 0), GX0 + 3, GX1 - 3, GH - 0.42, GH - 0.36, z - 0.06, z + 0.06, scale=1.0, col=TUBE["white"])
+    box((GA, "tube", 0), GX0 + 3, GX1 - 3, GH - 0.36, GH - 0.33, z - 0.9, z + 0.9, scale=1.0, col=TUBE["white"])
 box((GA, "metal", 1), GX1 - 1.4, GX1 - 0.5, 0, 0.95, -224, -206, scale=0.8)
-box((GA, "neon_amber", 1), GX1 - 0.56, GX1 - 0.5, 2.4, 2.46, -224, -206, scale=1.0)
+box((GA, "tube", 0), GX1 - 0.56, GX1 - 0.5, 2.4, 2.46, -224, -206, scale=1.0, col=TUBE["amber"])
+# The door itself, down, in the opening's guides; the site rolls it up into
+# its drum (the "door" box over the opening) and back down behind a reader
+# going back up the page.
+named_quad("garage_door", "door_panel", GX0 + 0.12, DOOR_H / 2, (DOOR_Z0 + DOOR_Z1) / 2,
+           DOOR_Z1 - DOOR_Z0 + 0.1, DOOR_H, -math.pi / 2, double=True)
+# Over the bench, the monitor the garage's own room has, facing the door:
+# the site plays the intro's moon on it.
+named_quad("garage_screen", "screen", GX1 - 0.56, 3.55, -215.0, 3.4, 1.9, -math.pi / 2)
+box((GA, "metal", 1), GX1 - 0.54, GX1 - 0.5, 2.5, 4.6, -216.9, -213.1, scale=1.0)
+# Shop furniture, low and to the sides of the camera's way in: red tool
+# chests and a pegboard on the cyan wall, tyres by the door, ducting and a
+# hoist beam overhead, and the bay painted out on the floor round the car.
+for x0 in (464.0, 466.4, 468.8):
+    box((GA, "tool_red", 1), x0, x0 + 2.1, 0, 1.05, GZ0 + 0.5, GZ0 + 1.25, scale=1.0)
+    for y in (0.3, 0.55, 0.8):
+        box((GA, "dark", 1), x0 + 0.1, x0 + 2.0, y, y + 0.03, GZ0 + 1.25, GZ0 + 1.27, scale=1.0)
+    box((GA, "metal", 1), x0 + 0.2, x0 + 1.9, 1.05, 1.1, GZ0 + 0.5, GZ0 + 1.3, scale=1.0)
+box((GA, "dark", 1), 464.0, 471.0, 1.5, 3.1, GZ0 + 0.5, GZ0 + 0.56, scale=1.0)
+for i in range(9):
+    x = 464.5 + i * 0.72
+    box((GA, "metal", 1), x, x + 0.08, 1.9 + (i % 3) * 0.3, 2.6 + (i % 2) * 0.2, GZ0 + 0.56, GZ0 + 0.62, scale=1.0)
+for k, (tx, tz) in enumerate(((453.6, -222.4), (453.6, -221.3), (454.7, -222.4))):
+    cylinder((GA, "dark", 1), tx, tz, 0.0, 0.9 if k < 2 else 0.6, 0.34, segs=12)
+for z in (-224.0, -206.0):
+    box((GA, "metal", 1), GX0 + 0.6, GX1 - 0.6, GH - 1.05, GH - 0.75, z - 0.18, z + 0.18, scale=1.0)
+box((GA, "hazard", 0), 468.3, 468.6, GH - 0.72, GH - 0.42, GZ0 + 1, GZ1 - 1, scale=1.0)
+box((GA, "metal", 1), 468.4, 468.5, 5.2, GH - 0.72, -219.05, -218.95, scale=1.0)
+box((GA, "hazard", 1), 468.25, 468.65, 4.95, 5.2, -219.2, -218.8, scale=1.0)
+for (a0, a1, b0, b1) in ((458.9, 465.1, -216.45, -216.3), (458.9, 465.1, -213.7, -213.55),
+                         (458.9, 459.05, -216.45, -213.55), (464.95, 465.1, -216.45, -213.55)):
+    box((GA, "hazard", 0), a0, a1, 0.011, 0.016, b0, b1, scale=1.0)
+for i in range(8):
+    z0 = DOOR_Z0 + 0.1 + i * 0.75
+    box((GA, "hazard", 0), GX0 + 0.55, GX0 + 1.0, 0.011, 0.016, z0, z0 + 0.36, scale=1.0)
 empty("anchor_garage_bay", BAY, yaw=math.pi / 2)
 # Under the roof it does not rain: the site's rain skips this box.
 empty("anchor_shelter_garage", (GX0, 0.0, GZ0), props={"size": [GX1 - GX0, GH - 0.3, GZ1 - GZ0]})

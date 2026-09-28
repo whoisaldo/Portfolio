@@ -26,6 +26,7 @@ import { createAds, preloadAds } from "./ads.js";
 import { createBoards } from "./boards.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
+import { createGarage } from "./garage.js";
 import { attributeKey, mergeMeshes } from "./merge.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -74,7 +75,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     if (!o.isMesh) return;
     if (o.name.startsWith("sign_")) signMeshes.push(o);
     else if (o.name.startsWith("ad_")) adMeshes.push(o);
-    else if (/^(board_|crown_|holo_figure|moon_disc)/.test(o.name)) named[o.name] = o;
+    else if (/^(board_|crown_|holo_figure|moon_disc|garage_door|garage_screen)/.test(o.name)) named[o.name] = o;
     else meshes.push(o);
   });
 
@@ -118,6 +119,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     if (mat) mesh.material = mat;
     if (name.startsWith("neon_")) {
       sources.push({ mesh, color: new THREE.Color(NEON[name.slice(5)] || "#ffffff"), intensity: 1.0 });
+      mesh.layers.enable(REFLECT_LAYER);
+    } else if (name === "tube") {
+      // The garage's tubes, pink, cyan and white together: their light in
+      // the bake as the room's mix.
+      sources.push({ mesh, color: new THREE.Color("#e0a8e6"), intensity: 0.8 });
       mesh.layers.enable(REFLECT_LAYER);
     } else if (name === "shop") {
       sources.push({ mesh, color: new THREE.Color("#ffb070"), intensity: 0.5 });
@@ -205,7 +211,9 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER });
   const logos = await createLogos(anchors, shared, { reflectLayer: REFLECT_LAYER, maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()) });
   root.add(logos.mesh);
-  dressed.push(boards, towers, logos);
+  const garage = await createGarage(named, shared, { reduced, reflectLayer: REFLECT_LAYER });
+  root.add(garage.mesh);
+  dressed.push(boards, towers, logos, garage);
 
   scene.add(root);
 
@@ -221,6 +229,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     boards,
     towers,
     logos,
+    garage,
     kit,
     roadMaterial: road,
     roadMaterials: [road, paint],

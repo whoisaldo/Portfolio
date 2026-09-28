@@ -452,6 +452,41 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
+  // The garage's tubes: neon's flat HDR colour (each tube's own, on its
+  // vertices), dark until the camera turns to the door (uTubeClock,
+  // src/world/garage.js), then struck on a fixture at a time, the way
+  // fluorescents are: a flash or two, then steady.
+  const tube = () => {
+    if (made.has("tube")) return made.get("tube");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared, uIntensity: { value: 2.4 } },
+      vertexShader: VERT_WORLD_COLOR,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        uniform float uIntensity;
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        void main() {
+          vec3 tint = vColor.rgb;
+          vec2 fixture = floor(vWorld.xz / vec2(4.0, 3.0));
+          float t = uTubeClock - hash12(fixture + 3.7) * 0.9;
+          float strike = step(0.5, hash12(vec2(floor(t * 20.0), fixture.x * 7.0 + fixture.y)));
+          float on = step(0.0, uTubeClock) * step(0.0, t) * (t > 0.42 ? 1.0 : strike * 0.85);
+          float breathe = 1.0 + 0.3 * uBass + 0.1 * uLevel;
+          vec3 col = tint * uIntensity * on * breathe + tint * 0.03;
+          col = cityFog(col, vWorld, 1.0);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "tube";
+    made.set("tube", m);
+    return m;
+  };
+
   /** The material for a GLB material name, or null to leave it alone. */
   const forName = (name) => {
     const n = name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
@@ -459,6 +494,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       const hue = n.slice(5);
       return neon(n, NEON[hue] || "#ffffff", { flicker: hue === "white" || hue === "amber" ? 0 : 1 });
     }
+
     switch (n) {
       case "facade": return facade();
       case "facade_t0":
@@ -480,6 +516,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
       case "door": return surface("door", { color: "#2a2d33", ambient: 0.04 });
       case "garage_floor": return surface("garage_floor", { color: "#56585e", ambient: 0.09, spill: 2.6 });
+      case "tube": return tube();
+      case "tool_red": return surface("tool_red", { color: "#7a2028", ambient: 0.06, spill: 2.0 });
+      case "hazard": return surface("hazard", { color: "#d8ab22", ambient: 0.07, spill: 1.8 });
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });
       default: return null;
     }

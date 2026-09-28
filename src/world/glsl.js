@@ -34,6 +34,12 @@ export function createSharedUniforms(THREE) {
     // avenue), where it is brightest.
     uGlowColor: { value: new THREE.Color(0.95, 0.36, 0.78).multiplyScalar(0.34) },
     uGlowDir: { value: new THREE.Vector2(0, -1) },
+    // The garage (src/world/garage.js): seconds since its tubes struck on
+    // (-1 while they are off), and its door's light on the street: the
+    // opening's x, its middle's z, its half width, and how far up it is.
+    uTubeClock: { value: -1 },
+    uDoorLight: { value: new THREE.Vector4(0, 0, 1, 0) },
+    uDoorColor: { value: new THREE.Color(1, 0.72, 0.92) },
   };
 }
 
@@ -51,6 +57,9 @@ export const COMMON = /* glsl */ `
   uniform vec3 uCam;
   uniform vec3 uGlowColor;
   uniform vec2 uGlowDir;
+  uniform float uTubeClock;
+  uniform vec4 uDoorLight;
+  uniform vec3 uDoorColor;
 
   float hash12(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -65,12 +74,37 @@ export const COMMON = /* glsl */ `
 
   // The city's own light at a point: the ground map, strongest near the
   // street and gone by the fifth storey.
+  // The garage's open door: its room's light thrown out across the wet
+  // street, widening and fading as it goes, only as far up as the door is.
+  vec3 doorPool(vec3 p) {
+    if (uDoorLight.w <= 0.0) return vec3(0.0);
+    float away = uDoorLight.x - p.x;
+    float spread = uDoorLight.z + max(away, 0.0) * 0.4;
+    float across = 1.0 - smoothstep(spread * 0.6, spread, abs(p.z - uDoorLight.y));
+    float along = exp(-max(away, 0.0) * 0.14) * smoothstep(-0.6, 0.4, away);
+    return uDoorColor * uDoorLight.w * across * along * exp(-max(p.y, 0.0) * 0.5) * 0.9;
+  }
+
+  // Inside the garage once its tubes have struck: its own light, pink off
+  // the one wall, cyan off the other, white from overhead, flickering with
+  // the tubes as they catch.
+  vec3 garageRoom(vec3 p) {
+    if (uTubeClock < 0.0) return vec3(0.0);
+    if (p.x < 452.4 || p.x > 475.6 || p.z < -229.6 || p.z > -200.4 || p.y > 7.8) return vec3(0.0);
+    float catching = step(0.5, hash12(vec2(floor(uTubeClock * 20.0), 7.0)));
+    float on = uTubeClock > 0.6 ? 1.0 : catching * smoothstep(0.0, 0.6, uTubeClock);
+    vec3 pink = vec3(1.0, 0.16, 0.5) * smoothstep(-224.0, -201.0, p.z);
+    vec3 cyan = vec3(0.14, 0.82, 0.95) * (1.0 - smoothstep(-229.0, -206.0, p.z));
+    vec3 white = vec3(0.85, 0.87, 0.92) * (0.35 + 0.25 * smoothstep(0.0, 7.0, p.y));
+    return (pink * 0.32 + cyan * 0.32 + white * 0.22) * on * (1.0 + 0.15 * uBass);
+  }
+
   vec3 spillAt(vec3 p) {
     vec2 uv = (p.xz - uSpillBounds.xy) * uSpillBounds.zw;
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
     vec3 s = texture2D(uSpill, uv).rgb;
     float h = max(p.y, 0.0);
-    return s * s * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085));
+    return s * s * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085)) + doorPool(p) + garageRoom(p);
   }
 
   // The city's glow in the air along a direction, at a height: low over

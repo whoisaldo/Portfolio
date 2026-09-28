@@ -355,6 +355,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       city?.boards.update(dt, activeBoard());
       city?.towers.update(dt, activeTowers());
       city?.logos.update(dt, activeTowers());
+      city?.garage.update(dt, stage.position, stage.route.kind === "home" ? stage.shots.findIndex((s) => s.id === "garage") : -1);
       if (mirror && city && env.wet) {
         camera.updateMatrixWorld();
         const drew = mirror.render(scene, camera);
