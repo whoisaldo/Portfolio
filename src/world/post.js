@@ -17,6 +17,12 @@
 //   noise, vignette, the Khronos neutral tone map, and the grade last.
 //
 // The phone gets half-resolution bloom and the glitch, and nothing else.
+//
+// The intro's voxel moon (src/world/voxel-moon.js) is its own scene with its
+// own camera, drawn by a second render pass through the same chain, so it
+// takes the city's grade and bloom. While it is on screen alone the city's
+// pass rests; while the city shows through it, the moon draws over the
+// city's frame with only the depth cleared between them.
 import * as THREE from "three";
 import {
   BlendFunction,
@@ -119,7 +125,9 @@ export function createPost(renderer, scene, camera, quality) {
     frameBufferType: THREE.HalfFloatType,
     multisampling: 0,
   });
-  composer.addPass(new RenderPass(scene, camera));
+  const cityPass = new RenderPass(scene, camera);
+  composer.addPass(cityPass);
+  let moonPass = null;
 
   let smaa = null;
   if (quality.smaa) {
@@ -161,6 +169,19 @@ export function createPost(renderer, scene, camera, quality) {
     bloom,
     tone,
     grade,
+    /** The moon's scene and camera, for its own pass after the city's. */
+    setMoon(moonScene, moonCamera) {
+      moonPass = new RenderPass(moonScene, moonCamera);
+      moonPass.enabled = false;
+      composer.addPass(moonPass, 1);
+    },
+    /** null: the city alone. "only": the moon alone. "over": the moon over the city. */
+    view(moon) {
+      cityPass.enabled = moon !== "only";
+      if (!moonPass) return;
+      moonPass.enabled = Boolean(moon);
+      moonPass.clearPass.setClearFlags(moon !== "over", true, false);
+    },
     setGlitch(envelope, bass) {
       glitch.uniforms.get("uEnvelope").value = envelope;
       glitch.uniforms.get("uBass").value = bass;

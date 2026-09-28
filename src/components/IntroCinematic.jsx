@@ -59,6 +59,13 @@
 // underneath it. When the city is off or not ready yet, the plate path runs
 // exactly as it always has, and the city takes over from the plate after the
 // reveal, on a camera matched to it.
+//
+// And two moons. When the city is already ready as the run starts, the moon
+// is the city's too (src/world/voxel-moon.js): built of voxels in its
+// renderer, cut to this clock, and it ends by flipping Earth over into the
+// street on the drop, so the whole run is one camera in one renderer. The
+// painted moon is then never shown; it stays for the plate path, where it
+// is the moon.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDecode, useKonami, useMediaQuery } from "../hooks";
@@ -103,8 +110,8 @@ const CLOSER = "preem. you're in.";
 // Two falling stars, on quiet beats of the arpeggio, at different places in
 // the sky.
 const METEORS = [
-  { at: 12.0, x: "64%", y: "8%", angle: "22deg" },
-  { at: 22.4, x: "28%", y: "5%", angle: "16deg" },
+  { at: C.METEOR_AT[0], x: "64%", y: "8%", angle: "22deg" },
+  { at: C.METEOR_AT[1], x: "28%", y: "5%", angle: "16deg" },
 ];
 
 const clamp = (p) => Math.min(1, Math.max(0, p));
@@ -277,6 +284,8 @@ export default function IntroCinematic() {
   const [puffs, setPuffs] = useState([]);
   // "world" or "plate" once decided at CITY_IN; null before.
   const [path, setPath] = useState(null);
+  // "voxel" (the city draws the moon) or "plate", decided as the run starts.
+  const [moonPath, setMoonPath] = useState(null);
   const portrait = useMediaQuery("(orientation: portrait)");
 
   const overlayRef = useRef(null);
@@ -302,6 +311,7 @@ export default function IntroCinematic() {
   const puffIdRef = useRef(0);
   const flagsRef = useRef(FLAGS);
   const pathRef = useRef(null);
+  const moonPathRef = useRef(null);
 
   // Up up down down left right left right B A, anywhere on the page.
   const replayIntro = useReplayIntro();
@@ -318,6 +328,11 @@ export default function IntroCinematic() {
       threeFailedRef.current = false;
       pathRef.current = null;
       setPath(null);
+      // The voxel moon needs the city ready now, not by CITY_IN: it is on
+      // screen from the first frame. Decided here, before the overlay's
+      // first render, so the painting never shows under it.
+      moonPathRef.current = getWorld() ? "voxel" : "plate";
+      setMoonPath(moonPathRef.current);
       // The city's own loop rests while the intro holds the screen: it is
       // either behind the moon or drawn by this intro's clock.
       setStage({ mode: "cinematic" });
@@ -605,9 +620,24 @@ export default function IntroCinematic() {
       if (s >= C.HERO_IN) setIntroDone(true);
 
       // ---- which street ------------------------------------------------
-      // Decided once, when the moon starts to give way: the live city if it
+      // The voxel moon is already the city's, from its first frame. Else
+      // decided once, when the moon starts to give way: the live city if it
       // is ready, the plate otherwise. A city that is lost mid-run (its GPU
-      // context went) hands the rest of the run to the plate.
+      // context went) hands the rest of the run to the plate, painted moon
+      // and all.
+      if (pathRef.current === null && moonPathRef.current === "voxel") {
+        const ready = getWorld();
+        if (ready) {
+          pathRef.current = "world";
+          setPath("world");
+          ready.beginIntro();
+          document.documentElement.dataset.introWorld = "";
+          document.documentElement.style.setProperty("--intro-page", "0");
+        } else {
+          moonPathRef.current = "plate";
+          setMoonPath("plate");
+        }
+      }
       if (pathRef.current === null && s >= C.CITY_IN) {
         const ready = getWorld();
         pathRef.current = ready ? "world" : "plate";
@@ -624,9 +654,13 @@ export default function IntroCinematic() {
       if (pathRef.current === "world" && !world) {
         pathRef.current = "plate";
         setPath("plate");
+        moonPathRef.current = "plate";
+        setMoonPath("plate");
         delete document.documentElement.dataset.introWorld;
         document.documentElement.style.removeProperty("--intro-page");
+        if (overlayRef.current) overlayRef.current.style.backgroundColor = "";
       }
+      const voxel = moonPathRef.current === "voxel";
 
       // ---- flags that gate React content ------------------------------
       const withTrack = run.withSound && isTrackPlaying();
@@ -699,8 +733,9 @@ export default function IntroCinematic() {
       const cityIn = smooth((s - C.CITY_IN) / (C.CITY_READY - C.CITY_IN));
       if (world) {
         // The moon, its stars and the overlay's own black dissolve, and what
-        // is under them is the live city.
-        const keep = (1 - cityIn).toFixed(3);
+        // is under them is the live city. The voxel moon is under them from
+        // the start.
+        const keep = voxel ? "0" : (1 - cityIn).toFixed(3);
         for (const el of [starsRef.current, moonRef.current, earthRef.current]) if (el) el.style.opacity = keep;
         if (overlayRef.current) overlayRef.current.style.backgroundColor = `rgb(5 5 6 / ${keep})`;
         if (cityRef.current) cityRef.current.style.opacity = "0";
@@ -723,7 +758,7 @@ export default function IntroCinematic() {
       // Its camera, its car and its glitch, on this clock. The shake is the
       // same rumble, as a tremor of the camera rather than of a layer.
       if (world) {
-        world.renderCinematic(s, { shake: amp ? rumbleXY(s, amp) : null, glitch: Math.min(1, pulse * 1.25) });
+        world.renderCinematic(s, { shake: amp ? rumbleXY(s, amp) : null, glitch: Math.min(1, pulse * 1.25), moon: voxel });
         if (carRef.current) carRef.current.style.opacity = "0";
         if (canvasRef.current) canvasRef.current.style.opacity = "0";
         return;
@@ -823,46 +858,55 @@ export default function IntroCinematic() {
                 drop and a transform on a layer costs nothing, where a
                 transform on a painted box repaints the moon. */}
             <div ref={worldRef} className="absolute inset-0 will-change-transform">
-              {/* Stars behind the plate, so the push-in has something to
-                  move against. */}
-              <div ref={starsRef} className="absolute inset-0 overflow-hidden" aria-hidden="true">
-                <span className="intro-star" style={{ boxShadow: stars }} />
-              </div>
+              {/* The painted moon, for the plate path. With the voxel moon
+                  the city draws all of this itself, under a clear overlay,
+                  and the figures are described once for a screen reader. */}
+              {moonPath === "voxel" ? (
+                <span className="sr-only">Two figures sitting on the surface of the moon with their backs to us, looking up at Earth.</span>
+              ) : (
+                <>
+                  {/* Stars behind the plate, so the push-in has something to
+                      move against. */}
+                  <div ref={starsRef} className="absolute inset-0 overflow-hidden" aria-hidden="true">
+                    <span className="intro-star" style={{ boxShadow: stars }} />
+                  </div>
 
-              {/* The moon. Pushes in slowly through the whole phrase, then
-                  recedes at ignition. */}
-              <div ref={moonRef} className="absolute inset-0 will-change-transform" style={{ transformOrigin: "50% 62%" }}>
-                <Picture
-                  sources={portrait ? MOON_PORTRAIT : MOON}
-                  alt="Two figures sitting on the surface of the moon with their backs to us, looking up at Earth."
-                  sizes="100vw"
-                  loading="eager"
-                  fetchPriority="high"
-                  className={`absolute inset-0 w-full h-full object-cover ${portrait ? "object-[50%_62%]" : "object-[50%_55%]"}`}
-                />
-              </div>
+                  {/* The moon. Pushes in slowly through the whole phrase, then
+                      recedes at ignition. */}
+                  <div ref={moonRef} className="absolute inset-0 will-change-transform" style={{ transformOrigin: "50% 62%" }}>
+                    <Picture
+                      sources={portrait ? MOON_PORTRAIT : MOON}
+                      alt="Two figures sitting on the surface of the moon with their backs to us, looking up at Earth."
+                      sizes="100vw"
+                      loading="eager"
+                      fetchPriority="high"
+                      className={`absolute inset-0 w-full h-full object-cover ${portrait ? "object-[50%_62%]" : "object-[50%_55%]"}`}
+                    />
+                  </div>
 
-              {/* Earth's glow, breathing with the music through --level. */}
-              <div ref={earthRef} className="absolute inset-0 pointer-events-none" aria-hidden="true">
-                <div className="intro-earthglow" data-reactive="" />
-                {/* Moon dust. */}
-                {motes.map((m) => (
-                  <span
-                    key={m.id}
-                    className="intro-mote"
-                    style={{ left: m.left, top: m.top, "--s": m.s, "--d": m.d, "--delay": m.delay, "--dx": m.dx, "--o": m.o }}
-                  />
-                ))}
-              </div>
+                  {/* Earth's glow, breathing with the music through --level. */}
+                  <div ref={earthRef} className="absolute inset-0 pointer-events-none" aria-hidden="true">
+                    <div className="intro-earthglow" data-reactive="" />
+                    {/* Moon dust. */}
+                    {motes.map((m) => (
+                      <span
+                        key={m.id}
+                        className="intro-mote"
+                        style={{ left: m.left, top: m.top, "--s": m.s, "--d": m.d, "--delay": m.delay, "--dx": m.dx, "--o": m.o }}
+                      />
+                    ))}
+                  </div>
 
-              {/* A falling star. */}
-              {flags.meteor >= 0 && (
-                <span
-                  key={`meteor-${run.id}-${flags.meteor}`}
-                  className="intro-meteor"
-                  style={{ "--mx": METEORS[flags.meteor].x, "--my": METEORS[flags.meteor].y, "--ma": METEORS[flags.meteor].angle }}
-                  aria-hidden="true"
-                />
+                  {/* A falling star. */}
+                  {flags.meteor >= 0 && (
+                    <span
+                      key={`meteor-${run.id}-${flags.meteor}`}
+                      className="intro-meteor"
+                      style={{ "--mx": METEORS[flags.meteor].x, "--my": METEORS[flags.meteor].y, "--ma": METEORS[flags.meteor].angle }}
+                      aria-hidden="true"
+                    />
+                  )}
+                </>
               )}
 
               {/* The street stays behind the live car and the portfolio.

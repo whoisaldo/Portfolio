@@ -5,6 +5,7 @@ export const worldModelUrl = {
 };
 export const worldMoonUrl = "/scenes/world/moon.webp?v=96aaeaea7d25";
 export const worldHoloUrl = "/scenes/world/holo.webp?v=1bfdb5119c9e";
+export const worldEarthUrl = "/scenes/world/earth.webp?v=bb6f592554a0";
 export const worldAdUrl = {
   kiroshi: "/scenes/world/ad-kiroshi.webp?v=33669a895cb6",
   nicola: "/scenes/world/ad-nicola.webp?v=dfd16fca9abc",

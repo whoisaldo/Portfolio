@@ -10,6 +10,8 @@
 //   public/scenes/world/moon.webp        the intro's moon still, for the
 //                                        Contact shot's moon
 //   public/scenes/world/holo.webp        the avenue's holographic figure
+//   public/scenes/world/earth.webp       the portrait plate's Earth, for the
+//                                        intro's voxel moon
 //   public/scenes/world/ad-*.webp        the avenue's two big screens
 //   public/scenes/world/koi-*.webp       the holographic koi over the avenue
 //   public/scenes/world/shops-*.webp     the rooms behind the shop windows
@@ -115,6 +117,18 @@ for (const [name, src, w, h, q] of [
   console.log(`${name}.webp: ${Math.round((await stat(path)).size / 1024)} KB`);
 }
 
+// Earth over the intro's voxel moon (src/world/voxel-moon.js): the portrait
+// plate's own Earth, cropped square round the disc and its thin atmosphere
+// (centre 505, 564 and radius 450 in the 1024 by 1536 plate, measured off
+// the rim), so the moon the city draws shows the Earth the painting does.
+const earthPath = `${OUT}/earth.webp`;
+await sharp("src/assets/Intro/MoonPortrait.png")
+  .extract({ left: 505 - 450, top: 564 - 450, width: 900, height: 900 })
+  .resize(512, 512)
+  .webp({ quality: 90 })
+  .toFile(earthPath);
+console.log(`earth.webp: ${Math.round((await stat(earthPath)).size / 1024)} KB`);
+
 // The shops' interiors: eight original generated rooms (see the design
 // README), four across and two down, one atlas per tier. The site shows them
 // through the shop windows with interior mapping (src/world/materials.js).
@@ -207,6 +221,7 @@ export const worldModelUrl = {
 };
 export const worldMoonUrl = "${base}moon.webp?v=${await revision(moonPath)}";
 export const worldHoloUrl = "${base}holo.webp?v=${await revision(holoPath)}";
+export const worldEarthUrl = "${base}earth.webp?v=${await revision(earthPath)}";
 export const worldAdUrl = {
   kiroshi: "${base}ad-kiroshi.webp?v=${await revision(imagePaths["ad-kiroshi"])}",
   nicola: "${base}ad-nicola.webp?v=${await revision(imagePaths["ad-nicola"])}",

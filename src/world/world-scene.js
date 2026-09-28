@@ -29,6 +29,7 @@ import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
 import { preloadAds } from "./ads.js";
 import { createKoi, preloadKoi } from "./koi.js";
+import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
 import { createMirror } from "./mirror.js";
 import { createPost } from "./post.js";
 import { createSkyline } from "./skyline.js";
@@ -46,7 +47,7 @@ import { boards as BOARDS, SHOTS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
-  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadKoi(), preloadCar()]);
+  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadKoi(), preloadCar(), preloadVoxelMoon()]);
 }
 
 const DEG = Math.PI / 180;
@@ -83,6 +84,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let car = null;
   let shafts = null;
   let koi = null;
+  let moon = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality);
 
@@ -103,8 +105,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER });
     shafts = createShafts(scene, c.anchors, shared);
     resize();
-    return createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }).then((k) => {
+    return Promise.all([
+      createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }),
+      createVoxelMoon(renderer, shared, { tier }),
+    ]).then(([k, m]) => {
       koi = k;
+      moon = m;
+      post.setMoon(m.scene, m.camera);
       return c;
     });
   });
@@ -324,27 +331,33 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const times = new Float32Array(240);
   let timeIndex = 0;
 
-  const draw = (dt) => {
+  // `moonView` is the intro's voxel moon (see renderCinematic): null for the
+  // city alone, "only" for the moon alone, "over" for the moon over the city.
+  const draw = (dt, moonView = null) => {
     renderer.info.reset();
     clock += dt;
     shared.uTime.value = clock;
     shared.uCam.value.copy(camera.position);
     const env = drive(dt);
-    skyline?.update(camera);
-    rain?.update(dt, camera, env.wet);
-    shafts?.update(shared.uHaze.value);
-    koi?.update(dt);
-    traffic?.update(dt, env.traffic);
-    city?.boards.update(dt, activeBoard());
-    city?.towers.update(dt, activeTowers());
-    city?.logos.update(dt, activeTowers());
-    if (mirror && city && env.wet) {
-      camera.updateMatrixWorld();
-      const drew = mirror.render(scene, camera);
-      for (const r of city.roadMaterials) r.setReflection(drew ? mirror.texture : null, mirror.matrix, mirror.horizonV);
-    } else if (city) {
-      for (const r of city.roadMaterials) r.setReflection(null);
+    if (moonView) moon.renderShadows();
+    if (moonView !== "only") {
+      skyline?.update(camera);
+      rain?.update(dt, camera, env.wet);
+      shafts?.update(shared.uHaze.value);
+      koi?.update(dt);
+      traffic?.update(dt, env.traffic);
+      city?.boards.update(dt, activeBoard());
+      city?.towers.update(dt, activeTowers());
+      city?.logos.update(dt, activeTowers());
+      if (mirror && city && env.wet) {
+        camera.updateMatrixWorld();
+        const drew = mirror.render(scene, camera);
+        for (const r of city.roadMaterials) r.setReflection(drew ? mirror.texture : null, mirror.matrix, mirror.horizonV);
+      } else if (city) {
+        for (const r of city.roadMaterials) r.setReflection(null);
+      }
     }
+    post.view(moonView);
     post.render(dt);
     if (!firstFrame) {
       firstFrame = true;
@@ -493,7 +506,27 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     posed = true;
     if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
     else renderer.compile(scene, camera);
+    if (moon) await moon.compile();
     if (disposed) return;
+    // Two real frames, under the door or the poster where nobody sees them,
+    // with nothing culled: the moon's reveal over the street, then the hero.
+    // Compiling is not everything a first frame does (buffers and textures
+    // upload on first draw, and the drift's camera sees buildings the
+    // hero's does not), and the first frame anyone sees, the reveal or the
+    // page, should not stutter.
+    const culled = [];
+    scene.traverse((o) => {
+      if (o.frustumCulled) {
+        culled.push(o);
+        o.frustumCulled = false;
+      }
+    });
+    if (moon) {
+      moon.update(29.2, { width, height, pixelRatio: renderer.getPixelRatio(), over: true });
+      draw(0, "over");
+    }
+    draw(0);
+    for (const o of culled) o.frustumCulled = true;
     running = null;
     check();
   };
@@ -501,8 +534,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // ---- the intro -------------------------------------------------------------------
   // While the intro runs (stage.mode "cinematic") this scene's own loop rests
   // and the intro's frame loop calls renderCinematic once a frame instead, on
-  // the song clock: the drift's camera, the drift itself, the shake and the
-  // braindance glitch on the intro's cues, all on one clock.
+  // the song clock: the voxel moon, when the intro opens here, then the
+  // drift's camera, the drift itself, the shake and the braindance glitch on
+  // the intro's cues, all on one clock.
   let cineLast = null;
   const heroTo = makePose();
   /** The intro is about to use this scene: the car to its mark. */
@@ -513,35 +547,40 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   /**
    * One frame of the cinematic at song second `s`. `shake` is the intro's
    * rumble in CSS pixels ({ x, y }), turned into a camera tremor here;
-   * `glitch` is the handoff's 0..1 envelope.
+   * `glitch` is the handoff's 0..1 envelope; `moon` asks for the voxel
+   * moon before the street (src/world/voxel-moon.js decides when it shows).
    */
-  const renderCinematic = (s, { shake = null, glitch: g = 0 } = {}) => {
+  const renderCinematic = (s, { shake = null, glitch: g = 0, moon: withMoon = false } = {}) => {
     if (!city || disposed) return;
     const dt = cineLast === null ? 0 : clamp(s - cineLast, 0, 0.05);
     cineLast = s;
-    // The drift's own camera, then, while the page arrives, a slow crane
-    // down and a tilt up into the hero's: the city opens up behind the name.
-    driftPose(aspect, want);
-    const e = easeInOut(clamp((s - HANDOFF) / (REVEAL - HANDOFF), 0, 1));
-    if (e > 0) {
-      shots.poseOf("hero", 0, aspect, heroTo);
-      want.position.lerp(heroTo.position, e);
-      want.target.lerp(heroTo.target, e);
-      want.fov += (heroTo.fov - want.fov) * e;
-      want.shift += (heroTo.shift - want.shift) * e;
+    const moonView = withMoon && moon ? moonPhase(s) : null;
+    if (moonView) moon.update(s, { width, height, pixelRatio: renderer.getPixelRatio(), over: moonView === "over" });
+    if (moonView !== "only") {
+      // The drift's own camera, then, while the page arrives, a slow crane
+      // down and a tilt up into the hero's: the city opens up behind the name.
+      driftPose(aspect, want);
+      const e = easeInOut(clamp((s - HANDOFF) / (REVEAL - HANDOFF), 0, 1));
+      if (e > 0) {
+        shots.poseOf("hero", 0, aspect, heroTo);
+        want.position.lerp(heroTo.position, e);
+        want.target.lerp(heroTo.target, e);
+        want.fov += (heroTo.fov - want.fov) * e;
+        want.shift += (heroTo.shift - want.shift) * e;
+      }
+      copyPose(pose, want);
+      applyPose(pose, false);
+      if (shake) {
+        const perPx = (camera.fov * DEG) / height;
+        camera.rotateY(-shake.x * perPx);
+        camera.rotateX(-shake.y * perPx);
+      }
+      posed = true;
+      lastPosition = stage.position;
+      car?.cinematic(s - DROP, s, dt, aspect, clamp(aspect / 1.6, 0.4, 1));
     }
-    copyPose(pose, want);
-    applyPose(pose, false);
-    if (shake) {
-      const perPx = (camera.fov * DEG) / height;
-      camera.rotateY(-shake.x * perPx);
-      camera.rotateX(-shake.y * perPx);
-    }
-    posed = true;
-    lastPosition = stage.position;
-    car?.cinematic(s - DROP, s, dt, aspect, clamp(aspect / 1.6, 0.4, 1));
     cineGlitch = g;
-    draw(dt);
+    draw(dt, moonView);
     cineGlitch = -1;
   };
 
@@ -559,6 +598,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       car?.dispose();
       shafts?.dispose();
       koi?.dispose();
+      moon?.dispose();
     }).catch(() => {});
     mirror?.dispose();
     mirror = null;
@@ -610,7 +650,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       ctx.putImageData(img, 0, 0);
       return c.toDataURL("image/png");
     };
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, post, dumpMirror, setQuality };
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, post, dumpMirror, setQuality };
   }
 
   return {

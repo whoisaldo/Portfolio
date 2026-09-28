@@ -25,6 +25,10 @@ export const VOICE_AT = [16.75, 20.5, 24.6];
 /** The measured readout slides in on the quiet phrase after the first swell. */
 export const READOUT_AT = 12.0;
 
+/** Two falling stars over the moon, on quiet beats of the arpeggio: the
+ *  plate's two streaks and the voxel moon's two meteors. */
+export const METEOR_AT = [12.0, 22.4];
+
 /** A synth swell at 26.0s. Headlights, engine, and the moon scene starts to
  *  recede. Everything between here and the drop is tension. */
 export const IGNITION = 26.1;
