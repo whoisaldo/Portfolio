@@ -21,12 +21,14 @@
 // asymmetric attack and decay src/lib/reactive.js uses. Silence is stillness.
 import * as THREE from "three";
 import { stage, subscribeStage } from "./stage.js";
-import { createShots, makePose, copyPose, heroPose, clamp, easeInOut } from "./shots.js";
+import { createShots, makePose, copyPose, driftPose, clamp, easeInOut } from "./shots.js";
 import { TIERS, ADAPT } from "./quality.js";
 import { createSharedUniforms } from "./glsl.js";
 import { createCity, preloadCity, REFLECT_LAYER, MIRROR_LAYER } from "./city.js";
 import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
+import { preloadAds } from "./ads.js";
+import { createKoi, preloadKoi } from "./koi.js";
 import { createMirror } from "./mirror.js";
 import { createPost } from "./post.js";
 import { createSkyline } from "./skyline.js";
@@ -39,12 +41,12 @@ import { LIGHT_BOUNDS } from "./spill.js";
 import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
-import { DROP } from "../lib/cues.js";
+import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
 import { boards as BOARDS, SHOTS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
-  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadCar()]);
+  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadKoi(), preloadCar()]);
 }
 
 const DEG = Math.PI / 180;
@@ -80,6 +82,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let traffic = null;
   let car = null;
   let shafts = null;
+  let koi = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality);
 
@@ -87,7 +90,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     city = c;
     const clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
-    skyline = createSkyline(scene, shared, { count: tier === "phone" ? 1200 : 2600 });
+    const keepOut = [...c.anchors].filter(([n]) => n.startsWith("anchor_mega_")).map(([, a]) => {
+      const r = (a.extras?.size ?? 50) / 2;
+      return [a.position.x - r, a.position.z - r, a.position.x + r, a.position.z + r];
+    });
+    skyline = createSkyline(scene, shared, { count: tier === "phone" ? 1200 : 2600, keepOut });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
@@ -96,8 +103,23 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER });
     shafts = createShafts(scene, c.anchors, shared);
     resize();
-    return c;
+    return createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }).then((k) => {
+      koi = k;
+      return c;
+    });
   });
+
+  // The lens: its field of view, and a vertical shift (see makePose). The
+  // shift moves the frustum, not the camera, so a level camera keeps its
+  // verticals vertical with its horizon above the middle of the frame.
+  let lensShift = 0;
+  const project = () => {
+    camera.updateProjectionMatrix();
+    if (lensShift) {
+      camera.projectionMatrix.elements[9] = -lensShift;
+      camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    }
+  };
 
   // ---- size ---------------------------------------------------------------
   let width = 1;
@@ -115,7 +137,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     renderer.setSize(width, height, false);
     post.setSize(width, height);
     camera.aspect = aspect;
-    camera.updateProjectionMatrix();
+    project();
     // The moon's size for this screen, scaled about its own centre. Its node
     // already carries a transform (the GLB's quantisation puts the disc's
     // offset and scale there), so that is kept and scaled, not replaced.
@@ -144,17 +166,22 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // The intro's own glitch envelope while it drives this scene, else -1.
   let cineGlitch = -1;
   const tilt = { x: 0, y: 0 };
+  // The hero's hand: a sway of a fraction of a degree and a slow push up the
+  // avenue, while it holds (never with reduced motion).
+  const hand = { yaw: 0, pitch: 0, roll: 0 };
 
   const applyPose = (p, withTilt) => {
     camera.position.copy(p.position);
     camera.lookAt(p.target);
     if (withTilt) {
-      camera.rotateY(-tilt.x * 1.4 * DEG);
-      camera.rotateX(-tilt.y * 0.9 * DEG);
+      camera.rotateY(-tilt.x * 1.4 * DEG + hand.yaw);
+      camera.rotateX(-tilt.y * 0.9 * DEG + hand.pitch);
+      camera.rotateZ(hand.roll);
     }
-    if (Math.abs(camera.fov - p.fov) > 1e-4) {
+    if (Math.abs(camera.fov - p.fov) > 1e-4 || Math.abs(lensShift - p.shift) > 1e-5) {
       camera.fov = p.fov;
-      camera.updateProjectionMatrix();
+      lensShift = p.shift;
+      project();
     }
   };
 
@@ -181,9 +208,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const aim = (dt = 0) => {
     const ids = stage.shots.map((s) => s.id);
     const home = stage.route.kind === "home";
-    if (!shots) heroPose(aspect, dest);
+    if (!shots) driftPose(aspect, dest);
     else if (!home) shots.routePose(stage.route, aspect, dest);
-    else if (!ids.length) heroPose(aspect, dest);
+    else if (!ids.length) shots.poseOf("hero", 0, aspect, dest);
     else shots.goal(ids, stage.position, stage.locals, aspect, dest, car?.car.position);
 
     const key = routeKey();
@@ -205,6 +232,27 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
+  // While the hero holds (it is the first shot, so the stage's position is
+  // how far the reader has left it), the camera breathes: up to a metre's
+  // push up the avenue over forty seconds and back, and a hand-held sway.
+  let handClock = 0;
+  const _look = new THREE.Vector3();
+  const holdHero = (dt) => {
+    const home = stage.route.kind === "home" && stage.shots[0]?.id === "hero" && !flight;
+    const k = reduced || !home ? 0 : clamp(1 - stage.position * 1.5, 0, 1);
+    handClock += dt;
+    const t = handClock;
+    hand.yaw = k * 0.2 * DEG * (Math.sin(t * 0.31) + 0.5 * Math.sin(t * 0.73 + 1.3)) / 1.5;
+    hand.pitch = k * 0.12 * DEG * (Math.sin(t * 0.23 + 0.4) + 0.5 * Math.sin(t * 0.61 + 2.1)) / 1.5;
+    hand.roll = k * 0.15 * DEG * Math.sin(t * 0.19 + 0.7);
+    if (k > 0) {
+      _look.subVectors(want.target, want.position).normalize();
+      const push = k * (0.5 - 0.5 * Math.cos((t * 2 * Math.PI) / 40));
+      want.position.addScaledVector(_look, push);
+      want.target.addScaledVector(_look, push);
+    }
+  };
+
   /** Which Work entry the plaza's board shows: the deck's, or a case study's own. */
   const activeBoard = () => {
     if (stage.route.kind !== "project") return stage.activeProject;
@@ -221,6 +269,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const jumped = !routeChanged && !flight && Math.abs(stage.position - lastPosition) > 1.2;
     driveCar(dt, !posed || jumped);
     aim(dt);
+    holdHero(dt);
     // Crossing the middle of a flight fires the braindance glitch.
     if (Math.floor(stage.position + 0.5) !== Math.floor(lastPosition + 0.5)) glitch = 1;
     lastPosition = stage.position;
@@ -233,6 +282,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       pose.position.lerp(want.position, a);
       pose.target.lerp(want.target, a);
       pose.fov += (want.fov - pose.fov) * a;
+      pose.shift += (want.shift - pose.shift) * a;
     }
     const t = 1 - Math.exp(-dt * 3);
     tilt.x += (stage.pointer.x - tilt.x) * t;
@@ -283,6 +333,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     skyline?.update(camera);
     rain?.update(dt, camera, env.wet);
     shafts?.update(shared.uHaze.value);
+    koi?.update(dt);
     traffic?.update(dt, env.traffic);
     city?.boards.update(dt, activeBoard());
     city?.towers.update(dt, activeTowers());
@@ -330,7 +381,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const k = Math.min(1, adapt.fade.t / 0.8);
       for (const r of city.roadMaterials) {
         r.uniforms.uReflectGain.value = 2.2 * (1 - k);
-        r.uniforms.uStreakGain.value = 0.35 + 0.75 * k;
+        r.uniforms.uStreakGain.value = 0.1 + k;
       }
       if (k >= 1) {
         mirror?.dispose();
@@ -435,7 +486,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const warm = async () => {
     await building;
     if (disposed) return;
-    heroPose(aspect, want);
+    shots.poseOf("hero", 0, aspect, want);
     copyPose(pose, want);
     applyPose(pose, false);
     posed = true;
@@ -452,6 +503,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // the song clock: the drift's camera, the drift itself, the shake and the
   // braindance glitch on the intro's cues, all on one clock.
   let cineLast = null;
+  const heroTo = makePose();
   /** The intro is about to use this scene: the car to its mark. */
   const beginIntro = () => {
     cineLast = null;
@@ -466,7 +518,17 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!city || disposed) return;
     const dt = cineLast === null ? 0 : clamp(s - cineLast, 0, 0.05);
     cineLast = s;
-    heroPose(aspect, want);
+    // The drift's own camera, then, while the page arrives, a slow crane
+    // down and a tilt up into the hero's: the city opens up behind the name.
+    driftPose(aspect, want);
+    const e = easeInOut(clamp((s - HANDOFF) / (REVEAL - HANDOFF), 0, 1));
+    if (e > 0) {
+      shots.poseOf("hero", 0, aspect, heroTo);
+      want.position.lerp(heroTo.position, e);
+      want.target.lerp(heroTo.target, e);
+      want.fov += (heroTo.fov - want.fov) * e;
+      want.shift += (heroTo.shift - want.shift) * e;
+    }
     copyPose(pose, want);
     applyPose(pose, false);
     if (shake) {
@@ -495,6 +557,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       traffic?.dispose();
       car?.dispose();
       shafts?.dispose();
+      koi?.dispose();
     }).catch(() => {});
     mirror?.dispose();
     mirror = null;

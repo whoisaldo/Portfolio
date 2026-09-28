@@ -2,7 +2,8 @@
 //
 // Loads the tier's GLB (src/data/world-assets.js), swaps every material for
 // the city's own by name (src/world/materials.js), merges the signs into one
-// atlas-textured draw (src/world/signs.js), bakes the light those signs and
+// atlas-textured draw (src/world/signs.js) and the big screens into another
+// (src/world/ads.js), bakes the light those signs and
 // strips throw onto the street (src/world/spill.js), and reads back the
 // named empties: the shot cameras and their targets, the anchors (the curb,
 // the bay, the billboard, the towers, the moon) and the road the car drives.
@@ -13,7 +14,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
-import { worldModelUrl } from "../data/world-assets.js";
+import { worldModelUrl, worldShopsUrl } from "../data/world-assets.js";
 import { createMaterialKit, NEON } from "./materials.js";
 import { createSigns } from "./signs.js";
 import { bakeLight } from "./spill.js";
@@ -21,6 +22,7 @@ import { createRoadMaterial } from "./road.js";
 import { createRoad } from "./road-path.js";
 import { dressHolo, preloadHolo } from "./holo.js";
 import { dressMoon, preloadMoon } from "./moon.js";
+import { createAds, preloadAds } from "./ads.js";
 import { createBoards } from "./boards.js";
 import { createTowers } from "./towers.js";
 import { attributeKey, mergeMeshes } from "./merge.js";
@@ -34,9 +36,12 @@ const cache = new Map();
 
 export function preloadCity(tier) {
   if (!cache.has(tier)) {
-    const pending = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
-      .loadAsync(worldModelUrl[tier])
-      .then((gltf) => gltf.scene)
+    // The kit, and the rooms its shop windows look into.
+    const pending = Promise.all([
+      new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(worldModelUrl[tier]).then((gltf) => gltf.scene),
+      new THREE.TextureLoader().loadAsync(worldShopsUrl[tier]),
+    ])
+      .then(([scene, shops]) => ({ scene, shops }))
       .catch((err) => {
         cache.delete(tier);
         throw err;
@@ -47,13 +52,14 @@ export function preloadCity(tier) {
 }
 
 export async function createCity(scene, renderer, shared, { tier, quality, reduced = false }) {
-  const [source] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon()]);
+  const [{ scene: source, shops: shopSource }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds()]);
   const root = source.clone(true);
   root.name = "night_city";
   root.updateMatrixWorld(true);
 
   const anchors = new Map();
   const signMeshes = [];
+  const adMeshes = [];
   const named = {};
   const meshes = [];
   const pos = new THREE.Vector3();
@@ -66,6 +72,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     }
     if (!o.isMesh) return;
     if (o.name.startsWith("sign_")) signMeshes.push(o);
+    else if (o.name.startsWith("ad_")) adMeshes.push(o);
     else if (/^(board_|crown_|holo_figure|moon_disc)/.test(o.name)) named[o.name] = o;
     else meshes.push(o);
   });
@@ -76,6 +83,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     if (!o.isMesh || !o.material?.map) return;
     const n = o.material.name;
     if (n === "NCW_sidewalk") maps.sidewalk = o.material.map;
+    if (/^NCW_facade_t\d$/.test(n)) maps[n.slice(4)] = o.material.map ?? o.material.emissiveMap;
     if (n === "NCW_concrete") maps.concrete = o.material.map;
     if (n === "NCW_asphalt") {
       maps.asphalt = o.material.map;
@@ -88,6 +96,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     m.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     m.wrapS = m.wrapT = THREE.RepeatWrapping;
   }
+  maps.shops = shopSource.clone();
+  maps.shops.flipY = false;
+  maps.shops.colorSpace = THREE.SRGBColorSpace;
+  maps.shops.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  maps.shops.needsUpdate = true;
 
   const kit = createMaterialKit(shared, { maps, reduced });
   const road = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0 });
@@ -111,7 +124,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     } else if (name === "lantern") {
       sources.push({ mesh, color: new THREE.Color("#ff4a2a"), intensity: 1.2 });
       mesh.layers.enable(REFLECT_LAYER);
-    } else if (name === "facade") {
+    } else if (name.startsWith("facade") || name === "awning") {
       mesh.layers.enable(REFLECT_LAYER);
     }
     mesh.matrixAutoUpdate = false;
@@ -121,6 +134,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const signs = createSigns(signMeshes, shared, {
     maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
     reduced,
+    atlas: tier === "phone" ? 2048 : 4096,
+    density: tier === "phone" ? 0.5 : 1,
   });
   signs.mesh.layers.enable(REFLECT_LAYER);
   sources.push(...signs.sources);
@@ -129,6 +144,20 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     m.removeFromParent();
   }
   root.add(signs.mesh);
+
+  // The avenue's two big screens: one draw, and their light in the bake too.
+  const ads = await createAds(adMeshes, shared, {
+    reduced,
+    maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
+    cell: tier === "phone" ? 256 : 512,
+  });
+  ads.mesh.layers.enable(REFLECT_LAYER);
+  sources.push(...ads.sources);
+  for (const m of adMeshes) {
+    oldMaterials.add(m.material);
+    m.removeFromParent();
+  }
+  root.add(ads.mesh);
 
   // The light: every emissive triangle, pooled on the ground.
   const light = bakeLight(sources);
@@ -199,7 +228,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       root.traverse((o) => {
         if (o.isMesh) geos.add(o.geometry);
       });
-      for (const m of signMeshes) geos.add(m.geometry);
+      for (const m of [...signMeshes, ...adMeshes]) geos.add(m.geometry);
       geos.forEach((g) => g.dispose());
       oldMaterials.forEach((m) => {
         m.map?.dispose?.();
@@ -214,6 +243,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       paint.dispose();
       dressed.forEach((d) => d.dispose());
       signs.dispose();
+      ads.dispose();
       light.dispose();
     },
   };

@@ -10,8 +10,9 @@
 // to the south-east, where the Contact shot's moon rises.
 //
 // The sky is a dome: near-black overhead, and near the horizon the lit
-// city's glow hanging in wet air, violet rather than blue, because the
-// light is the city's and not the moon's.
+// city's glow hanging in wet air, violet and pink rather than blue, because
+// the light is the city's and not the moon's, brightest toward downtown.
+// The kit's landmark towers (anchor_mega_*) are kept clear of, like the kit.
 import * as THREE from "three";
 import { COMMON, WINDOWS } from "./glsl.js";
 
@@ -34,7 +35,7 @@ function rng(seed) {
   };
 }
 
-export function createSkyline(scene, shared, { count = 2600 } = {}) {
+export function createSkyline(scene, shared, { count = 2600, keepOut = [] } = {}) {
   const r = rng(90210);
   const matrices = [];
   const m = new THREE.Matrix4();
@@ -46,7 +47,7 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
     for (let gz = -1700; gz < 900 && matrices.length < count; gz += cell) {
       const x = gx + (r() - 0.5) * cell * 0.5;
       const z = gz + (r() - 0.5) * cell * 0.5;
-      if (KEEP_OUT.some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20)) continue;
+      if ([...KEEP_OUT, ...keepOut].some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20)) continue;
       if (x > CLEAR[0] && x < CLEAR[2] && z > CLEAR[1] && z < CLEAR[3]) continue;
       const d = Math.hypot(x - 200, z + 300);
       if (r() < 0.12) continue;
@@ -56,6 +57,12 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
       if (r() < 0.05) h += 90 + r() * 110;
       const [lx0, lz0, lx1, lz1] = LOW;
       if (x > lx0 && x < lx1 && z > lz0 && z < lz1) h = Math.min(h, 22 + r() * 30);
+      // Up the avenue the far city keeps under the hero's band of sky: seen
+      // from its lens (0.6, 0.6, 10), nothing in its view stands taller than
+      // about a sixth of its distance, so the roofs step down into the glow
+      // and the kit's landmark towers have the sky to themselves.
+      const ahead = 10 - z;
+      if (ahead > 0 && Math.abs(x - 0.6) < ahead * 0.9) h = Math.min(h, 10 + ahead * (0.13 + 0.08 * r()));
       p.set(x, h / 2, z);
       s.set(w, h, dd);
       q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, (r() - 0.5) * 0.3);
@@ -133,6 +140,9 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
         float h = max(vDir.y, 0.0);
         vec3 glow = uHazeColor * (0.55 + 0.25 * uLevel) * exp(-h * 9.0) * uHaze;
         vec3 col = vec3(0.004, 0.004, 0.007) + glow + uHazeColor * 0.08 * exp(-h * 2.5);
+        // The city's light in the air, meeting the fog at the horizon: a
+        // band over the roofs, brightest toward downtown.
+        col += cityGlow(vDir, h * 900.0) * (0.85 + 0.2 * uLevel);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

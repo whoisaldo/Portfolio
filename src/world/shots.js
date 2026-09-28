@@ -7,11 +7,12 @@
 // moves the Work shot on the site. What a position cannot say lives in
 // src/data/world.js: the lens, the dim, how the shot moves while it holds.
 //
-// Two shots are not anchors. The hero is the intro's drift camera, computed
-// from the viewport exactly as drift-scene.js always has, because the page
-// arrives over the frame the drift ends on and any difference would be a cut.
-// The garage is GarageModel's `front` preset, re-expressed in the car's bay:
-// the flight ends where the interactive viewer begins.
+// One shot is not an anchor: the garage is GarageModel's `front` preset,
+// re-expressed in the car's bay, so the flight ends where the interactive
+// viewer begins. The hero is an anchor like the rest, a low camera looking
+// up the avenue; the intro's drift has its own camera (driftPose, the
+// formula drift-scene.js always used) and glides into the hero's during the
+// handoff.
 //
 // Between two shots the camera flies. In the open it goes up, across and
 // down: a cubic whose inner control points stand above the two shots, so it
@@ -61,29 +62,35 @@ function catmullRom(p0, p1, p2, p3, u, out) {
   return mix(out, _b1, _b2, t1, t2);
 }
 
-/** A camera pose: where it is, what it looks at, and its lens. */
+/** A camera pose: where it is, what it looks at, its lens, and how far the
+ *  lens is shifted up the frame (in clip space: 0.12 puts a level camera's
+ *  horizon 44% from the top, as an architectural camera would, verticals
+ *  kept vertical). */
 export function makePose() {
-  return { position: new THREE.Vector3(), target: new THREE.Vector3(), fov: 30 };
+  return { position: new THREE.Vector3(), target: new THREE.Vector3(), fov: 30, shift: 0 };
 }
 
 export function copyPose(out, p) {
   out.position.copy(p.position);
   out.target.copy(p.target);
   out.fov = p.fov;
+  out.shift = p.shift ?? 0;
   return out;
 }
 
 /**
- * The drift's end camera for a viewport of `aspect`, from drift-scene.js:
- * at the apex the car spans about two thirds of a landscape screen and the
- * whole of a portrait one, and the camera backs off until it does.
+ * The drift's camera for a viewport of `aspect`, from drift-scene.js: at the
+ * apex the car spans about two thirds of a landscape screen and the whole of
+ * a portrait one, and the camera backs off until it does. The intro's drift
+ * runs on this camera; the hero shot itself is its own (see createShots).
  */
-export function heroPose(aspect, out = makePose()) {
+export function driftPose(aspect, out = makePose()) {
   const frac = aspect < 1 ? 1.05 : aspect < 1.3 ? 0.82 : 0.66;
   const dist = 4.6 / (2 * frac * Math.tan(15 * DEG) * aspect);
   out.position.set(0.6, 0.8 + 0.12 * dist, APEX_Z + dist);
   out.target.set(-0.4, 0.7, 1.8);
   out.fov = 30;
+  out.shift = 0;
   return out;
 }
 
@@ -108,6 +115,7 @@ export function garagePose(bay, aspect, out = makePose()) {
   out.position.applyMatrix4(_m);
   out.target.applyMatrix4(_m);
   out.fov = GARAGE_FRONT.fov;
+  out.shift = 0;
   return out;
 }
 
@@ -128,6 +136,18 @@ export function createShots(anchors, clearance = null) {
     const cam = `cam_${id}`;
     const tgt = `cam_${id}_target`;
     const shot = SHOTS[id] || {};
+    out.shift = (aspect < 1 ? shot.portraitShift ?? shot.shift : shot.shift) ?? 0;
+    // Dev only: `window.__shotOverride[id] = { position, target, fov, shift }`
+    // (arrays for the vectors) frames a shot live, for tuning before it goes
+    // into the kit.
+    const over = import.meta.env.DEV && typeof window !== "undefined" ? window.__shotOverride?.[id] : null;
+    if (over) {
+      out.position.fromArray(over.position);
+      out.target.fromArray(over.target);
+      out.fov = over.fov ?? shot.fov ?? 40;
+      out.shift = over.shift ?? out.shift;
+      return out;
+    }
     out.position.copy(at(aspect < 1 && has(`${cam}_portrait`) ? `${cam}_portrait` : cam));
     out.target.copy(at(aspect < 1 && has(`${tgt}_portrait`) ? `${tgt}_portrait` : tgt));
     if (shot.move) {
@@ -147,7 +167,6 @@ export function createShots(anchors, clearance = null) {
   };
 
   const poseOf = (id, local, aspect, out) => {
-    if (id === "hero") return heroPose(aspect, out);
     if (id === "garage") return garagePose(anchors.get("anchor_garage_bay"), aspect, out);
     return anchored(id, local, aspect, out);
   };
@@ -197,6 +216,7 @@ export function createShots(anchors, clearance = null) {
     poseOf(ids[j], locals[j] ?? 0, aspect, B);
     const e = easeInOut(f);
     out.fov = A.fov + (B.fov - A.fov) * e;
+    out.shift = A.shift + (B.shift - A.shift) * e;
 
     // A flight with named waypoints: through them, looking at the next
     // shot's target (or at the car) in the middle, and at the two shots' own
@@ -252,6 +272,7 @@ export function createShots(anchors, clearance = null) {
     // at where it is going rather than down at the roofs it is crossing.
     out.target.copy(A.target).lerp(B.target, smoothstep(0, 0.65, e));
     out.fov = A.fov + (B.fov - A.fov) * e;
+    out.shift = A.shift + (B.shift - A.shift) * e;
     return out;
   };
 
@@ -263,11 +284,12 @@ export function createShots(anchors, clearance = null) {
   const routePose = (route, aspect, out) => {
     if (route.kind === "project") return anchored("projects", 0, aspect, out);
     const tower = route.kind === "role" ? anchors.get(`anchor_tower_${route.slug}`) : null;
-    if (!tower) return heroPose(aspect, out);
+    if (!tower) return anchored("hero", 0, aspect, out);
     const p = tower.position;
     out.position.set(p.x - 14, 40, p.z + 98);
     out.target.set(p.x, p.y - 10, p.z);
     out.fov = SHOTS.experience?.fov ?? 40;
+    out.shift = 0;
     if (aspect < 1) {
       out.position.sub(out.target).multiplyScalar(1.2).add(out.target);
       out.fov = Math.min(62, out.fov * 1.3);

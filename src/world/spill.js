@@ -111,8 +111,10 @@ function encode(field, W, H, gain) {
  * sources: [{ mesh, color: THREE.Color (linear), intensity }]
  * Returns { spill, streaks, bounds: Vector4 for the shaders, dispose }.
  */
-// Between the two hero cameras (16:10 and a phone), which is where the
-// streaks are meant to read.
+// Above and behind the hero's lens: from its own half a metre every
+// reflection would land within a few metres of it, and these are for a
+// phone that has shed its mirror, where streaks running the length of the
+// avenue read better than exact ones piled up at the kerb.
 const EYE = { x: 0.6, y: 2.3, z: 18 };
 
 export function bakeLight(sources) {

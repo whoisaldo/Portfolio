@@ -30,6 +30,10 @@ export function createSharedUniforms(THREE) {
     uFogDensity: { value: 0.0021 },
     uHaze: { value: 1 },
     uCam: { value: new THREE.Vector3() },
+    // The lit city's glow in the wet air, and the way to downtown (up the
+    // avenue), where it is brightest.
+    uGlowColor: { value: new THREE.Color(0.95, 0.36, 0.78).multiplyScalar(0.34) },
+    uGlowDir: { value: new THREE.Vector2(0, -1) },
   };
 }
 
@@ -45,6 +49,8 @@ export const COMMON = /* glsl */ `
   uniform float uFogDensity;
   uniform float uHaze;
   uniform vec3 uCam;
+  uniform vec3 uGlowColor;
+  uniform vec2 uGlowDir;
 
   float hash12(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -67,17 +73,23 @@ export const COMMON = /* glsl */ `
     return s * s * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085));
   }
 
-  // Distance: fog into near-black violet, and a band of glow along the
-  // horizon where the city's light hangs in the wet air.
+  // The city's glow in the air along a direction, at a height: low over
+  // the roofs, and strongest toward downtown.
+  vec3 cityGlow(vec3 dir, float y) {
+    float toward = pow(max(dot(normalize(dir.xz + 1e-5), uGlowDir), 0.0), 3.0);
+    return uGlowColor * uHaze * exp(-max(y, 0.0) * 0.0045) * (0.3 + 0.7 * toward);
+  }
+
+  // Distance: fog into near-black violet close to, and further off into the
+  // glow of the lit city hanging in the wet air, so the end of a street is
+  // brighter than its middle, as the plate has it.
   vec3 cityFog(vec3 col, vec3 p, float emissive) {
     vec3 d = p - uCam;
     float dist = length(d);
     float f = 1.0 - exp(-dist * uFogDensity * mix(1.0, 0.45, emissive));
     float low = exp(-max(p.y, 0.0) * 0.01);
     vec3 fogCol = mix(uFogColor, uHazeColor, uHaze * low * smoothstep(40.0, 360.0, dist));
-    // Far off, the lit city scatters into the wet air: the glow at the end
-    // of the street in the plate.
-    fogCol += uHazeColor * uHaze * 0.9 * low * smoothstep(250.0, 700.0, dist);
+    fogCol += cityGlow(d, p.y) * smoothstep(120.0, 900.0, dist);
     return mix(col, fogCol, f);
   }
 `;

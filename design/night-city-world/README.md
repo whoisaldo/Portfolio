@@ -24,38 +24,47 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   (git-ignored) next to it.
 - `npm run world:assets` (`scripts/optimize-world.mjs`, glTF Transform: prune,
   dedup of accessors, meshes and textures, weld, WebP textures, Meshopt)
-  writes `public/scenes/world/world-high.glb` (1.84 MB, 1024 px textures) and
-  `world-phone.glb` (0.66 MB, 512 px textures, every prop the builder tagged
-  as detail dropped), `moon.webp` and `holo.webp`, and
-  `src/data/world-assets.js` with content hashes. Budgets: 3.5 MB and 1.5 MB.
+  writes `public/scenes/world/world-high.glb` (2.50 MB, 1024 px textures) and
+  `world-phone.glb` (0.90 MB, 512 px textures, every prop the builder tagged
+  as detail dropped), `moon.webp`, `holo.webp`, the two screens'
+  `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
+  `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
+  `shops-phone.webp`, and `src/data/world-assets.js` with content hashes.
+  Budgets: 3.5 MB and 1.5 MB.
 - The kit, in the site's frame (+x right, +y up, +z toward the hero lens,
-  metres, the drift's own frame): the avenue (a Kiroshi and a Nicola board
-  each side, blade signs, the overpass with 空き未来へ, sodium lamps, cables,
-  vending machines, shopfronts), a canyon of vertical signs to the
-  holographic figure and the ARASAKA tower, the billboard plaza
+  metres, the drift's own frame): the avenue (the Kiroshi and Nicola screens,
+  blade signs and the clutter of standard signs every facade collects, the
+  overpass with 空き未来へ, sodium lamps, cables, vending machines, lit
+  shopfronts under dyed awnings and paper lanterns, painted walls), a canyon
+  of vertical signs whose roofs step down to a band of sky, the holographic
+  figure and the ARASAKA tower in it, five landmark towers a kilometre off
+  (`anchor_mega_<n>`), the billboard plaza
   (`board_main` and seven more), corpo row (one tower per role in
   `experience.js`, a crown slot and a name slot each), the rooftop (tanks, AC
   units, antennas, RIPPERDOC, AFTERLIFE, MILITECH), the garage (roll-up door
   open, magenta fixtures on the car's passenger side and cyan on the
-  driver's, as in the garage room), and the moon disc. About 24,000
+  driver's, as in the garage room), and the moon disc. About 23,000
   triangles.
 - Named empties the site reads: `cam_<shot>` and `cam_<shot>_target` (and
-  `_b` variants for shots that move while they hold), the flight waypoints
+  `_b` variants for shots that move while they hold, `_portrait` ones where a
+  phone has its own), the flight waypoints
   `cam_garage_edge`, `cam_garage_street`, `cam_garage_across`,
   `cam_garage_door`, `cam_contact_door`, `cam_contact_via`, the anchors
   `anchor_curb_hero`, `anchor_curb_hero_portrait`, `anchor_garage_bay`,
   `anchor_billboard_main`, `anchor_tower_<slug>`, `anchor_lamp_<n>`,
-  `anchor_shelter_garage`, `anchor_moon`, `anchor_holo`, the car's stops
+  `anchor_shelter_garage`, `anchor_moon`, `anchor_holo`, `anchor_mega_<n>`
+  (with the tower's size, so the far city keeps clear), the car's stops
   `car_<stop>`, and `road_spline`, whose `points` extra is the road sampled a
   metre apart. `npm run check:world` asserts all of them.
 - Camera-match cameras `Cam_Hero_Wide` (16:10) and `Cam_Hero_Portrait`
-  (390:844) use the drift's camera formula. Their viewport renders and a
-  Cycles reference of the wide one sit beside the plate in
-  `cam_hero_*-compare-review.png` and `cam_hero_wide-cycles-compare.png`
-  (local, git-ignored).
+  (390:844) stand on the hero's anchors with its lens and lens shift, for
+  Blender's own view of it.
 - Sign words are copy and live in `src/data/world.js`. The site sets them in
   Chakra Petch (and a system CJK face for the Japanese) on a canvas atlas at
-  runtime: type, never a logo.
+  runtime: type, never a logo. The street's standard signs (`sign_st_<size>_<n>`,
+  six sizes, a few hundred faces) share a few dozen designs painted once per
+  size (`STREET_SIGNS`): neon tube on a dark board, lit boxes with dark
+  letters, bulb marquees, pictograms.
 
 ## References
 
@@ -88,6 +97,103 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   orientation 1024x1536. Original character, not any existing person or game
   character; no text, no logos, no watermark." It is served as
   `public/scenes/world/holo.webp`.
+- Every other image the city shows that is not Ali's own work is also an
+  original generated with the `codex-image` skill (Codex image generation),
+  the kept variant named. None has any text in it: the words on them are the
+  site's type.
+  - `textures/ad-kiroshi.jpg` (variant 1 of 2), Kiroshi's screen: "Use case:
+    ads-marketing. Asset type: a vertical digital billboard texture inside a
+    3D cyberpunk city at night (an advertisement for a fictional eye-implant
+    brand; the brand name is added later as type). Primary request: an
+    extreme close-up of a young woman's face in three-quarter view, one eye
+    replaced by a luminous cybernetic optic with concentric glowing rings and
+    a fine aperture iris, thin circuit lines glowing faintly under the skin
+    around it. Style/medium: glossy high-end commercial photography,
+    cinematic, razor sharp, premium beauty campaign. Composition/framing: the
+    face fills the upper two thirds of the frame, the optic eye near the
+    upper centre; the lower third fades to a clean dark blue gradient with
+    nothing in it, left empty for overlaid type. Lighting/mood: cold blue key
+    light from the side, cyan rim light, deep crushed blacks, luminous eye.
+    Color palette: electric blue #2f7bff, cyan #27dcf2, white highlights,
+    near-black. Constraints: no text, no letters, no logos, no watermark; an
+    original person, not a real person and not any game character. Avoid:
+    garbled lettering, extra eyes, distorted anatomy, frames or borders."
+  - `textures/ad-nicola.jpg` (variant 1 of 2), Nicola's: "Use case:
+    ads-marketing. Asset type: a vertical digital billboard texture inside a
+    3D cyberpunk city at night (an advertisement for a fictional cola; the
+    brand name is added later as type). Primary request: a single ice-cold
+    blank aluminium soda can, deep red, beaded with condensation, bursting up
+    through a frozen splash of dark cola with ice shards and fizz.
+    Style/medium: glossy commercial product photography, hyper-real, high
+    speed flash freeze. Composition/framing: the can centred slightly high
+    and tilted, the splash around its base; the lower third fades to a clean
+    deep crimson gradient with nothing in it, left empty for overlaid type.
+    Lighting/mood: hot red backlight, a white rim light along the can's
+    edge, dramatic contrast. Color palette: crimson #ff2438, deep red, black,
+    white highlights. Constraints: the can is completely blank, no label
+    text, no logo, no letters anywhere; no watermark. Avoid: any writing on
+    the can, garbled lettering, borders."
+  - `textures/holo-koi-magenta.jpg` and `holo-koi-cyan.jpg` (both variants),
+    the koi: "Use case: stylized-concept. Asset type: a hologram texture for
+    a 3D night city, blended additively over the sky (black means
+    transparent). Primary request: one large elegant koi fish seen from the
+    side, swimming left to right, long flowing fins and tail, rendered
+    entirely as a glowing holographic projection. Style/medium: luminous
+    hologram: bright magenta and cyan light, fine horizontal scanlines, soft
+    glow, faint wireframe contour lines along the body, slight translucency,
+    a few scattered light particles trailing from the tail.
+    Composition/framing: the whole fish in frame with generous empty margin,
+    horizontal, centred. Color palette: hot magenta #ff3fd2, cyan #27dcf2,
+    white core highlights, everything else pure black #000000. Constraints:
+    pure black background everywhere outside the fish; no text, no logos, no
+    watermark. Avoid: water, bubbles, background scenery, frames." Each was
+    flattened onto black.
+  - `textures/facade-1.jpg` to `facade-3.jpg` (all three variants), the
+    painted walls of the avenue and the canyon: "Use case: stylized-concept.
+    Asset type: a building facade texture for a 3D night city, mapped flat
+    onto a wall (it must read as a flat front elevation). Primary request: a
+    strictly orthographic, straight-on front elevation of one tall narrow
+    apartment building in a dense neon-lit Asian-inspired cyberpunk district
+    at night, eight storeys: rows of windows, some warmly lit with curtains
+    and silhouettes of plants, some cold blue from screens, some dark; small
+    balconies with railings and laundry, air-conditioning units, drain
+    pipes, cables, a few small glowing neon strips and small blank sign
+    boxes on the wall, grime and rain streaks on concrete. Style/medium:
+    detailed digital matte painting, cinematic, rich texture.
+    Composition/framing: the facade fills the entire frame edge to edge,
+    perfectly flat and frontal like an architectural elevation drawing, no
+    perspective, no vanishing lines, no sky, no street, no ground, no
+    neighbouring buildings. Lighting/mood: night; the light comes only from
+    the windows and neon; wet concrete with subtle magenta and cyan
+    reflections from signs off frame. Color palette: dark charcoal concrete,
+    warm amber windows, cyan and magenta neon accents. Constraints: no
+    readable text, no letters, no logos, no watermark. Avoid: perspective
+    distortion, people in the foreground, sky, borders, readable writing."
+  - `textures/shops/*.jpg`, the eight rooms behind the shop windows (one
+    variant each, cropped to a bay's 3.2 by 2.75 m), all from one prompt with
+    the room, its light and its palette changed: "Use case:
+    photorealistic-natural. Asset type: texture for a 3D street scene: the
+    room seen through a shop window at night. Primary request: a straight-on,
+    eye-level, one-point-perspective view into the interior of [the room], as
+    seen from the street through its front window. The back wall is centred
+    and square to the camera, the room about three metres deep, a strip of
+    floor at the bottom and ceiling at the top. Style/medium: photographic,
+    cinematic night photography, 35mm lens, sharp, richly detailed, lived-in
+    and cluttered. Composition/framing: the interior fills the whole frame
+    edge to edge; no window frame, no glass, no street, no reflections.
+    Lighting/mood: [its light]; the room glows against the night outside, a
+    little haze in the air. Color palette: [its palette]. Constraints: no
+    text, no letters, no numbers, no characters, no logos, no readable
+    signage, no watermark; any people are small, seen from behind or
+    side-on, never looking at the camera. Avoid: text, garbled lettering,
+    logos, fisheye distortion, a window frame." The rooms: a tiny ramen bar
+    (warm tungsten; amber, deep red, dark wood), a late-night convenience
+    store (cool fluorescent; white, cyan), an electronics and cybernetic
+    implant repair shop (cyan and magenta neon; teal, magenta, gunmetal), a
+    small izakaya (paper lamps; amber, honey, dark brown), a late-night
+    pharmacy (cool white with a green tint), a narrow game arcade (violet,
+    hot pink, electric blue), a back-street cybernetic clinic (magenta,
+    violet, steel) and a steamy dumpling shop (orange, gold, dark red).
 - The Contact moon is `design/night-city-garage/textures/moon.jpg`, the
   intro's own David-and-Lucy moon still, on a disc over the southern
   skyline: a bookend to the intro by picture as well as by shape.
@@ -104,8 +210,15 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   `WorldMount.jsx` renders the poster, the canvas and the scrim, builds the
   city after first paint (or while the door is up) and crossfades on its
   first frame.
-- The hero is the drift's own end camera. The reading sections hold the
-  city at about 30% behind them; the hero and Contact hold it at full. Open
+- The hero is a low lens in the avenue: an eye 0.6 m over the wet road,
+  level, looking straight up it with a 50 degree lens and a lens shift that
+  puts the horizon 44% from the top (a phone stands further back with its
+  own anchors, 42%), so verticals stay vertical and the street towers the
+  way the plate's does. It breathes while it holds: a hand-held sway of a
+  fraction of a degree and a metre's push up the avenue over forty seconds.
+  The intro's drift keeps its own camera and glides into this one over the
+  handoff. The reading sections hold the city at about 30% behind them; the
+  hero and Contact hold it at full. Open
   flights go up, across and down, lifted by a height field of the kit
   (`clearance.js`); the garage and Contact flights run through the named
   waypoints, and the garage flight looks at the car. Crossing the middle of
@@ -128,13 +241,38 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   the curb instead of vanishing, the handoff glitches through the city's
   pass, and the page arrives over the same camera. Otherwise the plate path
   runs as it always has.
+- The avenue, as the hero sees it. Kiroshi and Nicola are screens
+  (`src/world/ads.js`): the generated advertising image pushes in slowly
+  toward its subject under the brand's words, set as type, with scanlines,
+  a slow refresh band and, every few seconds, a quarter second of tearing.
+  Two holographic koi (`src/world/koi.js`) chase each other round a figure
+  of eight a few metres over the road, their bodies swimming, doubled in
+  the wet road. The walls are painted elevations lit by the signs' spill.
+  The shop windows look into rooms (interior mapping in
+  `src/world/materials.js`: the eye's ray is traced into a room box per
+  bay and the point it reaches projected back onto one of the eight
+  photographed rooms, so a passing camera sees along their shelves), with
+  the odd figure against the light, dyed awnings lit from under, paper
+  lanterns and roller shutters on the ones that are shut. Past the canyon's
+  roofs a band of sky holds the figure, ARASAKA and the landmark towers,
+  and the fog brightens with distance into the lit city's glow, pink and
+  strongest toward downtown, the way the plate's street ends; the road
+  mirrors that glow at its far end.
+- The grade (`src/world/post.js`): the Khronos neutral tone map, which keeps
+  a tube's hue as it brightens, then a grade in the same pass (blacks lifted
+  a hair toward violet, mids pushed more saturated than highlights, cool
+  shadows, warm tops, a gentle S). Scanlines only in the glitch.
 - Switches: `fx world off` gives back the plate and black sections;
   `signs`, `haze` (the far haze and the lamps' light shafts), `wet` (rain,
   the planar reflection and the road's sheen), `traffic` and `reactive`
   reach the city directly.
-- Tiers (`quality.js`): high (DPR 1.5, 2.2 MP cap, 512 planar reflection,
-  6,000 rain streaks, 10 AVs and 4 road cars, SMAA) and phone (DPR 1.25,
-  0.9 MP, baked reflection streaks, 2,000 rain, 4 and 2, half-scale bloom).
+- Tiers (`quality.js`): high (DPR 1.5, 2.2 MP cap, a 1024 by 512 planar
+  reflection, 6,000 rain streaks, 10 AVs and 4 road cars, SMAA, a 4096 sign
+  atlas) and phone (DPR 1.25, 0.9 MP, a 512 by 256 reflection, 2,000 rain,
+  4 and 2, half-scale bloom, a 2048 sign atlas at half the pixels a metre).
+  The mirror is smeared down the road, never across it, so streaks keep hard
+  sides; baked streaks lie faintly under it and are the whole reflection
+  once a slow device has shed it.
   The first two seconds on screen are timed and a p95 over budget sheds
   pixels, then the reflection, then half the rain. No GPU, reduced motion,
   `fx world off` or a WebGL failure mean no city at all; a lost context shows
