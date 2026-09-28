@@ -2,35 +2,43 @@
 //
 // The intro's first eighteen seconds were a painting: two figures on the
 // moon with their backs to us, Earth enormous over them (src/assets/Intro/
-// Moon.png). When the live city is ready before the intro starts, the city's
-// own renderer draws that moon instead, cut to the song, and the painting
-// stays as the poster and the fallback. In song seconds:
+// Moon.png). When the live city is ready as the intro starts, the city's own
+// renderer draws that moon instead, cut to the song, and the painting stays
+// as the poster and the fallback. In song seconds:
 //
 //    8.9  black. The two figures print in from the ground up and the moon
 //         builds itself out from under them, column by column, lit as it
 //         lands, while the camera booms back off the ground and Earth
 //         assembles overhead.
-//   12.0  a falling star, and the camera arcs round behind the figures.
+//   12.0  a falling star; the camera comes to rest out to the left at 13.4,
+//         then arcs in behind the figures.
 //   16.75 it settles on the painting's own framing for the three cards and
-//         pushes in, slowly. At 22.4 a second star comes down on the right
-//         of the horizon and throws up a spray of rock in the low gravity.
-//   24.6  the camera cranes up: the ground is an island, and its edge is
-//         crumbling away into the black.
-//   26.1  ignition. What is left of the island peels up toward Earth and the
-//         camera goes with it, down to the lights on its night side.
-//   28.9  one bar before the drums: Earth's voxels flip over from the middle
-//         of the frame out, and the city is behind them on the drop.
+//         pushes in, slowly. He glances across at her. At 22.4 a second star
+//         comes down in the big crater on the right (on the track's onset at
+//         23.1): a flash, rock thrown up in the low gravity, both of them
+//         turning to look, the camera knocked.
+//   24.3  the camera cranes out and down to the side: the ground is an
+//         island, floating, and its rim is crumbling away into the black.
+//   25.6  it lifts off toward Earth, rock turning to signal on the way (dark,
+//         edged in the city's cyan and pink); at the swell the camera tilts
+//         up and goes with it, down to the lights on Earth's night side,
+//         where the signal lands in rings.
+//   28.9  the bar before the drums: Earth's tiles flip over a ring at a time,
+//         one ring to a beat, from the point where the street vanishes, and
+//         the city is behind them on the drop.
 //
 // Everything here is a function of the song second, so a seek lands on the
-// same frame every time. It is all instanced cubes, about fifty thousand on
-// a desktop in a handful of draws (a third of that on a phone): the island's
-// columns, the figures, Earth's shell, dust, two meteors and the strike's
-// debris. One hard sun with a real shadow map, Earthshine, voxel ambient
-// occlusion and bevelled edges light them; the city's own grade and bloom
-// finish them (src/world/post.js). The figures are original, sculpted below
-// from primitives to match the painting's two: one in a yellow jacket, one
-// with a white bob. Earth is the painting's Earth, the portrait plate's disc
-// sampled once per voxel (public/scenes/world/earth.webp).
+// same frame every time. It is all instanced cubes, about 81,000 on a
+// desktop in about thirty draws (27,000 on a phone): the island's columns
+// and the loose stones on it, the figures, Earth's shell, dust, two meteors
+// and the strike's debris. A low raking sun with a real shadow map (drawn
+// only while something on the island moves), Earthshine, voxel occlusion and
+// bevels on the edges that are really there light them; the city's own
+// grade and bloom finish them (src/world/post.js). The figures are original,
+// sculpted below from primitives to match the painting's two: one in a
+// yellow jacket, one with a white bob. Earth is the painting's Earth, the
+// portrait plate's disc sampled once per voxel (public/scenes/world/
+// earth.webp) and drawn again in a dozen flat colours.
 import * as THREE from "three";
 import { worldEarthUrl } from "../data/world-assets.js";
 import { CITY_READY, IGNITION, METEOR_AT, SHORT_START, SONG_START, VOICE_AT } from "../lib/cues.js";
@@ -38,33 +46,39 @@ import { CITY_READY, IGNITION, METEOR_AT, SHORT_START, SONG_START, VOICE_AT } fr
 const DEG = Math.PI / 180;
 
 // ---- the timeline, in song seconds ------------------------------------------
+// Where the track gives one, a move starts on a measured onset (read off
+// public/audio/ambient.m4a like the cues): the strike's 23.10, the crane's
+// 24.30, the swell's attack at 25.98, and the three beats of the bar before
+// the drums, 28.89, 29.37 and 29.85, on which Earth's tiles flip.
 const T = {
   print: SONG_START + 0.15,
   ground: SONG_START + 0.25,
   earth: SONG_START + 0.7,
-  orbit: METEOR_AT[0],
+  turn: 13.4,
   still: VOICE_AT[0],
-  strike: METEOR_AT[1] + 0.85,
+  strike: METEOR_AT[1] + 0.7,
   rise: VOICE_AT[2] - 0.3,
   crumble: VOICE_AT[2],
-  dive: IGNITION,
+  apart: IGNITION - 0.4,
   peel: IGNITION - 0.55,
-  apart: IGNITION + 0.2,
+  dive: IGNITION - 0.1,
   reveal: SHORT_START,
   gone: CITY_READY,
 };
+const BEATS = [28.89, 29.37, 29.85];
 
 /**
  * Whether the moon is on screen at song second `s`, and whether the city is
  * drawn under it: null for the city alone, "only" for the moon alone, "over"
- * for the moon over the city. The city is drawn once, hidden, as the crane
- * starts: the first frame of the street after the moon's light ones costs
- * a dropped frame however warm its programs are, and the crane's start is
- * the one moment the camera is still and nothing on screen is changing.
+ * for the moon over the city, and "warm" for the one frame the city is drawn
+ * hidden under the moon, as the crane starts (renderCinematic draws it once
+ * a run): the first frame of the street after the moon's light ones costs a
+ * dropped frame however warm its programs are, and the crane's start is the
+ * one moment the camera is still and nothing on screen is changing.
  */
 export function moonPhase(s) {
   if (s >= T.gone) return null;
-  if (s >= T.rise && s < T.rise + 0.05) return "over";
+  if (s >= T.rise && s < T.rise + 0.05) return "warm";
   return s >= T.reveal - 0.05 ? "over" : "only";
 }
 
@@ -72,26 +86,34 @@ export function moonPhase(s) {
 // The ground is two grids: `vox` over the island, and half that round the
 // figures and the lens's path (`fine`, in metres either side of the seat:
 // left, right, ahead, behind), where the camera is close enough to see it.
+// `pebbles` are the loose stones round the figures, between the figures'
+// voxels and the ground's in size; `wide` scales the meteors' and the
+// strike's x, so a narrow screen still sees them fall.
 const TIER = {
-  high: { vox: 0.2, fine: [-7, 7, -5, 8], island: 17.5, fig: 0.03, earth: 60, shadow: 2048, dust: 120, debris: 220, stars: 2400 },
-  phone: { vox: 0.3, fine: [-5, 5, -4, 8], island: 14.5, fig: 0.036, earth: 40, shadow: 1024, dust: 60, debris: 70, stars: 1300 },
+  high: { vox: 0.2, fine: [-7, 7, -5, 8], island: 17.5, fig: 0.03, earth: 75, shadow: 2048, dust: 120, debris: 220, stars: 2400, pebbles: 900, wide: 1 },
+  phone: { vox: 0.3, fine: [-5, 5, -4, 8], island: 14.5, fig: 0.036, earth: 44, shadow: 1024, dust: 60, debris: 80, stars: 1300, pebbles: 300, wide: 0.55 },
 };
 
-// The sun: low, from behind the camera's left. Earth's painted day side is
-// its left half, so the same sun lights both.
-const SUN = new THREE.Vector3(-0.62, 0.48, 0.6).normalize();
-const SUN_COLOR = new THREE.Color(1.0, 0.95, 0.88).multiplyScalar(2.7);
-const EARTH_LIGHT = new THREE.Color(0.28, 0.48, 1.0).multiplyScalar(0.075);
+// The sun: low and raking, from behind the camera's left, so every step of
+// the ground throws a long shadow and the figures' shadows reach toward the
+// crater. Earth's painted day side is its left half, so the same sun lights
+// both. Shadow is not black on the moon: Earth fills it, navy.
+const SUN = new THREE.Vector3(-0.88, 0.25, 0.4).normalize();
+const SUN_COLOR = new THREE.Color(1.0, 0.95, 0.88).multiplyScalar(3.4);
+const EARTH_LIGHT = new THREE.Color(0.28, 0.48, 1.0).multiplyScalar(0.2);
 const AMBIENT = new THREE.Color(0.012, 0.013, 0.02);
 // The island's middle, where it is built from, and where the camera turns.
 const ISLAND = { x: 0, z: -4 };
 const PIVOT = new THREE.Vector3(0, 0.5, 0);
-// Where Earth hangs: seen from the painting's eye, 34 degrees up, dead ahead.
+// Where Earth hangs, seen from the painting's eye: dead ahead, 30 degrees up
+// (26 on a narrow screen), low enough that both heads are against it.
 const EYE = new THREE.Vector3(0, 0.42, 4.6);
-const EARTH_ELEVATION = 34 * DEG;
 const EARTH_DISTANCE = 220;
-// The strike: the second star lands on the right of the horizon.
-const STRIKE = new THREE.Vector3(7.5, 0, -15);
+// The two seats, where the ground is darkest under them.
+const SEATS = [[-0.45, 0.03], [0.42, 0.02]];
+// The strike: the second star comes down in the big crater, right of the
+// figures, where its light fills the far wall.
+const STRIKE = new THREE.Vector3(5.0, 0, -8.0);
 
 let pending = null;
 
@@ -165,9 +187,10 @@ function rng(seed) {
 // ---- the ground ------------------------------------------------------------------
 // Craters and boulders placed by hand where the camera will see them (the
 // painting's big crater on the right, its boulders in the lower left), and
-// a scatter of small ones.
+// a scatter of small ones. A crater's fifth number raises its far rim, so a
+// low lens sees the lit inside of the wall and not just its near lip.
 const CRATERS = [
-  [6.4, -8.2, 3.8, 1.25],
+  [6.4, -8.2, 3.8, 1.25, 0.3],
   [-8.2, -12.5, 2.5, 0.75],
   [3.2, -15.5, 2.9, 0.85],
   [-11.5, -3.2, 1.9, 0.55],
@@ -177,6 +200,7 @@ const CRATERS = [
   [-3.2, -19.5, 2.2, 0.6],
 ];
 const ROCKS = [
+  [-2.0, 1.4, 0.55, 0.44],
   [-2.5, 2.7, 0.62, 0.5],
   [-1.15, 3.4, 0.38, 0.32],
   [-3.9, 1.3, 0.48, 0.38],
@@ -206,6 +230,24 @@ function makeTerrain(rand) {
   // The seat is at the ground's own level round it, so it is not a pit.
   let seat = 0;
   for (let i = 0; i < 16; i++) seat += rolling(Math.cos((i / 16) * Math.PI * 2) * 1.9, Math.sin((i / 16) * Math.PI * 2) * 1.9) / 16;
+  // Each craters' and rocks' reach, binned 3 m square, so a cell only asks
+  // the few that can touch it (a crater's lip is gone by 1.6 radii).
+  const BIN = 3;
+  const bins = new Map();
+  const binOf = (x, z) => `${Math.floor(x / BIN)},${Math.floor(z / BIN)}`;
+  const file = (list, kind, reach) => list.forEach((f, i) => {
+    const r = f[2] * reach;
+    for (let bx = Math.floor((f[0] - r) / BIN); bx <= Math.floor((f[0] + r) / BIN); bx++) {
+      for (let bz = Math.floor((f[1] - r) / BIN); bz <= Math.floor((f[1] + r) / BIN); bz++) {
+        const key = `${bx},${bz}`;
+        if (!bins.has(key)) bins.set(key, { craters: [], rocks: [] });
+        bins.get(key)[kind].push(i);
+      }
+    }
+  });
+  file(craters, "craters", 1.6);
+  file(rocks, "rocks", 1);
+  const none = { craters: [], rocks: [] };
   return (x, z) => {
     // Gentler toward the lens's path, over a wide falloff, so the ground in
     // front of a low camera is not a wall of steps.
@@ -214,17 +256,20 @@ function makeTerrain(rand) {
     let bowl = 0;
     let rim = 0;
     let rock = 0;
-    for (const [cx, cz, r, d] of craters) {
+    const near = bins.get(binOf(x, z)) ?? none;
+    for (const i of near.craters) {
+      const [cx, cz, r, d, far = 0] = craters[i];
       const t = Math.hypot(x - cx, z - cz) / r;
       if (t < 1) {
         h -= d * (1 - t * t);
         bowl = Math.max(bowl, 1 - t);
       }
       const lip = Math.exp(-(((t - 1) / 0.28) ** 2));
-      h += lip * d * 0.35;
+      h += lip * d * (0.35 + far * clamp01((cz - z) / r));
       rim = Math.max(rim, lip);
     }
-    for (const [rx, rz, r, height] of rocks) {
+    for (const i of near.rocks) {
+      const [rx, rz, r, height] = rocks[i];
       const t = Math.hypot(x - rx, z - rz) / r;
       if (t < 1) {
         const k = Math.pow(1 - t * t, 0.6);
@@ -244,9 +289,12 @@ function makeTerrain(rand) {
 /**
  * The island: one column per ground cell, sorted nearest the lens first.
  * Coarse cells of `vox` cover it; inside the `fine` rectangle each coarse
- * cell is four fine ones instead, so the two grids tile it exactly.
+ * cell is four fine ones instead, so the two grids tile it exactly. Loose
+ * stones sit on it round the figures, columns of their own a few
+ * centimetres across, so the eye steps down from the figures' voxels to the
+ * ground's through them.
  */
-function buildIsland(cfg, terrain) {
+function buildIsland(cfg, terrain, rand) {
   const V = cfg.vox;
   const v = V / 2;
   const R = cfg.island;
@@ -303,12 +351,31 @@ function buildIsland(cfg, terrain) {
     const h = topAt(x, z);
     return Number.isNaN(h) ? -99 : h - top;
   };
+  const stones = [];
+  for (let tries = 0; stones.length < cfg.pebbles && tries < cfg.pebbles * 8; tries++) {
+    const x = -6 + rand() * 12;
+    const z = -5 + rand() * 11.5;
+    // Thicker near the figures, never under them or in their laps.
+    if (rand() > Math.exp(-Math.hypot(x, z - 0.8) / 3.2)) continue;
+    if (SEATS.some(([sx, sz]) => Math.abs(x - sx) < 0.5 && z > sz - 1.05 && z < sz + 0.45)) continue;
+    const ground = topAt(x, z);
+    if (Number.isNaN(ground)) continue;
+    const size = cfg.vox * (0.12 + rand() * 0.13);
+    stones.push({ x, z, ground, size, shade: 0.12 + rand() * 0.38, seed: rand() });
+  }
   cells.sort((a, b) => Math.hypot(a.x - EYE.x, a.z - EYE.z) - Math.hypot(b.x - EYE.x, b.z - EYE.z));
-  const count = cells.length;
+  const count = cells.length + stones.length;
   const col = new Float32Array(count * 4);
   const nb = new Float32Array(count * 4);
   const nbd = new Float32Array(count * 4);
   const tone = new Float32Array(count * 3);
+  stones.forEach((p, i) => {
+    const k = cells.length + i;
+    col.set([p.x, p.z, p.ground + p.size * 0.8, p.ground - p.size * 0.2], k * 4);
+    nb.fill(-99, k * 4, k * 4 + 4);
+    nbd.fill(-99, k * 4, k * 4 + 4);
+    tone.set([p.shade, p.seed, p.size], k * 3);
+  });
   cells.forEach((c, k) => {
     // The underside: a rough cone, deepest under the middle.
     const deep = 1.2 + 7.5 * Math.pow(Math.max(0, 1 - c.rn * c.rn), 0.8) + (noise2(c.x * 0.4, c.z * 0.4) - 0.5) * 2.4;
@@ -333,10 +400,6 @@ function buildIsland(cfg, terrain) {
 // voxels that can be seen.
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const norm3 = (a) => {
-  const l = Math.hypot(a[0], a[1], a[2]);
-  return [a[0] / l, a[1] / l, a[2] / l];
-};
 const sphere = (c, r) => (p) => Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]) - r;
 const capsule = (a, b, r) => {
   const ba = sub(b, a);
@@ -394,8 +457,8 @@ const roundBox = (c, h, tilt, rr) => {
 const tippedY = (c, tilt) => (p) => (p[1] - c[1]) * Math.cos(tilt) + (p[2] - c[2]) * Math.sin(tilt);
 
 function david() {
-  const JACKET = "#e2b21b";
-  const HOOD = "#b98c10";
+  const JACKET = "#e8cf1c";
+  const COLLAR = "#c9af14";
   const BAND = "#25262b";
   const PANTS = "#2a2f3c";
   const SHOE = "#151518";
@@ -406,32 +469,35 @@ function david() {
   const torso = [0, 0.41, 0.075];
   const up = tippedY(torso, lean);
   const head = [0, 0.845, 0.12];
-  // The hair: spikes out of the crown and the back of the head, longest
-  // on top, as the painting has it.
+  // The hair: a crown of chunky spikes, up and back, as the painting has it
+  // (degrees from vertical, degrees round from the back, reach from the
+  // head's middle). Thin tips would vanish between 3 cm voxels.
   const spikes = [
-    [0, 1, 0.05, 0.17], [0.45, 0.9, 0.25, 0.16], [-0.45, 0.9, 0.2, 0.16], [0.2, 0.7, 0.7, 0.15], [-0.25, 0.65, 0.72, 0.15],
-    [0.8, 0.5, 0.25, 0.14], [-0.8, 0.5, 0.2, 0.14], [0, 0.85, 0.55, 0.16], [0.3, 1, -0.2, 0.15], [-0.35, 1, -0.15, 0.15],
-    [0.6, 0.25, 0.75, 0.13], [-0.6, 0.3, 0.75, 0.13], [0.05, 0.35, 0.95, 0.13], [0.9, 0.6, -0.1, 0.13], [-0.9, 0.6, -0.1, 0.13],
-    [0.15, 1, 0.45, 0.17], [-0.2, 1, 0.4, 0.17],
-  ].map(([x, y, z, reach]) => {
-    const n = norm3([x, y, z]);
-    const a = [head[0] + n[0] * 0.05, head[1] + n[1] * 0.05, head[2] + n[2] * 0.05];
-    const b = [head[0] + n[0] * (reach + 0.02), head[1] + n[1] * (reach + 0.02), head[2] + n[2] * (reach + 0.02)];
-    return { sdf: roundCone(a, b, 0.05, 0.012), color: HAIR };
+    [28, 0, 0.24], [36, 62, 0.23], [36, -62, 0.23], [50, 118, 0.21], [50, -118, 0.21],
+    [58, 180, 0.2], [62, 26, 0.22], [62, -26, 0.22],
+  ].map(([polar, round, reach]) => {
+    const t = polar * DEG;
+    const a = round * DEG;
+    const n = [Math.sin(t) * Math.sin(a), Math.cos(t), Math.sin(t) * Math.cos(a)];
+    const base = [head[0] + n[0] * 0.05, head[1] + n[1] * 0.05, head[2] + n[2] * 0.05];
+    const tip = [head[0] + n[0] * reach, head[1] + n[1] * reach, head[2] + n[2] * reach];
+    return { sdf: roundCone(base, tip, 0.055, 0.025), color: HAIR, head: 1 };
   });
   return [
-    { sdf: sphere(head, 0.102), color: (p) => (p[2] < 0.08 && p[1] < 0.87 ? SKIN : HAIR) },
+    { sdf: sphere(head, 0.102), color: (p) => (p[2] < 0.08 && p[1] < 0.87 ? SKIN : HAIR), head: 1 },
     ...spikes,
+    // A standing collar round the back of the neck.
+    { sdf: roundBox([0, 0.685, 0.13], [0.105, 0.04, 0.075], lean, 0.03), color: COLLAR },
     { sdf: capsule([0, 0.63, 0.1], [0, 0.76, 0.125], 0.048), color: NECK },
-    { sdf: capsule([-0.11, 0.675, 0.155], [0.11, 0.675, 0.155], 0.07), color: HOOD },
     { sdf: capsule([-0.2, 0.595, 0.115], [0.2, 0.595, 0.115], 0.082), color: JACKET },
     { sdf: roundBox(torso, [0.19, 0.235, 0.11], lean, 0.07), color: (p) => (Math.abs(up(p) - 0.005) < 0.034 ? BAND : JACKET) },
-    { sdf: capsule([-0.23, 0.575, 0.125], [-0.305, 0.325, 0.205], 0.06), color: JACKET },
-    { sdf: capsule([-0.305, 0.325, 0.205], [-0.335, 0.08, 0.255], 0.054), color: JACKET },
-    { sdf: capsule([0.23, 0.575, 0.125], [0.305, 0.325, 0.205], 0.06), color: JACKET },
-    { sdf: capsule([0.305, 0.325, 0.205], [0.335, 0.08, 0.255], 0.054), color: JACKET },
-    { sdf: sphere([-0.34, 0.035, 0.27], 0.042), color: SKIN },
-    { sdf: sphere([0.34, 0.035, 0.27], 0.042), color: SKIN },
+    // Arms splayed back to the hands on the ground behind him: an A-frame.
+    { sdf: capsule([-0.23, 0.575, 0.125], [-0.34, 0.33, 0.235], 0.06), color: JACKET },
+    { sdf: capsule([-0.34, 0.33, 0.235], [-0.43, 0.075, 0.32], 0.054), color: JACKET },
+    { sdf: capsule([0.23, 0.575, 0.125], [0.34, 0.33, 0.235], 0.06), color: JACKET },
+    { sdf: capsule([0.34, 0.33, 0.235], [0.43, 0.075, 0.32], 0.054), color: JACKET },
+    { sdf: sphere([-0.44, 0.035, 0.335], 0.042), color: SKIN },
+    { sdf: sphere([0.44, 0.035, 0.335], 0.042), color: SKIN },
     { sdf: ellipsoid([0, 0.13, 0.035], [0.19, 0.11, 0.15]), color: PANTS },
     { sdf: capsule([-0.1, 0.1, -0.02], [-0.12, 0.205, -0.45], 0.075), color: PANTS },
     { sdf: capsule([-0.12, 0.205, -0.45], [-0.135, 0.075, -0.85], 0.065), color: PANTS },
@@ -442,33 +508,40 @@ function david() {
   ];
 }
 
+// Lucy is sculpted at this size and set down 1.1 times larger (LUCY_SCALE):
+// the painting has her a head shorter than him, not two.
+const LUCY_SCALE = 1.1;
+
 function lucy() {
   const WHITE = "#e8ebf3";
   const CREASE = "#b3b9cc";
-  const BLUE = "#2a489c";
+  const SLATE = "#3d5a96";
   const NAVY = "#252c52";
   const TIGHTS = "#dde1eb";
   const BOB = "#e7e3fb";
   const BOB_SHADE = "#aaa5d8";
+  const SHEEN = "#fbfaff";
   const SKIN = "#d9a585";
   const bend = -10 * DEG;
-  // The bob: a round crown, and the hair falling straight to the jaw all
-  // the way round, cut level.
-  const crown = ellipsoid([0, 0.675, 0.012], [0.13, 0.112, 0.134]);
-  const fall = roundBox([0, 0.61, 0.018], [0.128, 0.07, 0.13], 0, 0.06);
+  // The bob: a squared-off crown and the hair falling straight to the jaw
+  // all the way round, cut level, with a band of sheen across the crown.
+  const crown = ellipsoid([0, 0.672, 0.012], [0.132, 0.108, 0.136]);
+  const fall = roundBox([0, 0.618, 0.016], [0.13, 0.068, 0.132], 0, 0.055);
   const bob = (p) => Math.max(Math.min(crown(p), fall(p)), 0.552 - p[1]);
   return [
-    { sdf: bob, color: (p) => (p[1] < 0.585 ? BOB_SHADE : BOB) },
-    { sdf: sphere([0, 0.665, -0.005], 0.093), color: SKIN },
+    { sdf: bob, color: (p) => (p[1] < 0.585 ? BOB_SHADE : p[1] > 0.7 && p[1] < 0.735 ? SHEEN : BOB), head: 2 },
+    { sdf: sphere([0, 0.665, -0.005], 0.093), color: SKIN, head: 2 },
     { sdf: capsule([0, 0.52, 0.0], [0, 0.61, 0.0], 0.045), color: SKIN },
-    { sdf: roundBox([0, 0.5, 0.04], [0.065, 0.04, 0.07], bend, 0.03), color: NAVY },
-    { sdf: capsule([-0.15, 0.485, 0.03], [0.15, 0.485, 0.03], 0.058), color: WHITE },
-    { sdf: roundBox([0, 0.32, 0.02], [0.148, 0.19, 0.1], bend, 0.06), color: (p) => (p[1] < 0.3 ? BLUE : p[1] < 0.34 ? CREASE : WHITE) },
-    { sdf: capsule([-0.17, 0.47, 0.035], [-0.17, 0.33, -0.12], 0.052), color: WHITE },
-    { sdf: capsule([-0.17, 0.33, -0.12], [-0.04, 0.39, -0.3], 0.045), color: WHITE },
-    { sdf: capsule([0.17, 0.47, 0.035], [0.17, 0.33, -0.12], 0.052), color: WHITE },
-    { sdf: capsule([0.17, 0.33, -0.12], [0.04, 0.39, -0.3], 0.045), color: WHITE },
-    { sdf: ellipsoid([0, 0.11, 0.0], [0.16, 0.1, 0.14]), color: BLUE },
+    // A navy top high on the back; the shoulders bare above the jacket,
+    // which hangs off them.
+    { sdf: roundBox([0, 0.47, 0.045], [0.085, 0.085, 0.08], bend, 0.035), color: NAVY },
+    { sdf: capsule([-0.14, 0.495, 0.03], [0.14, 0.495, 0.03], 0.05), color: SKIN },
+    { sdf: roundBox([0, 0.31, 0.02], [0.148, 0.18, 0.1], bend, 0.06), color: (p) => (p[1] < 0.29 ? SLATE : p[1] < 0.33 ? CREASE : WHITE) },
+    { sdf: capsule([-0.185, 0.44, 0.035], [-0.17, 0.33, -0.12], 0.055), color: WHITE },
+    { sdf: capsule([-0.17, 0.33, -0.12], [-0.04, 0.39, -0.3], 0.046), color: WHITE },
+    { sdf: capsule([0.185, 0.44, 0.035], [0.17, 0.33, -0.12], 0.055), color: WHITE },
+    { sdf: capsule([0.17, 0.33, -0.12], [0.04, 0.39, -0.3], 0.046), color: WHITE },
+    { sdf: ellipsoid([0, 0.11, 0.0], [0.16, 0.1, 0.14]), color: SLATE },
     { sdf: capsule([-0.085, 0.1, -0.04], [-0.085, 0.43, -0.3], 0.066), color: TIGHTS },
     { sdf: capsule([-0.085, 0.43, -0.3], [-0.085, 0.06, -0.43], 0.058), color: TIGHTS },
     { sdf: capsule([0.085, 0.1, -0.04], [0.085, 0.43, -0.3], 0.066), color: TIGHTS },
@@ -476,31 +549,57 @@ function lucy() {
   ];
 }
 
-/** Voxelise `parts` (first match wins) over a box, keep the visible shell,
- *  and give each voxel an occlusion from how buried it is. */
-function sculpt(parts, offset, vox, out) {
-  const x0 = -0.5;
+/**
+ * Voxelise `parts` (first match wins) over a box, scaled by `scale` about
+ * the seat, and keep the visible shell. Each voxel keeps how buried it is
+ * (its occlusion), which of its six neighbours are empty (bits +x -x +y -y
+ * +z -z, so only its real edges are bevelled), and whether it is part of a
+ * head (1 his, 2 hers), which turns.
+ */
+function sculpt(parts, offset, vox, out, scale = 1) {
+  const x0 = -0.5 * scale;
   const y0 = 0;
-  const z0 = -1.02;
-  const nx = Math.ceil(1.0 / vox);
-  const ny = Math.ceil(1.05 / vox);
-  const nz = Math.ceil(1.5 / vox);
+  const z0 = -1.02 * scale;
+  const nx = Math.ceil((1.0 * scale) / vox);
+  const ny = Math.ceil((1.2 * scale) / vox);
+  const nz = Math.ceil((1.5 * scale) / vox);
   const grid = new Int16Array(nx * ny * nz).fill(-1);
+  const owner = new Int8Array(nx * ny * nz);
   const colours = [];
   const p = [0, 0, 0];
-  for (let k = 0; k < nz; k++) {
-    for (let j = 0; j < ny; j++) {
-      for (let i = 0; i < nx; i++) {
-        p[0] = x0 + (i + 0.5) * vox;
-        p[1] = y0 + (j + 0.5) * vox;
-        p[2] = z0 + (k + 0.5) * vox;
-        for (let q = 0; q < parts.length; q++) {
-          if (parts[q].sdf(p) <= 0) {
-            const c = typeof parts[q].color === "function" ? parts[q].color(p) : parts[q].color;
-            let id = colours.indexOf(c);
-            if (id < 0) id = colours.push(c) - 1;
-            grid[(k * ny + j) * nx + i] = id;
-            break;
+  // Empty space is most of the box: a block of cells whose middle is
+  // further from every part than the block is wide is skipped whole.
+  const B = 4;
+  const reach = Math.sqrt(3) * B * vox;
+  const nearest = (x, y, z) => {
+    p[0] = x / scale;
+    p[1] = y / scale;
+    p[2] = z / scale;
+    let d = Infinity;
+    for (const part of parts) d = Math.min(d, part.sdf(p));
+    return d * scale;
+  };
+  for (let bk = 0; bk < nz; bk += B) {
+    for (let bj = 0; bj < ny; bj += B) {
+      for (let bi = 0; bi < nx; bi += B) {
+        if (nearest(x0 + (bi + B / 2) * vox, y0 + (bj + B / 2) * vox, z0 + (bk + B / 2) * vox) > reach) continue;
+        for (let k = bk; k < Math.min(nz, bk + B); k++) {
+          for (let j = bj; j < Math.min(ny, bj + B); j++) {
+            for (let i = bi; i < Math.min(nx, bi + B); i++) {
+              p[0] = (x0 + (i + 0.5) * vox) / scale;
+              p[1] = (y0 + (j + 0.5) * vox) / scale;
+              p[2] = (z0 + (k + 0.5) * vox) / scale;
+              for (let q = 0; q < parts.length; q++) {
+                if (parts[q].sdf(p) <= 0) {
+                  const c = typeof parts[q].color === "function" ? parts[q].color(p) : parts[q].color;
+                  let id = colours.indexOf(c);
+                  if (id < 0) id = colours.push(c) - 1;
+                  grid[(k * ny + j) * nx + i] = id;
+                  owner[(k * ny + j) * nx + i] = parts[q].head ?? 0;
+                  break;
+                }
+              }
+            }
           }
         }
       }
@@ -513,7 +612,9 @@ function sculpt(parts, offset, vox, out) {
       for (let i = 0; i < nx; i++) {
         const id = grid[(k * ny + j) * nx + i];
         if (id < 0) continue;
-        if (filled(i + 1, j, k) && filled(i - 1, j, k) && filled(i, j + 1, k) && filled(i, j - 1, k) && filled(i, j, k + 1) && filled(i, j, k - 1)) continue;
+        const open = (filled(i + 1, j, k) ? 0 : 1) | (filled(i - 1, j, k) ? 0 : 2) | (filled(i, j + 1, k) ? 0 : 4)
+          | (filled(i, j - 1, k) ? 0 : 8) | (filled(i, j, k + 1) ? 0 : 16) | (filled(i, j, k - 1) ? 0 : 32);
+        if (!open) continue;
         let buried = 0;
         for (let c = -1; c <= 1; c++) for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) if ((a || b || c) && filled(i + a, j + b, k + c)) buried++;
         const colour = linear[id];
@@ -526,6 +627,8 @@ function sculpt(parts, offset, vox, out) {
           b: colour.b,
           ao: 1.12 - (buried / 26) * 0.75,
           seed: hash2(i * 31 + k, j * 17 + out.length),
+          head: owner[(k * ny + j) * nx + i],
+          open,
         });
       }
     }
@@ -533,6 +636,38 @@ function sculpt(parts, offset, vox, out) {
 }
 
 // ---- Earth --------------------------------------------------------------------------
+// The painted Earth, drawn again in a dozen flat colours, so it reads as a
+// made thing and not a photograph shrunk: deep and shallow sea, four
+// lands, two clouds, and the night's three. Land stands a voxel proud of the
+// sea and cloud two, so the limb is terraced and the clouds cast their edge.
+const PALETTE = [
+  ["#0e2f6b", 0], ["#1d57a8", 0], ["#2c8fc0", 0],
+  ["#4b6d34", 1], ["#6f7541", 1], ["#8d7650", 1], ["#b99f6c", 1],
+  ["#eef2f6", 2], ["#a9b6c6", 2],
+  ["#081530", 0], ["#141a23", 1], ["#2a3448", 2],
+].map(([hex, lift]) => {
+  const c = new THREE.Color(hex);
+  const srgb = c.clone().convertLinearToSRGB();
+  return { linear: c, srgb: [srgb.r, srgb.g, srgb.b], lift };
+});
+
+/** The nearest swatch to an sRGB colour, weighted the way eyes weigh it. */
+function swatch(r, g, b) {
+  let best = PALETTE[0];
+  let bestD = Infinity;
+  for (const p of PALETTE) {
+    const dr = r - p.srgb[0];
+    const dg = g - p.srgb[1];
+    const db = b - p.srgb[2];
+    const d = 2 * dr * dr + 4 * dg * dg + 3 * db * db;
+    if (d < bestD) {
+      bestD = d;
+      best = p;
+    }
+  }
+  return best;
+}
+
 /** A shell of voxels over the hemisphere that faces the moon, each coloured
  *  from the painted disc, with its night-side lights picked out to glow. */
 function buildEarth(image, R) {
@@ -553,7 +688,7 @@ function buildEarth(image, R) {
     const i = (y * size + x) * 4;
     return [px[i] / 255, px[i + 1] / 255, px[i + 2] / 255];
   };
-  const cells = [];
+  const out = [];
   const r = Math.ceil(R) + 1;
   const R2 = R * R;
   const inside = (i, j, k) => i * i + j * j + k * k < R2;
@@ -587,24 +722,28 @@ function buildEarth(image, R) {
         cb /= 16;
         const lum = 0.2126 * cr + 0.7152 * cg + 0.0722 * cb;
         const light = Math.pow(clamp01((warm - lum * 0.9) * 1.6), 1.3) * (1 - smooth01((lum - 0.16) / 0.2));
-        // Cloud stands a little proud of the sea.
-        const sat = Math.max(cr, cg, cb) - Math.min(cr, cg, cb);
-        const cloud = smooth01((lum - 0.5) / 0.25) * (1 - smooth01(sat / 0.25));
-        const lift = cloud * 0.6;
-        cells.push(i + nx * lift, j + ny * lift, k + nz * lift, cr ** 2.2, cg ** 2.2, cb ** 2.2, light, hash2(i * 73 + k, j * 151 - k));
+        const sw = swatch(cr, cg, cb);
+        // A voxel of relief stands along its most outward axis, so the
+        // terraces stay on the grid.
+        const ax = Math.abs(nx) > Math.abs(ny) && Math.abs(nx) > Math.abs(nz) ? [Math.sign(nx), 0, 0]
+          : Math.abs(ny) > Math.abs(nz) ? [0, Math.sign(ny), 0] : [0, 0, Math.sign(nz)];
+        const tint = 0.94 + 0.12 * hash2(i * 11 + k, j * 7 - k);
+        out.push({ i, j, k, color: sw.linear, tint, light, lift: sw.lift, ax, seed: hash2(i * 73 + k, j * 151 - k) });
       }
     }
   }
-  const count = cells.length / 8;
+  const count = out.length;
   const cell = new Float32Array(count * 3);
   const paint = new Float32Array(count * 4);
+  const relief = new Float32Array(count * 4);
   const seed = new Float32Array(count);
-  for (let q = 0; q < count; q++) {
-    cell.set(cells.slice(q * 8, q * 8 + 3), q * 3);
-    paint.set(cells.slice(q * 8 + 3, q * 8 + 7), q * 4);
-    seed[q] = cells[q * 8 + 7];
-  }
-  return { count, cell, paint, seed };
+  out.forEach((v, q) => {
+    cell.set([v.i, v.j, v.k], q * 3);
+    paint.set([v.color.r * v.tint, v.color.g * v.tint, v.color.b * v.tint, v.light], q * 4);
+    relief.set([...v.ax, v.lift], q * 4);
+    seed[q] = v.seed;
+  });
+  return { count, cell, paint, relief, seed };
 }
 
 // ---- shaders ------------------------------------------------------------------------
@@ -624,6 +763,17 @@ const COMMON = /* glsl */ `
   uniform vec4 uStrikeAt;
 
   float h11(float n) { return fract(sin(n * 12.9898 + 4.1414) * 43758.5453); }
+  float hash21(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  // Signal: what rock turns to on its way to Earth, in the city's own
+  // colours, cyan mostly and one in three the street's pink. Picked apart
+  // from the seed that sets a piece's speed, so the colours do not band.
+  vec3 signalColour(float seed) {
+    return step(0.7, h11(seed * 91.7 + 3.3)) > 0.5 ? vec3(1.0, 0.027, 0.24) : vec3(0.0, 0.78, 1.0);
+  }
   vec3 spinAxis(float seed) {
     return normalize(vec3(h11(seed * 17.1) - 0.5, h11(seed * 29.7 + 1.3) - 0.5, h11(seed * 41.3 + 2.9) - 0.5) + 1e-4);
   }
@@ -658,8 +808,9 @@ const LIGHT = /* glsl */ `
   uniform sampler2DShadow uShadowMap;
   uniform mat4 uShadowMatrix;
   uniform float uShadowTexel;
+  uniform float uShadowOffset;
   float sunShadow(vec3 p, vec3 n) {
-    vec4 q = uShadowMatrix * vec4(p + n * 0.02, 1.0);
+    vec4 q = uShadowMatrix * vec4(p + n * uShadowOffset, 1.0);
     vec3 c = q.xyz * 0.5 + 0.5;
     if (c.x <= 0.0 || c.y <= 0.0 || c.x >= 1.0 || c.y >= 1.0 || c.z >= 1.0) return 1.0;
     float o = uShadowTexel * 0.7;
@@ -679,7 +830,7 @@ const LIGHT = /* glsl */ `
     vec3 c = albedo * (uSunColor * sun + uEarthLight * earth * (1.0 + 0.3 * uLevel) + uAmbient) * ao;
     vec3 d = uStrike.xyz - p;
     float dd = dot(d, d);
-    c += albedo * vec3(1.0, 0.52, 0.2) * uStrike.w * max(dot(nb, d * inversesqrt(dd + 1e-4)), 0.0) / (1.0 + dd * 0.05);
+    c += albedo * vec3(1.0, 0.52, 0.2) * uStrike.w * max(dot(nb, d * inversesqrt(dd + 1e-4)), 0.0) / (1.0 + dd * 0.3);
     return c;
   }
 `;
@@ -722,7 +873,7 @@ const GROUND_PLACE = /* glsl */ `
   keep *= smoothstep(uEarthR + 2.0, uEarthR + 14.0, length(cw - uEarthPos));
   mat3 R = axisAngle(spinAxis(seed), age * (1.0 + seed * 3.0) * free);
   float peel = free * (1.0 - falls) * smoothstep(0.0, 0.5, age);
-  vec3 size = vec3(vox, hgt, vox) * shown * keep * (1.0 + 2.2 * peel);
+  vec3 size = vec3(vox, hgt, vox) * shown * keep * (1.0 + 0.8 * peel);
   vec3 lp = position * size;
   vec3 world = cw + R * lp;
 `;
@@ -777,6 +928,7 @@ const GROUND_VERTEX = /* glsl */ `
 const GROUND_FRAGMENT = /* glsl */ `
   ${COMMON}
   ${LIGHT}
+  uniform vec4 uSeats;
   varying vec3 vWorld;
   varying vec3 vN;
   varying vec3 vT;
@@ -830,49 +982,64 @@ const GROUND_FRAGMENT = /* glsl */ `
       ao = 0.25;
     }
     ao = mix(ao, 1.0, free * 0.8);
+    // Where they sit, the ground is darker under them.
+    vec2 s1 = vWorld.xz - uSeats.xy;
+    vec2 s2 = vWorld.xz - uSeats.zw;
+    ao *= 1.0 - 0.45 * (exp(-dot(s1, s1) / 0.12) + exp(-dot(s2, s2) / 0.12)) * step(0.5, vFaceN.y) * (1.0 - free);
     vec3 albedo = mix(vec3(0.07, 0.066, 0.064), vec3(0.3, 0.29, 0.275), vInfo.x);
     vec3 col = lightVoxel(albedo, vWorld, n, nb, ao);
     // Each column lands lit, and cools.
     float rim = max(abs(f.x), abs(f.y));
     col += vec3(0.25, 0.85, 1.0) * vInfo.y * (0.3 + 1.8 * smoothstep(0.38, 0.5, rim));
-    // Lifting off for Earth, rock turns to signal: dark, edged in the
-    // city's cyan and magenta.
-    vec3 signal = mix(vec3(0.2, 0.9, 1.0), vec3(1.0, 0.25, 0.8), step(0.5, vPeel.y));
-    col = mix(col, col * 0.35, vPeel.x) + signal * vPeel.x * (0.12 + 2.6 * smoothstep(0.4, 0.5, rim));
+    // Lifting off for Earth, rock turns to signal: near black, with a thin
+    // hot edge in the city's colours.
+    col = mix(col, col * 0.03, vPeel.x) + signalColour(vPeel.y) * vPeel.x * (0.04 + 4.0 * smoothstep(0.44, 0.5, rim));
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
 `;
 
-// The figures: printed in from the ground up, then, after ignition, taken
-// apart like everything else.
+// The figures: printed in from the ground up; turning their heads to the
+// strike; then taken apart like everything else, each voxel in its own
+// colour for a moment before it turns to signal.
 const FIGURE_PLACE = /* glsl */ `
   float seed = aInfo.y;
   float tpr = uPrint.x + (aPos.y - uPrint.z) / (uPrint.w - uPrint.z) * uPrint.y;
   float kp = clamp((uS - tpr) / 0.22, 0.0, 1.0);
   float shown = step(0.0001, uS - tpr);
   float glow = shown * exp(-max(uS - tpr, 0.0) * 7.0);
+  vec3 base = aPos;
+  mat3 H = mat3(1.0);
+  if (aInfo.z > 0.5) {
+    bool his = aInfo.z < 1.5;
+    vec3 pivot = his ? uPivotD : uPivotL;
+    H = axisAngle(vec3(0.0, 1.0, 0.0), his ? uHeads.x : uHeads.z) * axisAngle(vec3(1.0, 0.0, 0.0), his ? uHeads.y : uHeads.w);
+    base = pivot + H * (aPos - pivot);
+  }
   float td = uApart + seed * 0.6 + (1.0 - aPos.y) * 0.25;
   float age = max(uS - td, 0.0);
   float free = step(td, uS);
-  vec3 cw = aPos + free * pulled(age, seed);
+  vec3 cw = base + free * pulled(age, seed);
   float keep = 1.0 - free * smoothstep(uFree.z - 0.35, uFree.z + 0.05, uS);
   keep *= smoothstep(uEarthR + 2.0, uEarthR + 14.0, length(cw - uEarthPos));
-  mat3 R = axisAngle(spinAxis(seed), age * (2.0 + seed * 4.0) * free);
-  float peel = free * smoothstep(0.0, 0.5, age);
-  float scale = shown * mix(0.5, 1.0, backOut(kp)) * keep * (1.0 + 2.5 * peel);
+  mat3 R = axisAngle(spinAxis(seed), age * (2.0 + seed * 4.0) * free) * H;
+  float peel = free * smoothstep(0.4, 0.8, age);
+  float scale = shown * mix(0.5, 1.0, backOut(kp)) * keep * (1.0 + 0.8 * free * smoothstep(0.0, 0.5, age));
   vec3 world = cw + R * (position * uFigVox * scale);
 `;
 
 const FIGURE_ATTRS = /* glsl */ `
   attribute vec3 aPos;
   attribute vec3 aColor;
-  attribute vec2 aInfo;
+  attribute vec4 aInfo;
   uniform float uFigVox;
   uniform vec4 uPrint;
   uniform float uApart;
   uniform vec3 uFree;
+  uniform vec4 uHeads;
+  uniform vec3 uPivotD;
+  uniform vec3 uPivotL;
 `;
 
 const FIGURE_VERTEX = /* glsl */ `
@@ -882,9 +1049,10 @@ const FIGURE_VERTEX = /* glsl */ `
   varying vec3 vN;
   varying vec3 vT;
   varying vec3 vB;
+  varying vec3 vFaceN;
   varying vec2 vFace;
   varying vec3 vColor;
-  varying vec3 vInfo;
+  varying vec4 vInfo;
   varying float vSeed;
   void main() {
     ${FIGURE_PLACE}
@@ -894,9 +1062,10 @@ const FIGURE_VERTEX = /* glsl */ `
     vN = R * normal;
     vT = R * t;
     vB = R * b;
+    vFaceN = normal;
     vFace = an.y > 0.5 ? position.xz : vec2(an.x > 0.5 ? position.z : position.x, position.y);
     vColor = aColor;
-    vInfo = vec3(aInfo.x, glow, peel);
+    vInfo = vec4(aInfo.x, glow, peel, aInfo.w);
     vSeed = seed;
     vWorld = world;
     gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
@@ -910,21 +1079,37 @@ const FIGURE_FRAGMENT = /* glsl */ `
   varying vec3 vN;
   varying vec3 vT;
   varying vec3 vB;
+  varying vec3 vFaceN;
   varying vec2 vFace;
   varying vec3 vColor;
-  varying vec3 vInfo;
+  varying vec4 vInfo;
   varying float vSeed;
+  bool open(int m, int bit) { return (m & bit) != 0; }
   void main() {
     vec3 n = normalize(vN);
-    vec3 nb = bevel(n, normalize(vT), normalize(vB), vFace, fwidth(vFace));
+    // Bevel only a voxel's real edges, where the neighbour past the edge is
+    // empty: a flat run of jacket is one surface, not graph paper.
+    int m = int(vInfo.w + 0.5);
+    vec3 an = abs(vFaceN);
+    int tp = an.x > 0.5 ? 16 : 1;
+    int tn = an.x > 0.5 ? 32 : 2;
+    int bp = an.y > 0.5 ? 16 : 4;
+    int bn = an.y > 0.5 ? 32 : 8;
+    vec2 px = fwidth(vFace);
+    vec2 w = 0.07 + px;
+    vec2 e = smoothstep(0.5 - w, vec2(0.5), abs(vFace)) * sign(vFace);
+    e.x *= open(m, vFace.x > 0.0 ? tp : tn) ? 1.0 : 0.0;
+    e.y *= open(m, vFace.y > 0.0 ? bp : bn) ? 1.0 : 0.0;
+    float bk = 1.0 - smoothstep(0.1, 0.28, max(px.x, px.y));
+    vec3 nb = normalize(n + (normalize(vT) * e.x + normalize(vB) * e.y) * 1.1 * bk);
     vec3 col = lightVoxel(vColor, vWorld, n, nb, clamp(vInfo.x, 0.3, 1.1));
-    // Earth's rim on their silhouettes.
+    // Earth's rim round their silhouettes, on the dark hair as much as on
+    // the jacket.
     vec3 v = normalize(cameraPosition - vWorld);
-    col += vColor * uEarthLight * 5.0 * pow(1.0 - max(dot(n, v), 0.0), 3.0) * max(dot(n, uEarthDir), 0.0);
+    col += (0.3 + vColor) * vec3(0.35, 0.6, 1.4) * 0.22 * pow(1.0 - max(dot(n, v), 0.0), 2.5) * max(dot(n, uEarthDir), 0.0);
     float rim = max(abs(vFace.x), abs(vFace.y));
     col += vec3(0.3, 0.9, 1.0) * vInfo.y * (0.5 + 2.0 * smoothstep(0.36, 0.5, rim));
-    vec3 signal = mix(vec3(0.2, 0.9, 1.0), vec3(1.0, 0.25, 0.8), step(0.5, vSeed));
-    col = mix(col, col * 0.4, vInfo.z) + signal * vInfo.z * (0.15 + 2.6 * smoothstep(0.38, 0.5, rim));
+    col = mix(col, col * 0.03, vInfo.z) + signalColour(vSeed) * vInfo.z * (0.04 + 4.0 * smoothstep(0.44, 0.5, rim));
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -935,25 +1120,32 @@ const DEPTH_FRAGMENT = /* glsl */ `
   void main() { gl_FragColor = vec4(1.0); }
 `;
 
-// Earth: the painted disc, a voxel at a time. The face looking out is the
-// picture; the terraces toward the limb are its darker sides; the lights on
-// the night side glow. Built from the bottom up, and at the reveal flipped
-// over from the middle of the frame out, each tile turning away on its own
-// edge, so the city shows through the gaps.
+// Earth: the painted disc, a voxel at a time, in its dozen colours, lit by
+// the moon's sun so its night side is night, its lights on that side as
+// points in each tile, and land and cloud standing proud. Built from the
+// bottom up; where the signal lands, rings run out through it; and at the
+// reveal it flips over a ring at a time on the three beats of the bar
+// before the drums, from the street's own vanishing point out, each tile
+// turning away on its edge so the city shows through the gaps.
 const EARTH_VERTEX = /* glsl */ `
   ${COMMON}
   attribute vec3 aCell;
   attribute vec4 aPaint;
+  attribute vec4 aRelief;
   attribute float aSeed;
   uniform mat3 uEarthBasis;
   uniform float uEarthVox;
   uniform float uAspect;
   uniform vec2 uEarthBuild;
-  uniform vec2 uWave;
+  uniform vec3 uBeats;
+  uniform vec3 uWave;
+  uniform vec4 uRipple;
   varying vec3 vPaint;
   varying vec3 vN;
+  varying vec3 vOut;
   varying vec2 vFace;
   varying vec4 vInfo;
+  varying vec3 vExtra;
   void main() {
     vec3 nrm = normalize(aCell);
     float ta = uEarthBuild.x + (nrm.y * 0.5 + 0.5) * uEarthBuild.y + aSeed * 0.35;
@@ -961,23 +1153,40 @@ const EARTH_VERTEX = /* glsl */ `
     float shown = step(0.0001, uS - ta);
     float glow = shown * exp(-max(uS - ta, 0.0) * 3.0);
     vec3 wc = uEarthPos + uEarthBasis * (aCell * uEarthVox);
+    // The flip: rings out from the wave's origin (uWave.xy, in the frame),
+    // one to a beat; uWave.z is the furthest the frame reaches from it.
     vec4 clip = projectionMatrix * viewMatrix * vec4(wc, 1.0);
-    vec2 sp = clip.xy / max(abs(clip.w), 1e-3) * vec2(uAspect, 1.0);
-    float ds = length(sp) / length(vec2(uAspect, 1.0));
-    float tf = uWave.x + ds * uWave.y + aSeed * 0.14;
+    vec2 sp = (clip.xy / max(abs(clip.w), 1e-3) - uWave.xy) * vec2(uAspect, 1.0);
+    float ds = clamp(length(sp) / uWave.z, 0.0, 0.999) * 3.0;
+    float ring = floor(ds);
+    float tf = (ring < 0.5 ? uBeats.x : ring < 1.5 ? uBeats.y : uBeats.z) + fract(ds) * 0.16 + aSeed * 0.06;
     float kf = clamp((uS - tf) / 0.42, 0.0, 1.0);
     vec2 d2 = normalize(sp + 1e-4);
     vec3 axisW = (vec4(-d2.y, d2.x, 0.0, 0.0) * viewMatrix).xyz;
     mat3 R = axisAngle(normalize(axisW * uEarthBasis), kf * 2.8);
     float scale = backOut(ka) * shown * (1.0 - smoothstep(0.3, 1.0, kf));
-    vec3 lp = R * (position * scale);
+    // Relief: land and cloud as columns along the most outward axis.
+    vec3 local = position * (1.0 + abs(aRelief.xyz) * aRelief.w) + aRelief.xyz * aRelief.w * 0.5;
+    vec3 lp = R * (local * scale);
     vec3 pop = normalize(cameraPosition - wc) * kf * kf * uEarthVox * 3.0;
     vec3 world = wc + uEarthBasis * (lp * uEarthVox) + pop;
     vec3 an = abs(normal);
     vFace = an.y > 0.5 ? position.xz : vec2(an.x > 0.5 ? position.z : position.x, position.y);
     vN = uEarthBasis * (R * normal);
+    vOut = uEarthBasis * nrm;
     vPaint = aPaint.rgb;
-    vInfo = vec4(aPaint.a, glow, sin(kf * 3.14159), dot(R * normal, nrm));
+    // Where the signal comes down (uRipple.xyz, Earth's own frame, from
+    // uRipple.w), rings of light run out across the tiles.
+    float since = uS - uRipple.w;
+    float ang = acos(clamp(dot(nrm, uRipple.xyz), -1.0, 1.0));
+    float rings = 0.0;
+    for (int i = 0; i < 2; i++) {
+      float t = since - float(i) * 0.3;
+      float r = t * 0.2;
+      rings += step(0.0, t) * exp(-pow((ang - r) / 0.01, 2.0)) * exp(-max(t, 0.0) * 1.6);
+    }
+    vInfo = vec4(aPaint.a, glow, smoothstep(0.6, 0.95, sin(kf * 3.14159)), dot(R * normal, nrm));
+    vExtra = vec3(aSeed, 0.6 * rings * (1.0 - smoothstep(0.7, 1.1, since)), step(0.5, aRelief.w) * step(aRelief.w, 1.5));
     gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
   }
 `;
@@ -987,21 +1196,37 @@ const EARTH_FRAGMENT = /* glsl */ `
   uniform float uEarthGain;
   varying vec3 vPaint;
   varying vec3 vN;
+  varying vec3 vOut;
   varying vec2 vFace;
   varying vec4 vInfo;
+  varying vec3 vExtra;
   void main() {
     vec3 n = normalize(vN);
     vec2 px = fwidth(vFace);
+    float outward = smoothstep(0.25, 0.9, vInfo.w);
     // The face that looks out is the picture; the others are the terraces.
-    float face = mix(0.4, 1.0, smoothstep(0.25, 0.9, vInfo.w));
-    float sun = 0.88 + 0.22 * dot(n, uSun);
-    // A hairline between tiles, so the middle of the disc reads as mosaic.
-    vec2 g = smoothstep(0.5 - (0.045 + px), vec2(0.5), abs(vFace));
-    float edge = max(g.x, g.y) * (1.0 - smoothstep(0.1, 0.25, max(px.x, px.y)));
-    vec3 col = vPaint * face * sun * (1.0 - 0.14 * edge) * uEarthGain * (1.0 + 0.12 * uLevel);
-    col += vec3(1.0, 0.6, 0.24) * vInfo.x * 5.5;
+    float face = mix(0.42, 1.0, outward);
+    // Day and night by the moon's sun, the terminator a soft line.
+    float day = smoothstep(-0.1, 0.3, dot(normalize(vOut), uSun));
+    float sun = 0.9 + 0.2 * dot(n, uSun);
+    vec3 col = vPaint * face * sun * mix(0.3, 1.0, day) * uEarthGain * (1.0 + 0.12 * uLevel);
+    // The lights: on the night side, points in a four by four grid on each
+    // lit tile's outward face, settling to their average where a tile is
+    // too small on screen to hold them.
+    // Every stretch of land has a few, the painted cities many.
+    vec2 g = (vFace + 0.5) * 4.0;
+    float density = vInfo.x * 0.9 + vExtra.z * 0.07;
+    float lit = step(hash21(floor(g) + vExtra.x * 97.0), density);
+    float spot = lit * smoothstep(0.42, 0.12, length(fract(g) - 0.5)) * (0.45 + 0.55 * step(0.01, vInfo.x));
+    float points = mix(spot, density * 0.25, smoothstep(0.3, 0.8, max(px.x, px.y) * 4.0));
+    col += vec3(1.0, 0.72, 0.36) * points * 10.0 * (1.0 - day) * outward;
+    // Edges: the build and the flip's leading ring light them.
+    vec2 e2 = smoothstep(0.5 - (0.05 + px), vec2(0.5), abs(vFace));
+    float edge = max(e2.x, e2.y) * (1.0 - smoothstep(0.12, 0.3, max(px.x, px.y)));
     col += vec3(0.3, 0.9, 1.0) * vInfo.y * (0.25 + 1.4 * edge);
-    col += mix(vec3(0.2, 0.9, 1.0), vec3(1.0, 0.25, 0.8), step(0.5, fract(vInfo.x * 7.0 + vFace.x))) * vInfo.z * (0.15 + 2.2 * edge);
+    vec3 flip = hash21(vec2(vExtra.x * 13.0, 3.0)) > 0.85 ? vec3(1.0, 0.027, 0.24) : vec3(0.0, 0.78, 1.0);
+    col += flip * vInfo.z * (0.1 + 3.0 * edge);
+    col += vec3(0.0, 0.78, 1.0) * vExtra.y * (0.6 + 2.5 * edge) * outward;
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -1028,9 +1253,9 @@ const HALO_FRAGMENT = /* glsl */ `
   varying vec3 vView;
   void main() {
     float f = 1.0 - max(dot(normalize(vN), normalize(vView)), 0.0);
-    float a = pow(f, 3.0) * (1.0 - smoothstep(0.93, 1.0, f));
+    float a = pow(f, 2.0) * (1.0 - smoothstep(0.93, 1.0, f));
     float lit = 0.45 + 0.55 * max(dot(normalize(vN), uSun), 0.0);
-    vec3 col = vec3(0.25, 0.52, 1.0) * a * lit * 1.4 * uHalo * (1.0 + 0.3 * uLevel);
+    vec3 col = vec3(0.25, 0.52, 1.0) * a * lit * 3.0 * uHalo * (1.0 + 0.3 * uLevel);
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -1069,7 +1294,10 @@ const DUST_FRAGMENT = /* glsl */ `
   }
 `;
 
-// The two falling stars: a white-hot head and a trail of cooling cubes.
+// The two falling stars: a white-hot head and a trail of cooling cubes,
+// each drawn out along the path as far as the next, so a fast one is a
+// streak and not a string of beads.
+const TRAIL = 40;
 const METEOR_VERTEX = /* glsl */ `
   ${COMMON}
   attribute vec4 aFrom;
@@ -1086,10 +1314,13 @@ const METEOR_VERTEX = /* glsl */ `
     vec3 p = mix(aFrom.xyz, aTo.xyz, clamp(k, 0.0, 1.0));
     p += (vec3(h11(aWhen.w * 3.1), h11(aWhen.w * 5.7), h11(aWhen.w * 7.9)) - 0.5) * aWhen.z * aFrom.w * 0.5;
     float size = aFrom.w * mix(1.0, 0.16, pow(aWhen.z, 0.7)) * on * (1.0 - smoothstep(0.75, 1.0, k) * step(0.5, aWhen.w));
-    mat3 R = axisAngle(spinAxis(aWhen.w), uS * 4.0);
+    vec3 dir = normalize(aTo.xyz - aFrom.xyz);
+    vec3 side = normalize(cross(dir, vec3(0.0, 1.0, 0.0)) + 1e-4);
+    mat3 B = mat3(dir, side, cross(side, dir));
+    float gap = length(aTo.xyz - aFrom.xyz) / aWhen.y * aTo.w / ${TRAIL.toFixed(1)};
     vec3 heat = mix(vec3(6.0, 5.4, 4.2), vec3(3.0, 1.2, 0.3), smoothstep(0.0, 0.35, aWhen.z));
     vColor = mix(heat, vec3(0.5, 0.08, 0.04), smoothstep(0.35, 1.0, aWhen.z));
-    vec3 world = p + R * position * size;
+    vec3 world = p + B * (position * vec3(max(size, gap * 1.4 * on), size, size));
     gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
   }
 `;
@@ -1154,7 +1385,7 @@ const DEBRIS_VERTEX = /* glsl */ `
     ${DEBRIS_PLACE}
     vN = R * normal;
     vWorld = world;
-    vHeat = vec2(step(0.72, seed) * exp(-max(age, 0.0) * 1.3), seed);
+    vHeat = vec2(step(0.75, seed) * exp(-max(age, 0.0) / 1.5), seed);
     gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
   }
 `;
@@ -1208,35 +1439,51 @@ const STAR_FRAGMENT = /* glsl */ `
 const BACKDROP_VERTEX = /* glsl */ `
   void main() { gl_Position = vec4(position.xy, 1.0, 1.0); }
 `;
+// Behind Earth it goes with the tile in front of it; the sky round Earth
+// goes last, after the tiles' last ring, so no street shows over Earth's
+// limb before Earth itself has turned. uEarthDisc is Earth in the frame:
+// its middle, and its radius in the frame's height.
 const BACKDROP_FRAGMENT = /* glsl */ `
   uniform float uS;
-  uniform vec2 uWave;
+  uniform vec3 uBeats;
+  uniform vec3 uWave;
+  uniform vec3 uEarthDisc;
   uniform vec2 uResolution;
   uniform float uBlock;
   void main() {
     vec2 cell = floor(gl_FragCoord.xy / uBlock);
     vec2 c = ((cell + 0.5) * uBlock / uResolution) * 2.0 - 1.0;
     float aspect = uResolution.x / uResolution.y;
-    float ds = length(c * vec2(aspect, 1.0)) / length(vec2(aspect, 1.0));
-    float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
-    if (uS > uWave.x + ds * uWave.y + h * 0.14 + 0.25) discard;
+    float ds = clamp(length((c - uWave.xy) * vec2(aspect, 1.0)) / uWave.z, 0.0, 0.999) * 3.0;
+    vec3 p3 = fract(vec3(cell.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    float h = fract((p3.x + p3.y) * p3.z);
+    float ring = floor(ds);
+    float withTile = (ring < 0.5 ? uBeats.x : ring < 1.5 ? uBeats.y : uBeats.z) + fract(ds) * 0.16 + 0.12 + h * 0.06;
+    float last = uBeats.z + 0.12 + ds * 0.1 + h * 0.1;
+    bool onEarth = length((c - uEarthDisc.xy) * vec2(aspect, 1.0)) < uEarthDisc.z;
+    if (uS > (onEarth ? withTile : last)) discard;
     gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
   }
 `;
 
 // ---- the camera ---------------------------------------------------------------------------
 const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
-// The opening: low and close behind the figures, then back and up, round in
-// an arc behind them, and down onto the painting's framing.
-const OPENING = new THREE.CatmullRomCurve3(
-  [V3(0.35, 0.4, 2.15), V3(-0.9, 0.74, 4.4), V3(-2.05, 0.95, 6.35), V3(-1.05, 0.72, 5.55), V3(0, 0.42, 4.6)],
-  false,
-  "centripetal",
-);
+// The opening, in two moves that each start and end at rest: low and close
+// behind the figures, back and up and round to the left (8.9 to 13.4), then
+// in an arc behind them and down onto the painting's framing (to 16.75).
+const OPENING_OUT = new THREE.CatmullRomCurve3([V3(0.35, 0.4, 2.15), V3(-0.9, 0.74, 4.4), V3(-2.05, 0.95, 6.35)], false, "centripetal");
+const OPENING_IN = new THREE.CatmullRomCurve3([V3(-2.05, 0.95, 6.35), V3(-1.05, 0.72, 5.55), V3(0, 0.42, 4.6)], false, "centripetal");
 const LOOK_FROM = V3(0.05, 0.8, -4.5);
 const STILL = { pos: V3(0, 0.42, 4.6), look: V3(0, 2.55, -5.4) };
 const PUSHED = { pos: V3(0, 0.47, 3.85), look: V3(0, 2.6, -6.2) };
-const RISEN = { pos: V3(5.5, 10.5, 23), look: V3(0, -1.8, -5) };
+// The crane: out and low to the side, so the island is seen for what it
+// is, floating, its underside and its crumbling rim against the black and
+// Earth over the top of the frame.
+const RISEN = { pos: V3(12, 2.5, 30), look: V3(0, 0.5, -6), fov: 45 };
+// On a narrow screen: a step further back from the figures, and the lens
+// tipped up so Earth sits over them.
+const PORTRAIT = { back: 0.1, pitch: 9 * DEG };
 
 /** The vertical field of view for an aspect: 50 degrees wide, opening up on
  *  a narrow screen so the figures and Earth still fit across it. */
@@ -1244,14 +1491,22 @@ const fovFor = (fov, aspect) => {
   const k = aspect < 1.6 ? Math.pow(1.6 / aspect, 0.42) : 1;
   return (2 * Math.atan(Math.tan((fov * DEG) / 2) * k)) / DEG;
 };
+const easeCos = (x) => 0.5 - 0.5 * Math.cos(Math.PI * clamp01(x));
+const smoother = (x) => {
+  const t = clamp01(x);
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
 
 // ---- the builder ----------------------------------------------------------------------------
+const breathe = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) {
   const cfg = TIER[tier] ?? TIER.high;
   const image = await preloadVoxelMoon();
   const rand = rng(20260928);
   const terrain = makeTerrain(rand);
   const strike = STRIKE.clone();
+  strike.x *= cfg.wide;
   strike.y = Math.round(terrain(strike.x, strike.z).h / cfg.vox) * cfg.vox;
 
   const scene = new THREE.Scene();
@@ -1259,39 +1514,47 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 4000);
 
   const cube = new THREE.BoxGeometry(1, 1, 1);
+  // The instance data is only needed until it is on the GPU.
+  const release = function () {
+    this.array = null;
+  };
   const instanced = (count, attrs) => {
     const g = new THREE.InstancedBufferGeometry();
     g.index = cube.index;
     g.setAttribute("position", cube.attributes.position);
     g.setAttribute("normal", cube.attributes.normal);
-    for (const [name, array, size] of attrs) g.setAttribute(name, new THREE.InstancedBufferAttribute(array, size));
+    for (const [name, array, size] of attrs) g.setAttribute(name, new THREE.InstancedBufferAttribute(array, size).onUpload(release));
     g.instanceCount = count;
     return g;
   };
 
   // Earth's place for this screen: the same direction from the painting's
-  // eye, and a size that fits the width it has.
+  // eye, and a size and height that fit the frame it has.
   const earthPos = new THREE.Vector3();
   const earthBasis = new THREE.Matrix3();
   const toEarth = new THREE.Vector3();
   const earthDir = new THREE.Vector3();
   const aim = new THREE.Vector3();
   const aimNormal = new THREE.Vector3();
+  // Where the dive ends: over the lights of Europe, on the night side, in
+  // Earth's own frame (x right, y up, z back toward the eye).
+  const AIM_LOCAL = V3(0.5, 0.31, 0.81).normalize();
   let earthR = 100;
   const placeEarth = (aspect) => {
-    const angle = (17 + 11 * smooth01((aspect - 0.6) / 0.9)) * DEG;
+    const wide = smooth01((aspect - 0.6) / 0.9);
+    const angle = (22 + 6 * wide) * DEG;
+    const elevation = (26 + 4 * wide) * DEG;
     earthR = EARTH_DISTANCE * Math.sin(angle);
-    earthPos.set(0, Math.sin(EARTH_ELEVATION), -Math.cos(EARTH_ELEVATION)).multiplyScalar(EARTH_DISTANCE).add(EYE);
-    // Its frame: x right, y up, z back toward the eye (the painting's view).
+    earthPos.set(0, Math.sin(elevation), -Math.cos(elevation)).multiplyScalar(EARTH_DISTANCE).add(EYE);
     const f = EYE.clone().sub(earthPos).normalize();
-    const u = new THREE.Vector3(0, 1, 0).addScaledVector(f, -f.y).normalize();
+    const u = V3(0, 1, 0).addScaledVector(f, -f.y).normalize();
     const r = new THREE.Vector3().crossVectors(u, f);
     earthBasis.set(r.x, u.x, f.x, r.y, u.y, f.y, r.z, u.z, f.z);
-    toEarth.copy(earthPos).sub(V3(ISLAND.x, 0, ISLAND.z)).normalize();
-    earthDir.copy(earthPos).sub(PIVOT).normalize();
-    // Where the dive ends: over the lights of Europe, on the night side.
-    aimNormal.set(0.5, 0.31, 0.81).normalize().applyMatrix3(earthBasis);
+    aimNormal.copy(AIM_LOCAL).applyMatrix3(earthBasis);
     aim.copy(earthPos).addScaledVector(aimNormal, earthR);
+    // The signal streams to where the camera is going.
+    toEarth.copy(aim).sub(V3(ISLAND.x, 0, ISLAND.z)).normalize();
+    earthDir.copy(earthPos).sub(PIVOT).normalize();
   };
   placeEarth(16 / 9);
 
@@ -1313,23 +1576,35 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   };
 
   // ---- the sun's shadow map ------------------------------------------------------------
-  const shadowTarget = new THREE.WebGLRenderTarget(cfg.shadow, cfg.shadow);
-  shadowTarget.depthTexture = new THREE.DepthTexture(cfg.shadow, cfg.shadow, THREE.UnsignedIntType);
+  // A depth map and a token colour buffer; 16 bits of depth is plenty over
+  // the sixty metres it covers. Fitted to the island as the sun sees it.
+  const shadowTarget = new THREE.WebGLRenderTarget(cfg.shadow, cfg.shadow, { format: THREE.RedFormat, type: THREE.UnsignedByteType });
+  shadowTarget.depthTexture = new THREE.DepthTexture(cfg.shadow, cfg.shadow, THREE.UnsignedShortType);
   shadowTarget.depthTexture.format = THREE.DepthFormat;
   shadowTarget.depthTexture.compareFunction = THREE.LessEqualCompare;
   shadowTarget.depthTexture.minFilter = THREE.LinearFilter;
   shadowTarget.depthTexture.magFilter = THREE.LinearFilter;
-  const sunCamera = new THREE.OrthographicCamera(-22, 22, 22, -22, 44, 96);
-  sunCamera.position.set(ISLAND.x, 0, ISLAND.z).addScaledVector(SUN, 70);
+  const sunCamera = new THREE.OrthographicCamera();
+  sunCamera.position.set(ISLAND.x, 0, ISLAND.z).addScaledVector(SUN, 80);
   sunCamera.lookAt(ISLAND.x, 0, ISLAND.z);
   sunCamera.updateMatrixWorld();
+  const box = new THREE.Box3();
+  const span = cfg.island * 1.15;
+  for (const x of [-span, span]) {
+    for (const y of [-10, 2]) {
+      for (const z of [-span, span]) box.expandByPoint(V3(ISLAND.x + x, y, ISLAND.z + z).applyMatrix4(sunCamera.matrixWorldInverse));
+    }
+  }
+  Object.assign(sunCamera, { left: box.min.x, right: box.max.x, bottom: box.min.y, top: box.max.y, near: -box.max.z - 1, far: -box.min.z + 1 });
   sunCamera.updateProjectionMatrix();
   const shadowMatrix = new THREE.Matrix4().multiplyMatrices(sunCamera.projectionMatrix, sunCamera.matrixWorldInverse);
+  const texel = Math.max(box.max.x - box.min.x, box.max.y - box.min.y) / cfg.shadow;
   const shadowScene = new THREE.Scene();
   const lit = {
     uShadowMap: { value: shadowTarget.depthTexture },
     uShadowMatrix: { value: shadowMatrix },
     uShadowTexel: { value: 1 / cfg.shadow },
+    uShadowOffset: { value: texel * 1.5 },
   };
 
   const parts = [];
@@ -1353,22 +1628,26 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     material.name = name;
     return material;
   };
+  // Back faces into the shadow map, as three's own shadow maps draw them:
+  // a lit face then never shadows itself.
   const depthOnly = (name, attrs, place, extra = {}) => {
     const material = new THREE.ShaderMaterial({
       uniforms: { ...uniforms, ...extra },
       vertexShader: `${COMMON}\n${attrs}\nvoid main() {\n${place}\ngl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);\n}`,
       fragmentShader: DEPTH_FRAGMENT,
       colorWrite: false,
+      side: THREE.BackSide,
     });
     material.name = `${name}-depth`;
     return material;
   };
 
   // ---- the island --------------------------------------------------------------------
-  const island = buildIsland(cfg, terrain);
+  const island = buildIsland(cfg, terrain, rand);
   const groundExtra = {
     uBuild: { value: new THREE.Vector3(T.ground, 0, 0) },
     uIsland: { value: new THREE.Vector3(ISLAND.x, ISLAND.z, cfg.island) },
+    uSeats: { value: new THREE.Vector4(SEATS[0][0], SEATS[0][1], SEATS[1][0], SEATS[1][1]) },
   };
   add(
     "moon-ground",
@@ -1376,44 +1655,54 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     shaded("moon-ground", GROUND_VERTEX, GROUND_FRAGMENT, groundExtra),
     { depth: depthOnly("moon-ground", GROUND_ATTRS, GROUND_PLACE, groundExtra) },
   );
+  await breathe();
 
   // ---- the figures ---------------------------------------------------------------------
   const voxels = [];
-  sculpt(david(), [-0.45, 0, 0], cfg.fig, voxels);
-  sculpt(lucy(), [0.42, 0, 0.02], cfg.fig, voxels);
+  sculpt(david(), [SEATS[0][0], 0, 0], cfg.fig, voxels);
+  sculpt(lucy(), [SEATS[1][0], 0, SEATS[1][1]], cfg.fig, voxels, LUCY_SCALE);
   const figPos = new Float32Array(voxels.length * 3);
   const figColor = new Float32Array(voxels.length * 3);
-  const figInfo = new Float32Array(voxels.length * 2);
+  const figInfo = new Float32Array(voxels.length * 4);
   voxels.forEach((v, i) => {
     figPos.set([v.x, v.y, v.z], i * 3);
     figColor.set([v.r, v.g, v.b], i * 3);
-    figInfo.set([v.ao, v.seed], i * 2);
+    figInfo.set([v.ao, v.seed, v.head, v.open], i * 4);
   });
+  const heads = new THREE.Vector4();
   const figureExtra = {
     uFigVox: { value: cfg.fig },
-    uPrint: { value: new THREE.Vector4(T.print, 1.1, 0, 1.0) },
+    uPrint: { value: new THREE.Vector4(T.print, 1.1, 0, 1.2) },
     uApart: { value: T.apart },
+    uHeads: { value: heads },
+    uPivotD: { value: V3(SEATS[0][0], 0.74, 0.12) },
+    uPivotL: { value: V3(SEATS[1][0], 0.575 * LUCY_SCALE, SEATS[1][1]) },
   };
   add(
     "moon-figures",
-    instanced(voxels.length, [["aPos", figPos, 3], ["aColor", figColor, 3], ["aInfo", figInfo, 2]]),
+    instanced(voxels.length, [["aPos", figPos, 3], ["aColor", figColor, 3], ["aInfo", figInfo, 4]]),
     shaded("moon-figures", FIGURE_VERTEX, FIGURE_FRAGMENT, figureExtra),
     { depth: depthOnly("moon-figures", FIGURE_ATTRS, FIGURE_PLACE, figureExtra) },
   );
+  await breathe();
 
   // ---- Earth -----------------------------------------------------------------------------
   const earth = buildEarth(image, cfg.earth + 0.35);
+  const wave = new THREE.Vector3(0, 0.34, 2);
+  const beats = new THREE.Vector3(...BEATS);
   const earthExtra = {
     uEarthBasis: { value: earthBasis },
     uEarthVox: { value: earthR / cfg.earth },
     uAspect: { value: 16 / 9 },
     uEarthBuild: { value: new THREE.Vector2(T.earth, 1.6) },
-    uWave: { value: new THREE.Vector2(T.reveal, 0.78) },
-    uEarthGain: { value: 1.2 },
+    uBeats: { value: beats },
+    uWave: { value: wave },
+    uRipple: { value: new THREE.Vector4(AIM_LOCAL.x, AIM_LOCAL.y, AIM_LOCAL.z, T.dive + 1.5) },
+    uEarthGain: { value: 1.25 },
   };
   add(
     "moon-earth",
-    instanced(earth.count, [["aCell", earth.cell, 3], ["aPaint", earth.paint, 4], ["aSeed", earth.seed, 1]]),
+    instanced(earth.count, [["aCell", earth.cell, 3], ["aPaint", earth.paint, 4], ["aRelief", earth.relief, 4], ["aSeed", earth.seed, 1]]),
     shaded("moon-earth", EARTH_VERTEX, EARTH_FRAGMENT, earthExtra),
   );
   const haloMaterial = new THREE.ShaderMaterial({
@@ -1436,15 +1725,15 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     shaded("moon-dust", DUST_VERTEX.replaceAll("T_DUST", (T.ground + 1.6).toFixed(2)), DUST_FRAGMENT, { uFree: uniforms.uFree }),
   );
 
-  const TRAIL = 40;
   const meteorFrom = new Float32Array(TRAIL * 2 * 4);
   const meteorTo = new Float32Array(TRAIL * 2 * 4);
   const meteorWhen = new Float32Array(TRAIL * 2 * 4);
+  const w = cfg.wide;
   const paths = [
     // A star burning out across the sky to the right of Earth.
-    { from: V3(78, 64, -92), to: V3(18, 40, -112), head: 1.4, trail: 0.55, at: METEOR_AT[0], duration: 1.25, strike: false },
-    // The second comes down on the right of the horizon.
-    { from: V3(46, 34, -34), to: strike, head: 0.4, trail: 0.3, at: METEOR_AT[1], duration: T.strike - METEOR_AT[1], strike: true },
+    { from: V3(78 * w, 64, -92), to: V3(18 * w, 40, -112), head: 1.4, trail: 0.55, at: METEOR_AT[0], duration: 1.25, strike: false },
+    // The second comes down in the crater, from high on the right.
+    { from: V3(strike.x + 16 * w, 24, strike.z - 22), to: strike, head: 0.4, trail: 0.3, at: METEOR_AT[1], duration: T.strike - METEOR_AT[1], strike: true },
   ];
   paths.forEach((m, j) => {
     for (let i = 0; i < TRAIL; i++) {
@@ -1473,16 +1762,22 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     blending: THREE.AdditiveBlending,
   });
   flashMaterial.name = "moon-flash";
-  add("moon-flash", new THREE.PlaneGeometry(2, 2), flashMaterial, { order: 6 });
+  const flash = add("moon-flash", new THREE.PlaneGeometry(2, 2), flashMaterial, { order: 6 });
 
+  // Debris out of the new crater in a cone forty degrees across, leaning
+  // away from the island's middle.
   const kick = new Float32Array(cfg.debris * 4);
-  const out = V3(strike.x - ISLAND.x, 0, strike.z - ISLAND.z).normalize();
+  const outward = V3(strike.x - ISLAND.x, 0, strike.z - ISLAND.z).normalize();
+  const axis = V3(0, 1, 0).addScaledVector(outward, 0.35).normalize();
+  const across = new THREE.Vector3().crossVectors(axis, V3(0, 0, 1)).normalize();
+  const other = new THREE.Vector3().crossVectors(axis, across);
   for (let i = 0; i < cfg.debris; i++) {
-    // Thrown up and mostly out, away from the island's middle.
     const a = rand() * Math.PI * 2;
-    const spread = 0.55 + rand() * 0.45;
-    const d = V3(Math.cos(a) * spread + out.x * 0.9, 1.1 + rand() * 1.4, Math.sin(a) * spread + out.z * 0.9).normalize();
-    const speed = 2.2 + rand() * 4.8;
+    const tilt = Math.sqrt(rand()) * 20 * DEG;
+    const d = axis.clone().multiplyScalar(Math.cos(tilt))
+      .addScaledVector(across, Math.sin(tilt) * Math.cos(a))
+      .addScaledVector(other, Math.sin(tilt) * Math.sin(a));
+    const speed = 3 + rand() * 5;
     kick.set([d.x * speed, d.y * speed, d.z * speed, rand()], i * 4);
   }
   const debrisExtra = { uFree: uniforms.uFree };
@@ -1534,7 +1829,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   const backdropGeometry = new THREE.BufferGeometry();
   backdropGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
   const backdropMaterial = new THREE.ShaderMaterial({
-    uniforms: { uS: uniforms.uS, uWave: earthExtra.uWave, uResolution: { value: new THREE.Vector2(1, 1) }, uBlock: { value: 40 } },
+    uniforms: { uS: uniforms.uS, uBeats: earthExtra.uBeats, uWave: earthExtra.uWave, uEarthDisc: { value: new THREE.Vector3() }, uResolution: { value: new THREE.Vector2(1, 1) }, uBlock: { value: 40 } },
     vertexShader: BACKDROP_VERTEX,
     fragmentShader: BACKDROP_FRAGMENT,
     depthTest: false,
@@ -1547,17 +1842,14 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   // ---- the camera, on the song ------------------------------------------------------------
   const pos = new THREE.Vector3();
   const look = new THREE.Vector3();
+  const dir = new THREE.Vector3();
   const tmp = new THREE.Vector3();
+  const tmp2 = new THREE.Vector3();
+  const right = new THREE.Vector3();
+  const upward = V3(0, 1, 0);
   const dive = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   const hover = new THREE.Vector3();
-  const horizon = new THREE.Vector3();
-  // The end of the dive: high over the lights of the night side, looking a
-  // little up toward the limb, so the atmosphere arcs across the top.
-  const hoverAt = (at, lookAt) => {
-    at.copy(aim).addScaledVector(aimNormal, earthR * 0.75);
-    const north = tmp.set(0, 1, 0).addScaledVector(aimNormal, -aimNormal.y).normalize();
-    lookAt.copy(aim).addScaledVector(north, earthR * 0.28);
-  };
+  const risenDir = RISEN.look.clone().sub(RISEN.pos).normalize();
   const bezier = (p, t, outV) => {
     const u = 1 - t;
     return outV
@@ -1566,6 +1858,24 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
       .addScaledVector(p[2], 3 * u * t * t)
       .addScaledVector(p[3], t * t * t);
   };
+  /** Turn `v` about the horizontal axis across it by `angle` (up is +). */
+  const pitchBy = (v, angle) => {
+    right.crossVectors(v, upward).normalize();
+    return v.applyAxisAngle(right, angle);
+  };
+  // Where Earth's tiles start flipping, in the frame: the street's own
+  // vanishing point in the drift's first frames (the world measures it for
+  // the screen and passes it to update), so the city opens where its depth
+  // is. The dive ends with the lights it aimed at there too.
+  const origin = new THREE.Vector2(0, 0.34);
+  const camUp = new THREE.Vector3();
+  const hoverLook = (fov, aspect, out) => {
+    out.copy(aim).sub(pos).normalize();
+    right.crossVectors(out, upward).normalize();
+    camUp.crossVectors(right, out);
+    const tv = Math.tan((fovFor(fov, aspect) * DEG) / 2);
+    return out.addScaledVector(right, -origin.x * tv * aspect).addScaledVector(camUp, -origin.y * tv).normalize();
+  };
   const shot = (s, aspect) => {
     let fov = 50;
     let roll = 0;
@@ -1573,9 +1883,9 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     // none of it once the camera has left for Earth.
     let near = 1;
     if (s < T.still) {
+      if (s < T.turn) OPENING_OUT.getPointAt(easeInOut((s - SONG_START) / (T.turn - SONG_START)), pos);
+      else OPENING_IN.getPointAt(easeInOut((s - T.turn) / (T.still - T.turn)), pos);
       const k = clamp01((s - SONG_START) / (T.still - SONG_START));
-      const u = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-      OPENING.getPointAt(u, pos);
       look.copy(LOOK_FROM).lerp(STILL.look, easeInOut(k * 1.25));
       fov = 42 + 8 * easeInOut(k * 1.4);
     } else if (s < T.rise) {
@@ -1583,53 +1893,58 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
       pos.copy(STILL.pos).lerp(PUSHED.pos, k);
       look.copy(STILL.look).lerp(PUSHED.look, k);
     } else if (s < T.dive) {
-      const k = easeInOut((s - T.rise) / (T.dive - T.rise));
+      // Both ends look at the island, so the turn comes from the move and
+      // not from a second ease on the aim.
+      const k = easeCos((s - T.rise) / (T.dive - T.rise));
       pos.copy(PUSHED.pos).lerp(RISEN.pos, k);
-      pos.y += Math.sin(k * Math.PI) * 0.8;
-      look.copy(PUSHED.look).lerp(RISEN.look, easeInOut(k * 1.2));
-      fov = 50 + 4 * k;
+      look.copy(PUSHED.look).lerp(RISEN.look, k);
+      fov = 50 + (RISEN.fov - 50) * k;
     } else if (s < T.reveal) {
       const k = clamp01((s - T.dive) / (T.reveal - T.dive));
-      // Slow off the mark, then a plunge that eases into the hover.
-      const u = 1 - Math.pow(1 - Math.pow(k, 1.8), 2.4);
-      hoverAt(hover, horizon);
+      hover.copy(aim).addScaledVector(aimNormal, earthR * 0.45);
       dive[0].copy(RISEN.pos);
-      dive[1].copy(RISEN.pos).add(tmp.set(0, 14, -16));
-      dive[2].copy(hover).addScaledVector(aimNormal, earthR * 0.7);
+      dive[1].copy(aim).sub(RISEN.pos).normalize().multiplyScalar(60).add(RISEN.pos);
+      dive[2].copy(hover).addScaledVector(aimNormal, earthR * 0.25);
       dive[3].copy(hover);
-      bezier(dive, u, pos);
-      look.copy(RISEN.look).lerp(earthPos, smooth01(k / 0.4)).lerp(horizon, smooth01((k - 0.35) / 0.5));
-      fov = 54 + 12 * Math.sin(Math.min(1, k / 0.8) * Math.PI) - 4 * smooth01((k - 0.8) / 0.2);
-      roll = -5 * DEG * Math.sin(k * Math.PI);
-      near = 1 - smooth01(k / 0.2);
+      bezier(dive, smoother(k), pos);
+      fov = RISEN.fov + (50 - RISEN.fov) * smooth01(k);
+      // Aim by direction: from the island to Earth over the first half,
+      // then down onto the lights.
+      tmp.copy(earthPos).sub(pos).normalize();
+      hoverLook(fov, aspect, tmp2);
+      dir.copy(risenDir).lerp(tmp, easeCos(k / 0.5)).normalize().lerp(tmp2, smooth01((k - 0.35) / 0.5)).normalize();
+      look.copy(pos).addScaledVector(dir, 40);
+      roll = -5 * DEG * Math.sin(Math.PI * k) ** 2;
+      near = 1 - smooth01(k / 0.5);
     } else {
       const k = clamp01((s - T.reveal) / (T.gone - T.reveal));
-      hoverAt(hover, horizon);
-      pos.copy(hover).addScaledVector(aimNormal, -earthR * 0.06 * k);
-      look.copy(horizon);
-      fov = 50 - 5 * k;
+      hover.copy(aim).addScaledVector(aimNormal, earthR * 0.45);
+      pos.copy(hover).addScaledVector(aimNormal, -earthR * 0.06 * k * k);
+      fov = 50 - 5 * k * k;
+      hoverLook(fov, aspect, dir);
+      look.copy(pos).addScaledVector(dir, 40);
       near = 0;
     }
-    // The narrow screen: further back, a wider lens, and the horizon lower.
+    // The narrow screen: a step back toward the middle, still looking at
+    // what the shot looks at, and the lens tipped up.
     const portrait = smooth01((1.25 - aspect) / 0.6) * near;
     if (portrait > 0) {
-      tmp.copy(look).sub(pos);
       pos.x += (PIVOT.x - pos.x) * 0.8 * portrait;
-      pos.sub(PIVOT).multiplyScalar(1 + 0.32 * portrait).add(PIVOT);
-      const len = tmp.length();
-      tmp.normalize();
-      const right = new THREE.Vector3().crossVectors(tmp, V3(0, 1, 0)).normalize();
-      tmp.applyAxisAngle(right, 9 * DEG * portrait);
-      look.copy(pos).addScaledVector(tmp, len);
+      pos.sub(PIVOT).multiplyScalar(1 + PORTRAIT.back * portrait).add(PIVOT);
     }
+    dir.copy(look).sub(pos).normalize();
+    if (portrait > 0) pitchBy(dir, PORTRAIT.pitch * portrait);
+    look.copy(pos).add(dir);
     camera.position.copy(pos);
     camera.up.set(0, 1, 0);
     camera.lookAt(look);
     if (roll) camera.rotateZ(roll);
-    // A hand on the camera: a fraction of a degree, never still.
+    // A hand on the camera: a fraction of a degree, never still; and the
+    // strike knocks it.
     const t = s * 0.9;
-    camera.rotateY(0.12 * DEG * (Math.sin(t * 0.7) + 0.5 * Math.sin(t * 1.9 + 1.3)));
-    camera.rotateX(0.08 * DEG * (Math.sin(t * 0.53 + 0.4) + 0.5 * Math.sin(t * 1.3 + 2.1)));
+    const knock = s > T.strike ? 0.4 * DEG * (1 - smooth01((s - T.strike) / 0.3)) : 0;
+    camera.rotateY(0.12 * DEG * (Math.sin(t * 0.7) + 0.5 * Math.sin(t * 1.9 + 1.3)) + knock * Math.sin(s * 71));
+    camera.rotateX(0.08 * DEG * (Math.sin(t * 0.53 + 0.4) + 0.5 * Math.sin(t * 1.3 + 2.1)) + knock * Math.sin(s * 57 + 1.3));
     const want = fovFor(fov, aspect);
     if (Math.abs(camera.fov - want) > 1e-4 || camera.aspect !== aspect) {
       camera.fov = want;
@@ -1639,44 +1954,86 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     camera.updateMatrixWorld();
   };
 
+  // Their heads: he glances across at her with the second card, and both
+  // turn to the strike, until the crane lifts away.
+  const turn = (s) => {
+    const away = 1 - smooth01((s - T.rise - 0.4) / 0.9);
+    const glance = smooth01((s - 20.6) / 0.5) * (1 - smooth01((s - 22.0) / 0.6));
+    const look = (at) => smooth01((s - at) / 0.35) * away;
+    heads.set(-7 * DEG * glance - 12 * DEG * look(T.strike - 0.05), -4 * DEG * look(T.strike - 0.05), -9 * DEG * look(T.strike + 0.1), -3 * DEG * look(T.strike + 0.1));
+  };
+
+  // The corners of the frame, the furthest the flip has to reach.
+  const waveReach = (aspect) => Math.max(...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, y]) => Math.hypot((x - origin.x) * aspect, y - origin.y)));
+
+  const counts = { ground: island.count, figures: voxels.length, earth: earth.count };
   let lastAspect = 0;
   let lastS = 0;
   let shadowsDrawn = false;
+  let stillDrawn = false;
   return {
     scene,
     camera,
-    /** Pose the moon for song second `s` on a `width` by `height` screen. */
-    update(s, { width, height, pixelRatio, over }) {
+    /**
+     * Pose the moon for song second `s` on a `width` by `height` screen.
+     * `vanishing` is where the street the reveal opens onto vanishes, in
+     * the frame (-1 to 1 each way).
+     */
+    update(s, { width, height, pixelRatio, over, vanishing = null }) {
       const aspect = width / height;
+      if (vanishing && (vanishing.x !== origin.x || vanishing.y !== origin.y)) {
+        origin.copy(vanishing);
+        wave.set(origin.x, origin.y, waveReach(aspect));
+      }
       if (Math.abs(aspect - lastAspect) > 1e-3) {
         lastAspect = aspect;
         placeEarth(aspect);
         uniforms.uEarthR.value = earthR;
         earthExtra.uEarthVox.value = earthR / cfg.earth;
         earthExtra.uAspect.value = aspect;
-        halo.scale.setScalar(earthR * 1.035);
+        wave.z = waveReach(aspect);
+        halo.scale.setScalar(earthR * 1.06);
         halo.position.copy(earthPos);
         halo.updateMatrixWorld();
       }
       uniforms.uS.value = s;
       lastS = s;
       shot(s, aspect);
+      turn(s);
       stars.position.copy(camera.position);
       stars.updateMatrixWorld();
       starMaterial.uniforms.uStars.value = smooth01((s - SONG_START) / 1.4) * (1 - smooth01((s - T.reveal + 0.4) / 0.4));
       starMaterial.uniforms.uPixel.value = pixelRatio;
-      haloMaterial.uniforms.uHalo.value = smooth01((s - T.earth - 1.4) / 1.0) * (1 - smooth01((s - T.reveal - 0.1) / 0.5));
-      // The strike's flash: a hot pulse as it lands, then a glow that dies.
+      const glow = smooth01((s - T.earth - 1.4) / 1.0) * (1 - smooth01((s - T.reveal - 0.1) / 0.5));
+      haloMaterial.uniforms.uHalo.value = glow;
+      halo.visible = glow > 0;
+      // The strike's flash: the meteor's own light for a moment before it
+      // lands, then the burst, dying.
       const since = s - T.strike;
-      uniforms.uStrike.value.w = since < -0.3 ? 0 : since < 0 ? 4 * (1 + since / 0.3) : 30 * Math.exp(-since * 2.4);
+      uniforms.uStrike.value.w = since < -0.08 ? 0 : since < 0 ? 4 * (1 + since / 0.08) : 30 * Math.exp(-since * 2.4);
+      flash.visible = uniforms.uStrike.value.w > 0.01;
       backdrop.visible = Boolean(over);
+      if (over) {
+        // Earth in the frame, for the backdrop.
+        tmp.copy(earthPos).project(camera);
+        const distance = camera.position.distanceTo(earthPos);
+        const radius = Math.tan(Math.asin(Math.min(1, earthR / distance))) / Math.tan((camera.fov * DEG) / 2);
+        backdropMaterial.uniforms.uEarthDisc.value.set(tmp.x, tmp.y, radius);
+      }
       backdropMaterial.uniforms.uResolution.value.set(width * pixelRatio, height * pixelRatio);
       backdropMaterial.uniforms.uBlock.value = Math.round(Math.max(24, Math.min(width, height) / 18) * pixelRatio);
     },
-    /** Draw the sun's shadow map while there is still ground to cast it
-     *  (and once regardless, so a run that starts late samples a real one). */
+    /**
+     * Draw the sun's shadow map while there is ground to cast it: not while
+     * nothing on the island moves (from the end of the build to the
+     * strike), once there is a map of that, and not after the island has
+     * gone (once there is any map at all, for a run that starts late).
+     */
     renderShadows() {
+      const still = lastS > T.ground + 3.5 && lastS < T.strike - 0.05;
+      if (still && stillDrawn) return;
       if (lastS > T.peel + 1.6 && shadowsDrawn) return;
+      stillDrawn = still;
       shadowsDrawn = true;
       const prev = renderer.getRenderTarget();
       renderer.setRenderTarget(shadowTarget);
@@ -1684,21 +2041,26 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
       renderer.render(shadowScene, sunCamera);
       renderer.setRenderTarget(prev);
     },
-    /** Compile every material before the intro needs one. */
-    async compile() {
+    /** Compile every material, for the target it draws into (`target`, the
+     *  composer's buffer; the shadow map for the depth ones). */
+    async compile(target = null) {
       shot(T.still, 16 / 9);
       backdrop.visible = true;
-      if (renderer.compileAsync) {
-        await renderer.compileAsync(scene, camera);
-        await renderer.compileAsync(shadowScene, sunCamera);
-      } else {
-        renderer.compile(scene, camera);
-        renderer.compile(shadowScene, sunCamera);
-      }
+      flash.visible = true;
+      const prev = renderer.getRenderTarget();
+      const build = async (sceneToCompile, cameraToCompile, into) => {
+        renderer.setRenderTarget(into);
+        if (renderer.compileAsync) await renderer.compileAsync(sceneToCompile, cameraToCompile);
+        else renderer.compile(sceneToCompile, cameraToCompile);
+      };
+      await build(scene, camera, target);
+      await build(shadowScene, sunCamera, shadowTarget);
+      renderer.setRenderTarget(prev);
       backdrop.visible = false;
+      flash.visible = false;
     },
     get counts() {
-      return { ground: island.count, figures: voxels.length, earth: earth.count };
+      return counts;
     },
     dispose() {
       for (const p of parts) {

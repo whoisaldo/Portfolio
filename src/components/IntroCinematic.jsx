@@ -178,7 +178,13 @@ function rumble(s, amp) {
  *  the page is no longer held under it. Safe to call when it never had it. */
 function leaveWorldPath() {
   setStage({ mode: "stage" });
+  clearWorldPath();
+}
+
+/** The document state a live-city intro sets, cleared. */
+function clearWorldPath() {
   delete document.documentElement.dataset.introWorld;
+  delete document.documentElement.dataset.introMoon;
   document.documentElement.style.removeProperty("--intro-page");
 }
 
@@ -275,6 +281,7 @@ const FLAGS = {
   kicked: false,
   tuning: false,
   meteor: -1,
+  scrim: false,
 };
 
 export default function IntroCinematic() {
@@ -312,6 +319,11 @@ export default function IntroCinematic() {
   const flagsRef = useRef(FLAGS);
   const pathRef = useRef(null);
   const moonPathRef = useRef(null);
+  // Bumped by every start. A run's frame loop and cleanup act only while
+  // theirs is the newest: a replay started mid-run gets one more frame of
+  // the old loop before React commits the new run, and that frame must not
+  // make the new run's decisions, nor the old cleanup undo them.
+  const runTokenRef = useRef(0);
 
   // Up up down down left right left right B A, anywhere on the page.
   const replayIntro = useReplayIntro();
@@ -321,6 +333,8 @@ export default function IntroCinematic() {
   useEffect(() => {
     const onStart = (e) => {
       const d = e.detail || {};
+      runTokenRef.current += 1;
+      clearWorldPath();
       doneRef.current = false;
       clockRef.current = null;
       flagsRef.current = FLAGS;
@@ -331,7 +345,7 @@ export default function IntroCinematic() {
       // The voxel moon needs the city ready now, not by CITY_IN: it is on
       // screen from the first frame. Decided here, before the overlay's
       // first render, so the painting never shows under it.
-      moonPathRef.current = getWorld() ? "voxel" : "plate";
+      moonPathRef.current = getWorld()?.hasMoon ? "voxel" : "plate";
       setMoonPath(moonPathRef.current);
       // The city's own loop rests while the intro holds the screen: it is
       // either behind the moon or drawn by this intro's clock.
@@ -341,6 +355,7 @@ export default function IntroCinematic() {
       setPhase("moon");
       setRun({
         id: Date.now(),
+        token: runTokenRef.current,
         // Same clock as a key event's timeStamp; see the skip handler below.
         startedAt: performance.now(),
         mode: d.mode === "short" ? "short" : "full",
@@ -444,8 +459,10 @@ export default function IntroCinematic() {
   // The clock and the frame loop.
   useEffect(() => {
     if (!run) return;
+    const { token } = run;
     const base = run.mode === "short" ? C.SHORT_START : C.SONG_START;
     const armedAt = performance.now();
+    setStage({ mode: "cinematic" });
     let raf = 0;
     const heroContent = document.querySelector("[data-handoff-content]");
 
@@ -602,7 +619,9 @@ export default function IntroCinematic() {
     // same clock as performance.now(), read at the start of the frame rather
     // than at whatever point in it this callback happened to run.
     let lastS = null;
+    let moonOn = false;
     const frame = (stamp) => {
+      if (runTokenRef.current !== token) return;
       raf = requestAnimationFrame(frame);
       buildScene();
       if (!arm(stamp)) {
@@ -661,6 +680,14 @@ export default function IntroCinematic() {
         if (overlayRef.current) overlayRef.current.style.backgroundColor = "";
       }
       const voxel = moonPathRef.current === "voxel";
+      // The site's scanlines rest while the voxel moon is up: over a grid
+      // of voxels they are a screen door.
+      const moonNow = voxel && s < C.CITY_READY;
+      if (moonNow !== moonOn) {
+        moonOn = moonNow;
+        if (moonNow) document.documentElement.dataset.introMoon = "";
+        else delete document.documentElement.dataset.introMoon;
+      }
 
       // ---- flags that gate React content ------------------------------
       const withTrack = run.withSound && isTrackPlaying();
@@ -686,6 +713,9 @@ export default function IntroCinematic() {
         name: s >= nameAt,
         kicked: s >= C.KICK,
         meteor,
+        // The dark behind the words holds from the first card to the drop,
+        // rather than lifting between cards and pumping on every entry.
+        scrim: cards.length > 0 && s >= cards[0][0] && s < C.DROP,
       });
       const nextPhase = s >= C.DROP ? "drift" : s >= C.IGNITION ? "ignition" : "moon";
       setPhase((p) => (p === nextPhase ? p : nextPhase));
@@ -817,7 +847,7 @@ export default function IntroCinematic() {
       if (heroContent) heroContent.style.transform = "";
       threeRef.current?.dispose();
       threeRef.current = null;
-      leaveWorldPath();
+      if (runTokenRef.current === token) leaveWorldPath();
       if (import.meta.env.DEV) delete window.__intro;
     };
   }, [run, lines, cards, nameAt, finish]);
@@ -932,7 +962,7 @@ export default function IntroCinematic() {
               <motion.div
                 className="intro-textscrim"
                 initial={{ opacity: 0 }}
-                animate={{ opacity: textOn && !drifting ? 1 : 0 }}
+                animate={{ opacity: flags.scrim || (textOn && !drifting) ? 1 : 0 }}
                 transition={{ duration: 0.4 }}
                 aria-hidden="true"
               />

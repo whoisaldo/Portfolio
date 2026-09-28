@@ -138,8 +138,9 @@ export default function WorldMount() {
   // A reader sent back to the door gets a clean city: dispose everything
   // and build again from the cached chunk and model while the door is up. A
   // replay from the footer or the Konami code keeps the city it has, because
-  // the intro opens on the city's own voxel moon from its first frame, and
-  // the intro puts the car back on its mark itself (beginIntro).
+  // the intro opens on the city's own voxel moon from its first frame;
+  // beginIntro puts the car back on its mark and drops the route and the
+  // shot the page left the city on.
   useEffect(() => {
     const onDoor = () => {
       if (liveRef.current) setBuild((b) => b + 1);

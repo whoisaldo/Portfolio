@@ -175,9 +175,14 @@ export function createPost(renderer, scene, camera, quality) {
       moonPass.enabled = false;
       composer.addPass(moonPass, 1);
     },
-    /** null: the city alone. "only": the moon alone. "over": the moon over the city. */
+    /**
+     * null: the city alone. "only": the moon alone. "over": the moon over
+     * the city. The moon alone blooms only what is truly hot (its meteors,
+     * its signal, Earth's lights), not every lit white voxel.
+     */
     view(moon) {
       cityPass.enabled = moon !== "only";
+      bloom.luminanceMaterial.threshold = moon === "only" ? 1.4 : 0.72;
       if (!moonPass) return;
       moonPass.enabled = Boolean(moon);
       moonPass.clearPass.setClearFlags(moon !== "over", true, false);

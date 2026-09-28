@@ -1157,6 +1157,11 @@ html[data-intro-world] [data-shell] > :not(.world-layer):not(.reticle):not([data
    moon from the run's first frame), so the canvas is up at once rather than
    fading in over the poster. */
 html[data-intro-world] .world-canvas { opacity: 1; transition: none; }
+/* Over the voxel moon (src/world/voxel-moon.js) the site's scanlines rest:
+   a second grid over a grid of voxels is a screen door. They come back as
+   the street arrives. */
+.paper-grain::after { transition: opacity 0.8s ease; }
+html[data-intro-moon] .paper-grain::after { opacity: 0; }
 
 /* The switches. Each attribute is written by src/lib/env.js. The city's own
    switches (signs, haze, wet, traffic) are read by src/world directly. */

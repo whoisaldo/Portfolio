@@ -47,7 +47,10 @@ import { boards as BOARDS, SHOTS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
-  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadKoi(), preloadCar(), preloadVoxelMoon()]);
+  // The voxel moon is the one piece the city can do without: a missing
+  // Earth picture leaves the intro on its painted moon, not the site on its
+  // poster.
+  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadKoi(), preloadCar(), preloadVoxelMoon().catch(() => null)]);
 }
 
 const DEG = Math.PI / 180;
@@ -107,11 +110,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     resize();
     return Promise.all([
       createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }),
-      createVoxelMoon(renderer, shared, { tier }),
+      createVoxelMoon(renderer, shared, { tier }).catch((err) => {
+        if (import.meta.env.DEV) console.warn("[world] no voxel moon; the intro keeps its painted one", err);
+        return null;
+      }),
     ]).then(([k, m]) => {
       koi = k;
       moon = m;
-      post.setMoon(m.scene, m.camera);
+      if (m) post.setMoon(m.scene, m.camera);
       return c;
     });
   });
@@ -504,9 +510,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     copyPose(pose, want);
     applyPose(pose, false);
     posed = true;
+    // Compiled for the target they draw into (the composer's linear buffer),
+    // or the programs made here are not the ones the frames use.
+    const target = renderer.getRenderTarget();
+    renderer.setRenderTarget(post.composer.inputBuffer);
     if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
     else renderer.compile(scene, camera);
-    if (moon) await moon.compile();
+    renderer.setRenderTarget(target);
+    if (moon) await moon.compile(post.composer.inputBuffer);
     if (disposed) return;
     // Two real frames, under the door or the poster where nobody sees them,
     // with nothing culled: the moon's reveal over the street, then the hero.
@@ -538,10 +549,42 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // drift's camera, the drift itself, the shake and the braindance glitch on
   // the intro's cues, all on one clock.
   let cineLast = null;
+  let moonWarmed = false;
   const heroTo = makePose();
-  /** The intro is about to use this scene: the car to its mark. */
+  // Where the street vanishes in the drift's frame, for this screen: the
+  // voxel moon opens onto the city from there.
+  const drift = makePose();
+  const driftCamera = new THREE.PerspectiveCamera();
+  const streetEnd = new THREE.Vector3();
+  const vanishing = new THREE.Vector2();
+  let vanishingAspect = 0;
+  const streetVanishing = () => {
+    if (Math.abs(vanishingAspect - aspect) < 1e-4) return vanishing;
+    vanishingAspect = aspect;
+    driftPose(aspect, drift);
+    driftCamera.position.copy(drift.position);
+    driftCamera.lookAt(drift.target);
+    driftCamera.fov = drift.fov;
+    driftCamera.aspect = aspect;
+    driftCamera.updateProjectionMatrix();
+    driftCamera.updateMatrixWorld();
+    streetEnd.set(drift.position.x, 3, drift.position.z - 400).project(driftCamera);
+    return vanishing.set(THREE.MathUtils.clamp(streetEnd.x, -0.8, 0.8), THREE.MathUtils.clamp(streetEnd.y, -0.8, 0.8));
+  };
+  /**
+   * The intro is about to use this scene: the car to its mark, and no
+   * route change or camera pose left over from the page it was started on
+   * (a replay keeps the city it has, so a case study's route and its shot
+   * are still in hand). Skipped before the street is drawn, the page lands
+   * on the hero rather than flying there from wherever it was.
+   */
   const beginIntro = () => {
     cineLast = null;
+    moonWarmed = false;
+    lastRoute = null;
+    flight = null;
+    glitch = 0;
+    posed = false;
     car?.beginDrift();
   };
   /**
@@ -554,8 +597,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!city || disposed) return;
     const dt = cineLast === null ? 0 : clamp(s - cineLast, 0, 0.05);
     cineLast = s;
-    const moonView = withMoon && moon ? moonPhase(s) : null;
-    if (moonView) moon.update(s, { width, height, pixelRatio: renderer.getPixelRatio(), over: moonView === "over" });
+    let moonView = withMoon && moon ? moonPhase(s) : null;
+    // One hidden street frame per run (see moonPhase).
+    if (moonView === "warm") {
+      moonView = moonWarmed ? "only" : "over";
+      moonWarmed = true;
+    }
+    if (moonView) moon.update(s, { width, height, pixelRatio: renderer.getPixelRatio(), over: moonView === "over", vanishing: streetVanishing() });
     if (moonView !== "only") {
       // The drift's own camera, then, while the page arrives, a slow crane
       // down and a tilt up into the hero's: the city opens up behind the name.
@@ -664,6 +712,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     dispose,
     get info() {
       return renderer.info;
+    },
+    /** Whether this city can draw the intro's voxel moon. */
+    get hasMoon() {
+      return Boolean(moon);
     },
   };
 }
