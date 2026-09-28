@@ -22,7 +22,7 @@
 import * as THREE from "three";
 import { stage, subscribeStage } from "./stage.js";
 import { createShots, makePose, copyPose, heroPose, clamp, easeInOut } from "./shots.js";
-import { TIERS } from "./quality.js";
+import { TIERS, ADAPT } from "./quality.js";
 import { createSharedUniforms } from "./glsl.js";
 import { createCity, preloadCity, REFLECT_LAYER } from "./city.js";
 import { preloadHolo } from "./holo.js";
@@ -34,6 +34,7 @@ import { createRain } from "./rain.js";
 import { createTraffic } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
+import { createShafts } from "./shafts.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
@@ -76,6 +77,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let rain = null;
   let traffic = null;
   let car = null;
+  let shafts = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layer: REFLECT_LAYER }) : null;
   const post = createPost(renderer, scene, camera, quality);
 
@@ -90,6 +92,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER });
+    shafts = createShafts(scene, c.anchors, shared);
     return c;
   });
 
@@ -262,6 +265,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const env = drive(dt);
     skyline?.update(camera);
     rain?.update(dt, camera, env.wet);
+    shafts?.update(shared.uHaze.value);
     traffic?.update(dt, env.traffic);
     city?.boards.update(dt, activeBoard());
     city?.towers.update(dt, activeTowers());
@@ -279,6 +283,64 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
+  // ---- adaptive quality -----------------------------------------------------
+  // The first two seconds the page is up (after the intro, or after the door
+  // when there is none) are timed. A p95 frame interval over the tier's
+  // budget, with GRACE_MS for the display's own jitter, sheds one thing and
+  // times again: pixels first, then the reflection, then half the rain
+  // (ADAPT in quality.js). The reflection fades out into the baked streaks
+  // before its pass stops, so the road does not pop.
+  const GRACE_MS = 3;
+  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], p95: null, fade: null };
+  const startSampling = () => {
+    adapt.sampling = true;
+    adapt.t = -0.3;
+    adapt.samples.length = 0;
+  };
+  const shed = (what) => {
+    adapt.shed.push(what);
+    if (what === "pixels") {
+      pixelScale = 0.75;
+      resize();
+    }
+    if (what === "reflection" && mirror) adapt.fade = { t: 0 };
+    if (what === "rain") rain?.setCount(Math.round(quality.rain / 2));
+  };
+  const nextStep = () => ADAPT.find((w) => !adapt.shed.includes(w) && (w !== "reflection" || mirror));
+  const sample = (dt, interval) => {
+    if (adapt.fade && city) {
+      adapt.fade.t += dt;
+      const k = Math.min(1, adapt.fade.t / 0.8);
+      for (const r of city.roadMaterials) {
+        r.uniforms.uReflectGain.value = 2.2 * (1 - k);
+        r.uniforms.uStreakGain.value = 0.35 + 0.75 * k;
+      }
+      if (k >= 1) {
+        mirror?.dispose();
+        mirror = null;
+        adapt.fade = null;
+      }
+    }
+    if (!adapt.sampling) return;
+    adapt.t += dt;
+    if (adapt.t > 0 && interval > 0) adapt.samples.push(interval);
+    if (adapt.t < 2) return;
+    adapt.sampling = false;
+    const sorted = adapt.samples.slice().sort((a, b) => a - b);
+    adapt.p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] : null;
+    const next = nextStep();
+    if (adapt.p95 !== null && adapt.p95 > quality.budgetMs + GRACE_MS && next) {
+      shed(next);
+      startSampling();
+    }
+  };
+
+  /** Shed the next quality step now (what the adaptive pass would do). */
+  const setQuality = (what = nextStep()) => {
+    if (what && !adapt.shed.includes(what)) shed(what);
+    return [...adapt.shed];
+  };
+
   const frame = (now) => {
     raf = 0;
     if (disposed || !city) return;
@@ -292,6 +354,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       times[timeIndex % times.length] = now - last;
       timeIndex++;
     }
+    sample(dt, last ? now - last : 0);
     last = now;
     step(dt);
     draw(dt);
@@ -327,6 +390,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const next = !stage.paused && stage.mode !== "cinematic" && Boolean(city);
     if (next === running) return;
     running = next;
+    // The first time the page is really up, time it.
+    if (running && adapt.armed) {
+      adapt.armed = false;
+      startSampling();
+    }
     if (running) resume();
     else {
       if (stage.mode !== "cinematic" && !document.hidden) settle();
@@ -409,6 +477,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       rain?.dispose();
       traffic?.dispose();
       car?.dispose();
+      shafts?.dispose();
     }).catch(() => {});
     mirror?.dispose();
     mirror = null;
@@ -431,6 +500,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       frame: renderer.info.render.frame,
       memory: { ...renderer.info.memory },
       pixelRatio: renderer.getPixelRatio(),
+      adapt: { shed: [...adapt.shed], p95: adapt.p95, sampling: adapt.sampling },
     };
   };
 
@@ -459,7 +529,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       ctx.putImageData(img, 0, 0);
       return c.toDataURL("image/png");
     };
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, post, dumpMirror };
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, post, dumpMirror, setQuality };
   }
 
   return {
@@ -468,7 +538,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     renderCinematic,
     pause,
     resume,
-    setQuality: () => {},
+    setQuality,
     stats,
     dispose,
     get info() {

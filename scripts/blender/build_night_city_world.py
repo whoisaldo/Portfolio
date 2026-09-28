@@ -795,7 +795,10 @@ for _ in range(14):
         quad(k, (x0, ya - 0.03, z), (x1, yb - 0.03, z), (x1, yb + 0.03, z), (x0, ya + 0.03, z))
         quad(k, (x1, yb - 0.03, z), (x0, ya - 0.03, z), (x0, ya + 0.03, z), (x1, yb + 0.03, z))
 
-# Street lamps: sodium heads on thin poles along both kerbs.
+# Street lamps: sodium heads on thin poles along both kerbs. Each head has
+# an anchor (anchor_lamp_<n>) the site hangs a shaft of light from, in the
+# haze.
+LAMPS = []
 for side in (-1, 1):
     for z in (-14, -46, -78, -110, -142):
         x = side * (ROAD_HALF + 0.9)
@@ -804,6 +807,7 @@ for side in (-1, 1):
         xa, xb = sorted((x, hx))
         box((AV, "metal", 1), xa, xb, 6.3, 6.42, z - 0.07, z + 0.07, scale=0.5)
         box((AV, "neon_amber", 0), hx - 0.35, hx + 0.35, 6.2, 6.3, z - 0.15, z + 0.15, scale=0.5)
+        LAMPS.append((hx, 6.2, z))
 
 # Vending machines and bollards at the kerb.
 for side, z, colour in ((-1, -19.5, "cyan"), (-1, -20.6, "pink"), (1, -36.0, "amber"), (1, -71.0, "cyan")):
@@ -1073,6 +1077,9 @@ box((GA, "neon_cyan", 0), STREET_X - 12.05, STREET_X - 11.9, 5.6, 5.7, -238.0, -
 for z in (-236.0, -214.0, -196.0):
     cylinder((GA, "metal", 1), STREET_X - 9.0, z, 0.15, 6.2, 0.08, segs=8)
     box((GA, "neon_amber", 0), STREET_X - 8.2, STREET_X - 7.4, 6.0, 6.1, z - 0.15, z + 0.15, scale=0.5)
+    LAMPS.append((STREET_X - 7.8, 6.0, z))
+for i, pos in enumerate(LAMPS):
+    empty(f"anchor_lamp_{i}", pos)
 for (a0, a1, b0, b1) in ((GX0, GX1, GZ1 - 0.3, GZ1), (GX0, GX1, GZ0, GZ0 + 0.3), (GX0, GX0 + 0.3, GZ0, GZ1)):
     box((GA, "concrete", 0), a0, a1, GH, GH + 0.9, b0, b1, scale=1.5)
 cylinder((GA, "metal", 1), 472.0, -226.0, GH, GH + 7.0, 0.07, segs=6)

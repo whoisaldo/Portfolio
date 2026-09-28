@@ -100,7 +100,13 @@ export default function WorldMount() {
           world = mod.createWorldScene(canvasRef.current, {
             tier,
             onFirstFrame: () => alive && setLive(true),
-            onLost: () => alive && setLive(false),
+            // A lost context shows the poster, and the city is not ready
+            // again until the restored one has been rebuilt.
+            onLost: () => {
+              if (!alive) return;
+              setLive(false);
+              setStage({ status: "loading" });
+            },
           });
           setWorld(world);
           await world.warm();
