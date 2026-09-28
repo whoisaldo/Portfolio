@@ -29,7 +29,8 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   as detail dropped), `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
-  `shops-phone.webp`, and `src/data/world-assets.js` with content hashes.
+  `shops-phone.webp`, corpo row's `logos.webp`, and
+  `src/data/world-assets.js` with content hashes (and the logos' rectangles).
   Budgets: 3.5 MB and 1.5 MB.
 - The kit, in the site's frame (+x right, +y up, +z toward the hero lens,
   metres, the drift's own frame): the avenue (the Kiroshi and Nicola screens,
@@ -39,8 +40,10 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   of vertical signs whose roofs step down to a band of sky, the holographic
   figure and the ARASAKA tower in it, five landmark towers a kilometre off
   (`anchor_mega_<n>`), the billboard plaza
-  (`board_main` and seven more), corpo row (one tower per role in
-  `experience.js`, a crown slot and a name slot each), the rooftop (tanks, AC
+  (`board_main` and seven more), corpo row (one glass tower per role in
+  `experience.js` over a lit lobby, a light fin up each corner and a dark
+  glass crown, with a crown slot, a logo slot `logo_<slug>` and a name slot
+  each), the rooftop (tanks, AC
   units, antennas, RIPPERDOC, AFTERLIFE, MILITECH), the garage (roll-up door
   open, magenta fixtures on the car's passenger side and cyan on the
   driver's, as in the garage room), and the moon disc. About 23,000
@@ -225,7 +228,18 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   a flight fires the braindance glitch (slices, scanlines, an RGB split that
   hits harder on the bass).
 - The Work deck's entry is the plaza board's art, swapped through the same
-  glitch; the Experience card being read lights its tower's crown; the
+  glitch. Corpo row is seen from the boulevard's kerb looking up the row on a
+  diagonal, dollying east down the roles: each tower's crown carries its
+  organisation's logo (`src/world/logos.js`), the Experience section's own
+  marks from `src/assets/PreviousExperience` in their dark-ground forms
+  (AWS's wordmark and smile without the cloud, Pawtograder's husky without
+  its disc), keyed and packed into one atlas at build time, lit as signs in
+  their own colours. The card being read lights its tower in full: a
+  scanline sweeps down the logo as it comes on and light runs up the fins
+  in the organisation's colour. The glass is drawn from world position
+  (`corporate` in `materials.js`): whole office floors lit or dark behind
+  mullions, rows of fixtures, desks and screens against them, the city's
+  glow in the glass. The
   garage flight ends on `GarageModel`'s own front preset in the car's bay,
   and once it has landed the viewer covers the city (dim 0.85, the loop
   stopped). `/work/<project>` holds the plaza with that project on the

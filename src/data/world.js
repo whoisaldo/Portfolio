@@ -13,9 +13,9 @@
 // car is doing, and how the shot moves while it holds.
 //
 // Nothing here is a claim. The towers are derived from experience.js and
-// carry each organisation's real colour and its name, and nothing else: no
-// floor counts, no logos, no tickers. The billboards show the key art the
-// Work deck already shows.
+// carry each organisation's real colour, its name and the logo the
+// Experience section already shows, and nothing else: no floor counts, no
+// tickers. The billboards show the key art the Work deck already shows.
 import { sections } from "./site";
 import { experiences } from "./experience";
 import { featuredProjects } from "./projects";
@@ -51,7 +51,9 @@ export const SHOTS = {
   // A touch darker than the other reading shots: the lit board sits right
   // behind the section's opening lines.
   projects: { dim: 0.76, fov: 38, car: "plaza", portraitBack: 1.15 },
-  experience: { dim: 0.7, fov: 40, move: "dolly", car: "corpo", portraitBack: 1.2 },
+  // Stepping back off the kerb would put a phone's camera in a wall: it
+  // takes the wider lens instead.
+  experience: { dim: 0.7, fov: 38, move: "dolly", car: "corpo", portraitBack: 1, portraitFov: 1.45 },
   // A rooftop camera cannot step back off its roof: a phone gets the wider
   // lens instead.
   about: { dim: 0.7, fov: 42, car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
@@ -107,8 +109,9 @@ export const ROUTE_DIM = 0.8;
 export const shotDim = (id) => SHOTS[id]?.dim ?? 0.7;
 export const routeDim = () => ROUTE_DIM;
 
-/** Corpo row: one tower per entry in experience.js, in its order, crowned
- *  in the organisation's own colour and named on a vertical sign. */
+/** Corpo row: one tower per entry in experience.js, in its order, lit in
+ *  the organisation's own colour, its logo on the crown (the Experience
+ *  section's own mark, src/world/logos.js) and its name on a vertical sign. */
 export const towers = experiences.map((e, i) => ({
   slug: e.slug,
   name: e.company,

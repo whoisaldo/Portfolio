@@ -25,6 +25,7 @@ import { dressMoon, preloadMoon } from "./moon.js";
 import { createAds, preloadAds } from "./ads.js";
 import { createBoards } from "./boards.js";
 import { createTowers } from "./towers.js";
+import { createLogos, preloadLogos } from "./logos.js";
 import { attributeKey, mergeMeshes } from "./merge.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -52,7 +53,7 @@ export function preloadCity(tier) {
 }
 
 export async function createCity(scene, renderer, shared, { tier, quality, reduced = false }) {
-  const [{ scene: source, shops: shopSource }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds()]);
+  const [{ scene: source, shops: shopSource }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadLogos()]);
   const root = source.clone(true);
   root.name = "night_city";
   root.updateMatrixWorld(true);
@@ -66,7 +67,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const quat = new THREE.Quaternion();
   const scl = new THREE.Vector3();
   root.traverse((o) => {
-    if (/^(cam_|anchor_|car_)/.test(o.name)) {
+    if (/^(cam_|anchor_|car_|logo_)/.test(o.name)) {
       o.matrixWorld.decompose(pos, quat, scl);
       anchors.set(o.name, { position: pos.clone(), quaternion: quat.clone(), extras: o.userData });
     }
@@ -124,7 +125,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     } else if (name === "lantern") {
       sources.push({ mesh, color: new THREE.Color("#ff4a2a"), intensity: 1.2 });
       mesh.layers.enable(REFLECT_LAYER);
-    } else if (name.startsWith("facade") || name === "awning") {
+    } else if (name === "lobby") {
+      sources.push({ mesh, color: new THREE.Color("#dfe8ff"), intensity: 0.5 });
+      mesh.layers.enable(REFLECT_LAYER);
+    } else if (name.startsWith("facade") || name === "awning" || name === "corporate") {
       mesh.layers.enable(REFLECT_LAYER);
     }
     mesh.matrixAutoUpdate = false;
@@ -199,7 +203,9 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   if (named.moon_disc) dressed.push(await dressMoon(named.moon_disc, shared, { reflectLayer: REFLECT_LAYER }));
   const boards = createBoards(Object.entries(named).filter(([n]) => n.startsWith("board_")).map(([, m]) => m), shared, { reduced, reflectLayer: REFLECT_LAYER });
   const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER });
-  dressed.push(boards, towers);
+  const logos = await createLogos(anchors, shared, { reflectLayer: REFLECT_LAYER, maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()) });
+  root.add(logos.mesh);
+  dressed.push(boards, towers, logos);
 
   scene.add(root);
 
@@ -214,6 +220,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     road: path,
     boards,
     towers,
+    logos,
     kit,
     roadMaterial: road,
     roadMaterials: [road, paint],

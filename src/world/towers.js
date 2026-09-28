@@ -1,11 +1,12 @@
-// src/world/towers.js: corpo row's crowns.
+// src/world/towers.js: corpo row's accent light.
 //
-// One tower per role in experience.js, in its order, and each tower's crown
-// (crown_<slug> in the kit) lit in that organisation's own colour, the
-// colour the Experience card already uses. The card being read lights its
-// tower's crown in full; the rest idle low. The tower's name is a vertical
-// sign in the atlas (src/world/signs.js). Nothing else: no logos, no floor
-// counts, no tickers.
+// One tower per role in experience.js, in its order, and each tower's light
+// (crown_<slug> in the kit: a fin up each corner, a ring at the step, a band
+// round the crown) in that organisation's own colour, the colour the
+// Experience card already uses. The card being read lights its tower in
+// full, with light running up the fins; the rest idle low. The tower's logo
+// is src/world/logos.js, its name a vertical sign in the atlas
+// (src/world/signs.js). No floor counts, no tickers.
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON } from "./glsl.js";
@@ -69,10 +70,20 @@ export function createTowers(meshes, shared, { reflectLayer = 2 } = {}) {
       varying vec3 vColor;
       varying float vLit;
       void main() {
-        // A band of light with a brighter rim, top and bottom.
-        float rim = smoothstep(0.2, 0.0, vUv.y) + smoothstep(0.8, 1.0, vUv.y);
-        float body = 0.35 + 0.65 * rim;
-        vec3 col = vColor * body * (0.4 + 3.2 * vLit) * (1.0 + 0.3 * uBass * vLit);
+        vec3 col;
+        if (vUv.x > 1.5) {
+          // A fin: a line of light up the corner, and while its card is read,
+          // light running up it.
+          float run = fract(vWorld.y * 0.012 - uTime * 0.45);
+          float pulse = smoothstep(0.0, 0.06, run) * smoothstep(0.3, 0.06, run);
+          col = vColor * (0.35 + 2.2 * vLit) * (1.0 + 2.5 * pulse * vLit);
+        } else {
+          // A band of light with a brighter rim, top and bottom.
+          float rim = smoothstep(0.2, 0.0, vUv.y) + smoothstep(0.8, 1.0, vUv.y);
+          float body = 0.35 + 0.65 * rim;
+          col = vColor * body * (0.4 + 3.2 * vLit);
+        }
+        col *= 1.0 + 0.3 * uBass * vLit;
         col = cityFog(col, vWorld, 1.0);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>

@@ -14,6 +14,8 @@
 //   shop     a lit ground floor: a room behind every bay of glass, with
 //            depth (interior mapping over eight photographed rooms).
 //   awning   dyed cloth over a shop, lit through from underneath.
+//   corporate  corpo row's glass: whole office floors lit behind mullions,
+//            the city's glow in the glass; lobby, the lit ground floor.
 //   lantern  a red paper lantern, hot through its belly.
 //   neon     tubes, strips and panels: flat HDR colour for the bloom to find,
 //            breathing with the kick while the track plays, a few flickering.
@@ -247,6 +249,104 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
+  // A glass tower's curtain wall, drawn from world position: floors 3.8 m
+  // apart over an 8 m lobby, a dark spandrel at each slab, mullions every
+  // 1.5 m, and behind the glass whole floors lit or dark, as office towers
+  // are at night: open plan under cool ceiling light, a few warm, the odd
+  // room with its blinds down. The glass gives back the lit city's glow, most
+  // at a glancing angle. vColor: lit fraction, warmth, seed.
+  const corporate = () => {
+    if (made.has("corporate")) return made.get("corporate");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared },
+      vertexShader: VERT_WORLD_COLOR,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        void main() {
+          vec3 n = normalize(vNormalW);
+          vec3 t = vec3(n.z, 0.0, -n.x);
+          float module = dot(vWorld, t) / 1.5;
+          float fy = (vWorld.y - 8.0) / 3.8;
+          float level = floor(fy);
+          float fv = fract(fy);
+          float mid = floor(module);
+          float seed = vColor.b * 97.0 + floor(dot(vWorld, n) * 0.07) * 13.0;
+          float on = step(hash12(vec2(level, seed)), vColor.r);
+          float warmth = step(1.0 - 0.3 * vColor.g, hash12(vec2(level, seed + 3.0)));
+          vec3 light = mix(vec3(0.66, 0.84, 1.0), vec3(1.0, 0.78, 0.52), warmth);
+          // A lit floor: the row of fixtures under the ceiling, the room's
+          // glow under it, desks and the odd person against the light, the
+          // screens on the desks, and zones of it switched off.
+          float fixtures = smoothstep(0.82, 0.86, fv) * smoothstep(0.93, 0.89, fv);
+          float glow = 0.1 + 0.3 * smoothstep(0.25, 0.9, fv);
+          float zone = floor(mid / 3.0);
+          float lights = step(0.25, hash12(vec2(zone, level + seed * 5.0)));
+          float desks = step(0.26, fv) * step(fv, 0.4) * step(0.35, hash12(vec2(mid * 2.3, level + seed)));
+          float screen = desks * step(0.8, hash12(vec2(floor(module * 3.0), level + seed * 2.0)));
+          vec3 col = light * on * lights * (glow + 1.05 * fixtures) * (1.0 - 0.7 * desks);
+          col += vec3(0.55, 0.8, 1.0) * screen * on * 1.2;
+          // Slabs and mullions, faded to their average where they would
+          // shimmer.
+          float fw = fwidth(fy);
+          float slab = mix(step(fv, 0.2), 0.2, clamp(fw * 3.0, 0.0, 1.0));
+          float mw = fwidth(module);
+          float mull = mix(step(fract(module), 0.04) + step(0.96, fract(module)), 0.08, clamp(mw * 3.0, 0.0, 1.0));
+          col = mix(col, vec3(0.012, 0.014, 0.02), clamp(slab + mull, 0.0, 1.0));
+          // The glass: the city's glow, most at a glancing angle.
+          vec3 V = normalize(vWorld - uCam);
+          vec3 R = reflect(V, n);
+          float fres = 0.05 + 0.95 * pow(1.0 - abs(dot(V, n)), 5.0);
+          vec3 sky = cityGlow(R, max(R.y, 0.0) * 900.0) + vec3(0.008, 0.01, 0.018);
+          col = col * (1.0 - 0.6 * fres) + sky * fres * (1.0 - 0.5 * slab);
+          col += spillAt(vWorld) * 0.2;
+          col = cityFog(col, vWorld, on * 0.6);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "corporate";
+    made.set("corporate", m);
+    return m;
+  };
+
+  // A tower's lobby: a double-height glass box, bright under its ceiling,
+  // the floor shining, mullions every 2 m and a transom.
+  const lobby = () => {
+    if (made.has("lobby")) return made.get("lobby");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared },
+      vertexShader: VERT_WORLD_COLOR,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        void main() {
+          vec3 n = normalize(vNormalW);
+          vec3 t = vec3(n.z, 0.0, -n.x);
+          float mu = fract(dot(vWorld, t) / 2.0);
+          float h = clamp((vWorld.y - 0.15) / 7.85, 0.0, 1.0);
+          vec3 light = mix(vec3(0.86, 0.93, 1.0), vec3(1.0, 0.84, 0.64), step(0.6, vColor.g));
+          vec3 col = light * (0.22 + 1.1 * smoothstep(0.62, 1.0, h) + 0.35 * smoothstep(0.18, 0.0, h));
+          float frame = step(mu, 0.02) + step(0.98, mu) + step(abs(h - 0.56), 0.012);
+          col = mix(col, vec3(0.015), clamp(frame, 0.0, 1.0));
+          col = cityFog(col, vWorld, 0.8);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "lobby";
+    made.set("lobby", m);
+    return m;
+  };
+
   // An awning: dyed cloth (the vertex colour) lit through from the shop
   // under it, darkest at the wall and brightest along its hem.
   const awning = () => {
@@ -365,6 +465,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "facade_t1":
       case "facade_t2": return maps[n] ? painted(n, maps[n]) : facade();
       case "shop": return shop();
+      case "corporate": return corporate();
+      case "lobby": return lobby();
       case "awning": return awning();
       case "lantern": return lantern();
       case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1 });

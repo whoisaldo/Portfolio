@@ -199,6 +199,8 @@ material("kerb", "3d3f44", rough=0.7)
 material("dark", "0b0c0f", rough=0.8)
 material("roof", "17181c", rough=0.9)
 material("glass_dark", "0d1418", metal=0.6, rough=0.12)
+material("corporate", "10161f", metal=0.5, rough=0.15)
+material("lobby", "e8e4da", emit=1.2)
 material("shop", "ffb77a", emit=0.9)
 material("lantern", "ff5a3c", emit=3.0)
 material("awning", "5a2440", emit=0.6)
@@ -1070,9 +1072,13 @@ for (x0, x1, h, seed) in ((38, 60, 24, 5201), (60, 80, 30, 5202), (80, 104, 22, 
 
 # ---------------------------------------------------------------------------
 # CORPO ROW. One tower per role, in experience.js order, west to east along a
-# wide boulevard. Each has a crown slot (crown_<slug>) the site lights in the
-# organisation's own colour, and a vertical sign slot (sign_tower_<slug>) the
-# site writes the organisation's name into. No logos, no floor counts.
+# wide boulevard: a glass tower over a lit double-height lobby, stepped back
+# once if it is tall, with a light fin up each corner and a dark glass crown.
+# The fins and the band round the crown are one mesh per tower
+# (crown_<slug>) the site lights in the organisation's own colour; the
+# crown's face to the boulevard carries the organisation's logo
+# (logo_<slug>, a slot the site sizes to the mark); a vertical sign
+# (sign_tower_<slug>) carries its name as type.
 # ---------------------------------------------------------------------------
 CO = "corpo"
 TOWERS = [
@@ -1082,6 +1088,8 @@ TOWERS = [
 ]
 BOULEVARD_Z = -330.0
 CORPO_X0 = 150.0
+LOBBY_H = 8.0
+CROWN_H = 16.0
 ground((CO, "asphalt", 0), 110, 460, BOULEVARD_Z - 9, BOULEVARD_Z + 9, scale=6.0)
 ground((CO, "asphalt", 0), 112, 128, BOULEVARD_Z + 9, CROSS_Z0, scale=6.0)
 for x in range(114, 456, 9):
@@ -1089,35 +1097,81 @@ for x in range(114, 456, 9):
          (x + 3, 0.012, BOULEVARD_Z - 0.1), (x, 0.012, BOULEVARD_Z - 0.1))
 ground((CO, "sidewalk", 0), 110, 460, BOULEVARD_Z - 14, BOULEVARD_Z - 9, y=0.15, scale=2.0)
 ground((CO, "sidewalk", 0), 128, 460, BOULEVARD_Z + 9, BOULEVARD_Z + 14, y=0.15, scale=2.0)
+
+
+def curtain(x0, x1, z0, z1, y0, y1, col, roof=True):
+    """A glass curtain wall. The site's corporate shader draws its floors,
+    mullions and light from world position; the colour is the tower's lit
+    fraction, its warmth and a seed."""
+    for a_, b_, c_, d_, length in _mass_sides(x0, x1, z0, z1, y0, y1).values():
+        quad((CO, "corporate", 0), a_, b_, c_, d_, ((0, 0), (length, 0), (length, y1 - y0), (0, y1 - y0)), col)
+    if roof:
+        quad((CO, "roof", 0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0))
+
+
+def lit_box(verts, faces, uvs, x0, x1, y0, y1, z0, z1, u):
+    """A box's four sides into a mesh being built by hand, every corner at
+    u (the site's towers shader reads u as what the piece is)."""
+    for a_, b_, c_, d_, _ in _mass_sides(x0, x1, z0, z1, y0, y1).values():
+        base = len(verts)
+        verts.extend(P(*q) for q in (a_, b_, c_, d_))
+        faces.append((base, base + 1, base + 2, base + 3))
+        uvs.extend([(u, 0), (u, 0), (u, 1), (u, 1)])
+
+
 for i, (slug, height) in enumerate(TOWERS):
     tx = CORPO_X0 + i * 38
     tz = BOULEVARD_Z - 30
     half = 13
     seed = 6000 + i
-    col = (0.32, 0.9, 0.35, 1.0)  # curtain-wall style
-    mass(CO, tx - half, tx + half, tz - half, tz + half, SHOP_H, height, seed, col=col)
-    box((CO, "dark", 0), tx - half, tx + half, 0, SHOP_H, tz - half, tz + half, scale=2.0)
-    mass(CO, tx - half + 2.5, tx + half - 2.5, tz - half + 2.5, tz + half - 2.5, height, height + 10, seed + 50, col=col)
-    top = height + 10
-    crown = bpy.data.meshes.new(PREFIX + "crown_" + slug)
+    r = random.Random(seed)
+    col = (r.uniform(0.5, 0.75), r.random(), r.random(), 1.0)
+    # The lobby: a lit glass box set back under a canopy, the core behind.
+    box((CO, "dark", 0), tx - half, tx + half, 0, LOBBY_H, tz - half, tz + half - 1.6, scale=2.0)
+    quad((CO, "lobby", 0), (tx - half + 0.6, 0.15, tz + half - 1.5), (tx + half - 0.6, 0.15, tz + half - 1.5),
+         (tx + half - 0.6, LOBBY_H, tz + half - 1.5), (tx - half + 0.6, LOBBY_H, tz + half - 1.5),
+         ((0, 0), (1, 0), (1, 1), (0, 1)), (r.random(), r.random(), 1.0, 1.0))
+    box((CO, "metal", 0), tx - half, tx + half, LOBBY_H - 0.5, LOBBY_H, tz + half - 1.6, tz + half + 3.0, scale=1.0)
+    # The shaft, stepped back once on the tall ones.
+    step = height * 0.7 if height > 110 else None
+    inset = 2.5 if step else 0.0
+    if step:
+        curtain(tx - half, tx + half, tz - half, tz + half, LOBBY_H, step, col)
+        curtain(tx - half + inset, tx + half - inset, tz - half + inset, tz + half - inset, step, height, col)
+    else:
+        curtain(tx - half, tx + half, tz - half, tz + half, LOBBY_H, height, col)
+    # The crown: a dark glass box, the logo on its face to the boulevard.
+    cw = half - inset - 1.5
+    box((CO, "glass_dark", 0), tx - cw, tx + cw, height, height + CROWN_H, tz - cw, tz + cw, scale=2.0)
+    top = height + CROWN_H
+    empty("logo_" + slug, (tx, height + CROWN_H / 2, tz + cw + 0.06), props={"w": cw * 2 - 3.0, "h": CROWN_H - 3.0})
+    # The accent: a fin up each corner of the shaft, a ring at the step, a
+    # band round the top of the crown.
     verts, faces, uvs = [], [], []
-    # Counter-clockwise from above, so every face points outward.
-    ring = [(-half + 2.5, half - 2.5), (half - 2.5, half - 2.5), (half - 2.5, -half + 2.5), (-half + 2.5, -half + 2.5)]
-    for j in range(4):
-        (ax_, az_), (bx_, bz_) = ring[j], ring[(j + 1) % 4]
-        base = len(verts)
-        for (px_, pz_), yy in (((ax_, az_), top + 0.4), ((bx_, bz_), top + 0.4), ((bx_, bz_), top + 5.6), ((ax_, az_), top + 5.6)):
-            verts.append(P(tx + px_ * 1.02, yy, tz + pz_ * 1.02))
-        faces.append((base, base + 1, base + 2, base + 3))
-        uvs += [(0, 0), (1, 0), (1, 1), (0, 1)]
+    for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+        fx, fz = tx + sx * half, tz + sz * half
+        lit_box(verts, faces, uvs, fx - 0.45, fx + 0.45, LOBBY_H + 1.0, step or height, fz - 0.45, fz + 0.45, 2.0)
+        if step:
+            gx, gz = tx + sx * (half - inset), tz + sz * (half - inset)
+            lit_box(verts, faces, uvs, gx - 0.4, gx + 0.4, step, height, gz - 0.4, gz + 0.4, 2.0)
+    if step:
+        lit_box(verts, faces, uvs, tx - half - 0.1, tx + half + 0.1, step - 0.9, step, tz - half - 0.1, tz + half + 0.1, 0.5)
+    lit_box(verts, faces, uvs, tx - cw - 0.15, tx + cw + 0.15, top - 2.2, top, tz - cw - 0.15, tz + cw + 0.15, 0.5)
+    crown = bpy.data.meshes.new(PREFIX + "crown_" + slug)
     crown.from_pydata(verts, [], faces)
     layer = crown.uv_layers.new(name="UVMap")
-    for li, uv in enumerate(uvs):
-        layer.data[li].uv = uv
+    li = 0
+    for f in faces:
+        for vi in f:
+            layer.data[li].uv = uvs[vi]
+            li += 1
     crown.materials.append(MATS["crown"])
     obj = link(bpy.data.objects.new("crown_" + slug, crown))
     obj["tower"] = slug
-    sign("tower_" + slug, tx + half - 2.6, height * 0.62, tz + half + 0.08, 2.6, height * 0.5, 0.0,
+    # The name, as type, on a tall sign below the step.
+    sign_top = (step or height) - 4.0
+    sign_bottom = LOBBY_H + 4.0
+    sign("tower_" + slug, tx + half - 2.6, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
          preview=slug.upper(), district=CO)
     empty("anchor_tower_" + slug, (tx, top + 1.8, tz), props={"height": top})
 for i in range(8):
@@ -1341,8 +1395,11 @@ def bay_point(local):
 SHOT_CAMERAS = {
     "hero": ((0.6, 0.6, 10.0), (0.6, 0.6, -60.0)),
     "projects": ((73.0, 13.0, -204.0), (79.0, 27.0, -263.0)),
-    "experience": ((140.0, 46.0, -262.0), (152.0, 96.0, -360.0)),
-    "experience_b": ((378.0, 46.0, -262.0), (390.0, 96.0, -360.0)),
+    # Corpo row from the boulevard's south kerb, looking up the row on a
+    # diagonal so every crown and its logo reads, dollying east as the
+    # reader goes down the roles.
+    "experience": ((120.0, 30.0, -230.0), (190.0, 112.0, -360.0)),
+    "experience_b": ((330.0, 30.0, -230.0), (400.0, 112.0, -360.0)),
     "about": ((476.0, 37.4, -266.0), (380.0, 44.0, -318.0)),
     "stack": ((476.0, 37.4, -266.0), (380.0, 46.0, -312.0)),
     "stack_b": (None, (380.0, 38.0, -214.0)),
