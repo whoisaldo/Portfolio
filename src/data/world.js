@@ -85,3 +85,61 @@ export const boards = featuredProjects.map((p, i) => ({
   art: p.images?.[0] ?? null,
   index: i,
 }));
+
+/**
+ * The signs, keyed by the id the Blender kit gave each sign face
+ * (sign_<id>; a blade's back is <id>_b and a far copy <id>_far, and both
+ * read the same words). Brand names are type set in Chakra Petch at
+ * runtime, never a logo. The four rooftop signs are the ones Skyline.jsx
+ * carried, in the site's own colours; Kiroshi, Nicola and ARASAKA are the
+ * plate's; the Japanese is the plate's street: ramen, sushi, the
+ * maneki-neko, the overpass.
+ *
+ *   lines    what it says, top to bottom (a vertical sign stacks letters)
+ *   color    the tube
+ *   face     "board" paints a lit panel behind the words (ads), otherwise
+ *            the words are the light
+ *   flicker  one of the few tubes that is not quite right
+ */
+export const WORLD_SIGNS = {
+  kiroshi: { draw: "kiroshi", lines: ["KIROSHI", "キロシ", "BETTER YOU,", "A BRIGHTER", "TOMORROW"], color: "#2f7bff" },
+  nicola: { draw: "nicola", lines: ["NICOLA", "TASTE TOMORROW", "ニコラ"], color: "#ff2438" },
+  arasaka: { draw: "wordmark", lines: ["ARASAKA"], color: "#ff003c" },
+  militech: { draw: "wordmark", lines: ["MILITECH"], color: "#fcee0a" },
+  afterlife: { draw: "wordmark", lines: ["AFTERLIFE"], color: "#ff2e88", flicker: true },
+  ripperdoc: { draw: "ripperdoc", lines: ["RIPPERDOC"], color: "#eceae4", flicker: true },
+  ramen: { draw: "vertical", lines: ["ラーメン"], color: "#ff3fd2", icon: "bowl" },
+  menya: { draw: "wordmark", lines: ["麺屋"], color: "#ff2b2b" },
+  sushi: { draw: "board", lines: ["寿司", "SUSHI"], color: "#ffd24a" },
+  maneki: { draw: "maneki", lines: ["招き猫"], color: "#27dcf2" },
+  shinsen: { draw: "vertical", lines: ["新鮮な寿司"], color: "#27dcf2" },
+  shokuji: { draw: "vertical", lines: ["食事処"], color: "#eceae4", flicker: true },
+  yoru: { draw: "vertical", lines: ["夜の味"], color: "#ff3fd2" },
+  mirai: { draw: "vertical", lines: ["未来の目"], color: "#2ee6c8" },
+  bar: { draw: "wordmark", lines: ["BAR"], color: "#ff2b2b", flicker: true },
+  hotel: { draw: "vertical", lines: ["ホテル"], color: "#ff2e88" },
+  karaoke: { draw: "vertical", lines: ["カラオケ"], color: "#a24bff" },
+  bento: { draw: "vertical", lines: ["弁当"], color: "#ffb254" },
+  pachinko: { draw: "vertical", lines: ["パチンコ"], color: "#fcee0a", flicker: true },
+  sora: { draw: "wordmark", lines: ["空き未来へ"], color: "#2ee6c8" },
+  izakaya: { draw: "vertical", lines: ["居酒屋"], color: "#ff2e88" },
+  yakitori: { draw: "vertical", lines: ["焼き鳥"], color: "#ffb254" },
+  denno: { draw: "vertical", lines: ["電脳"], color: "#27dcf2", flicker: true },
+  sakaba: { draw: "vertical", lines: ["酒場"], color: "#ff3fd2" },
+  kusuri: { draw: "vertical", lines: ["薬局"], color: "#39ff9a" },
+  arcade: { draw: "vertical", lines: ["ARCADE"], color: "#fcee0a", latin: true },
+  mirai2: { draw: "vertical", lines: ["未来"], color: "#a24bff" },
+  kaiten: { draw: "vertical", lines: ["回転寿司"], color: "#2f7bff" },
+  beauty: { draw: "vertical", lines: ["美しさは、力だ"], color: "#ff3fd2" },
+};
+
+/** The far canyon's tall vertical signs cycle through these. */
+export const CANYON_WORDS = [
+  { lines: ["居酒屋"], color: "#ff2e88" },
+  { lines: ["焼き鳥"], color: "#ffb254" },
+  { lines: ["電脳"], color: "#27dcf2" },
+  { lines: ["薬局"], color: "#39ff9a" },
+  { lines: ["未来"], color: "#a24bff" },
+  { lines: ["酒場"], color: "#ff3fd2" },
+  { lines: ["夜の街"], color: "#2f7bff" },
+];

@@ -612,26 +612,36 @@ PANEL_COLOURS = ["pink", "cyan", "magenta", "amber", "red", "blue", "teal", "pur
 
 
 def clutter(district, side, z0, z1, top, seed):
-    """The signs a Night City facade collects: lit panels at every height,
-    stacked boxes, neon strips along the ledges. No words: the words are on
-    the atlas signs. From the street this is the density the plate has."""
+    """The signs a Night City facade collects: lit blades standing out from
+    the wall at every height, flat panels, neon along the ledges. No words:
+    the words are on the atlas signs. Most are blades because the street is
+    seen end-on: a panel flat on a wall is a sliver from the intersection,
+    a blade faces the lens."""
     r = random.Random(seed)
     s = 1 if side > 0 else -1
-    for _ in range(r.randrange(3, 8)):
-        w = r.uniform(0.8, 3.2)
-        h = r.uniform(0.5, 2.4) if r.random() < 0.6 else r.uniform(2.5, 6.5)
-        if h > 2.5:
-            w = r.uniform(0.6, 1.2)
-        y = r.uniform(SHOP_H + 0.6, max(SHOP_H + 1.0, min(top - 1.0, 24.0)))
-        z = r.uniform(z0 + w / 2 + 0.3, z1 - w / 2 - 0.3) if z1 - z0 > w + 0.6 else (z0 + z1) / 2
-        out = r.uniform(0.08, 0.9)
-        x_wall, x_face = s * WALK, s * (WALK - out)
-        xa, xb = sorted((x_wall, x_face))
+    ceiling = max(SHOP_H + 1.4, min(top - 1.0, 17.0))
+    for _ in range(r.randrange(5, 11)):
         colour = r.choice(PANEL_COLOURS)
-        # Not `detail`: the phone keeps these, they are most of the density.
-        box((district, "board_frame", 0), xa, xb, y - h / 2 - 0.06, y + h / 2 + 0.06, z - w / 2 - 0.06, z + w / 2 + 0.06, scale=1.0)
-        fa, fb = sorted((x_face, x_face - s * 0.02))
-        box((district, "neon_" + colour, 0), fa, fb, y - h / 2, y + h / 2, z - w / 2, z + w / 2, scale=1.0)
+        y = r.uniform(SHOP_H + 0.5, ceiling)
+        if r.random() < 0.62:
+            # A blade, lit on both faces, reading up and down the street.
+            out = r.uniform(0.6, 1.9)
+            h = r.uniform(0.7, 3.8)
+            z = r.uniform(z0 + 0.5, z1 - 0.5)
+            xa, xb = sorted((s * WALK, s * (WALK - out)))
+            box((district, "board_frame", 0), xa, xb, y - h / 2 - 0.06, y + h / 2 + 0.06, z - 0.08, z + 0.08, scale=1.0)
+            fa, fb = sorted((s * (WALK - 0.08), s * (WALK - out + 0.06)))
+            box((district, "neon_" + colour, 0), fa, fb, y - h / 2, y + h / 2, z + 0.08, z + 0.1, scale=1.0)
+            box((district, "neon_" + colour, 0), fa, fb, y - h / 2, y + h / 2, z - 0.1, z - 0.08, scale=1.0)
+        else:
+            w = r.uniform(0.8, 3.0)
+            h = r.uniform(0.5, 2.2)
+            z = r.uniform(z0 + w / 2 + 0.3, z1 - w / 2 - 0.3) if z1 - z0 > w + 0.6 else (z0 + z1) / 2
+            out = r.uniform(0.1, 0.6)
+            xa, xb = sorted((s * WALK, s * (WALK - out)))
+            box((district, "board_frame", 0), xa, xb, y - h / 2 - 0.06, y + h / 2 + 0.06, z - w / 2 - 0.06, z + w / 2 + 0.06, scale=1.0)
+            fa, fb = sorted((s * (WALK - out), s * (WALK - out - 0.02)))
+            box((district, "neon_" + colour, 0), fa, fb, y - h / 2, y + h / 2, z - w / 2, z + w / 2, scale=1.0)
     for _ in range(r.randrange(0, 3)):
         y = r.choice([SHOP_H + CELL_H * k for k in range(1, 5)]) + 0.05
         if y > top - 1:
@@ -705,6 +715,16 @@ blade(AV, 1, "shokuji", -47.5, 6.4, 3.6, 0.9, preview="食事処")
 blade(AV, 1, "yoru", -65.0, 7.0, 3.2, 0.9, preview="夜の味")
 blade(AV, 1, "bento", -90.0, 8.2, 4.4, 0.9, preview="弁当")
 blade(AV, 1, "pachinko", -115.0, 10.0, 6.0, 1.1, preview="パチンコ")
+# More words in the band the hero frames: near the camera the frame's top is
+# a few metres up, further off it is the height of the fourth storey.
+blade(AV, -1, "izakaya", -24.5, 5.4, 3.6, 1.0, preview="居酒屋")
+blade(AV, -1, "yakitori", -48.5, 8.0, 4.8, 1.0, preview="焼き鳥")
+blade(AV, -1, "denno", -71.0, 11.0, 6.4, 1.1, preview="電脳")
+blade(AV, -1, "sakaba", -92.0, 12.0, 5.0, 1.0, preview="酒場")
+blade(AV, 1, "kusuri", -21.0, 5.2, 3.4, 1.0, preview="薬局")
+blade(AV, 1, "arcade", -55.0, 9.5, 6.0, 1.1, preview="ARCADE")
+blade(AV, 1, "mirai2", -78.0, 11.5, 6.2, 1.0, preview="未来")
+blade(AV, 1, "kaiten", -102.0, 12.5, 5.6, 1.0, preview="回転寿司")
 
 # Horizontal shop signs over the awnings.
 sign("menya", -WALK + 0.06, 4.2, -26.5, 4.5, 0.9, math.pi / 2, preview="麺屋")
@@ -828,7 +848,8 @@ for side, lots in FAR_LOTS.items():
             sign(sid, x, SHOP_H + 3 + h / 2, z1 - 3.0, 2.2, h, 0.0, preview="夜", district=FA)
             box((FA, "board_frame", 0), x - 1.25, x + 1.25, SHOP_H + 2.8, SHOP_H + 3.2 + h, z1 - 3.25, z1 - 3.05, scale=1.0)
 
-HOLO = (-2.0, 64.0, -610.0, 42.0, 80.0)
+# The figure's image is 2:3; the plane matches it.
+HOLO = (-2.0, 62.0, -610.0, 48.0, 72.0)
 hx, hy, hz, hw, hh = HOLO
 named_quad("holo_figure", "holo", hx, hy, hz, hw, hh, 0.0, props={"district": FA})
 empty("anchor_holo", (hx, hy, hz))

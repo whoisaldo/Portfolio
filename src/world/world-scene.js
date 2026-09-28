@@ -15,53 +15,86 @@
 // console, the expanded deck, the garage's own 3D viewer), or while the
 // intro is driving (see renderCinematic), and `renderer.info.render.frame`
 // stops advancing when it is not.
+//
+// The music reaches the city the same way it reaches the page's chrome, but
+// without CSS: getLevels() read in this loop and smoothed with the same
+// asymmetric attack and decay src/lib/reactive.js uses. Silence is stillness.
 import * as THREE from "three";
 import { stage, subscribeStage } from "./stage.js";
 import { createShots, makePose, copyPose, heroPose, clamp } from "./shots.js";
-import { createGreybox } from "./greybox.js";
 import { TIERS } from "./quality.js";
+import { createSharedUniforms } from "./glsl.js";
+import { createCity, preloadCity, REFLECT_LAYER } from "./city.js";
+import { preloadHolo } from "./holo.js";
+import { createMirror } from "./mirror.js";
+import { createPost } from "./post.js";
+import { createSkyline } from "./skyline.js";
+import { createRain } from "./rain.js";
+import { createTraffic } from "./traffic.js";
+import { getEnv } from "../lib/env.js";
+import { getLevels } from "../lib/ambient.js";
 
 /** Everything the scene needs before it can be built. */
-export async function preloadWorld() {}
+export async function preloadWorld(tier) {
+  await Promise.all([preloadCity(tier), preloadHolo()]);
+}
 
 const DEG = Math.PI / 180;
 
-export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost } = {}) {
+export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false } = {}) {
   const quality = { ...TIERS[tier] };
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: false,
     alpha: false,
     stencil: false,
+    depth: true,
     powerPreference: "high-performance",
   });
   renderer.setClearColor(0x050506, 1);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // Tone mapping is the last effect in the post chain (src/world/post.js).
+  renderer.toneMapping = THREE.NoToneMapping;
   renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050506);
-  scene.fog = new THREE.FogExp2(0x0b0710, 0.0022);
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 3000);
-  scene.add(new THREE.HemisphereLight(0x3a3f55, 0x0a0608, 0.6));
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 2400);
+  camera.layers.enable(REFLECT_LAYER);
+  const shared = createSharedUniforms(THREE);
 
-  const city = createGreybox(scene);
-  const shots = createShots(city.anchors);
+  let city = null;
+  let shots = null;
+  let skyline = null;
+  let rain = null;
+  let traffic = null;
+  let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layer: REFLECT_LAYER }) : null;
+  const post = createPost(renderer, scene, camera, quality);
+
+  const building = createCity(scene, renderer, shared, { tier, quality, reduced }).then((c) => {
+    city = c;
+    shots = createShots(c.anchors);
+    skyline = createSkyline(scene, shared, { count: tier === "phone" ? 1200 : 2600 });
+    rain = createRain(scene, shared, { count: quality.rain, reduced });
+    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER });
+    return c;
+  });
 
   // ---- size ---------------------------------------------------------------
   let width = 1;
   let height = 1;
   let aspect = 1;
+  let pixelScale = 1;
   const resize = () => {
     width = Math.max(1, canvas.clientWidth || window.innerWidth);
     height = Math.max(1, canvas.clientHeight || window.innerHeight);
     aspect = width / height;
     // Pixels are the budget: a device pixel ratio cap per tier, and a cap on
     // the total so a 4K monitor does not render four times a laptop's work.
-    const ratio = Math.min(window.devicePixelRatio || 1, quality.dpr, Math.sqrt(quality.pixels / (width * height)));
+    const ratio = Math.min(window.devicePixelRatio || 1, quality.dpr, Math.sqrt(quality.pixels / (width * height))) * pixelScale;
     renderer.setPixelRatio(ratio);
     renderer.setSize(width, height, false);
+    post.setSize(width, height);
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
   };
@@ -77,7 +110,6 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
   let lastPosition = 0;
   let glitch = 0;
   const tilt = { x: 0, y: 0 };
-  const ids = () => stage.shots.map((s) => s.id);
 
   const applyPose = (p, withTilt) => {
     camera.position.copy(p.position);
@@ -93,11 +125,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
   };
 
   const step = (dt) => {
-    const list = ids();
-    if (stage.route.kind !== "home" || !list.length) {
+    const ids = stage.shots.map((s) => s.id);
+    if (!shots || stage.route.kind !== "home" || !ids.length) {
       heroPose(aspect, want);
     } else {
-      shots.goal(list, stage.position, stage.locals, aspect, want);
+      shots.goal(ids, stage.position, stage.locals, aspect, want);
     }
     // A jump of more than a shot in one frame is a deep link or a long nav
     // jump: land on it, with a glitch to say so, rather than fly across the
@@ -119,20 +151,59 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
     const t = 1 - Math.exp(-dt * 3);
     tilt.x += (stage.pointer.x - tilt.x) * t;
     tilt.y += (stage.pointer.y - tilt.y) * t;
-    glitch *= Math.exp(-dt * 7);
     applyPose(pose, true);
+  };
+
+  // ---- the music and the switches ---------------------------------------------
+  let bass = 0;
+  let level = 0;
+  const drive = (dt) => {
+    const env = getEnv();
+    if (env.reactive) {
+      const now = getLevels();
+      bass += (now.bass - bass) * (now.bass > bass ? 0.7 : 0.12);
+      level += (now.level - level) * (now.level > level ? 0.4 : 0.1);
+    } else {
+      bass = 0;
+      level = 0;
+    }
+    shared.uBass.value = bass;
+    shared.uLevel.value = level;
+    shared.uHaze.value += ((env.haze ? 1 : 0) - shared.uHaze.value) * Math.min(1, dt * 4);
+    if (city) {
+      city.setSignsVisible(env.signs);
+      for (const r of city.roadMaterials) r.uniforms.uWet.value = env.wet ? 1 : 0;
+    }
+    glitch *= Math.exp(-dt * 6);
+    post.setGlitch(glitch, bass);
+    return env;
   };
 
   // ---- the loop -------------------------------------------------------------
   let raf = 0;
   let last = 0;
+  let clock = 0;
   let firstFrame = false;
   let disposed = false;
   const times = new Float32Array(240);
   let timeIndex = 0;
 
-  const render = () => {
-    renderer.render(scene, camera);
+  const draw = (dt) => {
+    clock += dt;
+    shared.uTime.value = clock;
+    shared.uCam.value.copy(camera.position);
+    const env = drive(dt);
+    skyline?.update(camera);
+    rain?.update(dt, camera, env.wet);
+    traffic?.update(dt, env.traffic);
+    if (mirror && city && env.wet) {
+      camera.updateMatrixWorld();
+      const drew = mirror.render(scene, camera);
+      for (const r of city.roadMaterials) r.setReflection(drew ? mirror.texture : null, mirror.matrix, mirror.horizonV);
+    } else if (city) {
+      for (const r of city.roadMaterials) r.setReflection(null);
+    }
+    post.render(dt);
     if (!firstFrame) {
       firstFrame = true;
       onFirstFrame?.();
@@ -141,7 +212,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
 
   const frame = (now) => {
     raf = 0;
-    if (disposed) return;
+    if (disposed || !city) return;
     if (stage.paused || stage.mode === "cinematic") {
       last = 0;
       return;
@@ -154,12 +225,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
     }
     last = now;
     step(dt);
-    city.update(now / 1000);
-    render();
+    draw(dt);
   };
 
   const resume = () => {
-    if (!raf && !disposed) raf = requestAnimationFrame(frame);
+    if (!raf && !disposed && city) raf = requestAnimationFrame(frame);
   };
   const pause = () => {
     if (raf) cancelAnimationFrame(raf);
@@ -171,14 +241,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
   // the intro's mode all land there.
   let running = null;
   const check = () => {
-    const next = !stage.paused && stage.mode !== "cinematic";
+    const next = !stage.paused && stage.mode !== "cinematic" && Boolean(city);
     if (next === running) return;
     running = next;
     if (running) resume();
     else pause();
   };
   const unwatch = subscribeStage(check);
-  check();
 
   // ---- context loss ------------------------------------------------------------
   const onContextLost = (e) => {
@@ -189,25 +258,32 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
   canvas.addEventListener("webglcontextlost", onContextLost);
 
   // ---- warm-up -------------------------------------------------------------------
-  // Compile every material before anyone is looking, then draw one frame of
-  // the hero with the canvas still invisible, so the first frame that
-  // counts has nothing left to set up.
+  // Build the city, compile every material before anyone is looking, and
+  // draw one frame of the hero while the canvas is still invisible, so the
+  // first frame that counts has nothing left to set up.
   const warm = async () => {
+    await building;
+    if (disposed) return;
     heroPose(aspect, want);
     copyPose(pose, want);
     applyPose(pose, false);
+    posed = true;
     if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
     else renderer.compile(scene, camera);
+    if (disposed) return;
+    running = null;
+    check();
   };
 
   // ---- the intro -------------------------------------------------------------------
   /** One frame of the cinematic, at song second `s`, on the hero camera. */
   const renderCinematic = () => {
+    if (!city) return;
     heroPose(aspect, want);
     copyPose(pose, want);
     applyPose(pose, false);
     posed = true;
-    render();
+    draw(1 / 60);
   };
 
   const dispose = () => {
@@ -216,7 +292,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
     unwatch();
     window.removeEventListener("resize", resize);
     canvas.removeEventListener("webglcontextlost", onContextLost);
-    city.dispose();
+    building.then((c) => {
+      c.dispose();
+      skyline?.dispose();
+      rain?.dispose();
+      traffic?.dispose();
+    }).catch(() => {});
+    mirror?.dispose();
+    mirror = null;
+    post.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
   };
@@ -225,10 +309,46 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost }
     const n = Math.min(timeIndex, times.length);
     const arr = Array.from(times.slice(0, n)).sort((a, b) => a - b);
     const p = (x) => (n ? +arr[Math.min(n - 1, Math.floor(x * n))].toFixed(2) : 0);
-    return { frames: n, p50: p(0.5), p95: p(0.95), glitch: +glitch.toFixed(3), calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, frame: renderer.info.render.frame, memory: { ...renderer.info.memory } };
+    return {
+      tier,
+      frames: n,
+      p50: p(0.5),
+      p95: p(0.95),
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      frame: renderer.info.render.frame,
+      memory: { ...renderer.info.memory },
+      pixelRatio: renderer.getPixelRatio(),
+    };
   };
 
-  if (import.meta.env.DEV) window.__world = { renderer, scene, camera, stats, pose, want, stage };
+  if (import.meta.env.DEV) {
+    // `dumpMirror("raw" | "blurred")` returns the wet road's mirror as a PNG
+    // data URL, for tuning the reflection.
+    const dumpMirror = (which = "blurred") => {
+      const t = mirror?.targets[which];
+      if (!t) return null;
+      const { width: w, height: h } = t;
+      const half = new Uint16Array(w * h * 4);
+      renderer.readRenderTargetPixels(t, 0, 0, w, h, half);
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext("2d");
+      const img = ctx.createImageData(w, h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = ((h - 1 - y) * w + x) * 4;
+          const o = (y * w + x) * 4;
+          for (let k = 0; k < 3; k++) img.data[o + k] = Math.min(255, Math.pow(THREE.DataUtils.fromHalfFloat(half[i + k]), 1 / 2.2) * 255);
+          img.data[o + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      return c.toDataURL("image/png");
+    };
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, post, dumpMirror };
+  }
 
   return {
     warm,
