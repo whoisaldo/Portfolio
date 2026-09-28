@@ -16,7 +16,9 @@
     "check:audio": "node scripts/check-audio-single.mjs",
     "car:assets": "node scripts/optimize-s4.mjs",
     "check:s4": "node scripts/check-s4.mjs",
-    "world:assets": "node scripts/optimize-world.mjs"
+    "world:assets": "node scripts/optimize-world.mjs",
+    "check:world": "node scripts/check-world.mjs",
+    "check:drift": "node scripts/check-drift.mjs"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "^5.3.0",

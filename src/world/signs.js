@@ -224,7 +224,7 @@ const DRAW = {
     chars.forEach((c, i) => tube(ctx, c, w * 0.83, h * 0.1 + step * (i + 0.5), Math.floor(Math.min(step * 0.85, w * 0.28)), "#ff2e88"));
   },
   ripperdoc(ctx, spec, w, h) {
-    // The clinic's cross, red, then the word: Skyline.jsx's sign.
+    // The clinic's cross, red, then the word, as the old Skyline.jsx drew it.
     const cs = h * 0.5;
     const cx = w * 0.1;
     const cy = h / 2;

@@ -120,8 +120,8 @@ export const boards = featuredProjects.map((p, i) => ({
  * The signs, keyed by the id the Blender kit gave each sign face
  * (sign_<id>; a blade's back is <id>_b and a far copy <id>_far, and both
  * read the same words). Brand names are type set in Chakra Petch at
- * runtime, never a logo. The four rooftop signs are the ones Skyline.jsx
- * carried, in the site's own colours; Kiroshi, Nicola and ARASAKA are the
+ * runtime, never a logo. The four rooftop signs are the ones the old
+ * Skyline.jsx carried, in the site's own colours; Kiroshi, Nicola and ARASAKA are the
  * plate's; the Japanese is the plate's street: ramen, sushi, the
  * maneki-neko, the overpass.
  *
