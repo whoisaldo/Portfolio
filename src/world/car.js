@@ -144,6 +144,15 @@ export function createCar(scene, renderer, { road, anchors, light, layer }) {
     return a + (c - a) * smoothstep(0, SHOTS[ids[j]]?.carLead ?? LEAD, f);
   };
 
+  /** Where the car waits on a case study: the plaza for a project, the
+   *  boulevard under the role's tower for a role. */
+  const routeGoal = (route) => {
+    if (route.kind === "project") return stops.plaza;
+    const tower = route.kind === "role" ? at(`anchor_tower_${route.slug}`) : null;
+    if (!tower) return stops.curb;
+    return road.nearest({ x: tower.x, z: tower.z + 32 });
+  };
+
   // ---- state -------------------------------------------------------------------
   // "road": on the road at u metres, v metres a second (negative backs up).
   // "drift": the intro has it, on the song clock.
@@ -253,6 +262,7 @@ export function createCar(scene, renderer, { road, anchors, light, layer }) {
   return {
     car,
     stops,
+    routeGoal,
     get u() {
       return u;
     },

@@ -21,7 +21,7 @@
 // asymmetric attack and decay src/lib/reactive.js uses. Silence is stillness.
 import * as THREE from "three";
 import { stage, subscribeStage } from "./stage.js";
-import { createShots, makePose, copyPose, heroPose, clamp } from "./shots.js";
+import { createShots, makePose, copyPose, heroPose, clamp, easeInOut } from "./shots.js";
 import { TIERS } from "./quality.js";
 import { createSharedUniforms } from "./glsl.js";
 import { createCity, preloadCity, REFLECT_LAYER } from "./city.js";
@@ -39,6 +39,7 @@ import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP } from "../lib/cues.js";
+import { boards as BOARDS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
@@ -138,27 +139,69 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
-  // The car first: a flight that follows it looks at where it is now.
+  // The car first: a flight that follows it looks at where it is now. On a
+  // case study it waits where that page's shot can see it: in the plaza for
+  // a project, under the role's tower on corpo row.
   const driveCar = (dt, jump) => {
     if (!car) return;
     const ids = stage.shots.map((x) => x.id);
     const home = stage.route.kind === "home";
-    car.drive(dt, { ids, position: home ? stage.position : 0, locals: stage.locals, aspect, jump, goal: home ? null : car.u });
+    car.drive(dt, { ids, position: home ? stage.position : 0, locals: stage.locals, aspect, jump, goal: home ? null : car.routeGoal(stage.route) });
   };
 
-  const aim = () => {
+  // A route change has no scroll to drive it, so it flies on the clock:
+  // from wherever the camera is to the new route's shot, over ROUTE_FLIGHT
+  // seconds, on the same up-across-down path a scrolled flight takes, with
+  // the glitch at its middle.
+  const ROUTE_FLIGHT = 1.8;
+  const routeKey = () => `${stage.route.kind}:${stage.route.slug ?? ""}`;
+  let lastRoute = null;
+  let flight = null;
+  const dest = makePose();
+
+  const aim = (dt = 0) => {
     const ids = stage.shots.map((s) => s.id);
-    if (!shots || stage.route.kind !== "home" || !ids.length) heroPose(aspect, want);
-    else shots.goal(ids, stage.position, stage.locals, aspect, want, car?.car.position);
+    const home = stage.route.kind === "home";
+    if (!shots) heroPose(aspect, dest);
+    else if (!home) shots.routePose(stage.route, aspect, dest);
+    else if (!ids.length) heroPose(aspect, dest);
+    else shots.goal(ids, stage.position, stage.locals, aspect, dest, car?.car.position);
+
+    const key = routeKey();
+    if (lastRoute !== null && key !== lastRoute && shots && posed) {
+      flight = { from: copyPose(makePose(), pose), t: 0, glitched: false };
+    }
+    lastRoute = key;
+    if (flight && shots) {
+      flight.t += dt;
+      const e = easeInOut(clamp(flight.t / ROUTE_FLIGHT, 0, 1));
+      shots.open(flight.from, dest, e, want);
+      if (!flight.glitched && flight.t >= ROUTE_FLIGHT / 2) {
+        flight.glitched = true;
+        glitch = 1;
+      }
+      if (flight.t >= ROUTE_FLIGHT) flight = null;
+    } else {
+      copyPose(want, dest);
+    }
   };
+
+  /** Which Work entry the plaza's board shows: the deck's, or a case study's own. */
+  const activeBoard = () => {
+    if (stage.route.kind !== "project") return stage.activeProject;
+    const i = BOARDS.findIndex((b) => b.slug === stage.route.slug);
+    return i >= 0 ? i : stage.activeProject;
+  };
+  const activeTowers = () => (stage.route.kind === "role" ? [stage.route.slug] : stage.activeRoles);
 
   const step = (dt) => {
     // A jump of more than a shot in one frame is a deep link or a long nav
     // jump: land on it, with a glitch to say so, rather than fly across the
     // whole city in half a second. The car lands on its stop with it.
-    const jumped = Math.abs(stage.position - lastPosition) > 1.2;
+    const routeChanged = lastRoute !== null && routeKey() !== lastRoute;
+    const jumped = !routeChanged && !flight && Math.abs(stage.position - lastPosition) > 1.2;
     driveCar(dt, !posed || jumped);
-    aim();
+    aim(dt);
     // Crossing the middle of a flight fires the braindance glitch.
     if (Math.floor(stage.position + 0.5) !== Math.floor(lastPosition + 0.5)) glitch = 1;
     lastPosition = stage.position;
@@ -220,8 +263,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     skyline?.update(camera);
     rain?.update(dt, camera, env.wet);
     traffic?.update(dt, env.traffic);
-    city?.boards.update(dt, stage.activeProject);
-    city?.towers.update(dt, stage.activeRoles);
+    city?.boards.update(dt, activeBoard());
+    city?.towers.update(dt, activeTowers());
     if (mirror && city && env.wet) {
       camera.updateMatrixWorld();
       const drew = mirror.render(scene, camera);
@@ -269,6 +312,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const settle = () => {
     if (!city || disposed) return;
     driveCar(0, true);
+    flight = null;
     aim();
     copyPose(pose, want);
     applyPose(pose, true);

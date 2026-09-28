@@ -32,7 +32,7 @@ const DEG = Math.PI / 180;
 const APEX_Z = 5.6;
 
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const smoothstep = (a, b, x) => {
   const t = clamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);
@@ -216,6 +216,17 @@ export function createShots(anchors, clearance = null) {
     }
 
     // In the open: up, across and down.
+    open(A, B, e, out);
+    return Math.sin(Math.PI * f);
+  };
+
+  /**
+   * Up, across and down from pose A to pose B, `e` (eased, 0..1) of the way:
+   * a cubic whose inner control points stand above the two poses, lifted by
+   * at least an arc proportional to the distance and by whatever the city
+   * under the line needs.
+   */
+  const open = (A, B, e, out) => {
     const d = A.position.distanceTo(B.position);
     let h = clamp(d * 0.19, 0, 47);
     if (clearance && d > 1) {
@@ -239,8 +250,29 @@ export function createShots(anchors, clearance = null) {
     // The eye turns to the next shot early, so the middle of a flight looks
     // at where it is going rather than down at the roofs it is crossing.
     out.target.copy(A.target).lerp(B.target, smoothstep(0, 0.65, e));
-    return Math.sin(Math.PI * f);
+    out.fov = A.fov + (B.fov - A.fov) * e;
+    return out;
   };
 
-  return { poseOf, goal };
+  /**
+   * A case study's shot. A project holds on the plaza's board (which shows
+   * that project's key art); a role holds on its tower on corpo row, looking
+   * up at the crown from across the boulevard.
+   */
+  const routePose = (route, aspect, out) => {
+    if (route.kind === "project") return anchored("projects", 0, aspect, out);
+    const tower = route.kind === "role" ? anchors.get(`anchor_tower_${route.slug}`) : null;
+    if (!tower) return heroPose(aspect, out);
+    const p = tower.position;
+    out.position.set(p.x - 14, 40, p.z + 98);
+    out.target.set(p.x, p.y - 10, p.z);
+    out.fov = SHOTS.experience?.fov ?? 40;
+    if (aspect < 1) {
+      out.position.sub(out.target).multiplyScalar(1.2).add(out.target);
+      out.fov = Math.min(62, out.fov * 1.3);
+    }
+    return out;
+  };
+
+  return { poseOf, goal, open, routePose };
 }
