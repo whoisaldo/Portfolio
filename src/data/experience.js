@@ -8,8 +8,8 @@
 //     only once the internship closed out and produced real ones.
 //   - The copy is drawn from the internship close-out summary but stated at
 //     the level of the public resume. Internal review IDs, account numbers,
-//     incident figures and launch timing stay out. Keep it that way when
-//     editing this entry.
+//     API and internal service names, incident impact and launch timing
+//     stay out. Keep it that way when editing this entry.
 //
 // The Philips case study is the strongest content on the site: a real
 // two-attempt arc that documents its own failed first approach. Preserved
@@ -197,10 +197,10 @@ export const experiences = [
     logo: awsLogo,
     accent: "#FF9900",
     description:
-      "SDE intern on the CloudFormation Registry, the control plane behind the resource types CloudFormation can provision. My project, owned end to end from low-level design through production infrastructure: policy-based sharing of private resource types across an AWS Organization. Before it, an enterprise reusing a private type re-registered it in every account, a pattern that had cloned one resource type into 8,000+ accounts across 8 regions; now the org's management account publishes one ALLOW/DENY policy and every permitted account references the type by bare name. Nothing to install, and a consumer's own type always wins, so turning sharing on can never break an existing workload. Shipped in production Java across 12 merged code reviews as two new APIs, a DynamoDB table and DAO, an IAM-style deny-by-default policy evaluator, and org-aware type resolution on the service's read paths. All of it merged, with the launch landing after my term ended.",
+      "SDE intern on the CloudFormation Registry, the control plane behind the resource types CloudFormation can provision. My project, owned end to end from low-level design through production infrastructure: policy-based sharing of private resource types across an AWS Organization. Before it, an enterprise reusing a private type re-registered it in every account, a pattern that had cloned one resource type into 8,000+ accounts across 8 regions; now the org's management account publishes one ALLOW/DENY policy for the whole org, chosen OUs or chosen accounts, and every permitted account references the type by bare name. Nothing to install, and a consumer's own type always wins, so turning sharing on can never break an existing workload. I wrote the design ahead of the usual intern schedule, then shipped it in production Java across 12 merged code reviews as two new APIs, a DynamoDB table and DAO, an IAM-style policy evaluator where deny is the default and an explicit deny beats any allow, and org-aware type resolution on four read paths.",
     metrics: [
       { value: "8,000+", label: "Accounts, 8 regions, one pattern retired" },
-      { value: "~90%", label: "Of DescribeType traffic off the hot read" },
+      { value: "~90%", label: "Of type-lookup traffic off the hot read" },
       { value: "12", label: "Merged code reviews" },
       { value: "2", label: "New public APIs" },
     ],
@@ -208,7 +208,7 @@ export const experiences = [
       {
         title: "Reads ordered by cost, not priority",
         description:
-          "Review caught the org lookup, a strongly consistent uncached read, firing on ~90% of DescribeType traffic that cached tiers already answered. Resolution now tries the cheap tiers first so the expensive read fires only on true misses, and pagination was redesigned to bound the work evaluated rather than the results returned.",
+          "Review caught the org lookup, a strongly consistent uncached read, firing on ~90% of type-lookup traffic that cached tiers already answered. Resolution now tries the cheap tiers first so the expensive read fires only on true misses. The org tier stays uncached on purpose, because a stale allow is a security hole. Pagination was redesigned to bound the work evaluated rather than the results returned.",
       },
       {
         title: "Impersonation made unrepresentable",
@@ -216,14 +216,24 @@ export const experiences = [
           "CloudFormation resolves types by name, not ARN, so the central risk was an attacker sharing a same-named type to a victim. The consumer's lookup is keyed by its own organization, which makes cross-org resolution structurally impossible rather than merely validated away, with resolution order, write-time checks, and a single trusted sharer layered on top.",
       },
       {
+        title: "Tested at the edges",
+        description:
+          "The package gate is 95% line and 100% branch coverage, and every new class reached 100% on both. The policy validator rejects 19 kinds of malformed input, each with an error that names the rule it broke. Past the unit tests: merged integration tests, and 13 of 13 end-to-end scenarios passing against a live service and a real DynamoDB table.",
+      },
+      {
+        title: "Four codebases that were not mine",
+        description:
+          "The org-aware lookup only works in real stack operations if the caller's organization reaches the Registry, and on the way it crosses four services owned by other teams. There was no settled design and no owner. I mapped the call chain through all four, found the hop where the identity was dropped, prototyped more than one way to carry it, and had three changes in cross-team review when my term ended.",
+      },
+      {
         title: "The team's pipeline, nobody's job",
         description:
-          "Beta deployments were blocked for the whole team by an infrastructure defect outside my project's scope, with no owner. Reading the built template instead of trusting the source assumptions surfaced it; the fix shipped the same day.",
+          "Beta deployments were blocked for the whole team by an infrastructure defect outside my project's scope, with no owner. The region data said the region was ready, and deployments failed anyway. Reading the built template instead of trusting the source showed a resource keyed on the region existing rather than on the region being fully set up. I gated it on its own parameters, and the fix shipped the same day.",
       },
       {
         title: "A second opinion for code review",
         description:
-          "Built a native Kiro tool for dual-model AI code review on the side: GPT and Claude critique the same diff in parallel and what they agree on leads the report. Presented it to the entire CloudFormation org, spoke about the workflow at a Kiro launch event, and Kiro put it on their official LinkedIn.",
+          "Built a native Kiro tool for dual-model AI code review on the side: GPT and Claude critique the same diff in parallel and what they agree on leads the report. Presented it to the entire CloudFormation org, spoke about the workflow at a Kiro launch event, and Kiro put it on their official LinkedIn. It went from v1.0 to v1.6 in about three weeks, alongside the main project, and it carries review rules written for the team: the DynamoDB cost checks my own reviewers had flagged now run on every review automatically.",
       },
       {
         title: "An agent that works the ticket",
