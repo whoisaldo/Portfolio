@@ -1107,18 +1107,35 @@ ROAD = [
 
 
 def catmull(points, step=1.0):
+    """The road through `points`, as a Catmull-Rom curve walked at an even
+    `step` metres: sampled densely first, then resampled by arc length, so
+    a long straight next to a tight corner is still a metre a point."""
     pts = [Vector((x, 0.0, z)) for x, z in points]
     ext = [pts[0] * 2 - pts[1]] + pts + [pts[-1] * 2 - pts[-2]]
-    out = []
+    dense = []
     for i in range(1, len(ext) - 2):
         p0, p1, p2, p3 = ext[i - 1], ext[i], ext[i + 1], ext[i + 2]
-        seg = max(2, int((p2 - p1).length / step))
+        seg = max(8, int((p2 - p1).length / 0.1))
         for j in range(seg):
             t = j / seg
             t2, t3 = t * t, t * t * t
             p = 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3)
+            dense.append(p)
+    dense.append(pts[-1])
+    out = [dense[0].copy()]
+    carry = 0.0
+    for a, b in zip(dense, dense[1:]):
+        a = a.copy()
+        length = (b - a).length
+        while carry + length >= step:
+            p = a.lerp(b, (step - carry) / length)
             out.append(p)
-    out.append(pts[-1])
+            length = (b - p).length
+            a = p
+            carry = 0.0
+        carry += length
+    if (out[-1] - pts[-1]).length > 0.05:
+        out.append(pts[-1].copy())
     return out
 
 

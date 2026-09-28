@@ -23,9 +23,12 @@ import { dressHolo, preloadHolo } from "./holo.js";
 import { dressMoon, preloadMoon } from "./moon.js";
 import { createBoards } from "./boards.js";
 import { createTowers } from "./towers.js";
+import { attributeKey, mergeMeshes } from "./merge.js";
 
-/** Layers: 0 is everything, REFLECT is what the wet road mirrors. */
+/** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
+ *  MIRROR_ONLY is drawn in the mirror and nowhere else (the car's stand-in). */
 export const REFLECT_LAYER = 2;
+export const MIRROR_LAYER = 3;
 
 const cache = new Map();
 
@@ -133,6 +136,26 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   shared.uSpillBounds.value.copy(light.bounds);
   road.setStreaks(light.streaks, light.streakBounds);
   paint.setStreaks(light.streaks, light.streakBounds);
+
+  // One draw per material (see merge.js). What the bake needed from the
+  // meshes one by one it has had; from here the kit is static.
+  root.updateMatrixWorld(true);
+  const groups = new Map();
+  for (const mesh of meshes) {
+    const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(mesh);
+  }
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const merged = new THREE.Mesh(mergeMeshes(list, root), list[0].material);
+    merged.name = `kit_${list[0].material.name}`;
+    merged.layers.mask = list[0].layers.mask;
+    merged.renderOrder = list[0].renderOrder;
+    merged.matrixAutoUpdate = false;
+    root.add(merged);
+    for (const mesh of list) mesh.removeFromParent();
+  }
 
   // Placeholders for the named pieces the other modules dress.
   for (const mesh of Object.values(named)) {

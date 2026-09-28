@@ -13,6 +13,7 @@
 // The art is the deck's own 1024-wide WebP (src/data/images.js), nothing
 // generated for the world and nothing that is not Ali's.
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON } from "./glsl.js";
 import { boards as BOARDS } from "../data/world.js";
 
@@ -104,7 +105,8 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
     const index = mesh.userData.board ?? (Number.isFinite(fromName) ? fromName : 0);
     const material = makeMaterial(index === 0 ? 1.25 : 0.9);
     mesh.material = material;
-    mesh.layers.enable(reflectLayer);
+    // Only the big board is worth a place in the wet road's mirror.
+    if (index === 0) mesh.layers.enable(reflectLayer);
     boards.push({ mesh, index, material, showing: -1, t0: 0, swapping: false });
   }
   boards.sort((a, b) => a.index - b.index);
@@ -124,21 +126,20 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
       [t, size.y, bb.min.x - t / 2, c.y],
       [t, size.y, bb.max.x + t / 2, c.y],
     ];
-    const geos = parts.map(([w, h, x, y]) => {
+    const boxes = parts.map(([w, h, x, y]) => {
       const g = new THREE.BoxGeometry(w, h, 0.2);
       g.translate(x, y, bb.max.z + 0.12);
       return g;
     });
+    // Four bars, one draw.
+    const geo = mergeGeometries(boxes, false);
+    boxes.forEach((g) => g.dispose());
     const frameMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(BOARDS[0]?.accent || "#fcee0a").multiplyScalar(2.4) });
     frameMat.name = "board_frame_light";
-    const group = new THREE.Group();
-    geos.forEach((g) => {
-      const m = new THREE.Mesh(g, frameMat);
-      m.layers.enable(reflectLayer);
-      group.add(m);
-    });
+    const group = new THREE.Mesh(geo, frameMat);
+    group.layers.enable(reflectLayer);
     main.mesh.parent.add(group);
-    frame = { group, geos, frameMat };
+    frame = { group, geos: [geo], frameMat };
   }
 
   let clock = 0;

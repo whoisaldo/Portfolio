@@ -41,7 +41,9 @@ import { createContactShadow } from "../three/car/street-contact.js";
 import { PARK_FROM, clamp, poseAt, parkingCurve, coastToStop } from "../three/drift/path.js";
 import { createLamps, createGroundLight } from "../three/drift/lamps.js";
 import { createRig, createDrift } from "../three/drift/rig.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { SHOTS } from "../data/world.js";
+import { attributeKey, mergeMeshes } from "./merge.js";
 
 const FOLLOW = 4; // 1/s: how closely the car follows its goal
 const VMAX = 160; // m/s: the most a single frame may ask of it
@@ -53,13 +55,88 @@ const smoothstep = (a, b, x) => {
 };
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
-export function createCar(scene, renderer, { road, anchors, light, layer }) {
+// The nodes the rig moves. Everything else on the car is rigid.
+const RIG = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "steer_fr"];
+
+/**
+ * The S4 in fewer draws: every mesh merged with the others that share its
+ * material and the rig node that carries it (a wheel, a knuckle, or the
+ * body), so the wheels still turn and steer. About 150 parts become about
+ * 45 draws. Returns the new geometries, for dispose().
+ */
+function slim(car) {
+  car.updateMatrixWorld(true);
+  const rigNodes = new Set(RIG.map((n) => car.getObjectByName(n)).filter(Boolean));
+  const ownerOf = (o) => {
+    for (let p = o.parent; p && p !== car; p = p.parent) if (rigNodes.has(p)) return p;
+    return car;
+  };
+  const groups = new Map();
+  car.traverse((o) => {
+    if (!o.isMesh || rigNodes.has(o) || Array.isArray(o.material)) return;
+    const owner = ownerOf(o);
+    const key = `${owner.uuid}|${o.material.uuid}|${attributeKey(o.geometry)}|${o.renderOrder}`;
+    if (!groups.has(key)) groups.set(key, { owner, meshes: [] });
+    groups.get(key).meshes.push(o);
+  });
+  const made = [];
+  for (const { owner, meshes } of groups.values()) {
+    if (meshes.length < 2) continue;
+    const geometry = mergeMeshes(meshes, owner);
+    const mesh = new THREE.Mesh(geometry, meshes[0].material);
+    mesh.renderOrder = meshes[0].renderOrder;
+    owner.add(mesh);
+    for (const m of meshes) m.removeFromParent();
+    made.push(geometry);
+  }
+  return made;
+}
+
+/**
+ * The car as the wet road's mirror needs it: one mesh, one draw, in the
+ * car's own space, coloured by each part's paint and lit by the car's
+ * lights. The reflection is blurred down the road; its wheels do not need
+ * to turn.
+ */
+function mirrorStandIn(car) {
+  car.updateMatrixWorld(true);
+  const parts = [];
+  const tint = new THREE.Color();
+  car.traverse((o) => {
+    if (!o.isMesh || Array.isArray(o.material)) return;
+    const m = o.material;
+    // Clear lenses and glass let the paint behind them show: leave them out.
+    if (m.transparent && (m.opacity ?? 1) < 0.5) return;
+    const g = mergeMeshes([o], car, ["position", "normal"]);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    tint.copy(m.color ?? new THREE.Color(0.2, 0.2, 0.2)).multiplyScalar(1 - 0.55 * (m.metalness ?? 0));
+    if (m.emissive && (m.emissiveIntensity ?? 1) > 0) tint.add(m.emissive.clone().multiplyScalar(m.emissiveIntensity ?? 1));
+    const n = g.attributes.position.count;
+    const color = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) tint.toArray(color, i * 3);
+    g.setAttribute("color", new THREE.BufferAttribute(color, 3));
+    parts.push(g);
+  });
+  const geometry = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  material.name = "car_mirror";
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = "car_mirror";
+  return mesh;
+}
+
+export function createCar(scene, renderer, { road, anchors, light, layer, mirrorLayer }) {
   const car = createObject();
   car.name = "ali_s4_world";
   const rig = createRig(car);
+  // The mirror gets a one-draw stand-in; the real car is drawn once.
+  const standIn = mirrorStandIn(car);
+  standIn.layers.set(mirrorLayer);
+  car.add(standIn);
+  const slimmed = slim(car);
   car.traverse((o) => {
     if (o.isMesh) {
-      o.layers.enable(layer);
       o.castShadow = false;
       o.receiveShadow = false;
     }
@@ -378,6 +455,9 @@ export function createCar(scene, renderer, { road, anchors, light, layer }) {
 
     dispose() {
       scene.remove(car, lights);
+      slimmed.forEach((g) => g.dispose());
+      standIn.geometry.dispose();
+      standIn.material.dispose();
       shadow.dispose();
       lamps.dispose();
       ground.dispose();

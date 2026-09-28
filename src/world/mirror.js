@@ -33,7 +33,7 @@ const BLUR_FRAG = /* glsl */ `
   }
 `;
 
-export function createMirror(renderer, { size = 512, layer = 2, clipBias = 0.02 } = {}) {
+export function createMirror(renderer, { size = 512, layers = [2], clipBias = 0.02 } = {}) {
   const opts = { type: THREE.HalfFloatType, samples: 0, depthBuffer: true };
   const target = new THREE.WebGLRenderTarget(size, size, opts);
   const blurred = new THREE.WebGLRenderTarget(size, size, { ...opts, depthBuffer: false });
@@ -58,7 +58,8 @@ export function createMirror(renderer, { size = 512, layer = 2, clipBias = 0.02 
     renderer.render(blurScene, blurCam);
   };
   const cam = new THREE.PerspectiveCamera();
-  cam.layers.set(layer);
+  cam.layers.set(layers[0]);
+  for (const l of layers.slice(1)) cam.layers.enable(l);
   const matrix = new THREE.Matrix4();
   const plane = new THREE.Plane();
   const normal = new THREE.Vector3(0, 1, 0);

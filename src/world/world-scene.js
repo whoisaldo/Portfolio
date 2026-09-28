@@ -24,7 +24,7 @@ import { stage, subscribeStage } from "./stage.js";
 import { createShots, makePose, copyPose, heroPose, clamp, easeInOut } from "./shots.js";
 import { TIERS, ADAPT } from "./quality.js";
 import { createSharedUniforms } from "./glsl.js";
-import { createCity, preloadCity, REFLECT_LAYER } from "./city.js";
+import { createCity, preloadCity, REFLECT_LAYER, MIRROR_LAYER } from "./city.js";
 import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
 import { createMirror } from "./mirror.js";
@@ -64,6 +64,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // Tone mapping is the last effect in the post chain (src/world/post.js).
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.toneMappingExposure = 1.0;
+  // Counted per frame (every pass: mirror, scene, post), not per render call.
+  renderer.info.autoReset = false;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050506);
@@ -78,7 +80,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let traffic = null;
   let car = null;
   let shafts = null;
-  let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layer: REFLECT_LAYER }) : null;
+  let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality);
 
   const building = createCity(scene, renderer, shared, { tier, quality, reduced }).then((c) => {
@@ -91,7 +93,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const size = shelter?.extras?.size;
     if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER });
-    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER });
+    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER });
     shafts = createShafts(scene, c.anchors, shared);
     return c;
   });
@@ -259,6 +261,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let timeIndex = 0;
 
   const draw = (dt) => {
+    renderer.info.reset();
     clock += dt;
     shared.uTime.value = clock;
     shared.uCam.value.copy(camera.position);
