@@ -47,6 +47,9 @@ export const stage = {
   route: { kind: "home" },
   // "off" | "loading" | "ready" | "failed": the live world, not the poster.
   status: "off",
+  // "stage" while the scroll drives the camera; "cinematic" while the intro
+  // does (src/components/IntroCinematic.jsx), when the world's own loop rests.
+  mode: "stage",
   // Why the world is hidden right now: a Set of keys.
   covers: new Set(),
   // Bumped whenever the page is re-measured.

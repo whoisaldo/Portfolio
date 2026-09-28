@@ -30,7 +30,9 @@ export default function Hero() {
       className="relative min-h-[100svh] flex flex-col justify-center gutter pt-32 pb-16 overflow-hidden"
     >
       <div className="absolute inset-x-0 top-0 h-[100svh] pointer-events-none" aria-hidden="true">
-        <NightCity className="absolute inset-0 block" />
+        {/* The plate. With the live city behind the page (src/world) the
+            poster there takes its place, and this one steps aside. */}
+        <NightCity className="absolute inset-0 block world-hide" />
         <div className="absolute inset-0 bg-gradient-to-r from-ink/90 via-ink/65 to-ink/35" />
         <div className="absolute inset-0 bg-gradient-to-b from-ink/25 via-transparent to-ink" />
       </div>

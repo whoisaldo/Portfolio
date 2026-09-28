@@ -1116,6 +1116,26 @@ a:hover .ink-underline,
 }
 
 /* ===========================================================================
+   The city behind the page
+   ---------------------------------------------------------------------------
+   src/world/WorldMount.jsx. A fixed layer behind everything: the plate as a
+   poster, the live canvas over it, and a black scrim over both whose opacity
+   the scroll stage writes as --world-dim on the scrim alone. While it is on,
+   <html data-world="on"> makes the sections that used to paint carbon black
+   let it through (`.world-clear`) and the hero drop its own copy of the
+   plate (`.world-hide`). Panels keep their fills: text in a panel reads
+   exactly as it did. Off, nothing here applies and the page is the page it
+   was.
+   =========================================================================== */
+.world-poster { transition: opacity 0.6s ease, visibility 0s linear 0s; }
+.world-poster.is-covered { opacity: 0; visibility: hidden; transition: opacity 0.6s ease 0.6s, visibility 0s linear 1.2s; }
+.world-canvas { opacity: 0; transition: opacity 0.6s ease; }
+.world-canvas.is-live { opacity: 1; }
+.world-scrim { background: #000; opacity: var(--world-dim, 0); }
+html[data-world="on"] .world-clear { background-color: transparent; }
+html[data-world="on"] .world-hide { display: none; }
+
+/* ===========================================================================
    The living skyline
    ---------------------------------------------------------------------------
    Used by src/components/Skyline.jsx, behind the hero. Everything here is

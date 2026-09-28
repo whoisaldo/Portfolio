@@ -41,6 +41,15 @@ export const SHOTS = {
   contact: { dim: 0, fov: 42, car: "bay" },
 };
 
+/**
+ * Where the garage flight ends: GarageModel's `front` preset and lens
+ * (PRESETS.front and the 48 degree camera in src/lib/garage-scene.js), in the
+ * car's own space. Copied rather than imported, because importing that
+ * module would pull the whole interactive garage into the city's chunk;
+ * check:world fails if the two ever disagree.
+ */
+export const GARAGE_FRONT = { position: [3.6, 1.75, 5.8], target: [0, 1.4, -1], fov: 48 };
+
 /** Every section has a shot. check:world asserts the same thing against the
  *  anchors in the GLB. */
 export const shotIds = sections.map((s) => s.id);

@@ -44,7 +44,7 @@ export default function ExperienceIndex() {
   const [current, ...rest] = experiences;
 
   return (
-    <section id="experience" data-shot="experience" className="relative gutter py-28 md:py-36 bg-ink">
+    <section id="experience" data-shot="experience" className="relative gutter py-28 md:py-36 bg-ink world-clear">
       <header className="rail-clear mb-14 md:mb-16">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
           <div>

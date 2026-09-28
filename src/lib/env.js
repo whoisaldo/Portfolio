@@ -24,6 +24,7 @@ import { useSyncExternalStore } from "react";
 const KEY = "aly.env.v1";
 
 export const FX = {
+  world: "the city behind the page",
   signs: "the skyline's signage",
   haze: "the haze drifting across the city",
   wet: "the wet road and its reflections",
@@ -37,8 +38,10 @@ const DEFAULTS = Object.fromEntries(Object.keys(FX).map((k) => [k, true]));
 
 /** What a browser without graphics acceleration can afford. The signage
  *  stays: it is painted once and holds still. Everything that blends, blurs
- *  or repaints every frame goes. */
+ *  or repaints every frame goes, and the live city behind the page goes
+ *  first, back to the still plate it replaced. */
 export const LOW_POWER = {
+  world: false,
   haze: false,
   wet: false,
   reactive: false,
