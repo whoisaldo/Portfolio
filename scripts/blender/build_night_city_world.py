@@ -948,7 +948,7 @@ for i, (slug, height) in enumerate(TOWERS):
     for j in range(4):
         (ax_, az_), (bx_, bz_) = ring[j], ring[(j + 1) % 4]
         base = len(verts)
-        for (px_, pz_), yy in (((ax_, az_), top + 0.4), ((bx_, bz_), top + 0.4), ((bx_, bz_), top + 3.2), ((ax_, az_), top + 3.2)):
+        for (px_, pz_), yy in (((ax_, az_), top + 0.4), ((bx_, bz_), top + 0.4), ((bx_, bz_), top + 5.6), ((ax_, az_), top + 5.6)):
             verts.append(P(tx + px_ * 1.02, yy, tz + pz_ * 1.02))
         faces.append((base, base + 1, base + 2, base + 3))
         uvs += [(0, 0), (1, 0), (1, 1), (0, 1)]
@@ -997,7 +997,7 @@ for (cx, cz, h) in ((458.0, -296.0, 14.0), (482.0, -262.0, 9.0), (466.0, -262.0,
     cylinder((RF, "neon_red", 0), cx, cz, RH + h, RH + h + 0.35, 0.16, segs=8)
 # Rooftop signs are double-sided: they face the street, and the roof sees
 # their other side.
-RIPPER = (460.0, RH + 4.4, -291.0, math.radians(33))
+RIPPER = (457.0, RH + 4.4, -283.0, math.radians(38))
 rx_, ry_, rz_, ryaw = RIPPER
 sign("ripperdoc", rx_, ry_, rz_, 9.0, 2.2, ryaw, double=True, preview="+ RIPPERDOC", district=RF)
 for du in (-3.2, 3.2):
@@ -1044,8 +1044,13 @@ box((GA, "neon_yellow", 0), GX0 - 0.12, GX0 - 0.08, 0.1, DOOR_H, DOOR_Z1 + 0.05,
 # overhead, so from GarageModel's front preset magenta is on the left.
 box((GA, "neon_pink", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ1 - 0.62, GZ1 - 0.5, scale=1.0)
 box((GA, "neon_cyan", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ0 + 0.5, GZ0 + 0.62, scale=1.0)
+# The washes the strips throw: wide soft panels high on each wall, which is
+# what lights the room in the garage's own scene.
+box((GA, "neon_pink", 0), GX0 + 3, GX1 - 3, 4.4, 6.8, GZ1 - 0.56, GZ1 - 0.52, scale=1.0)
+box((GA, "neon_cyan", 0), GX0 + 3, GX1 - 3, 4.4, 6.8, GZ0 + 0.52, GZ0 + 0.56, scale=1.0)
 for z in (-219.5, -210.5):
     box((GA, "neon_white", 0), GX0 + 3, GX1 - 3, GH - 0.42, GH - 0.36, z - 0.06, z + 0.06, scale=1.0)
+    box((GA, "neon_white", 0), GX0 + 3, GX1 - 3, GH - 0.36, GH - 0.33, z - 0.9, z + 0.9, scale=1.0)
 box((GA, "metal", 1), GX1 - 1.4, GX1 - 0.5, 0, 0.95, -224, -206, scale=0.8)
 box((GA, "neon_amber", 1), GX1 - 0.56, GX1 - 0.5, 2.4, 2.46, -224, -206, scale=1.0)
 empty("anchor_garage_bay", BAY, yaw=math.pi / 2)
@@ -1070,7 +1075,7 @@ cylinder((GA, "neon_red", 0), 472.0, -226.0, GH + 7.0, GH + 7.3, 0.14, segs=8)
 
 # The moon: a huge disc over the southern skyline, which only the Contact
 # shot looks at. The site maps the intro's own moon image onto it.
-MOON = (900.0, 250.0, 560.0, 150.0)
+MOON = (760.0, 330.0, 440.0, 150.0)
 mx, my, mz, mr = MOON
 to_cam = Vector((458.0 - mx, 12.0 - my, -206.0 - mz)).normalized()
 moon_yaw = math.atan2(to_cam.x, to_cam.z)
@@ -1156,14 +1161,14 @@ def bay_point(local):
 hero_pos, hero_tgt = hero_camera(1.6)
 SHOT_CAMERAS = {
     "hero": (hero_pos, hero_tgt),
-    "projects": ((70.0, 26.0, -174.0), (79.0, 23.0, -263.0)),
+    "projects": ((73.0, 13.0, -204.0), (79.0, 27.0, -263.0)),
     "experience": ((140.0, 46.0, -262.0), (152.0, 96.0, -360.0)),
     "experience_b": ((378.0, 46.0, -262.0), (390.0, 96.0, -360.0)),
     "about": ((476.0, 37.4, -266.0), (380.0, 44.0, -318.0)),
     "stack": ((476.0, 37.4, -266.0), (380.0, 46.0, -312.0)),
     "stack_b": (None, (380.0, 38.0, -214.0)),
     "garage": (bay_point(GARAGE_FRONT[0]), bay_point(GARAGE_FRONT[1])),
-    "contact": ((456.0, 10.4, -203.0), (500.0, 26.0, -118.0)),
+    "contact": ((456.0, 10.4, -203.0), (520.0, 58.0, -84.0)),
 }
 for shot, (pos, tgt) in SHOT_CAMERAS.items():
     base, suffix = (shot[:-2], "_b") if shot.endswith("_b") else (shot, "")

@@ -24,7 +24,7 @@
 // `--accent` here is the company's REAL brand colour, unlike the project grid
 // where it encodes status. AWS orange, Philips blue and Northeastern red are
 // identity; changing them to fit a palette would be changing a fact.
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -33,6 +33,7 @@ import { hasWorkPage } from "../data/work";
 import { hexToRgbTriplet } from "../lib/image";
 import Panel from "./ui/Panel";
 import Glitch from "./ui/Glitch";
+import { setActiveRole } from "../world/stage";
 
 const reveal = {
   initial: { opacity: 0, y: 20 },
@@ -42,6 +43,25 @@ const reveal = {
 
 export default function ExperienceIndex() {
   const [current, ...rest] = experiences;
+  const listRef = useRef(null);
+
+  // The card crossing the middle of the viewport is the one being read, and
+  // corpo row lights that organisation's tower (src/world/towers.js).
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || typeof IntersectionObserver === "undefined") return undefined;
+    const seen = new Map();
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) seen.set(e.target, e.isIntersecting);
+      const hits = [...list.querySelectorAll("[data-role]")].filter((el) => seen.get(el));
+      setActiveRole(hits.map((el) => el.dataset.role));
+    }, { rootMargin: "-45% 0px -45% 0px" });
+    list.querySelectorAll("[data-role]").forEach((el) => io.observe(el));
+    return () => {
+      io.disconnect();
+      setActiveRole(null);
+    };
+  }, []);
 
   return (
     <section id="experience" data-shot="experience" className="relative gutter py-28 md:py-36 bg-ink world-clear">
@@ -70,7 +90,7 @@ export default function ExperienceIndex() {
       {/* One grid, five list items. The featured card spans both columns
           rather than living in a wrapper of its own, so the list a screen
           reader announces has five entries in it and not two. */}
-      <ol className="grid gap-5 lg:grid-cols-2 rail-clear">
+      <ol ref={listRef} className="grid gap-5 lg:grid-cols-2 rail-clear">
         <ExperienceCard exp={current} index={0} featured />
         {rest.map((exp, i) => (
           <ExperienceCard
@@ -228,6 +248,7 @@ function ExperienceCard({ exp, index, featured = false }) {
     <motion.li
       {...reveal}
       transition={{ duration: 0.5, delay: Math.min(index, 3) * 0.05 }}
+      data-role={exp.slug}
       style={{ "--accent": hexToRgbTriplet(exp.accent) }}
       className={`h-full ${featured ? "lg:col-span-2" : ""}`}
     >

@@ -21,8 +21,10 @@ const KEEP_OUT = [
   [0, -420, 540, -130], // plaza, corpo row, rooftop, garage
   [-70, 20, 70, 140], // behind the hero camera
 ];
-// Where the moon rises for the Contact shot: towers stay low there.
+// Where the moon rises for the Contact shot: towers stay low there, and
+// near the garage they are not there at all.
 const LOW = [420, -200, 1400, 1300];
+const CLEAR = [440, -200, 760, 200];
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -45,6 +47,7 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
       const x = gx + (r() - 0.5) * cell * 0.5;
       const z = gz + (r() - 0.5) * cell * 0.5;
       if (KEEP_OUT.some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20)) continue;
+      if (x > CLEAR[0] && x < CLEAR[2] && z > CLEAR[1] && z < CLEAR[3]) continue;
       const d = Math.hypot(x - 200, z + 300);
       if (r() < 0.12) continue;
       const w = 16 + r() * 22;
@@ -52,7 +55,7 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
       let h = 24 + Math.pow(r(), 2.2) * 150 + Math.min(80, d * 0.05);
       if (r() < 0.05) h += 90 + r() * 110;
       const [lx0, lz0, lx1, lz1] = LOW;
-      if (x > lx0 && x < lx1 && z > lz0 && z < lz1) h = Math.min(h, 30 + r() * 25);
+      if (x > lx0 && x < lx1 && z > lz0 && z < lz1) h = Math.min(h, 22 + r() * 30);
       p.set(x, h / 2, z);
       s.set(w, h, dd);
       q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, (r() - 0.5) * 0.3);

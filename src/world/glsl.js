@@ -133,18 +133,18 @@ export const WINDOWS = /* glsl */ `
     float paneArea = (m1.x - m0.x) * (m1.y - m0.y);
 
     float r = hash12(cell);
-    float lit = step(r, params.x) * enabled;
+    float lit = step(r, params.x * 0.62) * enabled;
     // One window in a hundred and fifty changes its mind now and then.
     float blink = hash12(cell * 1.73 + 3.1);
     if (blink > 0.993) lit *= step(0.42, fract(uTime * 0.045 + blink * 17.0));
 
     float hv = hash12(cell + 11.3);
-    vec3 wc = mix(vec3(0.42, 0.6, 1.0), vec3(1.0, 0.58, 0.28), params.z);
-    wc = mix(wc, vec3(1.0, 0.3, 0.68), step(0.93, hv) * 0.85);
-    wc = mix(wc, vec3(0.3, 0.95, 0.9), step(0.97, hash12(cell + 2.7)) * 0.8);
-    float interior = 0.5 + 0.5 * smoothstep(m0.y, m1.y, f.y);
-    float blinds = mix(1.0, 0.6 + 0.4 * step(0.5, fract(f.y * 12.0)), step(0.72, hash12(cell + 5.1)));
-    float bright = (0.55 + 0.9 * hv) * interior * blinds * (1.0 + 0.2 * uLevel);
+    vec3 wc = mix(vec3(0.3, 0.46, 1.0), vec3(1.0, 0.46, 0.16), params.z);
+    wc = mix(wc, vec3(1.0, 0.2, 0.6), step(0.93, hv) * 0.85);
+    wc = mix(wc, vec3(0.16, 0.95, 0.85), step(0.97, hash12(cell + 2.7)) * 0.8);
+    float interior = 0.45 + 0.55 * smoothstep(m0.y, m1.y, f.y);
+    float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(f.y * 12.0)), step(0.72, hash12(cell + 5.1)));
+    float bright = (0.18 + 0.5 * hv * hv) * interior * blinds * (1.0 + 0.2 * uLevel);
 
     vec3 spill = spillAt(world);
     vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25;
@@ -158,7 +158,7 @@ export const WINDOWS = /* glsl */ `
     // Past a couple of pixels per window, the cell's average instead of a
     // pattern that shimmers.
     float px = max(fwidth(uv.x), fwidth(uv.y));
-    vec3 avg = mix(wall, mix(glass, wc * 0.8, params.x * enabled), paneArea);
+    vec3 avg = mix(wall, mix(glass, wc * 0.3, params.x * 0.62 * enabled), paneArea);
     float far = smoothstep(0.35, 0.9, px);
     return vec4(mix(detail, avg, far), mix(pane * lit, params.x * paneArea, far));
   }

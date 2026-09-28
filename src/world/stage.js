@@ -37,8 +37,10 @@ export const stage = {
   pointer: { x: 0, y: 0 },
   // Index into featuredProjects of the Work deck's current entry.
   activeProject: 0,
-  // Slug of the role card being read, or null.
+  // Slug of the role card being read, or null; `activeRoles` is every card
+  // crossing the middle of the viewport (two, side by side, on a wide grid).
   activeRole: null,
+  activeRoles: [],
   // The scrim's opacity: 0 is the whole city, 1 is black.
   dim: 0,
   // True while the world is not drawing (tab hidden, or covered).
@@ -113,8 +115,11 @@ export function setActiveProject(index) {
   setStage({ activeProject: index });
 }
 
-export function setActiveRole(slug) {
-  setStage({ activeRole: slug });
+/** One slug, a list of them (a row of cards), or null. */
+export function setActiveRole(slugs) {
+  const list = Array.isArray(slugs) ? slugs : slugs ? [slugs] : [];
+  if (list.join(" ") === stage.activeRoles.join(" ")) return;
+  setStage({ activeRole: list[0] ?? null, activeRoles: list });
 }
 
 if (typeof document !== "undefined") {

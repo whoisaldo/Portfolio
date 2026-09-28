@@ -30,15 +30,22 @@ import { featuredProjects } from "./projects";
  *           progress (0 to 1): "dolly" slides the camera along the vector
  *           between its two anchors' `_a` and `_b` variants, "pan" turns it
  *   car     where the car is: an anchor or a road distance key in the GLB
+ *   via     a named empty the flight in (or out) bends through, where a
+ *           straight line would go through a wall
+ *   portraitBack, portraitFov
+ *           how a phone's narrower frame is met: stand further back along
+ *           the line of sight, open the lens, or both
  */
 export const SHOTS = {
   hero: { dim: 0, fov: 30, car: "curb" },
-  projects: { dim: 0.7, fov: 38, car: "plaza" },
-  experience: { dim: 0.7, fov: 40, move: "dolly", car: "corpo" },
-  about: { dim: 0.7, fov: 42, car: "rooftop" },
-  stack: { dim: 0.7, fov: 42, move: "pan", car: "rooftop" },
-  garage: { dim: 0.7, fov: 48, car: "bay" },
-  contact: { dim: 0, fov: 42, car: "bay" },
+  projects: { dim: 0.7, fov: 38, car: "plaza", portraitBack: 1.15 },
+  experience: { dim: 0.7, fov: 40, move: "dolly", car: "corpo", portraitBack: 1.2 },
+  // A rooftop camera cannot step back off its roof: a phone gets the wider
+  // lens instead.
+  about: { dim: 0.7, fov: 42, car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
+  stack: { dim: 0.7, fov: 42, move: "pan", car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
+  garage: { dim: 0.7, fov: 48, car: "bay", via: { in: "cam_garage_door" } },
+  contact: { dim: 0, fov: 42, car: "bay", portraitBack: 1, portraitFov: 1.5, via: { in: "cam_contact_via" } },
 };
 
 /**

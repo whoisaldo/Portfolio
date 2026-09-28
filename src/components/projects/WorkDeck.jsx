@@ -36,6 +36,7 @@ import Panel from "../ui/Panel";
 import { DEMOS } from "../demos";
 import { useFocusTrap, useMediaQuery } from "../../hooks";
 import { hexToRgbTriplet } from "../../lib/image";
+import { coverWorld, setActiveProject } from "../../world/stage";
 
 const pad = (n) => String(n).padStart(2, "0");
 const statusOf = (p) => (p.status === "live" ? "Live" : p.status);
@@ -400,6 +401,16 @@ export default function WorkDeck({ projects }) {
   // hidden from assistive tech while both exist.
   useEffect(() => {
     if (!expanded) setShot(0);
+  }, [expanded]);
+
+  // The city's billboard plaza shows whatever is on this screen, and the
+  // city stops drawing while the deck fills the viewport (src/world).
+  useEffect(() => {
+    setActiveProject(index);
+  }, [index]);
+  useEffect(() => {
+    coverWorld("deck", expanded);
+    return () => coverWorld("deck", false);
   }, [expanded]);
 
   return (

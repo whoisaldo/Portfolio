@@ -57,6 +57,8 @@ import {
 } from "../lib/audio";
 import { prefetchTrack, startAmbient, stopAmbient } from "../lib/ambient";
 import { loadDrift } from "../lib/drift";
+import { prefetchWorld } from "../world/load";
+import { coverWorld } from "../world/stage";
 import { DOOR_OPEN, introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
 import { CRUISE_GAIN, DROP, INTRO_GAIN, LEAVE_SECONDS, SHORT_START, SONG_START } from "../lib/cues";
 import Panel from "./ui/Panel";
@@ -126,7 +128,16 @@ export default function EntryGate({ onEnter }) {
     if (!open) return;
     prefetchTrack();
     if (mode !== "off") loadDrift().catch(() => {});
+    // The city behind the page, too: its chunk and its model, so a reader
+    // who clicks through lands in it rather than on its poster.
+    prefetchWorld();
   }, [open, mode]);
+
+  // Nothing behind a closed door needs drawing.
+  useEffect(() => {
+    coverWorld("door", open);
+    return () => coverWorld("door", false);
+  }, [open]);
 
   // Get audio running as early as the browser will allow, so the glitch has
   // its tick. Two attempts, because there are two kinds of visit:

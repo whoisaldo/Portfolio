@@ -26,6 +26,7 @@ import { TIERS } from "./quality.js";
 import { createSharedUniforms } from "./glsl.js";
 import { createCity, preloadCity, REFLECT_LAYER } from "./city.js";
 import { preloadHolo } from "./holo.js";
+import { preloadMoon } from "./moon.js";
 import { createMirror } from "./mirror.js";
 import { createPost } from "./post.js";
 import { createSkyline } from "./skyline.js";
@@ -36,7 +37,7 @@ import { getLevels } from "../lib/ambient.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
-  await Promise.all([preloadCity(tier), preloadHolo()]);
+  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon()]);
 }
 
 const DEG = Math.PI / 180;
@@ -196,6 +197,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     skyline?.update(camera);
     rain?.update(dt, camera, env.wet);
     traffic?.update(dt, env.traffic);
+    city?.boards.update(dt, stage.activeProject);
+    city?.towers.update(dt, stage.activeRoles);
     if (mirror && city && env.wet) {
       camera.updateMatrixWorld();
       const drew = mirror.render(scene, camera);
@@ -237,6 +240,20 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     last = 0;
   };
 
+  // Before the loop rests (a cover arrives, the intro takes over), draw one
+  // clean frame on the shot it was heading for, so what stays on the canvas
+  // under the scrim is the shot and not a frame of a flight or a glitch.
+  const settle = () => {
+    if (!city || disposed) return;
+    const ids = stage.shots.map((s) => s.id);
+    if (shots && stage.route.kind === "home" && ids.length) shots.goal(ids, stage.position, stage.locals, aspect, want);
+    else heroPose(aspect, want);
+    copyPose(pose, want);
+    applyPose(pose, true);
+    glitch = 0;
+    draw(0);
+  };
+
   // The loop is started and stopped from the stage: covers, visibility and
   // the intro's mode all land there.
   let running = null;
@@ -245,7 +262,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (next === running) return;
     running = next;
     if (running) resume();
-    else pause();
+    else {
+      if (stage.mode !== "cinematic" && !document.hidden) settle();
+      pause();
+    }
   };
   const unwatch = subscribeStage(check);
 

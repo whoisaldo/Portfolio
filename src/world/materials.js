@@ -205,7 +205,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "roof": return surface("roof", { color: "#15161a", ambient: 0.025, spill: 0.5 });
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
       case "door": return surface("door", { color: "#2a2d33", ambient: 0.04 });
-      case "garage_floor": return surface("garage_floor", { color: "#3a3c40", ambient: 0.04, spill: 1.4 });
+      case "garage_floor": return surface("garage_floor", { color: "#4a4c52", ambient: 0.06, spill: 2.2 });
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });
       default: return null;
     }

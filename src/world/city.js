@@ -20,6 +20,9 @@ import { bakeLight } from "./spill.js";
 import { createRoadMaterial } from "./road.js";
 import { createRoad } from "./road-path.js";
 import { dressHolo, preloadHolo } from "./holo.js";
+import { dressMoon, preloadMoon } from "./moon.js";
+import { createBoards } from "./boards.js";
+import { createTowers } from "./towers.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors. */
 export const REFLECT_LAYER = 2;
@@ -41,7 +44,7 @@ export function preloadCity(tier) {
 }
 
 export async function createCity(scene, renderer, shared, { tier, quality, reduced = false }) {
-  const [source] = await Promise.all([preloadCity(tier), preloadHolo()]);
+  const [source] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon()]);
   const root = source.clone(true);
   root.name = "night_city";
   root.updateMatrixWorld(true);
@@ -141,6 +144,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     dressed.push(await dressHolo(named.holo_figure, shared, { reduced }));
     named.holo_figure.layers.enable(REFLECT_LAYER);
   }
+  if (named.moon_disc) dressed.push(await dressMoon(named.moon_disc, shared, { reflectLayer: REFLECT_LAYER }));
+  const boards = createBoards(Object.entries(named).filter(([n]) => n.startsWith("board_")).map(([, m]) => m), shared, { reduced, reflectLayer: REFLECT_LAYER });
+  const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER });
+  dressed.push(boards, towers);
 
   scene.add(root);
 
@@ -153,6 +160,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     anchors,
     named,
     road: path,
+    boards,
+    towers,
     kit,
     roadMaterial: road,
     roadMaterials: [road, paint],
