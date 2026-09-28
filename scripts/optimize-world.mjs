@@ -19,7 +19,7 @@
 // brief are asserted here, so a build that outgrows them fails loudly.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { NodeIO } from "@gltf-transform/core";
+import { NodeIO, PropertyType } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, weld, meshopt, prune, textureCompress } from "@gltf-transform/functions";
 import { MeshoptEncoder } from "meshoptimizer";
@@ -63,7 +63,10 @@ for (const [tier, opts] of Object.entries(TIERS)) {
     // UVs are window cells and their colours are per-building parameters for
     // the site's shaders, which no glTF texture references.
     prune({ keepLeaves: true, keepExtras: true, keepAttributes: true }),
-    dedup(),
+    // Materials are not merged: the site dresses each one by its name, and
+    // two that happen to match in Blender (the garage's walls and the
+    // street's concrete) are lit differently on the site.
+    dedup({ propertyTypes: [PropertyType.ACCESSOR, PropertyType.MESH, PropertyType.TEXTURE] }),
     weld(),
     textureCompress({ encoder: sharp, targetFormat: "webp", resize: [opts.size, opts.size], quality: opts.quality }),
     meshopt({ encoder: MeshoptEncoder, level: "high", quantizePosition: 16, quantizeNormal: 10, quantizeTexcoord: 14 }),

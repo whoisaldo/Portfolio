@@ -29,9 +29,13 @@ import { featuredProjects } from "./projects";
  *   move    how the shot moves while it holds, from the section's own
  *           progress (0 to 1): "dolly" slides the camera along the vector
  *           between its two anchors' `_a` and `_b` variants, "pan" turns it
- *   car     where the car is: an anchor or a road distance key in the GLB
- *   via     a named empty the flight in (or out) bends through, where a
- *           straight line would go through a wall
+ *   car     where the car waits: a stop on the road the car drives (see
+ *           src/world/car.js), from the car_* anchors in the GLB
+ *   via     the named empties the flight in runs through, where a straight
+ *           line would go through a wall
+ *   follow  the flight in looks at the car rather than where it is going
+ *   carLead how far into the flight in (0 to 1) the car reaches this stop;
+ *           0.72 unless it has to be clear of the camera sooner
  *   portraitBack, portraitFov
  *           how a phone's narrower frame is met: stand further back along
  *           the line of sight, open the lens, or both
@@ -44,8 +48,27 @@ export const SHOTS = {
   // lens instead.
   about: { dim: 0.7, fov: 42, car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
   stack: { dim: 0.7, fov: 42, move: "pan", car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
-  garage: { dim: 0.7, fov: 48, car: "bay", via: { in: "cam_garage_door" } },
-  contact: { dim: 0, fov: 42, car: "bay", portraitBack: 1, portraitFov: 1.5, via: { in: "cam_contact_via" } },
+  // Off the roof, down to the street behind the car, across to where the
+  // door lines up with the bay, and in after it: the flight ends on the
+  // garage viewer's own first frame.
+  garage: {
+    dim: 0.7,
+    fov: 48,
+    car: "bay",
+    via: { in: ["cam_garage_edge", "cam_garage_street", "cam_garage_across", "cam_garage_door"] },
+    follow: true,
+    // In the bay before the camera reaches the door.
+    carLead: 0.45,
+  },
+  // Back out of the door and up onto the garage's roof.
+  contact: {
+    dim: 0,
+    fov: 42,
+    car: "bay",
+    portraitBack: 1,
+    portraitFov: 1.5,
+    via: { in: ["cam_contact_door", "cam_contact_via"] },
+  },
 };
 
 /**

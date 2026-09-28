@@ -198,6 +198,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "lantern": return neon("lantern", "#ff4a2a", { intensity: 2.2, flicker: 0 });
       case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1 });
       case "concrete": return surface("concrete", { color: "#6a6c71", map: maps.concrete, ambient: 0.03 });
+      case "garage_wall": return surface("garage_wall", { color: "#7c7e84", map: maps.concrete, ambient: 0.07, spill: 2.2 });
       case "kerb": return surface("kerb", { color: "#4a4c52", ambient: 0.03 });
       case "paint": return surface("paint", { color: "#b9b7ae", ambient: 0.05, spill: 1.3 });
       case "metal": return surface("metal", { color: "#2d3036", ambient: 0.035 });
@@ -205,7 +206,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "roof": return surface("roof", { color: "#15161a", ambient: 0.025, spill: 0.5 });
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
       case "door": return surface("door", { color: "#2a2d33", ambient: 0.04 });
-      case "garage_floor": return surface("garage_floor", { color: "#4a4c52", ambient: 0.06, spill: 2.2 });
+      case "garage_floor": return surface("garage_floor", { color: "#56585e", ambient: 0.09, spill: 2.6 });
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });
       default: return null;
     }

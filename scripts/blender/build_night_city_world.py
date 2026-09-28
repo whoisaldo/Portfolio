@@ -166,6 +166,9 @@ def textured(name, folder, asset, tint=None, rough_scale=1.0, normal=0.6):
 textured("asphalt", TEX, "Asphalt026C", rough_scale=0.35, normal=0.8)
 textured("sidewalk", GARAGE_TEX, "Concrete048", normal=0.4)
 textured("concrete", GARAGE_TEX, "Concrete023", normal=0.5)
+# The garage's own walls: the same concrete, lit brighter on the site, as
+# the garage room is.
+textured("garage_wall", GARAGE_TEX, "Concrete023", normal=0.5)
 # Rails, units, brackets: small and dark, so plain paint rather than three
 # more texture maps in the download.
 material("metal", "34373d", metal=0.55, rough=0.45)
@@ -1027,12 +1030,12 @@ GA = "garage"
 GX0, GX1, GZ0, GZ1, GH = 452.0, 476.0, -230.0, -200.0, 8.0
 DOOR_Z0, DOOR_Z1, DOOR_H = -218.0, -212.0, 4.6
 BAY = (462.0, 0.0, -215.0)
-box((GA, "concrete", 0), GX0, GX0 + 0.5, 0, GH, GZ0, DOOR_Z0, scale=2.0)
-box((GA, "concrete", 0), GX0, GX0 + 0.5, 0, GH, DOOR_Z1, GZ1, scale=2.0)
-box((GA, "concrete", 0), GX0, GX0 + 0.5, DOOR_H, GH, DOOR_Z0, DOOR_Z1, scale=2.0)
-box((GA, "concrete", 0), GX1 - 0.5, GX1, 0, GH, GZ0, GZ1, scale=2.0)
-box((GA, "concrete", 0), GX0, GX1, 0, GH, GZ0, GZ0 + 0.5, scale=2.0)
-box((GA, "concrete", 0), GX0, GX1, 0, GH, GZ1 - 0.5, GZ1, scale=2.0)
+box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, GH, GZ0, DOOR_Z0, scale=2.0)
+box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, GH, DOOR_Z1, GZ1, scale=2.0)
+box((GA, "garage_wall", 0), GX0, GX0 + 0.5, DOOR_H, GH, DOOR_Z0, DOOR_Z1, scale=2.0)
+box((GA, "garage_wall", 0), GX1 - 0.5, GX1, 0, GH, GZ0, GZ1, scale=2.0)
+box((GA, "garage_wall", 0), GX0, GX1, 0, GH, GZ0, GZ0 + 0.5, scale=2.0)
+box((GA, "garage_wall", 0), GX0, GX1, 0, GH, GZ1 - 0.5, GZ1, scale=2.0)
 box((GA, "roof", 0), GX0, GX1, GH - 0.3, GH, GZ0, GZ1, scale=4.0)
 mass(GA, GX0 - 0.02, GX1, GZ0, GZ1, SHOP_H, GH, 8002, faces=("-x", "+z"), roof=False)
 ground((GA, "garage_floor", 0), GX0 + 0.5, GX1 - 0.5, GZ0 + 0.5, GZ1 - 0.5, y=0.01, scale=3.0)
@@ -1054,6 +1057,8 @@ for z in (-219.5, -210.5):
 box((GA, "metal", 1), GX1 - 1.4, GX1 - 0.5, 0, 0.95, -224, -206, scale=0.8)
 box((GA, "neon_amber", 1), GX1 - 0.56, GX1 - 0.5, 2.4, 2.46, -224, -206, scale=1.0)
 empty("anchor_garage_bay", BAY, yaw=math.pi / 2)
+# Under the roof it does not rain: the site's rain skips this box.
+empty("anchor_shelter_garage", (GX0, 0.0, GZ0), props={"size": [GX1 - GX0, GH - 0.3, GZ1 - GZ0]})
 mass(GA, GX0, GX1, -258.0, -232.0, SHOP_H, 22.0, 8101)
 box((GA, "dark", 0), GX0, GX1, 0, SHOP_H, -258.0, -232.0, scale=2.0)
 mass(GA, GX0, GX1, -198.0, -176.0, SHOP_H, 7.0, 8102)
@@ -1087,10 +1092,10 @@ empty("anchor_moon", (mx, my, mz), props={"radius": mr})
 # every metre into the `points` extra on road_spline (world coordinates).
 # ---------------------------------------------------------------------------
 ROAD = [
-    (-8.6, -50.0), (-8.4, -80.0), (-8.2, -110.0), (-8.6, -138.0), (-7.0, -158.0), (-3.0, -171.0), (6.0, -178.0),
-    (30.0, -179.5), (60.0, -180.0), (100.0, -180.0), (115.0, -186.0), (120.0, -200.0), (120.0, -300.0),
-    (124.0, -318.0), (136.0, -328.0), (250.0, -328.0), (420.0, -328.0), (436.0, -322.0), (440.0, -306.0),
-    (440.5, -260.0), (440.0, -228.0), (444.0, -217.0), (452.0, -215.0), (462.0, -215.0),
+    (8.6, -37.0), (8.5, -70.0), (8.4, -100.0), (8.4, -125.0), (8.6, -150.0), (8.8, -166.0), (11.5, -175.5),
+    (18.0, -179.0), (30.0, -179.5), (60.0, -180.0), (100.0, -180.0), (115.0, -186.0), (120.0, -200.0),
+    (120.0, -300.0), (124.0, -318.0), (136.0, -328.0), (250.0, -328.0), (420.0, -328.0), (436.0, -322.0),
+    (440.0, -306.0), (440.5, -260.0), (440.0, -228.0), (444.0, -217.0), (452.0, -215.0), (462.0, -215.0),
 ]
 
 
@@ -1126,12 +1131,14 @@ curve.bevel_depth = 0.08
 link(bpy.data.objects.new(PREFIX + "road_preview", curve), preview_coll)
 
 # Where the car waits for each shot; the site projects these onto the road.
-# The curb mark is two marks: the landscape hero and the portrait hero see
-# different parts of the avenue, and the parked car has to sit clear of the
-# name, the ledger and (on a phone) the photograph in both. Placed by
-# measurement in the browser; see design/night-city-world/README.md.
-empty("anchor_curb_hero", (-8.6, 0.0, -50.0), yaw=math.pi)
-empty("anchor_curb_hero_portrait", (-8.6, 0.0, -138.0), yaw=math.pi)
+# The curb mark is two marks on the right-hand curb: a landscape hero and a
+# portrait hero see different parts of the avenue, and the parked car has to
+# sit clear of the name, the tagline, the ledger and the photograph in both.
+# The left curb was the brief, and it was measured first: at 1440x900 every
+# point of it up to the cross street lands behind the name or the tagline,
+# and at 390x844 behind the photograph. See design/night-city-world/README.md.
+empty("anchor_curb_hero", (8.6, 0.0, -37.0), yaw=math.pi)
+empty("anchor_curb_hero_portrait", (8.4, 0.0, -125.0), yaw=math.pi)
 for key, pos in (("plaza", (80.0, 0.0, -180.0)), ("corpo_a", (150.0, 0.0, -328.0)),
                  ("corpo_b", (378.0, 0.0, -328.0)), ("rooftop", (440.5, 0.0, -275.0)),
                  ("bay", BAY)):
@@ -1175,9 +1182,17 @@ for shot, (pos, tgt) in SHOT_CAMERAS.items():
     if pos is not None:
         empty(f"cam_{base}{suffix}", pos)
     empty(f"cam_{base}_target{suffix}", tgt)
-# Waypoints the flights bend through: in at the garage door, out over it.
-empty("cam_garage_door", (444.0, 2.6, -215.0))
-empty("cam_contact_via", (442.0, 9.0, -213.0))
+# Waypoints the flights run through where a straight line would hit a
+# wall: off the rooftop's edge, down into the street behind the car, across
+# to the far kerb where the open door lines up with the bay, and in at the
+# door past the car's driver side; then back out of the door and up over the
+# garage's parapet for Contact.
+empty("cam_garage_edge", (441.0, 35.5, -266.0))
+empty("cam_garage_street", (437.0, 4.5, -248.0))
+empty("cam_garage_across", (433.0, 2.8, -222.0))
+empty("cam_garage_door", (446.0, 2.3, -216.5))
+empty("cam_contact_door", (447.0, 2.6, -217.3))
+empty("cam_contact_via", (441.0, 9.0, -213.0))
 
 
 def real_camera(name, aspect, pos, tgt, fov=30.0, w=1600):

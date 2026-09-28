@@ -32,7 +32,8 @@
 // restyles one element and not the document.
 import Lenis from "lenis";
 import { attachLenis } from "../lib/scroll";
-import { stage, setStage, subscribeStage } from "./stage";
+import { loadGarage3d } from "../lib/garage3d";
+import { stage, setStage, setHolding, garageCovers, subscribeStage } from "./stage";
 import { shotDim, routeDim, COVER_DIM } from "../data/world";
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -103,6 +104,7 @@ export function startScrollStage({ scrim = null, smooth: useLenis = true } = {})
   let written = -1;
   let dim = 0;
   let last = 0;
+  let garageAsked = false;
 
   const measure = () => {
     const sy = window.scrollY;
@@ -129,12 +131,24 @@ export function startScrollStage({ scrim = null, smooth: useLenis = true } = {})
     let section = shots[0]?.id ?? "hero";
     for (const s of shots) if (s.top <= mid) section = s.id;
     if (section !== stage.section) setStage({ section });
+    const k = Math.round(stage.position);
+    setHolding(Math.abs(stage.position - k) < 0.01 ? shots[k]?.id ?? null : null);
+
+    // The garage's viewer is heavy: start fetching it once the reader is
+    // past Stack, so it is ready by the time the flight lands in the bay.
+    if (!garageAsked) {
+      const stack = shots.findIndex((s) => s.id === "stack");
+      if (stack >= 0 && stage.position > stack) {
+        garageAsked = true;
+        loadGarage3d().catch(() => {});
+      }
+    }
 
     // The dim: the shot's own level on the home page, the route's on a case
     // study, darker still while the garage's viewer has the screen. Damped,
     // so an overlay arriving or a route changing fades rather than cuts.
     let goal = stage.route.kind === "home" ? dimAt(shots, stage.position) : routeDim(stage.route);
-    if (stage.covers.has("garage")) goal = Math.max(goal, COVER_DIM.garage);
+    if (garageCovers()) goal = Math.max(goal, COVER_DIM.garage);
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
     last = now;
     dim += (goal - dim) * (1 - Math.exp(-dt * 6));

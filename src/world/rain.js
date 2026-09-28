@@ -36,6 +36,9 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       uFall: { value: 0 },
       uWind: { value: new THREE.Vector2(-1.4, 0.6) },
       uOpacity: { value: 1 },
+      // A box it does not rain in (the garage, from inside). Empty by default.
+      uShelterMin: { value: new THREE.Vector3(1, 1, 1) },
+      uShelterMax: { value: new THREE.Vector3(0, 0, 0) },
     },
     vertexShader: /* glsl */ `
       ${COMMON}
@@ -44,6 +47,8 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       uniform vec3 uOrigin;
       uniform float uFall;
       uniform vec2 uWind;
+      uniform vec3 uShelterMin;
+      uniform vec3 uShelterMax;
       varying float vA;
       varying vec3 vCol;
       varying vec2 vUv;
@@ -64,6 +69,8 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         gl_Position = projectionMatrix * mv;
         float dist = -mv.z;
         vA = smoothstep(0.5, 3.0, dist) * (1.0 - smoothstep(24.0, 44.0, dist));
+        vec3 inside = step(uShelterMin, p) * step(p, uShelterMax);
+        vA *= 1.0 - inside.x * inside.y * inside.z;
         vCol = vec3(0.16, 0.17, 0.2) + spillAt(p) * 1.4;
         vUv = uv;
       }
@@ -98,6 +105,11 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       if (!reduced) fall += dt;
       material.uniforms.uFall.value = fall;
       material.uniforms.uOrigin.value.copy(camera.position);
+    },
+    /** Keep the rain out of a box (min, max: Vector3). */
+    setShelter(min, max) {
+      material.uniforms.uShelterMin.value.copy(min);
+      material.uniforms.uShelterMax.value.copy(max);
     },
     setCount(n) {
       geometry.instanceCount = Math.min(count, n);

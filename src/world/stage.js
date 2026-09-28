@@ -22,6 +22,10 @@
 // `covers` is the list of reasons the world is hidden: the door, an expanded
 // deck, the console, the garage's own 3D viewer. While any of them is up the
 // world stops drawing, because a frame nobody can see still costs a frame.
+// The garage's viewer is the one exception to "any": it comes on screen
+// while the camera is still flying into the garage, and that flight is the
+// point of the section, so the viewer only covers the city once the flight
+// has landed (`holding` is the shot being held).
 import { useSyncExternalStore } from "react";
 
 export const stage = {
@@ -54,6 +58,8 @@ export const stage = {
   mode: "stage",
   // Why the world is hidden right now: a Set of keys.
   covers: new Set(),
+  // The shot id being held (no flight under way), or null mid-flight.
+  holding: null,
   // Bumped whenever the page is re-measured.
   layout: 0,
 };
@@ -95,7 +101,13 @@ export function subscribeStage(fn) {
 
 function recomputePaused() {
   const hidden = typeof document !== "undefined" && document.hidden;
-  setStage({ paused: hidden || stage.covers.size > 0 });
+  const covered = [...stage.covers].some((key) => key !== "garage" || stage.holding === "garage");
+  setStage({ paused: hidden || covered });
+}
+
+/** Whether the garage's viewer is covering the city right now. */
+export function garageCovers() {
+  return stage.covers.has("garage") && stage.holding === "garage";
 }
 
 /**
@@ -107,6 +119,14 @@ export function coverWorld(key, on) {
   if (on === had) return;
   if (on) stage.covers.add(key);
   else stage.covers.delete(key);
+  recomputePaused();
+  notify();
+}
+
+/** The scroll stage says which shot is being held (null mid-flight). */
+export function setHolding(id) {
+  if (id === stage.holding) return;
+  stage.holding = id;
   recomputePaused();
   notify();
 }

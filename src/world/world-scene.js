@@ -32,12 +32,16 @@ import { createPost } from "./post.js";
 import { createSkyline } from "./skyline.js";
 import { createRain } from "./rain.js";
 import { createTraffic } from "./traffic.js";
+import { createCar } from "./car.js";
+import { createClearance } from "./clearance.js";
+import { LIGHT_BOUNDS } from "./spill.js";
+import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
-  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon()]);
+  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadCar()]);
 }
 
 const DEG = Math.PI / 180;
@@ -69,15 +73,21 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let skyline = null;
   let rain = null;
   let traffic = null;
+  let car = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layer: REFLECT_LAYER }) : null;
   const post = createPost(renderer, scene, camera, quality);
 
   const building = createCity(scene, renderer, shared, { tier, quality, reduced }).then((c) => {
     city = c;
-    shots = createShots(c.anchors);
+    const clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => /^(moon_disc|holo_figure)/.test(o.name));
+    shots = createShots(c.anchors, clearance);
     skyline = createSkyline(scene, shared, { count: tier === "phone" ? 1200 : 2600 });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
+    const shelter = c.anchors.get("anchor_shelter_garage");
+    const size = shelter?.extras?.size;
+    if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER });
+    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER });
     return c;
   });
 
@@ -125,17 +135,27 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
-  const step = (dt) => {
+  // The car first: a flight that follows it looks at where it is now.
+  const driveCar = (dt, jump) => {
+    if (!car) return;
+    const ids = stage.shots.map((x) => x.id);
+    const home = stage.route.kind === "home";
+    car.drive(dt, { ids, position: home ? stage.position : 0, locals: stage.locals, aspect, jump, goal: home ? null : car.u });
+  };
+
+  const aim = () => {
     const ids = stage.shots.map((s) => s.id);
-    if (!shots || stage.route.kind !== "home" || !ids.length) {
-      heroPose(aspect, want);
-    } else {
-      shots.goal(ids, stage.position, stage.locals, aspect, want);
-    }
+    if (!shots || stage.route.kind !== "home" || !ids.length) heroPose(aspect, want);
+    else shots.goal(ids, stage.position, stage.locals, aspect, want, car?.car.position);
+  };
+
+  const step = (dt) => {
     // A jump of more than a shot in one frame is a deep link or a long nav
     // jump: land on it, with a glitch to say so, rather than fly across the
-    // whole city in half a second.
+    // whole city in half a second. The car lands on its stop with it.
     const jumped = Math.abs(stage.position - lastPosition) > 1.2;
+    driveCar(dt, !posed || jumped);
+    aim();
     // Crossing the middle of a flight fires the braindance glitch.
     if (Math.floor(stage.position + 0.5) !== Math.floor(lastPosition + 0.5)) glitch = 1;
     lastPosition = stage.position;
@@ -245,9 +265,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // under the scrim is the shot and not a frame of a flight or a glitch.
   const settle = () => {
     if (!city || disposed) return;
-    const ids = stage.shots.map((s) => s.id);
-    if (shots && stage.route.kind === "home" && ids.length) shots.goal(ids, stage.position, stage.locals, aspect, want);
-    else heroPose(aspect, want);
+    driveCar(0, true);
+    aim();
     copyPose(pose, want);
     applyPose(pose, true);
     glitch = 0;
@@ -317,6 +336,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       skyline?.dispose();
       rain?.dispose();
       traffic?.dispose();
+      car?.dispose();
     }).catch(() => {});
     mirror?.dispose();
     mirror = null;
@@ -367,7 +387,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       ctx.putImageData(img, 0, 0);
       return c.toDataURL("image/png");
     };
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, post, dumpMirror };
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, post, dumpMirror };
   }
 
   return {

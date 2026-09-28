@@ -1,6 +1,53 @@
 import * as THREE from "three";
 import { Reflector } from "three/addons/objects/Reflector.js";
 
+// The soft dark footprint under the car: a chassis and four tyre patches,
+// drawn on the ground and carried by the car's position and heading. The
+// live city uses it on its own (its road has its own reflection).
+export function createContactShadow(scene, car) {
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.4, 5.9),
+    new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec2 vUv;
+        void main() {
+          vec2 p = abs(vUv - 0.5) * vec2(3.4, 5.9);
+          float chassis = 1.0 - smoothstep(0.0, 0.65, max(p.x - 0.82, p.y - 1.82));
+          float tyre = 1.0 - smoothstep(0.05, 0.32, length(p - vec2(0.85, 1.35)));
+          gl_FragColor = vec4(0.006, 0.009, 0.013, max(chassis * 0.48, tyre * 0.72));
+        }
+      `,
+    }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.016;
+  shadow.renderOrder = -2;
+  const contact = new THREE.Group();
+  contact.add(shadow);
+  scene.add(contact);
+
+  return {
+    update() {
+      contact.position.set(car.position.x, 0, car.position.z);
+      contact.rotation.y = car.rotation.y;
+    },
+    dispose() {
+      contact.removeFromParent();
+      shadow.geometry.dispose();
+      shadow.material.dispose();
+    },
+  };
+}
+
 // The city is rendered offline. Only the moving car needs a reflection
 // pass; layer 1 excludes the smoke, beam sprites and screen-space effects.
 export function createStreetContact(scene, camera, car) {
@@ -60,47 +107,17 @@ export function createStreetContact(scene, camera, car) {
   reflection.getReflectionCamera(camera).layers.set(1);
   scene.add(reflection);
 
-  const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.4, 5.9),
-    new THREE.ShaderMaterial({
-      transparent: true,
-      depthWrite: false,
-      vertexShader: `
-        varying vec2 vUv;
-        void main() {
-          vUv = uv;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec2 vUv;
-        void main() {
-          vec2 p = abs(vUv - 0.5) * vec2(3.4, 5.9);
-          float chassis = 1.0 - smoothstep(0.0, 0.65, max(p.x - 0.82, p.y - 1.82));
-          float tyre = 1.0 - smoothstep(0.05, 0.32, length(p - vec2(0.85, 1.35)));
-          gl_FragColor = vec4(0.006, 0.009, 0.013, max(chassis * 0.48, tyre * 0.72));
-        }
-      `,
-    }),
-  );
-  shadow.rotation.x = -Math.PI / 2;
-  shadow.position.y = 0.016;
-  shadow.renderOrder = -2;
-  const contact = new THREE.Group();
-  contact.add(shadow);
-  scene.add(contact);
+  const shadow = createContactShadow(scene, car);
 
   return {
     update(wet) {
-      contact.position.set(car.position.x, 0, car.position.z);
-      contact.rotation.y = car.rotation.y;
+      shadow.update();
       reflection.visible = wet;
     },
     dispose() {
       reflection.geometry.dispose();
       reflection.dispose();
-      shadow.geometry.dispose();
-      shadow.material.dispose();
+      shadow.dispose();
     },
   };
 }

@@ -13,11 +13,18 @@
 // The garage is GarageModel's `front` preset, re-expressed in the car's bay:
 // the flight ends where the interactive viewer begins.
 //
-// Between two shots the camera flies. The path is a quadratic curve from one
-// pose to the next, lifted over the rooftops by an arc proportional to the
-// distance, or bent through a named waypoint when the straight line would go
-// through a wall (into the garage, out of it). The easing is symmetric so the
-// middle of the flight, where the glitch peaks, is the middle of the scroll.
+// Between two shots the camera flies. In the open it goes up, across and
+// down: a cubic whose inner control points stand above the two shots, so it
+// rises out of a street before it travels and travels before it descends
+// into the next one, lifted by at least an arc proportional to the distance
+// and by whatever the city under its line needs (src/world/clearance.js
+// knows how tall every block is). Where no height would do (down off the
+// rooftop into a street, in at the garage door, out of it) the flight names
+// its waypoints instead, empties in the kit, and the camera runs a
+// centripetal Catmull-Rom curve through them at an even speed, looking at
+// the shot it is heading for, or at the car when the flight follows it. The
+// easing is symmetric so the middle of the flight, where the glitch peaks,
+// is the middle of the scroll.
 import * as THREE from "three";
 import { SHOTS, GARAGE_FRONT } from "../data/world.js";
 
@@ -26,6 +33,33 @@ const APEX_Z = 5.6;
 
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const smoothstep = (a, b, x) => {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+const _a1 = new THREE.Vector3();
+const _a2 = new THREE.Vector3();
+const _a3 = new THREE.Vector3();
+const _b1 = new THREE.Vector3();
+const _b2 = new THREE.Vector3();
+
+/** One segment of a centripetal Catmull-Rom curve (Barry and Goldman),
+ *  from p1 to p2 at u in 0..1, written into `out`. */
+function catmullRom(p0, p1, p2, p3, u, out) {
+  const t0 = 0;
+  const t1 = t0 + Math.max(1e-4, Math.sqrt(p0.distanceTo(p1)));
+  const t2 = t1 + Math.max(1e-4, Math.sqrt(p1.distanceTo(p2)));
+  const t3 = t2 + Math.max(1e-4, Math.sqrt(p2.distanceTo(p3)));
+  const t = t1 + (t2 - t1) * u;
+  const mix = (o, a, b, ta, tb) => o.copy(a).multiplyScalar((tb - t) / (tb - ta)).addScaledVector(b, (t - ta) / (tb - ta));
+  mix(_a1, p0, p1, t0, t1);
+  mix(_a2, p1, p2, t1, t2);
+  mix(_a3, p2, p3, t2, t3);
+  mix(_b1, _a1, _a2, t0, t2);
+  mix(_b2, _a2, _a3, t1, t3);
+  return mix(out, _b1, _b2, t1, t2);
+}
 
 /** A camera pose: where it is, what it looks at, and its lens. */
 export function makePose() {
@@ -79,9 +113,10 @@ export function garagePose(bay, aspect, out = makePose()) {
 
 /**
  * Shot poses from anchors. `anchors` maps a node name to
- * { position: Vector3, quaternion: Quaternion }.
+ * { position: Vector3, quaternion: Quaternion }; `clearance` is the city's
+ * height field (optional).
  */
-export function createShots(anchors) {
+export function createShots(anchors, clearance = null) {
   const has = (name) => anchors.has(name);
   const at = (name) => anchors.get(name).position;
 
@@ -119,14 +154,35 @@ export function createShots(anchors) {
   const A = makePose();
   const B = makePose();
   const _c = new THREE.Vector3();
-  const _v = new THREE.Vector3();
+  const _end = new THREE.Vector3();
+  const pts = [];
+  const ghostA = new THREE.Vector3();
+  const ghostB = new THREE.Vector3();
+  const cum = [];
+
+  // A point `e` (0..1, by distance) along the curve through `pts`.
+  const along = (e, out) => {
+    const n = pts.length;
+    cum.length = n;
+    cum[0] = 0;
+    for (let k = 1; k < n; k++) cum[k] = cum[k - 1] + pts[k].distanceTo(pts[k - 1]);
+    const total = cum[n - 1] || 1;
+    const d = clamp(e, 0, 1) * total;
+    let k = 0;
+    while (k < n - 2 && cum[k + 1] < d) k++;
+    const u = clamp((d - cum[k]) / Math.max(1e-6, cum[k + 1] - cum[k]), 0, 1);
+    const p0 = k === 0 ? ghostA.copy(pts[0]).multiplyScalar(2).sub(pts[1]) : pts[k - 1];
+    const p3 = k + 2 >= n ? ghostB.copy(pts[n - 1]).multiplyScalar(2).sub(pts[n - 2]) : pts[k + 2];
+    return catmullRom(p0, pts[k], pts[k + 1], p3, u, out);
+  };
 
   /**
    * The camera's goal for a stage position. `ids` are the shot ids in page
-   * order, `locals` their progress. Writes into `out`, returns the flight's
+   * order, `locals` their progress, `focus` where the car is (a flight that
+   * follows it looks at it). Writes into `out`, returns the flight's
    * progress (0 while holding, peaking at 1 mid-flight) for the glitch.
    */
-  const goal = (ids, position, locals, aspect, out) => {
+  const goal = (ids, position, locals, aspect, out, focus = null) => {
     const n = ids.length;
     if (!n) return 0;
     const i = clamp(Math.floor(position), 0, n - 1);
@@ -139,24 +195,50 @@ export function createShots(anchors) {
     }
     poseOf(ids[j], locals[j] ?? 0, aspect, B);
     const e = easeInOut(f);
-
-    // The control point: through a named waypoint when this flight has one,
-    // otherwise the midpoint lifted by an arc that clears the rooftops.
-    const via = SHOTS[ids[j]]?.via?.in ?? SHOTS[ids[i]]?.via?.out;
-    if (via && has(via)) {
-      // A quadratic curve through the waypoint at its middle.
-      _c.copy(at(via)).multiplyScalar(2).sub(_v.copy(A.position).add(B.position).multiplyScalar(0.5));
-    } else {
-      const d = A.position.distanceTo(B.position);
-      _c.copy(A.position).add(B.position).multiplyScalar(0.5);
-      _c.y += clamp(d * 0.28, 0, 70);
-    }
-    const u = 1 - e;
-    out.position.copy(A.position).multiplyScalar(u * u)
-      .addScaledVector(_c, 2 * u * e)
-      .addScaledVector(B.position, e * e);
-    out.target.copy(A.target).lerp(B.target, e);
     out.fov = A.fov + (B.fov - A.fov) * e;
+
+    // A flight with named waypoints: through them, looking at the next
+    // shot's target (or at the car) in the middle, and at the two shots' own
+    // targets at the ends.
+    const into = SHOTS[ids[j]]?.via?.in;
+    const vias = (Array.isArray(into) ? into : into ? [into] : []).filter(has);
+    if (vias.length) {
+      pts.length = 0;
+      pts.push(A.position, ...vias.map(at), B.position);
+      along(e, out.position);
+      _end.copy(A.target).lerp(B.target, e);
+      const follows = SHOTS[ids[j]]?.follow && focus;
+      if (follows) _c.copy(focus).setY(focus.y + 0.9);
+      else _c.copy(B.target);
+      const w = smoothstep(0, 0.3, e) * (1 - smoothstep(0.72, 1, e));
+      out.target.copy(_end).lerp(_c, w);
+      return Math.sin(Math.PI * f);
+    }
+
+    // In the open: up, across and down.
+    const d = A.position.distanceTo(B.position);
+    let h = clamp(d * 0.19, 0, 47);
+    if (clearance && d > 1) {
+      for (let k = 1; k < 32; k++) {
+        const t = k / 32;
+        const w = t * t * (3 - 2 * t);
+        const x = A.position.x + (B.position.x - A.position.x) * w;
+        const z = A.position.z + (B.position.z - A.position.z) * w;
+        // Right beside either shot the camera is where that shot put it.
+        const nearA = Math.hypot(x - A.position.x, z - A.position.z);
+        const nearB = Math.hypot(x - B.position.x, z - B.position.z);
+        if (Math.min(nearA, nearB) < 12) continue;
+        const base = A.position.y * (1 - w) + B.position.y * w;
+        h = Math.max(h, (clearance.at(x, z) + 8 - base) / (3 * t * (1 - t)));
+      }
+      h = Math.min(h, 240);
+    }
+    const w = e * e * (3 - 2 * e);
+    out.position.lerpVectors(A.position, B.position, w);
+    out.position.y += 3 * e * (1 - e) * h;
+    // The eye turns to the next shot early, so the middle of a flight looks
+    // at where it is going rather than down at the roofs it is crossing.
+    out.target.copy(A.target).lerp(B.target, smoothstep(0, 0.65, e));
     return Math.sin(Math.PI * f);
   };
 
