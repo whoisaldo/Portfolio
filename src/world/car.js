@@ -66,9 +66,11 @@ export function createCar(scene, renderer, { road, anchors, light, layer }) {
   });
   scene.add(car);
   const shadow = createContactShadow(scene, car);
-  const lamps = createLamps(car, { depthTest: true, lift: 0.5, layer, reverse: true, directional: true, glow: 0.55, near: [6, 16] });
-  const ground = createGroundLight(scene, { size: 70, fade: [14, 34], y: 0.03, follow: true });
-  const drift = createDrift(scene, car, rig);
+  // The city is darker than the plate the drift was tuned over, and it has
+  // real bloom: the beams, the pools and the smoke come down to match.
+  const lamps = createLamps(car, { depthTest: true, lift: 0.5, layer, reverse: true, directional: true, glow: 0.55, near: [6, 16], beam: 0.028 });
+  const ground = createGroundLight(scene, { size: 70, fade: [14, 34], y: 0.03, follow: true, lamps: 0.6 });
+  const drift = createDrift(scene, car, rig, { smokeRgb: [0.3, 0.29, 0.33] });
 
   // ---- light -------------------------------------------------------------
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -217,9 +219,9 @@ export function createCar(scene, renderer, { road, anchors, light, layer }) {
   const finish = (now, dt) => {
     const k0 = 1 - Math.exp(-dt * 2);
     stageLight += ((mode === "road" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
-    key.intensity = 0.55 + 0.3 * stageLight;
-    rimM.intensity = 0.55 + 1.25 * stageLight;
-    rimC.intensity = 0.35 + 1.05 * stageLight;
+    key.intensity = 0.55 + 0.15 * stageLight;
+    rimM.intensity = 0.55 + 0.95 * stageLight;
+    rimC.intensity = 0.35 + 0.65 * stageLight;
     car.updateMatrixWorld(true);
     shadow.update();
     ground.update(car, lamps, car.position);
@@ -347,7 +349,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer }) {
       mode = "drift";
       lastD = d;
       if (!park || park.xScale !== xScale || park.aspect !== aspect) planPark(xScale, aspect);
-      car.visible = d > -1.5;
+      // On screen from where the drift has always started drawing it.
+      car.visible = d > -0.4;
       if (d <= PARK_FROM) {
         const pose = poseAt(d, xScale);
         const { spin } = drift.place(pose, d, dt);

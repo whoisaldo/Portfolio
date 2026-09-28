@@ -49,6 +49,16 @@
 // The reader's second visit in the same tab gets the short version: one bar
 // of the quiet before the drums, then the drift. The full one is a click away
 // in the footer, and ?intro=full forces it.
+//
+// Two ways to play the street. When the live city behind the page
+// (src/world) is ready by CITY_IN, the intro plays inside it: the moon
+// dissolves to show the city itself rather than a picture of it, the drift
+// is the city's own car on this clock (it parks at the hero's curb instead of
+// vanishing), the handoff's registration errors are the city's braindance
+// glitch, and the page arrives over the same camera with nothing swapped
+// underneath it. When the city is off or not ready yet, the plate path runs
+// exactly as it always has, and the city takes over from the plate after the
+// reveal, on a camera matched to it.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDecode, useKonami, useMediaQuery } from "../hooks";
@@ -63,6 +73,7 @@ import { AMBIENT_EVENT, getLevels, isPlaying, isTrackPlaying, setDuck, songTime 
 import { cancelIntroSfx, scheduleIntroSfx } from "../lib/intro-sfx";
 import { loadDrift } from "../lib/drift";
 import { holdScroll } from "../lib/scroll";
+import { getWorld, setStage, stage } from "../world/stage";
 import * as C from "../lib/cues";
 
 // Two cuts of the moon: the 16:9 plate, and a portrait plate painted from it
@@ -144,11 +155,24 @@ const recede = (s) => easeIn(clamp((s - C.IGNITION) / (C.DROP - C.IGNITION)));
  * continuous between frames, and a function of the song, so a still is the
  * same still every time.
  */
-function rumble(s, amp) {
+function rumbleXY(s, amp) {
   const t = s * Math.PI * 2;
   const x = 0.5 * Math.sin(t * 7.3) + 0.3 * Math.sin(t * 11.9 + 1.7) + 0.2 * Math.sin(t * 15.1 + 0.4);
   const y = 0.5 * Math.sin(t * 8.1 + 2.1) + 0.3 * Math.sin(t * 12.7 + 0.9) + 0.2 * Math.sin(t * 16.3 + 2.6);
-  return `translate(${(x * amp * 0.5).toFixed(2)}px, ${(y * amp * 0.5).toFixed(2)}px)`;
+  return { x: x * amp * 0.5, y: y * amp * 0.5 };
+}
+
+function rumble(s, amp) {
+  const { x, y } = rumbleXY(s, amp);
+  return `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
+}
+
+/** Take the page back from a live-city intro: the city's loop runs again and
+ *  the page is no longer held under it. Safe to call when it never had it. */
+function leaveWorldPath() {
+  setStage({ mode: "stage" });
+  delete document.documentElement.dataset.introWorld;
+  document.documentElement.style.removeProperty("--intro-page");
 }
 
 /** One title card. Tears in through CSS slices with a magenta and a cyan
@@ -251,10 +275,13 @@ export default function IntroCinematic() {
   const [phase, setPhase] = useState("moon");
   const [flags, setFlags] = useState(FLAGS);
   const [puffs, setPuffs] = useState([]);
+  // "world" or "plate" once decided at CITY_IN; null before.
+  const [path, setPath] = useState(null);
   const portrait = useMediaQuery("(orientation: portrait)");
 
   const overlayRef = useRef(null);
   const worldRef = useRef(null);
+  const starsRef = useRef(null);
   const moonRef = useRef(null);
   const earthRef = useRef(null);
   const cityRef = useRef(null);
@@ -274,6 +301,7 @@ export default function IntroCinematic() {
   const lastPuffRef = useRef(0);
   const puffIdRef = useRef(0);
   const flagsRef = useRef(FLAGS);
+  const pathRef = useRef(null);
 
   // Up up down down left right left right B A, anywhere on the page.
   const replayIntro = useReplayIntro();
@@ -288,6 +316,11 @@ export default function IntroCinematic() {
       flagsRef.current = FLAGS;
       lastPuffRef.current = 0;
       threeFailedRef.current = false;
+      pathRef.current = null;
+      setPath(null);
+      // The city's own loop rests while the intro holds the screen: it is
+      // either behind the moon or drawn by this intro's clock.
+      setStage({ mode: "cinematic" });
       setFlags(FLAGS);
       setPuffs([]);
       setPhase("moon");
@@ -353,6 +386,7 @@ export default function IntroCinematic() {
     }
     threeRef.current?.dispose();
     threeRef.current = null;
+    leaveWorldPath();
     setIntroDone(true);
     if (window.scrollY) window.scrollTo({ top: 0, behavior: "instant" });
     setRun(null);
@@ -482,6 +516,11 @@ export default function IntroCinematic() {
     const buildScene = () => {
       const mod = driftModRef.current;
       if (threeRef.current || threeFailedRef.current || !mod || !canvasRef.current) return;
+      // The flat plate's car is only for the plate path: not once the city
+      // has the intro, and not while the city is on its way to having it
+      // (if it is late, the plate path builds this at CITY_IN instead).
+      if (pathRef.current === "world") return;
+      if (pathRef.current === null && (stage.status === "loading" || stage.status === "ready")) return;
       try {
         const three = mod.createDriftScene(canvasRef.current);
         threeRef.current = three;
@@ -565,6 +604,30 @@ export default function IntroCinematic() {
       }
       if (s >= C.HERO_IN) setIntroDone(true);
 
+      // ---- which street ------------------------------------------------
+      // Decided once, when the moon starts to give way: the live city if it
+      // is ready, the plate otherwise. A city that is lost mid-run (its GPU
+      // context went) hands the rest of the run to the plate.
+      if (pathRef.current === null && s >= C.CITY_IN) {
+        const ready = getWorld();
+        pathRef.current = ready ? "world" : "plate";
+        setPath(pathRef.current);
+        if (ready) {
+          ready.beginIntro();
+          document.documentElement.dataset.introWorld = "";
+          document.documentElement.style.setProperty("--intro-page", "0");
+          threeRef.current?.dispose();
+          threeRef.current = null;
+        }
+      }
+      const world = pathRef.current === "world" ? getWorld() : null;
+      if (pathRef.current === "world" && !world) {
+        pathRef.current = "plate";
+        setPath("plate");
+        delete document.documentElement.dataset.introWorld;
+        document.documentElement.style.removeProperty("--intro-page");
+      }
+
       // ---- flags that gate React content ------------------------------
       const withTrack = run.withSound && isTrackPlaying();
       let card = -1;
@@ -602,6 +665,9 @@ export default function IntroCinematic() {
       }
       const sceneOut = smooth((s - C.HANDOFF) / (C.REVEAL - C.HANDOFF));
       if (overlayRef.current) overlayRef.current.style.opacity = (1 - sceneOut).toFixed(3);
+      // In the live city the page is not under an opaque plate but under the
+      // city itself, so it is held back and brought in over the same span.
+      if (world) document.documentElement.style.setProperty("--intro-page", sceneOut.toFixed(3));
 
       // Brief registration errors while the city signal becomes the page.
       // Fixed, narrow slices preserve the camera. Only their opacity and
@@ -631,7 +697,16 @@ export default function IntroCinematic() {
       }
       if (earthRef.current) earthRef.current.style.opacity = (1 - r).toFixed(3);
       const cityIn = smooth((s - C.CITY_IN) / (C.CITY_READY - C.CITY_IN));
-      if (cityRef.current) cityRef.current.style.opacity = cityIn.toFixed(3);
+      if (world) {
+        // The moon, its stars and the overlay's own black dissolve, and what
+        // is under them is the live city.
+        const keep = (1 - cityIn).toFixed(3);
+        for (const el of [starsRef.current, moonRef.current, earthRef.current]) if (el) el.style.opacity = keep;
+        if (overlayRef.current) overlayRef.current.style.backgroundColor = `rgb(5 5 6 / ${keep})`;
+        if (cityRef.current) cityRef.current.style.opacity = "0";
+      } else if (cityRef.current) {
+        cityRef.current.style.opacity = cityIn.toFixed(3);
+      }
       if (glowRef.current) {
         const fade = s < C.DROP ? 1 : Math.max(0, 1 - (s - C.DROP) / 0.6);
         glowRef.current.style.opacity = (r * fade).toFixed(3);
@@ -643,6 +718,16 @@ export default function IntroCinematic() {
       const shake = amp ? rumble(s, amp) : "";
       if (worldRef.current) worldRef.current.style.transform = shake;
       if (canvasRef.current) canvasRef.current.style.transform = shake;
+
+      // ---- the live city ------------------------------------------------
+      // Its camera, its car and its glitch, on this clock. The shake is the
+      // same rumble, as a tremor of the camera rather than of a layer.
+      if (world) {
+        world.renderCinematic(s, { shake: amp ? rumbleXY(s, amp) : null, glitch: Math.min(1, pulse * 1.25) });
+        if (carRef.current) carRef.current.style.opacity = "0";
+        if (canvasRef.current) canvasRef.current.style.opacity = "0";
+        return;
+      }
 
       // ---- the car ----------------------------------------------------
       const three = threeRef.current;
@@ -687,6 +772,7 @@ export default function IntroCinematic() {
         levels: getLevels,
         now: () => lastS,
         three: () => Boolean(threeRef.current),
+        path: () => pathRef.current,
       };
     }
 
@@ -696,6 +782,7 @@ export default function IntroCinematic() {
       if (heroContent) heroContent.style.transform = "";
       threeRef.current?.dispose();
       threeRef.current = null;
+      leaveWorldPath();
       if (import.meta.env.DEV) delete window.__intro;
     };
   }, [run, lines, cards, nameAt, finish]);
@@ -708,18 +795,24 @@ export default function IntroCinematic() {
     <AnimatePresence>
       {run && (
         <React.Fragment key={run.id}>
-          <div className="fixed inset-0 z-[113] pointer-events-none overflow-hidden" aria-hidden="true" data-handoff-signal="">
-            {["inset(24% 0 74.7% 0)", "inset(48% 0 48.8% 0)", "inset(72% 0 27.3% 0)"].map((clipPath, i) => (
-              <div key={clipPath} ref={(el) => { signalRefs.current[i] = el; }} className={`intro-signal-slice intro-signal-slice-${i}`} style={{ clipPath, opacity: 0 }}>
-                <NightCity className="absolute inset-0 block" />
-              </div>
-            ))}
-            <div ref={signalScanRef} className="intro-signal-scan absolute inset-0 opacity-0" />
-          </div>
+          {/* The plate path's registration errors. In the live city the
+              city's own glitch pass does this, so there is no copy of the
+              plate to slice. */}
+          {path !== "world" && (
+            <div className="fixed inset-0 z-[113] pointer-events-none overflow-hidden" aria-hidden="true" data-handoff-signal="" data-intro-layer="">
+              {["inset(24% 0 74.7% 0)", "inset(48% 0 48.8% 0)", "inset(72% 0 27.3% 0)"].map((clipPath, i) => (
+                <div key={clipPath} ref={(el) => { signalRefs.current[i] = el; }} className={`intro-signal-slice intro-signal-slice-${i}`} style={{ clipPath, opacity: 0 }}>
+                  <NightCity className="absolute inset-0 block" />
+                </div>
+              ))}
+              <div ref={signalScanRef} className="intro-signal-scan absolute inset-0 opacity-0" />
+            </div>
+          )}
           {/* The scene dissolves as one layer; the car finishes above it. */}
           <motion.div
             ref={overlayRef}
             className="fixed inset-0 z-[110] overflow-hidden bg-ink-deep select-none will-change-opacity"
+            data-intro-layer=""
             // Opaque from its first frame: the gate's own fade is the
             // transition, and this has to be solid black underneath it.
             initial={false}
@@ -732,7 +825,7 @@ export default function IntroCinematic() {
             <div ref={worldRef} className="absolute inset-0 will-change-transform">
               {/* Stars behind the plate, so the push-in has something to
                   move against. */}
-              <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+              <div ref={starsRef} className="absolute inset-0 overflow-hidden" aria-hidden="true">
                 <span className="intro-star" style={{ boxShadow: stars }} />
               </div>
 
@@ -864,7 +957,7 @@ export default function IntroCinematic() {
           </motion.div>
 
           {/* Skip stays above the dissolve until the car has finished. */}
-          <div className="fixed inset-0 z-[112] pointer-events-none" aria-hidden="false">
+          <div className="fixed inset-0 z-[112] pointer-events-none" aria-hidden="false" data-intro-layer="">
             <button
               type="button"
               onClick={finish}
@@ -880,11 +973,12 @@ export default function IntroCinematic() {
             ref={canvasRef}
             className="fixed inset-0 z-[111] w-full h-full pointer-events-none opacity-0"
             aria-hidden="true"
+            data-intro-layer=""
           />
 
           {/* The flat car, for when there is no WebGL. Same place in the
               stack; driven only if the scene above could not be built. */}
-          <div ref={fallbackRef} className="fixed inset-0 z-[111] pointer-events-none overflow-hidden" aria-hidden="true">
+          <div ref={fallbackRef} className="fixed inset-0 z-[111] pointer-events-none overflow-hidden" aria-hidden="true" data-intro-layer="">
             {puffs.map((p) => (
               <span
                 key={p.id}

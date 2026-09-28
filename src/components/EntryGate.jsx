@@ -256,6 +256,7 @@ export default function EntryGate({ onEnter }) {
       {open && (
         <motion.div
           className="fixed inset-0 z-[120] bg-ink-deep flex items-center justify-center gutter"
+          data-intro-layer=""
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.42, ease: [0.16, 0.9, 0.25, 1] }}

@@ -1134,6 +1134,14 @@ a:hover .ink-underline,
 .world-scrim { background: #000; opacity: var(--world-dim, 0); }
 html[data-world="on"] .world-clear { background-color: transparent; }
 html[data-world="on"] .world-hide { display: none; }
+/* An intro that plays in the live city (IntroCinematic.jsx): the city is
+   the intro's backdrop, so the page waits under it unseen, as it waited
+   under the overlay's opaque plate, and arrives over the handoff as
+   --intro-page runs from 0 to 1. The world layer, the reticle and the
+   intro's own layers are left alone. */
+html[data-intro-world] [data-shell] > :not(.world-layer):not(.reticle):not([data-intro-layer]) {
+  opacity: var(--intro-page, 0) !important;
+}
 
 /* ===========================================================================
    The living skyline

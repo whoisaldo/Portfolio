@@ -164,9 +164,10 @@ const TAIL_BOX = new THREE.Box3(new THREE.Vector3(-0.82, 0.73, -2.37), new THREE
  * the lens), `layer` (an extra layer for the glows, so a mirror sees them),
  * `reverse` (add two white reversing lamps, off until set), `directional`
  * (each glow only toward where its lamp points), `glow` (scales the glows'
- * size), `near` ([from, to] metres: the glows fade in with distance).
+ * size), `near` ([from, to] metres: the glows fade in with distance),
+ * `beam` (the beams' opacity).
  */
-export function createLamps(car, { depthTest = false, lift = 0, layer = null, reverse = false, directional = false, glow: glowScale = 1, near = [0, 0] } = {}) {
+export function createLamps(car, { depthTest = false, lift = 0, layer = null, reverse = false, directional = false, glow: glowScale = 1, near = [0, 0], beam = 0.055 } = {}) {
   const headY = (HEAD_BOX.min.y + HEAD_BOX.max.y) / 2;
   const headZ = HEAD_BOX.max.z;
   const lampL = new THREE.Vector3(HEAD_BOX.max.x - 0.18, headY, headZ);
@@ -214,7 +215,7 @@ export function createLamps(car, { depthTest = false, lift = 0, layer = null, re
   // Beams. Cones with the apex at the lamp, pointing forward and a touch
   // down, fading along their length.
   const beamMat = new THREE.ShaderMaterial({
-    uniforms: { uOpacity: { value: 0.055 } },
+    uniforms: { uOpacity: { value: beam } },
     vertexShader: BEAM_VERT,
     fragmentShader: BEAM_FRAG,
     side: THREE.DoubleSide,
@@ -258,9 +259,10 @@ const _dir = new THREE.Vector3();
 /**
  * The headlight cones and the underglow on the ground. `size` is the
  * plane's side in metres; `fade` is [near, far] from `fadeFrom` (a Vector3
- * the caller keeps current: the camera over the plate, the car in the city).
+ * the caller keeps current: the camera over the plate, the car in the city);
+ * `lamps` scales the headlight cones.
  */
-export function createGroundLight(scene, { size = 400, fade = [12, 70], y = 0, follow = false } = {}) {
+export function createGroundLight(scene, { size = 400, fade = [12, 70], y = 0, follow = false, lamps = 1 } = {}) {
   const material = new THREE.ShaderMaterial({
     uniforms: {
       uLampL: { value: new THREE.Vector3() },
@@ -270,7 +272,7 @@ export function createGroundLight(scene, { size = 400, fade = [12, 70], y = 0, f
       uGlow: { value: new THREE.Vector3() },
       uFadeFrom: { value: new THREE.Vector3() },
       uFade: { value: new THREE.Vector2(fade[0], fade[1]) },
-      uLamps: { value: 1 },
+      uLamps: { value: lamps },
       uGlowOn: { value: 0.35 },
     },
     vertexShader: GROUND_VERT,

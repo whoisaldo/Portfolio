@@ -119,7 +119,7 @@ function Cinematic() {
   return (
     <ErrorBoundary>
       <MotionConfig reducedMotion="user">
-        <div className="min-h-screen bg-ink text-bone font-mono">
+        <div className="min-h-screen bg-ink text-bone font-mono" data-shell="">
           {/* The city behind every page of this shell: a still plate first,
               the live world over it once it has loaded, and a scrim that
               steps it back behind anything being read. First in the tree,

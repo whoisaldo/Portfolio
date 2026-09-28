@@ -38,6 +38,7 @@ import { LIGHT_BOUNDS } from "./spill.js";
 import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
+import { DROP } from "../lib/cues.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
@@ -120,6 +121,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let posed = false;
   let lastPosition = 0;
   let glitch = 0;
+  // The intro's own glitch envelope while it drives this scene, else -1.
+  let cineGlitch = -1;
   const tilt = { x: 0, y: 0 };
 
   const applyPose = (p, withTilt) => {
@@ -196,7 +199,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       for (const r of city.roadMaterials) r.uniforms.uWet.value = env.wet ? 1 : 0;
     }
     glitch *= Math.exp(-dt * 6);
-    post.setGlitch(glitch, bass);
+    post.setGlitch(cineGlitch >= 0 ? cineGlitch : glitch, bass);
     return env;
   };
 
@@ -315,14 +318,39 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   };
 
   // ---- the intro -------------------------------------------------------------------
-  /** One frame of the cinematic, at song second `s`, on the hero camera. */
-  const renderCinematic = () => {
-    if (!city) return;
+  // While the intro runs (stage.mode "cinematic") this scene's own loop rests
+  // and the intro's frame loop calls renderCinematic once a frame instead, on
+  // the song clock: the drift's camera, the drift itself, the shake and the
+  // braindance glitch on the intro's cues, all on one clock.
+  let cineLast = null;
+  /** The intro is about to use this scene: the car to its mark. */
+  const beginIntro = () => {
+    cineLast = null;
+    car?.beginDrift();
+  };
+  /**
+   * One frame of the cinematic at song second `s`. `shake` is the intro's
+   * rumble in CSS pixels ({ x, y }), turned into a camera tremor here;
+   * `glitch` is the handoff's 0..1 envelope.
+   */
+  const renderCinematic = (s, { shake = null, glitch: g = 0 } = {}) => {
+    if (!city || disposed) return;
+    const dt = cineLast === null ? 0 : clamp(s - cineLast, 0, 0.05);
+    cineLast = s;
     heroPose(aspect, want);
     copyPose(pose, want);
     applyPose(pose, false);
+    if (shake) {
+      const perPx = (camera.fov * DEG) / height;
+      camera.rotateY(-shake.x * perPx);
+      camera.rotateX(-shake.y * perPx);
+    }
     posed = true;
-    draw(1 / 60);
+    lastPosition = stage.position;
+    car?.cinematic(s - DROP, s, dt, aspect, clamp(aspect / 1.6, 0.4, 1));
+    cineGlitch = g;
+    draw(dt);
+    cineGlitch = -1;
   };
 
   const dispose = () => {
@@ -392,6 +420,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   return {
     warm,
+    beginIntro,
     renderCinematic,
     pause,
     resume,

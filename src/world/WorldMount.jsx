@@ -26,7 +26,7 @@ import NightCity from "../components/NightCity";
 import { useEnv } from "../lib/env";
 import { hasGpuAcceleration } from "../lib/gpu";
 import { usePrefersReducedMotion } from "../hooks";
-import { INTRO_START } from "../lib/intro";
+import { DOOR_OPEN, INTRO_START } from "../lib/intro";
 import { findWork } from "../data/work";
 import { startScrollStage } from "./scroll-stage";
 import { setStage, setWorld } from "./stage";
@@ -128,15 +128,25 @@ export default function WorldMount() {
     };
   }, [on, build]);
 
-  // An intro replay starts from a clean city: dispose everything and build
-  // again from the cached chunk and model. The first intro keeps the city
-  // the door warmed, which has never drawn a live frame yet.
+  // A replay starts from a clean city: dispose everything and build again
+  // from the cached chunk and model. A replay from the footer or the Konami
+  // code rebuilds as it starts (the full intro gives it eighteen seconds of
+  // moon before the city is needed); a reader sent back to the door
+  // rebuilds while the door is up. The first intro keeps the city the door
+  // warmed.
   useEffect(() => {
-    const onStart = () => {
+    const onStart = (e) => {
+      if (e.detail?.replay && liveRef.current) setBuild((b) => b + 1);
+    };
+    const onDoor = () => {
       if (liveRef.current) setBuild((b) => b + 1);
     };
     window.addEventListener(INTRO_START, onStart);
-    return () => window.removeEventListener(INTRO_START, onStart);
+    window.addEventListener(DOOR_OPEN, onDoor);
+    return () => {
+      window.removeEventListener(INTRO_START, onStart);
+      window.removeEventListener(DOOR_OPEN, onDoor);
+    };
   }, []);
 
   // A lost context shows the poster; a restored one rebuilds on a new canvas.
