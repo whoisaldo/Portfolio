@@ -42,7 +42,9 @@ import { featuredProjects } from "./projects";
  */
 export const SHOTS = {
   hero: { dim: 0, fov: 30, car: "curb" },
-  projects: { dim: 0.7, fov: 38, car: "plaza", portraitBack: 1.15 },
+  // A touch darker than the other reading shots: the lit board sits right
+  // behind the section's opening lines.
+  projects: { dim: 0.76, fov: 38, car: "plaza", portraitBack: 1.15 },
   experience: { dim: 0.7, fov: 40, move: "dolly", car: "corpo", portraitBack: 1.2 },
   // A rooftop camera cannot step back off its roof: a phone gets the wider
   // lens instead.
@@ -60,14 +62,17 @@ export const SHOTS = {
     // In the bay before the camera reaches the door.
     carLead: 0.45,
   },
-  // Back out of the door and up onto the garage's roof.
+  // Back out of the door and up onto the garage's roof, the moon beside the
+  // headline: huge on a wide screen, smaller and up in the corner on a
+  // phone, where the links fill the rest of the screen.
   contact: {
     dim: 0,
     fov: 42,
     car: "bay",
     portraitBack: 1,
-    portraitFov: 1.5,
+    portraitFov: 1.2,
     via: { in: ["cam_contact_door", "cam_contact_via"] },
+    moon: { scale: 0.7, portrait: 0.34 },
   },
 };
 

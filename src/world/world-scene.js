@@ -40,7 +40,7 @@ import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP } from "../lib/cues.js";
-import { boards as BOARDS } from "../data/world.js";
+import { boards as BOARDS, SHOTS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
@@ -95,6 +95,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER });
     shafts = createShafts(scene, c.anchors, shared);
+    resize();
     return c;
   });
 
@@ -115,6 +116,19 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     post.setSize(width, height);
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
+    // The moon's size for this screen, scaled about its own centre. Its node
+    // already carries a transform (the GLB's quantisation puts the disc's
+    // offset and scale there), so that is kept and scaled, not replaced.
+    const moon = city?.named?.moon_disc;
+    const size = SHOTS.contact?.moon;
+    const centre = city?.anchors.get("anchor_moon")?.position;
+    if (moon && size && centre) {
+      const base = (moon.userData.base ??= { position: moon.position.clone(), scale: moon.scale.clone() });
+      const k = aspect < 1 ? size.portrait : size.scale;
+      moon.scale.copy(base.scale).multiplyScalar(k);
+      moon.position.copy(base.position).sub(centre).multiplyScalar(k).add(centre);
+      moon.updateMatrix();
+    }
   };
   resize();
   window.addEventListener("resize", resize);

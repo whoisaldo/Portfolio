@@ -122,13 +122,14 @@ export function createShots(anchors, clearance = null) {
 
   // A shot that moves while it holds reads its `_b` anchors: the camera
   // slides from cam_x to cam_x_b (a dolly) and the target from cam_x_target
-  // to cam_x_target_b (a pan when the camera does not move).
+  // to cam_x_target_b (a pan when the camera does not move). A phone reads
+  // cam_x_portrait and cam_x_target_portrait where the kit has them.
   const anchored = (id, local, aspect, out) => {
     const cam = `cam_${id}`;
     const tgt = `cam_${id}_target`;
     const shot = SHOTS[id] || {};
-    out.position.copy(at(cam));
-    out.target.copy(at(tgt));
+    out.position.copy(at(aspect < 1 && has(`${cam}_portrait`) ? `${cam}_portrait` : cam));
+    out.target.copy(at(aspect < 1 && has(`${tgt}_portrait`) ? `${tgt}_portrait` : tgt));
     if (shot.move) {
       const t = easeInOut(clamp(local, 0, 1));
       if (has(`${cam}_b`)) out.position.lerp(at(`${cam}_b`), t);

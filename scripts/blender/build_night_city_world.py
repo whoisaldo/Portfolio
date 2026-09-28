@@ -1199,13 +1199,19 @@ SHOT_CAMERAS = {
     "stack": ((476.0, 37.4, -266.0), (380.0, 46.0, -312.0)),
     "stack_b": (None, (380.0, 38.0, -214.0)),
     "garage": (bay_point(GARAGE_FRONT[0]), bay_point(GARAGE_FRONT[1])),
-    "contact": ((456.0, 10.4, -203.0), (520.0, 58.0, -84.0)),
+    # The moon sits right of the email headline, over the sky it is meant to
+    # read against, clear of the navigation and the links below.
+    "contact": ((456.0, 10.4, -203.0), (554.0, 48.5, -110.0)),
 }
 for shot, (pos, tgt) in SHOT_CAMERAS.items():
     base, suffix = (shot[:-2], "_b") if shot.endswith("_b") else (shot, "")
     if pos is not None:
         empty(f"cam_{base}{suffix}", pos)
     empty(f"cam_{base}_target{suffix}", tgt)
+# A phone's Contact: the moon smaller (the site scales it) and up in the
+# top corner, because the column of links fills the rest of a portrait
+# screen.
+empty("cam_contact_target_portrait", (529.6, 21.0, -89.7))
 # Waypoints the flights run through where a straight line would hit a
 # wall: off the rooftop's edge, down into the street behind the car, across
 # to the far kerb where the open door lines up with the bay, and in at the
