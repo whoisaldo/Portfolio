@@ -409,14 +409,20 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   `npm run check:drift` holds the drift's path to the original: 1,083
   samples identical for the first 3.8 seconds, and the parking curve joining
   at the same position, heading and speed.
-- Draw calls a frame (every pass): 163 on high (mirror 28, scene 113, post
-  22), 115 on the phone; 372,000 and 184,000 triangles.
-- Frame time on devbox1 (M1 Max, Chrome, Metal): headed, p95 13.5 ms on high
-  at 1440x900 and 13.7 ms on the phone tier at 390x844 (the display's own
-  11.8 ms cadence at p50); headless at 60 Hz, every frame on time (p95
-  16.7 ms); with vsync off, the work itself is p95 3.5 ms (high, pixel ratio
-  1.3) and 3.0 ms (phone).
-- A footer or Konami replay keeps the city; putting the door back up
-  rebuilds it, with `renderer.info.memory` back to its first count.
+- Draw calls a frame (every pass): the hero 144 on high and 123 on a phone;
+  the most anywhere 154, at the end of the garage flight, where the road's
+  mirror still draws through the door; the held reading shots 68 to 85 on
+  high and 61 to 71 on a phone. Triangles: the hero 210,000 and 171,000; the
+  voxel moon's frames with its shadow pass 598,000 and 233,000.
+- Frame time on devbox1 (M1 Max, Chrome, Metal): headed, p95 13.4 ms at the
+  hero on high at 1440x900 (13.8 ms scrolling) and 13.6 ms on the phone tier
+  at 390x844, against the display's own 11.8 ms cadence at p50; headless at
+  60 Hz, every frame on time (p95 16.7 to 16.8 ms); with vsync off, the work
+  itself is p95 4.5 ms at the hero on high (pixel ratio 1.3) and 3.3 ms on the
+  phone tier. Nothing was shed. Across the meteor strike no frame is over
+  25 ms, capped or not, on either tier.
+- A footer or Konami replay keeps the city; putting the door back up rebuilds
+  it, with `renderer.info.memory` back to its first count (99 geometries and
+  71 textures, and 71 programs, after three of each).
 - Review files (`*-viewport.png`, `*-review.png`, `*-cycles*.png`,
   `world-source.glb`, `mcp.log`) stay local and are git-ignored.
