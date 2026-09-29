@@ -29,6 +29,8 @@ import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
 import { preloadAds } from "./ads.js";
 import { createKoi, preloadKoi } from "./koi.js";
+import { createCrowd } from "./crowd.js";
+import { createSteam } from "./steam.js";
 import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
 import { createMirror } from "./mirror.js";
 import { createPost } from "./post.js";
@@ -54,6 +56,8 @@ export async function preloadWorld(tier) {
 }
 
 const DEG = Math.PI / 180;
+// The wet road's mirror at full (road.js's own uReflectGain).
+const REFLECT_GAIN = 2.2;
 
 export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false } = {}) {
   const quality = { ...TIERS[tier] };
@@ -72,6 +76,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   renderer.toneMappingExposure = 1.0;
   // Counted per frame (every pass: mirror, scene, post), not per render call.
   renderer.info.autoReset = false;
+  // Reading a program's log to check it waits for the GPU to finish
+  // building it, on the first frame that uses it: worth it while working
+  // on the shaders, not on a reader's first strike of the meteor.
+  renderer.debug.checkShaderErrors = import.meta.env.DEV;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050506);
@@ -87,6 +95,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let car = null;
   let shafts = null;
   let koi = null;
+  let crowd = null;
+  let steam = null;
   let moon = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality);
@@ -99,7 +109,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const r = (a.extras?.size ?? 50) / 2;
       return [a.position.x - r, a.position.z - r, a.position.x + r, a.position.z + r];
     });
-    skyline = createSkyline(scene, shared, { count: tier === "phone" ? 1200 : 2600, keepOut });
+    skyline = createSkyline(scene, shared, { count: tier === "phone" ? 1200 : 2600, keepOut, reduced });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
@@ -107,6 +117,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER });
     shafts = createShafts(scene, c.anchors, shared);
+    crowd = createCrowd(scene, shared, { count: tier === "phone" ? 16 : 40, reduced, reflectLayer: REFLECT_LAYER });
+    steam = createSteam(scene, shared, c.anchors, { reduced });
+    steam?.setLights(c.roofLights);
     resize();
     return Promise.all([
       createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }),
@@ -116,6 +129,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       }),
     ]).then(([k, m]) => {
       koi = k;
+      fitKoi();
       moon = m;
       if (m) post.setMoon(m.scene, m.camera);
       return c;
@@ -139,6 +153,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let height = 1;
   let aspect = 1;
   let pixelScale = 1;
+  // The koi's loop for this screen, from the hero's own lens (koi.js).
+  const heroFit = makePose();
+  const fitKoi = () => {
+    if (!koi || !shots) return;
+    shots.poseOf("hero", 0, aspect, heroFit);
+    koi.fit(heroFit, aspect);
+  };
   const resize = () => {
     width = Math.max(1, canvas.clientWidth || window.innerWidth);
     height = Math.max(1, canvas.clientHeight || window.innerHeight);
@@ -151,19 +172,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     post.setSize(width, height);
     camera.aspect = aspect;
     project();
-    // The moon's size for this screen, scaled about its own centre. Its node
-    // already carries a transform (the GLB's quantisation puts the disc's
-    // offset and scale there), so that is kept and scaled, not replaced.
-    const moon = city?.named?.moon_disc;
+    // The moon's size for this screen, about its own centre.
     const size = SHOTS.contact?.moon;
-    const centre = city?.anchors.get("anchor_moon")?.position;
-    if (moon && size && centre) {
-      const base = (moon.userData.base ??= { position: moon.position.clone(), scale: moon.scale.clone() });
-      const k = aspect < 1 ? size.portrait : size.scale;
-      moon.scale.copy(base.scale).multiplyScalar(k);
-      moon.position.copy(base.position).sub(centre).multiplyScalar(k).add(centre);
-      moon.updateMatrix();
+    const anchor = city?.anchors.get("anchor_moon");
+    if (city?.moonDisc && size && anchor) {
+      city.moonDisc.place(anchor.position, (anchor.extras?.radius ?? 150) * (aspect < 1 ? size.portrait : size.scale));
     }
+    fitKoi();
   };
   resize();
   window.addEventListener("resize", resize);
@@ -273,6 +288,19 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     return i >= 0 ? i : stage.activeProject;
   };
   const activeTowers = () => (stage.route.kind === "role" ? [stage.route.slug] : stage.activeRoles);
+  // How much of the wet road the camera sees, 0..1, from the shots' own
+  // `mirror` flags: the hero and the garage's street show it, the rest look
+  // over it or away. A flight between two shots eases from one to the other.
+  const roadShown = () => {
+    if (stage.route.kind !== "home") return 0;
+    const ids = stage.shots.map((x) => x.id);
+    if (!ids.length) return 1;
+    const i = clamp(Math.floor(stage.position), 0, ids.length - 1);
+    const j = Math.min(i + 1, ids.length - 1);
+    const a = SHOTS[ids[i]]?.mirror ? 1 : 0;
+    const b = SHOTS[ids[j]]?.mirror ? 1 : 0;
+    return a + (b - a) * THREE.MathUtils.smoothstep(stage.position - i, 0.15, 0.85);
+  };
 
   const step = (dt) => {
     // A jump of more than a shot in one frame is a deep link or a long nav
@@ -321,8 +349,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     shared.uHaze.value += ((env.haze ? 1 : 0) - shared.uHaze.value) * Math.min(1, dt * 4);
     if (city) {
       city.setSignsVisible(env.signs);
+      city.setWet(env.wet);
       for (const r of city.roadMaterials) r.uniforms.uWet.value = env.wet ? 1 : 0;
     }
+    steam?.setSigns(env.signs);
     glitch *= Math.exp(-dt * 6);
     post.setGlitch(cineGlitch >= 0 ? cineGlitch : glitch, bass);
     return env;
@@ -347,7 +377,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const env = drive(dt);
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
-      skyline?.update(camera);
+      skyline?.update(camera, renderer.getPixelRatio());
       rain?.update(dt, camera, env.wet);
       shafts?.update(shared.uHaze.value);
       koi?.update(dt);
@@ -356,7 +386,18 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       city?.towers.update(dt, activeTowers());
       city?.logos.update(dt, activeTowers());
       city?.garage.update(dt, stage.position, stage.route.kind === "home" ? stage.shots.findIndex((s) => s.id === "garage") : -1);
-      if (mirror && city && env.wet) {
+      // The wet road's mirror, only while a shot shows the road (`mirror`
+      // in src/data/world.js): over a flight away it fades into the baked
+      // streaks, as the adaptive pass's shed does, and once it has gone it
+      // is not drawn. How far either has taken it is k.
+      const k = mirror ? Math.max(1 - roadShown(), adapt.reflectK) : 1;
+      if (city) {
+        for (const r of city.roadMaterials) {
+          r.uniforms.uReflectGain.value = REFLECT_GAIN * (1 - k);
+          r.uniforms.uStreakGain.value = 0.1 + k;
+        }
+      }
+      if (mirror && city && env.wet && k < 1) {
         camera.updateMatrixWorld();
         const drew = mirror.render(scene, camera);
         for (const r of city.roadMaterials) r.setReflection(drew ? mirror.texture : null, mirror.matrix, mirror.horizonV);
@@ -380,7 +421,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // (ADAPT in quality.js). The reflection fades out into the baked streaks
   // before its pass stops, so the road does not pop.
   const GRACE_MS = 3;
-  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], p95: null, fade: null };
+  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], p95: null, fade: null, reflectK: 0 };
   const startSampling = () => {
     adapt.sampling = true;
     adapt.t = -0.3;
@@ -400,10 +441,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (adapt.fade && city) {
       adapt.fade.t += dt;
       const k = Math.min(1, adapt.fade.t / 0.8);
-      for (const r of city.roadMaterials) {
-        r.uniforms.uReflectGain.value = 2.2 * (1 - k);
-        r.uniforms.uStreakGain.value = 0.1 + k;
-      }
+      adapt.reflectK = k;
       if (k >= 1) {
         mirror?.dispose();
         mirror = null;
@@ -647,6 +685,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       car?.dispose();
       shafts?.dispose();
       koi?.dispose();
+      crowd?.dispose();
+      steam?.dispose();
       moon?.dispose();
     }).catch(() => {});
     mirror?.dispose();

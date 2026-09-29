@@ -71,9 +71,10 @@ export function localsAt(shots, y, vh, out = []) {
 
 /**
  * The scrim's darkness for a stage position. Reading shots sit at their own
- * level; the dim eases between them and lifts almost all the way off at the
- * middle of every flight, because a camera move is the one moment there is
- * nothing to read and the city is the show.
+ * level; the dim eases between them and lifts part of the way off at the
+ * middle of every flight, where the camera move is the show. Only part: by
+ * the middle of a flight the next section's heading is already rising into
+ * the frame, and it has to read over the city it arrives on.
  */
 export function dimAt(shots, position) {
   if (!shots.length) return 0;
@@ -83,7 +84,7 @@ export function dimAt(shots, position) {
   const a = shotDim(shots[i].id);
   const b = shotDim(shots[j].id);
   const base = a + (b - a) * smooth(f);
-  const lift = Math.pow(Math.sin(Math.PI * f), 2) * 0.9;
+  const lift = Math.pow(Math.sin(Math.PI * f), 2) * 0.4;
   return base * (1 - lift);
 }
 

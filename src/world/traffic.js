@@ -23,13 +23,15 @@ const SKY_LANES = [
   { c: [0, -420], r: [150, 60], y: 58, v: 26 },
   { c: [20, -520], r: [220, 40], y: 82, v: 34 },
   { c: [-10, -300], r: [120, 90], y: 46, v: 22 },
+  // Across the moon, seen from the garage's roof (fourth, so a phone's four
+  // take it too).
+  { c: [620, 120], r: [200, 70], y: 150, v: 40 },
   { c: [200, -300], r: [260, 120], y: 95, v: 38 },
   { c: [320, -260], r: [140, 70], y: 70, v: 28 },
   { c: [0, -650], r: [260, 60], y: 110, v: 42 },
   { c: [90, -200], r: [160, 110], y: 64, v: 30 },
   { c: [-40, -560], r: [90, 180], y: 52, v: 24 },
   { c: [420, -250], r: [120, 160], y: 58, v: 26 },
-  { c: [150, -450], r: [300, 90], y: 124, v: 44 },
 ];
 // The avenue's lanes: x, direction of travel along z, speed.
 const ROAD_LANES = [

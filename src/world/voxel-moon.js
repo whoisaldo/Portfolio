@@ -28,10 +28,11 @@
 //         the city is behind them on the drop.
 //
 // Everything here is a function of the song second, so a seek lands on the
-// same frame every time. It is all instanced cubes, about 81,000 on a
-// desktop in about thirty draws (27,000 on a phone): the island's columns
-// and the loose stones on it, the figures, Earth's shell, dust, two meteors
-// and the strike's debris. A low raking sun with a real shadow map (drawn
+// same frame every time. It is all instanced cubes, about 69,000 on a
+// desktop in about thirty draws (27,000 on a phone), each drawn as the
+// three faces its viewer can see: the island's columns and the loose
+// stones on it, the figures, Earth's shell, dust, two meteors and the
+// strike's debris. A low raking sun with a real shadow map (drawn
 // only while something on the island moves), Earthshine, voxel occlusion and
 // bevels on the edges that are really there light them; the city's own
 // grade and bloom finish them (src/world/post.js). The figures are original,
@@ -90,7 +91,7 @@ export function moonPhase(s) {
 // voxels and the ground's in size; `wide` scales the meteors' and the
 // strike's x, so a narrow screen still sees them fall.
 const TIER = {
-  high: { vox: 0.2, fine: [-7, 7, -5, 8], island: 17.5, fig: 0.03, earth: 75, shadow: 2048, dust: 120, debris: 220, stars: 2400, pebbles: 900, wide: 1 },
+  high: { vox: 0.2, fine: [-7, 7, -5, 8], island: 17.5, fig: 0.03, earth: 62, shadow: 2048, dust: 120, debris: 220, stars: 2400, pebbles: 900, wide: 1 },
   phone: { vox: 0.3, fine: [-5, 5, -4, 8], island: 14.5, fig: 0.036, earth: 44, shadow: 1024, dust: 60, debris: 80, stars: 1300, pebbles: 300, wide: 0.55 },
 };
 
@@ -790,6 +791,12 @@ const COMMON = /* glsl */ `
     float y = x - 1.0;
     return 1.0 + 2.3 * y * y * y + 1.3 * y * y;
   }
+  // Which way the one looking at a voxel is along each of the voxel's own
+  // axes, +1 or -1. A box shows at most three faces from outside, so the
+  // island, the figures and Earth draw three and turn them toward the
+  // camera; the shadow map's pass turns them away from the sun, the faces
+  // three's own shadow maps draw.
+  vec3 facing(vec3 toViewer) { return step(0.0, toViewer) * 2.0 - 1.0; }
   // Free of the ground: pulled up toward Earth, faster and faster, turning
   // round the way there.
   vec3 pulled(float age, float seed) {
@@ -874,7 +881,15 @@ const GROUND_PLACE = /* glsl */ `
   mat3 R = axisAngle(spinAxis(seed), age * (1.0 + seed * 3.0) * free);
   float peel = free * (1.0 - falls) * smoothstep(0.0, 0.5, age);
   vec3 size = vec3(vox, hgt, vox) * shown * keep * (1.0 + 0.8 * peel);
-  vec3 lp = position * size;
+  #ifdef SHADOW_PASS
+  vec3 see = -uSun;
+  #else
+  vec3 see = cameraPosition - cw;
+  #endif
+  vec3 face = facing(transpose(R) * see);
+  vec3 bp = position * face;
+  vec3 bn = normal * face;
+  vec3 lp = bp * size;
   vec3 world = cw + R * lp;
 `;
 
@@ -904,18 +919,18 @@ const GROUND_VERTEX = /* glsl */ `
   varying vec2 vPeel;
   void main() {
     ${GROUND_PLACE}
-    vec3 an = abs(normal);
+    vec3 an = abs(bn);
     vec3 t = an.y > 0.5 ? vec3(1.0, 0.0, 0.0) : an.x > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     vec3 b = an.y > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
-    vN = R * normal;
+    vN = R * bn;
     vT = R * t;
     vB = R * b;
-    vFaceN = normal;
+    vFaceN = bn;
     // Face coordinates in voxels: a side face is a stack of them, so its
     // second coordinate runs with height on the ground's own grid.
-    vFace = an.y > 0.5 ? vec2(position.x, position.z + 0.5) : vec2(an.x > 0.5 ? position.z : position.x, (centre.y + lp.y) / vox);
-    if (free > 0.5 && an.y < 0.5) vFace.y = position.y + 0.5;
-    vDepth = (0.5 - position.y) * hgt;
+    vFace = an.y > 0.5 ? vec2(bp.x, bp.z + 0.5) : vec2(an.x > 0.5 ? bp.z : bp.x, (centre.y + lp.y) / vox);
+    if (free > 0.5 && an.y < 0.5) vFace.y = bp.y + 0.5;
+    vDepth = (0.5 - bp.y) * hgt;
     vNb = aNb;
     vNbD = aNbD;
     vInfo = vec4(aTone.x, glow, free, vox);
@@ -1026,7 +1041,15 @@ const FIGURE_PLACE = /* glsl */ `
   mat3 R = axisAngle(spinAxis(seed), age * (2.0 + seed * 4.0) * free) * H;
   float peel = free * smoothstep(0.4, 0.8, age);
   float scale = shown * mix(0.5, 1.0, backOut(kp)) * keep * (1.0 + 0.8 * free * smoothstep(0.0, 0.5, age));
-  vec3 world = cw + R * (position * uFigVox * scale);
+  #ifdef SHADOW_PASS
+  vec3 see = -uSun;
+  #else
+  vec3 see = cameraPosition - cw;
+  #endif
+  vec3 face = facing(transpose(R) * see);
+  vec3 bp = position * face;
+  vec3 bn = normal * face;
+  vec3 world = cw + R * (bp * uFigVox * scale);
 `;
 
 const FIGURE_ATTRS = /* glsl */ `
@@ -1056,14 +1079,14 @@ const FIGURE_VERTEX = /* glsl */ `
   varying float vSeed;
   void main() {
     ${FIGURE_PLACE}
-    vec3 an = abs(normal);
+    vec3 an = abs(bn);
     vec3 t = an.y > 0.5 ? vec3(1.0, 0.0, 0.0) : an.x > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
     vec3 b = an.y > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
-    vN = R * normal;
+    vN = R * bn;
     vT = R * t;
     vB = R * b;
-    vFaceN = normal;
-    vFace = an.y > 0.5 ? position.xz : vec2(an.x > 0.5 ? position.z : position.x, position.y);
+    vFaceN = bn;
+    vFace = an.y > 0.5 ? bp.xz : vec2(an.x > 0.5 ? bp.z : bp.x, bp.y);
     vColor = aColor;
     vInfo = vec4(aInfo.x, glow, peel, aInfo.w);
     vSeed = seed;
@@ -1165,14 +1188,17 @@ const EARTH_VERTEX = /* glsl */ `
     vec3 axisW = (vec4(-d2.y, d2.x, 0.0, 0.0) * viewMatrix).xyz;
     mat3 R = axisAngle(normalize(axisW * uEarthBasis), kf * 2.8);
     float scale = backOut(ka) * shown * (1.0 - smoothstep(0.3, 1.0, kf));
+    vec3 face = facing(transpose(R) * (transpose(uEarthBasis) * (cameraPosition - wc)));
+    vec3 bp = position * face;
+    vec3 bn = normal * face;
     // Relief: land and cloud as columns along the most outward axis.
-    vec3 local = position * (1.0 + abs(aRelief.xyz) * aRelief.w) + aRelief.xyz * aRelief.w * 0.5;
+    vec3 local = bp * (1.0 + abs(aRelief.xyz) * aRelief.w) + aRelief.xyz * aRelief.w * 0.5;
     vec3 lp = R * (local * scale);
     vec3 pop = normalize(cameraPosition - wc) * kf * kf * uEarthVox * 3.0;
     vec3 world = wc + uEarthBasis * (lp * uEarthVox) + pop;
-    vec3 an = abs(normal);
-    vFace = an.y > 0.5 ? position.xz : vec2(an.x > 0.5 ? position.z : position.x, position.y);
-    vN = uEarthBasis * (R * normal);
+    vec3 an = abs(bn);
+    vFace = an.y > 0.5 ? bp.xz : vec2(an.x > 0.5 ? bp.z : bp.x, bp.y);
+    vN = uEarthBasis * (R * bn);
     vOut = uEarthBasis * nrm;
     vPaint = aPaint.rgb;
     // Where the signal comes down (uRipple.xyz, Earth's own frame, from
@@ -1183,9 +1209,10 @@ const EARTH_VERTEX = /* glsl */ `
     for (int i = 0; i < 2; i++) {
       float t = since - float(i) * 0.3;
       float r = t * 0.2;
-      rings += step(0.0, t) * exp(-pow((ang - r) / 0.01, 2.0)) * exp(-max(t, 0.0) * 1.6);
+      float dr = (ang - r) / 0.01;
+      rings += step(0.0, t) * exp(-dr * dr) * exp(-max(t, 0.0) * 1.6);
     }
-    vInfo = vec4(aPaint.a, glow, smoothstep(0.6, 0.95, sin(kf * 3.14159)), dot(R * normal, nrm));
+    vInfo = vec4(aPaint.a, glow, smoothstep(0.6, 0.95, sin(kf * 3.14159)), dot(R * bn, nrm));
     vExtra = vec3(aSeed, 0.6 * rings * (1.0 - smoothstep(0.7, 1.1, since)), step(0.5, aRelief.w) * step(aRelief.w, 1.5));
     gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
   }
@@ -1514,15 +1541,29 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 4000);
 
   const cube = new THREE.BoxGeometry(1, 1, 1);
+  // Three of its faces, +x, +y and +z, which the island, the figures and
+  // Earth turn toward whoever is looking (facing() in COMMON): half the
+  // triangles of a whole box, and the same picture.
+  const half = new THREE.BufferGeometry();
+  half.setAttribute("position", cube.attributes.position);
+  half.setAttribute("normal", cube.attributes.normal);
+  half.setIndex([0, 2, 4].flatMap((f) => Array.from(cube.index.array.slice(f * 6, f * 6 + 6))));
+  // The island's columns into the shadow map: the two sides of each that
+  // turn from the sun, and not its underside. From a sun fifteen degrees up
+  // the sides are all a column's shadow on the ground round it.
+  const sides = new THREE.BufferGeometry();
+  sides.setAttribute("position", cube.attributes.position);
+  sides.setAttribute("normal", cube.attributes.normal);
+  sides.setIndex([0, 4].flatMap((f) => Array.from(cube.index.array.slice(f * 6, f * 6 + 6))));
   // The instance data is only needed until it is on the GPU.
   const release = function () {
     this.array = null;
   };
-  const instanced = (count, attrs) => {
+  const instanced = (count, attrs, base = cube) => {
     const g = new THREE.InstancedBufferGeometry();
-    g.index = cube.index;
-    g.setAttribute("position", cube.attributes.position);
-    g.setAttribute("normal", cube.attributes.normal);
+    g.index = base.index;
+    g.setAttribute("position", base.attributes.position);
+    g.setAttribute("normal", base.attributes.normal);
     for (const [name, array, size] of attrs) g.setAttribute(name, new THREE.InstancedBufferAttribute(array, size).onUpload(release));
     g.instanceCount = count;
     return g;
@@ -1608,7 +1649,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   };
 
   const parts = [];
-  const add = (name, geometry, material, { depth = null, order = 0 } = {}) => {
+  const add = (name, geometry, material, { depth = null, order = 0, shadow = geometry } = {}) => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
     mesh.frustumCulled = false;
@@ -1616,12 +1657,22 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     scene.add(mesh);
     let twin = null;
     if (depth) {
-      twin = new THREE.Mesh(geometry, depth);
+      twin = new THREE.Mesh(shadow, depth);
       twin.frustumCulled = false;
       shadowScene.add(twin);
     }
     parts.push({ mesh, geometry, material, depth, twin });
     return mesh;
+  };
+  // The same instances on another base shape (for a shadow twin).
+  const rebased = (geometry, base) => {
+    const g = new THREE.InstancedBufferGeometry();
+    g.index = base.index;
+    g.setAttribute("position", base.attributes.position);
+    g.setAttribute("normal", base.attributes.normal);
+    for (const [name, attr] of Object.entries(geometry.attributes)) if (attr.isInstancedBufferAttribute) g.setAttribute(name, attr);
+    g.instanceCount = geometry.instanceCount;
+    return g;
   };
   const shaded = (name, vertexShader, fragmentShader, extra = {}, options = {}) => {
     const material = new THREE.ShaderMaterial({ uniforms: { ...uniforms, ...lit, ...extra }, vertexShader, fragmentShader, ...options });
@@ -1629,14 +1680,18 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     return material;
   };
   // Back faces into the shadow map, as three's own shadow maps draw them:
-  // a lit face then never shadows itself.
-  const depthOnly = (name, attrs, place, extra = {}) => {
+  // a lit face then never shadows itself. The island and the figures turn
+  // their three faces away from the sun here (SHADOW_PASS), and a face
+  // turned by a mirror winds the other way, so both sides are drawn; the
+  // debris keeps whole cubes and three's back faces.
+  const depthOnly = (name, attrs, place, extra = {}, side = THREE.DoubleSide) => {
     const material = new THREE.ShaderMaterial({
       uniforms: { ...uniforms, ...extra },
+      defines: { SHADOW_PASS: "" },
       vertexShader: `${COMMON}\n${attrs}\nvoid main() {\n${place}\ngl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);\n}`,
       fragmentShader: DEPTH_FRAGMENT,
       colorWrite: false,
-      side: THREE.BackSide,
+      side,
     });
     material.name = `${name}-depth`;
     return material;
@@ -1649,11 +1704,12 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     uIsland: { value: new THREE.Vector3(ISLAND.x, ISLAND.z, cfg.island) },
     uSeats: { value: new THREE.Vector4(SEATS[0][0], SEATS[0][1], SEATS[1][0], SEATS[1][1]) },
   };
+  const groundGeometry = instanced(island.count, [["aCol", island.col, 4], ["aNb", island.nb, 4], ["aNbD", island.nbd, 4], ["aTone", island.tone, 3]], half);
   add(
     "moon-ground",
-    instanced(island.count, [["aCol", island.col, 4], ["aNb", island.nb, 4], ["aNbD", island.nbd, 4], ["aTone", island.tone, 3]]),
-    shaded("moon-ground", GROUND_VERTEX, GROUND_FRAGMENT, groundExtra),
-    { depth: depthOnly("moon-ground", GROUND_ATTRS, GROUND_PLACE, groundExtra) },
+    groundGeometry,
+    shaded("moon-ground", GROUND_VERTEX, GROUND_FRAGMENT, groundExtra, { side: THREE.DoubleSide }),
+    { depth: depthOnly("moon-ground", GROUND_ATTRS, GROUND_PLACE, groundExtra), shadow: rebased(groundGeometry, sides) },
   );
   await breathe();
 
@@ -1680,8 +1736,8 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   };
   add(
     "moon-figures",
-    instanced(voxels.length, [["aPos", figPos, 3], ["aColor", figColor, 3], ["aInfo", figInfo, 4]]),
-    shaded("moon-figures", FIGURE_VERTEX, FIGURE_FRAGMENT, figureExtra),
+    instanced(voxels.length, [["aPos", figPos, 3], ["aColor", figColor, 3], ["aInfo", figInfo, 4]], half),
+    shaded("moon-figures", FIGURE_VERTEX, FIGURE_FRAGMENT, figureExtra, { side: THREE.DoubleSide }),
     { depth: depthOnly("moon-figures", FIGURE_ATTRS, FIGURE_PLACE, figureExtra) },
   );
   await breathe();
@@ -1702,8 +1758,8 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   };
   add(
     "moon-earth",
-    instanced(earth.count, [["aCell", earth.cell, 3], ["aPaint", earth.paint, 4], ["aRelief", earth.relief, 4], ["aSeed", earth.seed, 1]]),
-    shaded("moon-earth", EARTH_VERTEX, EARTH_FRAGMENT, earthExtra),
+    instanced(earth.count, [["aCell", earth.cell, 3], ["aPaint", earth.paint, 4], ["aRelief", earth.relief, 4], ["aSeed", earth.seed, 1]], half),
+    shaded("moon-earth", EARTH_VERTEX, EARTH_FRAGMENT, earthExtra, { side: THREE.DoubleSide }),
   );
   const haloMaterial = new THREE.ShaderMaterial({
     uniforms: { uSun: uniforms.uSun, uLevel: shared.uLevel, uHalo: { value: 0 } },
@@ -1714,7 +1770,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     blending: THREE.AdditiveBlending,
   });
   haloMaterial.name = "moon-halo";
-  const halo = add("moon-halo", new THREE.SphereGeometry(1, 96, 64), haloMaterial, { order: 5 });
+  const halo = add("moon-halo", new THREE.SphereGeometry(1, 96, 32), haloMaterial, { order: 5 });
 
   // ---- dust, meteors, debris --------------------------------------------------------------
   const dust = new Float32Array(cfg.dust * 4);
@@ -1785,7 +1841,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
     "moon-debris",
     instanced(cfg.debris, [["aKick", kick, 4]]),
     shaded("moon-debris", DEBRIS_VERTEX, DEBRIS_FRAGMENT, debrisExtra),
-    { depth: depthOnly("moon-debris", DEBRIS_ATTRS, DEBRIS_PLACE, debrisExtra) },
+    { depth: depthOnly("moon-debris", DEBRIS_ATTRS, DEBRIS_PLACE, debrisExtra, THREE.BackSide) },
   );
 
   // ---- the sky -------------------------------------------------------------------------------
@@ -2055,9 +2111,20 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
       };
       await build(scene, camera, target);
       await build(shadowScene, sunCamera, shadowTarget);
-      renderer.setRenderTarget(prev);
       backdrop.visible = false;
       flash.visible = false;
+      // A compiled program is not a drawn one: the strike's flash and
+      // debris draw for the first time on the track's onset, and a GPU that
+      // builds its pipelines at first draw stalled the whole intro there
+      // for most of a second. One hidden frame of the strike, now, into the
+      // target nobody is looking at yet.
+      if (target) {
+        this.update(T.strike + 0.12, { width: target.width, height: target.height, pixelRatio: 1, over: false });
+        this.renderShadows();
+        renderer.setRenderTarget(target);
+        renderer.render(scene, camera);
+      }
+      renderer.setRenderTarget(prev);
     },
     get counts() {
       return counts;
@@ -2069,8 +2136,11 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
         p.material.dispose();
         p.depth?.dispose();
         if (p.geometry !== cube) p.geometry.dispose();
+        if (p.twin && p.twin.geometry !== p.geometry) p.twin.geometry.dispose();
       }
       cube.dispose();
+      half.dispose();
+      sides.dispose();
       shadowTarget.depthTexture.dispose();
       shadowTarget.dispose();
     },

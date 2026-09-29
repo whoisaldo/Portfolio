@@ -163,49 +163,87 @@ export const VERT_WORLD_COLOR = /* glsl */ `
  * lit fraction, window style (0..1, five styles) and warmth. Returns the
  * colour in rgb and how much of it is lit glass in a (for the fog).
  * Needs COMMON above it.
+ *
+ * A lit window at night is a room: a run of one to three bays on a floor
+ * shares its light, and floors differ (an office leaves whole floors on).
+ * The light is mostly white, warm in homes and cool in offices by the
+ * building's warmth, with a few rooms lit by a television and a few by the
+ * city's own pink and teal. Each pane has its frame, its mullions and, in
+ * homes, a transom; some rooms have blinds, some curtains, and some a dark
+ * shape standing against the glass. Unlit glass holds the street's light
+ * and the sky's haze.
  */
 export const WINDOWS = /* glsl */ `
   vec4 windows(vec2 uv, vec3 params, vec3 world, float enabled) {
     vec2 cell = floor(uv);
     vec2 f = fract(uv);
     float style = floor(params.y * 8.0 + 0.5);
+    // The glass in its cell, and how many lights its mullions make: a pair,
+    // a tall single, an office's ribbon, a small old one, a curtain wall.
     vec2 m0 = vec2(0.16, 0.22);
     vec2 m1 = vec2(0.84, 0.86);
-    if (style > 0.5 && style < 1.5) { m0 = vec2(0.32, 0.14); m1 = vec2(0.68, 0.9); }
-    else if (style > 1.5 && style < 2.5) { m0 = vec2(0.0, 0.32); m1 = vec2(1.0, 0.78); }
-    else if (style > 2.5 && style < 3.5) { m0 = vec2(0.24, 0.3); m1 = vec2(0.6, 0.7); }
-    else if (style > 3.5) { m0 = vec2(0.04, 0.06); m1 = vec2(0.96, 0.97); }
-    float pane = step(m0.x, f.x) * step(f.x, m1.x) * step(m0.y, f.y) * step(f.y, m1.y);
+    float lights = 2.0;
+    float office = 0.0;
+    if (style > 0.5 && style < 1.5) { m0 = vec2(0.32, 0.14); m1 = vec2(0.68, 0.9); lights = 1.0; }
+    else if (style > 1.5 && style < 2.5) { m0 = vec2(0.0, 0.32); m1 = vec2(1.0, 0.78); lights = 3.0; office = 1.0; }
+    else if (style > 2.5 && style < 3.5) { m0 = vec2(0.24, 0.3); m1 = vec2(0.6, 0.7); lights = 1.0; }
+    else if (style > 3.5) { m0 = vec2(0.04, 0.06); m1 = vec2(0.96, 0.97); lights = 2.0; office = 1.0; }
+    vec2 size = (m1 - m0) * vec2(3.2, 3.4);
+    vec2 q = (f - m0) / (m1 - m0);
+    float pane = step(0.0, q.x) * step(q.x, 1.0) * step(0.0, q.y) * step(q.y, 1.0);
     float paneArea = (m1.x - m0.x) * (m1.y - m0.y);
 
-    float r = hash12(cell);
-    float lit = step(r, params.x * 0.62) * enabled;
-    // One window in a hundred and fifty changes its mind now and then.
-    float blink = hash12(cell * 1.73 + 3.1);
+    // Rooms, and floors that differ in how many of theirs are lit.
+    vec2 seed = params.yz * 17.0;
+    float span = 1.0 + floor(hash12(vec2(cell.y, 5.3) + seed) * 3.0);
+    vec2 room = vec2(floor(cell.x / span), cell.y);
+    float busy = hash12(vec2(cell.y * 1.37, 2.1) + seed);
+    float share = office > 0.5 ? mix(0.25, 1.6, step(0.55, busy)) : 0.45 + 1.1 * busy;
+    float lit = step(hash12(room + seed + 0.5), params.x * 0.62 * share) * enabled;
+    // One room in a hundred and fifty changes its mind now and then.
+    float blink = hash12(room * 1.73 + 3.1);
     if (blink > 0.993) lit *= step(0.42, fract(uTime * 0.045 + blink * 17.0));
 
-    float hv = hash12(cell + 11.3);
-    vec3 wc = mix(vec3(0.3, 0.46, 1.0), vec3(1.0, 0.46, 0.16), params.z);
-    wc = mix(wc, vec3(1.0, 0.2, 0.6), step(0.93, hv) * 0.85);
-    wc = mix(wc, vec3(0.16, 0.95, 0.85), step(0.97, hash12(cell + 2.7)) * 0.8);
-    float interior = 0.45 + 0.55 * smoothstep(m0.y, m1.y, f.y);
-    float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(f.y * 12.0)), step(0.72, hash12(cell + 5.1)));
-    float bright = (0.18 + 0.5 * hv * hv) * interior * blinds * (1.0 + 0.2 * uLevel);
+    float kind = hash12(room + seed + 11.3);
+    float hv = hash12(cell + 7.7);
+    vec3 warm = vec3(1.0, 0.6, 0.28);
+    vec3 cool = vec3(0.66, 0.8, 1.0);
+    vec3 wc = mix(cool, warm, smoothstep(0.25, 0.75, params.z + (kind - 0.5) * 0.6));
+    if (kind > 0.975) wc = vec3(1.0, 0.22, 0.6);
+    else if (kind > 0.955) wc = vec3(0.16, 0.95, 0.85);
+    else if (kind > 0.915) wc = vec3(0.32, 0.46, 1.0) * (0.65 + 0.35 * sin(uTime * (4.0 + 7.0 * hv) + hv * 40.0));
+    // Lit from the ceiling; blinds, curtains, and whatever stands at the glass.
+    float interior = 0.4 + 0.6 * smoothstep(0.0, 1.0, q.y);
+    float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(q.y * size.y * 6.0)), step(0.74, hash12(room + 5.1)));
+    float curtain = (1.0 - office) * step(0.7, hash12(room + 8.9));
+    vec3 lightCol = mix(wc, wc * vec3(1.0, 0.55, 0.4), curtain * 0.6) * mix(1.0, 0.75 + 0.25 * sin(q.x * size.x * 11.0), curtain);
+    float stuff = step(q.y, 0.18 + 0.2 * hash12(cell + 3.3)) * step(abs(q.x - hash12(cell + 9.1)), 0.25) * step(0.6, hash12(cell + 4.4));
+    float bright = (0.2 + 0.5 * hv * hv) * interior * blinds * (1.0 - 0.6 * stuff) * (1.0 + 0.2 * uLevel);
 
     vec3 spill = spillAt(world);
-    vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25;
+    vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25 + uHazeColor * 0.05 * (0.4 + q.y) * (0.5 + hash12(cell + 1.9));
     vec3 wall = vec3(0.022, 0.023, 0.028) * (0.75 + 0.5 * hash12(cell * 0.31 + 0.7));
     wall = wall * (vec3(0.6) + spill * 3.2);
 
-    vec3 win = mix(glass, wc * bright, lit);
+    // The frame and its bars, 9 cm, only while they are wider than about a
+    // pixel.
+    float px = max(fwidth(uv.x), fwidth(uv.y));
+    float mx = fract(q.x * lights);
+    float barX = min(mx, 1.0 - mx) * size.x / lights;
+    float barY = min(q.y, 1.0 - q.y) * size.y;
+    float transom = office > 0.5 ? 1.0 : abs(q.y - 0.78) * size.y;
+    float bar = (1.0 - step(0.045, min(barX, min(barY, transom)))) * (1.0 - smoothstep(0.02, 0.05, px));
+
+    vec3 win = mix(glass, lightCol * bright, lit);
+    win = mix(win, wall * 1.4, bar);
     vec3 detail = mix(wall, win, pane);
+    // A line of shadow under each floor's edge.
     detail *= mix(1.0, 0.55, step(f.y, 0.045));
 
     // Past a couple of pixels per window, the cell's average instead of a
     // pattern that shimmers.
-    float px = max(fwidth(uv.x), fwidth(uv.y));
-    vec3 avg = mix(wall, mix(glass, wc * 0.3, params.x * 0.62 * enabled), paneArea);
+    vec3 avg = mix(wall, mix(glass, mix(cool, warm, params.z) * 0.3, params.x * 0.62 * enabled), paneArea);
     float far = smoothstep(0.35, 0.9, px);
-    return vec4(mix(detail, avg, far), mix(pane * lit, params.x * paneArea, far));
+    return vec4(mix(detail, avg, far), mix(pane * lit * (1.0 - bar), params.x * paneArea, far));
   }
 `;

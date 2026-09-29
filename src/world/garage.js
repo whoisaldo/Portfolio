@@ -17,6 +17,7 @@
 // fast the page is scrolled, the door is up before the car reaches it.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
+import { NEON } from "./materials.js";
 import { preloadMoon } from "./moon.js";
 
 // The door's travel, in shots before the garage's own (the flight in
@@ -31,6 +32,31 @@ const TUBES_OFF = 0.62;
 // The opening, as the kit builds it (GX0, DOOR_Z0..DOOR_Z1, DOOR_H).
 const OPENING = { x: 452.0, z: -215.0, half: 3.0, height: 4.6 };
 const DRIPS = 26;
+
+/**
+ * The room's lights as the kit builds them (the builder's garage: GX0..GX1,
+ * GZ0..GZ1), for its glossy floor to trace (src/world/wet.js): the pink and
+ * cyan tubes along the top of the two painted long walls and the strips low
+ * on them, the two white panels overhead, the amber strip over the bench,
+ * and the monitor.
+ */
+export function garageLights() {
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const tube = (hex) => new THREE.Color(hex).multiplyScalar(2.4);
+  const wall = (z, y0, y1, x0, x1, facing, color) => ({
+    corner: V(x0, y1, z), u: V(x1 - x0, 0, 0), v: V(0, y0 - y1, 0), normal: V(0, 0, facing), tint: tube(color), tube: true,
+  });
+  return [
+    // The long tubes along the top of the painted magenta and cyan walls.
+    wall(-200.52, 7.38, 7.46, 459.8, 468.7, -1, NEON.pink),
+    wall(-229.48, 7.38, 7.46, 460.1, 469.2, 1, NEON.cyan),
+    ...[-219.5, -210.5].map((z) => ({ corner: V(455, 7.64, z - 0.9), u: V(18, 0, 0), v: V(0, 0, 1.8), normal: V(0, -1, 0), tint: tube(NEON.white), tube: true })),
+    wall(-200.62, 3.0, 3.12, 454, 474, -1, NEON.pink),
+    wall(-229.38, 3.0, 3.12, 454, 474, 1, NEON.cyan),
+    { corner: V(475.44, 2.46, -224), u: V(0, 0, 18), v: V(0, -0.06, 0), normal: V(-1, 0, 0), tint: tube(NEON.amber), tube: true },
+    { corner: V(475.43, 4.5, -216.7), u: V(0, 0, 3.4), v: V(0, -1.9, 0), normal: V(-1, 0, 0), tint: new THREE.Color(0.05, 0.09, 0.22) },
+  ];
+}
 
 export async function createGarage(named, shared, { reduced = false, reflectLayer = 2 } = {}) {
   const door = named.garage_door;

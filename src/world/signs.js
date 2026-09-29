@@ -250,14 +250,32 @@ const DRAW = {
     tube(ctx, text, w / 2, h / 2, px, spec.color);
   },
   vertical(ctx, spec, w, h) {
-    const chars = [...spec.lines[0]].filter((c) => c !== " ");
+    // A word break is half a letter's height with a point of tube in it:
+    // ROBERT·DEFALCO·REALTY, not ROBERTDEFALCOREALTY.
+    const chars = [...spec.lines[0].trim().replace(/\s+/g, " ")];
+    const size = (c) => (c === " " ? 0.55 : 1);
+    const units = chars.reduce((u, c) => u + size(c), 0);
     const reserve = spec.icon ? w * 1.1 : 0;
-    const step = Math.min((h - reserve - w * 0.4) / chars.length, w * 0.95);
+    const step = Math.min((h - reserve - w * 0.4) / units, w * 0.95);
     const px = Math.floor(step * (spec.latin ? 0.78 : 0.86));
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const top = (h - reserve - step * chars.length) / 2 + step / 2;
-    chars.forEach((c, i) => tube(ctx, c, w / 2, top + i * step, Math.min(px, w * 0.8), spec.color));
+    let y = (h - reserve - step * units) / 2;
+    for (const c of chars) {
+      const mid = y + (step * size(c)) / 2;
+      if (c === " ") {
+        ctx.fillStyle = spec.color;
+        ctx.shadowColor = spec.color;
+        ctx.shadowBlur = step * 0.2;
+        ctx.beginPath();
+        ctx.arc(w / 2, mid, Math.max(1.5, step * 0.075), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      } else {
+        tube(ctx, c, w / 2, mid, Math.min(px, w * 0.8), spec.color);
+      }
+      y += step * size(c);
+    }
     if (spec.icon === "bowl") {
       // A bowl and three lines of steam, drawn in the same tube.
       const cy = h - reserve * 0.55;
@@ -412,8 +430,12 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   texture.minFilter = THREE.LinearMipmapLinearFilter;
 
   // Merge every face into one geometry with atlas UVs and a sign index.
+  // Each face's frame is kept too (its world corner at uv 0,0, its edges to
+  // 1,0 and 0,1, the way it faces, and its cell), for the floors that trace
+  // a sign's reflection (src/world/wet.js).
   const geos = [];
   const sources = [];
+  const frames = [];
   faces.forEach(({ mesh, spec }, index) => {
     const cell = cells.get(spec.key);
     const g = new THREE.BufferGeometry();
@@ -442,6 +464,29 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       U[i * 2 + 1] = (cell.y + t * cell.ph) / ATLAS;
       S[i * 2] = index;
       S[i * 2 + 1] = spec.flicker && !reduced ? 1 : 0;
+    }
+    const sides = new Map();
+    for (let i = 0; i < n; i++) {
+      const key = [N[i * 3], N[i * 3 + 1], N[i * 3 + 2]].map((c) => Math.round(c * 4)).join();
+      if (!sides.has(key)) sides.set(key, { normal: new THREE.Vector3(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]), at: [] });
+      sides.get(key).at.push([uv.getX(i), uv.getY(i), new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])]);
+    }
+    for (const { normal, at } of sides.values()) {
+      const corner = (u, t) => at.find(([a, b]) => Math.abs(a - u) < 1e-3 && Math.abs(b - t) < 1e-3)?.[2];
+      const o = corner(0, 0);
+      const a = corner(1, 0);
+      const b = corner(0, 1);
+      if (!o || !a || !b) continue;
+      frames.push({
+        name: mesh.name,
+        corner: o,
+        u: a.clone().sub(o),
+        v: b.clone().sub(o),
+        normal,
+        atlas: new THREE.Vector4(cell.x / ATLAS, cell.y / ATLAS, cell.pw / ATLAS, cell.ph / ATLAS),
+        color: new THREE.Color(spec.color),
+        sign: [index, spec.flicker && !reduced ? 1 : 0],
+      });
     }
     g.setAttribute("position", new THREE.BufferAttribute(P, 3));
     g.setAttribute("normal", new THREE.BufferAttribute(N, 3));
@@ -501,6 +546,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     mesh,
     texture,
     sources,
+    frames,
     dispose() {
       geometry.dispose();
       material.dispose();

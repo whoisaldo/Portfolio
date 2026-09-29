@@ -15,8 +15,14 @@ import { worldKoiUrl } from "../data/world-assets.js";
 
 // The loop: its centre, its half-width across the avenue and half-depth up
 // it, its height and how much that rises and falls, and a lap's seconds.
-const LOOP = { x: 0.6, z: -40, halfX: 7, halfZ: 12, y: 6.8, bob: 1.4, lap: 26 };
-const LENGTH = 11;
+// That height is for a tall screen, where the name sits above them. On a
+// wide one the name fills the avenue's sky from about a fifth of the way
+// down, so fit() lifts the loop until the hero's lens sees its middle BAND
+// of the way down the frame, in the strip of sky between the nav's line and
+// the name's cap line, whatever the screen's size.
+const LOOP = { x: 0.6, z: -40, halfX: 7, halfZ: 1.5, y: 11.5, bob: 0.35, lap: 26 };
+const BAND = 0.128;
+const LENGTH = 8;
 const SEGMENTS = 24;
 
 let pending = null;
@@ -32,11 +38,11 @@ export function preloadKoi() {
   return pending;
 }
 
-/** A point on the figure of eight at phase `a` (radians). */
-function loopAt(a, out) {
+/** A point on the figure of eight at phase `a` (radians), `y` metres up. */
+function loopAt(a, y, out) {
   return out.set(
     LOOP.x + LOOP.halfX * Math.sin(a),
-    LOOP.y + LOOP.bob * Math.sin(a * 1.5 + 0.8),
+    y + LOOP.bob * Math.sin(a * 1.5 + 0.8),
     LOOP.z + LOOP.halfZ * Math.sin(a) * Math.cos(a),
   );
 }
@@ -110,13 +116,15 @@ export async function createKoi(scene, shared, { reduced = false, reflectLayer =
 
   const here = new THREE.Vector3();
   const ahead = new THREE.Vector3();
+  const lens = new THREE.PerspectiveCamera();
+  let loopY = LOOP.y;
   let clock = 2.1;
   const place = () => {
     fish.forEach(({ mesh, material }, i) => {
       // The second chases the first, a tenth of a lap behind.
       const a = (clock / LOOP.lap - i * 0.1) * Math.PI * 2;
-      loopAt(a, here);
-      loopAt(a + 0.05, ahead);
+      loopAt(a, loopY, here);
+      loopAt(a + 0.05, loopY, ahead);
       mesh.position.copy(here);
       // Face along the path: the image's +x is the head.
       mesh.rotation.set(0, Math.atan2(-(ahead.z - here.z), ahead.x - here.x), 0);
@@ -129,6 +137,27 @@ export async function createKoi(scene, shared, { reduced = false, reflectLayer =
     fish,
     update(dt) {
       if (!reduced) clock += dt;
+      place();
+    },
+    /** The loop's height for this screen, from the hero's pose (see LOOP). */
+    fit(pose, aspect) {
+      loopY = LOOP.y;
+      if (aspect < 1) return place();
+      lens.position.copy(pose.position);
+      lens.lookAt(pose.target);
+      lens.fov = pose.fov;
+      lens.aspect = aspect;
+      lens.updateProjectionMatrix();
+      lens.projectionMatrix.elements[9] = -pose.shift;
+      lens.updateMatrixWorld();
+      let lo = LOOP.y;
+      let hi = LOOP.y + 30;
+      for (let k = 0; k < 24; k++) {
+        const mid = (lo + hi) / 2;
+        if (here.set(LOOP.x, mid, LOOP.z).project(lens).y < 1 - 2 * BAND) lo = mid;
+        else hi = mid;
+      }
+      loopY = (lo + hi) / 2;
       place();
     },
     dispose() {

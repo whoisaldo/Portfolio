@@ -26,7 +26,7 @@ import { createAds, preloadAds } from "./ads.js";
 import { createBoards } from "./boards.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
-import { createGarage } from "./garage.js";
+import { createGarage, garageLights } from "./garage.js";
 import { attributeKey, mergeMeshes } from "./merge.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -35,6 +35,12 @@ export const REFLECT_LAYER = 2;
 export const MIRROR_LAYER = 3;
 
 const cache = new Map();
+
+// The signs across the rooftop's roof, which its puddles hold and its steam
+// is lit by.
+const ROOF_SIGNS = new Set(["sign_ripperdoc", "sign_afterlife"]);
+// The colour each of the garage's painted walls lights the room.
+const GARAGE_WALLS = { garage_wall_back: NEON.amber, garage_wall_magenta: NEON.pink, garage_wall_cyan: NEON.cyan };
 
 export function preloadCity(tier) {
   if (!cache.has(tier)) {
@@ -85,7 +91,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     if (!o.isMesh || !o.material?.map) return;
     const n = o.material.name;
     if (n === "NCW_sidewalk") maps.sidewalk = o.material.map;
-    if (/^NCW_facade_t\d$/.test(n)) maps[n.slice(4)] = o.material.map ?? o.material.emissiveMap;
+    if (/^NCW_(facade_t\d|garage_wall_(back|magenta|cyan))$/.test(n)) maps[n.slice(4)] = o.material.map ?? o.material.emissiveMap;
     if (n === "NCW_concrete") maps.concrete = o.material.map;
     if (n === "NCW_asphalt") {
       maps.asphalt = o.material.map;
@@ -125,6 +131,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       // the bake as the room's mix.
       sources.push({ mesh, color: new THREE.Color("#e0a8e6"), intensity: 0.8 });
       mesh.layers.enable(REFLECT_LAYER);
+    } else if (name.startsWith("garage_wall_")) {
+      // The garage's painted walls carry its tubes, as the viewer's room
+      // does: their light in the bake, each wall its own.
+      sources.push({ mesh, color: new THREE.Color(GARAGE_WALLS[name]), intensity: name === "garage_wall_back" ? 0.5 : 1.6 });
     } else if (name === "shop") {
       sources.push({ mesh, color: new THREE.Color("#ffb070"), intensity: 0.5 });
       mesh.layers.enable(REFLECT_LAYER);
@@ -154,6 +164,16 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     m.removeFromParent();
   }
   root.add(signs.mesh);
+
+  // The floors that trace what glows over them (src/world/wet.js): the
+  // rooftop's roof its signs, the garage's floor its tubes.
+  const roofSigns = signs.frames.filter((f) => ROOF_SIGNS.has(f.name));
+  kit.wet.roof?.set(roofSigns.map((f) => ({ ...f, tint: f.color.clone().multiplyScalar(1.6) })), signs.texture);
+  kit.wet.garage?.set(garageLights());
+  const roofLights = [...new Map(roofSigns.map((f) => [f.name, f])).values()].map((f) => ({
+    position: f.corner.clone().addScaledVector(f.u, 0.5).addScaledVector(f.v, 0.5),
+    color: f.color.clone().multiplyScalar(0.9),
+  }));
 
   // The avenue's two big screens: one draw, and their light in the bake too.
   const ads = await createAds(adMeshes, shared, {
@@ -206,7 +226,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     dressed.push(await dressHolo(named.holo_figure, shared, { reduced }));
     named.holo_figure.layers.enable(REFLECT_LAYER);
   }
-  if (named.moon_disc) dressed.push(await dressMoon(named.moon_disc, shared, { reflectLayer: REFLECT_LAYER }));
+  const moonDisc = named.moon_disc ? await dressMoon(named.moon_disc, shared, { reflectLayer: REFLECT_LAYER }) : null;
+  if (moonDisc) dressed.push(moonDisc);
   const boards = createBoards(Object.entries(named).filter(([n]) => n.startsWith("board_")).map(([, m]) => m), shared, { reduced, reflectLayer: REFLECT_LAYER });
   const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER });
   const logos = await createLogos(anchors, shared, { reflectLayer: REFLECT_LAYER, maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()) });
@@ -230,13 +251,21 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     towers,
     logos,
     garage,
+    moonDisc,
     kit,
     roadMaterial: road,
     roadMaterials: [road, paint],
     signs,
+    roofLights,
     light,
     setSignsVisible(on) {
       signs.mesh.visible = on;
+      for (const w of Object.values(kit.wet)) w.setSigns(on);
+    },
+    /** The `wet` switch: the road's sheen and mirror are the road's own;
+     *  this is the rooftop's standing water. */
+    setWet(on) {
+      kit.wet.roof?.setWet(on);
     },
     dispose() {
       scene.remove(root);

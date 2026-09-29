@@ -27,6 +27,7 @@
 //   surface  everything else: paint, concrete, metal, roofs, lit by the spill.
 import * as THREE from "three";
 import { COMMON, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
+import { createWetFloor } from "./wet.js";
 
 /** The world's own neon, as the plate uses it. */
 export const NEON = {
@@ -89,10 +90,11 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  const painted = (key, map) => {
+  const painted = (key, map, { tiled = true } = {}) => {
     if (made.has(key)) return made.get(key);
     const m = keep(new THREE.ShaderMaterial({
       uniforms: { ...shared, uMap: { value: map }, uGain: { value: 1.05 } },
+      defines: tiled ? { TILED: "" } : {},
       vertexShader: VERT_WORLD,
       fragmentShader: /* glsl */ `
         ${COMMON}
@@ -102,12 +104,35 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         varying vec3 vNormalW;
         varying vec2 vUv;
         void main() {
-          vec3 tex = texture2D(uMap, vUv).rgb;
+          // Each tile of the elevation a block's own: every other one
+          // mirrored and some a floor or two darker, so a long wall is not
+          // one building printed over and over. Far off, the picture is
+          // read from a smaller level and its rooms stop reaching for the
+          // bloom, or a whole block becomes a grid of lit dots. A wall that
+          // is one picture (the garage's) is not tiled.
+          vec2 uv = vUv;
+          #ifdef TILED
+          vec2 tile = floor(vUv);
+          if (hash12(tile + 3.1) > 0.5) uv.x = tile.x + 1.0 - fract(vUv.x);
+          #endif
+          float far = smoothstep(90.0, 260.0, length(vWorld - uCam));
+          vec2 grad = vec2(fwidth(vUv.x), fwidth(vUv.y)) * exp2(far * 1.5);
+          vec3 tex = textureGrad(uMap, uv, vec2(grad.x, 0.0), vec2(0.0, grad.y)).rgb;
+          #ifdef TILED
+          tex *= mix(1.0, 0.62, step(0.66, hash12(tile + 7.7)));
+          #endif
           float lum = dot(tex, vec3(0.2126, 0.7152, 0.0722));
           // Lit rooms stay light and push past the bloom's threshold; the
           // concrete between them is lit by the street.
           float room = smoothstep(0.12, 0.45, lum);
-          vec3 col = tex * uGain * (0.9 + 1.6 * room * room);
+          float lit = 1.0;
+          #ifndef TILED
+          // The garage's walls are its room with the lights on: dark until
+          // its tubes strike (src/world/garage.js), catching with them.
+          float catching = step(0.5, hash12(vec2(floor(uTubeClock * 20.0), 7.0)));
+          lit = step(0.0, uTubeClock) * (uTubeClock > 0.6 ? 1.0 : catching * smoothstep(0.0, 0.6, uTubeClock));
+          #endif
+          vec3 col = tex * uGain * lit * (0.9 + 1.6 * room * room * (1.0 - 0.8 * far));
           col += tex * spillAt(vWorld) * 2.2 * (1.0 - room) + spillAt(vWorld) * 0.02;
           col = cityFog(col, vWorld, room * 0.7);
           gl_FragColor = vec4(col, 1.0);
@@ -236,7 +261,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             col = mix(col, vec3(0.012), clamp(frame, 0.0, 1.0));
           }
           // The glass: at a glancing angle it gives back the street.
-          float fres = pow(1.0 - facing, 4.0);
+          float fres = pow(max(1.0 - facing, 0.0), 4.0);
           col = col * (1.0 - 0.55 * fres) + spillAt(vWorld) * (0.03 + 0.4 * fres);
           col = cityFog(col, vWorld, 0.8);
           gl_FragColor = vec4(col, 1.0);
@@ -487,6 +512,17 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
+  // The two floors that trace what glows over them (src/world/wet.js);
+  // city.js hands them their rectangles once the signs are made.
+  const wet = {};
+  const wetFloor = (kind) => {
+    if (!wet[kind]) {
+      wet[kind] = createWetFloor(shared, { kind, reduced });
+      keep(wet[kind].material);
+    }
+    return wet[kind];
+  };
+
   /** The material for a GLB material name, or null to leave it alone. */
   const forName = (name) => {
     const n = name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
@@ -508,6 +544,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1 });
       case "concrete": return surface("concrete", { color: "#6a6c71", map: maps.concrete, ambient: 0.03 });
       case "garage_wall": return surface("garage_wall", { color: "#7c7e84", map: maps.concrete, ambient: 0.07, spill: 2.2 });
+      case "garage_wall_back":
+      case "garage_wall_magenta":
+      case "garage_wall_cyan": return maps[n] ? painted(n, maps[n], { tiled: false }) : forName("garage_wall");
       case "kerb": return surface("kerb", { color: "#4a4c52", ambient: 0.03 });
       case "paint": return surface("paint", { color: "#b9b7ae", ambient: 0.05, spill: 1.3 });
       case "metal": return surface("metal", { color: "#2d3036", ambient: 0.035 });
@@ -515,7 +554,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "roof": return surface("roof", { color: "#15161a", ambient: 0.025, spill: 0.5 });
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
       case "door": return surface("door", { color: "#2a2d33", ambient: 0.04 });
-      case "garage_floor": return surface("garage_floor", { color: "#56585e", ambient: 0.09, spill: 2.6 });
+      case "garage_floor": return wetFloor("garage").material;
+      case "roof_wet": return wetFloor("roof").material;
       case "tube": return tube();
       case "tool_red": return surface("tool_red", { color: "#7a2028", ambient: 0.06, spill: 2.0 });
       case "hazard": return surface("hazard", { color: "#d8ab22", ambient: 0.07, spill: 1.8 });
@@ -528,6 +568,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     forName,
     neon,
     surface,
+    wet,
     all: () => all,
     dispose() {
       all.forEach((m) => m.dispose());

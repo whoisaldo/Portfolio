@@ -20,12 +20,13 @@
 // into the next one, lifted by at least an arc proportional to the distance
 // and by whatever the city under its line needs (src/world/clearance.js
 // knows how tall every block is). Where no height would do (down off the
-// rooftop into a street, in at the garage door, out of it) the flight names
-// its waypoints instead, empties in the kit, and the camera runs a
-// centripetal Catmull-Rom curve through them at an even speed, looking at
-// the shot it is heading for, or at the car when the flight follows it. The
-// easing is symmetric so the middle of the flight, where the glitch peaks,
-// is the middle of the scroll.
+// rooftop into a street, in at the garage door and round the car, out of
+// it) the flight names its waypoints instead, empties in the kit, and the
+// camera runs a centripetal Catmull-Rom curve through them at an even
+// speed, looking where it is going, then at the car when the flight follows
+// it, and at the end at the shot it arrives on. The easing is symmetric so
+// the middle of the flight, where the glitch peaks, is the middle of the
+// scroll.
 import * as THREE from "three";
 import { SHOTS, GARAGE_FRONT } from "../data/world.js";
 
@@ -218,21 +219,24 @@ export function createShots(anchors, clearance = null) {
     out.fov = A.fov + (B.fov - A.fov) * e;
     out.shift = A.shift + (B.shift - A.shift) * e;
 
-    // A flight with named waypoints: through them, looking at the next
-    // shot's target (or at the car) in the middle, and at the two shots' own
-    // targets at the ends.
+    // A flight with named waypoints: through them, looking first where it
+    // is going (a little further along its own path), so it goes over a
+    // roof's edge before it looks down into the street and out of a door
+    // before it looks up at the sky; then at the car, when it follows it;
+    // and only at the end at the next shot's own target. Where the shot it
+    // left was looking is let go of early, or a far target drags the gaze
+    // off the car for the whole of the way in.
     const into = SHOTS[ids[j]]?.via?.in;
     const vias = (Array.isArray(into) ? into : into ? [into] : []).filter(has);
     if (vias.length) {
       pts.length = 0;
       pts.push(A.position, ...vias.map(at), B.position);
       along(e, out.position);
-      _end.copy(A.target).lerp(B.target, e);
+      along(Math.min(1, e + 0.1), _end);
       const follows = SHOTS[ids[j]]?.follow && focus;
-      if (follows) _c.copy(focus).setY(focus.y + 0.9);
-      else _c.copy(B.target);
-      const w = smoothstep(0, 0.3, e) * (1 - smoothstep(0.72, 1, e));
-      out.target.copy(_end).lerp(_c, w);
+      out.target.copy(A.target).lerp(_end, smoothstep(0, 0.18, e));
+      if (follows) out.target.lerp(_c.copy(focus).setY(focus.y + 0.9), smoothstep(0.35, 0.55, e));
+      out.target.lerp(B.target, smoothstep(follows ? 0.72 : 0.55, 1, e));
       return Math.sin(Math.PI * f);
     }
 
