@@ -174,6 +174,23 @@ function rumble(s, amp) {
   return `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
 }
 
+// A replay started mid-run mounts the new run's layers before AnimatePresence
+// lets the old run's go, and React clears a ref when its element leaves: the
+// old layers' exit would null the refs the new run's frame loop drives (the
+// overlay then kept its opaque black over the voxel moon). A ref set through
+// held() takes each element as it mounts and never gives it back.
+const holders = new WeakMap();
+function held(ref) {
+  let set = holders.get(ref);
+  if (!set) {
+    set = (el) => {
+      if (el) ref.current = el;
+    };
+    holders.set(ref, set);
+  }
+  return set;
+}
+
 /** Take the page back from a live-city intro: the city's loop runs again and
  *  the page is no longer held under it. Safe to call when it never had it. */
 function leaveWorldPath() {
@@ -866,16 +883,16 @@ export default function IntroCinematic() {
           {path !== "world" && (
             <div className="fixed inset-0 z-[113] pointer-events-none overflow-hidden" aria-hidden="true" data-handoff-signal="" data-intro-layer="">
               {["inset(24% 0 74.7% 0)", "inset(48% 0 48.8% 0)", "inset(72% 0 27.3% 0)"].map((clipPath, i) => (
-                <div key={clipPath} ref={(el) => { signalRefs.current[i] = el; }} className={`intro-signal-slice intro-signal-slice-${i}`} style={{ clipPath, opacity: 0 }}>
+                <div key={clipPath} ref={(el) => { if (el) signalRefs.current[i] = el; }} className={`intro-signal-slice intro-signal-slice-${i}`} style={{ clipPath, opacity: 0 }}>
                   <NightCity className="absolute inset-0 block" />
                 </div>
               ))}
-              <div ref={signalScanRef} className="intro-signal-scan absolute inset-0 opacity-0" />
+              <div ref={held(signalScanRef)} className="intro-signal-scan absolute inset-0 opacity-0" />
             </div>
           )}
           {/* The scene dissolves as one layer; the car finishes above it. */}
           <motion.div
-            ref={overlayRef}
+            ref={held(overlayRef)}
             className="fixed inset-0 z-[110] overflow-hidden bg-ink-deep select-none will-change-opacity"
             data-intro-layer=""
             // Opaque from its first frame: the gate's own fade is the
@@ -887,7 +904,7 @@ export default function IntroCinematic() {
             {/* Its own layer, because the shake moves it every frame of the
                 drop and a transform on a layer costs nothing, where a
                 transform on a painted box repaints the moon. */}
-            <div ref={worldRef} className="absolute inset-0 will-change-transform">
+            <div ref={held(worldRef)} className="absolute inset-0 will-change-transform">
               {/* The painted moon, for the plate path. With the voxel moon
                   the city draws all of this itself, under a clear overlay,
                   and the figures are described once for a screen reader. */}
@@ -897,13 +914,13 @@ export default function IntroCinematic() {
                 <>
                   {/* Stars behind the plate, so the push-in has something to
                       move against. */}
-                  <div ref={starsRef} className="absolute inset-0 overflow-hidden" aria-hidden="true">
+                  <div ref={held(starsRef)} className="absolute inset-0 overflow-hidden" aria-hidden="true">
                     <span className="intro-star" style={{ boxShadow: stars }} />
                   </div>
 
                   {/* The moon. Pushes in slowly through the whole phrase, then
                       recedes at ignition. */}
-                  <div ref={moonRef} className="absolute inset-0 will-change-transform" style={{ transformOrigin: "50% 62%" }}>
+                  <div ref={held(moonRef)} className="absolute inset-0 will-change-transform" style={{ transformOrigin: "50% 62%" }}>
                     <Picture
                       sources={portrait ? MOON_PORTRAIT : MOON}
                       alt="Two figures sitting on the surface of the moon with their backs to us, looking up at Earth."
@@ -915,7 +932,7 @@ export default function IntroCinematic() {
                   </div>
 
                   {/* Earth's glow, breathing with the music through --level. */}
-                  <div ref={earthRef} className="absolute inset-0 pointer-events-none" aria-hidden="true">
+                  <div ref={held(earthRef)} className="absolute inset-0 pointer-events-none" aria-hidden="true">
                     <div className="intro-earthglow" data-reactive="" />
                     {/* Moon dust. */}
                     {motes.map((m) => (
@@ -941,13 +958,13 @@ export default function IntroCinematic() {
 
               {/* The street stays behind the live car and the portfolio.
                   Hero uses this exact frame, so the handoff has no cut. */}
-              <div ref={cityRef} className="absolute inset-0 opacity-0" aria-hidden="true" data-intro-city="">
+              <div ref={held(cityRef)} className="absolute inset-0 opacity-0" aria-hidden="true" data-intro-city="">
                 <NightCity className="absolute inset-0 block" />
               </div>
 
               {/* Headlights before the car: a bloom from the bottom right. */}
               <div
-                ref={glowRef}
+                ref={held(glowRef)}
                 className="absolute inset-0 opacity-0 pointer-events-none"
                 aria-hidden="true"
                 style={{
@@ -993,7 +1010,7 @@ export default function IntroCinematic() {
                 {flags.card >= 0 && !flags.cardOut && (
                   <span key={`flare-${run.id}-${flags.card}`} className="intro-flare" aria-hidden="true" />
                 )}
-                <div ref={nameRef} className="intro-name col-start-1 row-start-1 w-full will-change-[transform,opacity]">
+                <div ref={held(nameRef)} className="intro-name col-start-1 row-start-1 w-full will-change-[transform,opacity]">
                   <NameDecode key={`name-${run.id}`} text={target} on={flags.name} burst={flags.kicked} />
                   <motion.span
                     className="mt-5 block h-px w-[min(24rem,62vw)] bg-volt mx-auto"
@@ -1044,7 +1061,7 @@ export default function IntroCinematic() {
 
           {/* The car stays solid while the scene dissolves underneath it. */}
           <canvas
-            ref={canvasRef}
+            ref={held(canvasRef)}
             className="fixed inset-0 z-[111] w-full h-full pointer-events-none opacity-0"
             aria-hidden="true"
             data-intro-layer=""
@@ -1052,7 +1069,7 @@ export default function IntroCinematic() {
 
           {/* The flat car, for when there is no WebGL. Same place in the
               stack; driven only if the scene above could not be built. */}
-          <div ref={fallbackRef} className="fixed inset-0 z-[111] pointer-events-none overflow-hidden" aria-hidden="true" data-intro-layer="">
+          <div ref={held(fallbackRef)} className="fixed inset-0 z-[111] pointer-events-none overflow-hidden" aria-hidden="true" data-intro-layer="">
             {puffs.map((p) => (
               <span
                 key={p.id}
@@ -1061,11 +1078,11 @@ export default function IntroCinematic() {
               />
             ))}
             <div
-              ref={carRef}
+              ref={held(carRef)}
               className="absolute left-1/2 top-[54%] opacity-0 will-change-transform"
               style={{ width: 0 }}
             >
-              <div ref={trailRef} className="absolute left-[92%] top-[34%] w-[70vw] origin-left" style={{ transform: "scaleX(0)" }}>
+              <div ref={held(trailRef)} className="absolute left-[92%] top-[34%] w-[70vw] origin-left" style={{ transform: "scaleX(0)" }}>
                 <div className="intro-trail h-[3px]" />
                 <div className="intro-trail h-[3px] mt-[5%]" style={{ opacity: 0.7 }} />
               </div>
