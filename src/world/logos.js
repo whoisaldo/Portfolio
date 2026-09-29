@@ -1,7 +1,8 @@
 // src/world/logos.js: corpo row's logos.
 //
 // Each tower's crown carries its organisation's mark on its face to the
-// boulevard: the Experience section's own logos (src/assets/
+// boulevard (and on its face to the east, which the rooftop sees): the
+// Experience section's own logos (src/assets/
 // PreviousExperience), keyed to their dark-ground forms and packed into one
 // atlas by scripts/optimize-world.mjs, drawn as lit signs in their own
 // colours. The kit gives a slot per tower (logo_<slug>: a centre and the
@@ -41,23 +42,25 @@ export async function createLogos(anchors, shared, { reflectLayer = 2, maxAnisot
   const parts = [];
   const marks = [];
   for (const tower of TOWERS) {
-    const slot = anchors.get(`logo_${tower.slug}`);
+    const slots = [`logo_${tower.slug}`, `logo_${tower.slug}_e`].map((name) => anchors.get(name)).filter(Boolean);
     const mark = worldLogos.marks[tower.slug];
-    if (!slot || !mark) continue;
-    const maxW = slot.extras?.w ?? 18;
-    const maxH = slot.extras?.h ?? 13;
-    const w = Math.min(maxW, maxH * mark.aspect);
-    const h = w / mark.aspect;
-    const g = new THREE.PlaneGeometry(w, h);
-    g.applyQuaternion(slot.quaternion);
-    g.translate(slot.position.x, slot.position.y, slot.position.z);
-    const n = g.attributes.position.count;
-    const [u, v, rw, rh] = mark.rect;
-    const rect = new Float32Array(n * 4);
-    for (let i = 0; i < n; i++) rect.set([u, v, rw, rh], i * 4);
-    g.setAttribute("aRect", new THREE.BufferAttribute(rect, 4));
-    g.setAttribute("aMark", new THREE.BufferAttribute(new Float32Array(n).fill(marks.length), 1));
-    parts.push(g);
+    if (!slots.length || !mark) continue;
+    for (const slot of slots) {
+      const maxW = slot.extras?.w ?? 18;
+      const maxH = slot.extras?.h ?? 13;
+      const w = Math.min(maxW, maxH * mark.aspect);
+      const h = w / mark.aspect;
+      const g = new THREE.PlaneGeometry(w, h);
+      g.applyQuaternion(slot.quaternion);
+      g.translate(slot.position.x, slot.position.y, slot.position.z);
+      const n = g.attributes.position.count;
+      const [u, v, rw, rh] = mark.rect;
+      const rect = new Float32Array(n * 4);
+      for (let i = 0; i < n; i++) rect.set([u, v, rw, rh], i * 4);
+      g.setAttribute("aRect", new THREE.BufferAttribute(rect, 4));
+      g.setAttribute("aMark", new THREE.BufferAttribute(new Float32Array(n).fill(marks.length), 1));
+      parts.push(g);
+    }
     marks.push({ slug: tower.slug, lit: IDLE, sweep: 1, on: false });
   }
   if (!parts.length) return { update() {}, dispose() { map.dispose(); } };

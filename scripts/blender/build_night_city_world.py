@@ -191,6 +191,12 @@ def painted(name, path):
 FACADE_TILE = (16.0, 24.0)
 for i in range(3):
     painted(f"facade_t{i}", TEX / f"facade-{i + 1}.jpg")
+# The garage's walls inside are the garage viewer's own: its room's back,
+# magenta and cyan walls, each photographed head-on in that viewer under its
+# own lights with the car hidden (see the design README), so the room the
+# flight comes into is the room the viewer opens on.
+for name in ("back", "magenta", "cyan"):
+    painted(f"garage_wall_{name}", TEX / f"garage-wall-{name}.jpg")
 # Rails, units, brackets: small and dark, so plain paint rather than three
 # more texture maps in the download.
 material("metal", "34373d", metal=0.55, rough=0.45)
@@ -198,6 +204,8 @@ material("paint", "b9b7ae", rough=0.35)
 material("kerb", "3d3f44", rough=0.7)
 material("dark", "0b0c0f", rough=0.8)
 material("roof", "17181c", rough=0.9)
+# The rooftop's own roof, wet: the site traces the signs in its puddles.
+material("roof_wet", "121317", rough=0.15)
 material("glass_dark", "0d1418", metal=0.6, rough=0.12)
 material("corporate", "10161f", metal=0.5, rough=0.15)
 material("lobby", "e8e4da", emit=1.2)
@@ -532,6 +540,13 @@ crosswalk(AV, -9.2, 9.2, -8.3)
 # The south one a few metres back from the junction: the hero's lens stands
 # at z 10, and its bars would lie right under it.
 crosswalk(AV, -9.2, 9.2, 13.4)
+# Through the junction, the lanes' own dashed guides, so the road nearest
+# the hero's lens leads up the avenue like the rest of it.
+for lx, w in ((0.0, 0.15), (-5.0, 0.06), (5.0, 0.06)):
+    z = 8.0
+    while z - 1.0 > -6.2:
+        quad((AV, "paint", 0), (lx - w, 0.011, z), (lx + w, 0.011, z), (lx + w, 0.011, z - 1.0), (lx - w, 0.011, z - 1.0))
+        z -= 2.0
 for side in (-1, 1):
     kerb_and_walk(AV, side, AV_NORTH, -6)
     kerb_and_walk(AV, side, 8, 60)
@@ -565,7 +580,7 @@ def _mass_sides(x0, x1, z0, z1, y0, y1):
     }
 
 
-def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=True, painted=None):
+def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=True, painted=None, roof_mat="roof"):
     r = random.Random(seed)
     if col is None:
         col = (r.uniform(0.12, 0.5), r.randrange(0, 5) / 8.0, r.uniform(0.2, 1.0), 1.0)
@@ -582,7 +597,7 @@ def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=Tru
             u1 = ou + length / tw
             quad(k, a, b, c, d, ((ou, vs(y0)), (u1, vs(y0)), (u1, vs(y1)), (ou, vs(y1))), col)
         if roof:
-            quad((district, "roof", 0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0),
+            quad((district, roof_mat, 0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0),
                  ((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
         return col
     k = (district, "facade", 0)
@@ -600,7 +615,7 @@ def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=Tru
         u1 = ou + length / CELL_W
         quad(k, a, b, c, d, ((ou, vs(y0)), (u1, vs(y0)), (u1, vs(y1)), (ou, vs(y1))), col)
     if roof:
-        quad((district, "roof", 0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0),
+        quad((district, roof_mat, 0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0),
              ((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
     return col
 
@@ -924,6 +939,12 @@ for side in (-1, 1):
         box((AV, "neon_amber", 0), hx - 0.35, hx + 0.35, 6.2, 6.3, z - 0.15, z + 0.15, scale=0.5)
         LAMPS.append((hx, 6.2, z))
 
+# Two manholes up the avenue breathe steam into the signs' light (the site
+# draws it from anchor_steam_<n>).
+for i, (x, z) in enumerate(((4.0, -8.0), (-6.0, -30.0))):
+    cylinder((AV, "metal", 1), x, z, 0.0, 0.025, 0.42, segs=16)
+    empty(f"anchor_steam_street_{i}", (x, 0.05, z))
+
 # Vending machines and bollards at the kerb.
 for side, z, colour in ((-1, -19.5, "cyan"), (-1, -20.6, "pink"), (1, -36.0, "amber"), (1, -71.0, "cyan")):
     s = side
@@ -1059,6 +1080,19 @@ box((PL, "board_frame", 0), bx - bw / 2 - 0.8, bx + bw / 2 + 0.8, by - bh / 2 - 
 box((PL, "neon_yellow", 0), bx - bw / 2 - 0.8, bx + bw / 2 + 0.8, by - bh / 2 - 0.9, by - bh / 2 - 0.7, bz - 0.05, bz + 0.1, scale=1.0)
 for px in (bx - 9, bx + 9):
     box((PL, "metal", 0), px - 0.6, px + 0.6, 0, by - bh / 2 - 0.8, bz - 1.2, bz - 0.2, scale=1.0)
+# A board this size hangs in a steel housing bolted over the flats behind
+# it: a dark field wider than the screen and the two boards beside it (so
+# the screens, not the lit rooms round them, are what the eye finds),
+# ribbed, with a catwalk along its foot and a red lamp on each top corner.
+HX0, HX1 = bx - bw / 2 - 10.5, bx + bw / 2 + 10.5
+HY0, HY1 = by - bh / 2 - 3.2, by + bh / 2 + 3.6
+box((PL, "board_frame", 0), HX0, HX1, HY0, HY1, -264.0, -263.85, scale=2.0)
+for y in [HY0 + 0.4 + k * 3.1 for k in range(int((HY1 - HY0) / 3.1))]:
+    box((PL, "metal", 1), HX0 + 0.3, HX1 - 0.3, y, y + 0.14, -263.85, -263.7, scale=0.5)
+box((PL, "metal", 0), HX0, HX1, by - bh / 2 - 1.5, by - bh / 2 - 1.35, -263.85, -262.3, scale=1.0)
+box((PL, "metal", 1), HX0, HX1, by - bh / 2 - 0.45, by - bh / 2 - 0.4, -262.35, -262.3, scale=0.5)
+for x in (HX0 + 0.4, HX1 - 0.4):
+    box((PL, "neon_red", 0), x - 0.2, x + 0.2, HY1 - 0.5, HY1 - 0.1, -263.85, -263.6, scale=0.5)
 SMALL_BOARDS = [
     (44.6, 12.0, -205.0, 9.0, 6.0, math.radians(90)),
     (44.6, 12.0, -228.0, 9.0, 6.0, math.radians(90)),
@@ -1072,12 +1106,15 @@ for i, (cx, cy, cz, w, h, yaw) in enumerate(SMALL_BOARDS, start=1):
     named_quad(f"board_{i}", "board", cx, cy, cz, w, h, yaw, props={"board": i, "district": PL})
     nx, nz = math.sin(yaw), math.cos(yaw)
     oriented_box((PL, "board_frame", 0), cx - nx * 0.3, cy, cz - nz * 0.3, w + 0.5, h + 0.5, 0.5, yaw, scale=1.0)
-for (x0, x1, z0, z1, h, seed) in ((PX0, PX1, -284.0, -264.0, 44, 5103), (PX1, 140.0, -262.0, -188.0, 38, 5105)):
-    mass(PL, x0, x1, z0, z1, SHOP_H, h, seed)
+# The blocks round the square and along the cross street are the avenue's
+# kind: painted apartment walls, lived in, with the board hung on one. The
+# camera cranes past them on its way from the hero to the board.
+for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 5103), (PX1, 140.0, -262.0, -188.0, 38, 5105))):
+    mass(PL, x0, x1, z0, z1, SHOP_H, h, seed, painted=i)
     box((PL, "dark", 0), x0, x1, 0, SHOP_H, z0, z1, scale=2.0)
 # The south side of the cross street, east of the avenue.
-for (x0, x1, h, seed) in ((38, 60, 24, 5201), (60, 80, 30, 5202), (80, 104, 22, 5203), (104, 140, 28, 5204)):
-    mass(PL, x0, x1, -170, -150, SHOP_H, h, seed)
+for i, (x0, x1, h, seed) in enumerate(((38, 60, 24, 5201), (60, 80, 30, 5202), (80, 104, 22, 5203), (104, 140, 28, 5204))):
+    mass(PL, x0, x1, -170, -150, SHOP_H, h, seed, painted=(i + 2) % 3)
     box((PL, "dark", 0), x0, x1, 0, SHOP_H, -170, -150, scale=2.0)
 
 # ---------------------------------------------------------------------------
@@ -1087,7 +1124,8 @@ for (x0, x1, h, seed) in ((38, 60, 24, 5201), (60, 80, 30, 5202), (80, 104, 22, 
 # The fins and the band round the crown are one mesh per tower
 # (crown_<slug>) the site lights in the organisation's own colour; the
 # crown's face to the boulevard carries the organisation's logo
-# (logo_<slug>, a slot the site sizes to the mark); a vertical sign
+# (logo_<slug>, a slot the site sizes to the mark), and so does its face to
+# the east (logo_<slug>_e), which the rooftop looks at; a vertical sign
 # (sign_tower_<slug>) carries its name as type.
 # ---------------------------------------------------------------------------
 CO = "corpo"
@@ -1150,11 +1188,14 @@ for i, (slug, height) in enumerate(TOWERS):
         curtain(tx - half + inset, tx + half - inset, tz - half + inset, tz + half - inset, step, height, col)
     else:
         curtain(tx - half, tx + half, tz - half, tz + half, LOBBY_H, height, col)
-    # The crown: a dark glass box, the logo on its face to the boulevard.
+    # The crown: a dark glass box, the logo on its faces to the boulevard
+    # and to the rooftop, which sees the boulevard's face almost edge on.
     cw = half - inset - 1.5
     box((CO, "glass_dark", 0), tx - cw, tx + cw, height, height + CROWN_H, tz - cw, tz + cw, scale=2.0)
     top = height + CROWN_H
     empty("logo_" + slug, (tx, height + CROWN_H / 2, tz + cw + 0.06), props={"w": cw * 2 - 3.0, "h": CROWN_H - 3.0})
+    empty("logo_" + slug + "_e", (tx + cw + 0.06, height + CROWN_H / 2, tz), yaw=math.pi / 2,
+          props={"w": cw * 2 - 3.0, "h": CROWN_H - 3.0})
     # The accent: a fin up each corner of the shaft, a ring at the step, a
     # band round the top of the crown.
     verts, faces, uvs = [], [], []
@@ -1200,7 +1241,7 @@ for i in range(8):
 RF = "rooftop"
 STREET_X = 440.0
 RX0, RX1, RZ0, RZ1, RH = 452.0, 484.0, -300.0, -258.0, 34.0
-mass(RF, RX0, RX1, RZ0, RZ1, SHOP_H, RH, 7001)
+mass(RF, RX0, RX1, RZ0, RZ1, SHOP_H, RH, 7001, roof_mat="roof_wet")
 box((RF, "dark", 0), RX0, RX1, 0, SHOP_H, RZ0, RZ1, scale=2.0)
 for (a0, a1, b0, b1) in ((RX0, RX1, RZ1 - 0.4, RZ1), (RX0, RX1, RZ0, RZ0 + 0.4), (RX0, RX0 + 0.4, RZ0, RZ1), (RX1 - 0.4, RX1, RZ0, RZ1)):
     box((RF, "concrete", 0), a0, a1, RH, RH + 1.1, b0, b1, scale=1.5)
@@ -1217,6 +1258,12 @@ for _ in range(9):
 for (cx, cz, h) in ((458.0, -296.0, 14.0), (482.0, -262.0, 9.0), (466.0, -262.0, 6.0)):
     cylinder((RF, "metal", 1), cx, cz, RH, RH + h, 0.09, segs=6)
     cylinder((RF, "neon_red", 0), cx, cz, RH + h, RH + h + 0.35, 0.16, segs=8)
+# Two exhaust stacks between the camera and the signs, venting steam the
+# site draws (anchor_steam_<n>) into the signs' light.
+for i, (cx, cz, h) in enumerate(((466.0, -272.0, 1.6), (461.5, -268.5, 1.1))):
+    cylinder((RF, "metal", 1), cx, cz, RH, RH + h, 0.28, segs=12)
+    cylinder((RF, "dark", 1), cx, cz, RH + h, RH + h + 0.08, 0.34, segs=12)
+    empty(f"anchor_steam_roof_{i}", (cx, RH + h + 0.1, cz))
 # Rooftop signs are double-sided: they face the street, and the roof sees
 # their other side.
 RIPPER = (457.0, RH + 4.4, -283.0, math.radians(38))
@@ -1227,7 +1274,8 @@ for du in (-3.2, 3.2):
                  0.16, 3.2, 0.16, ryaw, scale=0.5)
 mass(RF, 402.0, 432.0, -300.0, -262.0, SHOP_H, 30.0, 7201)
 box((RF, "dark", 0), 402.0, 432.0, 0, SHOP_H, -300.0, -262.0, scale=2.0)
-sign("afterlife", 431.2, 38.0, -281.0, 13.0, 3.0, math.radians(90), preview="AFTERLIFE", district=RF)
+# A hair proud of its frame's face, or the two fight for the same pixels.
+sign("afterlife", 431.26, 38.0, -281.0, 13.0, 3.0, math.radians(90), preview="AFTERLIFE", district=RF)
 box((RF, "board_frame", 0), 430.6, 431.2, 36.2, 39.8, -288.0, -274.0, scale=1.0)
 for dz in (-5.0, 5.0):
     box((RF, "metal", 1), 430.7, 431.0, 30.0, 36.2, -281.0 + dz - 0.1, -281.0 + dz + 0.1, scale=0.5)
@@ -1256,6 +1304,26 @@ box((GA, "garage_wall", 0), GX0, GX0 + 0.5, DOOR_H, GH, DOOR_Z0, DOOR_Z1, scale=
 box((GA, "garage_wall", 0), GX1 - 0.5, GX1, 0, GH, GZ0, GZ1, scale=2.0)
 box((GA, "garage_wall", 0), GX0, GX1, 0, GH, GZ0, GZ0 + 0.5, scale=2.0)
 box((GA, "garage_wall", 0), GX0, GX1, 0, GH, GZ1 - 0.5, GZ1, scale=2.0)
+# The viewer's walls on these, a centimetre proud, at the viewer room's own
+# scale set to this room's height (its 5.8 m to 8): the wall behind the car
+# round the door (the viewer's front preset looks back past the car at it),
+# its magenta wall on the car's passenger side (+z here) and its cyan wall on
+# the driver's.
+ROOM_K = GH / 5.8
+bw = 14.6 * ROOM_K
+zl, zr = -215.0 + bw / 2, -215.0 - bw / 2
+u = lambda z: (zl - z) / bw  # noqa: E731
+xw = GX0 + 0.51
+for (za, zb, y0) in ((zl, DOOR_Z1, 0.0), (DOOR_Z0, zr, 0.0), (DOOR_Z1, DOOR_Z0, DOOR_H)):
+    quad((GA, "garage_wall_back", 0), (xw, y0, za), (xw, y0, zb), (xw, GH, zb), (xw, GH, za),
+         ((u(za), y0 / GH), (u(zb), y0 / GH), (u(zb), 1), (u(za), 1)))
+sw = 17.0 * ROOM_K
+u0, u1 = (sw - 23.0) / 2 / sw, 1 - (sw - 23.0) / 2 / sw
+zp, zc = GZ1 - 0.51, GZ0 + 0.51
+quad((GA, "garage_wall_magenta", 0), (GX1 - 0.5, 0, zp), (GX0 + 0.5, 0, zp), (GX0 + 0.5, GH, zp), (GX1 - 0.5, GH, zp),
+     ((u0, 0), (u1, 0), (u1, 1), (u0, 1)))
+quad((GA, "garage_wall_cyan", 0), (GX0 + 0.5, 0, zc), (GX1 - 0.5, 0, zc), (GX1 - 0.5, GH, zc), (GX0 + 0.5, GH, zc),
+     ((u0, 0), (u1, 0), (u1, 1), (u0, 1)))
 # Closed underneath: from inside, the ceiling the tubes hang from.
 box((GA, "roof", 0), GX0, GX1, GH - 0.3, GH, GZ0, GZ1, scale=4.0, bottom=True)
 mass(GA, GX0 - 0.02, GX1, GZ0, GZ1, SHOP_H, GH, 8002, faces=("-x", "+z"), roof=False)
@@ -1263,15 +1331,26 @@ ground((GA, "garage_floor", 0), GX0 + 0.5, GX1 - 0.5, GZ0 + 0.5, GZ1 - 0.5, y=0.
 box((GA, "door", 0), GX0 - 0.1, GX0 + 0.6, DOOR_H, DOOR_H + 0.55, DOOR_Z0 - 0.2, DOOR_Z1 + 0.2, scale=0.6)
 box((GA, "neon_yellow", 0), GX0 - 0.12, GX0 - 0.08, 0.1, DOOR_H, DOOR_Z0 - 0.15, DOOR_Z0 - 0.05, scale=1.0)
 box((GA, "neon_yellow", 0), GX0 - 0.12, GX0 - 0.08, 0.1, DOOR_H, DOOR_Z1 + 0.05, DOOR_Z1 + 0.15, scale=1.0)
+# Over the door, outside: the bay's number, as the garage section has it,
+# and a caged lamp either side, pooling amber on the pavement (no shaft in
+# the haze: a wall lamp this close to the door would throw it indoors).
+sign("bay", GX0 - 0.16, 6.25, (DOOR_Z0 + DOOR_Z1) / 2, 4.4, 1.1, -math.pi / 2, preview="BAY 01", district=GA)
+# On the corner, a blade with the shop's name as the viewer's own room
+# carries it (AFTERLIFE AUTO, in the garage room's cyan), turned along the
+# street so the flight down it sees the garage coming.
+sign("garage_blade", GX0 - 0.95, 5.2, GZ0 + 1.2, 1.2, 5.4, 0.0, double=True, preview="AFTERLIFE AUTO", district=GA)
+for y in (2.7, 7.7):
+    box((GA, "metal", 1), GX0 - 0.35, GX0, y - 0.05, y + 0.05, GZ0 + 1.15, GZ0 + 1.25, scale=0.5)
+for z in (DOOR_Z0 - 1.1, DOOR_Z1 + 1.1):
+    box((GA, "metal", 1), GX0 - 0.42, GX0 - 0.02, 5.2, 5.52, z - 0.2, z + 0.2, scale=0.5)
+    box((GA, "neon_amber", 0), GX0 - 0.38, GX0 - 0.06, 5.16, 5.2, z - 0.16, z + 0.16, scale=0.5)
 # Fixtures, as in the garage room: magenta on the car's passenger side
 # (car -X, which is world +z in this bay), cyan on the driver's side, white
 # overhead, so from GarageModel's front preset magenta is on the left.
 box((GA, "tube", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ1 - 0.62, GZ1 - 0.5, scale=1.0, col=TUBE["pink"])
 box((GA, "tube", 0), GX0 + 2, GX1 - 2, 3.0, 3.12, GZ0 + 0.5, GZ0 + 0.62, scale=1.0, col=TUBE["cyan"])
-# The washes the strips throw: wide soft panels high on each wall, which is
-# what lights the room in the garage's own scene.
-box((GA, "tube", 0), GX0 + 3, GX1 - 3, 4.4, 6.8, GZ1 - 0.56, GZ1 - 0.52, scale=1.0, col=TUBE["pink"])
-box((GA, "tube", 0), GX0 + 3, GX1 - 3, 4.4, 6.8, GZ0 + 0.52, GZ0 + 0.56, scale=1.0, col=TUBE["cyan"])
+# (The washes that were high on each wall are the painted walls' own tubes
+# now: the room's light comes off its walls, src/world/city.js.)
 for z in (-219.5, -210.5):
     box((GA, "tube", 0), GX0 + 3, GX1 - 3, GH - 0.42, GH - 0.36, z - 0.06, z + 0.06, scale=1.0, col=TUBE["white"])
     box((GA, "tube", 0), GX0 + 3, GX1 - 3, GH - 0.36, GH - 0.33, z - 0.9, z + 0.9, scale=1.0, col=TUBE["white"])
@@ -1314,11 +1393,16 @@ for i in range(8):
 empty("anchor_garage_bay", BAY, yaw=math.pi / 2)
 # Under the roof it does not rain: the site's rain skips this box.
 empty("anchor_shelter_garage", (GX0, 0.0, GZ0), props={"size": [GX1 - GX0, GH - 0.3, GZ1 - GZ0]})
-mass(GA, GX0, GX1, -258.0, -232.0, SHOP_H, 22.0, 8101)
-box((GA, "dark", 0), GX0, GX1, 0, SHOP_H, -258.0, -232.0, scale=2.0)
-mass(GA, GX0, GX1, -198.0, -176.0, SHOP_H, 7.0, 8102)
-box((GA, "dark", 0), GX0, GX1, 0, SHOP_H, -198.0, -176.0, scale=2.0)
-mass(GA, 410.0, STREET_X - 12, -250.0, -190.0, SHOP_H, 26.0, 8201)
+# The garage's street is lived in too: painted walls either side of the
+# door and across the street from it, which the flight in comes down past.
+# They stand wall to wall with it: a slot either side let the far city's
+# ground through, a few metres from the flight's lens.
+mass(GA, GX0, GX1, -258.0, -230.0, SHOP_H, 22.0, 8101, painted=0)
+box((GA, "dark", 0), GX0, GX1, 0, SHOP_H, -258.0, -230.0, scale=2.0)
+# Its roof, wet, is Contact's foreground: it holds the sky's glow.
+mass(GA, GX0, GX1, -200.0, -176.0, SHOP_H, 7.0, 8102, painted=1, roof_mat="roof_wet")
+box((GA, "dark", 0), GX0, GX1, 0, SHOP_H, -200.0, -176.0, scale=2.0)
+mass(GA, 410.0, STREET_X - 12, -250.0, -190.0, SHOP_H, 26.0, 8201, painted=2)
 box((GA, "dark", 0), 410.0, STREET_X - 12, 0, SHOP_H, -250.0, -190.0, scale=2.0)
 # Its ground floor faces the garage door: lit shops and a strip of neon, so
 # the street outside the door is not a black hole from inside the bay.
@@ -1447,7 +1531,9 @@ SHOT_CAMERAS = {
     "experience": ((120.0, 30.0, -230.0), (190.0, 112.0, -360.0)),
     "experience_b": ((330.0, 30.0, -230.0), (400.0, 112.0, -360.0)),
     "about": ((476.0, 37.4, -266.0), (380.0, 44.0, -318.0)),
-    "stack": ((476.0, 37.4, -266.0), (380.0, 46.0, -312.0)),
+    # Stack starts a quarter of the way into its pan, so the cut from About
+    # turns the camera as well as glitching it.
+    "stack": ((476.0, 37.4, -266.0), (380.0, 46.0, -284.0)),
     "stack_b": (None, (380.0, 38.0, -214.0)),
     "garage": (bay_point(GARAGE_FRONT[0]), bay_point(GARAGE_FRONT[1])),
     # The moon sits right of the email headline, over the sky it is meant to
@@ -1464,17 +1550,20 @@ empty("cam_hero_target_portrait", (0.6, 0.75, -60.0))
 # A phone's Contact: the moon smaller (the site scales it) and up in the
 # top corner, because the column of links fills the rest of a portrait
 # screen.
-empty("cam_contact_target_portrait", (529.6, 21.0, -89.7))
+empty("cam_contact_target_portrait", (529.6, 28.2, -89.7))
 # Waypoints the flights run through where a straight line would hit a
 # wall: off the rooftop's edge, down into the street behind the car, across
-# to the far kerb where the open door lines up with the bay, and in at the
-# door past the car's driver side; then back out of the door and up over the
-# garage's parapet for Contact.
+# to the far kerb where the open door lines up with the bay, in at the door
+# (clear of both its edges), and round the car at six metres off its rear
+# quarter on the driver's side (world -z here), so the camera orbits it to
+# the front rather than brushing its flank; then back round the same way,
+# out of the door and up over the garage's parapet for Contact.
 empty("cam_garage_edge", (441.0, 35.5, -266.0))
 empty("cam_garage_street", (437.0, 4.5, -248.0))
 empty("cam_garage_across", (433.0, 2.8, -222.0))
 empty("cam_garage_door", (446.0, 2.3, -216.5))
-empty("cam_contact_door", (447.0, 2.6, -217.3))
+empty("cam_garage_in", (451.5, 2.4, -215.3))
+empty("cam_garage_swing", (460.0, 2.8, -222.0))
 empty("cam_contact_via", (441.0, 9.0, -213.0))
 
 

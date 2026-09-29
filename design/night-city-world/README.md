@@ -24,13 +24,15 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   (git-ignored) next to it.
 - `npm run world:assets` (`scripts/optimize-world.mjs`, glTF Transform: prune,
   dedup of accessors, meshes and textures, weld, WebP textures, Meshopt)
-  writes `public/scenes/world/world-high.glb` (2.50 MB, 1024 px textures) and
-  `world-phone.glb` (0.90 MB, 512 px textures, every prop the builder tagged
+  writes `public/scenes/world/world-high.glb` (2.57 MB, 1024 px textures) and
+  `world-phone.glb` (0.95 MB, 512 px textures, every prop the builder tagged
   as detail dropped), `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
-  `shops-phone.webp`, corpo row's `logos.webp`, and
-  `src/data/world-assets.js` with content hashes (and the logos' rectangles).
+  `shops-phone.webp`, corpo row's `logos.webp`, `earth.webp` (the portrait
+  intro plate's own Earth, cropped square round its disc, which the voxel
+  moon samples a voxel at a time), and `src/data/world-assets.js` with
+  content hashes (and the logos' rectangles).
   Budgets: 3.5 MB and 1.5 MB.
 - The kit, in the site's frame (+x right, +y up, +z toward the hero lens,
   metres, the drift's own frame): the avenue (the Kiroshi and Nicola screens,
@@ -39,20 +41,31 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   shopfronts under dyed awnings and paper lanterns, painted walls), a canyon
   of vertical signs whose roofs step down to a band of sky, the holographic
   figure and the ARASAKA tower in it, five landmark towers a kilometre off
-  (`anchor_mega_<n>`), the billboard plaza
-  (`board_main` and seven more), corpo row (one glass tower per role in
+  (`anchor_mega_<n>`), the billboard plaza (`board_main` and seven more; the
+  big one and the two beside it hang in a dark steel housing, ribbed, with a
+  catwalk and red corner lamps, bolted over a block of painted flats, so the
+  screens and not the lit rooms round them carry the shot; the square's
+  other blocks and the cross street's south side are painted flats too),
+  corpo row (one glass tower per role in
   `experience.js` over a lit lobby, a light fin up each corner and a dark
   glass crown, with a crown slot, a logo slot `logo_<slug>` and a name slot
   each), the rooftop (tanks, AC
-  units, antennas, RIPPERDOC, AFTERLIFE, MILITECH), the garage (roll-up door
-  open, magenta fixtures on the car's passenger side and cyan on the
-  driver's, as in the garage room), and the moon disc. About 23,000
-  triangles.
+  units, antennas, RIPPERDOC, AFTERLIFE, MILITECH), the garage (a roll-up
+  door, `garage_door`, down in its opening; inside, the garage viewer's
+  own walls, photographed (below); magenta tubes on the car's passenger
+  side and cyan on the driver's, as in the garage room, all one `tube`
+  material with each tube's colour on its vertices; the monitor over the
+  bench, `garage_screen`; red tool chests, a pegboard, tyres, ducting and a
+  hoist; the bay painted out round the car; BAY 01 over the door, a caged
+  lamp either side and the shop's name on a blade at the corner; painted
+  flats either side of it and across the street), and the moon disc. About
+  24,500 triangles.
 - Named empties the site reads: `cam_<shot>` and `cam_<shot>_target` (and
   `_b` variants for shots that move while they hold, `_portrait` ones where a
   phone has its own), the flight waypoints
   `cam_garage_edge`, `cam_garage_street`, `cam_garage_across`,
-  `cam_garage_door`, `cam_contact_door`, `cam_contact_via`, the anchors
+  `cam_garage_door`, `cam_garage_in`, `cam_garage_swing`, `cam_contact_via`,
+  the anchors
   `anchor_curb_hero`, `anchor_curb_hero_portrait`, `anchor_garage_bay`,
   `anchor_billboard_main`, `anchor_tower_<slug>`, `anchor_lamp_<n>`,
   `anchor_shelter_garage`, `anchor_moon`, `anchor_holo`, `anchor_mega_<n>`
@@ -81,7 +94,7 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   and their signs and traffic are this city's.
 - [ambientCG Asphalt 026 C](https://ambientcg.com/view?id=Asphalt026C) is the
   road (re-encoded 1K JPGs in `textures/`). The sidewalk, the concrete and the
-  garage's walls reuse the garage's
+  garage's walls outside the viewer's pictures reuse the garage's
   [Concrete 048](https://ambientcg.com/view?id=Concrete048) and
   [Concrete 023](https://ambientcg.com/view?id=Concrete023) in place. All
   [CC0](https://docs.ambientcg.com/license/). Poly Haven was not used (its
@@ -197,9 +210,29 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
     pharmacy (cool white with a green tint), a narrow game arcade (violet,
     hot pink, electric blue), a back-street cybernetic clinic (magenta,
     violet, steel) and a steamy dumpling shop (orange, gold, dark red).
-- The Contact moon is `design/night-city-garage/textures/moon.jpg`, the
-  intro's own David-and-Lucy moon still, on a disc over the southern
-  skyline: a bookend to the intro by picture as well as by shape.
+- The garage's walls inside (`textures/garage-wall-back.jpg`,
+  `garage-wall-magenta.jpg`, `garage-wall-cyan.jpg`) are the garage viewer's
+  room itself, photographed in the viewer on the dev server through
+  `window.__garage.rendering`: the car hidden, a lens outside the room square
+  to each wall, its field fitted to the wall's 5.8 m and its near plane
+  about three metres short of the wall, so the wall's own props show and
+  the walls in between drop out, rendered through the viewer's own composer
+  at 1600 px across. The builder hangs them a
+  centimetre proud of the kit's walls at the viewer room's scale set to this
+  room's height: the back wall (AFTERLIFE AUTO, the moon monitor, the bench
+  and the tool wall) round the door, the magenta wall on the car's passenger
+  side and the cyan on the driver's. The viewer's fourth wall, its shut
+  roll-up door, is black and is left out.
+- The Contact moon (`src/world/moon.js`) is the intro's moon seen from the
+  street, drawn in one shader on a card turned square to the camera over
+  the southern skyline: a pale disc of square cells, as the intro's is
+  built, each its own grey, with darker seas and a few craters; lit from
+  the upper left, so a sliver of it is in shadow and its dark side is a
+  faint Earthshine blue; and on its upper rim the two of them from behind,
+  sitting, his hair in spikes and hers a bob, dark against it with its
+  light on their edges. Only the Contact camera looks that way, so every
+  other frame culls it. The painted David-and-Lucy still
+  (`design/night-city-garage/textures/moon.jpg`) is the garage monitor's.
 - The engine's shape (a fixed mount behind the page, sections that opt in
   with `data-shot`, hold-then-morph scroll maths, damped camera) follows
   naman0r/namanrusia.dev PR #10. Nothing of its look is used.
@@ -224,9 +257,14 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   hero and Contact hold it at full. Open
   flights go up, across and down, lifted by a height field of the kit
   (`clearance.js`); the garage and Contact flights run through the named
-  waypoints, and the garage flight looks at the car. Crossing the middle of
-  a flight fires the braindance glitch (slices, scanlines, an RGB split that
-  hits harder on the bass).
+  waypoints, looking first where they are going (a little further along
+  their own path), so the camera goes over the rooftop's edge before it
+  looks down into the street and out of the door before it looks up at the
+  moon. The garage flight then keeps the car in frame: it comes in at the
+  door behind it and orbits it at six metres, rear three-quarter to side to
+  front, onto the viewer's own front preset, and Contact leaves the same
+  way round. Crossing the middle of a flight fires the braindance glitch
+  (slices, scanlines, an RGB split that hits harder on the bass).
 - The Work deck's entry is the plaza board's art, swapped through the same
   glitch. Corpo row is seen from the boulevard's kerb looking up the row on a
   diagonal, dollying east down the roles: each tower's crown carries its
@@ -249,19 +287,66 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   the scroll; it steers by the road's curvature, brakes into each stop,
   backs up when the reader scrolls up, and parks at the hero's curb (the
   right-hand curb: every left-hand spot sat behind the name, the tagline or
-  the photograph) and in the garage bay.
+  the photograph) and in the garage bay. It draws in about a dozen calls:
+  every plain part a rig node carries (a wheel, a knuckle, the body) is one
+  mesh on one physical material that reads each part's colour, roughness,
+  metalness and clearcoat from its vertices, so it shades exactly as the
+  parts' own materials did; the lamps, carbon and plates keep theirs, and
+  what the shut hood hides is left out. Its paint and glass reflect a night
+  street (thin strips of the street's neon on black, two tubes overhead),
+  and in the bay it is lit the way the viewer lights its room: area lights
+  for the white tubes overhead and the magenta and cyan along the walls,
+  faded in as it comes through the door.
 - The intro plays in this city when it is ready by `CITY_IN`: the moon
   dissolves to the live city, the drift runs on the song clock and parks at
   the curb instead of vanishing, the handoff glitches through the city's
   pass, and the page arrives over the same camera. Otherwise the plate path
   runs as it always has.
+- When the city is ready as the intro starts, the moon is the city's too
+  (`src/world/voxel-moon.js`): a second scene through the same post chain,
+  all instanced cubes (about 69,000 on high, 27,000 on a phone, about thirty
+  draws, each cube drawn as the three faces its viewer can see, and the
+  island's shadow pass as the two sides each column turns from the sun) and
+  a function of the song second. The figures print in and an
+  island of voxel columns builds out from under them while a voxel Earth
+  assembles (the portrait plate's disc, drawn again in a dozen flat colours,
+  land and cloud standing proud, a real terminator, its lights as points on
+  the night side); a meteor at 12.0; the cards over the painting's framing;
+  a second meteor striking the big crater on the track's onset at 23.1,
+  both figures turning to it; a crane out to the side showing the island
+  floating with its rim crumbling; the island turning to signal and
+  streaming into Earth as the camera dives after it; and in the bar before
+  the drums Earth's tiles flipping over a ring per beat (28.89, 29.37,
+  29.85) from where the street vanishes in the drift's frame, the street
+  behind them on the drop. A low raking sun with a shadow map (drawn only
+  while the island moves), Earthshine, voxel occlusion and bevels on real
+  edges light it. The world draws one hidden street frame as the crane
+  starts, so the reveal's first frame has nothing left to warm. A replay
+  keeps the city it has; `beginIntro` resets the car, the route and the
+  camera.
+- The garage (`src/world/garage.js`): the roll-up door is a function of the
+  scroll, up just before the car reaches it and down again behind it going
+  back, rattling while it moves; the car drives into a dark room, and as
+  the camera turns to face the door the tubes strike on a fixture at a time
+  and the room fills with their light (`garageRoom` in `glsl.js`), which
+  spills out across the wet street (`doorPool`); the viewer's walls come on
+  with them. Drips fall off the drum; the monitor plays the intro's moon.
 - The avenue, as the hero sees it. Kiroshi and Nicola are screens
   (`src/world/ads.js`): the generated advertising image pushes in slowly
   toward its subject under the brand's words, set as type, with scanlines,
   a slow refresh band and, every few seconds, a quarter second of tearing.
-  Two holographic koi (`src/world/koi.js`) chase each other round a figure
-  of eight a few metres over the road, their bodies swimming, doubled in
-  the wet road. The walls are painted elevations lit by the signs' spill.
+  Two holographic koi (`src/world/koi.js`) chase each other across the
+  avenue, their bodies swimming, doubled in the wet road. On a wide screen
+  they swim in the strip of sky between the nav and the name: the hero's
+  own lens sets their height (`fit`) so the loop's middle sits an eighth of
+  the way down the frame whatever the screen's size; a phone has them under
+  the name. People walk both pavements (`src/world/crowd.js`, forty on a
+  desktop, sixteen on a phone): silhouettes on upright cards, alone and in
+  pairs, some under umbrellas whose lit rims double in the road, legs and
+  arms tied to the distance walked, one draw. Steam breathes out of two
+  manholes and two rooftop stacks (`src/world/steam.js`, anchored in the
+  kit), lit by whatever light is where it is and brighter with a sign
+  behind it. The walls are painted elevations lit by the signs' spill.
   The shop windows look into rooms (interior mapping in
   `src/world/materials.js`: the eye's ray is traced into a room box per
   bay and the point it reaches projected back onto one of the eight
@@ -272,6 +357,30 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   and the fog brightens with distance into the lit city's glow, pink and
   strongest toward downtown, the way the plate's street ends; the road
   mirrors that glow at its far end.
+- Past the kit (`src/world/skyline.js`): a few thousand towers on a jittered
+  grid, one draw, their windows the kit's shader, one tall roof in seven
+  wearing a lit band and every roof over 92 m a red aviation lamp, blinking
+  in three groups (one draw, steady under reduced motion); a few towers
+  stand under Contact's moon so it rises out of a skyline. The sky dome is
+  the rest, at no extra draw: near-black overhead and the lit city's glow at
+  the horizon; a broken deck of cloud at 520 m lit from under in that glow's
+  colour, darker between the clouds, drifting; three slow searchlights from
+  downtown and the south-east (under the `haze` switch); and below the
+  horizon the far city's own ground, a street grid on the towers' 46 m
+  blocks with a lamp every eleven and a half metres down each kerb, their
+  pools running into lines, lit shopfronts and the odd car's lights moving
+  along, spread into their streets past a pixel so nothing sparkles.
+- Floors that hold their light (`src/world/wet.js`): the rooftop's wet roof
+  under About and Stack, and the garage's sealed floor, trace the eye's ray
+  off the floor against each lit rectangle over them (the two rooftop signs,
+  read from the sign atlas; the garage's tubes) instead of drawing the city
+  a second time: AFTERLIFE reads backwards in a puddle, the rain rings it,
+  and the garage's tubes strike on in the floor with the tubes.
+- Windows are rooms (`WINDOWS` in `glsl.js`): a run of bays on a floor
+  shares its light, floors differ, the light is mostly warm or cool white
+  with the odd television or neon room, and each pane has its frame,
+  mullions and, in homes, a transom, with blinds, curtains or a figure at
+  the glass.
 - The grade (`src/world/post.js`): the Khronos neutral tone map, which keeps
   a tube's hue as it brightens, then a grade in the same pass (blacks lifted
   a hair toward violet, mids pushed more saturated than highlights, cool
@@ -307,7 +416,7 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   11.8 ms cadence at p50); headless at 60 Hz, every frame on time (p95
   16.7 ms); with vsync off, the work itself is p95 3.5 ms (high, pixel ratio
   1.3) and 3.0 ms (phone).
-- Three intro replays rebuild the city with `renderer.info.memory` at 101
-  geometries and 50 textures each time.
+- A footer or Konami replay keeps the city; putting the door back up
+  rebuilds it, with `renderer.info.memory` back to its first count.
 - Review files (`*-viewport.png`, `*-review.png`, `*-cycles*.png`,
   `world-source.glb`, `mcp.log`) stay local and are git-ignored.

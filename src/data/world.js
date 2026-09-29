@@ -47,7 +47,10 @@ export const SHOTS = {
   // The hero stands low in the avenue, a person's eye over the wet road,
   // and looks straight up it: the plate's own composition. A phone reads its
   // own anchors (cam_hero_portrait) and keeps them as they are.
-  hero: { dim: 0, fov: 50, shift: 0.12, car: "curb", portraitBack: 1, portraitFov: 1.24, portraitShift: 0.17 },
+  // `mirror`: the shot shows the wet road, so the road's planar mirror is
+  // drawn for it (src/world/mirror.js); elsewhere it gives way to the
+  // road's baked streaks and is not drawn at all.
+  hero: { dim: 0, fov: 50, shift: 0.12, car: "curb", portraitBack: 1, portraitFov: 1.24, portraitShift: 0.17, mirror: true },
   // A touch darker than the other reading shots: the lit board sits right
   // behind the section's opening lines.
   projects: { dim: 0.76, fov: 38, car: "plaza", portraitBack: 1.15 },
@@ -59,27 +62,28 @@ export const SHOTS = {
   about: { dim: 0.7, fov: 42, car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
   stack: { dim: 0.7, fov: 42, move: "pan", car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
   // Off the roof, down to the street behind the car, across to where the
-  // door lines up with the bay, and in after it: the flight ends on the
-  // garage viewer's own first frame.
+  // door lines up with the bay, in after it and round it to its front: the
+  // flight ends on the garage viewer's own first frame.
   garage: {
     dim: 0.7,
     fov: 48,
     car: "bay",
-    via: { in: ["cam_garage_edge", "cam_garage_street", "cam_garage_across", "cam_garage_door"] },
+    mirror: true,
+    via: { in: ["cam_garage_edge", "cam_garage_street", "cam_garage_across", "cam_garage_door", "cam_garage_in", "cam_garage_swing"] },
     follow: true,
     // In the bay before the camera reaches the door.
     carLead: 0.45,
   },
-  // Back out of the door and up onto the garage's roof, the moon beside the
-  // headline: huge on a wide screen, smaller and up in the corner on a
-  // phone, where the links fill the rest of the screen.
+  // Back round the car, out of the door and up onto the garage's roof, the
+  // moon beside the headline: huge on a wide screen, smaller and up in the
+  // corner on a phone, where the links fill the rest of the screen.
   contact: {
     dim: 0,
     fov: 42,
     car: "bay",
     portraitBack: 1,
     portraitFov: 1.2,
-    via: { in: ["cam_contact_door", "cam_contact_via"] },
+    via: { in: ["cam_garage_swing", "cam_garage_in", "cam_contact_via"] },
     moon: { scale: 0.7, portrait: 0.34 },
   },
 };
@@ -153,6 +157,10 @@ export const WORLD_SIGNS = {
   militech: { draw: "wordmark", lines: ["MILITECH"], color: "#fcee0a" },
   afterlife: { draw: "wordmark", lines: ["AFTERLIFE"], color: "#ff2e88", flicker: true },
   ripperdoc: { draw: "ripperdoc", lines: ["RIPPERDOC"], color: "#eceae4", flicker: true },
+  // Over the garage's door: the bay's number, as the Garage section labels it.
+  bay: { draw: "wordmark", lines: ["BAY 01"], color: "#fcee0a" },
+  // On its corner, the shop's name as the garage viewer's room carries it.
+  garage_blade: { draw: "vertical", lines: ["AFTERLIFE AUTO"], color: "#39dcec", latin: true },
   ramen: { draw: "vertical", lines: ["ラーメン"], color: "#ff3fd2", icon: "bowl" },
   menya: { draw: "wordmark", lines: ["麺屋"], color: "#ff2b2b" },
   sushi: { draw: "board", lines: ["寿司", "SUSHI"], color: "#ffd24a" },
