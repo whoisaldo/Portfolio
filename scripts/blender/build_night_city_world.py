@@ -297,6 +297,8 @@ def build_facade_nodes(mat):
 
 
 build_facade_nodes(facade)
+# The same windows, for the vista's end (the site fogs it less).
+build_facade_nodes(material("facade_end", "1a1c21", rough=0.85))
 
 for name in ("sign", "board", "holo", "crown", "moon"):
     material(name, "ffffff", emit=1.5)
@@ -624,7 +626,7 @@ def _mass_sides(x0, x1, z0, z1, y0, y1):
     }
 
 
-def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=True, painted=None, roof_mat="roof"):
+def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=True, painted=None, roof_mat="roof", mat="facade"):
     r = random.Random(seed)
     if col is None:
         col = (r.uniform(0.28, 0.62), r.randrange(0, 5) / 8.0, r.uniform(0.2, 1.0), 1.0)
@@ -644,7 +646,7 @@ def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=Tru
             quad((district, roof_mat, 0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0),
                  ((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
         return col
-    k = (district, "facade", 0)
+    k = (district, mat, 0)
     ou, ov = r.uniform(0, 40), r.uniform(0, 40)
     vs = lambda y: ov + (y - SHOP_H) / CELL_H  # noqa: E731
     sides = {
@@ -1054,19 +1056,22 @@ for lx in range(-86, 90, 5):
 empty("anchor_rail", (0.0, RAIL_Y + 2.2, RAIL_Z), props={"reach": 90.0})
 # Past the viaduct the avenue ends at a megablock square across it, its
 # windows mostly lit, and a taller tower stepped behind it: the vanishing
-# point is lit structure standing in the glow, not open haze (the tower
-# stands left of the holographic figure, never behind her). Vertical
+# point is lit structure standing in the glow, not open haze: less fogged
+# than the rest of the city at that distance (facade_end), so it reads as
+# a dark mass with its windows lit against the glow. The block stays under
+# the holographic figure's feet and the tower stands left of her, never
+# behind her. Vertical
 # signs run up its face to the street. The far city keeps clear of both
 # (anchor_mega_end).
-mass(FA, -48, 48, -790, -745, SHOP_H, 118, 4990, col=(0.72, 2 / 8.0, 0.55, 1.0))
+mass(FA, -48, 48, -790, -745, SHOP_H, 95, 4990, col=(0.72, 2 / 8.0, 0.55, 1.0), mat="facade_end")
 box((FA, "dark", 0), -48, 48, 0, SHOP_H, -790, -745, scale=2.0)
-mass(FA, -124, -70, -870, -815, SHOP_H, 205, 4991, col=(0.6, 4 / 8.0, 0.3, 1.0))
+mass(FA, -124, -70, -870, -815, SHOP_H, 205, 4991, col=(0.6, 4 / 8.0, 0.3, 1.0), mat="facade_end")
 for k, (vx, colour) in enumerate(((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))):
     vh = 38.0 + (k % 2) * 22.0
     box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.9, -744.6, scale=1.0)
-box((FA, "neon_cyan", 0), -48.3, 48.3, 117.2, 118.0, -790.3, -744.7, scale=1.0)
+box((FA, "neon_cyan", 0), -48.3, 48.3, 94.2, 95.0, -790.3, -744.7, scale=1.0)
 box((FA, "neon_purple", 0), -124.3, -69.7, 204.0, 205.0, -870.3, -814.7, scale=1.0)
-empty("anchor_mega_end", (0.0, 118.0, -780.0), props={"size": 150.0})
+empty("anchor_mega_end", (0.0, 95.0, -780.0), props={"size": 150.0})
 empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
 
 # The figure's image is 2:3; the plane matches it. Huge, as the plate has
@@ -1180,8 +1185,10 @@ SMALL_BOARDS = [
     (109.4, 12.0, -228.0, 9.0, 6.0, math.radians(-90)),
     (60.0, 19.0, -260.5, 8.0, 5.3, 0.0),
     (98.0, 19.0, -260.5, 8.0, 5.3, 0.0),
-    # Low, over the shops: higher, the Work shot's bottom edge cut it.
-    (79.0, 3.4, -260.5, 12.0, 4.0, 0.0),
+    # Over the housing, on its roof: low over the shops a phone's Work shot
+    # saw it alone at its foot, and a little higher the landscape's edge
+    # cut it.
+    (79.0, 41.0, -262.6, 12.0, 4.0, 0.0),
 ]
 for i, (cx, cy, cz, w, h, yaw) in enumerate(SMALL_BOARDS, start=1):
     named_quad(f"board_{i}", "board", cx, cy, cz, w, h, yaw, props={"board": i, "district": PL})

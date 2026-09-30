@@ -196,7 +196,9 @@ export function createTowers(meshes, shared, { reflectLayer = 2, anchors = new M
         float fade = exp(-vAlong * 3.6) * (1.0 + 4.0 * exp(-vAlong * 60.0));
         // Haze drifting through the light.
         float motes = 0.65 + 0.35 * sin(vAlong * 70.0 - uTime * 2.0 + vWorld.x * 0.15) * sin(vAlong * 23.0 + uTime * 0.7);
-        vec3 col = mix(accent, vec3(1.0), 0.35) * core * fade * motes * vLit * 0.3 * uHaze;
+        // Mostly white light, the tower's colour at its edge (an olive or a
+        // deep red beam reads as a smear, not as light).
+        vec3 col = mix(accent, vec3(0.92, 0.95, 1.0), 0.6) * core * fade * motes * vLit * 0.3 * uHaze;
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

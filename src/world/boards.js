@@ -117,7 +117,7 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
     const index = mesh.userData.board ?? (Number.isFinite(fromName) ? fromName : 0);
     // The big board is the brightest thing in its shot: the key art is
     // mostly dark UI, so it runs hot.
-    const material = makeMaterial(index === 0 ? 2.1 : 1.05);
+    const material = makeMaterial(index === 0 ? 2.8 : 1.05);
     mesh.material = material;
     // Only the big board is worth a place in the wet road's mirror.
     if (index === 0) mesh.layers.enable(reflectLayer);
@@ -148,7 +148,7 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
     // Four bars, one draw.
     const geo = mergeGeometries(boxes, false);
     boxes.forEach((g) => g.dispose());
-    const frameMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(BOARDS[0]?.accent || "#fcee0a").multiplyScalar(1.6) });
+    const frameMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(BOARDS[0]?.accent || "#fcee0a").multiplyScalar(1.25) });
     frameMat.name = "board_frame_light";
     const group = new THREE.Mesh(geo, frameMat);
     group.layers.enable(reflectLayer);
@@ -187,7 +187,7 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
       }
       if (frame && main) {
         const accent = BOARDS[main.showing]?.accent || "#fcee0a";
-        frame.frameMat.color.set(accent).multiplyScalar(1.6 * (1 + 0.3 * shared.uBass.value));
+        frame.frameMat.color.set(accent).multiplyScalar(1.25 * (1 + 0.3 * shared.uBass.value));
       }
     },
     dispose() {
