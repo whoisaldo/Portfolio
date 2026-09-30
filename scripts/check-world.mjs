@@ -5,8 +5,9 @@
 //   every section in src/data/site.js has a data-shot root in the page and
 //   a shot in src/data/world.js, and its cam_<id> / cam_<id>_target anchors
 //   exist in both GLBs, with every waypoint a flight names;
-//   every role in src/data/experience.js has a tower (its anchor and its
-//   crown), and every featured project has key art for the billboard;
+//   every role in src/data/experience.js has a tower (its anchor, its crown
+//   and its logo slot, and its mark in the logo atlas), and every featured
+//   project has key art for the billboard;
 //   the road the car drives runs from the hero's curb marks to the garage
 //   bay, and the car's stops are on it;
 //   the flight into the garage ends on GarageModel's own front preset
@@ -94,6 +95,7 @@ for (const tier of ["high", "phone"]) {
   for (const e of experiences) {
     need(`anchor_tower_${e.slug}`);
     need(`crown_${e.slug}`);
+    need(`logo_${e.slug}`);
   }
   assert.equal(towers.length, experiences.length, "One tower per role.");
   need("board_main");
@@ -128,6 +130,13 @@ for (const tier of ["high", "phone"]) {
   let triangles = 0;
   for (const mesh of root.listMeshes()) for (const prim of mesh.listPrimitives()) triangles += (prim.getIndices()?.getCount() ?? 0) / 3;
   report.push(`${tier} ${(bytes / 1e6).toFixed(2)} MB, ${root.listMeshes().length} meshes, ${triangles.toLocaleString()} triangles, ${root.listTextures().length} textures, road ${pts.length} points`);
+}
+
+// ---- the logos -------------------------------------------------------------------
+// Every tower carries its organisation's mark from the atlas.
+for (const e of experiences) {
+  const mark = data.assets.worldLogos?.marks?.[e.slug];
+  assert.ok(mark && mark.rect.length === 4 && mark.aspect > 0, `No logo in the atlas for ${e.slug}: run npm run world:assets.`);
 }
 
 // ---- the billboard ------------------------------------------------------------

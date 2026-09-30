@@ -10,8 +10,9 @@
 // to the south-east, where the Contact shot's moon rises.
 //
 // The sky is a dome: near-black overhead, and near the horizon the lit
-// city's glow hanging in wet air, violet rather than blue, because the
-// light is the city's and not the moon's.
+// city's glow hanging in wet air, violet and pink rather than blue, because
+// the light is the city's and not the moon's, brightest toward downtown.
+// The kit's landmark towers (anchor_mega_*) are kept clear of, like the kit.
 import * as THREE from "three";
 import { COMMON, WINDOWS } from "./glsl.js";
 
@@ -21,10 +22,24 @@ const KEEP_OUT = [
   [0, -420, 540, -130], // plaza, corpo row, rooftop, garage
   [-70, 20, 70, 140], // behind the hero camera
 ];
-// Where the moon rises for the Contact shot: towers stay low there, and
-// near the garage they are not there at all.
+// Where the moon rises for the Contact shot: lit roofs stay low there, and
+// right by the garage they are not there at all. A few towers stand under
+// it, their tops just clear of its lower edge from the garage's roof, so
+// the moon rises out of a skyline rather than an empty sky: x, z, width,
+// height.
 const LOW = [420, -200, 1400, 1300];
-const CLEAR = [440, -200, 760, 200];
+const CLEAR = [440, -200, 560, -60];
+const UNDER_THE_MOON = [
+  [572, 40, 26, 78],
+  [612, 96, 30, 94],
+  [546, 118, 22, 70],
+  [650, 30, 24, 64],
+  [520, 60, 20, 58],
+];
+// Aviation lights on anything this tall, blinking red in three groups.
+const BEACON_OVER = 92;
+// The cloud deck's height, over the tallest roofs.
+const CLOUD_H = 520;
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -34,7 +49,7 @@ function rng(seed) {
   };
 }
 
-export function createSkyline(scene, shared, { count = 2600 } = {}) {
+export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduced = false } = {}) {
   const r = rng(90210);
   const matrices = [];
   const m = new THREE.Matrix4();
@@ -46,7 +61,7 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
     for (let gz = -1700; gz < 900 && matrices.length < count; gz += cell) {
       const x = gx + (r() - 0.5) * cell * 0.5;
       const z = gz + (r() - 0.5) * cell * 0.5;
-      if (KEEP_OUT.some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20)) continue;
+      if ([...KEEP_OUT, ...keepOut].some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20)) continue;
       if (x > CLEAR[0] && x < CLEAR[2] && z > CLEAR[1] && z < CLEAR[3]) continue;
       const d = Math.hypot(x - 200, z + 300);
       if (r() < 0.12) continue;
@@ -56,22 +71,41 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
       if (r() < 0.05) h += 90 + r() * 110;
       const [lx0, lz0, lx1, lz1] = LOW;
       if (x > lx0 && x < lx1 && z > lz0 && z < lz1) h = Math.min(h, 22 + r() * 30);
+      // Up the avenue the far city keeps under the hero's band of sky: seen
+      // from its lens (0.6, 0.6, 10), nothing in its view stands taller than
+      // about a sixth of its distance, so the roofs step down into the glow
+      // and the kit's landmark towers have the sky to themselves.
+      const ahead = 10 - z;
+      if (ahead > 0 && Math.abs(x - 0.6) < ahead * 0.9) h = Math.min(h, 10 + ahead * (0.13 + 0.08 * r()));
       p.set(x, h / 2, z);
       s.set(w, h, dd);
       q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, (r() - 0.5) * 0.3);
       matrices.push(m.compose(p, q, s).clone());
     }
   }
+  const heroFrom = matrices.length;
+  for (const [x, z, w, h] of UNDER_THE_MOON) {
+    q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, (r() - 0.5) * 0.3);
+    matrices.push(m.compose(p.set(x, h / 2, z), q, s.set(w, h, w * 0.9)).clone());
+  }
 
   const geometry = new THREE.BoxGeometry(1, 1, 1);
+  // The towers under the moon are the Contact shot's skyline, not the far
+  // city's filler: they are dressed (aHero, below).
+  const hero = new Float32Array(matrices.length);
+  hero.fill(1, heroFrom);
+  geometry.setAttribute("aHero", new THREE.InstancedBufferAttribute(hero, 1));
   // No floors: nobody sees the underside of a tower.
   const material = new THREE.ShaderMaterial({
     uniforms: { ...shared },
     vertexShader: /* glsl */ `
+      attribute float aHero;
       varying vec3 vWorld;
       varying vec2 vCells;
       varying vec3 vParams;
       varying float vRoof;
+      varying vec2 vCrown;
+      varying vec4 vHero;
       float hash11(float n) { return fract(sin(n) * 43758.5453123); }
       void main() {
         vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
@@ -85,6 +119,12 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
         float seed = origin.x * 0.013 + origin.z * 0.071;
         vParams = vec3(0.08 + 0.42 * hash11(seed), hash11(seed + 1.7) * 0.625, hash11(seed + 3.1));
         vCells += vec2(hash11(seed + 5.0) * 40.0, 0.0);
+        // The roof's height, and which towers light a band under it.
+        vCrown = vec2(origin.y + length(instanceMatrix[1].xyz) * 0.5, hash11(seed + 9.3));
+        // A dressed tower: whole office floors lit in bands, and where it is
+        // on its faces (0..1 across) for the blade up one corner.
+        vHero = vec4(aHero, position.x + 0.5, position.z + 0.5, abs(n.x));
+        if (aHero > 0.5) vParams = vec3(0.55, 0.25, hash11(seed + 3.1));
         gl_Position = projectionMatrix * viewMatrix * w;
       }
     `,
@@ -95,10 +135,24 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
       varying vec2 vCells;
       varying vec3 vParams;
       varying float vRoof;
+      varying vec2 vCrown;
+      varying vec4 vHero;
       void main() {
         vec4 win = windows(vCells, vParams, vWorld, step(0.0, vCells.y));
         vec3 col = mix(win.rgb, vec3(0.012, 0.012, 0.016), vRoof);
-        col = cityFog(col, vWorld, win.a * 0.8 * (1.0 - vRoof));
+        // One tall tower in seven wears a lit band under its roof: white,
+        // amber, or one of the city's neons. The towers under the moon all
+        // do, in the city's neons, with a blade of light up one corner.
+        float top = vCrown.x;
+        float dressed = step(0.5, vHero.x);
+        float crown = (1.0 - vRoof) * max(step(0.86, vCrown.y) * step(60.0, top), dressed) * step(top - 3.4, vWorld.y) * step(vWorld.y, top - 2.1);
+        float pick = mix(vCrown.y, 0.93 + 0.07 * vCrown.y, dressed);
+        vec3 crownCol = pick > 0.975 ? vec3(1.0, 0.22, 0.62) : pick > 0.955 ? vec3(0.16, 0.9, 1.0) : pick > 0.93 ? vec3(1.0, 0.58, 0.22) : vec3(0.8, 0.88, 1.0);
+        col = mix(col, crownCol * 1.8, crown);
+        float across = vHero.w > 0.5 ? vHero.z : vHero.y;
+        float blade = dressed * (1.0 - vRoof) * step(across, 0.035) * step(8.0, vWorld.y) * step(vWorld.y, top - 4.0);
+        col = mix(col, (vCrown.y > 0.5 ? vec3(0.16, 0.9, 1.0) : vec3(1.0, 0.22, 0.62)) * 2.2, blade);
+        col = cityFog(col, vWorld, max(max(win.a * 0.8 * (1.0 - vRoof), crown), blade));
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -113,10 +167,70 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
   mesh.name = "skyline";
   scene.add(mesh);
 
-  // The dome.
+  // Aviation lights: a red lamp on every tall roof, a third of them on at a
+  // time, a little under a second each, so the skyline blinks slowly across
+  // itself. Steady under reduced motion. One draw.
+  const beacons = [];
+  const groups = [];
+  const at = new THREE.Vector3();
+  const size = new THREE.Vector3();
+  for (const [i, mat] of matrices.entries()) {
+    at.setFromMatrixPosition(mat);
+    size.setFromMatrixScale(mat);
+    const top = at.y + size.y / 2;
+    if (top < BEACON_OVER && i < heroFrom) continue;
+    beacons.push(at.x, top + 0.8, at.z);
+    groups.push(Math.floor(r() * 3));
+  }
+  const beaconGeo = new THREE.BufferGeometry();
+  beaconGeo.setAttribute("position", new THREE.Float32BufferAttribute(beacons, 3));
+  beaconGeo.setAttribute("aGroup", new THREE.Float32BufferAttribute(groups, 1));
+  const beaconMat = new THREE.ShaderMaterial({
+    uniforms: { ...shared, uPixel: { value: 1 }, uMotion: { value: reduced ? 0 : 1 } },
+    vertexShader: /* glsl */ `
+      attribute float aGroup;
+      uniform float uTime;
+      uniform float uPixel;
+      uniform float uMotion;
+      varying float vOn;
+      varying vec3 vWorld;
+      void main() {
+        vWorld = position;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mv;
+        float t = fract(uTime * 0.75 + aGroup / 3.0);
+        vOn = mix(0.6, smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.55, t)), uMotion);
+        gl_PointSize = clamp(2600.0 / -mv.z, 2.5, 6.0) * uPixel;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      varying float vOn;
+      varying vec3 vWorld;
+      void main() {
+        float d = length(gl_PointCoord - 0.5) * 2.0;
+        vec3 col = vec3(1.0, 0.06, 0.04) * 3.5 * vOn * exp(-d * d * 4.0);
+        col *= exp(-length(vWorld - uCam) * uFogDensity * 0.35);
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  beaconMat.name = "beacons";
+  const beaconPoints = new THREE.Points(beaconGeo, beaconMat);
+  beaconPoints.name = "beacons";
+  scene.add(beaconPoints);
+
+  // The dome, which is also everything past the last building: the sky and
+  // its cloud, the searchlights, and below the horizon the far city's
+  // ground, where no tower stands on it.
   const skyGeo = new THREE.SphereGeometry(2200, 32, 16);
   const sky = new THREE.Mesh(skyGeo, new THREE.ShaderMaterial({
-    uniforms: { ...shared },
+    uniforms: { ...shared, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -128,11 +242,150 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      uniform float uMotion;
       varying vec3 vDir;
+
+      float vnoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x),
+                   mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+      }
+      float fbm(vec2 p) {
+        float s = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 4; i++) {
+          s += a * vnoise(p);
+          p = p * 2.03 + vec2(17.1, 3.7);
+          a *= 0.5;
+        }
+        return s / 0.9375;
+      }
+
+      // The far city's ground: its blocks stand on a ${cell} m grid, so its
+      // streets run between them. A lamp every eleven and a half metres down
+      // each kerb, a pool of light under it, and now and then a car's lights
+      // going along. Past a pixel a lamp is spread into its street rather
+      // than sparkling.
+      vec3 streets(vec3 p, float time, float px) {
+        vec2 q = (p.xz + vec2(${900 - cell / 2}.0, ${1700 - cell / 2}.0)) / ${cell}.0;
+        // Signed metres from the nearest street's middle, on each axis.
+        vec2 off = (fract(q + 0.5) - 0.5) * ${cell}.0;
+        vec2 id = floor(q + 0.5);
+        float road = 1.0 - smoothstep(5.0, 6.0 + px, min(abs(off.x), abs(off.y)));
+        vec3 base = vec3(0.004, 0.004, 0.006) + vec3(0.008, 0.007, 0.009) * road;
+        vec3 light = vec3(0.0);
+        // Streets along z (off.x small) and along x (off.y small).
+        for (int k = 0; k < 2; k++) {
+          float across = k == 0 ? off.x : off.y;
+          float along = k == 0 ? p.z : p.x;
+          float street = k == 0 ? id.x : id.y;
+          if (abs(across) > 9.0 + px) continue;
+          float dz = abs(fract(along / 11.5 + 0.5) - 0.5) * 11.5;
+          float dk = abs(abs(across) - 4.2);
+          float d2 = dk * dk + dz * dz;
+          float r = max(0.9, px);
+          float lamp = exp(-d2 / (r * r)) * (0.81 / (r * r));
+          float on = step(0.12, hash12(vec2(floor(along / 11.5 + 0.5), street * 3.1 + float(k))));
+          // Each lamp's pool runs into the next, so a street reads as a line.
+          float pool = exp(-dk * dk / 8.0 - dz * dz / 45.0) * 0.12;
+          vec3 sodium = mix(vec3(1.0, 0.55, 0.2), vec3(0.85, 0.9, 1.0), step(0.7, hash12(vec2(street, float(k) + 3.0))));
+          light += sodium * (lamp * 1.4 * on + pool * (0.4 + 0.6 * on));
+          // Shopfronts at the foot of the blocks: a band of light along each
+          // kerb, a colour to each front, some of them shut.
+          float front = hash12(vec2(floor(along / 7.0), street * 5.3 + float(k) * 7.0 + step(0.0, across)));
+          vec3 shopCol = front > 0.96 ? vec3(1.0, 0.25, 0.6) : front > 0.93 ? vec3(0.2, 0.85, 1.0) : vec3(1.0, 0.72, 0.48);
+          float within = step(abs(fract(along / 7.0) - 0.5), 0.36);
+          float rs = max(1.2, px);
+          float kerb = abs(across) - 7.4;
+          light += shopCol * exp(-kerb * kerb / (rs * rs)) * (1.2 / rs) * step(0.55, front) * mix(0.72, within, 1.0 - smoothstep(1.0, 4.0, px)) * 0.22;
+          // Cars: a lane each way, one every sixty metres or so, some of
+          // them missing, head lamps one way and tail lamps the other.
+          for (int lane = 0; lane < 2; lane++) {
+            float sgn = lane == 0 ? 1.0 : -1.0;
+            float h = hash12(vec2(street * 1.7 + float(k) * 31.0, float(lane)));
+            if (h < 0.35) continue;
+            float s = along / 60.0 + sgn * time * (9.0 + 6.0 * h) / 60.0 + h * 7.0;
+            float present = step(0.3, hash12(vec2(floor(s + 0.5), street + float(lane) * 13.0)));
+            float ds = abs(fract(s + 0.5) - 0.5) * 60.0;
+            float dl = abs(across - sgn * 1.8);
+            float rc = max(0.7, px);
+            float car = exp(-(ds * ds * 0.5 + dl * dl * 1.5) / (rc * rc)) * (0.5 / (rc * rc));
+            light += (lane == 0 ? vec3(1.0, 0.92, 0.8) : vec3(1.0, 0.08, 0.05)) * car * present * 2.0;
+          }
+        }
+        return base + light;
+      }
+
+      // Searchlights from downtown and the south, sweeping slowly (the
+      // south one well left of Contact's moon, which it would skewer): the
+      // nearest a view ray comes to each beam, lit the more the closer, the
+      // beam widening as it climbs and gone into the cloud.
+      vec3 searchlights(vec3 dir, float time) {
+        vec3 sum = vec3(0.0);
+        for (int i = 0; i < 3; i++) {
+          float fi = float(i);
+          vec3 base = i == 0 ? vec3(-460.0, 0.0, -1500.0) : i == 1 ? vec3(420.0, 0.0, -1250.0) : vec3(-200.0, 0.0, 1000.0);
+          float turn = time * (0.045 + 0.018 * fi) + fi * 2.4;
+          float lean = 0.34 + 0.12 * sin(time * 0.06 + fi * 1.7);
+          vec3 a = normalize(vec3(sin(turn) * lean, 1.0, cos(turn) * lean));
+          vec3 w0 = uCam - base;
+          float b = dot(dir, a);
+          float d = dot(dir, w0);
+          float e = dot(a, w0);
+          float den = max(1.0 - b * b, 1e-4);
+          float tau = (b * e - d) / den;
+          float s = (e - b * d) / den;
+          if (tau <= 0.0 || s <= 0.0) continue;
+          vec3 gap = w0 + dir * tau - a * s;
+          float width = 3.0 + s * 0.03;
+          float core = exp(-dot(gap, gap) / (width * width));
+          float height = base.y + a.y * s;
+          float fade = exp(-s / 900.0) * exp(-tau * 0.00035) * (1.0 - smoothstep(${CLOUD_H - 80}.0, ${CLOUD_H + 40}.0, height));
+          sum += core * fade;
+        }
+        return vec3(0.6, 0.68, 0.9) * sum * 0.075 * uHaze;
+      }
+
       void main() {
-        float h = max(vDir.y, 0.0);
+        vec3 dir = normalize(vDir);
+        float h = max(dir.y, 0.0);
+        float time = uTime * uMotion;
+        // Where this pixel's ray meets the ground, and how much ground a
+        // pixel covers there, worked out before any branch so the
+        // derivatives are the whole quad's.
+        float tg = max(uCam.y, 0.0) / max(-dir.y, 1e-4);
+        vec3 pg = uCam + dir * tg;
+        float px = max(max(fwidth(pg.x), fwidth(pg.z)), 0.05);
         vec3 glow = uHazeColor * (0.55 + 0.25 * uLevel) * exp(-h * 9.0) * uHaze;
         vec3 col = vec3(0.004, 0.004, 0.007) + glow + uHazeColor * 0.08 * exp(-h * 2.5);
+        // The city's light in the air, meeting the fog at the horizon: a
+        // band over the roofs, brightest toward downtown.
+        col += cityGlow(dir, h * 900.0) * (0.85 + 0.2 * uLevel);
+
+        if (dir.y > 0.0) {
+          // A broken deck of cloud, lit from under by the city: the glow's
+          // own colour, brighter toward downtown and where it is thicker.
+          // Between the clouds the sky is darker than the lit air under
+          // them. Both go into the horizon's haze with distance.
+          float t = (${CLOUD_H}.0 - uCam.y) / dir.y;
+          vec3 p = uCam + dir * t;
+          vec2 drift = vec2(time * 3.2, time * 1.1);
+          vec2 c = (p.xz + drift) / 380.0;
+          float n = fbm(c + 0.9 * vec2(fbm(c * 0.5 + 5.2), fbm(c * 0.5 + 1.3)));
+          float cover = smoothstep(0.42, 0.72, n);
+          float near = 1.0 - smoothstep(2500.0, 12000.0, t);
+          vec3 under = (cityGlow(dir, 0.0) * 0.5 + uHazeColor * 0.25) * (0.3 + 0.9 * n);
+          col = mix(col, col * 0.55, (1.0 - cover) * near) + under * cover * near * 0.8;
+        } else if (uCam.y > 0.0) {
+          // Only past the kit: anything nearer that shows the ground is a
+          // gap between the kit's own pieces, and it stays dark.
+          vec3 ground = streets(pg, time, px) * smoothstep(20.0, 60.0, tg);
+          vec3 fogged = cityFog(ground, pg, 0.0);
+          // The horizon's own band stays where the ground runs into it.
+          col = mix(fogged, col, smoothstep(-0.004, 0.0, dir.y));
+        }
+        col += searchlights(dir, time);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -143,18 +396,24 @@ export function createSkyline(scene, shared, { count = 2600 } = {}) {
   }));
   sky.material.name = "sky";
   sky.name = "sky";
-  sky.renderOrder = -10;
+  // Drawn after everything opaque: it sits on the far plane and writes no
+  // depth, so the depth test throws away every pixel a building already
+  // covers before its clouds and streets are worked out.
+  sky.renderOrder = 10;
   sky.frustumCulled = false;
   scene.add(sky);
 
   return {
     mesh,
     sky,
-    update(camera) {
+    update(camera, pixelRatio = 1) {
       sky.position.copy(camera.position);
+      beaconMat.uniforms.uPixel.value = pixelRatio;
     },
     dispose() {
-      scene.remove(mesh, sky);
+      scene.remove(mesh, sky, beaconPoints);
+      beaconGeo.dispose();
+      beaconMat.dispose();
       geometry.dispose();
       material.dispose();
       skyGeo.dispose();

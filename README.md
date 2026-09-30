@@ -14,8 +14,9 @@ Live: **[aliyounes.dev](https://aliyounes.dev)**
 - Framer Motion for entrances and micro-interactions
 - Cyberpunk 2077 / Edgerunners visual direction: Chakra Petch for display,
   Barlow for prose, JetBrains Mono for data
-- An intro cinematic choreographed to the track: the moon, three title
-  cards, then a car that drifts the page in on the beat. Every cue is a
+- An intro cinematic choreographed to the track: the moon (built of voxels
+  in the city's own renderer when the city is ready), three title cards,
+  then a car that drifts the page in on the beat. Every cue is a
   measurement of the audio file, recorded in `src/lib/cues.js`
 - A live Night City behind the page (`src/world/`): vanilla three.js and one
   pmndrs `postprocessing` pass, a Blender-built kit plus procedural far

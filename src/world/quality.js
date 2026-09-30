@@ -4,9 +4,10 @@
 // without being asked twice:
 //
 //   high      a GPU, a mouse, a screen at least 768 px wide
-//   phone     a coarse pointer or a narrow screen: fewer pixels, no planar
-//             reflection (the wet road uses a baked streak texture instead),
-//             a third of the rain, half-resolution bloom, the lighter GLB
+//   phone     a coarse pointer or a narrow screen: fewer pixels, a 512 by
+//             256 planar reflection (the first thing shed if the phone is
+//             slow, leaving the baked streaks), a third of the rain,
+//             half-resolution bloom, the lighter GLB
 //   fallback  no GPU (src/lib/gpu.js), reduced motion, `fx world off`, or a
 //             WebGL failure: no city at all, the still plate and black
 //             sections the site had before it
@@ -21,7 +22,7 @@ export const TIERS = {
     name: "high",
     dpr: 1.5,
     pixels: 2.2e6,
-    reflection: 512,
+    reflection: 1024,
     rain: 6000,
     avs: 10,
     cars: 4,
@@ -34,7 +35,7 @@ export const TIERS = {
     name: "phone",
     dpr: 1.25,
     pixels: 0.9e6,
-    reflection: 0,
+    reflection: 512,
     rain: 2000,
     avs: 4,
     cars: 2,

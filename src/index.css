@@ -1138,13 +1138,22 @@ html[data-world="on"] .world-hide { display: none; }
    city is darker than the painting, so the same veil hid most of it: the
    side veil keeps the name's side as dark as before and lets the right
    half through, and the floor veil holds off until the lower third, so
-   the wet road carries its colour to just under the ledger. */
+   the wet road carries its colour to just under the ledger, and ends as
+   dark as the dimmed city under Work, so no grey band sits where they
+   meet. */
 html[data-world="on"] .hero-fade-r {
   background-image: linear-gradient(to right, rgb(10 10 12 / 0.88), rgb(10 10 12 / 0.55) 50%, rgb(10 10 12 / 0.2));
 }
 html[data-world="on"] .hero-fade-b {
-  background-image: linear-gradient(to bottom, rgb(10 10 12 / 0.22), transparent 42%, transparent 58%, rgb(10 10 12 / 0.7) 86%, rgb(10 10 12));
+  background-image: linear-gradient(to bottom, rgb(10 10 12 / 0.22), transparent 42%, transparent 58%, rgb(6 6 8 / 0.7) 86%, rgb(4 4 6));
 }
+/* Contact holds the city at full, for the moon and the headline over the
+   sky; below them the link columns and the footer sit on the skyline's lit
+   crowns and streets, so the city steps back behind those alone. */
+html[data-world="on"] #contact.world-clear {
+  background-image: linear-gradient(to bottom, transparent 32%, rgb(10 10 12 / 0.74) 52%, rgb(10 10 12 / 0.8));
+}
+html[data-world="on"] footer.world-clear { background-color: rgb(10 10 12 / 0.8); }
 /* An intro that plays in the live city (IntroCinematic.jsx): the city is
    the intro's backdrop, so the page waits under it unseen, as it waited
    under the overlay's opaque plate, and arrives over the handoff as
@@ -1153,6 +1162,15 @@ html[data-world="on"] .hero-fade-b {
 html[data-intro-world] [data-shell] > :not(.world-layer):not(.reticle):not([data-intro-layer]) {
   opacity: var(--intro-page, 0) !important;
 }
+/* The intro draws its first live frame straight onto the canvas (the voxel
+   moon from the run's first frame), so the canvas is up at once rather than
+   fading in over the poster. */
+html[data-intro-world] .world-canvas { opacity: 1; transition: none; }
+/* Over the voxel moon (src/world/voxel-moon.js) the site's scanlines rest:
+   a second grid over a grid of voxels is a screen door. They come back as
+   the street arrives. */
+.paper-grain::after { transition: opacity 0.8s ease; }
+html[data-intro-moon] .paper-grain::after { opacity: 0; }
 
 /* The switches. Each attribute is written by src/lib/env.js. The city's own
    switches (signs, haze, wet, traffic) are read by src/world directly. */

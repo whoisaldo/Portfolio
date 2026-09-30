@@ -49,7 +49,7 @@ export function createShafts(scene, anchors, shared, { color = "#ffb254" } = {})
       varying vec3 vWorld;
       void main() {
         // uv.y is 1 at the apex (the lamp) and 0 at the ground.
-        float a = pow(vT, 1.6) * pow(vEdge, 1.4) * uGain * (1.0 + 0.25 * uLevel);
+        float a = pow(vT, 2.4) * pow(vEdge, 2.2) * uGain * (1.0 + 0.25 * uLevel);
         // Rain drifting through the light: a slow shimmer down the cone.
         a *= 0.8 + 0.2 * sin(vWorld.y * 3.0 + uTime * 5.0 + vWorld.x * 0.7);
         a *= 1.0 - smoothstep(60.0, 140.0, length(vWorld - uCam));
@@ -76,7 +76,7 @@ export function createShafts(scene, anchors, shared, { color = "#ffb254" } = {})
     mesh,
     /** `haze` is the shared haze level, 0 to 1. */
     update(haze) {
-      material.uniforms.uGain.value = 0.3 * haze;
+      material.uniforms.uGain.value = 0.22 * haze;
       mesh.visible = haze > 0.01;
     },
     dispose() {

@@ -28,20 +28,20 @@
 // on the page's clock, then takes the road.
 //
 // The car is the only thing in the city lit by three.js lights: the lights
-// and the environment the drift used, with the sky light tinted by the
-// city's own light where the car is (the same spill map every surface reads),
-// so it goes pink under the pink signs and cyan in the bay. The drift's two
-// coloured rims are a stage light for one camera; on the road they come down
-// to a glint, or a car parked with its back to the hero shot flares at the
-// lens.
+// the drift used and a night street to reflect (nightEnvironment), with the
+// sky light tinted by the city's own light where the car is (the same spill
+// map every surface reads), so it goes pink under the pink signs and cyan in
+// the bay. The drift's two coloured rims are a stage light for one camera;
+// on the road they come down to a glint, or a car parked with its back to
+// the hero shot flares at the lens.
 import * as THREE from "three";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { createObject } from "../three/car/object.js";
 import { createContactShadow } from "../three/car/street-contact.js";
 import { PARK_FROM, clamp, poseAt, parkingCurve, coastToStop } from "../three/drift/path.js";
 import { createLamps, createGroundLight } from "../three/drift/lamps.js";
 import { createRig, createDrift } from "../three/drift/rig.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { SHOTS } from "../data/world.js";
 import { attributeKey, mergeMeshes } from "./merge.js";
 
@@ -58,11 +58,60 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 // The nodes the rig moves. Everything else on the car is rigid.
 const RIG = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "steer_fr"];
 
+// What a shut hood hides: the engine bay, the hood's lining and its struts.
+// The city never opens the hood (the garage's viewer does), so they are
+// left out, of the car and of its mirror.
+const UNDER_HOOD = /^S4_(engine_carbon|engine_textured_plastic|cast_supercharger_housing|coolant_reservoir|reservoir_cap_blue|hood_acoustic_liner)(\.|$)/;
+const underHood = (o, car) => {
+  if (UNDER_HOOD.test(o.material.name)) return true;
+  for (let p = o; p && p !== car; p = p.parent) if (p.name === "engine_bay" || p.name.startsWith("hood_strut_")) return true;
+  return false;
+};
+
+// A part with no picture on it and nothing to see through.
+const plain = (m) => !m.transparent && !Object.values(m).some((v) => v?.isTexture);
+
 /**
- * The S4 in fewer draws: every mesh merged with the others that share its
- * material and the rig node that carries it (a wheel, a knuckle, or the
- * body), so the wheels still turn and steer. About 150 parts become about
- * 45 draws. Returns the new geometries, for dispose().
+ * One material for every plain part of the car. Each is the same double-
+ * sided physical material with its own colour, roughness, metalness and
+ * clearcoat, so those four ride on the vertices instead (`color`, and
+ * `surface` for the other three) and the shading is what each part's own
+ * material gave it.
+ */
+function paintMaterial(like) {
+  const material = new THREE.MeshPhysicalMaterial({
+    vertexColors: true,
+    roughness: 1,
+    metalness: 1,
+    clearcoat: 1,
+    clearcoatRoughness: like.clearcoatRoughness,
+    side: like.side,
+  });
+  material.name = "s4_paint";
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute vec3 surface;\nvarying vec3 vSurface;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\n\tvSurface = surface;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vSurface;")
+      .replace("#include <roughnessmap_fragment>", "float roughnessFactor = roughness * vSurface.x;")
+      .replace("#include <metalnessmap_fragment>", "float metalnessFactor = metalness * vSurface.y;")
+      .replace(
+        "#include <lights_physical_fragment>",
+        THREE.ShaderChunk.lights_physical_fragment.replace("material.clearcoat = clearcoat;", "material.clearcoat = clearcoat * vSurface.z;"),
+      );
+  };
+  material.customProgramCacheKey = () => "s4_paint";
+  return material;
+}
+
+/**
+ * The S4 in few draws. Every plain part carried by the same rig node (a
+ * wheel, a knuckle, or the body) becomes one mesh on the shared paint
+ * material, so the wheels still turn and steer; the parts with pictures
+ * on them (lamps, carbon, plates) and the clear lenses keep a mesh per
+ * material. About 150 parts become about a dozen draws. Returns what it
+ * made, for dispose().
  */
 function slim(car) {
   car.updateMatrixWorld(true);
@@ -71,15 +120,59 @@ function slim(car) {
     for (let p = o.parent; p && p !== car; p = p.parent) if (rigNodes.has(p)) return p;
     return car;
   };
+  const painted = new Map();
   const groups = new Map();
+  const hidden = [];
+  let like = null;
   car.traverse((o) => {
     if (!o.isMesh || rigNodes.has(o) || Array.isArray(o.material)) return;
+    if (underHood(o, car)) {
+      hidden.push(o);
+      return;
+    }
     const owner = ownerOf(o);
+    if (plain(o.material)) {
+      like ??= o.material;
+      const key = `${owner.uuid}|${o.renderOrder}`;
+      if (!painted.has(key)) painted.set(key, { owner, meshes: [] });
+      painted.get(key).meshes.push(o);
+      return;
+    }
     const key = `${owner.uuid}|${o.material.uuid}|${attributeKey(o.geometry)}|${o.renderOrder}`;
     if (!groups.has(key)) groups.set(key, { owner, meshes: [] });
     groups.get(key).meshes.push(o);
   });
+  for (const o of hidden) o.removeFromParent();
   const made = [];
+  const paint = like ? paintMaterial(like) : null;
+  for (const { owner, meshes } of painted.values()) {
+    const parts = meshes.map((o) => {
+      const g = mergeMeshes([o], owner, ["position", "normal"]);
+      if (!g.attributes.normal) g.computeVertexNormals();
+      const m = o.material;
+      const n = g.attributes.position.count;
+      const color = new Float32Array(n * 3);
+      const surface = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        m.color.toArray(color, i * 3);
+        surface[i * 3] = m.roughness;
+        surface[i * 3 + 1] = m.metalness;
+        surface[i * 3 + 2] = m.clearcoat;
+      }
+      g.setAttribute("color", new THREE.BufferAttribute(color, 3));
+      g.setAttribute("surface", new THREE.BufferAttribute(surface, 3));
+      return g;
+    });
+    const geometry = parts.length === 1 ? parts[0] : mergeGeometries(parts, false);
+    if (parts.length > 1) parts.forEach((g) => g.dispose());
+    geometry.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geometry, paint);
+    mesh.name = "s4_paint";
+    mesh.renderOrder = meshes[0].renderOrder;
+    owner.add(mesh);
+    for (const o of meshes) o.removeFromParent();
+    made.push(geometry);
+  }
   for (const { owner, meshes } of groups.values()) {
     if (meshes.length < 2) continue;
     const geometry = mergeMeshes(meshes, owner);
@@ -89,34 +182,52 @@ function slim(car) {
     for (const m of meshes) m.removeFromParent();
     made.push(geometry);
   }
-  return made;
+  return { geometries: made, material: paint };
 }
 
 /**
- * The car as the wet road's mirror needs it: one mesh, one draw, in the
- * car's own space, coloured by each part's paint and lit by the car's
- * lights. The reflection is blurred down the road; its wheels do not need
- * to turn.
+ * The car as the wet road's mirror needs it: its body, its glasshouse and
+ * its four wheels as boxes in the car's own space, in its own paint, glass
+ * and rubber, lit by its lights, one draw. The mirror smears everything
+ * long down the road and nothing finer than the car's outline survives it;
+ * the whole car was eighty thousand triangles drawn to be blurred.
  */
-function mirrorStandIn(car) {
+function mirrorStandIn(car, rig) {
   car.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(car);
+  const size = bounds.getSize(new THREE.Vector3());
+  const mid = bounds.getCenter(new THREE.Vector3());
+  const tone = (pattern, fallback) => {
+    let found = null;
+    car.traverse((o) => {
+      if (!found && o.isMesh && !Array.isArray(o.material) && pattern.test(o.material.name)) found = o.material;
+    });
+    const c = new THREE.Color(fallback);
+    if (found?.color) c.copy(found.color).multiplyScalar(1 - 0.55 * (found.metalness ?? 0));
+    return c;
+  };
+  const paint = tone(/^S4_metallic_grey/, 0x2a2d31);
+  const glass = tone(/^S4_tinted_glass/, 0x0a0d10);
+  const rubber = tone(/^S4_tyre_rubber/, 0x141518);
   const parts = [];
-  const tint = new THREE.Color();
-  car.traverse((o) => {
-    if (!o.isMesh || Array.isArray(o.material)) return;
-    const m = o.material;
-    // Clear lenses and glass let the paint behind them show: leave them out.
-    if (m.transparent && (m.opacity ?? 1) < 0.5) return;
-    const g = mergeMeshes([o], car, ["position", "normal"]);
-    if (!g.attributes.normal) g.computeVertexNormals();
-    tint.copy(m.color ?? new THREE.Color(0.2, 0.2, 0.2)).multiplyScalar(1 - 0.55 * (m.metalness ?? 0));
-    if (m.emissive && (m.emissiveIntensity ?? 1) > 0) tint.add(m.emissive.clone().multiplyScalar(m.emissiveIntensity ?? 1));
+  const add = (w, h, d, x, y, z, color) => {
+    const g = new THREE.BoxGeometry(w, h, d);
+    g.deleteAttribute("uv");
+    g.translate(x, y, z);
     const n = g.attributes.position.count;
-    const color = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) tint.toArray(color, i * 3);
-    g.setAttribute("color", new THREE.BufferAttribute(color, 3));
+    const c = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) color.toArray(c, i * 3);
+    g.setAttribute("color", new THREE.BufferAttribute(c, 3));
     parts.push(g);
-  });
+  };
+  const y0 = bounds.min.y;
+  add(size.x * 0.9, size.y * 0.52, size.z * 0.98, mid.x, y0 + size.y * 0.4, mid.z, paint);
+  add(size.x * 0.72, size.y * 0.34, size.z * 0.5, mid.x, y0 + size.y * 0.83, mid.z - size.z * 0.04, glass);
+  const at = new THREE.Vector3();
+  for (const wheel of rig.wheels) {
+    car.worldToLocal(wheel.getWorldPosition(at));
+    add(0.26, rig.radius * 2, rig.radius * 2, at.x, at.y, at.z, rubber);
+  }
   const geometry = mergeGeometries(parts, false);
   parts.forEach((g) => g.dispose());
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
@@ -126,15 +237,57 @@ function mirrorStandIn(car) {
   return mesh;
 }
 
+/**
+ * What the car's paint and glass reflect: the street at night. A black room
+ * with the city's neon in it as long thin strips, pink along one side and
+ * cyan along the other at sign height, sodium amber low ahead and behind, a
+ * cold tube far off, two thin tubes overhead to draw a line down the roof
+ * and the hood, and above them the dim violet of the clouds the city lights.
+ * A studio (three's RoomEnvironment) gave it grey walls and white softboxes
+ * to reflect, which blew its roof and hood out to white.
+ */
+function nightEnvironment() {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x010102);
+  const box = new THREE.BoxGeometry(1, 1, 1);
+  const materials = [];
+  const strip = (hex, gain, [x, y, z], [sx, sy, sz]) => {
+    const material = new THREE.MeshBasicMaterial({ color: new THREE.Color(hex).multiplyScalar(gain) });
+    materials.push(material);
+    const mesh = new THREE.Mesh(box, material);
+    mesh.position.set(x, y, z);
+    mesh.scale.set(sx, sy, sz);
+    scene.add(mesh);
+  };
+  strip(0x3a1446, 2.2, [0, 14, 0], [40, 0.2, 40]);
+  strip(0xe8ecff, 3, [-1.4, 9, 0], [0.16, 0.1, 18]);
+  strip(0xe8ecff, 2.2, [1.6, 9.5, -2], [0.12, 0.1, 12]);
+  strip(0xff2e88, 9, [-9, 3.5, 0], [0.2, 0.3, 16]);
+  strip(0xff2e88, 5, [-9, 6.2, -5], [0.2, 0.2, 8]);
+  strip(0x27dcf2, 9, [9, 3.2, 1], [0.2, 0.3, 16]);
+  strip(0x27dcf2, 5, [9, 5.8, 6], [0.2, 0.2, 6]);
+  strip(0xffb254, 5, [0, 5, -13], [5, 0.2, 0.2]);
+  strip(0xffb254, 3, [3, 5, 13], [4, 0.2, 0.2]);
+  strip(0xdde8ff, 4, [-4, 7.5, -11], [2.5, 0.12, 0.12]);
+  return {
+    scene,
+    dispose() {
+      box.dispose();
+      materials.forEach((m) => m.dispose());
+    },
+  };
+}
+
 export function createCar(scene, renderer, { road, anchors, light, layer, mirrorLayer }) {
   const car = createObject();
   car.name = "ali_s4_world";
   const rig = createRig(car);
-  // The mirror gets a one-draw stand-in; the real car is drawn once.
-  const standIn = mirrorStandIn(car);
+  // The mirror gets a one-draw stand-in, made from the parts as they come
+  // and added once they are merged; the real car is drawn once.
+  const standIn = mirrorStandIn(car, rig);
+  const slimmed = slim(car);
   standIn.layers.set(mirrorLayer);
   car.add(standIn);
-  const slimmed = slim(car);
   car.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = false;
@@ -151,7 +304,9 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
 
   // ---- light -------------------------------------------------------------
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const envMap = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const night = nightEnvironment();
+  const envMap = pmrem.fromScene(night.scene, 0.04).texture;
+  night.dispose();
   pmrem.dispose();
   scene.environment = envMap;
   scene.environmentIntensity = 0.32;
@@ -198,6 +353,28 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     bay: road.length,
   };
   const curbFor = (aspect) => (aspect < 1 ? stops.curbPortrait : stops.curb);
+
+  // In the bay the room lights it as the garage's viewer lights its own
+  // (src/three/garage-room.js): area lights for the kit's two white tubes
+  // overhead and for the magenta and cyan tubes high on the walls either
+  // side, faded in as it drives through the door. Always there, at nothing
+  // outside the bay, so the paint's program never changes on the way in.
+  RectAreaLightUniformsLib.init();
+  const bayAt = at("anchor_garage_bay") ?? road.pointAt(road.length, new THREE.Vector3());
+  const bayLights = new THREE.Group();
+  bayLights.name = "car_bay_lights";
+  const area = (color, nits, width, height, [x, y, z], [tx, ty, tz]) => {
+    const l = new THREE.RectAreaLight(color, 0, width, height);
+    l.position.set(bayAt.x + x, y, bayAt.z + z);
+    l.lookAt(bayAt.x + tx, ty, bayAt.z + tz);
+    l.userData.nits = nits;
+    l.layers.enable(layer);
+    bayLights.add(l);
+  };
+  for (const z of [-4.5, 4.5]) area("#d5e5f6", 30, 18, 0.3, [2, 7.6, z], [2, 0, z]);
+  area("#ff278d", 6, 12, 2.5, [2, 6.5, 14.4], [2, 1, 0]);
+  area("#27dcf2", 6, 12, 2.5, [2, 6.5, -14.4], [2, 1, 0]);
+  scene.add(bayLights);
   const stopFor = (id, local, aspect) => {
     switch (SHOTS[id]?.car) {
       case "curb": return curbFor(aspect);
@@ -308,6 +485,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     key.intensity = 0.55 + 0.15 * stageLight;
     rimM.intensity = 0.55 + 0.95 * stageLight;
     rimC.intensity = 0.35 + 0.65 * stageLight;
+    const bay = mode === "road" ? smoothstep(stops.bay - 12, stops.bay - 4, u) : 0;
+    for (const l of bayLights.children) l.intensity = l.userData.nits * bay;
     car.updateMatrixWorld(true);
     shadow.update();
     ground.update(car, lamps, car.position);
@@ -454,8 +633,9 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     },
 
     dispose() {
-      scene.remove(car, lights);
-      slimmed.forEach((g) => g.dispose());
+      scene.remove(car, lights, bayLights);
+      slimmed.geometries.forEach((g) => g.dispose());
+      slimmed.material?.dispose();
       standIn.geometry.dispose();
       standIn.material.dispose();
       shadow.dispose();

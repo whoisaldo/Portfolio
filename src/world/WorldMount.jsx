@@ -26,7 +26,7 @@ import NightCity from "../components/NightCity";
 import { useEnv } from "../lib/env";
 import { hasGpuAcceleration } from "../lib/gpu";
 import { usePrefersReducedMotion } from "../hooks";
-import { DOOR_OPEN, INTRO_START } from "../lib/intro";
+import { DOOR_OPEN } from "../lib/intro";
 import { findWork } from "../data/work";
 import { startScrollStage } from "./scroll-stage";
 import { setStage, setWorld } from "./stage";
@@ -85,7 +85,8 @@ export default function WorldMount() {
 
   // Build the city after first paint, or at once if the door already asked
   // for it, and dispose it on the way out. `build` bumps to rebuild from
-  // scratch: on an intro replay and after a lost WebGL context comes back.
+  // scratch: when the door is put back up, and after a lost WebGL context
+  // comes back.
   useEffect(() => {
     if (!on) return undefined;
     let alive = true;
@@ -134,25 +135,18 @@ export default function WorldMount() {
     };
   }, [on, build]);
 
-  // A replay starts from a clean city: dispose everything and build again
-  // from the cached chunk and model. A replay from the footer or the Konami
-  // code rebuilds as it starts (the full intro gives it eighteen seconds of
-  // moon before the city is needed); a reader sent back to the door
-  // rebuilds while the door is up. The first intro keeps the city the door
-  // warmed.
+  // A reader sent back to the door gets a clean city: dispose everything
+  // and build again from the cached chunk and model while the door is up. A
+  // replay from the footer or the Konami code keeps the city it has, because
+  // the intro opens on the city's own voxel moon from its first frame;
+  // beginIntro puts the car back on its mark and drops the route and the
+  // shot the page left the city on.
   useEffect(() => {
-    const onStart = (e) => {
-      if (e.detail?.replay && liveRef.current) setBuild((b) => b + 1);
-    };
     const onDoor = () => {
       if (liveRef.current) setBuild((b) => b + 1);
     };
-    window.addEventListener(INTRO_START, onStart);
     window.addEventListener(DOOR_OPEN, onDoor);
-    return () => {
-      window.removeEventListener(INTRO_START, onStart);
-      window.removeEventListener(DOOR_OPEN, onDoor);
-    };
+    return () => window.removeEventListener(DOOR_OPEN, onDoor);
   }, []);
 
   // A lost context shows the poster; a restored one rebuilds on a new canvas.
