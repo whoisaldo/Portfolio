@@ -370,7 +370,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // The tenant: floors in threes, give or take, one light each.
           float tenant = floor((level + floor(hash12(vec2(seed, 1.0)) * 3.0)) / 3.0);
           // The card being read keeps its tower's floors on.
-          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r * 0.82 + 0.3 * tlit);
+          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r + 0.25 * tlit);
           float tone = hash12(vec2(tenant, seed + 3.7));
           vec3 L = vec3(0.74, 0.87, 1.0);
           if (tone > 1.0 - 0.5 * vColor.g) L = vec3(1.0, 0.76, 0.5);
@@ -409,7 +409,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec2 g = vec2(h.x / 1.5, h.z / 1.2);
             float pool = smoothstep(0.55, 0.05, length(fract(g) - 0.5));
             float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
-            room = L * (0.09 + mix(0.22 * pool, 0.08, aa) + 0.03 * hash12(floor(h.xz)));
+            room = L * (0.16 + mix(0.36 * pool, 0.13, aa) + 0.04 * hash12(floor(h.xz)));
           }
           room *= on;
           // Unlit floors are not black: exit signs, a screen left on.
@@ -469,7 +469,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           col = mix(col, spandrel, slab);
 
           // Far off, a floor's average rather than a pattern that shimmers.
-          float litAvg = min(vColor.r * 0.82 + 0.3 * tlit, 1.0) * 0.76;
+          float litAvg = min(vColor.r + 0.25 * tlit, 1.0) * 0.76;
           vec3 avgRoom = L * litAvg * 0.6 + 0.004;
           vec3 avg = mix(avgRoom * 0.8 * (1.0 - F) + env * F + wash * 0.3, spandrel, SILL / STOREY);
           col = mix(col, avg, smoothstep(0.25, 0.6, fw));
