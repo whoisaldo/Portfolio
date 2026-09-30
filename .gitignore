@@ -21,6 +21,12 @@ design/night-city-garage/preview.mp4
 design/night-city-garage/verification.json
 design/night-city-garage/*-source.glb
 design/night-city-garage/references/
+design/night-city-world/*-viewport.png
+design/night-city-world/*-review.png
+design/night-city-world/*-cycles*.png
+design/night-city-world/*-preview.png
+design/night-city-world/*-source.glb
+design/night-city-world/verification.json
 
 # Tooling
 .vercel/

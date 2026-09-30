@@ -14,11 +14,19 @@ Live: **[aliyounes.dev](https://aliyounes.dev)**
 - Framer Motion for entrances and micro-interactions
 - Cyberpunk 2077 / Edgerunners visual direction: Chakra Petch for display,
   Barlow for prose, JetBrains Mono for data
-- An intro cinematic choreographed to the track: the moon, three title
-  cards, then a car that drifts the page in on the beat. Every cue is a
+- An intro cinematic choreographed to the track: the moon (built of voxels
+  in the city's own renderer when the city is ready), three title cards,
+  then a car that drifts the page in on the beat. Every cue is a
   measurement of the audio file, recorded in `src/lib/cues.js`
-- three.js for the car, loaded on demand for the four seconds it is on
-  screen and never part of the main bundle
+- A live Night City behind the page (`src/world/`): vanilla three.js and one
+  pmndrs `postprocessing` pass, a Blender-built kit plus procedural far
+  towers, a camera shot per section, and Ali's S4 driving the road between
+  them. It is a lazy chunk after first paint; the still plate is its poster
+  and, with no GPU, reduced motion or `fx world off`, the whole of it
+- Lenis smooths the scroll while the city is on, so a scroll reads as a
+  camera move
+- three.js is never part of the main bundle: the city, the intro's car and
+  the garage viewer each load it on demand
 
 ## Run locally
 
@@ -36,6 +44,9 @@ npm run build        # outputs to dist/
 npm run preview      # serves the build locally
 npm run lint
 npm run check:audio  # asserts the background track cannot double up
+npm run check:s4     # the S4 GLB's wheel rig, hood and parts
+npm run check:world  # the city's GLBs: shots, anchors, towers, road, budgets
+npm run check:drift  # the intro's drift path, sample for sample against main
 ```
 
 Asset pipelines, run only when the source images change:
@@ -45,6 +56,13 @@ npm run images   # key art and screenshots  -> AVIF/WebP + LQIP
 npm run photos   # the Teardown photographs -> AVIF/WebP + LQIP
 npm run logos    # normalises the Experience logos
 npm run og       # regenerates public/og.png
+```
+
+The city behind the page is rebuilt from Blender, then optimised:
+
+```bash
+python scripts/blender/run_mcp.py --script scripts/blender/build_night_city_world.py
+npm run world:assets   # -> public/scenes/world/world-high.glb, world-phone.glb
 ```
 
 ## Structure
@@ -76,31 +94,38 @@ npm run og       # regenerates public/og.png
   from Ali's own build list, with an anchor on a named node of the model
   for every part; the rest of the old Teardown (the 328xi, the bench, the
   two competitions) sits under the bay
-- `src/components/Skyline.jsx` the city behind the hero, alive: rooftop
-  signage, drifting haze, the signs mirrored in the water, all of it
-  breathing with the track through the same `--bass` / `--level` variables
-- `src/components/RoadTraffic.jsx` the four small cars on the hero's road
+- `src/world/` the live city behind every page of the cinematic shell:
+  `WorldMount.jsx` (the poster, the canvas and the scrim, mounted in
+  `App.jsx` above the routes), `stage.js` (the store), `scroll-stage.js`
+  (Lenis and the shot maths), `world-scene.js` and the pieces it draws with.
+  The shot list and the signs' words are `src/data/world.js`; the Blender
+  kit and how it was built are in `design/night-city-world/README.md`. It
+  replaced `Skyline.jsx` and `RoadTraffic.jsx`, which are gone: their signs
+  and their traffic are the city's now
 - `src/components/ui/` the chamfered `Panel` primitive, the decode effect,
-  and `CoverBox`, the cover-fit frame that keeps the garage's markers and
-  the skyline's signs pinned to the picture under any crop
+  and `CoverBox`, the cover-fit frame that keeps the garage's markers pinned
+  to the picture under any crop
 - `src/data/` all content. Copy lives here, never in a component
 - `src/components/Console.jsx` and `Terminal.jsx` the console: the backtick,
   the terminal button in the header, or `/console`. Its commands can open the
   garage (`garage pulley`), jump to a section, drive the sound, and switch
-  the environment (`fx haze off`, `fx signs on`, `fx reset`) through
+  the environment (`fx world off`, `fx haze off`, `fx signs on`, `fx reset`) through
   `src/lib/env.js`, whose switches land on `<html>` as `data-fx-*`
 - `src/lib/` scroll behaviour, the analytics beacon, and the audio:
   `audio.js` (the context and the volume), `ambient.js` (the track, its
   clock, the analyser), `cues.js` (the timeline), `intro-sfx.js` (the car,
   the glitch, the decode ticks), `ui-sfx.js` (the blips), `reactive.js` (the
   `--bass` / `--level` variables), `drift.js` and `drift-scene.js` (the 3D
-  drift: the path, the camera, the smoke, the trails, the light on the floor)
+  drift over the plate, which is the intro when the city is off or late)
+- `src/three/drift/` the drift itself: the path (its keys and spline, and the
+  curve it parks along), the rig, the lamps and beams, the smoke and the
+  trails, shared by the plate's drift and the city's
 - `src/three/car/` loads the custom Audi S4 GLB for the intro and Garage.
   The Blender source, reference decisions and rebuild instructions are in
   `design/audi-s4/README.md`. `npm run check:s4` validates its wheel rig.
 - `src/assets/Intro/` the generated art: the moon plate, the skyline, the
   original flat car art, and the small top-down car
-  the hero's traffic uses. See `docs/PROJECT_CONTEXT.md`, "Intro art"
+  the hero's traffic used before the live city. See `docs/PROJECT_CONTEXT.md`, "Intro art"
 - `public/audio/ambient.m4a` background track, prefetched while the door is
   up and played only after the reader clicks through it
 - `public/resume.pdf` current résumé, served at `/resume.pdf` and `/resume`

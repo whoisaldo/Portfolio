@@ -29,6 +29,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useFocusTrap } from "../hooks";
 import { CONSOLE_EVENT } from "../lib/console";
+import { coverWorld } from "../world/stage";
 
 // Code-split. This is a thousand lines that most visitors will never open;
 // making everyone download it on first paint to support an easter egg would be
@@ -43,6 +44,12 @@ export default function Console() {
   const close = useCallback(() => setOpen(false), []);
 
   useFocusTrap(panelRef, open, close);
+
+  // The console covers the page; the city behind it rests.
+  useEffect(() => {
+    coverWorld("console", open);
+    return () => coverWorld("console", false);
+  }, [open]);
 
   // The devtools hint. Printed once, styled enough to be noticed while
   // scrolling a log, and not so loud that it reads as an ad.
@@ -99,6 +106,7 @@ export default function Console() {
       {open && (
         <motion.div
           className="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto"
+          data-lenis-prevent=""
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

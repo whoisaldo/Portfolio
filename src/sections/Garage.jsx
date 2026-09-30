@@ -172,7 +172,7 @@ export default function Garage() {
   }, [cropPin, cropView]);
 
   return (
-    <section id={car.id} className="relative bg-ink border-t border-ink-line grain">
+    <section id={car.id} data-shot="garage" className="relative bg-ink border-t border-ink-line grain world-clear">
       <div className="gutter pt-24 md:pt-32 pb-24 md:pb-32">
         {/* ---- header ---------------------------------------------------- */}
         <motion.div {...reveal} transition={{ duration: 0.7 }} className="rail-clear">

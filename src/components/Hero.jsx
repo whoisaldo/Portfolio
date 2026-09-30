@@ -26,12 +26,18 @@ export default function Hero() {
   return (
     <section
       id="hero"
+      data-shot="hero"
       className="relative min-h-[100svh] flex flex-col justify-center gutter pt-32 pb-16 overflow-hidden"
     >
       <div className="absolute inset-x-0 top-0 h-[100svh] pointer-events-none" aria-hidden="true">
-        <NightCity className="absolute inset-0 block" />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink/90 via-ink/65 to-ink/35" />
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/25 via-transparent to-ink" />
+        {/* The plate. With the live city behind the page (src/world) the
+            poster there takes its place, and this one steps aside. */}
+        <NightCity className="absolute inset-0 block world-hide" />
+        {/* Tuned against the live city in index.css (.hero-fade-*): the
+            plate is lighter than the city, so over the city they step
+            back a little. */}
+        <div className="hero-fade-r absolute inset-0 bg-gradient-to-r from-ink/90 via-ink/65 to-ink/35" />
+        <div className="hero-fade-b absolute inset-0 bg-gradient-to-b from-ink/25 via-transparent to-ink" />
       </div>
 
       <div className="relative w-full" data-handoff-content="">

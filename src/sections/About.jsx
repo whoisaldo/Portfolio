@@ -52,7 +52,7 @@ const reveal = {
 
 export default function About() {
   return (
-    <section id="about" className="relative bg-ink border-t border-ink-line">
+    <section id="about" data-shot="about" className="relative bg-ink border-t border-ink-line world-clear">
       <div className="gutter pt-24 md:pt-32 pb-20 md:pb-24">
         <motion.header {...reveal} transition={{ duration: 0.6 }} className="rail-clear">
           <p className="mono-label text-volt mb-4">03 // About</p>

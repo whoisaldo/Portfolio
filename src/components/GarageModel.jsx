@@ -23,6 +23,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
 import { loadGarage3d } from "../lib/garage3d";
 import { usePrefersReducedMotion } from "../hooks";
+import { coverWorld } from "../world/stage";
 
 const pad = (n) => String(n).padStart(2, "0");
 const BUTTON = "pointer-events-auto chamfer chamfer-sm mono-micro bg-ink/90 border border-ink-line text-muted hover:text-primary hover:border-volt transition-colors";
@@ -89,8 +90,13 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
         setHoodOpen(scene.isHoodOpen());
         ro = new ResizeObserver(() => scene.resize(wrap.clientWidth, wrap.clientHeight));
         ro.observe(wrap);
-        // Render only while on screen.
-        io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; visibility(); }, { threshold: 0.05 });
+        // Render only while on screen. While it is, the city behind the page
+        // steps back and stops drawing, so one heavy canvas runs at a time.
+        io = new IntersectionObserver(([e]) => {
+          visible = e.isIntersecting;
+          coverWorld("garage", visible);
+          visibility();
+        }, { threshold: 0.05 });
         io.observe(wrap);
         document.addEventListener("visibilitychange", visibility);
         setState("ready");
@@ -111,6 +117,7 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
 
     return () => {
       alive = false;
+      coverWorld("garage", false);
       ro?.disconnect();
       io?.disconnect();
       near?.disconnect();
@@ -221,6 +228,7 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
         role="img"
         aria-label="Ali's Audi S4 in a Night City garage. Drag or use arrow keys to orbit the room; plus and minus zoom."
         onKeyDown={onCanvasKey}
+        data-lenis-prevent=""
         className="absolute inset-0 w-full h-full block outline-none touch-none"
       />
 

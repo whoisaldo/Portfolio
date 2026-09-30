@@ -1,0 +1,305 @@
+// src/world/shots.js: where the camera stands for each section, and how it
+// gets from one to the next.
+//
+// A shot is a position, a target and a lens. The positions are empties in the
+// Blender scene, exported in the world GLB and handed in here as `anchors`
+// (name -> { position, quaternion }), so moving `cam_projects` in Blender
+// moves the Work shot on the site. What a position cannot say lives in
+// src/data/world.js: the lens, the dim, how the shot moves while it holds.
+//
+// One shot is not an anchor: the garage is GarageModel's `front` preset,
+// re-expressed in the car's bay, so the flight ends where the interactive
+// viewer begins. The hero is an anchor like the rest, a low camera looking
+// up the avenue; the intro's drift has its own camera (driftPose, the
+// formula drift-scene.js always used) and glides into the hero's during the
+// handoff.
+//
+// Between two shots the camera flies. In the open it goes up, across and
+// down: a cubic whose inner control points stand above the two shots, so it
+// rises out of a street before it travels and travels before it descends
+// into the next one, lifted by at least an arc proportional to the distance
+// and by whatever the city under its line needs (src/world/clearance.js
+// knows how tall every block is). Where no height would do (down off the
+// rooftop into a street, in at the garage door and round the car, out of
+// it) the flight names its waypoints instead, empties in the kit, and the
+// camera runs a centripetal Catmull-Rom curve through them at an even
+// speed, looking where it is going, then at the car when the flight follows
+// it, and at the end at the shot it arrives on. The easing is symmetric so
+// the middle of the flight, where the glitch peaks, is the middle of the
+// scroll.
+import * as THREE from "three";
+import { SHOTS, GARAGE_FRONT } from "../data/world.js";
+
+const DEG = Math.PI / 180;
+const APEX_Z = 5.6;
+
+export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const smoothstep = (a, b, x) => {
+  const t = clamp((x - a) / (b - a), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+const _a1 = new THREE.Vector3();
+const _a2 = new THREE.Vector3();
+const _a3 = new THREE.Vector3();
+const _b1 = new THREE.Vector3();
+const _b2 = new THREE.Vector3();
+
+/** One segment of a centripetal Catmull-Rom curve (Barry and Goldman),
+ *  from p1 to p2 at u in 0..1, written into `out`. */
+function catmullRom(p0, p1, p2, p3, u, out) {
+  const t0 = 0;
+  const t1 = t0 + Math.max(1e-4, Math.sqrt(p0.distanceTo(p1)));
+  const t2 = t1 + Math.max(1e-4, Math.sqrt(p1.distanceTo(p2)));
+  const t3 = t2 + Math.max(1e-4, Math.sqrt(p2.distanceTo(p3)));
+  const t = t1 + (t2 - t1) * u;
+  const mix = (o, a, b, ta, tb) => o.copy(a).multiplyScalar((tb - t) / (tb - ta)).addScaledVector(b, (t - ta) / (tb - ta));
+  mix(_a1, p0, p1, t0, t1);
+  mix(_a2, p1, p2, t1, t2);
+  mix(_a3, p2, p3, t2, t3);
+  mix(_b1, _a1, _a2, t0, t2);
+  mix(_b2, _a2, _a3, t1, t3);
+  return mix(out, _b1, _b2, t1, t2);
+}
+
+/** A camera pose: where it is, what it looks at, its lens, and how far the
+ *  lens is shifted up the frame (in clip space: 0.12 puts a level camera's
+ *  horizon 44% from the top, as an architectural camera would, verticals
+ *  kept vertical). */
+export function makePose() {
+  return { position: new THREE.Vector3(), target: new THREE.Vector3(), fov: 30, shift: 0 };
+}
+
+export function copyPose(out, p) {
+  out.position.copy(p.position);
+  out.target.copy(p.target);
+  out.fov = p.fov;
+  out.shift = p.shift ?? 0;
+  return out;
+}
+
+/**
+ * The drift's camera for a viewport of `aspect`, from drift-scene.js: at the
+ * apex the car spans about two thirds of a landscape screen and the whole of
+ * a portrait one, and the camera backs off until it does. The intro's drift
+ * runs on this camera; the hero shot itself is its own (see createShots).
+ */
+export function driftPose(aspect, out = makePose()) {
+  const frac = aspect < 1 ? 1.05 : aspect < 1.3 ? 0.82 : 0.66;
+  const dist = 4.6 / (2 * frac * Math.tan(15 * DEG) * aspect);
+  out.position.set(0.6, 0.8 + 0.12 * dist, APEX_Z + dist);
+  out.target.set(-0.4, 0.7, 1.8);
+  out.fov = 30;
+  out.shift = 0;
+  return out;
+}
+
+const _m = new THREE.Matrix4();
+const _q = new THREE.Quaternion();
+const _one = new THREE.Vector3(1, 1, 1);
+
+/**
+ * GarageModel's front preset, in the world: the preset is in car space (the
+ * car faces +Z, rests on y = 0), so it is carried by the bay anchor's
+ * position and heading. On a portrait screen garage-scene.js looks at the
+ * car's middle and stands 1.2 times further back; so does this.
+ */
+export function garagePose(bay, aspect, out = makePose()) {
+  out.position.fromArray(GARAGE_FRONT.position);
+  out.target.fromArray(GARAGE_FRONT.target);
+  if (aspect < 1) {
+    out.target.z = 0;
+    out.position.sub(out.target).multiplyScalar(1.2).add(out.target);
+  }
+  _m.compose(bay.position, bay.quaternion, _one);
+  out.position.applyMatrix4(_m);
+  out.target.applyMatrix4(_m);
+  out.fov = GARAGE_FRONT.fov;
+  out.shift = 0;
+  return out;
+}
+
+/**
+ * Shot poses from anchors. `anchors` maps a node name to
+ * { position: Vector3, quaternion: Quaternion }; `clearance` is the city's
+ * height field (optional).
+ */
+export function createShots(anchors, clearance = null) {
+  const has = (name) => anchors.has(name);
+  const at = (name) => anchors.get(name).position;
+
+  // A shot that moves while it holds reads its `_b` anchors: the camera
+  // slides from cam_x to cam_x_b (a dolly) and the target from cam_x_target
+  // to cam_x_target_b (a pan when the camera does not move). A phone reads
+  // cam_x_portrait and cam_x_target_portrait where the kit has them.
+  const anchored = (id, local, aspect, out) => {
+    const cam = `cam_${id}`;
+    const tgt = `cam_${id}_target`;
+    const shot = SHOTS[id] || {};
+    out.shift = (aspect < 1 ? shot.portraitShift ?? shot.shift : shot.shift) ?? 0;
+    // Dev only: `window.__shotOverride[id] = { position, target, fov, shift }`
+    // (arrays for the vectors) frames a shot live, for tuning before it goes
+    // into the kit.
+    const over = import.meta.env.DEV && typeof window !== "undefined" ? window.__shotOverride?.[id] : null;
+    if (over) {
+      out.position.fromArray(over.position);
+      out.target.fromArray(over.target);
+      out.fov = over.fov ?? shot.fov ?? 40;
+      out.shift = over.shift ?? out.shift;
+      return out;
+    }
+    out.position.copy(at(aspect < 1 && has(`${cam}_portrait`) ? `${cam}_portrait` : cam));
+    out.target.copy(at(aspect < 1 && has(`${tgt}_portrait`) ? `${tgt}_portrait` : tgt));
+    if (shot.move) {
+      const t = easeInOut(clamp(local, 0, 1));
+      if (has(`${cam}_b`)) out.position.lerp(at(`${cam}_b`), t);
+      if (has(`${tgt}_b`)) out.target.lerp(at(`${tgt}_b`), t);
+    }
+    out.fov = shot.fov ?? 40;
+    // Portrait: a phone sees a third of the width, so stand further back and
+    // open the lens a little, rather than crop the shot to its middle.
+    if (aspect < 1) {
+      const back = shot.portraitBack ?? 1.35;
+      out.position.sub(out.target).multiplyScalar(back).add(out.target);
+      out.fov = Math.min(62, out.fov * (shot.portraitFov ?? 1.3));
+    }
+    return out;
+  };
+
+  const poseOf = (id, local, aspect, out) => {
+    if (id === "garage") return garagePose(anchors.get("anchor_garage_bay"), aspect, out);
+    return anchored(id, local, aspect, out);
+  };
+
+  const A = makePose();
+  const B = makePose();
+  const _c = new THREE.Vector3();
+  const _end = new THREE.Vector3();
+  const pts = [];
+  const ghostA = new THREE.Vector3();
+  const ghostB = new THREE.Vector3();
+  const cum = [];
+
+  // A point `e` (0..1, by distance) along the curve through `pts`.
+  const along = (e, out) => {
+    const n = pts.length;
+    cum.length = n;
+    cum[0] = 0;
+    for (let k = 1; k < n; k++) cum[k] = cum[k - 1] + pts[k].distanceTo(pts[k - 1]);
+    const total = cum[n - 1] || 1;
+    const d = clamp(e, 0, 1) * total;
+    let k = 0;
+    while (k < n - 2 && cum[k + 1] < d) k++;
+    const u = clamp((d - cum[k]) / Math.max(1e-6, cum[k + 1] - cum[k]), 0, 1);
+    const p0 = k === 0 ? ghostA.copy(pts[0]).multiplyScalar(2).sub(pts[1]) : pts[k - 1];
+    const p3 = k + 2 >= n ? ghostB.copy(pts[n - 1]).multiplyScalar(2).sub(pts[n - 2]) : pts[k + 2];
+    return catmullRom(p0, pts[k], pts[k + 1], p3, u, out);
+  };
+
+  /**
+   * The camera's goal for a stage position. `ids` are the shot ids in page
+   * order, `locals` their progress, `focus` where the car is (a flight that
+   * follows it looks at it). Writes into `out`, returns the flight's
+   * progress (0 while holding, peaking at 1 mid-flight) for the glitch.
+   */
+  const goal = (ids, position, locals, aspect, out, focus = null) => {
+    const n = ids.length;
+    if (!n) return 0;
+    const i = clamp(Math.floor(position), 0, n - 1);
+    const j = Math.min(i + 1, n - 1);
+    const f = clamp(position - i, 0, 1);
+    poseOf(ids[i], locals[i] ?? 0, aspect, A);
+    if (j === i || f <= 0) {
+      copyPose(out, A);
+      return 0;
+    }
+    poseOf(ids[j], locals[j] ?? 0, aspect, B);
+    const e = easeInOut(f);
+    out.fov = A.fov + (B.fov - A.fov) * e;
+    out.shift = A.shift + (B.shift - A.shift) * e;
+
+    // A flight with named waypoints: through them, looking first where it
+    // is going (a little further along its own path), so it goes over a
+    // roof's edge before it looks down into the street and out of a door
+    // before it looks up at the sky; then at the car, when it follows it;
+    // and only at the end at the next shot's own target. Where the shot it
+    // left was looking is let go of early, or a far target drags the gaze
+    // off the car for the whole of the way in.
+    const into = SHOTS[ids[j]]?.via?.in;
+    const vias = (Array.isArray(into) ? into : into ? [into] : []).filter(has);
+    if (vias.length) {
+      pts.length = 0;
+      pts.push(A.position, ...vias.map(at), B.position);
+      along(e, out.position);
+      along(Math.min(1, e + 0.1), _end);
+      const follows = SHOTS[ids[j]]?.follow && focus;
+      out.target.copy(A.target).lerp(_end, smoothstep(0, 0.18, e));
+      if (follows) out.target.lerp(_c.copy(focus).setY(focus.y + 0.9), smoothstep(0.35, 0.55, e));
+      out.target.lerp(B.target, smoothstep(follows ? 0.72 : 0.55, 1, e));
+      return Math.sin(Math.PI * f);
+    }
+
+    // In the open: up, across and down.
+    open(A, B, e, out);
+    return Math.sin(Math.PI * f);
+  };
+
+  /**
+   * Up, across and down from pose A to pose B, `e` (eased, 0..1) of the way:
+   * a cubic whose inner control points stand above the two poses, lifted by
+   * at least an arc proportional to the distance and by whatever the city
+   * under the line needs.
+   */
+  const open = (A, B, e, out) => {
+    const d = A.position.distanceTo(B.position);
+    let h = clamp(d * 0.19, 0, 47);
+    if (clearance && d > 1) {
+      for (let k = 1; k < 32; k++) {
+        const t = k / 32;
+        const w = t * t * (3 - 2 * t);
+        const x = A.position.x + (B.position.x - A.position.x) * w;
+        const z = A.position.z + (B.position.z - A.position.z) * w;
+        // Right beside either shot the camera is where that shot put it.
+        const nearA = Math.hypot(x - A.position.x, z - A.position.z);
+        const nearB = Math.hypot(x - B.position.x, z - B.position.z);
+        if (Math.min(nearA, nearB) < 12) continue;
+        const base = A.position.y * (1 - w) + B.position.y * w;
+        h = Math.max(h, (clearance.at(x, z) + 8 - base) / (3 * t * (1 - t)));
+      }
+      h = Math.min(h, 240);
+    }
+    const w = e * e * (3 - 2 * e);
+    out.position.lerpVectors(A.position, B.position, w);
+    out.position.y += 3 * e * (1 - e) * h;
+    // The eye turns to the next shot early, so the middle of a flight looks
+    // at where it is going rather than down at the roofs it is crossing.
+    out.target.copy(A.target).lerp(B.target, smoothstep(0, 0.65, e));
+    out.fov = A.fov + (B.fov - A.fov) * e;
+    out.shift = A.shift + (B.shift - A.shift) * e;
+    return out;
+  };
+
+  /**
+   * A case study's shot. A project holds on the plaza's board (which shows
+   * that project's key art); a role holds on its tower on corpo row, looking
+   * up at the crown from across the boulevard.
+   */
+  const routePose = (route, aspect, out) => {
+    if (route.kind === "project") return anchored("projects", 0, aspect, out);
+    const tower = route.kind === "role" ? anchors.get(`anchor_tower_${route.slug}`) : null;
+    if (!tower) return anchored("hero", 0, aspect, out);
+    const p = tower.position;
+    out.position.set(p.x - 14, 40, p.z + 98);
+    out.target.set(p.x, p.y - 10, p.z);
+    out.fov = SHOTS.experience?.fov ?? 40;
+    out.shift = 0;
+    if (aspect < 1) {
+      out.position.sub(out.target).multiplyScalar(1.2).add(out.target);
+      out.fov = Math.min(62, out.fov * 1.3);
+    }
+    return out;
+  };
+
+  return { poseOf, goal, open, routePose };
+}

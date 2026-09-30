@@ -15,7 +15,7 @@ export default function ProjectsSection() {
   const live = featuredProjects.filter((p) => p.status === "live").length;
 
   return (
-    <section id="projects" className="relative bg-ink">
+    <section id="projects" data-shot="projects" className="relative bg-ink world-clear">
       <header className="gutter rail-clear pt-28 md:pt-36 pb-14">
         <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6">
           <div>

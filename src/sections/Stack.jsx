@@ -86,7 +86,7 @@ function Mark({ name }) {
 
 export default function Stack() {
   return (
-    <section id="stack" className="relative bg-ink">
+    <section id="stack" data-shot="stack" className="relative bg-ink world-clear">
       <div className="gutter pb-24 md:pb-32">
         <motion.header {...reveal} transition={{ duration: 0.6 }} className="rail-clear">
           <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4">

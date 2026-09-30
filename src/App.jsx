@@ -41,6 +41,7 @@ import { attachUiSfx } from "./lib/ui-sfx";
 import { startReactive } from "./lib/reactive";
 import { initEnv, LOW_POWER, setSessionEnv } from "./lib/env";
 import { hasGpuAcceleration } from "./lib/gpu";
+import WorldMount from "./world/WorldMount";
 
 // The plain version is its own chunk: the cinematic never downloads it, and
 // it never downloads the cinematic.
@@ -118,7 +119,13 @@ function Cinematic() {
   return (
     <ErrorBoundary>
       <MotionConfig reducedMotion="user">
-        <div className="min-h-screen bg-ink text-bone font-mono">
+        <div className="min-h-screen bg-ink text-bone font-mono" data-shell="">
+          {/* The city behind every page of this shell: a still plate first,
+              the live world over it once it has loaded, and a scrim that
+              steps it back behind anything being read. First in the tree,
+              so everything after it paints on top. */}
+          <WorldMount />
+
           {/* The door, then the intro, then the site. Both mount in the
               shell rather than on the home page because a reader who arrives
               on a deep link to a case study is still arriving for the first

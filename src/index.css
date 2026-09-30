@@ -7,6 +7,10 @@
 .intro-signal-slice-1::after { background: #ff249d; }
 .intro-signal-scan { background: repeating-linear-gradient(0deg, transparent 0 3px, #54dbec 3px 4px); }
 .garage-model:fullscreen { width: 100vw; height: 100dvh; aspect-ratio: auto; }
+/* Panes that scroll on their own under Lenis (src/world/scroll-stage.js):
+   the console, the deck's rail and models, the garage canvas. Their wheel is
+   theirs, and reaching the end of one does not scroll the page behind it. */
+.lenis [data-lenis-prevent] { overscroll-behavior: contain; }
 
 /* ===========================================================================
    Base
@@ -1112,207 +1116,64 @@ a:hover .ink-underline,
 }
 
 /* ===========================================================================
-   The living skyline
+   The city behind the page
    ---------------------------------------------------------------------------
-   Used by src/components/Skyline.jsx, behind the hero. Everything here is
-   positioned in percentages of the plate (see CoverBox.jsx) and every effect
-   answers to a switch in src/lib/env.js through a data attribute on <html>,
-   and to the music through --level / --bass. In silence, with the switches
-   on, the signs are lit, the haze drifts, and the water ripples; with them
-   off, the plate is the still it was.
+   src/world/WorldMount.jsx. A fixed layer behind everything: the plate as a
+   poster, the live canvas over it, and a black scrim over both whose opacity
+   the scroll stage writes as --world-dim on the scrim alone. While it is on,
+   <html data-world="on"> makes the sections that used to paint carbon black
+   let it through (`.world-clear`) and the hero drop its own copy of the
+   plate (`.world-hide`). Panels keep their fills: text in a panel reads
+   exactly as it did. Off, nothing here applies and the page is the page it
+   was.
    =========================================================================== */
-.sky { isolation: isolate; }
+.world-poster { transition: opacity 0.6s ease, visibility 0s linear 0s; }
+.world-poster.is-covered { opacity: 0; visibility: hidden; transition: opacity 0.6s ease 0.6s, visibility 0s linear 1.2s; }
+.world-canvas { opacity: 0; transition: opacity 0.6s ease; }
+.world-canvas.is-live { opacity: 1; }
+.world-scrim { background: #000; opacity: var(--world-dim, 0); }
+html[data-world="on"] .world-clear { background-color: transparent; }
+html[data-world="on"] .world-hide { display: none; }
+/* Hero.jsx's two gradients, over the live city rather than the plate. The
+   city is darker than the painting, so the same veil hid most of it: the
+   side veil keeps the name's side as dark as before and lets the right
+   half through, and the floor veil holds off until the lower third, so
+   the wet road carries its colour to just under the ledger, and ends as
+   dark as the dimmed city under Work, so no grey band sits where they
+   meet. */
+html[data-world="on"] .hero-fade-r {
+  background-image: linear-gradient(to right, rgb(10 10 12 / 0.88), rgb(10 10 12 / 0.55) 50%, rgb(10 10 12 / 0.2));
+}
+html[data-world="on"] .hero-fade-b {
+  background-image: linear-gradient(to bottom, rgb(10 10 12 / 0.22), transparent 42%, transparent 58%, rgb(6 6 8 / 0.7) 86%, rgb(4 4 6));
+}
+/* Contact holds the city at full, for the moon and the headline over the
+   sky; below them the link columns and the footer sit on the skyline's lit
+   crowns and streets, so the city steps back behind those alone. */
+html[data-world="on"] #contact.world-clear {
+  background-image: linear-gradient(to bottom, transparent 32%, rgb(10 10 12 / 0.74) 52%, rgb(10 10 12 / 0.8));
+}
+html[data-world="on"] footer.world-clear { background-color: rgb(10 10 12 / 0.8); }
+/* An intro that plays in the live city (IntroCinematic.jsx): the city is
+   the intro's backdrop, so the page waits under it unseen, as it waited
+   under the overlay's opaque plate, and arrives over the handoff as
+   --intro-page runs from 0 to 1. The world layer, the reticle and the
+   intro's own layers are left alone. */
+html[data-intro-world] [data-shell] > :not(.world-layer):not(.reticle):not([data-intro-layer]) {
+  opacity: var(--intro-page, 0) !important;
+}
+/* The intro draws its first live frame straight onto the canvas (the voxel
+   moon from the run's first frame), so the canvas is up at once rather than
+   fading in over the poster. */
+html[data-intro-world] .world-canvas { opacity: 1; transition: none; }
+/* Over the voxel moon (src/world/voxel-moon.js) the site's scanlines rest:
+   a second grid over a grid of voxels is a screen door. They come back as
+   the street arrives. */
+.paper-grain::after { transition: opacity 0.8s ease; }
+html[data-intro-moon] .paper-grain::after { opacity: 0; }
 
-/* A rooftop sign: a dark board on a thin mast, a neon face on it. Size is a
-   fraction of the plate's width, so distance is what sets it, not the
-   viewport. */
-.sky-sign {
-  position: absolute;
-  transform: translate(-50%, -100%);
-  font-size: calc(var(--cover-w, 1600px) * var(--sign-size, 0.01));
-  line-height: 1;
-  white-space: nowrap;
-  pointer-events: none;
-}
-.sky-sign::after {
-  /* The mast. */
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  width: 1px;
-  height: 0.9em;
-  background: rgb(236 234 228 / 0.25);
-}
-.sky-sign-face {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45em;
-  padding: 0.28em 0.55em;
-  background: rgb(5 5 6 / 0.72);
-  border: 1px solid color-mix(in srgb, var(--sign) 35%, transparent);
-  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--sign);
-  /* The tube: a white core, then the colour bleeding out. Brightens with the
-     track through --level; the multiplier is the sign's own. */
-  --lit: calc(var(--sign-glow, 1) * (0.75 + var(--level, 0) * 0.5));
-  text-shadow:
-    0 0 1px rgb(255 255 255 / 0.9),
-    0 0 0.35em var(--sign),
-    0 0 0.9em color-mix(in srgb, var(--sign) 70%, transparent),
-    0 0 1.8em color-mix(in srgb, var(--sign) 40%, transparent);
-  filter: brightness(var(--lit));
-}
-.sky-sign-cross {
-  display: inline-block;
-  width: 0.72em;
-  height: 0.72em;
-  background:
-    linear-gradient(#ff003c, #ff003c) center / 100% 0.22em no-repeat,
-    linear-gradient(#ff003c, #ff003c) center / 0.22em 100% no-repeat;
-  filter: drop-shadow(0 0 0.3em #ff003c);
-}
-/* A tube that is not quite right: out for a frame now and then. steps(),
-   because neon does not fade, it cuts. */
-.sky-sign-flicker .sky-sign-face {
-  animation: neon-flicker 11s steps(1, end) infinite;
-}
-.sky-sign:nth-child(2n) .sky-sign-face { animation-delay: -4.6s; }
-@keyframes neon-flicker {
-  0%, 88.0% { opacity: 1; }
-  88.4%     { opacity: 0.35; }
-  88.9%     { opacity: 1; }
-  90.2%     { opacity: 0.5; }
-  90.5%     { opacity: 1; }
-  96.0%     { opacity: 1; }
-  96.2%     { opacity: 0.6; }
-  96.5%, 100% { opacity: 1; }
-}
-
-/* The signs in the water. The same elements, flipped about the waterline,
-   stretched a little into streaks, softened, and rippled with a mask that
-   drifts down the way water does. The mirror layer is clipped to the water
-   so a tall sign's reflection never lands on a building.
-
-   A smoothly animated mask-position repainted this plate every frame, then
-   blur(1px) filtered the entire plate again. Eight steps over 1.6 seconds
-   move the 4px pattern half a pixel at a time, keeping the ripple at five
-   paints a second in silence. The faces already carry soft text shadows;
-   keeping that softness on the letters avoids filtering a full plate. */
-.sky-reflect {
-  position: absolute;
-  inset: 0;
-  transform: scaleY(-1.2);
-  opacity: 0.8;
-  -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgb(0 0 0 / 0.35) 2px 4px);
-  mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgb(0 0 0 / 0.35) 2px 4px);
-  -webkit-mask-size: 100% 4px;
-  mask-size: 100% 4px;
-  animation: water-ripple 1.6s steps(8, end) infinite;
-}
-.sky-reflect .sky-sign::after { display: none; }
-.sky-reflect .sky-sign-face {
-  background: transparent;
-  border-color: transparent;
-  --lit: calc(var(--sign-glow, 1) * (0.55 + var(--level, 0) * 0.6));
-}
-@keyframes water-ripple {
-  from { -webkit-mask-position: 0 0; mask-position: 0 0; }
-  to   { -webkit-mask-position: 0 4px; mask-position: 0 4px; }
-}
-
-/* Light on the water: the city's own glow pulled down into slow vertical
-   streaks. Screen-blended, so it only ever adds light. Animating the old
-   background-position repainted the bay every frame, even in silence.
-   The same gradients now sit on a 220% wide strip that the compositor can
-   move without painting again. The streaks fill the strip; the top wash
-   repeats at the parent's width, 45.45% of the strip. A -54.55% translation
-   travels the same 120% of the parent as the old background did. The blend,
-   music-driven opacity and fading mask belong to the stationary water. */
-.sky-water {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-  mix-blend-mode: screen;
-  opacity: calc(0.5 + var(--level, 0) * 0.5);
-  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%);
-  mask-image: linear-gradient(to bottom, #000, transparent 85%);
-}
-.sky-water::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 220%;
-  background:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 3.1%,
-      rgb(252 238 10 / 0.09) 3.1% 3.4%,
-      transparent 3.4% 7.3%,
-      rgb(255 46 136 / 0.07) 7.3% 7.5%,
-      transparent 7.5% 11%
-    ),
-    linear-gradient(to bottom, rgb(252 238 10 / 0.12), transparent 55%);
-  background-size: 100% 100%, 45.45% 100%;
-  will-change: transform;
-  animation: water-drift 38s linear infinite;
-}
-@keyframes water-drift {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-54.55%); }
-}
-
-/* Haze. Two bodies of coloured air, a few percent of white each, drifting
-   across the city on long, offset cycles so the pattern never repeats.
-   Each moving, screen-blended layer used to carry a 26px blur, making the
-   GPU filter those large surfaces again each frame. The gradients now bake
-   in the same soft falloff, reaching their mid stop at 38% and fading out
-   at 72%. Only their cached textures move; the blend and brightness stay. */
-.sky-haze {
-  position: absolute;
-  top: 38%;
-  height: 46%;
-  width: 62%;
-  border-radius: 50%;
-  mix-blend-mode: screen;
-  pointer-events: none;
-  opacity: calc(0.75 + var(--level, 0) * 0.5);
-  will-change: transform;
-}
-.sky-haze-a {
-  left: 22%;
-  background: radial-gradient(ellipse at center, rgb(252 238 10 / 0.16), rgb(252 238 10 / 0.05) 38%, transparent 72%);
-  animation: haze-a 52s ease-in-out infinite alternate;
-}
-.sky-haze-b {
-  left: 45%;
-  top: 44%;
-  width: 54%;
-  height: 34%;
-  background: radial-gradient(ellipse at center, rgb(255 46 136 / 0.12), rgb(255 46 136 / 0.03) 38%, transparent 72%);
-  animation: haze-b 67s ease-in-out infinite alternate;
-  animation-delay: -21s;
-}
-@keyframes haze-a {
-  from { transform: translate3d(-8%, 0, 0) scale(1); }
-  to   { transform: translate3d(14%, 3%, 0) scale(1.12); }
-}
-@keyframes haze-b {
-  from { transform: translate3d(12%, 2%, 0) scale(1.08); }
-  to   { transform: translate3d(-10%, -2%, 0) scale(0.96); }
-}
-
-/* The switches. Each attribute is written by src/lib/env.js. */
-html[data-fx-signs="off"] .sky-signs,
-html[data-fx-signs="off"] .sky-reflect { display: none; }
-html[data-fx-haze="off"] .sky-haze { display: none; }
-html[data-fx-wet="off"] .sky-reflect,
-html[data-fx-wet="off"] .sky-water { display: none; }
+/* The switches. Each attribute is written by src/lib/env.js. The city's own
+   switches (signs, haze, wet, traffic) are read by src/world directly. */
 html[data-fx-cursor="off"] .reticle { display: none; }
 html[data-fx-scanlines="off"] .paper-grain::before,
 html[data-fx-scanlines="off"] .paper-grain::after { display: none; }
@@ -1329,9 +1190,6 @@ html[data-gated="true"] .gpu-notice,
 html[data-intro="true"] .gpu-notice { display: none; }
 html[data-intro="true"] .reticle { visibility: hidden; }
 
-@media (prefers-reduced-motion: reduce) {
-  .sky-haze, .sky-water::before, .sky-reflect, .sky-sign-flicker .sky-sign-face { animation: none; }
-}
 
 /* ===========================================================================
    The deck demos

@@ -1,6 +1,36 @@
 # Night City entrance
 
-## Current version: neon avenue
+## Current version: live world
+
+The street is no longer a picture behind the page. A live three.js city
+(`src/world/`, built in Blender by `scripts/blender/build_night_city_world.py`,
+documented in `design/night-city-world/README.md`) sits behind every section
+of `/` and `/work/:slug`, and the hero shot is that city from a low lens in
+the avenue, an eye just over the wet road with the horizon where the plate
+has it: the avenue the neon plate painted, with Kiroshi on the left, Nicola
+on the right, the holographic figure and the ARASAKA tower at the end of the
+street, the overpass, rain, steam, people under umbrellas, flying traffic
+and the wet road carrying the colour. The camera flies to a shot per section
+as the reader scrolls, and Ali's S4 drives the same road and parks in a
+garage.
+
+The intro plays inside it. When the city is ready as the intro starts, the
+moon is the city's own, built of voxels in its renderer
+(`src/world/voxel-moon.js`) and a function of the song second; when it has
+loaded by `CITY_IN` (27.0) the moon gives way to the live city rather than
+to the plate, the drift is the city's own car on the song clock, unchanged
+for its first 3.8 seconds and then parking at the hero's curb instead of
+fading into the haze at `CAR_GONE`, the three registration errors on the
+handoff are the city's braindance glitch pass on the same cue times, and the
+page fades in from `HANDOFF` to `REVEAL` while the drift's camera glides
+into the hero's. No cue moved.
+
+The neon plates below remain: they are the page's first paint (the poster
+the city crossfades over), the whole backdrop when the city is off (no GPU,
+reduced motion, `fx world off`, a WebGL failure), and the intro's street when
+the city is not ready in time.
+
+## The plate: neon avenue (poster and fallback)
 
 The current `neon-road-wide.png` and `neon-road-portrait.png` follow Ali's supplied neon street reference. They replace the cherry blossom setting with a dense avenue, towering holographic advertisements, wet asphalt, Kiroshi optics, Arasaka and Nicola signs. The foreground contains no baked-in car or pedestrian. The existing live S4 supplies the car. These are generated background plates, not a new live 3D city model or a literal reconstruction of a named street.
 

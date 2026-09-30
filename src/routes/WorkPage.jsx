@@ -91,7 +91,7 @@ export default function WorkPage() {
 
   return (
     <div
-      className="min-h-screen"
+      className="relative min-h-screen"
       style={{ "--accent": hexToRgbTriplet(entry.accent || "#fcee0a") }}
     >
       {/* ---- header ------------------------------------------------------- */}
