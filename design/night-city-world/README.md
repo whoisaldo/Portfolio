@@ -82,6 +82,19 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   size (`STREET_SIGNS`): neon tube on a dark board, lit boxes with dark
   letters, bulb marquees, pictograms.
 
+## The AV
+
+The traffic's aerial vehicle (`src/world/av-model.js`) is an original
+design built with the `codex-3d` skill (GPT-6.1 Sol, max reasoning) and
+revised once after review: the first build's ducts read as car tyres and its
+canopy as a bubble, at 8,850 triangles; the kept revision has thin-walled
+fan shrouds tilted 10 degrees outboard, a lower fighter canopy and a shoulder
+crease, at 2,424. Its brief: a low wedge coupe with no wheels, four vectored
+thruster pods at the corners, seven named materials (hull, trim, glass,
+lamp_head, lamp_tail, glow_thruster, glow_accent), 5.2 by 3.6 m, no text,
+no logos, no brand cues. `src/world/traffic.js` merges it by those names
+into one instanced draw.
+
 ## References
 
 - The plate, `public/scenes/night-city/neon-wide.webp` and
