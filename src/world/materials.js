@@ -77,7 +77,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           if (uHasMap > 0.5) albedo *= texture2D(uMap, vUv).rgb * 2.0;
           vec3 n = normalize(vNormalW);
           float up = clamp(n.y, 0.0, 1.0);
-          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.55 + 0.45 * up);
+          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.55 + 0.45 * up) + lampsAt(vWorld, n) * 1.6;
+          // What faces the sky catches the city's glow on the cloud.
+          light += (uHazeColor * 0.22 + uGlowColor * 0.12) * up * uHaze;
           vec3 col = albedo * light;
           col = cityFog(col, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);
@@ -134,6 +136,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           #endif
           vec3 col = tex * uGain * lit * (0.9 + 1.6 * room * room * (1.0 - 0.8 * far));
           col += tex * spillAt(vWorld) * 2.2 * (1.0 - room) + spillAt(vWorld) * 0.02;
+          col += tex * lampsAt(vWorld, normalize(vNormalW)) * 3.0 * (1.0 - room);
           col = cityFog(col, vWorld, room * 0.7);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
@@ -275,11 +278,20 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   };
 
   // A glass tower's curtain wall, drawn from world position: floors 3.8 m
-  // apart over an 8 m lobby, a dark spandrel at each slab, mullions every
-  // 1.5 m, and behind the glass whole floors lit or dark, as office towers
-  // are at night: open plan under cool ceiling light, a few warm, the odd
-  // room with its blinds down. The glass gives back the lit city's glow, most
-  // at a glancing angle. vColor: lit fraction, warmth, seed.
+  // apart over an 8 m lobby, a spandrel at each slab, mullions every 1.5 m.
+  // Behind the glass is the floor itself, traced in the fragment (interior
+  // mapping, as the shops are): an open plan 9 m deep to the core, its
+  // ceiling a grid of light panels the eye sees in perspective (from the
+  // street, the ceilings of every floor above it), a row of desk screens
+  // and partitions against the light, and the core's wall at the back. A
+  // tenant has two to four floors and its own light, cool or warm; parts of
+  // a floor are switched off; some panes have their blinds down. The glass
+  // is tinted and gives back the night sky and the city's glow, each pane
+  // at its own slight angle, as a real curtain wall does, and more of it the
+  // more glancing the look (the upper floors from the street are mostly
+  // sky). The tower's own colour (src/world/towers.js) washes the glass
+  // beside its corner fins, up from the lobby and down from the crown, and
+  // comes up with its card. vColor: lit fraction, warmth, seed.
   const corporate = () => {
     if (made.has("corporate")) return made.get("corporate");
     const m = keep(new THREE.ShaderMaterial({
@@ -287,48 +299,167 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
+        uniform vec3 uTowerAccent[8];
+        uniform float uTowerLit[8];
+        uniform float uTowerTop[8];
+        uniform vec2 uTowerCentre[8];
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
         varying vec4 vColor;
+        const float BASE = 8.0;
+        const float STOREY = 3.8;
+        const float SILL = 0.95;
+        const float CLEAR = 2.85;
+        const float MODULE = 1.5;
+        const float DEEP = 9.0;
+
+        // What the glass gives back: a night sky lit from under by the
+        // city, the haze on the horizon, and round it the city across the
+        // way, a scatter of lit windows over the dark.
+        vec3 skyIn(vec3 r) {
+          vec3 zenith = vec3(0.008, 0.006, 0.016);
+          vec3 horizon = uHazeColor * 1.1 + uGlowColor * 0.7;
+          vec3 sky = mix(horizon, zenith, smoothstep(0.0, 0.55, r.y));
+          float cloud = 0.5 + 0.5 * sin(r.x * 6.0 + r.z * 4.0 + r.y * 13.0) * sin(r.x * 2.3 - r.z * 3.1);
+          sky += uHazeColor * 0.35 * cloud * smoothstep(0.04, 0.3, r.y) * (1.0 - smoothstep(0.35, 0.8, r.y));
+          vec3 below = uFogColor * 0.6 + uHazeColor * 0.25 * exp(min(r.y, 0.0) * 9.0);
+          vec3 col = mix(below, sky, smoothstep(-0.02, 0.02, r.y)) + cityGlow(r, max(r.y, 0.0) * 600.0) * 0.8;
+          // The towers opposite: their lit windows, low in the reflection.
+          vec2 cell = floor(vec2(atan(r.z, r.x) * 90.0, r.y * 160.0));
+          float w = hash12(cell);
+          float city = step(0.9, w) * (1.0 - smoothstep(0.02, 0.28, r.y)) * step(-0.25, r.y);
+          col += mix(vec3(1.0, 0.7, 0.42), vec3(0.6, 0.8, 1.0), step(0.95, w)) * city * 0.35;
+          return col;
+        }
+
         void main() {
-          vec3 n = normalize(vNormalW);
+          vec3 n = normalize(vec3(vNormalW.x, 0.0, vNormalW.z));
           vec3 t = vec3(n.z, 0.0, -n.x);
-          float module = dot(vWorld, t) / 1.5;
-          float fy = (vWorld.y - 8.0) / 3.8;
+          // Which tower this is: the nearest centre.
+          int ti = 0;
+          float best = 1e9;
+          for (int i = 0; i < 8; i++) {
+            float dd = abs(vWorld.x - uTowerCentre[i].x);
+            if (dd < best) { best = dd; ti = i; }
+          }
+          vec3 accent = uTowerAccent[ti];
+          float tlit = uTowerLit[ti];
+          float top = uTowerTop[ti];
+          vec2 rel = vWorld.xz - uTowerCentre[ti];
+          float halfW = abs(dot(rel, n.xz));
+          float along = dot(rel, t.xz);
+          float edge = max(halfW - abs(along), 0.0);
+
+          float fy = (vWorld.y - BASE) / STOREY;
           float level = floor(fy);
-          float fv = fract(fy);
-          float mid = floor(module);
-          float seed = vColor.b * 97.0 + floor(dot(vWorld, n) * 0.07) * 13.0;
-          float on = step(hash12(vec2(level, seed)), vColor.r);
-          float warmth = step(1.0 - 0.3 * vColor.g, hash12(vec2(level, seed + 3.0)));
-          vec3 light = mix(vec3(0.66, 0.84, 1.0), vec3(1.0, 0.78, 0.52), warmth);
-          // A lit floor: the row of fixtures under the ceiling, the room's
-          // glow under it, desks and the odd person against the light, the
-          // screens on the desks, and zones of it switched off.
-          float fixtures = smoothstep(0.82, 0.86, fv) * smoothstep(0.93, 0.89, fv);
-          float glow = 0.1 + 0.3 * smoothstep(0.25, 0.9, fv);
-          float zone = floor(mid / 3.0);
-          float lights = step(0.25, hash12(vec2(zone, level + seed * 5.0)));
-          float desks = step(0.26, fv) * step(fv, 0.4) * step(0.35, hash12(vec2(mid * 2.3, level + seed)));
-          float screen = desks * step(0.8, hash12(vec2(floor(module * 3.0), level + seed * 2.0)));
-          vec3 col = light * on * lights * (glow + 1.05 * fixtures) * (1.0 - 0.7 * desks);
-          col += vec3(0.55, 0.8, 1.0) * screen * on * 1.2;
-          // Slabs and mullions, faded to their average where they would
-          // shimmer.
-          float fw = fwidth(fy);
-          float slab = mix(step(fv, 0.2), 0.2, clamp(fw * 3.0, 0.0, 1.0));
-          float mw = fwidth(module);
-          float mull = mix(step(fract(module), 0.04) + step(0.96, fract(module)), 0.08, clamp(mw * 3.0, 0.0, 1.0));
-          col = mix(col, vec3(0.012, 0.014, 0.02), clamp(slab + mull, 0.0, 1.0));
-          // The glass: the city's glow, most at a glancing angle.
+          float inFloor = fract(fy) * STOREY;
+          float u = along + 300.0;
+          float module = u / MODULE;
+          float pane = floor(module);
+          float faceId = floor(n.x * 1.5 + 1.5) * 3.0 + floor(n.z * 1.5 + 1.5);
+          float seed = vColor.b * 97.0 + faceId * 13.0;
+
+          // The tenant: floors in threes, give or take, one light each.
+          float tenant = floor((level + floor(hash12(vec2(seed, 1.0)) * 3.0)) / 3.0);
+          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r * 0.82);
+          float tone = hash12(vec2(tenant, seed + 3.7));
+          vec3 L = vec3(0.74, 0.87, 1.0);
+          if (tone > 1.0 - 0.45 * vColor.g) L = vec3(1.0, 0.8, 0.56);
+          else if (tone > 0.72) L = vec3(0.94, 0.95, 0.9);
+
+          // Into the floor: x along the facade, y up from the floor, z in.
           vec3 V = normalize(vWorld - uCam);
-          vec3 R = reflect(V, n);
-          float fres = 0.05 + 0.95 * pow(1.0 - abs(dot(V, n)), 5.0);
-          vec3 sky = cityGlow(R, max(R.y, 0.0) * 900.0) + vec3(0.008, 0.01, 0.018);
-          col = col * (1.0 - 0.6 * fres) + sky * fres * (1.0 - 0.5 * slab);
-          col += spillAt(vWorld) * 0.2;
-          col = cityFog(col, vWorld, on * 0.6);
+          vec3 d = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
+          vec3 p = vec3(u, clamp(inFloor - SILL, 0.0, CLEAR), 0.0);
+          float ty = d.y > 0.0 ? (CLEAR - p.y) / d.y : -p.y / min(d.y, -1e-4);
+          float tz = DEEP / d.z;
+          float tm = min(ty, tz);
+          vec3 h = p + d * tm;
+          // Zones of a floor, 9 m each, some switched off.
+          float zoneOn = step(0.24, hash12(vec2(floor(h.x / 9.0), level + seed * 1.3)));
+          float on = tenantOn * zoneOn;
+          vec3 room;
+          if (tz <= ty) {
+            // The core: a lit wall, a dark door now and then.
+            float door = step(abs(fract(h.x / 7.3) - 0.5), 0.08) * step(h.y, 2.2);
+            room = L * (0.09 + 0.12 * smoothstep(0.0, CLEAR, h.y)) * (1.0 - 0.75 * door);
+          } else if (d.y > 0.0) {
+            // The ceiling's grid of panels, faded to its average where it
+            // would shimmer.
+            vec2 g = vec2(h.x / 1.5, h.z / 1.2);
+            vec2 c = abs(fract(g) - 0.5);
+            float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
+            float panel = mix(step(c.x, 0.36) * step(c.y, 0.12), 0.17, aa);
+            float deep = 1.0 - 0.55 * smoothstep(0.0, DEEP, h.z);
+            room = L * (0.16 + 1.25 * panel) * deep;
+          } else {
+            room = L * (0.035 + 0.02 * hash12(floor(h.xz)));
+          }
+          room *= on;
+          // Unlit floors are not black: exit signs, a screen left on.
+          room += vec3(0.003, 0.004, 0.007);
+          // Desks, their partitions and screens, 2.4 m in, against the light.
+          float tf = 2.4 / d.z;
+          if (tf < tm) {
+            vec3 f = p + d * tf;
+            float slot = floor(f.x / 1.6);
+            float desk = step(f.y, 1.1) * step(0.18, hash12(vec2(slot, level + seed * 2.1)));
+            float screen = step(abs(fract(f.x / 1.6) - 0.5), 0.17) * step(0.78, f.y) * step(f.y, 1.06) * step(0.35, hash12(vec2(slot * 1.3, level + seed)));
+            float lip = smoothstep(1.03, 1.1, f.y) * desk;
+            room = mix(room, room * 0.12 + L * lip * 0.25 * on, desk);
+            room += vec3(0.45, 0.72, 1.0) * screen * desk * mix(0.25, 0.9, on);
+            // Now and then somebody at the glass, working late.
+            float who = hash12(vec2(floor(f.x / 9.0), level + seed * 5.1));
+            float fx = f.x - (floor(f.x / 9.0) + 0.2 + 0.6 * fract(who * 7.0)) * 9.0;
+            float body = step(abs(fx), 0.22) * step(f.y, 1.45) + step(length(vec2(fx, f.y - 1.62)), 0.12);
+            room = mix(room, room * 0.08, clamp(body, 0.0, 1.0) * step(0.8, who) * on);
+          }
+          // Blinds, down part of the way on the odd pane.
+          float blindPick = hash12(vec2(floor(module / 2.0), level + seed * 3.3));
+          float blindTo = CLEAR * (1.0 - (0.3 + 0.6 * fract(blindPick * 13.0)));
+          if (blindPick > 0.86 && p.y > blindTo) {
+            float slat = 0.75 + 0.25 * step(0.5, fract(p.y * 12.0));
+            room = L * on * 0.3 * slat + vec3(0.01, 0.011, 0.015);
+          }
+
+          // The glass: tinted, each pane at its own slight angle.
+          vec2 jit = vec2(hash12(vec2(pane, level + seed)), hash12(vec2(level, pane + seed * 2.0))) - 0.5;
+          vec3 nj = normalize(n + t * jit.x * 0.06 + vec3(0.0, jit.y * 0.04, 0.0));
+          vec3 R = reflect(V, nj);
+          float F = 0.11 + 0.89 * pow(1.0 - abs(dot(V, nj)), 5.0);
+          vec3 env = skyIn(R);
+
+          // The tower's colour on it: beside its fins, up from its lobby,
+          // down from its crown.
+          float fin = exp(-edge / 1.3);
+          float up = exp(-max(vWorld.y - BASE, 0.0) / 9.0);
+          float crown = exp(-max(top - vWorld.y, 0.0) / 6.0);
+          vec3 wash = accent * (fin * (0.08 + 0.7 * tlit) + up * 0.2 + crown * (0.06 + 0.5 * tlit));
+
+          vec3 glass = room * vec3(0.72, 0.84, 0.9) * (1.0 - F) + env * F + wash * (0.06 + 0.5 * F);
+
+          // Mullions and transoms, 7 cm, and the spandrel at the slab: dark
+          // metal and back-painted glass, catching the sky and the wash.
+          vec3 frameCol = vec3(0.016, 0.017, 0.022) + env * 0.35 + wash * 0.55 + spillAt(vWorld) * 0.3;
+          vec3 spandrel = vec3(0.012, 0.013, 0.018) + env * (0.15 + 0.6 * F) + wash * 0.4 + spillAt(vWorld) * 0.2;
+          spandrel *= 0.8 + 0.2 * step(0.08, abs(inFloor - SILL * 0.5));
+          float mx = fract(module);
+          float mw = fwidth(module);
+          float fw = fwidth(fy);
+          float mull = mix(step(min(mx, 1.0 - mx) * MODULE, 0.035), 0.05, smoothstep(0.02, 0.06, mw));
+          float trans = mix(step(abs(inFloor - SILL), 0.04) + step(STOREY - inFloor, 0.035), 0.02, smoothstep(0.01, 0.03, fw));
+          float slab = mix(step(inFloor, SILL), SILL / STOREY, smoothstep(0.08, 0.3, fw));
+          vec3 col = mix(glass, frameCol, clamp(mull + trans, 0.0, 1.0));
+          col = mix(col, spandrel, slab);
+
+          // Far off, a floor's average rather than a pattern that shimmers.
+          float litAvg = vColor.r * 0.82 * 0.76;
+          vec3 avgRoom = L * litAvg * 0.36 + 0.004;
+          vec3 avg = mix(avgRoom * 0.8 * (1.0 - F) + env * F + wash * 0.3, spandrel, SILL / STOREY);
+          col = mix(col, avg, smoothstep(0.25, 0.6, fw));
+
+          col = cityFog(col, vWorld, on * (1.0 - slab) * 0.6);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
         }
@@ -336,6 +467,61 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     }));
     m.name = "corporate";
     made.set("corporate", m);
+    return m;
+  };
+
+  // A crown's glass round its logo: dark and ribbed, lit in the tower's own
+  // colour from the bands at its foot and its top, more while its card is
+  // read.
+  const crownGlass = () => {
+    if (made.has("crown_glass")) return made.get("crown_glass");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared },
+      vertexShader: VERT_WORLD,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        uniform vec3 uTowerAccent[8];
+        uniform float uTowerLit[8];
+        uniform float uTowerTop[8];
+        uniform vec2 uTowerCentre[8];
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        void main() {
+          int ti = 0;
+          float best = 1e9;
+          for (int i = 0; i < 8; i++) {
+            float dd = abs(vWorld.x - uTowerCentre[i].x);
+            if (dd < best) { best = dd; ti = i; }
+          }
+          vec3 accent = uTowerAccent[ti];
+          float lit = uTowerLit[ti];
+          float top = uTowerTop[ti];
+          vec3 n = normalize(vNormalW);
+          if (n.y > 0.5) {
+            gl_FragColor = vec4(cityFog(vec3(0.01, 0.01, 0.014), vWorld, 0.0), 1.0);
+            ${OUT}
+            return;
+          }
+          vec3 t = vec3(n.z, 0.0, -n.x);
+          float along = dot(vWorld, t);
+          float fromTop = top - vWorld.y;
+          float fromFoot = vWorld.y - (top - 16.0);
+          float rib = fract(along / 0.9);
+          float ribLine = mix(step(min(rib, 1.0 - rib), 0.05), 0.1, smoothstep(0.05, 0.25, fwidth(along / 0.9)));
+          vec3 V = normalize(vWorld - uCam);
+          float F = 0.08 + 0.92 * pow(1.0 - abs(dot(V, n)), 5.0);
+          vec3 sky = uHazeColor * 0.6 + uGlowColor * 0.4;
+          float wash = exp(-fromTop / 2.8) * (0.12 + 0.9 * lit) + exp(-fromFoot / 3.5) * (0.08 + 0.5 * lit);
+          vec3 col = vec3(0.008, 0.009, 0.013) + sky * F * 0.8 + accent * wash * (0.35 + 0.65 * ribLine);
+          col = cityFog(col, vWorld, 0.4);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "crown_glass";
+    made.set("crown_glass", m);
     return m;
   };
 
@@ -539,6 +725,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "shop": return shop();
       case "corporate": return corporate();
       case "lobby": return lobby();
+      case "crown_glass": return crownGlass();
       case "awning": return awning();
       case "lantern": return lantern();
       case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1 });

@@ -28,6 +28,7 @@ import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
 import { attributeKey, mergeMeshes } from "./merge.js";
+import { LAMPS } from "./glsl.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
  *  MIRROR_ONLY is drawn in the mirror and nowhere else (the car's stand-in). */
@@ -74,7 +75,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const quat = new THREE.Quaternion();
   const scl = new THREE.Vector3();
   root.traverse((o) => {
-    if (/^(cam_|anchor_|car_|logo_)/.test(o.name)) {
+    if (/^(cam_|anchor_|car_|logo_|lamp_)/.test(o.name)) {
       o.matrixWorld.decompose(pos, quat, scl);
       anchors.set(o.name, { position: pos.clone(), quaternion: quat.clone(), extras: o.userData });
     }
@@ -189,6 +190,15 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   }
   root.add(ads.mesh);
 
+  // The kit's lamps (lamp_<name>), for lampsAt in src/world/glsl.js.
+  const lamps = [...anchors].filter(([n]) => n.startsWith("lamp_")).slice(0, LAMPS);
+  lamps.forEach(([, a], i) => {
+    const reach = a.extras?.reach ?? 8;
+    shared.uLamps.value[i].set(a.position.x, a.position.y, a.position.z, reach);
+    shared.uLampColors.value[i].set(a.extras?.color ?? "#ffffff").multiplyScalar(a.extras?.power ?? 1);
+  });
+  for (let i = lamps.length; i < LAMPS; i++) shared.uLamps.value[i].set(0, -1e4, 0, 0);
+
   // The light: every emissive triangle, pooled on the ground.
   const light = bakeLight(sources);
   shared.uSpill.value = light.spill;
@@ -229,7 +239,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const moonDisc = named.moon_disc ? await dressMoon(named.moon_disc, shared, { reflectLayer: REFLECT_LAYER }) : null;
   if (moonDisc) dressed.push(moonDisc);
   const boards = createBoards(Object.entries(named).filter(([n]) => n.startsWith("board_")).map(([, m]) => m), shared, { reduced, reflectLayer: REFLECT_LAYER });
-  const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER });
+  const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER, anchors });
   const logos = await createLogos(anchors, shared, { reflectLayer: REFLECT_LAYER, maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()) });
   root.add(logos.mesh);
   const garage = await createGarage(named, shared, { reduced, reflectLayer: REFLECT_LAYER });
@@ -246,6 +256,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     root,
     anchors,
     named,
+    maps,
     road: path,
     boards,
     towers,

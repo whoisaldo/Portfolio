@@ -207,6 +207,7 @@ material("roof", "17181c", rough=0.9)
 # The rooftop's own roof, wet: the site traces the signs in its puddles.
 material("roof_wet", "121317", rough=0.15)
 material("glass_dark", "0d1418", metal=0.6, rough=0.12)
+material("crown_glass", "0d1418", metal=0.6, rough=0.12)
 material("corporate", "10161f", metal=0.5, rough=0.15)
 material("lobby", "e8e4da", emit=1.2)
 material("shop", "ffb77a", emit=0.9)
@@ -397,6 +398,49 @@ def oriented_box(key, cx, cy, cz, w, h, d, yaw, scale=1.0, col=(1, 1, 1, 1)):
     }
     for a, b, c, dd, fw, fh in corners.values():
         quad(key, a, b, c, dd, ((0, 0), (fw * s, 0), (fw * s, fh * s), (0, fh * s)), col)
+
+
+def pipe(key, a, b, r, segs=8, col=(1, 1, 1, 1), caps=False):
+    """A cylinder from point a to point b (any direction), radius r."""
+    ax = Vector(b) - Vector(a)
+    length = ax.length
+    w = ax.normalized()
+    up = Vector((0, 1, 0)) if abs(w.y) < 0.9 else Vector((1, 0, 0))
+    u = w.cross(up).normalized()
+    v = w.cross(u).normalized()
+    ring = [(u * math.cos(t) + v * math.sin(t)) * r for t in (i * math.tau / segs for i in range(segs))]
+    A, B = Vector(a), Vector(b)
+    for i in range(segs):
+        p0, p1 = ring[i], ring[(i + 1) % segs]
+        quad(key, tuple(A + p0), tuple(A + p1), tuple(B + p1), tuple(B + p0),
+             ((i / segs, 0), ((i + 1) / segs, 0), ((i + 1) / segs, length), (i / segs, length)), col)
+    if caps:
+        poly(key, [tuple(B + p) for p in ring], [(0.5 + p.dot(u) / (2 * r), 0.5 + p.dot(v) / (2 * r)) for p in ring], col)
+        poly(key, [tuple(A + p) for p in reversed(ring)], [(0.5, 0.5)] * segs, col)
+
+
+def dish(key, c, facing, r, depth=0.35, segs=14, col=(1, 1, 1, 1)):
+    """A satellite dish: a shallow bowl of radius r opening toward `facing`,
+    its back a cone to a feed arm."""
+    w = Vector(facing).normalized()
+    up = Vector((0, 1, 0)) if abs(w.y) < 0.9 else Vector((1, 0, 0))
+    u = w.cross(up).normalized()
+    v = w.cross(u).normalized()
+    C = Vector(c)
+    rim = [C + (u * math.cos(t) + v * math.sin(t)) * r for t in (i * math.tau / segs for i in range(segs))]
+    back = C - w * depth
+    for i in range(segs):
+        p0, p1 = rim[i], rim[(i + 1) % segs]
+        # The bowl's face and its back, both sides of the rim.
+        poly(key, [tuple(back + w * depth * 0.4), tuple(p0), tuple(p1)], [(0.5, 0.5), (0, 1), (1, 1)], col)
+        poly(key, [tuple(back), tuple(p1), tuple(p0)], [(0.5, 0.5), (1, 1), (0, 1)], col)
+    pipe(key, tuple(C + w * 0.05), tuple(C + w * r * 0.9), 0.025, segs=4, col=col)
+
+
+def site_lamp(name, pos, hex_color, reach, power=1.0):
+    """A lamp the site lights nearby surfaces with (src/world/glsl.js,
+    lampsAt): a point, a colour, how far its light reaches."""
+    empty("lamp_" + name, pos, props={"color": hex_color, "reach": reach, "power": power})
 
 
 # ---------------------------------------------------------------------------
@@ -620,11 +664,12 @@ def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=Tru
     return col
 
 
-def shopfront(district, side, z0, z1, seed, awning=True):
-    """The lit ground floor of a lot on the avenue, facing the street."""
+def shopfront(district, side, z0, z1, seed, awning=True, xf=None):
+    """The lit ground floor of a lot on the avenue, facing the street (or on
+    any wall along z, at xf)."""
     r = random.Random(seed)
     s = 1 if side > 0 else -1
-    xf = s * WALK
+    xf = s * WALK if xf is None else xf
     # Recessed glazing with a warm interior, and a dark bulkhead below it.
     a, b = (z0 + 0.4, z1 - 0.4)
     glass = (district, "shop", 0)
@@ -1049,7 +1094,8 @@ def megatower(x, z, w, h, colour, seed):
 MEGATOWERS = [
     (-150.0, -900.0, 50.0, 330.0, "cyan"),
     (-300.0, -1150.0, 60.0, 420.0, "pink"),
-    (-40.0, -1300.0, 56.0, 480.0, "purple"),
+    # Clear of the holographic figure: behind her, it cut her in two.
+    (-190.0, -1400.0, 56.0, 480.0, "purple"),
     (120.0, -1400.0, 60.0, 520.0, "blue"),
     (330.0, -1000.0, 46.0, 300.0, "amber"),
 ]
@@ -1147,25 +1193,73 @@ ground((CO, "sidewalk", 0), 110, 460, BOULEVARD_Z - 14, BOULEVARD_Z - 9, y=0.15,
 ground((CO, "sidewalk", 0), 128, 460, BOULEVARD_Z + 9, BOULEVARD_Z + 14, y=0.15, scale=2.0)
 
 
-def curtain(x0, x1, z0, z1, y0, y1, col, roof=True):
-    """A glass curtain wall. The site's corporate shader draws its floors,
-    mullions and light from world position; the colour is the tower's lit
-    fraction, its warmth and a seed."""
-    for a_, b_, c_, d_, length in _mass_sides(x0, x1, z0, z1, y0, y1).values():
-        quad((CO, "corporate", 0), a_, b_, c_, d_, ((0, 0), (length, 0), (length, y1 - y0), (0, y1 - y0)), col)
+def notched(cx, cz, h, n):
+    """A square plan with its corners cut back n: the outline, walked with
+    the outside on the left of each edge (the order _mass_sides uses)."""
+    a, b = h - n, h
+    pts = [(-a, b), (a, b), (a, a), (b, a), (b, -a), (a, -a), (a, -b), (-a, -b),
+           (-a, -a), (-b, -a), (-b, a), (-a, a)]
+    return [(cx + x, cz + z) for x, z in pts]
+
+
+def walls(key, outline, y0, y1, col):
+    """Vertical faces along a closed outline, outward normals."""
+    for (xa, za), (xb, zb) in zip(outline, outline[1:] + outline[:1]):
+        length = math.hypot(xb - xa, zb - za)
+        quad(key, (xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za),
+             ((0, 0), (length, 0), (length, y1 - y0), (0, y1 - y0)), col)
+
+
+def notched_roof(key, cx, cz, h, n, y):
+    """The roof of a notched plan: the middle and the four arms."""
+    a = h - n
+    for x0, x1, z0, z1 in ((-a, a, -a, a), (-a, a, a, h), (-a, a, -h, -a), (a, h, -a, a), (-h, -a, -a, a)):
+        quad(key, (cx + x0, y, cz + z1), (cx + x1, y, cz + z1), (cx + x1, y, cz + z0), (cx + x0, y, cz + z0),
+             ((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
+
+
+def curtain(cx, cz, h, n, y0, y1, col, roof=True):
+    """A glass curtain wall on a notched plan. The site's corporate shader
+    draws its floors, mullions and light from world position; the colour is
+    the tower's lit fraction, its warmth and a seed."""
+    walls((CO, "corporate", 0), notched(cx, cz, h, n), y0, y1, col)
     if roof:
-        quad((CO, "roof", 0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0))
+        notched_roof((CO, "roof", 0), cx, cz, h, n, y1)
 
 
 def lit_box(verts, faces, uvs, x0, x1, y0, y1, z0, z1, u):
     """A box's four sides into a mesh being built by hand, every corner at
-    u (the site's towers shader reads u as what the piece is)."""
+    u (the site's towers shader reads u as what the piece is: 2 a fin, 1 a
+    blade of the crown's screen, 0.5 a band)."""
     for a_, b_, c_, d_, _ in _mass_sides(x0, x1, z0, z1, y0, y1).values():
         base = len(verts)
         verts.extend(P(*q) for q in (a_, b_, c_, d_))
         faces.append((base, base + 1, base + 2, base + 3))
         uvs.extend([(u, 0), (u, 0), (u, 1), (u, 1)])
 
+
+def parapet(key, cx, cz, h, n, y, height=1.1, t=0.35):
+    """A low wall round a notched roof's edge."""
+    a = h - n
+    for x0, x1, z0, z1 in ((-a, a, h - t, h), (-a, a, -h, -h + t), (h - t, h, -a, a), (-h, -h + t, -a, a),
+                           (a - t, a, a, h), (-a, -a + t, a, h), (a - t, a, -h, -a), (-a, -a + t, -h, -a),
+                           (a, h, a - t, a), (a, h, -a, -a + t), (-h, -a, a - t, a), (-h, -a, -a, -a + t)):
+        box(key, cx + x0, cx + x1, y, y + height, cz + z0, cz + z1, scale=1.5)
+
+
+# Each tower's shape: how deep its corners are cut, where it steps back
+# (fractions of its height) and what stands on its crown: a screen of lit
+# blades, a mast, or both. Seven towers, no two alike.
+TOWER_FORMS = {
+    "philips-zero-touch": dict(notch=1.8, steps=(0.58, 0.82), screen=True, mast=22.0),
+    "pinnatec-auto": dict(notch=2.4, steps=(0.66,), screen=False, mast=0.0),
+    "pawtograder": dict(notch=1.4, steps=(), screen=True, mast=0.0),
+    "aws-cloudformation": dict(notch=2.0, steps=(0.5, 0.74), screen=True, mast=30.0),
+    "top-choice-realty": dict(notch=1.6, steps=(), screen=False, mast=0.0),
+    "robert-defalco-realty": dict(notch=2.2, steps=(0.7,), screen=True, mast=0.0),
+    "northeastern": dict(notch=1.6, steps=(0.62, 0.84), screen=False, mast=18.0),
+}
+INSET = 2.4
 
 for i, (slug, height) in enumerate(TOWERS):
     tx = CORPO_X0 + i * 38
@@ -1174,40 +1268,54 @@ for i, (slug, height) in enumerate(TOWERS):
     seed = 6000 + i
     r = random.Random(seed)
     col = (r.uniform(0.5, 0.75), r.random(), r.random(), 1.0)
+    form = TOWER_FORMS[slug]
+    notch = form["notch"]
     # The lobby: a lit glass box set back under a canopy, the core behind.
     box((CO, "dark", 0), tx - half, tx + half, 0, LOBBY_H, tz - half, tz + half - 1.6, scale=2.0)
     quad((CO, "lobby", 0), (tx - half + 0.6, 0.15, tz + half - 1.5), (tx + half - 0.6, 0.15, tz + half - 1.5),
          (tx + half - 0.6, LOBBY_H, tz + half - 1.5), (tx - half + 0.6, LOBBY_H, tz + half - 1.5),
          ((0, 0), (1, 0), (1, 1), (0, 1)), (r.random(), r.random(), 1.0, 1.0))
     box((CO, "metal", 0), tx - half, tx + half, LOBBY_H - 0.5, LOBBY_H, tz + half - 1.6, tz + half + 3.0, scale=1.0)
-    # The shaft, stepped back once on the tall ones.
-    step = height * 0.7 if height > 110 else None
-    inset = 2.5 if step else 0.0
-    if step:
-        curtain(tx - half, tx + half, tz - half, tz + half, LOBBY_H, step, col)
-        curtain(tx - half + inset, tx + half - inset, tz - half + inset, tz + half - inset, step, height, col)
-    else:
-        curtain(tx - half, tx + half, tz - half, tz + half, LOBBY_H, height, col)
+    # The shaft, in sections, each stepped back from the one under it.
+    cuts = [LOBBY_H] + [height * f for f in form["steps"]] + [height]
+    sections = []
+    for k in range(len(cuts) - 1):
+        h_k = half - INSET * k
+        curtain(tx, tz, h_k, notch, cuts[k], cuts[k + 1], col)
+        sections.append((h_k, cuts[k], cuts[k + 1]))
+        if k > 0:
+            parapet((CO, "metal", 1), tx, tz, half - INSET * (k - 1), notch, cuts[k], height=1.0)
+    top_half = sections[-1][0]
     # The crown: a dark glass box, the logo on its faces to the boulevard
     # and to the rooftop, which sees the boulevard's face almost edge on.
-    cw = half - inset - 1.5
-    box((CO, "glass_dark", 0), tx - cw, tx + cw, height, height + CROWN_H, tz - cw, tz + cw, scale=2.0)
+    cw = top_half - 1.5
+    box((CO, "crown_glass", 0), tx - cw, tx + cw, height, height + CROWN_H, tz - cw, tz + cw, scale=2.0)
     top = height + CROWN_H
     empty("logo_" + slug, (tx, height + CROWN_H / 2, tz + cw + 0.06), props={"w": cw * 2 - 3.0, "h": CROWN_H - 3.0})
     empty("logo_" + slug + "_e", (tx + cw + 0.06, height + CROWN_H / 2, tz), yaw=math.pi / 2,
           props={"w": cw * 2 - 3.0, "h": CROWN_H - 3.0})
-    # The accent: a fin up each corner of the shaft, a ring at the step, a
-    # band round the top of the crown.
+    # The accent: a line of light up the inside corner of each notch, a thin
+    # ring at each setback, bands round the crown's top and foot, and on some
+    # a screen of blades over the roof, lit from its foot.
     verts, faces, uvs = [], [], []
     for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
-        fx, fz = tx + sx * half, tz + sz * half
-        lit_box(verts, faces, uvs, fx - 0.45, fx + 0.45, LOBBY_H + 1.0, step or height, fz - 0.45, fz + 0.45, 2.0)
-        if step:
-            gx, gz = tx + sx * (half - inset), tz + sz * (half - inset)
-            lit_box(verts, faces, uvs, gx - 0.4, gx + 0.4, step, height, gz - 0.4, gz + 0.4, 2.0)
-    if step:
-        lit_box(verts, faces, uvs, tx - half - 0.1, tx + half + 0.1, step - 0.9, step, tz - half - 0.1, tz + half + 0.1, 0.5)
-    lit_box(verts, faces, uvs, tx - cw - 0.15, tx + cw + 0.15, top - 2.2, top, tz - cw - 0.15, tz + cw + 0.15, 0.5)
+        for h_k, y0, y1 in sections:
+            fx, fz = tx + sx * (h_k - notch + 0.16), tz + sz * (h_k - notch + 0.16)
+            lit_box(verts, faces, uvs, fx - 0.16, fx + 0.16, max(y0, LOBBY_H + 1.0), y1, fz - 0.16, fz + 0.16, 2.0)
+    for h_k, y0, _ in sections[1:]:
+        lit_box(verts, faces, uvs, tx - h_k - 0.05, tx + h_k + 0.05, y0 + 1.0, y0 + 1.22, tz - h_k - 0.05, tz + h_k + 0.05, 0.5)
+    lit_box(verts, faces, uvs, tx - cw - 0.08, tx + cw + 0.08, top - 0.55, top, tz - cw - 0.08, tz + cw + 0.08, 0.5)
+    lit_box(verts, faces, uvs, tx - cw - 0.08, tx + cw + 0.08, height, height + 0.3, tz - cw - 0.08, tz + cw + 0.08, 0.5)
+    if form["screen"]:
+        # Blades round the crown's roof, 1.9 m apart and 7 m tall.
+        count = int((cw * 2) // 1.9)
+        for k in range(count + 1):
+            v = -cw + k * (cw * 2) / count
+            for bx0, bx1, bz0, bz1 in ((tx + v - 0.12, tx + v + 0.12, tz + cw - 0.7, tz + cw),
+                                       (tx + v - 0.12, tx + v + 0.12, tz - cw, tz - cw + 0.7),
+                                       (tx + cw - 0.7, tx + cw, tz + v - 0.12, tz + v + 0.12),
+                                       (tx - cw, tx - cw + 0.7, tz + v - 0.12, tz + v + 0.12)):
+                lit_box(verts, faces, uvs, bx0, bx1, top, top + 7.0, bz0, bz1, 1.0)
     crown = bpy.data.meshes.new(PREFIX + "crown_" + slug)
     crown.from_pydata(verts, [], faces)
     layer = crown.uv_layers.new(name="UVMap")
@@ -1219,10 +1327,27 @@ for i, (slug, height) in enumerate(TOWERS):
     crown.materials.append(MATS["crown"])
     obj = link(bpy.data.objects.new("crown_" + slug, crown))
     obj["tower"] = slug
-    # The name, as type, on a tall sign below the step.
-    sign_top = (step or height) - 4.0
+    # Plant on the roof inside the screen, and a mast on the tallest, a red
+    # lamp at its tip.
+    box((CO, "metal", 1), tx - cw * 0.5, tx + cw * 0.3, top, top + 3.2, tz - cw * 0.4, tz + cw * 0.2, scale=1.5)
+    box((CO, "dark", 1), tx + cw * 0.35, tx + cw * 0.75, top, top + 2.0, tz - cw * 0.6, tz - cw * 0.1, scale=1.5)
+    if form["mast"]:
+        m_h = form["mast"]
+        cylinder((CO, "metal", 0), tx, tz, top, top + m_h * 0.45, 0.55, segs=8)
+        cylinder((CO, "metal", 0), tx, tz, top + m_h * 0.45, top + m_h, 0.22, segs=6)
+        cylinder((CO, "neon_red", 0), tx, tz, top + m_h, top + m_h + 0.5, 0.3, segs=8)
+        for dy in (0.3, 0.6):
+            for sx in (-1, 1):
+                box((CO, "neon_red", 1), tx + sx * 0.55 - 0.12, tx + sx * 0.55 + 0.12, top + m_h * dy, top + m_h * dy + 0.25,
+                    tz - 0.12, tz + 0.12, scale=1.0)
+    # Red lamps on the crown's corners, as tall buildings wear them.
+    for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+        box((CO, "neon_red", 1), tx + sx * cw - 0.2, tx + sx * cw + 0.2, top + 0.1, top + 0.45, tz + sz * cw - 0.2,
+            tz + sz * cw + 0.2, scale=1.0)
+    # The name, as type, on a tall sign on the lowest section.
+    sign_top = sections[0][2] - 4.0
     sign_bottom = LOBBY_H + 4.0
-    sign("tower_" + slug, tx + half - 2.6, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
+    sign("tower_" + slug, tx + half - notch - 1.6, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
          preview=slug.upper(), district=CO)
     empty("anchor_tower_" + slug, (tx, top + 1.8, tz), props={"height": top})
 for i in range(8):
@@ -1285,6 +1410,75 @@ sign("militech", 410.4, 61.0, -236.0, 12.0, 2.6, math.radians(90), preview="MILI
 ground((RF, "asphalt", 0), STREET_X - 8, STREET_X + 8, -322, -190, scale=6.0)
 ground((RF, "sidewalk", 0), STREET_X + 8, STREET_X + 12, -300, -190, y=0.15, scale=2.0)
 ground((RF, "sidewalk", 0), STREET_X - 12, STREET_X - 8, -300, -190, y=0.15, scale=2.0)
+
+# The roof, dressed: what About and Stack look over (About's camera sees a
+# wedge of it from due west round to south-west, 11 to 27 m out). A stair
+# hut with its door open and a lamp over it, big condensers with their fans,
+# pipes run along the roof on sleepers, two dishes on the parapet, a rail
+# along the edge the city is seen over, and a string of bulbs from the hut
+# to a pole. Its lamps light the kit round them (lamp_*).
+hx0, hx1, hz0, hz1, hh = 452.4, 457.4, -293.0, -287.5, 3.4
+box((RF, "concrete", 0), hx0, hx1, RH, RH + hh, hz0, hz1, scale=1.5)
+box((RF, "metal", 1), hx0 - 0.2, hx1 + 0.2, RH + hh, RH + hh + 0.18, hz0 - 0.2, hz1 + 0.2, scale=1.0)
+# Its door faces the camera (east), open: a warm rectangle of stairwell.
+quad((RF, "neon_amber", 0), (hx1 + 0.02, RH, -290.2), (hx1 + 0.02, RH, -291.5), (hx1 + 0.02, RH + 2.2, -291.5),
+     (hx1 + 0.02, RH + 2.2, -290.2))
+box((RF, "metal", 1), hx1 + 0.02, hx1 + 1.1, RH, RH + 2.2, -290.2, -290.12, scale=1.0)
+box((RF, "neon_white", 1), hx1 + 0.05, hx1 + 0.3, RH + 2.55, RH + 2.75, -291.0, -290.7, scale=1.0)
+site_lamp("roof_door", (hx1 + 0.9, RH + 2.6, -290.85), "#ffc27a", 11.0, 1.4)
+# Condensers: big boxes with two fans each on top.
+for (cx, cz, rot) in ((463.0, -276.5, 0), (457.5, -271.0, 0), (466.0, -281.5, 1)):
+    w_, d_ = (2.2, 1.3) if not rot else (1.3, 2.2)
+    box((RF, "metal", 1), cx - w_ / 2, cx + w_ / 2, RH, RH + 1.35, cz - d_ / 2, cz + d_ / 2, scale=1.0)
+    for f in (-0.5, 0.5):
+        fx, fz = (cx + f * w_ * 0.5, cz) if not rot else (cx, cz + f * d_ * 0.5)
+        cylinder((RF, "dark", 1), fx, fz, RH + 1.35, RH + 1.42, 0.5, segs=12)
+        cylinder((RF, "metal", 1), fx, fz, RH + 1.42, RH + 1.46, 0.08, segs=6)
+# Pipes on sleepers along the roof, from the hut east, and up its wall.
+for k, (pz, pr) in enumerate(((-289.0, 0.18), (-289.6, 0.12), (-290.1, 0.12))):
+    pipe((RF, "metal", 1), (hx1, RH + 0.45 + k * 0.02, pz - 2.2), (481.0, RH + 0.45 + k * 0.02, pz - 2.2), pr, segs=8)
+for sx in range(459, 482, 4):
+    box((RF, "dark", 1), sx - 0.1, sx + 0.1, RH, RH + 0.35, -292.7, -290.8, scale=1.0)
+pipe((RF, "metal", 1), (hx1 + 0.2, RH + 0.45, -291.2), (hx1 + 0.2, RH + 3.6, -291.2), 0.18, segs=8)
+# Dishes on the parapet, turned to the south-west sky.
+for (dx, dz, dr) in ((453.2, -271.0, 0.9), (453.4, -283.0, 0.65)):
+    box((RF, "metal", 1), dx - 0.08, dx + 0.08, RH + 1.1, RH + 1.9, dz - 0.08, dz + 0.08, scale=0.5)
+    dish((RF, "metal", 1), (dx, RH + 1.9 + dr * 0.6, dz), (-0.55, 0.6, -0.58), dr)
+# A rail along the west parapet, the edge About looks over: posts and a
+# top rail, dark against the city.
+for pz in [RZ0 + 1.0 + k * 2.0 for k in range(21)]:
+    box((RF, "metal", 1), RX0 + 0.12, RX0 + 0.2, RH + 1.1, RH + 2.1, pz - 0.04, pz + 0.04, scale=0.5)
+pipe((RF, "metal", 1), (RX0 + 0.16, RH + 2.1, RZ0 + 0.6), (RX0 + 0.16, RH + 2.1, RZ1 - 0.6), 0.035, segs=6)
+pipe((RF, "metal", 1), (RX0 + 0.16, RH + 1.6, RZ0 + 0.6), (RX0 + 0.16, RH + 1.6, RZ1 - 0.6), 0.025, segs=6)
+# Bulbs on a wire from the hut's corner to a pole by the west parapet,
+# sagging across the view.
+cylinder((RF, "metal", 1), 460.0, -265.5, RH, RH + 4.4, 0.07, segs=6)
+wa, wb = Vector((hx1, RH + hh + 0.1, hz1)), Vector((460.0, RH + 4.3, -265.5))
+prev = None
+for k in range(29):
+    t_ = k / 28
+    p_ = wa.lerp(wb, t_) - Vector((0, 1.3 * 4 * t_ * (1 - t_), 0))
+    if prev is not None:
+        pipe((RF, "dark", 1), tuple(prev), tuple(p_), 0.012, segs=3)
+    if 0 < k < 28 and k % 2 == 0:
+        box((RF, "neon_amber", 1), p_.x - 0.06, p_.x + 0.06, p_.y - 0.16, p_.y - 0.04, p_.z - 0.06, p_.z + 0.06, scale=1.0)
+    prev = p_
+site_lamp("roof_bulbs", tuple(wa.lerp(wb, 0.5) - Vector((0, 1.0, 0))), "#ffb45e", 10.0, 0.7)
+# The signs' own light on the roof and what stands on it.
+site_lamp("roof_ripperdoc", (RIPPER[0] + 1.0, RIPPER[1], RIPPER[2] + 1.0), "#f2f0ff", 16.0, 1.1)
+site_lamp("roof_afterlife", (433.5, 38.0, -281.0), "#ff2e88", 22.0, 1.5)
+# The roofs round it are not bare either: tanks, plant and a stair hut on
+# the AFTERLIFE block, the one About sees past the edge.
+for (cx, cz) in ((410.0, -268.0), (424.0, -294.0)):
+    cylinder((RF, "metal", 1), cx, cz, 30.0, 33.6, 1.6, segs=14)
+    cylinder((RF, "dark", 1), cx, cz, 33.6, 33.9, 1.7, segs=14)
+box((RF, "concrete", 1), 404.0, 409.0, 30.0, 33.2, -298.0, -292.0, scale=1.5)
+box((RF, "metal", 1), 414.0, 418.0, 30.0, 31.4, -282.0, -279.5, scale=1.0)
+box((RF, "metal", 1), 416.0, 420.5, 30.0, 31.6, -272.0, -269.8, scale=1.0)
+for (x0_, x1_, z0_, z1_) in ((402.0, 432.0, -262.6, -262.0), (402.0, 432.0, -300.0, -299.4), (402.0, 402.6, -300.0, -262.0)):
+    box((RF, "concrete", 1), x0_, x1_, 30.0, 31.0, z0_, z1_, scale=1.5)
+cylinder((RF, "metal", 1), 427.0, -296.0, 30.0, 41.0, 0.08, segs=6)
+cylinder((RF, "neon_red", 0), 427.0, -296.0, 41.0, 41.3, 0.14, segs=8)
 
 # ---------------------------------------------------------------------------
 # THE GARAGE. A workshop on the street below the rooftop with a roll-up door
@@ -1413,10 +1607,45 @@ for z in (-236.0, -214.0, -196.0):
     cylinder((GA, "metal", 1), STREET_X - 9.0, z, 0.15, 6.2, 0.08, segs=8)
     box((GA, "neon_amber", 0), STREET_X - 8.2, STREET_X - 7.4, 6.0, 6.1, z - 0.15, z + 0.15, scale=0.5)
     LAMPS.append((STREET_X - 7.8, 6.0, z))
+# And two on the garage's own kerb, so the road the flight comes down past
+# the shops is lit on both sides.
+for z in (-252.0, -240.0):
+    cylinder((GA, "metal", 1), STREET_X + 8.6, z, 0.15, 6.4, 0.08, segs=8)
+    box((GA, "metal", 1), STREET_X + 6.9, STREET_X + 8.6, 6.3, 6.4, z - 0.05, z + 0.05, scale=0.5)
+    box((GA, "neon_amber", 0), STREET_X + 7.0, STREET_X + 7.8, 6.2, 6.3, z - 0.15, z + 0.15, scale=0.5)
+    LAMPS.append((STREET_X + 7.4, 6.2, z))
 for i, pos in enumerate(LAMPS):
     empty(f"anchor_lamp_{i}", pos)
 for (a0, a1, b0, b1) in ((GX0, GX1, GZ1 - 0.3, GZ1), (GX0, GX1, GZ0, GZ0 + 0.3), (GX0, GX0 + 0.3, GZ0, GZ1)):
     box((GA, "concrete", 0), a0, a1, GH, GH + 0.9, b0, b1, scale=1.5)
+# The street the flight comes down is a working one. Under the painted block
+# next door, shops; on the garage's own wall, a second bay's roller shutter,
+# down, and the office's lit window by the side door; a cyan strip under the
+# parapet the whole length of it; bollards either side of the open door,
+# tyres and a skip at the kerb. The door's two caged lamps light the wall
+# round them (lamp_*).
+for k, (z0_, z1_) in enumerate(((-257.6, -250.8), (-250.8, -244.0), (-244.0, -237.2), (-237.2, -230.4))):
+    shopfront(GA, 1, z0_, z1_, 8300 + k, awning=k != 2, xf=GX0 - 0.04)
+quad((GA, "shop", 0), (GX0 - 0.03, 0.15, -228.6), (GX0 - 0.03, 0.15, -222.6), (GX0 - 0.03, 4.1, -222.6),
+     (GX0 - 0.03, 4.1, -228.6), col=(0.5, 0.5, 0.0, 1.0))
+box((GA, "hazard", 1), GX0 - 0.08, GX0 - 0.02, 4.1, 4.3, -228.8, -222.4, scale=1.0)
+quad((GA, "shop", 0), (GX0 - 0.03, 1.0, -208.2), (GX0 - 0.03, 1.0, -203.6), (GX0 - 0.03, 2.9, -203.6),
+     (GX0 - 0.03, 2.9, -208.2), col=(0.8, 0.9, 1.0, 1.0))
+box((GA, "door", 0), GX0 - 0.06, GX0, 0.0, 2.3, -202.8, -201.6, scale=1.0)
+box((GA, "neon_cyan", 0), GX0 - 0.12, GX0 - 0.04, GH - 0.35, GH - 0.25, GZ0 + 0.3, GZ1 - 0.3, scale=1.0)
+box((GA, "hazard", 1), GX0 - 0.04, GX0, 0.0, 0.35, GZ0, DOOR_Z0 - 0.25, scale=1.0)
+box((GA, "hazard", 1), GX0 - 0.04, GX0, 0.0, 0.35, DOOR_Z1 + 0.25, GZ1, scale=1.0)
+for z in (DOOR_Z0 - 0.7, DOOR_Z1 + 0.7):
+    cylinder((GA, "hazard", 1), GX0 - 0.7, z, 0.0, 1.05, 0.14, segs=10)
+    cylinder((GA, "dark", 1), GX0 - 0.7, z, 0.62, 0.8, 0.145, segs=10, cap=False)
+for k, (tx_, tz_) in enumerate(((GX0 - 0.7, -226.2), (GX0 - 0.7, -225.2), (GX0 - 1.5, -225.7))):
+    for j in range(3 if k < 2 else 2):
+        cylinder((GA, "dark", 1), tx_, tz_, j * 0.26, j * 0.26 + 0.24, 0.36, segs=12)
+box((GA, "metal", 1), GX0 - 2.1, GX0 - 0.3, 0.0, 1.25, -234.2, -232.0, scale=1.0)
+box((GA, "dark", 1), GX0 - 2.15, GX0 - 0.25, 1.25, 1.32, -234.25, -231.95, scale=1.0)
+for z in (DOOR_Z0 - 1.1, DOOR_Z1 + 1.1):
+    site_lamp(f"garage_wall_{'n' if z > -215 else 's'}", (GX0 - 0.6, 5.0, z), "#ffb866", 7.0, 1.2)
+
 cylinder((GA, "metal", 1), 472.0, -226.0, GH, GH + 7.0, 0.07, segs=6)
 cylinder((GA, "neon_red", 0), 472.0, -226.0, GH + 7.0, GH + 7.3, 0.14, segs=8)
 

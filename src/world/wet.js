@@ -18,7 +18,7 @@
 // dry and glossy, darker where cars have stood, and its tubes' reflections
 // strike on with the tubes.
 import * as THREE from "three";
-import { COMMON, VERT_WORLD } from "./glsl.js";
+import { COMMON, LAMPS, VERT_WORLD } from "./glsl.js";
 
 const MAX = 8;
 
@@ -150,7 +150,7 @@ export function createWetFloor(shared, { kind = "roof", reduced = false } = {}) 
         vec3 R2 = normalize(R + vec3(0.0, 0.02, 0.0));
         float fres = 0.03 + 0.97 * pow(1.0 - clamp(-V.y, 0.0, 1.0), 5.0);
 
-        vec3 light = vec3(0.02) + spillAt(vWorld) * spillMul;
+        vec3 light = vec3(0.02) + spillAt(vWorld) * spillMul + lampsAt(vWorld, vec3(0.0, 1.0, 0.0)) * 1.4;
         vec3 refl = vec3(0.0);
         for (int i = 0; i < MAX_RECTS; i++) {
           if (i >= uRects) break;
@@ -193,6 +193,19 @@ export function createWetFloor(shared, { kind = "roof", reduced = false } = {}) 
             c = uTint[i] * inside / 5.0;
           }
           refl += c * on;
+        }
+        // The kit's lamps in the wet: each one a streak, drawn out down the
+        // floor toward the eye as water draws a light out.
+        vec3 side = normalize(cross(R, vec3(0.0, 1.0, 0.0)) + 1e-5);
+        for (int i = 0; i < ${LAMPS}; i++) {
+          vec4 L = uLamps[i];
+          vec3 d = L.xyz - vWorld;
+          float d2 = dot(d, d);
+          if (d2 > L.w * L.w * 9.0) continue;
+          vec3 e = d * inversesqrt(d2) - R;
+          float dh = dot(e, side);
+          float glint = exp(-dh * dh / (0.0003 + rough * 0.0015) - e.y * e.y / (0.003 + rough * 0.02));
+          refl += uLampColors[i] * glint * 1.6 * uWet;
         }
         // The sky's glow over the roofs, where the ray goes up into it.
         #if ROOF == 1

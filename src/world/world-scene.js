@@ -109,7 +109,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const r = (a.extras?.size ?? 50) / 2;
       return [a.position.x - r, a.position.z - r, a.position.x + r, a.position.z + r];
     });
-    skyline = createSkyline(scene, shared, { count: tier === "phone" ? 1200 : 2600, keepOut, reduced });
+    skyline = createSkyline(scene, shared, {
+      count: tier === "phone" ? 1200 : 2600,
+      keepOut,
+      reduced,
+      facades: [c.maps.facade_t0, c.maps.facade_t1, c.maps.facade_t2],
+    });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
@@ -198,16 +203,46 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // avenue, while it holds (never with reduced motion).
   const hand = { yaw: 0, pitch: 0, roll: 0 };
 
+  // A camera on the move: it banks into a turn, as a drone or a helicopter
+  // does (roll follows the rate the heading swings at, a few degrees at
+  // most), and the lens opens a little with speed. Both are read off the
+  // pose itself, so a scrolled flight and a route's flight get them alike,
+  // and both settle to nothing when the camera holds.
+  const motion = { yaw: null, roll: 0, widen: 0, at: new THREE.Vector3() };
+  const _dir = new THREE.Vector3();
+  const moveCamera = (dt, snapped) => {
+    _dir.subVectors(pose.target, pose.position);
+    const yaw = Math.atan2(_dir.x, _dir.z);
+    if (motion.yaw === null || snapped || dt <= 0 || reduced) {
+      motion.yaw = yaw;
+      motion.at.copy(pose.position);
+      motion.roll = 0;
+      motion.widen = 0;
+      return;
+    }
+    let dy = yaw - motion.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    motion.yaw = yaw;
+    const speed = motion.at.distanceTo(pose.position) / dt;
+    motion.at.copy(pose.position);
+    const bank = clamp((-dy / dt) * 0.09, -0.11, 0.11);
+    const widen = clamp((speed - 6) / 70, 0, 1) * 5;
+    const a = 1 - Math.exp(-dt * 2.5);
+    motion.roll += (bank - motion.roll) * a;
+    motion.widen += (widen - motion.widen) * a;
+  };
+
   const applyPose = (p, withTilt) => {
     camera.position.copy(p.position);
     camera.lookAt(p.target);
     if (withTilt) {
       camera.rotateY(-tilt.x * 1.4 * DEG + hand.yaw);
       camera.rotateX(-tilt.y * 0.9 * DEG + hand.pitch);
-      camera.rotateZ(hand.roll);
+      camera.rotateZ(hand.roll + motion.roll);
     }
-    if (Math.abs(camera.fov - p.fov) > 1e-4 || Math.abs(lensShift - p.shift) > 1e-5) {
-      camera.fov = p.fov;
+    const fov = p.fov + (withTilt ? motion.widen : 0);
+    if (Math.abs(camera.fov - fov) > 1e-4 || Math.abs(lensShift - p.shift) > 1e-5) {
+      camera.fov = fov;
       lensShift = p.shift;
       project();
     }
@@ -267,7 +302,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const _look = new THREE.Vector3();
   const holdHero = (dt) => {
     const home = stage.route.kind === "home" && stage.shots[0]?.id === "hero" && !flight;
-    const k = reduced || !home ? 0 : clamp(1 - stage.position * 1.5, 0, 1);
+    // The hero in full; every other shot, while it holds, at a third of it.
+    const f = stage.position - Math.round(stage.position);
+    const held = clamp(1 - Math.abs(f) * 4, 0, 1);
+    const k = reduced || !home ? 0 : Math.max(clamp(1 - stage.position * 1.5, 0, 1), held * 0.35);
     handClock += dt;
     const t = handClock;
     hand.yaw = k * 0.2 * DEG * (Math.sin(t * 0.31) + 0.5 * Math.sin(t * 0.73 + 1.3)) / 1.5;
@@ -325,6 +363,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       pose.fov += (want.fov - pose.fov) * a;
       pose.shift += (want.shift - pose.shift) * a;
     }
+    moveCamera(dt, jumped);
     const t = 1 - Math.exp(-dt * 3);
     tilt.x += (stage.pointer.x - tilt.x) * t;
     tilt.y += (stage.pointer.y - tilt.y) * t;
