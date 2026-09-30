@@ -20,7 +20,7 @@ import { COMMON, WINDOWS } from "./glsl.js";
 // Rectangles (x0, z0, x1, z1) the far city stays out of.
 const KEEP_OUT = [
   [-60, -740, 60, 80], // the avenue, its canyon and the intersection
-  [0, -420, 540, -130], // plaza, corpo row, rooftop, garage
+  [0, -420, 490, -130], // plaza, corpo row, rooftop, garage (the rooftop's east wall is at 484)
   [-70, 20, 70, 140], // behind the hero camera
 ];
 // Where the moon rises for the Contact shot: lit roofs stay low there, and
@@ -77,7 +77,9 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       const [lx0, lz0, lx1, lz1] = LOW;
       if (x > lx0 && x < lx1 && z > lz0 && z < lz1) h = Math.min(h, 22 + r() * 30);
       const near = Math.hypot(x - CONTACT_LENS[0], z - CONTACT_LENS[1]);
-      if (near < 170) h = Math.min(h, 10 + near * 0.14);
+      // The nearest roofs sit just under the lens (10.4 m up), so Contact
+      // skims across a roofscape to the lit blocks and the moon.
+      if (near < 170) h = Math.min(h, 4 + near * 0.11);
       // Up the avenue the far city keeps under the hero's band of sky: seen
       // from its lens (0.6, 0.6, 10), nothing in its view stands taller than
       // about a sixth of its distance, so the roofs step down into the glow
@@ -158,7 +160,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // place in the picture.
         float tall = length(instanceMatrix[1].xyz);
         float pick = hash11(seed + 12.7);
-        float which = (tall < 100.0 && pick > 0.06 && aHero < 0.5) ? floor(fract(pick * 7.0) * 3.0) : -1.0;
+        float which = (tall < 100.0 && (pick > 0.06 || tall < 40.0) && aHero < 0.5) ? floor(fract(pick * 7.0) * 3.0) : -1.0;
         vPaint = vec3((along + hash11(seed + 6.1) * 160.0) / 16.0, (w.y - 4.6) / 24.0 + step(0.5, hash11(seed + 8.3)) * 0.5, which);
         gl_Position = projectionMatrix * viewMatrix * w;
       }

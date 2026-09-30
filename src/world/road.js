@@ -176,7 +176,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
                      * puddle * smoothstep(28.0, 5.0, dist);
           // The aggregate's normal bends it a little, less than it did: at
           // the tile's own frequency a larger bend zipped every streak's edge.
-          vec2 bend = nt.xy * mix(0.0026, 0.0014, puddle) * vec2(1.0, 0.3) + rings * 0.01;
+          // The rain's rings bend it too, gently: at a hundredth of the
+          // screen they tore every streak's edge into a zigzag at the lens.
+          vec2 bend = nt.xy * mix(0.0026, 0.0014, puddle) * vec2(1.0, 0.3) + rings * vec2(0.0032, 0.002);
           // Rough wet asphalt stretches every reflection from the horizon
           // down toward the eye: gather the mirror along this pixel's column
           // from its own point up to the horizon, nearer the horizon
