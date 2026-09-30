@@ -20,7 +20,11 @@ import { COMMON, WINDOWS } from "./glsl.js";
 // Rectangles (x0, z0, x1, z1) the far city stays out of.
 const KEEP_OUT = [
   [-60, -740, 60, 80], // the avenue, its canyon and the intersection
-  [0, -420, 490, -130], // plaza, corpo row, rooftop, garage (the rooftop's east wall is at 484)
+  [0, -420, 300, -130], // the plaza, and corpo row's west end
+  // Corpo row's east end, the rooftop and the garage: the kit stops at the
+  // rooftop's east wall (484) and the garage block's north face (-176), so
+  // the city comes up to Contact's lens.
+  [300, -420, 490, -176],
   [-70, 20, 70, 140], // behind the hero camera
 ];
 // Where the moon rises for the Contact shot: lit roofs stay low there, and

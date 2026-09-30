@@ -24,6 +24,7 @@ import { dressHolo, preloadHolo } from "./holo.js";
 import { dressMoon, preloadMoon } from "./moon.js";
 import { createAds, preloadAds } from "./ads.js";
 import { createBoards } from "./boards.js";
+import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
@@ -239,12 +240,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const moonDisc = named.moon_disc ? await dressMoon(named.moon_disc, shared, { reflectLayer: REFLECT_LAYER }) : null;
   if (moonDisc) dressed.push(moonDisc);
   const boards = createBoards(Object.entries(named).filter(([n]) => n.startsWith("board_")).map(([, m]) => m), shared, { reduced, reflectLayer: REFLECT_LAYER });
+  const floods = createFloods(anchors, shared, { reflectLayer: REFLECT_LAYER });
+  if (floods.group) root.add(floods.group);
   const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER, anchors });
   const logos = await createLogos(anchors, shared, { reflectLayer: REFLECT_LAYER, maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()) });
   root.add(logos.mesh);
   const garage = await createGarage(named, shared, { reduced, reflectLayer: REFLECT_LAYER });
   root.add(garage.mesh);
-  dressed.push(boards, towers, logos, garage);
+  dressed.push(boards, floods, towers, logos, garage);
 
   scene.add(root);
 

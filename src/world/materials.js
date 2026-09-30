@@ -26,7 +26,7 @@
 //            sign turns the concrete under it pink.
 //   surface  everything else: paint, concrete, metal, roofs, lit by the spill.
 import * as THREE from "three";
-import { COMMON, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
+import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
 import { createWetFloor } from "./wet.js";
 
 /** The world's own neon, as the plate uses it. */
@@ -49,9 +49,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1 } = {}) => {
+  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = false } = {}) => {
     if (made.has(key)) return made.get(key);
     const m = keep(new THREE.ShaderMaterial({
+      defines: detail ? { DETAIL: "" } : {},
       uniforms: {
         ...shared,
         uColor: { value: new THREE.Color(color) },
@@ -72,10 +73,37 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
+        #ifdef DETAIL
+        float vn(vec2 p) {
+          vec2 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x),
+                     mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+        // Weathered plant in world space, no texture: sheet panels with
+        // their seams, rain grime run down the sides from every seam and
+        // edge, and a fine speckle, all faded where they would shimmer.
+        float weather(vec3 p, vec3 n) {
+          vec3 a = abs(n);
+          vec2 q = a.y > 0.6 ? p.xz : (a.x > a.z ? p.zy : p.xy);
+          vec2 cell = q / vec2(0.9, 0.6);
+          vec2 f = abs(fract(cell) - 0.5);
+          float aa = clamp(max(fwidth(cell.x), fwidth(cell.y)) * 2.0, 0.0, 1.0);
+          float seam = mix(smoothstep(0.47, 0.5, max(f.x, f.y)), 0.1, aa);
+          float grime = a.y > 0.6 ? 0.0 : vn(vec2(q.x * 7.0, q.y * 0.5)) * smoothstep(0.25, 0.0, fract(cell.y) - 0.1);
+          float speck = mix(vn(q * 23.0), 0.5, aa);
+          float panel = hash12(floor(cell) + 3.7);
+          return (0.8 + 0.3 * panel) * (1.0 - 0.45 * seam) * (1.0 - 0.35 * grime) * (0.85 + 0.3 * speck);
+        }
+        #endif
         void main() {
           vec3 albedo = uColor;
           if (uHasMap > 0.5) albedo *= texture2D(uMap, vUv).rgb * 2.0;
           vec3 n = normalize(vNormalW);
+          #ifdef DETAIL
+          float wear = weather(vWorld, n);
+          albedo *= wear;
+          #endif
           float up = clamp(n.y, 0.0, 1.0);
           vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.55 + 0.45 * up) + lampsAt(vWorld, n) * 5.0;
           // What faces the sky catches the city's glow on the cloud.
@@ -85,6 +113,26 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // behind it, so a dark shape stands off the dark behind it.
           float rim = pow(1.0 - abs(dot(normalize(uCam - vWorld), n)), 3.0);
           col += (uHazeColor * 1.5 + uGlowColor * 0.45) * rim * 0.5 * uHaze * (1.0 - up);
+          #ifdef DETAIL
+          // Wet sheet metal: it gives back the lit sky at a glancing angle
+          // and a highlight of every lamp near it, both broken by the seams
+          // and the grime (the panel's wear), which is what shows it at night.
+          vec3 V = normalize(uCam - vWorld);
+          vec3 R = reflect(-V, n);
+          float F = 0.04 + 0.96 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
+          float sheen = smoothstep(0.75, 1.1, wear);
+          vec3 skyR = (uHazeColor * 1.4 + uGlowColor * 0.6) * smoothstep(-0.15, 0.35, R.y) * uHaze;
+          vec3 glint = vec3(0.0);
+          for (int i = 0; i < ${LAMPS}; i++) {
+            vec3 d = uLamps[i].xyz - vWorld;
+            float d2 = dot(d, d);
+            float r2 = uLamps[i].w * uLamps[i].w * 4.0;
+            if (d2 > r2) continue;
+            float hl = pow(max(dot(R, d * inversesqrt(d2)), 0.0), 40.0);
+            glint += uLampColors[i] * hl * (1.0 - d2 / r2);
+          }
+          col += (skyR * F * 0.9 + glint * 0.9) * (0.35 + 0.65 * sheen);
+          #endif
           col = cityFog(col, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
@@ -758,8 +806,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "garage_wall_cyan": return maps[n] ? painted(n, maps[n], { tiled: false }) : forName("garage_wall");
       case "kerb": return surface("kerb", { color: "#4a4c52", ambient: 0.03 });
       case "paint": return surface("paint", { color: "#b9b7ae", ambient: 0.05, spill: 1.3 });
-      case "metal": return surface("metal", { color: "#2d3036", ambient: 0.035 });
-      case "dark": return surface("dark", { color: "#0e0f12", ambient: 0.02, spill: 0.6 });
+      case "metal": return surface("metal", { color: "#34373e", ambient: 0.04, detail: true });
+      case "dark": return surface("dark", { color: "#121318", ambient: 0.024, spill: 0.6, detail: true });
       case "roof": return surface("roof", { color: "#15161a", ambient: 0.025, spill: 0.5 });
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
       case "door": return surface("door", { color: "#2a2d33", ambient: 0.04 });

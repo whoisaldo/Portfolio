@@ -120,7 +120,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const size = shelter?.extras?.size;
     if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
-    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER });
+    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier });
     shafts = createShafts(scene, c.anchors, shared);
     crowd = createCrowd(scene, shared, { count: tier === "phone" ? 16 : 40, reduced, reflectLayer: REFLECT_LAYER });
     steam = createSteam(scene, shared, c.anchors, { reduced });
@@ -128,11 +128,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     resize();
     return Promise.all([
       createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }),
+      car.ready,
       createVoxelMoon(renderer, shared, { tier }).catch((err) => {
         if (import.meta.env.DEV) console.warn("[world] no voxel moon; the intro keeps its painted one", err);
         return null;
       }),
-    ]).then(([k, m]) => {
+    ]).then(([k, , m]) => {
       koi = k;
       fitKoi();
       moon = m;
