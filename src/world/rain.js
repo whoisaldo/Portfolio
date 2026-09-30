@@ -79,7 +79,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         // A drop widened to a pixel is dimmed by as much, so the far rain
         // keeps its weight; the drops right at the lens (a metre or two,
         // a hand's width long on screen) are left out.
-        vA = smoothstep(1.6, 4.0, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * min(1.0, 0.007 / width);
+        vA = smoothstep(3.0, 6.5, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * min(1.0, 0.007 / width);
         vec3 inside = step(uShelterMin, p) * step(p, uShelterMax);
         vA *= 1.0 - inside.x * inside.y * inside.z;
         // The light it falls through: the city's haze, the street's light

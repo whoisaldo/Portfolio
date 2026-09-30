@@ -321,6 +321,54 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
+  // On a landscape screen the Experience cards fill the page edge to edge
+  // but for a strip on the right, so while a card is being read the camera
+  // turns until that card's tower stands in the strip, its lit crown a
+  // third of the way down and its beams beside the card. Eased in
+  // and out with the card; a phone's single column leaves no strip and
+  // keeps the plain framing.
+  const TOWER_AT = 0.88;
+  const towerAim = { k: 0, at: new THREE.Vector3(), has: false };
+  const _tf = new THREE.Vector3();
+  const _td = new THREE.Vector3();
+  const _th = new THREE.Vector3();
+  const aimTower = (dt) => {
+    const i = stage.shots.findIndex((x) => x.id === "experience");
+    const slug = stage.activeRoles[0];
+    const anchor = slug ? city?.anchors.get(`anchor_tower_${slug}`) : null;
+    if (anchor) {
+      towerAim.at.copy(anchor.position);
+      towerAim.has = true;
+    }
+    const held = i >= 0 && stage.route.kind === "home" && !flight && aspect > 1 && !reduced ? clamp(1 - Math.abs(stage.position - i) * 2.5, 0, 1) : 0;
+    const goal = anchor ? held : 0;
+    towerAim.k += (goal - towerAim.k) * (1 - Math.exp(-dt * 1.6));
+    if (towerAim.k < 1e-3 || !towerAim.has) return;
+    _tf.subVectors(want.target, want.position);
+    const dist = _tf.length();
+    // And tilted so the crown stands a third of the way down the frame,
+    // under the navigation rather than behind it.
+    _td.subVectors(towerAim.at, want.position);
+    const rise = Math.atan2(_td.y, Math.hypot(_td.x, _td.z));
+    const crownPitch = rise - Math.atan(0.36 * Math.tan((want.fov * DEG) / 2));
+    const pitch0 = Math.asin(clamp(_tf.y / dist, -1, 1));
+    const pitch = pitch0 + (crownPitch - pitch0) * towerAim.k;
+    _td.setY(0).normalize();
+    // The turn that puts the crown at TOWER_AT across the frame with the
+    // camera pitched (a pitched camera draws an off-axis point nearer the
+    // middle): solve sin(t)cos(e) = a (cos(t)cos(e)cos(p) + sin(e)sin(p)).
+    const a = TOWER_AT * Math.tan((want.fov * DEG) / 2) * aspect;
+    const A = Math.cos(rise);
+    const B = a * Math.cos(rise) * Math.cos(pitch);
+    const C = a * Math.sin(rise) * Math.sin(pitch);
+    const turn = Math.atan2(B, A) + Math.asin(clamp(C / Math.hypot(A, B), -1, 1));
+    // Left of the tower by `turn`, so the tower stands right of centre.
+    const fx = _td.x * Math.cos(turn) + _td.z * Math.sin(turn);
+    const fz = _td.z * Math.cos(turn) - _td.x * Math.sin(turn);
+    _th.set(_tf.x, 0, _tf.z).normalize().lerp(_td.set(fx, 0, fz), towerAim.k).normalize();
+    want.target.copy(want.position).addScaledVector(_th, Math.cos(pitch) * dist).add(_td.set(0, Math.sin(pitch) * dist, 0));
+  };
+
   // While the hero holds (it is the first shot, so the stage's position is
   // how far the reader has left it), the camera breathes: up to a metre's
   // push up the avenue over forty seconds and back, and a hand-held sway.
@@ -374,6 +422,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const jumped = !routeChanged && !flight && Math.abs(stage.position - lastPosition) > 1.2;
     driveCar(dt, !posed || jumped);
     aim(dt);
+    aimTower(dt);
     holdHero(dt);
     // Crossing the middle of a flight fires the braindance glitch.
     if (Math.floor(stage.position + 0.5) !== Math.floor(lastPosition + 0.5)) glitch = 1;

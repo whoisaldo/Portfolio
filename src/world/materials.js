@@ -155,29 +155,35 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  const facade = () => {
-    if (made.has("facade")) return made.get("facade");
+  // `fog` scales the fog's density: the avenue's far end (facade_end) is
+  // fogged at a third, so it stands dark against the glow, windows lit.
+  const facade = (key = "facade", fog = 1) => {
+    if (made.has(key)) return made.get(key);
     const m = keep(new THREE.ShaderMaterial({
-      uniforms: { ...shared, uWindows: { value: 1 } },
+      uniforms: { ...shared, uWindows: { value: 1 }, uFogK: { value: fog } },
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
         ${WINDOWS}
         uniform float uWindows;
+        uniform float uFogK;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
         varying vec4 vColor;
         void main() {
           vec4 w = windows(vUv, vColor.rgb, vWorld, uWindows);
-          vec3 col = cityFog(w.rgb, vWorld, w.a * 0.7);
+          // Fog at uFogK of its density: the same curve from a point that
+          // far nearer the lens along the same line.
+          vec3 p = uCam + (vWorld - uCam) * uFogK;
+          vec3 col = cityFog(w.rgb, p, w.a * 0.7);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
         }
       `,
     }));
-    m.name = "facade";
-    made.set("facade", m);
+    m.name = key;
+    made.set(key, m);
     return m;
   };
 
@@ -734,6 +740,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
 
     switch (n) {
       case "facade": return facade();
+      case "facade_end": return facade("facade_end", 0.33);
       case "facade_t0":
       case "facade_t1":
       case "facade_t2": return maps[n] ? painted(n, maps[n]) : facade();
