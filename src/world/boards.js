@@ -87,6 +87,18 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
           col += vec3(0.9, 0.95, 1.0) * smoothstep(0.02, 0.0, abs(vUv.y - edge)) * step(uMix, 0.999) * 1.5;
           col = mix(col, vec3(hash12(vUv * 480.0 + t)), g * 0.3 * step(0.55, hash12(vec2(t, 9.0))));
           col *= 0.86 + 0.14 * sin(vUv.y * 880.0 - uTime * 3.0);
+          // An LED wall, not a hole: its black is lit a little and blue, a
+          // slow refresh band rolls down it, and close to, its pixels show
+          // as red, green and blue stripes (faded where they would shimmer).
+          col = max(col, vec3(0.018, 0.022, 0.034));
+          float roll = smoothstep(0.1, 0.0, abs(fract(vUv.y + uTime * 0.07) - 0.5)) * 0.06;
+          col += vec3(0.25, 0.3, 0.45) * roll;
+          vec2 px = vUv * vec2(384.0, 216.0);
+          float fade = 1.0 - smoothstep(0.25, 0.6, max(fwidth(px.x), fwidth(px.y)));
+          float sub = fract(px.x) * 3.0;
+          vec3 stripe = vec3(step(sub, 1.0), step(1.0, sub) * step(sub, 2.0), step(2.0, sub));
+          float gap = smoothstep(0.0, 0.12, fract(px.y)) * smoothstep(1.0, 0.88, fract(px.y));
+          col *= mix(vec3(1.0), stripe * 2.4 * gap, fade * 0.55);
           col *= uGain * (1.0 + 0.2 * uBass);
           col = cityFog(col, vWorld, 1.0);
           gl_FragColor = vec4(col, 1.0);

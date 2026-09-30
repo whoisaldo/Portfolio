@@ -114,7 +114,7 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
         // own grey; seas, darker, in broad soft shapes; a few craters, each
         // a darker floor and a bright rim; a bevel between cells while they
         // are big enough to show one.
-        float cells = 30.0;
+        float cells = 60.0;
         vec2 cq = q * cells * 0.5;
         vec2 cid = floor(cq);
         vec2 cc = (cid + 0.5) / (cells * 0.5);

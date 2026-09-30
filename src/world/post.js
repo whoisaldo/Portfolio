@@ -152,7 +152,7 @@ class BraindanceEffect extends Effect {
       uniforms: new Map([
         ["uEnvelope", new THREE.Uniform(0)],
         ["uBass", new THREE.Uniform(0)],
-        ["uSplit", new THREE.Uniform(0.0004)],
+        ["uSplit", new THREE.Uniform(0.00015)],
       ]),
     });
   }

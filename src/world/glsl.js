@@ -37,6 +37,10 @@ export function createSharedUniforms(THREE) {
     // avenue), where it is brightest.
     uGlowColor: { value: new THREE.Color(0.95, 0.36, 0.78).multiplyScalar(0.34) },
     uGlowDir: { value: new THREE.Vector2(0, -1) },
+    // Lightning in the cloud (src/world/world-scene.js): how bright, and
+    // where over the city it is, on the cloud deck's plane.
+    uFlash: { value: 0 },
+    uFlashAt: { value: new THREE.Vector2(0, -1200) },
     // The garage (src/world/garage.js): seconds since its tubes struck on
     // (-1 while they are off), and its door's light on the street: the
     // opening's x, its middle's z, its half width, and how far up it is.
@@ -70,6 +74,8 @@ export const COMMON = /* glsl */ `
   uniform vec3 uCam;
   uniform vec3 uGlowColor;
   uniform vec2 uGlowDir;
+  uniform float uFlash;
+  uniform vec2 uFlashAt;
   uniform float uTubeClock;
   uniform vec4 uDoorLight;
   uniform vec3 uDoorColor;
@@ -149,6 +155,8 @@ export const COMMON = /* glsl */ `
     // warmer and whiter, that pulls the eye to the vanishing point.
     float hot = pow(t1, 90.0) * exp(-max(y, 0.0) * 0.1);
     vec3 glow = uGlowColor * (0.3 + 0.7 * toward) + vec3(1.0, 0.62, 0.86) * hot * 0.45;
+    // A flash in the cloud lifts the whole wet air with it, cold.
+    glow += vec3(0.5, 0.52, 0.75) * uFlash * 0.12;
     return glow * uHaze * exp(-max(y, 0.0) * 0.0045);
   }
 

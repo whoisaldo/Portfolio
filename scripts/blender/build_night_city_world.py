@@ -627,7 +627,7 @@ def _mass_sides(x0, x1, z0, z1, y0, y1):
 def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=True, painted=None, roof_mat="roof"):
     r = random.Random(seed)
     if col is None:
-        col = (r.uniform(0.12, 0.5), r.randrange(0, 5) / 8.0, r.uniform(0.2, 1.0), 1.0)
+        col = (r.uniform(0.28, 0.62), r.randrange(0, 5) / 8.0, r.uniform(0.2, 1.0), 1.0)
     if painted is not None:
         # A painted wall: UVs in tiles of the elevation, each building from a
         # different place in it so neighbours never line up.
@@ -1016,9 +1016,9 @@ for side in (-1, 1):
 # figure and ARASAKA stand in the glow.
 FAR_LOTS = {
     -1: [(-188, 30, 52), (-218, 34, 57), (-252, 36, 60), (-288, 40, 66), (-328, 44, 62),
-         (-372, 50, 67), (-422, 60, 63), (-482, 70, 64)],
+         (-372, 50, 67), (-422, 60, 63), (-482, 70, 64), (-552, 60, 60), (-612, 66, 62), (-678, 70, 58)],
     1: [(-188, 34, 47), (-222, 36, 58), (-258, 40, 51), (-298, 44, 64), (-342, 50, 57),
-        (-392, 56, 62), (-448, 66, 56)],
+        (-392, 56, 62), (-448, 66, 56), (-514, 62, 60), (-576, 70, 57), (-646, 76, 61)],
 }
 VERT_SIGNS = ["neon_magenta", "neon_cyan", "neon_pink", "neon_amber", "neon_blue", "neon_purple"]
 for side, lots in FAR_LOTS.items():
@@ -1039,6 +1039,19 @@ for side, lots in FAR_LOTS.items():
             sid = f"far_{'l' if s < 0 else 'r'}{i}"
             sign(sid, x, SHOP_H + 3 + h / 2, z1 - 3.0, 2.2, h, 0.0, preview="夜", district=FA)
             box((FA, "board_frame", 0), x - 1.25, x + 1.25, SHOP_H + 2.8, SHOP_H + 3.2 + h, z1 - 3.25, z1 - 3.05, scale=1.0)
+
+# The avenue's far end is closed by a rail viaduct crossing it low against
+# the glow at the vanishing point: a dark deck on four piers, a row of lamps
+# along its edge, and now and then a lit train sliding across it (the site
+# runs it, src/world/traffic.js, on anchor_rail's line).
+RAIL_Z, RAIL_Y = -610.0, 13.0
+box((FA, "dark", 0), -90, 90, RAIL_Y - 1.2, RAIL_Y + 2.2, RAIL_Z - 3.5, RAIL_Z + 3.5, scale=3.0)
+box((FA, "metal", 0), -90, 90, RAIL_Y + 2.2, RAIL_Y + 3.1, RAIL_Z + 3.3, RAIL_Z + 3.5, scale=1.0)
+for px in (-52.0, -12.5, 12.5, 52.0):
+    box((FA, "dark", 0), px - 1.4, px + 1.4, 0, RAIL_Y - 1.2, RAIL_Z - 2.2, RAIL_Z + 2.2, scale=2.0)
+for lx in range(-86, 90, 5):
+    box((FA, "neon_amber", 0), lx - 0.18, lx + 0.18, RAIL_Y - 1.28, RAIL_Y - 1.18, RAIL_Z + 3.3, RAIL_Z + 3.6, scale=1.0)
+empty("anchor_rail", (0.0, RAIL_Y + 2.2, RAIL_Z), props={"reach": 90.0})
 
 # The figure's image is 2:3; the plane matches it. Huge, as the plate has
 # her: from the hero camera her waist is over the canyon's last roofs and
@@ -1139,6 +1152,14 @@ box((PL, "metal", 0), HX0, HX1, by - bh / 2 - 1.5, by - bh / 2 - 1.35, -263.85, 
 box((PL, "metal", 1), HX0, HX1, by - bh / 2 - 0.45, by - bh / 2 - 0.4, -262.35, -262.3, scale=0.5)
 for x in (HX0 + 0.4, HX1 - 0.4):
     box((PL, "neon_red", 0), x - 0.2, x + 0.2, HY1 - 0.5, HY1 - 0.1, -263.85, -263.6, scale=0.5)
+# Floodlights on arms along the catwalk, lighting the housing from below as
+# a billboard is lit (lamp_*: the site lights its ribs with them).
+for k, fx in enumerate((bx - bw * 0.36, bx, bx + bw * 0.36)):
+    fy = by - bh / 2 - 1.1
+    box((PL, "metal", 1), fx - 0.05, fx + 0.05, by - bh / 2 - 1.35, fy, -262.9, -262.8, scale=0.5)
+    box((PL, "metal", 0), fx - 0.4, fx + 0.4, fy, fy + 0.3, -262.95, -262.45, scale=0.5)
+    box((PL, "neon_white", 0), fx - 0.34, fx + 0.34, fy + 0.3, fy + 0.34, -262.9, -262.5, scale=0.5)
+    site_lamp(f"board_{k}", (fx, fy + 0.6, -262.3), "#dfe6ff", 10.0, 1.3)
 SMALL_BOARDS = [
     (44.6, 12.0, -205.0, 9.0, 6.0, math.radians(90)),
     (44.6, 12.0, -228.0, 9.0, 6.0, math.radians(90)),
@@ -1404,7 +1425,9 @@ sign("afterlife", 431.26, 38.0, -281.0, 13.0, 3.0, math.radians(90), preview="AF
 box((RF, "board_frame", 0), 430.6, 431.2, 36.2, 39.8, -288.0, -274.0, scale=1.0)
 for dz in (-5.0, 5.0):
     box((RF, "metal", 1), 430.7, 431.0, 30.0, 36.2, -281.0 + dz - 0.1, -281.0 + dz + 0.1, scale=0.5)
-mass(RF, 380.0, 410.0, -250.0, -222.0, SHOP_H, 58.0, 7301)
+# MILITECH's block is an office, the way corpo row's are: a curtain wall
+# (window style 4) mostly lit, cool.
+mass(RF, 380.0, 410.0, -250.0, -222.0, SHOP_H, 58.0, 7301, col=(0.9, 4 / 8.0, 0.25, 1.0))
 box((RF, "dark", 0), 380.0, 410.0, 0, SHOP_H, -250.0, -222.0, scale=2.0)
 sign("militech", 410.4, 61.0, -236.0, 12.0, 2.6, math.radians(90), preview="MILITECH", district=RF)
 ground((RF, "asphalt", 0), STREET_X - 8, STREET_X + 8, -322, -190, scale=6.0)
@@ -1419,7 +1442,7 @@ ground((RF, "sidewalk", 0), STREET_X - 12, STREET_X - 8, -300, -190, y=0.15, sca
 # to a pole. Its lamps light the kit round them (lamp_*).
 hx0, hx1, hz0, hz1, hh = 452.4, 457.4, -293.0, -287.5, 3.4
 box((RF, "concrete", 0), hx0, hx1, RH, RH + hh, hz0, hz1, scale=1.5)
-box((RF, "metal", 1), hx0 - 0.2, hx1 + 0.2, RH + hh, RH + hh + 0.18, hz0 - 0.2, hz1 + 0.2, scale=1.0)
+box((RF, "metal", 0), hx0 - 0.2, hx1 + 0.2, RH + hh, RH + hh + 0.18, hz0 - 0.2, hz1 + 0.2, scale=1.0)
 # Its door faces the camera (east), open: a warm rectangle of stairwell.
 quad((RF, "neon_amber", 0), (hx1 + 0.02, RH, -290.2), (hx1 + 0.02, RH, -291.5), (hx1 + 0.02, RH + 2.2, -291.5),
      (hx1 + 0.02, RH + 2.2, -290.2))
@@ -1429,7 +1452,7 @@ site_lamp("roof_door", (hx1 + 0.9, RH + 2.6, -290.85), "#ffc27a", 11.0, 1.4)
 # Condensers: big boxes with two fans each on top.
 for (cx, cz, rot) in ((463.0, -276.5, 0), (457.5, -271.0, 0), (466.0, -281.5, 1)):
     w_, d_ = (2.2, 1.3) if not rot else (1.3, 2.2)
-    box((RF, "metal", 1), cx - w_ / 2, cx + w_ / 2, RH, RH + 1.35, cz - d_ / 2, cz + d_ / 2, scale=1.0)
+    box((RF, "metal", 0), cx - w_ / 2, cx + w_ / 2, RH, RH + 1.35, cz - d_ / 2, cz + d_ / 2, scale=1.0)
     for f in (-0.5, 0.5):
         fx, fz = (cx + f * w_ * 0.5, cz) if not rot else (cx, cz + f * d_ * 0.5)
         cylinder((RF, "dark", 1), fx, fz, RH + 1.35, RH + 1.42, 0.5, segs=12)
@@ -1461,7 +1484,7 @@ for k in range(29):
     if prev is not None:
         pipe((RF, "dark", 1), tuple(prev), tuple(p_), 0.012, segs=3)
     if 0 < k < 28 and k % 2 == 0:
-        box((RF, "neon_amber", 1), p_.x - 0.06, p_.x + 0.06, p_.y - 0.16, p_.y - 0.04, p_.z - 0.06, p_.z + 0.06, scale=1.0)
+        box((RF, "neon_amber", 0), p_.x - 0.06, p_.x + 0.06, p_.y - 0.16, p_.y - 0.04, p_.z - 0.06, p_.z + 0.06, scale=1.0)
     prev = p_
 site_lamp("roof_bulbs", tuple(wa.lerp(wb, 0.5) - Vector((0, 1.0, 0))), "#ffb45e", 10.0, 0.7)
 # The signs' own light on the roof and what stands on it.
