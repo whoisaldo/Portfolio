@@ -29,7 +29,11 @@ const KEEP_OUT = [
 // the moon rises out of a skyline rather than an empty sky: x, z, width,
 // height.
 const LOW = [420, -200, 1400, 1300];
-const CLEAR = [440, -200, 560, -60];
+const CLEAR = [440, -200, 560, -150];
+// Contact's lens, on the garage's roof: roofs near it stay low, stepping up
+// with distance, so the blocks it looks over fill the bottom of a phone's
+// tall frame without standing in front of the moon.
+const CONTACT_LENS = [456, -203];
 const UNDER_THE_MOON = [
   [572, 40, 26, 78],
   [612, 96, 30, 94],
@@ -58,8 +62,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   const s = new THREE.Vector3();
   const p = new THREE.Vector3();
   const cell = 46;
-  for (let gx = -900; gx < 1500 && matrices.length < count; gx += cell) {
-    for (let gz = -1700; gz < 900 && matrices.length < count; gz += cell) {
+  for (let gx = -900; gx < 1500; gx += cell) {
+    for (let gz = -1700; gz < 900; gz += cell) {
       const x = gx + (r() - 0.5) * cell * 0.5;
       const z = gz + (r() - 0.5) * cell * 0.5;
       if ([...KEEP_OUT, ...keepOut].some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20)) continue;
@@ -72,6 +76,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       if (r() < 0.05) h += 90 + r() * 110;
       const [lx0, lz0, lx1, lz1] = LOW;
       if (x > lx0 && x < lx1 && z > lz0 && z < lz1) h = Math.min(h, 22 + r() * 30);
+      const near = Math.hypot(x - CONTACT_LENS[0], z - CONTACT_LENS[1]);
+      if (near < 170) h = Math.min(h, 10 + near * 0.14);
       // Up the avenue the far city keeps under the hero's band of sky: seen
       // from its lens (0.6, 0.6, 10), nothing in its view stands taller than
       // about a sixth of its distance, so the roofs step down into the glow
@@ -83,6 +89,15 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, (r() - 0.5) * 0.3);
       matrices.push(m.compose(p, q, s).clone());
     }
+  }
+  // More candidates than the tier draws (a phone's 1,200): keep the nearest
+  // to the middle of the kit, so a phone thins the city's far edge rather
+  // than losing a whole side of it.
+  if (matrices.length > count) {
+    const at = new THREE.Vector3();
+    const dist = (mat) => at.setFromMatrixPosition(mat).set(at.x - 250, 0, at.z + 300).length();
+    matrices.sort((a, b) => dist(a) - dist(b));
+    matrices.length = count;
   }
   const heroFrom = matrices.length;
   for (const [x, z, w, h] of UNDER_THE_MOON) {
@@ -506,6 +521,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           float near = 1.0 - smoothstep(2500.0, 12000.0, t);
           vec3 under = (cityGlow(dir, 0.0) * 0.5 + uHazeColor * 0.25) * (0.3 + 0.9 * n);
           col = mix(col, col * 0.55, (1.0 - cover) * near) + under * cover * near * 0.8;
+          // Lightning inside the cloud: the deck lit from within round the
+          // strike, brightest where it is thickest.
+          float strike = exp(-length(p.xz - uFlashAt) / 420.0);
+          col += vec3(0.62, 0.64, 0.92) * uFlash * strike * (0.1 + 0.9 * cover * n) * near;
         } else if (uCam.y > 0.0) {
           // Only past the kit: anything nearer that shows the ground is a
           // gap between the kit's own pieces, and it stays dark.

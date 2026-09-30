@@ -75,7 +75,7 @@ const ROAD_LANES = [
 const ROAD_FAR = -600;
 const ROAD_NEAR = -40;
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = false, reflectLayer = 2 } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = false, reflectLayer = 2, rail = null } = {}) {
   const avGeo = avGeometry();
   const carGeo = mergeGeometries([box(1.9, 0.62, 4.5, 0, 0.55, 0), box(1.6, 0.48, 2.2, 0, 1.1, -0.2)]);
   const bodyMat = new THREE.ShaderMaterial({
@@ -221,6 +221,62 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   lamps.layers.enable(reflectLayer);
   scene.add(lamps);
 
+  // The train on the viaduct at the avenue's far end (anchor_rail): one
+  // box, six cars drawn on it by the shader (the gaps between them, a row
+  // of lit windows, a lamp at the front), sliding across the glow at the
+  // vanishing point every half minute or so, one way and then the other.
+  const TRAIN = { length: 108, cars: 6, period: 32, crossing: 13, span: 340 };
+  const trainGeo = new THREE.BoxGeometry(TRAIN.length, 3.0, 3.0);
+  const trainMat = new THREE.ShaderMaterial({
+    uniforms: { ...shared, uDir: { value: 1 } },
+    vertexShader: /* glsl */ `
+      varying vec3 vLocal;
+      varying vec3 vWorld;
+      varying vec3 vNormalW;
+      void main() {
+        vLocal = position;
+        vec4 w = modelMatrix * vec4(position, 1.0);
+        vWorld = w.xyz;
+        vNormalW = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      uniform float uDir;
+      varying vec3 vLocal;
+      varying vec3 vWorld;
+      varying vec3 vNormalW;
+      void main() {
+        float carLen = ${TRAIN.length.toFixed(1)} / ${TRAIN.cars.toFixed(1)};
+        float u = vLocal.x + ${(TRAIN.length / 2).toFixed(1)};
+        float inCar = fract(u / carLen) * carLen;
+        float gap = step(inCar, 0.6) + step(carLen - 0.6, inCar);
+        float side = step(0.5, abs(normalize(vNormalW).z));
+        float y = vLocal.y + 1.5;
+        float band = step(1.1, y) * step(y, 2.2);
+        float win = step(0.35, fract(inCar / 1.6)) * band * (1.0 - gap) * side;
+        float lit = step(0.18, hash12(vec2(floor(u / 1.6), 3.0)));
+        vec3 col = vec3(0.012, 0.012, 0.016) * (1.0 - gap) + vec3(1.0, 0.86, 0.66) * win * lit * 2.2;
+        // A stripe of the line's colour under the windows, and the lamp at
+        // the front.
+        col += vec3(0.1, 0.9, 1.0) * step(0.75, y) * step(y, 0.9) * side * (1.0 - gap) * 1.6;
+        float front = uDir > 0.0 ? step(${(TRAIN.length / 2 - 0.3).toFixed(1)}, vLocal.x) : step(vLocal.x, ${(-TRAIN.length / 2 + 0.3).toFixed(1)});
+        col += vec3(1.0, 0.95, 0.85) * front * step(1.0, y) * step(y, 2.0) * 6.0;
+        col = cityFog(col, vWorld, 0.8);
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+  trainMat.name = "train";
+  const train = new THREE.Mesh(trainGeo, trainMat);
+  train.name = "train";
+  train.visible = false;
+  train.layers.enable(reflectLayer);
+  if (rail) scene.add(train);
+
   const phase = Array.from({ length: avs + cars }, () => Math.random());
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -244,7 +300,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
 
   const update = (dt, on) => {
     avMesh.visible = carMesh.visible = lamps.visible = on;
-    if (!on) return;
+    if (!on) {
+      train.visible = false;
+      return;
+    }
     if (!reduced && !frozen) clock += dt;
     let li = 0;
     for (let i = 0; i < avs; i++) {
@@ -280,6 +339,17 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
         setLamp(li++, L.x + s * hx, 0.85, z - L.dir * 2.3, 1.0 * edge, 0.05 * edge, 0.15 * edge, 0.6);
       }
     }
+    if (rail) {
+      const pass = Math.floor(clock / TRAIN.period);
+      const t = clock - pass * TRAIN.period;
+      const dir = pass % 2 ? -1 : 1;
+      train.visible = t < TRAIN.crossing;
+      if (train.visible) {
+        const k = t / TRAIN.crossing;
+        train.position.set(rail.position.x + dir * (k * 2 - 1) * TRAIN.span, rail.position.y + 1.5, rail.position.z);
+        trainMat.uniforms.uDir.value = dir;
+      }
+    }
     avMesh.instanceMatrix.needsUpdate = true;
     carMesh.instanceMatrix.needsUpdate = true;
     posAttr.needsUpdate = true;
@@ -298,7 +368,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       carMesh.count = Math.min(cars, nCars);
     },
     dispose() {
-      scene.remove(avMesh, carMesh, lamps);
+      scene.remove(avMesh, carMesh, lamps, train);
+      trainGeo.dispose();
+      trainMat.dispose();
       avGeo.dispose();
       carGeo.dispose();
       bodyMat.dispose();

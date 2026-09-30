@@ -81,6 +81,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // What faces the sky catches the city's glow on the cloud.
           light += (uHazeColor * 0.22 + uGlowColor * 0.12) * up * uHaze;
           vec3 col = albedo * light;
+          // And at a grazing angle every edge holds a little of the haze
+          // behind it, so a dark shape stands off the dark behind it.
+          float rim = pow(1.0 - abs(dot(normalize(uCam - vWorld), n)), 4.0);
+          col += uHazeColor * rim * 0.12 * uHaze * (1.0 - up);
           col = cityFog(col, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
@@ -318,13 +322,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         // city, the haze on the horizon, and round it the city across the
         // way, a scatter of lit windows over the dark.
         vec3 skyIn(vec3 r) {
-          vec3 zenith = vec3(0.008, 0.006, 0.016);
-          vec3 horizon = uHazeColor * 1.1 + uGlowColor * 0.7;
+          vec3 zenith = vec3(0.006, 0.005, 0.012);
+          vec3 horizon = uHazeColor * 0.55 + uGlowColor * 0.35;
           vec3 sky = mix(horizon, zenith, smoothstep(0.0, 0.55, r.y));
           float cloud = 0.5 + 0.5 * sin(r.x * 6.0 + r.z * 4.0 + r.y * 13.0) * sin(r.x * 2.3 - r.z * 3.1);
           sky += uHazeColor * 0.35 * cloud * smoothstep(0.04, 0.3, r.y) * (1.0 - smoothstep(0.35, 0.8, r.y));
-          vec3 below = uFogColor * 0.6 + uHazeColor * 0.25 * exp(min(r.y, 0.0) * 9.0);
-          vec3 col = mix(below, sky, smoothstep(-0.02, 0.02, r.y)) + cityGlow(r, max(r.y, 0.0) * 600.0) * 0.8;
+          vec3 below = uFogColor * 0.4 + uHazeColor * 0.1 * exp(min(r.y, 0.0) * 9.0);
+          vec3 col = mix(below, sky, smoothstep(-0.02, 0.02, r.y)) + cityGlow(r, max(r.y, 0.0) * 600.0) * 0.45;
           // The towers opposite: their lit windows, low in the reflection.
           vec2 cell = floor(vec2(atan(r.z, r.x) * 90.0, r.y * 160.0));
           float w = hash12(cell);
@@ -362,11 +366,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
 
           // The tenant: floors in threes, give or take, one light each.
           float tenant = floor((level + floor(hash12(vec2(seed, 1.0)) * 3.0)) / 3.0);
-          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r * 0.82);
+          // The card being read keeps its tower's floors on.
+          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r * 0.82 + 0.3 * tlit);
           float tone = hash12(vec2(tenant, seed + 3.7));
           vec3 L = vec3(0.74, 0.87, 1.0);
-          if (tone > 1.0 - 0.45 * vColor.g) L = vec3(1.0, 0.8, 0.56);
-          else if (tone > 0.72) L = vec3(0.94, 0.95, 0.9);
+          if (tone > 1.0 - 0.5 * vColor.g) L = vec3(1.0, 0.76, 0.5);
+          else if (tone > 0.7) L = vec3(0.96, 0.95, 0.88);
+          // Some floors brighter than others: a late shift, the cleaners.
+          L *= 0.75 + 0.6 * hash12(vec2(tenant, seed + 9.1));
 
           // Into the floor: x along the facade, y up from the floor, z in.
           vec3 V = normalize(vWorld - uCam);
@@ -392,7 +399,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
             float panel = mix(step(c.x, 0.36) * step(c.y, 0.12), 0.17, aa);
             float deep = 1.0 - 0.55 * smoothstep(0.0, DEEP, h.z);
-            room = L * (0.16 + 1.25 * panel) * deep;
+            room = L * (0.26 + 2.1 * panel) * deep;
           } else {
             room = L * (0.035 + 0.02 * hash12(floor(h.xz)));
           }
@@ -427,7 +434,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec2 jit = vec2(hash12(vec2(pane, level + seed)), hash12(vec2(level, pane + seed * 2.0))) - 0.5;
           vec3 nj = normalize(n + t * jit.x * 0.06 + vec3(0.0, jit.y * 0.04, 0.0));
           vec3 R = reflect(V, nj);
-          float F = 0.11 + 0.89 * pow(1.0 - abs(dot(V, nj)), 5.0);
+          float F = 0.07 + 0.6 * pow(1.0 - abs(dot(V, nj)), 5.0);
           vec3 env = skyIn(R);
 
           // The tower's colour on it: beside its fins, up from its lobby,
@@ -435,7 +442,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float fin = exp(-edge / 1.3);
           float up = exp(-max(vWorld.y - BASE, 0.0) / 9.0);
           float crown = exp(-max(top - vWorld.y, 0.0) / 6.0);
-          vec3 wash = accent * (fin * (0.08 + 0.7 * tlit) + up * 0.2 + crown * (0.06 + 0.5 * tlit));
+          vec3 wash = accent * (fin * (0.05 + 0.8 * tlit) + up * (0.1 + 0.25 * tlit) + crown * (0.03 + 0.6 * tlit) + 0.06 * tlit);
 
           vec3 glass = room * vec3(0.72, 0.84, 0.9) * (1.0 - F) + env * F + wash * (0.06 + 0.5 * F);
 
@@ -454,8 +461,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           col = mix(col, spandrel, slab);
 
           // Far off, a floor's average rather than a pattern that shimmers.
-          float litAvg = vColor.r * 0.82 * 0.76;
-          vec3 avgRoom = L * litAvg * 0.36 + 0.004;
+          float litAvg = min(vColor.r * 0.82 + 0.3 * tlit, 1.0) * 0.76;
+          vec3 avgRoom = L * litAvg * 0.6 + 0.004;
           vec3 avg = mix(avgRoom * 0.8 * (1.0 - F) + env * F + wash * 0.3, spandrel, SILL / STOREY);
           col = mix(col, avg, smoothstep(0.25, 0.6, fw));
 

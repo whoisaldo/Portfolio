@@ -529,7 +529,11 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
         float cut = vSign.y * max(step(0.986, hash12(vec2(t, vSign.x * 7.13))),
                                    step(0.93, hash12(vec2(floor(uTime * 0.7), vSign.x))) * step(0.5, hash12(vec2(t, vSign.x))));
         float breathe = 1.0 + 0.5 * uBass + 0.2 * uLevel;
-        vec3 col = tex * uIntensity * breathe * (1.0 - 0.82 * cut);
+        // White tubes bloom far harder than coloured ones at the same gain:
+        // the near-white parts of a sign are eased, the saturated left.
+        float sat = max(tex.r, max(tex.g, tex.b)) - min(tex.r, min(tex.g, tex.b));
+        float white = mix(0.62, 1.0, smoothstep(0.05, 0.4, sat / max(max(tex.r, max(tex.g, tex.b)), 1e-3)));
+        vec3 col = tex * uIntensity * white * breathe * (1.0 - 0.82 * cut);
         col = cityFog(col, vWorld, 1.0);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>

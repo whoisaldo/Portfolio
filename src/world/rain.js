@@ -39,6 +39,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       // A box it does not rain in (the garage, from inside). Empty by default.
       uShelterMin: { value: new THREE.Vector3(1, 1, 1) },
       uShelterMax: { value: new THREE.Vector3(0, 0, 0) },
+      uViewHeight: { value: 900 },
     },
     vertexShader: /* glsl */ `
       ${COMMON}
@@ -49,6 +50,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       uniform vec2 uWind;
       uniform vec3 uShelterMin;
       uniform vec3 uShelterMax;
+      uniform float uViewHeight;
       varying float vA;
       varying vec3 vCol;
       varying vec2 vUv;
@@ -59,19 +61,27 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         p.y -= uFall * speed;
         p.xz += uWind * uFall * aSeed.w;
         p = mod(p - uOrigin + uBox * 0.5, uBox) - uBox * 0.5 + uOrigin;
-        // A streak along the fall, a hair wide, facing the camera.
+        // A streak along the fall, a hair wide, facing the camera, as long
+        // as a cinema shutter sees a drop fall. Never thinner than about a
+        // pixel on screen (a thinner one sparkles as it crosses pixels):
+        // widened to that, and fainter for it.
         vec3 vel = normalize(vec3(uWind.x, -speed, uWind.y));
         vec3 toCam = normalize(uCam - p);
         vec3 side = normalize(cross(vel, toCam));
-        float len = 0.55 + 0.5 * aSeed.w;
-        vec3 wp = p + side * position.x * 0.018 + vel * position.y * len;
+        float len = 0.28 + 0.3 * aSeed.w;
+        float dist0 = max(length(uCam - p), 0.1);
+        float pixel = dist0 * 2.0 / (projectionMatrix[1][1] * uViewHeight);
+        float width = max(0.012, pixel * 1.1);
+        vec3 wp = p + side * position.x * width + vel * position.y * len;
         vec4 mv = viewMatrix * vec4(wp, 1.0);
         gl_Position = projectionMatrix * mv;
         float dist = -mv.z;
-        vA = smoothstep(0.5, 3.0, dist) * (1.0 - smoothstep(24.0, 44.0, dist));
+        vA = smoothstep(0.5, 3.0, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * (0.012 / width + 0.25) / 1.25;
         vec3 inside = step(uShelterMin, p) * step(p, uShelterMax);
         vA *= 1.0 - inside.x * inside.y * inside.z;
-        vCol = vec3(0.16, 0.17, 0.2) + spillAt(p) * 1.4;
+        // The light it falls through: the city's haze, the street's light
+        // under it, and the lamps round it.
+        vCol = vec3(0.07, 0.07, 0.09) + uHazeColor * 0.25 + spillAt(p) * 1.7 + lampsAt(p, toCam) * 2.0;
         vUv = uv;
       }
     `,
@@ -82,7 +92,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       varying vec2 vUv;
       void main() {
         float fade = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.6, vUv.y);
-        gl_FragColor = vec4(vCol * vA * fade * 0.55 * uOpacity, 1.0);
+        gl_FragColor = vec4(vCol * vA * fade * 0.5 * uOpacity, 1.0);
       }
     `,
     transparent: true,
@@ -105,6 +115,10 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       if (!reduced) fall += dt;
       material.uniforms.uFall.value = fall;
       material.uniforms.uOrigin.value.copy(camera.position);
+    },
+    /** The drawing buffer's height in pixels, for the streaks' width. */
+    setViewHeight(h) {
+      material.uniforms.uViewHeight.value = h;
     },
     /** Keep the rain out of a box (min, max: Vector3). */
     setShelter(min, max) {

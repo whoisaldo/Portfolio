@@ -119,7 +119,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
     if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
-    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER });
+    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER });
     shafts = createShafts(scene, c.anchors, shared);
     crowd = createCrowd(scene, shared, { count: tier === "phone" ? 16 : 40, reduced, reflectLayer: REFLECT_LAYER });
@@ -175,6 +175,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     renderer.setPixelRatio(ratio);
     renderer.setSize(width, height, false);
     post.setSize(width, height);
+    rain?.setViewHeight(height * ratio);
     camera.aspect = aspect;
     project();
     // The moon's size for this screen, about its own centre.
@@ -373,7 +374,37 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // ---- the music and the switches ---------------------------------------------
   let bass = 0;
   let level = 0;
+  // Lightning, far off in the cloud, now and then: one or two quick pulses
+  // a quarter of a second or more apart, then nothing for twenty to fifty
+  // seconds. Never with reduced motion, and never a white screen: a patch
+  // of cloud lights from inside and the haze lifts a little, well inside
+  // three flashes a second.
+  const storm = { next: 14 + Math.random() * 16, pulses: [], t: 0 };
+  const _strikeDir = new THREE.Vector3();
+  const flash = (dt) => {
+    if (reduced) return;
+    storm.t += dt;
+    if (storm.t >= storm.next) {
+      storm.t = 0;
+      storm.next = 20 + Math.random() * 30;
+      const n = Math.random() < 0.6 ? 2 : 1;
+      storm.pulses = Array.from({ length: n }, (_, i) => ({ at: i * (0.26 + Math.random() * 0.2), k: i === 0 ? 1 : 0.5 + Math.random() * 0.4 }));
+      // Somewhere in front of the camera, where it can be seen.
+      camera.getWorldDirection(_strikeDir);
+      const a = Math.atan2(_strikeDir.z, _strikeDir.x) + (Math.random() - 0.5) * 1.4;
+      const r = 500 + Math.random() * 900;
+      shared.uFlashAt.value.set(camera.position.x + Math.cos(a) * r, camera.position.z + Math.sin(a) * r);
+    }
+    let f = 0;
+    for (const p of storm.pulses) {
+      const u = storm.t - p.at;
+      if (u >= 0) f = Math.max(f, p.k * Math.exp(-u * 16) * Math.min(1, u * 60));
+    }
+    shared.uFlash.value = f;
+  };
+
   const drive = (dt) => {
+    flash(dt);
     const env = getEnv();
     if (env.reactive) {
       const now = getLevels();
@@ -457,10 +488,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // when there is none) are timed. A p95 frame interval over the tier's
   // budget, with GRACE_MS for the display's own jitter, sheds one thing and
   // times again: pixels first, then the reflection, then half the rain
-  // (ADAPT in quality.js). The reflection fades out into the baked streaks
-  // before its pass stops, so the road does not pop.
+  // (ADAPT in quality.js). A step is kept only if it helped: without GPU
+  // timing a display running at 30 Hz (Low Power Mode, a battery saver)
+  // looks like an overloaded one, and there shedding changes nothing, so a
+  // step that did not bring the p95 down by a sixth is given back and the
+  // next one tried. The reflection fades out into the baked streaks before its
+  // pass stops (and back in if it is given back), so the road does not pop;
+  // the pixels change under a flick of the braindance glitch.
   const GRACE_MS = 3;
-  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], p95: null, fade: null, reflectK: 0 };
+  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
   const startSampling = () => {
     adapt.sampling = true;
     adapt.t = -0.3;
@@ -471,21 +507,28 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (what === "pixels") {
       pixelScale = 0.75;
       resize();
+      glitch = Math.max(glitch, 0.55);
     }
-    if (what === "reflection" && mirror) adapt.fade = { t: 0 };
+    if (what === "reflection" && mirror) adapt.fade = { t: 0, to: 1 };
     if (what === "rain") rain?.setCount(Math.round(quality.rain / 2));
   };
-  const nextStep = () => ADAPT.find((w) => !adapt.shed.includes(w) && (w !== "reflection" || mirror));
+  const restore = (what) => {
+    adapt.shed = adapt.shed.filter((w) => w !== what);
+    if (what === "pixels") {
+      pixelScale = 1;
+      resize();
+      glitch = Math.max(glitch, 0.55);
+    }
+    if (what === "reflection" && mirror) adapt.fade = { t: 0, to: 0 };
+    if (what === "rain") rain?.setCount(quality.rain);
+  };
+  const nextStep = () => ADAPT.find((w) => !adapt.shed.includes(w) && !adapt.tried.includes(w) && (w !== "reflection" || mirror));
   const sample = (dt, interval) => {
     if (adapt.fade && city) {
       adapt.fade.t += dt;
       const k = Math.min(1, adapt.fade.t / 0.8);
-      adapt.reflectK = k;
-      if (k >= 1) {
-        mirror?.dispose();
-        mirror = null;
-        adapt.fade = null;
-      }
+      adapt.reflectK = adapt.fade.to ? k : Math.min(adapt.reflectK, 1 - k);
+      if (k >= 1) adapt.fade = null;
     }
     if (!adapt.sampling) return;
     adapt.t += dt;
@@ -494,8 +537,27 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     adapt.sampling = false;
     const sorted = adapt.samples.slice().sort((a, b) => a - b);
     adapt.p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] : null;
+    if (adapt.p95 === null) return;
+    const trial = adapt.trial;
+    adapt.trial = null;
+    if (trial) {
+      if (adapt.p95 > trial.before * 0.85) {
+        // It did not help: give it back, and try the next step instead
+        // (a page held up by its scripts is helped by losing the mirror's
+        // second pass, not by losing pixels).
+        restore(trial.what);
+        adapt.tried.push(trial.what);
+        adapt.p95 = trial.before;
+      }
+      // It helped: a shed reflection's pass can go now.
+      else if (trial.what === "reflection" && mirror) {
+        mirror.dispose();
+        mirror = null;
+      }
+    }
     const next = nextStep();
-    if (adapt.p95 !== null && adapt.p95 > quality.budgetMs + GRACE_MS && next) {
+    if (adapt.p95 > quality.budgetMs + GRACE_MS && next) {
+      adapt.trial = { what: next, before: adapt.p95 };
       shed(next);
       startSampling();
     }
@@ -778,7 +840,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       ctx.putImageData(img, 0, 0);
       return c.toDataURL("image/png");
     };
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, post, dumpMirror, setQuality };
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, post, dumpMirror, setQuality, strike() { storm.t = storm.next; } };
   }
 
   return {

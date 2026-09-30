@@ -85,7 +85,7 @@ export function createTowers(meshes, shared, { reflectLayer = 2, anchors = new M
           // card is read, light running up it.
           float run = fract(vWorld.y * 0.012 - uTime * 0.45);
           float pulse = smoothstep(0.0, 0.06, run) * smoothstep(0.3, 0.06, run);
-          col = vColor * (0.28 + 2.4 * vLit) * (1.0 + 2.5 * pulse * vLit);
+          col = vColor * (0.18 + 2.6 * vLit) * (1.0 + 2.5 * pulse * vLit);
         } else if (vUv.x > 0.75) {
           // A blade of the crown's screen, lit from its foot (glTF counts
           // v down, so the foot is at 1).
@@ -95,7 +95,7 @@ export function createTowers(meshes, shared, { reflectLayer = 2, anchors = new M
           // A band of light with a brighter rim, top and bottom.
           float rim = smoothstep(0.2, 0.0, vUv.y) + smoothstep(0.8, 1.0, vUv.y);
           float body = 0.5 + 0.5 * rim;
-          col = vColor * body * (0.4 + 3.0 * vLit);
+          col = vColor * body * (0.25 + 3.2 * vLit);
         }
         col *= 1.0 + 0.3 * uBass * vLit;
         col = cityFog(col, vWorld, 1.0);
@@ -222,7 +222,7 @@ export function createTowers(meshes, shared, { reflectLayer = 2, anchors = new M
     update(dt, activeSlugs) {
       const a = 1 - Math.exp(-dt * 5);
       crowns.forEach((c, i) => {
-        const want = activeSlugs.includes(c.slug) ? 1 : 0.18;
+        const want = activeSlugs.includes(c.slug) ? 1 : 0.08;
         c.lit += (want - c.lit) * a;
         lits[i] = c.lit;
         if (c.order < 8) shared.uTowerLit.value[c.order] = c.lit;

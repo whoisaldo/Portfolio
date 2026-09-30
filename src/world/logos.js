@@ -28,7 +28,7 @@ export function preloadLogos() {
   return pending;
 }
 
-const IDLE = 0.32;
+const IDLE = 0.2;
 const SWEEP_SECONDS = 0.6;
 
 export async function createLogos(anchors, shared, { reflectLayer = 2, maxAnisotropy = 4 } = {}) {
