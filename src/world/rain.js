@@ -71,17 +71,20 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         float len = 0.28 + 0.3 * aSeed.w;
         float dist0 = max(length(uCam - p), 0.1);
         float pixel = dist0 * 2.0 / (projectionMatrix[1][1] * uViewHeight);
-        float width = max(0.012, pixel * 1.1);
+        float width = max(0.0035, pixel * 1.1);
         vec3 wp = p + side * position.x * width + vel * position.y * len;
         vec4 mv = viewMatrix * vec4(wp, 1.0);
         gl_Position = projectionMatrix * mv;
         float dist = -mv.z;
-        vA = smoothstep(0.5, 3.0, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * (0.012 / width + 0.25) / 1.25;
+        // A drop widened to a pixel is dimmed by as much, so the far rain
+        // keeps its weight; the drops right at the lens (a metre or two,
+        // a hand's width long on screen) are left out.
+        vA = smoothstep(1.6, 4.0, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * min(1.0, 0.007 / width);
         vec3 inside = step(uShelterMin, p) * step(p, uShelterMax);
         vA *= 1.0 - inside.x * inside.y * inside.z;
         // The light it falls through: the city's haze, the street's light
         // under it, and the lamps round it.
-        vCol = vec3(0.07, 0.07, 0.09) + uHazeColor * 0.25 + spillAt(p) * 1.7 + lampsAt(p, toCam) * 2.0;
+        vCol = vec3(0.13, 0.13, 0.16) + uHazeColor * 0.4 + spillAt(p) * 1.9 + lampsAt(p, toCam) * 2.0;
         vUv = uv;
       }
     `,
@@ -92,7 +95,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       varying vec2 vUv;
       void main() {
         float fade = smoothstep(0.0, 0.35, vUv.y) * smoothstep(1.0, 0.6, vUv.y);
-        gl_FragColor = vec4(vCol * vA * fade * 0.5 * uOpacity, 1.0);
+        gl_FragColor = vec4(vCol * vA * fade * 0.62 * uOpacity, 1.0);
       }
     `,
     transparent: true,

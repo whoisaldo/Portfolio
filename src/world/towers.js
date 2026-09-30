@@ -160,7 +160,10 @@ export function createTowers(meshes, shared, { reflectLayer = 2, anchors = new M
         float lean = 0.32 + 0.1 * sin(uTime * 0.21 + aBeam.x * 1.7 + aBeam.y * 2.0);
         float swing = uTime * (aBeam.y > 0.5 ? -0.27 : 0.23) + aBeam.x * 0.9 + aBeam.y * 3.1;
         vec3 p = position * vec3(1.0, uLength, 1.0);
-        vec3 n = normal;
+        // The cone is made a unit tall and stretched here, so its own
+        // normals describe a flat disc; a beam this long is round about its
+        // axis, and the light falls off by the radial normal alone.
+        vec3 n = normalize(vec3(position.x, 0.0, position.z) + 1e-5);
         float cl = cos(lean), sl = sin(lean);
         p = vec3(p.x, p.y * cl - p.z * sl, p.y * sl + p.z * cl);
         n = vec3(n.x, n.y * cl - n.z * sl, n.y * sl + n.z * cl);
@@ -188,11 +191,12 @@ export function createTowers(meshes, shared, { reflectLayer = 2, anchors = new M
         vec3 V = normalize(uCam - vWorld);
         // Brightest down the beam's middle, soft to its edges, fading as it
         // climbs and gone into the cloud.
-        float core = pow(abs(dot(normalize(vNormalW), V)), 3.0);
-        float fade = exp(-vAlong * 3.2) * smoothstep(0.0, 0.02, vAlong);
-        // Rain and dust moving through it.
-        float motes = 0.8 + 0.2 * sin(vAlong * 90.0 - uTime * 3.0 + vWorld.x * 0.2);
-        vec3 col = mix(accent, vec3(1.0), 0.35) * core * fade * motes * vLit * 0.38 * uHaze;
+        float core = pow(abs(dot(normalize(vNormalW), V)), 2.2);
+        // Hot at the lamp, falling away along it, gone into the cloud.
+        float fade = exp(-vAlong * 3.6) * (1.0 + 4.0 * exp(-vAlong * 60.0));
+        // Haze drifting through the light.
+        float motes = 0.65 + 0.35 * sin(vAlong * 70.0 - uTime * 2.0 + vWorld.x * 0.15) * sin(vAlong * 23.0 + uTime * 0.7);
+        vec3 col = mix(accent, vec3(1.0), 0.35) * core * fade * motes * vLit * 0.3 * uHaze;
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>

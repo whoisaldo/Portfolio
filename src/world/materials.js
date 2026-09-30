@@ -77,14 +77,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           if (uHasMap > 0.5) albedo *= texture2D(uMap, vUv).rgb * 2.0;
           vec3 n = normalize(vNormalW);
           float up = clamp(n.y, 0.0, 1.0);
-          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.55 + 0.45 * up) + lampsAt(vWorld, n) * 1.6;
+          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.55 + 0.45 * up) + lampsAt(vWorld, n) * 5.0;
           // What faces the sky catches the city's glow on the cloud.
           light += (uHazeColor * 0.22 + uGlowColor * 0.12) * up * uHaze;
           vec3 col = albedo * light;
           // And at a grazing angle every edge holds a little of the haze
           // behind it, so a dark shape stands off the dark behind it.
-          float rim = pow(1.0 - abs(dot(normalize(uCam - vWorld), n)), 4.0);
-          col += uHazeColor * rim * 0.12 * uHaze * (1.0 - up);
+          float rim = pow(1.0 - abs(dot(normalize(uCam - vWorld), n)), 3.0);
+          col += (uHazeColor * 1.5 + uGlowColor * 0.45) * rim * 0.5 * uHaze * (1.0 - up);
           col = cityFog(col, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
@@ -404,7 +404,12 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float deep = 1.0 - 0.55 * smoothstep(0.0, DEEP, h.z);
             room = L * (0.26 + 2.1 * panel) * deep;
           } else {
-            room = L * (0.035 + 0.02 * hash12(floor(h.xz)));
+            // The floor: pools of light under the ceiling's panels, as the
+            // floors of a lit office are seen from above.
+            vec2 g = vec2(h.x / 1.5, h.z / 1.2);
+            float pool = smoothstep(0.55, 0.05, length(fract(g) - 0.5));
+            float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
+            room = L * (0.09 + mix(0.22 * pool, 0.08, aa) + 0.03 * hash12(floor(h.xz)));
           }
           room *= on;
           // Unlit floors are not black: exit signs, a screen left on.

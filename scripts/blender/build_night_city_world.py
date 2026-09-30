@@ -1052,6 +1052,22 @@ for px in (-52.0, -12.5, 12.5, 52.0):
 for lx in range(-86, 90, 5):
     box((FA, "neon_amber", 0), lx - 0.18, lx + 0.18, RAIL_Y - 1.28, RAIL_Y - 1.18, RAIL_Z + 3.3, RAIL_Z + 3.6, scale=1.0)
 empty("anchor_rail", (0.0, RAIL_Y + 2.2, RAIL_Z), props={"reach": 90.0})
+# Past the viaduct the avenue ends at a megablock square across it, its
+# windows mostly lit, and a taller tower stepped behind it: the vanishing
+# point is lit structure standing in the glow, not open haze (the tower
+# stands left of the holographic figure, never behind her). Vertical
+# signs run up its face to the street. The far city keeps clear of both
+# (anchor_mega_end).
+mass(FA, -48, 48, -790, -745, SHOP_H, 118, 4990, col=(0.72, 2 / 8.0, 0.55, 1.0))
+box((FA, "dark", 0), -48, 48, 0, SHOP_H, -790, -745, scale=2.0)
+mass(FA, -124, -70, -870, -815, SHOP_H, 205, 4991, col=(0.6, 4 / 8.0, 0.3, 1.0))
+for k, (vx, colour) in enumerate(((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))):
+    vh = 38.0 + (k % 2) * 22.0
+    box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.9, -744.6, scale=1.0)
+box((FA, "neon_cyan", 0), -48.3, 48.3, 117.2, 118.0, -790.3, -744.7, scale=1.0)
+box((FA, "neon_purple", 0), -124.3, -69.7, 204.0, 205.0, -870.3, -814.7, scale=1.0)
+empty("anchor_mega_end", (0.0, 118.0, -780.0), props={"size": 150.0})
+empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
 
 # The figure's image is 2:3; the plane matches it. Huge, as the plate has
 # her: from the hero camera her waist is over the canyon's last roofs and
@@ -1624,7 +1640,9 @@ mass(GA, 410.0, STREET_X - 12, -250.0, -190.0, SHOP_H, 26.0, 8201, painted=2)
 box((GA, "dark", 0), 410.0, STREET_X - 12, 0, SHOP_H, -250.0, -190.0, scale=2.0)
 # Its ground floor faces the garage door: lit shops and a strip of neon, so
 # the street outside the door is not a black hole from inside the bay.
-box((GA, "shop", 0), STREET_X - 12.02, STREET_X - 12.0, 0.6, 3.3, -246.0, -194.0, scale=2.0)
+# Proud of the ground floor's dark box, which ends on the same plane: the
+# two fought for the pixels and the shops came and went with the camera.
+box((GA, "shop", 0), STREET_X - 11.99, STREET_X - 11.96, 0.6, 3.3, -246.0, -194.0, scale=2.0)
 box((GA, "neon_pink", 0), STREET_X - 12.05, STREET_X - 11.9, 3.9, 4.05, -246.0, -194.0, scale=1.0)
 box((GA, "neon_cyan", 0), STREET_X - 12.05, STREET_X - 11.9, 5.6, 5.7, -238.0, -202.0, scale=1.0)
 for z in (-236.0, -214.0, -196.0):

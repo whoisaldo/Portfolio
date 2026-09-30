@@ -269,13 +269,38 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let flight = null;
   const dest = makePose();
 
+  // Corpo row's dolly runs along the row with the reader, and while a card
+  // is being read it goes to that card's tower instead, a little left of
+  // it so the tower stands right of centre: the lit crown and its beams in
+  // frame, whichever role it is. Eased, so reading down the cards is one
+  // move along the row and not a string of cuts.
+  const EXP_DOLLY = { x0: 190, x1: 400, lead: 22 };
+  const dolly = { at: null, locals: [] };
+  const localsFor = (ids, dt) => {
+    const i = ids.indexOf("experience");
+    if (i < 0 || !city) return stage.locals;
+    const xs = stage.activeRoles.map((slug) => city.anchors.get(`anchor_tower_${slug}`)?.position.x).filter((x) => x !== undefined);
+    // The shot eases its local (shots.js); a tower's place is where the
+    // eased dolly must land, so it is un-eased here.
+    const unease = (e) => (e < 0.5 ? Math.cbrt(e / 4) : 1 - Math.cbrt(2 * (1 - e)) / 2);
+    const want = xs.length
+      ? unease(clamp((xs.reduce((a, b) => a + b, 0) / xs.length - EXP_DOLLY.x0 - EXP_DOLLY.lead) / (EXP_DOLLY.x1 - EXP_DOLLY.x0), 0, 1))
+      : clamp(stage.locals[i] ?? 0, 0, 1);
+    if (dolly.at === null || !posed || reduced) dolly.at = want;
+    else dolly.at += (want - dolly.at) * (1 - Math.exp(-dt * 1.6));
+    dolly.locals.length = 0;
+    dolly.locals.push(...stage.locals);
+    dolly.locals[i] = dolly.at;
+    return dolly.locals;
+  };
+
   const aim = (dt = 0) => {
     const ids = stage.shots.map((s) => s.id);
     const home = stage.route.kind === "home";
     if (!shots) driftPose(aspect, dest);
     else if (!home) shots.routePose(stage.route, aspect, dest);
     else if (!ids.length) shots.poseOf("hero", 0, aspect, dest);
-    else shots.goal(ids, stage.position, stage.locals, aspect, dest, car?.car.position);
+    else shots.goal(ids, stage.position, localsFor(ids, dt), aspect, dest, car?.car.position);
 
     const key = routeKey();
     if (lastRoute !== null && key !== lastRoute && shots && posed) {
