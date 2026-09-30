@@ -1158,7 +1158,10 @@ html[data-world="on"] footer.world-clear { background-color: rgb(10 10 12 / 0.8)
    about 0.4, lit office floors behind a section's opening lines), so the
    type laid straight on it carries a soft dark halo. Text in a panel has
    the panel's fill and shows nothing of this. */
-html[data-world="on"] [data-shot] :is(.prose-dark, .mono-label, h2, h3) {
+html[data-world="on"] [data-shot] .prose-dark,
+html[data-world="on"] [data-shot] .mono-label,
+html[data-world="on"] [data-shot] h2,
+html[data-world="on"] [data-shot] h3 {
   text-shadow: 0 0 14px rgb(4 4 6 / 0.85), 0 1px 3px rgb(4 4 6 / 0.7);
 }
 /* An intro that plays in the live city (IntroCinematic.jsx): the city is
