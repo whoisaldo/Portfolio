@@ -12,6 +12,7 @@ import { createGarageRoom, preloadGarageRoom } from "../three/garage-room.js";
 import { preloadCar } from "../three/car/object.js";
 import { createGarageFloor } from "../three/garage-floor.js";
 import { createObject } from "../three/car/object.js";
+import { slim, RIG, HOOD_RIG } from "../three/car/slim.js";
 
 export const preloadGarage = () => Promise.all([preloadCar(), preloadGarageRoom()]);
 
@@ -169,6 +170,19 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
       preset: (name) => setPreset(name),
     };
   }
+
+  // Now that the markers know where every part is: the car in a couple of
+  // dozen draws instead of some 150 (each drawn for the shadow, the ambient
+  // occlusion and the picture), the wheels and the hood still on their own
+  // nodes, the engine bay kept for when the hood opens. Its paint is what
+  // each part's own material gave it (src/three/car/slim.js).
+  const slimmed = slim(car, { rig: [...RIG, ...HOOD_RIG], keepUnderHood: true });
+  car.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = false;
+  });
+  renderer.shadowMap.needsUpdate = true;
 
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
   const composer = new EffectComposer(renderer, target);
@@ -347,6 +361,8 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     controls.dispose();
     canvas.removeEventListener("wheel", onWheel, { capture: true });
     car.userData.dispose();
+    slimmed.geometries.forEach((g) => g.dispose());
+    slimmed.material?.dispose();
     room.dispose();
     wetFloor.dispose();
     for (const pass of composer.passes) pass.dispose?.();

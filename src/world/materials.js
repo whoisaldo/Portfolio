@@ -120,6 +120,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           #ifdef TILED
           vec2 tile = floor(vUv);
           if (hash12(tile + 3.1) > 0.5) uv.x = tile.x + 1.0 - fract(vUv.x);
+          // Each row of tiles slid a quarter or three along, so a tall wall
+          // does not stack the same balconies over themselves.
+          uv.x += floor(hash12(vec2(tile.y, 9.3)) * 4.0) * 0.25;
           #endif
           float far = smoothstep(90.0, 260.0, length(vWorld - uCam));
           vec2 grad = vec2(fwidth(vUv.x), fwidth(vUv.y)) * exp2(far * 1.5);

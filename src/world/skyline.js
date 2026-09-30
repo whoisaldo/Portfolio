@@ -187,6 +187,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         vec2 tile = floor(vPaint.xy);
         vec2 puv = vPaint.xy;
         if (hash12(tile + 3.1) > 0.5) puv.x = tile.x + 1.0 - fract(vPaint.x);
+        puv.x += floor(hash12(vec2(tile.y, 9.3)) * 4.0) * 0.25;
         float far = smoothstep(90.0, 260.0, length(vWorld - uCam));
         vec2 grad = vec2(fwidth(vPaint.x), fwidth(vPaint.y)) * exp2(far * 1.5);
         vec3 tex = vPaint.z < 0.5 ? textureGrad(uFacade0, puv, vec2(grad.x, 0.0), vec2(0.0, grad.y)).rgb
