@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
+import { attributeKey, mergeMeshes } from "../world/merge.js";
 
 const base = `${import.meta.env.BASE_URL}scenes/garage/`;
 let pending;
@@ -51,6 +52,30 @@ export function createGarageRoom(scene, renderer, { reduced }) {
     o.receiveShadow = true;
     o.castShadow = !o.name.includes("tube") && !o.name.includes("concrete");
   });
+  // The room is static: one draw per material (and per shadow setting)
+  // instead of one per prop. It is drawn three times a frame (the key
+  // light's shadow, the ambient occlusion's depth, the picture), so its
+  // hundred-odd props cost some three hundred calls unmerged. The monitor
+  // keeps its own mesh; it plays the braindance.
+  room.updateMatrixWorld(true);
+  const groups = new Map();
+  room.traverse((o) => {
+    if (!o.isMesh || Array.isArray(o.material) || o.name === "BraindanceScreen") return;
+    const key = `${o.material.uuid}|${attributeKey(o.geometry)}|${o.castShadow}|${o.receiveShadow}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(o);
+  });
+  const merged = [];
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const mesh = new THREE.Mesh(mergeMeshes(list, room), list[0].material);
+    mesh.name = `room_${list[0].material.name}`;
+    mesh.castShadow = list[0].castShadow;
+    mesh.receiveShadow = list[0].receiveShadow;
+    room.add(mesh);
+    merged.push(mesh.geometry);
+    for (const o of list) o.removeFromParent();
+  }
   scene.add(room);
   RectAreaLightUniformsLib.init();
   const lights = [];
@@ -159,6 +184,7 @@ export function createGarageRoom(scene, renderer, { reduced }) {
       materials.forEach((m) => m.dispose());
       textures.forEach((t) => t.dispose());
       geometries.forEach((g) => g.dispose());
+      merged.forEach((g) => g.dispose());
       key.shadow.map?.dispose();
       environment.dispose();
       scene.remove(room, ...lights);

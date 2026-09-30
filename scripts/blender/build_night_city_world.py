@@ -1078,8 +1078,10 @@ box((FA, "neon_red", 0), ax - 26.3, ax + 26.3, 108.0, 110.0, az - 26.3, az + 26.
 sign("arasaka", ax, 159.0, az + 22.6, 44.0, 15.0, 0.0, preview="ARASAKA", district=FA)
 
 # The skyline over the canyon's end: landmark towers a kilometre off, in the
-# band of sky the hero sees between the roofs, each stepped back twice and
-# crowned in its own colour with a mast and a red light. The far city
+# band of sky the hero sees between the roofs, each stepped back twice, a
+# lit band at each setback in its own colour (no fins outlining its
+# corners: at this distance they drew a wireframe), a mast and a red light.
+# The far city
 # (src/world/skyline.js) keeps clear of them.
 SK = "skyline"
 
@@ -1093,11 +1095,6 @@ def megatower(x, z, w, h, colour, seed):
         mass(SK, x - hw, x + hw, z - hw, z + hw, y0, y1, seed + i, col=(r.uniform(0.55, 0.85), r.randrange(0, 5) / 8.0, r.uniform(0.2, 0.9), 1))
         # A lit band at each setback, and one round the crown.
         box((SK, "neon_" + colour, 0), x - hw - 0.4, x + hw + 0.4, y1 - 3.2, y1 - 0.4, z - hw - 0.4, z + hw + 0.4, scale=1.0)
-    # Light fins up the corners of the upper two tiers.
-    for a, b, k in tiers[1:]:
-        hw = w * k / 2
-        for dx, dz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
-            box((SK, "neon_" + colour, 0), x + dx * hw - 1.0, x + dx * hw + 1.0, h * a, h * b - 3.2, z + dz * hw - 1.0, z + dz * hw + 1.0, scale=1.0)
     # The mast and its light.
     mh = h * r.uniform(0.1, 0.18)
     box((SK, "metal", 0), x - 1.2, x + 1.2, h, h + mh, z - 1.2, z + 1.2, scale=1.0)
@@ -1167,7 +1164,8 @@ SMALL_BOARDS = [
     (109.4, 12.0, -228.0, 9.0, 6.0, math.radians(-90)),
     (60.0, 19.0, -260.5, 8.0, 5.3, 0.0),
     (98.0, 19.0, -260.5, 8.0, 5.3, 0.0),
-    (79.0, 7.0, -260.5, 12.0, 4.0, 0.0),
+    # Low, over the shops: higher, the Work shot's bottom edge cut it.
+    (79.0, 3.4, -260.5, 12.0, 4.0, 0.0),
 ]
 for i, (cx, cy, cz, w, h, yaw) in enumerate(SMALL_BOARDS, start=1):
     named_quad(f"board_{i}", "board", cx, cy, cz, w, h, yaw, props={"board": i, "district": PL})
@@ -1403,7 +1401,10 @@ for _ in range(9):
     cylinder((RF, "dark", 1), cx, cz, RH + 1.2, RH + 1.25, 0.55, segs=12)
 for (cx, cz, h) in ((458.0, -296.0, 14.0), (482.0, -262.0, 9.0), (466.0, -262.0, 6.0)):
     cylinder((RF, "metal", 1), cx, cz, RH, RH + h, 0.09, segs=6)
-    cylinder((RF, "neon_red", 0), cx, cz, RH + h, RH + h + 0.35, 0.16, segs=8)
+    # A small red lamp in a bracket at the tip, not a lit drum: the one by
+    # Stack's lens is ten metres off.
+    box((RF, "metal", 1), cx - 0.1, cx + 0.1, RH + h, RH + h + 0.04, cz - 0.1, cz + 0.1, scale=0.5)
+    cylinder((RF, "neon_red", 0), cx, cz, RH + h + 0.04, RH + h + 0.14, 0.05, segs=6)
 # Two exhaust stacks between the camera and the signs, venting steam the
 # site draws (anchor_steam_<n>) into the signs' light.
 for i, (cx, cz, h) in enumerate(((466.0, -272.0, 1.6), (461.5, -268.5, 1.1))):
@@ -1425,9 +1426,9 @@ sign("afterlife", 431.26, 38.0, -281.0, 13.0, 3.0, math.radians(90), preview="AF
 box((RF, "board_frame", 0), 430.6, 431.2, 36.2, 39.8, -288.0, -274.0, scale=1.0)
 for dz in (-5.0, 5.0):
     box((RF, "metal", 1), 430.7, 431.0, 30.0, 36.2, -281.0 + dz - 0.1, -281.0 + dz + 0.1, scale=0.5)
-# MILITECH's block is an office, the way corpo row's are: a curtain wall
-# (window style 4) mostly lit, cool.
-mass(RF, 380.0, 410.0, -250.0, -222.0, SHOP_H, 58.0, 7301, col=(0.9, 4 / 8.0, 0.25, 1.0))
+# MILITECH's block is an office, the way corpo row's are: ribbon windows
+# (window style 2) mostly lit, cool.
+mass(RF, 380.0, 410.0, -250.0, -222.0, SHOP_H, 58.0, 7301, col=(0.9, 2 / 8.0, 0.25, 1.0))
 box((RF, "dark", 0), 380.0, 410.0, 0, SHOP_H, -250.0, -222.0, scale=2.0)
 sign("militech", 410.4, 61.0, -236.0, 12.0, 2.6, math.radians(90), preview="MILITECH", district=RF)
 ground((RF, "asphalt", 0), STREET_X - 8, STREET_X + 8, -322, -190, scale=6.0)
