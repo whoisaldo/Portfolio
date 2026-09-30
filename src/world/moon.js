@@ -62,6 +62,16 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
         return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x),
                    mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
       }
+      float fbm(vec2 p) {
+        float s = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 4; i++) {
+          s += a * vnoise(p);
+          p = p * 2.03 + vec2(17.1, 3.7);
+          a *= 0.5;
+        }
+        return s / 0.9375;
+      }
       float box(vec2 p, vec2 b, float r) {
         vec2 d = abs(p) - b + r;
         return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r;
@@ -93,8 +103,9 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
         // up here.
         vec2 p = vec2(vUv.x * 2.0 - 1.0, 1.0 - vUv.y * 2.0);
         float r = length(p);
-        // The disc, 0.8 of the card, and the moon's own frame on it.
-        vec2 q = p / 0.8;
+        // The disc, 0.4 of the card (the rest is its glow), and the moon's
+        // own frame on it.
+        vec2 q = p / 0.4;
         float rq = length(q);
         float aa = fwidth(rq);
         float disc = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, rq);
@@ -130,9 +141,11 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
         col += vec3(0.03, 0.05, 0.11) * (1.0 - lit);
         col *= disc;
 
-        // The glow it throws into the haze, in the haze's own colour.
-        float glow = exp(-max(r - 0.8, 0.0) * 2.5) * (1.0 - disc) * smoothstep(1.0, 0.86, r);
-        col += mix(vec3(0.5, 0.55, 0.85), uHazeColor * 3.0, 0.5) * glow * 0.4 * (1.0 + 0.2 * uLevel);
+        // The glow it throws into the haze, in the haze's own colour: a
+        // bright ring close in and a wide faint one, gone by the card's edge.
+        float out_ = max(r - 0.4, 0.0);
+        float glow = (exp(-out_ * 9.0) * 0.8 + exp(-out_ * 3.2) * 0.3) * (1.0 - disc) * smoothstep(1.0, 0.6, r);
+        col += mix(vec3(0.5, 0.55, 0.85), uHazeColor * 3.0, 0.5) * glow * 0.55 * (1.0 + 0.2 * uLevel);
 
         // The two of them on its upper rim, a little left of the top, him
         // taller: dark against the moon where they sit on it and against its
@@ -153,6 +166,18 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
         col = mix(col, vec3(0.006, 0.007, 0.012), body);
         col += vec3(0.5, 0.56, 0.75) * rim * 0.35 * smoothstep(0.9, 1.0, rq);
 
+        // The sky's cloud deck (src/world/skyline.js) passes in front: thick
+        // cloud hides the moon, thin cloud takes its light, silver at the
+        // edges.
+        vec3 dir = normalize(vWorld - uCam);
+        float tc = (520.0 - uCam.y) / max(dir.y, 0.02);
+        vec3 pc = uCam + dir * tc;
+        vec2 cl = (pc.xz + vec2(uTime * 3.2, uTime * 1.1)) / 380.0;
+        float cn = fbm(cl + 0.9 * vec2(fbm(cl * 0.5 + 5.2), fbm(cl * 0.5 + 1.3)));
+        float cover = smoothstep(0.42, 0.72, cn);
+        float edge = smoothstep(0.35, 0.5, cn) * (1.0 - smoothstep(0.5, 0.72, cn));
+        col = col * (1.0 - 0.8 * cover) + vec3(0.62, 0.64, 0.8) * edge * (disc * 0.5 + glow * 0.9) * 0.6;
+
         col *= exp(-length(vWorld - uCam) * uFogDensity * 0.15);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
@@ -172,6 +197,8 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
     material,
     /** Where it hangs and how big, in world units (world-scene's resize). */
     place(center, radius) {
+      // The card is twice the disc: the rest is its glow.
+      radius *= 2;
       material.uniforms.uCenter.value.copy(center);
       material.uniforms.uRadius.value = radius;
       // Culled where the shader hangs it, not where the GLB left the card:
