@@ -11,6 +11,38 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON } from "./glsl.js";
+import { createObject as createAv } from "./av-model.js";
+
+// The AV's surfaces, by the model's material names (src/world/av-model.js),
+// as the kind its shader reads.
+const AV_KINDS = { hull: 0, trim: 1, glass: 2, lamp_head: 3, lamp_tail: 4, glow_thruster: 5, glow_accent: 6 };
+
+/** The AV as one geometry: every mesh baked into the model's frame, only
+ *  position and normal kept, and each vertex tagged with what it is. */
+function avGeometry() {
+  const model = createAv();
+  model.updateMatrixWorld(true);
+  const parts = [];
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    const kind = AV_KINDS[o.material?.name];
+    if (kind === undefined) return;
+    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    g.applyMatrix4(o.matrixWorld);
+    g.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(kind), 1));
+    parts.push(g);
+  });
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    o.geometry.dispose();
+    o.material.dispose?.();
+  });
+  return merged;
+}
 
 function box(w, h, d, x = 0, y = 0, z = 0) {
   const g = new THREE.BoxGeometry(w, h, d);
@@ -44,7 +76,7 @@ const ROAD_FAR = -600;
 const ROAD_NEAR = -40;
 
 export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = false, reflectLayer = 2 } = {}) {
-  const avGeo = mergeGeometries([box(2.0, 0.55, 4.6), box(1.4, 0.45, 2.0, 0, 0.45, -0.3), box(3.6, 0.12, 0.8, 0, 0.1, -1.6)]);
+  const avGeo = avGeometry();
   const carGeo = mergeGeometries([box(1.9, 0.62, 4.5, 0, 0.55, 0), box(1.6, 0.48, 2.2, 0, 1.1, -0.2)]);
   const bodyMat = new THREE.ShaderMaterial({
     uniforms: { ...shared },
@@ -75,7 +107,60 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
     `,
   });
   bodyMat.name = "traffic";
-  const avMesh = new THREE.InstancedMesh(avGeo, bodyMat, Math.max(1, avs));
+  // The AVs: gunmetal and tinted glass giving back the lit city under them
+  // and the haze over it, most at a glancing angle; their lamps, thrusters
+  // and sill strips bright enough for the bloom to find.
+  const avMat = new THREE.ShaderMaterial({
+    uniforms: { ...shared },
+    vertexShader: /* glsl */ `
+      attribute float aKind;
+      varying vec3 vWorld;
+      varying vec3 vNormalW;
+      varying float vKind;
+      void main() {
+        vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
+        vWorld = w.xyz;
+        vNormalW = normalize(mat3(modelMatrix * instanceMatrix) * normal);
+        vKind = aKind;
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      varying vec3 vWorld;
+      varying vec3 vNormalW;
+      varying float vKind;
+      void main() {
+        vec3 n = normalize(vNormalW);
+        vec3 V = normalize(vWorld - uCam);
+        vec3 R = reflect(V, n);
+        float F = 0.04 + 0.96 * pow(1.0 - abs(dot(V, n)), 5.0);
+        // Under it the lit city, a band of neon at the horizon; over it the
+        // haze and the dark.
+        float band = exp(-abs(R.y) * 14.0);
+        vec3 below = uHazeColor * 0.5 + uGlowColor * 0.9;
+        vec3 above = uHazeColor * 0.3 * exp(-max(R.y, 0.0) * 4.0) + vec3(0.004, 0.004, 0.008);
+        vec3 env = mix(below, above, step(0.0, R.y)) + vec3(1.0, 0.35, 0.75) * band * 0.35;
+        int k = int(vKind + 0.5);
+        vec3 col;
+        float glow = 1.0;
+        if (k == 0) { col = vec3(0.014, 0.015, 0.019) + env * (0.18 + 0.82 * F); glow = 0.0; }
+        else if (k == 1) { col = vec3(0.006, 0.006, 0.008) + env * F * 0.35; glow = 0.0; }
+        else if (k == 2) { col = vec3(0.003, 0.005, 0.009) + env * (0.08 + 0.92 * F); glow = 0.0; }
+        else if (k == 3) col = vec3(0.92, 0.95, 1.0) * 7.0;
+        else if (k == 4) col = vec3(1.0, 0.1, 0.24) * 5.5;
+        else if (k == 5) col = vec3(0.35, 0.85, 1.0) * 2.6 * (0.85 + 0.15 * sin(uTime * 40.0 + vWorld.x));
+        else col = vec3(1.0, 0.18, 0.53) * 4.0;
+        if (glow < 0.5) col += spillAt(vWorld) * 0.5 * max(-n.y, 0.0);
+        col = cityFog(col, vWorld, glow);
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+  avMat.name = "avs";
+  const avMesh = new THREE.InstancedMesh(avGeo, avMat, Math.max(1, avs));
   const carMesh = new THREE.InstancedMesh(carGeo, bodyMat, Math.max(1, cars));
   for (const m of [avMesh, carMesh]) {
     m.frustumCulled = false;
@@ -143,6 +228,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   const p = new THREE.Vector3();
   const fwd = new THREE.Vector3();
   const tmp = new THREE.Vector3();
+  const tilt = new THREE.Quaternion();
+  const euler = new THREE.Euler();
   const setLamp = (i, x, y, z, r, g, b, size) => {
     lampPos[i * 3] = x;
     lampPos[i * 3 + 1] = y;
@@ -153,11 +240,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
     lampCol[i * 4 + 3] = size;
   };
   let clock = 0;
+  let frozen = false;
 
   const update = (dt, on) => {
     avMesh.visible = carMesh.visible = lamps.visible = on;
     if (!on) return;
-    if (!reduced) clock += dt;
+    if (!reduced && !frozen) clock += dt;
     let li = 0;
     for (let i = 0; i < avs; i++) {
       const L = SKY_LANES[i % SKY_LANES.length];
@@ -168,9 +256,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       tmp.set(L.c[0] + Math.cos(b) * L.r[0], p.y, L.c[1] + Math.sin(b) * L.r[1]);
       fwd.subVectors(tmp, p).normalize();
       q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), fwd);
+      // Banked into its loop and a touch nose-down, as a thing flying does.
+      q.multiply(tilt.setFromEuler(euler.set(0.05, 0, (i % 2 ? 1 : -1) * 0.16)));
       avMesh.setMatrixAt(i, m.compose(p, q, one));
-      setLamp(li++, p.x + fwd.x * 2.4, p.y, p.z + fwd.z * 2.4, 0.75, 0.9, 1.0, 1.6);
-      setLamp(li++, p.x - fwd.x * 2.4, p.y + 0.2, p.z - fwd.z * 2.4, 1.0, 0.1, 0.25, 1.2);
+      setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75, 0.9, 1.0, 1.2);
+      setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0, 0.1, 0.25, 0.9);
     }
     for (let i = 0; i < cars; i++) {
       const L = ROAD_LANES[i % ROAD_LANES.length];
@@ -198,6 +288,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
 
   return {
     update,
+    avMesh,
+    /** Dev: hold every vehicle where it is. */
+    freeze(on = true) {
+      frozen = on;
+    },
     setCounts(nAvs, nCars) {
       avMesh.count = Math.min(avs, nAvs);
       carMesh.count = Math.min(cars, nCars);
@@ -207,6 +302,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       avGeo.dispose();
       carGeo.dispose();
       bodyMat.dispose();
+      avMat.dispose();
       quad.dispose();
       lampGeo.dispose();
       lampMat.dispose();
