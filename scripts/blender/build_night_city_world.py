@@ -1170,14 +1170,18 @@ box((PL, "metal", 0), HX0, HX1, by - bh / 2 - 1.5, by - bh / 2 - 1.35, -263.85, 
 box((PL, "metal", 1), HX0, HX1, by - bh / 2 - 0.45, by - bh / 2 - 0.4, -262.35, -262.3, scale=0.5)
 for x in (HX0 + 0.4, HX1 - 0.4):
     box((PL, "neon_red", 0), x - 0.2, x + 0.2, HY1 - 0.5, HY1 - 0.1, -263.85, -263.6, scale=0.5)
-# Floodlights on arms along the catwalk, lighting the housing from below as
-# a billboard is lit (lamp_*: the site lights its ribs with them).
-for k, fx in enumerate((bx - bw * 0.36, bx, bx + bw * 0.36)):
-    fy = by - bh / 2 - 1.1
-    box((PL, "metal", 1), fx - 0.05, fx + 0.05, by - bh / 2 - 1.35, fy, -262.9, -262.8, scale=0.5)
-    box((PL, "metal", 0), fx - 0.4, fx + 0.4, fy, fy + 0.3, -262.95, -262.45, scale=0.5)
-    box((PL, "neon_white", 0), fx - 0.34, fx + 0.34, fy + 0.3, fy + 0.34, -262.9, -262.5, scale=0.5)
-    site_lamp(f"board_{k}", (fx, fy + 0.6, -262.3), "#dfe6ff", 10.0, 1.3)
+# Floodlights on arms along the housing's top edge, lighting its steel down
+# over the screen, as a billboard is lit (lamp_*: the site lights the ribs
+# near them, and src/world/floods.js draws their fans on the housing).
+for k, fx in enumerate((bx - 19.5, bx - 7.0, bx + 7.0, bx + 19.5)):
+    fy = HY1 + 0.2
+    box((PL, "metal", 1), fx - 0.05, fx + 0.05, HY1 - 0.1, fy + 0.25, -263.8, -262.4, scale=0.5)
+    box((PL, "metal", 0), fx - 0.4, fx + 0.4, fy, fy + 0.3, -262.6, -262.1, scale=0.5)
+    box((PL, "neon_white", 0), fx - 0.34, fx + 0.34, fy - 0.04, fy, -262.55, -262.15, scale=0.5)
+    site_lamp(f"board_{k}", (fx, fy - 0.2, -262.3), "#dfe6ff", 8.0, 1.2)
+# The housing's face, for the site's floodlight wash (src/world/boards.js).
+empty("anchor_board_housing", ((HX0 + HX1) / 2, (HY0 + HY1) / 2, -263.84),
+      props={"w": HX1 - HX0, "h": HY1 - HY0, "rib0": HY0 + 0.4, "ribStep": 3.1})
 SMALL_BOARDS = [
     (44.6, 12.0, -205.0, 9.0, 6.0, math.radians(90)),
     (44.6, 12.0, -228.0, 9.0, 6.0, math.radians(90)),

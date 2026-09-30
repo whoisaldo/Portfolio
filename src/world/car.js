@@ -148,7 +148,31 @@ function nightEnvironment() {
   };
 }
 
-export function createCar(scene, renderer, { road, anchors, light, layer, mirrorLayer }) {
+/**
+ * A phone's car in fewer triangles: the merged paint meshes (the body and
+ * each wheel) simplified in place with meshoptimizer, every part's outline
+ * locked so no seam opens, to within 4 mm. The city's car is seen from five
+ * metres to a hundred on a phone; the garage's viewer keeps the whole model.
+ * The simplifier is its own chunk, fetched only on a phone.
+ */
+async function lighten(car) {
+  const { MeshoptSimplifier } = await import("meshoptimizer/simplifier");
+  await MeshoptSimplifier.ready;
+  const meshes = [];
+  car.traverse((o) => {
+    if (o.isMesh && o.name === "s4_paint" && o.geometry.index) meshes.push(o);
+  });
+  for (const mesh of meshes) {
+    const g = mesh.geometry;
+    const index = g.index.array instanceof Uint32Array ? g.index.array : new Uint32Array(g.index.array);
+    const pos = g.attributes.position.array;
+    const scale = MeshoptSimplifier.getScale(pos, 3);
+    const [out] = MeshoptSimplifier.simplify(index, pos, 3, Math.floor((index.length * 0.4) / 3) * 3, 0.004 / scale, ["LockBorder"]);
+    g.setIndex(new THREE.BufferAttribute(out, 1));
+  }
+}
+
+export function createCar(scene, renderer, { road, anchors, light, layer, mirrorLayer, tier = "high" }) {
   const car = createObject();
   car.name = "ali_s4_world";
   const rig = createRig(car);
@@ -156,6 +180,11 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // and added once they are merged; the real car is drawn once.
   const standIn = mirrorStandIn(car, rig);
   const slimmed = slim(car);
+  const ready = tier === "phone"
+    ? lighten(car).catch((err) => {
+        if (import.meta.env.DEV) console.warn("[world] the phone's car keeps every triangle", err);
+      })
+    : Promise.resolve();
   standIn.layers.set(mirrorLayer);
   car.add(standIn);
   car.traverse((o) => {
@@ -387,6 +416,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
 
   return {
     car,
+    /** Resolves once a phone's car is simplified (at once elsewhere). */
+    ready,
     stops,
     routeGoal,
     get u() {
