@@ -55,6 +55,10 @@ export const bd = {
   ended: false,
   // Fractions of the load, for the loading line.
   progress: 0,
+  // Photo mode: lens change in degrees, roll in degrees, filter, stamp.
+  photo: { fov: 0, roll: 0, filter: "off", stamp: true },
+  // The Konami code's reward.
+  overdrive: false,
 };
 
 const subs = new Set();
@@ -115,6 +119,8 @@ export function resetBd() {
     help: false,
     ended: false,
     progress: 0,
+    photo: { fov: 0, roll: 0, filter: "off", stamp: true },
+    overdrive: false,
   });
   notify();
 }

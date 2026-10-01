@@ -9,8 +9,10 @@ import { useEffect } from "react";
 import { bd, set } from "./store";
 import { DURATION } from "./recording";
 import { LAYERS } from "./layers";
+import { unlock } from "./journal";
 
 const SPEEDS = [1, 2, 4];
+const KONAMI = ["ArrowUp", "ArrowUp", "ArrowDown", "ArrowDown", "ArrowLeft", "ArrowRight", "ArrowLeft", "ArrowRight", "b", "a"];
 
 export function useControls(engineRef, on) {
   useEffect(() => {
@@ -27,15 +29,33 @@ export function useControls(engineRef, on) {
       e.setSpeed(SPEEDS[i], d);
     };
 
+    let konami = 0;
     const onKey = (event) => {
       if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+      // Up, up, down, down, left, right, left, right, B, A: overdrive.
+      const k = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      konami = k === KONAMI[konami] ? konami + 1 : k === KONAMI[0] ? 1 : 0;
+      if (konami === KONAMI.length) {
+        konami = 0;
+        set({ overdrive: !bd.overdrive });
+        unlock("overdrive");
+        event.preventDefault();
+        return;
+      }
       const tag = event.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       const e = engine();
       if (!e) return;
       const key = event.key;
       const handled = () => event.preventDefault();
-      if (bd.mode === "photo" && key !== "Escape" && key !== "p" && key !== "P") return;
+      if (bd.mode === "photo") {
+        if (key === "Enter") {
+          handled();
+          e.capture();
+          return;
+        }
+        if (key !== "Escape" && key !== "p" && key !== "P") return;
+      }
       switch (key) {
         case " ":
           if (tag === "BUTTON") return;

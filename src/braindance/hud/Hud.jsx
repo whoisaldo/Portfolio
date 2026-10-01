@@ -14,6 +14,8 @@ import Toasts from "./Toasts";
 import Journal from "./Journal";
 import Minimap from "./Minimap";
 import Radio from "./Radio";
+import PhotoMode from "./PhotoMode";
+import { EditHint, EndScreen, TitleCard, Tutorial } from "./Overlays";
 import { CHAPTERS, CONTROLS, LAYER_NAMES } from "../../data/braindance";
 
 function Header() {
@@ -66,12 +68,17 @@ export default function Hud({ engineRef }) {
   return (
     <>
       <div className={`bd-look ${state.mode === "edit" ? "is-edit" : ""} ${state.hover ? "is-scan" : ""}`} {...handlers} aria-hidden="true" />
-      <div className={`bd-hud ${state.hud ? "" : "is-hidden"}`}>
+      <div className={`bd-hud ${state.hud ? "" : "is-hidden"} ${state.mode === "photo" ? "is-photo" : ""}`}>
         <Markers engineRef={engineRef} />
+        <TitleCard />
         <Header />
         <Minimap engineRef={engineRef} />
         <Radio engineRef={engineRef} />
         <Timeline engineRef={engineRef} clues={windows} />
+        <Tutorial />
+        <EditHint />
+        <PhotoMode engineRef={engineRef} />
+        <EndScreen engineRef={engineRef} />
         <ScanCard />
         <Journal engineRef={engineRef} windows={windows} />
         <Toasts />

@@ -607,3 +607,94 @@ kbd {
 .bd-radio-kicker { font-family: "JetBrains Mono Variable", ui-monospace, monospace; font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bd-volt); }
 .bd-radio-title { font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
 .bd-radio-text p:last-child { font-size: 0.78rem; }
+
+/* ---- photo mode ---- */
+.bd-hud.is-photo .bd-header,
+.bd-hud.is-photo .bd-minimap,
+.bd-hud.is-photo .bd-radio,
+.bd-hud.is-photo .bd-timeline,
+.bd-hud.is-photo .bd-help-btn,
+.bd-hud.is-photo .bd-toasts { display: none; }
+.bd-photo { left: 50%; bottom: 1.4rem; transform: translateX(-50%); width: min(60rem, 92vw); }
+.bd-photo-row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.bd-photo-hint { font-size: 0.8rem; }
+.bd-photo-grid { margin-top: 0.8rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem 1.4rem; }
+.bd-photo-grid label { display: flex; align-items: center; gap: 0.6rem; font-family: "JetBrains Mono Variable", ui-monospace, monospace; font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--bd-dim); }
+.bd-photo-grid input[type="range"] { width: 8rem; accent-color: var(--bd-volt); }
+.bd-photo-check input { accent-color: var(--bd-volt); }
+.bd-photo-chips { display: flex; gap: 0.25rem; }
+.bd-photo-chips button {
+  padding: 0.3rem 0.6rem;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bd-dim);
+  border: 1px solid var(--bd-line);
+  cursor: pointer;
+}
+.bd-photo-chips button:hover { color: var(--bd-text); }
+.bd-photo-chips button.is-on { color: #0a0a0c; background: var(--bd-volt); border-color: var(--bd-volt); }
+.bd-photo-shoot { margin-top: 0; margin-left: auto; }
+
+/* ---- title, tutorial, editor, end ---- */
+.bd-title-card {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.85);
+}
+.bd-title-big {
+  margin-top: 0.4rem;
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: clamp(2.6rem, 6vw, 5.2rem);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  animation: bd-in 1.2s cubic-bezier(0.16, 0.9, 0.25, 1);
+}
+.bd-title-meta {
+  margin-top: 0.7rem;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(236, 234, 228, 0.75);
+}
+.bd-tutorial, .bd-edit-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 10.6rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.95rem;
+  background: rgba(6, 6, 9, 0.82);
+  border: 1px solid var(--bd-line);
+  white-space: nowrap;
+  animation: bd-toast 0.5s cubic-bezier(0.16, 0.9, 0.25, 1);
+  pointer-events: none;
+}
+.bd-edit-hint { bottom: auto; top: 1.4rem; border-color: color-mix(in srgb, var(--bd-volt) 40%, transparent); }
+.bd-end {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 50%, rgba(5, 5, 6, 0.55), rgba(5, 5, 6, 0.9));
+  animation: bd-toast 0.8s ease;
+}
+.bd-end .bd-copy { margin-left: auto; margin-right: auto; }
+.bd-end-stats { margin-top: 1.6rem; display: flex; gap: 2.4rem; }
+.bd-end-stats dt { font-family: "JetBrains Mono Variable", ui-monospace, monospace; font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bd-dim); }
+.bd-end-stats dd { margin-top: 0.2rem; font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 2.6rem; color: var(--bd-volt); }
+.bd-end-stats dd span { font-size: 1.2rem; color: var(--bd-dim); margin-left: 0.3rem; }
+.bd-end-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }

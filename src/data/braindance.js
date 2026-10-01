@@ -37,6 +37,27 @@ export const CHAPTERS = [
   { id: "end", title: "End of recording", line: "" },
 ];
 
+/** The first time through, a line at a time, over the timeline. */
+export const TUTORIAL = [
+  { keys: ["Hold click"], line: "Something highlighted is a clue. Hold a click on it to scan it." },
+  { keys: ["1", "2", "3"], line: "Some clues only show up on the audio or thermal layer. The timeline shows where." },
+  { keys: ["F"], line: "Pause and walk around the moment in the editor." },
+  { keys: ["Q", "E"], line: "Rewind and fast forward. Press again to go faster." },
+  { keys: ["J"], line: "The journal lists everything there is to find." },
+];
+
+export const END = {
+  kicker: "End of recording",
+  title: "Thanks for watching",
+  all: "You found every clue. Now you know more about me than most recruiters. Say hi.",
+  some: "Some of it is still in there. Replay it, try the other layers, or open the journal for where to look.",
+  replay: "Replay",
+  journal: "Journal",
+  email: "Email me",
+  cinematic: "The cinematic site",
+  recruiters: "For recruiters",
+};
+
 export const LAYER_NAMES = {
   visual: "Visual",
   audio: "Audio",

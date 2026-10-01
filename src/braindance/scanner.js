@@ -54,7 +54,7 @@ export function createScanner({ parts, recording, layers }) {
       for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) inCar([box.car.c[0] + sx * half.x, box.car.c[1] + sy * half.y, box.car.c[2] + sz * half.z], corners[k++]);
       out.setFromPoints(corners).expandByScalar(0.06);
       // Never into the ground under it: the floor is not the clue.
-      out.min.y = Math.max(out.min.y, car.p.y + 0.03);
+      out.min.y = Math.max(out.min.y, car.p.y + 0.08);
       return out;
     }
     if (box.world) return out.set(_a.fromArray(box.world.min), _b.fromArray(box.world.max));

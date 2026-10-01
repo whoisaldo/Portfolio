@@ -55,6 +55,9 @@ const FRAG = /* glsl */ `
   uniform float uRewind;
   uniform float uPaused;
   uniform float uClock;
+  uniform float uFilter;     // photo mode: 0 off, 1 noir, 2 neon, 3 film
+  uniform float uOverdrive;
+  uniform float uBassK;
 
   float bdh(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -141,22 +144,39 @@ const FRAG = /* glsl */ `
     outCol += layerTint * front * 1.6;
 
     // ---- clues ----
+    // Inside a clue's box: a faint fill, scanlines climbing it, and the
+    // object's own outline, found where the depth jumps between this pixel
+    // and a neighbour (a scanner's silhouette). The fill grows under the
+    // pointer and with the scan's charge.
     if (!sky) {
+      float best = 0.0;
+      float hov = 0.0;
+      vec3 cc = vec3(0.0);
       for (int i = 0; i < ${MAX_CLUES}; i++) {
         float k = uClueK[i].x;
         if (k <= 0.0) continue;
         float sd = boxDist(world, uClueMin[i], uClueMax[i]);
-        if (sd > 0.6) continue;
-        float inside = 1.0 - smoothstep(-0.05, 0.5, sd);
-        // A thin bright skin where a surface leaves the box, scanlines
-        // climbing whatever is inside, and a fill only under the pointer.
-        float rim = smoothstep(0.35, 0.0, abs(sd + 0.12));
-        float climb = smoothstep(0.9, 1.0, fract(world.y * 0.7 - uClock * 0.5));
-        float hover = uClueK[i].y;
-        vec3 c = uClueColor[i];
-        float fill = 0.06 + 0.1 * min(hover, 1.0) + 0.18 * max(hover - 1.0, 0.0);
-        outCol = mix(outCol, c * (0.25 + 1.4 * luma(outCol)), inside * k * fill);
-        outCol += c * (rim * 0.4 + climb * inside * (0.12 + 0.2 * min(hover, 1.0))) * k;
+        float inside = (1.0 - smoothstep(-0.06, 0.0, sd)) * k;
+        if (inside > best) {
+          best = inside;
+          hov = uClueK[i].y;
+          cc = uClueColor[i];
+        }
+      }
+      if (best > 0.0) {
+        float z0 = -getViewZ(depth);
+        float zx = -getViewZ(readDepth(uv + vec2(texelSize.x * 1.5, 0.0)));
+        float zy = -getViewZ(readDepth(uv + vec2(0.0, texelSize.y * 1.5)));
+        float zx2 = -getViewZ(readDepth(uv - vec2(texelSize.x * 1.5, 0.0)));
+        float zy2 = -getViewZ(readDepth(uv - vec2(0.0, texelSize.y * 1.5)));
+        float jump = max(max(zx, zy), max(zx2, zy2)) - z0;
+        float edge = smoothstep(0.04, 0.12, jump / max(z0, 0.5));
+        float climb = smoothstep(0.92, 1.0, fract(world.y * 0.8 - uClock * 0.5));
+        float h = min(hov, 1.0);
+        float charge = max(hov - 1.0, 0.0);
+        float fill = 0.05 + 0.09 * h + 0.2 * charge;
+        outCol = mix(outCol, cc * (0.25 + 1.3 * luma(outCol)), best * fill);
+        outCol += cc * best * (edge * (1.3 + 0.9 * h) + climb * (0.05 + 0.12 * h));
       }
     }
 
@@ -185,6 +205,31 @@ const FRAG = /* glsl */ `
       float roll = step(0.995, bdh(vec2(floor(uv.y * 120.0), floor(uClock * 24.0))));
       outCol = mix(outCol, outCol * vec3(0.75, 0.55, 1.25), 0.35 * uRewind);
       outCol += vec3(0.6, 0.2, 0.9) * (band * 0.10 + roll * 0.5) * uRewind;
+    }
+    // ---- photo mode's filters ----
+    if (uFilter > 0.5 && uFilter < 1.5) {
+      float l = luma(outCol);
+      l = smoothstep(0.0, 0.9, l);
+      outCol = vec3(pow(l, 1.15)) * vec3(1.0, 0.98, 0.95);
+    } else if (uFilter > 1.5 && uFilter < 2.5) {
+      float l = luma(outCol);
+      vec3 lo = vec3(0.10, 0.02, 0.22);
+      vec3 hi = vec3(0.15, 0.95, 0.90);
+      outCol = mix(outCol, mix(lo, hi, smoothstep(0.0, 0.7, l)) * (0.6 + l), 0.65) + vec3(0.9, 0.1, 0.6) * smoothstep(0.6, 1.4, l) * 0.4;
+    } else if (uFilter > 2.5) {
+      float g = bdh(uv * 1300.0 + uClock) - 0.5;
+      outCol = outCol * vec3(1.08, 0.98, 0.86) + g * 0.035;
+      vec2 q = uv - 0.5;
+      outCol *= 1.0 - dot(q, q) * 1.1;
+    }
+    // ---- overdrive: the Konami code ----
+    if (uOverdrive > 0.0) {
+      float a = uClock * 1.7 + uv.x * 2.0 + uBassK * 2.5;
+      vec3 k = vec3(0.57735);
+      float c = cos(a);
+      float sn = sin(a);
+      vec3 rot = outCol * c + cross(k, outCol) * sn + k * dot(k, outCol) * (1.0 - c);
+      outCol = mix(outCol, rot * (1.0 + uBassK * 0.6), uOverdrive * 0.75);
     }
     outputColor = vec4(outCol, inputColor.a);
   }
@@ -217,6 +262,9 @@ export class LayerEffect extends Effect {
         ["uRewind", new THREE.Uniform(0)],
         ["uPaused", new THREE.Uniform(0)],
         ["uClock", new THREE.Uniform(0)],
+        ["uFilter", new THREE.Uniform(0)],
+        ["uOverdrive", new THREE.Uniform(0)],
+        ["uBassK", new THREE.Uniform(0)],
       ]),
     });
     this.camera = null;
@@ -313,6 +361,15 @@ export function createLayers() {
         kk[i].set(c.k, c.hover);
         cc[i].copy(c.color);
       }
+    },
+    /** Photo mode's filter: "off" | "noir" | "neon" | "film". */
+    setFilter(name) {
+      u("uFilter").value = { off: 0, noir: 1, neon: 2, film: 3 }[name] ?? 0;
+    },
+    setOverdrive(on, bass = 0) {
+      const v = u("uOverdrive");
+      v.value += ((on ? 1 : 0) - v.value) * 0.08;
+      u("uBassK").value = bass;
     },
     setCamera(camera) {
       effect.camera = camera;

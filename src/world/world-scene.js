@@ -531,19 +531,23 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   // `moonView` is the intro's voxel moon (see renderCinematic): null for the
   // city alone, "only" for the moon alone, "over" for the moon over the city.
-  const draw = (dt, moonView = null) => {
+  // `flow` is how far the city's own clock moves this frame, when that is
+  // not the frame's time: the braindance holds it still while paused and
+  // runs it backwards while rewinding (the rain, the traffic, the koi, every
+  // flicker). Smoothing everywhere else stays on the frame's dt.
+  const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
-    clock += dt;
+    clock += flow;
     shared.uTime.value = clock;
     shared.uCam.value.copy(camera.position);
     const env = drive(dt);
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
-      rain?.update(dt, camera, env.wet);
+      rain?.update(flow, camera, env.wet);
       shafts?.update(shared.uHaze.value);
-      koi?.update(dt);
-      traffic?.update(dt, env.traffic);
+      koi?.update(flow);
+      traffic?.update(flow, env.traffic);
       city?.boards.update(dt, activeBoard());
       city?.towers.update(dt, activeTowers());
       city?.logos.update(dt, activeTowers());
@@ -893,7 +897,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     flight = null;
     if (car && spec.car) car.directed(dt, spec.car);
     cineGlitch = spec.glitch ?? 0;
-    draw(dt);
+    draw(dt, null, spec.flow ?? dt);
     cineGlitch = -1;
     directed = null;
   };
