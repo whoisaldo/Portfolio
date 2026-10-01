@@ -76,24 +76,33 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
         vec2 d = abs(p) - b + r;
         return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r;
       }
+      float smin(float a, float b, float k) {
+        float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+        return mix(b, a, h) - k * h * (1.0 - h);
+      }
       // One of the two, seated, from behind, in units of the moon's radius
-      // with its seat at the origin and up away from the moon: a back and
-      // shoulders, arms at the sides, a head, and the hair that tells them
-      // apart (his stands up in spikes; hers is a bob).
+      // with its seat at the origin and up away from the moon: hips as wide
+      // as a seated body's, a back that widens into round, sloping
+      // shoulders, a neck, a head, and the hair that tells them apart (his
+      // stands up in spikes; hers is a bob, narrower than her shoulders).
+      // A box of a back with a bar of shoulders on it read as a chimney pot.
       float figure(vec2 p, float spiky) {
-        float d = box(p - vec2(0.0, 0.034), vec2(0.021, 0.034), 0.012);
-        d = min(d, box(p - vec2(0.0, 0.062), vec2(0.028, 0.008), 0.006));
-        d = min(d, length(p - vec2(0.0, 0.086)) - 0.015);
+        float d = (length((p - vec2(0.0, 0.01)) / vec2(0.029, 0.014)) - 1.0) * 0.014;
+        d = smin(d, box(p - vec2(0.0, 0.03), vec2(0.021, 0.02), 0.01), 0.008);
+        d = smin(d, (length((p - vec2(0.0, 0.051)) / vec2(0.029, 0.011)) - 1.0) * 0.011, 0.012);
+        d = min(d, box(p - vec2(0.0, 0.064), vec2(0.0065, 0.008), 0.002));
+        d = min(d, length(p - vec2(0.0, 0.08)) - 0.0135);
         if (spiky > 0.5) {
           for (int i = 0; i < 5; i++) {
             float a = (float(i) - 2.0) * 0.5;
-            vec2 q = p - vec2(0.0, 0.09);
-            vec2 tip = vec2(sin(a), cos(a)) * 0.028;
+            vec2 q = p - vec2(0.0, 0.084);
+            vec2 tip = vec2(sin(a), cos(a)) * 0.024;
             float h = clamp(dot(q, tip) / dot(tip, tip), 0.0, 1.0);
             d = min(d, length(q - tip * h) - 0.006 * (1.0 - h));
           }
         } else {
-          d = min(d, box(p - vec2(0.0, 0.086), vec2(0.02, 0.019), 0.009));
+          d = min(d, length(p - vec2(0.0, 0.081)) - 0.0145);
+          d = min(d, box(p - vec2(0.0, 0.075), vec2(0.0165, 0.009), 0.006));
         }
         return d;
       }
@@ -148,27 +157,34 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
         col += mix(vec3(0.5, 0.55, 0.85), uHazeColor * 3.0, 0.5) * glow * 0.55 * (1.0 + 0.2 * uLevel);
 
         // The two of them on its upper rim, a little left of the top, him
-        // taller: dark against the moon where they sit on it and against its
-        // glow above, with the moon's light catching their edges.
+        // taller, big enough to read as two people at a screen's width (at
+        // the moon's own scale they were a few pixels of stubble). Each
+        // leans toward the other, out of the rim's splay. Seated a little on
+        // the near face, so their hips are dark against the moon and their
+        // backs against its glow, with the moon's light catching their edges.
         float sil = 1e3;
         for (int k = 0; k < 2; k++) {
-          float a = radians(k == 0 ? 101.0 : 94.5);
-          vec2 up = vec2(cos(a), sin(a));
+          float a = radians(k == 0 ? 102.0 : 93.0);
+          vec2 seat = vec2(cos(a), sin(a)) * 0.955;
+          float b = a + radians(k == 0 ? -8.0 : 8.0);
+          vec2 up = vec2(cos(b), sin(b));
           vec2 side = vec2(up.y, -up.x);
-          vec2 seat = up * 0.992;
-          float size = k == 0 ? 1.35 : 1.2;
+          float size = k == 0 ? 2.5 : 2.2;
           vec2 local = vec2(dot(q - seat, side), dot(q - seat, up)) / size;
           sil = min(sil, figure(local, k == 0 ? 1.0 : 0.0) * size);
         }
         float saa = fwidth(sil);
         float body = 1.0 - smoothstep(-saa, saa, sil);
-        float rim = (1.0 - smoothstep(0.0, 0.006 + saa, abs(sil))) * (1.0 - body * 0.5);
+        // A pixel and a half outside them: wider, on a phone's coarser
+        // pixels, it greyed their whole bodies.
+        float rim = (1.0 - smoothstep(0.0, saa * 1.5, max(sil, 0.0))) * (1.0 - body);
         col = mix(col, vec3(0.006, 0.007, 0.012), body);
         col += vec3(0.5, 0.56, 0.75) * rim * 0.35 * smoothstep(0.9, 1.0, rq);
 
         // The sky's cloud deck (src/world/skyline.js) passes in front: thick
         // cloud hides the moon, thin cloud takes its light, silver at the
-        // edges.
+        // edges, though not over the two of them: over the glow that silver
+        // greyed them to stubs.
         vec3 dir = normalize(vWorld - uCam);
         float tc = (520.0 - uCam.y) / max(dir.y, 0.02);
         vec3 pc = uCam + dir * tc;
@@ -176,7 +192,7 @@ export function dressMoon(mesh, shared, { reflectLayer = 2 } = {}) {
         float cn = fbm(cl + 0.9 * vec2(fbm(cl * 0.5 + 5.2), fbm(cl * 0.5 + 1.3)));
         float cover = smoothstep(0.42, 0.72, cn);
         float edge = smoothstep(0.35, 0.5, cn) * (1.0 - smoothstep(0.5, 0.72, cn));
-        col = col * (1.0 - 0.8 * cover) + vec3(0.62, 0.64, 0.8) * edge * (disc * 0.5 + glow * 0.9) * 0.6;
+        col = col * (1.0 - 0.8 * cover) + vec3(0.62, 0.64, 0.8) * edge * (disc * 0.5 + glow * 0.9) * 0.6 * (1.0 - body);
 
         col *= exp(-length(vWorld - uCam) * uFogDensity * 0.15);
         gl_FragColor = vec4(col, 1.0);

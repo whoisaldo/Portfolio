@@ -50,14 +50,16 @@ function box(w, h, d, x = 0, y = 0, z = 0) {
   return g;
 }
 
-// Lanes over the canyon and the districts: centre, radii, altitude, speed.
+// Lanes over the canyon and the districts: centre, radii, altitude, speed,
+// and the size of what flies it.
 const SKY_LANES = [
   { c: [0, -420], r: [150, 60], y: 58, v: 26 },
   { c: [20, -520], r: [220, 40], y: 82, v: 34 },
   { c: [-10, -300], r: [120, 90], y: 46, v: 22 },
   // Across the moon, seen from the garage's roof (fourth, so a phone's four
-  // take it too).
-  { c: [620, 120], r: [200, 70], y: 150, v: 40 },
+  // take it too): a heavier craft, slower, so that 300 m off it crosses the
+  // disc as a silhouette with its lamps lit and not as a speck.
+  { c: [620, 120], r: [200, 70], y: 150, v: 30, s: 2.6 },
   { c: [200, -300], r: [260, 120], y: 95, v: 38 },
   { c: [320, -260], r: [140, 70], y: 70, v: 28 },
   { c: [0, -650], r: [260, 60], y: 110, v: 42 },
@@ -281,6 +283,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const one = new THREE.Vector3(1, 1, 1);
+  const scale = new THREE.Vector3();
   const p = new THREE.Vector3();
   const fwd = new THREE.Vector3();
   const tmp = new THREE.Vector3();
@@ -317,9 +320,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), fwd);
       // Banked into its loop and a touch nose-down, as a thing flying does.
       q.multiply(tilt.setFromEuler(euler.set(0.05, 0, (i % 2 ? 1 : -1) * 0.16)));
-      avMesh.setMatrixAt(i, m.compose(p, q, one));
-      setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75, 0.9, 1.0, 1.2);
-      setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0, 0.1, 0.25, 0.9);
+      const s = L.s ?? 1;
+      avMesh.setMatrixAt(i, m.compose(p, q, scale.setScalar(s)));
+      setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * s);
+      setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * s);
     }
     for (let i = 0; i < cars; i++) {
       const L = ROAD_LANES[i % ROAD_LANES.length];
