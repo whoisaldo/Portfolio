@@ -3,6 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { attributeKey, mergeMeshes } from "../world/merge.js";
+import { markBytes } from "../world/progress.js";
 
 const base = `${import.meta.env.BASE_URL}scenes/garage/`;
 let pending;
@@ -11,7 +12,7 @@ let source;
 export function preloadGarageRoom() {
   if (!pending) {
     pending = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder)
-      .loadAsync(`${base}night-city-garage.glb`)
+      .loadAsync(`${base}night-city-garage.glb`, (e) => markBytes("garage", e.loaded, e.total))
       .then((gltf) => { source = gltf.scene; })
       .catch((error) => { pending = null; throw error; });
   }

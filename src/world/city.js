@@ -16,6 +16,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { worldModelUrl, worldShopsUrl } from "../data/world-assets.js";
 import { createMaterialKit, NEON } from "./materials.js";
+import { markBytes } from "./progress.js";
 import { createSigns } from "./signs.js";
 import { bakeLight } from "./spill.js";
 import { createRoadMaterial } from "./road.js";
@@ -48,7 +49,10 @@ export function preloadCity(tier) {
   if (!cache.has(tier)) {
     // The kit, and the rooms its shop windows look into.
     const pending = Promise.all([
-      new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(worldModelUrl[tier]).then((gltf) => gltf.scene),
+      new GLTFLoader()
+        .setMeshoptDecoder(MeshoptDecoder)
+        .loadAsync(worldModelUrl[tier], (e) => markBytes("city", e.loaded, e.total))
+        .then((gltf) => gltf.scene),
       new THREE.TextureLoader().loadAsync(worldShopsUrl[tier]),
     ])
       .then(([scene, shops]) => ({ scene, shops }))
