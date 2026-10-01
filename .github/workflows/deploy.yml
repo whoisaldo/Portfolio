@@ -34,6 +34,10 @@ jobs:
       # /recruiters is the address on the résumé, so it gets a real page and
       # a 200 rather than the 404 fallback the other client-side routes use.
       - run: mkdir -p dist/recruiters && cp dist/index.html dist/recruiters/index.html
+      # The built site is what goes public, résumé included. A phone number or
+      # an email other than aldo@ and hello@sideband.studio stops the deploy,
+      # and the last good one stays live. scripts/check-sensitive.py has the rules.
+      - run: python3 -m pip install --quiet pypdf && python3 scripts/check-sensitive.py dist
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
