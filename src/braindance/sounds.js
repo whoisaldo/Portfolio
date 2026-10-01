@@ -88,7 +88,7 @@ export function createSounds(audio) {
   engineTone.Q.value = 1.2;
   const clip = clipper(ac, 2.6);
   const engineGain = ac.createGain();
-  engineGain.gain.value = 0.32;
+  engineGain.gain.value = 0.24;
   clip.connect(engineTone).connect(engineGain).connect(carBus);
   const fire = ac.createOscillator();
   fire.type = "sawtooth";

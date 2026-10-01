@@ -20,9 +20,24 @@ export const BOOT = {
   notHereLine: "The braindance wants a mouse, a keyboard and a graphics card. The other two ways in work everywhere.",
   toCinematic: "The cinematic site",
   toRecruiters: "For recruiters",
-  loading: "Reconstructing the recording",
+  loading: "Jacking in",
   failed: "The recording would not play here",
+  failedLine: "This browser could not build the city. The other two ways in still work.",
   canvasLabel: "A braindance of Night City at night. The clues in it are listed in the journal.",
+};
+
+/** The loading screen's line for what it is waiting on. */
+export const LOAD_LABELS = {
+  code: "The city's code",
+  city: "Streets and towers",
+  car: "The S4",
+  voxel: "The voxel moon",
+  holo: "The hologram",
+  ads: "The ads",
+  koi: "The koi",
+  moon: "The garage monitor",
+  build: "Reconstructing the recording",
+  done: "In",
 };
 
 /** One per chapter in src/braindance/recording.js, in its order. */
@@ -433,7 +448,7 @@ export const CLUES = [
     layer: "thermal",
     secret: true,
     kicker: "Secret",
-    title: "Somebody tagged this wall",
+    title: "Somebody tagged the road",
     body: "whoisaldo. Same handle on GitHub, warmer here.",
     links: [{ label: "github.com/whoisaldo", href: "https://github.com/whoisaldo" }],
   },

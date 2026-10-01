@@ -30,7 +30,7 @@ import { fmt } from "./format.js";
 const DEG = Math.PI / 180;
 const _up = new THREE.Vector3();
 
-export async function createBraindance(canvas, { onProgress, onFirstFrame } = {}) {
+export async function createBraindance(canvas, { onProgress, onFirstFrame, reduced = false } = {}) {
   // The intro's arrangement: the scene's own loop rests while this one
   // draws (world-scene.js checks stage.mode before it runs a frame).
   setStage({ mode: "cinematic" });
@@ -254,8 +254,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame } = {}
     // The reconstruction: the city builds out from the car over the
     // first fourteen seconds; scrubbed past it, it is simply there.
     waveT = t;
-    const waveR = waveT < 16 ? 1.5 + Math.pow(clamp(waveT / 14, 0, 1), 1.7) * 900 : 5000;
-    layers.setWave(spec.carPosition, waveR, waveT < 16 ? 1 : 0, LAYER_COLORS[layers.layer]);
+    const waveR = waveT < 16 && !reduced ? 1.5 + Math.pow(clamp(waveT / 14, 0, 1), 1.7) * 900 : 5000;
+    layers.setWave(spec.carPosition, waveR, waveT < 16 && !reduced ? 1 : 0, LAYER_COLORS[layers.layer]);
+    // Reduced motion: cuts without the glitch.
+    if (reduced) spec.glitch = 0;
 
     // The fill: from above and to the left of the camera, at the car.
     const near = 1 - clamp((shown.position.distanceTo(spec.carPosition) - 6) / 22, 0, 1);
@@ -378,7 +380,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame } = {}
     },
     setLayer(next) {
       if (next === layers.layer) return;
-      layers.setLayer(next, camera.position);
+      layers.setLayer(next, camera.position, reduced);
       audio?.setLayer(next);
       sounds?.layer(next);
       set({ layer: next });

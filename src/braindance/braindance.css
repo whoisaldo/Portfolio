@@ -503,7 +503,7 @@ kbd {
 .bd-toasts {
   position: absolute;
   left: 50%;
-  top: 1.4rem;
+  top: 4.4rem;
   transform: translateX(-50%);
   display: grid;
   gap: 0.5rem;
@@ -698,3 +698,19 @@ kbd {
 .bd-end-stats dd { margin-top: 0.2rem; font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 2.6rem; color: var(--bd-volt); }
 .bd-end-stats dd span { font-size: 1.2rem; color: var(--bd-dim); margin-left: 0.3rem; }
 .bd-end-actions { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }
+
+/* ---- jacking in ---- */
+.bd-sync { width: 9rem; height: 9rem; margin-top: 1.2rem; transform: rotate(-90deg); }
+.bd-sync-track { fill: none; stroke: var(--bd-line); stroke-width: 2; }
+.bd-sync-bar { fill: none; stroke: var(--bd-volt); stroke-width: 3; transition: stroke-dashoffset 0.4s ease; filter: drop-shadow(0 0 6px rgba(252, 238, 10, 0.6)); }
+.bd-sync-inner { fill: none; stroke: rgba(46, 230, 200, 0.4); stroke-width: 1; stroke-dasharray: 2 6; animation: bd-spin 6s linear infinite; transform-origin: 70px 70px; }
+@keyframes bd-spin { to { transform: rotate(360deg); } }
+.bd-sync-n { margin-top: -5.9rem; height: 5.9rem; font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 1.8rem; font-variant-numeric: tabular-nums; }
+.bd-loading-title { margin-top: 0.6rem; font-size: clamp(1.8rem, 3vw, 2.6rem); text-align: center; }
+.bd-load-steps { display: flex; gap: 4px; margin-top: 1rem; }
+.bd-load-steps li { width: 26px; height: 4px; background: var(--bd-line); }
+.bd-load-steps li.is-done { background: var(--bd-volt); }
+.bd-load-steps li.is-next { background: var(--bd-teal); animation: bd-blink 0.8s steps(2, start) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .bd-sync-inner, .bd-load-steps li.is-next { animation: none; }
+}

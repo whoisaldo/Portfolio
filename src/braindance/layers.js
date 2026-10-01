@@ -303,14 +303,14 @@ export function createLayers() {
       return layer;
     },
     /** Change layer, the new one carried out from `origin` by a wave. */
-    setLayer(next, origin) {
+    setLayer(next, origin, instant = false) {
       if (next === layer) return;
-      u("uPrevMode").value.copy(ONE_HOT[layer]);
+      u("uPrevMode").value.copy(ONE_HOT[instant ? next : layer]);
       u("uMode").value.copy(ONE_HOT[next]);
       layer = next;
-      switchR = 0;
+      switchR = instant ? -1 : 0;
       switchFrom = origin.clone();
-      u("uSwitch").value.set(origin.x, origin.y, origin.z, 0);
+      u("uSwitch").value.set(origin.x, origin.y, origin.z, instant ? -1 : 0);
     },
     /** The reconstruction: radius in metres around `origin`, or off. */
     setWave(origin, radius, on, color = LAYER_COLORS.visual) {

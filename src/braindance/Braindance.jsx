@@ -16,8 +16,10 @@ import { hasGpuAcceleration } from "../lib/gpu";
 import { unlockAudio } from "../lib/audio";
 import { stopAmbient } from "../lib/ambient";
 import { prefetchWorld } from "../world/load";
-import { bd, resetBd, set, useBd } from "./store";
+import { resetBd, set, useBd } from "./store";
+import { usePrefersReducedMotion } from "../hooks";
 import Hud from "./hud/Hud";
+import Loading from "./hud/Loading";
 import { useControls } from "./controls";
 import { BOOT } from "../data/braindance";
 import "./braindance.css";
@@ -53,6 +55,10 @@ export default function Braindance() {
   const canvasRef = useRef(null);
   const engineRef = useRef(null);
   const state = useBd();
+  const reduced = usePrefersReducedMotion();
+  // Read when the braindance is built, not a reason to build it again.
+  const reducedRef = useRef(reduced);
+  reducedRef.current = reduced;
 
   useEffect(() => {
     resetBd();
@@ -86,6 +92,7 @@ export default function Braindance() {
     import("./engine.js")
       .then(({ createBraindance }) =>
         createBraindance(canvasRef.current, {
+          reduced: reducedRef.current,
           onProgress: (p) => alive && set({ progress: p }),
           onFirstFrame: () => alive && set({ status: "ready" }),
         }),
@@ -99,7 +106,8 @@ export default function Braindance() {
         engineRef.current = e;
         if (import.meta.env.DEV) window.__bd = e;
         e.start();
-        e.play();
+        // Reduced motion: the recording waits for its own play button.
+        if (!reducedRef.current) e.play();
       })
       .catch((err) => {
         if (import.meta.env.DEV) console.warn("[braindance] failed", err);
@@ -136,20 +144,7 @@ export default function Braindance() {
           </div>
         </div>
       )}
-      {jacked && state.status !== "ready" && (
-        <div className="bd-loading" role="status">
-          <p className="bd-kicker">{state.status === "failed" ? BOOT.failed : BOOT.loading}</p>
-          <div className="bd-loading-bar" aria-hidden="true">
-            <span style={{ transform: `scaleX(${bd.progress})` }} />
-          </div>
-          {state.status === "failed" && (
-            <div className="bd-boot-links">
-              <Link to="/" className="bd-link">{BOOT.toCinematic}</Link>
-              <Link to="/recruiters" className="bd-link">{BOOT.toRecruiters}</Link>
-            </div>
-          )}
-        </div>
-      )}
+      {jacked && state.status !== "ready" && <Loading />}
       {jacked && state.status === "ready" && <Hud engineRef={engineRef} />}
     </div>
   );

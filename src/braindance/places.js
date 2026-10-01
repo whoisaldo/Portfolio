@@ -101,7 +101,7 @@ export function createPlaces(anchors, recording) {
 
   // ---- secrets ----
   P.koi = { at: [0, bar(8)], box: { track: ["koi_0", "koi_1"] }, secret: true };
-  P.tag = { at: [0, bar(0)], box: { world: { min: [13.2, 3.2, -48.5], max: [14.6, 6.4, -41.5] } }, secret: true };
+  P.tag = { at: [0, bar(0)], box: { world: { min: [4.6, -0.2, -42], max: [6.8, 0.35, -38] } }, secret: true };
   P.morse = { at: [bar(35), bar(46)], box: { world: around([470, 39.5, -291], [1, 2, 1], 0.5) }, sound: { world: [470, 40, -291], r: 9, k: 0.7 }, secret: true };
 
   return P;

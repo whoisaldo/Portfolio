@@ -1,9 +1,9 @@
 // src/braindance/tag.js: a tag on a wall that only heat can read.
 //
 // One of the braindance's secrets (the "tag" clue): somebody wrote
-// "ALDO" on a wall by the curb in something that holds heat. In the visual
+// "ALDO" on the road by the curb in something that holds heat. In the visual
 // and audio layers there is nothing there; in thermal it is the hottest
-// thing on the facade. It is a bright card the thermal palette reads as
+// thing on the street after the car. It is a bright card the thermal palette reads as
 // heat, drawn only while that layer is up.
 import * as THREE from "three";
 
@@ -34,12 +34,22 @@ export function createTag(scene) {
   }
   const map = new THREE.CanvasTexture(c);
   map.colorSpace = THREE.SRGBColorSpace;
-  const material = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, color: new THREE.Color(2.2, 2.2, 2.2), toneMapped: false });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 3.2), material);
+  const material = new THREE.MeshBasicMaterial({
+    map,
+    transparent: true,
+    depthWrite: false,
+    color: new THREE.Color(2.2, 2.2, 2.2),
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+  });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.8), material);
   mesh.name = "bd_tag";
-  // On the shop wall by the curb, over the windows, facing the road.
-  mesh.position.set(13.82, 4.9, -45);
-  mesh.rotation.y = -Math.PI / 2;
+  // On the road beside the car at the curb, flat, reading from the road
+  // side, where the jack-in's camera circles.
+  mesh.position.set(5.7, 0.04, -40);
+  mesh.rotation.order = "YXZ";
+  mesh.rotation.set(-Math.PI / 2, -Math.PI / 2, 0);
   mesh.visible = false;
   scene.add(mesh);
   return {
