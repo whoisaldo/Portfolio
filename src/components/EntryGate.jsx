@@ -429,7 +429,7 @@ function BraindanceItem({ className = "" }) {
         <span className={MENU_MARK} aria-hidden="true">▸</span>
         <ScanEye className="w-6 h-6 shrink-0" aria-hidden="true" />
         {COPY.braindanceItem}
-        <span className="mono-label not-italic bg-volt px-1.5 py-1 text-ink">{COPY.braindanceNew}</span>
+        <span className="mono-label bg-volt px-1.5 py-1 text-ink">{COPY.braindanceNew}</span>
       </Link>
       <p className="pl-[4.5rem] max-w-[34rem] font-sans text-[0.9375rem] leading-[1.5] text-dim">{COPY.braindanceLine}</p>
     </div>

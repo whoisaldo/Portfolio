@@ -427,9 +427,9 @@ kbd {
   --c: var(--bd-volt);
   position: absolute;
   right: 1.8rem;
-  top: 15.5rem;
+  top: 17.2rem;
   width: min(25rem, 36vw);
-  max-height: calc(100vh - 27rem);
+  max-height: calc(100vh - 28.5rem);
   overflow: auto;
   padding: 1rem 1.2rem 1.15rem;
   background: rgba(6, 6, 9, 0.84);
@@ -502,25 +502,24 @@ kbd {
 /* ---- toasts ---- */
 .bd-toasts {
   position: absolute;
-  left: 50%;
-  top: 4.4rem;
-  transform: translateX(-50%);
+  left: 1.8rem;
+  top: 13.2rem;
   display: grid;
   gap: 0.5rem;
-  justify-items: center;
+  justify-items: start;
   pointer-events: none;
 }
 .bd-toast {
   --c: var(--bd-volt);
-  min-width: 17rem;
-  padding: 0.55rem 1rem 0.6rem;
-  text-align: center;
+  min-width: 16rem;
+  padding: 0.5rem 1rem 0.55rem 0.9rem;
   background: rgba(6, 6, 9, 0.86);
-  border-top: 2px solid var(--c);
-  animation: bd-toast 0.5s cubic-bezier(0.16, 0.9, 0.25, 1);
+  border-left: 2px solid var(--bd-toast-c, var(--c));
+  animation: bd-toast-in 0.5s cubic-bezier(0.16, 0.9, 0.25, 1);
 }
 .bd-toast-achievement { --c: #ff2e88; }
 @keyframes bd-toast { 0% { opacity: 0; transform: translateY(-10px) scale(0.98); } }
+@keyframes bd-toast-in { 0% { opacity: 0; transform: translateX(-14px); } }
 .bd-toast-head { font-family: "JetBrains Mono Variable", ui-monospace, monospace; font-size: 0.62rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--c); }
 .bd-toast-title { margin-top: 0.2rem; font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 1.05rem; text-transform: uppercase; }
 .bd-toast-line { font-size: 0.85rem; color: var(--bd-dim); }

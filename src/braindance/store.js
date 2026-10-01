@@ -94,7 +94,7 @@ let toastId = 0;
 /** A toast for a few seconds: a clue scanned, an achievement, a hint. */
 export function toast(kind, title, line = "", ms = 4200) {
   const id = ++toastId;
-  set({ toasts: [...bd.toasts, { id, kind, title, line }].slice(-4) });
+  set({ toasts: [...bd.toasts, { id, kind, title, line }].slice(-3) });
   window.setTimeout(() => set({ toasts: bd.toasts.filter((t) => t.id !== id) }), ms);
 }
 
