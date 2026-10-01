@@ -14,6 +14,8 @@
 //                  library's rule, so the split lives here rather than as a
 //                  second ChromaticAberrationEffect.
 //   bloom          a high luminance threshold, so only emissives bloom
+//   streaks        desktop: the hottest lights drawn out sideways, a little
+//                  blue, from the bloom's own bright pass (no pass of its own)
 //   noise, vignette, the Khronos neutral tone map, and the grade last.
 //
 // The phone gets half-resolution bloom and the glitch, and nothing else.
@@ -107,6 +109,42 @@ class GradeEffect extends Effect {
   }
 }
 
+// Anamorphic streaks: the brightest lights drawn out sideways and a little
+// blue, as a scope lens draws them. Read from the bloom's own quarter-
+// resolution bright pass (already blurred a step, so the streak is a line
+// and not a row of dots), 25 taps along x, fading out; only what is truly
+// hot survives the threshold, so a tube throws one and a lit wall does not.
+const STREAK = /* glsl */ `
+  uniform sampler2D uStreakMap;
+  uniform float uStep;
+  uniform float uIntensity;
+  uniform float uThreshold;
+  void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+    vec3 s = texture2D(uStreakMap, uv).rgb;
+    for (int i = 1; i <= 12; i++) {
+      float o = float(i) * uStep;
+      float w = exp(-float(i) * 0.24);
+      s += (texture2D(uStreakMap, uv + vec2(o, 0.0)).rgb + texture2D(uStreakMap, uv - vec2(o, 0.0)).rgb) * w;
+    }
+    s = max(s - uThreshold, 0.0);
+    vec3 tint = mix(vec3(dot(s, vec3(0.3333))), s, 0.35) * vec3(0.62, 0.72, 1.0);
+    outputColor = vec4(inputColor.rgb + tint * uIntensity, inputColor.a);
+  }
+`;
+
+class StreakEffect extends Effect {
+  constructor(map) {
+    super("StreakEffect", STREAK, {
+      uniforms: new Map([
+        ["uStreakMap", new THREE.Uniform(map)],
+        ["uStep", new THREE.Uniform(0.004)],
+        ["uIntensity", new THREE.Uniform(0.07)],
+        ["uThreshold", new THREE.Uniform(0.35)],
+      ]),
+    });
+  }
+}
+
 class BraindanceEffect extends Effect {
   constructor() {
     super("BraindanceEffect", BRAINDANCE, {
@@ -114,7 +152,7 @@ class BraindanceEffect extends Effect {
       uniforms: new Map([
         ["uEnvelope", new THREE.Uniform(0)],
         ["uBass", new THREE.Uniform(0)],
-        ["uSplit", new THREE.Uniform(0.0004)],
+        ["uSplit", new THREE.Uniform(0.00015)],
       ]),
     });
   }
@@ -148,6 +186,12 @@ export function createPost(renderer, scene, camera, quality) {
   const effects = [glitch, bloom];
   let noise = null;
   let vignette = null;
+  let streak = null;
+  const streakMap = bloom.mipmapBlurPass?.downsamplingMipmaps?.[1]?.texture;
+  if (quality.name !== "phone" && streakMap) {
+    streak = new StreakEffect(streakMap);
+    effects.push(streak);
+  }
   if (quality.name !== "phone") {
     noise = new NoiseEffect({ blendFunction: BlendFunction.OVERLAY, premultiply: true });
     noise.blendMode.opacity.value = 0.12;
@@ -193,6 +237,9 @@ export function createPost(renderer, scene, camera, quality) {
     },
     setSize(w, h) {
       composer.setSize(w, h, false);
+      // One tap every one and a half texels of the quarter-size bright pass.
+      const mip = bloom.mipmapBlurPass?.downsamplingMipmaps?.[1];
+      if (streak && mip) streak.uniforms.get("uStep").value = 1.5 / Math.max(1, mip.width);
     },
     render(dt) {
       composer.render(dt);
@@ -202,6 +249,7 @@ export function createPost(renderer, scene, camera, quality) {
       glitch.dispose();
       bloom.dispose();
       smaa?.dispose();
+      streak?.dispose();
       noise?.dispose();
       vignette?.dispose();
       tone.dispose();

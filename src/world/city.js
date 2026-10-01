@@ -16,6 +16,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { worldModelUrl, worldShopsUrl } from "../data/world-assets.js";
 import { createMaterialKit, NEON } from "./materials.js";
+import { markBytes } from "./progress.js";
 import { createSigns } from "./signs.js";
 import { bakeLight } from "./spill.js";
 import { createRoadMaterial } from "./road.js";
@@ -24,10 +25,12 @@ import { dressHolo, preloadHolo } from "./holo.js";
 import { dressMoon, preloadMoon } from "./moon.js";
 import { createAds, preloadAds } from "./ads.js";
 import { createBoards } from "./boards.js";
+import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
 import { attributeKey, mergeMeshes } from "./merge.js";
+import { LAMPS } from "./glsl.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
  *  MIRROR_ONLY is drawn in the mirror and nowhere else (the car's stand-in). */
@@ -46,7 +49,10 @@ export function preloadCity(tier) {
   if (!cache.has(tier)) {
     // The kit, and the rooms its shop windows look into.
     const pending = Promise.all([
-      new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(worldModelUrl[tier]).then((gltf) => gltf.scene),
+      new GLTFLoader()
+        .setMeshoptDecoder(MeshoptDecoder)
+        .loadAsync(worldModelUrl[tier], (e) => markBytes("city", e.loaded, e.total))
+        .then((gltf) => gltf.scene),
       new THREE.TextureLoader().loadAsync(worldShopsUrl[tier]),
     ])
       .then(([scene, shops]) => ({ scene, shops }))
@@ -74,7 +80,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const quat = new THREE.Quaternion();
   const scl = new THREE.Vector3();
   root.traverse((o) => {
-    if (/^(cam_|anchor_|car_|logo_)/.test(o.name)) {
+    if (/^(cam_|anchor_|car_|logo_|lamp_)/.test(o.name)) {
       o.matrixWorld.decompose(pos, quat, scl);
       anchors.set(o.name, { position: pos.clone(), quaternion: quat.clone(), extras: o.userData });
     }
@@ -189,6 +195,15 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   }
   root.add(ads.mesh);
 
+  // The kit's lamps (lamp_<name>), for lampsAt in src/world/glsl.js.
+  const lamps = [...anchors].filter(([n]) => n.startsWith("lamp_")).slice(0, LAMPS);
+  lamps.forEach(([, a], i) => {
+    const reach = a.extras?.reach ?? 8;
+    shared.uLamps.value[i].set(a.position.x, a.position.y, a.position.z, reach);
+    shared.uLampColors.value[i].set(a.extras?.color ?? "#ffffff").multiplyScalar(a.extras?.power ?? 1);
+  });
+  for (let i = lamps.length; i < LAMPS; i++) shared.uLamps.value[i].set(0, -1e4, 0, 0);
+
   // The light: every emissive triangle, pooled on the ground.
   const light = bakeLight(sources);
   shared.uSpill.value = light.spill;
@@ -229,12 +244,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const moonDisc = named.moon_disc ? await dressMoon(named.moon_disc, shared, { reflectLayer: REFLECT_LAYER }) : null;
   if (moonDisc) dressed.push(moonDisc);
   const boards = createBoards(Object.entries(named).filter(([n]) => n.startsWith("board_")).map(([, m]) => m), shared, { reduced, reflectLayer: REFLECT_LAYER });
-  const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER });
+  const floods = createFloods(anchors, shared, { reflectLayer: REFLECT_LAYER });
+  if (floods.group) root.add(floods.group);
+  const towers = createTowers(Object.entries(named).filter(([n]) => n.startsWith("crown_")).map(([, m]) => m), shared, { reflectLayer: REFLECT_LAYER, anchors });
   const logos = await createLogos(anchors, shared, { reflectLayer: REFLECT_LAYER, maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()) });
   root.add(logos.mesh);
   const garage = await createGarage(named, shared, { reduced, reflectLayer: REFLECT_LAYER });
   root.add(garage.mesh);
-  dressed.push(boards, towers, logos, garage);
+  dressed.push(boards, floods, towers, logos, garage);
 
   scene.add(root);
 
@@ -246,6 +263,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     root,
     anchors,
     named,
+    maps,
     road: path,
     boards,
     towers,

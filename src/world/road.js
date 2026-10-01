@@ -174,7 +174,11 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           // near the lens the rain rings it.
           vec2 rings = (ripple(vWorld.xz / 0.6, uTime) + ripple(vWorld.xz / 0.45 + 13.7, uTime * 1.13))
                      * puddle * smoothstep(28.0, 5.0, dist);
-          vec2 bend = nt.xy * mix(0.006, 0.002, puddle) * vec2(1.0, 0.3) + rings * 0.01;
+          // The aggregate's normal bends it a little, less than it did: at
+          // the tile's own frequency a larger bend zipped every streak's edge.
+          // Held to about a pixel sideways: any more and the aggregate's
+          // normal map, at its tile's frequency, tears every streak's edge.
+          vec2 bend = nt.xy * mix(0.0008, 0.0005, puddle) * vec2(1.0, 0.3) + rings * vec2(0.0009, 0.002);
           // Rough wet asphalt stretches every reflection from the horizon
           // down toward the eye: gather the mirror along this pixel's column
           // from its own point up to the horizon, nearer the horizon
@@ -198,7 +202,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           float sheen = mix(0.45, 1.0, smoothstep(0.52, 0.4, grain)) * crack;
           sheen = mix(sheen, 1.0, puddle);
           // Wetter in patches, so the streaks break as the road does.
-          float patchy = 0.6 + 0.4 * vnoise(vWorld.xz * vec2(0.3, 0.07));
+          float patchy = mix(0.28, 1.0, smoothstep(0.25, 0.75, vnoise(vWorld.xz * vec2(0.22, 0.05))));
           col += refl * uReflectGain * wet * sheen * mix(0.2, 0.8, fres) * mix(patchy, 1.4, puddle);
         }
         #endif

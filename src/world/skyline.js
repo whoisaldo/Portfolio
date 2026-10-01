@@ -14,12 +14,17 @@
 // the light is the city's and not the moon's, brightest toward downtown.
 // The kit's landmark towers (anchor_mega_*) are kept clear of, like the kit.
 import * as THREE from "three";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON, WINDOWS } from "./glsl.js";
 
 // Rectangles (x0, z0, x1, z1) the far city stays out of.
 const KEEP_OUT = [
   [-60, -740, 60, 80], // the avenue, its canyon and the intersection
-  [0, -420, 540, -130], // plaza, corpo row, rooftop, garage
+  [0, -420, 300, -130], // the plaza, and corpo row's west end
+  // Corpo row's east end, the rooftop and the garage: the kit stops at the
+  // rooftop's east wall (484) and the garage block's north face (-176), so
+  // the city comes up to Contact's lens.
+  [300, -420, 490, -176],
   [-70, 20, 70, 140], // behind the hero camera
 ];
 // Where the moon rises for the Contact shot: lit roofs stay low there, and
@@ -28,7 +33,11 @@ const KEEP_OUT = [
 // the moon rises out of a skyline rather than an empty sky: x, z, width,
 // height.
 const LOW = [420, -200, 1400, 1300];
-const CLEAR = [440, -200, 560, -60];
+const CLEAR = [440, -200, 560, -150];
+// Contact's lens, on the garage's roof: roofs near it stay low, stepping up
+// with distance, so the blocks it looks over fill the bottom of a phone's
+// tall frame without standing in front of the moon.
+const CONTACT_LENS = [456, -203];
 const UNDER_THE_MOON = [
   [572, 40, 26, 78],
   [612, 96, 30, 94],
@@ -49,7 +58,7 @@ function rng(seed) {
   };
 }
 
-export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduced = false } = {}) {
+export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduced = false, facades = [] } = {}) {
   const r = rng(90210);
   const matrices = [];
   const m = new THREE.Matrix4();
@@ -57,8 +66,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   const s = new THREE.Vector3();
   const p = new THREE.Vector3();
   const cell = 46;
-  for (let gx = -900; gx < 1500 && matrices.length < count; gx += cell) {
-    for (let gz = -1700; gz < 900 && matrices.length < count; gz += cell) {
+  for (let gx = -900; gx < 1500; gx += cell) {
+    for (let gz = -1700; gz < 900; gz += cell) {
       const x = gx + (r() - 0.5) * cell * 0.5;
       const z = gz + (r() - 0.5) * cell * 0.5;
       if ([...KEEP_OUT, ...keepOut].some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20)) continue;
@@ -71,6 +80,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       if (r() < 0.05) h += 90 + r() * 110;
       const [lx0, lz0, lx1, lz1] = LOW;
       if (x > lx0 && x < lx1 && z > lz0 && z < lz1) h = Math.min(h, 22 + r() * 30);
+      const near = Math.hypot(x - CONTACT_LENS[0], z - CONTACT_LENS[1]);
+      // The nearest roofs sit just under the lens (10.4 m up), so Contact
+      // skims across a roofscape to the lit blocks and the moon.
+      if (near < 170) h = Math.min(h, 4 + near * 0.11);
       // Up the avenue the far city keeps under the hero's band of sky: seen
       // from its lens (0.6, 0.6, 10), nothing in its view stands taller than
       // about a sixth of its distance, so the roofs step down into the glow
@@ -82,6 +95,15 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, (r() - 0.5) * 0.3);
       matrices.push(m.compose(p, q, s).clone());
     }
+  }
+  // More candidates than the tier draws (a phone's 1,200): keep the nearest
+  // to the middle of the kit, so a phone thins the city's far edge rather
+  // than losing a whole side of it.
+  if (matrices.length > count) {
+    const at = new THREE.Vector3();
+    const dist = (mat) => at.setFromMatrixPosition(mat).set(at.x - 250, 0, at.z + 300).length();
+    matrices.sort((a, b) => dist(a) - dist(b));
+    matrices.length = count;
   }
   const heroFrom = matrices.length;
   for (const [x, z, w, h] of UNDER_THE_MOON) {
@@ -96,8 +118,19 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   hero.fill(1, heroFrom);
   geometry.setAttribute("aHero", new THREE.InstancedBufferAttribute(hero, 1));
   // No floors: nobody sees the underside of a tower.
+  // The low blocks wear the avenue's painted elevations (the kit's three,
+  // src/world/materials.js), one of the three each, rather than the window
+  // grid: balconies, laundry, AC units and lit rooms, the same city as the
+  // street. The towers keep their windows.
+  const painted = facades.filter(Boolean).length === 3;
   const material = new THREE.ShaderMaterial({
-    uniforms: { ...shared },
+    uniforms: {
+      ...shared,
+      uFacade0: { value: painted ? facades[0] : null },
+      uFacade1: { value: painted ? facades[1] : null },
+      uFacade2: { value: painted ? facades[2] : null },
+    },
+    defines: painted ? { PAINTED: "" } : {},
     vertexShader: /* glsl */ `
       attribute float aHero;
       varying vec3 vWorld;
@@ -106,6 +139,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       varying float vRoof;
       varying vec2 vCrown;
       varying vec4 vHero;
+      varying vec3 vPaint;
       float hash11(float n) { return fract(sin(n) * 43758.5453123); }
       void main() {
         vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
@@ -117,7 +151,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         vCells = vec2(along / 3.2, (w.y - 4.6) / 3.4);
         vec3 origin = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
         float seed = origin.x * 0.013 + origin.z * 0.071;
-        vParams = vec3(0.08 + 0.42 * hash11(seed), hash11(seed + 1.7) * 0.625, hash11(seed + 3.1));
+        vParams = vec3(0.14 + 0.5 * hash11(seed), hash11(seed + 1.7) * 0.625, hash11(seed + 3.1));
         vCells += vec2(hash11(seed + 5.0) * 40.0, 0.0);
         // The roof's height, and which towers light a band under it.
         vCrown = vec2(origin.y + length(instanceMatrix[1].xyz) * 0.5, hash11(seed + 9.3));
@@ -125,6 +159,13 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // on its faces (0..1 across) for the blade up one corner.
         vHero = vec4(aHero, position.x + 0.5, position.z + 0.5, abs(n.x));
         if (aHero > 0.5) vParams = vec3(0.55, 0.25, hash11(seed + 3.1));
+        // Painted: which of the three elevations (-1 for windows), and where
+        // on it, a tile 16 m wide and 24 m tall, each block from its own
+        // place in the picture.
+        float tall = length(instanceMatrix[1].xyz);
+        float pick = hash11(seed + 12.7);
+        float which = (tall < 100.0 && (pick > 0.06 || tall < 40.0) && aHero < 0.5) ? floor(fract(pick * 7.0) * 3.0) : -1.0;
+        vPaint = vec3((along + hash11(seed + 6.1) * 160.0) / 16.0, (w.y - 4.6) / 24.0 + step(0.5, hash11(seed + 8.3)) * 0.5, which);
         gl_Position = projectionMatrix * viewMatrix * w;
       }
     `,
@@ -137,9 +178,56 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       varying float vRoof;
       varying vec2 vCrown;
       varying vec4 vHero;
+      varying vec3 vPaint;
+      #ifdef PAINTED
+      uniform sampler2D uFacade0;
+      uniform sampler2D uFacade1;
+      uniform sampler2D uFacade2;
+      #endif
       void main() {
         vec4 win = windows(vCells, vParams, vWorld, step(0.0, vCells.y));
         vec3 col = mix(win.rgb, vec3(0.012, 0.012, 0.016), vRoof);
+        #ifdef PAINTED
+        // A painted block, as the kit's painted material draws its walls:
+        // tiles mirrored and some a floor darker, a smaller level far off.
+        vec2 tile = floor(vPaint.xy);
+        vec2 puv = vPaint.xy;
+        if (hash12(tile + 3.1) > 0.5) puv.x = tile.x + 1.0 - fract(vPaint.x);
+        puv.x += floor(hash12(vec2(tile.y, 9.3)) * 4.0) * 0.25;
+        float far = smoothstep(90.0, 260.0, length(vWorld - uCam));
+        vec2 grad = vec2(fwidth(vPaint.x), fwidth(vPaint.y)) * exp2(far * 1.5);
+        vec3 tex = vPaint.z < 0.5 ? textureGrad(uFacade0, puv, vec2(grad.x, 0.0), vec2(0.0, grad.y)).rgb
+          : vPaint.z < 1.5 ? textureGrad(uFacade1, puv, vec2(grad.x, 0.0), vec2(0.0, grad.y)).rgb
+          : textureGrad(uFacade2, puv, vec2(grad.x, 0.0), vec2(0.0, grad.y)).rgb;
+        if (vPaint.z > -0.5 && vRoof < 0.5) {
+          tex *= mix(1.0, 0.62, step(0.66, hash12(tile + 7.7)));
+          float lum = dot(tex, vec3(0.2126, 0.7152, 0.0722));
+          float room = smoothstep(0.12, 0.45, lum);
+          float distant = smoothstep(60.0, 220.0, length(vWorld - uCam));
+          vec3 p = tex * 1.05 * (0.9 + 1.4 * room * room * (1.0 - 0.9 * distant)) * (1.0 - 0.25 * distant);
+          p += tex * spillAt(vWorld) * 2.2 * (1.0 - room) + spillAt(vWorld) * 0.02;
+          // Street level: shopfronts in 3.2 m bays, a colour to each, lit
+          // brightest under the fascia, a sign band over them, some shut.
+          float bayU = vPaint.x * 16.0 / 3.2;
+          float bay = floor(bayU);
+          float front = hash12(vec2(floor(bay / 2.0), tile.y + vParams.z * 31.0));
+          vec3 shopCol = front > 0.9 ? vec3(1.0, 0.3, 0.62) : front > 0.8 ? vec3(0.25, 0.85, 1.0) : vec3(1.0, 0.66, 0.38);
+          float shop = step(vWorld.y, 4.6);
+          float y = vWorld.y;
+          float glassY = step(0.45, y) * step(y, 3.2);
+          float mull = step(min(fract(bayU), 1.0 - fract(bayU)), 0.03);
+          float open = step(0.35, front);
+          vec3 inside = shopCol * (0.05 + 0.3 * smoothstep(0.5, 3.1, y)) * (0.5 + 0.8 * hash12(vec2(bay, 4.0)));
+          vec3 shut = vec3(0.02, 0.02, 0.025) * (0.7 + 0.3 * step(0.5, fract(y * 10.0)));
+          vec3 street = mix(shut, inside, open) * glassY * (1.0 - mull);
+          float fascia = step(3.45, y) * step(y, 4.25);
+          street += mix(vec3(0.012), shopCol * 0.5, fascia * step(0.55, front) * step(0.15, fract(bayU * 0.5)));
+          street += spillAt(vWorld) * 0.15;
+          p = mix(p, street, shop);
+          col = p;
+          win.a = max(room * 0.7 * (1.0 - distant), shop * open * glassY);
+        }
+        #endif
         // One tall tower in seven wears a lit band under its roof: white,
         // amber, or one of the city's neons. The towers under the moon all
         // do, in the city's neons, with a blade of light up one corner.
@@ -166,6 +254,69 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   mesh.computeBoundingSphere();
   mesh.name = "skyline";
   scene.add(mesh);
+
+  // What stands on the low roofs, so the skyline does not end in ruled
+  // lines: a stair or lift house, a water tank on its stand, a mast. One set,
+  // made for a 20 m roof and scaled to each, turned a quarter at random so
+  // no two read the same. One draw.
+  const part = (g, x, y, z) => g.translate(x, y, z);
+  const roofSet = mergeGeometries([
+    part(new THREE.BoxGeometry(5, 3, 4), -3.5, 1.5, 2.5),
+    part(new THREE.BoxGeometry(3.2, 1.2, 3.2), 4.2, 0.6, -4.0),
+    part(new THREE.CylinderGeometry(1.5, 1.5, 3.0, 8, 1, false), 4.2, 2.7, -4.0),
+    part(new THREE.ConeGeometry(1.6, 0.8, 8), 4.2, 4.6, -4.0),
+    part(new THREE.BoxGeometry(0.18, 9, 0.18), -6.5, 4.5, -6.5),
+    part(new THREE.BoxGeometry(2.4, 1.1, 1.6), 1.0, 0.55, 6.0),
+  ].map((g) => g.toNonIndexed()));
+  const roofs = [];
+  const rs = new THREE.Vector3();
+  const rp = new THREE.Vector3();
+  const rq = new THREE.Quaternion();
+  const spin = new THREE.Quaternion();
+  for (let i = 0; i < heroFrom; i++) {
+    matrices[i].decompose(rp, rq, rs);
+    if (rs.y > 64 || r() < 0.3) continue;
+    const k = Math.min(rs.x, rs.z) / 20;
+    spin.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, Math.floor(r() * 4) * Math.PI / 2);
+    roofs.push(new THREE.Matrix4().compose(rp.set(rp.x, rp.y + rs.y / 2, rp.z), rq.clone().multiply(spin), rs.set(k, k, k)));
+  }
+  const roofMat = new THREE.ShaderMaterial({
+    uniforms: { ...shared },
+    vertexShader: /* glsl */ `
+      varying vec3 vWorld;
+      varying vec3 vNormalW;
+      void main() {
+        vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
+        vWorld = w.xyz;
+        vNormalW = normalize(mat3(modelMatrix * instanceMatrix) * normal);
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      varying vec3 vWorld;
+      varying vec3 vNormalW;
+      void main() {
+        vec3 n = normalize(vNormalW);
+        float up = max(n.y, 0.0);
+        // Dark plant against the sky, its tops and edges catching the
+        // city's glow on the cloud.
+        vec3 col = vec3(0.012, 0.012, 0.016) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * up) * uHaze * 0.5;
+        col = cityFog(col, vWorld, 0.0);
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+  });
+  roofMat.name = "skyline_roofs";
+  const roofMesh = new THREE.InstancedMesh(roofSet, roofMat, Math.max(1, roofs.length));
+  roofs.forEach((mat, i) => roofMesh.setMatrixAt(i, mat));
+  roofMesh.count = roofs.length;
+  roofMesh.instanceMatrix.needsUpdate = true;
+  roofMesh.computeBoundingSphere();
+  roofMesh.name = "skyline_roofs";
+  scene.add(roofMesh);
 
   // Aviation lights: a red lamp on every tall roof, a third of them on at a
   // time, a little under a second each, so the skyline blinks slowly across
@@ -377,6 +528,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           float near = 1.0 - smoothstep(2500.0, 12000.0, t);
           vec3 under = (cityGlow(dir, 0.0) * 0.5 + uHazeColor * 0.25) * (0.3 + 0.9 * n);
           col = mix(col, col * 0.55, (1.0 - cover) * near) + under * cover * near * 0.8;
+          // Lightning inside the cloud: the deck lit from within round the
+          // strike, brightest where it is thickest.
+          float strike = exp(-length(p.xz - uFlashAt) / 420.0);
+          col += vec3(0.62, 0.64, 0.92) * uFlash * strike * (0.1 + 0.9 * cover * n) * near;
         } else if (uCam.y > 0.0) {
           // Only past the kit: anything nearer that shows the ground is a
           // gap between the kit's own pieces, and it stays dark.
@@ -411,7 +566,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       beaconMat.uniforms.uPixel.value = pixelRatio;
     },
     dispose() {
-      scene.remove(mesh, sky, beaconPoints);
+      scene.remove(mesh, sky, beaconPoints, roofMesh);
+      roofSet.dispose();
+      roofMat.dispose();
+      roofMesh.dispose();
       beaconGeo.dispose();
       beaconMat.dispose();
       geometry.dispose();

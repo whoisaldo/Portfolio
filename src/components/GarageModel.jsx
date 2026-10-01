@@ -21,9 +21,9 @@
 // camera move.
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Maximize2, Minimize2, ZoomIn, ZoomOut } from "lucide-react";
-import { loadGarage3d } from "../lib/garage3d";
+import { expectGarage, loadGarage3d, settleGarage } from "../lib/garage3d";
 import { usePrefersReducedMotion } from "../hooks";
-import { coverWorld } from "../world/stage";
+import { coverWorld, stage, subscribeStage } from "../world/stage";
 
 const pad = (n) => String(n).padStart(2, "0");
 const BUTTON = "pointer-events-auto chamfer chamfer-sm mono-micro bg-ink/90 border border-ink-line text-muted hover:text-primary hover:border-volt transition-colors";
@@ -79,35 +79,59 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
       if (cur && !cur.visible && firstVisible >= 0) setFocus(firstVisible);
     };
 
-    const load = () => loadGarage3d()
-      .then((mod) => {
-        if (!alive) return;
-        const scene = mod.createGarageScene(canvas, { markers: markersRef.current, onFrame, reduced });
-        sceneRef.current = scene;
-        setHasHood(scene.hasHood);
-        scene.resize(wrap.clientWidth, wrap.clientHeight);
-        scene.setPreset(view);
-        setHoodOpen(scene.isHoodOpen());
-        ro = new ResizeObserver(() => scene.resize(wrap.clientWidth, wrap.clientHeight));
-        ro.observe(wrap);
-        // Render only while on screen. While it is, the city behind the page
-        // steps back and stops drawing, so one heavy canvas runs at a time.
-        io = new IntersectionObserver(([e]) => {
-          visible = e.isIntersecting;
-          coverWorld("garage", visible);
-          visibility();
-        }, { threshold: 0.05 });
-        io.observe(wrap);
-        document.addEventListener("visibilitychange", visibility);
-        setState("ready");
-      })
-      .catch((err) => {
-        if (import.meta.env.DEV) console.warn("[garage] 3D unavailable", err);
-        if (alive) setState("failed");
-      });
+    let started = false;
+    const load = () => {
+      if (started) return;
+      started = true;
+      loadGarage3d()
+        .then(async (mod) => {
+          if (!alive) return;
+          const scene = mod.createGarageScene(canvas, { markers: markersRef.current, onFrame, reduced });
+          sceneRef.current = scene;
+          setHasHood(scene.hasHood);
+          scene.resize(wrap.clientWidth, wrap.clientHeight);
+          scene.setPreset(view);
+          setHoodOpen(scene.isHoodOpen());
+          // Its programs built before its first frame, off the main thread.
+          await scene.warm();
+          settleGarage();
+          if (!alive) return;
+          ro = new ResizeObserver(() => scene.resize(wrap.clientWidth, wrap.clientHeight));
+          ro.observe(wrap);
+          // Render only while on screen. While it is, the city behind the page
+          // steps back and stops drawing, so one heavy canvas runs at a time.
+          io = new IntersectionObserver(([e]) => {
+            visible = e.isIntersecting;
+            coverWorld("garage", visible);
+            visibility();
+          }, { threshold: 0.05 });
+          io.observe(wrap);
+          document.addEventListener("visibilitychange", visibility);
+          setState("ready");
+        })
+        .catch((err) => {
+          if (import.meta.env.DEV) console.warn("[garage] 3D unavailable", err);
+          settleGarage();
+          if (alive) setState("failed");
+        });
+    };
 
-    // Room decoding and reflection capture wait until the garage is near
-    // the viewport, keeping that work out of the opening cinematic.
+    // Built ahead, where its long frames show on nothing: at once with the
+    // door up (its loading screen waits for it), or as soon as the city is
+    // in and the page is idle. Coming near the viewport is the last resort.
+    // Never during the opening cinematic: the door's screen comes before it,
+    // and without a door there is none.
+    expectGarage();
+    let idle = 0;
+    const whenCity = () => {
+      if (stage.status !== "ready" || idle) return;
+      idle = window.requestIdleCallback ? window.requestIdleCallback(load, { timeout: 2500 }) : window.setTimeout(load, 500);
+    };
+    const unsubscribe = subscribeStage(whenCity);
+    const early = window.setTimeout(() => {
+      if (document.documentElement.hasAttribute("data-gated")) load();
+      else whenCity();
+    }, 0);
     near = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
       near.disconnect();
@@ -117,6 +141,10 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
 
     return () => {
       alive = false;
+      window.clearTimeout(early);
+      unsubscribe();
+      if (idle && window.cancelIdleCallback) window.cancelIdleCallback(idle);
+      else if (idle) window.clearTimeout(idle);
       coverWorld("garage", false);
       ro?.disconnect();
       io?.disconnect();

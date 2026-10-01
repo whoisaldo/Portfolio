@@ -28,7 +28,7 @@ export function preloadLogos() {
   return pending;
 }
 
-const IDLE = 0.32;
+const IDLE = 0.2;
 const SWEEP_SECONDS = 0.6;
 
 export async function createLogos(anchors, shared, { reflectLayer = 2, maxAnisotropy = 4 } = {}) {
@@ -113,7 +113,12 @@ export async function createLogos(anchors, shared, { reflectLayer = 2, maxAnisot
         // A lit sign's grain: fine rows, faded where they would shimmer.
         float rows = vLocal.y * 90.0;
         float grain = mix(0.86 + 0.14 * sin(rows * 6.2832), 0.93, clamp(fwidth(rows) * 1.5, 0.0, 1.0));
-        vec3 col = mark.rgb * mark.a * (0.25 + 2.6 * lit) * grain * (1.0 + 0.25 * uBass * lit);
+        // Every mark lit to about the same brightness, so a dark blue one
+        // (Philips) reads on the night as well as an orange one does: its
+        // own hue, lifted.
+        float lum = max(dot(mark.rgb, vec3(0.2126, 0.7152, 0.0722)), 1e-3);
+        vec3 hue = mark.rgb * clamp(0.5 / lum, 1.0, 5.0);
+        vec3 col = hue * mark.a * (0.25 + 2.6 * lit) * grain * (1.0 + 0.25 * uBass * lit);
         col += vec3(0.9, 0.95, 1.0) * line * 3.0 * mark.a;
         // The crown's dark glass round the mark.
         col += vec3(0.008, 0.009, 0.014) * (1.0 - mark.a);

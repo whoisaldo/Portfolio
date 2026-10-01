@@ -43,7 +43,7 @@ import { createRig, createDrift } from "../three/drift/rig.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { SHOTS } from "../data/world.js";
-import { attributeKey, mergeMeshes } from "./merge.js";
+import { slim } from "../three/car/slim.js";
 
 const FOLLOW = 4; // 1/s: how closely the car follows its goal
 const VMAX = 160; // m/s: the most a single frame may ask of it
@@ -54,136 +54,6 @@ const smoothstep = (a, b, x) => {
   return t * t * (3 - 2 * t);
 };
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-
-// The nodes the rig moves. Everything else on the car is rigid.
-const RIG = ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "steer_fl", "steer_fr"];
-
-// What a shut hood hides: the engine bay, the hood's lining and its struts.
-// The city never opens the hood (the garage's viewer does), so they are
-// left out, of the car and of its mirror.
-const UNDER_HOOD = /^S4_(engine_carbon|engine_textured_plastic|cast_supercharger_housing|coolant_reservoir|reservoir_cap_blue|hood_acoustic_liner)(\.|$)/;
-const underHood = (o, car) => {
-  if (UNDER_HOOD.test(o.material.name)) return true;
-  for (let p = o; p && p !== car; p = p.parent) if (p.name === "engine_bay" || p.name.startsWith("hood_strut_")) return true;
-  return false;
-};
-
-// A part with no picture on it and nothing to see through.
-const plain = (m) => !m.transparent && !Object.values(m).some((v) => v?.isTexture);
-
-/**
- * One material for every plain part of the car. Each is the same double-
- * sided physical material with its own colour, roughness, metalness and
- * clearcoat, so those four ride on the vertices instead (`color`, and
- * `surface` for the other three) and the shading is what each part's own
- * material gave it.
- */
-function paintMaterial(like) {
-  const material = new THREE.MeshPhysicalMaterial({
-    vertexColors: true,
-    roughness: 1,
-    metalness: 1,
-    clearcoat: 1,
-    clearcoatRoughness: like.clearcoatRoughness,
-    side: like.side,
-  });
-  material.name = "s4_paint";
-  material.onBeforeCompile = (shader) => {
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nattribute vec3 surface;\nvarying vec3 vSurface;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\n\tvSurface = surface;");
-    shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying vec3 vSurface;")
-      .replace("#include <roughnessmap_fragment>", "float roughnessFactor = roughness * vSurface.x;")
-      .replace("#include <metalnessmap_fragment>", "float metalnessFactor = metalness * vSurface.y;")
-      .replace(
-        "#include <lights_physical_fragment>",
-        THREE.ShaderChunk.lights_physical_fragment.replace("material.clearcoat = clearcoat;", "material.clearcoat = clearcoat * vSurface.z;"),
-      );
-  };
-  material.customProgramCacheKey = () => "s4_paint";
-  return material;
-}
-
-/**
- * The S4 in few draws. Every plain part carried by the same rig node (a
- * wheel, a knuckle, or the body) becomes one mesh on the shared paint
- * material, so the wheels still turn and steer; the parts with pictures
- * on them (lamps, carbon, plates) and the clear lenses keep a mesh per
- * material. About 150 parts become about a dozen draws. Returns what it
- * made, for dispose().
- */
-function slim(car) {
-  car.updateMatrixWorld(true);
-  const rigNodes = new Set(RIG.map((n) => car.getObjectByName(n)).filter(Boolean));
-  const ownerOf = (o) => {
-    for (let p = o.parent; p && p !== car; p = p.parent) if (rigNodes.has(p)) return p;
-    return car;
-  };
-  const painted = new Map();
-  const groups = new Map();
-  const hidden = [];
-  let like = null;
-  car.traverse((o) => {
-    if (!o.isMesh || rigNodes.has(o) || Array.isArray(o.material)) return;
-    if (underHood(o, car)) {
-      hidden.push(o);
-      return;
-    }
-    const owner = ownerOf(o);
-    if (plain(o.material)) {
-      like ??= o.material;
-      const key = `${owner.uuid}|${o.renderOrder}`;
-      if (!painted.has(key)) painted.set(key, { owner, meshes: [] });
-      painted.get(key).meshes.push(o);
-      return;
-    }
-    const key = `${owner.uuid}|${o.material.uuid}|${attributeKey(o.geometry)}|${o.renderOrder}`;
-    if (!groups.has(key)) groups.set(key, { owner, meshes: [] });
-    groups.get(key).meshes.push(o);
-  });
-  for (const o of hidden) o.removeFromParent();
-  const made = [];
-  const paint = like ? paintMaterial(like) : null;
-  for (const { owner, meshes } of painted.values()) {
-    const parts = meshes.map((o) => {
-      const g = mergeMeshes([o], owner, ["position", "normal"]);
-      if (!g.attributes.normal) g.computeVertexNormals();
-      const m = o.material;
-      const n = g.attributes.position.count;
-      const color = new Float32Array(n * 3);
-      const surface = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) {
-        m.color.toArray(color, i * 3);
-        surface[i * 3] = m.roughness;
-        surface[i * 3 + 1] = m.metalness;
-        surface[i * 3 + 2] = m.clearcoat;
-      }
-      g.setAttribute("color", new THREE.BufferAttribute(color, 3));
-      g.setAttribute("surface", new THREE.BufferAttribute(surface, 3));
-      return g;
-    });
-    const geometry = parts.length === 1 ? parts[0] : mergeGeometries(parts, false);
-    if (parts.length > 1) parts.forEach((g) => g.dispose());
-    geometry.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geometry, paint);
-    mesh.name = "s4_paint";
-    mesh.renderOrder = meshes[0].renderOrder;
-    owner.add(mesh);
-    for (const o of meshes) o.removeFromParent();
-    made.push(geometry);
-  }
-  for (const { owner, meshes } of groups.values()) {
-    if (meshes.length < 2) continue;
-    const geometry = mergeMeshes(meshes, owner);
-    const mesh = new THREE.Mesh(geometry, meshes[0].material);
-    mesh.renderOrder = meshes[0].renderOrder;
-    owner.add(mesh);
-    for (const m of meshes) m.removeFromParent();
-    made.push(geometry);
-  }
-  return { geometries: made, material: paint };
-}
 
 /**
  * The car as the wet road's mirror needs it: its body, its glasshouse and
@@ -278,7 +148,31 @@ function nightEnvironment() {
   };
 }
 
-export function createCar(scene, renderer, { road, anchors, light, layer, mirrorLayer }) {
+/**
+ * A phone's car in fewer triangles: the merged paint meshes (the body and
+ * each wheel) simplified in place with meshoptimizer, every part's outline
+ * locked so no seam opens, to within 4 mm. The city's car is seen from five
+ * metres to a hundred on a phone; the garage's viewer keeps the whole model.
+ * The simplifier is its own chunk, fetched only on a phone.
+ */
+async function lighten(car) {
+  const { MeshoptSimplifier } = await import("meshoptimizer/simplifier");
+  await MeshoptSimplifier.ready;
+  const meshes = [];
+  car.traverse((o) => {
+    if (o.isMesh && o.name === "s4_paint" && o.geometry.index) meshes.push(o);
+  });
+  for (const mesh of meshes) {
+    const g = mesh.geometry;
+    const index = g.index.array instanceof Uint32Array ? g.index.array : new Uint32Array(g.index.array);
+    const pos = g.attributes.position.array;
+    const scale = MeshoptSimplifier.getScale(pos, 3);
+    const [out] = MeshoptSimplifier.simplify(index, pos, 3, Math.floor((index.length * 0.4) / 3) * 3, 0.004 / scale, ["LockBorder"]);
+    g.setIndex(new THREE.BufferAttribute(out, 1));
+  }
+}
+
+export function createCar(scene, renderer, { road, anchors, light, layer, mirrorLayer, tier = "high" }) {
   const car = createObject();
   car.name = "ali_s4_world";
   const rig = createRig(car);
@@ -286,6 +180,11 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // and added once they are merged; the real car is drawn once.
   const standIn = mirrorStandIn(car, rig);
   const slimmed = slim(car);
+  const ready = tier === "phone"
+    ? lighten(car).catch((err) => {
+        if (import.meta.env.DEV) console.warn("[world] the phone's car keeps every triangle", err);
+      })
+    : Promise.resolve();
   standIn.layers.set(mirrorLayer);
   car.add(standIn);
   car.traverse((o) => {
@@ -517,6 +416,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
 
   return {
     car,
+    /** Resolves once a phone's car is simplified (at once elsewhere). */
+    ready,
     stops,
     routeGoal,
     get u() {
