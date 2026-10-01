@@ -32,6 +32,7 @@ import { createKoi, preloadKoi } from "./koi.js";
 import { createCrowd } from "./crowd.js";
 import { createSteam } from "./steam.js";
 import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
+import { markLoaded } from "./progress.js";
 import { createMirror } from "./mirror.js";
 import { createPost } from "./post.js";
 import { createSkyline } from "./skyline.js";
@@ -49,10 +50,20 @@ import { boards as BOARDS, SHOTS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
+  // Each marked as it lands, for the door's list (src/world/progress.js).
+  const step = (key, p) => p.then((v) => (markLoaded(key), v));
   // The voxel moon is the one piece the city can do without: a missing
   // Earth picture leaves the intro on its painted moon, not the site on its
   // poster.
-  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadKoi(), preloadCar(), preloadVoxelMoon().catch(() => null)]);
+  await Promise.all([
+    step("city", preloadCity(tier)),
+    step("holo", preloadHolo()),
+    step("moon", preloadMoon()),
+    step("ads", preloadAds()),
+    step("koi", preloadKoi()),
+    step("car", preloadCar()),
+    step("voxel", preloadVoxelMoon()).catch(() => null),
+  ]);
 }
 
 const DEG = Math.PI / 180;

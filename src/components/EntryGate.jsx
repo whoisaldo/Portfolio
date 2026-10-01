@@ -18,7 +18,8 @@
 // What keeps it from being the old mistake:
 //
 //   It resolves on input, not on a timer. Nothing here counts down. It waits,
-//   and the moment the reader answers it leaves.
+//   and the moment the reader answers it leaves (unless the city is still on
+//   its way: see the last paragraph).
 //   Both answers are equal. "Enter silent" is a real button, not a grey link
 //   under the real button. Only activating a button enters the site;
 //   background clicks and Escape leave the choice unanswered.
@@ -39,6 +40,16 @@
 // intro plates and the 3D car's chunk take to arrive, so the click that
 // follows starts the song in a few hundred milliseconds. See prefetchTrack(),
 // loadDrift() and <Preload /> below.
+//
+// For one reader it is a loading screen out loud: the one who answers before
+// the city has arrived (a slow connection, a quick click). The intro decides
+// as it starts whether the city is ready, and one that is not costs the whole
+// run its voxel moon and its live street. So that reader is held here after
+// the click and shown what is still on its way, every line a real download
+// ticked off as it lands (src/world/progress.js), never a script. The city
+// arriving is what lets them through; thirty seconds is only the most the
+// door will hold them, after which the intro runs on its still pictures as
+// it always did. A reader who arrives after the city never sees any of it.
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -58,7 +69,8 @@ import {
 import { prefetchTrack, startAmbient, stopAmbient } from "../lib/ambient";
 import { loadDrift } from "../lib/drift";
 import { prefetchWorld } from "../world/load";
-import { coverWorld } from "../world/stage";
+import { coverWorld, stage, subscribeStage, useStage } from "../world/stage";
+import { LOAD_STEPS, useLoaded } from "../world/progress";
 import { DOOR_OPEN, introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
 import { CRUISE_GAIN, DROP, INTRO_GAIN, LEAVE_SECONDS, SHORT_START, SONG_START } from "../lib/cues";
 import Panel from "./ui/Panel";
@@ -88,6 +100,89 @@ function Preload() {
 const GLITCH_EVERY_MS = 3000;
 const GLITCH_JITTER_MS = 900;
 const GLITCH_LENGTH_MS = 300; // must match `gate-hit` in index.css
+
+// The longest a reader who clicked is held for the city. Past it the intro
+// runs on its still pictures, as it does for a city that never loads.
+const WAIT_FOR_CITY_MS = 30000;
+
+// What the door waits on, in the order it lists them (src/world/progress.js
+// says what each key is), and the last step, which no file marks.
+const STEP_LABELS = {
+  code: "City code",
+  city: "Streets and towers",
+  car: "The S4",
+  voxel: "Voxel moon",
+  holo: "Hologram",
+  ads: "Ads",
+  koi: "Koi",
+  moon: "Garage monitor",
+  build: "Building the city",
+};
+
+/** Whether entering now would start the intro before the city is ready. */
+function cityLoading() {
+  return document.documentElement.dataset.world === "on" && stage.status === "loading";
+}
+
+/**
+ * The door's panel while it holds a reader for the city: a bar and a list,
+ * one segment and one line per download, each ticked off as it actually
+ * finishes, and the seconds since the click.
+ */
+function CityLoading() {
+  const loaded = useLoaded();
+  const { status } = useStage();
+  const [seconds, setSeconds] = useState(0);
+  const ref = useRef(null);
+  const steps = [...LOAD_STEPS.map((key) => ({ key, done: loaded.includes(key) })), { key: "build", done: status === "ready" }];
+  const count = steps.filter((s) => s.done).length;
+  const next = steps.find((s) => !s.done)?.key;
+
+  useEffect(() => {
+    // The button that was clicked is gone; keep focus inside the door.
+    ref.current?.focus();
+    const t0 = performance.now();
+    const id = window.setInterval(() => setSeconds(Math.floor((performance.now() - t0) / 1000)), 250);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div ref={ref} tabIndex={-1} className="mt-8 focus-visible:shadow-none">
+      <div className="flex gap-1" aria-hidden="true">
+        {steps.map((s) => (
+          <span
+            key={s.key}
+            className={`h-2 flex-1 ${s.done ? "bg-volt" : s.key === next ? "hazard motion-safe:animate-pulse" : "bg-ink-line"}`}
+          />
+        ))}
+      </div>
+      <p className="mt-3 flex justify-between mono-label" role="status">
+        <span className="text-volt">
+          {count} of {steps.length} loaded
+        </span>
+        <span className="text-dim tabular-nums">
+          {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}
+        </span>
+      </p>
+      <ul className="mt-5 grid gap-1.5 mono-ui">
+        {steps.map((s) => (
+          <li key={s.key} className="flex items-center gap-3">
+            <span className={`w-6 shrink-0 ${s.done ? "text-ok" : "text-dim"}`} aria-hidden="true">
+              {s.done ? "OK" : s.key === next ? <span className="motion-safe:animate-caret">▮</span> : "··"}
+            </span>
+            <span className={s.done ? "text-muted" : "text-primary"}>
+              {STEP_LABELS[s.key]}
+              <span className="sr-only">{s.done ? ", loaded" : ", loading"}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-6 text-[0.9375rem] leading-[1.6] text-muted">
+        The intro starts the moment the city is in. If that takes more than thirty seconds, it starts anyway, on still pictures.
+      </p>
+    </div>
+  );
+}
 
 export default function EntryGate({ onEnter }) {
   // /recruiters links back here with this. The plain version's way across is
@@ -206,33 +301,76 @@ export default function EntryGate({ onEnter }) {
   }, [open]);
 
 
+  // Set while the door holds a reader for the city: the way through, called
+  // once, by whichever comes first of the city and the thirty seconds.
+  const goRef = useRef(null);
+  const [waiting, setWaiting] = useState(false);
+
   const enter = (withSound) => {
-    // Close first, unconditionally. Whatever audio does next, the reader is
-    // already through the door.
+    if (goRef.current) return;
     markAsked();
     setSoundEnabled(withSound);
-    setOpen(false);
-    onEnter?.(withSound);
+    // This click is the gesture the whole screen exists to collect, so the
+    // audio is woken here even when the song waits for the city below.
+    const audio = withSound ? unlockAudio() : null;
 
-    if (withSound) {
-      // This click is the gesture the whole screen exists to collect. The
-      // song starts here, from the point the intro is choreographed to, and
-      // the cinematic reads its clock from there on.
-      const offset = mode === "short" ? SHORT_START : mode === "off" ? DROP : SONG_START;
-      const gain = mode === "off" ? CRUISE_GAIN : INTRO_GAIN;
-      unlockAudio().then(() => startAmbient({ offset, gain, fade: 0.25 }));
-    }
+    let gone = false;
+    const go = () => {
+      if (gone) return;
+      gone = true;
+      goRef.current = null;
+      // Close first, unconditionally. Whatever audio does next, the reader
+      // is already through the door.
+      setWaiting(false);
+      setOpen(false);
+      onEnter?.(withSound);
 
-    if (mode === "off") {
-      setIntroDone(true);
+      if (audio) {
+        // The song starts here, from the point the intro is choreographed
+        // to, and the cinematic reads its clock from there on.
+        const offset = mode === "short" ? SHORT_START : mode === "off" ? DROP : SONG_START;
+        const gain = mode === "off" ? CRUISE_GAIN : INTRO_GAIN;
+        audio.then(() => startAmbient({ offset, gain, fade: 0.25 }));
+      }
+
+      if (mode === "off") {
+        setIntroDone(true);
+        return;
+      }
+      // Put the site back in its pre-intro state. Already true on a first
+      // load; it matters when the door has been reopened over a page that is
+      // live, so the navbar arrives after the reveal the way it does on
+      // arrival.
+      setIntroDone(false);
+      startIntro({ mode, withSound });
+    };
+
+    // The intro opens on the city's voxel moon, and cuts to the live street,
+    // only if the city is ready when it starts. A reader who clicks before
+    // that waits here for it, at most WAIT_FOR_CITY_MS.
+    if (mode !== "off" && cityLoading()) {
+      goRef.current = go;
+      setWaiting(true);
       return;
     }
-    // Put the site back in its pre-intro state. Already true on a first load;
-    // it matters when the door has been reopened over a page that is live, so
-    // the navbar arrives after the reveal the way it does on arrival.
-    setIntroDone(false);
-    startIntro({ mode, withSound });
+    go();
   };
+
+  // The hold: through the door when the city stops loading (ready, or
+  // failed, or switched off) or when the time runs out.
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const check = () => {
+      if (!cityLoading()) goRef.current?.();
+    };
+    const unsubscribe = subscribeStage(check);
+    const cap = window.setTimeout(() => goRef.current?.(), WAIT_FOR_CITY_MS);
+    check();
+    return () => {
+      unsubscribe();
+      window.clearTimeout(cap);
+    };
+  }, [waiting]);
 
   // Keep focus and the scroll lock inside the door until a button is chosen.
   // Escape and backdrop clicks used to call enter(false), which started the
@@ -288,13 +426,17 @@ export default function EntryGate({ onEnter }) {
                   <span className="animate-signal-ping absolute inline-flex h-full w-full rounded-full bg-volt" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-volt" />
                 </span>
-                Awaiting input
+                {waiting ? "Loading the city" : "Awaiting input"}
               </p>
 
               <h1 className="mt-6 font-display uppercase text-display-2 text-primary leading-none">
                 {profile.name}
               </h1>
 
+              {waiting ? (
+                <CityLoading />
+              ) : (
+              <>
               <p className="mt-5 prose-dark">
                 {returning
                   ? "Welcome back, choom. One click and the sound is on :)"
@@ -342,6 +484,8 @@ export default function EntryGate({ onEnter }) {
                   : "Your browser needs a click before it will play audio. Volume lives bottom left, and either choice is changeable there."}
                 {intro && <span className="block mt-2 text-dim">{intro}</span>}
               </p>
+              </>
+              )}
 
               {/* A browser drawing on the CPU is told so here, before it
                   chooses the twenty-five seconds. The long form, with where
