@@ -1,0 +1,45 @@
+name: Sensitive data
+
+# Fails when a change would publish contact details that should not be public:
+# any email address but aldo@sideband.studio and hello@sideband.studio, or any
+# phone number. deploy.yml runs the same check on the built site before it goes
+# live, and the Resume repo runs it on the résumé before pushing it here.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install --quiet pypdf
+      - run: python3 scripts/check-sensitive.py
+
+      # Commit metadata is public as well, and an email on a commit stays on
+      # GitHub for good, so a PR may only carry aldo@sideband.studio or a GitHub
+      # noreply address. Printed as SHAs, since the commit already shows the rest.
+      - name: Commit emails
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          commits=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/commits" \
+            --jq '.[] | "\(.sha[0:7]) \(.commit.author.email) \(.commit.committer.email)"')
+          ok='(aldo@sideband\.studio|noreply@github\.com|[^ ]+@users\.noreply\.github\.com)'
+          bad=$(printf '%s\n' "$commits" | grep -vE "^[0-9a-f]+ $ok $ok\$" | cut -d' ' -f1 || true)
+          if [ -n "$bad" ]; then
+            echo "FAIL: these commits carry an email other than aldo@sideband.studio or a GitHub noreply address:"
+            echo "$bad"
+            echo "Fix: git config user.email aldo@sideband.studio"
+            echo "     git rebase --exec 'git commit --amend --no-edit --reset-author' origin/main"
+            exit 1
+          fi
+          echo "commit emails: OK"
