@@ -158,7 +158,7 @@ class BraindanceEffect extends Effect {
   }
 }
 
-export function createPost(renderer, scene, camera, quality) {
+export function createPost(renderer, scene, camera, quality, { extra = [] } = {}) {
   const composer = new EffectComposer(renderer, {
     frameBufferType: THREE.HalfFloatType,
     multisampling: 0,
@@ -203,7 +203,9 @@ export function createPost(renderer, scene, camera, quality) {
   // leaves the grade the saturation to work with.
   const tone = new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL });
   const grade = new GradeEffect();
-  effects.push(tone, grade);
+  // Anything the caller adds runs on the graded picture (the braindance's
+  // layers, src/braindance/layers.js); the cinematic adds nothing.
+  effects.push(tone, grade, ...extra);
   const pass = new EffectPass(camera, ...effects);
   composer.addPass(pass);
 

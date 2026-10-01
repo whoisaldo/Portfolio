@@ -368,7 +368,7 @@ const DRAW = {
  * GLB's sign_* meshes (world matrices current). Returns
  * { mesh, texture, sources, dispose } where `sources` feed the spill bake.
  */
-export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false, atlas = 4096, density = 1 } = {}) {
+export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false, atlas = 4096, density = 1, overrides = null } = {}) {
   // 4096 wide on a desktop; a phone gets 2048 at half the pixels a metre.
   // Only as tall as the packed signs need (a power of two): the square
   // atlas was more than half empty, and a 4096 square with its mipmaps is
@@ -380,7 +380,10 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   const faces = [];
   for (const mesh of meshes) {
     const id = mesh.name.replace(/^sign_/, "");
-    const spec = signSpec(id);
+    // A caller may reword a sign (the braindance puts Ali's work on a few of
+    // the avenue's); the face, its colour and its light stay the kit's.
+    const base = id.replace(/_b$/, "").replace(/_far$/, "");
+    const spec = overrides?.[base] ? { ...signSpec(id), ...overrides[base], key: `${base}_bd` } : signSpec(id);
     if (!spec) continue;
     const w = mesh.userData.w || 1;
     const h = mesh.userData.h || 1;

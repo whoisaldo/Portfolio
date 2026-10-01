@@ -189,6 +189,7 @@ export default function Terminal({ onExit }) {
     volume       volume 40
     fx           fx · fx haze off · fx signs on · fx reset
     recruiters   the plain version of this site
+    jackin       the braindance: the city, no page
 
   Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
 ` },
@@ -224,7 +225,7 @@ export default function Terminal({ onExit }) {
     "neofetch", "tree", "grep", "find", "open", "sudo", "exit", "hire",
     "git", "vim", "nano", "touch", "mkdir", "rm", "cp", "mv", "head", "tail",
     "funfact", "interests", "uplink", "vitals",
-    "garage", "goto", "sound", "volume", "fx", "env", "recruiters",
+    "garage", "goto", "sound", "volume", "fx", "env", "recruiters", "jackin", "braindance",
     "signs", "haze", "wet", "cursor", "scanlines", "traffic", "reactive",
   ], []);
 
@@ -293,7 +294,7 @@ export default function Terminal({ onExit }) {
   fs             ls · cd · pwd · cat · tree · find · open · head · tail · grep
   system         whoami · hostname · date · uptime · neofetch · history · clear · banner
   fun            intro · sudo hire · git status · git log · vim · nano
-  environment    garage · goto · sound · volume · fx · env · recruiters
+  environment    garage · goto · sound · volume · fx · env · recruiters · jackin
 
   keys           Tab = complete   ↑↓ = history   Ctrl+L = clear   Enter = run
 
@@ -905,6 +906,15 @@ AUTHOR
       case "recruiters":
         say("system", "Leaving for the plain version: /recruiters");
         navigate("/recruiters");
+        break;
+
+      // The third way in. The keystroke that ran this is the gesture the
+      // braindance's sound needs, so it goes straight in.
+      case "jackin":
+      case "braindance":
+        say("system", "Jacking in: /braindance");
+        unlockAudio();
+        navigate("/braindance", { state: { jack: true } });
         break;
 
       case "exit":

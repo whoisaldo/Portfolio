@@ -1,0 +1,169 @@
+// src/braindance/Braindance.jsx: the third way in.
+//
+// The cinematic is a page over a city; /recruiters is the page without the
+// city. This is the city without the page: a braindance, a recorded night
+// in Night City that can be played, paused, scrubbed, rewound and walked
+// around in, with the portfolio hidden in it as clues to scan.
+//
+// Its own shell, as /recruiters has its own (see App.jsx): no navbar, no
+// door, no scroll stage, no page. It mounts the city through the same lazy
+// chunk the cinematic uses, so a reader who came from the cinematic has it
+// cached already. Desktop only, by Ali's call: a phone is told so and
+// offered the other two.
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { hasGpuAcceleration } from "../lib/gpu";
+import { unlockAudio } from "../lib/audio";
+import { stopAmbient } from "../lib/ambient";
+import { loadWorld } from "../world/load";
+import { resetBd, set, useBd } from "./store";
+import { usePrefersReducedMotion } from "../hooks";
+import Hud from "./hud/Hud";
+import Loading from "./hud/Loading";
+import { useControls } from "./controls";
+import { BOOT } from "../data/braindance";
+import "./braindance.css";
+
+function isDesktop() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(pointer: fine)").matches && window.innerWidth >= 900 && hasGpuAcceleration();
+}
+
+function NotHere() {
+  return (
+    <div className="bd-root bd-notice">
+      <div className="bd-notice-card">
+        <p className="bd-kicker">{BOOT.kicker}</p>
+        <h1 className="bd-title">{BOOT.notHereTitle}</h1>
+        <p className="bd-copy">{BOOT.notHereLine}</p>
+        <div className="bd-notice-links">
+          <Link to="/" className="bd-btn">{BOOT.toCinematic}</Link>
+          <Link to="/recruiters" className="bd-btn bd-btn-quiet">{BOOT.toRecruiters}</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Braindance() {
+  const location = useLocation();
+  const [desktop] = useState(isDesktop);
+  // The door's menu sends readers here with its own click, which is the
+  // gesture audio needs; anyone arriving by the address gets one button.
+  const fromDoor = location.state?.jack === true;
+  const [jacked, setJacked] = useState(false);
+  const canvasRef = useRef(null);
+  const engineRef = useRef(null);
+  const state = useBd();
+  const reduced = usePrefersReducedMotion();
+  // Read when the braindance is built, not a reason to build it again.
+  const reducedRef = useRef(reduced);
+  reducedRef.current = reduced;
+
+  useEffect(() => {
+    resetBd();
+    stopAmbient({ fade: 0.4 });
+    const title = document.title;
+    document.title = "Braindance · Ali Younes";
+    // The city's chunk and its model, while the reader reads the boot card.
+    if (isDesktop()) loadWorld("high").catch(() => {});
+    return () => {
+      document.title = title;
+    };
+  }, []);
+
+  // Audio needs a gesture on every page load. Arriving from the door or the
+  // console brings one; a reload of this address does not, so the first
+  // click or key anywhere wakes the sound and puts the song back in step.
+  useEffect(() => {
+    if (!jacked) return undefined;
+    const wake = () => {
+      unlockAudio().then((ok) => ok && engineRef.current?.resync());
+    };
+    const opts = { capture: true, passive: true };
+    document.addEventListener("pointerdown", wake, opts);
+    document.addEventListener("keydown", wake, opts);
+    return () => {
+      document.removeEventListener("pointerdown", wake, opts);
+      document.removeEventListener("keydown", wake, opts);
+    };
+  }, [jacked]);
+
+  useEffect(() => {
+    if (fromDoor && desktop) jackIn();
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function jackIn() {
+    if (jacked) return;
+    unlockAudio();
+    setJacked(true);
+  }
+
+  // Build the braindance once jacked in; tear it down on the way out.
+  useEffect(() => {
+    if (!jacked || !canvasRef.current) return undefined;
+    let alive = true;
+    let engine = null;
+    set({ status: "loading", progress: 0.1 });
+    import("./engine.js")
+      .then(({ createBraindance }) =>
+        createBraindance(canvasRef.current, {
+          reduced: reducedRef.current,
+          onProgress: (p) => alive && set({ progress: p }),
+          onFirstFrame: () => alive && set({ status: "ready" }),
+        }),
+      )
+      .then((e) => {
+        if (!alive) {
+          e.dispose();
+          return;
+        }
+        engine = e;
+        engineRef.current = e;
+        if (import.meta.env.DEV) window.__bd = e;
+        e.start();
+        // Reduced motion: the recording waits for its own play button.
+        if (!reducedRef.current) e.play();
+      })
+      .catch((err) => {
+        if (import.meta.env.DEV) console.warn("[braindance] failed", err);
+        if (alive) set({ status: "failed" });
+      });
+    return () => {
+      alive = false;
+      engineRef.current = null;
+      engine?.dispose();
+    };
+  }, [jacked]);
+
+  useControls(engineRef, jacked && state.status === "ready");
+
+  if (!desktop) return <NotHere />;
+
+  return (
+    <div className={`bd-root ${state.status === "ready" ? "is-ready" : ""}`}>
+      <canvas ref={canvasRef} className="bd-canvas" aria-label={BOOT.canvasLabel} />
+      {!jacked && (
+        <div className="bd-boot">
+          <div className="bd-boot-card">
+            <p className="bd-kicker">{BOOT.kicker}</p>
+            <h1 className="bd-title">{BOOT.title}</h1>
+            <p className="bd-copy">{BOOT.line}</p>
+            <button type="button" className="bd-btn bd-btn-primary" autoFocus onClick={jackIn}>
+              {BOOT.jackIn}
+            </button>
+            <p className="bd-small">{BOOT.sound}</p>
+            <div className="bd-boot-links">
+              <Link to="/" className="bd-link">{BOOT.toCinematic}</Link>
+              <Link to="/recruiters" className="bd-link">{BOOT.toRecruiters}</Link>
+            </div>
+          </div>
+        </div>
+      )}
+      {jacked && state.status !== "ready" && <Loading />}
+      {jacked && state.status === "ready" && <Hud engineRef={engineRef} />}
+    </div>
+  );
+}
