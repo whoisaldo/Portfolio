@@ -57,6 +57,10 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
+  // Reading a program's log waits for the GPU to finish building it: worth
+  // it while working on the shaders, not on a reader's first look at the
+  // garage (it was most of a 400 ms frame there).
+  renderer.debug.checkShaderErrors = import.meta.env.DEV;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#060a10");
@@ -374,7 +378,20 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     renderer.forceContextLoss();
   }
 
+  /** Every program the room and the car use, built before the first frame
+   *  anyone sees: the scene's own off the main thread while the GPU links
+   *  them, then one whole frame drawn unseen for the rest (the shadows' depth
+   *  pass, the ambient occlusion's normals, the floor's reflection), which a
+   *  scene compile does not reach. Called where a long frame shows on
+   *  nothing: behind the door, or as the page settles. */
+  async function warm() {
+    if (renderer.compileAsync) await renderer.compileAsync(scene, camera).catch(() => {});
+    renderer.shadowMap.needsUpdate = true;
+    composer.render();
+  }
+
   return {
+    warm,
     start,
     stop,
     resize,

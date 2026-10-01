@@ -17,44 +17,53 @@
 //
 // What keeps it from being the old mistake:
 //
-//   It resolves on input, not on a timer. Nothing here counts down. It waits,
-//   and the moment the reader answers it leaves (unless the city is still on
-//   its way: see the last paragraph).
-//   Both answers are equal. "Enter silent" is a real button, not a grey link
-//   under the real button. Only activating a button enters the site;
-//   background clicks and Escape leave the choice unanswered.
-//   It cannot fail to dismiss. Dismissal is a state change from a click. No
-//   audio call is awaited before it closes, so a browser refusing to start
-//   audio still gets you inside.
+//   It loads something real, and says so. On a first open the screen is a
+//   loading screen (Preloader): the city's downloads and its build, the car
+//   on the door, the garage, the music, a bar by the bytes, a few seconds on
+//   a good connection. Every line is a real download or a real step, done
+//   when it is done; nothing is scripted. It holds nobody past thirty
+//   seconds, and the way out is on it from the first frame.
+//   Then it resolves on input, not on a timer. It waits, and the moment the
+//   reader answers it carries them in: the car on it turns to the lens and
+//   takes the camera down its beams into the intro (src/three/door-car.js),
+//   about a second and a half, on the song, which starts with it.
+//   Both answers are equal. "Enter silent" is the same size as "Enter with
+//   sound", a menu item like it, not a grey link under it. Only activating
+//   one enters the site; background clicks and Escape leave the choice
+//   unanswered.
+//   It cannot fail to dismiss. Dismissal is a state change from a click; the
+//   way in opens the door when it ends, or on a timer if the car is lost
+//   under it. No audio call is awaited before it opens, so a browser refusing
+//   to start audio still gets you inside.
 //   It appears on every page load for anyone who wants sound, because that is
 //   how often a browser needs the gesture. Anyone who explicitly chose
 //   silence never sees it at all.
 //   The page underneath is fully rendered the whole time, so a crawler that
 //   ignores overlays reads a complete document.
-//   It offers the way out. "Recruiters press this" goes to /recruiters, a
-//   plain version of the site with none of this on it, because the reader
-//   with the least time is the one this door most needs to not detain.
+//   It offers the way out. "For recruiters" goes to /recruiters, a plain
+//   version of the site with none of this on it, because the reader with the
+//   least time is the one this door most needs to not detain. It is the
+//   menu's third item, the size of the two answers, and it is on the loading
+//   screen too.
 //
-// It is also, quietly, the loading screen the intro needs: the seconds a
-// reader spends on this panel are the seconds the track's 3.8 MB, the two
-// intro plates and the 3D car's chunk take to arrive, so the click that
-// follows starts the song in a few hundred milliseconds. See prefetchTrack(),
-// loadDrift() and <Preload /> below.
-//
-// For one reader it is a loading screen out loud: the one who answers before
-// the city has arrived (a slow connection, a quick click). The intro decides
-// as it starts whether the city is ready, and one that is not costs the whole
-// run its voxel moon and its live street. So that reader is held here after
-// the click and shown what is still on its way, every line a real download
-// ticked off as it lands (src/world/progress.js), never a script. The city
-// arriving is what lets them through; thirty seconds is only the most the
-// door will hold them, after which the intro runs on its still pictures as
-// it always did. A reader who arrives after the city never sees any of it.
-import React, { useEffect, useRef, useState } from "react";
+// The loading screen is also what keeps the door smooth: the city's build,
+// the garage's, the car's are long frames, and they all land behind it,
+// where nothing moves but a bar drawn by a transform. A reader who clicks
+// before the city is in anyway (the screen gave up after thirty seconds, or
+// the door was put back up from the footer) is held after the click, with
+// what is still on its way in one line and on the ring under the car; the
+// intro decides as it starts whether the city is ready, and one that is not
+// costs the whole run its voxel moon and its live street. The city arriving
+// is what lets them through; thirty seconds is only the most it holds them,
+// after which the intro runs on its still pictures as it always did. The
+// intro's own pieces come down while the door is up as well (prefetchTrack(),
+// loadDrift() and <Preload /> below), so the click starts the song in a few
+// hundred milliseconds.
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpRight, Volume2, VolumeX } from "lucide-react";
-import { useFocusTrap, useMediaQuery } from "../hooks";
+import { ArrowUpRight, Briefcase, Volume2, VolumeX } from "lucide-react";
+import { useFocusTrap, useMediaQuery, usePrefersReducedMotion } from "../hooks";
 import { glitchTick } from "../lib/ui-sfx";
 import { profile } from "../data/profile";
 import { img } from "../data/images";
@@ -68,12 +77,13 @@ import {
 } from "../lib/audio";
 import { prefetchTrack, startAmbient, stopAmbient } from "../lib/ambient";
 import { loadDrift } from "../lib/drift";
+import { garageExpected, garageWarm } from "../lib/garage3d";
 import { prefetchWorld } from "../world/load";
 import { coverWorld, stage, subscribeStage, useStage } from "../world/stage";
-import { LOAD_STEPS, useLoaded } from "../world/progress";
+import { LOAD_STEPS, markBytes, useBytes, useLoaded } from "../world/progress";
+import { pickTier } from "../world/quality";
 import { DOOR_OPEN, introModeForThisLoad, setIntroDone, startIntro } from "../lib/intro";
 import { CRUISE_GAIN, DROP, INTRO_GAIN, LEAVE_SECONDS, SHORT_START, SONG_START } from "../lib/cues";
-import Panel from "./ui/Panel";
 import { GpuNoticeShort } from "./GpuNotice";
 import { hasGpuAcceleration } from "../lib/gpu";
 import Picture from "./Picture";
@@ -94,7 +104,7 @@ function Preload() {
   );
 }
 
-// How often the panel takes a hit, and by how much that is allowed to wander.
+// How often the name takes a hit, and by how much that is allowed to wander.
 // Exactly three seconds would read as a metronome; a glitch that arrives on
 // the beat is a progress bar.
 const GLITCH_EVERY_MS = 3000;
@@ -105,18 +115,64 @@ const GLITCH_LENGTH_MS = 300; // must match `gate-hit` in index.css
 // runs on its still pictures, as it does for a city that never loads.
 const WAIT_FOR_CITY_MS = 30000;
 
-// What the door waits on, in the order it lists them (src/world/progress.js
-// says what each key is), and the last step, which no file marks.
-const STEP_LABELS = {
+// The way in: how long the car takes to carry the reader through the door
+// (src/three/door-car.js). The song starts this much earlier in the track,
+// so it reaches the point the intro is choreographed to as the door opens.
+const LAUNCH_MS = 1300;
+// Headlamps: at rest, on full beam (the sound answer under the pointer or
+// the focus), down to running lights (the silent one).
+const LIGHTS = { rest: 0.6, sound: 1, silent: 0.12 };
+
+// The door's words.
+const COPY = {
+  status: "Awaiting input",
+  loading: "Loading the city",
+  line: (returning) => (returning ? "Welcome back, choom." : "Best with sound on, choom."),
+  sound: "Enter with sound",
+  silent: "Enter silent",
+  note: (returning) =>
+    returning
+      ? "Browsers ask for a click on every visit before they play audio. Enter silent and this stops appearing."
+      : "Your browser needs one click before it can play audio. Volume and mute live bottom left.",
+  intro: "The intro runs about 25 seconds. Esc skips it.",
+  recruitersItem: "For recruiters",
+  recruitersLine: "The plain version: experience, projects, skills and the résumé.",
+  loadNote: "The intro starts the moment the city is in. Past thirty seconds, it starts on still pictures.",
+  preloading: "Loading assets",
+  preloaded: "Ready",
+};
+
+// The loading screen's lines, one per thing it waits on, in its order.
+const ASSETS = {
   code: "City code",
   city: "Streets and towers",
-  car: "The S4",
-  voxel: "Voxel moon",
-  holo: "Hologram",
+  car: "The city's S4",
+  voxel: "The voxel moon",
+  holo: "The hologram",
   ads: "Ads",
   koi: "Koi",
   moon: "Garage monitor",
   build: "Building the city",
+  doorCar: "The S4 on the door",
+  garage: "The garage",
+  music: "The music",
+};
+// What each weighs on the bar, in kB: the files' sizes (a download's own
+// total takes over once it reports one), and for the two builds about the
+// download they take as long as.
+const ASSET_KB = { code: 440, city: 3400, car: 2040, voxel: 80, holo: 150, ads: 230, koi: 80, moon: 70, build: 1200, doorCar: 835, garage: 3500, music: 3900 };
+
+// What the door waits on, as a sentence names it (src/world/progress.js says
+// what each key is).
+const NOUNS = {
+  code: "the city's code",
+  city: "streets and towers",
+  car: "the S4",
+  voxel: "the voxel moon",
+  holo: "the hologram",
+  ads: "the ads",
+  koi: "the koi",
+  moon: "the garage monitor",
 };
 
 /** Whether entering now would start the intro before the city is ready. */
@@ -124,20 +180,33 @@ function cityLoading() {
   return document.documentElement.dataset.world === "on" && stage.status === "loading";
 }
 
-/**
- * The door's panel while it holds a reader for the city: a bar and a list,
- * one segment and one line per download, each ticked off as it actually
- * finishes, and the seconds since the click.
- */
-function CityLoading() {
+/** The city's downloads still out, and how many of the steps are done
+ *  (each download, then the city built: the stage turning "ready"). */
+function useCityProgress() {
   const loaded = useLoaded();
   const { status } = useStage();
+  const left = LOAD_STEPS.filter((key) => !loaded.includes(key));
+  const done = LOAD_STEPS.length - left.length + (status === "ready" ? 1 : 0);
+  return { left, done, total: LOAD_STEPS.length + 1 };
+}
+
+/** "Waiting on streets and towers and the S4", or the last step. */
+function waitingOn(left) {
+  if (!left.length) return "Building the city";
+  const names = left.map((key) => NOUNS[key]);
+  const shown = names.slice(0, 2).join(left.length > 2 ? ", " : " and ");
+  return `Waiting on ${shown}${left.length > 2 ? ` and ${left.length - 2} more` : ""}`;
+}
+
+/**
+ * Where the choice was, while the door holds a reader for the city: what it
+ * is waiting on, in one line, how far along, and how long since the click.
+ * The ring under the car draws how far along too.
+ */
+function LoadingLine({ className = "" }) {
+  const { left, done, total } = useCityProgress();
   const [seconds, setSeconds] = useState(0);
   const ref = useRef(null);
-  const steps = [...LOAD_STEPS.map((key) => ({ key, done: loaded.includes(key) })), { key: "build", done: status === "ready" }];
-  const count = steps.filter((s) => s.done).length;
-  const next = steps.find((s) => !s.done)?.key;
-
   useEffect(() => {
     // The button that was clicked is gone; keep focus inside the door.
     ref.current?.focus();
@@ -145,41 +214,218 @@ function CityLoading() {
     const id = window.setInterval(() => setSeconds(Math.floor((performance.now() - t0) / 1000)), 250);
     return () => window.clearInterval(id);
   }, []);
-
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   return (
-    <div ref={ref} tabIndex={-1} className="mt-8 focus-visible:shadow-none">
-      <div className="flex gap-1" aria-hidden="true">
-        {steps.map((s) => (
-          <span
-            key={s.key}
-            className={`h-2 flex-1 ${s.done ? "bg-volt" : s.key === next ? "hazard motion-safe:animate-pulse" : "bg-ink-line"}`}
-          />
-        ))}
+    <div ref={ref} tabIndex={-1} className={`focus-visible:shadow-none ${className}`}>
+      <p className="font-display text-display-3 text-primary" role="status">
+        {waitingOn(left)}
+      </p>
+      <p className="mt-2 mono-label text-dim tabular-nums">
+        {done} of {total} · {clock}
+      </p>
+      <p className="mt-5 max-w-[30rem] font-sans text-[1.0625rem] leading-[1.55] text-muted">{COPY.loadNote}</p>
+    </div>
+  );
+}
+
+/** The hazard tape along the top edge. */
+function Tape() {
+  return <div className="hazard absolute inset-x-0 top-0 h-1.5 opacity-30" aria-hidden="true" />;
+}
+
+/**
+ * The loading screen: the first thing a reader sees while the site's assets
+ * arrive and the city builds, a few seconds on a good connection. Every line
+ * is a real download or a real step, done when it is done; the bar moves by
+ * a transform, so it keeps moving smoothly while the city's build holds the
+ * main thread. The way out to /recruiters is on it too.
+ */
+function Preloader({ steps, leaving }) {
+  const done = steps.filter((s) => s.done).length;
+  const total = steps.length || 1;
+  const weight = steps.reduce((a, s) => a + s.weight, 0) || 1;
+  const share = steps.reduce((a, s) => a + s.weight * s.fraction, 0) / weight;
+  const pct = Math.floor(100 * share);
+  const next = steps.find((s) => !s.done);
+  return (
+    <div
+      className={`absolute inset-0 flex flex-col justify-between py-10 md:py-14 transition-opacity duration-500 ${leaving ? "opacity-0" : "opacity-100"}`}
+    >
+      <span />
+      <div className="mx-auto w-full max-w-[40rem]">
+        <p className="mono-label text-volt flex items-center gap-2.5">
+          <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+            <span className="animate-signal-ping absolute inline-flex h-full w-full rounded-full bg-volt" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-volt" />
+          </span>
+          {done >= total ? COPY.preloaded : COPY.preloading}
+        </p>
+        <div className="mt-6 flex items-end justify-between gap-6">
+          <p className="font-display text-[clamp(3rem,8vw,5.5rem)] font-bold leading-none text-primary tabular-nums" role="status" aria-live="polite">
+            {pct}%
+          </p>
+          <p className="mono-label text-dim tabular-nums pb-2">
+            {done} of {total}
+          </p>
+        </div>
+        <div className="chamfer-sm mt-5 p-px bg-volt/50">
+          <div className="chamfer-sm relative h-4 overflow-hidden bg-ink">
+            <div
+              className="absolute inset-0 origin-left bg-volt transition-transform duration-500 ease-out"
+              style={{ transform: `scaleX(${share})` }}
+            />
+            <div className="hazard absolute inset-0 opacity-25 mix-blend-multiply" aria-hidden="true" />
+          </div>
+        </div>
+        <p className="mt-4 font-sans text-[1.0625rem] text-muted">{next ? ASSETS[next.key] : COPY.preloaded}</p>
       </div>
-      <p className="mt-3 flex justify-between mono-label" role="status">
-        <span className="text-volt">
-          {count} of {steps.length} loaded
-        </span>
-        <span className="text-dim tabular-nums">
-          {String(Math.floor(seconds / 60)).padStart(2, "0")}:{String(seconds % 60).padStart(2, "0")}
-        </span>
+      <RecruitersItem className="-ml-1 opacity-80" />
+    </div>
+  );
+}
+
+function Status({ waiting }) {
+  return (
+    <p className="mono-label text-volt flex items-center gap-2.5">
+      <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+        <span className="animate-signal-ping absolute inline-flex h-full w-full rounded-full bg-volt" />
+        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-volt" />
+      </span>
+      {waiting ? COPY.loading : COPY.status}
+    </p>
+  );
+}
+
+/** The name, carrying the door's glitch (see .gate-glitch in index.css). */
+function Name({ hit, className = "" }) {
+  return (
+    <div className={`gate-glitch relative ${hit ? "is-hit" : ""}`}>
+      <h1 className={`font-display uppercase text-primary leading-[0.9] ${className}`}>{profile.name}</h1>
+      <span className="gate-tear" aria-hidden="true" />
+    </div>
+  );
+}
+
+/** Why the door asks, in a sentence or two of prose; and the GPU warning. */
+function Note({ returning, mode, className = "" }) {
+  return (
+    <div className={className}>
+      <p className="font-sans text-[1rem] leading-[1.55] text-muted">
+        {COPY.note(returning)}
+        {mode === "full" && <span className="block mt-1 text-dim">{COPY.intro}</span>}
       </p>
-      <ul className="mt-5 grid gap-1.5 mono-ui">
-        {steps.map((s) => (
-          <li key={s.key} className="flex items-center gap-3">
-            <span className={`w-6 shrink-0 ${s.done ? "text-ok" : "text-dim"}`} aria-hidden="true">
-              {s.done ? "OK" : s.key === next ? <span className="motion-safe:animate-caret">▮</span> : "··"}
-            </span>
-            <span className={s.done ? "text-muted" : "text-primary"}>
-              {STEP_LABELS[s.key]}
-              <span className="sr-only">{s.done ? ", loaded" : ", loading"}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-6 text-[0.9375rem] leading-[1.6] text-muted">
-        The intro starts the moment the city is in. If that takes more than thirty seconds, it starts anyway, on still pictures.
-      </p>
+      {/* A browser drawing on the CPU is told so here, before it chooses
+          the twenty-five seconds. The long form is the toast in
+          GpuNotice.jsx. See src/lib/gpu.js. */}
+      {!hasGpuAcceleration() && (
+        <div className="mt-4">
+          <GpuNoticeShort />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The S4 on the door (src/three/door-car.js): a canvas over the whole
+ *  door, behind its words, with the car drawn over the layout's slot for it
+ *  (`anchor`) so the way in can take it to the middle of the screen. Started
+ *  once the door is up and faded in on its first frame; never on a browser
+ *  drawing without a GPU. `api` gets its controls (setLights, setProgress,
+ *  launch). */
+function DoorCar({ anchor, api, progress, busy, hidden, onReady }) {
+  const ref = useRef(null);
+  const reduced = usePrefersReducedMotion();
+  const [ready, setReady] = useState(false);
+  const readyRef = useRef(onReady);
+  readyRef.current = onReady;
+  const live = useRef({ progress, busy });
+  live.current = { progress, busy };
+  useEffect(() => {
+    api.current?.setProgress(progress);
+  }, [api, progress]);
+  useEffect(() => {
+    api.current?.setBusy(busy);
+  }, [api, busy]);
+  const shown = ready && !hidden;
+  useEffect(() => {
+    if (!hasGpuAcceleration()) return undefined;
+    let alive = true;
+    let car = null;
+    import("../three/door-car.js")
+      .then(({ mountDoorCar }) => {
+        if (!alive || !ref.current) return;
+        car = mountDoorCar(ref.current, {
+          anchor,
+          reduced,
+          onReady: () => {
+            if (!alive) return;
+            setReady(true);
+            readyRef.current?.();
+          },
+        });
+        car.setProgress(live.current.progress);
+        car.setBusy(live.current.busy);
+        api.current = car;
+        if (import.meta.env.DEV) window.__doorCar = car;
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      if (car && api.current === car) api.current = null;
+      car?.stop();
+    };
+  }, [anchor, api, reduced]);
+  return (
+    <canvas
+      ref={ref}
+      aria-hidden="true"
+      className={`pointer-events-none fixed inset-0 h-full w-full transition-opacity duration-1000 ${shown ? "opacity-100" : "opacity-0"}`}
+    />
+  );
+}
+
+const MENU_ITEM =
+  "group flex items-center gap-4 py-2 font-display uppercase font-semibold text-[clamp(1.625rem,3.2vw,2.5rem)] leading-none text-muted transition-colors hover:text-volt focus-visible:text-volt focus-visible:shadow-none";
+const MENU_MARK = "w-4 text-volt opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100";
+
+/** The two answers as a game's menu: the same size, the one under the
+ *  pointer or the focus marked. */
+function Menu({ enter, lights, className = "" }) {
+  const over = (level) => ({
+    onPointerEnter: () => lights?.(level),
+    onPointerLeave: () => lights?.(LIGHTS.rest),
+    onFocus: () => lights?.(level),
+    onBlur: () => lights?.(LIGHTS.rest),
+  });
+  return (
+    <div className={`flex flex-col items-start gap-2 ${className}`}>
+      <button type="button" autoFocus data-autofocus="" onClick={() => enter(true)} className={MENU_ITEM} {...over(LIGHTS.sound)}>
+        <span className={MENU_MARK} aria-hidden="true">▸</span>
+        <Volume2 className="w-6 h-6 shrink-0" aria-hidden="true" />
+        {COPY.sound}
+      </button>
+      <button type="button" onClick={() => enter(false)} className={MENU_ITEM} {...over(LIGHTS.silent)}>
+        <span className={MENU_MARK} aria-hidden="true">▸</span>
+        <VolumeX className="w-6 h-6 shrink-0" aria-hidden="true" />
+        {COPY.silent}
+      </button>
+    </div>
+  );
+}
+
+/** The way out as the menu's third item, the same size as the two answers,
+ *  and a line under it saying where it goes. Still there while the door
+ *  holds for the city. */
+function RecruitersItem({ className = "" }) {
+  return (
+    <div className={className}>
+      <Link to="/recruiters" className={MENU_ITEM}>
+        <span className={MENU_MARK} aria-hidden="true">▸</span>
+        <Briefcase className="w-6 h-6 shrink-0" aria-hidden="true" />
+        {COPY.recruitersItem}
+        <ArrowUpRight className="-ml-2 w-5 h-5 shrink-0" aria-hidden="true" />
+      </Link>
+      <p className="pl-[4.5rem] font-sans text-[0.9375rem] leading-[1.5] text-dim">{COPY.recruitersLine}</p>
     </div>
   );
 }
@@ -221,7 +467,7 @@ export default function EntryGate({ onEnter }) {
   // simply finds them ready.
   useEffect(() => {
     if (!open) return;
-    prefetchTrack();
+    prefetchTrack((got, total) => markBytes("music", got, total));
     if (mode !== "off") loadDrift().catch(() => {});
     // The city behind the page, too: its chunk and its model, so a reader
     // who clicks through lands in it rather than on its poster.
@@ -305,9 +551,79 @@ export default function EntryGate({ onEnter }) {
   // once, by whichever comes first of the city and the thirty seconds.
   const goRef = useRef(null);
   const [waiting, setWaiting] = useState(false);
+  // The car: its slot in the layout, its controls, and whether it is
+  // carrying the reader through ("words": the words are going; "car": the
+  // way in is running).
+  const carSlot = useRef(null);
+  const carApi = useRef(null);
+  const [launching, setLaunching] = useState(null);
+  const leaving = useRef(false);
+  const setCarLights = useCallback((level) => carApi.current?.setLights(level), []);
+  const { status: cityStatus } = useStage();
+  const city = useCityProgress();
+  const cityProgress = cityStatus === "ready" ? 1 : cityStatus === "loading" ? city.done / city.total : null;
+  // Everything downloaded and the city still not in: its build, the long
+  // frames, is under way.
+  const cityBuilding = cityStatus === "loading" && city.left.length === 0;
+
+  // The loading screen: on the door's first opening, while the city, the
+  // door's car, the garage and the music arrive. "on", then "leaving" (it
+  // fades as the door's words come up), then "off". A door put back up later
+  // has its city cached and goes without it.
+  const [preload, setPreload] = useState(() => (open ? "on" : "off"));
+  const [doorCarReady, setDoorCarReady] = useState(false);
+  const [musicReady, setMusicReady] = useState(false);
+  const [garageReady, setGarageReady] = useState(false);
+  const [garageWanted, setGarageWanted] = useState(false);
+  useEffect(() => {
+    garageWarm.then(() => setGarageReady(true));
+    // After every effect of the first commit: the garage says it is coming
+    // as it mounts. And a city that is off leaves nothing to wait for.
+    const id = window.setTimeout(() => {
+      setGarageWanted(garageExpected());
+      if (document.documentElement.dataset.world !== "on") setPreload("off");
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, []);
+  useEffect(() => {
+    if (open) prefetchTrack().then(() => setMusicReady(true));
+  }, [open]);
+  const bytes = useBytes();
+  const [tier] = useState(pickTier);
+  const assets = [
+    ...LOAD_STEPS.map((key) => ({ key, done: !city.left.includes(key) })),
+    { key: "build", done: cityStatus === "ready" },
+    ...(hasGpuAcceleration() ? [{ key: "doorCar", done: doorCarReady }] : []),
+    ...(garageWanted ? [{ key: "garage", done: garageReady }] : []),
+    { key: "music", done: musicReady },
+  ].map((a) => {
+    const b = bytes[a.key];
+    // A download in flight counts its bytes up to nine tenths; the last
+    // tenth is it actually being ready (parsed, built, compiled).
+    const fraction = a.done ? 1 : b ? 0.9 * Math.min(1, b[0] / b[1]) : 0;
+    const weight = a.key === "city" && tier === "phone" ? 1500 : ASSET_KB[a.key];
+    return { ...a, fraction, weight };
+  });
+  const allLoaded = assets.every((a) => a.done);
+  useEffect(() => {
+    if (preload !== "on") return undefined;
+    // All in: a beat at 100%, then the door. Or the most it holds anyone.
+    const id = window.setTimeout(() => setPreload("leaving"), allLoaded ? 350 : WAIT_FOR_CITY_MS);
+    return () => window.clearTimeout(id);
+  }, [preload, allLoaded]);
+  useEffect(() => {
+    if (preload !== "leaving") return undefined;
+    panelRef.current?.querySelector("[data-autofocus]")?.focus();
+    const id = window.setTimeout(() => setPreload("off"), 500);
+    return () => window.clearTimeout(id);
+  }, [preload]);
+  useEffect(() => {
+    if (open) leaving.current = false;
+  }, [open]);
 
   const enter = (withSound) => {
-    if (goRef.current) return;
+    if (goRef.current || leaving.current) return;
+    leaving.current = true;
     markAsked();
     setSoundEnabled(withSound);
     // This click is the gesture the whole screen exists to collect, so the
@@ -315,24 +631,15 @@ export default function EntryGate({ onEnter }) {
     const audio = withSound ? unlockAudio() : null;
 
     let gone = false;
-    const go = () => {
-      if (gone) return;
-      gone = true;
-      goRef.current = null;
-      // Close first, unconditionally. Whatever audio does next, the reader
-      // is already through the door.
-      setWaiting(false);
+    let through = false;
+    const open_ = () => {
+      if (through) return;
+      through = true;
+      // Close, unconditionally. Whatever audio does next, the reader is
+      // already through the door.
+      setLaunching(null);
       setOpen(false);
       onEnter?.(withSound);
-
-      if (audio) {
-        // The song starts here, from the point the intro is choreographed
-        // to, and the cinematic reads its clock from there on.
-        const offset = mode === "short" ? SHORT_START : mode === "off" ? DROP : SONG_START;
-        const gain = mode === "off" ? CRUISE_GAIN : INTRO_GAIN;
-        audio.then(() => startAmbient({ offset, gain, fade: 0.25 }));
-      }
-
       if (mode === "off") {
         setIntroDone(true);
         return;
@@ -343,6 +650,39 @@ export default function EntryGate({ onEnter }) {
       // arrival.
       setIntroDone(false);
       startIntro({ mode, withSound });
+    };
+    const go = () => {
+      if (gone) return;
+      gone = true;
+      goRef.current = null;
+      setWaiting(false);
+      const car = carApi.current;
+      const lead = car?.canLaunch() ? LAUNCH_MS : 0;
+
+      let started = Promise.resolve();
+      if (audio) {
+        // The song starts from the point the intro is choreographed to, less
+        // the way in, and the cinematic reads its clock from it: the door
+        // opens as the track reaches that point.
+        const offset = (mode === "short" ? SHORT_START : mode === "off" ? DROP : SONG_START) - lead / 1000;
+        const gain = mode === "off" ? CRUISE_GAIN : INTRO_GAIN;
+        started = audio.then(() => startAmbient({ offset, gain, fade: 0.25 }));
+      }
+      if (!lead) {
+        open_();
+        return;
+      }
+      // The words go at once; the car goes with the first of the song (or
+      // 0.6 s on, whichever is sooner). And the door opens however the way
+      // in ends, even if the car is lost under it.
+      setLaunching("words");
+      const wait = (ms) => new Promise((r) => window.setTimeout(r, ms));
+      Promise.race([started, wait(600)])
+        .then(() => {
+          setLaunching("car");
+          return Promise.race([car.launch(LAUNCH_MS), wait(LAUNCH_MS + 900)]);
+        })
+        .then(open_);
     };
 
     // The intro opens on the city's voxel moon, and cuts to the live street,
@@ -384,16 +724,14 @@ export default function EntryGate({ onEnter }) {
     return () => document.documentElement.removeAttribute("data-gated");
   }, [open]);
 
-  const intro =
-    mode === "full"
-      ? "The intro runs about twenty-five seconds and is skippable at any point."
-      : null;
+  const line = COPY.line(returning);
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[120] bg-ink-deep flex items-center justify-center gutter"
+          className={`fixed inset-0 z-[120] bg-ink-deep overflow-y-auto gutter ${launching === "car" ? "is-launching" : ""}`}
+          style={{ "--door-launch": `${LAUNCH_MS}ms` }}
           data-intro-layer=""
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -402,133 +740,60 @@ export default function EntryGate({ onEnter }) {
           aria-modal="true"
           aria-label="Enter the site"
         >
-          <div className="absolute inset-0 crt-grid opacity-70 pointer-events-none" aria-hidden="true" />
-          <div className="hazard absolute inset-x-0 top-0 h-1.5 opacity-30" aria-hidden="true" />
-          <div className="hazard absolute inset-x-0 bottom-0 h-1.5 opacity-30" aria-hidden="true" />
+          <div className="fixed inset-0 crt-grid opacity-70 pointer-events-none" aria-hidden="true" />
+          <DoorCar
+            anchor={carSlot}
+            api={carApi}
+            progress={waiting ? cityProgress : null}
+            busy={cityBuilding}
+            hidden={preload === "on"}
+            onReady={() => setDoorCarReady(true)}
+          />
+          <Tape />
+          <div className="hazard fixed inset-x-0 bottom-0 h-1.5 opacity-30" aria-hidden="true" />
           {mode !== "off" && <Preload />}
 
           <motion.div
             ref={panelRef}
-            className="relative w-full max-w-[34rem]"
+            className="relative mx-auto min-h-full w-full max-w-[84rem]"
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 0.9, 0.25, 1] }}
           >
-          {/* The glitch owns its own element. It has to: Framer animates
-              `transform` on this panel's entrance, and a CSS animation on the
-              same element fights it for the same property, which is how the
-              first version of the hit came out as a 2px nudge with none of the
-              chroma on it. Nothing else ever animates this wrapper. */}
-          <div className={`tick-frame gate-glitch relative ${hit ? "is-hit" : ""}`}>
-            <Panel edge="bg-volt" fill="bg-ink" innerClassName="p-7 md:p-9">
-              <p className="mono-label text-volt flex items-center gap-2.5">
-                <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
-                  <span className="animate-signal-ping absolute inline-flex h-full w-full rounded-full bg-volt" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-volt" />
-                </span>
-                {waiting ? "Loading the city" : "Awaiting input"}
-              </p>
-
-              <h1 className="mt-6 font-display uppercase text-display-2 text-primary leading-none">
-                {profile.name}
-              </h1>
-
-              {waiting ? (
-                <CityLoading />
-              ) : (
-              <>
-              <p className="mt-5 prose-dark">
-                {returning
-                  ? "Welcome back, choom. One click and the sound is on :)"
-                  : "Turn your sound on for the best experience, choom :)"}
-              </p>
-
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Panel
-                  as="button"
-                  type="button"
-                  size="sm"
-                  autoFocus
-                  onClick={() => enter(true)}
-                  edge="bg-volt hover:bg-volt-deep transition-colors duration-200"
-                  fill="bg-volt"
-                  className="scan-beam-host group"
-                  innerClassName="inline-flex items-center gap-2.5 px-5 py-3.5 mono-ui font-bold text-ink"
-                >
-                  <Volume2 className="w-4 h-4" />
-                  {returning ? "Enter" : "Enter with sound"}
-                </Panel>
-
-                <Panel
-                  as="button"
-                  type="button"
-                  size="sm"
-                  onClick={() => enter(false)}
-                  edge="bg-ink-line hover:bg-volt transition-colors duration-200"
-                  fill="bg-ink"
-                  className="group"
-                  innerClassName="inline-flex items-center gap-2.5 px-5 py-3.5 mono-ui text-muted transition-colors group-hover:text-primary"
-                >
-                  <VolumeX className="w-4 h-4" />
-                  Enter silent
-                </Panel>
-              </div>
-
-              {/* This was 11px uppercase mono at 0.18em tracking and 46%
-                  opacity: two paragraphs of explanation set in the face this
-                  design reserves for one-word labels, on the first screen
-                  anybody sees. It is prose, so it is prose. */}
-              <p className="mt-6 text-[0.9375rem] leading-[1.6] text-muted">
-                {returning
-                  ? "Browsers need a click on every page load before they will play audio. Entering silent stops this appearing again."
-                  : "Your browser needs a click before it will play audio. Volume lives bottom left, and either choice is changeable there."}
-                {intro && <span className="block mt-2 text-dim">{intro}</span>}
-              </p>
-              </>
-              )}
-
-              {/* A browser drawing on the CPU is told so here, before it
-                  chooses the twenty-five seconds. The long form, with where
-                  the switch is, is the toast in GpuNotice.jsx, which waits
-                  until the door is down. See src/lib/gpu.js. */}
-              {!hasGpuAcceleration() && (
-                <div className="mt-6">
-                  <GpuNoticeShort />
+            {preload !== "off" && <Preloader steps={assets} leaving={preload === "leaving"} />}
+            {/* A game's start screen: who, the question and the two answers,
+                and the way out as a third, read top to bottom on the left; the
+                car on the right; the small print along the foot. */}
+            <div
+              className={`door-words flex min-h-[100svh] flex-col justify-between gap-12 py-10 md:py-14 ${launching ? "is-out" : ""} ${preload === "on" ? "is-hidden" : ""}`}
+              inert={preload === "on" || undefined}
+            >
+              <Status waiting={waiting} />
+              <div className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+                <div>
+                  <Name hit={hit} className="text-display-1" />
+                  <p className="mt-5 font-sans text-[clamp(1.25rem,1.8vw,1.5rem)] leading-snug text-muted">{line}</p>
+                  {waiting ? (
+                    <>
+                      <LoadingLine className="mt-10" />
+                      <RecruitersItem className="mt-8 -ml-1" />
+                    </>
+                  ) : (
+                    <div className="mt-10 -ml-1">
+                      <Menu enter={enter} lights={setCarLights} />
+                      <RecruitersItem className="mt-2" />
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* The way out, for the reader with the least time. A plain
-                  page: no intro, no sound, no effects, the same content. */}
-              <Link
-                to="/recruiters"
-                // `items-start`, not `items-center`: on a phone the sentence
-                // wraps to four lines and a vertically centred arrow lands in
-                // the middle of them, reading as a glyph inside the text.
-                className="group mt-6 flex items-start justify-between gap-4 border-t border-ink-line pt-5 transition-colors"
-              >
-                <span className="min-w-0">
-                  <span className="mono-ui font-bold text-volt block">Recruiters press this</span>
-                  <span className="block mt-1.5 text-[0.9375rem] leading-[1.6] text-muted">
-                    The plain version. Experience, projects, skills and the résumé, with none of the above.
-                  </span>
-                </span>
-                <ArrowUpRight className="w-4 h-4 mt-0.5 shrink-0 text-volt transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
-              </Link>
-            </Panel>
-
-            {/* The tear, over the panel and under the corner marks. */}
-            <span className="gate-tear chamfer" aria-hidden="true" />
-
-            {/* Outside the Panel on purpose. `clip-path` removes anything the
-                element paints past the cut, so ticks placed inside a chamfered
-                box are clipped away at exactly the corners they mark. */}
-            <span className="tick tl" aria-hidden="true" />
-
-            <span className="tick tr" aria-hidden="true" />
-            <span className="tick bl" aria-hidden="true" />
-            <span className="tick br" aria-hidden="true" />
-          </div>
+                <div ref={carSlot} className="h-44 w-full md:h-auto md:aspect-[4/3]" aria-hidden="true" />
+              </div>
+              {waiting ? <span /> : <Note returning={returning} mode={mode} className="max-w-[30rem]" />}
+            </div>
           </motion.div>
+          {/* The way in's light and its last frame: the lamps' glare, then
+              black, which is where the intro begins. See index.css. */}
+          <div className="door-flare" aria-hidden="true" />
+          <div className="door-black" aria-hidden="true" />
         </motion.div>
       )}
     </AnimatePresence>
