@@ -476,6 +476,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         };
       });
     },
+    setRadio(on) {
+      audio?.setRadio(on);
+      set({ radio: on });
+    },
     setMuted(m) {
       audio?.setMuted(m);
       set({ muted: m });

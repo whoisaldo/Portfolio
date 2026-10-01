@@ -59,6 +59,8 @@ export const bd = {
   photo: { fov: 0, roll: 0, filter: "off", stamp: true },
   // The Konami code's reward.
   overdrive: false,
+  // The song on the car's radio, or the city alone.
+  radio: true,
 };
 
 const subs = new Set();
@@ -121,6 +123,7 @@ export function resetBd() {
     progress: 0,
     photo: { fov: 0, roll: 0, filter: "off", stamp: true },
     overdrive: false,
+    radio: true,
   });
   notify();
 }

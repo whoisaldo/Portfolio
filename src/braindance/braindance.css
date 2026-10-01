@@ -598,14 +598,18 @@ kbd {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  pointer-events: none !important;
+  text-align: left;
+  cursor: pointer;
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9);
 }
+.bd-radio-text { display: grid; }
+.bd-radio:hover .bd-radio-kicker { color: #fff36b; }
+.bd-radio.is-off .bd-radio-title, .bd-radio.is-off .bd-radio-text .bd-dim { text-decoration: line-through; opacity: 0.6; }
 .bd-radio-bars { display: flex; align-items: flex-end; gap: 2px; height: 26px; }
 .bd-radio-bars span { width: 3px; height: 100%; background: var(--bd-volt); transform-origin: bottom; transform: scaleY(0.06); }
 .bd-radio-kicker { font-family: "JetBrains Mono Variable", ui-monospace, monospace; font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bd-volt); }
 .bd-radio-title { font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
-.bd-radio-text p:last-child { font-size: 0.78rem; }
+.bd-radio-text .bd-dim { font-size: 0.78rem; }
 
 /* ---- photo mode ---- */
 .bd-hud.is-photo .bd-header,

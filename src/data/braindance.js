@@ -57,7 +57,7 @@ export const LOAD_LABELS = {
 
 /** One per chapter in src/braindance/recording.js, in its order. */
 export const CHAPTERS = [
-  { id: "jackin", title: "Jack in", line: "The curb. The car. The rain." },
+  { id: "jackin", title: "Jack in", line: "Parked at the curb in the rain, engine running." },
   { id: "avenue", title: "The avenue", line: "Up the strip with the radio on." },
   { id: "plaza", title: "The plaza", line: "Everything I built because what existed was not good enough." },
   { id: "corpo", title: "Corpo row", line: "Seven towers. Seven places that let me in." },
@@ -104,6 +104,7 @@ export const CONTROLS = [
   { keys: ["Drag"], what: "Look around (orbit in the editor)" },
   { keys: ["J"], what: "Journal" },
   { keys: ["P"], what: "Photo mode" },
+  { keys: ["R"], what: "Radio: the song on or off" },
   { keys: ["M"], what: "Mute" },
   { keys: ["H"], what: "Hide the interface" },
   { keys: ["?"], what: "This list" },

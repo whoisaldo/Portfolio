@@ -87,6 +87,10 @@ export function createAudio() {
   let dir = 1;
   let paused = 0;
   let muted = false;
+  // The radio: the song on or off. Off, the deck keeps the clock and the
+  // city keeps its sounds.
+  let radio = true;
+  let layerGain = 1;
 
   const level = () => (muted ? 0 : getVolume() * 1.6);
 
@@ -169,10 +173,14 @@ export function createAudio() {
     setLayer(layer) {
       const now = ac.currentTime;
       const tone = layer === "audio" ? 650 : layer === "thermal" ? 5200 : 20000;
-      const gain = layer === "audio" ? 0.55 : 1;
+      layerGain = layer === "audio" ? 0.55 : 1;
       musicTone.frequency.setTargetAtTime(tone, now, 0.12);
-      music.gain.setTargetAtTime(gain, now, 0.12);
+      music.gain.setTargetAtTime(radio ? layerGain : 0, now, 0.12);
       city.gain.setTargetAtTime(layer === "audio" ? 1.8 : 1, now, 0.12);
+    },
+    setRadio(on) {
+      radio = on;
+      music.gain.setTargetAtTime(on ? layerGain : 0, ac.currentTime, 0.15);
     },
     setMuted(m) {
       muted = m;

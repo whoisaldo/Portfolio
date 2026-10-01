@@ -103,6 +103,11 @@ export function useControls(engineRef, on) {
           set({ mode: bd.mode === "photo" ? "play" : "photo" });
           if (bd.mode === "photo" && bd.playing) e.pause();
           break;
+        case "r":
+        case "R":
+          handled();
+          e.setRadio(!bd.radio);
+          break;
         case "m":
         case "M":
           handled();
