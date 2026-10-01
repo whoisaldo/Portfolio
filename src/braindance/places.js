@@ -15,7 +15,7 @@
 // recording, mostly from the recording's own marks, so a camera moved
 // there moves the windows with it.
 import * as THREE from "three";
-import { bar, boardWindow, DURATION } from "./recording.js";
+import { bar, boardWindow, DURATION, HOLO_AT } from "./recording.js";
 import { towers as TOWERS } from "../data/world.js";
 import { featuredProjects } from "../data/projects.js";
 
@@ -94,9 +94,8 @@ export function createPlaces(anchors, recording) {
   P.brakes = { at: [inBay, bar(64)], box: { car: CAR_BOX.wheelFR }, heat: { car: CAR_BOX.wheelFR.c, r: 0.45, k: 0.8 } };
 
   // ---- 6 The moon ----
-  const moon = at("anchor_moon") ?? new THREE.Vector3(760, 330, 440);
   P.couple = { at: [bar(65), END], box: { moon: true } };
-  P.contact = { at: [bar(66), END], box: { world: { min: [moon.x - 160, moon.y - 160, moon.z - 160], max: [moon.x + 160, moon.y + 160, moon.z + 160] } } };
+  P.contact = { at: [HOLO_AT + 0.8, END], box: { holo: true } };
   P.boston = { at: [bar(65), END], box: { world: { min: [490, 0, -200], max: [640, 70, -40] } }, heat: { world: [560, 20, -120], r: 60, k: 0.35 } };
 
   // ---- secrets ----

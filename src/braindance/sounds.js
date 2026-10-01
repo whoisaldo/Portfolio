@@ -311,6 +311,10 @@ export function createSounds(audio) {
       blip(f, 0.35, "sawtooth", 0.025, 2.2);
       burst(0.3, 0.02, 1200);
     },
+    /** An incoming holocall: two short tones, twice. */
+    ring() {
+      [0, 0.16, 0.6, 0.76].forEach((at, i) => window.setTimeout(() => blip(i % 2 ? 1250 : 990, 0.13, "sine", 0.05), at * 1000));
+    },
     cut() {
       burst(0.09, 0.025, 3000);
     },

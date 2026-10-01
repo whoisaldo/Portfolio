@@ -19,7 +19,7 @@ export const SCAN_SECONDS = 0.6;
 
 const byId = new Map(CLUES.map((c) => [c.id, c]));
 
-export function createScanner({ parts, recording, layers }) {
+export function createScanner({ parts, recording, layers, holocall = null }) {
   const { city, camera, scene } = parts;
   const places = createPlaces(city.anchors, recording);
   const list = CLUES.map((c) => ({ ...c, place: places[c.id] })).filter((c) => c.place);
@@ -66,6 +66,7 @@ export function createScanner({ parts, recording, layers }) {
       }
       return out;
     }
+    if (box.holo) return holocall ? out.copy(holocall.box()) : out.makeEmpty();
     if (box.moon && moon) {
       // The two sit on the disc's upper rim, a little left of the top, on a
       // card that faces the camera.

@@ -47,6 +47,10 @@ export const CHAPTERS = [
   { id: "end", t: bar(75), pivot: [456, 10, -203], orbit: { radius: [4, 20], pitch: [0, 40], yaw: [50, 70] } },
 ];
 
+/** The holocall: it rings, then connects over the garage roof. */
+export const HOLO_AT = bar(67) + 0.8;
+export const HOLO_RING = HOLO_AT - 2.6;
+
 export function chapterAt(t) {
   let i = 0;
   while (i + 1 < CHAPTERS.length && t >= CHAPTERS[i + 1].t) i++;
@@ -61,7 +65,8 @@ const CAR = [
   { t: [30.4, 60.4], u: [0, 209], ease: "cruise" },
   { t: [bar(25), bar(35) - 1], u: [392, 702], ease: "cruise" },
   { t: [bar(35), bar(38)], u: [716, 757.6], ease: "out" },
-  { t: [bar(49) + 1.2, bar(54)], u: [757.6, 834.9], ease: "inout" },
+  // Off the rooftop's mark and round into Bay 01, parked as the tubes strike.
+  { t: [bar(46) + 0.6, bar(53) + 0.6], u: [757.6, 834.9], ease: "inout" },
 ];
 
 // A cruise: up to speed over the first eighth, steady, and down to the
@@ -109,46 +114,56 @@ export function boardWindow(index) {
 }
 
 // ---- the camera ---------------------------------------------------------------------
+// The last shot's aim from the garage roof: the moon right of the middle
+// and clear of the minimap's corner, the holocall on the left.
+const MOON_LOOK = [511.5, 38.3, -124.6];
 // Car frame: x right, y up, z forward. World: metres, the kit's axes.
 const SHOTS = [
-  // 0 Jack in. The car parked at the curb, the city coming in around it.
-  { t: [0, 12.5], kind: "orbit", centre: "car", look: [0, 0.75, 0.4], radius: [7.2, 5.6], height: [1.0, 1.35], angle: [-150, -95], fov: [34, 32] },
-  { t: [12.5, 21.3], kind: "chase", offset: [-2.6, 0.55, 4.9], offsetTo: [-1.6, 0.5, 4.1], look: [0.2, 0.62, 0], fov: [30, 28], blend: 0 },
-  { t: [21.3, 30.1], kind: "move", from: { position: [-0.6, 1.4, 4], target: [3, 1.2, -60], fov: 46 }, to: "cam_hero", fov: 50, shift: 0.12, ease: "out" },
-  // 1 The avenue. The hero's own frame as the car pulls away, then down
-  // behind it, then up over it to the hologram.
-  { t: [30.1, bar(2)], kind: "fixed", position: "cam_hero", fov: 50, shift: 0.12, push: 1.5 },
+  // 0 Jack in. The recorder's view first: over the hood, up the avenue,
+  // as the city builds out from the car. Then off the car and round it,
+  // the nose, the avenue, and the tail lights waiting for the drop.
+  { t: [0, 6.2], kind: "chase", offset: [0, 1.2, 0.7], offsetTo: [0, 1.22, 0.95], look: [0, 1.05, 16], fov: [54, 50] },
+  { t: [6.2, 13.4], kind: "orbit", centre: "car", look: [0, 0.75, 0.4], radius: [7.2, 5.6], height: [1.0, 1.35], angle: [-150, -95], fov: [34, 32], blend: 2.6 },
+  { t: [13.4, 19.5], kind: "chase", offset: [-3.2, 0.6, 5.6], offsetTo: [-2.5, 0.55, 4.9], look: [0.15, 0.62, 0.3], fov: [34, 32], cut: true },
+  { t: [19.5, 25.5], kind: "move", from: { position: [-0.6, 1.4, 4], target: [3, 1.2, -60], fov: 46 }, to: "cam_hero", fov: 50, shift: 0.12, ease: "out", cut: true },
+  { t: [25.5, 30.1], kind: "chase", offset: [1.7, 0.5, -4.6], offsetTo: [1.3, 0.52, -4.0], look: [0, 0.62, 0], fov: [34, 32], cut: true },
+  // 1 The avenue. The drop: the car pulls off and past the lens, then the
+  // chase down the strip, round it, and through the turn into the plaza,
+  // seen arriving from across the square.
+  { t: [30.1, bar(2)], kind: "fixed", position: [3.6, 0.55, -52], target: "car", lookOffset: [0, 0.8, 0], fov: [38, 42] },
   { t: [bar(2), bar(5)], kind: "chase", offset: [-1.9, 1.0, -7.5], offsetTo: [-1.4, 0.85, -6.2], look: [0.3, 0.9, 6], fov: [44, 42], cut: true },
-  { t: [bar(5), bar(8)], kind: "orbit", centre: "car", look: [0, 0.9, 1.5], radius: [7.5, 6.2], height: [1.5, 1.1], angle: [-120, -35], fov: [40, 36], ease: "sine", cut: true },
-  { t: [bar(8), bar(11)], kind: "chase", offset: [-2.2, 1.6, -8.5], offsetTo: [-1.5, 10, -16], look: [0, 1, 6], lookTo: { w: [79, 22, -263] }, lookBlend: [0.35, 0.95], fov: [44, 46], ease: "sine", blend: 0.7 },
+  { t: [bar(5), bar(8)], kind: "orbit", centre: "car", look: [0, 0.9, 1.5], radius: [7.5, 6.2], height: [1.5, 1.1], angle: [-120, -50], fov: [40, 36], ease: "sine", cut: true },
+  { t: [bar(8), bar(9.5)], kind: "chase", offset: [-2.2, 1.6, -8.5], offsetTo: [-1.6, 2.0, -8.0], look: [0, 1, 6], fov: 44, cut: true },
+  { t: [bar(9.5), bar(11)], kind: "fixed", position: [90, 2.2, -199], target: "car", lookOffset: [0, 1, 0], fov: [42, 38], cut: true },
   // 2 The plaza. The board, from the Work shot, over the car's roof, and
-  // round the square, then a long pull back into the quiet.
+  // round the square, then up out of it toward corpo row's crowns.
   { t: [bar(11), bar(15)], kind: "fixed", position: "cam_projects", target: "cam_projects_target", fov: 38, push: 6, cut: true },
-  { t: [bar(15), bar(18.5)], kind: "move", from: { position: [83, 1.0, -170], target: [79, 13, -263], fov: 42 }, to: { position: [81.5, 1.6, -172.5], target: [79, 17, -263], fov: 40 }, ease: "sine", cut: true },
+  { t: [bar(15), bar(18.5)], kind: "move", from: { position: [83, 1.3, -170], target: [79, 11, -263], fov: 42 }, to: { position: [81.5, 1.9, -172.5], target: [79, 14, -263], fov: 40 }, ease: "sine", cut: true },
   { t: [bar(18.5), bar(22)], kind: "path", points: [[40, 22, -208], [60, 17, -214], [98, 17, -214], [118, 22, -208]], look: [79, 24, -263], fov: 44, ease: "sine", cut: true },
-  { t: [bar(22), bar(25)], kind: "move", from: { position: [79, 14, -224], target: [79, 25, -263], fov: 36 }, to: { position: [79, 58, -150], target: [79, 18, -263], fov: 44 }, ease: "inout", blend: 1.2 },
+  { t: [bar(22), bar(25)], kind: "move", from: { position: [79, 14, -226], target: [79, 25, -263], fov: 36 }, to: { position: [84, 64, -226], target: [200, 105, -360], fov: 46 }, ease: "inout", blend: 1.2 },
   // 3 Corpo row. Alongside the car under the towers, then in front of it,
-  // then the long dolly with the row lit behind.
-  { t: [bar(25), bar(28.5)], kind: "chase", offset: [-6, 1.5, 7], offsetTo: [1, 1.7, 7], look: [3, 1, -1], lookTo: [14, 95, -36], lookBlend: [0.45, 1], fov: [50, 54], frame: "world", cut: true },
-  { t: [bar(28.5), bar(32)], kind: "chase", offset: [1.8, 0.75, 8.5], offsetTo: [1.2, 0.7, 7], look: [0, 1.0, 0], lookTo: [-20, 40, -30], lookBlend: [0.5, 1], fov: [40, 46], cut: true },
+  // then from the end of the row as it comes to the corner.
+  { t: [bar(25), bar(28.5)], kind: "chase", offset: [-6, 1.5, 7], offsetTo: [1, 1.7, 7], look: [3, 1, -1], lookTo: [14, 75, -36], lookBlend: [0.55, 1], fov: [50, 54], frame: "world", cut: true },
+  { t: [bar(28.5), bar(32)], kind: "chase", offset: [1.8, 1.2, 8.5], offsetTo: [1.3, 1.1, 7.2], look: [0, 1.0, 0], lookTo: [-20, 40, -30], lookBlend: [0.5, 1], fov: [40, 46], cut: true },
   { t: [bar(32), bar(35)], kind: "fixed", position: [450, 9, -333], target: { w: [300, 42, -352] }, fov: [46, 40], push: 6, cut: true },
-  // 4 The roof. The roof itself, the signs, the stack's pan across the
-  // row, then down over the edge at the car parked below.
+  // 4 The roof. The roof itself, the signs, the stack's pan across the row,
+  // then down in the street as the car pulls off for the garage.
   { t: [bar(35), bar(39)], kind: "fixed", position: "cam_about", target: "cam_about_target", fov: [44, 40], push: 4, orbitDrift: -5, cut: true },
-  { t: [bar(39), bar(43)], kind: "move", from: { position: [470, 39.5, -262], target: [440, 38, -284], fov: 40 }, to: { position: [462, 38.6, -268], target: [432, 39, -287], fov: 36 }, ease: "sine", cut: true },
-  { t: [bar(43), bar(46)], kind: "move", from: { position: "cam_stack", target: "cam_stack_target", fov: 42 }, to: { position: "cam_stack", target: "cam_stack_target_b", fov: 42 }, ease: "sine", cut: true },
-  { t: [bar(46), bar(49)], kind: "fixed", position: "cam_garage_edge", target: "car", lookOffset: [0, 0.5, 0], fov: 40, push: 2, cut: true },
-  // 5 The garage. Down to the street behind the car and in after it, then
-  // round it under the tubes, and in close.
-  { t: [bar(49), bar(55)], kind: "path", points: ["cam_garage_edge", "cam_garage_street", "cam_garage_across", "cam_garage_door", "cam_garage_in", "cam_garage_swing", "cam_garage"], look: "car", lookOffset: [0, 0.9, 0], lookTo: "cam_garage_target", lookBlend: [0.8, 1], fov: 48, ease: "sine", blend: 0.6 },
+  { t: [bar(39), bar(43)], kind: "move", from: { position: [470, 39.5, -262], target: [450, 38, -285], fov: 42 }, to: { position: [465, 38.9, -266], target: [448, 38.6, -288], fov: 42 }, ease: "sine", cut: true },
+  { t: [bar(43), bar(46)], kind: "move", from: { position: "cam_stack", target: "cam_stack_target", fov: 42 }, to: { position: "cam_stack", target: [380, 42, -246], fov: 42 }, ease: "sine", cut: true },
+  { t: [bar(46), bar(49)], kind: "chase", offset: [-1.8, 3.2, -9], offsetTo: [-1.4, 2.4, -8], look: [0, 1, 9], fov: [46, 44], cut: true },
+  // 5 Bay 01. In after the car through the door, round it under the tubes,
+  // and in close.
+  { t: [bar(49), bar(55)], kind: "path", points: ["cam_garage_street", "cam_garage_across", "cam_garage_door", "cam_garage_in", "cam_garage_swing", "cam_garage"], look: "car", lookOffset: [0, 0.9, 0], lookTo: "cam_garage_target", lookBlend: [0.8, 1], fov: 48, ease: "sine" },
   { t: [bar(55), bar(60)], kind: "orbit", centre: "car", look: [0, 0.75, 0], radius: [6.4, 5.8], height: [1.5, 1.1], angle: [40, 160], fov: [40, 38], ease: "sine", blend: 1.5 },
-  { t: [bar(60), bar(63)], kind: "orbit", centre: "car", look: [0, 0.5, 1.4], radius: [3.4, 3.1], height: [0.45, 0.6], angle: [-20, 28], fov: [30, 28], ease: "sine", cut: true },
+  { t: [bar(60), bar(63)], kind: "orbit", centre: "car", look: [0, 0.5, 1.4], radius: [3.4, 3.1], height: [0.45, 0.6], angle: [-20, 14], fov: [30, 28], ease: "sine", cut: true },
   { t: [bar(63), bar(64)], kind: "chase", offset: [1.1, 0.75, -3.4], offsetTo: [0.6, 0.8, -2.9], look: [0, 0.7, 0], fov: 30, cut: true },
-  // 6 The moon. Out of the door and up, and the moon over the city.
-  { t: [bar(64), bar(67)], kind: "path", points: ["cam_garage_swing", "cam_garage_in", "cam_contact_via", "cam_contact"], look: "car", lookOffset: [0, 1, 0], lookTo: "cam_contact_target", lookBlend: [0.35, 1], fov: 42, ease: "inout", cut: true },
-  { t: [bar(67), bar(75)], kind: "fixed", position: "cam_contact", target: "cam_contact_target", fov: [42, 34], push: 4, blend: 0.8 },
+  // 6 The moon. Up from the street onto the garage roof, the moon over the
+  // city, and the call that comes in.
+  { t: [bar(64), bar(67)], kind: "path", points: [[432, 3, -222], [440, 6.5, -214], "cam_contact_via", "cam_contact"], look: { w: MOON_LOOK }, fov: 40, ease: "inout" },
+  { t: [bar(67), bar(75)], kind: "fixed", position: "cam_contact", target: { w: MOON_LOOK }, fov: 40, push: 2 },
   // 7 End of recording.
-  { t: [bar(75), DURATION + 1], kind: "fixed", position: "cam_contact", target: "cam_contact_target", fov: 34, push: 1, blend: 0.4 },
+  { t: [bar(75), DURATION + 1], kind: "fixed", position: "cam_contact", target: { w: MOON_LOOK }, fov: 40, push: 0.6, blend: 0.4 },
 ];
 
 export const SHOT_COUNT = SHOTS.length;
@@ -259,8 +274,7 @@ export function createRecording(anchors, road) {
       }
       case "path": {
         curveOf(shot).getPointAt(clamp(p, 0, 1), out.position);
-        if (shot.look === "car") target(shot, 0, p, out.target);
-        else vec(shot.look, out.target);
+        target(shot, 0, p, out.target);
         break;
       }
       case "chase": {

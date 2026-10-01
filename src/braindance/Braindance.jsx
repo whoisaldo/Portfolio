@@ -15,7 +15,7 @@ import { Link, useLocation } from "react-router-dom";
 import { hasGpuAcceleration } from "../lib/gpu";
 import { unlockAudio } from "../lib/audio";
 import { stopAmbient } from "../lib/ambient";
-import { prefetchWorld } from "../world/load";
+import { loadWorld } from "../world/load";
 import { resetBd, set, useBd } from "./store";
 import { usePrefersReducedMotion } from "../hooks";
 import Hud from "./hud/Hud";
@@ -63,13 +63,31 @@ export default function Braindance() {
   useEffect(() => {
     resetBd();
     stopAmbient({ fade: 0.4 });
-    document.documentElement.dataset.world = "on";
+    const title = document.title;
     document.title = "Braindance · Ali Younes";
-    prefetchWorld();
+    // The city's chunk and its model, while the reader reads the boot card.
+    if (isDesktop()) loadWorld("high").catch(() => {});
     return () => {
-      delete document.documentElement.dataset.world;
+      document.title = title;
     };
   }, []);
+
+  // Audio needs a gesture on every page load. Arriving from the door or the
+  // console brings one; a reload of this address does not, so the first
+  // click or key anywhere wakes the sound and puts the song back in step.
+  useEffect(() => {
+    if (!jacked) return undefined;
+    const wake = () => {
+      unlockAudio().then((ok) => ok && engineRef.current?.resync());
+    };
+    const opts = { capture: true, passive: true };
+    document.addEventListener("pointerdown", wake, opts);
+    document.addEventListener("keydown", wake, opts);
+    return () => {
+      document.removeEventListener("pointerdown", wake, opts);
+      document.removeEventListener("keydown", wake, opts);
+    };
+  }, [jacked]);
 
   useEffect(() => {
     if (fromDoor && desktop) jackIn();

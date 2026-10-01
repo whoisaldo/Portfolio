@@ -16,7 +16,7 @@ import * as THREE from "three";
 import { loadWorld } from "../world/load.js";
 import { setStage } from "../world/stage.js";
 import { makePose, copyPose, clamp } from "../world/shots.js";
-import { createRecording, DURATION, CHAPTERS } from "./recording.js";
+import { createRecording, DURATION, CHAPTERS, HOLO_AT, HOLO_RING } from "./recording.js";
 import { createLayers, LAYER_COLORS } from "./layers.js";
 import { createAudio } from "./audio.js";
 import { bakeHeights, drawMap } from "./minimap.js";
@@ -25,6 +25,8 @@ import { loadJournal, unlock } from "./journal.js";
 import { bd, on, set } from "./store.js";
 import { createSounds } from "./sounds.js";
 import { createTag } from "./tag.js";
+import { createHolocall, preloadHolocall } from "./holocall.js";
+import { SIGN_WORDS } from "../data/braindance.js";
 import { fmt } from "./format.js";
 
 const DEG = Math.PI / 180;
@@ -36,6 +38,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   setStage({ mode: "cinematic" });
   const audio = createAudio();
   const trackLoading = audio?.load().catch(() => null);
+  const holoLoading = preloadHolocall().catch(() => null);
   const mod = await loadWorld("high");
   onProgress?.(0.85);
   const layers = createLayers();
@@ -43,6 +46,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   const world = mod.createWorldScene(canvas, {
     tier: "high",
     effects: [layers.effect],
+    // Ali's work on a few of the avenue's signs, here and nowhere else.
+    signs: SIGN_WORDS,
     onFirstFrame: () => {
       firstFrame = true;
     },
@@ -64,7 +69,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   fill.name = "bd_fill";
   parts.scene.add(fill, fill.target);
   const spec = recording.frame();
-  const scanner = createScanner({ parts, recording, layers });
+  // The holocall over the garage roof at the end (the Contact clue).
+  const holoMap = await holoLoading;
+  const holocall = holoMap ? createHolocall(parts.scene, holoMap, { position: new THREE.Vector3(467.8, 7.75, -194.2), lift: 4.2, height: 2.6 }) : null;
+  const scanner = createScanner({ parts, recording, layers, holocall });
   const sounds = audio ? createSounds(audio) : null;
   const unhook = sounds
     ? [on("scan", () => sounds.scanned()), on("achievement", () => sounds.achievement()), on("charge", (p) => sounds.charging(p))]
@@ -161,6 +169,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   let disposed = false;
   let waveT = 0;
   let flowT = 0;
+  let lastT = 0;
   const hooks = new Set();
 
   const intervals = new Float32Array(300);
@@ -194,7 +203,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     }
     // The city's own clock follows the recording's: still while paused,
     // backwards while rewinding, a jump on a scrub.
-    spec.flow = clamp(t - flowT, -0.3, 0.3);
+    spec.flow = t - flowT;
     flowT = t;
     clock.t = t;
     bd.time = t;
@@ -247,6 +256,12 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       layers.setFilter("off");
     }
     tag.setVisible(layers.layer === "thermal");
+    if (holocall) {
+      const k = clamp((t - HOLO_AT) / 1.4, 0, 1);
+      holocall.update(dt, k, camera, t > HOLO_AT && t < HOLO_AT + 0.6 ? 1 : 0);
+    }
+    if (sounds && playing && dir > 0 && lastT < HOLO_RING && t >= HOLO_RING) sounds.ring();
+    lastT = t;
     spec.pose = shown;
     world.placeCamera(shown);
     scanner.update(dt, t, spec);
@@ -261,7 +276,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
 
     // The fill: from above and to the left of the camera, at the car.
     const near = 1 - clamp((shown.position.distanceTo(spec.carPosition) - 6) / 22, 0, 1);
-    fill.intensity = 1.25 * near;
+    fill.intensity = 1.7 * near;
     fill.target.position.copy(spec.carPosition).setY(0.8);
     _v.subVectors(shown.position, spec.carPosition).setY(0).normalize();
     fill.position.copy(spec.carPosition).addScaledVector(_v, 8).add(_up.set(-_v.z * 4, 7, _v.x * 4));
@@ -337,6 +352,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       const a = Array.from(intervals.slice(0, n)).sort((x, y) => x - y);
       const p = (q) => (n ? +a[Math.min(n - 1, Math.floor(q * n))].toFixed(2) : 0);
       return { frames: n, p50: p(0.5), p95: p(0.95), calls: parts.renderer.info.render.calls };
+    },
+    /** The context woke after the deck was asked to play: start it now. */
+    resync() {
+      if (playing && audio && !audio.playing) deckPlay();
     },
     /** Called every frame before the city draws: (dt, t, spec, pose). */
     onFrame(fn) {
@@ -467,6 +486,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       unhook.forEach((u) => u());
       sounds?.dispose();
       tag.dispose();
+      holocall?.dispose();
       audio?.dispose();
       parts.scene.remove(fill, fill.target);
       fill.dispose();

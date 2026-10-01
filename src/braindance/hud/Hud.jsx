@@ -15,6 +15,7 @@ import Journal from "./Journal";
 import Minimap from "./Minimap";
 import Radio from "./Radio";
 import PhotoMode from "./PhotoMode";
+import Call from "./Call";
 import { EditHint, EndScreen, TitleCard, Tutorial } from "./Overlays";
 import { CHAPTERS, CONTROLS, LAYER_NAMES } from "../../data/braindance";
 
@@ -76,6 +77,7 @@ export default function Hud({ engineRef }) {
         <Radio engineRef={engineRef} />
         <Timeline engineRef={engineRef} clues={windows} />
         <Tutorial />
+        <Call />
         <EditHint />
         <PhotoMode engineRef={engineRef} />
         <EndScreen engineRef={engineRef} />

@@ -65,7 +65,7 @@ export function preloadCity(tier) {
   return cache.get(tier);
 }
 
-export async function createCity(scene, renderer, shared, { tier, quality, reduced = false }) {
+export async function createCity(scene, renderer, shared, { tier, quality, reduced = false, signs: signWords = null }) {
   const [{ scene: source, shops: shopSource }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadLogos()]);
   const root = source.clone(true);
   root.name = "night_city";
@@ -162,6 +162,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     reduced,
     atlas: tier === "phone" ? 2048 : 4096,
     density: tier === "phone" ? 0.5 : 1,
+    overrides: signWords,
   });
   signs.mesh.layers.enable(REFLECT_LAYER);
   sources.push(...signs.sources);

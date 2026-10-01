@@ -26,6 +26,21 @@ export const BOOT = {
   canvasLabel: "A braindance of Night City at night. The clues in it are listed in the journal.",
 };
 
+/**
+ * The braindance rewords a few of the avenue's signs with Ali's own work,
+ * in each sign's own colour and style (src/world/signs.js). Keyed by the
+ * kit's sign id. The cinematic keeps the plate's words.
+ */
+export const SIGN_WORDS = {
+  sushi: { lines: ["SIGNATURE CUTS"] },
+  sora: { lines: ["SIDEBAND"] },
+  shokuji: { lines: ["MOOPS"], latin: true },
+  hotel: { lines: ["EXERLY"], latin: true },
+  karaoke: { lines: ["ETERNAL"], latin: true },
+};
+
+export const CALL = { ringing: "Incoming holocall", connected: "Connected", name: "Ali Younes" };
+
 /** The loading screen's line for what it is waiting on. */
 export const LOAD_LABELS = {
   code: "The city's code",
@@ -418,8 +433,8 @@ export const CLUES = [
     id: "contact",
     layer: "visual",
     kicker: "Contact",
-    title: "Call Ali",
-    body: "The recording ends here. Email is the fastest way to reach me.",
+    title: "Incoming call: Ali",
+    body: "The recording ends here, and this part is live. Email is the fastest way to reach me.",
     links: [
       { label: "aldo@sideband.studio", href: "mailto:aldo@sideband.studio" },
       { label: "GitHub", href: "https://github.com/whoisaldo" },

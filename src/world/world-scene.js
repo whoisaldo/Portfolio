@@ -70,7 +70,7 @@ const DEG = Math.PI / 180;
 // The wet road's mirror at full (road.js's own uReflectGain).
 const REFLECT_GAIN = 2.2;
 
-export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false, effects = [] } = {}) {
+export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false, effects = [], signs = null } = {}) {
   const quality = { ...TIERS[tier] };
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -112,7 +112,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality, { extra: effects });
 
-  const building = createCity(scene, renderer, shared, { tier, quality, reduced }).then((c) => {
+  const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
     city = c;
     const clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
