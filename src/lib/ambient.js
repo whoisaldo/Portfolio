@@ -330,10 +330,32 @@ export function forgetTrack() {
   decodedTrack = null;
 }
 
-export function prefetchTrack() {
+export function prefetchTrack(onProgress) {
   if (!prefetched) {
     prefetched = fetch(TRACK_URL)
-      .then((res) => (res.ok ? res.arrayBuffer() : null))
+      .then(async (res) => {
+        if (!res.ok) return null;
+        const total = Number(res.headers.get("content-length")) || 0;
+        if (!onProgress || !total || !res.body) return res.arrayBuffer();
+        // Read as it arrives, for the door's loading screen to follow.
+        const reader = res.body.getReader();
+        const chunks = [];
+        let got = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          got += value.length;
+          onProgress(Math.min(got, total), total);
+        }
+        const out = new Uint8Array(got);
+        let at = 0;
+        for (const c of chunks) {
+          out.set(c, at);
+          at += c.length;
+        }
+        return out.buffer;
+      })
       .catch(() => null);
   }
   return prefetched;

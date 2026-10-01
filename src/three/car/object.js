@@ -1,6 +1,7 @@
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { s4ModelUrl } from "../../data/s4";
+import { markBytes } from "../../world/progress";
 import { Vector3 } from "three";
 
 export const meta = {
@@ -16,7 +17,7 @@ let source;
 // be retried; each mounted scene gets its own disposable GPU resources.
 export function preloadCar() {
   if (!pending) {
-    pending = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(s4ModelUrl)
+    pending = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(s4ModelUrl, (e) => markBytes("car", e.loaded, e.total))
       .then((gltf) => { source = gltf.scene; })
       .catch((error) => { pending = null; throw error; });
   }

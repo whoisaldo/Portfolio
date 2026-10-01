@@ -494,6 +494,54 @@ a:hover .ink-underline,
   76%  { opacity: 0;    clip-path: inset(50% 0 50% 0); }
 }
 
+/* The way in (EntryGate.jsx, src/three/door-car.js). At the click the
+   door's words go, blurred and slid aside, while the car swings round to face
+   the lens and the camera pushes in down its beams; the lamps' glare comes up
+   over the last of it and the screen goes to black, which is the intro's own
+   first frame, so the door's fade has nothing to show. */
+.door-words {
+  transition: opacity 360ms ease-in, filter 360ms ease-in, transform 360ms ease-in;
+}
+.door-words.is-hidden {
+  opacity: 0;
+}
+.door-words.is-out {
+  opacity: 0;
+  filter: blur(3px);
+  transform: translateX(-12px);
+  pointer-events: none;
+}
+.door-flare,
+.door-black {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.door-flare {
+  background: radial-gradient(circle at 50% 54%, rgb(255 252 236 / 0.95), rgb(226 240 255 / 0.4) 20%, transparent 58%);
+  mix-blend-mode: screen;
+}
+.door-black {
+  background: #050506;
+}
+.is-launching .door-flare {
+  animation: door-flare var(--door-launch) cubic-bezier(0.55, 0, 0.9, 0.55) forwards;
+}
+.is-launching .door-black {
+  animation: door-black var(--door-launch) linear forwards;
+}
+@keyframes door-flare {
+  0% { opacity: 0; }
+  55% { opacity: 0.12; }
+  86% { opacity: 0.9; }
+  100% { opacity: 0.5; }
+}
+@keyframes door-black {
+  0%, 80% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
 /* Reduced motion gets the door without the hit. The global rule above
    collapses every animation to 0.01ms, which would leave the last keyframe
    painted; these turn it off outright. */
