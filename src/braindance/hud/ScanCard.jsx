@@ -42,7 +42,7 @@ export default function ScanCard() {
     return () => cancelAnimationFrame(raf);
   }, [c]);
 
-  if (!c || state.mode === "photo") return null;
+  if (!c || state.mode === "photo" || state.ended) return null;
   return (
     <>
       <svg className="bd-leader" aria-hidden="true">

@@ -17,6 +17,9 @@ const byId = new Map(CLUES.map((c) => [c.id, c]));
 export default function Markers({ engineRef }) {
   const state = useBd();
   const [ids, setIds] = useState([]);
+  // The mark under the pointer: the button takes the pointer from the city
+  // underneath, so the scanner's own hover never sees it.
+  const [over, setOver] = useState(null);
   const refs = useRef(new Map());
   const ring = useRef(null);
 
@@ -48,7 +51,7 @@ export default function Markers({ engineRef }) {
         const c = byId.get(id);
         if (!c) return null;
         const found = state.found.includes(id);
-        const hover = state.hover === id;
+        const hover = state.hover === id || over === id;
         return (
           <div key={id} className="bd-mark-pos" ref={(el) => (el ? refs.current.set(id, el) : refs.current.delete(id))}>
             <button
@@ -57,12 +60,16 @@ export default function Markers({ engineRef }) {
               className={`bd-mark bd-mark-${c.layer} ${found ? "is-found" : ""} ${hover ? "is-hover" : ""}`}
               aria-label={found ? `Open clue: ${c.title}` : "Scan this clue"}
               onClick={() => engineRef.current?.scanner.scan(id)}
+              onPointerEnter={() => setOver(id)}
+              onPointerLeave={() => setOver((o) => (o === id ? null : o))}
+              onFocus={() => setOver(id)}
+              onBlur={() => setOver((o) => (o === id ? null : o))}
             >
               <span className="bd-mark-diamond" aria-hidden="true" ref={hover ? ring : undefined} />
               {(hover || found) && (
                 <span className="bd-mark-label">
                   <span className="bd-mark-kicker">{found ? c.kicker : "Unknown"}</span>
-                  <span className="bd-mark-title">{found ? c.title : "Hold to scan"}</span>
+                  <span className="bd-mark-title">{found ? c.title : over === id ? "Click to scan" : "Hold to scan"}</span>
                 </span>
               )}
             </button>

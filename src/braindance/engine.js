@@ -60,6 +60,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   const { city, camera } = parts;
   const recording = createRecording(city.anchors, city.road);
   layers.setCamera(camera);
+  // The car's coloured stage rims are tuned for the page's distances.
+  parts.car?.setRims(0.3);
 
   // A braindance is a reconstruction, and the editor lights what it is
   // looking at: a soft key from over the camera's shoulder onto the car,
@@ -188,7 +190,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       if (playing) {
         playing = false;
         audio?.pause();
-        set({ playing: false, ended: true });
+        set({ playing: false, ended: true, open: null, journal: false, help: false });
         unlock("nightowl");
       }
     }

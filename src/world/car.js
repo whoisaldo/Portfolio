@@ -378,12 +378,15 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   };
 
   let stageLight = 0;
+  // How much of the two coloured rims the car keeps (setRims): all of it on
+  // the page; the braindance's cameras come close enough that they bloom.
+  let rims = 1;
   const finish = (now, dt) => {
     const k0 = 1 - Math.exp(-dt * 2);
     stageLight += ((mode === "road" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
     key.intensity = 0.55 + 0.15 * stageLight;
-    rimM.intensity = 0.55 + 0.95 * stageLight;
-    rimC.intensity = 0.35 + 0.65 * stageLight;
+    rimM.intensity = (0.55 + 0.95 * stageLight) * rims;
+    rimC.intensity = (0.35 + 0.65 * stageLight) * rims;
     const bay = mode === "road" ? smoothstep(stops.bay - 12, stops.bay - 4, u) : 0;
     for (const l of bayLights.children) l.intensity = l.userData.nits * bay;
     car.updateMatrixWorld(true);
@@ -530,6 +533,10 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
       setLamps();
       if (!cut && Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
       finish(clock, Math.abs(dt));
+    },
+
+    setRims(k) {
+      rims = k;
     },
 
     /** The intro starts: the car belongs to the song clock until drive(). */

@@ -324,7 +324,7 @@
   padding: 1.1rem 1.2rem;
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
 }
-.bd-help { right: 1.8rem; bottom: 10.5rem; width: 22rem; }
+.bd-help { right: 1.8rem; bottom: 14rem; width: 22rem; }
 .bd-help ul { margin-top: 0.8rem; display: grid; gap: 0.45rem; font-size: 0.92rem; }
 .bd-help li { display: grid; grid-template-columns: 8.5rem 1fr; gap: 0.6rem; align-items: baseline; }
 .bd-keys { display: flex; gap: 0.25rem; flex-wrap: wrap; }
@@ -338,7 +338,7 @@ kbd {
 .bd-help-btn {
   position: absolute;
   right: 1.8rem;
-  bottom: 9.4rem;
+  bottom: 11.7rem;
   width: 1.8rem;
   height: 1.8rem;
   font-family: "JetBrains Mono Variable", ui-monospace, monospace;
@@ -594,7 +594,7 @@ kbd {
 .bd-radio {
   position: absolute;
   left: 1.8rem;
-  bottom: 9.6rem;
+  bottom: 11.7rem;
   display: flex;
   align-items: center;
   gap: 0.7rem;
@@ -666,7 +666,7 @@ kbd {
 .bd-tutorial, .bd-edit-hint {
   position: absolute;
   left: 50%;
-  bottom: 10.6rem;
+  bottom: 11.7rem;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -683,6 +683,7 @@ kbd {
 .bd-end {
   position: absolute;
   inset: 0;
+  z-index: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
