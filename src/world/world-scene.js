@@ -70,7 +70,7 @@ const DEG = Math.PI / 180;
 // The wet road's mirror at full (road.js's own uReflectGain).
 const REFLECT_GAIN = 2.2;
 
-export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false } = {}) {
+export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false, effects = [], signs = null } = {}) {
   const quality = { ...TIERS[tier] };
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -110,9 +110,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let steam = null;
   let moon = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
-  const post = createPost(renderer, scene, camera, quality);
+  const post = createPost(renderer, scene, camera, quality, { extra: effects });
 
-  const building = createCity(scene, renderer, shared, { tier, quality, reduced }).then((c) => {
+  const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
     city = c;
     const clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
@@ -405,17 +405,23 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
+  // A frame asked for from outside (renderDirected, the braindance): what it
+  // says overrides what the stage says, for that frame only.
+  let directed = null;
+
   /** Which Work entry the plaza's board shows: the deck's, or a case study's own. */
   const activeBoard = () => {
+    if (directed) return directed.board ?? 0;
     if (stage.route.kind !== "project") return stage.activeProject;
     const i = BOARDS.findIndex((b) => b.slug === stage.route.slug);
     return i >= 0 ? i : stage.activeProject;
   };
-  const activeTowers = () => (stage.route.kind === "role" ? [stage.route.slug] : stage.activeRoles);
+  const activeTowers = () => (directed ? directed.towers ?? [] : stage.route.kind === "role" ? [stage.route.slug] : stage.activeRoles);
   // How much of the wet road the camera sees, 0..1, from the shots' own
   // `mirror` flags: the hero and the garage's street show it, the rest look
   // over it or away. A flight between two shots eases from one to the other.
   const roadShown = () => {
+    if (directed) return directed.mirror ?? 0;
     if (stage.route.kind !== "home") return 0;
     const ids = stage.shots.map((x) => x.id);
     if (!ids.length) return 1;
@@ -493,7 +499,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     flash(dt);
     const env = getEnv();
     if (env.reactive) {
-      const now = getLevels();
+      const now = directed?.levels ?? getLevels();
       bass += (now.bass - bass) * (now.bass > bass ? 0.7 : 0.12);
       level += (now.level - level) * (now.level > level ? 0.4 : 0.1);
     } else {
@@ -525,23 +531,34 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   // `moonView` is the intro's voxel moon (see renderCinematic): null for the
   // city alone, "only" for the moon alone, "over" for the moon over the city.
-  const draw = (dt, moonView = null) => {
+  // `flow` is how far the city's own clock moves this frame, when that is
+  // not the frame's time: the braindance holds it still while paused and
+  // runs it backwards while rewinding (the rain, the traffic, the koi, every
+  // flicker). Smoothing everywhere else stays on the frame's dt.
+  const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
-    clock += dt;
+    clock += flow;
     shared.uTime.value = clock;
     shared.uCam.value.copy(camera.position);
     const env = drive(dt);
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
-      rain?.update(dt, camera, env.wet);
+      rain?.update(flow, camera, env.wet);
       shafts?.update(shared.uHaze.value);
-      koi?.update(dt);
-      traffic?.update(dt, env.traffic);
+      koi?.update(flow);
+      traffic?.update(flow, env.traffic);
       city?.boards.update(dt, activeBoard());
       city?.towers.update(dt, activeTowers());
       city?.logos.update(dt, activeTowers());
-      city?.garage.update(dt, stage.position, stage.route.kind === "home" ? stage.shots.findIndex((s) => s.id === "garage") : -1);
+      if (directed) {
+        // The door's position in the stage's own terms: garage index 1, the
+        // door opening over 0.16 to 0.30, the tubes struck from 0.5.
+        const g = directed.garage ?? {};
+        city?.garage.update(dt, g.tubes ? 0.55 : 0.16 + 0.14 * clamp(g.door ?? 0, 0, 1), 1);
+      } else {
+        city?.garage.update(dt, stage.position, stage.route.kind === "home" ? stage.shots.findIndex((s) => s.id === "garage") : -1);
+      }
       // The wet road's mirror, only while a shot shows the road (`mirror`
       // in src/data/world.js): over a flight away it fades into the baked
       // streaks, as the adaptive pass's shed does, and once it has gone it
@@ -858,6 +875,42 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     cineGlitch = -1;
   };
 
+  /**
+   * One frame of the braindance (src/braindance): the camera at `spec.pose`
+   * (a pose from makePose, plus `roll` in radians), the car on the road at
+   * `spec.car` ({ u, v }, metres and metres a second), the plaza's board on
+   * entry `spec.board`, corpo row lit for the slugs in `spec.towers`, the
+   * garage at `spec.garage` ({ door: 0..1, tubes }), the wet road's mirror at
+   * `spec.mirror` (0..1), the music's `spec.levels` from the braindance's own
+   * deck, and `spec.glitch` (0..1). The scene's own loop rests meanwhile:
+   * the caller holds stage.mode at "cinematic", as the intro does.
+   */
+  const renderDirected = (dt, spec) => {
+    if (!city || disposed) return;
+    directed = spec;
+    copyPose(pose, spec.pose);
+    copyPose(want, spec.pose);
+    applyPose(pose, false);
+    if (spec.roll) camera.rotateZ(spec.roll);
+    posed = true;
+    lastRoute = null;
+    flight = null;
+    if (car && spec.car) car.directed(dt, spec.car);
+    cineGlitch = spec.glitch ?? 0;
+    draw(dt, null, spec.flow ?? dt);
+    cineGlitch = -1;
+    directed = null;
+  };
+
+  /** Put the camera on a pose now, lens shift and all, without drawing:
+   *  the braindance projects its markers with the camera it is about to
+   *  draw with. */
+  const placeCamera = (p) => {
+    copyPose(pose, p);
+    applyPose(pose, false);
+    camera.updateMatrixWorld();
+  };
+
   const dispose = () => {
     disposed = true;
     pause();
@@ -933,6 +986,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     warm,
     beginIntro,
     renderCinematic,
+    renderDirected,
+    placeCamera,
     pause,
     resume,
     setQuality,
@@ -940,6 +995,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     dispose,
     get info() {
       return renderer.info;
+    },
+    /** The pieces the braindance draws over and reads from. */
+    get parts() {
+      return { renderer, scene, camera, post, shared, city, car, traffic, crowd, koi, quality };
     },
     /** Whether this city can draw the intro's voxel moon. */
     get hasMoon() {

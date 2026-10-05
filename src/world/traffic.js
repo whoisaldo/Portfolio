@@ -328,7 +328,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
     for (let i = 0; i < cars; i++) {
       const L = ROAD_LANES[i % ROAD_LANES.length];
       const span = ROAD_NEAR - ROAD_FAR;
-      const t = (phase[avs + i] + (clock * L.v) / span) % 1;
+      // Wrapped into 0..1 either way round, so a clock that runs backwards
+      // (the braindance's rewind) keeps every car on its stretch of road.
+      const t = ((((phase[avs + i] + (clock * L.v) / span) % 1) + 1) % 1);
       const z = L.dir < 0 ? ROAD_NEAR - t * span : ROAD_FAR + t * span;
       p.set(L.x, 0, z);
       fwd.set(0, 0, L.dir);

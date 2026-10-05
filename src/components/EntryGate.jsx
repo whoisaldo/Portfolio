@@ -62,7 +62,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpRight, Briefcase, Volume2, VolumeX } from "lucide-react";
+import { ArrowUpRight, Briefcase, ScanEye, Volume2, VolumeX } from "lucide-react";
 import { useFocusTrap, useMediaQuery, usePrefersReducedMotion } from "../hooks";
 import { glitchTick } from "../lib/ui-sfx";
 import { profile } from "../data/profile";
@@ -135,6 +135,9 @@ const COPY = {
       ? "Browsers ask for a click on every visit before they play audio. Enter silent and this stops appearing."
       : "Your browser needs one click before it can play audio. Volume and mute live bottom left.",
   intro: "The intro runs about 25 seconds. Esc skips it.",
+  braindanceItem: "Braindance",
+  braindanceNew: "New",
+  braindanceLine: "The city on its own. One recorded night with my work hidden in it, about four minutes, desktop only.",
   recruitersItem: "For recruiters",
   recruitersLine: "The plain version: experience, projects, skills and the résumé.",
   loadNote: "The intro starts the moment the city is in. Past thirty seconds, it starts on still pictures.",
@@ -409,6 +412,26 @@ function Menu({ enter, lights, className = "" }) {
         <VolumeX className="w-6 h-6 shrink-0" aria-hidden="true" />
         {COPY.silent}
       </button>
+    </div>
+  );
+}
+
+/** The third way in, the braindance (src/braindance): the city with no page
+ *  in front of it. A menu item like the others, offered only where it can
+ *  run (a mouse and a wide screen; it says so itself anywhere else). Its
+ *  click is the gesture the braindance's sound needs. */
+function BraindanceItem({ className = "" }) {
+  const fits = useMediaQuery("(pointer: fine) and (min-width: 900px)");
+  if (!fits || !hasGpuAcceleration()) return null;
+  return (
+    <div className={className}>
+      <Link to="/braindance" state={{ jack: true }} onClick={() => unlockAudio()} className={MENU_ITEM}>
+        <span className={MENU_MARK} aria-hidden="true">▸</span>
+        <ScanEye className="w-6 h-6 shrink-0" aria-hidden="true" />
+        {COPY.braindanceItem}
+        <span className="mono-label bg-volt px-1.5 py-1 text-ink">{COPY.braindanceNew}</span>
+      </Link>
+      <p className="pl-[4.5rem] max-w-[34rem] font-sans text-[0.9375rem] leading-[1.5] text-dim">{COPY.braindanceLine}</p>
     </div>
   );
 }
@@ -781,6 +804,7 @@ export default function EntryGate({ onEnter }) {
                   ) : (
                     <div className="mt-10 -ml-1">
                       <Menu enter={enter} lights={setCarLights} />
+                      <BraindanceItem className="mt-2" />
                       <RecruitersItem className="mt-2" />
                     </div>
                   )}

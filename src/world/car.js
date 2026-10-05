@@ -378,12 +378,15 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   };
 
   let stageLight = 0;
+  // How much of the two coloured rims the car keeps (setRims): all of it on
+  // the page; the braindance's cameras come close enough that they bloom.
+  let rims = 1;
   const finish = (now, dt) => {
     const k0 = 1 - Math.exp(-dt * 2);
     stageLight += ((mode === "road" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
     key.intensity = 0.55 + 0.15 * stageLight;
-    rimM.intensity = 0.55 + 0.95 * stageLight;
-    rimC.intensity = 0.35 + 0.65 * stageLight;
+    rimM.intensity = (0.55 + 0.95 * stageLight) * rims;
+    rimC.intensity = (0.35 + 0.65 * stageLight) * rims;
     const bay = mode === "road" ? smoothstep(stops.bay - 12, stops.bay - 4, u) : 0;
     for (const l of bayLights.children) l.intensity = l.userData.nits * bay;
     car.updateMatrixWorld(true);
@@ -498,6 +501,42 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
       setLamps();
       if (Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
       finish(clock, dt);
+    },
+
+    /**
+     * One frame of the braindance (src/braindance): the car on the road at
+     * `at` metres, moving at `speed` metres a second, exactly where the
+     * recording has it, so a scrub or a rewind puts it back where it was.
+     * A jump of more than a car's length is a cut: no wheel spin across it,
+     * and the light trails start again.
+     */
+    directed(dt, { u: at, v: speed = 0 }) {
+      clock += dt;
+      mode = "road";
+      car.visible = true;
+      const next = clamp(at, 0, road.length);
+      const ds = next - u;
+      const cut = !placed || Math.abs(ds) > 6;
+      const before = v;
+      u = next;
+      v = speed;
+      accel = cut || dt <= 0 ? 0 : (v - before) / dt;
+      placed = true;
+      if (cut) {
+        drift.reset();
+        steer = clamp(Math.atan(rig.wheelbase * road.curvatureAt(u)), -0.55, 0.55);
+      }
+      placeOnRoad(dt, cut ? 0 : ds);
+      const braking = Math.abs(v) > 0.4 && accel < -0.8;
+      brake += ((braking ? 1 : 0) - brake) * (1 - Math.exp(-Math.abs(dt) * 10));
+      reverse += ((v < -0.3 ? 1 : 0) - reverse) * (1 - Math.exp(-Math.abs(dt) * 8));
+      setLamps();
+      if (!cut && Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
+      finish(clock, Math.abs(dt));
+    },
+
+    setRims(k) {
+      rims = k;
     },
 
     /** The intro starts: the car belongs to the song clock until drive(). */
