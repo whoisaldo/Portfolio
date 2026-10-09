@@ -12,6 +12,7 @@ import { createGarageRoom, preloadGarageRoom } from "../three/garage-room.js";
 import { preloadCar } from "../three/car/object.js";
 import { createGarageFloor } from "../three/garage-floor.js";
 import { createObject } from "../three/car/object.js";
+import { slim, RIG, HOOD_RIG } from "../three/car/slim.js";
 
 export const preloadGarage = () => Promise.all([preloadCar(), preloadGarageRoom()]);
 
@@ -56,6 +57,10 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
+  // Reading a program's log waits for the GPU to finish building it: worth
+  // it while working on the shaders, not on a reader's first look at the
+  // garage (it was most of a 400 ms frame there).
+  renderer.debug.checkShaderErrors = import.meta.env.DEV;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#060a10");
@@ -169,6 +174,19 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
       preset: (name) => setPreset(name),
     };
   }
+
+  // Now that the markers know where every part is: the car in a couple of
+  // dozen draws instead of some 150 (each drawn for the shadow, the ambient
+  // occlusion and the picture), the wheels and the hood still on their own
+  // nodes, the engine bay kept for when the hood opens. Its paint is what
+  // each part's own material gave it (src/three/car/slim.js).
+  const slimmed = slim(car, { rig: [...RIG, ...HOOD_RIG], keepUnderHood: true });
+  car.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = false;
+  });
+  renderer.shadowMap.needsUpdate = true;
 
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
   const composer = new EffectComposer(renderer, target);
@@ -347,6 +365,8 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     controls.dispose();
     canvas.removeEventListener("wheel", onWheel, { capture: true });
     car.userData.dispose();
+    slimmed.geometries.forEach((g) => g.dispose());
+    slimmed.material?.dispose();
     room.dispose();
     wetFloor.dispose();
     for (const pass of composer.passes) pass.dispose?.();
@@ -358,7 +378,20 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     renderer.forceContextLoss();
   }
 
+  /** Every program the room and the car use, built before the first frame
+   *  anyone sees: the scene's own off the main thread while the GPU links
+   *  them, then one whole frame drawn unseen for the rest (the shadows' depth
+   *  pass, the ambient occlusion's normals, the floor's reflection), which a
+   *  scene compile does not reach. Called where a long frame shows on
+   *  nothing: behind the door, or as the page settles. */
+  async function warm() {
+    if (renderer.compileAsync) await renderer.compileAsync(scene, camera).catch(() => {});
+    renderer.shadowMap.needsUpdate = true;
+    composer.render();
+  }
+
   return {
+    warm,
     start,
     stop,
     resize,

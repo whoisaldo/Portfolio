@@ -22,3 +22,24 @@ export function loadGarage3d() {
   }
   return promise;
 }
+
+/**
+ * The garage's 3D, built and compiled, for the door's loading screen to wait
+ * on. GarageModel says it is expected as it mounts and settles it once its
+ * scene is warm (or has failed: the door must not wait on a garage that will
+ * never come).
+ */
+let settle = null;
+let expected = false;
+export const garageWarm = new Promise((resolve) => {
+  settle = resolve;
+});
+export function expectGarage() {
+  expected = true;
+}
+export function garageExpected() {
+  return expected;
+}
+export function settleGarage() {
+  settle?.();
+}

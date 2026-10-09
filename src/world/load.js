@@ -9,6 +9,7 @@
 // reader who never sees the door. They share one promise. A failure resets
 // it, so the next caller tries again instead of inheriting a rejection.
 import { pickTier } from "./quality";
+import { markLoaded } from "./progress";
 
 let promise = null;
 let tierLoaded = null;
@@ -20,6 +21,7 @@ export function loadWorld(tier) {
     tierLoaded = tier;
     promise = import("./world-scene.js")
       .then(async (module) => {
+        markLoaded("code");
         await module.preloadWorld(tier);
         return module;
       })

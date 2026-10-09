@@ -32,6 +32,7 @@ import { createKoi, preloadKoi } from "./koi.js";
 import { createCrowd } from "./crowd.js";
 import { createSteam } from "./steam.js";
 import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
+import { markLoaded } from "./progress.js";
 import { createMirror } from "./mirror.js";
 import { createPost } from "./post.js";
 import { createSkyline } from "./skyline.js";
@@ -49,17 +50,27 @@ import { boards as BOARDS, SHOTS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
+  // Each marked as it lands, for the door's list (src/world/progress.js).
+  const step = (key, p) => p.then((v) => (markLoaded(key), v));
   // The voxel moon is the one piece the city can do without: a missing
   // Earth picture leaves the intro on its painted moon, not the site on its
   // poster.
-  await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadKoi(), preloadCar(), preloadVoxelMoon().catch(() => null)]);
+  await Promise.all([
+    step("city", preloadCity(tier)),
+    step("holo", preloadHolo()),
+    step("moon", preloadMoon()),
+    step("ads", preloadAds()),
+    step("koi", preloadKoi()),
+    step("car", preloadCar()),
+    step("voxel", preloadVoxelMoon()).catch(() => null),
+  ]);
 }
 
 const DEG = Math.PI / 180;
 // The wet road's mirror at full (road.js's own uReflectGain).
 const REFLECT_GAIN = 2.2;
 
-export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false } = {}) {
+export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false, effects = [], signs = null } = {}) {
   const quality = { ...TIERS[tier] };
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -99,9 +110,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let steam = null;
   let moon = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
-  const post = createPost(renderer, scene, camera, quality);
+  const post = createPost(renderer, scene, camera, quality, { extra: effects });
 
-  const building = createCity(scene, renderer, shared, { tier, quality, reduced }).then((c) => {
+  const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
     city = c;
     const clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
@@ -109,13 +120,18 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const r = (a.extras?.size ?? 50) / 2;
       return [a.position.x - r, a.position.z - r, a.position.x + r, a.position.z + r];
     });
-    skyline = createSkyline(scene, shared, { count: tier === "phone" ? 1200 : 2600, keepOut, reduced });
+    skyline = createSkyline(scene, shared, {
+      count: tier === "phone" ? 1200 : 2600,
+      keepOut,
+      reduced,
+      facades: [c.maps.facade_t0, c.maps.facade_t1, c.maps.facade_t2],
+    });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
     if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
-    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER });
-    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER });
+    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
+    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier });
     shafts = createShafts(scene, c.anchors, shared);
     crowd = createCrowd(scene, shared, { count: tier === "phone" ? 16 : 40, reduced, reflectLayer: REFLECT_LAYER });
     steam = createSteam(scene, shared, c.anchors, { reduced });
@@ -123,11 +139,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     resize();
     return Promise.all([
       createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }),
+      car.ready,
       createVoxelMoon(renderer, shared, { tier }).catch((err) => {
         if (import.meta.env.DEV) console.warn("[world] no voxel moon; the intro keeps its painted one", err);
         return null;
       }),
-    ]).then(([k, m]) => {
+    ]).then(([k, , m]) => {
       koi = k;
       fitKoi();
       moon = m;
@@ -170,6 +187,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     renderer.setPixelRatio(ratio);
     renderer.setSize(width, height, false);
     post.setSize(width, height);
+    rain?.setViewHeight(height * ratio);
     camera.aspect = aspect;
     project();
     // The moon's size for this screen, about its own centre.
@@ -198,16 +216,46 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // avenue, while it holds (never with reduced motion).
   const hand = { yaw: 0, pitch: 0, roll: 0 };
 
+  // A camera on the move: it banks into a turn, as a drone or a helicopter
+  // does (roll follows the rate the heading swings at, a few degrees at
+  // most), and the lens opens a little with speed. Both are read off the
+  // pose itself, so a scrolled flight and a route's flight get them alike,
+  // and both settle to nothing when the camera holds.
+  const motion = { yaw: null, roll: 0, widen: 0, at: new THREE.Vector3() };
+  const _dir = new THREE.Vector3();
+  const moveCamera = (dt, snapped) => {
+    _dir.subVectors(pose.target, pose.position);
+    const yaw = Math.atan2(_dir.x, _dir.z);
+    if (motion.yaw === null || snapped || dt <= 0 || reduced) {
+      motion.yaw = yaw;
+      motion.at.copy(pose.position);
+      motion.roll = 0;
+      motion.widen = 0;
+      return;
+    }
+    let dy = yaw - motion.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    motion.yaw = yaw;
+    const speed = motion.at.distanceTo(pose.position) / dt;
+    motion.at.copy(pose.position);
+    const bank = clamp((-dy / dt) * 0.09, -0.11, 0.11);
+    const widen = clamp((speed - 6) / 70, 0, 1) * 5;
+    const a = 1 - Math.exp(-dt * 2.5);
+    motion.roll += (bank - motion.roll) * a;
+    motion.widen += (widen - motion.widen) * a;
+  };
+
   const applyPose = (p, withTilt) => {
     camera.position.copy(p.position);
     camera.lookAt(p.target);
     if (withTilt) {
       camera.rotateY(-tilt.x * 1.4 * DEG + hand.yaw);
       camera.rotateX(-tilt.y * 0.9 * DEG + hand.pitch);
-      camera.rotateZ(hand.roll);
+      camera.rotateZ(hand.roll + motion.roll);
     }
-    if (Math.abs(camera.fov - p.fov) > 1e-4 || Math.abs(lensShift - p.shift) > 1e-5) {
-      camera.fov = p.fov;
+    const fov = p.fov + (withTilt ? motion.widen : 0);
+    if (Math.abs(camera.fov - fov) > 1e-4 || Math.abs(lensShift - p.shift) > 1e-5) {
+      camera.fov = fov;
       lensShift = p.shift;
       project();
     }
@@ -233,13 +281,38 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let flight = null;
   const dest = makePose();
 
+  // Corpo row's dolly runs along the row with the reader, and while a card
+  // is being read it goes to that card's tower instead, a little left of
+  // it so the tower stands right of centre: the lit crown and its beams in
+  // frame, whichever role it is. Eased, so reading down the cards is one
+  // move along the row and not a string of cuts.
+  const EXP_DOLLY = { x0: 190, x1: 400, lead: 22 };
+  const dolly = { at: null, locals: [] };
+  const localsFor = (ids, dt) => {
+    const i = ids.indexOf("experience");
+    if (i < 0 || !city) return stage.locals;
+    const xs = stage.activeRoles.map((slug) => city.anchors.get(`anchor_tower_${slug}`)?.position.x).filter((x) => x !== undefined);
+    // The shot eases its local (shots.js); a tower's place is where the
+    // eased dolly must land, so it is un-eased here.
+    const unease = (e) => (e < 0.5 ? Math.cbrt(e / 4) : 1 - Math.cbrt(2 * (1 - e)) / 2);
+    const want = xs.length
+      ? unease(clamp((xs.reduce((a, b) => a + b, 0) / xs.length - EXP_DOLLY.x0 - EXP_DOLLY.lead) / (EXP_DOLLY.x1 - EXP_DOLLY.x0), 0, 1))
+      : clamp(stage.locals[i] ?? 0, 0, 1);
+    if (dolly.at === null || !posed || reduced) dolly.at = want;
+    else dolly.at += (want - dolly.at) * (1 - Math.exp(-dt * 1.6));
+    dolly.locals.length = 0;
+    dolly.locals.push(...stage.locals);
+    dolly.locals[i] = dolly.at;
+    return dolly.locals;
+  };
+
   const aim = (dt = 0) => {
     const ids = stage.shots.map((s) => s.id);
     const home = stage.route.kind === "home";
     if (!shots) driftPose(aspect, dest);
     else if (!home) shots.routePose(stage.route, aspect, dest);
     else if (!ids.length) shots.poseOf("hero", 0, aspect, dest);
-    else shots.goal(ids, stage.position, stage.locals, aspect, dest, car?.car.position);
+    else shots.goal(ids, stage.position, localsFor(ids, dt), aspect, dest, car?.car.position);
 
     const key = routeKey();
     if (lastRoute !== null && key !== lastRoute && shots && posed) {
@@ -260,6 +333,54 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
+  // On a landscape screen the Experience cards fill the page edge to edge
+  // but for a strip on the right, so while a card is being read the camera
+  // turns until that card's tower stands in the strip, its lit crown a
+  // third of the way down and its beams beside the card. Eased in
+  // and out with the card; a phone's single column leaves no strip and
+  // keeps the plain framing.
+  const TOWER_AT = 0.88;
+  const towerAim = { k: 0, at: new THREE.Vector3(), has: false };
+  const _tf = new THREE.Vector3();
+  const _td = new THREE.Vector3();
+  const _th = new THREE.Vector3();
+  const aimTower = (dt) => {
+    const i = stage.shots.findIndex((x) => x.id === "experience");
+    const slug = stage.activeRoles[0];
+    const anchor = slug ? city?.anchors.get(`anchor_tower_${slug}`) : null;
+    if (anchor) {
+      towerAim.at.copy(anchor.position);
+      towerAim.has = true;
+    }
+    const held = i >= 0 && stage.route.kind === "home" && !flight && aspect > 1 && !reduced ? clamp(1 - Math.abs(stage.position - i) * 2.5, 0, 1) : 0;
+    const goal = anchor ? held : 0;
+    towerAim.k += (goal - towerAim.k) * (1 - Math.exp(-dt * 1.6));
+    if (towerAim.k < 1e-3 || !towerAim.has) return;
+    _tf.subVectors(want.target, want.position);
+    const dist = _tf.length();
+    // And tilted so the crown stands a third of the way down the frame,
+    // under the navigation rather than behind it.
+    _td.subVectors(towerAim.at, want.position);
+    const rise = Math.atan2(_td.y, Math.hypot(_td.x, _td.z));
+    const crownPitch = rise - Math.atan(0.36 * Math.tan((want.fov * DEG) / 2));
+    const pitch0 = Math.asin(clamp(_tf.y / dist, -1, 1));
+    const pitch = pitch0 + (crownPitch - pitch0) * towerAim.k;
+    _td.setY(0).normalize();
+    // The turn that puts the crown at TOWER_AT across the frame with the
+    // camera pitched (a pitched camera draws an off-axis point nearer the
+    // middle): solve sin(t)cos(e) = a (cos(t)cos(e)cos(p) + sin(e)sin(p)).
+    const a = TOWER_AT * Math.tan((want.fov * DEG) / 2) * aspect;
+    const A = Math.cos(rise);
+    const B = a * Math.cos(rise) * Math.cos(pitch);
+    const C = a * Math.sin(rise) * Math.sin(pitch);
+    const turn = Math.atan2(B, A) + Math.asin(clamp(C / Math.hypot(A, B), -1, 1));
+    // Left of the tower by `turn`, so the tower stands right of centre.
+    const fx = _td.x * Math.cos(turn) + _td.z * Math.sin(turn);
+    const fz = _td.z * Math.cos(turn) - _td.x * Math.sin(turn);
+    _th.set(_tf.x, 0, _tf.z).normalize().lerp(_td.set(fx, 0, fz), towerAim.k).normalize();
+    want.target.copy(want.position).addScaledVector(_th, Math.cos(pitch) * dist).add(_td.set(0, Math.sin(pitch) * dist, 0));
+  };
+
   // While the hero holds (it is the first shot, so the stage's position is
   // how far the reader has left it), the camera breathes: up to a metre's
   // push up the avenue over forty seconds and back, and a hand-held sway.
@@ -267,7 +388,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const _look = new THREE.Vector3();
   const holdHero = (dt) => {
     const home = stage.route.kind === "home" && stage.shots[0]?.id === "hero" && !flight;
-    const k = reduced || !home ? 0 : clamp(1 - stage.position * 1.5, 0, 1);
+    // The hero in full; every other shot, while it holds, at a third of it.
+    const f = stage.position - Math.round(stage.position);
+    const held = clamp(1 - Math.abs(f) * 4, 0, 1);
+    const k = reduced || !home ? 0 : Math.max(clamp(1 - stage.position * 1.5, 0, 1), held * 0.35);
     handClock += dt;
     const t = handClock;
     hand.yaw = k * 0.2 * DEG * (Math.sin(t * 0.31) + 0.5 * Math.sin(t * 0.73 + 1.3)) / 1.5;
@@ -281,17 +405,23 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }
   };
 
+  // A frame asked for from outside (renderDirected, the braindance): what it
+  // says overrides what the stage says, for that frame only.
+  let directed = null;
+
   /** Which Work entry the plaza's board shows: the deck's, or a case study's own. */
   const activeBoard = () => {
+    if (directed) return directed.board ?? 0;
     if (stage.route.kind !== "project") return stage.activeProject;
     const i = BOARDS.findIndex((b) => b.slug === stage.route.slug);
     return i >= 0 ? i : stage.activeProject;
   };
-  const activeTowers = () => (stage.route.kind === "role" ? [stage.route.slug] : stage.activeRoles);
+  const activeTowers = () => (directed ? directed.towers ?? [] : stage.route.kind === "role" ? [stage.route.slug] : stage.activeRoles);
   // How much of the wet road the camera sees, 0..1, from the shots' own
   // `mirror` flags: the hero and the garage's street show it, the rest look
   // over it or away. A flight between two shots eases from one to the other.
   const roadShown = () => {
+    if (directed) return directed.mirror ?? 0;
     if (stage.route.kind !== "home") return 0;
     const ids = stage.shots.map((x) => x.id);
     if (!ids.length) return 1;
@@ -310,6 +440,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const jumped = !routeChanged && !flight && Math.abs(stage.position - lastPosition) > 1.2;
     driveCar(dt, !posed || jumped);
     aim(dt);
+    aimTower(dt);
     holdHero(dt);
     // Crossing the middle of a flight fires the braindance glitch.
     if (Math.floor(stage.position + 0.5) !== Math.floor(lastPosition + 0.5)) glitch = 1;
@@ -325,6 +456,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       pose.fov += (want.fov - pose.fov) * a;
       pose.shift += (want.shift - pose.shift) * a;
     }
+    moveCamera(dt, jumped);
     const t = 1 - Math.exp(-dt * 3);
     tilt.x += (stage.pointer.x - tilt.x) * t;
     tilt.y += (stage.pointer.y - tilt.y) * t;
@@ -334,10 +466,40 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // ---- the music and the switches ---------------------------------------------
   let bass = 0;
   let level = 0;
+  // Lightning, far off in the cloud, now and then: one or two quick pulses
+  // a quarter of a second or more apart, then nothing for twenty to fifty
+  // seconds. Never with reduced motion, and never a white screen: a patch
+  // of cloud lights from inside and the haze lifts a little, well inside
+  // three flashes a second.
+  const storm = { next: 14 + Math.random() * 16, pulses: [], t: 0 };
+  const _strikeDir = new THREE.Vector3();
+  const flash = (dt) => {
+    if (reduced) return;
+    storm.t += dt;
+    if (storm.t >= storm.next) {
+      storm.t = 0;
+      storm.next = 20 + Math.random() * 30;
+      const n = Math.random() < 0.6 ? 2 : 1;
+      storm.pulses = Array.from({ length: n }, (_, i) => ({ at: i * (0.26 + Math.random() * 0.2), k: i === 0 ? 1 : 0.5 + Math.random() * 0.4 }));
+      // Somewhere in front of the camera, where it can be seen.
+      camera.getWorldDirection(_strikeDir);
+      const a = Math.atan2(_strikeDir.z, _strikeDir.x) + (Math.random() - 0.5) * 1.4;
+      const r = 500 + Math.random() * 900;
+      shared.uFlashAt.value.set(camera.position.x + Math.cos(a) * r, camera.position.z + Math.sin(a) * r);
+    }
+    let f = 0;
+    for (const p of storm.pulses) {
+      const u = storm.t - p.at;
+      if (u >= 0) f = Math.max(f, p.k * Math.exp(-u * 16) * Math.min(1, u * 60));
+    }
+    shared.uFlash.value = f;
+  };
+
   const drive = (dt) => {
+    flash(dt);
     const env = getEnv();
     if (env.reactive) {
-      const now = getLevels();
+      const now = directed?.levels ?? getLevels();
       bass += (now.bass - bass) * (now.bass > bass ? 0.7 : 0.12);
       level += (now.level - level) * (now.level > level ? 0.4 : 0.1);
     } else {
@@ -369,23 +531,34 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   // `moonView` is the intro's voxel moon (see renderCinematic): null for the
   // city alone, "only" for the moon alone, "over" for the moon over the city.
-  const draw = (dt, moonView = null) => {
+  // `flow` is how far the city's own clock moves this frame, when that is
+  // not the frame's time: the braindance holds it still while paused and
+  // runs it backwards while rewinding (the rain, the traffic, the koi, every
+  // flicker). Smoothing everywhere else stays on the frame's dt.
+  const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
-    clock += dt;
+    clock += flow;
     shared.uTime.value = clock;
     shared.uCam.value.copy(camera.position);
     const env = drive(dt);
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
-      rain?.update(dt, camera, env.wet);
+      rain?.update(flow, camera, env.wet);
       shafts?.update(shared.uHaze.value);
-      koi?.update(dt);
-      traffic?.update(dt, env.traffic);
+      koi?.update(flow);
+      traffic?.update(flow, env.traffic);
       city?.boards.update(dt, activeBoard());
       city?.towers.update(dt, activeTowers());
       city?.logos.update(dt, activeTowers());
-      city?.garage.update(dt, stage.position, stage.route.kind === "home" ? stage.shots.findIndex((s) => s.id === "garage") : -1);
+      if (directed) {
+        // The door's position in the stage's own terms: garage index 1, the
+        // door opening over 0.16 to 0.30, the tubes struck from 0.5.
+        const g = directed.garage ?? {};
+        city?.garage.update(dt, g.tubes ? 0.55 : 0.16 + 0.14 * clamp(g.door ?? 0, 0, 1), 1);
+      } else {
+        city?.garage.update(dt, stage.position, stage.route.kind === "home" ? stage.shots.findIndex((s) => s.id === "garage") : -1);
+      }
       // The wet road's mirror, only while a shot shows the road (`mirror`
       // in src/data/world.js): over a flight away it fades into the baked
       // streaks, as the adaptive pass's shed does, and once it has gone it
@@ -418,10 +591,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // when there is none) are timed. A p95 frame interval over the tier's
   // budget, with GRACE_MS for the display's own jitter, sheds one thing and
   // times again: pixels first, then the reflection, then half the rain
-  // (ADAPT in quality.js). The reflection fades out into the baked streaks
-  // before its pass stops, so the road does not pop.
+  // (ADAPT in quality.js). A step is kept only if it helped: without GPU
+  // timing a display running at 30 Hz (Low Power Mode, a battery saver)
+  // looks like an overloaded one, and there shedding changes nothing, so a
+  // step that did not bring the p95 down by a sixth is given back and the
+  // next one tried. The reflection fades out into the baked streaks before its
+  // pass stops (and back in if it is given back), so the road does not pop;
+  // the pixels change under a flick of the braindance glitch.
   const GRACE_MS = 3;
-  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], p95: null, fade: null, reflectK: 0 };
+  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
   const startSampling = () => {
     adapt.sampling = true;
     adapt.t = -0.3;
@@ -432,21 +610,28 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (what === "pixels") {
       pixelScale = 0.75;
       resize();
+      glitch = Math.max(glitch, 0.55);
     }
-    if (what === "reflection" && mirror) adapt.fade = { t: 0 };
+    if (what === "reflection" && mirror) adapt.fade = { t: 0, to: 1 };
     if (what === "rain") rain?.setCount(Math.round(quality.rain / 2));
   };
-  const nextStep = () => ADAPT.find((w) => !adapt.shed.includes(w) && (w !== "reflection" || mirror));
+  const restore = (what) => {
+    adapt.shed = adapt.shed.filter((w) => w !== what);
+    if (what === "pixels") {
+      pixelScale = 1;
+      resize();
+      glitch = Math.max(glitch, 0.55);
+    }
+    if (what === "reflection" && mirror) adapt.fade = { t: 0, to: 0 };
+    if (what === "rain") rain?.setCount(quality.rain);
+  };
+  const nextStep = () => ADAPT.find((w) => !adapt.shed.includes(w) && !adapt.tried.includes(w) && (w !== "reflection" || mirror));
   const sample = (dt, interval) => {
     if (adapt.fade && city) {
       adapt.fade.t += dt;
       const k = Math.min(1, adapt.fade.t / 0.8);
-      adapt.reflectK = k;
-      if (k >= 1) {
-        mirror?.dispose();
-        mirror = null;
-        adapt.fade = null;
-      }
+      adapt.reflectK = adapt.fade.to ? k : Math.min(adapt.reflectK, 1 - k);
+      if (k >= 1) adapt.fade = null;
     }
     if (!adapt.sampling) return;
     adapt.t += dt;
@@ -455,8 +640,27 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     adapt.sampling = false;
     const sorted = adapt.samples.slice().sort((a, b) => a - b);
     adapt.p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))] : null;
+    if (adapt.p95 === null) return;
+    const trial = adapt.trial;
+    adapt.trial = null;
+    if (trial) {
+      if (adapt.p95 > trial.before * 0.85) {
+        // It did not help: give it back, and try the next step instead
+        // (a page held up by its scripts is helped by losing the mirror's
+        // second pass, not by losing pixels).
+        restore(trial.what);
+        adapt.tried.push(trial.what);
+        adapt.p95 = trial.before;
+      }
+      // It helped: a shed reflection's pass can go now.
+      else if (trial.what === "reflection" && mirror) {
+        mirror.dispose();
+        mirror = null;
+      }
+    }
     const next = nextStep();
-    if (adapt.p95 !== null && adapt.p95 > quality.budgetMs + GRACE_MS && next) {
+    if (adapt.p95 > quality.budgetMs + GRACE_MS && next) {
+      adapt.trial = { what: next, before: adapt.p95 };
       shed(next);
       startSampling();
     }
@@ -671,6 +875,42 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     cineGlitch = -1;
   };
 
+  /**
+   * One frame of the braindance (src/braindance): the camera at `spec.pose`
+   * (a pose from makePose, plus `roll` in radians), the car on the road at
+   * `spec.car` ({ u, v }, metres and metres a second), the plaza's board on
+   * entry `spec.board`, corpo row lit for the slugs in `spec.towers`, the
+   * garage at `spec.garage` ({ door: 0..1, tubes }), the wet road's mirror at
+   * `spec.mirror` (0..1), the music's `spec.levels` from the braindance's own
+   * deck, and `spec.glitch` (0..1). The scene's own loop rests meanwhile:
+   * the caller holds stage.mode at "cinematic", as the intro does.
+   */
+  const renderDirected = (dt, spec) => {
+    if (!city || disposed) return;
+    directed = spec;
+    copyPose(pose, spec.pose);
+    copyPose(want, spec.pose);
+    applyPose(pose, false);
+    if (spec.roll) camera.rotateZ(spec.roll);
+    posed = true;
+    lastRoute = null;
+    flight = null;
+    if (car && spec.car) car.directed(dt, spec.car);
+    cineGlitch = spec.glitch ?? 0;
+    draw(dt, null, spec.flow ?? dt);
+    cineGlitch = -1;
+    directed = null;
+  };
+
+  /** Put the camera on a pose now, lens shift and all, without drawing:
+   *  the braindance projects its markers with the camera it is about to
+   *  draw with. */
+  const placeCamera = (p) => {
+    copyPose(pose, p);
+    applyPose(pose, false);
+    camera.updateMatrixWorld();
+  };
+
   const dispose = () => {
     disposed = true;
     pause();
@@ -739,13 +979,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       ctx.putImageData(img, 0, 0);
       return c.toDataURL("image/png");
     };
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, post, dumpMirror, setQuality };
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, post, dumpMirror, setQuality, strike() { storm.t = storm.next; } };
   }
 
   return {
     warm,
     beginIntro,
     renderCinematic,
+    renderDirected,
+    placeCamera,
     pause,
     resume,
     setQuality,
@@ -753,6 +995,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     dispose,
     get info() {
       return renderer.info;
+    },
+    /** The pieces the braindance draws over and reads from. */
+    get parts() {
+      return { renderer, scene, camera, post, shared, city, car, traffic, crowd, koi, quality };
     },
     /** Whether this city can draw the intro's voxel moon. */
     get hasMoon() {

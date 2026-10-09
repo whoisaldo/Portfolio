@@ -16,6 +16,9 @@
 // Emissive surfaces lose less to the fog than lit ones, because a sign 400 m
 // up the street still reads as a sign.
 
+/** How many of the kit's lamps (lamp_<name>) the city lights with. */
+export const LAMPS = 12;
+
 /** Uniforms every city material shares, as one object, updated once a frame. */
 export function createSharedUniforms(THREE) {
   return {
@@ -34,12 +37,26 @@ export function createSharedUniforms(THREE) {
     // avenue), where it is brightest.
     uGlowColor: { value: new THREE.Color(0.95, 0.36, 0.78).multiplyScalar(0.34) },
     uGlowDir: { value: new THREE.Vector2(0, -1) },
+    // Lightning in the cloud (src/world/world-scene.js): how bright, and
+    // where over the city it is, on the cloud deck's plane.
+    uFlash: { value: 0 },
+    uFlashAt: { value: new THREE.Vector2(0, -1200) },
     // The garage (src/world/garage.js): seconds since its tubes struck on
     // (-1 while they are off), and its door's light on the street: the
     // opening's x, its middle's z, its half width, and how far up it is.
     uTubeClock: { value: -1 },
     uDoorLight: { value: new THREE.Vector4(0, 0, 1, 0) },
     uDoorColor: { value: new THREE.Color(1, 0.72, 0.92) },
+    // Corpo row (src/world/towers.js): each tower's colour, how lit it is
+    // (its card being read) and the height of its roof, west to east.
+    uTowerAccent: { value: Array.from({ length: 8 }, () => new THREE.Color(0, 0, 0)) },
+    uTowerLit: { value: new Float32Array(8).fill(0.18) },
+    uTowerTop: { value: new Float32Array(8).fill(120) },
+    uTowerCentre: { value: Array.from({ length: 8 }, () => new THREE.Vector2(1e5, 1e5)) },
+    // A handful of lamps the kit places (lamp_<name>): a doorway, a string
+    // of bulbs, a rooftop sign. xyz and reach, and colour times power.
+    uLamps: { value: Array.from({ length: LAMPS }, () => new THREE.Vector4(0, -1e4, 0, 0)) },
+    uLampColors: { value: Array.from({ length: LAMPS }, () => new THREE.Color(0, 0, 0)) },
   };
 }
 
@@ -57,9 +74,13 @@ export const COMMON = /* glsl */ `
   uniform vec3 uCam;
   uniform vec3 uGlowColor;
   uniform vec2 uGlowDir;
+  uniform float uFlash;
+  uniform vec2 uFlashAt;
   uniform float uTubeClock;
   uniform vec4 uDoorLight;
   uniform vec3 uDoorColor;
+  uniform vec4 uLamps[${LAMPS}];
+  uniform vec3 uLampColors[${LAMPS}];
 
   float hash12(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -107,11 +128,36 @@ export const COMMON = /* glsl */ `
     return s * s * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085)) + doorPool(p) + garageRoom(p);
   }
 
+  // The kit's own lamps (lamp_<name>) on a surface facing n: a doorway's
+  // light on the roof round it, bulbs over a roof, a sign's light on what
+  // stands under it. Each reaches so far and no further.
+  vec3 lampsAt(vec3 p, vec3 n) {
+    vec3 sum = vec3(0.0);
+    for (int i = 0; i < ${LAMPS}; i++) {
+      vec4 L = uLamps[i];
+      vec3 d = L.xyz - p;
+      float d2 = dot(d, d);
+      float r2 = L.w * L.w;
+      if (d2 > r2) continue;
+      float fall = 1.0 - d2 / r2;
+      float ndl = 0.25 + 0.75 * max(dot(n, d) * inversesqrt(d2 + 1e-4), 0.0);
+      sum += uLampColors[i] * fall * fall * ndl / (1.0 + d2 * 0.12);
+    }
+    return sum;
+  }
+
   // The city's glow in the air along a direction, at a height: low over
   // the roofs, and strongest toward downtown.
   vec3 cityGlow(vec3 dir, float y) {
-    float toward = pow(max(dot(normalize(dir.xz + 1e-5), uGlowDir), 0.0), 3.0);
-    return uGlowColor * uHaze * exp(-max(y, 0.0) * 0.0045) * (0.3 + 0.7 * toward);
+    float t1 = max(dot(normalize(dir.xz + 1e-5), uGlowDir), 0.0);
+    float toward = t1 * t1 * t1;
+    // Right up the avenue, low on the horizon, downtown burns: a hot core,
+    // warmer and whiter, that pulls the eye to the vanishing point.
+    float hot = pow(t1, 90.0) * exp(-max(y, 0.0) * 0.1);
+    vec3 glow = uGlowColor * (0.3 + 0.7 * toward) + vec3(1.0, 0.62, 0.86) * hot * 0.45;
+    // A flash in the cloud lifts the whole wet air with it, cold.
+    glow += vec3(0.5, 0.52, 0.75) * uFlash * 0.12;
+    return glow * uHaze * exp(-max(y, 0.0) * 0.0045);
   }
 
   // Distance: fog into near-black violet close to, and further off into the
@@ -199,7 +245,7 @@ export const WINDOWS = /* glsl */ `
     vec2 room = vec2(floor(cell.x / span), cell.y);
     float busy = hash12(vec2(cell.y * 1.37, 2.1) + seed);
     float share = office > 0.5 ? mix(0.25, 1.6, step(0.55, busy)) : 0.45 + 1.1 * busy;
-    float lit = step(hash12(room + seed + 0.5), params.x * 0.62 * share) * enabled;
+    float lit = step(hash12(room + seed + 0.5), params.x * 0.8 * share) * enabled;
     // One room in a hundred and fifty changes its mind now and then.
     float blink = hash12(room * 1.73 + 3.1);
     if (blink > 0.993) lit *= step(0.42, fract(uTime * 0.045 + blink * 17.0));
@@ -212,13 +258,61 @@ export const WINDOWS = /* glsl */ `
     if (kind > 0.975) wc = vec3(1.0, 0.22, 0.6);
     else if (kind > 0.955) wc = vec3(0.16, 0.95, 0.85);
     else if (kind > 0.915) wc = vec3(0.32, 0.46, 1.0) * (0.65 + 0.35 * sin(uTime * (4.0 + 7.0 * hv) + hv * 40.0));
-    // Lit from the ceiling; blinds, curtains, and whatever stands at the glass.
-    float interior = 0.4 + 0.6 * smoothstep(0.0, 1.0, q.y);
-    float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(q.y * size.y * 6.0)), step(0.74, hash12(room + 5.1)));
+    // Behind the glass, a room: the eye's ray runs into a box as wide as the
+    // pane, as tall as it and three metres deep, and what it meets (the
+    // ceiling with its lamp, the floor, the side walls, the back wall with
+    // something against it) is lit as a room is. Worked out in the pane's
+    // own metres, the wall's normal and its way along from the derivatives,
+    // and which way up the cells run (the kit's run down, glTF's v).
+    vec3 dpx = dFdx(world);
+    vec3 dpy = dFdy(world);
+    vec3 fn = normalize(cross(dpx, dpy));
+    vec2 duvx = dFdx(uv);
+    vec2 duvy = dFdy(uv);
+    float det = duvx.x * duvy.y - duvx.y * duvy.x;
+    vec3 ft = (dpx * duvy.y - dpy * duvx.y) * sign(det);
+    ft = normalize(vec3(ft.x, 0.0, ft.z) + 1e-5);
+    float upSign = dot(vec2(dpx.y, dpy.y), vec2(duvx.y, duvy.y)) >= 0.0 ? 1.0 : -1.0;
+    vec3 V = normalize(world - uCam);
+    vec3 rd = vec3(dot(V, ft), V.y, max(-dot(V, fn), 1e-3));
+    float qy = upSign > 0.0 ? q.y : 1.0 - q.y;
+    vec3 rp = vec3(clamp(q.x, 0.0, 1.0) * size.x, clamp(qy, 0.0, 1.0) * size.y, 0.0);
+    const float ROOM_D = 3.0;
+    float rtx = rd.x > 0.0 ? (size.x - rp.x) / rd.x : -rp.x / min(rd.x, -1e-4);
+    float rty = rd.y > 0.0 ? (size.y - rp.y) / rd.y : -rp.y / min(rd.y, -1e-4);
+    float rtz = ROOM_D / rd.z;
+    float rtm = min(min(rtx, rty), rtz);
+    vec3 rh = rp + rd * rtm;
+    float shade;
+    if (rtm == rtz) {
+      // The back wall, and against it a shelf, a picture, a lamp.
+      shade = 0.55 + 0.25 * rh.y / size.y;
+      float thing = hash12(room + 2.9);
+      float band = step(abs(rh.y - size.y * (0.35 + 0.3 * thing)), size.y * 0.12) * step(abs(rh.x / size.x - fract(thing * 5.0)), 0.3);
+      shade *= 1.0 - 0.5 * band * step(0.4, thing);
+      float lampSpot = exp(-dot(rh.xy - vec2(size.x * fract(thing * 3.0), size.y * 0.45), rh.xy - vec2(size.x * fract(thing * 3.0), size.y * 0.45)) * 3.0);
+      shade += lampSpot * step(0.7, thing) * 1.4;
+    } else if (rtm == rty) {
+      // The ceiling round its lamp, or the floor.
+      if (rd.y > 0.0) {
+        vec2 c = vec2(rh.x - size.x * 0.5, rh.z - ROOM_D * 0.5);
+        shade = 0.7 + 1.6 * exp(-dot(c, c) * 1.2);
+      } else {
+        shade = 0.22;
+      }
+    } else {
+      shade = 0.42 + 0.2 * rh.y / size.y;
+    }
+    // Blinds and curtains hang at the glass and hide the room; a curtain
+    // glows with the light behind it.
+    float blind = step(0.74, hash12(room + 5.1));
     float curtain = (1.0 - office) * step(0.7, hash12(room + 8.9));
+    float interior = mix(shade, 0.4 + 0.6 * smoothstep(0.0, 1.0, qy), max(blind, curtain));
+    float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(q.y * size.y * 6.0)), blind);
     vec3 lightCol = mix(wc, wc * vec3(1.0, 0.55, 0.4), curtain * 0.6) * mix(1.0, 0.75 + 0.25 * sin(q.x * size.x * 11.0), curtain);
-    float stuff = step(q.y, 0.18 + 0.2 * hash12(cell + 3.3)) * step(abs(q.x - hash12(cell + 9.1)), 0.25) * step(0.6, hash12(cell + 4.4));
-    float bright = (0.2 + 0.5 * hv * hv) * interior * blinds * (1.0 - 0.6 * stuff) * (1.0 + 0.2 * uLevel);
+    // Somebody at the window now and then, against the light.
+    float stuff = step(qy, 0.62) * step(abs(q.x - 0.25 - 0.5 * hash12(cell + 9.1)), 0.12) * step(0.86, hash12(cell + 4.4)) * (1.0 - curtain) * (1.0 - blind);
+    float bright = (0.22 + 0.45 * hv * hv) * interior * blinds * (1.0 - 0.85 * stuff) * (1.0 + 0.2 * uLevel);
 
     vec3 spill = spillAt(world);
     vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25 + uHazeColor * 0.05 * (0.4 + q.y) * (0.5 + hash12(cell + 1.9));
@@ -242,8 +336,8 @@ export const WINDOWS = /* glsl */ `
 
     // Past a couple of pixels per window, the cell's average instead of a
     // pattern that shimmers.
-    vec3 avg = mix(wall, mix(glass, mix(cool, warm, params.z) * 0.3, params.x * 0.62 * enabled), paneArea);
+    vec3 avg = mix(wall, mix(glass, mix(cool, warm, params.z) * 0.33, params.x * 0.8 * enabled), paneArea);
     float far = smoothstep(0.35, 0.9, px);
-    return vec4(mix(detail, avg, far), mix(pane * lit * (1.0 - bar), params.x * paneArea, far));
+    return vec4(mix(detail, avg, far), mix(pane * lit * (1.0 - bar), params.x * 0.8 * paneArea, far));
   }
 `;

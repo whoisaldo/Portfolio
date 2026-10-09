@@ -61,15 +61,25 @@ export async function dressHolo(mesh, shared, { reduced = false } = {}) {
         float gain = uGain * scan * flicker * (1.0 - 0.55 * band) * (1.0 + 0.35 * uBass);
         vec3 col = c * c * gain;
         // Additive light fades into the haze; it does not turn into it.
-        col *= exp(-length(vWorld - uCam) * uFogDensity * 0.4);
-        gl_FragColor = vec4(col, 1.0);
+        float haze = exp(-length(vWorld - uCam) * uFogDensity * 0.4);
+        col *= haze;
+        // She also stands in front of the haze (premultiplied: her light
+        // plus the sky behind her, dimmed where her figure is), so her
+        // face keeps its features, her eyes dark, against a bright sky
+        // rather than washing into it. The picture's black is not her.
+        float figure = smoothstep(0.03, 0.14, max(c.r, max(c.g, c.b)));
+        float cover = figure * 0.72 * haze * (1.0 - 0.5 * band);
+        gl_FragColor = vec4(col, cover);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
     `,
     transparent: true,
     depthWrite: false,
-    blending: THREE.AdditiveBlending,
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
   });
   material.name = "holo";
   mesh.material = material;

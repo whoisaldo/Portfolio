@@ -87,6 +87,18 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
           col += vec3(0.9, 0.95, 1.0) * smoothstep(0.02, 0.0, abs(vUv.y - edge)) * step(uMix, 0.999) * 1.5;
           col = mix(col, vec3(hash12(vUv * 480.0 + t)), g * 0.3 * step(0.55, hash12(vec2(t, 9.0))));
           col *= 0.86 + 0.14 * sin(vUv.y * 880.0 - uTime * 3.0);
+          // An LED wall, not a hole: its black is lit a little and blue, a
+          // slow refresh band rolls down it, and close to, its pixels show
+          // as red, green and blue stripes (faded where they would shimmer).
+          col = max(col, vec3(0.018, 0.022, 0.034));
+          float roll = smoothstep(0.1, 0.0, abs(fract(vUv.y + uTime * 0.07) - 0.5)) * 0.06;
+          col += vec3(0.25, 0.3, 0.45) * roll;
+          vec2 px = vUv * vec2(384.0, 216.0);
+          float fade = 1.0 - smoothstep(0.25, 0.6, max(fwidth(px.x), fwidth(px.y)));
+          float sub = fract(px.x) * 3.0;
+          vec3 stripe = vec3(step(sub, 1.0), step(1.0, sub) * step(sub, 2.0), step(2.0, sub));
+          float gap = smoothstep(0.0, 0.12, fract(px.y)) * smoothstep(1.0, 0.88, fract(px.y));
+          col *= mix(vec3(1.0), stripe * 2.4 * gap, fade * 0.55);
           col *= uGain * (1.0 + 0.2 * uBass);
           col = cityFog(col, vWorld, 1.0);
           gl_FragColor = vec4(col, 1.0);
@@ -103,7 +115,9 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
   for (const mesh of meshes) {
     const fromName = Number(mesh.name.split("_")[1]);
     const index = mesh.userData.board ?? (Number.isFinite(fromName) ? fromName : 0);
-    const material = makeMaterial(index === 0 ? 1.25 : 0.9);
+    // The big board is the brightest thing in its shot: the key art is
+    // mostly dark UI, so it runs hot.
+    const material = makeMaterial(index === 0 ? 2.8 : 1.05);
     mesh.material = material;
     // Only the big board is worth a place in the wet road's mirror.
     if (index === 0) mesh.layers.enable(reflectLayer);
@@ -134,7 +148,7 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
     // Four bars, one draw.
     const geo = mergeGeometries(boxes, false);
     boxes.forEach((g) => g.dispose());
-    const frameMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(BOARDS[0]?.accent || "#fcee0a").multiplyScalar(2.4) });
+    const frameMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(BOARDS[0]?.accent || "#fcee0a").multiplyScalar(1.25) });
     frameMat.name = "board_frame_light";
     const group = new THREE.Mesh(geo, frameMat);
     group.layers.enable(reflectLayer);
@@ -173,7 +187,7 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
       }
       if (frame && main) {
         const accent = BOARDS[main.showing]?.accent || "#fcee0a";
-        frame.frameMat.color.set(accent).multiplyScalar(2.4 * (1 + 0.3 * shared.uBass.value));
+        frame.frameMat.color.set(accent).multiplyScalar(1.25 * (1 + 0.3 * shared.uBass.value));
       }
     },
     dispose() {

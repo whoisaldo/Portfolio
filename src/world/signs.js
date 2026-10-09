@@ -368,21 +368,22 @@ const DRAW = {
  * GLB's sign_* meshes (world matrices current). Returns
  * { mesh, texture, sources, dispose } where `sources` feed the spill bake.
  */
-export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false, atlas = 4096, density = 1 } = {}) {
-  // 4096 square on a desktop; a phone gets 2048 at half the pixels a metre.
+export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false, atlas = 4096, density = 1, overrides = null } = {}) {
+  // 4096 wide on a desktop; a phone gets 2048 at half the pixels a metre.
+  // Only as tall as the packed signs need (a power of two): the square
+  // atlas was more than half empty, and a 4096 square with its mipmaps is
+  // some 85 MB of video memory.
   const ATLAS = atlas;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = ATLAS;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, ATLAS, ATLAS);
 
   // One cell per distinct sign, sized from the face's metres.
   const cells = new Map();
   const faces = [];
   for (const mesh of meshes) {
     const id = mesh.name.replace(/^sign_/, "");
-    const spec = signSpec(id);
+    // A caller may reword a sign (the braindance puts Ali's work on a few of
+    // the avenue's); the face, its colour and its light stay the kit's.
+    const base = id.replace(/_b$/, "").replace(/_far$/, "");
+    const spec = overrides?.[base] ? { ...signSpec(id), ...overrides[base], key: `${base}_bd` } : signSpec(id);
     if (!spec) continue;
     const w = mesh.userData.w || 1;
     const h = mesh.userData.h || 1;
@@ -397,7 +398,8 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     cells.set(spec.key, { spec, pw, ph });
   }
 
-  // Shelf packing, tallest first.
+  // Shelf packing, tallest first: laid out, then drawn on a canvas as tall
+  // as the layout.
   const order = [...cells.values()].sort((a, b) => b.ph - a.ph);
   let x = 0;
   let y = 0;
@@ -413,6 +415,15 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     x += c.pw + PAD * 2;
     shelf = Math.max(shelf, c.ph + PAD * 2);
     if (y + shelf > ATLAS) throw new Error("Sign atlas overflow");
+  }
+  const HEIGHT = Math.min(ATLAS, 2 ** Math.ceil(Math.log2(Math.max(256, y + shelf))));
+  const canvas = document.createElement("canvas");
+  canvas.width = ATLAS;
+  canvas.height = HEIGHT;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, ATLAS, HEIGHT);
+  for (const c of order) {
     ctx.save();
     ctx.translate(c.x, c.y);
     ctx.beginPath();
@@ -461,7 +472,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       const u = uv.getX(i);
       const t = uv.getY(i);
       U[i * 2] = (cell.x + u * cell.pw) / ATLAS;
-      U[i * 2 + 1] = (cell.y + t * cell.ph) / ATLAS;
+      U[i * 2 + 1] = (cell.y + t * cell.ph) / HEIGHT;
       S[i * 2] = index;
       S[i * 2 + 1] = spec.flicker && !reduced ? 1 : 0;
     }
@@ -483,7 +494,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
         u: a.clone().sub(o),
         v: b.clone().sub(o),
         normal,
-        atlas: new THREE.Vector4(cell.x / ATLAS, cell.y / ATLAS, cell.pw / ATLAS, cell.ph / ATLAS),
+        atlas: new THREE.Vector4(cell.x / ATLAS, cell.y / HEIGHT, cell.pw / ATLAS, cell.ph / HEIGHT),
         color: new THREE.Color(spec.color),
         sign: [index, spec.flicker && !reduced ? 1 : 0],
       });
@@ -529,7 +540,11 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
         float cut = vSign.y * max(step(0.986, hash12(vec2(t, vSign.x * 7.13))),
                                    step(0.93, hash12(vec2(floor(uTime * 0.7), vSign.x))) * step(0.5, hash12(vec2(t, vSign.x))));
         float breathe = 1.0 + 0.5 * uBass + 0.2 * uLevel;
-        vec3 col = tex * uIntensity * breathe * (1.0 - 0.82 * cut);
+        // White tubes bloom far harder than coloured ones at the same gain:
+        // the near-white parts of a sign are eased, the saturated left.
+        float sat = max(tex.r, max(tex.g, tex.b)) - min(tex.r, min(tex.g, tex.b));
+        float white = mix(0.62, 1.0, smoothstep(0.05, 0.4, sat / max(max(tex.r, max(tex.g, tex.b)), 1e-3)));
+        vec3 col = tex * uIntensity * white * breathe * (1.0 - 0.82 * cut);
         col = cityFog(col, vWorld, 1.0);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>

@@ -47,9 +47,13 @@ import WorldMount from "./world/WorldMount";
 // it never downloads the cinematic.
 const Recruiters = lazy(() => import("./routes/Recruiters"));
 const RecruiterWork = lazy(() => import("./routes/RecruiterWork"));
+// The third way in, the braindance: the city with no page in front of it.
+// Its own chunk and its own shell, like the plain version.
+const Braindance = lazy(() => import("./braindance/Braindance"));
 
 const isRecruiters = (pathname) =>
   pathname === "/recruiters" || pathname.startsWith("/recruiters/");
+const isBraindance = (pathname) => pathname === "/braindance" || pathname.startsWith("/braindance/");
 
 export default function App() {
   const { pathname } = useLocation();
@@ -74,6 +78,16 @@ export default function App() {
   useEffect(() => {
     if (isRecruiters(pathname)) stopAmbient({ fade: LEAVE_SECONDS });
   }, [pathname]);
+
+  if (isBraindance(pathname)) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          <Braindance />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
 
   if (isRecruiters(pathname)) {
     return (

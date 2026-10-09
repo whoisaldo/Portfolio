@@ -68,9 +68,10 @@ npm run world:assets   # -> public/scenes/world/world-high.glb, world-phone.glb
 
 ## Structure
 
-- `src/App.jsx` the router, and the split between the two shells: the
+- `src/App.jsx` the router, and the split between the three shells: the
   cinematic (entry gate, intro, navbar, reticle cursor, console, footer) under
-  `/`, and the plain version under `/recruiters`, which mounts none of that
+  `/`, the plain version under `/recruiters`, which mounts none of that, and
+  the braindance under `/braindance`
 - `src/routes/` the scrolling home page, `/work/:slug` for the 15 detail
   pages (8 projects, 7 roles), and `Recruiters.jsx` + `RecruiterWork.jsx`:
   the plain, light, conventional portfolio at `/recruiters`, reading the
@@ -103,6 +104,16 @@ npm run world:assets   # -> public/scenes/world/world-high.glb, world-phone.glb
   kit and how it was built are in `design/night-city-world/README.md`. It
   replaced `Skyline.jsx` and `RoadTraffic.jsx`, which are gone: their signs
   and their traffic are the city's now
+- `src/braindance/` the braindance: the same city with no page in front of
+  it, as a four-minute recording cut to the song that can be played, paused,
+  scrubbed, rewound and orbited, with the portfolio hidden in it as clues to
+  scan on three layers (visual, audio, thermal). `recording.js` is the
+  choreography (the car's drive, the shots, the board and the towers, all a
+  function of time), `engine.js` drives the city through `renderDirected`,
+  `layers.js` is the post effect that rebuilds world positions from depth for
+  the layers, the outlines and the reconstruction, `scanner.js` and
+  `places.js` say where and when each clue is, `sounds.js` synthesizes the
+  car, the rain and the editor's sounds. Every word is `src/data/braindance.js`
 - `src/components/ui/` the chamfered `Panel` primitive, the decode effect,
   and `CoverBox`, the cover-fit frame that keeps the garage's markers pinned
   to the picture under any crop
@@ -133,7 +144,7 @@ npm run world:assets   # -> public/scenes/world/world-high.glb, world-phone.glb
   It is the portfolio cut, with no phone number and aldo@sideband.studio as
   the email; the Resume repo's `portfolio.yml` builds it and pushes it here
 
-## Two versions
+## Three ways in
 
 `/` is the site as designed. `/recruiters` is the same content with none of
 the cinema: no door, no intro, no sound, no reticle, no effects, light rather
@@ -141,6 +152,10 @@ than black, one column. "Recruiters press this" on the door, in the header
 and in the footer goes there, and the plain page links back. The deploy
 workflow writes `/recruiters` its own `index.html`, so the address on a
 résumé answers with a 200.
+
+`/braindance` is the third: the city alone, as a recorded night to play and
+search, desktop only. It is an item on the door's menu and `jackin` in the
+console, and it gets its own `index.html` in the deploy as well.
 
 ## Notes
 

@@ -24,8 +24,8 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   (git-ignored) next to it.
 - `npm run world:assets` (`scripts/optimize-world.mjs`, glTF Transform: prune,
   dedup of accessors, meshes and textures, weld, WebP textures, Meshopt)
-  writes `public/scenes/world/world-high.glb` (2.57 MB, 1024 px textures) and
-  `world-phone.glb` (0.95 MB, 512 px textures, every prop the builder tagged
+  writes `public/scenes/world/world-high.glb` (2.76 MB, 1024 px textures) and
+  `world-phone.glb` (1.06 MB, 512 px textures, every prop the builder tagged
   as detail dropped), `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
@@ -40,17 +40,25 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   overpass with 空き未来へ, sodium lamps, cables, vending machines, lit
   shopfronts under dyed awnings and paper lanterns, painted walls), a canyon
   of vertical signs whose roofs step down to a band of sky, the holographic
-  figure and the ARASAKA tower in it, five landmark towers a kilometre off
-  (`anchor_mega_<n>`), the billboard plaza (`board_main` and seven more; the
+  figure and the ARASAKA tower in it, the canyon running on to the glow at
+  its end and a rail viaduct crossing it there (`anchor_rail`, the line the
+  site runs a lit train along), five landmark towers a kilometre off
+  (`anchor_mega_<n>`, lit bands at their setbacks, one kept clear of the
+  figure), the billboard plaza (`board_main` and seven more; the
   big one and the two beside it hang in a dark steel housing, ribbed, with a
-  catwalk and red corner lamps, bolted over a block of painted flats, so the
+  catwalk, floodlights and red corner lamps, bolted over a block of painted flats, so the
   screens and not the lit rooms round them carry the shot; the square's
   other blocks and the cross street's south side are painted flats too),
   corpo row (one glass tower per role in
-  `experience.js` over a lit lobby, a light fin up each corner and a dark
-  glass crown, with a crown slot, a logo slot `logo_<slug>` and a name slot
-  each), the rooftop (tanks, AC
-  units, antennas, RIPPERDOC, AFTERLIFE, MILITECH), the garage (a roll-up
+  `experience.js` over a lit lobby, each its own shape: a square plan with
+  its corners cut back, stepped back once or twice, a line of light up the
+  inside of each cut and a thin ring at each setback, a ribbed glass crown
+  (`crown_glass`) with bands at its foot and top, on some a screen of blades
+  over the roof or a mast, red lamps on its corners, and a crown slot, a
+  logo slot `logo_<slug>` and a name slot each), the rooftop (tanks, AC
+  units, antennas, a stair hut with its door open, condensers, pipes on
+  sleepers, dishes, a rail along the edge and a string of bulbs, RIPPERDOC,
+  AFTERLIFE, MILITECH), the garage (a roll-up
   door, `garage_door`, down in its opening; inside, the garage viewer's
   own walls, photographed (below); magenta tubes on the car's passenger
   side and cyan on the driver's, as in the garage room, all one `tube`
@@ -58,8 +66,10 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   bench, `garage_screen`; red tool chests, a pegboard, tyres, ducting and a
   hoist; the bay painted out round the car; BAY 01 over the door, a caged
   lamp either side and the shop's name on a blade at the corner; painted
-  flats either side of it and across the street), and the moon disc. About
-  24,500 triangles.
+  flats either side of it and across the street, shops under the flats
+  next door, a second shutter, the office window, a cyan strip under its
+  parapet, bollards, tyres, a skip and two more sodium lamps), and the moon
+  disc. About 28,000 triangles.
 - Named empties the site reads: `cam_<shot>` and `cam_<shot>_target` (and
   `_b` variants for shots that move while they hold, `_portrait` ones where a
   phone has its own), the flight waypoints
@@ -69,7 +79,11 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   `anchor_curb_hero`, `anchor_curb_hero_portrait`, `anchor_garage_bay`,
   `anchor_billboard_main`, `anchor_tower_<slug>`, `anchor_lamp_<n>`,
   `anchor_shelter_garage`, `anchor_moon`, `anchor_holo`, `anchor_mega_<n>`
-  (with the tower's size, so the far city keeps clear), the car's stops
+  (with the tower's size, so the far city keeps clear), `anchor_rail`, the
+  lamps `lamp_<name>` (a point with `color`, `reach` and `power`: the
+  doorway, the bulbs and the signs on the roof, the garage's wall lamps,
+  the board's floodlights; the site lights the kit round them with them,
+  twelve at most, see `lampsAt` in `src/world/glsl.js`), the car's stops
   `car_<stop>`, and `road_spline`, whose `points` extra is the road sampled a
   metre apart. `npm run check:world` asserts all of them.
 - Camera-match cameras `Cam_Hero_Wide` (16:10) and `Cam_Hero_Portrait`
@@ -81,6 +95,19 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   six sizes, a few hundred faces) share a few dozen designs painted once per
   size (`STREET_SIGNS`): neon tube on a dark board, lit boxes with dark
   letters, bulb marquees, pictograms.
+
+## The AV
+
+The traffic's aerial vehicle (`src/world/av-model.js`) is an original
+design built with the `codex-3d` skill (GPT-6.1 Sol, max reasoning) and
+revised once after review: the first build's ducts read as car tyres and its
+canopy as a bubble, at 8,850 triangles; the kept revision has thin-walled
+fan shrouds tilted 10 degrees outboard, a lower fighter canopy and a shoulder
+crease, at 2,424. Its brief: a low wedge coupe with no wheels, four vectored
+thruster pods at the corners, seven named materials (hull, trim, glass,
+lamp_head, lamp_tail, glow_thruster, glow_accent), 5.2 by 3.6 m, no text,
+no logos, no brand cues. `src/world/traffic.js` merges it by those names
+into one instanced draw.
 
 ## References
 
