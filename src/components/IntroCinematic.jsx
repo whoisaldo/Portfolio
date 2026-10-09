@@ -82,6 +82,7 @@ import { loadDrift } from "../lib/drift";
 import { holdScroll } from "../lib/scroll";
 import { getWorld, setStage, stage } from "../world/stage";
 import * as C from "../lib/cues";
+import { track } from "../lib/beacon";
 
 // Two cuts of the moon: the 16:9 plate, and a portrait plate painted from it
 // for phones, where a cover-fit of the wide one lost both sides of Earth.
@@ -419,6 +420,8 @@ export default function IntroCinematic() {
   const finish = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
+    // Natural end or skipped: its time against the door's says which.
+    track("intro", "done");
     markIntroSeen();
     cancelIntroSfx();
     setDuck(C.CRUISE_GAIN, C.DUCK_SECONDS);

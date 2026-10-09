@@ -36,7 +36,7 @@ import Home from "./routes/Home";
 import WorkPage from "./routes/WorkPage";
 import { stopAmbient } from "./lib/ambient";
 import { LEAVE_SECONDS } from "./lib/cues";
-import { initBeacon } from "./lib/beacon";
+import { initBeacon, pageview } from "./lib/beacon";
 import { attachUiSfx } from "./lib/ui-sfx";
 import { startReactive } from "./lib/reactive";
 import { initEnv, LOW_POWER, setSessionEnv } from "./lib/env";
@@ -68,6 +68,9 @@ export default function App() {
   // on mount, and it returns its own teardown so a hot reload does not leave a
   // second set of listeners attached. Both shells count.
   useEffect(() => initBeacon(), []);
+  // One view per route. Declared after initBeacon so, on the first render,
+  // the beacon is listening before the first view is reported.
+  useEffect(() => pageview(), [pathname]);
 
   // The music belongs to the cinematic. Crossing to the plain version takes it
   // with it, because the AudioContext is module state and nothing over there

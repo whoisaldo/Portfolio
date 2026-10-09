@@ -34,6 +34,7 @@ import { FX, getEnv, isLowPower, setEnv, resetEnv } from "../lib/env";
 import { getVolume, setSoundEnabled, setVolume, soundEnabled, unlockAudio } from "../lib/audio";
 import { applyVolume, isPlaying, startAmbient, stopAmbient } from "../lib/ambient";
 import { CRUISE_GAIN, DROP } from "../lib/cues";
+import { track } from "../lib/beacon";
 
 // Fun facts pool, surfaced on boot and via `funfact`
 const FUN_FACTS = [
@@ -278,6 +279,8 @@ export default function Terminal({ onExit }) {
     if (!trimmed) return;
     const [command, ...args] = trimmed.split(/\s+/);
     const lowerCmd = command.toLowerCase();
+    // The command's name, never its arguments: `cat notes.txt` is "cat".
+    track("command", lowerCmd.slice(0, 32));
 
     setHistory(prev => [...prev, { type: "prompt", path: currentDir, text: trimmed }]);
     setCommandHistory(prev => [...prev, trimmed]);

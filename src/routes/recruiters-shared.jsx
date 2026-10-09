@@ -124,6 +124,8 @@ export function PlainFooter() {
       <p>
         © {new Date().getFullYear()} {profile.name}
         <span className="rp-footer-location"> · {profile.base}</span>
+        {/* True of src/lib/beacon.js, and the reason it is allowed to exist. */}
+        <span> · Visits are logged, no cookies</span>
       </p>
       <div className="rp-footer-links">
         <a href={links.github} target="_blank" rel="noreferrer">

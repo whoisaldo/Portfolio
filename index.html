@@ -20,7 +20,9 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- Open Graph / Twitter. None of this existed before, so every link to the
-         site unfurled as a bare URL. -->
+         site unfurled as a bare URL. The image is served through the stats
+         domain, which hands back public/og.png and notes which app asked for
+         it: that fetch is the only trace a pasted link leaves (stats-api/api/og.js). -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://aliyounes.dev/" />
     <meta property="og:title" content="Ali Younes · Software Engineer" />
@@ -28,7 +30,7 @@
       property="og:description"
       content="Eight shipped projects, and every number on them is checkable against the source."
     />
-    <meta property="og:image" content="https://aliyounes.dev/og.png" />
+    <meta property="og:image" content="https://stats.aliyounes.dev/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -37,7 +39,7 @@
       name="twitter:description"
       content="Eight shipped projects, and every number on them is checkable against the source."
     />
-    <meta name="twitter:image" content="https://aliyounes.dev/og.png" />
+    <meta name="twitter:image" content="https://stats.aliyounes.dev/og.png" />
 
     <!-- Fonts are self-hosted and imported from src/main.jsx; see the note
          there for why these particular variable-font axes. -->

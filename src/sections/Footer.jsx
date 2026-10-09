@@ -58,9 +58,13 @@ export default function Footer() {
               className="h-8 w-auto"
             />
           </a>
-          <p className="mono-label text-dim">
-            {profile.name} · {new Date().getFullYear()}
-          </p>
+          <div>
+            <p className="mono-label text-dim">
+              {profile.name} · {new Date().getFullYear()}
+            </p>
+            {/* True of src/lib/beacon.js, and the reason it is allowed to exist. */}
+            <p className="mono-label text-faint mt-1">Visits are logged · no cookies</p>
+          </div>
         </div>
 
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-8 gap-y-3">
