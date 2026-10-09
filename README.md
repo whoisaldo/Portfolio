@@ -47,6 +47,7 @@ npm run check:audio  # asserts the background track cannot double up
 npm run check:s4     # the S4 GLB's wheel rig, hood and parts
 npm run check:world  # the city's GLBs: shots, anchors, towers, road, budgets
 npm run check:drift  # the intro's drift path, sample for sample against main
+scripts/check-sensitive.py dist  # no phone numbers, no emails but aldo@ and hello@sideband.studio
 ```
 
 Asset pipelines, run only when the source images change:
@@ -139,7 +140,9 @@ npm run world:assets   # -> public/scenes/world/world-high.glb, world-phone.glb
   the hero's traffic used before the live city. See `docs/PROJECT_CONTEXT.md`, "Intro art"
 - `public/audio/ambient.m4a` background track, prefetched while the door is
   up and played only after the reader clicks through it
-- `public/resume.pdf` current résumé, served at `/resume.pdf` and `/resume`
+- `public/resume.pdf` current résumé, served at `/resume.pdf` and `/resume`.
+  It is the portfolio cut, with no phone number and aldo@sideband.studio as
+  the email; the Resume repo's `portfolio.yml` builds it and pushes it here
 
 ## Three ways in
 
