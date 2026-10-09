@@ -599,7 +599,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // pass stops (and back in if it is given back), so the road does not pop;
   // the pixels change under a flick of the braindance glitch.
   const GRACE_MS = 3;
-  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
+  // Dev only: `?adapt=off` keeps every tier at full quality, so a
+  // measurement on a loaded machine compares like with like instead of
+  // whatever the first two seconds happened to shed.
+  const armed = !(import.meta.env.DEV && new URLSearchParams(window.location.search).get("adapt") === "off");
+  const adapt = { armed, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
   const startSampling = () => {
     adapt.sampling = true;
     adapt.t = -0.3;
@@ -979,7 +983,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       ctx.putImageData(img, 0, 0);
       return c.toDataURL("image/png");
     };
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, post, dumpMirror, setQuality, strike() { storm.t = storm.next; } };
+    // `renderDirected` and `placeCamera` too, for fixed-camera review shots:
+    // set `stage.mode = "cinematic"` to rest the loop, then draw any pose.
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, get crowd() { return crowd; }, get skyline() { return skyline; }, post, dumpMirror, setQuality, renderDirected, placeCamera, strike() { storm.t = storm.next; } };
   }
 
   return {
