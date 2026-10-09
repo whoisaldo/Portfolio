@@ -384,11 +384,32 @@ into one instanced draw.
   and the fog brightens with distance into the lit city's glow, pink and
   strongest toward downtown, the way the plate's street ends; the road
   mirrors that glow at its far end.
-- Past the kit (`src/world/skyline.js`): a few thousand towers on a jittered
-  grid, one draw, their windows the kit's shader, one tall roof in seven
-  wearing a lit band and every roof over 92 m a red aviation lamp, blinking
-  in three groups (one draw, steady under reduced motion); a few towers
-  stand under Contact's moon so it rises out of a skyline. The sky dome is
+- Past the kit (`src/world/skyline.js`): a few thousand buildings on a
+  jittered grid, their windows the kit's shader. Each is shaped in the
+  vertex shader from one shared mesh and its own numbers: up to four
+  stacked tiers (podium, shaft, setbacks, crown or spire), a square plan or,
+  for some towers, one with its corners cut back, a parapet round the top
+  roof and a terrace on every setback; an upper tier often stands off
+  centre. Blocks under 60 m wear the avenue's painted elevations, and a wide
+  one is split into two buildings of different heights; some faces carry a
+  vertical neon sign or a strip of neon along a floor line. Towers are one
+  of five kinds (stepped back twice, a slab with its plant on top, a
+  ziggurat, a dark glass crown with lit edges, a podium and a spire), some
+  lit at their setbacks in warm light, a few carrying a screen the height of
+  a dozen floors that changes its advert every nine seconds. Roofs within a
+  kilometre carry a kit (tanks and a stair hut with its door lit, plant and
+  cooling towers, a telecom mast with dishes and lamps, a neon sign on two
+  posts whose strokes read as lettering without being any). Every
+  placement, footprint and height cap is the one the boxes had, so the
+  hero's band of sky and Contact's moon keep their clearances; spires and
+  masts stand only where nothing was capped, and signs only outside the
+  hero's view. Seven draws for the buildings and their roofs, each culled
+  on the CPU to what the frustum sees (the visible instances packed into
+  the buffers when the set changes), which keeps the vertex work under what
+  the boxes cost; one tall roof in seven wears a lit band and every roof
+  over 92 m (or its spire's tip) a red aviation lamp, blinking in three
+  groups (one draw, steady under reduced motion); a few towers stand under
+  Contact's moon so it rises out of a skyline. The sky dome is
   the rest, at no extra draw: near-black overhead and the lit city's glow at
   the horizon; a broken deck of cloud at 520 m lit from under in that glow's
   colour, darker between the clouds, drifting; three slow searchlights from
