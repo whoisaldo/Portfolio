@@ -1,15 +1,14 @@
 // stats-api/dev-server.mjs — run the collector locally.
 //
-//   DATABASE_URL=postgres://localhost/ay_stats \
-//   STATS_KEY=dev IP_SALT=dev node dev-server.mjs
+//   DATABASE_URL=postgres://localhost/ay_stats STATS_KEY=dev node dev-server.mjs
 //
 // Vercel's own `vercel dev` also works and is closer to production, but it
 // needs the project linked to an account first. This has no such requirement,
 // which makes it the thing you can run five seconds after cloning.
 //
-// It reimplements only the small part of Vercel's Node runtime the two
-// handlers actually touch: `req.query`, a parsed `req.body`, and the
-// `res.status().json()` chain. Everything else is plain node:http.
+// It reimplements only the small part of Vercel's Node runtime the handlers
+// actually touch: `req.query`, a parsed `req.body`, the `res.status().json()`
+// chain, and the rewrites in vercel.json. Everything else is plain node:http.
 import http from "node:http";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -18,10 +17,22 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3311;
 
-const handlers = {
-  "/api/collect": (await import("./api/collect.js")).default,
-  "/api/query": (await import("./api/query.js")).default,
-};
+const handlers = {};
+for (const name of ["collect", "query", "admin", "auth", "go", "og"]) {
+  handlers[`/api/${name}`] = (await import(`./api/${name}.js`)).default;
+}
+
+/** vercel.json's rewrites, by hand. */
+function rewrite(url) {
+  const go = /^\/go\/([^/]+)$/.exec(url.pathname);
+  if (go) {
+    url.pathname = "/api/go";
+    url.searchParams.set("c", decodeURIComponent(go[1]));
+  } else if (url.pathname === "/og.png") {
+    url.pathname = "/api/og";
+  }
+  return url;
+}
 
 /** The subset of Vercel's response helpers the handlers use. */
 function decorate(res) {
@@ -50,7 +61,7 @@ async function readBody(req) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host}`);
+  const url = rewrite(new URL(req.url, `http://${req.headers.host}`));
   decorate(res);
 
   const handler = handlers[url.pathname];
@@ -87,6 +98,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`  stats-api  http://0.0.0.0:${PORT}`);
-  console.log(`  dashboard  http://localhost:${PORT}/?k=${process.env.STATS_KEY || "<STATS_KEY>"}`);
+  console.log(`  dashboard  http://localhost:${PORT}/  (password: STATS_KEY)`);
   console.log(`  database   ${process.env.DATABASE_URL || "(unset — nothing will work)"}`);
 });

@@ -13,32 +13,37 @@
 //
 //   const rows = await sql`SELECT * FROM session WHERE id = ${id}`
 //
+// `query(text, params)` is the same thing for a statement assembled from
+// parts, which a tagged template cannot express. Only static SQL goes in
+// `text`; every value still travels as a $n parameter.
+//
 // The pg path builds a $1/$2 parameterised query from the template's static
 // strings and interpolated values. Values are never concatenated into SQL, so
 // the injection properties are identical to the Neon driver's.
 
 const url = process.env.DATABASE_URL || "";
-const isLocal = /^postgres(ql)?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(url);
+// "postgres://localhost/db" and "postgres://user@localhost:5433/db" alike.
+const isLocal = /^postgres(ql)?:\/\/([^@/]*@)?(localhost|127\.0\.0\.1|\[::1\])[:/]/i.test(url);
 
 let sql;
+let query;
 
 if (isLocal) {
   const { default: pg } = await import("pg");
   // A small pool rather than a client: the dev server is long-lived and
   // handles overlapping requests.
   const pool = new pg.Pool({ connectionString: url, max: 4 });
-  sql = async (strings, ...values) => {
-    const text = strings.reduce(
-      (acc, s, i) => acc + s + (i < values.length ? `$${i + 1}` : ""),
-      "",
+  query = async (text, params = []) => (await pool.query(text, params)).rows;
+  sql = (strings, ...values) =>
+    query(
+      strings.reduce((acc, s, i) => acc + s + (i < values.length ? `$${i + 1}` : ""), ""),
+      values,
     );
-    const { rows } = await pool.query(text, values);
-    return rows;
-  };
 } else {
   const { neon } = await import("@neondatabase/serverless");
   sql = neon(url);
+  query = (text, params = []) => sql.query(text, params);
 }
 
-export { sql };
+export { sql, query };
 export default sql;
