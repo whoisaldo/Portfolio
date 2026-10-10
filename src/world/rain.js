@@ -61,6 +61,20 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         p.y -= uFall * speed;
         p.xz += uWind * uFall * aSeed.w;
         p = mod(p - uOrigin + uBox * 0.5, uBox) - uBox * 0.5 + uOrigin;
+        // A drop that would draw nothing (all of it nearer than the band
+        // the rain is seen in or further than it, the streak's own length to
+        // spare, or in the shelter) is put off the screen whole: the same
+        // picture, without rasterising a quad of black, which right at the
+        // lens or inside the garage is most of the screen.
+        float depth0 = -(viewMatrix * vec4(p, 1.0)).z;
+        vec3 inside = step(uShelterMin, p) * step(p, uShelterMax);
+        if (depth0 < 2.3 || depth0 > 44.7 || inside.x * inside.y * inside.z > 0.5) {
+          gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+          vA = 0.0;
+          vCol = vec3(0.0);
+          vUv = uv;
+          return;
+        }
         // A streak along the fall, a hair wide, facing the camera, as long
         // as a cinema shutter sees a drop fall. Never thinner than about a
         // pixel on screen (a thinner one sparkles as it crosses pixels):
@@ -80,8 +94,6 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         // keeps its weight; the drops right at the lens (a metre or two,
         // a hand's width long on screen) are left out.
         vA = smoothstep(3.0, 6.5, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * min(1.0, 0.007 / width);
-        vec3 inside = step(uShelterMin, p) * step(p, uShelterMax);
-        vA *= 1.0 - inside.x * inside.y * inside.z;
         // The light it falls through: the city's haze, the street's light
         // under it, and the lamps round it.
         vCol = vec3(0.13, 0.13, 0.16) + uHazeColor * 0.4 + spillAt(p) * 1.9 + lampsAt(p, toCam) * 2.0;
