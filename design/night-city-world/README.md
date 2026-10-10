@@ -456,9 +456,12 @@ replaced one box with the cars painted on.
   down (`src/world/crowd.js`, ninety-six on a desktop, thirty-six on a
   phone: the avenue, the cross street, the plaza, corpo row's boulevard, the
   garage street), and some stand (at the crossing's kerbs, by the vending
-  machines, at shop windows, a few on a lit phone): silhouettes on upright
-  cards, each their own build and outline (a hood, a cap, long hair, a coat
-  to the knee, a bag, a jacket trimmed in neon), alone and in pairs, some
+  machines, at shop windows, a few on a lit phone, one of them holding the
+  braindance's hot phone where its clue is): dark silhouettes on upright
+  cards against the lit shops (most of the light where they stand is behind
+  them, so the side the street sees takes little of it, and only heads and
+  shoulders catch it), each their own build and outline (a hood, a cap, long
+  hair, a coat to the knee, a bag, a jacket trimmed in neon), alone and in pairs, some
   under umbrellas whose lit rims double in the road, legs and arms tied to
   the distance walked, faded in and out with a dither where a walk's loop
   starts again, one draw. Steam breathes out of two
