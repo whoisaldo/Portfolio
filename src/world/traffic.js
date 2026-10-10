@@ -442,6 +442,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   const tmp = new THREE.Vector3();
   const tilt = new THREE.Quaternion();
   const euler = new THREE.Euler();
+  const FRONT = new THREE.Vector3(0, 0, 1);
   const setLamp = (i, x, y, z, r, g, b, size) => {
     lampPos[i * 3] = x;
     lampPos[i * 3 + 1] = y;
@@ -471,7 +472,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       const b = a + (i % 2 ? -0.01 : 0.01);
       tmp.set(L.c[0] + Math.cos(b) * L.r[0], p.y, L.c[1] + Math.sin(b) * L.r[1]);
       fwd.subVectors(tmp, p).normalize();
-      q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), fwd);
+      q.setFromUnitVectors(FRONT, fwd);
       // Banked into its loop and a touch nose-down, as a thing flying does.
       q.multiply(tilt.setFromEuler(euler.set(0.05, 0, (i % 2 ? 1 : -1) * 0.16)));
       const s = L.s ?? 1;
@@ -488,7 +489,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       const z = L.dir < 0 ? ROAD_NEAR - t * span : ROAD_FAR + t * span;
       p.set(L.x, 0, z);
       fwd.set(0, 0, L.dir);
-      q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), fwd);
+      q.setFromUnitVectors(FRONT, fwd);
       const x = slots[i];
       x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
       // Fade in and out at the ends of the loop, far off or at the kerb of
