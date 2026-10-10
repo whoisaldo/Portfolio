@@ -250,9 +250,12 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
         // Dark against the lit shops behind them, their fronts faintly lit by
         // the street's signs, and only their heads and shoulders catching
         // the light from above.
+        // The spill is the light where they stand, and most of it comes from
+        // the shops behind them, so the side the street sees takes a little
+        // of it: dark against the windows, not grey cut-outs.
         float edge = smoothstep(-0.018, 0.0, d) * smoothstep(1.1, 1.6, p.y);
         vec3 spill = spillAt(vWorld);
-        vec3 col = vec3(0.01, 0.01, 0.014) + spill * (0.11 + 0.45 * edge);
+        vec3 col = vec3(0.01, 0.01, 0.014) + spill * (0.04 + 0.45 * edge);
         vec3 tint = uRims[int(vLook.z + 0.5)];
         float glow = 0.0;
         if (canopy <= 0.0) col = vec3(0.02, 0.02, 0.028) + spill * 0.12 + tint * 0.05;
