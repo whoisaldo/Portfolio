@@ -408,6 +408,13 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
 
   function dispose() {
     stop();
+    // OrbitControls takes its keyboard listeners off the canvas's root node,
+    // which is the document only while the canvas is in it. By the time the
+    // page unmounts the garage it is not, and the document kept the controls
+    // and through them this whole scene alive, a garage's worth of geometry
+    // for every visit back to the page. Off the document by hand first.
+    document.removeEventListener("keydown", controls._interceptControlDown, { capture: true });
+    document.removeEventListener("keyup", controls._interceptControlUp, { capture: true });
     controls.dispose();
     canvas.removeEventListener("wheel", onWheel, { capture: true });
     car.userData.dispose();
