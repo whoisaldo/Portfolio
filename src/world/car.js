@@ -258,7 +258,10 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // overhead and for the magenta and cyan tubes high on the walls either
   // side, faded in as it drives through the door. Always there, at nothing
   // outside the bay, so the paint's program never changes on the way in.
-  RectAreaLightUniformsLib.init();
+  // The area lights' lookup tables once a page: init() makes four new
+  // textures every time, and every renderer that drew the old ones keeps
+  // them.
+  if (!THREE.UniformsLib.LTC_FLOAT_1) RectAreaLightUniformsLib.init();
   const bayAt = at("anchor_garage_bay") ?? road.pointAt(road.length, new THREE.Vector3());
   const bayLights = new THREE.Group();
   bayLights.name = "car_bay_lights";
