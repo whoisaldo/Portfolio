@@ -817,7 +817,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // amber, or one of the city's neons; a tower lit at its setbacks
         // wears one at every step; Contact's towers all do, in the city's
         // neons, with a blade of light up one corner.
-        float banded = max(max(step(0.86, vCrown.y) * step(60.0, top), dressed), step(abs(style - 1.0), 0.1) * step(0.45, vCrown.y));
+        float banded = max(max(step(0.86, vCrown.y) * step(60.0, top), dressed), step(abs(style - 1.0), 0.1) * step(0.75, vCrown.y));
         float crown = onWall * (1.0 - parapet) * banded * vTier.z * step(vTier.x - 3.4, vWorld.y) * step(vWorld.y, vTier.x - 2.1);
         // The towers built to wear one take it in a warmer light more often
         // than the cold white the odd one has.
