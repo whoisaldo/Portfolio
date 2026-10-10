@@ -12,10 +12,12 @@
 //   (localStorage, so a second visit is recognisable as a second visit).
 //   Both are random; neither is derived from anything about the person.
 //
-//   Which sections were on screen and for how long, how far down the page they
-//   reached, which outbound links and résumé links were clicked, the referrer,
-//   and the viewport size. The server adds the network's organisation from the
-//   request IP and then discards the address.
+//   Every page they open, which sections were on screen and for how long, how
+//   far down they reached, which buttons, outbound links, résumé and email
+//   links they pressed, the door and console (command names only), the
+//   referrer, a tracked-link code if the URL carried one, and the viewport,
+//   screen, timezone and language. The server adds the IP, the place Vercel
+//   resolves it to, and the network it belongs to.
 //
 // WHAT IS NOT COLLECTED
 //
@@ -60,6 +62,38 @@ function stored(store, key, make) {
   }
 }
 
+function attempt(fn) {
+  try {
+    return fn();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the two parameters the beacon owns and takes them out of the address
+ * bar, so a link passed on does not carry them to the next reader:
+ *
+ *   ?s=<code>   a tracked link. Kept for the tab, so a later batch still says
+ *               which link this visit came from after the router has moved on.
+ *   ?ay=me      marks this browser as Ali's own. ?ay=notme undoes it.
+ *
+ * history.state is passed back unchanged; React Router keeps its own key in it.
+ */
+function claimParams() {
+  const url = new URL(location.href);
+  const code = url.searchParams.get("s");
+  const ay = url.searchParams.get("ay");
+  if (code) attempt(() => sessionStorage.setItem("ay.src", code.slice(0, 48)));
+  if (ay === "me") attempt(() => localStorage.setItem("ay.me", "1"));
+  if (ay === "notme") attempt(() => localStorage.removeItem("ay.me"));
+  if (code || ay) {
+    url.searchParams.delete("s");
+    url.searchParams.delete("ay");
+    attempt(() => history.replaceState(history.state, "", url.pathname + url.search + url.hash));
+  }
+}
+
 let queue = [];
 // Engagement is measured in VISIBLE time, not wall-clock. A link opened into a
 // background tab and read twenty minutes later would otherwise report twenty
@@ -77,28 +111,43 @@ let disabled = true;
 let sid = "";
 let vid = "";
 let lastPageview = "";
+// The landing address, captured before claimParams() tidies it, because the
+// server reads the first batch's `path` as where the visit began.
+let landing = "";
+// True from the moment the tab is hidden until it is seen again. Hiding a tab
+// fires visibilitychange and, on close, pagehide too; one departure should be
+// reported once.
+let away = false;
+// Sections currently on screen: id -> { el, t0 }. Module scope so a route
+// change can close out the ones that just left the page.
+const onScreen = new Map();
 
 /** Time on screen so far, including the stretch currently in progress. */
 function elapsed() {
   return Math.round(visibleMs + (visibleSince ? performance.now() - visibleSince : 0));
 }
 
-/** Section order, so "deepest reached" is a rank rather than a guess. */
-const ORDER = ["hero", "projects", "experience", "teardown", "contact"];
-
 function payload() {
   const events = queue;
   queue = [];
+  const qs = new URLSearchParams(location.search);
   return JSON.stringify({
     sid,
     vid,
-    path: location.pathname + location.search,
+    path: landing || location.pathname + location.search,
     ref: document.referrer || null,
-    utm_source: new URLSearchParams(location.search).get("utm_source"),
-    utm_medium: new URLSearchParams(location.search).get("utm_medium"),
-    utm_campaign: new URLSearchParams(location.search).get("utm_campaign"),
+    utm_source: qs.get("utm_source"),
+    utm_medium: qs.get("utm_medium"),
+    utm_campaign: qs.get("utm_campaign"),
+    s: attempt(() => sessionStorage.getItem("ay.src")),
+    me: attempt(() => localStorage.getItem("ay.me")) === "1" ? 1 : 0,
+    wd: navigator.webdriver ? 1 : 0,
+    tz: attempt(() => Intl.DateTimeFormat().resolvedOptions().timeZone),
+    lang: navigator.language || null,
     vw: window.innerWidth,
     vh: window.innerHeight,
+    sw: window.screen?.width,
+    sh: window.screen?.height,
     scroll: maxScroll,
     ms: elapsed(),
     deepest,
@@ -110,19 +159,23 @@ function payload() {
  * `keepalive` rather than a plain fetch so a flush started during pagehide
  * survives the navigation. sendBeacon is preferred where available because it
  * is the only transport the browser guarantees to complete on unload.
+ *
+ * text/plain on both paths: it is a CORS-safelisted type, so the browser sends
+ * the POST without an OPTIONS preflight first. application/json would double
+ * the requests, and some browsers refuse it to sendBeacon outright.
  */
-function send(final = false) {
-  if (disabled || (!queue.length && !final)) return;
+function send(final = false, heartbeat = false) {
+  if (disabled || (!queue.length && !final && !heartbeat)) return;
   const body = payload();
   try {
     if (final && navigator.sendBeacon) {
-      navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "application/json" }));
+      navigator.sendBeacon(ENDPOINT, new Blob([body], { type: "text/plain" }));
       return;
     }
     fetch(ENDPOINT, {
       method: "POST",
       body,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "text/plain" },
       keepalive: true,
       mode: "cors",
       credentials: "omit",
@@ -145,9 +198,36 @@ function schedule() {
 
 export function track(t, name, extra = {}) {
   if (disabled) return;
-  queue.push({ t, n: name ?? null, p: location.pathname, ...extra });
+  queue.push({ t, n: name ?? null, p: location.pathname, ts: Date.now(), ...extra });
   if (queue.length >= 40) send(false);
   else schedule();
+}
+
+/** Ends the dwell of a section that has left the screen, or the page. */
+function closeSection(id) {
+  const s = onScreen.get(id);
+  if (!s) return;
+  onScreen.delete(id);
+  const ms = Math.round(performance.now() - s.t0);
+  // Under a second is a scroll passing through, not a read.
+  if (ms >= 1000) track("section", id, { d: ms });
+}
+
+/**
+ * One page view. App calls this on every route change: the site is a single
+ * page, so the browser's own load event only ever sees the first one.
+ */
+export function pageview() {
+  if (disabled) return;
+  // React StrictMode runs effects twice in development. Without this the same
+  // view is counted twice, which quietly doubles the one number everything
+  // else is a ratio of. Only a repeat of the same path is dropped, so going
+  // back to a page already seen still counts.
+  const key = `${sid}:${location.pathname}`;
+  if (lastPageview === key) return;
+  lastPageview = key;
+  for (const [id, s] of onScreen) if (!s.el.isConnected) closeSection(id);
+  track("pageview", document.title);
 }
 
 export function initBeacon() {
@@ -155,20 +235,12 @@ export function initBeacon() {
   // A prerender or a background tab that is never looked at is not a visit.
   if (document.visibilityState === "prerender") return () => {};
 
+  landing ||= location.pathname + location.search;
+  claimParams();
   disabled = false;
   visibleSince = document.visibilityState === "visible" ? performance.now() : 0;
   sid = stored(sessionStorage, "ay.sid", uuid);
   vid = stored(localStorage, "ay.vid", uuid);
-
-  // React StrictMode mounts, unmounts and remounts in development, and a future
-  // route change would remount too. Without this guard the same load is counted
-  // as two page views, which quietly doubles the one number everything else is
-  // a ratio of.
-  const viewKey = `${sid}:${location.pathname}`;
-  if (lastPageview !== viewKey) {
-    lastPageview = viewKey;
-    track("pageview", document.title);
-  }
 
   const cleanups = [];
 
@@ -193,24 +265,22 @@ export function initBeacon() {
   // Time is accumulated while a section is intersecting and emitted when it
   // stops. Measuring on entry only would record "seen"; the useful question is
   // "read", which is a duration.
-  const enteredAt = new Map();
   const io = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
         const id = e.target.id;
         if (!id) continue;
         if (e.isIntersecting) {
-          if (!enteredAt.has(id)) enteredAt.set(id, performance.now());
-          const rank = ORDER.indexOf(id);
+          if (!onScreen.has(id)) onScreen.set(id, { el: e.target, t0: performance.now() });
+          // Deepest is by position on the page, so it needs no list of
+          // section names to fall out of date.
+          const rank = Array.prototype.indexOf.call(document.querySelectorAll("section[id]"), e.target);
           if (rank > deepestRank) {
             deepestRank = rank;
             deepest = id;
           }
-        } else if (enteredAt.has(id)) {
-          const ms = Math.round(performance.now() - enteredAt.get(id));
-          enteredAt.delete(id);
-          // Under a second is a scroll passing through, not a read.
-          if (ms >= 1000) track("section", id, { d: ms });
+        } else {
+          closeSection(id);
         }
       }
     },
@@ -218,18 +288,63 @@ export function initBeacon() {
     // which for the taller sections is most of a viewport.
     { threshold: 0.25 },
   );
-  document.querySelectorAll("section[id]").forEach((el) => io.observe(el));
-  cleanups.push(() => io.disconnect());
+  // Sections arrive late: the door and the intro come first, the recruiter
+  // page is its own chunk, and every route change replaces the lot. So the
+  // page is watched for new ones rather than scanned once at startup, when
+  // most of them do not exist yet.
+  const watched = new WeakSet();
+  const scan = () => {
+    document.querySelectorAll("section[id]").forEach((el) => {
+      if (watched.has(el)) return;
+      watched.add(el);
+      io.observe(el);
+    });
+  };
+  scan();
+  let scanTimer = 0;
+  const mo = new MutationObserver(() => {
+    if (scanTimer) return;
+    scanTimer = window.setTimeout(() => {
+      scanTimer = 0;
+      scan();
+    }, 400);
+  });
+  mo.observe(document.body, { childList: true, subtree: true });
+  cleanups.push(() => {
+    io.disconnect();
+    mo.disconnect();
+    clearTimeout(scanTimer);
+  });
 
   // ---- clicks -------------------------------------------------------------
+  // Decorative marks (the door's ▸, arrows, icons) are text too; a label
+  // starts at its first letter or digit.
+  const label = (el) =>
+    (el.getAttribute("aria-label") || el.textContent || "")
+      .replace(/\s+/g, " ").replace(/^[^\p{L}\p{N}]+/u, "").trim().slice(0, 60);
   const onClick = (ev) => {
-    const a = ev.target?.closest?.("a[href]");
-    if (!a) return;
-    const href = a.getAttribute("href") || "";
-    if (/resume/i.test(href)) {
+    const target = ev.target?.closest?.("[data-track], a[href], button, [role='button']");
+    if (!target) return;
+    if (target.dataset.track) {
+      track("click", target.dataset.track);
+      return;
+    }
+    const href = target.getAttribute("href");
+    if (href == null) {
+      track("click", label(target) || "button");
+      return;
+    }
+    // The PDF, at /resume.pdf or /resume. Not "#resume", which is the
+    // recruiter page's own Résumé section and opens nothing.
+    if (/(^|\/)resume(\.pdf)?([?#]|$)/i.test(href) && !href.startsWith("#")) {
       track("resume", href);
       // The résumé is the conversion, and clicking it usually navigates away
       // before the 12s batch timer fires. Send immediately.
+      send(false);
+      return;
+    }
+    if (/^mailto:/i.test(href)) {
+      track("contact", "email");
       send(false);
       return;
     }
@@ -240,27 +355,35 @@ export function initBeacon() {
   document.addEventListener("click", onClick, { capture: true, passive: true });
   cleanups.push(() => document.removeEventListener("click", onClick, { capture: true }));
 
+  // ---- still here ---------------------------------------------------------
+  // A reader can sit on one section for minutes without producing an event.
+  // A small batch every 45s while the tab is visible keeps the visit's length
+  // honest and lets the dashboard say who is on the site right now.
+  const beat = window.setInterval(() => {
+    if (document.visibilityState === "visible") send(false, true);
+  }, 45_000);
+  cleanups.push(() => clearInterval(beat));
+
   // ---- end of visit -------------------------------------------------------
   // `visibilitychange -> hidden` is the only unload signal that is reliable on
   // mobile Safari; `beforeunload` and `unload` are not fired there when the
   // tab is backgrounded or the app is switched away from.
-  const onHide = () => {
-    if (document.visibilityState !== "hidden") {
+  const onHide = (e) => {
+    if (document.visibilityState !== "hidden" && e.type !== "pagehide") {
       // Back on screen: restart the clock without losing what was banked.
       if (!visibleSince) visibleSince = performance.now();
+      away = false;
       return;
     }
+    if (away) return;
+    away = true;
     // Going away: bank the stretch that just ended before reporting it.
     if (visibleSince) {
       visibleMs += performance.now() - visibleSince;
       visibleSince = 0;
     }
-    for (const [id, t0] of enteredAt) {
-      const ms = Math.round(performance.now() - t0);
-      if (ms >= 1000) queue.push({ t: "section", n: id, p: location.pathname, d: ms });
-    }
-    enteredAt.clear();
-    queue.push({ t: "end", n: deepest, p: location.pathname });
+    for (const id of [...onScreen.keys()]) closeSection(id);
+    queue.push({ t: "end", n: deepest, p: location.pathname, ts: Date.now() });
     send(true);
   };
   document.addEventListener("visibilitychange", onHide);

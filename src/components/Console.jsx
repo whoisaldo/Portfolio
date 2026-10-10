@@ -30,6 +30,7 @@ import { X } from "lucide-react";
 import { useFocusTrap } from "../hooks";
 import { CONSOLE_EVENT } from "../lib/console";
 import { coverWorld } from "../world/stage";
+import { track } from "../lib/beacon";
 
 // Code-split. This is a thousand lines that most visitors will never open;
 // making everyone download it on first paint to support an easter egg would be
@@ -44,6 +45,10 @@ export default function Console() {
   const close = useCallback(() => setOpen(false), []);
 
   useFocusTrap(panelRef, open, close);
+
+  useEffect(() => {
+    if (open) track("console", "open");
+  }, [open]);
 
   // The console covers the page; the city behind it rests.
   useEffect(() => {

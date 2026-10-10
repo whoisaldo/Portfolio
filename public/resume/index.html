@@ -10,6 +10,38 @@
   only and cannot issue redirects. Keep the anchor below: it is what a reader
   sees if the refresh is blocked or slow.
 -->
+<script>
+  // The résumé open, counted on the way through. A PDF runs no JavaScript,
+  // so this page is the only place a direct /resume link can be seen. Same
+  // ids as src/lib/beacon.js, so a reader who came from the site continues
+  // their visit; same opt-outs; sendBeacon, because it outlives the redirect.
+  // Before the refresh below, and unable to stop it if anything here fails.
+  try {
+    var dnt = navigator.doNotTrack || window.doNotTrack;
+    if (!navigator.globalPrivacyControl && dnt !== "1" && dnt !== "yes" && navigator.sendBeacon) {
+      var id = function (store, key) {
+        var v = store.getItem(key);
+        if (!v) store.setItem(key, (v = crypto.randomUUID()));
+        return v;
+      };
+      var s = new URLSearchParams(location.search).get("s");
+      if (s) sessionStorage.setItem("ay.src", s.slice(0, 48));
+      navigator.sendBeacon("https://stats.aliyounes.dev/api/collect", new Blob([JSON.stringify({
+        sid: id(sessionStorage, "ay.sid"),
+        vid: id(localStorage, "ay.vid"),
+        path: location.pathname + location.search,
+        ref: document.referrer || null,
+        s: sessionStorage.getItem("ay.src"),
+        me: localStorage.getItem("ay.me") === "1" ? 1 : 0,
+        wd: navigator.webdriver ? 1 : 0,
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        lang: navigator.language,
+        vw: innerWidth, vh: innerHeight, sw: screen.width, sh: screen.height,
+        events: [{ t: "resume", n: "/resume", p: "/resume", ts: Date.now() }]
+      })], { type: "text/plain" }));
+    }
+  } catch (e) {}
+</script>
 <meta http-equiv="refresh" content="0; url=/resume.pdf">
 <link rel="canonical" href="https://aliyounes.dev/resume.pdf">
 <meta name="robots" content="noindex">

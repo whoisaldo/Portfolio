@@ -87,6 +87,7 @@ import { CRUISE_GAIN, DROP, INTRO_GAIN, LEAVE_SECONDS, SHORT_START, SONG_START }
 import { GpuNoticeShort } from "./GpuNotice";
 import { hasGpuAcceleration } from "../lib/gpu";
 import Picture from "./Picture";
+import { track } from "../lib/beacon";
 
 /**
  * The intro's two plates, rendered invisibly with the exact markup and
@@ -648,6 +649,7 @@ export default function EntryGate({ onEnter }) {
     if (goRef.current || leaving.current) return;
     leaving.current = true;
     markAsked();
+    track("door", withSound ? "sound" : "silent");
     setSoundEnabled(withSound);
     // This click is the gesture the whole screen exists to collect, so the
     // audio is woken here even when the song waits for the city below.
