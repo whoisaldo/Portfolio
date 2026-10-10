@@ -8,6 +8,10 @@
 import * as THREE from "three";
 import { ADDITIVE } from "./lamps.js";
 
+// Where an unfilled ribbon's points sit: one shared stand-in, not a new
+// object for every empty point of every frame.
+const NONE = Object.freeze({ x: 0, y: -10, z: 0, t: -1e9, s: 0 });
+
 export class Trail {
   constructor(scene, color, n = 48) {
     this.n = n;
@@ -67,7 +71,7 @@ export class Trail {
     for (let i = 0; i < n; i++) {
       // Newest sample at the highest index; older samples fill downward, and
       // an unfilled ribbon collapses onto its oldest point at zero alpha.
-      const p = pts[Math.max(0, last - (n - 1 - i))] || { x: 0, y: -10, z: 0, t: -1e9, s: 0 };
+      const p = pts[Math.max(0, last - (n - 1 - i))] || NONE;
       const age = now - p.t;
       const a = Math.max(0, 1 - age / life) * p.s;
       const h = 0.012 + 0.025 * a;

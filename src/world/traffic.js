@@ -280,6 +280,9 @@ const ROAD_LANES = [
 const ROAD_FAR = -600;
 /** On for the first half of every second of `t`, off for the rest. */
 const step = (t) => (t - Math.floor(t) < 0.5 ? 1 : 0);
+/** A light bar's double flash: on twice, briefly, from `from` into `beat`. */
+const twice = (beat, from) => ((beat > from && beat < from + 0.09) || (beat > from + 0.2 && beat < from + 0.29) ? 1 : 0);
+const SIDES = [-1, 1];
 const ROAD_NEAR = -40;
 
 export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null } = {}) {
@@ -490,6 +493,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     scene.add(mesh);
     return { mesh, fade, geometry: built.geometry };
   });
+  // The hazard car's four corner lamps, in its own frame.
+  const hazardLamps = slots.find((y) => y.parked?.hazard)?.lamps;
+  const hazardCorners = hazardLamps
+    ? [hazardLamps.head, [-hazardLamps.head[0], hazardLamps.head[1], hazardLamps.head[2]], hazardLamps.tail, [-hazardLamps.tail[0], hazardLamps.tail[1], hazardLamps.tail[2]]]
+    : [];
   // The parked ones stand still: placed once.
   for (const x of slots) {
     if (!x.parked) continue;
@@ -739,9 +747,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75, 0.9, 1.0, 1.2);
       setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0, 0.1, 0.25, 0.9);
       const beat = ((clock % 1.6) + 1.6) % 1.6;
-      const twice = (from) => (beat > from && beat < from + 0.09) || (beat > from + 0.2 && beat < from + 0.29) ? 1 : 0;
-      const red = reduced ? 0.3 : 0.12 + 0.88 * twice(0);
-      const blue = reduced ? 0.3 : 0.12 + 0.88 * twice(0.8);
+      const red = reduced ? 0.3 : 0.12 + 0.88 * twice(beat, 0);
+      const blue = reduced ? 0.3 : 0.12 + 0.88 * twice(beat, 0.8);
       tmp.set(0.38, 1.12, -0.6).applyQuaternion(q).add(p);
       setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * red, 0.04 * red, 0.1 * red, 1.5);
       tmp.set(-0.38, 1.12, -0.6).applyQuaternion(q).add(p);
@@ -824,22 +831,19 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // brightness, the body by its dither.
       const edge = Math.min(1, Math.min(t, 1 - t) * 8);
       kinds[x.kind].fade.setX(x.index, edge);
-      const [hx, hy, hz] = x.lamps.head;
-      const [tx, ty, tz] = x.lamps.tail;
-      for (const s of [-1, 1]) {
-        setLamp(li++, L.x + s * hx, hy, z + L.dir * hz, 0.85 * edge, 0.92 * edge, 1.0 * edge, 0.9);
-        setLamp(li++, L.x + s * tx, ty, z + L.dir * tz, 1.0 * edge, 0.05 * edge, 0.15 * edge, 0.6);
+      const head = x.lamps.head;
+      const tail = x.lamps.tail;
+      for (const s of SIDES) {
+        setLamp(li++, L.x + s * head[0], head[1], z + L.dir * head[2], 0.85 * edge, 0.92 * edge, 1.0 * edge, 0.9);
+        setLamp(li++, L.x + s * tail[0], tail[1], z + L.dir * tail[2], 1.0 * edge, 0.05 * edge, 0.15 * edge, 0.6);
       }
     }
     if (hazard) {
       // Amber at the four corners, a beat on and a beat off.
       const on = reduced ? 0.25 : step(clock * 1.5);
-      const x = slots.find((y) => y.parked === hazard);
       const c = Math.cos(hazard.yaw);
       const sn = Math.sin(hazard.yaw);
-      const [hx, hy, hz] = x.lamps.head;
-      const [tx, ty, tz] = x.lamps.tail;
-      for (const [lx, ly, lz] of [[hx, hy, hz], [-hx, hy, hz], [tx, ty, tz], [-tx, ty, tz]]) {
+      for (const [lx, ly, lz] of hazardCorners) {
         setLamp(li++, hazard.x + c * lx + sn * lz, ly, hazard.z - sn * lx + c * lz, 1.0 * on, 0.55 * on, 0.12 * on, 0.7);
       }
     }
