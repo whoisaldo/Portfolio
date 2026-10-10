@@ -666,6 +666,55 @@ def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=Tru
     return col
 
 
+def walls(key, outline, y0, y1, col):
+    """Vertical faces along a closed outline, outward normals."""
+    for (xa, za), (xb, zb) in zip(outline, outline[1:] + outline[:1]):
+        length = math.hypot(xb - xa, zb - za)
+        quad(key, (xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za),
+             ((0, 0), (length, 0), (length, y1 - y0), (0, y1 - y0)), col)
+
+
+def cut_rect(cx, cz, hx, hz, c=0.0):
+    """A rectangle of half sizes hx and hz with its corners cut back c,
+    walked with the outside on the left of each edge, as notched() is."""
+    if c <= 0:
+        pts = [(-hx, hz), (hx, hz), (hx, -hz), (-hx, -hz)]
+    else:
+        pts = [(-hx + c, hz), (hx - c, hz), (hx, hz - c), (hx, -hz + c), (hx - c, -hz), (-hx + c, -hz),
+               (-hx, -hz + c), (-hx, hz - c)]
+    return [(cx + x, cz + z) for x, z in pts]
+
+
+def prism(district, outline, y0, y1, seed, col=None, mat="facade", roof=True, roof_mat="roof"):
+    """A mass on any plan: walls along the outline with the facade shader's
+    window cells running on round its corners, and a flat roof. The plan's
+    own centre is the roof's UV origin."""
+    r = random.Random(seed)
+    if col is None:
+        col = (r.uniform(0.28, 0.62), r.randrange(0, 5) / 8.0, r.uniform(0.2, 1.0), 1.0)
+    k = (district, mat, 0)
+    u = r.uniform(0, 40)
+    ov = r.uniform(0, 40)
+    v0, v1 = ov + (y0 - SHOP_H) / CELL_H, ov + (y1 - SHOP_H) / CELL_H
+    for (xa, za), (xb, zb) in zip(outline, outline[1:] + outline[:1]):
+        u1 = u + math.hypot(xb - xa, zb - za) / CELL_W
+        quad(k, (xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za), ((u, v0), (u1, v0), (u1, v1), (u, v1)), col)
+        u = u1
+    if roof:
+        poly((district, roof_mat, 0), [(x, y1, z) for x, z in outline], [(x / 4, z / 4) for x, z in outline])
+    return col
+
+
+def band(district, outline, y0, y1, colour, out=0.4):
+    """A lit band round a plan, standing `out` proud of its walls."""
+    xs = [x for x, _ in outline]
+    zs = [z for _, z in outline]
+    cx, cz = (min(xs) + max(xs)) / 2, (min(zs) + max(zs)) / 2
+    hx, hz = (max(xs) - min(xs)) / 2, (max(zs) - min(zs)) / 2
+    grown = [(cx + (x - cx) * (hx + out) / hx, cz + (z - cz) * (hz + out) / hz) for x, z in outline]
+    walls((district, "neon_" + colour, 0), grown, y0, y1, (1, 1, 1, 1))
+
+
 def shopfront(district, side, z0, z1, seed, awning=True, xf=None):
     """The lit ground floor of a lot on the avenue, facing the street (or on
     any wall along z, at xf)."""
@@ -1063,14 +1112,45 @@ empty("anchor_rail", (0.0, RAIL_Y + 2.2, RAIL_Z), props={"reach": 90.0})
 # behind her. Vertical
 # signs run up its face to the street. The far city keeps clear of both
 # (anchor_mega_end).
-mass(FA, -48, 48, -790, -745, SHOP_H, 95, 4990, col=(0.72, 2 / 8.0, 0.55, 1.0), mat="facade_end")
+# The block is a megabuilding: three sections across its face (the middle
+# one set back, each its own height under the figure's feet), decks across
+# the face every nineteen metres lit from under, a plant floor and a lit
+# terrace on the lower roofs, and a bridge across to the tower behind. The
+# tower steps back twice to a lit crown and a mast.
+MB_SIGNS = ((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))
+for k, (x0, x1, top, rec) in enumerate(((-48.0, -18.0, 95.0, 0.0), (-18.0, 18.0, 89.0, 4.0), (18.0, 48.0, 83.0, 0.0))):
+    mass(FA, x0, x1, -790, -745 - rec, SHOP_H, top, 4990 + k * 7, col=(0.82 if rec else 0.72, 2 / 8.0, 0.55, 1.0), mat="facade_end")
+    # Its lit top edge, a hair proud of the face.
+    box((FA, "neon_cyan" if k != 1 else "neon_pink", 0), x0 - 0.3, x1 + 0.3, top - 0.8, top, -745.0 - rec, -744.7 - rec, scale=1.0)
 box((FA, "dark", 0), -48, 48, 0, SHOP_H, -790, -745, scale=2.0)
-mass(FA, -124, -70, -870, -815, SHOP_H, 205, 4991, col=(0.6, 4 / 8.0, 0.3, 1.0), mat="facade_end")
-for k, (vx, colour) in enumerate(((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))):
+# The decks, broken where the signs run up the face.
+gaps = sorted(vx for vx, _ in MB_SIGNS)
+for y in (24.0, 43.0, 62.0, 79.0):
+    edges = [-48.5] + [g for vx in gaps for g in (vx - 1.6, vx + 1.6)] + [48.5]
+    for xa, xb in zip(edges[::2], edges[1::2]):
+        box((FA, "dark", 0), xa, xb, y - 0.45, y, -745.0, -743.2, scale=2.0)
+        box((FA, "neon_amber", 0), xa + 0.2, xb - 0.2, y - 0.55, y - 0.45, -743.6, -743.3, scale=1.0)
+for k, (vx, colour) in enumerate(MB_SIGNS):
     vh = 38.0 + (k % 2) * 22.0
-    box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.9, -744.6, scale=1.0)
-box((FA, "neon_cyan", 0), -48.3, 48.3, 94.2, 95.0, -790.3, -744.7, scale=1.0)
-box((FA, "neon_purple", 0), -124.3, -69.7, 204.0, 205.0, -870.3, -814.7, scale=1.0)
+    box((FA, "board_frame", 0), vx - 1.3, vx + 1.3, 13.8, 14.2 + vh, -744.75, -744.45, scale=1.0)
+    box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.45, -744.2, scale=1.0)
+# Plant on the roofs, and a lit terrace on the lowest.
+box((FA, "metal", 1), -40.0, -26.0, 95.0, 99.0, -782.0, -770.0, scale=1.5)
+box((FA, "metal", 1), -8.0, 6.0, 89.0, 92.0, -786.0, -776.0, scale=1.5)
+for tx in range(20, 47, 4):
+    box((FA, "neon_amber", 0), tx - 0.15, tx + 0.15, 83.0, 83.5, -746.0, -745.6, scale=0.5)
+# The bridge to the tower behind, at the sixtieth metre.
+box((FA, "facade_end", 0), -66.0, -48.0, 58.0, 64.0, -812.0, -800.0, scale=2.0)
+box((FA, "neon_purple", 0), -66.0, -48.0, 57.5, 58.0, -800.1, -799.8, scale=1.0)
+mb_t = (-97.0, -842.5)
+prism(FA, cut_rect(*mb_t, 27.0, 27.5, 4.0), SHOP_H, 128.0, 4991, col=(0.6, 4 / 8.0, 0.3, 1.0), mat="facade_end")
+band(FA, cut_rect(*mb_t, 27.0, 27.5, 4.0), 125.5, 128.0, "purple")
+prism(FA, cut_rect(*mb_t, 21.0, 21.5, 3.5), 128.0, 180.0, 4992, col=(0.62, 4 / 8.0, 0.3, 1.0), mat="facade_end")
+band(FA, cut_rect(*mb_t, 21.0, 21.5, 3.5), 177.5, 180.0, "purple")
+prism(FA, cut_rect(*mb_t, 15.0, 15.0, 3.0), 180.0, 205.0, 4993, col=(0.85, 4 / 8.0, 0.3, 1.0), mat="facade_end")
+band(FA, cut_rect(*mb_t, 15.0, 15.0, 3.0), 204.0, 205.0, "purple")
+cylinder((FA, "metal", 0), mb_t[0], mb_t[1], 205.0, 228.0, 0.9, segs=8)
+cylinder((FA, "neon_red", 0), mb_t[0], mb_t[1], 228.0, 230.0, 1.2, segs=8)
 empty("anchor_mega_end", (0.0, 95.0, -780.0), props={"size": 150.0})
 empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
 
@@ -1091,12 +1171,30 @@ box((FA, "board_frame", 0), WALK - 4.75, WALK - 0.25, SHOP_H + 2.8, SHOP_H + 33.
 # the hero's lens, where the plate has it.
 ARASAKA = (75.0, -490.0)
 ax, az = ARASAKA
-mass(FA, ax - 26, ax + 26, az - 26, az + 26, SHOP_H, 110, 4501, col=(0.3, 0.5, 0.2, 1))
+# A corporation's tower: a podium wider than the tower with a lit lobby, a
+# shaft with its corners cut back, the red band at the setback, the upper
+# floors square so the name has its whole face, the second red band, and a
+# crown of red fins round a dark head with a mast over it. The width the
+# hero's band of sky frames is the shaft's, as before.
+prism(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H, 21.0, 4500, col=(0.55, 2 / 8.0, 0.45, 1))
+box((FA, "dark", 0), ax - 32, ax + 32, 0, SHOP_H, az - 32, az + 32, scale=4.0)
+band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H - 0.6, SHOP_H - 0.2, "white", out=0.2)
+band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), 20.2, 21.0, "red", out=0.25)
+prism(FA, cut_rect(ax, az, 26.0, 26.0, 5.0), 21.0, 110.0, 4501, col=(0.3, 0.5, 0.2, 1))
+band(FA, cut_rect(ax, az, 26.0, 26.0, 5.0), 108.0, 110.0, "red", out=0.3)
 mass(FA, ax - 22, ax + 22, az - 22, az + 22, 110, 182, 4502, col=(0.22, 0.5, 0.2, 1))
-box((FA, "dark", 0), ax - 26, ax + 26, 0, SHOP_H, az - 26, az + 26, scale=4.0)
 box((FA, "neon_red", 0), ax - 22.3, ax + 22.3, 180.2, 182.2, az - 22.3, az + 22.3, scale=1.0)
-box((FA, "neon_red", 0), ax - 26.3, ax + 26.3, 108.0, 110.0, az - 26.3, az + 26.3, scale=1.0)
 sign("arasaka", ax, 159.0, az + 22.6, 44.0, 15.0, 0.0, preview="ARASAKA", district=FA)
+prism(FA, cut_rect(ax, az, 18.0, 18.0, 3.5), 182.2, 203.0, 4503, col=(0.08, 4 / 8.0, 0.2, 1))
+for sx, sz, alongx in ((0, 1, True), (0, -1, True), (1, 0, False), (-1, 0, False)):
+    for f in (-10.0, -3.4, 3.4, 10.0):
+        fx = ax + (f if alongx else sx * 18.25)
+        fz = az + (sz * 18.25 if alongx else f)
+        wx, wz = (0.45, 0.3) if alongx else (0.3, 0.45)
+        box((FA, "neon_red", 0), fx - wx, fx + wx, 184.0, 201.5, fz - wz, fz + wz, scale=1.0)
+box((FA, "neon_red", 0), ax - 18.3, ax + 18.3, 202.4, 203.2, az - 18.3, az + 18.3, scale=1.0)
+cylinder((FA, "metal", 0), ax, az, 203.0, 232.0, 0.8, segs=8)
+cylinder((FA, "neon_red", 0), ax, az, 232.0, 234.0, 1.1, segs=8)
 
 # The skyline over the canyon's end: landmark towers a kilometre off, in the
 # band of sky the hero sees between the roofs, each stepped back twice, a
@@ -1107,31 +1205,117 @@ sign("arasaka", ax, 159.0, az + 22.6, 44.0, 15.0, 0.0, preview="ARASAKA", distri
 SK = "skyline"
 
 
-def megatower(x, z, w, h, colour, seed):
+def megatower(x, z, w, h, colour, seed, kind):
+    """A landmark, each its own design, all on a podium and lit at their
+    setbacks in their own colour:
+      needle    an octagonal shaft stepped back three times to a crown and a
+                spire
+      stack     blocks stacked off centre, each set over to its own side
+      blade     a slab whose top is raked from one end to the other
+      frame     stepped three times to an open crown, four posts and a lit
+                ring round a mast
+      ziggurat  a block that steps back five times at the top, like a temple
+    """
     r = random.Random(seed)
-    tiers = ((0.0, 0.52, 1.0), (0.52, 0.8, 0.78), (0.8, 1.0, 0.56))
-    for i, (a, b, k) in enumerate(tiers):
-        hw = w * k / 2
-        y0, y1 = max(SHOP_H, h * a), h * b
-        mass(SK, x - hw, x + hw, z - hw, z + hw, y0, y1, seed + i, col=(r.uniform(0.55, 0.85), r.randrange(0, 5) / 8.0, r.uniform(0.2, 0.9), 1))
-        # A lit band at each setback, and one round the crown.
-        box((SK, "neon_" + colour, 0), x - hw - 0.4, x + hw + 0.4, y1 - 3.2, y1 - 0.4, z - hw - 0.4, z + hw + 0.4, scale=1.0)
+    col = lambda: (r.uniform(0.55, 0.85), r.randrange(0, 5) / 8.0, r.uniform(0.2, 0.9), 1)  # noqa: E731
+    hw = w / 2
+    mast = None
+    prism(SK, cut_rect(x, z, hw + 2.5, hw + 2.5, 2.0), SHOP_H, 24.0, seed, col=col())
+    band(SK, cut_rect(x, z, hw + 2.5, hw + 2.5, 2.0), 22.6, 24.0, colour, out=0.3)
+    if kind == "needle":
+        steps = ((24.0, 0.55, 1.0, 0.28), (0.55, 0.78, 0.78, 0.26), (0.78, 0.9, 0.6, 0.24), (0.9, 1.0, 0.44, 0.22))
+        for i, (a, b, k, c) in enumerate(steps):
+            y0 = a if a > 1 else h * a
+            plan = cut_rect(x, z, hw * k, hw * k, hw * k * c)
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
+        cylinder((SK, "metal", 0), x, z, h, h * 1.17, 1.6, segs=8)
+        mast = (x, z, h * 1.17)
+    elif kind == "stack":
+        # Each block inside the one under it (an overhang would need an
+        # underside nobody built), set over toward one side.
+        blocks = ((0.0, 0.0, 1.0, 1.0, 24.0, 0.42), (0.08, -0.04, 0.8, 0.86, 0.42, 0.64),
+                  (0.0, 0.06, 0.64, 0.66, 0.64, 0.84), (0.04, 0.1, 0.44, 0.46, 0.84, 1.0))
+        for i, (ox, oz, kx, kz, a, b) in enumerate(blocks):
+            y0 = a if a > 1 else h * a
+            plan = cut_rect(x + ox * w, z + oz * w, hw * kx, hw * kz)
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
+        mast = (x + 0.04 * w, z + 0.1 * w, h * 1.12)
+    elif kind == "blade":
+        lo = cut_rect(x, z, hw, hw * 0.55)
+        prism(SK, lo, 24.0, h * 0.8, seed + 1, col=col())
+        band(SK, lo, h * 0.8 - 2.6, h * 0.8 - 0.4, colour)
+        # The raked top: its walls rise from 0.86 of the height at the west
+        # end to the full height at the east, the roof one sloping plane.
+        hx, hz = hw * 0.92, hw * 0.5
+        y0 = h * 0.8
+        top = lambda px: h * 0.86 + (px - (x - hx)) / (2 * hx) * h * 0.14  # noqa: E731
+        c2 = col()
+        ou, ov = r.uniform(0, 40), r.uniform(0, 40)
+        corners = [(x - hx, z + hz), (x + hx, z + hz), (x + hx, z - hz), (x - hx, z - hz)]
+        u = ou
+        for (xa, za), (xb, zb) in zip(corners, corners[1:] + corners[:1]):
+            u1 = u + math.hypot(xb - xa, zb - za) / CELL_W
+            ya, yb = top(xa), top(xb)
+            quad((SK, "facade", 0), (xa, y0, za), (xb, y0, zb), (xb, yb, zb), (xa, ya, za),
+                 ((u, ov + (y0 - SHOP_H) / CELL_H), (u1, ov + (y0 - SHOP_H) / CELL_H),
+                  (u1, ov + (yb - SHOP_H) / CELL_H), (u, ov + (ya - SHOP_H) / CELL_H)), c2)
+            u = u1
+        poly((SK, "roof", 0), [(px, top(px), pz) for px, pz in corners], [(px / 4, pz / 4) for px, pz in corners])
+        # Its lit edge, following the rake on both long faces.
+        for sz in (1, -1):
+            zz = z + sz * (hz + 0.35)
+            quad((SK, "neon_" + colour, 0), (x - hx, top(x - hx) - 2.0, zz), (x + hx, top(x + hx) - 2.0, zz),
+                 (x + hx, top(x + hx) - 0.4, zz), (x - hx, top(x - hx) - 0.4, zz))
+            quad((SK, "neon_" + colour, 0), (x + hx, top(x + hx) - 2.0, zz), (x - hx, top(x - hx) - 2.0, zz),
+                 (x - hx, top(x - hx) - 0.4, zz), (x + hx, top(x + hx) - 0.4, zz))
+        mast = (x + hx * 0.7, z, h * 1.06)
+    elif kind == "frame":
+        steps = ((24.0, 0.6, 1.0, 0.2), (0.6, 0.84, 0.82, 0.18), (0.84, 0.94, 0.68, 0.16))
+        for i, (a, b, k, c) in enumerate(steps):
+            y0 = a if a > 1 else h * a
+            plan = cut_rect(x, z, hw * k, hw * k, hw * k * c)
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
+        # The open crown: four posts, a lit ring at their heads, a cross of
+        # beams, and the mast standing up through it.
+        q = hw * 0.58
+        for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+            box((SK, "metal", 0), x + sx * q - 0.9, x + sx * q + 0.9, h * 0.94, h, z + sz * q - 0.9, z + sz * q + 0.9, scale=1.0)
+        walls((SK, "neon_" + colour, 0), cut_rect(x, z, q + 1.0, q + 1.0), h - 2.2, h - 0.6, (1, 1, 1, 1))
+        walls((SK, "metal", 0), cut_rect(x, z, q + 0.9, q + 0.9), h - 0.6, h + 0.6, (1, 1, 1, 1))
+        box((SK, "metal", 0), x - q, x + q, h - 0.5, h + 0.3, z - 0.5, z + 0.5, scale=1.0)
+        box((SK, "metal", 0), x - 0.5, x + 0.5, h - 0.5, h + 0.3, z - q, z + q, scale=1.0)
+        cylinder((SK, "metal", 0), x, z, h * 0.94, h * 1.1, 1.3, segs=8)
+        mast = (x, z, h * 1.1)
+    else:
+        body = cut_rect(x, z, hw, hw)
+        prism(SK, body, 24.0, h * 0.7, seed + 1, col=col())
+        band(SK, body, h * 0.7 - 2.6, h * 0.7 - 0.4, colour)
+        for i in range(5):
+            k = 1.0 - (i + 1) * 0.12
+            plan = cut_rect(x, z, hw * k, hw * k)
+            a, b = h * (0.7 + i * 0.06), h * (0.76 + i * 0.06)
+            prism(SK, plan, a, b, seed + i + 2, col=col())
+            band(SK, plan, b - 1.6, b - 0.4, colour)
+        mast = (x, z, h * 1.12)
     # The mast and its light.
-    mh = h * r.uniform(0.1, 0.18)
-    box((SK, "metal", 0), x - 1.2, x + 1.2, h, h + mh, z - 1.2, z + 1.2, scale=1.0)
-    box((SK, "neon_red", 0), x - 2.0, x + 2.0, h + mh, h + mh + 3.0, z - 2.0, z + 2.0, scale=1.0)
+    mx, mz, my = mast
+    box((SK, "metal", 0), mx - 0.6, mx + 0.6, h * 0.98, my, mz - 0.6, mz + 0.6, scale=1.0)
+    box((SK, "neon_red", 0), mx - 1.6, mx + 1.6, my, my + 2.6, mz - 1.6, mz + 1.6, scale=1.0)
 
 
 MEGATOWERS = [
-    (-150.0, -900.0, 50.0, 330.0, "cyan"),
-    (-300.0, -1150.0, 60.0, 420.0, "pink"),
+    (-150.0, -900.0, 50.0, 330.0, "cyan", "needle"),
+    (-300.0, -1150.0, 60.0, 420.0, "pink", "stack"),
     # Clear of the holographic figure: behind her, it cut her in two.
-    (-190.0, -1400.0, 56.0, 480.0, "purple"),
-    (120.0, -1400.0, 60.0, 520.0, "blue"),
-    (330.0, -1000.0, 46.0, 300.0, "amber"),
+    (-190.0, -1400.0, 56.0, 480.0, "purple", "blade"),
+    (120.0, -1400.0, 60.0, 520.0, "blue", "frame"),
+    (330.0, -1000.0, 46.0, 300.0, "amber", "ziggurat"),
 ]
-for i, (x, z, w, h, colour) in enumerate(MEGATOWERS):
-    megatower(x, z, w, h, colour, 5200 + i * 17)
+for i, (x, z, w, h, colour, kind) in enumerate(MEGATOWERS):
+    megatower(x, z, w, h, colour, 5200 + i * 17, kind)
     empty(f"anchor_mega_{i}", (x, h, z), props={"size": w})
 
 # ---------------------------------------------------------------------------
@@ -1246,14 +1430,6 @@ def notched(cx, cz, h, n):
     pts = [(-a, b), (a, b), (a, a), (b, a), (b, -a), (a, -a), (a, -b), (-a, -b),
            (-a, -a), (-b, -a), (-b, a), (-a, a)]
     return [(cx + x, cz + z) for x, z in pts]
-
-
-def walls(key, outline, y0, y1, col):
-    """Vertical faces along a closed outline, outward normals."""
-    for (xa, za), (xb, zb) in zip(outline, outline[1:] + outline[:1]):
-        length = math.hypot(xb - xa, zb - za)
-        quad(key, (xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za),
-             ((0, 0), (length, 0), (length, y1 - y0), (0, y1 - y0)), col)
 
 
 def notched_roof(key, cx, cz, h, n, y):

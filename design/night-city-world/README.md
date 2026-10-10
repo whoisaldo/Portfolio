@@ -40,11 +40,18 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   overpass with 空き未来へ, sodium lamps, cables, vending machines, lit
   shopfronts under dyed awnings and paper lanterns, painted walls), a canyon
   of vertical signs whose roofs step down to a band of sky, the holographic
-  figure and the ARASAKA tower in it, the canyon running on to the glow at
-  its end and a rail viaduct crossing it there (`anchor_rail`, the line the
-  site runs a lit train along), five landmark towers a kilometre off
-  (`anchor_mega_<n>`, lit bands at their setbacks, one kept clear of the
-  figure), the billboard plaza (`board_main` and seven more; the
+  figure and the ARASAKA tower in it (a podium with a lit lobby, a shaft
+  with its corners cut back, the red bands, the name's square face, and a
+  dark head ringed with red fins under a mast), the canyon running on to
+  the glow at its end and a rail viaduct crossing it there (`anchor_rail`,
+  the line the site runs a lit train along) to a megabuilding across the
+  avenue (three sections, the middle set back, decks lit from under every
+  nineteen metres, a bridge to the stepped tower behind it), five landmark
+  towers a kilometre off (`anchor_mega_<n>`, each its own design on a
+  podium: a needle stepped three times to a spire, blocks stacked off
+  centre, a slab with a raked top, an open crown of posts and a lit ring,
+  a ziggurat; lit bands at their setbacks, no fins on their corners, one
+  kept clear of the figure), the billboard plaza (`board_main` and seven more; the
   big one and the two beside it hang in a dark steel housing, ribbed, with a
   catwalk, floodlights and red corner lamps, bolted over a block of painted flats, so the
   screens and not the lit rooms round them carry the shot; the square's
