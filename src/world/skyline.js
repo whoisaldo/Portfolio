@@ -581,8 +581,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     const ha = tall ? b.h : b.h * (0.55 + fs() * 0.4);
     const hb = tall ? b.h * (0.55 + fs() * 0.4) : b.h;
     lots.splice(i, 1,
-      { ...b, x: xa, z: za, w: alongX ? la : b.w, d: alongX ? b.d : la, h: Math.max(8, ha) },
-      { ...b, x: xb, z: zb, w: alongX ? lb : b.w, d: alongX ? b.d : lb, h: Math.max(8, hb) });
+      { ...b, x: xa, z: za, w: alongX ? la : b.w, d: alongX ? b.d : la, h: Math.max(8, ha), block: b },
+      { ...b, x: xb, z: zb, w: alongX ? lb : b.w, d: alongX ? b.d : lb, h: Math.max(8, hb), block: b, second: true });
   }
 
   const f = rng(31337);
@@ -907,19 +907,32 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
 
   // Per building: where (x, z, turn), its footprint and roof and parapet, its
   // tiers' heights and footprints, its cut, kind, dressing and screen.
-  // What the shader once hashed per vertex, worked out once per building:
-  // its windows' lit fraction, style and warmth, where its cells start, its
-  // painted elevation (which, and where on it), and its crown's draw.
-  const fl = rng(1999);
+  // What the shader once hashed per vertex, worked out once per building
+  // from where it stands, by the same hash in the GPU's own precision, so
+  // each building keeps the look it had as a box: its windows' lit
+  // fraction, style and warmth, where its cells start, its painted
+  // elevation (which, and where on it), and its crown's draw. A split
+  // block's two buildings keep the block's look, the second shifted along
+  // its picture and a half storey, so the pair does not read as one wall.
+  const f32 = Math.fround;
+  const at = (b) => f32(f32(f32(b.x) * f32(0.013)) + f32(f32(b.z) * f32(0.071)));
+  const hash11 = (n) => {
+    const v = f32(f32(Math.sin(f32(n))) * f32(43758.5453123));
+    return v - Math.floor(v);
+  };
   const looks = lots.map((b) => {
-    const choose = fl();
-    const which = b.h < 100 && (choose > 0.06 || b.h < 40) && !b.hero ? Math.floor(((choose * 7) % 1) * 3) : -1;
-    const look = [0.14 + 0.5 * fl(), fl() * 0.625, fl(), fl() * 40];
+    const block = b.block ?? b;
+    const seed = at(block);
+    const pick = hash11(seed + 12.7);
+    const which = block.h < 100 && (pick > 0.06 || block.h < 40) && !b.hero ? Math.floor(((pick * 7) % 1) * 3) : -1;
+    const look = [0.14 + 0.5 * hash11(seed), hash11(seed + 1.7) * 0.625, hash11(seed + 3.1), hash11(seed + 5.0) * 40];
     if (b.hero) {
       look[0] = 0.55;
       look[1] = 0.25;
     }
-    return { look, paint: [fl() * 160, fl() < 0.5 ? 0 : 0.5, which, fl()], seed: fl() };
+    const along = hash11(seed + 6.1) * 160 + (b.second ? 61 : 0);
+    const storey = (hash11(seed + 8.3) < 0.5 ? 0 : 0.5) + (b.second ? 0.5 : 0);
+    return { look, paint: [along, storey % 1, which, hash11(seed + 9.3)], seed: hash11(at(b) + 14.9) };
   });
   const cullers = [];
   const instanced = (list, slots, sides) => {

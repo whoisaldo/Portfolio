@@ -444,8 +444,8 @@ garage street, one with its hazards blinking.
   stacked tiers (podium, shaft, setbacks, crown or spire), a square plan or,
   for some towers, one with its corners cut back, a parapet round the top
   roof and a terrace on every setback; an upper tier often stands off
-  centre. Blocks under 60 m wear the avenue's painted elevations, and a wide
-  one is split into two buildings of different heights; some faces carry a
+  centre. Most buildings under 100 m wear the avenue's painted elevations,
+  and a wide block is split into two buildings of different heights; some faces carry a
   vertical neon sign or a strip of neon along a floor line. Towers are one
   of five kinds (stepped back twice, a slab with its plant on top, a
   ziggurat, a dark glass crown with lit edges, a podium and a spire), some
@@ -455,7 +455,10 @@ garage street, one with its hazards blinking.
   cooling towers, a telecom mast with dishes and lamps, a neon sign on two
   posts whose strokes read as lettering without being any). Every
   placement, footprint and height cap is the one the boxes had, so the
-  hero's band of sky and Contact's moon keep their clearances; spires and
+  hero's band of sky and Contact's moon keep their clearances, and every
+  building keeps the look it had as a box (painted or windowed, its
+  windows' style, warmth and lit share), worked out once from where it
+  stands by the hash the boxes' shader ran per vertex; spires and
   masts stand only where nothing was capped, and signs only outside the
   hero's view. Seven draws for the buildings and their roofs, each culled
   on the CPU to what the frustum sees (the visible instances packed into
