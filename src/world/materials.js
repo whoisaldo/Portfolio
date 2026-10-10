@@ -18,7 +18,9 @@
 //            the city's glow in the glass; lobby, the lit ground floor.
 //   lantern  a red paper lantern, hot through its belly.
 //   neon     tubes, strips and panels: flat HDR colour for the bloom to find,
-//            breathing with the kick while the track plays, a few flickering.
+//            breathing with the kick while the track plays, a few flickering;
+//            `glow` the same with each piece's colour on its vertices, for
+//            light too high up to light the street.
 //   painted  the avenue's and the canyon's walls: an original night elevation
 //            (balconies, laundry, AC units, lit rooms) as colour and light at
 //            once. The lit windows keep their glow and lift a little for the
@@ -732,6 +734,41 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
+  // Light high over the street (a rooftop sign, a stair hut's door, an
+  // antenna's lamp): neon's flat HDR colour, breathing with the kick and
+  // now and then dropping a tube for a frame, each piece's colour on its
+  // vertices so all of it is one draw. src/world/city.js leaves it out of
+  // the light it bakes onto the ground and the road, which a sign forty
+  // metres up does not reach.
+  const glow = () => {
+    if (made.has("glow")) return made.get("glow");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared, uIntensity: { value: 2.4 }, uFlicker: { value: reduced ? 0 : 1 } },
+      vertexShader: VERT_WORLD_COLOR,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        uniform float uIntensity;
+        uniform float uFlicker;
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        void main() {
+          float t = floor(uTime * 12.0);
+          float cut = step(0.993, hash12(vec2(t, floor(vWorld.x * 0.3 + vWorld.z * 0.2)))) * uFlicker;
+          float breathe = 1.0 + 0.45 * uBass + 0.15 * uLevel;
+          vec3 col = vColor.rgb * uIntensity * breathe * (1.0 - 0.8 * cut);
+          col = cityFog(col, vWorld, 1.0);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "glow";
+    made.set("glow", m);
+    return m;
+  };
+
   // The garage's tubes: neon's flat HDR colour (each tube's own, on its
   // vertices), dark until the camera turns to the door (uTubeClock,
   // src/world/garage.js), then struck on a fixture at a time, the way
@@ -786,6 +823,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       return neon(n, NEON[hue] || "#ffffff", { flicker: hue === "white" || hue === "amber" ? 0 : 1 });
     }
 
+
     switch (n) {
       case "facade": return facade();
       case "facade_end": return facade("facade_end", 0.33);
@@ -814,6 +852,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "garage_floor": return wetFloor("garage").material;
       case "roof_wet": return wetFloor("roof").material;
       case "tube": return tube();
+      case "glow": return glow();
       case "tool_red": return surface("tool_red", { color: "#7a2028", ambient: 0.06, spill: 2.0 });
       case "hazard": return surface("hazard", { color: "#d8ab22", ambient: 0.07, spill: 1.8 });
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });

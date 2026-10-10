@@ -224,6 +224,12 @@ NEON = {
 }
 for key, hex_color in NEON.items():
     material("neon_" + key, hex_color, emit=6.0)
+# The same light high over the street, which the site leaves out of the
+# light it bakes onto the ground (src/world/city.js): rooftop signs, a stair
+# hut's door, an antenna's lamp. One material, each piece's colour on its
+# vertices (as the garage's tubes), so all of it is one draw.
+material("glow", "ffffff", emit=6.0)
+GLOW = {key: (*rgb(hex_color), 1) for key, hex_color in NEON.items()}
 # The garage's own fixtures are tubes, not neon: the site strikes them on as
 # the camera turns to the door (src/world/garage.js). One material, each
 # tube's colour on its vertices, so the whole room is one draw. Its door,
@@ -715,6 +721,104 @@ def band(district, outline, y0, y1, colour, out=0.4):
     walls((district, "neon_" + colour, 0), grown, y0, y1, (1, 1, 1, 1))
 
 
+ROOF_SIGN_COLOURS = ["pink", "cyan", "amber", "magenta", "green", "purple", "red", "teal"]
+
+
+def dress_roof(district, x0, x1, z0, z1, top, seed, cap=6.0, face=None, parapet=True):
+    """What stands on a city roof: a parapet round its edge and, by the
+    roof's own draw, a water tank on its stand, a stair hut with its door
+    lit, air conditioners, a plant room, an antenna with a lamp at its tip,
+    and now and then a sign on two posts, its strokes drawn in light. Nothing
+    rises more than `cap` metres (a roof in a framed band of sky keeps it
+    low). A sign faces `face` (a yaw; 0 is +z) or the roof's long side."""
+    r = random.Random(seed)
+    w, d = x1 - x0, z1 - z0
+    if parapet:
+        t, ph = 0.3, 0.9
+        for (a0, a1, b0, b1) in ((x0, x1, z1 - t, z1), (x0, x1, z0, z0 + t), (x0, x0 + t, z0 + t, z1 - t),
+                                 (x1 - t, x1, z0 + t, z1 - t)):
+            box((district, "concrete", 0), a0, a1, top, top + ph, b0, b1, scale=1.5)
+    if w < 7 or d < 7:
+        return
+    # A grid of plots on the roof, one thing on each, clear of the parapet.
+    nx, nz = max(1, int(w // 7)), max(1, int(d // 7))
+    plots = [(x0 + 1.2 + (i + 0.5) * (w - 2.4) / nx, z0 + 1.2 + (j + 0.5) * (d - 2.4) / nz,
+              (w - 2.4) / nx, (d - 2.4) / nz) for i in range(nx) for j in range(nz)]
+    r.shuffle(plots)
+    signed = False
+    for k, (px, pz, pw, pd) in enumerate(plots[:6]):
+        kind = r.random()
+        if k == 0 and cap >= 4.0 and min(pw, pd) > 3.2:
+            # A water tank on its stand, the roof's signature.
+            rr = min(1.4, min(pw, pd) * 0.3)
+            legs = min(1.9, cap - 2.6)
+            for lx, lz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+                box((district, "metal", 1), px + lx * rr * 0.7 - 0.08, px + lx * rr * 0.7 + 0.08, top, top + legs,
+                    pz + lz * rr * 0.7 - 0.08, pz + lz * rr * 0.7 + 0.08, scale=0.5)
+            cylinder((district, "metal", 0), px, pz, top + legs, top + legs + 2.2, rr, segs=8)
+            cylinder((district, "dark", 0), px, pz, top + legs + 2.2, top + legs + 2.45, rr * 1.06, segs=8)
+        elif k == 1 and min(pw, pd) > 3.0:
+            # A stair hut, its door lit and a lamp over it.
+            hw_, hd_, hh_ = min(1.7, pw * 0.4), min(1.4, pd * 0.4), min(2.7, cap - 0.2)
+            box((district, "concrete", 0), px - hw_, px + hw_, top, top + hh_, pz - hd_, pz + hd_, scale=1.5)
+            side = r.choice((-1, 1))
+            dz = pz + side * (hd_ + 0.02)
+            if side > 0:
+                quad((district, "glow", 0), (px - 0.45, top, dz), (px + 0.45, top, dz), (px + 0.45, top + 2.0, dz), (px - 0.45, top + 2.0, dz), col=GLOW["amber"])
+            else:
+                quad((district, "glow", 0), (px + 0.45, top, dz), (px - 0.45, top, dz), (px - 0.45, top + 2.0, dz), (px + 0.45, top + 2.0, dz), col=GLOW["amber"])
+            box((district, "glow", 0), px - 0.12, px + 0.12, top + 2.25, top + 2.4, dz - 0.1 * side - 0.06, dz - 0.1 * side + 0.06, scale=0.5, col=GLOW["white"])
+        elif kind < 0.45:
+            # Air conditioners, a pair or three in a row.
+            for n in range(r.randrange(2, 4)):
+                ax_ = px - pw * 0.3 + n * 1.6
+                if ax_ + 0.7 > px + pw / 2:
+                    break
+                box((district, "metal", 1), ax_ - 0.7, ax_ + 0.7, top, top + 0.95, pz - 0.5, pz + 0.5, scale=0.8)
+        elif kind < 0.7:
+            # A plant room with a duct running off it.
+            pw2, pd2 = pw * 0.36, pd * 0.32
+            ph2 = min(2.4, cap - 0.4)
+            box((district, "metal", 0), px - pw2, px + pw2, top, top + ph2, pz - pd2, pz + pd2, scale=1.0)
+            box((district, "dark", 1), px - pw2 - 0.1, px + pw2 + 0.1, top + ph2, top + ph2 + 0.12, pz - pd2 - 0.1, pz + pd2 + 0.1, scale=1.0)
+            box((district, "metal", 1), px + pw2, px + pw2 + pw * 0.3, top + 0.4, top + 1.0, pz - 0.3, pz + 0.3, scale=0.8)
+        elif kind < 0.86 and cap >= 5.0:
+            # An antenna, guyed, a red lamp at its tip.
+            ah = min(cap, 4.5 + r.random() * 3.0)
+            cylinder((district, "metal", 1), px, pz, top, top + ah, 0.06, segs=4, cap=False)
+            for y in (top + ah * 0.55, top + ah * 0.8):
+                box((district, "metal", 1), px - 0.7, px + 0.7, y, y + 0.05, pz - 0.03, pz + 0.03, scale=0.5)
+            box((district, "glow", 0), px - 0.1, px + 0.1, top + ah, top + ah + 0.2, pz - 0.1, pz + 0.1, scale=0.5, col=GLOW["red"])
+        elif not signed and cap >= 5.0 and max(pw, pd) > 5.0:
+            # A sign on two posts, facing the street.
+            signed = True
+            yaw = face if face is not None else (0.0 if w >= d else math.pi / 2)
+            sw, sh = min(5.6, max(pw, pd) * 0.8), 1.9
+            sy = top + min(cap, 5.4) - sh / 2 - 0.2
+            for du in (-sw * 0.38, sw * 0.38):
+                cxp, czp = px + math.cos(yaw) * du, pz - math.sin(yaw) * du
+                box((district, "metal", 1), cxp - 0.08, cxp + 0.08, top, sy - sh / 2, czp - 0.08, czp + 0.08, scale=0.5)
+            oriented_box((district, "board_frame", 0), px, sy, pz, sw + 0.3, sh + 0.3, 0.22, yaw, scale=1.0)
+            colour = r.choice(ROOF_SIGN_COLOURS)
+            nxf, nzf = math.sin(yaw), math.cos(yaw)
+            # The tube round its edge and three characters' worth of strokes,
+            # drawn on both faces (a quad each, facing out).
+            strokes = [((u0 + u1) / 2 * sw, (v0 + v1) / 2 * sh, (u1 - u0) * sw, (v1 - v0) * sh)
+                       for (u0, u1, v0, v1) in ((-0.5, 0.5, 0.44, 0.5), (-0.5, 0.5, -0.5, -0.44), (-0.5, -0.47, -0.5, 0.5), (0.47, 0.5, -0.5, 0.5))]
+            for g in range(3):
+                gu = (-1 + g) * sw * 0.28
+                for _ in range(r.randrange(2, 4)):
+                    vert = r.random() < 0.5
+                    su = r.uniform(-0.08, 0.08) * sw
+                    sv = r.uniform(-0.25, 0.25) * sh
+                    gw, gh = (0.14, sh * r.uniform(0.35, 0.6)) if vert else (sw * r.uniform(0.12, 0.2), 0.14)
+                    strokes.append((gu + su, sv, gw, gh))
+            for sd, fy in ((1, yaw), (-1, yaw + math.pi)):
+                ox, oz = px + nxf * 0.12 * sd, pz + nzf * 0.12 * sd
+                for cu, cv, gw, gh in strokes:
+                    rotated_quad((district, "glow", 0), ox + math.cos(yaw) * cu, sy + cv, oz - math.sin(yaw) * cu, gw, gh, fy, col=GLOW[colour])
+
+
 def shopfront(district, side, z0, z1, seed, awning=True, xf=None):
     """The lit ground floor of a lot on the avenue, facing the street (or on
     any wall along z, at xf)."""
@@ -865,6 +969,90 @@ def clutter(district, side, z0, z1, top, seed):
         box((district, "neon_" + colour, 0), xa, xb, y, y + 0.08, z0 + 0.4, z1 - 0.4, scale=1.0)
 
 
+def frontage_x(district, x0, x1, zf, seed, facing=-1, awning=True):
+    """A row of lit shops along a wall that runs along x (the boulevard's
+    kind), facing `facing` z: glass a hair proud of the dark ground floor
+    with the site's rooms behind it, a bulkhead and a fascia, pilasters
+    between the shops, a dyed awning lit through from under and its lit
+    hem, and some shops shut behind their shutters (the shop shader's own
+    choice, from the colour)."""
+    r = random.Random(seed)
+    f = 1 if facing > 0 else -1
+    zg = zf + f * 0.03
+    x = x0
+    while x < x1 - 2.5:
+        w = min(x1 - x, r.choice((6.4, 6.4, 9.6, 12.8)))
+        if x1 - (x + w) < 3.2:
+            w = x1 - x
+        a, b = x + 0.4, x + w - 0.4
+        lit = (r.uniform(0.25, 1.0), r.random(), 1.0 if r.random() < 0.8 else 0.0, 1.0)
+        pts = ((b, 0.55, zg), (a, 0.55, zg), (a, 3.3, zg), (b, 3.3, zg)) if f < 0 else ((a, 0.55, zg), (b, 0.55, zg), (b, 3.3, zg), (a, 3.3, zg))
+        quad((district, "shop", 0), *pts, col=lit)
+        za, zb = sorted((zf, zf + f * 0.14))
+        box((district, "dark", 0), a, b, 0.15, 0.55, za, zb, scale=1.0)
+        box((district, "dark", 0), a, b, 3.3, SHOP_H, za, zb, scale=1.0)
+        pa, pb = sorted((zf, zf + f * 0.45))
+        box((district, "concrete", 0), x, x + 0.4, 0.15, SHOP_H, pa, pb, scale=1.5)
+        if awning and r.random() < 0.7:
+            colour = r.choice(["pink", "cyan", "red", "amber", "purple", "teal"])
+            ya = 3.55
+            out = 1.6
+            top_in, top_out = (zf, ya + 0.4), (zf + f * out, ya)
+            p_ = ((a, top_in[1], top_in[0]), (a, top_out[1], top_out[0]), (b, top_out[1], top_out[0]), (b, top_in[1], top_in[0]))
+            uvs = ((0, 0), (1, 0), (1, 1), (0, 1))
+            if f > 0:
+                p_ = (p_[0], p_[3], p_[2], p_[1])
+                uvs = ((0, 0), (0, 1), (1, 1), (1, 0))
+            dye = tuple(int(NEON[colour][i:i + 2], 16) / 255 for i in (0, 2, 4)) + (1.0,)
+            quad((district, "awning", 1), *p_, uvs=uvs, col=dye)
+            quad((district, "awning", 1), p_[0], p_[3], p_[2], p_[1], uvs=(uvs[0], uvs[3], uvs[2], uvs[1]), col=dye)
+            ea, eb = sorted((top_out[0], top_out[0] + f * 0.04))
+            box((district, "neon_" + colour, 0), a, b, ya - 0.08, ya, ea, eb, scale=1.0)
+        x += w
+    box((district, "concrete", 0), x1 - 0.4, x1, 0.15, SHOP_H, *sorted((zf, zf + f * 0.45)), scale=1.5)
+
+
+def clutter_x(district, x0, x1, zf, top, seed, facing=-1):
+    """clutter() for a wall running along x: blades standing out from it,
+    read along the street from both ends, boards flat on it, and neon along
+    a ledge."""
+    r = random.Random(seed)
+    f = 1 if facing > 0 else -1
+    ceiling = max(SHOP_H + 2.4, min(top - 1.0, 26.0))
+    for _ in range(r.randrange(4, 9)):
+        if r.random() < 0.6:
+            size = r.choices(["bs", "bm", "bl", "bx"], weights=[3, 4, 2, 2])[0]
+            w, h = ST_SIZES[size]
+            y = r.uniform(SHOP_H + 0.6 + h / 2, max(SHOP_H + 0.7 + h / 2, ceiling - h / 2))
+            x = r.uniform(x0 + 0.8, x1 - 0.8)
+            z = zf + f * (0.35 + w / 2)
+            za, zb = sorted((z - w / 2 - 0.06, z + w / 2 + 0.06))
+            box((district, "board_frame", 0), x - 0.08, x + 0.08, y - h / 2 - 0.07, y + h / 2 + 0.07, za, zb, scale=1.0)
+            sid = st_name(size)
+            sign(sid, x + 0.09, y, z, w, h, math.pi / 2, district=district, label=False)
+            sign(sid + "_b", x - 0.09, y, z, w, h, -math.pi / 2, district=district, label=False)
+            ya = y + h / 2 + 0.07
+            ba, bb = sorted((zf, z))
+            box((district, "metal", 1), x - 0.04, x + 0.04, ya, ya + 0.07, ba, bb, scale=0.5)
+        else:
+            size = r.choices(["ps", "pm", "bx"], weights=[4, 3, 2])[0]
+            w, h = ST_SIZES[size]
+            if x1 - x0 < w + 1.0:
+                continue
+            y = r.uniform(SHOP_H + 0.5 + h / 2, max(SHOP_H + 0.6 + h / 2, ceiling - h / 2))
+            x = r.uniform(x0 + w / 2 + 0.5, x1 - w / 2 - 0.5)
+            out = r.uniform(0.12, 0.45)
+            za, zb = sorted((zf, zf + f * out))
+            box((district, "board_frame", 0), x - w / 2 - 0.07, x + w / 2 + 0.07, y - h / 2 - 0.07, y + h / 2 + 0.07, za, zb, scale=1.0)
+            sign(st_name(size), x, y, zf + f * (out + 0.015), w, h, 0.0 if f > 0 else math.pi, district=district, label=False)
+    for _ in range(r.randrange(0, 3)):
+        y = r.choice([SHOP_H + CELL_H * k for k in range(1, 5)]) + 0.05
+        if y > top - 1:
+            continue
+        za, zb = sorted((zf + f * 0.26, zf + f * 0.3))
+        box((district, "neon_" + r.choice(PANEL_COLOURS), 0), x0 + 0.4, x1 - 0.4, y, y + 0.08, za, zb, scale=1.0)
+
+
 def blade(district, side, sid, z, y, h, w=0.9, colour="pink", preview=None):
     """A vertical sign sticking out from the wall, readable up the street."""
     s = 1 if side > 0 else -1
@@ -923,10 +1111,13 @@ for side, lots in LOTS.items():
         if height > 30 and crown > 3:
             ia, ib = (xa + 3, xb - 5) if s > 0 else (xa + 5, xb - 3)
             mass(AV, ia, ib, z0 + 2, z1 - 2, height, height + crown, seed + 3)
-        for _ in range(r.randrange(1, 4)):
-            cx = r.uniform(xa + 2, xb - 2)
-            cz = r.uniform(z0 + 1.5, z1 - 1.5)
-            box((AV, "metal", 1), cx - 0.8, cx + 0.8, height, height + 1.1, cz - 0.6, cz + 0.6, scale=0.8)
+        # The roof, dressed, low enough to keep the hero's band of sky: a
+        # parapet, a tank, a hut, plant, an antenna, a sign facing the street.
+        if height > 30 and crown > 3:
+            dress_roof(AV, xa, xb, z0, z1, height, seed + 21, cap=0.0)
+            dress_roof(AV, ia, ib, z0 + 2, z1 - 2, height + crown, seed + 22, cap=4.5, face=-s * math.pi / 2)
+        else:
+            dress_roof(AV, xa, xb, z0, z1, height, seed + 21, cap=4.5, face=-s * math.pi / 2)
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.
@@ -1082,6 +1273,7 @@ for side, lots in FAR_LOTS.items():
         box((FA, "dark", 0), xa, xb, 0.15, SHOP_H, z0, z1, scale=2.0)
         box((FA, "shop", 0), min(s * WALK, s * (WALK - 0.02)), max(s * WALK, s * (WALK - 0.02)), 0.6, 3.3, z0 + 1, z1 - 1, scale=2.0)
         clutter(FA, s, z0, z1, height, seed + 7)
+        dress_roof(FA, xa, xb, z0, z1, height, seed + 31, cap=6.0, face=-s * math.pi / 2)
         # A tall vertical sign on most lots, facing down the avenue, the
         # plate's column of type running up the facades.
         if i % 3 != 2:
@@ -1388,10 +1580,16 @@ for i, (cx, cy, cz, w, h, yaw) in enumerate(SMALL_BOARDS, start=1):
 for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 5103), (PX1, 140.0, -262.0, -188.0, 38, 5105))):
     mass(PL, x0, x1, z0, z1, SHOP_H, h, seed, painted=i)
     box((PL, "dark", 0), x0, x1, 0, SHOP_H, z0, z1, scale=2.0)
+    # Not the east block's: the Experience camera (cam_experience) stands
+    # inside it, where its walls face away and vanish, but anything on its
+    # roof would hang over the lens.
+    if i == 0:
+        dress_roof(PL, x0, x1, z0, z1, h, seed + 41, cap=6.0)
 # The south side of the cross street, east of the avenue.
 for i, (x0, x1, h, seed) in enumerate(((38, 60, 24, 5201), (60, 80, 30, 5202), (80, 104, 22, 5203), (104, 140, 28, 5204))):
     mass(PL, x0, x1, -170, -150, SHOP_H, h, seed, painted=(i + 2) % 3)
     box((PL, "dark", 0), x0, x1, 0, SHOP_H, -170, -150, scale=2.0)
+    dress_roof(PL, x0, x1, -170, -150, h, seed + 41, cap=6.0, face=math.pi)
 
 # ---------------------------------------------------------------------------
 # CORPO ROW. One tower per role, in experience.js order, west to east along a
@@ -1572,13 +1770,41 @@ for i, (slug, height) in enumerate(TOWERS):
     sign("tower_" + slug, tx + half - notch - 1.6, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
          preview=slug.upper(), district=CO)
     empty("anchor_tower_" + slug, (tx, top + 1.8, tz), props={"height": top})
+# The boulevard's south side: a street of its own, not a wall. Shops along
+# the boulevard under awnings, the signs a street collects hung off the
+# fronts, flats and offices over them (some set back over a terrace), an
+# alley between each pair with a lit sign across its mouth, and the roofs
+# dressed (the Experience shot looks over them at the towers). Every block
+# stands where its mass stood, no taller.
 for i in range(8):
     x0 = 130 + i * 40
     h = 22 + (i * 7) % 18
-    mass(CO, x0, x0 + 34, BOULEVARD_Z + 14, BOULEVARD_Z + 40, SHOP_H, h, 6100 + i)
-    box((CO, "dark", 0), x0, x0 + 34, 0, SHOP_H, BOULEVARD_Z + 14, BOULEVARD_Z + 40, scale=2.0)
+    zf, zb = BOULEVARD_Z + 14, BOULEVARD_Z + 40
+    seed = 6100 + i
+    rs = random.Random(seed + 50)
+    paint = None if i % 4 == 3 else i % 3
+    if h > 26 and rs.random() < 0.5:
+        base_h = SHOP_H + CELL_H * rs.randrange(2, 4)
+        mass(CO, x0, x0 + 34, zf, zb, SHOP_H, base_h, seed, painted=paint)
+        sx0, sx1 = x0 + rs.uniform(0.0, 4.0), x0 + 34 - rs.uniform(0.0, 4.0)
+        mass(CO, sx0, sx1, zf + 3.4, zb, base_h, h, seed + 1, painted=paint)
+        dress_roof(CO, x0, x0 + 34, zf, zb, base_h, seed + 2, cap=0.0)
+        dress_roof(CO, sx0, sx1, zf + 3.4, zb, h, seed + 3, cap=6.0, face=0.0)
+    else:
+        mass(CO, x0, x0 + 34, zf, zb, SHOP_H, h, seed, painted=paint)
+        dress_roof(CO, x0, x0 + 34, zf, zb, h, seed + 3, cap=6.0, face=0.0)
+    box((CO, "dark", 0), x0, x0 + 34, 0, SHOP_H, zf, zb, scale=2.0)
+    frontage_x(CO, x0, x0 + 34, zf, seed + 4)
+    clutter_x(CO, x0, x0 + 34, zf, h, seed + 5)
     box((CO, "neon_" + ["cyan", "pink", "amber", "purple"][i % 4], 0), x0 + 2, x0 + 32, SHOP_H - 0.6, SHOP_H - 0.45,
-        BOULEVARD_Z + 13.9, BOULEVARD_Z + 14.05, scale=1.0)
+        zf - 0.1, zf + 0.05, scale=1.0)
+    if i < 7:
+        # The alley: a low back block between this one and the next, and a
+        # sign across its mouth.
+        ah = SHOP_H + CELL_H * rs.randrange(1, 3)
+        mass(CO, x0 + 34, x0 + 40, zf + 6.0, zb, 0.15, ah, seed + 7)
+        box((CO, "board_frame", 0), x0 + 34.2, x0 + 39.8, 4.9, 6.1, zf - 0.1, zf + 0.12, scale=1.0)
+        box((CO, "neon_" + ["amber", "teal", "pink", "white"][i % 4], 0), x0 + 34.5, x0 + 39.5, 5.25, 5.75, zf - 0.14, zf - 0.08, scale=1.0)
 
 # ---------------------------------------------------------------------------
 # THE ROOFTOP. About and Stack share it: a mid-height roof at the east end of

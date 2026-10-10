@@ -27,8 +27,8 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   first every map and vertex attribute no shader reads taken off: roughness
   and normal maps but the road's, UVs and vertex colours on plain paint and
   neon, colours where only UVs are read)
-  writes `public/scenes/world/world-high.glb` (2.23 MB, 1024 px textures) and
-  `world-phone.glb` (0.93 MB, 512 px textures, every prop the builder tagged
+  writes `public/scenes/world/world-high.glb` (2.49 MB, 1024 px textures) and
+  `world-phone.glb` (1.12 MB, 512 px textures, every prop the builder tagged
   as detail dropped), `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
@@ -59,6 +59,16 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   catwalk, floodlights and red corner lamps, bolted over a block of painted flats, so the
   screens and not the lit rooms round them carry the shot; the square's
   other blocks and the cross street's south side are painted flats too),
+  roofs that are lived on (every lot's: a parapet and, by its own draw, a
+  water tank on its stand, a stair hut with its door lit, air conditioners,
+  a plant room, an antenna with a red lamp, now and then a sign on two posts
+  whose strokes are drawn in light; on the avenue none of it over 4.5 m, so
+  the hero's band of sky keeps its line; the plaza's east block left bare,
+  because the Experience camera stands inside it), corpo row's south side as
+  a street (shops along the boulevard under lit awnings, the signs a street
+  collects hung off the fronts, flats and offices over them, some set back
+  over a terrace, an alley between each pair with a lit sign across its
+  mouth),
   corpo row (one glass tower per role in
   `experience.js` over a lit lobby, each its own shape: a square plan with
   its corners cut back, stepped back once or twice, a line of light up the
@@ -79,7 +89,11 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   flats either side of it and across the street, shops under the flats
   next door, a second shutter, the office window, a cyan strip under its
   parapet, bollards, tyres, a skip and two more sodium lamps), and the moon
-  disc. About 28,000 triangles.
+  disc. About 47,000 triangles.
+- Light high over the street (the rooftop signs, the huts' doorways) is
+  `NCW_glow_<colour>`: the neon shader, but left out of the light the site
+  bakes onto the ground and into the road (`src/world/city.js` bakes
+  `neon_` only), which a sign forty metres up does not reach.
 - Named empties the site reads: `cam_<shot>` and `cam_<shot>_target` (and
   `_b` variants for shots that move while they hold, `_portrait` ones where a
   phone has its own), the flight waypoints
@@ -118,6 +132,7 @@ thruster pods at the corners, seven named materials (hull, trim, glass,
 lamp_head, lamp_tail, glow_thruster, glow_accent), 5.2 by 3.6 m, no text,
 no logos, no brand cues. `src/world/traffic.js` merges it by those names
 into one instanced draw.
+
 
 ## References
 
