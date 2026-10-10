@@ -6,7 +6,8 @@
 // umbrellas with a neon rim: the way a wet street at night reads from across
 // it, dark figures against lit shopfronts, each umbrella a ring of colour
 // doubled in the road. Some stand: at a shop's window, by the vending
-// machines, at the kerb of the crossing, a few with a phone lit in a hand.
+// machines, at the kerb of the crossing, a few with a phone lit in a hand
+// (one of them the braindance's hot phone).
 // The rest walk the streets the other shots look down: the cross street,
 // the plaza under the board, corpo row's boulevard under its awnings, the
 // garage street. They are silhouettes drawn in the shader on upright cards
@@ -46,12 +47,16 @@ const WALKS = [
   { from: [449.8, -298], dir: [0, 1], len: 46, n: [1, 0] },
 ];
 // Standing: at the kerbs of the crossing, by the vending machines, at shop
-// windows up both pavements, and outside the garage street's shops.
+// windows up both pavements, and outside the garage street's shops. The
+// last is the braindance's hot phone (src/braindance/places.js, `phone`):
+// someone stopped on the right-hand pavement with it lit in their hand,
+// on every tier.
 const STANDS = [
   [10.6, -10.6], [-10.7, -10.4], [10.5, 11.3], [-10.6, 11.2],
   [-12.9, -21.3], [12.8, -37.2], [13.2, -46.0], [-13.2, -58.5], [13.1, -77.0],
   [-13.0, -88.6], [13.2, -104.0], [-13.1, -121.0], [13.0, -142.5], [-13.2, -150.0],
   [433.0, -241.0], [433.2, -276.0],
+  [11.4, -121.0, "phone"],
 ];
 
 function rng(seed) {
@@ -97,10 +102,15 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       if (pair) k++;
     }
   }
-  const stands = phone ? STANDS.filter((_, i) => i % 2 === 0) : STANDS;
-  for (const [x, z] of stands) {
+  const stands = phone ? STANDS.filter((st, i) => i % 2 === 0 || st[2]) : STANDS;
+  for (const [x, z, what] of stands) {
     const lk = look();
     lk[1] = r() < 0.25 ? 1 : 0;
+    // A phone held up in front of them: no umbrella, no coat.
+    if (what === "phone") {
+      lk[1] = 0;
+      lk[3] = 0.9;
+    }
     people.push({ walk: [x, z, 0, r()], path: [0, 1, 1, 0], look: lk, style: style() });
   }
   const n = people.length;
