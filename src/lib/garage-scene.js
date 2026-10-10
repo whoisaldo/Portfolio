@@ -196,6 +196,21 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   ambientOcclusion.minDistance = 0.001;
   ambientOcclusion.maxDistance = 0.16;
   composer.addPass(ambientOcclusion);
+  // The ambient occlusion is a function of the geometry and the camera
+  // alone: while neither moves, last frame's still stands, and only its
+  // blend onto the picture is drawn again.
+  let aoValid = false;
+  const renderAo = ambientOcclusion.render.bind(ambientOcclusion);
+  ambientOcclusion.render = (r, writeBuffer, readBuffer, ...rest) => {
+    if (!aoValid) {
+      renderAo(r, writeBuffer, readBuffer, ...rest);
+      aoValid = true;
+      return;
+    }
+    ambientOcclusion.copyMaterial.uniforms.tDiffuse.value = ambientOcclusion.blurRenderTarget.texture;
+    ambientOcclusion.copyMaterial.blending = THREE.CustomBlending;
+    ambientOcclusion._renderPass(r, ambientOcclusion.copyMaterial, ambientOcclusion.renderToScreen ? null : readBuffer);
+  };
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.14, 0.25, 1.8));
   composer.addPass(new OutputPass());
   composer.addPass(new SMAAPass());
@@ -280,15 +295,31 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   let running = false;
   let width = 1;
   let height = 1;
+  // Frames since anything but the monitor moved, and whether this one is
+  // skipped. A still room changes only where the monitor plays (its film
+  // and its scanlines, thirty frames a second at most), so once the camera
+  // has settled the room is drawn every other frame and the floor's
+  // reflection every other one of those; under reduced motion the monitor
+  // holds its still too, and a settled room is not drawn again at all.
+  // Anything that moves draws every frame from the next.
+  let still = 0;
+  let drawn = 0;
+  // Where the camera was last frame. The controls' damping never quite
+  // stops (it nudges the camera by fractions of a micron for ever), so a
+  // tenth of a millimetre, or the same small turn, counts as still.
+  const _seenAt = new THREE.Vector3(1e9, 0, 0);
+  const _seenQ = new THREE.Quaternion();
 
   function frame() {
     raf = requestAnimationFrame(frame);
     const now = performance.now();
+    let moved = false;
     if (tween) {
       const p = easeOut((now - tween.t0) / tween.ms);
       camera.position.lerpVectors(_from, _to, p);
       controls.target.lerpVectors(_fromT, _toT, p);
       if (p >= 1) tween = null;
+      moved = true;
     }
     if (hasHood && hoodT0) {
       const p = easeOut((now - hoodT0) / 900);
@@ -296,12 +327,21 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
       setHoodProgress(hoodAt);
       renderer.shadowMap.needsUpdate = true;
       if (p >= 1) hoodT0 = 0;
+      moved = true;
     }
     controls.update();
     // The enclosed room bounds also apply while a preset is tweening.
     camera.position.x = THREE.MathUtils.clamp(camera.position.x, -6.6, 6.6);
     camera.position.y = THREE.MathUtils.clamp(camera.position.y, 0.3, 5.1);
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, -6.5, 8.3);
+    if (_seenAt.distanceToSquared(camera.position) > 1e-8 || 1 - Math.abs(_seenQ.dot(camera.quaternion)) > 1e-10) moved = true;
+    _seenAt.copy(camera.position);
+    _seenQ.copy(camera.quaternion);
+    still = moved ? 0 : still + 1;
+    if (still < 2) aoValid = false;
+    if (still > 8 && (reduced || still % 2)) return;
+    drawn++;
+    wetFloor.hold(still > 8 && drawn % 2 === 0);
     room.update(now);
     composer.render();
 
@@ -357,6 +397,9 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     camera.updateProjectionMatrix();
     composer.setPixelRatio(ratio);
     composer.setSize(width, height);
+    still = 0;
+    aoValid = false;
+    wetFloor.hold(false);
     if (!running) composer.render();
   }
 
@@ -387,6 +430,7 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   async function warm() {
     if (renderer.compileAsync) await renderer.compileAsync(scene, camera).catch(() => {});
     renderer.shadowMap.needsUpdate = true;
+    aoValid = false;
     composer.render();
   }
 
