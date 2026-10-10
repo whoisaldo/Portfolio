@@ -354,7 +354,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       void main() {
         float d = length(vUv - 0.5) * 2.0;
         float core = exp(-d * d * 9.0);
-        float halo = exp(-d * d * 2.2) * 0.35;
+        // The halo gone before the quad's edge, so a lamp seen close is a
+        // glow and not a square.
+        float halo = exp(-d * d * 2.2) * 0.35 * smoothstep(1.0, 0.75, d);
         gl_FragColor = vec4(vCol.rgb * (core * 3.0 + halo), 1.0);
       }
     `,
