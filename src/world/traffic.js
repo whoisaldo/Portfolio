@@ -13,6 +13,11 @@
 // one instanced draw, and every lamp is one instanced sprite batch. The
 // `traffic` switch in env.js parks all of it.
 //
+// Under them, delivery drones hop roof to roof over the avenue's canyon, the
+// garage street's blocks and corpo row's south side, lit as aircraft are;
+// and one AV is the police, slow over corpo row's south side with its light
+// bar going, red and blue, where the rooftop looks.
+//
 // Nothing here pretends to be data: no routes, no counts, no telemetry.
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -50,6 +55,62 @@ function avGeometry() {
   });
   return merged;
 }
+
+/** A delivery drone, 1.2 m across, front +z, sitting on y = 0: a flat body
+ *  under a dark canopy, a cross of arms out to four ducted rotors (their
+ *  blur a dark disc in each duct), four short legs, a parcel slung under it,
+ *  and a lit ring round the body. Tagged with the AV's surface kinds, so it
+ *  draws with the AV's own shader. */
+function droneGeometry() {
+  const parts = [];
+  const add = (g, kind, x = 0, y = 0, z = 0, yaw = 0) => {
+    g = g.index ? g.toNonIndexed() : g;
+    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
+    g.rotateY(yaw);
+    g.translate(x, y, z);
+    g.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(kind), 1));
+    parts.push(g);
+  };
+  const BODY = 0.46;
+  add(new THREE.BoxGeometry(0.6, 0.15, 0.44), AV_KINDS.hull, 0, BODY, 0);
+  add(new THREE.BoxGeometry(0.34, 0.07, 0.26), AV_KINDS.glass, 0, BODY + 0.1, -0.02);
+  add(new THREE.BoxGeometry(0.62, 0.025, 0.46), AV_KINDS.glow_thruster, 0, BODY - 0.02, 0);
+  for (const s of [-1, 1]) add(new THREE.BoxGeometry(1.24, 0.04, 0.06), AV_KINDS.trim, 0, BODY + 0.02, 0, s * Math.PI / 4);
+  for (const [sx, sz] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+    const x = sx * 0.44;
+    const z = sz * 0.44;
+    add(new THREE.CylinderGeometry(0.23, 0.23, 0.07, 14), AV_KINDS.trim, x, BODY + 0.05, z);
+    add(new THREE.CircleGeometry(0.2, 14).rotateX(-Math.PI / 2), AV_KINDS.glass, x, BODY + 0.09, z);
+    add(new THREE.BoxGeometry(0.03, 0.4, 0.03), AV_KINDS.trim, sx * 0.24, BODY - 0.24, sz * 0.2);
+  }
+  add(new THREE.BoxGeometry(0.3, 0.22, 0.3), AV_KINDS.trim, 0, BODY - 0.22, 0);
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  return merged;
+}
+
+// The drones' rounds: roofs (x, z, the roof's height), each leg flown at its
+// own height, clear by seven metres or more of anything under it (measured
+// off the kit's roofs from above), and which rounds a phone keeps. The
+// canyon's cross the avenue's sky over the hero's street; the garage
+// street's land where the rooftop looks, one on the rooftop's own roof; corpo
+// row's work its south side under the towers.
+const DRONE_ROUTES = [
+  { pads: [[-36, -311, 66], [24, -320, 64], [36, -266, 51], [-36, -266, 60]], cruise: [78.5, 72, 70, 74], phone: true },
+  { pads: [[465, -286, 34], [405, -283, 30], [372, -313, 28], [435, -298, 35]], cruise: [45, 38, 45, 45], phone: true },
+  { pads: [[159, -311, 22], [252, -299, 25], [303, -302, 34.5], [192, -311, 29]], cruise: [46, 43, 47.5, 39], phone: true },
+  { pads: [[-36, -230, 57], [24, -203, 47], [-36, -191, 52], [21, -155, 52.8]], cruise: [65, 64.5, 61, 65], phone: true },
+  { pads: [[417, -247, 26], [396, -241, 64.3], [420, -214, 26], [435, -307, 35]], cruise: [72.5, 72.5, 43, 43], phone: true },
+  { pads: [[-33, -125, 44], [21, -164, 56.1], [-24, -290, 66], [18, -251, 58]], cruise: [64.5, 74, 74, 69.5] },
+  { pads: [[456, -238, 22], [414, -202, 26], [426, -274, 30], [384, -313, 28]], cruise: [34, 38, 40.5, 40.5] },
+  { pads: [[345, -299, 39], [270, -302, 27.5], [315, -311, 32]], cruise: [49, 42, 49] },
+];
+// How a drone flies a leg: metres a second up, along and down, and how long
+// it sits on a roof.
+const DRONE = { climb: 3, cruise: 8, descend: 2.5, rest: [4, 8] };
+// The police AV's beat: slow, low over corpo row's south side, eighteen
+// metres over its highest roof.
+const POLICE = { c: [320, -285], r: [65, 40], y: 58, v: 14 };
 
 // The cars' surfaces, by the model's material names (traffic-cars.js).
 const CAR_PARTS = { body: 0, trim: 1, glass: 2, lamp_head: 3, lamp_tail: 4, glow_accent: 5, tyre: 6, rim: 7 };
@@ -135,7 +196,7 @@ const ROAD_FAR = -600;
 const step = (t) => (t - Math.floor(t) < 0.5 ? 1 : 0);
 const ROAD_NEAR = -40;
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = false, reflectLayer = 2, rail = null } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null } = {}) {
   const avGeo = avGeometry();
   // The street's cars: wet paint giving back the lit street and the glow
   // over it, dark tinted glass, lit light bars on the ones that are driving,
@@ -267,12 +328,44 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
     `,
   });
   avMat.name = "avs";
-  const avMesh = new THREE.InstancedMesh(avGeo, avMat, Math.max(1, avs));
+  // The police AV is one more of them, after the rest.
+  const flying = avs + (police ? 1 : 0);
+  const avMesh = new THREE.InstancedMesh(avGeo, avMat, Math.max(1, flying));
   avMesh.frustumCulled = false;
   avMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   avMesh.layers.enable(reflectLayer);
   scene.add(avMesh);
-  avMesh.count = avs;
+  avMesh.count = flying;
+
+  // The drones: one instanced draw in the AV's shader. Each flies its own
+  // round of roofs, from its own point in it; every leg is worked out once
+  // (how long it sits, climbs, crosses and comes down, and which way it
+  // faces), so a frame only finds where in its round each drone is.
+  const routes = DRONE_ROUTES.filter((x) => x.phone || drones > 5).slice(0, drones);
+  const droneGeo = droneGeometry();
+  const droneMesh = new THREE.InstancedMesh(droneGeo, avMat, Math.max(1, routes.length));
+  droneMesh.name = "drones";
+  droneMesh.frustumCulled = false;
+  droneMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  droneMesh.layers.enable(reflectLayer);
+  droneMesh.count = routes.length;
+  scene.add(droneMesh);
+  let roundSeed = 11;
+  const roundDraw = () => ((roundSeed = (roundSeed * 16807) % 2147483647) - 1) / 2147483646;
+  const rounds = routes.map((route) => {
+    const legs = route.pads.map((a, k) => {
+      const b = route.pads[(k + 1) % route.pads.length];
+      const H = route.cruise[k];
+      const rest = DRONE.rest[0] + roundDraw() * (DRONE.rest[1] - DRONE.rest[0]);
+      const up = (H - a[2]) / DRONE.climb;
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const across = len / DRONE.cruise;
+      const down = (H - b[2]) / DRONE.descend;
+      return { a, b, H, rest, up, across, down, time: rest + up + across + down, heading: Math.atan2(b[0] - a[0], b[1] - a[1]) };
+    });
+    const total = legs.reduce((sum, l) => sum + l.time, 0);
+    return { legs, total, offset: roundDraw() * total, blink: roundDraw() };
+  });
 
   // The cars: the moving ones first, then the parked; each its kind, its
   // paint and accent, from a seeded draw so the street is the same street
@@ -318,9 +411,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
     mesh.setMatrixAt(index, new THREE.Matrix4().compose(new THREE.Vector3(x.parked.x, 0, x.parked.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), x.parked.yaw), new THREE.Vector3(1, 1, 1)));
   }
 
-  // Lamps: two per aerial vehicle, four per moving car, four hazards.
+  // Lamps: two per aerial vehicle, four per moving car, four hazards, three
+  // per drone, and the police AV's light bar.
   const hazard = parked.find((x) => x.hazard);
-  const lampCount = avs * 2 + moving * 4 + (hazard ? 4 : 0);
+  const lampCount = flying * 2 + moving * 4 + (hazard ? 4 : 0) + rounds.length * 3 + (police ? 2 : 0);
   const quad = new THREE.PlaneGeometry(1, 1);
   const lampGeo = new THREE.InstancedBufferGeometry();
   lampGeo.index = quad.index;
@@ -443,6 +537,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   const tilt = new THREE.Quaternion();
   const euler = new THREE.Euler();
   const FRONT = new THREE.Vector3(0, 0, 1);
+  const smoother = (u) => u * u * u * (u * (u * 6 - 15) + 10);
+  const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
   const setLamp = (i, x, y, z, r, g, b, size) => {
     lampPos[i * 3] = x;
     lampPos[i * 3 + 1] = y;
@@ -456,7 +552,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   let frozen = false;
 
   const update = (dt, on) => {
-    avMesh.visible = lamps.visible = on;
+    avMesh.visible = droneMesh.visible = lamps.visible = on;
     for (const k of kinds) k.mesh.visible = on;
     if (!on) {
       train.visible = false;
@@ -479,6 +575,91 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       avMesh.setMatrixAt(i, m.compose(p, q, scale.setScalar(s)));
       setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * s);
       setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * s);
+    }
+    if (police) {
+      // The police: an AV on its own slow beat, banked into it, and its light
+      // bar on the canopy's back, dimly lit red and blue, going red twice
+      // and blue twice in a beat and a half (steady under reduced motion,
+      // which never flashes).
+      const L = POLICE;
+      const circ = Math.PI * (L.r[0] + L.r[1]);
+      const a = (0.3 + (clock * L.v) / circ) * Math.PI * 2;
+      p.set(L.c[0] + Math.cos(a) * L.r[0], L.y + Math.sin(a * 2.0) * 1.5, L.c[1] + Math.sin(a) * L.r[1]);
+      tmp.set(L.c[0] + Math.cos(a + 0.01) * L.r[0], p.y, L.c[1] + Math.sin(a + 0.01) * L.r[1]);
+      fwd.subVectors(tmp, p).normalize();
+      q.setFromUnitVectors(FRONT, fwd);
+      q.multiply(tilt.setFromEuler(euler.set(0.04, 0, -0.12)));
+      avMesh.setMatrixAt(avs, m.compose(p, q, one));
+      setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75, 0.9, 1.0, 1.2);
+      setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0, 0.1, 0.25, 0.9);
+      const beat = ((clock % 1.6) + 1.6) % 1.6;
+      const twice = (from) => (beat > from && beat < from + 0.09) || (beat > from + 0.2 && beat < from + 0.29) ? 1 : 0;
+      const red = reduced ? 0.3 : 0.12 + 0.88 * twice(0);
+      const blue = reduced ? 0.3 : 0.12 + 0.88 * twice(0.8);
+      tmp.set(0.38, 1.12, -0.6).applyQuaternion(q).add(p);
+      setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * red, 0.04 * red, 0.1 * red, 1.5);
+      tmp.set(-0.38, 1.12, -0.6).applyQuaternion(q).add(p);
+      setLamp(li++, tmp.x, tmp.y, tmp.z, 0.12 * blue, 0.3 * blue, 1.0 * blue, 1.5);
+    }
+    for (let d = 0; d < rounds.length; d++) {
+      // Where in its round this drone is: sitting on a roof, climbing off
+      // it and turning to the next, across (nose down as it gets going, up
+      // as it slows, at no point a jolt), or coming down onto the next roof.
+      const R = rounds[d];
+      let t = (((clock + R.offset) % R.total) + R.total) % R.total;
+      let k = 0;
+      while (k < R.legs.length - 1 && t >= R.legs[k].time) t -= R.legs[k++].time;
+      const L = R.legs[k];
+      const before = R.legs[(k + R.legs.length - 1) % R.legs.length].heading;
+      let x = L.a[0];
+      let z = L.a[1];
+      let y = L.a[2];
+      let yaw = before;
+      let pitch = 0;
+      let up = true;
+      if (t < L.rest) up = false;
+      else if ((t -= L.rest) < L.up) {
+        const u = t / L.up;
+        y += (L.H - L.a[2]) * smoother(u);
+        yaw = before + turn(before, L.heading) * smoother(Math.min(1, u * 1.4));
+      } else if ((t -= L.up) < L.across) {
+        const u = t / L.across;
+        const e = smoother(u);
+        x += (L.b[0] - L.a[0]) * e;
+        z += (L.b[1] - L.a[1]) * e;
+        y = L.H;
+        yaw = L.heading;
+        pitch = 2.3 * u * (1 - u) * (1 - 2 * u);
+      } else {
+        const u = Math.min(1, (t - L.across) / L.down);
+        x = L.b[0];
+        z = L.b[1];
+        y = L.H + (L.b[2] - L.H) * smoother(u);
+        yaw = L.heading;
+        up = u < 1;
+      }
+      // Up in the air, a breath of wind moves it about.
+      if (up) {
+        x += Math.sin(clock * 1.3 + d) * 0.1;
+        y += Math.sin(clock * 2.3 + d * 1.7) * 0.07;
+        z += Math.cos(clock * 1.1 + d * 2.1) * 0.1;
+      }
+      p.set(x, y, z);
+      q.setFromEuler(euler.set(pitch, yaw, Math.sin(clock * 1.7 + d) * 0.03 * (up ? 1 : 0), "YXZ"));
+      droneMesh.setMatrixAt(d, m.compose(p, q, one));
+      // Red to port, green to starboard, on the front ducts, and a white
+      // strobe on its back every second and a quarter (not under reduced
+      // motion); past 150 m the lamps grow with distance, to two and a half
+      // times at 375 m, so a drone crossing the hero's sky still reads as
+      // lights and not a speck.
+      const strobe = !reduced && (((clock * 0.8 + R.blink) % 1) + 1) % 1 < 0.07 ? 1 : 0;
+      const far = Math.min(2.5, Math.max(1, p.distanceTo(shared.uCam.value) / 150));
+      tmp.set(0.62, 0.52, 0.32).applyQuaternion(q).add(p);
+      setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0, 0.06, 0.1, 0.45 * far);
+      tmp.set(-0.62, 0.52, 0.32).applyQuaternion(q).add(p);
+      setLamp(li++, tmp.x, tmp.y, tmp.z, 0.1, 1.0, 0.35, 0.45 * far);
+      tmp.set(0, 0.66, -0.12).applyQuaternion(q).add(p);
+      setLamp(li++, tmp.x, tmp.y, tmp.z, strobe, strobe, strobe, 0.7 * far);
     }
     for (let i = 0; i < moving; i++) {
       const L = ROAD_LANES[i % ROAD_LANES.length];
@@ -528,6 +709,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       }
     }
     avMesh.instanceMatrix.needsUpdate = true;
+    droneMesh.instanceMatrix.needsUpdate = true;
     for (const k of kinds) {
       k.mesh.instanceMatrix.needsUpdate = true;
       k.fade.needsUpdate = true;
@@ -544,10 +726,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       frozen = on;
     },
     dispose() {
-      scene.remove(avMesh, lamps, train, ...kinds.map((k) => k.mesh));
+      scene.remove(avMesh, droneMesh, lamps, train, ...kinds.map((k) => k.mesh));
       trainGeo.dispose();
       trainMat.dispose();
       avGeo.dispose();
+      droneGeo.dispose();
+      droneMesh.dispose();
       carMat.dispose();
       avMat.dispose();
       quad.dispose();

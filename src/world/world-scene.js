@@ -130,7 +130,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
     if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
-    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
+    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, drones: tier === "phone" ? 5 : 8, police: true, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier });
     shafts = createShafts(scene, c.anchors, shared);
     crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER });

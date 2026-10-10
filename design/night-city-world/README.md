@@ -157,6 +157,25 @@ lane's speed so none meet), fades them in and out with a dither where the
 loop ends, and parks a few more up the avenue's left kerb and down the
 garage street, one with its hazards blinking.
 
+## Drones and the police
+
+Under the AVs, delivery drones (a flat body, four ducted rotors on a cross
+of arms, a parcel slung under, a lit ring; about 400 triangles, built in
+`traffic.js`) hop roof to roof: up off one, across at a height clear of
+everything under the leg by seven metres or more, down onto the next, a few
+seconds there, and on, nose down as they get going and up as they slow,
+lit as aircraft are (red to port, green to starboard, a white strobe). The
+roofs and each leg's height were measured off the kit from straight above
+(an orthographic render writing each roof's height), so none clips a
+building. Eight rounds on a desktop, five on a phone: across the avenue's
+sky over the hero's street, over the garage street's blocks where the
+rooftop looks (one takes off from the rooftop's own roof), and along corpo
+row's south side. One instanced draw in the AV's shader; their lamps join
+the traffic's one sprite batch. One more AV is the police, slow and low over
+corpo row's south side where About and Stack look, its light bar dimly red
+and blue and flashing red twice and blue twice in a beat and a half (steady
+under reduced motion).
+
 ## References
 
 - The plate, `public/scenes/night-city/neon-wide.webp` and
@@ -495,11 +514,11 @@ garage street, one with its hazards blinking.
   the planar reflection and the road's sheen), `traffic` and `reactive`
   reach the city directly.
 - Tiers (`quality.js`): high (DPR 1.5, 2.2 MP cap, a 1024 by 512 planar
-  reflection, 9,000 rain streaks, 10 AVs and 4 road cars (8 driven, see The
-  cars), SMAA, a 4096 sign
+  reflection, 9,000 rain streaks, 10 AVs and the police, 4 road cars (8
+  driven, see The cars), 8 drones, SMAA, a 4096 sign
   atlas) and phone (DPR 1.25, 0.9 MP, a 512 by 256 reflection, 3,000 rain,
-  4 AVs and 2 road cars (4 driven), half-scale bloom, a 2048 sign atlas at
-  half the pixels a metre).
+  4 AVs and the police, 2 road cars (4 driven), 5 drones, half-scale bloom,
+  a 2048 sign atlas at half the pixels a metre).
   The mirror is smeared down the road, never across it, so streaks keep hard
   sides; baked streaks lie faintly under it and are the whole reflection
   once a slow device has shed it.
