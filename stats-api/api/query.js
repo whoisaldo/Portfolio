@@ -128,8 +128,8 @@ function visitorsOf(rows) {
       first_seen: v.first_seen, last_seen: v.last_seen,
       total_ms: v.total_ms, resume_hits: v.resume_hits, link: v.link,
       orgs: [...v.orgs], places: [...v.places].slice(0, 4),
-      org: l.org, org_kind: l.org_kind, city: l.city, region: l.region, country: l.country,
-      browser: l.browser, os: l.os, is_mobile: l.is_mobile,
+      org: l.org, org_kind: l.org_kind, as_domain: l.as_domain, city: l.city, region: l.region,
+      country: l.country, browser: l.browser, os: l.os, is_mobile: l.is_mobile,
     };
   });
 }
@@ -138,7 +138,7 @@ function visitorsOf(rows) {
 function brief(s) {
   return {
     id: s.id, visitor_id: s.visitor_id, started_at: s.started_at, last_seen_at: s.last_seen_at,
-    org: s.org, org_kind: s.org_kind, org_label: netName(s), city: s.city, region: s.region,
+    org: s.org, org_kind: s.org_kind, org_label: netName(s), as_domain: s.as_domain, city: s.city, region: s.region,
     country: s.country, referrer_host: s.referrer_host, src: s.src, link_label: s.link_label,
     landing_path: s.landing_path, browser: s.browser, os: s.os, is_mobile: s.is_mobile,
     max_scroll_pct: s.max_scroll_pct, total_ms: s.total_ms, event_count: s.event_count,
