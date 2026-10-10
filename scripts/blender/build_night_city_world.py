@@ -724,19 +724,81 @@ def band(district, outline, y0, y1, colour, out=0.4):
 ROOF_SIGN_COLOURS = ["pink", "cyan", "amber", "magenta", "green", "purple", "red", "teal"]
 
 
-def dress_roof(district, x0, x1, z0, z1, top, seed, cap=6.0, face=None, parapet=True):
+# The hero's lens (16:10 at rest and a metre into its push, and a phone's)
+# and what it frames over the canyon: ARASAKA's name, the figure above the
+# last roofs, the megablock's cyan sign at the vanishing point. A roof the
+# hero looks along is dressed only with what it cannot see: nothing that
+# shows over the canyon's own masses (HERO_MASSES, the lots and their
+# crowns, filled as they are built) and nothing across those three, so the
+# plate's band of sky keeps its line.
+HERO_EYES = ((0.6, 0.6, 10.0), (0.6, 0.6, 9.0), (0.6, 0.8, 30.0))
+HERO_KEEP = (((53.0, 151.5, -467.4), (97.0, 166.5, -467.4)),
+             ((-64.4, 110.0, -570.0), (39.6, 232.0, -570.0)),
+             ((-10.1, 14.0, -748.6), (-7.9, 74.0, -748.6)))
+HERO_MASSES = []
+
+
+def _crosses(o, p, lo, hi):
+    """Whether the segment o->p passes through the box lo..hi."""
+    t0, t1 = 0.0, 1.0
+    for i in range(3):
+        dd = p[i] - o[i]
+        if abs(dd) < 1e-9:
+            if o[i] < lo[i] or o[i] > hi[i]:
+                return False
+            continue
+        ta, tb = (lo[i] - o[i]) / dd, (hi[i] - o[i]) / dd
+        if ta > tb:
+            ta, tb = tb, ta
+        t0, t1 = max(t0, ta), min(t1, tb)
+        if t0 > t1:
+            return False
+    return True
+
+
+def hero_covers(lo, hi):
+    """Whether a box lies across anything the hero frames over the canyon."""
+    for e in HERO_EYES:
+        for a, b in HERO_KEEP:
+            for u in (0.0, 0.25, 0.5, 0.75, 1.0):
+                for v in (0.0, 0.25, 0.5, 0.75, 1.0):
+                    q = (a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * v, a[2])
+                    if _crosses(e, q, lo, hi):
+                        return True
+    return False
+
+
+def hero_sees(lo, hi):
+    """Whether the hero's lens sees any of a box's top over the canyon's own
+    masses."""
+    y = hi[1]
+    for e in HERO_EYES:
+        for x in (lo[0], (lo[0] + hi[0]) / 2, hi[0]):
+            for z in (lo[2], (lo[2] + hi[2]) / 2, hi[2]):
+                if not any(_crosses(e, (x, y, z), mlo, mhi) for mlo, mhi in HERO_MASSES):
+                    return True
+    return False
+
+
+def dress_roof(district, x0, x1, z0, z1, top, seed, cap=6.0, face=None, parapet=True, hero=False):
     """What stands on a city roof: a parapet round its edge and, by the
     roof's own draw, a water tank on its stand, a stair hut with its door
     lit, air conditioners, a plant room, an antenna with a lamp at its tip,
     and now and then a sign on two posts, its strokes drawn in light. Nothing
     rises more than `cap` metres (a roof in a framed band of sky keeps it
-    low). A sign faces `face` (a yaw; 0 is +z) or the roof's long side."""
+    low). A sign faces `face` (a yaw; 0 is +z) or the roof's long side.
+    `hero`: a roof the hero looks along keeps only what its lens cannot
+    see (hero_sees, hero_covers), parapet and all, so the canyon's roofline
+    in the hero is the one the plate was matched to."""
     r = random.Random(seed)
     w, d = x1 - x0, z1 - z0
+    fits = lambda lo, hi: not hero or not (hero_sees(lo, hi) or hero_covers(lo, hi))
     if parapet:
         t, ph = 0.3, 0.9
         for (a0, a1, b0, b1) in ((x0, x1, z1 - t, z1), (x0, x1, z0, z0 + t), (x0, x0 + t, z0 + t, z1 - t),
                                  (x1 - t, x1, z0 + t, z1 - t)):
+            if hero and (hero_sees((a0, top, b0), (a1, top + ph, b1)) or hero_covers((a0, top, b0), (a1, top + ph, b1))):
+                continue
             box((district, "concrete", 0), a0, a1, top, top + ph, b0, b1, scale=1.5)
     if w < 7 or d < 7:
         return
@@ -752,6 +814,8 @@ def dress_roof(district, x0, x1, z0, z1, top, seed, cap=6.0, face=None, parapet=
             # A water tank on its stand, the roof's signature.
             rr = min(1.4, min(pw, pd) * 0.3)
             legs = min(1.9, cap - 2.6)
+            if not fits((px - rr * 1.06, top, pz - rr * 1.06), (px + rr * 1.06, top + legs + 2.45, pz + rr * 1.06)):
+                continue
             for lx, lz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
                 box((district, "metal", 1), px + lx * rr * 0.7 - 0.08, px + lx * rr * 0.7 + 0.08, top, top + legs,
                     pz + lz * rr * 0.7 - 0.08, pz + lz * rr * 0.7 + 0.08, scale=0.5)
@@ -760,6 +824,8 @@ def dress_roof(district, x0, x1, z0, z1, top, seed, cap=6.0, face=None, parapet=
         elif k == 1 and min(pw, pd) > 3.0:
             # A stair hut, its door lit and a lamp over it.
             hw_, hd_, hh_ = min(1.7, pw * 0.4), min(1.4, pd * 0.4), min(2.7, cap - 0.2)
+            if not fits((px - hw_, top, pz - hd_ - 0.2), (px + hw_, top + max(hh_, 2.4), pz + hd_ + 0.2)):
+                continue
             box((district, "concrete", 0), px - hw_, px + hw_, top, top + hh_, pz - hd_, pz + hd_, scale=1.5)
             side = r.choice((-1, 1))
             dz = pz + side * (hd_ + 0.02)
@@ -770,7 +836,10 @@ def dress_roof(district, x0, x1, z0, z1, top, seed, cap=6.0, face=None, parapet=
             box((district, "glow", 0), px - 0.12, px + 0.12, top + 2.25, top + 2.4, dz - 0.1 * side - 0.06, dz - 0.1 * side + 0.06, scale=0.5, col=GLOW["white"])
         elif kind < 0.45:
             # Air conditioners, a pair or three in a row.
-            for n in range(r.randrange(2, 4)):
+            count = r.randrange(2, 4)
+            if not fits((px - pw * 0.3 - 0.7, top, pz - 0.5), (px + pw / 2, top + 0.95, pz + 0.5)):
+                continue
+            for n in range(count):
                 ax_ = px - pw * 0.3 + n * 1.6
                 if ax_ + 0.7 > px + pw / 2:
                     break
@@ -779,22 +848,28 @@ def dress_roof(district, x0, x1, z0, z1, top, seed, cap=6.0, face=None, parapet=
             # A plant room with a duct running off it.
             pw2, pd2 = pw * 0.36, pd * 0.32
             ph2 = min(2.4, cap - 0.4)
+            if not fits((px - pw2 - 0.1, top, pz - pd2 - 0.1), (px + pw2 + pw * 0.3, top + ph2 + 0.12, pz + pd2 + 0.1)):
+                continue
             box((district, "metal", 0), px - pw2, px + pw2, top, top + ph2, pz - pd2, pz + pd2, scale=1.0)
             box((district, "dark", 1), px - pw2 - 0.1, px + pw2 + 0.1, top + ph2, top + ph2 + 0.12, pz - pd2 - 0.1, pz + pd2 + 0.1, scale=1.0)
             box((district, "metal", 1), px + pw2, px + pw2 + pw * 0.3, top + 0.4, top + 1.0, pz - 0.3, pz + 0.3, scale=0.8)
         elif kind < 0.86 and cap >= 5.0:
             # An antenna, guyed, a red lamp at its tip.
             ah = min(cap, 4.5 + r.random() * 3.0)
+            if not fits((px - 0.7, top, pz - 0.1), (px + 0.7, top + ah + 0.2, pz + 0.1)):
+                continue
             cylinder((district, "metal", 1), px, pz, top, top + ah, 0.06, segs=4, cap=False)
             for y in (top + ah * 0.55, top + ah * 0.8):
                 box((district, "metal", 1), px - 0.7, px + 0.7, y, y + 0.05, pz - 0.03, pz + 0.03, scale=0.5)
             box((district, "glow", 0), px - 0.1, px + 0.1, top + ah, top + ah + 0.2, pz - 0.1, pz + 0.1, scale=0.5, col=GLOW["red"])
         elif not signed and cap >= 5.0 and max(pw, pd) > 5.0:
             # A sign on two posts, facing the street.
-            signed = True
             yaw = face if face is not None else (0.0 if w >= d else math.pi / 2)
             sw, sh = min(5.6, max(pw, pd) * 0.8), 1.9
             sy = top + min(cap, 5.4) - sh / 2 - 0.2
+            if not fits((px - sw / 2 - 0.2, top, pz - sw / 2 - 0.2), (px + sw / 2 + 0.2, sy + sh / 2 + 0.2, pz + sw / 2 + 0.2)):
+                continue
+            signed = True
             for du in (-sw * 0.38, sw * 0.38):
                 cxp, czp = px + math.cos(yaw) * du, pz - math.sin(yaw) * du
                 box((district, "metal", 1), cxp - 0.08, cxp + 0.08, top, sy - sh / 2, czp - 0.08, czp + 0.08, scale=0.5)
@@ -1078,6 +1153,7 @@ def blade(district, side, sid, z, y, h, w=0.9, colour="pink", preview=None):
 # 0.29; on the right, past Nicola, a steeper 0.27, as the plate has it), and
 # the roofs step down toward the vanishing point under a band of sky.
 HERO_EYE_Z = 10.0
+HERO_ROOFS = []
 LOTS = {
     -1: [(-10, 11, 16), (-21, 9, 24), (-30, 14, 19), (-44, 12, 21), (-56, 10, 23), (-66, 12, 29),
          (-84, 13, 27), (-97, 11, 37), (-108, 15, 33), (-123, 12, 44), (-135, 14, 38), (-149, 12, 49),
@@ -1094,6 +1170,7 @@ for side, lots in LOTS.items():
         x_front, x_back = (WALK, WALK + 22) if s > 0 else (-WALK - 22, -WALK)
         xa, xb = (WALK, WALK + 22) if s > 0 else (-WALK - 22, -WALK)
         mass(AV, xa, xb, z0, z1, SHOP_H, height, seed, painted=(i + (0 if s > 0 else 1)) % 3)
+        HERO_MASSES.append(((xa, 0.0, z0), (xb, height, z1)))
         # The ground floor as its own dark volume, set back behind the
         # shopfront's glass (in its plane the glass would lose to it), and on
         # the corner lots behind a second shopfront facing the intersection.
@@ -1115,13 +1192,15 @@ for side, lots in LOTS.items():
         if height > 30 and crown > 3:
             ia, ib = (xa + 3, xb - 5) if s > 0 else (xa + 5, xb - 3)
             mass(AV, ia, ib, z0 + 2, z1 - 2, height, height + crown, seed + 3)
-        # The roof, dressed, low enough to keep the hero's band of sky: a
-        # parapet, a tank, a hut, plant, an antenna, a sign facing the street.
+            HERO_MASSES.append(((ia, height, z0 + 2), (ib, height + crown, z1 - 2)))
+        # The roof, dressed once every mass the hero looks along is known (see
+        # HERO_ROOFS below): a parapet, a tank, a hut, plant, an antenna, a
+        # sign facing the street, each only where the hero cannot see it.
         if height > 30 and crown > 3:
-            dress_roof(AV, xa, xb, z0, z1, height, seed + 21, cap=0.0)
-            dress_roof(AV, ia, ib, z0 + 2, z1 - 2, height + crown, seed + 22, cap=4.5, face=-s * math.pi / 2)
+            HERO_ROOFS.append((AV, xa, xb, z0, z1, height, seed + 21, 0.0, None))
+            HERO_ROOFS.append((AV, ia, ib, z0 + 2, z1 - 2, height + crown, seed + 22, 4.5, -s * math.pi / 2))
         else:
-            dress_roof(AV, xa, xb, z0, z1, height, seed + 21, cap=4.5, face=-s * math.pi / 2)
+            HERO_ROOFS.append((AV, xa, xb, z0, z1, height, seed + 21, 4.5, -s * math.pi / 2))
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.
@@ -1274,10 +1353,11 @@ for side, lots in FAR_LOTS.items():
         xa, xb = (WALK, WALK + 30) if s > 0 else (-WALK - 30, -WALK)
         seed = 4700 + i * 13 + (0 if s > 0 else 500)
         mass(FA, xa, xb, z0, z1, SHOP_H, height, seed, painted=(i + (1 if s > 0 else 2)) % 3)
+        HERO_MASSES.append(((xa, 0.0, z0), (xb, height, z1)))
         box((FA, "dark", 0), xa, xb, 0.15, SHOP_H, z0, z1, scale=2.0)
         box((FA, "shop", 0), min(s * WALK, s * (WALK - 0.02)), max(s * WALK, s * (WALK - 0.02)), 0.6, 3.3, z0 + 1, z1 - 1, scale=2.0)
         clutter(FA, s, z0, z1, height, seed + 7)
-        dress_roof(FA, xa, xb, z0, z1, height, seed + 31, cap=6.0, face=-s * math.pi / 2)
+        HERO_ROOFS.append((FA, xa, xb, z0, z1, height, seed + 31, 6.0, -s * math.pi / 2))
         # A tall vertical sign on most lots, facing down the avenue, the
         # plate's column of type running up the facades.
         if i % 3 != 2:
@@ -1286,6 +1366,11 @@ for side, lots in FAR_LOTS.items():
             sid = f"far_{'l' if s < 0 else 'r'}{i}"
             sign(sid, x, SHOP_H + 3 + h / 2, z1 - 3.0, 2.2, h, 0.0, preview="夜", district=FA)
             box((FA, "board_frame", 0), x - 1.25, x + 1.25, SHOP_H + 2.8, SHOP_H + 3.2 + h, z1 - 3.25, z1 - 3.05, scale=1.0)
+
+# Every roof the hero looks along, dressed now that all their masses are
+# known, with only what its lens cannot see.
+for district, x0_, x1_, z0_, z1_, top_, seed_, cap_, face_ in HERO_ROOFS:
+    dress_roof(district, x0_, x1_, z0_, z1_, top_, seed_, cap=cap_, face=face_, hero=True)
 
 # The avenue's far end is closed by a rail viaduct crossing it low against
 # the glow at the vanishing point: a dark deck on four piers, a row of lamps
@@ -1326,10 +1411,14 @@ for y in (24.0, 43.0, 62.0, 79.0):
     for xa, xb in zip(edges[::2], edges[1::2]):
         box((FA, "dark", 0), xa, xb, y - 0.45, y, -745.0, -743.2, scale=2.0)
         box((FA, "neon_amber", 0), xa + 0.2, xb - 0.2, y - 0.55, y - 0.45, -743.6, -743.3, scale=1.0)
+# The signs on each section's own face, as far proud of it as they always
+# were: at the hero's 755 m a frame a quarter of a metre behind a sign is
+# inside one step of the depth buffer, and it hid the cyan one, the
+# vanishing point's one vertical accent.
 for k, (vx, colour) in enumerate(MB_SIGNS):
     vh = 38.0 + (k % 2) * 22.0
-    box((FA, "board_frame", 0), vx - 1.3, vx + 1.3, 13.8, 14.2 + vh, -744.75, -744.45, scale=1.0)
-    box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.45, -744.2, scale=1.0)
+    rec = 4.0 if -18.0 < vx < 18.0 else 0.0
+    box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.9 - rec, -744.6 - rec, scale=1.0)
 # Plant on the roofs, and a lit terrace on the lowest.
 box((FA, "metal", 1), -40.0, -26.0, 95.0, 99.0, -782.0, -770.0, scale=1.5)
 box((FA, "metal", 1), -8.0, 6.0, 89.0, 92.0, -786.0, -776.0, scale=1.5)

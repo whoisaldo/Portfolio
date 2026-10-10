@@ -62,8 +62,12 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   roofs that are lived on (every lot's: a parapet and, by its own draw, a
   water tank on its stand, a stair hut with its door lit, air conditioners,
   a plant room, an antenna with a red lamp, now and then a sign on two posts
-  whose strokes are drawn in light; on the avenue none of it over 4.5 m, so
-  the hero's band of sky keeps its line; the plaza's east block left bare,
+  whose strokes are drawn in light; on the roofs the hero looks along, the
+  avenue's and the canyon's, only what its lens cannot see, each piece and
+  each run of parapet tested in the builder against sight lines from the
+  hero's eye over the canyon's own masses and across ARASAKA's name, the
+  figure and the megablock's cyan sign, so the hero's roofline is the one
+  the plate was matched to; the plaza's east block left bare,
   because the Experience camera stands inside it), corpo row's south side as
   a street (shops along the boulevard under lit awnings, the signs a street
   collects hung off the fronts, flats and offices over them, some set back

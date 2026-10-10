@@ -92,16 +92,17 @@ function droneGeometry() {
 // The drones' rounds: roofs (x, z, the roof's height), each leg flown at its
 // own height, clear by seven metres or more of anything under it (measured
 // off the kit's roofs from above), and which rounds a phone keeps. The
-// canyon's cross the avenue's sky over the hero's street; the garage
+// canyon's cross the avenue's sky over the hero's street, landing only where
+// the hero's lens cannot see a drone at rest over the roofline; the garage
 // street's land where the rooftop looks, one on the rooftop's own roof; corpo
 // row's work its south side under the towers.
 const DRONE_ROUTES = [
-  { pads: [[-36, -311, 66], [24, -320, 64], [36, -266, 51], [-36, -266, 60]], cruise: [78.5, 72, 70, 74], phone: true },
+  { pads: [[-36, -312, 66], [29, -312, 64], [35, -264, 51], [-36, -264, 60]], cruise: [78.5, 72, 70, 74], phone: true },
   { pads: [[465, -286, 34], [405, -283, 30], [372, -313, 28], [435, -298, 35]], cruise: [45, 38, 45, 45], phone: true },
   { pads: [[159, -311, 22], [252, -299, 25], [303, -302, 34.5], [192, -311, 29]], cruise: [46, 43, 47.5, 39], phone: true },
-  { pads: [[-36, -230, 57], [24, -203, 47], [-36, -191, 52], [21, -155, 52.8]], cruise: [65, 64.5, 61, 65], phone: true },
+  { pads: [[-36, -228, 57], [26, -204, 47], [-36, -192, 52], [38, -228, 58]], cruise: [65, 64.5, 66, 66], phone: true },
   { pads: [[417, -247, 26], [396, -241, 64.3], [420, -214, 26], [435, -307, 35]], cruise: [72.5, 72.5, 43, 43], phone: true },
-  { pads: [[-33, -125, 44], [21, -164, 56.1], [-24, -290, 66], [18, -251, 58]], cruise: [64.5, 74, 74, 69.5] },
+  { pads: [[-27, -129, 44], [20, -132, 43.9], [-24, -279, 60], [17, -252, 58]], cruise: [52, 68, 68, 66] },
   { pads: [[456, -238, 22], [414, -202, 26], [426, -274, 30], [384, -313, 28]], cruise: [34, 38, 40.5, 40.5] },
   { pads: [[345, -299, 39], [270, -302, 27.5], [315, -311, 32]], cruise: [49, 42, 49] },
 ];
