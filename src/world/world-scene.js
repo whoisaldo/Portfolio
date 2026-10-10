@@ -70,6 +70,23 @@ const DEG = Math.PI / 180;
 // The wet road's mirror at full (road.js's own uReflectGain).
 const REFLECT_GAIN = 2.2;
 
+/** three's lookup textures are the page's, not a renderer's: the one its
+ *  standard materials read (DFG_LUT) and the area lights' (UniformsLib's
+ *  LTC tables). Nothing disposes them, and every renderer that draws with
+ *  them hangs a listener on them, so they held on to each renderer the page
+ *  ever made, programs and all. Disposed as one goes, they let go of it; a
+ *  renderer still running uploads them again, a few kilobytes. The first is
+ *  read off a material the renderer drew, before the materials go. */
+function releaseLut(renderer, scene) {
+  let lut = null;
+  scene.traverse((o) => {
+    if (lut || !o.material) return;
+    for (const m of [].concat(o.material)) lut ??= renderer.properties.get(m).uniforms?.dfgLUT?.value ?? null;
+  });
+  lut?.dispose();
+  for (const k of ["LTC_FLOAT_1", "LTC_FLOAT_2", "LTC_HALF_1", "LTC_HALF_2"]) THREE.UniformsLib[k]?.dispose();
+}
+
 export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false, effects = [], signs = null } = {}) {
   const quality = { ...TIERS[tier] };
   const renderer = new THREE.WebGLRenderer({
@@ -917,6 +934,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   const dispose = () => {
     disposed = true;
+    releaseLut(renderer, scene);
     pause();
     unwatch();
     window.removeEventListener("resize", resize);

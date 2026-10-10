@@ -167,6 +167,23 @@ function glowTexture() {
   return t;
 }
 
+/** three's lookup textures are the page's, not a renderer's: the one its
+ *  standard materials read (DFG_LUT) and the area lights' (UniformsLib's
+ *  LTC tables). Nothing disposes them, and every renderer that draws with
+ *  them hangs a listener on them, so they held on to each renderer the page
+ *  ever made, programs and all. Disposed as one goes, they let go of it; a
+ *  renderer still running uploads them again, a few kilobytes. The first is
+ *  read off a material the renderer drew, before the materials go. */
+function releaseLut(renderer, scene) {
+  let lut = null;
+  scene.traverse((o) => {
+    if (lut || !o.material) return;
+    for (const m of [].concat(o.material)) lut ??= renderer.properties.get(m).uniforms?.dfgLUT?.value ?? null;
+  });
+  lut?.dispose();
+  for (const k of ["LTC_FLOAT_1", "LTC_FLOAT_2", "LTC_HALF_1", "LTC_HALF_2"]) THREE.UniformsLib[k]?.dispose();
+}
+
 /**
  * Draw the car into `canvas` (which covers the screen) over the element
  * `anchor` points at, until `stop()`. `reduced`: no turn of its own, no
@@ -493,6 +510,7 @@ export function mountDoorCar(canvas, { anchor, reduced = false, onReady } = {}) 
     stop() {
       alive = false;
       cancelAnimationFrame(raf);
+      releaseLut(renderer, scene);
       ro.disconnect();
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointerdown", onDown);

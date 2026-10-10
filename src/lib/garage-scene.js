@@ -34,6 +34,23 @@ const ZOOM_MIN = 3.2;
 const ZOOM_MAX = 9.5;
 const easeOut = (p) => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
 
+/** three's lookup textures are the page's, not a renderer's: the one its
+ *  standard materials read (DFG_LUT) and the area lights' (UniformsLib's
+ *  LTC tables). Nothing disposes them, and every renderer that draws with
+ *  them hangs a listener on them, so they held on to each renderer the page
+ *  ever made, programs and all. Disposed as one goes, they let go of it; a
+ *  renderer still running uploads them again, a few kilobytes. The first is
+ *  read off a material the renderer drew, before the materials go. */
+function releaseLut(renderer, scene) {
+  let lut = null;
+  scene.traverse((o) => {
+    if (lut || !o.material) return;
+    for (const m of [].concat(o.material)) lut ??= renderer.properties.get(m).uniforms?.dfgLUT?.value ?? null;
+  });
+  lut?.dispose();
+  for (const k of ["LTC_FLOAT_1", "LTC_FLOAT_2", "LTC_HALF_1", "LTC_HALF_2"]) THREE.UniformsLib[k]?.dispose();
+}
+
 /**
  * Build the scene on `canvas`. Call preloadGarage() first (garage3d.js does).
  *
@@ -407,6 +424,7 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   }
 
   function dispose() {
+    releaseLut(renderer, scene);
     stop();
     // OrbitControls takes its keyboard listeners off the canvas's root node,
     // which is the document only while the canvas is in it. By the time the
