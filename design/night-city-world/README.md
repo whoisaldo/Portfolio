@@ -82,8 +82,9 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   inside of each cut and a thin ring at each setback, a ribbed glass crown
   (`crown_glass`) with bands at its foot and top, on some a screen of blades
   over the roof or a mast, red lamps on its corners, and a crown slot, a
-  logo slot `logo_<slug>` and a name slot each), the rooftop (tanks, AC
-  units, antennas, a stair hut with its door open, condensers, pipes on
+  logo slot `logo_<slug>` and a name slot each), the rooftop (hooped tanks,
+  AC units with louvres and, on every other one, a status lamp, antennas, a
+  stair hut with its door open, condensers, pipes on
   sleepers, dishes, a rail along the edge and a string of bulbs, RIPPERDOC,
   AFTERLIFE on a block of painted flats over lit shops that faces the
   garage street, MILITECH stepped back over a yellow band with its name

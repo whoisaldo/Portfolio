@@ -1916,11 +1916,21 @@ for (cx, cz) in ((476.0, -270.0), (477.5, -285.0)):
         box((RF, "metal", 1), cx + lx - 0.1, cx + lx + 0.1, RH, RH + 3.0, cz + lz - 0.1, cz + lz + 0.1, scale=0.5)
     cylinder((RF, "metal", 0), cx, cz, RH + 3.0, RH + 7.2, 2.1, segs=20)
     cylinder((RF, "dark", 1), cx, cz, RH + 7.2, RH + 7.6, 2.2, segs=20)
+    # Its hoops.
+    for hy in (RH + 4.2, RH + 6.1):
+        cylinder((RF, "dark", 1), cx, cz, hy, hy + 0.12, 2.16, segs=20, cap=False)
 r = random.Random(7100)
-for _ in range(9):
+for k in range(9):
     cx, cz = r.uniform(RX0 + 3, RX1 - 8), r.uniform(RZ0 + 3, RZ1 - 3)
     box((RF, "metal", 1), cx - 1.0, cx + 1.0, RH, RH + 1.2, cz - 0.8, cz + 0.8, scale=0.8)
     cylinder((RF, "dark", 1), cx, cz, RH + 1.2, RH + 1.25, 0.55, segs=12)
+    # Louvres on the face the roof's cameras see, and on every other unit a
+    # status lamp, green or amber, the one light down on the roof.
+    for ly in (RH + 0.3, RH + 0.55, RH + 0.8):
+        box((RF, "dark", 1), cx + 1.0, cx + 1.04, ly, ly + 0.07, cz - 0.62, cz + 0.62, scale=0.5)
+    if k % 2 == 0:
+        box((RF, "glow", 0), cx + 1.0, cx + 1.03, RH + 1.0, RH + 1.07, cz + 0.62, cz + 0.69, scale=0.5,
+            col=GLOW["green" if k % 4 == 0 else "amber"])
 for (cx, cz, h) in ((458.0, -296.0, 14.0), (482.0, -262.0, 9.0), (466.0, -262.0, 6.0)):
     cylinder((RF, "metal", 1), cx, cz, RH, RH + h, 0.09, segs=6)
     # A small red lamp in a bracket at the tip, not a lit drum: the one by
