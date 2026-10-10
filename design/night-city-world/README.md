@@ -133,6 +133,22 @@ lamp_head, lamp_tail, glow_thruster, glow_accent), 5.2 by 3.6 m, no text,
 no logos, no brand cues. `src/world/traffic.js` merges it by those names
 into one instanced draw.
 
+## The cars
+
+The street's cars (`src/world/traffic-cars.js`) are three original designs
+built the same way: a compact hatch, a long low sedan with a fastback and a
+shoulder crease, and a cab-forward van, lofted shells with their arches cut,
+a glasshouse set into the waist, full-width light bars and revolved wheels,
+1,694, 1,692 and 1,800 triangles, eight named materials (body, trim, glass,
+tyre, rim, lamp_head, lamp_tail, glow_accent), no badge, no text, no brand.
+They replaced two stacked boxes. `traffic.js` merges each kind into one
+instanced draw with a night shader (wet paint giving back the lit street,
+grounded toward the sills, tinted glass, lit bars on the moving ones), gives
+each car its own paint and accent from a seeded draw, runs twice the tier's
+count (two to a lane on a desktop, one on a phone, evenly spaced at the
+lane's speed so none meet), fades them in and out with a dither where the
+loop ends, and parks a few more up the avenue's left kerb and down the
+garage street, one with its hazards blinking.
 
 ## References
 
@@ -463,9 +479,11 @@ into one instanced draw.
   the planar reflection and the road's sheen), `traffic` and `reactive`
   reach the city directly.
 - Tiers (`quality.js`): high (DPR 1.5, 2.2 MP cap, a 1024 by 512 planar
-  reflection, 6,000 rain streaks, 10 AVs and 4 road cars, SMAA, a 4096 sign
-  atlas) and phone (DPR 1.25, 0.9 MP, a 512 by 256 reflection, 2,000 rain,
-  4 and 2, half-scale bloom, a 2048 sign atlas at half the pixels a metre).
+  reflection, 9,000 rain streaks, 10 AVs and 4 road cars (8 driven, see The
+  cars), SMAA, a 4096 sign
+  atlas) and phone (DPR 1.25, 0.9 MP, a 512 by 256 reflection, 3,000 rain,
+  4 AVs and 2 road cars (4 driven), half-scale bloom, a 2048 sign atlas at
+  half the pixels a metre).
   The mirror is smeared down the road, never across it, so streaks keep hard
   sides; baked streaks lie faintly under it and are the whole reflection
   once a slow device has shed it.

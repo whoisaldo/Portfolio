@@ -1,17 +1,24 @@
 // src/world/traffic.js: the city moving on its own.
 //
 // Aerial vehicles on slow loops over the avenue's canyon and the districts
-// (ten on desktop, four on a phone), and a few cars on the avenue's lanes
-// (four, two) driving away up the street on the right and toward the lens
-// on the left, their lamps in the wet road's mirror. Bodies are one
-// instanced mesh; every lamp is one instanced sprite batch. The `traffic`
-// switch in env.js parks all of it.
+// (ten on desktop, four on a phone), and cars on the avenue's lanes (eight,
+// four: twice the tier's count, two or one to a lane, evenly spaced and at
+// the lane's own speed so nobody meets anybody) driving away up the street
+// on the right and toward the lens on the left, their lamps in the wet
+// road's mirror, fading in and out where the loop ends rather than
+// appearing. A few more stand parked: along the avenue's left kerb, clear of
+// the S4's own on the right, and down the garage street, one of them with
+// its hazards blinking. The cars are three original designs
+// (src/world/traffic-cars.js), each its own colour and accent; each kind is
+// one instanced draw, and every lamp is one instanced sprite batch. The
+// `traffic` switch in env.js parks all of it.
 //
 // Nothing here pretends to be data: no routes, no counts, no telemetry.
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON } from "./glsl.js";
 import { createObject as createAv } from "./av-model.js";
+import { createObject as createCarModel, KINDS as CAR_KINDS } from "./traffic-cars.js";
 
 // The AV's surfaces, by the model's material names (src/world/av-model.js),
 // as the kind its shader reads.
@@ -44,11 +51,60 @@ function avGeometry() {
   return merged;
 }
 
-function box(w, h, d, x = 0, y = 0, z = 0) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  g.translate(x, y, z);
-  return g;
+// The cars' surfaces, by the model's material names (traffic-cars.js).
+const CAR_PARTS = { body: 0, trim: 1, glass: 2, lamp_head: 3, lamp_tail: 4, glow_accent: 5, tyre: 6, rim: 7 };
+
+/** A car of one kind as one geometry (as avGeometry builds the AV's), and
+ *  where its lamps are: the outer ends of its head and tail light bars, in
+ *  its own frame (front +z). */
+function carGeometry(kind) {
+  const model = createCarModel(kind);
+  model.updateMatrixWorld(true);
+  const parts = [];
+  const head = new THREE.Box3();
+  const tail = new THREE.Box3();
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    const k = CAR_PARTS[o.material?.name];
+    if (k === undefined) return;
+    let g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
+    if (!g.attributes.normal) g.computeVertexNormals();
+    g.applyMatrix4(o.matrixWorld);
+    g.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(k), 1));
+    g.computeBoundingBox();
+    if (k === 3) head.union(g.boundingBox);
+    if (k === 4) tail.union(g.boundingBox);
+    parts.push(g);
+  });
+  const geometry = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  model.traverse((o) => o.isMesh && o.geometry.dispose());
+  return {
+    geometry,
+    head: [head.max.x * 0.82, (head.min.y + head.max.y) / 2, head.max.z],
+    tail: [tail.max.x * 0.82, (tail.min.y + tail.max.y) / 2, tail.min.z],
+  };
 }
+
+// Parked: up the avenue's left kerb (the S4 parks on the right), clear of
+// the hero's near frame, and down the garage street's kerbs, which the
+// flight in comes down past. One blinks its hazards.
+const PARKED = [
+  { x: -8.4, z: -66, yaw: 0 },
+  { x: -8.4, z: -96, yaw: Math.PI },
+  { x: -8.5, z: -118, yaw: 0 },
+  { x: -8.4, z: -152, yaw: Math.PI },
+  { x: 432.6, z: -268, yaw: 0, hazard: true },
+  { x: -8.4, z: -73, yaw: 0 },
+  { x: -8.5, z: -134, yaw: 0 },
+  { x: 432.6, z: -283, yaw: Math.PI },
+  { x: 447.4, z: -300, yaw: Math.PI },
+];
+// Paint and accent per car: dark metallics mostly, a pearl white, a red, a
+// cab yellow now and then; the accents are the city's neons.
+const BODY = ["#25282e", "#121316", "#8f949b", "#561018", "#132440", "#5d636b", "#0f3a3b", "#9c7c0c"];
+const ACCENT = ["#27dcf2", "#ff2e88", "#ffb254", "#a24bff", "#39ff9a", "#ff3fd2"];
 
 // Lanes over the canyon and the districts: centre, radii, altitude, speed,
 // and the size of what flies it.
@@ -75,20 +131,41 @@ const ROAD_LANES = [
   { x: -1.8, dir: 1, v: 16 },
 ];
 const ROAD_FAR = -600;
+/** On for the first half of every second of `t`, off for the rest. */
+const step = (t) => (t - Math.floor(t) < 0.5 ? 1 : 0);
 const ROAD_NEAR = -40;
 
 export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = false, reflectLayer = 2, rail = null } = {}) {
   const avGeo = avGeometry();
-  const carGeo = mergeGeometries([box(1.9, 0.62, 4.5, 0, 0.55, 0), box(1.6, 0.48, 2.2, 0, 1.1, -0.2)]);
-  const bodyMat = new THREE.ShaderMaterial({
+  // The street's cars: wet paint giving back the lit street and the glow
+  // over it, dark tinted glass, lit light bars on the ones that are driving,
+  // their accents in their own neon, and a dithered fade (per car, aFade)
+  // where the loop lets them in and out, so nothing pops at the kerb of the
+  // intersection.
+  const carMat = new THREE.ShaderMaterial({
     uniforms: { ...shared },
     vertexShader: /* glsl */ `
+      attribute float aKind;
+      attribute vec4 aLook;
+      attribute float aFade;
       varying vec3 vWorld;
       varying vec3 vNormalW;
+      varying float vKind;
+      varying vec3 vBody;
+      varying vec4 vLook;
+      varying float vFade;
       void main() {
         vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vNormalW = normalize(mat3(modelMatrix * instanceMatrix) * normal);
+        vKind = aKind;
+        #ifdef USE_INSTANCING_COLOR
+        vBody = instanceColor;
+        #else
+        vBody = vec3(0.2);
+        #endif
+        vLook = aLook;
+        vFade = aFade;
         gl_Position = projectionMatrix * viewMatrix * w;
       }
     `,
@@ -96,19 +173,47 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       ${COMMON}
       varying vec3 vWorld;
       varying vec3 vNormalW;
+      varying float vKind;
+      varying vec3 vBody;
+      varying vec4 vLook;
+      varying float vFade;
       void main() {
+        if (vFade < 0.999 && hash12(floor(gl_FragCoord.xy)) > vFade) discard;
         vec3 n = normalize(vNormalW);
-        vec3 v = normalize(uCam - vWorld);
-        float rim = pow(1.0 - max(dot(n, v), 0.0), 3.0);
-        vec3 col = vec3(0.02) + spillAt(vWorld) * 0.6 + uHazeColor * rim * 0.8;
-        col = cityFog(col, vWorld, 0.0);
+        vec3 V = normalize(vWorld - uCam);
+        vec3 R = reflect(V, n);
+        float F = 0.04 + 0.96 * pow(1.0 - abs(dot(V, n)), 5.0);
+        // What the paint gives back: the lit street under it, the band of
+        // neon at the horizon, the haze over it and the dark above.
+        float band = exp(-abs(R.y) * 12.0);
+        vec3 spill = spillAt(vWorld);
+        vec3 below = uHazeColor * 0.35 + uGlowColor * 0.6 + spill * 0.8;
+        vec3 above = uHazeColor * 0.3 * exp(-max(R.y, 0.0) * 4.0) + vec3(0.004, 0.004, 0.008);
+        vec3 env = mix(below, above, step(0.0, R.y)) + vec3(1.0, 0.4, 0.75) * band * 0.3;
+        int k = int(vKind + 0.5);
+        float lit = vLook.a;
+        vec3 col;
+        float glow = 0.0;
+        // Grounded: darker toward the sills and into the arches, the roof
+        // and the hood lifted by the glow overhead.
+        float ao = 0.35 + 0.65 * smoothstep(0.12, 1.1, vWorld.y);
+        float sky = max(n.y, 0.0);
+        if (k == 0) col = vBody * (0.03 + spill * 0.6 * (0.5 + 0.5 * sky) + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.25 + uGlowColor * 0.15) * sky * uHaze) * ao + env * (0.06 + 0.94 * F) * 0.7 * (0.55 + 0.45 * ao);
+        else if (k == 1) col = vec3(0.008, 0.009, 0.011) + spill * 0.08 + env * F * 0.3;
+        else if (k == 2) col = vec3(0.003, 0.005, 0.009) + env * (0.06 + 0.94 * F);
+        else if (k == 3) { col = mix(vec3(0.06, 0.065, 0.07), vec3(0.92, 0.95, 1.0) * 6.5, lit); glow = lit; }
+        else if (k == 4) { col = mix(vec3(0.08, 0.008, 0.012), vec3(1.0, 0.07, 0.15) * 4.5, lit); glow = lit; }
+        else if (k == 5) { col = vLook.rgb * mix(0.6, 3.0, lit); glow = 1.0; }
+        else if (k == 6) col = vec3(0.006, 0.006, 0.007) + spill * 0.05;
+        else col = vec3(0.02, 0.022, 0.026) + env * 0.35;
+        col = cityFog(col, vWorld, glow);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
     `,
   });
-  bodyMat.name = "traffic";
+  carMat.name = "traffic";
   // The AVs: gunmetal and tinted glass giving back the lit city under them
   // and the haze over it, most at a glancing angle; their lamps, thrusters
   // and sill strips bright enough for the bloom to find.
@@ -163,18 +268,59 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   });
   avMat.name = "avs";
   const avMesh = new THREE.InstancedMesh(avGeo, avMat, Math.max(1, avs));
-  const carMesh = new THREE.InstancedMesh(carGeo, bodyMat, Math.max(1, cars));
-  for (const m of [avMesh, carMesh]) {
-    m.frustumCulled = false;
-    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    m.layers.enable(reflectLayer);
-    scene.add(m);
-  }
+  avMesh.frustumCulled = false;
+  avMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  avMesh.layers.enable(reflectLayer);
+  scene.add(avMesh);
   avMesh.count = avs;
-  carMesh.count = cars;
 
-  // Lamps: two per aerial vehicle, four per car.
-  const lampCount = avs * 2 + cars * 4;
+  // The cars: the moving ones first, then the parked; each its kind, its
+  // paint and accent, from a seeded draw so the street is the same street
+  // every visit.
+  const moving = cars * 2;
+  const parked = PARKED.slice(0, cars >= 4 ? PARKED.length : 5);
+  let seed = 7;
+  const draw = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  const slots = [];
+  for (let i = 0; i < moving + parked.length; i++) {
+    slots.push({ kind: Math.floor(draw() * CAR_KINDS.length), body: BODY[Math.floor(draw() * BODY.length)], accent: ACCENT[Math.floor(draw() * ACCENT.length)], parked: i >= moving ? parked[i - moving] : null });
+  }
+  const color = new THREE.Color();
+  const kinds = CAR_KINDS.map((kind, k) => {
+    const built = carGeometry(kind);
+    const mine = slots.filter((x) => x.kind === k);
+    const n = Math.max(1, mine.length);
+    const look = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4);
+    const fade = new THREE.InstancedBufferAttribute(new Float32Array(n).fill(1), 1).setUsage(THREE.DynamicDrawUsage);
+    built.geometry.setAttribute("aLook", look);
+    built.geometry.setAttribute("aFade", fade);
+    const mesh = new THREE.InstancedMesh(built.geometry, carMat, n);
+    mesh.name = `traffic_${kind}`;
+    mesh.frustumCulled = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.layers.enable(reflectLayer);
+    mine.forEach((x, j) => {
+      x.mesh = mesh;
+      x.index = j;
+      x.lamps = built;
+      mesh.setColorAt(j, color.set(x.body));
+      color.set(x.accent);
+      look.setXYZW(j, color.r, color.g, color.b, x.parked ? 0 : 1);
+    });
+    mesh.count = mine.length;
+    scene.add(mesh);
+    return { mesh, fade, geometry: built.geometry };
+  });
+  // The parked ones stand still: placed once.
+  for (const x of slots) {
+    if (!x.parked) continue;
+    const { mesh, index } = x;
+    mesh.setMatrixAt(index, new THREE.Matrix4().compose(new THREE.Vector3(x.parked.x, 0, x.parked.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), x.parked.yaw), new THREE.Vector3(1, 1, 1)));
+  }
+
+  // Lamps: two per aerial vehicle, four per moving car, four hazards.
+  const hazard = parked.find((x) => x.hazard);
+  const lampCount = avs * 2 + moving * 4 + (hazard ? 4 : 0);
   const quad = new THREE.PlaneGeometry(1, 1);
   const lampGeo = new THREE.InstancedBufferGeometry();
   lampGeo.index = quad.index;
@@ -279,7 +425,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   train.layers.enable(reflectLayer);
   if (rail) scene.add(train);
 
-  const phase = Array.from({ length: avs + cars }, () => Math.random());
+  // Evenly spaced along each lane, so two cars in one never meet.
+  const perLane = Math.max(1, Math.ceil(moving / ROAD_LANES.length));
+  const phase = [
+    ...Array.from({ length: avs }, () => Math.random()),
+    ...Array.from({ length: moving }, (_, i) => (Math.floor(i / ROAD_LANES.length) + 0.25 * Math.random()) / perLane + (i % ROAD_LANES.length) * 0.17),
+  ];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const one = new THREE.Vector3(1, 1, 1);
@@ -302,7 +453,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
   let frozen = false;
 
   const update = (dt, on) => {
-    avMesh.visible = carMesh.visible = lamps.visible = on;
+    avMesh.visible = lamps.visible = on;
+    for (const k of kinds) k.mesh.visible = on;
     if (!on) {
       train.visible = false;
       return;
@@ -325,7 +477,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * s);
       setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * s);
     }
-    for (let i = 0; i < cars; i++) {
+    for (let i = 0; i < moving; i++) {
       const L = ROAD_LANES[i % ROAD_LANES.length];
       const span = ROAD_NEAR - ROAD_FAR;
       // Wrapped into 0..1 either way round, so a clock that runs backwards
@@ -335,14 +487,30 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       p.set(L.x, 0, z);
       fwd.set(0, 0, L.dir);
       q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), fwd);
-      carMesh.setMatrixAt(i, m.compose(p, q, one));
+      const x = slots[i];
+      x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
       // Fade in and out at the ends of the loop, far off or at the kerb of
-      // the intersection, so nobody sees a car appear.
+      // the intersection, so nobody sees a car appear: the lamps by their
+      // brightness, the body by its dither.
       const edge = Math.min(1, Math.min(t, 1 - t) * 8);
-      const hx = 0.72;
+      kinds[x.kind].fade.setX(x.index, edge);
+      const [hx, hy, hz] = x.lamps.head;
+      const [tx, ty, tz] = x.lamps.tail;
       for (const s of [-1, 1]) {
-        setLamp(li++, L.x + s * hx, 0.72, z + L.dir * 2.3, 0.85 * edge, 0.92 * edge, 1.0 * edge, 0.9);
-        setLamp(li++, L.x + s * hx, 0.85, z - L.dir * 2.3, 1.0 * edge, 0.05 * edge, 0.15 * edge, 0.6);
+        setLamp(li++, L.x + s * hx, hy, z + L.dir * hz, 0.85 * edge, 0.92 * edge, 1.0 * edge, 0.9);
+        setLamp(li++, L.x + s * tx, ty, z + L.dir * tz, 1.0 * edge, 0.05 * edge, 0.15 * edge, 0.6);
+      }
+    }
+    if (hazard) {
+      // Amber at the four corners, a beat on and a beat off.
+      const on = reduced ? 0.25 : step(clock * 1.5);
+      const x = slots.find((y) => y.parked === hazard);
+      const c = Math.cos(hazard.yaw);
+      const sn = Math.sin(hazard.yaw);
+      const [hx, hy, hz] = x.lamps.head;
+      const [tx, ty, tz] = x.lamps.tail;
+      for (const [lx, ly, lz] of [[hx, hy, hz], [-hx, hy, hz], [tx, ty, tz], [-tx, ty, tz]]) {
+        setLamp(li++, hazard.x + c * lx + sn * lz, ly, hazard.z - sn * lx + c * lz, 1.0 * on, 0.55 * on, 0.12 * on, 0.7);
       }
     }
     if (rail) {
@@ -357,7 +525,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
       }
     }
     avMesh.instanceMatrix.needsUpdate = true;
-    carMesh.instanceMatrix.needsUpdate = true;
+    for (const k of kinds) {
+      k.mesh.instanceMatrix.needsUpdate = true;
+      k.fade.needsUpdate = true;
+    }
     posAttr.needsUpdate = true;
     colAttr.needsUpdate = true;
   };
@@ -369,23 +540,21 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, reduced = fal
     freeze(on = true) {
       frozen = on;
     },
-    setCounts(nAvs, nCars) {
-      avMesh.count = Math.min(avs, nAvs);
-      carMesh.count = Math.min(cars, nCars);
-    },
     dispose() {
-      scene.remove(avMesh, carMesh, lamps, train);
+      scene.remove(avMesh, lamps, train, ...kinds.map((k) => k.mesh));
       trainGeo.dispose();
       trainMat.dispose();
       avGeo.dispose();
-      carGeo.dispose();
-      bodyMat.dispose();
+      carMat.dispose();
       avMat.dispose();
       quad.dispose();
       lampGeo.dispose();
       lampMat.dispose();
       avMesh.dispose();
-      carMesh.dispose();
+      for (const k of kinds) {
+        k.geometry.dispose();
+        k.mesh.dispose();
+      }
     },
   };
 }
