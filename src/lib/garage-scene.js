@@ -13,6 +13,7 @@ import { preloadCar } from "../three/car/object.js";
 import { createGarageFloor } from "../three/garage-floor.js";
 import { createObject } from "../three/car/object.js";
 import { slim, RIG, HOOD_RIG } from "../three/car/slim.js";
+import { hasGpuAcceleration } from "./gpu.js";
 
 export const preloadGarage = () => Promise.all([preloadCar(), preloadGarageRoom()]);
 
@@ -65,6 +66,14 @@ function releaseLut(renderer, scene) {
  *   reduced   prefers-reduced-motion
  */
 export function createGarageScene(canvas, { markers = [], onFrame, reduced = false } = {}) {
+  // With no WebGL 2 at all (no GPU and no software renderer, or WebGL
+  // switched off) three can only fail, and prints three errors on the way;
+  // GarageModel shows its still either way, so it is told plainly instead.
+  if (!hasGpuAcceleration()) {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    if (!gl) throw new Error("WebGL 2 is not available");
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+  }
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
