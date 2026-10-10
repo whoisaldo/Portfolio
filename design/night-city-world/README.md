@@ -27,8 +27,8 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   first every map and vertex attribute no shader reads taken off: roughness
   and normal maps but the road's, UVs and vertex colours on plain paint and
   neon, colours where only UVs are read)
-  writes `public/scenes/world/world-high.glb` (2.49 MB, 1024 px textures) and
-  `world-phone.glb` (1.12 MB, 512 px textures, every prop the builder tagged
+  writes `public/scenes/world/world-high.glb` (2.54 MB, 1024 px textures) and
+  `world-phone.glb` (1.16 MB, 512 px textures, every prop the builder tagged
   as detail dropped), `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
@@ -78,7 +78,9 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   logo slot `logo_<slug>` and a name slot each), the rooftop (tanks, AC
   units, antennas, a stair hut with its door open, condensers, pipes on
   sleepers, dishes, a rail along the edge and a string of bulbs, RIPPERDOC,
-  AFTERLIFE, MILITECH), the garage (a roll-up
+  AFTERLIFE on a block of painted flats over lit shops that faces the
+  garage street, MILITECH stepped back over a yellow band with its name
+  hung on the plant room on its roof), the garage (a roll-up
   door, `garage_door`, down in its opening; inside, the garage viewer's
   own walls, photographed (below); magenta tubes on the car's passenger
   side and cyan on the driver's, as in the garage room, all one `tube`
@@ -88,8 +90,10 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   lamp either side and the shop's name on a blade at the corner; painted
   flats either side of it and across the street, shops under the flats
   next door, a second shutter, the office window, a cyan strip under its
-  parapet, bollards, tyres, a skip and two more sodium lamps), and the moon
-  disc. About 47,000 triangles.
+  parapet, bollards, tyres, a skip and two more sodium lamps; both walls of
+  the street hung with signs, air conditioners and a fire escape, cables
+  across it and a string of lights at its corner), and the moon
+  disc. About 49,000 triangles.
 - Light high over the street (the rooftop signs, the huts' doorways) is
   `NCW_glow_<colour>`: the neon shader, but left out of the light the site
   bakes onto the ground and into the road (`src/world/city.js` bakes

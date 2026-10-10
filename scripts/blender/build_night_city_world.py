@@ -884,13 +884,14 @@ def lanterns(district, side, z0, z1, y=3.1):
         z += 1.6
 
 
-def ac_units(district, side, z0, z1, y0, y1, seed):
+def ac_units(district, side, z0, z1, y0, y1, seed, xw=None):
     r = random.Random(seed)
     s = 1 if side > 0 else -1
+    W = s * WALK if xw is None else xw
     for _ in range(r.randrange(2, 6)):
         y = r.uniform(y0, y1)
         z = r.uniform(z0 + 1, z1 - 1)
-        xa, xb = sorted((s * WALK, s * (WALK - 0.55)))
+        xa, xb = sorted((W, W - s * 0.55))
         box((district, "metal", 1), xa, xb, y, y + 0.55, z - 0.4, z + 0.4, scale=0.6)
 
 
@@ -903,13 +904,14 @@ def ledges(district, side, z0, z1, y0, y1, step=CELL_H):
         y += step
 
 
-def fire_escape(district, side, zc, y0, y1):
+def fire_escape(district, side, zc, y0, y1, xw=None):
     s = 1 if side > 0 else -1
-    x_out = s * (WALK - 1.1)
+    W = s * WALK if xw is None else xw
+    x_out = W - s * 1.1
     y = y0
     k = (district, "metal", 1)
     while y < y1:
-        xa, xb = sorted((s * WALK, x_out))
+        xa, xb = sorted((W, x_out))
         box(k, xa, xb, y, y + 0.06, zc - 2.2, zc + 2.2, scale=0.5)
         # Railings.
         ra, rb = sorted((x_out, x_out + s * 0.05))
@@ -923,14 +925,16 @@ def fire_escape(district, side, zc, y0, y1):
 PANEL_COLOURS = ["pink", "cyan", "magenta", "amber", "red", "blue", "teal", "purple", "green", "white"]
 
 
-def clutter(district, side, z0, z1, top, seed):
+def clutter(district, side, z0, z1, top, seed, xw=None):
     """The signs a Night City facade collects: blades standing out from the
     wall at every height and boards flat on it, each one a standard sign the
     site paints (ST_SIZES), plus neon along the ledges. Most are blades
     because the street is seen end-on: a board flat on a wall is a sliver
-    from the intersection, a blade faces the lens."""
+    from the intersection, a blade faces the lens. The wall is the avenue's
+    (WALK) unless `xw` puts it elsewhere; `side` says which way it faces."""
     r = random.Random(seed)
     s = 1 if side > 0 else -1
+    W = s * WALK if xw is None else xw
     ceiling = max(SHOP_H + 2.4, min(top - 1.0, 26.0))
     for _ in range(r.randrange(6, 12)):
         if r.random() < 0.66:
@@ -939,14 +943,14 @@ def clutter(district, side, z0, z1, top, seed):
             w, h = ST_SIZES[size]
             y = r.uniform(SHOP_H + 0.6 + h / 2, max(SHOP_H + 0.7 + h / 2, ceiling - h / 2))
             z = r.uniform(z0 + 0.6, z1 - 0.6)
-            x = s * (WALK - 0.35 - w / 2)
+            x = W - s * (0.35 + w / 2)
             xa, xb = sorted((x - w / 2 - 0.06, x + w / 2 + 0.06))
             box((district, "board_frame", 0), xa, xb, y - h / 2 - 0.07, y + h / 2 + 0.07, z - 0.08, z + 0.08, scale=1.0)
             sid = st_name(size)
             sign(sid, x, y, z + 0.09, w, h, 0.0, district=district, label=False)
             sign(sid + "_b", x, y, z - 0.09, w, h, math.pi, district=district, label=False)
             ya = y + h / 2 + 0.07
-            ba, bb = sorted((s * WALK, x))
+            ba, bb = sorted((W, x))
             box((district, "metal", 1), ba, bb, ya, ya + 0.07, z - 0.04, z + 0.04, scale=0.5)
         else:
             # A board flat on the wall, facing the street.
@@ -957,15 +961,15 @@ def clutter(district, side, z0, z1, top, seed):
                 continue
             z = r.uniform(z0 + w / 2 + 0.5, z1 - w / 2 - 0.5)
             out = r.uniform(0.12, 0.45)
-            xa, xb = sorted((s * WALK, s * (WALK - out)))
+            xa, xb = sorted((W, W - s * out))
             box((district, "board_frame", 0), xa, xb, y - h / 2 - 0.07, y + h / 2 + 0.07, z - w / 2 - 0.07, z + w / 2 + 0.07, scale=1.0)
-            sign(st_name(size), s * (WALK - out - 0.015), y, z, w, h, -s * math.pi / 2, district=district, label=False)
+            sign(st_name(size), W - s * (out + 0.015), y, z, w, h, -s * math.pi / 2, district=district, label=False)
     for _ in range(r.randrange(0, 3)):
         y = r.choice([SHOP_H + CELL_H * k for k in range(1, 5)]) + 0.05
         if y > top - 1:
             continue
         colour = r.choice(PANEL_COLOURS)
-        xa, xb = sorted((s * (WALK - 0.26), s * (WALK - 0.3)))
+        xa, xb = sorted((W - s * 0.26, W - s * 0.3))
         box((district, "neon_" + colour, 0), xa, xb, y, y + 0.08, z0 + 0.4, z1 - 0.4, scale=1.0)
 
 
@@ -1848,8 +1852,18 @@ sign("ripperdoc", rx_, ry_, rz_, 9.0, 2.2, ryaw, double=True, preview="+ RIPPERD
 for du in (-3.2, 3.2):
     oriented_box((RF, "metal", 1), rx_ + du * math.cos(ryaw), RH + 1.6, rz_ - du * math.sin(ryaw),
                  0.16, 3.2, 0.16, ryaw, scale=0.5)
-mass(RF, 402.0, 432.0, -300.0, -262.0, SHOP_H, 30.0, 7201)
-box((RF, "dark", 0), 402.0, 432.0, 0, SHOP_H, -300.0, -262.0, scale=2.0)
+# AFTERLIFE's block is flats over shops, the garage street's kind: its face
+# to the street (and to the rooftop, which looks at it) painted, lived in,
+# hung with signs, a fire escape down it, the shops lit under awnings.
+mass(RF, 402.0, 432.0, -300.0, -262.0, SHOP_H, 30.0, 7201, painted=1)
+# The ground floor set back behind the shops' glass, which would lose to it
+# in its own plane.
+box((RF, "dark", 0), 402.0, 431.7, 0, SHOP_H, -300.0, -262.0, scale=2.0)
+for k, (z0_, z1_) in enumerate(((-300.0, -291.0), (-291.0, -280.6), (-280.6, -271.0), (-271.0, -262.0))):
+    shopfront(RF, -1, z0_, z1_, 7210 + k, awning=k != 1, xf=432.0)
+clutter(RF, -1, -300.0, -262.0, 30.0, 7220, xw=432.0)
+ac_units(RF, -1, -300.0, -262.0, SHOP_H + 1, 26.0, 7221, xw=432.0)
+fire_escape(RF, -1, -292.0, SHOP_H + 0.5, 27.0, xw=432.0)
 # A hair proud of its frame's face, or the two fight for the same pixels.
 sign("afterlife", 431.26, 38.0, -281.0, 13.0, 3.0, math.radians(90), preview="AFTERLIFE", district=RF)
 box((RF, "board_frame", 0), 430.6, 431.2, 36.2, 39.8, -288.0, -274.0, scale=1.0)
@@ -1857,9 +1871,21 @@ for dz in (-5.0, 5.0):
     box((RF, "metal", 1), 430.7, 431.0, 30.0, 36.2, -281.0 + dz - 0.1, -281.0 + dz + 0.1, scale=0.5)
 # MILITECH's block is an office, the way corpo row's are: ribbon windows
 # (window style 2) mostly lit, cool.
-mass(RF, 380.0, 410.0, -250.0, -222.0, SHOP_H, 58.0, 7301, col=(0.9, 2 / 8.0, 0.25, 1.0))
+# Stepped back once over a yellow band, its east face flush all the way up,
+# and the name hung on the plant room that stands on its roof, where it
+# floated over the parapet before.
+mass(RF, 380.0, 410.0, -250.0, -222.0, SHOP_H, 46.0, 7301, col=(0.9, 2 / 8.0, 0.25, 1.0))
 box((RF, "dark", 0), 380.0, 410.0, 0, SHOP_H, -250.0, -222.0, scale=2.0)
+box((RF, "neon_yellow", 0), 379.8, 410.2, 45.25, 45.7, -250.2, -221.8, scale=1.0)
+mass(RF, 383.0, 410.0, -247.0, -225.0, 46.0, 58.0, 7302, col=(0.92, 2 / 8.0, 0.25, 1.0))
+dress_roof(RF, 380.0, 410.0, -250.0, -222.0, 46.0, 7303, cap=0.0)
+box((RF, "metal", 0), 392.0, 410.0, 58.0, 64.0, -244.0, -228.0, scale=1.0)
+box((RF, "dark", 1), 391.8, 410.2, 64.0, 64.3, -244.2, -227.8, scale=1.0)
+for z_ in (-243.0, -229.0):
+    box((RF, "glow", 0), 409.6, 410.0, 63.4, 63.8, z_ - 0.2, z_ + 0.2, scale=0.5, col=GLOW["red"])
+box((RF, "board_frame", 0), 410.0, 410.3, 59.4, 62.6, -242.4, -229.6, scale=1.0)
 sign("militech", 410.4, 61.0, -236.0, 12.0, 2.6, math.radians(90), preview="MILITECH", district=RF)
+dress_roof(RF, 383.0, 391.6, -247.0, -225.0, 58.0, 7304, cap=3.0)
 ground((RF, "asphalt", 0), STREET_X - 8, STREET_X + 8, -322, -190, scale=6.0)
 ground((RF, "sidewalk", 0), STREET_X + 8, STREET_X + 12, -300, -190, y=0.15, scale=2.0)
 ground((RF, "sidewalk", 0), STREET_X - 12, STREET_X - 8, -300, -190, y=0.15, scale=2.0)
@@ -2058,6 +2084,33 @@ box((GA, "dark", 0), 410.0, STREET_X - 12, 0, SHOP_H, -250.0, -190.0, scale=2.0)
 box((GA, "shop", 0), STREET_X - 11.99, STREET_X - 11.96, 0.6, 3.3, -246.0, -194.0, scale=2.0)
 box((GA, "neon_pink", 0), STREET_X - 12.05, STREET_X - 11.9, 3.9, 4.05, -246.0, -194.0, scale=1.0)
 box((GA, "neon_cyan", 0), STREET_X - 12.05, STREET_X - 11.9, 5.6, 5.7, -238.0, -202.0, scale=1.0)
+# Both walls the flight comes down between are hung as a street's are: the
+# signs, the air conditioners, a fire escape; cables slung across, and a
+# string of lights at the corner.
+clutter(GA, -1, -250.0, -190.0, 26.0, 8210, xw=STREET_X - 12)
+ac_units(GA, -1, -250.0, -190.0, SHOP_H + 2.0, 22.0, 8211, xw=STREET_X - 12)
+fire_escape(GA, -1, -226.0, SHOP_H + 0.5, 23.0, xw=STREET_X - 12)
+clutter(GA, 1, -258.0, -230.0, 22.0, 8212, xw=GX0)
+ac_units(GA, 1, -258.0, -230.0, SHOP_H + 2.0, 19.0, 8213, xw=GX0)
+cable_rng_g = random.Random(8214)
+for _ in range(6):
+    z = cable_rng_g.uniform(-256.0, -194.0)
+    y0 = cable_rng_g.uniform(8.0, 15.0)
+    sag = cable_rng_g.uniform(0.6, 1.8)
+    xa_, xb_ = STREET_X - 12, GX0 if z < -230.0 or z > -200.0 else GX0 - 0.6
+    steps = 12
+    for i in range(steps):
+        t0, t1 = i / steps, (i + 1) / steps
+        x0_, x1_ = xa_ + t0 * (xb_ - xa_), xa_ + t1 * (xb_ - xa_)
+        ya = y0 - sag * math.sin(math.pi * t0)
+        yb = y0 - sag * math.sin(math.pi * t1)
+        quad((GA, "dark", 1), (x0_, ya - 0.03, z), (x1_, yb - 0.03, z), (x1_, yb + 0.03, z), (x0_, ya + 0.03, z))
+        quad((GA, "dark", 1), (x1_, yb - 0.03, z), (x0_, ya - 0.03, z), (x0_, ya + 0.03, z), (x1_, yb + 0.03, z))
+for i in range(14):
+    t = i / 14
+    x = STREET_X - 12 + t * (GX0 - (STREET_X - 12))
+    y = 7.4 - 1.1 * math.sin(math.pi * t)
+    cylinder((GA, "neon_amber", 1), x, -252.0, y - 0.07, y + 0.07, 0.07, segs=6, cap=False)
 for z in (-236.0, -214.0, -196.0):
     cylinder((GA, "metal", 1), STREET_X - 9.0, z, 0.15, 6.2, 0.08, segs=8)
     box((GA, "neon_amber", 0), STREET_X - 8.2, STREET_X - 7.4, 6.0, 6.1, z - 0.15, z + 0.15, scale=0.5)
