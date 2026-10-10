@@ -445,7 +445,8 @@ function roofKits() {
  * it. `spheres` is x, y, z, radius per instance. Repacked only when the
  * visible set changes, which while a shot holds is never.
  */
-function cullable(geometry, names, spheres) {
+function cullable(mesh, names, spheres) {
+  const geometry = mesh.geometry;
   const n = spheres.length / 4;
   const all = Object.fromEntries(names.map((name) => [name, geometry.attributes[name].array.slice()]));
   const order = new Int32Array(n).fill(-1);
@@ -481,6 +482,8 @@ function cullable(geometry, names, spheres) {
         attr.needsUpdate = true;
       }
       geometry.instanceCount = k;
+      // Nothing of it in view: no draw at all.
+      mesh.visible = k > 0;
     },
   };
 }
@@ -939,10 +942,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     }
     for (const [name, arr] of Object.entries(attrs)) geometry.setAttribute(name, new THREE.InstancedBufferAttribute(new Float32Array(arr), 4).setUsage(THREE.DynamicDrawUsage));
     geometry.instanceCount = list.length;
-    cullers.push(cullable(geometry, Object.keys(attrs), spheres));
     // The city's extent: the shader puts every vertex where it is.
     geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(300, 120, -400), 2400);
     const mesh = new THREE.Mesh(geometry, material);
+    cullers.push(cullable(mesh, Object.keys(attrs), spheres));
     scene.add(mesh);
     return mesh;
   };
@@ -1092,11 +1095,11 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     g.instanceCount = n;
     const spheres = [];
     for (let i = 0; i < n; i++) spheres.push(kitAt[k][i * 4], kitAt[k][i * 4 + 1] + 6, kitAt[k][i * 4 + 2], 16 * kitLook[k][i * 4]);
-    if (n) cullers.push(cullable(g, ["aKitAt", "aKitLook"], spheres));
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(300, 60, -400), 2400);
     const m = new THREE.Mesh(g, roofMat);
     m.name = `skyline_roofs_${Object.keys(KIT)[k]}`;
     m.visible = n > 0;
+    if (n) cullers.push(cullable(m, ["aKitAt", "aKitLook"], spheres));
     scene.add(m);
     return m;
   });
