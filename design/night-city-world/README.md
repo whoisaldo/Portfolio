@@ -180,6 +180,20 @@ corpo row's south side where About and Stack look, its light bar dimly red
 and blue and flashing red twice and blue twice in a beat and a half (steady
 under reduced motion).
 
+## The train
+
+The viaduct's train (`trainGeometry` in `traffic.js`, about 700
+triangles, one draw) is six cars with a gap and rubber bellows between
+each, a rounded roof over straight sides on two bogies a car, and the end
+cars drawn out into a sloped nose with a dark windscreen. Its shader puts a
+lit carriage behind every window (pillars, the ceiling's light strip along
+the top of the glass, seat backs, a passenger or two against the light),
+two doors a side, the line's cyan stripe under the windows, the city's
+glow in the dark paint, white headlamps on the leading nose and red ones on
+the tail. The windows are as bright as the old box's at the hero's
+vanishing point and softer close to, where they would only blow out. It
+replaced one box with the cars painted on.
+
 ## References
 
 - The plate, `public/scenes/night-city/neon-wide.webp` and

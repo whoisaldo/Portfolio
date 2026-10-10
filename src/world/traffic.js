@@ -89,6 +89,91 @@ function droneGeometry() {
   return merged;
 }
 
+/** The viaduct's train, x along it (centred), y up from the rail, z across:
+ *  `cars` cars with a gap between each and rubber bellows across it, each
+ *  car a rounded roof over straight sides on two bogies, and the two end
+ *  cars drawn out into a sloped nose. Smooth round the section, hard at the
+ *  ends. */
+function trainGeometry({ length, cars }) {
+  const carLen = length / cars;
+  const GAP = 0.9;
+  // Half the section (z >= 0), from the sill up the side, round the roof's
+  // shoulder to the middle of the roof.
+  const HALF = [[1.42, 0.55], [1.5, 0.95], [1.52, 2.75], [1.44, 3.12], [1.24, 3.4], [0.9, 3.56], [0, 3.62]];
+  const RING = [...HALF, ...HALF.slice(0, -1).reverse().map(([z, y]) => [-z, y])];
+  // The nose: how the section narrows, lowers and lifts over the last
+  // metres of an end car (metres from the end, across, up, lift).
+  const NOSE = [[3.6, 1, 1, 0], [2.0, 0.97, 0.93, 0], [0.9, 0.86, 0.76, 0.08], [0, 0.66, 0.52, 0.22]];
+  const parts = [];
+  const tube = (sections) => {
+    // sections: [x, across, up, lift]; consecutive rings joined by quads.
+    const n = RING.length;
+    const pos = [];
+    for (const [x, sz, sy, lift] of sections) for (const [z, y] of RING) pos.push(x, 0.55 + lift + (y - 0.55) * sy, z * sz);
+    const index = [];
+    // Sections run along +x; each quad wound to face out.
+    for (let r = 0; r < sections.length - 1; r++) {
+      for (let i = 0; i < n - 1; i++) {
+        const a = r * n + i;
+        const b = a + n;
+        index.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+      // The floor, from the last ring point back to the first.
+      const a = r * n + n - 1;
+      const b = r * n;
+      index.push(a, a + n, b, b, a + n, b + n);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(index);
+    g.computeVertexNormals();
+    parts.push(g.toNonIndexed());
+    g.dispose();
+  };
+  const cap = (section, out) => {
+    // A flat end: a fan from the section's middle, facing `out` along x.
+    const [x, sz, sy, lift] = section;
+    const pts = RING.map(([z, y]) => [x, 0.55 + lift + (y - 0.55) * sy, z * sz]);
+    const c = [x, 0.55 + lift + 1.5 * sy, 0];
+    const pos = [];
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      if (out > 0) pos.push(...c, ...b, ...a);
+      else pos.push(...c, ...a, ...b);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    parts.push(g);
+  };
+  const box = (x, y, z, sx, sy, sz) => {
+    const g = new THREE.BoxGeometry(sx, sy, sz).toNonIndexed();
+    g.deleteAttribute("uv");
+    g.translate(x, y, z);
+    parts.push(g);
+  };
+  for (let c = 0; c < cars; c++) {
+    const x0 = -length / 2 + c * carLen + (c > 0 ? GAP / 2 : 0);
+    const x1 = -length / 2 + (c + 1) * carLen - (c < cars - 1 ? GAP / 2 : 0);
+    const sections = [];
+    if (c === 0) for (const [d, sz, sy, lift] of NOSE) sections.push([x0 + d, sz, sy, lift]);
+    else sections.push([x0, 1, 1, 0]);
+    if (c === cars - 1) for (const [d, sz, sy, lift] of [...NOSE].reverse()) sections.push([x1 - d, sz, sy, lift]);
+    else sections.push([x1, 1, 1, 0]);
+    // Sorted along +x, the way tube() winds them.
+    sections.sort((a, b) => a[0] - b[0]);
+    tube(sections);
+    cap(sections[0], -1);
+    cap(sections[sections.length - 1], 1);
+    for (const f of [0.18, 0.82]) box(x0 + (x1 - x0) * f, 0.32, 0, 2.6, 0.5, 2.3);
+    if (c < cars - 1) box(x1 + GAP / 2, 2.0, 0, GAP + 0.3, 2.7, 2.5);
+  }
+  const merged = mergeGeometries(parts, false);
+  parts.forEach((g) => g.dispose());
+  return merged;
+}
+
 // The drones' rounds: roofs (x, z, the roof's height), each leg flown at its
 // own height, clear by seven metres or more of anything under it (measured
 // off the kit's roofs from above), and which rounds a phone keeps. The
@@ -466,20 +551,26 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   lamps.layers.enable(reflectLayer);
   scene.add(lamps);
 
-  // The train on the viaduct at the avenue's far end (anchor_rail): one
-  // box, six cars drawn on it by the shader (the gaps between them, a row
-  // of lit windows, a lamp at the front), sliding across the glow at the
-  // vanishing point every half minute or so, one way and then the other.
+  // The train on the viaduct at the avenue's far end (anchor_rail): six
+  // cars (trainGeometry), sliding across the glow at the vanishing point
+  // every half minute or so, one way and then the other. Its windows are a
+  // lit carriage each, between pillars, two doors a side, a passenger or
+  // two against the light, over a stripe of the line's colour; its body
+  // gives back the city's glow; its nose carries the headlamps going and
+  // the tail lamps coming. The windows are as bright as the old ones at the
+  // vanishing point and softer close to, where they would only blow out.
   const TRAIN = { length: 108, cars: 6, period: 32, crossing: 13, span: 340 };
-  const trainGeo = new THREE.BoxGeometry(TRAIN.length, 3.0, 3.0);
+  const trainGeo = trainGeometry(TRAIN);
   const trainMat = new THREE.ShaderMaterial({
     uniforms: { ...shared, uDir: { value: 1 } },
     vertexShader: /* glsl */ `
       varying vec3 vLocal;
+      varying vec3 vNormalL;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       void main() {
         vLocal = position;
+        vNormalL = normal;
         vec4 w = modelMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vNormalW = normalize(mat3(modelMatrix) * normal);
@@ -490,25 +581,79 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       ${COMMON}
       uniform float uDir;
       varying vec3 vLocal;
+      varying vec3 vNormalL;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       void main() {
-        float carLen = ${TRAIN.length.toFixed(1)} / ${TRAIN.cars.toFixed(1)};
-        float u = vLocal.x + ${(TRAIN.length / 2).toFixed(1)};
-        float inCar = fract(u / carLen) * carLen;
-        float gap = step(inCar, 0.6) + step(carLen - 0.6, inCar);
-        float side = step(0.5, abs(normalize(vNormalW).z));
-        float y = vLocal.y + 1.5;
-        float band = step(1.1, y) * step(y, 2.2);
-        float win = step(0.35, fract(inCar / 1.6)) * band * (1.0 - gap) * side;
-        float lit = step(0.18, hash12(vec2(floor(u / 1.6), 3.0)));
-        vec3 col = vec3(0.012, 0.012, 0.016) * (1.0 - gap) + vec3(1.0, 0.86, 0.66) * win * lit * 2.2;
-        // A stripe of the line's colour under the windows, and the lamp at
-        // the front.
-        col += vec3(0.1, 0.9, 1.0) * step(0.75, y) * step(y, 0.9) * side * (1.0 - gap) * 1.6;
-        float front = uDir > 0.0 ? step(${(TRAIN.length / 2 - 0.3).toFixed(1)}, vLocal.x) : step(vLocal.x, ${(-TRAIN.length / 2 + 0.3).toFixed(1)});
-        col += vec3(1.0, 0.95, 0.85) * front * step(1.0, y) * step(y, 2.0) * 6.0;
-        col = cityFog(col, vWorld, 0.8);
+        const float LEN = ${TRAIN.length.toFixed(1)};
+        float carLen = LEN / ${TRAIN.cars.toFixed(1)};
+        float u = vLocal.x + LEN * 0.5;
+        float car = floor(u / carLen);
+        float inCar = u - car * carLen;
+        float y = vLocal.y;
+        vec3 nl = normalize(vNormalL);
+        vec3 n = normalize(vNormalW);
+        vec3 V = normalize(vWorld - uCam);
+        float F = 0.04 + 0.96 * pow(1.0 - abs(dot(V, n)), 5.0);
+        float dist = length(vWorld - uCam);
+        // Which end leads, and how far into its nose this point is.
+        float lead = uDir > 0.0 ? LEN * 0.5 - vLocal.x : vLocal.x + LEN * 0.5;
+        float tail = LEN - lead;
+        float nose = 1.0 - smoothstep(3.0, 3.6, min(lead, tail));
+        // The body: dark paint giving back the lit air under it and the
+        // haze over it, and the street's light from below.
+        vec3 R = reflect(V, n);
+        vec3 env = mix(uHazeColor * 0.45 + uGlowColor * 0.7, uHazeColor * 0.25 * exp(-max(R.y, 0.0) * 4.0), step(0.0, R.y));
+        float sky = max(n.y, 0.0);
+        vec3 col = vec3(0.016, 0.017, 0.022) + env * (0.08 + 0.7 * F) + spillAt(vWorld) * 0.25 * max(-n.y, 0.0) + (uHazeColor * 0.2 + uGlowColor * 0.12) * sky * uHaze;
+        float glow = 0.0;
+        if (y < 0.56) col = vec3(0.006) + spillAt(vWorld) * 0.05;
+        float side = step(0.6, abs(nl.z)) * (1.0 - nose);
+        if (side > 0.5) {
+          // Two doors a side, a quarter and three quarters along.
+          float dq = min(abs(inCar - carLen * 0.25), abs(inCar - carLen * 0.75));
+          float door = step(dq, 0.68);
+          float seam = step(abs(dq - 0.68), 0.03) * step(0.62, y) * step(y, 2.86) + step(dq, 0.68) * step(abs(dq), 0.015) * step(0.62, y) * step(y, 2.86);
+          // Windows between pillars, a pane every 1.55 m between the doors;
+          // a narrow one in each door leaf.
+          float pane = fract((inCar - 0.4) / 1.55);
+          float win = (1.0 - door) * step(0.1, pane) * step(pane, 0.9) * step(1.5, y) * step(y, 2.62);
+          win += door * step(0.12, dq) * step(dq, 0.56) * step(1.62, y) * step(y, 2.52);
+          win *= step(0.9, inCar) * step(inCar, carLen - 0.9);
+          float id = floor((inCar - 0.4) / 1.55) + car * 17.0;
+          float lit = step(0.12, hash12(vec2(id, 3.0 + car)));
+          vec3 room = mix(vec3(1.0, 0.86, 0.66), vec3(0.8, 0.9, 1.0), step(0.7, hash12(vec2(car, 9.0))));
+          // Someone against the light now and then: a head and shoulders.
+          float who = hash12(vec2(id, 7.0));
+          float cx = fract((inCar - 0.4) / 1.55) * 1.55 - (0.35 + 0.85 * fract(who * 7.3));
+          float person = step(0.55, who) * (step(length(vec2(cx, y - 2.12) / vec2(1.0, 1.15)), 0.13) + step(length(vec2(cx, (y - 1.72) * 2.2)), 0.26) * step(y, 1.86));
+          // Inside: the ceiling's light strip along the top of the glass,
+          // seat backs along the bottom, the carriage's light between.
+          vec3 inside = room * (0.7 + 0.3 * smoothstep(1.7, 2.5, y) + 1.2 * step(2.48, y) * (1.0 - door)) * mix(0.4, 1.0, step(1.7, y));
+          inside *= 1.0 - 0.85 * min(person, 1.0) * (1.0 - door);
+          float bright = mix(0.5, 2.2, smoothstep(100.0, 450.0, dist));
+          col = mix(col, inside * bright * lit + vec3(0.01, 0.012, 0.016) * (1.0 - lit), win);
+          glow = max(glow, win * lit * 0.8);
+          col = mix(col, vec3(0.004), seam * (1.0 - win));
+          // A stripe of the line's colour under the windows.
+          float stripe = step(1.18, y) * step(y, 1.32) * (1.0 - door);
+          col = mix(col, vec3(0.1, 0.9, 1.0) * 1.6, stripe);
+          glow = max(glow, stripe * 0.8);
+        }
+        if (nose > 0.0 && y > 0.56) {
+          // The cab: a dark windscreen over the nose, and its lamps: white
+          // ahead, red behind.
+          float front = step(lead, tail);
+          float screen = step(2.05, y) * step(abs(nl.z), 0.75) * step(0.5, abs(nl.x) + nl.y);
+          col = mix(col, vec3(0.004, 0.006, 0.01) + env * (0.1 + 0.9 * F) + vec3(0.25, 0.3, 0.35) * 0.06, screen * nose);
+          float lampY = step(abs(y - 1.2), 0.16);
+          float lampZ = step(abs(abs(vLocal.z) - 0.78), 0.2);
+          float faceOn = step(0.45, abs(nl.x));
+          float lamp = lampY * lampZ * faceOn * step(min(lead, tail), 0.6);
+          col = mix(col, front > 0.5 ? vec3(1.0, 0.95, 0.85) * 6.0 : vec3(1.0, 0.06, 0.12) * 3.0, lamp);
+          glow = max(glow, lamp);
+        }
+        col = cityFog(col, vWorld, max(glow, 0.15));
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -705,7 +850,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       train.visible = t < TRAIN.crossing;
       if (train.visible) {
         const k = t / TRAIN.crossing;
-        train.position.set(rail.position.x + dir * (k * 2 - 1) * TRAIN.span, rail.position.y + 1.5, rail.position.z);
+        train.position.set(rail.position.x + dir * (k * 2 - 1) * TRAIN.span, rail.position.y, rail.position.z);
         trainMat.uniforms.uDir.value = dir;
       }
     }
