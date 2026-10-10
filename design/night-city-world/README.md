@@ -70,7 +70,10 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   over a terrace, an alley between each pair with a lit sign across its
   mouth),
   corpo row (one glass tower per role in
-  `experience.js` over a lit lobby, each its own shape: a square plan with
+  `experience.js` over a lit lobby (a double-height hall traced behind the
+  glass: a ceiling of light panels the polished floor holds again, the lift
+  core with the tower's colour across it, a desk, columns, now and then
+  somebody crossing), each its own shape: a square plan with
   its corners cut back, stepped back once or twice, a line of light up the
   inside of each cut and a thin ring at each setback, a ribbed glass crown
   (`crown_glass`) with bands at its foot and top, on some a screen of blades
