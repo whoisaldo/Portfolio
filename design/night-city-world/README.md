@@ -23,9 +23,12 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   `.blend` with `bpy.data.libraries.write`, and exports `world-source.glb`
   (git-ignored) next to it.
 - `npm run world:assets` (`scripts/optimize-world.mjs`, glTF Transform: prune,
-  dedup of accessors, meshes and textures, weld, WebP textures, Meshopt)
-  writes `public/scenes/world/world-high.glb` (2.76 MB, 1024 px textures) and
-  `world-phone.glb` (1.06 MB, 512 px textures, every prop the builder tagged
+  dedup of accessors, meshes and textures, weld, WebP textures, Meshopt; and
+  first every map and vertex attribute no shader reads taken off: roughness
+  and normal maps but the road's, UVs and vertex colours on plain paint and
+  neon, colours where only UVs are read)
+  writes `public/scenes/world/world-high.glb` (2.23 MB, 1024 px textures) and
+  `world-phone.glb` (0.93 MB, 512 px textures, every prop the builder tagged
   as detail dropped), `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
