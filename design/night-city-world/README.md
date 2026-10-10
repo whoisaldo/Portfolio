@@ -584,8 +584,9 @@ replaced one box with the cars painted on.
     shot, flight and the wheel scroll on high CPU 1.0-2.9 ms and GPU
     3.9-5.8 ms (the hero 5.8, was 4.8), the case study 1.1 and 8.7; on a
     phone CPU 0.8-3.6 ms and GPU 0.7-1.9 ms. The door and the intro: CPU at
-    most 3.3 ms, GPU at most 12.0 ms (the intro's busiest band). No frame
-    anywhere with 50 ms or more of script. The box was shared with another
+    most 2.2 ms, GPU at most 9.4 ms in the intro's busiest band (main 2.9
+    and 9.2; the intro measured interleaved with main). No frame anywhere
+    with 50 ms or more of script. The box was shared with another
     agent's iOS simulators (load average 8 to 30), which time-slice its GPU:
     the heavy scenes' p50 swings by several milliseconds between runs, so
     those were measured interleaved (base and branch alternating, four or
