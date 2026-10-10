@@ -125,23 +125,27 @@ export function setSoundEnabled(on) {
 // the reader hunts for the toggle. That is what shipped first and it was
 // wrong.
 //
-// So the rule is about the preference, not the history:
+// So the door goes up on every load, whatever the preference says:
 //
-//   sound on (or never chosen)  -> show the door, every load. One click is
-//                                  the price of audio and there is no way
-//                                  around it.
-//   sound explicitly off        -> never show it. They answered already, and
-//                                  the answer does not need a gesture to
-//                                  honour.
+//   sound on (or never chosen)  -> one click is the price of audio and there
+//                                  is no way around it.
+//   sound explicitly off        -> it used to stay down for them: they had
+//                                  answered, and silence needs no gesture.
+//                                  But the door is also the loading screen,
+//                                  and without it the city's downloads and
+//                                  builds happened in front of the reader
+//                                  instead of behind a bar. Muting once was
+//                                  enough to lose it for good. Answering the
+//                                  door again is the smaller cost.
 //
 // `hasBeenAsked` survives, demoted: it no longer decides whether the door
 // appears, only how much explaining it does when it does.
 
 const ASKED_KEY = "aly.sound.asked.v1";
 
-/** Does the entry gate need to appear on this page load? */
+/** Does the entry gate need to appear on this page load? Always; see above. */
 export function shouldGate() {
-  return soundEnabled();
+  return true;
 }
 
 export function hasBeenAsked() {

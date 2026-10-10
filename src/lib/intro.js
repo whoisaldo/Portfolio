@@ -22,9 +22,9 @@ const SEEN_KEY = "aly.intro.v1";
 /** Fired by the gate when the reader is through the door. */
 export const INTRO_START = "aly:intro-start";
 
-// Done from the start whenever the door is not going to open at all: a
-// reader who chose silence never sees the gate, so there is nothing to wait
-// for and the hero should simply animate in.
+// Done from the start only when the door is not going to open, so there is
+// nothing to wait for and the hero should simply animate in. In a browser it
+// opens on every load (see shouldGate in ./audio), so that is a server render.
 let done = typeof window === "undefined" ? true : !shouldGate();
 const subs = new Set();
 
