@@ -572,5 +572,39 @@ replaced one box with the cars painted on.
 - A footer or Konami replay keeps the city; putting the door back up rebuilds
   it, with `renderer.info.memory` back to its first count (99 geometries and
   71 textures, and 71 programs, after three of each).
+- After the polish pass (2026-10-10), against main as it was (a85735d with
+  the dev hooks), both on devbox1 in headless Chrome at 1440x900 DPR 2 and
+  390x844 DPR 3, `?adapt=off`, two runs each, medians of each run's p50:
+  - Draw calls: the hero 151 to 161 on high and 130 to 140 on a phone; the
+    reading shots 73-88 to 82-97 and 63-75 to 73-85. Triangles drawn (every
+    pass): the hero 316,000 to 437,000 and 175,000 to 207,000; the kit
+    itself 28,300 to 48,500 triangles, while its GLBs went from 2.77 to
+    2.48 MB on high and 1.07 to 1.11 MB on a phone.
+  - Frame time, CPU (rAF callbacks) and GPU (timer queries): every held
+    shot, flight and the wheel scroll on high CPU 1.0-2.9 ms and GPU
+    3.9-5.8 ms (the hero 5.8, was 4.8), the case study 1.1 and 8.7; on a
+    phone CPU 0.8-3.6 ms and GPU 0.7-1.9 ms. The door and the intro: CPU at
+    most 3.3 ms, GPU at most 12.0 ms (the intro's busiest band). No frame
+    anywhere with 50 ms or more of script. The box was shared with another
+    agent's iOS simulators (load average 8 to 30), which time-slice its GPU:
+    the heavy scenes' p50 swings by several milliseconds between runs, so
+    those were measured interleaved (base and branch alternating, four or
+    five rounds) and are given with the p10 of the frames that drew, the
+    nearest this box gets to the frame's own work. The braindance's busiest
+    moments (the avenue at 40 s, the garage at 185 s, thermal at 190 s): p10
+    7-13 ms, the same as main within noise (p50 12-24 ms on both). The
+    garage viewer: 14 ms a frame it draws at p10 (was 18), under a drag or
+    held, and once it has settled it draws a quarter of the frames it was
+    drawing half of (renderer passes a frame 22.9 to 9.5).
+  - Load, production build, 40 Mbps, cold, through the door the moment it
+    shows, four runs: the live city at 4.56 s on a desktop (was 4.61) with
+    15.2 MB fetched (was 15.5), and 3.98 s on a phone (was 4.16) with 13.7
+    MB (was 13.6).
+  - Memory, production build, a forced collection after each round of a
+    case study and the braindance and back: 75, 81, 81, 81, 83 MB (main: 71,
+    116, 156, 197, 237), WebGL contexts flat.
+  - Shots: before and after contact sheets of every section and model, and
+    the harness that made them, are kept out of the repo on devbox1
+    (`~/Library/Caches/ncw/polish/`).
 - Review files (`*-viewport.png`, `*-review.png`, `*-cycles*.png`,
   `world-source.glb`, `mcp.log`) stay local and are git-ignored.
