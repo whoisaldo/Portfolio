@@ -133,7 +133,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier });
     shafts = createShafts(scene, c.anchors, shared);
-    crowd = createCrowd(scene, shared, { count: tier === "phone" ? 16 : 40, reduced, reflectLayer: REFLECT_LAYER });
+    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER });
     steam = createSteam(scene, shared, c.anchors, { reduced });
     steam?.setLights(c.roofLights);
     resize();

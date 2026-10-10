@@ -415,10 +415,16 @@ garage street, one with its hazards blinking.
   they swim in the strip of sky between the nav and the name: the hero's
   own lens sets their height (`fit`) so the loop's middle sits an eighth of
   the way down the frame whatever the screen's size; a phone has them under
-  the name. People walk both pavements (`src/world/crowd.js`, forty on a
-  desktop, sixteen on a phone): silhouettes on upright cards, alone and in
-  pairs, some under umbrellas whose lit rims double in the road, legs and
-  arms tied to the distance walked, one draw. Steam breathes out of two
+  the name. People walk both pavements and the streets the other shots look
+  down (`src/world/crowd.js`, ninety-six on a desktop, thirty-six on a
+  phone: the avenue, the cross street, the plaza, corpo row's boulevard, the
+  garage street), and some stand (at the crossing's kerbs, by the vending
+  machines, at shop windows, a few on a lit phone): silhouettes on upright
+  cards, each their own build and outline (a hood, a cap, long hair, a coat
+  to the knee, a bag, a jacket trimmed in neon), alone and in pairs, some
+  under umbrellas whose lit rims double in the road, legs and arms tied to
+  the distance walked, faded in and out with a dither where a walk's loop
+  starts again, one draw. Steam breathes out of two
   manholes and two rooftop stacks (`src/world/steam.js`, anchored in the
   kit), lit by whatever light is where it is and brighter with a sign
   behind it. The walls are painted elevations lit by the signs' spill.
