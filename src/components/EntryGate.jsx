@@ -35,9 +35,11 @@
 //   way in opens the door when it ends, or on a timer if the car is lost
 //   under it. No audio call is awaited before it opens, so a browser refusing
 //   to start audio still gets you inside.
-//   It appears on every page load for anyone who wants sound, because that is
-//   how often a browser needs the gesture. Anyone who explicitly chose
-//   silence never sees it at all.
+//   It appears on every page load, because that is how often a browser needs
+//   the gesture, and because it is the loading screen. A reader who chose
+//   silence once answers it again rather than watching the city build in
+//   front of them; skipping it for them is how a phone that had muted once
+//   came to land on a page whose assets had not loaded.
 //   The page underneath is fully rendered the whole time, so a crawler that
 //   ignores overlays reads a complete document.
 //   It offers the way out. "For recruiters" goes to /recruiters, a plain
@@ -133,7 +135,7 @@ const COPY = {
   silent: "Enter silent",
   note: (returning) =>
     returning
-      ? "Browsers ask for a click on every visit before they play audio. Enter silent and this stops appearing."
+      ? "Browsers ask for a click on every visit before they play audio. The city loads while you choose."
       : "Your browser needs one click before it can play audio. Volume and mute live bottom left.",
   intro: "The intro runs about 25 seconds. Esc skips it.",
   braindanceItem: "Braindance",
