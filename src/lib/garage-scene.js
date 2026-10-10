@@ -13,6 +13,7 @@ import { preloadCar } from "../three/car/object.js";
 import { createGarageFloor } from "../three/garage-floor.js";
 import { createObject } from "../three/car/object.js";
 import { slim, RIG, HOOD_RIG } from "../three/car/slim.js";
+import { hasGpuAcceleration } from "./gpu.js";
 
 export const preloadGarage = () => Promise.all([preloadCar(), preloadGarageRoom()]);
 
@@ -34,6 +35,23 @@ const ZOOM_MIN = 3.2;
 const ZOOM_MAX = 9.5;
 const easeOut = (p) => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
 
+/** three's lookup textures are the page's, not a renderer's: the one its
+ *  standard materials read (DFG_LUT) and the area lights' (UniformsLib's
+ *  LTC tables). Nothing disposes them, and every renderer that draws with
+ *  them hangs a listener on them, so they held on to each renderer the page
+ *  ever made, programs and all. Disposed as one goes, they let go of it; a
+ *  renderer still running uploads them again, a few kilobytes. The first is
+ *  read off a material the renderer drew, before the materials go. */
+function releaseLut(renderer, scene) {
+  let lut = null;
+  scene.traverse((o) => {
+    if (lut || !o.material) return;
+    for (const m of [].concat(o.material)) lut ??= renderer.properties.get(m).uniforms?.dfgLUT?.value ?? null;
+  });
+  lut?.dispose();
+  for (const k of ["LTC_FLOAT_1", "LTC_FLOAT_2", "LTC_HALF_1", "LTC_HALF_2"]) THREE.UniformsLib[k]?.dispose();
+}
+
 /**
  * Build the scene on `canvas`. Call preloadGarage() first (garage3d.js does).
  *
@@ -48,6 +66,14 @@ const easeOut = (p) => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
  *   reduced   prefers-reduced-motion
  */
 export function createGarageScene(canvas, { markers = [], onFrame, reduced = false } = {}) {
+  // With no WebGL 2 at all (no GPU and no software renderer, or WebGL
+  // switched off) three can only fail, and prints three errors on the way;
+  // GarageModel shows its still either way, so it is told plainly instead.
+  if (!hasGpuAcceleration()) {
+    const gl = document.createElement("canvas").getContext("webgl2");
+    if (!gl) throw new Error("WebGL 2 is not available");
+    gl.getExtension("WEBGL_lose_context")?.loseContext();
+  }
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -196,6 +222,21 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   ambientOcclusion.minDistance = 0.001;
   ambientOcclusion.maxDistance = 0.16;
   composer.addPass(ambientOcclusion);
+  // The ambient occlusion is a function of the geometry and the camera
+  // alone: while neither moves, last frame's still stands, and only its
+  // blend onto the picture is drawn again.
+  let aoValid = false;
+  const renderAo = ambientOcclusion.render.bind(ambientOcclusion);
+  ambientOcclusion.render = (r, writeBuffer, readBuffer, ...rest) => {
+    if (!aoValid) {
+      renderAo(r, writeBuffer, readBuffer, ...rest);
+      aoValid = true;
+      return;
+    }
+    ambientOcclusion.copyMaterial.uniforms.tDiffuse.value = ambientOcclusion.blurRenderTarget.texture;
+    ambientOcclusion.copyMaterial.blending = THREE.CustomBlending;
+    ambientOcclusion._renderPass(r, ambientOcclusion.copyMaterial, ambientOcclusion.renderToScreen ? null : readBuffer);
+  };
   composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.14, 0.25, 1.8));
   composer.addPass(new OutputPass());
   composer.addPass(new SMAAPass());
@@ -278,17 +319,34 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   const out = markers.map((m) => ({ id: m.id, x: 0, y: 0, front: true, bay: false, visible: true }));
   let raf = 0;
   let running = false;
+  let warmed = false;
   let width = 1;
   let height = 1;
+  // Frames since anything but the monitor moved, and whether this one is
+  // skipped. A still room changes only where the monitor plays (its film
+  // and its scanlines, thirty frames a second at most), so once the camera
+  // has settled the room is drawn every other frame and the floor's
+  // reflection every other one of those; under reduced motion the monitor
+  // holds its still too, and a settled room is not drawn again at all.
+  // Anything that moves draws every frame from the next.
+  let still = 0;
+  let drawn = 0;
+  // Where the camera was last frame. The controls' damping never quite
+  // stops (it nudges the camera by fractions of a micron for ever), so a
+  // tenth of a millimetre, or the same small turn, counts as still.
+  const _seenAt = new THREE.Vector3(1e9, 0, 0);
+  const _seenQ = new THREE.Quaternion();
 
   function frame() {
     raf = requestAnimationFrame(frame);
     const now = performance.now();
+    let moved = false;
     if (tween) {
       const p = easeOut((now - tween.t0) / tween.ms);
       camera.position.lerpVectors(_from, _to, p);
       controls.target.lerpVectors(_fromT, _toT, p);
       if (p >= 1) tween = null;
+      moved = true;
     }
     if (hasHood && hoodT0) {
       const p = easeOut((now - hoodT0) / 900);
@@ -296,12 +354,21 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
       setHoodProgress(hoodAt);
       renderer.shadowMap.needsUpdate = true;
       if (p >= 1) hoodT0 = 0;
+      moved = true;
     }
     controls.update();
     // The enclosed room bounds also apply while a preset is tweening.
     camera.position.x = THREE.MathUtils.clamp(camera.position.x, -6.6, 6.6);
     camera.position.y = THREE.MathUtils.clamp(camera.position.y, 0.3, 5.1);
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, -6.5, 8.3);
+    if (_seenAt.distanceToSquared(camera.position) > 1e-8 || 1 - Math.abs(_seenQ.dot(camera.quaternion)) > 1e-10) moved = true;
+    _seenAt.copy(camera.position);
+    _seenQ.copy(camera.quaternion);
+    still = moved ? 0 : still + 1;
+    if (still < 2) aoValid = false;
+    if (still > 8 && (reduced || still % 2)) return;
+    drawn++;
+    wetFloor.hold(still > 8 && drawn % 2 === 0);
     room.update(now);
     composer.render();
 
@@ -357,11 +424,24 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     camera.updateProjectionMatrix();
     composer.setPixelRatio(ratio);
     composer.setSize(width, height);
-    if (!running) composer.render();
+    still = 0;
+    aoValid = false;
+    wetFloor.hold(false);
+    // Not before warm(): a frame drawn now would build every program on the
+    // main thread, where warm() builds them off it.
+    if (!running && warmed) composer.render();
   }
 
   function dispose() {
+    releaseLut(renderer, scene);
     stop();
+    // OrbitControls takes its keyboard listeners off the canvas's root node,
+    // which is the document only while the canvas is in it. By the time the
+    // page unmounts the garage it is not, and the document kept the controls
+    // and through them this whole scene alive, a garage's worth of geometry
+    // for every visit back to the page. Off the document by hand first.
+    document.removeEventListener("keydown", controls._interceptControlDown, { capture: true });
+    document.removeEventListener("keyup", controls._interceptControlUp, { capture: true });
     controls.dispose();
     canvas.removeEventListener("wheel", onWheel, { capture: true });
     car.userData.dispose();
@@ -380,14 +460,28 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
 
   /** Every program the room and the car use, built before the first frame
    *  anyone sees: the scene's own off the main thread while the GPU links
-   *  them, then one whole frame drawn unseen for the rest (the shadows' depth
-   *  pass, the ambient occlusion's normals, the floor's reflection), which a
-   *  scene compile does not reach. Called where a long frame shows on
-   *  nothing: behind the door, or as the page settles. */
+   *  them (for the composer's buffer they draw into, or they are not the
+   *  programs the frames use), and again without the rect lights, as the
+   *  floor's reflection draws the room; then one whole frame drawn unseen
+   *  for the rest (the shadows' depth pass, the ambient occlusion's
+   *  normals), which a scene compile does not reach. Called where a long
+   *  frame shows on nothing: behind the door, or as the page settles. */
   async function warm() {
-    if (renderer.compileAsync) await renderer.compileAsync(scene, camera).catch(() => {});
+    if (renderer.compileAsync) {
+      const target = renderer.getRenderTarget();
+      renderer.setRenderTarget(composer.readBuffer);
+      await renderer.compileAsync(scene, camera).catch(() => {});
+      const rects = [];
+      scene.traverse((o) => o.isRectAreaLight && o.visible && rects.push(o));
+      rects.forEach((l) => (l.visible = false));
+      await renderer.compileAsync(scene, camera).catch(() => {});
+      rects.forEach((l) => (l.visible = true));
+      renderer.setRenderTarget(target);
+    }
     renderer.shadowMap.needsUpdate = true;
+    aoValid = false;
     composer.render();
+    warmed = true;
   }
 
   return {

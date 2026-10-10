@@ -18,7 +18,9 @@
 //            the city's glow in the glass; lobby, the lit ground floor.
 //   lantern  a red paper lantern, hot through its belly.
 //   neon     tubes, strips and panels: flat HDR colour for the bloom to find,
-//            breathing with the kick while the track plays, a few flickering.
+//            breathing with the kick while the track plays, a few flickering;
+//            `glow` the same with each piece's colour on its vertices, for
+//            light too high up to light the street.
 //   painted  the avenue's and the canyon's walls: an original night elevation
 //            (balconies, laundry, AC units, lit rooms) as colour and light at
 //            once. The lit windows keep their glow and lift a little for the
@@ -594,8 +596,17 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  // A tower's lobby: a double-height glass box, bright under its ceiling,
-  // the floor shining, mullions every 2 m and a transom.
+  // A tower's lobby, seen through its glass: a double-height hall traced in
+  // the fragment, as the shops and the offices are (the eye's ray into a box
+  // 24.8 m wide, as tall as the glass and nine metres deep). Overhead a grid
+  // of light panels, which the polished floor holds again, softer; at the
+  // back the lift core's stone, its doors in a row and a band of the
+  // tower's own colour across it (brighter while its card is read); a
+  // reception desk in the middle with a lit edge; three columns a couple of
+  // metres in, which the hall moves behind as the camera passes; and now and
+  // then somebody crossing it. Mullions every 2 m and a transom, as before,
+  // and about as bright as before overall, so the light the city bakes
+  // from it onto the boulevard is the same.
   const lobby = () => {
     if (made.has("lobby")) return made.get("lobby");
     const m = keep(new THREE.ShaderMaterial({
@@ -603,19 +614,103 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
+        uniform vec3 uTowerAccent[8];
+        uniform float uTowerLit[8];
+        uniform vec2 uTowerCentre[8];
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
         varying vec4 vColor;
+        const float W = 24.8;
+        const float H = 7.85;
+        const float D = 9.0;
+        // The ceiling's panels at a point of the ceiling, faded to their
+        // average where they would shimmer.
+        float panels(vec2 c) {
+          vec2 g = c / vec2(1.55, 1.2);
+          vec2 f = abs(fract(g) - 0.5);
+          float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
+          return mix(step(f.x, 0.38) * step(f.y, 0.3), 0.35, aa);
+        }
         void main() {
-          vec3 n = normalize(vNormalW);
+          vec3 n = normalize(vec3(vNormalW.x, 0.0, vNormalW.z));
           vec3 t = vec3(n.z, 0.0, -n.x);
-          float mu = fract(dot(vWorld, t) / 2.0);
-          float h = clamp((vWorld.y - 0.15) / 7.85, 0.0, 1.0);
+          int ti = 0;
+          float best = 1e9;
+          for (int i = 0; i < 8; i++) {
+            float dd = abs(vWorld.x - uTowerCentre[i].x);
+            if (dd < best) { best = dd; ti = i; }
+          }
+          vec3 accent = uTowerAccent[ti];
+          float tlit = uTowerLit[ti];
+          float along = dot(vWorld.xz - uTowerCentre[ti], t.xz);
+          float h = clamp((vWorld.y - 0.15) / H, 0.0, 1.0);
           vec3 light = mix(vec3(0.86, 0.93, 1.0), vec3(1.0, 0.84, 0.64), step(0.6, vColor.g));
-          vec3 col = light * (0.22 + 1.1 * smoothstep(0.62, 1.0, h) + 0.35 * smoothstep(0.18, 0.0, h));
+          float seed = vColor.r * 37.0 + float(ti) * 3.1;
+
+          // Into the hall: x along the glass from its left end, y up, z in.
+          vec3 V = normalize(vWorld - uCam);
+          vec3 d = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
+          vec3 p = vec3(clamp(along + W * 0.5, 0.0, W), h * H, 0.0);
+          float tx = d.x > 0.0 ? (W - p.x) / d.x : -p.x / min(d.x, -1e-4);
+          float ty = d.y > 0.0 ? (H - p.y) / d.y : -p.y / min(d.y, -1e-4);
+          float tz = D / d.z;
+          float tm = min(min(tx, ty), tz);
+          vec3 hit = p + d * tm;
+          vec3 col;
+          if (tm == tz) {
+            // The core: dark stone, lift doors in a row (a seam of light
+            // round each), and the tower's colour in a band across it.
+            col = light * (0.3 + 0.14 * smoothstep(0.0, H, hit.y));
+            float door = abs(fract((hit.x - 2.0) / 3.4) - 0.5) * 3.4;
+            float seam = step(abs(door - 0.75), 0.04) * step(hit.y, 2.6) + step(abs(hit.y - 2.62), 0.04) * step(door, 0.79);
+            col = mix(col, light * 0.08, step(door, 0.72) * step(hit.y, 2.6) * 0.5);
+            col += light * seam * 1.1;
+            col += accent * (0.6 + 2.2 * tlit) * step(abs(hit.y - 4.3), 0.28);
+          } else if (tm == ty && d.y > 0.0) {
+            col = light * (0.4 + 2.4 * panels(hit.xz));
+          } else if (tm == ty) {
+            // The floor, polished: the ceiling again, softer, and darker
+            // toward the back.
+            vec3 m2 = hit + vec3(d.x, -d.y, d.z) * ((H) / max(-d.y, 1e-3));
+            col = light * (0.16 + 0.7 * panels(m2.xz)) * (1.0 - 0.35 * hit.z / D);
+          } else {
+            col = light * (0.26 + 0.12 * smoothstep(0.0, H, hit.y));
+          }
+          // The desk, mid-hall: its top's lit edge over a dark front.
+          float tdk = 4.6 / d.z;
+          if (tdk < tm) {
+            vec3 q = p + d * tdk;
+            if (abs(q.x - W * 0.5) < 3.6 && q.y < 1.1) {
+              col = light * 0.03 + accent * 0.4 * step(abs(q.y - 0.55), 0.05) + light * 1.2 * step(1.02, q.y);
+              tm = tdk;
+            }
+          }
+          // Columns, two metres in.
+          float tc = 2.0 / d.z;
+          if (tc < tm) {
+            vec3 q = p + d * tc;
+            float k = mod(q.x - W / 6.0, W / 3.0);
+            if (min(k, W / 3.0 - k) < 0.42) col = light * (0.1 + 0.08 * smoothstep(0.0, H, q.y));
+          }
+          // Somebody crossing it now and then, against the light.
+          float zf = 3.0 + 3.0 * hash12(vec2(seed, 2.0));
+          float tf = zf / d.z;
+          if (tf < tm) {
+            vec3 q = p + d * tf;
+            float walk = fract(uTime * 0.035 + hash12(vec2(seed, 5.0)));
+            float fx = q.x - mix(-2.0, W + 2.0, walk);
+            float body = step(abs(fx), 0.22 - 0.05 * smoothstep(1.05, 1.45, q.y)) * step(q.y, 1.48);
+            float head = step(length(vec2(fx, q.y - 1.63)), 0.11);
+            col = mix(col, col * 0.06, max(body, head));
+          }
+          // The glass: its mullions every 2 m and its transom, and at a
+          // glancing angle a little of the street.
+          float mu = fract(dot(vWorld, t) / 2.0);
           float frame = step(mu, 0.02) + step(0.98, mu) + step(abs(h - 0.56), 0.012);
           col = mix(col, vec3(0.015), clamp(frame, 0.0, 1.0));
+          float fres = pow(1.0 - abs(dot(V, n)), 4.0);
+          col = col * (1.0 - 0.5 * fres) + (spillAt(vWorld) * 0.3 + uHazeColor * 0.1) * fres;
           col = cityFog(col, vWorld, 0.8);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
@@ -732,6 +827,41 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
+  // Light high over the street (a rooftop sign, a stair hut's door, an
+  // antenna's lamp): neon's flat HDR colour, breathing with the kick and
+  // now and then dropping a tube for a frame, each piece's colour on its
+  // vertices so all of it is one draw. src/world/city.js leaves it out of
+  // the light it bakes onto the ground and the road, which a sign forty
+  // metres up does not reach.
+  const glow = () => {
+    if (made.has("glow")) return made.get("glow");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared, uIntensity: { value: 2.4 }, uFlicker: { value: reduced ? 0 : 1 } },
+      vertexShader: VERT_WORLD_COLOR,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        uniform float uIntensity;
+        uniform float uFlicker;
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        void main() {
+          float t = floor(uTime * 12.0);
+          float cut = step(0.993, hash12(vec2(t, floor(vWorld.x * 0.3 + vWorld.z * 0.2)))) * uFlicker;
+          float breathe = 1.0 + 0.45 * uBass + 0.15 * uLevel;
+          vec3 col = vColor.rgb * uIntensity * breathe * (1.0 - 0.8 * cut);
+          col = cityFog(col, vWorld, 1.0);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "glow";
+    made.set("glow", m);
+    return m;
+  };
+
   // The garage's tubes: neon's flat HDR colour (each tube's own, on its
   // vertices), dark until the camera turns to the door (uTubeClock,
   // src/world/garage.js), then struck on a fixture at a time, the way
@@ -786,6 +916,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       return neon(n, NEON[hue] || "#ffffff", { flicker: hue === "white" || hue === "amber" ? 0 : 1 });
     }
 
+
     switch (n) {
       case "facade": return facade();
       case "facade_end": return facade("facade_end", 0.33);
@@ -814,6 +945,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "garage_floor": return wetFloor("garage").material;
       case "roof_wet": return wetFloor("roof").material;
       case "tube": return tube();
+      case "glow": return glow();
       case "tool_red": return surface("tool_red", { color: "#7a2028", ambient: 0.06, spill: 2.0 });
       case "hazard": return surface("hazard", { color: "#d8ab22", ambient: 0.07, spill: 1.8 });
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });

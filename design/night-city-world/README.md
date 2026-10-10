@@ -23,9 +23,12 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   `.blend` with `bpy.data.libraries.write`, and exports `world-source.glb`
   (git-ignored) next to it.
 - `npm run world:assets` (`scripts/optimize-world.mjs`, glTF Transform: prune,
-  dedup of accessors, meshes and textures, weld, WebP textures, Meshopt)
-  writes `public/scenes/world/world-high.glb` (2.76 MB, 1024 px textures) and
-  `world-phone.glb` (1.06 MB, 512 px textures, every prop the builder tagged
+  dedup of accessors, meshes and textures, weld, WebP textures, Meshopt; and
+  first every map and vertex attribute no shader reads taken off: roughness
+  and normal maps but the road's, UVs and vertex colours on plain paint and
+  neon, colours where only UVs are read)
+  writes `public/scenes/world/world-high.glb` (2.54 MB, 1024 px textures) and
+  `world-phone.glb` (1.16 MB, 512 px textures, every prop the builder tagged
   as detail dropped), `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
@@ -40,25 +43,52 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   overpass with 空き未来へ, sodium lamps, cables, vending machines, lit
   shopfronts under dyed awnings and paper lanterns, painted walls), a canyon
   of vertical signs whose roofs step down to a band of sky, the holographic
-  figure and the ARASAKA tower in it, the canyon running on to the glow at
-  its end and a rail viaduct crossing it there (`anchor_rail`, the line the
-  site runs a lit train along), five landmark towers a kilometre off
-  (`anchor_mega_<n>`, lit bands at their setbacks, one kept clear of the
-  figure), the billboard plaza (`board_main` and seven more; the
+  figure and the ARASAKA tower in it (a podium with a lit lobby, a shaft
+  with its corners cut back, the red bands, the name's square face, and a
+  dark head ringed with red fins under a mast), the canyon running on to
+  the glow at its end and a rail viaduct crossing it there (`anchor_rail`,
+  the line the site runs a lit train along) to a megabuilding across the
+  avenue (three sections, the middle set back, decks lit from under every
+  nineteen metres, a bridge to the stepped tower behind it), five landmark
+  towers a kilometre off (`anchor_mega_<n>`, each its own design on a
+  podium: a needle stepped three times to a spire, blocks stacked off
+  centre, a slab with a raked top, an open crown of posts and a lit ring,
+  a ziggurat; lit bands at their setbacks, no fins on their corners, one
+  kept clear of the figure), the billboard plaza (`board_main` and seven more; the
   big one and the two beside it hang in a dark steel housing, ribbed, with a
   catwalk, floodlights and red corner lamps, bolted over a block of painted flats, so the
   screens and not the lit rooms round them carry the shot; the square's
   other blocks and the cross street's south side are painted flats too),
+  roofs that are lived on (every lot's: a parapet and, by its own draw, a
+  water tank on its stand, a stair hut with its door lit, air conditioners,
+  a plant room, an antenna with a red lamp, now and then a sign on two posts
+  whose strokes are drawn in light; on the roofs the hero looks along, the
+  avenue's and the canyon's, only what its lens cannot see, each piece and
+  each run of parapet tested in the builder against sight lines from the
+  hero's eye over the canyon's own masses and across ARASAKA's name, the
+  figure and the megablock's cyan sign, so the hero's roofline is the one
+  the plate was matched to; the plaza's east block left bare,
+  because the Experience camera stands inside it), corpo row's south side as
+  a street (shops along the boulevard under lit awnings, the signs a street
+  collects hung off the fronts, flats and offices over them, some set back
+  over a terrace, an alley between each pair with a lit sign across its
+  mouth),
   corpo row (one glass tower per role in
-  `experience.js` over a lit lobby, each its own shape: a square plan with
+  `experience.js` over a lit lobby (a double-height hall traced behind the
+  glass: a ceiling of light panels the polished floor holds again, the lift
+  core with the tower's colour across it, a desk, columns, now and then
+  somebody crossing), each its own shape: a square plan with
   its corners cut back, stepped back once or twice, a line of light up the
   inside of each cut and a thin ring at each setback, a ribbed glass crown
   (`crown_glass`) with bands at its foot and top, on some a screen of blades
   over the roof or a mast, red lamps on its corners, and a crown slot, a
-  logo slot `logo_<slug>` and a name slot each), the rooftop (tanks, AC
-  units, antennas, a stair hut with its door open, condensers, pipes on
+  logo slot `logo_<slug>` and a name slot each), the rooftop (hooped tanks,
+  AC units with louvres and, on every other one, a status lamp, antennas, a
+  stair hut with its door open, condensers, pipes on
   sleepers, dishes, a rail along the edge and a string of bulbs, RIPPERDOC,
-  AFTERLIFE, MILITECH), the garage (a roll-up
+  AFTERLIFE on a block of painted flats over lit shops that faces the
+  garage street, MILITECH stepped back over a yellow band with its name
+  hung on the plant room on its roof), the garage (a roll-up
   door, `garage_door`, down in its opening; inside, the garage viewer's
   own walls, photographed (below); magenta tubes on the car's passenger
   side and cyan on the driver's, as in the garage room, all one `tube`
@@ -68,8 +98,14 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   lamp either side and the shop's name on a blade at the corner; painted
   flats either side of it and across the street, shops under the flats
   next door, a second shutter, the office window, a cyan strip under its
-  parapet, bollards, tyres, a skip and two more sodium lamps), and the moon
-  disc. About 28,000 triangles.
+  parapet, bollards, tyres, a skip and two more sodium lamps; both walls of
+  the street hung with signs, air conditioners and a fire escape, cables
+  across it and a string of lights at its corner), and the moon
+  disc. About 49,000 triangles.
+- Light high over the street (the rooftop signs, the huts' doorways) is
+  `NCW_glow_<colour>`: the neon shader, but left out of the light the site
+  bakes onto the ground and into the road (`src/world/city.js` bakes
+  `neon_` only), which a sign forty metres up does not reach.
 - Named empties the site reads: `cam_<shot>` and `cam_<shot>_target` (and
   `_b` variants for shots that move while they hold, `_portrait` ones where a
   phone has its own), the flight waypoints
@@ -108,6 +144,56 @@ thruster pods at the corners, seven named materials (hull, trim, glass,
 lamp_head, lamp_tail, glow_thruster, glow_accent), 5.2 by 3.6 m, no text,
 no logos, no brand cues. `src/world/traffic.js` merges it by those names
 into one instanced draw.
+
+## The cars
+
+The street's cars (`src/world/traffic-cars.js`) are three original designs
+built the same way: a compact hatch, a long low sedan with a fastback and a
+shoulder crease, and a cab-forward van, lofted shells with their arches cut,
+a glasshouse set into the waist, full-width light bars and revolved wheels,
+1,694, 1,692 and 1,800 triangles, eight named materials (body, trim, glass,
+tyre, rim, lamp_head, lamp_tail, glow_accent), no badge, no text, no brand.
+They replaced two stacked boxes. `traffic.js` merges each kind into one
+instanced draw with a night shader (wet paint giving back the lit street,
+grounded toward the sills, tinted glass, lit bars on the moving ones), gives
+each car its own paint and accent from a seeded draw, runs twice the tier's
+count (two to a lane on a desktop, one on a phone, evenly spaced at the
+lane's speed so none meet), fades them in and out with a dither where the
+loop ends, and parks a few more up the avenue's left kerb and down the
+garage street, one with its hazards blinking.
+
+## Drones and the police
+
+Under the AVs, delivery drones (a flat body, four ducted rotors on a cross
+of arms, a parcel slung under, a lit ring; about 400 triangles, built in
+`traffic.js`) hop roof to roof: up off one, across at a height clear of
+everything under the leg by seven metres or more, down onto the next, a few
+seconds there, and on, nose down as they get going and up as they slow,
+lit as aircraft are (red to port, green to starboard, a white strobe). The
+roofs and each leg's height were measured off the kit from straight above
+(an orthographic render writing each roof's height), so none clips a
+building. Eight rounds on a desktop, five on a phone: across the avenue's
+sky over the hero's street, over the garage street's blocks where the
+rooftop looks (one takes off from the rooftop's own roof), and along corpo
+row's south side. One instanced draw in the AV's shader; their lamps join
+the traffic's one sprite batch. One more AV is the police, slow and low over
+corpo row's south side where About and Stack look, its light bar dimly red
+and blue and flashing red twice and blue twice in a beat and a half (steady
+under reduced motion).
+
+## The train
+
+The viaduct's train (`trainGeometry` in `traffic.js`, about 700
+triangles, one draw) is six cars with a gap and rubber bellows between
+each, a rounded roof over straight sides on two bogies a car, and the end
+cars drawn out into a sloped nose with a dark windscreen. Its shader puts a
+lit carriage behind every window (pillars, the ceiling's light strip along
+the top of the glass, seat backs, a passenger or two against the light),
+two doors a side, the line's cyan stripe under the windows, the city's
+glow in the dark paint, white headlamps on the leading nose and red ones on
+the tail. The windows are as bright as the old box's at the hero's
+vanishing point and softer close to, where they would only blow out. It
+replaced one box with the cars painted on.
 
 ## References
 
@@ -367,10 +453,19 @@ into one instanced draw.
   they swim in the strip of sky between the nav and the name: the hero's
   own lens sets their height (`fit`) so the loop's middle sits an eighth of
   the way down the frame whatever the screen's size; a phone has them under
-  the name. People walk both pavements (`src/world/crowd.js`, forty on a
-  desktop, sixteen on a phone): silhouettes on upright cards, alone and in
-  pairs, some under umbrellas whose lit rims double in the road, legs and
-  arms tied to the distance walked, one draw. Steam breathes out of two
+  the name. People walk both pavements and the streets the other shots look
+  down (`src/world/crowd.js`, ninety-six on a desktop, thirty-six on a
+  phone: the avenue, the cross street, the plaza, corpo row's boulevard, the
+  garage street), and some stand (at the crossing's kerbs, by the vending
+  machines, at shop windows, a few on a lit phone, one of them holding the
+  braindance's hot phone where its clue is): dark silhouettes on upright
+  cards against the lit shops (most of the light where they stand is behind
+  them, so the side the street sees takes little of it, and only heads and
+  shoulders catch it), each their own build and outline (a hood, a cap, long
+  hair, a coat to the knee, a bag, a jacket trimmed in neon), alone and in pairs, some
+  under umbrellas whose lit rims double in the road, legs and arms tied to
+  the distance walked, faded in and out with a dither where a walk's loop
+  starts again, one draw. Steam breathes out of two
   manholes and two rooftop stacks (`src/world/steam.js`, anchored in the
   kit), lit by whatever light is where it is and brighter with a sign
   behind it. The walls are painted elevations lit by the signs' spill.
@@ -384,11 +479,35 @@ into one instanced draw.
   and the fog brightens with distance into the lit city's glow, pink and
   strongest toward downtown, the way the plate's street ends; the road
   mirrors that glow at its far end.
-- Past the kit (`src/world/skyline.js`): a few thousand towers on a jittered
-  grid, one draw, their windows the kit's shader, one tall roof in seven
-  wearing a lit band and every roof over 92 m a red aviation lamp, blinking
-  in three groups (one draw, steady under reduced motion); a few towers
-  stand under Contact's moon so it rises out of a skyline. The sky dome is
+- Past the kit (`src/world/skyline.js`): a few thousand buildings on a
+  jittered grid, their windows the kit's shader. Each is shaped in the
+  vertex shader from one shared mesh and its own numbers: up to four
+  stacked tiers (podium, shaft, setbacks, crown or spire), a square plan or,
+  for some towers, one with its corners cut back, a parapet round the top
+  roof and a terrace on every setback; an upper tier often stands off
+  centre. Most buildings under 100 m wear the avenue's painted elevations,
+  and a wide block is split into two buildings of different heights; some faces carry a
+  vertical neon sign or a strip of neon along a floor line. Towers are one
+  of five kinds (stepped back twice, a slab with its plant on top, a
+  ziggurat, a dark glass crown with lit edges, a podium and a spire), some
+  lit at their setbacks in warm light, a few carrying a screen the height of
+  a dozen floors that changes its advert every nine seconds. Roofs within a
+  kilometre carry a kit (tanks and a stair hut with its door lit, plant and
+  cooling towers, a telecom mast with dishes and lamps, a neon sign on two
+  posts whose strokes read as lettering without being any). Every
+  placement, footprint and height cap is the one the boxes had, so the
+  hero's band of sky and Contact's moon keep their clearances, and every
+  building keeps the look it had as a box (painted or windowed, its
+  windows' style, warmth and lit share), worked out once from where it
+  stands by the hash the boxes' shader ran per vertex; spires and
+  masts stand only where nothing was capped, and signs only outside the
+  hero's view. Seven draws for the buildings and their roofs, each culled
+  on the CPU to what the frustum sees (the visible instances packed into
+  the buffers when the set changes), which keeps the vertex work under what
+  the boxes cost; one tall roof in seven wears a lit band and every roof
+  over 92 m (or its spire's tip) a red aviation lamp, blinking in three
+  groups (one draw, steady under reduced motion); a few towers stand under
+  Contact's moon so it rises out of a skyline. The sky dome is
   the rest, at no extra draw: near-black overhead and the lit city's glow at
   the horizon; a broken deck of cloud at 520 m lit from under in that glow's
   colour, darker between the clouds, drifting; three slow searchlights from
@@ -417,9 +536,11 @@ into one instanced draw.
   the planar reflection and the road's sheen), `traffic` and `reactive`
   reach the city directly.
 - Tiers (`quality.js`): high (DPR 1.5, 2.2 MP cap, a 1024 by 512 planar
-  reflection, 6,000 rain streaks, 10 AVs and 4 road cars, SMAA, a 4096 sign
-  atlas) and phone (DPR 1.25, 0.9 MP, a 512 by 256 reflection, 2,000 rain,
-  4 and 2, half-scale bloom, a 2048 sign atlas at half the pixels a metre).
+  reflection, 9,000 rain streaks, 10 AVs and the police, 4 road cars (8
+  driven, see The cars), 8 drones, SMAA, a 4096 sign
+  atlas) and phone (DPR 1.25, 0.9 MP, a 512 by 256 reflection, 3,000 rain,
+  4 AVs and the police, 2 road cars (4 driven), 5 drones, half-scale bloom,
+  a 2048 sign atlas at half the pixels a metre).
   The mirror is smeared down the road, never across it, so streaks keep hard
   sides; baked streaks lie faintly under it and are the whole reflection
   once a slow device has shed it.
@@ -451,5 +572,40 @@ into one instanced draw.
 - A footer or Konami replay keeps the city; putting the door back up rebuilds
   it, with `renderer.info.memory` back to its first count (99 geometries and
   71 textures, and 71 programs, after three of each).
+- After the polish pass (2026-10-10), against main as it was (a85735d with
+  the dev hooks), both on devbox1 in headless Chrome at 1440x900 DPR 2 and
+  390x844 DPR 3, `?adapt=off`, two runs each, medians of each run's p50:
+  - Draw calls: the hero 151 to 161 on high and 130 to 140 on a phone; the
+    reading shots 73-88 to 82-97 and 63-75 to 73-85. Triangles drawn (every
+    pass): the hero 316,000 to 437,000 and 175,000 to 207,000; the kit
+    itself 28,300 to 48,500 triangles, while its GLBs went from 2.77 to
+    2.48 MB on high and 1.07 to 1.11 MB on a phone.
+  - Frame time, CPU (rAF callbacks) and GPU (timer queries): every held
+    shot, flight and the wheel scroll on high CPU 1.0-2.9 ms and GPU
+    3.9-5.8 ms (the hero 5.8, was 4.8), the case study 1.1 and 8.7; on a
+    phone CPU 0.8-3.6 ms and GPU 0.7-1.9 ms. The door and the intro: CPU at
+    most 2.2 ms, GPU at most 9.4 ms in the intro's busiest band (main 2.9
+    and 9.2; the intro measured interleaved with main). No frame anywhere
+    with 50 ms or more of script. The box was shared with another
+    agent's iOS simulators (load average 8 to 30), which time-slice its GPU:
+    the heavy scenes' p50 swings by several milliseconds between runs, so
+    those were measured interleaved (base and branch alternating, four or
+    five rounds) and are given with the p10 of the frames that drew, the
+    nearest this box gets to the frame's own work. The braindance's busiest
+    moments (the avenue at 40 s, the garage at 185 s, thermal at 190 s): p10
+    7-13 ms, the same as main within noise (p50 12-24 ms on both). The
+    garage viewer: 14 ms a frame it draws at p10 (was 18), under a drag or
+    held, and once it has settled it draws a quarter of the frames it was
+    drawing half of (renderer passes a frame 22.9 to 9.5).
+  - Load, production build, 40 Mbps, cold, through the door the moment it
+    shows, four runs: the live city at 4.56 s on a desktop (was 4.61) with
+    15.2 MB fetched (was 15.5), and 3.98 s on a phone (was 4.16) with 13.7
+    MB (was 13.6).
+  - Memory, production build, a forced collection after each round of a
+    case study and the braindance and back: 75, 81, 81, 81, 83 MB (main: 71,
+    116, 156, 197, 237), WebGL contexts flat.
+  - Shots: before and after contact sheets of every section and model, and
+    the harness that made them, are kept out of the repo on devbox1
+    (`~/Library/Caches/ncw/polish/`).
 - Review files (`*-viewport.png`, `*-review.png`, `*-cycles*.png`,
   `world-source.glb`, `mcp.log`) stay local and are git-ignored.

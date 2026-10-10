@@ -70,6 +70,23 @@ const DEG = Math.PI / 180;
 // The wet road's mirror at full (road.js's own uReflectGain).
 const REFLECT_GAIN = 2.2;
 
+/** three's lookup textures are the page's, not a renderer's: the one its
+ *  standard materials read (DFG_LUT) and the area lights' (UniformsLib's
+ *  LTC tables). Nothing disposes them, and every renderer that draws with
+ *  them hangs a listener on them, so they held on to each renderer the page
+ *  ever made, programs and all. Disposed as one goes, they let go of it; a
+ *  renderer still running uploads them again, a few kilobytes. The first is
+ *  read off a material the renderer drew, before the materials go. */
+function releaseLut(renderer, scene) {
+  let lut = null;
+  scene.traverse((o) => {
+    if (lut || !o.material) return;
+    for (const m of [].concat(o.material)) lut ??= renderer.properties.get(m).uniforms?.dfgLUT?.value ?? null;
+  });
+  lut?.dispose();
+  for (const k of ["LTC_FLOAT_1", "LTC_FLOAT_2", "LTC_HALF_1", "LTC_HALF_2"]) THREE.UniformsLib[k]?.dispose();
+}
+
 export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false, effects = [], signs = null } = {}) {
   const quality = { ...TIERS[tier] };
   const renderer = new THREE.WebGLRenderer({
@@ -130,10 +147,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
     if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
-    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
+    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, drones: tier === "phone" ? 5 : 8, police: true, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier });
     shafts = createShafts(scene, c.anchors, shared);
-    crowd = createCrowd(scene, shared, { count: tier === "phone" ? 16 : 40, reduced, reflectLayer: REFLECT_LAYER });
+    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER });
     steam = createSteam(scene, shared, c.anchors, { reduced });
     steam?.setLights(c.roofLights);
     resize();
@@ -599,7 +616,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // pass stops (and back in if it is given back), so the road does not pop;
   // the pixels change under a flick of the braindance glitch.
   const GRACE_MS = 3;
-  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
+  // Dev only: `?adapt=off` keeps every tier at full quality, so a
+  // measurement on a loaded machine compares like with like instead of
+  // whatever the first two seconds happened to shed.
+  const armed = !(import.meta.env.DEV && new URLSearchParams(window.location.search).get("adapt") === "off");
+  const adapt = { armed, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
   const startSampling = () => {
     adapt.sampling = true;
     adapt.t = -0.3;
@@ -913,6 +934,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   const dispose = () => {
     disposed = true;
+    releaseLut(renderer, scene);
     pause();
     unwatch();
     window.removeEventListener("resize", resize);
@@ -979,7 +1001,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       ctx.putImageData(img, 0, 0);
       return c.toDataURL("image/png");
     };
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, post, dumpMirror, setQuality, strike() { storm.t = storm.next; } };
+    // `renderDirected` and `placeCamera` too, for fixed-camera review shots:
+    // set `stage.mode = "cinematic"` to rest the loop, then draw any pose.
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, get crowd() { return crowd; }, get skyline() { return skyline; }, post, dumpMirror, setQuality, renderDirected, placeCamera, strike() { storm.t = storm.next; } };
   }
 
   return {
