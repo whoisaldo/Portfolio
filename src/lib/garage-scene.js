@@ -293,6 +293,7 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
   const out = markers.map((m) => ({ id: m.id, x: 0, y: 0, front: true, bay: false, visible: true }));
   let raf = 0;
   let running = false;
+  let warmed = false;
   let width = 1;
   let height = 1;
   // Frames since anything but the monitor moved, and whether this one is
@@ -400,7 +401,9 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
     still = 0;
     aoValid = false;
     wetFloor.hold(false);
-    if (!running) composer.render();
+    // Not before warm(): a frame drawn now would build every program on the
+    // main thread, where warm() builds them off it.
+    if (!running && warmed) composer.render();
   }
 
   function dispose() {
@@ -423,15 +426,28 @@ export function createGarageScene(canvas, { markers = [], onFrame, reduced = fal
 
   /** Every program the room and the car use, built before the first frame
    *  anyone sees: the scene's own off the main thread while the GPU links
-   *  them, then one whole frame drawn unseen for the rest (the shadows' depth
-   *  pass, the ambient occlusion's normals, the floor's reflection), which a
-   *  scene compile does not reach. Called where a long frame shows on
-   *  nothing: behind the door, or as the page settles. */
+   *  them (for the composer's buffer they draw into, or they are not the
+   *  programs the frames use), and again without the rect lights, as the
+   *  floor's reflection draws the room; then one whole frame drawn unseen
+   *  for the rest (the shadows' depth pass, the ambient occlusion's
+   *  normals), which a scene compile does not reach. Called where a long
+   *  frame shows on nothing: behind the door, or as the page settles. */
   async function warm() {
-    if (renderer.compileAsync) await renderer.compileAsync(scene, camera).catch(() => {});
+    if (renderer.compileAsync) {
+      const target = renderer.getRenderTarget();
+      renderer.setRenderTarget(composer.readBuffer);
+      await renderer.compileAsync(scene, camera).catch(() => {});
+      const rects = [];
+      scene.traverse((o) => o.isRectAreaLight && o.visible && rects.push(o));
+      rects.forEach((l) => (l.visible = false));
+      await renderer.compileAsync(scene, camera).catch(() => {});
+      rects.forEach((l) => (l.visible = true));
+      renderer.setRenderTarget(target);
+    }
     renderer.shadowMap.needsUpdate = true;
     aoValid = false;
     composer.render();
+    warmed = true;
   }
 
   return {
