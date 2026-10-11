@@ -522,13 +522,13 @@ def rib_z(z, y):
 
 
 def soffit_x(x, y, cz, hue, power=3.0):
-    face((DK, "glow", 0), [(x - 1.1, y - 0.03, cz - 0.36), (x + 1.1, y - 0.03, cz - 0.36), (x + 1.1, y - 0.03, cz + 0.36), (x - 1.1, y - 0.03, cz + 0.36)], (0, -1, 0), 1.0, SOFFIT[hue])
+    face((DK, "glow", 0), [(x - 1.1, y - 0.06, cz - 0.36), (x + 1.1, y - 0.06, cz - 0.36), (x + 1.1, y - 0.06, cz + 0.36), (x - 1.1, y - 0.06, cz + 0.36)], (0, -1, 0), 1.0, SOFFIT[hue])
     face((DK, "dark", 1), [(x - 1.2, y - 0.025, cz - 0.46), (x + 1.2, y - 0.025, cz - 0.46), (x + 1.2, y - 0.025, cz + 0.46), (x - 1.2, y - 0.025, cz + 0.46)], (0, -1, 0), 1.0)
     pool(x, y, cz, hue, power if hue == "amber" else 1.9, 1.8 if hue == "amber" else 1.2)
 
 
 def soffit_z(z, y, cx, hue, power=3.0):
-    face((DK, "glow", 0), [(cx - 0.36, y - 0.03, z - 1.1), (cx + 0.36, y - 0.03, z - 1.1), (cx + 0.36, y - 0.03, z + 1.1), (cx - 0.36, y - 0.03, z + 1.1)], (0, -1, 0), 1.0, SOFFIT[hue])
+    face((DK, "glow", 0), [(cx - 0.36, y - 0.06, z - 1.1), (cx + 0.36, y - 0.06, z - 1.1), (cx + 0.36, y - 0.06, z + 1.1), (cx - 0.36, y - 0.06, z + 1.1)], (0, -1, 0), 1.0, SOFFIT[hue])
     face((DK, "dark", 1), [(cx - 0.46, y - 0.025, z - 1.2), (cx + 0.46, y - 0.025, z - 1.2), (cx + 0.46, y - 0.025, z + 1.2), (cx - 0.46, y - 0.025, z + 1.2)], (0, -1, 0), 1.0)
     pool(cx, y, z, hue, power if hue == "amber" else 1.9, 1.8 if hue == "amber" else 1.2)
 
