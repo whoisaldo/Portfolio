@@ -228,7 +228,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         varying vec2 vUv;
         varying vec4 vColor;
         void main() {
-          vec4 w = windows(vUv, vColor.rgb, vWorld, uWindows);
+          // The kit's buildings carry their wall colour in the alpha; the
+          // old ones (alpha 1) keep the charcoal.
+          vec4 w = windowsT(vUv, vColor.rgb, vWorld, uWindows, vColor.a > 0.999 ? -1.0 : vColor.a);
           // Fog at uFogK of its density: the same curve from a point that
           // far nearer the lens along the same line.
           vec3 p = uCam + (vWorld - uCam) * uFogK;

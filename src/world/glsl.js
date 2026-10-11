@@ -232,23 +232,43 @@ export const VERT_WORLD_COLOR = /* glsl */ `
  * and the sky's haze.
  */
 export const WINDOWS = /* glsl */ `
-  vec4 windows(vec2 uv, vec3 params, vec3 world, float enabled) {
+  // A building's wall colour (its index in the colour's alpha, see the
+  // builder's buildings.TINTS): charcoal, navy, teal-black, plum, brown,
+  // concrete, rust, pale. A negative tint is the far city's old charcoal.
+  vec3 wallTint(float t) {
+    if (t < 0.0) return vec3(0.022, 0.023, 0.028);
+    float i = floor(t * 8.0);
+    if (i < 0.5) return vec3(0.024, 0.025, 0.03);
+    if (i < 1.5) return vec3(0.017, 0.024, 0.05);
+    if (i < 2.5) return vec3(0.013, 0.032, 0.036);
+    if (i < 3.5) return vec3(0.032, 0.019, 0.036);
+    if (i < 4.5) return vec3(0.036, 0.029, 0.023);
+    if (i < 5.5) return vec3(0.052, 0.053, 0.058);
+    if (i < 6.5) return vec3(0.058, 0.03, 0.017);
+    return vec3(0.085, 0.085, 0.09);
+  }
+
+  vec4 windowsT(vec2 uv, vec3 params, vec3 world, float enabled, float tint) {
     vec2 cell = floor(uv);
     vec2 f = fract(uv);
     float style = floor(params.y * 8.0 + 0.5);
     // The glass in its cell, and how many lights its mullions make: a pair,
-    // a tall single, an office's ribbon, a small old one, a curtain wall.
+    // a tall single, an office's ribbon, a small old one, a curtain wall, a
+    // ribbon band lit a whole floor at a time, a small home's window.
     vec2 m0 = vec2(0.16, 0.22);
     vec2 m1 = vec2(0.84, 0.86);
     float lights = 2.0;
     float office = 0.0;
+    float band = 0.0;
     if (style > 0.5 && style < 1.5) { m0 = vec2(0.32, 0.14); m1 = vec2(0.68, 0.9); lights = 1.0; }
     else if (style > 1.5 && style < 2.5) { m0 = vec2(0.0, 0.32); m1 = vec2(1.0, 0.78); lights = 3.0; office = 1.0; }
     else if (style > 2.5 && style < 3.5) { m0 = vec2(0.24, 0.3); m1 = vec2(0.6, 0.7); lights = 1.0; }
-    else if (style > 3.5) { m0 = vec2(0.04, 0.06); m1 = vec2(0.96, 0.97); lights = 2.0; office = 1.0; }
+    else if (style > 3.5 && style < 4.5) { m0 = vec2(0.04, 0.06); m1 = vec2(0.96, 0.97); lights = 2.0; office = 1.0; }
+    else if (style > 4.5 && style < 5.5) { m0 = vec2(0.0, 0.3); m1 = vec2(1.0, 0.74); lights = 4.0; office = 1.0; band = 1.0; }
+    else if (style > 5.5) { m0 = vec2(0.3, 0.34); m1 = vec2(0.7, 0.8); lights = 1.0; }
     vec2 size = (m1 - m0) * vec2(3.2, 3.4);
     vec2 q = (f - m0) / (m1 - m0);
-    float pane = step(0.0, q.x) * step(q.x, 1.0) * step(0.0, q.y) * step(q.y, 1.0);
+    float opening = step(0.0, q.x) * step(q.x, 1.0) * step(0.0, q.y) * step(q.y, 1.0);
     float paneArea = (m1.x - m0.x) * (m1.y - m0.y);
 
     // Rooms, and floors that differ in how many of theirs are lit.
@@ -258,6 +278,8 @@ export const WINDOWS = /* glsl */ `
     float busy = hash12(vec2(cell.y * 1.37, 2.1) + seed);
     float share = office > 0.5 ? mix(0.25, 1.6, step(0.55, busy)) : 0.45 + 1.1 * busy;
     float lit = step(hash12(room + seed + 0.5), params.x * 0.8 * share) * enabled;
+    // A band building's floors are lit right across or not at all.
+    if (band > 0.5) lit = step(0.5 - params.x * 0.35, busy) * step(hash12(room + seed + 0.5), 0.92) * enabled;
     // One room in a hundred and fifty changes its mind now and then.
     float blink = hash12(room * 1.73 + 3.1);
     if (blink > 0.993) lit *= step(0.42, fract(uTime * 0.045 + blink * 17.0));
@@ -270,12 +292,10 @@ export const WINDOWS = /* glsl */ `
     if (kind > 0.975) wc = vec3(1.0, 0.22, 0.6);
     else if (kind > 0.955) wc = vec3(0.16, 0.95, 0.85);
     else if (kind > 0.915) wc = vec3(0.32, 0.46, 1.0) * (0.65 + 0.35 * sin(uTime * (4.0 + 7.0 * hv) + hv * 40.0));
-    // Behind the glass, a room: the eye's ray runs into a box as wide as the
-    // pane, as tall as it and three metres deep, and what it meets (the
-    // ceiling with its lamp, the floor, the side walls, the back wall with
-    // something against it) is lit as a room is. Worked out in the pane's
-    // own metres, the wall's normal and its way along from the derivatives,
-    // and which way up the cells run (the kit's run down, glTF's v).
+    // Band floors in the city's two colours, amber and cyan, floor by floor.
+    vec3 bandCol = mix(vec3(1.0, 0.66, 0.3), vec3(0.3, 0.86, 1.0), step(0.5, hash12(vec2(cell.y, 3.7) + seed)));
+    if (band > 0.5) wc = bandCol;
+    // The eye's ray in the pane's own frame: x along the wall, y up, z in.
     vec3 dpx = dFdx(world);
     vec3 dpy = dFdy(world);
     vec3 fn = normalize(cross(dpx, dpy));
@@ -287,8 +307,24 @@ export const WINDOWS = /* glsl */ `
     float upSign = dot(vec2(dpx.y, dpy.y), vec2(duvx.y, duvy.y)) >= 0.0 ? 1.0 : -1.0;
     vec3 V = normalize(world - uCam);
     vec3 rd = vec3(dot(V, ft), V.y, max(-dot(V, fn), 1e-3));
-    float qy = upSign > 0.0 ? q.y : 1.0 - q.y;
-    vec3 rp = vec3(clamp(q.x, 0.0, 1.0) * size.x, clamp(qy, 0.0, 1.0) * size.y, 0.0);
+    float qy0 = upSign > 0.0 ? q.y : 1.0 - q.y;
+    // The glass is set back in the wall, REVEAL deep: where the eye meets
+    // the glass plane is further along its ray, and between the wall's
+    // opening and the glass it sees the reveal (the jambs, the head, the
+    // sill), shaded as wall turned away from the street.
+    const float REVEAL = 0.18;
+    vec2 sh = rd.xy / rd.z * REVEAL / size;
+    float gx = q.x + sh.x;
+    float gy = qy0 + sh.y;
+    float pane = opening * step(0.0, gx) * step(gx, 1.0) * step(0.0, gy) * step(gy, 1.0);
+    float reveal = opening * (1.0 - pane);
+    float revealShade = gy < 0.0 ? 1.25 : (gy > 1.0 ? 0.35 : 0.6);
+    // Behind the glass, a room: the ray runs on into a box as wide as the
+    // pane, as tall as it and three metres deep, and what it meets (the
+    // ceiling with its lamp, the floor, the side walls, the back wall with
+    // something against it) is lit as a room is.
+    vec3 rp = vec3(clamp(gx, 0.0, 1.0) * size.x, clamp(gy, 0.0, 1.0) * size.y, 0.0);
+    float qy = clamp(gy, 0.0, 1.0);
     const float ROOM_D = 3.0;
     float rtx = rd.x > 0.0 ? (size.x - rp.x) / rd.x : -rp.x / min(rd.x, -1e-4);
     float rty = rd.y > 0.0 ? (size.y - rp.y) / rd.y : -rp.y / min(rd.y, -1e-4);
@@ -300,8 +336,8 @@ export const WINDOWS = /* glsl */ `
       // The back wall, and against it a shelf, a picture, a lamp.
       shade = 0.55 + 0.25 * rh.y / size.y;
       float thing = hash12(room + 2.9);
-      float band = step(abs(rh.y - size.y * (0.35 + 0.3 * thing)), size.y * 0.12) * step(abs(rh.x / size.x - fract(thing * 5.0)), 0.3);
-      shade *= 1.0 - 0.5 * band * step(0.4, thing);
+      float shelf = step(abs(rh.y - size.y * (0.35 + 0.3 * thing)), size.y * 0.12) * step(abs(rh.x / size.x - fract(thing * 5.0)), 0.3);
+      shade *= 1.0 - 0.5 * shelf * step(0.4, thing);
       float lampSpot = exp(-dot(rh.xy - vec2(size.x * fract(thing * 3.0), size.y * 0.45), rh.xy - vec2(size.x * fract(thing * 3.0), size.y * 0.45)) * 3.0);
       shade += lampSpot * step(0.7, thing) * 1.4;
     } else if (rtm == rty) {
@@ -315,41 +351,59 @@ export const WINDOWS = /* glsl */ `
     } else {
       shade = 0.42 + 0.2 * rh.y / size.y;
     }
+    if (band > 0.5) shade = 0.85 + 0.3 * qy;
     // Blinds and curtains hang at the glass and hide the room; a curtain
     // glows with the light behind it.
-    float blind = step(0.74, hash12(room + 5.1));
+    float blind = step(0.74, hash12(room + 5.1)) * (1.0 - band);
     float curtain = (1.0 - office) * step(0.7, hash12(room + 8.9));
     float interior = mix(shade, 0.4 + 0.6 * smoothstep(0.0, 1.0, qy), max(blind, curtain));
-    float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(q.y * size.y * 6.0)), blind);
-    vec3 lightCol = mix(wc, wc * vec3(1.0, 0.55, 0.4), curtain * 0.6) * mix(1.0, 0.75 + 0.25 * sin(q.x * size.x * 11.0), curtain);
+    float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(qy * size.y * 6.0)), blind);
+    vec3 lightCol = mix(wc, wc * vec3(1.0, 0.55, 0.4), curtain * 0.6) * mix(1.0, 0.75 + 0.25 * sin(gx * size.x * 11.0), curtain);
     // Somebody at the window now and then, against the light.
-    float stuff = step(qy, 0.62) * step(abs(q.x - 0.25 - 0.5 * hash12(cell + 9.1)), 0.12) * step(0.86, hash12(cell + 4.4)) * (1.0 - curtain) * (1.0 - blind);
+    float stuff = step(qy, 0.62) * step(abs(gx - 0.25 - 0.5 * hash12(cell + 9.1)), 0.12) * step(0.86, hash12(cell + 4.4)) * (1.0 - curtain) * (1.0 - blind);
     float bright = (0.22 + 0.45 * hv * hv) * interior * blinds * (1.0 - 0.85 * stuff) * (1.0 + 0.2 * uLevel);
+    if (band > 0.5) bright = 0.5 * interior;
 
     vec3 spill = spillAt(world);
-    vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25 + uHazeColor * 0.05 * (0.4 + q.y) * (0.5 + hash12(cell + 1.9));
-    vec3 wall = vec3(0.022, 0.023, 0.028) * (0.75 + 0.5 * hash12(cell * 0.31 + 0.7));
+    vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25 + uHazeColor * 0.05 * (0.4 + qy) * (0.5 + hash12(cell + 1.9));
+    vec3 wall = wallTint(tint) * (0.75 + 0.5 * hash12(cell * 0.31 + 0.7));
     wall = wall * (vec3(0.6) + spill * 3.2);
 
     // The frame and its bars, 9 cm, only while they are wider than about a
     // pixel.
     float px = max(fwidth(uv.x), fwidth(uv.y));
-    float mx = fract(q.x * lights);
+    float mx = fract(gx * lights);
     float barX = min(mx, 1.0 - mx) * size.x / lights;
-    float barY = min(q.y, 1.0 - q.y) * size.y;
-    float transom = office > 0.5 ? 1.0 : abs(q.y - 0.78) * size.y;
+    float barY = min(gy, 1.0 - gy) * size.y;
+    float transom = office > 0.5 ? 1.0 : abs(gy - 0.78) * size.y;
     float bar = (1.0 - step(0.045, min(barX, min(barY, transom)))) * (1.0 - smoothstep(0.02, 0.05, px));
 
     vec3 win = mix(glass, lightCol * bright, lit);
     win = mix(win, wall * 1.4, bar);
     vec3 detail = mix(wall, win, pane);
+    detail = mix(detail, wall * revealShade, reveal * (1.0 - smoothstep(0.02, 0.06, px)));
     // A line of shadow under each floor's edge.
     detail *= mix(1.0, 0.55, step(f.y, 0.045));
 
-    // Past a couple of pixels per window, the cell's average instead of a
-    // pattern that shimmers.
+    // Far off, a cell is too small to draw: seen square on, its average; seen
+    // along the street (the cells crushed across, not up), each floor's
+    // average instead, a band of the floor's light between the wall's, which
+    // is how a street of windows reads at a glance.
+    float pxX = fwidth(uv.x);
+    float pxY = fwidth(uv.y);
+    float floorLit = clamp(band > 0.5 ? step(0.5 - params.x * 0.35, busy) * 0.92 : params.x * 0.8 * share, 0.0, 1.0) * enabled;
+    vec3 floorLight = (band > 0.5 ? bandCol * 0.5 : mix(cool, warm, params.z) * 0.36) * floorLit;
+    float row = smoothstep(m0.y - pxY, m0.y + pxY, f.y) * (1.0 - smoothstep(m1.y - pxY, m1.y + pxY, f.y));
+    vec3 rowCol = mix(wall, mix(glass, floorLight, min(1.0, floorLit * 1.2)), row * (m1.x - m0.x));
     vec3 avg = mix(wall, mix(glass, mix(cool, warm, params.z) * 0.33, params.x * 0.8 * enabled), paneArea);
-    float far = smoothstep(0.35, 0.9, px);
-    return vec4(mix(detail, avg, far), mix(pane * lit * (1.0 - bar), params.x * 0.8 * paneArea, far));
+    float farX = smoothstep(0.35, 0.9, pxX);
+    float farY = smoothstep(0.35, 0.9, pxY);
+    vec3 col = mix(mix(detail, rowCol, farX), avg, farY);
+    float glow = mix(mix(pane * lit * (1.0 - bar), row * (m1.x - m0.x) * floorLit, farX), params.x * 0.8 * paneArea, farY);
+    return vec4(col, glow);
+  }
+
+  vec4 windows(vec2 uv, vec3 params, vec3 world, float enabled) {
+    return windowsT(uv, params, world, enabled, -1.0);
   }
 `;
