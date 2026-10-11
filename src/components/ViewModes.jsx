@@ -14,9 +14,21 @@
 // P, from any of the three, is photo mode: the shutter, a flash (none with
 // reduced motion), and a postcard of the city as it is that moment saved as
 // a PNG (./photo/postcard.js, also its own chunk), with a note that it was.
-import React, { lazy, Suspense, useCallback, useEffect, useState } from "react";
+//
+// In Look the city answers back (LookTouch): each shot's own subject can be
+// pointed at and clicked. The S4 at the hero's curb and in the garage blinks
+// its lamps as a key fob makes it; the plaza's big board runs on to the next
+// entry of the Work deck; a tower on corpo row lights for its role and the
+// row's dolly goes to it. Pointing at one tags it with what it is, from the
+// data files. Enter does the same for the shot's subject. What Look changed
+// on the board and the row is put back when the page comes back.
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Eye, X } from "lucide-react";
-import { stage, useStage } from "../world/stage";
+import { getWorld, setActiveProject, setActiveRole, stage, useStage } from "../world/stage";
+import { featuredProjects } from "../data/projects";
+import { experiences } from "../data/experience";
+import { car as CAR } from "../data/garage";
+import { chapterLabel } from "../world/scroll-stage";
 import { canPutAway, nudgeLook, pageIfGone, PHOTO_EVENT, setView, takePhoto, toggleView } from "../world/modes";
 import { shutterClick } from "../lib/ui-sfx";
 
@@ -106,6 +118,7 @@ export default function ViewModes() {
   return (
     <>
       {view === "look" && <LookHint />}
+      {view === "look" && <LookTouch />}
       {film && (
         <Suspense fallback={null}>
           <Cinema leaving={view !== "cinema"} />
@@ -139,6 +152,139 @@ function PostcardNote({ postcard, onDone }) {
           <X className="w-3.5 h-3.5" aria-hidden="true" />
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Which of the city's touchable things the shot in front of the camera is
+ *  about: none mid-flight, none where there is nothing to touch. */
+function subjects() {
+  const r = stage.route;
+  if (r.kind === "project") return ["board", "car"];
+  if (r.kind === "role") return ["tower", "car"];
+  const i = Math.round(stage.position);
+  if (Math.abs(stage.position - i) > 0.3) return [];
+  return { hero: ["car"], projects: ["board"], experience: ["tower"], garage: ["car"] }[stage.shots[i]?.id] ?? [];
+}
+
+/** "02 // Experience", for a section's id. */
+const sectionOf = (id) => {
+  const c = chapterLabel(id);
+  return c ? `${c.num} // ${c.name}` : "";
+};
+
+/** What a tag says about a thing, in the data's own words. The board shows
+ *  the Work deck's entries and corpo row has a tower per role, in order. */
+function describe(target) {
+  if (target.kind === "car") return { label: sectionOf("garage"), title: `${CAR.year} ${CAR.name}`, line: CAR.engine, hint: "Click: the lamps" };
+  if (target.kind === "board") {
+    const p = featuredProjects[stage.activeProject] ?? featuredProjects[0];
+    return { label: sectionOf("projects"), title: p?.title ?? "", line: null, hint: "Click: the next one" };
+  }
+  const e = experiences.find((x) => x.slug === target.slug);
+  const lit = stage.activeRoles.length === 1 && stage.activeRoles[0] === target.slug;
+  return { label: sectionOf("experience"), title: e?.company ?? "", line: e ? `${e.title} · ${e.period}` : null, hint: lit ? "Click: let it go" : "Click: light it" };
+}
+
+/** Look's pointing and clicking, its tag, and putting things back after. */
+function LookTouch() {
+  const tagRef = useRef(null);
+  const [tag, setTag] = useState(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const saved = { project: stage.activeProject, roles: stage.activeRoles.slice() };
+    let touched = false;
+    let target = null;
+    let down = null;
+    let raf = 0;
+    let at = null;
+    const ours = (e) => Boolean(e.target?.closest?.("[data-mode-ui], a, button, input, textarea, select"));
+    const pick = (x, y) => {
+      const kinds = subjects();
+      if (!kinds.length) return null;
+      return getWorld()?.pick?.((x / window.innerWidth) * 2 - 1, 1 - (y / window.innerHeight) * 2, kinds) ?? null;
+    };
+    const show = (next) => {
+      const same = next && target && next.kind === target.kind && next.slug === target.slug;
+      target = next;
+      if (next) root.dataset.lookTarget = next.kind;
+      else delete root.dataset.lookTarget;
+      if (!same) setTag(next ? { ...next, ...describe(next) } : null);
+    };
+    const act = (t) => {
+      touched = t.kind !== "car" || touched;
+      if (t.kind === "car") getWorld()?.flashCar?.();
+      else if (t.kind === "board") setActiveProject((stage.activeProject + 1) % featuredProjects.length);
+      else if (stage.activeRoles.length === 1 && stage.activeRoles[0] === t.slug) setActiveRole(null);
+      else setActiveRole(t.slug);
+      // The tag says what it shows now.
+      setTag({ ...t, ...describe(t) });
+    };
+    const place = () => {
+      raf = 0;
+      if (!at) return;
+      show(pick(at.x, at.y));
+      if (tagRef.current) tagRef.current.style.transform = `translate(${Math.round(at.x + 18)}px, ${Math.round(at.y + 18)}px)`;
+    };
+    const onMove = (e) => {
+      if (e.pointerType !== "mouse" || e.buttons || ours(e)) {
+        if (target && e.buttons) show(null);
+        return;
+      }
+      at = { x: e.clientX, y: e.clientY };
+      if (!raf) raf = requestAnimationFrame(place);
+    };
+    const onDown = (e) => {
+      if (e.button !== 0 || ours(e)) return;
+      down = { x: e.clientX, y: e.clientY, t: performance.now() };
+    };
+    const onUp = (e) => {
+      const d = down;
+      down = null;
+      if (!d || ours(e)) return;
+      if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6 || performance.now() - d.t > 450) return;
+      const t = pick(e.clientX, e.clientY);
+      if (t) act(t);
+    };
+    const onKey = (e) => {
+      if (e.key !== "Enter" || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || typing(e.target) || ours(e)) return;
+      const kinds = subjects();
+      if (!kinds.length) return;
+      e.preventDefault();
+      if (kinds[0] === "tower") {
+        // The next role along the row, from the one lit.
+        const i = experiences.findIndex((x) => x.slug === stage.activeRoles[0]);
+        setActiveRole(experiences[(i + 1) % experiences.length].slug);
+        touched = true;
+      } else act({ kind: kinds[0], slug: null });
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerdown", onDown, { passive: true });
+    window.addEventListener("pointerup", onUp, { passive: true });
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("keydown", onKey);
+      if (raf) cancelAnimationFrame(raf);
+      delete root.dataset.lookTarget;
+      if (touched) {
+        setActiveProject(saved.project);
+        setActiveRole(saved.roles);
+      }
+    };
+  }, []);
+  return (
+    <div ref={tagRef} data-mode-ui="" aria-live="polite" className="look-tag fixed left-0 top-0 z-[75] pointer-events-none">
+      {tag && (
+        <div key={`${tag.kind}:${tag.slug ?? ""}:${tag.title}`} className="look-tag-card chamfer chamfer-sm bg-ink/85 px-3.5 py-2.5">
+          {tag.label && <p className="mono-label text-volt">{tag.label}</p>}
+          <p className="font-display font-bold text-primary text-base leading-tight mt-1">{tag.title}</p>
+          {tag.line && <p className="mono-label text-muted mt-1">{tag.line}</p>}
+          <p className="mono-label text-primary/60 mt-2">{tag.hint}</p>
+        </div>
+      )}
     </div>
   );
 }

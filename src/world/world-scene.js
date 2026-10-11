@@ -49,7 +49,7 @@ import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
-import { boards as BOARDS, SHOTS } from "../data/world.js";
+import { boards as BOARDS, towers as TOWERS, SHOTS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
@@ -71,6 +71,14 @@ export async function preloadWorld(tier) {
 
 const DEG = Math.PI / 180;
 const ZERO = new THREE.Vector3();
+// Look's picking (`pick`): the S4's bounds in its own frame, and scratch.
+const CAR_BOX = new THREE.Box3(new THREE.Vector3(-0.95, 0, -2.4), new THREE.Vector3(0.95, 1.45, 2.4));
+const _picker = new THREE.Raycaster();
+const _ndc = new THREE.Vector2();
+const _local = new THREE.Ray();
+const _inverse = new THREE.Matrix4();
+const _hit = new THREE.Vector3();
+const _pickBox = new THREE.Box3();
 // The wet road's mirror at full (road.js's own uReflectGain).
 const REFLECT_GAIN = 2.2;
 
@@ -163,7 +171,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       rain.setShelter(shelterBox.min, shelterBox.max);
     }
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, drones: tier === "phone" ? 5 : 8, police: true, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
-    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier });
+    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
     crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER });
     steam = createSteam(scene, shared, c.anchors, { reduced });
@@ -1136,6 +1144,50 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     /** Whether this city can draw the intro's voxel moon. */
     get hasMoon() {
       return Boolean(moon);
+    },
+    /**
+     * What is under a point on the screen (x and y -1..1, y up) that Look
+     * lets the reader touch, of `kinds` (the shot's own subjects: "car",
+     * "board", "tower"), by their bounds, nearest first: { kind, slug,
+     * distance }, or null. Bounds see through walls, which is why only the
+     * shot's own subjects are asked about.
+     */
+    pick(x, y, kinds) {
+      if (!city || disposed) return null;
+      camera.updateMatrixWorld();
+      _picker.setFromCamera(_ndc.set(x, y), camera);
+      const ray = _picker.ray;
+      let best = null;
+      const consider = (hit, kind, slug = null) => {
+        if (!hit) return;
+        const distance = hit.distanceTo(ray.origin);
+        if (distance < 600 && (!best || distance < best.distance)) best = { kind, slug, distance };
+      };
+      if (kinds.includes("car") && car) {
+        // The S4's own box, in its own frame: 1.9 m wide, 1.45 m tall, 4.8
+        // m long, nose along +z.
+        _local.copy(ray).applyMatrix4(_inverse.copy(car.car.matrixWorld).invert());
+        const hit = _local.intersectBox(CAR_BOX, _hit);
+        consider(hit && hit.applyMatrix4(car.car.matrixWorld), "car");
+      }
+      if (kinds.includes("board") && city.boards.box) consider(ray.intersectBox(city.boards.box, _hit), "board");
+      if (kinds.includes("tower")) {
+        for (const t of TOWERS) {
+          const a = city.anchors.get(`anchor_tower_${t.slug}`);
+          if (!a) continue;
+          _pickBox.min.set(a.position.x - 15, 0, a.position.z - 15);
+          _pickBox.max.set(a.position.x + 15, a.position.y + 4, a.position.z + 15);
+          consider(ray.intersectBox(_pickBox, _hit), "tower", t.slug);
+        }
+      }
+      return best;
+    },
+    /** The S4 answers a key fob: its lamps blink and, with sound on, it
+     *  chirps. */
+    flashCar() {
+      if (!car) return;
+      car.flash();
+      soundscape.chirp(car.car.position);
     },
     /**
      * The city as it is this moment, without the page's panes frosting it,

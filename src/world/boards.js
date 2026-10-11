@@ -127,10 +127,12 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
 
   // A frame of light around the main board, in the status colour.
   let frame = null;
+  let box = null;
   const main = boards.find((b) => b.index === 0);
   if (main) {
     main.mesh.geometry.computeBoundingBox();
     const bb = main.mesh.geometry.boundingBox.clone().applyMatrix4(main.mesh.matrixWorld);
+    box = bb.clone();
     const size = bb.getSize(new THREE.Vector3());
     const c = bb.getCenter(new THREE.Vector3());
     const t = 0.35;
@@ -169,6 +171,8 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
   };
 
   return {
+    /** The big board's bounds in the world (Look picks it by them). */
+    box,
     /** active: the index the deck (or a case study) wants on the big board. */
     update(dt, active) {
       clock += dt;

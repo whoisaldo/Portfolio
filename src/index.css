@@ -1378,9 +1378,24 @@ html[data-view="cinema"] [data-shell] > :not(.world-layer):not(.reticle):not([da
 @media (prefers-reduced-motion: reduce) {
   .photo-flash { display: none; }
 }
-/* A drag in Look turns the camera; say so under the pointer. */
+/* A drag in Look turns the camera; say so under the pointer. Over one of
+   the shot's own subjects (ViewModes.jsx LookTouch) a click does something
+   instead. */
 html[data-view="look"] body { cursor: grab; }
 html[data-view="look"][data-looking] body { cursor: grabbing; }
+html[data-view="look"][data-look-target]:not([data-looking]) body { cursor: pointer; }
+/* Its tag, by the pointer. */
+.look-tag-card {
+  animation: look-tag-in 0.18s ease-out;
+  max-width: 19rem;
+}
+@keyframes look-tag-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .look-tag-card { animation: none; }
+}
 
 /* An intro that plays in the live city (IntroCinematic.jsx): the city is
    the intro's backdrop, so the page waits under it unseen, as it waited

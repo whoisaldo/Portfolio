@@ -346,6 +346,31 @@ export function createSoundscape({ reduced = false } = {}) {
         crack.stop(t + 0.8);
       }
     },
+    /** The S4's lock chirp, from where it is (Look's click on it). */
+    chirp(at) {
+      if (!g || !enabled || !active || ac.state !== "running") return;
+      _to.subVectors(at, listener);
+      const d = Math.max(1, _to.length());
+      const side = ac.createStereoPanner();
+      side.pan.value = clamp(_to.dot(right) / d, -1, 1) * 0.85;
+      side.connect(g.out);
+      const t = ac.currentTime;
+      const level = 1.2 * Math.min(1, 18 / d);
+      for (const at0 of [0, 0.13]) {
+        const o = ac.createOscillator();
+        o.type = "square";
+        o.frequency.value = 2350;
+        const env = g.gain(0);
+        o.connect(g.filter("lowpass", clamp(18000 / (1 + d / 80), 900, 9000))).connect(env).connect(side);
+        env.gain.setValueAtTime(0, t + at0);
+        env.gain.linearRampToValueAtTime(level, t + at0 + 0.006);
+        env.gain.setValueAtTime(level, t + at0 + 0.07);
+        env.gain.linearRampToValueAtTime(0, t + at0 + 0.08);
+        o.start(t + at0);
+        o.stop(t + at0 + 0.1);
+        if (at0 > 0) o.onended = () => side.disconnect();
+      }
+    },
     /** Dev: how far off each voice is and how loud it is now. */
     inspect() {
       if (!g) return null;
