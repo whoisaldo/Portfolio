@@ -480,11 +480,20 @@ def roof_plant(x0, x1, z0, z1, y, r, n=3):
 
 
 def lawn(x0, x1, z0, z1, y):
-    """Planting lit from its edge, in two tones: from the air, a roof that
-    is green and not a hole."""
-    xm = (x0 + x1) / 2
-    for (a, b, g) in ((x0, xm, (0.008, 0.032, 0.015, 1.0)), (xm, x1, (0.011, 0.04, 0.02, 1.0))):
-        up_poly((PL, "glow", 0), [(a, z0), (b, z0), (b, z1), (a, z1)], y + 0.03, g)
+    """Planting lit from its edge, in beds with stone kerbs and paths
+    between: from the air, a roof that is green and not a hole."""
+    tones = ((0.004, 0.016, 0.008, 1.0), (0.006, 0.021, 0.011, 1.0))
+    if x1 - x0 >= z1 - z0:
+        n = max(2, int((x1 - x0) // 7.0))
+        beds = [(x0 + (x1 - x0) * i / n + 0.7, x0 + (x1 - x0) * (i + 1) / n - 0.7, z0 + 0.6, z1 - 0.6) for i in range(n)]
+    else:
+        n = max(2, int((z1 - z0) // 7.0))
+        beds = [(x0 + 0.6, x1 - 0.6, z0 + (z1 - z0) * i / n + 0.7, z0 + (z1 - z0) * (i + 1) / n - 0.7) for i in range(n)]
+    for i, (a0, a1, b0, b1) in enumerate(beds):
+        if a1 - a0 < 1.0 or b1 - b0 < 1.0:
+            continue
+        box((PL, "concrete", 1), a0 - 0.18, a1 + 0.18, y, y + 0.28, b0 - 0.18, b1 + 0.18, scale=1.5)
+        up_poly((PL, "glow", 0), [(a0, b0), (a1, b0), (a1, b1), (a0, b1)], y + 0.3, tones[i % 2])
 
 
 def garden(x0, x1, z0, z1, y, r, palms=0, trees=2, colour="cyan", lamps=2):
@@ -600,8 +609,9 @@ def lobby_front(f, s0, s1, r, accent="cyan", guards=True):
     """A tower's lobby on the street, in place of shops: the hall behind
     glass from the pavement to the fascia (the site's curtain wall draws its
     ceiling of light panels and whoever is in it), steel posts between the
-    panes, doors in the middle under a canopy with a line of the tower's
-    colour, cubes on the pavement before it, and security either side."""
+    panes, four glass doors in the middle (jambs, handles, a lit header)
+    under a canopy with a line of the tower's colour, cubes on the pavement
+    before it, and security either side."""
     key = (PL, "corporate", 0)
     col = (0.95, 0.35, r.random(), 1.0)
     f.quad(key, s0, s1, 0.42, 4.2, 0.04, col=col)
@@ -612,10 +622,12 @@ def lobby_front(f, s0, s1, r, accent="cyan", guards=True):
     f.box((PL, "metal", 0), s0, s1, 4.2, 4.5, 0.0, 0.14)
     mid = (s0 + s1) / 2
     # The doors: two leaves of dark glass in a steel frame, lit from above.
-    f.box((PL, "board_frame", 0), mid - 2.3, mid + 2.3, G_LOBBY, 3.1, 0.04, 0.2)
-    for d in (-1.1, 1.1):
-        f.quad((PL, "door", 0), mid + d - 1.0, mid + d + 1.0, G_LOBBY + 0.05, 2.9, 0.21)
-    f.box((PL, "glow", 0), mid - 2.0, mid + 2.0, 2.95, 3.05, 0.2, 0.24, col=dim("white", 1.0))
+    for d in (-2.3, -1.15, 0.0, 1.15, 2.3):
+        f.box((PL, "board_frame", 0), mid + d - 0.06, mid + d + 0.06, G_LOBBY, 3.0, 0.04, 0.22)
+    f.box((PL, "board_frame", 0), mid - 2.36, mid + 2.36, 3.0, 3.22, 0.04, 0.24)
+    f.box((PL, "glow", 0), mid - 2.2, mid + 2.2, 3.06, 3.16, 0.24, 0.27, col=dim("white", 1.2))
+    for d in (-0.5, 0.5, -1.65, 1.65):
+        f.box((PL, "metal", 1), mid + d - 0.03, mid + d + 0.03, 0.95, 1.35, 0.2, 0.26)
     # The canopy and its line of light.
     f.box((PL, "metal", 0), mid - 4.5, mid + 4.5, 4.5, 4.75, 0.0, 3.0)
     a, b = f.at(mid - 4.5), f.at(mid + 4.5)

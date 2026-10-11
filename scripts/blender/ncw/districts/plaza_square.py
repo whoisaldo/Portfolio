@@ -137,10 +137,10 @@ for k, (za, zb) in enumerate(((-284.0, -274.0), (-274.0, -264.0))):
     shopfront(PL, -1, za, zb, 8403 + k, awning=True, xf=108.03)
 fascia_signs_z(-283.4, -264.6, 108.03, 1, random.Random(8405))
 clutter(PL, -1, -283.0, -265.0, 16.0, 8406, xw=108.0)
-for z in (-279.0, -269.0):
-    box((PL, "neon_amber", 0), 47.7, 48.0, 3.7, 3.9, z - 0.18, z + 0.18, scale=0.5)
-    light(PL, 47.2, 3.6, z, "amber", 3.0)
-    quad((PL, "door", 0), (47.97, G, z + 1.4), (47.97, G, z + 2.5), (47.97, 2.3, z + 2.5), (47.97, 2.3, z + 1.4))
+# Its backs, to the canyon's lane and to the yard behind it: concrete at
+# street level with its doors, caged lamps and what a back keeps by them.
+B.back_ground(PL, B.Face("-x", 47.97, -284.0, -264.0), random.Random(8407), B.TRIM[0])
+B.back_ground(PL, B.Face("-z", -284.03, 48.0, 78.0), random.Random(8408), B.TRIM[0])
 
 # ---------------------------------------------------------------------------
 # The terraces.
