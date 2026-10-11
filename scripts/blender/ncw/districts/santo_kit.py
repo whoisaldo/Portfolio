@@ -673,7 +673,7 @@ def rack(x0, z0, x1, z1, levels=(5.4, 6.9), width=3.0, pipes=PIPE_SET, step=6.0,
 # ---------------------------------------------------------------------------
 # Sheds.
 # ---------------------------------------------------------------------------
-def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tint="concrete", vents=True, power=3.2):
+def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tint="concrete", vents=True, power=0.5):
     """A sawtooth roof over a rectangle: n teeth, each a vertical light
     facing `glaze` ("-z" is north) and a slope falling away behind it. Lit
     lights glow (some bays dark) and pool on the slope in front of them."""
@@ -699,10 +699,8 @@ def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tin
         pts = (W(u0, y + 0.25, a), W(u1, y + 0.25, a), W(u1, y + rise - 0.12, a), W(u0, y + rise - 0.12, a))
         quad_n(k("facade"), pts, gn, col, uvs=((0, vo), (bays, vo), (bays, vo + 1), (0, vo + 1)))
         if on:
-            m = max(1, round((u1 - u0) / 6.0))
-            for j in range(m):
-                px, py, pz = W(u0 + (u1 - u0) * (j + 0.5) / m, y + 0.6, a - 1.8 if i > 0 else a + 1.2)
-                light(D, px, py, pz, "amber", power * r.uniform(0.8, 1.2))
+            pa, pb = W(u0 + 1.0, y, a - 1.9), W(u1 - 1.0, y, a - 1.9)
+            wash(min(pa[0], pb[0]), max(pa[0], pb[0]), min(pa[2], pb[2]), max(pa[2], pb[2]), level=power, hue="amber", r=r, y=y)
         # Its sill and head, the slope behind, the gable ends, the gutter.
         for (ya, yb) in ((y, y + 0.25), (y + rise - 0.12, y + rise)):
             quad_n(k("metal"), (W(u0, ya, a), W(u1, ya, a), W(u1, yb, a), W(u0, yb, a)), gn)
@@ -731,9 +729,13 @@ def skylight(x0, x1, z0, z1, y, tone, h=0.55, power=0.0, hue="amber"):
             light(D, (x0 + x1) / 2, y, z1 + 1.0, hue, power)
 
 
-def flat_roof(x0, x1, z0, z1, y, r, wall=CREAM, parapet=0.8, lights=0.6, plant=True, breathe=0):
-    """A shed's flat roof, worked: its parapet, rows of rooflights (most
-    lit), ducts to a fan house, air units, a pipe run, a stub that steams."""
+def flat_roof(x0, x1, z0, z1, y, r, wall=CREAM, parapet=0.8, lights=0.6, plant=True, breathe=0, strips=True, keep=None):
+    """A shed's flat roof, worked: its parapet, long rooflights across it
+    in rows (most lit, each throwing its light on the roof beside it), a
+    walkway of pale slabs down one edge to a stair hut with its door lit, a
+    fan house with a duct and air units, a pipe on sleepers, red lamps at
+    the corners, a stub that steams. `keep`: a rectangle (x0, x1, z0, z1)
+    left clear (a pad)."""
     quad(k("roof"), (x0, y, z1), (x1, y, z1), (x1, y, z0), (x0, y, z0),
          uvs=((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
     B.ROOFS.append((D, x0, x1, z0, z1, y))
@@ -741,55 +743,100 @@ def flat_roof(x0, x1, z0, z1, y, r, wall=CREAM, parapet=0.8, lights=0.6, plant=T
     if parapet:
         for (a0, a1, b0, b1) in ((x0, x1, z1 - t, z1), (x0, x1, z0, z0 + t), (x0, x0 + t, z0 + t, z1 - t), (x1 - t, x1, z0 + t, z1 - t)):
             box(k("trim"), a0, a1, y, y + parapet, b0, b1, scale=1.5, col=shade(wall, 0.8))
+        for cx_, cz_ in ((x0 + 0.15, z0 + 0.15), (x1 - 0.15, z0 + 0.15), (x0 + 0.15, z1 - 0.15), (x1 - 0.15, z1 - 0.15)):
+            box(k("glow"), cx_ - 0.1, cx_ + 0.1, y + parapet, y + parapet + 0.22, cz_ - 0.1, cz_ + 0.1, scale=0.5, col=GLOW["red"])
     w, d = x1 - x0, z1 - z0
     long_x = w >= d
-    # Rooflights in rows along the long side.
-    rows = max(1, int((d if long_x else w) / 11.0))
-    cols = max(1, int((w if long_x else d) / 7.0))
-    for i in range(rows):
-        for j in range(cols):
-            if r.random() < 0.12:
+    length, span = (w, d) if long_x else (d, w)
+    # L(a, c): a point a along the long side, c across.
+    L = (lambda a_, c_: (x0 + a_, z0 + c_)) if long_x else (lambda a_, c_: (x0 + c_, z0 + a_))  # noqa: E731
+
+    def rect(a0, a1, c0, c1):
+        p, q = L(a0, c0), L(a1, c1)
+        return min(p[0], q[0]), max(p[0], q[0]), min(p[1], q[1]), max(p[1], q[1])
+
+    def clear(xa, xb, za, zb):
+        return keep is None or xb < keep[0] or xa > keep[1] or zb < keep[2] or za > keep[3]
+
+    n = max(1, int(length / 7.5))
+    pitch = length / n
+    m = 2.6
+    if strips and span > 9.0:
+        for i in range(n):
+            if r.random() < 0.14:
                 continue
-            u = (j + 0.5) / cols
-            v = (i + 0.5) / rows
-            cx, cz = (x0 + w * u, z0 + d * v) if long_x else (x0 + w * v, z0 + d * u)
+            ac = (i + 0.5) * pitch
+            xa, xb, za, zb = rect(ac - 0.65, ac + 0.65, m, span - m)
+            if not clear(xa, xb, za, zb):
+                continue
             tone = r.choice((GLASS_WARM, GLASS_WARM, GLASS_COOL, GLASS_GREEN)) if r.random() < lights else None
-            sx, sz = (1.6, 0.9) if long_x else (0.9, 1.6)
-            skylight(cx - sx, cx + sx, cz - sz, cz + sz, y, shade(tone, r.uniform(0.4, 0.7)) if tone else None, power=1.4 if (i + j) % 2 == 0 else 0.0,
-                     hue="amber" if tone == GLASS_WARM else "white")
-    if not plant:
-        return
-    # A fan house near one end with a duct running to it, air units by it.
-    fx, fz = (x0 + w * r.uniform(0.12, 0.3), z0 + d * 0.5) if long_x else (x0 + w * 0.5, z0 + d * r.uniform(0.12, 0.3))
-    off = (d if long_x else w) / (2 * rows) if rows > 1 else (d if long_x else w) * 0.27
-    if long_x:
-        fz += off
-        box(k("metal"), fx - 2.2, fx + 2.2, y, y + 2.3, fz - 1.4, fz + 1.4, scale=1.0)
-        box(k("metal", 1), fx + 2.2, min(x1 - 2.0, fx + w * 0.45), y + 0.5, y + 1.3, fz - 0.45, fz + 0.45, scale=1.0)
-        for n_ in range(r.randrange(2, 5)):
-            ax_ = fx + 3.4 + n_ * 1.9
-            if ax_ < x1 - 1.5 and fz + 2.0 < z1 - 0.8:
-                P.place("ac_roof", ax_, y, fz + 1.4, 0.0, district=D)
-    else:
-        fx += off
-        box(k("metal"), fx - 1.4, fx + 1.4, y, y + 2.3, fz - 2.2, fz + 2.2, scale=1.0)
-        box(k("metal", 1), fx - 0.45, fx + 0.45, y + 0.5, y + 1.3, fz + 2.2, min(z1 - 2.0, fz + d * 0.45), scale=1.0)
-        for n_ in range(r.randrange(2, 5)):
-            az_ = fz + 3.4 + n_ * 1.9
-            if az_ < z1 - 1.5 and fx + 2.0 < x1 - 0.8:
-                P.place("ac_roof", fx + 1.4, y, az_, math.pi / 2, district=D)
-    box(k("glow"), fx - 0.12, fx + 0.12, y + 2.3, y + 2.5, fz - 0.12, fz + 0.12, scale=0.5, col=GLOW["red"])
+            skylight(xa, xb, za, zb, y, shade(tone, r.uniform(0.35, 0.6)) if tone else None)
+            if tone:
+                xa, xb, za, zb = rect(ac + 1.6, ac + 1.6, m, span - m)
+                wash(xa, xb, za, zb, level=0.4, hue="amber" if tone == GLASS_WARM else "white", r=r, y=y)
+    # The walkway down one edge, and the stair hut it leads to.
+    xa, xb, za, zb = rect(1.0, length - 1.0, 1.0, 1.7)
+    if clear(xa, xb, za, zb):
+        quad(k("concrete", 1), (xa, y + 0.03, zb), (xb, y + 0.03, zb), (xb, y + 0.03, za), (xa, y + 0.03, za),
+             uvs=((0, 0), ((xb - xa) / 2, 0), ((xb - xa) / 2, (zb - za) / 2), (0, (zb - za) / 2)))
+    hx, hz = L(length - pitch * 0.5 - 2.4 if n > 1 else length * 0.8, 3.4)
+    if span > 10.0 and clear(hx - 1.6, hx + 1.6, hz - 1.6, hz + 1.6):
+        box(k("trim"), hx - 1.5, hx + 1.5, y, y + 2.5, hz - 1.3, hz + 1.3, scale=1.5, col=shade(wall, 0.8))
+        box(k("dark", 1), hx - 1.6, hx + 1.6, y + 2.5, y + 2.62, hz - 1.4, hz + 1.4, scale=1.0)
+        dn = (0, 0, -1) if long_x else (-1, 0, 0)
+        if long_x:
+            quad_n(k("glow"), ((hx - 0.45, y, hz - 1.32), (hx + 0.45, y, hz - 1.32), (hx + 0.45, y + 2.0, hz - 1.32), (hx - 0.45, y + 2.0, hz - 1.32)), dn, shade(SODIUM, 0.6))
+            light(D, hx, y, hz - 2.2, "amber", 3.0)
+        else:
+            quad_n(k("glow"), ((hx - 1.52, y, hz - 0.45), (hx - 1.52, y, hz + 0.45), (hx - 1.52, y + 2.0, hz + 0.45), (hx - 1.52, y + 2.0, hz - 0.45)), dn, shade(SODIUM, 0.6))
+            light(D, hx - 2.4, y, hz, "amber", 3.0)
+    if plant and span > 9.0:
+        # A fan house in the first gap between rooflights, its duct across
+        # the roof, air units beside it.
+        ac = pitch if n > 1 else length * 0.3
+        fx, fz = L(ac, span * 0.3)
+        if clear(fx - 2.5, fx + 2.5, fz - 2.5, fz + 2.5):
+            hw, hd = (1.3, 2.0) if long_x else (2.0, 1.3)
+            box(k("metal"), fx - hw, fx + hw, y, y + 2.3, fz - hd, fz + hd, scale=1.0)
+            box(k("glow"), fx - 0.12, fx + 0.12, y + 2.3, y + 2.5, fz - 0.12, fz + 0.12, scale=0.5, col=GLOW["red"])
+            xa, xb, za, zb = rect(ac - 0.42, ac + 0.42, span * 0.3 + 2.0, span * 0.78)
+            if clear(xa, xb, za, zb):
+                box(k("metal", 1), xa, xb, y + 0.5, y + 1.3, za, zb, scale=1.0)
+            for n_ in range(r.randrange(2, 5)):
+                px, pz = L(ac + (1.2 if n_ % 2 else -1.2), span * 0.3 - 3.2 - (n_ // 2) * 1.9)
+                if x0 + 1.0 < px < x1 - 1.0 and z0 + 1.0 < pz < z1 - 1.0 and clear(px - 1, px + 1, pz - 1, pz + 1):
+                    P.place("ac_roof", px, y, pz, 0.0 if long_x else math.pi / 2, district=D)
     for _ in range(breathe):
-        sx, sz = x0 + w * r.uniform(0.15, 0.85), z0 + d * r.uniform(0.15, 0.85)
-        cylinder(k("metal"), sx, sz, y, y + 1.8, 0.32, segs=8)
-        steam(sx, y + 2.0, sz)
-    # A pipe run across it on sleepers.
-    if long_x:
-        pz = z0 + d * r.uniform(0.75, 0.9)
-        pipe(k("trim", 1), (x0 + 1.5, y + 0.35, pz), (x1 - 1.5, y + 0.35, pz), 0.11, segs=5, col=RUST)
-    else:
-        px = x0 + w * r.uniform(0.75, 0.9)
-        pipe(k("trim", 1), (px, y + 0.35, z0 + 1.5), (px, y + 0.35, z1 - 1.5), 0.11, segs=5, col=RUST)
+        for _try in range(6):
+            sx, sz = L(pitch * (r.randrange(0, n) if n > 1 else 0.5) + (0.0 if n > 1 else 0.0), span * r.uniform(0.25, 0.8))
+            sx, sz = min(x1 - 1.5, max(x0 + 1.5, sx)), min(z1 - 1.5, max(z0 + 1.5, sz))
+            if clear(sx - 1, sx + 1, sz - 1, sz + 1):
+                cylinder(k("metal"), sx, sz, y, y + 1.8, 0.32, segs=8)
+                steam(sx, y + 2.0, sz)
+                break
+    # A pipe run down the other edge on sleepers.
+    pa, pb = L(1.5, span - 1.4), L(length - 1.5, span - 1.4)
+    if clear(min(pa[0], pb[0]), max(pa[0], pb[0]), min(pa[1], pb[1]), max(pa[1], pb[1])):
+        pipe(k("trim", 1), (pa[0], y + 0.35, pa[1]), (pb[0], y + 0.35, pb[1]), 0.11, segs=5, col=RUST)
+        pa, pb = L(1.5, span - 1.9), L(length * 0.6, span - 1.9)
+        pipe(k("trim", 1), (pa[0], y + 0.3, pa[1]), (pb[0], y + 0.3, pb[1]), 0.07, segs=5, col=YELLOW)
+
+
+def av_pad(cx, cz, y, rad=6.0):
+    """A landing pad painted on a roof: a ring and a cross in yellow, lamps
+    round it, green and amber."""
+    n = 20
+    for i in range(n):
+        a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
+        pts = [(cx + rr * math.cos(a), y + 0.03, cz + rr * math.sin(a)) for rr, a in ((rad, a0), (rad, a1), (rad - 0.45, a1), (rad - 0.45, a0))]
+        quad_n(k("trim"), pts, (0, 1, 0), YELLOW)
+    for (hx, hz) in ((rad * 0.5, 0.28), (0.28, rad * 0.5)):
+        quad(k("trim"), (cx - hx, y + 0.03, cz + hz), (cx + hx, y + 0.03, cz + hz), (cx + hx, y + 0.03, cz - hz), (cx - hx, y + 0.03, cz - hz), col=TANK_WHITE)
+    for i in range(8):
+        a = i * math.tau / 8 + 0.2
+        px, pz = cx + (rad + 0.6) * math.cos(a), cz + (rad + 0.6) * math.sin(a)
+        box(k("glow"), px - 0.12, px + 0.12, y, y + 0.2, pz - 0.12, pz + 0.12, scale=0.5, col=GLOW["green" if i % 2 else "amber"])
+    wash(cx - rad * 0.6, cx + rad * 0.6, cz - rad * 0.6, cz + rad * 0.6, level=0.45, hue="white", y=y, step=5.0)
 
 
 def wall_lamp(f, s, y, power=5.5, hue="amber"):
@@ -812,10 +859,20 @@ def dock(f, s, r, no=None, w=3.2, h=3.8, sill=1.25, state="shut", lamp=True, eav
     else:
         up = 0.45 if state == "half" else 0.86
         # The shed inside, lit: a warm depth with the racking's shadows.
-        f.quad(k("glow"), a, b_, y0, y0 + h * up, 0.03, col=shade(GLASS_WARM, r.uniform(0.75, 1.1)))
-        for q in range(3):
-            sa = a + 0.3 + q * (w - 0.6) / 3 + r.uniform(0.0, 0.3)
-            f.quad(k("dark", 1), sa, sa + r.uniform(0.25, 0.7), y0, y0 + h * up * r.uniform(0.45, 0.9), 0.045)
+        f.quad(k("glow"), a, b_, y0, y0 + h * up, 0.03, col=shade(GLASS_WARM, r.uniform(0.42, 0.6)))
+        top = y0 + h * up
+        for e in (a + 0.45, b_ - 0.55):
+            f.quad(k("dark", 1), e, e + 0.1, y0, top, 0.045)
+        ys = y0 + 0.05
+        while ys < top - 0.5:
+            f.quad(k("dark", 1), a + 0.3, b_ - 0.3, ys, ys + 0.07, 0.045)
+            sa = a + 0.6
+            while sa < b_ - 1.2:
+                bw_ = r.uniform(0.45, 0.95)
+                if r.random() < 0.7:
+                    f.quad(k("dark", 1), sa, sa + bw_, ys + 0.07, min(top, ys + 0.07 + r.uniform(0.35, 0.8)), 0.045)
+                sa += bw_ + r.uniform(0.08, 0.3)
+            ys += 1.15
         f.quad(k("door_panel"), a, b_, y0 + h * up, y0 + h, 0.05)
         lx, ly, lz = f.p(f.at(s), y0, 1.6)
         sodium(lx, ly, lz, 5.0)
@@ -1417,6 +1474,11 @@ def _trailer(kk):
     for z in (-0.9, 0.8):
         box(kk("trim"), 4.2, 4.32, 0.0, 0.95, z, z + 0.12, scale=1.0, col=STEEL)
     box(kk("trim"), -6.43, -6.4, 1.3, 3.95, -1.2, 1.2, scale=1.0, col=shade(col, 0.6))
+    for z, n_ in ((1.275, 1), (-1.275, -1)):
+        q = [(-6.3, 2.2, z), (6.3, 2.2, z), (6.3, 2.75, z), (-6.3, 2.75, z)]
+        quad(kk("trim"), *(q if n_ > 0 else q[::-1]), col=OXIDE)
+        q = [(-6.4, 1.25, z), (6.4, 1.25, z), (6.4, 1.5, z), (-6.4, 1.5, z)]
+        quad(kk("trim"), *(q if n_ > 0 else q[::-1]), col=shade(col, 0.5))
     for z in (-1.15, 1.03):
         box(kk("glow"), -6.45, -6.42, 1.05, 1.2, z, z + 0.12, scale=0.5, col=GLOW["red"])
 
