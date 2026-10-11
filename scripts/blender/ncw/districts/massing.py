@@ -158,10 +158,10 @@ def santo():
     # north side through the east lobe, the yards between them, the x 120
     # road's east side, the garage street's south half, and the south
     # street's south side to the city's edge. Under Contact's moon, low.
-    frontage(D, "-z", 132.0, 428.0, -168.0, 30.0, (10.0, 22.0), w, 8601, ends=("street", "street"))
-    frontage(D, "+z", 132.0, 428.0, -10.0, 30.0, (8.0, 18.0), w, 8602, ends=("street", "street"))
-    blocks(D, 162.0, 398.0, -138.0, -40.0, (6.0, 14.0), 8603, step=34.0, style=dict(roof_cap=3.0))
-    frontage(D, "-x", -138.0, -40.0, 132.0, 30.0, (12.0, 24.0), w, 8604, ends=("open", "open"))
+    # (West of x 170 the x 120 road's east side is Corpo Plaza's.)
+    frontage(D, "-z", 170.0, 428.0, -168.0, 30.0, (10.0, 22.0), w, 8601, ends=("open", "street"))
+    frontage(D, "+z", 170.0, 428.0, -10.0, 30.0, (8.0, 18.0), w, 8602, ends=("open", "street"))
+    blocks(D, 172.0, 398.0, -138.0, -40.0, (6.0, 14.0), 8603, step=34.0, style=dict(roof_cap=3.0))
     frontage(D, "+x", -138.0, -40.0, 428.0, 30.0, (8.0, 18.0), w, 8605, ends=("open", "open"))
     frontage(D, "-x", -176.0, 12.0, 452.0, 30.0, (6.0, 12.0), w, 8606, ends=("open", "open"))
     frontage(D, "-z", 108.0, 482.0, 12.0, 30.0, (8.0, 20.0), w, 8607, ends=("street", "open"))
