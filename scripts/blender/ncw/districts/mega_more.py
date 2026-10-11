@@ -277,14 +277,14 @@ def board_on_legs(x, z, yaw, size="ps"):
 
 for (name, x) in (("vending", -39.2), ("vending_warm", -38.1), ("vending", 23.2), ("vending_warm", 24.3), ("vending", 41.2), ("vending", 42.3), ("vending_warm", 43.4)):
     P.place(name, x, G0, EDGE_Z, 0.0)
-for x in (-35.2, -26.4, -11.8, 11.8, 26.6, 33.8):
+for x in (-35.2, -26.4, -11.8, 11.8, 26.6):
     P.place("bench", x, G0, EDGE_Z + 0.1, 0.0)
-for x in (-28.8, -14.0, 14.0, 36.2):
+for x in (-28.8, -14.0, 14.0):
     P.place("planter_tree", x, G0, EDGE_Z - 0.3)
 P.place("phone_booth", -23.4, G0, EDGE_Z - 0.1)
 P.place("phone_booth", 44.9, G0, EDGE_Z - 0.1)
 P.place("food_box", -33.4, G0, EDGE_Z, 0.0)
-P.place("food_box", 31.6, G0, EDGE_Z, 0.0)
+P.place("food_box", 28.9, G0, EDGE_Z, 0.0)
 board_on_legs(-36.8, EDGE_Z + 0.25, math.radians(18))
 board_on_legs(-18.2, EDGE_Z + 0.2, math.radians(-12), "bx")
 board_on_legs(22.0, EDGE_Z + 0.25, math.radians(-20))
@@ -309,7 +309,7 @@ stand(CART[0] - 0.5, CART[1] + 1.05, math.pi, "idle", G0)
 light(D, CART[0], 2.0, CART[1] + 1.0, "amber", 2.6)
 for (x, z, yaw, pose, y) in ((-35.5, EDGE_Z + 0.1, 0.0, "sit", 0.48), (-34.8, EDGE_Z + 0.1, 0.0, "sit", 0.48), (-26.4, EDGE_Z + 0.1, 0.0, "sit", 0.48),
                              (-11.5, EDGE_Z + 0.1, 0.0, "sit", 0.48), (11.4, EDGE_Z + 0.1, 0.0, "sit", 0.48), (12.2, EDGE_Z + 0.1, 0.0, "sit", 0.48),
-                             (26.6, EDGE_Z + 0.1, 0.0, "sit", 0.48), (33.5, EDGE_Z + 0.1, 0.0, "sit", 0.48), (-39.0, EDGE_Z + 0.9, math.pi, "phone", 0.0),
+                             (26.6, EDGE_Z + 0.1, 0.0, "sit", 0.48), (27.2, EDGE_Z + 0.1, 0.0, "sit", 0.48), (-39.0, EDGE_Z + 0.9, math.pi, "phone", 0.0),
                              (23.6, EDGE_Z + 0.9, math.pi, "idle", 0.0), (42.2, EDGE_Z + 0.9, math.pi, "idle", 0.0), (43.6, EDGE_Z + 1.0, 2.8, "phone", 0.0),
                              (-16.0, EDGE_Z - 0.6, 0.6, "talk", 0.0), (-15.2, EDGE_Z - 0.1, 3.6, "talk", 0.0), (5.0, EDGE_Z - 0.4, 0.2, "idle", 0.0),
                              (-4.4, EDGE_Z - 0.2, -0.3, "phone", 0.0), (17.6, EDGE_Z - 0.5, 0.0, "smoke", 0.0), (30.2, EDGE_Z - 0.6, 0.0, "talk", 0.0),

@@ -260,8 +260,8 @@ for k in range(1, KTOP + 1):
             stand(px, pz, f.yaw + (math.pi if pose == "lean" else 0.0), pose, y)
     # Lit windows the colour the show gives them, behind the walkways.
     for f in (wW, wN, wS):
-        for _ in range(2):
-            if _rw.random() < 0.45:
+        for _ in range(3):
+            if _rw.random() < 0.5:
                 bays = max(1, round(f.width / CELL_W))
                 s = (_rw.randrange(bays) + 0.5) * f.width / bays
                 f.quad((D, "glow", 1), s - 0.62, s + 0.62, y + 0.85, y + 2.55, 0.03,
@@ -295,9 +295,26 @@ for (a, b, sag, hue) in (((wx0 + 1.5, 6.6, -766.0), (wx1 - 1.5, 7.4, -779.0), 0.
         dx, dz = (b[0] - a[0]) / 22.0, (b[2] - a[2]) / 22.0
         cloth((px - dx * 0.5, py - 0.9, pz - dz * 0.5), (px + dx * 0.5, py - 0.9, pz + dz * 0.5), (px + dx * 0.5, py, pz + dz * 0.5), (px - dx * 0.5, py, pz - dz * 0.5),
               _rw.choice((hue, "white", "pink", "teal")))
-# Light at its rim (seen from the air) and down its walls.
+# Light at its rim, and over its mouth a glass roof: from the court a
+# lilac-white glare at the top of the shaft, the one strong light
+# (Fn9gKhU_2_Q@21, KvMY1uzSC1E@13); from the air a lit lantern on the
+# block's roof. It lies under the hero's line of sight.
 for f in (wN, wS, wW, wE):
     f.quad((D, "glow", 0), 0.3, f.width - 0.3, WTOP - 0.5, WTOP - 0.25, 0.02, col=dim(GLOW["white"], 0.55))
-for (x, z, hue, pw) in ((-5.0, -768.0, "pink", 2.4), (5.0, -778.0, "amber", 2.6), (0.0, -773.0, "white", 2.2), (5.5, -766.5, "amber", 2.0),
-                        (-5.5, -779.5, "purple", 2.0)):
+GL = WTOP - 0.9
+LILAC = (0.78, 0.66, 1.0, 1.0)
+hquad((D, "glow", 0), wx0 + 0.4, wx1 - 0.4, wz0 + 0.4, wz1 - 0.4, GL, up=False, col=dim(LILAC, 0.7))
+hquad((D, "glow", 0), wx0 + 0.4, wx1 - 0.4, wz0 + 0.4, wz1 - 0.4, GL + 0.3, up=True, col=dim(LILAC, 0.2))
+for i in range(1, 6):
+    x = wx0 + (wx1 - wx0) * i / 6
+    box((D, "metal", 1), x - 0.09, x + 0.09, GL - 0.12, GL + 0.42, wz0 + 0.2, wz1 - 0.2, scale=1.0, bottom=True)
+for i in range(1, 5):
+    z = wz0 + (wz1 - wz0) * i / 5
+    box((D, "metal", 1), wx0 + 0.2, wx1 - 0.2, GL - 0.12, GL + 0.42, z - 0.09, z + 0.09, scale=1.0, bottom=True)
+box((D, "metal", 1), wx0, wx1, GL - 0.1, GL + 0.4, wz0, wz0 + 0.4, scale=1.0, bottom=True)
+box((D, "metal", 1), wx0, wx1, GL - 0.1, GL + 0.4, wz1 - 0.4, wz1, scale=1.0, bottom=True)
+box((D, "metal", 1), wx0, wx0 + 0.4, GL - 0.1, GL + 0.4, wz0, wz1, scale=1.0, bottom=True)
+box((D, "metal", 1), wx1 - 0.4, wx1, GL - 0.1, GL + 0.4, wz0, wz1, scale=1.0, bottom=True)
+for (x, z, hue, pw) in ((-5.0, -770.0, "pink", 4.5), (5.0, -778.0, "amber", 4.5), (0.0, -774.0, "purple", 5.0), (5.5, -769.5, "amber", 3.5),
+                        (-5.5, -779.0, "purple", 4.0), (0.0, -779.5, "white", 3.0), (-6.5, -774.5, "pink", 3.0), (6.5, -773.5, "white", 3.0)):
     light(D, x, 12.0, z, hue, pw)

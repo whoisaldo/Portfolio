@@ -84,11 +84,15 @@ rpipe((3.5, 3.78, ZC0 + 0.5), (3.5, 3.78, ZC1 - 0.4), 0.15, col=CONC)
 for z in (-748.6, -752.6, -756.6, -760.6):
     # (Their pools of light start a little way in: the bake lights a wall at
     # every height over a pool, and the block's face is the hero's.)
-    tube_z(0.0, 3.93, z - 0.8, z + 0.8, "green", power=3.0, pools=z < -752.0)
+    tube_z(0.0, 3.93, z - 0.8, z + 0.8, "green", power=3.0, pools=False)
     box((D, "metal", 1), -0.16, 0.16, 3.93, CEIL, z - 0.9, z + 0.9, scale=0.5)
+for z in (-754.2, -757.6, -761.0):
+    light(D, 0.0, 3.9, z, "green", 6.0)
+for z in (-751.0, -755.5, -760.0):
+    cbox(PX0, PX1, CEIL - 0.3, CEIL, z - 0.2, z + 0.2, bottom=True, detail=1)
 for z in (-750.4, -758.4):
-    wall_lamp(PX0 + 0.02, 2.55, z, 1, 0, "amber", 2.0)
-    wall_lamp(PX1 - 0.02, 2.55, z + 2.0, -1, 0, "amber", 2.0)
+    wall_lamp(PX0 + 0.02, 2.55, z, 1, 0, "amber", 3.0 if z < -752 else 2.0)
+    wall_lamp(PX1 - 0.02, 2.55, z + 2.0, -1, 0, "amber", 3.0 if z < -754 else 2.0)
 P.place("bags", PX0 + 0.8, G0, -753.2, math.pi / 2)
 P.place("dumpster", PX0 + 0.75, G0, -760.4, math.pi / 2)
 P.place("drum", PX1 - 0.55, G0, -751.2)
@@ -191,8 +195,9 @@ while _gx < GX1 - 0.3:
     box((D, "metal", 1), _gx - 0.03, _gx + 0.03, TY, 4.85, WZ + 0.1, WZ + 0.16, scale=0.5)
     _gx += 0.5
 box((D, "metal", 0), GX0 - 0.1, GX1 + 0.1, 4.85, 5.05, WZ, WZ + 0.22, scale=0.5)
-box((D, "neon_red", 0), GX0 - 0.3, GX1 + 0.3, 5.14, 5.26, WZ, WZ + 0.08, scale=1.0)
+box((D, "neon_red", 0), GX0 - 0.3, GX1 + 0.3, 5.12, 5.32, WZ, WZ + 0.08, scale=1.0)
 PA0, PA1, PY0, PY1 = 25.5, 41.5, 5.6, 7.75
+box((D, "neon_red", 0), NX0 + 0.6, PA0 - 0.6, 6.6, 6.72, WZ, WZ + 0.06, scale=1.0)
 box((D, "board_frame", 0), PA0, PA1, PY0, PY1, WZ, WZ + 0.18, scale=1.0)
 for (ax, bx, ay, by) in ((PA0, PA1, PY1 - 0.1, PY1), (PA0, PA1, PY0, PY0 + 0.1), (PA0, PA0 + 0.1, PY0, PY1), (PA1 - 0.1, PA1, PY0, PY1)):
     box((D, "neon_cyan", 0), ax, bx, ay, by, WZ + 0.18, WZ + 0.22, scale=1.0)
