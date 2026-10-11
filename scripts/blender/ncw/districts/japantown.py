@@ -392,6 +392,12 @@ def lane_face(rec, name, cap=None):
     if r.random() < 0.55 and w > 4.0:
         s = r.uniform(0.5, w - 3.0)
         strip(f, r.choice(NEONS), s, s + r.uniform(1.6, 2.6), 3.3, 3.38, 0.08)
+    if r.random() < 0.45 and w > 6.0:
+        # Lit advert panels pasted in a row at head height.
+        s = r.uniform(0.6, w - 4.2)
+        for i in range(r.randrange(2, 6)):
+            f.quad((D, "billboard", 0), s + i * 0.72, s + i * 0.72 + 0.62, 1.25, 2.15, 0.03,
+                   col=(r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0))
     signs_on(f, h, r, density=0.25, small=True, big=False, cap=cap)
     by_wall(f, r, alley=True, people=0.14)
 
@@ -407,14 +413,14 @@ def flush_shops(f, r):
         n = min(r.choice((1, 2, 2, 3)), bays - i)
         a, b = i * bw + 0.3, (i + n) * bw - 0.3
         if r.random() < 0.86:
-            f.quad((D, "shop", 0), a, b, 0.55, 3.3, 0.03, col=(r.uniform(0.4, 1.0), r.random(), 1.0 if r.random() < 0.92 else 0.0, 1.0))
+            f.quad((D, "shop", 0), a, b, 0.55, 3.3, 0.07, col=(r.uniform(0.4, 1.0), r.random(), 1.0 if r.random() < 0.92 else 0.0, 1.0))
             colour = r.choice(STYLE["shop_colours"])
             if r.random() < 0.5:
                 B.awning(D, f, a, b, colour)
             else:
-                strip(f, colour, a + 0.2, b - 0.2, 3.38, 3.46, 0.03)
+                strip(f, colour, a + 0.2, b - 0.2, 3.38, 3.46, 0.07)
         else:
-            f.quad((D, "door_panel", 0), a, b, G0, 3.2, 0.03)
+            f.quad((D, "door_panel", 0), a, b, G0, 3.2, 0.07)
         i += n
 
 
@@ -439,7 +445,7 @@ def skylight(x, z, top, r, w=1.3, d=2.3):
     on the roof round it."""
     c = r.choice(("amber", "amber", "cyan", "white", "pink"))
     box((D, "trim", 1), x - w / 2 - 0.1, x + w / 2 + 0.1, top, top + 0.3, z - d / 2 - 0.1, z + d / 2 + 0.1, scale=1.0, col=(0.1, 0.1, 0.11, 1))
-    quad((D, "glow", 0), (x - w / 2, top + 0.31, z + d / 2), (x + w / 2, top + 0.31, z + d / 2), (x + w / 2, top + 0.31, z - d / 2), (x - w / 2, top + 0.31, z - d / 2),
+    quad((D, "glow", 0), (x - w / 2, top + 0.37, z + d / 2), (x + w / 2, top + 0.37, z + d / 2), (x + w / 2, top + 0.37, z - d / 2), (x - w / 2, top + 0.37, z - d / 2),
          col=tuple(v * 0.55 for v in GLOW[c][:3]) + (1,))
     light(D, x, top + 0.5, z, c, 4.5)
 
@@ -467,7 +473,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
     sgn = 1 if front == "+x" else -1
     xb = x0 if sgn > 0 else x1                      # the back edge
     X = lambda u: xb + sgn * u                      # noqa: E731 (u metres from the back toward the street)
-    y = top + 0.05
+    y = top + 0.1
     # The deck itself is one teal shadow (the frame's own tone), which the
     # lamps' pools are painted into.
     quad((D, "glow", 0), (x0, y, z1), (x1, y, z1), (x1, y, z0), (x0, y, z0), col=J.DECK_TEAL)
@@ -493,27 +499,27 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
     # The lamps: one by each side, their arms in over the deck.
     for u, z, yaw, dz in ((tu + 1.6, z0 + 0.7, 0.0, 2.1), (w - 2.6, z1 - 0.7, math.pi, -2.1)):
         if u < w - 1.0 and d > 5.0:
-            J.lamp_arm(X(u), top + 0.05, z, yaw)
+            J.lamp_arm(X(u), top + 0.1, z, yaw)
             light(D, X(u), top + 5.0, z + dz, "cyan", 8.0)
-            J.pool(X(u), top + 0.07, z + dz, min(3.4, d * 0.42))
+            J.pool(X(u), top + 0.17, z + dz, min(3.4, d * 0.42))
     zv = (z0 + z1) / 2 + r.uniform(-1.0, 1.0)
-    J.viewer(X(w - 0.75), top + 0.05, zv, HALF_PI * sgn)
-    bench(X(w - 2.6), zv + r.choice((-1.6, 1.6)), -HALF_PI * sgn, r, top + 0.05)
-    J.put("bags", X(tu + 0.9), top + 0.05, z1 - 0.9, r.uniform(0, 6.28))
+    J.viewer(X(w - 0.75), top + 0.1, zv, HALF_PI * sgn)
+    bench(X(w - 2.6), zv + r.choice((-1.6, 1.6)), -HALF_PI * sgn, r, top + 0.1)
+    J.put("bags", X(tu + 0.9), top + 0.1, z1 - 0.9, r.uniform(0, 6.28))
     # Who is up here: somebody at the rail over the street, somebody sat on
     # the terrace's steps, two talking under a lamp.
     if r.random() < 0.8:
-        stand(X(w - 0.7), zv + r.choice((-1.1, 1.1)), HALF_PI * sgn + r.uniform(-0.3, 0.3), r.choice(("idle", "smoke", "phone")), top + 0.05)
+        stand(X(w - 0.7), zv + r.choice((-1.1, 1.1)), HALF_PI * sgn + r.uniform(-0.3, 0.3), r.choice(("idle", "smoke", "phone")), top + 0.1)
     if r.random() < 0.5:
-        stand(X(w - 0.75), z0 + 1.0, -HALF_PI * sgn, "lean", top + 0.05)
+        stand(X(w - 0.75), z0 + 1.0, -HALF_PI * sgn, "lean", top + 0.1)
     if r.random() < 0.6:
         stand(X(tu + 0.2), z0 + 1.2, HALF_PI * sgn, "sit", top + 0.6)
     if r.random() < 0.5 and d > 5.0:
-        stand(X(tu + 2.3), z0 + 2.4, 0.0, "talk", top + 0.05)
-        stand(X(tu + 2.3), z0 + 3.3, math.pi, "talk", top + 0.05)
+        stand(X(tu + 2.3), z0 + 2.4, 0.0, "talk", top + 0.1)
+        stand(X(tu + 2.3), z0 + 3.3, math.pi, "talk", top + 0.1)
     if d > 7.0:
-        J.put("jt_planter", X(w - 1.2), top + 0.05, z0 + 1.2)
-        J.put("ac_roof", X(tu + 2.6), top + 0.05, z1 - 1.0)
+        J.put("jt_planter", X(w - 1.2), top + 0.1, z0 + 1.2)
+        J.put("ac_roof", X(tu + 2.6), top + 0.1, z1 - 1.0)
 
 
 def roof_sign(x, z, top, yaw, r, span, tall_ok=True):
@@ -593,7 +599,7 @@ def roof(rec, weights):
         # whoever lives up here.
         us = r.uniform(3.2, w - 4.5)
         xa_, xb_ = sorted((X(us), X(us + 3.4)))
-        quad((D, "concrete", 0), (xa_, top + 0.04, z1 - 0.5), (xb_, top + 0.04, z1 - 0.5), (xb_, top + 0.04, z0 + 0.5), (xa_, top + 0.04, z0 + 0.5),
+        quad((D, "concrete", 0), (xa_, top + 0.1, z1 - 0.5), (xb_, top + 0.1, z1 - 0.5), (xb_, top + 0.1, z0 + 0.5), (xa_, top + 0.1, z0 + 0.5),
              ((0, 0), (1.1, 0), (1.1, d / 3), (0, d / 3)))
         light(D, X(us + 1.7), top + 1.0, mid, r.choice(("amber", "amber", "pink", "cyan")), 5.0)
         if r.random() < 0.7:
@@ -633,7 +639,7 @@ def roof(rec, weights):
         for a, b in ((posts[0], posts[1]), (posts[2], posts[3]), (posts[0], posts[2])):
             J.span("jt_festoon", a, b, top + 2.85, 0.5)
         xa_, xb_ = sorted((X(ua - 0.6), X(ub + 0.6)))
-        quad((D, "sidewalk", 0), (xa_, top + 0.04, z1 - 0.4), (xb_, top + 0.04, z1 - 0.4), (xb_, top + 0.04, z0 + 0.4), (xa_, top + 0.04, z0 + 0.4),
+        quad((D, "sidewalk", 0), (xa_, top + 0.1, z1 - 0.4), (xb_, top + 0.1, z1 - 0.4), (xb_, top + 0.1, z0 + 0.4), (xa_, top + 0.1, z0 + 0.4),
              ((0, 0), ((xb_ - xa_) / 2, 0), ((xb_ - xa_) / 2, d / 2), (0, d / 2)))
         for t in (0.25, 0.75):
             light(D, X(ua + (ub - ua) * t), top + 2.0, mid, "amber", 5.0)
@@ -682,6 +688,9 @@ for rec in LOTS:
     if row == "A":
         shop_face(rec, rec["back"], "alley")
     for name in ("-z", "+z"):
+        if rec["sides"][name] == "open":
+            # A side on a cross alley or a passage: lit and used like a lane.
+            lane_face(rec, name, cap=7.4 if row == "E" else None)
         if rec["sides"][name] == "street":
             shop_face(rec, name, "street" if row in ("E", "A") else "alley", cap=7.4 if row == "E" else None)
     if row == "C":
@@ -726,7 +735,7 @@ def gate(x, z0, z1, yaw, r, h=4.7):
     zc = (z0 + z1) / 2
     for z in (z0 + 0.15, z1 - 0.15):
         box((D, "trim", 0), x - 0.1, x + 0.1, G0, h, z - 0.1, z + 0.1, scale=1.0, col=TORII_RED)
-        J.put("jt_lantern", x + math.sin(yaw) * 0.25, h - 0.75, z + (0.45 if z < zc else -0.45), 0.0, 1.5, 1.5)
+        J.put("jt_lantern", x, h - 0.46, z + (0.5 if z < zc else -0.5), 0.0, 1.5, 1.5)
     box((D, "trim", 0), x - 0.12, x + 0.12, h, h + 0.3, z0, z1, scale=1.0, col=TORII_RED, bottom=True)
     key, col = lit(r.choice(("amber", "red", "pink")), x)
     box(key, x - 0.03, x + 0.03, h - 0.07, h, z0 + 0.3, z1 - 0.3, scale=1.0, col=col, bottom=True)
@@ -921,7 +930,7 @@ for a, b in ALLEYS:
     # White hatching on the slabs at its mouth (KvMY1uzSC1E@94).
     for i in range(5):
         x = XW - 1.0 - i * 0.55
-        quad((D, "paint", 0), (x - 0.3, G0 + 0.006, b - 0.4), (x - 0.05, G0 + 0.006, b - 0.4), (x + 0.75, G0 + 0.006, a + 0.4), (x + 0.5, G0 + 0.006, a + 0.4), col=WHITE)
+        quad((D, "paint", 0), (x - 0.3, G0 + 0.03, b - 0.4), (x - 0.05, G0 + 0.03, b - 0.4), (x + 0.75, G0 + 0.03, a + 0.4), (x + 0.5, G0 + 0.03, a + 0.4), col=WHITE)
 
 
 def market(z0, z1):
@@ -950,7 +959,7 @@ def market(z0, z1):
     z = z0 + 1.5
     while z < z1 - 1.0:
         for x in (xm - 1.6, xm + 1.6):
-            J.put("jt_lantern", x, 5.7, z, 0.0, 1.3, 1.3)
+            J.put("jt_lantern", x, 6.78, z, 0.0, 1.3, 1.3)
         z += 2.4
 
 
@@ -965,12 +974,11 @@ market(MARKET[0] + 0.3, MARKET[1] - 0.3)
 tr = random.Random(7400)
 ta, tb = TORII
 tc = (ta + tb) / 2
-B.ground_rect(D, ROW_C[0], ROW_C[1], ta, tb)
 gx = XW - 1.2
 for z in (ta + 0.75, tb - 0.75):
     cylinder((D, "trim", 0), gx, z, G0, 7.3, 0.32, segs=10, col=TORII_RED)
     cylinder((D, "dark", 0), gx, z, G0, 0.8, 0.4, segs=10)
-    J.put("jt_lantern", gx + 0.2, 4.6, z + (1.1 if z < tc else -1.1), 0.0, 2.3, 2.3)
+    J.put("jt_lantern", gx, 5.2, z + (1.1 if z < tc else -1.1), 0.0, 2.3, 2.3)
 box((D, "trim", 0), gx - 0.35, gx + 0.35, 7.3, 7.9, ta + 0.05, tb - 0.05, scale=1.0, col=TORII_RED, bottom=True)
 box((D, "dark", 0), gx - 0.45, gx + 0.45, 7.9, 8.05, ta + 0.02, tb - 0.02, scale=1.0, bottom=True)
 box((D, "trim", 0), gx - 0.2, gx + 0.2, 5.9, 6.25, ta + 0.75, tb - 0.75, scale=1.0, col=TORII_RED, bottom=True)

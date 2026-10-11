@@ -199,11 +199,22 @@ def put(name, x, y, z, yaw=0.0, sy=1.0, sxz=1.0):
 
 
 def lantern_row(f, s0, s1, y, out, step, name="jt_lantern", sy=1.0, sxz=1.0):
+    """Lanterns in a row along a face, on the rod they hang from and its
+    two brackets back to the wall."""
     s = s0 + step / 2
     while s < s1:
         x, _, z = f.p(f.at(s), y, out)
         put(name, x, y, z, 0.0, sy, sxz)
         s += step
+    yr = y + 0.27 * sy
+    k = (D, "metal", 1)
+    f.quad(k, s0, s1, yr, yr + 0.04, out)
+    a, b = f.at(s0), f.at(s1)
+    quad(k, f.p(a, yr, out), f.p(b, yr, out), f.p(b, yr, out - 0.04), f.p(a, yr, out - 0.04))
+    for e in (a, b):
+        p0, p1 = f.p(e, yr, 0.0), f.p(e, yr, out)
+        quad(k, p0, p1, (p1[0], yr + 0.04, p1[2]), (p0[0], yr + 0.04, p0[2]))
+        quad(k, p1, p0, (p0[0], yr + 0.04, p0[2]), (p1[0], yr + 0.04, p1[2]))
 
 
 def span(name, a, b, y, drop=1.0, unit=10.0):
