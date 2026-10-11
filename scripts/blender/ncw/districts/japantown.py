@@ -336,7 +336,7 @@ def by_wall(f, r, alley=False, people=0.42):
             J.put("crates", x, G0, z, f.yaw)
         elif roll < 0.74:
             J.put("bin", x, G0, z)
-        elif roll < 0.86:
+        elif roll < 0.82:
             x, _, z = f.p(f.at(s), G0, 0.62)
             J.put("jt_nobori", x, G0, z, f.yaw + HALF_PI)
         elif alley and roll < 0.92:
@@ -468,7 +468,9 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
     xb = x0 if sgn > 0 else x1                      # the back edge
     X = lambda u: xb + sgn * u                      # noqa: E731 (u metres from the back toward the street)
     y = top + 0.05
-    quad((D, "concrete", 0), (x0, y, z1), (x1, y, z1), (x1, y, z0), (x0, y, z0), ((0, 0), (w / 3, 0), (w / 3, d / 3), (0, d / 3)))
+    # The deck itself is one teal shadow (the frame's own tone), which the
+    # lamps' pools are painted into.
+    quad((D, "glow", 0), (x0, y, z1), (x1, y, z1), (x1, y, z0), (x0, y, z0), col=J.DECK_TEAL)
     parapet(x0, x1, z0, z1, top, tcol, h=0.25, t=0.2)
     for a, b in (((x0 + 0.1, z0 + 0.1), (x1 - 0.1, z0 + 0.1)), ((x1 - 0.1, z0 + 0.1), (x1 - 0.1, z1 - 0.1)),
                  ((x1 - 0.1, z1 - 0.1), (x0 + 0.1, z1 - 0.1)), ((x0 + 0.1, z1 - 0.1), (x0 + 0.1, z0 + 0.1))):
@@ -492,7 +494,8 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
     for u, z, yaw, dz in ((tu + 1.6, z0 + 0.7, 0.0, 2.1), (w - 2.6, z1 - 0.7, math.pi, -2.1)):
         if u < w - 1.0 and d > 5.0:
             J.put("jt_lamp_arm", X(u), top + 0.05, z, yaw)
-            light(D, X(u), top + 5.0, z + dz, "cyan", 6.0)
+            light(D, X(u), top + 5.0, z + dz, "cyan", 8.0)
+            J.pool(X(u), top + 0.07, z + dz, min(3.4, d * 0.42))
     zv = (z0 + z1) / 2 + r.uniform(-1.0, 1.0)
     J.put("jt_viewer", X(w - 0.75), top + 0.05, zv, HALF_PI * sgn)
     bench(X(w - 2.6), zv + r.choice((-1.6, 1.6)), -HALF_PI * sgn, r, top + 0.05)

@@ -13,6 +13,7 @@ laundry, scooters, plants. Sixteen bytes each, none of it in the pack.
 import math
 
 from ncw.kit import *  # noqa: F401,F403
+from ncw import kit as K
 from ncw import props as P
 
 D = "japantown"
@@ -165,6 +166,23 @@ def tube_sign(c, yaw, w, h, colour, r, both=True, roll=0.0):
             cc = pt(c, b, (cu + gw / 2) * sd, cv + gh / 2, 0.11 * sd)
             dd = pt(c, b, (cu - gw / 2) * sd, cv + gh / 2, 0.11 * sd)
             quad((D, "glow", 0), a, bb, cc, dd, col=col)
+
+
+DECK_TEAL = (0.007, 0.016, 0.02, 1)
+
+
+def pool(x, y, z, r, centre=(0.22, 0.5, 0.56, 1), rim=DECK_TEAL, segs=12):
+    """A lamp's light on a deck, painted where it falls (a roof is too high
+    for the bake's pools to reach it at their strength): brightest under
+    the head, gone into the deck's own tone by its edge."""
+    b = batches[(D, "glow", 0)]
+    for i in range(segs):
+        t0, t1 = i * math.tau / segs, (i + 1) * math.tau / segs
+        base = len(b.verts)
+        b.verts.extend(K.P(*q) for q in ((x, y, z), (x + r * math.cos(t1), y, z + r * math.sin(t1)), (x + r * math.cos(t0), y, z + r * math.sin(t0))))
+        b.faces.append((base, base + 1, base + 2))
+        b.uvs.extend(((0.5, 0.5), (1, 0), (0, 0)))
+        b.cols.extend((centre, rim, rim))
 
 
 # ---------------------------------------------------------------------------
@@ -473,13 +491,14 @@ def _jt_nobori(k):
     """Two banners on poles by a shop's door, their cloth lettered down its
     length (the cloth runs along x)."""
     T = k("trim")
-    for x, col, ink in ((-0.62, CLOTH[0], (0.75, 0.7, 0.6, 1)), (0.08, CLOTH[2], (0.45, 0.06, 0.05, 1))):
+    for x, col, ink in ((-0.62, (0.36, 0.05, 0.05, 1), (0.6, 0.55, 0.45, 1)), (0.08, (0.07, 0.09, 0.2, 1), (0.55, 0.52, 0.45, 1))):
         box(T, x - 0.02, x + 0.02, 0.0, 3.05, -0.02, 0.02, scale=1.0, col=GREY)
         box(T, x, x + 0.56, 2.96, 2.99, -0.012, 0.012, scale=1.0, col=GREY, bottom=True)
         for sd in (1, -1):
             xa, xb = (x + 0.04, x + 0.54) if sd > 0 else (x + 0.54, x + 0.04)
             quad(T, (xa, 0.95, 0.0), (xb, 0.95, 0.0), (xb, 2.95, 0.0), (xa, 2.95, 0.0), col=col)
-            for j in range(4):
-                y = 2.55 - j * 0.44
-                ma, mb = (x + 0.14, x + 0.44) if sd > 0 else (x + 0.44, x + 0.14)
-                quad(T, (ma, y - 0.14, 0.006 * sd), (mb, y - 0.14, 0.006 * sd), (mb, y + 0.14, 0.006 * sd), (ma, y + 0.14, 0.006 * sd), col=ink)
+            for j in range(5):
+                y = 2.62 - j * 0.36
+                wj = (0.3, 0.2, 0.26, 0.16, 0.28)[j]
+                ma, mb = (x + 0.29 - wj / 2, x + 0.29 + wj / 2) if sd > 0 else (x + 0.29 + wj / 2, x + 0.29 - wj / 2)
+                quad(T, (ma, y - 0.1, 0.006 * sd), (mb, y - 0.1, 0.006 * sd), (mb, y + 0.1, 0.006 * sd), (ma, y + 0.1, 0.006 * sd), col=ink)
