@@ -1079,7 +1079,7 @@ for xw, out, hue in ((XW + 0.15, -1, "amber"), (XE - 0.15, 1, "white")):
     face((DK, "door", 0), [(xw + out * 0.02, 0.0, zd - 0.5), (xw + out * 0.02, 0.0, zd + 0.5), (xw + out * 0.02, 2.1, zd + 0.5), (xw + out * 0.02, 2.1, zd - 0.5)], (out, 0, 0), 1.0)
     box((DK, "glow", 0), *sorted((xw, xw + out * 0.13)), 2.25, 2.37, zd - 0.18, zd + 0.18, scale=0.5, col=glowc(NEON[hue], 0.85))
     pool(xw + out * 0.9, 2.3, zd, hue, 2.4)
-for i, (x, z) in enumerate(((plan.DECK_X0 + 2.4, -104.5), (-35.5, plan.DECK_Z - 1.2), (27.0, plan.DECK_Z + 1.0))):
+for i, (x, z) in enumerate(((plan.DECK_X0 + 2.4, -104.5), (-35.5, plan.DECK_Z - 1.2), (41.0, plan.DECK_Z + 1.6))):
     box((DK, "metal", 1), x - 0.45, x + 0.45, B.G0, B.G0 + 0.03, z - 0.45, z + 0.45, scale=0.5)
     empty(f"anchor_steam_deck_{i}", (x, B.G0 + 0.08, z))
 
