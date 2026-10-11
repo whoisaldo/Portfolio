@@ -651,9 +651,11 @@ def gantry(axis, v, u0, u1, base, facing, seed, sizes=("pm", "pm")):
     lane lights under it."""
     r = random.Random(seed)
     y0, y1 = base + 6.0, base + 6.45
-    for u in (u0, u1):
-        px, _, pz = _w(axis, v, u, 0.0)
-        box((DK, "metal", 0), px - 0.14, px + 0.14, base, y1, pz - 0.14, pz + 0.14, scale=1.0)
+    for u, hw in ((u0, 0.08 if axis == "z" else 0.14), (u1, 0.08 if axis == "x" else 0.14)):
+        # The post on the walkway's side is slim and against the rail.
+        a = _w(axis, v - 0.14, u - hw, base)
+        b = _w(axis, v + 0.14, u + hw, y1)
+        box((DK, "metal", 0), min(a[0], b[0]), max(a[0], b[0]), base, y1, min(a[2], b[2]), max(a[2], b[2]), scale=1.0)
     a = _w(axis, v - 0.14, u0, y0)
     b = _w(axis, v + 0.14, u1, y1)
     box((DK, "metal", 0), min(a[0], b[0]), max(a[0], b[0]), y0, y1, min(a[2], b[2]), max(a[2], b[2]), scale=1.0, bottom=True)
@@ -694,12 +696,12 @@ def lane_light(axis, v, u, y, facing, go):
 
 # Over the ramp's foot, facing north up the street (a driver coming to it).
 gz = FOOT + 9.0
-gy = gantry("z", gz, XW + 0.14, XE - 0.2, RY(gz), -1, 8511)
+gy = gantry("z", gz, XW + 0.08, XE - 0.2, RY(gz), -1, 8511)
 lane_light("z", gz, plan.DECK_X0 - 1.75, gy, -1, True)
 lane_light("z", gz, plan.DECK_X0 + 1.75, gy, -1, False)
 # Over the deck's mouth, facing the x 120 road.
 gx = MOUTH_X - 5.0
-gy = gantry("x", gx, ZN + 0.2, ZS - 0.14, DY(gx), 1, 8512, sizes=("pm", "ps"))
+gy = gantry("x", gx, ZN + 0.2, ZS - 0.08, DY(gx), 1, 8512, sizes=("pm", "ps"))
 lane_light("x", gx, plan.DECK_Z - 1.75, gy, 1, True)
 lane_light("x", gx, plan.DECK_Z + 1.75, gy, 1, False)
 end_block(MOUTH_X - 0.5, MOUTH_X + 0.4, ZN, z_par + 0.1, h=1.1)
@@ -1034,9 +1036,9 @@ def glow_board(axis, v, u, cy, w, h, facing, colour):
 
 for gx, cols in ((-33.0, ("cyan", "amber", "pink", "green")), (30.0, ("yellow", "cyan", "red", "teal"))):
     base = DY(gx)
-    for u in (ZN + 0.2, ZS - 0.14):
-        box((DK, "metal", 0), gx - 0.14, gx + 0.14, base, base + 6.45, u - 0.14, u + 0.14, scale=1.0)
-    box((DK, "metal", 0), gx - 0.14, gx + 0.14, base + 6.0, base + 6.45, ZN + 0.2, ZS - 0.14, scale=1.0, bottom=True)
+    box((DK, "metal", 0), gx - 0.14, gx + 0.14, base, base + 6.45, ZN + 0.06, ZN + 0.34, scale=1.0)
+    box((DK, "metal", 0), gx - 0.14, gx + 0.14, base, base + 6.45, ZS - 0.16, ZS, scale=1.0)
+    box((DK, "metal", 0), gx - 0.14, gx + 0.14, base + 6.0, base + 6.45, ZN + 0.2, ZS - 0.08, scale=1.0, bottom=True)
     glow_board("x", gx - 0.02, plan.DECK_Z - 2.4, base + 7.25, 3.6, 1.3, -1, cols[0])
     glow_board("x", gx - 0.02, plan.DECK_Z + 2.3, base + 7.05, 2.4, 0.9, -1, cols[1])
     glow_board("x", gx + 0.02, plan.DECK_Z + 2.4, base + 7.25, 3.6, 1.3, 1, cols[2])
@@ -1127,7 +1129,7 @@ for k, z in enumerate((-142.0, -126.0, -109.0, -92.0)):
 # over the hero's span stands higher than the rail.
 # ---------------------------------------------------------------------------
 EDGE_AMBER = glowc("ffb254", 0.8)
-EDGE_TEAL = glowc("2ee6c8", 0.75)
+EDGE_TEAL = glowc("2ee6c8", 0.5)
 # A line of light let into the parapet's cap and the rail's top: from above
 # the deck is drawn by its two edges; from below neither shows.
 xs("glow", 0, x_par, MOUTH_X, ZN + 0.15, ZN + 0.25, 0.0, up(DY, PAR_H + 0.082), sides="t", scale=1.0, col=EDGE_AMBER)
@@ -1279,11 +1281,11 @@ sos("z", -106.0, RY)
 AX = -56.0
 ab = DY(AX)
 SCAN = glowc("27dcf2", 0.9)
-for u in (ZN + 0.22, ZS - 0.06):     # the south pylon straddles the rail, clear of the walkway
+for u in (ZN + 0.22, ZS + 0.02):     # the south pylon stands on the rail and out over the edge, clear of the walkway
     box((DK, "board_frame", 0), AX - 0.3, AX + 0.3, ab, ab + 6.3, u - 0.16, u + 0.16, scale=1.0)
     for sx in (-1, 1):
         box((DK, "glow", 0), AX + sx * 0.3 - 0.02 * (sx < 0), AX + sx * 0.3 + 0.02 * (sx > 0), ab + 1.2, ab + 5.0, u - 0.05, u + 0.05, scale=1.0, col=SCAN)
-box((DK, "board_frame", 0), AX - 0.4, AX + 0.4, ab + 5.2, ab + 6.3, ZN + 0.06, ZS + 0.1, scale=1.0, bottom=True)
+box((DK, "board_frame", 0), AX - 0.4, AX + 0.4, ab + 5.2, ab + 6.3, ZN + 0.06, ZS + 0.18, scale=1.0, bottom=True)
 for lane in (-1.75, 1.75):
     zc = plan.DECK_Z + lane
     for sx in (-0.28, 0.28):
@@ -1307,16 +1309,16 @@ pool(AX, ab + 5.0, plan.DECK_Z + 1.75, "cyan", 3.0, 1.6)
 # coming down, an advert on its back for those coming up (both more than
 # 60 m from the avenue).
 gz = -166.0
-gy = gantry("z", gz, XW + 0.14, XE - 0.2, RY(gz), -1, 8601, sizes=("pm", "pm"))
+gy = gantry("z", gz, XW + 0.08, XE - 0.2, RY(gz), -1, 8601, sizes=("pm", "pm"))
 lane_light("z", gz, plan.DECK_X0 - 1.75, gy, -1, True)
 lane_light("z", gz, plan.DECK_X0 + 1.75, gy, -1, False)
 lane_light("z", gz, plan.DECK_X0 + 1.75, gy, 1, True)
 lane_light("z", gz, plan.DECK_X0 - 1.75, gy, 1, False)
 bx = 80.0
 bb = DY(bx)
-for u in (ZN + 0.2, ZS - 0.14):
-    box((DK, "metal", 0), bx - 0.16, bx + 0.16, bb, bb + 6.3, u - 0.16, u + 0.16, scale=1.0)
-box((DK, "metal", 0), bx - 0.16, bx + 0.16, bb + 5.9, bb + 6.3, ZN + 0.2, ZS - 0.14, scale=1.0, bottom=True)
+box((DK, "metal", 0), bx - 0.16, bx + 0.16, bb, bb + 6.3, ZN + 0.04, ZN + 0.36, scale=1.0)
+box((DK, "metal", 0), bx - 0.16, bx + 0.16, bb, bb + 6.3, ZS - 0.16, ZS, scale=1.0)
+box((DK, "metal", 0), bx - 0.16, bx + 0.16, bb + 5.9, bb + 6.3, ZN + 0.2, ZS - 0.08, scale=1.0, bottom=True)
 B.billboard(DK, bx - 0.22, bb + 6.3 + 1.75, plan.DECK_Z, 8.8, 3.1, -math.pi / 2, random.Random(8602), depth=0.4)
 lane_light("x", bx, plan.DECK_Z + 1.75, bb + 5.9, -1, True)
 lane_light("x", bx, plan.DECK_Z - 1.75, bb + 5.9, -1, False)
@@ -1331,21 +1333,21 @@ for k in range(4):
     c = -82.4 + k * 1.4
     # Facing north, on the south barrier, pointing east.
     zc = z_lane_s + BAR / 2
-    oriented_box((DK, "board_frame", 0), c, Y + 1.4, zc, 1.1, 0.8, 0.08, math.pi, scale=1.0)
+    oriented_box((DK, "board_frame", 0), c, Y + 2.5, zc, 1.1, 0.8, 0.08, math.pi, scale=1.0)
     for px in (c - 0.4, c + 0.4):
-        box((DK, "metal", 1), px - 0.03, px + 0.03, Y + 0.45, Y + 1.0, zc - 0.03, zc + 0.03, scale=0.5)
+        box((DK, "metal", 1), px - 0.03, px + 0.03, Y + 0.45, Y + 2.1, zc - 0.03, zc + 0.03, scale=0.5)
     for j in (0, 1):
         x0 = c - 0.42 + j * 0.4
-        for yb, yt in ((Y + 1.12, Y + 1.4), (Y + 1.68, Y + 1.4)):
+        for yb, yt in ((Y + 2.22, Y + 2.5), (Y + 2.78, Y + 2.5)):
             face((DK, "glow", 0), [(x0, yb, zc - 0.05), (x0 + 0.2, yb, zc - 0.05), (x0 + 0.46, yt, zc - 0.05), (x0 + 0.26, yt, zc - 0.05)], (0, 0, -1), 1.0, CHEV)
     # Facing east, on the west barrier, pointing north.
     xc = x_lane_w - BAR / 2
-    oriented_box((DK, "board_frame", 0), xc, Y + 1.4, c + 0.2, 1.1, 0.8, 0.08, math.pi / 2, scale=1.0)
+    oriented_box((DK, "board_frame", 0), xc, Y + 2.5, c + 0.2, 1.1, 0.8, 0.08, math.pi / 2, scale=1.0)
     for pz in (c - 0.2, c + 0.6):
-        box((DK, "metal", 1), xc - 0.03, xc + 0.03, Y + 0.45, Y + 1.0, pz - 0.03, pz + 0.03, scale=0.5)
+        box((DK, "metal", 1), xc - 0.03, xc + 0.03, Y + 0.45, Y + 2.1, pz - 0.03, pz + 0.03, scale=0.5)
     for j in (0, 1):
         z0 = c + 0.2 + 0.42 - j * 0.4
-        for yb, yt in ((Y + 1.12, Y + 1.4), (Y + 1.68, Y + 1.4)):
+        for yb, yt in ((Y + 2.22, Y + 2.5), (Y + 2.78, Y + 2.5)):
             face((DK, "glow", 0), [(xc + 0.05, yb, z0), (xc + 0.05, yb, z0 - 0.2), (xc + 0.05, yt, z0 - 0.46), (xc + 0.05, yt, z0 - 0.26)], (1, 0, 0), 1.0, CHEV)
 
 # Roadworks on the north shoulder over the lane behind the west row: a
