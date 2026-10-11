@@ -779,7 +779,7 @@ def stall(x, z, facing, colour, seed):
     face((DK, "awning", 1), [a, b, c, d], (0, 1, 0), 1.0, dye)
     face((DK, "awning", 1), [a, b, c, d], (0, -1, 0), 1.0, dye)
     hem = sorted((z + f * 1.9, z + f * 1.94))
-    box((DK, "glow", 0), x - w / 2 - 0.2, x + w / 2 + 0.2, B.G0 + 2.27, B.G0 + 2.35, hem[0], hem[1], scale=1.0, col=glowc(NEON[colour], 0.7))
+    box((DK, "glow", 1), x - w / 2 - 0.2, x + w / 2 + 0.2, B.G0 + 2.27, B.G0 + 2.35, hem[0], hem[1], scale=1.0, col=glowc(NEON[colour], 0.7))
     # The menu: lit panels on the back board, and what is on the counter.
     for k in range(3):
         mx = x - w / 2 + 0.35 + k * 0.85
@@ -1109,7 +1109,7 @@ for k, z in enumerate((-142.0, -126.0, -109.0, -92.0)):
         yaw = out * math.pi / 2
         xc = xe - out * 0.06
         for dz in (-1.2, 1.2):
-            box((DK, "metal", 1), xc - 0.05, xc + 0.05, base, base + 0.5, zc + dz - 0.05, zc + dz + 0.05, scale=0.5)
+            box((DK, "metal", 0), xc - 0.05, xc + 0.05, base, base + 0.5, zc + dz - 0.05, zc + dz + 0.05, scale=0.5)
         if (k + (out > 0)) % 2 == 0:
             B.billboard(DK, xe + out * 0.12, base + 0.5 + 0.95, zc, 4.2, 1.7, yaw, edge_rng, back=False, depth=0.24)
         else:
