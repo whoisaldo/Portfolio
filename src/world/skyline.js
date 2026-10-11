@@ -824,7 +824,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // wears one at every step; Contact's towers all do, in the city's
         // neons, with a blade of light up one corner.
         float banded = max(max(step(0.92, vCrown.y) * step(60.0, top), dressed), step(abs(style - 1.0), 0.1) * step(0.82, vCrown.y));
-        float crown = onWall * (1.0 - parapet) * banded * vTier.z * step(vTier.x - 3.4, vWorld.y) * step(vWorld.y, vTier.x - 2.1);
+        // Seen from over the roof the band is a ring round nothing, an empty
+        // frame in the sky; it is a crown to look up at, so from above it is
+        // not lit.
+        float crown = onWall * (1.0 - parapet) * banded * vTier.z * step(vTier.x - 3.4, vWorld.y) * step(vWorld.y, vTier.x - 2.1) * (1.0 - smoothstep(vTier.x, vTier.x + 25.0, uCam.y));
         // The towers built to wear one take it in a warmer light more often
         // than the cold white the odd one has.
         float bh = fract(vCrown.y * 29.7);

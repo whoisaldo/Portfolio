@@ -46,6 +46,19 @@ COLLISION = []      # ("box", x0, x1, y0, y1, z0, z1, district)
 ROOFS = []          # (district, x0, x1, z0, z1, y) flat roofs, for drones and the export
 
 
+def billboard(district, cx, cy, cz, w, h, yaw, r, frame=True, back=True, depth=0.35):
+    """A billboard: a lit advert with no words (the site draws it), in a dark
+    steel frame, its back the frame's or another advert."""
+    col = (r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0)
+    rotated_quad((district, "billboard", 0), cx, cy, cz, w, h, yaw, col=col)
+    if frame:
+        nx, nz = math.sin(yaw), math.cos(yaw)
+        oriented_box((district, "board_frame", 0), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.4, h + 0.4, depth, yaw, scale=1.0)
+        if back:
+            col2 = (r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0)
+            rotated_quad((district, "billboard", 0), cx - nx * (depth + 0.06), cy, cz - nz * (depth + 0.06), w, h, yaw + math.pi, col=col2)
+
+
 def ground_rect(district, x0, x1, z0, z1, mat="sidewalk", y=G0):
     """Paved ground at the pavement's level: a lane, a yard, a court."""
     s = 0.5
@@ -224,6 +237,14 @@ def back_ground(district, f, r, tcol):
     w = f.width
     # Bare concrete at street level, stained by the rain.
     f.quad((district, "concrete", 0), 0.0, w, 0.0, SHOP_H, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, SHOP_H / 3.0), (0, SHOP_H / 3.0)))
+    # Caged lamps along it, one every few metres over head height, neon so
+    # the bake carries their light onto the lane and the wall facing it: a
+    # back street is dark, not black.
+    lamp_s = r.uniform(2.0, 5.0)
+    while lamp_s < w - 1.0:
+        f.box((district, "neon_amber" if r.random() < 0.7 else "neon_white", 0), lamp_s - 0.18, lamp_s + 0.18, 3.75, 3.95, 0.05, 0.3)
+        f.box((district, "metal", 1), lamp_s - 0.22, lamp_s + 0.22, 3.95, 4.02, 0.0, 0.34)
+        lamp_s += r.uniform(5.0, 8.0)
     s = r.uniform(1.5, 4.0)
     while s < w - 1.5:
         if r.random() < 0.22 and s + 3.6 < w - 0.5:
@@ -242,10 +263,11 @@ def back_ground(district, f, r, tcol):
             px_, _, pz_ = f.p(f.at(s + 2.3), G0, 0.7)
             P.place("dumpster" if pick < 0.3 else "bags" if pick < 0.6 else "crates", px_, G0, pz_, f.yaw, district=district)
         roll = r.random()
+        # (Neon, not glow: at a door's height it lights the lane, in the bake.)
         if roll < 0.35:
             f.box((district, "neon_cyan", 0), s - 0.3, s + 1.4, 2.62, 2.7, 0.04, 0.1)
         else:
-            f.box((district, "glow", 0), mid - 0.12, mid + 0.12, 2.55, 2.75, 0.05, 0.2, col=GLOW["amber" if roll < 0.8 else "pink"])
+            f.box((district, "neon_amber" if roll < 0.8 else "neon_pink", 0), mid - 0.12, mid + 0.12, 2.55, 2.75, 0.05, 0.2)
         if r.random() < 0.25 and s + 3.2 < w:
             sw, sh = ST_SIZES["ps"]
             cx, cy, cz = f.p(f.at(s + 2.3), 2.9, 0.06)
@@ -435,8 +457,27 @@ def roof_dress(district, x0, x1, z0, z1, top, r, cap=6.0, face=None, hero=False,
             if fits((a0, top, b0), (a1, top + ph, b1)):
                 box((district, "trim", 0), a0, a1, top, top + ph, b0, b1, scale=1.5, col=TRIM[tint])
     w, d = x1 - x0, z1 - z0
+    if not hero and parapet and r.random() < 0.32:
+        # A thin line of light round the parapet's top: from the air, the
+        # city's dark roofs drawn in cyan and amber (ARL_JWwKdDs@23).
+        colour = r.choice(("cyan", "cyan", "amber", "pink", "teal"))
+        walls((district, "neon_" + colour, 0), [(x0 - 0.04, z1 + 0.04), (x1 + 0.04, z1 + 0.04), (x1 + 0.04, z0 - 0.04), (x0 - 0.04, z0 - 0.04)],
+              top + 0.84, top + 0.93, (1, 1, 1, 1))
     if w < 6 or d < 6 or cap <= 0.5:
         return
+    if not hero and cap >= 5.0 and max(w, d) > 10.0 and r.random() < 0.3:
+        # A billboard on the roof, on its steel legs, turned to the street.
+        yaw = face if face is not None else (0.0 if w >= d else math.pi / 2)
+        bw = min(max(w, d) * 0.7, 14.0)
+        bh = bw * 0.4
+        cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+        by = top + 2.2 + bh / 2
+        if fits((cx - bw / 2, top, cz - bw / 2), (cx + bw / 2, by + bh / 2 + 0.3, cz + bw / 2)):
+            billboard(district, cx, by, cz, bw, bh, yaw, r)
+            for du in (-bw * 0.35, bw * 0.35):
+                px_, pz_ = cx + math.cos(yaw) * du, cz - math.sin(yaw) * du
+                box((district, "metal", 1), px_ - 0.12, px_ + 0.12, top, by - bh / 2, pz_ - 0.12, pz_ + 0.12, scale=0.5)
+            return
     nx, nz = max(1, int(w // 6.5)), max(1, int(d // 6.5))
     plots = [(x0 + 1.2 + (i + 0.5) * (w - 2.4) / nx, z0 + 1.2 + (j + 0.5) * (d - 2.4) / nz,
               (w - 2.4) / nx, (d - 2.4) / nz) for i in range(nx) for j in range(nz)]
@@ -574,6 +615,15 @@ def building(lot, height, r, style=None, hero=False, signs=True, setback=None, g
                 nb = lot.neighbours.get(name, 0.0)
                 lo = max(y0, nb)
                 if lo >= y1 - 0.3:
+                    continue
+                if y1 - lo > 9.0 and f.width > 9.0 and r.random() < 0.4:
+                    # A side wall over a lower neighbour: blank, as they are,
+                    # and sold to a billboard.
+                    f.quad((D, "trim", 0), 0.0, f.width, lo, y1, 0.0, col=tcol)
+                    bw = min(f.width - 2.0, 16.0)
+                    bh = min(y1 - lo - 3.0, bw * 0.6)
+                    cx, cy, cz = f.p(f.at(f.width / 2), lo + 1.5 + bh / 2, 0.25)
+                    billboard(D, cx, cy, cz, bw, bh, f.yaw, r, back=False, depth=0.3)
                     continue
                 facade_wall((D, "facade", 0), f, lo, y1, col, ov)
                 continue

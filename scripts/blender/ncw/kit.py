@@ -222,6 +222,9 @@ material("hazard", "d1a51e", rough=0.6)
 # own colour on its vertices (its building's tint), lit by the street like
 # any surface, so every building's trim in a district is one draw.
 material("trim", "ffffff", rough=0.8)
+# A billboard with no words (src/world/materials.js draws its adverts):
+# each board's palette, shape and seed in its vertex colour.
+material("billboard", "ffffff", emit=1.5)
 
 # The window shader, approximated in nodes for the viewport and Cycles.
 # UV is in window cells (1 u = one bay, 1 v = one storey); the colour

@@ -52,7 +52,9 @@ export async function attachDevcam(world) {
     const next = order[(i + 1) % order.length];
     for (const step of route(id, next)) {
       const pts = step.forward ? step.edge.points : [...step.edge.points].reverse();
-      const side = step.edge.pavements?.[0] ? Math.abs(step.edge.pavements[0].offset) : step.edge.half + 2.3;
+      // Walking close by the shops, where the crowd's two lines leave room.
+      const pv = step.edge.pavements?.[0];
+      const side = pv ? Math.abs(pv.offset) + pv.width / 2 - 0.45 : step.edge.half + 3.4;
       for (const p of pts) {
         const last = path[path.length - 1];
         const v = new THREE.Vector3(p[0], p[1], p[2]);

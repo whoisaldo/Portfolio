@@ -192,7 +192,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       } else if (name === "lantern") {
         sources.push({ mesh, color: new THREE.Color("#ff4a2a"), intensity: 1.2 });
         mesh.layers.enable(REFLECT_LAYER);
-      } else if (name === "lobby") {
+      } else if (name === "billboard") {
+      // A billboard's light on the street under it, as a sign's is.
+      sources.push({ mesh, color: new THREE.Color("#c87ad8"), intensity: 0.8 });
+      mesh.layers.enable(REFLECT_LAYER);
+    } else if (name === "lobby") {
         sources.push({ mesh, color: new THREE.Color("#dfe8ff"), intensity: 0.5 });
         mesh.layers.enable(REFLECT_LAYER);
       } else if (name.startsWith("facade") || name === "awning" || name === "corporate") {

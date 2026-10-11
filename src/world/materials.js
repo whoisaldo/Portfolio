@@ -921,6 +921,85 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   };
 
   /** The material for a GLB material name, or null to leave it alone. */
+  // A billboard with no words: the city's adverts as the far city draws its
+  // screens, two of the city's colours in a slow gradient, a shape that
+  // breathes (a circle, an eye's rings, a can, a chevron, a face's outline,
+  // a koi's arc), bars of something like lettering under it, a lit frame;
+  // each board its own (its colour's palette, shape and seed), changing to
+  // another every nine to fifteen seconds through a quick wipe. One draw for
+  // every billboard in the city.
+  const billboard = () => {
+    if (made.has("billboard")) return made.get("billboard");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared, uIntensity: { value: 1.6 } },
+      vertexShader: VERT_WORLD_COLOR,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        uniform float uIntensity;
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        vec3 pal(float i) {
+          i = mod(floor(i), 8.0);
+          if (i < 0.5) return vec3(1.0, 0.18, 0.53);
+          if (i < 1.5) return vec3(0.15, 0.86, 0.95);
+          if (i < 2.5) return vec3(1.0, 0.7, 0.33);
+          if (i < 3.5) return vec3(0.64, 0.29, 1.0);
+          if (i < 4.5) return vec3(0.22, 1.0, 0.6);
+          if (i < 5.5) return vec3(1.0, 0.24, 0.82);
+          if (i < 6.5) return vec3(0.18, 0.42, 1.0);
+          return vec3(0.99, 0.93, 0.04);
+        }
+        float shape(vec2 p, float k) {
+          float r = length(p);
+          if (k < 0.5) return smoothstep(0.42, 0.38, r);
+          if (k < 1.5) return smoothstep(0.03, 0.0, abs(r - 0.36)) + smoothstep(0.03, 0.0, abs(r - 0.22)) + smoothstep(0.1, 0.07, r);
+          if (k < 2.5) return step(abs(p.x), 0.16) * step(abs(p.y), 0.38) * (0.7 + 0.3 * step(abs(p.y), 0.3));
+          if (k < 3.5) return smoothstep(0.05, 0.0, abs(abs(p.x) * 0.8 - (p.y + 0.25) * 0.6)) * step(abs(p.x), 0.4);
+          if (k < 4.5) return smoothstep(0.03, 0.0, abs(length(p / vec2(0.75, 1.0)) - 0.36));
+          return smoothstep(0.04, 0.0, abs(length(p - vec2(0.0, -0.6)) - 0.8)) * step(abs(p.x), 0.45);
+        }
+        void main() {
+          vec2 uv = vUv;
+          float seed = vColor.b * 97.0;
+          float period = 9.0 + 6.0 * fract(seed * 1.3);
+          float slot = floor((uTime + seed * 3.0) / period);
+          float local = fract((uTime + seed * 3.0) / period);
+          float h = hash12(vec2(slot, seed));
+          vec3 a = pal(vColor.r * 8.0 + slot);
+          vec3 b = pal(vColor.r * 8.0 + slot + 3.0 + floor(h * 3.0));
+          vec3 bg = mix(a * 0.35, b * 0.6, smoothstep(0.0, 1.0, uv.y + 0.2 * sin(uv.x * 3.0 + uTime * 0.2 + seed)));
+          // The subject: a shape, breathing, a little off centre.
+          vec2 p = (uv - vec2(0.5 + 0.18 * (h - 0.5), 0.62)) * vec2(2.2, 1.6);
+          float k = mod(floor(vColor.g * 8.0) + slot, 6.0);
+          float sh = clamp(shape(p * (1.0 + 0.04 * sin(uTime * 1.3 + seed)), k), 0.0, 1.0);
+          vec3 col = mix(bg, mix(a, vec3(1.0), 0.35), sh * 0.9);
+          // Bars like lettering along the bottom third.
+          vec2 g = vec2(uv.x * 9.0, uv.y * 7.0);
+          float row = floor(g.y);
+          float bars = step(row, 1.5) * step(0.5, row) * step(0.35, hash12(vec2(floor(g.x), row + slot * 7.0 + seed))) * step(0.15, fract(g.x)) * step(fract(g.y), 0.6);
+          col = mix(col, vec3(1.0, 0.97, 0.92), bars * 0.85);
+          // The lit frame round it, and the wipe between adverts.
+          float frame = 1.0 - step(0.03, uv.x) * step(uv.x, 0.97) * step(0.04, uv.y) * step(uv.y, 0.96);
+          col = mix(col, a * 1.4, frame);
+          float wipe = smoothstep(0.0, 0.04, local) * smoothstep(1.0, 0.97, local);
+          col *= mix(0.15, 1.0, wipe);
+          // Far off, its average: no pattern to shimmer.
+          float px = max(fwidth(uv.x), fwidth(uv.y));
+          col = mix(col, mix(a, b, 0.5) * 0.55, smoothstep(0.06, 0.2, px));
+          col *= uIntensity * (1.0 + 0.2 * uBass);
+          col = cityFog(col, vWorld, 0.85);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "billboard";
+    made.set("billboard", m);
+    return m;
+  };
+
   // Every tube of every colour as one material: each piece's colour on its
   // vertices and, in the alpha, whether it is one of the tubes that cut out
   // (src/world/city.js writes both when it dresses the kit), so the city's
@@ -978,7 +1057,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "awning": return awning();
       case "lantern": return lantern();
       case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1 });
-      case "concrete": return surface("concrete", { color: "#6a6c71", map: maps.concrete, ambient: 0.03 });
+      case "concrete": return surface("concrete", { color: "#6a6c71", map: maps.concrete, ambient: 0.045, spill: 1.25 });
       case "garage_wall": return surface("garage_wall", { color: "#7c7e84", map: maps.concrete, ambient: 0.07, spill: 2.2 });
       case "garage_wall_back":
       case "garage_wall_magenta":
@@ -1003,6 +1082,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });
       // A building's ledges, slabs, pilasters, fascias and parapets, and the
       // props' painted parts: their colour on their vertices.
+      case "billboard": return billboard();
       case "trim": return surface("trim", { color: "#ffffff", ambient: 0.05, spill: 1.0, detail: true, tinted: true });
       default: return null;
     }

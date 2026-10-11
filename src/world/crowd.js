@@ -31,10 +31,10 @@ const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
 // (the kit's WALK and ROAD_HALF: two lanes a side, clear of the lamps and
 // machines against the walls) run the length the hero and the intro see.
 const WALKS = [
-  { from: [10.9, -168], dir: [0, 1], len: 224, n: [14, 6] },
-  { from: [11.9, -168], dir: [0, 1], len: 224, n: [14, 5] },
-  { from: [-10.9, -168], dir: [0, 1], len: 224, n: [14, 6] },
-  { from: [-11.9, -168], dir: [0, 1], len: 224, n: [14, 5] },
+  { from: [10.9, -168], dir: [0, 1], len: 224, n: [26, 9] },
+  { from: [11.9, -168], dir: [0, 1], len: 224, n: [24, 8] },
+  { from: [-10.9, -168], dir: [0, 1], len: 224, n: [26, 9] },
+  { from: [-11.9, -168], dir: [0, 1], len: 224, n: [24, 8] },
   // The cross street's pavements, either side of the avenue.
   { from: [-88, -8.2], dir: [1, 0], len: 74, n: [2, 0] },
   { from: [16, 9.8], dir: [1, 0], len: 72, n: [2, 0] },
@@ -319,7 +319,16 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
         if (dShoes <= 0.0) albedo = vec3(0.03);
         if (dArms <= 0.0 || dTorso <= 0.0) albedo = jacket;
         if (dCoat <= 0.0) albedo = jacket * 0.75;
-        if (dNeck <= 0.0 || dHead <= 0.0 || dHands <= 0.0) albedo = skinOf(vWear.z);
+        if (dNeck <= 0.0 || dHead <= 0.0 || dHands <= 0.0) {
+          albedo = skinOf(vWear.z);
+          // A face, as much of one as a few pixels hold: the eyes' shadow,
+          // the line of the jaw.
+          if (dHead <= 0.0) {
+            float eyes = step(abs(p.y - 1.64), 0.012) * step(0.018, abs(p.x)) * step(abs(p.x), 0.055);
+            float jaw = smoothstep(1.6, 1.56, p.y);
+            albedo *= 1.0 - 0.65 * eyes - 0.25 * jaw;
+          }
+        }
         if (dHair <= 0.0) albedo = head > 0.5 && head < 2.5 ? jacket * (head < 1.5 ? 0.85 : 0.6) : hairOf(vWear.w);
         // Lit by the street they stand in: the signs' and shops' spill on the
         // side the camera sees, more on their heads and shoulders, a rim of

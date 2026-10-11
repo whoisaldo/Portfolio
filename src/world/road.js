@@ -203,7 +203,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           float wsum = 0.0;
           // Near the lens the smear is short, so a tube's streak is a streak
           // and not a curtain; further off it runs to the horizon.
-          float reach = mix(mix(0.35, 1.0, smoothstep(12.0, 40.0, dist)), 0.25, puddle);
+          float reach = mix(mix(0.22, 0.55, smoothstep(12.0, 40.0, dist)), 0.18, puddle);
           for (int i = 0; i < 10; i++) {
             float t = float(i) / 9.0;
             float v = mix(ruv.y, uHorizonV, t * t * reach);
@@ -218,7 +218,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           float sheen = mix(0.45, 1.0, smoothstep(0.52, 0.4, grain)) * crack;
           sheen = mix(sheen, 1.0, puddle);
           // Wetter in patches, so the streaks break as the road does.
-          float patchy = mix(0.28, 1.0, smoothstep(0.25, 0.75, vnoise(vWorld.xz * vec2(0.22, 0.05))));
+          // Wet in patches over matte asphalt, as the show's crossing is
+          // (Fn9gKhU_2_Q@69): between them the mirror is a faint sheen.
+          float patchy = mix(0.1, 1.0, smoothstep(0.35, 0.7, vnoise(vWorld.xz * vec2(0.22, 0.05))));
           col += refl * uReflectGain * wet * sheen * mix(0.2, 0.8, fres) * mix(patchy, 1.4, puddle);
         }
         #endif
