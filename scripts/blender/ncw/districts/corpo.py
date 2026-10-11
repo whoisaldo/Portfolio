@@ -219,12 +219,13 @@ for i in range(7):
 # block, both ending at x 380 with a finished face (the Afterlife Block's
 # lots stand against them from there), the x 120 road's east side, low
 # beside the Experience shot's lens (30 m up at x 120, z -230) and under its
-# dolly along z -230, and the boulevard's north side either end of the
-# towers (north of z -330 the district runs on to x 470).
+# dolly along z -230.
 from ncw.districts import massing  # noqa: E402
 _W = (16.0, 19.2, 22.4, 25.6)
 massing.frontage(CO, "+z", 132.0, SOUTH_X1, -190.0, 30.0, (26.0, 48.0), _W, 8401, ends=("street", "open"))
 massing.frontage(CO, "-x", -316.0, -220.0, 132.0, 30.0, (14.0, 22.0), _W, 8402, ends=("street", "open"))
 massing.blocks(CO, 162.0, SOUTH_X1, -290.0, -220.0, (14.0, 23.0), 8403, step=30.0, style=dict(roof_cap=2.0))
-massing.frontage(CO, "+z", 120.0, 136.0, -344.0, 30.0, (60.0, 80.0), (16.0,), 8404, ends=("street", "open"))
-massing.frontage(CO, "+z", 392.0, 440.0, -344.0, 30.0, (54.0, 76.0), (16.0, 19.2), 8405, ends=("open", "street"))
+
+# North of the boulevard's centre line: either end of the towers and behind
+# them (corpo_north.py).
+from ncw.districts import corpo_north  # noqa: E402,F401
