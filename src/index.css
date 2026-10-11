@@ -1360,6 +1360,24 @@ html[data-view="cinema"] [data-shell] > :not(.world-layer):not(.reticle):not([da
   pointer-events: none;
   transition: filter 0.6s ease, visibility 0s linear 0.6s;
 }
+/* Photo mode's flash (ViewModes.jsx): once, half white, gone in a third of
+   a second. Not with reduced motion. */
+.photo-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: rgb(236 234 228);
+  opacity: 0;
+  animation: photo-flash 0.36s ease-out;
+}
+@keyframes photo-flash {
+  0% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo-flash { display: none; }
+}
 /* A drag in Look turns the camera; say so under the pointer. */
 html[data-view="look"] body { cursor: grab; }
 html[data-view="look"][data-looking] body { cursor: grabbing; }

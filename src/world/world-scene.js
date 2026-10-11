@@ -1137,5 +1137,22 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     get hasMoon() {
       return Boolean(moon);
     },
+    /**
+     * The city as it is this moment, without the page's panes frosting it,
+     * in a new 2D canvas the size of the drawing buffer (photo mode,
+     * src/components/photo/). Drawn once more for it and copied in the same
+     * task, before the browser can clear the buffer; the next frame puts
+     * the frost back.
+     */
+    snapshot() {
+      if (!city || disposed) return null;
+      post.glass.count = 0;
+      post.render(0);
+      const out = document.createElement("canvas");
+      out.width = canvas.width;
+      out.height = canvas.height;
+      out.getContext("2d").drawImage(canvas, 0, 0);
+      return out;
+    },
   };
 }

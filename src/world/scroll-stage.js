@@ -137,7 +137,7 @@ export function chapterAt(position) {
 }
 
 /** "02 // Experience": a section's number and name, as its own heading labels it. */
-function chapterLabel(id) {
+export function chapterLabel(id) {
   const i = SECTIONS.findIndex((s) => s.id === id);
   return i < 0 ? null : { num: String(i).padStart(2, "0"), name: SECTIONS[i].label };
 }

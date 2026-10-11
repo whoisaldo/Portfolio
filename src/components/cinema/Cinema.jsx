@@ -15,18 +15,18 @@
 // lens, worked out from the city camera's real field of view as a full-frame
 // focal length, so it opens up on a fast flight because the camera does.
 //
-// Space plays and pauses, the arrows skip, Esc (or the cross) gives the page
-// back. The controls show while the pointer moves and get out of the way
+// Space plays and pauses, the arrows skip, P takes a postcard of the frame
+// (ViewModes.jsx), Esc (or the cross) gives the page back. The controls show while the pointer moves and get out of the way
 // while the film plays. With sound on, the music plays under it; with sound
 // off it is a silent film, because that was the reader's choice.
 //
 // Its own chunk, with its own stylesheet (./cinema.css): nobody who never
 // presses play downloads any of it.
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, X } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, X } from "lucide-react";
 import { createDirector } from "./director";
 import { getWorld } from "../../world/stage";
-import { setView } from "../../world/modes";
+import { setView, takePhoto } from "../../world/modes";
 import { profile, emails, links } from "../../data/profile";
 import { featuredProjects } from "../../data/projects";
 import { experiences } from "../../data/experience";
@@ -233,6 +233,9 @@ export default function Cinema({ leaving = false }) {
             <span key={s.id} className="cinema-track-tick" style={{ left: `${(s.start / ui.total) * 100}%` }} title={s.label} data-i={i} />
           ))}
         </div>
+        <button type="button" className="cinema-icon" onClick={() => takePhoto()} aria-label="Take a postcard (P)">
+          <Camera aria-hidden="true" />
+        </button>
         <button type="button" className="cinema-icon" onClick={() => setView("page")} aria-label="Back to the page">
           <X aria-hidden="true" />
         </button>

@@ -36,7 +36,7 @@ import { applyVolume, isPlaying, startAmbient, stopAmbient } from "../lib/ambien
 import { CRUISE_GAIN, DROP } from "../lib/cues";
 import { track } from "../lib/beacon";
 import { stage } from "../world/stage";
-import { setView } from "../world/modes";
+import { setView, takePhoto } from "../world/modes";
 
 // Fun facts pool, surfaced on boot and via `funfact`
 const FUN_FACTS = [
@@ -195,6 +195,7 @@ export default function Terminal({ onExit }) {
     jackin       the braindance: the city, no page
     look         put the page away and look at the city (H)
     watch        this site as a film (C)
+    photo        a postcard of the city as it is now (P)
 
   Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
 ` },
@@ -230,7 +231,7 @@ export default function Terminal({ onExit }) {
     "neofetch", "tree", "grep", "find", "open", "sudo", "exit", "hire",
     "git", "vim", "nano", "touch", "mkdir", "rm", "cp", "mv", "head", "tail",
     "funfact", "interests", "uplink", "vitals",
-    "garage", "goto", "sound", "volume", "fx", "env", "recruiters", "jackin", "braindance", "look", "watch",
+    "garage", "goto", "sound", "volume", "fx", "env", "recruiters", "jackin", "braindance", "look", "watch", "photo",
     "signs", "haze", "wet", "cursor", "scanlines", "traffic", "reactive",
   ], []);
 
@@ -944,6 +945,19 @@ AUTHOR
         }
         break;
       }
+
+      case "photo":
+        // The console is in the way of the city: it closes, then the shutter.
+        if (stage.status !== "ready" || document.documentElement.dataset.world !== "on") {
+          say("error", "photo: the city is off. fx world on brings it back.");
+        } else {
+          say("system", "Saving a postcard of the city.");
+          setTimeout(() => {
+            onExit?.();
+            setTimeout(() => takePhoto(), 500);
+          }, 450);
+        }
+        break;
 
       case "exit":
         setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to sideband closed." }]);

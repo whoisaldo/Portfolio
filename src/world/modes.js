@@ -52,6 +52,16 @@ export function canPutAway() {
   );
 }
 
+/** The event that asks for a postcard (ViewModes.jsx takes it). */
+export const PHOTO_EVENT = "aly:photo";
+
+/** Photo mode: a postcard of the city as it is now, from any view of it. */
+export function takePhoto() {
+  if (stage.view === "page" && !canPutAway()) return false;
+  window.dispatchEvent(new CustomEvent(PHOTO_EVENT));
+  return true;
+}
+
 // ---- the fade -----------------------------------------------------------------
 let fade = null;
 let fadeRaf = 0;
