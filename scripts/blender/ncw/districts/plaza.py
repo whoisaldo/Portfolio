@@ -7,9 +7,9 @@ from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials,
 # ---------------------------------------------------------------------------
 PL = "plaza"
 CROSS_Z0, CROSS_Z1 = -186.0, AV_NORTH
-# The plaza street is streets.py's; the square starts at its lot line.
+# The plaza street is streets.py's; the square starts at its lot line (its
+# paving and all that stands on it are plaza_square.py's).
 PX0, PX1, PZ0, PZ1 = 48.0, 108.0, -262.0, -190.0
-ground((PL, "sidewalk", 0), PX0, PX1, PZ0, PZ1, y=0.15, scale=2.0)
 BOARD = (79.0, 26.0, -263.0, 27.0, 18.0)
 bx, by, bz, bw, bh = BOARD
 named_quad("board_main", "board", bx, by, bz, bw, bh, 0.0, props={"board": 0, "district": PL})
@@ -74,3 +74,4 @@ for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 51
 # The blocks round the square and along the x 120 road, and the north
 # quarter behind the board.
 from ncw.districts import plaza_blocks  # noqa: E402,F401
+from ncw.districts import plaza_square  # noqa: E402,F401
