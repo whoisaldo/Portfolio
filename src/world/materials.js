@@ -316,7 +316,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec2 ruv = vec2(0.5 + (h.x / BAY - 0.5) * k, 0.5 - (h.y / GLASS - 0.5) * k);
           float which = floor(hash12(vec2(bay * 2.71 + face, 3.0)) * 8.0);
           vec2 cell = vec2(mod(which, 4.0), floor(which / 4.0));
-          vec3 room = texture2D(uShops, (cell + clamp(ruv, 0.004, 0.996)) / vec2(4.0, 2.0)).rgb;
+          vec3 room = texture2D(uShops, (cell + clamp(ruv, 0.004, 0.996)) / vec2(4.0, 2.0), 1.0).rgb;
+          // Painted, not photographed: the pictures softened a step, half
+          // their colour given over to the shop's own light, and lit from
+          // its ceiling down, so a room reads as a lit place in the city's
+          // palette rather than a photograph pasted behind the glass.
+          float lum = dot(room, vec3(0.3, 0.59, 0.11));
+          room = mix(vec3(lum), room, 0.6) * mix(vec3(1.0), tint(vColor.g) * 1.35, 0.45);
+          room *= 0.7 + 0.45 * smoothstep(0.2, GLASS, h.y) - 0.2 * step(h.y, 0.02);
           room = mix(tint(vColor.g) * 0.3, room, uHasShops);
 
           vec3 col;
