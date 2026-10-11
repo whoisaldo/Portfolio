@@ -1,9 +1,60 @@
 from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials, street constants)
 from ncw import buildings as B
 from ncw import props as P
+from ncw.districts import avenue_kit as K
+from ncw.districts import avenue_lanes as LN
 
 # The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
 # is streets.py's, from the plan.
+
+# What the hero's lens does not see (the lots' backs and the lanes behind
+# them, the south arm behind it, the south street's frontages, the yard) is
+# Kabuki Avenue too, but streams in with the south pack (finish.PACK_OF), so
+# the core the city goes live on stays the size it was.
+AVS = "avenue_s"
+
+# A lot's back on a lane is this module's, not the generator's: while the
+# lots are built, the generator's own back (its ground floor of doors, its
+# windows, its pipes and units and fire escape) is caught here. Its ground
+# floor is drawn for nobody (the lot's random stream runs on exactly as it
+# did, so a facade the hero sees is the facade it was) and built again
+# further down by avenue_lanes; the rest of the back goes to the south pack.
+_BACK = {"plane": None}
+BACKS = []     # (face, height, trim colour, lane) of every back on a lane
+ESCAPES = []   # (face name, plane, where along it) of the fire escapes on them
+_gen = (B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape)
+
+
+def _on_back(f):
+    return _BACK["plane"] is not None and f.name == _BACK["name"] and abs(f.plane - _BACK["plane"]) < 1e-6
+
+
+def _back_ground(district, f, r, tcol):
+    if not _on_back(f):
+        return _gen[0](district, f, r, tcol)
+    _gen[0]("void", f, r, tcol)
+    BACKS.append((f, _BACK["h"], tcol, _BACK["lane"]))
+
+
+def _clutter_back(district, f, r, y0, y1):
+    return _gen[1](AVS if _on_back(f) else district, f, r, y0, y1)
+
+
+def _facade_wall(key, f, y0, y1, col, ov, s0=0.0, s1=None):
+    return _gen[2]((AVS,) + tuple(key[1:]) if _on_back(f) else key, f, y0, y1, col, ov, s0, s1)
+
+
+def _fire_escape(district, f, s, y0, y1):
+    if _on_back(f):
+        ESCAPES.append((f.name, f.plane, f.at(s)))
+    return _gen[3](district, f, s, y0, y1)
+
+
+def back_is(name=None, plane=None, h=0.0, lane=""):
+    _BACK.update(name=name, plane=plane, h=h, lane=lane)
+
+
+B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape = _back_ground, _clutter_back, _facade_wall, _fire_escape
 
 
 # The lots, north of the intersection: (z_start, depth along the street,
@@ -26,6 +77,7 @@ LOTS = {
 }
 DEPTH = 30.0
 DECK_GAP = (-86.0, -74.0)
+AV_LOTS = []   # (side, z0, z1, height, crowned) as built
 STYLE = dict(windows=(0, 0, 1, 3, 6, 5), lit=(0.62, 0.95), warmth=(0.5, 1.0),
              tints=("charcoal", "navy", "plum", "teal", "navy"), balcony=0.2, balcony_glass=0.25, ac=0.28,
              signs=2.0, awning=0.6, shop_sign=0.55, canopy=0.12, roof_cap=4.5, setback=0.0, fire_escape=0.3,
@@ -60,7 +112,10 @@ for side, lots in LOTS.items():
         crown = min(r.uniform(5, 14), 0.33 * (HERO_EYE_Z - z1) - height)
         crowned = height > 30 and crown > 3
         st = dict(STYLE, roof_cap=0.0 if crowned else 4.5)
+        back_is(backf, xb if s > 0 else xa, height, "e" if s > 0 else "w")
         B.building(lot, height, r, style=st, defer_roof=HERO_ROOFS)
+        back_is()
+        AV_LOTS.append((s, z0, z1, height, crowned))
         if crowned:
             ia, ib = (xa + 5, xb - 3) if s > 0 else (xa + 3, xb - 5)
             clot = B.Lot(ia, ib, z0 + 2, z1 - 2, front, {"+x": "open", "-x": "open", "+z": "open", "-z": "open"}, {}, AV)
@@ -77,48 +132,37 @@ for side, lots in LOTS.items():
         if t[8] is None and t[0] == AV:
             HERO_ROOFS[k] = t[:8] + (-s * math.pi / 2,) + t[9:]
 
-# What the hero's lens does not see (its lanes behind the rows, the south
-# arm behind it, the south street's frontages, the depot) is Kabuki Avenue
-# too, but streams in with the east pack (finish.PACK_OF), so the core the
-# city goes live on stays the size it was.
-AVS = "avenue_s"
-# The service lanes behind each row, paved, lit and cluttered, from the
-# south street to the plaza street (the deck crosses them overhead).
-for xa, xb in ((-WALK - DEPTH - 6.0, -WALK - DEPTH), (WALK + DEPTH, WALK + DEPTH + 8.0)):
-    B.ground_rect(AVS, xa, xb, -168.0, -10.0)
-    lr = random.Random(int(xa * 13))
-    z = -14.0
-    while z > -164.0:
-        if not (DECK_GAP[0] - 2 < z < DECK_GAP[1] + 2):
-            kind = lr.random()
-            x = xa + 0.6 if lr.random() < 0.5 else xb - 0.6
-            if kind < 0.35:
-                P.place("bin", x, 0.15, z, district=AVS)
-            elif kind < 0.5:
-                P.place("drum", x, 0.15, z, district=AVS)
-            elif kind < 0.62:
-                P.place("lamp_short", x, 0.15, z, district=AVS)
-        z -= lr.uniform(5.0, 11.0)
-
 # The avenue's south arm, behind the hero's lens (the drift's camera stands
 # in it), and the south street's frontages either side of the junction, with
-# their own blocks: lower, the same street.
-ARM = [(12.0, 13.0), (25.0, 11.0), (36.0, 15.0), (51.0, 12.0), (63.0, 14.0), (77.0, 11.0)]
+# their own blocks: lower, the same street. The arm's first two lots a side
+# stand against the south street's row; the rest back onto a lane.
+ARM = [(12.0, 15.0), (27.0, 15.0), (42.0, 12.0), (54.0, 11.0), (65.0, 12.0), (77.0, 11.0)]
+ARM_H = {}
 for s in (-1, 1):
     rr = random.Random(2200 + s)
-    hs = [rr.choice((14.0, 18.0, 21.0, 24.0, 28.0, 31.0)) for _ in ARM]
+    ARM_H[s] = [rr.choice((14.0, 18.0, 21.0, 24.0, 28.0, 31.0)) for _ in ARM]
+# The south street's south side, out to the west street's end and to the
+# x 120 road's: (x0, x1, height) west and east of the arm's corner lots.
+SOUTH_ROW = {-1: [(-66.0, -55.0, 30.4), (-55.0, -44.0, 20.2)],
+             1: [(44.0, 56.0, 23.6), (56.0, 68.8, 30.4), (68.8, 84.8, 37.2), (84.8, 97.6, 27.0), (97.6, 108.0, 16.8)]}
+for s in (-1, 1):
+    hs = ARM_H[s]
+    row_h = SOUTH_ROW[s][-1 if s < 0 else 0][2]
     for j, (za, d) in enumerate(ARM):
         r = random.Random(2300 + j * 11 + (5 if s > 0 else 0))
         xa, xb = (WALK, WALK + DEPTH) if s > 0 else (-WALK - DEPTH, -WALK)
         front = "-x" if s > 0 else "+x"
-        sides = {front: "street", ("+x" if s > 0 else "-x"): "back",
+        backf = "+x" if s > 0 else "-x"
+        sides = {front: "street", backf: "party" if j < 2 else "back",
                  "-z": "street" if j == 0 else "party", "+z": "open" if j == len(ARM) - 1 else "party"}
-        nb = {}
+        nb = {backf: row_h}
         if j > 0:
             nb["-z"] = hs[j - 1]
         if j < len(ARM) - 1:
             nb["+z"] = hs[j + 1]
+        back_is(backf, xb if s > 0 else xa, hs[j], "ae" if s > 0 else "aw")
         B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AVS), hs[j], r, style=STYLE)
+        back_is()
 # The arm ends at a yard wall and the depot behind it, square across the
 # street: a shut gate, a lit sign over it, the depot's mass over the wall.
 B.building(B.Lot(-WALK - DEPTH, WALK + DEPTH, 92.0, 118.0, "-z", {"-z": "street", "+z": "back", "-x": "open", "+x": "open"}, {}, AVS),
@@ -153,16 +197,31 @@ P.place("cctv", 12.9, 0.15, 89.5, district=AVS)
 for (x, z) in ((-11.0, 89.6), (-10.3, 89.9), (-11.4, 90.4)):
     P.place("drum", x, 0.15, z, district=AVS)
 
-# The south street's frontages either side of the hero's junction, out to
-# the west street and to the x 120 road: its south side, and the stretch of
-# its north side the avenue's rows do not reach (east of the east lane).
-SOUTH = dict(STYLE, signs=1.4, roof_cap=6.0)
-B.row(AVS, "-z", -66.0, -WALK, 30.0, 12.0, lambda i, a: random.Random(int(a * 7)).choice((16.0, 22.0, 27.0, 33.0)),
-      lambda i: random.Random(int(i * 31 + 5)).choice((9.6, 12.8, 16.0)), random.Random(2401), style=SOUTH,
-      ends=("street", "street"))
-B.row(AVS, "-z", WALK, 108.0, 30.0, 12.0, lambda i, a: random.Random(int(a * 11)).choice((15.0, 20.0, 26.0, 34.0)),
-      lambda i: random.Random(int(i * 17 + 3)).choice((9.6, 12.8, 16.0, 19.2)), random.Random(2402), style=SOUTH,
-      ends=("street", "street"))
+# The south street's frontages either side of the arm's corner lots: its
+# south side, out to the west street's end and to the x 120 road. (Its north
+# side is the avenue's first lots, and beyond the lanes Japantown's and the
+# plaza's.) Their backs are on a lane of their own.
+SOUTH = dict(STYLE, signs=1.8, roof_cap=6.0)
+for s, lots in SOUTH_ROW.items():
+    for j, (xa, xb, h) in enumerate(lots):
+        r = random.Random(2400 + j * 7 + (3 if s > 0 else 0))
+        sides = {"-z": "street", "+z": "back", "-x": "party", "+x": "party"}
+        nb = {}
+        if j > 0:
+            nb["-x"] = lots[j - 1][2]
+        elif s > 0:
+            nb["-x"] = min(ARM_H[1][:2])
+        else:
+            sides["-x"] = "open"
+        if j < len(lots) - 1:
+            nb["+x"] = lots[j + 1][2]
+        elif s < 0:
+            nb["+x"] = min(ARM_H[-1][:2])
+        else:
+            sides["+x"] = "open"
+        back_is("+z", 42.0, h, "ce" if s > 0 else "cw")
+        B.building(B.Lot(xa, xb, 12.0, 42.0, "-z", sides, nb, AVS), h, r, style=SOUTH)
+        back_is()
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.
@@ -319,22 +378,43 @@ for _ in range(16):
         quad(k, (x0, ya - 0.03, z0_), (x1, yb - 0.03, z1_), (x1, yb + 0.03, z1_), (x0, ya + 0.03, z0_))
         quad(k, (x1, yb - 0.03, z1_), (x0, ya - 0.03, z0_), (x0, ya + 0.03, z0_), (x1, yb + 0.03, z1_))
 
-# The lanes behind each row: cables slung across them every few metres,
-# and a vent breathing steam in each.
-for xa, xb, seed in ((-WALK - DEPTH - 6.0, -WALK - DEPTH, 9301), (WALK + DEPTH, WALK + DEPTH + 8.0, 9302)):
-    lr = random.Random(seed)
-    z = -16.0
-    while z > -164.0:
-        if not (DECK_GAP[0] - 2 < z < DECK_GAP[1] + 2):
-            y0 = lr.uniform(5.0, 10.0)
-            sag = lr.uniform(0.3, 1.2)
-            for i in range(8):
-                t0, t1 = i / 8, (i + 1) / 8
-                x0, x1 = xa + t0 * (xb - xa), xa + t1 * (xb - xa)
-                ya, yb = y0 - sag * math.sin(math.pi * t0), y0 - sag * math.sin(math.pi * t1)
-                quad((AVS, "dark", 1), (x0, ya - 0.025, z), (x1, yb - 0.025, z), (x1, yb + 0.025, z), (x0, ya + 0.025, z))
-                quad((AVS, "dark", 1), (x1, yb - 0.025, z), (x0, ya - 0.025, z), (x0, ya + 0.025, z), (x1, yb + 0.025, z))
-        z -= lr.uniform(7.0, 14.0)
+# The generator is the kit's again, and what it drew for nobody is dropped.
+B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape = _gen
+for key in [k for k in batches if k[0] == "void"]:
+    del batches[key]
+P.INSTANCES[:] = [i for i in P.INSTANCES if i[7] != "void"]
+LIGHTS.pop("void", None)
+
+# ---------------------------------------------------------------------------
+# The lanes. Behind each row of the avenue a service lane runs from the
+# south street to the plaza street (the deck crosses both overhead, and its
+# band is left to it); behind the arm's lots a shorter one each side, shut
+# at its north end by the south street's row, and behind that row a lane of
+# its own. Every lot's back on them is built here (avenue_lanes.wall), then
+# the lane between (avenue_lanes.Lane).
+# ---------------------------------------------------------------------------
+LANE_HUES = {"w": "green", "e": "blue", "aw": "warm", "ae": "green", "cw": "blue", "ce": "warm"}
+LANE_VENTS = {k: [] for k in LANE_HUES}
+for n, (f, h, tcol, lane) in enumerate(BACKS):
+    esc = [a for (name, plane, a) in ESCAPES if name == f.name and abs(plane - f.plane) < 1e-6 and f.a0 <= a <= f.a1]
+    LN.wall(AVS, f, random.Random(5100 + n * 17), h, tcol, escapes=esc, hues=LANE_HUES[lane],
+            dens=1.0 if lane in ("w", "e") else 0.7, vents=LANE_VENTS[lane])
+
+DECK_BAND = (-95.0, -65.0)
+for name, mine, far, seed, aprons in (("w", -WALK - DEPTH, -WALK - DEPTH - 6.0, 9301, (0.9, 1.3)), ("e", WALK + DEPTH, WALK + DEPTH + 8.0, 9302, (0.9, 1.7))):
+    lane = LN.Lane(AVS, name, "z", mine, far, -168.0, -10.0, seed, hues=LANE_HUES[name], skip=(DECK_BAND,), aprons=aprons)
+    lane.vents = LANE_VENTS[name]
+    lane.build(mouths=((-10.0, 1), (-168.0, -1)))
+# The two vents the lanes have always had (the site draws steam from each).
 for i, (x, z) in enumerate(((-WALK - DEPTH - 3.0, -52.0), (WALK + DEPTH + 4.0, -128.0))):
-    box((AVS, "metal", 1), x - 0.4, x + 0.4, 0.15, 0.22, z - 0.4, z + 0.4, scale=0.5)
+    box((AVS, "metal", 1), x - 0.4, x + 0.4, 0.0, 0.07, z - 0.4, z + 0.4, scale=0.5)
     empty(f"anchor_steam_lane_{i}", (x, 0.25, z))
+# Behind the arm's lots and behind the south street's row.
+for name, mine, far, seed in (("aw", -44.0, -50.0, 9311), ("ae", 44.0, 50.0, 9312)):
+    lane = LN.Lane(AVS, name, "z", mine, far, 42.0, 88.0, seed, hues=LANE_HUES[name], dens=0.75, aprons=(0.9, 1.3))
+    lane.vents = LANE_VENTS[name]
+    lane.build(mouths=((88.0, 1),), most_steam=1)
+for name, a, b, seed in (("cw", -66.0, -50.0, 9321), ("ce", 50.0, 108.0, 9322)):
+    lane = LN.Lane(AVS, name, "x", 42.0, 48.0, a, b, seed, hues=LANE_HUES[name], dens=0.75, aprons=(0.9, 1.3))
+    lane.vents = LANE_VENTS[name]
+    lane.build(most_steam=1)
