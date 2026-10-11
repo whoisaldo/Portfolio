@@ -205,7 +205,7 @@ const CAR_PARTS = { body: 0, trim: 1, glass: 2, lamp_head: 3, lamp_tail: 4, glow
  *  where its lamps are: the outer ends of its head and tail light bars, in
  *  its own frame (front +z). */
 function carGeometry(kind) {
-  const model = createCarModel(kind);
+  const model = createCarModel(kind === "police" ? "sedan" : kind);
   model.updateMatrixWorld(true);
   const parts = [];
   const head = new THREE.Box3();
@@ -224,6 +224,18 @@ function carGeometry(kind) {
     if (k === 4) tail.union(g.boundingBox);
     parts.push(g);
   });
+  // An NCPD cruiser's light bar across the roof, on a dark foot.
+  if (kind === "police") {
+    const roof = new THREE.Box3();
+    for (const g of parts) roof.union(g.boundingBox);
+    for (const [w, h, d, y, k] of [[1.18, 0.05, 0.34, 0.025, 1], [1.1, 0.09, 0.26, 0.095, 8]]) {
+      const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
+      g.deleteAttribute("uv");
+      g.translate(0, roof.max.y + y - 0.01, -0.25);
+      g.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(k), 1));
+      parts.push(g);
+    }
+  }
   const geometry = mergeGeometries(parts, false);
   parts.forEach((g) => g.dispose());
   model.traverse((o) => o.isMesh && o.geometry.dispose());
@@ -308,11 +320,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       varying vec3 vBody;
       varying vec4 vLook;
       varying float vFade;
+      varying vec3 vLocal;
       void main() {
         vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vNormalW = normalize(mat3(modelMatrix * instanceMatrix) * normal);
         vKind = aKind;
+        vLocal = position;
         #ifdef USE_INSTANCING_COLOR
         vBody = instanceColor;
         #else
@@ -331,6 +345,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       varying vec3 vBody;
       varying vec4 vLook;
       varying float vFade;
+      varying vec3 vLocal;
       void main() {
         if (vFade < 0.999 && hash12(floor(gl_FragCoord.xy)) > vFade) discard;
         vec3 n = normalize(vNormalW);
@@ -352,13 +367,25 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         // and the hood lifted by the glow overhead.
         float ao = 0.35 + 0.65 * smoothstep(0.12, 1.1, vWorld.y);
         float sky = max(n.y, 0.0);
-        if (k == 0) col = vBody * (0.03 + spill * 0.6 * (0.5 + 0.5 * sky) + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.25 + uGlowColor * 0.15) * sky * uHaze) * ao + env * (0.06 + 0.94 * F) * 0.7 * (0.55 + 0.45 * ao);
+        vec3 body = vBody;
+        #ifdef POLICE
+        // NCPD: black, the doors white between the sills and the waist.
+        body = mix(vec3(0.02), vec3(0.62, 0.64, 0.66), step(0.3, vLocal.y) * step(vLocal.y, 0.68) * step(abs(vLocal.z), 1.25));
+        #endif
+        if (k == 0) col = body * (0.03 + spill * 0.6 * (0.5 + 0.5 * sky) + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.25 + uGlowColor * 0.15) * sky * uHaze) * ao + env * (0.06 + 0.94 * F) * 0.7 * (0.55 + 0.45 * ao);
         else if (k == 1) col = vec3(0.008, 0.009, 0.011) + spill * 0.08 + env * F * 0.3;
         else if (k == 2) col = vec3(0.003, 0.005, 0.009) + env * (0.06 + 0.94 * F);
         else if (k == 3) { col = mix(vec3(0.06, 0.065, 0.07), vec3(0.92, 0.95, 1.0) * 6.5, lit); glow = lit; }
         else if (k == 4) { col = mix(vec3(0.08, 0.008, 0.012), vec3(1.0, 0.07, 0.15) * 4.5, lit); glow = lit; }
         else if (k == 5) { col = vLook.rgb * mix(0.6, 3.0, lit); glow = 1.0; }
         else if (k == 6) col = vec3(0.006, 0.006, 0.007) + spill * 0.05;
+        else if (k == 8) {
+          // The bar: red on one side, blue on the other, trading places.
+          float flip = step(0.0, sin(uTime * 9.0 + vLocal.z * 0.1)) * 2.0 - 1.0;
+          float side = step(0.0, vLocal.x * flip);
+          col = mix(vec3(1.0, 0.04, 0.08), vec3(0.1, 0.25, 1.0), side) * 6.0 * (0.6 + 0.4 * step(0.5, fract(uTime * 4.0)));
+          glow = 1.0;
+        }
         else col = vec3(0.02, 0.022, 0.026) + env * 0.35;
         col = cityFog(col, vWorld, glow);
         gl_FragColor = vec4(col, 1.0);
@@ -485,8 +512,23 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   for (let i = 0; i < moving + parked.length; i++) {
     slots.push({ kind: Math.floor(draw() * CAR_KINDS.length), body: BODY[Math.floor(draw() * BODY.length)], accent: ACCENT[Math.floor(draw() * ACCENT.length)], parked: i >= moving ? parked[i - moving] : null });
   }
+  // A few of the network's moving cars are NCPD cruisers (never on the
+  // avenue's own lanes, which the hero sees).
+  const POLICE_KIND = CAR_KINDS.length;
+  let cruisers = 0;
+  slots.forEach((x, i) => {
+    if (i >= avenueMoving && i < moving && (i - avenueMoving) % 7 === 3 && cruisers < (cars >= 4 ? 3 : 1)) {
+      x.kind = POLICE_KIND;
+      x.body = "#0a0a0c";
+      cruisers++;
+    }
+  });
+  // Its own program over the same uniforms (a clone would copy them, and
+  // stop the clock).
+  const policeMat = new THREE.ShaderMaterial({ uniforms: carMat.uniforms, vertexShader: carMat.vertexShader, fragmentShader: carMat.fragmentShader, defines: { POLICE: "" } });
+  policeMat.name = "traffic_police";
   const color = new THREE.Color();
-  const kinds = CAR_KINDS.map((kind, k) => {
+  const kinds = [...CAR_KINDS, "police"].map((kind, k) => {
     const built = carGeometry(kind);
     const mine = slots.filter((x) => x.kind === k);
     const n = Math.max(1, mine.length);
@@ -494,7 +536,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     const fade = new THREE.InstancedBufferAttribute(new Float32Array(n).fill(1), 1).setUsage(THREE.DynamicDrawUsage);
     built.geometry.setAttribute("aLook", look);
     built.geometry.setAttribute("aFade", fade);
-    const mesh = new THREE.InstancedMesh(built.geometry, carMat, n);
+    const mesh = new THREE.InstancedMesh(built.geometry, kind === "police" ? policeMat : carMat, n);
     mesh.name = `traffic_${kind}`;
     mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -930,6 +972,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       droneGeo.dispose();
       droneMesh.dispose();
       carMat.dispose();
+      policeMat.dispose();
       avMat.dispose();
       quad.dispose();
       lampGeo.dispose();
