@@ -516,3 +516,226 @@ for (z0, z1, n), kind in zip(OUTER, OUTER_ROOFS):
 K.mast(D, 462.0, -299.0, 34.0, 7.5)
 cylinder((D, "metal", 1), 470.0, -291.0, 34.0, 39.45, 0.05, segs=5)
 box((D, "glow", 0), 469.9, 470.1, 39.45, 39.7, -291.1, -290.9, scale=0.5, col=GLOW["white"])
+
+# ---------------------------------------------------------------------------
+# The lanes, the passage and the yards: the kept blocks' backs onto them
+# (doors with a lamp each, shutters, pipes, units, ducts), tubes of cyan and
+# green overhead where the show lights its back passages (Zuzys9Ld_5M@87),
+# cables, a sign across each mouth, steam, what a back street keeps.
+# ---------------------------------------------------------------------------
+rl = random.Random(9500)
+
+
+def back(name, plane, a0, a1, top, seed, tint="charcoal", clutter=True):
+    """The ground floor of a kept block's back (a hair proud of its dark
+    ground floor's own plane) and what hangs on it above."""
+    n = {"+x": 1, "-x": -1, "+z": 1, "-z": -1}[name]
+    f = B.Face(name, plane + n * 0.03, a0, a1)
+    r = random.Random(seed)
+    B.back_ground(D, f, r, B.TRIM[T[tint]])
+    if clutter:
+        B.clutter_back(D, f, r, 0.0, top)
+    return f
+
+
+def lane_tubes(pts, y, hues, power=3.0, along="z", half=1.0):
+    for (x_, z_), hue in zip(pts, hues):
+        a_ = (x_, y, z_ - half) if along == "z" else (x_ - half, y, z_)
+        b_ = (x_, y, z_ + half) if along == "z" else (x_ + half, y, z_)
+        K.tube(D, a_, b_, hue, power=power)
+        for e in (a_, b_):
+            pipe((D, "dark", 1), (e[0], y + 0.07, e[2]), (e[0], y + 0.9, e[2]), 0.012, segs=3)
+
+
+def lane_cables(x0, x1, zs, y0, y1, r, along="x"):
+    for v in zs:
+        ya, yb, sag = r.uniform(y0, y1), r.uniform(y0, y1), r.uniform(0.25, 0.9)
+        if along == "x":
+            K.cable(D, (x0, ya, v), (x1, yb, v + r.uniform(-0.8, 0.8)), sag, steps=5)
+        else:
+            K.cable(D, (v, ya, x0), (v + r.uniform(-0.8, 0.8), yb, x1), sag, steps=5)
+
+
+# West: the lane behind AFTERLIFE's block (x 398..402), the lane from it to
+# the street (z -262..-258) and the yard behind the bar.
+AFW = back("-x", 402.0, -300.0, -262.0, 30.0, 9501)
+K.duct(D, AFW, 3.0, 30.0, 4.9, rl)
+AFS = back("+z", -262.0, 402.0, WL, 30.0, 9502)
+K.duct(D, AFS, 1.0, 20.0, 5.0, rl)
+K.poster(D, AFS, 22.8, 2.3, 1.5, 2.1, rl)
+# The club's back door, open on its light, kegs and crates by it.
+K.lit_door(D, AFW, 22.0, "pink", power=4.0)
+K.kegs(D, 401.3, AFW.at(24.6), rl)
+K.crates(D, 401.2, AFW.at(19.4), rl)
+back("-z", -250.0, 410.0, 416.0, 26.0, 9503, clutter=False)
+# MILITECH's service door on the yard: a shutter under hazard stripes, a
+# camera, a white flood.
+MN = B.Face("-z", -250.03, 398.0, 410.0)
+MN.quad((D, "concrete", 0), 0.0, 12.0, 0.0, SHOP_H, 0.0, uvs=((0, 0), (4, 0), (4, 1.5), (0, 1.5)))
+K.shutter(D, MN, 3.0, 9.0, h=3.6, lamp="white")
+MN.box((D, "hazard", 1), 2.8, 9.2, 3.95, 4.2, 0.0, 0.06)
+P.place("cctv", 409.3, G0, -250.8, district=D)
+lane_tubes([(400.0, -306.0), (400.0, -291.0), (400.0, -277.0), (400.0, -265.0)], 3.9, ("cyan", "green", "cyan", "white"))
+lane_tubes([(407.0, -260.0), (416.0, -260.0), (424.0, -260.0)], 3.9, ("cyan", "pink", "cyan"), along="x")
+lane_cables(398.0, 402.0, (-311.0, -299.0, -288.5, -281.0, -270.0), 6.0, 10.0, rl)
+lane_cables(-262.0, -258.0, (405.0, 411.0, 419.5), 5.2, 7.4, rl, along="z")
+# A sign across each mouth: the alley's on the boulevard, the lane's on the
+# street.
+box((D, "board_frame", 0), 398.1, 401.9, 4.95, 6.25, -316.15, -316.0, scale=1.0)
+K.board(D, 400.0, 5.6, -316.17, "pm", math.pi, frame=0)
+box((D, "board_frame", 0), WL - 0.05, WL + 0.1, 4.7, 5.7, -261.9, -258.1, scale=1.0)
+K.board(D, WL + 0.12, 5.2, -260.0, "pm", math.pi / 2, frame=0)
+box((D, "neon_cyan", 0), WL + 0.1, WL + 0.14, 4.6, 4.68, -261.8, -258.2, scale=1.0)
+for i, (x_, z_) in enumerate(((400.0, -284.0), (412.0, -260.0))):
+    K.steam(f"afterlife_lane_{i}", x_, G0, z_, D)
+P.place("dumpster", 409.0, G0, -257.0, math.pi, district=D)
+K.kegs(D, 414.6, -252.4, rl, n=6)
+K.crates(D, 404.0, -251.4, rl)
+# East: the passage under its low ceiling, three tubes of cyan, a duct with
+# its lamps down one wall, a poster and grilles on the other.
+box((D, "concrete", 0), EL, 484.0, 4.1, 4.4, -316.0, -312.0, scale=2.0, bottom=True)
+lane_tubes([(458.0, -314.0), (468.0, -314.0), (478.0, -314.0)], 3.95, ("cyan", "cyan", "cyan"), power=3.4, along="x", half=1.1)
+PN = B.Face("+z", -316.0, EL, 484.0)       # the closing block's wall on it
+K.duct(D, PN, 2.0, 30.0, 3.3, rl)
+PS = B.Face("-z", -312.0, 454.0, 484.0)    # the clinic's
+K.poster(D, PS, 22.0, 2.2, 1.3, 1.8, rl)
+K.grille(D, PS, 4.0, 8.0, 0.4, 2.6)
+box((D, "board_frame", 0), EL - 0.1, EL + 0.05, 4.4, 5.3, -315.9, -312.1, scale=1.0)
+K.board(D, EL - 0.12, 4.85, -314.0, "pm", -math.pi / 2, frame=0)
+K.steam("afterlife_lane_2", 472.0, G0, -314.0, D)
+# The back lane and the yard behind the garage row.
+back("+x", 484.0, -300.0, -258.0, 34.0, 9504)
+back("+z", -258.0, 476.0, 484.0, 34.0, 9505, clutter=False)
+back("+x", 476.0, -258.0, -230.0, 22.0, 9506)
+back("+x", 476.0, -200.0, -176.0, 7.0, 9507, clutter=False)
+GE = B.Face("+x", 476.0, -230.0, -200.0)   # the garage's back wall
+GE.quad((D, "door", 0), 8.0, 9.1, G0, 2.3, 0.03)
+GE.box((D, "metal", 1), 7.92, 9.18, 2.3, 2.4, 0.0, 0.12)
+K.wall_lamp(D, GE, 8.55, 2.75, "amber", 3.5)
+K.wall_lamp(D, GE, 22.0, 4.2, "white", 3.5)
+K.pipes(D, GE, 11.0, 28.0, 5.4, rl, n=3)
+K.shutter(D, GE, 14.0, 19.0, h=3.4, lamp=None)
+for (x_, z_, n_) in ((476.6, -227.0, 4), (477.4, -227.2, 3), (476.6, -203.5, 2)):
+    K.tyres(D, x_, z_, n_)
+K.crates(D, 477.2, -212.0, rl)
+for (x_, z_) in ((488.6, -250.0), (489.0, -249.2), (488.5, -221.0), (478.0, -180.5), (478.8, -181.0)):
+    P.place("drum", x_, G0, z_, district=D)
+P.place("dumpster", 488.8, G0, -236.0, -math.pi / 2, district=D)
+P.place("dumpster", 485.2, G0, -288.0, math.pi / 2, district=D)
+lane_tubes([(487.0, -306.0), (487.0, -290.0), (487.0, -274.0), (487.0, -262.0)], 4.2, ("green", "cyan", "white", "cyan"))
+lane_cables(484.0, 490.0, (-310.0, -296.0, -283.0, -268.0), 6.0, 11.0, rl)
+lane_cables(476.0, 490.0, (-246.0, -231.0, -214.0, -196.0, -184.0), 6.5, 9.5, rl)
+# A flood on a pole in the yard, a second by the garage's back door.
+for (x_, z_, hue_) in ((483.0, -240.0, "amber"), (483.5, -207.0, "white"), (487.0, -322.0, "amber")):
+    P.place("lamp_short", x_, G0, z_, district=D)
+    light(D, x_, 3.6, z_, hue_, 5.0)
+K.steam("afterlife_lane_3", 486.5, G0, -280.0, D)
+K.steam("afterlife_lane_4", 480.5, G0, -218.0, D)
+# The lane's end against the closing block: a gate's worth of clutter.
+K.crates(D, 485.0, -317.2, rl)
+P.place("bags", 488.8, G0, -317.0, district=D)
+# AFTERLIFE's north wall, over the corner house's roof: sold to a billboard
+# that faces the boulevard.
+B.billboard(D, 415.0, 22.6, -300.32, 15.0, 8.0, math.pi, ro, back=False, depth=0.3)
+
+# What the lanes' walls carry at a walker's height: both sides of every
+# lane, the kept blocks' and the new ones'.
+for name, plane, a0, a1, top, dens in (
+        ("-x", 402.0 - 0.03, -300.0, -262.0, 30.0, 1.0), ("+x", 398.0, -300.0, -258.0, 14.8, 1.0),
+        ("+x", 398.0, -316.0, -300.0, 25.0, 1.0), ("-x", 402.0, -316.0, -300.0, 14.8, 1.0),
+        ("+z", -262.0 + 0.03, 402.0, WL, 30.0, 1.1), ("-z", -258.0, 416.0, WL, 8.0, 0.8), ("-x", 416.0, -258.0, -250.0, 8.0, 0.8),
+        ("+z", -316.0, EL, 484.0, 28.4, 1.1), ("-z", -312.0, 454.0, 484.0, 11.4, 1.1),
+        ("+x", 484.0 + 0.03, -300.0, -258.0, 34.0, 1.0), ("+x", 484.0, -312.0, -300.0, 11.4, 1.0), ("-x", 490.0, -316.0, -258.0, 18.0, 1.0),
+        ("+x", 476.0 + 0.03, -258.0, -230.0, 22.0, 1.0), ("+x", 476.0 + 0.03, -200.0, -176.0, 7.0, 0.8), ("-x", 490.0, -258.0, -176.0, 11.0, 0.9)):
+    K.lane_wall(D, B.Face(name, plane, a0, a1), rl, top, dens)
+
+# ---------------------------------------------------------------------------
+# MILITECH's forecourt on the plaza street (mH2wmyeiIpA@182): a walled court
+# under floods, its paving striped yellow up to the lobby, a gate under a
+# gantry carrying a red strip and lit boxes, a guard's booth, cube bollards.
+# ---------------------------------------------------------------------------
+FX0, FX1, FZ0, FZ1 = 380.0, 410.0, -222.0, -190.0
+B.ground_rect(D, FX0, FX1, FZ0, FZ1, mat="concrete")
+ML = B.Face("+z", FZ0 + 0.03, FX0, FX1)    # MILITECH's face on it: the lobby
+ML.quad((D, "lobby", 0), 4.0, 26.0, G0, SHOP_H - 0.7, 0.0, col=(0.2, 0.3, 1.0, 1.0))
+ML.quad((D, "trim", 0), 0.0, 30.0, SHOP_H - 0.7, SHOP_H, 0.0, col=DARK)
+for a_, b_ in ((0.0, 4.0), (26.0, 30.0)):
+    ML.quad((D, "concrete", 0), a_, b_, 0.0, SHOP_H - 0.7, 0.0, uvs=((0, 0), (1.3, 0), (1.3, 1.3), (0, 1.3)))
+for sv in (4.0, 8.4, 12.8, 17.2, 21.6, 26.0):
+    ML.box((D, "trim", 0), sv - 0.18, sv + 0.18, 0.0, SHOP_H, 0.0, 0.3, col=DARK)
+B.canopy(D, ML, 9.0, 21.0, 3.2, SHOP_H - 0.5, T["charcoal"], "white")
+for sv in (12.5, 17.5):
+    ML.box((D, "neon_yellow", 0), sv - 0.04, sv + 0.04, 0.3, 3.6, 0.3, 0.34)
+light(D, 395.0, 2.0, FZ0 + 3.0, "white", 5.0)
+# The stripes up to the door, and the court's lamps.
+for k in range(7):
+    z_ = FZ0 + 4.5 + k * 3.6
+    quad((D, "trim", 0), (389.0, G0 + 0.008, z_ + 0.9), (401.0, G0 + 0.008, z_ + 0.9), (401.0, G0 + 0.008, z_), (389.0, G0 + 0.008, z_),
+         col=(0.42, 0.33, 0.05, 1))
+for (x_, z_) in ((383.0, -214.0), (407.0, -214.0), (383.0, -198.0), (407.0, -198.0)):
+    P.place("lamp_short", x_, G0, z_, district=D)
+    light(D, x_, 3.6, z_, "amber", 4.0)
+for (x_, z_) in ((386.5, -219.0), (403.5, -219.0)):
+    K.planter(D, x_ - 1.6, x_ + 1.6, z_ - 0.6, z_ + 0.6, rl, y=G0, lit="yellow")
+# The wall along the street and the gate in it.
+GATE = (390.5, 399.5)
+for a_, b_ in ((FX0, GATE[0]), (GATE[1], FX1)):
+    box((D, "concrete", 0), a_, b_, 0.0, 2.8, FZ1 - 0.4, FZ1, scale=1.5)
+    box((D, "neon_yellow", 0), a_ + 0.3, b_ - 0.3, 2.8, 2.86, FZ1 - 0.04, FZ1 + 0.02, scale=1.0)
+    box((D, "hazard", 1), a_, b_, 0.0, 0.5, FZ1, FZ1 + 0.03, scale=1.0)
+for x_ in GATE:
+    box((D, "metal", 0), x_ - 0.2, x_ + 0.2, 0.0, 6.4, FZ1 - 0.5, FZ1 - 0.1, scale=1.0)
+box((D, "metal", 0), GATE[0] - 0.2, GATE[1] + 0.2, 5.9, 6.5, FZ1 - 0.55, FZ1 - 0.05, scale=1.0)
+box((D, "neon_red", 0), GATE[0] + 0.3, GATE[1] - 0.3, 5.74, 5.82, FZ1 - 0.04, FZ1 + 0.02, scale=1.0)
+for k, hue in enumerate(("amber", "cyan", "amber")):
+    x_ = GATE[0] + 2.0 + k * 2.5
+    box((D, "glow", 0), x_ - 0.5, x_ + 0.5, 6.6, 7.1, FZ1 - 0.5, FZ1 - 0.1, scale=1.0, col=GLOW[hue])
+for x_ in (392.0, 398.0):
+    P.place("barrier", x_, G0, FZ1 - 1.6, district=D)
+for x_ in (385.0, 387.5, 402.5, 405.0):
+    P.place("bollard_cube", x_, G0, FZ1 + 1.2, district=D)
+# The booth, east of the gate: a lit window, its roof, a camera on it.
+box((D, "trim", 0), 400.6, 403.8, G0, 2.8, FZ1 - 3.6, FZ1 - 0.8, scale=1.0, col=K.CONCRETE_DARK)
+quad((D, "shop", 0), (400.58, 1.05, FZ1 - 1.2), (400.58, 1.05, FZ1 - 3.2), (400.58, 2.3, FZ1 - 3.2), (400.58, 2.3, FZ1 - 1.2), col=(0.8, 0.9, 1.0, 1.0))
+box((D, "metal", 1), 400.4, 404.0, 2.8, 2.95, FZ1 - 3.8, FZ1 - 0.6, scale=1.0)
+P.place("cctv", 404.6, G0, FZ1 - 1.4, district=D)
+P.place("cctv", 381.2, G0, FZ0 + 1.0, district=D)
+light(D, 395.0, 5.6, FZ1 - 0.6, "red", 3.0)
+light(D, 399.6, 1.6, FZ1 - 2.2, "white", 3.0)
+back("-x", 410.0, FZ0, FZ1, 26.0, 9508)
+stand(389.6, FZ1 - 1.0, 0.0, "idle", y=G0)
+stand(400.0, FZ1 - 4.4, -math.pi / 2, "lean", y=G0)
+stand(394.0, FZ0 + 1.6, 0.0, "idle", y=G0)
+
+# ---------------------------------------------------------------------------
+# The people who stand about (the walkers on the pavements are the
+# street's own): in the recesses and the lanes' mouths, clear of the
+# walkers' lines and of the walk camera's. Nobody on the rooftop or in the
+# bay.
+# ---------------------------------------------------------------------------
+PEOPLE_AT = [
+    # the alley's mouth on the boulevard, and down the back lane
+    (399.3, -315.0, 2.6, "smoke"), (400.9, -314.4, -2.4, "talk"), (401.2, -283.2, -math.pi / 2, "talk"), (400.0, -284.0, math.pi / 2, "talk"),
+    (398.6, -270.5, math.pi / 2, "lean"),
+    # the lane to the street and the bar's yard
+    (425.2, -259.2, math.pi / 2, "phone"), (421.0, -260.8, 0.4, "squat"), (413.4, -253.0, 2.0, "smoke"), (406.6, -252.6, 0.3, "idle"),
+    # the clinic's forecourt and the passage
+    (453.2, -306.4, math.pi, "talk"), (453.1, -307.5, 0.0, "talk"), (456.6, -313.4, -math.pi / 2, "phone"), (463.0, -315.2, 0.0, "squat"),
+    (476.0, -312.8, math.pi, "lean"),
+    # the back lane and the yard
+    (484.7, -276.0, math.pi / 2, "smoke"), (489.3, -297.0, -math.pi / 2, "lean"), (478.0, -214.5, math.pi / 2, "idle"), (479.6, -213.6, -math.pi / 2, "talk"),
+    (488.0, -232.0, -math.pi / 2, "phone"), (481.0, -190.0, 0.5, "smoke"),
+    # outside the garage: a mechanic clear of the door, another on the kerb
+    (449.8, -208.4, 0.6, "idle"), (448.36, -205.4, -math.pi / 2, "squat"),
+    # the plaza street's corner
+    (424.0, -189.4, 0.0, "phone"),
+]
+for x_, z_, yaw_, pose_ in PEOPLE_AT:
+    stand(x_, z_, yaw_, pose_, y=G0)
+# A pair on a stoop in the bar's yard, at the back row's door.
+WY = B.Face("+x", 398.0, -258.0, -250.0)
+K.stoop(D, WY, 2.4, 5.2, steps=2)
+WY.quad((D, "door", 0), 3.2, 4.4, G0 + 0.36, 2.6, 0.03)
+K.wall_lamp(D, WY, 3.8, 3.05, "amber", 3.0)
+stand(398.5, WY.at(3.1), math.pi / 2, "sit", y=G0 + 0.36)
+stand(398.5, WY.at(4.5), math.pi / 2 - 0.5, "sit", y=G0 + 0.36)

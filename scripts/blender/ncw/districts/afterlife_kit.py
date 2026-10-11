@@ -778,3 +778,52 @@ def post_light(D, x, z, y, hue="amber", h=0.7, power=6.0):
     box((D, "neon_" + hue, 0), x - 0.07, x + 0.07, y + h, y + h + 0.14, z - 0.07, z + 0.07, scale=0.5)
     light(D, x, y + h, z, hue, power)
     pool(D, x, z, y, hue, r=2.6, k=0.1)
+
+
+def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None):
+    """What a back wall carries at a walker's height, between its doors: a
+    darker band along its foot, pipes on brackets, meter boxes with a lamp
+    each, a barred window lit from a kitchen or a store, a poster, crates,
+    and now and then a small sign turned to the lane (the passage's wall,
+    Zuzys9Ld_5M@87)."""
+    s1 = f.width if s1 is None else s1
+    f.quad((D, "trim", 1), s0, s1, G0, 1.0, 0.045, col=BLACK)
+    if s1 - s0 > 6.0:
+        a = s0 + rng.uniform(0.3, 1.5)
+        pipes(D, f, a, min(s1 - 0.3, a + rng.uniform(6.0, 14.0)), rng.uniform(2.95, 3.25), rng, n=rng.randrange(1, 3))
+    s = s0 + rng.uniform(1.0, 3.0)
+    while s < s1 - 1.2:
+        roll = rng.random()
+        if roll < 0.3 * dens:
+            # A barred window, lit.
+            w = rng.uniform(1.0, 1.6)
+            hue = rng.choice(("amber", "amber", "white", "green", "pink"))
+            c = GLOW[hue]
+            f.quad((D, "glow", 0), s, s + w, 1.5, 2.5, 0.05, col=(c[0] * 0.5, c[1] * 0.5, c[2] * 0.5, 1))
+            f.box((D, "metal", 1), s - 0.06, s + w + 0.06, 1.42, 1.5, 0.0, 0.12)
+            grille(D, f, s, s + w, 1.5, 2.5, out=0.07, step=0.2)
+            light(D, *f.p(f.at(s + w / 2), 1.8, 0.9), hue, 2.2)
+            s += w
+        elif roll < 0.48 * dens:
+            # A meter box, its lamp.
+            f.box((D, "metal", 1), s, s + 0.55, 1.2, 2.0, 0.04, 0.24)
+            f.box((D, "glow", 1), s + 0.42, s + 0.49, 1.86, 1.93, 0.24, 0.255, col=GLOW[rng.choice(("red", "green", "cyan"))])
+            pipe((D, "metal", 1), f.p(f.at(s + 0.27), 2.0, 0.14), f.p(f.at(s + 0.27), min(top - 0.5, rng.uniform(4.0, 7.0)), 0.14), 0.035, segs=4)
+            s += 0.55
+        elif roll < 0.62 * dens:
+            poster(D, f, s + 0.6, 2.05, 1.0, 1.45, rng, out=0.05)
+            s += 1.2
+        elif roll < 0.76 * dens:
+            p = f.p(f.at(s + 0.5), 0.0, 0.55)
+            crates(D, p[0], p[2], rng)
+            s += 1.2
+        elif blades and roll < 0.9 * dens:
+            p = f.p(f.at(s), 0.0, 0.0)
+            blade(D, p[0], p[2], rng.uniform(3.4, 5.6), rng.choice(("bs", "bx", "bs", "bm")), f.yaw + rng.uniform(-0.6, 0.6))
+        s += rng.uniform(2.2, 5.0) / dens
+
+
+def stoop(D, f, s0, s1, steps=2, out=0.34, rise=0.18):
+    """Steps up to a door from a lane."""
+    for k in range(steps):
+        fbox(f, (D, "concrete", 0), s0, s1, G0, G0 + rise * (steps - k), 0.0, out * (k + 1))
