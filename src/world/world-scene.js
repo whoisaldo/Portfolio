@@ -68,6 +68,7 @@ export async function preloadWorld(tier) {
 }
 
 const DEG = Math.PI / 180;
+const ZERO = new THREE.Vector3();
 // The wet road's mirror at full (road.js's own uReflectGain).
 const REFLECT_GAIN = 2.2;
 
@@ -243,9 +244,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // does (roll follows the rate the heading swings at, a few degrees at
   // most), and the lens opens a little with speed. Both are read off the
   // pose itself, so a scrolled flight and a route's flight get them alike,
-  // and both settle to nothing when the camera holds.
-  const motion = { yaw: null, roll: 0, widen: 0, at: new THREE.Vector3() };
+  // and both settle to nothing when the camera holds. Its velocity, eased,
+  // is the rain's too: the streaks are drawn as the camera sees them.
+  const motion = { yaw: null, roll: 0, widen: 0, at: new THREE.Vector3(), vel: new THREE.Vector3() };
   const _dir = new THREE.Vector3();
+  const _vel = new THREE.Vector3();
   const moveCamera = (dt, snapped) => {
     _dir.subVectors(pose.target, pose.position);
     const yaw = Math.atan2(_dir.x, _dir.z);
@@ -254,18 +257,78 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       motion.at.copy(pose.position);
       motion.roll = 0;
       motion.widen = 0;
+      motion.vel.set(0, 0, 0);
       return;
     }
     let dy = yaw - motion.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     motion.yaw = yaw;
-    const speed = motion.at.distanceTo(pose.position) / dt;
+    _vel.subVectors(pose.position, motion.at).divideScalar(dt);
+    const speed = _vel.length();
     motion.at.copy(pose.position);
+    motion.vel.lerp(_vel, 1 - Math.exp(-dt * 6));
     const bank = clamp((-dy / dt) * 0.09, -0.11, 0.11);
     const widen = clamp((speed - 6) / 70, 0, 1) * 5;
     const a = 1 - Math.exp(-dt * 2.5);
     motion.roll += (bank - motion.roll) * a;
     motion.widen += (widen - motion.widen) * a;
+  };
+
+  // A film camera's shutter. On a fast flight, or a flick of Look's drag,
+  // the picture smears the way it is moving, as a shutter open for a 48th
+  // of a second smears it (half of each frame at 24), and the lens's colour
+  // fringe draws out along it (post.js). It is worked out from the camera's
+  // last two frames: where a point down each pixel's ray was a frame ago,
+  // scaled to the shutter. A turn moves every point on the screen alike, so
+  // turns come out exact; travel moves the near more than the far, so a
+  // point 40 m off, across a street, stands in for all of them. A move of a
+  // pixel or two (the pointer's tilt, the hero's sway) smears nothing, and
+  // only the page's own frames are exposed this way: the intro and the
+  // braindance place the camera themselves, cuts and all. A new shape of
+  // screen is a cut too, not a move.
+  const SHUTTER = 1 / 48;
+  const SHUTTER_DEPTH = 40;
+  const shutter = { prev: new THREE.Matrix4(), has: false, aspect: 0, k: new THREE.Matrix4(), on: 0, depth: 0, fresh: false };
+  shutter.k.elements.fill(0);
+  const _vp = new THREE.Matrix4();
+  const _back = new THREE.Matrix4();
+  const _probe = new THREE.Vector4();
+  const _probed = new THREE.Vector4();
+  // The most a point at the centre or a corner moves under `m`, in px.
+  const smear = (m) => {
+    let most = 0;
+    for (const [x, y] of [[0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      _probe.set(x, y, shutter.depth, 1);
+      _probed.copy(_probe).applyMatrix4(m).add(_probe);
+      most = Math.max(most, Math.hypot(((x - _probed.x / _probed.w) * width) / 2, ((y - _probed.y / _probed.w) * height) / 2));
+    }
+    return most;
+  };
+  const expose = (dt, cut) => {
+    camera.updateMatrixWorld();
+    _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    const e = camera.projectionMatrix.elements;
+    shutter.depth = (e[10] * -SHUTTER_DEPTH + e[14]) / SHUTTER_DEPTH;
+    const k = shutter.k.elements;
+    if (!shutter.has || cut || dt <= 0 || reduced || shutter.aspect !== aspect) {
+      k.fill(0);
+    } else {
+      // Now's screen to the last frame's, less staying put, per shutter.
+      const b = _back.copy(_vp).invert().premultiply(shutter.prev).elements;
+      const s = SHUTTER / dt;
+      for (let i = 0; i < 16; i++) b[i] = (b[i] - (i % 5 === 0 ? 1 : 0)) * s;
+      // More than a screen and a half in a shutter is a cut, not a move.
+      if (smear(_back) > height * 1.5) k.fill(0);
+      else {
+        const a = 1 - Math.exp(-dt * 12);
+        for (let i = 0; i < 16; i++) k[i] += (b[i] - k[i]) * a;
+      }
+    }
+    shutter.prev.copy(_vp);
+    shutter.has = true;
+    shutter.aspect = aspect;
+    shutter.fresh = true;
+    shutter.on = THREE.MathUtils.smoothstep(smear(shutter.k), 1.5, 5);
   };
 
   const applyPose = (p, withTilt) => {
@@ -487,6 +550,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     lookCam.yaw += (stage.look.yaw - lookCam.yaw) * l;
     lookCam.pitch += (stage.look.pitch - lookCam.pitch) * l;
     applyPose(pose, true);
+    expose(dt, jumped);
   };
 
   // ---- the music and the switches ---------------------------------------------
@@ -571,6 +635,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
       rain?.update(flow, camera, env.wet);
+      rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
       shafts?.update(shared.uHaze.value);
       koi?.update(flow);
       traffic?.update(flow, env.traffic);
@@ -608,6 +673,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // over it.
     if (moonView === "only") post.glass.count = 0;
     else glass.update(width, height);
+    // A frame the page's own loop did not pose has no shutter, and the next
+    // one that does starts from it.
+    post.setShutter(shutter.k, shutter.depth, shutter.fresh ? shutter.on : 0);
+    if (!shutter.fresh) shutter.has = false;
+    shutter.fresh = false;
     post.view(moonView);
     post.render(dt);
     if (!firstFrame) {

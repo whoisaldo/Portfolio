@@ -12,7 +12,11 @@
 //                  plays, a lot at the middle of a flight and on the intro's
 //                  handoff cues. One convolution effect per pass is the
 //                  library's rule, so the split lives here rather than as a
-//                  second ChromaticAberrationEffect.
+//                  second ChromaticAberrationEffect. So does the shutter:
+//                  on a fast move the frame smears the way the picture is
+//                  moving, as a film camera's half-open shutter smears it,
+//                  with the split drawn out along it (world-scene.js works
+//                  out how the picture moved).
 //   bloom          a high luminance threshold, so only emissives bloom
 //   streaks        desktop: the hottest lights drawn out sideways, a little
 //                  blue, from the bloom's own bright pass (no pass of its own)
@@ -51,7 +55,20 @@ const BRAINDANCE = /* glsl */ `
   uniform float uEnvelope;
   uniform float uBass;
   uniform float uSplit;
+  // The shutter: where a point on the screen was a shutter ago, from where
+  // it is now (here + uShutter * here, here at the depth uShutterDepth);
+  // uShutterOn eases it in and out.
+  uniform mat4 uShutter;
+  uniform float uShutterDepth;
+  uniform float uShutterOn;
   float bdHash(float n) { return fract(sin(n) * 43758.5453123); }
+  // The split at one point: red one way, blue the other.
+  vec3 bdSplit(vec2 p, float split) {
+    return vec3(
+      texture2D(inputBuffer, p + vec2(split, 0.0)).r,
+      texture2D(inputBuffer, p).g,
+      texture2D(inputBuffer, p - vec2(split * 1.3, 0.0)).b);
+  }
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
     float e = clamp(uEnvelope, 0.0, 1.0);
     float t = floor(time * 24.0);
@@ -62,10 +79,42 @@ const BRAINDANCE = /* glsl */ `
     float shift = (bdHash(band * 3.7 + t) - 0.5) * 0.09 * e * pick;
     vec2 suv = vec2(uv.x + shift, uv.y);
     float split = uSplit + e * 0.011 + uBass * 0.0035;
+    // How far this pixel's picture moved while the shutter was open, at
+    // most a fortieth of the frame's height.
+    vec2 flow = vec2(0.0);
+    if (uShutterOn > 0.0) {
+      vec4 here = vec4(uv * 2.0 - 1.0, uShutterDepth, 1.0);
+      vec4 before = here + uShutter * here;
+      flow = (here.xy - before.xy / before.w) * 0.5 * uShutterOn;
+    }
+    float px = length(flow * resolution);
+    flow *= min(1.0, 0.025 * resolution.y / max(px, 1e-3));
+    px = min(px, 0.025 * resolution.y);
     vec3 col;
-    col.r = texture2D(inputBuffer, suv + vec2(split, 0.0)).r;
-    col.g = texture2D(inputBuffer, suv).g;
-    col.b = texture2D(inputBuffer, suv - vec2(split * 1.3, 0.0)).b;
+    if (px < 1.0) {
+      col = bdSplit(suv, split);
+    } else {
+      // A tap every three pixels or so along the smear, offset per pixel
+      // so the gaps between them read as grain rather than as copies.
+      // Red leads and blue trails: the lens's fringe, drawn out by speed.
+      float n = clamp(ceil(px / 3.0), 2.0, float(SHUTTER_TAPS));
+      float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+      bool wide = split * resolution.x > 0.6;
+      vec3 sum = vec3(0.0);
+      vec3 weight = vec3(0.0);
+      for (int i = 0; i < SHUTTER_TAPS; i++) {
+        if (float(i) >= n) break;
+        float t = (float(i) + jitter) / n - 0.5;
+        vec2 q = suv + flow * t;
+        vec3 w = vec3(1.0 + 1.4 * t, 1.0, 1.0 - 1.4 * t);
+        vec3 c;
+        if (wide) c = bdSplit(q, split);
+        else c = texture2D(inputBuffer, q).rgb;
+        sum += c * w;
+        weight += w;
+      }
+      col = sum / weight;
+    }
     // Scanlines, only in the glitch: at rest they would be a screen door.
     float scan = 0.5 + 0.5 * sin(uv.y * resolution.y * 1.57);
     col *= 1.0 - 0.25 * e * scan;
@@ -245,13 +294,18 @@ class GlassEffect extends Effect {
 }
 
 class BraindanceEffect extends Effect {
-  constructor() {
+  /** `taps`: the most the shutter's smear takes (fewer on a phone). */
+  constructor(taps = 8) {
     super("BraindanceEffect", BRAINDANCE, {
       attributes: EffectAttribute.CONVOLUTION,
+      defines: new Map([["SHUTTER_TAPS", String(taps)]]),
       uniforms: new Map([
         ["uEnvelope", new THREE.Uniform(0)],
         ["uBass", new THREE.Uniform(0)],
         ["uSplit", new THREE.Uniform(0.00015)],
+        ["uShutter", new THREE.Uniform(new THREE.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))],
+        ["uShutterDepth", new THREE.Uniform(0)],
+        ["uShutterOn", new THREE.Uniform(0)],
       ]),
     });
   }
@@ -272,7 +326,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     composer.addPass(new EffectPass(camera, smaa));
   }
 
-  const glitch = new BraindanceEffect();
+  const glitch = new BraindanceEffect(quality.name === "phone" ? 4 : 8);
   const bloom = new BloomEffect({
     luminanceThreshold: 0.72,
     luminanceSmoothing: 0.25,
@@ -338,6 +392,13 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     setGlitch(envelope, bass) {
       glitch.uniforms.get("uEnvelope").value = envelope;
       glitch.uniforms.get("uBass").value = bass;
+    },
+    /** The shutter's smear (see BRAINDANCE): `on` 0 for none. */
+    setShutter(matrix, depth, on) {
+      glitch.uniforms.get("uShutterOn").value = on;
+      if (on <= 0) return;
+      glitch.uniforms.get("uShutter").value.copy(matrix);
+      glitch.uniforms.get("uShutterDepth").value = depth;
     },
     setSize(w, h) {
       composer.setSize(w, h, false);
