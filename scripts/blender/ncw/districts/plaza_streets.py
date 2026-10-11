@@ -21,7 +21,7 @@ G = 0.15
 POSES_WALL = ("lean", "lean", "phone", "smoke", "idle")
 
 
-def frontage(axis, lot, out, a0, a1, seed, people=1.0, skip=()):
+def frontage(axis, lot, out, a0, a1, seed, people=1.0, skip=(), palms=True, wall=True):
     """Dress the pavement in front of a frontage. `axis` "x": the lot line
     is x = lot and it runs a0..a1 along z; "z": the line is z = lot, along
     x. `out`: +1 or -1, the way the street lies from the lot line."""
@@ -56,9 +56,17 @@ def frontage(axis, lot, out, a0, a1, seed, people=1.0, skip=()):
             else:
                 P.place("food_box", x, G, z, yaw_out + math.pi, district=PL)
         a += r.uniform(7.0, 12.0)
+    # Palms at the kerb, slender, lit from their planters (YRL74JmhVgk@30).
+    a = a0 + r.uniform(9.0, 16.0)
+    while palms and a < a1 - 6.0:
+        if clear(a):
+            x, z = at(a, 3.48)
+            P.place("planter_palm", x, G, z, r.uniform(0, 6.28), sy=r.uniform(1.05, 1.25), sxz=0.6, district=PL)
+            light(PL, *at(a, 2.6)[:1], 1.2, at(a, 2.6)[1], "amber", 3.5)
+        a += r.uniform(20.0, 30.0)
     # Against the wall: now and then a vending machine or a booth.
     a = a0 + r.uniform(8.0, 16.0)
-    while a < a1 - 4.0:
+    while wall and a < a1 - 4.0:
         if clear(a):
             x, z = at(a, 0.62)
             pick = r.random()
@@ -97,7 +105,8 @@ frontage("x", 108.0, 1, -62.0, -12.0, 8501)
 frontage("x", 108.0, 1, -166.0, -98.0, 8502)
 frontage("x", 108.0, 1, -342.0, -266.0, 8503)
 frontage("x", 108.0, 1, -262.0, -202.0, 8509, people=0, skip=((-236.0, -224.0),))
-frontage("x", 132.0, -1, -166.0, -12.0, 8504)
+frontage("x", 132.0, -1, -166.0, -12.0, 8504, skip=((-126.0, -60.0),))
+frontage("x", 132.0, -1, -124.0, -62.0, 8510, people=0, wall=False)
 frontage("z", -168.0, -1, 54.0, 106.0, 8505)
 frontage("z", -168.0, -1, 134.0, 168.0, 8506)
 frontage("z", -10.0, 1, 54.0, 106.0, 8507)

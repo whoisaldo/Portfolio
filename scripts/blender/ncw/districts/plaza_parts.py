@@ -483,7 +483,7 @@ def lawn(x0, x1, z0, z1, y):
     """Planting lit from its edge, in two tones: from the air, a roof that
     is green and not a hole."""
     xm = (x0 + x1) / 2
-    for (a, b, g) in ((x0, xm, (0.012, 0.05, 0.022, 1.0)), (xm, x1, (0.016, 0.062, 0.03, 1.0))):
+    for (a, b, g) in ((x0, xm, (0.008, 0.032, 0.015, 1.0)), (xm, x1, (0.011, 0.04, 0.02, 1.0))):
         up_poly((PL, "glow", 0), [(a, z0), (b, z0), (b, z1), (a, z1)], y + 0.03, g)
 
 
@@ -594,3 +594,48 @@ def roof_terrace(x0, x1, z0, z1, y, r, colour="cyan", water=True, palms=2):
             garden(x0 + 1.0, x1 - 1.0, z0 + d * 0.52, z1 - 1.0, y, r, palms=palms, trees=1, colour=colour, lamps=1)
     else:
         garden(x0 + 1.0, x1 - 1.0, z0 + 1.0, z1 - 1.0, y, r, palms=palms, trees=2, colour=colour, lamps=2)
+
+
+def lobby_front(f, s0, s1, r, accent="cyan", guards=True):
+    """A tower's lobby on the street, in place of shops: the hall behind
+    glass from the pavement to the fascia (the site's curtain wall draws its
+    ceiling of light panels and whoever is in it), steel posts between the
+    panes, doors in the middle under a canopy with a line of the tower's
+    colour, cubes on the pavement before it, and security either side."""
+    key = (PL, "corporate", 0)
+    col = (0.95, 0.35, r.random(), 1.0)
+    f.quad(key, s0, s1, 0.42, 4.2, 0.04, col=col)
+    n = max(2, int(round((s1 - s0) / 3.2)))
+    for i in range(n + 1):
+        s = s0 + (s1 - s0) * i / n
+        f.box((PL, "metal", 0), s - 0.07, s + 0.07, G_LOBBY, 4.25, 0.0, 0.12)
+    f.box((PL, "metal", 0), s0, s1, 4.2, 4.5, 0.0, 0.14)
+    mid = (s0 + s1) / 2
+    # The doors: two leaves of dark glass in a steel frame, lit from above.
+    f.box((PL, "board_frame", 0), mid - 2.3, mid + 2.3, G_LOBBY, 3.1, 0.04, 0.2)
+    for d in (-1.1, 1.1):
+        f.quad((PL, "door", 0), mid + d - 1.0, mid + d + 1.0, G_LOBBY + 0.05, 2.9, 0.21)
+    f.box((PL, "glow", 0), mid - 2.0, mid + 2.0, 2.95, 3.05, 0.2, 0.24, col=dim("white", 1.0))
+    # The canopy and its line of light.
+    f.box((PL, "metal", 0), mid - 4.5, mid + 4.5, 4.5, 4.75, 0.0, 3.0)
+    a, b = f.at(mid - 4.5), f.at(mid + 4.5)
+    pa, pb = f.p(a, 4.56, 3.02), f.p(b, 4.62, 3.05)
+    nbox(accent, min(pa[0], pb[0]), max(pa[0], pb[0]), 4.56, 4.62, min(pa[2], pb[2]), max(pa[2], pb[2]))
+    for d in (-3.0, 0.0, 3.0):
+        f.box((PL, "neon_white", 0), mid + d - 0.5, mid + d + 0.5, 4.46, 4.5, 1.2, 1.4)
+    # A line of the tower's colour along the fascia, and cubes at the kerb.
+    a, b = f.at(s0 + 0.3), f.at(s1 - 0.3)
+    pa, pb = f.p(a, 4.3, 0.14), f.p(b, 4.36, 0.17)
+    nbox(accent, min(pa[0], pb[0]), max(pa[0], pb[0]), 4.3, 4.36, min(pa[2], pb[2]), max(pa[2], pb[2]))
+    for d in (-3.6, -1.2, 1.2, 3.6):
+        px_, _, pz_ = f.p(f.at(mid + d), 0.0, 3.72)
+        P.place("bollard_cube", px_, G_LOBBY, pz_, district=PL)
+    if guards:
+        for d in (-3.0, 3.0):
+            px_, _, pz_ = f.p(f.at(mid + d), 0.0, 0.62)
+            stand(px_, pz_, f.yaw, "idle", y=G_LOBBY)
+        px_, _, pz_ = f.p(f.at(mid - 7.0), 0.0, 0.62)
+        stand(px_, pz_, f.yaw + 0.4, "phone", y=G_LOBBY)
+
+
+G_LOBBY = 0.15

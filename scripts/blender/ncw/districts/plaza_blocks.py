@@ -119,7 +119,10 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
     if plant and crown not in ("pad", "pool", "garden"):
         m = 3.0 if crown in ("blades", "halo") else 1.6
         roof_plant(tx0 + m, tx1 - m, tz0 + m, tz1 - m, top, r, n=plant)
-        extra = max(extra, 3.2)
+        # And what every roof holds (the kit's own: a tank, a stair hut with
+        # its door lit, units, a dish), nothing over 4.4 m.
+        B.roof_dress(PL, tx0 + m, tx1 - m, tz0 + m, tz1 - m, top, r, cap=4.4, sign_rate=0.0, parapet=False, tint=1)
+        extra = max(extra, 4.6)
     corner_lamps(tx0 + (cut if glass else 0), tx1 - (cut if glass else 0), tz0 + (cut if glass else 0), tz1 - (cut if glass else 0), top + (0.1 if glass else 1.0))
     for (em, face, y, size, colour) in marks:
         sec = next((s for s in secs if s[4] <= y - size * 0.6 and y + size * 0.6 <= s[5]), secs[-1])
@@ -205,11 +208,13 @@ podium(132.0, 170.0, -168.0, -126.0, 14.8, {"-x": "street", "-z": "street", "+x"
 tower("D1", 136.0, 168.0, -164.0, -130.0, 14.8, 35.2, 8332, kind="wall", window=2, tint="concrete", accent="amber", crown="pad", plant=0)
 parapet(132.0, 170.0, -168.0, -126.0, 14.8, tint=5)
 podium(132.0, 170.0, -126.0, -98.0, 11.4, {"-x": "street", "+x": "open", "+z": "party", "-z": "party"}, 8333,
-       nb={"+z": 11.4, "-z": 14.8}, tint="navy")
+       nb={"+z": 11.4, "-z": 14.8}, tint="navy", ground="blank", signs=False, style=dict(OFFICE, canopy=0.0))
+lobby_front(B.Face("-x", 132.0, -126.0, -98.0), 1.0, 27.0, random.Random(8345), accent="amber")
 tower("D2", 137.0, 165.0, -123.0, -101.0, 11.4, 58.0, 8334, cut=2.0, accent="amber", crown="blades", lit=0.66, warm=0.75,
       marks=(("chevrons", "-x", 49.0, 7.0, "amber"), ("chevrons", "+x", 49.0, 7.0, "amber")))
 podium(132.0, 170.0, -98.0, -60.0, 11.4, {"-x": "street", "+x": "open", "+z": "party", "-z": "party"}, 8335,
-       nb={"+z": 11.4, "-z": 11.4}, tint="charcoal", window=4)
+       nb={"+z": 11.4, "-z": 11.4}, tint="charcoal", window=4, ground="blank", signs=False, style=dict(OFFICE, canopy=0.0))
+lobby_front(B.Face("-x", 132.0, -98.0, -60.0), 1.0, 37.0, random.Random(8346), accent="magenta")
 D3 = tower("D3", 136.0, 166.0, -94.0, -64.0, 11.4, 80.0, 8336, steps=((60.0, 3.0),), cut=3.0, accent="magenta", crown="halo",
            lit=0.7, warm=0.15, marks=(("rings", "-x", 70.0, 8.0, "magenta"), ("rings", "-z", 70.0, 8.0, "magenta"),
                                      ("rings", "+z", 70.0, 8.0, "magenta")))
