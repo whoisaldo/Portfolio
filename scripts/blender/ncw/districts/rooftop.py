@@ -8,8 +8,10 @@ from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials,
 RF = "rooftop"
 STREET_X = 440.0
 RX0, RX1, RZ0, RZ1, RH = 452.0, 484.0, -300.0, -258.0, 34.0
-mass(RF, RX0, RX1, RZ0, RZ1, SHOP_H, RH, 7001, roof_mat="roof_wet")
-box((RF, "dark", 0), RX0, RX1, 0, SHOP_H, RZ0, RZ1, scale=2.0)
+# (Its face to the street, and the shops and the clinic under it, are built
+# with the street: districts/afterlife.py.)
+mass(RF, RX0, RX1, RZ0, RZ1, SHOP_H, RH, 7001, faces=("+x", "+z", "-z"), roof_mat="roof_wet")
+box((RF, "dark", 0), RX0 + 1.0, RX1, 0, SHOP_H, RZ0, RZ1, scale=2.0)
 for (a0, a1, b0, b1) in ((RX0, RX1, RZ1 - 0.4, RZ1), (RX0, RX1, RZ0, RZ0 + 0.4), (RX0, RX0 + 0.4, RZ0, RZ1), (RX1 - 0.4, RX1, RZ0, RZ1)):
     box((RF, "concrete", 0), a0, a1, RH, RH + 1.1, b0, b1, scale=1.5)
 for (cx, cz) in ((476.0, -270.0), (477.5, -285.0)):
@@ -56,11 +58,11 @@ for du in (-3.2, 3.2):
 # to the street (and to the rooftop, which looks at it) painted, lived in,
 # hung with signs, a fire escape down it, the shops lit under awnings.
 mass(RF, 402.0, 432.0, -300.0, -262.0, SHOP_H, 30.0, 7201, painted=1)
-# The ground floor set back behind the shops' glass, which would lose to it
-# in its own plane.
-box((RF, "dark", 0), 402.0, 431.7, 0, SHOP_H, -300.0, -262.0, scale=2.0)
-for k, (z0_, z1_) in enumerate(((-300.0, -291.0), (-291.0, -280.6), (-280.6, -271.0), (-271.0, -262.0))):
-    shopfront(RF, -1, z0_, z1_, 7210 + k, awning=k != 1, xf=432.0)
+# Its upper storeys stand out over the pavement to the kerb's line; the
+# ground floor is set back under them behind the lot line (x 428), an
+# arcade the street's walkers pass through, where the club's door is
+# (districts/afterlife.py builds it).
+box((RF, "dark", 0), 402.0, 425.6, 0, SHOP_H, -300.0, -262.0, scale=2.0)
 clutter(RF, -1, -300.0, -262.0, 30.0, 7220, xw=432.0)
 ac_units(RF, -1, -300.0, -262.0, SHOP_H + 1, 26.0, 7221, xw=432.0)
 fire_escape(RF, -1, -292.0, SHOP_H + 0.5, 27.0, xw=432.0)

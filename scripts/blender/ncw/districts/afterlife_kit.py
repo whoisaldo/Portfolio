@@ -445,3 +445,78 @@ def arm_lamp(D, x, z, y, yaw, h=5.2, arm=2.2, hue="cyan", power=4.0):
     hx, hz = x + dx * (arm - 0.3), z + dz * (arm - 0.3)
     oriented_box((D, "neon_" + hue, 0), hx, y + h - 0.14, hz, 0.22, 0.06, 0.7, yaw, scale=0.5)
     light(D, hx, y + h - 0.4, hz, hue, power)
+
+
+# ---------------------------------------------------------------------------
+# Building pieces.
+# ---------------------------------------------------------------------------
+def fbox(f, key, s0, s1, y0, y1, w0, w1, col=(1, 1, 1, 1), scale=1.0, bottom=False):
+    """Face.box with a bottom when it is asked for (a slab seen from under)."""
+    a, b = f.at(s0), f.at(s1)
+    pa, pb = f.p(a, y0, w0), f.p(b, y1, w1)
+    box(key, min(pa[0], pb[0]), max(pa[0], pb[0]), y0, y1, min(pa[2], pb[2]), max(pa[2], pb[2]), scale=scale, col=col, bottom=bottom)
+
+
+def ceiling(key, x0, x1, z0, z1, y, col=(1, 1, 1, 1), scale=2.0):
+    """A horizontal rectangle facing down: a soffit, a ceiling."""
+    s = 1.0 / scale
+    pts = ((x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1))
+    quad(key, *pts, uvs=tuple((p[0] * s, p[2] * s) for p in pts), col=col)
+
+
+def downlight(D, x, z, y, hue="white", size=0.45, power=2.0, pool=True):
+    """A square light let into a soffit, and its pool on the ground."""
+    h = size / 2
+    ceiling((D, "glow", 0), x - h, x + h, z - h, z + h, y - 0.012, col=GLOW[hue])
+    if pool:
+        light(D, x, y - 0.4, z, hue, power)
+
+
+def dress(D, f, y1, r, st, tint, signs=True, fascia=True, escape=None):
+    """What a street face carries over its shops (as buildings.building
+    hangs it): the fascia's ledge, ledges on the floor lines, a cornice,
+    balconies and air conditioners by bay, a downpipe, a fire escape, the
+    signs. For a face of a mass built elsewhere."""
+    tcol = B.TRIM[tint]
+    if fascia:
+        f.ledge((D, "trim", 0), 0.0, f.width, SHOP_H - 0.05, 0.3, 0.35, tcol)
+    every = r.choice(st["ledge_every"]) if isinstance(st["ledge_every"], tuple) else st["ledge_every"]
+    y = SHOP_H + CELL_H
+    while every and y < y1 - 1.0:
+        f.ledge((D, "trim", 0), 0.0, f.width, y - 0.22, 0.22, st["ledge_out"], tcol)
+        y += CELL_H * every
+    if r.random() < st["cornice"]:
+        f.ledge((D, "trim", 0), 0.0, f.width, y1 - 0.55, 0.55, 0.35, tcol)
+    bays = max(1, round(f.width / CELL_W))
+    bw = f.width / bays
+    for fl in range(int((y1 - SHOP_H) / CELL_H)):
+        fy = SHOP_H + fl * CELL_H
+        for b in range(bays):
+            s = (b + 0.5) * bw
+            roll = r.random()
+            if fl > 0 and roll < st["balcony"] and fy + 1.2 < y1:
+                B.balcony(D, f, s - bw / 2 + 0.25, s + bw / 2 - 0.25, fy, tint, glass=r.random() < st["balcony_glass"])
+            elif roll < st["balcony"] + st["ac"]:
+                ax, ay, az = f.p(f.at(s + r.uniform(-0.6, 0.6)), fy + 0.05, 0.0)
+                P.place("ac_wall", ax, ay, az, f.yaw, district=D)
+    if r.random() < st["pipes"] and y1 > 8:
+        s = r.choice((0.35, f.width - 0.35))
+        px_, py_, pz_ = f.p(f.at(s), 0.0, 0.0)
+        P.place("pipe_v", px_, py_, pz_, f.yaw, sy=y1, district=D)
+    if escape is not None:
+        B.fire_escape(D, f, escape, SHOP_H + 0.5, min(y1 - 3.0, 40.0))
+    if signs:
+        B.face_signs(D, f, r, 0.5, f.width - 0.5, y1, st["signs"], st["sign_colours"])
+
+
+def ribs(D, f, s0, s1, y0, y1, w, step=0.8, out=0.07, col=BLACK, strips=(), strip="cyan"):
+    """A ribbed wall: vertical ribs standing proud of it, and now and then
+    a thin strip of light let in between two (the club's door,
+    BnnbP7pCIvQ@24)."""
+    n = max(1, round((s1 - s0) / step))
+    for i in range(n):
+        s = s0 + (i + 0.5) * (s1 - s0) / n
+        fbox(f, (D, "trim", 1), s - 0.11, s + 0.11, y0, y1, w, w + out, col=col)
+    for i in strips:
+        s = s0 + i * (s1 - s0) / n
+        fbox(f, (D, "neon_" + strip, 0), s - 0.035, s + 0.035, y0 + 0.25, y1 - 0.25, w, w + 0.03)

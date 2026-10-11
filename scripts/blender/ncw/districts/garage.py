@@ -116,9 +116,11 @@ mass(GA, GX0, GX1, -258.0, -230.0, SHOP_H, 22.0, 8101, painted=0)
 box((GA, "dark", 0), GX0, GX1, 0, SHOP_H, -258.0, -230.0, scale=2.0)
 # Its roof, wet, is Contact's foreground: it holds the sky's glow.
 mass(GA, GX0, GX1, -200.0, -176.0, SHOP_H, 7.0, 8102, painted=1, roof_mat="roof_wet")
-box((GA, "dark", 0), GX0, GX1, 0, SHOP_H, -200.0, -176.0, scale=2.0)
+# (Set back a metre from the street: its shops are built with the street,
+# districts/afterlife.py.)
+box((GA, "dark", 0), GX0 + 1.0, GX1, 0, SHOP_H, -200.0, -176.0, scale=2.0)
 mass(GA, 410.0, STREET_X - 12, -250.0, -190.0, SHOP_H, 26.0, 8201, painted=2)
-box((GA, "dark", 0), 410.0, STREET_X - 12, 0, SHOP_H, -250.0, -190.0, scale=2.0)
+box((GA, "dark", 0), 410.0, STREET_X - 12, 0, SHOP_H, -250.0, -191.0, scale=2.0)
 # Its ground floor faces the garage door: lit shops and a strip of neon, so
 # the street outside the door is not a black hole from inside the bay.
 # Proud of the ground floor's dark box, which ends on the same plane: the
