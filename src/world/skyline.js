@@ -708,6 +708,16 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     if (beaconOf[pick] < 0) beaconOf[pick] = Math.floor(edit() * 3);
   }
 
+  // The blocks nearest the kit are what its last row is seen against: two in
+  // five of their roofs carry a lit board in place of their plant, so the
+  // signs go on past the last lot line. Not up the hero's avenue, where a
+  // roof sign was never dealt, nor under Contact's moon.
+  lots.forEach((b, i) => {
+    const k = kitOf[i];
+    if (!k || b.cone || b.gone || b.h >= TOWER_FROM || underMoon(b) || gapOf(b) > 200 || (k.kit !== KIT.home && k.kit !== KIT.plant)) return;
+    if (edit() < 0.4) k.kit = KIT.sign;
+  });
+
   // ---- the hologram columns ---------------------------------------------------
   // Tall columns of light in the sky behind the skyline (sky-columns.js),
   // one to every other sector of the compass (every fourth on a phone), each

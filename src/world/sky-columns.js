@@ -72,7 +72,7 @@ export function createSkyColumns(scene, shared, columns, { reduced = false } = {
         float scan = mix(0.78 + 0.22 * sin(lines * 6.2832), 0.78, clamp(fwidth(lines) * 2.0, 0.0, 1.0));
         float breath = 0.85 + 0.15 * sin(t * 0.5 + vTone.a * 40.0);
         float a = (body * 0.42 + core * 0.5) * fade * scan * breath;
-        vec3 col = vTone.rgb * a * uHaze;
+        vec3 col = vTone.rgb * a * 1.25 * uHaze;
         // Light in the air fades into the haze; it does not turn into it.
         col *= exp(-length(vWorld - uCam) * uFogDensity * 0.3);
         gl_FragColor = vec4(col, 0.0);
