@@ -429,6 +429,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float tlit = uTowerLit[ti];
           float top = uTowerTop[ti];
           vec2 rel = vWorld.xz - uTowerCentre[ti];
+          // Only a tower's own walls (its 26 m footprint) take its colour and
+          // its lit floors: another block's glass is nearest some tower too.
+          float own = step(max(abs(rel.x), abs(rel.y)), 13.6);
           float halfW = abs(dot(rel, n.xz));
           float along = dot(rel, t.xz);
           float edge = max(halfW - abs(along), 0.0);
@@ -445,7 +448,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // The tenant: floors in threes, give or take, one light each.
           float tenant = floor((level + floor(hash12(vec2(seed, 1.0)) * 3.0)) / 3.0);
           // The card being read keeps its tower's floors on.
-          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r + 0.25 * tlit);
+          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r + 0.25 * tlit * own);
           float tone = hash12(vec2(tenant, seed + 3.7));
           vec3 L = vec3(0.74, 0.87, 1.0);
           if (tone > 1.0 - 0.5 * vColor.g) L = vec3(1.0, 0.76, 0.5);
@@ -525,7 +528,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float fin = exp(-edge / 1.3);
           float up = exp(-max(vWorld.y - BASE, 0.0) / 9.0);
           float crown = exp(-max(top - vWorld.y, 0.0) / 6.0);
-          vec3 wash = accent * (fin * (0.05 + 0.8 * tlit) + up * (0.1 + 0.25 * tlit) + crown * (0.03 + 0.6 * tlit) + 0.06 * tlit);
+          vec3 wash = accent * (fin * (0.05 + 0.8 * tlit) + up * (0.1 + 0.25 * tlit) + crown * (0.03 + 0.6 * tlit) + 0.06 * tlit) * own;
 
           vec3 glass = room * vec3(0.72, 0.84, 0.9) * (1.0 - F) + env * F + wash * (0.06 + 0.5 * F);
 
@@ -544,7 +547,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           col = mix(col, spandrel, slab);
 
           // Far off, a floor's average rather than a pattern that shimmers.
-          float litAvg = min(vColor.r + 0.25 * tlit, 1.0) * 0.76;
+          float litAvg = min(vColor.r + 0.25 * tlit * own, 1.0) * 0.76;
           vec3 avgRoom = L * litAvg * 0.6 + 0.004;
           vec3 avg = mix(avgRoom * 0.8 * (1.0 - F) + env * F + wash * 0.3, spandrel, SILL / STOREY);
           col = mix(col, avg, smoothstep(0.25, 0.6, fw));
