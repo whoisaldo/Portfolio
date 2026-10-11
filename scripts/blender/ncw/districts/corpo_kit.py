@@ -142,17 +142,56 @@ def mast(x, z, y0, h, lamps=2):
         aviation(x + 1.1, y + 0.08, z)
 
 
-def screen(cx, cy, cz, w, h, yaw, r, frame=True, depth=0.3, back=False):
+COLD = (1, 6, 1, 6, 2)          # the advert shader's palette: cyan, blue, amber
+MEDIA = (1, 6, 5, 1, 6)         # and for a wall of screens: cyan, blue, magenta
+
+
+def board_col(r, pal=None):
+    """A billboard's numbers (palette, shape, seed). `pal`: palette indices
+    to open on (0 pink, 1 cyan, 2 amber, 3 purple, 4 green, 5 magenta,
+    6 blue, 7 yellow): the advert shader steps a board through the palette
+    every nine to fifteen seconds from its seed, so this picks the seed's
+    partner that shows that colour over the first seconds of the city's
+    clock, when the page's shots are held."""
+    g = r.randrange(8) / 8.0 + 0.06
+    if pal is None:
+        return (r.randrange(8) / 8.0 + 0.06, g, r.randrange(256) / 255.0, 1.0)
+    n, q = 0, 0.5
+    for _ in range(60):
+        n = r.randrange(256)
+        seed = n * 97.0 / 255.0
+        q = (12.0 + seed * 3.0) / (9.0 + 6.0 * ((seed * 1.3) % 1.0))
+        if 0.1 < q % 1.0 < 0.8:
+            break
+    want = r.choice(pal) if isinstance(pal, (tuple, list)) else pal
+    return (((want - math.floor(q)) % 8 + 0.5) / 8.0, g, n / 255.0, 1.0)
+
+
+def screen(cx, cy, cz, w, h, yaw, r, frame=True, depth=0.3, back=False, pal=None):
     """A flat screen: an advert with no words in a dark steel frame."""
-    B.billboard(CO, cx, cy, cz, w, h, yaw, r, frame=frame, back=back, depth=depth)
+    rotated_quad(k("billboard"), cx, cy, cz, w, h, yaw, col=board_col(r, pal))
+    if frame:
+        nx, nz = math.sin(yaw), math.cos(yaw)
+        oriented_box(k("board_frame"), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.4, h + 0.4, depth, yaw, scale=1.0)
+        if back:
+            rotated_quad(k("billboard"), cx - nx * (depth + 0.06), cy, cz - nz * (depth + 0.06), w, h, yaw + math.pi, col=board_col(r, pal))
 
 
-def screen_stack(cx, cz, y0, w, heights, yaw, r, gap=0.5, depth=0.3):
+def panel(cx, cy, cz, w, h, yaw, colour, dim=1.0, glow=True):
+    """A plain lit panel (a light box, a screen showing one colour)."""
+    if glow:
+        c = GLOW[colour]
+        rotated_quad(k("glow"), cx, cy, cz, w, h, yaw, col=(c[0] * dim, c[1] * dim, c[2] * dim, 1.0))
+    else:
+        rotated_quad(k("neon_" + colour), cx, cy, cz, w, h, yaw)
+
+
+def screen_stack(cx, cz, y0, w, heights, yaw, r, gap=0.5, depth=0.3, pal=None):
     """Screens stacked one over another up a face (the far city's screen
     towers, in small)."""
     y = y0
     for h in heights:
-        screen(cx, y + h / 2, cz, w, h, yaw, r, depth=depth)
+        screen(cx, y + h / 2, cz, w, h, yaw, r, depth=depth, pal=pal)
         y += h + gap
     return y
 

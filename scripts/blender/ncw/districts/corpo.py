@@ -1,6 +1,7 @@
 from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials, street constants)
 from ncw.kit import _mass_sides
 from ncw.districts.plaza import CROSS_Z0
+from ncw.districts import corpo_kit as K
 
 # ---------------------------------------------------------------------------
 # CORPO ROW. One tower per role, in experience.js order, west to east along a
@@ -85,6 +86,22 @@ TOWER_FORMS = {
     "northeastern": dict(notch=1.6, steps=(0.62, 0.84), screen=False, mast=18.0),
 }
 INSET = 2.4
+# The braindance's "room" is the first tower's lower floors: its lobby glass
+# stands this far back, behind a hall open to the boulevard with a gallery
+# in it (corpo_north.py builds the hall).
+ROOM = {"philips-zero-touch": 5.0}
+# Flat screens at mid height (mH2wmyeiIpA@143), clear of each tower's name
+# sign and its braindance box's reading: (face, metres along it from its
+# middle, height of its middle, width, height).
+SCREENS = {
+    "philips-zero-touch": (("+z", -5.0, 44.0, 10.0, 6.0), ("-x", 1.0, 62.0, 9.0, 5.6)),
+    "pinnatec-auto": (("+z", -4.0, 31.0, 9.0, 5.4), ("-x", -1.0, 52.0, 7.6, 10.0)),
+    "pawtograder": (("+z", -4.5, 62.0, 11.0, 6.4), ("+x", 1.0, 38.0, 9.0, 5.6)),
+    "aws-cloudformation": (("+z", -4.5, 50.0, 10.0, 6.0), ("-x", 0.0, 34.0, 8.0, 11.0)),
+    "top-choice-realty": (("+z", -5.0, 34.0, 9.0, 5.4), ("+x", -1.0, 58.0, 8.6, 5.2)),
+    "robert-defalco-realty": (("+z", -4.0, 55.0, 10.0, 6.0), ("-x", 1.0, 30.0, 9.0, 5.6)),
+    "northeastern": (("+z", -5.0, 40.0, 10.0, 6.0), ("-x", 0.0, 64.0, 9.0, 5.6)),
+}
 
 for i, (slug, height) in enumerate(TOWERS):
     tx = CORPO_X0 + i * 38
@@ -96,9 +113,11 @@ for i, (slug, height) in enumerate(TOWERS):
     form = TOWER_FORMS[slug]
     notch = form["notch"]
     # The lobby: a lit glass box set back under a canopy, the core behind.
-    box((CO, "dark", 0), tx - half, tx + half, 0, LOBBY_H, tz - half, tz + half - 1.6, scale=2.0)
-    quad((CO, "lobby", 0), (tx - half + 0.6, 0.15, tz + half - 1.5), (tx + half - 0.6, 0.15, tz + half - 1.5),
-         (tx + half - 0.6, LOBBY_H, tz + half - 1.5), (tx - half + 0.6, LOBBY_H, tz + half - 1.5),
+    # (One tower's is set deeper, behind a room open to the street: ROOM.)
+    lz = tz + half - 1.6 - ROOM.get(slug, 0.0)
+    box((CO, "dark", 0), tx - half, tx + half, 0, LOBBY_H, tz - half, lz, scale=2.0)
+    quad((CO, "lobby", 0), (tx - half + 0.6, 0.15, lz + 0.1), (tx + half - 0.6, 0.15, lz + 0.1),
+         (tx + half - 0.6, LOBBY_H, lz + 0.1), (tx - half + 0.6, LOBBY_H, lz + 0.1),
          ((0, 0), (1, 0), (1, 1), (0, 1)), (r.random(), r.random(), 1.0, 1.0))
     box((CO, "metal", 0), tx - half, tx + half, LOBBY_H - 0.5, LOBBY_H, tz + half - 1.6, tz + half + 3.0, scale=1.0)
     # The shaft, in sections, each stepped back from the one under it.
@@ -175,6 +194,15 @@ for i, (slug, height) in enumerate(TOWERS):
     sign("tower_" + slug, tx + half - notch - 1.6, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
          preview=slug.upper(), district=CO)
     empty("anchor_tower_" + slug, (tx, top + 1.8, tz), props={"height": top})
+    # Its screens, each on the section of the shaft that stands at its height.
+    rs_ = random.Random(seed + 700)
+    for face, off, sy, sw, sh in SCREENS[slug]:
+        h_s = next(h_k for h_k, y0, y1 in sections if y0 <= sy < y1)
+        if face == "+z":
+            K.screen(tx + off, sy, tz + h_s + 0.38, sw, sh, 0.0, rs_, pal=K.COLD)
+        else:
+            sx = 1 if face == "+x" else -1
+            K.screen(tx + sx * (h_s + 0.38), sy, tz + off, sw, sh, sx * math.pi / 2, rs_, pal=K.COLD)
 # The boulevard's south side: a street of its own, not a wall. Shops along
 # the boulevard under awnings, the signs a street collects hung off the
 # fronts, flats and offices over them (some set back over a terrace), an
