@@ -340,8 +340,11 @@ def frame(r):
     K.ladder(cx + 1.17, cz, GY + 2.5, 25.0, PI / 2)
     cylinder(k("metal"), cx, cz, ch, ch + 2.2, 0.25, segs=6)
     box(k("glow"), cx - 0.12, cx + 0.12, ch + 2.2, ch + 2.5, cz - 0.12, cz + 0.12, scale=0.5, col=GLOW["red"])
-    K.steam(cx, ch + 2.6, cz)
+    K.plume(cx, ch + 2.6, cz, n=2)
     K.bullet(346.5, 357.5, -52.0, 1.3, K.RUST, y=levels[0] + 1.75, base=levels[0])
+    # Steam leaking low in the frame, lit by its lamps: the plant's haze.
+    for vx, vz in ((347.0, -47.6), (360.0, -55.0), (371.0, -47.4), (377.6, -58.0), (352.0, -58.6)):
+        K.vent(vx, vz, lit=0.0)
     for z in (-49.0, -51.6):
         K.bullet(361.0, 371.0, z, 0.75, K.STEEL_BLUE, y=GY + 1.7)
     # The heater: a rust box on legs, burners glowing along its foot, its
@@ -414,8 +417,8 @@ def plant():
         cx, cz = x0 + 5.0, -25.0
         cylinder(k("trim"), cx, cz, 9.0, 11.8, 3.3, segs=14, col=K.GREY, cap=False)
         cylinder(k("dark"), cx, cz, 11.2, 11.3, 3.2, segs=14)
-        for dx, dz in ((0.0, 0.0), (1.4, 1.0), (-1.2, -0.8)):
-            K.steam(cx + dx, 12.0, cz + dz, lit=4.0)
+        K.plume(cx, 12.0, cz, n=3, lit=5.0)
+        K.steam(cx + 1.4, 12.0, cz + 1.0, lit=0.0)
         box(k("neon_amber"), cx - 0.8, cx + 0.8, 7.6, 7.72, -16.02, -15.9, scale=0.5, bottom=True)
     K.collide(308.0, 338.0, -34.0, -16.0, 9.0)
     K.catwalk(308.0, -15.2, 338.0, -15.2, 4.7, w=1.3, rails=(False, True))
@@ -1093,6 +1096,18 @@ def lines(bus):
         K.cable(a, b, sag=0.5, steps=5)
 
 
+def frontage_light():
+    """A little of the yards' light on the pavements along them, so a
+    walker's way is dim, not black, between the street's own lamps."""
+    r = R(8681)
+    K.wash(178.0, 296.0, -8.8, -8.8, level=0.32, step=6.0, r=r)
+    K.wash(304.0, 388.0, -8.8, -8.8, level=0.26, step=6.0, r=r)
+    K.wash(429.4, 429.4, -166.0, -12.0, level=0.3, step=6.0, r=r)
+    K.wash(450.6, 450.6, -174.0, -38.0, level=0.3, step=6.0, r=r)
+    K.wash(178.0, 424.0, 10.6, 10.6, level=0.3, step=6.0, r=r)
+    K.wash(176.0, 296.0, -170.6, -170.6, level=0.26, step=6.0, r=r)
+
+
 def street_cones():
     """Sodium light hanging under the street lamps of this district's
     stretches of the loop (the lamps are streets.py's, where it stands
@@ -1124,4 +1139,5 @@ block_06()
 gasholder()
 east()
 lines(BUS)
+frontage_light()
 street_cones()

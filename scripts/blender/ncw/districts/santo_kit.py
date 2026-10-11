@@ -193,6 +193,14 @@ def steam(x, y, z, kind="roof", lit=5.0, red=0.5):
         sodium(x, y, z, lit, red=red)
 
 
+def plume(x, y, z, n=3, lit=6.0, red=0.5, step=3.4):
+    """A stack's plume: vents one over another, each a little downwind of
+    the last, so the steam stands tall over the stack and glows in its
+    lamps' light (the site's steam rises 4.5 m a vent)."""
+    for i in range(n):
+        steam(x - 0.5 * i, y + step * i, z + 0.22 * i, lit=lit if i == 0 else 0.0, red=red)
+
+
 def cone(x, y, z):
     """Sodium light hanging in the wet air under a lamp head (shafts.js)."""
     empty(f"anchor_lamp_santo_{_counts['lamp']}", (x, y, z))
@@ -583,7 +591,7 @@ def stack(cx, cz, h, r0, r1, col, segs=12, bands=((0.80, 0.86), (0.92, 0.97)), b
     if lit:
         sodium(cx + r0 + 1.5, 1.0, cz + r0 + 1.5, lit, red=0.4)
     if breathe:
-        steam(cx, top + 0.6, cz)
+        plume(cx, top + 0.6, cz)
     collide(cx - r0, cx + r0, cz - r0, cz + r0, top)
     return top
 
