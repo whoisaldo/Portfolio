@@ -12,10 +12,17 @@
 //                  plays, a lot at the middle of a flight and on the intro's
 //                  handoff cues. One convolution effect per pass is the
 //                  library's rule, so the split lives here rather than as a
-//                  second ChromaticAberrationEffect.
+//                  second ChromaticAberrationEffect. So does the shutter:
+//                  on a fast move the frame smears the way the picture is
+//                  moving, as a film camera's half-open shutter smears it,
+//                  with the split drawn out along it (world-scene.js works
+//                  out how the picture moved).
 //   bloom          a high luminance threshold, so only emissives bloom
 //   streaks        desktop: the hottest lights drawn out sideways, a little
 //                  blue, from the bloom's own bright pass (no pass of its own)
+//   glass          the page's panes of smoked glass: inside each one the
+//                  city is frosted (blurred, darkened, its highlights eased
+//                  down), so text reads on a pane the city shows through
 //   noise, vignette, the Khronos neutral tone map, and the grade last.
 //
 // The phone gets half-resolution bloom and the glitch, and nothing else.
@@ -33,6 +40,8 @@ import {
   EffectAttribute,
   EffectComposer,
   EffectPass,
+  KawaseBlurPass,
+  KernelSize,
   NoiseEffect,
   RenderPass,
   SMAAEffect,
@@ -46,7 +55,20 @@ const BRAINDANCE = /* glsl */ `
   uniform float uEnvelope;
   uniform float uBass;
   uniform float uSplit;
+  // The shutter: where a point on the screen was a shutter ago, from where
+  // it is now (here + uShutter * here, here at the depth uShutterDepth);
+  // uShutterOn eases it in and out.
+  uniform mat4 uShutter;
+  uniform float uShutterDepth;
+  uniform float uShutterOn;
   float bdHash(float n) { return fract(sin(n) * 43758.5453123); }
+  // The split at one point: red one way, blue the other.
+  vec3 bdSplit(vec2 p, float split) {
+    return vec3(
+      texture2D(inputBuffer, p + vec2(split, 0.0)).r,
+      texture2D(inputBuffer, p).g,
+      texture2D(inputBuffer, p - vec2(split * 1.3, 0.0)).b);
+  }
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
     float e = clamp(uEnvelope, 0.0, 1.0);
     float t = floor(time * 24.0);
@@ -57,10 +79,42 @@ const BRAINDANCE = /* glsl */ `
     float shift = (bdHash(band * 3.7 + t) - 0.5) * 0.09 * e * pick;
     vec2 suv = vec2(uv.x + shift, uv.y);
     float split = uSplit + e * 0.011 + uBass * 0.0035;
+    // How far this pixel's picture moved while the shutter was open, at
+    // most a fortieth of the frame's height.
+    vec2 flow = vec2(0.0);
+    if (uShutterOn > 0.0) {
+      vec4 here = vec4(uv * 2.0 - 1.0, uShutterDepth, 1.0);
+      vec4 before = here + uShutter * here;
+      flow = (here.xy - before.xy / before.w) * 0.5 * uShutterOn;
+    }
+    float px = length(flow * resolution);
+    flow *= min(1.0, 0.025 * resolution.y / max(px, 1e-3));
+    px = min(px, 0.025 * resolution.y);
     vec3 col;
-    col.r = texture2D(inputBuffer, suv + vec2(split, 0.0)).r;
-    col.g = texture2D(inputBuffer, suv).g;
-    col.b = texture2D(inputBuffer, suv - vec2(split * 1.3, 0.0)).b;
+    if (px < 1.0) {
+      col = bdSplit(suv, split);
+    } else {
+      // A tap every three pixels or so along the smear, offset per pixel
+      // so the gaps between them read as grain rather than as copies.
+      // Red leads and blue trails: the lens's fringe, drawn out by speed.
+      float n = clamp(ceil(px / 3.0), 2.0, float(SHUTTER_TAPS));
+      float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+      bool wide = split * resolution.x > 0.6;
+      vec3 sum = vec3(0.0);
+      vec3 weight = vec3(0.0);
+      for (int i = 0; i < SHUTTER_TAPS; i++) {
+        if (float(i) >= n) break;
+        float t = (float(i) + jitter) / n - 0.5;
+        vec2 q = suv + flow * t;
+        vec3 w = vec3(1.0 + 1.4 * t, 1.0, 1.0 - 1.4 * t);
+        vec3 c;
+        if (wide) c = bdSplit(q, split);
+        else c = texture2D(inputBuffer, q).rgb;
+        sum += c * w;
+        weight += w;
+      }
+      col = sum / weight;
+    }
     // Scanlines, only in the glitch: at rest they would be a screen door.
     float scan = 0.5 + 0.5 * sin(uv.y * resolution.y * 1.57);
     col *= 1.0 - 0.25 * e * scan;
@@ -145,14 +199,115 @@ class StreakEffect extends Effect {
   }
 }
 
+// Smoked glass. The page's panes (src/components/ui/Panel.jsx, `glass`)
+// are see-through, and behind each one the city is frosted here, in the
+// same pass as the grade: a Kawase blur of the frame at a quarter of its
+// resolution (a few small passes of its own, run only while a pane is on
+// screen), darkened, its highlights eased down toward a ceiling so a sign
+// behind a pane is a soft glow and not a hole in the text, inside the
+// pane's own outline (its chamfered corners included). No CSS
+// backdrop-filter: over a canvas that changes every frame, that would be a
+// full blur of everything behind every pane, every frame, on the
+// compositor. Panes come in CSS pixels, top-left origin, from
+// src/world/glass.js; `uPaneInfo` is the cut (px), which corners are cut
+// (0 both, 1 bottom-right, 2 none) and the pane's opacity.
+export const MAX_PANES = 16;
+const GLASS = /* glsl */ `
+  uniform sampler2D uGlassMap;
+  uniform vec4 uPanes[MAX_PANES];
+  uniform vec4 uPaneInfo[MAX_PANES];
+  uniform int uPaneCount;
+  uniform vec2 uView;
+  uniform float uDarken;
+  uniform float uCeiling;
+  float pane(vec2 p, vec4 r, vec4 info) {
+    vec2 a = p - r.xy;
+    vec2 b = r.zw - p;
+    float d = min(min(a.x, a.y), min(b.x, b.y));
+    if (info.y < 0.5) d = min(d, (a.x + a.y - info.x) * 0.7071);
+    if (info.y < 1.5) d = min(d, (b.x + b.y - info.x) * 0.7071);
+    return clamp(d + 0.5, 0.0, 1.0) * info.z;
+  }
+  void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+    outputColor = inputColor;
+    if (uPaneCount == 0) return;
+    vec2 p = vec2(uv.x, 1.0 - uv.y) * uView;
+    float m = 0.0;
+    for (int i = 0; i < MAX_PANES; i++) {
+      if (i >= uPaneCount) break;
+      m = max(m, pane(p, uPanes[i], uPaneInfo[i]));
+    }
+    if (m <= 0.0) return;
+    vec3 b = texture2D(uGlassMap, uv).rgb * uDarken;
+    // Eased toward the ceiling by luminance, so a hue survives the frost.
+    float l = dot(b, vec3(0.2126, 0.7152, 0.0722));
+    vec3 frost = b / (1.0 + l / uCeiling);
+    outputColor = vec4(mix(inputColor.rgb, frost, m), inputColor.a);
+  }
+`;
+
+class GlassEffect extends Effect {
+  /** `phone`: three blur passes instead of five, which on a phone's smaller
+   *  frame frosts it about as much as five do on a monitor's. */
+  constructor({ phone = false } = {}) {
+    super("GlassEffect", GLASS, {
+      defines: new Map([["MAX_PANES", String(MAX_PANES)]]),
+      uniforms: new Map([
+        ["uGlassMap", new THREE.Uniform(null)],
+        ["uPanes", new THREE.Uniform(Array.from({ length: MAX_PANES }, () => new THREE.Vector4()))],
+        ["uPaneInfo", new THREE.Uniform(Array.from({ length: MAX_PANES }, () => new THREE.Vector4()))],
+        ["uPaneCount", new THREE.Uniform(0)],
+        ["uView", new THREE.Uniform(new THREE.Vector2(1, 1))],
+        ["uDarken", new THREE.Uniform(0.55)],
+        ["uCeiling", new THREE.Uniform(0.13)],
+      ]),
+    });
+    this.blurPass = new KawaseBlurPass({ kernelSize: phone ? KernelSize.SMALL : KernelSize.LARGE, resolutionScale: 0.25 });
+    this.renderTarget = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+    this.renderTarget.texture.name = "Glass.Target";
+    this.uniforms.get("uGlassMap").value = this.renderTarget.texture;
+  }
+
+  /** How many panes are on screen this frame; their arrays are written in
+   *  place (uniforms.get("uPanes").value and "uPaneInfo"). */
+  set count(n) {
+    this.uniforms.get("uPaneCount").value = n;
+  }
+
+  update(renderer, inputBuffer) {
+    if (this.uniforms.get("uPaneCount").value > 0) this.blurPass.render(renderer, inputBuffer, this.renderTarget);
+  }
+
+  setSize(width, height) {
+    this.blurPass.setSize(width, height);
+    this.renderTarget.setSize(this.blurPass.resolution.width, this.blurPass.resolution.height);
+  }
+
+  initialize(renderer, alpha, frameBufferType) {
+    this.blurPass.initialize(renderer, alpha, frameBufferType);
+    if (frameBufferType !== undefined) this.renderTarget.texture.type = frameBufferType;
+  }
+
+  dispose() {
+    super.dispose();
+    this.blurPass.dispose();
+    this.renderTarget.dispose();
+  }
+}
+
 class BraindanceEffect extends Effect {
-  constructor() {
+  /** `taps`: the most the shutter's smear takes (fewer on a phone). */
+  constructor(taps = 8) {
     super("BraindanceEffect", BRAINDANCE, {
       attributes: EffectAttribute.CONVOLUTION,
+      defines: new Map([["SHUTTER_TAPS", String(taps)]]),
       uniforms: new Map([
         ["uEnvelope", new THREE.Uniform(0)],
         ["uBass", new THREE.Uniform(0)],
         ["uSplit", new THREE.Uniform(0.00015)],
+        ["uShutter", new THREE.Uniform(new THREE.Matrix4().set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))],
+        ["uShutterDepth", new THREE.Uniform(0)],
+        ["uShutterOn", new THREE.Uniform(0)],
       ]),
     });
   }
@@ -173,7 +328,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     composer.addPass(new EffectPass(camera, smaa));
   }
 
-  const glitch = new BraindanceEffect();
+  const glitch = new BraindanceEffect(quality.name === "phone" ? 4 : 8);
   const bloom = new BloomEffect({
     luminanceThreshold: 0.72,
     luminanceSmoothing: 0.25,
@@ -192,6 +347,8 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     streak = new StreakEffect(streakMap);
     effects.push(streak);
   }
+  const glass = new GlassEffect({ phone: quality.name === "phone" });
+  effects.push(glass);
   if (quality.name !== "phone") {
     noise = new NoiseEffect({ blendFunction: BlendFunction.OVERLAY, premultiply: true });
     noise.blendMode.opacity.value = 0.12;
@@ -215,6 +372,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     bloom,
     tone,
     grade,
+    glass,
     /** The moon's scene and camera, for its own pass after the city's. */
     setMoon(moonScene, moonCamera) {
       moonPass = new RenderPass(moonScene, moonCamera);
@@ -237,6 +395,13 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
       glitch.uniforms.get("uEnvelope").value = envelope;
       glitch.uniforms.get("uBass").value = bass;
     },
+    /** The shutter's smear (see BRAINDANCE): `on` 0 for none. */
+    setShutter(matrix, depth, on) {
+      glitch.uniforms.get("uShutterOn").value = on;
+      if (on <= 0) return;
+      glitch.uniforms.get("uShutter").value.copy(matrix);
+      glitch.uniforms.get("uShutterDepth").value = depth;
+    },
     setSize(w, h) {
       composer.setSize(w, h, false);
       // One tap every one and a half texels of the quarter-size bright pass.
@@ -256,6 +421,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
       vignette?.dispose();
       tone.dispose();
       grade.dispose();
+      glass.dispose();
     },
   };
 }

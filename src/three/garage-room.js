@@ -78,7 +78,10 @@ export function createGarageRoom(scene, renderer, { reduced }) {
     for (const o of list) o.removeFromParent();
   }
   scene.add(room);
-  RectAreaLightUniformsLib.init();
+  // The area lights' lookup tables once a page: init() makes four new
+  // textures every time, and every renderer that drew the old ones keeps
+  // them (the city's too, which shares them).
+  if (!THREE.UniformsLib.LTC_FLOAT_1) RectAreaLightUniformsLib.init();
   const lights = [];
   const area = (color, intensity, width, height, position, target) => {
     const light = new THREE.RectAreaLight(color, intensity, width, height);

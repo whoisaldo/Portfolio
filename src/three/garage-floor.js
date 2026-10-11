@@ -4,7 +4,21 @@ import { Reflector } from "three/addons/objects/Reflector.js";
 // One rough planar reflection for the wet patches. The normal/depth pass
 // does not recursively render reflections, and the room's visibility loop
 // stops this pass with the rest of the garage.
+//
+// The reflection is drawn without the room's rect area lights: they are
+// most of what a frame of this room costs (some three quarters of it), and
+// in the puddles, at a third of their strength and smeared, what shows is
+// the tubes and the monitor, which light themselves. Measured against the
+// stock frame: the same picture to within a few levels in 99% of its
+// pixels, and six milliseconds a frame cheaper on devbox1. While the camera
+// holds, the reflection is also kept a frame (`hold`), since then only the
+// monitor changes in it.
 export function createGarageFloor(scene) {
+  const rectLights = [];
+  scene.traverse((o) => {
+    if (o.isRectAreaLight) rectLights.push(o);
+  });
+  let hold = false;
   const floor = new Reflector(new THREE.PlaneGeometry(14, 16.6), {
     textureWidth: 512,
     textureHeight: 512,
@@ -55,10 +69,15 @@ export function createGarageFloor(scene) {
   floor.material.depthWrite = false;
   const renderReflection = floor.onBeforeRender;
   floor.onBeforeRender = (...args) => {
-    if (!scene.overrideMaterial) renderReflection.apply(floor, args);
+    if (scene.overrideMaterial || hold) return;
+    for (const l of rectLights) l.visible = false;
+    renderReflection.apply(floor, args);
+    for (const l of rectLights) l.visible = true;
   };
   scene.add(floor);
   return {
+    /** Keep last frame's reflection (the camera has not moved). */
+    hold(on) { hold = on; },
     dispose() { floor.geometry.dispose(); floor.dispose(); scene.remove(floor); },
   };
 }

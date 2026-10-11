@@ -111,6 +111,37 @@ export function glitchTick() {
 }
 
 /**
+ * Photo mode's shutter: two clacks a hair apart, the blades opening and
+ * closing, each a few milliseconds of noise through a bandpass (as the
+ * glitch tick is), the second lower and softer. Through ready(), so only with
+ * sound on.
+ */
+export function shutterClick() {
+  const a = ready();
+  if (!a) return;
+  const { ac, out } = a;
+  const t = ac.currentTime;
+  const frames = Math.ceil(0.03 * ac.sampleRate);
+  const buffer = ac.createBuffer(1, frames, ac.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+  for (const [at, freq, gain] of [[0, 1900, 0.07], [0.06, 1150, 0.045]]) {
+    const src = ac.createBufferSource();
+    src.buffer = buffer;
+    const bp = ac.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.setValueAtTime(freq, t + at);
+    bp.Q.value = 2.2;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(gain, t + at);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.028);
+    src.connect(bp).connect(g).connect(out);
+    src.start(t + at);
+    src.stop(t + at + 0.035);
+  }
+}
+
+/**
  * Listen on the document for the two gestures. Returns a detach function so a
  * hot reload does not stack listeners.
  */

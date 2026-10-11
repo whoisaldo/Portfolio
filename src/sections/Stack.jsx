@@ -99,11 +99,13 @@ export default function Stack() {
                 Stack
               </Glitch>
             </div>
-            <p className="prose-dark max-w-[40ch]">
-              Grouped by what it is for, never ranked. No bars and no
-              percentages. I can talk about anything on this list, which is the
-              whole bar for being on it.
-            </p>
+            <Panel glass className="max-w-[44ch]" innerClassName="px-5 py-4">
+              <p className="prose-dark">
+                Grouped by what it is for, never ranked. No bars and no
+                percentages. I can talk about anything on this list, which is the
+                whole bar for being on it.
+              </p>
+            </Panel>
           </div>
           <div className="edge-rule mt-10" />
         </motion.header>
@@ -119,7 +121,7 @@ export default function Stack() {
                   row left Tools and Frontend with a third of a panel of void
                   under them, which is the same wasted room this pass took out
                   of the Also list. */}
-              <Panel edge="bg-ink-line" innerClassName="flex flex-col">
+              <Panel glass innerClassName="flex flex-col">
                 {/* The module header. Hazard tick, name, count: the same bar
                     the garage bay wears, so the two read as the same machine. */}
                 <div className="flex items-center gap-3 px-4 py-3 border-b border-ink-line">
@@ -138,6 +140,7 @@ export default function Stack() {
                         as="li"
                         key={item}
                         size="sm"
+                        glass="tint"
                         edge="stack-chip"
                         fill="bg-ink"
                         className="group"

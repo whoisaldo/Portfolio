@@ -82,68 +82,70 @@ export default function Contact() {
         <motion.div
           {...reveal}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="grid gap-x-10 gap-y-12 border-t border-ink-line mt-16 md:mt-20 pt-12 lg:grid-cols-12 rail-clear"
+          className="mt-16 md:mt-20 rail-clear"
         >
-          {/* 5 / 4 / 3 at every breakpoint; equal thirds would put the
-              section back in the middle of the page it is trying to get out of. */}
-          <div className="lg:col-span-5">
-            <h3 className="mono-label text-volt">Other addresses</h3>
-            <ul className="mt-6 space-y-5">
-              {secondary.map((email) => (
-                <li key={email.key}>
-                  <p className="mono-label text-faint mb-1.5">
-                    {SECONDARY_LABELS[email.key] ?? email.key}
-                  </p>
-                  <a
-                    href={`mailto:${email.value}`}
-                    className="mono-ui mono-cased text-muted break-all transition-colors duration-200 hover:text-volt"
-                  >
-                    <span className="ink-underline">{email.value}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <Panel glass innerClassName="grid gap-x-10 gap-y-12 p-6 md:p-10 lg:grid-cols-12">
+            {/* 5 / 4 / 3 at every breakpoint; equal thirds would put the
+                section back in the middle of the page it is trying to get out of. */}
+            <div className="lg:col-span-5">
+              <h3 className="mono-label text-volt">Other addresses</h3>
+              <ul className="mt-6 space-y-5">
+                {secondary.map((email) => (
+                  <li key={email.key}>
+                    <p className="mono-label text-faint mb-1.5">
+                      {SECONDARY_LABELS[email.key] ?? email.key}
+                    </p>
+                    <a
+                      href={`mailto:${email.value}`}
+                      className="mono-ui mono-cased text-muted break-all transition-colors duration-200 hover:text-volt"
+                    >
+                      <span className="ink-underline">{email.value}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          <div className="lg:col-span-4">
-            <h3 className="mono-label text-volt">Résumé</h3>
-            <p className="prose-dark mt-6 max-w-[38ch]">
-              Rebuilt from source on every change, so it is never older than
-              the roles on this page.
-            </p>
-            <Panel
-              as="a"
-              size="sm"
-              href={pdf}
-              download="Ali_Younes_Resume.pdf"
-              edge="bg-volt hover:bg-volt-deep transition-colors duration-200"
-              fill="bg-volt"
-              className="scan-beam-host mt-7 inline-block"
-              innerClassName="inline-flex items-center gap-3 px-6 py-3 mono-ui font-bold text-ink"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Download résumé
-            </Panel>
-          </div>
+            <div className="lg:col-span-4">
+              <h3 className="mono-label text-volt">Résumé</h3>
+              <p className="prose-dark mt-6 max-w-[38ch]">
+                Rebuilt from source on every change, so it is never older than
+                the roles on this page.
+              </p>
+              <Panel
+                as="a"
+                size="sm"
+                href={pdf}
+                download="Ali_Younes_Resume.pdf"
+                edge="bg-volt hover:bg-volt-deep transition-colors duration-200"
+                fill="bg-volt"
+                className="scan-beam-host mt-7 inline-block"
+                innerClassName="inline-flex items-center gap-3 px-6 py-3 mono-ui font-bold text-ink"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download résumé
+              </Panel>
+            </div>
 
-          <div className="lg:col-span-3">
-            <h3 className="mono-label text-volt">Elsewhere</h3>
-            <ul className="mt-6 space-y-4">
-              {elsewhere.map((link) => (
-                <li key={link.label}>
-                  <a
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="group inline-flex items-center gap-2.5 mono-ui text-muted transition-colors duration-200 hover:text-volt"
-                  >
-                    <span className="ink-underline">{link.label}</span>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-faint transition-all duration-200 group-hover:text-volt group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
+            <div className="lg:col-span-3">
+              <h3 className="mono-label text-volt">Elsewhere</h3>
+              <ul className="mt-6 space-y-4">
+                {elsewhere.map((link) => (
+                  <li key={link.label}>
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group inline-flex items-center gap-2.5 mono-ui text-muted transition-colors duration-200 hover:text-volt"
+                    >
+                      <span className="ink-underline">{link.label}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 text-faint transition-all duration-200 group-hover:text-volt group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Panel>
         </motion.div>
       </div>
     </section>

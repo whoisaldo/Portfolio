@@ -224,6 +224,12 @@ NEON = {
 }
 for key, hex_color in NEON.items():
     material("neon_" + key, hex_color, emit=6.0)
+# The same light high over the street, which the site leaves out of the
+# light it bakes onto the ground (src/world/city.js): rooftop signs, a stair
+# hut's door, an antenna's lamp. One material, each piece's colour on its
+# vertices (as the garage's tubes), so all of it is one draw.
+material("glow", "ffffff", emit=6.0)
+GLOW = {key: (*rgb(hex_color), 1) for key, hex_color in NEON.items()}
 # The garage's own fixtures are tubes, not neon: the site strikes them on as
 # the camera turns to the door (src/world/garage.js). One material, each
 # tube's colour on its vertices, so the whole room is one draw. Its door,
@@ -666,6 +672,228 @@ def mass(district, x0, x1, z0, z1, y0, y1, seed, faces="all", col=None, roof=Tru
     return col
 
 
+def walls(key, outline, y0, y1, col):
+    """Vertical faces along a closed outline, outward normals."""
+    for (xa, za), (xb, zb) in zip(outline, outline[1:] + outline[:1]):
+        length = math.hypot(xb - xa, zb - za)
+        quad(key, (xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za),
+             ((0, 0), (length, 0), (length, y1 - y0), (0, y1 - y0)), col)
+
+
+def cut_rect(cx, cz, hx, hz, c=0.0):
+    """A rectangle of half sizes hx and hz with its corners cut back c,
+    walked with the outside on the left of each edge, as notched() is."""
+    if c <= 0:
+        pts = [(-hx, hz), (hx, hz), (hx, -hz), (-hx, -hz)]
+    else:
+        pts = [(-hx + c, hz), (hx - c, hz), (hx, hz - c), (hx, -hz + c), (hx - c, -hz), (-hx + c, -hz),
+               (-hx, -hz + c), (-hx, hz - c)]
+    return [(cx + x, cz + z) for x, z in pts]
+
+
+def prism(district, outline, y0, y1, seed, col=None, mat="facade", roof=True, roof_mat="roof"):
+    """A mass on any plan: walls along the outline with the facade shader's
+    window cells running on round its corners, and a flat roof. The plan's
+    own centre is the roof's UV origin."""
+    r = random.Random(seed)
+    if col is None:
+        col = (r.uniform(0.28, 0.62), r.randrange(0, 5) / 8.0, r.uniform(0.2, 1.0), 1.0)
+    k = (district, mat, 0)
+    u = r.uniform(0, 40)
+    ov = r.uniform(0, 40)
+    v0, v1 = ov + (y0 - SHOP_H) / CELL_H, ov + (y1 - SHOP_H) / CELL_H
+    for (xa, za), (xb, zb) in zip(outline, outline[1:] + outline[:1]):
+        u1 = u + math.hypot(xb - xa, zb - za) / CELL_W
+        quad(k, (xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za), ((u, v0), (u1, v0), (u1, v1), (u, v1)), col)
+        u = u1
+    if roof:
+        poly((district, roof_mat, 0), [(x, y1, z) for x, z in outline], [(x / 4, z / 4) for x, z in outline])
+    return col
+
+
+def band(district, outline, y0, y1, colour, out=0.4):
+    """A lit band round a plan, standing `out` proud of its walls."""
+    xs = [x for x, _ in outline]
+    zs = [z for _, z in outline]
+    cx, cz = (min(xs) + max(xs)) / 2, (min(zs) + max(zs)) / 2
+    hx, hz = (max(xs) - min(xs)) / 2, (max(zs) - min(zs)) / 2
+    grown = [(cx + (x - cx) * (hx + out) / hx, cz + (z - cz) * (hz + out) / hz) for x, z in outline]
+    walls((district, "neon_" + colour, 0), grown, y0, y1, (1, 1, 1, 1))
+
+
+ROOF_SIGN_COLOURS = ["pink", "cyan", "amber", "magenta", "green", "purple", "red", "teal"]
+
+
+# The hero's lens (16:10 at rest and a metre into its push, and a phone's)
+# and what it frames over the canyon: ARASAKA's name, the figure above the
+# last roofs, the megablock's cyan sign at the vanishing point. A roof the
+# hero looks along is dressed only with what it cannot see: nothing that
+# shows over the canyon's own masses (HERO_MASSES, the lots and their
+# crowns, filled as they are built) and nothing across those three, so the
+# plate's band of sky keeps its line.
+HERO_EYES = ((0.6, 0.6, 10.0), (0.6, 0.6, 9.0), (0.6, 0.8, 30.0))
+HERO_KEEP = (((53.0, 151.5, -467.4), (97.0, 166.5, -467.4)),
+             ((-64.4, 110.0, -570.0), (39.6, 232.0, -570.0)),
+             ((-10.1, 14.0, -748.6), (-7.9, 74.0, -748.6)))
+HERO_MASSES = []
+
+
+def _crosses(o, p, lo, hi):
+    """Whether the segment o->p passes through the box lo..hi."""
+    t0, t1 = 0.0, 1.0
+    for i in range(3):
+        dd = p[i] - o[i]
+        if abs(dd) < 1e-9:
+            if o[i] < lo[i] or o[i] > hi[i]:
+                return False
+            continue
+        ta, tb = (lo[i] - o[i]) / dd, (hi[i] - o[i]) / dd
+        if ta > tb:
+            ta, tb = tb, ta
+        t0, t1 = max(t0, ta), min(t1, tb)
+        if t0 > t1:
+            return False
+    return True
+
+
+def hero_covers(lo, hi):
+    """Whether a box lies across anything the hero frames over the canyon."""
+    for e in HERO_EYES:
+        for a, b in HERO_KEEP:
+            for u in (0.0, 0.25, 0.5, 0.75, 1.0):
+                for v in (0.0, 0.25, 0.5, 0.75, 1.0):
+                    q = (a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * v, a[2])
+                    if _crosses(e, q, lo, hi):
+                        return True
+    return False
+
+
+def hero_sees(lo, hi):
+    """Whether the hero's lens sees any of a box's top over the canyon's own
+    masses."""
+    y = hi[1]
+    for e in HERO_EYES:
+        for x in (lo[0], (lo[0] + hi[0]) / 2, hi[0]):
+            for z in (lo[2], (lo[2] + hi[2]) / 2, hi[2]):
+                if not any(_crosses(e, (x, y, z), mlo, mhi) for mlo, mhi in HERO_MASSES):
+                    return True
+    return False
+
+
+def dress_roof(district, x0, x1, z0, z1, top, seed, cap=6.0, face=None, parapet=True, hero=False):
+    """What stands on a city roof: a parapet round its edge and, by the
+    roof's own draw, a water tank on its stand, a stair hut with its door
+    lit, air conditioners, a plant room, an antenna with a lamp at its tip,
+    and now and then a sign on two posts, its strokes drawn in light. Nothing
+    rises more than `cap` metres (a roof in a framed band of sky keeps it
+    low). A sign faces `face` (a yaw; 0 is +z) or the roof's long side.
+    `hero`: a roof the hero looks along keeps only what its lens cannot
+    see (hero_sees, hero_covers), parapet and all, so the canyon's roofline
+    in the hero is the one the plate was matched to."""
+    r = random.Random(seed)
+    w, d = x1 - x0, z1 - z0
+    fits = lambda lo, hi: not hero or not (hero_sees(lo, hi) or hero_covers(lo, hi))
+    if parapet:
+        t, ph = 0.3, 0.9
+        for (a0, a1, b0, b1) in ((x0, x1, z1 - t, z1), (x0, x1, z0, z0 + t), (x0, x0 + t, z0 + t, z1 - t),
+                                 (x1 - t, x1, z0 + t, z1 - t)):
+            if hero and (hero_sees((a0, top, b0), (a1, top + ph, b1)) or hero_covers((a0, top, b0), (a1, top + ph, b1))):
+                continue
+            box((district, "concrete", 0), a0, a1, top, top + ph, b0, b1, scale=1.5)
+    if w < 7 or d < 7:
+        return
+    # A grid of plots on the roof, one thing on each, clear of the parapet.
+    nx, nz = max(1, int(w // 7)), max(1, int(d // 7))
+    plots = [(x0 + 1.2 + (i + 0.5) * (w - 2.4) / nx, z0 + 1.2 + (j + 0.5) * (d - 2.4) / nz,
+              (w - 2.4) / nx, (d - 2.4) / nz) for i in range(nx) for j in range(nz)]
+    r.shuffle(plots)
+    signed = False
+    for k, (px, pz, pw, pd) in enumerate(plots[:6]):
+        kind = r.random()
+        if k == 0 and cap >= 4.0 and min(pw, pd) > 3.2:
+            # A water tank on its stand, the roof's signature.
+            rr = min(1.4, min(pw, pd) * 0.3)
+            legs = min(1.9, cap - 2.6)
+            if not fits((px - rr * 1.06, top, pz - rr * 1.06), (px + rr * 1.06, top + legs + 2.45, pz + rr * 1.06)):
+                continue
+            for lx, lz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+                box((district, "metal", 1), px + lx * rr * 0.7 - 0.08, px + lx * rr * 0.7 + 0.08, top, top + legs,
+                    pz + lz * rr * 0.7 - 0.08, pz + lz * rr * 0.7 + 0.08, scale=0.5)
+            cylinder((district, "metal", 0), px, pz, top + legs, top + legs + 2.2, rr, segs=8)
+            cylinder((district, "dark", 0), px, pz, top + legs + 2.2, top + legs + 2.45, rr * 1.06, segs=8)
+        elif k == 1 and min(pw, pd) > 3.0:
+            # A stair hut, its door lit and a lamp over it.
+            hw_, hd_, hh_ = min(1.7, pw * 0.4), min(1.4, pd * 0.4), min(2.7, cap - 0.2)
+            if not fits((px - hw_, top, pz - hd_ - 0.2), (px + hw_, top + max(hh_, 2.4), pz + hd_ + 0.2)):
+                continue
+            box((district, "concrete", 0), px - hw_, px + hw_, top, top + hh_, pz - hd_, pz + hd_, scale=1.5)
+            side = r.choice((-1, 1))
+            dz = pz + side * (hd_ + 0.02)
+            if side > 0:
+                quad((district, "glow", 0), (px - 0.45, top, dz), (px + 0.45, top, dz), (px + 0.45, top + 2.0, dz), (px - 0.45, top + 2.0, dz), col=GLOW["amber"])
+            else:
+                quad((district, "glow", 0), (px + 0.45, top, dz), (px - 0.45, top, dz), (px - 0.45, top + 2.0, dz), (px + 0.45, top + 2.0, dz), col=GLOW["amber"])
+            box((district, "glow", 0), px - 0.12, px + 0.12, top + 2.25, top + 2.4, dz - 0.1 * side - 0.06, dz - 0.1 * side + 0.06, scale=0.5, col=GLOW["white"])
+        elif kind < 0.45:
+            # Air conditioners, a pair or three in a row.
+            count = r.randrange(2, 4)
+            if not fits((px - pw * 0.3 - 0.7, top, pz - 0.5), (px + pw / 2, top + 0.95, pz + 0.5)):
+                continue
+            for n in range(count):
+                ax_ = px - pw * 0.3 + n * 1.6
+                if ax_ + 0.7 > px + pw / 2:
+                    break
+                box((district, "metal", 1), ax_ - 0.7, ax_ + 0.7, top, top + 0.95, pz - 0.5, pz + 0.5, scale=0.8)
+        elif kind < 0.7:
+            # A plant room with a duct running off it.
+            pw2, pd2 = pw * 0.36, pd * 0.32
+            ph2 = min(2.4, cap - 0.4)
+            if not fits((px - pw2 - 0.1, top, pz - pd2 - 0.1), (px + pw2 + pw * 0.3, top + ph2 + 0.12, pz + pd2 + 0.1)):
+                continue
+            box((district, "metal", 0), px - pw2, px + pw2, top, top + ph2, pz - pd2, pz + pd2, scale=1.0)
+            box((district, "dark", 1), px - pw2 - 0.1, px + pw2 + 0.1, top + ph2, top + ph2 + 0.12, pz - pd2 - 0.1, pz + pd2 + 0.1, scale=1.0)
+            box((district, "metal", 1), px + pw2, px + pw2 + pw * 0.3, top + 0.4, top + 1.0, pz - 0.3, pz + 0.3, scale=0.8)
+        elif kind < 0.86 and cap >= 5.0:
+            # An antenna, guyed, a red lamp at its tip.
+            ah = min(cap, 4.5 + r.random() * 3.0)
+            if not fits((px - 0.7, top, pz - 0.1), (px + 0.7, top + ah + 0.2, pz + 0.1)):
+                continue
+            cylinder((district, "metal", 1), px, pz, top, top + ah, 0.06, segs=4, cap=False)
+            for y in (top + ah * 0.55, top + ah * 0.8):
+                box((district, "metal", 1), px - 0.7, px + 0.7, y, y + 0.05, pz - 0.03, pz + 0.03, scale=0.5)
+            box((district, "glow", 0), px - 0.1, px + 0.1, top + ah, top + ah + 0.2, pz - 0.1, pz + 0.1, scale=0.5, col=GLOW["red"])
+        elif not signed and cap >= 5.0 and max(pw, pd) > 5.0:
+            # A sign on two posts, facing the street.
+            yaw = face if face is not None else (0.0 if w >= d else math.pi / 2)
+            sw, sh = min(5.6, max(pw, pd) * 0.8), 1.9
+            sy = top + min(cap, 5.4) - sh / 2 - 0.2
+            if not fits((px - sw / 2 - 0.2, top, pz - sw / 2 - 0.2), (px + sw / 2 + 0.2, sy + sh / 2 + 0.2, pz + sw / 2 + 0.2)):
+                continue
+            signed = True
+            for du in (-sw * 0.38, sw * 0.38):
+                cxp, czp = px + math.cos(yaw) * du, pz - math.sin(yaw) * du
+                box((district, "metal", 1), cxp - 0.08, cxp + 0.08, top, sy - sh / 2, czp - 0.08, czp + 0.08, scale=0.5)
+            oriented_box((district, "board_frame", 0), px, sy, pz, sw + 0.3, sh + 0.3, 0.22, yaw, scale=1.0)
+            colour = r.choice(ROOF_SIGN_COLOURS)
+            nxf, nzf = math.sin(yaw), math.cos(yaw)
+            # The tube round its edge and three characters' worth of strokes,
+            # drawn on both faces (a quad each, facing out).
+            strokes = [((u0 + u1) / 2 * sw, (v0 + v1) / 2 * sh, (u1 - u0) * sw, (v1 - v0) * sh)
+                       for (u0, u1, v0, v1) in ((-0.5, 0.5, 0.44, 0.5), (-0.5, 0.5, -0.5, -0.44), (-0.5, -0.47, -0.5, 0.5), (0.47, 0.5, -0.5, 0.5))]
+            for g in range(3):
+                gu = (-1 + g) * sw * 0.28
+                for _ in range(r.randrange(2, 4)):
+                    vert = r.random() < 0.5
+                    su = r.uniform(-0.08, 0.08) * sw
+                    sv = r.uniform(-0.25, 0.25) * sh
+                    gw, gh = (0.14, sh * r.uniform(0.35, 0.6)) if vert else (sw * r.uniform(0.12, 0.2), 0.14)
+                    strokes.append((gu + su, sv, gw, gh))
+            for sd, fy in ((1, yaw), (-1, yaw + math.pi)):
+                ox, oz = px + nxf * 0.12 * sd, pz + nzf * 0.12 * sd
+                for cu, cv, gw, gh in strokes:
+                    rotated_quad((district, "glow", 0), ox + math.cos(yaw) * cu, sy + cv, oz - math.sin(yaw) * cu, gw, gh, fy, col=GLOW[colour])
+
+
 def shopfront(district, side, z0, z1, seed, awning=True, xf=None):
     """The lit ground floor of a lot on the avenue, facing the street (or on
     any wall along z, at xf)."""
@@ -731,13 +959,14 @@ def lanterns(district, side, z0, z1, y=3.1):
         z += 1.6
 
 
-def ac_units(district, side, z0, z1, y0, y1, seed):
+def ac_units(district, side, z0, z1, y0, y1, seed, xw=None):
     r = random.Random(seed)
     s = 1 if side > 0 else -1
+    W = s * WALK if xw is None else xw
     for _ in range(r.randrange(2, 6)):
         y = r.uniform(y0, y1)
         z = r.uniform(z0 + 1, z1 - 1)
-        xa, xb = sorted((s * WALK, s * (WALK - 0.55)))
+        xa, xb = sorted((W, W - s * 0.55))
         box((district, "metal", 1), xa, xb, y, y + 0.55, z - 0.4, z + 0.4, scale=0.6)
 
 
@@ -750,13 +979,14 @@ def ledges(district, side, z0, z1, y0, y1, step=CELL_H):
         y += step
 
 
-def fire_escape(district, side, zc, y0, y1):
+def fire_escape(district, side, zc, y0, y1, xw=None):
     s = 1 if side > 0 else -1
-    x_out = s * (WALK - 1.1)
+    W = s * WALK if xw is None else xw
+    x_out = W - s * 1.1
     y = y0
     k = (district, "metal", 1)
     while y < y1:
-        xa, xb = sorted((s * WALK, x_out))
+        xa, xb = sorted((W, x_out))
         box(k, xa, xb, y, y + 0.06, zc - 2.2, zc + 2.2, scale=0.5)
         # Railings.
         ra, rb = sorted((x_out, x_out + s * 0.05))
@@ -770,14 +1000,16 @@ def fire_escape(district, side, zc, y0, y1):
 PANEL_COLOURS = ["pink", "cyan", "magenta", "amber", "red", "blue", "teal", "purple", "green", "white"]
 
 
-def clutter(district, side, z0, z1, top, seed):
+def clutter(district, side, z0, z1, top, seed, xw=None):
     """The signs a Night City facade collects: blades standing out from the
     wall at every height and boards flat on it, each one a standard sign the
     site paints (ST_SIZES), plus neon along the ledges. Most are blades
     because the street is seen end-on: a board flat on a wall is a sliver
-    from the intersection, a blade faces the lens."""
+    from the intersection, a blade faces the lens. The wall is the avenue's
+    (WALK) unless `xw` puts it elsewhere; `side` says which way it faces."""
     r = random.Random(seed)
     s = 1 if side > 0 else -1
+    W = s * WALK if xw is None else xw
     ceiling = max(SHOP_H + 2.4, min(top - 1.0, 26.0))
     for _ in range(r.randrange(6, 12)):
         if r.random() < 0.66:
@@ -786,14 +1018,14 @@ def clutter(district, side, z0, z1, top, seed):
             w, h = ST_SIZES[size]
             y = r.uniform(SHOP_H + 0.6 + h / 2, max(SHOP_H + 0.7 + h / 2, ceiling - h / 2))
             z = r.uniform(z0 + 0.6, z1 - 0.6)
-            x = s * (WALK - 0.35 - w / 2)
+            x = W - s * (0.35 + w / 2)
             xa, xb = sorted((x - w / 2 - 0.06, x + w / 2 + 0.06))
             box((district, "board_frame", 0), xa, xb, y - h / 2 - 0.07, y + h / 2 + 0.07, z - 0.08, z + 0.08, scale=1.0)
             sid = st_name(size)
             sign(sid, x, y, z + 0.09, w, h, 0.0, district=district, label=False)
             sign(sid + "_b", x, y, z - 0.09, w, h, math.pi, district=district, label=False)
             ya = y + h / 2 + 0.07
-            ba, bb = sorted((s * WALK, x))
+            ba, bb = sorted((W, x))
             box((district, "metal", 1), ba, bb, ya, ya + 0.07, z - 0.04, z + 0.04, scale=0.5)
         else:
             # A board flat on the wall, facing the street.
@@ -804,16 +1036,100 @@ def clutter(district, side, z0, z1, top, seed):
                 continue
             z = r.uniform(z0 + w / 2 + 0.5, z1 - w / 2 - 0.5)
             out = r.uniform(0.12, 0.45)
-            xa, xb = sorted((s * WALK, s * (WALK - out)))
+            xa, xb = sorted((W, W - s * out))
             box((district, "board_frame", 0), xa, xb, y - h / 2 - 0.07, y + h / 2 + 0.07, z - w / 2 - 0.07, z + w / 2 + 0.07, scale=1.0)
-            sign(st_name(size), s * (WALK - out - 0.015), y, z, w, h, -s * math.pi / 2, district=district, label=False)
+            sign(st_name(size), W - s * (out + 0.015), y, z, w, h, -s * math.pi / 2, district=district, label=False)
     for _ in range(r.randrange(0, 3)):
         y = r.choice([SHOP_H + CELL_H * k for k in range(1, 5)]) + 0.05
         if y > top - 1:
             continue
         colour = r.choice(PANEL_COLOURS)
-        xa, xb = sorted((s * (WALK - 0.26), s * (WALK - 0.3)))
+        xa, xb = sorted((W - s * 0.26, W - s * 0.3))
         box((district, "neon_" + colour, 0), xa, xb, y, y + 0.08, z0 + 0.4, z1 - 0.4, scale=1.0)
+
+
+def frontage_x(district, x0, x1, zf, seed, facing=-1, awning=True):
+    """A row of lit shops along a wall that runs along x (the boulevard's
+    kind), facing `facing` z: glass a hair proud of the dark ground floor
+    with the site's rooms behind it, a bulkhead and a fascia, pilasters
+    between the shops, a dyed awning lit through from under and its lit
+    hem, and some shops shut behind their shutters (the shop shader's own
+    choice, from the colour)."""
+    r = random.Random(seed)
+    f = 1 if facing > 0 else -1
+    zg = zf + f * 0.03
+    x = x0
+    while x < x1 - 2.5:
+        w = min(x1 - x, r.choice((6.4, 6.4, 9.6, 12.8)))
+        if x1 - (x + w) < 3.2:
+            w = x1 - x
+        a, b = x + 0.4, x + w - 0.4
+        lit = (r.uniform(0.25, 1.0), r.random(), 1.0 if r.random() < 0.8 else 0.0, 1.0)
+        pts = ((b, 0.55, zg), (a, 0.55, zg), (a, 3.3, zg), (b, 3.3, zg)) if f < 0 else ((a, 0.55, zg), (b, 0.55, zg), (b, 3.3, zg), (a, 3.3, zg))
+        quad((district, "shop", 0), *pts, col=lit)
+        za, zb = sorted((zf, zf + f * 0.14))
+        box((district, "dark", 0), a, b, 0.15, 0.55, za, zb, scale=1.0)
+        box((district, "dark", 0), a, b, 3.3, SHOP_H, za, zb, scale=1.0)
+        pa, pb = sorted((zf, zf + f * 0.45))
+        box((district, "concrete", 0), x, x + 0.4, 0.15, SHOP_H, pa, pb, scale=1.5)
+        if awning and r.random() < 0.7:
+            colour = r.choice(["pink", "cyan", "red", "amber", "purple", "teal"])
+            ya = 3.55
+            out = 1.6
+            top_in, top_out = (zf, ya + 0.4), (zf + f * out, ya)
+            p_ = ((a, top_in[1], top_in[0]), (a, top_out[1], top_out[0]), (b, top_out[1], top_out[0]), (b, top_in[1], top_in[0]))
+            uvs = ((0, 0), (1, 0), (1, 1), (0, 1))
+            if f > 0:
+                p_ = (p_[0], p_[3], p_[2], p_[1])
+                uvs = ((0, 0), (0, 1), (1, 1), (1, 0))
+            dye = tuple(int(NEON[colour][i:i + 2], 16) / 255 for i in (0, 2, 4)) + (1.0,)
+            quad((district, "awning", 1), *p_, uvs=uvs, col=dye)
+            quad((district, "awning", 1), p_[0], p_[3], p_[2], p_[1], uvs=(uvs[0], uvs[3], uvs[2], uvs[1]), col=dye)
+            ea, eb = sorted((top_out[0], top_out[0] + f * 0.04))
+            box((district, "neon_" + colour, 0), a, b, ya - 0.08, ya, ea, eb, scale=1.0)
+        x += w
+    box((district, "concrete", 0), x1 - 0.4, x1, 0.15, SHOP_H, *sorted((zf, zf + f * 0.45)), scale=1.5)
+
+
+def clutter_x(district, x0, x1, zf, top, seed, facing=-1):
+    """clutter() for a wall running along x: blades standing out from it,
+    read along the street from both ends, boards flat on it, and neon along
+    a ledge."""
+    r = random.Random(seed)
+    f = 1 if facing > 0 else -1
+    ceiling = max(SHOP_H + 2.4, min(top - 1.0, 26.0))
+    for _ in range(r.randrange(4, 9)):
+        if r.random() < 0.6:
+            size = r.choices(["bs", "bm", "bl", "bx"], weights=[3, 4, 2, 2])[0]
+            w, h = ST_SIZES[size]
+            y = r.uniform(SHOP_H + 0.6 + h / 2, max(SHOP_H + 0.7 + h / 2, ceiling - h / 2))
+            x = r.uniform(x0 + 0.8, x1 - 0.8)
+            z = zf + f * (0.35 + w / 2)
+            za, zb = sorted((z - w / 2 - 0.06, z + w / 2 + 0.06))
+            box((district, "board_frame", 0), x - 0.08, x + 0.08, y - h / 2 - 0.07, y + h / 2 + 0.07, za, zb, scale=1.0)
+            sid = st_name(size)
+            sign(sid, x + 0.09, y, z, w, h, math.pi / 2, district=district, label=False)
+            sign(sid + "_b", x - 0.09, y, z, w, h, -math.pi / 2, district=district, label=False)
+            ya = y + h / 2 + 0.07
+            ba, bb = sorted((zf, z))
+            box((district, "metal", 1), x - 0.04, x + 0.04, ya, ya + 0.07, ba, bb, scale=0.5)
+        else:
+            size = r.choices(["ps", "pm", "bx"], weights=[4, 3, 2])[0]
+            w, h = ST_SIZES[size]
+            if x1 - x0 < w + 1.0:
+                continue
+            y = r.uniform(SHOP_H + 0.5 + h / 2, max(SHOP_H + 0.6 + h / 2, ceiling - h / 2))
+            x = r.uniform(x0 + w / 2 + 0.5, x1 - w / 2 - 0.5)
+            out = r.uniform(0.12, 0.45)
+            za, zb = sorted((zf, zf + f * out))
+            box((district, "board_frame", 0), x - w / 2 - 0.07, x + w / 2 + 0.07, y - h / 2 - 0.07, y + h / 2 + 0.07, za, zb, scale=1.0)
+            sign(st_name(size), x, y, zf + f * (out + 0.015), w, h, 0.0 if f > 0 else math.pi, district=district, label=False)
+    for _ in range(r.randrange(0, 3)):
+        y = r.choice([SHOP_H + CELL_H * k for k in range(1, 5)]) + 0.05
+        if y > top - 1:
+            continue
+        za, zb = sorted((zf + f * 0.26, zf + f * 0.3))
+        box((district, "neon_" + r.choice(PANEL_COLOURS), 0), x0 + 0.4, x1 - 0.4, y, y + 0.08, za, zb, scale=1.0)
 
 
 def blade(district, side, sid, z, y, h, w=0.9, colour="pink", preview=None):
@@ -837,6 +1153,7 @@ def blade(district, side, sid, z, y, h, w=0.9, colour="pink", preview=None):
 # 0.29; on the right, past Nicola, a steeper 0.27, as the plate has it), and
 # the roofs step down toward the vanishing point under a band of sky.
 HERO_EYE_Z = 10.0
+HERO_ROOFS = []
 LOTS = {
     -1: [(-10, 11, 16), (-21, 9, 24), (-30, 14, 19), (-44, 12, 21), (-56, 10, 23), (-66, 12, 29),
          (-84, 13, 27), (-97, 11, 37), (-108, 15, 33), (-123, 12, 44), (-135, 14, 38), (-149, 12, 49),
@@ -853,6 +1170,7 @@ for side, lots in LOTS.items():
         x_front, x_back = (WALK, WALK + 22) if s > 0 else (-WALK - 22, -WALK)
         xa, xb = (WALK, WALK + 22) if s > 0 else (-WALK - 22, -WALK)
         mass(AV, xa, xb, z0, z1, SHOP_H, height, seed, painted=(i + (0 if s > 0 else 1)) % 3)
+        HERO_MASSES.append(((xa, 0.0, z0), (xb, height, z1)))
         # The ground floor as its own dark volume, set back behind the
         # shopfront's glass (in its plane the glass would lose to it), and on
         # the corner lots behind a second shopfront facing the intersection.
@@ -874,10 +1192,15 @@ for side, lots in LOTS.items():
         if height > 30 and crown > 3:
             ia, ib = (xa + 3, xb - 5) if s > 0 else (xa + 5, xb - 3)
             mass(AV, ia, ib, z0 + 2, z1 - 2, height, height + crown, seed + 3)
-        for _ in range(r.randrange(1, 4)):
-            cx = r.uniform(xa + 2, xb - 2)
-            cz = r.uniform(z0 + 1.5, z1 - 1.5)
-            box((AV, "metal", 1), cx - 0.8, cx + 0.8, height, height + 1.1, cz - 0.6, cz + 0.6, scale=0.8)
+            HERO_MASSES.append(((ia, height, z0 + 2), (ib, height + crown, z1 - 2)))
+        # The roof, dressed once every mass the hero looks along is known (see
+        # HERO_ROOFS below): a parapet, a tank, a hut, plant, an antenna, a
+        # sign facing the street, each only where the hero cannot see it.
+        if height > 30 and crown > 3:
+            HERO_ROOFS.append((AV, xa, xb, z0, z1, height, seed + 21, 0.0, None))
+            HERO_ROOFS.append((AV, ia, ib, z0 + 2, z1 - 2, height + crown, seed + 22, 4.5, -s * math.pi / 2))
+        else:
+            HERO_ROOFS.append((AV, xa, xb, z0, z1, height, seed + 21, 4.5, -s * math.pi / 2))
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.
@@ -1030,9 +1353,11 @@ for side, lots in FAR_LOTS.items():
         xa, xb = (WALK, WALK + 30) if s > 0 else (-WALK - 30, -WALK)
         seed = 4700 + i * 13 + (0 if s > 0 else 500)
         mass(FA, xa, xb, z0, z1, SHOP_H, height, seed, painted=(i + (1 if s > 0 else 2)) % 3)
+        HERO_MASSES.append(((xa, 0.0, z0), (xb, height, z1)))
         box((FA, "dark", 0), xa, xb, 0.15, SHOP_H, z0, z1, scale=2.0)
         box((FA, "shop", 0), min(s * WALK, s * (WALK - 0.02)), max(s * WALK, s * (WALK - 0.02)), 0.6, 3.3, z0 + 1, z1 - 1, scale=2.0)
         clutter(FA, s, z0, z1, height, seed + 7)
+        HERO_ROOFS.append((FA, xa, xb, z0, z1, height, seed + 31, 6.0, -s * math.pi / 2))
         # A tall vertical sign on most lots, facing down the avenue, the
         # plate's column of type running up the facades.
         if i % 3 != 2:
@@ -1041,6 +1366,11 @@ for side, lots in FAR_LOTS.items():
             sid = f"far_{'l' if s < 0 else 'r'}{i}"
             sign(sid, x, SHOP_H + 3 + h / 2, z1 - 3.0, 2.2, h, 0.0, preview="夜", district=FA)
             box((FA, "board_frame", 0), x - 1.25, x + 1.25, SHOP_H + 2.8, SHOP_H + 3.2 + h, z1 - 3.25, z1 - 3.05, scale=1.0)
+
+# Every roof the hero looks along, dressed now that all their masses are
+# known, with only what its lens cannot see.
+for district, x0_, x1_, z0_, z1_, top_, seed_, cap_, face_ in HERO_ROOFS:
+    dress_roof(district, x0_, x1_, z0_, z1_, top_, seed_, cap=cap_, face=face_, hero=True)
 
 # The avenue's far end is closed by a rail viaduct crossing it low against
 # the glow at the vanishing point: a dark deck on four piers, a row of lamps
@@ -1063,14 +1393,49 @@ empty("anchor_rail", (0.0, RAIL_Y + 2.2, RAIL_Z), props={"reach": 90.0})
 # behind her. Vertical
 # signs run up its face to the street. The far city keeps clear of both
 # (anchor_mega_end).
-mass(FA, -48, 48, -790, -745, SHOP_H, 95, 4990, col=(0.72, 2 / 8.0, 0.55, 1.0), mat="facade_end")
+# The block is a megabuilding: three sections across its face (the middle
+# one set back, each its own height under the figure's feet), decks across
+# the face every nineteen metres lit from under, a plant floor and a lit
+# terrace on the lower roofs, and a bridge across to the tower behind. The
+# tower steps back twice to a lit crown and a mast.
+MB_SIGNS = ((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))
+for k, (x0, x1, top, rec) in enumerate(((-48.0, -18.0, 95.0, 0.0), (-18.0, 18.0, 89.0, 4.0), (18.0, 48.0, 83.0, 0.0))):
+    mass(FA, x0, x1, -790, -745 - rec, SHOP_H, top, 4990 + k * 7, col=(0.82 if rec else 0.72, 2 / 8.0, 0.55, 1.0), mat="facade_end")
+    # Its lit top edge, a hair proud of the face.
+    box((FA, "neon_cyan" if k != 1 else "neon_pink", 0), x0 - 0.3, x1 + 0.3, top - 0.8, top, -745.0 - rec, -744.7 - rec, scale=1.0)
 box((FA, "dark", 0), -48, 48, 0, SHOP_H, -790, -745, scale=2.0)
-mass(FA, -124, -70, -870, -815, SHOP_H, 205, 4991, col=(0.6, 4 / 8.0, 0.3, 1.0), mat="facade_end")
-for k, (vx, colour) in enumerate(((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))):
+# The decks, broken where the signs run up the face.
+gaps = sorted(vx for vx, _ in MB_SIGNS)
+for y in (24.0, 43.0, 62.0, 79.0):
+    edges = [-48.5] + [g for vx in gaps for g in (vx - 1.6, vx + 1.6)] + [48.5]
+    for xa, xb in zip(edges[::2], edges[1::2]):
+        box((FA, "dark", 0), xa, xb, y - 0.45, y, -745.0, -743.2, scale=2.0)
+        box((FA, "neon_amber", 0), xa + 0.2, xb - 0.2, y - 0.55, y - 0.45, -743.6, -743.3, scale=1.0)
+# The signs on each section's own face, as far proud of it as they always
+# were: at the hero's 755 m a frame a quarter of a metre behind a sign is
+# inside one step of the depth buffer, and it hid the cyan one, the
+# vanishing point's one vertical accent.
+for k, (vx, colour) in enumerate(MB_SIGNS):
     vh = 38.0 + (k % 2) * 22.0
-    box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.9, -744.6, scale=1.0)
-box((FA, "neon_cyan", 0), -48.3, 48.3, 94.2, 95.0, -790.3, -744.7, scale=1.0)
-box((FA, "neon_purple", 0), -124.3, -69.7, 204.0, 205.0, -870.3, -814.7, scale=1.0)
+    rec = 4.0 if -18.0 < vx < 18.0 else 0.0
+    box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.9 - rec, -744.6 - rec, scale=1.0)
+# Plant on the roofs, and a lit terrace on the lowest.
+box((FA, "metal", 1), -40.0, -26.0, 95.0, 99.0, -782.0, -770.0, scale=1.5)
+box((FA, "metal", 1), -8.0, 6.0, 89.0, 92.0, -786.0, -776.0, scale=1.5)
+for tx in range(20, 47, 4):
+    box((FA, "neon_amber", 0), tx - 0.15, tx + 0.15, 83.0, 83.5, -746.0, -745.6, scale=0.5)
+# The bridge to the tower behind, at the sixtieth metre.
+box((FA, "facade_end", 0), -66.0, -48.0, 58.0, 64.0, -812.0, -800.0, scale=2.0)
+box((FA, "neon_purple", 0), -66.0, -48.0, 57.5, 58.0, -800.1, -799.8, scale=1.0)
+mb_t = (-97.0, -842.5)
+prism(FA, cut_rect(*mb_t, 27.0, 27.5, 4.0), SHOP_H, 128.0, 4991, col=(0.6, 4 / 8.0, 0.3, 1.0), mat="facade_end")
+band(FA, cut_rect(*mb_t, 27.0, 27.5, 4.0), 125.5, 128.0, "purple")
+prism(FA, cut_rect(*mb_t, 21.0, 21.5, 3.5), 128.0, 180.0, 4992, col=(0.62, 4 / 8.0, 0.3, 1.0), mat="facade_end")
+band(FA, cut_rect(*mb_t, 21.0, 21.5, 3.5), 177.5, 180.0, "purple")
+prism(FA, cut_rect(*mb_t, 15.0, 15.0, 3.0), 180.0, 205.0, 4993, col=(0.85, 4 / 8.0, 0.3, 1.0), mat="facade_end")
+band(FA, cut_rect(*mb_t, 15.0, 15.0, 3.0), 204.0, 205.0, "purple")
+cylinder((FA, "metal", 0), mb_t[0], mb_t[1], 205.0, 228.0, 0.9, segs=8)
+cylinder((FA, "neon_red", 0), mb_t[0], mb_t[1], 228.0, 230.0, 1.2, segs=8)
 empty("anchor_mega_end", (0.0, 95.0, -780.0), props={"size": 150.0})
 empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
 
@@ -1091,12 +1456,30 @@ box((FA, "board_frame", 0), WALK - 4.75, WALK - 0.25, SHOP_H + 2.8, SHOP_H + 33.
 # the hero's lens, where the plate has it.
 ARASAKA = (75.0, -490.0)
 ax, az = ARASAKA
-mass(FA, ax - 26, ax + 26, az - 26, az + 26, SHOP_H, 110, 4501, col=(0.3, 0.5, 0.2, 1))
+# A corporation's tower: a podium wider than the tower with a lit lobby, a
+# shaft with its corners cut back, the red band at the setback, the upper
+# floors square so the name has its whole face, the second red band, and a
+# crown of red fins round a dark head with a mast over it. The width the
+# hero's band of sky frames is the shaft's, as before.
+prism(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H, 21.0, 4500, col=(0.55, 2 / 8.0, 0.45, 1))
+box((FA, "dark", 0), ax - 32, ax + 32, 0, SHOP_H, az - 32, az + 32, scale=4.0)
+band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H - 0.6, SHOP_H - 0.2, "white", out=0.2)
+band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), 20.2, 21.0, "red", out=0.25)
+prism(FA, cut_rect(ax, az, 26.0, 26.0, 5.0), 21.0, 110.0, 4501, col=(0.3, 0.5, 0.2, 1))
+band(FA, cut_rect(ax, az, 26.0, 26.0, 5.0), 108.0, 110.0, "red", out=0.3)
 mass(FA, ax - 22, ax + 22, az - 22, az + 22, 110, 182, 4502, col=(0.22, 0.5, 0.2, 1))
-box((FA, "dark", 0), ax - 26, ax + 26, 0, SHOP_H, az - 26, az + 26, scale=4.0)
 box((FA, "neon_red", 0), ax - 22.3, ax + 22.3, 180.2, 182.2, az - 22.3, az + 22.3, scale=1.0)
-box((FA, "neon_red", 0), ax - 26.3, ax + 26.3, 108.0, 110.0, az - 26.3, az + 26.3, scale=1.0)
 sign("arasaka", ax, 159.0, az + 22.6, 44.0, 15.0, 0.0, preview="ARASAKA", district=FA)
+prism(FA, cut_rect(ax, az, 18.0, 18.0, 3.5), 182.2, 203.0, 4503, col=(0.08, 4 / 8.0, 0.2, 1))
+for sx, sz, alongx in ((0, 1, True), (0, -1, True), (1, 0, False), (-1, 0, False)):
+    for f in (-10.0, -3.4, 3.4, 10.0):
+        fx = ax + (f if alongx else sx * 18.25)
+        fz = az + (sz * 18.25 if alongx else f)
+        wx, wz = (0.45, 0.3) if alongx else (0.3, 0.45)
+        box((FA, "neon_red", 0), fx - wx, fx + wx, 184.0, 201.5, fz - wz, fz + wz, scale=1.0)
+box((FA, "neon_red", 0), ax - 18.3, ax + 18.3, 202.4, 203.2, az - 18.3, az + 18.3, scale=1.0)
+cylinder((FA, "metal", 0), ax, az, 203.0, 232.0, 0.8, segs=8)
+cylinder((FA, "neon_red", 0), ax, az, 232.0, 234.0, 1.1, segs=8)
 
 # The skyline over the canyon's end: landmark towers a kilometre off, in the
 # band of sky the hero sees between the roofs, each stepped back twice, a
@@ -1107,31 +1490,117 @@ sign("arasaka", ax, 159.0, az + 22.6, 44.0, 15.0, 0.0, preview="ARASAKA", distri
 SK = "skyline"
 
 
-def megatower(x, z, w, h, colour, seed):
+def megatower(x, z, w, h, colour, seed, kind):
+    """A landmark, each its own design, all on a podium and lit at their
+    setbacks in their own colour:
+      needle    an octagonal shaft stepped back three times to a crown and a
+                spire
+      stack     blocks stacked off centre, each set over to its own side
+      blade     a slab whose top is raked from one end to the other
+      frame     stepped three times to an open crown, four posts and a lit
+                ring round a mast
+      ziggurat  a block that steps back five times at the top, like a temple
+    """
     r = random.Random(seed)
-    tiers = ((0.0, 0.52, 1.0), (0.52, 0.8, 0.78), (0.8, 1.0, 0.56))
-    for i, (a, b, k) in enumerate(tiers):
-        hw = w * k / 2
-        y0, y1 = max(SHOP_H, h * a), h * b
-        mass(SK, x - hw, x + hw, z - hw, z + hw, y0, y1, seed + i, col=(r.uniform(0.55, 0.85), r.randrange(0, 5) / 8.0, r.uniform(0.2, 0.9), 1))
-        # A lit band at each setback, and one round the crown.
-        box((SK, "neon_" + colour, 0), x - hw - 0.4, x + hw + 0.4, y1 - 3.2, y1 - 0.4, z - hw - 0.4, z + hw + 0.4, scale=1.0)
+    col = lambda: (r.uniform(0.55, 0.85), r.randrange(0, 5) / 8.0, r.uniform(0.2, 0.9), 1)  # noqa: E731
+    hw = w / 2
+    mast = None
+    prism(SK, cut_rect(x, z, hw + 2.5, hw + 2.5, 2.0), SHOP_H, 24.0, seed, col=col())
+    band(SK, cut_rect(x, z, hw + 2.5, hw + 2.5, 2.0), 22.6, 24.0, colour, out=0.3)
+    if kind == "needle":
+        steps = ((24.0, 0.55, 1.0, 0.28), (0.55, 0.78, 0.78, 0.26), (0.78, 0.9, 0.6, 0.24), (0.9, 1.0, 0.44, 0.22))
+        for i, (a, b, k, c) in enumerate(steps):
+            y0 = a if a > 1 else h * a
+            plan = cut_rect(x, z, hw * k, hw * k, hw * k * c)
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
+        cylinder((SK, "metal", 0), x, z, h, h * 1.17, 1.6, segs=8)
+        mast = (x, z, h * 1.17)
+    elif kind == "stack":
+        # Each block inside the one under it (an overhang would need an
+        # underside nobody built), set over toward one side.
+        blocks = ((0.0, 0.0, 1.0, 1.0, 24.0, 0.42), (0.08, -0.04, 0.8, 0.86, 0.42, 0.64),
+                  (0.0, 0.06, 0.64, 0.66, 0.64, 0.84), (0.04, 0.1, 0.44, 0.46, 0.84, 1.0))
+        for i, (ox, oz, kx, kz, a, b) in enumerate(blocks):
+            y0 = a if a > 1 else h * a
+            plan = cut_rect(x + ox * w, z + oz * w, hw * kx, hw * kz)
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
+        mast = (x + 0.04 * w, z + 0.1 * w, h * 1.12)
+    elif kind == "blade":
+        lo = cut_rect(x, z, hw, hw * 0.55)
+        prism(SK, lo, 24.0, h * 0.8, seed + 1, col=col())
+        band(SK, lo, h * 0.8 - 2.6, h * 0.8 - 0.4, colour)
+        # The raked top: its walls rise from 0.86 of the height at the west
+        # end to the full height at the east, the roof one sloping plane.
+        hx, hz = hw * 0.92, hw * 0.5
+        y0 = h * 0.8
+        top = lambda px: h * 0.86 + (px - (x - hx)) / (2 * hx) * h * 0.14  # noqa: E731
+        c2 = col()
+        ou, ov = r.uniform(0, 40), r.uniform(0, 40)
+        corners = [(x - hx, z + hz), (x + hx, z + hz), (x + hx, z - hz), (x - hx, z - hz)]
+        u = ou
+        for (xa, za), (xb, zb) in zip(corners, corners[1:] + corners[:1]):
+            u1 = u + math.hypot(xb - xa, zb - za) / CELL_W
+            ya, yb = top(xa), top(xb)
+            quad((SK, "facade", 0), (xa, y0, za), (xb, y0, zb), (xb, yb, zb), (xa, ya, za),
+                 ((u, ov + (y0 - SHOP_H) / CELL_H), (u1, ov + (y0 - SHOP_H) / CELL_H),
+                  (u1, ov + (yb - SHOP_H) / CELL_H), (u, ov + (ya - SHOP_H) / CELL_H)), c2)
+            u = u1
+        poly((SK, "roof", 0), [(px, top(px), pz) for px, pz in corners], [(px / 4, pz / 4) for px, pz in corners])
+        # Its lit edge, following the rake on both long faces.
+        for sz in (1, -1):
+            zz = z + sz * (hz + 0.35)
+            quad((SK, "neon_" + colour, 0), (x - hx, top(x - hx) - 2.0, zz), (x + hx, top(x + hx) - 2.0, zz),
+                 (x + hx, top(x + hx) - 0.4, zz), (x - hx, top(x - hx) - 0.4, zz))
+            quad((SK, "neon_" + colour, 0), (x + hx, top(x + hx) - 2.0, zz), (x - hx, top(x - hx) - 2.0, zz),
+                 (x - hx, top(x - hx) - 0.4, zz), (x + hx, top(x + hx) - 0.4, zz))
+        mast = (x + hx * 0.7, z, h * 1.06)
+    elif kind == "frame":
+        steps = ((24.0, 0.6, 1.0, 0.2), (0.6, 0.84, 0.82, 0.18), (0.84, 0.94, 0.68, 0.16))
+        for i, (a, b, k, c) in enumerate(steps):
+            y0 = a if a > 1 else h * a
+            plan = cut_rect(x, z, hw * k, hw * k, hw * k * c)
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
+        # The open crown: four posts, a lit ring at their heads, a cross of
+        # beams, and the mast standing up through it.
+        q = hw * 0.58
+        for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+            box((SK, "metal", 0), x + sx * q - 0.9, x + sx * q + 0.9, h * 0.94, h, z + sz * q - 0.9, z + sz * q + 0.9, scale=1.0)
+        walls((SK, "neon_" + colour, 0), cut_rect(x, z, q + 1.0, q + 1.0), h - 2.2, h - 0.6, (1, 1, 1, 1))
+        walls((SK, "metal", 0), cut_rect(x, z, q + 0.9, q + 0.9), h - 0.6, h + 0.6, (1, 1, 1, 1))
+        box((SK, "metal", 0), x - q, x + q, h - 0.5, h + 0.3, z - 0.5, z + 0.5, scale=1.0)
+        box((SK, "metal", 0), x - 0.5, x + 0.5, h - 0.5, h + 0.3, z - q, z + q, scale=1.0)
+        cylinder((SK, "metal", 0), x, z, h * 0.94, h * 1.1, 1.3, segs=8)
+        mast = (x, z, h * 1.1)
+    else:
+        body = cut_rect(x, z, hw, hw)
+        prism(SK, body, 24.0, h * 0.7, seed + 1, col=col())
+        band(SK, body, h * 0.7 - 2.6, h * 0.7 - 0.4, colour)
+        for i in range(5):
+            k = 1.0 - (i + 1) * 0.12
+            plan = cut_rect(x, z, hw * k, hw * k)
+            a, b = h * (0.7 + i * 0.06), h * (0.76 + i * 0.06)
+            prism(SK, plan, a, b, seed + i + 2, col=col())
+            band(SK, plan, b - 1.6, b - 0.4, colour)
+        mast = (x, z, h * 1.12)
     # The mast and its light.
-    mh = h * r.uniform(0.1, 0.18)
-    box((SK, "metal", 0), x - 1.2, x + 1.2, h, h + mh, z - 1.2, z + 1.2, scale=1.0)
-    box((SK, "neon_red", 0), x - 2.0, x + 2.0, h + mh, h + mh + 3.0, z - 2.0, z + 2.0, scale=1.0)
+    mx, mz, my = mast
+    box((SK, "metal", 0), mx - 0.6, mx + 0.6, h * 0.98, my, mz - 0.6, mz + 0.6, scale=1.0)
+    box((SK, "neon_red", 0), mx - 1.6, mx + 1.6, my, my + 2.6, mz - 1.6, mz + 1.6, scale=1.0)
 
 
 MEGATOWERS = [
-    (-150.0, -900.0, 50.0, 330.0, "cyan"),
-    (-300.0, -1150.0, 60.0, 420.0, "pink"),
+    (-150.0, -900.0, 50.0, 330.0, "cyan", "needle"),
+    (-300.0, -1150.0, 60.0, 420.0, "pink", "stack"),
     # Clear of the holographic figure: behind her, it cut her in two.
-    (-190.0, -1400.0, 56.0, 480.0, "purple"),
-    (120.0, -1400.0, 60.0, 520.0, "blue"),
-    (330.0, -1000.0, 46.0, 300.0, "amber"),
+    (-190.0, -1400.0, 56.0, 480.0, "purple", "blade"),
+    (120.0, -1400.0, 60.0, 520.0, "blue", "frame"),
+    (330.0, -1000.0, 46.0, 300.0, "amber", "ziggurat"),
 ]
-for i, (x, z, w, h, colour) in enumerate(MEGATOWERS):
-    megatower(x, z, w, h, colour, 5200 + i * 17)
+for i, (x, z, w, h, colour, kind) in enumerate(MEGATOWERS):
+    megatower(x, z, w, h, colour, 5200 + i * 17, kind)
     empty(f"anchor_mega_{i}", (x, h, z), props={"size": w})
 
 # ---------------------------------------------------------------------------
@@ -1204,10 +1673,16 @@ for i, (cx, cy, cz, w, h, yaw) in enumerate(SMALL_BOARDS, start=1):
 for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 5103), (PX1, 140.0, -262.0, -188.0, 38, 5105))):
     mass(PL, x0, x1, z0, z1, SHOP_H, h, seed, painted=i)
     box((PL, "dark", 0), x0, x1, 0, SHOP_H, z0, z1, scale=2.0)
+    # Not the east block's: the Experience camera (cam_experience) stands
+    # inside it, where its walls face away and vanish, but anything on its
+    # roof would hang over the lens.
+    if i == 0:
+        dress_roof(PL, x0, x1, z0, z1, h, seed + 41, cap=6.0)
 # The south side of the cross street, east of the avenue.
 for i, (x0, x1, h, seed) in enumerate(((38, 60, 24, 5201), (60, 80, 30, 5202), (80, 104, 22, 5203), (104, 140, 28, 5204))):
     mass(PL, x0, x1, -170, -150, SHOP_H, h, seed, painted=(i + 2) % 3)
     box((PL, "dark", 0), x0, x1, 0, SHOP_H, -170, -150, scale=2.0)
+    dress_roof(PL, x0, x1, -170, -150, h, seed + 41, cap=6.0, face=math.pi)
 
 # ---------------------------------------------------------------------------
 # CORPO ROW. One tower per role, in experience.js order, west to east along a
@@ -1246,14 +1721,6 @@ def notched(cx, cz, h, n):
     pts = [(-a, b), (a, b), (a, a), (b, a), (b, -a), (a, -a), (a, -b), (-a, -b),
            (-a, -a), (-b, -a), (-b, a), (-a, a)]
     return [(cx + x, cz + z) for x, z in pts]
-
-
-def walls(key, outline, y0, y1, col):
-    """Vertical faces along a closed outline, outward normals."""
-    for (xa, za), (xb, zb) in zip(outline, outline[1:] + outline[:1]):
-        length = math.hypot(xb - xa, zb - za)
-        quad(key, (xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za),
-             ((0, 0), (length, 0), (length, y1 - y0), (0, y1 - y0)), col)
 
 
 def notched_roof(key, cx, cz, h, n, y):
@@ -1396,13 +1863,41 @@ for i, (slug, height) in enumerate(TOWERS):
     sign("tower_" + slug, tx + half - notch - 1.6, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
          preview=slug.upper(), district=CO)
     empty("anchor_tower_" + slug, (tx, top + 1.8, tz), props={"height": top})
+# The boulevard's south side: a street of its own, not a wall. Shops along
+# the boulevard under awnings, the signs a street collects hung off the
+# fronts, flats and offices over them (some set back over a terrace), an
+# alley between each pair with a lit sign across its mouth, and the roofs
+# dressed (the Experience shot looks over them at the towers). Every block
+# stands where its mass stood, no taller.
 for i in range(8):
     x0 = 130 + i * 40
     h = 22 + (i * 7) % 18
-    mass(CO, x0, x0 + 34, BOULEVARD_Z + 14, BOULEVARD_Z + 40, SHOP_H, h, 6100 + i)
-    box((CO, "dark", 0), x0, x0 + 34, 0, SHOP_H, BOULEVARD_Z + 14, BOULEVARD_Z + 40, scale=2.0)
+    zf, zb = BOULEVARD_Z + 14, BOULEVARD_Z + 40
+    seed = 6100 + i
+    rs = random.Random(seed + 50)
+    paint = None if i % 4 == 3 else i % 3
+    if h > 26 and rs.random() < 0.5:
+        base_h = SHOP_H + CELL_H * rs.randrange(2, 4)
+        mass(CO, x0, x0 + 34, zf, zb, SHOP_H, base_h, seed, painted=paint)
+        sx0, sx1 = x0 + rs.uniform(0.0, 4.0), x0 + 34 - rs.uniform(0.0, 4.0)
+        mass(CO, sx0, sx1, zf + 3.4, zb, base_h, h, seed + 1, painted=paint)
+        dress_roof(CO, x0, x0 + 34, zf, zb, base_h, seed + 2, cap=0.0)
+        dress_roof(CO, sx0, sx1, zf + 3.4, zb, h, seed + 3, cap=6.0, face=0.0)
+    else:
+        mass(CO, x0, x0 + 34, zf, zb, SHOP_H, h, seed, painted=paint)
+        dress_roof(CO, x0, x0 + 34, zf, zb, h, seed + 3, cap=6.0, face=0.0)
+    box((CO, "dark", 0), x0, x0 + 34, 0, SHOP_H, zf, zb, scale=2.0)
+    frontage_x(CO, x0, x0 + 34, zf, seed + 4)
+    clutter_x(CO, x0, x0 + 34, zf, h, seed + 5)
     box((CO, "neon_" + ["cyan", "pink", "amber", "purple"][i % 4], 0), x0 + 2, x0 + 32, SHOP_H - 0.6, SHOP_H - 0.45,
-        BOULEVARD_Z + 13.9, BOULEVARD_Z + 14.05, scale=1.0)
+        zf - 0.1, zf + 0.05, scale=1.0)
+    if i < 7:
+        # The alley: a low back block between this one and the next, and a
+        # sign across its mouth.
+        ah = SHOP_H + CELL_H * rs.randrange(1, 3)
+        mass(CO, x0 + 34, x0 + 40, zf + 6.0, zb, 0.15, ah, seed + 7)
+        box((CO, "board_frame", 0), x0 + 34.2, x0 + 39.8, 4.9, 6.1, zf - 0.1, zf + 0.12, scale=1.0)
+        box((CO, "neon_" + ["amber", "teal", "pink", "white"][i % 4], 0), x0 + 34.5, x0 + 39.5, 5.25, 5.75, zf - 0.14, zf - 0.08, scale=1.0)
 
 # ---------------------------------------------------------------------------
 # THE ROOFTOP. About and Stack share it: a mid-height roof at the east end of
@@ -1421,11 +1916,21 @@ for (cx, cz) in ((476.0, -270.0), (477.5, -285.0)):
         box((RF, "metal", 1), cx + lx - 0.1, cx + lx + 0.1, RH, RH + 3.0, cz + lz - 0.1, cz + lz + 0.1, scale=0.5)
     cylinder((RF, "metal", 0), cx, cz, RH + 3.0, RH + 7.2, 2.1, segs=20)
     cylinder((RF, "dark", 1), cx, cz, RH + 7.2, RH + 7.6, 2.2, segs=20)
+    # Its hoops.
+    for hy in (RH + 4.2, RH + 6.1):
+        cylinder((RF, "dark", 1), cx, cz, hy, hy + 0.12, 2.16, segs=20, cap=False)
 r = random.Random(7100)
-for _ in range(9):
+for k in range(9):
     cx, cz = r.uniform(RX0 + 3, RX1 - 8), r.uniform(RZ0 + 3, RZ1 - 3)
     box((RF, "metal", 1), cx - 1.0, cx + 1.0, RH, RH + 1.2, cz - 0.8, cz + 0.8, scale=0.8)
     cylinder((RF, "dark", 1), cx, cz, RH + 1.2, RH + 1.25, 0.55, segs=12)
+    # Louvres on the face the roof's cameras see, and on every other unit a
+    # status lamp, green or amber, the one light down on the roof.
+    for ly in (RH + 0.3, RH + 0.55, RH + 0.8):
+        box((RF, "dark", 1), cx + 1.0, cx + 1.04, ly, ly + 0.07, cz - 0.62, cz + 0.62, scale=0.5)
+    if k % 2 == 0:
+        box((RF, "glow", 0), cx + 1.0, cx + 1.03, RH + 1.0, RH + 1.07, cz + 0.62, cz + 0.69, scale=0.5,
+            col=GLOW["green" if k % 4 == 0 else "amber"])
 for (cx, cz, h) in ((458.0, -296.0, 14.0), (482.0, -262.0, 9.0), (466.0, -262.0, 6.0)):
     cylinder((RF, "metal", 1), cx, cz, RH, RH + h, 0.09, segs=6)
     # A small red lamp in a bracket at the tip, not a lit drum: the one by
@@ -1446,8 +1951,18 @@ sign("ripperdoc", rx_, ry_, rz_, 9.0, 2.2, ryaw, double=True, preview="+ RIPPERD
 for du in (-3.2, 3.2):
     oriented_box((RF, "metal", 1), rx_ + du * math.cos(ryaw), RH + 1.6, rz_ - du * math.sin(ryaw),
                  0.16, 3.2, 0.16, ryaw, scale=0.5)
-mass(RF, 402.0, 432.0, -300.0, -262.0, SHOP_H, 30.0, 7201)
-box((RF, "dark", 0), 402.0, 432.0, 0, SHOP_H, -300.0, -262.0, scale=2.0)
+# AFTERLIFE's block is flats over shops, the garage street's kind: its face
+# to the street (and to the rooftop, which looks at it) painted, lived in,
+# hung with signs, a fire escape down it, the shops lit under awnings.
+mass(RF, 402.0, 432.0, -300.0, -262.0, SHOP_H, 30.0, 7201, painted=1)
+# The ground floor set back behind the shops' glass, which would lose to it
+# in its own plane.
+box((RF, "dark", 0), 402.0, 431.7, 0, SHOP_H, -300.0, -262.0, scale=2.0)
+for k, (z0_, z1_) in enumerate(((-300.0, -291.0), (-291.0, -280.6), (-280.6, -271.0), (-271.0, -262.0))):
+    shopfront(RF, -1, z0_, z1_, 7210 + k, awning=k != 1, xf=432.0)
+clutter(RF, -1, -300.0, -262.0, 30.0, 7220, xw=432.0)
+ac_units(RF, -1, -300.0, -262.0, SHOP_H + 1, 26.0, 7221, xw=432.0)
+fire_escape(RF, -1, -292.0, SHOP_H + 0.5, 27.0, xw=432.0)
 # A hair proud of its frame's face, or the two fight for the same pixels.
 sign("afterlife", 431.26, 38.0, -281.0, 13.0, 3.0, math.radians(90), preview="AFTERLIFE", district=RF)
 box((RF, "board_frame", 0), 430.6, 431.2, 36.2, 39.8, -288.0, -274.0, scale=1.0)
@@ -1455,9 +1970,21 @@ for dz in (-5.0, 5.0):
     box((RF, "metal", 1), 430.7, 431.0, 30.0, 36.2, -281.0 + dz - 0.1, -281.0 + dz + 0.1, scale=0.5)
 # MILITECH's block is an office, the way corpo row's are: ribbon windows
 # (window style 2) mostly lit, cool.
-mass(RF, 380.0, 410.0, -250.0, -222.0, SHOP_H, 58.0, 7301, col=(0.9, 2 / 8.0, 0.25, 1.0))
+# Stepped back once over a yellow band, its east face flush all the way up,
+# and the name hung on the plant room that stands on its roof, where it
+# floated over the parapet before.
+mass(RF, 380.0, 410.0, -250.0, -222.0, SHOP_H, 46.0, 7301, col=(0.9, 2 / 8.0, 0.25, 1.0))
 box((RF, "dark", 0), 380.0, 410.0, 0, SHOP_H, -250.0, -222.0, scale=2.0)
+box((RF, "neon_yellow", 0), 379.8, 410.2, 45.25, 45.7, -250.2, -221.8, scale=1.0)
+mass(RF, 383.0, 410.0, -247.0, -225.0, 46.0, 58.0, 7302, col=(0.92, 2 / 8.0, 0.25, 1.0))
+dress_roof(RF, 380.0, 410.0, -250.0, -222.0, 46.0, 7303, cap=0.0)
+box((RF, "metal", 0), 392.0, 410.0, 58.0, 64.0, -244.0, -228.0, scale=1.0)
+box((RF, "dark", 1), 391.8, 410.2, 64.0, 64.3, -244.2, -227.8, scale=1.0)
+for z_ in (-243.0, -229.0):
+    box((RF, "glow", 0), 409.6, 410.0, 63.4, 63.8, z_ - 0.2, z_ + 0.2, scale=0.5, col=GLOW["red"])
+box((RF, "board_frame", 0), 410.0, 410.3, 59.4, 62.6, -242.4, -229.6, scale=1.0)
 sign("militech", 410.4, 61.0, -236.0, 12.0, 2.6, math.radians(90), preview="MILITECH", district=RF)
+dress_roof(RF, 383.0, 391.6, -247.0, -225.0, 58.0, 7304, cap=3.0)
 ground((RF, "asphalt", 0), STREET_X - 8, STREET_X + 8, -322, -190, scale=6.0)
 ground((RF, "sidewalk", 0), STREET_X + 8, STREET_X + 12, -300, -190, y=0.15, scale=2.0)
 ground((RF, "sidewalk", 0), STREET_X - 12, STREET_X - 8, -300, -190, y=0.15, scale=2.0)
@@ -1656,6 +2183,33 @@ box((GA, "dark", 0), 410.0, STREET_X - 12, 0, SHOP_H, -250.0, -190.0, scale=2.0)
 box((GA, "shop", 0), STREET_X - 11.99, STREET_X - 11.96, 0.6, 3.3, -246.0, -194.0, scale=2.0)
 box((GA, "neon_pink", 0), STREET_X - 12.05, STREET_X - 11.9, 3.9, 4.05, -246.0, -194.0, scale=1.0)
 box((GA, "neon_cyan", 0), STREET_X - 12.05, STREET_X - 11.9, 5.6, 5.7, -238.0, -202.0, scale=1.0)
+# Both walls the flight comes down between are hung as a street's are: the
+# signs, the air conditioners, a fire escape; cables slung across, and a
+# string of lights at the corner.
+clutter(GA, -1, -250.0, -190.0, 26.0, 8210, xw=STREET_X - 12)
+ac_units(GA, -1, -250.0, -190.0, SHOP_H + 2.0, 22.0, 8211, xw=STREET_X - 12)
+fire_escape(GA, -1, -226.0, SHOP_H + 0.5, 23.0, xw=STREET_X - 12)
+clutter(GA, 1, -258.0, -230.0, 22.0, 8212, xw=GX0)
+ac_units(GA, 1, -258.0, -230.0, SHOP_H + 2.0, 19.0, 8213, xw=GX0)
+cable_rng_g = random.Random(8214)
+for _ in range(6):
+    z = cable_rng_g.uniform(-256.0, -194.0)
+    y0 = cable_rng_g.uniform(8.0, 15.0)
+    sag = cable_rng_g.uniform(0.6, 1.8)
+    xa_, xb_ = STREET_X - 12, GX0 if z < -230.0 or z > -200.0 else GX0 - 0.6
+    steps = 12
+    for i in range(steps):
+        t0, t1 = i / steps, (i + 1) / steps
+        x0_, x1_ = xa_ + t0 * (xb_ - xa_), xa_ + t1 * (xb_ - xa_)
+        ya = y0 - sag * math.sin(math.pi * t0)
+        yb = y0 - sag * math.sin(math.pi * t1)
+        quad((GA, "dark", 1), (x0_, ya - 0.03, z), (x1_, yb - 0.03, z), (x1_, yb + 0.03, z), (x0_, ya + 0.03, z))
+        quad((GA, "dark", 1), (x1_, yb - 0.03, z), (x0_, ya - 0.03, z), (x0_, ya + 0.03, z), (x1_, yb + 0.03, z))
+for i in range(14):
+    t = i / 14
+    x = STREET_X - 12 + t * (GX0 - (STREET_X - 12))
+    y = 7.4 - 1.1 * math.sin(math.pi * t)
+    cylinder((GA, "neon_amber", 1), x, -252.0, y - 0.07, y + 0.07, 0.07, segs=6, cap=False)
 for z in (-236.0, -214.0, -196.0):
     cylinder((GA, "metal", 1), STREET_X - 9.0, z, 0.15, 6.2, 0.08, segs=8)
     box((GA, "neon_amber", 0), STREET_X - 8.2, STREET_X - 7.4, 6.0, 6.1, z - 0.15, z + 0.15, scale=0.5)

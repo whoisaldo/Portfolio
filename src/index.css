@@ -67,7 +67,9 @@
     box-shadow: 0 0 0 2px #0a0a0c, 0 0 0 4px #fcee0a;
   }
   .chamfer:focus-visible,
-  .chamfer-br:focus-visible {
+  .chamfer-br:focus-visible,
+  .chamfer-ring:focus-visible,
+  .chamfer-br-ring:focus-visible {
     box-shadow: none;
     background-color: #fcee0a;
   }
@@ -258,6 +260,77 @@ a:hover .ink-underline,
   );
 }
 
+/* Smoked glass (Panel `glass`). The frame is an empty box over the panel,
+   clipped to a ring: the same outline as `.chamfer`, minus the same outline
+   1px in, filled even-odd, so it paints its 1px frame and nothing inside it
+   and the fill under it can be see-through. The inner contour is exactly
+   the inner box's own chamfer (1px in on every side), so the frame is as
+   thick as an opaque panel's, 1.41px along the cut. */
+.chamfer-ring {
+  clip-path: polygon(
+    evenodd,
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer),
+    var(--chamfer) 0,
+    calc(var(--chamfer) + 1px) 1px,
+    1px calc(var(--chamfer) + 1px),
+    1px calc(100% - 1px),
+    calc(100% - var(--chamfer) - 1px) calc(100% - 1px),
+    calc(100% - 1px) calc(100% - var(--chamfer) - 1px),
+    calc(100% - 1px) 1px,
+    calc(var(--chamfer) + 1px) 1px
+  );
+}
+.chamfer-br-ring {
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 0,
+    1px 1px,
+    1px calc(100% - 1px),
+    calc(100% - var(--chamfer) - 1px) calc(100% - 1px),
+    calc(100% - 1px) calc(100% - var(--chamfer) - 1px),
+    calc(100% - 1px) 1px,
+    1px 1px
+  );
+}
+/* The frame: the panels' line, and over the city a hairline of light, the
+   edge of a pane catching the street. */
+.glass-edge { background-color: #24242a; }
+html[data-world="on"] .glass-edge { background-color: rgb(236 234 228 / 0.17); }
+/* The fill: over the city a thin smoke with a sheen across its top corner
+   (the frost under it is the world's, src/world/glass.js), and with the city
+   off whatever opaque fill the panel was given. */
+html[data-world="on"] .glass-fill {
+  background-color: rgb(8 8 10 / var(--glass-smoke, 0.34));
+  background-image:
+    linear-gradient(158deg, rgb(236 234 228 / 0.06), rgb(236 234 228 / 0.015) 28%, transparent 46%),
+    linear-gradient(to bottom, transparent 62%, rgb(4 4 6 / 0.16));
+}
+
+/* Inside a pane, the page's opaque surfaces turn to the same smoke: rules go
+   to a hairline of light, raised cells to a breath of it, inset wells to
+   a darker smoke. A pane can also be a plain rectangle (`data-glass="none"`
+   on any element, for a grid or a list that has no chamfer of its own). */
+html[data-world="on"] [data-glass].border-ink-line,
+html[data-world="on"] [data-glass] .border-ink-line { border-color: rgb(236 234 228 / 0.1); }
+html[data-world="on"] [data-glass] .bg-ink-raised { background-color: rgb(236 234 228 / 0.05); }
+html[data-world="on"] [data-glass] .bg-ink { background-color: rgb(6 6 8 / 0.32); }
+html[data-world="on"] [data-glass] .hover\:bg-ink-raised:hover { background-color: rgb(236 234 228 / 0.07); }
+/* A grid ruled by its gaps (`gap-px` over a line-coloured ground, the
+   Experience cards' numbers): the ground goes to a hairline of light and
+   the cells to smoke, so the rules stay lighter than the cells they part. */
+html[data-world="on"] [data-glass] .bg-ink-line { background-color: rgb(236 234 228 / 0.09); }
+html[data-world="on"] [data-glass] .bg-ink-line > .bg-ink-raised { background-color: rgb(8 8 10 / 0.5); }
+
 /* ===========================================================================
    Chrome
    =========================================================================== */
@@ -321,6 +394,13 @@ a:hover .ink-underline,
 .stack-chip:focus-within {
   background-color: var(--mark, #fcee0a);
 }
+/* A glass chip's frame is its own span, too thin to hover: the chip lights
+   it through its outer box (Panel's `group/panel`). */
+html[data-world="on"] [data-glass] .stack-chip { background-color: rgb(236 234 228 / 0.14); }
+.group\/panel:hover > .stack-chip,
+.group\/panel:focus-within > .stack-chip,
+html[data-world="on"] .group\/panel:hover > .stack-chip,
+html[data-world="on"] .group\/panel:focus-within > .stack-chip { background-color: var(--mark, #fcee0a); }
 
 /* Hover beam. Reserved for primary actions. Applying it to every surface is
    what made an earlier version of this site feel like nothing on it mattered
@@ -1181,6 +1261,44 @@ a:hover .ink-underline,
 .world-canvas.is-live { opacity: 1; }
 .world-scrim { background: #000; opacity: var(--world-dim, 0); }
 html[data-world="on"] .world-clear { background-color: transparent; }
+/* The chapter card (WorldMount.jsx, driven by scroll-stage.js): the number
+   of the section a flight is headed for, in outline at the size of the
+   frame, a hairline and the section's own label beside it. It lives on the
+   city, under the page, and is only there mid-flight: --chapter is 0 while
+   a shot holds. Opacity and a transform only, on its own layer, so a
+   scrolled frame recomposites it and never repaints it. */
+.world-chapter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: var(--chapter, 0);
+  will-change: opacity;
+}
+.world-chapter-card {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(0.75rem, 1.6vw, 1.75rem);
+  transform: translate3d(calc(var(--chapter-x, 0) * 7vw), 0, 0);
+  will-change: transform;
+}
+.world-chapter-num {
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(9rem, 30vw, 28rem);
+  line-height: 0.78;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgb(236 234 228 / 0.78);
+  text-shadow: 0 0 40px rgb(255 46 136 / 0.18);
+}
+.world-chapter-label {
+  padding-bottom: 0.9em;
+  border-top: 1px solid #fcee0a;
+  padding-top: 0.6em;
+  color: #fcee0a;
+  white-space: nowrap;
+  text-shadow: 0 0 12px rgb(4 4 6 / 0.9);
+}
 html[data-world="on"] .world-hide { display: none; }
 /* Hero.jsx's two gradients, over the live city rather than the plate. The
    city is darker than the painting, so the same veil hid most of it: the
@@ -1196,12 +1314,23 @@ html[data-world="on"] .hero-fade-b {
   background-image: linear-gradient(to bottom, rgb(10 10 12 / 0.22), transparent 42%, transparent 58%, rgb(6 6 8 / 0.7) 86%, rgb(4 4 6));
 }
 /* Contact holds the city at full, for the moon and the headline over the
-   sky; below them the link columns and the footer sit on the skyline's lit
-   crowns and streets, so the city steps back behind those alone. */
-html[data-world="on"] #contact.world-clear {
-  background-image: linear-gradient(to bottom, transparent 32%, rgb(10 10 12 / 0.74) 52%, rgb(10 10 12 / 0.8));
+   sky. The link columns below sit on a pane of glass (Contact.jsx), and the
+   footer is one long pane of its own, so the skyline's lit crowns and
+   streets carry on under both. */
+html[data-world="on"] footer.world-clear { background-color: rgb(8 8 10 / 0.42); }
+/* Mid-flight the page steps back for the camera: each section's panes and
+   the prose laid straight on the city thin out to a third as a flight away
+   gets going and firm up again as the next shot lands, by the number the
+   scroll stage writes on the section as --yield (src/world/scroll-stage.js,
+   yieldAt; the frost behind the panes follows the same number). Anything
+   else that should step back says so with `data-yield` (the hero's
+   portrait and buttons). Headings, labels and the section index stay: they
+   say where the flight is going. */
+html[data-world="on"] [data-shot] [data-glass],
+html[data-world="on"] [data-shot] [data-yield],
+html[data-world="on"] [data-shot] .prose-dark:not([data-glass] *) {
+  opacity: var(--yield, 1);
 }
-html[data-world="on"] footer.world-clear { background-color: rgb(10 10 12 / 0.8); }
 /* Mid-flight the city is at its brightest behind the words (the scrim at
    about 0.4, lit office floors behind a section's opening lines), so the
    type laid straight on it carries a soft dark halo. Text in a panel has
@@ -1212,6 +1341,62 @@ html[data-world="on"] [data-shot] h2,
 html[data-world="on"] [data-shot] h3 {
   text-shadow: 0 0 14px rgb(4 4 6 / 0.85), 0 1px 3px rgb(4 4 6 / 0.7);
 }
+/* Look and Cinema (src/world/modes.js): the page is put away and the city is
+   the whole screen. Everything in the shell fades but the city, the reticle,
+   the modes' own controls (`data-mode-ui`) and what is marked to stay
+   (`data-mode-keep`: the sound control). It fades by filter, not opacity,
+   because Framer owns the inline opacity of half these elements and a CSS
+   transition on it would drag every reveal behind it; and it ends hidden, so
+   a page nobody can see paints nothing. Visibility keeps the layout: the
+   page is still the length it was, the wheel still scrolls it, and the
+   scroll still flies the camera. */
+html[data-view="page"] [data-shell] > :not(.world-layer):not(.reticle):not([data-mode-ui]):not([data-mode-keep]) {
+  transition: filter 0.6s ease, visibility 0s linear 0s;
+}
+html[data-view="look"] [data-shell] > :not(.world-layer):not(.reticle):not([data-mode-ui]):not([data-mode-keep]),
+html[data-view="cinema"] [data-shell] > :not(.world-layer):not(.reticle):not([data-mode-ui]):not([data-mode-keep]) {
+  filter: opacity(0);
+  visibility: hidden;
+  pointer-events: none;
+  transition: filter 0.6s ease, visibility 0s linear 0.6s;
+}
+/* Photo mode's flash (ViewModes.jsx): once, half white, gone in a third of
+   a second. Not with reduced motion. */
+.photo-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: rgb(236 234 228);
+  opacity: 0;
+  animation: photo-flash 0.36s ease-out;
+}
+@keyframes photo-flash {
+  0% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo-flash { display: none; }
+}
+/* A drag in Look turns the camera; say so under the pointer. Over one of
+   the shot's own subjects (ViewModes.jsx LookTouch) a click does something
+   instead. */
+html[data-view="look"] body { cursor: grab; }
+html[data-view="look"][data-looking] body { cursor: grabbing; }
+html[data-view="look"][data-look-target]:not([data-looking]) body { cursor: pointer; }
+/* Its tag, by the pointer. */
+.look-tag-card {
+  animation: look-tag-in 0.18s ease-out;
+  max-width: 19rem;
+}
+@keyframes look-tag-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .look-tag-card { animation: none; }
+}
+
 /* An intro that plays in the live city (IntroCinematic.jsx): the city is
    the intro's backdrop, so the page waits under it unseen, as it waited
    under the overlay's opaque plate, and arrives over the handoff as

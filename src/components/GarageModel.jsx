@@ -52,11 +52,20 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
     let io = null;
     let near = null;
     let visible = false;
+    // Drawn only while it is on screen and the page is up: in Look and
+    // Cinema the page (and this canvas with it) is put away, and the city
+    // has the GPU to itself.
     const visibility = () => {
       const scene = sceneRef.current;
-      if (visible && !document.hidden) scene?.start();
+      if (visible && !document.hidden && stage.view === "page") scene?.start();
       else scene?.stop();
     };
+    let lastView = stage.view;
+    const unwatchView = subscribeStage(() => {
+      if (stage.view === lastView) return;
+      lastView = stage.view;
+      visibility();
+    });
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     if (!canvas || !wrap) return undefined;
@@ -150,6 +159,7 @@ export default function GarageModel({ markers, selected, onSelect, view, onFallb
       io?.disconnect();
       near?.disconnect();
       document.removeEventListener("visibilitychange", visibility);
+      unwatchView();
       sceneRef.current?.dispose();
       sceneRef.current = null;
     };

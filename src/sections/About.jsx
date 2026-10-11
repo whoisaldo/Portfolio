@@ -78,61 +78,63 @@ export default function About() {
             transition={{ duration: 0.6, delay: 0.05 }}
             className="lg:col-span-7 min-w-0"
           >
-            <p className="prose-dark prose-lede max-w-[54ch]">
-              I write systems software, iOS apps, and the web front-ends that
-              sit on top of them. Most of what is on this site exists because
-              something I wanted did not do what I asked, or cost too much.
-            </p>
+            <Panel glass innerClassName="p-6 md:p-8">
+              <p className="prose-dark prose-lede max-w-[54ch]">
+                I write systems software, iOS apps, and the web front-ends that
+                sit on top of them. Most of what is on this site exists because
+                something I wanted did not do what I asked, or cost too much.
+              </p>
 
-            <div className="mt-8 space-y-5 max-w-[64ch]">
-              <p className="prose-dark">
-                It started at 12. I scripted other people&apos;s Roblox games,
-                got paid in Robux, and cashed it out through DevEx for gaming
-                PC parts my family could not have bought me. The pattern has
-                not changed since. In 2020 I wrote a Python bot to watch for
-                GPU restocks so I could get one at MSRP, because I was 15 and
-                wanted a better machine.
-              </p>
-              <p className="prose-dark">
-                I over-engineer, and I keep the result intuitive. Whoever is
-                using it should never have to know what is underneath. The $40
-                iPad app I refused to buy became a Rust host with a hardware
-                encoder chain and my own UDP protocol, and the person using it
-                just sees a second screen.
-              </p>
-              <p className="prose-dark">
-                Three jobs at once at the moment. Philips part-time, back on
-                the team I co-opped with. Lead full stack engineer at Pinnatec
-                Auto. One of three students who own the grading server on
-                Pawtograder, Northeastern&apos;s open-source autograder, which
-                runs in production against real submissions. This past summer I
-                was an SDE intern on AWS CloudFormation in Seattle. Before
-                that, six months at Philips in Cambridge, where I shipped
-                zero-touch imaging for about a thousand medical-device-grade
-                Windows machines with FDA-regulated Secure Boot left on the
-                whole time. Many engineers had wanted that automated. Nobody
-                had shipped it. Both of those open into a full write-up here.
-              </p>
-              <p className="prose-dark">
-                I co-founded Sideband, a four-person studio in Boston that
-                ships its own products and takes no client work. Six so far,
-                four live. I started it because I want somewhere younger
-                engineers can get mentoring for free as I get better at this.
-              </p>
-              <p className="prose-dark">
-                Most of my work has been automating something tedious. For
-                years that meant deterministic code. Frontier models handle the
-                parts that never fit a fixed script, and that is the part I
-                find amazing. I spend my free time on whatever people are using
-                right now, looking for the piece of my routine it can take.
-              </p>
-              <p className="prose-dark">
-                Everything on this site is checkable. Where the repository is
-                public the numbers came out of the source, not the README.
-                Where a claim could not be verified it was cut rather than
-                softened.
-              </p>
-            </div>
+              <div className="mt-8 space-y-5 max-w-[64ch]">
+                <p className="prose-dark">
+                  It started at 12. I scripted other people&apos;s Roblox games,
+                  got paid in Robux, and cashed it out through DevEx for gaming
+                  PC parts my family could not have bought me. The pattern has
+                  not changed since. In 2020 I wrote a Python bot to watch for
+                  GPU restocks so I could get one at MSRP, because I was 15 and
+                  wanted a better machine.
+                </p>
+                <p className="prose-dark">
+                  I over-engineer, and I keep the result intuitive. Whoever is
+                  using it should never have to know what is underneath. The $40
+                  iPad app I refused to buy became a Rust host with a hardware
+                  encoder chain and my own UDP protocol, and the person using it
+                  just sees a second screen.
+                </p>
+                <p className="prose-dark">
+                  Three jobs at once at the moment. Philips part-time, back on
+                  the team I co-opped with. Lead full stack engineer at Pinnatec
+                  Auto. One of three students who own the grading server on
+                  Pawtograder, Northeastern&apos;s open-source autograder, which
+                  runs in production against real submissions. This past summer I
+                  was an SDE intern on AWS CloudFormation in Seattle. Before
+                  that, six months at Philips in Cambridge, where I shipped
+                  zero-touch imaging for about a thousand medical-device-grade
+                  Windows machines with FDA-regulated Secure Boot left on the
+                  whole time. Many engineers had wanted that automated. Nobody
+                  had shipped it. Both of those open into a full write-up here.
+                </p>
+                <p className="prose-dark">
+                  I co-founded Sideband, a four-person studio in Boston that
+                  ships its own products and takes no client work. Six so far,
+                  four live. I started it because I want somewhere younger
+                  engineers can get mentoring for free as I get better at this.
+                </p>
+                <p className="prose-dark">
+                  Most of my work has been automating something tedious. For
+                  years that meant deterministic code. Frontier models handle the
+                  parts that never fit a fixed script, and that is the part I
+                  find amazing. I spend my free time on whatever people are using
+                  right now, looking for the piece of my routine it can take.
+                </p>
+                <p className="prose-dark">
+                  Everything on this site is checkable. Where the repository is
+                  public the numbers came out of the source, not the README.
+                  Where a claim could not be verified it was cut rather than
+                  softened.
+                </p>
+              </div>
+            </Panel>
 
           </motion.div>
 
@@ -142,7 +144,7 @@ export default function About() {
             transition={{ duration: 0.6, delay: 0.12 }}
             className="lg:col-span-5"
           >
-            <Panel innerClassName="p-6 md:p-8">
+            <Panel glass innerClassName="p-6 md:p-8">
               {/* The card says it is a character sheet, so it gets the one
                   thing a character sheet actually opens with. The frame is the
                   site's own chrome and nothing new: a chamfered 1px edge in

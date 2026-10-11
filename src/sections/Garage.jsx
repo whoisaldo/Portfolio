@@ -183,7 +183,7 @@ export default function Garage() {
                 Garage
               </Glitch>
             </div>
-            <div className="max-w-[42ch]">
+            <Panel glass className="max-w-[46ch]" innerClassName="px-5 py-4">
               <p className="prose-dark">{car.lede}</p>
               {/* The spec line. Machine type, because that is what it is: a
                   year, an engine code and a number. Sentence case, though,
@@ -191,14 +191,14 @@ export default function Garage() {
               <p className="mono-ui mono-cased text-dim mt-4">
                 {car.year} {car.name} · {car.engine} · <span className="text-volt">{car.output}</span>
               </p>
-            </div>
+            </Panel>
           </div>
           <div className="edge-rule mt-10" aria-hidden="true" />
         </motion.div>
 
         {/* ---- the bay --------------------------------------------------- */}
         <motion.div {...reveal} transition={{ duration: 0.6, delay: 0.05 }} className="mt-12 tick-frame relative rail-clear">
-          <Panel edge="bg-ink-line" fill="bg-ink" innerClassName="flex flex-col">
+          <Panel glass fill="bg-ink" innerClassName="flex flex-col">
             {/* Bezel: the name of the machine, and the views. */}
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 md:px-5 py-3 border-b border-ink-line">
               <div className="flex items-center gap-4 min-w-0">

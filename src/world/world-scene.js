@@ -35,8 +35,11 @@ import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
 import { markLoaded } from "./progress.js";
 import { createMirror } from "./mirror.js";
 import { createPost } from "./post.js";
+import { createGlass } from "./glass.js";
 import { createSkyline } from "./skyline.js";
 import { createRain } from "./rain.js";
+import { createBolt } from "./bolt.js";
+import { createSoundscape } from "./soundscape.js";
 import { createTraffic } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
@@ -46,7 +49,7 @@ import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
-import { boards as BOARDS, SHOTS } from "../data/world.js";
+import { boards as BOARDS, towers as TOWERS, SHOTS } from "../data/world.js";
 
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
@@ -67,8 +70,34 @@ export async function preloadWorld(tier) {
 }
 
 const DEG = Math.PI / 180;
+const ZERO = new THREE.Vector3();
+// Look's picking (`pick`): the S4's bounds in its own frame, and scratch.
+const CAR_BOX = new THREE.Box3(new THREE.Vector3(-0.95, 0, -2.4), new THREE.Vector3(0.95, 1.45, 2.4));
+const _picker = new THREE.Raycaster();
+const _ndc = new THREE.Vector2();
+const _local = new THREE.Ray();
+const _inverse = new THREE.Matrix4();
+const _hit = new THREE.Vector3();
+const _pickBox = new THREE.Box3();
 // The wet road's mirror at full (road.js's own uReflectGain).
 const REFLECT_GAIN = 2.2;
+
+/** three's lookup textures are the page's, not a renderer's: the one its
+ *  standard materials read (DFG_LUT) and the area lights' (UniformsLib's
+ *  LTC tables). Nothing disposes them, and every renderer that draws with
+ *  them hangs a listener on them, so they held on to each renderer the page
+ *  ever made, programs and all. Disposed as one goes, they let go of it; a
+ *  renderer still running uploads them again, a few kilobytes. The first is
+ *  read off a material the renderer drew, before the materials go. */
+function releaseLut(renderer, scene) {
+  let lut = null;
+  scene.traverse((o) => {
+    if (lut || !o.material) return;
+    for (const m of [].concat(o.material)) lut ??= renderer.properties.get(m).uniforms?.dfgLUT?.value ?? null;
+  });
+  lut?.dispose();
+  for (const k of ["LTC_FLOAT_1", "LTC_FLOAT_2", "LTC_HALF_1", "LTC_HALF_2"]) THREE.UniformsLib[k]?.dispose();
+}
 
 export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, reduced = false, effects = [], signs = null } = {}) {
   const quality = { ...TIERS[tier] };
@@ -102,6 +131,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let shots = null;
   let skyline = null;
   let rain = null;
+  let bolt = null;
   let traffic = null;
   let car = null;
   let shafts = null;
@@ -111,6 +141,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let moon = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality, { extra: effects });
+  // The page's panes of smoked glass, frosted in the post chain.
+  const glass = createGlass(post.glass);
+  // The city's own sound, with sound on.
+  const soundscape = createSoundscape({ reduced });
+  // The garage, which it does not rain in.
+  let shelterBox = null;
 
   const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
     city = c;
@@ -127,13 +163,17 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       facades: [c.maps.facade_t0, c.maps.facade_t1, c.maps.facade_t2],
     });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
+    bolt = createBolt(scene, shared);
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
-    if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
-    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
-    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier });
+    if (shelter && size) {
+      shelterBox = new THREE.Box3(shelter.position.clone(), shelter.position.clone().add(new THREE.Vector3(...size)));
+      rain.setShelter(shelterBox.min, shelterBox.max);
+    }
+    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, drones: tier === "phone" ? 5 : 8, police: true, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
+    car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
-    crowd = createCrowd(scene, shared, { count: tier === "phone" ? 16 : 40, reduced, reflectLayer: REFLECT_LAYER });
+    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER });
     steam = createSteam(scene, shared, c.anchors, { reduced });
     steam?.setLights(c.roofLights);
     resize();
@@ -215,14 +255,19 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // The hero's hand: a sway of a fraction of a degree and a slow push up the
   // avenue, while it holds (never with reduced motion).
   const hand = { yaw: 0, pitch: 0, roll: 0 };
+  // Look mode's drag (src/world/modes.js), damped so a flick of the mouse
+  // turns the camera rather than snapping it.
+  const lookCam = { yaw: 0, pitch: 0 };
 
   // A camera on the move: it banks into a turn, as a drone or a helicopter
   // does (roll follows the rate the heading swings at, a few degrees at
   // most), and the lens opens a little with speed. Both are read off the
   // pose itself, so a scrolled flight and a route's flight get them alike,
-  // and both settle to nothing when the camera holds.
-  const motion = { yaw: null, roll: 0, widen: 0, at: new THREE.Vector3() };
+  // and both settle to nothing when the camera holds. Its velocity, eased,
+  // is the rain's too: the streaks are drawn as the camera sees them.
+  const motion = { yaw: null, roll: 0, widen: 0, at: new THREE.Vector3(), vel: new THREE.Vector3() };
   const _dir = new THREE.Vector3();
+  const _vel = new THREE.Vector3();
   const moveCamera = (dt, snapped) => {
     _dir.subVectors(pose.target, pose.position);
     const yaw = Math.atan2(_dir.x, _dir.z);
@@ -231,13 +276,16 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       motion.at.copy(pose.position);
       motion.roll = 0;
       motion.widen = 0;
+      motion.vel.set(0, 0, 0);
       return;
     }
     let dy = yaw - motion.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     motion.yaw = yaw;
-    const speed = motion.at.distanceTo(pose.position) / dt;
+    _vel.subVectors(pose.position, motion.at).divideScalar(dt);
+    const speed = _vel.length();
     motion.at.copy(pose.position);
+    motion.vel.lerp(_vel, 1 - Math.exp(-dt * 6));
     const bank = clamp((-dy / dt) * 0.09, -0.11, 0.11);
     const widen = clamp((speed - 6) / 70, 0, 1) * 5;
     const a = 1 - Math.exp(-dt * 2.5);
@@ -245,12 +293,69 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     motion.widen += (widen - motion.widen) * a;
   };
 
+  // A film camera's shutter. On a fast flight, or a flick of Look's drag,
+  // the picture smears the way it is moving, as a shutter open for a 48th
+  // of a second smears it (half of each frame at 24), and the lens's colour
+  // fringe draws out along it (post.js). It is worked out from the camera's
+  // last two frames: where a point down each pixel's ray was a frame ago,
+  // scaled to the shutter. A turn moves every point on the screen alike, so
+  // turns come out exact; travel moves the near more than the far, so a
+  // point 40 m off, across a street, stands in for all of them. A move of a
+  // pixel or two (the pointer's tilt, the hero's sway) smears nothing, and
+  // only the page's own frames are exposed this way: the intro and the
+  // braindance place the camera themselves, cuts and all. A new shape of
+  // screen is a cut too, not a move.
+  const SHUTTER = 1 / 48;
+  const SHUTTER_DEPTH = 40;
+  const shutter = { prev: new THREE.Matrix4(), has: false, aspect: 0, k: new THREE.Matrix4(), on: 0, depth: 0, fresh: false };
+  shutter.k.elements.fill(0);
+  const _vp = new THREE.Matrix4();
+  const _back = new THREE.Matrix4();
+  const _probe = new THREE.Vector4();
+  const _probed = new THREE.Vector4();
+  // The most a point at the centre or a corner moves under `m`, in px.
+  const smear = (m) => {
+    let most = 0;
+    for (const [x, y] of [[0, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      _probe.set(x, y, shutter.depth, 1);
+      _probed.copy(_probe).applyMatrix4(m).add(_probe);
+      most = Math.max(most, Math.hypot(((x - _probed.x / _probed.w) * width) / 2, ((y - _probed.y / _probed.w) * height) / 2));
+    }
+    return most;
+  };
+  const expose = (dt, cut) => {
+    camera.updateMatrixWorld();
+    _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    const e = camera.projectionMatrix.elements;
+    shutter.depth = (e[10] * -SHUTTER_DEPTH + e[14]) / SHUTTER_DEPTH;
+    const k = shutter.k.elements;
+    if (!shutter.has || cut || dt <= 0 || reduced || shutter.aspect !== aspect) {
+      k.fill(0);
+    } else {
+      // Now's screen to the last frame's, less staying put, per shutter.
+      const b = _back.copy(_vp).invert().premultiply(shutter.prev).elements;
+      const s = SHUTTER / dt;
+      for (let i = 0; i < 16; i++) b[i] = (b[i] - (i % 5 === 0 ? 1 : 0)) * s;
+      // More than a screen and a half in a shutter is a cut, not a move.
+      if (smear(_back) > height * 1.5) k.fill(0);
+      else {
+        const a = 1 - Math.exp(-dt * 12);
+        for (let i = 0; i < 16; i++) k[i] += (b[i] - k[i]) * a;
+      }
+    }
+    shutter.prev.copy(_vp);
+    shutter.has = true;
+    shutter.aspect = aspect;
+    shutter.fresh = true;
+    shutter.on = THREE.MathUtils.smoothstep(smear(shutter.k), 1.5, 5);
+  };
+
   const applyPose = (p, withTilt) => {
     camera.position.copy(p.position);
     camera.lookAt(p.target);
     if (withTilt) {
-      camera.rotateY(-tilt.x * 1.4 * DEG + hand.yaw);
-      camera.rotateX(-tilt.y * 0.9 * DEG + hand.pitch);
+      camera.rotateY(-tilt.x * 1.4 * DEG + hand.yaw - lookCam.yaw);
+      camera.rotateX(-tilt.y * 0.9 * DEG + hand.pitch + lookCam.pitch);
       camera.rotateZ(hand.roll + motion.roll);
     }
     const fov = p.fov + (withTilt ? motion.widen : 0);
@@ -460,7 +565,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const t = 1 - Math.exp(-dt * 3);
     tilt.x += (stage.pointer.x - tilt.x) * t;
     tilt.y += (stage.pointer.y - tilt.y) * t;
+    const l = reduced ? 1 : 1 - Math.exp(-dt * 7);
+    lookCam.yaw += (stage.look.yaw - lookCam.yaw) * l;
+    lookCam.pitch += (stage.look.pitch - lookCam.pitch) * l;
     applyPose(pose, true);
+    expose(dt, jumped);
   };
 
   // ---- the music and the switches ---------------------------------------------
@@ -481,11 +590,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       storm.next = 20 + Math.random() * 30;
       const n = Math.random() < 0.6 ? 2 : 1;
       storm.pulses = Array.from({ length: n }, (_, i) => ({ at: i * (0.26 + Math.random() * 0.2), k: i === 0 ? 1 : 0.5 + Math.random() * 0.4 }));
-      // Somewhere in front of the camera, where it can be seen.
+      // Somewhere in front of the camera, where it can be seen: inside the
+      // frame's width, and far enough off that the bolt (bolt.js) clears
+      // the roofs as it comes down.
       camera.getWorldDirection(_strikeDir);
-      const a = Math.atan2(_strikeDir.z, _strikeDir.x) + (Math.random() - 0.5) * 1.4;
-      const r = 500 + Math.random() * 900;
+      const a = Math.atan2(_strikeDir.z, _strikeDir.x) + (Math.random() - 0.5) * 0.8;
+      const r = 650 + Math.random() * 750;
       shared.uFlashAt.value.set(camera.position.x + Math.cos(a) * r, camera.position.z + Math.sin(a) * r);
+      bolt?.strike(shared.uFlashAt.value.x, shared.uFlashAt.value.y);
+      soundscape.strike(shared.uFlashAt.value, r, storm.pulses[0].k);
     }
     let f = 0;
     for (const p of storm.pulses) {
@@ -545,6 +658,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
       rain?.update(flow, camera, env.wet);
+      rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
+      bolt?.update();
       shafts?.update(shared.uHaze.value);
       koi?.update(flow);
       traffic?.update(flow, env.traffic);
@@ -578,6 +693,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         for (const r of city.roadMaterials) r.setReflection(null);
       }
     }
+    // The frost behind the page's panes. The intro's moon alone has no page
+    // over it.
+    if (moonView === "only") post.glass.count = 0;
+    else glass.update(width, height);
+    // A frame the page's own loop did not pose has no shutter, and the next
+    // one that does starts from it.
+    post.setShutter(shutter.k, shutter.depth, shutter.fresh ? shutter.on : 0);
+    if (!shutter.fresh) shutter.has = false;
+    shutter.fresh = false;
     post.view(moonView);
     post.render(dt);
     if (!firstFrame) {
@@ -599,7 +723,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // pass stops (and back in if it is given back), so the road does not pop;
   // the pixels change under a flick of the braindance glitch.
   const GRACE_MS = 3;
-  const adapt = { armed: true, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
+  // Dev only: `?adapt=off` keeps every tier at full quality, so a
+  // measurement on a loaded machine compares like with like instead of
+  // whatever the first two seconds happened to shed.
+  const armed = !(import.meta.env.DEV && new URLSearchParams(window.location.search).get("adapt") === "off");
+  const adapt = { armed, sampling: false, t: 0, samples: [], shed: [], tried: [], p95: null, fade: null, reflectK: 0, trial: null };
   const startSampling = () => {
     adapt.sampling = true;
     adapt.t = -0.3;
@@ -689,6 +817,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     last = now;
     step(dt);
     draw(dt);
+    soundscape.update(dt, camera, {
+      speed: motion.vel.length(),
+      wet: getEnv().wet,
+      inside: shelterBox?.containsPoint(camera.position) ?? false,
+      voices: traffic?.voices,
+    });
   };
 
   const resume = () => {
@@ -721,6 +855,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const next = !stage.paused && stage.mode !== "cinematic" && Boolean(city);
     if (next === running) return;
     running = next;
+    soundscape.setActive(running);
     // The first time the page is really up, time it.
     if (running && adapt.armed) {
       adapt.armed = false;
@@ -913,6 +1048,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   const dispose = () => {
     disposed = true;
+    releaseLut(renderer, scene);
     pause();
     unwatch();
     window.removeEventListener("resize", resize);
@@ -921,6 +1057,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       c.dispose();
       skyline?.dispose();
       rain?.dispose();
+      bolt?.dispose();
       traffic?.dispose();
       car?.dispose();
       shafts?.dispose();
@@ -931,6 +1068,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }).catch(() => {});
     mirror?.dispose();
     mirror = null;
+    glass.dispose();
+    soundscape.dispose();
     post.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
@@ -979,7 +1118,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       ctx.putImageData(img, 0, 0);
       return c.toDataURL("image/png");
     };
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, post, dumpMirror, setQuality, strike() { storm.t = storm.next; } };
+    // `renderDirected` and `placeCamera` too, for fixed-camera review shots:
+    // set `stage.mode = "cinematic"` to rest the loop, then draw any pose.
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, get crowd() { return crowd; }, get skyline() { return skyline; }, post, soundscape, dumpMirror, setQuality, renderDirected, placeCamera, strike() { storm.t = storm.next; } };
   }
 
   return {
@@ -1003,6 +1144,67 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     /** Whether this city can draw the intro's voxel moon. */
     get hasMoon() {
       return Boolean(moon);
+    },
+    /**
+     * What is under a point on the screen (x and y -1..1, y up) that Look
+     * lets the reader touch, of `kinds` (the shot's own subjects: "car",
+     * "board", "tower"), by their bounds, nearest first: { kind, slug,
+     * distance }, or null. Bounds see through walls, which is why only the
+     * shot's own subjects are asked about.
+     */
+    pick(x, y, kinds) {
+      if (!city || disposed) return null;
+      camera.updateMatrixWorld();
+      _picker.setFromCamera(_ndc.set(x, y), camera);
+      const ray = _picker.ray;
+      let best = null;
+      const consider = (hit, kind, slug = null) => {
+        if (!hit) return;
+        const distance = hit.distanceTo(ray.origin);
+        if (distance < 600 && (!best || distance < best.distance)) best = { kind, slug, distance };
+      };
+      if (kinds.includes("car") && car) {
+        // The S4's own box, in its own frame: 1.9 m wide, 1.45 m tall, 4.8
+        // m long, nose along +z.
+        _local.copy(ray).applyMatrix4(_inverse.copy(car.car.matrixWorld).invert());
+        const hit = _local.intersectBox(CAR_BOX, _hit);
+        consider(hit && hit.applyMatrix4(car.car.matrixWorld), "car");
+      }
+      if (kinds.includes("board") && city.boards.box) consider(ray.intersectBox(city.boards.box, _hit), "board");
+      if (kinds.includes("tower")) {
+        for (const t of TOWERS) {
+          const a = city.anchors.get(`anchor_tower_${t.slug}`);
+          if (!a) continue;
+          _pickBox.min.set(a.position.x - 15, 0, a.position.z - 15);
+          _pickBox.max.set(a.position.x + 15, a.position.y + 4, a.position.z + 15);
+          consider(ray.intersectBox(_pickBox, _hit), "tower", t.slug);
+        }
+      }
+      return best;
+    },
+    /** The S4 answers a key fob: its lamps blink and, with sound on, it
+     *  chirps. */
+    flashCar() {
+      if (!car) return;
+      car.flash();
+      soundscape.chirp(car.car.position);
+    },
+    /**
+     * The city as it is this moment, without the page's panes frosting it,
+     * in a new 2D canvas the size of the drawing buffer (photo mode,
+     * src/components/photo/). Drawn once more for it and copied in the same
+     * task, before the browser can clear the buffer; the next frame puts
+     * the frost back.
+     */
+    snapshot() {
+      if (!city || disposed) return null;
+      post.glass.count = 0;
+      post.render(0);
+      const out = document.createElement("canvas");
+      out.width = canvas.width;
+      out.height = canvas.height;
+      out.getContext("2d").drawImage(canvas, 0, 0);
+      return out;
     },
   };
 }

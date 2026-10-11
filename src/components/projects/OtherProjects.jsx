@@ -57,6 +57,7 @@ export default function OtherProjects({ projects, startIndex = 0 }) {
           two unfilled cells showed that background as a solid lighter block. */}
       <ul
         id="also-list"
+        data-glass="none"
         className="grid border-t border-l border-ink-line sm:grid-cols-2 xl:grid-cols-3 rail-clear"
       >
         {shown.map((p, i) => (
@@ -113,7 +114,7 @@ export default function OtherProjects({ projects, startIndex = 0 }) {
           the same hairline the cells do, which is what makes the join
           continuous. */}
       {hidden > 0 && (
-        <div className="border-b border-x border-ink-line rail-clear -mt-px">
+        <div data-glass="none" className="border-b border-x border-ink-line rail-clear -mt-px">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}

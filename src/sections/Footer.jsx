@@ -31,6 +31,7 @@ export default function Footer() {
       whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
       transition={{ duration: 0.8 }}
+      data-glass="none"
       className="relative border-t border-ink-line bg-ink world-clear"
     >
       {/* One of the two hazard strips on the site. The other closes the Work

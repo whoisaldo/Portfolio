@@ -9,6 +9,7 @@ import React from "react";
 import WorkDeck from "./WorkDeck";
 import OtherProjects from "./OtherProjects";
 import Glitch from "../ui/Glitch";
+import Panel from "../ui/Panel";
 import { featuredProjects, otherProjects } from "../../data/projects";
 
 export default function ProjectsSection() {
@@ -28,7 +29,7 @@ export default function ProjectsSection() {
             </Glitch>
           </div>
 
-          <div className="max-w-[42ch]">
+          <Panel glass className="max-w-[46ch]" innerClassName="px-5 py-4">
             <p className="prose-dark">
               Eight things I built because what existed did not do what I
               wanted, or cost too much. Every number on these pages came out of
@@ -45,7 +46,7 @@ export default function ProjectsSection() {
                 {featuredProjects.length - live} in development
               </span>
             </p>
-          </div>
+          </Panel>
         </div>
         <div className="edge-rule mt-10" />
       </header>

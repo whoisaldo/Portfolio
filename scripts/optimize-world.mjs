@@ -19,9 +19,10 @@
 //   src/data/world-assets.js             their URLs, with a content hash so
 //                                        a rebuilt city replaces a cached one
 //
-// Only the road keeps a roughness map: the site's wet-road shader reads it
-// for the puddles. Every other surface is flat paint or the facade shader,
-// so their roughness maps would be bytes nobody draws. Budgets from the
+// Only the road keeps a roughness map and a normal map: the site's wet-road
+// shader reads them for the puddles and to bend its mirror. Every other
+// surface is flat paint or the facade shader, so their maps would be bytes
+// nobody draws. Budgets from the
 // brief are asserted here, so a build that outgrows them fails loudly.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -51,9 +52,44 @@ for (const [tier, opts] of Object.entries(TIERS)) {
   const document = await io.read(SOURCE);
   const root = document.getRoot();
 
-  // Roughness maps: the road's only.
+  // Roughness and normal maps: the road's only. Its shader reads both (the
+  // puddles, and the mirror bent by the asphalt); every other surface is lit
+  // by the city's own flat light and never samples them.
   for (const material of root.listMaterials()) {
-    if (material.getName() !== "NCW_asphalt") material.setMetallicRoughnessTexture(null);
+    if (material.getName() !== "NCW_asphalt") {
+      material.setMetallicRoughnessTexture(null);
+      material.setNormalTexture(null);
+    }
+  }
+
+  // What each surface reads from its vertices (src/world/materials.js and
+  // road.js): UVs only where a picture, a window cell, a stripe or the
+  // road's maps are drawn from them, colours only where a building's own
+  // numbers ride on them (and the glow's, its colour). Plain paint and the
+  // neon read neither, so theirs are bytes nobody reads, and without them a
+  // box's corners weld.
+  const PLAIN = ["metal", "dark", "roof", "kerb", "board_frame", "door", "hazard", "tool_red", "glass_dark"];
+  const UV_ONLY = ["sidewalk", "concrete", "garage_wall", "facade_t0", "facade_t1", "facade_t2", "garage_wall_back",
+    "garage_wall_magenta", "garage_wall_cyan", "lantern", "asphalt", "paint"];
+  for (const mesh of root.listMeshes()) {
+    for (const prim of mesh.listPrimitives()) {
+      const n = (prim.getMaterial()?.getName() ?? "").replace(/^NCW_/, "").replace(/\.\d+$/, "");
+      const plain = PLAIN.includes(n) || n.startsWith("neon_");
+      if (plain || UV_ONLY.includes(n)) {
+        const color = prim.getAttribute("COLOR_0");
+        if (color) {
+          prim.setAttribute("COLOR_0", null);
+          if (!color.listParents().some((p) => p !== root)) color.dispose();
+        }
+      }
+      if (plain || n === "glow") {
+        const uv = prim.getAttribute("TEXCOORD_0");
+        if (uv) {
+          prim.setAttribute("TEXCOORD_0", null);
+          if (!uv.listParents().some((p) => p !== root)) uv.dispose();
+        }
+      }
+    }
   }
 
   // The phone drops everything Blender tagged as detail.
