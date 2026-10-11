@@ -165,7 +165,7 @@ def build_row(tag, xs, front, back, segs, seed, widths, floors, style, quiet=Fal
             lot = B.Lot(xs[0], xs[1], a, b, front, sides, nb, D)
             tiers = B.building(lot, hs[j], r, style=style, signs=False, roof=False, tint=tint, ground=ground)
             LOTS.append(dict(row=tag, lot=lot, h=hs[j], tiers=tiers, r=r, tint=B.TINTS[tint], front=front, back=back_name,
-                             sides=dict(sides)))
+                             sides=dict(sides), seed=seed * 1000 + len(LOTS)))
     B.billboard = keep
 
 
@@ -179,6 +179,13 @@ def height_at(row, z):
 def face(rec, name):
     lot = rec["lot"]
     return B.faces_of(lot.x0, lot.x1, lot.z0, lot.z1)[name]
+
+
+def rng(rec, stage):
+    """A lot's own stream for one stage of its dressing (a face's lane
+    dressing, its roof), so that changing one stage leaves the others as
+    they were."""
+    return random.Random(rec["seed"] * 37 + sum(ord(c) for c in stage))
 
 
 # ---------------------------------------------------------------------------
@@ -391,9 +398,21 @@ def lane_face(rec, name, cap=None):
     every few metres in the colours of the doors' tubes, small signs for the
     bars that open onto it, lanterns on some, a tube over a door, and
     whoever is out the back."""
-    r, h = rec["r"], rec["h"]
+    r, h = rng(rec, "lane" + name), rec["h"]
     f = face(rec, name)
     w = f.width
+    # Small barred windows of back rooms, lit, along the ground floor, a
+    # conduit over them: a back wall is somebody's kitchen, store or office.
+    s = r.uniform(0.6, 2.4)
+    while s < w - 1.3:
+        c = r.choice(("amber", "amber", "amber", "cyan", "pink", "white"))
+        k = r.uniform(0.22, 0.5)
+        f.quad((D, "glow", 0), s, s + 0.9, 1.75, 2.5, 0.02, col=tuple(v * k for v in GLOW[c][:3]) + (1,))
+        f.box((D, "metal", 1), s - 0.06, s + 0.96, 1.66, 1.75, 0.0, 0.1)
+        for bx_ in (0.3, 0.6):
+            f.quad((D, "metal", 1), s + bx_ - 0.02, s + bx_ + 0.02, 1.75, 2.5, 0.05)
+        s += r.uniform(2.6, 4.4)
+    f.box((D, "metal", 1), 0.2, w - 0.2, 3.02, 3.1, 0.0, 0.07)
     s = r.uniform(0.8, 2.6)
     while s < w - 0.4:
         light(D, *f.p(f.at(s), 2.8, 1.3), r.choice(("amber", "amber", "amber", "pink", "cyan", "green", "red")), 5.0)
@@ -406,8 +425,8 @@ def lane_face(rec, name, cap=None):
     if r.random() < 0.45 and w > 6.0:
         # Lit advert panels pasted in a row at head height.
         s = r.uniform(0.6, w - 4.2)
-        for i in range(r.randrange(2, 6)):
-            f.quad((D, "billboard", 0), s + i * 0.72, s + i * 0.72 + 0.62, 1.25, 2.15, 0.03,
+        for i in range(r.randrange(3, 7)):
+            f.quad((D, "billboard", 0), s + i * 0.56, s + i * 0.56 + 0.46, 0.75, 1.45, 0.03,
                    col=(r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0))
     signs_on(f, h, r, density=0.16, small=True, big=False, cap=cap)
     by_wall(f, r, alley=True, people=0.14)
@@ -575,7 +594,7 @@ def roof_sign(x, z, top, yaw, r, span, tall_ok=True):
 
 
 def roof(rec, weights):
-    r = rec["r"]
+    r = rng(rec, "roof")
     x0, x1, z0, z1, _, top = rec["tiers"][-1]
     w, d = x1 - x0, z1 - z0
     front = rec["front"]
