@@ -1118,3 +1118,17 @@ def blade(district, side, sid, z, y, h, w=0.9, colour="pink", preview=None):
 # order they were placed.
 HERO_ROOFS = []
 LAMPS = []
+
+# Small lamps (a lane's caged lamps, a door's, a shutter's) light far more
+# than their few square centimetres of glow would in the bake, so each is
+# also a point of light on the ground: per district, a flat list of
+# [x, y, z] in decimetres, the hue's index in LIGHT_HUES and the power in
+# tenths, written on an empty in that district's pack (finish.py) and pooled
+# by src/world/spill.js.
+LIGHT_HUES = ["pink", "magenta", "cyan", "teal", "blue", "amber", "red", "green", "white", "purple", "yellow"]
+LIGHTS = {}
+
+
+def light(district, x, y, z, hue, power):
+    LIGHTS.setdefault(district, []).extend(
+        (round(x * 10), round(y * 10), round(z * 10), LIGHT_HUES.index(hue), round(power * 10)))

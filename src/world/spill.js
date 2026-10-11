@@ -30,6 +30,10 @@ const CELL = 1.5;
 export const STREAK_BOUNDS = { x0: -24, z0: -740, x1: 24, z1: 60 };
 const SX = 0.4;
 const SZ = 1.0;
+// A lamp of power 1 peaks at about LAMP_GAIN / 12 in the spill map, a pool
+// two or three metres round: lamps a few metres apart light a lane in
+// patches, dark between.
+const LAMP_GAIN = 1.4;
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -132,6 +136,9 @@ export function createBake() {
   const SW = Math.ceil((STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0) / SX);
   const SH = Math.ceil((STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0) / SZ);
   const streak = new Float32Array(SW * SH * 3);
+  // The small lamps' pools, kept apart from the signs' so they do not move
+  // the gain the hero's street is lit at.
+  const lamps = new Float32Array(W * H * 3);
 
   const add = (sources) => {
     for (const { mesh, color, intensity } of sources) {
@@ -180,6 +187,20 @@ export function createBake() {
     }
   };
 
+  /** points: a flat list, per lamp [x, y, z, r, g, b, power] (linear colour). */
+  const addPoints = (points) => {
+    for (let i = 0; i < points.length; i += 7) {
+      const gx = Math.floor((points[i] - x0) / CELL);
+      const gz = Math.floor((points[i + 2] - z0) / CELL);
+      if (gx < 0 || gz < 0 || gx >= W || gz >= H) continue;
+      const k = (gz * W + gx) * 3;
+      const e = points[i + 6];
+      lamps[k] += points[i + 3] * e;
+      lamps[k + 1] += points[i + 4] * e;
+      lamps[k + 2] += points[i + 5] * e;
+    }
+  };
+
   // The gains are set by the first finish (the core: the hero's street) and
   // kept, so the street the reader is looking at does not change its light
   // when a district arrives somewhere else.
@@ -212,6 +233,9 @@ export function createBake() {
     boxBlur(run, tmp, SW, SH, 3, false);
 
     gains ??= { spill: autoGain(tight, 0.85), streaks: autoGain(tmp, 0.9, 0.995) };
+    // Each lamp a pool a few metres round, in the encoded map's own units.
+    const pools = blur(lamps.slice(), W, H, 1);
+    for (let i = 0; i < tight.length; i++) tight[i] += (pools[i] * LAMP_GAIN) / gains.spill;
     const bounds = new THREE.Vector4(x0, z0, 1 / (x1 - x0), 1 / (z1 - z0));
     const streakBounds = new THREE.Vector4(STREAK_BOUNDS.x0, STREAK_BOUNDS.z0,
       1 / (STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0), 1 / (STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0));
@@ -228,7 +252,7 @@ export function createBake() {
       },
     };
   };
-  return { add, finish };
+  return { add, addPoints, finish };
 }
 
 /** The whole bake at once: sources: [{ mesh, color: THREE.Color (linear), intensity }]. */

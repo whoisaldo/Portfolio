@@ -242,8 +242,10 @@ def back_ground(district, f, r, tcol):
     # back street is dark, not black.
     lamp_s = r.uniform(2.0, 5.0)
     while lamp_s < w - 1.0:
-        f.box((district, "neon_amber" if r.random() < 0.7 else "neon_white", 0), lamp_s - 0.18, lamp_s + 0.18, 3.75, 3.95, 0.05, 0.3)
+        hue = "amber" if r.random() < 0.7 else "white"
+        f.box((district, "neon_" + hue, 0), lamp_s - 0.18, lamp_s + 0.18, 3.75, 3.95, 0.05, 0.3)
         f.box((district, "metal", 1), lamp_s - 0.22, lamp_s + 0.22, 3.95, 4.02, 0.0, 0.34)
+        light(district, *f.p(f.at(lamp_s), 3.8, 0.8), hue, 3.0)
         lamp_s += r.uniform(5.0, 8.0)
     s = r.uniform(1.5, 4.0)
     while s < w - 1.5:
@@ -252,6 +254,7 @@ def back_ground(district, f, r, tcol):
             f.quad((district, "door_panel", 0), s, s + 3.2, G0, 3.0, 0.03)
             f.box((district, "metal", 1), s - 0.05, s + 3.25, 3.0, 3.3, 0.0, 0.25)
             f.box((district, "glow", 0), s + 1.4, s + 1.8, 3.42, 3.52, 0.05, 0.2, col=GLOW["white"])
+            light(district, *f.p(f.at(s + 1.6), 3.4, 0.8), "white", 2.0)
             s += r.uniform(7.0, 12.0)
             continue
         f.quad((district, "door", 0), s, s + 1.1, G0, 2.3, 0.03)
@@ -266,8 +269,11 @@ def back_ground(district, f, r, tcol):
         # (Neon, not glow: at a door's height it lights the lane, in the bake.)
         if roll < 0.35:
             f.box((district, "neon_cyan", 0), s - 0.3, s + 1.4, 2.62, 2.7, 0.04, 0.1)
+            light(district, *f.p(f.at(mid), 2.6, 0.8), "cyan", 3.5)
         else:
-            f.box((district, "neon_amber" if roll < 0.8 else "neon_pink", 0), mid - 0.12, mid + 0.12, 2.55, 2.75, 0.05, 0.2)
+            hue = "amber" if roll < 0.8 else "pink"
+            f.box((district, "neon_" + hue, 0), mid - 0.12, mid + 0.12, 2.55, 2.75, 0.05, 0.2)
+            light(district, *f.p(f.at(mid), 2.6, 0.8), hue, 3.0)
         if r.random() < 0.25 and s + 3.2 < w:
             sw, sh = ST_SIZES["ps"]
             cx, cy, cz = f.p(f.at(s + 2.3), 2.9, 0.06)

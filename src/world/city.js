@@ -51,6 +51,20 @@ const ROOF_SIGNS = new Set(["sign_ripperdoc", "sign_afterlife"]);
 // The colour each of the garage's painted walls lights the room.
 const GARAGE_WALLS = { garage_wall_back: NEON.amber, garage_wall_magenta: NEON.pink, garage_wall_cyan: NEON.cyan };
 
+// The builder's small lamps (kit.py, light): per lamp [x, y, z] in
+// decimetres, a hue's index, the power in tenths; for the bake, metres and
+// linear colour.
+const LIGHT_HUES = ["pink", "magenta", "cyan", "teal", "blue", "amber", "red", "green", "white", "purple", "yellow"]
+  .map((k) => new THREE.Color(NEON[k]));
+function lampPoints(flat = []) {
+  const out = [];
+  for (let i = 0; i + 4 < flat.length; i += 5) {
+    const c = LIGHT_HUES[flat[i + 3]] ?? LIGHT_HUES[8];
+    out.push(flat[i] / 10, flat[i + 1] / 10, flat[i + 2] / 10, c.r, c.g, c.b, flat[i + 4] / 10);
+  }
+  return out;
+}
+
 export function preloadCity(tier) {
   if (!cache.has(tier)) {
     // The kit, and the rooms its shop windows look into.
@@ -341,6 +355,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // car reads the spill's pixels, src/world/car.js).
   const bake = createBake();
   bake.add(sources);
+  for (const [n, a] of anchors) if (n.startsWith("anchor_lights_")) bake.addPoints(lampPoints(a.extras?.lights));
   const light = bake.finish();
   props.disposeBake();
   shared.uSpill.value = light.spill;
@@ -476,6 +491,9 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         packSigns.push(added.mesh);
       }
       bake.add(more);
+      pack.traverse((o) => {
+        if (o.name.startsWith("anchor_lights_")) bake.addPoints(lampPoints(o.userData.lights));
+      });
       const next = bake.finish();
       light.spill.image.data.set(next.spill.image.data);
       light.spill.needsUpdate = true;

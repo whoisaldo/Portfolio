@@ -42,6 +42,9 @@ PACK_OF = {"japantown": "west", "deck": "west", "mega": "west",
            "plaza": "east", "corpo": "east", "rooftop": "east", "afterlife": "east",
            "avenue_s": "south", "santo": "south"}
 
+for district, flat in LIGHTS.items():
+    empty(f"anchor_lights_{district}", (0, 0, 0), props={"lights": flat, "pack": PACK_OF.get(district, "core")})
+
 for (district, mat_name, detail), b in batches.items():
     if not b.faces:
         continue
