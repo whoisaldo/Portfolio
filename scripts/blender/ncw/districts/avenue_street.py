@@ -216,9 +216,9 @@ def build(AV, AVS, lane_w, lane_e):
     (my wall, the far wall)."""
     rng = random.Random(7300)
     # ---- The avenue north of the junction: in the hero, so by the wall and
-    # small. West side: three stalls, boards, planters; both sides: signs
-    # hung under the fascias. East side: the walk runs along the shops and
-    # the braindance's crowd stands from z -112 to -36: the wall is left clear.
+    # small. West side: four stalls, boards, planters; both sides: signs
+    # hung under the fascias. East side: the braindance's crowd stands from
+    # z -112 to -36, where the pavement is left as it was.
     fw = B.Face("+x", -WALK, -168.0, -10.0)
     fe = B.Face("-x", WALK, -168.0, -10.0)
     gap = [(-88.0, -72.0)]
@@ -228,8 +228,12 @@ def build(AV, AVS, lane_w, lane_e):
                         (-155.5, -148.0), (-21.0, -17.0), (-48.0, -44.0), (-101.0, -97.0), (-136.0, -132.0)]
     frontage(AV, fw, -168.0, -10.0, rng, stalls=(-33.0, -70.0, -111.0, -142.5), vending=False, skip=west_taken)
     hung(AV, fe, -168.0, -10.0, rng, skip=gap + [(-125.0, -117.0)])
-    for z in (-14.5, -31.5, -114.5, -131.0, -147.0, -161.0):
-        K.a_board(AV, 12.75, z, math.pi + rng.uniform(-0.3, 0.3), rng)
+    for z in (-14.5, -31.5, -114.5, -151.5):
+        K.a_board(AV, 13.05, z, math.pi + rng.uniform(-0.3, 0.3), rng)
+    # (The loop's walk goes up the middle of this pavement, x 11.8: what
+    # stands here keeps to the wall.) Two stalls at its far end.
+    for z in (-146.0, -157.5):
+        K.yatai(AV, fe, s_of(fe, z), rng, w=2.6)
 
     # ---- Junction B's south corners: a kiosk and a cart on the corner
     # squares (the walkers' lines stop short of them), stalls and boards
@@ -254,14 +258,14 @@ def build(AV, AVS, lane_w, lane_e):
         K.blade(AVS, (sx * WALK, -168.0), d, 19.5, "bx", gap=0.5, scale=1.9)
         for yy in (6.4, 15.6):
             pipe((AVS, "metal", 1), (sx * WALK, yy, -168.0), (sx * WALK + d[0] * 2.6, yy, -168.0 + d[1] * 2.6), 0.06, segs=4)
-    # (The walk goes up the avenue's east pavement by the shops and on
+    # (The walk goes up the middle of the avenue's east pavement and on
     # across the plaza street: the east corner keeps that line clear.)
     K.kiosk(AVS, -12.3, -170.1, 2.5, rng)
     stand(-11.2, -171.3, 2.5 + math.pi, "idle", y=G0)
     stand(-10.7, -170.3, 2.5 + math.pi - 0.4, "phone", y=G0)
-    K.food_cart(AVS, 11.5, -170.6, -2.5, rng, colour="red")
-    stand(11.5 + 0.45, -170.6 + 0.6, -2.5, "vendor", y=G0)
-    stand(10.8, -171.6, -2.5 + math.pi, "idle", y=G0)
+    K.food_cart(AVS, 13.4, -170.9, -math.pi / 2, rng, colour="red")
+    stand(14.15, -170.9, -math.pi / 2, "vendor", y=G0)
+    stand(12.75, -171.7, math.pi / 2 - 0.5, "idle", y=G0)
     manhole_steam(AVS, "b0", -5.5, -176.0)
     manhole_steam(AVS, "b1", 6.5, -182.5)
     for (x, z, yaw, pose) in ((-10.9, -168.6, 2.6, "smoke"), (18.5, -168.9, math.pi, "lean"),
@@ -279,7 +283,7 @@ def build(AV, AVS, lane_w, lane_e):
     fn_w = B.Face("+z", -10.0, -WALK - 30.0, -WALK)
     frontage(AVS, fn_w, -43.0, -15.5, rng, stalls=(-33.0, -21.0))
     fn_e = B.Face("+z", -10.0, WALK, WALK + 30.0)
-    hung(AVS, fn_e, 16.0, 43.0, rng)
+    frontage(AVS, fn_e, 15.5, 43.0, rng, stalls=(24.0, 36.0), vending=False)
     x = -62.0
     while x < 106.0:
         if abs(x) > 17.0 and not (lane_w[1] - 1 < x < lane_w[0] + 1) and not (lane_e[0] - 1 < x < lane_e[1] + 1):
@@ -294,7 +298,7 @@ def build(AV, AVS, lane_w, lane_e):
     K.kiosk(AVS, 12.4, 10.3, -math.pi + 0.6, rng)
     K.kiosk(AVS, -12.4, 10.3, math.pi - 0.6, rng)
     for (x, z, yaw, pose) in ((11.4, 8.8, 0.6, "idle"), (10.8, 9.5, 0.4, "phone"), (-11.3, 8.8, -0.6, "idle"), (-10.6, 11.6, 2.0, "squat"),
-                              (-46.5, -9.2, 0.0, "smoke"), (48.8, -8.8, 0.3, "talk"), (48.2, -8.0, 2.8, "talk"), (70.0, 8.5, math.pi, "squat"),
+                              (-46.5, -9.2, 0.0, "smoke"), (48.6, -11.4, 0.3, "talk"), (47.8, -12.2, 2.8, "talk"), (70.0, 8.5, math.pi, "squat"),
                               (-52.0, 8.5, math.pi, "phone"), (30.0, 8.45, math.pi, "idle")):
         stand(x, z, yaw, pose, y=G0)
 
