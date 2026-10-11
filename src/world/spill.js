@@ -169,9 +169,11 @@ export function createBake() {
         pool[k] += color.r * e;
         pool[k + 1] += color.g * e;
         pool[k + 2] += color.b * e;
-        // Mirrored for the hero's eye: only the avenue and the canyon, which
-        // are what that camera sees.
-        if (cy > 1.0 && cy < 60 && Math.abs(cx) < 60 && cz < 0) {
+        // Mirrored for the hero's eye: only what stands on the avenue and
+        // the canyon themselves, which is what that camera sees (the bake
+        // has no walls in it: a lane's lamps behind the rows would streak
+        // the road they cannot shine on).
+        if (cy > 1.0 && cy < 60 && Math.abs(cx) < 20 && cz < 0) {
           const t = EYE.y / (EYE.y + cy);
           const rx = Math.floor((EYE.x + (cx - EYE.x) * t - STREAK_BOUNDS.x0) / SX);
           const rz = Math.floor((EYE.z + (cz - EYE.z) * t - STREAK_BOUNDS.z0) / SZ);
