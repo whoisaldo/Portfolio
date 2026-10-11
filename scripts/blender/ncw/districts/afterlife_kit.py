@@ -14,6 +14,7 @@ import math
 import random
 
 from ncw.kit import *  # noqa: F401,F403
+from ncw.kit import P as P_  # world metres to Blender's frame (props shadows the name below)
 from ncw import buildings as B
 from ncw import props as P
 
@@ -159,6 +160,36 @@ def poster(D, f, s, y, w, h, r, out=0.06):
     f.box((D, "board_frame", 0), s - w / 2 - 0.08, s + w / 2 + 0.08, y - h / 2 - 0.08, y + h / 2 + 0.08, 0.0, out)
     col = (r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0)
     f.quad((D, "billboard", 0), s - w / 2, s + w / 2, y - h / 2, y + h / 2, out + 0.012, uvs=((0, 0), (1, 0), (1, 1), (0, 1)), col=col)
+
+
+def vpoly(key, pts, cols):
+    """A polygon with a colour for each of its corners."""
+    b = batches[key]
+    base = len(b.verts)
+    b.verts.extend(P_(*p) for p in pts)
+    b.faces.append(tuple(range(base, base + len(pts))))
+    b.uvs.extend([(0.0, 0.0)] * len(pts))
+    b.cols.extend(cols)
+
+
+def pool(D, x, z, y, hue, r=4.0, k=0.12, segs=12, lift=0.2):
+    """The pool of light a lamp throws on a roof or a deck, drawn: a soft
+    disc of the lamp's colour fading to nothing at its edge. (The light
+    the site bakes onto the ground falls off with height, and tar gives
+    none of it back: a roof's lamps would light nothing.)"""
+    c = GLOW[hue]
+    core = (c[0] * k, c[1] * k, c[2] * k, 1.0)
+    mid = (c[0] * k * 0.4, c[1] * k * 0.4, c[2] * k * 0.4, 1.0)
+    rim = (0.004, 0.004, 0.005, 1.0)
+    yy = y + lift
+    ring = [(math.cos(i * math.tau / segs), math.sin(i * math.tau / segs)) for i in range(segs)]
+    key = (D, "glow", 0)
+    for i in range(segs):
+        (c0, s0), (c1, s1) = ring[i], ring[(i + 1) % segs]
+        a0, a1 = (x + c0 * r * 0.4, yy, z + s0 * r * 0.4), (x + c1 * r * 0.4, yy, z + s1 * r * 0.4)
+        b0, b1 = (x + c0 * r, yy, z + s0 * r), (x + c1 * r, yy, z + s1 * r)
+        vpoly(key, [(x, yy, z), a1, a0], [core, mid, mid])
+        vpoly(key, [a0, a1, b1, b0], [mid, mid, rim, rim])
 
 
 # ---------------------------------------------------------------------------
@@ -436,7 +467,7 @@ def rail(D, pts, y, h=1.05, posts=2.0, thick=True):
             pipe((D, "metal", 1), (xa, yy, za), (xb, yy, zb), rad, segs=4)
 
 
-def arm_lamp(D, x, z, y, yaw, h=5.2, arm=2.2, hue="cyan", power=4.0):
+def arm_lamp(D, x, z, y, yaw, h=5.2, arm=2.2, hue="cyan", power=8.0):
     """A tall roof lamp with a long horizontal arm, throwing a pool of
     light straight down (D6ia1wjO7sg@220)."""
     dx, dz = _dir(yaw)
@@ -445,6 +476,8 @@ def arm_lamp(D, x, z, y, yaw, h=5.2, arm=2.2, hue="cyan", power=4.0):
     hx, hz = x + dx * (arm - 0.3), z + dz * (arm - 0.3)
     oriented_box((D, "neon_" + hue, 0), hx, y + h - 0.14, hz, 0.22, 0.06, 0.7, yaw, scale=0.5)
     light(D, hx, y + h - 0.4, hz, hue, power)
+    if y > 6.0:
+        pool(D, hx, hz, y, hue, r=4.2)
 
 
 # ---------------------------------------------------------------------------
@@ -520,3 +553,228 @@ def ribs(D, f, s0, s1, y0, y1, w, step=0.8, out=0.07, col=BLACK, strips=(), stri
     for i in strips:
         s = s0 + i * (s1 - s0) / n
         fbox(f, (D, "neon_" + strip, 0), s - 0.035, s + 0.035, y0 + 0.25, y1 - 0.25, w, w + 0.03)
+
+
+# ---------------------------------------------------------------------------
+# Roofs. Seen from the rooftop, from the braindance's cameras and from a
+# flying car, a roof is its edge drawn in light, the pools its lamps throw
+# on it, and what stands in them: a deck with a rail and planters
+# (D6ia1wjO7sg@220), plant and tanks, a landing pad's ring of lamps,
+# skylights, a billboard on legs.
+# ---------------------------------------------------------------------------
+def parapet(D, x0, x1, z0, z1, y, tint=5, line=None, h=0.95, t=0.3, sides="nsew", deck="concrete"):
+    """A roof's parapet (the sides named: n is -z, e is +x) and, with
+    `line`, a thin line of light round its top. `deck`: the roof inside it
+    laid in concrete (which takes its lamps' light; tar does not)."""
+    col = B.TRIM[tint]
+    for name, (a0, a1, b0, b1) in (("s", (x0, x1, z1 - t, z1)), ("n", (x0, x1, z0, z0 + t)), ("w", (x0, x0 + t, z0 + t, z1 - t)),
+                                   ("e", (x1 - t, x1, z0 + t, z1 - t))):
+        if name in sides:
+            box((D, "trim", 0), a0, a1, y, y + h, b0, b1, scale=1.5, col=col)
+    if line:
+        walls((D, "neon_" + line, 0), [(x0 - 0.04, z1 + 0.04), (x1 + 0.04, z1 + 0.04), (x1 + 0.04, z0 - 0.04), (x0 - 0.04, z0 - 0.04)],
+              y + h - 0.11, y + h - 0.02, (1, 1, 1, 1))
+    if deck:
+        slab(D, x0 + t, x1 - t, z0 + t, z1 - t, y, deck, lift=0.1, scale=3.0)
+    B.ROOFS.append((D, x0, x1, z0, z1, y))
+
+
+def slab(D, x0, x1, z0, z1, y, mat="sidewalk", lift=0.17, scale=2.0, col=(1, 1, 1, 1)):
+    """A paved patch on a roof: a deck, a pad."""
+    s = 1.0 / scale
+    pts = ((x0, y + lift, z1), (x1, y + lift, z1), (x1, y + lift, z0), (x0, y + lift, z0))
+    quad((D, mat, 0), *pts, uvs=tuple((p[0] * s, -p[2] * s) for p in pts), col=col)
+
+
+def bulbs(D, a, b, sag=0.6, n=9, hue="amber", lit=True, floor=None):
+    """A string of bulbs from a to b; over a roof at `floor`, their pool on
+    it."""
+    prev = None
+    for i in range(n + 1):
+        t = i / n
+        p = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - sag * math.sin(math.pi * t), a[2] + (b[2] - a[2]) * t)
+        if prev:
+            pipe((D, "dark", 1), prev, p, 0.012, segs=3)
+        if 0 < i < n:
+            box((D, "glow", 0), p[0] - 0.06, p[0] + 0.06, p[1] - 0.16, p[1] - 0.04, p[2] - 0.06, p[2] + 0.06, scale=1.0, col=GLOW[hue])
+        prev = p
+    if lit:
+        light(D, (a[0] + b[0]) / 2, min(a[1], b[1]) - sag - 0.3, (a[2] + b[2]) / 2, hue, 6.0)
+    if floor is not None:
+        pool(D, (a[0] + b[0]) / 2, (a[2] + b[2]) / 2, floor, hue, r=max(3.0, math.hypot(b[0] - a[0], b[2] - a[2]) * 0.45), k=0.07)
+
+
+def hut(D, x, z, y, yaw, tint=5, w=3.2, d=2.6, h=2.7, hue="amber"):
+    """A stair hut: its door open on the lit stair, a lamp over it."""
+    oriented_box((D, "trim", 0), x, y + h / 2, z, w, h, d, yaw, scale=1.5, col=B.TRIM[tint])
+    oriented_box((D, "dark", 1), x, y + h + 0.07, z, w + 0.3, 0.14, d + 0.3, yaw, scale=1.0)
+    nx, nz = _dir(yaw)
+    dxp, dzp = x + nx * (d / 2 + 0.02), z + nz * (d / 2 + 0.02)
+    rotated_quad((D, "neon_" + hue, 0), dxp, y + 1.05, dzp, 0.95, 2.1, yaw)
+    light(D, x + nx * (d / 2 + 1.2), y + 1.2, z + nz * (d / 2 + 1.2), hue, 6.0)
+    pool(D, x + nx * (d / 2 + 1.0), z + nz * (d / 2 + 1.0), y, hue, r=2.8, k=0.1)
+
+
+def unit(D, x, z, y, yaw=0.0, w=2.4, d=1.5, h=1.5, fans=2, lamp=None):
+    """A big condenser: a steel box, its fans on top, a status lamp."""
+    oriented_box((D, "metal", 0), x, y + h / 2, z, w, h, d, yaw, scale=1.0)
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    for k in range(fans):
+        u = (k + 0.5) / fans * w - w / 2
+        cylinder((D, "dark", 1), x + rx * u, z + rz * u, y + h, y + h + 0.07, min(d, w / fans) * 0.38, segs=10)
+    if lamp:
+        nx, nz = _dir(yaw)
+        rotated_quad((D, "glow", 0), x + nx * (d / 2 + 0.01) + rx * (w / 2 - 0.2), y + h - 0.2, z + nz * (d / 2 + 0.01) + rz * (w / 2 - 0.2), 0.12, 0.12, yaw, col=GLOW[lamp])
+
+
+def plant(D, x0, x1, z0, z1, y, rng, flood="white"):
+    """A roof of plant: condensers in a row, a duct run, pipes on sleepers,
+    a caged lamp on a post throwing a pool over them."""
+    w, d = x1 - x0, z1 - z0
+    along_x = w >= d
+    n = max(2, int((w if along_x else d) / 3.6))
+    for k in range(n):
+        t = (k + 0.5) / n
+        cx, cz = (x0 + w * t, z0 + d * 0.3) if along_x else (x0 + w * 0.3, z0 + d * t)
+        if rng.random() < 0.85:
+            unit(D, cx, cz, y, 0.0 if along_x else math.pi / 2, w=rng.uniform(1.8, 2.6), d=1.4, h=rng.uniform(1.1, 1.7),
+                 lamp=rng.choice((None, "green", "amber", "red")))
+    # The duct along the other side and two pipes on sleepers.
+    if along_x:
+        box((D, "metal", 1), x0 + 0.5, x1 - 0.5, y + 0.25, y + 0.85, z0 + d * 0.68, z0 + d * 0.68 + 0.7, scale=1.0)
+        for k in range(2):
+            pipe((D, "metal", 1), (x0 + 0.4, y + 0.3, z0 + d * 0.86 + k * 0.3), (x1 - 0.4, y + 0.3, z0 + d * 0.86 + k * 0.3), 0.09, segs=5)
+        px, pz = x0 + w * 0.5, z0 + d * 0.52
+    else:
+        box((D, "metal", 1), x0 + w * 0.68, x0 + w * 0.68 + 0.7, y + 0.25, y + 0.85, z0 + 0.5, z1 - 0.5, scale=1.0)
+        for k in range(2):
+            pipe((D, "metal", 1), (x0 + w * 0.86 + k * 0.3, y + 0.3, z0 + 0.4), (x0 + w * 0.86 + k * 0.3, y + 0.3, z1 - 0.4), 0.09, segs=5)
+        px, pz = x0 + w * 0.52, z0 + d * 0.5
+    cylinder((D, "metal", 1), px, pz, y, y + 3.2, 0.05, segs=5)
+    box((D, "neon_" + flood, 0), px - 0.22, px + 0.22, y + 3.1, y + 3.2, pz - 0.12, pz + 0.12, scale=0.5)
+    light(D, px, y + 2.8, pz, flood, 8.0)
+    pool(D, px, pz, y, flood, r=5.0, k=0.1)
+
+
+def terrace(D, x0, x1, z0, z1, y, rng, hue="cyan", open_sides="", planters=True, mat="sidewalk"):
+    """A roof that is lived on: a paved deck, a rail along its inner edges,
+    tall lamps with long arms throwing pools straight down, planters with a
+    lit rim, a bench, a string of bulbs."""
+    slab(D, x0, x1, z0, z1, y, mat)
+    rail(D, [(x0, z0), (x1, z0), (x1, z1), (x0, z1), (x0, z0)], y + 0.17, h=1.0)
+    w, d = x1 - x0, z1 - z0
+    arm_lamp(D, x0 + 0.5, z0 + 0.5, y, math.atan2(1, 1), arm=min(2.4, w * 0.35), hue=hue)
+    if max(w, d) > 9:
+        arm_lamp(D, x1 - 0.5, z1 - 0.5, y, math.atan2(-1, -1), arm=min(2.4, w * 0.35), hue="white" if hue != "white" else "amber", power=7.0)
+    if planters:
+        pw = min(3.2, w * 0.4)
+        planter(D, x0 + 0.5, x0 + 0.5 + pw, z1 - 1.3, z1 - 0.5, rng, y=y + 0.17, lit=rng.choice(("cyan", "green", None)))
+        planter(D, x1 - 1.3, x1 - 0.5, z0 + 0.6, z0 + 0.6 + min(3.0, d * 0.4), rng, y=y + 0.17)
+    P.place("bench", (x0 + x1) / 2, y + 0.17, z0 + 1.0, 0.0, district=D)
+    bulbs(D, (x0 + 0.3, y + 3.0, z1 - 0.4), (x1 - 0.3, y + 3.0, z0 + 0.4 + d * 0.4), n=10, floor=y)
+    for (px, pz) in ((x0 + 0.3, z1 - 0.4), (x1 - 0.3, z0 + 0.4 + d * 0.4)):
+        cylinder((D, "metal", 1), px, pz, y, y + 3.05, 0.04, segs=5)
+
+
+def pad(D, cx, cz, y, rad=5.5, hue="cyan"):
+    """A landing pad for a flying car: a raised octagon, its edge painted
+    yellow, a ring and a cross on it, lamps round it."""
+    pts = [(cx + rad * math.cos(t), cz + rad * math.sin(t)) for t in (math.pi / 8 + i * math.pi / 4 for i in range(8))]
+    walls((D, "hazard", 0), list(reversed(pts)), y, y + 0.35, (1, 1, 1, 1))
+    poly((D, "concrete", 0), [(x, y + 0.35, z) for x, z in reversed(pts)], [(x / 3, z / 3) for x, z in reversed(pts)])
+    # The ring, in short straight strokes, and the cross.
+    n = 20
+    for i in range(n):
+        t0, t1 = i * math.tau / n, (i + 0.7) * math.tau / n
+        r0, r1 = rad * 0.62, rad * 0.7
+        q = [(cx + r0 * math.cos(t0), cz + r0 * math.sin(t0)), (cx + r1 * math.cos(t0), cz + r1 * math.sin(t0)),
+             (cx + r1 * math.cos(t1), cz + r1 * math.sin(t1)), (cx + r0 * math.cos(t1), cz + r0 * math.sin(t1))]
+        poly((D, "neon_" + hue, 0), [(x, y + 0.37, z) for x, z in reversed(q)], [(0, 0), (1, 0), (1, 1), (0, 1)])
+    for (hx, hz) in ((rad * 0.42, 0.22), (0.22, rad * 0.42)):
+        quad((D, "trim", 0), (cx - hx, y + 0.365, cz + hz), (cx + hx, y + 0.365, cz + hz), (cx + hx, y + 0.365, cz - hz), (cx - hx, y + 0.365, cz - hz),
+             col=(0.6, 0.5, 0.08, 1))
+    for i, (x, z) in enumerate(pts):
+        box((D, "glow", 0), x - 0.1, x + 0.1, y + 0.35, y + 0.55, z - 0.1, z + 0.1, scale=0.5, col=GLOW["amber" if i % 2 else "red"])
+    for t in (0.0, math.pi / 2, math.pi, 3 * math.pi / 2):
+        light(D, cx + rad * 0.66 * math.cos(t), y + 0.8, cz + rad * 0.66 * math.sin(t), hue, 6.0)
+    pool(D, cx, cz, y + 0.35, hue, r=rad * 0.9, k=0.045, lift=0.012)
+
+
+def skylights(D, x0, x1, z0, z1, y, rng, hue="amber", along="z", n=3, lit=0.75):
+    """Rows of skylights on a low roof: kerbed panes, most of them lit from
+    the room under them."""
+    w, d = x1 - x0, z1 - z0
+    for i in range(n):
+        if along == "z":
+            cx = x0 + (i + 0.5) * w / n
+            a0, a1, b0, b1 = cx - min(1.1, w / n * 0.3), cx + min(1.1, w / n * 0.3), z0, z1
+        else:
+            cz = z0 + (i + 0.5) * d / n
+            a0, a1, b0, b1 = x0, x1, cz - min(1.1, d / n * 0.3), cz + min(1.1, d / n * 0.3)
+        box((D, "metal", 1), a0 - 0.1, a1 + 0.1, y, y + 0.4, b0 - 0.1, b1 + 0.1, scale=1.0)
+        m = max(1, int(((b1 - b0) if along == "z" else (a1 - a0)) / 2.2))
+        for k in range(m):
+            if along == "z":
+                q = (a0, a1, b0 + (b1 - b0) * k / m + 0.08, b0 + (b1 - b0) * (k + 1) / m - 0.08)
+            else:
+                q = (a0 + (a1 - a0) * k / m + 0.08, a0 + (a1 - a0) * (k + 1) / m - 0.08, b0, b1)
+            on = rng.random() < lit
+            key = (D, "glow", 0) if on else (D, "glass_dark", 0)
+            pts = ((q[0], y + 0.41, q[3]), (q[1], y + 0.41, q[3]), (q[1], y + 0.41, q[2]), (q[0], y + 0.41, q[2]))
+            c = GLOW[hue] if on else (1, 1, 1, 1)
+            quad(key, *pts, col=(c[0] * 0.55, c[1] * 0.55, c[2] * 0.55, 1) if on else c)
+        light(D, (a0 + a1) / 2, y + 0.6, (b0 + b1) / 2, hue, 5.0)
+
+
+def roof_board(D, cx, cz, y, w, h, yaw, rng, lift=2.4):
+    """A billboard on a roof, on its steel legs and their braces, lit from
+    a gantry of small lamps along its foot."""
+    by = y + lift + h / 2
+    B.billboard(D, cx, by, cz, w, h, yaw, rng)
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = _dir(yaw)
+    for du in (-w * 0.36, 0.0, w * 0.36):
+        px, pz = cx + rx * du - nx * 0.2, cz + rz * du - nz * 0.2
+        box((D, "metal", 1), px - 0.11, px + 0.11, y, by - h / 2, pz - 0.11, pz + 0.11, scale=0.5)
+        pipe((D, "metal", 1), (px - nx * 2.2, y, pz - nz * 2.2), (px, by + h * 0.2, pz), 0.06, segs=4)
+    for k in range(max(2, int(w / 2.5))):
+        u = -w / 2 + (k + 0.5) * w / max(2, int(w / 2.5))
+        lx, lz = cx + rx * u + nx * 0.9, cz + rz * u + nz * 0.9
+        box((D, "glow", 1), lx - 0.1, lx + 0.1, by - h / 2 - 0.25, by - h / 2 - 0.15, lz - 0.1, lz + 0.1, scale=0.5, col=GLOW["white"])
+        pipe((D, "metal", 1), (lx - nx * 0.9, by - h / 2 - 0.2, lz - nz * 0.9), (lx, by - h / 2 - 0.2, lz), 0.02, segs=3)
+    light(D, cx + nx * 2.0, y + 1.0, cz + nz * 2.0, "white", 7.0)
+    pool(D, cx + nx * 1.6, cz + nz * 1.6, y, "white", r=min(5.0, w * 0.5), k=0.07)
+
+
+def mast(D, x, z, y, h, dishes=2, lamp="red", r=0.45):
+    """A lattice mast: three legs, rings of bracing, dishes and panels, a
+    lamp at its tip."""
+    legs = [(x + r * math.cos(t), z + r * math.sin(t)) for t in (0.5, 0.5 + math.tau / 3, 0.5 + 2 * math.tau / 3)]
+    for (lx, lz) in legs:
+        pipe((D, "metal", 0), (lx, y, lz), (x + (lx - x) * 0.25, y + h, z + (lz - z) * 0.25), 0.04, segs=3)
+    n = max(3, int(h / 1.8))
+    for i in range(n):
+        t0, t1 = i / n, (i + 1) / n
+        for k in range(3):
+            (ax, az), (bx, bz) = legs[k], legs[(k + 1) % 3]
+            s0, s1 = 1 - 0.75 * t0, 1 - 0.75 * t1
+            a = (x + (ax - x) * s0, y + h * t0, z + (az - z) * s0)
+            b = (x + (bx - x) * s1, y + h * t1, z + (bz - z) * s1)
+            pipe((D, "metal", 1), a, b, 0.02, segs=3)
+    for k in range(dishes):
+        yy = y + h * (0.55 + 0.18 * k)
+        ang = 0.8 + 2.3 * k
+        dish((D, "metal", 0), (x + 0.5 * math.cos(ang), yy, z + 0.5 * math.sin(ang)), (math.cos(ang), 0.15, math.sin(ang)), 0.55)
+    for k in range(3):
+        ang = 0.2 + k * math.tau / 3
+        oriented_box((D, "trim", 1), x + 0.34 * math.sin(ang), y + h * 0.86, z + 0.34 * math.cos(ang), 0.28, 1.5, 0.1, ang, scale=1.0, col=(0.42, 0.42, 0.45, 1))
+    cylinder((D, "metal", 1), x, z, y + h, y + h + 1.6, 0.03, segs=4)
+    box((D, "glow", 0), x - 0.09, x + 0.09, y + h + 1.6, y + h + 1.8, z - 0.09, z + 0.09, scale=0.5, col=GLOW[lamp])
+
+
+def post_light(D, x, z, y, hue="amber", h=0.7, power=6.0):
+    """A low post light on a roof or a deck, and its pool."""
+    cylinder((D, "metal", 1), x, z, y, y + h, 0.05, segs=5)
+    box((D, "neon_" + hue, 0), x - 0.07, x + 0.07, y + h, y + h + 0.14, z - 0.07, z + 0.07, scale=0.5)
+    light(D, x, y + h, z, hue, power)
+    pool(D, x, z, y, hue, r=2.6, k=0.1)

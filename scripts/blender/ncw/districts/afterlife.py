@@ -51,9 +51,12 @@ WATSON = dict(windows=(0, 1, 3, 6, 6), lit=(0.35, 0.8), warmth=(0.35, 1.0),
               shop_colours=["amber", "pink", "cyan", "green", "red", "white"])
 
 
-def lot(x0, x1, z0, z1, h, seed, sides, nb=None, style=None, **kw):
+def lot(x0, x1, z0, z1, h, seed, sides, nb=None, style=None, roof=False, **kw):
+    """A building on a lot. Its roof is dressed further down, by hand (the
+    roofs are seen from the rooftop and from the air): the generator's own
+    draw only where `roof` asks."""
     return B.building(B.Lot(x0, x1, z0, z1, "+x", sides, nb or {}, D), h, random.Random(seed),
-                      style=dict(WATSON, **(style or {})), **kw)
+                      style=dict(WATSON, **(style or {})), roof=roof, **kw)
 
 
 F = SHOP_H + CELL_H  # a storey over the shops: heights are SHOP_H + n storeys
@@ -402,3 +405,114 @@ for k in range(5):
     for dx_ in (-1.0, 1.0):
         box((D, "metal", 1), x_ + dx_ - 0.04, x_ + dx_ + 0.04, BY1 + 0.22, BY1 + 0.6, BZ0 + 0.2, BZ1 - 0.2, scale=0.5)
 K.stack(D, EL, BZ0 - 0.5, 7.6, 4, -math.pi / 2, out=1.3)
+
+
+# ---------------------------------------------------------------------------
+# The roofs. The rooftop, the braindance's cameras and a flying car look
+# down on all of them, and the Stack shot looks across the garage's west
+# block's to MILITECH: every roof has its parapet, most a line of light
+# round it, and each its own life: a deck with a rail, lamps on long arms
+# and planters (D6ia1wjO7sg@220), plant and tanks, a landing pad, skylights,
+# a billboard on legs, a penthouse. What About's lens could see over the
+# rooftop's own parapet (anything over about 30 m west of the street) is
+# kept under its line.
+# ---------------------------------------------------------------------------
+ro = random.Random(9400)
+T = B.TINTS
+# West of the street.
+K.parapet(D, 380.0, 398.0, -316.0, -300.0, storeys(6), T["navy"], line="cyan")
+B.building(B.Lot(383.0, 395.0, -313.0, -303.0, "-z", {k: "open" for k in ("+x", "-x", "+z", "-z")}, {}, D), storeys(7),
+           random.Random(9401), style=dict(WATSON, roof_cap=0.0, balcony=0.0, lit=(0.7, 0.95)), base=storeys(6), signs=False, tint="navy")
+K.unit(D, 396.5, -308.0, storeys(6), math.pi / 2, lamp="green")
+K.parapet(D, 402.0, WL, -316.0, -300.0, storeys(3), T["concrete"], line="amber")
+K.roof_board(D, 416.0, -309.0, storeys(3), 11.0, 5.0, math.radians(158), ro)
+K.hut(D, 405.0, -303.0, storeys(3), math.pi, T["concrete"])
+K.unit(D, 424.5, -302.5, storeys(3), 0.0, lamp="amber")
+K.parapet(D, 380.0, 398.0, -300.0, -276.0, storeys(5), T["teal"])
+K.plant(D, 381.5, 396.5, -298.5, -282.0, storeys(5), ro)
+P.place("tank_roof", 392.5, storeys(5), -279.5, 0.4, district=D)
+P.place("antenna", 383.0, storeys(5), -278.5, 0.0, district=D)
+K.parapet(D, 380.0, 398.0, -276.0, -250.0, storeys(3), T["brown"], line="teal")
+K.terrace(D, 382.5, 396.0, -273.0, -257.0, storeys(3), ro, hue="cyan")
+K.hut(D, 394.0, -253.0, storeys(3), -math.pi / 2, T["brown"])
+# The bar's roof is its terrace: strings of bulbs, crates for tables.
+K.parapet(D, 416.0, WL, -258.0, -250.0, storeys(1), T["charcoal"], deck="sidewalk")
+for a_, b_ in (((416.6, 10.6, -257.4), (427.4, 10.6, -250.8)), ((416.6, 10.6, -250.8), (427.4, 10.6, -257.4))):
+    K.bulbs(D, a_, b_, sag=0.7, n=10, hue="amber" if a_[2] < -255 else "pink", floor=storeys(1) if a_[2] < -255 else None)
+for (x_, z_) in ((416.6, -257.4), (427.4, -250.8), (416.6, -250.8), (427.4, -257.4)):
+    cylinder((D, "metal", 1), x_, z_, storeys(1), 10.65, 0.04, segs=5)
+for (x_, z_) in ((419.5, -255.5), (424.0, -252.5)):
+    K.crates(D, x_, z_, ro, n=2, y=storeys(1) + 0.1)
+stand(420.6, -255.4, -math.pi / 2, "talk", y=storeys(1) + 0.1)
+stand(418.6, -255.6, math.pi / 2, "talk", y=storeys(1) + 0.1)
+stand(425.6, -251.6, math.pi / 2 + 0.4, "lean", y=storeys(1) + 0.1)
+# The garage's west block: the roof the Stack shot looks across. A
+# billboard turned to the rooftop, plant, a tank, a stair hut.
+K.parapet(D, 410.0, WL, -250.0, -190.0, 26.0, T["charcoal"], line="cyan")
+K.roof_board(D, 420.5, -212.0, 26.0, 9.5, 4.6, math.radians(129), ro)
+K.plant(D, 411.5, 426.5, -247.0, -232.0, 26.0, ro, flood="amber")
+P.place("tank_roof", 423.5, 26.0, -197.0, 0.9, district=D)
+K.hut(D, 414.5, -199.5, 26.0, 0.0, T["charcoal"])
+K.post_light(D, 418.0, -224.0, 26.0, "cyan")
+# AFTERLIFE's roof: skylights in the sign's pink, a deck by the sign's
+# posts, units, low lights (low: About's lens looks across it).
+K.skylights(D, 420.0, 429.0, -292.0, -270.0, 30.0, ro, hue="pink", along="z", n=2)
+K.slab(D, 403.0, 431.0, -299.0, -263.0, 30.0, "concrete", lift=0.1, scale=3.0)
+K.slab(D, 412.0, 419.0, -278.0, -264.0, 30.0)
+K.planter(D, 412.2, 418.8, -264.9, -264.1, ro, y=30.17, h=0.45, lit="green")
+P.place("bench", 415.5, 30.17, -276.8, 0.0, district=D)
+for (x_, z_, hue_) in ((413.0, -271.0, "amber"), (418.0, -277.0, "amber"), (406.0, -285.0, "cyan"), (424.5, -266.0, "pink"), (407.0, -270.0, "amber")):
+    K.post_light(D, x_, z_, 30.0, hue_, h=0.55)
+for (x_, z_) in ((405.0, -279.0), (406.8, -279.0), (421.5, -297.5)):
+    P.place("ac_roof", x_, 30.0, z_, 0.0, district=D)
+# East of the street. The block that closes the boulevard carries a crown
+# of two lit storeys and a billboard that faces down the boulevard; its
+# lower half a landing pad.
+K.parapet(D, EL, 484.0, -344.0, -316.0, storeys(7), T["charcoal"], line="cyan")
+B.building(B.Lot(461.0, 481.0, -340.0, -321.0, "-x", {k: "open" for k in ("+x", "-x", "+z", "-z")}, {}, D), storeys(9),
+           random.Random(9402), style=dict(WATSON, roof_cap=5.0, balcony=0.0, lit=(0.75, 0.95), windows=(5,)), base=storeys(7), signs=False,
+           tint="charcoal", crown_band="cyan", roof=True)
+K.roof_board(D, 455.6, -330.0, storeys(7), 12.0, 5.4, -math.pi / 2, ro)
+K.parapet(D, 484.0, 508.0, -344.0, -316.0, storeys(5), T["navy"], line="amber")
+K.pad(D, 497.0, -331.0, storeys(5), rad=7.0)
+K.hut(D, 487.0, -319.5, storeys(5), math.pi / 2, T["navy"])
+# The clinic's roof: its plant and a small deck.
+K.parapet(D, 454.0, 484.0, -312.0, -300.0, storeys(2), T["concrete"], line="green")
+K.plant(D, 470.5, 483.0, -311.0, -301.0, storeys(2), ro)
+K.terrace(D, 456.0, 468.0, -310.8, -302.0, storeys(2), ro, hue="white", planters=False)
+# The roof south of the rooftop's own (the first thing under its parapet):
+# a deck, a tank, a hut.
+K.parapet(D, EL, 476.0, -258.0, -230.0, 22.0, T["plum"], line="teal")
+K.terrace(D, 454.5, 468.5, -255.5, -240.0, 22.0, ro, hue="cyan")
+P.place("tank_roof", 472.0, 22.0, -234.5, 0.3, district=D)
+K.hut(D, 472.6, -251.5, 22.0, -math.pi / 2, T["plum"])
+# The garage's roof, north of where Contact stands on it: skylights over
+# the bay, a unit, tyres and crates by the parapet.
+K.slab(D, 460.0, 475.4, -229.4, -206.0, 8.0, "concrete", lift=0.1, scale=3.0)
+K.skylights(D, 461.0, 472.0, -226.0, -208.0, 8.0, ro, hue="white", along="x", n=3, lit=1.0)
+K.unit(D, 473.2, -227.4, 8.0, math.pi / 2, lamp="green")
+K.tyres(D, 457.5, -228.0, 3, y=8.0)
+K.crates(D, 459.4, -228.2, ro, n=3, y=8.0)
+# The outer row.
+OUTER_ROOFS = ("plant", "terrace", "board", "sky", "plant", "sky")
+for (z0, z1, n), kind in zip(OUTER, OUTER_ROOFS):
+    y_ = storeys(n)
+    K.parapet(D, 490.0, 508.0, z0, z1, y_, T["charcoal"], line={"terrace": "teal", "board": "pink", "sky": None, "plant": None}[kind]
+              if n > 1 else "amber")
+    if kind == "plant":
+        K.plant(D, 491.5, 506.5, z0 + 1.5, z1 - 6.0, y_, ro)
+        P.place("tank_roof", 503.5, y_, z1 - 3.0, ro.uniform(0, 3), district=D)
+    elif kind == "terrace":
+        K.terrace(D, 492.0, 506.0, z0 + 2.0, z1 - 5.0, y_, ro, hue="cyan")
+        K.hut(D, 504.0, z1 - 2.4, y_, math.pi, T["charcoal"])
+    elif kind == "board":
+        K.roof_board(D, 494.0, (z0 + z1) / 2, y_, 10.0, 4.5, -math.pi / 2, ro)
+        K.hut(D, 503.5, z0 + 3.0, y_, -math.pi / 2, T["charcoal"])
+        K.unit(D, 503.0, z1 - 3.0, y_, 0.0, lamp="amber")
+    else:
+        K.skylights(D, 492.5, 505.5, z0 + 2.5, z1 - 2.5, y_, ro, hue="amber", along="z", n=3)
+# The signal mast, on the rooftop's north edge where the braindance hears
+# it, and the lamp that blinks by the tank.
+K.mast(D, 462.0, -299.0, 34.0, 7.5)
+cylinder((D, "metal", 1), 470.0, -291.0, 34.0, 39.45, 0.05, segs=5)
+box((D, "glow", 0), 469.9, 470.1, 39.45, 39.7, -291.1, -290.9, scale=0.5, col=GLOW["white"])
