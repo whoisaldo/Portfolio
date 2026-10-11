@@ -1,21 +1,39 @@
 // src/world/road.js: the wet road, which carries most of the colour.
 //
-// In the plate the asphalt is the brightest thing on screen after the signs:
-// every tube above it runs down it as a long smeared streak toward the eye.
-// Three layers make that here, cheapest first:
+// In the plate the asphalt is the brightest thing on screen after the signs.
+// Here it is one surface seen the same way from every eye (the hero's half
+// a metre off the road, a driver's, a walker's, a roof's), on every street:
 //
-//   the surface  ambientCG's cracked asphalt, dark, lit by the spill map
-//   the streaks  the baked map from spill.js: each sign's light dragged
-//                toward +z, the direction the hero looks down the avenue
-//   the mirror   on desktop, a real planar reflection of everything that
-//                glows (src/world/mirror.js), sampled with a vertical smear
-//                and bent by the asphalt's own normal map; a puddle, where
-//                the noise says there is one, reflects almost sharply
+//   the asphalt  ambientCG's cracked aggregate, dark, lit by the spill map,
+//                and what a road picks up in use: patches of newer tar with
+//                a sealed joint round them, tar run into the long cracks,
+//                the wheel tracks worn smooth, oil down the middle of each
+//                lane and where cars stand, silt along the kerb
+//   the water    it is wet in a pattern (src/world/ground.js knows where a
+//                point is in its street): standing water along the kerbs,
+//                in the wheel ruts and where two streets meet, damp round
+//                it, drier on the crown
+//   the mirror   standing water is a mirror: a sign is a sign in it, upside
+//                down, and rain rings it near the lens. Damp asphalt gives
+//                the same picture back softened by its own roughness, a
+//                lobe a few degrees tall and a fraction of that wide, which
+//                is long only where the eye is low and the look is glancing
+//                (the hero) and short from a driver's seat or a pavement.
+//                On desktop the picture is a real planar reflection
+//                (src/world/mirror.js); without one it is the baked light
+//                followed along the reflected ray (spillReflect), softer but
+//                in the same place and as bright, so a street does not
+//                change its nature when the mirror is shed or was never on.
 //
-// The `wet` switch in env.js takes the streaks, the mirror and the rain away
+// The `wet` switch in env.js takes the water, the mirror and the rain away
 // together and leaves a dry, dark road.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
+import { GROUND } from "./ground.js";
+
+// The mirror at full, as world-scene.js sets uReflectGain: its share of the
+// reflection is uReflectGain over this, the baked light's the rest.
+const MIRROR_FULL = 2.2;
 
 export function createRoadMaterial(shared, { maps, reflection, paint = false }) {
   const uniforms = {
@@ -24,16 +42,12 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
     uNormal: { value: maps.asphaltNormal || null },
     uRough: { value: maps.asphaltRough || null },
     uHasMaps: { value: maps.asphalt ? 1 : 0 },
-    uStreaks: { value: null },
-    uStreakBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
-    // The baked streaks are the whole reflection without a mirror, and a
-    // faint layer under it with one.
+    // (world-scene.js still writes the old baked streaks' gain each frame.)
     uStreakGain: { value: reflection ? 0.1 : 1.1 },
     uReflect: { value: null },
     uReflectMatrix: { value: new THREE.Matrix4() },
     uReflectOn: { value: 0 },
-    uHorizonV: { value: 0.5 },
-    uReflectGain: { value: 2.2 },
+    uReflectGain: { value: MIRROR_FULL },
     uWet: { value: 1 },
   };
   const material = new THREE.ShaderMaterial({
@@ -60,17 +74,14 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      ${GROUND}
       uniform sampler2D uMap;
       uniform sampler2D uNormal;
       uniform sampler2D uRough;
       uniform float uHasMaps;
-      uniform sampler2D uStreaks;
-      uniform vec4 uStreakBounds;
-      uniform float uStreakGain;
       uniform sampler2D uReflect;
       uniform mat4 uReflectMatrix;
       uniform float uReflectOn;
-      uniform float uHorizonV;
       uniform float uReflectGain;
       uniform float uWet;
       varying vec3 vWorld;
@@ -78,13 +89,6 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
       #if PAINT == 1
       varying vec3 vPaint;
       #endif
-
-      float vnoise(vec2 p) {
-        vec2 i = floor(p), f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x),
-                   mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
-      }
 
       // Rain on standing water: a ring spreading from where a drop landed,
       // one drop to a cell every second or so. Returns the ring's slope,
@@ -102,128 +106,211 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
       }
 
       void main() {
-        vec3 albedo = vec3(0.1);
-        vec3 nt = vec3(0.0, 0.0, 1.0);
-        float rough = 0.5;
-        // World-space UVs, so the lane paint lies on the same cracked, wet
-        // asphalt as the lane: a tile every 2.5 m, fine enough for a lens
-        // half a metre off the road, and under it a second, larger and
-        // turned, faded in and out by a slow noise so the repeat never lines
-        // up down the avenue.
-        vec2 tuv = vWorld.xz / 2.5;
-        vec2 tuv2 = mat2(0.8, -0.6, 0.6, 0.8) * vWorld.xz / 6.3 + 0.37;
-        float other = smoothstep(0.35, 0.65, vnoise(vWorld.xz * 0.09));
+        vec2 p = vWorld.xz;
+        vec3 toEye = uCam - vWorld;
+        float dist = length(toEye);
+        vec3 V = toEye / dist;
+        float ndv = clamp(V.y, 0.0, 1.0);
+        // Metres a pixel covers: what is finer than that is left out, or
+        // it would shimmer.
+        float px = fwidth(p.x) + fwidth(p.y);
+        float near = 1.0 - smoothstep(0.04, 0.12, px);
+
+        // Where this is in its street. The deck and its ramp are over the
+        // streets, not in them.
+        vec4 se;
+        vec4 sf = streetAt(p, se);
+        float grade = step(vWorld.y, 0.3);
+        bool alongZ = sf.x >= sf.y;
+        float inJ = smoothstep(0.0, 1.5, min(sf.x, sf.y)) * grade;
+        float kerbIn = mix(20.0, mix(max(max(sf.x, sf.y), 0.0), 20.0, inJ), grade);
+        float lane = alongZ ? sf.z : sf.w;
+        float track = smoothstep(0.45, 0.15, abs(lane - 0.8)) * (1.0 - 0.6 * inJ) * grade;
+        float gutter = smoothstep(1.5, 0.25, kerbIn);
+
+        // The aggregate, in world space, so the lane paint lies on the same
+        // cracked asphalt as the lane: a tile every 2.5 m, fine enough for
+        // a lens half a metre off the road, and another, larger and
+        // turned, taking over in patches so the repeat never lines up down
+        // a street (only where the two meet are both read).
+        vec3 albedo = vec3(0.03);
+        vec3 nt = vec3(0.5, 0.5, 1.0);
+        float rough = 0.46;
+        float other = smoothstep(0.35, 0.65, vnoise(p * 0.09));
         if (uHasMaps > 0.5) {
-          albedo = mix(texture2D(uMap, tuv).rgb, texture2D(uMap, tuv2).rgb, other);
-          nt = mix(texture2D(uNormal, tuv).xyz, texture2D(uNormal, tuv2).xyz, other) * 2.0 - 1.0;
-          rough = mix(texture2D(uRough, tuv).g, texture2D(uRough, tuv2).g, other);
+          vec2 tuv = p / 2.5;
+          vec2 tuv2 = mat2(0.8, -0.6, 0.6, 0.8) * p / 6.3 + 0.37;
+          vec2 gx = dFdx(tuv), gy = dFdy(tuv), gx2 = dFdx(tuv2), gy2 = dFdy(tuv2);
+          vec3 a1 = albedo, a2 = albedo, n1 = nt, n2 = nt;
+          float r1 = rough, r2 = rough;
+          if (other < 0.999) {
+            a1 = textureGrad(uMap, tuv, gx, gy).rgb;
+            n1 = textureGrad(uNormal, tuv, gx, gy).xyz;
+            r1 = textureGrad(uRough, tuv, gx, gy).g;
+          }
+          if (other > 0.001) {
+            a2 = textureGrad(uMap, tuv2, gx2, gy2).rgb;
+            n2 = textureGrad(uNormal, tuv2, gx2, gy2).xyz;
+            r2 = textureGrad(uRough, tuv2, gx2, gy2).g;
+          }
+          albedo = mix(a1, a2, other);
+          nt = mix(n1, n2, other);
+          rough = mix(r1, r2, other);
         }
+        nt = nt * 2.0 - 1.0;
         // The cracks: dark in the albedo, and dry, so they break every
         // reflection that crosses them the way they do in the plate. The map
         // is dark (linear luminance about 0.017 to 0.05, measured), so the
         // threshold sits at its darkest few percent.
         float lum = dot(albedo, vec3(0.299, 0.587, 0.114));
         float crack = smoothstep(0.014, 0.024, lum);
-        // Puddles: broad patches of standing water, sharper where the
-        // aggregate is smooth.
-        float broad = vnoise(vWorld.xz * 0.07) * 0.65 + vnoise(vWorld.xz * 0.23) * 0.35;
-        // More of it in the avenue's first forty metres, the road the hero's
-        // lens and the drift fill the frame with.
-        float fore = smoothstep(-40.0, -10.0, vWorld.z) * (1.0 - smoothstep(9.0, 12.0, abs(vWorld.x)));
-        float puddle = smoothstep(0.5, 0.7, broad + (0.46 - rough) * 2.0 + 0.14 * fore) * uWet;
+        // The smooth tops of the stones, which hold the sheen.
+        float stone = smoothstep(0.54, 0.38, rough);
 
-        vec3 V = normalize(uCam - vWorld);
-        float ndv = clamp(V.y, 0.0, 1.0);
-        float fres = 0.05 + 0.95 * pow(1.0 - ndv, 4.0);
-        float dist = length(uCam - vWorld);
+        // A road in use. Repairs: a patch of newer tar now and then, square
+        // to the street, darker and smoother, a sealed joint round it; and
+        // tar run into the long cracks.
+        vec2 pc = p / vec2(11.0, 17.0);
+        vec2 pi = floor(pc);
+        vec2 lo = 0.06 + 0.4 * vec2(hash12(pi + 4.1), hash12(pi + 9.3));
+        vec2 hi = lo + 0.2 + 0.32 * vec2(hash12(pi + 2.2), hash12(pi + 6.6));
+        vec2 pe = min(fract(pc) - lo, hi - fract(pc)) * vec2(11.0, 17.0);
+        float pm = min(pe.x, pe.y);
+        float has = step(hash12(pi + 1.7), 0.36);
+        float mended = has * smoothstep(-px, px, pm);
+        float n1 = vnoise(p * 0.07);
+        float n2 = vnoise(p * 0.23 + 5.3);
+        float seal = has * (1.0 - smoothstep(0.02, 0.05 + px, abs(pm)));
+        seal = max(seal, (1.0 - smoothstep(0.004, 0.011 + px * 0.25, abs(vnoise(p * 0.31 + 17.0) - 0.5))) * step(0.42, n2)) * near;
+        albedo *= mix(1.0, 0.7 + 0.25 * hash12(pi + 8.8), mended) * (1.0 - 0.65 * seal);
+        // The wheel tracks, polished paler; oil down the middle of a lane
+        // and in blots where cars stand; silt in the gutter.
+        float mid = smoothstep(0.55, 0.0, lane) * grade * (1.0 - inJ);
+        float lng = vnoise(p * (alongZ ? vec2(1.1, 0.14) : vec2(0.14, 1.1)) + 11.0);
+        float oil = max(mid * smoothstep(0.35, 0.7, lng), smoothstep(0.62, 0.74, vnoise(p * 1.1 + 3.0)) * smoothstep(2.6, 1.8, kerbIn));
+        albedo *= (1.0 + 0.3 * track * stone) * (1.0 - 0.45 * oil) * (1.0 - 0.3 * smoothstep(0.5, 0.1, kerbIn));
+
+        // The water. More of it in the avenue's first forty metres, the
+        // road the hero's lens and the drift fill the frame with.
+        float broad = n1 * 0.3 + n2 * 0.45 + lng * 0.25;
+        float fore = smoothstep(-40.0, -10.0, p.y) * (1.0 - smoothstep(9.0, 12.0, abs(p.x)));
+        float field = broad + (0.46 - rough) * 1.2
+                    + gutter * (0.02 + 0.3 * lng) + track * (lng - 0.45) * 0.4 + inJ * 0.06 + mended * 0.03;
+        float aa = fwidth(field) * 0.75;
+        float puddle = smoothstep(0.63 - aa, 0.66 + aa, field) * uWet;
+        float damp = smoothstep(0.3, 0.6, broad + 0.22 * gutter + 0.14 * fore + 0.1 * inJ - 0.08 * smoothstep(2.5, 7.0, kerbIn) * grade);
+        float wet = uWet * mix(0.3, 1.0, damp);
 
         vec3 spill = spillAt(vWorld);
         #if PAINT == 1
-        // Worn road paint over the same asphalt: pale, still wet, and lit by
-        // the whole street's glow, so it reads as the line down the middle.
-        albedo = mix(albedo, vPaint, 0.85 * crack);
+        // Road paint over the same asphalt: worn through where the stones
+        // stand proud and where the wheels run, pale, and lit by the whole
+        // street's glow, so it reads as the line down the middle.
+        float worn = smoothstep(0.3, 0.75, vnoise(p * 2.3) * 0.55 + lng * 0.3 + 0.3 * track + (rough - 0.46) * 1.2);
+        float painted = 0.85 * crack * (1.0 - 0.8 * worn * near);
+        albedo = mix(albedo, vPaint, painted);
+        stone = max(stone, painted);
         vec3 col = albedo * (vec3(0.16, 0.14, 0.18) + spill * 1.6);
         #else
+        albedo *= mix(1.0, 0.72, wet);
         vec3 col = albedo * 0.55 * (vec3(0.07) + spill * mix(1.0, 0.45, puddle)) + albedo * cityGlow(-V, 0.0) * 0.12;
         #endif
         // A wet sheen: the aggregate catches the street's light, and here
         // and there a stone catches it hard. The glints go before a pixel
         // is wider than one, or they would shimmer.
         col += spill * 0.05 * (1.0 - rough) * uWet;
-        float grainPx = fwidth(vWorld.x) + fwidth(vWorld.z);
-        // A stone here and there, round and small: square, bright and many,
-        // they read as confetti on the road.
-        vec2 gcell = vWorld.xz * 24.0;
-        vec2 gf = fract(gcell) - 0.5;
-        float glint = step(0.997, hash12(floor(gcell))) * smoothstep(0.25, 0.05, length(gf)) * (1.0 - smoothstep(0.015, 0.04, grainPx));
+        vec2 gcell = p * 24.0;
+        float glint = step(0.997, hash12(floor(gcell))) * smoothstep(0.25, 0.05, length(fract(gcell) - 0.5)) * (1.0 - smoothstep(0.015, 0.04, px));
+
+        // What the wet gives back. Standing water is flat but for the rain;
+        // the film on the asphalt follows the stones, smoother where the
+        // wheels and the tar have closed the surface.
+        // Brighter at a glancing look, and never nothing: a wet street at
+        // night is drawn glossier than water is.
+        float graze = pow(1.0 - ndv, 3.0);
+        float fres = 0.15 + 0.85 * graze;
         col += spill * glint * 1.6 * fres * uWet * crack;
+        vec2 rings = vec2(0.0);
+        if (puddle > 0.01 && dist < 28.0) {
+          rings = (ripple(p / 0.6, uTime) + ripple(p / 0.45 + 13.7, uTime * 1.13)) * puddle * smoothstep(28.0, 5.0, dist);
+        }
+        vec3 R = normalize(vec3(-V.x + rings.x * 0.03, V.y, -V.z + rings.y * 0.03));
+        float sheen = wet * mix(0.35, 1.0, stone) * crack * (1.0 + 0.4 * track + 0.3 * mended + 0.7 * seal + 0.5 * oil) * (1.0 + 2.3 * fore);
+        // How wide the film scatters, as a facet's tilt in radians.
+        float sigma = mix(mix(0.06, 0.035, max(track, mended)), 0.085, fore);
 
-        // The baked streaks: every sign's light run back toward the eye.
-        vec2 suv = (vWorld.xz - uStreakBounds.xy) * uStreakBounds.zw;
-        vec3 st = texture2D(uStreaks, suv + nt.xy * vec2(0.004, 0.0005)).rgb;
-        st *= st;
-        // Summed lights drift toward lilac; push the colour back out.
-        float sl = dot(st, vec3(0.299, 0.587, 0.114));
-        st = max(mix(vec3(sl), st, 1.7), 0.0);
-        float wet = uWet * mix(0.6, 1.0, puddle) * mix(0.35, 1.0, crack);
-        // Fine striations: light on wet asphalt runs in long thin lines down
-        // the street, not in a smooth wash.
-        float striation = 0.3 + 0.7 * vnoise(vec2(vWorld.x * 3.2, vWorld.z * 0.11));
-        striation *= 0.6 + 0.4 * vnoise(vec2(vWorld.x * 11.0, vWorld.z * 0.35));
-        wet *= mix(striation, 1.0, puddle * 0.7);
-        col += st * uStreakGain * wet * (0.45 + 0.55 * fres);
-
-        // The sky: the city's glow over the roofs, mirrored where the road
-        // is wet, brightest where the street runs toward downtown, which is
-        // what lights the middle of the plate's road. The mirror pass draws
-        // only what glows, never the sky, so this is its sky on desktop too.
-        vec3 R = reflect(-V, vec3(0.0, 1.0, 0.0));
-        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6;
-        col += sky * wet * mix(0.35, 1.0, puddle) * fres * crack;
-
+        float mk = 0.0;
+        vec3 sharp = vec3(0.0);
+        vec3 soft = vec3(0.0);
         #if MIRROR == 1
-        if (uReflectOn > 0.5) {
-          vec4 rp = uReflectMatrix * vec4(vWorld, 1.0);
-          vec2 ruv = rp.xy / rp.w;
-          // Rough wet asphalt smears a reflection long and soft along the
-          // line of sight and barely across it; standing water does not, but
-          // near the lens the rain rings it.
-          vec2 rings = (ripple(vWorld.xz / 0.6, uTime) + ripple(vWorld.xz / 0.45 + 13.7, uTime * 1.13))
-                     * puddle * smoothstep(28.0, 5.0, dist);
-          // The aggregate's normal bends it a little, less than it did: at
-          // the tile's own frequency a larger bend zipped every streak's edge.
-          // Held to about a pixel sideways: any more and the aggregate's
-          // normal map, at its tile's frequency, tears every streak's edge.
-          vec2 bend = nt.xy * mix(0.0008, 0.0005, puddle) * vec2(1.0, 0.3) + rings * vec2(0.0009, 0.002);
-          // Rough wet asphalt stretches every reflection from the horizon
-          // down toward the eye: gather the mirror along this pixel's column
-          // from its own point up to the horizon, nearer the horizon
-          // counting less. A puddle keeps closer to a true mirror.
-          vec3 refl = vec3(0.0);
-          float wsum = 0.0;
-          // Near the lens the smear is short, so a tube's streak is a streak
-          // and not a curtain; further off it runs to the horizon.
-          float reach = mix(mix(0.22, 0.55, smoothstep(12.0, 40.0, dist)), 0.18, puddle);
-          for (int i = 0; i < 10; i++) {
-            float t = float(i) / 9.0;
-            float v = mix(ruv.y, uHorizonV, t * t * reach);
-            float w = mix(1.0, 0.35, t);
-            refl += texture2D(uReflect, vec2(ruv.x + bend.x, v + bend.y)).rgb * w;
-            wsum += w;
+        mk = uReflectOn * clamp(uReflectGain / ${MIRROR_FULL.toFixed(1)}, 0.0, 1.0);
+        if (mk > 0.001) {
+          // The mirror's picture is of the world as the road's plane throws
+          // it back, so a direction's vanishing point in it is where that
+          // direction is seen from any point of the road: R for the water,
+          // and R tipped up and down by the film's own roughness for the
+          // asphalt, gathered from a level of the picture as soft as the
+          // gaps between the taps. That lobe is the streak: a few degrees
+          // tall and narrow, long on screen only at a glancing look.
+          vec4 a = uReflectMatrix * vec4(R, 0.0);
+          vec4 b = uReflectMatrix[1];
+          if (puddle > 0.01) sharp = textureLod(uReflect, a.xy / a.w, 0.0).rgb;
+          if (puddle < 0.99) {
+            // Further toward the horizon than away from it, as a rough
+            // wet surface throws light at a glancing angle.
+            float top = 2.0 * sigma;
+            float bottom = max(-mix(2.5, 4.5, fore) * sigma, 0.012 - R.y);
+            vec2 size = vec2(textureSize(uReflect, 0));
+            vec2 u0 = (a.xy + b.xy * bottom) / (a.w + b.w * bottom);
+            vec2 u1 = (a.xy + b.xy * top) / (a.w + b.w * top);
+            float lod = log2(max(length((u1 - u0) * size) / 8.0, 1.0)) - 0.6;
+            float wsum = 0.0;
+            for (int i = 0; i < 8; i++) {
+              float tilt = mix(bottom, top, (float(i) + 0.5) / 8.0);
+              float lim = tilt > 0.0 ? top : bottom;
+              float w = exp(-mix(2.0, 0.6, fore) * tilt * tilt / (lim * lim));
+              soft += textureLod(uReflect, (a.xy + b.xy * tilt) / (a.w + b.w * tilt), lod).rgb * w;
+              wsum += w;
+            }
+            soft /= wsum;
           }
-          refl /= wsum;
-          // The aggregate breaks the sheen up: bright on the smooth stones,
-          // nothing in the cracks.
-          float grain = texture2D(uRough, tuv * 1.6).g;
-          float sheen = mix(0.45, 1.0, smoothstep(0.52, 0.4, grain)) * crack;
-          sheen = mix(sheen, 1.0, puddle);
-          // Wetter in patches, so the streaks break as the road does.
-          // Wet in patches over matte asphalt, as the show's crossing is
-          // (Fn9gKhU_2_Q@69): between them the mirror is a faint sheen.
-          float patchy = mix(0.1, 1.0, smoothstep(0.35, 0.7, vnoise(vWorld.xz * vec2(0.22, 0.05))));
-          col += refl * uReflectGain * wet * sheen * mix(0.2, 0.8, fres) * mix(patchy, 1.4, puddle);
         }
         #endif
+        vec3 baked = vec3(0.0);
+        if (mk < 0.999) {
+          // No mirror: the baked light along the ray, its colour pushed
+          // back out (summed lights drift toward lilac), and on the asphalt
+          // drawn out toward the eye, as light is on a wet road.
+          baked = spillReflect(vWorld, R);
+          baked = max(mix(vec3(dot(baked, vec3(0.299, 0.587, 0.114))), baked, 1.8), 0.0) * 0.14;
+          vec2 rd = normalize(R.xz + 1e-5);
+          baked *= 0.5 + vnoise(vec2(dot(p, vec2(-rd.y, rd.x)) * 1.3, dot(p, rd) * 0.06));
+          // And the street's lit face (ground.js): sharp in standing
+          // water; on the film each pixel looks a little higher or lower
+          // than its neighbour, by the film's roughness, which draws the
+          // same lights out into grainy streaks.
+          if (grade > 0.5) {
+            float far = (max(se.y, se.w) + 10.0) / max(abs(alongZ ? R.x : R.z), 0.05);
+            float fpx = px * (1.0 + far / dist);
+            if (puddle > 0.01) sharp = mix(frontageReflect(vWorld, R, sf, se, fpx) * 1.6 + baked * 0.8, sharp, mk);
+            if (puddle < 0.99) {
+              float tilt = (hash12(gl_FragCoord.xy) - 0.62) * 4.0 * sigma;
+              baked += frontageReflect(vWorld, normalize(vec3(R.x, max(R.y + tilt, 0.012), R.z)), sf, se, fpx) * 0.7;
+            }
+          }
+        }
+        // The sky: the lit cloud over the roofs, and the city's glow low on
+        // it, brightest where the street runs toward downtown. The mirror
+        // draws only what glows, never the sky, so this is its sky on
+        // desktop too.
+        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (uHazeColor * 1.2 + uGlowColor * 0.5) * uHaze * 0.4;
+        vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(0.3 * wet * mix(0.35, 1.0, stone) * crack, 1.0, puddle);
+        // (On the hero's stretch the film is thick enough to hold its shine
+        // at the lens's feet, as the plate's road does.)
+        refl *= mix(mix(fres, 0.6, 0.7 * fore), 0.25 + 0.75 * graze, puddle) * uWet;
+        // Never brighter than the sign it is the reflection of.
+        refl /= 1.0 + 0.35 * max(refl.r, max(refl.g, refl.b));
+        col += refl;
 
         col = cityFog(col, vWorld, 0.35);
         gl_FragColor = vec4(col, 1.0);
@@ -236,14 +323,12 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
   return {
     material,
     uniforms,
-    setStreaks(tex, bounds) {
-      uniforms.uStreaks.value = tex;
-      if (bounds) uniforms.uStreakBounds.value.copy(bounds);
-    },
-    setReflection(texture, matrix, horizonV) {
+    // The avenue's streaks, baked for the hero's eye alone (spill.js): the
+    // road follows the baked light along each eye's own ray instead.
+    setStreaks() {},
+    setReflection(texture, matrix) {
       uniforms.uReflect.value = texture;
       if (matrix) uniforms.uReflectMatrix.value.copy(matrix);
-      if (horizonV !== undefined) uniforms.uHorizonV.value = horizonV;
       uniforms.uReflectOn.value = texture ? 1 : 0;
     },
     dispose() {
