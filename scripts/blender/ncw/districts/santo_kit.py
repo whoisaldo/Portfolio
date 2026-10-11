@@ -66,6 +66,40 @@ _counts = {"steam": 0, "lamp": 0}
 
 
 # ---------------------------------------------------------------------------
+# The window shader lights an office's floors right along or hardly at all
+# (src/world/glsl.js, windowsT: `busy`, from the floor's number and the
+# building's style and warmth). A band of panes that must be lit (a shed's
+# north light, a ground floor of offices) is put on a floor it lights: the
+# same dice, thrown here.
+# ---------------------------------------------------------------------------
+def _fract(v):
+    return v - math.floor(v)
+
+
+def _hash12(px, py):
+    a, b_, c_ = _fract(px * 0.1031), _fract(py * 0.1031), _fract(px * 0.1031)
+    d = a * (b_ + 33.33) + b_ * (c_ + 33.33) + c_ * (a + 33.33)
+    a, b_, c_ = a + d, b_ + d, c_ + d
+    return _fract((a + b_) * c_)
+
+
+def lit_floor(style, warmth, r, busy=True):
+    """A floor number (the v the band starts at) the shader lights (or
+    leaves dark), and the warmth as the GLB's 8 bits will carry it."""
+    wq = round(warmth * 255) / 255.0
+    order = list(range(1, 90))
+    r.shuffle(order)
+    for vo in order:
+        # (glTF turns v over: the shader's floor is -vo.)
+        vals = [_hash12(-vo * 1.37 + sy * 17.0, 2.1 + wq * 17.0) for sy in (style / 8.0, round(style / 8.0 * 255) / 255.0)]
+        if busy and min(vals) > 0.62:
+            return vo, wq
+        if not busy and max(vals) < 0.48:
+            return vo, wq
+    return order[0], wq
+
+
+# ---------------------------------------------------------------------------
 # Faces that know which way they look.
 # ---------------------------------------------------------------------------
 def quad_n(key, pts, n, col=(1, 1, 1, 1), uvs=None, uv_scale=0.5):
@@ -659,9 +693,9 @@ def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tin
         # The light: a band of panes the length of the ridge, each tooth a
         # floor of its own to the window shader (lit right along, in part,
         # or dark), warm with the shed's lamps.
-        frac = r.uniform(0.6, 0.95) if on else r.uniform(0.0, 0.15)
-        vo = r.randrange(0, 60)
-        col = B.wall_col(frac, 4, r.uniform(0.55, 1.0), tint_i)
+        frac = r.uniform(0.6, 0.95) if on else r.uniform(0.05, 0.3)
+        vo, wq = lit_floor(4, r.uniform(0.55, 1.0), r, busy=on)
+        col = B.wall_col(frac, 4, wq, tint_i)
         pts = (W(u0, y + 0.25, a), W(u1, y + 0.25, a), W(u1, y + rise - 0.12, a), W(u0, y + rise - 0.12, a))
         quad_n(k("facade"), pts, gn, col, uvs=((0, vo), (bays, vo), (bays, vo + 1), (0, vo + 1)))
         if on:
@@ -930,9 +964,14 @@ def shed(x0, x1, z0, z1, eave, col, r, faces=None, plinth=1.0, tint="concrete", 
             used.append((s0_ - 2.5, s1_ + 2.5))
         if office:
             o0, o1 = office if isinstance(office, tuple) else (2.0, min(w - 2.0, 26.0))
-            f.quad(k("facade"), o0, o1, GY + 1.0, GY + 3.2, 0.03,
-                   uvs=((0, 0), (max(1, round((o1 - o0) / 2.4)), 0), (max(1, round((o1 - o0) / 2.4)), 1), (0, 1)),
-                   col=B.wall_col(r.uniform(0.55, 0.9), 4, r.uniform(0.4, 0.9), B.TINTS[tint]))
+            vo, wq = lit_floor(4, r.uniform(0.4, 0.9), r)
+            nb_ = max(1, round((o1 - o0) / 2.4))
+            f.quad(k("facade"), o0, o1, GY + 1.0, GY + 3.2, 0.03, uvs=((0, vo), (nb_, vo), (nb_, vo + 1), (0, vo + 1)),
+                   col=B.wall_col(r.uniform(0.7, 0.95), 4, wq, B.TINTS[tint]))
+            lx, ly, lz = f.p(f.at((o0 + o1) / 2), 1.0, 1.6)
+            wash(min(f.p(f.at(o0), 0, 1.6)[0], f.p(f.at(o1), 0, 1.6)[0]), max(f.p(f.at(o0), 0, 1.6)[0], f.p(f.at(o1), 0, 1.6)[0]),
+                 min(f.p(f.at(o0), 0, 1.6)[2], f.p(f.at(o1), 0, 1.6)[2]), max(f.p(f.at(o0), 0, 1.6)[2], f.p(f.at(o1), 0, 1.6)[2]),
+                 level=0.5, hue="white", step=5.0)
             ds = o0 + (o1 - o0) * r.uniform(0.3, 0.7)
             f.box(k("trim"), ds - 1.2, ds + 1.2, GY, GY + 3.4, 0.0, 0.12, col=shade(col, 0.5))
             f.quad(k("lobby"), ds - 0.9, ds + 0.9, GY, GY + 2.5, 0.13, col=(r.random(), r.random(), 1, 1))
@@ -1016,6 +1055,205 @@ def yard_wall(x0, z0, x1, z1, h=2.8, wire=True, r=None, posters=0.0, face=1):
                     B.billboard(D, x0 + face * (t / 2 + 0.06), 1.75, z + 1.7, 3.0, 2.0, math.pi / 2 if face > 0 else -math.pi / 2, r, back=False, depth=0.1)
                 z += r.uniform(5.0, 9.0)
         collide(x0 - t / 2, x0 + t / 2, za, zb, h)
+
+
+def board(cx, cy, cz, yaw, size="pm", scale=1.0, back=False):
+    """One of the street's standard signs in its frame, facing `yaw` (and
+    its other face too, a second design)."""
+    w, h = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    oriented_box(k("board_frame"), cx - nx * 0.09, cy, cz - nz * 0.09, w + 0.2, h + 0.2, 0.14, yaw, scale=1.0)
+    sid = st_name(size)
+    sign(sid, cx, cy, cz, w, h, yaw, district=D, label=False)
+    if back:
+        sign(sid + "_b", cx - nx * 0.18, cy, cz - nz * 0.18, w, h, yaw + math.pi, district=D, label=False)
+    return w, h
+
+
+def post_sign(x, z, yaw, y=3.4, size="pm", scale=1.0, back=True):
+    """A sign on two posts, turned to the street at whatever angle."""
+    w, h = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    for du in (-w * 0.4, w * 0.4):
+        px, pz = x + rx * du - math.sin(yaw) * 0.09, z + rz * du - math.cos(yaw) * 0.09
+        box(k("metal", 1), px - 0.06, px + 0.06, GY, y - h / 2, pz - 0.06, pz + 0.06, scale=0.5)
+    board(x, y, z, yaw, size, scale, back=back)
+
+
+def roof_sign(cx, top, cz, yaw, sizes=("pm", "pm", "pm"), scale=1.6, lift=1.4, back=False):
+    """A row of signs on a steel frame on a roof, turned to the street: the
+    frame's legs, its rakers behind, the boards side by side."""
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    ws = [ST_SIZES[z][0] * scale + 0.3 for z in sizes]
+    hmax = max(ST_SIZES[z][1] * scale for z in sizes)
+    total = sum(ws)
+    u = -total / 2
+    for z_, w_ in zip(sizes, ws):
+        board(cx + rx * (u + w_ / 2), top + lift + hmax / 2, cz + rz * (u + w_ / 2), yaw, z_, scale, back=back)
+        u += w_
+    n = max(2, round(total / 4.0))
+    for i in range(n + 1):
+        du = -total / 2 + total * i / n
+        px, pz = cx + rx * du - nx * 0.2, cz + rz * du - nz * 0.2
+        box(k("metal", 1), px - 0.07, px + 0.07, top, top + lift + hmax, pz - 0.07, pz + 0.07, scale=0.5)
+        brace((px, top + lift + hmax * 0.8, pz), (px - nx * 1.8, top, pz - nz * 1.8), r=0.04, mat="metal", detail=1)
+    a = (cx - rx * total / 2 - nx * 0.2, top + lift - 0.1, cz - rz * total / 2 - nz * 0.2)
+    b_ = (cx + rx * total / 2 - nx * 0.2, top + lift - 0.1, cz + rz * total / 2 - nz * 0.2)
+    brace(a, b_, r=0.05, mat="metal", detail=1)
+
+
+def blade(f, s, y0, size="bl", scale=1.0, out=None):
+    """A blade sign standing out from a face, read from both ways along
+    the street."""
+    w, h = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale
+    out = (0.4 + w / 2) if out is None else out
+    cx, _, cz = f.p(f.at(s), 0.0, out)
+    yaw = f.yaw + math.pi / 2
+    board(cx, y0 + h / 2, cz, yaw, size, scale, back=True)
+    for y in (y0 + 0.3, y0 + h - 0.3):
+        f.box(k("metal", 1), s - 0.05, s + 0.05, y, y + 0.08, 0.0, out - w / 2 + 0.1)
+
+
+def bridge(x0, z0, x1, z1, y=6.6, w=2.2, pipes=((-0.55, 0.3, STEEL_BLUE), (0.25, 0.2, RUST), (0.75, 0.11, YELLOW)), lamps=True):
+    """A pipe bridge over a street, along x or z: a trussed box on a
+    braced trestle each end, the pipes in it, lamps under it."""
+    along_x = abs(x1 - x0) >= abs(z1 - z0)
+    a0, a1 = (min(x0, x1), max(x0, x1)) if along_x else (min(z0, z1), max(z0, z1))
+    c0 = z0 if along_x else x0
+    Pt = (lambda a, yy, c_: (a, yy, c_)) if along_x else (lambda a, yy, c_: (c_, yy, a))  # noqa: E731
+    hh = 1.7
+    for s_ in (-1, 1):
+        cc = c0 + s_ * w / 2
+        for yy in (y, y + hh):
+            if along_x:
+                beam(a0, cc, a1, cc, yy + 0.2, t=0.2)
+            else:
+                beam(cc, a0, cc, a1, yy + 0.2, t=0.2)
+        n = max(2, round((a1 - a0) / 3.4))
+        for i in range(n):
+            pa, pb = a0 + (a1 - a0) * i / n, a0 + (a1 - a0) * (i + 1) / n
+            lo, hi = (y + 0.1, y + hh + 0.1) if i % 2 == 0 else (y + hh + 0.1, y + 0.1)
+            brace(Pt(pa, lo, cc), Pt(pb, hi, cc), r=0.06)
+        for a in (a0, a1):
+            px, _, pz = Pt(a, 0, cc)
+            column(px, pz, GY, y + hh + 0.2, t=0.26)
+    for a in (a0, a1):
+        p0, p1 = Pt(a, 0, c0 - w / 2), Pt(a, 0, c0 + w / 2)
+        xbrace(p0[0], p0[2], p1[0], p1[2], GY + 0.4, y - 0.3, r=0.06)
+    n = max(2, round((a1 - a0) / 3.4))
+    for i in range(n + 1):
+        a = a0 + (a1 - a0) * i / n
+        p0, p1 = Pt(a, y + 0.1, c0 - w / 2), Pt(a, y + 0.1, c0 + w / 2)
+        brace(p0, p1, r=0.05, detail=1)
+    for off, r_, col in pipes:
+        pipe(k("trim"), Pt(a0 - 0.3, y + 0.25 + r_, c0 + off), Pt(a1 + 0.3, y + 0.25 + r_, c0 + off), r_, segs=6, col=col)
+    if lamps:
+        m = max(1, round((a1 - a0) / 9.0))
+        for i in range(m):
+            a = a0 + (a1 - a0) * (i + 0.5) / m
+            px, _, pz = Pt(a, 0, c0)
+            box(k("neon_amber"), px - 0.35, px + 0.35, y - 0.14, y - 0.06, pz - 0.35, pz + 0.35, scale=0.5, bottom=True)
+        # Its headroom board, striped, on each face.
+        for s_ in (-1, 1):
+            p0 = Pt((a0 + a1) / 2 - 2.0, y - 0.1, c0 + s_ * (w / 2 + 0.12))
+            p1 = Pt((a0 + a1) / 2 + 2.0, y + 0.35, c0 + s_ * (w / 2 + 0.16))
+            box(k("hazard", 1), min(p0[0], p1[0]), max(p0[0], p1[0]), y - 0.1, y + 0.35, min(p0[2], p1[2]), max(p0[2], p1[2]), scale=0.6)
+
+
+def vent(x, z, lit=4.0):
+    """A grating in the yard that breathes steam across the pavement."""
+    box(k("metal", 1), x - 0.45, x + 0.45, GY, GY + 0.05, z - 0.45, z + 0.45, scale=0.5)
+    steam(x, GY + 0.1, z, kind="street", lit=lit, red=0.2)
+
+
+def low_wall(x0, z0, x1, z1, h=0.9, lamps=3):
+    """A low concrete wall with a steel rail on it and piers, a lamp on
+    every few: a boundary a walker sees the yard over."""
+    along_x = abs(x1 - x0) >= abs(z1 - z0)
+    t = 0.3
+    a0, a1 = (min(x0, x1), max(x0, x1)) if along_x else (min(z0, z1), max(z0, z1))
+    c0 = z0 if along_x else x0
+    if along_x:
+        box(k("concrete"), a0, a1, 0.0, h, c0 - t / 2, c0 + t / 2, scale=2.0)
+        rail((a0, h, c0), (a1, h, c0), h=1.2, detail=0, posts=2.0)
+        collide(a0, a1, c0 - t / 2, c0 + t / 2, h + 1.2)
+    else:
+        box(k("concrete"), c0 - t / 2, c0 + t / 2, 0.0, h, a0, a1, scale=2.0)
+        rail((c0, h, a0), (c0, h, a1), h=1.2, detail=0, posts=2.0)
+        collide(c0 - t / 2, c0 + t / 2, a0, a1, h + 1.2)
+    n = max(1, round((a1 - a0) / 6.0))
+    for i in range(n + 1):
+        a = a0 + (a1 - a0) * i / n
+        px, pz = (a, c0) if along_x else (c0, a)
+        box(k("concrete", 1), px - 0.28, px + 0.28, 0.0, h + 0.45, pz - 0.28, pz + 0.28, scale=1.5)
+        if lamps and i % lamps == 1:
+            box(k("neon_amber"), px - 0.16, px + 0.16, h + 0.45, h + 0.62, pz - 0.16, pz + 0.16, scale=0.5)
+            sodium(px, h + 0.5, pz, 3.6)
+
+
+def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", "bin", "drum", "bags", "crates", "tote", "cctv", "barrier", "lamp_short"),
+          side=0.0):
+    """What stands on the strip between the pavement and a yard's fence."""
+    ln = math.hypot(x1 - x0, z1 - z0)
+    n = max(1, int(ln / step))
+    ux, uz = (x1 - x0) / ln, (z1 - z0) / ln
+    yaw = math.atan2(-uz, ux)
+    for i in range(n):
+        t = (i + r.uniform(0.15, 0.85)) / n
+        j = r.uniform(-0.4, 0.4) + side
+        kind = r.choice(kinds)
+        px, pz = x0 + (x1 - x0) * t - uz * j, z0 + (z1 - z0) * t + ux * j
+        P.place(kind, px, GY, pz, yaw + (0.0 if kind in ("barrier", "crates") else r.uniform(0, 6.28)), district=D)
+        if kind == "bollard":
+            P.place(kind, px + ux * 1.4, GY, pz + uz * 1.4, 0.0, district=D)
+        if kind == "lamp_short":
+            sodium(px, 3.6, pz, 4.0)
+
+
+def crane(cx, cz, yaw, h=11.0, jib=15.0, pitch=0.5, col=YELLOW):
+    """A yard crane: a lattice mast, the slewing cab with its window lit,
+    a braced jib out over the yard, the hook on its rope, lamps."""
+    w = 0.7
+    for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+        column(cx + sx * w, cz + sz * w, GY, h, t=0.16, mat="trim", col=col)
+    n = max(3, int(h / 2.6))
+    for i in range(n):
+        ya, yb = GY + (h - GY) * i / n, GY + (h - GY) * (i + 1) / n
+        for (ax, az, bx, bz) in ((-1, -1, 1, -1), (1, -1, 1, 1), (1, 1, -1, 1), (-1, 1, -1, -1)):
+            brace((cx + ax * w, ya, cz + az * w), (cx + bx * w, yb, cz + bz * w), r=0.05, mat="trim", col=col, detail=1)
+    box(k("trim"), cx - 1.4, cx + 1.4, h, h + 0.3, cz - 1.4, cz + 1.4, scale=1.0, col=shade(col, 0.7), bottom=True)
+    dx, dz = math.sin(yaw), math.cos(yaw)
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    # The cab beside the jib's foot.
+    ccx, ccz = cx + rx * 1.1 + dx * 0.4, cz + rz * 1.1 + dz * 0.4
+    oriented_box(k("trim"), ccx, h + 1.4, ccz, 1.5, 2.2, 2.0, yaw, scale=1.0, col=shade(col, 0.85))
+    rotated_quad(k("glow"), ccx + dx * 1.02, h + 1.7, ccz + dz * 1.02, 1.2, 1.0, yaw, col=shade(GLASS_COOL, 1.5))
+    # The jib: two chords and the web between, the counter-jib behind.
+    foot = (cx, h + 0.5, cz)
+    tip = (cx + dx * jib * math.cos(pitch), h + 0.5 + jib * math.sin(pitch), cz + dz * jib * math.cos(pitch))
+    top = (cx, h + 4.2, cz)
+    brace(foot, tip, r=0.11, mat="trim", col=col)
+    brace(top, tip, r=0.05, mat="trim", col=col)
+    brace(foot, top, r=0.12, mat="trim", col=col)
+    m = 6
+    for i in range(1, m):
+        t = i / m
+        pb = tuple(foot[q] + (tip[q] - foot[q]) * t for q in range(3))
+        brace(pb, (pb[0], pb[1] + 0.9 * (1 - t) + 0.25, pb[2]), r=0.04, mat="trim", col=col, detail=1)
+    back = (cx - dx * 4.0, h + 1.2, cz - dz * 4.0)
+    brace(foot, back, r=0.1, mat="trim", col=col)
+    brace(top, back, r=0.05, mat="trim", col=col)
+    oriented_box(k("trim"), back[0], back[1] - 0.6, back[2], 1.6, 1.4, 1.6, yaw, scale=1.0, col=STEEL)
+    hook = (tip[0], GY + 4.2, tip[2])
+    both(k("dark", 1), ((tip[0] - 0.025, tip[1], tip[2]), (tip[0] + 0.025, tip[1], tip[2]), (hook[0] + 0.025, hook[1], hook[2]), (hook[0] - 0.025, hook[1], hook[2])))
+    both(k("dark", 1), ((tip[0], tip[1], tip[2] - 0.025), (tip[0], tip[1], tip[2] + 0.025), (hook[0], hook[1], hook[2] + 0.025), (hook[0], hook[1], hook[2] - 0.025)))
+    box(k("trim"), hook[0] - 0.25, hook[0] + 0.25, hook[1] - 0.6, hook[1], hook[2] - 0.2, hook[2] + 0.2, scale=0.5, col=col, bottom=True)
+    box(k("glow"), tip[0] - 0.12, tip[0] + 0.12, tip[1] + 0.1, tip[1] + 0.35, tip[2] - 0.12, tip[2] + 0.12, scale=0.5, col=GLOW["red"])
+    box(k("glow"), cx - 0.12, cx + 0.12, h + 4.2, h + 4.45, cz - 0.12, cz + 0.12, scale=0.5, col=GLOW["red"])
+    box(k("neon_amber"), ccx - 0.5, ccx + 0.5, h + 0.2, h + 0.3, ccz - 0.5, ccz + 0.5, scale=0.5, bottom=True)
+    collide(cx - w, cx + w, cz - w, cz + w, h)
+    return hook
 
 
 def gate(x0, z0, x1, z1, inward, open_=True, booth=None, guard=True, lamp="cyan"):
@@ -1109,7 +1347,7 @@ P.proto("c20_grey", box=(3.05, 1.3, 1.22), reach=700)(lambda kk: _container(kk, 
 def _fence_pal(kk):
     """Three metres of palisade: a post, two rails, pales with pointed
     heads, in dark galvanised steel."""
-    col = c(0.11, 0.115, 0.13)
+    col = c(0.24, 0.25, 0.27)
     for y in (0.5, 1.9):
         box(kk("trim"), -1.5, 1.5, y, y + 0.06, -0.03, 0.01, scale=1.0, col=col)
     box(kk("trim"), -1.56, -1.44, 0.0, 2.5, -0.06, 0.06, scale=1.0, col=shade(col, 0.8))

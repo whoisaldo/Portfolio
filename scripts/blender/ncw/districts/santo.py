@@ -93,12 +93,14 @@ def roads():
     # The plaza street's gate, shut; the south street's, open, its booth
     # and guard; the garage street's, open, the same.
     K.gate(295.6, -167.8, 304.4, -167.8, (0, 1), open_=False)
-    K.gate(295.6, -10.3, 304.4, -10.3, (0, -1), open_=True, booth=(307.6, -15.0, -PI / 2))
-    K.gate(427.7, -92.4, 427.7, -83.6, (-1, 0), open_=True, booth=(423.6, -81.2, PI))
+    K.gate(295.6, -12.4, 304.4, -12.4, (0, -1), open_=True, booth=(292.6, -15.8, PI / 2))
+    K.gate(425.8, -92.4, 425.8, -83.6, (-1, 0), open_=True, booth=(423.4, -81.2, PI))
+    K.post_sign(424.2, -94.6, PI * 0.38, y=3.8, size="pm", scale=1.2)
+    K.post_sign(306.4, -14.6, PI * 0.14, y=3.8, size="pm", scale=1.2)
     # A pair talking at the south gate, a driver waiting at the east one.
-    stand(298.2, -13.6, PI / 2, "talk")
-    stand(299.4, -13.5, -PI / 2, "talk")
-    stand(425.0, -86.0, PI / 2, "phone")
+    stand(298.2, -15.8, PI / 2, "talk")
+    stand(299.4, -15.7, -PI / 2, "talk")
+    stand(422.6, -86.2, PI / 2, "phone")
     # The service lane on the west: lamps, bins, a skip.
     for z in (-150.0, -112.0, -70.0, -30.0):
         strip(175.4, z, -PI / 2, power=5.0, cone=False)
@@ -151,6 +153,7 @@ def works():
     stand(X1 + 1.2, -139.0, PI / 2, "smoke", plat)
     stand(283.0, -128.5, PI, "talk")
     stand(283.2, -130.0, 0.0, "talk")
+    K.roof_sign(264.0 - 14.0, 8.6 + 2.6, -100.0 - 3.0, PI * 0.12, sizes=("pm", "bx", "pm"), scale=1.5)
     # Along the plaza street: a fence, and the yard strip behind it.
     K.fence(176.2, -167.8, 295.2, -167.8)
     for x, name in ((190.0, "c20_grey"), (246.0, "c40_rust")):
@@ -205,10 +208,11 @@ def tank_farm():
     K.rack(404.0, -94.9, 404.0, -83.1, step=11.8, lamps=False, braced=False)
     # Fences on both streets, floods at the corners, strip lamps round the
     # bunds, cyan lamps on every landing (in K.tank).
-    K.fence(304.8, -167.8, 427.7, -167.8)
-    K.fence(427.7, -167.8, 427.7, -92.8)
+    K.fence(304.8, -167.8, 425.8, -167.8)
+    K.fence(425.8, -167.8, 425.8, -92.8)
+    K.verge(r, 426.9, -166.0, 426.9, -94.0)
     mast(309.0, -164.5, PI * 0.2)
-    mast(424.0, -164.5, -PI * 0.25)
+    mast(422.6, -164.2, -PI * 0.25)
     mast(404.5, -129.0, -PI * 0.5)
     mast(309.0, -98.5, PI * 0.75)
     for x in (334.0, 372.0):
@@ -226,6 +230,9 @@ def tank_farm():
         K.ring_wash(414.0, z, 4.0, 0.0, PI * 2, level=0.45)
     K.wash(406.0, 422.0, -103.0, -103.0, level=0.5)
     scatter(r, 406.0, 424.0, -100.0, -94.0, 4, kinds=("drum_pallet", "tote", "drum"))
+    K.bridge(424.4, -101.0, 453.6, -101.0, y=6.8)
+    K.run([(424.4, 7.35, -101.55), (421.5, 7.35, -101.55), (421.5, 7.35, -96.4)], r=0.3, col=K.STEEL_BLUE)
+    K.vent(427.0, -124.0)
     # People: a man on a tank's landing, one walking the bund, two at the
     # pump house door.
     lx, lz = 357.0 + 11.0 * math.cos(PI * 0.7), -146.0 + 11.0 * math.sin(PI * 0.7)
@@ -233,7 +240,7 @@ def tank_farm():
     stand(360.0, -129.0, PI / 2, "idle")
     stand(404.4, -108.2, PI / 2, "talk")
     stand(405.2, -109.4, -PI / 3, "talk")
-    stand(424.6, -140.0, PI / 2, "smoke")
+    stand(424.4, -141.0, PI / 2, "smoke")
 
 
 # ---------------------------------------------------------------------------
@@ -389,7 +396,9 @@ def plant():
         x0 = 308.0 + i * 10.0
         box(k("concrete"), x0, x0 + 10.0, 0.0, 2.2, -34.0, -16.0, scale=2.0)
         for f in B.faces_of(x0 + 0.3, x0 + 9.7, -33.7, -16.3).values():
-            f.quad(k("door_panel"), 0.0, f.width, 2.2, 8.4, 0.0)
+            f.quad(k("door_panel"), 0.0, f.width, 2.2, 4.6, 0.0)
+            f.quad(k("trim"), 0.0, f.width, 4.6, 8.4, 0.0, col=K.CREAM)
+            f.box(k("trim"), -0.1, f.width + 0.1, 4.5, 4.75, 0.0, 0.14, col=K.shade(K.CREAM, 0.6))
         box(k("metal"), x0, x0 + 10.0, 8.4, 9.0, -34.0, -16.0, scale=1.0, bottom=True)
         cx, cz = x0 + 5.0, -25.0
         cylinder(k("trim"), cx, cz, 9.0, 11.8, 3.3, segs=14, col=K.GREY, cap=False)
@@ -398,6 +407,20 @@ def plant():
             K.steam(cx + dx, 12.0, cz + dz, lit=4.0)
         box(k("neon_amber"), cx - 0.8, cx + 0.8, 7.6, 7.72, -16.02, -15.9, scale=0.5, bottom=True)
     K.collide(308.0, 338.0, -34.0, -16.0, 9.0)
+    K.catwalk(308.0, -15.2, 338.0, -15.2, 4.7, w=1.3, rails=(False, True))
+    K.stair((306.6, GY, -15.2), (308.0, 4.7, -15.2), w=1.0, detail=0)
+    for i in range(3):
+        x0 = 308.0 + i * 10.0
+        K.digits(str(i + 1), x0 + 2.2, 6.6, -16.26, 2.0, 0.0, k("trim", 1), K.OXIDE, out=0.04)
+        K.run([(x0 + 7.2, 0.4, -15.4), (x0 + 7.2, 8.8, -15.4), (x0 + 7.2, 8.8, -17.0)], r=0.26, col=K.STEEL_BLUE)
+        K.run([(x0 + 8.2, 0.4, -15.5), (x0 + 8.2, 4.2, -15.5)], r=0.14, col=K.RUST, detail=1)
+        quad(k("door"), (x0 + 4.4, 4.7, -16.24), (x0 + 5.5, 4.7, -16.24), (x0 + 5.5, 6.8, -16.24), (x0 + 4.4, 6.8, -16.24))
+        box(k("neon_amber"), x0 + 4.5, x0 + 5.4, 6.95, 7.03, -16.2, -16.05, scale=0.5, bottom=True)
+        for xx in (x0 + 1.0, x0 + 9.0):
+            K.column(xx, -14.6, GY, 4.7, t=0.16, mat="metal")
+        box(k("hazard", 1), x0 + 0.3, x0 + 9.7, 2.2, 2.4, -16.28, -16.24, scale=1.0)
+    stand(322.0, -15.0, 0.0, "lean", 4.7)
+    stand(312.4, -15.2, PI / 2, "idle", 4.7)
     for (a, b) in (((308.0, -34.0), (338.0, -34.0)), ((308.0, -16.0), (338.0, -16.0)), ((308.0, -34.0), (308.0, -16.0)), ((338.0, -34.0), (338.0, -16.0))):
         K.rail((a[0], 9.0, a[1]), (b[0], 9.0, b[1]), detail=1)
     K.stair((339.0, GY, -30.0), (339.0, 9.0, -18.0), detail=1)
@@ -409,34 +432,44 @@ def plant():
     # The control building on the corner: three storeys of lit office
     # windows over a lobby, the generator's own.
     lot = B.Lot(388.0, 424.0, -36.0, -10.8, "+z", {"+z": "street", "+x": "open", "-x": "open", "-z": "back"}, {}, D)
-    B.building(lot, 11.4, r, style=dict(STYLE, windows=(2, 5), lit=(0.55, 0.85), signs=0.5, fire_escape=0.0), ground="lobby", tint="concrete")
+    B.building(lot, 11.4, r, style=dict(STYLE, windows=(2, 5), lit=(0.55, 0.85), signs=1.2, fire_escape=0.0, awning=0.5, shop_sign=0.9),
+               ground="shops", tint="concrete")
+    stand(396.0, -9.4 - 0.9, 0.0, "smoke")
+    stand(410.6, -10.2, 0.4, "talk")
+    stand(411.6, -9.8 - 0.5, -2.2, "talk")
     # Fences along both streets; the yard's lamps and floods.
-    K.fence(312.4, -10.3, 388.0, -10.3)
-    K.fence(427.7, -83.2, 427.7, -10.3)
-    K.fence(427.7, -10.3, 424.0, -10.3)
+    K.low_wall(312.8, -12.4, 388.0, -12.4)
+    K.low_wall(425.8, -83.2, 425.8, -10.8)
+    K.low_wall(424.0, -10.8, 425.8, -10.8, lamps=0)
+    K.verge(r, 314.0, -11.2, 386.0, -11.2, step=12.0)
+    K.verge(r, 426.9, -82.0, 426.9, -12.0, step=12.0)
     mast(342.0, -43.0, PI * 0.9, red=0.3)
     mast(383.0, -44.0, -PI * 0.85, red=0.3)
     mast(424.5, -44.0, -PI * 0.5)
     mast(306.5, -56.0, PI * 0.5)
     for x in (350.0, 372.0):
-        strip(x, -12.4, PI)
+        strip(x, -14.4, PI)
     for z in (-70.0, -52.0):
-        strip(426.0, z, -PI / 2)
+        strip(424.6, z, -PI / 2)
     K.wash(386.0, 410.0, -54.8, -54.8, level=0.75, red=0.4)
     K.wash(411.2, 411.2, -76.0, -56.0, level=0.6, red=0.3)
     K.ring_wash(403.0, -49.0, 4.0, 0.0, PI * 2, level=0.8, red=0.4)
     K.ring_wash(416.5, -62.0, 3.2, 0.0, PI * 2, level=0.8, red=0.3)
-    K.wash(308.0, 338.0, -14.6, -14.6, level=0.7)
+    K.wash(308.0, 338.0, -14.8, -14.8, level=0.95, step=3.5)
     K.wash(308.0, 338.0, -35.4, -35.4, level=0.5, red=0.3)
     K.wash(310.0, 334.0, -76.0, -56.0, level=0.55, step=6.0)
     scatter(r, 384.0, 400.0, -46.0, -40.0, 4)
     scatter(r, 412.0, 424.0, -56.0, -40.0, 4)
+    K.bridge(333.0, -13.8, 333.0, 13.8)
+    K.run([(332.45, 7.2, -13.8), (332.45, 7.2, -15.4), (332.45, 0.4, -15.4)], r=0.3, col=K.STEEL_BLUE)
+    K.vent(360.0, -11.3)
+    K.vent(427.0, -46.0)
     # People: on the cells' deck, at the boiler house door, smokers at the
     # control building's side door, one by the bullets.
     stand(337.2, -24.0, PI / 2, "lean", 9.0)
     stand(392.6, -54.4, 0.0, "idle")
-    stand(425.6, -30.0, PI / 2, "smoke")
-    stand(425.9, -31.4, 0.3, "talk")
+    stand(424.8, -30.0, PI / 2, "smoke")
+    stand(425.0, -31.4, 0.3, "talk")
     stand(309.4, -52.4, 0.0, "phone")
     stand(330.0, -44.0, PI, "sit", GY + 0.9)
 
@@ -479,12 +512,15 @@ def depot():
     stand(206.2, -34.6, PI / 2, "talk", plat)
     stand(207.4, -34.5, -PI / 2, "talk", plat)
     stand(230.6, -20.0, PI, "smoke")
+    K.roof_sign(208.0, 9.4 + 0.8, -38.4, PI * 0.06, sizes=("pm", "pm", "bx", "pm"), scale=1.7)
+    K.post_sign(218.6, -14.6, -PI * 0.2, y=3.6, size="pm", scale=1.2)
     # Its forecourt's fence on the street and its gate, open.
-    K.fence(176.2, -10.3, 204.0, -10.3)
-    K.gate(204.4, -10.3, 213.6, -10.3, (0, -1), open_=True)
-    K.fence(222.4, -10.3, 244.0, -10.3)
-    mast(178.0, -12.5, PI * 0.75)
-    mast(240.0, -12.5, -PI * 0.75)
+    K.fence(176.2, -12.4, 204.0, -12.4)
+    K.gate(204.4, -12.4, 213.6, -12.4, (0, -1), open_=True)
+    K.fence(222.4, -12.4, 246.0, -12.4)
+    K.verge(r, 178.0, -11.2, 244.0, -11.2, step=11.0)
+    mast(178.0, -14.6, PI * 0.75)
+    mast(240.0, -14.6, -PI * 0.75)
     scatter(r, 228.0, 240.0, -32.0, -14.0, 4)
     # The sawtooth shed: its office front on the pavement, its lights
     # facing east so the street sees every tooth.
@@ -495,6 +531,9 @@ def depot():
         "-x": dict(band=(5.6, 7.0), style=6)}, stripe_col=K.YELLOW)
     K.sawtooth(246.0, 290.0, -78.0, -11.2, 8.0, 7, "+x", r, wall=K.GREY, rise=2.8, lit=0.75)
     K.wash(250.0, 286.0, -10.0, -10.0, level=0.5)
+    fs2 = B.faces_of(246.0, 290.0, -78.0, -11.2)
+    K.blade(fs2["+z"], 1.2, 3.4, "bl", scale=0.9)
+    K.blade(fs2["+z"], 42.6, 4.4, "bm", scale=1.0)
     K.wash(291.4, 291.4, -70.0, -20.0, level=0.6)
     door = out.get("+z_door")
     if door:
@@ -515,8 +554,7 @@ def depot():
     for x in (200.0, 262.0):
         P.place("c40_blue" if x < 230 else "c40_red", x, GY, -81.2, 0.0, district=D)
     stand(205.4, -79.6, 0.0, "sit", GY + 0.9)
-    K.fence(244.0, -10.3, 246.0, -10.3)
-    K.fence(290.0, -10.3, 295.2, -10.3)
+    K.fence(290.0, -12.4, 295.2, -12.4)
 
 
 # ---------------------------------------------------------------------------
@@ -634,6 +672,10 @@ def street_shed():
         "+z": dict(dress=False), "-x": dict(band=(5.6, 7.2), style=6, posters=0.3), "+x": dict(band=(5.6, 7.2), style=6)}, stripe_col=K.STEEL_BLUE)
     K.sawtooth(182.0, 256.0, 16.0, 44.0, 8.0, 8, "+x", r, wall=K.CREAM, rise=3.0, lit=0.8)
     K.wash(184.0, 254.0, 14.4, 14.4, level=0.55)
+    fs1 = B.faces_of(182.0, 256.0, 16.0, 44.0)
+    K.blade(fs1["-z"], 0.8, 3.6, "bl", scale=0.9)
+    K.blade(fs1["-z"], 50.4, 4.2, "bm")
+    K.roof_sign(196.0, 8.0 + 1.6, 30.0, PI * 0.92, sizes=("ps", "pm", "ps"), scale=2.0, lift=2.2)
     for x in (188.0, 212.0, 236.0):
         cylinder(k("hazard", 1), x, 13.0, GY, GY + 1.1, 0.14, segs=8)
     P.place("forklift", 240.5, GY, 14.2, PI, district=D)
@@ -706,6 +748,7 @@ def container_yard():
     K.gate(296.0, 12.4, 305.6, 12.4, (0, 1), open_=True)
     K.fence(314.4, 12.4, 340.0, 12.4)
     K.yard_wall(260.0, 44.8, 340.0, 44.8, r=r, face=-1)
+    K.post_sign(293.4, 14.4, PI * 0.82, y=3.8, size="pm", scale=1.2)
     mast(262.0, 14.2, PI * 0.25, hue="white", level=0.6)
     mast(338.0, 14.2, -PI * 0.25, hue="white", level=0.6)
     K.wash(264.0, 338.0, 17.6, 17.6, level=0.5, step=6.0)
@@ -754,7 +797,10 @@ def substation():
     K.yard_wall(340.0, 44.8, 388.0, 44.8, r=r, face=-1)
     strip(344.0, 16.4, 0.0, power=6.0)
     strip(384.6, 22.0, -PI / 2, power=6.0, cone=False)
-    K.wash(348.0, 380.0, 30.0, 34.0, level=0.5, hue="white", step=6.0)
+    K.wash(346.0, 382.0, 17.0, 34.0, level=0.6, hue="white", step=6.0)
+    for z in (19.0, 27.0):
+        for x in (355.0, 364.0, 373.0):
+            box(k("glow"), x - 0.1, x + 0.1, 9.2, 9.4, z - 0.1, z + 0.1, scale=0.5, col=GLOW["cyan"])
     for x in (346.0, 382.0):
         box(k("glow"), x - 0.1, x + 0.1, 10.05, 10.3, 18.9, 19.1, scale=0.5, col=GLOW["red"])
     scatter(r, 388.5, 391.0, 14.0, 26.0, 2, kinds=("reel", "reel", "tote"))
@@ -778,6 +824,14 @@ def workshop():
     scatter(r, 389.6, 399.0, 14.4, 27.0, 9, kinds=("tyres", "tyres", "drum_pallet", "reel", "crates", "drum", "tote"))
     scatter(r, 409.0, 422.0, 14.4, 26.0, 7, kinds=("tyres", "drum_pallet", "reel", "crates", "drum"))
     P.place("c20_grey", 419.0, GY, 21.0, PI / 2, district=D)
+    hook = K.crane(410.4, 18.6, -PI * 0.62, h=10.5, jib=14.0)
+    P.place("tyres", hook[0], hook[1] - 1.7, hook[2], 0.0, district=D)
+    K.wash(402.0, 414.0, 15.0, 24.0, level=0.6, step=5.0)
+    byaw = PI - 0.5
+    for du in (-3.4, 3.4):
+        px, pz = 405.0 + math.cos(byaw) * du - math.sin(byaw) * 0.2, 36.7 - math.sin(byaw) * du - math.cos(byaw) * 0.2
+        box(k("metal", 1), px - 0.1, px + 0.1, 6.4, 8.2, pz - 0.1, pz + 0.1, scale=0.5)
+    B.billboard(D, 405.0, 9.9, 36.7, 9.6, 3.4, byaw, r, depth=0.3)
     P.place("c40_rust", 390.4, GY, 37.0, PI / 2, district=D)
     strip(404.0, 26.6, PI, power=6.0)
     stand(397.4, 28.6, PI, "squat")
@@ -910,6 +964,8 @@ def east():
         "+z": dict(band=(4.9, 6.0), style=6), "-z": dict(dress=False), "+x": dict(dress=False)}, stripe_col=K.OXIDE)
     K.sawtooth(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, wall=K.CREAM, rise=2.4, lit=0.85, power=2.4)
     K.wash(453.2, 453.2, -172.0, -130.0, level=0.6)
+    fe = B.faces_of(454.5, 488.0, -175.5, -127.0)
+    K.blade(fe["-x"], 47.6, 3.4, "bm")
     stand(453.4, -159.0, -PI / 2, "idle")
     stand(453.5, -147.4, -PI / 2, "smoke")
     P.place("crates", 453.6, GY, -156.4, 0.4, district=D)
@@ -943,6 +999,9 @@ def east():
         "-z": dict(band=(5.2, 6.6), style=6), "+z": dict(band=(5.2, 6.6), style=6), "+x": dict(dress=False)}, stripe_col=K.YELLOW)
     K.flat_roof(456.0, 488.0, -92.0, -40.0, 7.4, r, wall=K.GREY, lights=0.75, breathe=1)
     K.wash(454.6, 454.6, -90.0, -42.0, level=0.6)
+    fw = B.faces_of(456.0, 488.0, -92.0, -40.0)
+    K.blade(fw["-x"], 1.0, 3.2, "bl", scale=0.85)
+    K.blade(fw["-x"], 26.0, 3.8, "bs", scale=1.2)
     P.place("forklift", 454.4, GY, -80.0, -PI / 2, district=D)
     stand(454.2, -77.4, -PI / 2, "idle")
     scatter(r, 453.0, 455.2, -94.0, -92.6, 1, kinds=("dumpster",), yaw=PI)
