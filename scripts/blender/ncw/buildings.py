@@ -216,6 +216,57 @@ def shopfront(district, f, r, s0, s1, tint, sign_rate=0.6, awning_rate=0.55, doo
             f.box((district, "neon_" + colour, 0), a + 0.4, b - 0.4, 3.32, 3.4, 0.0, 0.05)
 
 
+def back_ground(district, f, r, tcol):
+    """The ground floor of a back: weathered wall, back doors with a lamp
+    each (some with a cyan tube over them, as the show's back passages are
+    lit, Zuzys9Ld_5M@87), a small sign by a door now and then, a shutter
+    for deliveries."""
+    w = f.width
+    wall = tuple(min(1.0, c * 1.6) for c in tcol[:3]) + (1.0,)
+    f.quad((district, "trim", 0), 0.0, w, 0.0, SHOP_H, 0.0, col=wall)
+    s = r.uniform(1.5, 4.0)
+    while s < w - 1.5:
+        if r.random() < 0.22 and s + 3.6 < w - 0.5:
+            # A roller shutter, down, a lamp over it.
+            f.quad((district, "door_panel", 0), s, s + 3.2, G0, 3.0, 0.03)
+            f.box((district, "metal", 1), s - 0.05, s + 3.25, 3.0, 3.3, 0.0, 0.25)
+            f.box((district, "glow", 0), s + 1.4, s + 1.8, 3.42, 3.52, 0.05, 0.2, col=GLOW["white"])
+            s += r.uniform(7.0, 12.0)
+            continue
+        f.quad((district, "door", 0), s, s + 1.1, G0, 2.3, 0.03)
+        f.box((district, "metal", 1), s - 0.08, s + 1.18, 2.3, 2.4, 0.0, 0.12)
+        mid = s + 0.55
+        roll = r.random()
+        if roll < 0.35:
+            f.box((district, "neon_cyan", 0), s - 0.3, s + 1.4, 2.62, 2.7, 0.04, 0.1)
+        else:
+            f.box((district, "glow", 0), mid - 0.12, mid + 0.12, 2.55, 2.75, 0.05, 0.2, col=GLOW["amber" if roll < 0.8 else "pink"])
+        if r.random() < 0.25 and s + 3.2 < w:
+            sw, sh = ST_SIZES["ps"]
+            cx, cy, cz = f.p(f.at(s + 2.3), 2.9, 0.06)
+            f.box((district, "board_frame", 0), s + 2.3 - sw / 2 - 0.05, s + 2.3 + sw / 2 + 0.05, 2.9 - sh / 2 - 0.05, 2.9 + sh / 2 + 0.05, 0.0, 0.05)
+            sign(st_name("ps"), cx, cy, cz, sw, sh, f.yaw, district=district, label=False)
+        s += r.uniform(6.0, 13.0)
+
+
+def clutter_back(district, f, r, y0, y1):
+    """What a back collects: downpipes, air conditioners on brackets, a fire
+    escape on the taller ones."""
+    for _ in range(r.randrange(1, 3)):
+        s = r.uniform(0.4, f.width - 0.4)
+        px, py, pz = f.p(f.at(s), y0, 0.0)
+        P.place("pipe_v", px, py, pz, f.yaw, sy=y1 - y0, district=district)
+    floors = int((y1 - SHOP_H) / CELL_H)
+    bays = max(1, round(f.width / CELL_W))
+    for fl in range(floors):
+        for b in range(bays):
+            if r.random() < 0.3:
+                ax, ay, az = f.p(f.at((b + 0.5) * f.width / bays + r.uniform(-0.8, 0.8)), SHOP_H + fl * CELL_H + 0.05, 0.0)
+                P.place("ac_wall", ax, ay, az, f.yaw, district=district)
+    if y1 > 14 and f.width > 8 and r.random() < 0.35:
+        fire_escape(district, f, r.uniform(3.0, f.width - 3.0), SHOP_H + 0.5, min(y1 - 3.0, 36.0))
+
+
 def awning(district, f, s0, s1, colour, out=1.6, y=3.55):
     """A sloped cloth awning off the wall, dyed and lit through from the shop
     under it, its lit hem along the front."""
@@ -447,6 +498,8 @@ def building(lot, height, r, style=None, hero=False, signs=True, setback=None, g
     tint = TINTS[r.choice(st["tints"])] if tint is None else (TINTS[tint] if isinstance(tint, str) else tint)
     wstyle = r.choice(st["windows"]) if window is None else window
     col = wall_col(r.uniform(*st["lit"]), wstyle, r.uniform(*st["warmth"]), tint)
+    # Its back: smaller windows, fewer lit, the same wall.
+    back_col = wall_col(col[0] * 0.75, 6 if wstyle not in (2, 4) else wstyle, col[2], tint)
     tcol = TRIM[tint]
     ov = r.randrange(0, 40)
 
@@ -505,14 +558,19 @@ def building(lot, height, r, style=None, hero=False, signs=True, setback=None, g
                     canopy(D, f, 0.3, f.width - 0.3, 2.4, SHOP_H - 0.6, tint, r.choice(("white", "cyan", "amber")))
             elif kind in ("street", "open", "back") or ti > 0:
                 if ti == 0 and kind != "street" and y0 < 1.0:
-                    # Over a plinth: storeys of windows from the first floor.
                     if kind == "back" and not st["back_windows"]:
                         f.quad((D, "trim", 0), 0.0, f.width, 0.0, y1, 0.0, col=tcol)
                         continue
-                    f.quad((D, "trim", 0), 0.0, f.width, 0.0, 1.2, 0.0, col=DARK_TRIM)
-                    facade_wall((D, "facade", 0), f, 1.2, y1, col, ov)
+                    # A back or a side over a lane: a solid ground floor with
+                    # its back doors (each with a caged lamp over it, now and
+                    # then a shutter for deliveries), then storeys of the
+                    # small windows a building turns to its back.
+                    back_ground(D, f, r, tcol)
+                    facade_wall((D, "facade", 0), f, SHOP_H, y1, back_col if kind == "back" else col, ov)
                 else:
-                    facade_wall((D, "facade", 0), f, y0, y1, col, ov)
+                    facade_wall((D, "facade", 0), f, y0, y1, back_col if kind == "back" else col, ov)
+                if kind == "back" and ti == 0:
+                    clutter_back(D, f, r, max(y0, 0.0), y1)
             # Ledges along the floor lines, and what hangs on a facade.
             if kind in ("street", "open") or ti > 0:
                 every = r.choice(st["ledge_every"]) if isinstance(st["ledge_every"], tuple) else st["ledge_every"]

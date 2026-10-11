@@ -257,3 +257,70 @@ for side, z, colour in ((-1, -19.5, "cyan"), (-1, -20.6, "pink"), (1, -36.0, "am
     face_x = s * (WALK - 0.96)
     fa, fb = sorted((face_x, face_x - s * 0.02))
     box((AV, "neon_" + colour, 1), fa, fb, 0.8, 1.9, z - 0.4, z + 0.4, scale=0.5)
+
+# What the avenue's pavements carry between the lamps, as the night
+# crossing in the show has it (Fn9gKhU_2_Q@69): palms in concrete planters
+# by the shopfronts with a bench beside each, short lamp columns with their
+# orange heads between the sodium lamps (KvMY1uzSC1E@94), bins, a phone
+# booth and a food box a side, hydrants, cameras on the corners. The crowd
+# walks the kerb side (x 10.9 and 11.9), so what stands is by the shops.
+PALMS = {1: (-30.0, -64.0, -100.0, -134.0), -1: (-41.0, -96.0, -122.0, -152.0)}
+for s, zs in PALMS.items():
+    for z in zs:
+        P.place("planter_palm", s * 13.0, 0.15, z, district=AV)
+        P.place("bench", s * 13.1, 0.15, z + 2.4, -s * math.pi / 2, district=AV)
+for s in (-1, 1):
+    for z in (-30.0, -62.0, -94.0, -126.0, -158.0):
+        P.place("lamp_short", s * 10.9, 0.15, z + (3.0 if s < 0 else 0.0), district=AV)
+    for z in (-25.0, -58.0, -105.0, -140.0):
+        P.place("bin", s * 12.6, 0.15, z + (6.0 if s < 0 else 0.0), district=AV)
+    for z in (-36.0, -116.0):
+        P.place("hydrant", s * 10.7, 0.15, z + (4.0 if s > 0 else 0.0), district=AV)
+    for z in (-12.5, -165.5):
+        P.place("cctv", s * 11.4, 0.15, z, district=AV)
+P.place("phone_booth", -12.7, 0.15, -52.0, district=AV)
+P.place("phone_booth", 12.7, 0.15, -118.0, district=AV)
+P.place("food_box", -12.9, 0.15, -64.5, math.pi / 2, district=AV)
+P.place("food_box", 12.9, 0.15, -128.5, -math.pi / 2, district=AV)
+
+# More cables across the avenue, lower and higher than the first, some
+# drooping almost to the shop signs: the overhead clutter the street is
+# seen through.
+cable_rng2 = random.Random(9191)
+for _ in range(16):
+    z = cable_rng2.uniform(-168.0, -12.0)
+    if DECK_GAP[0] - 3 < z < DECK_GAP[1] + 3:
+        continue
+    y0 = cable_rng2.uniform(6.5, 22.0)
+    sag = cable_rng2.uniform(0.6, 3.2)
+    k = (AV, "dark", 1)
+    steps = 16
+    za, zb = z, z + cable_rng2.uniform(-6.0, 6.0)
+    for i in range(steps):
+        t0, t1 = i / steps, (i + 1) / steps
+        x0, x1 = -WALK + t0 * 2 * WALK, -WALK + t1 * 2 * WALK
+        ya = y0 - sag * math.sin(math.pi * t0)
+        yb = y0 - sag * math.sin(math.pi * t1)
+        z0_, z1_ = za + (zb - za) * t0, za + (zb - za) * t1
+        quad(k, (x0, ya - 0.03, z0_), (x1, yb - 0.03, z1_), (x1, yb + 0.03, z1_), (x0, ya + 0.03, z0_))
+        quad(k, (x1, yb - 0.03, z1_), (x0, ya - 0.03, z0_), (x0, ya + 0.03, z0_), (x1, yb + 0.03, z1_))
+
+# The lanes behind each row: cables slung across them every few metres,
+# and a vent breathing steam in each.
+for xa, xb, seed in ((-WALK - DEPTH - 6.0, -WALK - DEPTH, 9301), (WALK + DEPTH, WALK + DEPTH + 8.0, 9302)):
+    lr = random.Random(seed)
+    z = -16.0
+    while z > -164.0:
+        if not (DECK_GAP[0] - 2 < z < DECK_GAP[1] + 2):
+            y0 = lr.uniform(5.0, 10.0)
+            sag = lr.uniform(0.3, 1.2)
+            for i in range(8):
+                t0, t1 = i / 8, (i + 1) / 8
+                x0, x1 = xa + t0 * (xb - xa), xa + t1 * (xb - xa)
+                ya, yb = y0 - sag * math.sin(math.pi * t0), y0 - sag * math.sin(math.pi * t1)
+                quad((AV, "dark", 1), (x0, ya - 0.025, z), (x1, yb - 0.025, z), (x1, yb + 0.025, z), (x0, ya + 0.025, z))
+                quad((AV, "dark", 1), (x1, yb - 0.025, z), (x0, ya - 0.025, z), (x0, ya + 0.025, z), (x1, yb + 0.025, z))
+        z -= lr.uniform(7.0, 14.0)
+for i, (x, z) in enumerate(((-WALK - DEPTH - 3.0, -52.0), (WALK + DEPTH + 4.0, -128.0))):
+    box((AV, "metal", 1), x - 0.4, x + 0.4, 0.15, 0.22, z - 0.4, z + 0.4, scale=0.5)
+    empty(f"anchor_steam_lane_{i}", (x, 0.25, z))

@@ -70,3 +70,7 @@ for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 51
     mass(PL, x0, x1, z0, z1, SHOP_H, h, seed, painted=i)
     box((PL, "dark", 0), x0, x1, 0, SHOP_H, z0, z1, scale=2.0)
     dress_roof(PL, x0, x1, z0, z1, h, seed + 41, cap=6.0)
+
+# The rest of the district's frontages, until its own build replaces them.
+from ncw.districts import massing  # noqa: E402
+massing.plaza()

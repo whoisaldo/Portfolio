@@ -166,11 +166,3 @@ def santo():
     frontage(D, "-x", -176.0, 12.0, 452.0, 30.0, (6.0, 12.0), w, 8606, ends=("open", "open"))
     frontage(D, "-z", 108.0, 482.0, 12.0, 30.0, (8.0, 20.0), w, 8607, ends=("street", "open"))
 
-
-# Until each district's own module takes its frontages over.
-japantown()
-mega()
-plaza()
-corpo()
-afterlife()
-santo()

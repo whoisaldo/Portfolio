@@ -210,3 +210,7 @@ for i in range(8):
         mass(CO, x0 + 34, x0 + 40, zf + 6.0, zb, 0.15, ah, seed + 7)
         box((CO, "board_frame", 0), x0 + 34.2, x0 + 39.8, 4.9, 6.1, zf - 0.1, zf + 0.12, scale=1.0)
         box((CO, "neon_" + ["amber", "teal", "pink", "white"][i % 4], 0), x0 + 34.5, x0 + 39.5, 5.25, 5.75, zf - 0.14, zf - 0.08, scale=1.0)
+
+# The rest of the district's frontages, until its own build replaces them.
+from ncw.districts import massing  # noqa: E402
+massing.corpo()
