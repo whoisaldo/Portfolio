@@ -1152,6 +1152,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // `renderDirected` and `placeCamera` too, for fixed-camera review shots:
     // set `stage.mode = "cinematic"` to rest the loop, then draw any pose.
     window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, get crowd() { return crowd; }, get skyline() { return skyline; }, post, soundscape, dumpMirror, setQuality, renderDirected, placeCamera, strike() { storm.t = storm.next; } };
+    // The free camera and the loop driven and walked (src/world/devcam.js),
+    // for the reviews; never in a production build.
+    building.then(() => import("./devcam.js")).then((m) => m.attachDevcam(window.__world)).then((d) => {
+      if (window.__world) window.__world.devcam = d;
+    }).catch((err) => console.warn("[world] no dev camera", err));
   }
 
   return {
