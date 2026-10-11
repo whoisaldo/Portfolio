@@ -23,7 +23,13 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON } from "./glsl.js";
 import { createObject as createAv } from "./av-model.js";
-import { createObject as createCarModel, KINDS as CAR_KINDS } from "./traffic-cars.js";
+import { createObject as createBaseCar, KINDS as BASE_KINDS } from "./traffic-cars.js";
+import { createObject as createShowCar, KINDS as SHOW_KINDS } from "./traffic-cars-nc.js";
+
+// The avenue's own cars (the hero's) stay the first three kinds; the rest of
+// the network draws from all six.
+const CAR_KINDS = [...BASE_KINDS, ...SHOW_KINDS];
+const createCarModel = (kind) => (SHOW_KINDS.includes(kind) ? createShowCar(kind) : createBaseCar(kind));
 
 // The AV's surfaces, by the model's material names (src/world/av-model.js),
 // as the kind its shader reads.
@@ -542,12 +548,14 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const moving = avenueMoving + streetSlots.length;
   const more = [];
   for (let i = 0; i + 2 < parkedMore.length; i += 3) more.push({ x: parkedMore[i], z: parkedMore[i + 1], yaw: parkedMore[i + 2] });
-  const parked = [...PARKED.slice(0, cars >= 4 ? PARKED.length : 5), ...more.slice(0, cars >= 4 ? more.length : Math.floor(more.length / 3))];
+  const avenueParked = cars >= 4 ? PARKED.length : 5;
+  const parked = [...PARKED.slice(0, avenueParked), ...more.slice(0, cars >= 4 ? more.length : Math.floor(more.length / 3))];
   let seed = 7;
   const draw = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
   const slots = [];
   for (let i = 0; i < moving + parked.length; i++) {
-    slots.push({ kind: Math.floor(draw() * CAR_KINDS.length), body: BODY[Math.floor(draw() * BODY.length)], accent: ACCENT[Math.floor(draw() * ACCENT.length)], parked: i >= moving ? parked[i - moving] : null });
+    const own = i < avenueMoving || (i >= moving && i - moving < avenueParked);
+    slots.push({ kind: Math.floor(draw() * (own ? BASE_KINDS.length : CAR_KINDS.length)), body: BODY[Math.floor(draw() * BODY.length)], accent: ACCENT[Math.floor(draw() * ACCENT.length)], parked: i >= moving ? parked[i - moving] : null });
   }
   // The deck's cars come last and from their own draw, so every other car
   // keeps the kind and paint it had.
