@@ -207,7 +207,7 @@ for (px, pz) in ((102.5, -221.5), (97.0, -203.0), (102.8, -210.5)):
     light(PL, px, TY + 1.0, pz, "amber", 2.5)
 for (px, pz, yaw) in ((99.0, -218.0, -math.pi / 2), (99.5, -206.5, math.pi), (95.0, -203.0, 0.0)):
     P.place("bench", px, TY, pz, yaw, district=PL)
-for (px, pz) in ((100.5, -236.0), (95.5, -224.0), (101.0, -201.8), (93.2, -235.2), (103.5, -251.0), (94.5, -262.5), (103.5, -216.0)):
+for (px, pz) in ((100.5, -236.0), (95.5, -224.0), (101.0, -201.8), (93.2, -235.2), (103.5, -216.0)):
     P.place("lamp_short", px, TY, pz, district=PL)
     light(PL, px, TY + 3.0, pz, "amber", 5.0)
 P.place("kiosk", 102.0, TY, -256.5, -math.pi / 2, district=PL)

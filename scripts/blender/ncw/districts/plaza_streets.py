@@ -1,0 +1,125 @@
+"""What Corpo Plaza's pavements carry, and who stands on them.
+
+The x 120 road, the plaza street and the south street are streets.py's
+(their lamps, signals and crossings too). Along the plaza's own frontages
+this adds what a walker passes: cube bollards and planters at the kerb,
+bins, hydrants, cameras, short lamps between the tall ones, a phone booth,
+vending machines by the doors; the blocks' corners carry big signs turned
+45 degrees to both streets, the towers tall blades; and people stand about:
+at doors, against walls, in pairs talking, on their phones under the signs.
+
+Kept clear: the walkers' two lines on every pavement (1.4 m and 3.0 m from
+the lot line) and the walk camera's (0.9 m): what stands is within 0.7 m of
+the lot line or in the kerb's last 0.5 m.
+"""
+from ncw.kit import *  # noqa: F401,F403
+from ncw import buildings as B
+from ncw import props as P
+from ncw.districts.plaza_parts import *  # noqa: F401,F403
+
+G = 0.15
+POSES_WALL = ("lean", "lean", "phone", "smoke", "idle")
+
+
+def frontage(axis, lot, out, a0, a1, seed, people=1.0, skip=()):
+    """Dress the pavement in front of a frontage. `axis` "x": the lot line
+    is x = lot and it runs a0..a1 along z; "z": the line is z = lot, along
+    x. `out`: +1 or -1, the way the street lies from the lot line."""
+    r = random.Random(seed)
+
+    def at(a, d):
+        return (lot + out * d, a) if axis == "x" else (a, lot + out * d)
+
+    yaw_out = math.atan2(out, 0.0) if axis == "x" else (0.0 if out > 0 else math.pi)
+    clear = lambda a: not any(s0 <= a <= s1 for s0, s1 in skip)  # noqa: E731
+    # The kerb's edge: cubes in runs, a bin, a hydrant, a camera, a short lamp.
+    a = a0 + r.uniform(3.0, 6.0)
+    while a < a1 - 3.0:
+        if clear(a):
+            pick = r.random()
+            x, z = at(a, 3.72)
+            if pick < 0.34:
+                for k in range(r.randrange(2, 5)):
+                    xx, zz = at(a + k * 1.5, 3.72)
+                    if a + k * 1.5 < a1 - 1.0 and clear(a + k * 1.5):
+                        P.place("bollard_cube", xx, G, zz, district=PL)
+            elif pick < 0.5:
+                P.place("bin", x, G, z, district=PL)
+            elif pick < 0.62:
+                P.place("hydrant", x, G, z, district=PL)
+            elif pick < 0.74:
+                P.place("cctv", x, G, z, district=PL)
+            elif pick < 0.9:
+                P.place("lamp_short", x, G, z, district=PL)
+                lx, lz = at(a, 2.4)
+                light(PL, lx, 3.0, lz, "amber", 4.0)
+            else:
+                P.place("food_box", x, G, z, yaw_out + math.pi, district=PL)
+        a += r.uniform(7.0, 12.0)
+    # Against the wall: now and then a vending machine or a booth.
+    a = a0 + r.uniform(8.0, 16.0)
+    while a < a1 - 4.0:
+        if clear(a):
+            x, z = at(a, 0.62)
+            pick = r.random()
+            if pick < 0.45:
+                P.place(r.choice(("vending", "vending_warm")), x, G, z, yaw_out, district=PL)
+            elif pick < 0.6:
+                P.place("phone_booth", *at(a, 0.75)[:1], G, at(a, 0.75)[1], yaw_out, district=PL)
+        a += r.uniform(16.0, 28.0)
+    # People: singles against the wall or at a window, pairs talking.
+    a = a0 + r.uniform(2.0, 5.0)
+    while people > 0 and a < a1 - 2.0:
+        if clear(a):
+            pick = r.random()
+            x, z = at(a, 0.62)
+            if pick < 0.5:
+                pose = r.choice(POSES_WALL)
+                stand(x, z, yaw_out + (0.0 if pose in ("lean", "smoke") or r.random() < 0.5 else math.pi) + r.uniform(-0.3, 0.3), pose, y=G)
+            elif pick < 0.75:
+                bx_, bz_ = at(a + 0.9, 0.7)
+                along = math.atan2(bx_ - x, bz_ - z)
+                stand(x, z, along, "talk", y=G)
+                stand(bx_, bz_, along + math.pi, "talk", y=G)
+                if r.random() < 0.4:
+                    cx_, cz_ = at(a + 0.45, 0.45)
+                    stand(cx_, cz_, yaw_out, "talk", y=G)
+            elif pick < 0.85:
+                kx, kz = at(a, 3.7)
+                stand(kx, kz, yaw_out + math.pi + r.uniform(-0.5, 0.5), r.choice(("squat", "phone", "idle")), y=G)
+        a += r.uniform(6.0, 11.0) / people
+
+
+# The x 120 road's west side: B2, B1, the board's block, B5; its east side:
+# D. The plaza street's south side: B1 and D1. The south street's north
+# side: B2 and D4. (The terraces' own pavement is plaza_square.py's.)
+frontage("x", 108.0, 1, -62.0, -12.0, 8501)
+frontage("x", 108.0, 1, -166.0, -98.0, 8502)
+frontage("x", 108.0, 1, -342.0, -266.0, 8503)
+frontage("x", 108.0, 1, -262.0, -202.0, 8509, people=0, skip=((-236.0, -224.0),))
+frontage("x", 132.0, -1, -166.0, -12.0, 8504)
+frontage("z", -168.0, -1, 54.0, 106.0, 8505)
+frontage("z", -168.0, -1, 134.0, 168.0, 8506)
+frontage("z", -10.0, 1, 54.0, 106.0, 8507)
+frontage("z", -10.0, 1, 134.0, 168.0, 8508)
+
+# Corner signs: each block's corner to a junction carries one, turned to
+# face the junction's middle.
+corner_sign(108.0, -168.0, 6.0, "bl", 2.2, math.radians(135))      # B1 to the plaza street's junction
+corner_sign(132.0, -168.0, 5.6, "bl", 1.8, math.radians(-135))     # D1 to the same
+corner_sign(108.0, -95.0, 3.2, "bl", 1.6, math.radians(45))        # B1 to the deck's landing
+corner_sign(108.0, -65.0, 3.2, "bl", 1.6, math.radians(135))       # B2 to the deck's landing
+corner_sign(108.0, -10.0, 5.2, "bl", 1.15, math.radians(45))       # B2 to the south street
+corner_sign(132.0, -10.0, 6.4, "bx", 3.0, math.radians(-45))       # D4 to the south street
+corner_sign(108.0, -344.0, 6.0, "bl", 2.0, math.radians(135))      # B5 to the boulevard
+
+# Tall blades on the slabs' faces to the road, standing out from the wall.
+blade_off(B.Face("+x", 104.0, -124.0, -100.0), 6.0, 17.0, "bl", 2.8)
+blade_off(B.Face("+x", 104.0, -124.0, -100.0), 18.5, 22.0, "bm", 3.0)
+blade_off(B.Face("-x", 142.0, -56.0, -14.0), 8.0, 15.0, "bl", 2.6)
+blade_off(B.Face("+x", 104.0, -392.0, -356.0), 30.0, 28.0, "bl", 3.0)
+blade_off(B.Face("+x", 108.0, -344.0, -310.0), 3.5, 9.0, "bm", 2.4)
+blade_off(B.Face("-x", 137.0, -123.0, -101.0), 3.0, 14.0, "bl", 2.6, angle=0.5)
+blade_off(B.Face("+z", -13.0, 56.0, 106.0), 44.0, 14.0, "bl", 2.6)
+blade_off(B.Face("-z", -62.0, 62.0, 98.0), 4.0, 13.5, "bm", 2.4)
+blade_off(B.Face("+z", -100.0, 62.0, 104.0), 36.5, 14.0, "bl", 2.6, angle=-0.4)

@@ -97,6 +97,8 @@ def ring(key, cx, cz, r0, r1, y, n=16, col=(1, 1, 1, 1), turn=0.0):
 def dim(colour, k):
     """A glow colour turned down to k of itself: lit glass, not a lamp."""
     c = GLOW[colour]
+    if colour == "white":
+        k *= 0.5
     return (c[0] * k, c[1] * k, c[2] * k, 1.0)
 
 
@@ -447,14 +449,16 @@ def skylight(x0, x1, z0, z1, y, colour="white", k=0.16, pitch=1.2):
 
 
 def av_pad(cx, cz, y, r=6.5, colour="amber"):
-    """A landing pad on a roof: a raised deck, its ring and cross in yellow
-    paint, lamps round its rim (red and the pad's colour, turn about)."""
+    """A landing pad on a roof: a raised deck, its ring and cross in light
+    (paint on a roof is black from the air), lamps round its rim (red and
+    the pad's colour, turn about)."""
     cylinder((PL, "concrete", 0), cx, cz, y, y + 0.5, r, segs=16)
-    ring((PL, "hazard", 0), cx, cz, r * 0.72, r * 0.82, y + 0.52, n=16)
+    ring((PL, "glow", 0), cx, cz, r * 0.74, r * 0.82, y + 0.52, n=16, col=dim(colour, 0.45))
     for a in (0.0, math.pi / 2):
         dx, dz = math.cos(a) * r * 0.5, math.sin(a) * r * 0.5
         px, pz = -math.sin(a) * 0.25, math.cos(a) * 0.25
-        up_poly((PL, "hazard", 0), [(cx - dx - px, cz - dz - pz), (cx + dx - px, cz + dz - pz), (cx + dx + px, cz + dz + pz), (cx - dx + px, cz - dz + pz)], y + 0.52)
+        up_poly((PL, "glow", 0), [(cx - dx - px, cz - dz - pz), (cx + dx - px, cz + dz - pz), (cx + dx + px, cz + dz + pz), (cx - dx + px, cz - dz + pz)], y + 0.52,
+                dim("white", 0.5))
     for i in range(12):
         a = i * math.tau / 12
         lx, lz = cx + (r - 0.3) * math.cos(a), cz + (r - 0.3) * math.sin(a)
@@ -464,9 +468,11 @@ def av_pad(cx, cz, y, r=6.5, colour="amber"):
 
 def roof_plant(x0, x1, z0, z1, y, r, n=3):
     """Plant on a tower's roof: housings, a duct between them, a lamp."""
+    if x1 - x0 < 2.6 or z1 - z0 < 2.6:
+        return
     for i in range(n):
-        w, d, h = r.uniform(2.4, 4.6), r.uniform(2.0, 3.6), r.uniform(1.6, 3.0)
-        px, pz = r.uniform(x0 + w / 2 + 0.6, x1 - w / 2 - 0.6), r.uniform(z0 + d / 2 + 0.6, z1 - d / 2 - 0.6)
+        w, d, h = min(r.uniform(2.4, 4.6), x1 - x0 - 1.2), min(r.uniform(2.0, 3.6), z1 - z0 - 1.2), r.uniform(1.6, 3.0)
+        px, pz = r.uniform(x0 + w / 2 + 0.5, x1 - w / 2 - 0.5), r.uniform(z0 + d / 2 + 0.5, z1 - d / 2 - 0.5)
         box((PL, "metal", 0), px - w / 2, px + w / 2, y, y + h, pz - d / 2, pz + d / 2, scale=1.0)
         box((PL, "dark", 1), px - w / 2 - 0.1, px + w / 2 + 0.1, y + h, y + h + 0.12, pz - d / 2 - 0.1, pz + d / 2 + 0.1, scale=1.0)
         if i == 0:
@@ -550,3 +556,29 @@ def _pylon_hex(k):
         for (u0, u1, v0, v1) in ((-0.6, 0.6, 5.5, 5.62), (-0.6, 0.6, 5.1, 5.22), (-0.35, 0.35, 4.7, 4.82)):
             q = [(u0, v0, zz), (u1, v0, zz), (u1, v1, zz), (u0, v1, zz)]
             quad(k("glow"), *(q if face > 0 else reversed(q)), col=GLOW["white"])
+
+
+def corner_sign(x, z, y0, size, k, yaw, out=0.9):
+    """A big sign off a block's corner, turned 45 degrees to both streets
+    (`yaw` is the way it faces), on two brackets."""
+    w, h = ST_SIZES[size][0] * k, ST_SIZES[size][1] * k
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    cx, cz = x + nx * out, z + nz * out
+    big_sign(size, k, cx, y0 + h / 2, cz, yaw, double=False)
+    for yy in (y0 + h * 0.2, y0 + h * 0.8):
+        oriented_box((PL, "metal", 1), x + nx * out * 0.45, yy, z + nz * out * 0.45, 0.12, 0.12, out * 0.9, yaw, scale=0.5)
+    return h
+
+
+def roof_terrace(x0, x1, z0, z1, y, r, colour="cyan", water=True, palms=2):
+    """A tower's roof as a place: a pool down one side, a garden beside it."""
+    w, d = x1 - x0, z1 - z0
+    if water:
+        if w >= d:
+            pool(x0 + 2.0, x0 + w * 0.5, z0 + 2.2, z0 + min(7.0, d * 0.4), y, colour="cyan")
+            garden(x0 + w * 0.52, x1 - 1.0, z0 + 1.0, z1 - 1.0, y, r, palms=palms, trees=1, colour=colour, lamps=1)
+        else:
+            pool(x0 + 2.2, x0 + min(7.0, w * 0.4), z0 + 2.0, z0 + d * 0.5, y, colour="cyan")
+            garden(x0 + 1.0, x1 - 1.0, z0 + d * 0.52, z1 - 1.0, y, r, palms=palms, trees=1, colour=colour, lamps=1)
+    else:
+        garden(x0 + 1.0, x1 - 1.0, z0 + 1.0, z1 - 1.0, y, r, palms=palms, trees=2, colour=colour, lamps=2)

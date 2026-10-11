@@ -99,7 +99,7 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
         lit_band(tx0, tx1, tz0, tz1, top - 0.5, top + 0.1, accent, cut=cut, k=0.8)
         B.ROOFS.append((PL, tx0, tx1, tz0, tz1, top))
     else:
-        parapet(tx0, tx1, tz0, tz1, top, tint=B.TINTS[tint] if isinstance(tint, str) else 1, line=accent if crown in ("band", "halo") else None)
+        parapet(tx0, tx1, tz0, tz1, top, tint=B.TINTS[tint] if isinstance(tint, str) else 1, line=accent if crown != "pad" else None)
     if crown == "blades":
         m = cut * 0.8 if glass else 0.5
         crown_blades(tx0 + m, tx1 - m, tz0 + m, tz1 - m, top, accent, h=5.0)
@@ -113,7 +113,10 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
     elif crown == "pad":
         av_pad(cx, cz, top, r=min(7.5, min(w, d) / 2 - 3.0), colour=accent)
         extra = 1.2
-    if plant and crown != "pad":
+    elif crown in ("pool", "garden"):
+        roof_terrace(tx0 + 0.6, tx1 - 0.6, tz0 + 0.6, tz1 - 0.6, top, r, colour=accent, water=crown == "pool")
+        extra = 8.0
+    if plant and crown not in ("pad", "pool", "garden"):
         m = 3.0 if crown in ("blades", "halo") else 1.6
         roof_plant(tx0 + m, tx1 - m, tz0 + m, tz1 - m, top, r, n=plant)
         extra = max(extra, 3.2)
@@ -156,9 +159,12 @@ parapet(52.0, 80.0, -168.0, -132.0, 14.8, tint=1)
 parapet(52.0, 108.0, -132.0, -95.0, 11.4, tint=1, line="amber")
 skylight(64.0, 100.0, -131.0, -126.5, 11.4, colour="white", k=0.14, pitch=0.9)
 roof_plant(53.0, 61.0, -123.0, -107.0, 11.4, random.Random(8318), n=3)
-# Two screens on the slab's podium turned to the traffic coming down the
-# deck (it comes from the west, at their height until it lands).
-roof_screen(57.0, -100.6, 11.4, 9.0, 5.0, math.radians(-72), 8319)
+# Two screens turned to the traffic coming down the deck (it comes from
+# the west, at their height until it lands): one flat on the slab's west
+# end, one on its podium. (Nothing that glows stands west of x 60 above the
+# lane: the site's bake runs every light within 60 m of the avenue down the
+# hero's road as a streak, whatever stands between.)
+screen(61.55, 24.0, -112.0, 14.0, 7.0, -math.pi / 2, random.Random(8319), back=False)
 roof_screen(84.0, -97.6, 11.4, 12.0, 5.0, math.radians(-15), 8320)
 
 # ---------------------------------------------------------------------------
@@ -168,16 +174,18 @@ roof_screen(84.0, -97.6, 11.4, 12.0, 5.0, math.radians(-15), 8320)
 B.ground_rect(PL, 52.0, 108.0, -65.0, -10.0)
 podium(52.0, 108.0, -65.0, -10.0, 11.4, {"+z": "street", "+x": "street", "-z": "street", "-x": "back"}, 8321, style=HOTEL, tint="plum")
 parapet(52.0, 108.0, -65.0, -10.0, 11.4, tint=3, line="pink")
-tower("B2 hotel", 56.0, 106.0, -34.0, -13.0, 11.4, 45.4, 8322, kind="wall", style=HOTEL, window=0, tint="plum", accent="pink",
-      crown="band", plant=2)
+B2H = tower("B2 hotel", 56.0, 106.0, -34.0, -13.0, 11.4, 45.4, 8322, kind="wall", style=HOTEL, window=0, tint="plum", accent="pink",
+            crown="band", plant=0)
+pool(60.0, 72.0, -29.5, -24.0, 45.4, colour="cyan")
+garden(90.0, 105.0, -32.5, -18.5, 45.4, random.Random(8328), palms=3, trees=0, colour="pink", lamps=1)
+roof_plant(60.0, 74.0, -22.0, -17.0, 45.4, random.Random(8329), n=2)
 tower("B2 wing", 62.0, 98.0, -62.0, -46.0, 11.4, 31.0, 8323, cut=1.6, accent="teal", crown="band", lit=0.78, warm=0.5, plant=2,
       marks=(("gate", "-z", 24.5, 5.0, "teal"),))
 pool(66.0, 94.0, -43.0, -37.0, 11.4, colour="cyan")
 garden(54.0, 65.0, -46.0, -34.0, 11.4, random.Random(8324), palms=2, trees=0, colour="pink", lamps=1)
 garden(95.0, 107.0, -46.0, -34.0, 11.4, random.Random(8327), palms=2, trees=0, colour="pink", lamps=1)
-checked(54.0, 59.0, -65.0, -56.0, 18.0, "B2 west screen")
 roof_screen(103.0, -60.0, 11.4, 9.0, 5.0, math.radians(-128), 8325)
-roof_screen(56.5, -60.5, 11.4, 8.0, 4.6, math.radians(-104), 8326)
+screen(61.55, 21.0, -54.0, 10.0, 6.0, -math.pi / 2, random.Random(8326), back=False)
 # The hotel's name in light on its roof, to the south street and to the deck.
 big_sign("pm", 4.0, 81.0, 45.4 + 1.2 + 2.4, -14.0, 0.0, double=False)
 big_sign("pm", 3.0, 81.0, 45.4 + 1.0 + 1.8, -33.0, math.pi, double=False)
@@ -212,10 +220,14 @@ screen(135.6, 36.0, -79.0, 13.0, 28.0, -math.pi / 2, random.Random(8337), back=F
 for z in (-86.2, -71.8):
     box((PL, "glow", 0), 135.72, 136.0, 21.5, 50.5, z - 0.12, z + 0.12, scale=1.0, col=dim("magenta", 0.7))
 parapet(132.0, 170.0, -126.0, -60.0, 11.4, tint=1, line="magenta")
+garden(132.6, 136.6, -124.0, -99.0, 11.4, random.Random(8342), palms=0, trees=2, colour="amber", lamps=1)
+skylight(133.0, 136.0, -72.0, -63.0, 11.4, colour="white", k=0.14, pitch=0.7)
+skylight(133.0, 136.0, -95.0, -86.0, 11.4, colour="white", k=0.14, pitch=0.7)
+roof_plant(166.0, 169.6, -124.0, -62.0, 11.4, random.Random(8343), n=4)
 podium(132.0, 170.0, -60.0, -10.0, 11.4, {"-x": "street", "+z": "street", "+x": "open", "-z": "party"}, 8338, nb={"-z": 11.4},
        style=HOTEL, tint="brown")
 tower("D4", 142.0, 168.0, -56.0, -14.0, 11.4, 42.0, 8339, kind="wall", style=HOTEL, window=1, tint="brown", accent="amber",
-      crown="band", plant=2)
+      crown="pool", plant=0)
 parapet(132.0, 170.0, -60.0, -10.0, 11.4, tint=4, line="amber")
 garden(133.5, 141.0, -58.0, -12.0, 11.4, random.Random(8340), palms=3, trees=1, colour="amber", lamps=2)
 roof_screen(137.0, -14.5, 11.4, 8.0, 4.6, math.radians(-45), 8341)
@@ -244,8 +256,10 @@ podium(54.0, 106.0, -396.0, -348.0, 14.8, dict(ALL_OPEN), 8361, tint="charcoal",
 parapet(54.0, 106.0, -396.0, -348.0, 14.8, tint=0, line="cyan")
 tower("T1", 56.0, 78.0, -392.0, -352.0, 14.8, 76.0, 8362, steps=((60.0, 2.5),), cut=2.2, accent="amber", crown="blades",
       lit=0.74, warm=0.6, marks=(("delta", "+z", 68.0, 7.0, "amber"), ("delta", "+x", 68.0, 7.0, "amber")))
-tower("T2", 84.0, 104.0, -392.0, -356.0, 14.8, 62.4, 8363, kind="wall", window=5, tint="teal", accent="teal", crown="band", plant=3)
+tower("T2", 84.0, 104.0, -392.0, -356.0, 14.8, 62.4, 8363, kind="wall", window=5, tint="teal", accent="teal", crown="garden", plant=0)
 pool(86.0, 102.0, -354.5, -350.5, 14.8, colour="teal")
+skylight(79.0, 83.0, -390.0, -356.0, 14.8, colour="cyan", k=0.13, pitch=0.8)
+garden(56.0, 78.0, -351.5, -348.5, 14.8, random.Random(8364), palms=0, trees=2, colour="amber", lamps=1)
 podium(54.0, 106.0, -452.0, -402.0, 18.2, dict(ALL_OPEN), 8371, tint="navy", ground="blank")
 parapet(54.0, 106.0, -452.0, -402.0, 18.2, tint=1, line="white")
 T3 = tower("T3", 58.0, 82.0, -448.0, -408.0, 18.2, 96.0, 8372, steps=((74.0, 2.5), (88.0, 5.0)), cut=2.6, accent="white", crown="halo",
@@ -253,6 +267,7 @@ T3 = tower("T3", 58.0, 82.0, -448.0, -408.0, 18.2, 96.0, 8372, steps=((74.0, 2.5
 tower("T4", 88.0, 104.0, -448.0, -410.0, 18.2, 69.2, 8373, kind="wall", window=2, tint="charcoal", accent="magenta", crown="mast",
       marks=(("gate", "+z", 60.0, 6.0, "magenta"), ("gate", "+x", 60.0, 6.0, "magenta")), plant=2)
 skylight(60.0, 100.0, -406.5, -403.0, 18.2, colour="cyan", k=0.12, pitch=0.8)
+garden(82.6, 87.4, -446.0, -410.0, 18.2, random.Random(8374), palms=0, trees=3, colour="magenta", lamps=1)
 # North of corpo row's first towers: two blocks, low enough to stay under
 # the Experience shot's frame.
 B.building(B.Lot(110.0, 136.0, -454.0, -422.0, "+z", dict(ALL_OPEN), {}, PL), 45.4, random.Random(8381),
