@@ -324,7 +324,7 @@ def by_wall(f, r, alley=False, people=0.42):
         if roll < 0.16:
             J.put("vending", x, G0, z, f.yaw)
         elif roll < 0.28:
-            J.put("vending_warm", x, G0, z, f.yaw)
+            J.put("vending", x, G0, z, f.yaw)
         elif roll < 0.46:
             x, _, z = f.p(f.at(s), G0, 0.6)
             J.put("jt_aframe", x, G0, z, f.yaw + r.uniform(-0.4, 0.4))
@@ -366,7 +366,7 @@ def shop_face(rec, name, level="street", cap=None):
         if r.random() < 0.7:
             J.lantern_row(f, 0.5, w - 0.5, 3.0, 0.6, r.choice((1.2, 1.4, 1.7)))
         else:
-            J.lantern_row(f, 0.6, w - 0.6, 2.95, 0.6, 2.0, "jt_lantern_w")
+            J.lantern_row(f, 0.7, w - 0.7, 2.85, 0.6, 2.2, sy=1.5, sxz=1.5)
     for _ in range(r.randrange(0, 3) if level != "edge" else r.randrange(0, 2)):
         if w > 3.4:
             s = r.uniform(0.4, w - 2.2)
@@ -493,11 +493,11 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
     # The lamps: one by each side, their arms in over the deck.
     for u, z, yaw, dz in ((tu + 1.6, z0 + 0.7, 0.0, 2.1), (w - 2.6, z1 - 0.7, math.pi, -2.1)):
         if u < w - 1.0 and d > 5.0:
-            J.put("jt_lamp_arm", X(u), top + 0.05, z, yaw)
+            J.lamp_arm(X(u), top + 0.05, z, yaw)
             light(D, X(u), top + 5.0, z + dz, "cyan", 8.0)
             J.pool(X(u), top + 0.07, z + dz, min(3.4, d * 0.42))
     zv = (z0 + z1) / 2 + r.uniform(-1.0, 1.0)
-    J.put("jt_viewer", X(w - 0.75), top + 0.05, zv, HALF_PI * sgn)
+    J.viewer(X(w - 0.75), top + 0.05, zv, HALF_PI * sgn)
     bench(X(w - 2.6), zv + r.choice((-1.6, 1.6)), -HALF_PI * sgn, r, top + 0.05)
     J.put("bags", X(tu + 0.9), top + 0.05, z1 - 0.9, r.uniform(0, 6.28))
     # Who is up here: somebody at the rail over the street, somebody sat on
@@ -584,11 +584,10 @@ def roof(rec, weights):
             u = r.uniform(3.2, w * 0.5) if i == 0 else r.uniform(w * 0.55, w - 3.6)
             yaw = r.choice((0.0, math.pi)) if d < 7.5 else r.choice((0.0, HALF_PI, math.pi, -HALF_PI))
             J.put("jt_shack", X(u), top, mid + r.uniform(-0.4, 0.4) * max(0.0, d - 5.6), yaw + r.uniform(-0.12, 0.12), r.uniform(0.9, 1.25), r.uniform(0.85, min(1.2, (d - 0.8) / 4.2)))
-        if d >= 5.6:
+        if d >= 5.6 and r.random() < 0.5:
             J.put("tank_roof", X(w - 2.6), top, mid + r.uniform(-0.3, 0.3) * (d - 4.0), r.uniform(0, 6.28), r.uniform(0.8, 1.1), min(1.0, (d - 1.2) / 3.4))
         J.put("jt_laundry", X(w * 0.5 + r.uniform(-1.5, 1.5)), top, z0 + 0.9 if r.random() < 0.5 else z1 - 0.9, r.uniform(-0.1, 0.1))
-        for _ in range(r.randrange(1, 3)):
-            J.put("ac_roof", X(r.uniform(1.2, w - 1.2)), top, r.choice((z0 + 1.0, z1 - 1.0)))
+        J.put("ac_roof", X(r.uniform(1.2, w - 1.2)), top, r.choice((z0 + 1.0, z1 - 1.0)))
         J.put("jt_plants", X(r.uniform(2.0, w - 2.0)), top, mid + r.uniform(-1.0, 1.0), r.uniform(0, 3))
         # A slab somebody laid by the shack, its window's light on it, and
         # whoever lives up here.
@@ -613,7 +612,7 @@ def roof(rec, weights):
         box((D, "metal", 1), da, db, top + 0.25, top + 0.75, dz_ - 0.25, dz_ + 0.25, scale=1.0)
         box((D, "metal", 1), da, da + 0.6, top, top + 1.5, dz_ - 0.3, dz_ + 0.3, scale=1.0)
         hut(X(w - 2.0), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
-        if d >= 5.6 and r.random() < 0.6:
+        if d >= 5.6 and r.random() < 0.35:
             J.put("tank_roof", X(w * 0.5), top, mid, 0.0, 1.0, min(1.0, (d - 1.2) / 3.4))
         J.put("antenna" if r.random() < 0.6 else "dish", X(r.uniform(1.5, 3.0)), top, mid + r.uniform(-1.0, 1.0), r.uniform(0, 3.1), r.uniform(0.7, 1.3))
         for t in ((0.3, 0.62) if w > 18 else (0.4,)):
@@ -767,6 +766,8 @@ while z < -8.0:
         J.span(kind, (XW, z), (XE, zb), y, 2.2 if kind == "jt_string" else 1.8)
         for x in (-86.0, -74.0):
             light(D, x, 0.3, z, "red" if kind == "jt_string" else "amber", 3.2)
+    if sr.random() < 0.5:
+        light(D, -90.5 if sr.random() < 0.5 else -69.5, 5.0, z, "amber", 3.0)
 
 # Beside the ramp: lamp columns along both kerbs with lanterns strung
 # between them, nothing over the road.
@@ -794,7 +795,6 @@ for x, side in ((-90.55, 1), (-69.45, -1)):
             J.put("jt_pole", x, G0, z, HALF_PI * side)
             if prev is not None and z - prev < 40.0:
                 J.span("jt_cable", (x, prev), (x, z), 8.5, 1.3)
-                J.put("lamp_short", x, G0, (prev + z) / 2 + 1.5)
             wall = XW if side > 0 else XE
             hz = z + sr.uniform(-6.0, 6.0)
             hh = height_at("A" if side > 0 else "E", hz)
@@ -914,7 +914,7 @@ for a, b in ALLEYS:
     for xa, xb in (ROW_A, ROW_B):
         J.span("jt_cable", ((xa + xb) / 2 + 2.0, a), ((xa + xb) / 2 - 2.0, b), nr.uniform(5.5, 7.2), 0.4)
         J.span("jt_string_s", ((xa + xb) / 2 - 3.0, a), ((xa + xb) / 2 - 3.5, b), 4.6, 0.9, unit=5.0)
-        J.put("vending" if nr.random() < 0.5 else "vending_warm", (xa + xb) / 2 + 4.0, G0, a + 0.45, 0.0)
+        J.put("vending", (xa + xb) / 2 + 4.0, G0, a + 0.45, 0.0)
         light(D, (xa + xb) / 2 + 4.0, 1.2, a + 1.3, "cyan", 1.8)
         J.put("jt_scooter", (xa + xb) / 2 - 5.0, G0, b - 0.5, HALF_PI + nr.uniform(-0.2, 0.2))
         stand((xa + xb) / 2 + nr.uniform(-1.0, 2.5), a + 0.4, 0.0, nr.choice(("lean", "smoke", "squat", "phone")), G0)

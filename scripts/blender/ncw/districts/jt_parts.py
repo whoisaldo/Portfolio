@@ -102,7 +102,8 @@ def slab_sign(c, b, size, k=1.0, both=True, depth=0.16):
     basis b, painted on its front and, `both`, its back."""
     w, h = ST_SIZES[size]
     w, h = w * k, h * k
-    obox((D, "board_frame", 1), c, b, w + 0.12, h + 0.14, depth, rim=True)
+    if w * h > 3.0:
+        obox((D, "board_frame", 1), c, b, w + 0.12, h + 0.14, depth, rim=True)
     col = sign_id(_st(size))
     sign_face(col, c, b, w, h, depth / 2)
     if both:
@@ -125,7 +126,12 @@ def blade(f, s, y, size, tilt=0.0, k=1.0, roll=0.0, gap=0.3):
     slab_sign(c, basis(phi - math.pi / 2, roll), size, k)
     arm = basis(phi - math.pi / 2)
     for dy in ((h / 2 + 0.1,) if h < 5.5 else (h / 2 + 0.1, -h / 2 - 0.1)):
-        obox((D, "metal", 1), (px + dx * reach / 2, y + dy, pz + dz * reach / 2), arm, reach, 0.07, 0.07, tube=True)
+        if w * h > 3.0:
+            obox((D, "metal", 1), (px + dx * reach / 2, y + dy, pz + dz * reach / 2), arm, reach, 0.07, 0.07, tube=True)
+        else:
+            a0, a1 = (px, y + dy, pz), (px + dx * reach, y + dy, pz + dz * reach)
+            for q in ((a0, a1, (a1[0], a1[1] + 0.07, a1[2]), (a0[0], a0[1] + 0.07, a0[2])), (a1, a0, (a0[0], a0[1] + 0.07, a0[2]), (a1[0], a1[1] + 0.07, a1[2]))):
+                quad((D, "metal", 1), *q)
     return w, h
 
 
@@ -224,9 +230,10 @@ def rail_run(a, b, y):
 # ---------------------------------------------------------------------------
 # The prototypes. Each at the origin, its front toward +z.
 # ---------------------------------------------------------------------------
-def barrel(key, cx, cz, y0, y1, r, segs=6, pinch=0.62):
+def barrel(key, cx, cz, y0, y1, r, segs=5, pinch=0.62, caps="b"):
     """A paper lantern's body: two rings of faces, widest at the middle. Its
-    v runs 0 to 0.28 up it, which is what the lantern's shader reads."""
+    v runs 0 to 0.28 up it, which is what the lantern's shader reads (dark
+    at its two ends, so its caps, at v 0, are its dark hoops)."""
     rings = ((y0, r * pinch, 0.0), ((y0 + y1) / 2, r, 0.14), (y1, r * pinch, 0.28))
     for (ya, ra, va), (yb, rb, vb) in zip(rings, rings[1:]):
         for i in range(segs):
@@ -236,66 +243,64 @@ def barrel(key, cx, cz, y0, y1, r, segs=6, pinch=0.62):
             c = (cx + rb * math.cos(t1), yb, cz + rb * math.sin(t1))
             d = (cx + rb * math.cos(t0), yb, cz + rb * math.sin(t0))
             quad(key, b, a, d, c, ((1, va), (0, va), (0, vb), (1, vb)))
+    ring = [(cx + r * pinch * math.cos(i * math.tau / segs), cz + r * pinch * math.sin(i * math.tau / segs)) for i in range(segs)]
+    if "t" in caps:
+        poly(key, [(x, y1, z) for x, z in reversed(ring)], [(0, 0)] * segs)
+    if "b" in caps:
+        poly(key, [(x, y0, z) for x, z in ring], [(0, 0)] * segs)
 
 
-@P.proto("jt_lantern", box=(0.2, 0.3, 0.2), reach=280)
+@P.proto("jt_lantern", box=(0.2, 0.3, 0.2), reach=240)
 def _jt_lantern(k):
     """A red paper lantern, hung by its top (the origin is its middle)."""
-    barrel(k("lantern"), 0.0, 0.0, -0.26, 0.26, 0.2)
-    box(k("dark"), -0.07, 0.07, 0.26, 0.34, -0.07, 0.07, scale=0.5)
-    box(k("dark"), -0.07, 0.07, -0.31, -0.26, -0.07, 0.07, scale=0.5, bottom=True)
+    barrel(k("lantern"), 0.0, 0.0, -0.26, 0.26, 0.2, caps="tb")
 
 
-@P.proto("jt_lantern_w", box=(0.2, 0.3, 0.2), reach=280)
-def _jt_lantern_w(k):
-    """A pale paper lantern, lit amber."""
-    barrel(k("neon_amber"), 0.0, 0.0, -0.3, 0.3, 0.17, pinch=0.8)
-    box(k("dark"), -0.08, 0.08, 0.3, 0.37, -0.08, 0.08, scale=0.5)
-    box(k("dark"), -0.08, 0.08, -0.35, -0.3, -0.08, 0.08, scale=0.5, bottom=True)
-
-
-def _line(k, length, sag, segs, r=0.018, z=0.0):
+def _line(key, length, sag, segs, r=0.018, z=0.0, v=None):
     pts = [(-length / 2 + length * i / segs, -sag * math.sin(math.pi * i / segs)) for i in range(segs + 1)]
     for (xa, ya), (xb, yb) in zip(pts, pts[1:]):
-        pipe(k("dark"), (xa, ya, z), (xb, yb, z), r, segs=3)
+        if v is None:
+            pipe(key, (xa, ya, z), (xb, yb, z), r, segs=3)
+        else:
+            # (In the lantern's own material: v 0 is its dark end.)
+            for q in (((xa, ya - r, z), (xb, yb - r, z), (xb, yb + r, z), (xa, ya + r, z)), ((xb, yb - r, z), (xa, ya - r, z), (xa, ya + r, z), (xb, yb + r, z))):
+                quad(key, *q, uvs=((0, 0), (1, 0), (1, 0), (0, 0)))
 
 
-@P.proto("jt_string", box=(5.0, 0.1, 0.1), reach=420)
+@P.proto("jt_string", box=(5.0, 0.1, 0.1), reach=360)
 def _jt_string(k):
     """Ten metres of line with seven red lanterns on it (stretched to its
     span: across a 28 m street each is a lantern most of a metre high)."""
-    _line(k, 10.0, 0.6, 8)
+    _line(k("lantern"), 10.0, 0.6, 8, r=0.02, v=0)
     for j in range(7):
         t = (j + 0.5) / 7
         barrel(k("lantern"), -5.0 + 10.0 * t, 0.0, -0.6 * math.sin(math.pi * t) - 0.36, -0.6 * math.sin(math.pi * t) - 0.04, 0.12)
 
 
-@P.proto("jt_string_s", box=(2.5, 0.1, 0.1), reach=300)
+@P.proto("jt_string_s", box=(2.5, 0.1, 0.1), reach=260)
 def _jt_string_s(k):
     """Five metres of line with five lanterns: an alley's width."""
-    _line(k, 5.0, 0.3, 5, r=0.014)
+    _line(k("lantern"), 5.0, 0.3, 5, r=0.014, v=0)
     for j in range(5):
         t = (j + 0.5) / 5
         barrel(k("lantern"), -2.5 + 5.0 * t, 0.0, -0.3 * math.sin(math.pi * t) - 0.44, -0.3 * math.sin(math.pi * t) - 0.04, 0.15)
 
 
-@P.proto("jt_festoon", box=(5.0, 0.1, 0.1), reach=420)
+@P.proto("jt_festoon", box=(5.0, 0.1, 0.1), reach=360)
 def _jt_festoon(k):
-    """Ten metres of festoon: fourteen amber bulbs on a sagging line."""
-    _line(k, 10.0, 0.7, 8)
-    for j in range(14):
-        t = (j + 0.5) / 14
+    """Ten metres of festoon: a dozen amber bulbs on a line that sags (the
+    line itself is lost in the dark)."""
+    for j in range(12):
+        t = (j + 0.5) / 12
         y = -0.7 * math.sin(math.pi * t) - 0.1
-        x = -5.0 + 10.0 * t
-        cylinder(k("neon_amber"), x, 0.0, y - 0.07, y + 0.07, 0.06, segs=4, cap=False)
+        cylinder(k("neon_amber"), -5.0 + 10.0 * t, 0.0, y - 0.07, y + 0.07, 0.065, segs=3, cap=False)
 
 
-@P.proto("jt_cable", box=(5.0, 0.1, 0.1), reach=300, detail=True)
+@P.proto("jt_cable", box=(5.0, 0.1, 0.1), reach=220, detail=True)
 def _jt_cable(k):
-    """Ten metres of cables, three slung together, each with its own sag."""
-    _line(k, 10.0, 0.5, 6, r=0.03)
-    _line(k, 10.0, 0.85, 6, r=0.022, z=0.12)
-    _line(k, 10.0, 1.25, 6, r=0.02, z=-0.1)
+    """Ten metres of cables, two slung together, each with its own sag."""
+    _line(k("dark"), 10.0, 0.5, 5, r=0.03)
+    _line(k("dark"), 10.0, 1.1, 5, r=0.024, z=0.1)
 
 
 WOOD = (0.2, 0.12, 0.07, 1)
@@ -331,7 +336,7 @@ def _jt_stall(k):
     box(T, -1.42, 1.42, 1.95, 2.2, 1.13, 1.16, scale=1.0, col=RED, bottom=True)
     box(k("neon_amber"), -0.9, 0.9, 2.1, 2.16, 0.25, 0.33, scale=1.0, bottom=True)
     for x in (-1.3, 1.3):
-        barrel(k("lantern"), x, 1.05, 1.5, 1.92, 0.15)
+        barrel(k("neon_amber"), x, 1.05, 1.5, 1.92, 0.15)
 
 
 @P.proto("jt_cart", box=(0.9, 1.2, 0.6), reach=320)
@@ -351,7 +356,7 @@ def _jt_cart(k):
         col = (0.72, 0.62, 0.2, 1) if i % 2 else (0.7, 0.68, 0.62, 1)
         poly(T, [(0.0, 2.62, 0.0), b, a], [(0.5, 1), (1, 0), (0, 0)], col)
         poly(T, [(0.0, 2.62, 0.0), a, b], [(0.5, 1), (0, 0), (1, 0)], tuple(v * 0.7 for v in col[:3]) + (1,))
-    box(k("neon_amber"), -0.5, 0.5, 2.1, 2.15, -0.04, 0.04, scale=1.0, bottom=True)
+    box(T, -0.5, 0.5, 2.1, 2.15, -0.04, 0.04, scale=1.0, col=(0.9, 0.7, 0.4, 1), bottom=True)
 
 
 @P.proto("jt_shack", box=(1.7, 1.2, 1.3), reach=520)
@@ -360,43 +365,42 @@ def _jt_shack(k):
     overhang, a lit window and a door."""
     T = k("trim")
     box(T, -1.7, 1.7, 0.0, 2.3, -1.3, 1.3, scale=1.0, col=(0.13, 0.15, 0.15, 1))
-    M = k("door_panel")
-    quad(M, (-1.95, 2.25, 1.75), (1.95, 2.25, 1.75), (1.95, 2.7, -1.5), (-1.95, 2.7, -1.5), ((0, 0), (1.3, 0), (1.3, 1.1), (0, 1.1)))
-    quad(M, (1.95, 2.25, 1.75), (-1.95, 2.25, 1.75), (-1.95, 2.7, -1.5), (1.95, 2.7, -1.5), ((0, 0), (1.3, 0), (1.3, 1.1), (0, 1.1)))
+    quad(T, (-1.95, 2.25, 1.75), (1.95, 2.25, 1.75), (1.95, 2.7, -1.5), (-1.95, 2.7, -1.5), col=(0.17, 0.19, 0.21, 1))
+    quad(T, (1.95, 2.25, 1.75), (-1.95, 2.25, 1.75), (-1.95, 2.7, -1.5), (1.95, 2.7, -1.5), col=(0.1, 0.11, 0.12, 1))
     G = k("glow")
     quad(G, (0.3, 1.0, 1.31), (1.4, 1.0, 1.31), (1.4, 1.9, 1.31), (0.3, 1.9, 1.31), col=GLOW["amber"])
     quad(G, (1.71, 1.1, 0.6), (1.71, 1.1, -0.4), (1.71, 1.8, -0.4), (1.71, 1.8, 0.6), col=(0.25, 0.5, 0.9, 1))
     quad(T, (-1.3, 0.0, 1.31), (-0.4, 0.0, 1.31), (-0.4, 2.0, 1.31), (-1.3, 2.0, 1.31), col=(0.2, 0.09, 0.06, 1))
 
 
-@P.proto("jt_rail", box=(1.0, 0.55, 0.06), reach=320, detail=True)
+@P.proto("jt_rail", box=(1.0, 0.55, 0.06), reach=220, detail=True)
 def _jt_rail(k):
     """Two metres of roof rail: a thick square post and two rails
     (qgx_AjoPTT0@5)."""
     M = k("metal")
     box(M, -1.06, -0.94, 0.0, 1.15, -0.06, 0.06, scale=0.5)
     for y in (0.55, 1.02):
-        box(M, -1.0, 1.0, y, y + 0.07, -0.03, 0.03, scale=0.5, bottom=True)
+        for q in (((-1.0, y, 0.0), (1.0, y, 0.0), (1.0, y + 0.08, 0.0), (-1.0, y + 0.08, 0.0)), ((1.0, y, 0.0), (-1.0, y, 0.0), (-1.0, y + 0.08, 0.0), (1.0, y + 0.08, 0.0)),
+                  ((-1.0, y + 0.08, 0.03), (1.0, y + 0.08, 0.03), (1.0, y + 0.08, -0.03), (-1.0, y + 0.08, -0.03))):
+            quad(M, *q)
 
 
-@P.proto("jt_lamp_arm", box=(0.1, 3.0, 0.1), reach=600)
-def _jt_lamp_arm(k):
-    """A roof lamp: a tall post, a long arm, a head throwing its light
-    straight down (D6ia1wjO7sg@220)."""
-    M = k("metal")
-    cylinder(M, 0.0, 0.0, 0.0, 5.6, 0.07, segs=6)
-    box(M, -0.05, 0.05, 5.5, 5.6, 0.0, 2.6, scale=0.5, bottom=True)
-    box(M, -0.16, 0.16, 5.4, 5.5, 1.6, 2.6, scale=0.5)
-    box(k("glow"), -0.13, 0.13, 5.36, 5.4, 1.65, 2.55, scale=0.5, col=(0.55, 0.95, 1.0, 1), bottom=True)
+def lamp_arm(x, y, z, yaw):
+    """A roof lamp: a tall post, a long arm (toward +z, turned yaw), a head
+    throwing its light straight down (D6ia1wjO7sg@220)."""
+    b = basis(yaw)
+    cylinder((D, "metal", 1), x, z, y, y + 5.6, 0.07, segs=5)
+    obox((D, "metal", 1), pt((x, y + 5.55, z), b, 0.0, 0.0, 1.3), b, 0.1, 0.1, 2.6, tube=False, bottom=True)
+    obox((D, "metal", 1), pt((x, y + 5.45, z), b, 0.0, 0.0, 2.1), b, 0.32, 0.1, 1.0, bottom=False)
+    c = pt((x, y + 5.39, z), b, 0.0, 0.0, 2.1)
+    q = [pt(c, b, u, 0.0, t) for u, t in ((-0.13, -0.45), (0.13, -0.45), (0.13, 0.45), (-0.13, 0.45))]
+    quad((D, "glow", 0), *q, col=(0.55, 0.95, 1.0, 1))
 
 
-@P.proto("jt_viewer", box=(0.2, 0.75, 0.2), reach=200, detail=True)
-def _jt_viewer(k):
-    """A coin binocular viewer on its post."""
-    M = k("metal")
-    cylinder(M, 0.0, 0.0, 0.0, 1.15, 0.07, segs=6)
-    cylinder(M, 0.0, 0.0, 0.0, 0.08, 0.22, segs=8)
-    obox(M, (0.0, 1.35, 0.05), basis(0.0, 0.0, -0.3), 0.36, 0.3, 0.5, bottom=True)
+def viewer(x, y, z, yaw):
+    """A coin binocular viewer on its post, looking out along yaw."""
+    cylinder((D, "metal", 1), x, z, y, y + 1.15, 0.07, segs=5)
+    obox((D, "metal", 1), (x, y + 1.35, z), basis(yaw, 0.0, -0.3), 0.36, 0.3, 0.5, bottom=True)
 
 
 @P.proto("jt_planter", box=(0.6, 0.5, 0.6), reach=300, detail=True)
@@ -434,15 +438,15 @@ def _jt_scooter(k):
     box(T, -0.16, 0.16, 0.62, 0.74, -0.55, 0.1, scale=1.0, col=(0.05, 0.05, 0.06, 1))
     box(T, -0.14, 0.14, 0.3, 1.0, 0.36, 0.52, scale=1.0, col=(0.38, 0.08, 0.07, 1))
     box(T, -0.3, 0.3, 1.0, 1.05, 0.4, 0.46, scale=1.0, col=tyre, bottom=True)
-    box(k("glow"), -0.08, 0.08, 0.6, 0.66, -0.58, -0.55, scale=1.0, col=GLOW["red"])
+    box(T, -0.08, 0.08, 0.6, 0.66, -0.58, -0.55, scale=1.0, col=(0.9, 0.1, 0.08, 1))
 
 
 @P.proto("jt_plants", box=(0.5, 0.4, 0.3), reach=180, detail=True)
 def _jt_plants(k):
     """Pots by a door: three of them, leaves."""
     T = k("trim")
-    for (x, z, r_, h, g) in ((-0.38, 0.0, 0.17, 0.3, 0.55), (0.05, 0.08, 0.2, 0.36, 0.8), (0.42, -0.04, 0.14, 0.26, 0.45)):
-        cylinder(T, x, z, 0.0, h, r_, segs=6, col=(0.32, 0.14, 0.08, 1))
+    for (x, z, r_, h, g) in ((-0.3, 0.0, 0.17, 0.3, 0.55), (0.2, 0.06, 0.2, 0.36, 0.8)):
+        cylinder(T, x, z, 0.0, h, r_, segs=5, col=(0.32, 0.14, 0.08, 1), cap=False)
         for yaw in (0.3, 1.9):
             b = basis(yaw)
             q = [pt((x, h + g / 2, z), b, u, v) for u, v in ((-g / 2, -g / 2), (g / 2, -g / 2), (g * 0.35, g / 2), (-g * 0.35, g / 2))]
@@ -469,8 +473,8 @@ def _jt_stools(k):
     box(T, -0.3, 0.3, 0.0, 0.5, -0.22, 0.22, scale=1.0, col=(0.2, 0.15, 0.06, 1))
     box(T, -0.34, 0.34, 0.5, 0.53, -0.26, 0.26, scale=1.0, col=(0.26, 0.2, 0.1, 1))
     for (x, z, col) in ((-0.65, 0.3, (0.05, 0.09, 0.2, 1)), (0.7, 0.2, (0.22, 0.05, 0.05, 1)), (0.1, -0.6, (0.05, 0.09, 0.2, 1))):
-        cylinder(T, x, z, 0.38, 0.44, 0.16, segs=7, col=col)
-        cylinder(T, x, z, 0.0, 0.38, 0.05, segs=4, col=GREY, cap=False)
+        cylinder(T, x, z, 0.36, 0.44, 0.16, segs=6, col=col)
+        box(T, x - 0.04, x + 0.04, 0.0, 0.36, z - 0.04, z + 0.04, scale=1.0, col=GREY)
 
 
 @P.proto("jt_pole", box=(0.15, 4.5, 0.15), reach=600)
@@ -483,7 +487,7 @@ def _jt_pole(k):
         box(T, -w, w, y, y + 0.1, -0.05, 0.05, scale=1.0, col=GREY, bottom=True)
     cylinder(T, 0.3, -0.05, 6.4, 7.3, 0.24, segs=6, col=(0.16, 0.17, 0.18, 1))
     box(T, -0.04, 0.04, 5.5, 5.58, 0.0, 1.3, scale=1.0, col=GREY, bottom=True)
-    box(k("neon_amber"), -0.12, 0.12, 5.4, 5.5, 0.95, 1.3, scale=1.0, bottom=True)
+    box(T, -0.12, 0.12, 5.4, 5.5, 0.95, 1.3, scale=1.0, col=(0.95, 0.75, 0.45, 1), bottom=True)
 
 
 @P.proto("jt_nobori", box=(0.6, 1.5, 0.1), reach=220, detail=True)
