@@ -15,12 +15,15 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { WORLD_SIGNS, CANYON_WORDS, STREET_SIGNS, towers } from "../data/world.js";
+import { MORE_STREET_SIGNS } from "./sign-words.js";
 
 // The street signs' metres (w x h), SIGN_SIZES in src/data/world.js and the
 // builder's ST_SIZES. Copied, not imported: data/world.js is in the entry
 // chunk, and reading an export it does not otherwise use would keep it
 // there and change the entry's bytes.
 const SIGN_SIZES = { bs: [0.8, 2.0], bm: [1.0, 3.2], bl: [1.2, 5.0], ps: [1.8, 0.8], pm: [2.8, 1.2], bx: [1.2, 1.2] };
+// Every design of each size: the entry's list, then this chunk's.
+const STREET_DESIGNS = Object.fromEntries(Object.entries(STREET_SIGNS).map(([k, list]) => [k, [...list, ...(MORE_STREET_SIGNS[k] ?? [])]]));
 import { COMMON } from "./glsl.js";
 
 const PX_PER_M = 46;
@@ -38,7 +41,7 @@ export function signSpec(id) {
   // The street's standard signs: the next design of the face's size.
   const street = base.match(/^st_([a-z]{2})_(\d+)$/);
   if (street) {
-    const list = STREET_SIGNS[street[1]];
+    const list = STREET_DESIGNS[street[1]];
     if (!list) return null;
     const i = Number(street[2]) % list.length;
     return { key: `st_${street[1]}_${i}`, draw: "street", size: street[1], ppm: 96, ...list[i] };
@@ -162,6 +165,14 @@ const ICONS = {
   bolt(c, s) { c.moveTo(0.58 * s, 0.1 * s); c.lineTo(0.28 * s, 0.54 * s); c.lineTo(0.5 * s, 0.54 * s); c.lineTo(0.42 * s, 0.9 * s); c.lineTo(0.74 * s, 0.42 * s); c.lineTo(0.52 * s, 0.42 * s); c.closePath(); },
   cat(c, s) { c.arc(0.5 * s, 0.56 * s, 0.26 * s, 0, Math.PI * 2); c.moveTo(0.3 * s, 0.4 * s); c.lineTo(0.28 * s, 0.14 * s); c.lineTo(0.46 * s, 0.31 * s); c.moveTo(0.7 * s, 0.4 * s); c.lineTo(0.72 * s, 0.14 * s); c.lineTo(0.54 * s, 0.31 * s); c.moveTo(0.42 * s, 0.52 * s); c.arc(0.4 * s, 0.52 * s, 0.02 * s, 0, Math.PI * 2); c.moveTo(0.62 * s, 0.52 * s); c.arc(0.6 * s, 0.52 * s, 0.02 * s, 0, Math.PI * 2); for (const d of [-1, 1]) { c.moveTo((0.5 + d * 0.1) * s, 0.64 * s); c.lineTo((0.5 + d * 0.4) * s, 0.6 * s); c.moveTo((0.5 + d * 0.1) * s, 0.68 * s); c.lineTo((0.5 + d * 0.4) * s, 0.72 * s); } },
   lotus(c, s) { c.moveTo(0.5 * s, 0.8 * s); c.bezierCurveTo(0.3 * s, 0.6 * s, 0.38 * s, 0.3 * s, 0.5 * s, 0.16 * s); c.bezierCurveTo(0.62 * s, 0.3 * s, 0.7 * s, 0.6 * s, 0.5 * s, 0.8 * s); c.moveTo(0.5 * s, 0.8 * s); c.bezierCurveTo(0.2 * s, 0.76 * s, 0.1 * s, 0.5 * s, 0.16 * s, 0.4 * s); c.bezierCurveTo(0.3 * s, 0.46 * s, 0.42 * s, 0.6 * s, 0.5 * s, 0.8 * s); c.moveTo(0.5 * s, 0.8 * s); c.bezierCurveTo(0.8 * s, 0.76 * s, 0.9 * s, 0.5 * s, 0.84 * s, 0.4 * s); c.bezierCurveTo(0.7 * s, 0.46 * s, 0.58 * s, 0.6 * s, 0.5 * s, 0.8 * s); },
+  pill(c, s) { c.moveTo(0.36 * s, 0.24 * s); c.arc(0.36 * s, 0.5 * s, 0.26 * s * 0.6, -Math.PI / 2, Math.PI / 2, true); c.lineTo(0.64 * s, 0.656 * s); c.arc(0.64 * s, 0.5 * s, 0.156 * s, Math.PI / 2, -Math.PI / 2, true); c.closePath(); c.moveTo(0.5 * s, 0.344 * s); c.lineTo(0.5 * s, 0.656 * s); },
+  chip(c, s) { roundRect(c, 0.3 * s, 0.3 * s, 0.4 * s, 0.4 * s, 0.04 * s); for (const t of [0.38, 0.5, 0.62]) { c.moveTo(t * s, 0.3 * s); c.lineTo(t * s, 0.16 * s); c.moveTo(t * s, 0.7 * s); c.lineTo(t * s, 0.84 * s); c.moveTo(0.3 * s, t * s); c.lineTo(0.16 * s, t * s); c.moveTo(0.7 * s, t * s); c.lineTo(0.84 * s, t * s); } },
+  star(c, s) { for (let i = 0; i <= 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5; const r = (i % 2 ? 0.16 : 0.36) * s; const x = 0.5 * s + Math.cos(a) * r; const y = 0.53 * s + Math.sin(a) * r; if (i) c.lineTo(x, y); else c.moveTo(x, y); } },
+  moon(c, s) { c.arc(0.5 * s, 0.5 * s, 0.32 * s, 0.6, Math.PI * 2 - 0.6, false); c.arc(0.62 * s, 0.5 * s, 0.25 * s, Math.PI * 2 - 1.1, 1.1, true); c.closePath(); },
+  arrow(c, s) { c.moveTo(0.16 * s, 0.5 * s); c.lineTo(0.78 * s, 0.5 * s); c.moveTo(0.56 * s, 0.28 * s); c.lineTo(0.8 * s, 0.5 * s); c.lineTo(0.56 * s, 0.72 * s); },
+  umbrella(c, s) { c.moveTo(0.16 * s, 0.5 * s); c.quadraticCurveTo(0.5 * s, 0.02 * s, 0.84 * s, 0.5 * s); c.lineTo(0.16 * s, 0.5 * s); c.moveTo(0.5 * s, 0.5 * s); c.lineTo(0.5 * s, 0.78 * s); c.quadraticCurveTo(0.5 * s, 0.86 * s, 0.42 * s, 0.84 * s); },
+  note(c, s) { c.moveTo(0.44 * s, 0.72 * s); c.arc(0.36 * s, 0.72 * s, 0.08 * s, 0, Math.PI * 2); c.moveTo(0.44 * s, 0.72 * s); c.lineTo(0.44 * s, 0.2 * s); c.lineTo(0.72 * s, 0.14 * s); c.lineTo(0.72 * s, 0.64 * s); c.moveTo(0.8 * s, 0.64 * s); c.arc(0.64 * s + 0.0 * s, 0.64 * s, 0.08 * s, 0, Math.PI * 2); },
+  waves(c, s) { for (const y of [0.34, 0.5, 0.66]) { c.moveTo(0.16 * s, y * s); for (let i = 1; i <= 4; i++) c.quadraticCurveTo((0.16 + (i - 0.5) * 0.17) * s, (y + (i % 2 ? -0.07 : 0.07)) * s, (0.16 + i * 0.17) * s, y * s); } },
   dice(c, s) { roundRect(c, 0.2 * s, 0.2 * s, 0.6 * s, 0.6 * s, 0.1 * s); for (const [x, y] of [[0.35, 0.35], [0.65, 0.35], [0.5, 0.5], [0.35, 0.65], [0.65, 0.65]]) { c.moveTo((x + 0.035) * s, y * s); c.arc(x * s, y * s, 0.035 * s, 0, Math.PI * 2); } },
 };
 
@@ -398,7 +409,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     cells.set(spec.key, { spec, pw, ph });
   };
   if (allStreet) {
-    for (const [size, list] of Object.entries(STREET_SIGNS)) {
+    for (const [size, list] of Object.entries(STREET_DESIGNS)) {
       const [w, h] = SIGN_SIZES[size];
       list.forEach((_, i) => cellFor(signSpec(`st_${size}_${i}`), w, h));
     }
