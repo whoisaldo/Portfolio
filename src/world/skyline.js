@@ -53,11 +53,25 @@ const KEEP_OUT = [
 // rectangles above (a lot skipped there takes none of the draws, so one more
 // skipped would deal every lot after it differently, the hero's and
 // Contact's among them), and a lot dealt onto ground the kit has since taken
-// is left out afterwards. The Afterlife Block is built out to x 508 between
-// the boulevard and the plaza street, so the east lobe's north part runs to
-// x 510; its south part (Santo Domingo, under Contact's moon) is as dealt.
+// is left out afterwards. These are the ground itself, not a margin round a
+// centre: a lot is left out when its footprint, turned, reaches into one.
 const KEEP_OUT_SINCE = [
-  [100, -380, 510, -176],
+  // Corpo Row's service lane, elevated track and back blocks, behind its
+  // towers out to z -420.
+  [100, -420, 470, -380],
+  // The Afterlife Block's east part, built out to x 508, and the block that
+  // closes the boulevard's east end, its north face on z -344.
+  [470, -344, 510, -176],
+];
+// Lots stood by hand after the deal, where it left bare ground the loop
+// looks at: x, z, width, depth, height. The corner outside the loop's turn
+// at the boulevard's east end, between Corpo Row's last lot (x 470), the
+// closing block's back (z -344) and the dealt lots from x 502: it was dealt
+// as the kit's (the east lobe's rectangle runs to x 490) and no district
+// builds on it.
+const EXTRA_LOTS = [
+  [489, -369, 30, 34, 46],
+  [485, -405, 22, 26, 29],
 ];
 // Where the moon rises for the Contact shot: lit roofs stay low there, and
 // right by the garage they are not there at all. A few towers stand under
@@ -559,8 +573,12 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         free = false;
         cone = true;
       }
-      const gone = KEEP_OUT_SINCE.some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20);
-      lots.push({ x, z, w, d: dd, h, yaw: (r() - 0.5) * 0.3, free, cone, hero: false, gone });
+      const yaw = (r() - 0.5) * 0.3;
+      // Half its footprint's reach along x and z, turned.
+      const [cs, sn] = [Math.abs(Math.cos(yaw)), Math.abs(Math.sin(yaw))];
+      const [ex, ez] = [(w * cs + dd * sn) / 2, (w * sn + dd * cs) / 2];
+      const gone = KEEP_OUT_SINCE.some(([x0, z0, x1, z1]) => x + ex > x0 && x - ex < x1 && z + ez > z0 && z - ez < z1);
+      lots.push({ x, z, w, d: dd, h, yaw, free, cone, hero: false, gone });
     }
   }
   // More candidates than the tier draws (a phone's 1,200): keep the nearest
@@ -600,6 +618,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       { ...b, x: xa, z: za, w: alongX ? la : b.w, d: alongX ? b.d : la, h: Math.max(8, ha), block: b },
       { ...b, x: xb, z: zb, w: alongX ? lb : b.w, d: alongX ? b.d : lb, h: Math.max(8, hb), block: b, second: true });
   }
+
+  // The lots stood by hand go last, after the split, so every dealt lot
+  // keeps its own draws from each stream.
+  for (const [x, z, w, d, h] of EXTRA_LOTS) lots.push({ x, z, w, d, h, yaw: 0, free: false, cone: false, hero: false });
 
   const f = rng(31337);
   const forms = lots.map((b) => formOf(b, f));
