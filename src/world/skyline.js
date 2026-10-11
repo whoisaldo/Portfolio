@@ -38,9 +38,13 @@ import { COMMON, WINDOWS } from "./glsl.js";
 // footprint (BIBLE.md), so it starts behind the last lot line every street
 // of the loop is built to.
 const KEEP_OUT = [
-  // The west street's outer lots to the x 120 road, the megabuilding to the
-  // depot past the avenue's south arm.
-  [-130, -800, 135, 125],
+  // The kit east of the west street's east lots to the x 120 road, the
+  // megabuilding to the depot past the avenue's south arm; the
+  // megabuilding's west corner; Japantown out to x -170 and the block that
+  // closes the west street's south end.
+  [-66, -800, 135, 125],
+  [-94, -800, -66, -745],
+  [-175, -745, -66, 42],
   // The east lobe: corpo row's towers to Santo Domingo's south side, out to
   // the garage street's east lots.
   [100, -380, 490, 48],
