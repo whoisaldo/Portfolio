@@ -13,9 +13,8 @@ street, the blocks east of the canyon and the station the viaduct runs into
 from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B  # noqa: F401
 from ncw import props as P  # noqa: F401
-
-D = "mega"
-FA = "far"
+from ncw.districts.mega_kit import (D, FA, RAIL_Z, RAIL_Y, RAIL_UNDER, RAIL_TOP, PIER_HEAD, MB_X0, MB_X1, MB_ZB, MB_ZF, MB_REC,
+                                    MB_SECTIONS, MB_SIGNS, WELL, PASSAGE)
 
 # ---------------------------------------------------------------------------
 # The viaduct. The avenue's far end is closed by a rail viaduct crossing it
@@ -23,15 +22,12 @@ FA = "far"
 # along its edge, and now and then a lit train sliding across it (the site
 # runs it, src/world/traffic.js, on anchor_rail's line).
 # ---------------------------------------------------------------------------
-RAIL_Z, RAIL_Y = -610.0, 13.0
-RAIL_UNDER, RAIL_TOP = RAIL_Y - 1.2, RAIL_Y + 2.2
 box((FA, "dark", 0), -90, 90, RAIL_UNDER, RAIL_TOP, RAIL_Z - 3.5, RAIL_Z + 3.5, scale=3.0)
 box((FA, "metal", 0), -90, 90, RAIL_TOP, RAIL_Y + 3.1, RAIL_Z + 3.3, RAIL_Z + 3.5, scale=1.0)
 # Its piers. The two outer ones stand behind the canyon's rows. The two at
 # the avenue stand on its pavements, so each is a portal the pavement runs
 # through: a slim leg at the kerb, a pilaster at the lot line, and the pier's
 # mass from over head height up to the deck.
-PIER_HEAD = 3.3
 for px in (-52.0, 52.0):
     box((FA, "dark", 0), px - 1.4, px + 1.4, 0, RAIL_UNDER, RAIL_Z - 2.2, RAIL_Z + 2.2, scale=2.0)
 for s in (-1, 1):
@@ -58,12 +54,6 @@ empty("anchor_rail", (0.0, RAIL_TOP, RAIL_Z), props={"reach": 90.0})
 # hero's lens sees neither (the well from no height it reaches; the passage
 # as a few dark pixels under the viaduct, closed by the court's north wall).
 # ---------------------------------------------------------------------------
-MB_X0, MB_X1, MB_ZB, MB_ZF = -48.0, 48.0, -790.0, -745.0
-MB_REC = 4.0                                   # the middle section's face stands this far back
-MB_SECTIONS = ((-48.0, -18.0, 95.0, 0.0), (-18.0, 18.0, 89.0, MB_REC), (18.0, 48.0, 83.0, 0.0))
-MB_SIGNS = ((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))
-WELL = (-9.0, 9.0, -783.0, -763.0)             # x0, x1, z0, z1
-PASSAGE = (-5.0, 5.0)                          # x0, x1, from the face to the well
 for k, (x0, x1, top, rec) in enumerate(MB_SECTIONS):
     col = (0.82 if rec else 0.72, 2 / 8.0, 0.55, 1.0)
     mass(FA, x0, x1, MB_ZB, MB_ZF - rec, SHOP_H, top, 4990 + k * 7, col=col, mat="facade_end", roof=not rec)
@@ -121,5 +111,6 @@ empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
 
 # The district's own pack: everything the hero does not need to go live on.
 from ncw.districts import massing  # noqa: E402
+from ncw.districts import mega_base  # noqa: E402,F401
 
 massing.mega()
