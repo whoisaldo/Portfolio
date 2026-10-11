@@ -60,7 +60,7 @@ STYLE = dict(windows=(0, 1, 3, 6, 6), lit=(0.5, 0.92), warmth=(0.6, 1.0),
              tints=("charcoal", "brown", "rust", "teal", "plum", "concrete", "brown", "charcoal"),
              balcony=0.2, balcony_glass=0.15, ac=0.16, pipes=0.5, fire_escape=0.14, awning=0.7, shop_sign=0.5,
              canopy=0.0, cornice=0.5, setback=0.0, ledge_every=(1, 1, 2),
-             shop_colours=["red", "amber", "pink", "magenta", "red", "amber", "green", "white"])
+             shop_colours=["red", "amber", "pink", "magenta", "red", "amber", "green", "pink"])
 STYLE_B = dict(STYLE, balcony=0.14, fire_escape=0.1, awning=0.6, ledge_every=(2, 0))
 STYLE_C = dict(STYLE, tints=("charcoal", "navy", "teal", "plum", "concrete", "brown"), lit=(0.45, 0.85), balcony=0.1,
                fire_escape=0.1, awning=0.4, shop_sign=0.5, setback=0.5, ledge_every=(2, 3, 0))
@@ -171,6 +171,70 @@ def face(rec, name):
 
 
 # ---------------------------------------------------------------------------
+# People (kit.stand): vendors behind every counter and their customers, the
+# ones on stools and benches, against the shopfronts out of the rain, at the
+# kerb, in the lanes, on the roofs. None on a walker's line: against a wall
+# they keep within 0.65 m of it, at the road they are on the kerb stone.
+# ---------------------------------------------------------------------------
+STOOLS = ((-0.65, 0.3), (0.7, 0.2), (0.1, -0.6))
+
+
+def loc(x, z, yaw, lx, lz):
+    """A prototype's own (x, z), set down at (x, z) turned yaw, in the world."""
+    return (x + lx * math.cos(yaw) + lz * math.sin(yaw), z - lx * math.sin(yaw) + lz * math.cos(yaw))
+
+
+def stall(x, z, yaw, r, y=G0, cart=None):
+    """A stall or a cart, its vendor behind the counter, one to three
+    customers at it, its lamp's pool."""
+    cart = r.random() < 0.35 if cart is None else cart
+    J.put("jt_cart" if cart else "jt_stall", x, y, z, yaw)
+    stand(*loc(x, z, yaw, r.uniform(-0.4, 0.4), -0.9 if cart else -0.2), yaw, "vendor", y)
+    for i in range(r.randrange(1, 4)):
+        px, pz = loc(x, z, yaw, (-0.8, 0.05, 0.85)[i] + r.uniform(-0.12, 0.12), (1.05 if cart else 1.42) + r.uniform(0.0, 0.2))
+        stand(px, pz, yaw + math.pi + r.uniform(-0.3, 0.3), r.choice(("idle", "idle", "phone", "talk", "smoke")), y)
+    lx, lz = loc(x, z, yaw, 0.0, 1.0)
+    light(D, lx, y + 1.5, lz, "amber", 3.2)
+
+
+def stools(x, z, yaw, r, y=G0):
+    """Three stools round a crate, most of them taken."""
+    J.put("jt_stools", x, y, z, yaw)
+    for lx, lz in STOOLS:
+        if r.random() < 0.45:
+            px, pz = loc(x, z, yaw, lx, lz)
+            stand(px, pz, math.atan2(x - px, z - pz), "sit", y + 0.44)
+
+
+def bench(x, z, yaw, r, y=G0):
+    J.put("bench", x, y, z, yaw)
+    for lx in (-0.5, 0.45):
+        if r.random() < 0.55:
+            stand(*loc(x, z, yaw, lx, 0.05), yaw, "sit", y + 0.48)
+
+
+def at_wall(f, s, r, out=0.38):
+    """Somebody, or a few, against a face s metres along it: leaning, on a
+    phone, smoking, two talking, a queue along the wall, one squatting."""
+    w = f.width
+    roll = r.random()
+    here = lambda ss, o=out: (f.p(f.at(ss), 0.0, o)[0], f.p(f.at(ss), 0.0, o)[2])  # noqa: E731
+    along = math.atan2(here(s + 1.0)[0] - here(s)[0], here(s + 1.0)[1] - here(s)[1])
+    if roll < 0.4:
+        stand(*here(s), f.yaw + r.uniform(-0.3, 0.3), r.choice(("lean", "lean", "smoke", "phone")), G0)
+    elif roll < 0.68 and s + 1.0 < w:
+        stand(*here(s, out + 0.08), along + r.uniform(-0.2, 0.2), "talk", G0)
+        stand(*here(s + 0.95, out + 0.08), along + math.pi + r.uniform(-0.2, 0.2), "talk", G0)
+        if r.random() < 0.35:
+            stand(*here(s + 0.5, out - 0.06), f.yaw, "lean", G0)
+    elif roll < 0.9:
+        for i in range(max(1, min(r.randrange(2, 5), int((w - 0.5 - s) / 0.68)))):
+            stand(*here(s + i * 0.68, out + r.uniform(-0.05, 0.05)), along + r.uniform(-0.25, 0.25), r.choice(("idle", "idle", "phone")), G0)
+    else:
+        stand(*here(s), f.yaw, "squat", G0)
+
+
+# ---------------------------------------------------------------------------
 # What a face carries.
 # ---------------------------------------------------------------------------
 def noren(f, s0, s1, r, y=3.2):
@@ -245,12 +309,16 @@ def signs_on(f, h, r, density=1.0, small=False, big=True, cap=None):
         f.box((D, "neon_" + r.choice(NEONS), 0), s - 0.04, s + 0.04, SHOP_H + 0.3, h - 0.3, 0.2, 0.28)
 
 
-def by_wall(f, r, alley=False):
+def by_wall(f, r, alley=False, people=0.42):
     """What stands against a shopfront: vending machines, a menu board, pots,
     crates, a bin, stools."""
     w = f.width
-    s = r.uniform(0.8, 2.5)
+    s = r.uniform(0.8, 2.2)
     while s < w - 0.8:
+        if r.random() < people:
+            at_wall(f, s, r)
+            s += r.uniform(2.4, 4.4)
+            continue
         roll = r.random()
         x, _, z = f.p(f.at(s), G0, 0.48)
         if roll < 0.16:
@@ -272,8 +340,8 @@ def by_wall(f, r, alley=False):
             J.put("bin", x, G0, z)
         elif alley and roll < 0.92:
             x, _, z = f.p(f.at(s), G0, 1.0)
-            J.put("jt_stools", x, G0, z, r.uniform(0, 6.28))
-        s += r.uniform(2.2, 5.0)
+            stools(x, z, r.uniform(0, 6.28), r)
+        s += r.uniform(2.0, 4.4)
 
 
 def shop_face(rec, name, level="street", cap=None):
@@ -293,7 +361,7 @@ def shop_face(rec, name, level="street", cap=None):
             s = r.uniform(0.4, w - 2.2)
             noren(f, s, s + r.uniform(1.2, 1.8), r)
     signs_on(f, h, r, density={"street": 1.0, "alley": 0.6, "edge": 0.5}[level], small=alley, big=not alley, cap=cap)
-    by_wall(f, r, alley)
+    by_wall(f, r, alley, {"street": 0.42, "alley": 0.3, "edge": 0.1}[level])
 
 
 # ---------------------------------------------------------------------------
@@ -312,6 +380,16 @@ def parapet(x0, x1, z0, z1, top, col, h=0.9, t=0.25):
         quad(k, (ax, top + h, az), (bx, top + h, az), (bx, top + h, bz), (ax, top + h, bz), col=col)
 
 
+def skylight(x, z, top, r, w=1.3, d=2.3):
+    """A roof light: a kerbed pane lit from the room under it, and its glow
+    on the roof round it."""
+    c = r.choice(("amber", "amber", "cyan", "white", "pink"))
+    box((D, "trim", 1), x - w / 2 - 0.1, x + w / 2 + 0.1, top, top + 0.3, z - d / 2 - 0.1, z + d / 2 + 0.1, scale=1.0, col=(0.1, 0.1, 0.11, 1))
+    quad((D, "glow", 0), (x - w / 2, top + 0.31, z + d / 2), (x + w / 2, top + 0.31, z + d / 2), (x + w / 2, top + 0.31, z - d / 2), (x - w / 2, top + 0.31, z - d / 2),
+         col=tuple(v * 0.55 for v in GLOW[c][:3]) + (1,))
+    light(D, x, top + 0.5, z, c, 2.6)
+
+
 def hut(x, z, y, col, r, door=None):
     """A stair hut, its door lit."""
     box((D, "trim", 0), x - 1.0, x + 1.0, y, y + 2.3, z - 1.1, z + 1.1, scale=1.5, col=col)
@@ -320,6 +398,9 @@ def hut(x, z, y, col, r, door=None):
     dx = x + side * 1.02
     q = ((dx, y, z + 0.45), (dx, y, z - 0.45), (dx, y + 2.0, z - 0.45), (dx, y + 2.0, z + 0.45))
     quad((D, "glow", 0), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=GLOW["amber"])
+    light(D, x + side * 1.8, y + 1.0, z, "amber", 2.8)
+    if r.random() < 0.3:
+        stand(x + side * 1.5, z + r.uniform(-0.8, 0.8), r.uniform(0, 6.28), r.choice(("smoke", "phone", "squat")), y)
 
 
 def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
@@ -358,9 +439,21 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
         if u < w - 1.0 and d > 5.0:
             J.put("jt_lamp_arm", X(u), top + 0.05, z, yaw)
             light(D, X(u), top + 5.0, z + dz, "cyan", 3.5)
-    J.put("jt_viewer", X(w - 0.75), top + 0.05, (z0 + z1) / 2 + r.uniform(-1.0, 1.0), HALF_PI * sgn)
-    J.put("bench", X(w - 2.4), top + 0.05, (z0 + z1) / 2 + r.uniform(-1.0, 1.0), HALF_PI * sgn)
+    zv = (z0 + z1) / 2 + r.uniform(-1.0, 1.0)
+    J.put("jt_viewer", X(w - 0.75), top + 0.05, zv, HALF_PI * sgn)
+    bench(X(w - 2.6), zv + r.choice((-1.6, 1.6)), -HALF_PI * sgn, r, top + 0.05)
     J.put("bags", X(tu + 0.9), top + 0.05, z1 - 0.9, r.uniform(0, 6.28))
+    # Who is up here: somebody at the rail over the street, somebody sat on
+    # the terrace's steps, two talking under a lamp.
+    if r.random() < 0.8:
+        stand(X(w - 0.7), zv + r.choice((-1.1, 1.1)), HALF_PI * sgn + r.uniform(-0.3, 0.3), r.choice(("idle", "smoke", "phone")), top + 0.05)
+    if r.random() < 0.5:
+        stand(X(w - 0.75), z0 + 1.0, -HALF_PI * sgn, "lean", top + 0.05)
+    if r.random() < 0.6:
+        stand(X(tu + 0.2), z0 + 1.2, HALF_PI * sgn, "sit", top + 0.6)
+    if r.random() < 0.5 and d > 5.0:
+        stand(X(tu + 2.3), z0 + 2.4, 0.0, "talk", top + 0.05)
+        stand(X(tu + 2.3), z0 + 3.3, math.pi, "talk", top + 0.05)
     if d > 7.0:
         J.put("jt_planter", X(w - 1.2), top + 0.05, z0 + 1.2)
         J.put("ac_roof", X(tu + 2.6), top + 0.05, z1 - 1.0)
@@ -422,8 +515,8 @@ def roof(rec, weights):
             strip(f, r.choice(("green", "purple", "cyan", "magenta")), 0.2, f.width - 0.2, top - 0.3, top - 0.22, 0.05)
         return
     parapet(x0, x1, z0, z1, top, tcol)
-    if r.random() < 0.3:
-        colour = r.choice(("cyan", "amber", "pink", "red", "teal"))
+    if r.random() < 0.5:
+        colour = r.choice(("cyan", "amber", "pink", "red", "teal", "magenta", "green"))
         for (ax, az), (bx, bz) in (((x0, z1), (x1, z1)), ((x1, z1), (x1, z0)), ((x1, z0), (x0, z0)), ((x0, z0), (x0, z1))):
             key, col = lit(colour, max(ax, bx))
             quad(key, (ax, top + 0.82, az), (bx, top + 0.82, bz), (bx, top + 0.9, bz), (ax, top + 0.9, az), col=col)
@@ -440,6 +533,17 @@ def roof(rec, weights):
         for _ in range(r.randrange(1, 3)):
             J.put("ac_roof", X(r.uniform(1.2, w - 1.2)), top, r.choice((z0 + 1.0, z1 - 1.0)))
         J.put("jt_plants", X(r.uniform(2.0, w - 2.0)), top, mid + r.uniform(-1.0, 1.0), r.uniform(0, 3))
+        # A slab somebody laid by the shack, its window's light on it, and
+        # whoever lives up here.
+        us = r.uniform(3.2, w - 4.5)
+        xa_, xb_ = sorted((X(us), X(us + 3.4)))
+        quad((D, "concrete", 0), (xa_, top + 0.04, z1 - 0.5), (xb_, top + 0.04, z1 - 0.5), (xb_, top + 0.04, z0 + 0.5), (xa_, top + 0.04, z0 + 0.5),
+             ((0, 0), (1.1, 0), (1.1, d / 3), (0, d / 3)))
+        light(D, X(us + 1.7), top + 1.0, mid, r.choice(("amber", "amber", "pink", "cyan")), 3.2)
+        if r.random() < 0.7:
+            stand(X(us + 1.7) + r.uniform(-1, 1), mid + r.uniform(-1.0, 1.0), r.uniform(0, 6.28), r.choice(("smoke", "squat", "phone", "idle")), top + 0.04)
+        if d > 7.0:
+            skylight(X(w - 5.0), mid + r.choice((-1, 1)) * (d / 2 - 1.8), top, r)
     elif kind == "plant":
         n = r.randrange(2, 5)
         u0 = r.uniform(1.5, max(1.6, w - n * 1.8 - 1.0))
@@ -455,12 +559,16 @@ def roof(rec, weights):
         if d >= 5.6 and r.random() < 0.6:
             J.put("tank_roof", X(w * 0.5), top, mid, 0.0, 1.0, min(1.0, (d - 1.2) / 3.4))
         J.put("antenna" if r.random() < 0.6 else "dish", X(r.uniform(1.5, 3.0)), top, mid + r.uniform(-1.0, 1.0), r.uniform(0, 3.1), r.uniform(0.7, 1.3))
+        for t in ((0.3, 0.62) if w > 18 else (0.4,)):
+            skylight(X(w * t), mid + (dz_ - zz) * 0.75, top, r, 2.3, 1.2)
     elif kind == "sign":
         roof_sign(X(w - 1.3), mid, top, out_yaw + r.choice((-1, 1)) * r.uniform(0.15, 0.7), r, d)
         hut(X(r.uniform(2.5, w * 0.5)), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
         J.put("ac_roof", X(w * 0.6), top, r.choice((z0 + 1.0, z1 - 1.0)))
         if r.random() < 0.5:
             J.put("antenna", X(1.5), top, mid, 0.0, r.uniform(0.7, 1.2))
+        skylight(X(w * 0.72), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.0), top, r)
+        light(D, X(w - 2.2), top + 1.0, mid, r.choice(("pink", "magenta", "red", "amber")), 3.4)
     else:  # a roof garden: festoons on four posts, stools, a cart, planters
         ua, ub = max(1.0, w * 0.5 - 4.5), min(w - 1.0, w * 0.5 + 4.5)
         posts = [(X(ua), z0 + 0.8), (X(ub), z0 + 0.8), (X(ub), z1 - 0.8), (X(ua), z1 - 0.8)]
@@ -468,10 +576,14 @@ def roof(rec, weights):
             box((D, "metal", 1), px - 0.05, px + 0.05, top, top + 2.9, pz - 0.05, pz + 0.05, scale=0.5)
         for a, b in ((posts[0], posts[1]), (posts[2], posts[3]), (posts[0], posts[2])):
             J.span("jt_festoon", a, b, top + 2.85, 0.5)
-        light(D, X(w * 0.5), top + 2.0, mid, "amber", 3.0)
-        J.put("jt_cart", X(ua + 1.2), top, mid, out_yaw)
-        for t in (0.35, 0.6, 0.85):
-            J.put("jt_stools", X(ua + (ub - ua) * t), top, mid + r.uniform(-0.6, 0.6), r.uniform(0, 6.28))
+        xa_, xb_ = sorted((X(ua - 0.6), X(ub + 0.6)))
+        quad((D, "sidewalk", 0), (xa_, top + 0.04, z1 - 0.4), (xb_, top + 0.04, z1 - 0.4), (xb_, top + 0.04, z0 + 0.4), (xa_, top + 0.04, z0 + 0.4),
+             ((0, 0), ((xb_ - xa_) / 2, 0), ((xb_ - xa_) / 2, d / 2), (0, d / 2)))
+        for t in (0.25, 0.75):
+            light(D, X(ua + (ub - ua) * t), top + 2.0, mid, "amber", 3.2)
+        stall(X(ua + 1.2), mid, out_yaw, r, top + 0.04, cart=True)
+        for t in (0.45, 0.68, 0.9):
+            stools(X(ua + (ub - ua) * t), mid + r.uniform(-0.6, 0.6), r.uniform(0, 6.28), r, top + 0.04)
         J.put("jt_planter", X(ub - 0.2), top, z0 + 1.2)
         J.put("jt_planter", X(ua + 0.2), top, z1 - 1.2)
         hut(X(w - 2.0), mid, top, tcol, r)
@@ -558,6 +670,12 @@ def gate(x, z0, z1, yaw, r, h=4.7):
     key, col = lit(r.choice(("amber", "red", "pink")), x)
     box(key, x - 0.03, x + 0.03, h - 0.07, h, z0 + 0.3, z1 - 0.3, scale=1.0, col=col, bottom=True)
     J.slab_sign((x, h + 0.3 + 0.62, zc), basis(yaw), "pm", 1.0)
+    inx = x - math.sin(yaw) * 1.1
+    if r.random() < 0.7:
+        stand(inx, z0 + 0.45, 0.0, r.choice(("lean", "smoke", "phone")), G0)
+    if r.random() < 0.6:
+        stand(inx - math.sin(yaw) * 0.9, z1 - 0.9, math.pi + 0.3, "talk", G0)
+        stand(inx - math.sin(yaw) * 0.7, z1 - 1.8, 0.3, "talk", G0)
 
 
 # ---------------------------------------------------------------------------
@@ -633,7 +751,30 @@ while z < -14.0:
     if clear_of(z, [DECK], 4.0) and not (side > 0 and -194.0 < z < -164.0):
         for i in range(sr.randrange(2, 5)):
             J.put("jt_scooter", x, G0, z + i * 0.85, sr.uniform(-0.25, 0.25) + (0.0 if sr.random() < 0.5 else math.pi))
+        if sr.random() < 0.6:
+            stand(x - 0.35 * side, z - 0.8, sr.uniform(0, 6.28), sr.choice(("idle", "phone", "smoke")), G0)
     z += sr.uniform(18.0, 34.0)
+
+# At the kerb, on the kerb stone itself: somebody sat on it with their feet
+# in the gutter, squatting, waiting to cross, two talking.
+for side, xk in ((1, -90.16), (-1, -69.84)):
+    z = -704.0 + sr.uniform(0.0, 8.0)
+    while z < -12.0:
+        if clear_of(z, [DECK], 3.0) and not (side < 0 and -194.0 < z < -164.0):
+            roll = sr.random()
+            road = HALF_PI * side
+            if roll < 0.3:
+                stand(xk, z, road, "sit", 0.15)
+                if sr.random() < 0.4:
+                    stand(xk, z + 0.7, road + sr.uniform(-0.3, 0.3), "sit", 0.15)
+            elif roll < 0.5:
+                stand(xk - 0.05 * side, z, road + sr.choice((0.0, math.pi)), "squat", G0)
+            elif roll < 0.75:
+                stand(xk, z, road + sr.uniform(-0.5, 0.5), sr.choice(("idle", "phone", "smoke")), G0)
+            else:
+                stand(xk, z, 0.0, "talk", G0)
+                stand(xk, z + 0.9, math.pi, "talk", G0)
+        z += sr.uniform(10.0, 18.0)
 
 
 def street_gate(z, r):
@@ -694,18 +835,18 @@ while z < ZS - 6.0:
     if clear_of(z, ALLEYS + [TORII], 3.0):
         west = k % 2 == 0
         x = NAKA[0] + 0.95 if west else NAKA[1] - 0.95
-        J.put("jt_stall" if nr.random() < 0.65 else "jt_cart", x, G0, z, HALF_PI if west else -HALF_PI)
-        J.put("jt_stools", x + (1.7 if west else -1.7), G0, z + nr.uniform(-1.2, 1.2), nr.uniform(0, 6.28))
-        light(D, x + (1.0 if west else -1.0), 1.5, z, "amber", 3.2)
+        stall(x, z, HALF_PI if west else -HALF_PI, nr)
+        stools(x + (0.3 if west else -0.3), z + nr.choice((-2.3, 2.3)), nr.uniform(0, 6.28), nr)
         if k % 6 == 2:
             steam(x, z + 0.9, 1.1)
         k += 1
-    z += nr.uniform(8.0, 13.0)
+    z += nr.uniform(7.0, 11.0)
 for a, b in ALLEYS:
     zc = (a + b) / 2
     J.put("planter_tree", -113.0, G0, zc, nr.uniform(0, 6.28))
     J.put("lamp_short", -111.2, G0, zc + 1.9)
-    J.put("bench", -114.6, G0, zc - 1.8, 0.0)
+    bench(-114.6, zc - 1.8, 0.0, nr)
+    stand(-112.2, zc + 0.9, nr.uniform(0, 6.28), nr.choice(("idle", "phone", "smoke")), G0)
     light(D, -113.0, 3.0, zc, "pink", 3.0)
     # Across each cross alley, cables and a string; a machine and bags in it.
     for xa, xb in (ROW_A, ROW_B):
@@ -714,6 +855,7 @@ for a, b in ALLEYS:
         J.put("vending" if nr.random() < 0.5 else "vending_warm", (xa + xb) / 2 + 4.0, G0, a + 0.45, 0.0)
         light(D, (xa + xb) / 2 + 4.0, 1.2, a + 1.3, "cyan", 1.8)
         J.put("jt_scooter", (xa + xb) / 2 - 5.0, G0, b - 0.5, HALF_PI + nr.uniform(-0.2, 0.2))
+        stand((xa + xb) / 2 + nr.uniform(-1.0, 2.5), a + 0.4, 0.0, nr.choice(("lean", "smoke", "squat", "phone")), G0)
     # White hatching on the slabs at its mouth (KvMY1uzSC1E@94).
     for i in range(5):
         x = XW - 1.0 - i * 0.55
@@ -783,9 +925,8 @@ while x > EDGE[1] + 6.0:
     light(D, x, 0.3, tc, "red", 2.4)
     if not in_lane:
         south = k % 2 == 0
-        J.put("jt_stall" if tr.random() < 0.6 else "jt_cart", x - 2.2, G0, tb - 1.0 if south else ta + 1.0, math.pi if south else 0.0)
-        J.put("jt_stools", x - 2.0 + tr.uniform(-1, 1), G0, tb - 2.8 if south else ta + 2.8, tr.uniform(0, 6.28))
-        light(D, x - 2.2, 1.5, tb - 2.0 if south else ta + 2.0, "amber", 3.2)
+        stall(x - 2.2, tb - 1.0 if south else ta + 1.0, math.pi if south else 0.0, tr)
+        stools(x - 4.6, tb - 1.3 if south else ta + 1.3, tr.uniform(0, 6.28), tr)
         if k % 3 == 1:
             J.put("planter_tree", x - 4.4, G0, tc + tr.uniform(-0.6, 0.6), tr.uniform(0, 6.28))
             light(D, x - 4.4, 3.0, tc, "pink", 3.0)
@@ -801,6 +942,13 @@ J.rail_run((wa, ta + 2.1), (wb, ta + 2.1), G0 + 0.6)
 for xx in (wa - 0.35, wb + 0.35):
     box((D, "concrete", 1), xx - 0.35, xx + 0.35, G0, G0 + 0.3, ta, ta + 2.2, scale=3.0)
 light(D, (wa + wb) / 2, 0.5, ta + 2.8, "cyan", 3.0)
+for xx in (wa + 2.5, wa + 3.4, wa + 9.0, wb - 4.0):
+    stand(xx, ta + 1.75, tr.uniform(-0.3, 0.3), tr.choice(("idle", "lean", "phone", "smoke")), G0 + 0.6)
+stand(wb + 0.35, ta + 1.0, HALF_PI, "sit", G0 + 0.3)
+# Under the gate: two talking by a post, one waiting.
+stand(gx - 0.9, ta + 1.5, 0.3, "talk", G0)
+stand(gx - 0.7, ta + 2.4, math.pi + 0.3, "talk", G0)
+stand(gx - 1.0, tb - 1.3, HALF_PI, "phone", G0)
 # The board that closes it, on legs over the edge strip.
 bx = EDGE[0] + 1.6
 B.billboard(D, bx, 9.6, tc, 9.0, 4.8, HALF_PI, tr)
@@ -840,6 +988,15 @@ for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.25, 26.0), (
             J.put("bin", x, G0, z - 1.6)
         elif roll < 0.7 and xa == EDGE[0]:
             J.put("planter_tree", xa + 1.3, G0, z + 6.0, lr.uniform(0, 6.28))
+        # Somebody against the wall: mine is the lane's west one, the back
+        # lane's both, the strip's east.
+        wx, wyaw = (xa + 0.38, HALF_PI) if xa != EDGE[0] and (xa == LANE[0] or k % 2 == 0) else (xb - 0.38, -HALF_PI)
+        roll = lr.random()
+        if roll < 0.45:
+            stand(wx, z + 3.5, wyaw + lr.uniform(-0.3, 0.3), lr.choice(("smoke", "lean", "phone", "squat")), G0)
+        elif roll < 0.6:
+            stand(wx, z + 3.2, 0.0, "talk", G0)
+            stand(wx, z + 4.1, math.pi, "talk", G0)
         k += 1
         z += columns * lr.uniform(0.8, 1.2)
 steam(-47.0, -520.0)
@@ -898,7 +1055,7 @@ for (dist, mat, _), b in batches.items():
         cy = sum(v[2] for v in vs) / len(vs)
         if cx > -60.0 and cy > 7.5:
             _bad += 1
-print(f"japantown: {len(LOTS)} lots, {sum(1 for i in P.INSTANCES if i[7] == D)} props, bake sources east of x -60 over 7.5 m: {_bad}")
+print(f"japantown: {len(LOTS)} lots, {sum(1 for i in P.INSTANCES if i[7] == D)} props, {len(PEOPLE)} people so far in the city, bake sources east of x -60 over 7.5 m: {_bad}")
 _t = {}
 for (dist, mat, det), b in batches.items():
     if dist == D:
