@@ -34,12 +34,25 @@ RED = (0.4, 0.05, 0.05, 1)
 TRAIN = (0.7, 0.5, 0.06, 1)
 
 # Signs here take their designs from a stream of their own, so nothing built
-# in this district moves the street's own count (kit.st_name).
+# in this district moves the street's own count (kit.st_name), and only the
+# street's designs a corporate row would carry (the site hands a face named
+# st_<size>_<n> the n-th design of its size, src/data/world.js STREET_SIGNS
+# then src/world/sign-words.js): clinics, pharmacies, cyberware, electronics,
+# exchange, the hours, and the pictograms that are marks rather than menus.
 _names = random.Random(60606)
+DESIGNS = {
+    "bs": (4, 7, 8, 9, 12, 14, 15, 18),
+    "bm": (5, 7, 8, 9, 10, 14, 15, 21),
+    "bl": (1, 4, 8, 10, 11, 14),
+    "ps": (0, 6, 10, 13),
+    "pm": (1, 2, 4, 7, 8, 11, 12, 15),
+    "bx": (3, 4, 6, 8, 10, 12, 13, 14, 16, 19),
+}
+ARROW, BOLT, CROSS, CHIP, EYE, STAR = 16, 8, 4, 13, 3, 14     # some of the bx pictograms, by name
 
 
-def st_id(size):
-    return f"st_{size}_{_names.randrange(1009)}"
+def st_id(size, n=None):
+    return f"st_{size}_{_names.choice(DESIGNS[size]) if n is None else n}"
 
 
 def k(mat, detail=0):
@@ -219,13 +232,13 @@ def screen_stack(cx, cz, y0, w, heights, yaw, r, gap=0.5, depth=0.3, pal=None):
     return y
 
 
-def st_blade(x, y, z, size, yaw, bracket=None):
+def st_blade(x, y, z, size, yaw, bracket=None, n=None):
     """One of the street's standard signs as a blade: both faces painted,
     in its frame, turned any way (`yaw` is the way its first face looks)."""
     w, h = ST_SIZES[size]
     nx, nz = math.sin(yaw), math.cos(yaw)
     oriented_box(k("board_frame"), x, y, z, w + 0.12, h + 0.14, 0.16, yaw, scale=1.0)
-    sid = st_id(size)
+    sid = st_id(size, n)
     sign(sid, x + nx * 0.09, y, z + nz * 0.09, w, h, yaw, district=CO, label=False)
     sign(sid + "_b", x - nx * 0.09, y, z - nz * 0.09, w, h, yaw + math.pi, district=CO, label=False)
     if bracket:
@@ -241,16 +254,20 @@ def st_board(x, y, z, size, yaw, out=0.12):
     sign(st_id(size), x + nx * 0.015, y, z + nz * 0.015, w, h, yaw, district=CO, label=False)
 
 
-def totem(x, z, yaw, r, h=5.2, colour="cyan", sizes=("bx", "ps", "ps")):
+def totem(x, z, yaw, r, h=5.2, colour="cyan", sizes=("bx", "bx")):
     """A freestanding sign pylon on a forecourt: a dark slab on a foot, a
-    line of light up each edge, standard signs on both faces."""
+    thin line of light up each edge, standard signs on both faces (the
+    square icon boxes and the blades: a lobby's pylon carries marks, not a
+    shop's words)."""
+    colour = "cyan" if colour == "white" else colour
     oriented_box(k("trim"), x, G0 + h / 2, z, 1.5, h, 0.32, yaw, scale=1.0, col=BLACK)
     rx, rz = math.cos(yaw), -math.sin(yaw)
     for s in (-1, 1):
-        oriented_box(k("neon_" + colour), x + rx * s * 0.78, G0 + h / 2, z + rz * s * 0.78, 0.06, h - 0.3, 0.34, yaw, scale=1.0)
+        oriented_box(k("neon_" + colour), x + rx * s * 0.77, G0 + h / 2, z + rz * s * 0.77, 0.05, h - 0.3, 0.1, yaw, scale=1.0)
     nx, nz = math.sin(yaw), math.cos(yaw)
     y = G0 + h - 0.5
     for size in sizes:
+        size = "bx" if size in ("ps", "pm") else size
         w, hh = ST_SIZES[size]
         y -= hh / 2 + 0.25
         if y - hh / 2 < G0 + 0.6:
@@ -433,6 +450,7 @@ def skylight(x0, x1, z0, z1, y, rise=1.6, colour="white", nx=4, nz=3):
 
     rr = random.Random(int(x0 * 7 + z0 * 13))
     base = GLOW[colour]
+    white = GLOW["white"]
     for i in range(nx):
         for j in range(nz):
             xa, xb = x0 + (x1 - x0) * i / nx, x0 + (x1 - x0) * (i + 1) / nx
@@ -440,8 +458,11 @@ def skylight(x0, x1, z0, z1, y, rise=1.6, colour="white", nx=4, nz=3):
             a, b, c, d = (xa, hgt(xa, zb), zb), (xb, hgt(xb, zb), zb), (xb, hgt(xb, za), za), (xa, hgt(xa, za), za)
             tris = ((a, b, c), (a, c, d)) if (i + j) % 2 == 0 else ((a, b, d), (b, c, d))
             for t in tris:
-                g = rr.uniform(0.1, 0.34)
-                poly(k("glow"), list(t), [(0, 0), (1, 0), (0.5, 1)], (base[0] * g, base[1] * g, base[2] * g, 1))
+                # Each pane its own: most dim (a dark floor under it), some lit.
+                g = rr.choice((0.015, 0.02, 0.03, 0.03, 0.05, 0.08, 0.14))
+                m = rr.uniform(0.3, 0.8)
+                col = tuple((base[n] * m + white[n] * (1 - m)) * g for n in range(3)) + (1,)
+                poly(k("glow"), list(t), [(0, 0), (1, 0), (0.5, 1)], col)
     # Ribs along the grid's lines, a hair over the glass.
     for i in range(nx + 1):
         x = x0 + (x1 - x0) * i / nx
@@ -560,8 +581,9 @@ def front(f, top, kind, r, tint=1, colour="cyan", canopy=0.0):
         return
     tcol = B.TRIM[tint]
     if kind == "glass":
-        f.quad(k("trim"), 0.0, w, 0.0, 0.5, 0.02, col=BLACK)
-        f.quad(k("corporate"), 0.35, w - 0.35, 0.5, top - 0.7, 0.03, col=glass_col(r, lit=(0.8, 1.0)))
+        showrooms(f, r, tint, colour, lobby=True)
+        f.quad(k("corporate"), 0.35, w - 0.35, SHOP_H + 0.35, top - 0.7, 0.03, col=glass_col(r, lit=(0.8, 1.0)))
+        f.quad(k("trim"), 0.0, w, SHOP_H, SHOP_H + 0.35, 0.03, col=tcol)
         f.quad(k("trim"), 0.0, w, top - 0.7, top, 0.03, col=BLACK)
         f.box(k("neon_" + colour), 0.4, w - 0.4, top - 0.78, top - 0.7, 0.03, 0.09)
         for e in (0.0, w - 0.35):
@@ -571,10 +593,11 @@ def front(f, top, kind, r, tint=1, colour="cyan", canopy=0.0):
         for i in range(n):
             s = w * (i + 0.5) / n + (r.uniform(-1.5, 1.5) if w > 12 else 0.0)
             f.box(k("trim"), s - 1.7, s + 1.7, 0.0, 3.1, 0.03, 0.22, col=BLACK)
-            dcol = tuple(c * 0.16 for c in GLOW["white"][:3]) + (1,)
-            f.quad(k("glow"), s - 1.5, s - 0.08, G0, 2.8, 0.23, col=dcol)
-            f.quad(k("glow"), s + 0.08, s + 1.5, G0, 2.8, 0.23, col=dcol)
-            f.box(k("glow", 1), s - 1.5, s + 1.5, 2.86, 2.94, 0.2, 0.26, col=GLOW[colour])
+            f.quad(k("glass_dark"), s - 1.5, s - 0.06, G0, 2.8, 0.23)
+            f.quad(k("glass_dark"), s + 0.06, s + 1.5, G0, 2.8, 0.23)
+            for e in (-0.78, 0.78):
+                f.box(k("glow", 1), s + e - 0.02, s + e + 0.02, G0 + 0.9, G0 + 1.5, 0.23, 0.26, col=GLOW["white"])
+            f.box(k("glow"), s - 1.5, s + 1.5, 2.86, 2.94, 0.2, 0.26, col=GLOW[colour])
             lx, _, lz = f.p(f.at(s), 0.0, 1.2)
             light(CO, lx, 2.6, lz, "white", 4.0)
             if canopy:
@@ -597,31 +620,32 @@ def front(f, top, kind, r, tint=1, colour="cyan", canopy=0.0):
         wall_front(f, top, r, tint, colour)
 
 
-def showrooms(f, r, tint, colour):
+def showrooms(f, r, tint, colour, lobby=False):
     """A ground floor of showrooms along a face: glass set back behind
     pilasters, a room behind every bay (the street's shop glass, lit cool
     with a warm one now and then), a dark fascia with a line of light or a
-    sign on it."""
+    sign on it. `lobby`: a lobby's front: longer runs of glass, all cool,
+    no shop signs."""
     w = f.width
     tcol = B.TRIM[tint]
     bays = max(1, round(w / CELL_W))
     bw = w / bays
     i = 0
     while i < bays:
-        n = min(r.choice((2, 2, 3, 3, 4)), bays - i)
+        n = min(r.choice((3, 4, 4, 5) if lobby else (2, 2, 3, 3, 4)), bays - i)
         if bays - (i + n) == 1:
             n += 1
         a, b = i * bw, (i + n) * bw
         for e in (a, b):
             f.box(k("trim"), max(0.0, e - 0.2), min(w, e + 0.2), 0.0, SHOP_H, -B.REC - 0.02, B.PIL, col=tcol)
-        cool = r.random() < 0.72
+        cool = lobby or r.random() < 0.72
         lit = (r.uniform(0.55, 1.0), r.uniform(0.88, 1.0) if cool else r.uniform(0.0, 0.45), 1.0 if r.random() < 0.95 else 0.0, 1.0)
         f.quad(k("shop"), a + 0.2, b - 0.2, 0.55, 3.3, -B.REC, col=lit)
         f.quad(k("trim"), a + 0.2, b - 0.2, G0, 0.55, -B.REC + 0.01, col=BLACK)
         f.quad(k("trim"), a + 0.2, b - 0.2, 3.3, SHOP_H, 0.0, col=BLACK)
         f.box(k("trim"), a + 0.2, b - 0.2, 3.28, 3.3, -B.REC, 0.0, col=BLACK)
         mid = (a + b) / 2
-        roll = r.random()
+        roll = 0.5 if lobby else r.random()
         if roll < 0.3 and b - a > 4.0:
             sw, sh = ST_SIZES["pm"]
             cx, cy, cz = f.p(f.at(mid), 3.95, 0.07)
@@ -686,7 +710,7 @@ def podium_walls(x0, x1, z0, z1, top, fronts, r, tint=1, colour="cyan", canopy=0
         kind = fronts.get(name, "blank")
         if kind == "none":
             continue
-        f.quad(k("trim"), 0.0, f.width, SHOP_H if kind in ("shop", "dock") else 0.0, top, 0.0, col=col)
+        f.quad(k("trim"), 0.0, f.width, SHOP_H if kind in ("shop", "dock", "glass") else 0.0, top, 0.0, col=col)
         front(f, top, kind, r, tint, colour, canopy if kind in ("glass", "shop") else 0.0)
 
 
@@ -699,7 +723,7 @@ def fins(f, y0, y1, step, out=0.45, wide=0.3, col=BLACK, detail=0, s0=0.0, s1=No
         f.box(k("trim", detail), s - wide / 2, s + wide / 2, y0, y1, 0.0, out, col=col)
 
 
-def strip_v(x, z, y0, y1, colour, glow=True, w=0.16):
+def strip_v(x, z, y0, y1, colour, glow=True, w=0.09):
     """A vertical line of light (a tower's corner, a slot in a facade)."""
     if glow:
         glow_box(x - w, x + w, y0, y1, z - w, z + w, colour)
@@ -885,3 +909,42 @@ def tubes_over(a, b, z0, z1, y, hue, step=9.0, along="z", power=3.0):
             neon_box(v - 0.04, v + 0.04, y, y + 0.08, a + 0.2, b - 0.2, hue, 1)
             light(CO, v, y - 0.8, (a + b) / 2, hue, power)
         v += step
+
+
+def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white")):
+    """What a lane's wall carries between its doors, so no stretch of it is
+    dark or bare: vending machines lit cyan and amber, posters in frames,
+    bulkhead lamps, a pipe run with indicator lamps, crates and bins; each
+    lit thing a pool of light on the lane."""
+    w = f.width
+    s = r.uniform(1.5, 4.0)
+    while s < w - 1.8:
+        roll = r.random()
+        px, _, pz = f.p(f.at(s), 0.0, 0.46)
+        lx, _, lz = f.p(f.at(s), 0.0, 1.5)
+        if roll < 0.2:
+            P.place("vending" if r.random() < 0.6 else "vending_warm", px, G0, pz, f.yaw, district=CO)
+            if r.random() < 0.6 and s + 1.2 < w - 1.0:
+                qx, _, qz = f.p(f.at(s + 1.08), 0.0, 0.46)
+                P.place("vending_warm" if r.random() < 0.5 else "vending", qx, G0, qz, f.yaw, district=CO)
+            light(CO, lx, 1.4, lz, "cyan", 4.0)
+        elif roll < 0.42:
+            pw, ph = r.choice(((1.3, 1.9), (1.3, 1.9), (2.4, 1.5)))
+            cx, cy, cz = f.p(f.at(s), 2.3, 0.09)
+            f.box(k("board_frame"), s - pw / 2 - 0.07, s + pw / 2 + 0.07, 2.3 - ph / 2 - 0.07, 2.3 + ph / 2 + 0.07, 0.0, 0.08)
+            rotated_quad(k("billboard"), cx, cy, cz, pw, ph, f.yaw, col=board_col(r, None))
+            light(CO, lx, 2.0, lz, r.choice(hues), 3.0)
+        elif roll < 0.64:
+            hue = r.choice(hues)
+            f.box(k("neon_" + hue), s - 0.22, s + 0.22, 3.2, 3.38, 0.04, 0.24)
+            f.box(k("metal", 1), s - 0.26, s + 0.26, 3.38, 3.45, 0.0, 0.28)
+            light(CO, lx, 3.0, lz, hue, 5.0)
+        elif roll < 0.8 and s + 5.0 < w - 0.5:
+            f.box(k("metal", 1), s, s + 5.0, 3.7, 3.95, 0.03, 0.3)
+            f.box(k("metal", 1), s, s + 5.0, 4.1, 4.22, 0.03, 0.18)
+            for d, hue in ((0.6, "green"), (2.4, "amber"), (4.2, "red")):
+                f.box(k("glow", 1), s + d, s + d + 0.1, 3.78, 3.88, 0.3, 0.32, col=GLOW[hue])
+            s += 3.0
+        else:
+            P.place(r.choice(("crates", "bags", "bin", "drum", "dumpster")), px, G0, pz, f.yaw, district=CO)
+        s += r.uniform(4.0, 7.5) / density

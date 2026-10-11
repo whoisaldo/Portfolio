@@ -23,8 +23,10 @@ MEWS_A = (-290.0, -284.0)
 CAMPUS = (-284.0, -226.0)
 MEWS_B = (-226.0, -220.0)
 PLAZA_LOT = -190.0             # the plaza street's north lot line
-PAVE_MID_S = -318.7            # between the walkers' two lines on the south pavement
 KERB_S = -320.7
+KERB_STRIP_S = KERB_S + 0.22   # the kerb's edge, clear of the crowd's line at z -320
+# (The pavement's middle, z -318.7, between the crowd's two lines, is kept
+# clear: the walk camera's line, and a walker's.)
 # Lots along the boulevard (x0, x1, height: each no taller than the mass
 # that stood there), and the lanes between them, which run on south through
 # the campus.
@@ -125,7 +127,8 @@ def south_side():
     K.corp_block(x0, x1, z0, z1, h, 7808, skin="windows", tint="navy", style=2, tiers=((1.0, 0.0),),
                  fronts={"-z": "glass", "-x": "dock", "+z": "dock", "+x": "blank"}, canopy=2.0, edge="amber", colour="amber",
                  lit=(0.5, 0.8), warm=(0.5, 1.0))
-    # The alleys: a portal across each mouth, tubes of light down it.
+    # The alleys: a portal across each mouth, tubes of light down it, a
+    # palm just inside, and in every other one a kiosk.
     for j, (a, b) in enumerate(S1_ALLEYS):
         hue = ("cyan", "amber", "white")[j % 3]
         alley_gate(a, b, z0 - 0.0, hue, r)
@@ -133,30 +136,35 @@ def south_side():
             K.neon_box(a + 0.3, b - 0.3, 6.0, 6.08, zz - 0.04, zz + 0.04, hue, 1)
             light(CO, (a + b) / 2, 5.2, zz, hue, 3.0)
         if b - a > 5:
-            P.place("planter_palm", (a + b) / 2, G0, z0 + 2.4, district=CO)
-    # The pavement's middle strip: benches, kiosks, totems turned to the
-    # traffic, bins; bollards at the kerb before each door.
+            kiosked = j % 2 == 1
+            P.place("planter_palm", b - 1.5 if kiosked else (a + b) / 2, G0, z0 + 2.4, district=CO)
+            if kiosked:
+                K.kiosk(a + 1.5, z0 + 1.9, math.pi, "cyan" if hue == "white" else hue, w=2.0, d=1.2)
+                stand(a + 1.5, z0 + 0.75, 0.0, "phone")
+            else:
+                P.place("bench", a + 1.6, G0, z0 + 3.4, math.pi / 2, district=CO)
+                stand(a + 1.6, z0 + 3.4, math.pi / 2, "sit", G0 + 0.45)
+    # The pavement: its middle is the walker's own line, so what stands on
+    # it is at the kerb's edge (bollards before each door, a totem and a
+    # poster panel edge on to the kerb, a camera pole) or against the lot
+    # line (a bench, a bin); and at each door security and somebody coming
+    # or going.
     for j, (x0, x1, h) in enumerate(S1[:6]):
         cx = (x0 + x1) / 2
         hue = ("cyan", "white", "amber")[j % 3]
-        K.bollards(cx - 6.0, cx + 6.0, KERB_S + 0.28, step=3.0, proto="bollard")
+        K.bollards(cx - 6.0, cx + 6.0, KERB_STRIP_S + 0.06, step=3.0, proto="bollard")
         if j % 2 == 0:
-            K.totem(x0 + 5.0, PAVE_MID_S, math.radians(-62), r, colour=hue, sizes=("bx", "ps"))
-            P.place("bench", x1 - 7.0, G0, PAVE_MID_S, math.pi, district=CO)
-            stand(x1 - 7.0, PAVE_MID_S, math.pi, "sit", G0 + 0.45)
+            K.totem(x0 + 3.2, KERB_STRIP_S, math.pi, r, colour=hue, sizes=("bx", "bx"))
+            P.place("bench", x1 - 7.0, G0, z0 - 0.4, math.pi, district=CO)
+            stand(x1 - 7.0, z0 - 0.4, math.pi, "sit", G0 + 0.45)
         else:
-            K.kiosk(x1 - 6.0, PAVE_MID_S, math.pi, hue, w=2.0, d=1.2)
-            stand(x1 - 6.0, PAVE_MID_S - 1.05, 0.0, "phone")
-            P.place("bin", x0 + 4.0, G0, PAVE_MID_S, district=CO)
-        P.place("cctv", x0 + 1.0, G0, KERB_S + 0.3, district=CO)
-        # A blade off the lot's corner, turned to the traffic, and a poster
-        # panel on the pavement.
+            P.place("bin", x0 + 0.7, G0, z0 - 0.4, district=CO)
+        P.place("cctv", x0 + 1.0, G0, KERB_STRIP_S, district=CO)
         K.st_blade(x1 - 0.6, 6.4 + (j % 3) * 0.9, z0 - 1.0, ("bl", "bm", "bl")[j % 3], math.radians(90 + (22 if j % 2 else -18)), bracket=(x1 - 0.6, z0))
-        K.ad_panel(x0 + 12.0 + (j % 2) * 9.0, PAVE_MID_S, math.radians(-100 if j % 2 else -78), r, pal=K.COLD if j % 2 else None)
-        # Security at each door, and somebody coming or going.
+        K.ad_panel(x0 + 13.0 + (j % 2) * 9.0, KERB_STRIP_S, math.pi, r, pal=K.COLD if j % 2 else None)
         stand(cx - 2.6, z0 - 0.75, math.pi, "idle")
         if j % 3 != 1:
-            K.talk(cx + 6.0, z0 - 1.0 if j in (2, 4) else PAVE_MID_S, 0.7 * j)
+            K.talk(cx + 6.0, z0 - 0.9, 0.7 * j)
 
 
 def colonnade(x0, x1, tower_x, z, hue, r, depth=3.4, top=8.0):
@@ -268,9 +276,15 @@ def campus():
             stand(cx + 10.5, (a + b) / 2 + 6.0, -math.pi / 2, "phone", y)
         elif i == 2:
             # A glass roof over the atrium, a walk round it between hedges.
-            K.skylight(x0 + 6.0, x1 - 6.0, a + 3.0, b - 3.0, y, rise=2.2, colour="cyan", nx=5, nz=6)
+            K.skylight(x0 + 9.0, x1 - 9.0, a + 6.0, b - 6.0, y, rise=1.8, colour="cyan", nx=4, nz=5)
             for zz in (a + 0.6, b - 1.6):
                 K.planter(x0 + 3.0, x1 - 3.0, zz, zz + 1.0, y=y, h=0.4, hedge=0.6)
+            for xx in (x0 + 4.0, x1 - 5.0):
+                K.planter(xx, xx + 1.0, a + 4.0, b - 4.0, y=y, h=0.4, hedge=0.6, lit="cyan")
+            K.paving_band(x0 + 5.6, x1 - 5.6, a + 2.4, b - 2.4, K.PALE, y=y + 0.006)
+            for bz_ in (a + 4.0, b - 4.0):
+                P.place("bench", (x0 + x1) / 2, y, bz_, 0.0 if bz_ < (a + b) / 2 else math.pi, district=CO)
+            stand((x0 + x1) / 2, a + 4.0, 0.0, "sit", y + 0.45)
             K.talk(x0 + 3.6, (a + b) / 2, 1.0, 2, y=y)
             stand(x1 - 4.2, a + 8.0, -math.pi / 2, "lean", y)
         elif i == 3:
@@ -364,6 +378,73 @@ def plaza_side():
         stand(a + 0.8, -200.0 - j, math.pi / 2, "smoke" if j % 2 else "phone")
 
 
+def west_pavement():
+    """The x 120 road's east pavement, which the loop's walker comes up
+    before turning onto the boulevard: its middle left clear; bollards
+    before the doors and poster panels edge on at the kerb, a bench and a
+    bin against the lot line, palms at the two mews' mouths, people."""
+    r = random.Random(7861)
+    xk, xl = 128.52, 131.6          # the kerb's edge; against the lot line
+    for z in (-300.0, -270.0, -240.0):
+        K.bollards_z(z - 4.0, z + 4.0, xk + 0.06, step=2.0, proto="bollard")
+    for j, z in enumerate((-308.0, -280.0, -252.0, -212.0)):
+        K.ad_panel(xk, z, math.pi / 2, r, pal=K.COLD if j % 2 == 0 else None)
+    P.place("bench", xl, G0, -262.0, -math.pi / 2, district=CO)
+    stand(xl, -262.0, -math.pi / 2, "sit", G0 + 0.45)
+    P.place("bin", xl, G0, -236.0, district=CO)
+    for mz in (sum(MEWS_A) / 2, sum(MEWS_B) / 2):
+        P.place("planter_palm", X0 + 2.2, G0, mz, district=CO)
+    for z, pose in ((-246.0, "idle"), (-266.0, "idle"), (-299.0, "phone")):
+        stand(X0 - 0.75, z, -math.pi / 2, pose)
+    K.talk(X0 - 0.9, -288.0, 0.6, 2)
+    K.totem(xk, -226.5, math.pi / 2, r, colour="cyan", sizes=("bx", "bx"))
+
+
+def plaza_pavement():
+    """The plaza street's north pavement: poster panels edge on at the
+    kerb, bollards, somebody at every other door."""
+    r = random.Random(7871)
+    zk = -186.52
+    for j, (x0, x1, h) in enumerate(S3):
+        cx = (x0 + x1) / 2
+        K.ad_panel(x0 + 6.0, zk, 0.0, r, pal=None if j % 2 else K.WARM)
+        K.bollards(cx - 4.0, cx + 4.0, zk - 0.06, step=2.0, proto="bollard")
+        if j % 2 == 0:
+            stand(cx + 2.0, PLAZA_LOT + 0.7, 0.0, "smoke" if j % 4 else "phone")
+        else:
+            K.talk(cx - 3.0, PLAZA_LOT + 0.85, 0.5 * j, 2)
+        P.place("cctv", x1 - 1.0, G0, zk, district=CO)
+
+
+def lanes():
+    """The two mews, the campus's lanes, the alleys: their walls dressed
+    and lit, tubes of light across the mews."""
+    r = random.Random(7881)
+    for j, (x0, x1, h) in enumerate(S1):
+        K.lane_dress(B.Face("+z", S1_BACK, x0, x1), r)
+        if j > 0:
+            K.lane_dress(B.Face("-x", x0, LOT_S, S1_BACK), r, 0.8)
+        if j < len(S1) - 1:
+            K.lane_dress(B.Face("+x", x1, LOT_S, S1_BACK), r, 0.8)
+    for j, (x0, x1) in enumerate(CAMPUS_LOTS):
+        K.lane_dress(B.Face("+z", CAMPUS[1], x0, x1), r)
+        if j > 0:
+            K.lane_dress(B.Face("-x", x0, CAMPUS[0], CAMPUS[1]), r, 0.8)
+        if j < len(CAMPUS_LOTS) - 1:
+            K.lane_dress(B.Face("+x", x1, CAMPUS[0], CAMPUS[1]), r, 0.8)
+    for j, (x0, x1, h) in enumerate(S3):
+        K.lane_dress(B.Face("-z", MEWS_B[1], x0, x1), r)
+        if j > 0:
+            K.lane_dress(B.Face("-x", x0, MEWS_B[1], PLAZA_LOT), r, 0.8)
+        if j < len(S3) - 1:
+            K.lane_dress(B.Face("+x", x1, MEWS_B[1], PLAZA_LOT), r, 0.8)
+    K.tubes_over(MEWS_A[0], MEWS_A[1], X0 + 6.0, X1 - 4.0, 5.6, "cyan", step=13.0, along="x", power=4.5)
+    K.tubes_over(MEWS_B[0], MEWS_B[1], X0 + 9.0, X1 - 4.0, 5.6, "amber", step=13.0, along="x", power=4.5)
+
+
 south_side()
 campus()
 plaza_side()
+west_pavement()
+plaza_pavement()
+lanes()
