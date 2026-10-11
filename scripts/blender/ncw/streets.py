@@ -127,9 +127,14 @@ def _crossing(s, v_edge, direction, district):
     v1 = v0 + direction * 3.4
     va, vb = sorted((v0, v1))
     k = (district, "paint", 0)
+    # Where the deck's ramp stands in the west street's middle a crossing
+    # stops at its walls: the service lanes either side are crossed, the
+    # ramp is not.
+    ramp = plan.RAMP_HALF + 0.3 if s.name == "west" and plan.RAMP_FOOT_Z < v0 < plan.DECK_Z else 0.0
     u = -h + 0.5
     while u + 0.6 <= h - 0.5:
-        _rect_uv(k, s, u, u + 0.6, va, vb, 0.013, 1.0, YELLOW)
+        if not (-ramp < u + 0.3 < ramp):
+            _rect_uv(k, s, u, u + 0.6, va, vb, 0.013, 1.0, YELLOW)
         u += 1.2
     # The walk figure: a head and a striding body in green, at each kerb.
     for side in (-1, 1):
@@ -143,15 +148,16 @@ def _crossing(s, v_edge, direction, district):
     for v in (va - 0.15, vb + 0.15):
         u = -h + 0.8
         while u < h - 0.6:
-            _rect_uv((district, "glow", 0), s, u - 0.09, u + 0.09, v - 0.05, v + 0.05, 0.016, 1.0, GLOW["amber"])
+            if not (-ramp < u < ramp):
+                _rect_uv((district, "glow", 0), s, u - 0.09, u + 0.09, v - 0.05, v + 0.05, 0.016, 1.0, GLOW["amber"])
             u += 1.1
     # The stop line on the side traffic comes in on (driving on the right:
     # the lanes on the -u side head toward +v... the side a car arrives on).
     stop = v1 + direction * 1.0
     if direction > 0:
-        _rect_uv(k, s, 0.0, h - 0.3, stop - 0.2, stop + 0.2, 0.012, 1.0, WHITE)
+        _rect_uv(k, s, ramp, h - 0.3, stop - 0.2, stop + 0.2, 0.012, 1.0, WHITE)
     else:
-        _rect_uv(k, s, -h + 0.3, 0.0, stop - 0.2, stop + 0.2, 0.012, 1.0, WHITE)
+        _rect_uv(k, s, -h + 0.3, -ramp, stop - 0.2, stop + 0.2, 0.012, 1.0, WHITE)
     # Tactile paving where each crossing meets the pavement, and the kerb
     # painted yellow along it (XMaaEjT0LhU@64).
     for side in (-1, 1):
@@ -470,6 +476,31 @@ CROWD = {"avenue": 9.0, "canyon": 7.0, "mega": 5.0, "japantown": 10.0, "deck": 1
          "afterlife": 5.0, "santo": 1.6, "far": 1.0}
 
 
+def _ramp_crossing():
+    """Where a walker leaves the west street's west pavement for the
+    walkway up the ramp: yellow bars over the service lane just past the
+    ramp's foot, lights in the road either side, tactile paving and a
+    yellow kerb where it meets the pavement."""
+    s = plan.BY_NAME["west"]
+    d = _d(s.c - s.half + 1.0, plan.RAMP_FOOT_Z)
+    va, vb = plan.RAMP_FOOT_Z - 1.0, plan.RAMP_FOOT_Z + 2.0
+    u = -s.half + 0.4
+    while u + 0.6 <= -plan.RAMP_HALF:
+        _rect_uv((d, "paint", 0), s, u, u + 0.6, va, vb, 0.013, 1.0, YELLOW)
+        u += 1.2
+    for v in (va - 0.15, vb + 0.15):
+        u = -s.half + 0.8
+        while u < -plan.RAMP_HALF - 0.3:
+            _rect_uv((d, "glow", 0), s, u - 0.09, u + 0.09, v - 0.05, v + 0.05, 0.016, 1.0, GLOW["amber"])
+            u += 1.1
+    u0 = -(s.half + KERB_W)
+    _rect_uv((d, "trim", 1), s, u0 - 0.6, u0, va, vb, PAVE_Y + 0.006, 0.5, KERB_YELLOW)
+    _rect_uv((d, "trim", 0), s, u0, -s.half, va - 1.5, vb + 1.5, PAVE_Y + 0.004, 1.0, KERB_YELLOW)
+
+
+_ramp_crossing()
+
+
 # The west street's middle lanes keep clear of the ramp between these (z).
 RAMP_CLEAR = (plan.RAMP_FOOT_Z - 8.0, plan.DECK_Z + 12.0)
 
@@ -495,7 +526,7 @@ def _deck_paths():
         return [a + (b - a) * i / n for i in range(n + 1)]
 
     lane = 1.75
-    foot, end = plan.RAMP_FOOT_Z - 6.0, plan.DECK_LAND_X - 1.0
+    foot, end = plan.RAMP_FOOT_Z - 6.0, plan.DECK_LAND_X - 2.5  # short of the pavement the deck's mouth crosses
     # East: south up the ramp's west lane, left onto the deck's south lane.
     r = 5.0
     cx, cz = plan.DECK_X0 - lane + r, plan.DECK_Z + lane - r
