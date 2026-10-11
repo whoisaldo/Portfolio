@@ -39,6 +39,7 @@
 // of the lens they fade too, so the camera is never inside a head.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
+import { preloadProps } from "./props.js";
 import { figureGeometry, RIG, PART, TAG, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF } from "./crowd-people.js";
 
 const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
@@ -65,14 +66,16 @@ const PAL = { jacket: 0, trousers: 16, skin: 24, hair: 30, bag: 40, rim: 46, siz
 // many people share it on a desktop and on a phone, the files they keep to
 // (metres to the side of the line: two abreast, or one), and which way they
 // go. Everyone on a walk goes the same way at the same pace, so nobody walks
-// through anybody; the walk beside it goes the other way.
+// through anybody; the walk beside it goes the other way. Walks that share a
+// pavement say so, and how far to either side of the first of them a
+// walker's middle may go (the kerb's edge to the shop's wall, less a body).
 // The avenue's pavements run the length the hero and the intro see, between
 // the lamps and hydrants by the kerb and the bins and benches by the shops.
 const WALKS = [
-  { from: [11.5, -168], dir: [0, 1], len: 224, n: [30, 10], files: [-0.27, 0.27], way: -1 },
-  { from: [12.35, -168], dir: [0, 1], len: 224, n: [20, 7], files: [0], way: 1 },
-  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [30, 10], files: [-0.27, 0.27], way: 1 },
-  { from: [-12.35, -168], dir: [0, 1], len: 224, n: [20, 7], files: [0], way: -1 },
+  { from: [11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.27, 0.27], way: -1, pave: 1, span: [-0.92, 2.15] },
+  { from: [12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: 1, pave: 1 },
+  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.27, 0.27], way: 1, pave: 2, span: [-2.15, 0.92] },
+  { from: [-12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: -1, pave: 2 },
   // The cross street's pavements, either side of the avenue.
   { from: [-88, -8.2], dir: [1, 0], len: 74, n: [2, 0] },
   { from: [16, 9.8], dir: [1, 0], len: 72, n: [2, 0] },
@@ -89,18 +92,18 @@ const WALKS = [
 ];
 const HALF_PI = Math.PI / 2;
 // Standing: x, z, which way they look (0 toward +z, a quarter turn toward
-// +x), their pose. At the kerbs of the crossing, at shop windows and by the
-// vending machines up both pavements, two pairs talking, and outside the
-// garage street's shops. The last is the braindance's hot phone
+// +x), their pose. At the kerbs of the crossings, at shop windows up both
+// pavements clear of the benches and bins, two pairs talking, one against a
+// wall, and on the garage street's pavement (a phone keeps every other one). The last is the braindance's hot phone
 // (src/braindance/places.js, `phone`): someone stopped on the right-hand
 // pavement with it lit in their hand, on every tier, placed so the phone
 // itself is at the clue's own point.
 const STANDS = [
-  [10.55, -10.6, -HALF_PI, "idle"], [-10.6, -10.4, HALF_PI, "phone"], [10.5, 11.3, -HALF_PI, "smoke"], [-10.55, 11.2, HALF_PI, "idle"],
-  [-13.2, -21.3, -HALF_PI, "idle"], [13.2, -37.2, HALF_PI, "phone"], [13.3, -46.0, Math.PI, "talk"], [-13.3, -58.5, -HALF_PI, "smoke"], [13.2, -77.0, HALF_PI, "idle"],
-  [-13.2, -88.6, 0, "talk"], [13.3, -104.0, -HALF_PI, "smoke"], [-13.3, -121.0, -HALF_PI, "phone"], [13.2, -142.5, HALF_PI, "idle"], [-13.3, -150.0, HALF_PI, "lean"],
-  [433.0, -241.0, HALF_PI, "idle"], [433.2, -276.0, HALF_PI, "phone"],
-  [13.3, -47.15, 0, "talk"], [-13.2, -87.45, Math.PI, "talk"],
+  [10.5, -13.2, -HALF_PI, "idle"], [13.3, -46.0, Math.PI, "talk"], [-10.5, -12.6, HALF_PI, "phone"], [13.3, -47.15, 0, "talk"],
+  [-13.3, -58.5, HALF_PI, "smoke"], [13.3, -37.2, HALF_PI, "phone"], [-13.3, -88.6, 0, "talk"], [10.5, 14.0, -HALF_PI, "smoke"],
+  [-13.3, -87.45, Math.PI, "talk"], [-10.5, 13.8, HALF_PI, "idle"], [13.4, -108.5, -HALF_PI, "smoke"], [-13.3, -21.3, -HALF_PI, "idle"],
+  [-13.62, -143.0, HALF_PI, "lean"], [13.3, -77.0, HALF_PI, "idle"], [431.3, -241.0, HALF_PI, "idle"], [-13.4, -112.0, -HALF_PI, "phone"],
+  [431.3, -276.0, HALF_PI, "phone"], [13.3, -142.5, HALF_PI, "idle"],
 ];
 const HOT_PHONE = [11.4, -121.0];
 
@@ -138,7 +141,7 @@ const HAIR_STYLES = [
 const GARMENTS = { jacket: 0, coat: 1, puffer: 2, vest: 3 };
 
 /** Who is in the city: every walker of every walk, then everyone standing. */
-function populate({ phone, walks, standers }) {
+function populate({ phone, walks, standers, bare = false }) {
   const r = rng(1312);
   const people = [];
   const recent = [];
@@ -157,7 +160,7 @@ function populate({ phone, walks, standers }) {
     if (recent.length > 48) recent.shift();
     const hair = HAIR_STYLES[style];
     const low = pose === "sit" || pose === "squat";
-    if (garment === GARMENTS.coat && low) garment = GARMENTS.jacket;
+    if (garment === GARMENTS.coat && (low || pose === "lean")) garment = GARMENTS.jacket;
     if (garment === GARMENTS.vest && hair.mask === bits(TAG.hood)) garment = GARMENTS.jacket;
     let mask = hair.mask;
     if (garment === GARMENTS.coat) mask += bits(TAG.skirt);
@@ -171,7 +174,7 @@ function populate({ phone, walks, standers }) {
     if (pose === "phone" || (pose === null && !umbrella && r() < 0.12)) mask += bits(TAG.phone);
     if (pose === "smoke") mask += bits(TAG.smoke);
     if (r() < 0.2) mask += bits(TAG.trim);
-    const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.14 ? 16 : 0) + (r() < 0.5 ? 32 : 0) + (r() < 0.25 ? 64 : 0);
+    const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.08 ? 16 : 0) + (r() < 0.5 ? 32 : 0) + (r() < 0.25 ? 64 : 0);
     return {
       height: (1.55 + 0.37 * (r() + r()) * 0.5) / RIG.height,
       build: 0.88 + 0.26 * r(),
@@ -184,7 +187,7 @@ function populate({ phone, walks, standers }) {
   // (the builder's streets.life: from, the way it runs, how long, and how
   // many walk it on a desktop and on a phone; a line by the kerb and then
   // the line by the shops beside it, pavement by pavement).
-  const lines = WALKS.map((w) => ({ ...w }));
+  const lines = bare ? [] : WALKS.map((w) => ({ ...w }));
   const first = lines.length;
   for (let i = 0; i + 6 < walks.length; i += 7) lines.push({ from: [walks[i], walks[i + 1]], dir: [walks[i + 2], walks[i + 3]], len: walks[i + 4], n: [walks[i + 5], walks[i + 6]] });
   for (let i = first; i + 1 < lines.length; i += 2) {
@@ -200,7 +203,14 @@ function populate({ phone, walks, standers }) {
     b.files = [inward * -0.3, inward * 0.24];
     a.way = r() < 0.5 ? -1 : 1;
     b.way = -a.way;
+    // The kerb's line is 0.7 m in from the kerb and the shops' 1.7 m out
+    // from the wall.
+    a.pave = b.pave = 100 + i;
+    a.span = [inward * -0.42, across + inward * 1.35].sort((p, q) => p - q);
   }
+  // The pavements: the walks that share one, in order, and each file's
+  // place across it, measured from the first walk's line.
+  const paves = new Map();
   const rows = [];
   for (const w of lines) {
     const n = w.n[phone ? 1 : 0];
@@ -216,8 +226,13 @@ function populate({ phone, walks, standers }) {
       left -= two ? 2 : 1;
     }
     // A lane each, for the map that bends a file round what stands in it.
+    const key = w.pave ?? w;
+    if (!paves.has(key)) paves.set(key, { ref: w, span: w.span ?? [Math.min(...files) - 0.6, Math.max(...files) + 0.6], files: [] });
+    const pave = paves.get(key);
+    const shift = (w.from[0] - pave.ref.from[0]) * pave.ref.dir[1] - (w.from[1] - pave.ref.from[1]) * pave.ref.dir[0];
     const lanes = files.map((off) => {
-      rows.push({ w, off });
+      pave.files.push({ row: rows.length, u: shift + off });
+      rows.push(w);
       return rows.length - 1;
     });
     const slot = w.len / groups.length;
@@ -245,16 +260,16 @@ function populate({ phone, walks, standers }) {
     people.push({ walk: [x, z, 0, r()], path: [Math.sin(yaw), Math.cos(yaw), 1, 0], body: [d.height, d.build, pose, y], look: d.look, wear: d.wear });
   };
   STANDS.forEach(([x, z, yaw, pose], i) => {
-    if (!phone || i % 2 === 0) stand(x, PAVE_Y, z, yaw, POSES.indexOf(pose));
+    if (!bare && (!phone || i % 2 === 0)) stand(x, PAVE_Y, z, yaw, POSES.indexOf(pose));
   });
-  {
+  if (!bare) {
     // The hot phone: looking down the street toward the hero, the phone a
     // forearm ahead of them at the clue's point.
     const d = dress({ pose: "phone" });
     d.height = 1.58 / RIG.height;
     d.look[0] = bits(TAG.hair, TAG.phone);
     d.look[1] = GARMENTS.jacket;
-    const reach = 0.39 * d.height;
+    const reach = 0.385 * d.height;
     const yaw = 0.5;
     stand(HOT_PHONE[0] - Math.sin(yaw) * reach, PAVE_Y, HOT_PHONE[1] - Math.cos(yaw) * reach, yaw, POSES.indexOf("phone"), d);
   }
@@ -272,7 +287,122 @@ function populate({ phone, walks, standers }) {
     data.set(p.look, i * STRIDE + 12);
     data.set(p.wear, i * STRIDE + 16);
   });
-  return { data, count: people.length, rows };
+  return { data, count: people.length, rows: rows.length, paves: [...paves.values()] };
+}
+
+// ---- the lanes ---------------------------------------------------------------
+// A pavement has lamps, bins, benches and people standing on it, and a file
+// of walkers has to go round them. For every file, how far to the side of
+// its line it runs at each point along it: worked out once from what stands
+// on the pavement, kept in a texture a row a file, and read by the vertex
+// shader as each walker goes.
+const LANE_W = 512;
+// A body's half width; the least room two files keep between them; how far
+// ahead of a thing a file starts to bend.
+const BODY = 0.3;
+const GAP = 0.46;
+const EASE = 2;
+
+/** What stands on the ground in the props file (src/world/props.js packs
+ *  it): x, z, the way it faces and its half sizes. */
+function footprints(buffer) {
+  const view = new DataView(buffer);
+  const hl = view.getUint32(0, true);
+  const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, hl)));
+  const data = new Int16Array(buffer, 4 + hl, header.count * 8);
+  const out = [];
+  for (let i = 0; i < header.count; i++) {
+    const o = i * 8;
+    const box = header.protos[data[o]]?.box;
+    // On a pavement, and more than a kerb high. Wider than a metre is
+    // leaves overhead, not the tub they grow from.
+    if (!box || data[o + 2] / 50 > 0.6 || (box[1] * data[o + 5]) / 100 < 0.15) continue;
+    const k = data[o + 6] / 1000;
+    out.push({ x: data[o + 1] / 20, z: data[o + 3] / 20, yaw: data[o + 4] / 10430.2, hx: Math.min(box[0] * k, 1), hz: Math.min(box[2] * k, 0.55) });
+  }
+  return out;
+}
+
+/** The files of one pavement at one point along it: as near where each
+ *  wants to be as the free stretch [l, r] and each other allow. */
+function fit(want, l, r) {
+  const n = want.length;
+  const x = new Array(n);
+  const room = n > 1 ? Math.min(GAP, (r - l) / (n - 1)) : 0;
+  for (let i = 0; i < n; i++) x[i] = Math.max(want[i], i ? x[i - 1] + Math.min(room, want[i] - want[i - 1]) : l);
+  for (let i = n - 1; i >= 0; i--) x[i] = Math.min(x[i], i < n - 1 ? x[i + 1] - Math.min(room, want[i + 1] - want[i]) : r);
+  if (x[0] < l) for (let i = 0; i < n; i++) x[i] = n > 1 ? l + ((r - l) * i) / (n - 1) : (l + r) / 2;
+  return x;
+}
+
+function layLanes(paves, rows, solid) {
+  const out = new Uint8Array(Math.max(1, rows) * LANE_W).fill(128);
+  for (const pave of paves) {
+    const { from, dir, len } = pave.ref;
+    const files = [...pave.files].sort((a, b) => a.u - b.u);
+    const want = files.map((x) => x.u);
+    const [lo, hi] = pave.span;
+    // What stands on this pavement, in its own frame: along it (stretched,
+    // so the bend starts early) and across it (by a body's half width).
+    const blocks = [];
+    for (const o of solid) {
+      const rx = o.x - from[0];
+      const rz = o.z - from[1];
+      const a = rx * dir[0] + rz * dir[1];
+      const u = rx * dir[1] - rz * dir[0];
+      const c = Math.abs(Math.cos(o.yaw) * dir[0] - Math.sin(o.yaw) * dir[1]);
+      const sn = Math.abs(Math.sin(o.yaw) * dir[0] + Math.cos(o.yaw) * dir[1]);
+      const ha = o.hx * c + o.hz * sn;
+      const hu = Math.min(o.hx * sn + o.hz * c, 0.55);
+      if (a + ha + EASE < 0 || a - ha - EASE > len || u + hu + BODY < lo || u - hu - BODY > hi) continue;
+      blocks.push([a - ha - EASE, a + ha + EASE, u - hu - BODY, u + hu + BODY]);
+    }
+    if (!blocks.length) continue;
+    const n = files.length;
+    const at = new Float32Array(n * LANE_W);
+    for (let k = 0; k < LANE_W; k++) {
+      const a = ((k + 0.5) / LANE_W) * len;
+      let free = [[lo, hi]];
+      for (const [a0, a1, u0, u1] of blocks) {
+        if (a < a0 || a > a1) continue;
+        free = free.flatMap(([l, r]) => (u1 <= l || u0 >= r ? [[l, r]] : [[l, u0], [u1, r]].filter(([p, q]) => q - p > 0.02)));
+      }
+      // Of the free stretches, the one that moves the files least and
+      // squeezes them least.
+      let best = want;
+      let least = Infinity;
+      for (const [l, r] of free) {
+        const x = fit(want, l, r);
+        let cost = 0;
+        for (let i = 0; i < n; i++) {
+          cost += (x[i] - want[i]) ** 2;
+          if (i) cost += 12 * Math.max(0, Math.min(GAP, want[i] - want[i - 1]) - (x[i] - x[i - 1])) ** 2;
+        }
+        if (cost < least) {
+          least = cost;
+          best = x;
+        }
+      }
+      for (let i = 0; i < n; i++) at[i * LANE_W + k] = best[i] - want[i];
+    }
+    // Eased along the walk: two passes of a running mean, together as long
+    // as the stretch each block was given.
+    const reach = Math.max(1, Math.round(EASE / 2 / (len / LANE_W)));
+    const tmp = new Float32Array(LANE_W);
+    for (let i = 0; i < n; i++) {
+      const line = at.subarray(i * LANE_W, (i + 1) * LANE_W);
+      for (let pass = 0; pass < 2; pass++) {
+        tmp.set(line);
+        for (let k = 0; k < LANE_W; k++) {
+          let sum = 0;
+          for (let j = -reach; j <= reach; j++) sum += tmp[Math.min(LANE_W - 1, Math.max(0, k + j))];
+          line[k] = sum / (2 * reach + 1);
+        }
+      }
+      for (let k = 0; k < LANE_W; k++) out[files[i].row * LANE_W + k] = Math.round(128 + Math.min(1.27, Math.max(-1.27, line[k])) * 100);
+    }
+  }
+  return out;
 }
 
 const f = (x) => (Number.isInteger(x) ? x.toFixed(1) : String(x));
@@ -560,7 +690,9 @@ const VERTEX = /* glsl */ `
     float wide = aBody.y;
     float garment = mod(aLook.y, 4.0);
     float px = uPass.y * eye / h;
-    float shoulderX = side * ${f(RIG.shoulderX)} * (1.0 + (wide - 1.0) * 0.9);
+    // Broad in the shoulder or broad in the hip, a little, by the person.
+    float frame = rnd(seed * 11.3) * 2.0 - 1.0;
+    float shoulderX = side * ${f(RIG.shoulderX)} * (1.0 + (wide - 1.0) * 0.9) * (1.0 + 0.07 * frame);
     float elbowX = shoulderX + side * ${f(RIG.elbowX - RIG.shoulderX)} * wide;
     if (part == ${PART.rim}) p.y += aux * max(0.75 * px - ${f(RIM_HALF)}, 0.0);
     else if (part == ${PART.phone}) p = ${v3(PHONE_AT)} + (p - ${v3(PHONE_AT)}) * clamp(1.3 * px / 0.036, 1.0, 5.0);
@@ -571,7 +703,7 @@ const VERTEX = /* glsl */ `
       p.z *= wide;
     } else if (seg > 2.5) {
       float ax = side * ${f(RIG.shoulderX)};
-      if (garment > 1.5 && garment < 2.5 && part == ${PART.sleeve}) p.xz += normalize(p.xz - vec2(ax, 0.0) + 1e-5) * 0.022 * aux;
+      if (garment > 1.5 && garment < 2.5 && part == ${PART.sleeve}) p.xz += normalize(p.xz - vec2(ax, 0.0) + 1e-5) * 0.014 * aux;
       p.x = shoulderX + (p.x - ax) * wide;
       p.z *= wide;
     } else if (seg > 1.5) {
@@ -581,7 +713,7 @@ const VERTEX = /* glsl */ `
       p.xz *= mix(1.0, wide, 0.3);
     } else if (tag < ${f(TAG.umbrella - 0.5)} || tag > ${f(TAG.umbrella + 0.5)}) {
       if (garment > 1.5 && garment < 2.5 && part == ${PART.jacket}) p.xz += normalize(p.xz + 1e-5) * 0.024 * aux;
-      p.x *= wide;
+      p.x *= wide * (1.0 + 0.07 * frame * (smoothstep(1.1, 1.35, p.y) - 1.0 + smoothstep(0.95, 1.15, p.y)));
       p.z *= mix(1.0, wide, 0.85);
       // A coat's skirt goes with the leg under it.
       if (part == ${PART.coat}) p.z += aux * 0.3 * sin(hip);
@@ -627,6 +759,7 @@ const VERTEX = /* glsl */ `
     vec3 hair = uPal[${PAL.hair} + int(aWear.w + 0.5)];
     vec3 tint = uPal[${PAL.rim} + int(mod(aLook.z, 4.0) + 0.5)];
     vec3 carried = uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)];
+    vec3 shirt = uPal[${PAL.jacket} + int(mod(aWear.x * 7.0 + 5.0, 16.0) + 0.5)] * 0.8;
     vec3 albedo = jacket;
     vec3 lit = vec3(0.0);
     float glow = 0.0;
@@ -642,9 +775,11 @@ const VERTEX = /* glsl */ `
     }
     else if (part == ${PART.sleeve}) {
       // A vest's arms are bare, or a shirt's.
-      if (garment > 2.5) albedo = bit(flags, 5.0) > 0.5 ? skin : uPal[${PAL.jacket} + int(mod(aWear.x * 7.0 + 5.0, 16.0) + 0.5)] * 0.8;
+      if (garment > 2.5) albedo = bit(flags, 5.0) > 0.5 ? skin : shirt;
     }
     else if (part == ${PART.hood}) albedo = jacket * 0.85;
+    else if (part == ${PART.seam}) albedo = jacket * 0.4;
+    else if (part == ${PART.shirt}) albedo = shirt;
     else if (part == ${PART.trousers}) albedo = uPal[${PAL.trousers} + int(aWear.y + 0.5)];
     else if (part == ${PART.shoe}) albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.03);
     else if (part == ${PART.bag} || part == ${PART.brim}) albedo = carried;
@@ -656,7 +791,7 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.mouth}) albedo = skin * vec3(0.55, 0.35, 0.35);
     else if (part == ${PART.eye}) {
       albedo = skin * 0.1;
-      if (bit(flags, 4.0) > 0.5) { lit = tint * 1.8; glow = 1.0; }
+      if (bit(flags, 4.0) > 0.5) { lit = tint * 1.3; glow = 1.0; }
     }
     else if (part == ${PART.rim}) { lit = tint * 3.2 * (1.0 + 0.2 * uBass); glow = 1.0; }
     else if (part == ${PART.trim}) { lit = tint * 1.25; glow = 1.0; }
@@ -761,7 +896,10 @@ const CARD_VERTEX = /* glsl */ `
     vec2 toEye = normalize(uCam.xz - root.xz + 1e-5);
     vec2 right = vec2(toEye.y, -toEye.x);
     vec2 local = vec2(position.x * 1.3, (position.y + 0.5) * 2.3);
-    vec3 world = root + vec3(right.x * local.x, foot + local.y * squash, right.y * local.x) * h;
+    // Seen from high over them the card leans back, so it is never edge on.
+    vec3 above = uCam - root;
+    float tilt = max(asin(clamp(above.y / length(above), 0.0, 1.0)) - 0.6, 0.0);
+    vec3 world = root + (vec3(right.x, 0.0, right.y) * local.x + vec3(-toEye.x * sin(tilt), cos(tilt), -toEye.y * sin(tilt)) * (foot + local.y * squash)) * h;
 
     // Lit as the figure's faces that look at the eye are.
     vec3 mid = root + vec3(0.0, h, 0.0);
@@ -869,10 +1007,6 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   const motion = reduced ? 0 : 1;
   const palette = new Float32Array(PAL.size * 3);
   [JACKETS, TROUSERS, SKINS, HAIRS, BAGS, RIMS.map((c) => new THREE.Color(c).toArray())].flat().forEach((c, i) => palette.set(c, i * 3));
-  // No lanes bend yet: one texel that says straight on.
-  const lanes = new THREE.DataTexture(new Uint8Array([128]), 1, 1, THREE.RedFormat);
-  lanes.magFilter = lanes.minFilter = THREE.LinearFilter;
-  lanes.needsUpdate = true;
   // Where the figures trade places, through a 50 degree lens: the face for
   // the far figure where a person is about seventy pixels tall on a desktop,
   // the far figure for the card where they are under twenty; sooner on a
@@ -884,7 +1018,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     uMotion: { value: motion },
     uPose: { value: new Float32Array(POSE_TABLE.flat()) },
     uPal: { value: palette },
-    uLanes: { value: lanes },
+    uLanes: { value: null },
     uLaneRows: { value: 1 },
     uLod: { value: new THREE.Vector4(TRADES[0], TRADES[0] * BAND, TRADES[1], TRADES[1] * BAND) },
   };
@@ -1001,7 +1135,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
         x += data[o + 4] * s;
         z += data[o + 5] * s;
       }
-      if (eye && !_frustum.intersectsSphere(_sphere.set(_sphere.center.set(x, y + 1, z), 2.2))) continue;
+      if (eye && !_frustum.intersectsSphere(_sphere.set(_sphere.center.set(x, y + 1, z), 2.6))) continue;
       const top = y + 1.8 * data[o + 8];
       const d = Math.hypot(x - cam.x, z - cam.z, cam.y > top ? cam.y - top : cam.y < y ? y - cam.y : 0);
       if (d < t0 * (1 + BAND)) near[nn++] = i;
@@ -1014,6 +1148,30 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // The cards' list ends with everyone nearer: the mirror draws to its end.
     pack(drawn[2], cards, nc, rest, nr);
   };
+  // The lanes: round everyone standing, and round the city's street
+  // furniture once its file is in (it is the city's own, fetched before any
+  // of this is made).
+  let furniture = [];
+  let over = false;
+  const lay = () => {
+    const { data, count, rows, paves } = people;
+    const solid = [...furniture];
+    for (let i = 0; i < count; i++) if (data[i * STRIDE + 10] > -0.5) solid.push({ x: data[i * STRIDE], z: data[i * STRIDE + 1], yaw: 0, hx: 0.2, hz: 0.2 });
+    base.uLanes.value?.dispose();
+    const map = new THREE.DataTexture(layLanes(paves, rows, solid), LANE_W, Math.max(1, rows), THREE.RedFormat);
+    map.magFilter = map.minFilter = THREE.LinearFilter;
+    map.needsUpdate = true;
+    base.uLanes.value = map;
+    base.uLaneRows.value = Math.max(1, rows);
+  };
+  lay();
+  preloadProps(phone ? "phone" : "high")
+    .then((buffer) => {
+      if (over) return;
+      furniture = footprints(buffer);
+      lay();
+    })
+    .catch(() => {});
   fill();
   // world-scene.js draws the scene without telling the crowd: every draw of
   // it starts by updating the scene's matrices, which is where this is told.
@@ -1040,17 +1198,28 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       for (const d of drawn) d.geometry.dispose();
       for (const g of shapes) g.dispose();
       for (const m of materials) m.dispose();
-      lanes.dispose();
+      base.uLanes.value?.dispose();
+      over = true;
     },
   };
   if (import.meta.env.DEV) {
     // Stand people anywhere, for looking at them: a flat list of x, y, z,
-    // the way they look and a pose, as the builder's; `only` leaves
-    // everyone else out.
-    api.debugStand = (list, { only = false } = {}) => {
-      people = populate({ phone, walks: only ? [] : walks, standers: [...(only ? [] : standers), ...list] });
+    // the way they look and a pose, as the builder's; `only` leaves the
+    // rest of the network out, `bare` this module's own people too.
+    api.debugStand = (list, { only = false, bare = false } = {}) => {
+      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], bare });
+      lay();
       fill();
     };
+    // Move where the figures trade places, to look at each on its own.
+    api.debugTrades = (near, far) => {
+      TRADES[0] = near;
+      TRADES[1] = far;
+      last.fill(NaN);
+    };
+    // Everyone's floats, what stands on the pavements and the lanes' map,
+    // for checking that nobody walks through anything.
+    api.debugState = () => ({ people, furniture, lanes: base.uLanes.value.image, stride: STRIDE });
   }
   return api;
 }

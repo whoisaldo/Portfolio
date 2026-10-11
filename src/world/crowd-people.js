@@ -59,6 +59,8 @@ export const PART = {
   brim: 19,
   tote: 20,
   brow: 21,
+  seam: 22,
+  shirt: 23,
 };
 
 /** What only some people have: a bit each in a person's mask. */
@@ -323,6 +325,12 @@ export function figureGeometry(far = false) {
     loft([ring(y0), ring(y1)], o);
   };
   band(0.921, 0.935, { part: PART.trim, tag: TAG.trim });
+  if (!far) {
+    // The jacket's fastening down the front, and the shirt at its throat.
+    const zip = [0.93, 1.08, 1.27, 1.39].map((y) => [onTorso(y, 92.4, 0.004), onTorso(y, 87.6, 0.004)]);
+    loft(zip, { part: PART.seam }, { open: true, ref: [0, 1.2, 0] });
+    tri(onTorso(1.432, 108, 0.005), onTorso(1.432, 72, 0.005), onTorso(1.335, 90, 0.005), { part: PART.shirt }, [0, 1.4, 0]);
+  }
 
   // ---- the hips, under the jacket's hem ----
   if (!far) {
@@ -355,8 +363,8 @@ export function figureGeometry(far = false) {
 
     // ---- an arm: shoulder, elbow, cuff, and a hand ----
     const ARM = [
-      [1.44, 0.18, 0.04, 0.046, upper, 0.6],
-      [1.395, 0.19, 0.05, 0.056, upper, 1],
+      [1.44, 0.177, 0.034, 0.04, upper, 0.6],
+      [1.395, 0.188, 0.045, 0.051, upper, 1],
       [1.19, 0.198, 0.044, 0.047, upper, 1],
       [1.15, 0.2, 0.041, 0.044, fore, 0.9],
       [1.04, 0.203, 0.041, 0.045, fore, 0.8],
@@ -581,9 +589,9 @@ export function figureGeometry(far = false) {
     const c = [gx - 0.04, 1.905, gz - 0.12];
     const n = far ? 6 : 8;
     const R = 0.54;
-    const at = (y, aux = 0) => Array.from({ length: n }, (_, i) => {
+    const at = (y, aux = 0, r = R) => Array.from({ length: n }, (_, i) => {
       const a = (i / n) * Math.PI * 2;
-      return [c[0] + R * Math.cos(a), y, c[2] + R * Math.sin(a), torso, aux];
+      return [c[0] + r * Math.cos(a), y, c[2] + r * Math.sin(a), torso, aux];
     });
     const apex = [c[0], 2.035, c[2], torso, 0];
     const edge = at(1.905);
@@ -591,8 +599,9 @@ export function figureGeometry(far = false) {
     cap(edge, apex, o, [c[0], 1.8, c[2]]);
     cap(edge, apex, { ...o, inside: true }, [c[0], 1.8, c[2]]);
     // The rim: a band the shader keeps a pixel and a half tall however far
-    // off it is (its weight says which edge a vertex is).
-    const rim = [at(1.905 - RIM_HALF, -1), at(1.905 + RIM_HALF, 1)];
+    // off it is (its weight says which edge a vertex is), leaning in at the
+    // top so it shows from a roof as well as from the street.
+    const rim = [at(1.905 - RIM_HALF, -1, R + 0.004), at(1.905 + RIM_HALF, 1, R - 0.02)];
     loft(rim, { part: PART.rim, tag: TAG.umbrella });
     loft(rim, { part: PART.rim, tag: TAG.umbrella, inside: true });
     const shaft = (y, x, z) => (far ? [[x - 0.009, y, z, torso, 0], [x + 0.009, y, z, torso, 0]] : ell(3, y, x, z, 0.007, 0.007, torso));
