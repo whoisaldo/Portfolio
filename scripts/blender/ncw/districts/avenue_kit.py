@@ -510,6 +510,47 @@ def vending_bank(district, x, z, yaw, n, rng):
         P.place(rng.choice(("vending", "vending", "vending_warm")), x + c * u, G0, z - s_ * u, yaw, district=district)
 
 
+def vendor(district, x, z, yaw, rng, y=None):
+    """A vending machine with something in it: a painted cabinet, a lit
+    window of cans in rows, its strip of light on top, the slot and the
+    tray; its back at (x, z), its face toward yaw."""
+    y = G0 if y is None else y
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    nx, nz = s_, c
+    body = rng.choice(((0.22, 0.04, 0.04, 1), (0.04, 0.08, 0.2, 1), (0.2, 0.2, 0.21, 1), (0.04, 0.14, 0.12, 1), (0.22, 0.16, 0.03, 1)))
+    hue = rng.choice(("cyan", "white", "pink", "amber", "green", "red"))
+    d = 0.72
+    cx, cz = x + nx * d / 2, z + nz * d / 2
+    oriented_box((district, "trim", 0), cx, y + 0.98, cz, 1.0, 1.96, d, yaw, scale=1.0, col=body)
+    fx, fz = x + nx * (d + 0.006), z + nz * (d + 0.006)
+    rotated_quad((district, "glow", 0), fx, y + 1.36, fz, 0.8, 0.92, yaw, col=(0.1, 0.11, 0.13, 1))
+    for row in range(3):
+        for k in range(6):
+            u = -0.33 + k * 0.132
+            col = rng.choice((GLOW["red"], GLOW["cyan"], GLOW["amber"], GLOW["green"], GLOW["white"], GLOW["pink"], GLOW["yellow"]))
+            col = tuple(v * 0.55 for v in col[:3]) + (1,)
+            rotated_quad((district, "glow", 1), fx + c * u + nx * 0.004, y + 1.05 + row * 0.29, fz - s_ * u + nz * 0.004, 0.085, 0.19, yaw, col=col)
+    rotated_quad((district, "neon_" + hue, 0), fx, y + 1.89, fz, 0.86, 0.07, yaw)
+    rotated_quad((district, "dark", 1), fx - c * 0.1, y + 0.45, fz + s_ * 0.1, 0.5, 0.22, yaw)
+    rotated_quad((district, "glow", 1), fx + c * 0.34, y + 0.75, fz - s_ * 0.34, 0.07, 0.1, yaw, col=GLOW["amber"])
+    light(district, x + nx * (d + 0.9), 1.2, z + nz * (d + 0.9), hue if hue != "red" else "pink", 3.2)
+
+
+def fly_posters(district, f, s, rng, n=None):
+    """Posters pasted in a row on a wall, some over others: adverts with no
+    words (the site's), small."""
+    n = n or rng.randrange(3, 7)
+    x = s
+    for _ in range(n):
+        w, h = rng.choice(((0.5, 0.7), (0.6, 0.85), (0.42, 0.6), (0.9, 0.6)))
+        y = rng.uniform(1.25, 1.75)
+        c = f.p(f.at(x + w / 2), y + h / 2, 0.02 + rng.uniform(0.0, 0.01))
+        col = (rng.randrange(8) / 8.0 + 0.01, rng.randrange(8) / 8.0 + 0.01, rng.random(), 1.0)
+        rotated_quad((district, "billboard", 1), c[0], c[1], c[2], w, h, f.yaw, col=col)
+        x += w + rng.uniform(-0.06, 0.12)
+    return x - s
+
+
 def vent(district, name, x, y, z, w=0.8):
     """A floor vent breathing steam (the site draws it from the anchor)."""
     box((district, "metal", 1), x - w / 2, x + w / 2, y, y + 0.08, z - w / 2, z + w / 2, scale=0.5)

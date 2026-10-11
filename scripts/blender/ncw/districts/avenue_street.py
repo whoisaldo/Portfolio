@@ -201,8 +201,8 @@ def frontage(D, f, a0, a1, rng, stalls=(), yatai_w=(2.4, 3.0), boards=True, plan
                 planter_box(D, f, s, rng, w=rng.choice((1.2, 1.6, 2.2)))
             elif roll < 0.65 and vending:
                 for i in range(rng.choice((1, 2))):
-                    p = f.p(f.at(s + i * 1.0), 0.0, 0.42)
-                    P.place(rng.choice(("vending", "vending_warm")), p[0], G0, p[2], f.yaw, district=D)
+                    p = f.p(f.at(s + i * 1.06), 0.0, 0.02)
+                    K.vendor(D, p[0], p[2], f.yaw, rng)
             elif roll < 0.75:
                 p = f.p(a, 0.0, 0.55)
                 P.place(rng.choice(("crates", "food_box", "bin")), p[0], G0, p[2], f.yaw, district=D)
@@ -241,6 +241,13 @@ def build(AV, AVS, lane_w, lane_e):
         frontage(AVS, f, sx * 16.0, sx * 43.0, rng, stalls=(sx * 24.0, sx * 36.5), planters=True)
         c0, c1 = sorted((s_of(f, sx * 14.3), s_of(f, sx * 21.0)))
         B.canopy(AVS, f, c0, c1, 2.6, 4.95, 1, rng.choice(("white", "cyan", "pink")))
+        # A board on the lot's north wall, over the plaza street, and its
+        # light on the crossing; a street lamp at the corner.
+        bw, bh = rng.uniform(9.0, 12.0), rng.uniform(5.0, 6.5)
+        B.billboard(AVS, sx * (WALK + rng.uniform(11.0, 18.0)), 9.5 + bh / 2, -168.32, bw, bh, math.pi, rng, back=False, depth=0.3)
+        P.place("lamp_sodium", sx * 10.7, G0, -163.0, -sx * math.pi / 2, district=AVS)
+        for (lx, lz, hue) in ((sx * 12.0, -170.0, "amber"), (sx * 7.0, -171.0, "white"), (sx * 20.0, -170.5, "pink" if sx < 0 else "cyan"), (sx * 3.0, -174.0, "amber")):
+            light(AVS, lx, 2.5, lz, hue, 6.0)
         # The corner's tall sign, on the diagonal.
         d = (-sx * 0.7071, -0.7071)
         K.blade(AVS, (sx * WALK, -168.0), d, 11.0, "bl", gap=0.5, scale=1.9)

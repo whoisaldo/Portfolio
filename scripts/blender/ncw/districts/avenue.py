@@ -393,7 +393,7 @@ DECK_BAND = (-95.0, -65.0)
 for name, mine, far, seed, aprons in (("w", -WALK - DEPTH, -WALK - DEPTH - 6.0, 9301, (0.9, 1.3)), ("e", WALK + DEPTH, WALK + DEPTH + 8.0, 9302, (0.9, 1.7))):
     lane = LN.Lane(AVS, name, "z", mine, far, -168.0, -10.0, seed, hues=LANE_HUES[name], skip=(DECK_BAND,), aprons=aprons)
     lane.vents = LANE_VENTS[name]
-    lane.build(mouths=((-10.0, 1), (-168.0, -1)))
+    lane.build(mouths=((-10.0, 1), (-168.0, -1)), rack=True)
 # The two vents the lanes have always had (the site draws steam from each).
 for i, (x, z) in enumerate(((-WALK - DEPTH - 3.0, -52.0), (WALK + DEPTH + 4.0, -128.0))):
     box((AVS, "metal", 1), x - 0.4, x + 0.4, 0.0, 0.07, z - 0.4, z + 0.4, scale=0.5)

@@ -23,6 +23,9 @@ from ncw.districts import avenue_kit as K
 
 G0 = B.G0
 PLINTH = (0.035, 0.035, 0.04, 1)
+# The painted band along the foot of a back wall, one colour a building.
+DADO = [(0.04, 0.1, 0.08, 1), (0.04, 0.06, 0.14, 1), (0.14, 0.045, 0.04, 1), (0.16, 0.12, 0.04, 1), (0.09, 0.09, 0.1, 1),
+        (0.1, 0.05, 0.12, 1), (0.03, 0.1, 0.12, 1)]
 HUES = {
     "green": ("green", "green", "cyan", "amber", "white", "teal"),
     "blue": ("cyan", "cyan", "blue", "pink", "white", "purple"),
@@ -70,13 +73,30 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
     w = f.width
     pal = HUES[hues]
     f.quad((D, "concrete", 0), 0.0, w, 0.0, SHOP_H, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, SHOP_H / 3.0), (0, SHOP_H / 3.0)))
-    f.quad((D, "trim", 1), 0.0, w, G0, 0.75, 0.012, col=PLINTH)
+    # A painted band along its foot and a pale line over it; the wall cast
+    # in panels, a seam between each, a joint across at door height.
+    dado = rng.choice(DADO)
+    dh = rng.choice((1.1, 1.3, 1.5))
+    f.quad((D, "trim", 0), 0.0, w, G0, dh, 0.012, col=dado)
+    f.quad((D, "trim", 1), 0.0, w, dh, dh + 0.05, 0.013, col=tuple(min(1.0, v * 3.0 + 0.05) for v in dado[:3]) + (1,))
+    f.quad((D, "dark", 1), 0.0, w, 2.95, 2.99, 0.011)
+    seam = rng.choice((1.6, 2.0, 2.4))
+    e = seam * rng.uniform(0.3, 0.9)
+    while e < w - 0.3:
+        f.quad((D, "dark", 1), e - 0.02, e + 0.02, dh + 0.05, SHOP_H - 0.2, 0.011)
+        e += seam
     f.ledge((D, "trim", 0), 0.0, w, SHOP_H - 0.16, 0.22, 0.12, tcol, caps=False)
+    # Its own dim light along it, so the wall is a wall between the pools.
+    e = rng.uniform(1.0, 2.5)
+    while e < w - 0.5:
+        light(D, *f.p(f.at(e), 2.2, 1.0), rng.choice(pal + ("amber",)), rng.uniform(1.6, 2.6))
+        e += rng.uniform(3.0, 4.5)
     busy = []   # spans along the wall whose band over the doors is taken
     doors = 0
     s = rng.uniform(0.5, 1.6)
     kinds = (("door", 1.3, 3.0), ("lit", 2.5, 2.2), ("shutter", 3.5, 1.0), ("bay", 3.5, 1.3), ("window", 2.1, 1.6),
-             ("vending", 2.2, 1.0), ("poster", 2.4, 1.3), ("cabinet", 1.9, 1.2), ("stack", 2.0, 2.4), ("units", 1.9, 1.0))
+             ("vending", 2.2, 0.9), ("poster", 2.4, 1.2), ("cabinet", 1.9, 1.2), ("stack", 2.0, 2.2), ("units", 1.9, 1.0),
+             ("posters", 2.6, 1.8), ("meters", 1.8, 1.3))
     last = ""
     while s < w - 1.4:
         room = w - 0.4 - s
@@ -152,12 +172,25 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
         elif kind == "vending":
             n = rng.choice((1, 2, 2))
             for i in range(n):
-                px, _, pz = f.p(f.at(s + 0.5 + i * 1.0), G0, 0.42)
-                P.place(rng.choice(("vending", "vending", "vending_warm")), px, G0, pz, f.yaw, district=D)
-            light(D, *f.p(f.at(s + n * 0.5), 1.2, 1.2), "cyan", 3.5)
+                px, _, pz = f.p(f.at(s + 0.55 + i * 1.06), G0, 0.02)
+                K.vendor(D, px, pz, f.yaw, rng)
             if rng.random() < 0.4:
                 person(f, s + 0.5, 1.25, rng.choice(("idle", "phone")), math.pi + rng.uniform(-0.3, 0.3))
-            kw = n * 1.0 + 0.2
+            kw = n * 1.06 + 0.2
+        elif kind == "posters":
+            kw = K.fly_posters(D, f, s, rng) + 0.1
+        elif kind == "meters":
+            # Meters in a row under a conduit, a lamp on each, and the
+            # conduit up the wall.
+            n = rng.randrange(3, 6)
+            for i in range(n):
+                e = s + 0.1 + i * 0.36
+                f.box((D, "metal", 1), e, e + 0.26, 1.25, 1.65, 0.0, 0.13)
+                f.quad((D, "glow", 1), e + 0.09, e + 0.17, 1.52, 1.58, 0.135, col=GLOW[rng.choice(("green", "green", "amber", "red"))])
+            f.box((D, "dark", 1), s, s + n * 0.36 + 0.1, 1.7, 1.76, 0.0, 0.08)
+            px, _, pz = f.p(f.at(s + 0.05), 1.76, 0.0)
+            P.place("pipe_v", px, 1.76, pz, f.yaw, sy=SHOP_H - 1.9, district=D)
+            kw = n * 0.36 + 0.3
         elif kind == "poster":
             pw = rng.choice((1.5, 1.9))
             K.poster(D, f, s + pw / 2 + 0.1, 2.25, pw, rng.choice((1.9, 2.3)), rng)
@@ -192,7 +225,7 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
                 px, _, pz = f.p(f.at(s + 0.8 + i * 1.55), G0, 0.55)
                 P.place("ac_roof", px, G0, pz, f.yaw, district=D)
             kw = 1.7 + 1.55 * (i)
-        s += kw + rng.uniform(0.35, 1.3)
+        s += kw + rng.uniform(0.15, 0.8)
     # Over the doors: a duct with its indicator lamps, or pipes on brackets.
     if w > 5.0:
         if rng.random() < 0.5:
@@ -301,6 +334,11 @@ class Lane:
             x, _, z = self.pt(mid + self.rng.uniform(-1.0, 1.0), v)
             cylinder((D, "metal", 1), x, z, 0.0, 0.02, 0.38, segs=10)
             v += self.rng.uniform(16, 30)
+        v = self.a + 2.5
+        while v < self.b - 1.0:
+            p = self.pt(mid + self.rng.uniform(-0.8, 0.8), v)
+            light(D, p[0], 2.0, p[2], self.rng.choice(self.pal), self.rng.uniform(1.4, 2.4))
+            v += self.rng.uniform(4.0, 6.0)
         for v, d in mouths:
             # The lane's end against a street's pavement: a short ramp.
             p0, p1 = self.pt(a0, v), self.pt(W - a1, v)
@@ -418,10 +456,8 @@ class Lane:
                 elif kind == "vending":
                     n = r.choice((2, 3))
                     for i in range(n):
-                        q = at(0.45, (i - (n - 1) / 2) * 1.0)
-                        P.place(r.choice(("vending", "vending_warm", "vending")), q[0], G0, q[2], face, district=D)
-                    q = at(1.5)
-                    light(D, q[0], 1.2, q[2], "cyan", 4.0)
+                        q = at(0.04, (i - (n - 1) / 2) * 1.06)
+                        K.vendor(D, q[0], q[2], face, r)
                     if r.random() < 0.5:
                         q = at(1.35, r.uniform(-0.5, 0.5))
                         stand(q[0], q[2], face + math.pi, r.choice(("idle", "phone")), y=G0 if 1.35 < self.aprons[1] else 0.0)
@@ -476,6 +512,43 @@ class Lane:
                 for dy in (0.0, -0.35):
                     K.cable(D, (x0, 6.1 + dy, z0), (x1, 6.1 + dy, z1), r.uniform(0.5, 1.0), r=0.03, steps=6)
 
+    def rack(self, y=4.5):
+        """A pipe rack on its own stanchions along the far wall: three
+        pipes, a drop to the ground now and then, small lamps on the
+        stanchions, a tube hung under it here and there."""
+        D, W, r = self.D, self.width, self.rng
+        cuts = sorted(self.skip)
+        runs, at = [], self.a + 1.0
+        for s0, s1 in cuts:
+            if s0 > at:
+                runs.append((at, min(s0, self.b - 1.0)))
+            at = max(at, s1)
+        if at < self.b - 1.0:
+            runs.append((at, self.b - 1.0))
+        cols = ((0.3, 0.2, 0.05, 1), (0.2, 0.2, 0.22, 1), (0.22, 0.07, 0.05, 1))
+        for v0, v1 in runs:
+            if v1 - v0 < 6:
+                continue
+            for k, (du, dy, rr) in enumerate(((0.55, 0.0, 0.11), (0.82, 0.03, 0.08), (0.62, 0.3, 0.06))):
+                pipe((D, "trim", 0), self.pt(W - du, v0, y + dy), self.pt(W - du, v1, y + dy), rr, segs=5, col=cols[k], caps=True)
+            v, n = v0 + 0.6, 0
+            while v < v1:
+                p = self.pt(W - 0.7, v)
+                box((D, "metal", 1), p[0] - 0.06, p[0] + 0.06, G0, y + 0.5, p[2] - 0.06, p[2] + 0.06, scale=0.5)
+                q0, q1 = self.pt(W - 1.0, v), self.pt(W - 0.3, v)
+                box((D, "metal", 1), min(q0[0], q1[0]) - 0.04, max(q0[0], q1[0]) + 0.04, y - 0.2, y - 0.12, min(q0[2], q1[2]) - 0.04, max(q0[2], q1[2]) + 0.04, scale=0.5)
+                if n % 2 == 0:
+                    g = self.pt(W - 0.77, v, y - 0.6)
+                    box((D, "glow", 0), g[0] - 0.05, g[0] + 0.05, g[1], g[1] + 0.1, g[2] - 0.05, g[2] + 0.05, scale=0.5, col=GLOW[r.choice(("cyan", "green", "red", "amber"))])
+                if n % 3 == 1:
+                    d0 = self.pt(W - 0.55, v + 0.3, y)
+                    pipe((D, "trim", 1), d0, (d0[0], G0, d0[2]), 0.07, segs=5, col=cols[0])
+                if n % 4 == 2:
+                    hue = r.choice(self.pal[:3])
+                    K.tube(D, self.pt(W - 0.95, v + 1.0, y - 0.55), self.pt(W - 0.95, v + 2.6, y - 0.55), hue, power=6.0, hang=y - 0.15)
+                v += r.uniform(5.0, 7.0)
+                n += 1
+
     def steam(self, most=4):
         """Vents where a kitchen's door or a stall stands (the site draws
         steam from each)."""
@@ -502,9 +575,11 @@ class Lane:
                     stand(t[0], t[2], self.yaw(False) if self.axis == "z" else self.yaw(False), "idle")
             v += r.uniform(*every) / self.dens
 
-    def build(self, mouths=(), stalls=True, most_steam=4):
+    def build(self, mouths=(), stalls=True, most_steam=4, rack=False):
         self.ground(mouths)
         self.overhead()
         self.far_side(stalls=stalls)
+        if rack:
+            self.rack()
         self.steam(most_steam)
         self.people()

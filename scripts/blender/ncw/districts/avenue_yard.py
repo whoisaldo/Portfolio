@@ -262,7 +262,7 @@ def build(D):
     box((D, "door_panel", 0), GATE[0] + 0.55, 0.0, 0.25, 5.6, 92.0, 92.14, scale=1.0)
     for y in (0.25, 2.9, 5.5):
         box((D, "metal", 1), GATE[0] + 0.55, 0.0, y, y + 0.14, 91.95, 92.0, scale=0.5)
-    box((D, "hazard", 1), GATE[0] + 0.55, 0.0, 1.1, 1.5, 91.93, 91.95, scale=0.6)
+    box((D, "hazard", 1), GATE[0] + 0.55, 0.0, 1.2, 1.38, 91.93, 91.95, scale=0.6)
     quad((D, "door", 0), (-2.0, 0.3, 91.94), (-3.1, 0.3, 91.94), (-3.1, 2.4, 91.94), (-2.0, 2.4, 91.94))
     box((D, "neon_red", 0), -2.75, -2.35, 2.5, 2.62, 91.88, 91.94, scale=0.5)
     # The open leaf, behind the wall east of the gate.

@@ -142,7 +142,7 @@ def dress(D, x0, x1, z0, z1, top, rng, tint=0, lane_yaw=0.0, parapet=False, chec
     weights = [1.6, 1.8, 1.3, 1.6, 1.2, 1.3, 0.8, 1.0]
     if min(w, d) > 10.5:
         themes.append("pad")
-        weights.append(1.6)
+        weights.append(0.6)
     theme = rng.choices(themes, weights=weights)[0]
     if theme == "garden" and ok((ix0, top, iz0), (ix1, top + 4.5, iz1)):
         gx1 = min(ix1, ix0 + 9.0)
