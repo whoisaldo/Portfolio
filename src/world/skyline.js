@@ -1047,6 +1047,20 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
             footLit = glassY * lobbyOpen * 0.6;
           }
         }
+        // Seen from the air a low district is its roofs: a few small lights
+        // on each (a skylight, a lamp over a door, a sign's back), the
+        // show's sprinkle of cyan and pink over dark blocks. One 3 m cell
+        // in fourteen, spread as it shrinks under a pixel.
+        float roofLit = 0.0;
+        if (fresh > 0.5 && vRoof > 0.5 && n.y > 0.5) {
+          vec2 rc = vPlan.xy / 3.0;
+          float rh = hash12(floor(rc) + vForm.z * 31.0);
+          float rr = max(0.2, 0.8 * max(fwidth(rc.x), fwidth(rc.y)));
+          vec2 rd = fract(rc) - 0.5;
+          roofLit = step(0.93, rh) * exp(-dot(rd, rd) / (rr * rr)) * (0.04 / (rr * rr));
+          col += (rh > 0.985 ? vec3(1.0, 0.25, 0.7) : rh > 0.965 ? vec3(0.2, 0.85, 0.95) : vec3(1.0, 0.7, 0.42)) * roofLit * 1.5;
+          roofLit = min(roofLit, 1.0);
+        }
         // The parapet: coping-dark concrete taking the street's light and
         // the glow, with a hairline where the coping catches the sky.
         vec3 band = vec3(0.018, 0.018, 0.022) + spillAt(vWorld) * 0.35 + (uHazeColor * 0.2 + uGlowColor * 0.1) * uHaze * 0.3;
@@ -1205,7 +1219,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
             screens = lines;
           }
         }
-        col = cityFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, footLit))));
+        col = cityFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, roofLit)))));
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -1536,17 +1550,40 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       }
 
       // The far city's ground: its blocks stand on a ${cell} m grid, so its
-      // streets run between them. A lamp every eleven and a half metres down
-      // each kerb, a pool of light under it, and now and then a car's lights
-      // going along. Past a pixel a lamp is spread into its street rather
-      // than sparkling.
+      // streets run between them: wet asphalt 12 m wide between kerbs, a
+      // dashed line down its middle, paving either side to the lot line,
+      // and inside the block a paved yard with a lamp of its own somewhere
+      // in it, so that no ground past the kit is a black plane. A lamp
+      // every eleven and a half metres down each kerb, a pool of light under
+      // it, and now and then a car's lights going along. Past a pixel a lamp
+      // is spread into its street rather than sparkling, and the paint and
+      // the joints are gone.
       vec3 streets(vec3 p, float time, float px) {
         vec2 q = (p.xz + vec2(${900 - cell / 2}.0, ${1700 - cell / 2}.0)) / ${cell}.0;
         // Signed metres from the nearest street's middle, on each axis.
         vec2 off = (fract(q + 0.5) - 0.5) * ${cell}.0;
         vec2 id = floor(q + 0.5);
-        float road = 1.0 - smoothstep(5.0, 6.0 + px, min(abs(off.x), abs(off.y)));
-        vec3 base = vec3(0.004, 0.004, 0.006) + vec3(0.008, 0.007, 0.009) * road;
+        float mid = min(abs(off.x), abs(off.y));
+        float road = 1.0 - smoothstep(5.0, 6.0 + px, mid);
+        float walk = (1.0 - road) * (1.0 - smoothstep(9.6, 10.4 + px, mid));
+        float close = 1.0 - smoothstep(0.08, 0.4, px);
+        vec3 paving = vec3(0.017, 0.017, 0.02) * (1.0 - 0.3 * close * step(min(fract(p.x * 0.5), fract(p.z * 0.5)), 0.05));
+        vec3 yard = vec3(0.011, 0.011, 0.014) * (1.0 - 0.25 * close * step(min(fract(p.x * 0.25), fract(p.z * 0.25)), 0.03));
+        vec3 base = mix(mix(yard, paving, walk), vec3(0.006, 0.006, 0.008) + uHazeColor * 0.035, road);
+        // The kerb's edge, and the line down the middle of whichever street
+        // this is, broken at the junctions.
+        float alongX = step(abs(off.y), abs(off.x));
+        float away = max(abs(off.x), abs(off.y));
+        float run = alongX > 0.5 ? p.x : p.z;
+        base += vec3(0.02, 0.02, 0.022) * close * (1.0 - smoothstep(0.0, 0.12, abs(mid - 6.0)));
+        base += vec3(0.11, 0.11, 0.1) * close * step(mid, 0.09) * step(fract(run / 9.0), 0.34) * step(7.0, away);
+        // A crossing on each arm of a junction, striped as the kit's are.
+        base += vec3(0.16, 0.12, 0.02) * close * road * step(7.2, away) * step(away, 10.2) * step(0.5, fract((alongX > 0.5 ? p.z : p.x) / 1.3));
+        // A yard's own lamp.
+        vec2 lot = floor(q);
+        vec2 inLot = (fract(q) - 0.5) * ${cell}.0 - (vec2(hash12(lot + 2.3), hash12(lot + 7.9)) - 0.5) * 20.0;
+        float lh = hash12(lot + 11.1);
+        base += (lh > 0.8 ? vec3(0.2, 0.85, 0.95) : lh > 0.66 ? vec3(1.0, 0.25, 0.7) : vec3(1.0, 0.6, 0.3)) * exp(-dot(inLot, inLot) / 34.0) * 0.05 * step(0.3, lh);
         vec3 light = vec3(0.0);
         // Streets along z (off.x small) and along x (off.y small).
         for (int k = 0; k < 2; k++) {
@@ -1563,7 +1600,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           // Each lamp's pool runs into the next, so a street reads as a line.
           float pool = exp(-dk * dk / 8.0 - dz * dz / 45.0) * 0.12;
           vec3 sodium = mix(vec3(1.0, 0.55, 0.2), vec3(0.85, 0.9, 1.0), step(0.7, hash12(vec2(street, float(k) + 3.0))));
-          light += sodium * (lamp * 1.4 * on + pool * (0.4 + 0.6 * on));
+          light += sodium * (lamp * 1.4 * on * mix(0.25, 1.0, smoothstep(0.1, 0.8, px)) + pool * (0.4 + 0.6 * on));
           // Shopfronts at the foot of the blocks: a band of light along each
           // kerb, a colour to each front, some of them shut.
           float front = hash12(vec2(floor(along / 7.0), street * 5.3 + float(k) * 7.0 + step(0.0, across)));
@@ -1588,6 +1625,13 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           }
         }
         return base + light;
+      }
+
+      // Whether a point on the ground is inside the kit's footprint.
+      float inKit(vec2 p) {
+        float k = 0.0;
+${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k, step(${x0.toFixed(1)}, p.x) * step(p.x, ${x1.toFixed(1)}) * step(${z0.toFixed(1)}, p.y) * step(p.y, ${z1.toFixed(1)}));`).join("\n")}
+        return k;
       }
 
       // Searchlights from downtown and the south, sweeping slowly (the
@@ -1660,9 +1704,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           float strike = exp(-length(p.xz - uFlashAt) / 420.0);
           col += vec3(0.62, 0.64, 0.92) * uFlash * strike * (0.1 + 0.9 * cover * n) * near;
         } else if (uCam.y > 0.0) {
-          // Only past the kit: anything nearer that shows the ground is a
-          // gap between the kit's own pieces, and it stays dark.
-          vec3 ground = streets(pg, time, px) * smoothstep(20.0, 60.0, tg);
+          // Inside the kit's footprint, anything near that shows the
+          // ground is a gap between the kit's own pieces, and it stays
+          // dark. Past it the ground is the far city's from the first metre.
+          vec3 ground = streets(pg, time, px) * mix(1.0, smoothstep(20.0, 60.0, tg), inKit(pg.xz));
           vec3 fogged = cityFog(ground, pg, 0.0);
           // The horizon's own band stays where the ground runs into it.
           col = mix(fogged, col, smoothstep(-0.004, 0.0, dir.y));
