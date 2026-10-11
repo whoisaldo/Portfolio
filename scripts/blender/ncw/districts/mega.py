@@ -114,6 +114,7 @@ from ncw.districts import massing  # noqa: E402
 from ncw.districts import mega_base  # noqa: E402,F401
 from ncw.districts import mega_face  # noqa: E402,F401
 from ncw.districts import mega_wings  # noqa: E402,F401
+from ncw.districts import mega_roofs  # noqa: E402,F401
 
 # (Until mega_east builds them: the canyon's east backs, in the shared massing.)
 massing.blocks(D, 44.0, 132.0, -676.0, -560.0, (30.0, 62.0), 8204)
