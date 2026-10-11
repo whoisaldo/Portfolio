@@ -29,7 +29,9 @@
 //   surface  everything else: paint, concrete, metal, roofs, lit by the spill.
 import * as THREE from "three";
 import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
+import { GROUND, VNOISE } from "./ground.js";
 import { SHOP_ROOM } from "./interiors.js";
+import { MARKS } from "./marks.js";
 import { createWetFloor } from "./wet.js";
 
 /** The world's own neon, as the plate uses it. */
@@ -52,10 +54,27 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = false, tinted = false, sky = 1 } = {}) => {
+  // Everything that is not glass or light. `detail` weathers it as sheet
+  // metal; `wall` (with how much spray paint it takes) dresses its upright
+  // faces to a storey's height as a street does a wall (src/world/marks.js),
+  // `door` gives those a door's rails and plates; `shutter` makes it a
+  // roller shutter; `paving` and `kerb` lay it as a
+  // pavement and its kerb (src/world/ground.js). All of that is near work:
+  // it fades by the metres a pixel covers and is skipped past that.
+  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = false, tinted = false, sky = 1, wall = null, door = false, shutter = false, paving = false, kerb = false } = {}) => {
     if (made.has(key)) return made.get(key);
+    const marks = wall !== null || shutter;
+    const ground = paving || kerb;
     const m = keep(new THREE.ShaderMaterial({
-      defines: { ...(detail ? { DETAIL: "" } : {}), ...(tinted ? { TINTED: "" } : {}) },
+      defines: {
+        ...(detail ? { DETAIL: "" } : {}),
+        ...(tinted ? { TINTED: "" } : {}),
+        ...(wall !== null ? { WALL: "" } : {}),
+        ...(door ? { DOOR: "" } : {}),
+        ...(shutter ? { SHUTTER: "" } : {}),
+        ...(paving ? { PAVING: "" } : {}),
+        ...(kerb ? { KERB: "" } : {}),
+      },
       uniforms: {
         ...shared,
         uColor: { value: new THREE.Color(color) },
@@ -65,29 +84,52 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uSpillMul: { value: spill },
         uGloss: { value: rough },
         uSky: { value: sky },
+        uSpray: { value: wall ?? 0.4 },
       },
-      vertexShader: tinted ? VERT_WORLD_COLOR : VERT_WORLD,
+      vertexShader: /* glsl */ `
+        ${tinted ? "attribute vec4 color; varying vec4 vColor;" : ""}
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        // A prop (src/world/props.js draws these materials instanced): its
+        // painted sides are not a wall.
+        varying float vProp;
+        void main() {
+          #ifdef USE_INSTANCING
+          mat4 m = modelMatrix * instanceMatrix;
+          vProp = 1.0;
+          #else
+          mat4 m = modelMatrix;
+          vProp = 0.0;
+          #endif
+          vec4 w = m * vec4(position, 1.0);
+          vWorld = w.xyz;
+          vNormalW = normalize(mat3(m) * normal);
+          vUv = uv;
+          ${tinted ? "vColor = color;" : ""}
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }
+      `,
       fragmentShader: /* glsl */ `
         ${COMMON}
+        ${detail || marks || ground ? VNOISE : ""}
+        ${ground ? GROUND : ""}
+        ${marks ? MARKS : ""}
         uniform vec3 uColor;
         uniform sampler2D uMap;
         uniform float uHasMap;
         uniform float uAmbient;
         uniform float uSpillMul;
         uniform float uSky;
+        uniform float uSpray;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
+        varying float vProp;
         #ifdef TINTED
         varying vec4 vColor;
         #endif
         #ifdef DETAIL
-        float vn(vec2 p) {
-          vec2 i = floor(p), f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x),
-                     mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
-        }
         // Weathered plant in world space, no texture: sheet panels with
         // their seams, rain grime run down the sides from every seam and
         // edge, and a fine speckle, all faded where they would shimmer.
@@ -98,8 +140,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec2 f = abs(fract(cell) - 0.5);
           float aa = clamp(max(fwidth(cell.x), fwidth(cell.y)) * 2.0, 0.0, 1.0);
           float seam = mix(smoothstep(0.47, 0.5, max(f.x, f.y)), 0.1, aa);
-          float grime = a.y > 0.6 ? 0.0 : vn(vec2(q.x * 7.0, q.y * 0.5)) * smoothstep(0.25, 0.0, fract(cell.y) - 0.1);
-          float speck = mix(vn(q * 23.0), 0.5, aa);
+          float grime = a.y > 0.6 ? 0.0 : vnoise(vec2(q.x * 7.0, q.y * 0.5)) * smoothstep(0.25, 0.0, fract(cell.y) - 0.1);
+          float speck = mix(vnoise(q * 23.0), 0.5, aa);
           float panel = hash12(floor(cell) + 3.7);
           return (0.8 + 0.3 * panel) * (1.0 - 0.45 * seam) * (1.0 - 0.35 * grime) * (0.85 + 0.3 * speck);
         }
@@ -111,9 +153,139 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           #endif
           if (uHasMap > 0.5) albedo *= texture2D(uMap, vUv).rgb * 2.0;
           vec3 n = normalize(vNormalW);
+          // Metres a pixel covers here.
+          float px = max(fwidth(vWorld.x) + fwidth(vWorld.z), fwidth(vWorld.y));
+          vec3 glowing = vec3(0.0);
           #ifdef DETAIL
           float wear = weather(vWorld, n);
           albedo *= wear;
+          #endif
+          #if defined(WALL) || defined(SHUTTER)
+          // An upright face a walker can reach: along it, up it, and the
+          // wall's own number (the plane it stands in, the way it faces).
+          vec3 nh = normalize(vec3(n.x, 0.0, n.z) + 1e-5);
+          vec2 q = vec2(dot(vWorld, vec3(nh.z, 0.0, -nh.x)), vWorld.y);
+          float id = floor(dot(vWorld, nh) * 0.37 + 0.123) + (floor(nh.x * 1.5 + 1.77) * 3.0 + floor(nh.z * 1.5 + 1.77)) * 7.0;
+          bool reach = vProp < 0.5 && abs(n.y) < 0.3 && vWorld.y < 4.6 && px < 0.15;
+          #endif
+          #ifdef WALL
+          if (reach) {
+            #ifdef DOOR
+            // A steel door: a scuffed kick plate, a push rail, a slot of
+            // wired glass over it, the leaf's top rail.
+            float kick = step(q.y, 0.48);
+            float rail = step(abs(q.y - 1.12), 0.035);
+            float slot = step(abs(q.y - 1.62), 0.11);
+            albedo = mix(albedo, vec3(0.2, 0.21, 0.23) * (0.6 + 0.6 * vnoise(q * vec2(3.0, 40.0))), kick);
+            albedo = mix(albedo, vec3(0.13, 0.135, 0.15), rail);
+            albedo = mix(albedo, vec3(0.012, 0.016, 0.02) + 0.02 * step(0.9, fract(q.x * 14.0)) + 0.02 * step(0.9, fract(q.y * 14.0)), slot);
+            albedo *= 1.0 - 0.5 * step(abs(q.y - 2.2), 0.012) - 0.3 * step(abs(q.y - 0.49), 0.01);
+            #endif
+            // Dirt to knee height, splashed up from the pavement; rain run
+            // down from the ledge overhead; what is fixed to it; what is
+            // pasted, stuck and sprayed on it.
+            float low = smoothstep(0.75, 0.25, q.y + 0.3 * vnoise(vec2(q.x * 2.7, id)));
+            float run = smoothstep(0.5, 0.8, vnoise(vec2(q.x * 8.0, q.y * 0.3 + id))) * smoothstep(1.6, 4.2, q.y);
+            albedo *= (1.0 - 0.5 * low) * (1.0 - 0.45 * run);
+            vec3 fit = wallFittings(q, id, px);
+            albedo = mix(albedo, vec3(0.2, 0.09, 0.04) * 0.5, fit.z * 0.7);
+            albedo = mix(albedo, vec3(0.15, 0.16, 0.18), fit.x * 0.8) * fit.y;
+            vec4 mk = wallMarks(q, id, px, uSpray);
+            albedo = mix(albedo, mk.rgb * 0.5 * (1.0 - 0.4 * low), mk.a * (1.0 - fit.x));
+          } else if (vProp < 0.5 && n.y > 0.7 && vWorld.y < 0.4 && px < 0.06) {
+            // Flat on the pavement, in yellow: a tactile strip's studs, and
+            // the paint worn off it and off a painted kerb.
+            float yellow = step(albedo.b * 3.0, albedo.r);
+            vec2 stud = fract(vWorld.xz / 0.075) - 0.5;
+            float fine = 1.0 - smoothstep(0.015, 0.06, px);
+            albedo *= 1.0 + yellow * fine * (0.5 * smoothstep(0.34, 0.22, length(stud)) - 0.35 * smoothstep(0.3, 0.9, vnoise(vWorld.xz * 6.0) + vnoise(vWorld.xz * 31.0) * 0.5));
+          }
+          #endif
+          #ifdef SHUTTER
+          if (vProp < 0.5 && abs(n.y) < 0.3) {
+            // A roller shutter, and at its foot a line of the light left on
+            // inside, warm or cold by the shutter.
+            float leak;
+            albedo = shutterAt(albedo, q, id, px, uSpray, 0.15, leak);
+            glowing = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.9, 1.0), step(0.7, fract(id * 0.37))) * leak;
+          }
+          #endif
+          float water = 0.0;
+          float sheen = 0.0;
+          #ifdef PAVING
+          vec4 se = vec4(0.0);
+          vec4 sf = vec4(-99.0);
+          if (vProp < 0.5 && n.y > 0.7 && px < 0.6) {
+            vec2 p = vWorld.xz;
+            sf = streetAt(p, se);
+            // Metres back from the kerb's edge; past the lot line it is a
+            // lane or a yard, poured, not paved.
+            float back = -max(sf.x, sf.y) - 0.3;
+            float yard = smoothstep(4.9, 5.6, back);
+            float fine = 1.0 - smoothstep(0.012, 0.045, px);
+            float mid = 1.0 - smoothstep(0.04, 0.14, px);
+            // The paving: a strip of dark setts along the kerb, flags in
+            // the middle (each its own grey, some newer, some cracked),
+            // the small pavers the map carries against the buildings.
+            float band = smoothstep(0.55, 0.62, back) * (1.0 - smoothstep(2.5, 2.58, back + 1.5 * (hash12(floor(p / 24.0)) - 0.5))) * (1.0 - yard);
+            float sett = (1.0 - smoothstep(0.5, 0.58, back)) * (1.0 - yard);
+            vec2 size = band > 0.5 ? vec2(0.6) : vec2(0.2);
+            vec2 g = p / size;
+            float hs = hash12(floor(g));
+            vec2 f = fract(g);
+            float jd = min(min(f.x, 1.0 - f.x) * size.x, min(f.y, 1.0 - f.y) * size.y);
+            float joint = (1.0 - smoothstep(0.004, 0.008 + px, jd)) * mid * max(band, sett);
+            albedo = mix(albedo, vec3(0.088, 0.09, 0.096) * (0.75 + 0.5 * hs + 0.5 * step(0.94, hs)) * (0.8 + 0.4 * vnoise(p * 37.0) * fine), band);
+            albedo = mix(albedo, vec3(0.05, 0.052, 0.06) * (0.7 + 0.6 * hs), sett);
+            float cracked = step(hs, 0.07) * band * (1.0 - smoothstep(0.004, 0.008 + px, abs(f.x - 0.5 + (f.y - 0.5) * (fract(hs * 91.0) - 0.5) * 2.0) * 0.6)) * fine;
+            albedo *= 1.0 - 0.55 * max(joint, cracked);
+            // A yard's or a lane's concrete: poured in bays, stained, tyre-dark.
+            vec2 bay = abs(fract(p / vec2(3.2, 4.6)) - 0.5) * vec2(3.2, 4.6);
+            vec3 poured = vec3(0.075, 0.075, 0.08) * (0.7 + 0.5 * vnoise(p * 0.7) + 0.2 * vnoise(p * 9.0)) * (1.0 - 0.5 * (1.0 - smoothstep(0.01, 0.02 + px, min(1.6 - bay.x, 2.3 - bay.y))) * mid);
+            albedo = mix(albedo, poured, yard);
+            // Tarmac let into it where it was dug up; old stains; gum; litter
+            // against the kerb and the wall.
+            vec2 pc = p / vec2(4.2, 3.3);
+            float hp = hash12(floor(pc) + 13.0);
+            vec2 pe = min(fract(pc) - 0.1 - 0.3 * vec2(fract(hp * 7.0), fract(hp * 13.0)), 0.9 - 0.3 * vec2(fract(hp * 17.0), fract(hp * 23.0)) - fract(pc)) * vec2(4.2, 3.3);
+            float tar = step(hp, 0.16) * smoothstep(-px, px, min(pe.x, pe.y)) * (1.0 - sett);
+            albedo = mix(albedo, vec3(0.03, 0.03, 0.034) * (0.8 + 0.4 * vnoise(p * 17.0)), tar);
+            float stain = smoothstep(0.55, 0.8, vnoise(p * 0.8 + 4.0) * 0.7 + vnoise(p * 3.1) * 0.3);
+            albedo *= 1.0 - 0.35 * stain;
+            vec2 gc = p / 0.22;
+            float hg = hash12(floor(gc) + 5.0);
+            float gum = step(0.9, hg) * (1.0 - smoothstep(0.045, 0.07, length(fract(gc) - 0.5 - (vec2(fract(hg * 31.0), fract(hg * 57.0)) - 0.5) * 0.6))) * fine;
+            albedo *= 1.0 - 0.6 * gum;
+            vec2 lc = p / 0.9;
+            float hl = hash12(floor(lc) + 21.0);
+            float wallD = sf.x >= sf.y ? se.y - abs(se.x) : se.w - abs(se.z);
+            float edge = max(smoothstep(0.9, 0.2, back), smoothstep(0.9, 0.2, wallD));
+            vec2 lf = mat2(cos(hl * 6.28), -sin(hl * 6.28), sin(hl * 6.28), cos(hl * 6.28)) * (fract(lc) - 0.5 - (vec2(fract(hl * 13.0), fract(hl * 29.0)) - 0.5) * 0.5);
+            float scrap = step(0.9 - 0.25 * max(edge, yard * 0.6), hl) * step(abs(lf.x), 0.04 + 0.05 * fract(hl * 41.0)) * step(abs(lf.y), 0.03 + 0.03 * fract(hl * 53.0)) * fine;
+            albedo = mix(albedo, mix(vec3(0.24, 0.23, 0.2), fract(hl * 67.0) < 0.5 ? vec3(0.3, 0.1, 0.12) : vec3(0.1, 0.22, 0.28), 0.5 * step(0.5, fract(hl * 79.0))), scrap);
+            // The wet: water standing in a sunk flag, along the kerb's back
+            // edge and in a yard's low places; damp everywhere else.
+            float lowFlag = step(hash12(floor(g) + 9.0), 0.09) * band * smoothstep(0.02, 0.06, jd);
+            float pool = vnoise(p * 0.45 + 2.0) * 0.6 + vnoise(p * 1.7) * 0.4;
+            water = max(lowFlag * smoothstep(0.35, 0.5, pool + 0.2), smoothstep(0.7 - 0.2 * yard, 0.74 - 0.2 * yard, pool + 0.12 * tar)) * (1.0 - scrap);
+            sheen = (0.15 + 0.4 * smoothstep(0.3, 0.7, pool) + 0.3 * tar) * (1.0 - 0.6 * joint);
+            albedo *= mix(1.0, 0.55, water);
+          }
+          #endif
+          #ifdef KERB
+          if (vProp < 0.5 && px < 0.3) {
+            // Kerbstones, a joint between each, pale along the worn edge, the
+            // gutter's dirt up the face.
+            vec4 ke;
+            vec4 ks = streetAt(vWorld.xz, ke);
+            float along = ks.x >= ks.y ? vWorld.z : vWorld.x;
+            float stone = hash12(vec2(floor(along / 0.9), floor(vWorld.x * 0.11 + vWorld.z * 0.13)));
+            float fine = 1.0 - smoothstep(0.02, 0.08, px);
+            float joint = (1.0 - smoothstep(0.006, 0.012 + px, (0.5 - abs(fract(along / 0.9) - 0.5)) * 0.9)) * fine;
+            albedo *= (0.8 + 0.4 * stone) * (0.85 + 0.3 * vnoise(vWorld.xz * 40.0) * fine) * (1.0 - 0.6 * joint);
+            albedo *= 1.0 - 0.5 * (1.0 - step(0.7, n.y)) * smoothstep(0.13, 0.0, vWorld.y);
+            sheen = 0.6 * step(0.7, n.y);
+          }
           #endif
           float up = clamp(n.y, 0.0, 1.0);
           vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.55 + 0.45 * up) + lampsAt(vWorld, n) * 5.0;
@@ -121,19 +293,19 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // roof, uSky, more of it: seen from above a roof is a dark blue
           // surface, not a hole).
           light += (uHazeColor * 0.22 + uGlowColor * 0.12) * up * uHaze * uSky;
-          vec3 col = albedo * light;
+          vec3 col = albedo * light + glowing;
           // And at a grazing angle every edge holds a little of the haze
           // behind it, so a dark shape stands off the dark behind it.
-          float rim = pow(1.0 - abs(dot(normalize(uCam - vWorld), n)), 3.0);
+          vec3 V = normalize(uCam - vWorld);
+          float rim = pow(1.0 - abs(dot(V, n)), 3.0);
           col += (uHazeColor * 1.5 + uGlowColor * 0.45) * rim * 0.5 * uHaze * (1.0 - up);
           #ifdef DETAIL
           // Wet sheet metal: it gives back the lit sky at a glancing angle
           // and a highlight of every lamp near it, both broken by the seams
           // and the grime (the panel's wear), which is what shows it at night.
-          vec3 V = normalize(uCam - vWorld);
           vec3 R = reflect(-V, n);
           float F = 0.04 + 0.96 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
-          float sheen = smoothstep(0.75, 1.1, wear);
+          float shine = smoothstep(0.75, 1.1, wear);
           vec3 skyR = (uHazeColor * 1.4 + uGlowColor * 0.6) * smoothstep(-0.15, 0.35, R.y) * uHaze;
           vec3 glint = vec3(0.0);
           for (int i = 0; i < ${LAMPS}; i++) {
@@ -144,7 +316,28 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float hl = pow(max(dot(R, d * inversesqrt(d2)), 0.0), 40.0);
             glint += uLampColors[i] * hl * (1.0 - d2 / r2);
           }
-          col += (skyR * F * 0.9 + glint * 0.9) * (0.35 + 0.65 * sheen);
+          col += (skyR * F * 0.9 + glint * 0.9) * (0.35 + 0.65 * shine);
+          #endif
+          #if defined(PAVING) || defined(KERB)
+          if (sheen + water > 0.0) {
+            // Wet stone gives the street back as the road does (road.js),
+            // with no mirror: the baked light along the ray on the damp, the
+            // street's lit face and the sky in standing water.
+            vec3 Rw = vec3(-V.x, V.y, -V.z);
+            float graze = pow(1.0 - clamp(V.y, 0.0, 1.0), 3.0);
+            vec3 back = spillReflect(vWorld, Rw);
+            back = max(mix(vec3(dot(back, vec3(0.299, 0.587, 0.114))), back, 1.8), 0.0) * 0.14;
+            vec3 sky = (uHazeColor * 1.2 + uGlowColor * 0.5) * uHaze * 0.4;
+            vec3 give = back * sheen * (0.15 + 0.85 * graze);
+            #ifdef PAVING
+            if (water > 0.01) {
+              float reachOut = (max(se.y, se.w) + 10.0) / max(abs(sf.x >= sf.y ? Rw.x : Rw.z), 0.05);
+              vec3 mirror = frontageReflect(vWorld, Rw, sf, se, px * (1.0 + reachOut / max(length(uCam - vWorld), 1.0))) * 0.9 + back * 0.8 + sky;
+              give = mix(give, mirror * (0.25 + 0.75 * graze), water);
+            }
+            #endif
+            col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
+          }
           #endif
           col = cityFog(col, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);
@@ -262,6 +455,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
+        ${VNOISE}
+        ${MARKS}
         ${SHOP_ROOM}
         varying vec3 vWorld;
         varying vec3 vNormalW;
@@ -306,12 +501,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
 
           vec3 col;
           if (vColor.b < 0.5) {
-            // Shut: a roller shutter, its ribs catching the street's light.
-            float rib = 0.6 + 0.4 * smoothstep(0.2, 0.8, fract(vWorld.y * 12.5));
-            col = (vec3(0.018, 0.018, 0.022) + spillAt(vWorld) * 0.12) * rib;
+            // Shut: a roller shutter (src/world/marks.js), the street's light
+            // along its slats, and at its foot a line of the shop's own.
+            float leak;
+            vec3 steel = shutterAt(vec3(0.1, 0.1, 0.115), vec2(along, vWorld.y), wall * 7.0 + floor(dot(vWorld, n) * 0.37 + 0.123), px, 0.4, vWorld.y - py, leak);
+            col = steel * (vec3(0.14) + spillAt(vWorld) * 1.15) + L * leak * 0.9;
           } else if (px > 0.6) {
             // Too far to see into: the light in its window.
-            col = L * power * 0.2;
+            col = L * power * 0.14;
           } else {
             // Into the room: x along it, y up from the sill, z in.
             vec3 d = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
@@ -322,7 +519,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // light, or a tube bent into a shape hung in it.
             vec3 f = p + d * (mix(0.5, 1.2, fract(seed * 43.0)) / d.z);
             col = mix(col, col * 0.05, person(f.xy, roomW * mix(0.2, 0.8, fract(seed * 53.0))) * step(fract(seed * 59.0), 0.3));
-            col = mix(L * 0.22, col, 1.0 - smoothstep(0.25, 0.6, px)) * power * 0.8;
+            col = mix(L * 0.22, col, 1.0 - smoothstep(0.25, 0.6, px)) * power * 0.52;
             // Mullions down the glass and a transom rail across it.
             float module = 1.3 + 0.7 * fract(shop * 17.0);
             float mu = fract(ax / module) * module;
@@ -1050,13 +1247,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "crown_glass": return crownGlass();
       case "awning": return awning();
       case "lantern": return lantern();
-      case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1 });
-      case "concrete": return surface("concrete", { color: "#6a6c71", map: maps.concrete, ambient: 0.045, spill: 1.25 });
+      case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1, paving: true });
+      // A back wall down a lane takes more paint than a shopfront does.
+      case "concrete": return surface("concrete", { color: "#6a6c71", map: maps.concrete, ambient: 0.045, spill: 1.25, wall: 0.6 });
       case "garage_wall": return surface("garage_wall", { color: "#7c7e84", map: maps.concrete, ambient: 0.07, spill: 2.2 });
       case "garage_wall_back":
       case "garage_wall_magenta":
       case "garage_wall_cyan": return maps[n] ? painted(n, maps[n], { tiled: false }) : forName("garage_wall");
-      case "kerb": return surface("kerb", { color: "#4a4c52", ambient: 0.03 });
+      case "kerb": return surface("kerb", { color: "#4a4c52", ambient: 0.03, kerb: true });
       case "paint": return surface("paint", { color: "#b9b7ae", ambient: 0.05, spill: 1.3 });
       case "metal": return surface("metal", { color: "#34373e", ambient: 0.04, detail: true });
       case "dark": return surface("dark", { color: "#121318", ambient: 0.024, spill: 0.6, detail: true });
@@ -1064,9 +1262,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       // and the signs' light can be seen on from above, not a hole.
       case "roof": return surface("roof", { color: "#2b2c32", ambient: 0.035, spill: 0.65, detail: true, sky: 9 });
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
-      case "door": return surface("door", { color: "#2a2d33", ambient: 0.04 });
+      case "door": return surface("door", { color: "#2a2d33", ambient: 0.04, wall: 0.3, door: true });
       // A roller shutter, down: ribbed steel the street's light runs along.
-      case "door_panel": return surface("door_panel", { color: "#4a4e55", ambient: 0.045, spill: 1.4, detail: true });
+      case "door_panel": return surface("door_panel", { color: "#4a4e55", ambient: 0.045, spill: 1.4, shutter: true });
       case "garage_floor": return wetFloor("garage").material;
       case "roof_wet": return wetFloor("roof").material;
       case "tube": return tube();
@@ -1077,7 +1275,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       // A building's ledges, slabs, pilasters, fascias and parapets, and the
       // props' painted parts: their colour on their vertices.
       case "billboard": return billboard();
-      case "trim": return surface("trim", { color: "#ffffff", ambient: 0.05, spill: 1.0, detail: true, tinted: true });
+      case "trim": return surface("trim", { color: "#ffffff", ambient: 0.05, spill: 1.0, detail: true, tinted: true, wall: 0.12 });
       default: return null;
     }
   };
