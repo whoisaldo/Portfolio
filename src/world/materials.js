@@ -917,6 +917,42 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   };
 
   /** The material for a GLB material name, or null to leave it alone. */
+  // Every tube of every colour as one material: each piece's colour on its
+  // vertices and, in the alpha, whether it is one of the tubes that cut out
+  // (src/world/city.js writes both when it dresses the kit), so the city's
+  // neon is one draw a tile and not eleven.
+  const neonAll = () => {
+    if (made.has("neon_all")) return made.get("neon_all");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared, uIntensity: { value: 2.4 }, uFlicker: { value: reduced ? 0 : 1 } },
+      vertexShader: VERT_WORLD_COLOR,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        uniform float uIntensity;
+        uniform float uFlicker;
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        void main() {
+          // Neon does not fade, it cuts: a tube that is not quite right drops
+          // out for a frame or two, seeded by its colour and its place.
+          float seed = dot(vColor.rgb, vec3(37.0, 59.0, 83.0));
+          float t = floor(uTime * 12.0);
+          float cut = step(0.992, hash12(vec2(t, floor(vWorld.x * 0.3 + vWorld.z * 0.2) + seed))) * uFlicker * step(0.5, vColor.a);
+          float breathe = 1.0 + 0.45 * uBass + 0.15 * uLevel;
+          vec3 col = vColor.rgb * uIntensity * breathe * (1.0 - 0.8 * cut);
+          col = cityFog(col, vWorld, 1.0);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "neon_all";
+    made.set("neon_all", m);
+    return m;
+  };
+
   const forName = (name) => {
     const n = name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
     if (n.startsWith("neon_")) {
@@ -950,6 +986,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "roof": return surface("roof", { color: "#15161a", ambient: 0.025, spill: 0.5 });
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
       case "door": return surface("door", { color: "#2a2d33", ambient: 0.04 });
+      // A roller shutter, down: ribbed steel the street's light runs along.
+      case "door_panel": return surface("door_panel", { color: "#4a4e55", ambient: 0.045, spill: 1.4, detail: true });
       case "garage_floor": return wetFloor("garage").material;
       case "roof_wet": return wetFloor("roof").material;
       case "tube": return tube();
@@ -966,6 +1004,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
 
   return {
     forName,
+    neonAll,
     neon,
     surface,
     wet,

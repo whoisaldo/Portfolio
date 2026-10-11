@@ -55,7 +55,6 @@ const _s = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
 const _frustum = new THREE.Frustum();
 const _vp = new THREE.Matrix4();
-const _box = new THREE.Box3();
 const _last = new THREE.Vector3(1e9, 0, 0);
 const _lastDir = new THREE.Vector3();
 const _dir = new THREE.Vector3();
@@ -95,11 +94,23 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     return out.compose(_p, _q, _s);
   };
 
+  // One grid of cells for every prototype: each cell's bounds hold what
+  // stands in it, of any kind; each prototype keeps its own runs of
+  // instances by cell.
+  const grid = new Map();
+  const cellList = [];
+  const cellIndex = (key) => {
+    if (!grid.has(key)) {
+      grid.set(key, cellList.length);
+      cellList.push(new THREE.Box3());
+    }
+    return grid.get(key);
+  };
   const sets = [];
   for (const k of kinds) {
     const meshes = parts.get(k.name);
     if (!meshes?.length || !k.list.length) continue;
-    // Sort by cell, and note each cell's run and bounds.
+    // Sort by cell, and note each cell's run.
     const withCell = k.list.map((i) => {
       const o = i * 8;
       return { i, cell: cellOf(data[o + 1] / 20, data[o + 3] / 20) };
@@ -107,7 +118,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     withCell.sort((a, b) => (a.cell < b.cell ? -1 : a.cell > b.cell ? 1 : 0));
     const n = withCell.length;
     const matrices = new Float32Array(n * 16);
-    const cells = [];
+    const runs = [];
     let run = null;
     const r = Math.max(...k.box) * 2 + 1;
     withCell.forEach(({ i, cell }, j) => {
@@ -117,26 +128,34 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const z = data[i * 8 + 3] / 20;
       const top = y + (data[i * 8 + 5] / 100) * k.box[1] * 2 + r;
       if (!run || run.cell !== cell) {
-        run = { cell, start: j, end: j, box: new THREE.Box3(new THREE.Vector3(x - r, y - r, z - r), new THREE.Vector3(x + r, top, z + r)) };
-        cells.push(run);
+        run = { cell, ci: cellIndex(cell), start: j, end: j };
+        runs.push(run);
       }
       run.end = j + 1;
-      run.box.expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
+      cellList[run.ci].expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
     });
     const instanced = meshes.map((src) => {
       const im = new THREE.InstancedMesh(src.geometry, src.material, n);
       im.name = `props_${k.name}_${src.material.name}`;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
+      im.visible = false;
       im.frustumCulled = false;
       im.matrixAutoUpdate = false;
+      im.userData.hue = src.userData.hue;
       if (/^(neon_|glow|lantern)/.test(src.material.name)) im.layers.enable(reflectLayer);
       group.add(im);
       return im;
     });
-    sets.push({ k, matrices, cells, instanced, n });
+    sets.push({ k, matrices, runs, instanced, n, sig: -1 });
   }
 
+  // Whenever the camera has moved or turned enough: which cells the frustum
+  // holds and how far each is, once for everyone; then each prototype's
+  // instances in the cells it is drawn at (inside its reach), rebuilt only
+  // if that set of cells changed since last time.
+  const cellVis = new Uint8Array(cellList.length);
+  const cellDist = new Float32Array(cellList.length);
   let frames = 0;
   const update = (camera) => {
     camera.updateMatrixWorld();
@@ -149,21 +168,31 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     _frustum.setFromProjectionMatrix(_vp);
     const cam = camera.position;
+    for (let c = 0; c < cellList.length; c++) {
+      cellDist[c] = cellList[c].distanceToPoint(cam);
+      cellVis[c] = _frustum.intersectsBox(cellList[c]) ? 1 : 0;
+    }
     for (const set of sets) {
-      const reach2 = set.k.reach * set.k.reach;
+      const reach = set.k.reach;
+      // The set of cells it is drawn in, as a hash.
+      let sig = 2166136261;
+      for (const run of set.runs) {
+        if (cellVis[run.ci] && cellDist[run.ci] <= reach) sig = Math.imul(sig ^ run.ci, 16777619) >>> 0;
+      }
+      if (sig === set.sig) continue;
+      set.sig = sig;
       let c = 0;
       const dst = set.instanced[0].instanceMatrix.array;
-      for (const cell of set.cells) {
-        _box.copy(cell.box);
-        if (_box.distanceToPoint(cam) ** 2 > reach2) continue;
-        if (!_frustum.intersectsBox(_box)) continue;
-        dst.set(set.matrices.subarray(cell.start * 16, cell.end * 16), c * 16);
-        c += cell.end - cell.start;
+      for (const run of set.runs) {
+        if (!cellVis[run.ci] || cellDist[run.ci] > reach) continue;
+        dst.set(set.matrices.subarray(run.start * 16, run.end * 16), c * 16);
+        c += run.end - run.start;
       }
       for (let m = 0; m < set.instanced.length; m++) {
         const im = set.instanced[m];
         if (m > 0) im.instanceMatrix.array.set(dst.subarray(0, c * 16));
         im.count = c;
+        im.visible = c > 0;
         im.instanceMatrix.clearUpdateRanges();
         im.instanceMatrix.addUpdateRange(0, c * 16);
         im.instanceMatrix.needsUpdate = true;
@@ -184,7 +213,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const index = g.index;
       const triCount = (index ? index.count : pos.count) / 3;
       const out = [];
-      let colour = new THREE.Color(name.startsWith("neon_") ? NEON[name.slice(5)] ?? "#ffffff" : name === "lantern" ? "#ff4a2a" : "#ffffff");
+      let colour = new THREE.Color(im.userData.hue ? NEON[im.userData.hue] ?? "#ffffff" : name === "lantern" ? "#ff4a2a" : "#ffffff");
       if (name === "glow" && g.attributes.color) {
         const c = g.attributes.color;
         let r = 0, gg = 0, b = 0;
@@ -220,7 +249,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     sources,
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {
-      return Object.fromEntries(sets.map((s) => [s.k.name, `${s.instanced[0].count}/${s.n}`]));
+      return Object.fromEntries(sets.map((st) => [st.k.name, `${st.instanced[0].count}/${st.n}`]));
     },
     disposeBake() {
       for (const m of bakeMeshes) m.geometry.dispose();

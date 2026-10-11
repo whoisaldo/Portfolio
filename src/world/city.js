@@ -30,6 +30,7 @@ import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { attributeKey, mergeMeshes, splitByTile } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
@@ -42,7 +43,7 @@ const cache = new Map();
 // The kit's tiles, metres on a side, and the fewest triangles a material
 // needs before it is cut into them (see the merge below).
 const TILE = 256;
-const TILE_MIN_TRIS = 12000;
+const TILE_MIN_TRIS = 40000;
 
 // The signs across the rooftop's roof, which its puddles hold and its steam
 // is lit by.
@@ -153,12 +154,25 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // Swap materials; note what glows (for the light bake) and what the wet
   // road should mirror. The core's meshes now, a streamed pack's later.
   const oldMaterials = new Set();
+  // A tube of one colour joins the one neon material (materials.js
+  // neonAll): its colour, and whether it flickers, onto its vertices.
+  const NEON_LINEAR = Object.fromEntries(Object.entries(NEON).map(([k, hex]) => [k, new THREE.Color(hex)]));
+  const neonAs = (mesh, name) => {
+    const hue = name.slice(5);
+    const c = NEON_LINEAR[hue] ?? new THREE.Color("#ffffff");
+    const flicker = hue === "white" || hue === "amber" ? 0 : 1;
+    const n = mesh.geometry.attributes.position.count;
+    const arr = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) arr.set([c.r, c.g, c.b, flicker], i * 4);
+    mesh.geometry.setAttribute("color", new THREE.BufferAttribute(arr, 4));
+    return kit.neonAll();
+  };
   const dress = (meshes) => {
     const sources = [];
     for (const mesh of meshes) {
       const name = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
       oldMaterials.add(mesh.material);
-      const mat = name === "asphalt" ? road.material : name === "paint" ? paint.material : kit.forName(mesh.material.name);
+      const mat = name === "asphalt" ? road.material : name === "paint" ? paint.material : name.startsWith("neon_") ? neonAs(mesh, name) : kit.forName(mesh.material.name);
       if (mat) mesh.material = mat;
       if (name.startsWith("neon_")) {
         sources.push({ mesh, color: new THREE.Color(NEON[name.slice(5)] || "#ffffff"), intensity: 1.0 });
@@ -196,8 +210,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // prototype's node is baked into a plain geometry of its own first.
   for (const mesh of protoMeshes) {
     oldMaterials.add(mesh.material);
-    mesh.material = kit.forName(mesh.material.name) ?? mesh.material;
+    const pname = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
     mesh.geometry = mergeMeshes([mesh], null);
+    mesh.userData.hue = pname.startsWith("neon_") ? pname.slice(5) : null;
+    mesh.material = pname.startsWith("neon_") ? neonAs(mesh, pname) : kit.forName(mesh.material.name) ?? mesh.material;
     mesh.removeFromParent();
   }
   const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER });
@@ -333,32 +349,51 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // behind it and the city's size does not cost every frame. What the bake
   // needed from the meshes one by one it has had; from here the kit is
   // static.
-  const mergeInto = (meshes, parent) => {
-    parent.updateMatrixWorld(true);
+  // Per material, the merged geometry of every part of the city that has
+  // arrived, cut into tiles: a streamed pack's share is merged into it and
+  // the tiles cut again, so a material is one draw a tile however many
+  // packs it came in.
+  const merged = new Map();
+  const mergeInto = (meshes) => {
+    root.updateMatrixWorld(true);
     const groups = new Map();
     for (const mesh of meshes) {
       const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(mesh);
     }
-    for (const list of groups.values()) {
-      const whole = mergeMeshes(list, root);
+    for (const [key, list] of groups) {
+      let whole = mergeMeshes(list, root);
+      const prev = merged.get(key);
+      if (prev) {
+        const both = mergeGeometries([prev.whole, whole], false);
+        whole.dispose();
+        for (const m of prev.meshes) {
+          m.removeFromParent();
+          m.geometry.dispose();
+        }
+        prev.whole.dispose();
+        both.computeBoundingSphere();
+        both.computeBoundingBox();
+        whole = both;
+      }
       // Only what is heavy is worth a draw per tile: a material with a few
       // thousand triangles costs less drawn whole than culled in pieces.
       const pieces = whole.index.count / 3 > TILE_MIN_TRIS ? splitByTile(whole, TILE) : [{ key: "all", geometry: whole }];
-      for (const { key, geometry } of pieces) {
-        const merged = new THREE.Mesh(geometry, list[0].material);
-        merged.name = `kit_${list[0].material.name}_${key}`;
-        merged.layers.mask = list[0].layers.mask;
-        merged.renderOrder = list[0].renderOrder;
-        merged.matrixAutoUpdate = false;
-        parent.add(merged);
-      }
+      const made = pieces.map(({ key: tile, geometry }) => {
+        const mesh = new THREE.Mesh(geometry, list[0].material);
+        mesh.name = `kit_${list[0].material.name}_${tile}`;
+        mesh.layers.mask = list[0].layers.mask;
+        mesh.renderOrder = list[0].renderOrder;
+        mesh.matrixAutoUpdate = false;
+        root.add(mesh);
+        return mesh;
+      });
+      merged.set(key, { whole, meshes: made });
       for (const mesh of list) mesh.removeFromParent();
     }
   };
-  root.updateMatrixWorld(true);
-  mergeInto(meshes, root);
+  mergeInto(meshes);
 
   // Placeholders for the named pieces the other modules dress.
   for (const mesh of Object.values(named)) {
@@ -384,7 +419,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
 
   scene.add(root);
   const packSigns = [];
-  const packGroups = [];
+  const packsAdded = [];
 
   // The road the car drives: world points, sampled a metre apart in Blender.
   const roadNode = root.getObjectByName("road_spline");
@@ -411,10 +446,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     /**
      * A streamed pack (src/world/world-scene.js loads them after the first
      * frame): dressed in the core's materials, its signs on the core's
-     * atlas, its light added to the bake, merged per material and tile into
-     * a group of its own. Returns the group (the clearance field adds it).
+     * atlas, its light added to the bake, its meshes handed to `beforeMerge`
+     * (the clearance field) and then merged into the core's own, material
+     * by material, tile by tile.
      */
-    addPack(name, packScene) {
+    addPack(name, packScene, { beforeMerge = null } = {}) {
       const pack = packScene.clone(true);
       pack.name = `pack_${name}`;
       pack.updateMatrixWorld(true);
@@ -443,16 +479,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       light.streaks.needsUpdate = true;
       next.dispose();
       for (const f of faces) f.geometry.dispose();
-      const group = new THREE.Group();
-      group.name = `pack_${name}`;
-      group.matrixAutoUpdate = false;
-      root.add(group);
-      mergeInto(kitMeshes, pack);
-      for (const m of [...pack.children]) {
-        if (m.isMesh) group.add(m);
-      }
-      packGroups.push(group);
-      return group;
+      beforeMerge?.(pack);
+      mergeInto(kitMeshes);
+      packsAdded.push(name);
+      return name;
     },
     setSignsVisible(on) {
       signs.mesh.visible = on;

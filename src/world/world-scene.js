@@ -938,11 +938,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (disposed) return;
         await idle();
         if (disposed || !city) return;
-        const group = city.addPack(name, packScene);
-        clearance?.add(group);
+        city.addPack(name, packScene, { beforeMerge: (part) => clearance?.add(part) });
         // Its materials are the core's, compiled at warm-up; this makes sure
         // of any variant its meshes need before one is drawn.
-        renderer.compile(group, camera);
+        renderer.compile(city.root, camera);
         packsIn.push(name);
       } catch (err) {
         if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
