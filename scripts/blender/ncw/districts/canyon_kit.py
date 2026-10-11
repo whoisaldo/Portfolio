@@ -240,28 +240,52 @@ def tall(sid, x, y0, h, z, w=2.2, key=FA, both=True, yaw=0.0, preview="夜"):
         sign(sid + "_b", x - dx * 0.3, y0 + h / 2, z - dz * 0.3, w, h, yaw + math.pi, district=key, label=False)
 
 
-def street_signs(f, r, s0, s1, y_lo, y_hi, n, hero=True, key=CB):
+def _free(taken, rect, pad=0.25):
+    """Whether a rectangle on a wall (s0, s1, y0, y1) is clear of what hangs
+    there already; it is noted as taken if so."""
+    s0, s1, y0, y1 = rect
+    for a0, a1, b0, b1 in taken:
+        if s0 - pad < a1 and s1 + pad > a0 and y0 - pad < b1 and y1 + pad > b0:
+            return False
+    taken.append(rect)
+    return True
+
+
+def street_signs(f, r, s0, s1, y_lo, y_hi, n, hero=True, key=CB, taken=None):
     """What a canyon wall collects between its shops and its upper floors:
-    blades at angles, columns of small boards, boards flat on the wall. On
+    blades at angles, columns of small boards, boards flat on the wall,
+    none across another (`taken`: the rectangles of wall already hung). On
     a wall along the avenue the faces that look south are keyed to the core
     (`hero`)."""
     front = FA if hero and f.nx != 0 else key
+    taken = [] if taken is None else taken
     for _ in range(n):
-        roll = r.random()
-        s = r.uniform(s0 + 1.0, s1 - 1.0)
-        if roll < 0.2:
-            k = r.randrange(3, 6)
-            stack(f, s, r.uniform(y_lo, max(y_lo + 0.5, y_hi - k * 1.3)), k, r, r.choice((0.0, 0.0, 0.3, -0.3)), front, key, key)
-        elif roll < 0.72:
-            size = r.choices(["bs", "bm", "bl", "bx"], weights=[2, 4, 4, 1])[0]
-            h = ST_SIZES[size][1]
-            cant = r.choice((0.0, 0.0, 0.0, 0.25, 0.4, -0.25, -0.4))
-            blade(f, s, r.uniform(y_lo + h / 2, max(y_lo + h / 2 + 0.2, y_hi - h / 2)), size, cant, front, key, key)
-        else:
-            size = r.choices(["ps", "pm", "bx"], weights=[3, 4, 1])[0]
-            w, h = ST_SIZES[size]
-            if s1 - s0 > w + 2.0:
-                board(f, min(max(s, s0 + w / 2 + 0.5), s1 - w / 2 - 0.5), r.uniform(y_lo + h / 2, y_hi - h / 2), size, r, key)
+        for _try in range(5):
+            roll = r.random()
+            s = r.uniform(s0 + 1.0, s1 - 1.0)
+            if roll < 0.2:
+                k = r.randrange(3, 6)
+                y = r.uniform(y_lo, max(y_lo + 0.5, y_hi - k * 1.3))
+                if _free(taken, (s - 0.5, s + 0.5, y - 0.5, y + k * 1.45)):
+                    stack(f, s, y, k, r, r.choice((0.0, 0.0, 0.3, -0.3)), front, key, key)
+                    break
+            elif roll < 0.72:
+                size = r.choices(["bs", "bm", "bl", "bx"], weights=[2, 4, 4, 1])[0]
+                h = ST_SIZES[size][1]
+                y = r.uniform(y_lo + h / 2, max(y_lo + h / 2 + 0.2, y_hi - h / 2))
+                if _free(taken, (s - 0.5, s + 0.5, y - h / 2, y + h / 2 + 0.2)):
+                    blade(f, s, y, size, r.choice((0.0, 0.0, 0.0, 0.25, 0.4, -0.25, -0.4)), front, key, key)
+                    break
+            else:
+                size = r.choices(["ps", "pm", "bx"], weights=[3, 4, 1])[0]
+                w, h = ST_SIZES[size]
+                if s1 - s0 <= w + 2.0:
+                    break
+                s = min(max(s, s0 + w / 2 + 0.5), s1 - w / 2 - 0.5)
+                y = r.uniform(y_lo + h / 2, y_hi - h / 2)
+                if _free(taken, (s - w / 2, s + w / 2, y - h / 2, y + h / 2)):
+                    board(f, s, y, size, r, key)
+                    break
 
 
 # ---------------------------------------------------------------------------

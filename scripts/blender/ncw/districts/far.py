@@ -56,6 +56,11 @@ BACKS = {
     1: {0: ("low",), 1: ("flush",), 2: ("low",), 3: ("flush",), 4: ("low",), 5: (28, "low"), 6: (20,), 7: ("low", 30),
         8: (26, "low"), 9: ("low", 22)},
 }
+# Skybridges across the avenue: z, the deck's height, glazed or open, and
+# where a column of small boards hangs under it. The hero looks under and
+# through them: each sits over the megablock's roofline and under the
+# figure's waist in its eye, between the roofs.
+BRIDGES = ((-240.0, fl(9) - 0.6, True, None), (-338.0, fl(13) - 0.6, False, 9.0))
 # What stands between the hero's lens and the canyon: the avenue's lots.
 AVENUE_MASSES = list(HERO_MASSES)
 HUES = ("cyan", "magenta", "amber", "pink", "teal")
@@ -401,17 +406,33 @@ def _dress_street(U):
         C.strip(CB, no, s - 0.18, s + 0.18, ph + 1.0, h - 2.0, r.choice(("cyan", "magenta", "pink", "white")))
     # Signs: the dense belt over the shops, on the podium, and a looser one
     # up the slab's first floors; high on the slab a big blade or two, and
-    # on some a screen canted toward the traffic coming up the avenue.
-    C.street_signs(st, r, 0.5, w - 0.5, SHOP_H + 0.9, ph - 1.0, max(3, round(w / 4.0)))
-    C.street_signs(st, r, 0.5, w - 0.5, ph + 0.6, min(h - 6.0, ph + 16.0), max(2, round(w / 7.0)))
-    for _ in range(r.randrange(1, 3)):
-        C.blade(st, r.uniform(1.5, w - 1.5), r.uniform(ph + 14.0, h - 8.0), "bl", r.choice((0.0, 0.3, -0.3)), FA, CB, CB)
-    # (None on the first lots of the right-hand row: they stand between the
-    # hero's lens and the figure's slogan.)
+    # on some a screen canted toward the traffic coming up the avenue. None
+    # across another, nor across the lot's column of type, the figure's
+    # slogan or a skybridge's landing.
+    taken = []
+    keep = [(bz, 3.2) for bz, _, _, _ in BRIDGES]
+    if U["k"] == 0 and L["i"] % 3 != 2:
+        keep.append((U["zs"] - 3.0, 2.0))
+    if side > 0:
+        keep.append((-261.0, 3.0))
+    for kz, half in keep:
+        if U["zn"] - half < kz < U["zs"] + half:
+            a = abs(kz - st.left)
+            taken.append((a - half, a + half, 0.0, 999.0))
+    # (No screen on the first lots of the right-hand row: they stand between
+    # the hero's lens and the figure's slogan.)
     if w > 18.0 and r.random() < 0.55 and not (side > 0 and L["i"] <= 2):
         sw = r.uniform(5.0, 7.5)
         sh = sw * r.uniform(1.2, 1.6)
-        C.screen(st, r.uniform(sw, w - sw), r.uniform(ph + sh / 2 + 2.0, max(ph + sh / 2 + 2.5, h * 0.62)), sw, sh, r, 1.0, key=FA)
+        ss, sy = r.uniform(sw, w - sw), r.uniform(ph + sh / 2 + 2.0, max(ph + sh / 2 + 2.5, h * 0.62))
+        if C._free(taken, (ss - sw / 2, ss + sw / 2, sy - sh / 2, sy + sh / 2)):
+            C.screen(st, ss, sy, sw, sh, r, 1.0, key=FA)
+    C.street_signs(st, r, 0.5, w - 0.5, SHOP_H + 0.9, ph - 1.0, max(3, round(w / 4.0)), taken=taken)
+    C.street_signs(st, r, 0.5, w - 0.5, ph + 0.6, min(h - 6.0, ph + 16.0), max(2, round(w / 7.0)), taken=taken)
+    for _ in range(r.randrange(1, 3)):
+        ss, sy = r.uniform(1.5, w - 1.5), r.uniform(ph + 14.0, h - 8.0)
+        if C._free(taken, (ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.8)):
+            C.blade(st, ss, sy, "bl", r.choice((0.0, 0.3, -0.3)), FA, CB, CB)
 
 
 def _dress_back(U):
@@ -432,6 +453,13 @@ def _dress_back(U):
         sh = min(hi - lo - 6.0, sw * r.uniform(1.4, 2.2))
         C.screen(f, r.uniform(sw / 2 + 1.0, w - sw / 2 - 1.0), hi - 3.0 - sh / 2, sw, sh, r, 0.0, back=False)
     if not quiet:
+        # Units, pipes and a fire escape up the first floors over the podium,
+        # a ledge every few floors.
+        B.clutter_back(CB, f, r, lo, min(hi, lo + 24.0))
+        y = lo + CELL_H * 4
+        while y < hi - 3.0:
+            f.ledge((CB, "trim", 1), 0.0, w, y - 0.22, 0.22, 0.2, B.TRIM[U["tint"]])
+            y += CELL_H * 4
         for s in (0.25, w - 0.25):
             if r.random() < 0.5:
                 C.strip(CB, f, s - 0.15, s + 0.15, lo + 1.0, hi - 1.5, r.choice(HUES + ("white",)))
@@ -576,9 +604,16 @@ for side in (-1, 1):
             continue
         lr = random.Random(int(abs(a["zn"]) * 3 + side))
         if a["lot"] is b["lot"] or a["lot"]["north"] == "gap":
-            # The podium's roof in the slot: plant between the towers.
+            # The podium's roof in the slot: plant between the towers, and at
+            # the street's edge a board on legs, turned to the traffic.
+            py = max(a["lot"]["ph"], b["lot"]["ph"])
             xp = sorted((_x(side, 7.5), _x(side, DEPTH - 3.0)))
-            C.roof_plant(CB, xp[0], xp[1], b["zs"] + 0.4, a["zn"] - 0.4, max(a["lot"]["ph"], b["lot"]["ph"]), lr, 3.0)
+            C.roof_plant(CB, xp[0], xp[1], b["zs"] + 0.4, a["zn"] - 0.4, py, lr, 3.0)
+            bw = gap - 1.0
+            bx_, bz_ = _x(side, 1.2), (a["zn"] + b["zs"]) / 2
+            B.billboard(CB, bx_, py + 1.6 + bw * 0.3, bz_, bw, bw * 0.6, -side * (math.pi / 2 - lr.uniform(0.15, 0.5)), lr, frame=True, back=True, depth=0.3)
+            for dz in (-bw * 0.35, bw * 0.35):
+                box((CB, "metal", 1), bx_ - 0.07, bx_ + 0.07, py, py + 1.6, bz_ + dz - 0.07, bz_ + dz + 0.07, scale=0.5)
         if lr.random() < 0.65:
             lo = max(a["lot"]["ph"], b["lot"]["ph"], 19.0 if gap > 7.0 else 0.0)
             hi = min(a["h"], b["h"]) - 8.0
@@ -634,10 +669,8 @@ P.place("pipe_v", 44.0, fl(4), gz0 - 0.6, math.pi / 2, sy=gy0 + 0.6 - fl(4), dis
 light(CB, 45.6, 4.0, -240.0, "amber", 4.0)
 
 # Skybridges across the avenue, a row of boards on each (ARL_JWwKdDs@21).
-# The hero looks under and through them: each sits over the megablock's
-# roofline and under the figure's waist in its eye, between the roofs.
 bridge_r = random.Random(4822)
-for bz, by, enclosed, hang in ((-240.0, fl(9) - 0.6, True, None), (-338.0, fl(13) - 0.6, False, 9.0)):
+for bz, by, enclosed, hang in BRIDGES:
     for lo, hi in C.skybridge(bz, by, bridge_r, enclosed=enclosed, hang=hang):
         if C.covers(AVENUE_MASSES, lo, hi):
             raise RuntimeError(f"the skybridge at z {bz} stands across something the hero frames: {lo} {hi}")
