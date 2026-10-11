@@ -326,8 +326,8 @@ export const worldModelUrl = {
   phone: "${base}world-phone.glb?v=${await revision(`${OUT}/world-phone.glb`)}",
 };
 // The districts that stream in behind the core, in the order they load:
-// east first (the sections past the hero all look there), then west, then
-// the south side behind the hero's lens.
+// south first (behind the hero), then the districts the page's sections
+// look at, nearest first.
 export const worldPackUrl = {
 ${(await Promise.all(Object.keys(TIERS).map(async (tier) => `  ${tier}: {\n${(await Promise.all(PACKS.filter((p) => p !== "core").map(async (p) => `    ${p}: "${base}world-${tier}-${p}.glb?v=${await revision(`${OUT}/world-${tier}-${p}.glb`)}",`))).join("\n")}\n  },`))).join("\n")}
 };

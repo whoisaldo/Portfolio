@@ -135,23 +135,26 @@ def _planter_palm(k):
     """A palm in a square concrete planter (Fn9gKhU_2_Q@69)."""
     box(k("concrete"), -0.8, 0.8, 0.0, 0.7, -0.8, 0.8, scale=1.0)
     box(k("dark"), -0.68, 0.68, 0.7, 0.72, -0.68, 0.68, scale=1.0)
-    cylinder(k("trim"), 0.0, 0.0, 0.7, 6.8, 0.16, segs=7, col=(0.16, 0.12, 0.1, 1))
-    for i in range(7):
-        t = i / 7 * math.tau
+    # An uplight in the soil, so the trunk and the fronds read at night.
+    box(k("glow"), -0.12, 0.12, 0.72, 0.76, 0.3, 0.42, scale=0.5, col=GLOW["amber"])
+    cylinder(k("trim"), 0.0, 0.0, 0.7, 6.8, 0.16, segs=7, col=(0.3, 0.22, 0.16, 1))
+    for i in range(9):
+        t = (i + 0.3 * (i % 2)) / 9 * math.tau
         dx, dz = math.cos(t), math.sin(t)
-        # A frond: a long leaf drooping out from the crown.
+        # A frond: a long leaf drooping out from the crown, some lower.
+        droop = 0.5 * (i % 3)
         a = (dx * 0.1, 6.8, dz * 0.1)
-        b = (dx * 1.6, 6.9, dz * 1.6)
-        c = (dx * 2.6, 6.1, dz * 2.6)
-        w = 0.32
+        b = (dx * 1.5, 7.0 - droop * 0.4, dz * 1.5)
+        c = (dx * 2.5, 6.2 - droop, dz * 2.5)
+        w = 0.34
         px, pz = -dz * w, dx * w
         for (p0, p1) in ((a, b), (b, c)):
             quad(k("trim"), (p0[0] - px, p0[1], p0[2] - pz), (p0[0] + px, p0[1], p0[2] + pz),
                  (p1[0] + px * 0.6, p1[1], p1[2] + pz * 0.6), (p1[0] - px * 0.6, p1[1], p1[2] - pz * 0.6),
-                 col=(0.05, 0.09, 0.07, 1))
+                 col=(0.16, 0.34, 0.2, 1))
             quad(k("trim"), (p0[0] + px, p0[1], p0[2] + pz), (p0[0] - px, p0[1], p0[2] - pz),
                  (p1[0] - px * 0.6, p1[1], p1[2] - pz * 0.6), (p1[0] + px * 0.6, p1[1], p1[2] + pz * 0.6),
-                 col=(0.05, 0.09, 0.07, 1))
+                 col=(0.1, 0.24, 0.14, 1))
 
 
 @proto("planter_tree", box=(0.8, 1.5, 0.8))
@@ -159,9 +162,10 @@ def _planter_tree(k):
     """A tree in a stone planter, its crown a dark mass catching the signs'
     light (KvMY1uzSC1E@94 has it in blossom)."""
     box(k("concrete"), -0.8, 0.8, 0.0, 0.6, -0.8, 0.8, scale=1.0)
-    cylinder(k("trim"), 0.0, 0.0, 0.6, 2.6, 0.12, segs=6, col=(0.14, 0.1, 0.09, 1))
-    for (cx, cy, cz, r) in ((0.0, 3.3, 0.0, 1.3), (0.6, 2.9, 0.3, 0.9), (-0.5, 3.0, -0.4, 0.9)):
-        oriented_box(k("trim"), cx, cy, cz, r * 1.6, r * 1.2, r * 1.6, 0.4, scale=1.0, col=(0.07, 0.05, 0.08, 1))
+    box(k("glow"), -0.12, 0.12, 0.62, 0.66, 0.3, 0.42, scale=0.5, col=GLOW["white"])
+    cylinder(k("trim"), 0.0, 0.0, 0.6, 2.6, 0.12, segs=6, col=(0.28, 0.2, 0.16, 1))
+    for (cx, cy, cz, r) in ((0.0, 3.3, 0.0, 1.3), (0.6, 2.9, 0.3, 0.9), (-0.5, 3.0, -0.4, 0.9), (0.2, 3.9, -0.3, 0.8)):
+        oriented_box(k("trim"), cx, cy, cz, r * 1.6, r * 1.2, r * 1.6, 0.4 + cx, scale=1.0, col=(0.36, 0.14, 0.28, 1))
 
 
 @proto("bench", box=(1.0, 0.25, 0.3), reach=220, detail=True)
