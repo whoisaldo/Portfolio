@@ -52,9 +52,12 @@ export async function attachDevcam(world) {
     const next = order[(i + 1) % order.length];
     for (const step of route(id, next)) {
       const pts = step.forward ? step.edge.points : [...step.edge.points].reverse();
-      // Walking close by the shops, where the crowd's two lines leave room.
+      // Walking the middle of the pavement, between the crowd's two lines
+      // (the builder's streets.life: 0.7 m in from the kerb and 1.7 m out
+      // from the lot line), where a walker sees the shops and the street;
+      // on the deck's and the ramp's narrow walkways, along their middle.
       const pv = step.edge.pavements?.[0];
-      const side = pv ? Math.abs(pv.offset) + pv.width / 2 - 0.45 : step.edge.half + 3.4;
+      const side = !pv ? step.edge.half + 1.8 : step.edge.elevated ? Math.abs(pv.offset) + pv.width / 2 - 0.45 : Math.abs(pv.offset) - 0.5;
       for (const p of pts) {
         const last = path[path.length - 1];
         const v = new THREE.Vector3(p[0], p[1], p[2]);
