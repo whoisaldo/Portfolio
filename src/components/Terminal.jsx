@@ -35,6 +35,8 @@ import { getVolume, setSoundEnabled, setVolume, soundEnabled, unlockAudio } from
 import { applyVolume, isPlaying, startAmbient, stopAmbient } from "../lib/ambient";
 import { CRUISE_GAIN, DROP } from "../lib/cues";
 import { track } from "../lib/beacon";
+import { stage } from "../world/stage";
+import { setView } from "../world/modes";
 
 // Fun facts pool, surfaced on boot and via `funfact`
 const FUN_FACTS = [
@@ -191,6 +193,8 @@ export default function Terminal({ onExit }) {
     fx           fx · fx haze off · fx signs on · fx reset
     recruiters   the plain version of this site
     jackin       the braindance: the city, no page
+    look         put the page away and look at the city (H)
+    watch        this site as a film (C)
 
   Tab = autocomplete   ↑↓ = history   Ctrl+L = clear
 ` },
@@ -226,7 +230,7 @@ export default function Terminal({ onExit }) {
     "neofetch", "tree", "grep", "find", "open", "sudo", "exit", "hire",
     "git", "vim", "nano", "touch", "mkdir", "rm", "cp", "mv", "head", "tail",
     "funfact", "interests", "uplink", "vitals",
-    "garage", "goto", "sound", "volume", "fx", "env", "recruiters", "jackin", "braindance",
+    "garage", "goto", "sound", "volume", "fx", "env", "recruiters", "jackin", "braindance", "look", "watch",
     "signs", "haze", "wet", "cursor", "scanlines", "traffic", "reactive",
   ], []);
 
@@ -919,6 +923,27 @@ AUTHOR
         unlockAudio();
         navigate("/braindance", { state: { jack: true } });
         break;
+
+      case "look":
+      case "watch":
+      case "film":
+      case "cinema": {
+        // Look and Cinema (src/world/modes.js) put the page away, which the
+        // console is part of: it closes first, then the mode starts.
+        const which = command === "look" ? "look" : "cinema";
+        if (stage.status !== "ready" || document.documentElement.dataset.world !== "on") {
+          say("error", `${command}: the city is off. fx world on brings it back.`);
+        } else if (which === "cinema" && window.location.pathname !== "/") {
+          say("error", "watch: the film is the home page. goto top, then watch.");
+        } else {
+          say("system", which === "look" ? "Putting the page away. H or esc brings it back." : "Rolling. Space pauses, the arrows skip, esc stops.");
+          setTimeout(() => {
+            onExit?.();
+            setTimeout(() => setView(which), 120);
+          }, 450);
+        }
+        break;
+      }
 
       case "exit":
         setHistory(prev => [...prev, { type: "system", text: "logout\nConnection to sideband closed." }]);

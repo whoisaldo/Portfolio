@@ -74,7 +74,7 @@ export default function Hero() {
               className="font-display font-medium uppercase text-muted max-w-[26ch]"
               style={{ fontSize: "clamp(1.05rem, 1.9vw, 1.6rem)", lineHeight: 1.3, letterSpacing: "0.02em" }}
             >
-              Systems, iOS and web. Boston.
+              {profile.line}
             </motion.p>
 
             {/* ---- ledger -------------------------------------------------- */}

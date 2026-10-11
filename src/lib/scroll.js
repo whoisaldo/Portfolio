@@ -55,6 +55,24 @@ export function scrollToY(y) {
   });
 }
 
+/**
+ * Glide to an absolute Y over `duration` seconds on `easing`, whatever the
+ * distance, even while the page is held (the film holds it against the
+ * reader's wheel and flies it itself). Through Lenis when the city is live;
+ * `onComplete` fires when it lands. Returns false with no Lenis to fly.
+ */
+export function glideToY(y, { duration = 1, easing, onComplete } = {}) {
+  if (!lenis) return false;
+  lenis.scrollTo(y, { duration, easing, force: true, lock: true, onComplete });
+  return true;
+}
+
+/** Jump straight to an absolute Y, held or not. */
+export function jumpToY(y) {
+  if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
+  else window.scrollTo({ top: y, behavior: "instant" });
+}
+
 /** Scroll an element into view, clearing the fixed navbar. */
 export function scrollToSection(id) {
   const el = document.getElementById(id);

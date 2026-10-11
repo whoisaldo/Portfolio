@@ -20,9 +20,10 @@
 // is addressed to one kind of reader and it should be the first thing that
 // reader sees. On the phone menu both are rows.
 //
-// And one more in 2026-10, beside the terminal and only while the live city
-// is up: an eye that puts the page away to look at the city (Look, H). See
-// src/world/modes.js.
+// And two more in 2026-10, beside the terminal and only while the live city
+// is up: an eye that puts the page away to look at the city (Look, H) and a
+// clapper that plays the site as a film (Cinema, C; home page only, since
+// the film is the home page's flights). See src/world/modes.js.
 //
 // Opacity modifiers here must come from Tailwind's scale (…/85, /90, /95).
 // This bar was written with `bg-ink/92` and the mobile panel with `bg-ink/96`,
@@ -32,7 +33,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpRight, Eye, Menu, SquareTerminal, X } from "lucide-react";
+import { ArrowUpRight, Clapperboard, Eye, Menu, SquareTerminal, X } from "lucide-react";
 import { navSections } from "../data/site";
 import { profile } from "../data/profile";
 import { scrollToSection } from "../lib/scroll";
@@ -123,6 +124,17 @@ export default function Navbar() {
               <Eye className="w-[18px] h-[18px]" aria-hidden="true" />
             </button>
           )}
+          {city && onHome && (
+            <button
+              type="button"
+              onClick={() => toggleView("cinema")}
+              aria-label="Watch the site as a film"
+              title="Watch the film (C)"
+              className="p-1.5 text-dim transition-colors duration-200 hover:text-volt focus-visible:text-volt"
+            >
+              <Clapperboard className="w-[18px] h-[18px]" aria-hidden="true" />
+            </button>
+          )}
 
           <button
             type="button"
@@ -210,6 +222,19 @@ export default function Navbar() {
                 >
                   <Eye className="w-4 h-4" aria-hidden="true" />
                   Look at the city
+                </motion.button>
+              )}
+              {city && onHome && (
+                <motion.button
+                  type="button"
+                  onClick={() => { setIsMobileOpen(false); toggleView("cinema"); }}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: navSections.length * 0.04 }}
+                  className="mono-ui text-dim py-3 text-left inline-flex items-center gap-2.5 transition-colors duration-200 hover:text-primary"
+                >
+                  <Clapperboard className="w-4 h-4" aria-hidden="true" />
+                  Watch the film
                 </motion.button>
               )}
 

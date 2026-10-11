@@ -1,22 +1,38 @@
 // src/components/ViewModes.jsx: the keys and the controls for Look and Cinema.
 //
-// The ways to put the page away (src/world/modes.js) are reached from the
-// header (Navbar.jsx) and from the keyboard, here: H for Look, Esc to come
-// back, and in Look the left and right arrows turn the camera a step. Typing
-// in a field never triggers them.
+// The two ways to put the page away (src/world/modes.js) are reached from the
+// header (Navbar.jsx), from the console, and from the keyboard, here: H for
+// Look, C for Cinema, Esc to come back from either, and in Look the left and
+// right arrows turn the camera a step. Typing in a field never triggers them.
 //
 // While Look is on, a strip at the foot of the screen says how it works and
 // how to leave, on the same smoked glass as the page's panes, and fades to a
-// whisper after a few seconds so the city has the screen.
-import React, { useEffect, useState } from "react";
+// whisper after a few seconds so the city has the screen. Cinema brings its
+// own controls (src/components/cinema/), in its own chunk: nobody who never
+// presses play downloads the film.
+import React, { lazy, Suspense, useEffect, useState } from "react";
 import { Eye, X } from "lucide-react";
 import { stage, useStage } from "../world/stage";
 import { canPutAway, nudgeLook, pageIfGone, setView, toggleView } from "../world/modes";
+
+const Cinema = lazy(() => import("./cinema/Cinema"));
 
 const typing = (t) => Boolean(t?.closest?.("input, textarea, select, [contenteditable='true'], [contenteditable='']"));
 
 export default function ViewModes() {
   const { view, status } = useStage();
+  // The film stays mounted a moment after it ends, so its bars can lift as
+  // the page fades back in rather than vanish under it.
+  const [film, setFilm] = useState(false);
+  useEffect(() => {
+    if (view === "cinema") {
+      setFilm(true);
+      return undefined;
+    }
+    const t = window.setTimeout(() => setFilm(false), 520);
+    return () => window.clearTimeout(t);
+  }, [view]);
+
   // The city went away under a mode (a lost context, the door back up).
   useEffect(() => {
     pageIfGone();
@@ -32,6 +48,9 @@ export default function ViewModes() {
       } else if (k === "h" && (stage.view === "look" || canPutAway())) {
         e.preventDefault();
         toggleView("look");
+      } else if (k === "c" && (stage.view === "cinema" || canPutAway())) {
+        e.preventDefault();
+        toggleView("cinema");
       } else if (stage.view === "look" && (k === "arrowleft" || k === "arrowright")) {
         e.preventDefault();
         nudgeLook(k === "arrowleft" ? -0.2 : 0.2);
@@ -44,6 +63,11 @@ export default function ViewModes() {
   return (
     <>
       {view === "look" && <LookHint />}
+      {film && (
+        <Suspense fallback={null}>
+          <Cinema leaving={view !== "cinema"} />
+        </Suspense>
+      )}
     </>
   );
 }
