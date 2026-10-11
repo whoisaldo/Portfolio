@@ -269,6 +269,10 @@ const SKY_LANES = [
   { c: [90, -200], r: [160, 110], y: 64, v: 30 },
   { c: [-40, -560], r: [90, 180], y: 52, v: 24 },
   { c: [420, -250], r: [120, 160], y: 58, v: 26 },
+  // Lower, over the streets themselves: a craft going over between the
+  // roofs, as the show's frames always have one (ARL_JWwKdDs@1).
+  { c: [-40, -380], r: [70, 260], y: 34, v: 20 },
+  { c: [260, -90], r: [190, 60], y: 30, v: 22 },
 ];
 // The avenue's lanes: x, direction of travel along z, speed.
 const ROAD_LANES = [
@@ -285,7 +289,7 @@ const twice = (beat, from) => ((beat > from && beat < from + 0.09) || (beat > fr
 const SIDES = [-1, 1];
 const ROAD_NEAR = -40;
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, streets = [], parkedMore = [], streetCars = 0 } = {}) {
   const avGeo = avGeometry();
   // The street's cars: wet paint giving back the lit street and the glow
   // over it, dark tinted glass, lit light bars on the ones that are driving,
@@ -459,8 +463,22 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // The cars: the moving ones first, then the parked; each its kind, its
   // paint and accent, from a seeded draw so the street is the same street
   // every visit.
-  const moving = cars * 2;
-  const parked = PARKED.slice(0, cars >= 4 ? PARKED.length : 5);
+  // The rest of the network's lanes (the builder's streets.life: from, the
+  // way it runs, how long, how fast), a car or two on the longer ones, up to
+  // streetCars of them; and the cars parked in its bays.
+  const lanes = [];
+  for (let i = 0; i + 5 < streets.length; i += 6) lanes.push({ x: streets[i], z: streets[i + 1], dx: streets[i + 2], dz: streets[i + 3], len: streets[i + 4], v: streets[i + 5] });
+  const streetSlots = [];
+  lanes.forEach((L, k) => {
+    const n = L.len > 160 ? 2 : 1;
+    for (let j = 0; j < n; j++) streetSlots.push({ L, phase: (j + 0.37 * ((k * 7) % 5)) / n });
+  });
+  streetSlots.splice(streetCars);
+  const avenueMoving = cars * 2;
+  const moving = avenueMoving + streetSlots.length;
+  const more = [];
+  for (let i = 0; i + 2 < parkedMore.length; i += 3) more.push({ x: parkedMore[i], z: parkedMore[i + 1], yaw: parkedMore[i + 2] });
+  const parked = [...PARKED.slice(0, cars >= 4 ? PARKED.length : 5), ...more.slice(0, cars >= 4 ? more.length : Math.floor(more.length / 3))];
   let seed = 7;
   const draw = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
   const slots = [];
@@ -676,10 +694,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   if (rail) scene.add(train);
 
   // Evenly spaced along each lane, so two cars in one never meet.
-  const perLane = Math.max(1, Math.ceil(moving / ROAD_LANES.length));
+  const perLane = Math.max(1, Math.ceil(avenueMoving / ROAD_LANES.length));
   const phase = [
     ...Array.from({ length: avs }, () => Math.random()),
-    ...Array.from({ length: moving }, (_, i) => (Math.floor(i / ROAD_LANES.length) + 0.25 * Math.random()) / perLane + (i % ROAD_LANES.length) * 0.17),
+    ...Array.from({ length: avenueMoving }, (_, i) => (Math.floor(i / ROAD_LANES.length) + 0.25 * Math.random()) / perLane + (i % ROAD_LANES.length) * 0.17),
   ];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -821,7 +839,27 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       tmp.set(0, 0.66, -0.12).applyQuaternion(q).add(p);
       setLamp(li++, tmp.x, tmp.y, tmp.z, strobe, strobe, strobe, 0.7 * far);
     }
-    for (let i = 0; i < moving; i++) {
+    for (let i = avenueMoving; i < moving; i++) {
+      // A car on one of the network's lanes, looping it, fading at its ends.
+      const { L, phase: ph } = streetSlots[i - avenueMoving];
+      const t = ((((ph + (clock * L.v) / L.len) % 1) + 1) % 1);
+      p.set(L.x + L.dx * t * L.len, 0, L.z + L.dz * t * L.len);
+      fwd.set(L.dx, 0, L.dz);
+      q.setFromUnitVectors(FRONT, fwd);
+      const x = slots[i];
+      x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
+      const edge = Math.min(1, Math.min(t, 1 - t) * 8);
+      kinds[x.kind].fade.setX(x.index, edge);
+      const head = x.lamps.head;
+      const tail = x.lamps.tail;
+      for (const sd of SIDES) {
+        tmp.set(sd * head[0], head[1], head[2]).applyQuaternion(q).add(p);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 0.85 * edge, 0.92 * edge, 1.0 * edge, 0.9);
+        tmp.set(sd * tail[0], tail[1], tail[2]).applyQuaternion(q).add(p);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * edge, 0.05 * edge, 0.15 * edge, 0.6);
+      }
+    }
+    for (let i = 0; i < avenueMoving; i++) {
       const L = ROAD_LANES[i % ROAD_LANES.length];
       const span = ROAD_NEAR - ROAD_FAR;
       // Wrapped into 0..1 either way round, so a clock that runs backwards

@@ -28,14 +28,17 @@ export function createSharedUniforms(THREE) {
     uSpill: { value: null },
     uSpillBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
     uSpillGain: { value: 1 },
-    uFogColor: { value: new THREE.Color(0x07050b) },
-    uHazeColor: { value: new THREE.Color(0x3a1446) },
+    // Night as the show paints it: deep navy in the air, the haze a blue
+    // violet, the lit city's glow violet blue, pink only toward downtown
+    // (cityGlow's hot core), where the plate's street ends.
+    uFogColor: { value: new THREE.Color(0x05060e) },
+    uHazeColor: { value: new THREE.Color(0x1f1a4c) },
     uFogDensity: { value: 0.0021 },
     uHaze: { value: 1 },
     uCam: { value: new THREE.Vector3() },
     // The lit city's glow in the wet air, and the way to downtown (up the
     // avenue), where it is brightest.
-    uGlowColor: { value: new THREE.Color(0.95, 0.36, 0.78).multiplyScalar(0.34) },
+    uGlowColor: { value: new THREE.Color(0.6, 0.38, 0.95).multiplyScalar(0.34) },
     uGlowDir: { value: new THREE.Vector2(0, -1) },
     // Lightning in the cloud (src/world/world-scene.js): how bright, and
     // where over the city it is, on the cloud deck's plane.

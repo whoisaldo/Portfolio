@@ -39,7 +39,7 @@ const OUT = "public/scenes/world";
 // the packs that stream in behind it have their own.
 const BUDGET = { high: 2.6e6, phone: 1.2e6 };
 const PACK_BUDGET = { high: 2.2e6, phone: 1.0e6 };
-const PACKS = ["core", "west", "east"];
+const PACKS = ["core", "east", "west", "south"];
 const TIERS = {
   high: { size: 1024, quality: 82, dropDetail: false },
   phone: { size: 512, quality: 76, dropDetail: true },
@@ -317,16 +317,11 @@ export const worldModelUrl = {
   high: "${base}world-high.glb?v=${await revision(`${OUT}/world-high.glb`)}",
   phone: "${base}world-phone.glb?v=${await revision(`${OUT}/world-phone.glb`)}",
 };
-// The districts that stream in behind the core, in the order they load.
+// The districts that stream in behind the core, in the order they load:
+// east first (the sections past the hero all look there), then west, then
+// the south side behind the hero's lens.
 export const worldPackUrl = {
-  high: {
-    east: "${base}world-high-east.glb?v=${await revision(`${OUT}/world-high-east.glb`)}",
-    west: "${base}world-high-west.glb?v=${await revision(`${OUT}/world-high-west.glb`)}",
-  },
-  phone: {
-    east: "${base}world-phone-east.glb?v=${await revision(`${OUT}/world-phone-east.glb`)}",
-    west: "${base}world-phone-west.glb?v=${await revision(`${OUT}/world-phone-west.glb`)}",
-  },
+${(await Promise.all(Object.keys(TIERS).map(async (tier) => `  ${tier}: {\n${(await Promise.all(PACKS.filter((p) => p !== "core").map(async (p) => `    ${p}: "${base}world-${tier}-${p}.glb?v=${await revision(`${OUT}/world-${tier}-${p}.glb`)}",`))).join("\n")}\n  },`))).join("\n")}
 };
 export const worldMoonUrl = "${base}moon.webp?v=${await revision(moonPath)}";
 export const worldHoloUrl = "${base}holo.webp?v=${await revision(holoPath)}";
@@ -359,4 +354,4 @@ export const worldPropsUrl = {
 const metadataPath = "src/data/world-assets.js";
 if ((await readFile(metadataPath, "utf8").catch(() => "")) !== metadata) await writeFile(metadataPath, metadata);
 console.log(`budgets: core high ${(sizes.high / 1e6).toFixed(2)} / ${BUDGET.high / 1e6} MB, phone ${(sizes.phone / 1e6).toFixed(2)} / ${BUDGET.phone / 1e6} MB; ` +
-  `packs high ${((sizes["high-west"] + sizes["high-east"]) / 1e6).toFixed(2)} MB, phone ${((sizes["phone-west"] + sizes["phone-east"]) / 1e6).toFixed(2)} MB`);
+  `packs high ${(PACKS.slice(1).reduce((a, p) => a + sizes[`high-${p}`], 0) / 1e6).toFixed(2)} MB, phone ${(PACKS.slice(1).reduce((a, p) => a + sizes[`phone-${p}`], 0) / 1e6).toFixed(2)} MB`);

@@ -56,7 +56,11 @@ export async function dressHolo(mesh, shared, { reduced = false } = {}) {
         float band = smoothstep(0.035, 0.0, abs((1.0 - uv.y) - sweep));
         uv.x += band * 0.012 * sin(t * 40.0);
         vec3 c = texture2D(uMap, uv).rgb;
-        float scan = 0.72 + 0.28 * sin((uv.y * 520.0) - t * 6.0);
+        // Her scanlines, faded to their mean once a line is under about a
+        // pixel: from the avenue they are finer than the screen, and drawn
+        // there they beat against its rows into a grille over everything.
+        float lines = uv.y * 520.0;
+        float scan = mix(0.72 + 0.28 * sin(lines - t * 6.0), 0.86, clamp(fwidth(lines) * 1.2 - 0.2, 0.0, 1.0));
         float flicker = 0.9 + 0.1 * step(0.6, hash12(vec2(floor(t * 9.0), 3.0)));
         float gain = uGain * scan * flicker * (1.0 - 0.55 * band) * (1.0 + 0.35 * uBass);
         vec3 col = c * c * gain;

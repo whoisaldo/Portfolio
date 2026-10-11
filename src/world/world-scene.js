@@ -171,10 +171,21 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       shelterBox = new THREE.Box3(shelter.position.clone(), shelter.position.clone().add(new THREE.Vector3(...size)));
       rain.setShelter(shelterBox.min, shelterBox.max);
     }
-    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, drones: tier === "phone" ? 5 : 8, police: true, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
+    traffic = createTraffic(scene, shared, {
+      avs: quality.avs + (tier === "phone" ? 1 : 2),
+      cars: quality.cars,
+      drones: tier === "phone" ? 5 : 8,
+      police: true,
+      reduced,
+      reflectLayer: REFLECT_LAYER,
+      rail: c.anchors.get("anchor_rail"),
+      streets: c.anchors.get("anchor_traffic")?.extras?.lanes ?? [],
+      parkedMore: c.anchors.get("anchor_parked")?.extras?.cars ?? [],
+      streetCars: tier === "phone" ? 16 : 44,
+    });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
-    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER });
+    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER, walks: c.anchors.get("anchor_crowd")?.extras?.walks ?? [] });
     steam = createSteam(scene, shared, c.anchors, { reduced });
     steam?.setLights(c.roofLights);
     resize();
@@ -1120,6 +1131,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       pixelRatio: renderer.getPixelRatio(),
       adapt: { shed: [...adapt.shed], p95: adapt.p95, sampling: adapt.sampling },
       packs: [...packsIn],
+      packsTotal: PACKS.length,
     };
   };
 

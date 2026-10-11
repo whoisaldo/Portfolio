@@ -1,6 +1,9 @@
 // src/world/crowd.js: people in the streets.
 //
-// The plate's street has people in it and the city's had none. Most walk the
+// The plate's street has people in it and the city's had none. Every
+// pavement of the network has its walkers now (the builder's streets.life
+// says how many, district by district), in the colours the show's crowds
+// wear, lit by the street they are in. Most walk the
 // avenue's two pavements (fifty-six on a desktop, twenty-two on a phone, of
 // ninety-six and thirty-six in all), up the avenue and down it, alone and in pairs, some under
 // umbrellas with a neon rim: the way a wet street at night reads from across
@@ -67,8 +70,15 @@ function rng(seed) {
   };
 }
 
-export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2 } = {}) {
+export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks: more = [] } = {}) {
   const r = rng(1312);
+  // The rest of the network's pavements (the builder's streets.life): from,
+  // the way it runs, how long, and how many walk it on a desktop and on a
+  // phone.
+  const walks = [...WALKS];
+  for (let i = 0; i + 6 < more.length; i += 7) {
+    walks.push({ from: [more[i], more[i + 1]], dir: [more[i + 2], more[i + 3]], len: more[i + 4], n: [more[i + 5], more[i + 6]] });
+  }
   const card = new THREE.PlaneGeometry(1, 1);
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.index = card.index;
@@ -79,7 +89,10 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   // carry (0 nothing, 1 a bag at the hip, 2 a bag in the hand) and a trim
   // lit in neon on one in five.
   const style = () => [0.86 + r() * 0.3, Math.floor(r() * 4), r() < 0.55 ? 0 : 1 + Math.floor(r() * 2), r() < 0.2 ? 1 : 0];
-  for (const w of WALKS) {
+  // What they wear: a jacket, trousers, skin and hair, each an index into
+  // the palettes in the shader. The show's crowds are colourful.
+  const wear = () => [Math.floor(r() * 12), Math.floor(r() * 8), Math.floor(r() * 5), Math.floor(r() * 7)];
+  for (const w of walks) {
     const n = w.n[phone ? 1 : 0];
     for (let k = 0; k < n; k++) {
       const dir = r() < 0.5 ? -1 : 1;
@@ -97,6 +110,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
           path: [w.dir[0], w.dir[1], w.len, at + g * 0.5 * dir],
           look: g ? [lk[0] - 0.04 + r() * 0.08, r() < 0.3 ? 1 : 0, lk[2], r()] : lk,
           style: g ? style() : st,
+          wear: wear(),
         });
       }
       if (pair) k++;
@@ -111,7 +125,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       lk[1] = 0;
       lk[3] = 0.9;
     }
-    people.push({ walk: [x, z, 0, r()], path: [0, 1, 1, 0], look: lk, style: style() });
+    people.push({ walk: [x, z, 0, r()], path: [0, 1, 1, 0], look: lk, style: style(), wear: wear() });
   }
   const n = people.length;
   const attr = (key, size = 4) => {
@@ -123,9 +137,10 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   geometry.setAttribute("aPath", attr("path"));
   geometry.setAttribute("aLook", attr("look"));
   geometry.setAttribute("aStyle", attr("style"));
+  geometry.setAttribute("aWear", attr("wear"));
   geometry.instanceCount = n;
-  // Everywhere they walk, from the avenue to the garage street.
-  geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(220, 1, -150), 380);
+  // Everywhere they walk, the whole network.
+  geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(180, 1, -340), 760);
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
@@ -138,6 +153,8 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       attribute vec4 aPath;
       attribute vec4 aLook;
       attribute vec4 aStyle;
+      attribute vec4 aWear;
+      varying vec4 vWear;
       uniform float uTime;
       uniform float uMotion;
       uniform vec3 uCam;
@@ -170,6 +187,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
         vWorld = p;
         vLook = aLook;
         vStyle = aStyle;
+        vWear = aWear;
         gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
       }
     `,
@@ -180,9 +198,52 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       varying vec3 vWorld;
       varying vec4 vLook;
       varying vec4 vStyle;
+      varying vec4 vWear;
       varying float vStep;
       varying float vFade;
       varying float vStill;
+      // What they wear, in the show's street colours: jackets in yellow,
+      // red, teal, purple, white, black, olive, orange, navy, pink, grey and
+      // tan; trousers darker; skin; hair (black, browns, bleached, pink,
+      // cyan).
+      vec3 jacketOf(float i) {
+        if (i < 0.5) return vec3(0.62, 0.48, 0.06);
+        if (i < 1.5) return vec3(0.46, 0.05, 0.05);
+        if (i < 2.5) return vec3(0.04, 0.3, 0.32);
+        if (i < 3.5) return vec3(0.22, 0.09, 0.36);
+        if (i < 4.5) return vec3(0.56, 0.56, 0.54);
+        if (i < 5.5) return vec3(0.035, 0.035, 0.04);
+        if (i < 6.5) return vec3(0.18, 0.21, 0.08);
+        if (i < 7.5) return vec3(0.6, 0.24, 0.04);
+        if (i < 8.5) return vec3(0.05, 0.08, 0.2);
+        if (i < 9.5) return vec3(0.56, 0.14, 0.3);
+        if (i < 10.5) return vec3(0.22, 0.22, 0.24);
+        return vec3(0.38, 0.3, 0.2);
+      }
+      vec3 trousersOf(float i) {
+        if (i < 0.5) return vec3(0.03, 0.03, 0.035);
+        if (i < 1.5) return vec3(0.08, 0.1, 0.18);
+        if (i < 2.5) return vec3(0.16, 0.14, 0.12);
+        if (i < 3.5) return vec3(0.05, 0.12, 0.12);
+        if (i < 4.5) return vec3(0.24, 0.05, 0.06);
+        if (i < 5.5) return vec3(0.3, 0.3, 0.3);
+        if (i < 6.5) return vec3(0.12, 0.12, 0.05);
+        return vec3(0.02, 0.02, 0.025);
+      }
+      vec3 skinOf(float i) {
+        if (i < 0.5) return vec3(0.52, 0.34, 0.24);
+        if (i < 1.5) return vec3(0.32, 0.2, 0.13);
+        if (i < 2.5) return vec3(0.66, 0.48, 0.37);
+        if (i < 3.5) return vec3(0.2, 0.13, 0.09);
+        return vec3(0.6, 0.42, 0.3);
+      }
+      vec3 hairOf(float i) {
+        if (i < 2.5) return vec3(0.02, 0.018, 0.016);
+        if (i < 3.5) return vec3(0.12, 0.07, 0.04);
+        if (i < 4.5) return vec3(0.7, 0.62, 0.44);
+        if (i < 5.5) return vec3(0.7, 0.16, 0.45);
+        return vec3(0.1, 0.55, 0.6);
+      }
       // A segment whose radius runs from ra at a to rb at b: close enough to
       // a distance for a cut-out.
       float limb(vec2 p, vec2 a, vec2 b, float ra, float rb) {
@@ -208,28 +269,30 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
         float head = vStyle.y;
         // Head and neck, shoulders wider than the waist, and, on about a
         // third of them, a long coat to the knee that the legs come out of.
-        float d = length((p - vec2(0.0, 1.635)) / vec2(0.9, 1.0)) * 0.9 - 0.1;
-        if (head > 0.5 && head < 1.5) d = min(d, limb(p, vec2(0.0, 1.6), vec2(0.0, 1.47), 0.135, 0.15));
-        else if (head > 1.5 && head < 2.5) d = min(d, boxd(p, vec2(0.0, 1.72), vec2(0.11, 0.035)));
-        else if (head > 2.5) d = min(d, limb(p, vec2(0.0, 1.66), vec2(0.0, 1.38), 0.105, 0.12));
-        d = min(d, limb(p, vec2(0.0, 1.5), vec2(0.0, 1.56), 0.05, 0.05));
-        d = min(d, limb(p, vec2(0.0, 1.4), vec2(0.0, 0.98), 0.2, 0.15));
-        d = min(d, limb(p, vec2(-0.13, 1.42), vec2(0.13, 1.42), 0.065, 0.065));
+        float dHead = length((p - vec2(0.0, 1.635)) / vec2(0.9, 1.0)) * 0.9 - 0.1;
+        float dHair = 1e3;
+        if (head > 0.5 && head < 1.5) dHair = limb(p, vec2(0.0, 1.6), vec2(0.0, 1.47), 0.135, 0.15);
+        else if (head > 1.5 && head < 2.5) dHair = boxd(p, vec2(0.0, 1.72), vec2(0.11, 0.035));
+        else if (head > 2.5) dHair = limb(p, vec2(0.0, 1.66), vec2(0.0, 1.38), 0.105, 0.12);
+        else dHair = max(dHead, 1.66 - p.y);
+        float dNeck = limb(p, vec2(0.0, 1.5), vec2(0.0, 1.56), 0.05, 0.05);
+        float dTorso = min(limb(p, vec2(0.0, 1.4), vec2(0.0, 0.98), 0.2, 0.15), limb(p, vec2(-0.13, 1.42), vec2(0.13, 1.42), 0.065, 0.065));
         bool coat = vLook.w < 0.34;
-        if (coat) d = min(d, limb(p, vec2(0.0, 1.3), vec2(0.0, 0.52), 0.17, 0.25 + 0.02 * swing));
+        float dCoat = coat ? limb(p, vec2(0.0, 1.3), vec2(0.0, 0.52), 0.17, 0.25 + 0.02 * swing) : 1e3;
         // Legs from the hip through the knee, swinging from the hip.
         vec2 kneeL = vec2(-0.08 + 0.1 * swing, 0.5);
         vec2 kneeR = vec2(0.08 - 0.1 * swing, 0.5);
-        d = min(d, limb(p, vec2(-0.08, 0.95), kneeL, 0.085, 0.06));
-        d = min(d, limb(p, vec2(0.08, 0.95), kneeR, 0.085, 0.06));
-        d = min(d, limb(p, kneeL, vec2(-0.08 + 0.17 * swing, 0.05), 0.06, 0.045));
-        d = min(d, limb(p, kneeR, vec2(0.08 - 0.17 * swing, 0.05), 0.06, 0.045));
+        float dLegs = min(limb(p, vec2(-0.08, 0.95), kneeL, 0.085, 0.06), limb(p, vec2(0.08, 0.95), kneeR, 0.085, 0.06));
+        dLegs = min(dLegs, min(limb(p, kneeL, vec2(-0.08 + 0.17 * swing, 0.05), 0.06, 0.045), limb(p, kneeR, vec2(0.08 - 0.17 * swing, 0.05), 0.06, 0.045)));
+        float dShoes = max(dLegs, p.y - 0.1);
         // Arms swing against the legs, just clear of the body; one holds the
         // umbrella up, or a phone in front of them while they stand.
         bool phoneUp = !umbrella && vStill > 0.5 && vLook.w > 0.5;
-        d = min(d, limb(p, vec2(-0.2, 1.4), vec2(-0.25 - 0.08 * swing, 0.88), 0.055, 0.04));
         vec2 hand = umbrella ? vec2(0.12, 1.3) : phoneUp ? vec2(0.06, 1.12) : vec2(0.25 + 0.08 * swing, 0.88);
-        d = min(d, limb(p, vec2(0.2, 1.4), hand, 0.055, 0.04));
+        vec2 handL = vec2(-0.25 - 0.08 * swing, 0.88);
+        float dArms = min(limb(p, vec2(-0.2, 1.4), handL, 0.055, 0.04), limb(p, vec2(0.2, 1.4), hand, 0.055, 0.04));
+        float dHands = min(length(p - hand) - 0.045, length(p - handL) - 0.045);
+        float d = min(min(min(dHead, dHair), min(dNeck, dTorso)), min(min(dCoat, dLegs), dArms));
         // What they carry: a bag at the hip on its strap, or one in the hand.
         if (vStyle.z > 0.5 && vStyle.z < 1.5) {
           d = min(d, boxd(p, vec2(-0.27, 0.92), vec2(0.07, 0.1)));
@@ -247,15 +310,22 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
           d = min(d, limb(p, vec2(0.06, 1.95), vec2(0.1, 1.3), 0.012, 0.012));
         }
         if (min(d, min(canopy, rim)) > 0.0) discard;
-        // Dark against the lit shops behind them, their fronts faintly lit by
-        // the street's signs, and only their heads and shoulders catching
-        // the light from above.
-        // The spill is the light where they stand, and most of it comes from
-        // the shops behind them, so the side the street sees takes a little
-        // of it: dark against the windows, not grey cut-outs.
-        float edge = smoothstep(-0.018, 0.0, d) * smoothstep(1.1, 1.6, p.y);
+        float edge = smoothstep(-0.018, 0.0, d);
         vec3 spill = spillAt(vWorld);
-        vec3 col = vec3(0.01, 0.01, 0.014) + spill * (0.04 + 0.45 * edge);
+        // What each part of them is made of: skin, hair or the hood or cap,
+        // the jacket (or the coat over it), trousers, shoes, a bag.
+        vec3 jacket = jacketOf(vWear.x);
+        vec3 albedo = trousersOf(vWear.y);
+        if (dShoes <= 0.0) albedo = vec3(0.03);
+        if (dArms <= 0.0 || dTorso <= 0.0) albedo = jacket;
+        if (dCoat <= 0.0) albedo = jacket * 0.75;
+        if (dNeck <= 0.0 || dHead <= 0.0 || dHands <= 0.0) albedo = skinOf(vWear.z);
+        if (dHair <= 0.0) albedo = head > 0.5 && head < 2.5 ? jacket * (head < 1.5 ? 0.85 : 0.6) : hairOf(vWear.w);
+        // Lit by the street they stand in: the signs' and shops' spill on the
+        // side the camera sees, more on their heads and shoulders, a rim of
+        // it round their outline, and the haze's cool fill.
+        float top = smoothstep(0.9, 1.7, p.y);
+        vec3 col = albedo * (vec3(0.05, 0.05, 0.07) + spill * (0.55 + 0.6 * top) + uHazeColor * 0.25) + spill * edge * 0.35;
         vec3 tint = uRims[int(vLook.z + 0.5)];
         float glow = 0.0;
         if (canopy <= 0.0) col = vec3(0.02, 0.02, 0.028) + spill * 0.12 + tint * 0.05;

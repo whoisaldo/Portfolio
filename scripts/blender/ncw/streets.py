@@ -26,6 +26,8 @@ CORNER_R = 4.0
 WHITE = (0.78, 0.76, 0.70, 1.0)
 YELLOW = (0.86, 0.66, 0.10, 1.0)
 GREEN = (0.20, 0.78, 0.42, 1.0)
+# Painted kerbs and tactile paving: yellow paint on stone, lit by the street.
+KERB_YELLOW = (0.55, 0.42, 0.07, 1.0)
 EPS = 1e-6
 
 
@@ -150,10 +152,13 @@ def _crossing(s, v_edge, direction, district):
         _rect_uv(k, s, 0.0, h - 0.3, stop - 0.2, stop + 0.2, 0.012, 1.0, WHITE)
     else:
         _rect_uv(k, s, -h + 0.3, 0.0, stop - 0.2, stop + 0.2, 0.012, 1.0, WHITE)
-    # Tactile paving where each crossing meets the pavement.
+    # Tactile paving where each crossing meets the pavement, and the kerb
+    # painted yellow along it (XMaaEjT0LhU@64).
     for side in (-1, 1):
         u0 = side * (h + KERB_W)
-        _rect_uv((district, "hazard", 1), s, min(u0, u0 + side * 0.6), max(u0, u0 + side * 0.6), va, vb, PAVE_Y + 0.006, 0.5)
+        _rect_uv((district, "trim", 1), s, min(u0, u0 + side * 0.6), max(u0, u0 + side * 0.6), va, vb, PAVE_Y + 0.006, 0.5, KERB_YELLOW)
+        ka, kb = sorted((side * h, side * (h + KERB_W)))
+        _rect_uv((district, "trim", 0), s, ka, kb, va - 1.5, vb + 1.5, PAVE_Y + 0.004, 1.0, KERB_YELLOW)
 
 
 def _kerb_run(s, side, v0, v1, district):
@@ -457,3 +462,68 @@ def furniture():
 
 build()
 furniture()
+
+
+# How busy each district's pavements are: people per 100 m of each walking
+# line on a desktop (a phone takes about a third).
+CROWD = {"avenue": 7.0, "canyon": 5.0, "mega": 4.0, "japantown": 8.0, "deck": 1.0, "plaza": 4.5, "corpo": 4.0,
+         "afterlife": 5.0, "santo": 1.6, "far": 1.0}
+
+
+def life():
+    """The street's life, for the site to run (src/world/traffic.js and
+    crowd.js): every lane of every street but the avenue's own (which the
+    site has long driven), each as a run a car loops along fading in and
+    out at its ends; every pavement as two walking lines with how many walk
+    them; and cars parked in the streets' bays. Written as extras on three
+    empties in the core GLB."""
+    rng = random.Random(3131)
+    lanes, walks, parked = [], [], []
+    for s in plan.STREETS:
+        for a, b in plan.runs(s):
+            a0, b0 = a + CORNER_R + 5.0, b - CORNER_R - 5.0
+            if b0 - a0 < 20.0:
+                continue
+            avenue_own = s.name == "avenue" and b > -186.0
+            lane_w = (s.half - s.bay) / s.lanes
+            if not avenue_own:
+                for side in (-1, 1):
+                    for k in range(s.lanes):
+                        u = side * lane_w * (k + 0.5)
+                        if s.axis == "z":
+                            north = side > 0
+                            x0, z0 = s.c + u, (b0 if north else a0)
+                            dx, dz = 0.0, (-1.0 if north else 1.0)
+                        else:
+                            east = side > 0
+                            x0, z0 = (a0 if east else b0), s.c + u
+                            dx, dz = (1.0 if east else -1.0), 0.0
+                        lanes.append([round(x0, 2), round(z0, 2), dx, dz, round(b0 - a0, 1), round(s.speed * rng.uniform(0.75, 1.1), 1)])
+            # Pavements: a line near the kerb and one near the shops.
+            if not (s.name == "avenue" and -172.0 <= a and b <= 60.0):
+                mid = (a + b) / 2
+                for side in (-1, 1):
+                    for off in (s.half + KERB_W + 0.9, s.half + KERB_W + s.walk - 1.1):
+                        u = side * off
+                        x, z = _w(s, u, a + CORNER_R + 1.0)
+                        dx, dz = (0.0, 1.0) if s.axis == "z" else (1.0, 0.0)
+                        length = (b - a) - 2 * (CORNER_R + 1.0)
+                        dens = CROWD.get(_d(*_w(s, u, mid)), 2.0)
+                        n_hi = max(0, round(length / 100.0 * dens * rng.uniform(0.7, 1.3)))
+                        walks.append([round(x, 2), round(z, 2), dx, dz, round(length, 1), n_hi, max(0, round(n_hi * 0.33))])
+            # Cars parked along the bays now and then.
+            if s.bay > 0 and not avenue_own:
+                for side in (-1, 1):
+                    v = a + CORNER_R + 8.0
+                    while v < b - CORNER_R - 8.0:
+                        if rng.random() < 0.35:
+                            x, z = _w(s, side * (s.half - s.bay / 2), v)
+                            yaw = (0.0 if side < 0 else math.pi) if s.axis == "z" else (math.pi / 2 if side > 0 else -math.pi / 2)
+                            parked.append([round(x, 2), round(z, 2), round(yaw, 3)])
+                        v += rng.uniform(6.0, 9.0)
+    empty("anchor_traffic", (0, 0, 0), props={"lanes": [v for l in lanes for v in l]})
+    empty("anchor_crowd", (0, 0, 0), props={"walks": [v for w in walks for v in w]})
+    empty("anchor_parked", (0, 0, 0), props={"cars": [v for c in parked for v in c]})
+
+
+life()

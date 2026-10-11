@@ -101,7 +101,7 @@ export async function attachDevcam(world) {
 
   const show = (p, extra = {}) => {
     world.stage.mode = "cinematic";
-    world.renderDirected(1 / 30, { pose: p, board: 0, towers: [], garage: { door: 0, tubes: false }, mirror: 0, glitch: 0, ...extra });
+    world.renderDirected(1 / 30, { pose: p, board: 0, towers: [], garage: { door: 0, tubes: false }, mirror: 1, glitch: 0, ...extra });
   };
 
   // The free camera.

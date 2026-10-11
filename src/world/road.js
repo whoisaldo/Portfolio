@@ -151,8 +151,12 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // is wider than one, or they would shimmer.
         col += spill * 0.05 * (1.0 - rough) * uWet;
         float grainPx = fwidth(vWorld.x) + fwidth(vWorld.z);
-        float glint = step(0.993, hash12(floor(vWorld.xz * 24.0))) * (1.0 - smoothstep(0.02, 0.06, grainPx));
-        col += spill * glint * 4.0 * fres * uWet * crack;
+        // A stone here and there, round and small: square, bright and many,
+        // they read as confetti on the road.
+        vec2 gcell = vWorld.xz * 24.0;
+        vec2 gf = fract(gcell) - 0.5;
+        float glint = step(0.997, hash12(floor(gcell))) * smoothstep(0.25, 0.05, length(gf)) * (1.0 - smoothstep(0.015, 0.04, grainPx));
+        col += spill * glint * 1.6 * fres * uWet * crack;
 
         // The baked streaks: every sign's light run back toward the eye.
         vec2 suv = (vWorld.xz - uStreakBounds.xy) * uStreakBounds.zw;

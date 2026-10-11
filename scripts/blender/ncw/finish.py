@@ -39,7 +39,8 @@ def _mesh(name, verts, faces, uvs, cols, mat_name):
 # (and the garage, whose painted walls carry the core's own textures); the
 # rest streams in behind it, west and east of the avenue.
 PACK_OF = {"japantown": "west", "deck": "west", "mega": "west",
-           "plaza": "east", "corpo": "east", "rooftop": "east", "afterlife": "east", "santo": "east"}
+           "plaza": "east", "corpo": "east", "rooftop": "east", "afterlife": "east",
+           "avenue_s": "south", "santo": "south"}
 
 for (district, mat_name, detail), b in batches.items():
     if not b.faces:

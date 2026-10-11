@@ -51,7 +51,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = false, tinted = false } = {}) => {
+  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = false, tinted = false, sky = 1 } = {}) => {
     if (made.has(key)) return made.get(key);
     const m = keep(new THREE.ShaderMaterial({
       defines: { ...(detail ? { DETAIL: "" } : {}), ...(tinted ? { TINTED: "" } : {}) },
@@ -63,6 +63,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uAmbient: { value: ambient },
         uSpillMul: { value: spill },
         uGloss: { value: rough },
+        uSky: { value: sky },
       },
       vertexShader: tinted ? VERT_WORLD_COLOR : VERT_WORLD,
       fragmentShader: /* glsl */ `
@@ -72,6 +73,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uniform float uHasMap;
         uniform float uAmbient;
         uniform float uSpillMul;
+        uniform float uSky;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
@@ -114,8 +116,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           #endif
           float up = clamp(n.y, 0.0, 1.0);
           vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.55 + 0.45 * up) + lampsAt(vWorld, n) * 5.0;
-          // What faces the sky catches the city's glow on the cloud.
-          light += (uHazeColor * 0.22 + uGlowColor * 0.12) * up * uHaze;
+          // What faces the sky catches the city's glow on the cloud (a wet
+          // roof, uSky, more of it: seen from above a roof is a dark blue
+          // surface, not a hole).
+          light += (uHazeColor * 0.22 + uGlowColor * 0.12) * up * uHaze * uSky;
           vec3 col = albedo * light;
           // And at a grazing angle every edge holds a little of the haze
           // behind it, so a dark shape stands off the dark behind it.
@@ -983,7 +987,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "paint": return surface("paint", { color: "#b9b7ae", ambient: 0.05, spill: 1.3 });
       case "metal": return surface("metal", { color: "#34373e", ambient: 0.04, detail: true });
       case "dark": return surface("dark", { color: "#121318", ambient: 0.024, spill: 0.6, detail: true });
-      case "roof": return surface("roof", { color: "#15161a", ambient: 0.025, spill: 0.5 });
+      // Tar and gravel, weathered and wet: dark, but a surface the sky's glow
+      // and the signs' light can be seen on from above, not a hole.
+      case "roof": return surface("roof", { color: "#2b2c32", ambient: 0.035, spill: 0.65, detail: true, sky: 9 });
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
       case "door": return surface("door", { color: "#2a2d33", ambient: 0.04 });
       // A roller shutter, down: ribbed steel the street's light runs along.

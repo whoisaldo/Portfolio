@@ -212,8 +212,13 @@ def _drum(k):
 
 @proto("hydrant", box=(0.15, 0.4, 0.15), reach=200, detail=True)
 def _hydrant(k):
-    cylinder(k("hazard"), 0.0, 0.0, 0.0, 0.7, 0.12, segs=8)
-    cylinder(k("hazard"), 0.0, 0.0, 0.7, 0.8, 0.08, segs=8)
+    """A hydrant, red paint on iron, its cap and its two outlets."""
+    red = (0.42, 0.06, 0.05, 1)
+    cylinder(k("trim"), 0.0, 0.0, 0.0, 0.62, 0.12, segs=10, col=red)
+    cylinder(k("trim"), 0.0, 0.0, 0.62, 0.74, 0.1, segs=10, col=red)
+    cylinder(k("trim"), 0.0, 0.0, 0.74, 0.8, 0.05, segs=6, col=(0.2, 0.2, 0.22, 1))
+    for yaw in (0.0, math.pi):
+        oriented_box(k("trim"), math.sin(yaw) * 0.14, 0.42, math.cos(yaw) * 0.14, 0.1, 0.1, 0.12, yaw, scale=0.5, col=red)
 
 
 @proto("phone_booth", box=(0.5, 1.2, 0.5))
@@ -271,3 +276,31 @@ def _pole_utility(k):
     cylinder(k("trim"), 0.0, 0.0, 0.0, 9.0, 0.13, segs=6, col=(0.12, 0.09, 0.07, 1))
     for y in (8.2, 7.4):
         box(k("trim"), -1.1, 1.1, y, y + 0.12, -0.06, 0.06, scale=0.5, col=(0.12, 0.09, 0.07, 1))
+
+
+@proto("dumpster", box=(0.9, 0.6, 0.55), reach=300, detail=True)
+def _dumpster(k):
+    """A skip against a back wall: painted steel, its lid, its wheels."""
+    col = (0.06, 0.16, 0.1, 1)
+    box(k("trim"), -0.9, 0.9, 0.18, 1.2, -0.55, 0.55, scale=1.0, col=col)
+    box(k("trim"), -0.95, 0.95, 1.2, 1.28, -0.6, 0.6, scale=1.0, col=(0.05, 0.12, 0.08, 1))
+    for x in (-0.7, 0.7):
+        for z in (-0.4, 0.4):
+            cylinder(k("dark"), x, z, 0.0, 0.18, 0.09, segs=6)
+
+
+@proto("bags", box=(0.7, 0.35, 0.5), reach=220, detail=True)
+def _bags(k):
+    """Bin bags heaped by a door: black plastic, lumpy."""
+    for (x, z, r_, h) in ((-0.35, 0.0, 0.32, 0.55), (0.2, 0.15, 0.36, 0.62), (0.3, -0.3, 0.26, 0.45), (-0.1, -0.35, 0.24, 0.4)):
+        oriented_box(k("trim"), x, h / 2, z, r_ * 1.6, h, r_ * 1.5, x * 2.0, scale=1.0, col=(0.02, 0.02, 0.025, 1))
+
+
+@proto("crates", box=(0.6, 0.6, 0.6), reach=220, detail=True)
+def _crates(k):
+    """Crates stacked on a pallet."""
+    wood = (0.2, 0.13, 0.07, 1)
+    box(k("trim"), -0.6, 0.6, 0.0, 0.14, -0.5, 0.5, scale=1.0, col=wood)
+    box(k("trim"), -0.55, 0.0, 0.14, 0.7, -0.45, 0.45, scale=1.0, col=(0.24, 0.16, 0.09, 1))
+    box(k("trim"), 0.05, 0.55, 0.14, 0.6, -0.4, 0.3, scale=1.0, col=wood)
+    box(k("trim"), -0.45, 0.1, 0.7, 1.15, -0.35, 0.35, scale=1.0, col=(0.26, 0.18, 0.1, 1))

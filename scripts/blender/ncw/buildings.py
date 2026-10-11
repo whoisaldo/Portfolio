@@ -194,7 +194,7 @@ def shopfront(district, f, r, s0, s1, tint, sign_rate=0.6, awning_rate=0.55, doo
             f.box((district, "trim", 0), a + 0.2, b - 0.2, 2.44, 2.46, -0.9, 0.0, col=DARK_TRIM)
             f.box((district, "glow", 0), mid - 0.15, mid + 0.15, 2.38, 2.44, -0.6, -0.4, col=GLOW["white"])
             continue
-        lit = (r.uniform(0.25, 1.0), r.random(), 1.0 if r.random() < 0.8 else 0.0, 1.0)
+        lit = (r.uniform(0.35, 1.0), r.random(), 1.0 if r.random() < 0.92 else 0.0, 1.0)
         # The glass, set back, and the bulkhead under it.
         f.quad((district, "shop", 0), a + 0.2, b - 0.2, 0.55, 3.3, -REC, col=lit)
         f.quad((district, "trim", 0), a + 0.2, b - 0.2, G0, 0.55, -REC + 0.01, col=DARK_TRIM)
@@ -222,8 +222,8 @@ def back_ground(district, f, r, tcol):
     lit, Zuzys9Ld_5M@87), a small sign by a door now and then, a shutter
     for deliveries."""
     w = f.width
-    wall = tuple(min(1.0, c * 1.6) for c in tcol[:3]) + (1.0,)
-    f.quad((district, "trim", 0), 0.0, w, 0.0, SHOP_H, 0.0, col=wall)
+    # Bare concrete at street level, stained by the rain.
+    f.quad((district, "concrete", 0), 0.0, w, 0.0, SHOP_H, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, SHOP_H / 3.0), (0, SHOP_H / 3.0)))
     s = r.uniform(1.5, 4.0)
     while s < w - 1.5:
         if r.random() < 0.22 and s + 3.6 < w - 0.5:
@@ -236,6 +236,11 @@ def back_ground(district, f, r, tcol):
         f.quad((district, "door", 0), s, s + 1.1, G0, 2.3, 0.03)
         f.box((district, "metal", 1), s - 0.08, s + 1.18, 2.3, 2.4, 0.0, 0.12)
         mid = s + 0.55
+        # By the door, what a back street keeps there.
+        pick = r.random()
+        if pick < 0.75 and s + 3.6 < w:
+            px_, _, pz_ = f.p(f.at(s + 2.3), G0, 0.7)
+            P.place("dumpster" if pick < 0.3 else "bags" if pick < 0.6 else "crates", px_, G0, pz_, f.yaw, district=district)
         roll = r.random()
         if roll < 0.35:
             f.box((district, "neon_cyan", 0), s - 0.3, s + 1.4, 2.62, 2.7, 0.04, 0.1)
@@ -328,8 +333,34 @@ def face_signs(district, f, r, s0, s1, top, density=1.0, colours=None, blades=Tr
     ceiling = max(SHOP_H + 2.4, min(top - 1.0, 30.0))
     count = int(round(r.uniform(0.25, 0.5) * (s1 - s0) * density))
     for _ in range(count):
+        if blades and r.random() < 0.18:
+            # A stack: small boards one over another on a frame, each its
+            # own, the column of small red and orange boards the show hangs
+            # off its blocks (ARL_JWwKdDs@21).
+            n = r.randrange(3, 6)
+            s = r.uniform(s0 + 0.8, s1 - 0.8)
+            y = r.uniform(SHOP_H + 1.0, max(SHOP_H + 1.2, ceiling - n * 1.0))
+            out = 0.9
+            a = f.at(s)
+            for j in range(n):
+                size = r.choice(("ps", "ps", "bx"))
+                w, h = ST_SIZES[size]
+                yy = y + j * 1.05
+                pa = f.p(a, yy, out)
+                if f.nx != 0:
+                    box((district, "board_frame", 0), pa[0] - w / 2 - 0.05, pa[0] + w / 2 + 0.05, yy - h / 2 - 0.05, yy + h / 2 + 0.05, a - 0.06, a + 0.06, scale=1.0)
+                    sid = st_name(size)
+                    sign(sid, pa[0], yy, a + 0.07, w, h, 0.0, district=district, label=False)
+                    sign(sid + "_b", pa[0], yy, a - 0.07, w, h, math.pi, district=district, label=False)
+                else:
+                    box((district, "board_frame", 0), a - 0.06, a + 0.06, yy - h / 2 - 0.05, yy + h / 2 + 0.05, pa[2] - w / 2 - 0.05, pa[2] + w / 2 + 0.05, scale=1.0)
+                    sid = st_name(size)
+                    sign(sid, a + 0.07, yy, pa[2], w, h, math.pi / 2, district=district, label=False)
+                    sign(sid + "_b", a - 0.07, yy, pa[2], w, h, -math.pi / 2, district=district, label=False)
+            f.box((district, "metal", 1), s - 0.05, s + 0.05, y - 0.6, y + n * 1.05, 0.0, out - 0.6)
+            continue
         if blades and r.random() < 0.65:
-            size = r.choices(["bs", "bm", "bl", "bx"], weights=[3, 4, 2, 2])[0]
+            size = r.choices(["bs", "bm", "bl", "bx"], weights=[3, 4, 3, 1])[0]
             w, h = ST_SIZES[size]
             y = r.uniform(SHOP_H + 0.6 + h / 2, max(SHOP_H + 0.7 + h / 2, ceiling - h / 2))
             s = r.uniform(s0 + 0.6, s1 - 0.6)
@@ -352,7 +383,7 @@ def face_signs(district, f, r, s0, s1, top, density=1.0, colours=None, blades=Tr
             # Its bracket back to the wall.
             f.box((district, "metal", 1), s - 0.04, s + 0.04, y + h / 2 + 0.07, y + h / 2 + 0.14, 0.0, out)
         else:
-            size = r.choices(["ps", "pm", "bx"], weights=[4, 3, 2])[0]
+            size = r.choices(["ps", "pm", "bx"], weights=[4, 4, 1])[0]
             w, h = ST_SIZES[size]
             if s1 - s0 < w + 1.0:
                 continue
@@ -393,7 +424,10 @@ def roof_dress(district, x0, x1, z0, z1, top, r, cap=6.0, face=None, hero=False,
     room, an antenna, a dish, now and then a sign on posts. Nothing over
     `cap`. `hero`: a roof the hero looks along keeps only what its lens
     cannot see (kit.hero_sees, kit.hero_covers)."""
-    fits = (lambda lo, hi: not (hero_sees(lo, hi) or hero_covers(lo, hi))) if hero else (lambda lo, hi: True)
+    # A roof the hero looks along keeps clear of what it frames over the
+    # canyon (ARASAKA's name, the figure, the megablock's cyan sign); what
+    # stands against its own band of sky stays under the cap.
+    fits = (lambda lo, hi: not hero_covers(lo, hi)) if hero else (lambda lo, hi: True)
     ROOFS.append((district, x0, x1, z0, z1, top))
     if parapet:
         t, ph = 0.3, 0.95

@@ -77,10 +77,15 @@ for side, lots in LOTS.items():
         if t[8] is None and t[0] == AV:
             HERO_ROOFS[k] = t[:8] + (-s * math.pi / 2,) + t[9:]
 
+# What the hero's lens does not see (its lanes behind the rows, the south
+# arm behind it, the south street's frontages, the depot) is Kabuki Avenue
+# too, but streams in with the east pack (finish.PACK_OF), so the core the
+# city goes live on stays the size it was.
+AVS = "avenue_s"
 # The service lanes behind each row, paved, lit and cluttered, from the
 # south street to the plaza street (the deck crosses them overhead).
 for xa, xb in ((-WALK - DEPTH - 6.0, -WALK - DEPTH), (WALK + DEPTH, WALK + DEPTH + 8.0)):
-    B.ground_rect(AV, xa, xb, -168.0, -10.0)
+    B.ground_rect(AVS, xa, xb, -168.0, -10.0)
     lr = random.Random(int(xa * 13))
     z = -14.0
     while z > -164.0:
@@ -88,11 +93,11 @@ for xa, xb in ((-WALK - DEPTH - 6.0, -WALK - DEPTH), (WALK + DEPTH, WALK + DEPTH
             kind = lr.random()
             x = xa + 0.6 if lr.random() < 0.5 else xb - 0.6
             if kind < 0.35:
-                P.place("bin", x, 0.15, z, district=AV)
+                P.place("bin", x, 0.15, z, district=AVS)
             elif kind < 0.5:
-                P.place("drum", x, 0.15, z, district=AV)
+                P.place("drum", x, 0.15, z, district=AVS)
             elif kind < 0.62:
-                P.place("lamp_short", x, 0.15, z, district=AV)
+                P.place("lamp_short", x, 0.15, z, district=AVS)
         z -= lr.uniform(5.0, 11.0)
 
 # The avenue's south arm, behind the hero's lens (the drift's camera stands
@@ -113,26 +118,49 @@ for s in (-1, 1):
             nb["-z"] = hs[j - 1]
         if j < len(ARM) - 1:
             nb["+z"] = hs[j + 1]
-        B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AV), hs[j], r, style=STYLE)
+        B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AVS), hs[j], r, style=STYLE)
 # The arm ends at a yard wall and the depot behind it, square across the
 # street: a shut gate, a lit sign over it, the depot's mass over the wall.
-B.building(B.Lot(-WALK - DEPTH, WALK + DEPTH, 92.0, 118.0, "-z", {"-z": "street", "+z": "back", "-x": "open", "+x": "open"}, {}, AV),
+B.building(B.Lot(-WALK - DEPTH, WALK + DEPTH, 92.0, 118.0, "-z", {"-z": "street", "+z": "back", "-x": "open", "+x": "open"}, {}, AVS),
            19.0, random.Random(2399), style=dict(STYLE, tints=("rust", "brown"), windows=(2,), balcony=0.0, signs=0.6),
            ground="blank")
-B.ground_rect(AV, -WALK - DEPTH, WALK + DEPTH, 88.0, 92.0)
+B.ground_rect(AVS, -WALK - DEPTH, WALK + DEPTH, 88.0, 92.0)
+# Its yard wall across the road's end and the gate in it: two leaves of
+# corrugated steel, shut, in a frame lit amber, hazard stripes over them, a
+# flood on each pier throwing light down on the gate, a sign over it, the
+# guard's booth beside it lit inside, a barrier and drums at the kerb.
 for xo in (-6.0, 6.0):
-    box((AV, "metal", 0), xo - 6.0, xo + 6.0, 0.15, 6.2, 91.7, 92.0, scale=1.0)
-box((AV, "hazard", 1), -12.0, 12.0, 6.2, 6.5, 91.65, 91.75, scale=1.0)
-box((AV, "neon_amber", 0), -10.0, 10.0, 7.2, 7.35, 91.6, 91.7, scale=1.0)
+    box((AVS, "door_panel", 0), xo - 5.9, xo + 5.9, 0.15, 6.2, 91.75, 92.0, scale=1.0)
+for px in (-12.4, 0.0, 12.4):
+    box((AVS, "concrete", 0), px - 0.4, px + 0.4, 0.0, 7.0, 91.4, 92.3, scale=1.5)
+box((AVS, "hazard", 1), -12.0, 12.0, 6.2, 6.5, 91.65, 91.75, scale=1.0)
+box((AVS, "neon_amber", 0), -12.0, 12.0, 6.55, 6.65, 91.6, 91.7, scale=1.0)
+for px in (-12.0, 12.0):
+    box((AVS, "neon_amber", 0), px - 0.05, px + 0.05, 0.3, 6.5, 91.6, 91.7, scale=1.0)
+    box((AVS, "metal", 1), px - 0.3, px + 0.3, 7.0, 7.3, 91.0, 91.8, scale=0.5)
+    box((AVS, "glow", 0), px - 0.25, px + 0.25, 6.92, 7.0, 91.05, 91.75, scale=0.5, col=GLOW["white"])
+    site_lamp(f"depot_{'w' if px < 0 else 'e'}", (px, 6.8, 90.6), "#ffd8a8", 9.0, 1.1)
+box((AVS, "board_frame", 0), -7.0, 7.0, 8.0, 10.6, 91.55, 91.75, scale=1.0)
+sign(st_name("pm"), -3.5, 9.3, 91.5, 2.8, 1.2, math.pi, district=AV, label=False)
+sign(st_name("pm"), 3.5, 9.3, 91.5, 2.8, 1.2, math.pi, district=AV, label=False)
+# The booth, east of the gate: a lit window, its roof.
+box((AVS, "trim", 0), 14.4, 17.4, 0.15, 2.8, 86.4, 89.0, scale=1.0, col=B.TRIM[5])
+quad((AVS, "shop", 0), (14.38, 1.0, 88.6), (14.38, 1.0, 86.8), (14.38, 2.3, 86.8), (14.38, 2.3, 88.6), col=(0.8, 0.9, 1.0, 1.0))
+box((AVS, "metal", 1), 14.2, 17.6, 2.8, 2.95, 86.2, 89.2, scale=1.0)
+P.place("barrier", 9.0, 0.15, 86.5, district=AVS)
+P.place("barrier", -9.0, 0.15, 86.5, district=AVS)
+P.place("cctv", 12.9, 0.15, 89.5, district=AVS)
+for (x, z) in ((-11.0, 89.6), (-10.3, 89.9), (-11.4, 90.4)):
+    P.place("drum", x, 0.15, z, district=AVS)
 
 # The south street's frontages either side of the hero's junction, out to
 # the west street and to the x 120 road: its south side, and the stretch of
 # its north side the avenue's rows do not reach (east of the east lane).
 SOUTH = dict(STYLE, signs=1.4, roof_cap=6.0)
-B.row(AV, "-z", -66.0, -WALK, 30.0, 12.0, lambda i, a: random.Random(int(a * 7)).choice((16.0, 22.0, 27.0, 33.0)),
+B.row(AVS, "-z", -66.0, -WALK, 30.0, 12.0, lambda i, a: random.Random(int(a * 7)).choice((16.0, 22.0, 27.0, 33.0)),
       lambda i: random.Random(int(i * 31 + 5)).choice((9.6, 12.8, 16.0)), random.Random(2401), style=SOUTH,
       ends=("street", "street"))
-B.row(AV, "-z", WALK, 108.0, 30.0, 12.0, lambda i, a: random.Random(int(a * 11)).choice((15.0, 20.0, 26.0, 34.0)),
+B.row(AVS, "-z", WALK, 108.0, 30.0, 12.0, lambda i, a: random.Random(int(a * 11)).choice((15.0, 20.0, 26.0, 34.0)),
       lambda i: random.Random(int(i * 17 + 3)).choice((9.6, 12.8, 16.0, 19.2)), random.Random(2402), style=SOUTH,
       ends=("street", "street"))
 
@@ -318,9 +346,9 @@ for xa, xb, seed in ((-WALK - DEPTH - 6.0, -WALK - DEPTH, 9301), (WALK + DEPTH, 
                 t0, t1 = i / 8, (i + 1) / 8
                 x0, x1 = xa + t0 * (xb - xa), xa + t1 * (xb - xa)
                 ya, yb = y0 - sag * math.sin(math.pi * t0), y0 - sag * math.sin(math.pi * t1)
-                quad((AV, "dark", 1), (x0, ya - 0.025, z), (x1, yb - 0.025, z), (x1, yb + 0.025, z), (x0, ya + 0.025, z))
-                quad((AV, "dark", 1), (x1, yb - 0.025, z), (x0, ya - 0.025, z), (x0, ya + 0.025, z), (x1, yb + 0.025, z))
+                quad((AVS, "dark", 1), (x0, ya - 0.025, z), (x1, yb - 0.025, z), (x1, yb + 0.025, z), (x0, ya + 0.025, z))
+                quad((AVS, "dark", 1), (x1, yb - 0.025, z), (x0, ya - 0.025, z), (x0, ya + 0.025, z), (x1, yb + 0.025, z))
         z -= lr.uniform(7.0, 14.0)
 for i, (x, z) in enumerate(((-WALK - DEPTH - 3.0, -52.0), (WALK + DEPTH + 4.0, -128.0))):
-    box((AV, "metal", 1), x - 0.4, x + 0.4, 0.15, 0.22, z - 0.4, z + 0.4, scale=0.5)
+    box((AVS, "metal", 1), x - 0.4, x + 0.4, 0.15, 0.22, z - 0.4, z + 0.4, scale=0.5)
     empty(f"anchor_steam_lane_{i}", (x, 0.25, z))

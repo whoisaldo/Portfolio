@@ -727,7 +727,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         k += step(abs(f.x - 0.25), w) * step(abs(f.y - 0.5), 0.3) * step(0.7, h2);
         k += step(abs(f.y - 0.18), w) * step(abs(f.x - 0.5), 0.3) * step(0.6, h2);
         float px = max(fwidth(s.x), fwidth(g.y) * 0.3);
-        float lit = mix(max(frame, min(k, 1.0) * step(0.14, s.x) * step(s.x, 0.86)), 0.32, smoothstep(0.12, 0.4, px));
+        float lit = mix(max(max(frame, min(k, 1.0) * step(0.14, s.x) * step(s.x, 0.86)), 0.26 * (1.0 - frame)), 0.36, smoothstep(0.12, 0.4, px));
         float cut = step(0.992, hash12(vec2(floor(t * 12.0), seed * 37.0)));
         return vec3(0.01, 0.01, 0.014) + c * 2.3 * lit * (1.0 - 0.85 * cut);
       }
@@ -816,12 +816,14 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         float top = vCrown.x;
         float dressed = step(abs(vHero.x - 1.0), 0.1);
         float pick = mix(vCrown.y, 0.93 + 0.07 * vCrown.y, dressed);
-        vec3 crownCol = pick > 0.975 ? vec3(1.0, 0.22, 0.62) : pick > 0.955 ? vec3(0.16, 0.9, 1.0) : pick > 0.93 ? vec3(1.0, 0.58, 0.22) : vec3(0.8, 0.88, 1.0);
+        // The city's two lights, amber and cyan, and now and then its pink:
+        // a cold white band read from above as an empty frame in the sky.
+        vec3 crownCol = pick > 0.975 ? vec3(1.0, 0.22, 0.62) : pick > 0.955 ? vec3(0.16, 0.9, 1.0) : pick > 0.93 ? vec3(1.0, 0.58, 0.22) : fract(pick * 7.3) > 0.5 ? vec3(0.2, 0.82, 1.0) : vec3(1.0, 0.62, 0.3);
         // One tall tower in seven wears a lit band under its roof: white,
         // amber, or one of the city's neons; a tower lit at its setbacks
         // wears one at every step; Contact's towers all do, in the city's
         // neons, with a blade of light up one corner.
-        float banded = max(max(step(0.86, vCrown.y) * step(60.0, top), dressed), step(abs(style - 1.0), 0.1) * step(0.75, vCrown.y));
+        float banded = max(max(step(0.92, vCrown.y) * step(60.0, top), dressed), step(abs(style - 1.0), 0.1) * step(0.82, vCrown.y));
         float crown = onWall * (1.0 - parapet) * banded * vTier.z * step(vTier.x - 3.4, vWorld.y) * step(vWorld.y, vTier.x - 2.1);
         // The towers built to wear one take it in a warmer light more often
         // than the cold white the odd one has.
@@ -1062,8 +1064,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         s += step(abs(f.x - 0.82), w) * step(0.6, h3) * step(f.y, 0.6);
         s += step(abs(f.y - 0.1), w * 0.8) * step(abs(f.x - 0.5), 0.36) * step(0.65, h1);
         float px = max(fwidth(uv.x), fwidth(uv.y));
-        float lit = max(frame, min(s, 1.0) * inside);
-        return mix(lit, 0.3, smoothstep(0.02, 0.06, px));
+        // The board is lit from behind too, dimly: a bright tube round a
+        // dark board reads from across the city as an empty frame.
+        float lit = max(max(frame, min(s, 1.0) * inside), 0.3 * (1.0 - frame));
+        return mix(lit, 0.38, smoothstep(0.02, 0.06, px));
       }
       void main() {
         vec3 n = normalize(vNormalW);
