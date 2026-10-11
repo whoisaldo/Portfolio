@@ -1261,6 +1261,44 @@ html[data-world="on"] .group\/panel:focus-within > .stack-chip { background-colo
 .world-canvas.is-live { opacity: 1; }
 .world-scrim { background: #000; opacity: var(--world-dim, 0); }
 html[data-world="on"] .world-clear { background-color: transparent; }
+/* The chapter card (WorldMount.jsx, driven by scroll-stage.js): the number
+   of the section a flight is headed for, in outline at the size of the
+   frame, a hairline and the section's own label beside it. It lives on the
+   city, under the page, and is only there mid-flight: --chapter is 0 while
+   a shot holds. Opacity and a transform only, on its own layer, so a
+   scrolled frame recomposites it and never repaints it. */
+.world-chapter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: var(--chapter, 0);
+  will-change: opacity;
+}
+.world-chapter-card {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(0.75rem, 1.6vw, 1.75rem);
+  transform: translate3d(calc(var(--chapter-x, 0) * 7vw), 0, 0);
+  will-change: transform;
+}
+.world-chapter-num {
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(9rem, 30vw, 28rem);
+  line-height: 0.78;
+  letter-spacing: -0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgb(236 234 228 / 0.78);
+  text-shadow: 0 0 40px rgb(255 46 136 / 0.18);
+}
+.world-chapter-label {
+  padding-bottom: 0.9em;
+  border-top: 1px solid #fcee0a;
+  padding-top: 0.6em;
+  color: #fcee0a;
+  white-space: nowrap;
+  text-shadow: 0 0 12px rgb(4 4 6 / 0.9);
+}
 html[data-world="on"] .world-hide { display: none; }
 /* Hero.jsx's two gradients, over the live city rather than the plate. The
    city is darker than the painting, so the same veil hid most of it: the

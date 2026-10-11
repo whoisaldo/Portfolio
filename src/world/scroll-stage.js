@@ -35,6 +35,7 @@ import { attachLenis } from "../lib/scroll";
 import { loadGarage3d } from "../lib/garage3d";
 import { stage, setStage, setHolding, garageCovers, subscribeStage } from "./stage";
 import { shotDim, routeDim, COVER_DIM } from "../data/world";
+import { sections as SECTIONS } from "../data/site";
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (t) => t * t * (3 - 2 * t);
@@ -106,10 +107,29 @@ export function dimAt(shots, position) {
 }
 
 /**
- * Start measuring and, unless `smooth` is false, smoothing. Returns the
- * teardown. `scrim` is the element whose `--world-dim` this writes.
+ * The chapter card's strength mid-flight, 0 to 1: nothing while a shot
+ * holds, all of it at the middle of the flight, when the page has stepped
+ * back and the city has the frame (src/world/WorldMount.jsx draws the card
+ * in the world layer, under the page).
  */
-export function startScrollStage({ scrim = null, smooth: useLenis = true } = {}) {
+export function chapterAt(position) {
+  const f = position - Math.floor(position);
+  return Math.pow(Math.sin(Math.PI * f), 2);
+}
+
+/** "02 // Experience": a section's number and name, as its own heading labels it. */
+function chapterLabel(id) {
+  const i = SECTIONS.findIndex((s) => s.id === id);
+  return i < 0 ? null : { num: String(i).padStart(2, "0"), name: SECTIONS[i].label };
+}
+
+/**
+ * Start measuring and, unless `smooth` is false, smoothing. Returns the
+ * teardown. `scrim` is the element whose `--world-dim` this writes;
+ * `chapter` the chapter card (its number and label are filled in here, its
+ * strength written as `--chapter` and its drift as `--chapter-x`).
+ */
+export function startScrollStage({ scrim = null, chapter = null, smooth: useLenis = true } = {}) {
   let lenis = null;
   if (useLenis) {
     lenis = new Lenis({ lerp: 0.1, autoRaf: false, anchors: false });
@@ -123,6 +143,18 @@ export function startScrollStage({ scrim = null, smooth: useLenis = true } = {})
   let dim = 0;
   let last = 0;
   let garageAsked = false;
+  // The chapter card: where the flight is headed (the section the reader is
+  // scrolling toward, so a flight back up names the shot it is going back
+  // to), and what was last written on the card.
+  const card = {
+    num: chapter?.querySelector("[data-chapter-num]") ?? null,
+    label: chapter?.querySelector("[data-chapter-label]") ?? null,
+    id: null,
+    k: -1,
+    x: 0,
+    dir: 1,
+    at: 0,
+  };
 
   // Each section's element and the yield last written on it.
   let sections = [];
@@ -178,6 +210,34 @@ export function startScrollStage({ scrim = null, smooth: useLenis = true } = {})
     if (scrim && Math.abs(dim - written) > 0.002) {
       written = dim;
       scrim.style.setProperty("--world-dim", dim.toFixed(3));
+    }
+
+    // The chapter card. Mid-flight on the home page only: a case study's
+    // flight is the route's, on the clock, and names nothing.
+    if (chapter) {
+      const p = stage.position;
+      if (Math.abs(p - card.at) > 1e-4) card.dir = p > card.at ? 1 : -1;
+      card.at = p;
+      const i = Math.floor(p);
+      const to = shots[card.dir > 0 ? Math.min(i + 1, shots.length - 1) : i]?.id ?? null;
+      const k = stage.route.kind === "home" && shots.length > 1 ? chapterAt(p) : 0;
+      if (to && to !== card.id) {
+        const c = chapterLabel(to);
+        if (c) {
+          card.id = to;
+          if (card.num) card.num.textContent = c.num;
+          if (card.label) card.label.textContent = `${c.num} // ${c.name}`;
+        }
+      }
+      // Drifting across the frame with the flight, a little: the number
+      // enters from the side the camera is travelling toward.
+      const x = (p - i - 0.5) * -card.dir;
+      if (Math.abs(k - card.k) > 0.004 || Math.abs(x - card.x) > 0.004) {
+        card.k = k;
+        card.x = x;
+        chapter.style.setProperty("--chapter", k.toFixed(3));
+        chapter.style.setProperty("--chapter-x", x.toFixed(3));
+      }
     }
 
     // Each section's yield, on the section alone, only when it moves. A
@@ -249,6 +309,7 @@ export function startScrollStage({ scrim = null, smooth: useLenis = true } = {})
       stage.position = 0;
       stage.dim = 0;
       scrim?.style.removeProperty("--world-dim");
+      chapter?.style.removeProperty("--chapter");
       for (const s of sections) s.el.style.removeProperty("--yield");
     },
   };
