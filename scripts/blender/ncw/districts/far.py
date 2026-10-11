@@ -516,6 +516,7 @@ def _roofs(U):
     # arms throwing cyan pools, benches along the parapet, a tree, people.
     mid = (bz0 + bz1) / 2
     C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, mid - 0.5, t, r, 6.0, ring)
+    B.ground_rect(CB, bx0 + 0.3, bx1 - 0.3, mid, bz1 - 0.3, y=t + 0.03)
     edge = bx1 - 0.75 if side > 0 else bx0 + 0.75
     inward = -math.pi / 2 * side
     for z in (mid + 2.0, bz1 - 2.0):
@@ -586,7 +587,11 @@ for side in (-1, 1):
             B.ground_rect(CB, xa, xb, z_lo, z_hi)
             lr = random.Random(int(abs(z_lo) * 7 + side))
             rail = z_lo >= RAIL[0] - 0.1 and z_hi <= RAIL[1] + 0.1
-            C.lane(CB, xa, xb, z_lo, z_hi, lr, along="x", tubes=not rail, name=f"cy_alley_{_alleys}")
+            C.lane(CB, xa, xb, z_lo, z_hi, lr, along="x", tubes=not rail)
+            # A vent breathing steam near its lane end.
+            vx, vz = _x(side, 25.0), (z_lo + z_hi) / 2
+            box((CB, "metal", 1), vx - 0.4, vx + 0.4, B.G0, B.G0 + 0.06, vz - 0.4, vz + 0.4, scale=0.5)
+            empty(f"anchor_steam_cy_alley_{_alleys}", (vx, 0.3, vz))
             _alleys += 1
             if not rail:
                 # A stall just inside its mouth, someone serving, someone eating.
@@ -687,38 +692,44 @@ for _ in range(26):
     y = cable_r.uniform(8.0, 30.0)
     C.cable(CB, (-WALK, y, z), (WALK, y + cable_r.uniform(-3.0, 3.0), z + cable_r.uniform(-7.0, 7.0)), cable_r.uniform(0.8, 3.0))
 
-# The pavements. The walk runs along the right-hand shops, so that side keeps
-# its furniture at the kerb; the left has it against the wall: vending
-# machines, benches, a phone booth, food boxes, and the people who use them.
+# The pavements. The crowd walks two lines on each (0.7 m from the kerb and
+# 1.7 m from the lot line) and the walk camera between them, so what stands
+# is against the wall or at the kerb's edge: vending machines, benches, a
+# phone booth, food boxes, bollards, hydrants, short lamps, and the people
+# who use them. Nothing across an alley's mouth, an arcade's columns, the
+# forecourt's steps or the viaduct's piers.
 pave_r = random.Random(4840)
-z = -200.0
-while z > -700.0:
-    clear = not (RAIL[0] - 5.0 < z < RAIL[1] + 5.0)
-    mouth = any(a - GAP - 2.5 < z < a + 2.5 for a in ALLEYS[-1])
-    if clear:
-        # Left, by the wall.
-        roll = pave_r.random()
-        if mouth:
-            pass
-        elif roll < 0.3:
-            P.place(pave_r.choice(("vending", "vending_warm")), -13.55, B.G0, z, math.pi / 2, district=CB)
-            if pave_r.random() < 0.6:
-                stand(-12.9, z + 1.1, math.pi * pave_r.uniform(0.8, 1.2), pave_r.choice(("phone", "idle", "smoke")), B.G0)
-        elif roll < 0.55:
-            P.place("bench", -13.6, B.G0, z, math.pi / 2, district=CB)
-            stand(-13.6, z - 0.4, math.pi / 2, "sit", B.G0 + 0.48)
-            if pave_r.random() < 0.5:
-                stand(-13.6, z + 0.5, math.pi / 2, "sit", B.G0 + 0.48)
-        elif roll < 0.68:
-            P.place("phone_booth", -13.4, B.G0, z, math.pi / 2, district=CB)
-        elif roll < 0.8:
-            P.place("food_box", -13.6, B.G0, z, math.pi / 2, district=CB)
-        else:
-            stand(-13.5, z, 0.0, "talk", B.G0)
-            stand(-13.5, z + 1.0, math.pi, "talk", B.G0)
-        # Both kerbs: bollards in runs, a hydrant, a short lamp, someone at
-        # the kerb's edge.
-        for s in (-1, 1):
+for s in (-1, 1):
+    out = -s * math.pi / 2
+    shut = [(a - GAP - 2.5, a + 2.5) for a in ALLEYS[s]] + [(RAIL[0] - 5.0, RAIL[1] + 5.0)]
+    shut += [(L["z0"] - 1.0, L["z1"] + 1.0) for L in ROWS[s] if L["arcade"]]
+    if s > 0:
+        shut.append((FORECOURT[0] - 1.0, FORECOURT[1] + 1.0))
+    z = -200.0 - (4.0 if s > 0 else 0.0)
+    while z > -700.0:
+        wall_ok = not any(a < z < b for a, b in shut)
+        kerb_ok = not (RAIL[0] - 5.0 < z < RAIL[1] + 5.0)
+        if wall_ok:
+            roll = pave_r.random()
+            if roll < 0.3:
+                P.place(pave_r.choice(("vending", "vending_warm")), s * 13.55, B.G0, z, out, district=CB)
+                if pave_r.random() < 0.6:
+                    stand(s * 13.0, z + 1.1, out + pave_r.uniform(-0.6, 0.6), pave_r.choice(("phone", "idle", "smoke")), B.G0)
+            elif roll < 0.55:
+                P.place("bench", s * 13.6, B.G0, z, math.pi / 2, district=CB)
+                stand(s * 13.6, z - 0.4, out, "sit", B.G0 + 0.48)
+                if pave_r.random() < 0.5:
+                    stand(s * 13.6, z + 0.5, out, "sit", B.G0 + 0.48)
+            elif roll < 0.66:
+                P.place("phone_booth", s * 13.4, B.G0, z, out, district=CB)
+            elif roll < 0.78:
+                P.place("food_box", s * 13.6, B.G0, z, out, district=CB)
+            elif roll < 0.9:
+                stand(s * 13.5, z, 0.0, "talk", B.G0)
+                stand(s * 13.5, z + 1.0, math.pi, "talk", B.G0)
+            else:
+                stand(s * 13.7, z, out, pave_r.choice(("lean", "smoke", "phone")), B.G0)
+        if kerb_ok:
             roll = pave_r.random()
             zz = z + pave_r.uniform(-3.0, 3.0)
             if roll < 0.35:
@@ -729,13 +740,14 @@ while z > -700.0:
             elif roll < 0.7:
                 P.place("lamp_short", s * 10.6, B.G0, zz, district=CB)
             elif roll < 0.85:
-                stand(s * 10.5, zz, -s * math.pi / 2, pave_r.choice(("squat", "smoke", "phone")), B.G0)
-    z -= pave_r.uniform(7.0, 11.0)
+                stand(s * 10.5, zz, out + math.pi, pave_r.choice(("squat", "smoke", "phone")), B.G0)
+        z -= pave_r.uniform(7.0, 11.0)
 # Manholes up the canyon breathing steam into the signs' light.
 for i, (sx, sz) in enumerate(((-5.5, -262.0), (4.0, -386.0), (-3.0, -540.0))):
     cylinder((CB, "metal", 1), sx, sz, 0.0, 0.025, 0.42, segs=14)
     empty(f"anchor_steam_street_cy{i}", (sx, 0.05, sz))
 
+print("CANYON people", len(PEOPLE))
 # Every roof the hero looks along, dressed now that all their masses are
 # known, with only what its lens cannot see.
 for _t in HERO_ROOFS:
