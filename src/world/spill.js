@@ -20,9 +20,9 @@
 // keeps the soft tails of the falloff without a float texture.
 import * as THREE from "three";
 
-// Over the whole kit: the west street's outer lots to the garage street's,
-// the megabuilding to the depot at the avenue's south end.
-export const LIGHT_BOUNDS = { x0: -140, z0: -800, x1: 500, z1: 125 };
+// Over the whole kit: Japantown's outer lots to Santo Domingo's east edge,
+// the megabuilding's north side to the depot at the avenue's south end.
+export const LIGHT_BOUNDS = { x0: -176, z0: -880, x1: 580, z1: 125 };
 const CELL = 1.5;
 // The streaks get a finer grid of their own, over the avenue only: 0.4 m
 // across the street so every sign's reflection stays its own streak, a metre
