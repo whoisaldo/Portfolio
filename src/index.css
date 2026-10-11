@@ -67,7 +67,9 @@
     box-shadow: 0 0 0 2px #0a0a0c, 0 0 0 4px #fcee0a;
   }
   .chamfer:focus-visible,
-  .chamfer-br:focus-visible {
+  .chamfer-br:focus-visible,
+  .chamfer-ring:focus-visible,
+  .chamfer-br-ring:focus-visible {
     box-shadow: none;
     background-color: #fcee0a;
   }
@@ -257,6 +259,77 @@ a:hover .ink-underline,
     0 100%
   );
 }
+
+/* Smoked glass (Panel `glass`). The frame is an empty box over the panel,
+   clipped to a ring: the same outline as `.chamfer`, minus the same outline
+   1px in, filled even-odd, so it paints its 1px frame and nothing inside it
+   and the fill under it can be see-through. The inner contour is exactly
+   the inner box's own chamfer (1px in on every side), so the frame is as
+   thick as an opaque panel's, 1.41px along the cut. */
+.chamfer-ring {
+  clip-path: polygon(
+    evenodd,
+    var(--chamfer) 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 var(--chamfer),
+    var(--chamfer) 0,
+    calc(var(--chamfer) + 1px) 1px,
+    1px calc(var(--chamfer) + 1px),
+    1px calc(100% - 1px),
+    calc(100% - var(--chamfer) - 1px) calc(100% - 1px),
+    calc(100% - 1px) calc(100% - var(--chamfer) - 1px),
+    calc(100% - 1px) 1px,
+    calc(var(--chamfer) + 1px) 1px
+  );
+}
+.chamfer-br-ring {
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    100% 0,
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    0 100%,
+    0 0,
+    1px 1px,
+    1px calc(100% - 1px),
+    calc(100% - var(--chamfer) - 1px) calc(100% - 1px),
+    calc(100% - 1px) calc(100% - var(--chamfer) - 1px),
+    calc(100% - 1px) 1px,
+    1px 1px
+  );
+}
+/* The frame: the panels' line, and over the city a hairline of light, the
+   edge of a pane catching the street. */
+.glass-edge { background-color: #24242a; }
+html[data-world="on"] .glass-edge { background-color: rgb(236 234 228 / 0.17); }
+/* The fill: over the city a thin smoke with a sheen across its top corner
+   (the frost under it is the world's, src/world/glass.js), and with the city
+   off whatever opaque fill the panel was given. */
+html[data-world="on"] .glass-fill {
+  background-color: rgb(8 8 10 / var(--glass-smoke, 0.34));
+  background-image:
+    linear-gradient(158deg, rgb(236 234 228 / 0.06), rgb(236 234 228 / 0.015) 28%, transparent 46%),
+    linear-gradient(to bottom, transparent 62%, rgb(4 4 6 / 0.16));
+}
+
+/* Inside a pane, the page's opaque surfaces turn to the same smoke: rules go
+   to a hairline of light, raised cells to a breath of it, inset wells to
+   a darker smoke. A pane can also be a plain rectangle (`data-glass="none"`
+   on any element, for a grid or a list that has no chamfer of its own). */
+html[data-world="on"] [data-glass].border-ink-line,
+html[data-world="on"] [data-glass] .border-ink-line { border-color: rgb(236 234 228 / 0.1); }
+html[data-world="on"] [data-glass] .bg-ink-raised { background-color: rgb(236 234 228 / 0.05); }
+html[data-world="on"] [data-glass] .bg-ink { background-color: rgb(6 6 8 / 0.32); }
+html[data-world="on"] [data-glass] .hover\:bg-ink-raised:hover { background-color: rgb(236 234 228 / 0.07); }
+/* A grid ruled by its gaps (`gap-px` over a line-coloured ground, the
+   Experience cards' numbers): the ground goes to a hairline of light and
+   the cells to smoke, so the rules stay lighter than the cells they part. */
+html[data-world="on"] [data-glass] .bg-ink-line { background-color: rgb(236 234 228 / 0.09); }
+html[data-world="on"] [data-glass] .bg-ink-line > .bg-ink-raised { background-color: rgb(8 8 10 / 0.5); }
 
 /* ===========================================================================
    Chrome

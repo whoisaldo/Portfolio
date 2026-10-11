@@ -16,6 +16,9 @@
 //   bloom          a high luminance threshold, so only emissives bloom
 //   streaks        desktop: the hottest lights drawn out sideways, a little
 //                  blue, from the bloom's own bright pass (no pass of its own)
+//   glass          the page's panes of smoked glass: inside each one the
+//                  city is frosted (blurred, darkened, its highlights eased
+//                  down), so text reads on a pane the city shows through
 //   noise, vignette, the Khronos neutral tone map, and the grade last.
 //
 // The phone gets half-resolution bloom and the glitch, and nothing else.
@@ -33,6 +36,8 @@ import {
   EffectAttribute,
   EffectComposer,
   EffectPass,
+  KawaseBlurPass,
+  KernelSize,
   NoiseEffect,
   RenderPass,
   SMAAEffect,
@@ -145,6 +150,100 @@ class StreakEffect extends Effect {
   }
 }
 
+// Smoked glass. The page's panes (src/components/ui/Panel.jsx, `glass`)
+// are see-through, and behind each one the city is frosted here, in the
+// same pass as the grade: a Kawase blur of the frame at a quarter of its
+// resolution (a few small passes of its own, run only while a pane is on
+// screen), darkened, its highlights eased down toward a ceiling so a sign
+// behind a pane is a soft glow and not a hole in the text, inside the
+// pane's own outline (its chamfered corners included). No CSS
+// backdrop-filter: over a canvas that changes every frame, that would be a
+// full blur of everything behind every pane, every frame, on the
+// compositor. Panes come in CSS pixels, top-left origin, from
+// src/world/glass.js; `uPaneInfo` is the cut (px), which corners are cut
+// (0 both, 1 bottom-right, 2 none) and the pane's opacity.
+export const MAX_PANES = 16;
+const GLASS = /* glsl */ `
+  uniform sampler2D uGlassMap;
+  uniform vec4 uPanes[MAX_PANES];
+  uniform vec4 uPaneInfo[MAX_PANES];
+  uniform int uPaneCount;
+  uniform vec2 uView;
+  uniform float uDarken;
+  uniform float uCeiling;
+  float pane(vec2 p, vec4 r, vec4 info) {
+    vec2 a = p - r.xy;
+    vec2 b = r.zw - p;
+    float d = min(min(a.x, a.y), min(b.x, b.y));
+    if (info.y < 0.5) d = min(d, (a.x + a.y - info.x) * 0.7071);
+    if (info.y < 1.5) d = min(d, (b.x + b.y - info.x) * 0.7071);
+    return clamp(d + 0.5, 0.0, 1.0) * info.z;
+  }
+  void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+    outputColor = inputColor;
+    if (uPaneCount == 0) return;
+    vec2 p = vec2(uv.x, 1.0 - uv.y) * uView;
+    float m = 0.0;
+    for (int i = 0; i < MAX_PANES; i++) {
+      if (i >= uPaneCount) break;
+      m = max(m, pane(p, uPanes[i], uPaneInfo[i]));
+    }
+    if (m <= 0.0) return;
+    vec3 b = texture2D(uGlassMap, uv).rgb * uDarken;
+    // Eased toward the ceiling by luminance, so a hue survives the frost.
+    float l = dot(b, vec3(0.2126, 0.7152, 0.0722));
+    vec3 frost = b / (1.0 + l / uCeiling);
+    outputColor = vec4(mix(inputColor.rgb, frost, m), inputColor.a);
+  }
+`;
+
+class GlassEffect extends Effect {
+  constructor() {
+    super("GlassEffect", GLASS, {
+      defines: new Map([["MAX_PANES", String(MAX_PANES)]]),
+      uniforms: new Map([
+        ["uGlassMap", new THREE.Uniform(null)],
+        ["uPanes", new THREE.Uniform(Array.from({ length: MAX_PANES }, () => new THREE.Vector4()))],
+        ["uPaneInfo", new THREE.Uniform(Array.from({ length: MAX_PANES }, () => new THREE.Vector4()))],
+        ["uPaneCount", new THREE.Uniform(0)],
+        ["uView", new THREE.Uniform(new THREE.Vector2(1, 1))],
+        ["uDarken", new THREE.Uniform(0.55)],
+        ["uCeiling", new THREE.Uniform(0.13)],
+      ]),
+    });
+    this.blurPass = new KawaseBlurPass({ kernelSize: KernelSize.LARGE, resolutionScale: 0.25 });
+    this.renderTarget = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+    this.renderTarget.texture.name = "Glass.Target";
+    this.uniforms.get("uGlassMap").value = this.renderTarget.texture;
+  }
+
+  /** How many panes are on screen this frame; their arrays are written in
+   *  place (uniforms.get("uPanes").value and "uPaneInfo"). */
+  set count(n) {
+    this.uniforms.get("uPaneCount").value = n;
+  }
+
+  update(renderer, inputBuffer) {
+    if (this.uniforms.get("uPaneCount").value > 0) this.blurPass.render(renderer, inputBuffer, this.renderTarget);
+  }
+
+  setSize(width, height) {
+    this.blurPass.setSize(width, height);
+    this.renderTarget.setSize(this.blurPass.resolution.width, this.blurPass.resolution.height);
+  }
+
+  initialize(renderer, alpha, frameBufferType) {
+    this.blurPass.initialize(renderer, alpha, frameBufferType);
+    if (frameBufferType !== undefined) this.renderTarget.texture.type = frameBufferType;
+  }
+
+  dispose() {
+    super.dispose();
+    this.blurPass.dispose();
+    this.renderTarget.dispose();
+  }
+}
+
 class BraindanceEffect extends Effect {
   constructor() {
     super("BraindanceEffect", BRAINDANCE, {
@@ -192,6 +291,8 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     streak = new StreakEffect(streakMap);
     effects.push(streak);
   }
+  const glass = new GlassEffect();
+  effects.push(glass);
   if (quality.name !== "phone") {
     noise = new NoiseEffect({ blendFunction: BlendFunction.OVERLAY, premultiply: true });
     noise.blendMode.opacity.value = 0.12;
@@ -215,6 +316,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     bloom,
     tone,
     grade,
+    glass,
     /** The moon's scene and camera, for its own pass after the city's. */
     setMoon(moonScene, moonCamera) {
       moonPass = new RenderPass(moonScene, moonCamera);
@@ -256,6 +358,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
       vignette?.dispose();
       tone.dispose();
       grade.dispose();
+      glass.dispose();
     },
   };
 }

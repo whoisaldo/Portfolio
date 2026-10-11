@@ -35,6 +35,7 @@ import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
 import { markLoaded } from "./progress.js";
 import { createMirror } from "./mirror.js";
 import { createPost } from "./post.js";
+import { createGlass } from "./glass.js";
 import { createSkyline } from "./skyline.js";
 import { createRain } from "./rain.js";
 import { createTraffic } from "./traffic.js";
@@ -128,6 +129,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let moon = null;
   let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality, { extra: effects });
+  // The page's panes of smoked glass, frosted in the post chain.
+  const glass = createGlass(post.glass);
 
   const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
     city = c;
@@ -595,6 +598,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         for (const r of city.roadMaterials) r.setReflection(null);
       }
     }
+    // The frost behind the page's panes. The intro's moon alone has no page
+    // over it.
+    if (moonView === "only") post.glass.count = 0;
+    else glass.update(width, height);
     post.view(moonView);
     post.render(dt);
     if (!firstFrame) {
@@ -953,6 +960,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     }).catch(() => {});
     mirror?.dispose();
     mirror = null;
+    glass.dispose();
     post.dispose();
     renderer.dispose();
     renderer.forceContextLoss();

@@ -12,10 +12,11 @@
 // function, and a useSyncExternalStore hook over it. Two kinds of field live
 // here and they are treated differently on purpose:
 //
-//   Per frame   position, locals, dim, pointer. Written by the scroll stage
-//               sixty times a second and read by the world's own frame loop
-//               straight off `stage`. Changing them notifies nobody: a React
-//               render per scrolled frame is exactly the cost this avoids.
+//   Per frame   position, locals, dim, pointer, ui, look. Written by the
+//               scroll stage and the modes sixty times a second and read by
+//               the world's own frame loop straight off `stage`. Changing
+//               them notifies nobody: a React render per scrolled frame is
+//               exactly the cost this avoids.
 //   Discrete    section, activeProject, activeRole, route, paused, status.
 //               Written rarely, through set(), which notifies subscribers.
 //
@@ -39,6 +40,13 @@ export const stage = {
   section: "hero",
   // -1..1 on both axes; mouse only, never touch.
   pointer: { x: 0, y: 0 },
+  // How much of the page is up over the city, 0 to 1: 1 normally, easing to
+  // 0 while Look or Cinema has put it away (src/world/modes.js). The frost
+  // behind the page's panes follows it.
+  ui: 1,
+  // Look mode's drag, radians: how far the reader has turned the camera
+  // away from the shot (yaw right, pitch up). Eases back to 0 on release.
+  look: { yaw: 0, pitch: 0 },
   // Index into featuredProjects of the Work deck's current entry.
   activeProject: 0,
   // Slug of the role card being read, or null; `activeRoles` is every card

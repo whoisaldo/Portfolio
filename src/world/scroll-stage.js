@@ -70,6 +70,23 @@ export function localsAt(shots, y, vh, out = []) {
 }
 
 /**
+ * How far section `i` has stepped back for the camera at stage position
+ * `position`, 0 to 1. While its shot holds it is all there; as a flight
+ * away from it gets going its panes and prose thin to YIELD_MIN, so the
+ * middle of every flight is the city's, and the next section firms up
+ * again as its shot lands (its heading reaching 20% from the top, which is
+ * where a reader starts reading it). Headings never yield: they are how a
+ * reader knows where the flight is going. The CSS reads the same number
+ * as `--yield` on the section (index.css), and the frost behind its panes
+ * (src/world/glass.js) is computed from it here.
+ */
+export const YIELD_MIN = 0.3;
+export function yieldAt(position, i) {
+  const d = Math.abs(position - i);
+  return 1 - (1 - YIELD_MIN) * smooth(clamp((d - 0.06) / 0.38, 0, 1));
+}
+
+/**
  * The scrim's darkness for a stage position. Reading shots sit at their own
  * level; the dim eases between them and lifts part of the way off at the
  * middle of every flight, where the camera move is the show. Only part: by
@@ -107,16 +124,19 @@ export function startScrollStage({ scrim = null, smooth: useLenis = true } = {})
   let last = 0;
   let garageAsked = false;
 
+  // Each section's element and the yield last written on it.
+  let sections = [];
   const measure = () => {
     const sy = window.scrollY;
     vh = window.innerHeight;
     maxScroll = Math.max(0, document.documentElement.scrollHeight - vh);
-    const shots = [...document.querySelectorAll("[data-shot]")].map((el) => {
+    const found = [...document.querySelectorAll("[data-shot]")].map((el) => {
       const r = el.getBoundingClientRect();
-      return { id: el.dataset.shot, top: r.top + sy, height: r.height };
+      return { shot: { id: el.dataset.shot, top: r.top + sy, height: r.height }, el };
     });
-    shots.sort((p, q) => p.top - q.top);
-    stage.shots = shots;
+    found.sort((p, q) => p.shot.top - q.shot.top);
+    stage.shots = found.map((f) => f.shot);
+    sections = found.map((f) => ({ el: f.el, written: -1 }));
     setStage({ layout: stage.layout + 1 });
   };
 
@@ -158,6 +178,18 @@ export function startScrollStage({ scrim = null, smooth: useLenis = true } = {})
     if (scrim && Math.abs(dim - written) > 0.002) {
       written = dim;
       scrim.style.setProperty("--world-dim", dim.toFixed(3));
+    }
+
+    // Each section's yield, on the section alone, only when it moves. A
+    // case study has no shots to fly between and yields nothing.
+    const home = stage.route.kind === "home";
+    for (let i = 0; i < sections.length; i++) {
+      const s = sections[i];
+      const k = home ? yieldAt(stage.position, i) : 1;
+      if (Math.abs(k - s.written) > 0.01 || (k === 1 && s.written !== 1)) {
+        s.written = k;
+        s.el.style.setProperty("--yield", k.toFixed(3));
+      }
     }
   };
 
@@ -217,6 +249,7 @@ export function startScrollStage({ scrim = null, smooth: useLenis = true } = {})
       stage.position = 0;
       stage.dim = 0;
       scrim?.style.removeProperty("--world-dim");
+      for (const s of sections) s.el.style.removeProperty("--yield");
     },
   };
 }
