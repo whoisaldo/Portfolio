@@ -900,6 +900,17 @@ def median():
     palms = [176.0, 195.0, 252.0, 271.0, 300.0, 319.0, 338.0, 357.0, 376.0, 395.0, 414.0]
     for x in palms:
         P.place("planter_palm", x, 0.2, -330.0, 0.7 * x, sy=1.25, sxz=0.68, district=CO)
+    # A clipped hedge along it, knee high, in runs between the palms and
+    # the lamps (low enough that a car's eye sees every lobby over it).
+    marks = sorted([x0 + 1.5] + palms + [x1 - 1.5])
+    for a, b in zip(marks, marks[1:]):
+        n = max(1, round((b - a) / 19.0))
+        for j in range(n):
+            ha, hb = a + (b - a) * j / n + 1.6, a + (b - a) * (j + 1) / n - 1.6
+            mid = (ha + hb) / 2
+            for sa, sb in ((ha, mid - 1.0), (mid + 1.0, hb)):
+                if sb - sa > 1.5:
+                    solid(sa, sb, 0.2, 0.62, z0 + 0.22, z1 - 0.22, K.HEDGE)
     for a, b in zip([150.0] + palms, palms + [420.0]):
         if b - a < 12.0:
             continue

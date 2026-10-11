@@ -83,7 +83,7 @@ def roof_quad(x0, x1, z0, z1, y, mat="roof"):
          ((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
 
 
-def glass_col(r, lit=(0.45, 0.8), warm=(0.0, 0.45)):
+def glass_col(r, lit=(0.5, 0.86), warm=(0.0, 0.45)):
     """A curtain wall's own numbers: lit fraction, warmth, seed."""
     return (r.uniform(*lit), r.uniform(*warm), r.random(), 1.0)
 
@@ -738,7 +738,7 @@ def storey_line(y):
 
 def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, tiers=((1.0, 0.0),), fronts=None,
                fin_step=0.0, fin_faces=("+z",), corners=None, edge="cyan", cap=6.0, podium=STONE, canopy=0.0,
-               colour="cyan", lit=(0.45, 0.8), warm=(0.0, 0.45), style=5, top_band=None, terrace_rail=True, crown=True):
+               colour="cyan", lit=(0.5, 0.86), warm=(0.0, 0.45), style=5, top_band=None, terrace_rail=True, crown=True):
     """A corporate block: a stone podium to `base` with its fronts (see
     front()), a shaft in `tiers` ((fraction of the height it ends at, inset
     on every side from the podium), ...), glass or windows, optional fins
