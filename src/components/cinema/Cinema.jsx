@@ -23,7 +23,7 @@
 // Its own chunk, with its own stylesheet (./cinema.css): nobody who never
 // presses play downloads any of it.
 import React, { useEffect, useRef, useState } from "react";
-import { Camera, ChevronLeft, ChevronRight, Pause, Play, RotateCcw, X } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Pause, RotateCcw, X } from "lucide-react";
 import { createDirector } from "./director";
 import { getWorld } from "../../world/stage";
 import { setView, takePhoto } from "../../world/modes";
@@ -222,7 +222,7 @@ export default function Cinema({ leaving = false }) {
           <ChevronLeft aria-hidden="true" />
         </button>
         <button type="button" className="cinema-icon" onClick={() => (ui.ended ? restart() : director.current?.toggle())} aria-label={ui.playing ? "Pause" : "Play"}>
-          {ui.playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+          {ui.playing ? <Pause aria-hidden="true" /> : <PlayGlyph />}
         </button>
         <button type="button" className="cinema-icon" onClick={() => director.current?.next()} aria-label="Next shot">
           <ChevronRight aria-hidden="true" />
@@ -241,6 +241,17 @@ export default function Cinema({ leaving = false }) {
         </button>
       </div>
     </div>
+  );
+}
+
+/** Play, drawn here in the icons' own stroke. Lucide's is /recruiters' too,
+ *  and sharing it would split it into a chunk of its own for that page to
+ *  fetch, which nothing here is worth. */
+function PlayGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 4.5v15l13-7.5z" />
+    </svg>
   );
 }
 
