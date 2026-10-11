@@ -94,18 +94,33 @@ def panels(D, x0, x1, z0, z1, top):
 
 
 def edge_light(D, x0, x1, z0, z1, top, hue, sides):
-    """A thin line of light along some of a parapet's top: the roofs drawn
-    in cyan and amber from the air (glow: it lights no street)."""
-    y0, y1 = top + 0.86, top + 0.96
+    """A thin line of light lying along some of a parapet's top: the roofs
+    drawn in cyan and amber from the air (glow: it lights no street)."""
+    y0, y1 = top + 0.95, top + 1.0
     for name in sides:
         if name == "+x":
-            box((D, "glow", 0), x1 - 0.02, x1 + 0.06, y0, y1, z0, z1, scale=1.0, col=GLOW[hue])
+            box((D, "glow", 0), x1 - 0.22, x1 - 0.06, y0, y1, z0, z1, scale=1.0, col=GLOW[hue])
         elif name == "-x":
-            box((D, "glow", 0), x0 - 0.06, x0 + 0.02, y0, y1, z0, z1, scale=1.0, col=GLOW[hue])
+            box((D, "glow", 0), x0 + 0.06, x0 + 0.22, y0, y1, z0, z1, scale=1.0, col=GLOW[hue])
         elif name == "+z":
-            box((D, "glow", 0), x0, x1, y0, y1, z1 - 0.02, z1 + 0.06, scale=1.0, col=GLOW[hue])
+            box((D, "glow", 0), x0, x1, y0, y1, z1 - 0.22, z1 - 0.06, scale=1.0, col=GLOW[hue])
         else:
-            box((D, "glow", 0), x0, x1, y0, y1, z0 - 0.06, z0 + 0.02, scale=1.0, col=GLOW[hue])
+            box((D, "glow", 0), x0, x1, y0, y1, z0 + 0.06, z0 + 0.22, scale=1.0, col=GLOW[hue])
+
+
+def light_roofs(D, roofs, seed=6400):
+    """Lines of light on the parapets of roofs the generator dressed (the
+    arm's, the south street's row's, the blocks' behind them)."""
+    rng = random.Random(seed)
+    for (d, x0, x1, z0, z1, top) in roofs:
+        if d != D or x1 - x0 < 5 or z1 - z0 < 5:
+            continue
+        roll = rng.random()
+        hue = rng.choice(("cyan", "cyan", "amber", "amber", "pink", "teal", "green", "purple"))
+        if roll < 0.4:
+            edge_light(D, x0, x1, z0, z1, top, hue, ("+x", "-x", "+z", "-z"))
+        elif roll < 0.75:
+            edge_light(D, x0, x1, z0, z1, top, hue, rng.sample(("+x", "-x", "+z", "-z"), 2))
 
 
 def dress(D, x0, x1, z0, z1, top, rng, tint=0, lane_yaw=0.0, parapet=False, check=True):

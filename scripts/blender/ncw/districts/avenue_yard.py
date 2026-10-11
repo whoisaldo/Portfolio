@@ -5,9 +5,8 @@ view: a concrete wall under a pipe rack, a gate with one leaf run back and
 the yard road going on through it to a shed with its door open and lit, a
 guard's booth, a stall that feeds the shift; and over the wall what stands
 in the yard, each further back and taller than the last: container stacks,
-tanks, a gantry crane with its lamps, a lattice pylon and its lines, two
-chimneys banded red and white with their lamps and their steam, the far
-city behind them. Behind the arm's lots and the south street's row, the
+tanks, a gantry crane with its lamps, two chimneys banded red and white with their lamps and their steam, the far
+city behind them. (Santo Domingo's power lines are its own district's.) Behind the arm's lots and the south street's row, the
 blocks nobody walks along: low works and stores round courts, seen from
 roofs and from the air.
 """
@@ -117,58 +116,6 @@ def chimney(D, name, x, z, r, h):
         a = t * math.tau / 5
         light(D, x + math.cos(a) * (r + 1.8), 1.0, z + math.sin(a) * (r + 1.8), "amber", 9.0)
     empty(f"anchor_steam_roof_{name}", (x, h + 0.3, z))
-
-
-def pylon(D, x, z, h, arms=((0.72, 5.5), (0.86, 4.5), (1.0, 3.2))):
-    """A lattice pylon: four legs leaning in, braced, three crossarms.
-    Returns the points its lines hang from."""
-    k = (D, "metal", 0)
-    half = lambda y: 3.2 - 2.6 * (y / h)  # noqa: E731
-    levels = [0.0, h * 0.22, h * 0.42, h * 0.6, h * 0.76, h * 0.9, h]
-    for sx in (-1, 1):
-        for sz in (-1, 1):
-            pipe(k, (x + sx * 3.2, 0.0, z + sz * 3.2), (x + sx * 0.6, h, z + sz * 0.6), 0.09, segs=4)
-    for y0, y1 in zip(levels, levels[1:]):
-        a, b = half(y0), half(y1)
-        for (s0, s1) in (((-1, -1), (1, -1)), ((1, -1), (1, 1)), ((1, 1), (-1, 1)), ((-1, 1), (-1, -1))):
-            pipe((D, "metal", 1), (x + s0[0] * a, y0, z + s0[1] * a), (x + s1[0] * b, y1, z + s1[1] * b), 0.045, segs=3)
-            pipe((D, "metal", 1), (x + s1[0] * a, y0, z + s1[1] * a), (x + s0[0] * b, y1, z + s0[1] * b), 0.045, segs=3)
-    tips = []
-    for t, reach in arms:
-        y = h * t
-        box(k, x - 0.12, x + 0.12, y - 0.2, y, z - reach, z + reach, scale=0.5)
-        for sz in (-1, 1):
-            tips.append((x, y - 0.9, z + sz * (reach - 0.2)))
-            box((D, "trim", 1), x - 0.07, x + 0.07, y - 0.9, y - 0.2, z + sz * (reach - 0.2) - 0.07, z + sz * (reach - 0.2) + 0.07, scale=0.5,
-                col=(0.3, 0.32, 0.3, 1))
-    box((D, "glow", 0), x - 0.2, x + 0.2, h, h + 0.4, z - 0.2, z + 0.2, scale=0.5, col=GLOW["red"])
-    for t in (0.42, 0.72):
-        for sx in (-1, 1):
-            box((D, "glow", 0), x + sx * half(h * t) - 0.12, x + sx * half(h * t) + 0.12, h * t, h * t + 0.25, z - 0.12, z + 0.12, scale=0.5, col=GLOW["red"])
-    for sx in (-1, 1):
-        light(D, x + sx * 3.5, 1.0, z, "amber", 6.0)
-    return tips
-
-
-def terminal(D, x, z, h=11.0, span=6.0):
-    """Where the lines come down: a portal of two posts and a beam, its
-    insulators, transformers under it behind a fence."""
-    for sz in (-1, 1):
-        box((D, "metal", 0), x - 0.15, x + 0.15, 0.0, h, z + sz * span - 0.15, z + sz * span + 0.15, scale=0.5)
-    box((D, "metal", 0), x - 0.15, x + 0.15, h - 0.4, h, z - span, z + span, scale=0.5)
-    tips = []
-    for i in range(6):
-        zz = z - span + 0.8 + i * (2 * span - 1.6) / 5
-        tips.append((x, h - 1.1, zz))
-        box((D, "trim", 1), x - 0.07, x + 0.07, h - 1.1, h - 0.4, zz - 0.07, zz + 0.07, scale=0.5, col=(0.3, 0.32, 0.3, 1))
-    for i in range(3):
-        zz = z - 3.6 + i * 3.6
-        box((D, "trim", 0), x - 1.2, x + 1.2, 0.0, 2.6, zz - 1.0, zz + 1.0, scale=1.0, col=(0.12, 0.14, 0.15, 1))
-        for dx in (-0.6, 0.0, 0.6):
-            cylinder((D, "trim", 1), x + dx, zz, 2.6, 3.5, 0.1, segs=5, col=(0.32, 0.3, 0.26, 1))
-        box((D, "glow", 0), x - 0.06, x + 0.06, 1.6, 1.72, zz - 1.02, zz - 1.0, scale=0.5, col=GLOW["green"])
-    light(D, x, 2.0, z, "cyan", 5.0)
-    return tips
 
 
 def crane(D, xa, xb, za, zb, h, xt, rng):
@@ -362,48 +309,41 @@ def build(D):
     # The road through the gate to the shed, its door up and lit, a bay of
     # boxes inside; lines on the road.
     sh = B.SHOP_H + B.CELL_H * 2
-    mass(D, -6.0, 18.0, 106.0, 119.0, 0.0, sh, 4431, col=B.wall_col(0.5, 2, 0.8, B.TINTS["rust"]))
-    B.COLLISION.append(("box", -6.0, 18.0, 0.0, sh, 106.0, 119.0, D))
-    B.roof_dress(D, -6.0, 18.0, 106.0, 119.0, sh, random.Random(4431), cap=5.0, tint=B.TINTS["rust"])
-    f = B.Face("-z", 106.0, -6.0, 18.0)
-    f.box((D, "trim", 0), 7.6, 16.4, 0.0, 6.3, 0.0, 0.12, col=B.DARK_TRIM)
-    f.quad((D, "lobby", 0), 8.0, 16.0, 0.02, 5.7, 0.13, col=(0.3, 0.7, 1, 1))
-    f.box((D, "door_panel", 0), 8.0, 16.0, 5.7, 6.2, 0.1, 0.5)
-    f.box((D, "neon_amber", 0), 8.0, 16.0, 6.35, 6.45, 0.1, 0.16)
-    for sgn, s_ in ((-1, 4.6), (1, 19.4)):
-        K.board(D, f, s_, 3.6, "pm", out=0.15)
-    light(D, 6.0, 1.5, 103.0, "white", 8.0)
-    light(D, 6.0, 1.5, 99.0, "amber", 5.0)
+    mass(D, 0.0, 20.0, 108.0, 119.0, 0.0, sh, 4431, col=B.wall_col(0.5, 2, 0.8, B.TINTS["rust"]))
+    B.COLLISION.append(("box", 0.0, 20.0, 0.0, sh, 108.0, 119.0, D))
+    B.roof_dress(D, 0.0, 20.0, 108.0, 119.0, sh, random.Random(4431), cap=5.0, tint=B.TINTS["rust"])
+    f = B.Face("-z", 108.0, 0.0, 20.0)
+    f.box((D, "trim", 0), 9.6, 18.4, 0.0, 6.3, 0.0, 0.12, col=B.DARK_TRIM)
+    f.quad((D, "lobby", 0), 10.0, 18.0, 0.02, 5.7, 0.13, col=(0.3, 0.7, 1, 1))
+    f.box((D, "door_panel", 0), 10.0, 18.0, 5.7, 6.2, 0.1, 0.5)
+    f.box((D, "neon_amber", 0), 10.0, 18.0, 6.35, 6.45, 0.1, 0.16)
+    K.board(D, f, 5.0, 3.6, "pm", out=0.15)
+    K.board(D, f, 5.0, 6.6, "pm", out=0.15)
+    light(D, 6.0, 1.5, 105.0, "white", 8.0)
+    light(D, 6.0, 1.5, 100.0, "amber", 5.0)
     for x in (2.6, 9.4):
         z = 93.5
-        while z < 104.0:
+        while z < 106.0:
             quad((D, "paint", 0), (x - 0.07, 0.012, z + 2.4), (x + 0.07, 0.012, z + 2.4), (x + 0.07, 0.012, z), (x - 0.07, 0.012, z), col=(0.86, 0.66, 0.10, 1.0))
             z += 4.2
-    stand(4.4, 103.6, 0.4, "talk")
-    stand(4.9, 104.4, math.pi + 0.4, "talk")
-    # Boxes stacked west and east of the road, a crane over the east ones.
+    stand(4.4, 105.6, 0.4, "talk")
+    stand(4.9, 106.4, math.pi + 0.4, "talk")
+    # Boxes stacked west and east of the road, a crane astride the east
+    # ones, its west legs and its trolley in the arm's view.
     containers(D, -44.0, 95.5, "x", 2, 3, rng, high=(1, 3))
-    containers(D, 22.0, 95.0, "z", 3, 3, rng, high=(1, 3))
-    containers(D, 52.0, 99.0, "x", 6, 4, rng, high=(1, 4))
-    crane(D, 49.5, 92.5, 97.0, 111.5, 19.0, rng.uniform(60.0, 80.0), rng)
-    # Tanks, and the two stacks behind them.
-    for (x, z, r_, h) in ((-38.0, 109.0, 4.4, 11.5), (-27.5, 110.5, 4.0, 13.0), (-18.0, 113.0, 3.2, 9.5)):
+    containers(D, 25.5, 99.0, "x", 6, 4, rng, high=(1, 4))
+    containers(D, 70.0, 96.0, "x", 5, 5, rng, high=(1, 3))
+    crane(D, 23.0, 65.0, 97.0, 111.5, 19.0, rng.uniform(26.5, 30.0), rng)
+    # Tanks, and the two stacks behind them: straight down the arm's line,
+    # over the gate's shut leaf.
+    for (x, z, r_, h) in ((-17.0, 105.5, 4.2, 11.5), (-27.5, 111.0, 4.0, 13.0), (-37.5, 107.5, 3.2, 9.5)):
         tank(D, x, z, r_, h, rng)
-    pipe((D, "trim", 1), (-38.0, 8.0, 109.0), (-27.5, 8.0, 110.5), 0.18, segs=5, col=(0.3, 0.2, 0.05, 1))
-    pipe((D, "trim", 1), (-27.5, 6.2, 110.5), (-27.5, 6.2, WALL_Z + 0.55), 0.18, segs=5, col=(0.3, 0.2, 0.05, 1))
-    chimney(D, "stack_a", -46.0, 115.0, 1.7, 47.0)
-    chimney(D, "stack_b", -39.5, 117.0, 1.35, 38.0)
-    # The power line: a terminal at each end of the yard, two pylons between.
-    t0 = terminal(D, -60.0, 106.0)
-    t3 = terminal(D, 102.0, 113.5, span=5.0)
-    p1 = pylon(D, -10.0, 115.4, 31.0)
-    p2 = pylon(D, 40.0, 115.0, 35.0)
-    order = lambda tips: sorted(tips, key=lambda p: p[2])  # noqa: E731
-    for a, b in ((t0, p1), (p1, p2), (p2, t3)):
-        for pa, pb in zip(order(a), order(b)):
-            K.cable(D, pa, pb, math.dist(pa, pb) * 0.045, r=0.035, steps=7, detail=0)
+    pipe((D, "trim", 1), (-27.5, 8.0, 111.0), (-17.0, 8.0, 105.5), 0.18, segs=5, col=(0.3, 0.2, 0.05, 1))
+    pipe((D, "trim", 1), (-27.5, 6.2, 111.0), (-27.5, 6.2, WALL_Z + 0.55), 0.18, segs=5, col=(0.3, 0.2, 0.05, 1))
+    chimney(D, "stack_a", -10.0, 116.0, 1.7, 47.0)
+    chimney(D, "stack_b", -15.5, 117.6, 1.35, 38.0)
     # Floods on masts, the yard's light; its far edge a wall under lamps.
-    for (x, z) in ((-47.0, 96.0), (-13.5, 97.5), (19.0, 119.0), (47.0, 95.0), (96.0, 96.0), (-60.0, 118.0)):
+    for (x, z) in ((-47.0, 96.0), (-13.5, 97.5), (21.5, 114.0), (47.0, 95.0), (96.0, 114.0), (-60.0, 118.0), (67.5, 113.5)):
         flood_mast(D, x, z, 17.0, hue="white" if x > -20 else "amber", toward=(0.0, 1.0) if z < 100 else (0.0, -1.0))
     box((D, "concrete", 0), X0, X1, 0.0, 3.4, EDGE_Z - 0.3, EDGE_Z, scale=1.5)
     for xa in (X0, X1 - 0.3):
@@ -418,8 +358,8 @@ def build(D):
     # Drums and pallets about, and a few hands.
     for _ in range(14):
         x, z = rng.uniform(X0 + 3, X1 - 3), rng.uniform(94.0, 118.0)
-        if -6.0 < x < 18.0 and z > 100.0 or abs(x - 6.0) < 5.0:
+        if (0.0 < x < 20.0 and z > 106.0) or abs(x - 6.0) < 5.0 or 24.0 < x < 104.0 or -45.0 < x < -8.0:
             continue
         P.place(rng.choice(("drum", "drum", "crates", "barrier")), x, 0.0, z, rng.uniform(0, 3.1), district=D)
-    for (x, z, yaw, pose) in ((-14.5, 99.5, 1.0, "smoke"), (20.6, 102.0, -1.6, "phone"), (48.2, 101.0, 1.57, "idle"), (-30.0, 101.5, 0.0, "idle")):
+    for (x, z, yaw, pose) in ((-9.5, 99.5, 1.0, "smoke"), (21.0, 96.0, -1.6, "phone"), (67.5, 100.0, 1.57, "idle"), (-30.0, 104.5, 0.0, "idle")):
         stand(x, z, yaw, pose)

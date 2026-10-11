@@ -5,6 +5,7 @@ from ncw.districts import avenue_kit as K
 from ncw.districts import avenue_lanes as LN
 from ncw.districts import avenue_yard as YD
 from ncw.districts import avenue_roofs as RF
+from ncw.districts import avenue_street as ST
 
 # The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
 # is streets.py's, from the plan.
@@ -57,6 +58,10 @@ def back_is(name=None, plane=None, h=0.0, lane=""):
 
 
 B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape = _back_ground, _clutter_back, _facade_wall, _fire_escape
+# And the generator's signs are hung by avenue_street: the same signs, each
+# turned its own way instead of square to its wall.
+_face_signs = B.face_signs
+B.face_signs = ST.face_signs
 
 
 # The lots, north of the intersection: (z_start, depth along the street,
@@ -138,6 +143,10 @@ for side, lots in LOTS.items():
 # in it), and the south street's frontages either side of the junction, with
 # their own blocks: lower, the same street. The arm's first two lots a side
 # stand against the south street's row; the rest back onto a lane.
+# (Nothing from here to the named blades draws on the street's own count
+# of signs: these buildings name theirs from avenue_kit's stream.)
+_st_name = B.st_name
+B.st_name = ST.NAME[0] = K.st_id
 ARM = [(12.0, 15.0), (27.0, 15.0), (42.0, 12.0), (54.0, 11.0), (65.0, 12.0), (77.0, 11.0)]
 ARM_H = {}
 for s in (-1, 1):
@@ -167,10 +176,7 @@ for s in (-1, 1):
         back_is()
 # The arm ends at Santo Domingo's yard: its wall and gate across the road's
 # end, the yard behind them, and the blocks behind the arm's lots
-# (avenue_yard). Nothing here, nor the south street's row below, draws on
-# the street's own count of signs.
-_st_name = B.st_name
-B.st_name = K.st_id
+# (avenue_yard).
 YD.build(AVS)
 
 # The south street's frontages either side of the arm's corner lots: its
@@ -199,7 +205,8 @@ for s, lots in SOUTH_ROW.items():
         B.building(B.Lot(xa, xb, 12.0, 42.0, "-z", sides, nb, AVS), h, r, style=SOUTH)
         back_is()
 
-B.st_name = _st_name
+B.st_name = ST.NAME[0] = _st_name
+RF.light_roofs(AVS, list(B.ROOFS))
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.
@@ -358,6 +365,7 @@ for _ in range(16):
 
 # The generator is the kit's again, and what it drew for nobody is dropped.
 B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape = _gen
+B.face_signs = _face_signs
 for key in [k for k in batches if k[0] == "void"]:
     del batches[key]
 P.INSTANCES[:] = [i for i in P.INSTANCES if i[7] != "void"]
@@ -399,3 +407,7 @@ for name, a, b, seed in (("cw", -66.0, -50.0, 9321), ("ce", 50.0, 108.0, 9322)):
     lane = LN.Lane(AVS, name, "x", 42.0, 48.0, a, b, seed, hues=LANE_HUES[name], dens=0.75, aprons=(0.9, 1.3))
     lane.vents = LANE_VENTS[name]
     lane.build(most_steam=1)
+
+# What the pavements carry, the cables across the south street and the arm,
+# the lanes' gates, the corners' kiosks, and who stands about (avenue_street).
+ST.build(AV, AVS, (-WALK - DEPTH, -WALK - DEPTH - 6.0), (WALK + DEPTH, WALK + DEPTH + 8.0))

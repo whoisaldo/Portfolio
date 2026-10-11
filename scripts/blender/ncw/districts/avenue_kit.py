@@ -74,18 +74,19 @@ def st_face(district, sid, c, right, up, w, h):
     quad((district, "sign", 0), a, b, cc, d, col=col)
 
 
-def blade(district, base, out, y, size, gap=0.35, both=True, bracket=True):
+def blade(district, base, out, y, size, gap=0.35, both=True, bracket=True, scale=1.0, sid=None):
     """A blade standing out from a wall: `base` the point on the wall (x, z),
     `out` the direction it stands out in (x, z, unit: square to the wall or
     turned), its middle at height y; painted on both faces, in its frame,
-    on a bracket back to the wall."""
-    w, h = ST_SIZES[size]
+    on a bracket back to the wall. `scale`: a standard sign made smaller or
+    larger; `sid`: its name, if the caller keeps the street's count."""
+    w, h = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale
     dx, dz = out
     c = (base[0] + dx * (gap + w / 2), y, base[1] + dz * (gap + w / 2))
     m = (-dz, 0.0, dx)  # the face normal of the side whose right runs out from the wall
     yaw = math.atan2(-dz, dx)
     oriented_box((district, "board_frame", 0), c[0], y, c[2], w + 0.12, h + 0.14, 0.16, yaw, scale=1.0)
-    sid = st_id(size)
+    sid = sid or st_id(size)
     st_face(district, sid, _add(c, m, 0.09), (dx, 0.0, dz), UP, w, h)
     if both:
         st_face(district, sid + "_b", _add(c, m, -0.09), (-dx, 0.0, -dz), UP, w, h)
@@ -103,9 +104,66 @@ def turned(f, angle):
     return (f.nx * ca + tx * sa, f.nz * ca + tz * sa)
 
 
-def face_blade(district, f, s, y, size, angle, gap=0.35):
+def face_blade(district, f, s, y, size, angle, gap=0.35, **kw):
     p = f.p(f.at(s), y, 0.0)
-    blade(district, (p[0], p[2]), turned(f, angle), y, size, gap)
+    blade(district, (p[0], p[2]), turned(f, angle), y, size, gap, **kw)
+
+
+def a_board(district, x, z, yaw, rng):
+    """A pavement A-board: two small signs leaning together, each lit."""
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    nx, nz = s_, c
+    w, h = 0.46, 1.05
+    for side in (1, -1):
+        foot = (x + nx * side * 0.3, G0, z + nz * side * 0.3)
+        top = (x + nx * side * 0.03, G0 + h, z + nz * side * 0.03)
+        up = _norm((top[0] - foot[0], top[1] - foot[1], top[2] - foot[2]))
+        right = (c * side, 0.0, -s_ * side)
+        mid = ((foot[0] + top[0]) / 2, (foot[1] + top[1]) / 2, (foot[2] + top[2]) / 2)
+        n = _cross(right, up)
+        hx, hy = tuple(v * (w / 2 + 0.04) for v in right), tuple(v * (h / 2 + 0.03) for v in up)
+        back = _add(mid, n, -0.012)
+        quad((district, "board_frame", 0), _add(_add(back, hx, -1), hy, -1), _add(_add(back, hx, 1), hy, -1), _add(_add(back, hx, 1), hy, 1), _add(_add(back, hx, -1), hy, 1))
+        st_face(district, st_id("bs"), mid, right, up, w, h * 0.92)
+
+
+def yatai(district, f, s, rng, w=2.6, colour=None, people=True):
+    """A stall built against a wall, shallow enough to leave the pavement
+    its two lines of walkers: a counter, a hatch lit behind it, a roof on
+    four posts with its board along the front and lanterns under it, the
+    keeper inside and somebody at its end."""
+    colour = colour or rng.choice(("red", "amber", "pink", "cyan", "yellow"))
+    wood = rng.choice(((0.2, 0.12, 0.06, 1), (0.1, 0.1, 0.11, 1), (0.16, 0.05, 0.04, 1)))
+    a, b = s - w / 2, s + w / 2
+    f.box((district, "trim", 0), a, b, G0, 1.0, 0.6, 0.95, col=wood)
+    f.box((district, "trim", 1), a - 0.05, b + 0.05, 1.0, 1.06, 0.5, 1.05, col=(0.3, 0.2, 0.1, 1))
+    f.quad((district, "shop", 0), a + 0.1, b - 0.1, 0.9, 2.2, 0.04, col=(rng.uniform(0.75, 1.0), rng.random(), 1.0, 1.0))
+    for e in (a + 0.04, b - 0.04):
+        for out in (0.06, 1.0):
+            px, _, pz = f.p(f.at(e), 0.0, out)
+            cylinder((district, "metal", 1), px, pz, G0, 2.4, 0.03, segs=4, cap=False)
+    f.box((district, "trim", 0), a - 0.15, b + 0.15, 2.4, 2.48, 0.0, 1.3, col=(0.06, 0.06, 0.07, 1))
+    f.box((district, "neon_" + colour, 0), a - 0.15, b + 0.15, 2.36, 2.4, 1.24, 1.3)
+    # Its board along the front of the roof, a little off square.
+    sh = min(0.6, w * 0.8 / ST_SIZES["ps"][0] * ST_SIZES["ps"][1])
+    sw = sh / ST_SIZES["ps"][1] * ST_SIZES["ps"][0]
+    c = f.p(f.at(s), 2.5 + sh / 2, 1.22)
+    tx, tz = (f.p(f.at(1.0), 0)[0] - f.p(f.at(0.0), 0)[0]), (f.p(f.at(1.0), 0)[2] - f.p(f.at(0.0), 0)[2])
+    f.box((district, "board_frame", 0), s - sw / 2 - 0.05, s + sw / 2 + 0.05, 2.48, 2.54 + sh, 1.12, 1.2)
+    st_face(district, st_id("ps"), c, (tx, 0.0, tz), UP, sw, sh)
+    n = max(2, round(w / 0.9))
+    for k in range(n):
+        px, _, pz = f.p(f.at(a + 0.3 + k * (w - 0.6) / (n - 1)), 0.0, 1.12)
+        P.place("lantern", px, 2.06, pz, district=district)
+    p = f.p(f.at(s), 1.5, 1.6)
+    light(district, p[0], p[1], p[2], colour if colour != "yellow" else "amber", 3.5)
+    light(district, p[0], 2.0, p[2], "amber", 2.5)
+    if people:
+        v = f.p(f.at(s + rng.uniform(-0.4, 0.4)), 0.0, 0.32)
+        stand(v[0], v[2], f.yaw, "vendor", y=G0)
+        side = rng.choice((-1, 1))
+        q = f.p(f.at(s + side * (w / 2 + 0.45)), 0.0, 0.75)
+        stand(q[0], q[2], f.yaw + side * -math.pi / 2, rng.choice(("idle", "phone", "talk")), y=G0)
 
 
 def board(district, f, s, y, size, out=0.15, roll=0.0, frame=True):
