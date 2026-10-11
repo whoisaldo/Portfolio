@@ -49,6 +49,16 @@ const KEEP_OUT = [
   // the garage street's east lots.
   [100, -380, 490, 48],
 ];
+// Where the kit has grown since: the lots are still dealt from the
+// rectangles above (a lot skipped there takes none of the draws, so one more
+// skipped would deal every lot after it differently, the hero's and
+// Contact's among them), and a lot dealt onto ground the kit has since taken
+// is left out afterwards. The Afterlife Block is built out to x 508 between
+// the boulevard and the plaza street, so the east lobe's north part runs to
+// x 510; its south part (Santo Domingo, under Contact's moon) is as dealt.
+const KEEP_OUT_SINCE = [
+  [100, -380, 510, -176],
+];
 // Where the moon rises for the Contact shot: lit roofs stay low there, and
 // right by the garage they are not there at all. A few towers stand under
 // it, their tops just clear of its lower edge from the garage's roof, so
@@ -549,7 +559,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         free = false;
         cone = true;
       }
-      lots.push({ x, z, w, d: dd, h, yaw: (r() - 0.5) * 0.3, free, cone, hero: false });
+      const gone = KEEP_OUT_SINCE.some(([x0, z0, x1, z1]) => x > x0 - 20 && x < x1 + 20 && z > z0 - 20 && z < z1 + 20);
+      lots.push({ x, z, w, d: dd, h, yaw: (r() - 0.5) * 0.3, free, cone, hero: false, gone });
     }
   }
   // More candidates than the tier draws (a phone's 1,200): keep the nearest
@@ -975,7 +986,9 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   const blockList = [];
   const squareList = [];
   const cutList = [];
-  lots.forEach((b, i) => (b.h < TOWER_FROM && !b.hero ? blockList : forms[i].chamfer > 0 ? cutList : squareList).push(i));
+  lots.forEach((b, i) => {
+    if (!b.gone) (b.h < TOWER_FROM && !b.hero ? blockList : forms[i].chamfer > 0 ? cutList : squareList).push(i);
+  });
   const blocks = instanced(blockList, 2, 4);
   blocks.name = "skyline_blocks";
   const squares = instanced(squareList, 4, 4);
@@ -1008,8 +1021,12 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     if (!b.cone && roll > (tower ? 0.78 : 0.8)) kit = b.free && fk() < 0.5 ? KIT.mast : KIT.sign;
     const k = Math.min(1.5, Math.max(0.55, Math.min(fw, fd) / 20));
     const [cx, cz] = topCentre(b, s);
-    kitAt[kit].push(cx, s.roof, cz, b.yaw + Math.floor(fk() * 4) * (Math.PI / 2));
-    kitLook[kit].push(k, Math.floor(fk() * SIGN_NEON.length), fk(), 0);
+    const turn = b.yaw + Math.floor(fk() * 4) * (Math.PI / 2);
+    const look = [k, Math.floor(fk() * SIGN_NEON.length), fk(), 0];
+    // A lot left out has had its draws all the same.
+    if (b.gone) return;
+    kitAt[kit].push(cx, s.roof, cz, turn);
+    kitLook[kit].push(...look);
   });
   const roofMat = new THREE.ShaderMaterial({
     uniforms: { ...shared, uNeon: { value: SIGN_NEON.map((c) => new THREE.Color(c)) }, uMotion: { value: reduced ? 0 : 1 } },
@@ -1140,8 +1157,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     const top = s.roof + s.spire;
     if (top < BEACON_OVER && !b.hero) return;
     const [cx, cz] = topCentre(b, s);
+    const group = Math.floor(r() * 3);
+    if (b.gone) return;
     beacons.push(cx, top + (s.spire ? 0.4 : 0.8), cz);
-    groups.push(Math.floor(r() * 3));
+    groups.push(group);
   });
   const beaconGeo = new THREE.BufferGeometry();
   beaconGeo.setAttribute("position", new THREE.Float32BufferAttribute(beacons, 3));
