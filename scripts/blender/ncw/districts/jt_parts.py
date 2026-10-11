@@ -75,6 +75,17 @@ def sign_id(sid):
     return ((i % 256) / 255.0, ((i // 256) % 256) / 255.0, (i // 65536) / 255.0, 1.0)
 
 
+_ST = {}
+
+
+def _st(size):
+    """The next of the street's designs of a size (the site takes the number
+    modulo its list of designs, so the names stay short)."""
+    n = _ST.get(size, 0)
+    _ST[size] = n + 1
+    return f"st_{size}_{n % 120}"
+
+
 def sign_face(col, c, b, w, h, t):
     """One face of a street sign on basis b, t along its normal: facing out
     along the normal for t > 0, back along it for t < 0."""
@@ -91,7 +102,7 @@ def slab_sign(c, b, size, k=1.0, both=True, depth=0.16):
     w, h = ST_SIZES[size]
     w, h = w * k, h * k
     obox((D, "board_frame", 1), c, b, w + 0.12, h + 0.14, depth, rim=True)
-    col = sign_id(st_name(size))
+    col = sign_id(_st(size))
     sign_face(col, c, b, w, h, depth / 2)
     if both:
         sign_face(col, c, b, w, h, -depth / 2)
@@ -437,9 +448,11 @@ def _jt_aframe(k):
 def _jt_stools(k):
     """Three stools and an upturned crate for a table."""
     T = k("trim")
-    box(T, -0.3, 0.3, 0.0, 0.5, -0.22, 0.22, scale=1.0, col=(0.5, 0.42, 0.1, 1))
-    for (x, z, col) in ((-0.65, 0.3, (0.1, 0.2, 0.5, 1)), (0.7, 0.2, (0.5, 0.08, 0.08, 1)), (0.1, -0.6, (0.1, 0.2, 0.5, 1))):
-        cylinder(T, x, z, 0.0, 0.44, 0.15, segs=6, col=col)
+    box(T, -0.3, 0.3, 0.0, 0.5, -0.22, 0.22, scale=1.0, col=(0.2, 0.15, 0.06, 1))
+    box(T, -0.34, 0.34, 0.5, 0.53, -0.26, 0.26, scale=1.0, col=(0.26, 0.2, 0.1, 1))
+    for (x, z, col) in ((-0.65, 0.3, (0.05, 0.09, 0.2, 1)), (0.7, 0.2, (0.22, 0.05, 0.05, 1)), (0.1, -0.6, (0.05, 0.09, 0.2, 1))):
+        cylinder(T, x, z, 0.38, 0.44, 0.16, segs=7, col=col)
+        cylinder(T, x, z, 0.0, 0.38, 0.05, segs=4, col=GREY, cap=False)
 
 
 @P.proto("jt_pole", box=(0.15, 4.5, 0.15), reach=600)

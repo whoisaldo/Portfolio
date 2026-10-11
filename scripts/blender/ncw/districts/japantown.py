@@ -59,11 +59,11 @@ NOREN = ((0.05, 0.07, 0.18, 1), (0.42, 0.05, 0.05, 1), (0.62, 0.6, 0.54, 1), (0.
 STYLE = dict(windows=(0, 1, 3, 6, 6), lit=(0.5, 0.92), warmth=(0.6, 1.0),
              tints=("charcoal", "brown", "rust", "teal", "plum", "concrete", "brown", "charcoal"),
              balcony=0.2, balcony_glass=0.15, ac=0.16, pipes=0.5, fire_escape=0.14, awning=0.7, shop_sign=0.5,
-             canopy=0.0, cornice=0.5, setback=0.0, ledge_every=(1, 1, 2),
+             canopy=0.0, cornice=0.0, setback=0.0, ledge_every=0,
              shop_colours=["red", "amber", "pink", "magenta", "red", "amber", "green", "pink"])
-STYLE_B = dict(STYLE, balcony=0.14, fire_escape=0.1, awning=0.6, ledge_every=(2, 0))
+STYLE_B = dict(STYLE, balcony=0.14, fire_escape=0.1, awning=0.6)
 STYLE_C = dict(STYLE, tints=("charcoal", "navy", "teal", "plum", "concrete", "brown"), lit=(0.45, 0.85), balcony=0.1,
-               fire_escape=0.1, awning=0.4, shop_sign=0.5, setback=0.5, ledge_every=(2, 3, 0))
+               fire_escape=0.1, awning=0.4, shop_sign=0.5, setback=0.5)
 
 
 def strip(f, colour, s0, s1, y0, y1, out, depth=0.06):
@@ -323,10 +323,8 @@ def by_wall(f, r, alley=False, people=0.42):
         x, _, z = f.p(f.at(s), G0, 0.48)
         if roll < 0.16:
             J.put("vending", x, G0, z, f.yaw)
-            light(D, *f.p(f.at(s), 1.2, 1.3), "cyan", 1.6)
         elif roll < 0.28:
             J.put("vending_warm", x, G0, z, f.yaw)
-            light(D, *f.p(f.at(s), 1.2, 1.3), "amber", 1.6)
         elif roll < 0.46:
             x, _, z = f.p(f.at(s), G0, 0.6)
             J.put("jt_aframe", x, G0, z, f.yaw + r.uniform(-0.4, 0.4))
@@ -351,6 +349,16 @@ def shop_face(rec, name, level="street", cap=None):
     f = face(rec, name)
     w = f.width
     alley = level == "alley"
+    # Ledges along the floor lines and a cornice (the generator's are left
+    # off: these are detail, which a phone's pack drops).
+    tcol = B.TRIM[rec["tint"]]
+    every = r.choice((1, 1, 2)) if level == "street" else r.choice((2, 0))
+    y = SHOP_H + CELL_H
+    while every and y < h - 1.0:
+        f.ledge((D, "trim", 1), 0.0, w, y - 0.22, 0.22, 0.18, tcol, caps=False)
+        y += CELL_H * every
+    if r.random() < 0.5:
+        f.ledge((D, "trim", 1), 0.0, w, h - 0.55, 0.55, 0.35, tcol, caps=False)
     if r.random() < (0.8 if alley else 0.62 if level == "street" else 0.35):
         if r.random() < 0.7:
             J.lantern_row(f, 0.5, w - 0.5, 3.0, 0.6, r.choice((1.2, 1.4, 1.7)))
@@ -360,8 +368,51 @@ def shop_face(rec, name, level="street", cap=None):
         if w > 3.4:
             s = r.uniform(0.4, w - 2.2)
             noren(f, s, s + r.uniform(1.2, 1.8), r)
-    signs_on(f, h, r, density={"street": 1.0, "alley": 0.6, "edge": 0.5}[level], small=alley, big=not alley, cap=cap)
-    by_wall(f, r, alley, {"street": 0.42, "alley": 0.3, "edge": 0.1}[level])
+    signs_on(f, h, r, density={"street": 1.0, "alley": 0.5, "edge": 0.45}[level], small=alley, big=not alley, cap=cap)
+    by_wall(f, r, alley, {"street": 0.4, "alley": 0.26, "edge": 0.08}[level])
+
+
+def lane_face(rec, name, cap=None):
+    """A back on a lane, which is dark but never black: a pool of light
+    every few metres in the colours of the doors' tubes, small signs for the
+    bars that open onto it, lanterns on some, a tube over a door, and
+    whoever is out the back."""
+    r, h = rec["r"], rec["h"]
+    f = face(rec, name)
+    w = f.width
+    s = r.uniform(0.8, 2.6)
+    while s < w - 0.4:
+        light(D, *f.p(f.at(s), 2.8, 1.3), r.choice(("amber", "amber", "amber", "pink", "cyan", "green", "red")), 5.0)
+        s += r.uniform(5.0, 8.0)
+    if r.random() < 0.3:
+        J.lantern_row(f, 0.6, w - 0.6, 3.0, 0.45, 1.5)
+    if r.random() < 0.55 and w > 4.0:
+        s = r.uniform(0.5, w - 3.0)
+        strip(f, r.choice(NEONS), s, s + r.uniform(1.6, 2.6), 3.3, 3.38, 0.08)
+    signs_on(f, h, r, density=0.25, small=True, big=False, cap=cap)
+    by_wall(f, r, alley=True, people=0.14)
+
+
+def flush_shops(f, r):
+    """A ground floor of shop windows in a dark wall, the glass a hair proud
+    of it: a tube over each or an awning, a shutter down now and then."""
+    w = f.width
+    bays = max(1, round(w / CELL_W))
+    bw = w / bays
+    i = 0
+    while i < bays:
+        n = min(r.choice((1, 2, 2, 3)), bays - i)
+        a, b = i * bw + 0.3, (i + n) * bw - 0.3
+        if r.random() < 0.86:
+            f.quad((D, "shop", 0), a, b, 0.55, 3.3, 0.03, col=(r.uniform(0.4, 1.0), r.random(), 1.0 if r.random() < 0.92 else 0.0, 1.0))
+            colour = r.choice(STYLE["shop_colours"])
+            if r.random() < 0.5:
+                B.awning(D, f, a, b, colour)
+            else:
+                strip(f, colour, a + 0.2, b - 0.2, 3.38, 3.46, 0.03)
+        else:
+            f.quad((D, "door_panel", 0), a, b, G0, 3.2, 0.03)
+        i += n
 
 
 # ---------------------------------------------------------------------------
@@ -387,7 +438,7 @@ def skylight(x, z, top, r, w=1.3, d=2.3):
     box((D, "trim", 1), x - w / 2 - 0.1, x + w / 2 + 0.1, top, top + 0.3, z - d / 2 - 0.1, z + d / 2 + 0.1, scale=1.0, col=(0.1, 0.1, 0.11, 1))
     quad((D, "glow", 0), (x - w / 2, top + 0.31, z + d / 2), (x + w / 2, top + 0.31, z + d / 2), (x + w / 2, top + 0.31, z - d / 2), (x - w / 2, top + 0.31, z - d / 2),
          col=tuple(v * 0.55 for v in GLOW[c][:3]) + (1,))
-    light(D, x, top + 0.5, z, c, 2.6)
+    light(D, x, top + 0.5, z, c, 4.5)
 
 
 def hut(x, z, y, col, r, door=None):
@@ -398,7 +449,7 @@ def hut(x, z, y, col, r, door=None):
     dx = x + side * 1.02
     q = ((dx, y, z + 0.45), (dx, y, z - 0.45), (dx, y + 2.0, z - 0.45), (dx, y + 2.0, z + 0.45))
     quad((D, "glow", 0), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=GLOW["amber"])
-    light(D, x + side * 1.8, y + 1.0, z, "amber", 2.8)
+    light(D, x + side * 1.8, y + 1.0, z, "amber", 4.5)
     if r.random() < 0.3:
         stand(x + side * 1.5, z + r.uniform(-0.8, 0.8), r.uniform(0, 6.28), r.choice(("smoke", "phone", "squat")), y)
 
@@ -438,7 +489,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
     for u, z, yaw, dz in ((tu + 1.6, z0 + 0.7, 0.0, 2.1), (w - 2.6, z1 - 0.7, math.pi, -2.1)):
         if u < w - 1.0 and d > 5.0:
             J.put("jt_lamp_arm", X(u), top + 0.05, z, yaw)
-            light(D, X(u), top + 5.0, z + dz, "cyan", 3.5)
+            light(D, X(u), top + 5.0, z + dz, "cyan", 6.0)
     zv = (z0 + z1) / 2 + r.uniform(-1.0, 1.0)
     J.put("jt_viewer", X(w - 0.75), top + 0.05, zv, HALF_PI * sgn)
     bench(X(w - 2.6), zv + r.choice((-1.6, 1.6)), -HALF_PI * sgn, r, top + 0.05)
@@ -515,7 +566,7 @@ def roof(rec, weights):
             strip(f, r.choice(("green", "purple", "cyan", "magenta")), 0.2, f.width - 0.2, top - 0.3, top - 0.22, 0.05)
         return
     parapet(x0, x1, z0, z1, top, tcol)
-    if r.random() < 0.5:
+    if r.random() < 0.65:
         colour = r.choice(("cyan", "amber", "pink", "red", "teal", "magenta", "green"))
         for (ax, az), (bx, bz) in (((x0, z1), (x1, z1)), ((x1, z1), (x1, z0)), ((x1, z0), (x0, z0)), ((x0, z0), (x0, z1))):
             key, col = lit(colour, max(ax, bx))
@@ -539,7 +590,7 @@ def roof(rec, weights):
         xa_, xb_ = sorted((X(us), X(us + 3.4)))
         quad((D, "concrete", 0), (xa_, top + 0.04, z1 - 0.5), (xb_, top + 0.04, z1 - 0.5), (xb_, top + 0.04, z0 + 0.5), (xa_, top + 0.04, z0 + 0.5),
              ((0, 0), (1.1, 0), (1.1, d / 3), (0, d / 3)))
-        light(D, X(us + 1.7), top + 1.0, mid, r.choice(("amber", "amber", "pink", "cyan")), 3.2)
+        light(D, X(us + 1.7), top + 1.0, mid, r.choice(("amber", "amber", "pink", "cyan")), 5.0)
         if r.random() < 0.7:
             stand(X(us + 1.7) + r.uniform(-1, 1), mid + r.uniform(-1.0, 1.0), r.uniform(0, 6.28), r.choice(("smoke", "squat", "phone", "idle")), top + 0.04)
         if d > 7.0:
@@ -568,7 +619,7 @@ def roof(rec, weights):
         if r.random() < 0.5:
             J.put("antenna", X(1.5), top, mid, 0.0, r.uniform(0.7, 1.2))
         skylight(X(w * 0.72), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.0), top, r)
-        light(D, X(w - 2.2), top + 1.0, mid, r.choice(("pink", "magenta", "red", "amber")), 3.4)
+        light(D, X(w - 2.2), top + 1.0, mid, r.choice(("pink", "magenta", "red", "amber")), 5.5)
     else:  # a roof garden: festoons on four posts, stools, a cart, planters
         ua, ub = max(1.0, w * 0.5 - 4.5), min(w - 1.0, w * 0.5 + 4.5)
         posts = [(X(ua), z0 + 0.8), (X(ub), z0 + 0.8), (X(ub), z1 - 0.8), (X(ua), z1 - 0.8)]
@@ -580,7 +631,7 @@ def roof(rec, weights):
         quad((D, "sidewalk", 0), (xa_, top + 0.04, z1 - 0.4), (xb_, top + 0.04, z1 - 0.4), (xb_, top + 0.04, z0 + 0.4), (xa_, top + 0.04, z0 + 0.4),
              ((0, 0), ((xb_ - xa_) / 2, 0), ((xb_ - xa_) / 2, d / 2), (0, d / 2)))
         for t in (0.25, 0.75):
-            light(D, X(ua + (ub - ua) * t), top + 2.0, mid, "amber", 3.2)
+            light(D, X(ua + (ub - ua) * t), top + 2.0, mid, "amber", 5.0)
         stall(X(ua + 1.2), mid, out_yaw, r, top + 0.04, cart=True)
         for t in (0.45, 0.68, 0.9):
             stools(X(ua + (ub - ua) * t), mid + r.uniform(-0.6, 0.6), r.uniform(0, 6.28), r, top + 0.04)
@@ -604,7 +655,7 @@ build_row("A", ROW_A, "+x", "street", segments(ZN, ZS, cuts_w), 812, W_NARROW,
 build_row("B", ROW_B, "+x", "back", segments(ZN, ZS, cuts_w), 813, (8.0, 9.6, 11.2, 12.8, 14.4),
           ((3, 3), (4, 3), (5, 3), (6, 2)), STYLE_B)
 build_row("C", ROW_C, "-x", "back", segments(ZN, ZS, cuts_c), 814, (12.8, 16.0, 19.2, 22.4),
-          ((5, 2), (6, 3), (7, 3), (8, 2), (9, 1)), STYLE_C, ground="lobby")
+          ((5, 2), (6, 3), (7, 3), (8, 2), (9, 1)), STYLE_C, ground="blank")
 
 ROOFS_W = {"E": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden", 3)),
            "A": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden", 3)),
@@ -612,6 +663,11 @@ ROOFS_W = {"E": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden"
            "C": (("deck", 2), ("shack", 3), ("plant", 6), ("sign", 8), ("garden", 1))}
 for rec in LOTS:
     row = rec["row"]
+    if row == "C":
+        for name in [rec["front"]] + [n for n in ("-z", "+z") if rec["sides"][n] == "street"]:
+            flush_shops(face(rec, name), rec["r"])
+    if row != "A":
+        lane_face(rec, rec["back"], cap=7.4 if row == "E" else None)
     if row in ("E", "A"):
         shop_face(rec, rec["front"], "street")
     elif row == "B":
@@ -703,8 +759,8 @@ while z < -8.0:
         J.span(kind, (XW, z), (XE, zb), min(hw, height_at("E", zb)) - sr.uniform(0.5, 2.5), sr.uniform(0.8, 1.6))
     else:
         J.span(kind, (XW, z), (XE, zb), y, 2.2 if kind == "jt_string" else 1.8)
-        for x in (-89.0, -80.0, -71.0):
-            light(D, x, 0.3, z, "red" if kind == "jt_string" else "amber", 2.4)
+        for x in (-86.0, -74.0):
+            light(D, x, 0.3, z, "red" if kind == "jt_string" else "amber", 3.2)
 
 # Beside the ramp: lamp columns along both kerbs with lanterns strung
 # between them, nothing over the road.
@@ -962,7 +1018,7 @@ for z in (tc - 3.6, tc + 3.6):
 # about; steam.
 # ---------------------------------------------------------------------------
 lr = random.Random(7500)
-for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.25, 26.0), (BACK, ZN + 2.0, ZS - 2.0, 0.12, 30.0), (EDGE, ZN + 2.0, ZS - 2.0, 0.0, 22.0)):
+for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.45, 26.0), (BACK, ZN + 2.0, ZS - 2.0, 0.3, 30.0), (EDGE, ZN + 2.0, ZS - 2.0, 0.0, 22.0)):
     z = za + 3.0
     while z < zb:
         if xa == EDGE[0]:
@@ -980,6 +1036,10 @@ for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.25, 26.0), (
         if xa == EDGE[0]:
             x = xa + 0.6
         J.put("lamp_short", x, G0, z)
+        light(D, x, 3.0, z, "amber", 4.0)
+        if xa == LANE[0] and k % 3 == 1:
+            stall(xa + 0.95, z + 9.0, HALF_PI, lr)
+            stools(xa + 1.2, z + 11.6, lr.uniform(0, 6.28), lr)
         roll = lr.random()
         if roll < 0.3:
             J.put("drum", x, G0, z + 2.0)
@@ -1055,6 +1115,7 @@ for (dist, mat, _), b in batches.items():
         cy = sum(v[2] for v in vs) / len(vs)
         if cx > -60.0 and cy > 7.5:
             _bad += 1
+print(f"japantown: {len(LIGHTS.get(D, [])) // 5} lights, {len(STREET_SIGN_IDS)} sign ids so far in the city")
 print(f"japantown: {len(LOTS)} lots, {sum(1 for i in P.INSTANCES if i[7] == D)} props, {len(PEOPLE)} people so far in the city, bake sources east of x -60 over 7.5 m: {_bad}")
 _t = {}
 for (dist, mat, det), b in batches.items():
