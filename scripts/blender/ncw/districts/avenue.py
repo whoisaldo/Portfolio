@@ -1,63 +1,140 @@
 from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials, street constants)
+from ncw import buildings as B
+from ncw import props as P
 
 # The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
 # is streets.py's, from the plan.
 
 
-# The lots, north of the intersection. (z_start, depth along the street,
+# The lots, north of the intersection: (z_start, depth along the street,
 # height) per side. The hero's camera is low, so the first few lots tower
-# out of its frame; past them each roof is a little lower in its eye than
-# the one before (on the left about 0.38 of the lot's distance falling to
-# 0.29; on the right, past Nicola, a steeper 0.27, as the plate has it), and
-# the roofs step down toward the vanishing point under a band of sky.
+# out of its frame; past them each roof is a little lower in its eye than the
+# one before (on the left about 0.38 of the lot's distance falling to 0.29; on
+# the right, past Nicola, a steeper 0.27, as the plate has it), and the roofs
+# step down toward the vanishing point under a band of sky. Each lot is a
+# real building now (buildings.py): shops along the pavement, storeys of
+# windows with ledges, balconies and units, signs, a roof that is lived on.
+# The rows end on the plaza street's lot line and leave the deck its gap.
 HERO_EYE_Z = 10.0
 LOTS = {
-    -1: [(-10, 11, 16), (-21, 9, 24), (-30, 14, 19), (-44, 12, 21), (-56, 10, 23), (-66, 12, 29),
-         (-84, 13, 27), (-97, 11, 37), (-108, 15, 33), (-123, 12, 44), (-135, 14, 38), (-149, 12, 49),
-         (-161, 9, 46)],
-    1: [(-10, 13, 18), (-23, 10, 22), (-33, 12, 27), (-45, 16, 17), (-61, 10, 19), (-71, 13, 22),
+    -1: [(-10, 11, 16), (-21, 9, 24), (-30, 14, 19), (-44, 12, 21), (-56, 10, 23), (-66, 8, 29),
+         (-86, 11, 27), (-97, 11, 37), (-108, 15, 33), (-123, 12, 44), (-135, 14, 38), (-149, 12, 49),
+         (-161, 7, 46)],
+    1: [(-10, 13, 18), (-23, 10, 22), (-33, 12, 27), (-45, 16, 17), (-61, 13, 19),
         (-86, 12, 26), (-98, 14, 29), (-112, 11, 33), (-123, 15, 36), (-138, 12, 40), (-150, 10, 43),
-        (-160, 10, 44)],
+        (-160, 8, 44)],
 }
+DEPTH = 30.0
+DECK_GAP = (-86.0, -74.0)
+STYLE = dict(windows=(0, 0, 1, 3, 6, 5), lit=(0.62, 0.95), warmth=(0.5, 1.0),
+             tints=("charcoal", "navy", "plum", "teal", "navy"), balcony=0.2, balcony_glass=0.25, ac=0.28,
+             signs=2.0, awning=0.6, shop_sign=0.55, canopy=0.12, roof_cap=4.5, setback=0.0, fire_escape=0.3,
+             shop_colours=["pink", "cyan", "red", "amber", "purple", "teal", "magenta"])
 for side, lots in LOTS.items():
     s = side
+    rows = []
     for i, (z_start, depth, height) in enumerate(lots):
         z1, z0 = z_start, z_start - depth
+        rows.append((z0, z1, height, i))
+    for j, (z0, z1, height, i) in enumerate(rows):
         seed = 1000 + (i * 37 if s > 0 else i * 53 + 7)
-        x_front, x_back = (WALK, WALK + 22) if s > 0 else (-WALK - 22, -WALK)
-        xa, xb = (WALK, WALK + 22) if s > 0 else (-WALK - 22, -WALK)
-        mass(AV, xa, xb, z0, z1, SHOP_H, height, seed, painted=(i + (0 if s > 0 else 1)) % 3)
+        r = random.Random(seed)
+        xa, xb = (WALK, WALK + DEPTH) if s > 0 else (-WALK - DEPTH, -WALK)
+        front = "-x" if s > 0 else "+x"
+        backf = "+x" if s > 0 else "-x"
+        sides = {front: "street", backf: "back"}
+        nb = {}
+        # Toward the south street (+z) and the plaza street (-z) at the ends,
+        # the deck's gap between two lots, and a neighbour otherwise.
+        hi = "street" if j == 0 else ("open" if abs(z1 - DECK_GAP[0]) < 0.01 else "party")
+        lo = "street" if j == len(rows) - 1 else ("open" if abs(z0 - DECK_GAP[1]) < 0.01 else "party")
+        sides["+z"], sides["-z"] = hi, lo
+        if hi == "party":
+            nb["+z"] = rows[j - 1][2]
+        if lo == "party":
+            nb["-z"] = rows[j + 1][2]
+        lot = B.Lot(xa, xb, z0, z1, front, sides, nb, AV)
         HERO_MASSES.append(((xa, 0.0, z0), (xb, height, z1)))
-        # The ground floor as its own dark volume, set back behind the
-        # shopfront's glass (in its plane the glass would lose to it), and on
-        # the corner lots behind a second shopfront facing the intersection.
-        corner = i == 0
-        box((AV, "dark", 0), xa + (0.3 if s > 0 else 0), xb - (0.3 if s < 0 else 0), 0.15, SHOP_H, z0, z1 - (0.3 if corner else 0), scale=2.0)
-        r = shopfront(AV, s, z0, z1, seed)
-        if corner:
-            corner_shop(AV, xa, xb, z1, seed + 5)
-        if r.random() < 0.18:
-            lanterns(AV, s, z0, z1)
-        ledges(AV, s, z0, z1, SHOP_H + CELL_H, height)
-        clutter(AV, s, z0, z1, height, seed + 11)
-        ac_units(AV, s, z0, z1, SHOP_H + 1, min(height - 2, 22), seed + 1)
-        if r.random() < 0.3 and height > 20:
-            fire_escape(AV, s, (z0 + z1) / 2, SHOP_H + 0.5, min(height - 3, 26))
         # A setback crown on the taller lots, kept under the line the roofs
-        # step down along, and roof clutter.
-        crown = min(r.uniform(5, 14), 0.33 * (HERO_EYE_Z - z_start) - height)
-        if height > 30 and crown > 3:
-            ia, ib = (xa + 3, xb - 5) if s > 0 else (xa + 5, xb - 3)
-            mass(AV, ia, ib, z0 + 2, z1 - 2, height, height + crown, seed + 3)
+        # step down along.
+        crown = min(r.uniform(5, 14), 0.33 * (HERO_EYE_Z - z1) - height)
+        crowned = height > 30 and crown > 3
+        st = dict(STYLE, roof_cap=0.0 if crowned else 4.5)
+        B.building(lot, height, r, style=st, defer_roof=HERO_ROOFS)
+        if crowned:
+            ia, ib = (xa + 5, xb - 3) if s > 0 else (xa + 3, xb - 5)
+            clot = B.Lot(ia, ib, z0 + 2, z1 - 2, front, {"+x": "open", "-x": "open", "+z": "open", "-z": "open"}, {}, AV)
+            B.building(clot, height + crown, r, style=dict(STYLE, roof_cap=4.5, balcony=0.1), base=height,
+                       signs=False, defer_roof=HERO_ROOFS)
             HERO_MASSES.append(((ia, height, z0 + 2), (ib, height + crown, z1 - 2)))
-        # The roof, dressed once every mass the hero looks along is known (see
-        # HERO_ROOFS below): a parapet, a tank, a hut, plant, an antenna, a
-        # sign facing the street, each only where the hero cannot see it.
-        if height > 30 and crown > 3:
-            HERO_ROOFS.append((AV, xa, xb, z0, z1, height, seed + 21, 0.0, None))
-            HERO_ROOFS.append((AV, ia, ib, z0 + 2, z1 - 2, height + crown, seed + 22, 4.5, -s * math.pi / 2))
-        else:
-            HERO_ROOFS.append((AV, xa, xb, z0, z1, height, seed + 21, 4.5, -s * math.pi / 2))
+        # The street face's own lanterns now and then.
+        if r.random() < 0.2:
+            for zz in [z0 + 0.8 + 1.6 * k for k in range(int((z1 - z0 - 1.3) / 1.6))]:
+                P.place("lantern", s * (WALK - 1.2), 3.1, zz, district=AV)
+    # Hero roofs face the street: the dressing's signs turn to it.
+    for k in range(len(HERO_ROOFS)):
+        t = HERO_ROOFS[k]
+        if t[8] is None and t[0] == AV:
+            HERO_ROOFS[k] = t[:8] + (-s * math.pi / 2,) + t[9:]
+
+# The service lanes behind each row, paved, lit and cluttered, from the
+# south street to the plaza street (the deck crosses them overhead).
+for xa, xb in ((-WALK - DEPTH - 6.0, -WALK - DEPTH), (WALK + DEPTH, WALK + DEPTH + 8.0)):
+    B.ground_rect(AV, xa, xb, -168.0, -10.0)
+    lr = random.Random(int(xa * 13))
+    z = -14.0
+    while z > -164.0:
+        if not (DECK_GAP[0] - 2 < z < DECK_GAP[1] + 2):
+            kind = lr.random()
+            x = xa + 0.6 if lr.random() < 0.5 else xb - 0.6
+            if kind < 0.35:
+                P.place("bin", x, 0.15, z, district=AV)
+            elif kind < 0.5:
+                P.place("drum", x, 0.15, z, district=AV)
+            elif kind < 0.62:
+                P.place("lamp_short", x, 0.15, z, district=AV)
+        z -= lr.uniform(5.0, 11.0)
+
+# The avenue's south arm, behind the hero's lens (the drift's camera stands
+# in it), and the south street's frontages either side of the junction, with
+# their own blocks: lower, the same street.
+ARM = [(12.0, 13.0), (25.0, 11.0), (36.0, 15.0), (51.0, 12.0), (63.0, 14.0), (77.0, 11.0)]
+for s in (-1, 1):
+    rr = random.Random(2200 + s)
+    hs = [rr.choice((14.0, 18.0, 21.0, 24.0, 28.0, 31.0)) for _ in ARM]
+    for j, (za, d) in enumerate(ARM):
+        r = random.Random(2300 + j * 11 + (5 if s > 0 else 0))
+        xa, xb = (WALK, WALK + DEPTH) if s > 0 else (-WALK - DEPTH, -WALK)
+        front = "-x" if s > 0 else "+x"
+        sides = {front: "street", ("+x" if s > 0 else "-x"): "back",
+                 "-z": "street" if j == 0 else "party", "+z": "open" if j == len(ARM) - 1 else "party"}
+        nb = {}
+        if j > 0:
+            nb["-z"] = hs[j - 1]
+        if j < len(ARM) - 1:
+            nb["+z"] = hs[j + 1]
+        B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AV), hs[j], r, style=STYLE)
+# The arm ends at a yard wall and the depot behind it, square across the
+# street: a shut gate, a lit sign over it, the depot's mass over the wall.
+B.building(B.Lot(-WALK - DEPTH, WALK + DEPTH, 92.0, 118.0, "-z", {"-z": "street", "+z": "back", "-x": "open", "+x": "open"}, {}, AV),
+           19.0, random.Random(2399), style=dict(STYLE, tints=("rust", "brown"), windows=(2,), balcony=0.0, signs=0.6),
+           ground="blank")
+B.ground_rect(AV, -WALK - DEPTH, WALK + DEPTH, 88.0, 92.0)
+for xo in (-6.0, 6.0):
+    box((AV, "metal", 0), xo - 6.0, xo + 6.0, 0.15, 6.2, 91.7, 92.0, scale=1.0)
+box((AV, "hazard", 1), -12.0, 12.0, 6.2, 6.5, 91.65, 91.75, scale=1.0)
+box((AV, "neon_amber", 0), -10.0, 10.0, 7.2, 7.35, 91.6, 91.7, scale=1.0)
+
+# The south street's frontages either side of the hero's junction, out to
+# the west street and to the x 120 road: its south side, and the stretch of
+# its north side the avenue's rows do not reach (east of the east lane).
+SOUTH = dict(STYLE, signs=1.4, roof_cap=6.0)
+B.row(AV, "-z", -66.0, -WALK, 30.0, 12.0, lambda i, a: random.Random(int(a * 7)).choice((16.0, 22.0, 27.0, 33.0)),
+      lambda i: random.Random(int(i * 31 + 5)).choice((9.6, 12.8, 16.0)), random.Random(2401), style=SOUTH,
+      ends=("street", "street"))
+B.row(AV, "-z", WALK, 108.0, 30.0, 12.0, lambda i, a: random.Random(int(a * 11)).choice((15.0, 20.0, 26.0, 34.0)),
+      lambda i: random.Random(int(i * 17 + 3)).choice((9.6, 12.8, 16.0, 19.2)), random.Random(2402), style=SOUTH,
+      ends=("street", "street"))
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.

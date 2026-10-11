@@ -21,7 +21,7 @@ VERT_SIGNS = ["neon_magenta", "neon_cyan", "neon_pink", "neon_amber", "neon_blue
 for side, lots in FAR_LOTS.items():
     s = side
     for i, (z_start, depth, height) in enumerate(lots):
-        z1, z0 = z_start, z_start - depth
+        z1, z0 = z_start, max(z_start - depth, -708.0)  # off the megabuilding street
         xa, xb = (WALK, WALK + 30) if s > 0 else (-WALK - 30, -WALK)
         seed = 4700 + i * 13 + (0 if s > 0 else 500)
         mass(FA, xa, xb, z0, z1, SHOP_H, height, seed, painted=(i + (1 if s > 0 else 2)) % 3)
@@ -41,8 +41,10 @@ for side, lots in FAR_LOTS.items():
 
 # Every roof the hero looks along, dressed now that all their masses are
 # known, with only what its lens cannot see.
-for district, x0_, x1_, z0_, z1_, top_, seed_, cap_, face_ in HERO_ROOFS:
-    dress_roof(district, x0_, x1_, z0_, z1_, top_, seed_, cap=cap_, face=face_, hero=True)
+from ncw import buildings as _B  # noqa: E402
+for _t in HERO_ROOFS:
+    _B.roof_dress(_t[0], _t[1], _t[2], _t[3], _t[4], _t[5], random.Random(_t[6]), cap=_t[7], face=_t[8], hero=True,
+                  tint=_t[9] if len(_t) > 9 else 0)
 
 # The avenue's far end is closed by a rail viaduct crossing it low against
 # the glow at the vanishing point: a dark deck on four piers, a row of lamps
