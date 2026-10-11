@@ -117,3 +117,5 @@ from ncw.districts import mega_face  # noqa: E402,F401
 from ncw.districts import mega_wings  # noqa: E402,F401
 from ncw.districts import mega_roofs  # noqa: E402,F401
 from ncw.districts import mega_east  # noqa: E402,F401
+from ncw.districts import mega_street  # noqa: E402,F401
+from ncw.districts import mega_more  # noqa: E402,F401

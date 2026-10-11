@@ -82,7 +82,9 @@ rpipe((-3.7, 3.82, ZC0 + 0.5), (-3.7, 3.82, ZC1 - 0.4), 0.11)
 rpipe((-3.38, 3.88, ZC0 + 0.5), (-3.38, 3.88, ZC1 - 0.4), 0.06, col=STEEL)
 rpipe((3.5, 3.78, ZC0 + 0.5), (3.5, 3.78, ZC1 - 0.4), 0.15, col=CONC)
 for z in (-748.6, -752.6, -756.6, -760.6):
-    tube_z(0.0, 3.93, z - 0.8, z + 0.8, "green", power=3.4)
+    # (Their pools of light start a little way in: the bake lights a wall at
+    # every height over a pool, and the block's face is the hero's.)
+    tube_z(0.0, 3.93, z - 0.8, z + 0.8, "green", power=3.0, pools=z < -752.0)
     box((D, "metal", 1), -0.16, 0.16, 3.93, CEIL, z - 0.9, z + 0.9, scale=0.5)
 for z in (-750.4, -758.4):
     wall_lamp(PX0 + 0.02, 2.55, z, 1, 0, "amber", 2.0)
@@ -272,7 +274,7 @@ rpipe((19.2, 13.4, -737.2), (47.0, 13.4, -737.2), 0.16)
 rpipe((19.2, 13.52, -737.75), (47.0, 13.52, -737.75), 0.09, col=STEEL)
 rpipe((47.0, G0, -737.2), (47.0, 13.4, -737.2), 0.16)
 for (x, y, z, hue, pw) in ((-38.0, 6.55, -739.0, "amber", 3.2), (-27.0, 6.55, -739.4, "amber", 3.2), (-22.0, 6.55, -736.0, "white", 2.4),
-                           (-12.0, 10.1, -742.0, "white", 2.2), (12.0, 10.1, -742.0, "white", 2.2),
+                           (-12.0, 10.1, -740.0, "white", 1.5), (12.0, 10.1, -740.0, "white", 1.5),
                            (24.0, 13.3, -738.6, "amber", 3.6), (34.0, 13.3, -736.2, "amber", 3.6), (43.5, 13.3, -738.6, "amber", 3.6)):
     box((D, "metal", 1), x - 0.02, x + 0.02, y + 0.12, y + 0.7, z - 0.02, z + 0.02, scale=0.5)
     box((D, "glow", 0), x - 0.16, x + 0.16, y - 0.12, y + 0.12, z - 0.16, z + 0.16, scale=0.5, col=dim(GLOW[hue], 0.8 if abs(x) > 15 else 0.3), bottom=True)
