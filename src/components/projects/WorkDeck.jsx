@@ -314,7 +314,7 @@ function Deck({ projects, index, onSelect, expanded, onExpand, onClose, shot, se
   const tall = expanded ? "h-full" : "";
   return (
     <div className={`tick-frame relative ${tall}`}>
-      <Panel edge="bg-ink-line" fill="bg-ink" className={tall} innerClassName={`flex flex-col ${tall}`}>
+      <Panel glass fill="bg-ink" className={tall} innerClassName={`flex flex-col ${tall}`}>
         {/* The bezel. */}
         <div className="flex items-center justify-between gap-4 px-4 md:px-5 py-3 border-b border-ink-line">
           <div className="flex items-center gap-4 min-w-0">

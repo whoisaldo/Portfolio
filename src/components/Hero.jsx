@@ -89,7 +89,7 @@ export default function Hero() {
               transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 0.9, 0.25, 1] }}
               className="mt-12 grid gap-2.5 sm:grid-cols-3"
             >
-              <Panel innerClassName="px-5 py-5">
+              <Panel glass innerClassName="px-5 py-5">
                 <dt className="mono-label text-volt mb-2.5 flex items-center gap-2">
                   {/* The one pulsing thing on the page. It belongs to the only
                       row reporting something current, and it is the sole
@@ -110,7 +110,7 @@ export default function Hero() {
                 </dd>
               </Panel>
 
-              <Panel innerClassName="px-5 py-5">
+              <Panel glass innerClassName="px-5 py-5">
                 <dt className="mono-label text-dim mb-2.5">Previously</dt>
                 <dd className="text-[0.9375rem] text-muted leading-relaxed">
                   {profile.prev.role} at {profile.prev.org}
@@ -120,7 +120,7 @@ export default function Hero() {
                 </dd>
               </Panel>
 
-              <Panel innerClassName="px-5 py-5">
+              <Panel glass innerClassName="px-5 py-5">
                 <dt className="mono-label text-dim mb-2.5">Studying</dt>
                 <dd className="text-[0.9375rem] text-muted leading-relaxed">
                   {profile.degree}
@@ -137,61 +137,66 @@ export default function Hero() {
               initial="initial"
               animate={state}
               transition={{ duration: 0.8, delay: 0.28, ease: [0.16, 0.9, 0.25, 1] }}
-              className="mt-10 flex flex-wrap items-center gap-x-3 gap-y-4"
+              className="mt-10"
             >
-              <Panel
-                as="button"
-                type="button"
-                size="sm"
-                onClick={() => scrollToSection("projects")}
-                edge="bg-volt hover:bg-volt-deep transition-colors duration-200"
-                fill="bg-volt"
-                className="scan-beam-host group"
-                innerClassName="inline-flex items-center gap-2.5 px-7 py-3.5 mono-ui font-bold text-ink"
-              >
-                See the work
-                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-              </Panel>
+              {/* Its own box for the flight's yield: Framer owns the inline
+                  opacity of the motion element around it. */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-4" data-yield="">
+                <Panel
+                  as="button"
+                  type="button"
+                  size="sm"
+                  onClick={() => scrollToSection("projects")}
+                  edge="bg-volt hover:bg-volt-deep transition-colors duration-200"
+                  fill="bg-volt"
+                  className="scan-beam-host group"
+                  innerClassName="inline-flex items-center gap-2.5 px-7 py-3.5 mono-ui font-bold text-ink"
+                >
+                  See the work
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                </Panel>
 
-              <Panel
-                as="a"
-                size="sm"
-                href={pdf}
-                download="Ali_Younes_Resume.pdf"
-                edge="bg-ink-line hover:bg-volt transition-colors duration-200"
-                fill="bg-ink"
-                className="group"
-                innerClassName="inline-flex items-center px-7 py-3.5 mono-ui text-muted transition-colors duration-200 group-hover:text-primary"
-              >
-                Résumé
-              </Panel>
+                <Panel
+                  as="a"
+                  size="sm"
+                  href={pdf}
+                  download="Ali_Younes_Resume.pdf"
+                  glass="tint"
+                  edge="glass-edge group-hover/panel:bg-volt transition-colors duration-200"
+                  fill="bg-ink"
+                  className="group"
+                  innerClassName="inline-flex items-center px-7 py-3.5 mono-ui text-muted transition-colors duration-200 group-hover:text-primary"
+                >
+                  Résumé
+                </Panel>
 
-              <div className="flex items-center gap-5 sm:ml-4">
-                <a
-                  href={links.github}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="GitHub"
-                  className="text-dim hover:text-volt transition-colors"
-                >
-                  <Github className="w-4 h-4" />
-                </a>
-                <a
-                  href={links.linkedin}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="LinkedIn"
-                  className="text-dim hover:text-volt transition-colors"
-                >
-                  <Linkedin className="w-4 h-4" />
-                </a>
-                <a
-                  href={links.email}
-                  aria-label="Email"
-                  className="text-dim hover:text-volt transition-colors"
-                >
-                  <Mail className="w-4 h-4" />
-                </a>
+                <div className="flex items-center gap-5 sm:ml-4">
+                  <a
+                    href={links.github}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="GitHub"
+                    className="text-dim hover:text-volt transition-colors"
+                  >
+                    <Github className="w-4 h-4" />
+                  </a>
+                  <a
+                    href={links.linkedin}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="LinkedIn"
+                    className="text-dim hover:text-volt transition-colors"
+                  >
+                    <Linkedin className="w-4 h-4" />
+                  </a>
+                  <a
+                    href={links.email}
+                    aria-label="Email"
+                    className="text-dim hover:text-volt transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                  </a>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -224,7 +229,7 @@ export default function Hero() {
                 bottom of the caption instead of the bottom of the photograph,
                 reading as stray glyphs in the text rather than as corner
                 registration on the image. */}
-            <div className="tick-frame relative">
+            <div className="tick-frame relative" data-yield="">
               <Panel
                 edge="bg-ink-line group-hover:bg-volt transition-colors duration-300"
                 fill="bg-ink-raised"

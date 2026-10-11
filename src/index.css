@@ -394,6 +394,13 @@ html[data-world="on"] [data-glass] .bg-ink-line > .bg-ink-raised { background-co
 .stack-chip:focus-within {
   background-color: var(--mark, #fcee0a);
 }
+/* A glass chip's frame is its own span, too thin to hover: the chip lights
+   it through its outer box (Panel's `group/panel`). */
+html[data-world="on"] [data-glass] .stack-chip { background-color: rgb(236 234 228 / 0.14); }
+.group\/panel:hover > .stack-chip,
+.group\/panel:focus-within > .stack-chip,
+html[data-world="on"] .group\/panel:hover > .stack-chip,
+html[data-world="on"] .group\/panel:focus-within > .stack-chip { background-color: var(--mark, #fcee0a); }
 
 /* Hover beam. Reserved for primary actions. Applying it to every surface is
    what made an earlier version of this site feel like nothing on it mattered
@@ -1269,12 +1276,23 @@ html[data-world="on"] .hero-fade-b {
   background-image: linear-gradient(to bottom, rgb(10 10 12 / 0.22), transparent 42%, transparent 58%, rgb(6 6 8 / 0.7) 86%, rgb(4 4 6));
 }
 /* Contact holds the city at full, for the moon and the headline over the
-   sky; below them the link columns and the footer sit on the skyline's lit
-   crowns and streets, so the city steps back behind those alone. */
-html[data-world="on"] #contact.world-clear {
-  background-image: linear-gradient(to bottom, transparent 32%, rgb(10 10 12 / 0.74) 52%, rgb(10 10 12 / 0.8));
+   sky. The link columns below sit on a pane of glass (Contact.jsx), and the
+   footer is one long pane of its own, so the skyline's lit crowns and
+   streets carry on under both. */
+html[data-world="on"] footer.world-clear { background-color: rgb(8 8 10 / 0.42); }
+/* Mid-flight the page steps back for the camera: each section's panes and
+   the prose laid straight on the city thin out to a third as a flight away
+   gets going and firm up again as the next shot lands, by the number the
+   scroll stage writes on the section as --yield (src/world/scroll-stage.js,
+   yieldAt; the frost behind the panes follows the same number). Anything
+   else that should step back says so with `data-yield` (the hero's
+   portrait and buttons). Headings, labels and the section index stay: they
+   say where the flight is going. */
+html[data-world="on"] [data-shot] [data-glass],
+html[data-world="on"] [data-shot] [data-yield],
+html[data-world="on"] [data-shot] .prose-dark:not([data-glass] *) {
+  opacity: var(--yield, 1);
 }
-html[data-world="on"] footer.world-clear { background-color: rgb(10 10 12 / 0.8); }
 /* Mid-flight the city is at its brightest behind the words (the scrim at
    about 0.4, lit office floors behind a section's opening lines), so the
    type laid straight on it carries a soft dark halo. Text in a panel has

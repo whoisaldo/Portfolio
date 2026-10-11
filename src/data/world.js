@@ -24,7 +24,10 @@ import { featuredProjects } from "./projects";
  * One entry per section in site.js, in the same order.
  *
  *   dim     the scrim's opacity while this shot holds: 0 shows the whole
- *           city, 0.7 leaves it at about 30% behind text someone is reading
+ *           city, 0.7 would leave it at about 30%. The reading shots sit
+ *           at about a third since the page's panes became smoked glass
+ *           (src/components/ui/Panel.jsx): the pane frosts the city behind
+ *           the text, so the scrim no longer has to darken all of it
  *   fov     vertical field of view, degrees
  *   move    how the shot moves while it holds, from the section's own
  *           progress (0 to 1): "dolly" slides the camera along the vector
@@ -53,19 +56,19 @@ export const SHOTS = {
   hero: { dim: 0, fov: 50, shift: 0.12, car: "curb", portraitBack: 1, portraitFov: 1.24, portraitShift: 0.17, mirror: true },
   // A touch darker than the other reading shots: the lit board sits right
   // behind the section's opening lines.
-  projects: { dim: 0.76, fov: 38, car: "plaza", portraitBack: 1.15 },
+  projects: { dim: 0.4, fov: 38, car: "plaza", portraitBack: 1.15 },
   // Stepping back off the kerb would put a phone's camera in a wall: it
   // takes the wider lens instead.
-  experience: { dim: 0.7, fov: 38, move: "dolly", car: "corpo", portraitBack: 1, portraitFov: 1.45 },
+  experience: { dim: 0.32, fov: 38, move: "dolly", car: "corpo", portraitBack: 1, portraitFov: 1.45 },
   // A rooftop camera cannot step back off its roof: a phone gets the wider
   // lens instead.
-  about: { dim: 0.7, fov: 42, car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
-  stack: { dim: 0.7, fov: 42, move: "pan", car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
+  about: { dim: 0.34, fov: 42, car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
+  stack: { dim: 0.32, fov: 42, move: "pan", car: "rooftop", portraitBack: 1, portraitFov: 1.45 },
   // Off the roof, down to the street behind the car, across to where the
   // door lines up with the bay, in after it and round it to its front: the
   // flight ends on the garage viewer's own first frame.
   garage: {
-    dim: 0.7,
+    dim: 0.34,
     fov: 48,
     car: "bay",
     mirror: true,
@@ -107,10 +110,11 @@ export const COVER_DIM = {
   garage: 0.85,
 };
 
-/** A case study reads over a city held at about 20%. */
-export const ROUTE_DIM = 0.8;
+/** A case study is the long read: its city is held at about 45%, behind
+ *  panes of glass like the home page's. */
+export const ROUTE_DIM = 0.55;
 
-export const shotDim = (id) => SHOTS[id]?.dim ?? 0.7;
+export const shotDim = (id) => SHOTS[id]?.dim ?? 0.34;
 export const routeDim = () => ROUTE_DIM;
 
 /** Corpo row: one tower per entry in experience.js, in its order, lit in
