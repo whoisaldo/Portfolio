@@ -484,6 +484,22 @@ def empty(name, pos, yaw=0.0, props=None, size=1.0):
     return link(obj)
 
 
+# People who stand about (the walkers come from streets.life): a district
+# sets them down where its stalls, queues, benches, doorways and roof decks
+# are, and the site draws them (src/world/crowd.js, from anchor_people).
+POSES = ("idle", "talk", "lean", "sit", "phone", "squat", "vendor", "smoke")
+PEOPLE = []
+
+
+def stand(x, z, yaw=0.0, pose="idle", y=0.0):
+    """Someone at (x, y, z), world metres, y at their feet (a seat's top for
+    "sit"), facing yaw: radians about +y, 0 looking toward +z (south), pi/2
+    toward +x (east). "talk" faces a partner (set two down facing each
+    other), "lean" has a wall or a rail behind them, "vendor" stands behind
+    a counter facing out, "squat" is low at a kerb or a doorway."""
+    PEOPLE.append((round(x, 2), round(y, 2), round(z, 2), round(yaw, 3), POSES.index(pose)))
+
+
 SIGNS = []  # (id, preview text) for the preview text objects
 
 

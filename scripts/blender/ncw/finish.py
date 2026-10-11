@@ -12,6 +12,9 @@ from ncw import exports as _exports  # noqa: E402
 
 _props.build_protos()
 empty("signs_index", (0, 0, 0), props={"ids": STREET_SIGN_IDS})
+# Everyone the districts stood somewhere: x, y, z, yaw, pose (kit.POSES), flat.
+if PEOPLE:
+    empty("anchor_people", (0, 0, 0), props={"stand": [v for p in PEOPLE for v in p]})
 tri_count = 0
 proto_tris = 0
 

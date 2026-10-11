@@ -159,7 +159,7 @@ def write_all(out):
 
 # What an empty's custom properties may carry that is a payload for the page
 # (lanes, walks, lights, sign ids), not a description of the place.
-_PAYLOAD = {"lanes", "walks", "lights", "ids", "cars"}
+_PAYLOAD = {"lanes", "walks", "lights", "ids", "cars", "paths", "stand"}
 
 
 def anchors():
