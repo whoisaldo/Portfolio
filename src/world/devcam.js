@@ -87,21 +87,92 @@ export async function attachDevcam(world) {
     return { p: out.copy(a).lerp(b, len > 0 ? (s - at[lo]) / len : 0), side: halves[lo] };
   };
 
+  // The walker's own line. Every point is set off to its pavement by its
+  // own stretch's direction and every corner mitred (the pavement's corner,
+  // or the far side of the crossing on a left turn), then each stretch
+  // between two corners is paced evenly along its length. A look-ahead used
+  // to swing the offset across a corner, through whatever stood on it.
+  const ring = path.length > 1 && path[path.length - 1].distanceTo(path[0]) < 0.2 ? path.length - 1 : path.length;
+  const rightOf = (d) => new THREE.Vector3(-d.z, 0, d.x);
+  const dirOut = [];
+  for (let i = 0; i < ring; i++) dirOut.push(new THREE.Vector3().subVectors(path[(i + 1) % ring], path[i]).setY(0).normalize());
+  const corners = [];
+  const raw = [];
+  for (let i = 0; i < ring; i++) {
+    const dIn = dirOut[(i - 1 + ring) % ring];
+    const dOut = dirOut[i];
+    if (dIn.dot(dOut) < 0.5) {
+      corners.push(i);
+      raw.push(path[i].clone().addScaledVector(rightOf(dIn), halves[i]).addScaledVector(rightOf(dOut), halves[(i + 1) % ring]));
+    } else raw.push(path[i].clone().addScaledVector(rightOf(dOut), halves[i]));
+  }
+  // On the inside of a turn the points either side of the corner would
+  // overshoot the mitre: they wait at it.
+  for (const c of corners) {
+    const m = raw[c];
+    const dIn = dirOut[(c - 1 + ring) % ring];
+    const dOut = dirOut[c];
+    for (let k = 1; k < 40; k++) {
+      const j = (c - k + ring) % ring;
+      if (raw[j].clone().sub(m).setY(0).dot(dIn) <= 0) break;
+      raw[j].set(m.x, raw[j].y, m.z);
+    }
+    for (let k = 1; k < 40; k++) {
+      const j = (c + k) % ring;
+      if (raw[j].clone().sub(m).setY(0).dot(dOut) >= 0) break;
+      raw[j].set(m.x, raw[j].y, m.z);
+    }
+  }
+  const walkway = raw.map((v) => v.clone());
+  corners.forEach((c0, n) => {
+    const c1 = corners[(n + 1) % corners.length];
+    const idx = [c0];
+    while (idx[idx.length - 1] !== c1 || idx.length === 1) idx.push((idx[idx.length - 1] + 1) % ring);
+    const along = (j, first) => (j > c0 || first ? at[j] : at[j] + total) - at[c0];
+    const cum = [0];
+    for (let k = 1; k < idx.length; k++) cum.push(cum[k - 1] + raw[idx[k]].distanceTo(raw[idx[k - 1]]));
+    const centre = along(c1, false) || total;
+    let seg = 1;
+    for (let k = 1; k < idx.length - 1; k++) {
+      const d = (along(idx[k], false) / centre) * cum[cum.length - 1];
+      while (seg < cum.length - 1 && cum[seg] < d) seg++;
+      const span = cum[seg] - cum[seg - 1];
+      walkway[idx[k]].lerpVectors(raw[idx[seg - 1]], raw[idx[seg]], span > 0 ? (d - cum[seg - 1]) / span : 0);
+    }
+  });
+  const walkAt = (s, out) => {
+    s = ((s % total) + total) % total;
+    let lo = 0;
+    let hi = at.length - 1;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (at[mid] <= s) lo = mid;
+      else hi = mid;
+    }
+    const len = (lo + 1 < at.length ? at[lo + 1] : total) - at[lo];
+    return out.copy(walkway[lo % ring]).lerp(walkway[(lo + 1) % ring], len > 0 ? (s - at[lo]) / len : 0);
+  };
+
   const _a = new THREE.Vector3();
   const _b = new THREE.Vector3();
   const pose = (s, mode) => {
     const walking = mode === "walk";
-    const { p, side } = sample(s, _a);
-    const ahead = sample(s + (walking ? 6 : 18), _b).p;
+    if (walking) {
+      const position = walkAt(s, new THREE.Vector3());
+      const target = walkAt(s + 6, new THREE.Vector3());
+      position.y += 1.65 + (position.y < 1 ? 0.15 : 0);
+      target.y += 1.4;
+      return { position, target, fov: 62, shift: 0 };
+    }
+    const { p } = sample(s, _a);
+    const ahead = sample(s + 18, _b).p;
     const dir = new THREE.Vector3().subVectors(ahead, p).setY(0);
     if (dir.lengthSq() < 1e-6) dir.set(0, 0, -1);
     dir.normalize();
     const right = new THREE.Vector3(-dir.z, 0, dir.x);
-    const off = walking ? side : 1.9;
-    const eye = walking ? 1.65 : 1.25;
-    const position = p.clone().addScaledVector(right, off).setY(p.y + eye + (walking && p.y < 1 ? 0.15 : 0));
-    const target = ahead.clone().addScaledVector(right, off).setY(ahead.y + eye - (walking ? 0.25 : 0.1));
-    return { position, target, fov: walking ? 62 : 58, shift: 0 };
+    const position = p.clone().addScaledVector(right, 1.9).setY(p.y + 1.25);
+    const target = ahead.clone().addScaledVector(right, 1.9).setY(ahead.y + 1.15);
+    return { position, target, fov: 58, shift: 0 };
   };
 
   const show = (p, extra = {}) => {
