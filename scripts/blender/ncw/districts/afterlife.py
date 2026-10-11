@@ -347,7 +347,9 @@ K.tactile(D, 448.5, 449.55, DOOR_GAP[1], -194.6)
 K.dented_post(D, WK - 0.5, -259.7)
 for (x_, z_, yaw_) in ((WK - 0.55, -262.9, math.pi / 2), (EK + 0.55, -311.9, -math.pi / 2), (EK + 0.55, -257.2, -math.pi / 2)):
     P.place("signal_box", x_, G0, z_, yaw_, district=D)
-for (x_, z_) in ((430.2, -306.0), (430.2, -247.0), (430.2, -205.0), (449.8, -296.0), (449.8, -262.0), (449.8, -188.5)):
+# (West, by the lot line: the walk-through goes down the middle of that
+# pavement, x 430.2.)
+for (x_, z_) in ((428.5, -306.0), (428.5, -247.0), (428.5, -205.0), (449.8, -296.0), (449.8, -262.0), (449.8, -188.5)):
     P.place("bin", x_, G0, z_, district=D)
 for (x_, z_) in ((WK - 0.5, -301.2), (EK + 0.5, -227.0), (WK - 0.5, -222.5)):
     P.place("hydrant", x_, G0, z_, district=D)
