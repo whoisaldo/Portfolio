@@ -37,7 +37,9 @@ for s in (-1, 1):
             bottom=y0 > 0.0)
 for lx in range(-86, 90, 5):
     box((FA, "neon_amber", 0), lx - 0.18, lx + 0.18, RAIL_Y - 1.28, RAIL_Y - 1.18, RAIL_Z + 3.3, RAIL_Z + 3.6, scale=1.0)
-empty("anchor_rail", (0.0, RAIL_TOP, RAIL_Z), props={"reach": 90.0})
+# (x0, x1: where the line runs in the open, from Japantown's portal to the
+# station's, for the site to keep the train to.)
+empty("anchor_rail", (0.0, RAIL_TOP, RAIL_Z), props={"reach": 90.0, "x0": -94.0, "x1": 92.0})
 
 # ---------------------------------------------------------------------------
 # The megablock. Past the viaduct the avenue ends at a megabuilding square
@@ -110,12 +112,8 @@ empty("anchor_mega_end", (0.0, 95.0, -780.0), props={"size": 150.0})
 empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
 
 # The district's own pack: everything the hero does not need to go live on.
-from ncw.districts import massing  # noqa: E402
 from ncw.districts import mega_base  # noqa: E402,F401
 from ncw.districts import mega_face  # noqa: E402,F401
 from ncw.districts import mega_wings  # noqa: E402,F401
 from ncw.districts import mega_roofs  # noqa: E402,F401
-
-# (Until mega_east builds them: the canyon's east backs, in the shared massing.)
-massing.blocks(D, 44.0, 132.0, -676.0, -560.0, (30.0, 62.0), 8204)
-B.ground_rect(D, 44.0, 132.0, -708.0, -676.0)
+from ncw.districts import mega_east  # noqa: E402,F401
