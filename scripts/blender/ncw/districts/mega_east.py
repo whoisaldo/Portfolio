@@ -271,7 +271,7 @@ parapet(HX0, HX1, HZ0, HZ1, HTOP, rim="cyan", col=BLUEGREY)
 tbox(HX0 + 4.0, HX1 - 4.0, HTOP, HTOP + 1.4, RAIL_Z - 3.4, RAIL_Z + 3.4, BLUEGREY)
 for i in range(7):
     x = HX0 + 6.5 + i * 4.8
-    hquad((D, "glow", 0), x, x + 3.2, RAIL_Z - 2.6, RAIL_Z + 2.6, HTOP + 1.42, col=dim(GLOW["white"], 0.16))
+    hquad((D, "glow", 0), x, x + 3.2, RAIL_Z - 2.6, RAIL_Z + 2.6, HTOP + 1.42, col=dim(GLOW["cyan"], 0.12))
 B.roof_dress(D, HX0, HX1, HZ0, RAIL_Z - 4.0, HTOP, random.Random(8662), cap=4.5, parapet=False, sign_rate=0.0, tint=1)
 B.roof_dress(D, HX0, HX1, RAIL_Z + 4.0, HZ1, HTOP, random.Random(8663), cap=4.5, parapet=False, sign_rate=0.0, tint=1)
 mast(HX1 - 4.0, HZ0 + 4.0, HTOP, 12.0)
