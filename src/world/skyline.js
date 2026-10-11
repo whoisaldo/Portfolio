@@ -1278,8 +1278,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       if (tower && cut < 0.42) look[1] = 0.625;
       else if (tower && cut < 0.62) look[1] = 0.25;
       else if (!tower && cut > 0.78) look[1] = 0.75;
-      // People are home in the blocks.
-      if (!tower) look[0] = 0.3 + 0.4 * hash11(seed);
+      // People are home in the blocks, and no tower is a dark slab.
+      look[0] = tower ? Math.max(look[0], 0.24) : 0.3 + 0.4 * hash11(seed);
     }
     return { look, seed: hash11(at(b) + 14.9), dress };
   });
@@ -1459,44 +1459,86 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // Aviation lights: a red lamp on every tall roof (at a spire's tip, where
   // there is one), a third of them on at a time, a little under a second
   // each, so the skyline blinks slowly across itself. Steady under reduced
-  // motion. One draw.
+  // motion. One draw, which the far city's air traffic shares.
   const beacons = [];
   const groups = [];
+  const moves = [];
   lots.forEach((b, i) => {
     if (beaconOf[i] < 0 || b.gone) return;
     const s = forms[i];
     const [cx, cz] = topCentre(b, s);
     beacons.push(cx, s.roof + s.spire + (s.spire ? 0.4 : 0.8), cz);
     groups.push(beaconOf[i]);
+    moves.push(0, 0, 0, 0);
   });
+  // AVs over the far city: lanes west, south and east of the kit, a
+  // hundred and more metres up, each AV a white lamp ahead and a red one
+  // behind, going along its lane and round again. Every lane keeps outside
+  // the hero's view up the avenue and the quarter Contact looks into.
+  // A lane: where it starts (x, y, z), which way it goes (x, z), how long.
+  const AIR_LANES = [
+    [-430, 130, 420, 0, -1, 800],
+    [-462, 152, -380, 0, 1, 800],
+    [-430, 112, 330, 1, 0, 760],
+    [330, 138, 362, -1, 0, 760],
+    [780, 142, -280, 0, -1, 520],
+    [812, 122, -800, 0, 1, 520],
+    [-700, 180, 200, 0.6, -0.8, 600],
+  ];
+  for (const [x, y, z, dx, dz, length] of AIR_LANES) {
+    const each = count < 2000 ? 3 : 6;
+    for (let i = 0; i < each; i++) {
+      const phase = (i + edit() * 0.6) / each;
+      // The lamp ahead (group 3) and the one six metres behind it (4).
+      beacons.push(x, y, z, x, y, z);
+      groups.push(3, 4);
+      moves.push(dx, dz, length, phase, dx, dz, length, phase - 6 / length);
+    }
+  }
   const beaconGeo = new THREE.BufferGeometry();
   beaconGeo.setAttribute("position", new THREE.Float32BufferAttribute(beacons, 3));
   beaconGeo.setAttribute("aGroup", new THREE.Float32BufferAttribute(groups, 1));
+  beaconGeo.setAttribute("aMove", new THREE.Float32BufferAttribute(moves, 4));
+  // The lamps on the roofs stand where their positions say; the AVs do not.
+  beaconGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(300, 120, -400), 2400);
   const beaconMat = new THREE.ShaderMaterial({
     uniforms: { ...shared, uPixel: { value: 1 }, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       attribute float aGroup;
+      attribute vec4 aMove;
       uniform float uTime;
       uniform float uPixel;
       uniform float uMotion;
       varying float vOn;
+      varying float vKind;
       varying vec3 vWorld;
       void main() {
-        vWorld = position;
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        // An AV's lamp is so far along its lane (38 m/s, standing where its
+        // phase puts it under reduced motion), fading in and out at the
+        // lane's ends so it never pops.
+        float flying = step(2.5, aGroup);
+        float along = mod(uTime * uMotion * 38.0 + aMove.w * aMove.z, max(aMove.z, 1.0));
+        vec3 p = position + vec3(aMove.x, 0.0, aMove.y) * along * flying;
+        vWorld = p;
+        vKind = aGroup;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
         float t = fract(uTime * 0.75 + aGroup / 3.0);
-        vOn = mix(0.6, smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.55, t)), uMotion);
-        gl_PointSize = clamp(2600.0 / -mv.z, 2.5, 6.0) * uPixel;
+        float blink = mix(0.6, smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.55, t)), uMotion);
+        float ends = smoothstep(0.0, 70.0, along) * (1.0 - smoothstep(aMove.z - 70.0, aMove.z, along));
+        vOn = mix(blink, ends, flying);
+        gl_PointSize = clamp(mix(2600.0, 2000.0, flying) / -mv.z, mix(2.5, 2.0, flying), mix(6.0, 5.0, flying)) * uPixel;
       }
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
       varying float vOn;
+      varying float vKind;
       varying vec3 vWorld;
       void main() {
         float d = length(gl_PointCoord - 0.5) * 2.0;
-        vec3 col = vec3(1.0, 0.06, 0.04) * 3.5 * vOn * exp(-d * d * 4.0);
+        vec3 lamp = vKind < 2.5 ? vec3(1.0, 0.06, 0.04) * 3.5 : vKind < 3.5 ? vec3(0.8, 0.92, 1.0) * 2.6 : vec3(1.0, 0.1, 0.06) * 2.2;
+        vec3 col = lamp * vOn * exp(-d * d * 4.0);
         col *= exp(-length(vWorld - uCam) * uFogDensity * 0.35);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
