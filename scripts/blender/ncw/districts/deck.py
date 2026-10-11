@@ -452,6 +452,15 @@ def column(cx, cz, top, r=0.55, foot=0.95):
     for y in (0.82, 1.18):
         cylinder((DK, "dark", 1), cx, cz, y, y + 0.16, r + 0.03, segs=8, cap=False)
     B.COLLISION.append(("box", cx - foot, cx + foot, 0.0, top, cz - foot, cz + foot, DK))
+    keep_clear(cx, cz, foot + 0.4)
+
+
+def keep_clear(cx, cz, h):
+    """A yellow box painted on the paving round a footing."""
+    yy = B.G0 + PAINT
+    for x0, x1, z0, z1 in ((cx - h, cx + h, cz - h, cz - h + 0.1), (cx - h, cx + h, cz + h - 0.1, cz + h),
+                           (cx - h, cx - h + 0.1, cz - h, cz + h), (cx + h - 0.1, cx + h, cz - h, cz + h)):
+        face((DK, "paint", 1), [(x0, yy, z0), (x1, yy, z0), (x1, yy, z1), (x0, yy, z1)], (0, 1, 0), 1.0, YELLOW)
 
 
 def bent_x(x):
@@ -486,6 +495,7 @@ for y in (1.05, 1.6):
 box((DK, "concrete", 0), XW + 0.5, XE - 0.5, plan.DECK_UNDER - 1.1, plan.DECK_UNDER, PIER[1] - 1.0, PIER[1] + 1.0, scale=2.0, bottom=True)
 box((DK, "concrete", 0), PIER[0] - 1.0, PIER[0] + 1.0, plan.DECK_UNDER - 1.1, plan.DECK_UNDER, ZN + 0.5, ZS - 0.5, scale=2.0, bottom=True)
 B.COLLISION.append(("box", PIER[0] - 2.0, PIER[0] + 2.0, 0.0, plan.DECK_UNDER, PIER[1] - 2.0, PIER[1] + 2.0, DK))
+keep_clear(PIER[0], PIER[1], 2.5)
 # What a car or a walker must not pass through of the embankments.
 for za, zb in ((FOOT, -200.0), (-200.0, -180.0), (-180.0, -165.0), (-165.0, EMB_Z)):
     B.COLLISION.append(("box", XW, XE, 0.0, RY(zb) + PAR_H, za, zb, DK))
@@ -550,6 +560,39 @@ while z < ZN - 1.0:
 # the bake would mirror into the hero's road (within 60 m of the avenue,
 # standing lower) is built here with a `glow` head instead.
 # ---------------------------------------------------------------------------
+glyph_rng = random.Random(8570)
+lamp_rng = random.Random(8571)
+
+
+def light_board(cx, cy, cz, w, h, yaw, colour, depth=0.2, frame=True):
+    """A board of light with no words: a dark panel, a tube round its edge
+    and a few strokes, as a roof's sign is drawn (kit.dress_roof). `glow`,
+    so the bake does not mirror it into the hero's road."""
+    if frame:
+        oriented_box((DK, "board_frame", 0), cx, cy, cz, w + 0.2, h + 0.2, depth, yaw, scale=1.0)
+    col = glowc(NEON[colour], 0.8)
+    strokes = [(0.0, h / 2 - 0.05, w, 0.07), (0.0, -h / 2 + 0.05, w, 0.07), (-w / 2 + 0.04, 0.0, 0.07, h), (w / 2 - 0.04, 0.0, 0.07, h)]
+    tall = h > w
+    long_, short = (h, w) if tall else (w, h)
+    n = max(2, int(long_ / 0.8))
+    cell = (long_ - 0.4) / n
+    for g in range(n):
+        c = (g + 0.5) * cell - (long_ - 0.4) / 2
+        for _ in range(glyph_rng.randrange(2, 5)):
+            a_ = c + glyph_rng.uniform(-0.25, 0.25) * cell     # along the board
+            b_ = glyph_rng.uniform(-0.22, 0.22) * short        # across it
+            if glyph_rng.random() < 0.5:
+                la, lb = 0.08, short * glyph_rng.uniform(0.3, 0.6)
+            else:
+                la, lb = cell * glyph_rng.uniform(0.4, 0.8), 0.08
+            strokes.append((b_, a_, lb, la) if tall else (a_, b_, la, lb))
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    o = depth / 2 + 0.015
+    for su, sv, gw, gh in strokes:
+        rotated_quad((DK, "glow", 0), cx + rx * su + nx * o, cy + sv, cz + rz * su + nz * o, gw, gh, yaw, col=col)
+
+
 def lamp(x, y, z, yaw):
     dx, dz = math.sin(yaw), math.cos(yaw)
     if y > 8.0 or abs(x) >= 62.0:
@@ -560,6 +603,21 @@ def lamp(x, y, z, yaw):
         oriented_box((DK, "metal", 0), x + dx * 2.1, y + 7.02, z + dz * 2.1, 0.44, 0.2, 0.7, yaw, scale=0.5)
         oriented_box((DK, "glow", 0), x + dx * 2.1, y + 6.9, z + dz * 2.1, 0.36, 0.04, 0.6, yaw, scale=0.5, col=SODIUM)
     pool(x + dx * 3.0, y + 6.9, z + dz * 3.0, "amber", 4.5, 3.2)
+    # A banner on the post, read along the road: one of the street's blade
+    # signs where its light is the street's own, a board of light elsewhere.
+    cx, cy, cz = x + dx * 0.6, y + 4.1, z + dz * 0.6
+    box((DK, "metal", 1), *sorted((x, x + dx * 1.0)) if dx else (x - 0.03, x + 0.03), y + 5.2, y + 5.26,
+        *sorted((z, z + dz * 1.0)) if dz else (z - 0.03, z + 0.03), scale=0.5)
+    if abs(x) >= 62.0:
+        w, h = ST_SIZES["bs"]
+        oriented_box((DK, "board_frame", 0), cx, cy, cz, w + 0.12, h + 0.12, 0.1, yaw + math.pi / 2, scale=1.0)
+        sid = st_name("bs")
+        for k, fy in enumerate((yaw + math.pi / 2, yaw - math.pi / 2)):
+            sign(sid + ("_b" if k else ""), cx + math.sin(fy) * 0.06, cy, cz + math.cos(fy) * 0.06, w, h, fy, district=DK, label=False)
+    else:
+        colour = lamp_rng.choice(("pink", "cyan", "amber", "green", "magenta", "yellow"))
+        light_board(cx, cy, cz, 0.8, 2.0, yaw + math.pi / 2, colour, depth=0.1)
+        light_board(cx, cy, cz, 0.8, 2.0, yaw - math.pi / 2, colour, depth=0.1, frame=False)
 
 
 # None over the avenue, where a post would stand in the hero's band of sky.
@@ -814,9 +872,11 @@ P.place("bags", plan.DECK_X0 + 1.4, B.G0, EMB_Z + 0.7, district=DK)
 P.place("drum", plan.DECK_X0 - 1.5, B.G0, EMB_Z + 0.6, district=DK)
 P.place("crates", plan.DECK_X0 - 3.4, B.G0, EMB_Z + 3.0, 0.7, district=DK)
 for z in BENTS_Z:
-    P.place("vending", XE - 1.0, B.G0, z + 1.3, math.pi / 2, district=DK)
-    P.place("vending_warm", XW + 1.0, B.G0, z - 1.3, -math.pi / 2, district=DK)
-    P.place("bin", plan.DECK_X0 + 0.6, B.G0, z + 1.2, district=DK)
+    P.place("vending", XE - 1.1, B.G0, z + 1.65, math.pi / 2, district=DK)
+    P.place("vending_warm", XW + 1.1, B.G0, z - 1.65, -math.pi / 2, district=DK)
+    P.place("bin", plan.DECK_X0 + 2.2, B.G0, z - 1.5, district=DK)
+stall(plan.DECK_X0, BENTS_Z[1] + 0.2, 1, "pink", 8581)
+stall(plan.DECK_X0, BENTS_Z[2] + 0.2, 1, "cyan", 8582)
 P.place("bench", plan.DECK_X0, B.G0, -125.5, 0.0, district=DK)
 P.place("bench", plan.DECK_X0 - 1.5, B.G0, -108.5, math.pi / 2, district=DK)
 P.place("bench", plan.DECK_X0 + 1.5, B.G0, -91.0, -math.pi / 2, district=DK)
@@ -916,9 +976,8 @@ stand(55.0, plan.DECK_Z, math.pi / 2, "idle", B.G0)
 # Under the ramp: at the machines by the bents, on the benches, by the
 # trees, smoking by the skips at the abutment, leaning on the turn's pier.
 for z in BENTS_Z:
-    stand(XE - 2.0, z + 1.4, -math.pi / 2, "phone" if z != BENTS_Z[1] else "idle", B.G0)
-    stand(XW + 2.1, z - 1.2, math.pi / 2, "idle", B.G0)
-stand(XE - 2.0, BENTS_Z[1] + 2.2, -math.pi / 2 + 0.5, "talk", B.G0)
+    stand(XE - 2.1, z + 2.6, math.pi / 2 - 0.5, "phone" if z != BENTS_Z[1] else "idle", B.G0)
+    stand(XW + 2.2, z - 2.7, -math.pi / 2 + 0.4, "idle", B.G0)
 stand(plan.DECK_X0, -125.5, 0.0, "sit", B.G0 + 0.48)
 stand(plan.DECK_X0 - 1.5, -108.5, math.pi / 2, "sit", B.G0 + 0.48)
 stand(plan.DECK_X0 + 1.5, -91.0, -math.pi / 2, "sit", B.G0 + 0.48)
@@ -967,29 +1026,10 @@ for x in (-72.5, -68.0, -47.0, 48.0):
 # of bulbs along the walkway between posts on the rail, either side of the
 # hero's span.
 # ---------------------------------------------------------------------------
-glyph_rng = random.Random(8570)
-
-
 def glow_board(axis, v, u, cy, w, h, facing, colour):
-    """A board of light on a gantry: a dark panel, a tube round its edge and
-    a few strokes, as a roof's sign is drawn (kit.dress_roof)."""
     yaw = (math.pi / 2 if facing > 0 else -math.pi / 2) if axis == "x" else (0.0 if facing > 0 else math.pi)
-    cx, _, cz = _w(axis, v, u, 0.0)
-    oriented_box((DK, "board_frame", 0), cx, cy, cz, w + 0.2, h + 0.2, 0.2, yaw, scale=1.0)
-    col = glowc(NEON[colour], 0.8)
-    strokes = [(0.0, h / 2 - 0.05, w, 0.07), (0.0, -h / 2 + 0.05, w, 0.07), (-w / 2 + 0.04, 0.0, 0.07, h), (w / 2 - 0.04, 0.0, 0.07, h)]
-    n = max(2, int(w / 0.9))
-    for g in range(n):
-        gu = (g + 0.5) / n * (w - 0.5) - (w - 0.5) / 2
-        for _ in range(glyph_rng.randrange(2, 5)):
-            if glyph_rng.random() < 0.5:
-                strokes.append((gu + glyph_rng.uniform(-0.22, 0.22), glyph_rng.uniform(-0.12, 0.12) * h, 0.09, h * glyph_rng.uniform(0.3, 0.62)))
-            else:
-                strokes.append((gu, glyph_rng.uniform(-0.3, 0.3) * h, glyph_rng.uniform(0.3, 0.62), 0.09))
-    rx, rz = math.cos(yaw), -math.sin(yaw)
-    nx, nz = math.sin(yaw), math.cos(yaw)
-    for su, sv, gw, gh in strokes:
-        rotated_quad((DK, "glow", 0), cx + rx * su + nx * 0.115, cy + sv, cz + rz * su + nz * 0.115, gw, gh, yaw, col=col)
+    cx, _, cz = _w(axis, v + facing * 0.1, u, 0.0)
+    light_board(cx, cy, cz, w, h, yaw, colour, depth=0.16)
 
 
 for gx, cols in ((-33.0, ("cyan", "amber", "pink", "green")), (30.0, ("yellow", "cyan", "red", "teal"))):
@@ -1023,3 +1063,22 @@ for xa, xb in ((XE + 3.0, -HERO - 3.5), (HERO + 3.5, 97.0)):
             by = DY(xa + k * step) * (1 - t) + DY(xa + (k + 1) * step) * t + 3.0 - 0.55 * math.sin(math.pi * t)
             cylinder((DK, "glow", 1), bx, ZS - 0.04, by - 0.07, by + 0.07, 0.06, segs=4, col=BULB, cap=False)
         pool(xa + (k + 0.5) * step, DY(xa + (k + 0.5) * step) + 2.5, ZS - 0.6, "amber", 1.2)
+
+# ---------------------------------------------------------------------------
+# LAST THINGS. The ramp's foot striped where the walls are too low for the
+# band; a door and its lamp in each retaining wall; steam from three grates
+# under the deck (the site draws it from anchor_steam_<n>).
+# ---------------------------------------------------------------------------
+z = FOOT + 0.2
+while z < FOOT + 12.0:
+    face((DK, "hazard", 0), [(XE + 0.012, RY(z) + 0.1, z), (XE + 0.012, RY(z + 0.6) + 0.1, z + 0.6), (XE + 0.012, RY(z + 0.6) + 0.8, z + 0.6), (XE + 0.012, RY(z) + 0.8, z)], (1, 0, 0), 1.0)
+    face((DK, "hazard", 0), [(XW - 0.012, RY(z) + 0.1, z), (XW - 0.012, RY(z + 0.6) + 0.1, z + 0.6), (XW - 0.012, RY(z + 0.6) + 0.95, z + 0.6), (XW - 0.012, RY(z) + 0.95, z)], (-1, 0, 0), 1.0)
+    z += 1.2
+for xw, out, hue in ((XW + 0.15, -1, "amber"), (XE - 0.15, 1, "white")):
+    zd = EMB_Z - 3.2
+    face((DK, "door", 0), [(xw + out * 0.02, 0.0, zd - 0.5), (xw + out * 0.02, 0.0, zd + 0.5), (xw + out * 0.02, 2.1, zd + 0.5), (xw + out * 0.02, 2.1, zd - 0.5)], (out, 0, 0), 1.0)
+    box((DK, "glow", 0), *sorted((xw, xw + out * 0.13)), 2.25, 2.37, zd - 0.18, zd + 0.18, scale=0.5, col=glowc(NEON[hue], 0.85))
+    pool(xw + out * 0.9, 2.3, zd, hue, 2.4)
+for i, (x, z) in enumerate(((plan.DECK_X0 + 2.4, -104.5), (-35.5, plan.DECK_Z - 1.2), (27.0, plan.DECK_Z + 1.0))):
+    box((DK, "metal", 1), x - 0.45, x + 0.45, B.G0, B.G0 + 0.03, z - 0.45, z + 0.45, scale=0.5)
+    empty(f"anchor_steam_deck_{i}", (x, B.G0 + 0.08, z))
