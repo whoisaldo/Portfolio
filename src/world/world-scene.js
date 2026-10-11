@@ -38,6 +38,7 @@ import { createPost } from "./post.js";
 import { createGlass } from "./glass.js";
 import { createSkyline } from "./skyline.js";
 import { createRain } from "./rain.js";
+import { createBolt } from "./bolt.js";
 import { createSoundscape } from "./soundscape.js";
 import { createTraffic } from "./traffic.js";
 import { createCar } from "./car.js";
@@ -122,6 +123,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let shots = null;
   let skyline = null;
   let rain = null;
+  let bolt = null;
   let traffic = null;
   let car = null;
   let shafts = null;
@@ -153,6 +155,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       facades: [c.maps.facade_t0, c.maps.facade_t1, c.maps.facade_t2],
     });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
+    bolt = createBolt(scene, shared);
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
     if (shelter && size) {
@@ -579,11 +582,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       storm.next = 20 + Math.random() * 30;
       const n = Math.random() < 0.6 ? 2 : 1;
       storm.pulses = Array.from({ length: n }, (_, i) => ({ at: i * (0.26 + Math.random() * 0.2), k: i === 0 ? 1 : 0.5 + Math.random() * 0.4 }));
-      // Somewhere in front of the camera, where it can be seen.
+      // Somewhere in front of the camera, where it can be seen: inside the
+      // frame's width, and far enough off that the bolt (bolt.js) clears
+      // the roofs as it comes down.
       camera.getWorldDirection(_strikeDir);
-      const a = Math.atan2(_strikeDir.z, _strikeDir.x) + (Math.random() - 0.5) * 1.4;
-      const r = 500 + Math.random() * 900;
+      const a = Math.atan2(_strikeDir.z, _strikeDir.x) + (Math.random() - 0.5) * 0.8;
+      const r = 650 + Math.random() * 750;
       shared.uFlashAt.value.set(camera.position.x + Math.cos(a) * r, camera.position.z + Math.sin(a) * r);
+      bolt?.strike(shared.uFlashAt.value.x, shared.uFlashAt.value.y);
       soundscape.strike(shared.uFlashAt.value, r, storm.pulses[0].k);
     }
     let f = 0;
@@ -645,6 +651,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       skyline?.update(camera, renderer.getPixelRatio());
       rain?.update(flow, camera, env.wet);
       rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
+      bolt?.update();
       shafts?.update(shared.uHaze.value);
       koi?.update(flow);
       traffic?.update(flow, env.traffic);
@@ -1042,6 +1049,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       c.dispose();
       skyline?.dispose();
       rain?.dispose();
+      bolt?.dispose();
       traffic?.dispose();
       car?.dispose();
       shafts?.dispose();
