@@ -45,6 +45,7 @@ EDGE = (-170.0, -166.0)
 # at z -80: nothing is slung across the street there, and the pavements by
 # the turn are the deck's.
 RAMP = (-226.0, -60.0)
+CROSSING = (-224.0, -215.0)    # the walker's crossing to the ramp's walkway (west kerb, z -221..-218)
 DECK = (-96.0, -64.0)
 TORII = (-184.0, -174.0)       # the gate street, on the plaza street's line
 MARKET = (-482.5, -402.5)      # the covered stretch of the lantern alley
@@ -142,6 +143,13 @@ def build_row(tag, xs, front, back, segs, seed, widths, floors, style, quiet=Fal
         for _ in spans:
             prev = pick(rs, floors, prev)
             hs.append(storeys(prev))
+        # Beside the deck's girder (its gap is the deck's own to dress, at
+        # grade): two storeys, their roofs level with its road, and a plain
+        # windowed side for its stall and machines to stand against.
+        if klo == "deck":
+            hs[0] = storeys(2)
+        if khi == "deck":
+            hs[-1] = storeys(2)
         for j, (a, b) in enumerate(spans):
             sides = {front: "street", back_name: back, "-z": klo if j == 0 else "party", "+z": khi if j == len(spans) - 1 else "party"}
             nb = {}
@@ -149,6 +157,9 @@ def build_row(tag, xs, front, back, segs, seed, widths, floors, style, quiet=Fal
                 nb["-z"] = hs[j - 1]
             if j < len(spans) - 1:
                 nb["+z"] = hs[j + 1]
+            for name in ("-z", "+z"):
+                if sides[name] == "deck":
+                    sides[name], nb[name] = "party", 0.0
             r = random.Random(seed * 1000 + len(LOTS))
             tint = r.choice(style["tints"])
             lot = B.Lot(xs[0], xs[1], a, b, front, sides, nb, D)
@@ -371,7 +382,7 @@ def shop_face(rec, name, level="street", cap=None):
         if w > 3.4:
             s = r.uniform(0.4, w - 2.2)
             noren(f, s, s + r.uniform(1.2, 1.8), r)
-    signs_on(f, h, r, density={"street": 1.0, "alley": 0.5, "edge": 0.45}[level], small=alley, big=not alley, cap=cap)
+    signs_on(f, h, r, density={"street": 1.0, "alley": 0.42, "edge": 0.4}[level], small=alley, big=not alley, cap=cap)
     by_wall(f, r, alley, {"street": 0.4, "alley": 0.26, "edge": 0.08}[level])
 
 
@@ -386,7 +397,7 @@ def lane_face(rec, name, cap=None):
     s = r.uniform(0.8, 2.6)
     while s < w - 0.4:
         light(D, *f.p(f.at(s), 2.8, 1.3), r.choice(("amber", "amber", "amber", "pink", "cyan", "green", "red")), 5.0)
-        s += r.uniform(5.0, 8.0)
+        s += r.uniform(6.5, 10.0)
     if r.random() < 0.3:
         J.lantern_row(f, 0.6, w - 0.6, 3.0, 0.45, 1.5)
     if r.random() < 0.55 and w > 4.0:
@@ -398,21 +409,30 @@ def lane_face(rec, name, cap=None):
         for i in range(r.randrange(2, 6)):
             f.quad((D, "billboard", 0), s + i * 0.72, s + i * 0.72 + 0.62, 1.25, 2.15, 0.03,
                    col=(r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0))
-    signs_on(f, h, r, density=0.25, small=True, big=False, cap=cap)
+    signs_on(f, h, r, density=0.16, small=True, big=False, cap=cap)
     by_wall(f, r, alley=True, people=0.14)
 
 
-def flush_shops(f, r):
+def flush_shops(f, r, tcol):
     """A ground floor of shop windows in a dark wall, the glass a hair proud
-    of it: a tube over each or an awning, a shutter down now and then."""
+    of it: a tube over each or an awning, a shutter down now and then, a
+    door to the flats; piers between them (detail: a phone has the glass)."""
     w = f.width
     bays = max(1, round(w / CELL_W))
     bw = w / bays
     i = 0
+    door = r.randrange(bays) if bays >= 3 else -1
     while i < bays:
-        n = min(r.choice((1, 2, 2, 3)), bays - i)
+        n = 1 if i == door else min(r.choice((1, 2, 2, 3)), bays - i)
+        if i < door < i + n:
+            n = door - i
         a, b = i * bw + 0.3, (i + n) * bw - 0.3
-        if r.random() < 0.86:
+        for e in (i * bw, (i + n) * bw):
+            f.box((D, "trim", 1), e - 0.2, e + 0.2, 0.0, SHOP_H, 0.0, 0.14, col=tcol)
+        if i == door:
+            f.quad((D, "door", 0), a + 0.4, b - 0.4, G0, 2.45, 0.07)
+            f.quad((D, "glow", 0), (a + b) / 2 - 0.2, (a + b) / 2 + 0.2, 2.6, 2.72, 0.07, col=GLOW["white"])
+        elif r.random() < 0.86:
             f.quad((D, "shop", 0), a, b, 0.55, 3.3, 0.07, col=(r.uniform(0.4, 1.0), r.random(), 1.0 if r.random() < 0.92 else 0.0, 1.0))
             colour = r.choice(STYLE["shop_colours"])
             if r.random() < 0.5:
@@ -657,14 +677,14 @@ def roof(rec, weights):
 W_NARROW = (5.6, 6.4, 7.2, 8.0, 9.6, 11.2)
 cuts_w = [(a, b, "open") for a, b in ALLEYS] + [(TORII[0], TORII[1], "street")]
 cuts_c = [(a, b, "open") for a, b in (ALLEYS[1], ALLEYS[3], ALLEYS[7])] + [(TORII[0], TORII[1], "street")]
-cuts_e = [(a, b, "open") for a, b in PASSAGES] + [(-190.0, -168.0, "street"), (-88.0, -72.0, "open")]
+cuts_e = [(a, b, "open") for a, b in PASSAGES] + [(-190.0, -168.0, "street"), (-86.0, -74.0, "deck")]
 
 build_row("E", ROW_E, "-x", "back", segments(-708.0, -10.0, cuts_e, "street", "street"), 811, W_NARROW,
           ((2, 3), (3, 4), (4, 3), (5, 2)), STYLE, quiet=True)
 build_row("A", ROW_A, "+x", "street", segments(ZN, ZS, cuts_w), 812, W_NARROW,
           ((2, 3), (3, 4), (4, 3), (5, 2), (6, 1)), STYLE)
 build_row("B", ROW_B, "+x", "back", segments(ZN, ZS, cuts_w), 813, (8.0, 9.6, 11.2, 12.8, 14.4),
-          ((3, 3), (4, 3), (5, 3), (6, 2)), STYLE_B)
+          ((3, 3), (4, 3), (5, 3), (6, 2)), STYLE_B, ground="blank")
 build_row("C", ROW_C, "-x", "back", segments(ZN, ZS, cuts_c), 814, (12.8, 16.0, 19.2, 22.4),
           ((5, 2), (6, 3), (7, 3), (8, 2), (9, 1)), STYLE_C, ground="blank")
 
@@ -674,9 +694,9 @@ ROOFS_W = {"E": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden"
            "C": (("deck", 2), ("shack", 3), ("plant", 6), ("sign", 8), ("garden", 1))}
 for rec in LOTS:
     row = rec["row"]
-    if row == "C":
+    if row in ("B", "C"):
         for name in [rec["front"]] + [n for n in ("-z", "+z") if rec["sides"][n] == "street"]:
-            flush_shops(face(rec, name), rec["r"])
+            flush_shops(face(rec, name), rec["r"], B.TRIM[rec["tint"]])
     if row != "A":
         lane_face(rec, rec["back"], cap=7.4 if row == "E" else None)
     if row in ("E", "A"):
@@ -717,7 +737,6 @@ for a, b, _ in cuts_c:
     B.ground_rect(D, ROW_C[0], ROW_C[1], a, b)
 for a, b in PASSAGES:
     B.ground_rect(D, ROW_E[0], ROW_E[1], a, b)
-B.ground_rect(D, ROW_E[0], ROW_E[1], -88.0, -72.0)
 
 STEAM = []
 
@@ -784,7 +803,7 @@ for x in (-90.55, -69.45):
     prev = None
     z = RAMP[0] + 2.0
     while z < RAMP[1]:
-        if clear_of(z, [DECK]) and not (x > -80 and -192.0 < z < -166.0):
+        if clear_of(z, [DECK]) and not (x > -80 and -192.0 < z < -166.0) and not (x < -80 and not clear_of(z, [CROSSING])):
             J.put("lamp_short", x, G0, z)
             if prev is not None and z - prev < 13.0:
                 J.span("jt_string_s", (x, prev), (x, z), 4.3, 1.5, unit=5.0)
@@ -819,7 +838,7 @@ z = -700.0
 while z < -14.0:
     side = sr.choice((-1, 1))
     x = -90.6 if side < 0 else -69.4
-    if clear_of(z, [DECK], 4.0) and not (side > 0 and -194.0 < z < -164.0):
+    if clear_of(z, [DECK], 4.0) and not (side > 0 and -194.0 < z < -164.0) and not (side < 0 and clear_of(z, [CROSSING], 3.0) is False):
         for i in range(sr.randrange(2, 5)):
             J.put("jt_scooter", x, G0, z + i * 0.85, sr.uniform(-0.25, 0.25) + (0.0 if sr.random() < 0.5 else math.pi))
         if sr.random() < 0.6:
@@ -831,7 +850,7 @@ while z < -14.0:
 for side, xk in ((1, -90.16), (-1, -69.84)):
     z = -704.0 + sr.uniform(0.0, 8.0)
     while z < -12.0:
-        if clear_of(z, [DECK], 3.0) and not (side < 0 and -194.0 < z < -164.0):
+        if clear_of(z, [DECK], 3.0) and not (side < 0 and -194.0 < z < -164.0) and not (side > 0 and not clear_of(z, [CROSSING])):
             roll = sr.random()
             road = HALF_PI * side
             if roll < 0.3:
