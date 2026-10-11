@@ -295,7 +295,7 @@ P.place("cctv", 90.4, G, -227.2, district=PL)
 for px in (62.0, 76.0):
     P.place("bench", px, G, -258.2, 0.0, district=PL)
 P.place("vending", 49.2, G, -263.4, 0.0, district=PL)
-P.place("vending_warm", 50.4, G, -263.4, 0.0, district=PL)
+P.place("vending", 50.4, G, -263.4, 0.0, district=PL)
 P.place("bin", 52.0, G, -260.8, district=PL)
 P.place("bin", 91.0, G, -236.0, district=PL)
 

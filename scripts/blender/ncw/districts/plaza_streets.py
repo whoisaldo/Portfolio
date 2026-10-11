@@ -3,8 +3,8 @@
 The x 120 road, the plaza street and the south street are streets.py's
 (their lamps, signals and crossings too). Along the plaza's own frontages
 this adds what a walker passes: cube bollards and planters at the kerb,
-bins, hydrants, cameras, short lamps between the tall ones, a phone booth,
-vending machines by the doors; the blocks' corners carry big signs turned
+bins, hydrants, cameras, short lamps between the tall ones, vending
+machines by the doors (few kinds: every prototype's material is a draw); the blocks' corners carry big signs turned
 45 degrees to both streets, the towers tall blades; and people stand about:
 at doors, against walls, in pairs talking, on their phones under the signs.
 
@@ -49,12 +49,10 @@ def frontage(axis, lot, out, a0, a1, seed, people=1.0, skip=(), palms=True, wall
                 P.place("hydrant", x, G, z, district=PL)
             elif pick < 0.74:
                 P.place("cctv", x, G, z, district=PL)
-            elif pick < 0.9:
+            else:
                 P.place("lamp_short", x, G, z, district=PL)
                 lx, lz = at(a, 2.4)
                 light(PL, lx, 3.0, lz, "amber", 4.0)
-            else:
-                P.place("food_box", x, G, z, yaw_out + math.pi, district=PL)
         a += r.uniform(7.0, 12.0)
     # Palms at the kerb, slender, lit from their planters (YRL74JmhVgk@30).
     a = a0 + r.uniform(9.0, 16.0)
@@ -69,11 +67,8 @@ def frontage(axis, lot, out, a0, a1, seed, people=1.0, skip=(), palms=True, wall
     while wall and a < a1 - 4.0:
         if clear(a):
             x, z = at(a, 0.62)
-            pick = r.random()
-            if pick < 0.45:
-                P.place(r.choice(("vending", "vending_warm")), x, G, z, yaw_out, district=PL)
-            elif pick < 0.6:
-                P.place("phone_booth", *at(a, 0.75)[:1], G, at(a, 0.75)[1], yaw_out, district=PL)
+            if r.random() < 0.55:
+                P.place("vending", x, G, z, yaw_out, district=PL)
         a += r.uniform(16.0, 28.0)
     # People: singles against the wall or at a window, pairs talking.
     a = a0 + r.uniform(2.0, 5.0)
@@ -148,7 +143,7 @@ for px in (61.5, 68.5):
 P.place("bench", 65.0, G, -290.6, math.pi, district=PL)
 P.place("bench", 65.0, G, -285.4, 0.0, district=PL)
 P.place("vending", 58.0, G, -284.5, math.pi, district=PL)
-P.place("vending_warm", 59.2, G, -284.5, math.pi, district=PL)
+P.place("vending", 59.2, G, -284.5, math.pi, district=PL)
 P.place("bin", 71.0, G, -284.8, district=PL)
 gline("cyan", 53.0, -291.4, 77.0, -291.4, G + 0.012)
 for (px, pz, yaw, pose) in ((64.6, -290.6, math.pi, "sit"), (60.4, -285.6, math.pi, "phone"), (70.0, -286.2, 0.6, "smoke"),

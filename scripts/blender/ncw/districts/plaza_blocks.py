@@ -25,7 +25,7 @@ OFFICE = dict(windows=(2, 4, 5), lit=(0.6, 0.92), warmth=(0.05, 0.45), tints=("n
               fire_escape=0.0, cornice=0.35, ledge_every=(2, 3), pipes=0.15, roof_sign=0.0,
               shop_colours=["cyan", "white", "teal", "blue", "amber"], sign_colours=["cyan", "white", "teal", "amber", "magenta"])
 HOTEL = dict(OFFICE, windows=(0, 1), lit=(0.62, 0.9), warmth=(0.65, 1.0), tints=("plum", "brown", "navy"),
-             balcony=0.34, balcony_glass=1.0, ledge_every=(1,), cornice=0.6,
+             balcony=0.34, balcony_glass=0.0, ledge_every=(1,), cornice=0.6,
              shop_colours=["amber", "pink", "white", "cyan"], awning=0.5)
 ALL_OPEN = {"+x": "open", "-x": "open", "+z": "open", "-z": "open"}
 FACE_AT = {"+z": 0.0, "-z": math.pi, "+x": math.pi / 2, "-x": -math.pi / 2}

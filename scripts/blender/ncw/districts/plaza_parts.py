@@ -552,13 +552,15 @@ def _lamp_plaza(k):
 def _kiosk(k):
     """A low kiosk, its counter lit and a band of cyan round its roof
     (Fn9gKhU_2_Q@77); its counter toward +z."""
+    # (Two materials only: every prototype's material is a draw of its own.)
+    steel = (0.2, 0.21, 0.24, 1)
     box(k("trim"), -1.4, 1.4, 0.0, 2.5, -1.1, 1.1, scale=1.0, col=(0.05, 0.09, 0.1, 1))
-    box(k("metal"), -1.55, 1.55, 2.5, 2.62, -1.25, 1.6, scale=1.0)
+    box(k("trim"), -1.55, 1.55, 2.5, 2.62, -1.25, 1.6, scale=1.0, col=steel)
     box(k("glow"), -1.15, 1.15, 1.0, 2.1, 1.1, 1.12, scale=0.5, col=(1.0, 0.72, 0.42, 1))
-    box(k("metal"), -1.25, 1.25, 0.92, 1.0, 1.1, 1.45, scale=0.5)
-    box(k("neon_cyan"), -1.55, 1.55, 2.36, 2.46, 1.6, 1.63, scale=0.5)
-    box(k("neon_cyan"), -1.58, -1.55, 2.36, 2.46, -1.25, 1.6, scale=0.5)
-    box(k("neon_cyan"), 1.55, 1.58, 2.36, 2.46, -1.25, 1.6, scale=0.5)
+    box(k("trim"), -1.25, 1.25, 0.92, 1.0, 1.1, 1.45, scale=0.5, col=steel)
+    box(k("glow"), -1.55, 1.55, 2.36, 2.46, 1.6, 1.63, scale=0.5, col=GLOW["cyan"])
+    box(k("glow"), -1.58, -1.55, 2.36, 2.46, -1.25, 1.6, scale=0.5, col=GLOW["cyan"])
+    box(k("glow"), 1.55, 1.58, 2.36, 2.46, -1.25, 1.6, scale=0.5, col=GLOW["cyan"])
 
 
 @P.proto("pylon_hex", box=(0.15, 3.0, 0.15))
