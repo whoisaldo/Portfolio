@@ -285,7 +285,7 @@ def stool(district, x, z, col):
     cylinder((district, "trim", 1), x, z, G0 + 0.7, G0 + 0.76, 0.17, segs=8, col=col)
 
 
-def stall(district, x, z, yaw, rng, colour=None, lanterns=True, stools=True, w=2.6):
+def stall(district, x, z, yaw, rng, colour=None, lanterns=True, stools=True, w=2.6, people=True):
     """A food stall: a counter under an awning lit through from below, a
     noren curtain along its front, a lit menu board on its roof, lanterns
     along its eaves, stools at the counter, its light on the ground in
@@ -351,6 +351,16 @@ def stall(district, x, z, yaw, rng, colour=None, lanterns=True, stools=True, w=2
         for k in range(int(w / 0.75)):
             sx, sz = at(-w / 2 + 0.4 + k * 0.75, d / 2 + 0.55)
             stool(district, sx, sz, (0.3, 0.05, 0.04, 1))
+            if people and rng.random() < 0.55:
+                stand(sx, sz, yaw + math.pi, "sit", y=G0 + 0.76)
+    if people:
+        # Whoever keeps it, behind the counter, and now and then someone
+        # waiting on their feet.
+        vx, vz = at(rng.uniform(-0.4, 0.4), 0.12)
+        stand(vx, vz, yaw, "vendor", y=G0)
+        if rng.random() < 0.5:
+            cx_, cz_ = at(w / 2 + 0.35, d / 2 + 0.9)
+            stand(cx_, cz_, yaw + math.pi - 0.5, rng.choice(("idle", "phone")), y=G0)
     fx, fz = at(0.0, d / 2 + 1.4)
     light(district, fx, 1.6, fz, colour if colour != "purple" else "pink", 3.2)
     light(district, fx, 2.2, fz, "amber", 2.4)

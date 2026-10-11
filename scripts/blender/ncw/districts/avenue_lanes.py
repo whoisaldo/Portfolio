@@ -55,6 +55,13 @@ def ladder(D, f, s, y0, y1, out=1.0):
         y += 0.32
 
 
+def person(f, s, out, pose, turn=0.0, apron=0.9):
+    """Someone by a wall: s along the face, `out` metres off it, facing out
+    from it (turned `turn`), on the apron or down on the lane."""
+    x, _, z = f.p(f.at(s), 0.0, out)
+    stand(x, z, f.yaw + turn, pose, y=G0 if out < apron else 0.0)
+
+
 def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None):
     """The ground floor of a lot's back on a lane, and what hangs on the
     back over it. `escapes`: where along the face (world coordinate) a fire
@@ -92,11 +99,22 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
             if rng.random() < 0.35 and room > 3.4:
                 K.board(D, f, s + 2.2, 2.75, "ps", out=0.08)
                 kw = 3.3
+            if rng.random() < 0.3:
+                # Somebody out of the back door for a smoke.
+                person(f, s + 1.55, 0.45, rng.choice(("smoke", "smoke", "lean", "phone")), rng.uniform(-0.5, 0.5))
         elif kind == "lit":
             doors += 1
             K.lit_door(D, f, s, rng, hue=rng.choice(("amber", "amber", "white", pal[0], "pink")))
             if vents is not None and rng.random() < 0.5:
                 vents.append(f.p(f.at(s + 0.5), 0.0, 1.5))
+            roll = rng.random()
+            if roll < 0.3:
+                person(f, s - 0.45, 0.4, rng.choice(("lean", "smoke")), rng.uniform(-0.3, 0.3))
+            elif roll < 0.5:
+                person(f, s - 0.5, 0.55, "squat", rng.uniform(-0.6, 0.6))
+            elif roll < 0.65:
+                person(f, s + 0.1, 1.5, "talk", math.pi / 2 + 0.25)
+                person(f, s + 1.1, 1.6, "talk", -math.pi / 2 - 0.25)
         elif kind == "shutter":
             f.quad((D, "door_panel", 0), s, s + 3.2, G0, 3.0, 0.03)
             f.box((D, "metal", 1), s - 0.05, s + 3.25, 3.0, 3.3, 0.0, 0.25)
@@ -115,6 +133,8 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
             light(D, *f.p(f.at(s + 1.6), 2.4, 0.7), hue, 3.0)
             px, _, pz = f.p(f.at(s + rng.uniform(0.9, 2.3)), G0, 1.0)
             P.place(rng.choice(("crates", "crates", "bags")), px, G0, pz, f.yaw + rng.uniform(-0.3, 0.3), district=D)
+            if rng.random() < 0.35:
+                person(f, s + 0.5, 0.6, rng.choice(("idle", "phone", "smoke")), rng.uniform(-0.8, 0.8))
             busy.append((s - 0.2, s + 3.4))
         elif kind == "window":
             # A kitchen's window, barred, its extractor over it.
@@ -135,6 +155,8 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
                 px, _, pz = f.p(f.at(s + 0.5 + i * 1.0), G0, 0.42)
                 P.place(rng.choice(("vending", "vending", "vending_warm")), px, G0, pz, f.yaw, district=D)
             light(D, *f.p(f.at(s + n * 0.5), 1.2, 1.2), "cyan", 3.5)
+            if rng.random() < 0.4:
+                person(f, s + 0.5, 1.25, rng.choice(("idle", "phone")), math.pi + rng.uniform(-0.3, 0.3))
             kw = n * 1.0 + 0.2
         elif kind == "poster":
             pw = rng.choice((1.5, 1.9))
@@ -400,10 +422,16 @@ class Lane:
                         P.place(r.choice(("vending", "vending_warm", "vending")), q[0], G0, q[2], face, district=D)
                     q = at(1.5)
                     light(D, q[0], 1.2, q[2], "cyan", 4.0)
+                    if r.random() < 0.5:
+                        q = at(1.35, r.uniform(-0.5, 0.5))
+                        stand(q[0], q[2], face + math.pi, r.choice(("idle", "phone")), y=G0 if 1.35 < self.aprons[1] else 0.0)
                 elif kind == "scooters":
                     for i in range(r.randrange(2, 5)):
                         q = at(0.9, (i - 1) * 0.75)
                         K.scooter(D, q[0], q[2], face + r.uniform(-0.25, 0.25), r)
+                    if r.random() < 0.35:
+                        q = at(1.0, -1.6)
+                        stand(q[0], q[2], face + r.uniform(-1.0, 1.0), r.choice(("phone", "smoke", "idle")), y=G0)
                 elif kind == "pallets":
                     for i in range(r.randrange(1, 3)):
                         q = at(0.8, i * 1.35)
@@ -457,8 +485,26 @@ class Lane:
         for p in pts[:most]:
             self.vent(p[0], p[2])
 
+    def people(self, every=(18.0, 30.0)):
+        """Two or three in the lane itself, talking, where it is not
+        somebody else's."""
+        r, W = self.rng, self.width
+        v = self.a + r.uniform(6.0, 14.0)
+        while v < self.b - 4.0:
+            if self.free(v, 2.0):
+                u = r.uniform(self.aprons[0] + 0.5, W - self.aprons[1] - 1.2)
+                p, q = self.pt(u, v), self.pt(u + r.uniform(-0.3, 0.3), v + 0.9)
+                along = 0.0 if self.axis == "z" else math.pi / 2
+                stand(p[0], p[2], along, "talk")
+                stand(q[0], q[2], along + math.pi, r.choice(("talk", "smoke")))
+                if r.random() < 0.4:
+                    t = self.pt(u + 0.8, v + 0.45)
+                    stand(t[0], t[2], self.yaw(False) if self.axis == "z" else self.yaw(False), "idle")
+            v += r.uniform(*every) / self.dens
+
     def build(self, mouths=(), stalls=True, most_steam=4):
         self.ground(mouths)
         self.overhead()
         self.far_side(stalls=stalls)
         self.steam(most_steam)
+        self.people()

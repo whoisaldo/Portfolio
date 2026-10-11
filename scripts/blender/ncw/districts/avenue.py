@@ -3,6 +3,8 @@ from ncw import buildings as B
 from ncw import props as P
 from ncw.districts import avenue_kit as K
 from ncw.districts import avenue_lanes as LN
+from ncw.districts import avenue_yard as YD
+from ncw.districts import avenue_roofs as RF
 
 # The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
 # is streets.py's, from the plan.
@@ -163,39 +165,13 @@ for s in (-1, 1):
         back_is(backf, xb if s > 0 else xa, hs[j], "ae" if s > 0 else "aw")
         B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AVS), hs[j], r, style=STYLE)
         back_is()
-# The arm ends at a yard wall and the depot behind it, square across the
-# street: a shut gate, a lit sign over it, the depot's mass over the wall.
-B.building(B.Lot(-WALK - DEPTH, WALK + DEPTH, 92.0, 118.0, "-z", {"-z": "street", "+z": "back", "-x": "open", "+x": "open"}, {}, AVS),
-           19.0, random.Random(2399), style=dict(STYLE, tints=("rust", "brown"), windows=(2,), balcony=0.0, signs=0.6),
-           ground="blank")
-B.ground_rect(AVS, -WALK - DEPTH, WALK + DEPTH, 88.0, 92.0)
-# Its yard wall across the road's end and the gate in it: two leaves of
-# corrugated steel, shut, in a frame lit amber, hazard stripes over them, a
-# flood on each pier throwing light down on the gate, a sign over it, the
-# guard's booth beside it lit inside, a barrier and drums at the kerb.
-for xo in (-6.0, 6.0):
-    box((AVS, "door_panel", 0), xo - 5.9, xo + 5.9, 0.15, 6.2, 91.75, 92.0, scale=1.0)
-for px in (-12.4, 0.0, 12.4):
-    box((AVS, "concrete", 0), px - 0.4, px + 0.4, 0.0, 7.0, 91.4, 92.3, scale=1.5)
-box((AVS, "hazard", 1), -12.0, 12.0, 6.2, 6.5, 91.65, 91.75, scale=1.0)
-box((AVS, "neon_amber", 0), -12.0, 12.0, 6.55, 6.65, 91.6, 91.7, scale=1.0)
-for px in (-12.0, 12.0):
-    box((AVS, "neon_amber", 0), px - 0.05, px + 0.05, 0.3, 6.5, 91.6, 91.7, scale=1.0)
-    box((AVS, "metal", 1), px - 0.3, px + 0.3, 7.0, 7.3, 91.0, 91.8, scale=0.5)
-    box((AVS, "glow", 0), px - 0.25, px + 0.25, 6.92, 7.0, 91.05, 91.75, scale=0.5, col=GLOW["white"])
-    site_lamp(f"depot_{'w' if px < 0 else 'e'}", (px, 6.8, 90.6), "#ffd8a8", 9.0, 1.1)
-box((AVS, "board_frame", 0), -7.0, 7.0, 8.0, 10.6, 91.55, 91.75, scale=1.0)
-sign(st_name("pm"), -3.5, 9.3, 91.5, 2.8, 1.2, math.pi, district=AV, label=False)
-sign(st_name("pm"), 3.5, 9.3, 91.5, 2.8, 1.2, math.pi, district=AV, label=False)
-# The booth, east of the gate: a lit window, its roof.
-box((AVS, "trim", 0), 14.4, 17.4, 0.15, 2.8, 86.4, 89.0, scale=1.0, col=B.TRIM[5])
-quad((AVS, "shop", 0), (14.38, 1.0, 88.6), (14.38, 1.0, 86.8), (14.38, 2.3, 86.8), (14.38, 2.3, 88.6), col=(0.8, 0.9, 1.0, 1.0))
-box((AVS, "metal", 1), 14.2, 17.6, 2.8, 2.95, 86.2, 89.2, scale=1.0)
-P.place("barrier", 9.0, 0.15, 86.5, district=AVS)
-P.place("barrier", -9.0, 0.15, 86.5, district=AVS)
-P.place("cctv", 12.9, 0.15, 89.5, district=AVS)
-for (x, z) in ((-11.0, 89.6), (-10.3, 89.9), (-11.4, 90.4)):
-    P.place("drum", x, 0.15, z, district=AVS)
+# The arm ends at Santo Domingo's yard: its wall and gate across the road's
+# end, the yard behind them, and the blocks behind the arm's lots
+# (avenue_yard). Nothing here, nor the south street's row below, draws on
+# the street's own count of signs.
+_st_name = B.st_name
+B.st_name = K.st_id
+YD.build(AVS)
 
 # The south street's frontages either side of the arm's corner lots: its
 # south side, out to the west street's end and to the x 120 road. (Its north
@@ -222,6 +198,8 @@ for s, lots in SOUTH_ROW.items():
         back_is("+z", 42.0, h, "ce" if s > 0 else "cw")
         B.building(B.Lot(xa, xb, 12.0, 42.0, "-z", sides, nb, AVS), h, r, style=SOUTH)
         back_is()
+
+B.st_name = _st_name
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.
@@ -384,6 +362,9 @@ for key in [k for k in batches if k[0] == "void"]:
     del batches[key]
 P.INSTANCES[:] = [i for i in P.INSTANCES if i[7] != "void"]
 LIGHTS.pop("void", None)
+
+# The backs of the avenue's lots, above their street fronts' roofs.
+RF.rear(AVS, AV_LOTS, WALK, DEPTH, STYLE)
 
 # ---------------------------------------------------------------------------
 # The lanes. Behind each row of the avenue a service lane runs from the
