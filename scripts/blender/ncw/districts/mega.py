@@ -1,54 +1,88 @@
 """The Megabuilding: David's megabuilding and its street at the canyon's end.
 
-Until this district is built to finished (BIBLE.md, "The Megabuilding"), its
-frontages are lined by the shared massing (massing.py). The district's own
-work replaces the call below; everything it builds is keyed to the district
-name "mega" so it streams in its pack and tiles with it.
+What the hero sees of the district at its vanishing point (the viaduct, the
+megablock across the avenue's end and its tower) is keyed "far", so it is in
+the core GLB the city goes live on, and is a set piece (BIBLE.md, "What does
+not move"): its outline, its three sections, its four vertical signs, the
+viaduct's dark deck and its row of lamps are as the plate was matched to.
+Everything else here is keyed "mega" and streams in with the district's own
+pack: the block's base and decks, its light well, its wings, its roofs, its
+street, the blocks east of the canyon and the station the viaduct runs into
+(the mega_* modules beside this one, run from the bottom of this file).
 """
 from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B  # noqa: F401
 from ncw import props as P  # noqa: F401
-from ncw.districts import massing
 
-massing.mega()
-
-# What the hero sees of the district at its vanishing point (the viaduct, the
-# megablock across the avenue's end and its tower) is keyed "far", so it is
-# in the core GLB the city goes live on. A set piece: BIBLE.md, "What does
-# not move".
+D = "mega"
 FA = "far"
-# The avenue's far end is closed by a rail viaduct crossing it low against
-# the glow at the vanishing point: a dark deck on four piers, a row of lamps
+
+# ---------------------------------------------------------------------------
+# The viaduct. The avenue's far end is closed by a rail viaduct crossing it
+# low against the glow at the vanishing point: a dark deck, a row of lamps
 # along its edge, and now and then a lit train sliding across it (the site
 # runs it, src/world/traffic.js, on anchor_rail's line).
+# ---------------------------------------------------------------------------
 RAIL_Z, RAIL_Y = -610.0, 13.0
-box((FA, "dark", 0), -90, 90, RAIL_Y - 1.2, RAIL_Y + 2.2, RAIL_Z - 3.5, RAIL_Z + 3.5, scale=3.0)
-box((FA, "metal", 0), -90, 90, RAIL_Y + 2.2, RAIL_Y + 3.1, RAIL_Z + 3.3, RAIL_Z + 3.5, scale=1.0)
-for px in (-52.0, -12.5, 12.5, 52.0):
-    box((FA, "dark", 0), px - 1.4, px + 1.4, 0, RAIL_Y - 1.2, RAIL_Z - 2.2, RAIL_Z + 2.2, scale=2.0)
+RAIL_UNDER, RAIL_TOP = RAIL_Y - 1.2, RAIL_Y + 2.2
+box((FA, "dark", 0), -90, 90, RAIL_UNDER, RAIL_TOP, RAIL_Z - 3.5, RAIL_Z + 3.5, scale=3.0)
+box((FA, "metal", 0), -90, 90, RAIL_TOP, RAIL_Y + 3.1, RAIL_Z + 3.3, RAIL_Z + 3.5, scale=1.0)
+# Its piers. The two outer ones stand behind the canyon's rows. The two at
+# the avenue stand on its pavements, so each is a portal the pavement runs
+# through: a slim leg at the kerb, a pilaster at the lot line, and the pier's
+# mass from over head height up to the deck.
+PIER_HEAD = 3.3
+for px in (-52.0, 52.0):
+    box((FA, "dark", 0), px - 1.4, px + 1.4, 0, RAIL_UNDER, RAIL_Z - 2.2, RAIL_Z + 2.2, scale=2.0)
+for s in (-1, 1):
+    for xa, xb, y0 in ((10.3, 10.65, 0.0), (13.72, 13.98, 0.0), (10.3, 13.98, PIER_HEAD)):
+        x0, x1 = sorted((s * xa, s * xb))
+        box((FA, "dark", 0), x0, x1, y0, PIER_HEAD if y0 == 0.0 else RAIL_UNDER, RAIL_Z - 2.2, RAIL_Z + 2.2, scale=2.0,
+            bottom=y0 > 0.0)
 for lx in range(-86, 90, 5):
     box((FA, "neon_amber", 0), lx - 0.18, lx + 0.18, RAIL_Y - 1.28, RAIL_Y - 1.18, RAIL_Z + 3.3, RAIL_Z + 3.6, scale=1.0)
-empty("anchor_rail", (0.0, RAIL_Y + 2.2, RAIL_Z), props={"reach": 90.0})
-# Past the viaduct the avenue ends at a megablock square across it, its
-# windows mostly lit, and a taller tower stepped behind it: the vanishing
-# point is lit structure standing in the glow, not open haze: less fogged
-# than the rest of the city at that distance (facade_end), so it reads as
-# a dark mass with its windows lit against the glow. The block stays under
-# the holographic figure's feet and the tower stands left of her, never
-# behind her. Vertical
-# signs run up its face to the street. The far city keeps clear of both
-# (anchor_mega_end).
-# The block is a megabuilding: three sections across its face (the middle
-# one set back, each its own height under the figure's feet), decks across
-# the face every nineteen metres lit from under, a plant floor and a lit
-# terrace on the lower roofs, and a bridge across to the tower behind. The
-# tower steps back twice to a lit crown and a mast.
+empty("anchor_rail", (0.0, RAIL_TOP, RAIL_Z), props={"reach": 90.0})
+
+# ---------------------------------------------------------------------------
+# The megablock. Past the viaduct the avenue ends at a megabuilding square
+# across it, its windows mostly lit, and a taller tower stepped behind it:
+# the vanishing point is lit structure standing in the glow, less fogged than
+# the rest of the city at that distance (facade_end). The block stays under
+# the holographic figure's feet and the tower stands left of her. Three
+# sections across its face (the middle one set back, each its own height),
+# decks across the face every nineteen metres lit from under, vertical signs
+# up the face to the street, plant on the roofs, a bridge to the tower.
+#
+# The middle section is built round a light well open to the sky, and the
+# ground floor round a passage from the street to the well's court: the
+# hero's lens sees neither (the well from no height it reaches; the passage
+# as a few dark pixels under the viaduct, closed by the court's north wall).
+# ---------------------------------------------------------------------------
+MB_X0, MB_X1, MB_ZB, MB_ZF = -48.0, 48.0, -790.0, -745.0
+MB_REC = 4.0                                   # the middle section's face stands this far back
+MB_SECTIONS = ((-48.0, -18.0, 95.0, 0.0), (-18.0, 18.0, 89.0, MB_REC), (18.0, 48.0, 83.0, 0.0))
 MB_SIGNS = ((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))
-for k, (x0, x1, top, rec) in enumerate(((-48.0, -18.0, 95.0, 0.0), (-18.0, 18.0, 89.0, 4.0), (18.0, 48.0, 83.0, 0.0))):
-    mass(FA, x0, x1, -790, -745 - rec, SHOP_H, top, 4990 + k * 7, col=(0.82 if rec else 0.72, 2 / 8.0, 0.55, 1.0), mat="facade_end")
+WELL = (-9.0, 9.0, -783.0, -763.0)             # x0, x1, z0, z1
+PASSAGE = (-5.0, 5.0)                          # x0, x1, from the face to the well
+for k, (x0, x1, top, rec) in enumerate(MB_SECTIONS):
+    col = (0.82 if rec else 0.72, 2 / 8.0, 0.55, 1.0)
+    mass(FA, x0, x1, MB_ZB, MB_ZF - rec, SHOP_H, top, 4990 + k * 7, col=col, mat="facade_end", roof=not rec)
+    HERO_MASSES.append(((x0, 0.0, MB_ZB), (x1, top, MB_ZF - rec)))
     # Its lit top edge, a hair proud of the face.
-    box((FA, "neon_cyan" if k != 1 else "neon_pink", 0), x0 - 0.3, x1 + 0.3, top - 0.8, top, -745.0 - rec, -744.7 - rec, scale=1.0)
-box((FA, "dark", 0), -48, 48, 0, SHOP_H, -790, -745, scale=2.0)
+    box((FA, "neon_cyan" if k != 1 else "neon_pink", 0), x0 - 0.3, x1 + 0.3, top - 0.8, top, MB_ZF - rec, MB_ZF + 0.3 - rec, scale=1.0)
+# The middle section's roof, round the well.
+_x0, _x1, _top = MB_SECTIONS[1][:3]
+for (ax, bx, az, bz) in ((_x0, _x1, WELL[3], MB_ZF - MB_REC), (_x0, _x1, MB_ZB, WELL[2]),
+                         (_x0, WELL[0], WELL[2], WELL[3]), (WELL[1], _x1, WELL[2], WELL[3])):
+    quad((FA, "roof", 0), (ax, _top, bz), (bx, _top, bz), (bx, _top, az), (ax, _top, az),
+         ((0, 0), ((bx - ax) / 4, 0), ((bx - ax) / 4, (bz - az) / 4), (0, (bz - az) / 4)))
+# The ground floor, dark, in five pieces round the passage and the well's
+# court; the piece across the court's north side a little taller, so nothing
+# is seen over it through the passage.
+for (ax, bx, az, bz, top) in ((MB_X0, WELL[0], MB_ZB, MB_ZF, SHOP_H), (WELL[1], MB_X1, MB_ZB, MB_ZF, SHOP_H),
+                              (WELL[0], PASSAGE[0], WELL[3], MB_ZF, SHOP_H), (PASSAGE[1], WELL[1], WELL[3], MB_ZF, SHOP_H),
+                              (WELL[0], WELL[1], MB_ZB, WELL[2], SHOP_H + 0.6)):
+    box((FA, "dark", 0), ax, bx, 0, top, az, bz, scale=2.0)
 # The decks, broken where the signs run up the face.
 gaps = sorted(vx for vx, _ in MB_SIGNS)
 for y in (24.0, 43.0, 62.0, 79.0):
@@ -62,11 +96,12 @@ for y in (24.0, 43.0, 62.0, 79.0):
 # vanishing point's one vertical accent.
 for k, (vx, colour) in enumerate(MB_SIGNS):
     vh = 38.0 + (k % 2) * 22.0
-    rec = 4.0 if -18.0 < vx < 18.0 else 0.0
+    rec = MB_REC if -18.0 < vx < 18.0 else 0.0
     box((FA, "neon_" + colour, 0), vx - 1.1, vx + 1.1, 14.0, 14.0 + vh, -744.9 - rec, -744.6 - rec, scale=1.0)
-# Plant on the roofs, and a lit terrace on the lowest.
+# Plant on the roofs (the middle section's behind the well), and a lit
+# terrace on the lowest.
 box((FA, "metal", 1), -40.0, -26.0, 95.0, 99.0, -782.0, -770.0, scale=1.5)
-box((FA, "metal", 1), -8.0, 6.0, 89.0, 92.0, -786.0, -776.0, scale=1.5)
+box((FA, "metal", 1), -8.0, 6.0, 89.0, 92.0, -789.4, -784.2, scale=1.5)
 for tx in range(20, 47, 4):
     box((FA, "neon_amber", 0), tx - 0.15, tx + 0.15, 83.0, 83.5, -746.0, -745.6, scale=0.5)
 # The bridge to the tower behind, at the sixtieth metre.
@@ -83,3 +118,8 @@ cylinder((FA, "metal", 0), mb_t[0], mb_t[1], 205.0, 228.0, 0.9, segs=8)
 cylinder((FA, "neon_red", 0), mb_t[0], mb_t[1], 228.0, 230.0, 1.2, segs=8)
 empty("anchor_mega_end", (0.0, 95.0, -780.0), props={"size": 150.0})
 empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
+
+# The district's own pack: everything the hero does not need to go live on.
+from ncw.districts import massing  # noqa: E402
+
+massing.mega()
