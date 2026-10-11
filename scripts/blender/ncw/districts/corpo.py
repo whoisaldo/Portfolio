@@ -23,13 +23,7 @@ BOULEVARD_Z = -330.0
 CORPO_X0 = 150.0
 LOBBY_H = 8.0
 CROWN_H = 16.0
-ground((CO, "asphalt", 0), 110, 460, BOULEVARD_Z - 9, BOULEVARD_Z + 9, scale=6.0)
-ground((CO, "asphalt", 0), 112, 128, BOULEVARD_Z + 9, CROSS_Z0, scale=6.0)
-for x in range(114, 456, 9):
-    quad((CO, "paint", 0), (x, 0.012, BOULEVARD_Z + 0.1), (x + 3, 0.012, BOULEVARD_Z + 0.1),
-         (x + 3, 0.012, BOULEVARD_Z - 0.1), (x, 0.012, BOULEVARD_Z - 0.1))
-ground((CO, "sidewalk", 0), 110, 460, BOULEVARD_Z - 14, BOULEVARD_Z - 9, y=0.15, scale=2.0)
-ground((CO, "sidewalk", 0), 128, 460, BOULEVARD_Z + 9, BOULEVARD_Z + 14, y=0.15, scale=2.0)
+# The boulevard and the x 120 road are streets.py's.
 
 
 def notched(cx, cz, h, n):

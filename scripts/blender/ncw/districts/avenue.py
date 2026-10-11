@@ -1,38 +1,7 @@
 from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials, street constants)
 
-# Road surfaces: the avenue, the cross street at the intersection, and the
-# junction at its north end.
-ground((AV, "asphalt", 0), -ROAD_HALF, ROAD_HALF, AV_NORTH, 60, scale=6.0)
-ground((AV, "asphalt", 0), -90, -ROAD_HALF, -6, 8, scale=6.0)
-ground((AV, "asphalt", 0), ROAD_HALF, 90, -6, 8, scale=6.0)
-road_markings(AV, -ROAD_HALF, ROAD_HALF, AV_NORTH + 2, -9)
-road_markings(AV, -ROAD_HALF, ROAD_HALF, 11, 60)
-crosswalk(AV, -9.2, 9.2, -8.3)
-# The south one a few metres back from the junction: the hero's lens stands
-# at z 10, and its bars would lie right under it.
-crosswalk(AV, -9.2, 9.2, 13.4)
-# Through the junction, the lanes' own dashed guides, so the road nearest
-# the hero's lens leads up the avenue like the rest of it.
-for lx, w in ((0.0, 0.15), (-5.0, 0.06), (5.0, 0.06)):
-    z = 8.0
-    while z - 1.0 > -6.2:
-        quad((AV, "paint", 0), (lx - w, 0.011, z), (lx + w, 0.011, z), (lx + w, 0.011, z - 1.0), (lx - w, 0.011, z - 1.0))
-        z -= 2.0
-for side in (-1, 1):
-    kerb_and_walk(AV, side, AV_NORTH, -6)
-    kerb_and_walk(AV, side, 8, 60)
-    # The cross street's pavements.
-    x_in = side * WALK
-    x_out = side * 90
-    xa, xb = sorted((x_in, x_out))
-    ground((AV, "sidewalk", 0), xa, xb, -10, -6, y=0.15, scale=2.0)
-    ground((AV, "sidewalk", 0), xa, xb, 8, 12, y=0.15, scale=2.0)
-
-# Drains and manholes on the wet road.
-for x, z in ((-8.9, -24), (8.9, -41), (-8.9, -63), (8.9, -88), (-8.9, -112), (8.9, -140)):
-    box((AV, "dark", 1), x - 0.3, x + 0.3, 0, 0.018, z - 0.5, z + 0.5, scale=0.5)
-for x, z in ((2.4, -18), (-3.1, -52), (3.3, -96)):
-    cylinder((AV, "metal", 1), x, z, 0, 0.02, 0.38, segs=16)
+# The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
+# is streets.py's, from the plan.
 
 
 # The lots, north of the intersection. (z_start, depth along the street,

@@ -51,10 +51,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = false } = {}) => {
+  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = false, tinted = false } = {}) => {
     if (made.has(key)) return made.get(key);
     const m = keep(new THREE.ShaderMaterial({
-      defines: detail ? { DETAIL: "" } : {},
+      defines: { ...(detail ? { DETAIL: "" } : {}), ...(tinted ? { TINTED: "" } : {}) },
       uniforms: {
         ...shared,
         uColor: { value: new THREE.Color(color) },
@@ -64,7 +64,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uSpillMul: { value: spill },
         uGloss: { value: rough },
       },
-      vertexShader: VERT_WORLD,
+      vertexShader: tinted ? VERT_WORLD_COLOR : VERT_WORLD,
       fragmentShader: /* glsl */ `
         ${COMMON}
         uniform vec3 uColor;
@@ -75,6 +75,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
+        #ifdef TINTED
+        varying vec4 vColor;
+        #endif
         #ifdef DETAIL
         float vn(vec2 p) {
           vec2 i = floor(p), f = fract(p);
@@ -100,6 +103,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         #endif
         void main() {
           vec3 albedo = uColor;
+          #ifdef TINTED
+          albedo *= vColor.rgb;
+          #endif
           if (uHasMap > 0.5) albedo *= texture2D(uMap, vUv).rgb * 2.0;
           vec3 n = normalize(vNormalW);
           #ifdef DETAIL
@@ -949,6 +955,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "tool_red": return surface("tool_red", { color: "#7a2028", ambient: 0.06, spill: 2.0 });
       case "hazard": return surface("hazard", { color: "#d8ab22", ambient: 0.07, spill: 1.8 });
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });
+      // A building's ledges, slabs, pilasters, fascias and parapets, and the
+      // props' painted parts: their colour on their vertices.
+      case "trim": return surface("trim", { color: "#ffffff", ambient: 0.05, spill: 1.0, detail: true, tinted: true });
       default: return null;
     }
   };

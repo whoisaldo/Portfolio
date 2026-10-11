@@ -15,6 +15,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { worldModelUrl, worldShopsUrl } from "../data/world-assets.js";
+import { createProps, preloadProps } from "./props.js";
 import { createMaterialKit, NEON } from "./materials.js";
 import { markBytes } from "./progress.js";
 import { createSigns } from "./signs.js";
@@ -29,7 +30,7 @@ import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
-import { attributeKey, mergeMeshes } from "./merge.js";
+import { attributeKey, mergeMeshes, splitByTile } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -38,6 +39,10 @@ export const REFLECT_LAYER = 2;
 export const MIRROR_LAYER = 3;
 
 const cache = new Map();
+// The kit's tiles, metres on a side, and the fewest triangles a material
+// needs before it is cut into them (see the merge below).
+const TILE = 256;
+const TILE_MIN_TRIS = 12000;
 
 // The signs across the rooftop's roof, which its puddles hold and its steam
 // is lit by.
@@ -54,8 +59,9 @@ export function preloadCity(tier) {
         .loadAsync(worldModelUrl[tier], (e) => markBytes("city", e.loaded, e.total))
         .then((gltf) => gltf.scene),
       new THREE.TextureLoader().loadAsync(worldShopsUrl[tier]),
+      preloadProps(tier),
     ])
-      .then(([scene, shops]) => ({ scene, shops }))
+      .then(([scene, shops, props]) => ({ scene, shops, props }))
       .catch((err) => {
         cache.delete(tier);
         throw err;
@@ -66,7 +72,7 @@ export function preloadCity(tier) {
 }
 
 export async function createCity(scene, renderer, shared, { tier, quality, reduced = false, signs: signWords = null }) {
-  const [{ scene: source, shops: shopSource }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadLogos()]);
+  const [{ scene: source, shops: shopSource, props: propsBuffer }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadLogos()]);
   const root = source.clone(true);
   root.name = "night_city";
   root.updateMatrixWorld(true);
@@ -76,6 +82,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const adMeshes = [];
   const named = {};
   const meshes = [];
+  const protoMeshes = [];
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
   const scl = new THREE.Vector3();
@@ -85,7 +92,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       anchors.set(o.name, { position: pos.clone(), quaternion: quat.clone(), extras: o.userData });
     }
     if (!o.isMesh) return;
-    if (o.name.startsWith("sign_")) signMeshes.push(o);
+    if (o.name.startsWith("proto_")) protoMeshes.push(o);
+    else if (o.name.startsWith("sign_")) signMeshes.push(o);
     else if (o.name.startsWith("ad_")) adMeshes.push(o);
     else if (/^(board_|crown_|holo_figure|moon_disc|garage_door|garage_screen)/.test(o.name)) named[o.name] = o;
     else meshes.push(o);
@@ -156,6 +164,20 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     mesh.matrixAutoUpdate = false;
   }
 
+  // The props: each prototype dressed in the kit's material by name, then
+  // instanced where the props file puts them (src/world/props.js).
+  // Meshopt's quantised positions carry their scale in the node, so each
+  // prototype's node is baked into a plain geometry of its own first.
+  for (const mesh of protoMeshes) {
+    oldMaterials.add(mesh.material);
+    mesh.material = kit.forName(mesh.material.name) ?? mesh.material;
+    mesh.geometry = mergeMeshes([mesh], null);
+    mesh.removeFromParent();
+  }
+  const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER });
+  sources.push(...props.sources);
+  root.add(props.group);
+
   // Signs: one atlas, one draw, and their light in the bake.
   const signs = createSigns(signMeshes, shared, {
     maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
@@ -207,13 +229,17 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
 
   // The light: every emissive triangle, pooled on the ground.
   const light = bakeLight(sources);
+  props.disposeBake();
   shared.uSpill.value = light.spill;
   shared.uSpillBounds.value.copy(light.bounds);
   road.setStreaks(light.streaks, light.streakBounds);
   paint.setStreaks(light.streaks, light.streakBounds);
 
-  // One draw per material (see merge.js). What the bake needed from the
-  // meshes one by one it has had; from here the kit is static.
+  // One draw per material and TILE-metre tile (see merge.js): merged, then
+  // cut into tiles that share its buffers, so the camera culls the tiles
+  // behind it and the city's size does not cost every frame. What the bake
+  // needed from the meshes one by one it has had; from here the kit is
+  // static.
   root.updateMatrixWorld(true);
   const groups = new Map();
   for (const mesh of meshes) {
@@ -222,13 +248,18 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     groups.get(key).push(mesh);
   }
   for (const list of groups.values()) {
-    if (list.length < 2) continue;
-    const merged = new THREE.Mesh(mergeMeshes(list, root), list[0].material);
-    merged.name = `kit_${list[0].material.name}`;
-    merged.layers.mask = list[0].layers.mask;
-    merged.renderOrder = list[0].renderOrder;
-    merged.matrixAutoUpdate = false;
-    root.add(merged);
+    const whole = mergeMeshes(list, root);
+    // Only what is heavy is worth a draw per tile: a material with a few
+    // thousand triangles costs less drawn whole than culled in pieces.
+    const pieces = whole.index.count / 3 > TILE_MIN_TRIS ? splitByTile(whole, TILE) : [{ key: "all", geometry: whole }];
+    for (const { key, geometry } of pieces) {
+      const merged = new THREE.Mesh(geometry, list[0].material);
+      merged.name = `kit_${list[0].material.name}_${key}`;
+      merged.layers.mask = list[0].layers.mask;
+      merged.renderOrder = list[0].renderOrder;
+      merged.matrixAutoUpdate = false;
+      root.add(merged);
+    }
     for (const mesh of list) mesh.removeFromParent();
   }
 
@@ -275,6 +306,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     roadMaterial: road,
     roadMaterials: [road, paint],
     signs,
+    props,
     roofLights,
     light,
     setSignsVisible(on) {
@@ -292,7 +324,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       root.traverse((o) => {
         if (o.isMesh) geos.add(o.geometry);
       });
-      for (const m of [...signMeshes, ...adMeshes]) geos.add(m.geometry);
+      for (const m of [...signMeshes, ...adMeshes, ...protoMeshes]) geos.add(m.geometry);
       geos.forEach((g) => g.dispose());
       oldMaterials.forEach((m) => {
         m.map?.dispose?.();
@@ -308,6 +340,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       dressed.forEach((d) => d.dispose());
       signs.dispose();
       ads.dispose();
+      props.dispose();
       light.dispose();
     },
   };

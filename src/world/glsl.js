@@ -174,14 +174,21 @@ export const COMMON = /* glsl */ `
   }
 `;
 
+// The city's props (src/world/props.js) draw the same materials instanced:
+// three defines USE_INSTANCING and the instanceMatrix attribute for them.
 export const VERT_WORLD = /* glsl */ `
   varying vec3 vWorld;
   varying vec3 vNormalW;
   varying vec2 vUv;
   void main() {
-    vec4 w = modelMatrix * vec4(position, 1.0);
+    #ifdef USE_INSTANCING
+    mat4 m = modelMatrix * instanceMatrix;
+    #else
+    mat4 m = modelMatrix;
+    #endif
+    vec4 w = m * vec4(position, 1.0);
     vWorld = w.xyz;
-    vNormalW = normalize(mat3(modelMatrix) * normal);
+    vNormalW = normalize(mat3(m) * normal);
     vUv = uv;
     gl_Position = projectionMatrix * viewMatrix * w;
   }
@@ -194,9 +201,14 @@ export const VERT_WORLD_COLOR = /* glsl */ `
   varying vec2 vUv;
   varying vec4 vColor;
   void main() {
-    vec4 w = modelMatrix * vec4(position, 1.0);
+    #ifdef USE_INSTANCING
+    mat4 m = modelMatrix * instanceMatrix;
+    #else
+    mat4 m = modelMatrix;
+    #endif
+    vec4 w = m * vec4(position, 1.0);
     vWorld = w.xyz;
-    vNormalW = normalize(mat3(modelMatrix) * normal);
+    vNormalW = normalize(mat3(m) * normal);
     vUv = uv;
     vColor = color;
     gl_Position = projectionMatrix * viewMatrix * w;

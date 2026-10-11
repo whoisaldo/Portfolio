@@ -86,9 +86,7 @@ for z_ in (-243.0, -229.0):
 box((RF, "board_frame", 0), 410.0, 410.3, 59.4, 62.6, -242.4, -229.6, scale=1.0)
 sign("militech", 410.4, 61.0, -236.0, 12.0, 2.6, math.radians(90), preview="MILITECH", district=RF)
 dress_roof(RF, 383.0, 391.6, -247.0, -225.0, 58.0, 7304, cap=3.0)
-ground((RF, "asphalt", 0), STREET_X - 8, STREET_X + 8, -322, -190, scale=6.0)
-ground((RF, "sidewalk", 0), STREET_X + 8, STREET_X + 12, -300, -190, y=0.15, scale=2.0)
-ground((RF, "sidewalk", 0), STREET_X - 12, STREET_X - 8, -300, -190, y=0.15, scale=2.0)
+# The garage street is streets.py's.
 
 # The roof, dressed: what About and Stack look over (About's camera sees a
 # wedge of it from due west round to south-west, 11 to 27 m out). A stair

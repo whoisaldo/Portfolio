@@ -218,6 +218,10 @@ material("door_panel", "4a4e55", metal=0.6, rough=0.4)
 material("screen", "0d1016", emit=1.0)
 material("tool_red", "6e1c22", metal=0.35, rough=0.45)
 material("hazard", "d1a51e", rough=0.6)
+# Ledges, slabs, pilasters, parapets, fascias: one material, each piece's
+# own colour on its vertices (its building's tint), lit by the street like
+# any surface, so every building's trim in a district is one draw.
+material("trim", "ffffff", rough=0.8)
 
 # The window shader, approximated in nodes for the viewport and Cycles.
 # UV is in window cells (1 u = one bay, 1 v = one storey); the colour

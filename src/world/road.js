@@ -42,10 +42,19 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
     vertexShader: /* glsl */ `
       varying vec3 vWorld;
       varying vec2 vUv;
+      #if PAINT == 1
+      // Each mark's own colour: white lines, the crossings' yellow, the
+      // walk figure's green.
+      attribute vec4 color;
+      varying vec3 vPaint;
+      #endif
       void main() {
         vec4 w = modelMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vUv = uv;
+        #if PAINT == 1
+        vPaint = color.rgb;
+        #endif
         gl_Position = projectionMatrix * viewMatrix * w;
       }
     `,
@@ -66,6 +75,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
       uniform float uWet;
       varying vec3 vWorld;
       varying vec2 vUv;
+      #if PAINT == 1
+      varying vec3 vPaint;
+      #endif
 
       float vnoise(vec2 p) {
         vec2 i = floor(p), f = fract(p);
@@ -129,7 +141,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         #if PAINT == 1
         // Worn road paint over the same asphalt: pale, still wet, and lit by
         // the whole street's glow, so it reads as the line down the middle.
-        albedo = mix(albedo, vec3(0.78, 0.76, 0.7), 0.85 * crack);
+        albedo = mix(albedo, vPaint, 0.85 * crack);
         vec3 col = albedo * (vec3(0.16, 0.14, 0.18) + spill * 1.6);
         #else
         vec3 col = albedo * 0.55 * (vec3(0.07) + spill * mix(1.0, 0.45, puddle)) + albedo * cityGlow(-V, 0.0) * 0.12;

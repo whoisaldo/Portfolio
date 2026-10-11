@@ -7,10 +7,6 @@ from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials,
 # this is the vanishing point, and on a phone it is most of the picture.
 # ---------------------------------------------------------------------------
 FA = "far"
-ground((FA, "asphalt", 0), -ROAD_HALF, ROAD_HALF, -700, -186, scale=6.0)
-road_markings(FA, -ROAD_HALF, ROAD_HALF, -700, -188)
-for side in (-1, 1):
-    kerb_and_walk(FA, side, -700, -186)
 # Heights that fall away in the hero's eye: from the low camera each lot
 # stands a little shorter than the one before it, so the canyon's roofs
 # converge on the horizon and open a slot of sky at its end, where the

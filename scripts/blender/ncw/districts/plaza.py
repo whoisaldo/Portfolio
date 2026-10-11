@@ -7,14 +7,9 @@ from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials,
 # ---------------------------------------------------------------------------
 PL = "plaza"
 CROSS_Z0, CROSS_Z1 = -186.0, AV_NORTH
-ground((PL, "asphalt", 0), -60, 150, CROSS_Z0, CROSS_Z1, scale=6.0)
-ground((PL, "asphalt", 0), -ROAD_HALF, ROAD_HALF, CROSS_Z0, CROSS_Z1, y=0.001, scale=6.0)
-for x in list(range(-56, -12, 9)) + list(range(14, 146, 9)):
-    quad((PL, "paint", 0), (x, 0.012, -178.9), (x + 3, 0.012, -178.9), (x + 3, 0.012, -179.1), (x, 0.012, -179.1))
-crosswalk(PL, -9.2, 9.2, -189.5)
-PX0, PX1, PZ0, PZ1 = 48.0, 110.0, -262.0, -187.0
+# The plaza street is streets.py's; the square starts at its lot line.
+PX0, PX1, PZ0, PZ1 = 48.0, 108.0, -262.0, -190.0
 ground((PL, "sidewalk", 0), PX0, PX1, PZ0, PZ1, y=0.15, scale=2.0)
-box((PL, "kerb", 0), PX0, PX1, 0, 0.15, PZ1 - 0.3, PZ1, scale=1.0)
 BOARD = (79.0, 26.0, -263.0, 27.0, 18.0)
 bx, by, bz, bw, bh = BOARD
 named_quad("board_main", "board", bx, by, bz, bw, bh, 0.0, props={"board": 0, "district": PL})

@@ -56,6 +56,7 @@ import ncw  # noqa: E402
 ncw.ROOT = ROOT
 for module in (
     "kit",
+    "streets",
     "districts.avenue",
     "districts.far",
     "districts.skyline",

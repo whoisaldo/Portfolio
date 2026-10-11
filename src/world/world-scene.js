@@ -657,6 +657,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
+      city?.props?.update(camera);
       rain?.update(flow, camera, env.wet);
       rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
       bolt?.update();

@@ -61,3 +61,39 @@ export function mergeMeshes(meshes, into = null, names = null) {
 
 /** The attribute names a mesh carries, as a key. */
 export const attributeKey = (geometry) => Object.keys(geometry.attributes).sort().join(",");
+
+/**
+ * `geometry` (indexed, world space) cut into `size`-metre tiles on the
+ * ground plane, each triangle to the tile its middle stands in: one
+ * geometry per tile, all sharing the merged vertex buffers (uploaded once)
+ * with an index of their own, and bounds of their own so a camera culls the
+ * tiles it is not looking at. Returns [{ key, geometry }].
+ */
+export function splitByTile(geometry, size) {
+  const pos = geometry.attributes.position;
+  const index = geometry.index;
+  const tris = new Map();
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
+    const x = (pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3;
+    const z = (pos.getZ(a) + pos.getZ(b) + pos.getZ(c)) / 3;
+    const key = `${Math.floor(x / size)},${Math.floor(z / size)}`;
+    if (!tris.has(key)) tris.set(key, []);
+    tris.get(key).push(a, b, c);
+  }
+  if (tris.size <= 1) return [{ key: [...tris.keys()][0] ?? "0,0", geometry }];
+  const out = [];
+  for (const [key, list] of tris) {
+    const g = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(geometry.attributes)) g.setAttribute(name, attr);
+    g.setIndex(new THREE.BufferAttribute(new Uint32Array(list), 1));
+    // Bounds from this tile's own vertices.
+    const box = new THREE.Box3();
+    const v = new THREE.Vector3();
+    for (const i of list) box.expandByPoint(v.fromBufferAttribute(pos, i));
+    g.boundingBox = box;
+    g.boundingSphere = box.getBoundingSphere(new THREE.Sphere());
+    out.push({ key, geometry: g });
+  }
+  return out;
+}
