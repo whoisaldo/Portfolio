@@ -14,7 +14,13 @@
 // (`fx signs off`) hides the lot, flicker and all.
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { WORLD_SIGNS, CANYON_WORDS, STREET_SIGNS, SIGN_SIZES, towers } from "../data/world.js";
+import { WORLD_SIGNS, CANYON_WORDS, STREET_SIGNS, towers } from "../data/world.js";
+
+// The street signs' metres (w x h), SIGN_SIZES in src/data/world.js and the
+// builder's ST_SIZES. Copied, not imported: data/world.js is in the entry
+// chunk, and reading an export it does not otherwise use would keep it
+// there and change the entry's bytes.
+const SIGN_SIZES = { bs: [0.8, 2.0], bm: [1.0, 3.2], bl: [1.2, 5.0], ps: [1.8, 0.8], pm: [2.8, 1.2], bx: [1.2, 1.2] };
 import { COMMON } from "./glsl.js";
 
 const PX_PER_M = 46;

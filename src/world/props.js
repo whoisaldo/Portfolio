@@ -97,14 +97,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // One grid of cells for every prototype: each cell's bounds hold what
   // stands in it, of any kind; each prototype keeps its own runs of
   // instances by cell.
-  const grid = new Map();
+  const cellAt = new Map();
   const cellList = [];
   const cellIndex = (key) => {
-    if (!grid.has(key)) {
-      grid.set(key, cellList.length);
+    if (!cellAt.has(key)) {
+      cellAt.set(key, cellList.length);
       cellList.push(new THREE.Box3());
     }
-    return grid.get(key);
+    return cellAt.get(key);
   };
   const sets = [];
   for (const k of kinds) {
