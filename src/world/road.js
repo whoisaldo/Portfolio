@@ -29,7 +29,7 @@
 // together and leaves a dry, dark road.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
-import { GROUND } from "./ground.js";
+import { GROUND, VNOISE } from "./ground.js";
 
 // The mirror at full, as world-scene.js sets uReflectGain: its share of the
 // reflection is uReflectGain over this, the baked light's the rest.
@@ -74,6 +74,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      ${VNOISE}
       ${GROUND}
       uniform sampler2D uMap;
       uniform sampler2D uNormal;
@@ -190,10 +191,16 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float oil = max(mid * smoothstep(0.35, 0.7, lng), smoothstep(0.62, 0.74, vnoise(p * 1.1 + 3.0)) * smoothstep(2.6, 1.8, kerbIn));
         albedo *= (1.0 + 0.3 * track * stone) * (1.0 - 0.45 * oil) * (1.0 - 0.3 * smoothstep(0.5, 0.1, kerbIn));
 
-        // The water. More of it in the avenue's first forty metres, the
-        // road the hero's lens and the drift fill the frame with.
+        // The water. The hero's lens is half a metre off the road, so the
+        // few metres in front of it (the south junction and the avenue's
+        // first twenty) are most of the page's first frame, and that frame
+        // fades in from a painted plate whose road is long streaks from
+        // kerb to kerb. For that eye alone (fore: this stretch, seen from
+        // under a metre) the film is thicker and its lobe longer; a driver
+        // or a walker crossing the same junction sees the road every other
+        // street has.
         float broad = n1 * 0.3 + n2 * 0.45 + lng * 0.25;
-        float fore = smoothstep(-40.0, -10.0, p.y) * (1.0 - smoothstep(9.0, 12.0, abs(p.x)));
+        float fore = smoothstep(-24.0, -4.0, p.y) * (1.0 - smoothstep(9.0, 12.0, abs(p.x))) * smoothstep(1.3, 0.7, uCam.y);
         float field = broad + (0.46 - rough) * 1.2
                     + gutter * (0.02 + 0.3 * lng) + track * (lng - 0.45) * 0.4 + inJ * 0.06 + mended * 0.03;
         float aa = fwidth(field) * 0.75;
@@ -235,7 +242,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           rings = (ripple(p / 0.6, uTime) + ripple(p / 0.45 + 13.7, uTime * 1.13)) * puddle * smoothstep(28.0, 5.0, dist);
         }
         vec3 R = normalize(vec3(-V.x + rings.x * 0.03, V.y, -V.z + rings.y * 0.03));
-        float sheen = wet * mix(0.35, 1.0, stone) * crack * (1.0 + 0.4 * track + 0.3 * mended + 0.7 * seal + 0.5 * oil) * (1.0 + 2.3 * fore);
+        float sheen = wet * mix(0.35, 1.0, stone) * crack * (0.8 + 0.3 * track + 0.25 * mended + 0.55 * seal + 0.4 * oil) * (1.0 + 3.1 * fore);
         // How wide the film scatters, as a facet's tilt in radians.
         float sigma = mix(mix(0.06, 0.035, max(track, mended)), 0.085, fore);
 
@@ -295,7 +302,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
             if (puddle > 0.01) sharp = mix(frontageReflect(vWorld, R, sf, se, fpx) * 1.6 + baked * 0.8, sharp, mk);
             if (puddle < 0.99) {
               float tilt = (hash12(gl_FragCoord.xy) - 0.62) * 4.0 * sigma;
-              baked += frontageReflect(vWorld, normalize(vec3(R.x, max(R.y + tilt, 0.012), R.z)), sf, se, fpx) * 0.7;
+              baked += frontageReflect(vWorld, normalize(vec3(R.x, max(R.y + tilt, 0.012), R.z)), sf, se, fpx) * mix(0.4, 0.7, fore);
             }
           }
         }
@@ -303,11 +310,11 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // it, brightest where the street runs toward downtown. The mirror
         // draws only what glows, never the sky, so this is its sky on
         // desktop too.
-        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (uHazeColor * 1.2 + uGlowColor * 0.5) * uHaze * 0.4;
+        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (uHazeColor * 1.2 + uGlowColor * 0.5) * uHaze * mix(0.28, 0.4, fore);
         vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(0.3 * wet * mix(0.35, 1.0, stone) * crack, 1.0, puddle);
         // (On the hero's stretch the film is thick enough to hold its shine
         // at the lens's feet, as the plate's road does.)
-        refl *= mix(mix(fres, 0.6, 0.7 * fore), 0.25 + 0.75 * graze, puddle) * uWet;
+        refl *= mix(mix(fres, 0.6, 0.7 * fore), mix(0.16, 0.25, fore) + 0.75 * graze, puddle) * uWet;
         // Never brighter than the sign it is the reflection of.
         refl /= 1.0 + 0.35 * max(refl.r, max(refl.g, refl.b));
         col += refl;

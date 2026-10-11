@@ -44,14 +44,17 @@ const street = (s) => {
     if (${along} > ${f(a - 10)} && ${along} < ${f(b + 10)} && d > ${kerb}) { ${kerb} = d; ${lane} = min(abs(abs(lat) - ${f(l1)}), abs(abs(lat) - ${f(l2)})); ${off} = lat; ${lot} = ${f(half + walk)}; }`;
 };
 
-export const GROUND = /* glsl */ `
+export const VNOISE = /* glsl */ `
   float vnoise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x),
                mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
   }
+`;
 
+// Needs VNOISE above it, and glsl.js's COMMON above that.
+export const GROUND = /* glsl */ `
   // A point of the ground (x, z) in the street network's frame. x and y:
   // metres in from the kerb face of the street along z, and of the street
   // along x, that the point is in or beside (negative on the pavement, -99
