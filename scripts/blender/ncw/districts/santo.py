@@ -35,6 +35,10 @@ def R(seed):
 def mast(x, z, yaw, level=0.75, red=0.0, hue="amber", size=10.0):
     """A flood mast and the patch of yard it lights in front of it."""
     P.place("flood_mast", x, GY, z, yaw, district=D)
+    for dx in (-1.05, -0.35, 0.35, 1.05):
+        hx, hz = x + math.cos(yaw) * dx + math.sin(yaw) * 0.12, z - math.sin(yaw) * dx + math.cos(yaw) * 0.12
+        rotated_quad(k("neon_" + ("amber" if hue == "amber" else "white")), hx, GY + 11.53, hz, 0.5, 0.32, yaw)
+        K.lens(hx, GY + 11.36, hz - 0.0, 0.5, 0.18, yaw, key=k("neon_" + ("amber" if hue == "amber" else "white")), h=0.02)
     cx, cz = x + math.sin(yaw) * (size * 0.5 + 0.5), z + math.cos(yaw) * (size * 0.5 + 0.5)
     K.wash(cx - size / 2, cx + size / 2, cz - size / 2, cz + size / 2, level=level, hue=hue, red=red)
 
@@ -44,6 +48,7 @@ def strip(x, z, yaw, power=7.0, cone=True):
     haze."""
     P.place("lamp_strip", x, GY, z, yaw, district=D)
     hx, hz = x + math.sin(yaw) * 1.45, z + math.cos(yaw) * 1.45
+    K.lens(hx, GY + 6.26, hz, 0.18, 1.7, yaw)
     K.sodium(hx, 6.3, hz, power)
     if cone:
         K.cone(hx, GY + 6.26, hz)
@@ -95,8 +100,8 @@ def roads():
     K.gate(295.6, -167.8, 304.4, -167.8, (0, 1), open_=False)
     K.gate(295.6, -12.4, 304.4, -12.4, (0, -1), open_=True, booth=(292.6, -15.8, PI / 2))
     K.gate(425.8, -92.4, 425.8, -83.6, (-1, 0), open_=True, booth=(423.4, -81.2, PI))
-    K.post_sign(424.2, -94.6, PI * 0.38, y=3.8, size="pm", scale=1.2)
-    K.post_sign(306.4, -14.6, PI * 0.14, y=3.8, size="pm", scale=1.2)
+    K.totem(424.0, -94.8, PI * 0.38)
+    K.totem(306.6, -14.4, PI * 0.14)
     # A pair talking at the south gate, a driver waiting at the east one.
     stand(298.2, -15.8, PI / 2, "talk")
     stand(299.4, -15.7, -PI / 2, "talk")
@@ -156,6 +161,9 @@ def works():
     stand(283.0, -128.5, PI, "talk")
     stand(283.2, -130.0, 0.0, "talk")
     K.roof_sign(264.0 - 14.0, 8.6 + 2.6, -100.0 - 3.0, PI * 0.12, sizes=("pm", "bx", "pm"), scale=1.5)
+    fw_ = B.faces_of(X0, X1, Z0, Z1)
+    K.stencil(fw_["+z"], 70.0, 4.0, "01", wall=K.CREAM)
+    K.stencil(fw_["-z"], 12.0, 4.0, "01", wall=K.CREAM)
     # Along the plaza street: a fence, and the yard strip behind it.
     K.fence(176.2, -167.8, 295.2, -167.8)
     for x, name in ((190.0, "c20_grey"), (246.0, "c40_rust")):
@@ -212,7 +220,8 @@ def tank_farm():
     # bunds, cyan lamps on every landing (in K.tank).
     K.fence(304.8, -167.8, 425.8, -167.8)
     K.fence(425.8, -167.8, 425.8, -92.8)
-    K.verge(r, 426.9, -166.0, 426.9, -94.0)
+    K.verge(r, 426.9, -166.0, 426.9, -94.0, step=7.0)
+    K.run([(453.6, 7.35, -101.55), (457.2, 7.35, -101.55), (457.2, 0.7, -101.55)], r=0.3, col=K.STEEL_BLUE)
     mast(309.0, -164.5, PI * 0.2)
     mast(422.6, -164.2, -PI * 0.25)
     mast(404.5, -129.0, -PI * 0.5)
@@ -443,8 +452,14 @@ def plant():
     K.low_wall(312.8, -12.4, 388.0, -12.4)
     K.low_wall(425.8, -83.2, 425.8, -10.8)
     K.low_wall(424.0, -10.8, 425.8, -10.8, lamps=0)
-    K.verge(r, 314.0, -11.2, 386.0, -11.2, step=12.0)
-    K.verge(r, 426.9, -82.0, 426.9, -12.0, step=12.0)
+    K.verge(r, 314.0, -11.2, 386.0, -11.2, step=7.0)
+    K.verge(r, 426.9, -82.0, 426.9, -12.0, step=7.0)
+    for x in (392.0, 404.0, 416.0):
+        P.place("bench", x, GY, -10.3, 0.0, district=D)
+    P.place("food_box", 398.4, GY, -10.3, 0.0, district=D)
+    P.place("bin", 409.0, GY, -10.3, district=D)
+    K.run([(332.45, 7.2, 13.8), (332.45, 7.2, 15.4), (332.45, 0.5, 15.4)], r=0.3, col=K.STEEL_BLUE)
+    box(k("metal"), 331.4, 334.6, GY, GY + 1.1, 15.0, 17.0, scale=1.0)
     mast(342.0, -43.0, PI * 0.9, red=0.3)
     mast(383.0, -44.0, -PI * 0.85, red=0.3)
     mast(424.5, -44.0, -PI * 0.5)
@@ -515,12 +530,15 @@ def depot():
     stand(207.4, -34.5, -PI / 2, "talk", plat)
     stand(230.6, -20.0, PI, "smoke")
     K.roof_sign(208.0, 9.4 + 0.8, -38.4, PI * 0.06, sizes=("pm", "pm", "bx", "pm"), scale=1.7)
+    fc_ = B.faces_of(180.0, 236.0, -78.0, -36.0)
+    K.stencil(fc_["+z"], 52.0, 4.6, "02", h=2.6, wall=K.PALE_GREEN)
+    K.stencil(fc_["-z"], 8.0, 4.0, "02", wall=K.PALE_GREEN)
     K.post_sign(218.6, -14.6, -PI * 0.2, y=3.6, size="pm", scale=1.2)
     # Its forecourt's fence on the street and its gate, open.
     K.fence(176.2, -12.4, 204.0, -12.4)
     K.gate(204.4, -12.4, 213.6, -12.4, (0, -1), open_=True)
     K.fence(222.4, -12.4, 246.0, -12.4)
-    K.verge(r, 178.0, -11.2, 244.0, -11.2, step=11.0)
+    K.verge(r, 178.0, -11.2, 244.0, -11.2, step=7.0)
     mast(178.0, -14.6, PI * 0.75)
     mast(240.0, -14.6, -PI * 0.75)
     scatter(r, 228.0, 240.0, -32.0, -14.0, 4)
@@ -536,6 +554,8 @@ def depot():
     fs2 = B.faces_of(246.0, 290.0, -78.0, -11.2)
     K.blade(fs2["+z"], 1.2, 3.4, "bl", scale=0.9)
     K.blade(fs2["+z"], 42.6, 4.4, "bm", scale=1.0)
+    K.stencil(fs2["+z"], 39.6, 3.2, "03", h=2.6, wall=K.GREY)
+    K.stencil(fs2["+x"], 5.0, 3.6, "03", wall=K.GREY)
     K.wash(291.4, 291.4, -70.0, -20.0, level=0.6)
     door = out.get("+z_door")
     if door:
@@ -604,6 +624,10 @@ def fuel():
             cylinder(k("hazard", 1), ix, z + (1.6 if z > 24 else -1.6), GY, GY + 1.1, 0.14, segs=8)
         for z in (22.4, 25.6):
             P.place("pump", ix, GY + 0.2, z, 0.0, district=D)
+            for sd in (1, -1):
+                xq = ix + 0.315 * sd
+                K.quad_n(k("glow"), ((xq, GY + 1.3, z - 0.4), (xq, GY + 1.3, z + 0.4), (xq, GY + 1.9, z + 0.4), (xq, GY + 1.9, z - 0.4)), (sd, 0, 0), K.shade(K.GLASS_COOL, 2.2))
+                K.quad_n(k("glow"), ((xq, GY + 0.95, z - 0.3), (xq, GY + 0.95, z + 0.3), (xq, GY + 1.15, z + 0.3), (xq, GY + 1.15, z - 0.3)), (sd, 0, 0), K.SODIUM)
         for z in (21.0, 24.0, 27.0):
             box(k("neon_white"), ix - 2.6, ix - 1.4, CY - 0.06, CY, z - 0.25, z + 0.25, scale=0.5, bottom=True)
             box(k("neon_white"), ix + 1.4, ix + 2.6, CY - 0.06, CY, z - 0.25, z + 0.25, scale=0.5, bottom=True)
@@ -677,6 +701,8 @@ def street_shed():
     fs1 = B.faces_of(182.0, 256.0, 16.0, 44.0)
     K.blade(fs1["-z"], 0.8, 3.6, "bl", scale=0.9)
     K.blade(fs1["-z"], 50.4, 4.2, "bm")
+    K.stencil(fs1["-z"], 3.4, 3.4, "05", h=2.8, wall=K.CREAM)
+    K.stencil(fs1["+x"], 14.0, 4.0, "05", wall=K.CREAM)
     K.roof_sign(196.0, 8.0 + 1.6, 30.0, PI * 0.92, sizes=("ps", "pm", "ps"), scale=2.0, lift=2.2)
     for x in (188.0, 212.0, 236.0):
         cylinder(k("hazard", 1), x, 13.0, GY, GY + 1.1, 0.14, segs=8)
@@ -769,6 +795,7 @@ def substation():
     K.paved(340.0, 388.0, 12.0, 45.0)
     for x in (352.0, 364.0, 376.0):
         P.place("transformer", x, GY, 37.0, 0.0, district=D)
+        box(k("glow"), x - 0.08, x + 0.08, GY + 2.6, GY + 2.75, 37.82, 37.92, scale=0.5, col=GLOW["cyan"])
         K.sodium(x, 1.0, 34.6, 3.0, hue="cyan")
     for z in (19.0, 27.0):
         for x in (346.0, 382.0):
@@ -794,13 +821,13 @@ def substation():
     K.shed(378.0, 386.0, 39.0, 44.4, 3.6, K.GREY, r, faces={"-z": dict(dress=True), "+z": dict(hidden=True)}, plinth=0.4)
     K.flat_roof(378.0, 386.0, 39.0, 44.4, 3.6, r, wall=K.GREY, lights=0.0, plant=False)
     K.fence(342.4, 14.6, 386.4, 14.6, signs=0.3)
-    for i, x in enumerate((350.0, 364.0, 378.0)):
-        byaw = PI + (0.28 if i % 2 else -0.22)
-        for du in (-2.4, 2.4):
+    for i, x in enumerate((353.0, 376.0)):
+        byaw = PI + (0.3 if i % 2 else -0.24)
+        for du in (-2.0, 2.0):
             px, pz = x + math.cos(byaw) * du, 13.5 - math.sin(byaw) * du
-            box(k("metal", 1), px - 0.09, px + 0.09, GY, 4.5, pz + 0.2, pz + 0.38, scale=0.5)
-        B.billboard(D, x, 6.3, 13.5, 7.0, 3.5, byaw, r, depth=0.3)
-        box(k("neon_white"), x - 2.6, x + 2.6, 4.3, 4.38, 12.9, 13.05, scale=0.5, bottom=True)
+            box(k("metal", 1), px - 0.09, px + 0.09, GY, 4.6, pz + 0.2, pz + 0.38, scale=0.5)
+        B.billboard(D, x, 6.1, 13.5, 5.8, 2.9, byaw, r, depth=0.3)
+        box(k("neon_amber"), x - 2.0, x + 2.0, 4.42, 4.5, 12.9, 13.05, scale=0.5, bottom=True)
     K.fence(342.4, 14.6, 342.4, 44.6, signs=0.15)
     K.fence(386.4, 14.6, 386.4, 39.0, signs=0.15)
     K.yard_wall(340.0, 44.8, 388.0, 44.8, r=r, face=-1)
@@ -977,6 +1004,8 @@ def east():
     K.wash(453.2, 453.2, -172.0, -130.0, level=0.6)
     fe = B.faces_of(454.5, 488.0, -175.5, -127.0)
     K.blade(fe["-x"], 47.6, 3.4, "bm")
+    K.stencil(fe["-x"], 32.0, 3.4, "09", h=2.4, wall=K.CREAM)
+    K.stencil(fe["+z"], 17.0, 3.2, "09", h=2.6, wall=K.CREAM)
     stand(453.4, -159.0, -PI / 2, "idle")
     stand(453.5, -147.4, -PI / 2, "smoke")
     P.place("crates", 453.6, GY, -156.4, 0.4, district=D)
@@ -1014,6 +1043,7 @@ def east():
     fw = B.faces_of(456.0, 488.0, -92.0, -40.0)
     K.blade(fw["-x"], 1.0, 3.2, "bl", scale=0.85)
     K.blade(fw["-x"], 26.0, 3.8, "bs", scale=1.2)
+    K.stencil(fw["-x"], 50.0, 3.4, "10", h=2.6, wall=K.GREY)
     P.place("forklift", 454.4, GY, -80.0, -PI / 2, district=D)
     stand(454.2, -77.4, -PI / 2, "idle")
     scatter(r, 453.0, 455.2, -94.0, -92.6, 1, kinds=("dumpster",), yaw=PI)

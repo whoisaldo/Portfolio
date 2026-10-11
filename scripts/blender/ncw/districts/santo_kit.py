@@ -59,6 +59,9 @@ SODIUM = c(1.0, 0.48, 0.12)
 GLASS_WARM = c(0.46, 0.27, 0.10)
 GLASS_GREEN = c(0.20, 0.34, 0.24)
 GLASS_COOL = c(0.30, 0.34, 0.40)
+LID_WARM = c(0.50, 0.40, 0.26)
+LID_GREEN = c(0.33, 0.43, 0.35)
+LID_COOL = c(0.36, 0.41, 0.47)
 PAINT_YELLOW = (0.86, 0.66, 0.10, 1.0)
 PAINT_WHITE = (0.78, 0.76, 0.70, 1.0)
 
@@ -673,7 +676,7 @@ def rack(x0, z0, x1, z1, levels=(5.4, 6.9), width=3.0, pipes=PIPE_SET, step=6.0,
 # ---------------------------------------------------------------------------
 # Sheds.
 # ---------------------------------------------------------------------------
-def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tint="concrete", vents=True, power=0.5):
+def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tint="concrete", vents=True, power=0.36):
     """A sawtooth roof over a rectangle: n teeth, each a vertical light
     facing `glaze` ("-z" is north) and a slope falling away behind it. Lit
     lights glow (some bays dark) and pool on the slope in front of them."""
@@ -718,15 +721,24 @@ def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tin
     B.ROOFS.append((D, x0, x1, z0, z1, y + rise))
 
 
-def skylight(x0, x1, z0, z1, y, tone, h=0.55, power=0.0, hue="amber"):
-    """A rooflight: a low kerb and a lit lid."""
+def skylight(x0, x1, z0, z1, y, tone, h=0.55, power=0.0, hue="amber", r=None):
+    """A rooflight: a low kerb and its glazed lid, in panes between bars,
+    each lit to its own level (a few dark)."""
     box(k("metal"), x0, x1, y, y + h, z0, z1, scale=1.0)
-    if tone is None:
-        quad(k("glass_dark"), (x0 + 0.1, y + h + 0.01, z1 - 0.1), (x1 - 0.1, y + h + 0.01, z1 - 0.1), (x1 - 0.1, y + h + 0.01, z0 + 0.1), (x0 + 0.1, y + h + 0.01, z0 + 0.1))
-    else:
-        quad(k("glow"), (x0 + 0.1, y + h + 0.01, z1 - 0.1), (x1 - 0.1, y + h + 0.01, z1 - 0.1), (x1 - 0.1, y + h + 0.01, z0 + 0.1), (x0 + 0.1, y + h + 0.01, z0 + 0.1), col=tone)
-        if power:
-            light(D, (x0 + x1) / 2, y, z1 + 1.0, hue, power)
+    yy = y + h + 0.01
+    long_x = (x1 - x0) >= (z1 - z0)
+    a0, a1 = (x0 + 0.1, x1 - 0.1) if long_x else (z0 + 0.1, z1 - 0.1)
+    n = max(1, round((a1 - a0) / 2.2))
+    for i in range(n):
+        pa, pb = a0 + (a1 - a0) * i / n + 0.07, a0 + (a1 - a0) * (i + 1) / n - 0.07
+        xa, xb, za, zb = (pa, pb, z0 + 0.1, z1 - 0.1) if long_x else (x0 + 0.1, x1 - 0.1, pa, pb)
+        lit = tone is not None and (r is None or r.random() < 0.85)
+        if lit:
+            quad(k("glow"), (xa, yy, zb), (xb, yy, zb), (xb, yy, za), (xa, yy, za), col=shade(tone, r.uniform(0.7, 1.2) if r else 1.0))
+        else:
+            quad(k("glass_dark"), (xa, yy, zb), (xb, yy, zb), (xb, yy, za), (xa, yy, za))
+    if tone is not None and power:
+        light(D, (x0 + x1) / 2, y, z1 + 1.0, hue, power)
 
 
 def flat_roof(x0, x1, z0, z1, y, r, wall=CREAM, parapet=0.8, lights=0.6, plant=True, breathe=0, strips=True, keep=None):
@@ -769,16 +781,15 @@ def flat_roof(x0, x1, z0, z1, y, r, wall=CREAM, parapet=0.8, lights=0.6, plant=T
             xa, xb, za, zb = rect(ac - 0.65, ac + 0.65, m, span - m)
             if not clear(xa, xb, za, zb):
                 continue
-            tone = r.choice((GLASS_WARM, GLASS_WARM, GLASS_COOL, GLASS_GREEN)) if r.random() < lights else None
-            skylight(xa, xb, za, zb, y, shade(tone, r.uniform(0.35, 0.6)) if tone else None)
+            tone = r.choice((LID_WARM, LID_WARM, LID_COOL, LID_GREEN)) if r.random() < lights else None
+            skylight(xa, xb, za, zb, y, shade(tone, r.uniform(0.3, 0.5)) if tone else None, r=r)
             if tone:
                 xa, xb, za, zb = rect(ac + 1.6, ac + 1.6, m, span - m)
-                wash(xa, xb, za, zb, level=0.4, hue="amber" if tone == GLASS_WARM else "white", r=r, y=y)
+                wash(xa, xb, za, zb, level=0.35, hue="amber" if tone == LID_WARM else "white", r=r, y=y)
     # The walkway down one edge, and the stair hut it leads to.
     xa, xb, za, zb = rect(1.0, length - 1.0, 1.0, 1.7)
     if clear(xa, xb, za, zb):
-        quad(k("concrete", 1), (xa, y + 0.03, zb), (xb, y + 0.03, zb), (xb, y + 0.03, za), (xa, y + 0.03, za),
-             uvs=((0, 0), ((xb - xa) / 2, 0), ((xb - xa) / 2, (zb - za) / 2), (0, (zb - za) / 2)))
+        quad(k("trim", 1), (xa, y + 0.03, zb), (xb, y + 0.03, zb), (xb, y + 0.03, za), (xa, y + 0.03, za), col=c(0.2, 0.2, 0.22))
     hx, hz = L(length - pitch * 0.5 - 2.4 if n > 1 else length * 0.8, 3.4)
     if span > 10.0 and clear(hx - 1.6, hx + 1.6, hz - 1.6, hz + 1.6):
         box(k("trim"), hx - 1.5, hx + 1.5, y, y + 2.5, hz - 1.3, hz + 1.3, scale=1.5, col=shade(wall, 0.8))
@@ -1114,6 +1125,40 @@ def yard_wall(x0, z0, x1, z1, h=2.8, wire=True, r=None, posters=0.0, face=1):
         collide(x0 - t / 2, x0 + t / 2, za, zb, h)
 
 
+def lens(cx, y, cz, w, d, yaw, key=None, col=(1, 1, 1, 1), h=0.1):
+    """A lamp's lens: a slab of light facing down, w across and d along
+    `yaw`, its two long edges lit too."""
+    key = key or k("neon_amber")
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    fx, fz = math.sin(yaw), math.cos(yaw)
+    pts = [(cx + rx * a * w / 2 + fx * b_ * d / 2, y, cz + rz * a * w / 2 + fz * b_ * d / 2) for a, b_ in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    quad_n(key, pts, (0, -1, 0), col)
+    for (i, j, n) in ((0, 3, (-rx, 0, -rz)), (1, 2, (rx, 0, rz)), (2, 3, (fx, 0, fz)), (0, 1, (-fx, 0, -fz))):
+        a, b_ = pts[i], pts[j]
+        quad_n(key, (a, b_, (b_[0], y + h, b_[2]), (a[0], y + h, a[2])), n, col)
+
+
+def totem(x, z, yaw, n=4, scale=1.25, y0=2.5):
+    """A gate's directory: a post with small boards one over another, both
+    faces painted, a lamp on its head."""
+    w, h = ST_SIZES["ps"][0] * scale, ST_SIZES["ps"][1] * scale
+    top = y0 + n * (h + 0.22) + 0.2
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    for du in (-w * 0.5 - 0.12, w * 0.5 + 0.12):
+        px, pz = x + rx * du - math.sin(yaw) * 0.09, z + rz * du - math.cos(yaw) * 0.09
+        box(k("metal"), px - 0.07, px + 0.07, GY, top, pz - 0.07, pz + 0.07, scale=0.5)
+    for i in range(n):
+        board(x, y0 + i * (h + 0.22) + h / 2, z, yaw, "ps", scale, back=True)
+    lens(x - math.sin(yaw) * 0.09, top - 0.02, z - math.cos(yaw) * 0.09, w + 0.4, 0.3, yaw)
+    sodium(x, top, z, 3.0)
+
+
+def stencil(f, s, y, text, h=3.0, col=None, wall=CREAM):
+    """A shed's number stencilled on its wall, tall enough for a driver."""
+    cx, cy, cz = f.p(f.at(s), y, 0.0)
+    digits(text, cx, cy, cz, h, f.yaw, k("trim", 1), col or shade(wall, 0.3), out=0.05)
+
+
 def board(cx, cy, cz, yaw, size="pm", scale=1.0, back=False):
     """One of the street's standard signs in its frame, facing `yaw` (and
     its other face too, a second design)."""
@@ -1429,7 +1474,7 @@ def _flood_mast(kk):
     cylinder(kk("trim"), 0.0, 0.0, 0.0, 12.0, 0.12, segs=6, col=col)
     box(kk("trim"), -1.3, 1.3, 11.7, 11.82, -0.06, 0.06, scale=0.5, col=col)
     for x in (-1.05, -0.35, 0.35, 1.05):
-        box(kk("neon_amber"), x - 0.26, x + 0.26, 11.36, 11.7, 0.02, 0.2, scale=0.5, bottom=True)
+        box(kk("trim"), x - 0.28, x + 0.28, 11.34, 11.72, -0.04, 0.02, scale=0.5, col=col)
 
 
 @P.proto("lamp_strip", box=(0.15, 3.5, 0.15), reach=600)
@@ -1440,7 +1485,6 @@ def _lamp_strip(kk):
     cylinder(kk("trim"), 0.0, 0.0, 0.0, 6.6, 0.08, segs=6, col=col)
     box(kk("trim"), -0.05, 0.05, 6.5, 6.6, 0.0, 2.3, scale=0.5, col=col)
     box(kk("trim"), -0.16, 0.16, 6.36, 6.5, 0.5, 2.4, scale=0.5, col=col)
-    box(kk("neon_amber"), -0.09, 0.09, 6.26, 6.36, 0.6, 2.3, scale=0.5, bottom=True)
 
 
 @P.proto("vent_turb", box=(0.4, 0.4, 0.4), reach=420, detail=True)
@@ -1480,7 +1524,7 @@ def _trailer(kk):
         q = [(-6.4, 1.25, z), (6.4, 1.25, z), (6.4, 1.5, z), (-6.4, 1.5, z)]
         quad(kk("trim"), *(q if n_ > 0 else q[::-1]), col=shade(col, 0.5))
     for z in (-1.15, 1.03):
-        box(kk("glow"), -6.45, -6.42, 1.05, 1.2, z, z + 0.12, scale=0.5, col=GLOW["red"])
+        box(kk("trim"), -6.45, -6.42, 1.05, 1.2, z, z + 0.12, scale=0.5, col=c(0.5, 0.04, 0.03))
 
 
 @P.proto("forklift", box=(1.1, 1.1, 0.6), reach=300, detail=True)
@@ -1497,7 +1541,7 @@ def _forklift(kk):
         box(kk("trim"), -0.55, -0.5, 1.1, 2.1, z, z + 0.06, scale=1.0, col=STEEL)
         box(kk("trim"), 0.3, 0.35, 1.1, 2.1, z, z + 0.06, scale=1.0, col=STEEL)
     box(kk("trim"), -0.6, 0.4, 2.1, 2.15, -0.52, 0.52, scale=1.0, col=STEEL, bottom=True)
-    box(kk("glow"), -0.1, 0.05, 2.15, 2.27, -0.07, 0.07, scale=0.5, col=SODIUM)
+    box(kk("trim"), -0.1, 0.05, 2.15, 2.27, -0.07, 0.07, scale=0.5, col=c(0.7, 0.35, 0.05))
 
 
 @P.proto("reel", box=(0.9, 0.9, 0.6), reach=260, detail=True)
@@ -1550,7 +1594,6 @@ def _transformer(kk):
             box(kk("trim"), x, x + 0.4, 0.6, 2.3, z, z + 0.3, scale=1.0, col=shade(col, 0.75))
     for x in (-0.8, 0.0, 0.8):
         cylinder(kk("trim"), x, 0.0, 2.6, 3.7, 0.11, segs=6, col=c(0.42, 0.36, 0.28))
-    box(kk("glow"), -0.08, 0.08, 2.6, 2.75, 0.82, 0.92, scale=0.5, col=GLOW["cyan"])
 
 
 @P.proto("pump", box=(0.25, 0.9, 0.5), reach=400)
@@ -1559,8 +1602,4 @@ def _pump(kk):
     box(kk("trim"), -0.28, 0.28, 0.0, 1.9, -0.5, 0.5, scale=1.0, col=c(0.3, 0.07, 0.05))
     box(kk("trim"), -0.32, 0.32, 1.9, 2.05, -0.55, 0.55, scale=1.0, col=c(0.5, 0.5, 0.48))
     for s in (1, -1):
-        x = 0.285 * s
-        q = [(x, 1.1, 0.4 * s), (x, 1.1, -0.4 * s), (x, 1.7, -0.4 * s), (x, 1.7, 0.4 * s)]
-        quad(kk("glow"), *q, col=shade(GLASS_COOL, 2.2))
-        q = [(x, 0.75, 0.3 * s), (x, 0.75, -0.3 * s), (x, 0.95, -0.3 * s), (x, 0.95, 0.3 * s)]
-        quad(kk("glow"), *q, col=SODIUM)
+        box(kk("trim"), min(0.285 * s, 0.31 * s), max(0.285 * s, 0.31 * s), 1.02, 1.78, -0.45, 0.45, scale=1.0, col=STEEL)
