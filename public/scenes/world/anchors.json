@@ -690,7 +690,8 @@
     0.0
    ],
    "yaw": 0.0,
-   "district": "avenue"
+   "district": "avenue",
+   "extras": {}
   },
   {
    "name": "cam_about",

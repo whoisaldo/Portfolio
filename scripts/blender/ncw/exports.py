@@ -97,7 +97,7 @@ def road_graph():
         pts.append([plan.DECK_X0, _r(plan.DECK_Y * t * t * (3 - 2 * t)), _r(z)])
     edges.append({"id": f"e{len(edges)}", "street": "ramp", "from": r0, "to": r1, "length": _r(ramp_len),
                   "points": pts, "lanes": [{"offset": 1.75, "toward": r0, "width": 3.5}, {"offset": -1.75, "toward": r1, "width": 3.5}],
-                  "half": plan.RAMP_HALF, "bay": 0.0, "speed": 13.9, "pavements": [],
+                  "half": plan.RAMP_HALF, "bay": 0.0, "speed": 13.9, "pavements": [{"offset": -4.3, "width": 1.2}],
                   "district": "deck", "loop": True, "elevated": True})
     # The deck: from the top of the west street's ramp, over the avenue, down
     # to grade before the x 120 road. Its points carry their height.

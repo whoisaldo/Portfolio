@@ -470,6 +470,50 @@ CROWD = {"avenue": 9.0, "canyon": 7.0, "mega": 5.0, "japantown": 10.0, "deck": 1
          "afterlife": 5.0, "santo": 1.6, "far": 1.0}
 
 
+# The west street's middle lanes keep clear of the ramp between these (z).
+RAMP_CLEAR = (plan.RAMP_FOOT_Z - 8.0, plan.DECK_Z + 12.0)
+
+
+def _deck_paths():
+    """The two lanes that leave the ground, each a line of points with their
+    heights (the road graph's): up the ramp in the west street's middle,
+    round the turn and east over the deck down to the x 120 road, and the
+    same the other way. Flat for the site: how many points, a speed, then
+    x y z for each."""
+    def smooth(t):
+        t = min(1.0, max(0.0, t))
+        return t * t * (3 - 2 * t)
+
+    def ramp_y(z):
+        return plan.DECK_Y * smooth((z - plan.RAMP_FOOT_Z) / (plan.DECK_Z - plan.RAMP_FOOT_Z))
+
+    def deck_y(x):
+        return plan.DECK_Y * (1.0 - smooth((x - plan.DECK_TOP_X1) / (plan.DECK_LAND_X - plan.DECK_TOP_X1)))
+
+    def span(a, b, step):
+        n = max(1, round(abs(b - a) / step))
+        return [a + (b - a) * i / n for i in range(n + 1)]
+
+    lane = 1.75
+    foot, end = plan.RAMP_FOOT_Z - 6.0, plan.DECK_LAND_X - 1.0
+    # East: south up the ramp's west lane, left onto the deck's south lane.
+    r = 5.0
+    cx, cz = plan.DECK_X0 - lane + r, plan.DECK_Z + lane - r
+    east = [(plan.DECK_X0 - lane, ramp_y(z), z) for z in span(foot, cz, 4.0)]
+    east += [(cx - r * math.cos(a), plan.DECK_Y, cz + r * math.sin(a)) for a in span(0.0, math.pi / 2, math.pi / 12)[1:]]
+    east += [(x, deck_y(x), plan.DECK_Z + lane) for x in span(cx, end, 4.0)[1:]]
+    # West: along the deck's north lane, right down the ramp's east lane.
+    r = 3.0
+    cx, cz = plan.DECK_X0 + lane + r, plan.DECK_Z - lane - r
+    west = [(x, deck_y(x), plan.DECK_Z - lane) for x in span(end, cx, 4.0)]
+    west += [(cx - r * math.sin(a), plan.DECK_Y, cz + r * math.cos(a)) for a in span(0.0, math.pi / 2, math.pi / 8)[1:]]
+    west += [(plan.DECK_X0 + lane, ramp_y(z), z) for z in span(cz, foot, 4.0)[1:]]
+    out = []
+    for pts, v in ((east, 10.5), (west, 9.5)):
+        out += [len(pts), v] + [round(c, 2) for p in pts for c in p]
+    return out
+
+
 def life():
     """The street's life, for the site to run (src/world/traffic.js and
     crowd.js): every lane of every street but the avenue's own (which the
@@ -490,15 +534,26 @@ def life():
                 for side in (-1, 1):
                     for k in range(s.lanes):
                         u = side * lane_w * (k + 0.5)
+                        # The west street's middle lanes stop short of the
+                        # ramp and start again past the deck: the ramp
+                        # stands where they would run.
+                        a1, b1 = a0, b0
+                        if s.name == "west" and abs(u) < plan.RAMP_HALF:
+                            if b1 <= RAMP_CLEAR[1]:
+                                b1 = min(b1, RAMP_CLEAR[0])
+                            elif a1 >= RAMP_CLEAR[0]:
+                                a1 = max(a1, RAMP_CLEAR[1])
+                        if b1 - a1 < 20.0:
+                            continue
                         if s.axis == "z":
                             north = side > 0
-                            x0, z0 = s.c + u, (b0 if north else a0)
+                            x0, z0 = s.c + u, (b1 if north else a1)
                             dx, dz = 0.0, (-1.0 if north else 1.0)
                         else:
                             east = side > 0
-                            x0, z0 = (a0 if east else b0), s.c + u
+                            x0, z0 = (a1 if east else b1), s.c + u
                             dx, dz = (1.0 if east else -1.0), 0.0
-                        lanes.append([round(x0, 2), round(z0, 2), dx, dz, round(b0 - a0, 1), round(s.speed * rng.uniform(0.75, 1.1), 1)])
+                        lanes.append([round(x0, 2), round(z0, 2), dx, dz, round(b1 - a1, 1), round(s.speed * rng.uniform(0.75, 1.1), 1)])
             # Pavements: a line near the kerb and one near the shops.
             if not (s.name == "avenue" and -172.0 <= a and b <= 60.0):
                 mid = (a + b) / 2
@@ -521,7 +576,7 @@ def life():
                             yaw = (0.0 if side < 0 else math.pi) if s.axis == "z" else (math.pi / 2 if side > 0 else -math.pi / 2)
                             parked.append([round(x, 2), round(z, 2), round(yaw, 3)])
                         v += rng.uniform(6.0, 9.0)
-    empty("anchor_traffic", (0, 0, 0), props={"lanes": [v for l in lanes for v in l]})
+    empty("anchor_traffic", (0, 0, 0), props={"lanes": [v for l in lanes for v in l], "paths": _deck_paths()})
     empty("anchor_crowd", (0, 0, 0), props={"walks": [v for w in walks for v in w]})
     empty("anchor_parked", (0, 0, 0), props={"cars": [v for c in parked for v in c]})
 

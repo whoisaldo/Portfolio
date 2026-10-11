@@ -301,7 +301,7 @@ const twice = (beat, from) => ((beat > from && beat < from + 0.09) || (beat > fr
 const SIDES = [-1, 1];
 const ROAD_NEAR = -40;
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, streets = [], parkedMore = [], streetCars = 0 } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, streets = [], parkedMore = [], streetCars = 0, elevated = [], deckCars = 0 } = {}) {
   const avGeo = avGeometry();
   // The street's cars: wet paint giving back the lit street and the glow
   // over it, dark tinted glass, lit light bars on the ones that are driving,
@@ -523,6 +523,21 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     for (let j = 0; j < n; j++) streetSlots.push({ L, phase: (j + 0.37 * ((k * 7) % 5)) / n });
   });
   streetSlots.splice(streetCars);
+  // The lanes that leave the ground (the builder's "paths": the ramp, the
+  // turn and the deck, each way, as points with their heights): deckCars on
+  // each, riding the line by its length.
+  const paths = [];
+  for (let i = 0; i + 1 < elevated.length; i += 2 + 3 * elevated[i]) {
+    const pts = [];
+    for (let k = 0; k < elevated[i]; k++) pts.push(new THREE.Vector3(elevated[i + 2 + 3 * k], elevated[i + 3 + 3 * k], elevated[i + 4 + 3 * k]));
+    const at = [0];
+    for (let k = 1; k < pts.length; k++) at.push(at[k - 1] + pts[k].distanceTo(pts[k - 1]));
+    paths.push({ pts, at, len: at[at.length - 1], v: elevated[i + 1] });
+  }
+  const pathSlots = [];
+  paths.forEach((P, k) => {
+    for (let j = 0; j < deckCars; j++) pathSlots.push({ P, phase: (j + 0.31 + 0.23 * k) / deckCars });
+  });
   const avenueMoving = cars * 2;
   const moving = avenueMoving + streetSlots.length;
   const more = [];
@@ -533,6 +548,14 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const slots = [];
   for (let i = 0; i < moving + parked.length; i++) {
     slots.push({ kind: Math.floor(draw() * CAR_KINDS.length), body: BODY[Math.floor(draw() * BODY.length)], accent: ACCENT[Math.floor(draw() * ACCENT.length)], parked: i >= moving ? parked[i - moving] : null });
+  }
+  // The deck's cars come last and from their own draw, so every other car
+  // keeps the kind and paint it had.
+  const firstPath = slots.length;
+  let seedPath = 4211;
+  const drawPath = () => ((seedPath = (seedPath * 16807) % 2147483647) - 1) / 2147483646;
+  for (let i = 0; i < pathSlots.length; i++) {
+    slots.push({ kind: Math.floor(drawPath() * CAR_KINDS.length), body: BODY[Math.floor(drawPath() * BODY.length)], accent: ACCENT[Math.floor(drawPath() * ACCENT.length)], parked: null });
   }
   // A few of the network's moving cars are NCPD cruisers (never on the
   // avenue's own lanes, which the hero sees).
@@ -592,7 +615,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // Lamps: two per aerial vehicle, four per moving car, four hazards, three
   // per drone, and the police AV's light bar.
   const hazard = parked.find((x) => x.hazard);
-  const lampCount = flying * 2 + moving * 4 + (hazard ? 4 : 0) + rounds.length * 3 + (police ? 2 : 0);
+  const lampCount = flying * 2 + (moving + pathSlots.length) * 4 + (hazard ? 4 : 0) + rounds.length * 3 + (police ? 2 : 0);
   const quad = new THREE.PlaneGeometry(1, 1);
   const lampGeo = new THREE.InstancedBufferGeometry();
   lampGeo.index = quad.index;
@@ -776,6 +799,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const euler = new THREE.Euler();
   const FRONT = new THREE.Vector3(0, 0, 1);
   const smoother = (u) => u * u * u * (u * (u * 6 - 15) + 10);
+  // The point a distance d along a path (held to its ends).
+  const onPath = (P, d, out) => {
+    const dd = Math.min(P.len, Math.max(0, d));
+    let k = 1;
+    while (k < P.at.length - 1 && P.at[k] < dd) k++;
+    return out.lerpVectors(P.pts[k - 1], P.pts[k], (dd - P.at[k - 1]) / (P.at[k] - P.at[k - 1] || 1));
+  };
   const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
   const setLamp = (i, x, y, z, r, g, b, size) => {
     lampPos[i * 3] = x;
@@ -913,6 +943,29 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       fwd.set(L.dx, 0, L.dz);
       q.setFromUnitVectors(FRONT, fwd);
       const x = slots[i];
+      x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
+      const edge = Math.min(1, Math.min(t, 1 - t) * 8);
+      kinds[x.kind].fade.setX(x.index, edge);
+      const head = x.lamps.head;
+      const tail = x.lamps.tail;
+      for (const sd of SIDES) {
+        tmp.set(sd * head[0], head[1], head[2]).applyQuaternion(q).add(p);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 0.85 * edge, 0.92 * edge, 1.0 * edge, 0.9);
+        tmp.set(sd * tail[0], tail[1], tail[2]).applyQuaternion(q).add(p);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * edge, 0.05 * edge, 0.15 * edge, 0.6);
+      }
+    }
+    for (let i = 0; i < pathSlots.length; i++) {
+      // A car on the ramp and the deck: where its axles are along the line
+      // gives its place, its heading and its pitch on the slope.
+      const { P, phase: ph } = pathSlots[i];
+      const t = ((((ph + (clock * P.v) / P.len) % 1) + 1) % 1);
+      onPath(P, t * P.len - 1.35, tmp);
+      onPath(P, t * P.len + 1.35, fwd);
+      p.addVectors(tmp, fwd).multiplyScalar(0.5);
+      fwd.sub(tmp).normalize();
+      q.setFromEuler(euler.set(-Math.asin(fwd.y), Math.atan2(fwd.x, fwd.z), 0, "YXZ"));
+      const x = slots[firstPath + i];
       x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
       const edge = Math.min(1, Math.min(t, 1 - t) * 8);
       kinds[x.kind].fade.setX(x.index, edge);

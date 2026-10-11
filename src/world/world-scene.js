@@ -182,6 +182,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       streets: c.anchors.get("anchor_traffic")?.extras?.lanes ?? [],
       parkedMore: c.anchors.get("anchor_parked")?.extras?.cars ?? [],
       streetCars: tier === "phone" ? 16 : 44,
+      elevated: c.anchors.get("anchor_traffic")?.extras?.paths ?? [],
+      deckCars: tier === "phone" ? 1 : 2,
     });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
