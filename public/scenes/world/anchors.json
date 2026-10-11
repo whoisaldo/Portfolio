@@ -293,6 +293,20 @@
    }
   },
   {
+   "name": "anchor_lights_canyon_b",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "canyon"
+   }
+  },
+  {
    "name": "anchor_lights_corpo",
    "kind": "anchor",
    "at": [
@@ -541,6 +555,116 @@
      30.0
     ]
    }
+  },
+  {
+   "name": "anchor_steam_cy_alley_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_alley_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_alley_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_alley_3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_alley_4",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_alley_5",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_alley_6",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_lane_e0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_lane_e1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_cy_service",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
   },
   {
    "name": "anchor_steam_deck_0",
@@ -797,6 +921,39 @@
   },
   {
    "name": "anchor_steam_street_b1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_cy0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_cy1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_cy2",
    "kind": "anchor",
    "at": [
     0.0,
