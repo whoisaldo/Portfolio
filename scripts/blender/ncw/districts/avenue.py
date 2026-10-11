@@ -307,12 +307,15 @@ for i, (x, z) in enumerate(((4.0, -8.0), (-6.0, -30.0))):
     cylinder((AV, "metal", 1), x, z, 0.0, 0.025, 0.42, segs=16)
     empty(f"anchor_steam_street_{i}", (x, 0.05, z))
 
-# Vending machines and bollards at the kerb.
+# Vending machines by the shops. (On the east side the loop's walk passes
+# 0.3 m from the shopfronts, so its two are lit cabinets set on the wall,
+# shallow enough to walk past.)
 for side, z, colour in ((-1, -19.5, "cyan"), (-1, -20.6, "pink"), (1, -36.0, "amber"), (1, -71.0, "cyan")):
     s = side
-    xa, xb = sorted((s * (WALK - 0.1), s * (WALK - 0.95)))
+    deep = 0.95 if s < 0 else 0.14
+    xa, xb = sorted((s * (WALK - 0.1 if s < 0 else WALK), s * (WALK - deep)))
     box((AV, "metal", 1), xa, xb, 0.15, 2.05, z - 0.5, z + 0.5, scale=0.6)
-    face_x = s * (WALK - 0.96)
+    face_x = s * (WALK - deep - 0.01)
     fa, fb = sorted((face_x, face_x - s * 0.02))
     box((AV, "neon_" + colour, 1), fa, fb, 0.8, 1.9, z - 0.4, z + 0.4, scale=0.5)
 
