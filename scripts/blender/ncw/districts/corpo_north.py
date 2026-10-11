@@ -21,7 +21,7 @@ GAP_X = [169.0 + 38.0 * i for i in range(6)]
 LOT_N = -344.0            # the boulevard's north lot line
 T_FRONT, T_BACK = -347.0, -373.0
 LANE0, LANE1 = -383.6, -373.4
-BACK0, BACK1 = -420.0, -384.0
+BACK0, BACK1 = -419.5, -384.0      # (the district ends at z -420: a pilaster or a lamp stands half a metre proud)
 TRACK_Z = -378.5
 TRACK_Y = 19.0            # the track's running surface
 WEST_X, EAST_X = 133.0, 432.0
@@ -30,7 +30,7 @@ WEST_X, EAST_X = 133.0, 432.0
 # The ground: paved to the district's edge, the lane behind the towers in
 # cast concrete, and the corner of the pavement junction I leaves bare.
 # ---------------------------------------------------------------------------
-ground([(WEST_X, EAST_X, LANE0, LANE1, "concrete")], 108.0, 470.0, BACK0, LOT_N)
+ground([(WEST_X, EAST_X, LANE0, LANE1, "concrete")], 108.0, 470.0, -420.0, LOT_N)
 B.ground_rect(CO, 440.0, 452.0, LOT_N, -339.0)
 box(k("kerb"), 440.0, 448.0, 0.0, G0, -339.3, -339.0, scale=1.0)
 
@@ -121,7 +121,7 @@ def east_blocks():
     # garage street a column of screens; lower behind, where the track ends
     # in it. Along z -344 east of x 452 the Afterlife Block's block stands
     # against it.
-    x0, x1 = EAST_X, 470.0
+    x0, x1 = EAST_X, 469.7     # (its east face is the district's edge at x 470: a pilaster stands proud of it)
     K.corp_block(x0, x1, BACK1, LOT_N, 74.0, 7713, skin="windows", tint="charcoal", style=5,
                  tiers=((0.8, 0.0), (1.0, (0.0, 0.0, 3.0, 3.0))), fronts={"-x": "dock", "+x": "blank", "+z": "none", "-z": "none"},
                  corners="cyan", edge="cyan", top_band="amber", lit=(0.45, 0.75), warm=(0.2, 0.6))
@@ -743,7 +743,7 @@ def gaps():
         solid(xa, xb, 0.0, 4.9, T_BACK + 0.02, -360.0, K.STONE)
     quad(k("door_panel"), (gx - 5.2, G0, -361.5), (gx + 5.2, G0, -361.5), (gx + 5.2, 4.9, -361.5), (gx - 5.2, 4.9, -361.5),
          ((0, 0), (5, 0), (5, 2.4), (0, 2.4)))
-    box(k("hazard", 1), gx - 5.2, gx + 5.2, 4.5, 4.9, -360.1, -360.0, scale=1.0)
+    box(k("trim", 1), gx - 5.2, gx + 5.2, 4.5, 4.9, -360.1, -360.0, scale=1.0, col=K.YELLOW)
     K.neon_box(gx - 5.0, gx + 5.0, 4.3, 4.4, -360.2, -360.1, "amber")
     B.back_ground(CO, B.Face("-z", T_BACK - 0.02, gx - 6.0, gx + 6.0), r, K.STONE)
     quad(k("trim"), (gx + 6.0, SHOP_H, T_BACK - 0.02), (gx - 6.0, SHOP_H, T_BACK - 0.02), (gx - 6.0, link_h, T_BACK - 0.02), (gx + 6.0, link_h, T_BACK - 0.02), col=K.STONE)
