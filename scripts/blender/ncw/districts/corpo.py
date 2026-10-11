@@ -203,56 +203,10 @@ for i, (slug, height) in enumerate(TOWERS):
         else:
             sx = 1 if face == "+x" else -1
             K.screen(tx + sx * (h_s + 0.38), sy, tz + off, sw, sh, sx * math.pi / 2, rs_, pal=K.COLD)
-# The boulevard's south side: a street of its own, not a wall. Shops along
-# the boulevard under awnings, the signs a street collects hung off the
-# fronts, flats and offices over them (some set back over a terrace), an
-# alley between each pair with a lit sign across its mouth, and the roofs
-# dressed (the Experience shot looks over them at the towers). Every block
-# stands where its mass stood, no taller. The row ends at x 380: east of
-# it the boulevard's south side is the Afterlife Block's.
-SOUTH_X1 = 379.6  # (a ledge or a lamp stands 0.35 m proud of a wall)
-for i in range(7):
-    x0 = 130 + i * 40
-    x1 = min(x0 + 34, SOUTH_X1)
-    h = 22 + (i * 7) % 18
-    zf, zb = BOULEVARD_Z + 14, BOULEVARD_Z + 40
-    seed = 6100 + i
-    rs = random.Random(seed + 50)
-    paint = None if i % 4 == 3 else i % 3
-    if h > 26 and rs.random() < 0.5:
-        base_h = SHOP_H + CELL_H * rs.randrange(2, 4)
-        mass(CO, x0, x1, zf, zb, SHOP_H, base_h, seed, painted=paint)
-        sx0, sx1 = x0 + rs.uniform(0.0, 4.0), x1 - rs.uniform(0.0, 4.0)
-        mass(CO, sx0, sx1, zf + 3.4, zb, base_h, h, seed + 1, painted=paint)
-        dress_roof(CO, x0, x1, zf, zb, base_h, seed + 2, cap=0.0)
-        dress_roof(CO, sx0, sx1, zf + 3.4, zb, h, seed + 3, cap=6.0, face=0.0)
-    else:
-        mass(CO, x0, x1, zf, zb, SHOP_H, h, seed, painted=paint)
-        dress_roof(CO, x0, x1, zf, zb, h, seed + 3, cap=6.0, face=0.0)
-    box((CO, "dark", 0), x0, x1, 0, SHOP_H, zf, zb, scale=2.0)
-    frontage_x(CO, x0, x1, zf, seed + 4)
-    clutter_x(CO, x0, x1, zf, h, seed + 5)
-    box((CO, "neon_" + ["cyan", "pink", "amber", "purple"][i % 4], 0), x0 + 2, x1 - 2, SHOP_H - 0.6, SHOP_H - 0.45,
-        zf - 0.1, zf + 0.05, scale=1.0)
-    if x0 + 40 <= SOUTH_X1:
-        # The alley: a low back block between this one and the next, and a
-        # sign across its mouth.
-        ah = SHOP_H + CELL_H * rs.randrange(1, 3)
-        mass(CO, x0 + 34, x0 + 40, zf + 6.0, zb, 0.15, ah, seed + 7)
-        box((CO, "board_frame", 0), x0 + 34.2, x0 + 39.8, 4.9, 6.1, zf - 0.1, zf + 0.12, scale=1.0)
-        box((CO, "neon_" + ["amber", "teal", "pink", "white"][i % 4], 0), x0 + 34.5, x0 + 39.5, 5.25, 5.75, zf - 0.14, zf - 0.08, scale=1.0)
-
-# The rest of the district's frontages, placeholders (massing.py's lots)
-# until each is built: the plaza street's north side and the inside of the
-# block, both ending at x 380 with a finished face (the Afterlife Block's
-# lots stand against them from there), the x 120 road's east side, low
-# beside the Experience shot's lens (30 m up at x 120, z -230) and under its
-# dolly along z -230.
-from ncw.districts import massing  # noqa: E402
-_W = (16.0, 19.2, 22.4, 25.6)
-massing.frontage(CO, "+z", 132.0, SOUTH_X1, -190.0, 30.0, (26.0, 48.0), _W, 8401, ends=("street", "open"))
-massing.frontage(CO, "-x", -316.0, -220.0, 132.0, 30.0, (14.0, 22.0), _W, 8402, ends=("street", "open"))
-massing.blocks(CO, 162.0, SOUTH_X1, -290.0, -220.0, (14.0, 23.0), 8403, step=30.0, style=dict(roof_cap=2.0))
+# South of the boulevard: its south side, the campus under the Experience
+# shot's dolly and the plaza street's north side, all ending at x 380
+# (corpo_south.py).
+from ncw.districts import corpo_south  # noqa: E402,F401
 
 # North of the boulevard's centre line: either end of the towers and behind
 # them (corpo_north.py).

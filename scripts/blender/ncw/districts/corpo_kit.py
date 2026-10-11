@@ -142,29 +142,52 @@ def mast(x, z, y0, h, lamps=2):
         aviation(x + 1.1, y + 0.08, z)
 
 
-COLD = (1, 6, 1, 6, 2)          # the advert shader's palette: cyan, blue, amber
-MEDIA = (1, 6, 5, 1, 6)         # and for a wall of screens: cyan, blue, magenta
+# The advert shader's palette (0 pink, 1 cyan, 2 amber, 3 purple, 4 green,
+# 5 magenta, 6 blue, 7 yellow), as (subject and frame, field) pairs a
+# corporate screen opens on: blue and cyan with a little amber, and for a
+# wall of screens cyan, blue and magenta (ax5YUmkWf_Y@9).
+COLD = ((6, 1), (1, 6), (6, 2), (2, 6), (1, 6), (6, 1), (1, 4))
+MEDIA = ((1, 6), (6, 1), (1, 5), (5, 1), (6, 3), (3, 6), (1, 6))
+WARM = ((2, 6), (2, 7), (7, 2), (6, 2), (2, 5))
+
+
+def _fract(x):
+    return x - math.floor(x)
+
+
+def _hash12(px, py):
+    """src/world/glsl.js hash12, for choosing a board's seed."""
+    p = [_fract(px * 0.1031), _fract(py * 0.1031), _fract(px * 0.1031)]
+    d = p[0] * (p[1] + 33.33) + p[1] * (p[2] + 33.33) + p[2] * (p[0] + 33.33)
+    p = [v + d for v in p]
+    return _fract((p[0] + p[1]) * p[2])
 
 
 def board_col(r, pal=None):
-    """A billboard's numbers (palette, shape, seed). `pal`: palette indices
-    to open on (0 pink, 1 cyan, 2 amber, 3 purple, 4 green, 5 magenta,
-    6 blue, 7 yellow): the advert shader steps a board through the palette
-    every nine to fifteen seconds from its seed, so this picks the seed's
-    partner that shows that colour over the first seconds of the city's
-    clock, when the page's shots are held."""
+    """A billboard's numbers (palette, shape, seed). `pal`: (subject, field)
+    palette pairs to open on. The advert shader steps a board through the
+    palette every nine to fifteen seconds from its seed, its field's colour
+    three to five steps on by a hash of the seed; this picks a seed (one of
+    the 256 an 8-bit vertex colour holds) whose first advert, over the
+    opening seconds of the city's clock when the page's shots are held, is
+    one of the pairs."""
     g = r.randrange(8) / 8.0 + 0.06
     if pal is None:
         return (r.randrange(8) / 8.0 + 0.06, g, r.randrange(256) / 255.0, 1.0)
-    n, q = 0, 0.5
-    for _ in range(60):
-        n = r.randrange(256)
+    want = r.choice(pal)
+    step = (want[1] - want[0] - 3) % 8
+    order = list(range(256))
+    r.shuffle(order)
+    for n in order:
         seed = n * 97.0 / 255.0
-        q = (12.0 + seed * 3.0) / (9.0 + 6.0 * ((seed * 1.3) % 1.0))
-        if 0.1 < q % 1.0 < 0.8:
-            break
-    want = r.choice(pal) if isinstance(pal, (tuple, list)) else pal
-    return (((want - math.floor(q)) % 8 + 0.5) / 8.0, g, n / 255.0, 1.0)
+        q = (12.0 + seed * 3.0) / (9.0 + 6.0 * _fract(seed * 1.3))
+        if not 0.12 < _fract(q) < 0.8:
+            continue
+        slot = math.floor(q)
+        h3 = _hash12(slot, seed) * 3.0
+        if step <= 2 and math.floor(h3) == step and 0.06 < _fract(h3) < 0.94:
+            return (((want[0] - slot) % 8 + 0.5) / 8.0, g, n / 255.0, 1.0)
+    return (r.randrange(8) / 8.0 + 0.06, g, r.randrange(256) / 255.0, 1.0)
 
 
 def screen(cx, cy, cz, w, h, yaw, r, frame=True, depth=0.3, back=False, pal=None):
@@ -300,25 +323,41 @@ def kiosk(x, z, yaw, colour="cyan", w=2.2, d=1.4, h=2.5):
     oriented_box(k("trim"), x, G0 + h / 2, z, w, h, d, yaw, scale=1.0, col=BLACK)
     nx, nz = math.sin(yaw), math.cos(yaw)
     rotated_quad(k("neon_" + colour), x + nx * (d / 2 + 0.02), G0 + 1.45, z + nz * (d / 2 + 0.02), w - 0.4, 1.5, yaw)
+    c = GLOW[colour]
+    rotated_quad(k("glow"), x - nx * (d / 2 + 0.02), G0 + 1.6, z - nz * (d / 2 + 0.02), w - 0.8, 0.9, yaw + math.pi, col=(c[0] * 0.4, c[1] * 0.4, c[2] * 0.4, 1.0))
     oriented_box(k("neon_" + colour, 1), x, G0 + h + 0.04, z, w + 0.1, 0.06, d + 0.1, yaw, scale=1.0)
     light(CO, x + nx * 1.4, 1.4, z + nz * 1.4, colour, 3.0)
 
 
-def booth(x, z, yaw, r):
+def booth(x, z, yaw, r, hue="white"):
     """A security booth: glazed above the sill and lit inside, a flat roof
-    with a lamp under its eave, a camera on it."""
-    oriented_box(k("trim"), x, G0 + 0.5, z, 2.0, 1.0, 1.6, yaw, scale=1.0, col=STONE)
-    oriented_box(k("trim"), x, G0 + 2.5, z, 2.3, 0.14, 1.9, yaw, scale=1.0, col=BLACK)
+    with a line of light under its eave, a camera lamp on it."""
+    oriented_box(k("trim"), x, G0 + 0.55, z, 2.0, 1.1, 1.6, yaw, scale=1.0, col=STONE)
+    oriented_box(k("trim"), x, G0 + 2.5, z, 2.3, 0.16, 1.9, yaw, scale=1.0, col=BLACK)
+    oriented_box(k("trim"), x, G0 + 1.75, z, 1.96, 1.3, 1.56, yaw, scale=1.0, col=BLACK)
     nx, nz = math.sin(yaw), math.cos(yaw)
     rx, rz = math.cos(yaw), -math.sin(yaw)
-    for ang, off, w in ((yaw, 0.8, 1.9), (yaw + math.pi, 0.8, 1.9), (yaw + math.pi / 2, 1.0, 1.5), (yaw - math.pi / 2, 1.0, 1.5)):
+    c = GLOW[hue]
+    dim = (c[0] * 0.14, c[1] * 0.14, c[2] * 0.14, 1.0)
+    for ang, off, w in ((yaw, 0.79, 1.6), (yaw + math.pi, 0.79, 1.6), (yaw + math.pi / 2, 0.99, 1.2), (yaw - math.pi / 2, 0.99, 1.2)):
         ax, az = math.sin(ang), math.cos(ang)
-        rotated_quad(k("neon_white"), x + ax * off, G0 + 1.7, z + az * off, w, 1.35, ang)
+        rotated_quad(k("glow"), x + ax * off, G0 + 1.8, z + az * off, w, 0.8, ang, col=dim)
     for sx in (-1, 1):
         for sz in (-1, 1):
-            oriented_box(k("metal", 1), x + rx * sx * 0.97 + nx * sz * 0.77, G0 + 1.7, z + rz * sx * 0.97 + nz * sz * 0.77, 0.08, 1.4, 0.08, yaw, scale=0.5)
-    glow_box(x - 0.06, x + 0.06, G0 + 2.57, G0 + 2.7, z - 0.06, z + 0.06, "red", 1)
-    light(CO, x + nx * 1.6, 1.6, z + nz * 1.6, "white", 3.0)
+            oriented_box(k("metal", 1), x + rx * sx * 0.97 + nx * sz * 0.77, G0 + 1.75, z + rz * sx * 0.97 + nz * sz * 0.77, 0.1, 1.3, 0.1, yaw, scale=0.5)
+    oriented_box(k("neon_" + hue, 1), x, G0 + 2.39, z, 2.34, 0.05, 1.94, yaw, scale=1.0)
+    glow_box(x - 0.06, x + 0.06, G0 + 2.58, G0 + 2.72, z - 0.06, z + 0.06, "red", 1)
+    light(CO, x + nx * 1.6, 1.6, z + nz * 1.6, hue, 2.5)
+
+
+def ad_panel(x, z, yaw, r, pal=None, w=1.3, h=1.9):
+    """A lit poster panel on the pavement, an advert on both faces
+    (BnnbP7pCIvQ@29, layout only): a slim dark case on a foot."""
+    oriented_box(k("trim"), x, G0 + 0.3, z, 0.5, 0.6, 0.2, yaw, scale=1.0, col=BLACK)
+    oriented_box(k("board_frame"), x, G0 + 0.6 + h / 2, z, w + 0.14, h + 0.14, 0.16, yaw, scale=1.0)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    for s_, ang in ((1, yaw), (-1, yaw + math.pi)):
+        rotated_quad(k("billboard"), x + nx * 0.09 * s_, G0 + 0.6 + h / 2, z + nz * 0.09 * s_, w, h, ang, col=board_col(r, pal))
 
 
 def tube_post(x, z, yaw, colour="white", h=6.2, arm=1.5):
@@ -526,8 +565,10 @@ def front(f, top, kind, r, tint=1, colour="cyan", canopy=0.0):
         for i in range(n):
             s = w * (i + 0.5) / n + (r.uniform(-1.5, 1.5) if w > 12 else 0.0)
             f.box(k("trim"), s - 1.7, s + 1.7, 0.0, 3.1, 0.03, 0.22, col=BLACK)
-            f.quad(k("glow"), s - 1.5, s - 0.08, G0, 2.8, 0.23, col=tuple(c * 0.5 for c in GLOW["white"][:3]) + (1,))
-            f.quad(k("glow"), s + 0.08, s + 1.5, G0, 2.8, 0.23, col=tuple(c * 0.5 for c in GLOW["white"][:3]) + (1,))
+            dcol = tuple(c * 0.16 for c in GLOW["white"][:3]) + (1,)
+            f.quad(k("glow"), s - 1.5, s - 0.08, G0, 2.8, 0.23, col=dcol)
+            f.quad(k("glow"), s + 0.08, s + 1.5, G0, 2.8, 0.23, col=dcol)
+            f.box(k("glow", 1), s - 1.5, s + 1.5, 2.86, 2.94, 0.2, 0.26, col=GLOW[colour])
             lx, _, lz = f.p(f.at(s), 0.0, 1.2)
             light(CO, lx, 2.6, lz, "white", 4.0)
             if canopy:
@@ -535,7 +576,7 @@ def front(f, top, kind, r, tint=1, colour="cyan", canopy=0.0):
                 f.box(k("neon_" + colour), s - 3.2, s + 3.2, 3.44, 3.5, canopy - 0.4, canopy - 0.3)
                 f.box(k("glow", 1), s - 2.6, s + 2.6, 3.47, 3.5, 0.5, canopy - 0.8, col=GLOW["white"])
     elif kind == "shop":
-        B.shopfront(CO, f, r, 0.0, w, tint, sign_rate=0.3, awning_rate=0.0, palette=["cyan", "white", "teal", "blue"])
+        showrooms(f, r, tint, colour)
         f.quad(k("corporate"), 0.35, w - 0.35, SHOP_H + 0.35, top - 0.5, 0.03, col=glass_col(r, lit=(0.7, 1.0)))
         f.quad(k("trim"), 0.0, w, SHOP_H, SHOP_H + 0.35, 0.03, col=tcol)
         f.quad(k("trim"), 0.0, w, top - 0.5, top, 0.03, col=BLACK)
@@ -547,7 +588,100 @@ def front(f, top, kind, r, tint=1, colour="cyan", canopy=0.0):
         B.back_ground(CO, f, r, tcol)
         f.ledge(k("trim"), 0.0, w, SHOP_H, 0.25, 0.2, tcol)
     else:
-        f.ledge(k("trim", 1), 0.0, w, top * 0.5, 0.2, 0.12, tcol)
+        wall_front(f, top, r, tint, colour)
+
+
+def showrooms(f, r, tint, colour):
+    """A ground floor of showrooms along a face: glass set back behind
+    pilasters, a room behind every bay (the street's shop glass, lit cool
+    with a warm one now and then), a dark fascia with a line of light or a
+    sign on it."""
+    w = f.width
+    tcol = B.TRIM[tint]
+    bays = max(1, round(w / CELL_W))
+    bw = w / bays
+    i = 0
+    while i < bays:
+        n = min(r.choice((2, 2, 3, 3, 4)), bays - i)
+        if bays - (i + n) == 1:
+            n += 1
+        a, b = i * bw, (i + n) * bw
+        for e in (a, b):
+            f.box(k("trim"), max(0.0, e - 0.2), min(w, e + 0.2), 0.0, SHOP_H, -B.REC - 0.02, B.PIL, col=tcol)
+        cool = r.random() < 0.72
+        lit = (r.uniform(0.55, 1.0), r.uniform(0.88, 1.0) if cool else r.uniform(0.0, 0.45), 1.0 if r.random() < 0.95 else 0.0, 1.0)
+        f.quad(k("shop"), a + 0.2, b - 0.2, 0.55, 3.3, -B.REC, col=lit)
+        f.quad(k("trim"), a + 0.2, b - 0.2, G0, 0.55, -B.REC + 0.01, col=BLACK)
+        f.quad(k("trim"), a + 0.2, b - 0.2, 3.3, SHOP_H, 0.0, col=BLACK)
+        f.box(k("trim"), a + 0.2, b - 0.2, 3.28, 3.3, -B.REC, 0.0, col=BLACK)
+        mid = (a + b) / 2
+        roll = r.random()
+        if roll < 0.3 and b - a > 4.0:
+            sw, sh = ST_SIZES["pm"]
+            cx, cy, cz = f.p(f.at(mid), 3.95, 0.07)
+            f.box(k("board_frame"), mid - sw / 2 - 0.06, mid + sw / 2 + 0.06, 3.95 - sh / 2 - 0.06, 3.95 + sh / 2 + 0.06, 0.0, 0.06)
+            sign(st_id("pm"), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
+        elif roll < 0.8:
+            f.box(k("neon_" + (colour if cool else "amber")), a + 0.5, b - 0.5, 3.36, 3.43, 0.0, 0.05)
+        i += n
+
+
+def wall_front(f, top, r, tint, colour):
+    """A podium's wall onto a lane, not left blank: pilasters every bay and
+    between them a lit vitrine, a door under louvres, a slot of light, or a
+    small sign and a lamp; a ledge under its top."""
+    w = f.width
+    tcol = B.TRIM[tint]
+    n = max(1, round(w / 6.4))
+    bw = w / n
+    for i in range(n + 1):
+        e = min(max(i * bw, 0.22), w - 0.22)
+        f.box(k("trim", 1), e - 0.22, e + 0.22, 0.0, top, 0.0, 0.14, col=tcol)
+    for i in range(n):
+        a, b = i * bw + 0.6, (i + 1) * bw - 0.6
+        mid = (a + b) / 2
+        if b - a < 2.0:
+            continue
+        roll = r.random()
+        if roll < 0.32 and b - a > 3.6:
+            f.box(k("trim"), mid - 1.75, mid + 1.75, 0.3, 3.55, 0.0, 0.1, col=BLACK)
+            f.quad(k("shop"), mid - 1.5, mid + 1.5, 0.55, 3.3, 0.11, col=(r.uniform(0.6, 1.0), r.uniform(0.88, 1.0), 1.0, 1.0))
+            lx, _, lz = f.p(f.at(mid), 0.0, 1.0)
+            light(CO, lx, 2.0, lz, "cyan", 3.0)
+        elif roll < 0.58:
+            f.box(k("dark", 1), a, b, top * 0.5, top * 0.5 + 1.8, 0.0, 0.08)
+            f.quad(k("door"), mid - 0.55, mid + 0.55, G0, 2.3, 0.03)
+            f.box(k("metal", 1), mid - 0.63, mid + 0.63, 2.3, 2.4, 0.0, 0.12)
+            hue = r.choice(("amber", "white", "cyan"))
+            f.box(k("neon_" + hue), mid - 0.14, mid + 0.14, 2.56, 2.72, 0.05, 0.2)
+            lx, _, lz = f.p(f.at(mid), 0.0, 0.8)
+            light(CO, lx, 2.6, lz, hue, 3.0)
+        elif roll < 0.8:
+            f.box(k("neon_" + colour), mid - 0.06, mid + 0.06, 0.7, top - 1.0, 0.0, 0.05)
+            lx, _, lz = f.p(f.at(mid), 0.0, 0.8)
+            light(CO, lx, 3.0, lz, colour, 3.0)
+        else:
+            size = r.choice(("ps", "bx", "pm"))
+            sw, sh = ST_SIZES[size]
+            if b - a > sw + 0.4:
+                cx, cy, cz = f.p(f.at(mid), 3.2, 0.08)
+                f.box(k("board_frame"), mid - sw / 2 - 0.06, mid + sw / 2 + 0.06, 3.2 - sh / 2 - 0.06, 3.2 + sh / 2 + 0.06, 0.0, 0.07)
+                sign(st_id(size), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
+    f.ledge(k("trim", 1), 0.0, w, top - 0.5, 0.2, 0.12, tcol)
+
+
+def podium_walls(x0, x1, z0, z1, top, fronts, r, tint=1, colour="cyan", canopy=0.0, col=STONE):
+    """A podium: its stone top, and each face a wall with its front (see
+    front()); where shops or a back's doors stand in the wall it starts
+    over them, and against a neighbour there is none."""
+    quad(k("trim"), (x0, top, z1), (x1, top, z1), (x1, top, z0), (x0, top, z0), col=col)
+    B.COLLISION.append(("box", x0, x1, 0.0, top, z0, z1, CO))
+    for name, f in B.faces_of(x0, x1, z0, z1).items():
+        kind = fronts.get(name, "blank")
+        if kind == "none":
+            continue
+        f.quad(k("trim"), 0.0, f.width, SHOP_H if kind in ("shop", "dock") else 0.0, top, 0.0, col=col)
+        front(f, top, kind, r, tint, colour, canopy if kind in ("glass", "shop") else 0.0)
 
 
 def fins(f, y0, y1, step, out=0.45, wide=0.3, col=BLACK, detail=0, s0=0.0, s1=None):
@@ -583,10 +717,7 @@ def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, ti
     r = random.Random(seed)
     fronts = fronts or {}
     tnum = B.TINTS[tint]
-    solid(x0, x1, 0.0, base, z0, z1, podium)
-    B.COLLISION.append(("box", x0, x1, 0.0, base, z0, z1, CO))
-    for name, f in B.faces_of(x0, x1, z0, z1).items():
-        front(f, base, fronts.get(name, "blank"), r, tnum, colour, canopy if fronts.get(name) in ("glass", "shop") else 0.0)
+    podium_walls(x0, x1, z0, z1, base, fronts, r, tnum, colour, canopy, podium)
     gcol = glass_col(r, lit, warm)
     wcol = B.wall_col(r.uniform(*lit), style, r.uniform(*warm), tnum)
     y = base

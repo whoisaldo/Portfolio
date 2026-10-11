@@ -1,0 +1,362 @@
+"""Corpo Row south of the boulevard: one block 248 m by 126 m between the
+boulevard, the x 120 road and the plaza street, ending at x 380 where the
+Afterlife Block's lots begin.
+
+Along the boulevard, seven podium blocks with lobbies and showrooms, no
+taller than the masses that stood there (the Experience shot looks over
+them at the towers' crowns); behind them a mews; then the campus, six low
+blocks under the shot's dolly (30 m up along z -230) whose roofs are its
+foreground: a landing pad, a glass roof over an atrium, cooling plant,
+gardens, all drawn in lines of light and none of it tall; a second mews;
+and along the plaza street the district's back of house.
+"""
+from ncw.kit import *  # noqa: F401,F403
+from ncw import buildings as B
+from ncw import props as P
+from ncw.districts.corpo_kit import *  # noqa: F401,F403
+from ncw.districts import corpo_kit as K
+
+X0, X1 = 132.0, 379.6          # (a ledge or a lamp stands 0.35 m proud of a wall: nothing passes x 380)
+LOT_S = -316.0                 # the boulevard's south lot line
+S1_BACK = -290.0
+MEWS_A = (-290.0, -284.0)
+CAMPUS = (-284.0, -226.0)
+MEWS_B = (-226.0, -220.0)
+PLAZA_LOT = -190.0             # the plaza street's north lot line
+PAVE_MID_S = -318.7            # between the walkers' two lines on the south pavement
+KERB_S = -320.7
+# Lots along the boulevard (x0, x1, height: each no taller than the mass
+# that stood there), and the lanes between them, which run on south through
+# the campus.
+S1 = [(132.0, 166.0, 22.0), (172.0, 206.0, 29.0), (212.0, 246.0, 36.0), (252.0, 286.0, 25.0), (292.0, 326.0, 32.0),
+      (332.0, 366.0, 39.0), (370.0, X1, 28.0)]
+LANES = [(166.0, 172.0), (206.0, 212.0), (246.0, 252.0), (286.0, 292.0), (326.0, 332.0)]
+S1_ALLEYS = LANES + [(366.0, 370.0)]
+CAMPUS_LOTS = [(132.0, 166.0), (172.0, 206.0), (212.0, 246.0), (252.0, 286.0), (292.0, 326.0), (332.0, X1)]
+S3 = [(132.0, 170.0, 34.0), (176.0, 210.0, 44.0), (216.0, 250.0, 28.0), (256.0, 290.0, 46.0), (296.0, 330.0, 30.0), (336.0, X1, 40.0)]
+S3_ALLEYS = [(170.0, 176.0), (210.0, 216.0), (250.0, 256.0), (290.0, 296.0), (330.0, 336.0)]
+
+cells = [(X0, 380.0, MEWS_A[0], MEWS_A[1], "concrete"), (X0, 380.0, MEWS_B[0], MEWS_B[1], "concrete")]
+cells += [(a, b, LOT_S, S1_BACK, "concrete") for a, b in S1_ALLEYS]
+cells += [(a, b, CAMPUS[0], CAMPUS[1], "concrete") for a, b in LANES]
+cells += [(a, b, MEWS_B[1], PLAZA_LOT, "concrete") for a, b in S3_ALLEYS]
+ground(cells, X0, 380.0, LOT_S, PLAZA_LOT)
+
+
+# ---------------------------------------------------------------------------
+# The boulevard's south side.
+# ---------------------------------------------------------------------------
+def hall(x0, x1, tower_x, z, top=8.0):
+    """A lobby on the south side, across the boulevard from a tower: the
+    towers' own hall behind the glass (the site draws it 24.8 m wide round
+    the tower's centre line), facing north."""
+    a, b = max(x0, tower_x - 12.3), min(x1, tower_x + 12.3)
+    quad(k("lobby"), (b, G0, z), (a, G0, z), (a, top, z), (b, top, z), col=(random.Random(int(a)).random(), 0.2, 1.0, 1.0))
+    return a, b
+
+
+def alley_gate(a, b, z, hue, r, facing=-1):
+    """Across an alley's mouth: a slim steel portal, a line of light on it,
+    a small sign hung under it askew, palms either side just inside."""
+    f = facing
+    for xx in (a + 0.1, b - 0.4):
+        za, zb = sorted((z, z - f * 0.3))
+        box(k("trim"), xx, xx + 0.3, G0, 5.6, za, zb, scale=1.0, col=K.BLACK)
+    za, zb = sorted((z, z - f * 0.3))
+    box(k("trim"), a + 0.1, b - 0.1, 5.2, 5.6, za, zb, scale=1.0, col=K.BLACK)
+    zc, zd = sorted((z + f * 0.0, z + f * 0.05))
+    K.neon_box(a + 0.5, b - 0.5, 5.32, 5.48, zc, zd, hue)
+    K.st_blade((a + b) / 2 + r.uniform(-0.8, 0.8), 4.3, z - f * 0.15, "ps", math.radians(r.choice((-12, 0, 10)) + (180 if f < 0 else 0)))
+    light(CO, (a + b) / 2, 4.6, z + f * 1.2, hue, 4.0)
+
+
+def south_side():
+    r = random.Random(7801)
+    z0, z1 = LOT_S, S1_BACK
+    DOCK = {"+z": "dock", "-x": "dock", "+x": "dock"}
+    # a: the corner on junction E: glass to both streets, a crown set back.
+    x0, x1, h = S1[0]
+    K.corp_block(x0, x1, z0, z1, h, 7802, skin="glass", tiers=((0.82, 0.0), (1.0, 3.0)),
+                 fronts={"-z": "glass", "-x": "glass", "+z": "dock", "+x": "dock"}, canopy=2.4, corners="cyan", edge="cyan",
+                 lit=(0.6, 0.9))
+    K.roof_plant(x0 + 4, x1 - 4, z0 + 4, z1 - 4, h, r, cap=3.0, tall=False)
+    K.screen(x0 + 9.0, 13.6, z0 - 0.38, 9.0, 5.0, math.pi, r, pal=K.COLD)
+    # b: showrooms under a deep podium, a ribbon-windowed block set back on
+    # it behind a terrace.
+    x0, x1, h = S1[1]
+    K.corp_block(x0, x1, z0, z1, h, 7803, skin="windows", tint="navy", style=5, base=K.BASE + K.STOREY,
+                 tiers=((1.0, (2.5, 2.5, 5.0, 0.0)),), fronts={"-z": "shop", **DOCK}, canopy=2.2, edge="amber", colour="white",
+                 lit=(0.5, 0.85), warm=(0.4, 0.9), top_band="amber")
+    terrace(x0 + 0.4, x1 - 0.4, z0 + 0.4, z0 + 4.6, K.BASE + K.STOREY, r)
+    K.roof_plant(x0 + 4, x1 - 4, z0 + 7, z1 - 2, h, r, cap=4.0, tall=False)
+    # c: a hall like the towers' own behind a colonnade, a glass shaft with
+    # fins over it, stepped.
+    x0, x1, h = S1[2]
+    K.corp_block(x0, x1, z0, z1, h, 7804, skin="glass", tiers=((0.62, (0.0, 0.0, 2.6, 0.0)), (1.0, (3.0, 3.0, 6.0, 0.0))),
+                 fronts={"-z": "none", **DOCK}, fin_step=4.25, fin_faces=("-z",), edge="cyan", top_band="cyan", lit=(0.55, 0.9))
+    colonnade(x0, x1, 226.0, z0, "cyan", r)
+    K.roof_plant(x0 + 5, x1 - 5, z0 + 8, z1 - 2, h, r, cap=4.0, tall=False)
+    K.screen(x0 + 12.0, 19.0, z0 + 2.6 - 0.38, 11.0, 6.0, math.pi, r, pal=K.COLD)
+    # d: long and low, showrooms to the street, a garden on its roof.
+    x0, x1, h = S1[3]
+    K.corp_block(x0, x1, z0, z1, h, 7805, skin="windows", tint="teal", style=4, tiers=((0.55, 0.0), (1.0, (4.0, 4.0, 7.0, 0.0))),
+                 fronts={"-z": "shop", **DOCK}, canopy=2.2, edge="cyan", colour="cyan", lit=(0.55, 0.9), warm=(0.1, 0.5))
+    terrace(x0 + 0.4, x1 - 0.4, z0 + 0.4, z0 + 6.6, K.BASE + (h - K.BASE) * 0.55, r, trees=True)
+    K.roof_plant(x0 + 6, x1 - 6, z0 + 9, z1 - 2, h, r, cap=3.0, tall=False)
+    # e: stacked and shifted glass boxes, warm lit.
+    x0, x1, h = S1[4]
+    K.corp_block(x0, x1, z0, z1, h, 7806, skin="glass",
+                 tiers=((0.45, (0.0, 3.0, 2.0, 0.0)), (1.0, (4.0, 0.0, 4.5, 2.0))), fronts={"-z": "none", **DOCK},
+                 edge="amber", colour="amber", top_band="amber", lit=(0.55, 0.9), warm=(0.5, 1.0))
+    colonnade(x0, x1, 302.0, z0, "amber", r)
+    K.roof_plant(x0 + 6, x1 - 2, z0 + 6, z1 - 4, h, r, cap=4.0, tall=False)
+    K.screen(x0 + 21.0, 14.0, z0 + 2.0 - 0.38, 9.0, 5.0, math.pi, r, pal=K.COLD)
+    # f: the tallest: a dark slab with a column of screens up its face, a
+    # canopy over its door the width of the lot.
+    x0, x1, h = S1[5]
+    K.corp_block(x0, x1, z0, z1, h, 7807, skin="windows", tint="charcoal", style=5, tiers=((0.86, (0.0, 0.0, 1.6, 0.0)), (1.0, (3.0, 3.0, 4.6, 3.0))),
+                 fronts={"-z": "glass", **DOCK}, canopy=3.2, corners="cyan", edge="cyan", colour="cyan", top_band="amber",
+                 lit=(0.5, 0.8), warm=(0.3, 0.8))
+    K.screen_stack(x0 + 8.0, z0 + 1.6 - 0.38, 10.5, 7.0, (5.0, 4.2, 5.6, 4.2), math.pi, r, pal=K.MEDIA)
+    K.roof_plant(x0 + 5, x1 - 5, z0 + 7, z1 - 5, h, r, cap=3.5, tall=False)
+    # g: the end lot, its east face finished: the Afterlife Block's lots
+    # stand against it from x 380.
+    x0, x1, h = S1[6]
+    K.corp_block(x0, x1, z0, z1, h, 7808, skin="windows", tint="navy", style=2, tiers=((1.0, 0.0),),
+                 fronts={"-z": "glass", "-x": "dock", "+z": "dock", "+x": "blank"}, canopy=2.0, edge="amber", colour="amber",
+                 lit=(0.5, 0.8), warm=(0.5, 1.0))
+    # The alleys: a portal across each mouth, tubes of light down it.
+    for j, (a, b) in enumerate(S1_ALLEYS):
+        hue = ("cyan", "amber", "white")[j % 3]
+        alley_gate(a, b, z0 - 0.0, hue, r)
+        for zz in (-311.0, -303.0, -295.0):
+            K.neon_box(a + 0.3, b - 0.3, 6.0, 6.08, zz - 0.04, zz + 0.04, hue, 1)
+            light(CO, (a + b) / 2, 5.2, zz, hue, 3.0)
+        if b - a > 5:
+            P.place("planter_palm", (a + b) / 2, G0, z0 + 2.4, district=CO)
+    # The pavement's middle strip: benches, kiosks, totems turned to the
+    # traffic, bins; bollards at the kerb before each door.
+    for j, (x0, x1, h) in enumerate(S1[:6]):
+        cx = (x0 + x1) / 2
+        hue = ("cyan", "white", "amber")[j % 3]
+        K.bollards(cx - 6.0, cx + 6.0, KERB_S + 0.28, step=3.0, proto="bollard")
+        if j % 2 == 0:
+            K.totem(x0 + 5.0, PAVE_MID_S, math.radians(-62), r, colour=hue, sizes=("bx", "ps"))
+            P.place("bench", x1 - 7.0, G0, PAVE_MID_S, math.pi, district=CO)
+            stand(x1 - 7.0, PAVE_MID_S, math.pi, "sit", G0 + 0.45)
+        else:
+            K.kiosk(x1 - 6.0, PAVE_MID_S, math.pi, hue, w=2.0, d=1.2)
+            stand(x1 - 6.0, PAVE_MID_S - 1.05, 0.0, "phone")
+            P.place("bin", x0 + 4.0, G0, PAVE_MID_S, district=CO)
+        P.place("cctv", x0 + 1.0, G0, KERB_S + 0.3, district=CO)
+        # Security at each door, and somebody coming or going.
+        stand(cx - 2.6, z0 - 0.75, math.pi, "idle")
+        if j % 3 != 1:
+            K.talk(cx + 6.0, z0 - 1.0 if j in (2, 4) else PAVE_MID_S, 0.7 * j)
+
+
+def colonnade(x0, x1, tower_x, z, hue, r, depth=3.4, top=8.0):
+    """A ground floor set back behind columns: the towers' kind of hall
+    behind glass at the back, a lit soffit, a line of light along the
+    podium's edge, planters between the columns, people."""
+    zb = z + depth
+    solid(x0, x0 + 0.6, 0.0, top, z, zb, K.STONE)
+    solid(x1 - 0.6, x1, 0.0, top, z, zb, K.STONE)
+    a, b = hall(x0 + 0.6, x1 - 0.6, tower_x, zb - 0.02, top - 0.6)
+    for xa, xb in ((x0 + 0.6, a), (b, x1 - 0.6)):
+        if xb - xa > 0.3:
+            quad(k("corporate"), (xb, 0.5, zb - 0.02), (xa, 0.5, zb - 0.02), (xa, top - 0.6, zb - 0.02), (xb, top - 0.6, zb - 0.02),
+                 ((0, 0), (xb - xa, 0), (xb - xa, top), (0, top)), K.glass_col(r, lit=(0.8, 1.0)))
+    # The beam over the columns and the soffit behind it.
+    box(k("trim"), x0, x1, top - 0.6, top, z, z + 0.5, scale=2.0, col=K.BLACK)
+    K.neon_box(x0 + 0.3, x1 - 0.3, top - 0.66, top - 0.6, z - 0.04, z, hue)
+    quad(k("trim"), (x0 + 0.6, top - 0.6, zb), (x1 - 0.6, top - 0.6, zb), (x1 - 0.6, top - 0.6, z + 0.5), (x0 + 0.6, top - 0.6, z + 0.5), col=K.STEEL)
+    n = max(3, round((x1 - x0) / 6.8))
+    for i in range(1, n):
+        cx = x0 + (x1 - x0) * i / n
+        box(k("trim"), cx - 0.28, cx + 0.28, G0, top - 0.6, z + 1.2, z + 1.76, scale=1.5, col=K.CONCRETE)
+        K.glow_box(cx - 1.3, cx + 1.3, top - 0.66, top - 0.61, z + 1.9, z + 2.2, "white")
+        light(CO, cx, top - 1.4, z + 1.2, "white", 4.0)
+    K.paving_band(x0 + 0.6, x1 - 0.6, z, zb, K.PALE)
+    K.light_strip_ground(x0 + 0.8, x1 - 0.8, z + 0.95, z + 1.03, hue)
+    K.planter(x0 + 1.2, x0 + 4.6, z + 2.0, z + 3.0, lit=hue)
+    K.planter(x1 - 4.6, x1 - 1.2, z + 2.0, z + 3.0, lit=hue)
+    cx = (x0 + x1) / 2
+    stand(cx - 3.0, z + 2.4, math.pi, "idle")
+    stand(cx + 3.2, z + 2.5, math.pi, "idle")
+    stand(x0 + 5.6, z + 2.3, math.radians(150), "phone")
+    K.talk(x1 - 7.0, z + 2.2, 0.4, 2)
+
+
+def terrace(x0, x1, z0, z1, y, r, trees=False):
+    """A podium's roof terrace toward the boulevard: paving, planters with
+    hedges along its edge, a bench or two, somebody at the rail."""
+    K.paving_band(x0, x1, z0, z1, K.PALE, y=y + 0.006)
+    n = max(2, int((x1 - x0) // 9))
+    for i in range(n):
+        a = x0 + 0.6 + (x1 - x0 - 1.2) * i / n
+        K.planter(a + 0.5, a + (x1 - x0 - 1.2) / n - 1.5, z0 + 0.7, z0 + 1.7, y=y, h=0.45, hedge=0.6)
+        if trees and i % 2 == 0:
+            P.place("planter_tree", a + 2.0, y, z1 - 1.4, district=CO)
+    K.light_strip_ground(x0 + 0.5, x1 - 0.5, z1 - 0.3, z1 - 0.22, "cyan", y=y + 0.014)
+    stand(x0 + (x1 - x0) * 0.3, z0 + 0.45, math.pi, "lean", y)
+    stand(x0 + (x1 - x0) * 0.62, z0 + 2.6, math.radians(140), "phone", y)
+    K.talk(x0 + (x1 - x0) * 0.8, z0 + 2.8, 0.3, 2, y=y)
+
+
+# ---------------------------------------------------------------------------
+# The campus under the Experience shot's dolly: low, every roof finished.
+# ---------------------------------------------------------------------------
+def campus_block(i, x0, x1, r):
+    z0, z1 = CAMPUS
+    west_street = i == 0
+    east_end = i == len(CAMPUS_LOTS) - 1
+    fronts = {"-z": "shop", "+z": "dock", "-x": "glass" if west_street else ("dock" if i % 2 else "blank"),
+              "+x": "blank" if east_end else ("dock" if i % 2 else "blank")}
+    hue = ("cyan", "amber")[i % 2]
+    # The podium, and on its north half an upper block of two or three
+    # floors; the south half, under the dolly, stays a roof.
+    upper = (19.4, 23.2, 19.4, 23.2, 19.4, 23.2)[i]
+    zs = (-250.0, -256.0, -262.0, -248.0, -258.0, -252.0)[i]     # where the upper block ends
+    K.podium_walls(x0, x1, z0, z1, 11.8, fronts, r, 1, hue, 2.2)
+    for name, f in B.faces_of(x0, x1, z0, z1).items():
+        if fronts[name] in ("dock", "blank"):
+            f.quad(k("corporate"), 1.0, f.width - 1.0, 8.4, 11.4, 0.03, col=K.glass_col(r, lit=(0.5, 0.9)))
+    gcol = K.glass_col(r, lit=(0.5, 0.9), warm=(0.0, 0.6))
+    K.glass(x0 + 2.0, x1 - 2.0, z0 + 2.0, zs, 11.8, upper, gcol)
+    K.parapet(x0 + 2.0, x1 - 2.0, z0 + 2.0, zs, upper, col=K.STONE, h=0.8, edge=hue)
+    K.roof_plant(x0 + 4.0, x1 - 4.0, z0 + 4.0, zs - 2.0, upper, r, cap=2.6, tall=False, lamps=False)
+    K.parapet(x0, x1, z0, z1, 11.8, col=K.STONE, h=0.9, edge="cyan" if hue == "amber" else "amber")
+    B.ROOFS.append((CO, x0, x1, zs, z1, 11.8))
+    return zs
+
+
+def campus():
+    r = random.Random(7821)
+    z0, z1 = CAMPUS
+    y = 11.8
+    for i, (x0, x1) in enumerate(CAMPUS_LOTS):
+        zs = campus_block(i, x0, x1, r)
+        cx = (x0 + x1) / 2
+        a, b = zs + 2.0, z1 - 2.0          # the open roof, under the dolly
+        if i == 0:
+            # A garden: hedged beds, trees, benches, a lit path.
+            K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.006)
+            for j in range(3):
+                zz = a + 2.0 + j * 7.0
+                K.planter(x0 + 3.0, cx - 2.0, zz, zz + 1.6, y=y, h=0.45, hedge=0.7, lit="cyan")
+                K.planter(cx + 2.0, x1 - 3.0, zz + 3.4, zz + 5.0, y=y, h=0.45, hedge=0.7, lit="cyan")
+                P.place("planter_tree", x0 + 5.0 + j * 9.0, y, b - 2.0, district=CO)
+            K.light_strip_ground(cx - 0.05, cx + 0.05, a + 0.5, b - 0.5, "cyan", y=y + 0.014)
+            P.place("bench", cx + 1.2, y, a + 9.0, math.pi / 2, district=CO)
+            stand(cx + 1.2, a + 9.0, math.pi / 2, "sit", y + 0.45)
+            K.talk(cx - 4.0, a + 6.0, 0.2, 3, y=y)
+            stand(x0 + 1.4, a + 12.0, -math.pi / 2, "lean", y)
+        elif i == 1:
+            # A landing pad, its lamps green, a hut and a windsock mast.
+            K.pad(cx, (a + b) / 2, y, r=9.0, colour="green")
+            K.solid(x0 + 2.5, x0 + 6.0, y, y + 2.5, a, a + 3.0, K.STONE)
+            K.panel(x0 + 6.02, y + 1.3, a + 1.5, 1.6, 1.4, math.pi / 2, "amber", 0.6)
+            K.aviation(x0 + 3.0, y + 2.5, a + 0.5)
+            K.aviation(x1 - 2.0, y + 0.9, b + 1.5)
+            stand(x0 + 7.0, a + 1.6, math.pi / 2, "idle", y)
+            stand(cx + 10.5, (a + b) / 2 + 6.0, -math.pi / 2, "phone", y)
+        elif i == 2:
+            # A glass roof over the atrium, a walk round it between hedges.
+            K.skylight(x0 + 6.0, x1 - 6.0, a + 3.0, b - 3.0, y, rise=2.2, colour="cyan", nx=5, nz=6)
+            for zz in (a + 0.6, b - 1.6):
+                K.planter(x0 + 3.0, x1 - 3.0, zz, zz + 1.0, y=y, h=0.4, hedge=0.6)
+            K.talk(x0 + 3.6, (a + b) / 2, 1.0, 2, y=y)
+            stand(x1 - 4.2, a + 8.0, -math.pi / 2, "lean", y)
+        elif i == 3:
+            # Cooling plant in rows, ducts between, a catwalk's rail.
+            for ix in range(4):
+                for iz in range(2):
+                    K.chiller(x0 + 4.0 + ix * 7.2, x0 + 9.0 + ix * 7.2, a + 2.0 + iz * 7.0, a + 5.2 + iz * 7.0, y, h=2.2)
+            K.duct_run([(x0 + 3.0, y + 0.6, a + 6.1), (x1 - 3.0, y + 0.6, a + 6.1)], r=0.35)
+            K.duct_run([(x1 - 3.0, y + 0.6, a + 6.1), (x1 - 3.0, y + 0.6, b - 1.5)], r=0.35)
+            for ix in range(3):
+                K.cooler(x0 + 7.0 + ix * 9.0, b - 5.0, y, r=1.8, h=2.6)
+            K.rail(x0 + 2.0, a + 13.6, x1 - 2.0, a + 13.6, y, "amber", glow=True)
+            stand(x0 + 12.0, a + 14.4, 0.0, "idle", y)
+        elif i == 4:
+            # A terrace bar's garden: trees, benches, low lamps, people.
+            K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.006)
+            for j, (px, pz) in enumerate(((x0 + 5.0, a + 3.0), (x1 - 5.0, a + 6.0), (x0 + 8.0, b - 4.0), (x1 - 8.0, b - 3.0), (cx, a + 12.0))):
+                P.place("planter_tree", px, y, pz, district=CO)
+            K.planter(x0 + 2.0, x1 - 2.0, b - 1.4, b - 0.4, y=y, h=0.45, hedge=0.6, lit="amber")
+            for bx_, bz_, yaw in ((cx - 5.0, a + 8.0, 0.0), (cx + 5.0, a + 15.0, math.pi), (cx - 8.0, b - 8.0, math.pi / 2)):
+                P.place("bench", bx_, y, bz_, yaw, district=CO)
+                stand(bx_, bz_, yaw, "sit", y + 0.45)
+            K.talk(cx + 2.0, a + 5.0, 0.5, 3, y=y)
+            K.talk(cx - 3.0, b - 6.0, 1.2, 2, y=y)
+            stand(x1 - 1.4, a + 10.0, math.pi / 2, "lean", y)
+            for px, pz in ((cx - 9.0, a + 4.0), (cx + 9.0, b - 9.0), (cx, a + 18.0)):
+                K.glow_box(px - 0.1, px + 0.1, y, y + 0.9, pz - 0.1, pz + 0.1, "amber", 1)
+        else:
+            # A second pad, smaller, and a field of dishes.
+            K.pad(x0 + 13.0, (a + b) / 2 + 1.0, y, r=7.5, colour="cyan")
+            for ix in range(3):
+                for iz in range(3):
+                    P.place("dish", x1 - 16.0 + ix * 5.0, y, a + 3.0 + iz * 6.5, 0.6 + 0.4 * ix, district=CO)
+            K.chiller(x1 - 9.0, x1 - 3.0, b - 5.0, b - 2.0, y, h=2.0)
+            stand(x0 + 22.5, (a + b) / 2, math.pi / 2, "idle", y)
+    # The lanes through the campus and the two mews: tubes of light across
+    # them, low lamps, benches, palms at the crossings, people.
+    for j, (a, b) in enumerate(LANES):
+        cx = (a + b) / 2
+        hue = ("cyan", "white", "amber")[j % 3]
+        for zz in range(-278, -228, 10):
+            K.neon_box(a + 0.2, b - 0.2, 5.4, 5.48, zz - 0.04, zz + 0.04, hue, 1)
+            light(CO, cx, 4.8, zz, hue, 3.0)
+        P.place("planter_palm", cx, G0, MEWS_A[0] + 3.0, district=CO)
+        P.place("planter_tree", cx, G0, MEWS_B[0] + 3.0, district=CO)
+        P.place("bench", cx, G0, -262.0 + j * 4.0, math.pi / 2, district=CO)
+        if j % 2 == 0:
+            stand(cx, -262.0 + j * 4.0, math.pi / 2, "sit", G0 + 0.45)
+        K.talk(cx + 0.6, -244.0 - j * 3.0, 0.4 * j, 2)
+    for mz, hue in ((sum(MEWS_A) / 2, "white"), (sum(MEWS_B) / 2, "amber")):
+        x = X0 + 10.0
+        while x < X1 - 6.0:
+            P.place("lamp_short", x, G0, mz + 2.2, district=CO)
+            x += 28.0
+        K.light_strip_ground(X0 + 1.0, X1 - 1.0, mz - 0.04, mz + 0.04, "cyan" if hue == "white" else "amber")
+    for x, pose in ((150.0, "smoke"), (190.0, "phone"), (232.0, "idle"), (270.0, "smoke"), (310.0, "lean"), (352.0, "phone")):
+        stand(x, MEWS_A[0] + 0.7, 0.0, pose)
+        stand(x + 11.0, MEWS_B[1] - 0.7, math.pi, "smoke" if pose != "smoke" else "squat")
+
+
+# ---------------------------------------------------------------------------
+# The plaza street's north side: the district's back of house.
+# ---------------------------------------------------------------------------
+STYLE_S3 = dict(windows=(2, 4, 5, 5), lit=(0.4, 0.85), warmth=(0.1, 0.6), tints=("navy", "teal", "charcoal", "concrete"),
+                balcony=0.0, ac=0.04, signs=0.45, awning=0.0, shop_sign=0.4, canopy=0.6, roof_cap=5.0, setback=0.6,
+                fire_escape=0.0, cornice=0.2, pipes=0.25, roof_sign=0.25, shop_colours=["cyan", "white", "teal", "blue"])
+
+
+def plaza_side():
+    r = random.Random(7841)
+    for j, (x0, x1, h) in enumerate(S3):
+        sides = {"+z": "street", "-z": "open", "-x": "street" if j == 0 else "open", "+x": "open"}
+        lot = B.Lot(x0, x1, MEWS_B[1], PLAZA_LOT, "+z", sides, {}, CO)
+        tiers = B.building(lot, h, random.Random(7850 + j), style=STYLE_S3, ground="shops")
+        tx0, tx1, tz0, tz1, _, top = tiers[-1]
+        K.edge_line(tx0, tx1, tz0, tz1, top + 0.86, ("cyan", "amber")[j % 2], h=0.1)
+        for cxx, czz in ((tx0 + 0.3, tz0 + 0.3), (tx1 - 0.3, tz1 - 0.3)):
+            K.aviation(cxx, top + 1.0, czz)
+    # A screen on the corner lot's west face, to the x 120 road, and one on
+    # the tallest lot's street face.
+    K.screen(X0 - 0.4, 20.0, -205.0, 10.0, 5.6, -math.pi / 2, r, pal=K.COLD)
+    K.screen(273.0, 30.0, PLAZA_LOT + 0.4, 12.0, 6.4, 0.0, r, pal=K.COLD)
+    for j, (a, b) in enumerate(S3_ALLEYS):
+        hue = ("amber", "cyan")[j % 2]
+        alley_gate(a, b, PLAZA_LOT, hue, r, facing=1)
+        for zz in (-197.0, -206.0, -215.0):
+            K.neon_box(a + 0.3, b - 0.3, 6.0, 6.08, zz - 0.04, zz + 0.04, hue, 1)
+            light(CO, (a + b) / 2, 5.2, zz, hue, 3.0)
+        stand(a + 0.8, -200.0 - j, math.pi / 2, "smoke" if j % 2 else "phone")
+
+
+south_side()
+campus()
+plaza_side()

@@ -178,11 +178,9 @@ def back_row():
                  edge="amber", top_band="cyan", lit=(0.55, 0.85), warm=(0.1, 0.5), **D)
     K.roof_plant(233.0, 261.0, BACK0 + 1, BACK1 - 1, 44.0, r, cap=5.0)
     # 4: the plant building, low: cooling drums in rows on its roof, steam.
-    solid(268.0, 298.0, 0.0, 15.6, BACK0, BACK1, K.CONCRETE)
-    B.COLLISION.append(("box", 268.0, 298.0, 0.0, 15.6, BACK0, BACK1, CO))
+    K.podium_walls(268.0, 298.0, BACK0, BACK1, 15.6, {"-z": "blank", "+z": "dock", "-x": "dock", "+x": "dock"}, r, 5, "amber", 0.0, K.CONCRETE)
     B.ROOFS.append((CO, 268.0, 298.0, BACK0, BACK1, 15.6))
     for name, f in B.faces_of(268.0, 298.0, BACK0, BACK1).items():
-        K.front(f, 15.6, "blank" if name == "-z" else "dock", r, 5)
         for yy in (7.0, 11.0):
             f.box(k("dark", 1), 2.0, f.width - 2.0, yy, yy + 2.2, 0.0, 0.08)
         f.box(k("neon_amber", 1), 2.0, f.width - 2.0, 14.6, 14.7, 0.0, 0.06)
@@ -226,7 +224,7 @@ def back_row():
 def lane():
     r = random.Random(7731)
     for tx in TOWER_X:
-        f = B.Face("-z", T_BACK, tx - 13.0, tx + 13.0)
+        f = B.Face("-z", T_BACK - 0.02, tx - 13.0, tx + 13.0)
         B.back_ground(CO, f, r, K.STEEL)
         f.ledge(k("trim"), 0.0, f.width, SHOP_H, 0.25, 0.2, K.STEEL)
     # Yellow hatching at every dock, a centre line of dashes.
@@ -349,10 +347,12 @@ ACCENTS = ["cyan", "white", "amber", "cyan", "white", "amber", "cyan"]
 
 
 def forecourts():
+    """Each tower's forecourt, no two alike: what stands either side of the
+    way in, how it is guarded, how it is lit."""
     r = random.Random(7741)
     for i, tx in enumerate(TOWER_X):
         hue = ACCENTS[i]
-        room_tower = SLUGS[i] in ("philips-zero-touch",)
+        room_tower = i == 0
         # The canopy's soffit, lit in strips, and a line of light along its
         # front edge.
         quad(k("trim"), (tx - 13.0, 7.49, LOBBY_Z), (tx + 13.0, 7.49, LOBBY_Z), (tx + 13.0, 7.49, LOT_N), (tx - 13.0, 7.49, LOT_N), col=K.STEEL)
@@ -364,37 +364,98 @@ def forecourts():
         for sx in (-12.6, -4.2, 4.2, 12.6):
             box(k("metal"), tx + sx - 0.2, tx + sx + 0.2, G0, 7.5, LOT_N - 0.7, LOT_N - 0.3, scale=1.0)
         # Paving: a carpet of pale stone from the doors to the kerb, light
-        # lines either side of it, a striped band along the lot line.
+        # lines either side of it.
         K.paving_band(tx - 3.2, tx + 3.2, LOBBY_Z, LOT_N, K.PALE)
         K.paving_band(tx - 3.2, tx + 3.2, LOT_N, KERB_N - 0.02, K.STONE, y=G0 + 0.004)
         for sx in (-3.3, 3.3):
             K.light_strip_ground(tx + sx - 0.05, tx + sx + 0.05, LOBBY_Z + 0.2, LOT_N - 0.1, hue)
-        K.stripes(tx - 12.6, tx - 3.6, LOT_N - 0.75, LOT_N - 0.1, step=1.5, w=0.75, skew=0.5)
-        K.stripes(tx + 3.6, tx + 12.6, LOT_N - 0.75, LOT_N - 0.1, step=1.5, w=0.75, skew=-0.5)
-        # Planter beds either side of the way in, clipped hedges in them.
-        K.planter(tx - 12.2, tx - 5.0, -347.4, -346.0, lit=hue)
-        K.planter(tx + 5.0, tx + 12.2, -347.4, -346.0, lit=hue)
-        # Security: scanner arches before the doors, a guard either side,
-        # a booth on one flank, a camera pole on the other.
         if not room_tower:
-            for sx in (-2.0, 0.0, 2.0):
+            for sx in ((-2.0, 0.0, 2.0), (-1.2, 1.2), (-3.0, -1.0, 1.0, 3.0))[i % 3]:
                 gate(tx + sx, LOBBY_Z + 0.9, hue)
-            stand(tx - 3.6, LOBBY_Z + 1.0, 0.0, "idle")
-            stand(tx + 3.6, LOBBY_Z + 1.1, 0.0, "idle")
+            stand(tx - 3.9, LOBBY_Z + 1.0, 0.0, "idle")
+            stand(tx + 3.9, LOBBY_Z + 1.1, 0.0, "idle")
         side = -1 if i % 2 else 1
-        K.booth(tx + side * 10.6, -344.95, 0.0, r)
-        stand(tx + side * 9.0, -345.0, 0.0, "idle")
-        P.place("cctv", tx - side * 12.7, G0, -344.6, district=CO)
-        # Bollards along the kerb before the lobby, and a totem turned to
-        # the traffic on the pavement's middle strip.
-        K.bollards(tx - 11.0, tx + 11.0, KERB_N - 0.28, step=2.75, proto="bollard")
-        K.totem(tx - side * 9.5, PAVE_MID_N, math.radians(62 * side), r, colour=hue, sizes=("bx", "ps") if i % 3 else ("bm",))
-        # People: somebody on the phone by a planter, a pair talking, one
-        # sitting on a planter's edge.
-        stand(tx - side * 6.2, -345.1, math.radians(20 * side), "phone")
-        K.talk(tx + side * 5.6, -345.0, 0.4 * i)
-        if i % 2 == 0:
-            stand(tx - side * 8.0, -345.9, 0.0, "sit", G0 + 0.55)
+        K.bollards(tx - 11.0, tx + 11.0, KERB_N - 0.28, step=(2.75, 2.2, 3.1)[i % 3], proto="bollard")
+        if i == 0:
+            # The room's tower: open to the street; low hedges, a totem.
+            K.planter(tx - 12.2, tx - 9.0, -347.2, -345.6, lit=hue)
+            K.planter(tx + 9.0, tx + 12.2, -347.2, -345.6, lit=hue)
+            K.totem(tx - 9.5, PAVE_MID_N, math.radians(62), r, colour=hue, sizes=("bx", "ps"))
+            stand(tx + 8.2, -345.0, math.radians(-20), "phone")
+            K.talk(tx - 7.4, -344.9, 0.3)
+        elif i == 1:
+            # A booth, hedged beds, two tube lamps.
+            K.stripes(tx - 12.6, tx - 3.6, LOT_N - 0.75, LOT_N - 0.1, step=1.5, w=0.75, skew=0.5)
+            K.planter(tx - 12.2, tx - 5.0, -347.4, -346.0, lit=hue)
+            K.planter(tx + 5.0, tx + 8.0, -347.4, -346.0, lit=hue)
+            K.booth(tx + 10.6, -345.4, 0.0, r, "white")
+            stand(tx + 9.0, -344.9, 0.0, "idle")
+            for sx in (-11.6, 4.4):
+                K.tube_post(tx + sx, -344.9, 0.0, "white", h=6.0, arm=1.2)
+            K.totem(tx - 8.5, PAVE_MID_N, math.radians(-62), r, colour=hue, sizes=("bm",))
+            stand(tx - 6.2, -345.1, math.radians(20), "phone")
+        elif i == 2:
+            # The server hall's tower: plant at street level too: a row of
+            # cube bollards, a service terminal, red lines in the paving.
+            K.bollards(tx - 12.0, tx - 4.0, -345.0, step=2.0)
+            K.bollards(tx + 4.0, tx + 12.0, -345.0, step=2.0)
+            for sx in (-8.0, 8.0):
+                K.light_strip_ground(tx + sx - 3.6, tx + sx + 3.6, -346.3, -346.2, "red")
+            K.kiosk(tx + 10.4, -346.8, 0.0, "amber", w=2.4, d=1.0, h=2.2)
+            K.booth(tx - 10.6, -346.6, 0.0, r, "amber")
+            stand(tx - 8.9, -346.2, 0.0, "idle")
+            K.totem(tx + 9.5, PAVE_MID_N, math.radians(62), r, colour="red", sizes=("bx", "bx"))
+            K.talk(tx + 6.2, -345.4, 1.1)
+        elif i == 3:
+            # The tallest: a screen on a plinth turned to the street, four
+            # light masts in a row, long low beds.
+            K.screen(tx - 9.6, 3.9, -345.6, 2.6, 4.2, math.radians(18), r, depth=0.3, back=True, pal=K.COLD)
+            solid(tx - 11.0, tx - 8.2, G0, 1.6, -346.2, -345.0, K.BLACK)
+            for sx in (4.6, 7.2, 9.8, 12.4):
+                K.tube_post(tx + sx, -345.0, math.pi / 2, "cyan", h=6.6, arm=0.5)
+            K.planter(tx + 4.2, tx + 12.4, -347.6, -346.6, lit=hue)
+            K.stripes(tx - 7.6, tx - 3.6, LOT_N - 0.75, LOT_N - 0.1, step=1.5, w=0.75, skew=0.5)
+            stand(tx + 6.0, -345.6, 0.0, "phone")
+            K.talk(tx - 6.0, -345.2, 0.5, 3)
+            K.totem(tx + 9.5, PAVE_MID_N, math.radians(-62), r, colour=hue, sizes=("ps", "ps"))
+        elif i == 4:
+            # Trees in stone planters under the canopy, benches, people.
+            for sx in (-10.4, -6.0, 6.0, 10.4):
+                P.place("planter_tree", tx + sx, G0, -346.3, district=CO)
+            for sx, yaw in ((-8.2, 0.0), (8.2, 0.0)):
+                P.place("bench", tx + sx, G0, -345.0, yaw, district=CO)
+            stand(tx - 8.2, -345.0, 0.0, "sit", G0 + 0.45)
+            stand(tx + 8.6, -345.0, 0.0, "sit", G0 + 0.45)
+            stand(tx + 7.6, -345.0, 0.0, "sit", G0 + 0.45)
+            K.talk(tx - 5.0, -345.2, 0.2)
+            P.place("cctv", tx + 12.7, G0, -344.6, district=CO)
+            K.ad_panel(tx - 9.0, PAVE_MID_N, math.radians(90), r, pal=K.COLD)
+        elif i == 5:
+            # Barriers and a booth: a checked way in, hazard stripes.
+            K.stripes(tx - 12.6, tx + 12.6, LOT_N - 0.75, LOT_N - 0.1, step=1.5, w=0.75, skew=0.5)
+            for sx in (-7.0, -4.4, 4.4, 7.0):
+                P.place("barrier", tx + sx, G0, -345.6, district=CO)
+            K.booth(tx - 10.8, -346.4, 0.0, r, "amber")
+            K.booth(tx + 10.8, -346.4, 0.0, r, "amber")
+            stand(tx - 9.2, -345.6, 0.0, "idle")
+            stand(tx + 9.2, -345.7, 0.0, "idle")
+            K.totem(tx - 9.5, PAVE_MID_N, math.radians(62), r, colour=hue, sizes=("bx", "ps"))
+            stand(tx + 5.6, -344.9, math.radians(200), "phone")
+        else:
+            # A pool of light in the paving, stacked stone blocks in it,
+            # hedged beds, a totem.
+            quad(k("glow"), (tx + 5.0, G0 + 0.012, -344.6), (tx + 12.0, G0 + 0.012, -344.6), (tx + 12.0, G0 + 0.012, -347.6), (tx + 5.0, G0 + 0.012, -347.6),
+                 col=tuple(c * 0.12 for c in GLOW["cyan"][:3]) + (1,))
+            for j, (bx_, bz_, sz_, yw) in enumerate(((tx + 8.5, -346.1, 1.5, 0.3), (tx + 8.3, -346.0, 1.1, 0.9), (tx + 8.6, -346.2, 0.8, 0.1))):
+                oriented_box(k("trim"), bx_, G0 + sum((1.5, 1.1, 0.8)[:j]) + sz_ / 2, bz_, sz_, sz_, sz_, yw, scale=1.0, col=K.BLACK if j != 1 else K.PALE)
+            K.planter(tx - 12.2, tx - 5.0, -347.4, -346.0, lit=hue)
+            K.booth(tx - 10.6, -344.95, 0.0, r, "white")
+            stand(tx - 9.0, -344.8, 0.0, "idle")
+            K.totem(tx + 9.5, PAVE_MID_N, math.radians(-62), r, colour=hue, sizes=("bm",))
+            K.talk(tx + 3.6, -345.2, 0.9)
+            stand(tx + 10.6, -345.0, math.radians(160), "phone")
+        if i not in (4,):
+            P.place("cctv", tx - side * 12.7, G0, -344.6, district=CO)
 
 
 def gate(x, z, hue):
@@ -530,11 +591,11 @@ def link(gx, z0, h, r, lit=(0.7, 1.0), hue="cyan", front_kind="glass"):
     """A low glass link across the back of a gap, from z0 to the towers'
     backs: a terrace on its roof with a lit rail."""
     x0, x1 = gx - 6.0, gx + 6.0
-    solid(x0, x1, 0.0, 0.5, T_BACK, z0, K.STONE)
+    solid(x0, x1, 0.0, 0.5, T_BACK + 0.02, z0, K.STONE)
     quad(k("corporate"), (x0, 0.5, z0), (x1, 0.5, z0), (x1, h, z0), (x0, h, z0), ((0, 0), (12, 0), (12, h), (0, h)), K.glass_col(r, lit=lit))
-    f = B.Face("-z", T_BACK, x0, x1)
+    f = B.Face("-z", T_BACK - 0.02, x0, x1)
     B.back_ground(CO, f, r, K.STONE)
-    quad(k("trim"), (x1, SHOP_H, T_BACK), (x0, SHOP_H, T_BACK), (x0, h, T_BACK), (x1, h, T_BACK), col=K.STONE)
+    quad(k("trim"), (x1, SHOP_H, T_BACK - 0.02), (x0, SHOP_H, T_BACK - 0.02), (x0, h, T_BACK - 0.02), (x1, h, T_BACK - 0.02), col=K.STONE)
     solid(x0, x1, h, h + 0.35, T_BACK, z0 + 0.0, K.BLACK)
     K.neon_box(x0, x1, h + 0.05, h + 0.15, z0, z0 + 0.05, hue)
     K.rail(x0 + 0.1, z0 - 0.15, x1 - 0.1, z0 - 0.15, h + 0.35, hue, glow=True)
@@ -602,13 +663,13 @@ def gaps():
          ((0, 0), (12, 0), (12, 6), (0, 6)), K.glass_col(r, lit=(0.6, 0.9)))
     for sx in (-1, 1):
         xa, xb = sorted((gx + sx * 5.2, gx + sx * 6.0))
-        solid(xa, xb, 0.0, 4.9, T_BACK, -360.0, K.STONE)
+        solid(xa, xb, 0.0, 4.9, T_BACK + 0.02, -360.0, K.STONE)
     quad(k("door_panel"), (gx - 5.2, G0, -361.5), (gx + 5.2, G0, -361.5), (gx + 5.2, 4.9, -361.5), (gx - 5.2, 4.9, -361.5),
          ((0, 0), (5, 0), (5, 2.4), (0, 2.4)))
     box(k("hazard", 1), gx - 5.2, gx + 5.2, 4.5, 4.9, -360.1, -360.0, scale=1.0)
     K.neon_box(gx - 5.0, gx + 5.0, 4.3, 4.4, -360.2, -360.1, "amber")
-    B.back_ground(CO, B.Face("-z", T_BACK, gx - 6.0, gx + 6.0), r, K.STONE)
-    quad(k("trim"), (gx + 6.0, SHOP_H, T_BACK), (gx - 6.0, SHOP_H, T_BACK), (gx - 6.0, link_h, T_BACK), (gx + 6.0, link_h, T_BACK), col=K.STONE)
+    B.back_ground(CO, B.Face("-z", T_BACK - 0.02, gx - 6.0, gx + 6.0), r, K.STONE)
+    quad(k("trim"), (gx + 6.0, SHOP_H, T_BACK - 0.02), (gx - 6.0, SHOP_H, T_BACK - 0.02), (gx - 6.0, link_h, T_BACK - 0.02), (gx + 6.0, link_h, T_BACK - 0.02), col=K.STONE)
     B.ROOFS.append((CO, gx - 6.0, gx + 6.0, T_BACK, -360.0, link_h))
     K.parapet(gx - 6.0, gx + 6.0, T_BACK, -360.0, link_h, col=K.STONE, h=0.6, edge="amber")
     # The bar over the way in.
@@ -719,14 +780,14 @@ def gaps():
         light(CO, gx, 4.4, zz, "white", 5.0)
     K.neon_box(gx - 6.0, gx + 6.0, 5.3, 5.42, -347.6, -347.55, "amber")
     K.stripes(gx - 5.6, gx + 5.6, -357.6, -348.0, step=2.0, w=1.0, along="z", skew=-1.0)
-    solid(gx - 6.0, gx + 6.0, 0.0, 9.6, T_BACK, -362.0, K.STONE)
+    solid(gx - 6.0, gx + 6.0, 0.0, 9.6, T_BACK + 0.02, -362.0, K.STONE)
     quad(k("corporate"), (gx - 6.0, 5.2, -361.97), (gx + 6.0, 5.2, -361.97), (gx + 6.0, 9.2, -361.97), (gx - 6.0, 9.2, -361.97),
          ((0, 0), (12, 0), (12, 4), (0, 4)), K.glass_col(r, lit=(0.8, 1.0), warm=(0.7, 1.0)))
     box(k("trim"), gx - 2.6, gx + 2.6, 0.0, 4.2, -362.0, -361.7, scale=1.0, col=K.BLACK)
     K.panel(gx, 2.0, -361.68, 4.4, 3.6, 0.0, "amber", 0.9, glow=False)
     box(k("trim", 1), gx - 0.05, gx + 0.05, G0, 3.8, -361.68, -361.6, scale=1.0, col=K.BLACK)
-    B.back_ground(CO, B.Face("-z", T_BACK, gx - 6.0, gx + 6.0), r, K.STONE)
-    quad(k("trim"), (gx + 6.0, SHOP_H, T_BACK), (gx - 6.0, SHOP_H, T_BACK), (gx - 6.0, 9.6, T_BACK), (gx + 6.0, 9.6, T_BACK), col=K.STONE)
+    B.back_ground(CO, B.Face("-z", T_BACK - 0.02, gx - 6.0, gx + 6.0), r, K.STONE)
+    quad(k("trim"), (gx + 6.0, SHOP_H, T_BACK - 0.02), (gx - 6.0, SHOP_H, T_BACK - 0.02), (gx - 6.0, 9.6, T_BACK - 0.02), (gx + 6.0, 9.6, T_BACK - 0.02), col=K.STONE)
     B.ROOFS.append((CO, gx - 6.0, gx + 6.0, T_BACK, -362.0, 9.6))
     K.parapet(gx - 6.0, gx + 6.0, T_BACK, -362.0, 9.6, col=K.STONE, h=0.6, edge="cyan")
     stand(gx - 3.4, -361.0, 0.0, "idle")
@@ -772,39 +833,39 @@ def median():
 
 
 def gantry(gx):
-    """A gantry over the boulevard (mH2wmyeiIpA@182): legs on the
-    pavements, between the walkers' lines, a deep beam, a strip of red
-    light under each face, a lit box over every lane, a row of cyan windows
-    in the housing on top, lamps and masts on it."""
-    zn, zs = PAVE_MID_N, -318.7
+    """A gantry over the boulevard (mH2wmyeiIpA@182): slim legs at the two
+    kerbs, clear of the walkers' lines, a deep beam, a strip of red light
+    under each face, a lit box over every lane, a row of cyan windows in the
+    housing on top, lamps and masts on it."""
+    zn, zs = KERB_N - 0.2, -320.5
     y0, y1 = 7.6, 9.9
     for z in (zn, zs):
-        box(k("trim"), gx - 0.42, gx + 0.42, G0, y0 + 0.3, z - 0.42, z + 0.42, scale=1.5, col=K.BLACK)
-        box(k("trim", 1), gx - 0.5, gx + 0.5, G0, G0 + 1.0, z - 0.5, z + 0.5, scale=1.0, col=K.YELLOW)
-        box(k("trim", 1), gx - 0.52, gx + 0.52, G0 + 0.3, G0 + 0.6, z - 0.52, z + 0.52, scale=1.0, col=K.BLACK)
         s = 1 if z == zn else -1
-        K.glow_box(gx - 0.05, gx + 0.05, G0 + 1.4, y0, z + s * 0.42, z + s * 0.44, "white")
+        box(k("trim"), gx - 0.3, gx + 0.3, G0, y0 + 0.3, z - 0.15, z + 0.15, scale=1.5, col=K.BLACK)
+        box(k("trim", 1), gx - 0.34, gx + 0.34, G0 + 0.2, G0 + 0.9, z - 0.17, z + 0.17, scale=1.0, col=K.YELLOW)
+        K.glow_box(gx - 0.05, gx + 0.05, G0 + 1.4, y0, z + s * 0.15, z + s * 0.17, "white")
         # A knee brace up to the beam.
-        pipe(k("metal"), (gx, 5.2, z + s * 0.4), (gx, y0 + 0.2, z + s * 3.2), 0.13, segs=5)
-    box(k("trim"), gx - 0.95, gx + 0.95, y0, y1, zn - 0.6, zs + 0.6, scale=2.0, col=K.BLACK, bottom=True)
-    box(k("trim"), gx - 0.6, gx + 0.6, y1, y1 + 1.2, zn + 3.0, zs - 3.0, scale=2.0, col=K.STEEL)
+        pipe(k("metal"), (gx, 5.4, z + s * 0.15), (gx, y0 + 0.2, z + s * 2.6), 0.11, segs=5)
+    box(k("trim"), gx - 0.95, gx + 0.95, y0, y1, zn - 0.5, zs + 0.5, scale=2.0, col=K.BLACK, bottom=True)
+    box(k("trim"), gx - 0.6, gx + 0.6, y1, y1 + 1.2, zn + 2.2, zs - 2.2, scale=2.0, col=K.STEEL)
     for f in (-1, 1):
         xa, xb = sorted((gx + f * 0.95, gx + f * 1.0))
-        K.neon_box(xa, xb, y0 + 0.02, y0 + 0.2, zn - 0.4, zs + 0.4, "red")
+        K.neon_box(xa, xb, y0 + 0.02, y0 + 0.2, zn - 0.3, zs + 0.3, "red")
         for j, z in enumerate((-336.75, -332.25, -327.75, -323.25)):
             hue = ("amber", "blue", "blue", "amber")[j] if f < 0 else ("blue", "amber", "amber", "blue")[j]
             K.glow_box(xa - 0.04 * (f < 0), xb + 0.04 * (f > 0), y0 + 0.5, y1 - 0.35, z - 1.1, z + 1.1, hue)
             light(CO, gx + f * 2.5, 6.0, z, hue, 5.0)
         xc, xd = sorted((gx + f * 0.6, gx + f * 0.64))
-        K.glow_box(xc, xd, y1 + 0.35, y1 + 0.85, zn + 3.4, zs - 3.4, "cyan")
-        z = zn + 3.4
-        while z < zs - 3.4:
+        K.glow_box(xc, xd, y1 + 0.35, y1 + 0.85, zn + 2.6, zs - 2.6, "cyan")
+        z = zn + 2.6
+        while z < zs - 2.6:
             box(k("trim", 1), *sorted((gx + f * 0.64, gx + f * 0.67)), y1 + 0.3, y1 + 0.9, z - 0.08, z + 0.08, scale=1.0, col=K.BLACK)
             z += 1.3
-    # Street signs hung from its feet, turned to the pavement.
-    for z, yaw in ((zn, math.radians(90)), (zs, math.radians(-90))):
-        K.st_board(gx + (0.5 if yaw > 0 else -0.5), 4.6, z, "pm", yaw)
-        K.st_board(gx - (0.5 if yaw > 0 else -0.5), 4.6, z, "pm", yaw + math.pi)
+    # Street signs hung under its ends, over the pavements, askew.
+    for z, lean in ((zn - 1.9, 6), (zs + 1.9, -8)):
+        K.st_blade(gx, y0 - 0.62, z, "pm", math.radians(90 + lean))
+        for dz in (-1.0, 1.0):
+            box(k("metal", 1), gx - 0.03, gx + 0.03, y0 - 0.1, y0, z + dz - 0.03, z + dz + 0.03, scale=0.5)
     for z in (zn + 2.0, zs - 2.0):
         cylinder(k("metal", 1), gx, z, y1, y1 + 2.6, 0.05, segs=4, cap=False)
         K.aviation(gx, y1 + 2.6, z)
