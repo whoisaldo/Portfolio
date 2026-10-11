@@ -307,6 +307,20 @@
    }
   },
   {
+   "name": "anchor_lights_deck",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "deck"
+   }
+  },
+  {
    "name": "anchor_lights_japantown",
    "kind": "anchor",
    "at": [
@@ -486,6 +500,17 @@
    "district": "avenue"
   },
   {
+   "name": "anchor_people",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
    "name": "anchor_rail",
    "kind": "anchor",
    "at": [
@@ -516,6 +541,39 @@
      30.0
     ]
    }
+  },
+  {
+   "name": "anchor_steam_deck_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_deck_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_deck_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
   },
   {
    "name": "anchor_steam_lane_0",
