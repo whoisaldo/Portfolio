@@ -363,6 +363,19 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         float lit = vLook.a;
         vec3 col;
         float glow = 0.0;
+        #ifdef VAN
+        // The van's flanks and back: a row of cabin windows between pillars,
+        // the rear doors' two lights and their split, a rubbing strip.
+        if (k == 0) {
+          float side = step(0.7, abs(n.x));
+          float back = step(n.z, -0.7);
+          float pil = step(0.05, abs(fract((vLocal.z + 2.35) / 0.95) - 0.5) * 0.95);
+          float win = side * step(1.22, vLocal.y) * step(vLocal.y, 1.84) * step(-2.3, vLocal.z) * step(vLocal.z, 0.5) * pil;
+          win = max(win, back * step(1.18, vLocal.y) * step(vLocal.y, 1.9) * step(abs(vLocal.x), 0.82) * step(0.04, abs(vLocal.x)));
+          if (win > 0.5) k = 2;
+          else if (side * step(abs(vLocal.y - 0.55), 0.045) > 0.5) k = 1;
+        }
+        #endif
         // Grounded: darker toward the sills and into the arches, the roof
         // and the hood lifted by the glow overhead.
         float ao = 0.35 + 0.65 * smoothstep(0.12, 1.1, vWorld.y);
@@ -372,6 +385,15 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         // NCPD: black, the doors white between the sills and the waist.
         body = mix(vec3(0.02), vec3(0.62, 0.64, 0.66), step(0.3, vLocal.y) * step(vLocal.y, 0.68) * step(abs(vLocal.z), 1.25));
         #endif
+        // Panel seams: the door cuts and the waist's crease, thin dark lines
+        // that keep a flank from reading as one smooth shell.
+        if (k == 0) {
+          float zs = min(abs(vLocal.z - 0.3), abs(vLocal.z + 0.85));
+          float aa = fwidth(vLocal.z) + fwidth(vLocal.y);
+          float seam = (1.0 - smoothstep(0.008, 0.008 + aa, zs)) * step(0.25, vLocal.y) * step(vLocal.y, 1.05) * step(0.7, abs(n.x));
+          seam = max(seam, (1.0 - smoothstep(0.006, 0.006 + aa, abs(vLocal.y - 0.8))) * 0.6 * step(0.7, abs(n.x)));
+          body *= 1.0 - 0.75 * seam;
+        }
         if (k == 0) col = body * (0.03 + spill * 0.6 * (0.5 + 0.5 * sky) + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.25 + uGlowColor * 0.15) * sky * uHaze) * ao + env * (0.06 + 0.94 * F) * 0.7 * (0.55 + 0.45 * ao);
         else if (k == 1) col = vec3(0.008, 0.009, 0.011) + spill * 0.08 + env * F * 0.3;
         else if (k == 2) col = vec3(0.003, 0.005, 0.009) + env * (0.06 + 0.94 * F);
@@ -527,6 +549,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // stop the clock).
   const policeMat = new THREE.ShaderMaterial({ uniforms: carMat.uniforms, vertexShader: carMat.vertexShader, fragmentShader: carMat.fragmentShader, defines: { POLICE: "" } });
   policeMat.name = "traffic_police";
+  const vanMat = new THREE.ShaderMaterial({ uniforms: carMat.uniforms, vertexShader: carMat.vertexShader, fragmentShader: carMat.fragmentShader, defines: { VAN: "" } });
+  vanMat.name = "traffic_van";
   const color = new THREE.Color();
   const kinds = [...CAR_KINDS, "police"].map((kind, k) => {
     const built = carGeometry(kind);
@@ -536,7 +560,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     const fade = new THREE.InstancedBufferAttribute(new Float32Array(n).fill(1), 1).setUsage(THREE.DynamicDrawUsage);
     built.geometry.setAttribute("aLook", look);
     built.geometry.setAttribute("aFade", fade);
-    const mesh = new THREE.InstancedMesh(built.geometry, kind === "police" ? policeMat : carMat, n);
+    const mesh = new THREE.InstancedMesh(built.geometry, kind === "police" ? policeMat : kind === "van" ? vanMat : carMat, n);
     mesh.name = `traffic_${kind}`;
     mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -973,6 +997,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       droneMesh.dispose();
       carMat.dispose();
       policeMat.dispose();
+      vanMat.dispose();
       avMat.dispose();
       quad.dispose();
       lampGeo.dispose();
