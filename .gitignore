@@ -54,3 +54,8 @@ stats-api/.vercel/
 
 # Supabase CLI cache: the linked project ref and org id.
 supabase/.temp/
+design/night-city-world/props-source.json
+design/night-city-world/road-graph.json
+design/night-city-world/collision.json
+design/night-city-world/districts.json
+__pycache__/
