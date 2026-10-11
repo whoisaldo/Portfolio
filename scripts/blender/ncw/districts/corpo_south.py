@@ -149,6 +149,10 @@ def south_side():
             stand(x1 - 6.0, PAVE_MID_S - 1.05, 0.0, "phone")
             P.place("bin", x0 + 4.0, G0, PAVE_MID_S, district=CO)
         P.place("cctv", x0 + 1.0, G0, KERB_S + 0.3, district=CO)
+        # A blade off the lot's corner, turned to the traffic, and a poster
+        # panel on the pavement.
+        K.st_blade(x1 - 0.6, 6.4 + (j % 3) * 0.9, z0 - 1.0, ("bl", "bm", "bl")[j % 3], math.radians(90 + (22 if j % 2 else -18)), bracket=(x1 - 0.6, z0))
+        K.ad_panel(x0 + 12.0 + (j % 2) * 9.0, PAVE_MID_S, math.radians(-100 if j % 2 else -78), r, pal=K.COLD if j % 2 else None)
         # Security at each door, and somebody coming or going.
         stand(cx - 2.6, z0 - 0.75, math.pi, "idle")
         if j % 3 != 1:
@@ -239,6 +243,7 @@ def campus():
         zs = campus_block(i, x0, x1, r)
         cx = (x0 + x1) / 2
         a, b = zs + 2.0, z1 - 2.0          # the open roof, under the dolly
+        K.roof_lights(x0, x1, zs, z1, y, ("amber", "cyan")[i % 2], step=6.5)
         if i == 0:
             # A garden: hedged beds, trees, benches, a lit path.
             K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.006)
@@ -278,6 +283,7 @@ def campus():
             for ix in range(3):
                 K.cooler(x0 + 7.0 + ix * 9.0, b - 5.0, y, r=1.8, h=2.6)
             K.rail(x0 + 2.0, a + 13.6, x1 - 2.0, a + 13.6, y, "amber", glow=True)
+            K.steam("campus", x0 + 16.0, y + 2.8, b - 5.0, roof=True)
             stand(x0 + 12.0, a + 14.4, 0.0, "idle", y)
         elif i == 4:
             # A terrace bar's garden: trees, benches, low lamps, people.
@@ -321,6 +327,7 @@ def campus():
             P.place("lamp_short", x, G0, mz + 2.2, district=CO)
             x += 28.0
         K.light_strip_ground(X0 + 1.0, X1 - 1.0, mz - 0.04, mz + 0.04, "cyan" if hue == "white" else "amber")
+    K.steam("mews", 229.0, G0 + 0.1, MEWS_B[0] + 3.0)
     for x, pose in ((150.0, "smoke"), (190.0, "phone"), (232.0, "idle"), (270.0, "smoke"), (310.0, "lean"), (352.0, "phone")):
         stand(x, MEWS_A[0] + 0.7, 0.0, pose)
         stand(x + 11.0, MEWS_B[1] - 0.7, math.pi, "smoke" if pose != "smoke" else "squat")

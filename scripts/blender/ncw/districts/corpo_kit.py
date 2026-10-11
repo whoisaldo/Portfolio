@@ -337,11 +337,12 @@ def booth(x, z, yaw, r, hue="white"):
     oriented_box(k("trim"), x, G0 + 1.75, z, 1.96, 1.3, 1.56, yaw, scale=1.0, col=BLACK)
     nx, nz = math.sin(yaw), math.cos(yaw)
     rx, rz = math.cos(yaw), -math.sin(yaw)
-    c = GLOW[hue]
-    dim = (c[0] * 0.14, c[1] * 0.14, c[2] * 0.14, 1.0)
+    c = GLOW["cyan"]
     for ang, off, w in ((yaw, 0.79, 1.6), (yaw + math.pi, 0.79, 1.6), (yaw + math.pi / 2, 0.99, 1.2), (yaw - math.pi / 2, 0.99, 1.2)):
         ax, az = math.sin(ang), math.cos(ang)
-        rotated_quad(k("glow"), x + ax * off, G0 + 1.8, z + az * off, w, 0.8, ang, col=dim)
+        rotated_quad(k("glass_dark"), x + ax * off, G0 + 1.8, z + az * off, w, 0.8, ang)
+        # A monitor's glow low in the window.
+        rotated_quad(k("glow", 1), x + ax * (off + 0.01), G0 + 1.58, z + az * (off + 0.01), w * 0.34, 0.26, ang, col=(c[0] * 0.5, c[1] * 0.5, c[2] * 0.5, 1.0))
     for sx in (-1, 1):
         for sz in (-1, 1):
             oriented_box(k("metal", 1), x + rx * sx * 0.97 + nx * sz * 0.77, G0 + 1.75, z + rz * sx * 0.97 + nz * sz * 0.77, 0.1, 1.3, 0.1, yaw, scale=0.5)
@@ -407,10 +408,15 @@ def pad(cx, cz, y, r=7.0, colour="green"):
             quad(k("trim", 1), p[1], p[0], p[3], p[2], col=col)
     for ang in (0.0, math.pi / 2):
         oriented_box(k("trim", 1), cx, y + 0.27, cz, r * 0.8, 0.02, 0.3, ang, scale=1.0, col=YELLOW)
-    for i in range(12):
-        a = i * math.tau / 12
-        glow_box(cx + math.cos(a) * (r - 0.3) - 0.12, cx + math.cos(a) * (r - 0.3) + 0.12, y + 0.25, y + 0.37,
-                 cz + math.sin(a) * (r - 0.3) - 0.12, cz + math.sin(a) * (r - 0.3) + 0.12, colour)
+    for i in range(16):
+        a = i * math.tau / 16
+        glow_box(cx + math.cos(a) * (r - 0.3) - 0.18, cx + math.cos(a) * (r - 0.3) + 0.18, y + 0.25, y + 0.42,
+                 cz + math.sin(a) * (r - 0.3) - 0.18, cz + math.sin(a) * (r - 0.3) + 0.18, colour)
+        if i % 4 == 0:
+            light(CO, cx + math.cos(a) * (r - 1.5), y + 1.0, cz + math.sin(a) * (r - 1.5), colour, 3.0)
+    c = GLOW["white"]
+    for ang in (math.pi / 4, 3 * math.pi / 4):
+        oriented_box(k("glow"), cx, y + 0.28, cz, r * 0.5, 0.02, 0.12, ang, scale=1.0, col=(c[0] * 0.35, c[1] * 0.35, c[2] * 0.35, 1.0))
 
 
 def skylight(x0, x1, z0, z1, y, rise=1.6, colour="white", nx=4, nz=3):
@@ -809,6 +815,73 @@ def roof_plant(x0, x1, z0, z1, y, r, cap=5.0, density=1.0, lamps=True, tall=True
             P.place("antenna", px, y, pz, r.uniform(0, 3.14), sy=min(cap, 4.5 + r.random() * 2.5) / 6.0, district=CO)
     for a, b in zip(used, used[1:]):
         duct_run([(a[0], y + 0.5, a[1]), (b[0], y + 0.5, a[1]), (b[0], y + 0.5, b[1])], r=0.28)
+    # Rooflights on a plot nothing stands on, and lamps along the walkway.
+    spare = plots[max(2, int(len(plots) * 0.7 * density)):]
+    for px, pz, pw, pd in spare[:2]:
+        if min(pw, pd) > 3.0:
+            roof_windows(px - pw * 0.34, px + pw * 0.34, pz - pd * 0.3, pz + pd * 0.3, y, n=2, colour=r.choice(("white", "amber", "cyan")))
+    if plots:
+        light(CO, plots[0][0], y + 2.0, plots[0][1], "amber", 3.0)
     if lamps:
         for cx, cz in ((x0 + 0.2, z0 + 0.2), (x0 + 0.2, z1 - 0.2), (x1 - 0.2, z0 + 0.2), (x1 - 0.2, z1 - 0.2)):
             aviation(cx, y + 1.0, cz)
+
+
+# ---------------------------------------------------------------------------
+# Roofs at night, from the air: what reads is light.
+# ---------------------------------------------------------------------------
+def roof_lights(x0, x1, z0, z1, y, colour="amber", step=6.0, inset=1.0, pool=2.0):
+    """Marker lamps round a roof's walkway, each a small pool of light."""
+    pts = []
+    x = x0 + inset
+    while x <= x1 - inset + 1e-6:
+        pts += [(x, z0 + inset), (x, z1 - inset)]
+        x += step
+    z = z0 + inset + step
+    while z <= z1 - inset - step + 1e-6:
+        pts += [(x0 + inset, z), (x1 - inset, z)]
+        z += step
+    for i, (px, pz) in enumerate(pts):
+        glow_box(px - 0.1, px + 0.1, y, y + 0.34, pz - 0.1, pz + 0.1, colour, 1)
+        if i % 2 == 0:
+            light(CO, px, y + 0.5, pz, colour, pool)
+
+
+def roof_windows(x0, x1, z0, z1, y, n=3, colour="white", dim=0.22):
+    """Strip rooflights in a row: glass lit from the floor under, in dark
+    kerbs. From the air a roof with people under it."""
+    c = GLOW[colour]
+    col = (c[0] * dim, c[1] * dim, c[2] * dim, 1.0)
+    along_x = x1 - x0 >= z1 - z0
+    for i in range(n):
+        if along_x:
+            a = z0 + (z1 - z0) * (i + 0.2) / n
+            b = z0 + (z1 - z0) * (i + 0.8) / n
+            ax0, ax1, az0, az1 = x0, x1, a, b
+        else:
+            a = x0 + (x1 - x0) * (i + 0.2) / n
+            b = x0 + (x1 - x0) * (i + 0.8) / n
+            ax0, ax1, az0, az1 = a, b, z0, z1
+        solid(ax0 - 0.15, ax1 + 0.15, y, y + 0.3, az0 - 0.15, az1 + 0.15, BLACK)
+        quad(k("glow"), (ax0, y + 0.31, az1), (ax1, y + 0.31, az1), (ax1, y + 0.31, az0), (ax0, y + 0.31, az0), col=col)
+        light(CO, (ax0 + ax1) / 2, y + 1.0, (az0 + az1) / 2, colour, 2.5)
+
+
+def steam(name, x, y, z, roof=False):
+    """A vent that breathes steam (src/world/steam.js draws one for every
+    empty of this name; the roof kind rises higher)."""
+    empty(f"anchor_steam_{'roof_' if roof else ''}corpo_{name}", (x, y, z))
+
+
+def tubes_over(a, b, z0, z1, y, hue, step=9.0, along="z", power=3.0):
+    """Tubes of light slung across a lane (a, b its two walls) every `step`
+    metres from z0 to z1 (or along x, swapped)."""
+    v = z0
+    while v <= z1 + 1e-6:
+        if along == "z":
+            neon_box(a + 0.2, b - 0.2, y, y + 0.08, v - 0.04, v + 0.04, hue, 1)
+            light(CO, (a + b) / 2, y - 0.8, v, hue, power)
+        else:
+            neon_box(v - 0.04, v + 0.04, y, y + 0.08, a + 0.2, b - 0.2, hue, 1)
+            light(CO, v, y - 0.8, (a + b) / 2, hue, power)
+        v += step

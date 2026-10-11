@@ -190,6 +190,8 @@ def back_row():
             K.cooler(273.5 + i * 6.4, BACK0 + 7.0 + j * 9.5, 15.6, r=1.9, h=3.6)
     K.duct_run([(271.0, 16.3, BACK0 + 3.0), (296.0, 16.3, BACK0 + 3.0)], r=0.4)
     K.duct_run([(271.0, 16.3, BACK1 - 3.2), (296.0, 16.3, BACK1 - 3.2)], r=0.4)
+    K.steam("plant", 286.3, 19.3, BACK0 + 16.5, roof=True)
+    K.roof_lights(268.0, 298.0, BACK0, BACK1, 15.6, "amber", step=7.5)
     # 5: stacked and shifted boxes.
     K.corp_block(304.0, 338.0, BACK0, BACK1, 70.0, 7726, skin="glass",
                  tiers=((0.4, (0.0, 4.0, 0.0, 2.0)), (0.72, (5.0, 0.0, 3.0, 0.0)), (1.0, (2.0, 6.0, 0.0, 5.0))),
@@ -221,18 +223,64 @@ def back_row():
 # ---------------------------------------------------------------------------
 # The lane behind the towers and the track over it.
 # ---------------------------------------------------------------------------
+TOWER_H = [128.0, 112.0, 104.0, 146.0, 98.0, 108.0, 124.0]
+TOWER_STEP1 = [0.58, 0.66, 1.0, 0.5, 1.0, 0.7, 0.62]      # where each tower's first section ends
+
+
 def lane():
+    """The lane behind the towers: their backs' doors and docks, a service
+    spine up each tower's back with a line of light on it, tubes slung
+    across under the track, hatched loading bays, crates and drums by the
+    piers, two vents breathing steam, people on a break."""
     r = random.Random(7731)
-    for tx in TOWER_X:
+    for i, tx in enumerate(TOWER_X):
         f = B.Face("-z", T_BACK - 0.02, tx - 13.0, tx + 13.0)
         B.back_ground(CO, f, r, K.STEEL)
         f.ledge(k("trim"), 0.0, f.width, SHOP_H, 0.25, 0.2, K.STEEL)
-    # Yellow hatching at every dock, a centre line of dashes.
+        top1 = TOWER_H[i] * TOWER_STEP1[i] - (2.0 if TOWER_STEP1[i] < 1.0 else 6.0)
+        box(k("trim"), tx - 2.2, tx + 2.2, 8.0, top1, T_BACK - 0.7, T_BACK, scale=2.0, col=K.BLACK)
+        K.glow_box(tx - 0.16, tx + 0.16, 9.0, top1 - 1.0, T_BACK - 0.74, T_BACK - 0.7, ACCENTS[i])
+        for sx in (-1, 1):
+            K.glow_box(tx + sx * 2.2 - 0.04, tx + sx * 2.2 + 0.04, 9.0, top1 - 1.0, T_BACK - 0.5, T_BACK - 0.4, "white", 1)
+        y = 30.0
+        while y < top1 - 4.0:
+            K.aviation(tx, y, T_BACK - 0.9)
+            for sx in (-1, 1):
+                xa, xb = sorted((tx + sx * 3.2, tx + sx * 10.6))
+                box(k("dark", 1), xa, xb, y - 1.5, y + 1.5, T_BACK - 0.1, T_BACK, scale=1.0)
+            y += 26.0
+        K.stripes(tx - 5.0, tx + 5.0, T_BACK - 3.4, T_BACK - 0.5, step=1.6, w=0.8, skew=0.8)
+        if i % 2 == 0:
+            stand(tx + 6.5, T_BACK - 0.8, math.pi, "smoke")
+            stand(tx + 7.4, T_BACK - 1.1, math.radians(140), "squat" if i % 4 == 0 else "idle")
+        else:
+            K.talk(tx - 7.0, T_BACK - 1.6, 0.4 * i, 2)
+    # A centre line of dashes down the lane.
     x = WEST_X + 4.0
     while x < EAST_X - 4.0:
         quad(k("trim", 1), (x, G0 + 0.008, TRACK_Z + 0.08), (x + 2.4, G0 + 0.008, TRACK_Z + 0.08), (x + 2.4, G0 + 0.008, TRACK_Z - 0.08),
              (x, G0 + 0.008, TRACK_Z - 0.08), col=K.PALE)
         x += 5.2
+    # Tubes under the track between the piers, by turns cyan and amber.
+    for j, x in enumerate([159.5 + 19.0 * n for n in range(14)]):
+        if 232.0 < x < 260.0:
+            continue
+        hue = ("cyan", "amber")[j % 2]
+        K.neon_box(x - 0.04, x + 0.04, 6.4, 6.48, LANE0 + 0.3, LANE1 - 0.3, hue, 1)
+        light(CO, x, 5.4, TRACK_Z - 2.5, hue, 3.5)
+        light(CO, x, 5.4, TRACK_Z + 2.5, hue, 3.5)
+    # What stands by the piers.
+    for j, px in enumerate(range(150, 430, 19)):
+        if 236 < px < 256:
+            continue
+        kind = ("crates", "drum", "dumpster", "bags")[j % 4]
+        P.place(kind, px + 1.9, G0, TRACK_Z + (0.5 if j % 2 else -0.6), 0.5 * j, district=CO)
+        if kind == "drum":
+            P.place("drum", px + 2.5, G0, TRACK_Z - 0.2, district=CO)
+            P.place("drum", px + 2.1, G0, TRACK_Z + 1.0, district=CO)
+    for name, (vx, vz) in (("lane_w", (207.5, TRACK_Z + 3.4)), ("lane_e", (333.0, TRACK_Z - 3.2))):
+        box(k("metal", 1), vx - 0.45, vx + 0.45, G0, G0 + 0.06, vz - 0.45, vz + 0.45, scale=0.5)
+        K.steam(name, vx, G0 + 0.1, vz)
 
 
 def track():
@@ -566,6 +614,7 @@ def server_wall():
         pipe(k("trim", 1), (cx, 8.3, -345.6), (cx, 8.3, zf + 0.8), 0.14, segs=5, col=K.RED)
         pipe(k("trim", 1), (cx, 8.3, zf + 0.8), (cx, 21.5, zf + 0.8), 0.14, segs=5, col=K.RED)
         K.glow_box(cx - 1.5, cx + 1.5, 9.5, 9.56, -344.5, -344.47, "red", 1)
+    K.steam("servers", tx + 3.0, 9.7, -345.0, roof=True)
     for lx in (tx - 8.0, tx, tx + 8.0):
         light(CO, lx, 9.0, -343.6, "red", 6.0)
         light(CO, lx, 15.0, -343.0, "amber", 5.0)
@@ -738,6 +787,10 @@ def gaps():
     K.tube_post(gx + 0.2, -361.6, 0.0, "white", h=5.2)
     K.tube_post(gx - 0.4, -370.6, math.pi / 2, "cyan", h=5.2)
     K.light_strip_ground(gx - 0.06, gx + 0.06, T_BACK + 0.4, LOBBY_Z - 0.4, "cyan")
+    for lz in (-352.0, -358.0, -364.0, -370.0):
+        K.glow_box(gx + 5.3, gx + 5.5, G0, G0 + 0.8, lz - 0.1, lz + 0.1, "amber", 1)
+        light(CO, gx + 4.0, 1.5, lz, "amber", 4.0)
+        light(CO, gx - 3.0, 1.5, lz + 3.0, "cyan", 3.0)
     stand(gx - 1.0, -359.0, math.pi / 2, "sit", G0 + 0.45)
     stand(gx + 1.6, -351.6, -math.pi / 2, "sit", G0 + 0.45)
     K.talk(gx + 2.8, -364.2, 0.2, 2)
@@ -887,6 +940,20 @@ def pavement_n():
                 stand(gx - 2.6, PAVE_MID_N, 0.0, "sit", G0 + 0.45)
         P.place("bin", gx - 5.2, G0, PAVE_MID_N, district=CO)
         P.place("cctv", gx + 5.4, G0, KERB_N - 0.3, district=CO)
+        if j != 3:
+            K.ad_panel(gx + 4.2, PAVE_MID_N, math.radians(78 if j % 2 else 102), r, pal=None if j % 2 else K.COLD)
+
+
+def gantry_paving(gx):
+    """The carriageway under a gantry, striped yellow and dark
+    (mH2wmyeiIpA@182): chevron bars across the lanes either side of the
+    median, pointing the way each side drives."""
+    mz0, mz1 = MEDIAN[2], MEDIAN[3]
+    for za, zb, skew in ((-338.7, mz0 - 0.5, -1.4), (mz1 + 0.5, -321.3, 1.4)):
+        x = gx - 7.0
+        while x + 1.0 <= gx + 7.0:
+            quad(k("paint"), (x + skew, 0.012, zb), (x + 1.0 + skew, 0.012, zb), (x + 1.0, 0.012, za), (x, 0.012, za), col=(0.86, 0.66, 0.10, 1.0))
+            x += 2.4
 
 
 west_block()
@@ -902,4 +969,5 @@ gaps()
 median()
 for _gx in GANTRY_X:
     gantry(_gx)
+gantry_paving(GANTRY_X[1])
 pavement_n()
