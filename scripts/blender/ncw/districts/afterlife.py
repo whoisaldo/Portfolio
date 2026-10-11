@@ -219,3 +219,186 @@ for sv in (26.9, 30.1):
     stand(qx, qz, math.pi / 2, "lean", y=G0)
 stand(*[AF.p(AF.at(17.05), 0.0, -0.75)[i] for i in (0, 2)], math.pi / 2, "idle", y=G0)
 stand(*[AF.p(AF.at(21.0), 0.0, -0.9)[i] for i in (0, 2)], math.pi / 2 - 0.5, "idle", y=G0)
+
+# ---------------------------------------------------------------------------
+# The rooftop's building, from the street: its face (windows on the true
+# floor lines, ledges, units, pipes, a fire escape), shops either side and
+# RIPPERDOC's clinic in the middle, under the sign on the roof: white light
+# in the glass, a green door, a cross on a bracket.
+# ---------------------------------------------------------------------------
+ST = dict(B.STYLE_DEFAULTS, **WATSON)
+RB = B.Face("-x", EL, -300.0, -258.0)      # s runs south from its north end
+rr = random.Random(9210)
+RB_TINT = B.TINTS["teal"]
+B.facade_wall((D, "facade", 0), RB, SHOP_H, 34.0, B.wall_col(0.55, 1, 0.6, RB_TINT), 7)
+B.shopfront(D, RB, rr, 0.0, 12.8, RB_TINT, 0.6, 0.0, door=False, palette=WATSON["shop_colours"])
+B.shopfront(D, RB, rr, 22.4, 42.0, RB_TINT, 0.6, 0.0, door=True, palette=WATSON["shop_colours"])
+for a_, b_ in ((13.0, 16.4), (18.8, 22.2)):
+    RB.quad((D, "shop", 0), a_, b_, 0.55, 3.3, -B.REC, col=(0.95, 0.93, 1.0, 1.0))
+    RB.quad((D, "trim", 0), a_, b_, G0, 0.55, -B.REC + 0.01, col=DARK)
+    RB.box((D, "trim", 0), a_, b_, 3.28, 3.3, -B.REC, 0.0, col=DARK)
+    RB.quad((D, "trim", 0), a_, b_, 3.3, SHOP_H, 0.0, col=DARK)
+for a_, b_ in ((16.4, 16.66), (18.54, 18.8)):
+    RB.box((D, "trim", 0), a_, b_, 0.0, SHOP_H, -0.95, 0.08, col=B.TRIM[RB_TINT])
+K.fbox(RB, (D, "trim", 0), 16.66, 18.54, 2.6, SHOP_H, -0.95, 0.0, col=DARK, bottom=True)
+RB.quad((D, "trim", 0), 16.66, 18.54, 0.0, 2.6, -0.93, col=DARK)
+RB.quad((D, "neon_green", 0), 17.05, 18.15, G0, 2.4, -0.9)
+light(D, *RB.p(RB.at(17.6), 1.2, 0.9), "green", 4.5)
+RB.box((D, "neon_white", 0), 13.4, 21.8, 3.72, 4.0, 0.0, 0.06)
+cx_, _, cz_ = RB.p(RB.at(17.6), 0.0, 1.0)
+K.cross(D, cx_, 6.2, cz_, 1.4, 0.0, "green")
+pipe((D, "metal", 1), (EL, 7.0, cz_), (cx_ - 0.4, 7.0, cz_), 0.04, segs=4)
+K.board(D, *RB.p(RB.at(20.6), 5.3, 0.1), "ps", RB.yaw)
+K.dress(D, RB, 34.0, rr, ST, RB_TINT, escape=31.5)
+# Its north wall at the pavement, where the clinic next door stands back.
+quad((D, "concrete", 0), (454.0, 0.0, -300.02), (EL, 0.0, -300.02), (EL, SHOP_H, -300.02), (454.0, SHOP_H, -300.02),
+     ((0, 0), (1, 0), (1, 2), (0, 2)))
+stand(EL + 0.5, RB.at(17.3), -math.pi / 2, "smoke", y=G0)
+
+# The garage's low neighbour to the south: a tyre shop's shutter and two
+# small shops under rust awnings.
+SB = B.Face("-x", EL, -200.0, -176.0)
+rs = random.Random(9211)
+SB.quad((D, "concrete", 0), 0.0, 7.2, 0.0, SHOP_H, 0.0, uvs=((0, 0), (2.4, 0), (2.4, 1.5), (0, 1.5)))
+K.shutter(D, SB, 0.9, 6.3, h=3.5, lamp="amber")
+SB.box((D, "hazard", 1), 0.7, 6.5, 3.85, 4.05, 0.0, 0.05)
+B.shopfront(D, SB, rs, 7.2, 24.0, B.TINTS["brown"], 0.7, 0.0, door=False, palette=["amber", "red", "white"])
+SB.ledge((D, "trim", 0), 0.0, 24.0, SHOP_H - 0.05, 0.3, 0.35, B.TRIM[B.TINTS["brown"]])
+K.awning(D, SB, 7.6, 12.6, out=1.5)
+K.awning(D, SB, 18.3, 23.6, out=1.5, col=K.RUST_DARK)
+
+# The garage's west block (garage.py lights its ground floor as one long
+# window): cut into shops by piers, a bulkhead and a fascia, doors, rust
+# awnings, a sign over each; a shutter at its south end, a wall at its north.
+WB = B.Face("+x", WL, -250.0, -190.0)      # s runs north from the plaza street's corner
+rw = random.Random(9212)
+PIERS = [4.0 + 6.5 * k for k in range(9)]
+for sv in PIERS:
+    WB.box((D, "trim", 0), sv - 0.25, sv + 0.25, 0.0, SHOP_H, 0.0, 0.3, col=K.CONCRETE_DARK)
+WB.box((D, "trim", 0), 4.0, 56.0, G0, 0.62, 0.0, 0.1, col=DARK)
+WB.box((D, "trim", 0), 4.0, 56.0, 3.3, 3.86, 0.0, 0.14, col=DARK)
+for k, (a_, b_) in enumerate(zip(PIERS, PIERS[1:])):
+    m_ = (a_ + b_) / 2
+    if k in (1, 4, 6):
+        K.awning(D, WB, a_ + 0.4, b_ - 0.4, out=1.5, y=3.3, col=K.RUST if k != 4 else K.RUST_DARK)
+    else:
+        K.board(D, *WB.p(WB.at(m_), 4.78, 0.2), "ps" if k % 2 else "pm", WB.yaw)
+    if k in (0, 3, 5, 7):
+        d_ = m_ + rw.uniform(-1.5, 1.5)
+        WB.box((D, "metal", 1), d_ - 0.62, d_ + 0.62, G0, 2.5, 0.0, 0.11)
+        WB.quad((D, "door", 0), d_ - 0.52, d_ + 0.52, G0, 2.38, 0.115)
+for a_, b_ in ((0.0, 4.0), (56.0, 60.0)):
+    WB.quad((D, "concrete", 0), a_, b_, 0.0, SHOP_H, 0.02, uvs=((0, 0), (1.3, 0), (1.3, 1.5), (0, 1.5)))
+K.shutter(D, WB, 0.5, 3.4, h=3.2, lamp="white")
+K.poster(D, WB, 58.0, 2.3, 1.5, 2.1, rw)
+# Its face to the plaza street: shops, an awning.
+PF = B.Face("+z", -190.0, 410.0, WL)
+B.shopfront(D, PF, rw, 0.0, 18.0, B.TINTS["charcoal"], 0.7, 0.0, door=True, palette=WATSON["shop_colours"])
+PF.ledge((D, "trim", 0), 0.0, 18.0, SHOP_H - 0.05, 0.3, 0.35, B.TRIM[B.TINTS["charcoal"]])
+K.awning(D, PF, 0.5, 6.0, out=1.5)
+for sv, yy, size, ang in ((3.0, 8.5, "bm", 0.35), (12.5, 7.4, "bs", -0.3), (16.0, 10.5, "bx", 0.0)):
+    px_, _, pz_ = PF.p(PF.at(sv), 0.0, 0.0)
+    K.blade(D, px_, pz_, yy, size, PF.yaw + ang)
+
+# ---------------------------------------------------------------------------
+# The bar on the lane's corner (Zq4zTcIM0yQ@40): pink script on its corner,
+# turned to the street, a rust awning, green light out of its door, a line
+# of pink under its eaves.
+# ---------------------------------------------------------------------------
+BAR = B.Face("+x", WL, -258.0, -250.0)     # s runs north; the door's bay is its north half
+K.awning(D, BAR, 0.3, 3.9, out=1.7, y=3.25, detail=0)
+BAR.quad((D, "neon_green", 0), 5.45, 6.55, G0, 2.38, -0.88)
+light(D, WL + 0.9, 1.0, BAR.at(6.0), "green", 5.0)
+K.script(D, WL + 0.5, 6.35, -258.5, 4.6, 2.3, math.radians(135), "pink", 9302, lines=2, underline="white")
+for p_ in ((WL, 7.2, -256.6), (WL - 1.6, 7.2, -258.0)):
+    pipe((D, "metal", 1), p_, (WL + 0.45, 7.2, -258.45), 0.04, segs=4)
+box((D, "neon_pink", 0), WL, WL + 0.05, 7.62, 7.7, -257.8, -250.2, scale=1.0)
+box((D, "neon_pink", 0), 416.2, WL, 7.62, 7.7, -258.05, -258.0, scale=1.0)
+BL = B.Face("-z", -258.0, 416.0, WL)       # its face on the lane
+K.blade(D, 423.0, -258.0, 6.2, "bx", BL.yaw + 0.4)
+stand(WL - 0.55, BAR.at(5.2), math.pi / 2 + 0.3, "smoke", y=G0)
+stand(WL - 0.5, BAR.at(6.9), math.pi / 2 - 0.4, "talk", y=G0)
+# The corner house on the boulevard has its own, in two colours.
+K.script(D, WL + 0.45, 6.5, -316.45, 4.2, 1.9, math.radians(135), "amber", 9301, lines=1, underline="cyan")
+for p_ in ((WL, 7.3, -314.8), (WL - 1.4, 7.3, -316.0)):
+    pipe((D, "metal", 1), p_, (WL + 0.4, 7.3, -316.4), 0.04, segs=4)
+
+# ---------------------------------------------------------------------------
+# The kerbs (Zq4zTcIM0yQ@40, UKgCVtdSfE0@38): white light bars set into
+# their faces, black bollards along them, a rust strip of studded paving,
+# the dented orange post, crossing boxes; bins and hydrants between the
+# walkers' two lines. Nothing stands at the garage's door, where the S4
+# turns in, or on the crossings at the street's two ends.
+# ---------------------------------------------------------------------------
+DOOR_GAP = (-220.5, -209.5)
+# Where the lamp posts stand along each kerb (streets.py's, garage.py's).
+POSTS_W = (-294.0, -264.0, -236.0, -214.0, -196.0)
+POSTS_E = (-309.0, -279.0, -252.0, -240.0)
+K.kerb_bars(D, WK, 1, -311.6, -194.5)
+K.kerb_bars(D, EK, -1, -311.6, -194.5, skip=(DOOR_GAP,))
+K.bollards(WK - 0.45, -311.3, -196.4, skip=[(z - 0.8, z + 0.8) for z in POSTS_W], district=D)
+K.bollards(EK + 0.45, -311.3, -196.4, skip=[(z - 0.8, z + 0.8) for z in POSTS_E] + [DOOR_GAP], district=D)
+K.tactile(D, 430.45, 431.5, -312.6, -194.6)
+K.tactile(D, 448.5, 449.55, -312.6, DOOR_GAP[0])
+K.tactile(D, 448.5, 449.55, DOOR_GAP[1], -194.6)
+K.dented_post(D, WK - 0.5, -259.7)
+for (x_, z_, yaw_) in ((WK - 0.55, -262.9, math.pi / 2), (EK + 0.55, -311.9, -math.pi / 2), (EK + 0.55, -257.2, -math.pi / 2)):
+    P.place("signal_box", x_, G0, z_, yaw_, district=D)
+for (x_, z_) in ((430.2, -306.0), (430.2, -247.0), (430.2, -205.0), (449.8, -296.0), (449.8, -262.0), (449.8, -188.5)):
+    P.place("bin", x_, G0, z_, district=D)
+for (x_, z_) in ((WK - 0.5, -301.2), (EK + 0.5, -227.0), (WK - 0.5, -222.5)):
+    P.place("hydrant", x_, G0, z_, district=D)
+# The street's one tree, in the clinic's forecourt, a bench by it.
+P.place("planter_tree", 453.0, G0, -308.6, district=D)
+P.place("bench", 453.3, G0, -303.4, -math.pi / 2, district=D)
+stand(453.3, -303.4, -math.pi / 2, "sit", y=G0 + 0.48)
+# Manholes breathing steam into the signs' light.
+for i, (x_, z_) in enumerate(((436.4, -303.0), (444.5, -286.5), (435.4, -231.0))):
+    cylinder((D, "metal", 1), x_, z_, 0.0, 0.025, 0.42, segs=14)
+    K.steam(f"afterlife_{i}", x_, 0.0, z_)
+
+# ---------------------------------------------------------------------------
+# Overhead (Zq4zTcIM0yQ@44): cable bundles slung across the street at
+# third-floor height, and a skybridge between the garage's two tall
+# neighbours with a row of boards on its roof and a column of small ones
+# under its end. The air the page's flights come down through (from the
+# rooftop's edge to the street, z -272..-244, and up to the garage's roof,
+# z -226..-200) is left clear.
+# ---------------------------------------------------------------------------
+cr = random.Random(9230)
+
+
+def west_wall(z):
+    return WK if -300.0 < z < -262.0 else WL
+
+
+def east_wall(z):
+    return 454.0 if -312.0 < z < -300.0 else EL
+
+
+for z_ in (-314.2, -309.4, -305.6, -298.4, -288.0, -284.6, -278.6, -274.6, -244.4, -233.2, -229.4):
+    ya = cr.uniform(10.4, 13.4)
+    yb = min(cr.uniform(10.4, 13.4), 10.9 if -312.0 < z_ < -300.0 else 99.0)
+    K.bundle(D, (west_wall(z_), ya, z_), (east_wall(z_), yb, z_ + cr.uniform(-1.6, 1.6)), cr.uniform(1.0, 2.0), cr.randrange(4, 7), cr)
+for z_ in (-197.2, -192.8):
+    K.bundle(D, (WL, cr.uniform(10.5, 12.5), z_), (EL, 6.7, z_ + cr.uniform(-1.0, 1.0)), cr.uniform(0.6, 1.1), 4, cr)
+# The skybridge: a storey of ribbon windows between a floor slab and a roof,
+# lights under it, boards along its roof facing up and down the street.
+BX0, BX1, BZ0, BZ1, BY0, BY1 = WL, EL, -239.6, -236.2, storeys(2), storeys(3)
+bridge_col = B.wall_col(0.9, 5, 0.25, B.TINTS["concrete"])
+for f_ in (B.Face("+z", BZ1, BX0, BX1), B.Face("-z", BZ0, BX0, BX1)):
+    B.facade_wall((D, "facade", 0), f_, BY0, BY1, bridge_col, 0)
+    f_.ledge((D, "trim", 0), 0.0, f_.width, BY0 - 0.3, 0.34, 0.22, K.CONCRETE)
+    f_.ledge((D, "trim", 0), 0.0, f_.width, BY1 - 0.08, 0.3, 0.22, K.CONCRETE)
+    f_.box((D, "neon_cyan", 0), 0.6, f_.width - 0.6, BY0 - 0.26, BY0 - 0.2, 0.22, 0.25)
+K.ceiling((D, "concrete", 0), BX0, BX1, BZ0, BZ1, BY0 - 0.3)
+quad((D, "roof", 0), (BX0, BY1 + 0.22, BZ1), (BX1, BY1 + 0.22, BZ1), (BX1, BY1 + 0.22, BZ0), (BX0, BY1 + 0.22, BZ0))
+for x_ in (432.6, 437.5, 442.5, 447.4):
+    K.downlight(D, x_, (BZ0 + BZ1) / 2, BY0 - 0.3, "amber", size=0.5, power=2.2)
+for k in range(5):
+    x_ = 430.6 + k * 4.7
+    for z_, yaw_ in ((BZ0 + 0.25, math.pi), (BZ1 - 0.25, 0.0)):
+        K.board(D, x_, BY1 + 1.15, z_, "pm" if k % 2 == 0 else "ps", yaw_, frame=0.1)
+    for dx_ in (-1.0, 1.0):
+        box((D, "metal", 1), x_ + dx_ - 0.04, x_ + dx_ + 0.04, BY1 + 0.22, BY1 + 0.6, BZ0 + 0.2, BZ1 - 0.2, scale=0.5)
+K.stack(D, EL, BZ0 - 0.5, 7.6, 4, -math.pi / 2, out=1.3)
