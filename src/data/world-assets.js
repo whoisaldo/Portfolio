@@ -8,14 +8,24 @@ export const worldModelUrl = {
 // the south side behind the hero's lens.
 export const worldPackUrl = {
   high: {
-    east: "/scenes/world/world-high-east.glb?v=61f9e5f7eaa7",
-    west: "/scenes/world/world-high-west.glb?v=2fdccba3662f",
-    south: "/scenes/world/world-high-south.glb?v=eb66767a17cb",
+    south: "/scenes/world/world-high-south.glb?v=d677ea4d0edf",
+    plaza: "/scenes/world/world-high-plaza.glb?v=036c94020ed4",
+    deck: "/scenes/world/world-high-deck.glb?v=4fb0cb3f6001",
+    corpo: "/scenes/world/world-high-corpo.glb?v=a2cd1ece98fc",
+    afterlife: "/scenes/world/world-high-afterlife.glb?v=41b53ae2c99c",
+    santo: "/scenes/world/world-high-santo.glb?v=6febd37ffa56",
+    japantown: "/scenes/world/world-high-japantown.glb?v=33794a61b29b",
+    mega: "/scenes/world/world-high-mega.glb?v=0e99b5ca8b14",
   },
   phone: {
-    east: "/scenes/world/world-phone-east.glb?v=36a64119c4bb",
-    west: "/scenes/world/world-phone-west.glb?v=4e93d7c65f1b",
-    south: "/scenes/world/world-phone-south.glb?v=a820a087c63e",
+    south: "/scenes/world/world-phone-south.glb?v=1453f24d9be6",
+    plaza: "/scenes/world/world-phone-plaza.glb?v=6b39a98b7d7c",
+    deck: "/scenes/world/world-phone-deck.glb?v=23ec167ee858",
+    corpo: "/scenes/world/world-phone-corpo.glb?v=13139d294a4f",
+    afterlife: "/scenes/world/world-phone-afterlife.glb?v=ed57684bc66b",
+    santo: "/scenes/world/world-phone-santo.glb?v=0bd98213b4e3",
+    japantown: "/scenes/world/world-phone-japantown.glb?v=03618fab1124",
+    mega: "/scenes/world/world-phone-mega.glb?v=6de883d2265a",
   },
 };
 export const worldMoonUrl = "/scenes/world/moon.webp?v=96aaeaea7d25";

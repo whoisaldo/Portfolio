@@ -943,9 +943,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const idle = () => new Promise((resolve) => (window.requestIdleCallback ? window.requestIdleCallback(resolve, { timeout: 1500 }) : setTimeout(resolve, 50)));
   const packsIn = [];
   const streamPacks = async () => {
-    for (const name of PACKS) {
+    // All fetched at once, built in one at a time in the streaming order.
+    const loads = PACKS.map((name) => preloadPack(tier, name).then((s) => ({ s }), (err) => ({ err })));
+    for (const [i, name] of PACKS.entries()) {
       try {
-        const packScene = await preloadPack(tier, name);
+        const { s: packScene, err } = await loads[i];
+        if (err) throw err;
         if (disposed) return;
         await idle();
         if (disposed || !city) return;

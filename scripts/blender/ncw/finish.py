@@ -37,10 +37,11 @@ def _mesh(name, verts, faces, uvs, cols, mat_name):
 # Which GLB a district's bulk goes in (scripts/optimize-world.mjs): the
 # core is what the hero needs, and every named piece, anchor and prototype
 # (and the garage, whose painted walls carry the core's own textures); the
-# rest streams in behind it, west and east of the avenue.
-PACK_OF = {"japantown": "west", "deck": "west", "mega": "west",
-           "plaza": "east", "corpo": "east", "rooftop": "east", "afterlife": "east",
-           "avenue_s": "south", "santo": "south"}
+# rest streams in behind it, a pack per district. A district's key with
+# "_b" (what the hero cannot see of it) goes in that district's pack.
+PACK_OF = {"japantown": "japantown", "deck": "deck", "mega": "mega",
+           "plaza": "plaza", "corpo": "corpo", "rooftop": "afterlife", "afterlife": "afterlife",
+           "avenue_s": "south", "santo": "santo", "canyon_b": "canyon"}
 
 for district, flat in LIGHTS.items():
     empty(f"anchor_lights_{district}", (0, 0, 0), props={"lights": flat, "pack": PACK_OF.get(district, "core")})

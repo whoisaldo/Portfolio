@@ -39,7 +39,9 @@ const OUT = "public/scenes/world";
 // the packs that stream in behind it have their own.
 const BUDGET = { high: 2.6e6, phone: 1.2e6 };
 const PACK_BUDGET = { high: 2.2e6, phone: 1.0e6 };
-const PACKS = ["core", "east", "west", "south"];
+// One pack per district (scripts/blender/ncw/finish.py, PACK_OF), in the
+// order the page streams them: nearest the shots the reader meets first.
+const PACK_ORDER = ["core", "south", "plaza", "deck", "corpo", "afterlife", "santo", "japantown", "mega", "canyon"];
 const TIERS = {
   high: { size: 1024, quality: 82, dropDetail: false },
   phone: { size: 512, quality: 76, dropDetail: true },
@@ -52,6 +54,12 @@ const io = new NodeIO()
 
 await mkdir(OUT, { recursive: true });
 const sizes = {};
+const tagged = new Set(["core"]);
+for (const node of (await io.read(SOURCE)).getRoot().listNodes()) {
+  const p = node.getExtras()?.pack;
+  if (p) tagged.add(p);
+}
+const PACKS = [...PACK_ORDER.filter((p) => tagged.has(p)), ...[...tagged].filter((p) => !PACK_ORDER.includes(p)).sort()];
 
 for (const [tier, opts] of Object.entries(TIERS)) for (const pack of PACKS) {
   const document = await io.read(SOURCE);
