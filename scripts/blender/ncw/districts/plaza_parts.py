@@ -425,11 +425,11 @@ def pool(x0, x1, z0, z1, y, colour="teal"):
     for i in range(n):
         for j, z in enumerate((z0, (z0 + z1) / 2)):
             xa, xb = x0 + (x1 - x0) * i / n, x0 + (x1 - x0) * (i + 1) / n
-            k = 0.2 + 0.07 * ((i + j) % 2)
+            k = 0.3 + 0.1 * ((i + j) % 2)
             up_poly((PL, "glow", 0), [(xa, z), (xb, z), (xb, z + (z1 - z0) / 2), (xa, z + (z1 - z0) / 2)], y + 0.37, dim(colour, k))
 
 
-def skylight(x0, x1, z0, z1, y, colour="white", k=0.16, pitch=1.2):
+def skylight(x0, x1, z0, z1, y, colour="white", k=0.3, pitch=1.2):
     """A ridged glass roof over a hall, lit from inside: two slopes of panes,
     each a little brighter or dimmer than the next."""
     zm = (z0 + z1) / 2
@@ -479,6 +479,14 @@ def roof_plant(x0, x1, z0, z1, y, r, n=3):
             box((PL, "glow", 1), px - 0.1, px + 0.1, y + h + 0.12, y + h + 0.3, pz - 0.1, pz + 0.1, scale=0.5, col=GLOW["white"])
 
 
+def lawn(x0, x1, z0, z1, y):
+    """Planting lit from its edge, in two tones: from the air, a roof that
+    is green and not a hole."""
+    xm = (x0 + x1) / 2
+    for (a, b, g) in ((x0, xm, (0.012, 0.05, 0.022, 1.0)), (xm, x1, (0.016, 0.062, 0.03, 1.0))):
+        up_poly((PL, "glow", 0), [(a, z0), (b, z0), (b, z1), (a, z1)], y + 0.03, g)
+
+
 def garden(x0, x1, z0, z1, y, r, palms=0, trees=2, colour="cyan", lamps=2):
     """A roof terrace: paths of light, hedges along its edges, a few trees
     and benches. On a roof the street's baked light does not reach, so what
@@ -493,7 +501,9 @@ def garden(x0, x1, z0, z1, y, r, palms=0, trees=2, colour="cyan", lamps=2):
                 box((PL, "trim", 1), x, x + ln, y, y + 0.9, z, z + 1.1, scale=1.0, col=HEDGE[r.randrange(3)])
                 x += ln + r.uniform(1.2, 2.4)
         for z in (z0 + 2.4, z1 - 2.4):
-            box((PL, "glow", 0), x0 + 1.2, x1 - 1.2, y + 0.02, y + 0.07, z - 0.04, z + 0.04, scale=1.0, col=dim(colour, 0.6))
+            box((PL, "glow", 0), x0 + 1.2, x1 - 1.2, y + 0.02, y + 0.07, z - 0.1, z + 0.1, scale=1.0, col=dim(colour, 0.6))
+        if d > 7.5:
+            lawn(x0 + 2.0, x1 - 2.0, z0 + 3.0, z1 - 3.0, y)
     else:
         for x in (x0 + 0.6, x1 - 1.7):
             z = z0 + 1.0
@@ -502,7 +512,9 @@ def garden(x0, x1, z0, z1, y, r, palms=0, trees=2, colour="cyan", lamps=2):
                 box((PL, "trim", 1), x, x + 1.1, y, y + 0.9, z, z + ln, scale=1.0, col=HEDGE[r.randrange(3)])
                 z += ln + r.uniform(1.2, 2.4)
         for x in (x0 + 2.4, x1 - 2.4):
-            box((PL, "glow", 0), x - 0.04, x + 0.04, y + 0.02, y + 0.07, z0 + 1.2, z1 - 1.2, scale=1.0, col=dim(colour, 0.6))
+            box((PL, "glow", 0), x - 0.1, x + 0.1, y + 0.02, y + 0.07, z0 + 1.2, z1 - 1.2, scale=1.0, col=dim(colour, 0.6))
+        if w > 7.5:
+            lawn(x0 + 3.0, x1 - 3.0, z0 + 2.0, z1 - 2.0, y)
     for i in range(palms + trees):
         px, pz = r.uniform(x0 + 3.2, x1 - 3.2), r.uniform(z0 + 3.2, z1 - 3.2)
         P.place("planter_palm" if i < palms else "planter_tree", px, y, pz, r.uniform(0, 6.28), district=PL)

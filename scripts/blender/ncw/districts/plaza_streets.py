@@ -123,3 +123,36 @@ blade_off(B.Face("-x", 137.0, -123.0, -101.0), 3.0, 14.0, "bl", 2.6, angle=0.5)
 blade_off(B.Face("+z", -13.0, 56.0, 106.0), 44.0, 14.0, "bl", 2.6)
 blade_off(B.Face("-z", -62.0, 62.0, 98.0), 4.0, 13.5, "bm", 2.4)
 blade_off(B.Face("+z", -100.0, 62.0, 104.0), 36.5, 14.0, "bl", 2.6, angle=-0.4)
+
+# ---------------------------------------------------------------------------
+# The courts of the north quarter: the yard behind the board's block, the
+# lanes between the towers. Nobody drives here; from the towers and the air
+# they are lit paths with trees, and on foot a place people step out to.
+# ---------------------------------------------------------------------------
+rc = random.Random(8520)
+for (px, pz, yaw) in ((57.0, -288.0, math.pi / 2), (73.0, -288.0, -math.pi / 2)):
+    P.place("lamp_plaza", px, G, pz, yaw, district=PL)
+    light(PL, px + 1.8 * math.sin(yaw), 3.0, pz, "white", 7.0)
+for px in (61.5, 68.5):
+    P.place("planter_tree", px, G, -289.5, rc.uniform(0, 6.28), district=PL)
+    light(PL, px, 1.0, -289.5, "white", 3.0)
+P.place("bench", 65.0, G, -290.6, math.pi, district=PL)
+P.place("bench", 65.0, G, -285.4, 0.0, district=PL)
+P.place("vending", 58.0, G, -284.5, math.pi, district=PL)
+P.place("vending_warm", 59.2, G, -284.5, math.pi, district=PL)
+P.place("bin", 71.0, G, -284.8, district=PL)
+gline("cyan", 53.0, -291.4, 77.0, -291.4, G + 0.012)
+for (px, pz, yaw, pose) in ((64.6, -290.6, math.pi, "sit"), (60.4, -285.6, math.pi, "phone"), (70.0, -286.2, 0.6, "smoke"),
+                            (66.8, -287.6, -2.2, "talk"), (65.9, -288.3, 0.9, "talk")):
+    stand(px, pz, yaw, pose, y=G + (0.48 if pose == "sit" else 0.0))
+# The lanes: a line of light down each, a pool at each crossing, trees
+# where two meet.
+for (x0, z0, x1, z1) in ((54.5, -346.0, 105.5, -346.0), (54.5, -399.0, 105.5, -399.0), (76.0, -342.0, 76.0, -294.0), (81.0, -395.0, 81.0, -350.0)):
+    gline("cyan" if z0 == z1 else "amber", x0, z0, x1, z1, G + 0.012, w=0.07)
+for (px, pz) in ((76.0, -346.0), (81.0, -399.0), (106.5, -346.0), (106.5, -399.0), (53.0, -346.0), (53.0, -399.0)):
+    light(PL, px, 2.0, pz, "white", 5.0)
+for (px, pz) in ((58.0, -399.0), (72.0, -399.0), (94.0, -399.0), (104.0, -399.0)):
+    P.place("planter_tree", px, G, pz, rc.uniform(0, 6.28), sxz=0.8, district=PL)
+    light(PL, px, 1.0, pz, "white", 3.0)
+for (px, pz, yaw, pose) in ((75.2, -330.0, math.pi / 2, "smoke"), (88.0, -398.4, 0.0, "phone"), (62.0, -399.6, 2.0, "talk"), (62.9, -400.2, -1.1, "talk")):
+    stand(px, pz, yaw, pose, y=G)

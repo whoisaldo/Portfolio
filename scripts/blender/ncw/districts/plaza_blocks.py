@@ -157,7 +157,7 @@ roof_screen(102.0, -163.0, 18.2, 10.0, 5.6, math.radians(135), 8317)
 # The tower's podium roof and the slab's: plant, a skylight, lamps.
 parapet(52.0, 80.0, -168.0, -132.0, 14.8, tint=1)
 parapet(52.0, 108.0, -132.0, -95.0, 11.4, tint=1, line="amber")
-skylight(64.0, 100.0, -131.0, -126.5, 11.4, colour="white", k=0.14, pitch=0.9)
+skylight(64.0, 100.0, -131.0, -126.5, 11.4, colour="white", k=0.26, pitch=0.9)
 roof_plant(53.0, 61.0, -123.0, -107.0, 11.4, random.Random(8318), n=3)
 # Two screens turned to the traffic coming down the deck (it comes from
 # the west, at their height until it lands): one flat on the slab's west
@@ -221,8 +221,8 @@ for z in (-86.2, -71.8):
     box((PL, "glow", 0), 135.72, 136.0, 21.5, 50.5, z - 0.12, z + 0.12, scale=1.0, col=dim("magenta", 0.7))
 parapet(132.0, 170.0, -126.0, -60.0, 11.4, tint=1, line="magenta")
 garden(132.6, 136.6, -124.0, -99.0, 11.4, random.Random(8342), palms=0, trees=2, colour="amber", lamps=1)
-skylight(133.0, 136.0, -72.0, -63.0, 11.4, colour="white", k=0.14, pitch=0.7)
-skylight(133.0, 136.0, -95.0, -86.0, 11.4, colour="white", k=0.14, pitch=0.7)
+skylight(133.0, 136.0, -72.0, -63.0, 11.4, colour="white", k=0.26, pitch=0.7)
+skylight(133.0, 136.0, -95.0, -86.0, 11.4, colour="white", k=0.26, pitch=0.7)
 roof_plant(166.0, 169.6, -124.0, -62.0, 11.4, random.Random(8343), n=4)
 podium(132.0, 170.0, -60.0, -10.0, 11.4, {"-x": "street", "+z": "street", "+x": "open", "-z": "party"}, 8338, nb={"-z": 11.4},
        style=HOTEL, tint="brown")
@@ -243,9 +243,12 @@ B.ground_rect(PL, 108.0, 170.0, -456.0, -420.0)
 podium(78.0, 108.0, -310.0, -284.0, 31.8, {"+x": "street", "+z": "party", "-z": "party", "-x": "back"}, 8351,
        nb={"+z": 44.0, "-z": 42.0}, window=4, tint="navy", style=dict(OFFICE, roof_cap=4.4))
 B.roof_dress(PL, 78.0, 108.0, -310.0, -284.0, 31.8, random.Random(8352), cap=4.4, sign_rate=0.0, tint=1)
+skylight(80.5, 105.5, -299.0, -295.5, 31.8, colour="white", k=0.26, pitch=0.9)
 podium(78.0, 108.0, -344.0, -310.0, 42.0, {"+x": "street", "+z": "party", "-z": "open", "-x": "back"}, 8353,
        nb={"+z": 31.8}, window=5, tint="teal", signs=False)
 B.roof_dress(PL, 78.0, 108.0, -344.0, -310.0, 42.0, random.Random(8354), cap=4.4, sign_rate=0.0, tint=2)
+lawn(81.0, 105.0, -329.0, -325.0, 42.0)
+lit_band(78.0, 108.0, -344.0, -310.0, 42.8, 42.95, "teal", k=0.7, out=0.05)
 checked(78.0, 108.0, -344.0, -310.0, 46.5, "B5b roof")
 # The boulevard runs into this face: a screen across it, a mark over that.
 screen(108.45, 19.0, -330.0, 15.0, 8.4, math.pi / 2, random.Random(8355), back=False)
@@ -258,7 +261,7 @@ tower("T1", 56.0, 78.0, -392.0, -352.0, 14.8, 76.0, 8362, steps=((60.0, 2.5),), 
       lit=0.74, warm=0.6, marks=(("delta", "+z", 68.0, 7.0, "amber"), ("delta", "+x", 68.0, 7.0, "amber")))
 tower("T2", 84.0, 104.0, -392.0, -356.0, 14.8, 62.4, 8363, kind="wall", window=5, tint="teal", accent="teal", crown="garden", plant=0)
 pool(86.0, 102.0, -354.5, -350.5, 14.8, colour="teal")
-skylight(79.0, 83.0, -390.0, -356.0, 14.8, colour="cyan", k=0.13, pitch=0.8)
+skylight(79.0, 83.0, -390.0, -356.0, 14.8, colour="cyan", k=0.26, pitch=0.8)
 garden(56.0, 78.0, -351.5, -348.5, 14.8, random.Random(8364), palms=0, trees=2, colour="amber", lamps=1)
 podium(54.0, 106.0, -452.0, -402.0, 18.2, dict(ALL_OPEN), 8371, tint="navy", ground="blank")
 parapet(54.0, 106.0, -452.0, -402.0, 18.2, tint=1, line="white")
@@ -266,7 +269,7 @@ T3 = tower("T3", 58.0, 82.0, -448.0, -408.0, 18.2, 96.0, 8372, steps=((74.0, 2.5
            lit=0.76, warm=0.1, marks=(("rings", "+z", 81.0, 7.0, "white"), ("rings", "+x", 81.0, 7.0, "white")))
 tower("T4", 88.0, 104.0, -448.0, -410.0, 18.2, 69.2, 8373, kind="wall", window=2, tint="charcoal", accent="magenta", crown="mast",
       marks=(("gate", "+z", 60.0, 6.0, "magenta"), ("gate", "+x", 60.0, 6.0, "magenta")), plant=2)
-skylight(60.0, 100.0, -406.5, -403.0, 18.2, colour="cyan", k=0.12, pitch=0.8)
+skylight(60.0, 100.0, -406.5, -403.0, 18.2, colour="cyan", k=0.26, pitch=0.8)
 garden(82.6, 87.4, -446.0, -410.0, 18.2, random.Random(8374), palms=0, trees=3, colour="magenta", lamps=1)
 # North of corpo row's first towers: two blocks, low enough to stay under
 # the Experience shot's frame.
@@ -274,3 +277,17 @@ B.building(B.Lot(110.0, 136.0, -454.0, -422.0, "+z", dict(ALL_OPEN), {}, PL), 45
            style=dict(OFFICE, roof_cap=4.4), setback=False, ground="blank", window=4, tint="concrete")
 tower("S2", 142.0, 168.0, -454.0, -422.0, 0.15, 52.0, 8382, cut=2.2, accent="cyan", crown="blades", lit=0.7, warm=0.35,
       marks=(("hex", "+z", 43.0, 6.0, "cyan"),))
+
+# The board's own block: a ridge of glass down the middle of its roof and
+# a line of light round its parapet, both low and set back from the square
+# (the Work shot looks up at this roof's edge and must not find them).
+skylight(53.0, 103.0, -275.6, -272.6, 44.0, colour="cyan", k=0.22, pitch=0.9)
+lawn(52.0, 70.0, -283.0, -279.0, 44.0)
+# Vents that breathe: by the garden and the vending machines in the square,
+# at the kerb of the x 120 road, and plant on three roofs.
+for i, (x, y, z) in enumerate(((60.6, 0.17, -249.6), (53.6, 0.17, -259.6), (110.9, 0.17, -147.0), (129.2, 0.17, -47.0))):
+    box((PL, "metal", 1), x - 0.45, x + 0.45, y - 0.02, y + 0.02, z - 0.45, z + 0.45, scale=0.5)
+    empty(f"anchor_steam_street_plaza_{i}", (x, y + 0.05, z))
+for i, (x, y, z) in enumerate(((98.0, 45.4, -104.0), (160.0, 58.0, -106.0), (98.0, 62.4, -360.0))):
+    box((PL, "metal", 0), x - 0.7, x + 0.7, y, y + 1.6, z - 0.7, z + 0.7, scale=1.0)
+    empty(f"anchor_steam_roof_plaza_{i}", (x, y + 1.7, z))

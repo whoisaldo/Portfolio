@@ -119,8 +119,8 @@ box((PL, "metal", 0), X0 + 1.0, TX - 0.5, 4.62, 4.84, -264.0, -260.6, scale=1.0,
 nbox("cyan", X0 + 1.0, TX - 0.5, 4.66, 4.72, -260.6, -260.57)
 x = X0 + 3.0
 while x < TX - 3.0:
-    box((PL, "neon_white", 0), x - 0.6, x + 0.6, 4.58, 4.62, -261.5, -261.3, scale=0.5)
-    x += 4.4
+    box((PL, "neon_white", 0), x - 0.35, x + 0.35, 4.58, 4.62, -261.5, -261.4, scale=0.5)
+    x += 6.6
 # The block's face to the x 120 road, and its back corner to the lane.
 for k, (za, zb) in enumerate(((-284.0, -274.0), (-274.0, -264.0))):
     shopfront(PL, -1, za, zb, 8403 + k, awning=True, xf=108.03)
@@ -209,14 +209,14 @@ for (px, pz, yaw) in ((99.0, -218.0, -math.pi / 2), (99.5, -206.5, math.pi), (95
     P.place("bench", px, TY, pz, yaw, district=PL)
 for (px, pz) in ((100.5, -236.0), (95.5, -224.0), (101.0, -201.8), (93.2, -235.2), (103.5, -216.0)):
     P.place("lamp_short", px, TY, pz, district=PL)
-    light(PL, px, TY + 3.0, pz, "amber", 5.0)
+    light(PL, px, TY + 3.0, pz, "amber", 8.0)
 P.place("kiosk", 102.0, TY, -256.5, -math.pi / 2, district=PL)
 # Their floors are lit from the rails' feet and the planters: soft pools.
 for (za, zb) in (TN, TS):
     z = za + 3.0
     while z < zb - 2.0:
         for x in (95.5, 100.0, 104.0):
-            light(PL, x + rs.uniform(-0.8, 0.8), TY + 0.5, z + rs.uniform(-1.0, 1.0), rs.choice(("white", "white", "cyan")), 2.6)
+            light(PL, x + rs.uniform(-0.8, 0.8), TY + 0.5, z + rs.uniform(-1.0, 1.0), rs.choice(("white", "white", "cyan")), 6.0)
         z += 5.5
 # The square's two east screens (board_3, board_4), on masts off the
 # terraces' edge, an advert on the back of each for the road.
@@ -278,7 +278,7 @@ for (px, pz, yaw) in ((54.6, -236.0, math.pi / 2), (90.0, -238.0, -math.pi / 2),
                       (54.6, -216.0, math.pi / 2), (72.0, -251.5, 0.0), (86.0, -251.5, 0.0), (100.5, -196.4, math.pi)):
     P.place("lamp_plaza", px, G, pz, yaw, district=PL)
     # Its pool on the stone (the head is too small for the bake to find).
-    light(PL, px + 1.8 * math.sin(yaw), 3.0, pz + 1.8 * math.cos(yaw), "white", 6.0)
+    light(PL, px + 1.8 * math.sin(yaw), 3.0, pz + 1.8 * math.cos(yaw), "white", 8.0)
 P.place("cctv", 60.0, G, -258.6, district=PL)
 P.place("cctv", 90.4, G, -227.2, district=PL)
 for px in (62.0, 76.0):
