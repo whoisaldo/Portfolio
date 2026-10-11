@@ -289,20 +289,25 @@ def pipes(D, f, s0, s1, y, rng, n=2):
     pipe((D, "metal", 1), f.p(f.at(s), y, 0.16), f.p(f.at(s), y + rng.uniform(3.0, 8.0), 0.16), 0.06, segs=5)
 
 
-def lit_door(D, f, s, hue, w=1.1, h=2.25, power=3.5, ajar=True):
+def lit_door(D, f, s, hue, w=1.1, h=2.25, power=3.5, ajar=True, back=0.0):
     """A door standing open on a lit room, its light on the ground outside
-    (the green door on the dark street, UKgCVtdSfE0@38)."""
-    f.box((D, "metal", 1), s - w / 2 - 0.08, s + w / 2 + 0.08, G0, h + 0.1, 0.0, 0.06)
-    f.quad((D, "neon_" + hue, 0), s - w / 2, s + w / 2, G0, h, 0.07)
+    (the green door on the dark street, UKgCVtdSfE0@38). `back`: how far
+    behind the face's plane its frame stands (a door in a lobby)."""
+    f.box((D, "metal", 1), s - w / 2 - 0.08, s + w / 2 + 0.08, G0, h + 0.1, -back, -back + 0.06)
+    c = GLOW[hue]
+    # The room: brightest at the lamp over the lintel inside, a darker floor.
+    f.quad((D, "glow", 0), s - w / 2, s + w / 2, G0, h, -back + 0.07, col=(c[0] * 0.42, c[1] * 0.42, c[2] * 0.42, 1))
+    f.quad((D, "glow", 0), s - w / 2, s + w / 2, G0, G0 + 0.5, -back + 0.075, col=(c[0] * 0.16, c[1] * 0.16, c[2] * 0.16, 1))
+    f.box((D, "neon_" + hue, 0), s - w / 2 + 0.1, s + w / 2 - 0.1, h - 0.16, h - 0.08, -back + 0.07, -back + 0.1)
     if ajar:
         # The leaf, swung out at an angle.
-        a = f.p(f.at(s - w / 2), G0, 0.07)
+        a = f.p(f.at(s - w / 2), G0, -back + 0.07)
         ang = f.yaw + 0.5
         dx, dz = _dir(ang)
         b = (a[0] + dx * w * 0.9, G0, a[2] + dz * w * 0.9)
         for q in (((a[0], G0, a[2]), b, (b[0], h, b[2]), (a[0], h, a[2])), (b, (a[0], G0, a[2]), (a[0], h, a[2]), (b[0], h, b[2]))):
             quad((D, "door", 0), *q)
-    light(D, *f.p(f.at(s), 1.2, 1.2), hue, power)
+    light(D, *f.p(f.at(s), 1.2, 1.2 - back), hue, power)
 
 
 def shutter(D, f, s0, s1, h=3.0, lamp="white"):
@@ -799,7 +804,8 @@ def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None):
             w = rng.uniform(1.0, 1.6)
             hue = rng.choice(("amber", "amber", "white", "green", "pink"))
             c = GLOW[hue]
-            f.quad((D, "glow", 0), s, s + w, 1.5, 2.5, 0.05, col=(c[0] * 0.5, c[1] * 0.5, c[2] * 0.5, 1))
+            k = 0.2 if hue == "white" else 0.4
+            f.quad((D, "glow", 0), s, s + w, 1.5, 2.5, 0.05, col=(c[0] * k, c[1] * k, c[2] * k, 1))
             f.box((D, "metal", 1), s - 0.06, s + w + 0.06, 1.42, 1.5, 0.0, 0.12)
             grille(D, f, s, s + w, 1.5, 2.5, out=0.07, step=0.2)
             light(D, *f.p(f.at(s + w / 2), 1.8, 0.9), hue, 2.2)
@@ -817,10 +823,40 @@ def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None):
             p = f.p(f.at(s + 0.5), 0.0, 0.55)
             crates(D, p[0], p[2], rng)
             s += 1.2
-        elif blades and roll < 0.9 * dens:
+        elif blades and roll < 0.86 * dens:
             p = f.p(f.at(s), 0.0, 0.0)
             blade(D, p[0], p[2], rng.uniform(3.4, 5.6), rng.choice(("bs", "bx", "bs", "bm")), f.yaw + rng.uniform(-0.6, 0.6))
-        s += rng.uniform(2.2, 5.0) / dens
+        elif roll < 0.93 * dens:
+            # A vent's louvres, a drip of rust under them.
+            w = rng.uniform(0.8, 1.3)
+            f.box((D, "metal", 1), s, s + w, 2.3, 3.0, 0.03, 0.12)
+            for k in range(4):
+                f.box((D, "dark", 1), s + 0.06, s + w - 0.06, 2.38 + k * 0.15, 2.44 + k * 0.15, 0.12, 0.135)
+            f.quad((D, "trim", 1), s + w * 0.3, s + w * 0.5, 1.0, 2.3, 0.047, col=RUST_DARK)
+            s += w
+        else:
+            # A rack of shelves against the wall, boxes on it.
+            w = rng.uniform(1.4, 2.2)
+            for e in (s, s + w):
+                f.box((D, "metal", 1), e - 0.03, e + 0.03, G0, 2.0, 0.05, 0.5)
+            for k in range(3):
+                yy = G0 + 0.35 + k * 0.6
+                f.box((D, "metal", 1), s, s + w, yy, yy + 0.04, 0.05, 0.5)
+                if rng.random() < 0.8:
+                    q = f.p(f.at(s + rng.uniform(0.3, w - 0.3)), 0.0, 0.28)
+                    oriented_box((D, "trim", 1), q[0], yy + 0.22, q[2], rng.uniform(0.4, 0.7), 0.36, 0.38, f.yaw, scale=1.0, col=rng.choice([CARD, WOOD] + PLASTIC))
+            s += w
+        s += rng.uniform(1.2, 3.2) / dens
+    # Conduits up the wall in threes, and patches where it was made good.
+    s = s0 + rng.uniform(2.0, 5.0)
+    while s < s1 - 1.0:
+        for k in range(rng.randrange(2, 4)):
+            pipe((D, "metal", 1), f.p(f.at(s + k * 0.11), G0, 0.09), f.p(f.at(s + k * 0.11), min(top - 0.4, rng.uniform(3.6, 6.5)), 0.09), 0.028, segs=3)
+        if rng.random() < 0.6:
+            a = s + rng.uniform(0.6, 2.0)
+            c = rng.uniform(0.11, 0.2)
+            f.quad((D, "trim", 1), a, a + rng.uniform(0.8, 1.8), rng.uniform(1.0, 1.6), rng.uniform(2.6, 3.6), 0.046, col=(c, c, c * 1.1, 1))
+        s += rng.uniform(4.0, 8.0) / dens
 
 
 def stoop(D, f, s0, s1, steps=2, out=0.34, rise=0.18):

@@ -93,7 +93,7 @@ B.ground_rect(D, 398.0, 416.0, -258.0, -250.0, mat="concrete")       # the bar's
 # The block that closes the boulevard's east end, on the boulevard's north
 # lot line carried east; its east half lower.
 lot(452.0, 484.0, -344.0, -316.0, storeys(7), 9110, {"-x": "street", "-z": "back", "+z": "open", "+x": "party"},
-    {"+x": storeys(5)}, tint="charcoal")
+    {"+x": storeys(5)}, tint="charcoal", ground="lobby")
 lot(484.0, 508.0, -344.0, -316.0, storeys(5), 9111, {"-x": "party", "-z": "back", "+z": "open", "+x": "back"},
     {"-x": storeys(7)}, tint="navy")
 # A clinic, three storeys, between it and the rooftop's building; the
@@ -108,7 +108,9 @@ B.ground_rect(D, 484.0, 490.0, -316.0, -258.0, mat="concrete")       # the back 
 B.ground_rect(D, 476.0, 490.0, -258.0, -176.0, mat="concrete")       # the yard behind the garage row
 # The outer row, its fronts on the back lane and the yard, its backs to the
 # far city. Low by the garage's roof, where Contact looks out over it.
-OUTER = [(-316.0, -292.0, 4), (-292.0, -272.0, 2), (-272.0, -248.0, 6), (-248.0, -226.0, 2), (-226.0, -204.0, 4), (-204.0, -176.0, 1)]
+# (The last is a shed of one tall storey: from the garage's roof Contact's
+# frame passes just over it.)
+OUTER = [(-316.0, -292.0, 4), (-292.0, -272.0, 2), (-272.0, -248.0, 6), (-248.0, -226.0, 2), (-226.0, -204.0, 4), (-204.0, -176.0, 0.18)]
 for i, (z0, z1, n) in enumerate(OUTER):
     nb = {}
     if i > 0:
@@ -119,7 +121,7 @@ for i, (z0, z1, n) in enumerate(OUTER):
         nb["+z"] = storeys(OUTER[i + 1][2])
     lot(490.0, 508.0, z0, z1, storeys(n), 9120 + i,
         {"-x": "open", "+x": "back", "-z": "party", "+z": "party" if i < len(OUTER) - 1 else "open"}, nb,
-        style=dict(roof_cap=5.0 if n > 1 else 2.4))
+        style=dict(roof_cap=5.0 if n > 1 else 2.4, cornice=0.0 if n < 1 else 0.5))
 
 
 # ---------------------------------------------------------------------------
@@ -245,8 +247,7 @@ for a_, b_ in ((16.4, 16.66), (18.54, 18.8)):
     RB.box((D, "trim", 0), a_, b_, 0.0, SHOP_H, -0.95, 0.08, col=B.TRIM[RB_TINT])
 K.fbox(RB, (D, "trim", 0), 16.66, 18.54, 2.6, SHOP_H, -0.95, 0.0, col=DARK, bottom=True)
 RB.quad((D, "trim", 0), 16.66, 18.54, 0.0, 2.6, -0.93, col=DARK)
-RB.quad((D, "neon_green", 0), 17.05, 18.15, G0, 2.4, -0.9)
-light(D, *RB.p(RB.at(17.6), 1.2, 0.9), "green", 4.5)
+K.lit_door(D, RB, 17.6, "green", w=1.1, h=2.4, power=4.5, back=0.92)
 RB.box((D, "neon_white", 0), 13.4, 21.8, 3.72, 4.0, 0.0, 0.06)
 cx_, _, cz_ = RB.p(RB.at(17.6), 0.0, 1.0)
 K.cross(D, cx_, 6.2, cz_, 1.4, 0.0, "green")
@@ -310,11 +311,10 @@ for sv, yy, size, ang in ((3.0, 8.5, "bm", 0.35), (12.5, 7.4, "bs", -0.3), (16.0
 # ---------------------------------------------------------------------------
 BAR = B.Face("+x", WL, -258.0, -250.0)     # s runs north; the door's bay is its north half
 K.awning(D, BAR, 0.3, 3.9, out=1.7, y=3.25, detail=0)
-BAR.quad((D, "neon_green", 0), 5.45, 6.55, G0, 2.38, -0.88)
-light(D, WL + 0.9, 1.0, BAR.at(6.0), "green", 5.0)
-K.script(D, WL + 0.5, 6.35, -258.5, 4.6, 2.3, math.radians(135), "pink", 9302, lines=2, underline="white")
-for p_ in ((WL, 7.2, -256.6), (WL - 1.6, 7.2, -258.0)):
-    pipe((D, "metal", 1), p_, (WL + 0.45, 7.2, -258.45), 0.04, segs=4)
+K.lit_door(D, BAR, 6.0, "green", w=1.1, h=2.38, power=5.0, back=0.89)
+K.script(D, WL + 0.75, 6.75, -258.75, 6.2, 2.9, math.radians(135), "pink", 9302, lines=2, underline="white", r=0.06)
+for p_ in ((WL, 7.6, -255.6), (WL - 2.6, 7.6, -258.0), (WL, 5.6, -255.6), (WL - 2.6, 5.6, -258.0)):
+    pipe((D, "metal", 1), p_, (WL + 0.7 + (0.9 if p_[2] > -257 else -1.1), p_[1], -258.7 + (1.1 if p_[2] > -257 else -0.9)), 0.04, segs=4)
 box((D, "neon_pink", 0), WL, WL + 0.05, 7.62, 7.7, -257.8, -250.2, scale=1.0)
 box((D, "neon_pink", 0), 416.2, WL, 7.62, 7.7, -258.05, -258.0, scale=1.0)
 BL = B.Face("-z", -258.0, 416.0, WL)       # its face on the lane
@@ -358,7 +358,8 @@ P.place("planter_tree", 453.0, G0, -308.6, district=D)
 P.place("bench", 453.3, G0, -303.4, -math.pi / 2, district=D)
 stand(453.3, -303.4, -math.pi / 2, "sit", y=G0 + 0.48)
 # Manholes breathing steam into the signs' light.
-for i, (x_, z_) in enumerate(((436.4, -303.0), (444.5, -286.5), (435.4, -231.0))):
+# (None where the page's flight comes down the street past the bridge.)
+for i, (x_, z_) in enumerate(((436.4, -303.0), (444.5, -286.5), (443.6, -196.5))):
     cylinder((D, "metal", 1), x_, z_, 0.0, 0.025, 0.42, segs=14)
     K.steam(f"afterlife_{i}", x_, 0.0, z_)
 
@@ -499,8 +500,8 @@ K.crates(D, 459.4, -228.2, ro, n=3, y=8.0)
 OUTER_ROOFS = ("plant", "terrace", "board", "sky", "plant", "sky")
 for (z0, z1, n), kind in zip(OUTER, OUTER_ROOFS):
     y_ = storeys(n)
-    K.parapet(D, 490.0, 508.0, z0, z1, y_, T["charcoal"], line={"terrace": "teal", "board": "pink", "sky": None, "plant": None}[kind]
-              if n > 1 else "amber")
+    K.parapet(D, 490.0, 508.0, z0, z1, y_, T["charcoal"], line={"terrace": "teal", "board": "pink", "sky": "amber", "plant": None}[kind]
+              if n >= 1 else None, h=0.95 if n >= 1 else 0.4)
     if kind == "plant":
         K.plant(D, 491.5, 506.5, z0 + 1.5, z1 - 6.0, y_, ro)
         P.place("tank_roof", 503.5, y_, z1 - 3.0, ro.uniform(0, 3), district=D)
@@ -643,12 +644,12 @@ B.billboard(D, 415.0, 22.6, -300.32, 15.0, 8.0, math.pi, ro, back=False, depth=0
 # What the lanes' walls carry at a walker's height: both sides of every
 # lane, the kept blocks' and the new ones'.
 for name, plane, a0, a1, top, dens in (
-        ("-x", 402.0 - 0.03, -300.0, -262.0, 30.0, 1.0), ("+x", 398.0, -300.0, -258.0, 14.8, 1.0),
-        ("+x", 398.0, -316.0, -300.0, 25.0, 1.0), ("-x", 402.0, -316.0, -300.0, 14.8, 1.0),
-        ("+z", -262.0 + 0.03, 402.0, WL, 30.0, 1.1), ("-z", -258.0, 416.0, WL, 8.0, 0.8), ("-x", 416.0, -258.0, -250.0, 8.0, 0.8),
-        ("+z", -316.0, EL, 484.0, 28.4, 1.1), ("-z", -312.0, 454.0, 484.0, 11.4, 1.1),
-        ("+x", 484.0 + 0.03, -300.0, -258.0, 34.0, 1.0), ("+x", 484.0, -312.0, -300.0, 11.4, 1.0), ("-x", 490.0, -316.0, -258.0, 18.0, 1.0),
-        ("+x", 476.0 + 0.03, -258.0, -230.0, 22.0, 1.0), ("+x", 476.0 + 0.03, -200.0, -176.0, 7.0, 0.8), ("-x", 490.0, -258.0, -176.0, 11.0, 0.9)):
+        ("-x", 402.0 - 0.03, -300.0, -262.0, 30.0, 1.5), ("+x", 398.0, -300.0, -258.0, 14.8, 1.5),
+        ("+x", 398.0, -316.0, -300.0, 25.0, 1.5), ("-x", 402.0, -316.0, -300.0, 14.8, 1.5),
+        ("+z", -262.0 + 0.03, 402.0, WL, 30.0, 1.5), ("-z", -258.0, 416.0, WL, 8.0, 1.1), ("-x", 416.0, -258.0, -250.0, 8.0, 1.0),
+        ("+z", -316.0, EL, 484.0, 28.4, 1.5), ("-z", -312.0, 454.0, 484.0, 11.4, 1.5),
+        ("+x", 484.0 + 0.03, -300.0, -258.0, 34.0, 1.4), ("+x", 484.0, -312.0, -300.0, 11.4, 1.4), ("-x", 490.0, -316.0, -258.0, 18.0, 1.4),
+        ("+x", 476.0 + 0.03, -258.0, -230.0, 22.0, 1.3), ("+x", 476.0 + 0.03, -200.0, -176.0, 7.0, 1.1), ("-x", 490.0, -258.0, -176.0, 11.0, 1.2)):
     K.lane_wall(D, B.Face(name, plane, a0, a1), rl, top, dens)
 
 # ---------------------------------------------------------------------------
@@ -741,3 +742,70 @@ WY.quad((D, "door", 0), 3.2, 4.4, G0 + 0.36, 2.6, 0.03)
 K.wall_lamp(D, WY, 3.8, 3.05, "amber", 3.0)
 stand(398.5, WY.at(3.1), math.pi / 2, "sit", y=G0 + 0.36)
 stand(398.5, WY.at(4.5), math.pi / 2 - 0.5, "sit", y=G0 + 0.36)
+
+# The closing block's lobby, seen the length of the boulevard: its glass cut
+# by piers, a canopy over the doors lit from under, two strips of amber up
+# the piers either side of them.
+CB = B.Face("-x", EL, -344.0, -316.0)
+for sv in (0.3, 4.9, 9.5, 18.5, 23.1, 27.7):
+    CB.box((D, "trim", 0), sv - 0.22, sv + 0.22, 0.0, SHOP_H, -0.3, 0.14, col=B.TRIM[T["charcoal"]])
+B.canopy(D, CB, 9.0, 19.0, 3.0, SHOP_H - 0.55, T["charcoal"], "amber")
+for sv in (9.5, 18.5):
+    CB.box((D, "neon_amber", 0), sv - 0.04, sv + 0.04, 0.4, 3.9, 0.14, 0.18)
+CB.box((D, "metal", 1), 13.9, 14.1, G0, 3.2, -0.3, -0.24)
+stand(EL + 0.6, CB.at(12.6), -math.pi / 2, "idle", y=G0)
+stand(EL + 0.7, CB.at(21.0), -math.pi / 2 + 0.6, "phone", y=G0)
+
+# The yard behind the garage: a lean-to on posts with tubes under it and a
+# bench of tools, a container, a fence across the yard's south end, floods.
+YC = (477.0, 483.4, -226.0, -212.0)        # the lean-to, against the garage's back wall
+box((D, "metal", 0), YC[0] - 1.0, YC[1], 4.0, 4.14, YC[2], YC[3], scale=1.0, bottom=True)
+for z_ in (YC[2] + 0.2, (YC[2] + YC[3]) / 2, YC[3] - 0.2):
+    cylinder((D, "metal", 0), YC[1] - 0.2, z_, G0, 4.0, 0.07, segs=6)
+lane_tubes([(480.0, -222.5), (480.0, -215.5)], 3.8, ("white", "cyan"), power=4.0, half=1.2)
+box((D, "tool_red", 1), 476.5, 477.3, G0, 1.1, -224.0, -220.5, scale=1.0)
+box((D, "metal", 1), 476.5, 477.5, 1.1, 1.16, -224.2, -217.0, scale=1.0)
+K.tyres(D, 482.4, -225.0, 4)
+K.tyres(D, 482.6, -224.1, 2)
+# A container on blocks against the outer row, its doors to the yard.
+box((D, "trim", 0), 486.2, 489.0, G0 + 0.2, G0 + 2.8, -202.0, -190.0, scale=1.0, col=K.RUST_DARK)
+for z_ in (-200.5, -197.5, -194.5, -191.5):
+    box((D, "trim", 1), 486.14, 486.2, G0 + 0.25, G0 + 2.75, z_ - 0.06, z_ + 0.06, scale=1.0, col=K.RUST)
+box((D, "glow", 1), 486.14, 486.2, G0 + 2.3, G0 + 2.4, -196.2, -195.8, scale=0.5, col=GLOW["amber"])
+# The fence, with a gate left open.
+for z_ in (-178.0,):
+    for x_ in (476.0, 479.0, 482.0, 487.0, 490.0):
+        cylinder((D, "metal", 1), x_, z_, G0, 2.6, 0.04, segs=5)
+    for (a_, b_) in ((476.0, 482.0), (487.0, 490.0)):
+        K.grille(D, B.Face("-z", z_, a_, b_), 0.0, b_ - a_, G0 + 0.1, 2.5, out=0.0, step=0.25)
+for (x_, z_, yaw_, hue_) in ((489.4, -244.0, -math.pi / 2, "white"), (476.6, -186.0, math.pi / 2, "amber"), (489.4, -212.0, -math.pi / 2, "amber"),
+                             (484.4, -296.0, math.pi / 2, "white"), (398.4, -256.0, math.pi / 2, "amber")):
+    K.arm_lamp(D, x_, z_, G0, yaw_, h=5.6, arm=2.6, hue=hue_, power=6.0)
+
+# ---------------------------------------------------------------------------
+# More signs at angles to their walls, as the show hangs them: blades
+# turned up and down the street, a column of small boards at each end of
+# the street, and a few more scripts in other hands and colours.
+# ---------------------------------------------------------------------------
+rs_ = random.Random(9600)
+for (x_, z_, y_, size, ang) in (
+        # the corner house (east face, north face)
+        (WL, -304.5, 8.6, "bm", math.pi / 2 - 0.45), (WL, -311.0, 11.2, "bs", math.pi / 2 + 0.4), (420.0, -316.0, 9.4, "bm", math.pi - 0.4),
+        (409.0, -316.0, 7.2, "bs", math.pi + 0.5), (390.0, -316.0, 9.0, "bl", math.pi - 0.3), (384.5, -316.0, 13.5, "bs", math.pi + 0.45),
+        # the closing block, the clinic
+        (EL, -320.5, 9.2, "bl", -math.pi / 2 + 0.4), (EL, -338.5, 8.0, "bm", -math.pi / 2 - 0.45), (454.0, -309.0, 7.0, "bs", -math.pi / 2 + 0.5),
+        # the rooftop's building, the garage's neighbours
+        (EL, -297.0, 9.6, "bm", -math.pi / 2 - 0.4), (EL, -264.0, 8.2, "bl", -math.pi / 2 + 0.45), (EL, -276.0, 12.4, "bs", -math.pi / 2 - 0.3),
+        (EL, -198.0, 5.9, "bx", -math.pi / 2 + 0.4), (EL, -181.0, 5.9, "bs", -math.pi / 2 - 0.4),
+        # the garage's west block, the bar
+        (WL, -246.5, 9.0, "bm", math.pi / 2 + 0.45), (WL, -207.0, 10.5, "bl", math.pi / 2 - 0.4), (WL, -252.0, 6.4, "bx", math.pi / 2 + 0.5)):
+    K.blade(D, x_, z_, y_, size, ang)
+K.stack(D, WL, -313.0, 6.3, 4, math.pi / 2, out=1.2)
+K.stack(D, EL, -190.5, 5.0, 2, -math.pi / 2, out=1.1)
+K.stack(D, WK, -263.2, 7.2, 5, math.pi / 2 + 0.3, out=1.2)
+# Scripts: cyan over a bar under the rooftop's building, amber on the low
+# block by the garage, green on the boulevard's flats.
+K.script(D, EL - 0.2, 5.6, -293.6, 4.6, 1.5, -math.pi / 2, "cyan", 9303, lines=1, underline="pink")
+K.script(D, EL - 0.2, 5.75, -186.0, 4.2, 1.5, -math.pi / 2, "amber", 9304, lines=1, underline=None)
+K.script(D, 389.0, 6.4, -316.2, 5.0, 1.8, math.pi, "green", 9305, lines=1, underline="white")
+K.script(D, 419.0, 5.9, -189.8, 4.4, 1.6, 0.0, "pink", 9306, lines=1, underline="cyan")
