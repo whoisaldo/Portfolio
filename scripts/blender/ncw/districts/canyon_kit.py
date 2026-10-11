@@ -48,9 +48,23 @@ def seen(eyes, occ, lo, hi, n=4):
     return False
 
 
+def covers(occ, lo, hi):
+    """Whether a box lies across a line from the hero's lens to anything it
+    frames over the canyon (kit.HERO_KEEP) that the masses in `occ` do not
+    already hide."""
+    for e in HERO_EYES:
+        for a, b in K.HERO_KEEP:
+            for u in (0.0, 0.25, 0.5, 0.75, 1.0):
+                for v in (0.0, 0.25, 0.5, 0.75, 1.0):
+                    q = (a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * v, a[2])
+                    if K._crosses(e, q, lo, hi) and not any(K._crosses(e, q, mlo, mhi) for mlo, mhi in occ):
+                        return True
+    return False
+
+
 def hidden(occ, lo, hi, plaza=False):
     """Whether a box stays out of the hero's lens (and the Work shot's)."""
-    if seen(HERO_EYES, occ, lo, hi) or hero_covers(lo, hi):
+    if seen(HERO_EYES, occ, lo, hi) or covers(occ, lo, hi):
         return False
     return not (plaza and seen(PLAZA_EYES, PLAZA_OCC, lo, hi))
 
@@ -381,6 +395,12 @@ def lane(key, x0, x1, z0, z1, r, along="z", tubes=True, people=True, name=None):
             if pose == "talk":
                 ox, _, oz = pt(0.0, 1.0 * face, 0.0)
                 stand(qx + (ox if along == "z" else 0.0), qz + (0.0 if along == "z" else oz), yaw + math.pi, "talk", G0)
+        # A drain down its middle, a grating at a time.
+        dx, _, dz = pt(v, (wa + wb) / 2, 0.0)
+        if along == "z":
+            box((key, "dark", 1), dx - 0.2, dx + 0.2, G0, G0 + 0.012, dz - 2.2, dz + 2.2, scale=0.5)
+        else:
+            box((key, "dark", 1), dx - 2.2, dx + 2.2, G0, G0 + 0.012, dz - 0.2, dz + 0.2, scale=0.5)
         v += r.uniform(6.0, 10.0)
         n += 1
     if name:
@@ -475,3 +495,141 @@ def link(side_x0, side_x1, z_lo, z_hi, y, r, key=CB):
     for x, nx in ((side_x0 - 0.02, -1), (side_x1 + 0.02, 1)):
         f = B.Face("+x" if nx > 0 else "-x", x, z_lo, z_hi)
         f.quad((key, "neon_" + hue, 0), 0.3, f.width - 0.3, y + 1.3, y + 1.9, 0.0)
+
+
+# ---------------------------------------------------------------------------
+# A service wall at street level: what a block shows a lane.
+# ---------------------------------------------------------------------------
+def service_wall(f, r, key=CB):
+    """The ground floor of a back or an alley wall, nothing on it repeated
+    and no stretch of it bare: rain-stained concrete over a dark plinth, a
+    pair of conduits run along it, and under them back doors with a lamp
+    each, a shutter for deliveries, switch boxes with their pilot lamps,
+    louvred vents, meter cabinets piped up to the conduits, small signs,
+    skips and crates; caged lamps over head height (their light pooled on
+    the lane, kit.light)."""
+    w = f.width
+    f.quad((key, "concrete", 0), 0.0, w, 0.0, SHOP_H, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, SHOP_H / 3.0), (0, SHOP_H / 3.0)))
+    f.box((key, "trim", 1), 0.0, w, 0.0, 0.5, 0.0, 0.07, col=(0.05, 0.05, 0.06, 1))
+    for y in (3.3, 3.46):
+        f.box((key, "metal", 1), 0.2, w - 0.2, y, y + 0.07, 0.0, 0.1)
+    steel = (0.09, 0.1, 0.11, 1)
+    s = r.uniform(0.6, 2.0)
+    while s < w - 1.4:
+        pick = r.random()
+        adv = 1.0
+        if pick < 0.22:
+            f.quad((key, "door", 0), s, s + 1.1, G0, 2.3, 0.03)
+            f.box((key, "metal", 1), s - 0.08, s + 1.18, 2.3, 2.4, 0.0, 0.12)
+            hue = r.choice(("amber", "amber", "cyan", "pink", "white"))
+            if hue == "cyan":
+                f.box((key, "neon_cyan", 0), s - 0.3, s + 1.4, 2.62, 2.7, 0.04, 0.1)
+            else:
+                f.box((key, "neon_" + hue, 0), s + 0.43, s + 0.67, 2.55, 2.75, 0.05, 0.2)
+            light(key, *f.p(f.at(s + 0.55), 2.6, 0.8), hue, 3.0)
+            adv = 1.6
+        elif pick < 0.32 and s + 3.6 < w:
+            f.quad((key, "door_panel", 0), s, s + 3.2, G0, 3.0, 0.03)
+            f.box((key, "metal", 1), s - 0.05, s + 3.25, 3.0, 3.25, 0.0, 0.22)
+            f.box((key, "hazard", 1), s, s + 3.2, G0, G0 + 0.22, 0.03, 0.06)
+            f.box((key, "glow", 0), s + 1.4, s + 1.8, 3.5, 3.6, 0.05, 0.2, col=GLOW["white"])
+            light(key, *f.p(f.at(s + 1.6), 3.4, 0.8), "white", 2.5)
+            adv = 3.7
+        elif pick < 0.46:
+            f.box((key, "metal", 0), s, s + 0.7, 1.0, 2.0, 0.0, 0.25)
+            f.box((key, "glow", 0), s + 0.5, s + 0.58, 1.75, 1.83, 0.25, 0.26, col=GLOW[r.choice(("green", "red", "amber"))])
+            f.box((key, "metal", 1), s + 0.3, s + 0.36, 2.0, 3.3, 0.0, 0.08)
+            adv = 1.1
+        elif pick < 0.6:
+            f.box((key, "dark", 0), s, s + 1.2, 0.6, 1.5, 0.0, 0.12)
+            for k in range(4):
+                f.box((key, "metal", 1), s + 0.05, s + 1.15, 0.7 + k * 0.2, 0.76 + k * 0.2, 0.12, 0.17)
+            adv = 1.6
+        elif pick < 0.74 and s + 2.4 < w:
+            if r.random() < 0.5:
+                board(f, s + 1.0, r.uniform(1.7, 2.5), r.choice(("ps", "bx")), r, key)
+            else:
+                blade(f, s + 0.8, r.uniform(3.8, 5.6), r.choice(("bs", "bx", "bm")), r.choice((0.0, 0.35, -0.35)), key, key, key)
+            adv = 2.2
+        elif pick < 0.84:
+            f.box((key, "trim", 0), s, s + 1.0, 0.0, 1.5, 0.0, 0.35, col=steel)
+            for dx in (0.2, 0.5, 0.8):
+                f.box((key, "metal", 1), s + dx - 0.03, s + dx + 0.03, 1.5, 3.3, 0.02, 0.08)
+            adv = 1.4
+        elif pick < 0.94 and s + 2.4 < w:
+            px_, _, pz_ = f.p(f.at(s + 1.0), G0, 0.7)
+            P.place(r.choice(("dumpster", "bags", "crates", "drum")), px_, G0, pz_, f.yaw, district=key)
+            adv = 2.2
+        s += adv + r.uniform(0.3, 1.5)
+    lamp_s = r.uniform(2.0, 5.0)
+    while lamp_s < w - 1.0:
+        hue = "amber" if r.random() < 0.7 else "white"
+        f.box((key, "neon_" + hue, 0), lamp_s - 0.18, lamp_s + 0.18, 3.85, 4.05, 0.05, 0.3)
+        f.box((key, "metal", 1), lamp_s - 0.22, lamp_s + 0.22, 4.05, 4.12, 0.0, 0.34)
+        light(key, *f.p(f.at(lamp_s), 3.8, 0.8), hue, 3.0)
+        lamp_s += r.uniform(5.0, 8.0)
+
+
+# ---------------------------------------------------------------------------
+# A roof from the air: plant, light and structure, nothing over `cap`.
+# ---------------------------------------------------------------------------
+def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
+    """Fill a roof with what a tower's roof holds, plot by plot: cooling
+    towers with a line of light at their foot, a stair hut with its door
+    lit and a lamp's pool before it, condensers in rows, ducts on legs,
+    skylights, a tank, an antenna, a dish. `lines`: the edges ("+x", "-z"...)
+    to draw in a thin line of light at the parapet's top (ARL_JWwKdDs@23)."""
+    w, d = x1 - x0, z1 - z0
+    if lines:
+        hue = r.choice(("cyan", "cyan", "amber", "pink", "teal", "magenta"))
+        fs = B.faces_of(x0, x1, z0, z1)
+        for name in lines:
+            fs[name].quad((key, "neon_" + hue, 0), 0.0, fs[name].width, y + 0.84, y + 0.94, 0.04)
+    if w < 3.5 or d < 3.5 or cap < 1.0:
+        return
+    nx, nz = max(1, int(w // 5.2)), max(1, int(d // 5.2))
+    pw, pd = w / nx - 1.2, d / nz - 1.2
+    for i in range(nx):
+        for j in range(nz):
+            px, pz = x0 + (i + 0.5) * w / nx, z0 + (j + 0.5) * d / nz
+            kind = r.random()
+            if kind < 0.16 and cap >= 2.7 and min(pw, pd) > 2.6:
+                hw, hd, hh = min(1.8, pw / 2), min(1.8, pd / 2), min(cap - 0.4, r.uniform(2.2, 3.2))
+                box((key, "metal", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.0)
+                box((key, "dark", 1), px - hw - 0.08, px + hw + 0.08, y + hh, y + hh + 0.1, pz - hd - 0.08, pz + hd + 0.08, scale=1.0)
+                cylinder((key, "dark", 1), px, pz, y + hh + 0.1, y + hh + 0.26, min(hw, hd) * 0.62, segs=10)
+                hue = r.choice(("cyan", "amber", "red", "teal"))
+                for f in B.faces_of(px - hw, px + hw, pz - hd, pz + hd).values():
+                    f.quad((key, "neon_" + hue, 0), 0.1, f.width - 0.1, y + 0.3, y + 0.4, 0.03)
+            elif kind < 0.3 and cap >= 2.6 and min(pw, pd) > 2.4:
+                hw, hd, hh = min(1.5, pw * 0.4), min(1.3, pd * 0.4), min(2.6, cap - 0.2)
+                box((key, "trim", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.5, col=B.TRIM[5])
+                box((key, "dark", 1), px - hw - 0.1, px + hw + 0.1, y + hh, y + hh + 0.12, pz - hd - 0.1, pz + hd + 0.1, scale=1.0)
+                side = r.choice((-1, 1))
+                dz = pz + side * (hd + 0.02)
+                q = ((px - 0.45, y, dz), (px + 0.45, y, dz), (px + 0.45, y + 2.0, dz), (px - 0.45, y + 2.0, dz))
+                quad((key, "glow", 0), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=GLOW["amber"])
+                light(key, px, y + 1.5, pz + side * (hd + 1.2), "amber", 4.0)
+            elif kind < 0.48:
+                n = max(1, min(4, int(pw // 2.0)))
+                for m in range(n):
+                    P.place("cy_unit", px - (n - 1) + m * 2.0, y, pz, 0.0, district=key)
+            elif kind < 0.62 and pw > 2.0:
+                box((key, "metal", 1), px - pw / 2, px + pw / 2, y + 0.35, y + 0.95, pz - 0.35, pz + 0.35, scale=1.0, bottom=True)
+                for lx in (px - pw / 2 + 0.3, px + pw / 2 - 0.3):
+                    box((key, "metal", 1), lx - 0.06, lx + 0.06, y, y + 0.35, pz - 0.3, pz + 0.3, scale=0.5)
+            elif kind < 0.74 and min(pw, pd) > 2.4:
+                hw, hd = min(1.5, pw / 2 - 0.2), min(1.1, pd / 2 - 0.2)
+                box((key, "trim", 0), px - hw - 0.15, px + hw + 0.15, y, y + 0.3, pz - hd - 0.15, pz + hd + 0.15, scale=1.0, col=B.TRIM[5])
+                hue = r.choice(("white", "amber", "cyan", "white"))
+                for k in range(3):
+                    xa = px - hw + k * (2 * hw / 3) + 0.06
+                    quad((key, "glow", 0), (xa, y + 0.31, pz + hd), (xa + 2 * hw / 3 - 0.12, y + 0.31, pz + hd),
+                         (xa + 2 * hw / 3 - 0.12, y + 0.31, pz - hd), (xa, y + 0.31, pz - hd), col=GLOW[hue])
+                light(key, px, y + 0.5, pz, hue, 3.5)
+            elif kind < 0.8 and cap >= 4.5 and min(pw, pd) > 3.0:
+                P.place("tank_roof", px, y, pz, r.uniform(0, 6.28), district=key)
+            elif kind < 0.86 and cap >= 6.5:
+                P.place("antenna", px, y, pz, r.uniform(0, 3.14), district=key)
+            elif kind < 0.92 and cap >= 2.3:
+                P.place("dish", px, y, pz, r.uniform(0, 6.28), district=key)

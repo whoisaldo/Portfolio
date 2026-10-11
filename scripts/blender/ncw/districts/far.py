@@ -53,7 +53,7 @@ ARCADES = {-1: (4, 7), 1: (5, 8)}
 BACKS = {
     -1: {0: (14,), 1: ("low",), 2: (18,), 3: ("low",), 4: (26,), 5: (16,), 6: (30,), 7: ("low", 34), 8: (24, "low"),
          9: (30, "flush"), 10: (20,)},
-    1: {0: ("low",), 1: ("flush",), 2: ("low",), 3: (10,), 4: ("low",), 5: (28, "low"), 6: (20,), 7: ("low", 30),
+    1: {0: ("low",), 1: ("flush",), 2: ("low",), 3: ("flush",), 4: ("low",), 5: (28, "low"), 6: (20,), 7: ("low", 30),
         8: (26, "low"), 9: ("low", 22)},
 }
 # What stands between the hero's lens and the canyon: the avenue's lots.
@@ -256,9 +256,9 @@ def _podium(L, zn, zs, north, south):
         # Its back, on the lane: a service floor of doors, lamps and
         # shutters, the smaller windows a block turns to its back, pipes,
         # ducts and condensers.
-        B.back_ground(CB, bk, r, tcol)
+        C.service_wall(bk, r)
         C.wall(CB, bk, SHOP_H, ph, back_col, ov)
-        B.clutter_back(CB, bk, r, 0.0, ph)
+        B.clutter_back(CB, bk, r, SHOP_H, ph)
         for _ in range(max(1, int(bk.width / 14.0))):
             s = r.uniform(1.0, bk.width - 1.0)
             px, _, pz = bk.p(bk.at(s), 0.0, 0.0)
@@ -285,11 +285,11 @@ def _podium(L, zn, zs, north, south):
             for s in doors:
                 _doorway(f, s, r)
         elif kind == "alley":
-            B.back_ground(CB, f, r, tcol)
+            C.service_wall(f, r)
             C.wall(CB, f, SHOP_H, ph, back_col, ov)
-            B.clutter_back(CB, f, r, 0.0, ph)
+            B.clutter_back(CB, f, r, SHOP_H, ph)
             for _ in range(2):
-                C.blade(f, r.uniform(2.0, f.width - 2.0), r.uniform(3.6, 7.0), r.choice(("bs", "bm", "bx")), r.choice((0.0, 0.35, -0.35)))
+                C.blade(f, r.uniform(2.0, f.width - 2.0), r.uniform(5.2, 8.0), r.choice(("bs", "bm", "bx")), r.choice((0.0, 0.35, -0.35)))
         elif nb is not None and nb["ph"] < ph - 0.1:
             C.wall(CB, f, nb["ph"], ph, col, ov)
     C.roof(CB, xa, xb, zn, zs, ph)
@@ -311,6 +311,7 @@ def _slab(U):
     C.wall(CB, no, ph, h, col, U["ov"])
     C.wall(CB, bk, ph, h, back_col, U["ov"])
     C.roof(CB, xa, xb, U["zn"], U["zs"], h)
+    B.ROOFS.append((CB, xa, xb, U["zn"], U["zs"], h))
     # The parapet the hero's roofline ends in, as it always has.
     C.parapet(FA, st, h, tcol)
     C.parapet(FA, so, h, tcol)
@@ -344,6 +345,7 @@ def _back(U):
         C.wall(CB, st, h, top, U["col"], U["ov"])
         C.parapet(CB, st, top, tcol)
     C.roof(CB, xa, xb, zn, zs, top)
+    B.ROOFS.append((CB, xa, xb, zn, zs, top))
     OCC.append(((xa, 0.0, zn), (xb, top, zs)))
     U.update(top=top, bx=(xa, xb), bz=(zn, zs), bbk=bk)
     if top < h + 8.0:
@@ -364,6 +366,7 @@ def _back(U):
     B.ROOFS.append((CB, cx0, cx1, cz0, cz1, ctop))
     OCC.append(((cx0, 0.0, cz0), (cx1, ctop, cz1)))
     U.update(crown=(cx0, cx1, cz0, cz1, ctop))
+    print("CANYON crown", side, L["i"], U["k"], round(cx0, 1), round(cx1, 1), round(cz0, 1), round(cz1, 1), "slab", h, "mass", top, "crown", round(ctop, 1))
     mx, mz = (cx0 + cx1) / 2, (cz0 + cz1) / 2
     mtop = C.hidden_top(OCC, mx - 0.5, mx + 0.5, mz - 0.5, mz + 0.5, ctop, ctop + 16.5, plaza=plaza, pad=0.3, least=6.0)
     if mtop:
@@ -390,11 +393,12 @@ def _dress_street(U):
             st.box((CB, "trim", 1), s - 0.16, s + 0.16, ph, h - 0.6, 0.0, 0.32, col=tcol)
     if r.random() < 0.4:
         C.strip(FA, st, 0.3, w - 0.3, h - 1.6, h - 1.15, r.choice(HUES))
-    if U["south"] != "abut" and r.random() < 0.6:
-        # Up the south face, by the street corner: the face the hero sees.
-        so = B.Face("+z", U["zs"], *U["x"])
-        s = 0.5 if side > 0 else so.width - 0.5
-        C.strip(FA, so, s - 0.18, s + 0.18, ph + 1.0, h - 2.0, r.choice(("cyan", "magenta", "pink", "white")))
+    if U["north"] != "abut" and r.random() < 0.6:
+        # A seam of light up the north face, by the street corner (the south
+        # face is the hero's, and stays dark against its band of sky).
+        no = B.Face("-z", U["zn"], *U["x"])
+        s = no.width - 0.5 if side > 0 else 0.5
+        C.strip(CB, no, s - 0.18, s + 0.18, ph + 1.0, h - 2.0, r.choice(("cyan", "magenta", "pink", "white")))
     # Signs: the dense belt over the shops, on the podium, and a looser one
     # up the slab's first floors; high on the slab a big blade or two, and
     # on some a screen canted toward the traffic coming up the avenue.
@@ -444,56 +448,76 @@ def _dress_back(U):
 
 
 def _roofs(U):
-    """Every roof of a tower, from the air: plant, tanks and antennas where
+    """Every roof of a tower, from the air: plant, light and structure where
     no lens of the page's sees them, lines of light round the edges, and on
     a terrace a deck that is lived on."""
     L = U["lot"]
     side, r, h = L["side"], L["r"], U["h"]
-    tint = U["tint"]
-    # The slab's roof, set back from the hero's edge.
-    xa, xb = sorted((_x(side, 3.5), _x(side, U["sd"] - 0.6)))
+    away = "+x" if side > 0 else "-x"
+    # The slab's roof in two strips, each as high as the hero's lens allows:
+    # low by the street edge, more behind it.
     zn, zs = U["zn"] + 1.0, U["zs"] - 1.0
-    top = C.hidden_top(OCC, xa, xb, zn, zs, h, h + 6.0, step=1.0, pad=0.2, least=1.2)
-    if top:
-        B.roof_dress(CB, xa, xb, zn, zs, h, r, cap=top - h, parapet=False, tint=tint)
+    for u0, u1, lines in ((3.5, 8.0, ()), (8.0, U["sd"] - 0.6, ("-z",) + ((away,) if U["back"] == "low" else ()))):
+        if u1 - u0 < 3.0:
+            continue
+        xa, xb = sorted((_x(side, u0), _x(side, u1)))
+        top = C.hidden_top(OCC, xa, xb, zn, zs, h, h + 7.0, step=1.0, pad=0.2, least=1.0)
+        if top:
+            C.roof_plant(CB, xa, xb, zn, zs, h, r, top - h, lines)
     if U["back"] == "flush":
         return
     bx0, bx1 = U["bx"]
     bz0, bz1 = U["bz"]
     t = U["top"]
-    if r.random() < 0.6:
-        walls((CB, "neon_" + r.choice(("cyan", "cyan", "amber", "pink", "teal", "magenta")), 0),
-              [(bx0 - 0.04, bz1 + 0.04), (bx1 + 0.04, bz1 + 0.04), (bx1 + 0.04, bz0 - 0.04), (bx0 - 0.04, bz0 - 0.04)], t + 0.84, t + 0.94, (1, 1, 1, 1))
+    ring = ("+x", "-x", "+z", "-z") if r.random() < 0.75 else ()
     if U.get("crown"):
-        # Round the crown's foot: condensers at the corners.
-        for cx, cz in ((bx0 + 1.2, bz0 + 1.3), (bx1 - 1.2, bz1 - 1.3), (bx0 + 1.2, bz1 - 1.3)):
-            if r.random() < 0.7:
+        # Round the crown's foot: condensers, a line of light; on its top,
+        # plant under the mast.
+        C.roof_plant(CB, bx0, bx1, bz0, bz1, t, r, 0.0, ring)
+        for cx, cz in ((bx0 + 1.2, bz0 + 1.3), (bx1 - 1.2, bz1 - 1.3), (bx0 + 1.2, bz1 - 1.3), (bx1 - 1.2, bz0 + 1.3)):
+            if r.random() < 0.75:
                 P.place("cy_unit", cx, t, cz, r.choice((0.0, math.pi / 2)), district=CB)
         cx0, cx1, cz0, cz1, ct = U["crown"]
-        B.roof_dress(CB, cx0, cx1, cz0, cz1, ct, r, cap=1.2, parapet=False, tint=tint)
+        C.roof_plant(CB, cx0 + 0.5, cx1 - 0.5, cz0 + 0.5, cz1 - 0.5, ct, r, 1.6)
         return
     if t > h:
-        cap = C.hidden_top(OCC, bx0, bx1, bz0, bz1, t, t + 5.0, step=1.0, pad=0.2, least=1.2)
-        if cap:
-            B.roof_dress(CB, bx0, bx1, bz0, bz1, t, r, cap=cap - t, parapet=False, tint=tint)
+        cap = C.hidden_top(OCC, bx0, bx1, bz0, bz1, t, t + 7.0, step=1.0, pad=0.2, least=1.0)
+        C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz1 - 0.6, t, r, (cap - t) if cap else 0.0, ring)
         return
     # A terrace: plant on its north half, a deck on its south: lamps on long
-    # arms, benches along the parapet, a tree, people at the edge.
+    # arms throwing cyan pools, benches along the parapet, a tree, people.
     mid = (bz0 + bz1) / 2
-    B.roof_dress(CB, bx0, bx1, bz0, mid, t, r, cap=5.5, parapet=False, tint=tint, sign_rate=0.6)
+    C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, mid - 0.5, t, r, 6.0, ring)
     edge = bx1 - 0.75 if side > 0 else bx0 + 0.75
     inward = -math.pi / 2 * side
     for z in (mid + 2.0, bz1 - 2.0):
         P.place("cy_deck_lamp", edge - side * 0.3, t, z, inward, district=CB)
+        light(CB, edge - side * 1.7, t + 3.0, z, "cyan", 5.0)
     P.place("planter_tree", (bx0 + bx1) / 2, t, mid + 2.5, district=CB)
     P.place("bench", edge - side * 0.3, t, (mid + bz1) / 2, math.pi / 2, district=CB)
     stand(edge - side * 0.3, (mid + bz1) / 2 + r.uniform(-0.5, 0.5), inward, "sit", t + 0.48)
     stand(edge, mid + 3.4, inward, "lean", t)
+    # A bar against the slab's wall under a line of light, someone serving,
+    # two on stools; trees at the deck's corners.
+    wall_x = _x(side, U["sd"])
+    out = math.pi / 2 * side
+    sz = mid + 4.2
+    if bz1 - mid > 7.5 and abs(edge - wall_x) > 6.0:
+        P.place("cy_stall", wall_x + side * 1.25, t, sz, out, district=CB)
+        stand(wall_x + side * 0.7, sz, out, "vendor", t)
+        for dz in (-0.6, 0.7):
+            P.place("cy_stool", wall_x + side * 2.75, t, sz + dz, district=CB)
+            stand(wall_x + side * 2.75, sz + dz, out + math.pi, "sit", t + 0.5)
+        light(CB, wall_x + side * 2.5, t + 2.0, sz, "pink", 5.0)
+    C.tube(CB, (wall_x + side * 0.1, t + 3.2, bz1 - 1.5), (edge + side * 0.4, t + 3.2, bz1 - 1.5), "amber")
+    for z in (mid + 0.9, bz1 - 0.9):
+        P.place("planter_tree", wall_x + side * 1.0, t, z, district=CB)
     if bz1 - mid > 9.0:
         cx = (bx0 + bx1) / 2 + side * 2.0
         stand(cx, bz1 - 3.0, 0.0, "talk", t)
         stand(cx, bz1 - 2.0, math.pi, "talk", t)
         stand(edge, bz1 - 1.2, inward, r.choice(("smoke", "phone", "lean")), t)
+    print("CANYON terrace", side, L["i"], U["k"], round(bx0, 1), round(bx1, 1), round(bz0, 1), round(bz1, 1), round(t, 1), "slab", h)
 
 
 for side in (-1, 1):
@@ -551,6 +575,10 @@ for side in (-1, 1):
         if not 3.0 < gap < 12.0:
             continue
         lr = random.Random(int(abs(a["zn"]) * 3 + side))
+        if a["lot"] is b["lot"] or a["lot"]["north"] == "gap":
+            # The podium's roof in the slot: plant between the towers.
+            xp = sorted((_x(side, 7.5), _x(side, DEPTH - 3.0)))
+            C.roof_plant(CB, xp[0], xp[1], b["zs"] + 0.4, a["zn"] - 0.4, max(a["lot"]["ph"], b["lot"]["ph"]), lr, 3.0)
         if lr.random() < 0.65:
             lo = max(a["lot"]["ph"], b["lot"]["ph"], 19.0 if gap > 7.0 else 0.0)
             hi = min(a["h"], b["h"]) - 8.0
@@ -611,7 +639,7 @@ light(CB, 45.6, 4.0, -240.0, "amber", 4.0)
 bridge_r = random.Random(4822)
 for bz, by, enclosed, hang in ((-240.0, fl(9) - 0.6, True, None), (-338.0, fl(13) - 0.6, False, 9.0)):
     for lo, hi in C.skybridge(bz, by, bridge_r, enclosed=enclosed, hang=hang):
-        if hero_covers(lo, hi):
+        if C.covers(AVENUE_MASSES, lo, hi):
             raise RuntimeError(f"the skybridge at z {bz} stands across something the hero frames: {lo} {hi}")
     if not enclosed:
         for bx_, dz, yaw in ((-6.0, 1.3, math.pi), (3.5, 1.3, math.pi), (4.4, 1.3, math.pi), (-1.0, -1.3, 0.0)):
