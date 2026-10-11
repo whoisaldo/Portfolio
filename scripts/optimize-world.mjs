@@ -314,7 +314,7 @@ for (const [tier, opts] of Object.entries(TIERS)) {
 }
 // What the drive, the walk and a richer braindance will read later (README,
 // "Exports for later"); the page does not load them.
-for (const name of ["road-graph.json", "collision.json", "districts.json"]) {
+for (const name of ["road-graph.json", "collision.json", "districts.json", "anchors.json"]) {
   await writeFile(`${OUT}/${name}`, await readFile(`design/night-city-world/${name}`));
 }
 

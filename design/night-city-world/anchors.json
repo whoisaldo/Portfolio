@@ -1,0 +1,1673 @@
+{
+ "frame": "world metres, +x east, +y up, +z south (toward the hero's lens)",
+ "note": "unused by the page for now: for the drive, the walk and a richer braindance",
+ "anchors": [
+  {
+   "name": "anchor_billboard_main",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_board_housing",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "w": 48.0,
+    "h": 24.8,
+    "rib0": 14.200000000000001,
+    "ribStep": 3.1
+   }
+  },
+  {
+   "name": "anchor_crowd",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_curb_hero",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 3.1416,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_curb_hero_portrait",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 3.1416,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_garage_bay",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 1.5708,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_holo",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_10",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_11",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_12",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_13",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_14",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_4",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_5",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_6",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_7",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_8",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_9",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lights_afterlife",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "afterlife"
+   }
+  },
+  {
+   "name": "anchor_lights_avenue",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "core"
+   }
+  },
+  {
+   "name": "anchor_lights_avenue_s",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "south"
+   }
+  },
+  {
+   "name": "anchor_lights_corpo",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "corpo"
+   }
+  },
+  {
+   "name": "anchor_lights_japantown",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "japantown"
+   }
+  },
+  {
+   "name": "anchor_lights_mega",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "mega"
+   }
+  },
+  {
+   "name": "anchor_lights_plaza",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "plaza"
+   }
+  },
+  {
+   "name": "anchor_lights_santo",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "santo"
+   }
+  },
+  {
+   "name": "anchor_mega_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "size": 50.0
+   }
+  },
+  {
+   "name": "anchor_mega_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "size": 60.0
+   }
+  },
+  {
+   "name": "anchor_mega_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "size": 56.0
+   }
+  },
+  {
+   "name": "anchor_mega_3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "size": 60.0
+   }
+  },
+  {
+   "name": "anchor_mega_4",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "size": 46.0
+   }
+  },
+  {
+   "name": "anchor_mega_end",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "size": 150.0
+   }
+  },
+  {
+   "name": "anchor_mega_end_tower",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "size": 80.0
+   }
+  },
+  {
+   "name": "anchor_moon",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "radius": 150.0
+   }
+  },
+  {
+   "name": "anchor_parked",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_rail",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "reach": 90.0
+   }
+  },
+  {
+   "name": "anchor_shelter_garage",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "size": [
+     24.0,
+     7.7,
+     30.0
+    ]
+   }
+  },
+  {
+   "name": "anchor_steam_lane_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_lane_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_tower_aws-cloudformation",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "height": 162.0
+   }
+  },
+  {
+   "name": "anchor_tower_northeastern",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "height": 140.0
+   }
+  },
+  {
+   "name": "anchor_tower_pawtograder",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "height": 120.0
+   }
+  },
+  {
+   "name": "anchor_tower_philips-zero-touch",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "height": 144.0
+   }
+  },
+  {
+   "name": "anchor_tower_pinnatec-auto",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "height": 128.0
+   }
+  },
+  {
+   "name": "anchor_tower_robert-defalco-realty",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "height": 124.0
+   }
+  },
+  {
+   "name": "anchor_tower_top-choice-realty",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "height": 114.0
+   }
+  },
+  {
+   "name": "anchor_traffic",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_about",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_about_target",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_contact",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_contact_target",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_contact_target_portrait",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_contact_via",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_experience",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_experience_b",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_experience_target",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_experience_target_b",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_garage",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_garage_across",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_garage_door",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_garage_edge",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_garage_in",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_garage_street",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_garage_swing",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_garage_target",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_hero",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_hero_portrait",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_hero_target",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_hero_target_portrait",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_projects",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_projects_target",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_stack",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_stack_target",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "cam_stack_target_b",
+   "kind": "cam",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "car_bay",
+   "kind": "car",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "car_corpo_a",
+   "kind": "car",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "car_corpo_b",
+   "kind": "car",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "car_plaza",
+   "kind": "car",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "car_rooftop",
+   "kind": "car",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "lamp_board_0",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#dfe6ff",
+    "reach": 8.0,
+    "power": 1.2
+   }
+  },
+  {
+   "name": "lamp_board_1",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#dfe6ff",
+    "reach": 8.0,
+    "power": 1.2
+   }
+  },
+  {
+   "name": "lamp_board_2",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#dfe6ff",
+    "reach": 8.0,
+    "power": 1.2
+   }
+  },
+  {
+   "name": "lamp_board_3",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#dfe6ff",
+    "reach": 8.0,
+    "power": 1.2
+   }
+  },
+  {
+   "name": "lamp_depot_e",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#ffd8a8",
+    "reach": 9.0,
+    "power": 1.1
+   }
+  },
+  {
+   "name": "lamp_depot_w",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#ffd8a8",
+    "reach": 9.0,
+    "power": 1.1
+   }
+  },
+  {
+   "name": "lamp_garage_wall_n",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#ffb866",
+    "reach": 7.0,
+    "power": 1.2
+   }
+  },
+  {
+   "name": "lamp_garage_wall_s",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#ffb866",
+    "reach": 7.0,
+    "power": 1.2
+   }
+  },
+  {
+   "name": "lamp_roof_afterlife",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#ff2e88",
+    "reach": 22.0,
+    "power": 1.5
+   }
+  },
+  {
+   "name": "lamp_roof_bulbs",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#ffb45e",
+    "reach": 10.0,
+    "power": 0.7
+   }
+  },
+  {
+   "name": "lamp_roof_door",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#ffc27a",
+    "reach": 11.0,
+    "power": 1.4
+   }
+  },
+  {
+   "name": "lamp_roof_ripperdoc",
+   "kind": "lamp",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "color": "#f2f0ff",
+    "reach": 16.0,
+    "power": 1.1
+   }
+  },
+  {
+   "name": "logo_aws-cloudformation",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "w": 10.399999999999999,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_aws-cloudformation_e",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 1.5708,
+   "district": "avenue",
+   "extras": {
+    "w": 10.399999999999999,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_northeastern",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "w": 10.399999999999999,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_northeastern_e",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 1.5708,
+   "district": "avenue",
+   "extras": {
+    "w": 10.399999999999999,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_pawtograder",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "w": 20.0,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_pawtograder_e",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 1.5708,
+   "district": "avenue",
+   "extras": {
+    "w": 20.0,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_philips-zero-touch",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "w": 10.399999999999999,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_philips-zero-touch_e",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 1.5708,
+   "district": "avenue",
+   "extras": {
+    "w": 10.399999999999999,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_pinnatec-auto",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "w": 15.2,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_pinnatec-auto_e",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 1.5708,
+   "district": "avenue",
+   "extras": {
+    "w": 15.2,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_robert-defalco-realty",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "w": 15.2,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_robert-defalco-realty_e",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 1.5708,
+   "district": "avenue",
+   "extras": {
+    "w": 15.2,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_top-choice-realty",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "w": 20.0,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "logo_top-choice-realty_e",
+   "kind": "logo",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 1.5708,
+   "district": "avenue",
+   "extras": {
+    "w": 20.0,
+    "h": 13.0
+   }
+  },
+  {
+   "name": "road_spline",
+   "kind": "road",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {}
+  },
+  {
+   "name": "signs_index",
+   "kind": "signs",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "junction_A",
+   "kind": "junction",
+   "at": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "district": "avenue"
+  },
+  {
+   "name": "junction_B",
+   "kind": "junction",
+   "at": [
+    0.0,
+    0.0,
+    -179.0
+   ],
+   "district": "avenue"
+  },
+  {
+   "name": "junction_C",
+   "kind": "junction",
+   "at": [
+    0.0,
+    0.0,
+    -720.0
+   ],
+   "district": "mega"
+  },
+  {
+   "name": "junction_L",
+   "kind": "junction",
+   "at": [
+    -80.0,
+    0.0,
+    -720.0
+   ],
+   "district": "mega"
+  },
+  {
+   "name": "junction_P",
+   "kind": "junction",
+   "at": [
+    -80.0,
+    0.0,
+    -80.0
+   ],
+   "district": "deck"
+  },
+  {
+   "name": "junction_Q",
+   "kind": "junction",
+   "at": [
+    120.0,
+    0.0,
+    -80.0
+   ],
+   "district": "deck"
+  },
+  {
+   "name": "junction_F",
+   "kind": "junction",
+   "at": [
+    120.0,
+    0.0,
+    -179.0
+   ],
+   "district": "plaza"
+  },
+  {
+   "name": "junction_E",
+   "kind": "junction",
+   "at": [
+    120.0,
+    0.0,
+    -330.0
+   ],
+   "district": "corpo"
+  },
+  {
+   "name": "junction_I",
+   "kind": "junction",
+   "at": [
+    440.0,
+    0.0,
+    -330.0
+   ],
+   "district": "afterlife"
+  },
+  {
+   "name": "junction_H",
+   "kind": "junction",
+   "at": [
+    440.0,
+    0.0,
+    1.0
+   ],
+   "district": "santo"
+  },
+  {
+   "name": "district_afterlife",
+   "kind": "district",
+   "at": [
+    450.0,
+    0.0,
+    -253.0
+   ],
+   "label": "The Afterlife Block"
+  },
+  {
+   "name": "district_corpo",
+   "kind": "district",
+   "at": [
+    289.0,
+    0.0,
+    -303.0
+   ],
+   "label": "Corpo Row"
+  },
+  {
+   "name": "district_deck",
+   "kind": "district",
+   "at": [
+    19.0,
+    0.0,
+    -80.0
+   ],
+   "label": "The Deck"
+  },
+  {
+   "name": "district_plaza",
+   "kind": "district",
+   "at": [
+    111.0,
+    0.0,
+    -233.0
+   ],
+   "label": "Corpo Plaza"
+  },
+  {
+   "name": "district_avenue",
+   "kind": "district",
+   "at": [
+    -7.0,
+    0.0,
+    -33.0
+   ],
+   "label": "Kabuki Avenue"
+  },
+  {
+   "name": "district_avenue",
+   "kind": "district",
+   "at": [
+    80.0,
+    0.0,
+    66.0
+   ],
+   "label": "Kabuki Avenue"
+  },
+  {
+   "name": "district_canyon",
+   "kind": "district",
+   "at": [
+    33.0,
+    0.0,
+    -373.0
+   ],
+   "label": "The Canyon"
+  },
+  {
+   "name": "district_mega",
+   "kind": "district",
+   "at": [
+    19.0,
+    0.0,
+    -730.0
+   ],
+   "label": "The Megabuilding"
+  },
+  {
+   "name": "district_japantown",
+   "kind": "district",
+   "at": [
+    -118.0,
+    0.0,
+    -364.0
+   ],
+   "label": "Japantown"
+  },
+  {
+   "name": "district_santo",
+   "kind": "district",
+   "at": [
+    344.0,
+    0.0,
+    -33.0
+   ],
+   "label": "Santo Domingo"
+  }
+ ]
+}

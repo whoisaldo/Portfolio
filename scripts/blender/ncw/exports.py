@@ -12,6 +12,11 @@
   collision.json      boxes a car or a walker must not pass through:
                       building masses, kerbs, props, each with its district
   districts.json      each district's territory and label
+  anchors.json        named places: every empty the kit sets down (the
+                      page's cameras and anchors, the lamps, the set
+                      pieces' marks), the loop's junctions by letter, and
+                      each district's centre, for spawning, waypoints and
+                      a braindance's marks
 
 Unused by the page for now: they are for the drive, the walk and a richer
 braindance (design/night-city-world/README.md, "Exports for later").
@@ -115,7 +120,7 @@ def road_graph():
         "frame": "world metres, +x east, +y up, +z south (toward the hero's lens)",
         "nodes": list(nodes.values()), "edges": edges,
         "loop": {"order": loop, "names": [n for n, _ in plan.LOOP], "deck": deck,
-                 "note": "P to Q runs on the deck (elevated over the avenue); the rest at grade"},
+                 "note": "L to P climbs the ramp up the west street, P to Q runs on the deck (elevated over the avenue); the rest at grade"},
     }
 
 
@@ -149,3 +154,31 @@ def write_all(out):
         "streets": [{"name": s.name, "axis": s.axis, "c": s.c, "from": s.a, "to": s.b, "half": s.half, "walk": s.walk,
                      "lanes": s.lanes, "bay": s.bay, "loop": s.loop} for s in plan.STREETS],
     }, indent=1))
+    (out / "anchors.json").write_text(json.dumps(anchors(), indent=1))
+
+
+# What an empty's custom properties may carry that is a payload for the page
+# (lanes, walks, lights, sign ids), not a description of the place.
+_PAYLOAD = {"lanes", "walks", "lights", "ids", "cars"}
+
+
+def anchors():
+    import bpy
+    out = []
+    for o in sorted((o for o in bpy.data.objects if o.type == "EMPTY"), key=lambda o: o.name):
+        x, mz, y = o.matrix_world.translation
+        extras = {}
+        for k in o.keys():
+            if k in _PAYLOAD or k.startswith("_"):
+                continue
+            v = o[k]
+            extras[k] = v if isinstance(v, (int, float, str)) else (list(v) if hasattr(v, "__len__") and len(v) < 16 else None)
+        out.append({"name": o.name, "kind": o.name.split("_")[0], "at": [_r(x) + 0.0, _r(y) + 0.0, _r(-mz) + 0.0],
+                    "yaw": _r(o.rotation_euler.z, 4), "district": plan.district_at(x, -mz),
+                    **({"extras": {k: v for k, v in extras.items() if v is not None}} if extras else {})})
+    junctions = [{"name": f"junction_{n}", "kind": "junction", "at": [x, 0.0, z], "district": plan.district_at(x, z)} for n, (x, z) in plan.LOOP]
+    centres = [{"name": f"district_{n}", "kind": "district", "at": [_r((b[0] + b[2]) / 2), 0.0, _r((b[1] + b[3]) / 2)], "label": label}
+               for n, b, label in plan.DISTRICTS]
+    return {"frame": "world metres, +x east, +y up, +z south (toward the hero's lens)",
+            "note": "unused by the page for now: for the drive, the walk and a richer braindance",
+            "anchors": out + junctions + centres}
