@@ -331,11 +331,14 @@ def by_wall(f, r, alley=False, people=0.42):
         elif roll < 0.64:
             x, _, z = f.p(f.at(s), G0, 0.35)
             J.put("jt_plants", x, G0, z, f.yaw + HALF_PI)
-        elif roll < 0.72:
+        elif roll < 0.7:
             x, _, z = f.p(f.at(s), G0, 0.6)
             J.put("crates", x, G0, z, f.yaw)
-        elif roll < 0.78:
+        elif roll < 0.74:
             J.put("bin", x, G0, z)
+        elif roll < 0.86:
+            x, _, z = f.p(f.at(s), G0, 0.62)
+            J.put("jt_nobori", x, G0, z, f.yaw + HALF_PI)
         elif alley and roll < 0.92:
             x, _, z = f.p(f.at(s), G0, 1.0)
             stools(x, z, r.uniform(0, 6.28), r)
@@ -1115,6 +1118,7 @@ for (dist, mat, _), b in batches.items():
         cy = sum(v[2] for v in vs) / len(vs)
         if cx > -60.0 and cy > 7.5:
             _bad += 1
+print("japantown decks:", [(rc["row"], round(rc["lot"].z0), round(rc["lot"].z1), rc["h"]) for rc in LOTS if rc.get("roof") == "deck" and rc["row"] in "AE"][:14])
 print(f"japantown: {len(LIGHTS.get(D, [])) // 5} lights, {len(STREET_SIGN_IDS)} sign ids so far in the city")
 print(f"japantown: {len(LOTS)} lots, {sum(1 for i in P.INSTANCES if i[7] == D)} props, {len(PEOPLE)} people so far in the city, bake sources east of x -60 over 7.5 m: {_bad}")
 _t = {}

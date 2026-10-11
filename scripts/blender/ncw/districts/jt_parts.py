@@ -466,3 +466,20 @@ def _jt_pole(k):
     cylinder(T, 0.3, -0.05, 6.4, 7.3, 0.24, segs=6, col=(0.16, 0.17, 0.18, 1))
     box(T, -0.04, 0.04, 5.5, 5.58, 0.0, 1.3, scale=1.0, col=GREY, bottom=True)
     box(k("neon_amber"), -0.12, 0.12, 5.4, 5.5, 0.95, 1.3, scale=1.0, bottom=True)
+
+
+@P.proto("jt_nobori", box=(0.6, 1.5, 0.1), reach=220, detail=True)
+def _jt_nobori(k):
+    """Two banners on poles by a shop's door, their cloth lettered down its
+    length (the cloth runs along x)."""
+    T = k("trim")
+    for x, col, ink in ((-0.62, CLOTH[0], (0.75, 0.7, 0.6, 1)), (0.08, CLOTH[2], (0.45, 0.06, 0.05, 1))):
+        box(T, x - 0.02, x + 0.02, 0.0, 3.05, -0.02, 0.02, scale=1.0, col=GREY)
+        box(T, x, x + 0.56, 2.96, 2.99, -0.012, 0.012, scale=1.0, col=GREY, bottom=True)
+        for sd in (1, -1):
+            xa, xb = (x + 0.04, x + 0.54) if sd > 0 else (x + 0.54, x + 0.04)
+            quad(T, (xa, 0.95, 0.0), (xb, 0.95, 0.0), (xb, 2.95, 0.0), (xa, 2.95, 0.0), col=col)
+            for j in range(4):
+                y = 2.55 - j * 0.44
+                ma, mb = (x + 0.14, x + 0.44) if sd > 0 else (x + 0.44, x + 0.14)
+                quad(T, (ma, y - 0.14, 0.006 * sd), (mb, y - 0.14, 0.006 * sd), (mb, y + 0.14, 0.006 * sd), (ma, y + 0.14, 0.006 * sd), col=ink)
