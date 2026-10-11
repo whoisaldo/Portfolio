@@ -304,7 +304,8 @@ const GAP = 0.46;
 const EASE = 2;
 
 /** What stands on the ground in the props file (src/world/props.js packs
- *  it): x, z, the way it faces and its half sizes. */
+ *  it): x, z, the way it faces (as a cosine and a sine) and its half
+ *  sizes. */
 function footprints(buffer) {
   const view = new DataView(buffer);
   const hl = view.getUint32(0, true);
@@ -318,7 +319,8 @@ function footprints(buffer) {
     // leaves overhead, not the tub they grow from.
     if (!box || data[o + 2] / 50 > 0.6 || (box[1] * data[o + 5]) / 100 < 0.15) continue;
     const k = data[o + 6] / 1000;
-    out.push({ x: data[o + 1] / 20, z: data[o + 3] / 20, yaw: data[o + 4] / 10430.2, hx: Math.min(box[0] * k, 1), hz: Math.min(box[2] * k, 0.55) });
+    const yaw = data[o + 4] / 10430.2;
+    out.push({ x: data[o + 1] / 20, z: data[o + 3] / 20, cos: Math.cos(yaw), sin: Math.sin(yaw), hx: Math.min(box[0] * k, 1), hz: Math.min(box[2] * k, 0.55) });
   }
   return out;
 }
@@ -337,66 +339,76 @@ function fit(want, l, r) {
 
 function layLanes(paves, rows, solid) {
   const out = new Uint8Array(Math.max(1, rows) * LANE_W).fill(128);
+  const sums = new Float32Array(LANE_W + 1);
   for (const pave of paves) {
     const { from, dir, len } = pave.ref;
     const files = [...pave.files].sort((a, b) => a.u - b.u);
     const want = files.map((x) => x.u);
     const [lo, hi] = pave.span;
     // What stands on this pavement, in its own frame: along it (stretched,
-    // so the bend starts early) and across it (by a body's half width).
-    const blocks = [];
+    // so the bend starts early) and across it (by a body's half width),
+    // noted at every point along the walk it reaches.
+    const cells = new Array(LANE_W);
+    let any = false;
     for (const o of solid) {
       const rx = o.x - from[0];
       const rz = o.z - from[1];
       const a = rx * dir[0] + rz * dir[1];
+      if (a < -1.2 - EASE || a > len + 1.2 + EASE) continue;
       const u = rx * dir[1] - rz * dir[0];
-      const c = Math.abs(Math.cos(o.yaw) * dir[0] - Math.sin(o.yaw) * dir[1]);
-      const sn = Math.abs(Math.sin(o.yaw) * dir[0] + Math.cos(o.yaw) * dir[1]);
-      const ha = o.hx * c + o.hz * sn;
-      const hu = Math.min(o.hx * sn + o.hz * c, 0.55);
-      if (a + ha + EASE < 0 || a - ha - EASE > len || u + hu + BODY < lo || u - hu - BODY > hi) continue;
-      blocks.push([a - ha - EASE, a + ha + EASE, u - hu - BODY, u + hu + BODY]);
+      if (u < lo - 0.55 - BODY || u > hi + 0.55 + BODY) continue;
+      const c = Math.abs(o.cos * dir[0] - o.sin * dir[1]);
+      const sn = Math.abs(o.sin * dir[0] + o.cos * dir[1]);
+      const ha = o.hx * c + o.hz * sn + EASE;
+      const hu = Math.min(o.hx * sn + o.hz * c, 0.55) + BODY;
+      if (u + hu < lo || u - hu > hi) continue;
+      const k0 = Math.max(0, Math.floor(((a - ha) / len) * LANE_W));
+      const k1 = Math.min(LANE_W - 1, Math.ceil(((a + ha) / len) * LANE_W));
+      for (let k = k0; k <= k1; k++) (cells[k] ??= []).push([u - hu, u + hu]);
+      any = true;
     }
-    if (!blocks.length) continue;
+    if (!any) continue;
     const n = files.length;
     const at = new Float32Array(n * LANE_W);
     for (let k = 0; k < LANE_W; k++) {
-      const a = ((k + 0.5) / LANE_W) * len;
-      let free = [[lo, hi]];
-      for (const [a0, a1, u0, u1] of blocks) {
-        if (a < a0 || a > a1) continue;
-        free = free.flatMap(([l, r]) => (u1 <= l || u0 >= r ? [[l, r]] : [[l, u0], [u1, r]].filter(([p, q]) => q - p > 0.02)));
-      }
-      // Of the free stretches, the one that moves the files least and
-      // squeezes them least.
+      const blocks = cells[k];
+      if (!blocks) continue;
+      // Of the free stretches between what stands here, the one that moves
+      // the files least and squeezes them least.
+      blocks.sort((p, q) => p[0] - q[0]);
       let best = want;
       let least = Infinity;
-      for (const [l, r] of free) {
-        const x = fit(want, l, r);
-        let cost = 0;
-        for (let i = 0; i < n; i++) {
-          cost += (x[i] - want[i]) ** 2;
-          if (i) cost += 12 * Math.max(0, Math.min(GAP, want[i] - want[i - 1]) - (x[i] - x[i - 1])) ** 2;
+      let l = lo;
+      for (let j = 0; j <= blocks.length; j++) {
+        const r = j < blocks.length ? Math.min(hi, blocks[j][0]) : hi;
+        if (r - l > 0.02) {
+          const x = fit(want, l, r);
+          let cost = 0;
+          for (let i = 0; i < n; i++) {
+            cost += (x[i] - want[i]) ** 2;
+            if (i) cost += 12 * Math.max(0, Math.min(GAP, want[i] - want[i - 1]) - (x[i] - x[i - 1])) ** 2;
+          }
+          if (cost < least) {
+            least = cost;
+            best = x;
+          }
         }
-        if (cost < least) {
-          least = cost;
-          best = x;
-        }
+        if (j < blocks.length) l = Math.max(l, blocks[j][1]);
       }
       for (let i = 0; i < n; i++) at[i * LANE_W + k] = best[i] - want[i];
     }
     // Eased along the walk: two passes of a running mean, together as long
     // as the stretch each block was given.
     const reach = Math.max(1, Math.round(EASE / 2 / (len / LANE_W)));
-    const tmp = new Float32Array(LANE_W);
     for (let i = 0; i < n; i++) {
       const line = at.subarray(i * LANE_W, (i + 1) * LANE_W);
       for (let pass = 0; pass < 2; pass++) {
-        tmp.set(line);
+        for (let k = 0; k < LANE_W; k++) sums[k + 1] = sums[k] + line[k];
         for (let k = 0; k < LANE_W; k++) {
-          let sum = 0;
-          for (let j = -reach; j <= reach; j++) sum += tmp[Math.min(LANE_W - 1, Math.max(0, k + j))];
-          line[k] = sum / (2 * reach + 1);
+          const k0 = Math.max(0, k - reach);
+          const k1 = Math.min(LANE_W - 1, k + reach);
+          // Past either end the walk runs straight: nothing stands there.
+          line[k] = (sums[k1 + 1] - sums[k0]) / (2 * reach + 1);
         }
       }
       for (let k = 0; k < LANE_W; k++) out[files[i].row * LANE_W + k] = Math.round(128 + Math.min(1.27, Math.max(-1.27, line[k])) * 100);
@@ -1156,7 +1168,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   const lay = () => {
     const { data, count, rows, paves } = people;
     const solid = [...furniture];
-    for (let i = 0; i < count; i++) if (data[i * STRIDE + 10] > -0.5) solid.push({ x: data[i * STRIDE], z: data[i * STRIDE + 1], yaw: 0, hx: 0.2, hz: 0.2 });
+    for (let i = 0; i < count; i++) if (data[i * STRIDE + 10] > -0.5) solid.push({ x: data[i * STRIDE], z: data[i * STRIDE + 1], cos: 1, sin: 0, hx: 0.2, hz: 0.2 });
     base.uLanes.value?.dispose();
     const map = new THREE.DataTexture(layLanes(paves, rows, solid), LANE_W, Math.max(1, rows), THREE.RedFormat);
     map.magFilter = map.minFilter = THREE.LinearFilter;
@@ -1164,14 +1176,16 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     base.uLanes.value = map;
     base.uLaneRows.value = Math.max(1, rows);
   };
-  lay();
+  base.uLanes.value = new THREE.DataTexture(new Uint8Array([128]), 1, 1, THREE.RedFormat);
+  base.uLanes.value.needsUpdate = true;
   preloadProps(phone ? "phone" : "high")
     .then((buffer) => {
-      if (over) return;
       furniture = footprints(buffer);
-      lay();
     })
-    .catch(() => {});
+    .catch(() => {})
+    .then(() => {
+      if (!over) lay();
+    });
   fill();
   // world-scene.js draws the scene without telling the crowd: every draw of
   // it starts by updating the scene's matrices, which is where this is told.
@@ -1207,9 +1221,14 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // the way they look and a pose, as the builder's; `only` leaves the
     // rest of the network out, `bare` this module's own people too.
     api.debugStand = (list, { only = false, bare = false } = {}) => {
+      const t0 = performance.now();
       people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], bare });
+      const t1 = performance.now();
       lay();
+      const t2 = performance.now();
       fill();
+      // How long each took, in milliseconds: the people, the lanes, the buffers.
+      return [t1 - t0, t2 - t1, performance.now() - t2];
     };
     // Move where the figures trade places, to look at each on its own.
     api.debugTrades = (near, far) => {
