@@ -607,6 +607,11 @@ def life():
                             yaw = (0.0 if side < 0 else math.pi) if s.axis == "z" else (math.pi / 2 if side > 0 else -math.pi / 2)
                             parked.append([round(x, 2), round(z, 2), round(yaw, 3)])
                         v += rng.uniform(6.0, 9.0)
+    # The service lanes behind the avenue's rows and the arm's are walked
+    # too: a line down each, a few people on it.
+    for x, z0, z1, dens in ((-47.0, -165.0, -13.0, 3.0), (47.5, -165.0, -13.0, 3.0), (-47.0, 45.0, 86.0, 2.0), (47.0, 45.0, 86.0, 2.0)):
+        n_hi = max(1, round((z1 - z0) / 100.0 * dens))
+        walks.append([x, z0, 0.0, 1.0, round(z1 - z0, 1), n_hi, max(0, round(n_hi * 0.33))])
     empty("anchor_traffic", (0, 0, 0), props={"lanes": [v for l in lanes for v in l], "paths": _deck_paths()})
     empty("anchor_crowd", (0, 0, 0), props={"walks": [v for w in walks for v in w]})
     empty("anchor_parked", (0, 0, 0), props={"cars": [v for c in parked for v in c]})

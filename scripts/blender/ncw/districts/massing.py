@@ -119,8 +119,8 @@ def plaza():
     # board (57 m up at z -284, 90 m at z -344): no higher.
     frontage(D, "+x", -344.0, -284.0, 108.0, 30.0, (30.0, 46.0), w, 8302, ends=("street", "open"))
     # Behind the board's block and up to ARASAKA's: offices round courts.
-    blocks(D, 44.0, 78.0, -344.0, -284.0, (28.0, 50.0), 8303)
-    blocks(D, 44.0, 118.0, -456.0, -344.0, (30.0, 64.0), 8304, step=28.0)
+    blocks(D, 52.0, 78.0, -344.0, -284.0, (28.0, 50.0), 8303)
+    blocks(D, 52.0, 118.0, -456.0, -344.0, (30.0, 64.0), 8304, step=28.0)
 
 
 def corpo():

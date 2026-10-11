@@ -41,7 +41,7 @@ const BUDGET = { high: 2.6e6, phone: 1.2e6 };
 const PACK_BUDGET = { high: 2.2e6, phone: 1.0e6 };
 // One pack per district (scripts/blender/ncw/finish.py, PACK_OF), in the
 // order the page streams them: nearest the shots the reader meets first.
-const PACK_ORDER = ["core", "south", "plaza", "deck", "corpo", "afterlife", "santo", "japantown", "mega", "canyon"];
+const PACK_ORDER = ["core", "south", "canyon", "plaza", "deck", "corpo", "afterlife", "santo", "japantown", "mega"];
 const TIERS = {
   high: { size: 1024, quality: 82, dropDetail: false },
   phone: { size: 512, quality: 76, dropDetail: true },
