@@ -283,11 +283,12 @@ def totem(x, z, yaw, r, h=5.2, colour="cyan", sizes=("bx", "bx")):
 def rail(xa, za, xb, zb, y, colour="cyan", h=1.05, glow=False):
     """A glass balustrade from a to b at height y: the pane seen from both
     sides, its top edge lit (KvMY1uzSC1E@43)."""
+    colour = "cyan" if colour == "white" else colour     # (white tube blooms into a bar)
     for p, q in (((xa, za), (xb, zb)), ((xb, zb), (xa, za))):
         quad(k("glass_dark", 1), (p[0], y, p[1]), (q[0], y, q[1]), (q[0], y + h, q[1]), (p[0], y + h, p[1]))
     dx, dz = xb - xa, zb - za
     key = k("glow") if glow else k("neon_" + colour)
-    oriented_box(key, (xa + xb) / 2, y + h + 0.03, (za + zb) / 2, math.hypot(dx, dz), 0.06, 0.08, math.atan2(-dz, dx), scale=1.0,
+    oriented_box(key, (xa + xb) / 2, y + h + 0.02, (za + zb) / 2, math.hypot(dx, dz), 0.04, 0.05, math.atan2(-dz, dx), scale=1.0,
                  col=GLOW[colour] if glow else (1, 1, 1, 1))
 
 
@@ -387,12 +388,12 @@ def tube_post(x, z, yaw, colour="white", h=6.2, arm=1.5):
     light(CO, x, h - 1.2, z, colour, 5.0)
 
 
-def light_strip_ground(x0, x1, z0, z1, colour="cyan", y=G0 + 0.012):
+def light_strip_ground(x0, x1, z0, z1, colour="cyan", y=G0 + 0.024):
     """A line of light set into the paving."""
     quad(k("glow"), (x0, y, z1), (x1, y, z1), (x1, y, z0), (x0, y, z0), col=GLOW[colour])
 
 
-def stripes(x0, x1, z0, z1, y=G0 + 0.01, step=1.8, w=0.9, col=YELLOW, along="x", skew=0.0):
+def stripes(x0, x1, z0, z1, y=G0 + 0.018, step=1.8, w=0.9, col=YELLOW, along="x", skew=0.0):
     """Yellow and dark striped paving (mH2wmyeiIpA@182): bars across a
     strip, every `step` metres, skewed into chevrons if asked."""
     key = k("trim", 1)
@@ -408,7 +409,7 @@ def stripes(x0, x1, z0, z1, y=G0 + 0.01, step=1.8, w=0.9, col=YELLOW, along="x",
             z += step
 
 
-def paving_band(x0, x1, z0, z1, col=STONE, y=G0 + 0.006):
+def paving_band(x0, x1, z0, z1, col=STONE, y=G0 + 0.012):
     """A band of darker or paler stone let into the paving."""
     quad(k("trim"), (x0, y, z1), (x1, y, z1), (x1, y, z0), (x0, y, z0), col=col)
 
@@ -917,6 +918,18 @@ def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white")):
     bulkhead lamps, a pipe run with indicator lamps, crates and bins; each
     lit thing a pool of light on the lane."""
     w = f.width
+    # A lamp high on the wall every few metres, washing it and the lane, so
+    # no stretch between the lit things is black.
+    s = r.uniform(2.0, 4.5)
+    j = r.randrange(3)
+    while s < w - 1.0:
+        hue = hues[j % len(hues)]
+        f.box(k("neon_" + hue, 1), s - 0.16, s + 0.16, 4.72, 4.86, 0.03, 0.2)
+        f.box(k("metal", 1), s - 0.2, s + 0.2, 4.86, 4.92, 0.0, 0.24)
+        lx, _, lz = f.p(f.at(s), 0.0, 0.9)
+        light(CO, lx, 4.2, lz, hue, 3.0)
+        s += r.uniform(6.5, 8.5)
+        j += 1
     s = r.uniform(1.5, 4.0)
     while s < w - 1.8:
         roll = r.random()
@@ -948,3 +961,33 @@ def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white")):
         else:
             P.place(r.choice(("crates", "bags", "bin", "drum", "dumpster")), px, G0, pz, f.yaw, district=CO)
         s += r.uniform(4.0, 7.5) / density
+
+
+def holo_sign(x, z, yaw, r, hue="cyan", y=7.4, size=3.4, n=None, base=G0):
+    """A sign on a pole drawn in light, a hexagon with a pictogram in it
+    (the hexagonal sign over the forecourt in YRL74JmhVgk@30, without its
+    words): two rings of tube, bars like lines of type under the mark, the
+    same on both faces."""
+    cylinder(k("metal"), x, z, base, y - size / 2 - 0.2, 0.09, segs=6)
+    cylinder(k("metal"), x, z, base, base + 0.5, 0.2, segs=6)
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    col = GLOW[hue]
+    dim = (col[0] * 0.45, col[1] * 0.45, col[2] * 0.45, 1.0)
+
+    def at(u, v, w=0.0):
+        return (x + rx * u + nx * w, y + v, z + rz * u + nz * w)
+
+    for rad, c, rr in ((size / 2, col, 0.055), (size / 2 - 0.28, dim, 0.035)):
+        pts = [(rad * math.cos(math.radians(60 * i)), rad * math.sin(math.radians(60 * i)) * 0.92) for i in range(6)]
+        for (u0, v0), (u1, v1) in zip(pts, pts[1:] + pts[:1]):
+            pipe(k("glow"), at(u0, v0), at(u1, v1), rr, segs=4, col=c)
+    sw = size * 0.42
+    sid = st_id("bx", n)
+    for s_, ang in ((1, yaw), (-1, yaw + math.pi)):
+        sign(sid if s_ > 0 else sid + "_b", x + nx * 0.05 * s_, y + size * 0.1, z + nz * 0.05 * s_, sw, sw, ang, district=CO, label=False)
+    for j, wd in enumerate((0.5, 0.32)):
+        v = -size * 0.22 - j * 0.24
+        pipe(k("glow"), at(-size * wd / 2, v), at(size * wd / 2, v), 0.04, segs=4, col=dim)
+    light(CO, x + nx * 1.5, 3.0, z + nz * 1.5, hue, 4.0)
+    light(CO, x - nx * 1.5, 3.0, z - nz * 1.5, hue, 4.0)

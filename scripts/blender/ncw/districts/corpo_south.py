@@ -203,14 +203,14 @@ def colonnade(x0, x1, tower_x, z, hue, r, depth=3.4, top=8.0):
 def terrace(x0, x1, z0, z1, y, r, trees=False):
     """A podium's roof terrace toward the boulevard: paving, planters with
     hedges along its edge, a bench or two, somebody at the rail."""
-    K.paving_band(x0, x1, z0, z1, K.PALE, y=y + 0.006)
+    K.paving_band(x0, x1, z0, z1, K.PALE, y=y + 0.012)
     n = max(2, int((x1 - x0) // 9))
     for i in range(n):
         a = x0 + 0.6 + (x1 - x0 - 1.2) * i / n
         K.planter(a + 0.5, a + (x1 - x0 - 1.2) / n - 1.5, z0 + 0.7, z0 + 1.7, y=y, h=0.45, hedge=0.6)
         if trees and i % 2 == 0:
             P.place("planter_tree", a + 2.0, y, z1 - 1.4, district=CO)
-    K.light_strip_ground(x0 + 0.5, x1 - 0.5, z1 - 0.3, z1 - 0.22, "cyan", y=y + 0.014)
+    K.light_strip_ground(x0 + 0.5, x1 - 0.5, z1 - 0.3, z1 - 0.22, "cyan", y=y + 0.024)
     stand(x0 + (x1 - x0) * 0.3, z0 + 0.45, math.pi, "lean", y)
     stand(x0 + (x1 - x0) * 0.62, z0 + 2.6, math.radians(140), "phone", y)
     K.talk(x0 + (x1 - x0) * 0.8, z0 + 2.8, 0.3, 2, y=y)
@@ -254,13 +254,13 @@ def campus():
         K.roof_lights(x0, x1, zs, z1, y, ("amber", "cyan")[i % 2], step=6.5)
         if i == 0:
             # A garden: hedged beds, trees, benches, a lit path.
-            K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.006)
+            K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.012)
             for j in range(3):
                 zz = a + 2.0 + j * 7.0
                 K.planter(x0 + 3.0, cx - 2.0, zz, zz + 1.6, y=y, h=0.45, hedge=0.7, lit="cyan")
                 K.planter(cx + 2.0, x1 - 3.0, zz + 3.4, zz + 5.0, y=y, h=0.45, hedge=0.7, lit="cyan")
                 P.place("planter_tree", x0 + 5.0 + j * 9.0, y, b - 2.0, district=CO)
-            K.light_strip_ground(cx - 0.05, cx + 0.05, a + 0.5, b - 0.5, "cyan", y=y + 0.014)
+            K.light_strip_ground(cx - 0.05, cx + 0.05, a + 0.5, b - 0.5, "cyan", y=y + 0.024)
             P.place("bench", cx + 1.2, y, a + 9.0, math.pi / 2, district=CO)
             stand(cx + 1.2, a + 9.0, math.pi / 2, "sit", y + 0.45)
             K.talk(cx - 4.0, a + 6.0, 0.2, 3, y=y)
@@ -281,7 +281,7 @@ def campus():
                 K.planter(x0 + 3.0, x1 - 3.0, zz, zz + 1.0, y=y, h=0.4, hedge=0.6)
             for xx in (x0 + 4.0, x1 - 5.0):
                 K.planter(xx, xx + 1.0, a + 4.0, b - 4.0, y=y, h=0.4, hedge=0.6, lit="cyan")
-            K.paving_band(x0 + 5.6, x1 - 5.6, a + 2.4, b - 2.4, K.PALE, y=y + 0.006)
+            K.paving_band(x0 + 5.6, x1 - 5.6, a + 2.4, b - 2.4, K.PALE, y=y + 0.012)
             for bz_ in (a + 4.0, b - 4.0):
                 P.place("bench", (x0 + x1) / 2, y, bz_, 0.0 if bz_ < (a + b) / 2 else math.pi, district=CO)
             stand((x0 + x1) / 2, a + 4.0, 0.0, "sit", y + 0.45)
@@ -301,7 +301,7 @@ def campus():
             stand(x0 + 12.0, a + 14.4, 0.0, "idle", y)
         elif i == 4:
             # A terrace bar's garden: trees, benches, low lamps, people.
-            K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.006)
+            K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.012)
             for j, (px, pz) in enumerate(((x0 + 5.0, a + 3.0), (x1 - 5.0, a + 6.0), (x0 + 8.0, b - 4.0), (x1 - 8.0, b - 3.0), (cx, a + 12.0))):
                 P.place("planter_tree", px, y, pz, district=CO)
             K.planter(x0 + 2.0, x1 - 2.0, b - 1.4, b - 0.4, y=y, h=0.45, hedge=0.6, lit="amber")

@@ -441,7 +441,7 @@ def forecourts():
         # Paving: a carpet of pale stone from the doors to the kerb, light
         # lines either side of it.
         K.paving_band(tx - 3.2, tx + 3.2, LOBBY_Z, LOT_N, K.PALE)
-        K.paving_band(tx - 3.2, tx + 3.2, LOT_N, KERB_N - 0.02, K.STONE, y=G0 + 0.004)
+        K.paving_band(tx - 3.2, tx + 3.2, LOT_N, KERB_N - 0.02, K.STONE, y=G0 + 0.01)
         for sx in (-3.3, 3.3):
             K.light_strip_ground(tx + sx - 0.05, tx + sx + 0.05, LOBBY_Z + 0.2, LOT_N - 0.1, hue)
         if not room_tower:
@@ -716,12 +716,12 @@ def gaps():
         solid(xa, xb, 0.0, ty, -353.6, -348.2, K.STONE)
         K.planter(xa + 0.1, xb - 0.1, -353.2, -348.6, y=ty, h=0.4, hedge=0.6, lit=None)
     solid(gx - 6.0, gx + 6.0, 0.0, ty, -362.0, -353.6, K.CONCRETE)
-    K.paving_band(gx - 6.0, gx + 6.0, -362.0, -353.6, K.PALE, y=ty + 0.004)
+    K.paving_band(gx - 6.0, gx + 6.0, -362.0, -353.6, K.PALE, y=ty + 0.012)
     for sx in (-4.6, 4.6):
         P.place("planter_tree", gx + sx, ty, -357.5, district=CO)
         P.place("bench", gx + sx * 0.55, ty, -360.6, 0.0, district=CO)
     top = link(gx, -362.0, 11.8, r, hue="cyan")
-    K.light_strip_ground(gx - 5.6, gx + 5.6, -353.9, -353.8, "cyan", y=ty + 0.012)
+    K.light_strip_ground(gx - 5.6, gx + 5.6, -353.9, -353.8, "cyan", y=ty + 0.024)
     stand(gx - 2.4, -360.6, 0.0, "sit", ty + 0.45)
     K.talk(gx + 1.0, -356.4, 0.6, 3, y=ty)
     stand(gx + 4.0, -354.6, 0.0, "lean", ty)
@@ -784,10 +784,10 @@ def gaps():
     # A low podium, three steps up, the gates across it.
     K.stairs_z(gx - 6.0, gx + 6.0, -352.0, -353.0, G0, G0 + 0.5, "cyan")
     solid(gx - 6.0, gx + 6.0, 0.0, G0 + 0.5, T_BACK, -353.0, K.CONCRETE)
-    K.paving_band(gx - 6.0, gx + 6.0, T_BACK, -353.0, K.PALE, y=G0 + 0.504)
+    K.paving_band(gx - 6.0, gx + 6.0, T_BACK, -353.0, K.PALE, y=G0 + 0.512)
     for sx in (-3.6, -2.2, -0.8, 0.6):
         gate(gx + sx, -362.0, "cyan")
-        K.light_strip_ground(gx + sx - 0.03, gx + sx + 0.03, -362.0, -354.0, "cyan", y=G0 + 0.512)
+        K.light_strip_ground(gx + sx - 0.03, gx + sx + 0.03, -362.0, -354.0, "cyan", y=G0 + 0.524)
     K.kiosk(gx - 4.6, -357.0, math.pi / 2, "cyan")
     K.kiosk(gx - 4.6, -366.0, math.pi / 2, "amber")
     K.st_blade(gx + 3.4, 6.4, -353.6, "bl", math.radians(90), None)
@@ -990,8 +990,13 @@ def corners():
     stand(444.6, LOT_N + 0.85, 0.0, "idle")
     K.talk(448.0, -340.6, 0.9, 3)
     stand(436.0, LOT_N + 0.9, math.radians(-25), "phone")
-    K.paving_band(440.0, 452.0, LOT_N, -339.3, K.STONE, y=G0 + 0.004)
+    K.paving_band(440.0, 452.0, LOT_N, -339.3, K.STONE, y=G0 + 0.01)
     K.light_strip_ground(440.2, 451.8, LOT_N + 0.3, LOT_N + 0.38, "cyan")
+    # Signs drawn in light on poles, at the row's two ends and in its
+    # middle.
+    K.holo_sign(446.6, -341.9, -math.pi / 4, r, "cyan", y=7.6, n=K.STAR)
+    K.holo_sign(110.6, LOT_N + 0.5, math.radians(20), r, "teal", y=7.2, size=3.0, n=K.EYE)
+    K.holo_sign(GAP_X[3] + 2.6, LOT_N - 2.2, 0.0, r, "cyan", y=7.0, size=3.0, n=K.CROSS)
     # The stacked block's forecourt.
     K.bollards(398.0, 426.0, KERB_N - 0.28, step=3.5, proto="bollard")
     stand(409.0, LOT_N + 0.8, 0.0, "idle")
