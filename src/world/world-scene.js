@@ -38,6 +38,7 @@ import { createPost } from "./post.js";
 import { createGlass } from "./glass.js";
 import { createSkyline } from "./skyline.js";
 import { createRain } from "./rain.js";
+import { createSoundscape } from "./soundscape.js";
 import { createTraffic } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
@@ -132,6 +133,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const post = createPost(renderer, scene, camera, quality, { extra: effects });
   // The page's panes of smoked glass, frosted in the post chain.
   const glass = createGlass(post.glass);
+  // The city's own sound, with sound on.
+  const soundscape = createSoundscape({ reduced });
+  // The garage, which it does not rain in.
+  let shelterBox = null;
 
   const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
     city = c;
@@ -150,7 +155,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     rain = createRain(scene, shared, { count: quality.rain, reduced });
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
-    if (shelter && size) rain.setShelter(shelter.position, shelter.position.clone().add(new THREE.Vector3(...size)));
+    if (shelter && size) {
+      shelterBox = new THREE.Box3(shelter.position.clone(), shelter.position.clone().add(new THREE.Vector3(...size)));
+      rain.setShelter(shelterBox.min, shelterBox.max);
+    }
     traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, drones: tier === "phone" ? 5 : 8, police: true, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier });
     shafts = createShafts(scene, c.anchors, shared);
@@ -576,6 +584,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       const a = Math.atan2(_strikeDir.z, _strikeDir.x) + (Math.random() - 0.5) * 1.4;
       const r = 500 + Math.random() * 900;
       shared.uFlashAt.value.set(camera.position.x + Math.cos(a) * r, camera.position.z + Math.sin(a) * r);
+      soundscape.strike(shared.uFlashAt.value, r, storm.pulses[0].k);
     }
     let f = 0;
     for (const p of storm.pulses) {
@@ -793,6 +802,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     last = now;
     step(dt);
     draw(dt);
+    soundscape.update(dt, camera, {
+      speed: motion.vel.length(),
+      wet: getEnv().wet,
+      inside: shelterBox?.containsPoint(camera.position) ?? false,
+      voices: traffic?.voices,
+    });
   };
 
   const resume = () => {
@@ -825,6 +840,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const next = !stage.paused && stage.mode !== "cinematic" && Boolean(city);
     if (next === running) return;
     running = next;
+    soundscape.setActive(running);
     // The first time the page is really up, time it.
     if (running && adapt.armed) {
       adapt.armed = false;
@@ -1037,6 +1053,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     mirror?.dispose();
     mirror = null;
     glass.dispose();
+    soundscape.dispose();
     post.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
@@ -1087,7 +1104,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     };
     // `renderDirected` and `placeCamera` too, for fixed-camera review shots:
     // set `stage.mode = "cinematic"` to rest the loop, then draw any pose.
-    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, get crowd() { return crowd; }, get skyline() { return skyline; }, post, dumpMirror, setQuality, renderDirected, placeCamera, strike() { storm.t = storm.next; } };
+    window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, get crowd() { return crowd; }, get skyline() { return skyline; }, post, soundscape, dumpMirror, setQuality, renderDirected, placeCamera, strike() { storm.t = storm.next; } };
   }
 
   return {
