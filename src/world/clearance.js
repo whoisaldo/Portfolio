@@ -20,34 +20,39 @@ export function createClearance(root, { x0, z0, x1, z1 }, skip = () => false) {
   const W = Math.ceil((x1 - x0) / CELL);
   const H = Math.ceil((z1 - z0) / CELL);
   const top = new Float32Array(W * H);
-  root.updateMatrixWorld(true);
-  root.traverse((o) => {
-    if (!o.isMesh || skip(o)) return;
-    const pos = o.geometry.attributes.position;
-    const index = o.geometry.index;
-    const count = index ? index.count : pos.count;
-    const m = o.matrixWorld;
-    for (let i = 0; i + 2 < count; i += 3) {
-      _a.fromBufferAttribute(pos, index ? index.getX(i) : i).applyMatrix4(m);
-      _b.fromBufferAttribute(pos, index ? index.getX(i + 1) : i + 1).applyMatrix4(m);
-      _c.fromBufferAttribute(pos, index ? index.getX(i + 2) : i + 2).applyMatrix4(m);
-      const y = Math.max(_a.y, _b.y, _c.y);
-      // Ground, kerbs and road paint are not in a camera's way.
-      if (y < 2) continue;
-      const gx0 = Math.max(0, Math.floor((Math.min(_a.x, _b.x, _c.x) - x0) / CELL));
-      const gx1 = Math.min(W - 1, Math.floor((Math.max(_a.x, _b.x, _c.x) - x0) / CELL));
-      const gz0 = Math.max(0, Math.floor((Math.min(_a.z, _b.z, _c.z) - z0) / CELL));
-      const gz1 = Math.min(H - 1, Math.floor((Math.max(_a.z, _b.z, _c.z) - z0) / CELL));
-      for (let gz = gz0; gz <= gz1; gz++) {
-        for (let gx = gx0; gx <= gx1; gx++) {
-          const k = gz * W + gx;
-          if (top[k] < y) top[k] = y;
+  const rasterise = (object) => {
+    object.updateMatrixWorld(true);
+    object.traverse((o) => {
+      if (!o.isMesh || skip(o)) return;
+      const pos = o.geometry.attributes.position;
+      const index = o.geometry.index;
+      const count = index ? index.count : pos.count;
+      const m = o.matrixWorld;
+      for (let i = 0; i + 2 < count; i += 3) {
+        _a.fromBufferAttribute(pos, index ? index.getX(i) : i).applyMatrix4(m);
+        _b.fromBufferAttribute(pos, index ? index.getX(i + 1) : i + 1).applyMatrix4(m);
+        _c.fromBufferAttribute(pos, index ? index.getX(i + 2) : i + 2).applyMatrix4(m);
+        const y = Math.max(_a.y, _b.y, _c.y);
+        // Ground, kerbs and road paint are not in a camera's way.
+        if (y < 2) continue;
+        const gx0 = Math.max(0, Math.floor((Math.min(_a.x, _b.x, _c.x) - x0) / CELL));
+        const gx1 = Math.min(W - 1, Math.floor((Math.max(_a.x, _b.x, _c.x) - x0) / CELL));
+        const gz0 = Math.max(0, Math.floor((Math.min(_a.z, _b.z, _c.z) - z0) / CELL));
+        const gz1 = Math.min(H - 1, Math.floor((Math.max(_a.z, _b.z, _c.z) - z0) / CELL));
+        for (let gz = gz0; gz <= gz1; gz++) {
+          for (let gx = gx0; gx <= gx1; gx++) {
+            const k = gz * W + gx;
+            if (top[k] < y) top[k] = y;
+          }
         }
       }
-    }
-  });
+    });
+  };
+  rasterise(root);
 
   return {
+    /** A part of the city that arrived later (a streamed pack). */
+    add: rasterise,
     /** The highest thing within a cell of (x, z), in metres. */
     at(x, z) {
       const gx = Math.floor((x - x0) / CELL);

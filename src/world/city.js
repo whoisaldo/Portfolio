@@ -14,12 +14,12 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
-import { worldModelUrl, worldShopsUrl } from "../data/world-assets.js";
+import { worldModelUrl, worldPackUrl, worldShopsUrl } from "../data/world-assets.js";
 import { createProps, preloadProps } from "./props.js";
 import { createMaterialKit, NEON } from "./materials.js";
 import { markBytes } from "./progress.js";
 import { createSigns } from "./signs.js";
-import { bakeLight } from "./spill.js";
+import { createBake } from "./spill.js";
 import { createRoadMaterial } from "./road.js";
 import { createRoad } from "./road-path.js";
 import { dressHolo, preloadHolo } from "./holo.js";
@@ -71,6 +71,26 @@ export function preloadCity(tier) {
   return cache.get(tier);
 }
 
+/** The districts that stream in behind the core (BIBLE.md, "How it
+ *  loads"): each pack's GLB, fetched once and kept like the core's. */
+const packCache = new Map();
+export const PACKS = Object.keys(worldPackUrl.high);
+export function preloadPack(tier, pack) {
+  const key = `${tier}:${pack}`;
+  if (!packCache.has(key)) {
+    const p = new GLTFLoader()
+      .setMeshoptDecoder(MeshoptDecoder)
+      .loadAsync(worldPackUrl[tier][pack])
+      .then((gltf) => gltf.scene)
+      .catch((err) => {
+        packCache.delete(key);
+        throw err;
+      });
+    packCache.set(key, p);
+  }
+  return packCache.get(key);
+}
+
 export async function createCity(scene, renderer, shared, { tier, quality, reduced = false, signs: signWords = null }) {
   const [{ scene: source, shops: shopSource, props: propsBuffer }] = await Promise.all([preloadCity(tier), preloadHolo(), preloadMoon(), preloadAds(), preloadLogos()]);
   const root = source.clone(true);
@@ -83,6 +103,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const named = {};
   const meshes = [];
   const protoMeshes = [];
+  const signBatches = [];
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
   const scl = new THREE.Vector3();
@@ -95,6 +116,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     if (o.name.startsWith("proto_")) protoMeshes.push(o);
     else if (o.name.startsWith("sign_")) signMeshes.push(o);
     else if (o.name.startsWith("ad_")) adMeshes.push(o);
+    else if (/^NCW_sign(\.\d+)?$/.test(o.material?.name ?? "") && o.geometry.attributes.color) signBatches.push(o);
     else if (/^(board_|crown_|holo_figure|moon_disc|garage_door|garage_screen)/.test(o.name)) named[o.name] = o;
     else meshes.push(o);
   });
@@ -129,40 +151,44 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const paint = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0, paint: true });
 
   // Swap materials; note what glows (for the light bake) and what the wet
-  // road should mirror.
-  const sources = [];
+  // road should mirror. The core's meshes now, a streamed pack's later.
   const oldMaterials = new Set();
-  for (const mesh of meshes) {
-    const name = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
-    oldMaterials.add(mesh.material);
-    const mat = name === "asphalt" ? road.material : name === "paint" ? paint.material : kit.forName(mesh.material.name);
-    if (mat) mesh.material = mat;
-    if (name.startsWith("neon_")) {
-      sources.push({ mesh, color: new THREE.Color(NEON[name.slice(5)] || "#ffffff"), intensity: 1.0 });
-      mesh.layers.enable(REFLECT_LAYER);
-    } else if (name === "tube") {
-      // The garage's tubes, pink, cyan and white together: their light in
-      // the bake as the room's mix.
-      sources.push({ mesh, color: new THREE.Color("#e0a8e6"), intensity: 0.8 });
-      mesh.layers.enable(REFLECT_LAYER);
-    } else if (name.startsWith("garage_wall_")) {
-      // The garage's painted walls carry its tubes, as the viewer's room
-      // does: their light in the bake, each wall its own.
-      sources.push({ mesh, color: new THREE.Color(GARAGE_WALLS[name]), intensity: name === "garage_wall_back" ? 0.5 : 1.6 });
-    } else if (name === "shop") {
-      sources.push({ mesh, color: new THREE.Color("#ffb070"), intensity: 0.5 });
-      mesh.layers.enable(REFLECT_LAYER);
-    } else if (name === "lantern") {
-      sources.push({ mesh, color: new THREE.Color("#ff4a2a"), intensity: 1.2 });
-      mesh.layers.enable(REFLECT_LAYER);
-    } else if (name === "lobby") {
-      sources.push({ mesh, color: new THREE.Color("#dfe8ff"), intensity: 0.5 });
-      mesh.layers.enable(REFLECT_LAYER);
-    } else if (name.startsWith("facade") || name === "awning" || name === "corporate") {
-      mesh.layers.enable(REFLECT_LAYER);
+  const dress = (meshes) => {
+    const sources = [];
+    for (const mesh of meshes) {
+      const name = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
+      oldMaterials.add(mesh.material);
+      const mat = name === "asphalt" ? road.material : name === "paint" ? paint.material : kit.forName(mesh.material.name);
+      if (mat) mesh.material = mat;
+      if (name.startsWith("neon_")) {
+        sources.push({ mesh, color: new THREE.Color(NEON[name.slice(5)] || "#ffffff"), intensity: 1.0 });
+        mesh.layers.enable(REFLECT_LAYER);
+      } else if (name === "tube") {
+        // The garage's tubes, pink, cyan and white together: their light in
+        // the bake as the room's mix.
+        sources.push({ mesh, color: new THREE.Color("#e0a8e6"), intensity: 0.8 });
+        mesh.layers.enable(REFLECT_LAYER);
+      } else if (name.startsWith("garage_wall_")) {
+        // The garage's painted walls carry its tubes, as the viewer's room
+        // does: their light in the bake, each wall its own.
+        sources.push({ mesh, color: new THREE.Color(GARAGE_WALLS[name]), intensity: name === "garage_wall_back" ? 0.5 : 1.6 });
+      } else if (name === "shop") {
+        sources.push({ mesh, color: new THREE.Color("#ffb070"), intensity: 0.5 });
+        mesh.layers.enable(REFLECT_LAYER);
+      } else if (name === "lantern") {
+        sources.push({ mesh, color: new THREE.Color("#ff4a2a"), intensity: 1.2 });
+        mesh.layers.enable(REFLECT_LAYER);
+      } else if (name === "lobby") {
+        sources.push({ mesh, color: new THREE.Color("#dfe8ff"), intensity: 0.5 });
+        mesh.layers.enable(REFLECT_LAYER);
+      } else if (name.startsWith("facade") || name === "awning" || name === "corporate") {
+        mesh.layers.enable(REFLECT_LAYER);
+      }
+      mesh.matrixAutoUpdate = false;
     }
-    mesh.matrixAutoUpdate = false;
-  }
+    return sources;
+  };
+  const sources = dress(meshes);
 
   // The props: each prototype dressed in the kit's material by name, then
   // instanced where the props file puts them (src/world/props.js).
@@ -178,6 +204,68 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   sources.push(...props.sources);
   root.add(props.group);
 
+  // The street's standard signs come batched (the builder's kit.sign): each
+  // face's index in signs_index's ids is in its vertices' colour, three
+  // bytes. Cut back into a mesh per face, they are signs like any other.
+  const streetIds = root.getObjectByName("signs_index")?.userData?.ids ?? [];
+  const unpack = (batches) => {
+    const out = [];
+    for (const batch of batches) {
+      batch.updateWorldMatrix(true, false);
+      const g = batch.geometry;
+      const pos = g.attributes.position;
+      const col = g.attributes.color;
+      const index = g.index;
+      const byFace = new Map();
+      const count = index ? index.count : pos.count;
+      for (let i = 0; i < count; i++) {
+        const v = index ? index.getX(i) : i;
+        const id = Math.round(col.getX(v) * 255) + 256 * Math.round(col.getY(v) * 255) + 65536 * Math.round(col.getZ(v) * 255);
+        if (!byFace.has(id)) byFace.set(id, []);
+        byFace.get(id).push(v);
+      }
+      for (const [id, list] of byFace) {
+        const name = streetIds[id];
+        if (!name) continue;
+        const verts = [...new Set(list)];
+        const remap = new Map(verts.map((v, k) => [v, k]));
+        const face = new THREE.BufferGeometry();
+        for (const attr of ["position", "normal", "uv"]) {
+          const a = g.attributes[attr];
+          const arr = new Float32Array(verts.length * a.itemSize);
+          verts.forEach((v, k) => {
+            for (let c = 0; c < a.itemSize; c++) arr[k * a.itemSize + c] = a.getComponent(v, c);
+          });
+          face.setAttribute(attr, new THREE.BufferAttribute(arr, a.itemSize));
+        }
+        face.setIndex(list.map((v) => remap.get(v)));
+        const m = new THREE.Mesh(face);
+        m.name = "sign_" + name;
+        m.matrixWorld.copy(batch.matrixWorld);
+        m.matrixWorldAutoUpdate = false;
+        m.matrixAutoUpdate = false;
+        // Its size, from its corners (uv 0,0 to 1,0 across, to 0,1 up).
+        const uv = face.attributes.uv;
+        const p = face.attributes.position;
+        const at = (u, t) => {
+          for (let k = 0; k < uv.count; k++) if (Math.abs(uv.getX(k) - u) < 1e-3 && Math.abs(uv.getY(k) - t) < 1e-3) return new THREE.Vector3().fromBufferAttribute(p, k).applyMatrix4(batch.matrixWorld);
+          return null;
+        };
+        const o = at(0, 0) ?? at(0, 1);
+        const a = at(1, 0) ?? at(1, 1);
+        const b = at(0, 1) ?? at(0, 0);
+        m.userData = { w: o && a ? o.distanceTo(a) : 1, h: o && b ? o.distanceTo(b) : 1 };
+        out.push(m);
+      }
+      oldMaterials.add(batch.material);
+      batch.removeFromParent();
+      batch.geometry.dispose();
+    }
+    return out;
+  };
+  const unpacked = unpack(signBatches);
+  signMeshes.push(...unpacked);
+
   // Signs: one atlas, one draw, and their light in the bake.
   const signs = createSigns(signMeshes, shared, {
     maxAnisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
@@ -185,6 +273,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     atlas: tier === "phone" ? 2048 : 4096,
     density: tier === "phone" ? 0.5 : 1,
     overrides: signWords,
+    allStreet: true,
   });
   signs.mesh.layers.enable(REFLECT_LAYER);
   sources.push(...signs.sources);
@@ -227,8 +316,12 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   });
   for (let i = lamps.length; i < LAMPS; i++) shared.uLamps.value[i].set(0, -1e4, 0, 0);
 
-  // The light: every emissive triangle, pooled on the ground.
-  const light = bakeLight(sources);
+  // The light: every emissive triangle, pooled on the ground. A streamed
+  // pack adds its own and the maps are rebaked into the same textures (the
+  // car reads the spill's pixels, src/world/car.js).
+  const bake = createBake();
+  bake.add(sources);
+  const light = bake.finish();
   props.disposeBake();
   shared.uSpill.value = light.spill;
   shared.uSpillBounds.value.copy(light.bounds);
@@ -240,28 +333,32 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // behind it and the city's size does not cost every frame. What the bake
   // needed from the meshes one by one it has had; from here the kit is
   // static.
-  root.updateMatrixWorld(true);
-  const groups = new Map();
-  for (const mesh of meshes) {
-    const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(mesh);
-  }
-  for (const list of groups.values()) {
-    const whole = mergeMeshes(list, root);
-    // Only what is heavy is worth a draw per tile: a material with a few
-    // thousand triangles costs less drawn whole than culled in pieces.
-    const pieces = whole.index.count / 3 > TILE_MIN_TRIS ? splitByTile(whole, TILE) : [{ key: "all", geometry: whole }];
-    for (const { key, geometry } of pieces) {
-      const merged = new THREE.Mesh(geometry, list[0].material);
-      merged.name = `kit_${list[0].material.name}_${key}`;
-      merged.layers.mask = list[0].layers.mask;
-      merged.renderOrder = list[0].renderOrder;
-      merged.matrixAutoUpdate = false;
-      root.add(merged);
+  const mergeInto = (meshes, parent) => {
+    parent.updateMatrixWorld(true);
+    const groups = new Map();
+    for (const mesh of meshes) {
+      const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(mesh);
     }
-    for (const mesh of list) mesh.removeFromParent();
-  }
+    for (const list of groups.values()) {
+      const whole = mergeMeshes(list, root);
+      // Only what is heavy is worth a draw per tile: a material with a few
+      // thousand triangles costs less drawn whole than culled in pieces.
+      const pieces = whole.index.count / 3 > TILE_MIN_TRIS ? splitByTile(whole, TILE) : [{ key: "all", geometry: whole }];
+      for (const { key, geometry } of pieces) {
+        const merged = new THREE.Mesh(geometry, list[0].material);
+        merged.name = `kit_${list[0].material.name}_${key}`;
+        merged.layers.mask = list[0].layers.mask;
+        merged.renderOrder = list[0].renderOrder;
+        merged.matrixAutoUpdate = false;
+        parent.add(merged);
+      }
+      for (const mesh of list) mesh.removeFromParent();
+    }
+  };
+  root.updateMatrixWorld(true);
+  mergeInto(meshes, root);
 
   // Placeholders for the named pieces the other modules dress.
   for (const mesh of Object.values(named)) {
@@ -286,6 +383,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   dressed.push(boards, floods, towers, logos, garage);
 
   scene.add(root);
+  const packSigns = [];
+  const packGroups = [];
 
   // The road the car drives: world points, sampled a metre apart in Blender.
   const roadNode = root.getObjectByName("road_spline");
@@ -309,8 +408,55 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     props,
     roofLights,
     light,
+    /**
+     * A streamed pack (src/world/world-scene.js loads them after the first
+     * frame): dressed in the core's materials, its signs on the core's
+     * atlas, its light added to the bake, merged per material and tile into
+     * a group of its own. Returns the group (the clearance field adds it).
+     */
+    addPack(name, packScene) {
+      const pack = packScene.clone(true);
+      pack.name = `pack_${name}`;
+      pack.updateMatrixWorld(true);
+      const kitMeshes = [];
+      const batches = [];
+      pack.traverse((o) => {
+        if (!o.isMesh) return;
+        if (/^NCW_sign(\.\d+)?$/.test(o.material?.name ?? "") && o.geometry.attributes.color) batches.push(o);
+        else kitMeshes.push(o);
+      });
+      const more = dress(kitMeshes);
+      const faces = unpack(batches);
+      const added = signs.addFaces(faces);
+      if (added) {
+        added.mesh.layers.enable(REFLECT_LAYER);
+        added.mesh.visible = signs.mesh.visible;
+        root.add(added.mesh);
+        more.push(...added.sources);
+        packSigns.push(added.mesh);
+      }
+      bake.add(more);
+      const next = bake.finish();
+      light.spill.image.data.set(next.spill.image.data);
+      light.spill.needsUpdate = true;
+      light.streaks.image.data.set(next.streaks.image.data);
+      light.streaks.needsUpdate = true;
+      next.dispose();
+      for (const f of faces) f.geometry.dispose();
+      const group = new THREE.Group();
+      group.name = `pack_${name}`;
+      group.matrixAutoUpdate = false;
+      root.add(group);
+      mergeInto(kitMeshes, pack);
+      for (const m of [...pack.children]) {
+        if (m.isMesh) group.add(m);
+      }
+      packGroups.push(group);
+      return group;
+    },
     setSignsVisible(on) {
       signs.mesh.visible = on;
+      for (const m of packSigns) m.visible = on;
       for (const w of Object.values(kit.wet)) w.setSigns(on);
     },
     /** The `wet` switch: the road's sheen and mirror are the road's own;

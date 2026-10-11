@@ -484,8 +484,23 @@ def empty(name, pos, yaw=0.0, props=None, size=1.0):
 SIGNS = []  # (id, preview text) for the preview text objects
 
 
+# The street's standard signs (st_<size>_<n>, a few thousand faces) are not
+# a mesh each: a glTF mesh costs about a kilobyte before its first triangle.
+# They are batched per district into one mesh of the sign material, each
+# face's index in STREET_SIGN_IDS written exactly into its vertices' colour
+# (three bytes, which the GLB's 8-bit colour keeps), and the ids on an empty,
+# signs_index; src/world/city.js cuts the batch back into faces.
+STREET_SIGN_IDS = []
+
+
 def sign(sid, cx, cy, cz, w, h, yaw, double=False, preview=None, district="avenue", label=True):
     """A sign face. Its words and colours are copy, in src/data/world.js."""
+    if sid.startswith("st_") and not label and not double:
+        i = len(STREET_SIGN_IDS)
+        STREET_SIGN_IDS.append(sid)
+        col = ((i % 256) / 255.0, ((i // 256) % 256) / 255.0, (i // 65536) / 255.0, 1.0)
+        rotated_quad((district, "sign", 0), cx, cy, cz, w, h, yaw, col=col)
+        return
     named_quad("sign_" + sid, "sign", cx, cy, cz, w, h, yaw, double,
                {"sign": sid, "district": district, "w": w, "h": h, "double": int(double)})
     if label:

@@ -34,7 +34,12 @@ import sharp from "sharp";
 
 const SOURCE = "design/night-city-world/world-source.glb";
 const OUT = "public/scenes/world";
-const BUDGET = { high: 3.5e6, phone: 1.5e6 };
+// The core (what the hero needs, and every named piece) may weigh no more
+// than the whole city did before it grew, so the city goes live no later;
+// the packs that stream in behind it have their own.
+const BUDGET = { high: 2.6e6, phone: 1.2e6 };
+const PACK_BUDGET = { high: 2.2e6, phone: 1.0e6 };
+const PACKS = ["core", "west", "east"];
 const TIERS = {
   high: { size: 1024, quality: 82, dropDetail: false },
   phone: { size: 512, quality: 76, dropDetail: true },
@@ -48,9 +53,27 @@ const io = new NodeIO()
 await mkdir(OUT, { recursive: true });
 const sizes = {};
 
-for (const [tier, opts] of Object.entries(TIERS)) {
+for (const [tier, opts] of Object.entries(TIERS)) for (const pack of PACKS) {
   const document = await io.read(SOURCE);
   const root = document.getRoot();
+
+  // This pack's nodes only. The core keeps everything not tagged for a
+  // pack (the named pieces, anchors, cameras, prototypes, the hero's
+  // districts); a pack keeps only its districts' meshes, and no textures:
+  // its materials are the core's, which the site already has.
+  for (const node of root.listNodes()) {
+    const p = node.getExtras()?.pack;
+    const mine = pack === "core" ? !p || p === "core" : p === pack;
+    if (!mine) node.dispose();
+  }
+  if (pack !== "core") {
+    for (const material of root.listMaterials()) {
+      material.setBaseColorTexture(null);
+      material.setEmissiveTexture(null);
+      material.setMetallicRoughnessTexture(null);
+      material.setNormalTexture(null);
+    }
+  }
 
   // Roughness and normal maps: the road's only. Its shader reads both (the
   // puddles, and the mirror bent by the asphalt); every other surface is lit
@@ -116,17 +139,20 @@ for (const [tier, opts] of Object.entries(TIERS)) {
     textureCompress({ encoder: sharp, targetFormat: "webp", resize: [opts.size, opts.size], quality: opts.quality }),
     meshopt({ encoder: MeshoptEncoder, level: "high", quantizePosition: 16, quantizeNormal: 10, quantizeTexcoord: 14 }),
   );
-  const path = `${OUT}/world-${tier}.glb`;
+  const path = pack === "core" ? `${OUT}/world-${tier}.glb` : `${OUT}/world-${tier}-${pack}.glb`;
   await io.write(path, document);
-  sizes[tier] = (await stat(path)).size;
+  const size = (await stat(path)).size;
+  if (pack === "core") sizes[tier] = size;
+  sizes[`${tier}-${pack}`] = size;
   let triangles = 0;
   for (const mesh of root.listMeshes()) {
     for (const prim of mesh.listPrimitives()) triangles += (prim.getIndices()?.getCount() ?? 0) / 3;
   }
-  console.log(`world-${tier}.glb: ${(sizes[tier] / 1e6).toFixed(2)} MB, ${root.listMeshes().length} meshes, ` +
+  console.log(`${path.split("/").pop()}: ${(size / 1e6).toFixed(2)} MB, ${root.listMeshes().length} meshes, ` +
     `${triangles.toLocaleString()} triangles, ${root.listTextures().length} textures`);
-  if (sizes[tier] > BUDGET[tier]) {
-    throw new Error(`world-${tier}.glb is ${(sizes[tier] / 1e6).toFixed(2)} MB, over its ${BUDGET[tier] / 1e6} MB budget`);
+  const budget = pack === "core" ? BUDGET[tier] : PACK_BUDGET[tier];
+  if (size > budget) {
+    throw new Error(`${path.split("/").pop()} is ${(size / 1e6).toFixed(2)} MB, over its ${budget / 1e6} MB budget`);
   }
 }
 
@@ -291,6 +317,17 @@ export const worldModelUrl = {
   high: "${base}world-high.glb?v=${await revision(`${OUT}/world-high.glb`)}",
   phone: "${base}world-phone.glb?v=${await revision(`${OUT}/world-phone.glb`)}",
 };
+// The districts that stream in behind the core, in the order they load.
+export const worldPackUrl = {
+  high: {
+    east: "${base}world-high-east.glb?v=${await revision(`${OUT}/world-high-east.glb`)}",
+    west: "${base}world-high-west.glb?v=${await revision(`${OUT}/world-high-west.glb`)}",
+  },
+  phone: {
+    east: "${base}world-phone-east.glb?v=${await revision(`${OUT}/world-phone-east.glb`)}",
+    west: "${base}world-phone-west.glb?v=${await revision(`${OUT}/world-phone-west.glb`)}",
+  },
+};
 export const worldMoonUrl = "${base}moon.webp?v=${await revision(moonPath)}";
 export const worldHoloUrl = "${base}holo.webp?v=${await revision(holoPath)}";
 export const worldEarthUrl = "${base}earth.webp?v=${await revision(earthPath)}";
@@ -321,4 +358,5 @@ export const worldPropsUrl = {
 `;
 const metadataPath = "src/data/world-assets.js";
 if ((await readFile(metadataPath, "utf8").catch(() => "")) !== metadata) await writeFile(metadataPath, metadata);
-console.log(`budgets: high ${(sizes.high / 1e6).toFixed(2)} / 3.5 MB, phone ${(sizes.phone / 1e6).toFixed(2)} / 1.5 MB`);
+console.log(`budgets: core high ${(sizes.high / 1e6).toFixed(2)} / ${BUDGET.high / 1e6} MB, phone ${(sizes.phone / 1e6).toFixed(2)} / ${BUDGET.phone / 1e6} MB; ` +
+  `packs high ${((sizes["high-west"] + sizes["high-east"]) / 1e6).toFixed(2)} MB, phone ${((sizes["phone-west"] + sizes["phone-east"]) / 1e6).toFixed(2)} MB`);

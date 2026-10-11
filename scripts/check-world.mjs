@@ -12,8 +12,9 @@
 //   bay, and the car's stops are on it;
 //   the flight into the garage ends on GarageModel's own front preset
 //   (src/data/world.js copies it; src/lib/garage-scene.js owns it);
-//   the size budgets: 3.5 MB for the desktop GLB, 1.5 MB for the phone's,
-//   no texture over 1024 px.
+//   the size budgets: the core GLB (what the hero needs and every named
+//   piece) 2.6 MB on a desktop and 1.2 MB on a phone, each streamed pack
+//   2.2 MB and 1.0 MB, no texture over 1024 px.
 //
 // The data modules are loaded through Vite, as the site loads them.
 import assert from "node:assert/strict";
@@ -25,7 +26,8 @@ import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { MeshoptDecoder } from "meshoptimizer";
 import sharp from "sharp";
 
-const BUDGET = { high: 3.5e6, phone: 1.5e6 };
+const BUDGET = { high: 2.6e6, phone: 1.2e6 };
+const PACK_BUDGET = { high: 2.2e6, phone: 1.0e6 };
 const MAX_TEXTURE = 1024;
 
 const vite = await createServer({ server: { middlewareMode: true }, appType: "custom", logLevel: "error" });
@@ -70,6 +72,12 @@ await MeshoptDecoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
 const report = [];
 for (const tier of ["high", "phone"]) {
+  for (const pack of Object.keys(data.assets.worldPackUrl[tier])) {
+    const p = `public/scenes/world/world-${tier}-${pack}.glb`;
+    const b = statSync(p).size;
+    assert.ok(b <= PACK_BUDGET[tier], `${p} is ${(b / 1e6).toFixed(2)} MB, over its ${PACK_BUDGET[tier] / 1e6} MB budget.`);
+    assert.ok(data.assets.worldPackUrl[tier][pack].startsWith(`/scenes/world/world-${tier}-${pack}.glb`), `world-assets.js does not point at ${p}.`);
+  }
   const path = `public/scenes/world/world-${tier}.glb`;
   const bytes = statSync(path).size;
   assert.ok(bytes <= BUDGET[tier], `${path} is ${(bytes / 1e6).toFixed(2)} MB, over its ${BUDGET[tier] / 1e6} MB budget.`);

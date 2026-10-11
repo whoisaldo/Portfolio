@@ -368,16 +368,35 @@ const DRAW = {
  * GLB's sign_* meshes (world matrices current). Returns
  * { mesh, texture, sources, dispose } where `sources` feed the spill bake.
  */
-export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false, atlas = 4096, density = 1, overrides = null } = {}) {
+export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false, atlas = 4096, density = 1, overrides = null, allStreet = false } = {}) {
   // 4096 wide on a desktop; a phone gets 2048 at half the pixels a metre.
   // Only as tall as the packed signs need (a power of two): the square
   // atlas was more than half empty, and a 4096 square with its mipmaps is
   // some 85 MB of video memory.
   const ATLAS = atlas;
 
-  // One cell per distinct sign, sized from the face's metres.
+  // One cell per distinct sign, sized from the face's metres. With
+  // `allStreet`, a cell for every design of the street's standard signs as
+  // well, whether or not a face here uses it: the districts that stream in
+  // later (addFaces) bring faces that need them.
   const cells = new Map();
   const faces = [];
+  const cellFor = (spec, w, h) => {
+    if (cells.has(spec.key)) return;
+    const ppm = (spec.ppm ?? PX_PER_M) * density;
+    let pw = Math.round(w * ppm);
+    let ph = Math.round(h * ppm);
+    const scale = Math.min(1, (ATLAS / 4) / Math.max(pw, ph), Math.max(1, (32 * density + 32) / Math.min(pw, ph)));
+    pw = Math.max(24, Math.round(pw * scale));
+    ph = Math.max(24, Math.round(ph * scale));
+    cells.set(spec.key, { spec, pw, ph });
+  };
+  if (allStreet) {
+    for (const [size, list] of Object.entries(STREET_SIGNS)) {
+      const [w, h] = SIGN_SIZES[size];
+      list.forEach((_, i) => cellFor(signSpec(`st_${size}_${i}`), w, h));
+    }
+  }
   for (const mesh of meshes) {
     const id = mesh.name.replace(/^sign_/, "");
     // A caller may reword a sign (the braindance puts Ali's work on a few of
@@ -388,14 +407,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     const w = mesh.userData.w || 1;
     const h = mesh.userData.h || 1;
     faces.push({ mesh, spec });
-    if (cells.has(spec.key)) continue;
-    const ppm = (spec.ppm ?? PX_PER_M) * density;
-    let pw = Math.round(w * ppm);
-    let ph = Math.round(h * ppm);
-    const scale = Math.min(1, (ATLAS / 4) / Math.max(pw, ph), Math.max(1, (32 * density + 32) / Math.min(pw, ph)));
-    pw = Math.max(24, Math.round(pw * scale));
-    ph = Math.max(24, Math.round(ph * scale));
-    cells.set(spec.key, { spec, pw, ph });
+    cellFor(spec, w, h);
   }
 
   // Shelf packing, tallest first: laid out, then drawn on a canvas as tall
@@ -444,71 +456,78 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   // Each face's frame is kept too (its world corner at uv 0,0, its edges to
   // 1,0 and 0,1, the way it faces, and its cell), for the floors that trace
   // a sign's reflection (src/world/wet.js).
-  const geos = [];
-  const sources = [];
-  const frames = [];
-  faces.forEach(({ mesh, spec }, index) => {
-    const cell = cells.get(spec.key);
-    const g = new THREE.BufferGeometry();
-    const src = mesh.geometry;
-    mesh.updateWorldMatrix(true, false);
-    const pos = src.attributes.position;
-    const uv = src.attributes.uv;
-    const nor = src.attributes.normal;
-    const n = pos.count;
-    const P = new Float32Array(n * 3);
-    const N = new Float32Array(n * 3);
-    const U = new Float32Array(n * 2);
-    const S = new Float32Array(n * 2);
-    const v = new THREE.Vector3();
-    const nm = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
-    for (let i = 0; i < n; i++) {
-      v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
-      P.set([v.x, v.y, v.z], i * 3);
-      v.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize();
-      N.set([v.x, v.y, v.z], i * 3);
-      // glTF UVs put v = 0 at the top of the image, and the atlas is not
-      // flipped, so a face's v runs straight down its cell.
-      const u = uv.getX(i);
-      const t = uv.getY(i);
-      U[i * 2] = (cell.x + u * cell.pw) / ATLAS;
-      U[i * 2 + 1] = (cell.y + t * cell.ph) / HEIGHT;
-      S[i * 2] = index;
-      S[i * 2 + 1] = spec.flicker && !reduced ? 1 : 0;
-    }
-    const sides = new Map();
-    for (let i = 0; i < n; i++) {
-      const key = [N[i * 3], N[i * 3 + 1], N[i * 3 + 2]].map((c) => Math.round(c * 4)).join();
-      if (!sides.has(key)) sides.set(key, { normal: new THREE.Vector3(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]), at: [] });
-      sides.get(key).at.push([uv.getX(i), uv.getY(i), new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])]);
-    }
-    for (const { normal, at } of sides.values()) {
-      const corner = (u, t) => at.find(([a, b]) => Math.abs(a - u) < 1e-3 && Math.abs(b - t) < 1e-3)?.[2];
-      const o = corner(0, 0);
-      const a = corner(1, 0);
-      const b = corner(0, 1);
-      if (!o || !a || !b) continue;
-      frames.push({
-        name: mesh.name,
-        corner: o,
-        u: a.clone().sub(o),
-        v: b.clone().sub(o),
-        normal,
-        atlas: new THREE.Vector4(cell.x / ATLAS, cell.y / HEIGHT, cell.pw / ATLAS, cell.ph / HEIGHT),
-        color: new THREE.Color(spec.color),
-        sign: [index, spec.flicker && !reduced ? 1 : 0],
-      });
-    }
-    g.setAttribute("position", new THREE.BufferAttribute(P, 3));
-    g.setAttribute("normal", new THREE.BufferAttribute(N, 3));
-    g.setAttribute("uv", new THREE.BufferAttribute(U, 2));
-    g.setAttribute("aSign", new THREE.BufferAttribute(S, 2));
-    if (src.index) g.setIndex(src.index.clone());
-    geos.push(g);
-    sources.push({ mesh, color: new THREE.Color(spec.color), intensity: spec.draw === "board" ? 0.9 : 1.6 });
-  });
-  const geometry = mergeGeometries(geos, false);
-  geos.forEach((g) => g.dispose());
+  let indexBase = 0;
+  const build = (faces) => {
+    const geos = [];
+    const sources = [];
+    const frames = [];
+    faces.forEach(({ mesh, spec }, k) => {
+      const index = indexBase + k;
+      const cell = cells.get(spec.key);
+      const g = new THREE.BufferGeometry();
+      const src = mesh.geometry;
+      mesh.updateWorldMatrix(true, false);
+      const pos = src.attributes.position;
+      const uv = src.attributes.uv;
+      const nor = src.attributes.normal;
+      const n = pos.count;
+      const P = new Float32Array(n * 3);
+      const N = new Float32Array(n * 3);
+      const U = new Float32Array(n * 2);
+      const S = new Float32Array(n * 2);
+      const v = new THREE.Vector3();
+      const nm = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+      for (let i = 0; i < n; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+        P.set([v.x, v.y, v.z], i * 3);
+        v.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize();
+        N.set([v.x, v.y, v.z], i * 3);
+        // glTF UVs put v = 0 at the top of the image, and the atlas is not
+        // flipped, so a face's v runs straight down its cell.
+        const u = uv.getX(i);
+        const t = uv.getY(i);
+        U[i * 2] = (cell.x + u * cell.pw) / ATLAS;
+        U[i * 2 + 1] = (cell.y + t * cell.ph) / HEIGHT;
+        S[i * 2] = index;
+        S[i * 2 + 1] = spec.flicker && !reduced ? 1 : 0;
+      }
+      const sides = new Map();
+      for (let i = 0; i < n; i++) {
+        const key = [N[i * 3], N[i * 3 + 1], N[i * 3 + 2]].map((c) => Math.round(c * 4)).join();
+        if (!sides.has(key)) sides.set(key, { normal: new THREE.Vector3(N[i * 3], N[i * 3 + 1], N[i * 3 + 2]), at: [] });
+        sides.get(key).at.push([uv.getX(i), uv.getY(i), new THREE.Vector3(P[i * 3], P[i * 3 + 1], P[i * 3 + 2])]);
+      }
+      for (const { normal, at } of sides.values()) {
+        const corner = (u, t) => at.find(([a, b]) => Math.abs(a - u) < 1e-3 && Math.abs(b - t) < 1e-3)?.[2];
+        const o = corner(0, 0);
+        const a = corner(1, 0);
+        const b = corner(0, 1);
+        if (!o || !a || !b) continue;
+        frames.push({
+          name: mesh.name,
+          corner: o,
+          u: a.clone().sub(o),
+          v: b.clone().sub(o),
+          normal,
+          atlas: new THREE.Vector4(cell.x / ATLAS, cell.y / HEIGHT, cell.pw / ATLAS, cell.ph / HEIGHT),
+          color: new THREE.Color(spec.color),
+          sign: [index, spec.flicker && !reduced ? 1 : 0],
+        });
+      }
+      g.setAttribute("position", new THREE.BufferAttribute(P, 3));
+      g.setAttribute("normal", new THREE.BufferAttribute(N, 3));
+      g.setAttribute("uv", new THREE.BufferAttribute(U, 2));
+      g.setAttribute("aSign", new THREE.BufferAttribute(S, 2));
+      if (src.index) g.setIndex(src.index.clone());
+      geos.push(g);
+      sources.push({ mesh, color: new THREE.Color(spec.color), intensity: spec.draw === "board" ? 0.9 : 1.6 });
+    });
+    indexBase += faces.length;
+    const geometry = mergeGeometries(geos, false);
+    geos.forEach((g) => g.dispose());
+    return { geometry, sources, frames };
+  };
+  const { geometry, sources, frames } = build(faces);
 
   const material = new THREE.ShaderMaterial({
     uniforms: { ...shared, uAtlas: { value: texture }, uIntensity: { value: 2.3 } },
@@ -557,13 +576,32 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   mesh.name = "signs";
   mesh.frustumCulled = false;
 
+  const extra = [];
   return {
     mesh,
     texture,
     sources,
     frames,
+    /** More faces on the same atlas and material (a streamed district's):
+     *  their own mesh, and their light for the bake. Faces whose design has
+     *  no cell (a word-sign the core did not carry) are left out. */
+    addFaces(more) {
+      const list = [];
+      for (const m of more) {
+        const spec = signSpec(m.name.replace(/^sign_/, ""));
+        if (spec && cells.has(spec.key) && cells.get(spec.key).x !== undefined) list.push({ mesh: m, spec });
+      }
+      if (!list.length) return null;
+      const built = build(list);
+      const add = new THREE.Mesh(built.geometry, material);
+      add.name = "signs_more";
+      add.frustumCulled = false;
+      extra.push(built.geometry);
+      return { mesh: add, sources: built.sources };
+    },
     dispose() {
       geometry.dispose();
+      for (const g of extra) g.dispose();
       material.dispose();
       texture.dispose();
     },

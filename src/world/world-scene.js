@@ -24,7 +24,7 @@ import { stage, subscribeStage } from "./stage.js";
 import { createShots, makePose, copyPose, driftPose, clamp, easeInOut } from "./shots.js";
 import { TIERS, ADAPT } from "./quality.js";
 import { createSharedUniforms } from "./glsl.js";
-import { createCity, preloadCity, REFLECT_LAYER, MIRROR_LAYER } from "./city.js";
+import { createCity, preloadCity, preloadPack, PACKS, REFLECT_LAYER, MIRROR_LAYER } from "./city.js";
 import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
 import { preloadAds } from "./ads.js";
@@ -148,9 +148,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // The garage, which it does not rain in.
   let shelterBox = null;
 
+  let clearance = null;
   const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
     city = c;
-    const clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => /^(moon_disc|holo_figure)/.test(o.name));
+    clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => o.isInstancedMesh || /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
     const keepOut = [...c.anchors].filter(([n]) => n.startsWith("anchor_mega_")).map(([, a]) => {
       const r = (a.extras?.size ?? 50) / 2;
@@ -919,6 +920,34 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     for (const o of culled) o.frustumCulled = true;
     running = null;
     check();
+    streamPacks();
+  };
+
+  // ---- the districts behind the core ------------------------------------------
+  // Once the hero can be drawn, the rest of the city: each pack fetched in
+  // turn (never alongside the core, which would slow the city going live),
+  // then built in when the page is idle, so its work never lands on a
+  // scroll. A flight into a district before its pack is in sees the city's
+  // far blocks there, as it did before the rebuild.
+  const idle = () => new Promise((resolve) => (window.requestIdleCallback ? window.requestIdleCallback(resolve, { timeout: 1500 }) : setTimeout(resolve, 50)));
+  const packsIn = [];
+  const streamPacks = async () => {
+    for (const name of PACKS) {
+      try {
+        const packScene = await preloadPack(tier, name);
+        if (disposed) return;
+        await idle();
+        if (disposed || !city) return;
+        const group = city.addPack(name, packScene);
+        clearance?.add(group);
+        // Its materials are the core's, compiled at warm-up; this makes sure
+        // of any variant its meshes need before one is drawn.
+        renderer.compile(group, camera);
+        packsIn.push(name);
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
+      }
+    }
   };
 
   // ---- the intro -------------------------------------------------------------------
@@ -1091,6 +1120,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       memory: { ...renderer.info.memory },
       pixelRatio: renderer.getPixelRatio(),
       adapt: { shed: [...adapt.shed], p95: adapt.p95, sampling: adapt.sampling },
+      packs: [...packsIn],
     };
   };
 

@@ -20,7 +20,9 @@
 // keeps the soft tails of the falloff without a float texture.
 import * as THREE from "three";
 
-export const LIGHT_BOUNDS = { x0: -100, z0: -760, x1: 560, z1: 70 };
+// Over the whole kit: the west street's outer lots to the garage street's,
+// the megabuilding to the depot at the avenue's south end.
+export const LIGHT_BOUNDS = { x0: -140, z0: -800, x1: 500, z1: 125 };
 const CELL = 1.5;
 // The streaks get a finer grid of their own, over the avenue only: 0.4 m
 // across the street so every sign's reflection stays its own streak, a metre
@@ -117,7 +119,12 @@ function encode(field, W, H, gain) {
 // avenue read better than exact ones piled up at the kerb.
 const EYE = { x: 0.6, y: 2.3, z: 18 };
 
-export function bakeLight(sources) {
+/**
+ * The bake, in pieces: `add(sources)` as each part of the city arrives (the
+ * core, then each streamed pack), `finish()` for the maps of everything
+ * added so far (new textures each time; the caller disposes the old).
+ */
+export function createBake() {
   const { x0, z0, x1, z1 } = LIGHT_BOUNDS;
   const W = Math.ceil((x1 - x0) / CELL);
   const H = Math.ceil((z1 - z0) / CELL);
@@ -126,90 +133,107 @@ export function bakeLight(sources) {
   const SH = Math.ceil((STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0) / SZ);
   const streak = new Float32Array(SW * SH * 3);
 
-  for (const { mesh, color, intensity } of sources) {
-    const geo = mesh.geometry;
-    const pos = geo.attributes.position;
-    const index = geo.index;
-    const count = index ? index.count : pos.count;
-    mesh.updateWorldMatrix(true, false);
-    const m = mesh.matrixWorld;
-    for (let i = 0; i < count; i += 3) {
-      const ia = index ? index.getX(i) : i;
-      const ib = index ? index.getX(i + 1) : i + 1;
-      const ic = index ? index.getX(i + 2) : i + 2;
-      _a.fromBufferAttribute(pos, ia).applyMatrix4(m);
-      _b.fromBufferAttribute(pos, ib).applyMatrix4(m);
-      _c.fromBufferAttribute(pos, ic).applyMatrix4(m);
-      const area = _ab.subVectors(_b, _a).cross(_ac.subVectors(_c, _a)).length() * 0.5;
-      if (area < 1e-4) continue;
-      const cx = (_a.x + _b.x + _c.x) / 3;
-      const cy = (_a.y + _b.y + _c.y) / 3;
-      const cz = (_a.z + _b.z + _c.z) / 3;
-      const gx = Math.floor((cx - x0) / CELL);
-      const gz = Math.floor((cz - z0) / CELL);
-      if (gx < 0 || gz < 0 || gx >= W || gz >= H) continue;
-      // Big boards do not light a street in proportion to their area.
-      const e = intensity * Math.min(area, 6) * (cy > 30 ? 0.35 : 1);
-      const k = (gz * W + gx) * 3;
-      pool[k] += color.r * e;
-      pool[k + 1] += color.g * e;
-      pool[k + 2] += color.b * e;
-      // Mirrored for the hero's eye: only the avenue and the canyon, which
-      // are what that camera sees.
-      if (cy > 1.0 && cy < 60 && Math.abs(cx) < 60 && cz < 0) {
-        const t = EYE.y / (EYE.y + cy);
-        const rx = Math.floor((EYE.x + (cx - EYE.x) * t - STREAK_BOUNDS.x0) / SX);
-        const rz = Math.floor((EYE.z + (cz - EYE.z) * t - STREAK_BOUNDS.z0) / SZ);
-        if (rx >= 0 && rz >= 0 && rx < SW && rz < SH) {
-          const r = (rz * SW + rx) * 3;
-          const s = e * Math.min(1, cy / 5);
-          streak[r] += color.r * s;
-          streak[r + 1] += color.g * s;
-          streak[r + 2] += color.b * s;
+  const add = (sources) => {
+    for (const { mesh, color, intensity } of sources) {
+      const geo = mesh.geometry;
+      const pos = geo.attributes.position;
+      const index = geo.index;
+      const count = index ? index.count : pos.count;
+      if (mesh.matrixWorldAutoUpdate !== false) mesh.updateWorldMatrix(true, false);
+      const m = mesh.matrixWorld;
+      for (let i = 0; i < count; i += 3) {
+        const ia = index ? index.getX(i) : i;
+        const ib = index ? index.getX(i + 1) : i + 1;
+        const ic = index ? index.getX(i + 2) : i + 2;
+        _a.fromBufferAttribute(pos, ia).applyMatrix4(m);
+        _b.fromBufferAttribute(pos, ib).applyMatrix4(m);
+        _c.fromBufferAttribute(pos, ic).applyMatrix4(m);
+        const area = _ab.subVectors(_b, _a).cross(_ac.subVectors(_c, _a)).length() * 0.5;
+        if (area < 1e-4) continue;
+        const cx = (_a.x + _b.x + _c.x) / 3;
+        const cy = (_a.y + _b.y + _c.y) / 3;
+        const cz = (_a.z + _b.z + _c.z) / 3;
+        const gx = Math.floor((cx - x0) / CELL);
+        const gz = Math.floor((cz - z0) / CELL);
+        if (gx < 0 || gz < 0 || gx >= W || gz >= H) continue;
+        // Big boards do not light a street in proportion to their area.
+        const e = intensity * Math.min(area, 6) * (cy > 30 ? 0.35 : 1);
+        const k = (gz * W + gx) * 3;
+        pool[k] += color.r * e;
+        pool[k + 1] += color.g * e;
+        pool[k + 2] += color.b * e;
+        // Mirrored for the hero's eye: only the avenue and the canyon, which
+        // are what that camera sees.
+        if (cy > 1.0 && cy < 60 && Math.abs(cx) < 60 && cz < 0) {
+          const t = EYE.y / (EYE.y + cy);
+          const rx = Math.floor((EYE.x + (cx - EYE.x) * t - STREAK_BOUNDS.x0) / SX);
+          const rz = Math.floor((EYE.z + (cz - EYE.z) * t - STREAK_BOUNDS.z0) / SZ);
+          if (rx >= 0 && rz >= 0 && rx < SW && rz < SH) {
+            const r = (rz * SW + rx) * 3;
+            const s = e * Math.min(1, cy / 5);
+            streak[r] += color.r * s;
+            streak[r + 1] += color.g * s;
+            streak[r + 2] += color.b * s;
+          }
         }
       }
     }
-  }
-
-  // The pool: a tight halo plus a wide wash.
-  const tight = blur(pool.slice(), W, H, 2);
-  const wide = blur(pool, W, H, 7);
-  for (let i = 0; i < tight.length; i++) tight[i] = tight[i] * 0.6 + wide[i] * 0.9;
-
-  // The streaks: a hair across the street, a long way along it, more
-  // toward the eye than away from it.
-  const across = new Float32Array(streak.length);
-  boxBlur(streak, across, SW, SH, 1, true);
-  const decay = Math.exp(-SZ / 14);
-  for (let x = 0; x < SW; x++) {
-    let r = 0, g = 0, b = 0;
-    for (let y = 0; y < SH; y++) {
-      const k = (y * SW + x) * 3;
-      r = across[k] + r * decay;
-      g = across[k + 1] + g * decay;
-      b = across[k + 2] + b * decay;
-      streak[k] = r;
-      streak[k + 1] = g;
-      streak[k + 2] = b;
-    }
-  }
-  const tmp = new Float32Array(streak.length);
-  boxBlur(streak, tmp, SW, SH, 3, false);
-  streak.set(tmp);
-
-  const bounds = new THREE.Vector4(x0, z0, 1 / (x1 - x0), 1 / (z1 - z0));
-  const streakBounds = new THREE.Vector4(STREAK_BOUNDS.x0, STREAK_BOUNDS.z0,
-    1 / (STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0), 1 / (STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0));
-  const spill = encode(tight, W, H, autoGain(tight, 0.85));
-  const streaks = encode(streak, SW, SH, autoGain(streak, 0.9, 0.995));
-  return {
-    spill,
-    streaks,
-    bounds,
-    streakBounds,
-    dispose() {
-      spill.dispose();
-      streaks.dispose();
-    },
   };
+
+  // The gains are set by the first finish (the core: the hero's street) and
+  // kept, so the street the reader is looking at does not change its light
+  // when a district arrives somewhere else.
+  let gains = null;
+  const finish = () => {
+    // The pool: a tight halo plus a wide wash.
+    const tight = blur(pool.slice(), W, H, 2);
+    const wide = blur(pool.slice(), W, H, 7);
+    for (let i = 0; i < tight.length; i++) tight[i] = tight[i] * 0.6 + wide[i] * 0.9;
+
+    // The streaks: a hair across the street, a long way along it, more
+    // toward the eye than away from it.
+    const across = new Float32Array(streak.length);
+    boxBlur(streak, across, SW, SH, 1, true);
+    const decay = Math.exp(-SZ / 14);
+    const run = new Float32Array(streak.length);
+    for (let x = 0; x < SW; x++) {
+      let r = 0, g = 0, b = 0;
+      for (let y = 0; y < SH; y++) {
+        const k = (y * SW + x) * 3;
+        r = across[k] + r * decay;
+        g = across[k + 1] + g * decay;
+        b = across[k + 2] + b * decay;
+        run[k] = r;
+        run[k + 1] = g;
+        run[k + 2] = b;
+      }
+    }
+    const tmp = new Float32Array(run.length);
+    boxBlur(run, tmp, SW, SH, 3, false);
+
+    gains ??= { spill: autoGain(tight, 0.85), streaks: autoGain(tmp, 0.9, 0.995) };
+    const bounds = new THREE.Vector4(x0, z0, 1 / (x1 - x0), 1 / (z1 - z0));
+    const streakBounds = new THREE.Vector4(STREAK_BOUNDS.x0, STREAK_BOUNDS.z0,
+      1 / (STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0), 1 / (STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0));
+    const spill = encode(tight, W, H, gains.spill);
+    const streaks = encode(tmp, SW, SH, gains.streaks);
+    return {
+      spill,
+      streaks,
+      bounds,
+      streakBounds,
+      dispose() {
+        spill.dispose();
+        streaks.dispose();
+      },
+    };
+  };
+  return { add, finish };
+}
+
+/** The whole bake at once: sources: [{ mesh, color: THREE.Color (linear), intensity }]. */
+export function bakeLight(sources) {
+  const bake = createBake();
+  bake.add(sources);
+  return bake.finish();
 }

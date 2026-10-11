@@ -11,6 +11,7 @@ from ncw import props as _props  # noqa: E402
 from ncw import exports as _exports  # noqa: E402
 
 _props.build_protos()
+empty("signs_index", (0, 0, 0), props={"ids": STREET_SIGN_IDS})
 tri_count = 0
 proto_tris = 0
 
@@ -33,6 +34,13 @@ def _mesh(name, verts, faces, uvs, cols, mat_name):
     return mesh
 
 
+# Which GLB a district's bulk goes in (scripts/optimize-world.mjs): the
+# core is what the hero needs, and every named piece, anchor and prototype
+# (and the garage, whose painted walls carry the core's own textures); the
+# rest streams in behind it, west and east of the avenue.
+PACK_OF = {"japantown": "west", "deck": "west", "mega": "west",
+           "plaza": "east", "corpo": "east", "rooftop": "east", "afterlife": "east", "santo": "east"}
+
 for (district, mat_name, detail), b in batches.items():
     if not b.faces:
         continue
@@ -49,6 +57,7 @@ for (district, mat_name, detail), b in batches.items():
     obj = bpy.data.objects.new(f"{district}_{mat_name}" + ("_detail" if detail else ""), mesh)
     obj["district"] = district
     obj["detail"] = detail
+    obj["pack"] = PACK_OF.get(district, "core")
     link(obj)
     tri_count += sum(len(p.vertices) - 2 for p in mesh.polygons)
 
