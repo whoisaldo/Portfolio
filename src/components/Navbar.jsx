@@ -20,6 +20,11 @@
 // is addressed to one kind of reader and it should be the first thing that
 // reader sees. On the phone menu both are rows.
 //
+// And two more in 2026-10, beside the terminal and only while the live city
+// is up: an eye that puts the page away to look at the city (Look, H) and a
+// clapper that plays the site as a film (Cinema, C; home page only, since
+// the film is the home page's flights). See src/world/modes.js.
+//
 // Opacity modifiers here must come from Tailwind's scale (…/85, /90, /95).
 // This bar was written with `bg-ink/92` and the mobile panel with `bg-ink/96`,
 // neither of which is a scale step, so Tailwind emitted no rule at all and
@@ -28,12 +33,14 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpRight, Menu, SquareTerminal, X } from "lucide-react";
+import { ArrowUpRight, Clapperboard, Eye, Menu, SquareTerminal, X } from "lucide-react";
 import { navSections } from "../data/site";
 import { profile } from "../data/profile";
 import { scrollToSection } from "../lib/scroll";
 import { useIntroDone } from "../lib/intro";
 import { openConsole } from "../lib/console";
+import { useStage } from "../world/stage";
+import { toggleView } from "../world/modes";
 import Panel from "./ui/Panel";
 
 const pdf = (import.meta.env.BASE_URL || "/") + "resume.pdf";
@@ -47,6 +54,9 @@ export default function Navbar() {
   // The bar arrives a beat after the intro's reveal rather than sitting
   // there fully formed the moment the black tears off.
   const done = useIntroDone();
+  // Look and Cinema need the live city behind the page.
+  const { status } = useStage();
+  const city = status === "ready";
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -102,6 +112,29 @@ export default function Navbar() {
             <span className="ink-underline">Recruiters press this</span>
             <ArrowUpRight className="w-3 h-3 text-faint transition-all group-hover:text-volt group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
           </Link>
+
+          {city && (
+            <button
+              type="button"
+              onClick={() => toggleView("look")}
+              aria-label="Put the page away and look at the city"
+              title="Look at the city (H)"
+              className="p-1.5 text-dim transition-colors duration-200 hover:text-volt focus-visible:text-volt"
+            >
+              <Eye className="w-[18px] h-[18px]" aria-hidden="true" />
+            </button>
+          )}
+          {city && onHome && (
+            <button
+              type="button"
+              onClick={() => toggleView("cinema")}
+              aria-label="Watch the site as a film"
+              title="Watch the film (C)"
+              className="p-1.5 text-dim transition-colors duration-200 hover:text-volt focus-visible:text-volt"
+            >
+              <Clapperboard className="w-[18px] h-[18px]" aria-hidden="true" />
+            </button>
+          )}
 
           <button
             type="button"
@@ -177,6 +210,33 @@ export default function Navbar() {
                 <SquareTerminal className="w-4 h-4" aria-hidden="true" />
                 Terminal
               </motion.button>
+
+              {city && (
+                <motion.button
+                  type="button"
+                  onClick={() => { setIsMobileOpen(false); toggleView("look"); }}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: navSections.length * 0.04 }}
+                  className="mono-ui text-dim py-3 text-left inline-flex items-center gap-2.5 transition-colors duration-200 hover:text-primary"
+                >
+                  <Eye className="w-4 h-4" aria-hidden="true" />
+                  Look at the city
+                </motion.button>
+              )}
+              {city && onHome && (
+                <motion.button
+                  type="button"
+                  onClick={() => { setIsMobileOpen(false); toggleView("cinema"); }}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: navSections.length * 0.04 }}
+                  className="mono-ui text-dim py-3 text-left inline-flex items-center gap-2.5 transition-colors duration-200 hover:text-primary"
+                >
+                  <Clapperboard className="w-4 h-4" aria-hidden="true" />
+                  Watch the film
+                </motion.button>
+              )}
 
               <motion.div
                 initial={{ opacity: 0, x: -8 }}

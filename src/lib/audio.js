@@ -36,6 +36,15 @@ export function audioContext() {
 }
 
 /**
+ * The context, only if the reader has already let it run: for sounds nothing
+ * was clicked for (the city's, src/world/soundscape.js), which must never be
+ * the reason a context exists.
+ */
+export function runningContext() {
+  return ctx && ctx.state === "running" ? ctx : null;
+}
+
+/**
  * One volume for everything, 0 to 1, persisted.
  *
  * Scaled rather than absolute: it multiplies each source's own gain, so the

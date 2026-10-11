@@ -15,7 +15,11 @@
 //               so the crossfade is quiet.
 //   the scrim   black, at the opacity the scroll stage writes into
 //               `--world-dim`: nothing over the hero and the contact
-//               section, about 70% behind a section being read.
+//               section, about a third behind a section being read.
+//   the chapter the number of the section a flight is headed for, huge and
+//               drawn in outline, on the city and under the page: it comes
+//               up as a flight gets going and the page steps back, and is
+//               gone again as the next shot lands (scroll-stage.js).
 //
 // With the city off (`fx world off`, reduced motion, no GPU, WebGL failure)
 // none of this renders and <html data-world="off"> gives back exactly the
@@ -53,6 +57,7 @@ export default function WorldMount() {
 
   const canvasRef = useRef(null);
   const scrimRef = useRef(null);
+  const chapterRef = useRef(null);
   const scrollRef = useRef(null);
   const liveRef = useRef(false);
   liveRef.current = live;
@@ -70,7 +75,7 @@ export default function WorldMount() {
   // Lenis and the shot maths run only while the city does.
   useEffect(() => {
     if (!on) return undefined;
-    const s = startScrollStage({ scrim: scrimRef.current });
+    const s = startScrollStage({ scrim: scrimRef.current, chapter: chapterRef.current });
     scrollRef.current = s;
     return () => {
       scrollRef.current = null;
@@ -169,6 +174,12 @@ export default function WorldMount() {
         className={`world-canvas absolute inset-0 w-full h-full ${live ? "is-live" : ""}`}
       />
       <div ref={scrimRef} className="world-scrim absolute inset-0" />
+      <div ref={chapterRef} className="world-chapter absolute inset-0">
+        <div className="world-chapter-card">
+          <span data-chapter-num="" className="world-chapter-num" />
+          <span data-chapter-label="" className="world-chapter-label mono-label" />
+        </div>
+      </div>
     </div>
   );
 }

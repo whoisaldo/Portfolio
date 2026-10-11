@@ -4,7 +4,10 @@
 // box that travels with the camera, each falling on its own phase and
 // wrapping when it leaves, so the rain is always around the lens and never
 // runs out. The positions live on the GPU: the frame loop only moves the
-// box and the clock. Each streak takes the colour of the city's light where
+// box and the clock. A streak is a drop's path as the camera sees it, so a
+// camera on the move adds its own speed: held still, the rain falls; on a
+// fast flight it comes at the lens, drawn out and leaning the way the
+// camera is going. Each streak takes the colour of the city's light where
 // it is (the same spill map every surface reads), so rain under a pink sign
 // falls pink. The `wet` switch in env.js stops it with the reflections.
 import * as THREE from "three";
@@ -40,6 +43,8 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       uShelterMin: { value: new THREE.Vector3(1, 1, 1) },
       uShelterMax: { value: new THREE.Vector3(0, 0, 0) },
       uViewHeight: { value: 900 },
+      // The camera's velocity, m/s, damped (world-scene.js).
+      uCamVel: { value: new THREE.Vector3() },
     },
     vertexShader: /* glsl */ `
       ${COMMON}
@@ -51,6 +56,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       uniform vec3 uShelterMin;
       uniform vec3 uShelterMax;
       uniform float uViewHeight;
+      uniform vec3 uCamVel;
       varying float vA;
       varying vec3 vCol;
       varying vec2 vUv;
@@ -61,6 +67,16 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         p.y -= uFall * speed;
         p.xz += uWind * uFall * aSeed.w;
         p = mod(p - uOrigin + uBox * 0.5, uBox) - uBox * 0.5 + uOrigin;
+        // Its path as the camera sees it: the fall, less the camera's own
+        // velocity. Held still, that is the fall; flying, it comes at the
+        // lens, longer as the camera's speed adds to it (up to seven
+        // times), and fainter, as the shutter spreads the same light
+        // further.
+        vec3 rel = vec3(uWind.x, -speed, uWind.y) - uCamVel;
+        float rs = max(length(rel), 1e-3);
+        vec3 vel = rel / rs;
+        float stretch = clamp(rs / speed, 1.0, 7.0);
+        float len = (0.28 + 0.3 * aSeed.w) * stretch;
         // A drop that would draw nothing (all of it nearer than the band
         // the rain is seen in or further than it, the streak's own length to
         // spare, or in the shelter) is put off the screen whole: the same
@@ -68,7 +84,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         // lens or inside the garage is most of the screen.
         float depth0 = -(viewMatrix * vec4(p, 1.0)).z;
         vec3 inside = step(uShelterMin, p) * step(p, uShelterMax);
-        if (depth0 < 2.3 || depth0 > 44.7 || inside.x * inside.y * inside.z > 0.5) {
+        if (depth0 < 3.0 - len || depth0 > 44.0 + len || inside.x * inside.y * inside.z > 0.5) {
           gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
           vA = 0.0;
           vCol = vec3(0.0);
@@ -79,10 +95,8 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         // as a cinema shutter sees a drop fall. Never thinner than about a
         // pixel on screen (a thinner one sparkles as it crosses pixels):
         // widened to that, and fainter for it.
-        vec3 vel = normalize(vec3(uWind.x, -speed, uWind.y));
         vec3 toCam = normalize(uCam - p);
-        vec3 side = normalize(cross(vel, toCam));
-        float len = 0.28 + 0.3 * aSeed.w;
+        vec3 side = normalize(cross(vel, toCam) + vec3(1e-5, 0.0, 0.0));
         float dist0 = max(length(uCam - p), 0.1);
         float pixel = dist0 * 2.0 / (projectionMatrix[1][1] * uViewHeight);
         float width = max(0.0035, pixel * 1.1);
@@ -93,7 +107,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         // A drop widened to a pixel is dimmed by as much, so the far rain
         // keeps its weight; the drops right at the lens (a metre or two,
         // a hand's width long on screen) are left out.
-        vA = smoothstep(3.0, 6.5, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * min(1.0, 0.007 / width);
+        vA = smoothstep(3.0, 6.5, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * min(1.0, 0.007 / width) * inversesqrt(stretch);
         // The light it falls through: the city's haze, the street's light
         // under it, and the lamps round it.
         vCol = vec3(0.13, 0.13, 0.16) + uHazeColor * 0.4 + spillAt(p) * 1.9 + lampsAt(p, toCam) * 2.0;
@@ -130,6 +144,10 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
       if (!reduced) fall += dt;
       material.uniforms.uFall.value = fall;
       material.uniforms.uOrigin.value.copy(camera.position);
+    },
+    /** The camera's velocity this frame (m/s), for the streaks' lean. */
+    setCameraVelocity(v) {
+      material.uniforms.uCamVel.value.copy(v);
     },
     /** The drawing buffer's height in pixels, for the streaks' width. */
     setViewHeight(h) {

@@ -366,8 +366,9 @@ replaced one box with the cars painted on.
   way the plate's does. It breathes while it holds: a hand-held sway of a
   fraction of a degree and a metre's push up the avenue over forty seconds.
   The intro's drift keeps its own camera and glides into this one over the
-  handoff. The reading sections hold the city at about 30% behind them; the
-  hero and Contact hold it at full. Open
+  handoff. The reading sections hold the city at about two thirds behind
+  them, their text on glass (below); the hero and Contact hold it at full.
+  Open
   flights go up, across and down, lifted by a height field of the kit
   (`clearance.js`); the garage and Contact flights run through the named
   waypoints, looking first where they are going (a little further along
@@ -531,6 +532,69 @@ replaced one box with the cars painted on.
   a tube's hue as it brightens, then a grade in the same pass (blacks lifted
   a hair toward violet, mids pushed more saturated than highlights, cool
   shadows, warm tops, a gentle S). Scanlines only in the glitch.
+- The page on glass. The sections' panels are panes of smoked glass
+  (`Panel`'s `glass`, marked `data-glass`) and the city shows through them:
+  `src/world/glass.js` reads where the panes near the screen are each frame,
+  and the pass's `GlassEffect` frosts the frame inside each pane's chamfered
+  outline (a Kawase blur at a quarter of the resolution, run only while a
+  pane is on screen, darkened, its highlights eased down), so text reads
+  over a city that moves behind it, with no CSS backdrop filter. Up to
+  sixteen panes; each pane's frame is its own clipped ring, so nothing clips
+  the text. The scrim does less for it (`dim` in `src/data/world.js`).
+- Flights belong to the city. Mid-flight the page thins to a third
+  (`--yield`, per section, from the scroll, on plain boxes because Framer
+  owns its own elements' opacity) and the number of the section the camera
+  is going to comes up over the city in outline (the chapter card in
+  `WorldMount.jsx`), gone as the shot lands. A fast move smears as a film
+  camera's shutter smears it, a 48th of a second: `world-scene.js`
+  reprojects each pixel's ray, at a 40 m stand-in depth, through the last
+  frame's camera, so a turn comes out exact and travel close, and the
+  braindance pass blurs along that with the lens's colour fringe drawn out
+  (a tap every three pixels, at most a fortieth of the frame's height, none
+  under a pixel and a half or with reduced motion, and only on frames the
+  page's own loop drew, so the intro and the braindance never smear). The
+  rain is drawn as the moving camera sees it: a streak is the fall less the
+  camera's velocity, up to seven times as long and dimmer for it, so on a
+  fast flight it comes at the lens.
+- Look (`src/world/modes.js`, `src/components/ViewModes.jsx`; H, the eye in
+  the header, or `look`): the page fades out (by filter and visibility, not
+  opacity, which Framer owns), the scrim lifts and the frost goes with the
+  panes. The wheel still flies the camera, and a drag turns it, up to 35
+  degrees across and 17 up or down, easing back to the shot 1.6 s after it
+  is let go. Each shot's own subject answers a click: the S4 blinks its
+  lamps and chirps, the plaza's board runs on to the next project, a tower
+  on corpo row lights for its role and the row's dolly goes to it; pointing
+  at one tags it from the data. They are picked by their bounds (`pick` in
+  `world-scene.js`), which see through walls, so only the shot's own
+  subjects are asked about; what Look changed is put back after it.
+- The film (`src/components/cinema/`, its own chunk; C, the clapper, or
+  `watch`): the director flies the home page by itself through Lenis,
+  holding each shot long enough to look at it, running the Work deck across
+  the board and lighting corpo row a tower at a time, with captions from the
+  data. The frame is letterboxed to 2.39 in a viewfinder that reports only
+  real things (the scene, the running time, the lens worked out from the
+  camera's field of view), and the credits are the page's own contents,
+  rolled over the moon. Space pauses, the arrows skip, Esc gives the page
+  back.
+- Photo mode (P, the camera in Look and the film, or `photo`): `snapshot`
+  draws the frame again without the page's frost and copies it in the same
+  task, and `src/components/photo/postcard.js` (its own chunk) frames it
+  with the viewfinder's corners, the name as the hero sets it and readouts
+  that are all true (where, the lens, when, the site), and saves a PNG at
+  the screen's own pixels.
+- Lightning is seen (`src/world/bolt.js`): each strike draws a new bolt out
+  of the cloud deck where the cloud lit, a jagged channel with a few forks,
+  white in a violet glow, for the flash's own pulses only and behind
+  whatever stands in front of it. Strikes are aimed inside the frame, 650 m
+  to 1.4 km off, so more of the bolt clears the roofs.
+- Sound (`src/world/soundscape.js`; sound on only, and on its own way to the
+  speakers, so the meter the lights move to hears only the track): rain,
+  muffled inside the garage; a low city drone; the air on a fast flight;
+  thunder after each flash, as late as the strike was far; the train while
+  it crosses; the nearest AV; and the police AV's siren in bursts. Each is
+  placed where the city draws it (its distance, its side, the air between,
+  Doppler from its speed toward or away), all synthesised, and all quiet
+  while the city's loop rests.
 - Switches: `fx world off` gives back the plate and black sections;
   `signs`, `haze` (the far haze and the lamps' light shafts), `wet` (rain,
   the planar reflection and the road's sheen), `traffic` and `reactive`
@@ -548,7 +612,9 @@ replaced one box with the cars painted on.
   pixels, then the reflection, then half the rain. No GPU, reduced motion,
   `fx world off` or a WebGL failure mean no city at all; a lost context shows
   the poster and rebuilds on restore. The loop stops when the tab is hidden
-  and under the door, the console, the expanded deck and the garage viewer.
+  and under the door, the console, the expanded deck and the garage viewer
+  (which in Look and the film neither covers the city nor draws). The
+  shutter takes at most eight taps on high and four on a phone.
 
 ## Verification
 

@@ -76,13 +76,13 @@ export default function ExperienceIndex() {
               Experience
             </Glitch>
           </div>
-          <div className="max-w-[42ch]">
+          <Panel glass className="max-w-[46ch]" innerClassName="px-5 py-4">
             <p className="prose-dark">
               Three jobs at once right now, newest first. The Philips and the
               AWS entries open into the whole write-up rather than stopping at
               a bullet point.
             </p>
-          </div>
+          </Panel>
         </div>
         <div className="edge-rule mt-10" />
       </header>
@@ -231,10 +231,11 @@ function ExperienceCard({ exp, index, featured = false }) {
     <Panel
       as={openable ? Link : "div"}
       {...(openable ? { to: `/work/${exp.slug}` } : {})}
+      glass
       edge={
         openable
-          ? "bg-ink-line hover:bg-accent focus-visible:bg-accent transition-colors duration-300"
-          : "bg-ink-line"
+          ? "glass-edge group-hover/panel:bg-accent group-focus-visible/panel:bg-accent transition-colors duration-300"
+          : "glass-edge"
       }
       fill="bg-ink-raised"
       className={`group block h-full ${openable ? "focus-visible:outline-none" : ""}`}

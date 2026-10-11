@@ -32,6 +32,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import Console from "./components/Console";
 import Cursor from "./components/Cursor";
 import GpuNotice from "./components/GpuNotice";
+import ViewModes from "./components/ViewModes";
 import Home from "./routes/Home";
 import WorkPage from "./routes/WorkPage";
 import { stopAmbient } from "./lib/ambient";
@@ -154,6 +155,8 @@ function Cinematic() {
           <Navbar />
           {/* Backtick anywhere, the button in the header, or /console. */}
           <Console />
+          {/* Look (H) and Cinema (C): the page put away, the city on its own. */}
+          <ViewModes />
           <Cursor />
           <GpuNotice show={lowPower} />
 

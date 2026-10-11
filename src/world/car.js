@@ -172,7 +172,7 @@ async function lighten(car) {
   }
 }
 
-export function createCar(scene, renderer, { road, anchors, light, layer, mirrorLayer, tier = "high" }) {
+export function createCar(scene, renderer, { road, anchors, light, layer, mirrorLayer, tier = "high", reduced = false }) {
   const car = createObject();
   car.name = "ali_s4_world";
   const rig = createRig(car);
@@ -384,7 +384,24 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // How much of the two coloured rims the car keeps (setRims): all of it on
   // the page; the braindance's cameras come close enough that they bloom.
   let rims = 1;
+  // The lamps answering a key fob (`flash`, Look's click on the car): two
+  // blinks in half a second, or one steady glow with reduced motion, which
+  // never flashes. Seconds since it began, or -1.
+  let fob = -1;
+  const answer = (dt) => {
+    if (fob < 0) return;
+    fob += dt;
+    const on = reduced ? (fob < 0.6 ? 0.6 : 0) : fob < 0.16 || (fob > 0.32 && fob < 0.48) ? 1 : 0;
+    for (const m of lamps.heads) m.uniforms.uGain.value = 1.5 + 2.6 * on;
+    for (const m of lamps.tails) m.uniforms.uGain.value = 0.5 + 0.9 * brake + 1.8 * on;
+    if (fob > 0.7) {
+      fob = -1;
+      for (const m of lamps.heads) m.uniforms.uGain.value = 1.5;
+      setLamps();
+    }
+  };
   const finish = (now, dt) => {
+    answer(dt);
     const k0 = 1 - Math.exp(-dt * 2);
     stageLight += ((mode === "road" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
     key.intensity = 0.55 + 0.15 * stageLight;
@@ -424,6 +441,10 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
     car,
     /** Resolves once a phone's car is simplified (at once elsewhere). */
     ready,
+    /** Blink the lamps, as a key fob does. */
+    flash() {
+      fob = 0;
+    },
     stops,
     routeGoal,
     get u() {

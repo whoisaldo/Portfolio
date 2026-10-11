@@ -161,8 +161,9 @@ export default function Chrome() {
 
       {/* Sound. Bottom left, quiet until you look for it. It is a preference
           control on a page that has deliberately little chrome, so it stays at
-          icon size and only names itself on hover. */}
-      <div className="group fixed bottom-5 left-5 z-50 flex items-center gap-3">
+          icon size and only names itself on hover. It stays when the page is
+          put away (Look, Cinema): the music is half of the film. */}
+      <div className="group fixed bottom-5 left-5 z-50 flex items-center gap-3" data-mode-keep="">
         <button
           type="button"
           onClick={toggleSound}

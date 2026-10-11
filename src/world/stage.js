@@ -12,10 +12,11 @@
 // function, and a useSyncExternalStore hook over it. Two kinds of field live
 // here and they are treated differently on purpose:
 //
-//   Per frame   position, locals, dim, pointer. Written by the scroll stage
-//               sixty times a second and read by the world's own frame loop
-//               straight off `stage`. Changing them notifies nobody: a React
-//               render per scrolled frame is exactly the cost this avoids.
+//   Per frame   position, locals, dim, pointer, ui, look. Written by the
+//               scroll stage and the modes sixty times a second and read by
+//               the world's own frame loop straight off `stage`. Changing
+//               them notifies nobody: a React render per scrolled frame is
+//               exactly the cost this avoids.
 //   Discrete    section, activeProject, activeRole, route, paused, status.
 //               Written rarely, through set(), which notifies subscribers.
 //
@@ -39,6 +40,13 @@ export const stage = {
   section: "hero",
   // -1..1 on both axes; mouse only, never touch.
   pointer: { x: 0, y: 0 },
+  // How much of the page is up over the city, 0 to 1: 1 normally, easing to
+  // 0 while Look or Cinema has put it away (src/world/modes.js). The frost
+  // behind the page's panes follows it.
+  ui: 1,
+  // Look mode's drag, radians: how far the reader has turned the camera
+  // away from the shot (yaw right, pitch up). Eases back to 0 on release.
+  look: { yaw: 0, pitch: 0 },
   // Index into featuredProjects of the Work deck's current entry.
   activeProject: 0,
   // Slug of the role card being read, or null; `activeRoles` is every card
@@ -60,6 +68,9 @@ export const stage = {
   covers: new Set(),
   // The shot id being held (no flight under way), or null mid-flight.
   holding: null,
+  // "page" normally; "look" or "cinema" while the page is put away and the
+  // city is the whole screen (src/world/modes.js).
+  view: "page",
   // Bumped whenever the page is re-measured.
   layout: 0,
 };
@@ -101,13 +112,19 @@ export function subscribeStage(fn) {
 
 function recomputePaused() {
   const hidden = typeof document !== "undefined" && document.hidden;
-  const covered = [...stage.covers].some((key) => key !== "garage" || stage.holding === "garage");
+  const covered = [...stage.covers].some((key) => key !== "garage" || garageCovers());
   setStage({ paused: hidden || covered });
 }
 
-/** Whether the garage's viewer is covering the city right now. */
+/** Whether the garage's viewer is covering the city right now. Never while
+ *  the page is put away (Look, Cinema): the viewer is part of the page. */
 export function garageCovers() {
-  return stage.covers.has("garage") && stage.holding === "garage";
+  return stage.covers.has("garage") && stage.holding === "garage" && stage.view === "page";
+}
+
+/** The view changed (src/world/modes.js): the covers mean something else. */
+export function refreshPaused() {
+  recomputePaused();
 }
 
 /**

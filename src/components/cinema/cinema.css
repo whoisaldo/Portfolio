@@ -1,0 +1,346 @@
+/* src/components/cinema/cinema.css: the film's frame. Loaded with the film's
+   chunk (Cinema.jsx) and nowhere else.
+
+   The letterbox is a 2.39 frame on a landscape screen (the bars take what is
+   left over, between 7% and 18% of the height each) and a pair of fixed
+   bands on a portrait one, where a true 2.39 frame would be a slot. Inside
+   it, the viewfinder: corner marks and four readouts in the site's mono,
+   none of them invented (see Cinema.jsx). Type is the site's own: Chakra
+   Petch for names, JetBrains Mono for everything read as a value. */
+
+.cinema {
+  --bar: min(18vh, max(7vh, calc((100vh - 100vw / 2.39) / 2)));
+  --pic: calc(100vh - 2 * var(--bar));
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  color: #eceae4;
+}
+@media (orientation: portrait) {
+  .cinema { --bar: 11vh; }
+}
+
+/* ---- the bars --------------------------------------------------------------- */
+.cinema-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: var(--bar);
+  background: #000;
+  animation: cinema-bar-in 0.9s cubic-bezier(0.16, 0.9, 0.25, 1) both;
+}
+.cinema-bar-top { top: 0; transform-origin: top; }
+.cinema-bar-bottom { bottom: 0; transform-origin: bottom; }
+.cinema.is-leaving .cinema-bar { animation: cinema-bar-out 0.5s ease-in both; }
+@keyframes cinema-bar-in { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes cinema-bar-out { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+.cinema.is-leaving > :not(.cinema-bar) { opacity: 0; transition: opacity 0.3s ease; }
+
+/* ---- the viewfinder ------------------------------------------------------- */
+.cinema-frame {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--bar);
+  height: var(--pic);
+  animation: cinema-fade-in 0.8s ease 0.5s both;
+}
+@keyframes cinema-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.cinema-corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 0 solid rgb(236 234 228 / 0.55);
+}
+.cinema-corner.tl { top: 18px; left: 22px; border-top-width: 1px; border-left-width: 1px; }
+.cinema-corner.tr { top: 18px; right: 22px; border-top-width: 1px; border-right-width: 1px; }
+.cinema-corner.bl { bottom: 18px; left: 22px; border-bottom-width: 1px; border-left-width: 1px; }
+.cinema-corner.br { bottom: 18px; right: 22px; border-bottom-width: 1px; border-right-width: 1px; }
+.cinema-read {
+  position: absolute;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  color: rgb(236 234 228 / 0.78);
+  text-shadow: 0 0 10px rgb(0 0 0 / 0.85);
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  white-space: nowrap;
+}
+.cinema-read.tl { top: 26px; left: 54px; }
+.cinema-read.tr { top: 26px; right: 54px; }
+.cinema-read.bl { bottom: 26px; left: 54px; }
+.cinema-read.br { bottom: 26px; right: 54px; }
+.cinema-rec {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgb(236 234 228 / 0.35);
+}
+.cinema-rec.is-on { background: #ff003c; box-shadow: 0 0 8px rgb(255 0 60 / 0.8); animation: cinema-rec 1.2s steps(2, jump-none) infinite; }
+@keyframes cinema-rec { 50% { opacity: 0.25; } }
+
+/* ---- the opening title ---------------------------------------------------- */
+.cinema-opening {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--bar);
+  height: var(--pic);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: cinema-open 6.4s cubic-bezier(0.16, 0.9, 0.25, 1) 0.4s both;
+}
+.cinema-opening-name {
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: clamp(3rem, 9.5vw, 9.5rem);
+  line-height: 0.86;
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 40px rgb(0 0 0 / 0.55);
+}
+.cinema-opening-name span { color: #fcee0a; }
+.cinema-opening-line {
+  margin-top: 1.2rem;
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: clamp(0.8rem, 1.4vw, 1.15rem);
+  color: rgb(236 234 228 / 0.8);
+  text-shadow: 0 0 14px rgb(0 0 0 / 0.9);
+}
+@keyframes cinema-open {
+  0% { opacity: 0; letter-spacing: 0.04em; filter: blur(6px); }
+  14% { opacity: 1; letter-spacing: -0.02em; filter: blur(0); }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---- the caption ----------------------------------------------------------- */
+.cinema-caption {
+  position: fixed;
+  left: clamp(1.5rem, 6vw, 6rem);
+  bottom: calc(var(--bar) + clamp(2.5rem, 7vh, 4.5rem));
+  max-width: min(36rem, 80vw);
+  padding-left: 1rem;
+  border-left: 2px solid #fcee0a;
+  animation: cinema-caption 0.8s cubic-bezier(0.16, 0.9, 0.25, 1) both;
+  text-shadow: 0 0 18px rgb(0 0 0 / 0.9), 0 1px 3px rgb(0 0 0 / 0.8);
+}
+@keyframes cinema-caption {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); transform: translateX(-10px); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); transform: none; }
+}
+.cinema-caption-label {
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.07em;
+  color: #fcee0a;
+}
+.cinema-caption-title {
+  margin-top: 0.4rem;
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: clamp(1.5rem, 3.2vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+.cinema-caption-line {
+  margin-top: 0.55rem;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  color: rgb(236 234 228 / 0.78);
+}
+
+/* ---- the credits ----------------------------------------------------------- */
+.cinema-credits {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--bar);
+  height: var(--pic);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
+}
+.cinema-credits-roll {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: min(34rem, 86vw);
+  text-align: center;
+  transform: translateX(-50%);
+  animation: cinema-roll 30s linear forwards;
+  text-shadow: 0 0 16px rgb(0 0 0 / 0.95), 0 1px 3px rgb(0 0 0 / 0.9);
+}
+@keyframes cinema-roll {
+  from { transform: translate(-50%, 0); }
+  to { transform: translate(-50%, calc(-100% - var(--pic))); }
+}
+.cinema-credits-name {
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: clamp(2.4rem, 6vw, 4.5rem);
+  line-height: 0.9;
+}
+.cinema-credits-name span { color: #fcee0a; }
+.cinema-credits-line {
+  margin-top: 0.8rem;
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.85rem;
+  color: rgb(236 234 228 / 0.75);
+}
+.cinema-credits-roll h3 {
+  margin-top: 3.2rem;
+  margin-bottom: 0.9rem;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #fcee0a;
+}
+.cinema-credits-roll p:not(.cinema-credits-name):not(.cinema-credits-line) {
+  margin-top: 0.55rem;
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+.cinema-credits-roll p:not(.cinema-credits-name) span {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 400;
+  text-transform: none;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: rgb(236 234 228 / 0.7);
+}
+.cinema-credits-roll .cinema-credits-base {
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: rgb(236 234 228 / 0.7);
+}
+
+/* ---- the end card --------------------------------------------------------- */
+.cinema-end {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--bar);
+  height: var(--pic);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  pointer-events: auto;
+  text-align: center;
+  animation: cinema-fade-in 1s ease both;
+  text-shadow: 0 0 18px rgb(0 0 0 / 0.95);
+}
+.cinema-end-mail {
+  font-family: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: clamp(1.4rem, 4vw, 3.4rem);
+  line-height: 1.05;
+  color: #eceae4;
+  transition: color 0.2s ease;
+  word-break: break-word;
+}
+.cinema-end-mail:hover, .cinema-end-mail:focus-visible { color: #fcee0a; }
+.cinema-end-links {
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.05em;
+  color: rgb(236 234 228 / 0.72);
+}
+.cinema-end-links a:hover, .cinema-end-links a:focus-visible { color: #fcee0a; }
+.cinema-end-actions { margin-top: 1rem; display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+
+/* ---- buttons and the controls -------------------------------------------- */
+.cinema-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 1.2rem;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8125rem;
+  letter-spacing: 0.05em;
+  color: #eceae4;
+  background: rgb(8 8 10 / 0.6);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.cinema-btn svg { width: 0.95rem; height: 0.95rem; }
+.cinema-btn:hover, .cinema-btn:focus-visible { background: rgb(236 234 228 / 0.14); box-shadow: none; }
+.cinema-btn.is-primary { background: #fcee0a; color: #0a0a0c; font-weight: 700; }
+.cinema-btn.is-primary:hover, .cinema-btn.is-primary:focus-visible { background: #b8ad00; }
+
+.cinema-controls {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--bar) / 2);
+  transform: translate(-50%, 50%);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.cinema-controls.is-up { opacity: 1; pointer-events: auto; }
+.cinema-icon {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: rgb(236 234 228 / 0.78);
+  transition: color 0.2s ease;
+}
+.cinema-icon svg { width: 1.1rem; height: 1.1rem; }
+.cinema-icon:hover, .cinema-icon:focus-visible { color: #fcee0a; }
+.cinema-track {
+  position: relative;
+  width: clamp(8rem, 28vw, 24rem);
+  height: 2px;
+  margin: 0 0.75rem;
+  background: rgb(236 234 228 / 0.16);
+}
+.cinema-track-fill {
+  position: absolute;
+  inset: 0;
+  background: #fcee0a;
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.cinema-track-tick {
+  position: absolute;
+  top: -3px;
+  width: 1px;
+  height: 8px;
+  background: rgb(236 234 228 / 0.5);
+}
+
+@media (max-width: 640px) {
+  .cinema-read { font-size: 0.625rem; }
+  .cinema-read.tl, .cinema-read.bl { left: 40px; }
+  .cinema-read.tr, .cinema-read.br { right: 40px; }
+  .cinema-corner.tl, .cinema-corner.bl { left: 14px; }
+  .cinema-corner.tr, .cinema-corner.br { right: 14px; }
+  .cinema-track { width: 6rem; margin: 0 0.25rem; }
+}

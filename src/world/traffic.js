@@ -704,12 +704,17 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   };
   let clock = 0;
   let frozen = false;
+  // Where the things the city hears are (soundscape.js): the AVs, the
+  // police, and the train while it crosses.
+  const voices = { on: true, avs: Array.from({ length: avs }, () => new THREE.Vector3()), police: police ? new THREE.Vector3() : null, train: null };
 
   const update = (dt, on) => {
     avMesh.visible = droneMesh.visible = lamps.visible = on;
     for (const k of kinds) k.mesh.visible = on;
+    voices.on = on;
     if (!on) {
       train.visible = false;
+      voices.train = null;
       return;
     }
     if (!reduced && !frozen) clock += dt;
@@ -727,6 +732,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       q.multiply(tilt.setFromEuler(euler.set(0.05, 0, (i % 2 ? 1 : -1) * 0.16)));
       const s = L.s ?? 1;
       avMesh.setMatrixAt(i, m.compose(p, q, scale.setScalar(s)));
+      voices.avs[i].copy(p);
       setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * s);
       setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * s);
     }
@@ -744,6 +750,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       q.setFromUnitVectors(FRONT, fwd);
       q.multiply(tilt.setFromEuler(euler.set(0.04, 0, -0.12)));
       avMesh.setMatrixAt(avs, m.compose(p, q, one));
+      voices.police.copy(p);
       setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75, 0.9, 1.0, 1.2);
       setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0, 0.1, 0.25, 0.9);
       const beat = ((clock % 1.6) + 1.6) % 1.6;
@@ -857,6 +864,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         train.position.set(rail.position.x + dir * (k * 2 - 1) * TRAIN.span, rail.position.y, rail.position.z);
         trainMat.uniforms.uDir.value = dir;
       }
+      voices.train = train.visible ? train.position : null;
     }
     avMesh.instanceMatrix.needsUpdate = true;
     droneMesh.instanceMatrix.needsUpdate = true;
@@ -871,6 +879,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   return {
     update,
     avMesh,
+    voices,
     /** Dev: hold every vehicle where it is. */
     freeze(on = true) {
       frozen = on;

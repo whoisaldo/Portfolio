@@ -14,6 +14,9 @@ export const profile = {
   gradYear: "’27",
   educationLine: "CS & Political Science · Northeastern University · Class of ’27",
   base: "Boston, MA",
+  // The hero's line under the name, and the film's opening title under it
+  // too (src/components/cinema/), so the two can never disagree.
+  line: "Systems, iOS and web. Boston.",
   // The character-sheet fields, for the dossier card in the About section.
   //
   // `age` is the one number on this site a human has to keep in sync. Ali gave
