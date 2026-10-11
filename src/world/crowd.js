@@ -3,38 +3,76 @@
 // The plate's street has people in it and the city's had none. Every
 // pavement of the network has its walkers now (the builder's streets.life
 // says how many, district by district), in the colours the show's crowds
-// wear, lit by the street they are in. Most walk the
-// avenue's two pavements (fifty-six on a desktop, twenty-two on a phone, of
-// ninety-six and thirty-six in all), up the avenue and down it, alone and in pairs, some under
-// umbrellas with a neon rim: the way a wet street at night reads from across
-// it, dark figures against lit shopfronts, each umbrella a ring of colour
-// doubled in the road. Some stand: at a shop's window, by the vending
-// machines, at the kerb of the crossing, a few with a phone lit in a hand
-// (one of them the braindance's hot phone).
-// The rest walk the streets the other shots look down: the cross street,
-// the plaza under the board, corpo row's boulevard under its awnings, the
-// garage street. They are silhouettes drawn in the shader on upright cards
-// (turned to the camera about their own vertical only), each their own build
-// and their own outline (a hood, a cap, long hair, a coat to the knee, a bag
-// at the hip or one carried, a jacket's trim lit in neon), with a walk in the
-// legs and the arms tied to how far they have walked, so nobody skates, and
-// a rim of the light from the shops they pass. Where a walk's loop starts
-// again they fade out and in, so nobody appears. One draw. Under reduced
-// motion they stand where they are.
+// wear, lit by the street they are in. Most walk the avenue's two pavements,
+// up the avenue and down it, alone and in pairs, some under umbrellas with a
+// neon rim: the way a wet street at night reads from across it, figures
+// against lit shopfronts, each umbrella a ring of colour doubled in the road.
+// Some stand: at a shop's window, by the vending machines, at the kerb of the
+// crossing, a few with a phone lit in a hand (one of them the braindance's
+// hot phone), and wherever a district has stood somebody (kit.stand: at a
+// stall, in a queue, on a bench, in a doorway), in the pose it asked for.
+//
+// They are people, not cards: one low-poly figure (src/world/crowd-people.js)
+// drawn instanced, each their own height and build, their own hair (short,
+// long, a mohawk, a bun, shaved, a cap, a hood), jacket (short, a coat to
+// the knee, a puffer, a vest), bag, skin and colours, a jacket's trim lit in
+// neon on some, from a seeded draw so the street is the same street every
+// visit. The vertex shader poses them: every vertex rides one segment of the
+// body about its joint, the legs reach for footfalls that stay where they
+// land for as long as the foot is down (so nobody skates), the arms swing
+// against them, the shoulders turn against the hips, and each has their own
+// pace and step. Standing, they hold one of eight poses and shift a little.
+// Under reduced motion they stay where they are.
+//
+// Lit by the street: the baked spill where they stand, the spill a couple of
+// metres along each face's own normal (so the side toward the shops is the
+// bright one), a little sky from above, the kit's lamps, a rim. Only phones,
+// cigarette tips, cyberware eyes, neon trims and umbrella rims are lit from
+// inside.
+//
+// Two meshes. Close to, the figure with a face; past the distance where the
+// difference is under a pixel or two, a figure of a few hundred triangles on
+// the same joints, the two traded through a dither so nobody sees it. The wet
+// road's mirror draws everyone as the far one. Each frame the people in the
+// frustum are sorted into the two; nobody is ever dropped for being far.
+// Where a walk's loop starts again they fade out and in, and within a step
+// of the lens they fade too, so the camera is never inside a head.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
+import { figureGeometry, RIG, PART, TAG, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF } from "./crowd-people.js";
 
 const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
+// The top of every pavement (the builder's PAVE_Y).
+const PAVE_Y = 0.15;
 
-// Walks: a start, a direction (unit, in the ground plane), a length, and how
-// many people share it on a desktop and on a phone. The avenue's pavements
-// (the kit's WALK and ROAD_HALF: two lanes a side, clear of the lamps and
-// machines against the walls) run the length the hero and the intro see.
+// What they wear, in the show's street colours (linear): jackets in yellow,
+// red, teal, purple, white, black, olive, orange, navy, pink, grey, tan,
+// blue, lime, burgundy and cream; trousers darker; skin; hair (black, browns,
+// bleached, pink, cyan, red, silver, green, violet); bags and hats.
+const JACKETS = [
+  [0.62, 0.48, 0.06], [0.46, 0.05, 0.05], [0.04, 0.3, 0.32], [0.22, 0.09, 0.36], [0.56, 0.56, 0.54], [0.035, 0.035, 0.04],
+  [0.18, 0.21, 0.08], [0.6, 0.24, 0.04], [0.05, 0.08, 0.2], [0.56, 0.14, 0.3], [0.22, 0.22, 0.24], [0.38, 0.3, 0.2],
+  [0.06, 0.22, 0.5], [0.3, 0.48, 0.08], [0.25, 0.03, 0.1], [0.62, 0.55, 0.4],
+];
+const TROUSERS = [[0.03, 0.03, 0.035], [0.08, 0.1, 0.18], [0.16, 0.14, 0.12], [0.05, 0.12, 0.12], [0.24, 0.05, 0.06], [0.3, 0.3, 0.3], [0.12, 0.12, 0.05], [0.02, 0.02, 0.025]];
+const SKINS = [[0.52, 0.34, 0.24], [0.32, 0.2, 0.13], [0.66, 0.48, 0.37], [0.2, 0.13, 0.09], [0.6, 0.42, 0.3], [0.44, 0.27, 0.17]];
+const HAIRS = [[0.02, 0.018, 0.016], [0.05, 0.035, 0.03], [0.12, 0.07, 0.04], [0.7, 0.62, 0.44], [0.7, 0.16, 0.45], [0.1, 0.55, 0.6], [0.5, 0.08, 0.05], [0.6, 0.6, 0.62], [0.2, 0.6, 0.15], [0.35, 0.12, 0.55]];
+const HAIR_ODDS = [30, 14, 12, 10, 8, 7, 6, 5, 4, 4];
+const BAGS = [[0.03, 0.03, 0.035], [0.3, 0.2, 0.1], [0.45, 0.05, 0.06], [0.6, 0.6, 0.58], [0.6, 0.55, 0.05], [0.06, 0.1, 0.25]];
+const PAL = { jacket: 0, trousers: 16, skin: 24, hair: 30, bag: 40, rim: 46, size: 50 };
+
+// Walks: a start, a direction (unit, in the ground plane), a length, how
+// many people share it on a desktop and on a phone, the files they keep to
+// (metres to the side of the line: two abreast, or one), and which way they
+// go. Everyone on a walk goes the same way at the same pace, so nobody walks
+// through anybody; the walk beside it goes the other way.
+// The avenue's pavements run the length the hero and the intro see, between
+// the lamps and hydrants by the kerb and the bins and benches by the shops.
 const WALKS = [
-  { from: [10.9, -168], dir: [0, 1], len: 224, n: [26, 9] },
-  { from: [11.9, -168], dir: [0, 1], len: 224, n: [24, 8] },
-  { from: [-10.9, -168], dir: [0, 1], len: 224, n: [26, 9] },
-  { from: [-11.9, -168], dir: [0, 1], len: 224, n: [24, 8] },
+  { from: [11.5, -168], dir: [0, 1], len: 224, n: [30, 10], files: [-0.27, 0.27], way: -1 },
+  { from: [12.35, -168], dir: [0, 1], len: 224, n: [20, 7], files: [0], way: 1 },
+  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [30, 10], files: [-0.27, 0.27], way: 1 },
+  { from: [-12.35, -168], dir: [0, 1], len: 224, n: [20, 7], files: [0], way: -1 },
   // The cross street's pavements, either side of the avenue.
   { from: [-88, -8.2], dir: [1, 0], len: 74, n: [2, 0] },
   { from: [16, 9.8], dir: [1, 0], len: 72, n: [2, 0] },
@@ -49,18 +87,22 @@ const WALKS = [
   { from: [430.2, -298], dir: [0, 1], len: 100, n: [2, 1] },
   { from: [449.8, -298], dir: [0, 1], len: 46, n: [1, 0] },
 ];
-// Standing: at the kerbs of the crossing, by the vending machines, at shop
-// windows up both pavements, and outside the garage street's shops. The
-// last is the braindance's hot phone (src/braindance/places.js, `phone`):
-// someone stopped on the right-hand pavement with it lit in their hand,
-// on every tier.
+const HALF_PI = Math.PI / 2;
+// Standing: x, z, which way they look (0 toward +z, a quarter turn toward
+// +x), their pose. At the kerbs of the crossing, at shop windows and by the
+// vending machines up both pavements, two pairs talking, and outside the
+// garage street's shops. The last is the braindance's hot phone
+// (src/braindance/places.js, `phone`): someone stopped on the right-hand
+// pavement with it lit in their hand, on every tier, placed so the phone
+// itself is at the clue's own point.
 const STANDS = [
-  [10.6, -10.6], [-10.7, -10.4], [10.5, 11.3], [-10.6, 11.2],
-  [-12.9, -21.3], [12.8, -37.2], [13.2, -46.0], [-13.2, -58.5], [13.1, -77.0],
-  [-13.0, -88.6], [13.2, -104.0], [-13.1, -121.0], [13.0, -142.5], [-13.2, -150.0],
-  [433.0, -241.0], [433.2, -276.0],
-  [11.4, -121.0, "phone"],
+  [10.55, -10.6, -HALF_PI, "idle"], [-10.6, -10.4, HALF_PI, "phone"], [10.5, 11.3, -HALF_PI, "smoke"], [-10.55, 11.2, HALF_PI, "idle"],
+  [-13.2, -21.3, -HALF_PI, "idle"], [13.2, -37.2, HALF_PI, "phone"], [13.3, -46.0, Math.PI, "talk"], [-13.3, -58.5, -HALF_PI, "smoke"], [13.2, -77.0, HALF_PI, "idle"],
+  [-13.2, -88.6, 0, "talk"], [13.3, -104.0, -HALF_PI, "smoke"], [-13.3, -121.0, -HALF_PI, "phone"], [13.2, -142.5, HALF_PI, "idle"], [-13.3, -150.0, HALF_PI, "lean"],
+  [433.0, -241.0, HALF_PI, "idle"], [433.2, -276.0, HALF_PI, "phone"],
+  [13.3, -47.15, 0, "talk"], [-13.2, -87.45, Math.PI, "talk"],
 ];
+const HOT_PHONE = [11.4, -121.0];
 
 function rng(seed) {
   let s = seed >>> 0;
@@ -69,322 +111,946 @@ function rng(seed) {
     return s / 4294967296;
   };
 }
+const pick = (r, odds) => {
+  let x = r() * odds.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < odds.length; i++) if ((x -= odds[i]) < 0) return i;
+  return odds.length - 1;
+};
+const bits = (...tags) => tags.reduce((m, t) => m + 2 ** t, 0);
 
-export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks: more = [] } = {}) {
+// Floats a person: where they walk (x, z, pace, step), their line (its way,
+// its length, where on it they start), their body (height over the
+// figure's, build, pose or lane, the ground under them), their look (what
+// they wear as a mask, the garment and its flags, the neon and bag colours,
+// a seed) and their colours (jacket, trousers, skin, hair).
+const STRIDE = 20;
+const HAIR_STYLES = [
+  { odds: 20, mask: bits(TAG.hair) },
+  { odds: 20, mask: bits(TAG.hair, TAG.long) },
+  { odds: 7, mask: bits(TAG.mohawk) },
+  { odds: 10, mask: bits(TAG.hair, TAG.bun) },
+  { odds: 9, mask: bits(TAG.hair), buzz: true },
+  { odds: 12, mask: bits(TAG.hair, TAG.brim), hat: true },
+  { odds: 12, mask: bits(TAG.hood) },
+  { odds: 3, mask: 0 },
+  { odds: 7, mask: bits(TAG.hair, TAG.brim, TAG.long), hat: true },
+];
+const GARMENTS = { jacket: 0, coat: 1, puffer: 2, vest: 3 };
+
+/** Who is in the city: every walker of every walk, then everyone standing. */
+function populate({ phone, walks, standers }) {
   const r = rng(1312);
-  // The rest of the network's pavements (the builder's streets.life): from,
-  // the way it runs, how long, and how many walk it on a desktop and on a
-  // phone.
-  const walks = [...WALKS];
-  for (let i = 0; i + 6 < more.length; i += 7) {
-    walks.push({ from: [more[i], more[i + 1]], dir: [more[i + 2], more[i + 3]], len: more[i + 4], n: [more[i + 5], more[i + 6]] });
-  }
-  const card = new THREE.PlaneGeometry(1, 1);
-  const geometry = new THREE.InstancedBufferGeometry();
-  geometry.index = card.index;
-  geometry.setAttribute("position", card.attributes.position);
   const people = [];
-  const look = () => [1.58 + r() * 0.3, r() < 0.4 ? 1 : 0, Math.floor(r() * RIMS.length), r()];
-  // The build, the head (0 bare, 1 hood, 2 cap, 3 long hair), what they
-  // carry (0 nothing, 1 a bag at the hip, 2 a bag in the hand) and a trim
-  // lit in neon on one in five.
-  const style = () => [0.86 + r() * 0.3, Math.floor(r() * 4), r() < 0.55 ? 0 : 1 + Math.floor(r() * 2), r() < 0.2 ? 1 : 0];
-  // What they wear: a jacket, trousers, skin and hair, each an index into
-  // the palettes in the shader. The show's crowds are colourful.
-  const wear = () => [Math.floor(r() * 12), Math.floor(r() * 8), Math.floor(r() * 5), Math.floor(r() * 7)];
-  for (const w of walks) {
+  const recent = [];
+  // A look nobody among the last few dozen shares: the jacket's colour and
+  // cut and the hair are what the eye matches first.
+  const dress = ({ pose = null, umbrellaOdds = 0.38 } = {}) => {
+    let style, garment, jacket, key;
+    for (let tries = 0; tries < 12; tries++) {
+      style = pick(r, HAIR_STYLES.map((x) => x.odds));
+      garment = pick(r, [42, 22, 20, 16]);
+      jacket = Math.floor(r() * JACKETS.length);
+      key = `${jacket}|${garment}|${style}`;
+      if (!recent.includes(key) && !recent.slice(-4).some((k) => k.startsWith(`${jacket}|`))) break;
+    }
+    recent.push(key);
+    if (recent.length > 48) recent.shift();
+    const hair = HAIR_STYLES[style];
+    const low = pose === "sit" || pose === "squat";
+    if (garment === GARMENTS.coat && low) garment = GARMENTS.jacket;
+    if (garment === GARMENTS.vest && hair.mask === bits(TAG.hood)) garment = GARMENTS.jacket;
+    let mask = hair.mask;
+    if (garment === GARMENTS.coat) mask += bits(TAG.skirt);
+    const collar = garment === GARMENTS.puffer ? 1 : garment === GARMENTS.coat ? 0.6 : garment === GARMENTS.jacket ? 0.25 : 0;
+    if (r() < collar && !(hair.mask & bits(TAG.hood))) mask += bits(TAG.collar);
+    const bag = pose === "vendor" ? 0 : pick(r, [45, 20, pose === "lean" || pose === "sit" ? 0 : 20, 15]);
+    if (bag) mask += bits([TAG.hipbag, TAG.backpack, TAG.tote][bag - 1]);
+    const free = pose === null || pose === "idle" || pose === "talk";
+    const umbrella = free && r() < umbrellaOdds;
+    if (umbrella) mask += bits(TAG.umbrella);
+    if (pose === "phone" || (pose === null && !umbrella && r() < 0.12)) mask += bits(TAG.phone);
+    if (pose === "smoke") mask += bits(TAG.smoke);
+    if (r() < 0.2) mask += bits(TAG.trim);
+    const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.14 ? 16 : 0) + (r() < 0.5 ? 32 : 0) + (r() < 0.25 ? 64 : 0);
+    return {
+      height: (1.55 + 0.37 * (r() + r()) * 0.5) / RIG.height,
+      build: 0.88 + 0.26 * r(),
+      look: [mask, flags, Math.floor(r() * RIMS.length) + 4 * Math.floor(r() * BAGS.length), r()],
+      wear: [jacket, Math.floor(r() * TROUSERS.length), Math.floor(r() * SKINS.length), pick(r, HAIR_ODDS)],
+    };
+  };
+
+  // The walks: this module's own, then the rest of the network's pavements
+  // (the builder's streets.life: from, the way it runs, how long, and how
+  // many walk it on a desktop and on a phone; a line by the kerb and then
+  // the line by the shops beside it, pavement by pavement).
+  const lines = WALKS.map((w) => ({ ...w }));
+  const first = lines.length;
+  for (let i = 0; i + 6 < walks.length; i += 7) lines.push({ from: [walks[i], walks[i + 1]], dir: [walks[i + 2], walks[i + 3]], len: walks[i + 4], n: [walks[i + 5], walks[i + 6]] });
+  for (let i = first; i + 1 < lines.length; i += 2) {
+    // A pavement's two lines go opposite ways, and the kerb's keeps a step
+    // further in, clear of the lamps along the kerb.
+    const a = lines[i];
+    const b = lines[i + 1];
+    const across = (b.from[0] - a.from[0]) * a.dir[1] - (b.from[1] - a.from[1]) * a.dir[0];
+    const paired = a.dir[0] === b.dir[0] && a.dir[1] === b.dir[1] && Math.abs(across) > 0.8 && Math.abs(across) < 4.5;
+    if (!paired) continue;
+    const inward = Math.sign(across);
+    a.files = [inward * 0.2, inward * 0.74];
+    b.files = [inward * -0.3, inward * 0.24];
+    a.way = r() < 0.5 ? -1 : 1;
+    b.way = -a.way;
+  }
+  const rows = [];
+  for (const w of lines) {
     const n = w.n[phone ? 1 : 0];
-    for (let k = 0; k < n; k++) {
-      const dir = r() < 0.5 ? -1 : 1;
-      const speed = dir * (1.1 + r() * 0.45);
-      const at = r() * w.len;
-      // A third walk in pairs, a step apart and in step.
-      const pair = r() < 0.3 && k < n - 1;
-      const lk = look();
-      const st = style();
-      for (let g = 0; g < (pair ? 2 : 1); g++) {
-        const side = w.dir[0] ? [0, 1] : [1, 0];
-        const off = g ? 0.62 : (r() - 0.5) * 0.25;
+    if (!n) continue;
+    const files = w.files ?? [-0.27, 0.27];
+    const way = w.way ?? (r() < 0.5 ? -1 : 1);
+    const pace = way * (1.12 + r() * 0.42);
+    // Alone, or two abreast and in step where the walk has room for it.
+    const groups = [];
+    for (let left = n; left > 0; ) {
+      const two = files.length > 1 && left > 1 && r() < 0.3;
+      groups.push(two ? 2 : 1);
+      left -= two ? 2 : 1;
+    }
+    // A lane each, for the map that bends a file round what stands in it.
+    const lanes = files.map((off) => {
+      rows.push({ w, off });
+      return rows.length - 1;
+    });
+    const slot = w.len / groups.length;
+    groups.forEach((size, g) => {
+      const at = (g + 0.2 + 0.6 * r()) * slot;
+      const step = r();
+      const one = Math.floor(r() * files.length);
+      for (let k = 0; k < size; k++) {
+        const f = size > 1 ? k : one;
+        const off = files[f] + (r() - 0.5) * 0.1;
+        // To the side of a line: +x of one that runs along +z.
+        const d = dress({ umbrellaOdds: k ? 0.3 : 0.38 });
         people.push({
-          walk: [w.from[0] + side[0] * off, w.from[1] + side[1] * off, speed, r()],
-          path: [w.dir[0], w.dir[1], w.len, at + g * 0.5 * dir],
-          look: g ? [lk[0] - 0.04 + r() * 0.08, r() < 0.3 ? 1 : 0, lk[2], r()] : lk,
-          style: g ? style() : st,
-          wear: wear(),
+          walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, k ? step + 0.5 : step],
+          path: [w.dir[0], w.dir[1], w.len, at + k * 0.12],
+          body: [d.height, d.build, -(lanes[f] + 1), PAVE_Y],
+          look: d.look,
+          wear: d.wear,
         });
       }
-      if (pair) k++;
-    }
+    });
   }
-  const stands = phone ? STANDS.filter((st, i) => i % 2 === 0 || st[2]) : STANDS;
-  for (const [x, z, what] of stands) {
-    const lk = look();
-    lk[1] = r() < 0.25 ? 1 : 0;
-    // A phone held up in front of them: no umbrella, no coat.
-    if (what === "phone") {
-      lk[1] = 0;
-      lk[3] = 0.9;
-    }
-    people.push({ walk: [x, z, 0, r()], path: [0, 1, 1, 0], look: lk, style: style(), wear: wear() });
-  }
-  const n = people.length;
-  const attr = (key, size = 4) => {
-    const a = new Float32Array(n * size);
-    people.forEach((p, i) => a.set(p[key], i * size));
-    return new THREE.InstancedBufferAttribute(a, size);
-  };
-  geometry.setAttribute("aWalk", attr("walk"));
-  geometry.setAttribute("aPath", attr("path"));
-  geometry.setAttribute("aLook", attr("look"));
-  geometry.setAttribute("aStyle", attr("style"));
-  geometry.setAttribute("aWear", attr("wear"));
-  geometry.instanceCount = n;
-  // Everywhere they walk, the whole network.
-  geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(180, 1, -340), 760);
 
-  const material = new THREE.ShaderMaterial({
-    uniforms: {
-      ...shared,
-      uMotion: { value: reduced ? 0 : 1 },
-      uRims: { value: RIMS.map((c) => new THREE.Color(c)) },
-    },
-    vertexShader: /* glsl */ `
-      attribute vec4 aWalk;
-      attribute vec4 aPath;
-      attribute vec4 aLook;
-      attribute vec4 aStyle;
-      attribute vec4 aWear;
-      varying vec4 vWear;
-      uniform float uTime;
-      uniform float uMotion;
-      uniform vec3 uCam;
-      varying vec2 vLocal;
-      varying vec3 vWorld;
-      varying vec4 vLook;
-      varying vec4 vStyle;
-      varying float vStep;
-      varying float vFade;
-      varying float vStill;
-      void main() {
-        float t = uTime * uMotion;
-        float walked = aWalk.z * t;
-        float s = mod(aPath.w + walked, aPath.z);
-        vec2 at = aWalk.xy + aPath.xy * s;
-        // A stride of 1.4 m: the legs' phase is how far they have gone.
-        vStep = abs(walked) / 1.4 * 6.2832 + aWalk.w * 6.2832;
-        vStill = step(abs(aWalk.z), 0.01);
-        // Into and out of the loop's ends, they fade (a walk that stands is
-        // all middle).
-        vFade = mix(clamp(min(s, aPath.z - s) / 3.0, 0.0, 1.0), 1.0, vStill);
-        float bob = abs(sin(vStep)) * 0.025 * uMotion * (1.0 - vStill);
-        vec3 foot = vec3(at.x, 0.15, at.y);
-        vec3 toCam = uCam - foot;
-        vec3 right = normalize(vec3(toCam.z, 0.0, -toCam.x) + 1e-4);
-        // The card: 1.3 m wide and tall enough for an umbrella over them.
-        float h = aLook.x + 0.5;
-        vLocal = vec2(position.x * 1.3, (position.y + 0.5) * h);
-        vec3 p = foot + right * position.x * 1.3 + vec3(0.0, (position.y + 0.5) * h + bob, 0.0);
-        vWorld = p;
-        vLook = aLook;
-        vStyle = aStyle;
-        vWear = aWear;
-        gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      ${COMMON}
-      uniform vec3 uRims[4];
-      varying vec2 vLocal;
-      varying vec3 vWorld;
-      varying vec4 vLook;
-      varying vec4 vStyle;
-      varying vec4 vWear;
-      varying float vStep;
-      varying float vFade;
-      varying float vStill;
-      // What they wear, in the show's street colours: jackets in yellow,
-      // red, teal, purple, white, black, olive, orange, navy, pink, grey and
-      // tan; trousers darker; skin; hair (black, browns, bleached, pink,
-      // cyan).
-      vec3 jacketOf(float i) {
-        if (i < 0.5) return vec3(0.62, 0.48, 0.06);
-        if (i < 1.5) return vec3(0.46, 0.05, 0.05);
-        if (i < 2.5) return vec3(0.04, 0.3, 0.32);
-        if (i < 3.5) return vec3(0.22, 0.09, 0.36);
-        if (i < 4.5) return vec3(0.56, 0.56, 0.54);
-        if (i < 5.5) return vec3(0.035, 0.035, 0.04);
-        if (i < 6.5) return vec3(0.18, 0.21, 0.08);
-        if (i < 7.5) return vec3(0.6, 0.24, 0.04);
-        if (i < 8.5) return vec3(0.05, 0.08, 0.2);
-        if (i < 9.5) return vec3(0.56, 0.14, 0.3);
-        if (i < 10.5) return vec3(0.22, 0.22, 0.24);
-        return vec3(0.38, 0.3, 0.2);
-      }
-      vec3 trousersOf(float i) {
-        if (i < 0.5) return vec3(0.03, 0.03, 0.035);
-        if (i < 1.5) return vec3(0.08, 0.1, 0.18);
-        if (i < 2.5) return vec3(0.16, 0.14, 0.12);
-        if (i < 3.5) return vec3(0.05, 0.12, 0.12);
-        if (i < 4.5) return vec3(0.24, 0.05, 0.06);
-        if (i < 5.5) return vec3(0.3, 0.3, 0.3);
-        if (i < 6.5) return vec3(0.12, 0.12, 0.05);
-        return vec3(0.02, 0.02, 0.025);
-      }
-      vec3 skinOf(float i) {
-        if (i < 0.5) return vec3(0.52, 0.34, 0.24);
-        if (i < 1.5) return vec3(0.32, 0.2, 0.13);
-        if (i < 2.5) return vec3(0.66, 0.48, 0.37);
-        if (i < 3.5) return vec3(0.2, 0.13, 0.09);
-        return vec3(0.6, 0.42, 0.3);
-      }
-      vec3 hairOf(float i) {
-        if (i < 2.5) return vec3(0.02, 0.018, 0.016);
-        if (i < 3.5) return vec3(0.12, 0.07, 0.04);
-        if (i < 4.5) return vec3(0.7, 0.62, 0.44);
-        if (i < 5.5) return vec3(0.7, 0.16, 0.45);
-        return vec3(0.1, 0.55, 0.6);
-      }
-      // A segment whose radius runs from ra at a to rb at b: close enough to
-      // a distance for a cut-out.
-      float limb(vec2 p, vec2 a, vec2 b, float ra, float rb) {
-        vec2 pa = p - a, ba = b - a;
-        float k = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-        return length(pa - ba * k) - mix(ra, rb, k);
-      }
-      float boxd(vec2 p, vec2 c, vec2 hs) {
-        vec2 q = abs(p - c) - hs;
-        return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
-      }
-      void main() {
-        if (vFade < 0.999 && hash12(floor(gl_FragCoord.xy)) > vFade) discard;
-        // A figure in metres, feet at 0, scaled to their height and build.
-        float s = vLook.x / 1.75;
-        vec2 p = vLocal / s;
-        p.x /= vStyle.x;
-        float swing = sin(vStep) * (1.0 - vStill);
-        // Standing, they shift their weight now and then.
-        float sway = vStill * sin(uTime * 0.6 + vLook.w * 40.0) * 0.02;
-        p.x += sway;
-        bool umbrella = vLook.y > 0.5;
-        float head = vStyle.y;
-        // Head and neck, shoulders wider than the waist, and, on about a
-        // third of them, a long coat to the knee that the legs come out of.
-        float dHead = length((p - vec2(0.0, 1.635)) / vec2(0.9, 1.0)) * 0.9 - 0.1;
-        float dHair = 1e3;
-        if (head > 0.5 && head < 1.5) dHair = limb(p, vec2(0.0, 1.6), vec2(0.0, 1.47), 0.135, 0.15);
-        else if (head > 1.5 && head < 2.5) dHair = boxd(p, vec2(0.0, 1.72), vec2(0.11, 0.035));
-        else if (head > 2.5) dHair = limb(p, vec2(0.0, 1.66), vec2(0.0, 1.38), 0.105, 0.12);
-        else dHair = max(dHead, 1.66 - p.y);
-        float dNeck = limb(p, vec2(0.0, 1.5), vec2(0.0, 1.56), 0.05, 0.05);
-        float dTorso = min(limb(p, vec2(0.0, 1.4), vec2(0.0, 0.98), 0.2, 0.15), limb(p, vec2(-0.13, 1.42), vec2(0.13, 1.42), 0.065, 0.065));
-        bool coat = vLook.w < 0.34;
-        float dCoat = coat ? limb(p, vec2(0.0, 1.3), vec2(0.0, 0.52), 0.17, 0.25 + 0.02 * swing) : 1e3;
-        // Legs from the hip through the knee, swinging from the hip.
-        vec2 kneeL = vec2(-0.08 + 0.1 * swing, 0.5);
-        vec2 kneeR = vec2(0.08 - 0.1 * swing, 0.5);
-        float dLegs = min(limb(p, vec2(-0.08, 0.95), kneeL, 0.085, 0.06), limb(p, vec2(0.08, 0.95), kneeR, 0.085, 0.06));
-        dLegs = min(dLegs, min(limb(p, kneeL, vec2(-0.08 + 0.17 * swing, 0.05), 0.06, 0.045), limb(p, kneeR, vec2(0.08 - 0.17 * swing, 0.05), 0.06, 0.045)));
-        float dShoes = max(dLegs, p.y - 0.1);
-        // Arms swing against the legs, just clear of the body; one holds the
-        // umbrella up, or a phone in front of them while they stand.
-        bool phoneUp = !umbrella && vStill > 0.5 && vLook.w > 0.5;
-        vec2 hand = umbrella ? vec2(0.12, 1.3) : phoneUp ? vec2(0.06, 1.12) : vec2(0.25 + 0.08 * swing, 0.88);
-        vec2 handL = vec2(-0.25 - 0.08 * swing, 0.88);
-        float dArms = min(limb(p, vec2(-0.2, 1.4), handL, 0.055, 0.04), limb(p, vec2(0.2, 1.4), hand, 0.055, 0.04));
-        float dHands = min(length(p - hand) - 0.045, length(p - handL) - 0.045);
-        float d = min(min(min(dHead, dHair), min(dNeck, dTorso)), min(min(dCoat, dLegs), dArms));
-        // What they carry: a bag at the hip on its strap, or one in the hand.
-        if (vStyle.z > 0.5 && vStyle.z < 1.5) {
-          d = min(d, boxd(p, vec2(-0.27, 0.92), vec2(0.07, 0.1)));
-          d = min(d, limb(p, vec2(-0.27, 1.0), vec2(0.13, 1.42), 0.012, 0.012));
-        } else if (vStyle.z > 1.5 && !umbrella && !phoneUp) {
-          d = min(d, boxd(p, hand + vec2(0.04, -0.17), vec2(0.09, 0.13)));
-        }
-        // The umbrella: a shallow dome, its handle, and a lit rim.
-        float canopy = 1e3;
-        float rim = 1e3;
-        if (umbrella) {
-          vec2 q = (p - vec2(0.06, 1.95)) / vec2(0.55, 0.24);
-          canopy = max(length(q) - 1.0, -q.y) * 0.24;
-          rim = max(abs(q.y) * 0.24 - 0.012, abs(q.x) - 1.0);
-          d = min(d, limb(p, vec2(0.06, 1.95), vec2(0.1, 1.3), 0.012, 0.012));
-        }
-        if (min(d, min(canopy, rim)) > 0.0) discard;
-        float edge = smoothstep(-0.018, 0.0, d);
-        vec3 spill = spillAt(vWorld);
-        // What each part of them is made of: skin, hair or the hood or cap,
-        // the jacket (or the coat over it), trousers, shoes, a bag.
-        vec3 jacket = jacketOf(vWear.x);
-        vec3 albedo = trousersOf(vWear.y);
-        if (dShoes <= 0.0) albedo = vec3(0.03);
-        if (dArms <= 0.0 || dTorso <= 0.0) albedo = jacket;
-        if (dCoat <= 0.0) albedo = jacket * 0.75;
-        if (dNeck <= 0.0 || dHead <= 0.0 || dHands <= 0.0) {
-          albedo = skinOf(vWear.z);
-          // A face, as much of one as a few pixels hold: the eyes' shadow,
-          // the line of the jaw.
-          if (dHead <= 0.0) {
-            float eyes = step(abs(p.y - 1.64), 0.012) * step(0.018, abs(p.x)) * step(abs(p.x), 0.055);
-            float jaw = smoothstep(1.6, 1.56, p.y);
-            albedo *= 1.0 - 0.65 * eyes - 0.25 * jaw;
-          }
-        }
-        if (dHair <= 0.0) albedo = head > 0.5 && head < 2.5 ? jacket * (head < 1.5 ? 0.85 : 0.6) : hairOf(vWear.w);
-        // Lit by the street they stand in: the signs' and shops' spill on the
-        // side the camera sees, more on their heads and shoulders, a rim of
-        // it round their outline, and the haze's cool fill.
-        float top = smoothstep(0.9, 1.7, p.y);
-        vec3 col = albedo * (vec3(0.05, 0.05, 0.07) + spill * (0.55 + 0.6 * top) + uHazeColor * 0.25) + spill * edge * 0.35;
-        vec3 tint = uRims[int(vLook.z + 0.5)];
-        float glow = 0.0;
-        if (canopy <= 0.0) col = vec3(0.02, 0.02, 0.028) + spill * 0.12 + tint * 0.05;
-        if (rim <= 0.0) {
-          col = tint * 3.2 * (1.0 + 0.2 * uBass);
-          glow = 1.0;
-        }
-        // A jacket's trim lit in neon: a strip across the chest and one
-        // along the hem, inside the outline.
-        if (vStyle.w > 0.5 && rim > 0.0 && canopy > 0.0 && d < -0.012) {
-          float hem = coat ? 0.6 : 1.0;
-          float strip = step(abs(p.y - 1.27), 0.014) + step(abs(p.y - hem), 0.014);
-          if (strip > 0.0 && abs(p.x) < 0.19) {
-            col = tint * 1.6;
-            glow = 1.0;
-          }
-        }
-        // A phone lights a hand, and a face over it while they stand.
-        if (!umbrella && vLook.w > 0.78 && length(p - hand) < 0.05) {
-          col = vec3(0.6, 0.85, 1.0) * 2.0;
-          glow = 1.0;
-        }
-        if (phoneUp) {
-          if (length(p - hand) < 0.045) {
-            col = vec3(0.6, 0.85, 1.0) * 2.2;
-            glow = 1.0;
-          } else if (p.y > 1.55 && abs(p.x) < 0.09) {
-            col += vec3(0.1, 0.16, 0.2) * smoothstep(0.0, -0.05, d);
-          }
-        }
-        col = cityFog(col, vWorld, glow);
-        gl_FragColor = vec4(col, 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }
-    `,
+  const stand = (x, y, z, yaw, pose, d = dress({ pose: POSES[pose], umbrellaOdds: 0.2 })) => {
+    people.push({ walk: [x, z, 0, r()], path: [Math.sin(yaw), Math.cos(yaw), 1, 0], body: [d.height, d.build, pose, y], look: d.look, wear: d.wear });
+  };
+  STANDS.forEach(([x, z, yaw, pose], i) => {
+    if (!phone || i % 2 === 0) stand(x, PAVE_Y, z, yaw, POSES.indexOf(pose));
   });
-  material.name = "crowd";
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = "crowd";
-  mesh.layers.enable(reflectLayer);
-  scene.add(mesh);
+  {
+    // The hot phone: looking down the street toward the hero, the phone a
+    // forearm ahead of them at the clue's point.
+    const d = dress({ pose: "phone" });
+    d.height = 1.58 / RIG.height;
+    d.look[0] = bits(TAG.hair, TAG.phone);
+    d.look[1] = GARMENTS.jacket;
+    const reach = 0.39 * d.height;
+    const yaw = 0.5;
+    stand(HOT_PHONE[0] - Math.sin(yaw) * reach, PAVE_Y, HOT_PHONE[1] - Math.cos(yaw) * reach, yaw, POSES.indexOf("phone"), d);
+  }
+  // Everyone a district stood somewhere: x, y, z, the way they look, pose.
+  for (let i = 0, k = 0; i + 4 < standers.length; i += 5, k++) {
+    if (phone && k % 3) continue;
+    stand(standers[i], standers[i + 1], standers[i + 2], standers[i + 3], Math.min(POSES.length - 1, Math.max(0, Math.round(standers[i + 4]))));
+  }
 
-  return {
-    mesh,
+  const data = new Float32Array(people.length * STRIDE);
+  people.forEach((p, i) => {
+    data.set(p.walk, i * STRIDE);
+    data.set(p.path, i * STRIDE + 4);
+    data.set(p.body, i * STRIDE + 8);
+    data.set(p.look, i * STRIDE + 12);
+    data.set(p.wear, i * STRIDE + 16);
+  });
+  return { data, count: people.length, rows };
+}
+
+const f = (x) => (Number.isInteger(x) ? x.toFixed(1) : String(x));
+const v3 = (a) => `vec3(${a.map(f).join(", ")})`;
+
+// What both shaders start from: a person's floats, the shared light, and
+// where that person is this instant.
+const HEAD = /* glsl */ `
+  attribute vec4 aWalk;
+  attribute vec4 aPath;
+  attribute vec4 aBody;
+  attribute vec4 aLook;
+  attribute vec4 aWear;
+  uniform float uMotion;
+  uniform vec3 uPal[${PAL.size}];
+  uniform sampler2D uLanes;
+  uniform float uLaneRows;
+  // Where the near figure and the far one trade places and over how wide a
+  // band; the same for the far figure and the card.
+  uniform vec4 uLod;
+  // Whether this pass draws everyone with this mesh, and a pixel's angle.
+  uniform vec2 uPass;
+  ${COMMON}
+
+  const float STRIDE = ${f(RIG.stride)};
+
+  // (The half keeps a power of two that comes out a hair large from
+  // eating the bit above it.)
+  float bit(float mask, float k) {
+    return mod(floor((mask + 0.5) / exp2(k)), 2.0);
+  }
+  float rnd(float x) {
+    return fract(sin(x * 91.17) * 43758.5453);
+  }
+  float laneAt(float u, float row) {
+    return (texture2D(uLanes, vec2(u, row)).r * 255.0 - 128.0) * 0.01;
+  }
+  // Where they stand, which way they look, how much of them a walk's end
+  // or the lens leaves, how far they have walked, how far the eye is.
+  void place(out vec3 root, out vec2 face, out float fade, out float gone, out float eye) {
+    float t = uTime * uMotion;
+    bool walking = aBody.z < -0.5;
+    float way = aWalk.z < 0.0 ? -1.0 : 1.0;
+    gone = walking ? abs(aWalk.z) * t + 0.3 * sin(t * 0.21 + aLook.w * 40.0) : 0.0;
+    float s = mod(aPath.w + way * gone, aPath.z);
+    face = aPath.xy * way;
+    vec2 at = aWalk.xy + aPath.xy * s;
+    fade = 1.0;
+    if (walking) {
+      // Into and out of the loop's ends they fade; along it, their file
+      // bends round what stands in it.
+      fade = clamp(min(s, aPath.z - s) / 3.0, 0.0, 1.0);
+      float row = (-aBody.z - 0.5) / uLaneRows;
+      float u = s / aPath.z;
+      float o0 = laneAt(u, row);
+      float o1 = laneAt(u + 0.6 / aPath.z, row);
+      vec2 across = vec2(aPath.y, -aPath.x);
+      at += across * o0;
+      face = normalize(aPath.xy + across * (o1 - o0) / 0.6) * way;
+    }
+    root = vec3(at.x, aBody.w, at.y);
+    eye = distance(uCam, vec3(root.x, clamp(uCam.y, root.y, root.y + 1.8 * aBody.x), root.z));
+    // Within a step of the lens they are gone, so it is never inside a head.
+    fade *= smoothstep(0.75, 1.35, eye);
+  }
+`;
+
+const VERTEX = /* glsl */ `
+  attribute vec4 aRig;
+  uniform vec4 uPose[${POSES.length * 5}];
+  varying vec3 vColor;
+  varying vec2 vFade;
+  ${HEAD}
+
+  const float HIP_Y = ${f(RIG.hipY)};
+  const float KNEE_Y = ${f(RIG.kneeY)};
+  const float ANKLE_Y = ${f(RIG.ankleY)};
+  const float THIGH = ${f(RIG.thigh)};
+  const float SHIN = ${f(RIG.shin)};
+
+  // Forward by a about the x axis through o: what hangs swings toward +z.
+  void swing(inout vec3 p, inout vec3 n, vec3 o, float a) {
+    float c = cos(a);
+    float s = sin(a);
+    p -= o;
+    p.yz = vec2(p.y * c + p.z * s, -p.y * s + p.z * c);
+    p += o;
+    n.yz = vec2(n.y * c + n.z * s, -n.y * s + n.z * c);
+  }
+  // About the vertical through o: what looks toward +z turns toward +x.
+  void turn(inout vec3 p, inout vec3 n, vec3 o, float a) {
+    float c = cos(a);
+    float s = sin(a);
+    p -= o;
+    p.xz = vec2(p.x * c + p.z * s, -p.x * s + p.z * c);
+    p += o;
+    n.xz = vec2(n.x * c + n.z * s, -n.x * s + n.z * c);
+  }
+  // About the z axis through o: what hangs lifts toward +x.
+  void lift(inout vec3 p, inout vec3 n, vec3 o, float a) {
+    float c = cos(a);
+    float s = sin(a);
+    p -= o;
+    p.xy = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+    p += o;
+    n.xy = vec2(n.x * c - n.y * s, n.x * s + n.y * c);
+  }
+  // A walking leg's ankle: how far ahead of the hip, how far off the
+  // ground, and the foot's tilt (toes up). u is the leg's place in its cycle:
+  // from 0 the foot is down, coming back under the body exactly as fast as
+  // the body goes forward (heel first, then flat, then up on its ball);
+  // from a half it is in the air, swinging through to the next footfall. q
+  // is half a step.
+  vec3 footfall(float u, float q) {
+    // The ankle's shift and rise with the foot up on its ball, and with it
+    // down on its heel.
+    const vec2 BALL = vec2(0.0754, 0.0655);
+    const vec2 HEEL = vec2(0.0195, 0.0151);
+    if (u < 0.5) {
+      float w = u * 2.0;
+      float up = 0.26 * (1.0 - smoothstep(0.0, 0.16, w));
+      float off = 0.62 * smoothstep(0.55, 1.0, w);
+      float z = q * (1.0 - 2.0 * w) - (0.085 * sin(up) - 0.07 * (1.0 - cos(up))) + 0.085 * sin(off) + 0.14 * (1.0 - cos(off));
+      float y = ANKLE_Y + 0.085 * (cos(up) - 1.0) + 0.07 * sin(up) + 0.085 * (cos(off) - 1.0) + 0.14 * sin(off);
+      return vec3(z, y, up - off);
+    }
+    float w = u * 2.0 - 1.0;
+    float w2 = w * w;
+    float w3 = w2 * w;
+    float z0 = -q + BALL.x;
+    float z1 = q - HEEL.x;
+    float m = -2.0 * q;
+    float z = (2.0 * w3 - 3.0 * w2 + 1.0) * z0 + (w3 - 2.0 * w2 + w) * m + (3.0 * w2 - 2.0 * w3) * z1 + (w3 - w2) * m;
+    float e = w2 * (3.0 - 2.0 * w);
+    float y = ANKLE_Y + mix(BALL.y, HEEL.y, e) + 0.055 * sin(3.14159 * w);
+    return vec3(z, y, mix(-0.62, 0.26, e));
+  }
+
+  void main() {
+    // What this person does not wear folds away to nothing.
+    float tag = aRig.z;
+    if (tag > 0.5 && bit(aLook.x, tag) < 0.5) {
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      vColor = vec3(0.0);
+      vFade = vec2(-1.0, 2.0);
+      return;
+    }
+    float seg = aRig.x;
+    float aux = aRig.w;
+    int part = int(aRig.y + 0.5);
+    float t = uTime * uMotion;
+    float h = aBody.x;
+    float seed = aLook.w;
+    bool walking = aBody.z < -0.5;
+    float side = position.x < 0.0 ? -1.0 : 1.0;
+    float umbrella = bit(aLook.x, ${f(TAG.umbrella)});
+    float phoneUp = bit(aLook.x, ${f(TAG.phone)});
+
+    float pace = aWalk.z;
+    vec3 root;
+    vec2 face;
+    float fade;
+    float gone;
+    float eye;
+    place(root, face, fade, gone, eye);
+
+    // The joints: the hips' drop, the lean back about the heels, the chest's
+    // pitch and turn, the hips' turn, the head's nod and turn; this side's
+    // hip, knee and ankle; this side's shoulder (forward, out), elbow and
+    // forearm turned in.
+    float drop = 0.0;
+    float lean = 0.0;
+    float pitch = 0.0;
+    float twist = 0.0;
+    float hips = 0.0;
+    float nod = 0.0;
+    float gaze = 0.0;
+    float back = 0.0;
+    float hip = 0.0;
+    float knee = 0.0;
+    float ankle = 0.0;
+    float sp = 0.0;
+    float sr = 0.0;
+    float el = 0.0;
+    float inw = 0.0;
+    float drag = 0.0;
+    if (walking) {
+      // A longer step at a quicker pace; the step's phase is how far they
+      // have gone, so a planted foot stays planted.
+      float reach = 0.85 + 0.15 * abs(pace) / 1.3;
+      float q = STRIDE * 0.25 * reach;
+      float ph = gone / (STRIDE * reach * h) + aWalk.w;
+      float c = cos(6.2832 * ph);
+      // Lowest with both feet down, highest over the standing leg.
+      drop = mix(0.048, 0.012, 0.5 - 0.5 * cos(12.5664 * ph));
+      vec3 fall = footfall(fract(ph + (side > 0.0 ? 0.5 : 0.0)), q);
+      vec2 T = vec2(fall.x, fall.y - (HIP_Y - drop));
+      float d = min(length(T), THIGH + SHIN - 0.004);
+      knee = 3.14159 - acos(clamp((THIGH * THIGH + SHIN * SHIN - d * d) / (2.0 * THIGH * SHIN), -1.0, 1.0));
+      hip = atan(T.x, -T.y) + acos(clamp((THIGH * THIGH + d * d - SHIN * SHIN) / (2.0 * THIGH * d), -1.0, 1.0));
+      ankle = fall.z + knee - hip;
+      // Arms against the legs, shoulders against the hips, the head held
+      // to the way they go.
+      float amp = 0.34 + 0.26 * rnd(seed * 3.1);
+      sp = side * amp * c + 0.04;
+      el = 0.22 + 0.32 * (0.5 + 0.5 * side * c);
+      sr = 0.07;
+      inw = 0.12;
+      twist = -0.09 * c;
+      hips = 0.05 * c;
+      gaze = 0.075 * c;
+      pitch = 0.04 + 0.05 * rnd(seed * 5.7);
+      nod = 0.03;
+      if (side < 0.0 && bit(aLook.x, ${f(TAG.tote)}) > 0.5) {
+        sp *= 0.3;
+        el = 0.08;
+      }
+      if (side > 0.0 && phoneUp > 0.5 && umbrella < 0.5) {
+        sp = ${f(HOLD.phone.pitch)};
+        sr = ${f(HOLD.phone.roll)};
+        el = ${f(HOLD.phone.elbow)};
+        inw = ${f(HOLD.phone.inward)};
+      }
+      nod += 0.3 * phoneUp;
+    } else {
+      int k = int(aBody.z + 0.5) * 5;
+      vec4 A = uPose[k];
+      vec4 B = uPose[k + 1];
+      vec4 C = side < 0.0 ? uPose[k + 2] : uPose[k + 3];
+      vec4 D = uPose[k + 4];
+      drop = A.x;
+      lean = A.y;
+      pitch = A.z;
+      nod = A.w;
+      hip = side < 0.0 ? B.x : B.z;
+      knee = side < 0.0 ? B.y : B.w;
+      sp = C.x;
+      sr = C.y;
+      el = C.z;
+      inw = C.w;
+      gaze = D.y;
+      back = D.z;
+      // Nobody stands still: weight shifts, a breath, a look round; a
+      // talker's hand, a cigarette to the mouth, a vendor's hands, a thumb.
+      float tt = t + seed * 100.0;
+      lean += 0.012 * sin(tt * 0.5);
+      pitch += 0.008 * sin(tt * 1.3);
+      gaze += 0.4 * sin(tt * 0.23) * smoothstep(0.2, 0.9, sin(tt * 0.071 + 1.0));
+      if (D.x > 0.5 && D.x < 1.5) {
+        if (side > 0.0) {
+          el += 0.32 * sin(tt * 2.1) * (0.5 + 0.5 * sin(tt * 0.37));
+          sp += 0.12 * sin(tt * 1.3);
+        }
+        nod += 0.06 * sin(tt * 1.7);
+      } else if (D.x > 1.5 && D.x < 2.5) {
+        float cyc = fract(tt / 9.0);
+        drag = smoothstep(0.0, 0.1, cyc) - smoothstep(0.28, 0.4, cyc);
+        if (side > 0.0) {
+          sp = mix(sp, 0.75, drag);
+          el = mix(el, 2.35, drag);
+          inw = mix(inw, 0.55, drag);
+        }
+      } else if (D.x > 2.5 && D.x < 3.5) {
+        el += 0.2 * sin(tt * 1.6 + side);
+        sp += 0.1 * sin(tt * 1.1 + side * 2.0);
+        twist = 0.15 * sin(tt * 0.4);
+      } else if (D.x > 3.5) {
+        el += 0.03 * sin(tt * 3.0);
+        nod += 0.03 * sin(tt * 0.6);
+      }
+      ankle = knee - hip - lean;
+    }
+    if (side > 0.0 && umbrella > 0.5) {
+      sp = ${f(HOLD.umbrella.pitch)};
+      sr = ${f(HOLD.umbrella.roll)};
+      el = ${f(HOLD.umbrella.elbow)};
+      inw = ${f(HOLD.umbrella.inward)};
+    }
+
+    // The figure as built, then made this person's: their build, a puffer's
+    // swell, more or less hair, and the lit things kept from falling between
+    // pixels far off.
+    vec3 p = position;
+    vec3 n = normal;
+    float wide = aBody.y;
+    float garment = mod(aLook.y, 4.0);
+    float px = uPass.y * eye / h;
+    float shoulderX = side * ${f(RIG.shoulderX)} * (1.0 + (wide - 1.0) * 0.9);
+    float elbowX = shoulderX + side * ${f(RIG.elbowX - RIG.shoulderX)} * wide;
+    if (part == ${PART.rim}) p.y += aux * max(0.75 * px - ${f(RIM_HALF)}, 0.0);
+    else if (part == ${PART.phone}) p = ${v3(PHONE_AT)} + (p - ${v3(PHONE_AT)}) * clamp(1.3 * px / 0.036, 1.0, 5.0);
+    else if (part == ${PART.ember}) p = ${v3(EMBER_AT)} + (p - ${v3(EMBER_AT)}) * clamp(px / 0.006, 1.0, 6.0);
+    if (seg > 4.5) {
+      float ax = side * ${f(RIG.hipX)};
+      p.x = ax + (p.x - ax) * wide;
+      p.z *= wide;
+    } else if (seg > 2.5) {
+      float ax = side * ${f(RIG.shoulderX)};
+      if (garment > 1.5 && garment < 2.5 && part == ${PART.sleeve}) p.xz += normalize(p.xz - vec2(ax, 0.0) + 1e-5) * 0.022 * aux;
+      p.x = shoulderX + (p.x - ax) * wide;
+      p.z *= wide;
+    } else if (seg > 1.5) {
+      if (part == ${PART.scalp}) p = vec3(0.0, 1.68, -0.01) + (p - vec3(0.0, 1.68, -0.01)) * (1.0 + 0.16 * aux * rnd(seed * 7.3) * rnd(seed * 2.9));
+      // A head is not much smaller on a short person, nor wider on a broad.
+      p = vec3(0.0, ${f(RIG.headY)}, 0.0) + (p - vec3(0.0, ${f(RIG.headY)}, 0.0)) * 1.07 * pow(h, -0.55);
+      p.xz *= mix(1.0, wide, 0.3);
+    } else if (tag < ${f(TAG.umbrella - 0.5)} || tag > ${f(TAG.umbrella + 0.5)}) {
+      if (garment > 1.5 && garment < 2.5 && part == ${PART.jacket}) p.xz += normalize(p.xz + 1e-5) * 0.024 * aux;
+      p.x *= wide;
+      p.z *= mix(1.0, wide, 0.85);
+      // A coat's skirt goes with the leg under it.
+      if (part == ${PART.coat}) p.z += aux * 0.3 * sin(hip);
+    }
+
+    // Each segment about its joint, from the far end in.
+    if (seg > 4.5) {
+      if (seg > 6.5) swing(p, n, vec3(0.0, ANKLE_Y, 0.0), ankle);
+      if (seg > 5.5) swing(p, n, vec3(0.0, KNEE_Y, 0.0), -knee);
+      swing(p, n, vec3(0.0, HIP_Y, 0.0), hip);
+    } else if (seg > 2.5) {
+      vec3 shoulder = vec3(shoulderX, ${f(RIG.shoulderY)}, 0.0);
+      if (seg > 3.5) {
+        vec3 elbow = vec3(elbowX, ${f(RIG.elbowY)}, 0.0);
+        swing(p, n, elbow, el);
+        turn(p, n, elbow, -side * inw);
+      }
+      lift(p, n, shoulder, side * sr);
+      swing(p, n, shoulder, sp);
+    }
+    if (seg > 0.5 && seg < 4.5) {
+      if (seg > 1.5 && seg < 2.5) {
+        vec3 neck = vec3(0.0, ${f(RIG.headY)}, 0.0);
+        turn(p, n, neck, gaze);
+        swing(p, n, neck, -nod);
+      }
+      turn(p, n, vec3(0.0), twist);
+      swing(p, n, vec3(0.0, ${f(RIG.waistY)}, 0.0), -pitch);
+    }
+    turn(p, n, vec3(0.0), hips);
+    p.y -= drop;
+    p.z += back;
+    swing(p, n, vec3(0.0), lean);
+    float tall = p.y;
+    p *= h;
+    vec3 world = root + vec3(face.y * p.x + face.x * p.z, p.y, face.y * p.z - face.x * p.x);
+    vec3 N = normalize(vec3(face.y * n.x + face.x * n.z, n.y, face.y * n.z - face.x * n.x));
+
+    // What it is made of.
+    float flags = aLook.y;
+    vec3 jacket = uPal[${PAL.jacket} + int(aWear.x + 0.5)];
+    vec3 skin = uPal[${PAL.skin} + int(aWear.z + 0.5)];
+    vec3 hair = uPal[${PAL.hair} + int(aWear.w + 0.5)];
+    vec3 tint = uPal[${PAL.rim} + int(mod(aLook.z, 4.0) + 0.5)];
+    vec3 carried = uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)];
+    vec3 albedo = jacket;
+    vec3 lit = vec3(0.0);
+    float glow = 0.0;
+    if (part == ${PART.skin}) albedo = skin;
+    else if (part == ${PART.hair}) albedo = hair;
+    else if (part == ${PART.scalp}) {
+      // Hair, a hat's dome, a shaved head's shadow; on the far figure, whose
+      // head is one piece, a hood too, or nothing.
+      albedo = bit(flags, 2.0) > 0.5 ? carried : bit(flags, 3.0) > 0.5 ? mix(skin, hair, 0.45) : hair;
+      #ifndef NEAR
+      if (bit(aLook.x, ${f(TAG.hair)}) < 0.5) albedo = bit(aLook.x, ${f(TAG.hood)}) > 0.5 ? jacket * 0.85 : skin;
+      #endif
+    }
+    else if (part == ${PART.sleeve}) {
+      // A vest's arms are bare, or a shirt's.
+      if (garment > 2.5) albedo = bit(flags, 5.0) > 0.5 ? skin : uPal[${PAL.jacket} + int(mod(aWear.x * 7.0 + 5.0, 16.0) + 0.5)] * 0.8;
+    }
+    else if (part == ${PART.hood}) albedo = jacket * 0.85;
+    else if (part == ${PART.trousers}) albedo = uPal[${PAL.trousers} + int(aWear.y + 0.5)];
+    else if (part == ${PART.shoe}) albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.03);
+    else if (part == ${PART.bag} || part == ${PART.brim}) albedo = carried;
+    else if (part == ${PART.tote}) albedo = uPal[${PAL.bag} + int(mod(floor(aLook.z / 4.0) + 3.0, 6.0) + 0.5)];
+    else if (part == ${PART.dark}) albedo = vec3(0.015);
+    else if (part == ${PART.canopy}) albedo = vec3(0.05, 0.05, 0.07) + tint * 0.1;
+    else if (part == ${PART.paper}) albedo = vec3(0.5);
+    else if (part == ${PART.brow}) albedo = hair * 0.7;
+    else if (part == ${PART.mouth}) albedo = skin * vec3(0.55, 0.35, 0.35);
+    else if (part == ${PART.eye}) {
+      albedo = skin * 0.1;
+      if (bit(flags, 4.0) > 0.5) { lit = tint * 1.8; glow = 1.0; }
+    }
+    else if (part == ${PART.rim}) { lit = tint * 3.2 * (1.0 + 0.2 * uBass); glow = 1.0; }
+    else if (part == ${PART.trim}) { lit = tint * 1.25; glow = 1.0; }
+    else if (part == ${PART.phone}) { lit = vec3(0.6, 0.85, 1.0) * 2.2 * aux; glow = 1.0; }
+    else if (part == ${PART.ember}) { lit = vec3(1.0, 0.38, 0.08) * (1.6 + 2.4 * drag); glow = 1.0; }
+
+    // Lit by the street they are in: its light where they stand, and the
+    // light a couple of metres the way each face looks (the shops' side is
+    // the bright one), more on what faces up; the sky's haze from above;
+    // the kit's lamps; and a rim of it round their edge.
+    vec3 here = spillAt(world);
+    vec3 flatN = vec3(N.x, 0.0, N.z) * 3.0;
+    vec3 toward = spillAt(world + flatN);
+    vec3 behind = spillAt(world - flatN);
+    float up = N.y;
+    // How much of the light is on this face's side of them: a face turned
+    // to the shops is lit, one turned from them is in their own shade.
+    float lt = dot(toward, vec3(0.3, 0.5, 0.2));
+    float share = lt / (lt + dot(behind, vec3(0.3, 0.5, 0.2)) + 1e-3);
+    vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * (0.55 + 0.45 * up) * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.25 * (0.5 + 0.5 * up);
+    vec3 light = vec3(0.03, 0.03, 0.045) + here * (0.06 + 0.34 * max(up, 0.0)) + toward * (0.1 + 0.85 * smoothstep(0.3, 0.75, share)) * (1.0 - 0.6 * abs(up)) + sky * 0.8 + lampsAt(world, N) * 1.2;
+    vec3 V = normalize(uCam - world);
+    float edge = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+    float ground = 0.72 + 0.28 * smoothstep(0.0, 0.5, tall);
+    vec3 col = albedo * light * ground + (max(here, toward) * 0.55 + sky * 0.6) * edge * (0.2 + albedo);
+    // A phone held up lights the face over it.
+    if (phoneUp > 0.5 && seg > 1.5 && seg < 2.5) col += albedo * vec3(0.3, 0.45, 0.55) * max(n.z * 0.8 - n.y * 0.6, 0.0);
+    col = mix(col, lit, glow);
+    vColor = cityFog(col, world, glow);
+
+    // The trades: the near figure keeps the pixels the far one has not
+    // taken yet, and the far one those the card has not.
+    float trade = smoothstep(uLod.x - uLod.y, uLod.x + uLod.y, eye);
+    #ifdef NEAR
+    vFade = vec2(fade, trade);
+    #else
+    vFade = vec2(min(fade, trade), smoothstep(uLod.z - uLod.w, uLod.z + uLod.w, eye));
+    #endif
+    gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
+  }
+`;
+
+const FRAGMENT = /* glsl */ `
+  varying vec3 vColor;
+  varying vec2 vFade;
+  float hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  void main() {
+    float dither = hash12(floor(gl_FragCoord.xy));
+    if (dither > vFade.x || dither < vFade.y) discard;
+    gl_FragColor = vec4(vColor, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }
+`;
+
+// The card: the same person a hundred metres off and further, where they are
+// a dozen pixels tall, and everyone in the wet road's mirror, which smears
+// what it holds down the road anyway. An upright card turned to the eye about
+// its own vertical, with their shape drawn on it: head, shoulders to hips, a
+// coat, legs that stride, an umbrella and its rim.
+const CARD_VERTEX = /* glsl */ `
+  // Across and up the card in the figure's own metres, and how much of them
+  // the fades leave.
+  varying vec4 vAt;
+  // The street's light on them, and their step.
+  varying vec4 vLight;
+  // What distance turns them into, and how far it has.
+  varying vec4 vFog;
+  // Jacket (and whether an umbrella is over them), trousers (and a coat),
+  // skin (and how square on they are seen), the head's top (and a pixel in
+  // their metres), their neon (and what is lit on them).
+  varying vec4 vJacket;
+  varying vec4 vLegs;
+  varying vec4 vSkin;
+  varying vec4 vHair;
+  varying vec4 vTint;
+  ${HEAD}
+
+  void main() {
+    vec3 root;
+    vec2 face;
+    float fade;
+    float gone;
+    float eye;
+    place(root, face, fade, gone, eye);
+    float h = aBody.x;
+    float pose = aBody.z;
+    float reach = 0.85 + 0.15 * abs(aWalk.z) / 1.3;
+    float ph = pose < -0.5 ? gone / (STRIDE * reach * h) + aWalk.w : 0.0;
+    // Sitting or squatting they are shorter, and a seat's top is not the
+    // ground.
+    float squash = 1.0;
+    float foot = 0.0;
+    if (pose > 2.5 && pose < 3.5) {
+      squash = 0.74;
+      foot = -0.46;
+    } else if (pose > 4.5 && pose < 5.5) squash = 0.56;
+    vec2 toEye = normalize(uCam.xz - root.xz + 1e-5);
+    vec2 right = vec2(toEye.y, -toEye.x);
+    vec2 local = vec2(position.x * 1.3, (position.y + 0.5) * 2.3);
+    vec3 world = root + vec3(right.x * local.x, foot + local.y * squash, right.y * local.x) * h;
+
+    // Lit as the figure's faces that look at the eye are.
+    vec3 mid = root + vec3(0.0, h, 0.0);
+    vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * 0.55 * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.12;
+    vec3 toward = spillAt(mid + vec3(toEye.x, 0.0, toEye.y) * 3.0);
+    float lt = dot(toward, vec3(0.3, 0.5, 0.2));
+    float share = lt / (lt + dot(spillAt(mid - vec3(toEye.x, 0.0, toEye.y) * 3.0), vec3(0.3, 0.5, 0.2)) + 1e-3);
+    vLight = vec4(vec3(0.03, 0.03, 0.045) + spillAt(mid) * 0.06 + toward * (0.1 + 0.85 * smoothstep(0.3, 0.75, share)) + sky * 0.8, 6.2832 * ph);
+    vec3 away = mid - uCam;
+    float dist = length(away);
+    vec3 fog = mix(uFogColor, uHazeColor, uHaze * exp(-max(mid.y, 0.0) * 0.01) * smoothstep(40.0, 360.0, dist));
+    vFog = vec4(fog + cityGlow(away, mid.y) * smoothstep(120.0, 900.0, dist), 1.0 - exp(-dist * uFogDensity));
+
+    float mask = aLook.x;
+    float flags = aLook.y;
+    vec3 jacket = uPal[${PAL.jacket} + int(aWear.x + 0.5)];
+    vec3 skin = uPal[${PAL.skin} + int(aWear.z + 0.5)];
+    float facing = dot(face, toEye);
+    // The top of the head, and all of it from behind: hair, a hat, a hood.
+    vec3 top = bit(mask, ${f(TAG.hood)}) > 0.5 ? jacket * 0.85 : bit(flags, 2.0) > 0.5 ? uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)] : bit(mask, ${f(TAG.hair)}) + bit(mask, ${f(TAG.mohawk)}) > 0.5 ? uPal[${PAL.hair} + int(aWear.w + 0.5)] : skin;
+    vJacket = vec4(jacket, bit(mask, ${f(TAG.umbrella)}));
+    vLegs = vec4(uPal[${PAL.trousers} + int(aWear.y + 0.5)], bit(mask, ${f(TAG.skirt)}));
+    vSkin = vec4(skin, abs(facing));
+    vHair = vec4(top, uPass.y * eye / h);
+    vTint = vec4(uPal[${PAL.rim} + int(mod(aLook.z, 4.0) + 0.5)], bit(mask, ${f(TAG.trim)}) + 2.0 * bit(mask, ${f(TAG.phone)}) + 4.0 * step(facing, 0.0));
+    // The card keeps the pixels the far figure has given up; in the mirror
+    // it has them all.
+    float trade = uPass.x > 0.5 ? 1.0 : smoothstep(uLod.z - uLod.w, uLod.z + uLod.w, eye);
+    vAt = vec4(local, min(fade, trade), 0.0);
+    gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
+  }
+`;
+
+const CARD_FRAGMENT = /* glsl */ `
+  uniform float uBass;
+  varying vec4 vAt;
+  varying vec4 vLight;
+  varying vec4 vFog;
+  varying vec4 vJacket;
+  varying vec4 vLegs;
+  varying vec4 vSkin;
+  varying vec4 vHair;
+  varying vec4 vTint;
+  float hash12(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  // A segment whose radius runs from ra at a to rb at b.
+  float limb(vec2 p, vec2 a, vec2 b, float ra, float rb) {
+    vec2 pa = p - a;
+    vec2 ba = b - a;
+    float k = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    return length(pa - ba * k) - mix(ra, rb, k);
+  }
+  void main() {
+    if (hash12(floor(gl_FragCoord.xy)) > vAt.z) discard;
+    vec2 p = vAt.xy;
+    float px = vHair.a;
+    // Narrower seen from the side, and the legs a stride apart; seen from
+    // the front or the back, side by side.
+    float front = vSkin.a;
+    float w = mix(0.62, 1.0, front);
+    float gap = 0.09 * front;
+    float reach = 0.3 * (1.0 - front) * sin(vLight.a);
+    float dHead = length((p - vec2(0.0, 1.645)) / vec2(0.8, 1.0)) - 0.112;
+    float dBody = limb(p, vec2(0.0, 1.36), vec2(0.0, 1.0), 0.215 * w, 0.17 * w);
+    float dCoat = vLegs.a > 0.5 ? limb(p, vec2(0.0, 1.0), vec2(0.0, 0.58), 0.18 * w, 0.215 * w) : 1e3;
+    float dLegs = min(limb(p, vec2(-gap, 0.95), vec2(reach - gap, 0.06), 0.085, 0.05), limb(p, vec2(gap, 0.95), vec2(gap - reach, 0.06), 0.085, 0.05));
+    float d = min(min(dHead, dBody), min(dCoat, dLegs));
+    // An umbrella: a shallow dome, its rim never under a pixel and a half.
+    float canopy = 1e3;
+    float rim = 1e3;
+    if (vJacket.a > 0.5) {
+      vec2 q = (p - vec2(0.1, 1.905)) / vec2(0.54, 0.13);
+      canopy = max(length(q) - 1.0, -q.y);
+      rim = max(abs(p.y - 1.905) - max(${f(RIM_HALF)}, 0.75 * px), abs(p.x - 0.1) - 0.54);
+    }
+    if (min(d, min(canopy, rim)) > 0.0) discard;
+    float lit = vTint.a;
+    vec3 albedo = vLegs.rgb;
+    if (p.y < 0.1) albedo = vec3(0.03);
+    if (dBody <= 0.0 || dCoat <= 0.0) albedo = vJacket.rgb;
+    if (dHead <= 0.0) albedo = lit > 3.5 || p.y > 1.7 ? vHair.rgb : vSkin.rgb;
+    if (canopy <= 0.0) albedo = vec3(0.05, 0.05, 0.07) + vTint.rgb * 0.1;
+    vec3 col = albedo * vLight.rgb;
+    float glow = 1.0;
+    if (rim <= 0.0) col = vTint.rgb * 3.2 * (1.0 + 0.2 * uBass);
+    else if (mod(lit, 2.0) > 0.5 && dBody <= 0.0 && abs(p.y - 0.93) < max(0.007, 0.5 * px)) col = vTint.rgb * 1.25;
+    else if (mod(floor(lit / 2.0), 2.0) > 0.5 && length(p - vec2(0.07, 1.27)) < max(0.045, 0.8 * px)) col = vec3(0.6, 0.85, 1.0) * 2.2;
+    else glow = 0.0;
+    col = mix(col, vFog.rgb, glow > 0.5 ? 1.0 - pow(1.0 - vFog.a, 0.45) : vFog.a);
+    gl_FragColor = vec4(col, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }
+`;
+
+const _sphere = new THREE.Sphere();
+const _frustum = new THREE.Frustum();
+const _vp = new THREE.Matrix4();
+const NAMES = ["aWalk", "aPath", "aBody", "aLook", "aWear"];
+
+export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks = [], standers = [] } = {}) {
+  const motion = reduced ? 0 : 1;
+  const palette = new Float32Array(PAL.size * 3);
+  [JACKETS, TROUSERS, SKINS, HAIRS, BAGS, RIMS.map((c) => new THREE.Color(c).toArray())].flat().forEach((c, i) => palette.set(c, i * 3));
+  // No lanes bend yet: one texel that says straight on.
+  const lanes = new THREE.DataTexture(new Uint8Array([128]), 1, 1, THREE.RedFormat);
+  lanes.magFilter = lanes.minFilter = THREE.LinearFilter;
+  lanes.needsUpdate = true;
+  // Where the figures trade places, through a 50 degree lens: the face for
+  // the far figure where a person is about seventy pixels tall on a desktop,
+  // the far figure for the card where they are under twenty; sooner on a
+  // phone's small screen.
+  const TRADES = phone ? [15, 70] : [22, 100];
+  const BAND = 0.12;
+  const base = {
+    ...shared,
+    uMotion: { value: motion },
+    uPose: { value: new Float32Array(POSE_TABLE.flat()) },
+    uPal: { value: palette },
+    uLanes: { value: lanes },
+    uLaneRows: { value: 1 },
+    uLod: { value: new THREE.Vector4(TRADES[0], TRADES[0] * BAND, TRADES[1], TRADES[1] * BAND) },
+  };
+  const material = (name, vertexShader, fragmentShader, defines = {}) => {
+    const m = new THREE.ShaderMaterial({ uniforms: { ...base, uPass: { value: new THREE.Vector2(0, 0.001) } }, vertexShader, fragmentShader, defines });
+    m.name = name;
+    return m;
+  };
+  // The three draws: the figure with a face, the far figure, the card.
+  const shapes = [figureGeometry(false), figureGeometry(true), new THREE.PlaneGeometry(1, 1)];
+  const materials = [material("crowd", VERTEX, FRAGMENT, { NEAR: "" }), material("crowd_far", VERTEX, FRAGMENT), material("crowd_card", CARD_VERTEX, CARD_FRAGMENT)];
+  const group = new THREE.Group();
+  group.name = "crowd";
+  scene.add(group);
+
+  // Everyone, and each draw's own list of them, packed again as it changes.
+  let people = populate({ phone, walks, standers });
+  let drawn = [];
+  let eye = null;
+  const last = new Float32Array(18).fill(NaN);
+  const fill = () => {
+    for (const d of drawn) {
+      group.remove(d.mesh);
+      d.geometry.dispose();
+    }
+    drawn = shapes.map((shape, k) => {
+      const geometry = new THREE.InstancedBufferGeometry();
+      geometry.index = shape.index;
+      for (const name of k < 2 ? ["position", "normal", "aRig"] : ["position"]) geometry.setAttribute(name, shape.attributes[name]);
+      const buffer = new THREE.InstancedInterleavedBuffer(new Float32Array(Math.max(1, people.count) * STRIDE), STRIDE, 1).setUsage(THREE.DynamicDrawUsage);
+      NAMES.forEach((name, i) => geometry.setAttribute(name, new THREE.InterleavedBufferAttribute(buffer, 4, i * 4)));
+      geometry.instanceCount = 0;
+      const mesh = new THREE.Mesh(geometry, materials[k]);
+      mesh.name = materials[k].name;
+      mesh.frustumCulled = false;
+      mesh.matrixAutoUpdate = false;
+      const d = { mesh, geometry, buffer, count: 0, all: 0, sig: -1, triangles: shape.index.count / 3 };
+      // What the camera drawing it is: the page's own (it sees layer 0) or
+      // the wet road's mirror, which gets everyone as cards.
+      mesh.onBeforeRender = (renderer, _scene, camera) => {
+        const main = (camera.layers.mask & 1) === 1;
+        if (main) eye = camera;
+        const target = renderer.getRenderTarget();
+        materials[k].uniforms.uPass.value.set(main ? 0 : 1, 2 / (camera.projectionMatrix.elements[5] * (target ? target.height : renderer.domElement.height)));
+        materials[k].uniformsNeedUpdate = true;
+        geometry.instanceCount = main ? d.count : d.all;
+      };
+      group.add(mesh);
+      return d;
+    });
+    drawn[2].mesh.layers.enable(reflectLayer);
+    last.fill(NaN);
+  };
+
+  // Each frame: where every walker is now, who the lens can see, and which
+  // draw each is in (two of them, inside a band where they trade). A list
+  // is packed again only when who is on it changed.
+  let lists = [];
+  const pack = (d, a, na, b, nb) => {
+    const { data } = people;
+    let sig = 2166136261;
+    for (let k = 0; k < na; k++) sig = Math.imul(sig ^ a[k], 16777619) >>> 0;
+    sig = Math.imul(sig ^ 65535, 16777619) >>> 0;
+    for (let k = 0; k < nb; k++) sig = Math.imul(sig ^ b[k], 16777619) >>> 0;
+    d.count = na;
+    d.all = na + nb;
+    d.mesh.visible = d.all > 0;
+    if (sig === d.sig) return;
+    d.sig = sig;
+    const out = d.buffer.array;
+    for (let k = 0; k < na; k++) out.set(data.subarray(a[k] * STRIDE, a[k] * STRIDE + STRIDE), k * STRIDE);
+    for (let k = 0; k < nb; k++) out.set(data.subarray(b[k] * STRIDE, b[k] * STRIDE + STRIDE), (na + k) * STRIDE);
+    d.buffer.clearUpdateRanges();
+    d.buffer.addUpdateRange(0, d.all * STRIDE);
+    d.buffer.needsUpdate = true;
+  };
+  const refresh = () => {
+    const t = shared.uTime.value * motion;
+    const cam = shared.uCam.value;
+    if (eye) eye.updateMatrixWorld();
+    const e = eye ? eye.matrixWorld.elements : null;
+    const lens = eye ? eye.projectionMatrix.elements[5] : 0;
+    let same = last[16] === t && last[17] === lens;
+    for (let k = 0; k < 16 && same; k++) same = last[k] === (e ? e[k] : k < 3 ? cam.getComponent(k) : 0);
+    if (same) return;
+    for (let k = 0; k < 16; k++) last[k] = e ? e[k] : k < 3 ? cam.getComponent(k) : 0;
+    last[16] = t;
+    last[17] = lens;
+    if (eye) _frustum.setFromProjectionMatrix(_vp.multiplyMatrices(eye.projectionMatrix, eye.matrixWorldInverse));
+    // A longer lens sees a face from further off.
+    const zoom = eye ? lens / 2.1445 : 1;
+    const t0 = TRADES[0] * zoom;
+    const t1 = TRADES[1] * zoom;
+    base.uLod.value.set(t0, t0 * BAND, t1, t1 * BAND);
+    const { data, count } = people;
+    if (!lists.length || lists[0].length < count) lists = [0, 1, 2, 3].map(() => new Uint16Array(Math.max(1, count)));
+    const [near, far, cards, rest] = lists;
+    let nn = 0;
+    let nf = 0;
+    let nc = 0;
+    let nr = 0;
+    for (let i = 0; i < count; i++) {
+      const o = i * STRIDE;
+      let x = data[o];
+      let z = data[o + 1];
+      const y = data[o + 11];
+      if (data[o + 10] < -0.5) {
+        const pace = data[o + 2];
+        const len = data[o + 6];
+        const gone = Math.abs(pace) * t + 0.3 * Math.sin(t * 0.21 + data[o + 15] * 40);
+        let s = (data[o + 7] + Math.sign(pace) * gone) % len;
+        if (s < 0) s += len;
+        if (Math.min(s, len - s) < 0.03) continue;
+        x += data[o + 4] * s;
+        z += data[o + 5] * s;
+      }
+      if (eye && !_frustum.intersectsSphere(_sphere.set(_sphere.center.set(x, y + 1, z), 2.2))) continue;
+      const top = y + 1.8 * data[o + 8];
+      const d = Math.hypot(x - cam.x, z - cam.z, cam.y > top ? cam.y - top : cam.y < y ? y - cam.y : 0);
+      if (d < t0 * (1 + BAND)) near[nn++] = i;
+      if (d > t0 * (1 - BAND) && d < t1 * (1 + BAND)) far[nf++] = i;
+      if (d > t1 * (1 - BAND)) cards[nc++] = i;
+      else rest[nr++] = i;
+    }
+    pack(drawn[0], near, nn, rest, 0);
+    pack(drawn[1], far, nf, rest, 0);
+    // The cards' list ends with everyone nearer: the mirror draws to its end.
+    pack(drawn[2], cards, nc, rest, nr);
+  };
+  fill();
+  // world-scene.js draws the scene without telling the crowd: every draw of
+  // it starts by updating the scene's matrices, which is where this is told.
+  group.updateMatrixWorld = function (force) {
+    refresh();
+    THREE.Group.prototype.updateMatrixWorld.call(this, force);
+  };
+
+  const api = {
+    mesh: group,
+    /** Sort the people for this camera now (the scene's own draw does it
+     *  too, so nobody has to call this). */
+    update(camera) {
+      eye = camera;
+      refresh();
+    },
+    /** People in the city, and how many each draw held last frame. */
+    stats() {
+      const [near, far, cards] = drawn.map((d) => d.count);
+      return { people: people.count, near, far, cards, mirror: drawn[2].all, triangles: near * drawn[0].triangles + far * drawn[1].triangles + cards * 2 };
+    },
     dispose() {
-      scene.remove(mesh);
-      geometry.dispose();
-      card.dispose();
-      material.dispose();
+      scene.remove(group);
+      for (const d of drawn) d.geometry.dispose();
+      for (const g of shapes) g.dispose();
+      for (const m of materials) m.dispose();
+      lanes.dispose();
     },
   };
+  if (import.meta.env.DEV) {
+    // Stand people anywhere, for looking at them: a flat list of x, y, z,
+    // the way they look and a pose, as the builder's; `only` leaves
+    // everyone else out.
+    api.debugStand = (list, { only = false } = {}) => {
+      people = populate({ phone, walks: only ? [] : walks, standers: [...(only ? [] : standers), ...list] });
+      fill();
+    };
+  }
+  return api;
 }
