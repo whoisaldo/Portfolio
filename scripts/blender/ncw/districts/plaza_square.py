@@ -96,6 +96,17 @@ for i in range(N):
         up_tri((PL, "glow", 0), p[0], p[1], p[2], tone())
         if r1 > 0:
             up_tri((PL, "glow", 0), p[1], p[3], p[2], tone())
+# Its glazing bars: a rib down each joint between the panes and a ring at
+# each break in the slope, steel against the light.
+for i in range(N):
+    a = i * math.tau / N
+    pts = [(hx + rr * math.cos(a), yy + 0.03, hz + rr * math.sin(a)) for rr, yy in RINGS] + [(hx, 1.71, hz)]
+    for p0, p1 in zip(pts, pts[1:]):
+        pipe((PL, "metal", 1), p0, p1, 0.045, segs=3)
+    for rr, yy in RINGS[1:]:
+        a1 = (i + 1) * math.tau / N
+        pipe((PL, "metal", 1), (hx + rr * math.cos(a), yy + 0.03, hz + rr * math.sin(a)),
+             (hx + rr * math.cos(a1), yy + 0.03, hz + rr * math.sin(a1)), 0.045, segs=3)
 for i in range(12):
     a = i * math.tau / 12
     light(PL, hx + (hr + 2.0) * math.cos(a), 0.6, hz + (hr + 2.0) * math.sin(a), "teal", 3.5)

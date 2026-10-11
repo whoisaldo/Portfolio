@@ -9,8 +9,8 @@ vending machines by the doors; the blocks' corners carry big signs turned
 at doors, against walls, in pairs talking, on their phones under the signs.
 
 Kept clear: the walkers' two lines on every pavement (1.4 m and 3.0 m from
-the lot line) and the walk camera's (0.9 m): what stands is within 0.7 m of
-the lot line or in the kerb's last 0.5 m.
+the lot line) and the walk camera's between them (2.5 m): what stands is
+within 0.7 m of the lot line or in the kerb's last 0.6 m.
 """
 from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
@@ -60,8 +60,8 @@ def frontage(axis, lot, out, a0, a1, seed, people=1.0, skip=(), palms=True, wall
     a = a0 + r.uniform(9.0, 16.0)
     while palms and a < a1 - 6.0:
         if clear(a):
-            x, z = at(a, 3.48)
-            P.place("planter_palm", x, G, z, r.uniform(0, 6.28), sy=r.uniform(1.05, 1.25), sxz=0.6, district=PL)
+            x, z = at(a, 3.62)
+            P.place("planter_palm", x, G, z, r.uniform(0, 6.28), sy=r.uniform(1.05, 1.25), sxz=0.55, district=PL)
             light(PL, *at(a, 2.6)[:1], 1.2, at(a, 2.6)[1], "amber", 3.5)
         a += r.uniform(20.0, 30.0)
     # Against the wall: now and then a vending machine or a booth.
