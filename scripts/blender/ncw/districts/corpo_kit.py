@@ -794,7 +794,7 @@ def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, ti
     if crown:
         parapet(a0, a1, b0, b1, top, col=B.TRIM[tnum], edge=edge)
     if top_band:
-        edge_line(a0, a1, b0, b1, top - 1.6, top_band, h=0.45, out=0.12)
+        edge_line(a0, a1, b0, b1, top - 1.5, top_band, h=0.28, out=0.12)
     return out
 
 

@@ -46,7 +46,9 @@ def west_block():
     # crown set back, a mast.
     K.corp_block(x0, x1, T_BACK - 1.0, LOT_N, 68.0, 7702, skin="windows", tint="navy", style=5,
                  tiers=((0.86, 0.0), (1.0, 2.5)), fronts={"+z": "glass", "+x": "dock", "-x": "none"}, canopy=2.6,
-                 corners="cyan", edge="cyan", top_band="amber", lit=(0.35, 0.6), warm=(0.3, 0.7))
+                 edge=None, lit=(0.3, 0.5), warm=(0.3, 0.7))
+    # (No lines of light on its crown: it stands in the Experience shot's
+    # lower left corner, under ARASAKA, and stays a dark mass there.)
     # (tiers end at 59.6 and 68.)
     cols, rows = 3, 4
     sw, sh, gx, gy = 7.0, 8.4, 0.6, 0.6
