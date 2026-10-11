@@ -113,5 +113,8 @@ empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
 from ncw.districts import massing  # noqa: E402
 from ncw.districts import mega_base  # noqa: E402,F401
 from ncw.districts import mega_face  # noqa: E402,F401
+from ncw.districts import mega_wings  # noqa: E402,F401
 
-massing.mega()
+# (Until mega_east builds them: the canyon's east backs, in the shared massing.)
+massing.blocks(D, 44.0, 132.0, -676.0, -560.0, (30.0, 62.0), 8204)
+B.ground_rect(D, 44.0, 132.0, -708.0, -676.0)

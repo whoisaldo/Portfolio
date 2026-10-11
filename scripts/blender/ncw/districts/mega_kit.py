@@ -424,3 +424,105 @@ def talkers(x, z, y=0.0, n=2, r=0.55, turn=0.0):
         a = turn + i * math.tau / n
         px, pz = x + math.sin(a) * r, z + math.cos(a) * r
         stand(px, pz, a + math.pi, "talk", y)
+
+
+# ---------------------------------------------------------------------------
+# Masses the wings and the blocks are made of: a windowed shell with a roof,
+# each face whole or in the spans given, then dressed by the caller.
+# ---------------------------------------------------------------------------
+def shell(x0, x1, z0, z1, y0, y1, col, seed, spans=None, skip=(), roof=True, mat="facade", collide=True):
+    """Walls of windows round a rectangle from y0 to y1 and a roof on it.
+    `spans`: for a face, the stretches of it to build instead of all of it,
+    {"+z": [(a0, a1, y_from), ...]} (a is x for a z face, z for an x face).
+    Returns its faces (buildings.Face) by name."""
+    r = random.Random(seed)
+    ov = r.randrange(0, 40)
+    fs = B.faces_of(x0, x1, z0, z1)
+    for name, f in fs.items():
+        if name in skip:
+            continue
+        for (a0, a1, ylo) in (spans or {}).get(name, [(f.a0, f.a1, y0)]):
+            B.facade_wall((D, mat, 0), B.Face(name, f.plane, a0, a1), max(ylo, y0), y1, col, ov)
+    if roof:
+        hquad((D, "roof", 0), x0, x1, z0, z1, y1, scale=4.0)
+        B.ROOFS.append((D, x0, x1, z0, z1, y1))
+    if collide:
+        B.COLLISION.append(("box", x0, x1, y0, y1, z0, z1, D))
+    return fs
+
+
+def parapet(x0, x1, z0, z1, y, sides=("+z", "-z", "+x", "-x"), col=CONC, t=0.3, h=0.95, rim=None):
+    """A roof's parapet on the sides named, and a line of light along its
+    top's outer edge when `rim` names a colour."""
+    runs = {"+z": (x0, x1, z1 - t, z1), "-z": (x0, x1, z0, z0 + t), "-x": (x0, x0 + t, z0, z1), "+x": (x1 - t, x1, z0, z1)}
+    lines = {"+z": (x0, x1, z1, z1 + 0.04), "-z": (x0, x1, z0 - 0.04, z0), "-x": (x0 - 0.04, x0, z0, z1), "+x": (x1, x1 + 0.04, z0, z1)}
+    for name in sides:
+        a0, a1, b0, b1 = runs[name]
+        tbox(a0, a1, y, y + h, b0, b1, col, scale=1.5)
+        if rim:
+            a0, a1, b0, b1 = lines[name]
+            box((D, "neon_" + rim, 0), a0, a1, y + h - 0.12, y + h - 0.03, b0, b1, scale=1.0)
+
+
+def ledges(f, y0, y1, every=1, out=0.18, s0=0.0, s1=None, detail=1, col=CONC):
+    """Ledges along a face's floor lines between y0 and y1."""
+    s1 = f.width if s1 is None else s1
+    k = 1
+    while floor_y(k) < y1 - 0.6:
+        y = floor_y(k)
+        if y > y0 + 0.4 and (k % every) == 0:
+            f.ledge((D, "trim", detail), s0, s1, y - 0.22, 0.22, out, col)
+        k += 1
+
+
+def bridge(x0, x1, z0, z1, y0, y1, hue="cyan", seed=0):
+    """A skybridge between two masses: a concrete tube with a band of lit
+    glazing down each side, yellow along its edges, a line of light under."""
+    tbox(x0, x1, y0, y1, z0, z1, CONC, bottom=True)
+    along_x = (x1 - x0) >= (z1 - z0)
+    band = dim(GLOW["white"], 0.2)
+    if along_x:
+        for zz, yaw in ((z1 + 0.02, 0.0), (z0 - 0.02, math.pi)):
+            rotated_quad((D, "glow", 0), (x0 + x1) / 2, (y0 + y1) / 2 + 0.2, zz, (x1 - x0) - 0.6, (y1 - y0) * 0.36, yaw, col=band)
+            rotated_quad((D, "trim", 0), (x0 + x1) / 2, y0 + 0.2, zz + (0.01 if yaw == 0.0 else -0.01), x1 - x0, 0.4, yaw, col=YEL)
+        box((D, "neon_" + hue, 0), x0, x1, y0 - 0.1, y0 - 0.02, (z0 + z1) / 2 - 0.08, (z0 + z1) / 2 + 0.08, scale=1.0, bottom=True)
+    else:
+        for xx, yaw in ((x1 + 0.02, math.pi / 2), (x0 - 0.02, -math.pi / 2)):
+            rotated_quad((D, "glow", 0), xx, (y0 + y1) / 2 + 0.2, (z0 + z1) / 2, (z1 - z0) - 0.6, (y1 - y0) * 0.36, yaw, col=band)
+            rotated_quad((D, "trim", 0), xx + (0.01 if yaw > 0 else -0.01), y0 + 0.2, (z0 + z1) / 2, z1 - z0, 0.4, yaw, col=YEL)
+        box((D, "neon_" + hue, 0), (x0 + x1) / 2 - 0.08, (x0 + x1) / 2 + 0.08, y0 - 0.1, y0 - 0.02, z0, z1, scale=1.0, bottom=True)
+
+
+def stall(x, z, yaw, colour="red", hue="amber", lanterns=4, vendor=True, customers=2, w=3.6, seed=0):
+    """A market stall with its front toward `yaw` (0 is +z): a counter, a
+    shelf behind, a cloth roof on posts, a strip of light under it, lanterns
+    along its front, somebody selling and somebody buying."""
+    r = random.Random(seed or int(x * 13 + z * 7))
+    cy, sy = math.cos(yaw), math.sin(yaw)
+
+    def at(u, t):
+        """u along the counter, t out toward the front."""
+        return (x + cy * u + sy * t, z - sy * u + cy * t)
+
+    hw = w / 2
+    cx, cz = at(0.0, 0.0)
+    oriented_box((D, "trim", 0), cx, G0 + 0.5, cz, w, 1.0, 0.7, yaw, col=r.choice((RED_PAINT, TEAL_PAINT, STEEL, YEL_OLD)))
+    bx, bz = at(0.0, -1.6)
+    oriented_box((D, "trim", 0), bx, G0 + 1.1, bz, w, 2.2, 0.4, yaw, col=STEEL)
+    for u in (-hw, hw):
+        for t in (-1.7, 0.9):
+            px, pz = at(u, t)
+            box((D, "metal", 1), px - 0.04, px + 0.04, G0, G0 + 2.7, pz - 0.04, pz + 0.04, scale=0.5)
+    a, b, c, d_ = at(-hw - 0.2, 1.2), at(hw + 0.2, 1.2), at(hw + 0.2, -1.9), at(-hw - 0.2, -1.9)
+    cloth((a[0], G0 + 2.55, a[1]), (b[0], G0 + 2.55, b[1]), (c[0], G0 + 2.95, c[1]), (d_[0], G0 + 2.95, d_[1]), colour)
+    lx, lz = at(0.0, 0.1)
+    oriented_box((D, "neon_" + hue, 0), lx, G0 + 2.4, lz, w - 0.4, 0.06, 0.08, yaw)
+    for i in range(lanterns):
+        px, pz = at(-hw + 0.3 + (w - 0.6) * i / max(1, lanterns - 1), 1.1)
+        P.place("lantern", px, G0 + 2.2, pz)
+    if vendor:
+        px, pz = at(r.uniform(-0.6, 0.6), -0.9)
+        stand(px, pz, yaw, "vendor", G0)
+    for i in range(customers):
+        px, pz = at(-hw + 0.7 + i * (w - 1.4) / max(1, customers - 1 or 1), 1.0 + r.uniform(0.0, 0.4))
+        stand(px, pz, yaw + math.pi + r.uniform(-0.3, 0.3), r.choice(("idle", "phone", "idle")), G0)
