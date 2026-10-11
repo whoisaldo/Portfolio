@@ -34,15 +34,16 @@ import * as THREE from "three";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON, WINDOWS } from "./glsl.js";
 
-// Rectangles (x0, z0, x1, z1) the far city stays out of.
+// Rectangles (x0, z0, x1, z1) the far city stays out of: the kit's whole
+// footprint (BIBLE.md), so it starts behind the last lot line every street
+// of the loop is built to.
 const KEEP_OUT = [
-  [-60, -740, 60, 80], // the avenue, its canyon and the intersection
-  [0, -420, 300, -130], // the plaza, and corpo row's west end
-  // Corpo row's east end, the rooftop and the garage: the kit stops at the
-  // rooftop's east wall (484) and the garage block's north face (-176), so
-  // the city comes up to Contact's lens.
-  [300, -420, 490, -176],
-  [-70, 20, 70, 140], // behind the hero camera
+  // The west street's outer lots to the x 120 road, the megabuilding to the
+  // depot past the avenue's south arm.
+  [-130, -800, 135, 125],
+  // The east lobe: corpo row's towers to Santo Domingo's south side, out to
+  // the garage street's east lots.
+  [100, -380, 490, 48],
 ];
 // Where the moon rises for the Contact shot: lit roofs stay low there, and
 // right by the garage they are not there at all. A few towers stand under

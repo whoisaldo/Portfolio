@@ -62,16 +62,11 @@ for i, (cx, cy, cz, w, h, yaw) in enumerate(SMALL_BOARDS, start=1):
 # The blocks round the square and along the cross street are the avenue's
 # kind: painted apartment walls, lived in, with the board hung on one. The
 # camera cranes past them on its way from the hero to the board.
-for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 5103), (PX1, 140.0, -262.0, -188.0, 38, 5105))):
+# The block the board hangs on, north of the square. (The square's east
+# block and the cross street's south side stood across the x 120 road, which
+# the S4 drove through unseen; the road is real now and the blocks round it
+# are massing.py's.)
+for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 5103),)):
     mass(PL, x0, x1, z0, z1, SHOP_H, h, seed, painted=i)
     box((PL, "dark", 0), x0, x1, 0, SHOP_H, z0, z1, scale=2.0)
-    # Not the east block's: the Experience camera (cam_experience) stands
-    # inside it, where its walls face away and vanish, but anything on its
-    # roof would hang over the lens.
-    if i == 0:
-        dress_roof(PL, x0, x1, z0, z1, h, seed + 41, cap=6.0)
-# The south side of the cross street, east of the avenue.
-for i, (x0, x1, h, seed) in enumerate(((38, 60, 24, 5201), (60, 80, 30, 5202), (80, 104, 22, 5203), (104, 140, 28, 5204))):
-    mass(PL, x0, x1, -170, -150, SHOP_H, h, seed, painted=(i + 2) % 3)
-    box((PL, "dark", 0), x0, x1, 0, SHOP_H, -170, -150, scale=2.0)
-    dress_roof(PL, x0, x1, -170, -150, h, seed + 41, cap=6.0, face=math.pi)
+    dress_roof(PL, x0, x1, z0, z1, h, seed + 41, cap=6.0)

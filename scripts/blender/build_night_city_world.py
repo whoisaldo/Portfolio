@@ -65,6 +65,7 @@ for module in (
     "districts.rooftop",
     "districts.garage",
     "districts.sky",
+    "districts.massing",
     "road",
     "cameras",
     "preview",
