@@ -247,7 +247,9 @@ const GLASS = /* glsl */ `
 `;
 
 class GlassEffect extends Effect {
-  constructor() {
+  /** `phone`: three blur passes instead of five, which on a phone's smaller
+   *  frame frosts it about as much as five do on a monitor's. */
+  constructor({ phone = false } = {}) {
     super("GlassEffect", GLASS, {
       defines: new Map([["MAX_PANES", String(MAX_PANES)]]),
       uniforms: new Map([
@@ -260,7 +262,7 @@ class GlassEffect extends Effect {
         ["uCeiling", new THREE.Uniform(0.13)],
       ]),
     });
-    this.blurPass = new KawaseBlurPass({ kernelSize: KernelSize.LARGE, resolutionScale: 0.25 });
+    this.blurPass = new KawaseBlurPass({ kernelSize: phone ? KernelSize.SMALL : KernelSize.LARGE, resolutionScale: 0.25 });
     this.renderTarget = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
     this.renderTarget.texture.name = "Glass.Target";
     this.uniforms.get("uGlassMap").value = this.renderTarget.texture;
@@ -345,7 +347,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
     streak = new StreakEffect(streakMap);
     effects.push(streak);
   }
-  const glass = new GlassEffect();
+  const glass = new GlassEffect({ phone: quality.name === "phone" });
   effects.push(glass);
   if (quality.name !== "phone") {
     noise = new NoiseEffect({ blendFunction: BlendFunction.OVERLAY, premultiply: true });
