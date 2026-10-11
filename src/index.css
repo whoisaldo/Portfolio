@@ -1341,6 +1341,29 @@ html[data-world="on"] [data-shot] h2,
 html[data-world="on"] [data-shot] h3 {
   text-shadow: 0 0 14px rgb(4 4 6 / 0.85), 0 1px 3px rgb(4 4 6 / 0.7);
 }
+/* Look and Cinema (src/world/modes.js): the page is put away and the city is
+   the whole screen. Everything in the shell fades but the city, the reticle,
+   the modes' own controls (`data-mode-ui`) and what is marked to stay
+   (`data-mode-keep`: the sound control). It fades by filter, not opacity,
+   because Framer owns the inline opacity of half these elements and a CSS
+   transition on it would drag every reveal behind it; and it ends hidden, so
+   a page nobody can see paints nothing. Visibility keeps the layout: the
+   page is still the length it was, the wheel still scrolls it, and the
+   scroll still flies the camera. */
+html[data-view="page"] [data-shell] > :not(.world-layer):not(.reticle):not([data-mode-ui]):not([data-mode-keep]) {
+  transition: filter 0.6s ease, visibility 0s linear 0s;
+}
+html[data-view="look"] [data-shell] > :not(.world-layer):not(.reticle):not([data-mode-ui]):not([data-mode-keep]),
+html[data-view="cinema"] [data-shell] > :not(.world-layer):not(.reticle):not([data-mode-ui]):not([data-mode-keep]) {
+  filter: opacity(0);
+  visibility: hidden;
+  pointer-events: none;
+  transition: filter 0.6s ease, visibility 0s linear 0.6s;
+}
+/* A drag in Look turns the camera; say so under the pointer. */
+html[data-view="look"] body { cursor: grab; }
+html[data-view="look"][data-looking] body { cursor: grabbing; }
+
 /* An intro that plays in the live city (IntroCinematic.jsx): the city is
    the intro's backdrop, so the page waits under it unseen, as it waited
    under the overlay's opaque plate, and arrives over the handoff as

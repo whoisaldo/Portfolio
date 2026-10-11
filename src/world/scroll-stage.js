@@ -59,6 +59,25 @@ export function positionAt(shots, y, vh, maxScroll) {
   return n - 1;
 }
 
+/**
+ * The scroll range [start, end] over which shot `i` holds: from where the
+ * flight in lands (its section's top 20% from the top of the viewport) to
+ * where the flight out begins. The last shot holds only at the bottom of
+ * the page. The film (src/components/cinema/) flies between these.
+ */
+export function holdRange(shots, i, vh, maxScroll) {
+  const n = shots.length;
+  const a = shots[i];
+  if (!a) return [0, 0];
+  if (i === n - 1) return [maxScroll, maxScroll];
+  const b = shots[i + 1];
+  let nextStart = b.top - 0.2 * vh;
+  if (i === n - 2) nextStart = Math.min(nextStart, maxScroll);
+  const end = Math.min(Math.max(a.top - 0.2 * vh, a.top + a.height - vh), nextStart);
+  const start = i === 0 ? 0 : clamp(a.top - 0.2 * vh, 0, end);
+  return [start, end];
+}
+
 /** 0 to 1 per shot: how far the middle of the viewport is through it. */
 export function localsAt(shots, y, vh, out = []) {
   const mid = y + vh / 2;
@@ -202,6 +221,9 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
     // so an overlay arriving or a route changing fades rather than cuts.
     let goal = stage.route.kind === "home" ? dimAt(shots, stage.position) : routeDim(stage.route);
     if (garageCovers()) goal = Math.max(goal, COVER_DIM.garage);
+    // With the page put away (Look, Cinema) there is nothing to read over
+    // the city and nothing to dim it for.
+    if (stage.view !== "page") goal = 0;
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
     last = now;
     dim += (goal - dim) * (1 - Math.exp(-dt * 6));

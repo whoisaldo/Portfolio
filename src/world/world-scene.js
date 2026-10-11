@@ -235,6 +235,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // The hero's hand: a sway of a fraction of a degree and a slow push up the
   // avenue, while it holds (never with reduced motion).
   const hand = { yaw: 0, pitch: 0, roll: 0 };
+  // Look mode's drag (src/world/modes.js), damped so a flick of the mouse
+  // turns the camera rather than snapping it.
+  const lookCam = { yaw: 0, pitch: 0 };
 
   // A camera on the move: it banks into a turn, as a drone or a helicopter
   // does (roll follows the rate the heading swings at, a few degrees at
@@ -269,8 +272,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     camera.position.copy(p.position);
     camera.lookAt(p.target);
     if (withTilt) {
-      camera.rotateY(-tilt.x * 1.4 * DEG + hand.yaw);
-      camera.rotateX(-tilt.y * 0.9 * DEG + hand.pitch);
+      camera.rotateY(-tilt.x * 1.4 * DEG + hand.yaw - lookCam.yaw);
+      camera.rotateX(-tilt.y * 0.9 * DEG + hand.pitch + lookCam.pitch);
       camera.rotateZ(hand.roll + motion.roll);
     }
     const fov = p.fov + (withTilt ? motion.widen : 0);
@@ -480,6 +483,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const t = 1 - Math.exp(-dt * 3);
     tilt.x += (stage.pointer.x - tilt.x) * t;
     tilt.y += (stage.pointer.y - tilt.y) * t;
+    const l = reduced ? 1 : 1 - Math.exp(-dt * 7);
+    lookCam.yaw += (stage.look.yaw - lookCam.yaw) * l;
+    lookCam.pitch += (stage.look.pitch - lookCam.pitch) * l;
     applyPose(pose, true);
   };
 

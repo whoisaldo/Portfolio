@@ -68,6 +68,9 @@ export const stage = {
   covers: new Set(),
   // The shot id being held (no flight under way), or null mid-flight.
   holding: null,
+  // "page" normally; "look" or "cinema" while the page is put away and the
+  // city is the whole screen (src/world/modes.js).
+  view: "page",
   // Bumped whenever the page is re-measured.
   layout: 0,
 };
@@ -109,13 +112,19 @@ export function subscribeStage(fn) {
 
 function recomputePaused() {
   const hidden = typeof document !== "undefined" && document.hidden;
-  const covered = [...stage.covers].some((key) => key !== "garage" || stage.holding === "garage");
+  const covered = [...stage.covers].some((key) => key !== "garage" || garageCovers());
   setStage({ paused: hidden || covered });
 }
 
-/** Whether the garage's viewer is covering the city right now. */
+/** Whether the garage's viewer is covering the city right now. Never while
+ *  the page is put away (Look, Cinema): the viewer is part of the page. */
 export function garageCovers() {
-  return stage.covers.has("garage") && stage.holding === "garage";
+  return stage.covers.has("garage") && stage.holding === "garage" && stage.view === "page";
+}
+
+/** The view changed (src/world/modes.js): the covers mean something else. */
+export function refreshPaused() {
+  recomputePaused();
 }
 
 /**
