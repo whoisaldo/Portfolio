@@ -11,8 +11,8 @@
 //            window types and a thousand lit rooms cost one draw per
 //            district and no texture at all. Past about two pixels a cell
 //            fades to its own average rather than shimmering.
-//   shop     a lit ground floor: a room behind every bay of glass, with
-//            depth (interior mapping over eight photographed rooms).
+//   shop     a lit ground floor: a room behind every pane of glass, with
+//            depth, drawn in the fragment (src/world/interiors.js).
 //   awning   dyed cloth over a shop, lit through from underneath.
 //   corporate  corpo row's glass: whole office floors lit behind mullions,
 //            the city's glow in the glass; lobby, the lit ground floor.
@@ -29,6 +29,7 @@
 //   surface  everything else: paint, concrete, metal, roofs, lit by the spill.
 import * as THREE from "three";
 import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
+import { SHOP_ROOM } from "./interiors.js";
 import { createWetFloor } from "./wet.js";
 
 /** The world's own neon, as the plate uses it. */
@@ -249,36 +250,23 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  // A shop, seen through its glass. Behind each 3.2 m bay is a room, traced
-  // in the fragment (interior mapping): the eye's ray runs into a box as
-  // wide as the bay, as tall as the glass and as deep as it is wide, and the
-  // point it reaches (back wall, side wall, floor or ceiling) is projected
-  // back onto one of eight photographs of a room taken straight on (an
-  // original generated set, see the design README), which is exactly how
-  // those photographs were taken. So the room has depth and parallax, and a
-  // passing camera sees along its shelves, for one texture read. vColor
-  // carries the shop's brightness, its hue and whether it is open; a closed
-  // one shows its roller shutter.
+  // A shop, seen through its glass: the room behind it is drawn in the
+  // fragment (src/world/interiors.js), the eye's ray run into a box and
+  // shaded where it lands, so it has depth and parallax and no picture is
+  // read. vColor carries the shop's brightness, its hue and whether it is
+  // open; a closed one shows its roller shutter.
   const shop = () => {
     if (made.has("shop")) return made.get("shop");
     const m = keep(new THREE.ShaderMaterial({
-      uniforms: { ...shared, uShops: { value: maps.shops ?? null }, uHasShops: { value: maps.shops ? 1 : 0 } },
+      uniforms: { ...shared },
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
-        uniform sampler2D uShops;
-        uniform float uHasShops;
+        ${SHOP_ROOM}
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
         varying vec4 vColor;
-        const float BAY = 3.2;
-        const float GLASS = 2.75;
-        const float SILL = 0.55;
-        const float DEPTH = 3.2;
-        // The photographs' own camera: as far in front of the glass as the
-        // room is deep, so the back wall fills the middle half of each.
-        const float LENS = 3.2;
         vec3 tint(float h) {
           vec3 c = vec3(1.0, 0.64, 0.34);
           if (h > 0.5) c = vec3(1.0, 0.5, 0.26);
@@ -295,54 +283,50 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 n = normalize(vec3(vNormalW.x, 0.0, vNormalW.z));
           // Along the facade, left to right as the street sees it.
           vec3 t = vec3(n.z, 0.0, -n.x);
-          float u = dot(vWorld, t);
-          float bay = floor(u / BAY);
-          float bu = fract(u / BAY) * BAY;
-          float y = vWorld.y;
-          float face = floor(dot(vWorld, n) * 0.25);
-          float seed = hash12(vec2(bay * 1.37 + face, vColor.g * 91.0));
-          float power = (0.45 + 0.55 * vColor.r) * (0.6 + 0.4 * hash12(vec2(bay, 7.0 + face)));
+          float along = dot(vWorld, t);
+          // The builder's panes count their own metres in their UVs; the
+          // older kit's carry half the world's, told apart by how fast u
+          // runs along the wall.
+          float metres = abs(dFdx(along)) + abs(dFdy(along));
+          float own = step(0.8 * metres, abs(dFdx(vUv.x)) + abs(dFdy(vUv.x)));
+          float ax = mix(along, vUv.x, own);
+          float py = clamp(mix(vWorld.y - 0.6, 1.0 - vUv.y, own), 0.0, GLASS);
+          float px = max(metres, fwidth(vWorld.y));
+          // The shop's own number, from what the builder gave it and the
+          // wall it stands in; and each room of it its own.
+          float wall = floor(n.x * 1.5 + 1.75) * 3.0 + floor(n.z * 1.5 + 1.75);
+          float shop = hash12(floor(vColor.rg * 255.0 + 0.5) + vec2(floor(dot(vWorld, n) * 0.37 + 0.123), wall * 7.0));
+          float roomW = mix(3.2, 3.4 + 1.9 * floor(fract(shop * 7.3) * 3.0), own);
+          float cell = floor(ax / roomW);
+          float seed = hash12(vec2(cell + 0.5, shop * 61.0 + 0.5));
+          float power = (0.45 + 0.55 * vColor.r) * (0.6 + 0.4 * fract(seed * 3.3));
+          vec3 L = tint(vColor.g);
           vec3 V = normalize(vWorld - uCam);
           float facing = abs(dot(V, n));
-
-          // Into the room: x along the bay, y up the glass, z in from it.
-          vec3 d = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
-          vec3 p = vec3(bu, clamp(y - SILL, 0.0, GLASS), 0.0);
-          float tx = d.x > 0.0 ? (BAY - p.x) / d.x : -p.x / min(d.x, -1e-4);
-          float ty = d.y > 0.0 ? (GLASS - p.y) / d.y : -p.y / min(d.y, -1e-4);
-          float tz = DEPTH / d.z;
-          vec3 h = p + d * min(min(tx, ty), tz);
-          float k = LENS / (LENS + h.z);
-          vec2 ruv = vec2(0.5 + (h.x / BAY - 0.5) * k, 0.5 - (h.y / GLASS - 0.5) * k);
-          float which = floor(hash12(vec2(bay * 2.71 + face, 3.0)) * 8.0);
-          vec2 cell = vec2(mod(which, 4.0), floor(which / 4.0));
-          vec3 room = texture2D(uShops, (cell + clamp(ruv, 0.004, 0.996)) / vec2(4.0, 2.0), 1.0).rgb;
-          // Painted, not photographed: the pictures softened a step, half
-          // their colour given over to the shop's own light, and lit from
-          // its ceiling down, so a room reads as a lit place in the city's
-          // palette rather than a photograph pasted behind the glass.
-          float lum = dot(room, vec3(0.3, 0.59, 0.11));
-          room = mix(vec3(lum), room, 0.6) * mix(vec3(1.0), tint(vColor.g) * 1.35, 0.45);
-          room *= 0.7 + 0.45 * smoothstep(0.2, GLASS, h.y) - 0.2 * step(h.y, 0.02);
-          room = mix(tint(vColor.g) * 0.3, room, uHasShops);
 
           vec3 col;
           if (vColor.b < 0.5) {
             // Shut: a roller shutter, its ribs catching the street's light.
-            float rib = 0.6 + 0.4 * smoothstep(0.2, 0.8, fract(y * 12.5));
+            float rib = 0.6 + 0.4 * smoothstep(0.2, 0.8, fract(vWorld.y * 12.5));
             col = (vec3(0.018, 0.018, 0.022) + spillAt(vWorld) * 0.12) * rib;
+          } else if (px > 0.6) {
+            // Too far to see into: the light in its window.
+            col = L * power * 0.2;
           } else {
-            col = room * power * 1.5;
-            // Now and then somebody standing at the window, against the light.
-            float zf = mix(0.5, 1.4, hash12(vec2(bay, 5.0 + face)));
-            vec3 f = p + d * (zf / d.z);
-            float fx = f.x - mix(0.7, BAY - 0.7, hash12(vec2(bay, 6.0 + face)));
-            float fy = f.y + SILL;
-            float body = step(abs(fx), 0.21 - 0.05 * smoothstep(1.05, 1.45, fy)) * step(fy, 1.48);
-            float head = step(length(vec2(fx, fy - 1.63)), 0.11);
-            col = mix(col, col * 0.05, max(body, head) * step(seed, 0.28));
-            // Mullions at the bay's ends and its middle, and a transom rail.
-            float frame = max(step(bu, 0.06) + step(BAY - 0.06, bu) + step(abs(bu - BAY * 0.5), 0.025), step(abs(y - 2.8), 0.035));
+            // Into the room: x along it, y up from the sill, z in.
+            vec3 d = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
+            vec3 p = vec3(ax - cell * roomW, py, 0.0);
+            float fine = 1.0 - smoothstep(0.02, 0.07, px);
+            col = shopRoom(p, d, roomW, shop, seed, L, fine);
+            // Now and then somebody standing at the window, against the
+            // light, or a tube bent into a shape hung in it.
+            vec3 f = p + d * (mix(0.5, 1.2, fract(seed * 43.0)) / d.z);
+            col = mix(col, col * 0.05, person(f.xy, roomW * mix(0.2, 0.8, fract(seed * 53.0))) * step(fract(seed * 59.0), 0.3));
+            col = mix(L * 0.22, col, 1.0 - smoothstep(0.25, 0.6, px)) * power * 0.8;
+            // Mullions down the glass and a transom rail across it.
+            float module = 1.3 + 0.7 * fract(shop * 17.0);
+            float mu = fract(ax / module) * module;
+            float frame = max(step(mu, 0.03) + step(module - 0.03, mu), step(abs(py - 2.25), 0.03) * step(0.5, fract(shop * 23.0)));
             col = mix(col, vec3(0.012), clamp(frame, 0.0, 1.0));
           }
           // The glass: at a glancing angle it gives back the street.
