@@ -291,7 +291,7 @@ def street_signs(f, r, s0, s1, y_lo, y_hi, n, hero=True, key=CB, taken=None):
 # ---------------------------------------------------------------------------
 # The canyon's own props (props.py draws each once and instances it).
 # ---------------------------------------------------------------------------
-@P.proto("cy_mast", box=(0.5, 8.0, 0.5), reach=1400)
+@P.proto("cy_mast", box=(0.5, 8.0, 0.5), reach=900)
 def _cy_mast(k):
     """A lattice mast, sixteen metres, red lamps up it and at its tip
     (mH2wmyeiIpA@32, JtqIas3bYhg@72)."""
@@ -304,7 +304,7 @@ def _cy_mast(k):
         box(k("glow"), -w, w, y, y + 0.22, -w, w, scale=0.5, col=GLOW["red"], bottom=True)
 
 
-@P.proto("cy_stall", box=(1.4, 1.2, 1.0))
+@P.proto("cy_stall", box=(1.4, 1.2, 1.0), reach=200)
 def _cy_stall(k):
     """A food stall: a counter with a lit front, a shelf behind it, a
     canopy on posts with a lit board along its edge, a pot on the counter.
@@ -329,7 +329,7 @@ def _cy_stool(k):
     cylinder(k("trim"), 0.0, 0.0, 0.45, 0.5, 0.18, segs=8, col=(0.38, 0.07, 0.08, 1))
 
 
-@P.proto("cy_kiosk", box=(0.9, 1.2, 0.55))
+@P.proto("cy_kiosk", box=(0.9, 1.2, 0.55), reach=200)
 def _cy_kiosk(k):
     """A low kiosk on a corporate forecourt, its face a lit cyan panel
     (Fn9gKhU_2_Q@77)."""
@@ -338,13 +338,13 @@ def _cy_kiosk(k):
     box(k("glow"), -0.92, 0.92, 2.3, 2.38, -0.52, 0.52, scale=0.5, col=GLOW["cyan"])
 
 
-@P.proto("cy_duct", box=(0.35, 0.5, 0.35), reach=460, detail=True)
+@P.proto("cy_duct", box=(0.35, 0.5, 0.35), reach=320, detail=True)
 def _cy_duct(k):
     """A square duct up a wall, a metre of it (stretched by sy)."""
     box(k("metal"), -0.32, 0.32, 0.0, 1.0, 0.02, 0.6, scale=1.0)
 
 
-@P.proto("cy_unit", box=(0.9, 0.8, 0.5), reach=520)
+@P.proto("cy_unit", box=(0.9, 0.8, 0.5), reach=340)
 def _cy_unit(k):
     """A condenser: a cabinet, two fans on its top, a status lamp."""
     box(k("metal"), -0.9, 0.9, 0.0, 1.5, -0.45, 0.45, scale=0.8)
@@ -353,7 +353,7 @@ def _cy_unit(k):
     box(k("glow"), 0.66, 0.76, 1.1, 1.2, 0.45, 0.46, scale=0.5, col=GLOW["green"])
 
 
-@P.proto("cy_deck_lamp", box=(0.12, 2.4, 0.12), reach=700)
+@P.proto("cy_deck_lamp", box=(0.12, 2.4, 0.12), reach=420)
 def _cy_deck_lamp(k):
     """A roof deck's lamp: a tall post, a long arm, a cyan head
     (D6ia1wjO7sg@220)."""
