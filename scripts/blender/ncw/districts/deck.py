@@ -524,13 +524,13 @@ def rib_z(z, y):
 def soffit_x(x, y, cz, hue, power=3.0):
     face((DK, "glow", 0), [(x - 1.1, y - 0.03, cz - 0.36), (x + 1.1, y - 0.03, cz - 0.36), (x + 1.1, y - 0.03, cz + 0.36), (x - 1.1, y - 0.03, cz + 0.36)], (0, -1, 0), 1.0, SOFFIT[hue])
     face((DK, "dark", 1), [(x - 1.2, y - 0.025, cz - 0.46), (x + 1.2, y - 0.025, cz - 0.46), (x + 1.2, y - 0.025, cz + 0.46), (x - 1.2, y - 0.025, cz + 0.46)], (0, -1, 0), 1.0)
-    pool(x, y, cz, hue, power, 1.8)
+    pool(x, y, cz, hue, power if hue == "amber" else 1.9, 1.8 if hue == "amber" else 1.2)
 
 
 def soffit_z(z, y, cx, hue, power=3.0):
     face((DK, "glow", 0), [(cx - 0.36, y - 0.03, z - 1.1), (cx + 0.36, y - 0.03, z - 1.1), (cx + 0.36, y - 0.03, z + 1.1), (cx - 0.36, y - 0.03, z + 1.1)], (0, -1, 0), 1.0, SOFFIT[hue])
     face((DK, "dark", 1), [(cx - 0.46, y - 0.025, z - 1.2), (cx + 0.46, y - 0.025, z - 1.2), (cx + 0.46, y - 0.025, z + 1.2), (cx - 0.46, y - 0.025, z + 1.2)], (0, -1, 0), 1.0)
-    pool(cx, y, z, hue, power, 1.8)
+    pool(cx, y, z, hue, power if hue == "amber" else 1.9, 1.8 if hue == "amber" else 1.2)
 
 
 x, i = XW + 3.0, 0
@@ -1082,3 +1082,37 @@ for xw, out, hue in ((XW + 0.15, -1, "amber"), (XE - 0.15, 1, "white")):
 for i, (x, z) in enumerate(((plan.DECK_X0 + 2.4, -104.5), (-35.5, plan.DECK_Z - 1.2), (27.0, plan.DECK_Z + 1.0))):
     box((DK, "metal", 1), x - 0.45, x + 0.45, B.G0, B.G0 + 0.03, z - 0.45, z + 0.45, scale=0.5)
     empty(f"anchor_steam_deck_{i}", (x, B.G0 + 0.08, z))
+
+# Where the plaza street ends against the ramp (z -179): chevrons on the
+# parapet facing it, an amber beacon either end, so the street ends at
+# something. And boards standing on the ramp's edges over the service lanes,
+# facing the pavements: the street's signs and adverts with no words, turn
+# about (more than 60 m from the avenue: their light is the west street's).
+for k in range(4):
+    zc = -181.4 + k * 1.6
+    yb = RY(zc) + 0.12
+    face((DK, "hazard", 0), [(XE + 0.014, yb, zc - 0.7), (XE + 0.014, yb, zc + 0.7), (XE + 0.014, yb + 0.72, zc + 0.7), (XE + 0.014, yb + 0.72, zc - 0.7)], (1, 0, 0), 1.0)
+    d = 1 if k >= 2 else -1     # pointing away from the middle, either way round the ramp
+    for j in (0, 1):
+        z0 = zc - d * 0.45 + d * j * 0.5
+        face((DK, "dark", 0), [(XE + 0.02, yb + 0.06, z0), (XE + 0.02, yb + 0.06, z0 + d * 0.22), (XE + 0.02, yb + 0.36, z0 + d * 0.5), (XE + 0.02, yb + 0.66, z0 + d * 0.22),
+                               (XE + 0.02, yb + 0.66, z0), (XE + 0.02, yb + 0.36, z0 + d * 0.28)], (1, 0, 0), 1.0)
+for zc in (-182.6, -175.4):
+    box((DK, "glow", 0), XE - 0.3, XE - 0.1, RY(zc) + PAR_H + 0.07, RY(zc) + PAR_H + 0.27, zc - 0.1, zc + 0.1, scale=0.5, col=glowc("ffb254", 1.0))
+    pool(XE + 1.0, 2.0, zc, "amber", 2.0)
+
+edge_rng = random.Random(8590)
+for k, z in enumerate((-142.0, -126.0, -109.0, -92.0)):
+    for xe, out in ((XW, -1), (XE, 1)):
+        zc = z + (4.0 if out > 0 else 0.0)
+        base = RY(zc) + (RAIL_H if out < 0 else PAR_H + 0.07)
+        yaw = out * math.pi / 2
+        xc = xe - out * 0.06
+        for dz in (-1.2, 1.2):
+            box((DK, "metal", 1), xc - 0.05, xc + 0.05, base, base + 0.5, zc + dz - 0.05, zc + dz + 0.05, scale=0.5)
+        if (k + (out > 0)) % 2 == 0:
+            B.billboard(DK, xe + out * 0.12, base + 0.5 + 0.95, zc, 4.2, 1.7, yaw, edge_rng, back=False, depth=0.24)
+        else:
+            w, h = ST_SIZES["pm"]
+            oriented_box((DK, "board_frame", 0), xc, base + 0.5 + h / 2 + 0.08, zc, w + 0.16, h + 0.16, 0.2, yaw, scale=1.0)
+            sign(st_name("pm"), xc + out * 0.115, base + 0.5 + h / 2 + 0.08, zc, w, h, yaw, district=DK, label=False)
