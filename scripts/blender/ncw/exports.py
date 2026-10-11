@@ -28,7 +28,7 @@ def _r(v, n=2):
     return round(v, n)
 
 
-DECK_ENDS = {"west": [plan.DECK_Z], "x120": [plan.DECK_Z]}
+DECK_ENDS = {"west": [plan.RAMP_FOOT_Z, plan.DECK_Z], "x120": [plan.DECK_Z]}
 
 
 def road_graph():
@@ -80,6 +80,20 @@ def road_graph():
                 "district": plan.district_at((pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2),
                 "loop": s.loop,
             })
+    # The ramp: up the middle of the west street going south, from grade at
+    # RAMP_FOOT_Z to the deck's height at the turn (the service lanes either
+    # side stay the west street's edges, at grade).
+    r0, r1 = node(plan.DECK_X0, plan.RAMP_FOOT_Z, "deck"), node(plan.DECK_X0, plan.DECK_Z, "deck")
+    ramp_len = plan.DECK_Z - plan.RAMP_FOOT_Z
+    pts = []
+    for i in range(int(ramp_len) + 1):
+        z = plan.RAMP_FOOT_Z + i
+        t = i / ramp_len
+        pts.append([plan.DECK_X0, _r(plan.DECK_Y * t * t * (3 - 2 * t)), _r(z)])
+    edges.append({"id": f"e{len(edges)}", "street": "ramp", "from": r0, "to": r1, "length": _r(ramp_len),
+                  "points": pts, "lanes": [{"offset": 1.75, "toward": r0, "width": 3.5}, {"offset": -1.75, "toward": r1, "width": 3.5}],
+                  "half": plan.RAMP_HALF, "bay": 0.0, "speed": 13.9, "pavements": [],
+                  "district": "deck", "loop": True, "elevated": True})
     # The deck: from the top of the west street's ramp, over the avenue, down
     # to grade before the x 120 road. Its points carry their height.
     n0, n1 = node(plan.DECK_X0, plan.DECK_Z, "deck"), node(plan.DECK_X1, plan.DECK_Z, "deck")
