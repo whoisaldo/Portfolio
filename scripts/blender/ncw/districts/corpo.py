@@ -104,10 +104,12 @@ TOWER_FORMS = {
     "northeastern": dict(kind="drum", notch=1.6, steps=(0.62, 0.84), screen=False, mast=18.0),
 }
 INSET = 2.4
-# The braindance's "room" is the first tower's lower floors: its lobby glass
-# stands this far back, behind a hall open to the boulevard with a gallery
-# in it (corpo_north.py builds the hall).
-ROOM = {"philips-zero-touch": 5.0}
+# Every lobby's glass stands this far back from its canopy's line, behind a
+# vestibule open to the boulevard that corpo_north.py builds and furnishes.
+# The braindance's "room" is the first tower's lower floors: its vestibule
+# is a hall with a gallery in it.
+ROOM = {"philips-zero-touch": 5.0, "pinnatec-auto": 3.6, "pawtograder": 2.6, "aws-cloudformation": 4.0, "top-choice-realty": 3.4,
+        "robert-defalco-realty": 3.0, "northeastern": 3.8}
 # The braindance's "grader" is the third tower's lower 22 m, read from the
 # boulevard: its floors from the lobby's roof to HALL's top stand open to the
 # street as a hall this deep, INSIDE the tower's plan (corpo_north.py builds
@@ -119,7 +121,7 @@ HALL = {"pawtograder": (22.0, 4.2)}
 SCREENS = {
     "philips-zero-touch": (("+z", -5.0, 44.0, 10.0, 6.0), ("-x", 1.0, 62.0, 9.0, 5.6)),
     "pinnatec-auto": (("+z", -2.5, 31.0, 9.0, 5.4), ("-x", -1.0, 52.0, 7.6, 10.0)),
-    "pawtograder": (("+z", -7.5, 58.0, 9.0, 6.0), ("+x", 1.0, 38.0, 9.0, 5.6)),
+    "pawtograder": (("+z", -7.5, 62.0, 9.0, 6.0), ("+x", 1.0, 38.0, 9.0, 5.6)),
     "aws-cloudformation": (("+z", -4.5, 50.0, 10.0, 6.0), ("-x", 0.0, 34.0, 8.0, 11.0)),
     "top-choice-realty": (("+z", -4.0, 51.0, 11.0, 6.6),),
     "robert-defalco-realty": (("+z", -4.0, 55.0, 10.0, 6.0), ("-x", 1.0, 30.0, 9.0, 5.6)),
@@ -549,7 +551,7 @@ for i, (slug, height) in enumerate(TOWERS):
         # screens down the west flank, a mark on the corner's cut, one
         # screen along the front to the slot, one frame and two lines of
         # light round all of it.
-        ya, yb = 78.6, 85.0
+        ya, yb = 78.0, 84.4
         cut = 1.5
         fz, wx = tz + half + 0.07, tx - half - 0.09
         advert(tx - 2.2 - 4.6, (ya + yb) / 2, fz, 9.2, yb - ya - 0.5, 0.0, 5, seed=0.83, depth=0.04)

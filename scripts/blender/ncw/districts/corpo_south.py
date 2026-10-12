@@ -188,16 +188,43 @@ def colonnade(x0, x1, tower_x, z, hue, r, depth=3.4, top=8.0):
     n = max(3, round((x1 - x0) / 6.8))
     for i in range(1, n):
         cx = x0 + (x1 - x0) * i / n
-        box(k("trim"), cx - 0.28, cx + 0.28, G0, top - 0.6, z + 1.2, z + 1.76, scale=1.5, col=K.CONCRETE)
-        K.glow_box(cx - 1.3, cx + 1.3, top - 0.66, top - 0.61, z + 1.9, z + 2.2, "white")
-        light(CO, cx, top - 1.4, z + 1.2, "white", 4.0)
-    K.paving_band(x0 + 0.6, x1 - 0.6, z, zb, K.PALE)
+        box(k("trim"), cx - 0.28, cx + 0.28, G0, top - 0.6, z + 1.2, z + 1.76, scale=1.5, col=K.FRAME)
+        K.glow_box(cx - 1.6, cx + 1.6, top - 0.66, top - 0.61, z + 2.0, z + 2.14, hue)
+        light(CO, cx, top - 1.4, z + 1.2, hue, 3.5)
+    K.paving_band(x0 + 0.6, x1 - 0.6, z, zb, K.STONE)
+    # A dark fascia hung under the beam over the way in, the house's mark
+    # raised on it; before the hall's glass, either side of the doors, dark
+    # fins; gates across the way in.
+    mid = (x0 + x1) / 2
+    c = GLOW[hue]
+    box(k("trim"), mid - 7.0, mid + 7.0, 5.0, top - 0.6, z + 0.04, z + 0.4, scale=1.0, col=K.FRAME, bottom=True)
+    K.mark3d(3 if hue == "cyan" else 1, mid, (5.0 + top - 0.6) / 2, z + 0.04, 1.9, math.pi, c, depth=0.22)
+    for sx in (-1, 1):
+        K.bar2d(mid, (5.0 + top - 0.6) / 2, z + 0.04, math.pi, (sx * 2.2, 0.0), (sx * 6.4, 0.0), 0.08, 0.05, (c[0] * 0.6, c[1] * 0.6, c[2] * 0.6, 1.0))
+    K.glow_box(mid - 6.9, mid + 6.9, 4.93, 5.0, z + 0.1, z + 0.2, hue)
+    fg = B.Face("-z", zb - 0.02, x0 + 0.6, x1 - 0.6)
+    wg = fg.width
+    dim = (c[0] * 0.2, c[1] * 0.2, c[2] * 0.2, 1.0)
+    for a, b in ((0.3, wg / 2 - 3.4), (wg / 2 + 3.4, wg - 0.3)):
+        fg.box(k("trim"), a, b, 0.0, top - 0.6, 0.02, 0.3, col=K.FRAME)
+        m = (a + b) / 2
+        fg.box(k("glow"), m - 2.4, m + 2.4, 1.0, 3.7, 0.3, 0.32, col=dim)
+        fg.box(k("glow", 1), m - 2.5, m + 2.5, 3.7, 3.76, 0.3, 0.36, col=c)
+        for u in (a + 0.5, b - 0.5):
+            fg.box(k("glow"), u - 0.04, u + 0.04, 0.5, top - 1.3, 0.3, 0.33, col=(c[0] * 0.7, c[1] * 0.7, c[2] * 0.7, 1.0))
+    for sx in (-1.6, 0.0, 1.6):
+        for px in (-0.55, 0.55):
+            box(k("trim"), mid + sx + px - 0.09, mid + sx + px + 0.09, G0, G0 + 2.3, z + 2.3, z + 2.9, scale=1.0, col=K.BLACK)
+            K.glow_box(mid + sx + px - math.copysign(0.11, px), mid + sx + px - math.copysign(0.09, px), G0 + 0.2, G0 + 2.2, z + 2.3, z + 2.36, hue, 1)
+        box(k("trim"), mid + sx - 0.64, mid + sx + 0.64, G0 + 2.3, G0 + 2.45, z + 2.3, z + 2.9, scale=1.0, col=K.BLACK)
     K.light_strip_ground(x0 + 0.8, x1 - 0.8, z + 0.95, z + 1.03, hue)
     K.planter(x0 + 1.2, x0 + 4.6, z + 2.0, z + 3.0, lit=hue)
     K.planter(x1 - 4.6, x1 - 1.2, z + 2.0, z + 3.0, lit=hue)
     cx = (x0 + x1) / 2
     stand(cx - 3.0, z + 2.4, math.pi, "idle")
     stand(cx + 3.2, z + 2.5, math.pi, "idle")
+    P.place("bench", x0 + 7.4, G0, zb - 0.95, math.pi, district=CO)
+    stand(x0 + 7.4, zb - 0.95, math.pi, "sit", G0 + 0.45)
     stand(x0 + 5.6, z + 2.3, math.radians(150), "phone")
     K.talk(x1 - 7.0, z + 2.2, 0.4, 2)
 
@@ -466,6 +493,15 @@ def plaza_side():
     K.screen(X0 - 0.4, 20.0, -205.0, 10.0, 5.6, -math.pi / 2, r, pal=K.COLD)
     K.screen(273.0, 30.0, PLAZA_LOT + 0.4, 12.0, 6.4, 0.0, r, pal=K.COLD)
     roof_board(3)
+    # Where the street looks straight at the tallest lot's foot: a way in
+    # eight metres wide, built (its doors, its colour, its mark), a canopy
+    # over it, security on the door.
+    fe = B.Face("+z", PLAZA_LOT, S3[3][0], S3[3][1])
+    K.door_portal(fe, 24.0, "amber", 2, half=2.2, top=5.4, out=0.4, wings=2.0)
+    fe.box(k("trim"), 19.4, 28.6, 5.4, 5.62, 0.0, 1.5, col=K.BLACK)
+    fe.box(k("neon_amber"), 19.6, 28.4, 5.34, 5.4, 1.38, 1.46)
+    stand(277.2, PLAZA_LOT + 0.75, 0.0, "idle")
+    stand(283.0, PLAZA_LOT + 0.8, math.radians(-20), "phone")
     for j, (a, b) in enumerate(S3_ALLEYS):
         hue = ("amber", "cyan")[j % 2]
         alley_gate(a, b, PLAZA_LOT, hue, r, facing=1)

@@ -643,22 +643,16 @@ def front(f, top, kind, r, tint=1, colour="cyan", canopy=0.0):
         f.box(k("neon_" + colour), 0.4, w - 0.4, top - 0.78, top - 0.7, 0.03, 0.09)
         for e in (0.0, w - 0.35):
             f.box(k("trim"), e, e + 0.35, 0.0, top, 0.0, 0.12, col=tcol)
-        # Doors: a pair of dark portals a third of the way along.
+        # Doors: a dark portal a third of the way along, the house's mark
+        # raised over it in the house's one colour, a canopy over that.
         n = max(1, int(w // 16))
         for i in range(n):
             s = w * (i + 0.5) / n + (r.uniform(-1.5, 1.5) if w > 12 else 0.0)
-            f.box(k("trim"), s - 1.7, s + 1.7, 0.0, 3.1, 0.03, 0.22, col=BLACK)
-            f.quad(k("glass_dark"), s - 1.5, s - 0.06, G0, 2.8, 0.23)
-            f.quad(k("glass_dark"), s + 0.06, s + 1.5, G0, 2.8, 0.23)
-            for e in (-0.78, 0.78):
-                f.box(k("glow", 1), s + e - 0.02, s + e + 0.02, G0 + 0.9, G0 + 1.5, 0.23, 0.26, col=GLOW["white"])
-            f.box(k("glow"), s - 1.5, s + 1.5, 2.86, 2.94, 0.2, 0.26, col=GLOW[colour])
-            lx, _, lz = f.p(f.at(s), 0.0, 1.2)
-            light(CO, lx, 2.6, lz, "white", 4.0)
+            ptop = min(top - 1.3, 5.6)
+            door_portal(f, s, colour, r.randrange(4), top=ptop)
             if canopy:
-                f.box(k("trim"), s - 3.4, s + 3.4, 3.5, 3.75, 0.0, canopy, col=BLACK)
-                f.box(k("neon_" + colour), s - 3.2, s + 3.2, 3.44, 3.5, canopy - 0.4, canopy - 0.3)
-                f.box(k("glow", 1), s - 2.6, s + 2.6, 3.47, 3.5, 0.5, canopy - 0.8, col=GLOW["white"])
+                f.box(k("trim"), s - 3.4, s + 3.4, ptop, ptop + 0.25, 0.0, canopy, col=BLACK)
+                f.box(k("neon_" + colour), s - 3.2, s + 3.2, ptop - 0.06, ptop, canopy - 0.4, canopy - 0.3)
     elif kind == "shop":
         showrooms(f, r, tint, colour)
         f.quad(k("corporate"), 0.35, w - 0.35, SHOP_H + 0.35, top - 0.5, 0.03, col=glass_col(r, lit=(0.7, 1.0)))
@@ -694,7 +688,8 @@ def showrooms(f, r, tint, colour, lobby=False):
         for e in (a, b):
             f.box(k("trim"), max(0.0, e - 0.2), min(w, e + 0.2), 0.0, SHOP_H, -B.REC - 0.02, B.PIL, col=tcol)
         cool = lobby or r.random() < 0.72
-        lit = (r.uniform(0.55, 1.0), r.uniform(0.88, 1.0) if cool else r.uniform(0.0, 0.45), 1.0 if r.random() < 0.95 else 0.0, 1.0)
+        # (A lobby's glass is held down: its front is its frame and its one colour.)
+        lit = (r.uniform(0.3, 0.55) if lobby else r.uniform(0.55, 1.0), r.uniform(0.88, 1.0) if cool else r.uniform(0.0, 0.45), 1.0 if r.random() < 0.95 else 0.0, 1.0)
         f.quad(k("shop"), a + 0.2, b - 0.2, 0.55, 3.3, -B.REC, col=lit)
         f.quad(k("trim"), a + 0.2, b - 0.2, G0, 0.55, -B.REC + 0.01, col=BLACK)
         f.quad(k("trim"), a + 0.2, b - 0.2, 3.3, SHOP_H, 0.0, col=BLACK)
@@ -1151,6 +1146,128 @@ def big_sign(cx, cy, cz, size, scale, yaw, pick, depth=0.05, lines=True, detail=
             rotated_quad(k("glow", detail), cx + rx * s_ * (w / 2 + 0.16) + nx * 0.014, cy, cz + rz * s_ * (w / 2 + 0.16) + nz * 0.014, 0.1, h + 0.3, yaw,
                          col=(c[0] * 0.8, c[1] * 0.8, c[2] * 0.8, 1.0))
     return w, h
+
+
+# ---------------------------------------------------------------------------
+# A lobby's front: a dark frame, one colour of light, a raised mark.
+# ---------------------------------------------------------------------------
+# The seven houses' own colours (src/data/experience.js, the colour the site
+# lights each crown in) and the nearest of the city's lamp colours, for the
+# pool a lobby's light leaves on its forecourt.
+BRAND = (("4FC3F7", "cyan", 1.0), ("98F8C8", "green", 0.9), ("ECEAE4", "amber", 0.5), ("FF9900", "amber", 1.0), ("B5B606", "yellow", 1.0), ("F52333", "red", 1.0),
+         ("C8102E", "red", 1.0))        # (the third's is white: held down, a lobby is not a white box)
+FRAME = (0.03, 0.032, 0.04, 1)       # a lobby's dark frame
+
+
+def brand(i, dim=1.0):
+    c = rgb(BRAND[i % len(BRAND)][0])
+    dim *= BRAND[i % len(BRAND)][2]
+    return (c[0] * dim, c[1] * dim, c[2] * dim, 1.0)
+
+
+def bar2d(cx, cy, cz, yaw, a, b, wide, depth, col, side=0.3, detail=0):
+    """A bar of light raised off a face: from a to b ((across, up) metres
+    from the face's point (cx, cy, cz), which looks along yaw), `wide` and
+    standing `depth` out; its face in `col`, its sides dimmer, so it reads
+    as cut metal with a lit front and not as paint."""
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    du, dv = b[0] - a[0], b[1] - a[1]
+    ln = math.hypot(du, dv) or 1.0
+    pu, pv = -dv / ln * wide / 2, du / ln * wide / 2
+    cs = [(a[0] - pu, a[1] - pv), (b[0] - pu, b[1] - pv), (b[0] + pu, b[1] + pv), (a[0] + pu, a[1] + pv)]
+
+    def at(u, v, w):
+        return (cx + rx * u + nx * w, cy + v, cz + rz * u + nz * w)
+
+    if (cs[1][0] - cs[0][0]) * (cs[2][1] - cs[1][1]) - (cs[1][1] - cs[0][1]) * (cs[2][0] - cs[1][0]) < 0:
+        cs = cs[::-1]
+    quad(k("glow", detail), *(at(u, v, depth) for u, v in cs), col=col)
+    sc = (col[0] * side, col[1] * side, col[2] * side, 1.0)
+    for j in range(4):
+        (u0, v0), (u1, v1) = cs[j], cs[(j + 1) % 4]
+        quad(k("glow", detail), at(u0, v0, 0.0), at(u1, v1, 0.0), at(u1, v1, depth), at(u0, v0, depth), col=sc)
+
+
+def mark3d(which, cx, cy, cz, size, yaw, col, depth=0.22, detail=0):
+    """A house's mark, raised and lit, `size` high: 0 a broken ring round a
+    dot, 1 three bars stepping up, 2 a diamond round a dot, 3 two rings
+    linked (the marks the site's lobby wall carries, by tower)."""
+    s = size / 2
+    t = size * 0.11
+
+    def ring(ox, rad, skip=()):
+        n = 10
+        for j in range(n):
+            if j in skip:
+                continue
+            a0, a1 = j * math.tau / n, (j + 1) * math.tau / n
+            bar2d(cx, cy, cz, yaw, (ox + rad * math.cos(a0), rad * math.sin(a0)), (ox + rad * math.cos(a1), rad * math.sin(a1)), t, depth, col, detail=detail)
+
+    which %= 4
+    if which == 0:
+        ring(0.0, s * 0.86, skip=(1, 6))
+        bar2d(cx, cy, cz, yaw, (-t * 0.9, 0.0), (t * 0.9, 0.0), t * 1.8, depth, col, detail=detail)
+    elif which == 1:
+        for j in range(3):
+            u = (j - 1) * s * 0.62
+            bar2d(cx, cy, cz, yaw, (u, -s), (u, -s + size * (0.45 + 0.275 * j)), s * 0.4, depth, col, detail=detail)
+    elif which == 2:
+        pts = ((0.0, s), (s * 0.82, 0.0), (0.0, -s), (-s * 0.82, 0.0))
+        for j in range(4):
+            bar2d(cx, cy, cz, yaw, pts[j], pts[(j + 1) % 4], t, depth, col, detail=detail)
+        bar2d(cx, cy, cz, yaw, (-t * 0.9, 0.0), (t * 0.9, 0.0), t * 1.8, depth, col, detail=detail)
+    else:
+        ring(-s * 0.42, s * 0.62)
+        ring(s * 0.42, s * 0.62)
+
+
+def door_portal(f, s, colour, which, half=2.6, top=5.6, out=0.34, wings=0.0):
+    """A way in, built on a face s metres along it: a dark surround standing
+    out of the wall to `top`, doors of dark glass in it with a seam of light
+    between them, a line of the house's one colour up either side of them
+    and across over them, the house's mark raised over that and lit, and
+    its pool of that colour on the pavement. `wings`: this much more
+    surround either side, a panel of dim light behind dark bars in each."""
+    c = GLOW[colour]
+    f.box(k("trim"), s - half - wings, s + half + wings, 0.0, top, 0.02, out, col=FRAME)
+    dw = min(1.5, half - 0.9)
+    # Two leaves of glass with the hall's light dim behind them, each in
+    # its frame, a push bar across it and a kick plate at its foot.
+    inside = (c[0] * 0.07 + 0.012, c[1] * 0.07 + 0.012, c[2] * 0.07 + 0.014, 1.0)
+    for e in (-1, 1):
+        a, b = sorted((s + e * 0.04, s + e * dw))
+        f.quad(k("glow"), a, b, G0, 2.8, out + 0.012, col=inside)
+        f.quad(k("glass_dark", 1), a + 0.1, b - 0.1, G0 + 0.3, 2.66, out + 0.02)
+        for u in (a, b - 0.08):
+            f.box(k("trim", 1), u, u + 0.08, G0, 2.8, out + 0.012, out + 0.06, col=BLACK)
+        f.box(k("trim", 1), a, b, 2.7, 2.8, out + 0.012, out + 0.06, col=BLACK)
+        f.box(k("trim", 1), a, b, G0, G0 + 0.3, out + 0.012, out + 0.06, col=STEEL)
+        f.box(k("metal", 1), a + 0.14, b - 0.14, G0 + 1.0, G0 + 1.06, out + 0.06, out + 0.11)
+    for e in (-1, 1):
+        f.box(k("glow"), s + e * (dw + 0.25) - 0.04, s + e * (dw + 0.25) + 0.04, G0 + 0.2, 3.0, out, out + 0.05, col=c)
+    f.box(k("glow"), s - dw - 0.29, s + dw + 0.29, 3.0, 3.08, out, out + 0.05, col=c)
+    size = min(1.7, top - 3.75)
+    px, _, pz = f.p(f.at(s), 0.0, out)
+    mark3d(which, px, (3.08 + top) / 2 + 0.02, pz, size, f.yaw, c, depth=0.16)
+    for e in (-1, 1) if wings else ():
+        m = s + e * (half + wings / 2)
+        f.box(k("glow"), m - wings / 2 + 0.3, m + wings / 2 - 0.3, 0.7, top - 0.9, out, out + 0.02, col=(c[0] * 0.16, c[1] * 0.16, c[2] * 0.16, 1.0))
+        n = max(2, round((wings - 0.6) / 0.5))
+        for j in range(n + 1):
+            u = m - wings / 2 + 0.3 + (wings - 0.6) * j / n
+            f.box(k("trim", 1), u - 0.05, u + 0.05, 0.7, top - 0.9, out + 0.02, out + 0.1, col=FRAME)
+    lx, _, lz = f.p(f.at(s), 0.0, 1.4)
+    light(CO, lx, 2.6, lz, colour, 4.5)
+
+
+def fin_screen(f, s0, s1, y0, y1, step=1.1, wide=0.24, out0=0.12, out1=0.6, col=FRAME, detail=0):
+    """Dark fins standing before a lit wall of glass, from s0 to s1 along a
+    face: what is behind shows in slivers."""
+    n = max(1, round((s1 - s0) / step))
+    for j in range(n + 1):
+        s = s0 + (s1 - s0) * j / n
+        f.box(k("trim", detail), s - wide / 2, s + wide / 2, y0, y1, out0, out1, col=col)
 
 
 GREENS = ((0.016, 0.055, 0.028, 1), (0.024, 0.07, 0.028, 1), (0.016, 0.046, 0.036, 1), (0.032, 0.064, 0.022, 1))

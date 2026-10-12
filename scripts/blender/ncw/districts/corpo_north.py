@@ -453,7 +453,10 @@ KERB_STRIP_N = KERB_N - 0.22   # the kerb's edge, clear of the crowd's line at z
 FORE_N = LOT_N - 0.45          # just behind the lot line, on the forecourts
 # (The pavement's middle, z -341.3, between the crowd's two lines, is kept
 # clear: a walker's own line.)
-ACCENTS = ["cyan", "white", "amber", "cyan", "white", "amber", "cyan"]
+ACCENTS = [b_[1] for b_ in K.BRAND]      # each house's lamp colour (its own colour's nearest)
+LOBBY_DEPTH = [5.0, 3.6, 2.6, 4.0, 3.4, 3.0, 3.8]      # (corpo.py ROOM, by tower)
+FASCIA = 4.7              # the foot of a lobby's fascia
+CARPET = (0.15, 0.155, 0.17, 1)
 
 
 def forecourts():
@@ -472,25 +475,25 @@ def forecourts():
         heat_tower = i == 2
         cz = T_FRONT if heat_tower else LOT_N
         quad(k("trim"), (tx - 13.0, 7.49, LOBBY_Z), (tx + 13.0, 7.49, LOBBY_Z), (tx + 13.0, 7.49, cz), (tx - 13.0, 7.49, cz), col=K.STEEL)
-        sz = -347.9 if heat_tower else -346.9
-        for sx in (-9.0, -4.5, 0.0, 4.5, 9.0):
-            K.glow_box(tx + sx - 1.6, tx + sx + 1.6, 7.44, 7.49, sz, sz + 0.4, "white")
-            light(CO, tx + sx, 6.8, -346.0, "white", 4.0)
-        K.neon_box(tx - 13.0, tx + 13.0, 7.5, 7.62, cz, cz + 0.05, hue)
+        # (Three slots of the house's own light in it, not a row of white
+        # panels: a lobby is one colour.)
+        sz = -347.9 if heat_tower else -346.2
+        for sx in (-8.0, 0.0, 8.0):
+            if not heat_tower:
+                box(k("glow"), tx + sx - 2.2, tx + sx + 2.2, 7.44, 7.49, sz, sz + 0.22, scale=1.0, col=K.brand(i, 0.8))
+            light(CO, tx + sx, 6.8, -346.0, hue, 3.5)
+        box(k("glow"), tx - 13.0, tx + 13.0, 7.5, 7.62, cz, cz + 0.05, scale=1.0, col=K.brand(i))
         # Slim columns under its front edge.
         for sx in () if heat_tower else (-12.6, 12.6) if room_tower else (-12.6, -4.2, 4.2, 12.6):
             box(k("metal"), tx + sx - 0.2, tx + sx + 0.2, G0, 7.5, LOT_N - 0.7, LOT_N - 0.3, scale=1.0)
         # Paving: a carpet of pale stone from the doors to the kerb, light
         # lines either side of it.
-        K.paving_band(tx - 3.2, tx + 3.2, LOBBY_Z, LOT_N, K.PALE)
+        K.paving_band(tx - 3.2, tx + 3.2, LOBBY_Z, LOT_N, CARPET)
         K.paving_band(tx - 3.2, tx + 3.2, LOT_N, KERB_N - 0.02, K.STONE, y=G0 + 0.01)
         for sx in (-3.3, 3.3):
             K.light_strip_ground(tx + sx - 0.05, tx + sx + 0.05, LOBBY_Z + 0.2, LOT_N - 0.1, hue)
         if not room_tower:
-            for sx in ((-2.0, 0.0, 2.0), (-1.2, 1.2), (-3.0, -1.0, 1.0, 3.0))[i % 3]:
-                gate(tx + sx, LOBBY_Z + 0.9, hue)
-            stand(tx - 3.9, LOBBY_Z + 1.0, 0.0, "idle")
-            stand(tx + 3.9, LOBBY_Z + 1.1, 0.0, "idle")
+            lobby(i)
         side = -1 if i % 2 else 1
         if i in (0, 2):
             # (Studs of light along the kerb in place of bollards.)
@@ -586,6 +589,85 @@ def forecourts():
                 K.block_seat(tx + sx, -346.5, 1.8, 0.0, hue if hue != "white" else "cyan")
 
 
+def lobby(i):
+    """A tower's lobby, as the street meets it: a dark portal at the tower's
+    face (piers, a deep fascia with the house's mark raised on it in the
+    house's own colour and a line of that light under it), and behind it a
+    vestibule open to the forecourt, as deep as the glass stands back
+    (corpo.py ROOM): dark walls, a dark ceiling with slots of the one
+    colour, a line of gates across the way in with security at them, a desk
+    with somebody on it, seats, trees in tubs; and before the hall's lit
+    glass, either side of the doors, dark fins or dark wings, so the hall
+    shows in slivers and the front is the frame and the colour, not a white
+    box. All of it inside the tower's plan."""
+    tx = TOWER_X[i]
+    hue = ACCENTS[i]
+    bc = K.brand(i)
+    zg = LOBBY_Z - LOBBY_DEPTH[i] + 0.1      # the hall's glass
+    zf = T_FRONT - 0.05                      # the portal's face
+    f = B.Face("+z", zg, tx - 12.3, tx + 12.3)
+    for sx in (-1, 1):
+        xa, xb = sorted((tx + sx * 12.3, tx + sx * 13.0))
+        solid(xa, xb, 0.0, 8.0, zg - 0.1, zf, K.FRAME)
+        xa, xb = sorted((tx + sx * 11.5, tx + sx * 12.3))
+        solid(xa, xb, 0.0, 7.5, zf - 0.9, zf, K.FRAME)
+    box(k("trim"), tx - 11.5, tx + 11.5, FASCIA, 7.5, zf - 0.9, zf - 0.3, scale=2.0, col=K.FRAME, bottom=True)
+    box(k("glow"), tx - 11.4, tx + 11.4, FASCIA - 0.07, FASCIA, zf - 0.75, zf - 0.63, scale=1.0, col=bc)
+    # The mark, standing a quarter of a metre off the fascia, and a line of
+    # light running out from it either side.
+    my = (FASCIA + 7.5) / 2
+    K.mark3d(i, tx, my, zf - 0.3, 2.2, 0.0, bc, depth=0.26)
+    for sx in (-1, 1):
+        K.bar2d(tx, my, zf - 0.3, 0.0, (sx * 2.4, 0.0), (sx * 9.6, 0.0), 0.09, 0.06, K.brand(i, 0.6))
+    # The vestibule's ceiling and floor.
+    quad(k("trim"), (tx - 12.3, 7.49, zg), (tx + 12.3, 7.49, zg), (tx + 12.3, 7.49, LOBBY_Z), (tx - 12.3, 7.49, LOBBY_Z), col=K.BLACK)
+    K.paving_band(tx - 12.3, tx + 12.3, zg, LOBBY_Z, K.STONE)
+    zc = (zg + LOBBY_Z) / 2
+    for sx in (-7.6, 0.0, 7.6):
+        quad(k("glow"), (tx + sx - 2.6, 7.47, zc - 0.14), (tx + sx + 2.6, 7.47, zc - 0.14), (tx + sx + 2.6, 7.47, zc + 0.14), (tx + sx - 2.6, 7.47, zc + 0.14),
+             col=K.brand(i, 0.9))
+        light(CO, tx + sx, 6.0, zc, hue, 4.5)
+    box(k("glow"), tx - 11.4, tx + 11.4, G0 + 0.012, G0 + 0.03, zf - 0.98, zf - 0.9, scale=1.0, col=K.brand(i, 0.7))
+    # Before the glass: by turns fins either side of the doors, dark wings
+    # with a lit niche in each, or fins and a louvred transom right across.
+    kind = i % 3
+    if kind == 1:
+        for sx in (-1, 1):
+            a, b = sorted((12.3 + sx * 5.2, 12.3 + sx * 11.5))
+            f.box(k("trim"), a, b, 0.0, 7.5, 0.0, 0.5, col=K.FRAME)
+            mid = (a + b) / 2
+            f.box(k("glow"), mid - 1.9, mid + 1.9, 1.0, 3.4, 0.5, 0.52, col=K.brand(i, 0.22))
+            f.box(k("trim", 1), mid - 2.05, mid + 2.05, 0.85, 1.0, 0.5, 0.62, col=K.BLACK)
+            f.box(k("glow", 1), mid - 2.0, mid + 2.0, 3.4, 3.46, 0.5, 0.56, col=bc)
+    else:
+        for sx in (-1, 1):
+            a, b = sorted((12.3 + sx * (3.7 if kind == 0 else 4.6), 12.3 + sx * 11.4))
+            K.fin_screen(f, a, b, 0.0, 7.5, step=1.05 if kind == 0 else 0.8)
+        if kind == 2:
+            for j in range(6):
+                f.box(k("trim"), 12.3 - 4.6, 12.3 + 4.6, 3.3 + j * 0.7, 3.5 + j * 0.7, 0.12, 0.6, col=K.FRAME)
+    # The gates across the way in, security at them.
+    zt = zg + min(1.5, LOBBY_DEPTH[i] * 0.45)
+    for sx in ((-2.4, -0.8, 0.8, 2.4), (-1.6, 0.0, 1.6), (-3.2, -1.6, 0.0, 1.6, 3.2))[i % 3]:
+        gate(tx + sx, zt, hue)
+    stand(tx - 4.2, zt + 0.3, 0.0, "idle")
+    stand(tx + 4.3, zt + 0.2, 0.0, "idle")
+    # A desk one side, its top edge lit, somebody behind it; seats the
+    # other, somebody waiting; a tree in a tub at each end.
+    side = 1 if i % 2 else -1
+    dx = tx + side * 8.0
+    solid(dx - 1.7, dx + 1.7, G0, G0 + 1.05, zg + 1.2, zg + 1.85, K.BLACK)
+    box(k("glow"), dx - 1.7, dx + 1.7, G0 + 1.05, G0 + 1.09, zg + 1.77, zg + 1.85, scale=1.0, col=bc)
+    box(k("glow", 1), dx - 1.5, dx + 1.5, G0 + 0.08, G0 + 0.12, zg + 1.85, zg + 1.87, scale=1.0, col=K.brand(i, 0.6))
+    stand(dx + 0.3, zg + 0.9, 0.0, "vendor")
+    for bx in (tx - side * 6.4, tx - side * 9.0):
+        P.place("bench", bx, G0, zg + 1.25, 0.0, district=CO)
+    stand(tx - side * 6.4, zg + 1.25, 0.0, "sit", G0 + 0.45)
+    stand(tx - side * 3.9, zt + 1.0, math.radians(-150 * side), "phone")
+    for sx in (-10.6, 10.6):
+        P.place("planter_tree", tx + sx, G0, min(zg + LOBBY_DEPTH[i] - 1.4, zf - 2.0), sy=0.95, sxz=0.8, district=CO)
+
+
 def gate(x, z, hue):
     """A scanner arch: two posts and a lintel, lit down their inner edges."""
     for sx in (-0.55, 0.55):
@@ -607,14 +689,30 @@ def room():
         solid(xa, xb, 0.0, 8.0, z0, z1, K.STONE)
         # A screen and a line of light on each side wall, facing in.
         K.panel(tx + sx * 12.28, 5.6, z0 + 2.5, 3.6, 2.0, -sx * math.pi / 2, "cyan", 0.5)
-        K.glow_box(tx + sx * 12.28 - 0.02, tx + sx * 12.28 + 0.02, 0.4, 7.6, z1 - 0.5, z1 - 0.4, "white")
+        box(k("glow"), tx + sx * 12.28 - 0.02, tx + sx * 12.28 + 0.02, 0.4, 7.6, z1 - 0.5, z1 - 0.4, scale=1.0, col=K.brand(0))
     # The ceiling: stone, a grid of light panels in it.
     quad(k("trim"), (tx - 12.6, 7.99, z0), (tx + 12.6, 7.99, z0), (tx + 12.6, 7.99, z1), (tx - 12.6, 7.99, z1), col=K.STEEL)
     for ix in range(6):
         for iz in range(2):
             cx, cz = tx - 10.0 + ix * 4.0, z0 + 1.4 + iz * 2.4
-            quad(k("glow"), (cx - 1.4, 7.97, cz - 0.5), (cx + 1.4, 7.97, cz - 0.5), (cx + 1.4, 7.97, cz + 0.5), (cx - 1.4, 7.97, cz + 0.5), col=GLOW["white"])
-        light(CO, tx - 10.0 + ix * 4.0, 6.5, z0 + 2.5, "white", 5.0)
+            quad(k("glow"), (cx - 1.4, 7.97, cz - 0.16), (cx + 1.4, 7.97, cz - 0.16), (cx + 1.4, 7.97, cz + 0.16), (cx - 1.4, 7.97, cz + 0.16), col=K.brand(0, 0.9))
+        light(CO, tx - 10.0 + ix * 4.0, 6.5, z0 + 2.5, "cyan", 4.5)
+    # The house's mark, hung from the canopy at the tower's face on a dark
+    # plate (inside the box the braindance reads, and over the heads on the
+    # gallery as the boulevard sees them), and before the hall's glass dark
+    # fins: over the gallery right across, under it either side of the way
+    # through.
+    zf = T_FRONT - 0.05
+    box(k("trim"), tx - 2.7, tx + 2.7, 5.5, 7.49, zf - 0.45, zf - 0.3, scale=1.0, col=K.FRAME, bottom=True)
+    K.mark3d(0, tx, 6.5, zf - 0.3, 1.6, 0.0, K.brand(0), depth=0.24)
+    box(k("glow"), tx - 2.7, tx + 2.7, 5.43, 5.5, zf - 0.42, zf - 0.33, scale=1.0, col=K.brand(0))
+    fg = B.Face("+z", z0 + 0.1, tx - 12.3, tx + 12.3)
+    fg.box(k("trim"), 0.0, 24.6, 4.2, 7.95, 0.0, 0.1, col=K.FRAME)
+    fg.box(k("glow"), 0.8, 23.8, 4.5, 4.6, 0.1, 0.12, col=K.brand(0, 0.5))
+    for j in range(12):
+        fg.box(k("glow"), 1.24 + j * 2.0, 1.36 + j * 2.0, 4.9, 7.5, 0.1, 0.12, col=K.brand(0, 0.8))
+    for a, b in ((0.5, 7.9), (16.7, 24.1)):
+        K.fin_screen(fg, a, b, 0.0, 3.95, step=1.05)
     # The floor: polished stone, darker than the forecourt's, a light line
     # across its front.
     K.paving_band(tx - 12.6, tx + 12.6, z0, z1, K.STONE)
@@ -679,7 +777,7 @@ def server_wall():
             box(k("trim"), x, x + 1.3, ty + 0.14, ty + 2.75, zb + 0.3, zf, scale=1.0, col=K.BLACK)
             for row in range(5):
                 yy = ty + 0.5 + row * 0.42
-                hue = rr.choice(("amber", "amber", "amber", "red", "green", "cyan"))
+                hue = rr.choice(("amber",) * 8 + ("cyan",))
                 a, b = sorted((x + rr.uniform(0.08, 0.6), x + rr.uniform(0.7, 1.22)))
                 K.glow_box(a, b, yy, yy + 0.07, zf, zf + 0.02, hue, 1)
             x += 1.48
