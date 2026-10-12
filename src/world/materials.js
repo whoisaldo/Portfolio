@@ -82,7 +82,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   // roller shutter; `paving` and `kerb` lay it as a
   // pavement and its kerb (src/world/ground.js). All of that is near work:
   // it fades by the metres a pixel covers and is skipped past that.
-  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = null, tinted = false, sky = 1, wall = null, door = false, shutter = false, paving = false, kerb = false } = {}) => {
+  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = null, tinted = false, sky = 1, wall = null, door = false, shutter = false, paving = false, lane = false, kerb = false } = {}) => {
     if (made.has(key)) return made.get(key);
     const marks = wall !== null || shutter;
     const ground = paving || kerb;
@@ -94,6 +94,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         ...(door ? { DOOR: "" } : {}),
         ...(shutter ? { SHUTTER: "" } : {}),
         ...(paving ? { PAVING: "" } : {}),
+        ...(lane ? { LANE: "" } : {}),
         ...(kerb ? { KERB: "" } : {}),
       },
       uniforms: {
@@ -253,10 +254,47 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             albedo = mix(albedo, vec3(0.05, 0.052, 0.06) * (0.7 + 0.6 * hs), sett);
             float cracked = step(hs, 0.07) * band * (1.0 - smoothstep(0.004, 0.008 + px, abs(f.x - 0.5 + (f.y - 0.5) * (fract(hs * 91.0) - 0.5) * 2.0) * 0.6)) * fine;
             albedo *= 1.0 - 0.55 * max(joint, cracked);
-            // A yard's or a lane's concrete: poured in bays, stained, tyre-dark.
+            #ifdef LANE
+            // A lane off the street (the pavement's own stone carried on
+            // round the back) is laid, not poured: fields of flags in
+            // running bond, 0.9 by 0.45 m, each its own grey, between bands
+            // of dark setts every 5.6 m one way and 7.2 m the other, which
+            // are its drains, with a cast grate where two of them cross.
+            vec2 fq = vec2(p.x / 0.9 + 0.5 * floor(p.y / 0.45), p.y / 0.45);
+            vec2 ff = fract(fq);
+            float fh = hash12(floor(fq) + 31.0);
+            float fjoint = (1.0 - smoothstep(0.005, 0.011 + px, min(min(ff.x, 1.0 - ff.x) * 0.9, min(ff.y, 1.0 - ff.y) * 0.45))) * mid;
+            vec3 flags = vec3(0.082, 0.083, 0.09) * (0.72 + 0.5 * fh + 0.35 * step(0.93, fh)) * (0.85 + 0.3 * vnoise(p * 31.0) * fine) * (1.0 - 0.6 * fjoint);
+            vec2 bd = abs(fract(p / vec2(5.6, 7.2)) - 0.5) * vec2(5.6, 7.2);
+            float drainBand = 1.0 - smoothstep(0.16, 0.18 + px, min(2.8 - bd.x, 3.6 - bd.y));
+            vec2 sq = fract(p / 0.11);
+            float sjoint = (1.0 - smoothstep(0.004, 0.009 + px, min(min(sq.x, 1.0 - sq.x), min(sq.y, 1.0 - sq.y)) * 0.11)) * fine;
+            vec3 laid = mix(flags, vec3(0.045, 0.046, 0.052) * (0.7 + 0.6 * hash12(floor(p / 0.11) + 7.0)) * (1.0 - 0.5 * sjoint), drainBand);
+            vec2 gcell = floor(p / vec2(5.6, 7.2) + 0.5);
+            vec2 gd = abs(p - gcell * vec2(5.6, 7.2));
+            float grate = step(max(gd.x, gd.y), 0.24) * step(0.5, hash12(gcell + 3.0)) * mid;
+            laid = mix(laid, vec3(0.02, 0.021, 0.024) * (0.6 + 0.8 * step(0.5, fract(gd.x / 0.06)) * fine), grate);
+            albedo = mix(albedo, laid, yard);
+            joint = max(joint, max(fjoint * (1.0 - drainBand), drainBand * 0.5) * yard);
+            float low = drainBand * yard;
+            #else
+            // A yard's concrete (a forecourt, a works' apron): poured in
+            // bays, each its own tone, the joints between them run with
+            // tar, a crack wandering across one bay in five, a slot drain
+            // every 13.8 m with the slab darker with damp toward it, and
+            // oil where things stand.
             vec2 bay = abs(fract(p / vec2(3.2, 4.6)) - 0.5) * vec2(3.2, 4.6);
-            vec3 poured = vec3(0.075, 0.075, 0.08) * (0.7 + 0.5 * vnoise(p * 0.7) + 0.2 * vnoise(p * 9.0)) * (1.0 - 0.5 * (1.0 - smoothstep(0.01, 0.02 + px, min(1.6 - bay.x, 2.3 - bay.y))) * mid);
+            float bt = hash12(floor(p / vec2(3.2, 4.6)) + 17.0);
+            vec3 poured = vec3(0.075, 0.075, 0.08) * (0.82 + 0.3 * bt) * (0.9 + 0.12 * vnoise(p * 0.7) + 0.16 * vnoise(p * 9.0));
+            poured *= 1.0 - 0.72 * (1.0 - smoothstep(0.012, 0.022 + px, min(1.6 - bay.x, 2.3 - bay.y))) * mid;
+            poured *= 1.0 - 0.6 * (1.0 - smoothstep(0.004, 0.012 + px * 0.3, abs(vnoise(p * 0.55 + bt * 40.0) - 0.5))) * step(bt, 0.22) * fine;
+            float dd = abs(fract(p.x / 13.8 + 0.37) - 0.5) * 13.8;
+            float slot = (1.0 - smoothstep(0.07, 0.08 + px, dd)) * mid;
+            poured = mix(poured, vec3(0.015, 0.016, 0.018) * (0.5 + 1.2 * step(0.55, fract(p.y / 0.05)) * fine), slot);
+            poured *= (1.0 - 0.25 * smoothstep(0.9, 0.08, dd)) * (1.0 - 0.45 * smoothstep(0.68, 0.8, vnoise(pr * 1.7 + 9.0)));
             albedo = mix(albedo, poured, yard);
+            float low = smoothstep(0.9, 0.08, dd) * yard * 0.6;
+            #endif
             // Tarmac let into it where it was dug up; old stains; gum; litter
             // against the kerb and the wall.
             vec2 pc = p / vec2(4.2, 3.3);
@@ -286,7 +324,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float brim = 0.68 - 0.06 * yard;
             // (Its shore is a hand wide, shallow water thinning over the
             // stone: a cut edge reads as a sticker laid on the flags.)
-            water = smoothstep(brim - 0.012, brim + 0.075 + px, pool + 0.04 * tar) * (1.0 - scrap);
+            // (Water finds a yard's drain and a lane's setts, the low places.)
+            water = smoothstep(brim - 0.012, brim + 0.075 + px, pool + 0.04 * tar + 0.07 * low) * (1.0 - scrap);
             sheen = (0.3 + 0.16 * smoothstep(0.3, 0.7, pool) + 0.15 * tar) * (1.0 - 0.6 * joint);
             albedo *= mix(1.0, 0.45, water) * (1.0 - 0.22 * smoothstep(brim - 0.09, brim, pool));
           }
@@ -376,7 +415,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec3 sky = mix((hazeV * 1.2 + glowV * 0.5) * 0.4, SODIUM * 0.9, 0.85 * santoAt(vWorld.xz)) * uHaze;
             vec3 give = back * sheen * (0.15 + 0.85 * graze);
             #ifdef PAVING
-            if (water > 0.01) give = mix(give, (back * 1.4 + sky * 0.55) * (0.25 + 0.75 * graze), water * water);
+            // (A pool's face is never one flat tone: the rain keeps it moving.)
+            // (And it holds the street's light before the cloud's: lit by
+            // the cloud alone, a pool in a dark yard was a pale patch.)
+            if (water > 0.01) give = mix(give, (back * 1.4 + sky * mix(0.24, 0.55, santoAt(vWorld.xz))) * (0.25 + 0.75 * graze) * (0.9 + 0.2 * vnoise(vWorld.xz * 6.0 + uTime * 0.7)), water * water);
             #endif
             col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
           }
@@ -1645,7 +1687,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "crown_glass": return crownGlass();
       case "awning": return awning();
       case "lantern": return lantern();
-      case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1, paving: true });
+      case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1, paving: true, lane: true });
       // A back wall down a lane takes more paint than a shopfront does.
       // And where it is a floor (a lane, a yard, a forecourt, a deck) it is
       // poured, stained and wet, as the pavements' yards are.

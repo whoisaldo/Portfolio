@@ -185,9 +185,12 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         vec2 lo = 0.06 + 0.4 * vec2(hash12(pi + 4.1), hash12(pi + 9.3));
         vec2 hi = lo + 0.2 + 0.32 * vec2(hash12(pi + 2.2), hash12(pi + 6.6));
         vec2 pe = min(fract(pc) - lo, hi - fract(pc)) * vec2(11.0, 17.0);
-        float pm = min(pe.x, pe.y);
+        // (Its edge wanders a hand's width and is feathered: cut dead
+        // straight, with a film of its own on it, a patch was a hard dark
+        // rectangle lying in the road's reflection.)
+        float pm = min(pe.x, pe.y) + (vnoise(p * 2.7 + 31.0) - 0.5) * 0.14;
         float has = step(hash12(pi + 1.7), 0.36);
-        float mended = has * smoothstep(-px, px, pm);
+        float mended = has * smoothstep(-0.05 - px, 0.05 + px, pm);
         // (The noise is read on a turned grid, or its cells show as squares
         // laid along the street.)
         vec2 pr = mat2(0.8, -0.6, 0.6, 0.8) * p;
@@ -267,7 +270,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // A wet sheen: the aggregate catches the street's light, and here
         // and there a stone catches it hard. The glints go before a pixel
         // is wider than one, or they would shimmer.
-        col += spill * 0.05 * (1.0 - rough) * uWet;
+        // (A little more than a twentieth of it: at that, the road at a
+        // walker's feet was black beside a lit doorway.)
+        col += spill * 0.07 * (1.0 - rough) * uWet;
         vec2 gcell = p * 24.0;
         float glint = step(0.997, hash12(floor(gcell))) * smoothstep(0.25, 0.05, length(fract(gcell) - 0.5)) * (1.0 - smoothstep(0.015, 0.04, px));
 
@@ -277,7 +282,10 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // Brighter at a glancing look, and never nothing: a wet street at
         // night is drawn glossier than water is.
         float graze = pow(1.0 - ndv, 3.0);
-        float fres = 0.15 + 0.85 * graze;
+        // (Its floor is 0.3: under a walker's or a driver's own feet the
+        // street's light still lies on the road, where at 0.15 the near
+        // third of every frame was bare black tarmac.)
+        float fres = 0.3 + 0.7 * graze;
         col += spill * glint * 1.6 * fres * uWet * crack;
         vec2 rings = vec2(0.0);
         if (puddle > 0.01 && dist < 28.0) {
@@ -286,7 +294,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         vec3 R = normalize(vec3(-V.x + rings.x * 0.03, V.y, -V.z + rings.y * 0.03));
         float sheen = wet * mix(0.35, 1.0, stone) * crack * (0.8 + 0.3 * track + 0.1 * mended + 0.55 * seal + 0.4 * oil) * (1.0 + 3.1 * fore) * (1.0 + 1.6 * terrace);
         // How wide the film scatters, as a facet's tilt in radians.
-        float sigma = mix(mix(0.06, 0.035, max(track, mended)), 0.085, fore);
+        float sigma = mix(mix(0.06, 0.035, max(track, mended * 0.4)), 0.085, fore);
 
         float mk = 0.0;
         vec3 sharp = vec3(0.0);
@@ -306,7 +314,10 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           // tall and narrow, long on screen only at a glancing look.
           vec4 a = uReflectMatrix * vec4(R, 0.0);
           vec4 b = uReflectMatrix[1];
-          if (puddle > 0.01) sharp = textureLod(uReflect, a.xy / a.w, 0.0).rgb;
+          // (A level down from the sharpest, and two at a pool's shore: by
+          // a kerb the pools are small, and each showing its own sharp
+          // piece of a sign and of the yellow line was a litter of shards.)
+          if (puddle > 0.01) sharp = textureLod(uReflect, a.xy / a.w, 1.0 + 1.6 * (1.0 - puddle)).rgb;
           if (puddle < 0.99) {
             // Further toward the horizon than away from it, as a rough
             // wet surface throws light at a glancing angle.
@@ -332,7 +343,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         if (mk < 0.999) {
           // No mirror: the baked light along the ray (ground.js), a little
           // off its colour and capped, as a wet road gives a light back.
-          baked = tame(spillReflect(vWorld, R) * 0.14, 0.5);
+          baked = tame(spillReflect(vWorld, R) * 0.17, 0.5);
           baked = mix(baked, dot(baked, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.8, sodium) * (1.0 + 1.2 * terrace);
           // Standing water gives the same light back whole, where the film
           // gives a part of it.
