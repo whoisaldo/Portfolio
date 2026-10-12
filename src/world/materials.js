@@ -32,6 +32,7 @@ import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js"
 import { GROUND, VNOISE } from "./ground.js";
 import { kindSource } from "./kinds.js";
 import { SHOP_ROOM } from "./interiors.js";
+import { dealTrades } from "./trades.js";
 import { MARKS } from "./marks.js";
 import { createWetFloor } from "./wet.js";
 
@@ -482,7 +483,11 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   // fragment (src/world/interiors.js), the eye's ray run into a box and
   // shaded where it lands, so it has depth and parallax and no picture is
   // read. vColor carries the shop's brightness, its hue and whether it is
-  // open; a closed one shows its roller shutter.
+  // open (a closed one shows its roller shutter), and in its alpha, once
+  // the panes have been dealt (src/world/trades.js, the first time a shop
+  // mesh is drawn), which of the eight trades the pane is and how wide.
+  const dealt = new WeakSet();
+  const trades = { panes: 0, signed: 0 };
   const shop = () => {
     if (made.has("shop")) return made.get("shop");
     const m = keep(new THREE.ShaderMaterial({
@@ -531,15 +536,32 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // next door (the older kit's glass: every 6.4 m of the wall).
           // Without it every window of a street side was the same shop.
           float way = dFdx(along) * dFdx(vUv.x) + dFdy(along) * dFdy(vUv.x) < 0.0 ? -1.0 : 1.0;
-          float paneId = mix(floor(along / 6.4), floor((along - way * vUv.x) * 2.0 + 0.37), own);
-          float shop = hash12(floor(vColor.rg * 255.0 + 0.5) + vec2(floor(dot(vWorld, n) * 0.37 + 0.123) + paneId * 3.0, wall * 7.0));
-          float roomW = mix(3.2, 3.4 + 1.9 * floor(fract(shop * 7.3) * 3.0), own);
+          float left = along - way * vUv.x;
+          float paneId = mix(floor(along / 6.4), floor(left * 2.0 + 0.37), own);
+          float plane = floor(dot(vWorld, n) * 0.37 + 0.123);
+          float shop = hash12(floor(vColor.rg * 255.0 + 0.5) + vec2(plane + paneId * 3.0, wall * 7.0));
+          // The trade: the one the pane was dealt (alpha under 1: the trade
+          // in its top three bits, the pane's width in quarter metres in the
+          // other five), or for a pane nobody dealt, eight in turn along the
+          // wall by where its left edge stands, three on at a time, so no
+          // two within seven doors are the same.
+          float code = floor(vColor.a * 255.0 + 0.5);
+          float dealt = step(code, 254.5);
+          float kind = mix(mod(mix(floor(along / 6.4), floor(left / 2.2 + 0.37), own) * 3.0 + floor(hash12(vec2(wall * 7.0 + 0.5, plane)) * 8.0), 8.0), floor(code / 32.0), dealt);
+          // A room is its pane's width (a long pane is two or three rooms
+          // of one shop); an old pane's are cut every 3.2 m.
+          float paneW = (code - floor(code / 32.0) * 32.0) * 0.25;
+          float roomW = mix(3.2, mix(3.4 + 1.9 * floor(fract(shop * 7.3) * 3.0), max(paneW / max(1.0, ceil(paneW / 5.6)), 2.4), dealt), own);
           float cell = floor(ax / roomW);
           float seed = hash12(vec2(cell + 0.5, shop * 61.0 + 0.5));
           float power = (0.45 + 0.55 * vColor.r) * (0.6 + 0.4 * fract(seed * 3.3));
           vec3 L = tint(vColor.g);
           vec3 V = normalize(vWorld - uCam);
           float facing = abs(dot(V, n));
+          vec3 street = spillAt(vWorld);
+          // The trade's own light, a little toward the tint the builder
+          // gave the shop: what the pane is from too far to see in.
+          vec3 away = tradeLight(kind) * mix(vec3(1.0), L, 0.25) * 0.8;
 
           vec3 col;
           if (vColor.b < 0.5) {
@@ -547,21 +569,21 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // along its slats, and at its foot a line of the shop's own.
             float leak;
             vec3 steel = shutterAt(vec3(0.1, 0.1, 0.115), vec2(along, vWorld.y), wall * 7.0 + floor(dot(vWorld, n) * 0.37 + 0.123), px, tidy(vWorld.xz) > 0.5 ? -1.0 : 0.4, vWorld.y - py, own > 0.5 ? vec2(vUv.x, py) : vec2(-1.0), leak);
-            col = steel * (vec3(0.14) + spillAt(vWorld) * 1.15) + L * leak * 0.9;
+            col = steel * (vec3(0.14) + street * 1.15) + L * leak * 0.9;
           } else if (px > 0.6) {
             // Too far to see into: the light in its window.
-            col = L * power * 0.14;
+            col = away * power * 0.52;
           } else {
             // Into the room: x along it, y up from the sill, z in.
             vec3 d = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
             vec3 p = vec3(ax - cell * roomW, py, 0.0);
             float fine = 1.0 - smoothstep(0.02, 0.07, px);
-            col = shopRoom(p, d, roomW, shop, seed, L, fine);
+            col = shopRoom(p, d, roomW, kind, shop, seed, street, fine);
             // Now and then somebody standing at the window, against the
-            // light, or a tube bent into a shape hung in it.
+            // light (not in a shop that is shut).
             vec3 f = p + d * (mix(0.5, 1.2, fract(seed * 43.0)) / d.z);
-            col = mix(col, col * 0.05, person(f.xy, roomW * mix(0.2, 0.8, fract(seed * 53.0))) * step(fract(seed * 59.0), 0.3));
-            col = mix(L * 0.22, col, 1.0 - smoothstep(0.25, 0.6, px)) * power * 0.52;
+            col = mix(col, col * 0.05, person(f.xy, roomW * mix(0.2, 0.8, fract(seed * 53.0))) * step(fract(seed * 59.0), 0.3) * step(kind, 6.5));
+            col = mix(away, col, 1.0 - smoothstep(0.25, 0.6, px)) * power * 0.52;
             // Mullions down the glass and a transom rail across it.
             float module = 1.3 + 0.7 * fract(shop * 17.0);
             float mu = fract(ax / module) * module;
@@ -570,13 +592,24 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           }
           // The glass: at a glancing angle it gives back the street.
           float fres = pow(max(1.0 - facing, 0.0), 4.0);
-          col = col * (1.0 - 0.55 * fres) + spillAt(vWorld) * (0.03 + 0.4 * fres);
+          col = col * (1.0 - 0.55 * fres) + street * (0.03 + 0.4 * fres);
           col = cityFog(col, vWorld, 0.8);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
         }
       `,
     }));
+    // Deal each shop mesh's panes their trades the first time it is drawn
+    // (its district's signs are posted by then). The colours it rewrites
+    // reach the card on the next frame.
+    m.onBeforeRender = (_renderer, _scene, _camera, geometry, object) => {
+      if (dealt.has(geometry)) return;
+      dealt.add(geometry);
+      if (object.isInstancedMesh) return;
+      const got = dealTrades(geometry, object);
+      trades.panes += got.panes;
+      trades.signed += got.signed;
+    };
     m.name = "shop";
     made.set("shop", m);
     return m;
@@ -1594,6 +1627,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
 
   return {
     forName,
+    trades,
     neonAll,
     neon,
     surface,

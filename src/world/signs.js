@@ -16,6 +16,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { WORLD_SIGNS, CANYON_WORDS, STREET_SIGNS, towers } from "../data/world.js";
 import { MORE_STREET_SIGNS } from "./sign-words.js";
+import { clearSigns, postSign, tradeOf } from "./trades.js";
 
 // The street signs' metres (w x h), SIGN_SIZES in src/data/world.js and the
 // builder's ST_SIZES. Copied, not imported: data/world.js is in the entry
@@ -464,6 +465,8 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   // atlas was more than half empty, and a 4096 square with its mipmaps is
   // some 85 MB of video memory.
   const ATLAS = atlas;
+  // (The shops' rooms are dealt by the signs over them: src/world/trades.js.)
+  clearSigns();
 
   // One cell per distinct sign, sized from the face's metres. With
   // `allStreet`, a cell for every design of the street's standard signs as
@@ -581,6 +584,10 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
         S[i * 2] = index;
         S[i * 2 + 1] = spec.flicker && !reduced ? 1 : 0;
       }
+      // What it says its shop is, where it hangs, for the room under it.
+      const mid = [0, 0, 0];
+      for (let i = 0; i < n * 3; i++) mid[i % 3] += P[i] / n;
+      postSign(mid[0], mid[1], mid[2], spec.draw === "street" || spec.draw === "board" || spec.draw === "wordmark" || spec.draw === "ripperdoc" ? tradeOf(spec) : -1);
       const sides = new Map();
       for (let i = 0; i < n; i++) {
         const key = [N[i * 3], N[i * 3 + 1], N[i * 3 + 2]].map((c) => Math.round(c * 4)).join();

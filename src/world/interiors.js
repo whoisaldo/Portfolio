@@ -5,21 +5,25 @@
 // the eye's ray runs through the pane into a box and what it meets is shaded
 // there, so the room has depth and slides behind its mullions as a walker
 // passes. Everything in it is worked out in the fragment, in the renderer's
-// own flat, lit style: a back wall with its stock, side walls, a ceiling
-// with its lights, a floor that holds them, and two or three layers of
-// furniture between the glass and the back, each a plane or a box the ray
-// is tested against, nearest first.
+// own flat, lit style: a back wall, side walls, a ceiling with its lights, a
+// floor, and layers of furniture between the glass and the back, each a
+// plane or a box the ray is tested against, furthest first.
 //
-// Five trades, one a shop: a store (aisles of shelving end on to the
-// street, lit fridges along the back), a counter (stools, a bar with its
-// lamps, a hatch to the kitchen, bottles lit from behind), an arcade
-// (cabinets, their screens running), a clinic (a tiled room, a chair under
-// a ring lamp, a monitor) and a boutique (rails of clothes, a slat wall, a
-// figure in the window). The trade, the room's width and depth, its second
-// colour and every item of its stock are seeded by the shop itself (the
-// brightness and hue the builder gave it, and the wall it stands in), so
-// the street is the same on every visit and a shop does not match its
-// neighbour. No words anywhere: lettering is bars, marks are shapes.
+// Eight trades, told apart across a street by their light before anything
+// in them is made out, each a room of its own (no shelf of stock is shared):
+//
+//   0 store     cold white tubes, aisles end on, fridges lit along the back
+//   1 bar       near dark, a back wall of bottles lit from behind, a counter
+//   2 noodle    orange, a pass onto a bright kitchen, steam, red lanterns
+//   3 arcade    violet dark, rows of cabinets with their screens running
+//   4 clinic    green white, a lit cross, small boxes behind a counter
+//   5 boutique  warm spots on one strong colour, rails, figures in the window
+//   6 workshop  one hung tube over a bench, a tool board, tyres, a drum
+//   7 dark      shut for the night: a grille, an exit lamp, a door ajar
+//
+// Which trade a pane is comes from the kit (materials.js deals them along
+// each wall so neighbours differ, and reads the sign over the door where
+// there is one: src/world/trades.js). No words anywhere: lettering is bars.
 //
 // The builder's panes carry their own metres in their UVs (u from the
 // pane's left edge, v down from a metre over the sill); the older kit's
@@ -41,6 +45,18 @@ export const SHOP_ROOM = /* glsl */ `
     return vec3(0.99, 0.93, 0.04);
   }
 
+  // What clothes are dyed: black, bone, denim, red, olive, pink, mustard.
+  vec3 clothOf(float k) {
+    k = fract(k) * 7.0;
+    if (k < 1.0) return vec3(0.03, 0.03, 0.035);
+    if (k < 2.0) return vec3(0.8, 0.78, 0.72);
+    if (k < 3.0) return vec3(0.1, 0.18, 0.4);
+    if (k < 4.0) return vec3(0.65, 0.07, 0.07);
+    if (k < 5.0) return vec3(0.25, 0.3, 0.12);
+    if (k < 6.0) return vec3(0.85, 0.4, 0.55);
+    return vec3(0.8, 0.6, 0.15);
+  }
+
   float within(vec2 q, vec2 lo, vec2 hi) {
     vec2 s = step(lo, q) * step(q, hi);
     return s.x * s.y;
@@ -54,237 +70,612 @@ export const SHOP_ROOM = /* glsl */ `
     return max(body, step(length(vec2(fx, fy - 1.63)), 0.11));
   }
 
-  // Stock on shelves: rows of boxes, bottles and packets, each its own
-  // colour, with gaps; item and shelf sizes in metres. Its average where the
-  // items are finer than a pixel (fine 0).
+  // A ray from p along d in a room W wide and D deep: where it lands (h),
+  // on what (0 the back wall, 1 the ceiling, 2 the floor, 3 a side wall)
+  // and how far along it.
+  float boxHit(vec3 p, vec3 d, float W, float D, out vec3 h, out float face) {
+    float tx = d.x > 0.0 ? (W - p.x) / d.x : -p.x / min(d.x, -1e-4);
+    float ty = d.y > 0.0 ? (CEIL_Y - p.y) / d.y : (FLOOR_Y - p.y) / min(d.y, -1e-4);
+    float tz = D / d.z;
+    float tm = min(min(tx, ty), tz);
+    h = p + d * tm;
+    face = tm == tz ? 0.0 : (tm == ty ? (d.y > 0.0 ? 1.0 : 2.0) : 3.0);
+    return tm;
+  }
+
+  // A store's stock: packets in facings (one product three or so abreast),
+  // a label's band across some; its average where they are finer than a
+  // pixel (fine 0).
   vec3 stock(vec2 q, vec2 size, float seed, float fine) {
     vec2 g = q / size;
     vec2 f = fract(g);
     float h = hash12(floor(g) + seed);
-    float item = step(0.14, h) * step(0.07, f.x) * step(f.x, 0.93) * step(0.08, f.y) * step(f.y, 0.5 + 0.4 * fract(h * 9.0));
-    vec3 c = mix(vec3(0.8, 0.76, 0.7), neonOf(h * 3.7), 0.6) * (0.45 + 0.55 * fract(h * 17.0));
-    return mix(vec3(0.3, 0.27, 0.26), c * item + vec3(0.05) * step(f.y, 0.08), fine);
+    float run = hash12(vec2(floor(g.x / 3.0), floor(g.y)) + seed);
+    float item = step(0.1, h) * step(0.07, f.x) * step(f.x, 0.93) * step(0.08, f.y) * step(f.y, 0.55 + 0.35 * fract(run * 9.0));
+    vec3 c = mix(vec3(0.85), neonOf(run * 3.7), 0.75) * (0.5 + 0.5 * fract(run * 17.0));
+    c = mix(c, vec3(0.9), step(abs(f.y - 0.3), 0.06) * step(0.5, fract(run * 5.0)));
+    return mix(vec3(0.3, 0.3, 0.31), c * item + vec3(0.05) * step(f.y, 0.08), fine);
+  }
+
+  // A game's screen: two of the city's colours running in bars.
+  vec3 screenOf(float hs, vec2 f) {
+    vec3 a = neonOf(hs * 7.0 + floor(uTime * (0.3 + hs)) * 0.17);
+    vec3 b = neonOf(hs * 3.0 + 0.5);
+    return mix(a, b, 0.5 + 0.5 * sin(f.y * 19.0 + uTime * (2.0 + 5.0 * hs))) * (0.75 + 0.25 * step(0.5, fract(f.x * 3.0 + uTime * hs)));
+  }
+
+  // 0: a convenience store. Cold white tubes end on to the street, fridges
+  // lit along the back under a band of the shop's colour, aisles of
+  // shelving end on, somebody in one.
+  vec3 roomStore(vec3 p, vec3 d, float W, float seed, float fine, vec3 acc) {
+    float D = 4.6 + 1.6 * fract(seed * 3.1);
+    vec3 h;
+    float face;
+    float tm = boxHit(p, d, W, D, h, face);
+    vec3 lit = vec3(0.8, 0.93, 1.0);
+    vec2 q = vec2(h.x, h.y - FLOOR_Y);
+    vec3 col;
+    if (face < 0.5) {
+      float fridge = step(0.12, q.y) * step(q.y, 2.2);
+      vec3 inside = vec3(0.55, 0.85, 1.0) * 0.8 + stock(q, vec2(0.13, 0.36), seed * 31.0, fine) * 0.45;
+      col = mix(lit * 0.3, inside, fridge);
+      col *= 1.0 - 0.8 * step(fract(q.x / 0.78), 0.06) * fridge;
+      col = mix(col, acc * 1.2, step(abs(q.y - 2.48), 0.14));
+    } else if (face < 1.5) {
+      vec2 f = abs(fract(h.xz / vec2(0.9, 2.6)) - 0.5);
+      col = lit * (0.14 + 2.6 * mix(0.2, step(f.x, 0.07) * step(f.y, 0.4), fine));
+    } else if (face < 2.5) {
+      vec2 tile = floor(h.xz / 0.6);
+      col = lit * (0.2 + 0.08 * cos(h.x * 7.0)) * (0.8 + 0.2 * mod(tile.x + tile.y, 2.0) * fine);
+    } else {
+      vec2 s = vec2(h.z, h.y - FLOOR_Y);
+      col = mix(lit * 0.32, lit * 0.1 + stock(s, vec2(0.2, 0.42), seed * 47.0 + step(d.x, 0.0), fine) * lit * 0.8, step(0.25, s.y) * step(s.y, 2.15));
+    }
+    col *= 1.0 - 0.25 * h.z / D;
+    // Aisles: shelving end on to the street, the next two the ray meets.
+    float aisle = 1.35;
+    float xs = d.x > 0.0 ? floor(p.x / aisle + 1.0) * aisle : ceil(p.x / aisle - 1.0) * aisle;
+    for (int i = 0; i < 2; i++) {
+      float tg = (xs - p.x) / (abs(d.x) > 1e-4 ? d.x : 1e-4);
+      vec3 w = p + d * tg;
+      if (tg > 0.0 && tg < tm && xs > 0.3 && xs < W - 0.3 && w.z > 1.2 && w.z < D - 1.0 && w.y < FLOOR_Y + 1.6) {
+        col = lit * 0.08 + stock(vec2(w.z, w.y - FLOOR_Y), vec2(0.17, 0.4), seed * 5.0 + xs, fine) * lit * 0.95;
+        tm = tg;
+        break;
+      }
+      xs += d.x > 0.0 ? aisle : -aisle;
+    }
+    // Their ends, a yellow offer card over each.
+    float t = 1.2 / d.z;
+    vec3 w = p + d * t;
+    float gx = abs(fract(w.x / aisle + 0.5) - 0.5) * aisle;
+    if (t < tm && gx < 0.24 && w.x > 0.5 && w.x < W - 0.5 && w.y < FLOOR_Y + 1.6) {
+      col = lit * 0.08 + stock(vec2(gx + w.x, w.y - FLOOR_Y), vec2(0.16, 0.4), seed * 3.0, fine) * lit;
+      col = mix(col, vec3(1.0, 0.85, 0.1) * 0.9, step(FLOOR_Y + 1.32, w.y));
+      tm = t;
+    }
+    t = 0.8 / d.z;
+    w = p + d * t;
+    if (t < tm && fract(seed * 29.0) < 0.5 && person(w.xy, W * (0.25 + 0.5 * fract(seed * 37.0))) > 0.5) col = lit * vec3(0.09, 0.08, 0.11);
+    return col;
+  }
+
+  // 1: a bar. Near dark: the back bar's shelves lit from behind in the
+  // bar's colour with the bottles dark against them, a counter with a line
+  // of that colour under its lip and lamps hung low over it, stools, and
+  // who sits on them and who serves as shapes against the bottles.
+  vec3 roomBar(vec3 p, vec3 d, float W, float seed, float fine, vec3 acc) {
+    float D = 3.6 + 1.2 * fract(seed * 3.1);
+    vec3 h;
+    float face;
+    float tm = boxHit(p, d, W, D, h, face);
+    vec3 warm = vec3(1.0, 0.5, 0.22);
+    vec2 q = vec2(h.x, h.y - FLOOR_Y);
+    vec3 col;
+    if (face < 0.5) {
+      col = warm * 0.03;
+      float band = step(1.15, q.y) * step(q.y, 2.35) * step(0.3, q.x) * step(q.x, W - 0.3);
+      vec2 g = vec2(q.x / 0.11, (q.y - 1.15) / 0.4);
+      vec2 f = fract(g);
+      float hb = hash12(floor(g) + seed * 17.0);
+      float tall = 0.5 + 0.38 * fract(hb * 7.0);
+      float bottle = step(0.18, hb) * step(abs(f.x - 0.5), f.y < tall * 0.65 ? 0.32 : 0.12) * step(f.y, tall) * step(0.07, f.y);
+      vec3 glow = mix(acc, vec3(1.0, 0.7, 0.35), 0.3) * 1.6;
+      vec3 shelf = mix(glow, mix(vec3(0.5, 0.22, 0.06), neonOf(hb * 5.0), 0.3) * 0.28, bottle * fine);
+      shelf *= 1.0 - 0.8 * step(f.y, 0.07);
+      col = mix(col, shelf * mix(0.72, 1.0, fine), band);
+    } else if (face < 1.5) {
+      col = warm * 0.015;
+    } else if (face < 2.5) {
+      col = warm * 0.04 + acc * 0.12 * exp(-(D - h.z) * 1.1);
+    } else {
+      // Dark panelling, and a ring of tube on it.
+      vec2 s = vec2(h.z, h.y - FLOOR_Y);
+      col = warm * (0.05 + 0.06 * step(1.05, s.y));
+      col += acc * 1.6 * (1.0 - smoothstep(0.02, 0.04, abs(length(s - vec2(D * 0.5, 1.75)) - 0.3)));
+    }
+    float bar = FLOOR_Y + 1.08;
+    float t = 3.0 / d.z;
+    vec3 w = p + d * t;
+    if (t < tm && person(w.xy, W * (0.3 + 0.4 * fract(seed * 19.0))) > 0.5) { col = warm * 0.012; tm = t; }
+    // The counter's top, the lamps' pools on it.
+    t = (bar - p.y) / min(d.y, -1e-4);
+    w = p + d * t;
+    if (d.y < 0.0 && t < tm && w.z > 2.0 && w.z < 2.5 && w.x > 0.25 && w.x < W - 0.25) {
+      float pool = exp(-pow((fract(w.x / 1.1) - 0.5) * 1.1, 2.0) * 14.0);
+      col = warm * vec3(0.5, 0.3, 0.2) * (0.12 + 1.1 * pool);
+      tm = t;
+    }
+    t = 2.0 / d.z;
+    w = p + d * t;
+    float edge = step(0.25, w.x) * step(w.x, W - 0.25);
+    if (t < tm && w.y < bar && edge > 0.5) {
+      col = warm * 0.02 + acc * 1.1 * step(abs(w.y - bar + 0.1), 0.025);
+      tm = t;
+    }
+    if (t < tm) {
+      vec2 lamp = vec2((fract(w.x / 1.1) - 0.5) * 1.1, w.y - 1.9);
+      col = mix(col, vec3(0.01), edge * step(abs(lamp.x), 0.012) * step(0.0, lamp.y));
+      col = mix(col, vec3(1.0, 0.7, 0.4) * 2.6, edge * step(length(lamp), 0.1));
+    }
+    t = 1.5 / d.z;
+    w = p + d * t;
+    float sx = (fract(w.x / 0.75) - 0.5) * 0.75;
+    float stool = max(step(abs(sx), 0.17) * step(abs(w.y - FLOOR_Y - 0.74), 0.04), step(abs(sx), 0.025) * step(w.y, FLOOR_Y + 0.74));
+    float sat = step(0.55, hash12(vec2(floor(w.x / 0.75), seed * 53.0))) * person(vec2(sx, w.y - 0.34), 0.0);
+    if (t < tm && w.x > 0.3 && w.x < W - 0.3 && max(stool, sat) > 0.5) col = warm * 0.008;
+    return col;
+  }
+
+  // 2: a noodle counter. Orange: timber, a pass onto a bright tiled
+  // kitchen with the cook in it and steam off the pots, paper slips of the
+  // menu over it, a counter with bowls on it and backs along it, a row of
+  // red lanterns inside the glass and a short curtain across its top.
+  vec3 roomNoodle(vec3 p, vec3 d, float W, float seed, float fine, vec3 acc) {
+    float D = 3.3 + 0.9 * fract(seed * 3.1);
+    vec3 h;
+    float face;
+    float tm = boxHit(p, d, W, D, h, face);
+    vec3 warm = vec3(1.0, 0.66, 0.34);
+    vec3 timber = vec3(0.5, 0.3, 0.18);
+    vec2 q = vec2(h.x, h.y - FLOOR_Y);
+    vec3 col;
+    if (face < 0.5) {
+      col = warm * timber * 0.5 * (1.0 - 0.25 * step(fract(q.x / 0.14), 0.1) * fine);
+      vec2 g = vec2(q.x / 0.22, (q.y - 2.2) / 0.6);
+      float hs = hash12(vec2(floor(g.x), seed * 7.0));
+      float slip = step(0.0, g.y) * step(g.y, 1.0) * step(0.2, hs) * within(fract(g), vec2(0.1, 0.06), vec2(0.9, 0.94)) * step(W * 0.12, q.x) * step(q.x, W * 0.88);
+      float ink = step(abs(fract(g.x) - 0.5), 0.12) * step(0.35, hash12(floor(vec2(g.x, g.y * 7.0)) + seed)) * fine;
+      col = mix(col, mix(vec3(0.8, 0.72, 0.55), hs > 0.8 ? vec3(0.7, 0.06, 0.04) : vec3(0.05), ink), slip);
+      // The pass: tiles, pans hung in a row, the hood's edge, steam.
+      float pass = within(q, vec2(W * 0.14, 1.08), vec2(W * 0.86, 2.0));
+      vec3 kitchen = vec3(1.0, 0.92, 0.7) * 1.25;
+      kitchen *= 1.0 - 0.18 * fine * (step(fract(q.x / 0.15), 0.08) + step(fract(q.y / 0.15), 0.08));
+      float pan = step(length(vec2((fract(q.x / 0.42) - 0.5) * 0.42, q.y - 1.72)), 0.13) * step(0.4, hash12(vec2(floor(q.x / 0.42), seed)));
+      kitchen = mix(kitchen, vec3(0.05, 0.04, 0.035), pan);
+      kitchen *= 1.0 - 0.85 * step(1.88, q.y);
+      float steam = vnoise(vec2(q.x * 2.3 + seed * 9.0, q.y * 1.6 - uTime * 0.5)) * vnoise(vec2(q.x * 5.0 - uTime * 0.2, q.y * 3.0 - uTime * 0.9));
+      kitchen = mix(kitchen, vec3(1.0, 0.97, 0.9) * 1.5, smoothstep(0.25, 0.7, steam) * 0.55);
+      col = mix(col, kitchen, pass);
+    } else if (face < 1.5) {
+      col = warm * 0.05 * (1.0 + step(fract(h.x / 0.6), 0.12));
+    } else if (face < 2.5) {
+      col = warm * vec3(0.4, 0.3, 0.25) * 0.12;
+    } else {
+      vec2 s = vec2(h.z, h.y - FLOOR_Y);
+      col = warm * timber * 0.4 * (1.0 - 0.25 * step(fract(s.x / 0.14), 0.1) * fine);
+      vec2 g = vec2(s.x / 0.8, (s.y - 1.1) / 1.0);
+      float card = step(0.0, g.y) * step(g.y, 1.0) * within(fract(g), vec2(0.15, 0.1), vec2(0.85, 0.9));
+      col = mix(col, mix(vec3(0.75, 0.1, 0.05), vec3(0.95, 0.86, 0.66), step(length(fract(g) - vec2(0.5, 0.55)), 0.22)) * 0.55, card);
+    }
+    col *= 1.0 - 0.2 * h.z / D;
+    float bar = FLOOR_Y + 1.02;
+    float t = (D - 0.25) / d.z;
+    vec3 w = p + d * t;
+    float cook = W * (0.3 + 0.4 * fract(seed * 19.0)) + 0.12 * sin(uTime * 0.6 + seed * 30.0);
+    if (t < tm && w.y > FLOOR_Y + 1.1 && w.y < FLOOR_Y + 1.88 && abs(w.x - W * 0.5) < W * 0.36 && person(w.xy, cook) > 0.5) {
+      col = (w.y - FLOOR_Y > 1.52 ? vec3(0.8, 0.56, 0.44) : vec3(0.92, 0.9, 0.85)) * 0.6;
+      tm = t;
+    }
+    // The counter before the pass: its top with bowls on it, its slatted front.
+    t = (bar - p.y) / min(d.y, -1e-4);
+    w = p + d * t;
+    if (d.y < 0.0 && t < tm && w.z > 1.9 && w.z < 2.4) {
+      float bowl = step(length(vec2((fract(w.x / 0.7) - 0.5) * 0.7, (w.z - 2.15) * 2.2)), 0.14);
+      col = warm * mix(timber * 0.8, vec3(0.9, 0.2, 0.1), bowl * fine);
+      tm = t;
+    }
+    t = 1.9 / d.z;
+    w = p + d * t;
+    if (t < tm && w.y < bar) {
+      col = warm * vec3(0.4, 0.24, 0.14) * 0.3 * (0.6 + 0.4 * step(0.25, fract(w.x / 0.12)));
+      tm = t;
+    }
+    // Stools and who sits on them, backs to the street, the kitchen's light
+    // on their shoulders.
+    t = 1.4 / d.z;
+    w = p + d * t;
+    float sx = (fract(w.x / 0.7) - 0.5) * 0.7;
+    float stool = max(step(abs(sx), 0.16) * step(abs(w.y - FLOOR_Y - 0.7), 0.04), step(abs(sx), 0.025) * step(w.y, FLOOR_Y + 0.7));
+    float who = hash12(vec2(floor(w.x / 0.7), seed * 53.0));
+    float sat = step(0.45, who) * person(vec2(sx, w.y - 0.32), 0.0);
+    if (t < tm && w.x > 0.3 && w.x < W - 0.3 && max(stool, sat) > 0.5) {
+      col = mix(vec3(0.02, 0.015, 0.012), neonOf(who * 7.0) * 0.12 + warm * 0.06, sat * smoothstep(0.9, 1.6, w.y - FLOOR_Y));
+      tm = t;
+    }
+    // Lanterns.
+    t = 0.5 / d.z;
+    w = p + d * t;
+    if (t < tm) {
+      vec2 l = vec2((fract(w.x / 0.9 + 0.5 * fract(seed * 5.0)) - 0.5) * 0.9, w.y - 2.28);
+      float body = step(length(l * vec2(1.0, 0.78)), 0.17);
+      float cap = step(abs(l.x), 0.07) * step(abs(abs(l.y) - 0.23), 0.025);
+      float cord = step(abs(l.x), 0.008) * step(0.23, l.y);
+      col = mix(col, vec3(0.01), max(cap, cord));
+      col = mix(col, vec3(1.0, 0.2, 0.06) * (2.0 - 18.0 * dot(l, l)) * (0.85 + 0.15 * step(0.5, fract(l.y * 22.0)) * fine), body);
+    }
+    // The curtain across the top of the window, a ring dyed on each width.
+    t = 0.1 / d.z;
+    w = p + d * t;
+    if (w.y > 2.2) {
+      float fx = fract(w.x / 0.62);
+      float cloth = step(0.04, fx) * step(2.2 + 0.05 * step(0.5, fract(w.x / 1.24)), w.y);
+      vec3 dye = mix(vec3(0.04, 0.07, 0.26), acc * 0.3, step(0.6, fract(seed * 13.0))) + warm * 0.1;
+      float ring = length(vec2((fx - 0.52) * 0.62, w.y - 2.5));
+      dye = mix(dye, vec3(0.63, 0.6, 0.56), step(ring, 0.11) - step(ring, 0.07));
+      col = mix(col, dye, cloth);
+    }
+    return col;
+  }
+
+  // 3: an arcade. Violet and dark: cabinets along the back wall and down
+  // the sides with their screens running and their marquees lit, a zigzag
+  // of tube over them, two tubes along a black ceiling, players dark
+  // against their screens, an island of cabinets seen from behind.
+  vec3 roomArcade(vec3 p, vec3 d, float W, float seed, float fine, vec3 acc) {
+    float D = 4.4 + 1.4 * fract(seed * 3.1);
+    vec3 h;
+    float face;
+    float tm = boxHit(p, d, W, D, h, face);
+    vec3 amb = vec3(0.32, 0.14, 0.62);
+    vec2 q = vec2(h.x, h.y - FLOOR_Y);
+    vec3 col;
+    if (face < 0.5) {
+      col = amb * 0.07;
+      vec2 f = vec2(fract(q.x / 0.8) * 0.8, q.y);
+      float hs = hash12(vec2(floor(q.x / 0.8), seed * 71.0));
+      float cab = within(f, vec2(0.06, 0.0), vec2(0.74, 1.85)) * step(0.15, q.x) * step(q.x, W - 0.15);
+      vec3 c = amb * 0.03;
+      c = mix(c, screenOf(hs, (f - vec2(0.14, 1.0)) / vec2(0.52, 0.5)) * 1.5, within(f, vec2(0.14, 1.0), vec2(0.66, 1.5)) * step(0.12, hs));
+      c = mix(c, neonOf(hs * 11.0) * 1.3, within(f, vec2(0.1, 1.6), vec2(0.7, 1.8)));
+      c += neonOf(hs * 5.0) * 0.5 * within(f, vec2(0.12, 0.82), vec2(0.68, 0.92));
+      col = mix(col, c, cab);
+      float zz = abs(q.y - 2.35 - 0.14 * (abs(fract(q.x / 0.7) - 0.5) * 4.0 - 1.0));
+      col += acc * 1.8 * (1.0 - smoothstep(0.02, 0.04, zz));
+    } else if (face < 1.5) {
+      col = amb * 0.03 + vec3(1.0, 0.15, 0.7) * 2.2 * step(abs(h.x - W * 0.28), 0.035) + vec3(0.1, 0.85, 1.0) * 2.2 * step(abs(h.x - W * 0.72), 0.035);
+    } else if (face < 2.5) {
+      // Carpet, holding the screens' light and flecked.
+      col = amb * 0.1 + neonOf(hash12(vec2(floor(h.x / 0.8), seed * 71.0)) * 7.0) * 0.2 * exp(-(D - h.z) * 0.7);
+      col += vec3(0.9, 0.3, 0.9) * 0.1 * step(0.93, hash12(floor(h.xz / 0.12))) * fine;
+    } else {
+      vec2 s = vec2(h.z, h.y - FLOOR_Y);
+      vec2 f = vec2(fract(s.x), s.y);
+      float hs = hash12(vec2(floor(s.x) + 9.0 * step(d.x, 0.0), seed * 37.0));
+      float there = step(0.5, s.x);
+      col = mix(amb * 0.05, amb * 0.02, within(f, vec2(0.08, 0.0), vec2(0.92, 1.85)));
+      col = mix(col, screenOf(hs, (f - vec2(0.18, 1.0)) / vec2(0.64, 0.5)), there * within(f, vec2(0.18, 1.0), vec2(0.82, 1.5)));
+      col = mix(col, neonOf(hs * 11.0) * 1.2, there * within(f, vec2(0.12, 1.6), vec2(0.88, 1.8)));
+    }
+    // Players at the back row.
+    float t = (D - 0.8) / d.z;
+    vec3 w = p + d * t;
+    float at = (floor(W * fract(seed * 19.0) / 0.8) + 0.5) * 0.8;
+    if (t < tm && (person(w.xy, at) > 0.5 || (fract(seed * 43.0) < 0.5 && person(w.xy, at + 1.6) > 0.5))) { col = amb * 0.012; tm = t; }
+    // The island: backs, slotted, their marquees' light over the top.
+    t = 2.0 / d.z;
+    w = p + d * t;
+    vec2 f = vec2(fract(w.x / 0.85) * 0.85, w.y - FLOOR_Y);
+    float hs = hash12(vec2(floor(w.x / 0.85), seed * 91.0));
+    if (t < tm && hs > 0.6 && w.x > 0.5 && w.x < W - 0.5 && within(f, vec2(0.08, 0.0), vec2(0.77, 1.8)) > 0.5) {
+      col = amb * 0.025 * (1.0 + step(0.5, fract(f.y * 12.0)) * step(abs(f.y - 0.5), 0.2) * fine) + neonOf(hs * 11.0) * 0.5 * step(1.73, f.y);
+    }
+    return col;
+  }
+
+  // 4: a clinic, or a pharmacy. Green white and bright: a tiled room, a
+  // lit cross, shelves of small boxes behind a white counter with a green
+  // band and somebody in a white coat at it, a chair tipped back under a
+  // ring lamp, an eye chart.
+  vec3 roomClinic(vec3 p, vec3 d, float W, float seed, float fine) {
+    float D = 3.8 + 1.0 * fract(seed * 3.1);
+    vec3 h;
+    float face;
+    float tm = boxHit(p, d, W, D, h, face);
+    vec3 lit = vec3(0.78, 1.0, 0.92);
+    vec3 green = vec3(0.12, 1.0, 0.45);
+    vec2 q = vec2(h.x, h.y - FLOOR_Y);
+    vec3 col;
+    if (face < 0.5) {
+      vec2 tile = abs(fract(q / 0.3) - 0.5);
+      col = lit * 0.62 * (1.0 - 0.2 * step(0.47, max(tile.x, tile.y)) * fine);
+      float shelves = within(q, vec2(W * 0.4, 1.0), vec2(W - 0.25, 2.3));
+      vec2 g = vec2(q.x / 0.1, (q.y - 1.0) / 0.26);
+      float hb = hash12(vec2(floor(g.x / 2.0), floor(g.y)) + seed * 13.0);
+      vec3 box = hb < 0.5 ? vec3(0.95) : (hb < 0.72 ? vec3(0.55, 0.95, 0.75) : (hb < 0.9 ? vec3(0.55, 0.8, 1.0) : vec3(1.0, 0.45, 0.4)));
+      float item = step(0.08, fract(g.x)) * step(fract(g.y), 0.72) * step(0.1, fract(g.y));
+      col = mix(col, mix(lit * 0.25, box * lit * 0.8, mix(0.55, item, fine)), shelves);
+      vec2 c = abs(q - vec2(W * 0.2, 1.95));
+      float cross = max(step(c.x, 0.3) * step(c.y, 0.1), step(c.x, 0.1) * step(c.y, 0.3));
+      col += green * 0.35 * exp(-dot(c, c) * 3.0);
+      col = mix(col, green * 2.4, cross);
+    } else if (face < 1.5) {
+      vec2 f = abs(fract(h.xz / 1.2) - 0.5);
+      col = lit * (0.25 + 2.3 * mix(0.3, step(f.x, 0.36) * step(f.y, 0.36), fine));
+    } else if (face < 2.5) {
+      vec2 tile = abs(fract(h.xz / 0.45) - 0.5);
+      col = lit * 0.3 * (1.0 - 0.25 * step(0.48, max(tile.x, tile.y)) * fine);
+    } else {
+      vec2 s = vec2(h.z, h.y - FLOOR_Y);
+      col = lit * 0.5;
+      vec2 g = (s - vec2(D * 0.45, 1.2)) / vec2(0.7, 0.95);
+      float rowN = floor(g.y * 5.0);
+      float marks = step(0.5, fract(g.x * (11.0 - rowN * 2.0))) * step(0.3, fract(g.y * 5.0)) * within(g, vec2(0.1, 0.05), vec2(0.9, 0.95));
+      col = mix(col, mix(vec3(0.9), vec3(0.08), marks * fine), within(g, vec2(0.0), vec2(1.0)));
+    }
+    col *= 1.0 - 0.15 * h.z / D;
+    float bar = FLOOR_Y + 1.0;
+    float t = (D - 0.8) / d.z;
+    vec3 w = p + d * t;
+    if (t < tm && person(w.xy, W * (0.55 + 0.25 * fract(seed * 19.0))) > 0.5) {
+      col = lit * (w.y - FLOOR_Y > 1.52 ? vec3(0.75, 0.55, 0.45) : vec3(0.85)) * 0.75;
+      tm = t;
+    }
+    t = (bar - p.y) / min(d.y, -1e-4);
+    w = p + d * t;
+    if (d.y < 0.0 && t < tm && w.z > 2.3 && w.z < 2.75 && w.x > W * 0.36) { col = lit * 0.75; tm = t; }
+    t = 2.3 / d.z;
+    w = p + d * t;
+    if (t < tm && w.y < bar && w.x > W * 0.36) {
+      col = mix(lit * 0.42, green * 0.9, step(abs(w.y - bar + 0.22), 0.06));
+      tm = t;
+    }
+    t = 1.5 / d.z;
+    w = p + d * t;
+    vec2 c = vec2(w.x - W * 0.2, w.y - FLOOR_Y);
+    vec2 back = mat2(0.82, -0.57, 0.57, 0.82) * (c - vec2(0.25, 0.62));
+    float chair = max(max(within(c, vec2(-0.55, 0.5), vec2(0.3, 0.64)), within(back, vec2(0.0, -0.07), vec2(0.95, 0.07))), within(c, vec2(-0.2, 0.0), vec2(-0.08, 0.5)));
+    float arm = max(within(c, vec2(0.98, 0.0), vec2(1.03, 2.0)), within(c, vec2(0.45, 1.97), vec2(1.03, 2.02)));
+    if (t < tm && W > 3.0) {
+      col = mix(col, mix(vec3(0.03, 0.2, 0.22) * lit, vec3(0.05), arm), max(chair, arm));
+      col = mix(col, vec3(0.92, 0.98, 1.0) * 2.8, step(abs(length(c - vec2(0.45, 1.86)) - 0.13), 0.03));
+    }
+    return col;
+  }
+
+  // 5: a clothes shop. Warm spots on one strong colour: an arch let into
+  // the back wall, lit, one piece hung in it; a rail down each side with a
+  // shelf of folded things over it; a table of them; two dressed figures
+  // on a plinth in the window.
+  vec3 roomBoutique(vec3 p, vec3 d, float W, float seed, float fine) {
+    float D = 4.2 + 1.3 * fract(seed * 3.1);
+    vec3 h;
+    float face;
+    float tm = boxHit(p, d, W, D, h, face);
+    vec3 lit = vec3(1.0, 0.9, 0.78);
+    float tone = fract(seed * 29.0);
+    vec3 paint = tone < 0.25 ? vec3(0.04, 0.3, 0.33) : (tone < 0.5 ? vec3(0.55, 0.17, 0.08) : (tone < 0.75 ? vec3(0.5, 0.36, 0.07) : vec3(0.33, 0.07, 0.27)));
+    vec2 q = vec2(h.x, h.y - FLOOR_Y);
+    vec3 col;
+    if (face < 0.5) {
+      float spot = exp(-pow((fract(q.x / 1.4) - 0.5) * 1.4, 2.0) * 3.0) * smoothstep(0.2, 2.8, q.y);
+      col = lit * paint * (0.35 + 0.9 * spot);
+      vec2 a = vec2(q.x - W * 0.5, q.y);
+      float arch = clamp(step(abs(a.x), 0.6) * step(a.y, 1.75) + step(length(a - vec2(0.0, 1.75)), 0.6) * step(1.75, a.y), 0.0, 1.0);
+      col = mix(col, lit * vec3(1.0, 0.95, 0.88) * 0.95, arch);
+      float piece = step(abs(a.x), 0.26 + 0.1 * smoothstep(1.6, 0.7, a.y)) * step(0.7, a.y) * step(a.y, 1.6);
+      col = mix(col, clothOf(seed * 7.0) * lit, piece);
+    } else if (face < 1.5) {
+      vec2 f = vec2((fract(h.x / 1.4) - 0.5) * 1.4, (fract(h.z / 0.8) - 0.5) * 0.8);
+      col = lit * (0.07 + mix(0.12, 3.0 * step(length(f), 0.07), fine));
+    } else if (face < 2.5) {
+      col = lit * vec3(0.5, 0.34, 0.2) * 0.3 * (1.0 - 0.2 * step(fract(h.x / 0.18), 0.08) * fine);
+    } else {
+      vec2 s = vec2(h.z, h.y - FLOOR_Y);
+      col = lit * paint * 0.3;
+      float hs = hash12(vec2(floor(s.x / 0.17) + 31.0 * step(d.x, 0.0), seed * 91.0));
+      float run = step(0.7, s.x) * step(s.x, D - 0.4);
+      float hang = run * step(0.12, hs) * step(1.0 - 0.45 * fract(hs * 7.0), s.y) * step(s.y, 1.6) * step(0.06, fract(s.x / 0.17));
+      col = mix(col, clothOf(hs * 5.0) * lit * 0.8, hang);
+      col = mix(col, vec3(0.75, 0.72, 0.65) * lit, run * step(abs(s.y - 1.66), 0.015));
+      vec2 g = vec2(s.x / 0.42, (s.y - 1.95) / 0.09);
+      float fold = run * step(0.0, g.y) * step(g.y, 1.0 + floor(3.0 * hash12(vec2(floor(g.x), seed)))) * step(0.1, fract(g.x)) * step(fract(g.x), 0.9);
+      col = mix(col, clothOf(hash12(floor(g) + seed) * 3.0) * lit * 0.8, fold);
+    }
+    col *= 1.0 - 0.2 * h.z / D;
+    float t = 2.6 / d.z;
+    vec3 w = p + d * t;
+    vec2 c = vec2(w.x - W * 0.5, w.y - FLOOR_Y);
+    float top = step(abs(c.y - 0.74), 0.04);
+    float leg = step(abs(abs(c.x) - W * 0.18), 0.03) * step(c.y, 0.74);
+    float stack = step(0.78, c.y) * step(c.y, 0.98) * step(0.12, fract(c.x / 0.36));
+    if (t < tm && abs(c.x) < W * 0.2 && max(top, max(leg, stack)) > 0.5) {
+      col = mix(lit * vec3(0.5, 0.36, 0.22) * 0.5, clothOf(hash12(vec2(floor(c.x / 0.36), floor(c.y / 0.05)) + seed) * 3.0) * lit * 0.85, stack);
+      tm = t;
+    }
+    // The window: the plinth, and two figures on it under their own spots.
+    t = 0.5 / d.z;
+    w = p + d * t;
+    if (t < tm) {
+      if (w.y < FLOOR_Y + 0.5 && w.x > W * 0.1 && w.x < W * 0.9) col = lit * 0.5;
+      for (int i = 0; i < 2; i++) {
+        float x0 = W * (i == 0 ? 0.26 + 0.1 * fract(seed * 19.0) : 0.66 + 0.1 * fract(seed * 23.0));
+        vec2 m = vec2(w.x - x0, w.y - FLOOR_Y - 0.5);
+        float body = step(abs(m.x), 0.2 - 0.05 * smoothstep(1.0, 1.4, m.y)) * step(0.0, m.y) * step(m.y, 1.45);
+        float head = step(length(vec2(m.x, m.y - 1.6)), 0.105);
+        if (body + head > 0.5) {
+          float hs = fract(seed * (31.0 + float(i) * 17.0));
+          vec3 dress = m.y > 1.38 ? vec3(0.8, 0.78, 0.74) : (m.y > 0.78 ? clothOf(hs * 7.0) : clothOf(hs * 3.0 + 0.4));
+          dress *= m.y < 0.74 ? step(0.025, abs(m.x)) : 1.0;
+          col = dress * lit * (0.75 + 0.5 * m.y / 1.6);
+        }
+      }
+    }
+    return col;
+  }
+
+  // 6: a workshop, or a parts shop. One tube hung over a bench and the
+  // room lit from it, dim and yellow at its edges: a tool board with each
+  // tool's shape on it, a rack of bins, a red chest of drawers, an engine's
+  // block on the bench, tyres stacked by the glass and a drum.
+  vec3 roomWorkshop(vec3 p, vec3 d, float W, float seed, float fine) {
+    float D = 4.8 + 1.5 * fract(seed * 3.1);
+    vec3 h;
+    float face;
+    float tm = boxHit(p, d, W, D, h, face);
+    vec3 lit = vec3(0.95, 0.88, 0.55);
+    vec3 lp = vec3(W * 0.5, FLOOR_Y + 2.1, 2.3);
+    vec2 q = vec2(h.x, h.y - FLOOR_Y);
+    float pool = 1.0 / (1.0 + dot(h - lp, h - lp) * 0.35);
+    vec3 col;
+    if (face < 0.5) {
+      col = lit * vec3(0.5, 0.4, 0.28) * 0.5;
+      vec2 hole = abs(fract(q / 0.1) - 0.5);
+      col *= 1.0 - 0.35 * step(max(hole.x, hole.y), 0.12) * fine;
+      vec2 g = vec2(q.x / 0.3, (q.y - 1.15) / 0.55);
+      vec2 f = fract(g) - 0.5;
+      float ht = hash12(floor(g) + seed * 3.0);
+      float board = step(0.0, g.y) * step(g.y, 2.0) * step(0.25, q.x) * step(q.x, W * 0.58) * step(0.2, ht);
+      float form = fract(ht * 9.0);
+      float tool = form < 0.4 ? max(step(abs(f.x), 0.05) * step(abs(f.y), 0.38), step(length(f - vec2(0.0, 0.36)), 0.13))
+                 : (form < 0.7 ? step(abs(length(f) - 0.26), 0.07) : max(step(abs(f.x), 0.045) * step(abs(f.y), 0.4), step(abs(f.x), 0.28) * step(abs(f.y - 0.32), 0.09)));
+      col = mix(col, vec3(0.05, 0.05, 0.055), board * tool);
+      vec2 b = vec2(q.x / 0.32, q.y / 0.26);
+      float hb = hash12(vec2(floor(b.y), seed * 5.0));
+      vec3 bin = hb < 0.3 ? vec3(0.08, 0.2, 0.6) : (hb < 0.55 ? vec3(0.7, 0.1, 0.06) : (hb < 0.8 ? vec3(0.8, 0.6, 0.05) : vec3(0.3, 0.32, 0.34)));
+      col = mix(col, mix(vec3(0.03), bin * lit * 0.6, step(fract(b.y), 0.55) * step(0.06, fract(b.x))), within(q, vec2(W * 0.63, 0.1), vec2(W - 0.2, 2.3)));
+    } else if (face < 1.5) {
+      col = lit * 0.035 * (1.0 + 2.0 * step(fract(h.z / 1.2), 0.1));
+      pool = 0.3;
+    } else if (face < 2.5) {
+      col = lit * vec3(0.4, 0.4, 0.38) * 0.3 * (1.0 - 0.6 * smoothstep(0.55, 0.7, vnoise(h.xz * 1.3 + seed * 20.0)));
+    } else {
+      // Blockwork, tyres stacked against it at the back.
+      vec2 s = vec2(h.z, h.y - FLOOR_Y);
+      vec2 blk = fract(vec2(s.x / 0.4 + 0.5 * floor(s.y / 0.2), s.y / 0.2));
+      col = lit * vec3(0.42, 0.42, 0.4) * 0.4 * (1.0 - 0.25 * step(min(blk.x, blk.y), 0.06) * fine);
+      col = mix(col, vec3(0.02) + lit * 0.12 * step(abs(fract(s.y / 0.24) - 0.5), 0.08), step(D - 1.5, s.x) * step(s.x, D - 0.75) * step(s.y, 1.44));
+    }
+    col *= 0.22 + 1.9 * pool;
+    float t = (D - 0.7) / d.z;
+    vec3 w = p + d * t;
+    vec2 c = vec2(w.x, w.y - FLOOR_Y);
+    float bench = step(abs(c.y - 0.9), 0.04) * step(0.3, c.x) * step(c.x, W * 0.6);
+    float legs = step(c.y, 0.9) * max(step(abs(c.x - 0.36), 0.04), step(abs(c.x - W * 0.6 + 0.06), 0.04));
+    float block = within(c, vec2(W * 0.28, 0.94), vec2(W * 0.28 + 0.7, 1.4));
+    float chest = within(c, vec2(W * 0.66, 0.0), vec2(W * 0.66 + 0.75, 1.05));
+    if (t < tm && max(max(bench, legs), max(block, chest)) > 0.5) {
+      col = lit * vec3(0.3, 0.22, 0.14) * 0.5;
+      col = mix(col, vec3(0.1, 0.1, 0.11) * (1.0 + 0.8 * step(0.5, fract(c.x * 9.0)) * step(1.3, c.y)), block);
+      col = mix(col, vec3(0.7, 0.07, 0.04) * lit * (1.0 - 0.5 * step(fract(c.y / 0.17), 0.1)), chest);
+      col *= 0.2 + 1.3 / (1.0 + dot(w - lp, w - lp) * 0.35);
+      tm = t;
+    }
+    t = (D - 1.3) / d.z;
+    w = p + d * t;
+    if (t < tm && fract(seed * 29.0) < 0.6 && person(w.xy, W * 0.42) > 0.5) { col = lit * vec3(0.1, 0.11, 0.16) * 0.5; tm = t; }
+    // The tube on its two cords, and its halo.
+    t = 2.3 / d.z;
+    w = p + d * t;
+    c = vec2(w.x - W * 0.5, w.y - FLOOR_Y - 2.1);
+    if (t < tm) {
+      float on = step(abs(c.x), 0.5) * step(abs(c.y), 0.035);
+      col = mix(col, vec3(0.01), step(abs(abs(c.x) - 0.4), 0.008) * step(0.0, c.y));
+      col += vec3(0.92, 0.97, 1.0) * 0.25 * exp(-dot(c * vec2(1.0, 3.0), c * vec2(1.0, 3.0)) * 4.0);
+      col = mix(col, vec3(0.92, 0.97, 1.0) * 3.2, on);
+    }
+    t = 0.9 / d.z;
+    w = p + d * t;
+    c = vec2(w.x - W * 0.8, w.y - FLOOR_Y);
+    float ty = fract(c.y / 0.23);
+    if (t < tm && abs(c.x) < 0.33 - 0.05 * pow(abs(ty - 0.5) * 2.0, 3.0) && c.y < 0.23 * (3.0 + floor(fract(seed * 13.0) * 3.0))) {
+      col = vec3(0.012) + lit * 0.07 * step(abs(ty - 0.5), 0.07) + lit * 0.03 * step(0.9, ty);
+      tm = t;
+    }
+    c = vec2(w.x - W * 0.17, w.y - FLOOR_Y);
+    if (t < tm && abs(c.x) < 0.29 && c.y < 0.88) {
+      col = mix(vec3(0.03, 0.22, 0.3), vec3(0.6, 0.45, 0.05), step(0.5, fract(seed * 17.0))) * lit * (0.35 + 0.4 * (1.0 - abs(c.x) / 0.29)) * (1.0 - 0.5 * step(abs(fract(c.y / 0.3 + 0.5) - 0.5), 0.05));
+    }
+    return col;
+  }
+
+  // 7: shut for the night. What the street throws in and no more: an exit
+  // lamp over a back door left ajar on a lit room, a fridge still running,
+  // chairs turned up on the tables, a lattice grille drawn across inside
+  // the glass and a paper notice on it.
+  vec3 roomDark(vec3 p, vec3 d, float W, float seed, float fine, vec3 street) {
+    float D = 4.2;
+    vec3 h;
+    float face;
+    float tm = boxHit(p, d, W, D, h, face);
+    vec2 q = vec2(h.x, h.y - FLOOR_Y);
+    vec3 amb = (vec3(0.012, 0.015, 0.024) + street * 0.12) * (1.0 - 0.6 * h.z / D);
+    vec3 door = vec3(1.0, 0.75, 0.45);
+    vec3 col = amb;
+    if (face < 0.5) {
+      vec2 e = q - vec2(W * 0.24, 2.3);
+      col += vec3(0.1, 1.0, 0.42) * 0.25 * exp(-dot(e, e) * 2.2);
+      col = mix(col, vec3(0.1, 1.0, 0.42) * 1.6, step(abs(e.x), 0.2) * step(abs(e.y), 0.07));
+      float crack = clamp(step(abs(q.x - W * 0.24 - 0.42), 0.02) * step(q.y, 2.05) + step(abs(q.x - W * 0.24), 0.42) * step(q.y, 0.03), 0.0, 1.0);
+      col = mix(col, door * 1.3, crack);
+      float fridge = within(q, vec2(W * 0.68, 0.1), vec2(W * 0.68 + 0.7, 1.95)) * step(fract(seed * 7.0), 0.6);
+      col = mix(col, vec3(0.35, 0.6, 0.9) * 0.3 * (0.6 + 0.4 * step(0.4, fract(q.y / 0.38))), fridge);
+    } else if (face > 1.5 && face < 2.5) {
+      col += door * 0.12 * exp(-abs(h.x - W * 0.24) * 2.0) * exp(-(D - h.z) * 0.9);
+    }
+    float t = 2.2 / d.z;
+    vec3 w = p + d * t;
+    vec2 c = vec2((fract(w.x / 1.7) - 0.5) * 1.7, w.y - FLOOR_Y);
+    float table = max(step(abs(c.x), 0.5) * step(abs(c.y - 0.74), 0.03), step(abs(c.x), 0.04) * step(c.y, 0.74));
+    float side = abs(abs(c.x) - 0.25);
+    float chairs = step(side, 0.2) * max(step(abs(c.y - 0.86), 0.03), step(abs(side - 0.17), 0.02) * step(0.86, c.y) * step(c.y, 1.3));
+    if (t < tm && w.x > 0.3 && w.x < W - 0.3 && max(table, chairs) > 0.5) col = amb * 0.25;
+    t = 0.08 / d.z;
+    w = p + d * t;
+    float lat = min(abs(fract((w.x + w.y) / 0.24) - 0.5), abs(fract((w.x - w.y) / 0.24) - 0.5)) * 0.24;
+    col = mix(col, vec3(0.03, 0.032, 0.04) + street * 0.5, (1.0 - smoothstep(0.012, 0.02, lat)) * mix(0.5, 1.0, fine));
+    float lines = step(0.5, fract(w.y * 14.0)) * step(abs(w.x - W * 0.5), 0.11) * fine;
+    col = mix(col, (vec3(0.06) + street * 1.1) * (1.0 - 0.6 * lines), within(w.xy, vec2(W * 0.5 - 0.16, 1.0), vec2(W * 0.5 + 0.16, 1.45)));
+    return col;
+  }
+
+  // A trade's light as the street takes it in from too far to see in: the
+  // room's own average, colour and level.
+  vec3 tradeLight(float kind) {
+    if (kind < 0.5) return vec3(0.8, 0.93, 1.0) * 0.42;
+    if (kind < 1.5) return vec3(1.0, 0.5, 0.25) * 0.2;
+    if (kind < 2.5) return vec3(1.0, 0.6, 0.3) * 0.4;
+    if (kind < 3.5) return vec3(0.55, 0.3, 0.9) * 0.27;
+    if (kind < 4.5) return vec3(0.75, 1.0, 0.9) * 0.5;
+    if (kind < 5.5) return vec3(1.0, 0.8, 0.6) * 0.34;
+    if (kind < 6.5) return vec3(0.95, 0.85, 0.5) * 0.21;
+    return vec3(0.03, 0.04, 0.05);
   }
 
   // The room behind the glass at p (metres from the room's left wall, up
-  // from the sill, 0 in) along d: its colour as it is lit. shop and seed
-  // are the shop's and this room's own numbers, L the shop's light, fine 1
-  // near and 0 where the stock would shimmer.
-  vec3 shopRoom(vec3 p, vec3 d, float roomW, float shop, float seed, vec3 L, float fine) {
-    float kind = floor(fract(shop * 5.31) * 5.0);
-    float deepest = 3.4 + 2.2 * fract(seed * 3.1);
-    vec3 accent = neonOf(shop * 13.7 + 0.37);
-    float tx = d.x > 0.0 ? (roomW - p.x) / d.x : -p.x / min(d.x, -1e-4);
-    float ty = d.y > 0.0 ? (CEIL_Y - p.y) / d.y : (FLOOR_Y - p.y) / min(d.y, -1e-4);
-    float tz = deepest / d.z;
-    float tm = min(min(tx, ty), tz);
-    vec3 h = p + d * tm;
-    float up = (h.y - FLOOR_Y) / (CEIL_Y - FLOOR_Y);
-    // The shop's light, a little toward white on what it falls on; and the
-    // room's own paint, one of four.
-    vec3 lit = mix(vec3(1.0, 0.95, 0.88), L, 0.6);
-    float tone = fract(shop * 29.0);
-    vec3 paint = tone < 0.25 ? vec3(0.34, 0.5, 0.52) : (tone < 0.5 ? vec3(0.55, 0.36, 0.42) : (tone < 0.75 ? vec3(0.6, 0.52, 0.4) : vec3(0.42, 0.44, 0.5)));
-    // Lamps wash the walls in scallops from the ceiling down.
-    float wash = 0.35 + 0.65 * smoothstep(0.1, 0.95, up) * (0.6 + 0.4 * cos((h.x + h.z) * 4.6 + seed * 20.0));
-    vec3 col;
-    if (tm == tz) {
-      // The back wall, each trade's own.
-      vec2 q = vec2(h.x, h.y - FLOOR_Y);
-      col = lit * paint * 0.55 * wash;
-      if (kind < 0.5) {
-        // Fridges: lit doors, rows of bottles and cans behind them.
-        float door = fract(q.x / 0.78);
-        vec3 inside = vec3(0.7, 0.9, 1.0) * 0.5 + stock(q, vec2(0.13, 0.36), seed * 31.0, fine) * 0.75;
-        col = mix(col, inside, step(q.y, 2.2) * step(0.12, q.y));
-        col *= 1.0 - 0.75 * step(door, 0.05) * step(q.y, 2.2);
-        col += accent * 1.2 * step(abs(q.y - 2.42), 0.07);
-      } else if (kind < 1.5) {
-        // A back bar: bottles against a lit wall, and the hatch to the
-        // kitchen, its light moving with the steam.
-        vec3 bottles = accent * 0.8 * (1.0 - 0.8 * step(0.25, hash12(floor(q / vec2(0.09, 0.4)) + seed)) * step(fract(q.y / 0.4), 0.7) * fine);
-        col = mix(col, bottles, step(1.15, q.y) * step(q.y, 2.35) * step(fract(q.y / 0.4), 0.92));
-        float hatch = within(q, vec2(roomW * 0.52, 1.05), vec2(roomW * 0.86, 1.95));
-        // (Through it: the far wall of the kitchen, a shelf, a hood's edge.)
-        vec3 kitchen = vec3(1.0, 0.8, 0.5) * (0.5 + 0.12 * sin(uTime * 1.7 + seed * 40.0 + q.x * 3.0)) * (1.0 - 0.5 * step(1.72, q.y))
-                     * (1.0 - 0.6 * step(abs(q.y - 1.42), 0.02)) + stock(q, vec2(0.11, 0.32), seed * 3.0, fine) * 0.3 * step(1.44, q.y) * step(q.y, 1.72);
-        col = mix(col, kitchen, hatch);
-        col *= 1.0 - 0.6 * step(q.y, 1.05);
-      } else if (kind < 2.5) {
-        // Screens, each running its own colours, and a tube bent round them.
-        vec2 g = q / vec2(1.05, 0.78);
-        vec2 f = fract(g);
-        float hs = hash12(floor(g) + seed * 7.0);
-        float on = step(0.3, hs) * step(1.0, g.y) * step(g.y, 3.0) * within(f, vec2(0.08, 0.1), vec2(0.92, 0.9));
-        vec3 pic = mix(neonOf(hs * 5.0 + floor(uTime * (0.2 + hs))), neonOf(hs * 9.0), 0.5 + 0.5 * sin(f.y * 9.0 + uTime * (1.0 + 3.0 * hs)));
-        col = mix(col * 0.5, pic * (0.55 + 0.35 * step(0.5, fract(f.y * 14.0 * fine))), on);
-        col += accent * 1.6 * step(abs(q.y - 2.55), 0.035);
-      } else if (kind < 3.5) {
-        // Tiles, a cabinet, a monitor and a ring lamp.
-        vec2 tile = abs(fract(q / 0.3) - 0.5);
-        col = lit * vec3(0.62, 0.68, 0.7) * (0.35 + 0.4 * wash) * (1.0 - 0.3 * step(0.46, max(tile.x, tile.y)) * fine);
-        col = mix(col, vec3(0.03, 0.035, 0.04), within(q, vec2(roomW * 0.08, 0.0), vec2(roomW * 0.42, 1.9)));
-        col = mix(col, vec3(0.2, 0.9, 0.95) * (0.7 + 0.3 * step(0.5, fract(q.y * 9.0 + uTime * 0.4))), within(q, vec2(roomW * 0.56, 1.25), vec2(roomW * 0.86, 1.95)));
-        col += vec3(0.9, 0.97, 1.0) * 1.5 * step(abs(length(q - vec2(roomW * 0.25, 2.3)) - 0.24), 0.035);
-      } else {
-        // A slat wall, goods on it under their spots.
-        float spot = exp(-pow(fract(q.x / 1.3) - 0.5, 2.0) * 14.0) * smoothstep(0.4, 2.6, q.y);
-        col = lit * paint * (0.2 + 0.6 * spot) * (1.0 - 0.3 * step(fract(q.y / 0.14), 0.12) * fine);
-        col += stock(q, vec2(0.42, 0.62), seed * 13.0, fine) * (0.25 + 0.75 * spot) * step(0.6, q.y) * step(q.y, 2.5);
-      }
-    } else if (tm == ty && d.y > 0.0) {
-      // The ceiling and its lights: panels, or tubes end on to the street.
-      float tubes = step(0.5, fract(seed * 23.0));
-      vec2 f = abs(fract(h.xz / mix(vec2(1.25, 1.1), vec2(0.9, 2.6), tubes)) - 0.5);
-      float lamp = mix(0.25, step(f.x, mix(0.3, 0.07, tubes)) * step(f.y, 0.36), fine);
-      col = lit * (0.05 + 2.4 * lamp) * (1.0 - 0.4 * h.z / deepest);
-    } else if (tm == ty) {
-      // The floor: tiles, and the ceiling's light lying on them.
-      vec2 tile = floor(h.xz / 0.6);
-      float pool = 0.5 + 0.5 * cos(h.x * 5.0) * cos(h.z * 5.7);
-      col = lit * (0.05 + 0.13 * pool) * (0.7 + 0.3 * mod(tile.x + tile.y, 2.0) * fine) * (1.0 - 0.35 * h.z / deepest);
-    } else {
-      // A side wall: shelving to head height, a strip of the second colour
-      // over it, or a bare one with pictures hung on it.
-      vec2 q = vec2(h.z, h.y - FLOOR_Y);
-      float left = step(d.x, 0.0);
-      col = lit * paint * 0.5 * wash;
-      if (fract(seed * 11.0 + left * 0.5) < 0.65) {
-        col = mix(col, lit * 0.1 + stock(q, vec2(0.2, 0.42), seed * 47.0 + left, fine) * lit * 0.8, step(0.25, q.y) * step(q.y, 2.15));
-        col += accent * 1.1 * step(abs(q.y - 2.24), 0.03);
-      } else {
-        vec2 g = vec2(q.x / 0.95, (q.y - 1.0) / 0.9);
-        float hs = hash12(vec2(floor(g.x), seed * 83.0 + left));
-        float card = step(0.0, g.y) * step(g.y, 1.0) * step(0.3, hs) * within(fract(g), vec2(0.14, 0.1), vec2(0.86, 0.9));
-        vec2 f = fract(g);
-        vec3 print = mix(neonOf(hs * 5.0) * 0.6, vec3(0.85, 0.8, 0.7), step(length(f - vec2(0.5, 0.58)), 0.2 + 0.1 * hs) + step(f.y, 0.3) * step(0.25, fract(f.x * 7.0)) * step(0.5, fract(f.y * 13.0)));
-        col = mix(col, print * lit * 0.6, card);
-      }
-      col *= 1.0 - 0.3 * h.z / deepest;
-    }
-    // What stands in the room, nearest the back first, each hiding what is
-    // behind it.
-    if (kind < 0.5) {
-      // Aisles: shelving end on to the street, the next two the ray meets.
-      float aisle = 1.35;
-      float xs = d.x > 0.0 ? floor(p.x / aisle + 1.0) * aisle : ceil(p.x / aisle - 1.0) * aisle;
-      for (int i = 0; i < 2; i++) {
-        float tg = (xs - p.x) / (abs(d.x) > 1e-4 ? d.x : 1e-4);
-        vec3 q = p + d * tg;
-        if (tg > 0.0 && tg < tm && xs > 0.3 && xs < roomW - 0.3 && q.z > 1.0 && q.z < deepest - 1.0 && q.y < FLOOR_Y + 1.6) {
-          col = lit * 0.08 + stock(vec2(q.z, q.y - FLOOR_Y), vec2(0.17, 0.4), seed * 5.0 + xs, fine) * lit * 0.95;
-          tm = tg;
-          break;
-        }
-        xs += d.x > 0.0 ? aisle : -aisle;
-      }
-      // Their ends, and a till by the door.
-      float te = 1.0 / d.z;
-      vec3 q = p + d * te;
-      float gx = abs(fract(q.x / aisle + 0.5) - 0.5) * aisle;
-      if (te < tm && gx < 0.24 && q.x > 0.5 && q.x < roomW - 0.5 && q.y < FLOOR_Y + 1.6) {
-        col = lit * 0.08 + stock(vec2(gx + q.x, q.y - FLOOR_Y), vec2(0.16, 0.4), seed * 3.0, fine) * lit;
-        tm = te;
-      }
-    } else if (kind < 1.5) {
-      // Somebody cooking; the bar, its top lit, lamps hung over it; stools.
-      float tc = 2.5 / d.z;
-      vec3 q = p + d * tc;
-      if (tc < tm && person(q.xy, roomW * (0.25 + 0.3 * fract(seed * 19.0))) > 0.5) { col *= 0.07; tm = tc; }
-      float bar = FLOOR_Y + 1.05;
-      float tt = (bar - p.y) / min(d.y, -1e-4);
-      q = p + d * tt;
-      if (d.y < 0.0 && tt < tm && q.z > 1.7 && q.z < 2.25) {
-        col = lit * vec3(0.5, 0.36, 0.26) * (0.6 + 0.9 * step(0.84, hash12(floor(q.xz / 0.3) + seed)) * fine);
-        tm = tt;
-      }
-      tc = 1.7 / d.z;
-      q = p + d * tc;
-      if (tc < tm && q.y < bar) {
-        col = L * 0.04 + accent * 0.9 * step(abs(q.y - bar + 0.09), 0.03);
-        tm = tc;
-      }
-      if (tc < tm) {
-        vec2 lamp = vec2(fract(q.x / 1.2) - 0.5, q.y - 1.95);
-        col = mix(col, vec3(0.012), step(abs(lamp.x) * 1.2, 0.012) * step(1.95, q.y));
-        col = mix(col, mix(L, vec3(1.0), 0.4) * 2.4, step(length(lamp * vec2(1.2, 1.0)), 0.13));
-      }
-      tc = 1.3 / d.z;
-      q = p + d * tc;
-      float sx = abs(fract(q.x / 0.7) - 0.5) * 0.7;
-      float stool = max(step(sx, 0.17) * step(abs(q.y - FLOOR_Y - 0.72), 0.04), step(sx, 0.025) * step(q.y, FLOOR_Y + 0.72));
-      if (tc < tm && q.x > 0.3 && q.x < roomW - 0.3 && stool > 0.5) { col = L * 0.02; tm = tc; }
-      if (tc < tm && fract(seed * 29.0) < 0.6 && person(q.xy + vec2(0.0, 0.35), roomW * (0.3 + 0.4 * fract(seed * 37.0))) > 0.5) col *= 0.06;
-    } else if (kind < 2.5) {
-      // Cabinets in a row, their screens lit, somebody at one.
-      float tc = 1.9 / d.z;
-      vec3 q = p + d * tc;
-      float slot = floor(q.x / 0.95);
-      vec2 f = vec2(fract(q.x / 0.95) * 0.95, q.y - FLOOR_Y);
-      float hs = hash12(vec2(slot, seed * 71.0));
-      if (tc < tm && hs > 0.25 && q.x > 0.2 && q.x < roomW - 0.2 && within(f, vec2(0.1, 0.0), vec2(0.85, 1.85)) > 0.5) {
-        col = L * 0.03;
-        col += mix(neonOf(hs * 7.0), neonOf(hs * 3.0 + floor(uTime * 0.5 + hs * 9.0)), 0.5 + 0.5 * sin(f.y * 23.0 + uTime * 5.0 * hs))
-             * 0.9 * within(f, vec2(0.2, 1.05), vec2(0.75, 1.5));
-        col += accent * 1.4 * within(f, vec2(0.14, 1.62), vec2(0.81, 1.78));
-        tm = tc;
-      }
-      tc = 1.35 / d.z;
-      q = p + d * tc;
-      if (tc < tm && person(q.xy, (floor(roomW * fract(seed * 19.0) / 0.95) + 0.5) * 0.95) > 0.5) col *= 0.06;
-    } else if (kind < 3.5) {
-      // The chair, tipped back, under its lamp's arm; somebody beside it.
-      float tc = 2.1 / d.z;
-      vec3 q = p + d * tc;
-      vec2 c = vec2(q.x - roomW * 0.5, q.y - FLOOR_Y);
-      vec2 back = mat2(0.82, -0.57, 0.57, 0.82) * (c - vec2(0.25, 0.62));
-      float chair = max(max(within(c, vec2(-0.55, 0.5), vec2(0.3, 0.64)), within(back, vec2(0.0, -0.07), vec2(0.95, 0.07))), within(c, vec2(-0.2, 0.0), vec2(-0.08, 0.5)));
-      float arm = max(within(c, vec2(0.98, 0.0), vec2(1.03, 2.0)), within(c, vec2(0.45, 1.97), vec2(1.03, 2.02)));
-      if (tc < tm && max(chair, arm) > 0.5) { col = L * 0.025; tm = tc; }
-      if (tc < tm) col = mix(col, vec3(0.92, 0.98, 1.0) * 2.6, step(length(c - vec2(0.45, 1.9)), 0.11));
-      if (tc < tm && fract(seed * 29.0) < 0.7 && person(q.xy, roomW * 0.5 - 0.95) > 0.5) col *= 0.06;
-    } else {
-      // Two rails of clothes, and a figure in the window, lit.
-      for (int i = 0; i < 2; i++) {
-        float tc = (i == 0 ? 2.7 : 1.5) / d.z;
-        vec3 q = p + d * tc;
-        vec2 c = vec2(q.x, q.y - FLOOR_Y);
-        float slot = floor(c.x / 0.2);
-        float hs = hash12(vec2(slot + float(i) * 57.0, seed * 91.0));
-        float run = step(roomW * 0.12, c.x) * step(c.x, roomW * (i == 0 ? 0.88 : 0.6));
-        float cloth = run * step(0.2, hs) * step(1.55 - 0.55 - 0.45 * fract(hs * 7.0), c.y) * step(c.y, 1.5) * step(0.05, fract(c.x / 0.2));
-        float rail = run * step(abs(c.y - 1.56), 0.018);
-        if (tc < tm && max(cloth, rail) > 0.5) {
-          col = mix(vec3(0.3), neonOf(hs * 11.0), 0.5) * L * (0.25 + 0.5 * fract(hs * 3.0)) * mix(0.6, 1.0, cloth);
-          tm = tc;
-        }
-      }
-      float tc = 0.5 / d.z;
-      vec3 q = p + d * tc;
-      if (tc < tm && person(q.xy, roomW * (0.72 + 0.12 * fract(seed * 19.0))) > 0.5) col = L * (0.5 + 0.4 * (q.y - FLOOR_Y) / 1.7);
-    }
-    // The window itself: goods on a low plinth just inside the glass, under
-    // their own spot, and in half the shops a tube bent into a shape, hung
-    // over them.
-    float tw = 0.3 / d.z;
-    vec3 w = p + d * tw;
-    if (tw < tm && fract(seed * 61.0) < 0.7 && w.x > 0.25 && w.x < roomW - 0.25) {
-      vec2 g = vec2(w.x / 0.34, (w.y - 0.02) / 0.6);
-      float hs = hash12(vec2(floor(g.x), seed * 97.0));
-      vec2 f = fract(g);
-      float item = step(0.0, g.y) * step(g.y, 1.0) * step(0.35, hs) * step(0.16, f.x) * step(f.x, 0.84) * step(f.y, 0.35 + 0.6 * fract(hs * 9.0));
-      col = mix(col, mix(vec3(0.85, 0.82, 0.76), neonOf(hs * 3.7), 0.5) * lit * (0.5 + 0.5 * f.y), item);
-      col = mix(col, lit * vec3(0.05, 0.05, 0.06), step(w.y, 0.02));
-    }
-    float th = 0.22 / d.z;
-    w = p + d * th;
-    if (th < tm && fract(shop * 37.0) < 0.5) {
-      vec2 c = vec2(w.x - roomW * (0.3 + 0.4 * fract(shop * 41.0)), w.y - 2.15);
-      float form = fract(shop * 47.0);
-      float tube = form < 0.34 ? abs(length(c) - 0.3)
-                 : (form < 0.67 ? max(abs(abs(c.x) * 0.9 + c.y - 0.12), abs(c.x) - 0.4) : min(abs(abs(c.y) - 0.16) + step(0.45, abs(c.x)), abs(length(c) - 0.09)));
-      col += accent * 2.4 * (1.0 - smoothstep(0.018, 0.03, tube));
-    }
-    return col;
+  // from the sill, 0 in) along d: its colour as it is lit. kind is the
+  // trade, shop and seed the shop's and this room's own numbers, street the
+  // street's light at the pane, fine 1 near and 0 where the detail would
+  // shimmer.
+  vec3 shopRoom(vec3 p, vec3 d, float roomW, float kind, float shop, float seed, vec3 street, float fine) {
+    vec3 acc = neonOf(shop * 13.7 + 0.37);
+    if (kind < 0.5) return roomStore(p, d, roomW, seed, fine, acc);
+    if (kind < 1.5) return roomBar(p, d, roomW, seed, fine, acc);
+    if (kind < 2.5) return roomNoodle(p, d, roomW, seed, fine, acc);
+    if (kind < 3.5) return roomArcade(p, d, roomW, seed, fine, acc);
+    if (kind < 4.5) return roomClinic(p, d, roomW, seed, fine);
+    if (kind < 5.5) return roomBoutique(p, d, roomW, seed, fine);
+    if (kind < 6.5) return roomWorkshop(p, d, roomW, seed, fine);
+    return roomDark(p, d, roomW, seed, fine, street);
   }
 `;
