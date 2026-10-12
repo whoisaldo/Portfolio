@@ -155,6 +155,8 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       im.frustumCulled = false;
       im.matrixAutoUpdate = false;
       im.userData.hue = src.userData.hue;
+      // Light in the air draws after the steam, as the lamps' shafts do.
+      if (material.transparent) im.renderOrder = 7;
       if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) im.layers.enable(reflectLayer);
       group.add(im);
       return im;

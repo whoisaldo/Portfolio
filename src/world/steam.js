@@ -22,7 +22,7 @@ import { COMMON } from "./glsl.js";
 // gets, its width leaving the vent and at the end, the wind (x, z, m/s), how
 // thick it is at its thickest and how much taller than wide a puff is.
 const KINDS = {
-  street: { puffs: 11, life: 6.0, rise: 3.4, size: [0.5, 2.0], wind: [0.3, -0.2], density: 0.62, tall: 1.3 },
+  street: { puffs: 11, life: 6.0, rise: 3.4, size: [0.5, 2.0], wind: [0.3, -0.2], density: 0.8, tall: 1.3 },
   lane: { puffs: 7, life: 3.4, rise: 1.9, size: [0.24, 1.0], wind: [0.16, -0.1], density: 0.46, tall: 1.5 },
   roof: { puffs: 10, life: 6.0, rise: 4.4, size: [0.45, 2.7], wind: [-0.8, 0.3], density: 0.5, tall: 1.0 },
 };

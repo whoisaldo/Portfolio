@@ -41,6 +41,8 @@ material("plant", "24402c", rough=0.8)
 material("face", "8a94a4", emit=1.0)
 # And the same for what is printed, not lit (a lamp's banner).
 material("print", "6a6258", rough=0.9)
+# A lamp's light in the wet air under its head (lamp_air below).
+material("halo", "ffb254", emit=1.0)
 WOOD, BARK, BLOSSOM, FROND = 0.25, 0.5, 0.75, 1.0
 # Which front a `face` or a `print` is, in its vertex colour's alpha.
 BANNER, VENDING = 0.75, 1.0
@@ -172,6 +174,17 @@ def planter(k, h, lamp, stone=(0.5, 0.5, 0.52, 1)):
         quad(k("glow"), (x - 0.06, h + 0.02, z + 0.06), (x + 0.06, h + 0.02, z + 0.06), (x + 0.06, h + 0.02, z - 0.06), (x - 0.06, h + 0.02, z - 0.06), col=lamp)
 
 
+def lamp_air(k, y, z, fall, colour):
+    """The light in the rain under a lamp whose head is at height y, z out
+    from its post: a quad in the lamp's own plane, which the site turns to
+    the eye and draws as a glow at the head and a veil falling `fall`
+    metres (src/world/shafts.js). Its uv is metres across and metres below
+    the head."""
+    x, over = 2.2, -1.2
+    quad(k("halo"), (-x, y - fall, z), (x, y - fall, z), (x, y - over, z), (-x, y - over, z),
+         ((-x, fall), (x, fall), (x, over), (-x, over)), (*colour[:3], fall / 10.0))
+
+
 # ---------------------------------------------------------------------------
 # The prototypes. Sizes are real: a bollard is a metre, a lamp seven.
 # ---------------------------------------------------------------------------
@@ -191,6 +204,7 @@ def _lamp_sodium(k):
     quad(k("neon_amber"), (-0.18, 7.02, 1.77), (0.18, 7.02, 1.77), (0.18, 7.02, 2.41), (-0.18, 7.02, 2.41))
     for yaw, cx, cz, w in ((0.0, 0.0, 2.41, 0.36), (math.pi, 0.0, 1.77, 0.36), (math.pi / 2, 0.18, 2.09, 0.64), (-math.pi / 2, -0.18, 2.09, 0.64)):
         rotated_quad(k("neon_amber"), cx, 7.035, cz, w, 0.03, yaw)
+    lamp_air(k, 7.02, 2.09, 4.8, GLOW["amber"])
     # The banner's bracket, and the banner (one lamp in two flies one).
     box(t, -0.02, 0.02, 4.86, 4.9, -0.78, -0.06, scale=0.5, col=cast)
     rotated_quad(k("print"), 0.0, 4.06, -0.42, 0.6, 1.6, math.pi / 2, col=(0.3, 0.3, 0.3, BANNER))
@@ -210,6 +224,7 @@ def _lamp_short(k):
     lathe(t, 0.0, 0.0, ((0.0, 0.125), (0.3, 0.125), (0.4, 0.07), (3.48, 0.058), (3.6, 0.15)), segs=6, col=cast, cap=False)
     lathe(k("neon_amber"), 0.0, 0.0, ((3.6, 0.13), (4.3, 0.13)), segs=6, cap=False)
     lathe(t, 0.0, 0.0, ((4.3, 0.2), (4.47, 0.04)), segs=6, col=cast)
+    lamp_air(k, 3.95, 0.0, 2.6, GLOW["amber"])
     # Near by: the lantern's glazing bars and the band round the post.
     for i in range(6):
         a = i * math.tau / 6

@@ -24,9 +24,14 @@
 // `face` is a quad, uv 0 to 1 across and up it; its vertex colour is the
 // light it gives the street (the bake's) and says warm or cool, the alpha
 // which face: 1 a vending machine's front (0.96 by 1.95 m). A `print` is
-// the same, unlit: 0.75 a lamp's banner (0.6 by 1.6 m).
+// the same, unlit: 0.75 a lamp's banner (0.6 by 1.6 m). A `halo` is a
+// lamp's light in the wet air (src/world/shafts.js): a quad in the lamp's
+// own plane through its head, turned here about the lamp's axis to face
+// the eye; its uv is metres across and metres below the head, its colour
+// the lamp's and the alpha a tenth of how many metres the light falls.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
+import { LAMP_AIR } from "./shafts.js";
 
 const SHARED = [...COMMON.matchAll(/uniform \w+ (\w+)/g)].map((m) => m[1]);
 
@@ -299,9 +304,46 @@ export function createPropSurfaces(dressed) {
     return m;
   };
 
+  const halo = () => new THREE.ShaderMaterial({
+    uniforms: { ...shared },
+    vertexShader: /* glsl */ `
+      attribute vec4 color;
+      uniform vec3 uCam;
+      varying vec2 vAt;
+      varying vec3 vWorld;
+      varying vec4 vColor;
+      void main() {
+        mat4 m = modelMatrix * instanceMatrix;
+        vec3 axis = (m * vec4(0.0, position.y, position.z, 1.0)).xyz;
+        vec3 eye = uCam - axis;
+        vWorld = axis + normalize(vec3(eye.z, 0.0, -eye.x)) * position.x;
+        // glTF counts v down from 1.
+        vAt = vec2(uv.x, 1.0 - uv.y);
+        vColor = color;
+        gl_Position = projectionMatrix * viewMatrix * vec4(vWorld, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      ${LAMP_AIR}
+      varying vec2 vAt;
+      varying vec3 vWorld;
+      varying vec4 vColor;
+      void main() {
+        float a = lampAir(vAt.x, vAt.y, vColor.a * 10.0) * lampSeen(uCam - vWorld, vWorld, uTime) * 0.5 * uHaze * (1.0 + 0.25 * uLevel);
+        gl_FragColor = vec4(vColor.rgb * a, 0.0);
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    premultipliedAlpha: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
   // A print is a face that is no light: the same drawing, kept out of the
   // bake.
-  const makers = { plant, face, print: face };
+  const makers = { plant, face, print: face, halo };
   // How strongly a lit face of the props' own lights the street (the bake).
   const LIGHT = { face: 0.33 };
   const clean = (name) => name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
