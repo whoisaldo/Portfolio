@@ -188,6 +188,107 @@ def blocks(D, x0, x1, z0, z1, rng, step=19.0, alley=3.0, heights=(8.5, 25.5), ta
         x += w
 
 
+def hazard_band(D, x0, x1, y0, y1, z, w=0.45, upright=False):
+    """Hazard stripes on a plane across the arm's end at z: black, with
+    yellow bands leaning over it, along a beam or (upright) up a post; seen
+    from both sides."""
+    def both(key, pts, dz):
+        quad(key, *[(px, py, z - dz) for (px, py) in pts])
+        quad(key, *[(px, py, z + dz) for (px, py) in (pts[1], pts[0], pts[3], pts[2])])
+    both((D, "dark", 1), ((x1, y0), (x0, y0), (x0, y1), (x1, y1)), 0.012)
+    if upright:
+        rise = x1 - x0
+        y = y0
+        while y + w + rise <= y1 + 1e-6:
+            both((D, "hazard", 1), ((x1, y), (x0, y + rise), (x0, y + rise + w), (x1, y + w)), 0.022)
+            y += 2 * w
+    else:
+        lean = y1 - y0
+        x = x0
+        while x + w + lean <= x1 + 1e-6:
+            both((D, "hazard", 1), ((x + w, y0), (x, y0), (x + lean, y1), (x + w + lean, y1)), 0.022)
+            x += 2 * w
+
+
+def stack_of(D, x0, x1, z0, z1, n, rng, lamp="white"):
+    """Boxes one on another, n high, a strip of light under the top one's
+    edge on the arm's side and a red lamp on its corner."""
+    H = 2.6
+    for k in range(n):
+        o = rng.uniform(-0.07, 0.07)
+        along_x = x1 - x0 > z1 - z0
+        box((D, "trim", 0), x0 + (o if along_x else 0.0), x1 + (o if along_x else 0.0), k * H, k * H + H - 0.04,
+            z0 + (0.0 if along_x else o), z1 + (0.0 if along_x else o), scale=2.0, col=rng.choice(BOX_COLOURS))
+    top = n * H
+    box((D, "glow", 0), x0 + 0.3, x1 - 0.3, top - 0.3, top - 0.2, z0 - 0.05, z0 - 0.01, scale=0.5, col=GLOW[lamp])
+    box((D, "glow", 0), x0 + 0.1, x0 + 0.3, top - 0.04, top + 0.2, z0 + 0.1, z0 + 0.3, scale=0.5, col=GLOW["red"])
+
+
+def gate_frame(D):
+    """Over the gate's posts and its beam, the frame the arm ends on: a
+    pylon on each post in the crane's paint, a truss between their heads
+    under a row of floods, the yard's board hung in the frame, a board
+    down each pylon, lamps up their edges and red on their caps, hazard
+    stripes on the posts and along the beam; and behind the wall either
+    side of the yard road, boxes stacked higher than the wall, each row
+    back taller than the last."""
+    rng = random.Random(4470)
+    top = 17.0
+    for px in GATE:
+        hazard_band(D, px - 0.57, px + 0.57, 0.2, 3.35, 91.675, upright=True)
+        box((D, "trim", 0), px - 0.45, px + 0.45, 8.6, top, 91.85, 92.65, scale=1.0, col=CRANE)
+        box((D, "metal", 1), px - 0.7, px + 0.7, top, top + 0.14, 91.6, 92.9, scale=0.5)
+        box((D, "glow", 0), px - 0.14, px + 0.14, top + 0.14, top + 0.5, 92.1, 92.4, scale=0.5, col=GLOW["red"])
+        inner = px - math.copysign(0.45, px)
+        box((D, "glow", 0), min(inner, inner - math.copysign(0.06, px)), max(inner, inner - math.copysign(0.06, px)), 8.9, 12.7, 91.85, 91.93,
+            scale=0.5, col=GLOW["white"])
+        # Floods at its head, turned up the arm.
+        box((D, "metal", 1), px - 0.9, px + 0.9, top - 1.35, top - 0.2, 91.64, 91.76, scale=0.5)
+        for dx in (-0.6, 0.0, 0.6):
+            for dy in (-1.2, -0.7):
+                box((D, "glow", 0), px + dx - 0.2, px + dx + 0.2, top + dy, top + dy + 0.34, 91.58, 91.64, scale=0.5, col=GLOW["white"])
+        # "Twenty-four hours" down its face.
+        K.st_face(D, "st_bl_14", (px, 10.75, 91.835), (-1.0, 0.0, 0.0), K.UP, 0.84, 3.5)
+    # The truss: two chords, posts and braces between them, a line of
+    # light under it, floods along its top.
+    xa, xb = GATE[0] + 0.45, GATE[1] - 0.45
+    y0, y1 = 13.0, 15.6
+    for y in (y0, y1 - 0.4):
+        box((D, "trim", 0), xa, xb, y, y + 0.4, 91.95, 92.55, scale=1.0, col=CRANE)
+    n = 6
+    for k in range(n + 1):
+        x = xa + k * (xb - xa) / n
+        if 0 < k < n:
+            box((D, "trim", 1), x - 0.1, x + 0.1, y0 + 0.4, y1 - 0.4, 92.15, 92.35, scale=1.0, col=CRANE)
+        if k < n:
+            x2 = xa + (k + 1) * (xb - xa) / n
+            a, b = ((x, y0 + 0.4, 92.25), (x2, y1 - 0.4, 92.25)) if k % 2 == 0 else ((x, y1 - 0.4, 92.25), (x2, y0 + 0.4, 92.25))
+            pipe((D, "trim", 1), a, b, 0.09, segs=4, col=CRANE)
+    box((D, "neon_amber", 0), xa + 0.2, xb - 0.2, y0 - 0.08, y0, 91.9, 92.0, scale=1.0)
+    box((D, "metal", 1), xa + 0.6, xb - 0.6, y1, y1 + 0.5, 91.9, 92.0, scale=0.5)
+    for k in range(6):
+        x = -5.0 + k * 2.0
+        box((D, "glow", 0), x - 0.26, x + 0.26, y1 + 0.08, y1 + 0.44, 91.84, 91.9, scale=0.5, col=GLOW["white"])
+    for (x, z) in ((-4.5, 86.5), (4.5, 86.5), (0.0, 81.0), (-3.0, 90.2), (3.5, 90.2)):
+        light(D, x, 2.0, z, "white", 7.0)
+    hazard_band(D, GATE[0] + 0.55, GATE[1] - 0.55, 7.32, 8.48, 91.94)
+    # The yard's board, hung in the frame between the beam and the truss.
+    sw, sh = ST_SIZES["pm"][0] * 3.0, ST_SIZES["pm"][1] * 3.0
+    cy = 8.9 + sh / 2
+    box((D, "board_frame", 0), -sw / 2 - 0.12, sw / 2 + 0.12, cy - sh / 2 - 0.12, cy + sh / 2 + 0.12, 92.12, 92.38, scale=1.0)
+    K.st_face(D, "st_pm_15", (0.0, cy, 92.1), (-1.0, 0.0, 0.0), K.UP, sw, sh)
+    K.st_face(D, "st_pm_15_b", (0.0, cy, 92.4), (1.0, 0.0, 0.0), K.UP, sw, sh)
+    for x in (-sw / 2 + 0.6, sw / 2 - 0.6):
+        box((D, "metal", 1), x - 0.05, x + 0.05, cy + sh / 2 + 0.12, y0, 92.2, 92.3, scale=0.5)
+    # Boxes behind the wall, west of the yard road and east of it.
+    stack_of(D, -12.8, -6.7, 93.6, 96.04, 4, rng)
+    stack_of(D, -12.8, -6.7, 96.24, 98.68, 6, rng, lamp="amber")
+    for (x, nh, lamp) in ((11.0, 4, "white"), (13.64, 6, "amber"), (16.28, 5, "white")):
+        stack_of(D, x, x + 2.44, 94.5, 100.6, nh, rng, lamp=lamp)
+    for (x, z) in ((-9.7, 93.0), (-5.8, 96.0), (-9.7, 99.6), (12.2, 93.6), (15.0, 93.6), (10.2, 97.5)):
+        light(D, x, 2.0, z, "white" if x > 0 else "amber", 7.0)
+
+
 def build(D):
     rng = random.Random(4417)
     # Behind the arm's lots and the south street's row, to the yard's wall.
@@ -241,8 +342,9 @@ def build(D):
         box((D, "metal", 1), x - 0.08, x + 0.08, 5.7, 5.8, WALL_Z + 0.25, WALL_Z + 1.4, scale=0.5)
 
     # The gate: its piers and floods (the site lights the street from them),
-    # the portal over it with the yard's boards, the west leaf shut, the
-    # east run back behind the wall, a barrier across the open half.
+    # the beam over it and the frame that stands on them (gate_frame), the
+    # west leaf shut, the east run back behind the wall, a barrier across
+    # the open half.
     for px in (-12.4, 12.4):
         box((D, "concrete", 0), px - 0.4, px + 0.4, 0.0, 7.0, 91.4, 92.3, scale=1.5)
     for px in (-12.0, 12.0):
@@ -252,15 +354,9 @@ def build(D):
         site_lamp(f"depot_{'w' if px < 0 else 'e'}", (px, 6.8, 90.6), "#ffd8a8", 9.0, 1.1)
     for px in GATE:
         box((D, "concrete", 0), px - 0.55, px + 0.55, 0.0, 8.6, 91.7, 92.8, scale=1.5)
-        box((D, "hazard", 1), px - 0.57, px + 0.57, 0.2, 2.0, 91.68, 91.7, scale=0.6)
-        box((D, "glow", 0), px - 0.2, px + 0.2, 8.6, 8.85, 92.05, 92.45, scale=0.5, col=GLOW["amber"])
     box((D, "metal", 0), GATE[0] - 0.55, GATE[1] + 0.55, 7.2, 8.6, 91.95, 92.55, scale=1.0)
     box((D, "neon_amber", 0), GATE[0] + 0.6, GATE[1] - 0.6, 7.08, 7.18, 91.9, 92.0, scale=1.0)
-    for i, x in enumerate((-4.4, 0.0, 4.4)):
-        sw, sh = 3.9, 1.67
-        box((D, "board_frame", 0), x - sw / 2 - 0.08, x + sw / 2 + 0.08, 8.75, 8.9 + sh + 0.08, 92.1, 92.3, scale=1.0)
-        K.st_face(D, K.st_id("pm"), (x, 8.85 + sh / 2, 92.08), (-1.0, 0.0, 0.0), K.UP, sw, sh)
-        K.st_face(D, K.st_id("pm"), (x, 8.85 + sh / 2, 92.32), (1.0, 0.0, 0.0), K.UP, sw, sh)
+    gate_frame(D)
     # The shut leaf: sheet steel in a frame, a hazard band, a wicket door.
     box((D, "door_panel", 0), GATE[0] + 0.55, 0.0, 0.25, 5.6, 92.0, 92.14, scale=1.0)
     for y in (0.25, 2.9, 5.5):
@@ -361,7 +457,7 @@ def build(D):
     # Drums and pallets about, and a few hands.
     for _ in range(14):
         x, z = rng.uniform(X0 + 3, X1 - 3), rng.uniform(94.0, 118.0)
-        if (0.0 < x < 20.0 and z > 106.0) or abs(x - 6.0) < 5.0 or 24.0 < x < 104.0 or -45.0 < x < -8.0:
+        if (0.0 < x < 20.0 and z > 106.0) or abs(x - 6.0) < 5.0 or 24.0 < x < 104.0 or -45.0 < x < -6.0 or 10.5 < x < 19.5:
             continue
         P.place(rng.choice(("drum", "drum", "crates", "barrier")), x, 0.0, z, rng.uniform(0, 3.1), district=D)
     for (x, z, yaw, pose) in ((-9.5, 99.5, 1.0, "smoke"), (21.0, 96.0, -1.6, "phone"), (67.5, 100.0, 1.57, "idle"), (-30.0, 104.5, 0.0, "idle")):
