@@ -756,7 +756,7 @@ def lens(f, hue, s0, s1, y0, y1, w0, w1):
     """A lamp's lens under its hood: its front and its underside (a phone
     draws these, so no more of it than is seen). A white one is a lit
     `glow` (a neon white lens two metres off reads as a blown-out square)."""
-    k, col = ((D, "glow", 0), (0.3, 0.3, 0.27, 1)) if hue == "white" else ((D, "neon_" + hue, 0), (1, 1, 1, 1))
+    k, col = ((D, "glow", 0), (0.14, 0.14, 0.125, 1)) if hue == "white" else ((D, "neon_" + hue, 0), (1, 1, 1, 1))
     f.quad(k, s0, s1, y0, y1, w1, col=col)
     a, b = f.at(s0), f.at(s1)
     quad(k, f.p(b, y0, w1), f.p(a, y0, w1), f.p(a, y0, w0), f.p(b, y0, w0), col=col)
