@@ -17,10 +17,12 @@ lane -142..-138, row B -138..-116, the lantern alley -116..-110, row A
 -110..-94, the west street (streets.py) -94..-66, the east row -66..-50 and
 the lane behind it -50..-44. Everything is keyed "japantown".
 
-East of x -60 nothing that the light bake takes for a source stands higher
-than 7.5 m: the bake mirrors such light onto the avenue's road for the hero
-(src/world/spill.js), and the hero cannot see over its own west row. Light
-up there is `glow`, which the bake leaves out. Checked at the end.
+The east row was built when the light bake mirrored every source within
+60 m of the avenue onto its road for the hero (src/world/spill.js), so its
+own signs over 7.5 m are `glow` and its side walls carry bent tube, not
+adverts. The bake now mirrors only what stands within 20 m of the avenue,
+and what round 3 hangs by the deck (east of x -60) is lit like the rest.
+Checked at the end: nothing of Japantown's stands where the bake mirrors.
 """
 import os
 
@@ -67,6 +69,51 @@ STYLE = dict(windows=(0, 1, 3, 6, 6), lit=(0.5, 0.92), warmth=(0.6, 1.0),
 STYLE_B = dict(STYLE, balcony=0.14, fire_escape=0.1, awning=0.6)
 STYLE_C = dict(STYLE, tints=("charcoal", "navy", "teal", "plum", "concrete", "brown"), lit=(0.45, 0.85), balcony=0.1,
                fire_escape=0.1, awning=0.4, shop_sign=0.5, setback=0.5)
+
+
+# Which advert a board shows is the site's, from where it stands: its left
+# edge, its foot and its plane in cells of 4 m (src/world/materials.js,
+# `board`), sixteen wide adverts and eight tall, each board a turn ahead of
+# or behind its number as they change. So a board is slid along its own
+# face, or raised where it can be, until its number is not within one of
+# any board's of its shape within sight: the same advert is then never
+# twice in a view while there are others to show.
+_kit_billboard = B.billboard
+ADS = []
+
+
+def _board_no(cx, cy, cz, w, h, yaw):
+    fx = cx * math.cos(yaw) - cz * math.sin(yaw) - w / 2
+    fz = cx * math.sin(yaw) + cz * math.cos(yaw)
+    return math.floor(fx / 4.0 + 0.412) * 7 + math.floor((cy - h / 2) / 4.0 + 0.412) * 5 + math.floor(fz / 4.0 + 0.412) * 3
+
+
+def advert(district, cx, cy, cz, w, h, yaw, r, frame=True, back=True, depth=0.35, rise=0.0, slide=None):
+    """The kit's billboard, set where its advert is its own (see above).
+    Returns where it was set."""
+    tall = w / h < 0.85
+    m = 8 if tall else 16
+    slide = min(1.0, w * 0.1) if slide is None else slide
+    near = [b for x, z, t, b in ADS if t == tall and math.hypot(x - cx, z - cz) < 150.0]
+    best = None
+    for dv in [0.4 * i for i in range(int(rise / 0.4) + 1)]:
+        for du in (0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.0, -2.0):
+            if abs(du) > slide:
+                continue
+            x, z = cx + du * math.cos(yaw), cz - du * math.sin(yaw)
+            b = _board_no(x, cy + dv, z, w, h, yaw)
+            clash = sum(1 for o in near if (b - o) % m in (0, 1, m - 1))
+            if best is None or clash < best[0]:
+                best = (clash, x, cy + dv, z, b)
+        if best[0] == 0:
+            break
+    _, x, y, z, b = best
+    ADS.append((x, z, tall, b))
+    _kit_billboard(district, x, y, z, w, h, yaw, r, frame, back, depth)
+    return x, y, z
+
+
+B.billboard = advert
 
 
 def strip(f, colour, s0, s1, y0, y1, out, depth=0.06):
@@ -129,7 +176,11 @@ def pick(r, floors, prev):
 def _quiet_billboard(district, cx, cy, cz, w, h, yaw, r, frame=True, back=True, depth=0.35):
     """The east row's side walls: a tube sign where the generator would hang
     an advert (which the bake would mirror onto the avenue)."""
-    J.tube_sign((cx, cy, cz), yaw, w * 0.8, h * 0.8, r.choice(("pink", "amber", "cyan", "green", "red")), r, both=False)
+    hue = r.choice(("pink", "amber", "cyan", "green", "red"))
+    if any(abs(cz - zz) < 0.6 for zz in NO_AD):
+        J._burn(r, w * 0.8, h * 0.8)
+        return
+    J.tube_sign((cx, cy, cz), yaw, w * 0.8, h * 0.8, hue, r, both=False)
 
 
 # The roofline steps (the review's "a flat line"): about one lot in six of
@@ -141,6 +192,23 @@ STEP = {"E": 0.17, "A": 0.17, "B": 0.1}
 HIGH_Z = -591.0
 TOWERS = {"A": 13, "E": 12}
 KEEP_LOW = {"A": (-711.0, -598.0, -540.0), "E": (-606.5, -42.0), "B": (-80.0,)}
+
+
+# What a driver on the deck and a walker on its footways see of Japantown
+# from the deck's level up (the deck's review: "flat single-colour boxes"):
+# the lot behind each low one beside its gap stands eight and seven storeys
+# (DECK_TOWERS: "north", "south"), and the lot of the west row on the
+# deck's own line nine ("axis"): each as tall as that only if the hero's
+# lens does not see its top.
+DECK_TOWERS = {}
+NO_AD = []      # party walls (their z) the deck's dressing covers: the generator's advert is left off them
+
+
+def fit_hero(xs, a, b, n, least):
+    """The most storeys up to n a lot may have unseen by the hero's lens."""
+    while n > least and hero_sees((xs[0], 0.0, a), (xs[1], storeys(n) + 4.0, b)):
+        n -= 1
+    return n
 
 
 def build_row(tag, xs, front, back, segs, seed, widths, floors, style, quiet=False, ground="shops"):
@@ -162,6 +230,17 @@ def build_row(tag, xs, front, back, segs, seed, widths, floors, style, quiet=Fal
                 hs[j] += CELL_H * rb.choice((3, 3, 4, 5))
             if tag in TOWERS and a <= HIGH_Z <= b:
                 hs[j] = storeys(TOWERS[tag])
+            if tag == "A" and a <= plan.DECK_Z <= b:
+                hs[j] = max(hs[j], storeys(fit_hero(xs, a, b, 9, 4)))
+                DECK_TOWERS["axis"] = a
+        if tag == "E" and khi == "deck" and len(spans) > 1:
+            hs[-2] = max(hs[-2], storeys(fit_hero(xs, *spans[-2], 8, 5)))
+            DECK_TOWERS["north"] = spans[-2][0]
+            NO_AD.append(spans[-2][1])
+        if tag == "E" and klo == "deck" and len(spans) > 1:
+            hs[1] = max(hs[1], storeys(fit_hero(xs, *spans[1], 7, 4)))
+            DECK_TOWERS["south"] = spans[1][0]
+            NO_AD.append(spans[1][0])
         # Beside the deck's girder (its gap is the deck's own to dress, at
         # grade): two storeys, their roofs level with its road, and a plain
         # windowed side for its stall and machines to stand against.
@@ -692,6 +771,164 @@ def deck_lot(rec):
         if over > 5.2:
             cx, _, cz = fw.p(fw.at((x1 - x0) / 2), 0.0, 0.14)
             J.tube_sign((cx, top + 3.6, cz), fw.yaw, 4.2, 1.4, r.choice(("pink", "cyan", "amber")), r, both=False)
+
+
+WIN_KINDS = (0, 1, 2, 3, 5, 6)
+
+
+def banded(f, y0, y1, r, tint, ribs=True):
+    """A face from y0 up laid in bands of one to three storeys, each band
+    its own kind of window and its own share of them lit, a spandrel under
+    each, ribs up it bay by bay (f: the face, already a hair proud of the
+    wall the generator drew)."""
+    w, tcol = f.width, B.TRIM[tint]
+    kinds = r.sample(WIN_KINDS, 3)
+    yy, i = y0, 0
+    while yy < y1 - 0.5:
+        yb = min(y1, yy + r.choice((1, 2, 2, 3)) * CELL_H)
+        B.facade_wall((D, "facade", 0), f, yy, yb, B.wall_col(r.uniform(0.6, 0.95), kinds[i % 3], r.uniform(0.25, 1.0), tint), float(r.randrange(40)))
+        f.ledge((D, "trim", 1), 0.0, w, yy - 0.2, 0.42, 0.16, tcol, caps=False)
+        yy, i = yb, i + 1
+    if ribs:
+        bays = max(1, round(w / CELL_W))
+        for j in range(bays + 1):
+            s = min(w - 0.17, max(0.17, j * w / bays))
+            f.box((D, "trim", 1), s - 0.17, s + 0.17, y0, y1, 0.0, 0.22, col=tcol)
+
+
+def deck_dress(f, y0, y1, r, tint, screen=None, stack=True):
+    """A wall the deck looks at, from its level up (the deck's review asks
+    for all of it): bands of three kinds of window between ribs, a band of
+    signs in a steel channel at the deck's level with a tube over it,
+    balconies, shutters down over a bay or two, units, pipes, a stack of
+    blades up one side and (`screen`: its width and height) an advert
+    screen on a frame with lamps over it."""
+    w = f.width
+    banded(f, y0, y1, r, tint)
+    bays = max(1, round(w / CELL_W))
+    bw = w / bays
+    # The sign band.
+    f.box((D, "board_frame", 0), 0.2, w - 0.2, y0 + 0.45, y0 + 2.0, 0.0, 0.12)
+    strip(f, r.choice(("cyan", "pink", "amber", "green")), 0.3, w - 0.3, y0 + 2.04, y0 + 2.12, 0.14)
+    s = 1.3
+    while s < w - 1.2:
+        size = r.choice(("bx", "ps", "bx", "bs"))
+        k = 1.05 if size != "bs" else 0.62
+        got = J.board(f, s, y0 + 1.22, size, k=k, out=0.16)
+        if got[0] == 0.0:
+            got = J.board(f, s, y0 + 1.22, "bx", k=1.05, out=0.16)
+        s += got[0] + r.uniform(0.5, 1.4)
+    floors = int((y1 - y0) / CELL_H)
+    sx0, sx1 = (w / 2 - screen[0] / 2 - 0.4, w / 2 + screen[0] / 2 + 0.4) if screen else (9e9, -9e9)
+    sy0 = y0 + CELL_H + 0.6
+    for fl in range(1, floors):
+        fy = y0 + fl * CELL_H
+        for j in range(bays):
+            sc = (j + 0.5) * bw
+            if screen and sx0 < sc < sx1 and sy0 - 1.0 < fy < sy0 + screen[1] + 0.5:
+                continue
+            roll = r.random()
+            if roll < 0.24 and fy + 1.2 < y1:
+                B.balcony(D, f, sc - bw / 2 + 0.3, sc + bw / 2 - 0.3, fy, tint, glass=r.random() < 0.3)
+            elif roll < 0.44:
+                P.place("ac_wall", *f.p(f.at(sc + r.uniform(-0.6, 0.6)), fy + 0.05, 0.0), f.yaw, district=D)
+            elif roll < 0.52 and fl < 3:
+                f.quad((D, "door_panel", 0), sc - 1.1, sc + 1.1, fy + 0.7, fy + 2.9, 0.04)
+                f.box((D, "metal", 1), sc - 1.2, sc + 1.2, fy + 2.9, fy + 3.1, 0.0, 0.16)
+    for sp in (0.5, w - 0.5):
+        P.place("pipe_v", *f.p(f.at(sp), y0, 0.0), f.yaw, sy=y1 - y0, district=D)
+    if stack and y1 - y0 > 9.0:
+        ss, y = (0.9 if r.random() < 0.5 else w - 0.9), y0 + 3.4
+        while y + 3.8 < min(y1, y0 + 16.0):
+            J.blade(f, ss, y + 1.75, "bm", tilt=r.uniform(-0.3, 0.3), k=1.08)
+            y += 4.0
+    if screen:
+        sw, sh = screen
+        cx, cy, cz = f.p(f.at(w / 2), sy0 + sh / 2, 0.42)
+        _, cy, _ = B.billboard(D, cx, cy, cz, sw, sh, f.yaw, r, back=False, depth=0.32, rise=min(2.0, y1 - sy0 - sh - 0.8), slide=0.0)
+        sy0 = cy - sh / 2
+        for du in (-sw * 0.3, 0.0, sw * 0.3):
+            f.box((D, "metal", 1), w / 2 + du - 0.03, w / 2 + du + 0.03, sy0 + sh + 0.2, sy0 + sh + 0.6, 0.0, 1.0)
+            f.box((D, "glow", 0), w / 2 + du - 0.18, w / 2 + du + 0.18, sy0 + sh + 0.48, sy0 + sh + 0.56, 0.86, 1.04, col=(0.9, 0.85, 0.7, 1))
+        f.box((D, "trim", 1), w / 2 - sw / 2 - 0.3, w / 2 + sw / 2 + 0.3, sy0 - 0.34, sy0 - 0.26, 0.0, 1.0, col=ESCAPE)
+        f.box((D, "metal", 1), w / 2 - sw / 2 - 0.3, w / 2 + sw / 2 + 0.3, sy0 + 0.6, sy0 + 0.66, 0.95, 1.0)
+        light(D, *f.p(f.at(w / 2), y0 + 0.5, 3.0), r.choice(("pink", "cyan", "amber")), 6.0)
+
+
+def corner_screen(x, z, wall_z, y0, y1, toward, r):
+    """An advert screen off a tower's corner over the low roof beside the
+    deck, swung thirty degrees to the deck's turn: its frame on three
+    trusses back to the tower's wall, a catwalk under it, lamps over it.
+    (x, z): the corner; toward: +1 if the deck is to the south of it."""
+    yaw = -0.52 if toward > 0 else math.pi + 0.52
+    b = basis(yaw)
+    sw, sh = 8.6, min(12.0, y1 - y0 - 1.0)
+    R = b[0]
+    edge = 1 if R[0] > 0 else -1          # which end of the screen is at the corner (the end toward +x)
+    c = (x - 0.4 - abs(R[0]) * sw / 2, y0 + sh / 2, z + toward * (0.5 + abs(R[2]) * sw / 2))
+    c = B.billboard(D, c[0], c[1], c[2], sw, sh, yaw, r, back=False, depth=0.34, rise=min(2.0, y1 - y0 - sh), slide=0.0)
+    for v in (-sh * 0.4, 0.0, sh * 0.4):
+        for du in (-sw * 0.42 * edge, 0.0):
+            p0 = pt(c, b, du, v, -0.36)
+            q = ((p0[0], p0[1] - 0.07, p0[2]), (p0[0], p0[1] - 0.07, wall_z), (p0[0], p0[1] + 0.07, wall_z), (p0[0], p0[1] + 0.07, p0[2]))
+            quad((D, "trim", 1), *q, col=ESCAPE)
+            quad((D, "trim", 1), q[1], q[0], q[3], q[2], col=ESCAPE)
+    obox((D, "trim", 1), pt(c, b, 0.0, -sh / 2 - 0.25, 0.45), b, sw + 0.4, 0.08, 0.9, col=ESCAPE)
+    obox((D, "metal", 1), pt(c, b, 0.0, -sh / 2 + 0.8, 0.88), b, sw + 0.4, 0.05, 0.05, tube=True)
+    for du in (-sw * 0.3, 0.0, sw * 0.3):
+        obox((D, "metal", 1), pt(c, b, du, sh / 2 + 0.35, 0.4), b, 0.05, 0.05, 1.1, tube=False)
+        obox((D, "glow", 0), pt(c, b, du, sh / 2 + 0.3, 0.9), b, 0.4, 0.07, 0.2, col=(0.9, 0.85, 0.7, 1), bottom=True)
+    fx, _, fz = pt(c, b, 0.0, 0.0, 4.0)
+    light(D, fx, y0 - 2.0, fz, r.choice(("pink", "cyan", "amber")), 7.0)
+
+
+def deck_towers():
+    """Dress what the deck sees (DECK_TOWERS)."""
+    by = {(rc["row"], rc["lot"].z0): rc for rc in LOTS}
+    out = lambda rc, name: B.Face(name, face(rc, name).plane + 0.03 * (face(rc, name).nx or face(rc, name).nz), face(rc, name).a0, face(rc, name).a1)  # noqa: E731
+    y0 = storeys(2)
+    for key, wall, toward in (("north", "+z", 1), ("south", "-z", -1)):
+        rec = by.get(("E", DECK_TOWERS.get(key)))
+        if rec is None or rec["h"] < y0 + 6.0:
+            continue
+        r, lot = rng(rec, "decktower"), rec["lot"]
+        deck_dress(out(rec, wall), y0, rec["h"], r, rec["tint"], screen=None)
+        banded(out(rec, "-x"), y0, rec["h"], r, rec["tint"])
+        banded(out(rec, "+x"), y0, rec["h"], r, rec["tint"])
+        f = out(rec, "+x")
+        J.blade(f, f.width / 2, y0 + 5.0, "bl", tilt=r.uniform(-0.2, 0.2), k=1.5, gap=0.4)
+        f.box((D, "board_frame", 0), 0.2, f.width - 0.2, y0 + 0.45, y0 + 1.9, 0.0, 0.12)
+        s = 1.2
+        while s < f.width - 1.0:
+            s += J.board(f, s, y0 + 1.18, "bx", k=1.0, out=0.16)[0] + r.uniform(0.6, 1.6)
+        corner_screen(lot.x1, lot.z1 if toward > 0 else lot.z0, lot.z1 if toward > 0 else lot.z0, y0 + 4.0, rec["h"], toward, r)
+    rec = by.get(("A", DECK_TOWERS.get("axis")))
+    if rec is not None and rec["h"] > y0 + 9.0:
+        r, f = rng(rec, "decktower"), out(rec, "+x")
+        sw = min(6.0, f.width - 0.9)
+        deck_dress(f, y0, rec["h"], r, rec["tint"], screen=(sw, min(13.0, rec["h"] - y0 - 6.5)), stack=False)
+        c = (XW + 1.9, y0 + 9.0, rec["lot"].z0 - 0.4)
+        hue = r.choice(("pink", "red", "cyan", "amber"))
+        text = J.F.pick(J.F.KANA, c, 5, (1, 0))
+        obox((D, "board_frame", 0), c, basis(0.0), 0.3, 13.6, 3.0)
+        for yaw in (0.0, math.pi):
+            b = basis(yaw - HALF_PI)
+            J.letters(pt(c, b, 0.0, 0.0, 0.28), b, text, min(2.4, 12.6 / (len(text) * 1.14)), hue, depth=0.2, vertical=True)
+        for y in (y0 + 3.4, y0 + 9.0, y0 + 14.6):
+            box((D, "metal", 1), XW, XW + 1.9, y - 0.06, y + 0.06, c[2] - 0.06, c[2] + 0.06, scale=1.0)
+    # The west row's fronts over against the turn: a band of signs at the
+    # deck's level and windows of three kinds over it.
+    for rc in LOTS:
+        if rc["row"] == "A" and RAMP[0] + 110.0 < rc["lot"].z0 and rc["lot"].z1 < -44.0 and rc["h"] > y0 + 3.0 and rc["lot"].z0 != DECK_TOWERS.get("axis"):
+            r, f = rng(rc, "deckfront"), out(rc, "+x")
+            banded(f, y0, rc["h"], r, rc["tint"])
+            f.box((D, "board_frame", 0), 0.2, f.width - 0.2, y0 + 0.45, y0 + 1.9, 0.0, 0.12)
+            strip(f, r.choice(("cyan", "pink", "amber", "green")), 0.3, f.width - 0.3, y0 + 1.94, y0 + 2.02, 0.14)
+            s = 1.2
+            while s < f.width - 1.0:
+                size = r.choice(("bx", "bs", "ps"))
+                got = J.board(f, s, y0 + 1.18, size, k=1.0 if size != "bs" else 0.6, out=0.16)
+                s += (got[0] or 0.6) + r.uniform(0.5, 1.5)
 
 
 def lane_face(rec, name, cap=None):
@@ -1519,6 +1756,7 @@ for rec in LOTS:
         sky_word(rec)
     if id(rec) in BY_DECK:
         deck_lot(rec)
+deck_towers()
 
 
 # ---------------------------------------------------------------------------
@@ -2294,7 +2532,7 @@ for x in (-83.6, -76.4):
 B.ground_rect(D, -94.0, -66.0, 8.0, ZS)
 
 # ---------------------------------------------------------------------------
-# A check: east of x -60 no bake source above 7.5 m (the module's note).
+# A check: no bake source where the bake mirrors it (the module's note).
 # ---------------------------------------------------------------------------
 _bad = 0
 for (dist, mat, _), b in batches.items():
@@ -2304,8 +2542,9 @@ for (dist, mat, _), b in batches.items():
         vs = [b.verts[i] for i in fc]
         cx = sum(v[0] for v in vs) / len(vs)
         cy = sum(v[2] for v in vs) / len(vs)
-        if cx > -60.0 and cy > 7.5:
+        if abs(cx) < 20.0 and cy > 1.0:
             _bad += 1
+B.billboard = _kit_billboard
 if os.environ.get("JT_DUMP"):
     # (For whoever is working on the district: every lot, to a file.)
     import json
@@ -2320,7 +2559,7 @@ print("japantown hero sees:", _seen, "the high bridge:", hero_sees((XW, 29.0, HI
 print("japantown lucy:", LUCY)
 print("japantown decks:", [(rc["row"], round(rc["lot"].z0), round(rc["lot"].z1), rc["h"]) for rc in LOTS if rc.get("roof") == "deck" and rc["row"] in "AE"][:14])
 print(f"japantown: {len(LIGHTS.get(D, [])) // 5} lights, {len(STREET_SIGN_IDS)} sign ids so far in the city")
-print(f"japantown: {len(LOTS)} lots, {sum(1 for i in P.INSTANCES if i[7] == D)} props, {len(PEOPLE)} people so far in the city, bake sources east of x -60 over 7.5 m: {_bad}")
+print(f"japantown: {len(LOTS)} lots, {sum(1 for i in P.INSTANCES if i[7] == D)} props, {len(PEOPLE)} people so far in the city, bake sources the hero's road would mirror: {_bad}")
 _t = {}
 for (dist, mat, det), b in batches.items():
     if dist == D:
