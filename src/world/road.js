@@ -418,7 +418,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
             // wet deck is no matte black strip under its lamps.)
             vec2 on = normalize(R.xz + 1e-5);
             vec3 ahead = spillGround(vWorld + vec3(on.x, 0.0, on.y) * 5.0) + spillGround(vWorld + vec3(on.x, 0.0, on.y) * 14.0);
-            baked = max(baked, tame(ahead * 0.22, 0.5));
+            baked = max(baked, tame(ahead * 0.34, 0.5));
           }
           baked = mix(baked, dot(baked, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.8, sodium * 0.55) * (1.0 + 1.2 * terrace);
           // Standing water gives the light back whole where a sign stands
