@@ -795,11 +795,15 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   train.layers.enable(reflectLayer);
   if (rail) scene.add(train);
 
-  // Evenly spaced along each lane, so two cars in one never meet.
+  // Evenly spaced along each lane, so two cars in one never meet; from a
+  // seeded draw, so the same second of the clock is the same street on
+  // every load.
   const perLane = Math.max(1, Math.ceil(avenueMoving / ROAD_LANES.length));
+  let seedPhase = 90001;
+  const drawPhase = () => ((seedPhase = (seedPhase * 16807) % 2147483647) - 1) / 2147483646;
   const phase = [
-    ...Array.from({ length: avs }, () => Math.random()),
-    ...Array.from({ length: avenueMoving }, (_, i) => (Math.floor(i / ROAD_LANES.length) + 0.25 * Math.random()) / perLane + (i % ROAD_LANES.length) * 0.17),
+    ...Array.from({ length: avs }, drawPhase),
+    ...Array.from({ length: avenueMoving }, (_, i) => (Math.floor(i / ROAD_LANES.length) + 0.25 * drawPhase()) / perLane + (i % ROAD_LANES.length) * 0.17),
   ];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -1050,9 +1054,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     update,
     avMesh,
     voices,
-    /** Dev: hold every vehicle where it is. */
-    freeze(on = true) {
+    /** Dev: hold every vehicle where it is, or where it is at second `at`
+     *  of the traffic's clock. */
+    freeze(on = true, at) {
       frozen = on;
+      if (typeof at === "number") clock = at;
     },
     dispose() {
       scene.remove(avMesh, droneMesh, lamps, train, ...kinds.map((k) => k.mesh));
