@@ -772,6 +772,22 @@ def side_doors(gx, r, hue="white", back=T_BACK):
             f = B.Face("-x" if sx > 0 else "+x", xw - sx * 0.06, back, LOBBY_Z)
             K.wall_front(f, 7.4, r, 1, "cyan" if hue == "white" else hue)
             K.services(f, r, 7.4, 0.7)
+            # Over all that a duct the length of the wall on brackets, a
+            # riser at its end, lit grilles in it; and an advert in a frame.
+            w = f.width
+            f.box(k("steel"), 0.8, w - 1.5, 6.2, 6.9, 0.1, 0.8, col=K.STEEL)
+            f.box(k("steel"), w - 2.2, w - 1.5, 0.3, 7.4, 0.1, 0.8, col=K.STEEL)
+            c = GLOW[hue]
+            d = 2.0
+            while d < w - 3.5:
+                f.box(k("metal", 1), d - 0.05, d + 0.05, 5.7, 6.2, 0.0, 0.7)
+                f.box(k("glow", 1), d + 0.6, d + 1.5, 6.38, 6.72, 0.8, 0.82, col=(c[0] * 0.3, c[1] * 0.3, c[2] * 0.3, 1.0))
+                d += 3.1
+            if w > 9.0:
+                ax, ay, az = f.p(f.at(w * (0.3 if sx > 0 else 0.62)), 4.2, 0.2)
+                K.advert(ax, ay, az, 3.4, 2.2, f.yaw, int(gx) // 7 + (sx > 0), seed=0.12 + 0.1 * (int(gx) % 5), depth=0.16)
+                lx, _, lz = f.p(f.at(w * (0.3 if sx > 0 else 0.62)), 0.0, 1.6)
+                light(CO, lx, 3.0, lz, "white", 4.0)
 
 
 def link(gx, z0, h, r, lit=(0.7, 1.0), hue="cyan", front_kind="glass"):
