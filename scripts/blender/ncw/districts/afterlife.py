@@ -92,8 +92,10 @@ B.ground_rect(D, 398.0, 416.0, -258.0, -250.0, mat="concrete")       # the bar's
 # ---------------------------------------------------------------------------
 # The block that closes the boulevard's east end, on the boulevard's north
 # lot line carried east; its east half lower.
-lot(452.0, 484.0, -344.0, -316.0, storeys(7), 9110, {"-x": "street", "-z": "back", "+z": "open", "+x": "party"},
-    {"+x": storeys(5)}, tint="charcoal", ground="lobby")
+# (Its face on the junction is built further down, by hand: here it is a
+# party wall as high as the block, which the generator leaves alone.)
+lot(452.0, 484.0, -344.0, -316.0, storeys(7), 9110, {"-x": "party", "-z": "back", "+z": "open", "+x": "party"},
+    {"+x": storeys(5), "-x": 99.0}, tint="charcoal")
 lot(484.0, 508.0, -344.0, -316.0, storeys(5), 9111, {"-x": "party", "-z": "back", "+z": "open", "+x": "back"},
     {"-x": storeys(7)}, tint="navy")
 # A clinic, three storeys, between it and the rooftop's building; the
@@ -743,18 +745,42 @@ K.wall_lamp(D, WY, 3.8, 3.05, "amber", 3.0)
 stand(398.5, WY.at(3.1), math.pi / 2, "sit", y=G0 + 0.36)
 stand(398.5, WY.at(4.5), math.pi / 2 - 0.5, "sit", y=G0 + 0.36)
 
-# The closing block's lobby, seen the length of the boulevard: its glass cut
-# by piers, a canopy over the doors lit from under, two strips of amber up
-# the piers either side of them.
-CB = B.Face("-x", EL, -344.0, -316.0)
-for sv in (0.3, 4.9, 9.5, 18.5, 23.1, 27.7):
-    CB.box((D, "trim", 0), sv - 0.22, sv + 0.22, 0.0, SHOP_H, -0.3, 0.14, col=B.TRIM[T["charcoal"]])
-B.canopy(D, CB, 9.0, 19.0, 3.0, SHOP_H - 0.55, T["charcoal"], "amber")
-for sv in (9.5, 18.5):
-    CB.box((D, "neon_amber", 0), sv - 0.04, sv + 0.04, 0.4, 3.9, 0.14, 0.18)
-CB.box((D, "metal", 1), 13.9, 14.1, G0, 3.2, -0.3, -0.24)
-stand(EL + 0.6, CB.at(12.6), -math.pi / 2, "idle", y=G0)
-stand(EL + 0.7, CB.at(21.0), -math.pi / 2 + 0.6, "phone", y=G0)
+# The closing block's face on the junction, seen the length of the boulevard:
+# shops behind glass, two shutters down, the door to the flats in a recess
+# under a tube of cyan, rust awnings, a sign over each shop or a blade off
+# its pier, conduit and units over the fascia, balconies and a fire escape
+# up the wall, and people at the doors.
+CB = B.Face("-x", EL, -344.0, -316.0)      # s runs south from its north end
+rb = random.Random(9213)
+CB_TINT = T["charcoal"]
+CB_TRIM = B.TRIM[CB_TINT]
+B.facade_wall((D, "facade", 0), CB, SHOP_H, storeys(7), B.wall_col(0.8, 0, 0.7, CB_TINT), 11)
+for a_, b_, signed in ((0.0, 6.4, 0.9), (9.6, 12.8, 0.0), (15.2, 21.6, 0.9), (24.8, 28.0, 0.0)):
+    B.shopfront(D, CB, rb, a_, b_, CB_TINT, signed, 0.0, door=False, palette=WATSON["shop_colours"])
+    light(D, EL - 1.4, 2.2, CB.at((a_ + b_) / 2), "amber", 3.0)
+K.awning(D, CB, 9.9, 12.5, out=1.5)
+K.awning(D, CB, 25.1, 27.7, out=1.4, col=K.RUST_DARK)
+for a_, b_, lamp_ in ((6.4, 9.6, "white"), (21.6, 24.8, None)):
+    CB.quad((D, "trim", 0), a_, b_, 0.0, SHOP_H, 0.0, col=DARK)
+    K.shutter(D, CB, a_ + 0.35, b_ - 0.35, h=3.3, lamp=lamp_)
+# The door to the flats: its recess between two piers, a tube over it.
+for a_, b_ in ((12.8, 13.06), (14.94, 15.2)):
+    CB.box((D, "trim", 0), a_, b_, 0.0, SHOP_H, -0.95, 0.08, col=CB_TRIM)
+K.fbox(CB, (D, "trim", 0), 13.06, 14.94, 2.7, SHOP_H, -0.95, 0.0, col=DARK, bottom=True)
+CB.quad((D, "trim", 0), 13.06, 14.94, 0.0, 2.7, -0.93, col=DARK)
+B.ground_rect(D, EL, EL + 0.95, CB.at(13.06), CB.at(14.94))
+K.lit_door(D, CB, 14.0, "cyan", w=1.2, h=2.4, power=4.5, back=0.92)
+CB.box((D, "neon_cyan", 0), 13.3, 14.7, 2.92, 3.0, 0.0, 0.06)
+K.pipes(D, CB, 0.6, 27.4, 5.02, rb, n=3)
+K.dress(D, CB, storeys(7), rb, dict(ST, balcony=0.22, ac=0.45, signs=0.5), CB_TINT, escape=18.4)
+for sv, yy, size, ang in ((9.6, 5.7, "bx", -0.3), (15.2, 6.6, "bs", 0.4), (24.8, 5.6, "bx", -0.35)):
+    K.blade(D, EL, CB.at(sv), yy, size, CB.yaw + ang)
+# What stands on the pavement against it, and who.
+for name, sv, out_ in (("aframe", 1.6, 0.65), ("crates", 7.2, 0.6), ("charge_post", 15.6, 0.35), ("bags", 22.4, 0.5), ("aframe", 26.0, 0.65)):
+    P.place(name, EL - out_, G0, CB.at(sv), CB.yaw, district=D)
+for sv, out_, yaw_, pose_ in ((3.4, 0.55, 0.0, "talk"), (4.3, 0.55, math.pi, "talk"), (8.6, 0.4, -math.pi / 2, "lean"), (13.6, -0.45, -math.pi / 2, "smoke"),
+                              (17.6, 0.5, -math.pi / 2 + 0.5, "phone"), (23.4, 0.45, -math.pi / 2, "squat"), (26.9, 0.5, math.pi / 2, "idle")):
+    stand(EL - out_, CB.at(sv), yaw_, pose_, y=G0)
 
 # The yard behind the garage: a lean-to on posts with tubes under it and a
 # bench of tools, a container, a fence across the yard's south end, floods.
