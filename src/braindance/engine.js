@@ -128,6 +128,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   let roam = null;
   let roamJob = 0;
   let resumeAfter = false;
+  // Seconds the city's clock has run in free roam, past the recording's.
+  let roamed = 0;
   // The glitch a switch into or out of free roam lands with.
   let jolt = 0;
   const radioOn = () => {
@@ -226,7 +228,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     }
     // The city's own clock follows the recording's: still while paused,
     // backwards while rewinding, a jump on a scrub.
-    spec.flow = free ? (bd.mode === "photo" ? 0 : dt) : t - flowT;
+    // (What it ran on by while the player roamed comes off as the recording
+    // is taken up again, so the recording's second is the city's once more.)
+    spec.flow = free ? (bd.mode === "photo" ? 0 : dt) : t - flowT - roamed;
+    roamed = free ? roamed + spec.flow : 0;
     flowT = t;
     clock.t = t;
     bd.time = t;

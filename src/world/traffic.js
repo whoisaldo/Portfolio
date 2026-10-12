@@ -1220,17 +1220,18 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     now.braking = 0;
     if (x.car) {
       // On the network: where its route's timetable has it this second.
-      net.place(x.car, at, pose);
+      // (`late`, `held`: free roam has made it wait, see `cars` below.)
+      net.place(x.car, at - (x.late || 0), pose);
       p.set(pose.x, 0, pose.z);
       q.setFromAxisAngle(UP, Math.atan2(pose.fx, pose.fz));
-      now.braking = pose.brake;
+      now.braking = x.held ? 1 : pose.brake;
     } else if (x.path) {
       // On the ramp and the deck: where its axles are along the line gives
       // its place, its heading and its pitch on the slope. It fades in and
       // out over the last metres of the line, the lamps by their brightness
       // and the body by its dither.
       const { P, phase: ph } = x.path;
-      const t = ((((ph + (at * P.v) / P.len) % 1) + 1) % 1);
+      const t = ((((ph + ((at - (x.late || 0)) * P.v) / P.len) % 1) + 1) % 1);
       onPath(P, t * P.len - 1.35, tmp);
       onPath(P, t * P.len + 1.35, fwd);
       p.addVectors(tmp, fwd).multiplyScalar(0.5);
@@ -1521,6 +1522,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         return { x: sky.x, y: sky.y, z: sky.z };
       });
     },
+    /** Free roam (src/braindance/roam/yield.js): the cars themselves, for
+     *  the player to be stopped by and for them to stop for the player. It
+     *  makes a car wait by setting its `late` (seconds behind its timetable)
+     *  and `held` (its brake lamps); nothing else ever sets them. */
+    cars: () => ({ slots, net, onPath, time: () => clock }),
     /** Dev: every car there is at this second of the clock, drawn or not
      *  (the road checks count them from a driver's seat): where it is, the
      *  way it faces, its model, its size, whether it stands. */

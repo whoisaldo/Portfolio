@@ -780,6 +780,10 @@ const HEAD = /* glsl */ `
   uniform sampler2D uCover;
   uniform vec4 uCoverBox;
   uniform vec2 uCoverScale;
+  // Free roam's car (src/braindance/roam): where it is (x, z), how far to
+  // its side people keep and how far along their walk they start to. All
+  // zero, and it is nobody.
+  uniform vec4 uAvoid;
   ${COMMON}
 
   const float STRIDE = ${f(RIG.stride)};
@@ -882,6 +886,13 @@ const HEAD = /* glsl */ `
       at += across * k * b0;
       face = normalize(aPath.xy + across * (o1 - o0 + k * (b1 - b0)) / 0.6) * way;
       ends = min(s, aPath.z - s);
+      // Free roam's car: everyone in its way steps to the side of it they
+      // are on, clear of its flank, pavement or no.
+      if (uAvoid.z > 0.0) {
+        vec2 car = at - uAvoid.xy;
+        float side = dot(car, across);
+        at += across * (side < 0.0 ? -1.0 : 1.0) * max(uAvoid.z - abs(side), 0.0) * (1.0 - smoothstep(uAvoid.w, uAvoid.w + 3.0, abs(dot(car, aPath.xy))));
+      }
     } else if (aBody.z < 1.5 || aBody.z > 6.5) {
       // Standing with nothing to keep them where they are (not on a seat,
       // against a wall, behind a stall or over a phone), they step back
@@ -889,6 +900,9 @@ const HEAD = /* glsl */ `
       float d = length(rel) + 1e-4;
       float q = max(1.0 - d / ${f(2 * BACK)}, 0.0);
       at += rel / d * ${f(BACK)} * q * q * among;
+      // And back from free roam's car.
+      vec2 car = at - uAvoid.xy;
+      at += car / (length(car) + 1e-4) * max(uAvoid.z - length(car), 0.0);
     }
     root = vec3(at.x, ground, at.y);
     eye = distance(uCam, vec3(root.x, clamp(uCam.y, root.y, root.y + 1.8 * aBody.x), root.z));
@@ -1642,6 +1656,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     uSigns: light.uniform,
     ...overhead,
     uLod: { value: new THREE.Vector4(TRADES[0], TRADES[0] * BAND, TRADES[1], TRADES[1] * BAND) },
+    uAvoid: { value: new THREE.Vector4() },
   };
   const material = (name, vertexShader, fragmentShader, defines = {}) => {
     const m = new THREE.ShaderMaterial({ uniforms: { ...base, uPass: { value: new THREE.Vector2(0, 0.001) } }, vertexShader, fragmentShader, defines });
@@ -1834,6 +1849,11 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     update(camera) {
       eye = camera;
       refresh();
+    },
+    /** Free roam: the car people step out of the way of, at (x, z), `side`
+     *  metres to either flank from `along` metres off; no arguments, no car. */
+    avoid(x = 0, z = 0, side = 0, along = 0) {
+      base.uAvoid.value.set(x, z, side, along);
     },
     /** People in the city, and how many each draw held last frame. */
     stats() {

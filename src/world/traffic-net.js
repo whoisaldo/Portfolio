@@ -313,7 +313,7 @@ function timetable(lanes, { cycle, need, phase }) {
     // Nothing to stop for: round at the road's own pace.
     const table = new Float32Array(Math.ceil(length / CRUISE / TICK) + 1);
     for (let j = 0; j < table.length; j++) table[j] = Math.min(length, j * TICK * CRUISE);
-    return { table, period: length / CRUISE, length, free: true };
+    return { table, period: length / CRUISE, length, free: true, stops: [] };
   }
   // From one stop line (the anchor, always stopped at) round to it again.
   const lap = (anchor, held) => {
@@ -385,7 +385,9 @@ function timetable(lanes, { cycle, need, phase }) {
     const u = i >= N || time <= run.leave[i] ? i : i + (time - run.leave[i]) / Math.max(1e-6, run.t[i + 1] - run.leave[i]);
     table[j] = Math.min(N, u) * du;
   }
-  return { table, period, length, offset: stops[anchor].i * du, t0, wasted: best.wasted };
+  // (`stops`: for free roam, see `where` below. The stop lines, in metres
+  // round the route as `where` counts them, and each one's green.)
+  return { table, period, length, offset: stops[anchor].i * du, t0, wasted: best.wasted, stops: stops.map((s) => ({ u: s.i * du, green: s.green })) };
 }
 
 // The lights' phases are drawn from this. Any seed is as good a city as
@@ -495,6 +497,22 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     return out;
   };
 
+  // Free roam (src/braindance/roam/yield.js), where a car can be made late:
+  // how far round its route a car's platoon has got at a second of the
+  // clock (out.lead, in the measure of the route's `stops`), the car's own
+  // place along it (out.u), its lane and its speed. `point` is the place
+  // those metres are at.
+  const where = (car, clock, out) => {
+    const r = car.route;
+    const time = wrap(clock - (r.t0 ?? 0) - car.delay, r.period) / TICK;
+    const j = Math.min(r.table.length - 2, Math.floor(time));
+    out.v = (r.table[j + 1] - r.table[j]) / TICK;
+    out.lead = wrap(r.table[j] + (r.table[j + 1] - r.table[j]) * (time - j) + (r.offset ?? 0), r.length);
+    out.u = wrap(out.lead - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(out.lead / 4))], r.length);
+    out.lane = car.index % 2;
+    return out;
+  };
+
   // Parking: the rows of places along each run's right-hand kerb, in the
   // order a car passing them meets them: a street's bay where it has one,
   // its kerb lane where it is parked in. Each place has where it is and the
@@ -528,5 +546,5 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     }
     rows.push({ street: s.name, bay: s.bay > 0, angled: !s.bay && !!s.kerb.angle, dir: seg.dir, places });
   }
-  return { routes, cars, place, rows, cycle, streets: STREETS };
+  return { routes, cars, place, where, point, rows, cycle, streets: STREETS };
 }

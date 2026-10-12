@@ -24,6 +24,7 @@ import { buildInWorker, gatherKit, solidBoxes, CAR, WALK } from "./nav.js";
 import { createVehicle } from "./vehicle.js";
 import { createChase } from "./chase.js";
 import { createWalker, BODY } from "./walker.js";
+import { createYield } from "./yield.js";
 
 // The builder's exports, beside the kit's GLBs. Asked for afresh each visit
 // (a conditional request: a rebuilt city never meets a stale map of itself).
@@ -110,14 +111,38 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   main.waitMs = Math.round(performance.now() - t0);
   nav.stats.main = main;
 
+  // ---- the traffic and the people ------------------------------------------
+  // The cars brake for the player and are solid to them (yield.js): what
+  // the S4 and the walker stand on and are stopped by is the map with the
+  // cars near them added to its walls. Off a car and into a wall and back
+  // into the car, and there is no room there.
+  const yielding = createYield(parts.traffic);
+  const ground = yielding
+    ? Object.assign(Object.create(nav), {
+        resolve(p, r, y, bit, tol, feet) {
+          const hit = nav.resolve(p, r, y, bit, tol, feet);
+          if (hit === 2 || !yielding.push(p, r, y)) return hit;
+          return nav.resolve(p, r, y, bit, tol, feet) && yielding.push(p, r, y) ? 2 : 1;
+        },
+        fits(x, z, r, y, bit, tol, feet) {
+          return nav.fits(x, z, r, y, bit, tol, feet) && !yielding.overlaps(x, z, r, y);
+        },
+      })
+    : nav;
+
   // ---- the player --------------------------------------------------------
   // The S4 (vehicle.js): where its wheels stand, which way it points (0
   // faces +z, as the kit's yaw), its speed along its nose.
-  const vehicle = createVehicle(nav);
+  const vehicle = createVehicle(ground);
   const car = vehicle.car;
   const chase = createChase(nav, { reduced });
-  const feet = createWalker(nav, { reduced });
+  const feet = createWalker(ground, { reduced });
   const walker = feet.w;
+  // Where the player is and how fast, for whoever has to get out of the
+  // way: the S4 (`car`), whether the player is out of it (`afoot`, and
+  // then x, y, z are the walker's), the ground velocity of whichever.
+  const player = { afoot: false, x: 0, y: 0, z: 0, vx: 0, vz: 0, car };
+  const velocity = { x: 0, z: 0 };
   const input = { throttle: 0, brake: 0, steer: 0, hand: false };
   const parked = { throttle: 0, brake: 0, steer: 0, hand: true };
   const stride = { ahead: 0, side: 0, run: false };
@@ -151,7 +176,7 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   const stands = (lane) => {
     const fx = Math.sin(lane.heading);
     const fz = Math.cos(lane.heading);
-    return vehicle.CIRCLES.every(([d, side, r]) => nav.fits(lane.x + fx * d - fz * side, lane.z + fz * d + fx * side, r + 0.1, lane.y, CAR, 0.6));
+    return vehicle.CIRCLES.every(([d, side, r]) => ground.fits(lane.x + fx * d - fz * side, lane.z + fz * d + fx * side, r + 0.1, lane.y, CAR, 0.6));
   };
   const nearestLane = (x, y, z) => {
     let best = null;
@@ -203,7 +228,7 @@ export async function createRoam({ parts, world, reduced = false, city = { board
       const spots = [[fz * 1.75, -fx * 1.75], [-fz * 1.75, fx * 1.75], [-fx * 3.2, -fz * 3.2], [fx * 3.2, fz * 3.2]].map(([dx, dz]) => ({ x: car.x + dx, z: car.z + dz }));
       let spot = spots.find((s) => {
         const h = nav.floor(s.x, s.z, car.y, WALK, 0.6);
-        return h === h && nav.fits(s.x, s.z, BODY + 0.05, h, WALK, 0.42);
+        return h === h && ground.fits(s.x, s.z, BODY + 0.05, h, WALK, 0.42);
       });
       spot ??= nav.nearest(car.x, car.z, car.y, WALK, BODY + 0.05, 8, 0.6);
       if (!spot || !feet.place(spot.x, spot.z, car.heading, car.y)) return;
@@ -236,6 +261,8 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   return {
     car,
     walker,
+    player,
+    yielding,
     nav,
     graph,
     vehicle,
@@ -258,6 +285,8 @@ export async function createRoam({ parts, world, reduced = false, city = { board
       keys.clear();
       if (document.pointerLockElement) document.exitPointerLock?.();
       parts.car?.endFree();
+      yielding?.reset();
+      parts.crowd?.avoid?.();
       set({ roam: "off", district: "", prompt: "", locked: false });
     },
     /**
@@ -274,6 +303,11 @@ export async function createRoam({ parts, world, reduced = false, city = { board
       const afoot = mode === "walk";
       const ahead = (held("KeyW", "ArrowUp") ? 1 : 0) - (held("KeyS", "ArrowDown") ? 1 : 0);
       const left = (held("KeyA", "ArrowLeft") ? 1 : 0) - (held("KeyD", "ArrowRight") ? 1 : 0);
+      // The cars, for where the player was a frame ago: who brakes, and who
+      // is near enough to be run into.
+      yielding?.frame(step, player);
+      const fromX = walker.x;
+      const fromZ = walker.z;
       if (afoot) {
         // The car waits where it was left, brake on.
         vehicle.step(step, parked);
@@ -296,6 +330,27 @@ export async function createRoam({ parts, world, reduced = false, city = { board
       }
       parts.car?.free(step, car);
       car.cut = false;
+      player.afoot = afoot;
+      if (afoot) {
+        player.x = walker.x;
+        player.y = walker.y;
+        player.z = walker.z;
+        player.vx = step > 0 ? (walker.x - fromX) / step : 0;
+        player.vz = step > 0 ? (walker.z - fromZ) / step : 0;
+      } else {
+        vehicle.velocity(velocity);
+        player.x = car.x;
+        player.y = car.y;
+        player.z = car.z;
+        player.vx = velocity.x;
+        player.vz = velocity.z;
+      }
+      // People step clear of the S4: of its flanks, from further off the
+      // faster it comes, and a little ahead of where it is.
+      const fx = Math.sin(car.heading);
+      const fz = Math.cos(car.heading);
+      const lead = clamp(car.v * 0.25, -2, 4);
+      parts.crowd?.avoid?.(car.x + fx * lead, car.z + fz * lead, 1.9, 2.6 + Math.abs(car.v) * 0.3);
       spec.afoot = afoot;
       spec.carPosition.set(car.x, car.y, car.z);
       spec.carHeading = car.heading;
@@ -365,7 +420,11 @@ export async function createRoam({ parts, world, reduced = false, city = { board
       chase.zoom(delta);
     },
     dispose() {
-      if (on) parts.car?.endFree();
+      if (on) {
+        parts.car?.endFree();
+        yielding?.reset();
+        parts.crowd?.avoid?.();
+      }
       on = false;
     },
   };
