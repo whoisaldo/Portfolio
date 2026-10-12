@@ -1018,6 +1018,33 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     for (const e of [-0.5, 0.5]) tips.push(...along(e * sp.len * 0.9).flatMap((v, k) => (k ? [sp.y + 4.4, v] : [v])));
   }
 
+  // AVs over the far city: lanes west, south and east of the kit, a
+  // hundred and more metres up, each AV a body in the boxes' draw between a
+  // white lamp ahead and a red one behind (the aviation lamps' draw), going
+  // along its lane and round again. Every lane keeps outside the hero's
+  // view up the avenue and the quarter Contact looks into.
+  // A lane: where it starts (x, y, z), which way it goes (x, z), how long.
+  const AIR_LANES = [
+    [-430, 130, 420, 0, -1, 800],
+    [-462, 152, -380, 0, 1, 800],
+    [-430, 112, 330, 1, 0, 760],
+    [330, 138, 362, -1, 0, 760],
+    [780, 142, -280, 0, -1, 520],
+    [812, 122, -800, 0, 1, 520],
+    [-700, 180, 200, 0.6, -0.8, 600],
+    [700, 150, -380, 0.45, -0.893, 600],
+    [-520, 148, 60, 0.8, 0.6, 620],
+  ];
+  const avs = [];
+  for (const [x, y, z, dx, dz, length] of AIR_LANES) {
+    const each = count < 2000 ? 3 : 6;
+    for (let i = 0; i < each; i++) {
+      const phase = (i + edit() * 0.6) / each;
+      avs.push([x, y, z, dx, dz, length, phase]);
+      box(BOX.av, x, y, z, 6.4, 1.5, 2.8, Math.atan2(-dz, dx), [length, phase, edit()]);
+    }
+  }
+
   // The dome's lamps, as GLSL the slabs share: a lamp every eleven and a
   // half metres down each kerb, a pool of light under it. Past a pixel a
   // lamp is spread into its street rather than sparkling. On the dressed
@@ -1067,7 +1094,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         return kerbLamps(off.x, p.z, id.x, 0.0, px) * step(abs(off.x), 9.0 + px) + kerbLamps(off.y, p.x, id.y, 1.0, px) * step(abs(off.y), 9.0 + px);
       }
   `;
-  const farStreet = createFarStreet(scene, shared, boxes, { street: STREET, ads });
+  const farStreet = createFarStreet(scene, shared, boxes, { street: STREET, ads, reduced });
 
   // ---- the buildings: blocks on a square plan, towers on a cut one ----------
   const material = new THREE.ShaderMaterial({
@@ -1784,7 +1811,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     // A megabuilding a mile off: few rooms lit, each a small window in a
     // cell several floors high (the vertex shader's), so it is a pinpoint.
     if (b.far) {
-      look[0] = 0.2 + 0.16 * hash11(seed);
+      look[0] = 0.3 + 0.2 * hash11(seed);
       look[1] = 0.375;
     }
     return { look, seed: hash11(at(b) + 14.9), dress };
@@ -1996,29 +2023,11 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     groups.push(5 + ((i / 3) % 3));
     moves.push(0, 0, 0, 0);
   }
-  // AVs over the far city: lanes west, south and east of the kit, a
-  // hundred and more metres up, each AV a white lamp ahead and a red one
-  // behind, going along its lane and round again. Every lane keeps outside
-  // the hero's view up the avenue and the quarter Contact looks into.
-  // A lane: where it starts (x, y, z), which way it goes (x, z), how long.
-  const AIR_LANES = [
-    [-430, 130, 420, 0, -1, 800],
-    [-462, 152, -380, 0, 1, 800],
-    [-430, 112, 330, 1, 0, 760],
-    [330, 138, 362, -1, 0, 760],
-    [780, 142, -280, 0, -1, 520],
-    [812, 122, -800, 0, 1, 520],
-    [-700, 180, 200, 0.6, -0.8, 600],
-  ];
-  for (const [x, y, z, dx, dz, length] of AIR_LANES) {
-    const each = count < 2000 ? 3 : 6;
-    for (let i = 0; i < each; i++) {
-      const phase = (i + edit() * 0.6) / each;
-      // The lamp ahead (group 3) and the one six metres behind it (4).
-      beacons.push(x, y, z, x, y, z);
-      groups.push(3, 4);
-      moves.push(dx, dz, length, phase, dx, dz, length, phase - 6 / length);
-    }
+  // The AVs' lamps: one ahead (group 3) and one six metres behind it (4).
+  for (const [x, y, z, dx, dz, length, phase] of avs) {
+    beacons.push(x, y, z, x, y, z);
+    groups.push(3, 4);
+    moves.push(dx, dz, length, phase, dx, dz, length, phase - 6 / length);
   }
   const beaconGeo = new THREE.BufferGeometry();
   beaconGeo.setAttribute("position", new THREE.Float32BufferAttribute(beacons, 3));
@@ -2210,14 +2219,15 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
       // beam widening as it climbs and gone into the cloud.
       vec3 searchlights(vec3 dir, float time) {
         vec3 sum = vec3(0.0);
-        for (int i = 0; i < ${count < 2000 ? 5 : 6}; i++) {
+        for (int i = 0; i < ${count < 2000 ? 6 : 8}; i++) {
           float fi = float(i);
           // The first three are a kilometre off and faint. The others stand
-          // just past the kit, west, east and south, each far enough off
-          // the hero's avenue and Contact's moon that its sweep never
-          // crosses either.
+          // just past the kit, west, east, south, south-west and north-
+          // west, each far enough off the hero's avenue and Contact's moon
+          // that its sweep never crosses either.
           vec3 base = i == 0 ? vec3(-460.0, 0.0, -1500.0) : i == 1 ? vec3(420.0, 0.0, -1250.0) : i == 2 ? vec3(-200.0, 0.0, 1000.0)
-            : i == 3 ? vec3(-520.0, 0.0, -250.0) : i == 4 ? vec3(820.0, 0.0, -560.0) : vec3(60.0, 0.0, 480.0);
+            : i == 3 ? vec3(-520.0, 0.0, -250.0) : i == 4 ? vec3(820.0, 0.0, -560.0) : i == 5 ? vec3(60.0, 0.0, 480.0)
+            : i == 6 ? vec3(-420.0, 0.0, 330.0) : vec3(-700.0, 0.0, -500.0);
           float turn = time * (0.045 + 0.018 * fi) + fi * 2.4;
           float lean = 0.34 + 0.12 * sin(time * 0.06 + fi * 1.7);
           vec3 a = normalize(vec3(sin(turn) * lean, 1.0, cos(turn) * lean));
@@ -2230,11 +2240,14 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           float s = (e - b * d) / den;
           if (tau <= 0.0 || s <= 0.0) continue;
           vec3 gap = w0 + dir * tau - a * s;
-          float width = 3.0 + s * 0.03;
+          // The near ones are broad, a pale band across the whole sky (but
+          // the east one, which sweeps through Corpo Row's low angle).
+          float broad = i > 2 && i != 4 ? 1.0 : 0.0;
+          float width = mix(3.0 + s * 0.03, 11.0 + s * 0.055, broad);
           float core = exp(-dot(gap, gap) / (width * width));
           float height = base.y + a.y * s;
           float fade = exp(-s / 900.0) * exp(-tau * 0.00035) * (1.0 - smoothstep(${CLOUD_H - 80}.0, ${CLOUD_H + 40}.0, height));
-          sum += core * fade * (i > 2 ? 1.8 : 1.0);
+          sum += core * fade * (broad > 0.5 ? 4.6 : i > 2 ? 1.8 : 1.0);
         }
         return vec3(0.6, 0.68, 0.9) * sum * 0.075 * uHaze;
       }
@@ -2273,6 +2286,18 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           // strike, brightest where it is thickest.
           float strike = exp(-length(p.xz - uFlashAt) / 420.0);
           col += vec3(0.62, 0.64, 0.92) * uFlash * strike * (0.1 + 0.9 * cover * n) * near;
+          // And storms of the far city's own, out over its edges west,
+          // south and east (never up the hero's avenue nor behind Contact's
+          // moon): each cell flickers for half a second every several, on
+          // its own clock, so some view always has one going.
+          for (int j = 0; j < 5; j++) {
+            float fj = float(j);
+            vec2 at = j == 0 ? vec2(-1150.0, -260.0) : j == 1 ? vec2(-520.0, 1250.0) : j == 2 ? vec2(1500.0, -1000.0) : j == 3 ? vec2(-1000.0, 600.0) : vec2(-1250.0, -900.0);
+            float u = fract(time / (7.0 + 1.5 * fj) + (j == 0 ? 0.316 : j == 1 ? 0.618 : j == 2 ? 0.5 : j == 3 ? 0.4 : 0.3));
+            float pulse = (exp(-u * 60.0) + 0.7 * exp(-abs(u - 0.035) * 90.0) + 0.5 * exp(-abs(u - 0.06) * 120.0)) * step(u, 0.12);
+            vec2 off = (p.xz - at) / 520.0;
+            col += vec3(0.62, 0.64, 0.92) * pulse * exp(-dot(off, off)) * (0.12 + 0.88 * cover * n) * near;
+          }
         } else if (uCam.y > 0.0) {
           // Inside the kit's footprint, anything near that shows the
           // ground is a gap between the kit's own pieces, and it stays
