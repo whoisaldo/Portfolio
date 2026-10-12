@@ -3,17 +3,18 @@ from the air the lit disc of ax5YUmkWf_Y@9).
 
 A round well 32 m across, as wide as the square leaves between the canyon's
 lane and the terraces' stair, roofed in triangulated glazing on dark bars:
-some panes lit teal, most clear, and through them the concourse below (its
-shop windows round the wall, lamps, trees, carts, people). The promenade
+every pane clear glass (dark, blue-teal, giving back the sky), a steel disc
+at each joint, and through all of it the concourse below (its shop windows
+round the wall, lamps, trees, carts, people). The promenade
 crosses it on a causeway (the walkers' line at z -230 stays at ground
 level), a kerb and a glass balustrade run round both halves, a ring of
-radial paving and a line of light lie round that, and spokes of light run
-out over the square's slabs to its edges. Over the causeway a koi swims
-(YRL74JmhVgk@18): a fish 19 m long drawn in neon tube on three slim gates.
-
-Heights: the Work shot's frame (a phone's is the lower) passes 7.4 m over
-the causeway and the braindance's cameras never come under 14 m here, so
-the koi's highest tube is at 6.9 m and nothing else is over 2 m.
+radial paving and a dashed line of amber lie round that, and six spokes of
+white light run out over the square's slabs to its edges. Over it two hologram koi turn
+(YRL74JmhVgk@18; src/world/plaza-koi.js draws them, circling this centre at
+y 14.5 and y 30, fins down to about y 6): nothing solid stands over the hub
+above 2 m, and the square takes their light: amber and orange pools on the
+ring's paving, the kerb and the glazing's bars, and low on the fronts that
+face the hub.
 """
 from ncw.kit import *  # noqa: F401,F403
 from ncw import props as P
@@ -68,7 +69,10 @@ for course, (r0, r1) in enumerate(((RK, RM), (RM, RO))):
         tone = tones[((i + course) // 2) % (NSEG // 2)]
         a0, a1 = i * STEP + (0.03 / r0 if first else 0.0), (i + 1) * STEP - (0.0 if first else 0.03 / r0)
         up_poly((PL, "paint", 0), [at(r0 + 0.02, a0), at(r0 + 0.02, a1), at(r1 - 0.02, a1), at(r1 - 0.02, a0)], G, tone)
-ring((PL, "neon_teal", 0), HX, HZ, RO + 0.05, RO + 0.17, G + 0.012, n=NSEG)
+# (The line round it is the koi's amber, in dashes: every other stone.)
+for i in range(0, NSEG, 2):
+    a0, a1 = i * STEP + 0.012, (i + 1) * STEP - 0.012
+    up_poly((PL, "neon_amber", 0), [at(RO + 0.05, a0), at(RO + 0.05, a1), at(RO + 0.17, a1), at(RO + 0.17, a0)], G + 0.012)
 
 
 def free(x, z):
@@ -81,16 +85,16 @@ def free(x, z):
     return x > 48.7 and -260.2 < z < -191.9
 
 
-for i in range(16):
+for i in (1, 4, 6, 9, 11, 14):
     a = (i + 0.5) * math.tau / 16
     r1 = RO + 0.5
     while r1 < 46.0 and free(*at(r1 + 0.5, a)):
         r1 += 0.5
     if r1 > RO + 2.5:
-        gline("teal", *at(RO + 0.5, a), *at(r1, a), G + 0.012, w=0.09)
+        gline("white", *at(RO + 0.5, a), *at(r1, a), G + 0.012, w=0.07)
 
 # ---------------------------------------------------------------------------
-# The kerb round each half of the well, lit along its foot.
+# The kerb round each half of the well.
 # ---------------------------------------------------------------------------
 OUTER = ([(0.0, -1.0, -(CW[1] - KW))], [(0.0, 1.0, CW[0] + KW)])
 for i in range(NSEG):
@@ -106,9 +110,6 @@ for i in range(NSEG):
         s = seg_clip(at(RK, a1), at(RK, a0), outer)
         if s:
             vwall((PL, "concrete", 0), s[0], s[1], G - 0.03, KY)
-        s = seg_clip(at(RK + 0.02, a1), at(RK + 0.02, a0), outer)
-        if s:
-            vwall((PL, "neon_cyan", 0), s[0], s[1], G + 0.02, G + 0.08)
 
 # ---------------------------------------------------------------------------
 # The causeway: the promenade's own slabs on a deck across the well, a kerb
@@ -150,24 +151,26 @@ def lobe_loop(r, zline, south):
 
 RB = RK - KW
 RAIL_Z = (CW[0] + KW / 2, CW[1] - KW / 2)
-balustrade(lobe_loop(RB, RAIL_Z[1], True), KY, colour="teal", close=True)
-balustrade(lobe_loop(RB, RAIL_Z[0], False), KY, colour="teal", close=True)
+balustrade(lobe_loop(RB, RAIL_Z[1], True), KY, colour="amber", close=True)
+balustrade(lobe_loop(RB, RAIL_Z[0], False), KY, colour="amber", close=True)
 
 # ---------------------------------------------------------------------------
-# The glazing: a lattice of triangles on dark bars over each half, deep
-# beams under it running in to the middle; panes lit toward the rim, clear
-# over the middle.
+# The glazing (PzkEqhVByw4@86): a lattice of triangles over each half, every
+# pane clear glass, on steel bars a quarter of a metre deep with a disc at
+# each joint, deep beams under it running in to the middle.
 # ---------------------------------------------------------------------------
 S = 2.6
 VX, VZ = S / 2, S * math.sqrt(3) / 2
+BAR_D = 0.25
 glass = disc_planes(HX, HZ, RP - 0.03, NSEG)
+inside = disc_planes(HX, HZ, RP - 0.35, NSEG)
 
 
 def lat(a, b):
     return (HX + 0.4 + a * S + b * VX, HZ + 0.3 + b * VZ)
 
 
-for lobe in LOBES:
+for lobe, edge in zip(LOBES, ((0.0, -1.0, -(CW[1] + 0.3)), (0.0, 1.0, CW[0] - 0.3))):
     planes = glass + lobe
     for a in range(-18, 18):
         for b in range(-9, 9):
@@ -176,21 +179,21 @@ for lobe in LOBES:
                 continue
             for tri in ((p00, p10, p01), (p10, p11, p01)):
                 piece = clip_planes(tri, planes)
-                if len(piece) < 3:
-                    continue
-                f = math.hypot(sum(p[0] for p in piece) / len(piece) - HX, sum(p[1] for p in piece) / len(piece) - HZ) / RP
-                if rh.random() < 0.08 + 0.42 * f * f:
-                    tone = dim("teal", rh.uniform(0.1, 0.34)) if rh.random() < 0.86 else dim("white", rh.uniform(0.14, 0.24))
-                    up_poly((PL, "glow", 0), piece, YG, tone)
+                if len(piece) >= 3:
+                    v = rh.uniform(0.8, 1.0)
+                    up_poly((PL, "clearglass", 0), piece, YG, (v, v, v, 1.0))
             for p, q in ((p00, p10), (p00, p01), (p10, p01)):
                 s = seg_clip(p, q, planes)
                 if s:
-                    bar((PL, "board_frame", 0), s[0], s[1], YG + 0.05, 0.11, 0.14)
+                    bar((PL, "board_frame", 0), s[0], s[1], YG + 0.05, 0.1, BAR_D)
+            # The joint: a steel disc proud of the bars (a phone goes without).
+            if all(nx * p00[0] + nz * p00[1] <= d for nx, nz, d in inside + [edge]):
+                cylinder((PL, "metal", 1), p00[0], p00[1], YG + 0.05, YG + 0.1, 0.2, segs=6)
     for i in range(16):
         a = (i + 0.5) * math.tau / 16
         s = seg_clip(at(1.2, a), at(RP - 0.05, a), lobe)
         if s:
-            bar((PL, "board_frame", 0), s[0], s[1], YG - 0.09, 0.3, 0.42)
+            bar((PL, "board_frame", 0), s[0], s[1], YG - 0.2, 0.3, 0.42)
 
 # ---------------------------------------------------------------------------
 # The concourse under it: a paved floor with rings of light, the wall a
@@ -207,7 +210,6 @@ for j, n in enumerate((8, 16, 24, 32)):
         g0 = 0.05 / max(r0, 1.0)
         edge = 1.4 if j == 3 else 1.0   # brighter by the shop windows
         tone = dim("white", rh.uniform(0.55, 0.95) * edge) if rh.random() < 0.7 else dim("amber", rh.uniform(0.22, 0.34) * edge)
-        tone = tone if rh.random() < 0.9 else dim("teal", 0.4)
         up_poly((PL, "glow", 0), [at(r0, a0 + g0), at(r0, a1 - g0), at(r1, a1 - g0), at(r1, a0 + g0)] if j else [at(0.0, 0.0), at(r1, a0 + g0), at(r1, a1 - g0)],
                 FLOOR, tone)
 for r, colour in ((6.0, "teal"), (11.2, "cyan")):
@@ -278,69 +280,26 @@ for i in range(12):
     light(PL, *at(12.6, (i + 0.5) * math.tau / 12)[:1], 2.0, at(12.6, (i + 0.5) * math.tau / 12)[1], "white" if i % 3 else "amber", 6.0)
 for dx, dz in ((-5.0, -3.0), (5.0, -3.0), (-9.0, 3.0), (0.0, 3.0), (9.0, 3.0), (0.0, -9.5), (0.0, 9.0)):
     light(PL, HX + dx, 2.5, HZ + dz, "white", 5.0)
-for i in range(16):
-    a = i * math.tau / 16
-    light(PL, at(RK + 1.4, a)[0], 0.6, at(RK + 1.4, a)[1], "teal", 6.0)
-    light(PL, at(RO + 1.6, a + 0.2)[0], 0.4, at(RO + 1.6, a + 0.2)[1], "cyan", 3.0)
-
-# ---------------------------------------------------------------------------
-# The koi: neon tube on three gates over the causeway, its head to the
-# stair. Body amber, two bands and the fins pink.
-# ---------------------------------------------------------------------------
-KX, KY0, KZ, KL = 76.0, 4.5, -228.0, 15.0
-PROFILE = ((0.0, 0.12), (0.05, 0.75), (0.13, 1.15), (0.25, 1.38), (0.4, 1.4), (0.55, 1.22), (0.7, 0.92), (0.83, 0.6), (0.93, 0.38), (1.0, 0.26))
-STATIONS = (0.05, 0.13, 0.25, 0.4, 0.55, 0.7, 0.83, 0.93)
-
-
-def girth(s):
-    for (s0, h0), (s1, h1) in zip(PROFILE, PROFILE[1:]):
-        if s <= s1:
-            return h0 + (h1 - h0) * (s - s0) / (s1 - s0)
-    return PROFILE[-1][1]
-
-
-def spine(s):
-    return (KX - KL * s, KY0 + 0.18 * math.sin(3.0 * s), KZ + (0.35 + 1.25 * s) * math.sin(4.6 * s + 0.5))
-
-
-def skin(s, phi, lift=0.0, out=0.0):
-    """A point on the body at s along it, phi round it (0 its back, pi/2 its
-    south flank)."""
-    x, y, z = spine(s)
-    h = girth(s)
-    return (x, y + (h + lift) * math.cos(phi), z + (0.58 * h + out) * math.sin(phi))
-
-
-def tube(colour, pts, r=0.08):
-    for a, b in zip(pts, pts[1:]):
-        pipe((PL, "neon_" + colour, 0), a, b, r, segs=4)
-
-
-for k, s in enumerate(STATIONS):
-    hoop = [skin(s, j * math.tau / 8) for j in range(8)]
-    tube("pink" if k in (2, 5) else "amber", hoop + hoop[:1], r=0.065)
-for phi in (0.0, math.pi / 2, math.pi, 3 * math.pi / 2):
-    tube("amber", [spine(0.0)] + [skin(s, phi) for s in STATIONS] + [skin(1.0, phi)])
-tx, ty, tz = spine(1.0)
-tube("pink", [(tx, ty + 0.26, tz), (tx - 1.6, ty + 1.5, tz - 0.4), (tx - 3.4, ty + 2.1, tz - 0.9), (tx - 2.3, ty + 0.1, tz - 0.7),
-              (tx - 3.2, ty - 1.9, tz - 0.9), (tx - 1.5, ty - 1.3, tz - 0.4), (tx, ty - 0.26, tz)])
-tube("pink", [(tx - 2.9, ty + 1.25, tz - 0.75), (tx, ty, tz), (tx - 2.8, ty - 1.1, tz - 0.75)], r=0.06)
-tube("pink", [skin(0.25, 0.0), skin(0.31, 0.0, 0.75), skin(0.42, 0.0, 0.8), skin(0.52, 0.0, 0.55), skin(0.6, 0.0)])
-for phi in (math.pi / 2, 3 * math.pi / 2):
-    x, y, z = skin(0.22, phi)
-    side = 1.0 if phi < math.pi else -1.0
-    tube("pink", [(x, y - 0.5, z), (x - 1.5, y - 1.5, z + side * 1.3), (x - 2.3, y - 1.0, z + side * 0.5), skin(0.33, phi)], r=0.06)
-    nx, ny, nz = spine(0.0)
-    tube("pink", [(nx, ny, nz), (nx + 0.8, ny - 0.6, nz + side * 0.45)], r=0.05)
-    ex, ey, ez = skin(0.07, phi, out=0.04)
-    eye = [(ex + 0.24 * math.cos(j * math.tau / 6), ey + 0.3 + 0.24 * math.sin(j * math.tau / 6), ez) for j in range(6)]
-    tube("white", eye + eye[:1], r=0.045)
-for x in (73.0, 68.0, 63.5):
-    s = (KX - x) / KL
-    yb = spine(s)[1] - girth(s) - 0.06
-    for z in RAIL_Z:
-        cylinder((PL, "metal", 0), x, z, KY, yb, 0.06, segs=5)
-    pipe((PL, "metal", 0), (x, yb, RAIL_Z[0]), (x, yb, RAIL_Z[1]), 0.05, segs=4)
-for x in (62.0, 66.5, 71.0, 75.0):
-    light(PL, x, 3.0, -228.4, "amber", 5.0)
-light(PL, 58.5, 3.0, -229.4, "pink", 5.0)
+# The koi's light (they turn overhead, orange and gold): pools on the ring's
+# paving, on the kerb, on the glazing's bars, and the same warm wash over
+# the whole of the hub and a little way out.
+wash(HX, HZ, 30.0, "orange", 0.5)
+for i in range(12):
+    a = (i + 0.5) * math.tau / 12
+    x, z = at(RK + 2.0, a)
+    shine(x, 1.2, z, "amber", 6.5 if i % 2 else 4.5)
+    if i % 2 == 0:
+        shine(x, 1.2, z, "red", 1.2)
+for i in range(8):
+    a = i * math.tau / 8 + 0.2
+    x, z = at(RK - 0.45, a)
+    if abs(z - (CW[0] + CW[1]) / 2) > 4.0:
+        light(PL, x, 0.9, z, "amber", 3.0)
+for r, n in ((5.5, 4), (11.5, 8)):
+    for i in range(n):
+        a = (i + 0.5) * math.tau / n
+        x, z = at(r, a)
+        if abs(z - (CW[0] + CW[1]) / 2) > 4.2:
+            light(PL, x, 0.9, z, "amber" if (i + n) % 3 else "yellow", 4.0)
+for x in (60.0, 66.5, 73.5, 80.0):
+    shine(x, 0.8, (CW[0] + CW[1]) / 2, "amber", 4.0)

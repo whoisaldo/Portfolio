@@ -14,6 +14,7 @@ not baked (it is for what is high over the street) and takes any colour on
 its vertices, so a dim one is lit glass: a pool, a skylight, a tower's fin.
 """
 from ncw.kit import *  # noqa: F401,F403
+import ncw.kit as K
 from ncw import buildings as B
 from ncw import props as P
 
@@ -61,6 +62,73 @@ def nbox(colour, x0, x1, y0, y1, z0, z1, step=3.2, detail=0):
         n = max(1, int(math.ceil((z1 - z0) / step)))
         for i in range(n):
             box(key, x0, x1, y0, y1, z0 + (z1 - z0) * i / n, z0 + (z1 - z0) * (i + 1) / n, scale=1.0)
+
+
+# Pools of light. The site lifts whatever the bake finds away from the
+# avenue toward one brightness (spill.js), which is why a square full of
+# signs is evenly grey. So a pool here (shine) is two things: the lamp in the bake
+# (kit.light: its pool is added after that lift), and the same pool on the
+# square's own stone, whose slabs are laid last (plaza_paving.py) with each
+# corner as bright as what stands near it, and dark where nothing does.
+POOLS = []
+TINT = {"amber": (1.0, 0.6, 0.24), "orange": (1.0, 0.42, 0.1), "white": (0.86, 0.9, 1.0), "cyan": (0.3, 0.8, 1.0), "teal": (0.3, 0.9, 0.75),
+        "magenta": (1.0, 0.3, 0.8), "pink": (1.0, 0.3, 0.5), "yellow": (1.0, 0.86, 0.2), "red": (1.0, 0.16, 0.12), "blue": (0.35, 0.5, 1.0),
+        "green": (0.3, 1.0, 0.55), "purple": (0.62, 0.35, 1.0)}
+
+
+def wash(x, z, reach, hue, k):
+    """A screen's or a hologram's colour on the stone within `reach` of
+    (x, z): on the slabs only, nothing in the bake."""
+    POOLS.append((x, z, reach, TINT[hue], k))
+
+
+def shine(x, y, z, hue, power, reach=None):
+    """A lamp's, a window's or a small screen's light on the ground."""
+    light(PL, x, y, z, hue, power)
+    POOLS.append((x, z, reach or 2.6 + 0.5 * power, TINT[hue], min(1.0, 0.25 + power / 9.0)))
+
+
+def lit_at(x, z):
+    """How bright the stone is at (x, z), as a colour to multiply its tone
+    by: the night's own blue where no pool reaches."""
+    r, g, b = 0.2, 0.225, 0.29
+    for px, pz, reach, c, k in POOLS:
+        d2 = ((x - px) ** 2 + (z - pz) ** 2) / (reach * reach)
+        if d2 < 5.0:
+            w = k / ((1.0 + 2.2 * d2) ** 2)
+            r, g, b = r + c[0] * w, g + c[1] * w, b + c[2] * w
+    m = max(r, g, b, 1.0)
+    return (r / m, g / m, b / m)
+
+
+def lit_slab(key, x0, x1, z0, z1, y, tone, cut=None, cell=2.0):
+    """A slab of stone lying flat, cut into cells so the light on it runs
+    smoothly over it (the joints are between slabs, not cells). `cut`:
+    (cx, cz, r), a round hole it is laid round."""
+    nx, nz = max(1, int(math.ceil((x1 - x0) / cell))), max(1, int(math.ceil((z1 - z0) / cell)))
+    for i in range(nx):
+        for j in range(nz):
+            xa, xb = x0 + (x1 - x0) * i / nx, x0 + (x1 - x0) * (i + 1) / nx
+            za, zb = z0 + (z1 - z0) * j / nz, z0 + (z1 - z0) * (j + 1) / nz
+            pieces = rect_minus_disc(xa, xb, za, zb, *cut) if cut else [[(xa, za), (xb, za), (xb, zb), (xa, zb)]]
+            for pts in pieces:
+                lit_poly(key, pts, y, tone)
+
+
+def lit_poly(key, pts2, y, tone):
+    """A flat polygon facing up, each corner's colour the stone's tone under
+    the light that reaches it."""
+    area = sum(a[0] * c[1] - c[0] * a[1] for a, c in zip(pts2, pts2[1:] + pts2[:1]))
+    if area > 0:
+        pts2 = list(reversed(pts2))
+    b = K.batches[key]
+    base = len(b.verts)
+    b.verts.extend(K.P(x, y, z) for x, z in pts2)
+    b.faces.append(tuple(range(base, base + len(pts2))))
+    b.uvs.extend((x / 2.0, -z / 2.0) for x, z in pts2)
+    for x, z in pts2:
+        l = lit_at(x, z)
+        b.cols.append((tone[0] * l[0], tone[1] * l[1], tone[2] * l[2], 1.0))
 
 
 def up_poly(key, pts2, y, col=(1, 1, 1, 1), scale=2.0):
@@ -363,12 +431,11 @@ def rail(pts, y, colour="cyan", h=1.05, close=False):
             oriented_box((PL, "neon_" + colour, 0), sx, y + 0.07, sz, length / m, 0.05, 0.06, yaw, scale=1.0)
 
 
-def balustrade(pts, y, colour="cyan", h=1.05, close=False, lit=None, tint="teal"):
+def balustrade(pts, y, colour="cyan", h=1.1, close=False, k=0.9):
     """A glass balustrade along a line of (x, z) points at floor level y
-    (KvMY1uzSC1E@43): slim posts, a steel top rail, the glass's lit edge
-    under it and a line of light along the foot. The glass itself is clear
-    (nothing is drawn) unless `lit` gives it a tint: what is seen against
-    the sky from below may be tinted, what is looked down through may not."""
+    (KvMY1uzSC1E@43): panes of clear glass 1.1 m high between slim steel
+    posts, a shoe along the foot, and the glass's top edge lit (a thin strip
+    of light: the glass itself does not glow)."""
     segs = list(zip(pts, pts[1:] + (pts[:1] if close else [])))
     if not close:
         segs = segs[:len(pts) - 1]
@@ -378,21 +445,16 @@ def balustrade(pts, y, colour="cyan", h=1.05, close=False, lit=None, tint="teal"
             continue
         yaw = math.atan2(-(bz_ - az), bx_ - ax)
         mx, mz = (ax + bx_) / 2, (az + bz_) / 2
-        oriented_box((PL, "metal", 0), mx, y + h, mz, length + 0.06, 0.06, 0.1, yaw, scale=0.5)
-        oriented_box((PL, "glow", 0), mx, y + h - 0.06, mz, length, 0.025, 0.03, yaw, scale=1.0, col=dim(tint, 0.8))
-        if lit:
-            for turn in (0.0, math.pi):
-                rotated_quad((PL, "glow", 0), mx, y + 0.1 + (h - 0.2) / 2, mz, length, h - 0.2, yaw + turn, col=dim(tint, lit))
+        v = 0.86 + 0.14 * ((int(ax * 7 + az * 13)) % 3) / 2.0
+        rotated_quad((PL, "clearglass", 0), mx, y + 0.06 + (h - 0.08) / 2, mz, length - 0.04, h - 0.08, yaw, col=(v, v, v, 1.0))
+        oriented_box((PL, "metal", 1), mx, y + 0.03, mz, length, 0.06, 0.07, yaw, scale=0.5)
+        oriented_box((PL, "glow", 0), mx, y + h, mz, length, 0.035, 0.045, yaw, scale=1.0, col=dim(colour, k))
         n = max(1, int(round(length / 2.1)))
         for i in range(n):
             px_, pz_ = ax + (bx_ - ax) * i / n, az + (bz_ - az) * i / n
-            box((PL, "metal", 1), px_ - 0.035, px_ + 0.035, y, y + h, pz_ - 0.035, pz_ + 0.035, scale=0.5)
+            box((PL, "metal", 1), px_ - 0.025, px_ + 0.025, y, y + h - 0.02, pz_ - 0.025, pz_ + 0.025, scale=0.5)
         if not close and (bx_, bz_) == tuple(pts[-1]):
-            box((PL, "metal", 1), bx_ - 0.035, bx_ + 0.035, y, y + h, bz_ - 0.035, bz_ + 0.035, scale=0.5)
-        m = max(1, int(math.ceil(length / 3.2)))
-        for i in range(m):
-            sx, sz = ax + (bx_ - ax) * (i + 0.5) / m, az + (bz_ - az) * (i + 0.5) / m
-            oriented_box((PL, "neon_" + colour, 0), sx, y + 0.05, sz, length / m, 0.05, 0.05, yaw, scale=1.0)
+            box((PL, "metal", 1), bx_ - 0.025, bx_ + 0.025, y, y + h - 0.02, bz_ - 0.025, bz_ + 0.025, scale=0.5)
 
 
 HEDGE = ((0.1, 0.28, 0.15, 1), (0.08, 0.24, 0.13, 1), (0.13, 0.32, 0.16, 1))
