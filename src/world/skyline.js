@@ -976,7 +976,25 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           if (!clearOf(px, pz, 1.1)) continue;
           box(BOX.post, px, KERB + 3.1, pz, 0.16, 6.2, 0.16);
           const [ax, az] = place(5.0, a * 11.5);
-          box(BOX.head, ax, KERB + 6.25, az, alongZ ? 3.1 : 0.36, 0.14, alongZ ? 0.36 : 3.1, 0, [index, alongZ ? 0 : 1, -side]);
+          box(BOX.head, ax, KERB + 6.25, az, alongZ ? 3.1 : 0.36, 0.22, alongZ ? 0.36 : 3.1, 0, [index, alongZ ? 0 : 1, -side]);
+        }
+        // Who is out on this pavement: up to three people along it, half
+        // of them under an umbrella, and on one kerb in three a vending
+        // machine against the wall. (By the hash, not the stream: the cars
+        // below keep their draws.)
+        const onSlab = (x, z) => x > slab[0] + 0.4 && x < slab[2] - 0.4 && z > slab[1] + 0.4 && z < slab[3] - 0.4;
+        const here = hash11(f32(gx * 0.37 + gz * 0.61 + (alongZ ? 3.1 : 7.7) + side));
+        for (let k = 0; k < Math.floor(here * 4); k++) {
+          const hk = hash11(here * 91.7 + k * 13.3);
+          const [qx, qz] = place(6.9 + 1.4 * hash11(hk * 57.1), mid + (hk - 0.5) * 30);
+          if (!onSlab(qx, qz) || !clearOf(qx, qz, 1.2)) continue;
+          const tall = 1.58 + 0.24 * hash11(hk * 31.9);
+          box(BOX.person, qx, KERB + tall / 2, qz, 0.46, tall, 0.3, hk * 6.283, [hash11(hk * 17.3), 0, 0]);
+          if (hash11(hk * 23.9) < 0.5) box(BOX.umbrella, qx, KERB + tall + 0.32, qz, 1.1, 0.1, 1.1, hk * 3.1, [hash11(hk * 41.3), 0, 0]);
+        }
+        if (here > 0.66) {
+          const [vx, vz] = place(8.25, mid + (hash11(here * 7.7) - 0.5) * 24);
+          if (onSlab(vx, vz) && clearOf(vx, vz, 1.2)) box(BOX.vending, vx, KERB + 0.95, vz, 1.1, 1.9, 0.7, alongZ ? Math.PI / 2 : 0, [hash11(here * 19.1), 0, 0]);
         }
         if (ring() < 0.5) {
           const [cx, cz] = place(4.85, mid + (ring() - 0.5) * 22);
@@ -988,6 +1006,24 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       }
     }
   }
+  // Past the gate that closes the avenue's south arm the street goes on
+  // (the grid's street along x -3): a checkpoint's gantry stands over it,
+  // two posts, a beam, a lit board, a floodlit bar under the beam; and
+  // seventy metres past the gate a bridge crosses the street on two
+  // pylons, thirty metres up, two floors of lit windows in a truss with
+  // boards standing on it, so that over the gate (which hides the street)
+  // the city is seen to carry on.
+  for (const [gz, seed] of [[246, 0.77]]) {
+    for (const e of [-8.5, 8.5]) box(BOX.steel, -3 + e, 4.8, gz, 0.6, 9.6, 0.6);
+    box(BOX.steel, -3, 9.3, gz, 18, 0.7, 0.9);
+    box(BOX.board, -3, 11.6, gz, 11, 3.2, 0.5, 0, [seed, Math.floor(seed * 16), 0]);
+    box(BOX.head, -3, 8.7, gz, 14, 0.22, 0.4, 0, [1, 1, 1]);
+  }
+  for (const e of [-7.6, 7.6]) box(BOX.steel, -3 + e, 15, 168, 2.2, 30, 2.2, 0, [0.3, 0, 0]);
+  box(BOX.deck, -3, 33.8, 168, 46, 7.6, 9, 0, [0.42, 0, 0]);
+  box(BOX.board, -12, 43.2, 168, 16, 8.4, 0.7, 0, [0.63, 3, 0]);
+  box(BOX.board, 9, 41.4, 168, 12, 4.8, 0.7, 0, [0.18, 12, 0]);
+
   // ---- the towers' heads, and what spans between them ------------------------
   // One crown stood on tower after tower: the dark glass box with lit edges.
   // Two keep it. The rest are a setback floor like any other, and the roofs
@@ -1115,10 +1151,18 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     [-700, 180, 200, 0.6, -0.8, 600],
     [700, 150, -380, 0.45, -0.893, 600],
     [-520, 148, 60, 0.8, 0.6, 620],
+    // Three nearer the kit, between its edge and the first megatowers:
+    // down the west side, along the south (no further east than Contact's
+    // quarter begins) and up the east past the boulevard's end.
+    [-262, 96, 300, 0, -1, 960],
+    [-200, 104, 142, 1, 0, 610],
+    [622, 118, -900, 0, 1, 640],
   ];
   const avs = [];
   for (const [x, y, z, dx, dz, length] of AIR_LANES) {
-    const each = count < 2000 ? 3 : 6;
+    // A lane is a file of craft sixty to eighty metres apart, not one or
+    // two: ten to a lane (five on a phone).
+    const each = count < 2000 ? 5 : 10;
     for (let i = 0; i < each; i++) {
       const phase = (i + edit() * 0.6) / each;
       avs.push([x, y, z, dx, dz, length, phase]);
@@ -1275,7 +1319,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       const reach = (alongX ? fw : fd) * 0.5 - 1.2;
       const [sx, sz] = alongX ? at2(out * reach, 0) : at2(0, out * reach);
       const turn = b.yaw + (alongX ? Math.PI / 2 : 0);
-      box(BOX.board, sx, y + 2.6 + high / 2, sz, width, high, 0.8, turn, [k1, dealt.ad + 8, Math.floor(k2 * 4)]);
+      // (Its face is toward the kit; the other side is its back.)
+      box(BOX.board, sx, y + 2.6 + high / 2, sz, width, high, 0.8, turn, [k1, dealt.ad + 8, out > 0 ? 1 : 2]);
       for (const e of [-0.42, 0, 0.42]) {
         const [px2, pz2] = alongX ? at2(out * reach, e * width) : at2(e * width, out * reach);
         box(BOX.steel, px2, y + (2.6 + high) / 2, pz2, 0.45, 2.6 + high, 0.45, turn);
@@ -1906,20 +1951,29 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             // canopy, the hall behind them lit from its ceiling.
             float hl = hash12(vec2(vForm.z, 6.6));
             vec4 front = shopFront(um, vWorld.y, vForm.z + mod(vHero.w, 4.0) * 3.0, wallC, spill);
-            if (hl < 0.33) {
+            if (hl < mix(0.2, 0.33, held)) {
               float pier = step(min(fract(um / 6.4), 1.0 - fract(um / 6.4)), 0.05);
               float slat = 0.55 + 0.45 * step(0.5, fract(vWorld.y * 7.0));
               front = vec4(mix((vec3(0.03, 0.031, 0.036) + wallC * 0.6) * slat, wallC, max(pier, step(3.5, vWorld.y))), 0.0);
             }
-            float eu = um - vHero.z * 0.5;
-            if (abs(eu) < 3.2 && vHero.z > 12.0) {
+            // (No two doors alike: each face's is its own width, a little
+            // off the middle, its hall one of five lights, its canopy a
+            // band of light or a dark slab under a lit name.)
+            float hd = hash12(vec2(vForm.z, 7.7 + mod(vHero.w, 4.0)));
+            float hd2 = hash12(vec2(vForm.z, 9.9 + mod(vHero.w, 4.0)));
+            float doorHalf = mix(3.2, 1.9 + 2.6 * hd, 1.0 - held);
+            float eu = um - vHero.z * (0.5 + (hd2 - 0.5) * 0.3 * (1.0 - held));
+            if (abs(eu) < doorHalf && vHero.z > 12.0) {
               vec3 hallCol = hl > 0.6 ? vec3(0.78, 0.88, 1.0) : vec3(1.0, 0.74, 0.46);
-              float frame = clamp(step(3.0, abs(eu)) + step(abs(fract(eu / 1.6 + 0.5) - 0.5) * 1.6, 0.05) + step(abs(vWorld.y - 2.5), 0.04), 0.0, 1.0);
+              if (held < 0.5) hallCol = hd2 < 0.3 ? vec3(1.0, 0.74, 0.46) : hd2 < 0.52 ? vec3(0.78, 0.88, 1.0) : hd2 < 0.7 ? vec3(0.3, 0.9, 1.0) : hd2 < 0.85 ? vec3(1.0, 0.36, 0.62) : vec3(0.7, 1.0, 0.8);
+              float frame = clamp(step(doorHalf - 0.2, abs(eu)) + step(abs(fract(eu / 1.6 + 0.5) - 0.5) * 1.6, 0.05) + step(abs(vWorld.y - 2.5), 0.04), 0.0, 1.0);
               float desk = step(abs(eu + 0.9), 1.1) * step(vWorld.y, 1.1) * step(0.35, vWorld.y);
               vec3 hall = hallCol * (0.07 + 0.3 * smoothstep(0.2, 3.3, vWorld.y)) * (1.0 - 0.6 * desk);
               float canopy = step(3.3, vWorld.y) * step(vWorld.y, 3.7);
-              front = vec4(mix(mix(hall, wallC * 0.5, frame), hallCol * 1.5, canopy), max(canopy, 0.6 * (1.0 - frame)));
-              if (vWorld.y > 3.7) front = vec4(wallC, 0.0);
+              float named = step(0.5, hd) * (1.0 - held);
+              float name = step(abs(vWorld.y - 4.12), 0.24) * step(abs(eu), doorHalf * 0.7) * step(0.4, hash12(vec2(floor(eu * 2.2), vForm.z + hd))) * step(0.15, fract(eu * 2.2));
+              front = vec4(mix(mix(hall, wallC * 0.5, frame), mix(hallCol * 1.5, vec3(0.012, 0.013, 0.017), named), canopy), max(canopy * (1.0 - named), 0.6 * (1.0 - frame)));
+              if (vWorld.y > 3.7) front = vec4(mix(wallC, hallCol * 1.6, name * named), name * named);
             }
             col = front.rgb;
             footLit = front.a;
@@ -2426,17 +2480,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         float cellX = floor(g.x);
         vec2 f = vec2(fract(g.x), g.y);
         float inside = step(0.0, g.x) * step(g.x, 4.0) * step(0.0, g.y) * step(g.y, 1.0);
-        float s = 0.0;
-        float h1 = hash12(vec2(cellX, seed));
-        float h2 = hash12(vec2(cellX + 7.0, seed));
-        float h3 = hash12(vec2(cellX + 13.0, seed));
-        float w = 0.07;
-        s += step(abs(f.x - 0.5), w) * step(0.3, h1);
-        s += step(abs(f.y - 0.5), w * 0.8) * step(abs(f.x - 0.5), 0.36) * step(0.5, h2);
-        s += step(abs(f.y - 0.9), w * 0.8) * step(abs(f.x - 0.5), 0.36) * step(0.4, h3);
-        s += step(abs(f.x - 0.18), w) * step(0.7, h2);
-        s += step(abs(f.x - 0.82), w) * step(0.6, h3) * step(f.y, 0.6);
-        s += step(abs(f.y - 0.1), w * 0.8) * step(abs(f.x - 0.5), 0.36) * step(0.65, h1);
+        // Each a character of bars, a stem and a box's sides, the same
+        // either way round (a stem down one side only read as a letter
+        // seen from behind).
+        float s = kanji(vec2((f.x - 0.1) / 0.8, f.y), hash12(vec2(cellX, seed)), hash12(vec2(cellX + 7.0, seed))) * step(0.1, f.x) * step(f.x, 0.9);
         float px = max(fwidth(uv.x), fwidth(uv.y));
         // Two boards in three are lightboxes, lit right across with their
         // strokes dark on them; the rest are tubes on a board lit dimly
@@ -2465,6 +2512,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           // A rooftop sign, now and then dropping a tube out for a frame.
           float cut = step(0.993, hash12(vec2(floor(t * 12.0), seed * 91.0)));
           col = vec3(0.008, 0.008, 0.012) + neon(vLook.y) * 2.6 * glyphs(vSignUv, floor(seed * 50.0)) * (1.0 - 0.85 * cut);
+          // It has one face, toward the middle of the kit (toward Contact's
+          // lens, within what it frames). The other is its back: a dark
+          // sheet on its frame, the tubes' light coming round the edge.
+          float rear = step(dot(n.xz, (vLook.w > 0.5 ? vec2(${CONTACT_LENS[0]}.0, ${CONTACT_LENS[1]}.0) : vec2(160.0, -330.0)) - vWorld.xz), 0.0);
           // Two of the city's adverts side by side in a tube of the sign's
           // colour (but within what Contact frames, where a sign is as it
           // was).
@@ -2475,6 +2526,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             col = mix(boardFace(st, 1.4, floor(seed * 50.0) + floor(vSignUv.x * 2.0) * 3.0, seed * 50.0 + floor(vSignUv.x * 2.0)) * 1.4, neon(ni) * 2.2, tube) * (1.0 - 0.85 * cut);
           }
           emissive = 1.0;
+          if (rear > 0.5) {
+            col = signBack(vSignUv, 2.8, neon(vLook.y)) * (1.0 - 0.85 * cut);
+            emissive = 0.2;
+          }
         } else if (vGlow > 2.5 && vGlow < 3.5) {
           // An aviation lamp on the plant or the mast, blinking.
           float on = mix(0.6, step(0.5, fract(t * 0.6 + seed)), uMotion);
@@ -2574,7 +2629,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         blink = mix(blink, 0.45 + 0.55 * blink, tip);
         float ends = smoothstep(0.0, 70.0, along) * (1.0 - smoothstep(aMove.z - 70.0, aMove.z, along));
         vOn = mix(blink, ends, flying);
-        gl_PointSize = mix(clamp(mix(2600.0, 2000.0, flying) / -mv.z, mix(2.5, 2.0, flying), mix(6.0, 5.0, flying)), clamp(4200.0 / -mv.z, 3.4, 9.0), tip) * uPixel;
+        gl_PointSize = mix(clamp(mix(2600.0, 3400.0, flying) / -mv.z, mix(2.5, 2.8, flying), mix(6.0, 8.0, flying)), clamp(4200.0 / -mv.z, 3.4, 9.0), tip) * uPixel;
       }
     `,
     fragmentShader: /* glsl */ `
@@ -2686,9 +2741,9 @@ ${STREET}
           float court = step(a.x, 11.0) * step(a.y, 6.5);
           float lines = step(abs(a.x - 11.0), 0.08) * step(a.y, 6.5) + step(abs(a.y - 6.5), 0.08) * step(a.x, 11.0) + step(a.x, 0.06) * step(a.y, 6.5) + step(abs(length(c) - 1.8), 0.06) + step(abs(length(a - vec2(8.6, 0.0)) - 2.2), 0.06);
           vec3 flood = vec3(0.86, 0.92, 1.0) * (0.34 * exp(-dot(c, c) / 110.0));
-          vec3 col = mix(vec3(0.028, 0.028, 0.032), paintCol, court) * (gl + flood * 5.0);
-          col = mix(col, vec3(0.42) * (gl + flood * 5.0), min(lines, 1.0) * court * fine);
-          return col + flood * 0.06;
+          vec3 col = mix(vec3(0.028, 0.028, 0.032), paintCol, court) * (gl + flood * 2.0);
+          col = mix(col, vec3(0.42) * (gl + flood * 2.0), min(lines, 1.0) * court * fine);
+          return col + flood * 0.03;
         }
         if (kind < 0.7) {
           // Containers in rows, two and three deep.
@@ -2814,39 +2869,49 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
       // south one well left of Contact's moon, which it would skewer): the
       // nearest a view ray comes to each beam, lit the more the closer, the
       // beam widening as it climbs and gone into the cloud.
+      // One beam: the nearest a view ray comes to it, lit the more the
+      // closer, the beam widening as it climbs and gone into the cloud.
+      float beam(vec3 base, vec3 a, vec3 dir, float broad) {
+        vec3 w0 = uCam - base;
+        float b = dot(dir, a);
+        float d = dot(dir, w0);
+        float e = dot(a, w0);
+        float den = max(1.0 - b * b, 1e-4);
+        float tau = (b * e - d) / den;
+        float s = (e - b * d) / den;
+        if (tau <= 0.0 || s <= 0.0) return 0.0;
+        vec3 gap = w0 + dir * tau - a * s;
+        float width = mix(3.0 + s * 0.03, 11.0 + s * 0.055, broad);
+        float height = base.y + a.y * s;
+        return exp(-dot(gap, gap) / (width * width)) * exp(-s / 900.0) * exp(-tau * 0.00035) * (1.0 - smoothstep(${CLOUD_H - 80}.0, ${CLOUD_H + 40}.0, height));
+      }
       vec3 searchlights(vec3 dir, float time) {
-        vec3 sum = vec3(0.0);
-        for (int i = 0; i < ${count < 2000 ? 6 : 8}; i++) {
+        float sum = 0.0;
+        float lift = smoothstep(40.0, 62.0, uCam.y);
+        for (int i = 0; i < ${count < 2000 ? 6 : 9}; i++) {
           float fi = float(i);
           // The first three are a kilometre off and faint. The others stand
-          // just past the kit, west, east, south, south-west and north-
-          // west, each far enough off the hero's avenue and Contact's moon
-          // that its sweep never crosses either.
+          // just past the kit, west, east, south, south-west, north-west
+          // and further east, each far enough off the hero's avenue and
+          // Contact's moon that its sweep never crosses either.
           vec3 base = i == 0 ? vec3(-460.0, 0.0, -1500.0) : i == 1 ? vec3(420.0, 0.0, -1250.0) : i == 2 ? vec3(-200.0, 0.0, 1000.0)
             : i == 3 ? vec3(-520.0, 0.0, -250.0) : i == 4 ? vec3(820.0, 0.0, -560.0) : i == 5 ? vec3(60.0, 0.0, 480.0)
-            : i == 6 ? vec3(-420.0, 0.0, 330.0) : vec3(-700.0, 0.0, -500.0);
+            : i == 6 ? vec3(-420.0, 0.0, 330.0) : i == 7 ? vec3(-700.0, 0.0, -500.0) : vec3(1150.0, 0.0, -420.0);
           float turn = time * (0.045 + 0.018 * fi) + fi * 2.4;
           float lean = 0.34 + 0.12 * sin(time * 0.06 + fi * 1.7);
-          vec3 a = normalize(vec3(sin(turn) * lean, 1.0, cos(turn) * lean));
-          vec3 w0 = uCam - base;
-          float b = dot(dir, a);
-          float d = dot(dir, w0);
-          float e = dot(a, w0);
-          float den = max(1.0 - b * b, 1e-4);
-          float tau = (b * e - d) / den;
-          float s = (e - b * d) / den;
-          if (tau <= 0.0 || s <= 0.0) continue;
-          vec3 gap = w0 + dir * tau - a * s;
           // The near ones are broad, a pale band across the whole sky (but
-          // the east one, which sweeps through Corpo Row's low angle).
+          // the east one, which sweeps through Corpo Row's low angle), and
+          // they work in pairs: a second beam from the same lamps, crossing
+          // the first.
           float broad = i > 2 && i != 4 ? 1.0 : 0.0;
-          float width = mix(3.0 + s * 0.03, 11.0 + s * 0.055, broad);
-          float core = exp(-dot(gap, gap) / (width * width));
-          float height = base.y + a.y * s;
-          float fade = exp(-s / 900.0) * exp(-tau * 0.00035) * (1.0 - smoothstep(${CLOUD_H - 80}.0, ${CLOUD_H + 40}.0, height));
-          sum += core * fade * (broad > 0.5 ? 4.6 : i > 2 ? 1.8 : 1.0);
+          float gain = broad > 0.5 ? 4.6 : i > 2 ? 1.8 : 1.0;
+          sum += beam(base, normalize(vec3(sin(turn) * lean, 1.0, cos(turn) * lean)), dir, broad) * gain;
+          // (The second beam is for an eye above the roofs, as is their
+          // strength there, where the air is lit: from the page's own
+          // lenses the sky holds the beams it had.)
+          if (broad > 0.5 && lift > 0.001) sum += beam(base + vec3(14.0, 0.0, 9.0), normalize(vec3(sin(turn * 0.8 + 2.3) * (0.5 - lean * 0.6), 1.0, cos(turn * 0.8 + 2.3) * (0.5 - lean * 0.6))), dir, broad) * gain * 0.8 * lift;
         }
-        return vec3(0.6, 0.68, 0.9) * sum * 0.075 * uHaze;
+        return vec3(0.6, 0.68, 0.9) * sum * 0.075 * uHaze * mix(1.0, 2.0, lift);
       }
 
       void main() {

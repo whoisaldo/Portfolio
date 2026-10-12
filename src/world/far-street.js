@@ -20,15 +20,20 @@
 // a body that flies its lane in the vertex shader (its own numbers: the
 // lane's length, where along it the AV starts, a seed), shrinking to nothing
 // at the lane's ends so it never pops.
+//
+// And who is out on those first pavements: somebody standing or waiting, a
+// box cut to a head, a jacket and two legs, half of them under an umbrella
+// (an eight-sided canopy, a few with a line of light round the rim), and
+// here and there a vending machine lit from inside, against the wall.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { ADVERT } from "./sky-columns.js";
 
-export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10 };
+export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13 };
 
 // How far each kind is drawn: past it, it is under a pixel (a slab, a deck
 // and its boards are always drawn).
-const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400];
+const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
@@ -118,7 +123,9 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 sodium = mix(vec3(1.0, 0.55, 0.2), vec3(0.85, 0.9, 1.0), step(0.7, hash12(vec2(vOwn.x, vOwn.y + 3.0))));
           float along = vSize.x > vSize.z ? vLocal.x / vSize.x : vLocal.z / vSize.z;
           float head = step(0.22, along * vOwn.z);
-          lit = head * step(n.y, -0.5);
+          // (Its lens wraps the head's end: from across the street the lamp
+          // is a bar of light, not a dark stick over a lit pool.)
+          lit = head * max(step(n.y, -0.5), 0.7 * step(n.y, 0.5) * step(0.36, along * vOwn.z));
           col = mix(vec3(0.012, 0.013, 0.016) + sodium * 0.05 * head, sodium * 3.0, lit);
         } else if (kind > 4.5 && kind < 5.5) {
           // Steel on a roof: dark against the sky, its top and edges
@@ -146,6 +153,38 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 steel = vec3(0.016, 0.017, 0.022) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * max(n.y, 0.0)) * uHaze * 0.5;
           lit = pane * on * side * (1.0 - clamp(truss, 0.0, 1.0));
           col = mix(steel, glow * 0.75, lit);
+        } else if (kind > 12.5) {
+          // A vending machine: a dark case, its front a lit window of rows
+          // of cans, a slot of white light under them.
+          float front = step(vSize.z * 0.5 - 0.01, abs(vLocal.z));
+          vec2 q = vec2(vLocal.x / vSize.x + 0.5, vLocal.y / vSize.y + 0.5);
+          vec3 glow = vOwn.x < 0.35 ? vec3(0.2, 0.9, 1.0) : vOwn.x < 0.6 ? vec3(1.0, 0.25, 0.55) : vOwn.x < 0.8 ? vec3(1.0, 0.8, 0.4) : vec3(0.85, 0.95, 1.0);
+          float pane = step(0.1, q.x) * step(q.x, 0.9) * step(0.36, q.y) * step(q.y, 0.93);
+          float cans = 0.45 + 0.55 * step(0.3, fract(q.x * 6.0)) * step(0.25, fract(q.y * 7.0)) * step(0.35, hash12(floor(q * vec2(6.0, 7.0)) + vOwn.x * 9.0));
+          float slot = step(abs(q.y - 0.24), 0.04) * step(abs(q.x - 0.5), 0.3);
+          lit = front * max(pane, slot);
+          col = mix(vec3(0.02, 0.022, 0.028) + glow * 0.03, mix(glow * cans * 1.1, vec3(1.0) * 1.3, slot), lit);
+        } else if (kind > 11.5) {
+          // An umbrella: eight sides, dark or bright, a few with a line of
+          // light round the rim.
+          float r = length(vLocal.xz) / (vSize.x * 0.5);
+          float a = atan(vLocal.z, vLocal.x);
+          float flat8 = r * cos(mod(a, 0.7854) - 0.3927);
+          if (flat8 > 0.92) discard;
+          vec3 cloth = vOwn.x < 0.5 ? vec3(0.016, 0.017, 0.022) : vOwn.x < 0.65 ? vec3(0.1, 0.014, 0.02) : vOwn.x < 0.8 ? vec3(0.012, 0.03, 0.09) : vOwn.x < 0.9 ? vec3(0.12, 0.09, 0.02) : vec3(0.11, 0.11, 0.12);
+          col = cloth * (vec3(0.5) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0);
+          float rim = step(0.9, vOwn.x) * step(0.8, flat8);
+          col = mix(col, vec3(0.3, 0.95, 1.0) * 1.6, rim);
+          lit = rim;
+        } else if (kind > 10.5) {
+          // Somebody: a head, a jacket in one of a few colours, two legs
+          // (the box cut away round the head and between the legs).
+          float v = vLocal.y / vSize.y + 0.5;
+          float ax = abs(vLocal.x);
+          if ((v > 0.87 && ax > 0.12) || (v > 0.82 && v <= 0.87 && ax > 0.07) || (v < 0.47 && ax < 0.035)) discard;
+          vec3 jacket = vOwn.x < 0.34 ? vec3(0.022, 0.023, 0.028) : vOwn.x < 0.5 ? vec3(0.07, 0.072, 0.08) : vOwn.x < 0.62 ? vec3(0.11, 0.02, 0.025) : vOwn.x < 0.76 ? vec3(0.018, 0.04, 0.1) : vOwn.x < 0.88 ? vec3(0.12, 0.085, 0.02) : vec3(0.02, 0.08, 0.07);
+          vec3 body = v > 0.87 ? vec3(0.075, 0.055, 0.045) : v > 0.47 ? jacket : vec3(0.016, 0.017, 0.022);
+          col = body * (vec3(0.5) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0);
         } else if (kind > 9.5) {
           // A lattice mast's section, or a truss round a roof: legs at its
           // corners, a ring at every panel, a cross in each, and between
@@ -189,6 +228,12 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 drawn = boardFace(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, vOwn.y + floor(h * 3.0), vOwn.x * 57.0) * 1.4;
           col = mix(vec3(0.012, 0.013, 0.017), mix(mix(a * mix(1.3, 0.5, blocks), drawn, uHasAds), vec3(0.01), edge), face);
           lit = face * (1.0 - edge);
+          // A sign on a roof has one face (its third number: 1 the box's
+          // +z, 2 its -z); the other is its back, dark on its frame.
+          if (vOwn.z > 0.5 && face > 0.5 && (vOwn.z < 1.5) != (vLocal.z > 0.0)) {
+            col = signBack(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, a);
+            lit = 0.2;
+          }
         } else {
           // A parked car: a body in one of a few paints, its glass, and at
           // its ends its lamps, dark.

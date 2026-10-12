@@ -56,6 +56,19 @@ export const ADVERT = /* glsl */ `
     k += foot * step(abs(abs(f.x - 0.5) - (0.38 - f.y) * 0.9), w * 1.3);
     return min(k, 1.0);
   }
+  // The back of a sign: a dark sheet on its frame (a post either side of
+  // every bay, two rails, a brace crossing each bay) and the light of its
+  // tubes coming round the edge. st is across and up the board from behind,
+  // aspect its width over its height, tube the sign's own colour.
+  vec3 signBack(vec2 st, float aspect, vec3 tube) {
+    float bays = max(2.0, floor(aspect * 1.5 + 0.5));
+    float fx = fract(st.x * bays);
+    float fy = (st.y - 0.2) / 0.6;
+    float steel = step(min(fx, 1.0 - fx), 0.035) + step(abs(st.y - 0.2), 0.022) + step(abs(st.y - 0.8), 0.022);
+    steel += (step(abs(fx - fy), 0.035) + step(abs(fx - (1.0 - fy)), 0.035)) * step(0.0, fy) * step(fy, 1.0);
+    float edge = min(min(st.x, 1.0 - st.x) * aspect, min(st.y, 1.0 - st.y));
+    return mix(vec3(0.008, 0.009, 0.012), vec3(0.03, 0.032, 0.038), min(steel, 1.0)) + tube * 0.45 * exp(-edge * 40.0);
+  }
   // What a board shows, by its own seed: three in five one of the adverts;
   // the rest a plain screen (a field of one colour over another, a bar,
   // lines of type), a logo (a disc, a ring, a hexagon or a diamond of
