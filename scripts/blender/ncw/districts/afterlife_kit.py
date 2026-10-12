@@ -425,13 +425,15 @@ def bundle(D, a, b, sag, n, rng, spread=0.22, lead=2):
         box((D, "glow", 1), x - 0.03, x + 0.03, y - 0.36, y - 0.3, z + 0.14, z + 0.15, scale=0.5, col=GLOW[rng.choice(("red", "green", "amber"))])
 
 
-def tube(D, a, b, colour, power=2.6, fitting=True):
-    """A fluorescent tube from a to b (neon: the bake carries its light onto
-    the ground under it), in its fitting, and its pool of light."""
+def tube(D, a, b, colour, power=2.6, fitting=True, floor=G0):
+    """A fluorescent tube from a to b in its fitting, and its pool on the
+    floor under it (the light is set at the floor: the site lights a surface
+    most at the height its light hangs, and hung at the tube it lit the
+    wall beside the tube and left the floor dark)."""
     pipe((D, "neon_" + colour, 0), a, b, 0.045, segs=4, caps=True)
     if fitting:
         pipe((D, "metal", 1), (a[0], a[1] + 0.07, a[2]), (b[0], b[1] + 0.07, b[2]), 0.035, segs=4)
-    light(D, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2 - 0.3, (a[2] + b[2]) / 2, colour, power)
+    light(D, (a[0] + b[0]) / 2, floor + 0.35, (a[2] + b[2]) / 2, colour, power)
 
 
 def wall_lamp(D, f, s, y, hue, power=3.0, out=0.3):
@@ -1126,9 +1128,13 @@ def roof_fan(D, x, z, y, r=0.45, h=0.55):
 # dark between, real windows most of them dark, pipes in bundles, meters,
 # cages of mesh fencing, ladders, what a back street keeps.
 # ---------------------------------------------------------------------------
-LANE_WALL = (0.1, 0.115, 0.15, 1)       # poured concrete in the lane's blue
-LANE_FOOT = (0.048, 0.056, 0.078, 1)    # the darker band along its foot
-BLIND = (0.2, 0.2, 0.17, 1)
+LANE_WALL = (0.04, 0.047, 0.062, 1)     # a lane's wall, painted once, near black
+LANE_FOOT = (0.014, 0.017, 0.024, 1)    # the darker band painted along its foot
+LANE_LINE = (0.07, 0.085, 0.09, 1)      # the line where the two meet
+LANE_FLOOR = (0.07, 0.078, 0.095, 1)    # a lane's floor
+DADO = 1.25
+STAIN = [(0.011, 0.013, 0.018, 1), (0.085, 0.092, 0.1, 1), (0.1, 0.045, 0.022, 1), (0.02, 0.03, 0.022, 1)]
+BLIND = (0.085, 0.08, 0.065, 1)
 PIPE_PAINT = [(0.15, 0.16, 0.18, 1), (0.2, 0.085, 0.04, 1), (0.06, 0.1, 0.13, 1), (0.24, 0.19, 0.05, 1), (0.1, 0.105, 0.115, 1)]
 BOTTLE = [(0.3, 0.07, 0.05, 1), (0.08, 0.12, 0.2, 1), (0.22, 0.2, 0.18, 1)]
 # The facade shader's openings in its cell (src/world/glsl.js, windowsT), by
@@ -1138,6 +1144,19 @@ WINDOW_CELLS = {6: ((0.3, 0.34), (0.7, 0.8)), 3: ((0.24, 0.3), (0.6, 0.7))}
 # Where a wall is already taken (a door, a shutter, a window), by its plane
 # and the stretch along it, so nothing is hung across a door.
 _TAKEN = {}
+_VENTS = []   # where a lane's wall has a vent's louvres
+_STEAM = [0]
+
+
+def lane_steam(pos):
+    """Steam from a vent in a lane's wall. (The site gives each vent's puffs
+    their moments by its place in the anchors' order, which is by name: the
+    first four are named to sort where the four lane grates they replace
+    did, the rest after the rooftop's own stacks, so the plumes the page's
+    roof shots frame keep the moments they had.)"""
+    _STEAM[0] += 1
+    n = _STEAM[0]
+    empty(f"anchor_steam_afterlife_lane_{n - 1}" if n <= 4 else f"anchor_steam_vent_lane_afterlife_{n}", pos)
 
 
 def _wall(f):
@@ -1161,8 +1180,9 @@ def back_ground(district, f, r, tcol):
     door and its pool on the lane, a shutter for deliveries now and then,
     and by a door what a back street keeps there."""
     w = f.width
-    f.quad((district, "castconcrete", 0), 0.0, w, 1.0, SHOP_H, 0.0, col=LANE_WALL)
-    f.quad((district, "castconcrete", 0), 0.0, w, 0.0, 1.0, 0.0, col=LANE_FOOT)
+    f.quad((district, "castconcrete", 0), 0.0, w, DADO, SHOP_H, 0.0, col=LANE_WALL)
+    f.quad((district, "castconcrete", 0), 0.0, w, 0.0, DADO, 0.0, col=LANE_FOOT)
+    f.quad((district, "trim", 1), 0.0, w, DADO - 0.03, DADO + 0.03, 0.006, col=LANE_LINE)
     s = r.uniform(1.5, 4.0)
     while s < w - 1.5:
         if r.random() < 0.22 and s + 3.6 < w - 0.5:
@@ -1170,21 +1190,183 @@ def back_ground(district, f, r, tcol):
             take(f, s - 0.1, s + 3.3)
             s += r.uniform(7.0, 12.0)
             continue
-        f.quad((district, "door", 0), s, s + 1.1, G0, 2.3, 0.03)
-        f.box((district, "metal", 1), s - 0.08, s + 1.18, 2.3, 2.4, 0.0, 0.12)
-        for e in (s - 0.08, s + 1.1):
-            f.box((district, "metal", 1), e, e + 0.08, G0, 2.3, 0.0, 0.1)
-        hue = "cyan" if r.random() < 0.75 else "white"
-        f.box((district, "neon_" + hue, 0), s - 0.25, s + 1.35, 2.62, 2.7, 0.06, 0.12)
-        f.box((district, "metal", 1), s - 0.3, s + 1.4, 2.7, 2.76, 0.0, 0.16)
-        light(district, *f.p(f.at(s + 0.55), 2.5, 0.9), hue, 3.5)
-        take(f, s - 0.3, s + 1.4)
+        w_ = bay(district, f, s, r, deal_bay(r))
+        take(f, s - 0.3, s + w_ + 0.1)
         pick = r.random()
-        if pick < 0.8 and s + 3.6 < w:
-            px_, _, pz_ = f.p(f.at(s + 2.4), G0, 0.75)
-            P.place(("dumpster", "bags", "rubbish", "pallets", "barrel", "crates")[int(pick / 0.8 * 6)], px_, G0, pz_, f.yaw, district=district)
-            take(f, s + 1.4, s + 3.4)
-        s += r.uniform(6.0, 13.0)
+        if pick < 0.8 and s + w_ + 2.4 < w:
+            px_, _, pz_ = f.p(f.at(s + w_ + 1.2), G0, 0.75)
+            kind = ("dumpster", "bags", "rubbish", "pallets", "barrel", "crates")[int(pick / 0.8 * 6)]
+            if kind == "dumpster":
+                dumpster(district, px_, pz_, f.yaw, r)
+            else:
+                P.place(kind, px_, G0, pz_, f.yaw, district=district)
+            take(f, s + w_ + 0.2, s + w_ + 2.3)
+        s += w_ + r.uniform(4.5, 11.0)
+
+
+BAYS = ("steel", "ajar", "fire", "gate", "kitchen", "double", "hatch", "steel")
+_BAY_DECK, _BAY_LAST = [], []
+_N_KITCHEN = [0]
+
+
+def deal_bay(r):
+    """The next kind of back door from a shuffled deck, never the kind of
+    either of the last two (so no lane shows one door three times)."""
+    for _ in range(24):
+        if not _BAY_DECK:
+            _BAY_DECK.extend(BAYS)
+            r.shuffle(_BAY_DECK)
+        k = _BAY_DECK.pop()
+        if k not in _BAY_LAST[-2:]:
+            break
+    _BAY_LAST.append(k)
+    return k
+
+
+DOOR_PAINT = {"steel": (0.17, 0.18, 0.2, 1), "fire": (0.32, 0.05, 0.04, 1), "double": (0.05, 0.12, 0.13, 1), "hatch": (0.2, 0.17, 0.08, 1)}
+
+
+def bay(D, f, s, r, kind):
+    """One back door of a lane and what goes with it, s along the face;
+    returns its width. steel: a grey door under a tube or a caged lamp,
+    its number by it; ajar: a door open on a lit room up a step, a plate
+    over it; fire: a red door with a push bar, hazard stripes at its foot,
+    a green exit lamp and a caged one; gate: bars over a dark recess, a
+    padlock, an intercom and a white bulkhead; kitchen: a lit fly screen
+    behind bars, an extractor hood and its duct breathing over it, kegs and
+    crates; double: two leaves with kick plates, a meter cabinet, a lit
+    poster box; hatch: a loading hatch on a sill with a step, an angled tube."""
+    def frame(s0, s1, h, col):
+        f.box((D, "metal", 1), s0 - 0.08, s1 + 0.08, h, h + 0.1, 0.0, 0.12)
+        for e in (s0 - 0.08, s1):
+            f.box((D, "metal", 1), e, e + 0.08, G0, h, 0.0, 0.1)
+        f.quad((D, "trim", 0), s0, s1, G0, h, 0.03, col=col)
+        f.box((D, "metal", 1), s1 - 0.2, s1 - 0.08, 1.0, 1.08, 0.03, 0.09)
+
+    if kind == "steel":
+        frame(s, s + 1.1, 2.3, DOOR_PAINT["steel"])
+        f.box((D, "dark", 1), s + 0.1, s + 1.0, 1.55, 1.85, 0.03, 0.05)
+        if r.random() < 0.5:
+            hue = "cyan" if r.random() < 0.6 else "white"
+            f.box((D, "neon_" + hue, 0), s - 0.25, s + 1.35, 2.62, 2.7, 0.06, 0.12)
+            f.box((D, "metal", 1), s - 0.3, s + 1.4, 2.7, 2.76, 0.0, 0.16)
+            light(D, *f.p(f.at(s + 0.55), G0 + 0.35, 0.9), hue, 3.5)
+        else:
+            hue = "amber"
+            wall_lamp(D, f, s + 0.55, 2.75, hue, 3.0)
+        c = GLOW[hue]
+        f.box((D, "dark", 1), s + 1.26, s + 1.6, 1.5, 1.74, 0.0, 0.03)
+        f.quad((D, "glow", 1), s + 1.29, s + 1.57, 1.53, 1.71, 0.034, col=(c[0] * 0.22, c[1] * 0.22, c[2] * 0.22, 1))
+        return 1.65
+    if kind == "ajar":
+        hue = r.choice(("amber", "green", "white", "pink"))
+        stoop(D, f, s, s + 1.5, steps=1)
+        lit_door(D, f, s + 0.75, hue, w=1.05, h=2.25, power=3.0)
+        f.box((D, "board_frame", 0), s + 0.2, s + 1.3, 2.55, 2.85, 0.0, 0.05)
+        c = GLOW[hue]
+        f.quad((D, "glow", 1), s + 0.25, s + 1.25, 2.6, 2.8, 0.055, col=(c[0] * 0.3, c[1] * 0.3, c[2] * 0.3, 1))
+        return 1.6
+    if kind == "fire":
+        frame(s, s + 1.2, 2.3, DOOR_PAINT["fire"])
+        f.box((D, "metal", 1), s + 0.12, s + 1.08, 1.0, 1.06, 0.03, 0.1)
+        stripes(D, f, s - 0.1, s + 1.3, G0, G0 + 0.35, out=0.035, pitch=0.3)
+        f.box((D, "glow", 1), s + 0.4, s + 0.8, 2.48, 2.62, 0.0, 0.08, col=GLOW["green"])
+        wall_lamp(D, f, s + 1.55, 2.6, "amber", 2.5)
+        return 1.85
+    if kind == "gate":
+        f.quad((D, "trim", 0), s, s + 1.5, G0, 2.4, 0.01, col=BLACK)
+        f.box((D, "metal", 1), s - 0.06, s + 1.56, 2.4, 2.5, 0.0, 0.1)
+        grille(D, f, s, s + 1.5, G0, 2.4, out=0.06, step=0.14)
+        f.box((D, "metal", 1), s + 0.62, s + 0.88, 1.0, 1.1, 0.06, 0.14)
+        f.box((D, "metal", 1), s + 1.75, s + 1.95, 1.3, 1.6, 0.0, 0.05)
+        f.box((D, "glow", 1), s + 1.82, s + 1.88, 1.5, 1.55, 0.05, 0.055, col=GLOW["red"])
+        wall_lamp(D, f, s + 0.75, 2.8, "white", 2.5)
+        return 2.0
+    if kind == "kitchen":
+        c = GLOW["amber"]
+        f.box((D, "metal", 1), s - 0.08, s + 1.18, G0, 2.38, 0.0, 0.08)
+        f.quad((D, "glow", 0), s, s + 1.1, G0, 2.3, 0.085, col=(c[0] * 0.15, c[1] * 0.12, c[2] * 0.09, 1))
+        grille(D, f, s, s + 1.1, G0 + 0.2, 2.3, out=0.12, step=0.09)
+        f.box((D, "metal", 0), s - 0.4, s + 1.5, 2.75, 3.15, 0.0, 0.62)
+        f.box((D, "metal", 1), s + 0.3, s + 0.8, 3.15, SHOP_H - 0.1, 0.08, 0.5)
+        _N_KITCHEN[0] += 1
+        if _N_KITCHEN[0] < 12:
+            lane_steam(f.p(f.at(s + 0.55), 2.7, 0.4))
+        light(D, *f.p(f.at(s + 0.55), G0 + 0.35, 1.0), "amber", 3.0)
+        q = f.p(f.at(s + 1.75), G0, 0.4)
+        kegs(D, q[0] - 0.2, q[2] - 0.2, r, n=r.choice((2, 4)))
+        return 2.4
+    if kind == "double":
+        for a_ in (s, s + 0.95):
+            f.quad((D, "trim", 0), a_, a_ + 0.9, G0, 2.4, 0.03, col=DOOR_PAINT["double"])
+            f.box((D, "metal", 1), a_ + 0.05, a_ + 0.85, G0, G0 + 0.3, 0.03, 0.05)
+        f.box((D, "metal", 1), s - 0.08, s + 1.93, 2.4, 2.5, 0.0, 0.12)
+        for e in (s - 0.08, s + 1.85):
+            f.box((D, "metal", 1), e, e + 0.08, G0, 2.4, 0.0, 0.1)
+        f.box((D, "metal", 1), s + 2.15, s + 2.75, 0.9, 2.0, 0.02, 0.32)
+        f.box((D, "glow", 1), s + 2.6, s + 2.68, 1.85, 1.92, 0.32, 0.335, col=GLOW["green"])
+        poster(D, f, s + 3.5, 1.7, 0.8, 1.2, r, out=0.08)
+        wall_lamp(D, f, s + 0.95, 2.95, "white", 3.0)
+        return 4.0
+    # hatch
+    f.quad((D, "door_panel", 0), s, s + 1.8, 1.05, 2.4, 0.03)
+    f.box((D, "metal", 1), s - 0.06, s + 1.86, 2.4, 2.62, 0.0, 0.22)
+    f.box((D, "concrete", 0), s - 0.1, s + 1.9, G0, 1.05, 0.0, 0.45)
+    f.box((D, "concrete", 0), s + 2.0, s + 2.6, G0, 0.55, 0.0, 0.6)
+    hue = r.choice(("cyan", "white"))
+    a, b = f.p(f.at(s - 0.1), 2.95, 0.12), f.p(f.at(s + 1.9), 3.1, 0.12)
+    tube(D, a, b, hue, power=3.0)
+    return 2.7
+
+
+def dumpster(D, x, z, yaw, rng, col=None):
+    """A wheeled bin for a lane, modelled: a tapered steel body in its paint
+    with ribs and side pockets, its lids (one up), corner posts, wheels, a
+    stencilled band and grime at its foot."""
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    col = col or rng.choice(((0.05, 0.16, 0.08, 1), (0.04, 0.09, 0.16, 1), (0.2, 0.08, 0.03, 1), (0.14, 0.14, 0.13, 1)))
+    dk = (col[0] * 0.55, col[1] * 0.55, col[2] * 0.55, 1)
+    w, d, h, y0 = 1.8, 1.1, 1.2, G0 + 0.16
+
+    def at(u, v, y):
+        return (x + rx * u + nx * v, y, z + rz * u + nz * v)
+
+    # The body, narrower at its foot: four sides and a floor.
+    t = 0.1
+    top = [at(-w / 2, d / 2, y0 + h), at(w / 2, d / 2, y0 + h), at(w / 2, -d / 2, y0 + h), at(-w / 2, -d / 2, y0 + h)]
+    bot = [at(-w / 2 + t, d / 2 - t, y0), at(w / 2 - t, d / 2 - t, y0), at(w / 2 - t, -d / 2 + t, y0), at(-w / 2 + t, -d / 2 + t, y0)]
+    for i in range(4):
+        j = (i + 1) % 4
+        quad((D, "steel", 0), bot[i], bot[j], top[j], top[i], col=col)
+        quad((D, "steel", 0), bot[j], bot[i], top[i], top[j], col=col)
+    quad((D, "steel", 0), bot[3], bot[2], bot[1], bot[0], col=dk)
+    # Its rim, ribs down the front, pockets on the ends, a stencilled band.
+    for (u0, u1, v0, v1) in ((-w / 2 - 0.04, w / 2 + 0.04, d / 2 - 0.02, d / 2 + 0.05), (-w / 2 - 0.04, w / 2 + 0.04, -d / 2 - 0.05, -d / 2 + 0.02)):
+        p = at((u0 + u1) / 2, (v0 + v1) / 2, 0.0)
+        oriented_box((D, "steel", 1), p[0], y0 + h - 0.05, p[2], u1 - u0, 0.1, v1 - v0, yaw, scale=1.0, col=dk)
+    for k in range(4):
+        u = -w / 2 + 0.3 + k * (w - 0.6) / 3
+        p = at(u, d / 2 - 0.04, 0.0)
+        oriented_box((D, "steel", 1), p[0], y0 + h / 2, p[2], 0.07, h * 0.9, 0.07, yaw, scale=1.0, col=dk)
+    for sd in (-1, 1):
+        p = at(sd * (w / 2 + 0.02), 0.0, 0.0)
+        oriented_box((D, "steel", 1), p[0], y0 + h * 0.62, p[2], 0.1, 0.22, 0.7, yaw, scale=1.0, col=dk)
+    band = at(0.0, d / 2 + 0.003, 0.0)
+    rotated_quad((D, "trim", 1), band[0], y0 + h * 0.58, band[2], w * 0.55, 0.16, yaw, col=(0.5, 0.48, 0.42, 1))
+    rotated_quad((D, "trim", 1), band[0] + nx * 0.002, y0 + 0.14, band[2] + nz * 0.002, w - 0.25, 0.22, yaw, col=(0.02, 0.022, 0.02, 1))
+    # Lids: one shut, one propped up.
+    l0 = [at(-w / 2, d / 2 + 0.06, y0 + h + 0.04), at(0.0, d / 2 + 0.06, y0 + h + 0.04), at(0.0, -d / 2, y0 + h + 0.12), at(-w / 2, -d / 2, y0 + h + 0.12)]
+    quad((D, "steel", 0), *l0, col=(0.03, 0.035, 0.035, 1))
+    up = rng.uniform(0.3, 0.9)
+    l1 = [at(0.02, -d / 2, y0 + h + 0.12), at(w / 2, -d / 2, y0 + h + 0.12), at(w / 2, -d / 2 + d * math.cos(up), y0 + h + 0.12 + d * math.sin(up)),
+          at(0.02, -d / 2 + d * math.cos(up), y0 + h + 0.12 + d * math.sin(up))]
+    quad((D, "steel", 0), *l1, col=(0.03, 0.035, 0.035, 1))
+    quad((D, "steel", 0), l1[1], l1[0], l1[3], l1[2], col=(0.03, 0.035, 0.035, 1))
+    for su in (-1, 1):
+        for sv in (-1, 1):
+            p = at(su * (w / 2 - 0.2), sv * (d / 2 - 0.2), 0.0)
+            cylinder((D, "dark", 1), p[0], p[2], G0, y0, 0.08, segs=6)
 
 
 def window(D, f, s, y, rng, lit=0.0, tint=1, style=6, over="bars", out=0.05):
@@ -1198,15 +1380,15 @@ def window(D, f, s, y, rng, lit=0.0, tint=1, style=6, over="bars", out=0.05):
     cu, cv = rng.randrange(40), rng.randrange(40)
     ua, ub, va, vb = cu + u0 - m / CELL_W, cu + u1 + m / CELL_W, cv + v0 - m / CELL_H, cv + v1 + m / CELL_H
     f.quad((D, "facade", 0), s - m, s + w + m, y - m, y + h + m, out, uvs=((ua, va), (ub, va), (ub, vb), (ua, vb)),
-           col=B.wall_col(lit, style, rng.uniform(0.2, 0.8), tint))
+           col=B.wall_col(lit, style, rng.uniform(0.6, 1.0), tint))
     k = (D, "metal", 1)
     for e in (s - 0.08, s + w):
         f.box(k, e, e + 0.08, y - 0.08, y + h + 0.08, 0.0, out + 0.07)
     f.box(k, s, s + w, y + h, y + h + 0.08, 0.0, out + 0.07)
     f.box(k, s - 0.14, s + w + 0.14, y - 0.1, y, 0.0, out + 0.14)
-    if over == "bars":
+    if over in ("bars", "both"):
         grille(D, f, s, s + w, y, y + h, out=out + 0.05, step=0.18)
-    elif over == "blind":
+    if over in ("blind", "both"):
         drop = rng.uniform(0.35, 0.85) * h
         n = max(3, int(drop / 0.11))
         for i in range(n):
@@ -1278,8 +1460,8 @@ def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None, bundle=Tru
             s += 0.7
             continue
         if kind == "window":
-            window(D, f, s, 1.3, rng, lit=1.0 if rng.random() < 0.4 else 0.0, style=rng.choice((6, 6, 3)),
-                   over=rng.choice(("bars", "bars", "blind", "blind", None)))
+            window(D, f, s, 1.3, rng, lit=1.0 if rng.random() < 0.55 else 0.0, style=rng.choice((6, 6, 3)),
+                   over=rng.choice(("bars", "blind", "blind", "both")))
         elif kind == "meters":
             for k in range(rng.randrange(1, 4)):
                 a = s + k * 0.46
@@ -1304,6 +1486,9 @@ def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None, bundle=Tru
             for k in range(4):
                 f.box((D, "dark", 1), s + 0.06, s + w - 0.06, 2.28 + k * 0.15, 2.34 + k * 0.15, 0.12, 0.135)
             f.quad((D, "trim", 1), s + w * 0.3, s + w * 0.5, 1.0, 2.2, 0.012, col=RUST_DARK)
+            _VENTS.append(f.p(f.at(s + w / 2), 2.55, 0.16))
+            if len(_VENTS) % 3 == 1 and len(_VENTS) < 16:
+                lane_steam(_VENTS[-1])
         else:
             # A rack of shelves against the wall, boxes on it.
             for e in (s, s + w):
@@ -1323,6 +1508,46 @@ def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None, bundle=Tru
             for k in range(rng.randrange(2, 4)):
                 pipe((D, "metal", 1), f.p(f.at(s + k * 0.11), G0, 0.09), f.p(f.at(s + k * 0.11), min(top - 0.4, rng.uniform(3.6, 6.5)), 0.09), 0.028, segs=3)
         s += rng.uniform(4.0, 8.0) / dens
+    # And no three metres of it bare: along every stretch still free a run
+    # of conduit at the wall's foot with its junction boxes, stains down the
+    # paint (damp, lime, rust), a small lit plate, and now and then a screen.
+    s, k = s0 + 0.4, rng.randrange(5)
+    while s < s1 - 0.9:
+        if not free(f, s, s + 0.8, gap=0.1):
+            s += 0.6
+            continue
+        e = s + 0.8
+        while e < s1 - 0.3 and e - s < 3.2 and free(f, e, e + 0.5, gap=0.1):
+            e += 0.5
+        for yy in (0.34, 0.46):
+            pipe((D, "steel", 1), f.p(f.at(s), yy, 0.06), f.p(f.at(e), yy, 0.06), 0.022, segs=3, col=PIPE_PAINT[4])
+        f.box((D, "metal", 1), s + 0.1, s + 0.36, 0.28, 0.58, 0.02, 0.13)
+        f.box((D, "glow", 1), s + 0.29, s + 0.33, 0.5, 0.54, 0.13, 0.14, col=GLOW[("green", "red", "cyan")[k % 3]])
+        m = (s + e) / 2
+        if k % 5 == 3 and e - s > 1.6 and y_screen(top):
+            poster(D, f, m, 1.85, 1.0, 0.62, rng, out=0.05)
+        else:
+            w = rng.uniform(0.25, 0.7)
+            ytop = rng.uniform(2.6, SHOP_H - 0.2)
+            f.quad((D, "trim", 1), m - w / 2, m + w / 2, ytop - rng.uniform(1.2, 2.4), ytop, 0.007, col=STAIN[k % len(STAIN)])
+            if k % 2 == 0 and e - s > 1.4:
+                f.box((D, "metal", 1), m + 0.5, m + 0.78, 1.45, 1.8, 0.02, 0.1)
+                pipe((D, "steel", 1), f.p(f.at(m + 0.64), 0.46, 0.06), f.p(f.at(m + 0.64), 1.45, 0.06), 0.02, segs=3, col=PIPE_PAINT[4])
+        take(f, s, e)
+        s = e + 0.2
+        k += 1
+
+
+def y_screen(top):
+    """A wall takes a screen only where it is a proper storey high."""
+    return top >= 6.0
+
+
+def lane_floor(D, x0, x1, z0, z1):
+    """A lane's floor: poured concrete, dark, so the tubes' pools are the
+    light in it."""
+    pts = ((x0, G0, z1), (x1, G0, z1), (x1, G0, z0), (x0, G0, z0))
+    quad((D, "castconcrete", 0), *pts, col=LANE_FLOOR)
 
 
 def stoop(D, f, s0, s1, steps=2, out=0.34, rise=0.18):

@@ -99,8 +99,8 @@ lot(416.0, 428.0, -258.0, -250.0, storeys(1), 9105, {"+x": "street", "-z": "open
     {"+z": 26.0}, tint="charcoal", signs=False, style=dict(shop_sign=0.0, balcony=0.0, fire_escape=0.0, roof_cap=2.6, ac=0.6))
 
 # The lanes and the yard behind the west row, paved.
-B.ground_rect(D, 398.0, 402.0, -316.0, -258.0, mat="concrete")       # the alley and the back lane
-B.ground_rect(D, 402.0, WL, -262.0, -258.0, mat="concrete")          # the lane to the street
+K.lane_floor(D, 398.0, 402.0, -316.0, -258.0)                         # the alley and the back lane
+K.lane_floor(D, 402.0, WL, -262.0, -258.0)                            # the lane to the street
 B.ground_rect(D, 398.0, 416.0, -258.0, -250.0, mat="concrete")       # the bar's yard
 
 # ---------------------------------------------------------------------------
@@ -121,8 +121,8 @@ lot(484.0, 508.0, -344.0, -316.0, storeys(5), 9111, {"-x": "party", "-z": "back"
 lot(454.0, 484.0, -312.0, -300.0, storeys(2), 9112, {"-x": "street", "-z": "open", "+z": "party", "+x": "open"},
     {"+z": 34.0}, tint="concrete", style=dict(roof_cap=3.0))
 B.ground_rect(D, EL, 454.0, -312.0, -300.0)
-B.ground_rect(D, EL, 484.0, -316.0, -312.0, mat="concrete")          # the passage
-B.ground_rect(D, 484.0, 490.0, -316.0, -258.0, mat="concrete")       # the back lane
+K.lane_floor(D, EL, 484.0, -316.0, -312.0)                            # the passage
+K.lane_floor(D, 484.0, 490.0, -316.0, -258.0)                         # the back lane
 B.ground_rect(D, 476.0, 490.0, -258.0, -176.0, mat="concrete")       # the yard behind the garage row
 # The outer row, its fronts on the back lane and the yard, its backs to the
 # far city. Low by the garage's roof, where Contact looks out over it.
@@ -478,10 +478,41 @@ for k, (a_, b_) in enumerate(zip(PIERS, PIERS[1:])):
         K.board(D, *WB.p(WB.at(m_), 4.78, 0.2), "ps" if k % 2 else "pm", WB.yaw)
     if k in (0, 3, 5, 7):
         d_ = m_ + rw.uniform(-1.5, 1.5)
+        if k == 5:
+            continue   # (that bay is shuttered, below)
         WB.box((D, "metal", 1), d_ - 0.62, d_ + 0.62, G0, 2.5, 0.0, 0.11)
         WB.quad((D, "door", 0), d_ - 0.52, d_ + 0.52, G0, 2.38, 0.115)
 for a_, b_ in ((0.0, 4.0), (56.0, 60.0)):
     WB.quad((D, "concrete", 0), a_, b_, 0.0, SHOP_H, 0.02, uvs=((0, 0), (1.3, 0), (1.3, 1.5), (0, 1.5)))
+# (garage.py lights its ground floor as one long window, which read as one
+# shop's front repeated bay after bay, "green panels each with the same
+# white cross": each bay its own now. Most a shop of their own behind the
+# glass, a hair in front of the long one; one behind bars, one with its
+# posters in the glass, one walled with a door open on a lit stair and a
+# menu box, one shuttered with a serving hatch lit in it.)
+for k, (a_, b_) in enumerate(zip(PIERS, PIERS[1:])):
+    a_, b_ = a_ + 0.25, b_ - 0.25
+    if k == 2:
+        WB.quad((D, "concrete", 0), a_, b_, 0.62, 3.3, 0.06, uvs=((0, 0), (2.0, 0), (2.0, 1.0), (0, 1.0)))
+        K.lit_door(D, WB, a_ + 1.6, "amber", w=1.1, h=2.3, power=3.0)
+        WB.box((D, "board_frame", 0), a_ + 3.0, b_ - 0.6, 1.3, 2.6, 0.06, 0.16)
+        WB.quad((D, "billboard", 0), a_ + 3.08, b_ - 0.68, 1.38, 2.52, 0.172, col=(0.385, 0.635, 0.4, 1.0))
+        continue
+    if k == 5:
+        K.shutter(D, WB, a_, a_ + 3.2, h=3.2, lamp=None)
+        WB.quad((D, "shop", 0), a_ + 3.4, b_, 0.62, 2.6, 0.06, col=(0.9, 0.57, 1.0, 1.0))
+        WB.box((D, "metal", 1), a_ + 3.3, b_, 0.95, 1.05, 0.06, 0.45)
+        WB.quad((D, "door_panel", 0), a_ + 3.4, b_, 2.6, 3.3, 0.06)
+        continue
+    WB.quad((D, "shop", 0), a_, b_, 0.62, 3.3, 0.06, col=((0.95, 0.12, 1.0, 1.0), (0.85, 0.37, 1.0, 1.0), None, (0.9, 0.62, 1.0, 1.0),
+                                                       (0.8, 0.88, 1.0, 1.0), None, (1.0, 0.25, 1.0, 1.0), (0.92, 0.75, 1.0, 1.0))[k])
+    if k == 3:
+        K.grille(D, WB, a_, b_, 0.62, 3.3, out=0.12, step=0.16)
+    elif k == 7:
+        for sv, w_ in ((a_ + 0.9, 1.0), (a_ + 2.4, 0.8), (b_ - 1.2, 1.1)):
+            WB.quad((D, "billboard", 0), sv - w_ / 2, sv + w_ / 2, 1.0, 1.0 + w_ * 1.4, 0.08, col=(rw.randrange(8) / 8 + 0.01, rw.randrange(8) / 8 + 0.01, rw.random(), 1.0))
+    elif k == 0:
+        WB.box((D, "metal", 1), a_, b_, 1.6, 1.66, 0.06, 0.1)
 K.shutter(D, WB, 0.5, 3.4, h=3.2, lamp="white")
 K.poster(D, WB, 58.0, 2.3, 1.5, 2.1, rw)
 # Its face to the plaza street: shops, an awning.
@@ -831,14 +862,12 @@ K.board(D, 400.0, 5.6, -316.17, "pm", math.pi, frame=0)
 box((D, "board_frame", 0), WL - 0.05, WL + 0.1, 4.7, 5.7, -261.9, -258.1, scale=1.0)
 K.board(D, WL + 0.12, 5.2, -260.0, "pm", math.pi / 2, frame=0)
 box((D, "neon_cyan", 0), WL + 0.1, WL + 0.14, 4.6, 4.68, -261.8, -258.2, scale=1.0)
-for i, (x_, z_) in enumerate(((400.0, -284.0), (412.0, -260.0))):
-    K.steam(f"afterlife_lane_{i}", x_, G0, z_, D)
-P.place("dumpster", 409.0, G0, -257.0, math.pi, district=D)
+K.dumpster(D, 409.0, -257.0, math.pi, rl)
 K.kegs(D, 414.6, -252.4, rl, n=6)
 K.crates(D, 404.0, -251.4, rl)
 # East: the passage under its low ceiling, three tubes of cyan, a duct with
 # its lamps down one wall, a poster and grilles on the other.
-box((D, "concrete", 0), EL, 484.0, 4.1, 4.4, -316.0, -312.0, scale=2.0, bottom=True)
+box((D, "castconcrete", 0), EL, 484.0, 4.1, 4.4, -316.0, -312.0, scale=2.0, bottom=True, col=K.LANE_WALL)
 lane_tubes([(458.0, -314.0), (468.0, -314.0), (478.0, -314.0)], 3.95, ("cyan", "cyan", "cyan"), power=3.4, along="x", half=1.1)
 PN = B.Face("+z", -316.0, EL, 484.0)       # the closing block's wall on it
 K.duct(D, PN, 2.0, 30.0, 3.62, rl)
@@ -849,7 +878,6 @@ K.take(PS, 21.2, 22.8)
 K.take(PS, 3.8, 9.0)
 box((D, "board_frame", 0), EL - 0.1, EL + 0.05, 4.4, 5.3, -315.9, -312.1, scale=1.0)
 K.board(D, EL - 0.12, 4.85, -314.0, "pm", -math.pi / 2, frame=0)
-K.steam("afterlife_lane_2", 472.0, G0, -314.0, D)
 # The back lane and the yard behind the garage row.
 back("+x", 484.0, -300.0, -258.0, 34.0, 9504)
 back("+z", -258.0, 476.0, 484.0, 34.0, 9505, clutter=False)
@@ -867,8 +895,8 @@ for (x_, z_, n_) in ((476.6, -227.0, 4), (477.4, -227.2, 3), (476.6, -203.5, 2))
 K.crates(D, 477.2, -212.0, rl)
 for (x_, z_) in ((488.6, -250.0), (489.0, -249.2), (488.5, -221.0), (478.0, -180.5), (478.8, -181.0)):
     P.place("drum", x_, G0, z_, district=D)
-P.place("dumpster", 488.8, G0, -236.0, -math.pi / 2, district=D)
-P.place("dumpster", 485.2, G0, -288.0, math.pi / 2, district=D)
+K.dumpster(D, 488.8, -236.0, -math.pi / 2, rl)
+K.dumpster(D, 485.2, -288.0, math.pi / 2, rl)
 lane_tubes([(487.0, -306.0), (487.0, -290.0), (487.0, -274.0), (487.0, -262.0)], 4.2, ("cyan", "cyan", "white", "cyan"))
 lane_cables(484.0, 490.0, (-310.0, -296.0, -283.0, -268.0), 6.0, 11.0, rl)
 lane_cables(476.0, 490.0, (-246.0, -231.0, -214.0, -196.0, -184.0), 6.5, 9.5, rl)
@@ -881,8 +909,8 @@ for (x_, z_, yaw_) in ((400.0, -310.0, 0.0), (400.0, -296.0, 0.0), (400.0, -271.
                        (461.0, -314.0, math.pi / 2), (479.0, -314.0, math.pi / 2), (487.0, -309.0, 0.0), (487.0, -296.5, 0.0), (487.0, -267.0, 0.0),
                        (483.0, -232.0, 0.0), (483.0, -196.0, 0.0)):
     P.place("drain", x_, G0, z_, yaw_, district=D)
-K.steam("afterlife_lane_3", 486.5, G0, -280.0, D)
-K.steam("afterlife_lane_4", 480.5, G0, -218.0, D)
+# (One lit grate, in the yard; the lanes' steam is their wall vents'.)
+K.steam("afterlife_yard", 480.5, G0, -218.0, D)
 # The lane's end against the closing block: a gate's worth of clutter.
 K.crates(D, 485.0, -317.2, rl)
 P.place("bags", 488.8, G0, -317.0, district=D)
