@@ -304,11 +304,12 @@ export function createYield(traffic) {
     frame,
     stats,
     /** Move the circle at p (radius r, standing at height y) out of every
-     *  car it is in. True if it was in one (p.nx, p.nz is the way out). */
-    push(p, r, y) {
+     *  car it is in (`self`: one of the S4's own, not out of the S4). True
+     *  if it was in one (p.nx, p.nz is the way out). */
+    push(p, r, y, self = false) {
       let hit = false;
       for (const body of bodies) {
-        if (Math.abs(body.y - y) > 2 || !clear(body, p.x, p.z, r)) continue;
+        if ((self && body === own) || Math.abs(body.y - y) > 2 || !clear(body, p.x, p.z, r)) continue;
         const depth = Math.hypot(out.x, out.z) || 1;
         p.x += out.x;
         p.z += out.z;

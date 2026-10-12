@@ -117,23 +117,26 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   // cars near them added to its walls. Off a car and into a wall and back
   // into the car, and there is no room there.
   const yielding = createYield(parts.traffic);
-  const ground = yielding
-    ? Object.assign(Object.create(nav), {
-        resolve(p, r, y, bit, tol, feet) {
-          const hit = nav.resolve(p, r, y, bit, tol, feet);
-          if (hit === 2 || !yielding.push(p, r, y)) return hit;
-          return nav.resolve(p, r, y, bit, tol, feet) && yielding.push(p, r, y) ? 2 : 1;
-        },
-        fits(x, z, r, y, bit, tol, feet) {
-          return nav.fits(x, z, r, y, bit, tol, feet) && !yielding.overlaps(x, z, r, y);
-        },
-      })
-    : nav;
+  // (`self`: the S4's own, which is not pushed out of the S4 it is.)
+  const withCars = (self) =>
+    yielding
+      ? Object.assign(Object.create(nav), {
+          resolve(p, r, y, bit, tol, feet) {
+            const hit = nav.resolve(p, r, y, bit, tol, feet);
+            if (hit === 2 || !yielding.push(p, r, y, self)) return hit;
+            return nav.resolve(p, r, y, bit, tol, feet) && yielding.push(p, r, y, self) ? 2 : 1;
+          },
+          fits(x, z, r, y, bit, tol, feet) {
+            return nav.fits(x, z, r, y, bit, tol, feet) && !yielding.overlaps(x, z, r, y);
+          },
+        })
+      : nav;
+  const ground = withCars(false);
 
   // ---- the player --------------------------------------------------------
   // The S4 (vehicle.js): where its wheels stand, which way it points (0
   // faces +z, as the kit's yaw), its speed along its nose.
-  const vehicle = createVehicle(ground);
+  const vehicle = createVehicle(withCars(true));
   const car = vehicle.car;
   const chase = createChase(nav, { reduced });
   const feet = createWalker(ground, { reduced });
