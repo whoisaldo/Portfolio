@@ -1309,9 +1309,9 @@
    "name": "anchor_steam_afterlife_lane_0",
    "kind": "anchor",
    "at": [
-    400.0,
-    0.25,
-    -284.0
+    398.4,
+    2.7,
+    -278.49
    ],
    "yaw": 0.0,
    "district": "afterlife"
@@ -1320,9 +1320,9 @@
    "name": "anchor_steam_afterlife_lane_1",
    "kind": "anchor",
    "at": [
-    412.0,
-    0.25,
-    -260.0
+    398.4,
+    2.7,
+    -267.87
    ],
    "yaw": 0.0,
    "district": "afterlife"
@@ -1331,9 +1331,9 @@
    "name": "anchor_steam_afterlife_lane_2",
    "kind": "anchor",
    "at": [
-    472.0,
-    0.25,
-    -314.0
+    508.4,
+    2.7,
+    -318.36
    ],
    "yaw": 0.0,
    "district": "afterlife"
@@ -1342,15 +1342,15 @@
    "name": "anchor_steam_afterlife_lane_3",
    "kind": "anchor",
    "at": [
-    486.5,
-    0.25,
-    -280.0
+    484.4,
+    2.7,
+    -302.78
    ],
    "yaw": 0.0,
    "district": "afterlife"
   },
   {
-   "name": "anchor_steam_afterlife_lane_4",
+   "name": "anchor_steam_afterlife_yard",
    "kind": "anchor",
    "at": [
     480.5,
@@ -3856,6 +3856,94 @@
    ],
    "yaw": 0.0,
    "district": "santo"
+  },
+  {
+   "name": "anchor_steam_vent_lane_afterlife_10",
+   "kind": "anchor",
+   "at": [
+    484.43,
+    2.7,
+    -298.58
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_vent_lane_afterlife_11",
+   "kind": "anchor",
+   "at": [
+    398.16,
+    2.55,
+    -295.82
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_vent_lane_afterlife_12",
+   "kind": "anchor",
+   "at": [
+    489.84,
+    2.55,
+    -229.61
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_vent_lane_afterlife_5",
+   "kind": "anchor",
+   "at": [
+    508.4,
+    2.7,
+    -281.26
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_vent_lane_afterlife_6",
+   "kind": "anchor",
+   "at": [
+    508.4,
+    2.7,
+    -250.41
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_vent_lane_afterlife_7",
+   "kind": "anchor",
+   "at": [
+    489.6,
+    2.7,
+    -244.97
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_vent_lane_afterlife_8",
+   "kind": "anchor",
+   "at": [
+    489.6,
+    2.7,
+    -187.99
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_vent_lane_afterlife_9",
+   "kind": "anchor",
+   "at": [
+    414.26,
+    2.7,
+    -261.57
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
   },
   {
    "name": "anchor_steam_zz_deck_drain_0",
