@@ -929,7 +929,7 @@ for k in range(7):
     z_ = FZ0 + 4.5 + k * 3.6
     quad((D, "trim", 0), (389.0, G0 + 0.008, z_ + 0.9), (401.0, G0 + 0.008, z_ + 0.9), (401.0, G0 + 0.008, z_), (389.0, G0 + 0.008, z_),
          col=(0.42, 0.33, 0.05, 1))
-for (x_, z_) in ((383.0, -214.0), (407.0, -214.0), (383.0, -198.0), (407.0, -198.0)):
+for (x_, z_) in ((383.0, -214.0), (404.6, -217.2), (383.0, -198.0), (404.6, -196.4)):
     P.place("lamp_short", x_, G0, z_, district=D)
     light(D, x_, 3.6, z_, "amber", 4.0)
 for (x_, z_) in ((386.5, -219.0), (403.5, -219.0)):
@@ -959,9 +959,10 @@ P.place("cctv", 404.6, G0, FZ1 - 1.4, district=D)
 P.place("cctv", 381.2, G0, FZ0 + 1.0, district=D)
 light(D, 395.0, 5.6, FZ1 - 0.6, "red", 3.0)
 light(D, 399.6, 1.6, FZ1 - 2.2, "white", 3.0)
-back("-x", 410.0, FZ0, FZ1, 26.0, 9508)
-K.lane_wall(D, B.Face("-x", 410.0 - 0.03, FZ0, FZ1), rl, 26.0, 1.3)
-K.duct(D, B.Face("-x", 410.0 - 0.03, FZ0, FZ1), 2.0, 30.0, 5.2, rl)
+# (The megablock's back wall on the court: its ground floor is shops, built
+# below; what hangs on it above, and a duct over the shops' signs.)
+own(B.clutter_back, D, B.Face("-x", 410.0 - 0.03, FZ0, FZ1), random.Random(9508), 0.0, 26.0)
+K.duct(D, B.Face("-x", 410.0 - 0.03, FZ0, FZ1), 2.0, 30.0, 7.7, rl)
 stand(389.6, FZ1 - 1.0, 0.0, "idle", y=G0)
 stand(400.0, FZ1 - 4.4, -math.pi / 2, "lean", y=G0)
 stand(394.0, FZ0 + 1.6, 0.0, "idle", y=G0)
@@ -991,8 +992,122 @@ for dx_ in (-0.5, 0.5):
 box((D, "metal", 1), fx_ - 0.56, fx_ + 0.56, G0 + 2.15, G0 + 2.2, fz_ - 0.9, fz_ + 0.78, scale=1.0)
 box((D, "glow", 1), fx_ - 0.1, fx_ + 0.1, G0 + 2.2, G0 + 2.32, fz_ - 0.1, fz_ + 0.1, scale=0.5, col=GLOW["amber"])
 for (x_, z_, yaw_, pose_) in ((392.2, -194.2, 0.0, "idle"), (397.8, -201.0, math.pi, "idle"), (385.8, -204.9, 0.0, "talk"), (385.8, -203.9, math.pi, "talk"),
-                              (409.2, -212.0, -math.pi / 2, "lean"), (397.4, FZ0 + 1.5, 0.3, "phone"), (388.2, -207.2, -math.pi / 2, "squat")):
+                              (397.4, FZ0 + 1.5, 0.3, "phone"), (388.2, -207.2, -math.pi / 2, "squat")):
     stand(x_, z_, yaw_, pose_, y=G0)
+
+# ---------------------------------------------------------------------------
+# The court lived in (the m6 review: "a lived-in Night City lot"): under the
+# megablock's back wall a row of lit shops, a shutter down, a door to the
+# flats and an alcove of machines, signs off the wall and a word in tube
+# over them; before them two stalls and the aisle between; a third stall by
+# the containers; bikes along the south wall and at the shops' end; strings
+# of bulbs across the court; benches; drains, cracks and oil in the paving;
+# and the people of all of it.
+# ---------------------------------------------------------------------------
+rc = random.Random(9520)
+# (Its signs are named from counters of their own, and the street's and
+# this district's counters are put back after it, so nothing built later
+# here or in the districts after this one changes its art.)
+_st0, _ids0 = dict(ST_COUNT), K._ids
+for size_ in ST_SIZES:
+    ST_COUNT[size_] = ST_COUNT.get(size_, 0) + 700
+K._ids = random.Random(95300)
+SF = B.Face("-x", 409.7, FZ0, FZ1)        # s runs south from the lobby's corner
+SF_TINT = T["brown"]
+for a_, b_ in ((0.4, 9.6), (16.0, 25.6)):
+    B.shopfront(D, SF, rc, a_, b_, SF_TINT, 0.9, 0.0, door=False, palette=["amber", "pink", "cyan", "green", "red"])
+for a_, b_, col_ in ((0.6, 4.6, K.RUST), (5.0, 9.4, (0.05, 0.16, 0.17, 1)), (16.2, 20.6, (0.3, 0.05, 0.06, 1)), (21.2, 25.4, K.RUST_DARK)):
+    K.awning(D, SF, a_, b_, col=col_, out=1.4, y=3.25, hem="amber" if a_ < 10 else None)
+SF.ledge((D, "trim", 0), 0.0, 32.0, SHOP_H, 0.2, 0.42, B.TRIM[SF_TINT])
+SF.quad((D, "trim", 0), 0.0, 0.4, 0.0, SHOP_H, 0.0, col=DARK)
+# The machines' alcove: a dark recess, two machines, a charging post, a tube.
+SF.quad((D, "trim", 0), 9.6, 12.8, 0.0, SHOP_H, 0.0, col=DARK)
+SF.box((D, "neon_cyan", 0), 9.9, 12.5, 3.5, 3.58, 0.0, 0.08)
+for s_, name_ in ((10.35, "vending"), (11.45, "vending_warm")):
+    P.place(name_, 409.25, G0, SF.at(s_), -math.pi / 2, district=D)
+P.place("charge_post", 409.45, G0, SF.at(12.4), -math.pi / 2, district=D)
+K.word(D, 409.5, 4.15, SF.at(11.2), 1.6, 0.62, -math.pi / 2, "cyan", "24H", underline=None)
+# A shop shut behind its shutter, tagged; the door to the flats lit; the
+# last bay shut.
+for a_, b_, lamp_ in ((12.8, 16.0, "white"), (28.8, 31.6, None)):
+    SF.quad((D, "trim", 0), a_, b_, 0.0, SHOP_H, 0.0, col=DARK)
+    K.shutter(D, SF, a_ + 0.3, b_ - 0.3, h=3.2, lamp=lamp_)
+SF.quad((D, "trim", 0), 25.6, 28.8, 0.0, SHOP_H, 0.0, col=DARK)
+K.lit_door(D, SF, 27.2, "amber", w=1.2, h=2.4, power=3.5)
+K.stoop(D, SF, 26.3, 28.1, steps=1)
+K.wall_lamp(D, SF, 27.2, 3.0, "amber", 2.5)
+# Signs off the wall: blades on brackets, a stack, the word in tube.
+for s_, y_, size_, turn_ in ((0.5, 6.0, "bm", 0.25), (9.7, 5.9, "bs", -0.3), (16.0, 6.2, "bl", 0.0), (25.7, 5.8, "bs", 0.35)):
+    K.blade(D, 409.7, SF.at(s_), y_, size_, -math.pi / 2 + turn_)
+K.stack(D, 409.7, SF.at(31.7), 5.2, 3, -math.pi / 2 - 0.2)
+K.word(D, 409.5, 6.5, SF.at(5.0), 4.4, 1.25, -math.pi / 2, "pink", "RAMEN", underline="amber")
+K.word(D, 409.5, 6.3, SF.at(20.8), 4.0, 1.05, -math.pi / 2, "amber", "TOOLS", underline=None, r=0.045)
+
+# Two stalls before the shops, their backs to the aisle, a vendor in each.
+for z_, hue_, tag_ in ((-213.2, "amber", "fc_a"), (-205.6, "green", "fc_b")):
+    K.stall(D, 404.2, z_, -math.pi / 2, rc, hue=hue_, steam=tag_)
+    stand(405.2, z_ + 0.3, -math.pi / 2, "vendor", y=G0)
+K.stall(D, 386.2, -195.5, math.pi / 2, rc, hue="amber", canvas=K.RUST, steam="fc_c")
+stand(385.1, -195.3, math.pi / 2, "vendor", y=G0)
+# Crates for tables by the west stall, people at them.
+for (x_, z_) in ((388.9, -197.6), (389.0, -193.8)):
+    K.crates(D, x_, z_, rc, n=2)
+# Bikes: a row nose to the south wall west of the gate, three at the shops'
+# end, one by the stall; their bays painted, oil under them.
+for k, x_ in enumerate((381.6, 382.7, 383.9, 385.0, 386.3)):
+    K.bike(D, x_, -191.7, 0.0 + rc.uniform(-0.12, 0.12), rc, lean=rc.choice((0.1, -0.1, 0.14)))
+    quad((D, "trim", 1), (x_ - 0.55, G0 + 0.006, -190.5), (x_ - 0.5, G0 + 0.006, -190.5), (x_ - 0.5, G0 + 0.006, -192.9), (x_ - 0.55, G0 + 0.006, -192.9), col=(0.5, 0.5, 0.47, 1))
+    quad((D, "trim", 1), (x_ - 0.25, G0 + 0.005, -191.3), (x_ + 0.3, G0 + 0.005, -191.3), (x_ + 0.3, G0 + 0.005, -192.1), (x_ - 0.25, G0 + 0.005, -192.1), col=(0.012, 0.012, 0.014, 1))
+for z_ in (-194.6, -193.5, -192.3):
+    K.bike(D, 408.4, z_, -math.pi / 2 + rc.uniform(-0.15, 0.15), rc, lean=rc.choice((0.1, -0.12)))
+K.bike(D, 388.0, -200.8, 0.4, rc, lean=0.12)
+# Strings of bulbs across the court, from over the shops to the top of the
+# stacked containers and to a pole by the west stall.
+cylinder((D, "metal", 1), 387.6, -198.4, G0, 4.7, 0.06, segs=6)
+for a_, b_, hue_ in (((409.6, 5.5, -209.2), (382.95, 5.3, -209.2), "amber"), ((409.6, 5.5, -201.6), (387.6, 4.6, -198.4), "amber"),
+                     ((409.6, 5.4, -216.4), (401.0, 4.4, -219.4), "pink")):
+    K.bulbs(D, a_, b_, sag=1.0, n=max(9, int(abs(a_[0] - b_[0]) / 1.4)), hue=hue_)
+# Benches by the containers and under the lamp, people on them.
+for (x_, z_, yaw_) in ((384.3, -214.6, math.pi / 2), (384.3, -216.8, math.pi / 2)):
+    P.place("bench", x_, G0, z_, yaw_, district=D)
+P.place("bin", 384.2, G0, -218.4, math.pi / 2, district=D)
+# Drains, cracks, oil, and a manhole breathing.
+for (x_, z_) in ((395.0, -208.4), (395.0, -199.2), (402.0, -209.4), (388.6, -211.2), (406.6, -199.8)):
+    P.place("drain", x_, G0, z_, 0.0, district=D)
+for _ in range(10):
+    K.crack(D, rc.uniform(386.0, 408.0), rc.uniform(-220.0, -192.0), rc, length=rc.uniform(1.5, 4.0))
+for (x0_, x1_, z0_, z1_) in ((386.0, 387.4, -207.4, -205.6), (402.6, 403.8, -211.0, -210.2), (397.0, 397.9, -213.4, -212.9)):
+    quad((D, "trim", 1), (x0_, G0 + 0.005, z1_), (x1_, G0 + 0.005, z1_), (x1_, G0 + 0.005, z0_), (x0_, G0 + 0.005, z0_), col=(0.01, 0.01, 0.012, 1))
+empty("anchor_steam_street_afterlife_court", (399.0, G0 + 0.05, -204.0))
+# The people of the court: at the stalls, in the aisle, at the machines, on
+# the benches, by the bikes, at the door, smoking under the wall.
+for (x_, z_, yaw_, pose_, y_) in (
+        (402.6, -213.6, math.pi / 2, "idle", G0), (402.5, -212.5, math.pi / 2 + 0.3, "phone", G0), (402.7, -205.2, math.pi / 2, "talk", G0),
+        (402.4, -206.3, math.pi / 2 - 0.4, "idle", G0), (406.9, -215.8, math.pi, "talk", G0), (406.9, -216.9, 0.0, "talk", G0),
+        (407.9, -210.6, -math.pi / 2, "phone", G0), (407.2, -202.4, math.pi / 2, "smoke", G0), (387.6, -195.8, -math.pi / 2, "idle", G0),
+        (388.1, -197.1, -math.pi / 2 + 0.5, "talk", G0), (388.2, -194.6, -math.pi / 2 - 0.3, "phone", G0), (384.3, -214.6, math.pi / 2, "sit", G0 + 0.47),
+        (384.3, -216.6, math.pi / 2, "sit", G0 + 0.47), (383.2, -193.2, math.pi, "squat", G0), (407.0, -193.6, math.pi / 2, "lean", G0),
+        (408.6, -196.4, -math.pi / 2, "smoke", G0), (400.4, -217.6, 0.4, "idle", G0)):
+    stand(x_, z_, yaw_, pose_, y=y_)
+# The open court: cube bollards down both sides of the striped way, a lit
+# drum, boards out by the stalls, and people crossing to the lobby.
+for z_ in (-216.0, -211.5, -202.5, -198.0):
+    for x_ in (388.4, 401.6):
+        P.place("bollard_cube", x_, G0, z_, district=D)
+P.place("ad_drum", 391.6, G0, -202.2, district=D)
+for (x_, z_, yaw_) in ((402.0, -210.0, -math.pi / 2 + 0.3), (387.8, -199.6, math.pi / 2 - 0.2), (406.8, -219.4, math.pi)):
+    P.place("aframe", x_, G0, z_, yaw_, district=D)
+for (x_, z_, yaw_, pose_) in ((393.2, -210.4, math.pi, "phone"), (396.6, -206.2, 0.2, "idle"), (395.6, -206.4, -0.4, "talk"), (398.4, -215.6, math.pi, "idle"),
+                              (392.4, -203.6, math.pi / 2, "smoke")):
+    stand(x_, z_, yaw_, pose_, y=G0)
+for a_, b_ in ((FX0, GATE[0]), (GATE[1], FX1)):
+    fw_ = B.Face("-z", FZ1 - 0.4, a_, b_)
+    for sv in (1.6, 5.4):
+        if b_ - a_ > sv + 1.0:
+            K.poster(D, fw_, sv, 1.55, 1.2, 1.6, rc)
+ST_COUNT.clear()
+ST_COUNT.update(_st0)
+K._ids = _ids0
 
 # ---------------------------------------------------------------------------
 # The people who stand about (the walkers on the pavements are the

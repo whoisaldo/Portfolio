@@ -1329,3 +1329,116 @@ def stoop(D, f, s0, s1, steps=2, out=0.34, rise=0.18):
     """Steps up to a door from a lane."""
     for k in range(steps):
         fbox(f, (D, "concrete", 0), s0, s1, G0, G0 + rise * (steps - k), 0.0, out * (k + 1))
+
+
+# ---------------------------------------------------------------------------
+# A lot's life: stalls, parked bikes, cracks in the paving.
+# ---------------------------------------------------------------------------
+STALL_BODY = [(0.09, 0.1, 0.12, 1), (0.16, 0.07, 0.04, 1), (0.05, 0.1, 0.1, 1), (0.12, 0.11, 0.1, 1)]
+CANVAS = [RUST, (0.05, 0.16, 0.17, 1), (0.3, 0.05, 0.06, 1), (0.28, 0.22, 0.05, 1), (0.1, 0.12, 0.2, 1)]
+BIKE_PAINT = [(0.35, 0.06, 0.05, 1), (0.05, 0.05, 0.06, 1), (0.6, 0.45, 0.05, 1), (0.05, 0.2, 0.3, 1), (0.42, 0.43, 0.45, 1), (0.1, 0.25, 0.1, 1)]
+
+
+def stall(D, x, z, yaw, rng, hue="amber", w=2.4, d=1.1, canvas=None, steam=None):
+    """A street stall facing `yaw` (its customers' side): a counter with a
+    lit band along its front, a steel top with its goods and a pot, posts,
+    a canvas roof sloping to the front with a valance and a row of bulbs on
+    its edge, a lit menu hung at the back, stools in front, its light on
+    the ground. `steam`: a name for the steam off the pot."""
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+
+    def at(u, v, y):
+        return (x + rx * u + nx * v, y, z + rz * u + nz * v)
+
+    c = GLOW[hue]
+    body = rng.choice(STALL_BODY)
+    oriented_box((D, "trim", 0), x, G0 + 0.5, z, w, 1.0, d, yaw, scale=1.0, col=body)
+    oriented_box((D, "metal", 0), x + nx * 0.05, G0 + 1.03, z + nz * 0.05, w + 0.12, 0.06, d + 0.2, yaw, scale=1.0)
+    f = at(0.0, d / 2 + 0.005, 0.0)
+    rotated_quad((D, "glow", 0), f[0], G0 + 0.86, f[2], w - 0.1, 0.08, yaw, col=(c[0] * 0.35, c[1] * 0.35, c[2] * 0.35, 1))
+    rotated_quad((D, "trim", 1), f[0] + nx * 0.003, G0 + 0.45, f[2] + nz * 0.003, w - 0.3, 0.55, yaw, col=(body[0] * 1.8, body[1] * 1.8, body[2] * 1.8, 1))
+    # Its posts and roof.
+    y_back, y_front = G0 + 2.55, G0 + 2.25
+    for u in (-w / 2 + 0.05, w / 2 - 0.05):
+        for v, top in ((-d / 2 + 0.05, y_back), (d / 2 + 0.25, y_front)):
+            p = at(u, v, 0.0)
+            pipe((D, "metal", 1), (p[0], G0, p[2]), (p[0], top, p[2]), 0.025, segs=4)
+    cv = canvas or rng.choice(CANVAS)
+    k = (D, "awning", 0)
+    q = (at(-w / 2 - 0.15, -d / 2 - 0.05, y_back), at(w / 2 + 0.15, -d / 2 - 0.05, y_back), at(w / 2 + 0.15, d / 2 + 0.45, y_front), at(-w / 2 - 0.15, d / 2 + 0.45, y_front))
+    quad(k, q[3], q[2], q[1], q[0], col=cv)
+    quad(k, q[0], q[1], q[2], q[3], col=cv)
+    v0, v1 = at(-w / 2 - 0.15, d / 2 + 0.45, y_front - 0.25), at(w / 2 + 0.15, d / 2 + 0.45, y_front - 0.25)
+    dark = (cv[0] * 0.7, cv[1] * 0.7, cv[2] * 0.7, 1)
+    quad(k, v0, v1, q[2], q[3], col=dark)
+    quad(k, v1, v0, q[3], q[2], col=dark)
+    for i in range(int((w + 0.2) / 0.4)):
+        p = at(-w / 2 + 0.05 + i * 0.4, d / 2 + 0.47, y_front - 0.32)
+        box((D, "glow", 1), p[0] - 0.045, p[0] + 0.045, p[1] - 0.06, p[1], p[2] - 0.045, p[2] + 0.045, scale=0.5, col=GLOW["amber"])
+    m = at(0.0, -d / 2 + 0.06, 0.0)
+    board(D, m[0], G0 + 1.85, m[2], "ps", yaw, frame=0.05)
+    # Goods and a pot on the counter.
+    for i in range(rng.randrange(3, 6)):
+        u = -w / 2 + 0.3 + i * (w - 0.6) / 4.5
+        p = at(u, rng.uniform(-0.25, 0.1), 0.0)
+        oriented_box((D, "trim", 1), p[0], G0 + 1.06 + 0.09, p[2], rng.uniform(0.18, 0.35), 0.18, rng.uniform(0.16, 0.28), yaw + rng.uniform(-0.3, 0.3), scale=1.0,
+                     col=rng.choice(PLASTIC + [CARD]))
+    pot = at(w * 0.3, -0.15, 0.0)
+    cylinder((D, "metal", 1), pot[0], pot[2], G0 + 1.06, G0 + 1.38, 0.2, segs=8)
+    if steam:
+        empty(f"anchor_steam_stall_{steam}", (pot[0], G0 + 1.42, pot[2]))
+    for u in (-0.7, 0.0, 0.7):
+        p = at(u, d / 2 + 0.55, 0.0)
+        cylinder((D, "metal", 1), p[0], p[2], G0, G0 + 0.62, 0.03, segs=4)
+        cylinder((D, "trim", 1), p[0], p[2], G0 + 0.62, G0 + 0.67, 0.17, segs=8, col=rng.choice(PLASTIC))
+    lp = at(0.0, d / 2 + 0.9, 0.0)
+    light(D, lp[0], 1.4, lp[2], hue, 4.0)
+
+
+def bike(D, x, z, yaw, rng, lean=0.12, paint=None):
+    """A motorbike on its stand pointing `yaw`, leant over a little: two
+    wheels, a frame and tank in its paint, a seat, forks, bars, a lamp."""
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+
+    def at(v, y, u=0.0):
+        # v along it, u across, leant toward +u with height.
+        u = u + lean * (y - G0)
+        return (x + nx * v + rx * u, y, z + nz * v + rz * u)
+
+    col = paint or rng.choice(BIKE_PAINT)
+    r = 0.3
+    for v in (-0.68, 0.68):
+        a, b = at(v, G0 + r, -0.06), at(v, G0 + r, 0.06)
+        pipe((D, "dark", 0), a, b, r, segs=10, caps=True)
+        pipe((D, "metal", 1), at(v, G0 + r, -0.07), at(v, G0 + r, 0.07), r * 0.45, segs=6, caps=True)
+    m = at(0.0, G0 + 0.62)
+    oriented_box((D, "trim", 0), m[0], G0 + 0.62, m[2], 0.26, 0.3, 1.0, yaw, scale=1.0, col=col)
+    t = at(0.22, G0 + 0.86)
+    oriented_box((D, "trim", 0), t[0], G0 + 0.86, t[2], 0.3, 0.2, 0.5, yaw, scale=1.0, col=col)
+    s = at(-0.32, G0 + 0.86)
+    oriented_box((D, "dark", 1), s[0], G0 + 0.86, s[2], 0.26, 0.12, 0.6, yaw, scale=1.0)
+    pipe((D, "metal", 1), at(0.68, G0 + r), at(0.5, G0 + 1.05), 0.03, segs=4)
+    pipe((D, "metal", 1), at(0.5, G0 + 1.05, -0.36), at(0.5, G0 + 1.05, 0.36), 0.02, segs=4)
+    pipe((D, "metal", 1), at(-0.3, G0 + 0.45), at(-0.68, G0 + r), 0.03, segs=4)
+    h = at(0.62, G0 + 0.95)
+    box((D, "glow", 1), h[0] - 0.06, h[0] + 0.06, h[1] - 0.05, h[1] + 0.05, h[2] - 0.06, h[2] + 0.06, scale=0.5, col=GLOW["white"])
+    tl = at(-0.66, G0 + 0.82)
+    box((D, "glow", 1), tl[0] - 0.05, tl[0] + 0.05, tl[1] - 0.03, tl[1] + 0.03, tl[2] - 0.05, tl[2] + 0.05, scale=0.5, col=GLOW["red"])
+
+
+def crack(D, x, z, rng, length=3.0, y=G0 + 0.004, col=(0.012, 0.012, 0.015, 1)):
+    """A crack across paving: a few short kinked runs, thin."""
+    ang = rng.uniform(0, math.tau)
+    px, pz = x, z
+    left = length
+    while left > 0.2:
+        step = min(left, rng.uniform(0.4, 1.0))
+        ang += rng.uniform(-0.7, 0.7)
+        qx, qz = px + math.cos(ang) * step, pz + math.sin(ang) * step
+        wx, wz = -math.sin(ang) * 0.02, math.cos(ang) * 0.02
+        quad((D, "trim", 1), (px - wx, y, pz - wz), (qx - wx, y, qz - wz), (qx + wx, y, qz + wz), (px + wx, y, pz + wz), col=col)
+        quad((D, "trim", 1), (px + wx, y, pz + wz), (qx + wx, y, qz + wz), (qx - wx, y, qz - wz), (px - wx, y, pz - wz), col=col)
+        px, pz = qx, qz
+        left -= step
