@@ -127,3 +127,41 @@ for (x, s, size) in ((57.0, 1, "bm"), (70.5, 1, "bl"), (84.0, 1, "bm"), (62.5, -
     for dx in (-w / 2 + 0.1, w / 2 - 0.1):
         box((D, "metal", 1), x + dx - 0.02, x + dx + 0.02, UNDER - 0.6, UNDER - 0.02, z - 0.02, z + 0.02, scale=0.5)
     blade(x, UNDER - 0.66 - h / 2, z, size, along="z")
+
+# The south fascia over the avenue, which the hero's lens and every view up
+# the canyon looks at: a concrete facing in panels with dark joints, steel
+# stiffeners standing off it, bolt heads along its flanges, a worn hazard
+# band at its foot, rust run down from the joints, the line's name and the
+# way to the megabuilding stencilled on it. Paint and relief, nothing lit
+# (in the core with the deck). Under the deck, behind the girders' foot
+# where no lens at street level 600 m off reaches, battens of tube light
+# down its length over the avenue.
+KF = (FA, "trim", 0)
+FZ = ZS + 0.2                                    # the facing's front
+box(KF, -15.6, 15.6, UNDER + 0.22, TOP - 0.2, ZS, FZ, scale=1.0, col=(0.13, 0.13, 0.14, 1.0))
+_x = -15.6
+while _x < 15.6:
+    box(KF, _x - 0.04, _x + 0.04, UNDER + 0.22, TOP - 0.2, FZ, FZ + 0.01, scale=1.0, col=BLACK)
+    box(KF, _x + 0.1, _x + 0.5, UNDER + 0.7, TOP - 0.5, FZ, FZ + 0.008, scale=1.0, col=dim(RUST, 0.55))
+    _x += 3.9
+_x = -14.4
+while _x < 15.0:
+    box(KF, _x - 0.09, _x + 0.09, UNDER + 0.18, TOP - 0.16, FZ, FZ + 0.26, scale=1.0, col=STEEL)
+    _x += 2.4
+for y in (UNDER + 0.32, TOP - 0.34):
+    _x = -15.3
+    while _x < 15.4:
+        box(KF, _x - 0.05, _x + 0.05, y - 0.05, y + 0.05, FZ, FZ + 0.05, scale=1.0, col=(0.26, 0.25, 0.24, 1.0))
+        _x += 0.6
+_x, _k = -15.6, 0
+while _x < 15.6:
+    box(KF, _x, min(_x + 0.6, 15.6), UNDER + 0.22, UNDER + 0.52, FZ, FZ + 0.012, scale=1.0, col=dim(YEL, 0.42) if _k % 2 else BLACK)
+    _x, _k = _x + 0.6, _k + 1
+strokes(KF, "NCART", -7.6, (UNDER + TOP) / 2 + 0.05, FZ + 0.015, 0.95, 0.0, (0.3, 0.3, 0.3, 1.0), weight=0.15)
+strokes(KF, "H4 >", 8.4, (UNDER + TOP) / 2 + 0.05, FZ + 0.015, 0.95, 0.0, dim(YEL, 0.5), weight=0.15)
+for x in (-12.5, -10.0, -5.0, 0.0, 5.0, 10.0, 12.5):
+    for z, hue in ((RAIL_Z + 2.0, "white"), (RAIL_Z - 2.2, "green")):
+        box((D, "glow", 0), x - 0.7, x + 0.7, UNDER - 0.14, UNDER - 0.08, z - 0.05, z + 0.05, scale=0.5, col=dim(GLOW[hue], 0.85), bottom=True)
+        box((D, "metal", 1), x - 0.75, x + 0.75, UNDER - 0.08, UNDER, z - 0.09, z + 0.09, scale=0.5)
+for x in (-10.0, 10.0):
+    light(D, x, 8.0, RAIL_Z + 1.0, "white", 2.2)

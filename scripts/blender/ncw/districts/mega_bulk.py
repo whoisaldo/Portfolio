@@ -168,3 +168,59 @@ for (mx, mz, top, h) in ((-66.0, -847.0, floor_y(53), 20.0), (73.0, -847.0, floo
     for t in (0.45, 0.75):
         box((D, "metal", 1), mx - 1.6, mx + 1.6, top + h * t, top + h * t + 0.12, mz - 0.06, mz + 0.06, scale=0.5)
     cylinder((D, "glow", 0), mx, mz, top + h, top + h + 0.9, 0.5, segs=6, col=GLOW["red"])
+
+# ---------------------------------------------------------------------------
+# The end tower's lower half: the middle section's face in the hero's slot
+# (z -749, x -18..18). The hero sees it at 755 m, so what is added is dark
+# relief, in the core with the face: housing blocks bolted on between the
+# decks, their few windows dim, yellow edges dulled; frames, hoods and
+# brackets round its two signs so they hang on something; pipes and conduit
+# down the face. Nothing lit, nothing over the cyan sign (HERO_KEEP).
+# ---------------------------------------------------------------------------
+MZ = MB_ZF - MB_REC
+KF = (FA, "trim", 0)
+
+
+def fa_block(x0, x1, y0, y1, out, seed, lit=0.7):
+    """A housing block bolted to the middle section's face: concrete, a few
+    windows lit, dull yellow edges, brackets under it."""
+    r = random.Random(seed)
+    box((FA, "concrete", 0), x0, x1, y0, y1, MZ, MZ + out, scale=2.0, bottom=True)
+    g = face("+z", MZ + out + 0.02, x0 + 0.3, x1 - 0.3)
+    B.facade_wall((FA, "facade_end", 0), g, y0 + 0.5, y1 - 0.5, B.wall_col(lit, r.choice((0, 5, 6)), r.uniform(0.4, 0.9), 5), r.randrange(0, 40))
+    for yy in (y0, y1 - 0.45):
+        box(KF, x0, x1, yy, yy + 0.45, MZ + out, MZ + out + 0.04, scale=1.0, col=dim(YEL, 0.45))
+    for bx in (x0 + 0.4, x1 - 0.4):
+        box(KF, bx - 0.15, bx + 0.15, y0 - 1.2, y0, MZ, MZ + out * 0.7, scale=1.0, col=STEEL, bottom=True)
+
+
+assert MB_SIGNS[1] == (-9.0, "cyan") and MB_SIGNS[2] == (14.0, "pink")
+for (x0, x1, y0, y1, out, seed) in ((-6.6, -1.2, 28.4, 40.4, 3.4, 5201), (1.6, 8.2, 45.6, 52.8, 3.0, 5202),
+                                    (-17.2, -11.6, 67.0, 77.6, 3.6, 5203), (3.8, 11.0, 80.6, 87.4, 2.8, 5204),
+                                    (-6.0, -0.8, 69.6, 76.8, 2.4, 5205), (6.4, 11.8, 26.6, 34.4, 3.2, 5206)):
+    assert x1 < -10.6 or x0 > -7.4, (x0, x1)       # clear of the cyan sign
+    fa_block(x0, x1, y0, y1, out, seed)
+# Frames round the two signs a hair outside their glass (nothing behind
+# the glass: at 755 m a face a quarter metre behind it fights it), hoods
+# over their heads, boxes at their feet, brackets into the face.
+for vx, vh in ((-9.0, 60.0), (14.0, 38.0)):
+    y0, y1 = 14.0, 14.0 + vh
+    for sx in (-1.0, 1.0):
+        box(KF, vx + sx * 1.34 - 0.14, vx + sx * 1.34 + 0.14, y0 - 0.5, y1 + 0.5, MZ, MZ + 0.75, scale=1.0, col=STEEL)
+    box(KF, vx - 1.6, vx + 1.6, y1 + 0.5, y1 + 1.2, MZ, MZ + 1.1, scale=1.0, col=STEEL, bottom=True)
+    box(KF, vx - 1.2, vx + 1.2, y0 - 1.6, y0 - 0.5, MZ, MZ + 0.8, scale=1.0, col=STEEL, bottom=True)
+    y = y0 + 3.0
+    while y < y1:
+        for sx in (-1.0, 1.0):
+            box(KF, min(vx + sx * 1.48, vx + sx * 2.1), max(vx + sx * 1.48, vx + sx * 2.1), y, y + 0.16, MZ, MZ + 0.5, scale=1.0, col=STEEL)
+        y += 6.0
+# Pipes and conduit down the face.
+for (px, y0, y1, rr, col) in ((-14.6, 4.0, 86.0, 0.16, RUST), (-13.9, 4.0, 86.0, 0.08, STEEL), (-4.2, 8.0, 27.0, 0.12, RUST),
+                              (9.3, 36.0, 86.0, 0.14, RUST), (16.2, 4.0, 86.0, 0.1, STEEL), (0.6, 54.0, 86.0, 0.09, STEEL)):
+    if -10.4 < px < -7.6:
+        continue
+    pipe(KF, (px, y0, MZ + 0.3), (px, y1, MZ + 0.3), rr, segs=5, col=col)
+    y = y0 + 1.5
+    while y < y1:
+        box(KF, px - rr - 0.05, px + rr + 0.05, y, y + 0.1, MZ, MZ + 0.3 + rr, scale=1.0, col=STEEL)
+        y += 4.5
