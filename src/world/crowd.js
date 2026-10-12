@@ -649,6 +649,10 @@ const HEAD = /* glsl */ `
   uniform vec4 uLod;
   // Whether this pass draws everyone with this mesh, and a pixel's angle.
   uniform vec2 uPass;
+  // The rain's own map of the highest thing over every spot (src/world/cover.js).
+  uniform sampler2D uCover;
+  uniform vec4 uCoverBox;
+  uniform vec2 uCoverScale;
   ${COMMON}
 
   const float STRIDE = ${f(RIG.stride)};
@@ -670,19 +674,27 @@ const HEAD = /* glsl */ `
   // sign's own colour counts for as much as its luminance does: a blue or a
   // magenta tube lights a face, it does not black it out), easing off
   // toward a ceiling so the palest skin under the brightest sign stays skin;
-  // its colour is only a wash over their own (a quarter of the way from white),
-  // so a jacket is still its own colour under a green sign and the trousers,
-  // the skin and the hair are still theirs.
+  // its colour is only a wash over their own (a quarter of the way from white,
+  // and less where there is little of it: a faint light has no colour to
+  // give), so a jacket is still its own colour under a green sign and the
+  // trousers, the skin and the hair are still theirs.
   vec3 person(vec3 L) {
     float peak = max(L.r, max(L.g, L.b));
     float level = mix(dot(L, vec3(0.2126, 0.7152, 0.0722)), peak, 0.5);
     level = level < 0.45 ? level : 0.45 + 0.5 * (1.0 - exp((0.45 - level) / 0.5));
-    return level * mix(vec3(1.0), L / max(peak, 1e-4), 0.28);
+    return level * mix(vec3(1.0), L / max(peak, 1e-4), 0.28 * smoothstep(0.03, 0.3, level));
   }
   ${BY_NIGHT}
   // The night's own light where no sign reaches: enough that someone in the
   // dark is a dark blue shape with a face, a jacket and legs, not a hole.
   const vec3 NIGHT = vec3(0.03, 0.04, 0.075);
+  // Whether something is overhead where someone stands: a deck, an awning,
+  // an arcade. It does not rain there, and nobody holds an umbrella up.
+  float coveredAt(vec3 root) {
+    vec2 cuv = vec2((root.x - uCoverBox.x) * uCoverBox.z, (uCoverBox.y - root.z) * uCoverBox.w);
+    if (uCoverScale.y < 0.5 || cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0) return 0.0;
+    return step(root.y + 2.3, uCoverScale.x - texture2D(uCover, cuv).r * uCoverScale.y);
+  }
   // A file at a point along it: how far to the side of its line it runs,
   // and the room to move off it toward either side.
   vec3 laneAt(float u, float row) {
@@ -848,6 +860,17 @@ const VERTEX = /* glsl */ `
     float gone;
     float eye;
     place(root, face, fade, gone, eye);
+    // Standing under cover they have put the umbrella away (a walker passing
+    // under an awning keeps theirs up, as people do).
+    if (umbrella > 0.5 && !walking && coveredAt(root) > 0.5) {
+      umbrella = 0.0;
+      if (tag > ${f(TAG.umbrella - 0.5)} && tag < ${f(TAG.umbrella + 0.5)}) {
+        gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        vColor = vec3(0.0);
+        vFade = vec2(-1.0, 2.0);
+        return;
+      }
+    }
 
     // The joints: the hips' drop, the lean back about the heels, the chest's
     // pitch and turn, the hips' turn, the head's nod and turn; this side's
@@ -1141,12 +1164,13 @@ const VERTEX = /* glsl */ `
     vec3 past = signsAt(world - normalize(vec3(V.x, 0.0, V.z) + 1e-5) * 3.5);
     float ground = 0.72 + 0.28 * smoothstep(0.0, 0.5, tall);
     // The sign behind them is a rim in its own colour along their edge, and
-    // never more than they are themselves: someone in the dark in front of a
-    // cyan sign is a dark figure with a faint edge, not a cyan one.
+    // the wet shine with it, together never more than a part of what they
+    // are themselves (more of it on what is glossy): someone in the dark in
+    // front of a cyan sign is a dark figure with a faint edge, not a cyan one.
     vec3 own = byNight(albedo, light) * light * ground;
-    vec3 rim = (past * 1.2 + here * 0.1 + sky * 0.5) * graze * graze * graze * upright * 0.4;
-    rim *= min(1.0, (0.02 + 1.2 * max(own.r, max(own.g, own.b))) / max(max(rim.r, max(rim.g, rim.b)), 1e-4));
-    vec3 col = (own + rim + NIGHT * 0.05 * (0.3 + graze * graze) + (toward + sky * 0.9) * graze * graze * gloss * 0.5) * shade;
+    vec3 rim = (past * 1.2 + here * 0.1 + sky * 0.5) * graze * graze * graze * upright * 0.4 + (toward + sky * 0.9) * graze * graze * gloss * 0.5;
+    rim *= min(1.0, (0.006 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(rim.r, max(rim.g, rim.b)), 1e-4));
+    vec3 col = (own + rim + NIGHT * 0.05 * (0.3 + graze * graze)) * shade;
     // The umbrella's own neon is on the cloth by its edge, and on the head
     // and shoulders under it.
     if (part == ${PART.canopy}) col += (0.2 + albedo) * tint * 0.3 * aux * aux * aux;
@@ -1255,7 +1279,7 @@ const CARD_VERTEX = /* glsl */ `
     float facing = dot(face, toEye);
     // The top of the head, and all of it from behind: hair, a hat, a hood.
     vec3 top = bit(mask, ${f(TAG.hardhat)}) > 0.5 ? uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)] : bit(mask, ${f(TAG.hood)}) > 0.5 ? uPal[${PAL.shirt} + int(floor(aWear.y / 8.0) + 0.5)] : bit(flags, 2.0) > 0.5 ? uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)] : uPal[${PAL.hair} + int(aWear.w + 0.5)];
-    vJacket = vec4(jacket, bit(mask, ${f(TAG.umbrella)}));
+    vJacket = vec4(jacket, bit(mask, ${f(TAG.umbrella)}) * (pose < -0.5 ? 1.0 : 1.0 - coveredAt(root)));
     vLegs = vec4(uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)], bit(mask, ${f(TAG.skirt)}));
     vSkin = vec4(skin, abs(facing));
     vHair = vec4(top, uPass.y * eye / h);
@@ -1339,8 +1363,26 @@ const _frustum = new THREE.Frustum();
 const _vp = new THREE.Matrix4();
 const NAMES = ["aWalk", "aPath", "aBody", "aLook", "aWear"];
 
-export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks = [], standers = [] } = {}) {
+export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks = [], standers = [], cover = null } = {}) {
   const motion = reduced ? 0 : 1;
+  // What is overhead: the scene's cover map if it was handed over, or else
+  // the one the rain was given (its uniforms are found in the scene).
+  const overhead = { uCover: { value: null }, uCoverBox: { value: new THREE.Vector4() }, uCoverScale: { value: new THREE.Vector2() } };
+  let roof = cover ? { uCover: { value: cover.texture }, uCoverBox: { value: cover.box }, uCoverScale: { value: cover.scale } } : null;
+  let looked = 0;
+  let blind = false;
+  const underCover = () => {
+    if (!roof && looked < 600 && looked++ % 60 === 0) {
+      scene.traverse((o) => {
+        const u = o.material?.uniforms;
+        if (!roof && u?.uCover && u.uCoverBox && u.uCoverScale) roof = u;
+      });
+    }
+    if (!roof || blind) return;
+    overhead.uCover.value = roof.uCover.value;
+    overhead.uCoverBox.value.copy(roof.uCoverBox.value);
+    overhead.uCoverScale.value.copy(roof.uCoverScale.value);
+  };
   const light = createStreetLight(scene, shared);
   const palette = new Float32Array(PAL.size * 3);
   [JACKETS, TROUSERS, SKINS, HAIRS, BAGS, RIMS.map((c) => new THREE.Color(c).toArray()), SHIRTS, HELMETS].flat().forEach((c, i) => palette.set(c, i * 3));
@@ -1358,6 +1400,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     uLanes: { value: null },
     uLaneRows: { value: 1 },
     uSigns: light.uniform,
+    ...overhead,
     uLod: { value: new THREE.Vector4(TRADES[0], TRADES[0] * BAND, TRADES[1], TRADES[1] * BAND) },
   };
   const material = (name, vertexShader, fragmentShader, defines = {}) => {
@@ -1440,6 +1483,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     const t = shared.uTime.value * motion;
     const cam = shared.uCam.value;
     light.check();
+    underCover();
     if (eye) eye.updateMatrixWorld();
     const e = eye ? eye.matrixWorld.elements : null;
     const lens = eye ? eye.projectionMatrix.elements[5] : 0;
@@ -1566,6 +1610,13 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       TRADES[0] = near;
       TRADES[1] = far;
       last.fill(NaN);
+    };
+    // Forget what is overhead (or know it again), to see what it changes.
+    api.debugCover = (on) => {
+      blind = !on;
+      if (blind) overhead.uCoverScale.value.set(0, 0);
+      last.fill(NaN);
+      return roof ? roof.uCoverScale.value.toArray() : null;
     };
     // Everyone's floats, what stands on the pavements, the lanes' map and
     // the signs' light, for checking that nobody walks through anything and
