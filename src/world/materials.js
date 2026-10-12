@@ -1174,6 +1174,45 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   // brightness between glazing bars 1.2 m apart (drawn in world space, so
   // it needs no UVs), dimmer toward its frame, and never past white: from
   // the air it is a lit window with a shape, not a clipped quad.
+  // Glass a walker sees through: a balustrade's panels, the panes of a roof
+  // over a concourse. Dark blue-teal and almost clear square on, a mirror
+  // edge on, where it gives back the sky's glow and whatever light stands
+  // down its ray; the builder's vertex colour tints it (none is white).
+  const clearGlass = () => {
+    if (made.has("clearglass")) return made.get("clearglass");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared },
+      vertexShader: VERT_WORLD_COLOR,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec4 vColor;
+        void main() {
+          vec3 v = normalize(uCam - vWorld);
+          vec3 n = normalize(vNormalW);
+          n *= sign(dot(n, v) + 1e-4);
+          float nv = clamp(dot(n, v), 0.0, 1.0);
+          float fres = 0.05 + 0.95 * pow(1.0 - nv, 4.0);
+          vec3 r = reflect(-v, n);
+          vec3 tint = mix(vec3(1.0), vColor.rgb, step(0.004, dot(vColor.rgb, vec3(1.0))));
+          vec3 sky = mix(vec3(0.030, 0.050, 0.085), vec3(0.085, 0.060, 0.130), smoothstep(-0.1, 0.7, r.y));
+          vec3 street = spillAt(vWorld + r * 5.0) * 0.5 + spillAt(vWorld) * 0.12;
+          vec3 col = vec3(0.006, 0.022, 0.030) * tint + (sky + street) * fres * tint;
+          col = cityFog(col, vWorld, 0.8);
+          gl_FragColor = vec4(col, 0.30 + 0.62 * fres);
+          ${OUT}
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }));
+    m.name = "clearglass";
+    made.set("clearglass", m);
+    return m;
+  };
+
   const skylight = () => {
     if (made.has("skylight")) return made.get("skylight");
     const m = keep(new THREE.ShaderMaterial({
@@ -1456,6 +1495,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "tube": return tube();
       case "glow": return glow();
       case "skylight": return skylight();
+      case "clearglass": return clearGlass();
       case "tool_red": return surface("tool_red", { color: "#7a2028", ambient: 0.06, spill: 2.0 });
       case "hazard": return surface("hazard", { color: "#d8ab22", ambient: 0.07, spill: 1.8 });
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });

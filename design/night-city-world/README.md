@@ -262,6 +262,12 @@ replaced one box with the cars painted on.
     white highlights. Constraints: the can is completely blank, no label
     text, no logo, no letters anywhere; no watermark. Avoid: any writing on
     the can, garbled lettering, borders."
+  - `textures/holo-koi-amber-side.jpg` and `holo-koi-amber-top.jpg`, the
+    two koi over Corpo Plaza's hub (`src/world/plaza-koi.js`): the same
+    brief as the avenue's koi below with a filled body graded pale yellow
+    through orange to orange-red, white and gold patches and rows of scale
+    dots, once "seen exactly from the side" and once "seen exactly from
+    directly above, both pectoral fins spread wide".
   - `textures/holo-koi-magenta.jpg` and `holo-koi-cyan.jpg` (both variants),
     the koi: "Use case: stylized-concept. Asset type: a hologram texture for
     a 3D night city, blended additively over the sky (black means

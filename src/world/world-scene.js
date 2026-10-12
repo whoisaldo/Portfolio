@@ -29,6 +29,7 @@ import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
 import { preloadAds } from "./ads.js";
 import { createKoi, preloadKoi } from "./koi.js";
+import { createPlazaKoi } from "./plaza-koi.js";
 import { createCrowd } from "./crowd.js";
 import { createSteam } from "./steam.js";
 import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
@@ -136,6 +137,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let car = null;
   let shafts = null;
   let koi = null;
+  let plazaKoi = null;
   let crowd = null;
   let steam = null;
   let moon = null;
@@ -191,6 +193,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     steam = createSteam(scene, shared, c.anchors, { reduced });
     steam?.setLights(c.roofLights);
     resize();
+    plazaKoi = createPlazaKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
     return Promise.all([
       createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }),
       car.ready,
@@ -226,10 +229,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let pixelScale = 1;
   // The koi's loop for this screen, from the hero's own lens (koi.js).
   const heroFit = makePose();
+  const workFit = makePose();
   const fitKoi = () => {
-    if (!koi || !shots) return;
+    if (!shots) return;
     shots.poseOf("hero", 0, aspect, heroFit);
-    koi.fit(heroFit, aspect);
+    shots.poseOf("projects", 0, aspect, workFit);
+    plazaKoi?.quiet(workFit.position, heroFit.position);
+    koi?.fit(heroFit, aspect);
   };
   const resize = () => {
     width = Math.max(1, canvas.clientWidth || window.innerWidth);
@@ -677,6 +683,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       bolt?.update();
       shafts?.update(shared.uHaze.value);
       koi?.update(flow);
+      plazaKoi?.update();
       traffic?.update(flow, env.traffic);
       city?.boards.update(dt, activeBoard());
       city?.towers.update(dt, activeTowers());
@@ -1107,6 +1114,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       car?.dispose();
       shafts?.dispose();
       koi?.dispose();
+      plazaKoi?.dispose();
       crowd?.dispose();
       steam?.dispose();
       moon?.dispose();

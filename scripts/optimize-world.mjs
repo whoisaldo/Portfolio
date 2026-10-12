@@ -183,6 +183,8 @@ for (const [name, src, w, h, q] of [
   ["ad-nicola", "design/night-city-world/textures/ad-nicola.jpg", 768, 1152, 82],
   ["koi-magenta", "design/night-city-world/textures/holo-koi-magenta.jpg", 1024, 683, 80],
   ["koi-cyan", "design/night-city-world/textures/holo-koi-cyan.jpg", 1024, 683, 80],
+  ["koi-amber-side", "design/night-city-world/textures/holo-koi-amber-side.jpg", 1024, 683, 82],
+  ["koi-amber-top", "design/night-city-world/textures/holo-koi-amber-top.jpg", 1024, 683, 82],
 ]) {
   const path = `${OUT}/${name}.webp`;
   await sharp(src).resize(w, h, { fit: "cover" }).webp({ quality: q }).toFile(path);

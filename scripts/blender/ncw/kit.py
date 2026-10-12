@@ -232,6 +232,9 @@ for _kind, _rough in (("corrugated", 0.6), ("container", 0.6), ("tankplate", 0.5
 # A roof light: glazing with bars every 1.2 m and each pane its own
 # brightness, never past white (src/world/materials.js).
 material("skylight", "ffffff", emit=1.2)
+# Glass a walker sees through (a balustrade, the panes over a concourse):
+# dark blue-teal, a mirror edge on; its vertex colour tints it.
+material("clearglass", "ffffff", metal=0.6, rough=0.08)
 # A billboard with no words (src/world/materials.js draws its adverts):
 # each board's palette, shape and seed in its vertex colour.
 material("billboard", "ffffff", emit=1.5)
