@@ -351,24 +351,49 @@ def screen_on_legs(cx, cz, y0, w, h, yaw, r, base=0.15, back=True):
 # deals each size's designs by the number in a sign's id, src/data/world.js
 # STREET_SIGNS): cyberware, braindance, a clinic, electronics, an exchange,
 # an eye clinic, the pictograms; not the noodle bars and the karaoke.
-HOUSE = {"pm": (1, 4, 7, 2), "ps": (0, 6), "bl": (1, 4, 7), "bm": (9, 5, 8, 10), "bs": (4, 7, 9, 8), "bx": (3, 4, 6, 8, 10)}
-HOUSE_N = {}
+HOUSE = {"pm": (5, 7, 4, 1, 6, 2), "ps": (0, 6, 5, 2, 7, 4), "bl": (4, 2, 3, 7, 1, 6), "bm": (5, 6, 10, 4, 9, 7, 8), "bs": (9, 7, 4, 8, 1, 5),
+         "bx": (4, 9, 8, 6, 3, 11, 2, 10)}
+# (Two designs that say the same thing in two sizes are one name.)
+SAME = {("ps", 6): ("bm", 5), ("bs", 8): ("ps", 0), ("bs", 4): ("ps", 0)}
+PLACED = []     # (size, design, x, z) of every sign the plaza has hung
+SIGN_AT = [None]
 
 
-def house_name(size):
-    """The id of the next corporate design of a size."""
-    n = HOUSE_N.get(size, 0)
-    HOUSE_N[size] = n + 1
-    return f"st_{size}_{HOUSE[size][n % len(HOUSE[size])]}"
+def house_name(size, x=None, z=None, n=None):
+    """The id of a design of a size for a sign at (x, z): the one whose
+    nearest twin hangs furthest away (no name twice within sight of itself),
+    the list's order breaking ties, so teal, green, yellow and white come
+    before pink. `n`: this design and no other."""
+    if x is None:
+        x, z = SIGN_AT[0] or (0.0, 0.0)
+
+    def far(d):
+        key = SAME.get((size, d), (size, d))
+        return min([math.hypot(px - x, pz - z) for s_, d_, px, pz in PLACED if SAME.get((s_, d_), (s_, d_)) == key] or [1e6])
+
+    if n is None:
+        n = max(HOUSE[size], key=lambda d: (min(far(d), 400.0), -HOUSE[size].index(d)))
+    PLACED.append((size, n, x, z))
+    return f"st_{size}_{n}"
 
 
-def big_sign(size, k, cx, cy, cz, yaw, double=True, frame=True):
+def kit_signs(x, z):
+    """While a kit building of the plaza's is built, the kit's own signs
+    (its shop boards, its blades) are named by the plaza's picker, as hung
+    at (x, z): returns what to restore buildings.st_name to."""
+    old = B.st_name
+    SIGN_AT[0] = (x, z)
+    B.st_name = lambda size: house_name(size)
+    return old
+
+
+def big_sign(size, k, cx, cy, cz, yaw, double=True, frame=True, n=None):
     """One of the street's standard signs drawn k times its size (the site
     paints the same face larger): a tower's column of type, a podium's
     board. Both faces painted when it stands out from a wall."""
     w, h = ST_SIZES[size][0] * k, ST_SIZES[size][1] * k
     nx, nz = math.sin(yaw), math.cos(yaw)
-    sid = house_name(size)
+    sid = house_name(size, cx, cz, n)
     sign(sid, cx + nx * 0.14, cy, cz + nz * 0.14, w, h, yaw, district=PL, label=False)
     if double:
         sign(sid + "_b", cx - nx * 0.14, cy, cz - nz * 0.14, w, h, yaw + math.pi, district=PL, label=False)
@@ -402,7 +427,7 @@ def fascia_signs_x(x0, x1, zf, facing, r, rate=0.75, y=3.95, house=0.6):
         w, h = ST_SIZES[size]
         if r.random() < rate and x + w < x1 - 0.6:
             box((PL, "board_frame", 0), x - 0.06, x + w + 0.06, y - h / 2 - 0.06, y + h / 2 + 0.06, *sorted((zf + f * 0.14, zf + f * 0.2)), scale=1.0)
-            sign(house_name(size) if r.random() < house else st_name(size), x + w / 2, y, zf + f * 0.215, w, h, 0.0 if f > 0 else math.pi, district=PL, label=False)
+            sign(house_name(size, x + w / 2, zf), x + w / 2, y, zf + f * 0.215, w, h, 0.0 if f > 0 else math.pi, district=PL, label=False)
         x += w + r.uniform(2.2, 4.6)
 
 
@@ -415,7 +440,7 @@ def fascia_signs_z(z0, z1, xf, facing, r, rate=0.75, y=3.95, house=0.6):
         w, h = ST_SIZES[size]
         if r.random() < rate and z + w < z1 - 0.6:
             box((PL, "board_frame", 0), *sorted((xf + f * 0.14, xf + f * 0.2)), y - h / 2 - 0.06, y + h / 2 + 0.06, z - 0.06, z + w + 0.06, scale=1.0)
-            sign(house_name(size) if r.random() < house else st_name(size), xf + f * 0.215, y, z + w / 2, w, h, f * math.pi / 2, district=PL, label=False)
+            sign(house_name(size, xf, z + w / 2), xf + f * 0.215, y, z + w / 2, w, h, f * math.pi / 2, district=PL, label=False)
         z += w + r.uniform(2.2, 4.6)
 
 
@@ -831,7 +856,7 @@ def roof_works(x0, x1, z0, z1, y, seed, lamp="white", cap=3.2, density=1.0, path
     pb = b0 + (b1 - b0) * (r.uniform(0.35, 0.65) if wide else 0.5)
     def pad(a_lo, a_hi, b_lo, b_hi, col=PAD):
         xa, xb, za, zb = rect(a_lo, a_hi, b_lo, b_hi)
-        up_poly((PL, "glow", 0), [(xa, za), (xb, za), (xb, zb), (xa, zb)], y + 0.03, (*col[:3], 1.0))
+        up_poly((PL, "glow", 0), [(xa, za), (xb, za), (xb, zb), (xa, zb)], y + 0.06, (*col[:3], 1.0))
 
     if path and wide:
         # The path: lamps beside it, and pavers each as bright as the lamps
@@ -986,7 +1011,7 @@ def octagon_sign(cx, cy, cz, across, yaw, hue="cyan", size="bx"):
     r = across / 2 / math.cos(math.pi / 8)
     pts = [(r * math.cos(math.pi / 8 + i * math.tau / 8), r * math.sin(math.pi / 8 + i * math.tau / 8)) for i in range(8)]
     nx, nz = math.sin(yaw), math.cos(yaw)
-    sid = house_name(size)
+    sid = house_name(size, cx, cz)
     k = across * 0.56 / ST_SIZES[size][0]
     w, h = ST_SIZES[size][0] * k, ST_SIZES[size][1] * k
     for sgn in (1, -1):
@@ -1018,7 +1043,7 @@ def front_bay(f, s0, s1, kind, r, colour="amber"):
         w, h = ST_SIZES["pm"]
         mid = (s0 + s1) / 2
         cx, cy, cz = f.p(f.at(mid), 3.82, 0.15)
-        sign(house_name("pm"), cx, cy, cz, w, h * 0.72, f.yaw, district=PL, label=False)
+        sign(house_name("pm", cx, cz), cx, cy, cz, w, h * 0.72, f.yaw, district=PL, label=False)
         B.awning(PL, f, s0 + 0.3, s1 - 0.3, colour)
         lx, _, lz = f.p(f.at(mid), 0.0, 1.6)
         light(PL, lx, 2.2, lz, colour, 5.0)

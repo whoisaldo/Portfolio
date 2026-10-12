@@ -19,6 +19,7 @@ from ncw.kit import _crosses
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.plaza_parts import *  # noqa: F401,F403
+from ncw.districts.plaza_crowns import cantilever, reclad, crown_lantern, crown_fin, roof_logo, lit_pad
 
 OFFICE = dict(windows=(2, 4, 5), lit=(0.6, 0.92), warmth=(0.05, 0.45), tints=("navy", "teal", "concrete", "charcoal"),
               balcony=0.0, ac=0.03, signs=0.5, awning=0.2, shop_sign=0.7, canopy=0.5, roof_cap=4.4, setback=0.0,
@@ -27,6 +28,9 @@ OFFICE = dict(windows=(2, 4, 5), lit=(0.6, 0.92), warmth=(0.05, 0.45), tints=("n
 HOTEL = dict(OFFICE, windows=(0, 1), lit=(0.62, 0.9), warmth=(0.65, 1.0), tints=("plum", "brown", "navy"),
              balcony=0.34, balcony_glass=0.0, ledge_every=(1,), cornice=0.6,
              shop_colours=["amber", "pink", "white", "cyan"], awning=0.5)
+# (A podium whose storeys are re-clad in office glass: no ledges, cornice,
+# units or pipes on the painted wall behind it.)
+GLASSY = dict(OFFICE, ledge_every=(0,), cornice=0.0, ac=0.0, pipes=0.0, fire_escape=0.0)
 ALL_OPEN = {"+x": "open", "-x": "open", "+z": "open", "-z": "open"}
 FACE_AT = {"+z": 0.0, "-z": math.pi, "+x": math.pi / 2, "-x": -math.pi / 2}
 
@@ -53,9 +57,22 @@ def checked(x0, x1, z0, z1, top, what):
 def podium(x0, x1, z0, z1, h, sides, seed, nb=None, style=OFFICE, ground="shops", **kw):
     front = next((k for k, v in sides.items() if v == "street"), "+z")
     full = dict({"+x": "back", "-x": "back", "+z": "back", "-z": "back"}, **sides)
-    B.building(B.Lot(x0, x1, z0, z1, front, full, dict(nb or {}), PL), h, random.Random(seed), style=style, setback=False,
-               ground=ground, roof=False, **kw)
+    # (Its shop boards and blades are the kit's, named by the plaza's picker.)
+    old = kit_signs((x0 + x1) / 2, (z0 + z1) / 2)
+    try:
+        B.building(B.Lot(x0, x1, z0, z1, front, full, dict(nb or {}), PL), h, random.Random(seed), style=style, setback=False,
+                   ground=ground, roof=False, **kw)
+    finally:
+        B.st_name = old
     checked(x0, x1, z0, z1, h + 1.2, f"podium {seed}")
+
+
+def glass_podium(x0, x1, z0, z1, h, sides, seed, faces, lit=0.76, warm=0.3, fin=None, band=None, trim=1, skip=None, every=3, **kw):
+    """A podium whose storeys over the shops are office glass behind fins on
+    the named faces (the kit's painted window cells stay on its backs)."""
+    kw.setdefault("style", GLASSY)
+    podium(x0, x1, z0, z1, h, sides, seed, **kw)
+    reclad(x0, x1, z0, z1, SHOP_H + 0.3, h, seed + 5000, faces=faces, lit=lit, warm=warm, fin=fin, band=band, tint=trim, skip=skip, every=every)
 
 
 def mark(kind, face, sec, y, size, colour, back=True):
@@ -159,12 +176,12 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
         mast(cx + w * 0.18, cz + d * 0.14, top + 3.0, 6.0)
         extra = 13.6
     elif crown == "pad":
-        av_pad(cx, cz, top, r=min(7.5, min(w, d) / 2 - 3.0), colour=accent)
+        lit_pad(cx, cz, top, min(7.5, min(w, d) / 2 - 1.6), hue=accent)
         extra = 1.2
     elif crown in ("pool", "garden"):
         roof_terrace(tx0 + 0.6, tx1 - 0.6, tz0 + 0.6, tz1 - 0.6, top, r, colour=accent, water=crown == "pool")
         extra = 8.0
-    if plant and crown not in ("pad", "pool", "garden", "spire", "twin"):
+    if plant and crown not in ("pad", "pool", "garden", "spire", "twin", "none"):
         m = 3.0 if crown in ("blades", "halo", "frame") else 1.6
         # A working roof: a lit path, plant in pale steel on pads, nothing
         # over 3.2 m.
@@ -188,17 +205,47 @@ def roof_screen(cx, cz, y, w, h, yaw, seed):
 # corner into the square), an office slab in lit bands along the deck.
 # ---------------------------------------------------------------------------
 B.ground_rect(PL, 52.0, 108.0, -168.0, -95.0)
-podium(52.0, 80.0, -168.0, -132.0, 14.8, {"-z": "street", "-x": "back", "+x": "party", "+z": "party"}, 8311,
-       nb={"+x": 18.2, "+z": 11.4})
-podium(80.0, 108.0, -168.0, -132.0, 18.2, {"+x": "street", "-z": "street", "-x": "party", "+z": "party"}, 8312,
-       nb={"-x": 14.8, "+z": 11.4}, window=4, tint="teal")
-podium(52.0, 108.0, -132.0, -95.0, 11.4, {"+x": "street", "+z": "street", "-x": "back", "-z": "party"}, 8313,
-       nb={"-z": 14.8}, tint="navy")
+glass_podium(52.0, 80.0, -168.0, -132.0, 14.8, {"-z": "street", "-x": "back", "+x": "party", "+z": "party"}, 8311, ("-z",),
+             nb={"+x": 18.2, "+z": 11.4}, lit=0.8, warm=0.2, fin="teal", band="teal", trim=2, style=OFFICE)
+glass_podium(80.0, 108.0, -168.0, -132.0, 18.2, {"+x": "street", "-z": "street", "-x": "party", "+z": "party"}, 8312, ("+x", "-z"),
+             nb={"-x": 14.8, "+z": 11.4}, window=4, tint="teal", lit=0.86, warm=0.6, fin="yellow", band="yellow", signs=False,
+             every=4, trim=2)
+glass_podium(52.0, 108.0, -132.0, -95.0, 11.4, {"+x": "street", "+z": "street", "-x": "back", "-z": "party"}, 8313, ("+x",),
+             nb={"-z": 14.8}, tint="navy", lit=0.8, warm=0.5, fin="white", trim=1, style=OFFICE)
+# (The corner block hangs a box of two floors out over the road's pavement.)
+cantilever(B.Face("+x", 108.0, -168.0, -132.0), 14.0, 28.0, 8.0, 15.6, 2.2, 8397, accent="yellow", warm=0.7, tint=2)
 # (The hero's lens finds anything here over 70 m above the avenue's roofs.)
-B1T = tower("B1 tower", 55.0, 77.0, -165.0, -136.0, 14.8, 60.0, 8314, steps=((44.0, 2.0), (54.0, 4.5)), cut=2.4, accent="cyan", crown="spire",
-            spire=4.4, marks=(("hex", "-z", 49.0, 7.0, "cyan"), ("hex", "+x", 49.0, 7.0, "cyan")), lit=0.8, warm=0.2)
-tower("B1 slab", 62.0, 104.0, -124.0, -100.0, 11.4, 45.4, 8315, kind="wall", window=5, tint="navy", accent="amber", crown="band",
-      marks=(("bars", "+x", 37.0, 6.0, "amber"),), plant=3)
+B1T = tower("B1 tower", 55.0, 77.0, -165.0, -136.0, 14.8, 60.0, 8314, steps=((44.0, 2.0), (54.0, 4.5)), cut=2.4, accent="teal", crown="spire",
+            spire=4.4, marks=(("hex", "-z", 49.0, 7.0, "teal"), ("hex", "+x", 49.0, 7.0, "teal")), lit=0.8, warm=0.2)
+# (Fins with lines of light up its faces to the square and the road: from
+# the air its glass was dark bands and nothing else.)
+rb = random.Random(8396)
+for name in ("-z", "+x", "+z"):
+    f = B.faces_of(55.0, 77.0, -165.0, -136.0)[name]
+    fin_row(f, 3.0, f.width - 3.0, 16.0, 43.4, rb, step=(2.2, 3.0), out=0.55, lit="teal" if name != "+z" else "white", every=3, k=0.3)
+    f = B.faces_of(59.5, 72.5, -160.5, -140.5)[name]
+    fin_row(f, 1.4, f.width - 1.4, 54.9, 59.6, rb, step=(1.6, 2.2), out=0.45, lit="white", every=2, k=0.3)
+# The slab along the deck: glass in two steps, the upper one a narrower
+# house under a blade wall that carries its mark to the square and the deck
+# (the hero's lens finds anything on this footprint over 80 m).
+tower("B1 slab", 62.0, 104.0, -124.0, -100.0, 11.4, 45.4, 8315, cut=1.2, accent="yellow", crown="none", lit=0.74, warm=0.6,
+      marks=(("bars", "+x", 37.0, 6.0, "yellow"),), plant=0)
+tower("B1 slab top", 70.0, 98.0, -122.0, -102.0, 45.4, 70.2, 8395, steps=((61.2, 1.5),), cut=1.2, accent="yellow", crown="none", lit=0.82,
+      warm=0.5, plant=0)
+crown_fin(71.5, 96.5, -120.5, -103.5, 70.2, 6.4, "-z", "yellow", mark="bars")
+checked(70.0, 98.0, -122.0, -102.0, 77.2, "B1 slab crown")
+for name in ("-z", "+z", "+x", "-x"):
+    f = B.faces_of(62.0, 104.0, -124.0, -100.0)[name]
+    fin_row(f, 2.0, f.width - 2.0, 13.0, 44.8, rb, step=(2.4, 3.2), out=0.55, lit="yellow" if name in ("-z", "+x") else None, every=4, k=0.26,
+            skip=((f.width / 2 - 4.6, f.width / 2 + 4.6),) if name == "+x" else ((0.0, 24.0),) if name == "-x" else ())
+    f = B.faces_of(70.0, 98.0, -122.0, -102.0)[name]
+    fin_row(f, 1.6, f.width - 1.6, 46.4, 60.8, rb, step=(2.4, 3.2), out=0.5, lit="white" if name in ("-z", "+z") else None, every=3, k=0.26)
+cantilever(B.Face("-z", -122.0, 70.0, 98.0), 3.0, 17.0, 49.8, 57.4, 2.0, 8398, accent="teal", warm=0.25)
+# (Its west end, which the avenue's wet road mirrors under the east row's
+# shops, is the painted wall of lit bands it was built with, cell for cell.)
+rw = random.Random(8315)
+B.facade_wall((PL, "facade", 0), B.Face("-x", 61.9, -122.8, -101.2), 11.4, 45.4,
+              B.wall_col(rw.uniform(*OFFICE["lit"]), 5, rw.uniform(*OFFICE["warmth"]), B.TINTS["navy"]), rw.randrange(0, 40))
 # The corner block's roof: a garden over the junction, and a screen turned
 # to it.
 parapet(80.0, 108.0, -168.0, -132.0, 18.2, tint=2)
@@ -219,9 +266,9 @@ while z < -132.8:
     x = 80.6
     while x < 107.2:
         on_path = (-147.4 < z + 1.0 < -144.6) or (92.6 < x + 1.0 < 95.4)
-        kk = rg.uniform(0.84, 1.1) * (0.11 if on_path else 0.07)
+        kk = rg.uniform(0.84, 1.1) * (0.26 if on_path else 0.19)
         lit_poly((PL, "glow", 0), [(x + 0.03, z + 0.03), (x + 1.97, z + 0.03), (x + 1.97, z + 1.97), (x + 0.03, z + 1.97)], RY + 0.02,
-                 (kk, kk, kk), pools=GARDEN_POOLS, dark=(0.09, 0.095, 0.115))
+                 (kk, kk * 0.98, kk * 0.92), pools=GARDEN_POOLS, dark=(0.2, 0.225, 0.29))
         x += 2.0
     z += 2.0
 for (a0, a1, b0, b1) in ((82.6, 105.4, -147.2, -147.12), (82.6, 105.4, -144.88, -144.8), (92.8, 92.88, -157.4, -134.6), (95.12, 95.2, -157.4, -134.6)):
@@ -256,7 +303,6 @@ roof_screen(102.0, -163.0, 18.2, 10.0, 5.6, math.radians(135), 8317)
 parapet(52.0, 80.0, -168.0, -132.0, 14.8, tint=1)
 parapet(52.0, 108.0, -132.0, -95.0, 11.4, tint=1)
 skylight(64.0, 100.0, -131.0, -126.5, 11.4, colour="white", k=0.26, pitch=0.9)
-roof_plant(53.0, 61.0, -123.0, -107.0, 11.4, random.Random(8318), n=3)
 # Two screens turned to the traffic coming down the deck (it comes from
 # the west, at their height until it lands): one flat on the slab's west
 # end, one on its podium. (Nothing that glows stands west of x 60 above the
@@ -276,7 +322,6 @@ B2H = tower("B2 hotel", 56.0, 106.0, -34.0, -13.0, 11.4, 45.4, 8322, kind="wall"
             crown="band", plant=0)
 pool(60.0, 72.0, -29.5, -24.0, 45.4, colour="cyan")
 garden(90.0, 105.0, -32.5, -18.5, 45.4, random.Random(8328), palms=3, trees=0, colour="pink", lamps=1)
-roof_plant(60.0, 74.0, -22.0, -17.0, 45.4, random.Random(8329), n=2)
 tower("B2 wing", 62.0, 98.0, -62.0, -46.0, 11.4, 31.0, 8323, cut=1.6, accent="teal", crown="band", lit=0.78, warm=0.5, plant=2,
       marks=(("gate", "-z", 24.5, 5.0, "teal"),))
 pool(66.0, 94.0, -43.0, -37.0, 11.4, colour="cyan")
@@ -298,28 +343,54 @@ for px in (76.5, 85.5):
 # closes its vista with a screen the height of ten floors, D4 is flats.
 # ---------------------------------------------------------------------------
 B.ground_rect(PL, 132.0, 170.0, -168.0, -10.0)
-podium(132.0, 170.0, -168.0, -126.0, 14.8, {"-x": "street", "-z": "street", "+x": "open", "+z": "party"}, 8331, nb={"+z": 11.4},
-       tint="concrete", window=2)
-# (D1 is one finned glass house in two steps: a wing 35 m high to the road,
+glass_podium(132.0, 170.0, -168.0, -126.0, 14.8, {"-x": "street", "-z": "street", "+x": "open", "+z": "party"}, 8331, ("-x", "-z"),
+             nb={"+z": 11.4}, tint="concrete", window=2, lit=0.84, warm=0.55, fin="yellow", band="yellow", trim=5)
+# (D1 is one finned glass house in three: a wing 35 m high to the road with
 # a landing pad on it, which the aerial looks over into the square; and
-# behind it the shaft that closes the square's view east, seen down the
-# causeway and over the junction, with MILITECH's name under its crown.)
-tower("D1 wing", 136.0, 151.0, -164.0, -130.0, 14.8, 35.2, 8332, cut=1.6, accent="amber", crown="pad", lit=0.74, warm=0.55, plant=0)
-D1T = tower("D1 shaft", 151.0, 168.0, -164.0, -136.0, 14.8, 64.0, 8387, steps=((54.0, 1.5),), cut=1.6, accent="amber", crown="band",
-            lit=0.8, warm=0.3, plant=1)
+# behind it the shaft that stands over the square's east side: 118 m in
+# three steps, a box of three floors hung out over the wing and one of two
+# toward the junction, a band with MILITECH's name under an open steel
+# crown wrapped in rails of light, a mast. What stops it there: from the
+# garage roof the Stack's pan looks west-south-west at this block over the
+# house at x 393..410, z -244..-223, whose 58 m wall hides D1 up to about
+# 135 m; over that its top would stand in that shot's sky. The hero's lens
+# does not reach this footprint at any height.)
+tower("D1 wing", 136.0, 151.0, -164.0, -130.0, 14.8, 35.2, 8332, cut=1.6, accent="yellow", crown="pad", lit=0.74, warm=0.55, plant=0)
+D1T = tower("D1 shaft", 151.0, 168.0, -164.0, -136.0, 14.8, 118.2, 8387, steps=((68.8, 1.6), (99.2, 3.4)), cut=1.6, accent="yellow", crown="none",
+            lit=0.8, warm=0.3, plant=0)
 rf = random.Random(8388)
-for name, plane, a0, a1 in (("-x", 151.0, -164.0, -136.0), ("+x", 168.0, -164.0, -136.0), ("-z", -164.0, 151.0, 168.0), ("+z", -136.0, 151.0, 168.0)):
-    f = B.Face(name, plane, a0, a1)
-    fin_row(f, 2.0, f.width - 2.0, 36.0 if name == "-x" else 16.0, 53.6, rf, step=(2.0, 2.6), out=0.6, lit="white" if name in ("-x", "+z") else None, every=4, k=0.2)
-for name, plane, a0, a1 in (("-x", 152.5, -162.5, -137.5), ("+z", -137.5, 152.5, 166.5), ("+x", 166.5, -162.5, -137.5), ("-z", -162.5, 152.5, 166.5)):
-    f = B.Face(name, plane, a0, a1)
-    fin_row(f, 1.8, f.width - 1.8, 54.9, 56.6, rf, step=(2.0, 2.6), out=0.5)
-    fin_row(f, 1.8, f.width - 1.8, 61.4, 64.6, rf, step=(2.0, 2.6), out=0.5)
-lit_band(151.0, 168.0, -164.0, -136.0, 53.7, 54.0, "amber", k=0.4, cut=1.6)
-wordmark("militech_far", 152.5 - 0.3, 59.0, -150.0, 16.0, 3.4, -math.pi / 2)
-wordmark("militech_b", 159.5, 59.0, -137.5 + 0.3, 11.0, 2.4, 0.0)
+for i, (a0, a1, b0, b1, ya, yb) in enumerate(((151.0, 168.0, -164.0, -136.0, 16.0, 68.3), (152.6, 166.4, -162.4, -137.6, 70.0, 98.7),
+                                              (154.4, 164.6, -160.6, -139.4, 100.4, 107.4))):
+    for name, f in B.faces_of(a0, a1, b0, b1).items():
+        hue = None if name == "+x" else "white" if name == "+z" else ("yellow" if i == 1 else "teal")
+        kw = dict(step=(2.0, 2.6), out=0.6 - 0.06 * i, lit=hue, every=4 if i == 0 else 3, k=0.24)
+        if i == 0 and name == "-x":
+            # (Over the wing's roof; the hung box's field is left clear.)
+            fin_row(f, 2.0, f.width - 2.0, 36.0, 52.9, rf, **kw)
+            fin_row(f, 2.0, f.width - 2.0, 52.9, 65.8, rf, skip=((3.4, 24.6),), **kw)
+            fin_row(f, 2.0, f.width - 2.0, 65.8, yb, rf, **kw)
+        elif i == 1 and name == "-z":
+            fin_row(f, 1.8, f.width - 1.8, ya, 75.8, rf, **kw)
+            fin_row(f, 1.8, f.width - 1.8, 75.8, 84.6, rf, skip=((1.5, 12.3),), **kw)
+            fin_row(f, 1.8, f.width - 1.8, 84.6, yb, rf, **kw)
+        else:
+            fin_row(f, 1.8, f.width - 1.8, ya, yb, rf, **kw)
+cantilever(B.Face("-x", 151.0, -164.0, -136.0), 4.0, 24.0, 53.6, 65.0, 3.0, 8391, accent="yellow", warm=0.65)
+cantilever(B.Face("-z", -162.4, 152.6, 166.4), 2.0, 11.8, 76.4, 84.0, 2.4, 8392, accent="teal", warm=0.2)
+# The name band under the crown, the crown and its mast.
+for name, f in B.faces_of(154.4, 164.6, -160.6, -139.4).items():
+    f.box((PL, "trim", 0), 0.5, f.width - 0.5, 107.9, 113.1, 0.0, 0.3, col=B.TRIM[0], scale=2.0)
+    f.box((PL, "glow", 0), 0.7, f.width - 0.7, 107.62, 107.78, 0.3, 0.33, col=dim("yellow", 0.6))
+    f.box((PL, "glow", 0), 0.7, f.width - 0.7, 113.2, 113.34, 0.3, 0.33, col=dim("white", 0.5))
+wordmark("militech_far", 154.4 - 0.34, 110.5, -150.0, 16.0, 3.4, -math.pi / 2, frame=False)
+wordmark("militech_b", 159.5, 110.5, -160.6 - 0.34, 8.6, 1.85, math.pi, frame=False)
+emblem("chevrons", 159.5, 110.5, -139.4 + 0.36, 4.0, 0.0, "yellow")
+emblem("chevrons", 164.6 + 0.36, 110.5, -150.0, 4.0, math.pi / 2, "yellow")
+crown_lantern(155.6, 163.4, -159.4, -140.6, 118.2, 6.4, "yellow", k=0.55)
+mast(159.5, -150.0, 118.2 + 6.4 * 0.62, 5.6)
+checked(151.0, 168.0, -164.0, -136.0, 128.4, "D1 crown")
 for f, a0 in ((B.Face("-x", 136.0, -164.0, -130.0), 0), (B.Face("-z", -164.0, 136.0, 151.0), 1)):
-    fin_row(f, 2.0, f.width - 2.0, 16.0, 34.6, rf, step=(2.2, 3.0), out=0.5, lit="amber", every=4, k=0.28)
+    fin_row(f, 2.0, f.width - 2.0, 16.0, 34.6, rf, step=(2.2, 3.0), out=0.5, lit="yellow", every=4, k=0.28)
 parapet(132.0, 170.0, -168.0, -126.0, 14.8, tint=5)
 podium(132.0, 170.0, -126.0, -98.0, 11.4, {"-x": "street", "+x": "open", "+z": "party", "-z": "party"}, 8333,
        nb={"+z": 11.4, "-z": 14.8}, tint="navy", ground="blank", signs=False, style=dict(OFFICE, canopy=0.0))
@@ -328,36 +399,46 @@ fd2 = B.Face("-x", 132.0, -126.0, -98.0)
 front_bay(fd2, 0.8, 8.2, "shop", random.Random(8347), colour="amber")
 lobby_front(fd2, 9.0, 21.0, random.Random(8345), accent="amber")
 front_bay(fd2, 21.8, 27.4, "dock", random.Random(8348), colour="amber")
-tower("D2", 137.0, 165.0, -123.0, -101.0, 11.4, 58.0, 8334, cut=2.0, accent="amber", crown="blades", lit=0.66, warm=0.75,
+# (D2 stays 58 m: the aerial's lens hangs at 90 m over this roof.)
+tower("D2", 137.0, 165.0, -123.0, -101.0, 11.4, 58.0, 8334, cut=2.0, accent="amber", crown="blades", lit=0.7, warm=0.75,
       marks=(("chevrons", "-x", 49.0, 7.0, "amber"), ("chevrons", "+x", 49.0, 7.0, "amber")))
+cantilever(B.Face("-x", 137.0, -123.0, -101.0), 6.5, 20.5, 19.4, 27.0, 2.6, 8393, accent="amber", warm=0.8)
+rd2 = random.Random(8399)
+for name, f in B.faces_of(137.0, 165.0, -123.0, -101.0).items():
+    fin_row(f, 2.4, f.width - 2.4, 28.0 if name == "-x" else 13.0, 44.0 if name in ("-x", "+x") else 57.4, rd2, step=(2.4, 3.2), out=0.5,
+            lit="amber" if name != "+x" else None, every=4, k=0.24)
 podium(132.0, 170.0, -98.0, -60.0, 11.4, {"-x": "street", "+x": "open", "+z": "party", "-z": "party"}, 8335,
        nb={"+z": 11.4, "-z": 11.4}, tint="charcoal", window=4, ground="blank", signs=False, style=dict(OFFICE, canopy=0.0))
 # (The deck runs into this face at junction Q: adverts in frames at eye
 # level, the lobby on the deck's axis, a shop under an awning, a tall sign
 # standing off the wall, boards and lamps on the parapet over them.)
 fd3 = B.Face("-x", 132.0, -98.0, -60.0)
-front_bay(fd3, 0.8, 9.8, "screens", random.Random(8349), colour="magenta")
-lobby_front(fd3, 10.6, 27.4, random.Random(8346), accent="magenta")
-front_bay(fd3, 28.2, 37.2, "shop", random.Random(8350), colour="pink")
-blade_off(fd3, 1.3, 5.2, "bl", 1.9, angle=0.35)
+front_bay(fd3, 0.8, 9.8, "screens", random.Random(8349), colour="green")
+lobby_front(fd3, 10.6, 27.4, random.Random(8346), accent="green")
+front_bay(fd3, 28.2, 37.2, "shop", random.Random(8350), colour="yellow")
+blade_off(fd3, 1.3, 5.2, "bm", 2.8, angle=0.35)
 for z, size, k in ((-92.0, "pm", 2.0), (-66.5, "ps", 2.6)):
     big_sign(size, k, 132.5, 12.4 + 0.5 + ST_SIZES[size][1] * k / 2, z, -math.pi / 2, double=False)
     for dz in (-1.6, 1.6):
         box((PL, "metal", 1), 132.52, 132.64, 12.4, 12.9, z + dz - 0.06, z + dz + 0.06, scale=0.5)
-D3 = tower("D3", 136.0, 166.0, -94.0, -64.0, 11.4, 80.0, 8336, steps=((60.0, 3.0),), cut=3.0, accent="magenta", crown="halo",
-           lit=0.7, warm=0.15, edge=True, marks=(("rings", "-x", 70.0, 8.0, "magenta"), ("rings", "-z", 70.0, 8.0, "magenta"),
-                                     ("rings", "+z", 70.0, 8.0, "magenta")))
-mast(151.0, -79.0, 80.0, 12.0)
+# (D3 stands on the deck's axis and behind D1 from the square: three steps
+# to 103 m, a ring of light held over its roof, a mast. Its south-east
+# corner is the one the Stack's pan finds first, from 84 m: the top step
+# stands 6.5 m in from it.)
+D3 = tower("D3", 136.0, 166.0, -94.0, -64.0, 11.4, 102.8, 8336, steps=((60.0, 3.0), (80.0, 6.5)), cut=3.0, accent="green", crown="halo",
+           lit=0.74, warm=0.15, edge=True, marks=(("rings", "-x", 70.0, 8.0, "green"), ("rings", "-z", 70.0, 8.0, "green"),
+                                     ("rings", "+z", 70.0, 8.0, "green"), ("rings", "-x", 92.0, 6.0, "yellow"), ("rings", "-z", 92.0, 6.0, "yellow")))
+mast(151.0, -79.0, 102.8, 9.0)
+checked(142.5, 159.5, -87.5, -70.5, 112.4, "D3 mast")
 # The screen that closes the deck's vista: ten floors of advert on the
 # tower's west face, on the road's axis.
 screen(135.6, 36.0, -79.0, 13.0, 28.0, -math.pi / 2, random.Random(8337), back=False, depth=0.5)
 for z in (-86.2, -71.8):
-    box((PL, "glow", 0), 135.72, 136.0, 21.5, 50.5, z - 0.12, z + 0.12, scale=1.0, col=dim("magenta", 0.7))
-parapet(132.0, 170.0, -126.0, -60.0, 11.4, tint=1, line="magenta")
+    box((PL, "glow", 0), 135.72, 136.0, 21.5, 50.5, z - 0.12, z + 0.12, scale=1.0, col=dim("green", 0.7))
+parapet(132.0, 170.0, -126.0, -60.0, 11.4, tint=1, line="green")
 garden(132.6, 136.6, -124.0, -99.0, 11.4, random.Random(8342), palms=0, trees=2, colour="amber", lamps=1)
 skylight(133.0, 136.0, -72.0, -63.0, 11.4, colour="white", k=0.26, pitch=0.7)
 skylight(133.0, 136.0, -95.0, -86.0, 11.4, colour="white", k=0.26, pitch=0.7)
-roof_plant(166.0, 169.6, -124.0, -62.0, 11.4, random.Random(8343), n=4)
 podium(132.0, 170.0, -60.0, -10.0, 11.4, {"-x": "street", "+z": "street", "+x": "open", "-z": "party"}, 8338, nb={"-z": 11.4},
        style=HOTEL, tint="brown")
 tower("D4", 142.0, 168.0, -56.0, -14.0, 11.4, 42.0, 8339, kind="wall", style=HOTEL, window=1, tint="brown", accent="amber",
@@ -374,46 +455,62 @@ roof_screen(137.0, -14.5, 11.4, 8.0, 4.6, math.radians(-45), 8341)
 # ---------------------------------------------------------------------------
 B.ground_rect(PL, 52.0, 108.0, -456.0, -284.0)
 B.ground_rect(PL, 108.0, 170.0, -456.0, -420.0)
-podium(78.0, 108.0, -310.0, -284.0, 31.8, {"+x": "street", "+z": "party", "-z": "party", "-x": "back"}, 8351,
-       nb={"+z": 44.0, "-z": 42.0}, window=4, tint="navy", style=dict(OFFICE, roof_cap=4.4))
+glass_podium(78.0, 108.0, -310.0, -284.0, 31.8, {"+x": "street", "+z": "party", "-z": "party", "-x": "back"}, 8351, ("+x",),
+             nb={"+z": 44.0, "-z": 42.0}, window=4, tint="navy", lit=0.8, warm=0.25, fin="teal", band="teal", trim=1)
 parapet(78.0, 108.0, -310.0, -284.0, 31.8, tint=1)
 roof_works(79.0, 107.0, -309.2, -300.0, 31.8, 8352, cap=3.2)
 roof_works(79.0, 107.0, -294.6, -284.8, 31.8, 8357, lamp="amber", cap=3.2)
 skylight(80.5, 105.5, -299.0, -295.5, 31.8, colour="white", k=0.26, pitch=0.9)
-podium(78.0, 108.0, -344.0, -310.0, 42.0, {"+x": "street", "+z": "party", "-z": "open", "-x": "back"}, 8353,
-       nb={"+z": 31.8}, window=5, tint="teal", signs=False)
+# (B5's north house: glass to the road and the boulevard, and on it a
+# narrower house of four floors under a mark on a truss, turned to the
+# boulevard: 66 m, under the Work shot's line, 68.5 m here.)
+glass_podium(78.0, 108.0, -344.0, -310.0, 42.0, {"+x": "street", "+z": "party", "-z": "open", "-x": "back"}, 8353, ("+x", "-z"),
+             nb={"+z": 31.8}, window=5, tint="teal", signs=False, lit=0.78, warm=0.5, fin="yellow", trim=2, skip={"+x": [(12.0, 28.0)]})
 parapet(78.0, 108.0, -344.0, -310.0, 42.0, tint=2)
-roof_works(79.0, 107.0, -343.2, -330.0, 42.0, 8354, cap=3.2)
-roof_works(79.0, 97.0, -324.0, -310.8, 42.0, 8358, lamp="amber", cap=3.2)
-roof_screen(102.4, -317.0, 42.0, 9.0, 4.2, math.radians(60), 8359)
+tower("B5 top", 82.0, 102.0, -341.0, -319.0, 42.0, 57.2, 8394, cut=1.4, accent="teal", crown="none", lit=0.8, warm=0.2, plant=0)
+roof_logo(92.0, -330.0, 57.2, 4.6, math.pi / 2, "delta", "teal")
+checked(82.0, 102.0, -341.0, -319.0, 66.0, "B5 top mark")
+rq = random.Random(8389)
+for name, f in B.faces_of(82.0, 102.0, -341.0, -319.0).items():
+    fin_row(f, 1.6, f.width - 1.6, 43.0, 56.6, rq, step=(2.2, 3.0), out=0.5, lit="teal" if name in ("+x", "-z") else None, every=3, k=0.28)
+roof_works(79.0, 97.0, -318.2, -310.8, 42.0, 8358, lamp="amber", cap=3.2)
+roof_screen(103.4, -314.6, 42.0, 8.0, 4.2, math.radians(60), 8359)
 checked(96.0, 108.0, -324.0, -310.0, 42.0 + 1.6 + 4.2 + 0.4, "B5b board")
-lawn(81.0, 105.0, -329.0, -325.0, 42.0)
-checked(78.0, 108.0, -344.0, -310.0, 46.5, "B5b roof")
 # The boulevard runs into this face: a screen across it, a mark over that.
 screen(108.45, 19.0, -330.0, 15.0, 8.4, math.pi / 2, random.Random(8355), back=False)
-mark("delta", "+x", (78.0, 108.0, -344.0, -310.0), 33.0, 6.0, "cyan")
+mark("delta", "+x", (78.0, 108.0, -344.0, -310.0), 33.0, 6.0, "teal")
 tower("C1", 54.0, 74.0, -338.0, -292.0, 0.15, 46.0, 8356, cut=2.0, accent="teal", crown="blades", lit=0.7, warm=0.3,
       marks=(("bars", "+z", 38.0, 6.0, "teal"),))
-podium(54.0, 106.0, -396.0, -348.0, 14.8, dict(ALL_OPEN), 8361, tint="charcoal", ground="blank")
+glass_podium(54.0, 106.0, -396.0, -348.0, 14.8, dict(ALL_OPEN), 8361, ("+x", "-x", "+z", "-z"), tint="charcoal", ground="blank",
+             lit=0.7, warm=0.3, fin=None, trim=0, every=4)
 parapet(54.0, 106.0, -396.0, -348.0, 14.8, tint=0)
 tower("T1", 56.0, 78.0, -392.0, -352.0, 14.8, 77.0, 8362, steps=((58.0, 2.5), (70.0, 5.0)), cut=2.2, accent="amber", crown="frame",
       lit=0.8, warm=0.6, marks=(("delta", "+z", 64.0, 6.5, "amber"), ("delta", "+x", 64.0, 6.5, "amber")))
-tower("T2", 84.0, 104.0, -392.0, -356.0, 14.8, 76.0, 8363, kind="wall", window=5, tint="teal", accent="teal", crown="garden", plant=0)
+# (T2 and T4 are glass behind fins: as painted window cells they were, from
+# the air, a checker of white blocks.)
+tower("T2", 84.0, 104.0, -392.0, -356.0, 14.8, 76.0, 8363, cut=1.4, accent="teal", crown="garden", lit=0.78, warm=0.35, plant=0)
+for name, f in B.faces_of(84.0, 104.0, -392.0, -356.0).items():
+    fin_row(f, 2.0, f.width - 2.0, 16.0, 75.4, rq, step=(2.6, 3.4), out=0.5, lit="teal" if name in ("+x", "+z") else None, every=4, k=0.26,
+            skip=((27.0, 33.0),) if name == "+x" else ())
 pool(86.0, 102.0, -354.5, -350.5, 14.8, colour="teal")
 skylight(79.0, 83.0, -390.0, -356.0, 14.8, colour="cyan", k=0.26, pitch=0.8)
 garden(56.0, 78.0, -351.5, -348.5, 14.8, random.Random(8364), palms=0, trees=2, colour="amber", lamps=1)
-podium(54.0, 106.0, -452.0, -402.0, 18.2, dict(ALL_OPEN), 8371, tint="navy", ground="blank")
+glass_podium(54.0, 106.0, -452.0, -402.0, 18.2, dict(ALL_OPEN), 8371, ("+x", "-x", "+z", "-z"), tint="navy", ground="blank",
+             lit=0.72, warm=0.2, fin=None, trim=1, every=4)
 parapet(54.0, 106.0, -452.0, -402.0, 18.2, tint=1)
 T3 = tower("T3", 58.0, 82.0, -448.0, -408.0, 18.2, 104.0, 8372, steps=((72.0, 2.5), (88.0, 5.0), (98.0, 7.5)), cut=2.6, accent="white", crown="spire",
            spire=5.4, lit=0.82, warm=0.1, marks=(("rings", "+z", 80.0, 7.0, "white"), ("rings", "+x", 80.0, 7.0, "white")))
-tower("T4", 88.0, 104.0, -448.0, -410.0, 18.2, 89.6, 8373, kind="wall", window=2, tint="charcoal", accent="magenta", crown="twin",
-      steps=((72.6, 2.5),), marks=(("gate", "+z", 62.0, 6.0, "magenta"), ("gate", "+x", 62.0, 6.0, "magenta")), plant=0)
+tower("T4", 88.0, 104.0, -448.0, -410.0, 18.2, 89.6, 8373, cut=1.4, accent="green", crown="twin",
+      steps=((72.6, 2.5),), marks=(("gate", "+z", 62.0, 6.0, "green"), ("gate", "+x", 62.0, 6.0, "green")), lit=0.76, warm=0.55, plant=0)
+for name, f in B.faces_of(88.0, 104.0, -448.0, -410.0).items():
+    fin_row(f, 1.8, f.width - 1.8, 19.4, 57.0, rq, step=(2.4, 3.2), out=0.5, lit="green" if name in ("+x", "+z") else None, every=4, k=0.26)
 skylight(60.0, 100.0, -406.5, -403.0, 18.2, colour="cyan", k=0.26, pitch=0.8)
-garden(82.6, 87.4, -446.0, -410.0, 18.2, random.Random(8374), palms=0, trees=3, colour="magenta", lamps=1)
+garden(82.6, 87.4, -446.0, -410.0, 18.2, random.Random(8374), palms=0, trees=3, colour="green", lamps=1)
 # North of corpo row's first towers: two blocks, low enough to stay under
 # the Experience shot's frame.
 B.building(B.Lot(110.0, 136.0, -454.0, -422.0, "+z", dict(ALL_OPEN), {}, PL), 45.4, random.Random(8381),
-           style=dict(OFFICE, roof_cap=4.4), setback=False, ground="blank", window=4, tint="concrete")
+           style=dict(GLASSY, roof_cap=4.4), setback=False, ground="blank", window=4, tint="concrete", signs=False)
+reclad(110.0, 136.0, -454.0, -422.0, SHOP_H + 0.3, 45.4, 8383, lit=0.74, warm=0.6, fin="yellow", every=4, tint=5)
 tower("S2", 142.0, 168.0, -454.0, -422.0, 0.15, 52.0, 8382, cut=2.2, accent="cyan", crown="blades", lit=0.7, warm=0.35,
       marks=(("hex", "+z", 43.0, 6.0, "cyan"),))
 
@@ -427,6 +524,6 @@ lawn(52.0, 70.0, -283.0, -279.0, 44.0)
 for i, (x, y, z) in enumerate(((60.6, 0.17, -249.6), (53.6, 0.17, -259.6), (110.9, 0.17, -147.0), (129.2, 0.17, -47.0))):
     box((PL, "metal", 1), x - 0.45, x + 0.45, y - 0.02, y + 0.02, z - 0.45, z + 0.45, scale=0.5)
     empty(f"anchor_steam_street_plaza_{i}", (x, y + 0.05, z))
-for i, (x, y, z) in enumerate(((98.0, 45.4, -104.0), (160.0, 58.0, -106.0), (98.0, 76.0, -360.0))):
+for i, (x, y, z) in enumerate(((101.4, 45.4, -104.0), (160.0, 58.0, -106.0), (98.0, 76.0, -360.0))):
     box((PL, "metal", 0), x - 0.7, x + 0.7, y, y + 1.6, z - 0.7, z + 0.7, scale=1.0)
     empty(f"anchor_steam_roof_plaza_{i}", (x, y + 1.7, z))

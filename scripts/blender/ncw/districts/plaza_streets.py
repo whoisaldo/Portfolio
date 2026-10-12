@@ -149,9 +149,9 @@ frontage("z", -10.0, 1, 134.0, 168.0, 8508)
 # Corner signs: each block's corner to a junction carries one, turned to
 # face the junction's middle.
 corner_sign(108.0, -168.0, 6.0, "bl", 2.2, math.radians(135))      # B1 to the plaza street's junction
-corner_sign(132.0, -168.0, 5.6, "bl", 1.8, math.radians(-135))     # D1 to the same
-corner_sign(108.0, -95.0, 3.2, "bl", 1.6, math.radians(45))        # B1 to the deck's landing
-corner_sign(108.0, -65.0, 3.2, "bl", 1.6, math.radians(135))       # B2 to the deck's landing
+corner_sign(132.0, -168.0, 5.6, "bm", 2.8, math.radians(-135))     # D1 to the same
+corner_sign(108.0, -95.0, 3.2, "bs", 3.8, math.radians(45))        # B1 to the deck's landing
+corner_sign(108.0, -65.0, 3.2, "bm", 2.4, math.radians(135))       # B2 to the deck's landing
 corner_sign(108.0, -10.0, 5.2, "bl", 1.15, math.radians(45))       # B2 to the south street
 corner_sign(132.0, -10.0, 6.4, "bx", 3.0, math.radians(-45))       # D4 to the south street
 corner_sign(108.0, -344.0, 6.0, "bl", 2.0, math.radians(135))      # B5 to the boulevard
@@ -162,7 +162,7 @@ blade_off(B.Face("+x", 104.0, -124.0, -100.0), 18.5, 22.0, "bm", 3.0)
 blade_off(B.Face("-x", 142.0, -56.0, -14.0), 8.0, 15.0, "bl", 2.6)
 blade_off(B.Face("+x", 104.0, -392.0, -356.0), 30.0, 28.0, "bl", 3.0)
 blade_off(B.Face("+x", 108.0, -344.0, -310.0), 3.5, 9.0, "bm", 2.4)
-blade_off(B.Face("-x", 137.0, -123.0, -101.0), 3.0, 14.0, "bl", 2.6, angle=0.5)
+blade_off(B.Face("-x", 137.0, -123.0, -101.0), 3.0, 14.0, "bs", 4.6, angle=0.5)
 blade_off(B.Face("+z", -13.0, 56.0, 106.0), 44.0, 14.0, "bl", 2.6)
 blade_off(B.Face("-z", -62.0, 62.0, 98.0), 4.0, 13.5, "bm", 2.4)
 blade_off(B.Face("+z", -100.0, 62.0, 104.0), 36.5, 14.0, "bl", 2.6, angle=-0.4)
