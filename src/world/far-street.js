@@ -24,11 +24,11 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { ADVERT } from "./sky-columns.js";
 
-export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9 };
+export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10 };
 
 // How far each kind is drawn: past it, it is under a pixel (a slab, a deck
 // and its boards are always drawn).
-const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500];
+const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 1500];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
@@ -146,6 +146,22 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 steel = vec3(0.016, 0.017, 0.022) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * max(n.y, 0.0)) * uHaze * 0.5;
           lit = pane * on * side * (1.0 - clamp(truss, 0.0, 1.0));
           col = mix(steel, glow * 0.75, lit);
+        } else if (kind > 9.5) {
+          // A lattice mast's section, or a truss round a roof: legs at its
+          // corners, a ring at every panel, a cross in each, and between
+          // them the sky. Far off, where a member is under a pixel, steel.
+          if (abs(n.y) > 0.5) discard;
+          bool onX = abs(vLocal.x) > vSize.x * 0.5 - 0.01;
+          float wide = onX ? vSize.z : vSize.x;
+          float u = (onX ? vLocal.z : vLocal.x) / wide + 0.5;
+          float panels = max(1.0, floor(vSize.y / min(wide, 9.0) + 0.5));
+          float fv = fract((vLocal.y / vSize.y + 0.5) * panels);
+          float span = max(1.0, floor(wide / 9.0 + 0.5));
+          float fu = fract(u * span);
+          float t = clamp(0.3 / (wide / span), 0.03, 0.12);
+          float member = step(min(fu, 1.0 - fu), t) + step(min(fv, 1.0 - fv), t * 0.7) + step(abs(fu - fv), t) + step(abs(fu - (1.0 - fv)), t);
+          if (member < 0.5 && fwidth(u * span) < 0.3) discard;
+          col = vec3(0.014, 0.015, 0.02) + (uHazeColor * 0.35 + uGlowColor * 0.2) * uHaze * 0.3;
         } else if (kind > 8.5) {
           // An AV: a dark hull, a strip of running light down each side,
           // white at its nose, red at its tail, thrusters glowing under it.
@@ -170,7 +186,7 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 a = h < 0.25 ? vec3(1.0, 0.2, 0.3) : h < 0.5 ? vec3(0.16, 0.85, 1.0) : h < 0.7 ? vec3(1.0, 0.62, 0.2) : h < 0.85 ? vec3(1.0, 0.25, 0.7) : vec3(0.9, 0.95, 1.0);
           float blocks = step(0.5, hash12(floor(q * vec2(5.0, 3.0)) + h * 31.0));
           float edge = 1.0 - step(0.02, q.x) * step(q.x, 0.98) * step(0.04, q.y) * step(q.y, 0.96);
-          vec3 drawn = advert(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, floor(h * 8.0)) * 1.4;
+          vec3 drawn = advert(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, vOwn.y + floor(h * 3.0)) * 1.4;
           col = mix(vec3(0.012, 0.013, 0.017), mix(mix(a * mix(1.3, 0.5, blocks), drawn, uHasAds), vec3(0.01), edge), face);
           lit = face * (1.0 - edge);
         } else {
@@ -190,7 +206,7 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
             col = mix(paint * (vec3(0.5) + sky * 5.0 * (0.3 + up) + light * 9.0), vec3(0.006, 0.008, 0.012) + sky * 0.5 + light * 0.25, glass);
           }
         }
-        col = cityFog(col, vWorld, lit);
+        col = sodiumBeyond(cityFog(col, vWorld, lit), vWorld);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
