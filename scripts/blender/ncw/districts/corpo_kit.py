@@ -1273,33 +1273,66 @@ def fin_screen(f, s0, s1, y0, y1, step=1.1, wide=0.24, out0=0.12, out1=0.6, col=
 GREENS = ((0.016, 0.055, 0.028, 1), (0.024, 0.07, 0.028, 1), (0.016, 0.046, 0.036, 1), (0.032, 0.064, 0.022, 1))
 
 
+def bush(x, z, y, rad, h, col, r, detail=0):
+    """A shrub with no two sides alike: five points round its foot, each at
+    its own reach, five round its shoulder, a top off its centre; dark at
+    the foot, lighter where it catches the light."""
+    n = 5
+    a0 = r.uniform(0.0, math.tau)
+    foot, mid = [], []
+    for j in range(n):
+        a = a0 + j * math.tau / n + r.uniform(-0.25, 0.25)
+        rf, rm = rad * r.uniform(0.75, 1.3), rad * r.uniform(0.45, 0.9)
+        foot.append((x + math.cos(a) * rf, y, z + math.sin(a) * rf))
+        mid.append((x + math.cos(a + 0.3) * rm, y + h * r.uniform(0.5, 0.82), z + math.sin(a + 0.3) * rm))
+    top = (x + r.uniform(-0.3, 0.3) * rad, y + h * r.uniform(0.92, 1.12), z + r.uniform(-0.3, 0.3) * rad)
+    dark = tuple(c * 0.7 for c in col[:3]) + (1,)
+    lit = tuple(c * 1.45 for c in col[:3]) + (1,)
+    for j in range(n):
+        a, b, c_, d = foot[j], foot[(j + 1) % n], mid[(j + 1) % n], mid[j]
+        quad(k("trim", detail), b, a, d, c_, col=dark if j % 2 else col)
+        poly(k("trim", detail), [c_, d, top], [(0, 0), (1, 0), (0.5, 1)], lit if j % 2 else col)
+
+
 def shrubs(xa, xb, zc, y, r, spread=0.3, hmax=0.55):
-    """Planting along a strip: shrubs in clusters of two to four, each a
-    low mound of seven sides and a smaller one on it, in four dark greens,
-    blades of a taller grass standing among them, gaps between."""
+    """Planting along a strip: shrubs in clumps of two to four, each its
+    own irregular shape and size and one of four dark greens, leaning into
+    one another, gaps between."""
     x = xa
+    n_bush = 0
     while x < xb - 0.4:
         for _ in range(r.randrange(2, 5)):
             if x > xb - 0.4:
                 break
-            rad = r.uniform(0.26, 0.46)
-            h = r.uniform(hmax * 0.45, hmax)
+            rad = r.uniform(0.24, 0.5)
+            h = r.uniform(hmax * 0.4, hmax)
             cz = zc + r.uniform(-spread, spread)
-            col = r.choice(GREENS)
-            cylinder(k("trim"), x, cz, y, y + h, rad, segs=7, col=col)
-            cylinder(k("trim", 1), x + r.uniform(-0.1, 0.1), cz + r.uniform(-0.1, 0.1), y + h, y + h + rad * 0.45, rad * 0.6, segs=5,
-                     col=tuple(c * 1.3 for c in col[:3]) + (1,))
-            x += rad * r.uniform(1.3, 1.9)
-        # Grass: thin blades, leaning.
-        gx, gz = x + 0.2, zc + r.uniform(-spread, spread)
-        for _ in range(3):
-            yaw = r.uniform(0.0, math.pi)
-            lean = r.uniform(-0.12, 0.12)
-            hh = hmax * r.uniform(0.9, 1.5)
-            for turn in (0.0, math.pi):
-                rotated_quad(k("trim", 1), gx + lean, y + hh / 2, gz, 0.1, hh, yaw + turn, col=(0.03, 0.08, 0.03, 1))
-            gx += 0.12
+            n_bush += 1
+            bush(x, cz, y, rad, h, r.choice(GREENS), r, detail=n_bush % 2)      # (a phone draws every other one)
+            x += rad * r.uniform(1.1, 1.8)
         x += r.uniform(0.4, 1.2)
+
+
+def bollard_light(x, z, y, hue, h=0.42, pool=3.0, detail=0):
+    """A low light with a fixture to it: a dark post, a lens of light let
+    into its head under a hood, and its pool."""
+    box(k("trim", detail), x - 0.07, x + 0.07, y, y + h, z - 0.07, z + 0.07, scale=1.0, col=BLACK)
+    glow_box(x - 0.085, x + 0.085, y + h - 0.13, y + h - 0.03, z - 0.085, z + 0.085, hue, detail)
+    box(k("trim", detail), x - 0.11, x + 0.11, y + h - 0.03, y + h + 0.01, z - 0.11, z + 0.11, scale=1.0, col=BLACK)
+    if pool:
+        light(CO, x, y + h + 0.5, z, hue, pool)
+
+
+def uplight(x, z, y, yaw, hue, detail=1):
+    """A spike light in a bed, turned up at what grows there: a dark can on
+    a stake, tipped back, its lens lit."""
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    box(k("trim", detail), x - 0.02, x + 0.02, y, y + 0.16, z - 0.02, z + 0.02, scale=1.0, col=BLACK)
+    oriented_box(k("trim", detail), x, y + 0.22, z, 0.16, 0.14, 0.2, yaw, scale=1.0, col=BLACK)
+    c = GLOW[hue]
+    rotated_quad(k("glow", detail), x + nx * 0.105, y + 0.23, z + nz * 0.105, 0.11, 0.1, yaw, col=c)
+    quad(k("glow", detail), (x - 0.05, y + 0.293, z + 0.05), (x + 0.05, y + 0.293, z + 0.05), (x + 0.05, y + 0.293, z - 0.05), (x - 0.05, y + 0.293, z - 0.05),
+         col=(c[0] * 0.6, c[1] * 0.6, c[2] * 0.6, 1.0))
 
 
 def block_seat(x, z, w=1.8, yaw=0.0, hue=None):
