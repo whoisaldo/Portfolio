@@ -42,6 +42,7 @@ MAT = {
     "concrete": "castconcrete",  # bunds, piers, plinths, barriers
 }
 FRAME = (0.10, 0.10, 0.11, 1.0)  # a frame's own dark paint, where no colour is given
+CONC = (0.56, 0.55, 0.52, 1.0)   # poured concrete's grey: white would glare under the sodium lamps
 
 
 def M(role, detail=0):
@@ -634,7 +635,7 @@ def sphere(cx, cz, r, col, segs=28, rings=14, legs=8, lamp="cyan"):
         t = (i + 0.5) * math.tau / legs
         fx, fz = cx + lr * math.cos(t), cz + lr * math.sin(t)
         cylinder(M("steel"), fx, fz, GY + 0.3, cy - r * 0.2, 0.2, segs=8, col=shade(col, 0.45), cap=False)
-        box(M("concrete"), fx - 0.45, fx + 0.45, GY, GY + 0.3, fz - 0.45, fz + 0.45, scale=1.0)
+        box(M("concrete"), fx - 0.45, fx + 0.45, GY, GY + 0.3, fz - 0.45, fz + 0.45, scale=1.0, col=CONC)
         feet.append((fx, fz))
     for i in range(legs):
         (ax, az), (bx, bz) = feet[i], feet[(i + 1) % legs]
@@ -689,7 +690,7 @@ def bullet(x0, x1, z, r, col, y=None, segs=None, base=GY):
                 else:
                     quad_n(M("tank"), (pa[0], pa[1], pb[1], pb[0]), hn, shade(col, 0.93 - 0.04 * j))
     for sx in (x0 + (x1 - x0) * 0.2, x0 + (x1 - x0) * 0.8):
-        box(M("concrete"), sx - 0.4, sx + 0.4, base, y - r * 0.72, z - r * 0.85, z + r * 0.85, scale=1.5)
+        box(M("concrete"), sx - 0.4, sx + 0.4, base, y - r * 0.72, z - r * 0.85, z + r * 0.85, scale=1.5, col=CONC)
         box(M("steel"), sx - 0.3, sx + 0.3, y - r * 0.72, y - r * 0.45, z - r * 0.9, z + r * 0.9, scale=1.0, col=shade(col, 0.45))
         pipe(M("steel", 1), (sx - 0.1, y, z), (sx + 0.1, y, z), r + 0.035, segs=segs, col=shade(col, 0.5))
     ln = x1 - x0
@@ -786,7 +787,7 @@ def run(points, r=0.16, col=RUST, segs=None, detail=0, flanges=7.0, valves=False
     corner so the elbows close: round enough to read as pipe, a flange at
     every joint, a shoe on a sleeper under a low level leg, a valve with
     its hand wheel on the first long one if asked."""
-    segs = segs or (12 if r >= 0.25 else 10 if r >= 0.14 else 8)
+    segs = segs or (16 if r >= 0.2 else 10 if r >= 0.14 else 8)
     col = dull(col)
     valved = not valves
     for a, b_ in zip(points, points[1:]):
@@ -805,7 +806,7 @@ def run(points, r=0.16, col=RUST, segs=None, detail=0, flanges=7.0, valves=False
             for i in range(max(1, int(ln // 4.0))):
                 t = (i + 0.5) / max(1, int(ln // 4.0))
                 px, pz = a[0] + dx * t, a[2] + dz * t
-                box(M("concrete", 1), px - 0.22, px + 0.22, GY, a[1] - r, pz - 0.22, pz + 0.22, scale=1.0)
+                box(M("concrete", 1), px - 0.22, px + 0.22, GY, a[1] - r, pz - 0.22, pz + 0.22, scale=1.0, col=CONC)
         if level and not valved and ln > 1.6:
             valve((a[0] + dx * 0.5, a[1], a[2] + dz * 0.5), (dx, 0, dz), r, col=shade(col, 0.7))
             valved = True
@@ -1183,7 +1184,7 @@ def docks(f, r, s0, s1, n, eave, first=1, raised=True, canopy=True, open_=(), ha
         st = "open" if i in open_ else ("half" if i in half else "shut")
         dock(f, s0 + (i + 0.5) * step, r, no=first + i, sill=sill, h=h, state=st, eave=eave)
     if raised:
-        f.box(M("concrete"), s0 - 1.0, s1 + 1.0, GY, GY + sill, 0.0, 2.6, scale=1.5)
+        f.box(M("concrete"), s0 - 1.0, s1 + 1.0, GY, GY + sill, 0.0, 2.6, scale=1.5, col=CONC)
         f.box(k("hazard", 1), s0 - 1.0, s1 + 1.0, GY + sill - 0.12, GY + sill, 2.6, 2.63)
         # Steps up to it at each end.
         for q in range(3):
@@ -1280,7 +1281,7 @@ def shed(x0, x1, z0, z1, eave, col, r, faces=None, plinth=1.0, tint="concrete", 
         if spec.get("hidden"):
             continue
         w = f.width
-        f.quad(M("concrete"), 0.0, w, 0.0, GY + plinth, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, (GY + plinth) / 3.0), (0, (GY + plinth) / 3.0)))
+        f.quad(M("concrete"), 0.0, w, 0.0, GY + plinth, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, (GY + plinth) / 3.0), (0, (GY + plinth) / 3.0)), col=CONC)
         cuts = [GY + plinth, eave]
         band = spec.get("band")
         office = spec.get("office")
@@ -1363,7 +1364,7 @@ def yard_wall(x0, z0, x1, z1, h=2.8, wire=True, r=None, posters=0.0, face=1):
     t = 0.22
     if along_x:
         xa, xb = min(x0, x1), max(x0, x1)
-        box(M("concrete"), xa, xb, 0.0, h, z0 - t / 2, z0 + t / 2, scale=2.5)
+        box(M("concrete"), xa, xb, 0.0, h, z0 - t / 2, z0 + t / 2, scale=2.5, col=CONC)
         n = max(1, round((xb - xa) / 6.0))
         for i in range(n + 1):
             x = xa + (xb - xa) * i / n
@@ -1380,7 +1381,7 @@ def yard_wall(x0, z0, x1, z1, h=2.8, wire=True, r=None, posters=0.0, face=1):
         collide(xa, xb, z0 - t / 2, z0 + t / 2, h)
     else:
         za, zb = min(z0, z1), max(z0, z1)
-        box(M("concrete"), x0 - t / 2, x0 + t / 2, 0.0, h, za, zb, scale=2.5)
+        box(M("concrete"), x0 - t / 2, x0 + t / 2, 0.0, h, za, zb, scale=2.5, col=CONC)
         n = max(1, round((zb - za) / 6.0))
         for i in range(n + 1):
             z = za + (zb - za) * i / n
@@ -1557,11 +1558,11 @@ def low_wall(x0, z0, x1, z1, h=0.9, lamps=3):
     a0, a1 = (min(x0, x1), max(x0, x1)) if along_x else (min(z0, z1), max(z0, z1))
     c0 = z0 if along_x else x0
     if along_x:
-        box(M("concrete"), a0, a1, 0.0, h, c0 - t / 2, c0 + t / 2, scale=2.0)
+        box(M("concrete"), a0, a1, 0.0, h, c0 - t / 2, c0 + t / 2, scale=2.0, col=CONC)
         rail((a0, h, c0), (a1, h, c0), h=1.2, detail=0, posts=2.0)
         collide(a0, a1, c0 - t / 2, c0 + t / 2, h + 1.2)
     else:
-        box(M("concrete"), c0 - t / 2, c0 + t / 2, 0.0, h, a0, a1, scale=2.0)
+        box(M("concrete"), c0 - t / 2, c0 + t / 2, 0.0, h, a0, a1, scale=2.0, col=CONC)
         rail((c0, h, a0), (c0, h, a1), h=1.2, detail=0, posts=2.0)
         collide(c0 - t / 2, c0 + t / 2, a0, a1, h + 1.2)
     n = max(1, round((a1 - a0) / 6.0))
@@ -1661,8 +1662,8 @@ def jersey(x0, z0, x1, z1, r, paint=0.6):
     for i in range(n):
         t = (i + 0.5) / n
         cx, cz = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
-        oriented_box(M("concrete"), cx, GY + 0.12, cz, 3.0, 0.24, 0.62, yaw)
-        oriented_box(M("concrete"), cx, GY + 0.55, cz, 3.0, 0.62, 0.3, yaw)
+        oriented_box(M("concrete"), cx, GY + 0.12, cz, 3.0, 0.24, 0.62, yaw, col=CONC)
+        oriented_box(M("concrete"), cx, GY + 0.55, cz, 3.0, 0.62, 0.3, yaw, col=CONC)
         if r.random() < paint:
             for fy in (yaw, yaw + math.pi):
                 mural(cx, cz, fy, 3.0, r, y0=GY + 0.26, y1=GY + 0.84, out=0.155, fill=1.0)
@@ -1722,7 +1723,7 @@ def gate(x0, z0, x1, z1, inward, open_=True, booth=None, guard=True, lamp="cyan"
     ix, iz = inward
     along_x = abs(x1 - x0) >= abs(z1 - z0)
     for (px, pz) in ((x0, z0), (x1, z1)):
-        box(M("concrete"), px - 0.35, px + 0.35, 0.0, 3.0, pz - 0.35, pz + 0.35, scale=1.5)
+        box(M("concrete"), px - 0.35, px + 0.35, 0.0, 3.0, pz - 0.35, pz + 0.35, scale=1.5, col=CONC)
         box(k("hazard", 1), px - 0.37, px + 0.37, 0.4, 1.3, pz - 0.37, pz + 0.37, scale=1.0)
         box(k("glow"), px - 0.14, px + 0.14, 3.0, 3.25, pz - 0.14, pz + 0.14, scale=0.5, col=GLOW[lamp])
         light(D, px, 3.0, pz, lamp, 2.0)
@@ -1785,7 +1786,7 @@ def poles(points, yaw, can_every=3, r=None, drop=None):
 # The yard's instanced props. One material each where it can be done (the
 # colour rides on `trim`'s vertices), so a prototype is one small mesh.
 # ---------------------------------------------------------------------------
-BOX_COLS = {"red": OXIDE, "rust": RUST, "blue": c(0.07, 0.15, 0.30), "green": c(0.08, 0.22, 0.15), "grey": c(0.34, 0.35, 0.36)}
+BOX_COLS = {"red": OXIDE, "rust": RUST, "blue": c(0.07, 0.15, 0.30), "green": c(0.08, 0.22, 0.15), "grey": c(0.2, 0.21, 0.23)}
 
 
 def container(cx, cz, yaw=0.0, col="red", ln=12.19, y=GY, doors=1):
@@ -1848,7 +1849,7 @@ def _container(kk, col, ln=12.19):
 
 for _name, _col in (("c40_red", OXIDE), ("c40_rust", RUST), ("c40_blue", c(0.07, 0.15, 0.30)), ("c40_green", c(0.08, 0.22, 0.15))):
     P.proto(_name, box=(6.1, 1.3, 1.22), reach=700)(lambda kk, _c=_col: _container(kk, _c))
-P.proto("c20_grey", box=(3.05, 1.3, 1.22), reach=700)(lambda kk: _container(kk, c(0.34, 0.35, 0.36), ln=6.06))
+P.proto("c20_grey", box=(3.05, 1.3, 1.22), reach=700)(lambda kk: _container(kk, c(0.2, 0.21, 0.23), ln=6.06))
 
 
 @P.proto("fence_pal", box=(1.5, 1.2, 0.05), reach=300)

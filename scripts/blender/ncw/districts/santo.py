@@ -204,7 +204,7 @@ def tank_farm():
     # Two bunds, the big tanks in the north one, and a manifold between.
     for (x0, x1, z0, z1) in ((313.0, 402.0, -161.0, -131.0), (313.0, 402.0, -127.0, -99.0)):
         for (a0, a1, b0, b1) in ((x0, x1, z0, z0 + 0.3), (x0, x1, z1 - 0.3, z1), (x0, x0 + 0.3, z0, z1), (x1 - 0.3, x1, z0, z1)):
-            box(K.M("concrete"), a0, a1, 0.0, 1.15, b0, b1, scale=2.0)
+            box(K.M("concrete"), a0, a1, 0.0, 1.15, b0, b1, scale=2.0, col=K.CONC)
         box(k("hazard", 1), x0, x1, 1.15, 1.2, z1 - 0.3, z1, scale=1.0)
     K.tank(328.0, -146.0, 10.5, 12.0, K.RUST, band=(0.78, 0.86), number="01", number_yaw=PI * 0.8, stair_at=PI * 0.75, r_=r)
     K.tank(357.0, -146.0, 10.5, 12.6, K.TANK_WHITE, band=(0.78, 0.86), number="02", number_yaw=PI * 0.8, stair_at=PI * 0.7, r_=r)
@@ -420,7 +420,7 @@ def plant():
     K.flare(420.4, -73.0, 31.0)
     # Bullets in a bund on the west, the rack up to the cooling cells.
     for (a0, a1, b0, b1) in ((308.0, 336.0, -78.0, -77.7), (308.0, 336.0, -54.3, -54.0), (308.0, 308.3, -78.0, -54.0), (335.7, 336.0, -78.0, -54.0)):
-        box(K.M("concrete"), a0, a1, 0.0, 1.0, b0, b1, scale=2.0)
+        box(K.M("concrete"), a0, a1, 0.0, 1.0, b0, b1, scale=2.0, col=K.CONC)
     for z, col in ((-73.6, K.TANK_WHITE), (-66.0, K.TANK_WHITE), (-58.4, K.RUST)):
         K.bullet(311.0, 333.0, z, 2.1, col)
         K.run([(333.0, 3.3, z), (338.4, 3.3, z), (338.4, 5.6, z)], r=0.14, col=K.YELLOW, detail=1)
@@ -432,7 +432,7 @@ def plant():
     # each breathing steam into the sodium light.
     for i in range(3):
         x0 = 308.0 + i * 10.0
-        box(K.M("concrete"), x0, x0 + 10.0, 0.0, 2.2, -34.0, -16.0, scale=2.0)
+        box(K.M("concrete"), x0, x0 + 10.0, 0.0, 2.2, -34.0, -16.0, scale=2.0, col=K.CONC)
         for f in B.faces_of(x0 + 0.3, x0 + 9.7, -33.7, -16.3).values():
             f.quad(k("door_panel"), 0.0, f.width, 2.2, 4.6, 0.0)
             f.quad(K.M("cladding"), 0.0, f.width, 4.6, 8.4, 0.0, col=K.CREAM)
@@ -666,7 +666,7 @@ def fuel():
     for (px, pz, fy) in ((147.0, CZ0 - 0.07, PI), (CX0 - 0.07, 24.0, -PI / 2), (CX1 + 0.07, 24.0, PI / 2), (147.0, CZ1 + 0.07, 0.0)):
         K.digits("OPALO", px, CY + 0.3, pz, 0.44, fy, k("glow"), PALE, out=0.0, gap=0.3)
     for ix in (134.0, 147.0, 160.0):
-        box(K.M("concrete"), ix - 0.7, ix + 0.7, GY, GY + 0.2, 19.0, 29.0, scale=1.0)
+        box(K.M("concrete"), ix - 0.7, ix + 0.7, GY, GY + 0.2, 19.0, 29.0, scale=1.0, col=K.CONC)
         for z in (20.2, 27.8):
             K.column(ix, z, GY, CY, t=0.42, mat=K.MAT["steel"], col=K.TANK_WHITE)
             cylinder(k("hazard", 1), ix, z + (1.6 if z > 24 else -1.6), GY, GY + 1.1, 0.14, segs=8)
@@ -1046,7 +1046,7 @@ def block_06():
     for name, f in fs.items():
         w = f.width
         for a_, b_ in (((0.0, DOOR[0]), (DOOR[1], w)) if name == "-z" else ((0.0, w),)):
-            f.quad(K.M("concrete"), a_, b_, 0.0, 3.2, 0.0)
+            f.quad(K.M("concrete"), a_, b_, 0.0, 3.2, 0.0, col=K.CONC)
             f.quad(K.M("cladding"), a_, b_, 3.2, 16.2, 0.0, col=K.OLIVE)
             f.box(k("trim"), a_ - 0.1, b_ + 0.1, 3.1, 3.4, 0.0, 0.2, col=K.shade(K.OLIVE, 0.5))
         if name == "-z":
@@ -1169,7 +1169,7 @@ def east():
     # A small tank yard: three tanks in a bund behind a fence, pipes, a
     # vent stub steaming, strip lamps (no mast: nothing here over 11 m).
     for (a0, a1, b0, b1) in ((456.0, 488.6, -124.6, -124.3), (456.0, 488.6, -96.3, -96.0), (456.0, 456.3, -124.6, -96.0), (488.3, 488.6, -124.6, -96.0)):
-        box(K.M("concrete"), a0, a1, 0.0, 1.0, b0, b1, scale=2.0)
+        box(K.M("concrete"), a0, a1, 0.0, 1.0, b0, b1, scale=2.0, col=K.CONC)
     K.tank(462.6, -116.6, 4.3, 7.2, K.RUST, segs=14, number="11", number_yaw=-PI / 2, stair_at=PI * 0.5, r_=r)
     K.tank(473.6, -117.4, 4.3, 7.6, K.TANK_WHITE, segs=14, band=(0.1, 0.2), stair_at=PI * 0.4, r_=r)
     K.tank(483.4, -110.0, 4.0, 6.8, K.RUST, segs=14, stair_at=PI * 0.9, r_=r)
