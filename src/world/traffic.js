@@ -726,7 +726,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     for (let k = 1; k < pts.length; k++) at.push(at[k - 1] + pts[k].distanceTo(pts[k - 1]));
     paths.push({ pts, at, len: at[at.length - 1], v: elevated[i + 1] });
   }
-  const onDeck = deckCars * (full ? 4 : 2);
+  const onDeck = deckCars * 4;
   const pathSlots = [];
   paths.forEach((P, k) => {
     const dress = wardrobe(613 + k * 29);

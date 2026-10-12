@@ -106,8 +106,8 @@ const PLACED = [
 /**
  * Every car that stands: the rows filled (`full`: four places in five of a
  * bay and three in five of a kerb lane, never more than two empty together;
- * a phone keeps about two in five and one in three, never more than four
- * empty together), then the placed ones. Each: x, z, yaw, kind (an index
+ * a phone keeps about half of each, never more than three empty together),
+ * then the placed ones. Each: x, z, yaw, kind (an index
  * into KINDS), body, accent, tag, and hazard or glow where it has them.
  */
 export function createStanding({ rows, full = true }) {
@@ -116,8 +116,8 @@ export function createStanding({ rows, full = true }) {
   rows.forEach((row, r) => {
     const draw = draws(7919 + r * 131);
     const dress = wardrobe(3301 + r * 17);
-    const share = row.bay ? (full ? 0.8 : 0.4) : row.angled ? (full ? 0.7 : 0.3) : full ? 0.6 : 0.32;
-    const most = full ? 2 : 4;
+    const share = row.bay ? (full ? 0.8 : 0.55) : row.angled ? (full ? 0.7 : 0.4) : full ? 0.6 : 0.45;
+    const most = full ? 2 : 3;
     let empty = 0;
     for (const at of row.places) {
       const want = draw() < share || empty >= most;
