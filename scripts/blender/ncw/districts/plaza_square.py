@@ -270,6 +270,9 @@ for (px, pz) in ((52.6, -214.6), (88.8, -223.0), (85.4, -247.6)):
     P.place("ad_drum", px, G, pz, district=PL)
 for (px, pz, yaw) in ((58.0, -215.6, math.pi / 4), (79.0, -214.4, -math.pi / 4)):
     P.place("food_cart", px, G, pz, yaw, district=PL)
+    # (Under a parasol: from the terraces and the air a cart was a plain
+    # red box.)
+    parasol(px - 0.2 * math.sin(yaw), pz - 0.2 * math.cos(yaw), G, r=1.9, top=3.15, hues=("teal", "white") if px > 70 else ("yellow", "white"))
     shine(px + 1.2 * math.sin(yaw), 1.8, pz + 1.2 * math.cos(yaw), "amber", 5.0)
     stand(px - 0.9 * math.sin(yaw), pz - 0.9 * math.cos(yaw), yaw, "vendor", y=G)
     line = ((1.4, 0.0, "idle"), (2.15, 0.2, "phone"), (2.9, -0.1, "idle"), (3.7, 0.15, "idle"), (4.4, -0.2, "phone"), (5.2, 0.1, "idle")) if px > 70 else \
@@ -283,9 +286,9 @@ for i, px in enumerate((88.2, 89.3, 90.4)):
 # breathe, boards outside the shops.
 for pz in (-226.6, -206.6):
     P.place("lightbox", 49.6, G, pz, math.pi / 2, district=PL)
-for (px, pz) in ((82.4, -198.2), (51.2, -251.0), (87.6, -243.6)):
+for (px, pz) in ((82.4, -198.2), (51.2, -251.0), (88.9, -245.3)):
     P.place("cctv", px, G, pz, district=PL)
-for (px, pz) in ((57.4, -207.8), (73.6, -207.4), (89.4, -241.5)):
+for (px, pz) in ((57.4, -207.8), (73.6, -207.4), (90.9, -241.5)):
     P.place("bin", px, G, pz, district=PL)
 for i, (px, pz) in enumerate(((64.6, -201.0), (87.2, -228.6), (53.0, -246.6))):
     P.place("grate_glow", px, G, pz, district=PL)

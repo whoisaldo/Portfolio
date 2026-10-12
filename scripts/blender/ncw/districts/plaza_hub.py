@@ -26,7 +26,21 @@ RP, RK, RO = 16.0, 16.9, 21.0   # the well's wall, the kerb's outer edge, the pa
 CW = (-233.0, -227.0)            # the causeway
 KW = 0.45                        # its kerbs, and the ring kerb's top
 KY = 0.5
-YG = 0.4                         # the glazing
+YG = 0.4                         # the glazing at its rim
+# The glazing swells to a shallow dome (PzkEqhVByw4@86). How far: the site's
+# clear glass is a mirror of the street only while it lies within a metre of
+# the ground and near flat (materials.js, clearGlass), so the dome rises
+# 0.55 m, each pane tilted its own way and giving back its own piece of the
+# koi and the signs. (No camera's line stops it there: the Work shot's frame
+# passes 7 m over it and the braindance's low camera looks over it at 8 m.)
+DOME = 0.55
+# Round it, outside the walk at the rail: beds of lawn inside stone kerbs, a
+# low hedge along their outer edge, round trees in them. Angles as at()
+# takes them (0 east, a quarter turn south). The gaps: the causeway's two
+# ends, the stair's corner, and a way through to the rail between every two
+# beds.
+BED_R = (18.8, 20.8)
+BEDS = ((1.03, 1.43), (1.71, 2.25), (2.47, 2.72), (3.16, 3.82), (4.04, 4.57), (4.85, 5.39), (5.61, 6.12))
 FLOOR = -5.2
 STAIR = (83.6, 92.0, -220.0, -205.0)   # the terrace's stair (plaza_square.py builds it)
 NSEG = 48
@@ -99,6 +113,44 @@ for i in range(NSEG):
         if s:
             vwall((PL, "concrete", 0), s[0], s[1], G - 0.03, KY)
 
+# (The kerb is stones a little over two metres long: an open joint between
+# them across the top and down the face, a lip along the top's outer edge,
+# damp under some joints, and at its foot a slot drain under a steel grating
+# round the whole of it.)
+STONE_LIP = (0.2, 0.2, 0.215, 1.0)
+for i in range(NSEG):
+    a0, a1 = i * STEP, (i + 1) * STEP
+    for outer in OUTER:
+        s = seg_clip(at(RK + 0.035, a1), at(RK + 0.035, a0), outer)
+        if s:
+            vwall((PL, "trim", 1), s[0], s[1], KY - 0.09, KY + 0.004, STONE_LIP)
+            piece = clip_planes([at(RK - 0.02, a0), at(RK - 0.02, a1), at(RK + 0.035, a1), at(RK + 0.035, a0)], outer)
+            if piece:
+                up_poly((PL, "trim", 1), piece, KY + 0.004, STONE_LIP)
+        piece = clip_planes([at(RK + 0.06, a0), at(RK + 0.06, a1), at(RK + 0.3, a1), at(RK + 0.3, a0)], outer)
+        if piece:
+            up_poly((PL, "metal", 1), piece, G + 0.004, scale=0.5)
+        for k in range(3):
+            b0, b1 = a0 + STEP * (k + 0.12) / 3, a0 + STEP * (k + 0.88) / 3
+            piece = clip_planes([at(RK + 0.11, b0), at(RK + 0.11, b1), at(RK + 0.25, b1), at(RK + 0.25, b0)], outer)
+            if piece:
+                up_poly((PL, "dark", 1), piece, G + 0.008)
+        if i % 2 == 0:
+            d = 0.012 / RK
+            piece = clip_planes([at(RP, a0 - d), at(RP, a0 + d), at(RK + 0.036, a0 + d), at(RK + 0.036, a0 - d)], outer)
+            if piece:
+                up_poly((PL, "dark", 1), piece, KY + 0.006)
+                s = seg_clip(at(RK + 0.037, a0 + d), at(RK + 0.037, a0 - d), outer)
+                if s:
+                    vwall((PL, "dark", 1), s[0], s[1], G, KY)
+                if rh.random() < 0.45:
+                    # Damp down the face under the joint.
+                    w = rh.uniform(0.05, 0.12) / RK
+                    p0, p1, p2 = at(RK + 0.004, a0 + w), at(RK + 0.004, a0 - w), at(RK + 0.004, a0 + rh.uniform(-w, w))
+                    yb = G + rh.uniform(0.0, 0.14)
+                    poly((PL, "trim", 1), [(p0[0], KY - 0.09, p0[1]), (p1[0], KY - 0.09, p1[1]), (p2[0], yb, p2[1])], [(0, 1), (1, 1), (0.5, 0)],
+                         (0.045, 0.04, 0.036, 1.0))
+
 # ---------------------------------------------------------------------------
 # The causeway: the promenade's own slabs on a deck across the well, a kerb
 # down each side, columns under it, its soffit lit.
@@ -121,6 +173,55 @@ for dx in (-9.0, 0.0, 9.0):
         cylinder((PL, "concrete", 0), HX + dx, z, FLOOR, G - 0.5, 0.32, segs=8, cap=False)
 for dx in (-12.0, -4.5, 4.5, 12.0):
     box((PL, "glow", 0), HX + dx - 1.3, HX + dx + 1.3, G - 0.56, G - 0.5, -230.12, -229.88, scale=1.0, col=dim("white", 1.0), bottom=True)
+
+
+def bed_plan(a0, a1, r0, r1, step=0.07):
+    """A bed's plan in pieces along its arc."""
+    n = max(1, int(math.ceil((a1 - a0) / step)))
+    return [[at(r0, a0 + (a1 - a0) * i / n), at(r0, a0 + (a1 - a0) * (i + 1) / n), at(r1, a0 + (a1 - a0) * (i + 1) / n), at(r1, a0 + (a1 - a0) * i / n)]
+            for i in range(n)]
+
+
+BED_Y = G + 0.3
+KERB = (PL, "concrete", 0)
+rbed = random.Random(8650)
+for bi, (a0, a1) in enumerate(BEDS):
+    r0, r1 = BED_R
+    hue = ("teal", "green", "yellow", "teal", "green", "teal", "yellow")[bi % 7]
+    for piece in bed_plan(a0, a1, r0, r1):
+        # The kerb: its face to the hub and to the square, its top.
+        vwall(KERB, piece[1], piece[0], G, BED_Y)
+        vwall(KERB, piece[3], piece[2], G, BED_Y)
+    for piece in bed_plan(a0, a1, r0, r0 + 0.18) + bed_plan(a0, a1, r1 - 0.18, r1):
+        up_poly(KERB, piece, BED_Y, scale=1.5)
+    for a, flip in ((a0, False), (a1, True)):
+        e0, e1 = at(r0, a), at(r1, a)
+        vwall(KERB, *((e0, e1) if flip else (e1, e0)), G, BED_Y)
+        d = (0.18 / r0) * (-1 if flip else 1)
+        up_poly(KERB, [at(r0 + 0.18, a), at(r1 - 0.18, a), at(r1 - 0.18, a + d), at(r0 + 0.18, a + d)], BED_Y, scale=1.5)
+    # A line of light under the kerb's lip, toward the rail.
+    for piece in bed_plan(a0 + 0.01, a1 - 0.01, r0 - 0.012, r0 - 0.012, step=0.16):
+        vwall((PL, "glow", 0), piece[1], piece[0], BED_Y - 0.1, BED_Y - 0.06, dim(hue, 0.6))
+    # The hedge along the outer edge, in two-metre lengths round the arc.
+    n = max(1, int(round((a1 - a0) * (r1 - 0.55) / 2.0)))
+    for i in range(n):
+        b0, b1 = a0 + 0.03 + (a1 - a0 - 0.06) * i / n, a0 + 0.03 + (a1 - a0 - 0.06) * (i + 1) / n
+        hedge_run(*at(r1 - 0.55, b0), *at(r1 - 0.55, b1), BED_Y - 0.04, 0.62)
+    # Round trees down its middle (lower north of z -250, under the Work
+    # shot's frame), each lit from its foot; grass in clumps.
+    n = max(1, int(round((a1 - a0) * 19.6 / 5.2)))
+    for i in range(n):
+        x, z = at(19.55, a0 + (a1 - a0) * (i + 0.5) / n + rbed.uniform(-0.02, 0.02))
+        P.place("tree_round", x, BED_Y - 0.02, z, rbed.uniform(0, 6.28), sy=(0.86 if z < -249.0 else rbed.uniform(0.95, 1.05)), sxz=rbed.uniform(0.9, 1.05), district=PL)
+        shine(x, 1.4, z, hue, 3.2)
+    for _ in range(int((a1 - a0) * 19.6 * 2.6)):
+        x, z = at(rbed.uniform(r0 + 0.3, r1 - 0.9), rbed.uniform(a0 + 0.02, a1 - 0.02))
+        P.place("grass_tuft", x, BED_Y, z, rbed.uniform(0, 6.28), sy=rbed.uniform(0.7, 1.5), sxz=rbed.uniform(0.8, 1.3), district=PL)
+
+
+def in_bed(x, z, pad=0.25):
+    r, a = math.hypot(x - HX, z - HZ), math.atan2(z - HZ, x - HX) % math.tau
+    return BED_R[0] - pad < r < BED_R[1] + pad and any(a0 - pad / r < a < a1 + pad / r for a0, a1 in BEDS)
 
 
 def lobe_loop(r, zline, south):
@@ -152,6 +253,49 @@ def lat(a, b):
     return (HX + 0.4 + a * S + b * VX, HZ + 0.3 + b * VZ)
 
 
+def gy(x, z):
+    """The dome's height over (x, z)."""
+    return YG + DOME * max(0.0, 1.0 - ((x - HX) ** 2 + (z - HZ) ** 2) / (RP * RP))
+
+
+def face3(key, pts, col=(1, 1, 1, 1), up=1.0):
+    """A flat polygon of (x, y, z) points, wound to face up (or down)."""
+    (ax, ay, az), (bx_, by_, bz_), (cx, cy, cz) = pts[0], pts[1], pts[2]
+    ny = (bz_ - az) * (cx - ax) - (bx_ - ax) * (cz - az)
+    if ny * up < 0:
+        pts = list(reversed(pts))
+    poly(key, pts, [(p[0] / 2.0, -p[2] / 2.0) for p in pts], col)
+
+
+def bar3(key, p, q, w, h):
+    """A steel bar whose top runs from p to q (x, y, z), w wide, h deep:
+    its top and both flanks."""
+    dx, dz = q[0] - p[0], q[2] - p[2]
+    length = math.hypot(dx, dz)
+    if length < 0.08:
+        return
+    ox, oz = -dz / length * w / 2, dx / length * w / 2
+    a, b, c, d = (p[0] - ox, p[1], p[2] - oz), (q[0] - ox, q[1], q[2] - oz), (q[0] + ox, q[1], q[2] + oz), (p[0] + ox, p[1], p[2] + oz)
+    face3(key, [a, b, c, d])
+    for (e, f), sx, sz in (((a, b), -ox, -oz), ((d, c), ox, oz)):
+        pts = [e, f, (f[0], f[1] - h, f[2]), (e[0], e[1] - h, e[2])]
+        nx = (pts[1][1] - pts[0][1]) * (pts[2][2] - pts[0][2]) - (pts[1][2] - pts[0][2]) * (pts[2][1] - pts[0][1])
+        nz = (pts[1][0] - pts[0][0]) * (pts[2][1] - pts[0][1]) - (pts[1][1] - pts[0][1]) * (pts[2][0] - pts[0][0])
+        if nx * sx + nz * sz < 0:
+            pts.reverse()
+        poly(key, pts, [(0, 0), (length, 0), (length, h), (0, h)])
+
+
+def on_plane(tri):
+    """The height over (x, z) of the pane through three lattice nodes."""
+    (ax, az), (bx_, bz_), (cx, cz) = tri
+    ay, by_, cy = gy(ax, az), gy(bx_, bz_), gy(cx, cz)
+    det = (bx_ - ax) * (cz - az) - (cx - ax) * (bz_ - az)
+    gx = ((by_ - ay) * (cz - az) - (cy - ay) * (bz_ - az)) / det
+    gz = ((bx_ - ax) * (cy - ay) - (cx - ax) * (by_ - ay)) / det
+    return lambda x, z: ay + gx * (x - ax) + gz * (z - az)
+
+
 for lobe, edge in zip(LOBES, ((0.0, -1.0, -(CW[1] + 0.3)), (0.0, 1.0, CW[0] - 0.3))):
     planes = glass + lobe
     for a in range(-18, 18):
@@ -163,19 +307,36 @@ for lobe, edge in zip(LOBES, ((0.0, -1.0, -(CW[1] + 0.3)), (0.0, 1.0, CW[0] - 0.
                 piece = clip_planes(tri, planes)
                 if len(piece) >= 3:
                     v = rh.uniform(0.8, 1.0)
-                    up_poly((PL, "clearglass", 0), piece, YG, (v, v, v, 1.0))
+                    h = on_plane(tri)
+                    face3((PL, "clearglass", 0), [(x, h(x, z), z) for x, z in piece], (v, v, v, 1.0))
             for p, q in ((p00, p10), (p00, p01), (p10, p01)):
                 s = seg_clip(p, q, planes)
                 if s:
-                    bar((PL, "board_frame", 0), s[0], s[1], YG + 0.05, 0.1, BAR_D)
+                    bar3((PL, "board_frame", 0), (s[0][0], gy(*s[0]) + 0.05, s[0][1]), (s[1][0], gy(*s[1]) + 0.05, s[1][1]), 0.1, BAR_D)
             # The joint: a steel disc proud of the bars (a phone goes without).
             if all(nx * p00[0] + nz * p00[1] <= d for nx, nz, d in inside + [edge]):
-                cylinder((PL, "metal", 1), p00[0], p00[1], YG + 0.05, YG + 0.1, 0.2, segs=6)
+                cylinder((PL, "metal", 1), p00[0], p00[1], gy(*p00) + 0.05, gy(*p00) + 0.1, 0.2, segs=6)
     for i in range(16):
         a = (i + 0.5) * math.tau / 16
         s = seg_clip(at(1.2, a), at(RP - 0.05, a), lobe)
         if s:
-            bar((PL, "board_frame", 0), s[0], s[1], YG - 0.2, 0.3, 0.42)
+            bar3((PL, "board_frame", 0), (s[0][0], gy(*s[0]) - 0.2, s[0][1]), (s[1][0], gy(*s[1]) - 0.2, s[1][1]), 0.3, 0.42)
+# Where the dome meets the causeway its edge stands over the kerb: a steel
+# upstand along each side, as high as the glass is there, a line of light
+# along its head.
+for z, south in ((CW[0], False), (CW[1], True)):
+    half = math.sqrt(RP * RP - (z - HZ) ** 2)
+    m = 14
+    for j in range(m):
+        xa, xb = HX - half + 2 * half * j / m, HX - half + 2 * half * (j + 1) / m
+        ya, yb = gy(xa, z) + 0.07, gy(xb, z) + 0.07
+        pts = [(xa, KY - 0.02, z), (xb, KY - 0.02, z), (xb, yb, z), (xa, ya, z)]
+        if south:
+            pts = [pts[1], pts[0], pts[3], pts[2]]
+        poly((PL, "board_frame", 0), pts, [(0, 0), (1, 0), (1, 1), (0, 1)])
+        d = 0.012 if south else -0.012
+        quad((PL, "glow", 1), *( [(xb, yb - 0.05, z - d), (xa, ya - 0.05, z - d), (xa, ya - 0.015, z - d), (xb, yb - 0.015, z - d)] if south else
+                                 [(xa, ya - 0.05, z - d), (xb, yb - 0.05, z - d), (xb, yb - 0.015, z - d), (xa, ya - 0.015, z - d)]), col=dim("teal", 0.5))
 
 # ---------------------------------------------------------------------------
 # The concourse under it: a paved floor with rings of light, the wall a

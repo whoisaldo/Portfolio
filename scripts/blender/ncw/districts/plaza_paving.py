@@ -17,7 +17,8 @@ brightness.
 """
 from ncw.kit import *  # noqa: F401,F403
 from ncw.districts.plaza_parts import *  # noqa: F401,F403
-from ncw.districts.plaza_hub import HX, HZ, RK, RO, CW, KW, STAIR, NSEG, STEP, at
+from ncw.districts.plaza_hub import HX, HZ, RK, RO, CW, KW, STAIR, NSEG, STEP, at, BEDS, BED_R, BED_Y, bed_plan, in_bed
+from ncw import props as P
 from ncw.districts.plaza_square import X0, X1, Z0, Z1, G, TY, TX, TN, TS, COURT, SX
 
 rs = random.Random(8900)
@@ -91,6 +92,19 @@ for course, (r0, r1) in enumerate(((RK, RM), (RM, RO))):
         tone = tones[((i + course) // 2) % (NSEG // 2)]
         a0, a1 = i * STEP + (0.03 / r0 if first else 0.0), (i + 1) * STEP - (0.0 if first else 0.03 / r0)
         lit_poly(KEY, [at(r0 + 0.02, a0), at(r0 + 0.02, a1), at(r1 - 0.02, a1), at(r1 - 0.02, a0)], G, tone)
+
+# The beds' lawn (plaza_hub.py built their kerbs, hedges and trees): turf in
+# small pieces, each under the light that reaches it.
+for a0, a1 in BEDS:
+    for band in ((BED_R[0] + 0.18, BED_R[0] + 0.9), (BED_R[0] + 0.9, BED_R[1] - 0.95), (BED_R[1] - 0.95, BED_R[1] - 0.18)):
+        for piece in bed_plan(a0 + 0.18 / BED_R[0], a1 - 0.18 / BED_R[0], *band, step=0.055):
+            turf(piece, BED_Y - 0.03, rs)
+for name, x, y, z, *_ in P.INSTANCES:
+    if name not in ("tree_round", "grass_tuft", "hedge_soft") and y < 1.0 and in_bed(x, z):
+        print(f"plaza: {name} stands in a hub bed at ({x:.1f}, {z:.1f})")
+for (x, y, z, *_rest) in PEOPLE:
+    if y < 1.0 and y > -1.0 and in_bed(x, z):
+        print(f"plaza: someone stands in a hub bed at ({x:.1f}, {z:.1f})")
 
 # The causeway's own slabs, across the well.
 rim = disc_planes(HX, HZ, RK, NSEG)

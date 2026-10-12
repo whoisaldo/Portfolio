@@ -500,13 +500,19 @@ def balustrade(pts, y, colour="cyan", h=1.1, close=False, k=0.9):
         v = 0.86 + 0.14 * ((int(ax * 7 + az * 13)) % 3) / 2.0
         rotated_quad((PL, "clearglass", 0), mx, y + 0.06 + (h - 0.08) / 2, mz, length - 0.04, h - 0.08, yaw, col=(v, v, v, 1.0))
         oriented_box((PL, "metal", 1), mx, y + 0.03, mz, length, 0.06, 0.07, yaw, scale=0.5)
-        oriented_box((PL, "glow", 0), mx, y + h, mz, length, 0.035, 0.045, yaw, scale=1.0, col=dim(colour, k))
+        # (A steel handrail on the glass, the line of light let into its top.)
+        oriented_box((PL, "metal", 0), mx, y + h - 0.04, mz, length, 0.06, 0.09, yaw, scale=0.5)
+        oriented_box((PL, "glow", 0), mx, y + h, mz, length, 0.03, 0.04, yaw, scale=1.0, col=dim(colour, k))
         n = max(1, int(round(length / 2.1)))
-        for i in range(n):
-            px_, pz_ = ax + (bx_ - ax) * i / n, az + (bz_ - az) * i / n
-            box((PL, "metal", 1), px_ - 0.025, px_ + 0.025, y, y + h - 0.02, pz_ - 0.025, pz_ + 0.025, scale=0.5)
+        ends = [(ax + (bx_ - ax) * i / n, az + (bz_ - az) * i / n) for i in range(n)]
         if not close and (bx_, bz_) == tuple(pts[-1]):
-            box((PL, "metal", 1), bx_ - 0.025, bx_ + 0.025, y, y + h - 0.02, bz_ - 0.025, bz_ + 0.025, scale=0.5)
+            ends.append((bx_, bz_))
+        for px_, pz_ in ends:
+            # A post: a flat steel upright clamped to the glass, on a shoe
+            # bolted to the kerb.
+            oriented_box((PL, "metal", 0), px_, y + (h - 0.06) / 2, pz_, 0.1, h - 0.06, 0.07, yaw, scale=0.5)
+            oriented_box((PL, "metal", 1), px_, y + 0.06, pz_, 0.2, 0.12, 0.16, yaw, scale=0.5)
+            oriented_box((PL, "metal", 1), px_, y + h * 0.55, pz_, 0.14, 0.08, 0.1, yaw, scale=0.5)
 
 
 HEDGE = ((0.1, 0.28, 0.15, 1), (0.08, 0.24, 0.13, 1), (0.13, 0.32, 0.16, 1))
@@ -588,14 +594,29 @@ def stair_x(x0, x1, z0, z1, y0, y1, r=None):
         a, b, c = (x0, y0, z), (x1, y0, z), (x1, y1, z)
         pts = [a, b, c] if wind > 0 else [a, c, b]
         poly(k, pts, [(p[0] / 1.5, p[1] / 1.5) for p in pts])
-    # Rails: sloped bars on posts.
+    # A line of light under every nosing (KvMY1uzSC1E@29): dim, teal, cut in
+    # lengths between the balustrades; every seventh step's is white.
+    for i in range(n):
+        xa, yb = x0 + i * run, y0 + (i + 1) * rise
+        col = dim("white", 0.5) if i % 7 == 3 else dim("teal", 0.34)
+        for (za, zb) in ((z0 + 0.3, (z0 + z1) / 2 - 0.3), ((z0 + z1) / 2 + 0.3, z1 - 0.3)):
+            box((PL, "glow", 0), xa - 0.015, xa + 0.03, yb - 0.035, yb - 0.008, za, zb, scale=1.0, col=col)
+        quad((PL, "trim", 0), (xa - 0.004, yb + 0.002, z1), (xa + 0.05, yb + 0.002, z1), (xa + 0.05, yb + 0.002, z0), (xa - 0.004, yb + 0.002, z0),
+             col=(0.3, 0.31, 0.34, 1.0))
+    # Glass balustrades down each side and the middle: panes on the flight's
+    # line between steel posts, a handrail with a line of light under it.
     for z in (z0 + 0.08, (z0 + z1) / 2, z1 - 0.08):
-        for off in (0.95, 0.5):
-            pipe((PL, "metal", 1), (x0 + 0.1, y0 + off, z), (x1, y1 + off, z), 0.03, segs=4)
-        for i in range(0, n + 1, 5):
-            px_ = x0 + i * run + 0.1
-            py = y0 + i * rise
-            box((PL, "metal", 1), px_ - 0.03, px_ + 0.03, py, py + 0.95, z - 0.03, z + 0.03, scale=0.5)
+        m = 4
+        for j in range(m):
+            xa, xb = x0 + 0.1 + (x1 - x0 - 0.1) * j / m, x0 + 0.1 + (x1 - x0 - 0.1) * (j + 1) / m
+            ya, yb = y0 + (y1 - y0) * (xa - x0) / (x1 - x0), y0 + (y1 - y0) * (xb - x0) / (x1 - x0)
+            quad((PL, "clearglass", 0), (xa + 0.04, ya + 0.14, z), (xb - 0.04, yb + 0.14, z), (xb - 0.04, yb + 0.98, z), (xa + 0.04, ya + 0.98, z),
+                 col=(0.9, 0.9, 0.9, 1.0))
+            box((PL, "metal", 0), xa - 0.04, xa + 0.04, ya - 0.02, ya + 1.04, z - 0.035, z + 0.035, scale=0.5)
+            box((PL, "metal", 1), xa - 0.09, xa + 0.09, ya - 0.02, ya + 0.1, z - 0.07, z + 0.07, scale=0.5)
+        box((PL, "metal", 0), x1 - 0.04, x1 + 0.04, y1, y1 + 1.04, z - 0.035, z + 0.035, scale=0.5)
+        pipe((PL, "metal", 0), (x0 + 0.06, y0 + 1.04, z), (x1 + 0.04, y1 + 1.04, z), 0.04, segs=6)
+        pipe((PL, "glow", 0), (x0 + 0.1, y0 + 0.985, z), (x1, y1 + 0.985, z), 0.014, segs=4, col=dim("teal", 0.7))
 
 
 # ---------------------------------------------------------------------------
@@ -752,7 +773,7 @@ def roof_plant(x0, x1, z0, z1, y, r, n=3):
             box((PL, "glow", 1), px - 0.1, px + 0.1, y + h + 0.12, y + h + 0.3, pz - 0.1, pz + 0.1, scale=0.5, col=GLOW["white"])
 
 
-def lawn(x0, x1, z0, z1, y):
+def lawn(x0, x1, z0, z1, y, trees=True):
     """Planting lit from its edge, in beds with stone kerbs and paths
     between: from the air, a roof that is green and not a hole."""
     tones = ((0.004, 0.016, 0.008, 1.0), (0.006, 0.021, 0.011, 1.0))
@@ -762,11 +783,36 @@ def lawn(x0, x1, z0, z1, y):
     else:
         n = max(2, int((z1 - z0) // 7.0))
         beds = [(x0 + 0.6, x1 - 0.6, z0 + (z1 - z0) * i / n + 0.7, z0 + (z1 - z0) * (i + 1) / n - 0.7) for i in range(n)]
+    r = random.Random(int(x0 * 7 + z0 * 13 + y * 3) & 0xffff)
     for i, (a0, a1, b0, b1) in enumerate(beds):
         if a1 - a0 < 1.0 or b1 - b0 < 1.0:
             continue
         box((PL, "concrete", 1), a0 - 0.18, a1 + 0.18, y, y + 0.28, b0 - 0.18, b1 + 0.18, scale=1.5)
-        up_poly((PL, "glow", 0), [(a0, b0), (a1, b0), (a1, b1), (a0, b1)], y + 0.3, tones[i % 2])
+        # (Grass in patches of its own greens, lit along the kerb by the
+        # bed's edge light: not one flat green.)
+        nx, nz = max(1, int((a1 - a0) / 1.6)), max(1, int((b1 - b0) / 1.6))
+        for ix in range(nx):
+            for iz in range(nz):
+                xa, xb = a0 + (a1 - a0) * ix / nx, a0 + (a1 - a0) * (ix + 1) / nx
+                za, zb = b0 + (b1 - b0) * iz / nz, b0 + (b1 - b0) * (iz + 1) / nz
+                edge = ix in (0, nx - 1) or iz in (0, nz - 1)
+                k = r.uniform(0.55, 1.4) * (1.5 if edge else 1.0)
+                t = tones[(i + ix + iz) % 2]
+                up_poly((PL, "glow", 0), [(xa, za), (xb, za), (xb, zb), (xa, zb)], y + 0.3, (t[0] * k * 1.6, t[1] * k * 1.6, t[2] * k * 1.5, 1.0))
+        # What grows in it: shrubs in clumps, a small tree in a big bed, and
+        # a row of low lamps along one side.
+        for _ in range(max(2, int((a1 - a0) * (b1 - b0) / 9.0))):
+            px, pz = r.uniform(a0 + 0.5, a1 - 0.5), r.uniform(b0 + 0.5, b1 - 0.5)
+            for j in range(r.randrange(1, 4)):
+                P.place("shrub", min(a1 - 0.4, max(a0 + 0.4, px + r.uniform(-0.8, 0.8))), y + 0.28, min(b1 - 0.4, max(b0 + 0.4, pz + r.uniform(-0.8, 0.8))),
+                        r.uniform(0, 6.28), sy=r.uniform(0.9, 1.5), sxz=r.uniform(0.9, 1.4), district=PL)
+        if a1 - a0 > 3.6 and b1 - b0 > 3.6 and trees:
+            P.place("tree_round", (a0 + a1) / 2 + r.uniform(-0.6, 0.6), y + 0.28, (b0 + b1) / 2 + r.uniform(-0.6, 0.6), r.uniform(0, 6.28),
+                    sy=r.uniform(0.72, 0.9), sxz=r.uniform(0.8, 1.0), district=PL)
+        n = max(1, int((a1 - a0) / 2.2))
+        for j in range(n):
+            lx = a0 + (a1 - a0) * (j + 0.5) / n
+            box((PL, "glow", 1), lx - 0.06, lx + 0.06, y + 0.3, y + 0.42, b0 + 0.1, b0 + 0.22, scale=0.5, col=GLOW["green" if (i + j) % 3 else "yellow"])
 
 
 def garden(x0, x1, z0, z1, y, r, palms=0, trees=2, colour="cyan", lamps=2):
@@ -1122,8 +1168,8 @@ def _kiosk(k):
 # leaflets, so the leaves here are short fronds in tufts (a blossom pad is
 # drawn as petals, pale ones among them: not for a hedge), and the colours
 # are dark enough that only a lamp's or a sign's light near by shows them.
-LEAF = ((0.016, 0.062, 0.05), (0.012, 0.048, 0.042), (0.022, 0.075, 0.056))
-HEART = (0.004, 0.014, 0.012, P.WOOD)
+LEAF = ((0.03, 0.115, 0.07), (0.022, 0.09, 0.062), (0.045, 0.14, 0.075), (0.06, 0.13, 0.05))
+HEART = (0.006, 0.022, 0.016, P.WOOD)
 
 
 def tuft(k, x, y, z, r, n=3, size=0.34, lean=0.9):
@@ -1143,9 +1189,10 @@ def _hedge_soft(k):
     poly(k("plant"), [(1.0, y, z) for z, y in prof], [(0.5, 0.5)] * len(prof), HEART)
     poly(k("plant"), [(-1.0, y, z) for z, y in reversed(prof)], [(0.5, 0.5)] * len(prof), HEART)
     r = random.Random(31)
-    for i in range(9):
-        x = -0.9 + i * 0.225 + r.uniform(-0.06, 0.06)
-        tuft(k, x, 0.6 + r.uniform(-0.03, 0.05), r.uniform(-0.2, 0.2), r, n=2, size=0.3, lean=1.0)
+    # (Its top is leaf in small pads, close set: clipped, not ferny.)
+    for i in range(10):
+        x = -0.9 + i * 0.2 + r.uniform(-0.04, 0.04)
+        P.pad(k("plant"), x, 0.56 + r.uniform(-0.02, 0.04), r.uniform(-0.16, 0.16), r.uniform(0.24, 0.3), r.choice(CROWN), segs=5)
     for i in range(6):
         x = -0.84 + i * 0.336 + r.uniform(-0.08, 0.08)
         for side in (-1, 1):
@@ -1157,13 +1204,18 @@ def _hedge_soft(k):
 def _shrub(k):
     """A shrub: a dark heart and small leaves in tufts, standing and arching
     out of it."""
-    P.lathe(k("plant"), 0.0, 0.0, ((0.0, 0.34), (0.26, 0.48), (0.48, 0.34), (0.62, 0.0)), segs=6, col=HEART)
+    P.lathe(k("plant"), 0.0, 0.0, ((0.0, 0.3), (0.24, 0.44), (0.44, 0.3), (0.56, 0.0)), segs=6, col=HEART)
     r = random.Random(37)
-    for i in range(7):
-        a = i * math.tau / 7 + r.uniform(-0.3, 0.3)
-        rr = r.uniform(0.12, 0.42)
-        tuft(k, rr * math.cos(a), 0.4 + r.uniform(-0.06, 0.1) - 0.2 * rr, rr * math.sin(a), r, n=2, size=0.4, lean=0.8)
-    tuft(k, 0.0, 0.52, 0.0, r, n=3, size=0.44, lean=1.2)
+    # (Leaf in small pads round the heart and over it, a few shoots standing
+    # out of them: a bush, where long fronds at arm's length were wedges.)
+    for i in range(6):
+        a = i * math.tau / 6 + r.uniform(-0.3, 0.3)
+        rr = r.uniform(0.2, 0.34)
+        P.pad(k("plant"), rr * math.cos(a), 0.3 + r.uniform(-0.05, 0.1), rr * math.sin(a), r.uniform(0.26, 0.34), r.choice(CROWN), segs=5)
+    P.pad(k("plant"), 0.0, 0.5, 0.0, 0.34, CROWN[2], segs=6)
+    for i in range(5):
+        a = i * math.tau / 5 + r.uniform(-0.4, 0.4)
+        tuft(k, 0.3 * math.cos(a), 0.34, 0.3 * math.sin(a), r, n=1, size=0.22, lean=0.9)
 
 
 @P.proto("ad_board", box=(1.9, 1.05, 0.12), reach=420)
@@ -1194,6 +1246,71 @@ def _shelter(k):
     box(k("trim"), -1.7, 0.7, 0.42, 0.48, -0.46, -0.06, scale=0.6, col=(0.16, 0.1, 0.06, 1))
     for x in (-1.5, 0.5):
         box(k("trim"), x - 0.04, x + 0.04, 0.0, 0.42, -0.42, -0.1, scale=0.5, col=P.CAST)
+
+
+CROWN = ((0.028, 0.115, 0.055), (0.02, 0.092, 0.05), (0.04, 0.135, 0.058), (0.026, 0.108, 0.07))
+
+
+@P.proto("tree_round", box=(0.25, 1.2, 0.25))
+def _tree_round(k):
+    """A small round-headed tree, four metres high, for a bed or a roof
+    (YRL74JmhVgk@18's row of round trees): a dark trunk that forks into
+    three limbs, and a crown of leaf in pads round a dark heart, tier over
+    tier, so it is a head with depth from every side and from above; two
+    small lamps at its foot turned up into it."""
+    w = k("plant")
+    bark = (0.09, 0.075, 0.06, P.LIMB)
+    P.tube(w, ((0.0, 0.0, 0.0), (0.02, 0.5, 0.01), (0.06, 1.1, -0.02), (0.03, 1.7, 0.03), (0.0, 2.1, 0.0)), (0.17, 0.12, 0.1, 0.09, 0.08), segs=7, col=bark, smooth=True)
+    for limb in (((0.03, 1.7, 0.03), (0.3, 2.05, 0.2), (0.55, 2.5, 0.35)), ((0.0, 2.1, 0.0), (-0.3, 2.4, 0.1), (-0.6, 2.8, 0.15)),
+                 ((0.0, 2.1, 0.0), (0.05, 2.5, -0.3), (0.1, 3.0, -0.5))):
+        P.tube(w, limb, (0.075, 0.055, 0.035), segs=5, col=bark, smooth=True)
+    P.lathe(w, 0.0, 0.0, ((2.15, 0.25), (2.4, 0.8), (2.9, 1.02), (3.4, 0.8), (3.75, 0.3)), segs=7, col=HEART)
+    r = random.Random(53)
+    for tier, (y, ring_r, n, pr) in enumerate(((2.2, 0.7, 7, 0.5), (2.55, 1.0, 9, 0.52), (2.95, 1.05, 9, 0.52), (3.35, 0.8, 7, 0.5), (3.68, 0.4, 4, 0.46),
+                                               (3.86, 0.0, 1, 0.5))):
+        for i in range(n):
+            a = (i + 0.5 * (tier % 2)) * math.tau / n + r.uniform(-0.2, 0.2)
+            P.pad(w, ring_r * math.cos(a), y + r.uniform(-0.1, 0.1), ring_r * math.sin(a), pr * r.uniform(0.88, 1.12), r.choice(CROWN), segs=6)
+    for x, z in ((0.42, 0.3), (-0.36, -0.4)):
+        box(k("glow"), x - 0.07, x + 0.07, 0.0, 0.07, z - 0.07, z + 0.07, scale=0.5, col=(0.75, 1.0, 0.82, 1.0))
+
+
+@P.proto("grass_tuft", box=(0.3, 0.15, 0.3), reach=70, detail=True)
+def _grass_tuft(k):
+    """A clump of grass a hand high, for a lawn seen from beside it."""
+    r = random.Random(59)
+    for i in range(7):
+        yaw = i * math.tau / 7 + r.uniform(-0.3, 0.3)
+        d = r.uniform(0.0, 0.2)
+        P.frond(k("plant"), (d * math.sin(yaw), 0.0, d * math.cos(yaw)), yaw, r.uniform(0.9, 1.4), r.uniform(0.16, 0.3), r.uniform(0.3, 0.9), 0.07,
+                r.choice(((0.06, 0.2, 0.08), (0.08, 0.24, 0.07), (0.045, 0.17, 0.09))), segs=2, vee=False)
+
+
+def turf(pts2, y, r, pools=None, tone=(0.042, 0.13, 0.05), dark=(0.2, 0.225, 0.29)):
+    """A piece of lawn (a convex plan): grass as a lit floor, each corner
+    under the light that reaches it, a little its own green."""
+    k = r.uniform(0.78, 1.22)
+    lit_poly((PL, "glow", 0), list(pts2), y, (tone[0] * k, tone[1] * k * r.uniform(0.9, 1.1), tone[2] * k), pools=pools, dark=dark)
+
+
+def parasol(cx, cz, y, r=1.7, top=2.9, hues=("teal", "white"), lamp="amber"):
+    """A market parasol over a cart: a steel pole, eight ribs, cloth in two
+    colours turn about (dark on top, lit through from under), a lit hem and
+    a lamp under its hub. From the air it is a striped octagon with a line
+    of light round it."""
+    dye = {"teal": (0.1, 0.5, 0.44), "white": (0.72, 0.68, 0.56), "yellow": (0.8, 0.62, 0.12), "green": (0.16, 0.5, 0.24), "red": (0.6, 0.12, 0.1)}
+    cylinder((PL, "metal", 1), cx, cz, y, top + 0.25, 0.035, segs=5)
+    rim = [(cx + r * math.cos(i * math.tau / 8), top - 0.55, cz + r * math.sin(i * math.tau / 8)) for i in range(8)]
+    apex = (cx, top, cz)
+    for i in range(8):
+        a, b = rim[i], rim[(i + 1) % 8]
+        d = dye[hues[i % len(hues)]]
+        # (b, a: wound to face up; the cloth's shader lights the other side.)
+        poly((PL, "trim", 0), [apex, b, a], [(0.5, 1.0), (1.0, 0.0), (0.0, 0.0)], (d[0] * 0.5, d[1] * 0.5, d[2] * 0.5, 1.0))
+        poly((PL, "awning", 1), [apex, a, b], [(0.2, 0.0), (0.9, 0.0), (0.9, 1.0)], (*d, 1.0))
+        pipe((PL, "metal", 1), (cx, top - 0.03, cz), (a[0], a[1] - 0.02, a[2]), 0.014, segs=3)
+        pipe((PL, "glow", 0), a, b, 0.018, segs=3, col=dim(lamp, 0.8))
+    box((PL, "glow", 1), cx - 0.09, cx + 0.09, top - 0.62, top - 0.5, cz - 0.09, cz + 0.09, scale=0.5, col=GLOW[lamp])
 
 
 def corner_sign(x, z, y0, size, k, yaw, out=0.9):

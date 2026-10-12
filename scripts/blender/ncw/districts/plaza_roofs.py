@@ -37,4 +37,14 @@ tanks(60.0, -277.5, 44.0, n=4, r=1.0, h=2.4)
 roof_logo(123.0, -430.0, 45.4, 4.2, 0.0, "hex", "teal")
 checked(110.0, 136.0, -454.0, -422.0, 45.4 + 2.2 + 4.2 * 1.32 + 0.4, "S1 mark")
 
+# Searchlights on three roofs behind the koi (YRL74JmhVgk@18's beams): the
+# lamp housings stand here; the beam itself is the site's to draw, from the
+# anchor (yaw from south toward east, pitch up from level, in radians).
+for i, (x, y, z, yaw, pitch, hue) in enumerate(((66.0, 44.0, -278.0, 0.5, 1.2, "white"), (96.0, 31.8, -290.0, -0.4, 1.3, "cyan"),
+                                               (143.5, 35.2, -138.0, -1.2, 1.25, "white"))):
+    box((PL, "steel", 0), x - 0.5, x + 0.5, y, y + 0.5, z - 0.5, z + 0.5, scale=1.0, col=STEEL_D)
+    cylinder((PL, "steel", 0), x, z, y + 0.5, y + 1.2, 0.42, segs=8, col=STEEL_D)
+    up_poly((PL, "glow", 0), ngon(x, z, 0.36, 8), y + 1.21, GLOW[hue])
+    empty(f"anchor_searchlight_plaza_{i}", (x, y + 1.25, z), props={"yaw": yaw, "pitch": pitch, "length": 180.0, "color": NEON[hue]})
+
 roof_decks(skip=((80.0, 108.0, -168.0, -132.0),), low=((48.0, 108.0, -284.0, -264.0),))
