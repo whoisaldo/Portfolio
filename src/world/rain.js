@@ -122,7 +122,10 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         vA = smoothstep(3.0, 6.5, dist) * (1.0 - smoothstep(24.0, 44.0, dist)) * min(1.0, 0.007 / width) * inversesqrt(stretch);
         // The light it falls through: the city's haze, the street's light
         // under it, and the lamps round it.
-        vCol = vec3(0.13, 0.13, 0.16) + uHazeColor * 0.4 + spillAt(p) * 1.9 + lampsAt(p, toCam) * 2.0;
+        // (The street's colour reaches a drop only near the street: high
+        // over a roof or far from any sign the rain is the night's own cool
+        // grey, not pink.)
+        vCol = vec3(0.15, 0.16, 0.2) + uHazeColor * 0.16 + spillAt(p) * 1.9 * exp(-max(p.y - 9.0, 0.0) * 0.09) + lampsAt(p, toCam) * 2.0;
         vUv = uv;
       }
     `,
