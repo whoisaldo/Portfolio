@@ -251,6 +251,655 @@
    "district": "avenue"
   },
   {
+   "name": "anchor_lamp_santo_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_10",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_11",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_12",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_13",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_14",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_15",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_16",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_17",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_18",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_19",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_20",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_21",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_22",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_23",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_24",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_25",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_26",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_27",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_28",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_29",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_30",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_31",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_32",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_33",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_34",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_35",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_36",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_37",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_38",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_39",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_4",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_40",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_41",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_42",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_43",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_44",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_45",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_46",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_47",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_48",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_49",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_5",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_50",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_51",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_52",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_53",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_54",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_55",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_56",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_57",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_58",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_6",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_7",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_8",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_lamp_santo_9",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
    "name": "anchor_lights_afterlife",
    "kind": "anchor",
    "at": [
@@ -535,7 +1184,9 @@
    "yaw": 0.0,
    "district": "avenue",
    "extras": {
-    "reach": 90.0
+    "reach": 90.0,
+    "x0": -94.0,
+    "x1": 92.0
    }
   },
   {
@@ -555,6 +1206,127 @@
      30.0
     ]
    }
+  },
+  {
+   "name": "anchor_steam_afterlife_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_afterlife_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_afterlife_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_afterlife_lane_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_afterlife_lane_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_afterlife_lane_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_afterlife_lane_3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_afterlife_lane_4",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_corpo_lane_e",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_corpo_lane_w",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_corpo_mews",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
   },
   {
    "name": "anchor_steam_cy_alley_0",
@@ -821,6 +1593,116 @@
    "district": "avenue"
   },
   {
+   "name": "anchor_steam_mega_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_4",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_5",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_6",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_7",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_8",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_mega_9",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
    "name": "anchor_steam_roof_0",
    "kind": "anchor",
    "at": [
@@ -833,6 +1715,479 @@
   },
   {
    "name": "anchor_steam_roof_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_corpo_campus",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_corpo_plant",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_corpo_servers",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_plaza_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_plaza_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_plaza_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_14",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_15",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_16",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_17",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_18",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_19",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_20",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_21",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_22",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_23",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_24",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_25",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_26",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_27",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_28",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_29",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_30",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_31",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_32",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_33",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_34",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_35",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_36",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_39",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_4",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_40",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_41",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_42",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_43",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_44",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_5",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_7",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_santo_8",
    "kind": "anchor",
    "at": [
     0.0,
@@ -964,6 +2319,160 @@
    "district": "avenue"
   },
   {
+   "name": "anchor_steam_street_jt0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt4",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt5",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt6",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt7",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt8",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_jt9",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_plaza_0",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_plaza_1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_plaza_2",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_plaza_3",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
    "name": "anchor_steam_street_s0",
    "kind": "anchor",
    "at": [
@@ -976,6 +2485,94 @@
   },
   {
    "name": "anchor_steam_street_s1",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_santo_10",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_santo_11",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_santo_12",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_santo_13",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_santo_37",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_santo_38",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_santo_6",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_santo_9",
    "kind": "anchor",
    "at": [
     0.0,
