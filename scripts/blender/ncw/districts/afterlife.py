@@ -35,6 +35,7 @@ from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P  # noqa: F401
 from ncw.districts import afterlife_kit as K
+from ncw.districts import afterlife_roofs as R
 
 D = "afterlife"
 SX = 440.0                  # the garage street's centre line
@@ -636,19 +637,19 @@ K.stack(D, EL, BZ0 - 0.5, 7.6, 4, -math.pi / 2, out=1.3)
 ro = random.Random(9400)
 T = B.TINTS
 # West of the street.
-K.parapet(D, 380.0, 398.0, -316.0, -300.0, storeys(6), T["navy"], line="cyan")
+K.parapet(D, 380.0, 398.0, -316.0, -300.0, storeys(6), T["navy"], line="cyan", rim="white")
 B.building(B.Lot(383.0, 395.0, -313.0, -303.0, "-z", {k: "open" for k in ("+x", "-x", "+z", "-z")}, {}, D), storeys(7),
            random.Random(9401), style=dict(WATSON, roof_cap=0.0, balcony=0.0, lit=(0.7, 0.95)), base=storeys(6), signs=False, tint="navy")
 K.unit(D, 396.5, -308.0, storeys(6), math.pi / 2, lamp="green")
-K.parapet(D, 402.0, WL, -316.0, -300.0, storeys(3), T["concrete"], line="amber")
+K.parapet(D, 402.0, WL, -316.0, -300.0, storeys(3), T["concrete"], line="amber", rim="amber")
 K.roof_board(D, 416.0, -309.0, storeys(3), 11.0, 5.0, math.radians(158), ro)
 K.hut(D, 405.0, -303.0, storeys(3), math.pi, T["concrete"])
 K.unit(D, 424.5, -302.5, storeys(3), 0.0, lamp="amber")
-K.parapet(D, 380.0, 398.0, -300.0, -276.0, storeys(5), T["teal"])
+K.parapet(D, 380.0, 398.0, -300.0, -276.0, storeys(5), T["teal"], rim="cyan")
 K.plant(D, 381.5, 396.5, -298.5, -282.0, storeys(5), ro)
 P.place("tank_roof", 392.5, storeys(5), -279.5, 0.4, district=D)
 P.place("antenna", 383.0, storeys(5), -278.5, 0.0, district=D)
-K.parapet(D, 380.0, 398.0, -276.0, -250.0, storeys(3), T["brown"], line="teal")
+K.parapet(D, 380.0, 398.0, -276.0, -250.0, storeys(3), T["brown"], line="teal", rim="amber")
 K.terrace(D, 382.5, 396.0, -273.0, -257.0, storeys(3), ro, hue="cyan")
 K.hut(D, 394.0, -253.0, storeys(3), -math.pi / 2, T["brown"])
 # The bar's roof is its terrace: strings of bulbs, crates for tables.
@@ -684,21 +685,21 @@ for (x_, z_) in ((405.0, -279.0), (406.8, -279.0), (421.5, -297.5)):
 # East of the street. The block that closes the boulevard carries a crown
 # of two lit storeys and a billboard that faces down the boulevard; its
 # lower half a landing pad.
-K.parapet(D, EL, 484.0, -344.0, -316.0, storeys(7), T["charcoal"], line="cyan")
+K.parapet(D, EL, 484.0, -344.0, -316.0, storeys(7), T["charcoal"], line="cyan", rim="white")
 B.building(B.Lot(461.0, 481.0, -340.0, -321.0, "-x", {k: "open" for k in ("+x", "-x", "+z", "-z")}, {}, D), storeys(9),
            random.Random(9402), style=dict(WATSON, roof_cap=5.0, balcony=0.0, lit=(0.75, 0.95), windows=(5,)), base=storeys(7), signs=False,
            tint="charcoal", crown_band="cyan", roof=True)
 K.roof_board(D, 455.6, -330.0, storeys(7), 12.0, 5.4, -math.pi / 2, ro)
-K.parapet(D, 484.0, 508.0, -344.0, -316.0, storeys(5), T["navy"], line="amber")
+K.parapet(D, 484.0, 508.0, -344.0, -316.0, storeys(5), T["navy"], line="amber", rim="amber")
 K.pad(D, 497.0, -331.0, storeys(5), rad=7.0)
 K.hut(D, 487.0, -319.5, storeys(5), math.pi / 2, T["navy"])
 # The clinic's roof: its plant and a small deck.
-K.parapet(D, 454.0, 484.0, -312.0, -300.0, storeys(2), T["concrete"], line="green")
+K.parapet(D, 454.0, 484.0, -312.0, -300.0, storeys(2), T["concrete"], line="green", rim="white")
 K.plant(D, 470.5, 483.0, -311.0, -301.0, storeys(2), ro)
 K.terrace(D, 456.0, 468.0, -310.8, -302.0, storeys(2), ro, hue="white", planters=False)
 # The roof south of the rooftop's own (the first thing under its parapet):
 # a deck, a tank, a hut.
-K.parapet(D, EL, 476.0, -258.0, -230.0, 22.0, T["plum"], line="teal")
+K.parapet(D, EL, 476.0, -258.0, -230.0, 22.0, T["plum"], line="teal", rim="cyan")
 K.terrace(D, 454.5, 468.5, -255.5, -240.0, 22.0, ro, hue="cyan")
 P.place("tank_roof", 472.0, 22.0, -234.5, 0.3, district=D)
 K.hut(D, 472.6, -251.5, 22.0, -math.pi / 2, T["plum"])
@@ -733,7 +734,7 @@ OUTER_ROOFS = ("plant", "terrace", "board", "sky", "plant", "sky")
 for (z0, z1, n), kind in zip(OUTER, OUTER_ROOFS):
     y_ = storeys(n)
     K.parapet(D, 490.0, 508.0, z0, z1, y_, T["charcoal"], line={"terrace": "teal", "board": "pink", "sky": "amber", "plant": None}[kind]
-              if n >= 1 else None, h=0.95 if n >= 1 else 0.4)
+              if n >= 1 else None, h=0.95 if n >= 1 else 0.4, rim=("amber", "white", "cyan")[int(n) % 3] if n >= 2 else None)
     if kind == "plant":
         K.plant(D, 491.5, 506.5, z0 + 1.5, z1 - 6.0, y_, ro)
         P.place("tank_roof", 503.5, y_, z1 - 3.0, ro.uniform(0, 3), district=D)
@@ -1155,6 +1156,42 @@ for du in (-3.2, 3.2):
     px_, pz_ = 457.0 + du * ux_, -283.0 + du * uz_
     pipe((D, "steel", 1), (px_, 37.2, pz_), (px_ - nx_ * 1.2, 34.15, pz_ - nz_ * 1.2), 0.05, segs=4, col=FRAME)
 K.cable(D, (457.0 + 4.5 * ux_, 37.3, -283.0 + 4.5 * uz_), (457.4, 37.5, -288.0), 0.4, r=0.03, steps=5)
+# Its mount (the m6 review: "a bare rectangle on two posts"): each post the
+# front chord of a lattice tower, a second chord behind it, laced; a box
+# beam the board sits on; behind it, on the street side, away from the
+# rooftop's lens, a catwalk of grating with a rail and a ladder up to it.
+
+
+def rp(du, dv, y):
+    return (457.0 + du * ux_ + dv * nx_, y, -283.0 + du * uz_ + dv * nz_)
+
+
+for du in (-3.2, 3.2):
+    b_ = rp(du, -0.7, 0.0)
+    box((D, "steel", 0), b_[0] - 0.08, b_[0] + 0.08, 34.0, 37.2, b_[2] - 0.08, b_[2] + 0.08, scale=1.0, col=FRAME)
+    for k in range(4):
+        ya_, yb_ = 34.1 + k * 0.78, 34.1 + (k + 1) * 0.78
+        pipe((D, "steel", 1), rp(du, 0.0 if k % 2 else -0.7, ya_), rp(du, -0.7 if k % 2 else 0.0, yb_), 0.025, segs=3, col=FRAME)
+    for dv in (0.0, -0.7):
+        sh_ = rp(du, dv, 0.0)
+        box((D, "dark", 1), sh_[0] - 0.16, sh_[0] + 0.16, 34.0, 34.1, sh_[2] - 0.16, sh_[2] + 0.16, scale=1.0)
+for dv in (0.0, -0.7):
+    a_ = rp(0.0, dv, 0.0)
+    oriented_box((D, "steel", 0), a_[0], 37.12, a_[2], 9.4, 0.22, 0.12, ryaw_, scale=1.0, col=FRAME)
+cw_ = rp(0.0, -1.15, 0.0)
+oriented_box((D, "steel", 1), cw_[0], 37.08, cw_[2], 9.4, 0.05, 0.8, ryaw_, scale=1.0, col=(0.07, 0.075, 0.085, 1))
+for k in range(18):
+    g_ = rp(-4.45 + k * 0.52, -1.15, 0.0)
+    oriented_box((D, "dark", 1), g_[0], 37.11, g_[2], 0.04, 0.02, 0.8, ryaw_, scale=1.0)
+for yy_ in (37.6, 38.1):
+    pipe((D, "steel", 1), rp(-4.7, -1.55, yy_), rp(4.7, -1.55, yy_), 0.025, segs=3, col=FRAME)
+for k in range(7):
+    pipe((D, "steel", 1), rp(-4.7 + k * 1.566, -1.55, 37.1), rp(-4.7 + k * 1.566, -1.55, 38.1), 0.022, segs=3, col=FRAME)
+for dv in (-0.95, -1.4):
+    pipe((D, "steel", 1), rp(-4.1, dv, 34.0), rp(-4.1, dv, 37.1), 0.025, segs=3, col=FRAME)
+for k in range(1, 9):
+    pipe((D, "steel", 1), rp(-4.1, -0.95, 34.0 + k * 0.35), rp(-4.1, -1.4, 34.0 + k * 0.35), 0.015, segs=3, col=FRAME)
+box((D, "glow", 1), *(lambda q: (q[0] - 0.08, q[0] + 0.08, 37.75, 37.87, q[2] - 0.08, q[2] + 0.08))(rp(4.6, -1.55, 0.0)), scale=0.5, col=GLOW["white"])
 
 # ---------------------------------------------------------------------------
 # The camera roof's own, where neither About nor Stack looks (their lens at
@@ -1164,12 +1201,11 @@ K.cable(D, (457.0 + 4.5 * ux_, 37.3, -283.0 + 4.5 * uz_), (457.4, 37.5, -288.0),
 # parapets, and a low cool fill round the tanks so the deck, the units and
 # the tanks' legs can be seen.
 # ---------------------------------------------------------------------------
-K.hut(D, 481.2, -296.6, 34.0, -math.pi / 2, T["teal"], hue="white", drawn_pool=False)
+K.hut(D, 481.2, -296.6, 34.0, -math.pi / 2, T["teal"], hue="white")
 K.rail(D, [(459.0, -299.8), (483.8, -299.8), (483.8, -258.2), (473.0, -258.2)], 35.1, h=0.9, thick=False)
 # (The tanks stand on a deck of pavers down the roof's east side, which
 # takes the light the wet tar does not.)
 K.slab(D, 474.2, 483.6, -299.6, -258.4, 34.0, "concrete", lift=0.06, scale=3.0)
-# (No pools drawn on it: a drawn pool's dark rim shows on a deck that is lit.)
 for (x_, z_) in ((474.5, -292.0), (480.0, -278.0), (480.5, -264.0)):
     light(D, x_, 35.2, z_, "cyan", 5.0)
 for (x_, z_, hue_) in ((481.6, -288.0, "white"), (482.0, -271.5, "cyan"), (478.6, -261.0, "white")):
@@ -1225,3 +1261,171 @@ K.mast(D, 406.5, -241.6, 64.3, 6.0, dishes=1, lamp="red")
 for (x_, z_, h_) in ((400.0, -229.4, 5.5), (408.6, -234.0, 4.0), (393.4, -242.6, 6.5)):
     cylinder((D, "metal", 1), x_, z_, 64.3, 64.3 + h_, 0.04, segs=4)
     box((D, "glow", 0), x_ - 0.07, x_ + 0.07, 64.3 + h_, 64.44 + h_, z_ - 0.07, z_ + 0.07, scale=0.5, col=GLOW["red"])
+
+# ---------------------------------------------------------------------------
+# The roofs' floors, worked (afterlife_roofs): round what each roof already
+# keeps (its plant, its deck, its board, its hut, given here as `keep`) every
+# free stretch has a bank of condensers, a duct, pipes, a shed with a lit
+# door, solar panes, a washing line, a hatch, a tank or a stack of pallets,
+# and a lamp every few metres whose pool its concrete takes. West of the
+# street nothing stands over the line About's and Stack's lens sees across
+# the rooftop's parapets.
+# ---------------------------------------------------------------------------
+rf = random.Random(9700)
+# West: the flats on the boulevard (round the penthouse), the corner house,
+# the back row.
+R.ring(D, (380.3, 397.7, -315.7, -300.3), (383.0, 395.0, -313.0, -303.0), storeys(6), rf, hues=("cyan", "white"), hmax=3.0, cell=3.4)
+R.fill(D, 402.3, 427.7, -315.7, -300.3, storeys(3), rf, keep=[(409.5, 422.5, -313.2, -304.4), (403.0, 407.2, -304.8, -301.2), (423.0, 426.0, -303.6, -301.4)],
+       hues=("amber", "cyan"), cell=4.2)
+R.fill(D, 380.3, 397.7, -299.7, -276.3, storeys(5), rf, keep=[(381.5, 396.5, -298.5, -282.0), (390.9, 394.1, -281.1, -277.9), (382.4, 383.6, -279.1, -277.9)],
+       hues=("white", "teal"), hmax=5.0)
+R.fill(D, 380.3, 397.7, -275.7, -250.3, storeys(3), rf, keep=[(382.2, 396.3, -273.3, -256.7), (392.0, 396.2, -255.0, -251.0)], hues=("amber", "cyan"))
+# The garage's west block, the roof Stack looks across: low things only,
+# under its own parapet's line.
+R.fill(D, 410.3, 427.7, -249.7, -190.3, 26.0, rf, keep=[(411.5, 426.5, -247.0, -232.0), (414.8, 425.6, -217.6, -205.6), (421.8, 425.2, -198.7, -195.3),
+                                                          (412.6, 416.4, -201.2, -197.8), (417.4, 418.6, -224.6, -223.4)],
+       hues=("cyan", "amber", "pink"), hmax=1.3)
+# AFTERLIFE's roof, which About's lens looks across: what stands on it is
+# under the line from that lens over the rooftop's west parapet (a hand's
+# height at the roof's far edge, three metres by the sign).
+R.fill(D, 402.8, 431.4, -299.2, -262.8, 30.0, rf, keep=[(420.6, 428.4, -292.5, -269.5), (411.6, 419.4, -278.4, -263.6), (408.2, 411.8, -269.8, -266.2),
+                                                         (422.2, 425.8, -295.8, -292.2), (403.8, 409.2, -298.2, -291.8), (413.8, 418.2, -282.2, -279.3),
+                                                         (415.8, 420.7, -272.2, -269.6), (426.5, 427.5, -296.5, -295.5), (427.0, 431.5, -288.5, -273.5),
+                                                         (404.2, 407.6, -279.6, -278.4), (420.7, 422.3, -298.1, -296.9)],
+       hues=("pink", "amber", "cyan"), hmax=lambda x, z: (x - 402.0) * 0.0967)
+# East: the closing block (round its crown, behind its board), its lower
+# half round the pad, the roof south of the rooftop's.
+R.ring(D, (452.3, 483.7, -343.7, -316.3), (461.0, 481.0, -340.0, -321.0), storeys(7), rf, keep=[(454.0, 458.6, -336.8, -323.2)], hues=("cyan", "amber"), cell=4.0)
+R.fill(D, 484.3, 507.7, -343.7, -316.3, storeys(5), rf, keep=[(489.3, 504.7, -338.7, -323.3), (485.0, 489.2, -321.4, -317.6)], hues=("amber", "cyan"), cell=4.0)
+R.fill(D, 452.3, 475.7, -257.7, -230.3, 22.0, rf, keep=[(454.2, 468.8, -255.8, -239.7), (470.3, 473.7, -236.2, -232.8), (470.6, 474.6, -253.3, -249.7)],
+       hues=("teal", "amber", "white"), hmax=3.2)
+# The outer row, round each roof's own.
+for (z0, z1, n), kind in zip(OUTER, OUTER_ROOFS):
+    zm = (z0 + z1) / 2
+    keep = {"plant": [(491.5, 506.5, z0 + 1.5, z1 - 6.0), (501.8, 505.2, z1 - 4.7, z1 - 1.3)],
+            "terrace": [(491.7, 506.3, z0 + 1.7, z1 - 4.7), (502.2, 505.8, z1 - 3.9, z1 - 0.9)],
+            "board": [(492.6, 497.2, zm - 5.6, zm + 5.6), (501.5, 505.5, z0 + 1.3, z0 + 4.7), (501.6, 504.4, z1 - 4.0, z1 - 2.0)]}.get(kind)
+    if keep:
+        R.fill(D, 490.3, 507.7, z0 + 0.3, z1 - 0.3, storeys(n), rf, keep=keep, hues=("amber", "cyan", "white"), cell=3.8)
+
+# The camera roof's north-east and its east side, where neither About nor
+# Stack looks (north of the lens only what is east of the line from it at
+# 330 degrees: x over 476 - 0.577 * (-266 - z)). A deck of pavers in that
+# corner, which takes the boards' light: RIPPERDOC's white across it, a
+# little of AFTERLIFE's pink from over the street; a bank of condensers
+# under the north parapet, a duct from the stair hut, a cable tray and
+# dishes along the parapet, a second bank by the tank, a hatch, pallets;
+# and down the east side pipes on sleepers, a tray between the tanks, a
+# bank and a shed in the south-east corner.
+poly((D, "concrete", 0), [(474.2, 34.06, -270.6), (474.2, 34.06, -299.6), (457.8, 34.06, -299.6)],
+     [(474.2 / 3, 270.6 / 3), (474.2 / 3, 299.6 / 3), (457.8 / 3, 299.6 / 3)])
+rr = random.Random(9710)
+R.bank(D, 463.4, -297.2, 34.06, 3, 0.0, rr)
+R.duct(D, (479.5, -289.6), (470.6, -289.6), 34.06, rr)
+R.tray(D, (472.2, -299.1), (479.2, -299.1), 34.06, rr)
+for x_, yaw_ in ((470.0, 2.6), (472.0, 3.4), (476.0, 2.9)):
+    P.place("dish", x_, 35.1, -299.75, yaw_, district=D)
+R.bank(D, 472.0, -280.6, 34.06, 2, math.pi / 2, rr)
+R.hatch(D, 469.6, -286.4, 34.06, math.pi / 2, "amber")
+for name, x_, z_ in (("pallets", 478.4, -293.4), ("barrel", 477.3, -293.9), ("crates", 472.8, -297.4), ("drum", 462.6, -296.6)):
+    P.place(name, x_, 34.06, z_, rr.uniform(0, 3), district=D)
+for x_, z_, hue_, pw in ((465.0, -295.6, "white", 7.0), (469.4, -291.0, "white", 5.0), (461.6, -297.9, "pink", 4.0), (470.6, -297.4, "pink", 4.0),
+                         (472.4, -284.4, "white", 5.0), (472.0, -276.6, "cyan", 4.0)):
+    K.pool(D, x_, z_, 34.0, hue_, pw)
+R.pipes(D, (483.05, -293.6), (483.05, -262.4), 34.06, rr, n=2)
+R.tray(D, (479.4, -282.6), (479.4, -272.6), 34.06, rr)
+R.bank(D, 481.4, -267.2, 34.06, 2, math.pi / 2, rr)
+R.shed(D, 480.4, -260.9, 34.06, math.pi, rr, "amber", w=2.0, d=2.0, h=2.2)
+P.place("pallets", 478.2, 34.06, -274.9, 0.4, district=D)
+
+# The garage's roof (its west end is the page's way up to Contact, its
+# south end Contact's own frame: nothing new west of x 457.4 or south of
+# z -204): the deck carried out to its west and south edges, solar panes
+# down the west side, a hatch and a walkway painted to it, pipes along the
+# south, a vent stack breathing by the north parapet, pallets and drums,
+# two low lamps.
+K.slab(D, 457.4, 460.0, -229.4, -204.0, 8.0, "concrete", lift=0.1, scale=3.0)
+K.slab(D, 460.0, 475.4, -206.0, -204.0, 8.0, "concrete", lift=0.1, scale=3.0)
+R.panels(D, 458.2, 459.8, -221.5, -209.9, 8.1)
+box((D, "metal", 1), 458.0, 459.2, 8.1, 8.5, -225.6, -224.4, scale=1.0)
+quad((D, "glow", 0), (458.1, 8.51, -224.5), (459.1, 8.51, -224.5), (459.1, 8.51, -225.5), (458.1, 8.51, -225.5), col=tuple(c * 0.5 for c in GLOW["amber"][:3]) + (1.0,))
+for x_ in (460.15, 460.75):
+    quad((D, "trim", 1), (x_, 8.115, -208.0), (x_ + 0.1, 8.115, -208.0), (x_ + 0.1, 8.115, -229.0), (x_, 8.115, -229.0), col=(0.42, 0.33, 0.05, 1))
+R.pipes(D, (458.2, -205.0), (474.6, -205.0), 8.1, rr, n=3)
+cylinder((D, "metal", 0), 466.4, -228.3, 8.1, 9.5, 0.3, segs=10)
+cylinder((D, "dark", 1), 466.4, -228.3, 9.5, 9.58, 0.36, segs=10)
+empty("anchor_steam_roof_afterlife_garage", (466.4, 9.6, -228.3))
+for name, x_, z_ in (("pallets", 462.4, -228.0), ("barrel", 463.5, -228.4), ("drum", 470.2, -206.9), ("drum", 470.9, -207.2), ("crates", 468.6, -207.0)):
+    P.place(name, x_, 8.1, z_, rr.uniform(0, 3), district=D)
+# (Lamps that glow and throw nothing: the room under this roof is the page's.)
+for x_, z_, hue_ in ((460.4, -207.6, "white"), (464.6, -227.4, "amber")):
+    cylinder((D, "metal", 1), x_, z_, 8.1, 9.0, 0.04, segs=4)
+    box((D, "glow", 0), x_ - 0.11, x_ + 0.11, 9.0, 9.16, z_ - 0.11, z_ + 0.11, scale=0.5, col=GLOW[hue_])
+
+# MILITECH's top, seen from a flying car a little over it: light behind the
+# plant room's louvres (its north, south and west walls; the east one is the
+# name's), a lit service door on a landing, red lamps at its corners; on
+# the tier's roof round it a deck of pavers, banks of condensers on the
+# south side and the west, pipes and a tray on the north (low: Stack looks
+# up at that edge), rails, lamps; and pipes along the lower roof's north
+# strip.
+MP = B.faces_of(392.0, 410.0, -244.0, -228.0)
+for name in ("-x", "+z", "-z"):
+    f = MP[name]
+    half = f.width / 2
+    for a_, b_ in ((0.8, half - 0.5), (half + 0.5, f.width - 0.8)):
+        f.quad((D, "glow", 0), a_ + 0.08, b_ - 0.08, 59.1, 62.8, 0.146, col=tuple(c * 0.03 for c in GLOW["amber" if name != "-x" else "cyan"][:3]) + (1.0,))
+        # (Its blades in front of the light, the light between them.)
+        y_ = 59.2
+        while y_ < 62.7:
+            f.box((D, "dark", 1), a_ + 0.08, b_ - 0.08, y_, y_ + 0.09, 0.16, 0.24)
+            y_ += 0.2
+MN_ = MP["-z"]
+MN_.quad((D, "glow", 0), 1.2, 2.2, 58.05, 60.1, 0.172, col=tuple(c * 0.4 for c in GLOW["amber"][:3]) + (1.0,))
+MN_.box((D, "metal", 1), 1.1, 2.3, 60.1, 60.2, 0.0, 0.4)
+for (x_, z_) in ((392.1, -243.9), (392.1, -228.1), (401.0, -243.9), (401.0, -228.1)):
+    cylinder((D, "metal", 1), x_, z_, 64.3, 65.0, 0.04, segs=4)
+    box((D, "glow", 0), x_ - 0.1, x_ + 0.1, 65.0, 65.2, z_ - 0.1, z_ + 0.1, scale=0.5, col=GLOW["red"])
+for (x0_, x1_, z0_, z1_) in ((392.0, 409.7, -246.7, -244.3), (392.0, 409.7, -227.7, -225.3)):
+    K.slab(D, x0_, x1_, z0_, z1_, 58.0, "concrete", lift=0.06, scale=3.0)
+R.pipes(D, (393.0, -245.9), (408.6, -245.9), 58.06, rr, n=3, loop=False)
+R.tray(D, (393.0, -244.9), (406.8, -244.9), 58.06, rr)
+R.bank(D, 400.6, -226.5, 58.06, 6, math.pi, rr)
+K.rail(D, [(391.9, -246.8), (409.8, -246.8)], 58.0, h=0.9, thick=False)
+K.rail(D, [(391.9, -225.2), (409.8, -225.2)], 58.0, h=0.9, thick=False)
+for x_, z_, hue_ in ((396.0, -245.4, "amber"), (405.5, -245.4, "white"), (396.0, -226.6, "white"), (405.5, -226.6, "amber")):
+    K.pool(D, x_, z_, 58.0, hue_, 2.5)
+K.slab(D, 383.4, 409.7, -249.6, -247.4, 46.0, "concrete", lift=0.06, scale=3.0)
+R.pipes(D, (384.5, -248.5), (408.5, -248.5), 46.06, rr, n=3)
+for x_, hue_ in ((389.0, "amber"), (397.0, "cyan"), (405.0, "amber")):
+    R.lamp(D, x_, -248.9, 46.06, hue_, h=0.7, power=5.0)
+
+# The outer row's faces on the yard and the back lane, which the garage's
+# roof looks straight at: a sign over each ground floor, blades off the
+# upper storeys, a lit word on the tall one, lamps on brackets.
+for i, (z0, z1, n) in enumerate(OUTER):
+    if n < 2:
+        continue
+    f = B.Face("-x", 490.0, z0, z1)
+    K.board(D, 489.86, 5.25, z0 + 6.5, "pm", -math.pi / 2)
+    K.blade(D, 490.0, z0 + 3.2, 7.2 + (i % 2), "bm" if i % 2 else "bs", -math.pi / 2 + 0.4)
+    K.blade(D, 490.0, z1 - 3.6, 6.4 + (i % 3) * 0.6, "bx", -math.pi / 2 - 0.35)
+    # (A lamp on a bracket where the face is on the yard; the back lane keeps its dark.)
+    if i >= 2:
+        K.wall_lamp(D, f, f.width * 0.5, 4.3, ("amber", "white", "cyan")[i % 3], 3.0)
+    if n >= 4:
+        K.stack(D, 490.0, z0 + 7.0, 9.4, 3, -math.pi / 2, out=1.1)
+K.word(D, 489.8, 12.4, -260.0, 5.4, 1.8, -math.pi / 2, "amber", "ROOMS", underline="pink")
+
+# Every high roof's light, painted over its deck from the lamps that stand
+# on it (afterlife_kit.roof_light). The camera roof's only north-east of
+# the line About's lens sees along, and down its east side.
+for (x0_, x1_, z0_, z1_, y_) in (
+        (380.3, 397.7, -315.7, -300.3, storeys(6)), (402.3, 427.7, -315.7, -300.3, storeys(3)), (380.3, 397.7, -299.7, -276.3, storeys(5)),
+        (380.3, 397.7, -275.7, -250.3, storeys(3)), (410.3, 427.7, -249.7, -190.3, 26.0), (402.6, 431.4, -299.4, -262.6, 30.0),
+        (452.3, 483.7, -343.7, -316.3, storeys(7)), (484.3, 507.7, -343.7, -316.3, storeys(5)), (454.3, 483.7, -311.7, -300.3, storeys(2)),
+        (452.3, 475.7, -257.7, -230.3, 22.0), (392.0, 409.7, -246.7, -244.3, 58.0), (392.0, 409.7, -227.7, -225.3, 58.0)):
+    K.roof_light(D, x0_, x1_, z0_, z1_, y_)
+for (z0, z1, n) in OUTER:
+    K.roof_light(D, 490.3, 507.7, z0 + 0.3, z1 - 0.3, storeys(n))
+K.roof_light(D, 457.8, 483.6, -299.6, -258.4, 34.0, lift=0.1, inside=lambda x, z: x > 474.2 or (z < -270.6 and x > 477.0 - 0.577 * (-266.0 - z) + 0.9))
