@@ -67,8 +67,8 @@ export const bd = {
   roam: "off",
   roamLoading: null,
   // The district the player is in (its label), and what F does here: "out"
-  // of the car, "stop" (it is braking to let the player out), "in" beside
-  // it, "far" from it on foot.
+  // of the car, "stop" (it is braking to let the player out), "none" (no
+  // room beside it to get out), "in" beside it, "far" from it on foot.
   district: "",
   prompt: "",
   // On foot the mouse is held (pointer lock) while this is true.

@@ -17,6 +17,7 @@ export const ROAM = {
   leave: "Back to the recording",
   getOut: "Get out",
   stopping: "Stopping to let you out",
+  noRoom: "No room to get out here",
   getIn: "Get in",
   getInFar: "Get in, from beside the car",
   reset: "Back onto the road",

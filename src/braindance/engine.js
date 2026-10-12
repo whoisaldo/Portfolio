@@ -95,6 +95,9 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   // The minimap's ground, drawn from the city once.
   const heightMap = bakeHeights(parts);
   const map = { ...heightMap, canvas: drawMap(heightMap) };
+  // And the whole city's, for free roam (made the first time it is asked
+  // for: the recording's map stops where the recording does).
+  let wide = null;
 
   // ---- the clock ------------------------------------------------------------
   const clock = { t: 0, est: 0, live: false };
@@ -130,6 +133,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   let resumeAfter = false;
   // Seconds the city's clock has run in free roam, past the recording's.
   let roamed = 0;
+  // How many steps the player has taken on foot (for their sound).
+  let stride = 0;
   // The glitch a switch into or out of free roam lands with.
   let jolt = 0;
   const radioOn = () => {
@@ -286,6 +291,12 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       if (bd.locked) scanner.move(0, 0, true);
       roam.frame(dt, spec, shown);
       if (roam.car.knock > 2.5 && bd.mode !== "photo") sounds?.thud(clamp(roam.car.knock / 16, 0, 1));
+      // On foot, a step's sound each time a foot comes down: every 0.74 m
+      // walking, every 1.15 m at a run.
+      const running = roam.walker.speed > 3.5;
+      const strides = Math.floor(roam.walker.walked / (running ? 1.15 : 0.74));
+      if (spec.afoot && strides !== stride && bd.mode !== "photo") sounds?.step(running ? 1 : 0);
+      stride = strides;
     }
     spec.glitch = Math.max(spec.glitch, jolt > 0.01 ? jolt : 0);
     // Photo mode's lens and roll.
@@ -388,7 +399,11 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     audio,
     spec,
     camera,
-    map,
+    /** The minimap's ground: the recording's part of the city, or all of
+     *  it while the player roams. */
+    get map() {
+      return roam?.on && wide ? wide : map;
+    },
     start,
     get time() {
       return clock.t;
@@ -570,6 +585,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
             return false;
           }
           roam = made;
+          const all = bakeHeights(parts, made.bounds);
+          wide = { bounds: all.bounds, ppm: all.ppm, canvas: drawMap(all) };
         }
         if (job !== roamJob) return false;
         // The tape stops where it is; the radio plays on.

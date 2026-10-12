@@ -195,6 +195,8 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   let jolt = 0;
   // F at speed: the car is braking itself to a stand to let the player out.
   let stopping = false;
+  // F with nowhere to stand beside the car: said on the bar for this long.
+  let noRoom = 0;
   const drive = () => {
     mode = "drive";
     stopping = false;
@@ -231,7 +233,10 @@ export async function createRoam({ parts, world, reduced = false, city = { board
         return h === h && ground.fits(s.x, s.z, BODY + 0.05, h, WALK, 0.42);
       });
       spot ??= nav.nearest(car.x, car.z, car.y, WALK, BODY + 0.05, 8, 0.6);
-      if (!spot || !feet.place(spot.x, spot.z, car.heading, car.y)) return;
+      if (!spot || !feet.place(spot.x, spot.z, car.heading, car.y)) {
+        noRoom = 2.5;
+        return;
+      }
       mode = "walk";
       jolt = reduced ? 0 : 0.5;
       set({ roam: "walk" });
@@ -261,6 +266,7 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   return {
     car,
     walker,
+    bounds,
     player,
     yielding,
     nav,
@@ -361,9 +367,12 @@ export async function createRoam({ parts, world, reduced = false, city = { board
       jolt *= Math.exp(-dt * 7);
       cityFrame(step, spec, who.x, who.z);
       const label = districtAt(who.x, who.z);
-      if (label !== bd.district) set({ district: label });
+      // (Between two districts, on a street that is in neither's bounds, it
+      // is still the one just left.)
+      if (label && label !== bd.district) set({ district: label });
       // What F does here, for the HUD: never a key that does nothing unsaid.
-      const prompt = afoot ? (nearCar() ? "in" : "far") : stopping ? "stop" : "out";
+      noRoom = Math.max(0, noRoom - dt);
+      const prompt = afoot ? (nearCar() ? "in" : "far") : stopping ? "stop" : noRoom > 0 ? "none" : "out";
       if (prompt !== bd.prompt) set({ prompt });
     },
     /**

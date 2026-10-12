@@ -329,6 +329,12 @@ export function createSounds(audio) {
     tick() {
       blip(1600, 0.03, "square", 0.015);
     },
+    /** A foot down on wet paving (free roam, on foot): `k` 1 at a run. No
+     *  two the same. */
+    step(k = 0) {
+      burst(0.07 + 0.02 * Math.random(), 0.016 + 0.01 * k + 0.004 * Math.random(), 380 + 160 * Math.random());
+      burst(0.03, 0.006 + 0.004 * k, 2600);
+    },
     dispose() {
       for (const o of [fire, sub, odd, wobble, whine, tyre, rain, beacon]) {
         try {

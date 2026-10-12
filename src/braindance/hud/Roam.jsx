@@ -86,7 +86,7 @@ export default function Roam({ engineRef }) {
       <div className="bd-roam-keys">
         <Keys keys={["W", "A", "S", "D"]} what={driving ? "Drive" : "Walk"} />
         {driving ? <Keys keys={["Space"]} what="Brake" /> : <Keys keys={["Shift"]} what="Run" />}
-        {state.prompt && <Keys keys={["F"]} what={{ in: ROAM.getIn, far: ROAM.getInFar, stop: ROAM.stopping }[state.prompt] ?? ROAM.getOut} />}
+        {state.prompt && <Keys keys={["F"]} what={{ in: ROAM.getIn, far: ROAM.getInFar, stop: ROAM.stopping, none: ROAM.noRoom }[state.prompt] ?? ROAM.getOut} />}
         <Keys keys={["R"]} what={ROAM.reset} />
         {!driving && <span className="bd-roam-key bd-dim">{state.locked ? ROAM.unlock : ROAM.look}</span>}
       </div>
