@@ -57,7 +57,7 @@ wall_lamp(WX1, 3.6, -741.6, 1, 0, "amber", 2.6)
 
 # The tower on it, and the crown on that.
 T1 = (-92.0, -58.0, -786.0, -738.0)
-T1_TOP, T2_TOP = floor_y(17), floor_y(35)                 # 59.0, 120.2: the wing's upper tower stands over the slab
+T1_TOP, T2_TOP = floor_y(17), floor_y(57)                 # 59.0, 195.0: the wing's upper tower stands over the slab
 f1 = shell(*T1, PT, T1_TOP, B.wall_col(0.62, 0, 0.8, 5), 8410)
 BOARD_W = (-80.0, 31.0, 18.0, 10.0)                       # the board that ends the west street's vista
 dress(f1["+z"], T1_TOP, 4, 8411, [], [(2.5, 21.5, 24.6, 37.4)])
@@ -69,7 +69,7 @@ sign_column(-92.6, T1[3] + 0.8, (15.6, 21.4, 27.0, 31.4, 36.6), ("bl", "bl", "bm
 sign_column(-58.6, T1[3] + 0.8, (16.2, 21.0, 26.8), ("bm", "bl", "bl"), [-math.pi / 2 + a for a in (0.3, -0.2, 0.25)])
 T2 = (-86.0, -64.0, -780.0, -748.0)
 f2 = shell(*T2, T1_TOP, T2_TOP, B.wall_col(0.7, 5, 0.6, 1), 8420)
-assert hero_hidden(T2[0], T2[1], T1_TOP, T2_TOP + 18.0, T2[3])
+assert hero_hidden(T2[0], T2[1], T1_TOP, T2_TOP + 3.0, T2[3])
 # Its faces: the block's number, floodlit, over the street; cantilevered
 # blocks with their yellow edges; floors of decks and units between.
 numeral("H4", (T2[0] + T2[1]) / 2, 103.0, T2[3], 10.0, 0.0, pad=1.4)
@@ -82,7 +82,7 @@ dress(f2["+x"], floor_y(21), 18, 8475, [], weights=(0.3, 0.3, 0.4))
 dress(f2["-z"], T2_TOP, 18, 8476, [], people_rate=0.03, weights=(0.25, 0.3, 0.45))
 ledges(f2["+z"], floor_y(31), T2_TOP, detail=0)
 band(D, cut_rect((T2[0] + T2[1]) / 2, (T2[2] + T2[3]) / 2, (T2[1] - T2[0]) / 2, (T2[3] - T2[2]) / 2), T2_TOP - 1.4, T2_TOP - 0.9, "magenta", out=0.2)
-mast(-75.0, -764.0, T2_TOP, 16.0)
+mast(-80.0, -776.0, T2_TOP, 16.0)
 roof_strip(T2[0], T2[1], T2[2], T2[3], T2_TOP, 8421, cap=5.0)
 parapet(*T2, T2_TOP)
 # The tower's roof round the crown, and the podium's round the tower.
@@ -137,7 +137,7 @@ stand(57.0, -742.6, 0.0, "sit", PT + 0.48)
 
 # The tower on the podium and its crown.
 ET1 = (56.0, 100.0, -786.0, -750.0)
-ET1_TOP, ET2_TOP = floor_y(15), floor_y(30)               # 52.2, 103.2: the east wing's upper tower
+ET1_TOP, ET2_TOP = floor_y(15), floor_y(50)               # 52.2, 171.2: the east wing's upper tower
 g1 = shell(*ET1, PT, ET1_TOP, B.wall_col(0.6, 0, 0.85, 5), 8440)
 dress(g1["+z"], ET1_TOP, 8, 8441, [])
 dress(g1["-x"], ET1_TOP, 4, 8442, [], weights=(0.3, 0.3, 0.4))
@@ -145,7 +145,7 @@ dress(g1["+x"], ET1_TOP, 4, 8443, [], weights=(0.25, 0.35, 0.4))
 dress(g1["-z"], ET1_TOP, 4, 8444, [], people_rate=0.05, weights=(0.2, 0.3, 0.5))
 ET2 = (62.0, 92.0, -782.0, -758.0)
 g2 = shell(*ET2, ET1_TOP, ET2_TOP, B.wall_col(0.7, 5, 0.7, 2), 8445)
-assert hero_hidden(ET2[0], ET2[1], ET1_TOP, ET2_TOP + 14.0, ET2[3])
+assert hero_hidden(ET2[0], ET2[1], ET1_TOP, ET2_TOP + 3.0, ET2[3])
 block(ET2[0] + 1.0, ET2[0] + 15.0, floor_y(18), floor_y(23), ET2[3], ET2[3] + 6.5, 8480, window=0, tint=1)
 block(ET2[1] - 11.0, ET2[1] + 5.0, floor_y(24), floor_y(28), ET2[3] - 2.0, ET2[3] + 5.0, 8481, window=6)
 block(ET2[0] - 6.0, ET2[0], floor_y(23), floor_y(28), ET2[2] + 3.0, ET2[3] - 5.0, 8482, faces=("-x", "+z", "-z"), window=5, tint=6)

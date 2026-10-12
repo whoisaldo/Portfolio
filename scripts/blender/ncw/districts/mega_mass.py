@@ -88,10 +88,4 @@ for (x0, x1, z0, z1, y0, y1), hue in zip(TIERS, ("cyan", "pink", "amber")):
         box((D, "neon_" + hue, 0), min(x, x + s * 0.12), max(x, x + s * 0.12), max(y0, 14.0), y1 - 2.0, z0 - 0.12, z0 + 0.3, scale=1.0)
     for x in (x0 + 5.0, x1 - 6.0):
         duct(x, x + 1.1, max(y0, floor_y(2)), y1 - 1.0, z0 - 0.8, z0)
-# Their side walls: a block and a screen each on the lowest, whose flanks no lens in the canyon reaches.
-for s in (-1, 1):
-    xw = s * 38.0
-    xa, xb = sorted((xw, xw + s * 6.5))
-    assert not hero_sees((xa, 60.0, -832.0), (xb, 112.0, -806.0)), s
-    block(xa, xb, 84.0 if s < 0 else 62.0, 106.0 if s < 0 else 80.0, -830.0, -810.0, 5045 + s, faces=("-x" if s < 0 else "+x", "+z", "-z"), window=6 if s < 0 else 0)
-    B.billboard(D, xw + s * 0.5, 40.0 if s < 0 else 104.0, -820.0, 14.0, 9.0, s * math.pi / 2, _rb, back=False)
+# Their side walls are inside the shoulders now (mega_bulk.py).
