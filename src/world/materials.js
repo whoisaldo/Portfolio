@@ -49,6 +49,7 @@ const OUT = /* glsl */ `
 export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   const made = new Map();
   const all = [];
+  const textures = [];
   const keep = (m) => {
     all.push(m);
     return m;
@@ -1119,14 +1120,27 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   // each board its own (its colour's palette, shape and seed), changing to
   // another every nine to fifteen seconds through a quick wipe. One draw for
   // every billboard in the city.
+  // The adverts: twelve drawn for the city (eight wide, four tall, one
+  // atlas: public/scenes/world/ads.webp, a quarter the pixels on a phone,
+  // told by the shop atlas's own size). It is fetched after the city is up;
+  // until it lands a board shows the old drawn shapes.
   const billboard = () => {
     if (made.has("billboard")) return made.get("billboard");
+    const small = (maps.shops?.image?.width ?? 1024) <= 512;
+    const ads = new THREE.TextureLoader().load(small ? "/scenes/world/ads-phone.webp" : "/scenes/world/ads.webp", () => {
+      m.uniforms.uHasAds.value = 1;
+    });
+    ads.colorSpace = THREE.SRGBColorSpace;
+    ads.anisotropy = small ? 2 : 4;
+    textures.push(ads);
     const m = keep(new THREE.ShaderMaterial({
-      uniforms: { ...shared, uIntensity: { value: 1.6 } },
+      uniforms: { ...shared, uIntensity: { value: 1.6 }, uAds: { value: ads }, uHasAds: { value: 0 } },
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
         uniform float uIntensity;
+        uniform sampler2D uAds;
+        uniform float uHasAds;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
@@ -1171,14 +1185,47 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float row = floor(g.y);
           float bars = step(row, 1.5) * step(0.5, row) * step(0.35, hash12(vec2(floor(g.x), row + slot * 7.0 + seed))) * step(0.15, fract(g.x)) * step(fract(g.y), 0.6);
           col = mix(col, vec3(1.0, 0.97, 0.92), bars * 0.85);
+          float px = max(fwidth(uv.x), fwidth(uv.y));
+          if (uHasAds > 0.5) {
+            // A drawn advert in place of the shapes. The face's own shape
+            // comes from how the world moves across it, so the art covers
+            // it uncropped in one direction and never stretched: a wide
+            // face takes one of the eight wide adverts, a tall one of the
+            // four tall (kept on their sides along the atlas's foot).
+            vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
+            vec2 dux = dFdx(vUv), duy = dFdy(vUv);
+            float det = dux.x * duy.y - dux.y * duy.x;
+            float aspect = 1.5;
+            if (abs(det) > 1e-12) {
+              vec3 pu = (dpx * duy.y - dpy * dux.y) / det;
+              vec3 pv = (dpy * dux.x - dpx * duy.x) / det;
+              aspect = clamp(length(pu) / max(length(pv), 1e-5), 0.25, 5.0);
+            }
+            bool tall = aspect < 0.85;
+            float cell = tall ? 0.6667 : 1.5;
+            vec2 st = fract(uv);
+            if (aspect > cell) st.y = 0.5 + (st.y - 0.5) * cell / aspect;
+            else st.x = 0.5 + (st.x - 0.5) * aspect / cell;
+            st = clamp(st, 0.01, 0.99);
+            float pick = floor(vColor.g * 8.0) + floor(vColor.r * 8.0) * 3.0 + slot;
+            float rowH = 341.0 / 1024.0;
+            vec2 q;
+            if (tall) {
+              q = vec2((mod(pick, 4.0) + st.y) * 0.25, (1.0 - st.x) * rowH);
+            } else {
+              float i = mod(pick, 8.0);
+              q = vec2((mod(i, 4.0) + st.x) * 0.25, 1.0 - (floor(i / 4.0) + 1.0 - st.y) * rowH);
+            }
+            col = texture2D(uAds, q).rgb * 0.92;
+          } else {
+            // Far off, the drawn shapes' average: no pattern to shimmer.
+            col = mix(col, mix(a, b, 0.5) * 0.55, smoothstep(0.06, 0.2, px));
+          }
           // The lit frame round it, and the wipe between adverts.
           float frame = 1.0 - step(0.03, uv.x) * step(uv.x, 0.97) * step(0.04, uv.y) * step(uv.y, 0.96);
-          col = mix(col, a * 1.4, frame);
+          col = mix(col, a * 1.4, frame * smoothstep(0.2, 0.06, px));
           float wipe = smoothstep(0.0, 0.04, local) * smoothstep(1.0, 0.97, local);
           col *= mix(0.15, 1.0, wipe);
-          // Far off, its average: no pattern to shimmer.
-          float px = max(fwidth(uv.x), fwidth(uv.y));
-          col = mix(col, mix(a, b, 0.5) * 0.55, smoothstep(0.06, 0.2, px));
           col *= uIntensity * (1.0 + 0.2 * uBass);
           col = cityFog(col, vWorld, 0.85);
           gl_FragColor = vec4(col, 1.0);
@@ -1289,6 +1336,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     all: () => all,
     dispose() {
       all.forEach((m) => m.dispose());
+      textures.forEach((t) => t.dispose());
     },
   };
 }
