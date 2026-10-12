@@ -451,6 +451,43 @@ def shell(x0, x1, z0, z1, y0, y1, col, seed, spans=None, skip=(), roof=True, mat
     return fs
 
 
+def block(x0, x1, y0, y1, z0, z1, seed, faces=("+z", "-x", "+x"), lit=0.7, window=0, tint=5, edge=0.9, wall=None):
+    """One of the megabuilding's big cantilevered blocks (Fn9gKhU_2_Q@24):
+    concrete, windows on its open faces between deep yellow edges, heavy ribs
+    and marker lights underneath. `wall`: the key of its windows where they
+    are not the district's own (what the hero sees is in the core)."""
+    r = random.Random(seed)
+    cbox(x0, x1, y0, y1, z0, z1, bottom=True)
+    col, ov = B.wall_col(lit, window, r.uniform(0.5, 1.0), tint), r.randrange(0, 40)
+    for name, f in B.faces_of(x0 - 0.02, x1 + 0.02, z0 - 0.02, z1 + 0.02).items():
+        if name not in faces:
+            continue
+        B.facade_wall(wall or (D, "facade", 0), f, y0 + edge, y1 - edge, col, ov)
+        for yy in (y0, y1 - edge):
+            f.quad((D, "trim", 0), 0.0, f.width, yy, yy + edge, 0.0, col=YEL)
+    along_x = (x1 - x0) >= (z1 - z0)
+    a0, a1 = (x0, x1) if along_x else (z0, z1)
+    n = max(2, int((a1 - a0) // 3.2))
+    for i in range(n + 1):
+        a = a0 + 0.45 + (a1 - a0 - 0.9) * i / n
+        if along_x:
+            cbox(a - 0.3, a + 0.3, y0 - 0.9, y0, z0 + 0.25, z1 - 0.25, bottom=True, detail=1)
+        else:
+            cbox(x0 + 0.25, x1 - 0.25, y0 - 0.9, y0, a - 0.3, a + 0.3, bottom=True, detail=1)
+    for i in range(n):
+        a = a0 + (a1 - a0) * (i + 0.5) / n
+        cx, cz = (a, (z0 + z1) / 2) if along_x else ((x0 + x1) / 2, a)
+        hquad((D, "glow", 1), cx - 0.45, cx + 0.45, cz - 0.45, cz + 0.45, y0 - 0.02, up=False, col=dim(GLOW["amber"], 0.45))
+
+
+def numeral(text, cx, cy, cz, h, yaw, lit=0.5, pad=1.8):
+    """The block's number on a wall, storeys high: yellow paint under
+    floodlight on a band of bare concrete."""
+    w = len(text) * 4 * h / 6 + (len(text) - 1) * 0.3 * h
+    rotated_quad((D, "trim", 0), cx + math.sin(yaw) * 0.04, cy, cz + math.cos(yaw) * 0.04, w + 2 * pad, h + 2 * pad, yaw, col=dim(CONC, 0.5))
+    strokes((D, "glow", 0), text, cx, cy, cz, h, yaw, dim(YEL, lit), weight=0.17, out=0.09)
+
+
 def parapet(x0, x1, z0, z1, y, sides=("+z", "-z", "+x", "-x"), col=CONC, t=0.3, h=0.95, rim=None):
     """A roof's parapet on the sides named, and a line of light along its
     top's outer edge when `rim` names a colour."""

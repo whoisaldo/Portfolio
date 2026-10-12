@@ -120,6 +120,16 @@ def pod(f, s0, s1, k0, k1, out, seed, tint=5, window=0, lit=0.75):
     return (s0, s1, y0 - 0.9, y1 + 0.4)
 
 
+def big(f, s0, s1, k0, k1, out, seed, **kw):
+    """One of the big cantilevered blocks (mega_kit.block) on a face that
+    looks south, where the hero's lens does not reach."""
+    y0, y1 = floor_y(k0) - 0.4, floor_y(k1) + 0.3
+    xa, xb = sorted((f.at(s0), f.at(s1)))
+    assert hero_hidden(xa - 0.5, xb + 0.5, y0 - 1.0, y1, f.plane + out), (xa, xb, y0, y1)
+    block(xa, xb, y0, y1, f.plane, f.plane + out, seed, **kw)
+    return (s0, s1, y0 - 0.9, y1 + 0.4)
+
+
 def dress(f, top, start, seed, blocked, pods=(), slot=False, people_rate=0.2, weights=(0.3, 0.35, 0.35)):
     """Floor by floor up a face: a walkway, balconies, or a plain floor of
     units. `blocked`: stretches kept clear the whole height (the signs, the
@@ -163,15 +173,15 @@ def sign_gaps(f):
 
 # West section (top 95).
 _blocked = sign_gaps(fW) + [face_duct(fW, 13.6, floor_y(3), 92.0), face_duct(fW, 29.2, floor_y(2), 90.0, w=0.7)]
-_pods = [pod(fW, 1.6, 11.2, 8, 10, 2.8, 8301, window=0), pod(fW, 20.8, 27.2, 14, 16, 2.4, 8302, window=6, tint=6),
-         pod(fW, 3.2, 9.6, 20, 21, 2.2, 8303, window=5, tint=1)]
+_pods = [big(fW, 2.6, 12.6, 8, 12, 6.5, 8301, window=0), big(fW, 20.4, 28.0, 14, 19, 5.0, 8302, window=6, tint=6),
+         big(fW, 1.0, 12.5, 20, 24, 6.0, 8303, window=5, tint=1)]
 dress(fW, 95.0, 3, 8311, _blocked, _pods)
 # Middle section (top 89): in the hero's slot, so decks and dark balconies only.
 _blocked = sign_gaps(fM) + [face_duct(fM, 1.0, floor_y(4), 86.0, w=0.8, out=0.6), face_duct(fM, 35.0, floor_y(4), 86.0, w=0.8, out=0.6)]
 dress(fM, 89.0, 4, 8312, _blocked, (), slot=True, people_rate=0.15, weights=(0.34, 0.3, 0.36))
 # East section (top 83).
 _blocked = sign_gaps(fE) + [face_duct(fE, 1.3, floor_y(5), 80.0, w=0.7), face_duct(fE, 11.4, floor_y(5), 81.0), face_duct(fE, 28.9, floor_y(5), 78.0)]
-_pods = [pod(fE, 2.6, 9.0, 9, 11, 2.6, 8304, window=6, tint=5), pod(fE, 18.8, 28.4, 14, 16, 2.8, 8305, window=0, tint=1),
+_pods = [big(fE, 2.2, 10.6, 9, 13, 6.0, 8304, window=6, tint=5), big(fE, 17.4, 28.0, 14, 18, 6.5, 8305, window=0, tint=1),
          pod(fE, 4.0, 10.4, 19, 20, 2.2, 8306, window=5, tint=6)]
 dress(fE, 83.0, 5, 8313, _blocked, _pods)
 
@@ -184,6 +194,27 @@ _rb = random.Random(8321)
 for (bx, by, bw, bh, yaw) in ((-43.4, 52.4, 7.0, 13.0, 6.0), (43.6, 32.6, 6.4, 11.0, -8.0), (24.4, 70.4, 9.0, 5.0, 0.0)):
     assert hero_hidden(bx - bw / 2 - 0.5, bx + bw / 2 + 0.5, by - bh / 2 - 0.5, by + bh / 2 + 0.5, MB_ZF + 1.0), (bx, by)
     B.billboard(D, bx, by, MB_ZF + 0.5, bw, bh, math.radians(yaw), _rb, back=False)
+
+# The four vertical signs. The outer two, which the canyon hides from the
+# hero, are columns of screens standing off the face in front of the old
+# bars (their light spills round the frames); the two the hero looks at keep
+# their light and gain only a dark frame that cuts each into boxes.
+_rs = random.Random(8322)
+for k, (vx, _hue) in enumerate(MB_SIGNS):
+    vh = 38.0 + (k % 2) * 22.0
+    if abs(vx) > 18.0:
+        n = int(vh // 7.5)
+        assert hero_hidden(vx - 2.8, vx + 2.8, 13.0, 14.0 + n * 7.5, MB_ZF + 2.0), vx
+        for i in range(n):
+            B.billboard(D, vx, 14.0 + 3.7 + i * 7.5, MB_ZF + 2.0, 4.4, 6.9, 0.0, _rs, back=False, depth=0.4)
+        for dx in (-1.9, 1.9):
+            box((D, "metal", 1), vx + dx - 0.1, vx + dx + 0.1, 14.0, 14.0 + n * 7.5, MB_ZF, MB_ZF + 1.6, scale=1.0)
+    else:
+        zf = MB_ZF - MB_REC - 0.6
+        for dx in (-1.3, 1.3):
+            tbox(vx + dx - 0.2, vx + dx + 0.2, 13.4, 14.6 + vh, zf - 0.3, zf + 0.5, BLACK)
+        for i in range(int(vh // 5.4) + 1):
+            tbox(vx - 1.3, vx + 1.3, 14.0 + i * 5.4 - 0.14, 14.0 + i * 5.4 + 0.14, zf + 0.3, zf + 0.5, BLACK, detail=1)
 
 # ---------------------------------------------------------------------------
 # The service cores up the block's side walls, taller than the sections they

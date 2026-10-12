@@ -112,6 +112,7 @@ empty("anchor_mega_end", (0.0, 95.0, -780.0), props={"size": 150.0})
 empty("anchor_mega_end_tower", (-97.0, 205.0, -842.0), props={"size": 80.0})
 
 # The district's own pack: everything the hero does not need to go live on.
+from ncw.districts import mega_mass  # noqa: E402,F401
 from ncw.districts import mega_base  # noqa: E402,F401
 from ncw.districts import mega_face  # noqa: E402,F401
 from ncw.districts import mega_wings  # noqa: E402,F401
