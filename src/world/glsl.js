@@ -11,7 +11,7 @@
 // lights its street: pink under the pink signs, cyan under the cyan ones, and
 // dark above the third storey.
 //
-// Distance does the rest: exponential fog toward a near-black violet, and a
+// Distance does the rest: exponential fog toward a near-black navy, and a
 // glow along the horizon where a lit city scatters its light into wet air.
 // Emissive surfaces lose less to the fog than lit ones, because a sign 400 m
 // up the street still reads as a sign.
@@ -28,18 +28,17 @@ export function createSharedUniforms(THREE) {
     uSpill: { value: null },
     uSpillBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
     uSpillGain: { value: 1 },
-    // Night as the show paints it: deep navy in the air, the haze a blue
-    // violet, the lit city's glow violet blue, pink only toward downtown
-    // (cityGlow's hot core), where the plate's street ends.
-    uFogColor: { value: new THREE.Color(0x05060e) },
-    uHazeColor: { value: new THREE.Color(0x1f1a4c) },
+    // Night as the show paints it: deep navy in the air, the haze and the
+    // lit city's glow navy to teal. Violet and pink are downtown's alone
+    // (COMMON's downtown: the air up the avenue and round the hologram),
+    // where the plate's street ends.
+    uFogColor: { value: new THREE.Color(0x04070e) },
+    uHazeColor: { value: new THREE.Color(0x0c2743) },
     uFogDensity: { value: 0.0021 },
     uHaze: { value: 1 },
     uCam: { value: new THREE.Vector3() },
-    // The lit city's glow in the wet air, and the way to downtown (up the
-    // avenue), where it is brightest.
-    uGlowColor: { value: new THREE.Color(0.6, 0.38, 0.95).multiplyScalar(0.34) },
-    uGlowDir: { value: new THREE.Vector2(0, -1) },
+    // The lit city's glow in the wet air.
+    uGlowColor: { value: new THREE.Color(0.22, 0.6, 0.9).multiplyScalar(0.27) },
     // Lightning in the cloud (src/world/world-scene.js): how bright, and
     // where over the city it is, on the cloud deck's plane.
     uFlash: { value: 0 },
@@ -76,7 +75,6 @@ export const COMMON = /* glsl */ `
   uniform float uHaze;
   uniform vec3 uCam;
   uniform vec3 uGlowColor;
-  uniform vec2 uGlowDir;
   uniform float uFlash;
   uniform vec2 uFlashAt;
   uniform float uTubeClock;
@@ -149,29 +147,65 @@ export const COMMON = /* glsl */ `
     return sum;
   }
 
+  // Downtown is up the avenue: the megabuilding at its far end and the
+  // hologram over it. Its air is violet and pink, as the plate paints it;
+  // everywhere else the night is navy and teal. How much of downtown a look
+  // along dir takes in from where the eye stands: the whole canyon from the
+  // avenue itself, a halo round the hologram from anywhere else.
+  float downtown(vec3 dir) {
+    vec2 to = vec2(-8.0, -640.0) - uCam.xz;
+    float t = max(dot(normalize(dir.xz + 1e-5), to * inversesqrt(dot(to, to) + 1.0)), 0.0);
+    float t3 = t * t * t;
+    return mix(t3 * t3 * t3 * 0.7, t3, 1.0 - smoothstep(14.0, 70.0, abs(uCam.x)));
+  }
+  // The haze and the glow along a look: the night's own, downtown's toward it.
+  vec3 hazeAt(vec3 dir) {
+    return mix(uHazeColor, vec3(0.0137, 0.0103, 0.0723), downtown(dir));
+  }
+  vec3 glowAt(vec3 dir) {
+    return mix(uGlowColor, vec3(0.204, 0.129, 0.323), downtown(dir));
+  }
+
+  // Santo Domingo, the industrial edge: how far into it a point of the plan
+  // is. Its air is sodium low over the yards, and the sky behind its stacks
+  // a lighter teal.
+  float santoAt(vec2 p) {
+    vec2 d = min(p - vec2(170.0, -176.0), vec2(490.0, 48.0) - p);
+    return smoothstep(-40.0, 30.0, min(d.x, d.y));
+  }
+  const vec3 SODIUM = vec3(0.105, 0.05, 0.014);
+
   // The city's glow in the air along a direction, at a height: low over
   // the roofs, and strongest toward downtown.
   vec3 cityGlow(vec3 dir, float y) {
-    float t1 = max(dot(normalize(dir.xz + 1e-5), uGlowDir), 0.0);
-    float toward = t1 * t1 * t1;
+    vec2 to = vec2(-8.0, -640.0) - uCam.xz;
+    float t1 = max(dot(normalize(dir.xz + 1e-5), to * inversesqrt(dot(to, to) + 1.0)), 0.0);
+    float street = 1.0 - smoothstep(14.0, 70.0, abs(uCam.x));
+    float t3 = t1 * t1 * t1;
+    float toward = mix(t3 * t3 * t3 * 0.7, t3, street);
     // Right up the avenue, low on the horizon, downtown burns: a hot core,
     // warmer and whiter, that pulls the eye to the vanishing point.
-    float hot = pow(t1, 90.0) * exp(-max(y, 0.0) * 0.1);
-    vec3 glow = uGlowColor * (0.3 + 0.7 * toward) + vec3(1.0, 0.62, 0.86) * hot * 0.45;
+    float hot = pow(t1, 90.0) * exp(-max(y, 0.0) * 0.1) * (0.3 + 0.7 * street);
+    vec3 glow = mix(uGlowColor * 0.3, vec3(0.204, 0.129, 0.323), toward) + vec3(1.0, 0.62, 0.86) * hot * 0.45;
+    // Over Santo Domingo, a pale teal band low behind the stacks.
+    glow += vec3(0.02, 0.1, 0.115) * santoAt(uCam.xz) * exp(-max(y, 0.0) * 0.02);
     // A flash in the cloud lifts the whole wet air with it, cold.
     glow += vec3(0.5, 0.52, 0.75) * uFlash * 0.12;
     return glow * uHaze * exp(-max(y, 0.0) * 0.0045);
   }
 
-  // Distance: fog into near-black violet close to, and further off into the
+  // Distance: fog into near-black navy close to, and further off into the
   // glow of the lit city hanging in the wet air, so the end of a street is
-  // brighter than its middle, as the plate has it.
+  // brighter than its middle, as the plate has it. Santo Domingo's own air
+  // is thicker and sodium, low over its yards.
   vec3 cityFog(vec3 col, vec3 p, float emissive) {
     vec3 d = p - uCam;
     float dist = length(d);
-    float f = 1.0 - exp(-dist * uFogDensity * mix(1.0, 0.45, emissive));
+    float santo = santoAt(p.xz) * exp(-max(p.y, 0.0) * 0.035) * uHaze;
+    float f = 1.0 - exp(-dist * uFogDensity * mix(1.0, 0.45, emissive) * (1.0 + 0.8 * santo));
     float low = exp(-max(p.y, 0.0) * 0.01);
-    vec3 fogCol = mix(uFogColor, uHazeColor, uHaze * low * smoothstep(40.0, 360.0, dist));
+    vec3 fogCol = mix(uFogColor, hazeAt(d), uHaze * low * smoothstep(40.0, 360.0, dist));
+    fogCol = mix(fogCol, SODIUM, santo * 0.75 * smoothstep(20.0, 200.0, dist));
     fogCol += cityGlow(d, p.y) * smoothstep(120.0, 900.0, dist);
     return mix(col, fogCol, f);
   }

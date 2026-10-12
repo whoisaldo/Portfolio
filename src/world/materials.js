@@ -293,13 +293,25 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // What faces the sky catches the city's glow on the cloud (a wet
           // roof, uSky, more of it: seen from above a roof is a dark blue
           // surface, not a hole).
-          light += (uHazeColor * 0.22 + uGlowColor * 0.12) * up * uHaze * uSky;
+          vec3 skyLight = (uHazeColor * 0.22 + uGlowColor * 0.12) * uHaze;
+          light += skyLight * up * uSky;
+          // Santo Domingo's sodium lamps light its air, and the air its
+          // yards, its plant and its roofs, from every side.
+          float santo = santoAt(vWorld.xz) * uHaze;
+          light += SODIUM * santo * (0.5 + 0.5 * up) * exp(-max(vWorld.y, 0.0) * 0.02) * 1.6;
           vec3 col = albedo * light + glowing;
           // And at a grazing angle every edge holds a little of the haze
           // behind it, so a dark shape stands off the dark behind it.
           vec3 V = normalize(uCam - vWorld);
           float rim = pow(1.0 - abs(dot(V, n)), 3.0);
-          col += (uHazeColor * 1.5 + uGlowColor * 0.45) * rim * 0.5 * uHaze * (1.0 - up);
+          float dt = downtown(-V);
+          vec3 hazeV = mix(uHazeColor, vec3(0.0137, 0.0103, 0.0723), dt);
+          vec3 glowV = mix(uGlowColor, vec3(0.204, 0.129, 0.323), dt);
+          col += (hazeV * 1.5 + glowV * 0.45) * rim * 0.5 * uHaze * (1.0 - up);
+          // No roof is a hole: whatever it is made of, the rain on it holds
+          // the lit cloud, a little from overhead and more at a glance.
+          float top = up * smoothstep(2.5, 6.0, vWorld.y) * (1.0 - vProp);
+          col += (skyLight * 4.0 + SODIUM * santo * 0.5) * top * (0.045 + 0.5 * rim);
           #ifdef DETAIL
           // Wet sheet metal: it gives back the lit sky at a glancing angle
           // and a highlight of every lamp near it, both broken by the seams
@@ -307,7 +319,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 R = reflect(-V, n);
           float F = 0.04 + 0.96 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
           float shine = smoothstep(0.75, 1.1, wear);
-          vec3 skyR = (uHazeColor * 1.4 + uGlowColor * 0.6) * smoothstep(-0.15, 0.35, R.y) * uHaze;
+          vec3 skyR = (hazeV * 1.4 + glowV * 0.6) * smoothstep(-0.15, 0.35, R.y) * uHaze;
           vec3 glint = vec3(0.0);
           for (int i = 0; i < ${LAMPS}; i++) {
             vec3 d = uLamps[i].xyz - vWorld;
@@ -328,7 +340,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float graze = pow(1.0 - clamp(V.y, 0.0, 1.0), 3.0);
             vec3 back = spillReflect(vWorld, Rw);
             back = max(mix(vec3(dot(back, vec3(0.299, 0.587, 0.114))), back, 1.8), 0.0) * 0.14;
-            vec3 sky = (uHazeColor * 1.2 + uGlowColor * 0.5) * uHaze * 0.4;
+            vec3 sky = (hazeV * 1.2 + glowV * 0.5) * uHaze * 0.4;
             vec3 give = back * sheen * (0.15 + 0.85 * graze);
             #ifdef PAVING
             if (water > 0.01) {
@@ -583,7 +595,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         // way, a scatter of lit windows over the dark.
         vec3 skyIn(vec3 r) {
           vec3 zenith = vec3(0.006, 0.005, 0.012);
-          vec3 horizon = uHazeColor * 0.55 + uGlowColor * 0.35;
+          vec3 horizon = hazeAt(r) * 0.55 + glowAt(r) * 0.35;
           vec3 sky = mix(horizon, zenith, smoothstep(0.0, 0.55, r.y));
           float cloud = 0.5 + 0.5 * sin(r.x * 6.0 + r.z * 4.0 + r.y * 13.0) * sin(r.x * 2.3 - r.z * 3.1);
           sky += uHazeColor * 0.35 * cloud * smoothstep(0.04, 0.3, r.y) * (1.0 - smoothstep(0.35, 0.8, r.y));

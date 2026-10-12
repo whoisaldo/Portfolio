@@ -310,7 +310,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // it, brightest where the street runs toward downtown. The mirror
         // draws only what glows, never the sky, so this is its sky on
         // desktop too.
-        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (uHazeColor * 1.2 + uGlowColor * 0.5) * uHaze * mix(0.28, 0.4, fore);
+        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (hazeAt(R) * 1.2 + glowAt(R) * 0.5) * uHaze * mix(0.28, 0.4, fore);
         vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(0.3 * wet * mix(0.35, 1.0, stone) * crack, 1.0, puddle);
         // (On the hero's stretch the film is thick enough to hold its shine
         // at the lens's feet, as the plate's road does.)

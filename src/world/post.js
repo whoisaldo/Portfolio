@@ -125,7 +125,7 @@ const BRAINDANCE = /* glsl */ `
 `;
 
 // The grade, after the tone map, in the same pass: the plate's night.
-// Blacks lifted a hair toward violet rather than crushed, the mids pushed
+// Blacks lifted a hair toward navy rather than crushed, the mids pushed
 // more saturated than the highlights (so a tube keeps its white core and a
 // wall keeps its colour), shadows cooled toward teal and violet, the top
 // warmed toward pink, and a gentle S for contrast.
@@ -152,7 +152,7 @@ class GradeEffect extends Effect {
   constructor() {
     super("GradeEffect", GRADE, {
       uniforms: new Map([
-        ["uLift", new THREE.Uniform(new THREE.Vector3(0.012, 0.01, 0.02))],
+        ["uLift", new THREE.Uniform(new THREE.Vector3(0.008, 0.012, 0.021))],
         ["uSat", new THREE.Uniform(1.3)],
         ["uShadowTint", new THREE.Uniform(new THREE.Vector3(-0.008, 0.006, 0.016))],
         ["uHighTint", new THREE.Uniform(new THREE.Vector3(0.024, 0.006, 0.004))],
