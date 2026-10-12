@@ -1210,8 +1210,8 @@ function nearFigure(close = false) {
     loft([across(0.9455, 2.5, 0.007), across(0.9755, 2.5, 0.007)], { part: PART.metal, tag: TAG.open }, { open: true, ref: [0, 1.2, 0] });
     // The shirt's collar, a leaf each side of the throat, on a suit and
     // under an open jacket.
-    for (const tag of [TAG.suit, TAG.open]) {
-      for (const s of [-1, 1]) quad(onTorso(1.452, 90 + s * 30, 0.012), onTorso(1.468, 90 + s * 9, 0.011), onTorso(1.418, 90 + s * 6, 0.0095), onTorso(1.432, 90 + s * 24, 0.0105), { part: PART.shirt, tag }, [0, 1.4, 0]);
+    for (const [tag, wide, low] of [[TAG.suit, 30, 1.418], [TAG.open, 23, 1.432]]) {
+      for (const s of [-1, 1]) quad(onTorso(1.452, 90 + s * wide, 0.012), onTorso(1.468, 90 + s * 9, 0.011), onTorso(low, 90 + s * 6, 0.0095), onTorso(low + 0.014, 90 + s * (wide - 6), 0.0105), { part: PART.shirt, tag }, [0, 1.4, 0]);
     }
     // A suit's two buttons, and a square in the breast pocket in the tie's
     // colour.

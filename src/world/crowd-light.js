@@ -200,19 +200,22 @@ export function createStreetLight(scene, shared) {
       const fz = (lamps[i + 2] - b.y) / CELL - 0.5;
       const high = y > TOP;
       const into = high ? upper : acc;
-      const l = lamps[i + 3] * 0.3 + lamps[i + 4] * 0.5 + lamps[i + 5] * 0.2;
+      // (In a street the signs are the light and a lamp adds to them; on a
+      // roof the lamp is all there is.)
+      const gain = high ? 1 : 0.6;
+      const l = (lamps[i + 3] * 0.3 + lamps[i + 4] * 0.5 + lamps[i + 5] * 0.2) * gain;
       for (let gz = Math.max(0, Math.ceil(fz - REACH)); gz <= Math.min(h - 1, fz + REACH); gz++) {
         for (let gx = Math.max(0, Math.ceil(fx - REACH)); gx <= Math.min(w - 1, fx + REACH); gx++) {
           const d2 = ((gx - fx) ** 2 + (gz - fz) ** 2) * CELL * CELL;
-          const k = 1 / (1 + d2 / (SOFT * SOFT)) ** 2;
-          if (k < 0.02) continue;
+          const k = gain / (1 + d2 / (SOFT * SOFT)) ** 2;
+          if (k < 0.012) continue;
           const at = (gz * w + gx) * 3;
           into[at] += lamps[i + 3] * k;
           into[at + 1] += lamps[i + 4] * k;
           into[at + 2] += lamps[i + 5] * k;
           if (high) {
-            hung[at] += l * k * y;
-            hung[at + 1] += l * k;
+            hung[at] += (l * k * y) / gain;
+            hung[at + 1] += (l * k) / gain;
           }
         }
       }

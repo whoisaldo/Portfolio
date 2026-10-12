@@ -1577,7 +1577,7 @@ const VERTEX = /* glsl */ `
     // sign at all is a dark shape with a faint blue edge and never a hole.
     // The wet shine goes with it on what is glossy.
     float g3 = pow(graze, 2.5);
-    vec3 rim = key / max(peak, 1e-4) * source * 1.0 * g3 * smoothstep(-0.25, 0.35, toward) + EDGE * g3 * (0.45 + 0.55 * clamp(0.3 - toward, 0.0, 1.0)) * (0.6 + 0.4 * max(up, 0.0));
+    vec3 rim = key / max(peak, 1e-4) * source * 0.85 * g3 * smoothstep(-0.25, 0.35, toward) + EDGE * g3 * (0.45 + 0.55 * clamp(0.3 - toward, 0.0, 1.0)) * (0.6 + 0.4 * max(up, 0.0));
     vec3 shine = (key * clamp(toward, 0.0, 1.0) + sky * 0.9) * graze * graze * gloss * 0.5;
     #ifdef NEAR
     shine *= min(1.0, (0.006 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(shine.r, max(shine.g, shine.b)), 1e-4));
