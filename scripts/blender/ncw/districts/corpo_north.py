@@ -78,7 +78,8 @@ def west_block():
     K.corp_block(x0, x1, BACK0, T_BACK - 1.0, 40.0, 7703, skin="windows", tint="concrete", style=2,
                  tiers=((0.7, 0.0), (1.0, (0.0, 3.0, 0.0, 3.0))), fronts={"+x": "dock", "-z": "blank", "-x": "none", "+z": "none"},
                  edge="amber", lit=(0.4, 0.7), warm=(0.4, 0.9))
-    K.roof_plant(x0 + 1, x1 - 4, BACK0 + 1, T_BACK - 5, 40.0, r, cap=5.0)
+    K.roof_plant(x0 + 1, x1 - 4, BACK0 + 1, -401.0, 40.0, r, cap=5.0)
+    K.pad((x0 + x1) / 2, -389.0, 40.0, r=8.0, colour="amber")
     portal(x1, 1)
 
 
@@ -327,7 +328,7 @@ def lane():
         K.lane_dress(B.Face("-z", T_BACK - 0.02, tx - 13.0, tx + 13.0), r, 0.6)
     rows = [(137.0, 182.0), (188.0, 226.0), (232.0, 262.0), (268.0, 298.0), (304.0, 338.0), (344.0, 378.0), (384.0, 428.0)]
     for j, (x0, x1) in enumerate(rows):
-        K.lane_dress(B.Face("+z", BACK1, x0, x1), r, 0.8)
+        K.lane_dress(B.Face("+z", BACK1, x0, x1), r, 0.8, high=(60.0, 58.0, 40.0, 0.0, 30.0, 60.0, 42.0)[j])
         K.lane_dress(B.Face("-x", x0, BACK0, BACK1), r, 0.8)
         K.lane_dress(B.Face("+x", x1, BACK0, BACK1), r, 0.8)
     K.lane_dress(B.Face("+x", WEST_X, BACK0, T_BACK - 1.0), r, 0.8)
@@ -617,6 +618,13 @@ def forecourts():
             stand(tx + 10.6, -345.0, math.radians(160), "phone")
         if i not in (2, 4):
             P.place("cctv", tx - side * 12.7, G0, -344.6, district=CO)
+        if i >= 3:
+            # A pair of lightboxes at the kerb either side of the way in,
+            # edge on to the road, and blocks to sit on under the canopy.
+            for sx in (-5.6, -4.4, 4.4, 5.6):
+                P.place("lightbox", tx + sx, G0, KERB_STRIP_N, math.pi / 2, district=CO)
+            for sx in ((-6.4,), (6.4, -11.2), (-7.0, 7.0), (6.2,))[i - 3]:
+                K.block_seat(tx + sx, -346.5, 1.8, 0.0, hue if hue != "white" else "cyan")
 
 
 def gate(x, z, hue):
@@ -763,6 +771,7 @@ def side_doors(gx, r, hue="white", back=T_BACK):
         if back is not None and LOBBY_Z - back > 6.0:
             f = B.Face("-x" if sx > 0 else "+x", xw - sx * 0.06, back, LOBBY_Z)
             K.wall_front(f, 7.4, r, 1, "cyan" if hue == "white" else hue)
+            K.services(f, r, 7.4, 0.7)
 
 
 def link(gx, z0, h, r, lit=(0.7, 1.0), hue="cyan", front_kind="glass"):
@@ -987,11 +996,16 @@ GANTRY_X = (283.0,)
 
 
 def median():
-    """A raised strip down the boulevard's middle: a kerb, dark planting, a
-    dim yellow line of light along both its edges (YRL74JmhVgk@30), palms
-    with nothing but trunk below five metres, well apart and none before
-    the two lobbies the braindance reads across it, low lamps between."""
+    """A raised strip down the boulevard's middle, planted: a kerb, a dim
+    yellow line of light along both its edges (YRL74JmhVgk@30), shrubs in
+    clusters its whole length with lights among them, and east of x 316
+    tall slender palms in lit pits, lamps between. (The braindance's car
+    rides z -328 with its camera a metre up beside it, reading the first
+    and third towers' fronts across the median from x 120 to 320, ahead and
+    then back over its shoulder: nothing on that stretch stands a metre
+    high.)"""
     x0, x1, z0, z1 = MEDIAN
+    r = random.Random(7790)
     box(k("kerb"), x0, x1, 0.0, 0.2, z0, z1, scale=1.0)
     quad(k("trim"), (x0 + 0.2, 0.205, z1 - 0.15), (x1 - 0.2, 0.205, z1 - 0.15), (x1 - 0.2, 0.205, z0 + 0.15), (x0 + 0.2, 0.205, z0 + 0.15), col=K.SOIL)
     dim = tuple(c * 0.22 for c in GLOW["yellow"][:3]) + (1.0,)
@@ -1001,36 +1015,28 @@ def median():
         cylinder(k("kerb"), xe, (z0 + z1) / 2, 0.0, 0.2, 0.6, segs=10)
         box(k("trim", 1), xe + s * 0.2 - 0.25, xe + s * 0.2 + 0.25, 0.2, 1.1, -330.08, -329.92, scale=1.0, col=K.BLACK)
         K.glow_box(xe + s * 0.2 - 0.2, xe + s * 0.2 + 0.2, 0.55, 1.0, -330.1 if s < 0 else -329.92, -330.08 if s < 0 else -329.9, "amber", 1)
-    # (The braindance's car rides z -328 with its camera low beside it,
-    # reading the first and third towers' fronts across the median from
-    # x 120 to 320, ahead and then back over its shoulder: nothing on that
-    # stretch stands taller than the hedge.)
-    palms = [319.0, 338.0, 357.0, 376.0, 395.0, 414.0]
+    palms = [322.0, 338.0, 354.0, 370.0, 386.0, 402.0, 416.0]
+    pit = tuple(c * 0.5 for c in GLOW["amber"][:3]) + (1.0,)
     for x in palms:
-        P.place("planter_palm", x, 0.2, -330.0, 0.7 * x, sy=1.25, sxz=0.68, district=CO)
-    # A clipped hedge along it, knee high, in runs between the palms and
-    # the lamps (low enough that a car's eye sees every lobby over it).
-    marks = sorted([x0 + 1.5] + palms + [x1 - 1.5])
-    for a, b in zip(marks, marks[1:]):
-        n = max(1, round((b - a) / 19.0))
-        for j in range(n):
-            ha, hb = a + (b - a) * j / n + 1.6, a + (b - a) * (j + 1) / n - 1.6
-            mid = (ha + hb) / 2
-            for sa, sb in ((ha, mid - 1.0), (mid + 1.0, hb)):
-                if sb - sa > 1.5:
-                    solid(sa, sb, 0.2, 0.62, z0 + 0.22, z1 - 0.22, K.HEDGE)
-    for a, b in zip([150.0] + palms, palms + [420.0]):
-        if b - a < 12.0:
-            continue
-        n = max(1, round((b - a) / 19.0))
-        for j in range(n):
-            x = a + (b - a) * (j + 0.5) / n
-            if x < 316.0:
-                # (No lamp column there either: a light in the planting.)
-                K.glow_box(x - 0.5, x + 0.5, 0.62, 0.66, -330.12, -329.88, "amber", 1)
-                light(CO, x, 1.2, -330.0, "amber", 3.0)
-                continue
-            P.place("lamp_short", x, 0.2, -330.0, district=CO)
+        # The palm's planter stands sunk in the bed: a pit's rim, lit.
+        P.place("planter_palm", x, -0.3, -330.0, 0.7 * x, sy=1.5, sxz=0.62, district=CO)
+        for xa, xb, za, zb in ((x - 0.62, x + 0.62, -330.62, -330.56), (x - 0.62, x + 0.62, -329.44, -329.38)):
+            box(k("glow"), xa, xb, 0.2, 0.3, za, zb, scale=1.0, col=pit)
+        light(CO, x, 1.6, -330.0, "amber", 4.0)
+    # Shrubs between everything that stands, taller east of the palms' line.
+    marks = [x0 + 1.4] + [v for p in palms for v in (p - 0.8, p + 0.8)] + [x1 - 1.4]
+    for a, b in zip(marks[0::2], marks[1::2]):
+        x = a
+        while x < b:
+            e = min(b, x + 9.5)
+            K.shrubs(x, e - 0.6, -330.0, 0.2, r, spread=0.28, hmax=0.5 if x < 316.0 else 0.8)
+            # A light in the planting at each run's end.
+            if e < b:
+                K.glow_box(e - 0.36, e - 0.12, 0.2, 0.34, -330.12, -329.88, "amber" if int(e) % 2 else "cyan", 1)
+                light(CO, e - 0.24, 1.0, -330.0, "amber" if int(e) % 2 else "cyan", 3.0)
+            x = e
+    for a, b in zip(palms, palms[1:]):
+        P.place("lamp_short", (a + b) / 2, 0.2, -330.0, district=CO)
 
 
 def gantry(gx):
@@ -1138,8 +1144,11 @@ def pavement_n():
         if j != 2:      # (the gap east of the server hall's tower: the braindance reads that tower's foot across its mouth)
             P.place("bin", gx - 5.3, G0, LOT_N - 0.5, district=CO)
             P.place("cctv", gx + 5.4, G0, KERB_STRIP_N, district=CO)
-        if j != 3:
+        if j < 3:
             K.ad_panel(gx + 3.6, KERB_STRIP_N, 0.0, r, pal=None if j % 2 else K.COLD)
+        elif j > 3:
+            for dx in (3.0, 4.2):
+                P.place("lightbox", gx + dx, G0, KERB_STRIP_N, math.pi / 2, district=CO)
 
 
 def gantry_paving(gx):

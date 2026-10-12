@@ -161,7 +161,8 @@ def south_side():
             P.place("bin", x0 + 0.7, G0, z0 - 0.4, district=CO)
         P.place("cctv", x0 + 1.0, G0, KERB_STRIP_S, district=CO)
         K.st_blade(x1 - 0.6, 6.4 + (j % 3) * 0.9, z0 - 1.0, ("bl", "bm", "bl")[j % 3], math.radians(90 + (22 if j % 2 else -18)), bracket=(x1 - 0.6, z0))
-        K.ad_panel(x0 + 13.0 + (j % 2) * 9.0, KERB_STRIP_S, math.pi, r, pal=K.COLD if j % 2 else None)
+        for dx in (-0.6, 0.6):
+            P.place("lightbox", x0 + 13.0 + (j % 2) * 9.0 + dx, G0, KERB_STRIP_S, math.pi / 2, district=CO)
         stand(cx - 2.6, z0 - 0.75, math.pi, "idle")
         if j % 3 != 1:
             K.talk(cx + 6.0, z0 - 0.9, 0.7 * j)
@@ -307,6 +308,17 @@ def campus():
         cx = (x0 + x1) / 2
         a, b = zs + 2.0, z1 - 2.0          # the open roof, under the dolly
         K.roof_lights(x0, x1, zs, z1, y, ("amber", "cyan")[i % 2], step=6.5)
+        # A guard rail inside the parapet along its south and west walks, a
+        # tank and aerials by the upper block's wall (nothing over 15 m).
+        xr = x0 + 2.0
+        while xr < x1 - 2.0:
+            P.place("railing", xr + 1.0, y, z1 - 1.3, 0.0, district=CO)
+            xr += 2.0
+        P.place("tank_roof", x1 - 3.4, y, zs + 2.2, district=CO)
+        for dx in (2.6, 4.0):
+            P.place("antenna", x0 + dx, y, zs + 1.2, 0.5 * i + dx, sy=0.5, district=CO)
+        P.place("ac_roof", x0 + 6.0, y, zs + 1.4, district=CO)
+        P.place("ac_roof", x0 + 7.6, y, zs + 1.4, district=CO)
         if i == 0:
             # A garden: hedged beds, trees, benches, a lit path.
             K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.012)
@@ -406,8 +418,35 @@ def campus():
 # The plaza street's north side: the district's back of house.
 # ---------------------------------------------------------------------------
 STYLE_S3 = dict(windows=(2, 4, 5, 5), lit=(0.4, 0.85), warmth=(0.1, 0.6), tints=("navy", "teal", "charcoal", "concrete"),
-                balcony=0.0, ac=0.04, signs=0.45, awning=0.0, shop_sign=0.4, canopy=0.6, roof_cap=5.0, setback=0.6,
+                balcony=0.0, ac=0.04, signs=0.45, awning=0.0, shop_sign=0.4, canopy=0.6, roof_cap=4.9, setback=0.6,
                 fire_escape=0.0, cornice=0.2, pipes=0.25, roof_sign=0.25, shop_colours=["cyan", "white", "teal", "blue"])
+
+
+ROOF_TOPS = {}
+
+
+def roof_board(j):
+    """A billboard standing on a plaza street lot's roof, turned to the
+    street, seen to stand: four legs, raking struts behind it down to the
+    roof, a catwalk along its foot, its frame lit. (The generator's own
+    roof boards are off on this row: roof_cap under 5.)"""
+    tx0, tx1, tz0, tz1, top = ROOF_TOPS[j]
+    cx, cz = (tx0 + tx1) / 2, tz1 - 4.0
+    bw, bh = min(14.0, (tx1 - tx0) * 0.6), 5.6
+    by = top + 3.0 + bh / 2
+    K.advert(cx, by, cz, bw, bh, 0.0, 5, seed=0.2, depth=0.3)
+    K.advert(cx, by, cz - 0.42, bw, bh, math.pi, 2, seed=0.2, depth=0.02)
+    K.edge_line(cx - bw / 2 - 0.2, cx + bw / 2 + 0.2, cz - 0.4, cz + 0.02, by + bh / 2 + 0.2, "cyan", h=0.1, out=0.02)
+    for du in (-bw * 0.42, -bw * 0.14, bw * 0.14, bw * 0.42):
+        box(k("steel"), cx + du - 0.12, cx + du + 0.12, top, by - bh / 2, cz - 0.34, cz - 0.1, scale=1.0, col=K.STEEL)
+        pipe(k("steel"), (cx + du, by + bh * 0.3, cz - 0.4), (cx + du, top, cz - 4.2), 0.07, segs=5, col=K.STEEL)
+        pipe(k("steel", 1), (cx + du, top + 2.6, cz - 0.4), (cx + du, top + 2.6, cz - 2.3), 0.05, segs=4, col=K.STEEL)
+    box(k("metal", 1), cx - bw / 2, cx + bw / 2, top + 2.6, top + 2.68, cz - 1.3, cz - 0.4, scale=1.0)
+    K.rail(cx - bw / 2, cz - 1.3, cx + bw / 2, cz - 1.3, top + 2.68, "amber")
+    for du in (-bw * 0.3, bw * 0.3):
+        light(CO, cx + du, by - bh / 2, cz + 2.0, "cyan", 4.0)
+    K.aviation(cx - bw / 2, by + bh / 2 + 0.3, cz - 0.2)
+    K.aviation(cx + bw / 2, by + bh / 2 + 0.3, cz - 0.2)
 
 
 def plaza_side():
@@ -417,6 +456,7 @@ def plaza_side():
         lot = B.Lot(x0, x1, MEWS_B[1], PLAZA_LOT, "+z", sides, {}, CO)
         tiers = B.building(lot, h, random.Random(7850 + j), style=STYLE_S3, ground="shops")
         tx0, tx1, tz0, tz1, _, top = tiers[-1]
+        ROOF_TOPS[j] = (tx0, tx1, tz0, tz1, top)
         K.edge_line(tx0, tx1, tz0, tz1, top + 0.86, ("cyan", "amber")[j % 2], h=0.1)
         for cxx, czz in ((tx0 + 0.3, tz0 + 0.3), (tx1 - 0.3, tz1 - 0.3)):
             K.aviation(cxx, top + 1.0, czz)
@@ -424,6 +464,7 @@ def plaza_side():
     # the tallest lot's street face.
     K.screen(X0 - 0.4, 20.0, -205.0, 10.0, 5.6, -math.pi / 2, r, pal=K.COLD)
     K.screen(273.0, 30.0, PLAZA_LOT + 0.4, 12.0, 6.4, 0.0, r, pal=K.COLD)
+    roof_board(3)
     for j, (a, b) in enumerate(S3_ALLEYS):
         hue = ("amber", "cyan")[j % 2]
         alley_gate(a, b, PLAZA_LOT, hue, r, facing=1)
@@ -476,7 +517,7 @@ def lanes():
     and lit, tubes of light across the mews."""
     r = random.Random(7881)
     for j, (x0, x1, h) in enumerate(S1):
-        K.lane_dress(B.Face("+z", S1_BACK, x0, x1), r)
+        K.lane_dress(B.Face("+z", S1_BACK, x0, x1), r, high=(18.0, 27.0, 34.0, 14.0, 14.0, 33.0, 26.0)[j])
         if j > 0:
             K.lane_dress(B.Face("-x", x0, LOT_S, S1_BACK), r, 0.8)
         if j < len(S1) - 1:
@@ -488,7 +529,7 @@ def lanes():
         if j < len(CAMPUS_LOTS) - 1:
             K.lane_dress(B.Face("+x", x1, CAMPUS[0], CAMPUS[1]), r, 0.8)
     for j, (x0, x1, h) in enumerate(S3):
-        K.lane_dress(B.Face("-z", MEWS_B[1], x0, x1), r)
+        K.lane_dress(B.Face("-z", MEWS_B[1], x0, x1), r, high=h - 2.0)
         if j > 0:
             K.lane_dress(B.Face("-x", x0, MEWS_B[1], PLAZA_LOT), r, 0.8)
         if j < len(S3) - 1:
