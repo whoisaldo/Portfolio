@@ -24,8 +24,8 @@ from ncw.districts import avenue_kit as K
 G0 = B.G0
 PLINTH = (0.035, 0.035, 0.04, 1)
 # The painted band along the foot of a back wall, one colour a building.
-DADO = [(0.04, 0.1, 0.08, 1), (0.04, 0.06, 0.14, 1), (0.14, 0.045, 0.04, 1), (0.16, 0.12, 0.04, 1), (0.09, 0.09, 0.1, 1),
-        (0.1, 0.05, 0.12, 1), (0.03, 0.1, 0.12, 1)]
+DADO = [(0.035, 0.06, 0.05, 1), (0.035, 0.045, 0.08, 1), (0.08, 0.035, 0.03, 1), (0.085, 0.07, 0.035, 1), (0.06, 0.06, 0.065, 1),
+        (0.06, 0.04, 0.07, 1), (0.03, 0.06, 0.07, 1)]
 HUES = {
     "green": ("green", "green", "cyan", "amber", "white", "teal"),
     "blue": ("cyan", "cyan", "blue", "pink", "white", "purple"),
@@ -86,17 +86,15 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
         f.quad((D, "dark", 1), e - 0.02, e + 0.02, dh + 0.05, SHOP_H - 0.2, 0.011)
         e += seam
     f.ledge((D, "trim", 0), 0.0, w, SHOP_H - 0.16, 0.22, 0.12, tcol, caps=False)
-    # Its own dim light along it, so the wall is a wall between the pools.
-    e = rng.uniform(1.0, 2.5)
-    while e < w - 0.5:
-        light(D, *f.p(f.at(e), 2.2, 1.0), rng.choice(pal + ("amber",)), rng.uniform(1.6, 2.6))
-        e += rng.uniform(3.0, 4.5)
+    # A pier at each end of the lot, proud of the wall.
+    for e0, e1 in ((0.0, 0.3), (w - 0.3, w)):
+        f.box((D, "concrete", 0), e0, e1, G0, SHOP_H - 0.16, 0.0, 0.24)
     busy = []   # spans along the wall whose band over the doors is taken
     doors = 0
     s = rng.uniform(0.5, 1.6)
-    kinds = (("door", 1.3, 3.0), ("lit", 2.5, 2.2), ("shutter", 3.5, 1.0), ("bay", 3.5, 1.3), ("window", 2.1, 1.6),
-             ("vending", 2.2, 0.9), ("poster", 2.4, 1.2), ("cabinet", 1.9, 1.2), ("stack", 2.0, 2.2), ("units", 1.9, 1.0),
-             ("posters", 2.6, 1.8), ("meters", 1.8, 1.3))
+    kinds = (("door", 1.5, 3.0), ("lit", 2.5, 2.2), ("shutter", 3.5, 0.8), ("bay", 3.5, 1.3), ("window", 2.1, 1.6),
+             ("vending", 2.2, 0.8), ("cabinet", 1.9, 1.2), ("stack", 2.0, 2.4), ("units", 1.9, 1.0), ("meters", 1.8, 1.2),
+             ("riser", 0.9, 2.2), ("ac", 2.2, 1.8), ("fence", 3.8, 1.2), ("bins", 1.9, 1.6))
     last = ""
     while s < w - 1.4:
         room = w - 0.4 - s
@@ -111,11 +109,14 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
         if kind == "door":
             doors += 1
             f.quad((D, "door", 0), s, s + 1.1, G0, 2.3, 0.03)
-            f.box((D, "metal", 1), s - 0.08, s + 1.18, 2.3, 2.4, 0.0, 0.12)
+            for (e0, e1, y0_, y1_) in ((s - 0.16, s, G0, 2.46), (s + 1.1, s + 1.26, G0, 2.46), (s - 0.16, s + 1.26, 2.3, 2.46)):
+                f.box((D, "board_frame", 0), e0, e1, y0_, y1_, 0.0, 0.16)
+            f.box((D, "concrete", 0), s - 0.2, s + 1.3, 0.0, G0 + 0.12, 0.0, 0.5)
             hue = rng.choice(pal)
             mid = s + 0.55
-            f.box((D, "neon_" + hue, 0), mid - 0.14, mid + 0.14, 2.52, 2.74, 0.05, 0.22)
-            light(D, *f.p(f.at(mid), 2.6, 0.9), hue, 4.0)
+            f.box((D, "metal", 1), mid - 0.22, mid + 0.22, 2.74, 2.82, 0.0, 0.34)
+            f.box((D, "neon_" + hue, 0), mid - 0.16, mid + 0.16, 2.54, 2.74, 0.06, 0.28)
+            light(D, *f.p(f.at(mid), 2.6, 0.9), hue, 6.0)
             if rng.random() < 0.35 and room > 3.4:
                 K.board(D, f, s + 2.2, 2.75, "ps", out=0.08)
                 kw = 3.3
@@ -177,8 +178,6 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
             if rng.random() < 0.4:
                 person(f, s + 0.5, 1.25, rng.choice(("idle", "phone")), math.pi + rng.uniform(-0.3, 0.3))
             kw = n * 1.06 + 0.2
-        elif kind == "posters":
-            kw = K.fly_posters(D, f, s, rng) + 0.1
         elif kind == "meters":
             # Meters in a row under a conduit, a lamp on each, and the
             # conduit up the wall.
@@ -191,10 +190,54 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
             px, _, pz = f.p(f.at(s + 0.05), 1.76, 0.0)
             P.place("pipe_v", px, 1.76, pz, f.yaw, sy=SHOP_H - 1.9, district=D)
             kw = n * 0.36 + 0.3
-        elif kind == "poster":
-            pw = rng.choice((1.5, 1.9))
-            K.poster(D, f, s + pw / 2 + 0.1, 2.25, pw, rng.choice((1.9, 2.3)), rng)
-            kw = pw + 0.3
+        elif kind == "riser":
+            # A duct up the wall from a fan at its foot, strapped to it.
+            rw, ro = rng.choice((0.45, 0.6)), rng.choice((0.35, 0.5))
+            top_ = min(height - 0.5, rng.uniform(7.0, 15.0))
+            f.box((D, "metal", 0), s, s + rw, G0 + 0.5, top_, 0.0, ro)
+            f.box((D, "metal", 1), s - 0.15, s + rw + 0.15, G0, G0 + 0.9, 0.0, ro + 0.25)
+            f.quad((D, "dark", 1), s - 0.05, s + rw + 0.05, G0 + 0.15, G0 + 0.75, ro + 0.255)
+            y = 2.2
+            while y < top_ - 0.5:
+                f.box((D, "dark", 1), s - 0.04, s + rw + 0.04, y, y + 0.07, 0.0, ro + 0.03)
+                y += 2.3
+            kw = rw + 0.2
+        elif kind == "ac":
+            # Condensers on brackets over head height, their drain down the
+            # wall, a drip under it.
+            n = rng.randrange(2, 4)
+            for i in range(n):
+                px, _, pz = f.p(f.at(s + 0.45 + i * 0.95), 0.0, 0.0)
+                yy = rng.choice((2.3, 2.6, 3.3))
+                P.place("ac_wall", px, yy, pz, f.yaw, district=D)
+                f.box((D, "metal", 1), s + 0.1 + i * 0.95, s + 0.8 + i * 0.95, yy - 0.06, yy, 0.0, 0.5)
+            px, _, pz = f.p(f.at(s + 0.05), G0, 0.0)
+            P.place("pipe_v", px, G0, pz, f.yaw, sy=3.2, district=D)
+            kw = n * 0.95 + 0.1
+        elif kind == "fence":
+            # A caged store against the wall: mesh on posts, braced, what
+            # is kept behind it, a lamp inside.
+            fw, fo, fh = 3.4, 1.0, 2.3
+            for i in range(4):
+                e = s + i * fw / 3
+                f.box((D, "metal", 1), e - 0.03, e + 0.03, G0, fh, fo - 0.03, fo + 0.03)
+            for y in (G0 + 0.05, 1.2, fh - 0.05):
+                f.box((D, "metal", 1), s, s + fw, y, y + 0.04, fo - 0.02, fo + 0.02)
+            for e in (s, s + fw):
+                f.box((D, "metal", 1), e - 0.02, e + 0.02, fh - 0.09, fh - 0.05, 0.0, fo)
+            for i in range(3):
+                e0, e1 = s + i * fw / 3, s + (i + 1) * fw / 3
+                for (ya, yb) in ((G0, fh), (fh, G0)):
+                    pipe((D, "dark", 1), f.p(f.at(e0), ya, fo), f.p(f.at(e1), yb, fo), 0.012, segs=3)
+                    pipe((D, "dark", 1), f.p(f.at(e0), (ya + yb) / 2, fo), f.p(f.at((e0 + e1) / 2), yb, fo), 0.012, segs=3)
+            for i in range(rng.randrange(2, 5)):
+                P.place(rng.choice(("drum", "drum", "crates", "bags")), *f.p(f.at(s + 0.5 + i * 0.75), G0, 0.45), f.yaw, district=D)
+            light(D, *f.p(f.at(s + fw / 2), 2.0, 0.5), rng.choice(("amber", pal[0])), 3.5)
+            kw = fw + 0.1
+        elif kind == "bins":
+            for i in range(rng.randrange(2, 4)):
+                P.place("bin", *f.p(f.at(s + 0.35 + i * 0.68), G0, 0.4), district=D)
+            P.place("bags", *f.p(f.at(s + 1.0), G0, 1.0), f.yaw + rng.uniform(-1, 1), district=D)
         elif kind == "cabinet":
             for (c0, cw, ch) in ((0.0, 0.8, 1.75), (0.85, 0.65, 1.35)):
                 f.box((D, "metal", 1), s + c0, s + c0 + cw, G0, G0 + ch, 0.0, 0.34)
@@ -228,11 +271,18 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
         s += kw + rng.uniform(0.15, 0.8)
     # Over the doors: a duct with its indicator lamps, or pipes on brackets.
     if w > 5.0:
-        if rng.random() < 0.5:
+        if rng.random() < 0.7:
             a = rng.uniform(0.2, w * 0.3)
-            K.duct(D, f, a, rng.uniform(w * 0.6, w - 0.2), 3.56, rng)
-        else:
-            K.pipes_run(D, f, 0.15, w - 0.15, 4.05, rng, n=rng.choice((2, 2, 3)))
+            K.duct(D, f, a, rng.uniform(w * 0.6, w - 0.2), 3.5, rng, out=0.12)
+        K.pipes_run(D, f, 0.15, w - 0.15, 4.12, rng, n=rng.choice((2, 3, 3)))
+        if rng.random() < 0.6:
+            # A cable tray on arms, a hand's breadth off the wall.
+            a, b = rng.uniform(0.1, w * 0.3), rng.uniform(w * 0.7, w - 0.1)
+            f.box((D, "dark", 1), a, b, 3.18, 3.24, 0.62, 0.9)
+            e = a + 0.3
+            while e < b:
+                f.box((D, "metal", 1), e - 0.02, e + 0.02, 3.12, 3.18, 0.0, 0.9)
+                e += 1.8
     # A tube on the wall where the band is free, and its pool on the lane.
     for _ in range(max(1, round(w / 9.0 * dens))):
         tl = rng.uniform(1.2, 2.2)
@@ -240,7 +290,9 @@ def wall(D, f, rng, height, tcol, escapes=(), hues="green", dens=1.0, vents=None
             a = rng.uniform(0.3, max(0.4, w - tl - 0.3))
             if not any(a < b1 and a + tl > b0 for b0, b1 in busy):
                 hue = rng.choice(pal[:3])
-                K.tube(D, f.p(f.at(a), 3.12, 0.16), f.p(f.at(a + tl), 3.12, 0.16), hue, power=6.5)
+                K.tube(D, f.p(f.at(a), 2.98, 0.45), f.p(f.at(a + tl), 2.98, 0.45), hue, power=9.0)
+                for e in (a + 0.1, a + tl - 0.1):
+                    f.box((D, "metal", 1), e - 0.02, e + 0.02, 3.04, 3.08, 0.0, 0.47)
                 busy.append((a - 0.3, a + tl + 0.3))
                 break
     # A line of light under the first floor's sill on some backs.
@@ -328,17 +380,17 @@ class Lane:
         self.rect((D, "sidewalk", 0), 0.0, a0, self.a, self.b, 0.0, G0)
         self.rect((D, "sidewalk", 0), W - a1, W, self.a, self.b, 0.0, G0)
         mid = (a0 + W - a1) / 2
-        self.rect((D, "dark", 1), mid - 0.14, mid + 0.14, self.a + 0.5, self.b - 0.5, 0.012, scale=0.5)
+        # Drain grates down the centre line.
+        v = self.a + 3.0
+        while v < self.b - 2.0:
+            self.rect((D, "metal", 1), mid - 0.2, mid + 0.2, v, v + 1.0, 0.012, scale=0.5)
+            self.rect((D, "dark", 1), mid - 0.13, mid + 0.13, v + 0.07, v + 0.93, 0.016, scale=0.5)
+            v += 7.5
         v = self.a + self.rng.uniform(6, 14)
         while v < self.b - 4:
             x, _, z = self.pt(mid + self.rng.uniform(-1.0, 1.0), v)
             cylinder((D, "metal", 1), x, z, 0.0, 0.02, 0.38, segs=10)
             v += self.rng.uniform(16, 30)
-        v = self.a + 2.5
-        while v < self.b - 1.0:
-            p = self.pt(mid + self.rng.uniform(-0.8, 0.8), v)
-            light(D, p[0], 2.0, p[2], self.rng.choice(self.pal), self.rng.uniform(1.4, 2.4))
-            v += self.rng.uniform(4.0, 6.0)
         for v, d in mouths:
             # The lane's end against a street's pavement: a short ramp.
             p0, p1 = self.pt(a0, v), self.pt(W - a1, v)
@@ -383,7 +435,7 @@ class Lane:
                 elif kind == "lanterns":
                     pts = ribbon(D, self.pt(0.0, v, 4.9), self.pt(W, v, 4.9), 0.55, steps=8)
                     for p in pts[1:-1]:
-                        P.place("lantern", p[0], p[1] - 0.36, p[2], district=D)
+                        P.place("lantern", p[0], p[1] - 0.24, p[2], sy=0.65, sxz=0.65, district=D)
                 elif kind == "bulbs":
                     pts = ribbon(D, self.pt(0.0, v, 4.7), self.pt(W, v, 5.0), 0.7, steps=10, w=0.03)
                     for p in pts[1:-1]:
@@ -413,8 +465,8 @@ class Lane:
         posts = []
         while v < self.b - 2.5:
             if self.free(v, 3.0):
-                kinds = ["post", "vending", "scooters", "pallets", "drums", "skip", "tree", "boxes", "sign"]
-                weights = [2.2, 1.2, 1.3, 1.6, 1.0, 1.0, 0.8, 1.4, 1.4]
+                kinds = ["post", "vending", "scooters", "pallets", "drums", "skip", "boxes", "sign"]
+                weights = [2.2, 1.0, 1.3, 1.6, 1.3, 1.3, 1.4, 1.4]
                 if stalls and W >= 6.0:
                     kinds.append("stall")
                     weights.append(1.6)
@@ -484,10 +536,6 @@ class Lane:
                     P.place("dumpster", q[0], G0, q[2], face, district=D)
                     q = at(0.6, 1.5)
                     P.place("bags", q[0], G0, q[2], r.uniform(0, 3), district=D)
-                elif kind == "tree":
-                    q = at(0.95)
-                    P.place("planter_tree", q[0], G0, q[2], r.uniform(0, 6.28), district=D)
-                    light(D, q[0], 1.2, q[2], "pink", 2.5)
                 elif kind == "boxes":
                     q = at(0.6)
                     K.boxes_heap(D, q[0], q[2], r, n=r.randrange(4, 8))

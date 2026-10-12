@@ -29,6 +29,16 @@ _names = random.Random(77011)
 def st_id(size):
     return f"st_{size}_{_names.randrange(1009)}"
 
+
+# The designs of each size that are a place to eat or drink (their places in
+# the site's lists, src/data/world.js STREET_SIGNS then sign-words.js): what
+# a stall's or a counter's board says.
+FOOD = {"ps": (1, 2, 3, 5, 8, 12), "pm": (0, 5, 14), "bs": (0, 6, 19), "bm": (0, 1, 2, 11, 12, 13, 17, 20), "bl": (5, 12, 13)}
+
+
+def food_id(size):
+    return f"st_{size}_{_names.choice(FOOD[size])}"
+
 # Painted and weathered things, linear colours for the trim material.
 CARDBOARD = [(0.22, 0.15, 0.08, 1), (0.26, 0.18, 0.1, 1), (0.18, 0.12, 0.07, 1)]
 PLASTIC = [(0.05, 0.16, 0.22, 1), (0.25, 0.05, 0.05, 1), (0.08, 0.18, 0.08, 1), (0.22, 0.2, 0.04, 1), (0.04, 0.05, 0.16, 1)]
@@ -135,14 +145,14 @@ def yatai(district, f, s, rng, w=2.6, colour=None, people=True):
     colour = colour or rng.choice(("red", "amber", "pink", "cyan", "yellow"))
     wood = rng.choice(((0.2, 0.12, 0.06, 1), (0.1, 0.1, 0.11, 1), (0.16, 0.05, 0.04, 1)))
     a, b = s - w / 2, s + w / 2
-    f.box((district, "trim", 0), a, b, G0, 1.0, 0.6, 0.95, col=wood)
-    f.box((district, "trim", 1), a - 0.05, b + 0.05, 1.0, 1.06, 0.5, 1.05, col=(0.3, 0.2, 0.1, 1))
+    f.box((district, "door", 0), a, b, G0, 1.0, 0.6, 0.95)
+    f.box((district, "metal", 1), a - 0.05, b + 0.05, 1.0, 1.06, 0.5, 1.05)
     f.quad((district, "shop", 0), a + 0.1, b - 0.1, 0.9, 2.2, 0.04, col=(rng.uniform(0.75, 1.0), rng.random(), 1.0, 1.0))
     for e in (a + 0.04, b - 0.04):
         for out in (0.06, 1.0):
             px, _, pz = f.p(f.at(e), 0.0, out)
             cylinder((district, "metal", 1), px, pz, G0, 2.4, 0.03, segs=4, cap=False)
-    f.box((district, "trim", 0), a - 0.15, b + 0.15, 2.4, 2.48, 0.0, 1.3, col=(0.06, 0.06, 0.07, 1))
+    f.box((district, "board_frame", 0), a - 0.15, b + 0.15, 2.4, 2.48, 0.0, 1.3)
     f.box((district, "neon_" + colour, 0), a - 0.15, b + 0.15, 2.36, 2.4, 1.24, 1.3)
     # Its board along the front of the roof, a little off square.
     sh = min(0.6, w * 0.8 / ST_SIZES["ps"][0] * ST_SIZES["ps"][1])
@@ -150,11 +160,11 @@ def yatai(district, f, s, rng, w=2.6, colour=None, people=True):
     c = f.p(f.at(s), 2.5 + sh / 2, 1.22)
     tx, tz = (f.p(f.at(1.0), 0)[0] - f.p(f.at(0.0), 0)[0]), (f.p(f.at(1.0), 0)[2] - f.p(f.at(0.0), 0)[2])
     f.box((district, "board_frame", 0), s - sw / 2 - 0.05, s + sw / 2 + 0.05, 2.48, 2.54 + sh, 1.12, 1.2)
-    st_face(district, st_id("ps"), c, (tx, 0.0, tz), UP, sw, sh)
+    st_face(district, food_id("ps"), c, (tx, 0.0, tz), UP, sw, sh)
     n = max(2, round(w / 0.9))
     for k in range(n):
         px, _, pz = f.p(f.at(a + 0.3 + k * (w - 0.6) / (n - 1)), 0.0, 1.12)
-        P.place("lantern", px, 2.06, pz, district=district)
+        P.place("lantern", px, 2.16, pz, sy=0.6, sxz=0.6, district=district)
     p = f.p(f.at(s), 1.5, 1.6)
     light(district, p[0], p[1], p[2], colour if colour != "yellow" else "amber", 3.5)
     light(district, p[0], 2.0, p[2], "amber", 2.5)
@@ -357,9 +367,9 @@ def stall(district, x, z, yaw, rng, colour=None, lanterns=True, stools=True, w=2
     d = 1.4
     # The counter and the stall's body behind it.
     cx, cz = at(0.0, 0.0)
-    oriented_box((district, "trim", 1), cx, G0 + 0.5, cz, w, 1.0, d, yaw, scale=1.0, col=(0.16, 0.09, 0.05, 1))
+    oriented_box((district, "door", 0), cx, G0 + 0.5, cz, w, 1.0, d, yaw, scale=1.0)
     tx, tz = at(0.0, d / 2 - 0.1)
-    oriented_box((district, "trim", 1), tx, G0 + 1.03, tz, w + 0.1, 0.06, 0.5, yaw, scale=1.0, col=(0.3, 0.2, 0.1, 1))
+    oriented_box((district, "metal", 1), tx, G0 + 1.03, tz, w + 0.1, 0.06, 0.5, yaw, scale=1.0)
     # The kitchen behind the counter, lit (a shop's warm room, read through).
     kx, kz = at(0.0, -0.1)
     rotated_quad((district, "shop", 0), kx, G0 + 1.55, kz, w - 0.3, 1.0, yaw, col=(rng.uniform(0.6, 1.0), rng.random(), 1.0, 1.0))
@@ -369,7 +379,7 @@ def stall(district, x, z, yaw, rng, colour=None, lanterns=True, stools=True, w=2
             px, pz = at(u, v)
             cylinder((district, "metal", 1), px, pz, G0, G0 + 2.35, 0.035, segs=4, cap=False)
     rx, rz = at(0.0, 0.1)
-    oriented_box((district, "trim", 1), rx, G0 + 2.4, rz, w + 0.3, 0.1, d + 0.6, yaw, scale=1.0, col=(0.08, 0.08, 0.09, 1))
+    oriented_box((district, "board_frame", 0), rx, G0 + 2.4, rz, w + 0.3, 0.1, d + 0.6, yaw, scale=1.0)
     # The awning off the front, dyed, its hem lit.
     a0, a1 = at(-w / 2 - 0.15, d / 2 + 0.35), at(w / 2 + 0.15, d / 2 + 0.35)
     b0, b1 = at(-w / 2 - 0.15, d / 2 + 1.25), at(w / 2 + 0.15, d / 2 + 1.25)
@@ -386,9 +396,8 @@ def stall(district, x, z, yaw, rng, colour=None, lanterns=True, stools=True, w=2
         qa, qb = at(u, d / 2 + 0.3), at(u + pw, d / 2 + 0.3)
         q = ((qa[0], G0 + 1.65, qa[1]), (qb[0], G0 + 1.65, qb[1]), (qb[0], G0 + 2.35, qb[1]), (qa[0], G0 + 2.35, qa[1]))
         col = dye(colour) if k % 2 == 0 else (0.85, 0.82, 0.75, 1)
-        col = tuple(v * 0.35 for v in col[:3]) + (1,)
-        quad((district, "trim", 1), *q, col=col)
-        quad((district, "trim", 1), q[1], q[0], q[3], q[2], col=col)
+        quad((district, "awning", 1), *q, col=col)
+        quad((district, "awning", 1), q[1], q[0], q[3], q[2], col=col)
         u += pw + 0.04
         k += 1
     # The menu board on the roof, both sides.
@@ -397,13 +406,13 @@ def stall(district, x, z, yaw, rng, colour=None, lanterns=True, stools=True, w=2
     size = "pm" if w > 3.0 else "ps"
     sw, sh = ST_SIZES[size]
     oriented_box((district, "board_frame", 0), mx, my + 0.05, mz, sw + 0.12, sh + 0.12, 0.12, yaw, scale=1.0)
-    st_face(district, st_id(size), (mx + nx * 0.07, my + 0.05, mz + nz * 0.07), (c, 0.0, -s_), UP, sw, sh)
-    st_face(district, st_id(size), (mx - nx * 0.07, my + 0.05, mz - nz * 0.07), (-c, 0.0, s_), UP, sw, sh)
+    st_face(district, food_id(size), (mx + nx * 0.07, my + 0.05, mz + nz * 0.07), (c, 0.0, -s_), UP, sw, sh)
+    st_face(district, food_id(size), (mx - nx * 0.07, my + 0.05, mz - nz * 0.07), (-c, 0.0, s_), UP, sw, sh)
     if lanterns:
         u = -w / 2
         while u <= w / 2 + 0.01:
             lx, lz = at(u, d / 2 + 1.15)
-            P.place("lantern", lx, G0 + 1.72, lz, district=district)
+            P.place("lantern", lx, G0 + 1.86, lz, sy=0.55, sxz=0.55, district=district)
             u += w / max(1, round(w / 0.9))
     if stools:
         for k in range(int(w / 0.75)):
@@ -463,8 +472,8 @@ def kiosk(district, x, z, yaw, rng, w=2.4, d=1.8):
     on its sides, a sign on its roof, a shutter half up."""
     c, s_ = math.cos(yaw), math.sin(yaw)
     nx, nz = s_, c
-    oriented_box((district, "trim", 1), x, G0 + 1.25, z, w, 2.5, d, yaw, scale=1.0, col=(0.06, 0.12, 0.14, 1))
-    oriented_box((district, "trim", 1), x, G0 + 2.58, z, w + 0.5, 0.16, d + 0.6, yaw, scale=1.0, col=(0.05, 0.05, 0.06, 1))
+    oriented_box((district, "door", 0), x, G0 + 1.25, z, w, 2.5, d, yaw, scale=1.0)
+    oriented_box((district, "board_frame", 0), x, G0 + 2.58, z, w + 0.5, 0.16, d + 0.6, yaw, scale=1.0)
     # Its open front, lit.
     rotated_quad((district, "shop", 0), x + nx * (d / 2 + 0.01), G0 + 1.5, z + nz * (d / 2 + 0.01), w - 0.3, 1.3, yaw, col=(rng.uniform(0.7, 1.0), rng.random(), 1.0, 1.0))
     rotated_quad((district, "door_panel", 0), x + nx * (d / 2 + 0.015), G0 + 2.3, z + nz * (d / 2 + 0.015), w - 0.3, 0.3, yaw)
@@ -485,7 +494,7 @@ def food_cart(district, x, z, yaw, rng, colour=None):
     colour = colour or rng.choice(("red", "amber", "cyan", "pink", "yellow"))
     c, s_ = math.cos(yaw), math.sin(yaw)
     nx, nz = s_, c
-    oriented_box((district, "trim", 1), x, G0 + 0.75, z, 1.8, 0.7, 0.9, yaw, scale=1.0, col=(0.28, 0.28, 0.3, 1))
+    oriented_box((district, "door_panel", 0), x, G0 + 0.75, z, 1.8, 0.7, 0.9, yaw, scale=1.0)
     oriented_box((district, "metal", 1), x, G0 + 1.12, z, 1.85, 0.05, 0.95, yaw, scale=1.0)
     for side in (1, -1):
         wx, wz = x + c * side * 0.7, z - s_ * side * 0.7
@@ -497,7 +506,7 @@ def food_cart(district, x, z, yaw, rng, colour=None):
         px, pz = x + c * side * 0.8, z - s_ * side * 0.8
         cylinder((district, "metal", 1), px, pz, G0 + 1.12, G0 + 1.72, 0.025, segs=4, cap=False)
     sw, sh = ST_SIZES["ps"]
-    st_face(district, st_id("ps"), (x + nx * 0.47, G0 + 0.75, z + nz * 0.47), (c, 0.0, -s_), UP, 1.5, 0.6)
+    st_face(district, food_id("ps"), (x + nx * 0.47, G0 + 0.75, z + nz * 0.47), (c, 0.0, -s_), UP, 1.5, 0.6)
     umbrella(district, x - nx * 0.6, z - nz * 0.6, colour, r=1.1, h=2.2)
     light(district, x + nx * 1.0, 1.2, z + nz * 1.0, "amber", 2.6)
 
