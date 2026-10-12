@@ -335,6 +335,10 @@ const FADE = 6;
 // there, any nearer (or from inside it) none of it is, with nothing in
 // between, since a half-drawn shell across a frame is worse than a gap.
 const NEAR = 1;
+// A car that is driving gives way from further off: the reviews' panoramas
+// and the page's own shots stand in the road, and a van going by an arm's
+// length from the lens is a wall across half the frame.
+const NEAR_MOVING = 2.4;
 
 export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0 } = {}) {
   const avGeo = avGeometry();
@@ -379,7 +383,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vLook = aLook;
         vec3 lens = uCam - instanceMatrix[3].xyz;
         lens = vec3(dot(lens, instanceMatrix[0].xyz), dot(lens, instanceMatrix[1].xyz), dot(lens, instanceMatrix[2].xyz));
-        bool shown = length(max(max(uBoxMin - lens, lens - uBoxMax), 0.0)) >= ${NEAR.toFixed(2)};
+        bool shown = length(max(max(uBoxMin - lens, lens - uBoxMax), 0.0)) >= (aState.w > 1.5 ? ${NEAR_MOVING.toFixed(2)} : ${NEAR.toFixed(2)});
         // A roof unit only on the car that carries it: the bar on a patrol
         // car (tag 1), the sign on a taxi (tag 2).
         if (aKind > 7.5 && abs(aKind - 7.0 - aState.z) > 0.5) shown = false;
@@ -550,7 +554,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           col = mix(lens, beam, lit);
           glow = lit;
         }
-        else if (k == 5) { col = vLook.rgb * max(mix(0.6, mix(1.5, 3.0, far), lit), 1.7 * vState.w); glow = 1.0; }
+        else if (k == 5) { col = vLook.rgb * max(mix(0.6, mix(1.5, 3.0, far), lit), 1.7 * mod(vState.w, 2.0)); glow = 1.0; }
         else if (k == 6) col = vec3(0.007) + (spill * 0.05 + side * 0.04) + (uHazeColor * 0.4 + side * 0.5) * pow(1.0 - ndv, 3.0) * 0.14 + side * 0.05 * flank * smoothstep(0.78, 0.86, wr) * (1.0 - smoothstep(0.9, 0.98, wr));
         else if (k == 7) {
           // The rim: five spokes of bright alloy from a hub to the rim's
@@ -1136,12 +1140,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // does the same sum): its lamps go out with it.
   const lens = new THREE.Vector3();
   const unturn = new THREE.Quaternion();
-  const seen = (at, turned, box) => {
+  const seen = (at, turned, box, near) => {
     lens.copy(shared.uCam.value).sub(at);
-    if (lens.lengthSq() > 64) return 1;
+    if (lens.lengthSq() > 100) return 1;
     lens.applyQuaternion(unturn.copy(turned).invert());
     const d = Math.hypot(Math.max(box.min.x - lens.x, lens.x - box.max.x, 0), Math.max(box.min.y - lens.y, lens.y - box.max.y, 0), Math.max(box.min.z - lens.z, lens.z - box.max.z, 0));
-    return d >= NEAR ? 1 : 0;
+    return d >= near ? 1 : 0;
   };
   const setLamp = (i, x, y, z, r, g, b, size) => {
     lampPos[i * 3] = x;
@@ -1185,7 +1189,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     L.state.array[j * 4] = shown;
     L.state.array[j * 4 + 1] = braking;
     L.state.array[j * 4 + 2] = x.tag;
-    L.state.array[j * 4 + 3] = x.glow ? 1 : 0;
+    // Whether it glows underneath, and (two more) whether it is driving.
+    L.state.array[j * 4 + 3] = (x.glow ? 1 : 0) + (x.parked ? 0 : 2);
   };
   /** Whether the flying thing at p (its scale s) is in the lens' sight, or
    *  its image in the wet road is: a craft over the frame's top edge still
@@ -1403,7 +1408,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       }
       if (off < BODIES_TO * BODIES_TO) put(x, shown, braking, off);
       if (!x.lit && !x.parked?.hazard && !x.glow) continue;
-      const glow = shown * seen(p, q, x.lamps.box);
+      const glow = shown * seen(p, q, x.lamps.box, x.parked ? NEAR : NEAR_MOVING);
       if (off < POOLS_TO * POOLS_TO && glow > 0 && (x.lit || x.glow)) {
         // Its light on the road: its lamps' if they are on (low on a car
         // that stands), its strips' if it has them lit.
