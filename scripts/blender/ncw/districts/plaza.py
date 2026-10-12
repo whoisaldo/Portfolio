@@ -76,3 +76,4 @@ for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 51
 from ncw.districts import plaza_blocks  # noqa: E402,F401
 from ncw.districts import plaza_square  # noqa: E402,F401
 from ncw.districts import plaza_streets  # noqa: E402,F401
+from ncw.districts import plaza_people  # noqa: E402,F401

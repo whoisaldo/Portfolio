@@ -21,7 +21,7 @@ G = 0.15
 POSES_WALL = ("lean", "lean", "phone", "smoke", "idle")
 
 
-def frontage(axis, lot, out, a0, a1, seed, people=1.0, skip=(), palms=True, wall=True):
+def frontage(axis, lot, out, a0, a1, seed, people=1.6, skip=(), palms=True, wall=True):
     """Dress the pavement in front of a frontage. `axis` "x": the lot line
     is x = lot and it runs a0..a1 along z; "z": the line is z = lot, along
     x. `out`: +1 or -1, the way the street lies from the lot line."""
