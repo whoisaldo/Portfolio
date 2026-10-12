@@ -663,12 +663,14 @@ def corner_lamps(x0, x1, z0, z1, y, colour="red"):
 # ---------------------------------------------------------------------------
 # Roofs: what a corpo block's roof is, seen from a flying car.
 # ---------------------------------------------------------------------------
-def parapet(x0, x1, z0, z1, y, tint=1, h=1.0, t=0.3, line=None):
+def parapet(x0, x1, z0, z1, y, tint=1, h=1.0, t=0.3, line=None, lamps=True):
     for (a0, a1, b0, b1) in ((x0, x1, z1 - t, z1), (x0, x1, z0, z0 + t), (x0, x0 + t, z0 + t, z1 - t), (x1 - t, x1, z0 + t, z1 - t)):
         box((PL, "trim", 0), a0, a1, y, y + h, b0, b1, scale=1.5, col=B.TRIM[tint])
     if line:
         walls((PL, "glow", 0), [(x0 - 0.04, z1 + 0.04), (x1 + 0.04, z1 + 0.04), (x1 + 0.04, z0 - 0.04), (x0 - 0.04, z0 - 0.04)],
               y + h - 0.12, y + h - 0.02, dim(line, 0.8))
+    if lamps:
+        edge_lights(x0, x1, z0, z1, y + h, step=5.0)
     B.ROOFS.append((PL, x0, x1, z0, z1, y))
 
 
@@ -681,25 +683,6 @@ def pool(x0, x1, z0, z1, y, colour="teal"):
             xa, xb = x0 + (x1 - x0) * i / n, x0 + (x1 - x0) * (i + 1) / n
             k = 0.3 + 0.1 * ((i + j) % 2)
             up_poly((PL, "glow", 0), [(xa, z), (xb, z), (xb, z + (z1 - z0) / 2), (xa, z + (z1 - z0) / 2)], y + 0.37, dim(colour, k))
-
-
-def skylight(x0, x1, z0, z1, y, colour="white", k=0.3, pitch=1.2):
-    """A ridged glass roof over a hall, lit from inside: two slopes of panes,
-    each a little brighter or dimmer than the next."""
-    zm = (z0 + z1) / 2
-    n = max(2, int((x1 - x0) // 2.4))
-    box((PL, "metal", 0), x0 - 0.2, x1 + 0.2, y, y + 0.3, z0 - 0.2, z1 + 0.2, scale=1.0)
-    for i in range(n):
-        xa, xb = x0 + (x1 - x0) * i / n + 0.06, x0 + (x1 - x0) * (i + 1) / n - 0.06
-        for (za, zb, ya, yb) in ((z0, zm, y + 0.3, y + 0.3 + pitch), (zm, z1, y + 0.3 + pitch, y + 0.3)):
-            kk = k * (0.7 + 0.6 * ((i * 7 + int(za)) % 5) / 4.0)
-            a, b, c, d = (xa, ya, za), (xb, ya, za), (xb, yb, zb), (xa, yb, zb)
-            up_tri((PL, "glow", 0), a, b, c, dim(colour, kk))
-            up_tri((PL, "glow", 0), a, c, d, dim(colour, kk))
-    # The gable ends, glazed too.
-    for x, wind in ((x0, 1), (x1, -1)):
-        pts = [(x, y + 0.3, z0), (x, y + 0.3, z1), (x, y + 0.3 + pitch, zm)]
-        poly((PL, "glow", 0), pts if wind > 0 else list(reversed(pts)), [(0, 0), (1, 0), (0.5, 1)], dim(colour, k * 0.8))
 
 
 def av_pad(cx, cz, y, r=6.5, colour="amber"):
@@ -785,6 +768,172 @@ def garden(x0, x1, z0, z1, y, r, palms=0, trees=2, colour="cyan", lamps=2):
             P.place("bench", px + 1.6, y, pz + 0.4, r.uniform(0, 6.28), district=PL)
     for _ in range(lamps):
         P.place("lamp_short", r.uniform(x0 + 2.0, x1 - 2.0), y, r.uniform(z0 + 2.0, z1 - 2.0), district=PL)
+
+
+# ---------------------------------------------------------------------------
+# A working roof (ax5YUmkWf_Y@9, mH2wmyeiIpA@143: packed, and lit). The
+# site's roof is near black and the street's light does not climb to it, so
+# from the air plant in dark steel on it is nothing. Here a roof gets what
+# shows: a service path of pale pavers with lamps along it (each a pool on
+# the pavers, kit.light at the roof's own height), plant in pale painted
+# steel on concrete pads beside the path (chillers with fans, housings with
+# a lit door, ducts on legs, tanks, cable trays, lit hatches), lamps along
+# the parapet, and red lamps on whatever stands tall.
+# ---------------------------------------------------------------------------
+PLANT_PAINT = ((0.34, 0.36, 0.39), (0.27, 0.29, 0.32), (0.4, 0.4, 0.37), (0.22, 0.27, 0.26), (0.36, 0.32, 0.27))
+PAVER = ((0.36, 0.37, 0.4), (0.3, 0.31, 0.34), (0.42, 0.42, 0.44))
+STEEL_D = (0.06, 0.065, 0.075, 1.0)
+
+
+def edge_lights(x0, x1, z0, z1, y, step=4.2, sides="nsew", hues=("white", "amber", "white"), pools=True):
+    """Lamps along a parapet's top (y) on the named sides (n is -z)."""
+    runs = {"s": ((x0, z1 - 0.15), (x1, z1 - 0.15)), "n": ((x1, z0 + 0.15), (x0, z0 + 0.15)),
+            "w": ((x0 + 0.15, z0), (x0 + 0.15, z1)), "e": ((x1 - 0.15, z1), (x1 - 0.15, z0))}
+    k = 0
+    for side in sides:
+        (ax, az), (bx_, bz_) = runs[side]
+        length = math.hypot(bx_ - ax, bz_ - az)
+        n = max(1, int(length / step))
+        for i in range(n):
+            t = (i + 0.5) / n
+            px, pz = ax + (bx_ - ax) * t, az + (bz_ - az) * t
+            hue = hues[k % len(hues)]
+            box((PL, "glow", 0), px - 0.11, px + 0.11, y, y + 0.14, pz - 0.11, pz + 0.11, scale=0.5, col=GLOW[hue])
+            if pools and k % 3 == 0:
+                light(PL, px, y, pz, hue, 3.0)
+            k += 1
+
+
+def roof_works(x0, x1, z0, z1, y, seed, lamp="white", cap=3.2, density=1.0, path=True):
+    """Dress a free rectangle of roof as a working roof (see above). Nothing
+    stands higher than `cap`."""
+    r = random.Random(seed)
+    long_x = (x1 - x0) >= (z1 - z0)
+    a0, a1, b0, b1 = (x0, x1, z0, z1) if long_x else (z0, z1, x0, x1)
+
+    def rect(a_lo, a_hi, b_lo, b_hi):
+        return (a_lo, a_hi, b_lo, b_hi) if long_x else (b_lo, b_hi, a_lo, a_hi)
+
+    def slab(key, a_lo, a_hi, b_lo, b_hi, ya, yb, col, bottom=False):
+        xa, xb, za, zb = rect(a_lo, a_hi, b_lo, b_hi)
+        box(key, xa, xb, ya, yb, za, zb, scale=1.0, col=(*col[:3], 1.0), bottom=bottom)
+
+    def at(a, b):
+        return (a, b) if long_x else (b, a)
+
+    if b1 - b0 < 2.4 or a1 - a0 < 3.0:
+        return
+    wide = b1 - b0 >= 5.0
+    pb = b0 + (b1 - b0) * (r.uniform(0.35, 0.65) if wide else 0.5)
+    if path and wide:
+        # The path: pavers, each its own grey, and lamps beside it.
+        a = a0 + 0.6
+        while a + 1.5 <= a1 - 0.6:
+            t, kk = r.choice(PAVER), r.uniform(0.86, 1.1)
+            slab((PL, "castconcrete", 0), a + 0.03, a + 1.47, pb - 0.55, pb + 0.55, y, y + 0.06, (t[0] * kk, t[1] * kk, t[2] * kk))
+            a += 1.5
+        a = a0 + r.uniform(2.0, 4.0)
+        while a < a1 - 1.5:
+            px, pz = at(a, pb + 0.8)
+            box((PL, "steel", 1), px - 0.035, px + 0.035, y, y + 0.95, pz - 0.035, pz + 0.035, scale=0.5, col=STEEL_D)
+            box((PL, "glow", 0), px - 0.1, px + 0.1, y + 0.95, y + 1.07, pz - 0.1, pz + 0.1, scale=0.5, col=GLOW[lamp])
+            light(PL, px, y + 1.0, pz, lamp, 6.0)
+            a += r.uniform(7.0, 10.0)
+    for lo, hi in (((b0 + 0.6, pb - 1.2), (pb + 1.4, b1 - 0.6)) if wide else ((b0 + 0.3, b1 - 0.3),)):
+        depth = hi - lo
+        if depth < 1.5:
+            continue
+        mid = (lo + hi) / 2
+        a = a0 + r.uniform(0.8, 3.0)
+        while a < a1 - 2.2:
+            room = a1 - 0.8 - a
+            paint = r.choice(PLANT_PAINT)
+            kind = r.random()
+            if r.random() > density:
+                a += r.uniform(3.0, 6.0)
+                continue
+            if kind < 0.2 and depth >= 2.0:
+                # A chiller: a long cabinet on a pad, fans in its top, a status lamp.
+                ln, dd, hh = min(r.uniform(2.6, 4.4), room), min(r.uniform(1.5, 2.1), depth - 0.3), min(r.uniform(1.4, 2.0), cap - 0.3)
+                slab((PL, "castconcrete", 0), a - 0.2, a + ln + 0.2, mid - dd / 2 - 0.2, mid + dd / 2 + 0.2, y, y + 0.12, PAVER[1])
+                slab((PL, "steel", 0), a, a + ln, mid - dd / 2, mid + dd / 2, y + 0.12, y + 0.12 + hh, paint)
+                for j in range(max(1, int(ln / 1.3))):
+                    fx, fz = at(a + (j + 0.5) * ln / max(1, int(ln / 1.3)), mid)
+                    cylinder((PL, "steel", 1), fx, fz, y + 0.12 + hh, y + 0.2 + hh, min(0.5, dd * 0.36), segs=8, col=STEEL_D)
+                lx, lz = at(a + 0.15, mid - dd / 2 - 0.02)
+                box((PL, "glow", 1), lx - 0.06, lx + 0.06, y + 0.9, y + 1.02, lz - 0.06, lz + 0.06, scale=0.5, col=GLOW[r.choice(("green", "amber", "red"))])
+                a += ln
+            elif kind < 0.36 and depth >= 2.2:
+                # A plant room: a lit door, a lamp over it, its light on the roof.
+                ln, dd, hh = min(r.uniform(2.4, 3.6), room), min(r.uniform(2.0, 2.8), depth - 0.2), min(r.uniform(2.2, 2.8), cap)
+                slab((PL, "steel", 0), a, a + ln, mid - dd / 2, mid + dd / 2, y, y + hh, paint)
+                slab((PL, "steel", 0), a - 0.1, a + ln + 0.1, mid - dd / 2 - 0.1, mid + dd / 2 + 0.1, y + hh, y + hh + 0.1, STEEL_D)
+                slab((PL, "glow", 0), a + ln * 0.5 - 0.42, a + ln * 0.5 + 0.42, mid + dd / 2, mid + dd / 2 + 0.03, y + 0.05, y + min(2.0, hh - 0.2), dim("amber", 0.75))
+                lx, lz = at(a + ln * 0.5, mid + dd / 2 + 0.8)
+                light(PL, lx, y + 1.5, lz, "amber", 5.0)
+                a += ln
+            elif kind < 0.56:
+                # A duct on legs, an elbow up into a cowl at one end.
+                ln = min(r.uniform(4.0, 8.0), room)
+                off = r.uniform(-0.3, 0.3) * max(0.0, depth - 1.0)
+                slab((PL, "steel", 0), a, a + ln, mid + off - 0.3, mid + off + 0.3, y + 0.4, y + 0.95, paint, bottom=True)
+                for t in (0.12, 0.5, 0.88):
+                    slab((PL, "steel", 1), a + ln * t - 0.06, a + ln * t + 0.06, mid + off - 0.34, mid + off + 0.34, y, y + 0.4, STEEL_D)
+                slab((PL, "steel", 0), a + ln - 0.7, a + ln, mid + off - 0.36, mid + off + 0.36, y + 0.95, y + min(1.9, cap), paint)
+                a += ln
+            elif kind < 0.68 and depth >= 2.0 and cap >= 2.6:
+                # A tank lying on saddles.
+                ln = min(r.uniform(2.6, 4.0), room)
+                rr = min(0.8, depth * 0.36)
+                cxa, cza = at(a, mid)
+                cxb, czb = at(a + ln, mid)
+                pipe((PL, "steel", 0), (cxa, y + 0.3 + rr, cza), (cxb, y + 0.3 + rr, czb), rr, segs=8, col=(*paint, 1.0), caps=True)
+                for t in (0.2, 0.8):
+                    slab((PL, "steel", 1), a + ln * t - 0.12, a + ln * t + 0.12, mid - rr * 0.8, mid + rr * 0.8, y, y + 0.3 + rr * 0.4, STEEL_D)
+                a += ln
+            elif kind < 0.82:
+                # Units in a row on a pad.
+                n = max(2, min(r.randrange(2, 5), int(room / 1.25)))
+                slab((PL, "castconcrete", 0), a - 0.2, a + n * 1.25 - 0.05, mid - 0.65, mid + 0.65, y, y + 0.1, PAVER[0])
+                for j in range(n):
+                    ux, uz = at(a + 0.5 + j * 1.25, mid)
+                    P.place("ac_roof", ux, y + 0.1, uz, 0.0 if long_x else math.pi / 2, district=PL)
+                a += n * 1.25
+            elif kind < 0.92:
+                # A lit hatch: a light well's glazing on a kerb.
+                ln, dd = min(r.uniform(1.8, 3.0), room), min(1.6, depth - 0.4)
+                slab((PL, "steel", 0), a - 0.12, a + ln + 0.12, mid - dd / 2 - 0.12, mid + dd / 2 + 0.12, y, y + 0.32, STEEL_D)
+                xa, xb, za, zb = rect(a, a + ln, mid - dd / 2, mid + dd / 2)
+                kk = r.uniform(0.5, 0.9)
+                up_poly((PL, "skylight", 0), [(xa, za), (xb, za), (xb, zb), (xa, zb)], y + 0.33, (kk, kk * r.uniform(0.8, 1.0), kk * r.uniform(0.6, 1.0), 1.0), scale=1.0)
+                a += ln
+            else:
+                # A cable tray on sleepers, running on past the next piece.
+                ln = min(r.uniform(5.0, 10.0), room)
+                off = (depth / 2 - 0.3) * r.choice((-1, 1))
+                slab((PL, "steel", 1), a, a + ln, mid + off - 0.16, mid + off + 0.16, y + 0.22, y + 0.3, STEEL_D, bottom=True)
+                for t in range(int(ln / 1.6) + 1):
+                    slab((PL, "steel", 1), a + t * 1.6, a + t * 1.6 + 0.1, mid + off - 0.2, mid + off + 0.2, y, y + 0.22, STEEL_D)
+                a += 1.0
+            a += r.uniform(0.9, 2.6)
+
+
+def skylight(x0, x1, z0, z1, y, colour="white", k=0.3, pitch=1.2):
+    """A ridged glass roof over a hall, lit from inside: two slopes of the
+    site's roof glazing (bars every 1.2 m, each pane its own brightness) on
+    a steel kerb, the gable ends glazed too."""
+    zm = (z0 + z1) / 2
+    c = dim(colour, min(1.0, k * 2.6))
+    box((PL, "metal", 0), x0 - 0.2, x1 + 0.2, y, y + 0.3, z0 - 0.2, z1 + 0.2, scale=1.0)
+    for (za, zb, ya, yb) in ((z0, zm, y + 0.3, y + 0.3 + pitch), (zm, z1, y + 0.3 + pitch, y + 0.3)):
+        pts = [(x0, ya, za), (x1, ya, za), (x1, yb, zb), (x0, yb, zb)]
+        cross = (pts[1][0] - pts[0][0]) * (pts[2][2] - pts[0][2]) - (pts[1][2] - pts[0][2]) * (pts[2][0] - pts[0][0])
+        if cross > 0:
+            pts = list(reversed(pts))
+        poly((PL, "skylight", 0), pts, [(p[0] / 1.2, p[2] / 1.2) for p in pts], c)
+    for x, wind in ((x0, 1), (x1, -1)):
+        pts = [(x, y + 0.3, z0), (x, y + 0.3, z1), (x, y + 0.3 + pitch, zm)]
+        poly((PL, "skylight", 0), pts if wind > 0 else list(reversed(pts)), [(0, 0), (1, 0), (0.5, 1)], c)
 
 
 # ---------------------------------------------------------------------------

@@ -177,3 +177,62 @@ for (xf, za, zb, y1, colour, zc) in ((165.0, -123.0, -101.0, 57.0, "amber", -112
         for (a, b) in ((za + 1.0, zc - 3.2), (zc + 3.2, zb - 1.0)):
             box((PL, "trim", 1), xf, xf + 0.7, yy, yy + 0.22, a, b, scale=1.5, col=B.TRIM[0])
         yy += 7.6
+
+# ---------------------------------------------------------------------------
+# Roofs, from the air (pz-fly-ne, the aerial, the AV sweeps): the podiums'
+# free strips are working roofs, the taller roofs carry a board or a house's
+# name and a mast with a red lamp, and the north quarter's tall shafts have
+# fins up their top sections with lines of light (their south and west
+# faces show to ARASAKA's shot, so those get fins only, no names).
+# ---------------------------------------------------------------------------
+for (x0, x1, z0, z1, y, seed, lamp) in (
+        (55.0, 105.0, -395.7, -392.3, 14.8, 8901, "white"), (104.3, 105.7, -391.0, -357.0, 14.8, 8902, "white"),
+        (55.0, 105.0, -451.7, -448.3, 18.2, 8903, "white"), (54.3, 57.7, -447.0, -409.0, 18.2, 8904, "amber"),
+        (104.3, 105.7, -447.0, -411.0, 18.2, 8905, "white"), (152.0, 167.4, -135.4, -127.0, 14.8, 8906, "amber"),
+        (168.3, 169.7, -163.0, -137.0, 14.8, 8907, "white")):
+    roof_works(x0, x1, z0, z1, y, seed, lamp=lamp, cap=2.6)
+# The board's block: lamps along the three parapets the Work shot does not
+# look up at, and a lit path behind the kit's plant (under its line: the
+# lens sees nothing lower than 0.48 m a metre back from the south edge).
+edge_lights(48.3, 107.7, -283.7, -264.3, 44.9, step=4.6, sides="new")
+for x in (74.0, 82.0, 90.0, 98.0, 105.0):
+    box((PL, "glow", 0), x - 0.1, x + 0.1, 44.0, 44.5, -282.9, -282.7, scale=0.5, col=GLOW["amber"])
+    light(PL, x, 44.6, -282.0, "amber", 5.0)
+edge_lights(110.3, 135.7, -453.7, -422.3, 45.4 + 1.0, step=5.0)
+
+
+def try_mast(cx, cz, y, h):
+    """A mast with a red lamp, where the Work shot's line and the hero's
+    masses allow one."""
+    try:
+        checked(cx - 1.0, cx + 1.0, cz - 1.0, cz + 1.0, y + h + 0.6, "mast")
+    except ValueError:
+        return
+    MAST(cx, cz, y, h)
+
+
+for (cx, cz, y, h) in ((66.0, -121.0, 45.4, 10.0), (100.0, -103.0, 45.4, 6.0), (58.6, -15.6, 45.4, 9.0), (95.0, -48.6, 31.0, 8.0),
+                       (52.6, -281.6, 44.0, 7.0), (81.0, -287.0, 31.8, 8.0), (105.0, -341.0, 42.0, 7.0), (57.0, -335.0, 46.0, 6.0),
+                       (101.0, -389.0, 76.0, 9.0), (113.0, -451.0, 45.4, 8.0), (166.0, -12.5, 42.0, 8.0), (139.0, -120.0, 58.0, 0.0),
+                       (134.0, -166.0, 14.8, 7.0), (54.0, -97.0, 11.4, 6.0), (106.0, -63.0, 11.4, 6.0)):
+    if h:
+        try_mast(cx, cz, y, h)
+# Boards on roofs: B1's slab to the square and the road, B2's wing to the deck.
+for (cx, cz, y, w, h, deg, seed) in ((95.0, -103.4, 45.4, 12.0, 5.0, 135.0, 8911), (80.0, -47.6, 31.0, 10.0, 4.2, 180.0, 8912)):
+    try:
+        checked(cx - w / 2, cx + w / 2, cz - 2.0, cz + 2.0, y + 1.6 + h + 0.4, "roof board")
+    except ValueError:
+        continue
+    screen_on_legs(cx, cz, y + 1.6, w, h, math.radians(deg), random.Random(seed), base=y)
+# Houses' names high on the north quarter's east faces (the road's, the
+# boulevard's and the air's side).
+wordmark("kiroshi_far", 104.0 + 0.3, 68.5, -374.0, 8.4, 5.6, math.pi / 2)
+wordmark("nicola_far", 101.5 + 0.3, 82.0, -429.0, 9.0, 5.0, math.pi / 2)
+wordmark("arasaka_far", 77.0 + 0.3, 93.0, -428.0, 13.0, 2.8, math.pi / 2)
+# Fins up the tall shafts' top sections.
+rt = random.Random(8920)
+for (x0, x1, z0, z1, ya, yb, hue) in ((60.5, 79.5, -445.5, -410.5, 73.2, 87.4, "white"), (63.0, 77.0, -443.0, -413.0, 89.2, 97.4, "white"),
+                                      (90.5, 101.5, -445.5, -412.5, 73.8, 89.0, "magenta"), (58.5, 75.5, -389.5, -354.5, 59.2, 69.4, "amber")):
+    for name, plane, a0, a1 in (("-x", x0, z0, z1), ("+x", x1, z0, z1), ("-z", z0, x0, x1), ("+z", z1, x0, x1)):
+        f = B.Face(name, plane, a0, a1)
+        fin_row(f, 2.8, f.width - 2.8, ya, yb, rt, step=(2.2, 3.0), out=0.5, lit=hue, every=3, k=0.2 if name in ("+z", "-x") else 0.32)

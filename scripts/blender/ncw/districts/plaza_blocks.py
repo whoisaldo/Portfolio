@@ -105,6 +105,7 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
                 corner_lamps(secs[-1][0] + (cut if glass else 0), secs[-1][1] - (cut if glass else 0), secs[-1][2] + (cut if glass else 0),
                              secs[-1][3] - (cut if glass else 0), y0 + 0.1)
             B.ROOFS.append((PL, secs[-1][0], secs[-1][1], secs[-1][2], secs[-1][3], y0))
+            edge_lights(secs[-1][0], secs[-1][1], secs[-1][2], secs[-1][3], y0 + 0.8, step=6.0, hues=("white", accent), pools=False)
         secs.append((sx0, sx1, sz0, sz1, y0, y1))
     tx0, tx1, tz0, tz1 = secs[-1][:4]
     cx, cz, w, d = (tx0 + tx1) / 2, (tz0 + tz1) / 2, tx1 - tx0, tz1 - tz0
@@ -114,6 +115,7 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
             lit_band(tx0, tx1, tz0, tz1, top - 0.5, top + 0.1, accent, cut=cut, k=0.8)
         else:
             walls((PL, "trim", 0), cut_rect(cx, cz, w / 2 + 0.08, d / 2 + 0.08, cut), top - 0.2, top + 0.7, B.TRIM[1])
+        edge_lights(tx0, tx1, tz0, tz1, top + 0.7, step=5.0, hues=("white", accent, "white"))
         B.ROOFS.append((PL, tx0, tx1, tz0, tz1, top))
     else:
         parapet(tx0, tx1, tz0, tz1, top, tint=B.TINTS[tint] if isinstance(tint, str) else 1, line=accent if edge and crown != "pad" else None)
@@ -164,11 +166,10 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
         extra = 8.0
     if plant and crown not in ("pad", "pool", "garden", "spire", "twin"):
         m = 3.0 if crown in ("blades", "halo", "frame") else 1.6
-        roof_plant(tx0 + m, tx1 - m, tz0 + m, tz1 - m, top, r, n=plant)
-        # And what every roof holds (the kit's own: a tank, a stair hut with
-        # its door lit, units, a dish), nothing over 4.4 m.
-        B.roof_dress(PL, tx0 + m, tx1 - m, tz0 + m, tz1 - m, top, r, cap=4.4, sign_rate=0.0, parapet=False, tint=1)
-        extra = max(extra, 4.6)
+        # A working roof: a lit path, plant in pale steel on pads, nothing
+        # over 3.2 m.
+        roof_works(tx0 + m, tx1 - m, tz0 + m, tz1 - m, top, seed + 77, lamp="amber" if accent in ("amber", "yellow", "pink") else "white", cap=3.2)
+        extra = max(extra, 3.6)
     corner_lamps(tx0 + (cut if glass else 0), tx1 - (cut if glass else 0), tz0 + (cut if glass else 0), tz1 - (cut if glass else 0), top + (0.1 if glass else 1.0))
     for (em, face, y, size, colour) in marks:
         sec = next((s for s in secs if s[4] <= y - size * 0.6 and y + size * 0.6 <= s[5]), secs[-1])
@@ -201,12 +202,30 @@ tower("B1 slab", 62.0, 104.0, -124.0, -100.0, 11.4, 45.4, 8315, kind="wall", win
 # The corner block's roof: a garden over the junction, and a screen turned
 # to it.
 parapet(80.0, 108.0, -168.0, -132.0, 18.2, tint=2)
+rg = random.Random(8316)
 # (A park: paths crossing at a blossom tree, four lawns in hedges, a pergola
 # of lamps, palms and blossom, benches along the paths.)
 RY = 18.2
-rg = random.Random(8316)
-for (a0, a1, b0, b1) in ((82.6, 105.4, -147.2, -144.8), (92.8, 95.2, -157.4, -134.6)):
-    ground((PL, "sidewalk", 0), a0, a1, b0, b1, y=RY + 0.02, scale=2.0)
+# (Its floor: pale flags with open joints over the whole roof, paler along
+# the two paths, which a line of light edges; each lamp is a pool on them.)
+z = -167.4
+while z < -132.8:
+    x = 80.6
+    while x < 107.2:
+        on_path = (-147.4 < z + 1.0 < -144.6) or (92.6 < x + 1.0 < 95.4)
+        kk = rg.uniform(0.84, 1.1) * (1.25 if on_path else 0.8)
+        up_poly((PL, "castconcrete", 0), [(x + 0.03, z + 0.03), (x + 1.97, z + 0.03), (x + 1.97, z + 1.97), (x + 0.03, z + 1.97)], RY + 0.02,
+                (0.34 * kk, 0.35 * kk, 0.38 * kk, 1.0), scale=1.0)
+        x += 2.0
+    z += 2.0
+for (a0, a1, b0, b1) in ((82.6, 105.4, -147.2, -147.12), (82.6, 105.4, -144.88, -144.8), (92.8, 92.88, -157.4, -134.6), (95.12, 95.2, -157.4, -134.6)):
+    box((PL, "glow", 0), a0, a1, RY + 0.03, RY + 0.07, b0, b1, scale=1.0, col=dim("amber", 0.5))
+for (px, pz, hue) in ((90.6, -149.4, "amber"), (97.4, -142.6, "amber"), (84.0, -146.0, "white"), (104.0, -146.0, "amber"), (94.0, -155.0, "white"), (94.0, -137.0, "white"),
+                      (87.5, -139.5, "amber"), (100.5, -152.5, "amber"), (101.0, -146.0, "amber")):
+    light(PL, px, RY + 2.6, pz, hue, 7.0)
+for (px, pz) in ((94.0, -155.0), (94.0, -137.0), (87.5, -139.5), (100.5, -152.5)):
+    box((PL, "metal", 1), px - 0.05, px + 0.05, RY, RY + 0.8, pz - 0.05, pz + 0.05, scale=0.5)
+    box((PL, "glow", 0), px - 0.12, px + 0.12, RY + 0.8, RY + 0.92, pz - 0.12, pz + 0.12, scale=0.5, col=GLOW["amber"])
 P.place("planter_tree", 94.0, RY + 0.02, -146.0, 0.7, district=PL)
 for (a0, a1, b0, b1) in ((83.0, 92.0, -157.0, -148.0), (96.0, 105.0, -157.0, -148.0), (83.0, 92.0, -144.0, -135.0), (96.0, 105.0, -144.0, -135.0)):
     lawn(a0 + 1.4, a1 - 1.4, b0 + 1.4, b1 - 1.4, RY)
@@ -337,11 +356,17 @@ B.ground_rect(PL, 52.0, 108.0, -456.0, -284.0)
 B.ground_rect(PL, 108.0, 170.0, -456.0, -420.0)
 podium(78.0, 108.0, -310.0, -284.0, 31.8, {"+x": "street", "+z": "party", "-z": "party", "-x": "back"}, 8351,
        nb={"+z": 44.0, "-z": 42.0}, window=4, tint="navy", style=dict(OFFICE, roof_cap=4.4))
-B.roof_dress(PL, 78.0, 108.0, -310.0, -284.0, 31.8, random.Random(8352), cap=4.4, sign_rate=0.0, tint=1)
+parapet(78.0, 108.0, -310.0, -284.0, 31.8, tint=1)
+roof_works(79.0, 107.0, -309.2, -300.0, 31.8, 8352, cap=3.2)
+roof_works(79.0, 107.0, -294.6, -284.8, 31.8, 8357, lamp="amber", cap=3.2)
 skylight(80.5, 105.5, -299.0, -295.5, 31.8, colour="white", k=0.26, pitch=0.9)
 podium(78.0, 108.0, -344.0, -310.0, 42.0, {"+x": "street", "+z": "party", "-z": "open", "-x": "back"}, 8353,
        nb={"+z": 31.8}, window=5, tint="teal", signs=False)
-B.roof_dress(PL, 78.0, 108.0, -344.0, -310.0, 42.0, random.Random(8354), cap=4.4, sign_rate=0.0, tint=2)
+parapet(78.0, 108.0, -344.0, -310.0, 42.0, tint=2)
+roof_works(79.0, 107.0, -343.2, -330.0, 42.0, 8354, cap=3.2)
+roof_works(79.0, 97.0, -324.0, -310.8, 42.0, 8358, lamp="amber", cap=3.2)
+roof_screen(102.4, -317.0, 42.0, 9.0, 4.2, math.radians(60), 8359)
+checked(96.0, 108.0, -324.0, -310.0, 42.0 + 1.6 + 4.2 + 0.4, "B5b board")
 lawn(81.0, 105.0, -329.0, -325.0, 42.0)
 checked(78.0, 108.0, -344.0, -310.0, 46.5, "B5b roof")
 # The boulevard runs into this face: a screen across it, a mark over that.
