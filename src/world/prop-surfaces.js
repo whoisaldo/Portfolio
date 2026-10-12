@@ -491,13 +491,29 @@ export function createPropSurfaces(dressed) {
             col = mix(col, vec3(0.2, 1.0, 0.5) * 1.5, rect(s, vec2(0.4, 0.44), vec2(0.43, 0.455)) * near);
             lit = screen;
           } else if (kind < 3.5) {
-            // A grate with light under it: bars across a lit pit.
+            // A grate over a lit pit: bars 4 cm deep, the pit 30 under
+            // them, a lamp along the middle of its floor. The eye's ray
+            // goes on down between two bars: from across them it meets the
+            // next bar's side, lit from under and brighter the lower; from
+            // along them it reaches the floor, or the pit's wall, where
+            // the light has fallen off. Far off, its own average.
             vec2 size = faceSize();
             vec2 m = uv * size;
             float near = 1.0 - smoothstep(0.008, 0.025, fwidth(m.x) + fwidth(m.y));
-            float gap = step(0.45, fract(m.x / 0.055)) * step(0.06, fract(m.y / 0.4));
-            lit = rect(m, vec2(0.05), size - 0.05) * mix(0.5, gap, near);
-            col = mix(vec3(0.02, 0.021, 0.025) * shade * 4.0, vColor.rgb * (1.1 + 0.5 * hash12(floor(m / vec2(0.055, 0.4)))), lit);
+            vec2 pitch = vec2(0.055, 0.4);
+            vec2 at = floor(m / pitch);
+            float gap = step(0.45, fract(m.x / pitch.x)) * step(0.06, fract(m.y / pitch.y));
+            // Metres along (in the face's own u and v) for each metre down.
+            vec2 run = vec2(-vView.x, vView.z) / max(vView.y, 0.12 * length(vView)) + 1e-4;
+            vec2 edge = (at + mix(vec2(0.45, 0.06), vec2(1.0), step(0.0, run))) * pitch;
+            vec2 down = (edge - m) / run;
+            float deep = min(down.x, down.y);
+            vec2 floorAt = m + run * 0.3;
+            float off = size.x > size.y ? floorAt.y - size.y * 0.5 : floorAt.x - size.x * 0.5;
+            float lamp = mix(0.3, 0.35 + exp(-off * off / 0.012), rect(floorAt, vec2(0.05), size - 0.05)) * (0.85 + 0.3 * hash12(floor(floorAt / 0.03)));
+            vec3 under = vColor.rgb * (deep < 0.04 ? 0.55 * pow(deep / 0.04, 1.5) : lamp);
+            lit = rect(m, vec2(0.05), size - 0.05) * mix(0.35, gap, near);
+            col = mix(vec3(0.02, 0.021, 0.025) * shade * 4.0, mix(vColor.rgb * 0.6, under, near), lit);
           } else if (kind < 4.5) {
             // A guard rail: posts, a top rail and a lower one, bars between.
             vec2 size = faceSize();
@@ -663,12 +679,12 @@ export function createPropSurfaces(dressed) {
               col = mix(col, mix(other * (0.3 + 0.12 * step(0.5, fract(p.y * 60.0)) * near), vec3(1.0, 0.97, 0.92), figure * near), screen);
               float slot = rect(p, vec2(0.3, 1.1), vec2(0.66, 1.125));
               vec2 sd = (p - vec2(0.48, 1.1125)) * vec2(1.0, 4.0);
-              col += hue * 0.25 * exp(-dot(sd, sd) * 30.0);
-              col = mix(col, hue * 1.9, slot);
+              col += hue * 0.12 * exp(-dot(sd, sd) * 40.0);
+              col = mix(col, mix(hue, vec3(1.0, 0.55, 0.2), 0.5) * 1.15, slot);
               float keys = rect(p, vec2(0.38, 0.8), vec2(0.58, 1.04)) * step(0.35, fract((p.x - 0.38) * 15.0)) * step(0.35, fract((p.y - 0.8) * 16.7)) * near;
               col = mix(col, vec3(0.1, 0.105, 0.12) * (shade + 0.4), keys);
               float edge = rect(p, vec2(0.045, 0.2), vec2(0.058, 1.85));
-              col = mix(col, hue * 1.3, edge);
+              col = mix(col, hue * 0.85, edge);
               float tray = rect(p, vec2(0.2, 0.2), vec2(0.76, 0.46));
               col = mix(col, vec3(0.004) + hue * 0.05 * smoothstep(0.46, 0.2, p.y), tray);
               col = mix(col, hue * 0.9, rect(p, vec2(0.2, 0.452), vec2(0.76, 0.46)));

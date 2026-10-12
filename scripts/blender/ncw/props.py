@@ -107,6 +107,21 @@ def build_protos():
         p["build"](k)
         if near:
             PROTOS[name + NEAR] = {"build": None, "box": p["box"], "detail": True, "reach": NEAR_REACH}
+    grate_steam()
+
+
+def grate_steam():
+    """Steam off one lit grate in two (src/world/steam.js draws a plume at
+    every anchor_steam_*), where the district that set the grate down gave
+    it no vent of its own."""
+    vents = [(o.location.x, -o.location.y) for o in bpy.data.objects if o.name.startswith("anchor_steam_")]
+    n = 0
+    for name, x, y, z, *_ in INSTANCES:
+        if name != "grate_glow" or any(math.hypot(x - vx, z - vz) < 1.5 for vx, vz in vents):
+            continue
+        if random.Random(round(x * 20) * 7919 + round(z * 20)).random() < 0.5:
+            empty(f"anchor_steam_street_grate_{n}", (x, y + 0.1, z))
+            n += 1
 
 
 # ---------------------------------------------------------------------------
@@ -712,8 +727,9 @@ def _charge_post(k):
 
 @proto("grate_glow", box=(0.6, 0.02, 0.3), reach=200, detail=True)
 def _grate_glow(k):
-    """A grate in the pavement, 1.2 m by 0.6, with warm light under its
-    bars (set a steam anchor over it)."""
+    """A grate in the pavement, 1.2 m by 0.6: bars with their depth over a
+    pit lit warm along its floor (the site draws it; one in two that has no
+    steam anchor over it is given one, grate_steam above)."""
     quad(k("face"), (-0.6, 0.012, 0.3), (0.6, 0.012, 0.3), (0.6, 0.012, -0.3), (-0.6, 0.012, -0.3), col=(*GLOW["amber"][:3], GRATE))
 
 
