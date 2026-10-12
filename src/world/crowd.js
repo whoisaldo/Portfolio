@@ -1532,6 +1532,50 @@ const CARD_FRAGMENT = /* glsl */ `
   }
 `;
 
+// What is under their feet: a soft dark shape on the ground where each
+// stands, so that nobody floats on a wet road or a pale pavement. Under the
+// knees of someone on a seat, longer along a walker's stride; it thins out
+// with distance before the figure itself becomes a card.
+const GROUND_VERTEX = /* glsl */ `
+  varying vec3 vAt;
+  ${HEAD}
+
+  void main() {
+    vec3 root;
+    vec2 face;
+    float fade;
+    float gone;
+    float eye;
+    place(root, face, fade, gone, eye);
+    float h = aBody.x;
+    float pose = aBody.z;
+    vec2 half2 = vec2(0.36, 0.34) * aBody.y;
+    float down = 0.0;
+    float ahead = 0.0;
+    if (pose < -0.5) half2 = vec2(0.31, 0.43) * aBody.y;
+    else if (pose > 2.5 && pose < 3.5) {
+      half2 = vec2(0.36, 0.4);
+      down = ${f(RIG.shin + RIG.ankleY - (RIG.hipY - RIG.seat))};
+      ahead = 0.34;
+    } else if (pose > 4.5 && pose < 5.5) half2 = vec2(0.37, 0.37);
+    vec2 right = vec2(face.y, -face.x);
+    vec2 at = root.xz + face * ahead * h + (right * position.x * half2.x + face * position.y * half2.y) * 2.0 * h;
+    vec3 world = vec3(at.x, root.y - down * h + 0.014, at.y);
+    vAt = vec3(position.xy * 2.0, fade * (1.0 - smoothstep(0.5 * uLod.z, 0.85 * uLod.z, eye)));
+    gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
+  }
+`;
+
+const GROUND_FRAGMENT = /* glsl */ `
+  varying vec3 vAt;
+  void main() {
+    float a = 1.0 - smoothstep(0.16, 1.0, length(vAt.xy));
+    a *= sqrt(a) * 0.82 * vAt.z;
+    if (a < 0.004) discard;
+    gl_FragColor = vec4(0.0, 0.001, 0.004, a);
+  }
+`;
+
 const _sphere = new THREE.Sphere();
 const _frustum = new THREE.Frustum();
 const _vp = new THREE.Matrix4();
@@ -1582,9 +1626,12 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     m.name = name;
     return m;
   };
-  // The three draws: the figure with a face, the far figure, the card.
-  const shapes = [figureGeometry(false), figureGeometry(true), new THREE.PlaneGeometry(1, 1)];
-  const materials = [material("crowd", VERTEX, FRAGMENT, { NEAR: "" }), material("crowd_far", VERTEX, FRAGMENT), material("crowd_card", CARD_VERTEX, CARD_FRAGMENT)];
+  // The draws: the figure with a face, the far figure, the card, and what
+  // is on the ground under whoever is not yet a card.
+  const flat = new THREE.PlaneGeometry(1, 1);
+  const shapes = [figureGeometry(false), figureGeometry(true), flat, flat];
+  const materials = [material("crowd", VERTEX, FRAGMENT, { NEAR: "" }), material("crowd_far", VERTEX, FRAGMENT), material("crowd_card", CARD_VERTEX, CARD_FRAGMENT), material("crowd_ground", GROUND_VERTEX, GROUND_FRAGMENT)];
+  Object.assign(materials[3], { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const group = new THREE.Group();
   group.name = "crowd";
   scene.add(group);
@@ -1630,6 +1677,8 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       return d;
     });
     drawn[2].mesh.layers.enable(reflectLayer);
+    // Under everything else that is seen through: glass, rain, steam.
+    drawn[3].mesh.renderOrder = -1;
     last.fill(NaN);
   };
 
@@ -1709,6 +1758,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     pack(drawn[1], far, nf, rest, 0);
     // The cards' list ends with everyone nearer: the mirror draws to its end.
     pack(drawn[2], cards, nc, rest, nr);
+    pack(drawn[3], rest, nr, rest, 0);
   };
   // The lanes: round everyone standing, and round the city's street
   // furniture once its file is in (it is the city's own, fetched before any
@@ -1758,13 +1808,13 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     },
     /** People in the city, and how many each draw held last frame. */
     stats() {
-      const [near, far, cards] = drawn.map((d) => d.count);
-      return { people: people.count, near, far, cards, mirror: drawn[2].all, triangles: near * drawn[0].triangles + far * drawn[1].triangles + cards * 2 };
+      const [near, far, cards, ground] = drawn.map((d) => d.count);
+      return { people: people.count, near, far, cards, ground, mirror: drawn[2].all, triangles: near * drawn[0].triangles + far * drawn[1].triangles + (cards + ground) * 2 };
     },
     dispose() {
       scene.remove(group);
       for (const d of drawn) d.geometry.dispose();
-      for (const g of shapes) g.dispose();
+      for (const g of new Set(shapes)) g.dispose();
       for (const m of materials) m.dispose();
       base.uLanes.value?.dispose();
       light.dispose();
