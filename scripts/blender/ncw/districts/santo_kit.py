@@ -279,7 +279,9 @@ def ring_wash(cx, cz, rad, a0, a1, level=0.7, hue="amber", red=0.0, step=4.5):
 # with (Zq4zTcIM0yQ@174).
 # ---------------------------------------------------------------------------
 SEGS = {"0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd", "6": "afgedc", "7": "abc",
-        "8": "abcdefg", "9": "abcdfg", "-": "g", " ": ""}
+        "8": "abcdefg", "9": "abcdfg", "-": "g", " ": "",
+        # Letters the same strokes can make: enough for a stencilled name.
+        "A": "abcefg", "C": "adef", "E": "adefg", "F": "aefg", "H": "bcefg", "L": "def", "O": "abcdef", "P": "abefg", "S": "afgcd", "U": "bcdef"}
 
 
 def digits(text, cx, cy, cz, h, yaw, key, col, out=0.03, gap=0.28):
@@ -299,6 +301,34 @@ def digits(text, cx, cy, cz, h, yaw, key, col, out=0.03, gap=0.28):
             du, dv, sw, sh = geo[s]
             u = u0 + i * pitch + du
             rotated_quad(key, cx + rx * u + nx * out, cy + dv, cz + rz * u + nz * out, sw, sh, yaw, col=col)
+
+
+def shell_text(cx, cz, r, y, text, h, yaw, col, key=None):
+    """A number or a name painted round a tank's shell, centred where yaw
+    looks: each character flat on its own piece of the curve."""
+    for i, ch in enumerate(text):
+        yi = yaw + (i - (len(text) - 1) / 2) * h * 0.8 / r
+        digits(ch, cx + math.sin(yi) * (r + 0.02), y, cz + math.cos(yi) * (r + 0.02), h, yi, key or k("trim"), col, out=0.05)
+
+
+def name_sign(text, cx, top, cz, yaw, h=2.0, col=SODIUM, lift=1.2):
+    """A company's name where a roof or a gate shows it: letters in light
+    on a dark board, a steel frame with rakers behind it, a tube under it
+    lighting what it stands on. Invented names only."""
+    wd = len(text) * h * 0.8 + h * 0.5
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    cy = top + lift + h * 0.75
+    oriented_box(k("board_frame"), cx, cy, cz, wd, h * 1.5, 0.16, yaw)
+    digits(text, cx, cy, cz, h, yaw, k("glow"), col, out=0.1)
+    n = max(1, round(wd / 4.0))
+    for i in range(n + 1):
+        du = -wd / 2 + wd * i / n
+        px, pz = cx + rx * du - nx * 0.16, cz + rz * du - nz * 0.16
+        box(k("metal", 1), px - 0.07, px + 0.07, top, cy + h * 0.75, pz - 0.07, pz + 0.07, scale=0.5)
+        if lift + h > 2.6:
+            brace((px, cy, pz), (px - nx * 1.6, top, pz - nz * 1.6), r=0.04, mat="metal", detail=1)
+    oriented_box(k("neon_amber"), cx + nx * 0.3, cy - h * 0.75 - 0.12, cz + nz * 0.3, wd * 0.8, 0.07, 0.1, yaw)
 
 
 def band_quad(key, cx, cz, yaw, u0, y0, u1, y1, wdt, col, out=0.04):
@@ -569,9 +599,9 @@ def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, sta
     nozzle(ox, y0 + 0.55, oz, math.pi / 2 - fb, r=0.2, ln=1.3, col=RUST_D)
     valve((ox + 0.75 * math.cos(fb), y0 + 0.55, oz + 0.75 * math.sin(fb)), (math.cos(fb), 0, math.sin(fb)), 0.2)
     if number:
-        nx, nz = math.sin(number_yaw), math.cos(number_yaw)
-        digits(number, cx + nx * (r + 0.02), y0 + h * 0.62, cz + nz * (r + 0.02), min(2.6, h * 0.22), number_yaw, k("trim", 1),
-               shade(col, 0.35) if sum(col[:3]) > 1.0 else TANK_WHITE, out=0.06)
+        # Its number on both sides, round the shell, tall enough for the gate.
+        for ny in (number_yaw, number_yaw + math.pi):
+            shell_text(cx, cz, r, y0 + h * 0.6, number, min(3.2, h * 0.3), ny, shade(col, 0.35) if sum(col[:3]) > 1.0 else TANK_WHITE)
     collide(cx - r * 0.75, cx + r * 0.75, cz - r * 0.75, cz + r * 0.75, y1)
 
 
@@ -1307,7 +1337,7 @@ def shed(x0, x1, z0, z1, eave, col, r, faces=None, plinth=1.0, tint="concrete", 
 # ---------------------------------------------------------------------------
 # Fences, walls, gates.
 # ---------------------------------------------------------------------------
-def fence(x0, z0, x1, z1, lamps=None, signs=0.04, r=None):
+def fence(x0, z0, x1, z1, lamps=None, signs=0.2, r=None):
     """A palisade fence from one point to another, in 3 m panels."""
     ln = math.hypot(x1 - x0, z1 - z0)
     n = max(1, round(ln / 3.0))
@@ -1319,7 +1349,7 @@ def fence(x0, z0, x1, z1, lamps=None, signs=0.04, r=None):
         px, pz = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
         P.place("fence_pal", px, GY, pz, yaw, sxz=sc, district=D)
         if r.random() < signs:
-            P.place("warning_tri", px, GY + 1.3, pz, yaw + (0 if r.random() < 0.5 else math.pi), district=D)
+            P.place(r.choice(("warning_tri", "haz_diamond", "warn_board", "haz_diamond")), px, GY + 1.3, pz, yaw + (0 if r.random() < 0.5 else math.pi), district=D)
 
 
 def yard_wall(x0, z0, x1, z1, h=2.8, wire=True, r=None, posters=0.0, face=1):
@@ -1392,9 +1422,17 @@ def totem(x, z, yaw, n=4, scale=1.25, y0=2.5):
 
 
 def stencil(f, s, y, text, h=3.0, col=None, wall=CREAM):
-    """A shed's number stencilled on its wall, tall enough for a driver."""
+    """A shed's number stencilled on its wall, tall enough for a driver,
+    over a bar of yellow and black chevrons."""
     cx, cy, cz = f.p(f.at(s), y, 0.0)
     digits(text, cx, cy, cz, h, f.yaw, k("trim", 1), col or shade(wall, 0.3), out=0.05)
+    wd = len(text) * h * 0.8
+    yb = y - h / 2 - 0.45
+    rotated_quad(k("hazard", 1), cx, yb, cz, wd, 0.36, f.yaw, depth=0.05)
+    u = -wd / 2 + 0.05
+    while u < wd / 2 - 0.3:
+        band_quad(k("trim", 1), cx, cz, f.yaw, u, yb - 0.17, u + 0.26, yb + 0.17, 0.12, (0.02, 0.02, 0.022, 1.0), out=0.07)
+        u += 0.45
 
 
 def board(cx, cy, cz, yaw, size="pm", scale=1.0, back=False):
@@ -1962,6 +2000,31 @@ def _reel(kk):
         a0, a1 = t * math.tau / 8, (t + 1) * math.tau / 8
         quad(kk("trim"), (0.5 * math.cos(a1), 0.9 + 0.5 * math.sin(a1), -0.47), (0.5 * math.cos(a0), 0.9 + 0.5 * math.sin(a0), -0.47),
              (0.5 * math.cos(a0), 0.9 + 0.5 * math.sin(a0), 0.47), (0.5 * math.cos(a1), 0.9 + 0.5 * math.sin(a1), 0.47), col=c(0.03, 0.03, 0.035))
+
+
+@P.proto("haz_diamond", box=(0.4, 0.4, 0.05), reach=220, detail=True)
+def _haz_diamond(kk):
+    """A hazard diamond on a fence, both faces: yellow, a black bar. A
+    mark, no words."""
+    for s in (1, -1):
+        pts = [(0.0, -0.36, 0.03 * s), (0.36 * s, 0.0, 0.03 * s), (0.0, 0.36, 0.03 * s), (-0.36 * s, 0.0, 0.03 * s)]
+        poly(kk("trim"), pts, [(0.5, 0), (1, 0.5), (0.5, 1), (0, 0.5)], PAINT_YELLOW)
+        q = [(-0.17 * s, -0.05, 0.035 * s), (0.17 * s, -0.05, 0.035 * s), (0.17 * s, 0.05, 0.035 * s), (-0.17 * s, 0.05, 0.035 * s)]
+        poly(kk("trim"), q, [(0, 0), (1, 0), (1, 1), (0, 1)], c(0.02, 0.02, 0.02))
+
+
+@P.proto("warn_board", box=(0.35, 0.45, 0.05), reach=220, detail=True)
+def _warn_board(kk):
+    """A warning board, both faces: white, a red band at its head, three
+    black strokes for its lines."""
+    def rect(x0, x1, y0, y1, dz, col):
+        for s in (1, -1):
+            pts = [(x0 * s, y0, dz * s), (x1 * s, y0, dz * s), (x1 * s, y1, dz * s), (x0 * s, y1, dz * s)]
+            poly(kk("trim"), pts, [(0, 0), (1, 0), (1, 1), (0, 1)], col)
+    rect(-0.32, 0.32, -0.42, 0.42, 0.03, PAINT_WHITE)
+    rect(-0.32, 0.32, 0.2, 0.42, 0.034, c(0.55, 0.05, 0.04))
+    for i, w_ in enumerate((0.5, 0.36, 0.44)):
+        rect(-0.25, -0.25 + w_, 0.02 - i * 0.15, 0.1 - i * 0.15, 0.034, c(0.03, 0.03, 0.03))
 
 
 @P.proto("weed", box=(0.35, 0.25, 0.35), reach=110, detail=True)

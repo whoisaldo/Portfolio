@@ -28,6 +28,10 @@ STYLE = dict(windows=(2, 3, 6), lit=(0.3, 0.7), warmth=(0.5, 1.0), tints=("rust"
              setback=0.0, fire_escape=0.25, cornice=0.3, shop_colours=["amber", "red", "yellow", "white", "cyan"])
 
 
+COOL = (0.7, 0.95, 1.0, 1.0)   # a cold store's sign
+PALE = (1.0, 0.92, 0.8, 1.0)   # a fuel brand's letters
+
+
 def R(seed):
     return random.Random(seed)
 
@@ -168,7 +172,7 @@ def works():
     stand(X1 + 1.2, -139.0, PI / 2, "smoke", plat)
     stand(283.0, -128.5, PI, "talk")
     stand(283.2, -130.0, 0.0, "talk")
-    K.roof_sign(264.0 - 14.0, 8.6 + 2.6, -100.0 - 3.0, PI * 0.12, sizes=("pm", "bx", "pm"), scale=1.5)
+    K.name_sign("HELCASO", 250.0, 11.2, -103.0, PI * 0.12, h=2.0)
     fw_ = B.faces_of(X0, X1, Z0, Z1)
     K.stencil(fw_["+z"], 70.0, 4.0, "01", wall=K.CREAM)
     K.stencil(fw_["-z"], 12.0, 4.0, "01", wall=K.CREAM)
@@ -209,6 +213,8 @@ def tank_farm():
     K.tank(345.0, -113.0, 7.0, 9.0, K.RUST, segs=16, number="05", number_yaw=PI * 0.4, stair_at=PI * 0.5, r_=r)
     K.tank(366.0, -113.0, 7.0, 10.4, K.TANK_WHITE, segs=16, band=(0.1, 0.18), number="07", number_yaw=PI * 0.4, stair_at=PI * 0.5, r_=r)
     K.tank(387.0, -113.0, 7.0, 8.6, K.RUST, segs=16, number="08", number_yaw=PI * 0.45, stair_at=PI * 0.25, r_=r)
+    K.shell_text(357.0, -146.0, 10.5, GY + 3.6, "SOLFUCA", 1.5, PI * 0.8, K.shade(K.TANK_WHITE, 0.3))
+    K.shell_text(386.0, -146.0, 10.5, GY + 3.4, "SOLFUCA", 1.5, PI * 0.5, K.TANK_WHITE)
     K.sphere(414.0, -152.0, 6.4, K.TANK_WHITE)
     K.sphere(414.0, -132.0, 6.4, K.TANK_WHITE)
     for z, cols in ((-129.6, K.RUST), (-128.9, K.TANK_WHITE), (-128.3, K.YELLOW)):
@@ -392,6 +398,7 @@ def plant():
         "-z": dict(band=(13.6, 15.8), style=3, lit=(0.4, 0.7)), "+x": dict(dress=False), "-x": dict(dress=False)}, tint="rust", stripe_col=K.OXIDE)
     K.flat_roof(344.0, 380.0, -78.4, -71.0, 18.0, r, wall=K.CREAM, lights=0.0, plant=False, breathe=2)
     K.wash(344.0, 380.0, -70.2, -70.2, level=1.0, red=0.3, step=3.5)
+    K.name_sign("SOLFUCA", 362.0, 18.0, -74.6, 0.0, h=2.6, lift=1.0)
     for x in (349.0, 356.0, 363.0, 370.0, 376.0):
         box(k("neon_amber"), x - 0.7, x + 0.7, 10.3, 10.42, -70.9, -70.76, scale=0.5, bottom=True)
     K.wash(346.0, 378.0, -79.6, -79.6, level=0.6, red=0.3)
@@ -558,11 +565,11 @@ def depot():
     stand(206.2, -34.6, PI / 2, "talk", plat)
     stand(207.4, -34.5, -PI / 2, "talk", plat)
     stand(230.6, -20.0, PI, "smoke")
-    K.roof_sign(208.0, 9.4 + 0.8, -38.4, PI * 0.06, sizes=("pm", "pm", "bx", "pm"), scale=1.7)
+    K.name_sign("FESCOL", 208.0, 10.2, -38.4, PI * 0.06, h=1.8, col=COOL)
     fc_ = B.faces_of(180.0, 236.0, -78.0, -36.0)
     K.stencil(fc_["+z"], 52.0, 4.6, "02", h=2.6, wall=K.PALE_GREEN)
     K.stencil(fc_["-z"], 8.0, 4.0, "02", wall=K.PALE_GREEN)
-    K.post_sign(218.6, -14.6, -PI * 0.2, y=3.6, size="pm", scale=1.2)
+    K.name_sign("FESCOL", 224.6, GY, -13.8, 0.0, h=0.7, lift=3.0, col=COOL)
     # Its forecourt's fence on the street and its gate, open.
     K.fence(176.2, -12.4, 204.0, -12.4)
     K.gate(204.4, -12.4, 213.6, -12.4, (0, -1), open_=True)
@@ -620,17 +627,21 @@ def pylon(cx, cz, yaw, h=13.4):
     oriented_box(k("metal"), cx, 0.4, cz, 3.6, 0.8, 1.2, yaw, scale=1.0)
     oriented_box(k("neon_amber"), cx, h + 0.12, cz, 3.1, 0.2, 0.8, yaw, scale=1.0)
     prices = ("0980", "1040", "1125", "1190", "0745")
+    grades = (("95", (0.75, 0.1, 0.06, 1.0)), ("98", (0.1, 0.5, 0.2, 1.0)), ("E5", (0.1, 0.3, 0.7, 1.0)), ("LP", (0.8, 0.55, 0.08, 1.0)), ("AC", (0.6, 0.6, 0.6, 1.0)))
     for face, fy in ((1, yaw), (-1, yaw + PI)):
         ox, oz = cx + nx * 0.36 * face, cz + nz * 0.36 * face
         for i, p in enumerate(prices):
-            y = h - 2.6 - i * 2.0
-            K.digits(p, ox + rx * 0.42 * face, y, oz + rz * 0.42 * face, 1.05, fy, k("glow"), K.SODIUM, out=0.0, gap=0.2)
-            # The grade's name beside it, as a row of short strokes.
-            for q, wq in enumerate((0.34, 0.2, 0.28)):
-                rotated_quad(k("glow"), ox - rx * 1.1 * face, y + 0.3 - q * 0.3, oz - rz * 1.1 * face, wq + 0.2, 0.12, fy, col=K.shade(K.SODIUM, 0.8))
-        # The mark at its head: a lit lozenge, no words.
-        for (du, dv, w_, h_) in ((0.0, 0.0, 1.5, 0.22), (0.0, 0.34, 1.0, 0.22), (0.0, -0.34, 1.0, 0.22)):
-            rotated_quad(k("glow"), ox + rx * du * face, h - 1.0 + dv, oz + rz * du * face, w_, h_, fy, col=GLOW["red"])
+            y = h - 2.9 - i * 1.9
+            K.digits(p, ox + rx * 0.47 * face, y, oz + rz * 0.47 * face, 0.74, fy, k("glow"), K.SODIUM, out=0.0, gap=0.18)
+            # The grade's tag beside its price: its colour and its code,
+            # a rule under the row.
+            code, tint = grades[i]
+            tx, tz = ox - rx * 1.0 * face, oz - rz * 1.0 * face
+            rotated_quad(k("glow"), tx, y, tz, 0.84, 0.8, fy, col=tint)
+            K.digits(code, tx, y, tz, 0.42, fy, k("trim", 1), (0.02, 0.02, 0.02, 1.0), out=0.012, gap=0.22)
+            rotated_quad(k("trim", 1), ox, y - 0.95, oz, 2.8, 0.04, fy, col=(0.3, 0.3, 0.32, 1.0), depth=0.005)
+        # The brand's name at its head, in light.
+        K.digits("OPALO", ox, h - 1.15, oz, 0.62, fy, k("glow"), PALE, out=0.0, gap=0.24)
     box(k("glow"), cx - 0.12, cx + 0.12, h + 0.22, h + 0.5, cz - 0.12, cz + 0.12, scale=0.5, col=GLOW["red"])
     K.wash(cx - 3.0, cx + 3.0, cz - 2.0, cz + 2.0, level=0.7, step=3.0)
     K.collide(cx - 1.6, cx + 1.6, cz - 1.0, cz + 1.0, h)
@@ -646,6 +657,9 @@ def fuel():
     walls(k("neon_amber"), [(CX0 - 0.05, CZ1 + 0.05), (CX1 + 0.05, CZ1 + 0.05), (CX1 + 0.05, CZ0 - 0.05), (CX0 - 0.05, CZ0 - 0.05)], CY + 0.56, CY + 0.7, (1, 1, 1, 1))
     walls(k("trim"), [(CX0 - 0.04, CZ1 + 0.04), (CX1 + 0.04, CZ1 + 0.04), (CX1 + 0.04, CZ0 - 0.04), (CX0 - 0.04, CZ0 - 0.04)], CY + 0.1, CY + 0.42, K.OXIDE)
     quad(k("roof"), (CX0, CY + 0.81, CZ1), (CX1, CY + 0.81, CZ1), (CX1, CY + 0.81, CZ0), (CX0, CY + 0.81, CZ0))
+    # The brand on the fascia, all four sides.
+    for (px, pz, fy) in ((147.0, CZ0 - 0.07, PI), (CX0 - 0.07, 24.0, -PI / 2), (CX1 + 0.07, 24.0, PI / 2), (147.0, CZ1 + 0.07, 0.0)):
+        K.digits("OPALO", px, CY + 0.3, pz, 0.44, fy, k("glow"), PALE, out=0.0, gap=0.3)
     for ix in (134.0, 147.0, 160.0):
         box(K.M("concrete"), ix - 0.7, ix + 0.7, GY, GY + 0.2, 19.0, 29.0, scale=1.0)
         for z in (20.2, 27.8):
@@ -732,7 +746,7 @@ def street_shed():
     K.blade(fs1["-z"], 50.4, 4.2, "bm")
     K.stencil(fs1["-z"], 3.4, 3.4, "05", h=2.8, wall=K.CREAM)
     K.stencil(fs1["+x"], 14.0, 4.0, "05", wall=K.CREAM)
-    K.roof_sign(196.0, 8.0 + 1.6, 30.0, PI * 0.92, sizes=("ps", "pm", "ps"), scale=2.0, lift=2.2)
+    K.name_sign("LUPACO", 196.0, 9.6, 30.0, PI * 0.92, h=1.8, lift=2.2)
     for x in (188.0, 212.0, 236.0):
         cylinder(k("hazard", 1), x, 13.0, GY, GY + 1.1, 0.14, segs=8)
     P.place("forklift", 240.5, GY, 14.2, PI, district=D)
@@ -818,7 +832,7 @@ def container_yard():
     K.gate(296.0, 12.4, 305.6, 12.4, (0, 1), open_=True)
     K.fence(314.4, 12.4, 340.0, 12.4)
     K.yard_wall(260.0, 44.8, 340.0, 44.8, r=r, face=-1)
-    K.post_sign(293.4, 14.4, PI * 0.82, y=3.8, size="pm", scale=1.2)
+    K.name_sign("CAPULSA", 290.6, GY, 14.2, PI, h=0.75, lift=3.4)
     mast(262.0, 14.2, PI * 0.25, hue="white", level=0.6)
     mast(338.0, 14.2, -PI * 0.25, hue="white", level=0.6)
     K.wash(264.0, 338.0, 17.6, 17.6, level=0.5, step=6.0)
@@ -899,7 +913,7 @@ def workshop():
     K.fence(388.4, 12.5, 400.0, 12.5)
     K.gate(400.6, 12.5, 407.4, 12.5, (0, 1), open_=True)
     K.fence(414.0, 12.5, 423.6, 12.5)
-    K.post_sign(396.0, 14.0, PI * 1.12, y=4.4, size="pm", scale=1.4)
+    K.name_sign("CHAPAS", 395.0, GY, 14.2, PI, h=0.75, lift=3.6)
     scatter(r, 389.6, 399.0, 14.4, 27.0, 9, kinds=("tyres", "tyres", "drum_pallet", "reel", "crates", "drum", "pallets"))
     scatter(r, 409.0, 422.0, 14.4, 26.0, 7, kinds=("tyres", "drum_pallet", "reel", "crates", "drum"))
     K.container(419.0, 21.0, PI / 2, "grey", ln=6.06)
@@ -1204,7 +1218,7 @@ def east():
 # lines over the street to the plant (JtqIas3bYhg@80).
 # ---------------------------------------------------------------------------
 def lines(bus):
-    south = [(x, 12.75) for x in (112.0, 144.0, 177.0, 208.0, 240.0, 272.0, 311.0, 341.0, 368.0, 398.0, 422.6)]
+    south = [(x, 12.75) for x in (112.0, 127.4, 177.0, 208.0, 240.0, 272.0, 311.0, 341.0, 368.0, 398.0, 422.6)]
     K.poles(south, PI / 2)
     garage = [(452.6, z) for z in (8.4, -38.0, -64.0, -94.0, -126.0, -158.0)]
     K.poles(garage, 0.0)
@@ -1219,7 +1233,7 @@ def lines(bus):
         for dx in (-0.8, 0.0, 0.8):
             K.cable((x + dx, GY + 8.25, 12.75), (x + dx, yt + 0.12, zt), sag=1.1)
     # Drops to the buildings they feed.
-    for a, b in (((208.0, GY + 7.4, 12.75), (208.0, 7.6, 16.0)), ((144.0, GY + 7.4, 12.75), (146.0, 5.4, 36.0)), ((398.0, GY + 7.4, 12.75), (400.0, 6.2, 30.0)),
+    for a, b in (((208.0, GY + 7.4, 12.75), (208.0, 7.6, 16.0)), ((398.0, GY + 7.4, 12.75), (400.0, 6.2, 30.0)),
                  ((452.6, GY + 7.4, -64.0), (456.0, 7.2, -66.0)), ((452.6, GY + 7.4, -158.0), (454.5, 6.6, -156.0)), ((452.6, GY + 7.4, -38.0), (454.0, 7.6, -34.0)),
                  ((452.6, GY + 7.4, 8.4), (454.0, 7.8, 6.0))):
         K.cable(a, b, sag=0.5, steps=5)
