@@ -216,7 +216,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float aerial = smoothstep(12.0, 45.0, uCam.y);
         float wet = uWet * mix(0.3, 1.0, damp);
 
-        vec3 spill = spillAt(vWorld);
+        vec3 spill = spillGround(vWorld);
         #if PAINT == 1
         // Road paint over the same asphalt: worn through where the stones
         // stand proud and where the wheels run, pale, and lit by the whole
@@ -295,16 +295,16 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         #endif
         vec3 baked = vec3(0.0);
         if (mk < 0.999) {
-          // No mirror: the baked light along the ray, its colour pushed
-          // back out (summed lights drift toward lilac), and on the asphalt
-          // drawn out toward the eye, as light is on a wet road.
-          baked = spillReflect(vWorld, R);
-          baked = max(mix(vec3(dot(baked, vec3(0.299, 0.587, 0.114))), baked, 1.8), 0.0) * 0.14;
+          // No mirror: the baked light along the ray (ground.js), a little
+          // off its colour and capped, as a wet road gives a light back.
+          baked = tame(spillReflect(vWorld, R) * 0.14, 0.5);
           // Standing water gives the same light back whole, where the film
           // gives a part of it.
-          if (puddle > 0.01) sharp = mix(baked * 2.7, sharp, mk);
+          if (puddle > 0.01) sharp = mix(baked * 2.2, sharp, mk);
+          // (Drawn out toward the eye only a little: more of it stood on
+          // the road as a comb of upright bands.)
           vec2 rd = normalize(R.xz + 1e-5);
-          baked *= 0.5 + vnoise(vec2(dot(p, vec2(-rd.y, rd.x)) * 1.3, dot(p, rd) * 0.06));
+          baked *= 0.86 + 0.28 * vnoise(vec2(dot(p, vec2(-rd.y, rd.x)) * 0.7, dot(p, rd) * 0.05));
         }
         // The sky: the lit cloud over the roofs, and the city's glow low on
         // it, brightest where the street runs toward downtown. The mirror

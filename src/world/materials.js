@@ -278,10 +278,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // The wet: water standing in the low places, more of it in a
             // yard or a lane than on laid flags, thinning to damp at its
             // shore; damp everywhere else, evenly, as rain leaves it.
-            float pool = vnoise(pr * 0.31 + 2.0) * 0.55 + vnoise(pr.yx * 0.9) * 0.3 + vnoise(pr * 2.7) * 0.15;
-            water = smoothstep(0.61 - 0.13 * yard, 0.72 - 0.13 * yard, pool + 0.05 * tar) * (1.0 - scrap);
-            sheen = (0.34 + 0.2 * smoothstep(0.3, 0.7, pool) + 0.15 * tar) * (1.0 - 0.6 * joint);
-            albedo *= mix(1.0, 0.5, water) * (1.0 - 0.18 * smoothstep(0.45, 0.61 - 0.13 * yard, pool));
+            // (Pools a stride or two across with an edge to them, the stone
+            // damp and darker for a hand's width round each: not a smear.)
+            float pool = vnoise(pr * 0.47 + 2.0) * 0.5 + vnoise(pr.yx * 1.3) * 0.32 + vnoise(pr * 3.7) * 0.18;
+            float brim = 0.68 - 0.06 * yard;
+            water = smoothstep(brim, brim + 0.02 + px, pool + 0.04 * tar) * (1.0 - scrap);
+            sheen = (0.3 + 0.16 * smoothstep(0.3, 0.7, pool) + 0.15 * tar) * (1.0 - 0.6 * joint);
+            albedo *= mix(1.0, 0.45, water) * (1.0 - 0.22 * smoothstep(brim - 0.09, brim, pool));
           }
           #endif
           #ifdef KERB
@@ -300,16 +303,25 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           }
           #endif
           float up = clamp(n.y, 0.0, 1.0);
-          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
+          // (A floor reads the baked light through the smooth filter: seen
+          // from over it, the map's cells would show.)
+          #if defined(PAVING) || defined(KERB)
+          vec3 spill = n.y > 0.7 ? spillGround(vWorld) : spillAt(vWorld);
+          #else
+          vec3 spill = spillAt(vWorld);
+          #endif
+          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spill * uSpillMul * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
           // What faces the sky catches the city's glow on the cloud (a wet
           // roof, uSky, more of it: seen from above a roof is a dark blue
           // surface, not a hole).
           vec3 skyLight = (uHazeColor * 0.22 + uGlowColor * 0.12) * uHaze;
           light += skyLight * up * uSky;
           // Santo Domingo's sodium lamps light its air, and the air its
-          // yards, its plant and its roofs, from every side.
+          // yards, its plant and its roofs, from every side: most where
+          // the lamps are, little between them, so the orange falls off
+          // from each pool of light and the dark between them is dark.
           float santo = santoAt(vWorld.xz) * uHaze;
-          light += SODIUM * santo * (0.5 + 0.5 * up) * exp(-max(vWorld.y, 0.0) * 0.02) * 1.6;
+          light += SODIUM * santo * (0.5 + 0.5 * up) * exp(-max(vWorld.y, 0.0) * 0.02) * 1.6 * mix(0.3, 1.0, smoothstep(0.02, 0.3, dot(spill, vec3(0.5, 0.4, 0.1))));
           vec3 col = albedo * light + glowing;
           // And at a grazing angle every edge holds a little of the haze
           // behind it, so a dark shape stands off the dark behind it.
@@ -349,12 +361,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // more of it and the sky in standing water.
             vec3 Rw = vec3(-V.x, V.y, -V.z);
             float graze = pow(1.0 - clamp(V.y, 0.0, 1.0), 3.0);
-            vec3 back = spillReflect(vWorld, Rw);
-            back = max(mix(vec3(dot(back, vec3(0.299, 0.587, 0.114))), back, 1.8), 0.0) * 0.14;
-            vec3 sky = (hazeV * 1.2 + glowV * 0.5) * uHaze * 0.4;
+            // (Under Santo Domingo's lamps the cloud over a yard is their
+            // orange, and a pool there holds that, not the city's blue.)
+            vec3 back = tame(spillReflect(vWorld, Rw) * 0.14, 0.5);
+            vec3 sky = mix((hazeV * 1.2 + glowV * 0.5) * 0.4, SODIUM * 0.9, 0.85 * santoAt(vWorld.xz)) * uHaze;
             vec3 give = back * sheen * (0.15 + 0.85 * graze);
             #ifdef PAVING
-            if (water > 0.01) give = mix(give, (back * 2.4 + sky) * (0.25 + 0.75 * graze), water);
+            if (water > 0.01) give = mix(give, (back * 1.4 + sky) * (0.25 + 0.75 * graze), water);
             #endif
             col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
           }

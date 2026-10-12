@@ -14,6 +14,8 @@
 // over each square metre, so a reflected ray is followed along the ground
 // and the map read where the ray would be at the height the signs hang.
 
+import { CELL } from "./spill.js";
+
 // plan.py's STREETS: axis, centre line, from, to, half carriageway, kerbside
 // bay, lanes each way.
 const STREETS = [
@@ -70,23 +72,67 @@ export const GROUND = /* glsl */ `
     return s;
   }
 
+  // The baked light at a point of the ground, read through a smooth
+  // filter (a cubic B-spline over the map's 1.5 m cells, four taps): the
+  // map magnified under the eye shows no cell, no crease and no square,
+  // however near the eye is to it.
+  vec4 spillSmooth(vec2 xz) {
+    vec2 res = 1.0 / (uSpillBounds.zw * ${f(CELL)});
+    vec2 t = (xz - uSpillBounds.xy) * uSpillBounds.zw * res - 0.5;
+    vec2 i = floor(t);
+    vec2 u = t - i;
+    vec2 u2 = u * u;
+    vec2 u3 = u2 * u;
+    vec2 w0 = (1.0 - 3.0 * u + 3.0 * u2 - u3) / 6.0;
+    vec2 w1 = (4.0 - 6.0 * u2 + 3.0 * u3) / 6.0;
+    vec2 w3 = u3 / 6.0;
+    vec2 g0 = w0 + w1;
+    vec2 g1 = 1.0 - g0;
+    vec2 h0 = (i - 0.5 + w1 / g0) / res;
+    vec2 h1 = (i + 1.5 + w3 / g1) / res;
+    return mix(mix(texture2D(uSpill, vec2(h1.x, h1.y)), texture2D(uSpill, vec2(h0.x, h1.y)), g0.x),
+               mix(texture2D(uSpill, vec2(h1.x, h0.y)), texture2D(uSpill, vec2(h0.x, h0.y)), g0.x), g0.y);
+  }
+
+  // spillAt (glsl.js) for a floor: the same light, through that filter.
+  vec3 spillGround(vec3 p) {
+    vec2 uv = (p.xz - uSpillBounds.xy) * uSpillBounds.zw;
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
+    vec4 s = spillSmooth(p.xz);
+    float h = max(p.y, 0.0);
+    float dh = h - s.a * 15.94;
+    return s.rgb * s.rgb * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085)) * (0.7 + 1.5 * exp(-dh * dh * 0.22)) + doorPool(p) + garageRoom(p);
+  }
+
   // What a wet floor at p gives back along r (up and away from the eye)
   // with no mirror to read: the baked light under the ray at each height
   // the ray passes through, counted only where the map's light hangs about
-  // that high (its alpha, spill.js). So a puddle holds the sign that stands
-  // over it, where it stands, and nothing where nothing does. Soft, as the
-  // map is, and in the right place from any eye.
+  // that high (its alpha, spill.js), and for less the further down the ray
+  // it is (the map cannot say what stands between: a sign two streets off
+  // is behind a building as often as not, and a yard gives back its own
+  // lamps, not the avenue's neon). So a puddle holds the sign that stands
+  // over it, where it stands, and nothing where nothing does. Read through
+  // the smooth filter, so it is light on water and never the map's cells.
   vec3 spillReflect(vec3 p, vec3 r) {
     float run = max(length(r.xz), 1e-3);
     vec2 dir = r.xz / run;
     float rise = max(r.y, 0.03) / run;
     vec3 sum = vec3(0.0);
-    for (int i = 0; i < 4; i++) {
-      float h = i == 0 ? 1.5 : (i == 1 ? 3.5 : (i == 2 ? 7.0 : 13.0));
-      vec4 c = texture2D(uSpill, (p.xz + dir * min(h / rise, 150.0) - uSpillBounds.xy) * uSpillBounds.zw);
+    for (int i = 0; i < 3; i++) {
+      float h = i == 0 ? 2.0 : (i == 1 ? 5.0 : 11.0);
+      float reach = min(h / rise, 90.0);
+      vec4 c = spillSmooth(p.xz + dir * reach);
       float dh = h - c.a * 15.94;
-      sum += c.rgb * c.rgb * exp(-dh * dh / (1.6 + 0.4 * h * h));
+      sum += c.rgb * c.rgb * exp(-dh * dh / (1.6 + 0.4 * h * h)) * exp(-reach / 55.0);
     }
-    return sum * uSpillGain * 1.5;
+    return sum * uSpillGain * 3.0;
+  }
+
+  // What a floor may give back of that light: a little off its colour (the
+  // map's sums run to pure pinks and blues no wet stone shows), and never
+  // past top however many signs hang over it.
+  vec3 tame(vec3 c, float top) {
+    c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, 0.78);
+    return c / (1.0 + max(c.r, max(c.g, c.b)) / top);
   }
 `;
