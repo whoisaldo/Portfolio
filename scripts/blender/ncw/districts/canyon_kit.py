@@ -155,7 +155,7 @@ def strip(key, f, s0, s1, y0, y1, hue, out=0.06):
 # frame, so the lit glass is in the core and the joinery in the pack.
 # ---------------------------------------------------------------------------
 REC, PIL = B.REC, B.PIL
-TRADES = ("glass", "counter", "glass", "machines", "cabinets")
+TRADES = ("glass", "counter", "glass", "machines", "cabinets", "glass", "counter", "glass", "hatch", "cabinets")
 FRONTS = []     # every shop front built, in order: the next takes the next trade
 WOOD = (0.13, 0.1, 0.09, 1)
 
@@ -167,7 +167,27 @@ def _front(trade, f, s0, s1, key):
     d, top = 0.9, 3.3
     a, b = f.at(s0), f.at(s1)
     mid = (s0 + s1) / 2
-    hue = {"counter": "amber", "machines": "cyan", "cabinets": r.choice(("yellow", "cyan", "green"))}[trade]
+    hue = {"counter": "amber", "machines": "white", "hatch": "amber", "cabinets": r.choice(("yellow", "cyan", "white"))}[trade]
+    if trade == "hatch":
+        # Shut for the night but for its hatch: a roller shutter on the lot
+        # line, a lit window in it with a shelf and someone at it, a tube
+        # sign over it.
+        f.quad((key, "door_panel", 0), s0, s1, G0, top, -0.06)
+        f.box((key, "metal", 1), s0, s1, top - 0.28, top, -0.06, 0.12)
+        hs = s0 + (s1 - s0) * r.uniform(0.3, 0.7)
+        f.quad((key, "glow", 0), hs - 0.55, hs + 0.55, 1.1, 2.0, -0.04, col=dim("amber", 0.4))
+        f.box((key, "trim", 0), hs - 0.65, hs + 0.65, 1.0, 1.1, -0.06, 0.22, col=WOOD)
+        for e in (hs - 0.62, hs + 0.55):
+            f.box((key, "metal", 1), e, e + 0.07, 1.1, 2.07, -0.06, 0.03)
+        f.box((key, "metal", 1), hs - 0.62, hs + 0.62, 2.0, 2.07, -0.06, 0.03)
+        for i in range(3):
+            f.quad((key, "trim", 1), hs - 0.4 + i * 0.3, hs - 0.2 + i * 0.3, 1.2, 1.5 + 0.1 * (i % 2), -0.03, col=(0.05, 0.04, 0.03, 1))
+        f.box((key, "neon_" + r.choice(("cyan", "yellow", "green", "red")), 0), hs - 0.8, hs + 0.8, 2.45, 2.52, -0.06, 0.02)
+        f.box((key, "hazard", 1), s0, s1, G0, G0 + 0.12, -0.06, -0.02)
+        light(key, *f.p(f.at(hs), 1.6, 0.8), "amber", 3.0)
+        x, _, z = f.p(f.at(hs + 0.1), 0.0, 0.62)
+        stand(x, z, f.yaw + math.pi, r.choice(("idle", "phone")), G0)
+        return
     f.quad((key, "glow", 0), s0, s1, G0, top, -d, col=dim(hue, 0.035))
     quad((key, "trim", 0), f.p(a, G0, 0.0), f.p(a, G0, -d), f.p(a, top, -d), f.p(a, top, 0.0), col=B.DARK_TRIM)
     quad((key, "trim", 0), f.p(b, G0, -d), f.p(b, G0, 0.0), f.p(b, top, 0.0), f.p(b, top, -d), col=B.DARK_TRIM)
@@ -210,12 +230,13 @@ def _front(trade, f, s0, s1, key):
     elif trade == "machines":
         # A wall of machines, each its own front, a line of light over
         # them; someone choosing.
-        n = max(2, int((s1 - s0 - 0.2) / 1.15))
-        for i in range(n):
-            s = s0 + (s1 - s0) * (i + 0.5) / n
+        for i, s in enumerate((s0 + 0.75, s1 - 0.75)):
             x, _, z = f.p(f.at(s), 0.0, -0.46)
             P.place(("vending", "vending_warm")[(i + len(FRONTS)) % 2], x, G0, z, f.yaw, district=key)
-        f.box((key, "neon_cyan", 0), s0 + 0.2, s1 - 0.2, 2.3, 2.36, -d + 0.02, -d + 0.08)
+        if s1 - s0 > 3.6:
+            cx, cy, cz = f.p(f.at(mid), 1.5, -d + 0.05)
+            B.billboard(key, cx, cy, cz, min(s1 - s0 - 3.0, 2.2), 2.0, f.yaw, r, frame=True, back=False, depth=0.04)
+        f.box((key, "neon_cyan", 0), s0 + 0.2, s1 - 0.2, 2.75, 2.81, -d + 0.02, -d + 0.08)
         if r.random() < 0.6:
             x, _, z = f.p(f.at(mid + 0.4), 0.0, 0.7)
             stand(x, z, f.yaw + math.pi, r.choice(("idle", "phone")), G0)
@@ -665,29 +686,35 @@ def ngon(key, c, R, t, n=6, rot=0.0, plane="x", col=(1, 1, 1, 1), both=True):
             quad(key, q[1], q[0], q[3], q[2], col=col)
 
 
-def pool(key, x, y, z, rad, hue="amber", k=0.35, segs=14, squash=1.0):
+def pool(key, x, y, z, rad, hue="amber", k=0.02, segs=14, squash=1.0):
     """A lamp's light where it falls on a floor, painted (a court or a deck
-    takes little of the bake's pools): brightest under the lamp, gone into
-    the floor's own dark by its edge. `squash`: its length along z over its
-    width."""
+    takes little of the bake's pools). The material is light itself, so its
+    values are small: k at the heart, under half that a third of the way
+    out, an eighth at two thirds, nothing at the edge, so it has no edge.
+    `squash`: its length along z over its width."""
     b = batches[(key, "glow", 0)]
     c = GLOW[hue]
-    # (A lamp's light falls off fast and then slowly: a bright heart a
-    # third of the way out, a long dim skirt to nothing. The material is
-    # light itself, so its values are small.)
-    k *= 0.22
-    centre, mid, rim = (c[0] * k, c[1] * k, c[2] * k, 1.0), (c[0] * k * 0.3, c[1] * k * 0.3, c[2] * k * 0.3, 1.0), (0.0, 0.0, 0.0, 1.0)
+    rings = ((0.0, 1.0), (0.3, 0.45), (0.62, 0.12), (1.0, 0.0))
 
     def at(f, t):
         return K.P(x + rad * f * math.cos(t), y, z + rad * f * squash * math.sin(t))
+
+    def tone(v):
+        return (c[0] * k * v, c[1] * k * v, c[2] * k * v, 1.0)
     for i in range(segs):
         t0, t1 = i * math.tau / segs, (i + 1) * math.tau / segs
-        base = len(b.verts)
-        b.verts.extend((K.P(x, y, z), at(0.38, t1), at(0.38, t0), at(1.0, t1), at(1.0, t0)))
-        b.faces.append((base, base + 1, base + 2))
-        b.faces.append((base + 2, base + 1, base + 3, base + 4))
-        b.uvs.extend(((0.5, 0.5), (1, 0), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0)))
-        b.cols.extend((centre, mid, mid, mid, mid, rim, rim))
+        for (fa, va), (fb, vb) in zip(rings, rings[1:]):
+            base = len(b.verts)
+            if fa == 0.0:
+                b.verts.extend((K.P(x, y, z), at(fb, t1), at(fb, t0)))
+                b.faces.append((base, base + 1, base + 2))
+                b.uvs.extend(((0.5, 0.5), (1, 0), (0, 0)))
+                b.cols.extend((tone(va), tone(vb), tone(vb)))
+            else:
+                b.verts.extend((at(fa, t0), at(fa, t1), at(fb, t1), at(fb, t0)))
+                b.faces.append((base, base + 1, base + 2, base + 3))
+                b.uvs.extend(((0, 0), (1, 0), (1, 1), (0, 1)))
+                b.cols.extend((tone(va), tone(va), tone(vb), tone(vb)))
 
 
 def tape(key, a, b, y=0.95, h=0.09):
@@ -849,8 +876,8 @@ def _cy_planter(k):
     box(k("concrete"), -1.5, 1.5, 0.0, 0.55, -0.35, 0.35, scale=1.0)
     # (Clipped bushes, each its own height and green, dark: a single box of
     # one green took the lamps' light as a bright slab.)
-    for x0, x1, top, g in ((-1.42, -0.62, 0.98, (0.025, 0.07, 0.04, 1)), (-0.66, 0.2, 1.12, (0.03, 0.085, 0.045, 1)), (0.16, 0.8, 0.94, (0.022, 0.06, 0.04, 1)),
-                           (0.76, 1.42, 1.06, (0.028, 0.078, 0.05, 1))):
+    for x0, x1, top, g in ((-1.42, -0.62, 0.98, (0.012, 0.034, 0.02, 1)), (-0.66, 0.2, 1.12, (0.015, 0.042, 0.023, 1)), (0.16, 0.8, 0.94, (0.011, 0.03, 0.02, 1)),
+                           (0.76, 1.42, 1.06, (0.014, 0.038, 0.025, 1))):
         box(k("trim"), x0, x1, 0.55, top, -0.28, 0.28, scale=1.0, col=g)
     fs = B.faces_of(-1.5, 1.5, -0.35, 0.35)
     for name in ("+z", "-z"):
@@ -1277,7 +1304,7 @@ def roof_low(key, x0, x1, z0, z1, y, r, pad=True):
             hue = r.choice(("amber", "amber", "cyan", "white"))
             xa, xb, za, zb = rect(u - 0.12, u + 0.12, bm + 0.55, bm + 0.79)
             box((key, "glow", 0), xa, xb, y, y + 0.5, za, zb, scale=0.5, col=GLOW[hue])
-            pool(key, (xa + xb) / 2, y + 0.045, (za + zb) / 2, 2.6, hue, 0.2, segs=10)
+            pool(key, (xa + xb) / 2, y + 0.045, (za + zb) / 2, 3.2, hue, 0.012, segs=8)
         u += 4.2
         k += 1
     ring = None
@@ -1351,7 +1378,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
             hue = r.choice(("amber", "amber", "cyan", "white"))
             lx, lz = x0 + i * w / nx + 0.5, z0 + j * d / nz + 0.5
             box((key, "glow", 0), lx - 0.12, lx + 0.12, y, y + 0.5, lz - 0.12, lz + 0.12, scale=0.5, col=GLOW[hue])
-            pool(key, lx, y + 0.045, lz, 2.6, hue, 0.2, segs=10)
+            pool(key, lx, y + 0.045, lz, 3.2, hue, 0.012, segs=8)
     for i in range(nx):
         for j in range(nz):
             px, pz = x0 + (i + 0.5) * w / nx, z0 + (j + 0.5) * d / nz

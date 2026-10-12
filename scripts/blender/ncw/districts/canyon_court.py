@@ -65,7 +65,7 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
         _up(21.5, px0 - 1.0, z0_, z1_, COURT_Y + 0.022, "yellow")
     _up(20.3, 20.42, cz0 + 0.8, cz1 - 0.8, COURT_Y + 0.022, "teal")
     for z in (cz0 + 4.0, cz0 + 10.0, az + 14.0, az - 14.0, cz1 - 4.0):
-        light(CB, 21.0, 1.0, z, "teal", 5.0)
+        light(CB, 21.0, 1.0, z, "teal", 2.0)
     C.flat((CB, "trim", 1), 22.0, px0 - 0.6, az - 1.7, az + 1.7, COURT_Y + 0.016, (0.17, 0.02, 0.035, 1))
     # Palms in two rows, tall and thin, standing over the signs, lit from
     # their feet; a bench by each, people on the benches. (Each a little
@@ -73,7 +73,7 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     for row_z in (az - 10.5, az + 10.5):
         for x in (24.5, 31.5, 38.5):
             P.place("cy_palm", x, COURT_Y, row_z, r.uniform(0, 6.28), sy=r.uniform(0.9, 1.12), district=CB)
-            C.pool(CB, x, COURT_Y + 0.008, row_z, 2.6, "amber", 0.3)
+            C.pool(CB, x, COURT_Y + 0.008, row_z, 3.4, "amber", 0.03, segs=10)
             light(CB, x, 1.5, row_z, "amber", 5.0)
         for x in (28.0, 35.0):
             P.place("bench", x, COURT_Y, row_z, 0.0, district=CB)
@@ -95,17 +95,17 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
         P.place("cy_kiosk", 17.2, G0, kz, -math.pi / 2, district=CB)
         stand(16.0, kz, math.pi / 2, "idle", G0)
         stand(15.4, kz + 0.5, math.pi / 2, "phone", G0)
-        light(CB, 16.2, 1.5, kz, "cyan", 5.0)
-        C.pool(CB, 15.6, G0 + 0.008, kz, 2.4, "cyan", 0.25)
+        light(CB, 16.2, 1.5, kz, "white", 3.0)
+        C.pool(CB, 15.6, G0 + 0.008, kz, 3.0, "cyan", 0.02, segs=10)
     # The court's own light on its floor: warm and wide under the hologram
     # and before the doors, yellow along the lines, teal at the steps' head.
-    C.pool(CB, px0 - 7.5, COURT_Y + 0.008, az, 9.5, "amber", 0.42, segs=20, squash=1.15)
-    C.pool(CB, px0 - 2.2, COURT_Y + 0.009, az, 4.2, "white", 0.3)
+    C.pool(CB, px0 - 7.5, COURT_Y + 0.008, az, 12.0, "amber", 0.06, segs=20, squash=1.15)
+    C.pool(CB, px0 - 2.2, COURT_Y + 0.009, az, 5.0, "white", 0.03)
     for dz in (-7.0, 7.0):
         for x in (23.5, 28.5, 33.5, 38.5):
-            C.pool(CB, x, COURT_Y + 0.008, az + dz, 2.3, "yellow", 0.3, segs=10)
+            C.pool(CB, x, COURT_Y + 0.008, az + dz, 3.0, "yellow", 0.03, segs=10)
     for z in (cz0 + 4.0, cz0 + 10.0, az + 14.0, az - 14.0, cz1 - 4.0):
-        C.pool(CB, 21.2, COURT_Y + 0.008, z, 1.8, "teal", 0.25, segs=10)
+        C.pool(CB, 21.2, COURT_Y + 0.008, z, 2.4, "teal", 0.02, segs=10)
     # What a corporate court is closed with: a second line of barricade
     # blocks across it between the palms, tape strung from post to post
     # round the queue, kiosks in a cluster each side with people at them,
@@ -121,8 +121,8 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     for sgn in (-1, 1):
         for k_, (kx, kzo) in enumerate(((30.2, 5.2), (32.6, 6.0), (31.4, 3.9))):
             P.place("cy_kiosk", kx, COURT_Y, az + sgn * (kzo + 8.6), -math.pi / 2 + sgn * (0.5 - k_ * 0.35), district=CB)
-        C.pool(CB, 30.2, COURT_Y + 0.008, az + sgn * 13.6, 3.0, "cyan", 0.28)
-        light(CB, 30.0, 1.6, az + sgn * 13.6, "cyan", 5.0)
+        C.pool(CB, 30.2, COURT_Y + 0.008, az + sgn * 13.6, 3.6, "cyan", 0.025, segs=10)
+        light(CB, 30.0, 1.6, az + sgn * 13.6, "white", 3.0)
         for px_, pz_, yaw_, pose in ((29.0, 13.4, math.pi / 2, "phone"), (29.3, 14.6, math.pi / 2, "idle"), (31.4, 12.4, 0.0, "talk"), (31.4, 11.4, math.pi, "talk"),
                                      (28.2, 15.6, 2.2, "smoke")):
             if r.random() < 0.85:
@@ -148,7 +148,7 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     for dz in (-R * 0.8, R * 0.8):
         box((CB, "metal", 1), hxp, px0, hyp - 0.08, hyp + 0.08, hzp + dz - 0.08, hzp + dz + 0.08, scale=0.5, bottom=True)
     for lx, lz in ((px0 - 6.0, az - 4.0), (px0 - 6.0, az + 4.0), (px0 - 11.0, az), (px0 - 16.0, az - 3.0), (px0 - 16.0, az + 3.0)):
-        light(CB, lx, 2.0, lz, "cyan", 7.0)
+        light(CB, lx, 2.0, lz, "amber", 6.0)
     # Totems on the apron where the banners stood, each a column of type in a
     # dark frame under a red cap, read along the pavement; advert totems on
     # the court.

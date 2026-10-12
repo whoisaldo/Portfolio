@@ -526,7 +526,8 @@ def _back(U):
     # Japantown: a dark floor where it leaves the slab, then floors of amber
     # and cyan bands.)
     over = top > h + 6.0
-    top_col = B.wall_col(0.5, 5, U["warmth"], U["tint"])
+    # (Each its own windows, so two neighbours' tops are never one stripe.)
+    top_col = B.wall_col(*((0.5, 5, U["warmth"]), (0.85, 4, 0.2), (0.6, 2, 0.75))[U["idx"] % 3], U["tint"])
     for f in (bk, so, no):
         C.wall(CB, f, ph, h if over else top, U["back_col"] if f is bk else U["col"], U["ov"])
         if over:
@@ -830,7 +831,7 @@ def _roofs(U):
         box((CB, "metal", 1), rail_x - 0.04, rail_x + 0.04, t, t + 3.5, z - 0.04, z + 0.04, scale=0.5)
         for fr in (0.4, 0.75):
             light(CB, wall_x + (edge - wall_x) * fr, t + 2.5, z, "amber", 7.0)
-            C.pool(CB, wall_x + (edge - wall_x) * fr, t + 0.045, z, 2.4, "amber", 0.22, segs=10)
+            C.pool(CB, wall_x + (edge - wall_x) * fr, t + 0.045, z, 3.4, "amber", 0.014, segs=8)
         if k % 3 == 1:
             P.place("cy_deck_lamp", edge - side * 0.3, t, z + 1.6, inward, district=CB)
             light(CB, edge - side * 1.7, t + 3.0, z + 1.6, "cyan", 8.0)
@@ -1006,7 +1007,7 @@ ez, k = -192.5, 0
 while ez > -262.0:
     C.flat((CB, "trim", 1), 44.2, 47.86, ez - 0.08, ez + 0.08, B.G0 + 0.012, (0.02, 0.021, 0.026, 1))
     P.place("cy_bollard", 48.0, B.G0, ez - 1.75, district=CB)
-    light(CB, 47.4, 1.0, ez - 1.75, "teal", 2.0)
+    light(CB, 47.4, 1.0, ez - 1.75, "white", 1.5)
     light(CB, 45.2, 3.0, ez, "amber", 5.0)
     pick = k % 5
     if pick in (0, 3):
@@ -1097,7 +1098,7 @@ for s in (-1, 1):
             if roll < 0.13:
                 kind = pave_r.choice(("vending", "vending_warm"))
                 P.place(kind, s * 13.55, B.G0, z, out, district=CB)
-                light(CB, s * 12.7, 1.2, z, "amber" if kind == "vending_warm" else "cyan", 3.5)
+                light(CB, s * 12.7, 1.2, z, "amber" if kind == "vending_warm" else "white", 2.5)
                 if pave_r.random() < 0.6:
                     stand(s * 13.0, z + 1.1, out + pave_r.uniform(-0.6, 0.6), pave_r.choice(("phone", "idle", "smoke")), B.G0)
             elif roll < 0.23:
