@@ -229,7 +229,9 @@ def tube_sign(c, yaw, w, h, colour, r, both=True, roll=0.0):
     for bb in ((b, basis(yaw + math.pi, -roll)) if both else (b,)):
         for p_, q_ in edge:
             _stroke((D, "glow", 0), c, bb, p_, q_, 0.1, 0.11, col)
-        write((D, "glow", 0), c, bb, text, tw, th, 0.112, thick, col, vertical)
+        if bb is b:
+            # (Its back is its board in a rim of light: the word is bent on the front.)
+            write((D, "glow", 0), c, bb, text, tw, th, 0.112, thick, col, vertical)
 
 
 def letters(c, b, text, h, colour, depth=0.24, vertical=False, both=False, sides=False):
@@ -821,7 +823,14 @@ def _jt_ac(k):
     a grille, its drain down the wall, the stain under it and the wet it
     leaves on the ground."""
     T = k("trim")
-    box(T, -0.42, 0.42, 2.46, 3.04, 0.1, 0.46, scale=1.0, col=OFFWHITE, bottom=True)
+    body = (0.2, 0.2, 0.185, 1)
+    box(T, -0.42, 0.42, 2.46, 3.04, 0.1, 0.46, scale=1.0, col=body, bottom=True)
+    # (Its sides are what a lane sees of it: louvres, and rust run down from the top.)
+    for sx in (-0.424, 0.424):
+        for y in (2.56, 2.68, 2.8, 2.92):
+            q = ((sx, y, 0.14), (sx, y, 0.42), (sx, y + 0.06, 0.42), (sx, y + 0.06, 0.14))
+            quad(T, *(q if sx < 0 else (q[1], q[0], q[3], q[2])), col=(0.03, 0.03, 0.034, 1))
+    quad(T, (-0.4, 2.47, 0.464), (-0.22, 2.47, 0.464), (-0.26, 2.9, 0.464), (-0.4, 3.0, 0.464), col=RUSTY)
     _disc(T, -0.1, 2.75, 0.468, 0.23, (0.02, 0.02, 0.024, 1))
     for q in (((-0.33, 2.735, 0.474), (0.13, 2.735, 0.474), (0.13, 2.765, 0.474), (-0.33, 2.765, 0.474)),
               ((-0.115, 2.52, 0.474), (-0.085, 2.52, 0.474), (-0.085, 2.98, 0.474), (-0.115, 2.98, 0.474))):
