@@ -1782,14 +1782,15 @@ def bay(axis, a, b, yf, stair=False):
         else:
             pipe((DK, "steel", 0), (x0 + 0.1, y - 0.14, v), (XW - 0.02, y - 1.3, v), 0.045, segs=4, col=STEEL_LT)
             pipe((DK, "steel", 1), (x1 - 0.9, y - 0.14, v), (XW - 0.02, y - 0.72, v), 0.03, segs=4, col=STEEL_LT)
-    # The gate: a yellow leaf in the walkway's rail, both faces.
+    # The gate: a leaf in the walkway's rail framed in yellow, both faces.
+    g0, g1 = y + 0.04, yf(mid) + RAIL_H - 0.04
+    for pa, plane, out in ((("z", ZS + 0.012, 1), ("z", z_rail - 0.012, -1)) if axis == "x" else (("x", XW - 0.012, -1), ("x", x_rail + 0.012, 1))):
+        for a0, a1, b0, b1 in ((mid - 0.5, mid + 0.5, g0, g0 + 0.07), (mid - 0.5, mid + 0.5, g1 - 0.07, g1), (mid - 0.5, mid + 0.5, (g0 + g1) / 2 - 0.03, (g0 + g1) / 2 + 0.03),
+                               (mid - 0.5, mid - 0.43, g0, g1), (mid + 0.43, mid + 0.5, g0, g1)):
+            vface((DK, "hazard", 1), pa, plane, a0, a1, b0, b1, out)
     if axis == "x":
-        vface((DK, "hazard", 1), "z", ZS + 0.012, mid - 0.5, mid + 0.5, y, yf(mid) + RAIL_H - 0.04, 1)
-        vface((DK, "hazard", 1), "z", z_rail - 0.012, mid - 0.5, mid + 0.5, y, yf(mid) + RAIL_H - 0.04, -1)
         pool(mid, y + 1.0, ZS + BAY / 2, "teal", 1.6)
     else:
-        vface((DK, "hazard", 1), "x", XW - 0.012, mid - 0.5, mid + 0.5, y, yf(mid) + RAIL_H - 0.04, -1)
-        vface((DK, "hazard", 1), "x", x_rail + 0.012, mid - 0.5, mid + 0.5, y, yf(mid) + RAIL_H - 0.04, 1)
         pool(XW - BAY / 2, y + 1.0, mid, "teal", 1.6)
     return y
 
