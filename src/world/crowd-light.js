@@ -245,10 +245,12 @@ export function createStreetLight(scene, shared) {
     uniform.value.dispose();
     uniform.value = map;
   }
-  // In an idle moment, or after a fifth of a second without one: a page
+  // In an idle moment, or after a sixteenth of a second without one: a page
   // whose frames take longer than the screen's has no idle moments at all,
-  // and the people in it would wait for their light for ever.
-  const later = globalThis.requestIdleCallback ? (step) => globalThis.requestIdleCallback(step, { timeout: 200 }) : (step) => setTimeout(step, 16);
+  // and the people in it would wait for their light for ever (the bake is a
+  // tenth of a second of work, three milliseconds at a time: a couple of
+  // seconds on a page that never rests).
+  const later = globalThis.requestIdleCallback ? (step) => globalThis.requestIdleCallback(step, { timeout: 60 }) : (step) => setTimeout(step, 16);
   const run = (steps) => {
     const t0 = performance.now();
     let done = false;
