@@ -500,7 +500,7 @@ def empty(name, pos, yaw=0.0, props=None, size=1.0):
 # People who stand about (the walkers come from streets.life): a district
 # sets them down where its stalls, queues, benches, doorways and roof decks
 # are, and the site draws them (src/world/crowd.js, from anchor_people).
-POSES = ("idle", "talk", "lean", "sit", "phone", "squat", "vendor", "smoke")
+POSES = ("idle", "talk", "lean", "sit", "phone", "squat", "vendor", "smoke", "floor", "lie", "rail", "queue", "carry", "work")
 PEOPLE = []
 
 
