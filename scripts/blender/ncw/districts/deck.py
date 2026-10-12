@@ -94,7 +94,7 @@ def glowc(hex_color, k=1.0):
 
 # The soffit's lights (Fn9gKhU_2_Q@74).
 SOFFIT = {"green": glowc("39ff9a", 0.5), "amber": glowc("ff9a2a", 0.6)}
-MARKER = glowc("ffd8a0", 0.9)
+MARKER = glowc("ffb254", 0.5)     # under white: a marker is an amber point, not a blob
 KERB_GLOW = glowc("ffa020", 0.55)
 AVENUE_CLEAR = 15.0   # no new light on the ground this near the avenue's line: the hero's road stays as it was
 
@@ -201,12 +201,22 @@ MOUTH_X = 108.0        # the x 120 road's west lot line: the deck's mouth
 CROSS_Y = 0.17         # the table across the x 120 road's pavement
 KERB_X = 112.0         # the x 120 road's kerb face
 EMB_Z = -150.0         # the ramp is an embankment north of here, a girder south
+BENTS_X_J = (-60.0, -38.0, -HERO, HERO, 38.0, 56.0, ABUT_X)     # where the deck's girders meet over a bent
 X_BREAKS = (-HERO, HERO, plan.DECK_TOP_X1, ABUT_X, MOUTH_X, MOUTH_X + 0.6)
 Z_BREAKS = (EMB_Z, ZN)
 
 
 CONC = (0.36, 0.36, 0.37, 1.0)        # the girder's, the walls' and the soffit's concrete
 PARAPET_C = (0.43, 0.42, 0.41, 1.0)   # the parapets', paler: newer pours
+PIER_C = (0.40, 0.39, 0.38, 1.0)      # the piers', buttresses' and cap beams' concrete
+CAP_C = (0.36, 0.36, 0.37, 1.0)
+STAIN_C = (0.15, 0.14, 0.125, 1.0)    # where water has run down it for years
+SOFFIT_C = (0.13, 0.13, 0.14, 1.0)    # the underside: dark, sooted concrete
+STEEL_LT = (0.3, 0.32, 0.34, 1.0)       # galvanised sections
+STEEL_SHEET = (0.07, 0.08, 0.09, 1.0)   # a board's back sheet
+RAIL_C = (0.2, 0.215, 0.23, 1.0)        # rails, gantries: grey paint over galvanising
+PIPE_C = (0.09, 0.11, 0.12, 1.0)        # drains and conduit: dark painted steel
+GAS_C = (0.42, 0.15, 0.04, 1.0)         # a main painted orange
 
 
 def _cast(mat, col):
@@ -244,6 +254,21 @@ def zs(mat, detail, za, zb, u0, u1, bot, top, sides="tbAB", caps="", scale=2.0, 
 
 def up(f, d):
     return lambda v: f(v) + d
+
+
+def abox(key, axis, v0, v1, u0, u1, y0, y1, scale=1.0, col=(1, 1, 1, 1), bottom=True):
+    """A box given along a run: v along it, u across it (see _w)."""
+    v0, v1 = sorted((v0, v1))
+    u0, u1 = sorted((u0, u1))
+    if axis == "x":
+        box(key, v0, v1, y0, y1, u0, u1, scale=scale, col=col, bottom=bottom)
+    else:
+        box(key, u0, u1, y0, y1, v0, v1, scale=scale, col=col, bottom=bottom)
+
+
+def outv(axis, d):
+    """The way a face of a run looks: d (+1 or -1) across it."""
+    return (0, 0, d) if axis == "x" else (d, 0, 0)
 
 
 def road_top(x):
@@ -299,15 +324,28 @@ zs("concrete", 0, EMB_Z, ZN, XE - 0.15, XE, under(RY), RY, sides="B", scale=3.0)
 zs("concrete", 0, WALL_Z, EMB_Z, XW + 0.15, XE - 0.15, 0.0, under(RY), sides="AB", scale=3.0)
 face((DK, "castconcrete", 0), [(XW + 0.15, 0.0, EMB_Z), (XE - 0.15, 0.0, EMB_Z), (XE - 0.15, RY(EMB_Z) - DEPTH, EMB_Z), (XW + 0.15, RY(EMB_Z) - DEPTH, EMB_Z)], (0, 0, 1), 3.0, CONC)
 zs("concrete", 0, EMB_Z, ZN, XW, XE, under(RY), RY, sides="b", scale=3.0)
-# Pilasters down the retaining walls, flush with the fascia over them
-# (JtqIas3bYhg@64's ribbed wall).
-z = WALL_Z + 6.0
-while z < EMB_Z + 0.1:
-    top = RY(z - 0.3) - DEPTH
-    if top > 0.5:
-        box((DK, "castconcrete", 0), XW, XW + 0.15, 0.0, top, z - 0.3, z + 0.3, scale=1.5, col=PARAPET_C)
-        box((DK, "castconcrete", 0), XE - 0.15, XE, 0.0, top, z - 0.3, z + 0.3, scale=1.5, col=PARAPET_C)
-    z += 5.0
+# The walls' base course from the ramp's nose to the abutment: a plinth that
+# stands proud of everything over it; and buttresses up the retaining walls
+# every five metres (JtqIas3bYhg@64's ribbed wall), battered: out past the
+# plinth at their foot, back flush with the fascia where they meet it.
+PLINTH_H, PLINTH_D = 0.45, 0.15
+BUTTRESS = tuple(-185.0 + 5.0 * k for k in range(8))     # -185 .. -150
+for plane, d in ((XW, -1), (XE, 1)):
+    zs("concrete", 0, FOOT, EMB_Z, *sorted((plane, plane + d * PLINTH_D)), 0.0, PLINTH_H, sides="t" + ("B" if d > 0 else "A"), caps="01", scale=2.0, col=PARAPET_C)
+    for z in BUTTRESS:
+        top = RY(z) - DEPTH
+        if top < 0.9:
+            continue
+        out = min(0.34, 0.1 + 0.1 * top)
+        hw = 0.36
+        f0, f1 = plane + d * out, plane + d * 0.01
+        face((DK, "castconcrete", 0), [(f0, PLINTH_H, z - hw), (f0, PLINTH_H, z + hw), (f1, top, z + hw), (f1, top, z - hw)], (d, 0.2, 0), 2.0, PIER_C)
+        face((DK, "castconcrete", 0), [(f0, 0.0, z - hw), (f0, 0.0, z + hw), (f0, PLINTH_H, z + hw), (f0, PLINTH_H, z - hw)], (d, 0, 0), 2.0, PIER_C)
+        for sz in (-1, 1):
+            face((DK, "castconcrete", 0), [(plane - d * 0.15, 0.0, z + sz * hw), (f0, 0.0, z + sz * hw), (f0, PLINTH_H, z + sz * hw), (f1, top, z + sz * hw), (plane - d * 0.15, top, z + sz * hw)],
+                 (0, 0, sz), 2.0, PIER_C)
+        # Its foot painted, as the piers' are.
+        face((DK, "hazard", 1), [(f0 + d * 0.006, 0.02, z - hw), (f0 + d * 0.006, 0.02, z + hw), (f0 + d * 0.006, 0.3, z + hw), (f0 + d * 0.006, 0.3, z - hw)], (d, 0, 0), 1.0)
 
 # ---------------------------------------------------------------------------
 # THE ROAD. Asphalt from the parapet to the barrier, exactly the graph's
@@ -384,9 +422,45 @@ zs("sidewalk", 0, FOOT, z_rail, x_rail, x_bar, RY, lambda z: max(RY(z) + WALK_UP
 xs("sidewalk", 0, x_bar, KERB_X, z_bar, z_rail, DY, lambda x: max(DY(x) + WALK_UP, CROSS_Y + 0.004), sides="t", scale=2.0)
 xs("sidewalk", 0, MOUTH_X, KERB_X, z_rail, ZS, 0.0, CROSS_Y + 0.004, sides="t", scale=2.0)
 
-# The rail: on the hero's span it is the old overpass's.
-xs("metal", 0, x_rail, MOUTH_X, z_rail, ZS, DY, up(DY, RAIL_H), sides="tAB", caps="1", scale=0.8, hero=True)
-zs("metal", 0, FOOT, ZS, XW, x_rail, RY, up(RY, RAIL_H), sides="tAB", caps="01", scale=0.8)
+# The rail. Over the avenue it is the old overpass's, the hero's: a dark
+# steel panel. Everywhere else the walkway's edge is what a street beside it
+# and a walker on it can read: a concrete upstand, and on it a steel rail on
+# posts, open between them, with a metre left out at each lookout's gate.
+UPS_H, UPS_T = 0.5, 0.16
+GATE = 0.55                                  # half a gate's opening
+GATES_X = (plan.DECK_X0, -47.0)              # the lookouts off the deck's south edge
+GATES_Z = (-134.0, -117.5, -100.5)           # and off the ramp's west edge
+
+
+def runs(a, b, gaps):
+    """a..b in lengths, a gate's opening left out at each of `gaps`."""
+    out, v = [], a
+    for g in sorted(gaps):
+        if a < g - GATE and g + GATE < b:
+            out.append((v, g - GATE))
+            v = g + GATE
+    out.append((v, b))
+    return out
+
+
+def rail(axis, a, b, plane, d, yf, gaps=()):
+    sw = xs if axis == "x" else zs
+    for va, vb in runs(a, b, gaps):
+        sw("concrete", 0, va, vb, *sorted((plane, plane - d * UPS_T)), yf, up(yf, UPS_H), sides="tAB", caps="01", scale=2.0, col=PARAPET_C)
+        sw("steel", 0, va, vb, *sorted((plane - d * 0.075, plane - d * 0.005)), up(yf, RAIL_H - 0.07), up(yf, RAIL_H), sides="tbAB", caps="01", scale=1.0, col=RAIL_C)
+        sw("steel", 1, va, vb, *sorted((plane - d * 0.058, plane - d * 0.022)), up(yf, 0.76), up(yf, 0.8), sides="tbAB", scale=1.0, col=RAIL_C)
+        n = max(1, round((vb - va) / 2.0))
+        for k in range(n + 1):
+            v = min(max(va + (vb - va) * k / n, va + 0.035), vb - 0.035)
+            abox((DK, "steel", 0), axis, v - 0.035, v + 0.035, plane - d * 0.075, plane - d * 0.005, yf(v) + UPS_H, yf(v) + RAIL_H - 0.07, col=RAIL_C, bottom=False)
+
+
+xs("metal", 0, -HERO, HERO, z_rail, ZS, DY, up(DY, RAIL_H), sides="tAB", scale=0.8, hero=True)
+rail("x", XW, -HERO, ZS, 1, DY, GATES_X)
+rail("x", HERO, MOUTH_X, ZS, 1, DY)
+rail("z", FOOT, ZS, XW, -1, RY, GATES_Z)
+for s in (-1, 1):       # the panel's ends, where the open rail takes over (behind the rows: the hero sees neither)
+    box((DK, "steel", 0), s * HERO - 0.07, s * HERO + 0.07, Y, Y + RAIL_H + 0.12, z_rail - 0.04, ZS, scale=0.5, col=RAIL_C)
 
 # ---------------------------------------------------------------------------
 # WHAT THE HERO SEES of it (with the span's face, underside and rail above):
@@ -400,49 +474,107 @@ sign("sora", -6.0, 9.2, ZS + 0.27, 6.4, 1.3, 0.0, preview="空き未来へ")
 box((AV, "board_frame", 0), -9.4, -2.6, 8.4, 10.0, ZS + 0.02, ZS + 0.22, scale=1.0)
 
 # ---------------------------------------------------------------------------
-# THE LIT BAND along the fascia (Fn9gKhU_2_Q@81): panels in yellow, orange
-# and red, a dark one now and then, and the yellow stripe along the girder's
-# foot (Fn9gKhU_2_Q@74). Not on the face the hero sees.
+# THE EDGE, as a street beside it reads it (Zq4zTcIM0yQ@107, BnnbP7pCIvQ@33,
+# XMaaEjT0LhU@86): the slab's edge a lip that stands proud under the
+# parapet, a corbel under it every two and a half metres, the parapet's
+# precast lengths jointed over each, ONE warning strip along the fascia (a
+# conduit and a small amber lamp in every bay, a few dead), a scupper every
+# ten metres with what has run out of it down the concrete, and the yellow
+# stripe along the girder's foot (Fn9gKhU_2_Q@74). Not on the face the hero
+# sees.
 # ---------------------------------------------------------------------------
 band_rng = random.Random(8500)
 chip_rng = random.Random(8620)
-# The band's tiles (XMaaEjT0LhU@86): yellows and oranges, a red now and then.
-TILE_HUES = ("ffd21a", "ffd21a", "ffc21a", "ffb030", "ff9a22", "ff8a1c", "ff8a1c", "ff7410", "ff5a10", "ff3a1a")
-BACKING = (0.03, 0.03, 0.034, 1.0)
+LIP, LIP_D = 0.12, 0.24          # the slab edge: how far proud, how deep
+BAY_L = 2.5                      # a parapet's length, a corbel to a corbel
+LAMP_ON = glowc("ff9a2a", 0.5)   # held under white: a lamp is an orange lens, not a blob
+LAMP_DEAD = (0.05, 0.022, 0.006, 1.0)
+REFLECT = glowc("ff3a1a", 0.16)
+HOUSING = (0.035, 0.037, 0.042, 1.0)
 
 
-def band(axis, a, b, plane, out, yf, lo=0.5, hi=1.0, rows=2):
-    """The lit band along a fascia from a to b, standing off `plane` toward
-    `out`, between lo and hi under yf's line: blocks 2.6 m long on a dark
-    backing, each a grid of small tiles that leans to one hue, every tile
-    its own shade and brightness, a few dead; a whole block out now and
-    then."""
-    n = max(1, round((b - a) / 2.6))
+def stain(axis, v, plane, d, y0, y1, w=0.34):
+    """What has run down a face from y1 to y0: three streaks, each its own
+    length, a hair proud of the concrete and darker than it."""
+    o = plane + d * 0.006
+    for k in range(3):
+        c = v + (k - 1) * w * 0.3 + band_rng.uniform(-0.04, 0.04)
+        hw = w * band_rng.uniform(0.12, 0.26)
+        yb = y1 - (y1 - y0) * band_rng.uniform(0.45, 1.0)
+        if y1 - yb < 0.15:
+            continue
+        face((DK, "castconcrete", 1), [_w(axis, c - hw * 0.35, o, yb), _w(axis, c + hw * 0.35, o, yb), _w(axis, c + hw, o, y1), _w(axis, c - hw, o, y1)], outv(axis, d), 2.0, STAIN_C)
+
+
+def strip(axis, a, b, plane, d, yf, drop=0.8, step=BAY_L, phase=0.5):
+    """The warning strip along a face from a to b, `drop` under yf's line:
+    a conduit, and on it every `step` metres a lamp (a dark housing, an
+    amber lens), one in ten dead."""
+    sw = xs if axis == "x" else zs
+    a0 = b0 = None
+    v = a + step * phase
+    while v < b - 0.3:
+        y = yf(v) - drop
+        if y > 0.25:
+            a0 = v if a0 is None else a0
+            b0 = v
+            abox((DK, "steel", 1), axis, v - 0.2, v + 0.2, plane, plane + d * 0.07, y - 0.08, y + 0.08, col=HOUSING)
+            dead = band_rng.random() < 0.1
+            o = plane + d * 0.076
+            face((DK, "trim" if dead else "glow", 0), [_w(axis, v - 0.14, o, y - 0.045), _w(axis, v + 0.14, o, y - 0.045), _w(axis, v + 0.14, o, y + 0.045), _w(axis, v - 0.14, o, y + 0.045)],
+                 outv(axis, d), 1.0, LAMP_DEAD if dead else LAMP_ON)
+        v += step
+    if a0 is not None and b0 > a0:
+        sw("steel", 1, a0, b0, *sorted((plane, plane + d * 0.035)), up(yf, -drop + 0.1), up(yf, -drop + 0.135), sides="tb" + ("B" if d > 0 else "A"), scale=1.0, col=PIPE_C)
+
+
+def edge(axis, a, b, plane, d, yf, par_h, lit=True, lip=True):
+    """Dress a face of the deck or the ramp from a to b: `plane` its fascia,
+    d the way it looks across the run, yf the road's line, par_h what stands
+    on its edge (the parapet, or the walkway's upstand)."""
+    sw = xs if axis == "x" else zs
+    out = outv(axis, d)
+    if lip:
+        sw("concrete", 0, a, b, *sorted((plane, plane + d * LIP)), up(yf, -LIP_D), up(yf, 0.03), sides="tb" + ("B" if d > 0 else "A"), caps="01", scale=2.0, col=PARAPET_C)
+    n = max(1, round((b - a) / BAY_L))
     step = (b - a) / n
-    d = out[2] if axis == "x" else out[0]
-    for i in range(n):
-        p0, p1 = a + i * step + 0.07, a + (i + 1) * step - 0.07
-        if yf(p0) - hi < 0.02:
-            continue
-        face((DK, "trim", 0), [_w(axis, p0, plane + 0.02 * d, yf(p0) - hi), _w(axis, p1, plane + 0.02 * d, yf(p1) - hi),
-                               _w(axis, p1, plane + 0.02 * d, yf(p1) - lo), _w(axis, p0, plane + 0.02 * d, yf(p0) - lo)], out, 1.0, BACKING)
-        lean = band_rng.choice(TILE_HUES)
-        if band_rng.random() < 0.04:
-            continue
-        cols = max(3, round((p1 - p0) / 0.5))
-        tw = (p1 - p0 - 0.03) / cols
-        th = (hi - lo - 0.03) / rows
-        for c in range(cols):
-            q0 = p0 + 0.03 + c * tw
-            q1 = q0 + tw - 0.03
-            for r in range(rows):
-                if band_rng.random() < 0.07:
-                    continue
-                col = glowc(lean if band_rng.random() < 0.5 else band_rng.choice(TILE_HUES), band_rng.uniform(0.42, 0.85))
-                y0 = hi - 0.03 - r * th
-                y1 = y0 - th + 0.03
-                face((DK, "glow", 0), [_w(axis, q0, plane + 0.03 * d, yf(q0) - y0), _w(axis, q1, plane + 0.03 * d, yf(q1) - y0),
-                                       _w(axis, q1, plane + 0.03 * d, yf(q1) - y1), _w(axis, q0, plane + 0.03 * d, yf(q0) - y1)], out, 1.0, col)
+    for k in range(n + 1):
+        v = a + k * step
+        y = yf(v)
+        # The joint between two lengths of the parapet, and the corbel under it.
+        if 0 < k < n:
+            face((DK, "dark", 1), [_w(axis, v - 0.018, plane + d * 0.004, y + 0.03), _w(axis, v + 0.018, plane + d * 0.004, y + 0.03),
+                                   _w(axis, v + 0.018, plane + d * 0.004, y + par_h), _w(axis, v - 0.018, plane + d * 0.004, y + par_h)], out, 1.0)
+        if lip and y - LIP_D - 0.5 > 0.05:
+            t, f_ = y - LIP_D, y - LIP_D - 0.5
+            p0, p1 = plane + d * (LIP - 0.01), plane + d * 0.015
+            face((DK, "castconcrete", 0), [_w(axis, v - 0.16, p1, f_), _w(axis, v + 0.16, p1, f_), _w(axis, v + 0.16, p0, t), _w(axis, v - 0.16, p0, t)], (out[0], -0.3, out[2]), 2.0, PARAPET_C)
+            for sv in (-1, 1):
+                face((DK, "castconcrete", 1), [_w(axis, v + sv * 0.16, plane, f_), _w(axis, v + sv * 0.16, p1, f_), _w(axis, v + sv * 0.16, p0, t), _w(axis, v + sv * 0.16, plane, t)],
+                     (sv, 0, 0) if axis == "x" else (0, 0, sv), 2.0, PARAPET_C)
+        # A scupper through the fascia every fourth bay, and its stain.
+        if lip and k % 4 == 2 and y - DEPTH > 0.3:
+            vv = v + step / 2
+            ys = yf(vv) - LIP_D - 0.16
+            pipe((DK, "steel", 1), _w(axis, vv, plane - d * 0.02, ys), _w(axis, vv, plane + d * 0.2, ys - 0.05), 0.05, segs=5, col=PIPE_C)
+            stain(axis, vv, plane, d, max(0.05, yf(vv) - DEPTH - 1.6), ys - 0.04)
+    if lit:
+        strip(axis, a, b, plane, d, yf, step=step)
+
+
+def movement_joint(axis, v, plane, d, yf, par_h):
+    """A movement joint down a face at v: the gap from the girder's foot to
+    the parapet's top, a steel cover over it on the parapet, and what the
+    joint has let down the fascia."""
+    out = outv(axis, d)
+    y = yf(v)
+    lo = max(0.0, y - DEPTH)
+    for o, y0, y1 in ((0.004, lo, y - LIP_D), (LIP + 0.004, y - LIP_D, y + 0.03)):
+        if y1 - y0 > 0.02:
+            face((DK, "dark", 0), [_w(axis, v - 0.03, plane + d * o, y0), _w(axis, v + 0.03, plane + d * o, y0),
+                                   _w(axis, v + 0.03, plane + d * o, y1), _w(axis, v - 0.03, plane + d * o, y1)], out, 1.0)
+    abox((DK, "steel", 1), axis, v - 0.09, v + 0.09, plane, plane + d * 0.02, y + 0.03, y + par_h, col=STEEL_LT)
+    stain(axis, v + 0.12, plane, d, lo, y - LIP_D, w=0.5)
 
 
 def chipped(axis, a, b, plane, out, yf, lo, hi, detail=0):
@@ -469,19 +601,26 @@ def stripe(axis, a, b, plane, out, yf):
     chipped(axis, a, b, plane, out, lambda v: yf(v) - DEPTH, 0.0, 0.16)
 
 
-for a, b in ((XW, -HERO), (HERO, ABUT_X)):
-    band("x", a, b, ZS, (0, 0, 1), DY)
+STAIR_GAP = (-65.6, -44.4)      # the stair and its lookout hang off the south face here: no lip
+for a, b in ((XW, STAIR_GAP[0]), (STAIR_GAP[1], -HERO), (HERO, ABUT_X)):
+    edge("x", a, b, ZS, 1, DY, UPS_H)
     stripe("x", a, b, ZS, (0, 0, 1), DY)
-# The north face: the hero never sees it, so over the avenue the band is
-# three tiles deep.
-band("x", XE, -HERO, ZN, (0, 0, -1), DY)
-band("x", -HERO, HERO, ZN, (0, 0, -1), DY, lo=0.28, hi=1.06, rows=3)
-band("x", HERO, ABUT_X, ZN, (0, 0, -1), DY)
+edge("x", ABUT_X, MOUTH_X - 0.5, ZS, 1, DY, UPS_H, lit=False)
+# The north face: the hero never sees it, so it is dressed over the avenue too.
+edge("x", XE, ABUT_X, ZN, -1, DY, PAR_H)
+edge("x", ABUT_X, MOUTH_X - 0.5, ZN, -1, DY, PAR_H, lit=False)
 stripe("x", XE, ABUT_X, ZN, (0, 0, -1), DY)
-band("z", FOOT + 14.0, ZS, XW, (-1, 0, 0), RY)
+edge("z", FOOT, ZS, XW, -1, RY, UPS_H)
 stripe("z", WALL_Z, ZS, XW, (-1, 0, 0), RY)
-band("z", FOOT + 14.0, ZN, XE, (1, 0, 0), RY)
+edge("z", FOOT, ZN, XE, 1, RY, PAR_H)
 stripe("z", WALL_Z, ZN, XE, (1, 0, 0), RY)
+for x in BENTS_X_J:
+    movement_joint("x", x, ZN, -1, DY, PAR_H)
+    if abs(x) > HERO + 0.1 and not STAIR_GAP[0] < x < STAIR_GAP[1]:
+        movement_joint("x", x, ZS, 1, DY, UPS_H)
+for z in (-203.0, -186.0, -168.0, EMB_Z, -134.0, -117.0, -100.0):
+    movement_joint("z", z, XE, 1, RY, PAR_H)
+    movement_joint("z", z, XW, -1, RY, UPS_H)
 # The same paint along the road's own edges: under the parapet's cap and on
 # the barrier's upstand, facing the lanes.
 chipped("x", XE + 0.6, MOUTH_X - 1.0, z_par, (0, 0, 1), DY, 0.7, 0.86)
@@ -489,29 +628,74 @@ chipped("z", FOOT + 2.0, ZN - 0.6, x_par, (-1, 0, 0), RY, 0.7, 0.86)
 chipped("x", x_lane_w + 1.0, MOUTH_X - 1.0, z_lane_s, (0, 0, -1), DY, 0.2, 0.36, detail=1)
 chipped("z", FOOT + 2.0, z_lane_s - 1.0, x_lane_w, (1, 0, 0), RY, 0.2, 0.36, detail=1)
 
-# Marker lights along the parapet's cap and the rail's top
-# (BnnbP7pCIvQ@33): small, warm, every six metres.
+# Along the parapet (the inside of the turn): marker lights on its cap
+# (BnnbP7pCIvQ@33), small, amber, every six metres, and over the cap a crash
+# rail, a steel tube on short posts (not over the avenue: nothing new stands
+# on the hero's span). Along the walkway's rail: a slim post every eight
+# metres or so with a lantern on a short arm in over the walkway
+# (JtqIas3bYhg@64), an amber lens under a hood, and its pool.
 x = XE + 2.0
 while x < MOUTH_X - 2.0:
     if not -HERO < x < HERO:
         box((DK, "glow", 1), x - 0.09, x + 0.09, DY(x) + PAR_H + 0.07, DY(x) + PAR_H + 0.16, ZN + 0.12, ZN + 0.28, scale=0.5, col=MARKER)
-        box((DK, "glow", 1), x - 0.09, x + 0.09, DY(x) + RAIL_H, DY(x) + RAIL_H + 0.08, ZS - 0.08, ZS, scale=0.5, col=MARKER)
     x += 6.0
 z = FOOT + 2.0
 while z < ZN - 1.0:
     box((DK, "glow", 1), XE - 0.28, XE - 0.12, RY(z) + PAR_H + 0.07, RY(z) + PAR_H + 0.16, z - 0.09, z + 0.09, scale=0.5, col=MARKER)
-    box((DK, "glow", 1), XW, XW + 0.08, RY(z) + RAIL_H, RY(z) + RAIL_H + 0.08, z - 0.09, z + 0.09, scale=0.5, col=MARKER)
     z += 6.0
+
+
+def crash_rail(axis, a, b, plane, d, yf):
+    sw = xs if axis == "x" else zs
+    u0, u1 = sorted((plane - d * 0.03, plane - d * 0.11))
+    sw("steel", 0, a, b, u0, u1, up(yf, PAR_H + 0.3), up(yf, PAR_H + 0.38), sides="tbAB", caps="01", scale=1.0, col=RAIL_C)
+    n = max(1, round((b - a) / BAY_L))
+    for k in range(n + 1):
+        v = min(max(a + (b - a) * k / n, a + 0.04), b - 0.04)
+        abox((DK, "steel", 1 if k % 2 else 0), axis, v - 0.035, v + 0.035, u0 + 0.01, u1 - 0.01, yf(v) + PAR_H + 0.07, yf(v) + PAR_H + 0.3, col=RAIL_C, bottom=False)
+        # A reflector on the parapet's outer face under every other post.
+        if k % 2 == 0 and yf(v) < 5.0:
+            face((DK, "glow", 1), [_w(axis, v - 0.05, plane + d * 0.006, yf(v) + 0.55), _w(axis, v + 0.05, plane + d * 0.006, yf(v) + 0.55),
+                                   _w(axis, v + 0.05, plane + d * 0.006, yf(v) + 0.67), _w(axis, v - 0.05, plane + d * 0.006, yf(v) + 0.67)], outv(axis, d), 1.0, REFLECT)
+
+
+crash_rail("z", FOOT, ZN, XE, 1, RY)
+crash_rail("x", XE, -HERO, ZN, -1, DY)
+crash_rail("x", HERO, MOUTH_X, ZN, -1, DY)
+
+POST_LENS = glowc("ff9a2a", 0.42)
+
+
+@P.proto("deck_post", box=(0.08, 1.0, 0.08), reach=320)
+def _deck_post(k):
+    """A walkway lamp: a slim post on the rail's upstand, a short arm in over
+    the walkway (toward +z), a lantern hung from it: a hood, an amber lens,
+    four guard bars."""
+    steel, cast = (0.05, 0.054, 0.064, 1), (0.02, 0.021, 0.026, 1)
+    t = k("trim")
+    P.lathe(t, 0.0, 0.0, ((0.0, 0.05), (0.12, 0.05), (0.16, 0.036), (1.8, 0.03)), segs=5, col=steel, cap=False)
+    P.tube(t, ((0.0, 1.76, 0.0), (0.0, 1.95, 0.1), (0.0, 2.0, 0.3)), (0.03, 0.028, 0.025), segs=4, col=steel)
+    box(t, -0.12, 0.12, 1.9, 1.96, 0.15, 0.45, scale=0.5, col=cast, bottom=True)
+    box(k("glow"), -0.075, 0.075, 1.74, 1.9, 0.22, 0.38, scale=0.5, col=POST_LENS, bottom=True)
+    box(t, -0.09, 0.09, 1.71, 1.74, 0.205, 0.395, scale=0.5, col=cast, bottom=True)
+    for x, z in ((-0.085, 0.21), (0.085, 0.21), (-0.085, 0.39), (0.085, 0.39)):
+        box(k("trim", 1), x - 0.008, x + 0.008, 1.74, 1.9, z - 0.008, z + 0.008, scale=0.5, col=cast)
+
+
+POSTS_X = (-72.0, -64.0, -52.0, -42.0, -37.5, -29.0, -21.5, 21.5, 26.5, 34.0, 41.0, 48.0, 55.0, 62.0, 73.5, 85.0, 97.0)
+POSTS_Z = (-212.0, -204.0, -196.0, -188.0, -180.0, -172.0, -164.0, -156.0, -148.0, -137.5, -130.5, -121.5, -114.0, -104.5, -96.5, -87.5)
+for x in POSTS_X:
+    P.place("deck_post", x, DY(x) + UPS_H, ZS - 0.08, math.pi, district=DK)
+    pool(x, DY(x) + 2.2, ZS - 0.7, "amber", 1.5)
+for z in POSTS_Z:
+    P.place("deck_post", XW + 0.08, RY(z) + UPS_H, z, math.pi / 2, district=DK)
+    pool(XW + 0.7, RY(z) + 2.2, z, "amber", 1.5)
 
 # ---------------------------------------------------------------------------
 # COLUMNS. Bents of two columns under a cap beam, on thick footings banded
 # yellow and black, in the gaps between the lots: none in a street, a lane or
 # on a pavement. The turn's plate stands on one pier in the street's middle.
 # ---------------------------------------------------------------------------
-PIER_C = (0.40, 0.39, 0.38, 1.0)      # the piers' and cap beams' concrete (castconcrete takes its colour here)
-CAP_C = (0.36, 0.36, 0.37, 1.0)
-PIPE_C = (0.09, 0.11, 0.12, 1.0)      # drains and conduit: dark painted steel
-GAS_C = (0.42, 0.15, 0.04, 1.0)       # a main painted orange
 
 
 def column(cx, cz, top, r=0.55, foot=0.95):
@@ -687,89 +871,213 @@ def lamp(x, y, z, yaw):
 # boards on its edge.
 for x in (-69.0, -44.5, -21.0, 22.0, 42.5, 54.5, 66.5, 91.5):
     lamp(x, DY(x) + PAR_H, ZN + 0.2, 0.0)
-for z in (-194.0, -178.0, -162.0, -146.0, -130.0, -114.0, -98.0):
+for z in (-205.0, -194.0, -178.0, -162.0, -146.0, -130.0, -114.0, -98.0):
     lamp(XE - 0.2, RY(z) + PAR_H, z, -math.pi / 2)
 
 # ---------------------------------------------------------------------------
-# THE RAMP'S FOOT. The parapet, the barrier and the rail start at grade
-# behind striped end blocks with a beacon each; a gantry over the two lanes
-# with boards facing the street and lane lights under its beam.
+# THE RAMP'S FOOT. The parapet, the barrier and the rail's upstand start at
+# grade behind banded crash blocks with a beacon each (the walkway's way in
+# is left open between two of them, a tactile strip across it); the plinth
+# either side is taped in narrow yellow and black for its first lengths and
+# carries a red reflector every bay after that; a gantry stands over the two
+# lanes.
 # ---------------------------------------------------------------------------
+BEACON = glowc("ff9a2a", 0.4)     # under white, as every lamp a walker passes close to
+
+
 def end_block(x0, x1, z0, z1, h=1.25):
-    """A crash block: hazard yellow banded black, an amber beacon on top."""
+    """A crash block: hazard yellow in narrow black bands, a beacon on top."""
     box((DK, "hazard", 0), x0, x1, 0.0, h, z0, z1, scale=1.0)
-    for y in (0.25, 0.75):
-        box((DK, "dark", 1), x0 - 0.01, x1 + 0.01, y, y + 0.25, z0 - 0.01, z1 + 0.01, scale=1.0)
+    y = 0.14
+    while y < h - 0.16:
+        box((DK, "dark", 1), x0 - 0.008, x1 + 0.008, y, y + 0.1, z0 - 0.008, z1 + 0.008, scale=1.0)
+        y += 0.24
     cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
-    box((DK, "glow", 0), cx - 0.1, cx + 0.1, h, h + 0.2, cz - 0.1, cz + 0.1, scale=0.5, col=glowc("ffb254", 1.0))
+    box((DK, "dark", 1), cx - 0.09, cx + 0.09, h, h + 0.05, cz - 0.09, cz + 0.09, scale=0.5)
+    box((DK, "glow", 0), cx - 0.07, cx + 0.07, h + 0.05, h + 0.2, cz - 0.07, cz + 0.07, scale=0.5, col=BEACON)
 
 
-end_block(x_par - 0.1, XE, FOOT - 0.9, FOOT)
-end_block(XW, x_lane_w + 0.1, FOOT - 0.9, FOOT)
+end_block(x_par - 0.1, XE + PLINTH_D, FOOT - 0.9, FOOT)
+end_block(x_bar - 0.1, x_lane_w + 0.1, FOOT - 0.9, FOOT, h=0.9)
+end_block(XW - PLINTH_D, XW + UPS_T + 0.05, FOOT - 0.9, FOOT, h=0.9)
+# The way onto the walkway: a tactile strip (the site studs yellow paint on a
+# pavement), and a yellow line down the walkway's first metres.
+face((DK, "trim", 0), [(XW + UPS_T + 0.06, 0.168, FOOT + 0.2), (x_bar - 0.06, 0.168, FOOT + 0.2), (x_bar - 0.06, 0.168, FOOT + 0.8), (XW + UPS_T + 0.06, 0.168, FOOT + 0.8)], (0, 1, 0), 1.0, KERB_YELLOW)
+zs("paint", 1, FOOT + 1.0, FOOT + 16.0, x_bar - 0.16, x_bar - 0.08, 0.0, lambda z: max(RY(z) + WALK_UP, 0.162) + 0.006, sides="t", scale=1.0, col=YELLOW)
+TAPE = 14.0
+for plane, d in ((XW, -1), (XE, 1)):
+    o = plane + d * (PLINTH_D + 0.005)
+    face((DK, "dark", 0), [(o, 0.03, FOOT), (o, 0.03, FOOT + TAPE), (o, PLINTH_H - 0.03, FOOT + TAPE), (o, PLINTH_H - 0.03, FOOT)], (d, 0, 0), 1.0)
+    z = FOOT + 0.05
+    while z < FOOT + TAPE - 0.6:
+        face((DK, "hazard", 0), [(o + d * 0.004, 0.03, z), (o + d * 0.004, 0.03, z + 0.17), (o + d * 0.004, PLINTH_H - 0.03, z + 0.56), (o + d * 0.004, PLINTH_H - 0.03, z + 0.39)], (d, 0, 0), 1.0)
+        z += 0.36
+    z = FOOT + TAPE + 1.25
+    while z < EMB_Z - 0.5:
+        if all(abs(z - zb) > 0.6 for zb in BUTTRESS[4:]):
+            face((DK, "glow", 1), [(o, 0.24, z - 0.06), (o, 0.24, z + 0.06), (o, 0.34, z + 0.06), (o, 0.34, z - 0.06)], (d, 0, 0), 1.0, REFLECT)
+        z += BAY_L
 
 
-def gantry(axis, v, u0, u1, base, facing, seed, sizes=("pm", "pm")):
-    """A gantry across the road at station v (x for the deck, z for the
-    ramp), its posts at u0 and u1: a truss beam six metres over the road,
-    boards on it with a sign on both faces (the first toward `facing`, +1
-    or -1 along the run), lane lights under it."""
-    r = random.Random(seed)
-    y0, y1 = base + 6.0, base + 6.45
-    for u, hw in ((u0, 0.08 if axis == "z" else 0.14), (u1, 0.08 if axis == "x" else 0.14)):
-        # The post on the walkway's side is slim and against the rail.
-        a = _w(axis, v - 0.14, u - hw, base)
-        b = _w(axis, v + 0.14, u + hw, y1)
-        box((DK, "metal", 0), min(a[0], b[0]), max(a[0], b[0]), base, y1, min(a[2], b[2]), max(a[2], b[2]), scale=1.0)
-    a = _w(axis, v - 0.14, u0, y0)
-    b = _w(axis, v + 0.14, u1, y1)
-    box((DK, "metal", 0), min(a[0], b[0]), max(a[0], b[0]), y0, y1, min(a[2], b[2]), max(a[2], b[2]), scale=1.0, bottom=True)
-    span = u1 - u0
-    yaw_f = (math.pi / 2 if facing > 0 else -math.pi / 2) if axis == "x" else (0.0 if facing > 0 else math.pi)
-    for k, size in enumerate(sizes):
-        w, h = ST_SIZES[size]
-        u = u0 + span * (k + 0.5) / len(sizes) + r.uniform(-0.3, 0.3)
-        cy = y1 + h / 2 + 0.25
-        cx, _, cz = _w(axis, v, u, 0.0)
-        oriented_box((DK, "board_frame", 0), cx, cy, cz, w + 0.16, h + 0.16, 0.2, yaw_f, scale=1.0)
-        fx, _, fz = _w(axis, v + facing * 0.115, u, 0.0)
-        sign(st_name(size), fx, cy, fz, w, h, yaw_f, district=DK, label=False)
-        fx, _, fz = _w(axis, v - facing * 0.115, u, 0.0)
-        sign(st_name(size), fx, cy, fz, w, h, yaw_f + math.pi, district=DK, label=False)
-        for du in (-w * 0.3, w * 0.3):
-            sx, _, sz = _w(axis, v, u + du, 0.0)
-            box((DK, "metal", 1), sx - 0.04, sx + 0.04, y1, y1 + 0.25, sz - 0.04, sz + 0.04, scale=0.5)
+# ---------------------------------------------------------------------------
+# ROAD SIGNS, drawn here (a gantry carries lane signals, arrows and a route
+# plate, never a shop's name): a plate is a lit field with a white keyline,
+# on it a route shield with its number, an arrow, a speed in a red ring.
+# Everything on one is `glow` or unlit, so one near the avenue is not a
+# source for the hero's road.
+# ---------------------------------------------------------------------------
+FIELD = (0.008, 0.03, 0.075, 1.0)       # a plate's blue, lit from inside, dim
+SIGN_WHITE = (0.34, 0.34, 0.32, 1.0)
+SHIELD = glowc("ffc21a", 0.42)
+SIG_GREEN = glowc("39ff9a", 0.5)
+SIG_RED = glowc("ff1a2a", 0.5)
+INK = (0.006, 0.006, 0.008, 1.0)
+SEG7 = {"0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abfgcd"}
+
+
+def yaw_of(axis, facing):
+    """The yaw of a face that looks `facing` (+1 or -1) along a run."""
+    return (math.pi / 2 if facing > 0 else -math.pi / 2) if axis == "x" else (0.0 if facing > 0 else math.pi)
+
+
+class Plate:
+    """A flat sign at (cx, cy, cz) facing yaw: shapes drawn on it in its own
+    metres, u to the reader's right and v up, each `lift` proud of it."""
+
+    def __init__(self, cx, cy, cz, yaw):
+        self.c = (cx, cy, cz)
+        self.n = (math.sin(yaw), 0.0, math.cos(yaw))
+        self.r = (math.cos(yaw), 0.0, -math.sin(yaw))
+        self.yaw = yaw
+
+    def p(self, u, v, o=0.0):
+        return (self.c[0] + self.r[0] * u + self.n[0] * o, self.c[1] + v, self.c[2] + self.r[2] * u + self.n[2] * o)
+
+    def poly(self, mat, pts, col=(1, 1, 1, 1), lift=0.0, detail=0):
+        face((DK, mat, detail), [self.p(u, v, lift) for u, v in pts], self.n, 1.0, col)
+
+    def rect(self, mat, u0, v0, u1, v1, col=(1, 1, 1, 1), lift=0.0, detail=0):
+        self.poly(mat, [(u0, v0), (u1, v0), (u1, v1), (u0, v1)], col, lift, detail)
+
+    def disc(self, mat, u, v, r, col, lift=0.0, segs=14):
+        self.poly(mat, [(u + r * math.cos(k * math.tau / segs), v + r * math.sin(k * math.tau / segs)) for k in range(segs)], col, lift)
+
+    def number(self, text, u, v, h, col, mat="trim", lift=0.02):
+        """Seven-segment figures, centred on (u, v), h high."""
+        w, t = h * 0.5, h * 0.13
+        u0 = u - (len(text) * w + (len(text) - 1) * w * 0.35) / 2
+        for ch in text:
+            b = v - h / 2
+            seg = {"a": (u0, b + h - t, u0 + w, b + h), "d": (u0, b, u0 + w, b + t), "g": (u0, b + h / 2 - t / 2, u0 + w, b + h / 2 + t / 2),
+                   "f": (u0, b + h / 2, u0 + t, b + h), "b": (u0 + w - t, b + h / 2, u0 + w, b + h), "e": (u0, b, u0 + t, b + h / 2), "c": (u0 + w - t, b, u0 + w, b + h / 2)}
+            for k in SEG7[ch]:
+                self.rect(mat, *seg[k], col, lift)
+            u0 += w * 1.35
+
+    def arrow(self, u, v, h, col, turn=0, mat="glow", lift=0.01):
+        """An arrow h high centred on (u, v): straight up, or (turn -1, +1)
+        up and round to the left or the right."""
+        t = h * 0.16
+        if not turn:
+            self.rect(mat, u - t / 2, v - h / 2, u + t / 2, v + h * 0.12, col, lift)
+            self.poly(mat, [(u - h * 0.3, v + h * 0.1), (u + h * 0.3, v + h * 0.1), (u, v + h / 2)], col, lift)
+        else:
+            s = turn
+            us = u - s * h * 0.2                # the shaft
+            self.rect(mat, us - t / 2, v - h / 2, us + t / 2, v + h * 0.3, col, lift)
+            self.rect(mat, min(us - s * t / 2, u + s * h * 0.12), v + h * 0.3 - t, max(us - s * t / 2, u + s * h * 0.12), v + h * 0.3, col, lift)
+            vm = v + h * 0.3 - t / 2
+            self.poly(mat, [(u + s * h * 0.1, vm - h * 0.26), (u + s * h * 0.1, vm + h * 0.26), (u + s * h * 0.46, vm)], col, lift)
+
+    def board(self, w, h, field=FIELD, depth=0.1, keyline=True):
+        """The plate itself: a steel tray, its lit field, a white keyline."""
+        oriented_box((DK, "board_frame", 0), *self.p(0, 0, -depth / 2 - 0.004), w + 0.1, h + 0.1, depth, self.yaw, scale=1.0)
+        self.rect("glow", -w / 2, -h / 2, w / 2, h / 2, field)
+        if keyline:
+            a, b, t = w / 2 - 0.07, h / 2 - 0.07, 0.035
+            for q in ((-a, b - t, a, b), (-a, -b, a, -b + t), (-a, -b, -a + t, b), (a - t, -b, a, b)):
+                self.rect("glow", *q, SIGN_WHITE, 0.008, 1)
+
+
+def route_plate(cx, cy, cz, yaw, number, turn=0, w=2.9, h=1.3):
+    """A route plate: the route's shield and number, the way it goes."""
+    pl = Plate(cx, cy, cz, yaw)
+    pl.board(w, h)
+    su = -w * 0.24
+    pl.poly("glow", [(su - 0.36, 0.4), (su + 0.36, 0.4), (su + 0.36, -0.08), (su, -0.44), (su - 0.36, -0.08)], SHIELD, 0.01)
+    pl.number(number, su, 0.1, 0.4, INK)
+    pl.arrow(w * 0.22, 0.0, 0.92, SIGN_WHITE, turn)
+
+
+def limit_plate(cx, cy, cz, yaw, number, r=0.52):
+    """A speed in a red ring on a dark square."""
+    pl = Plate(cx, cy, cz, yaw)
+    pl.board(2 * r + 0.16, 2 * r + 0.16, field=(0.004, 0.004, 0.005, 1.0), keyline=False)
+    pl.disc("glow", 0, 0, r, SIG_RED, 0.008)
+    pl.disc("glow", 0, 0, r * 0.74, SIGN_WHITE, 0.016)
+    pl.number(number, 0, 0, r * 0.7, INK, lift=0.024)
+
+
+def signal(cx, cy, cz, yaw, go):
+    """A lane signal 0.9 m square under a hood: a green arrow down over the
+    lane that is open, a red cross over the one that is not."""
+    pl = Plate(cx, cy, cz, yaw)
+    oriented_box((DK, "dark", 0), *pl.p(0, 0, -0.08), 0.92, 0.92, 0.16, yaw, scale=0.5)
+    oriented_box((DK, "dark", 1), *pl.p(0, 0.48, 0.1), 0.96, 0.04, 0.36, yaw, scale=0.5)
+    if go:
+        pl.rect("glow", -0.07, -0.05, 0.07, 0.34, SIG_GREEN, 0.006)
+        pl.poly("glow", [(-0.26, -0.02), (0.26, -0.02), (0.0, -0.34)], SIG_GREEN, 0.006)
+    else:
+        for s in (-1, 1):
+            pl.poly("glow", [(-0.3 * s - 0.06, -0.3), (-0.3 * s + 0.06, -0.3), (0.3 * s + 0.06, 0.3), (0.3 * s - 0.06, 0.3)], SIG_RED, 0.006)
+
+
+def gantry(axis, v, base, plates, limit="40"):
+    """A gantry across both lanes at station v (x along the deck, z along the
+    ramp): two legs, a trussed beam, and for each way of `plates`
+    ({facing: (route number, turn)}) on the face its drivers meet: a route
+    plate over their lane with a green arrow under it, a red cross over the
+    other lane and the limit beside it; a beacon on each leg."""
+    centre = plan.DECK_Z if axis == "x" else plan.DECK_X0
+    side = 1 if axis == "x" else -1
+    # Its legs: one in the parapet, a slim one in the rail's upstand, clear of the walkway.
+    legs = ((centre - side * 4.8, 0.14, PAR_H), (centre + side * 4.91, 0.085, UPS_H))
+    u0, u1 = sorted((legs[0][0], legs[1][0]))
+    y0, y1 = base + 5.7, base + 6.6
+    for u, hw, foot in legs:
+        abox((DK, "steel", 0), axis, v - 0.15, v + 0.15, u - hw, u + hw, base, y1 + 0.1, col=RAIL_C, bottom=False)
+        abox((DK, "steel", 1), axis, v - 0.21, v + 0.21, u - hw - 0.03, u + hw + 0.03, base + foot, base + foot + 0.3, col=RAIL_C, bottom=False)
+        abox((DK, "glow", 0), axis, v - 0.07, v + 0.07, u - 0.07, u + 0.07, y1 + 0.1, y1 + 0.24, col=BEACON, bottom=False)
+    for y in (y0, y1 - 0.12):
+        for dv in (-0.2, 0.2):
+            abox((DK, "steel", 0), axis, v + dv - 0.06, v + dv + 0.06, u0, u1, y, y + 0.12, col=RAIL_C)
+    n = 8
+    for k in range(n + 1):
+        u = u0 + (u1 - u0) * k / n
+        for dv in (-0.2, 0.2):
+            abox((DK, "steel", 1), axis, v + dv - 0.035, v + dv + 0.035, u - 0.035, u + 0.035, y0 + 0.12, y1 - 0.12, col=RAIL_C, bottom=False)
+            if k < n:
+                ya, yb = (y0 + 0.12, y1 - 0.12) if k % 2 == 0 else (y1 - 0.12, y0 + 0.12)
+                pipe((DK, "steel", 1), _w(axis, v + dv, u, ya), _w(axis, v + dv, u + (u1 - u0) / n, yb), 0.028, segs=4, col=RAIL_C)
+        abox((DK, "steel", 1), axis, v - 0.2, v + 0.2, u - 0.03, u + 0.03, y1 - 0.09, y1 - 0.03, col=RAIL_C)
+    for f, (number, turn) in plates.items():
+        yaw = yaw_of(axis, f)
+        own = centre - f * side * 1.75
+        other = centre + f * side * 1.75
+        route_plate(*_w(axis, v + f * 0.3, own, y1 + 0.35), yaw, number, turn)
+        limit_plate(*_w(axis, v + f * 0.3, other, y1 + 0.1), yaw, limit)
+        signal(*_w(axis, v + f * 0.36, own, y0 - 0.5), yaw, True)
+        signal(*_w(axis, v + f * 0.36, other, y0 - 0.5), yaw, False)
+        for u in (own, other):          # the hangers of the signals
+            abox((DK, "steel", 1), axis, v + f * 0.2 - 0.03, v + f * 0.2 + 0.03, u - 0.03, u + 0.03, y0 - 0.06, y0, col=RAIL_C)
     return y0
 
 
-# Lane lights: a green arrow over the lane that comes toward you, a red
-# cross over the other, on the face a driver meets.
-def lane_light(axis, v, u, y, facing, go):
-    yaw = (math.pi / 2 if facing > 0 else -math.pi / 2) if axis == "x" else (0.0 if facing > 0 else math.pi)
-    cx, _, cz = _w(axis, v + facing * 0.16, u, 0.0)
-    bx, _, bz = _w(axis, v + facing * 0.08, u, 0.0)
-    oriented_box((DK, "dark", 0), bx, y - 0.45, bz, 0.9, 0.9, 0.14, yaw, scale=0.5)
-    if go:
-        col = glowc("39ff9a", 0.9)
-        rotated_quad((DK, "glow", 0), cx, y - 0.38, cz, 0.14, 0.5, yaw, col=col)
-        rx, rz = math.cos(yaw), -math.sin(yaw)
-        for s in (-1, 1):
-            rotated_quad((DK, "glow", 0), cx + rx * s * 0.14, y - 0.62, cz + rz * s * 0.14, 0.2, 0.12, yaw, col=col)
-    else:
-        col = glowc("ff003c", 0.9)
-        rotated_quad((DK, "glow", 0), cx, y - 0.45, cz, 0.6, 0.12, yaw, col=col)
-        rotated_quad((DK, "glow", 0), cx, y - 0.45, cz, 0.12, 0.6, yaw, col=col)
-
-
-# Over the ramp's foot, facing north up the street (a driver coming to it).
-gz = FOOT + 9.0
-gy = gantry("z", gz, XW + 0.08, XE - 0.2, RY(gz), -1, 8511)
-lane_light("z", gz, plan.DECK_X0 - 1.75, gy, -1, True)
-lane_light("z", gz, plan.DECK_X0 + 1.75, gy, -1, False)
-# Over the deck's mouth, facing the x 120 road.
-gx = MOUTH_X - 5.0
-gy = gantry("x", gx, ZN + 0.2, ZS - 0.08, DY(gx), 1, 8512, sizes=("pm", "ps"))
-lane_light("x", gx, plan.DECK_Z - 1.75, gy, 1, True)
-lane_light("x", gx, plan.DECK_Z + 1.75, gy, 1, False)
+# Over the ramp's foot: a driver coming to it down the street reads its north
+# face, one leaving the ramp its south.
+gantry("z", FOOT + 9.0, RY(FOOT + 9.0), {-1: ("7", 0), 1: ("12", 0)})
+# Over the deck's mouth at the x 120 road.
+gantry("x", MOUTH_X - 5.0, DY(MOUTH_X - 5.0), {1: ("7", 0), -1: ("12", 1)})
 end_block(MOUTH_X - 0.5, MOUTH_X + 0.4, ZN, z_par + 0.1, h=1.1)
 end_block(MOUTH_X - 0.5, MOUTH_X + 0.4, z_lane_s - 0.1, z_bar + 0.1, h=1.1)
 
@@ -973,15 +1281,16 @@ while z < ZS - 1.0:
     P.place("bollard", IS1 - 0.35, B.G0, z + 3.0, district=DK)
     z += 6.0
 
-# Boards on the ramp's retaining walls, where they are tall enough to
-# carry one, and a small one on the abutment.
-for z in (-171.0, -160.0):
-    y = (RY(z) - DEPTH) / 2 + 0.1
+# Boards on the ramp's retaining walls where they are tall enough to carry
+# one, each in the middle of a bay between two buttresses and proud of the
+# wall on its frame.
+for z, size in ((-162.5, "ps"), (-157.5, "pm")):
+    w, h = ST_SIZES[size]
+    y = PLINTH_H + 0.35 + h / 2
     for xw, yaw in ((XW + 0.15, -math.pi / 2), (XE - 0.15, math.pi / 2)):
-        w, h = ST_SIZES["ps"] if RY(z) - DEPTH < 2.0 else ST_SIZES["pm"]
         out = -1 if yaw < 0 else 1
-        box((DK, "board_frame", 0), *sorted((xw, xw + out * 0.1)), y - h / 2 - 0.07, y + h / 2 + 0.07, z - w / 2 - 0.07, z + w / 2 + 0.07, scale=1.0)
-        sign(st_name("ps" if RY(z) - DEPTH < 2.0 else "pm"), xw + out * 0.115, y, z, w, h, yaw, district=DK, label=False)
+        box((DK, "board_frame", 0), *sorted((xw, xw + out * 0.14)), y - h / 2 - 0.07, y + h / 2 + 0.07, z - w / 2 - 0.07, z + w / 2 + 0.07, scale=1.0)
+        sign(st_name(size), xw + out * 0.155, y, z, w, h, yaw, district=DK, label=False)
 
 # ---------------------------------------------------------------------------
 # PEOPLE (the site draws them, kit.stand). Nobody is placed on the walkways:
@@ -1066,46 +1375,19 @@ for x in (-72.5, -68.0, -47.0, 48.0):
 # ---------------------------------------------------------------------------
 # OVER THE ROAD. Two more gantries on the level, either side of the avenue
 # and hidden from the hero by the rows (more than 20 m from its line, past
-# where the bake mirrors a sign into the hero's road): the street's signs
-# on both faces and lane lights for both ways; and a festoon of bulbs along
-# the walkway between posts on the rail, either side of the hero's span.
+# where the bake mirrors a sign into the hero's road): a route plate, the
+# limit and lane signals for both ways, their light on the road under them.
 # ---------------------------------------------------------------------------
-for gx, seed, hues in ((-33.0, 8603, ("cyan", "pink")), (30.0, 8604, ("yellow", "red"))):
+for gx, hues, plates in ((-33.0, ("cyan", "green"), {-1: ("7", 0), 1: ("12", -1)}), (30.0, ("green", "cyan"), {-1: ("7", 0), 1: ("12", 0)})):
     base = DY(gx)
-    gy = gantry("x", gx, ZN + 0.2, ZS - 0.08, base, 1, seed, sizes=("pm", "ps") if gx < 0 else ("ps", "pm"))
-    lane_light("x", gx, plan.DECK_Z + 1.75, gy, -1, True)
-    lane_light("x", gx, plan.DECK_Z - 1.75, gy, -1, False)
-    lane_light("x", gx, plan.DECK_Z - 1.75, gy, 1, True)
-    lane_light("x", gx, plan.DECK_Z + 1.75, gy, 1, False)
-    pool(gx - 2.0, base + 6.0, plan.DECK_Z, hues[0], 2.2, 2.0)
-    pool(gx + 2.0, base + 6.0, plan.DECK_Z, hues[1], 2.2, 2.0)
-
-# The festoon: bulbs on a sagging line between posts on the rail.
-BULB = glowc("ffc878", 0.9)
-for xa, xb in ((XE + 3.0, -HERO - 3.5), (HERO + 3.5, 97.0)):
-    n = max(1, round((xb - xa) / 11.0))
-    step = (xb - xa) / n
-    for k in range(n + 1):
-        px = xa + k * step
-        box((DK, "metal", 1), px - 0.035, px + 0.035, DY(px) + RAIL_H, DY(px) + 3.1, ZS - 0.075, ZS - 0.005, scale=0.5)
-    for k in range(n):
-        for j in range(1, 8):
-            t = j / 8
-            bx = xa + (k + t) * step
-            by = DY(xa + k * step) * (1 - t) + DY(xa + (k + 1) * step) * t + 3.0 - 0.55 * math.sin(math.pi * t)
-            cylinder((DK, "glow", 1), bx, ZS - 0.04, by - 0.07, by + 0.07, 0.06, segs=4, col=BULB, cap=False)
-        pool(xa + (k + 0.5) * step, DY(xa + (k + 0.5) * step) + 2.5, ZS - 0.6, "amber", 1.2)
+    gantry("x", gx, base, plates)
+    pool(gx - 2.0, base + 5.0, plan.DECK_Z, hues[0], 1.6, 2.0)
+    pool(gx + 2.0, base + 5.0, plan.DECK_Z, hues[1], 1.6, 2.0)
 
 # ---------------------------------------------------------------------------
-# LAST THINGS. The ramp's foot striped where the walls are too low for the
-# band; a door and its lamp in each retaining wall; steam from three grates
-# under the deck (the site draws it from anchor_steam_<n>).
+# LAST THINGS. A door and its lamp in each retaining wall; steam from three
+# grates under the deck (the site draws it from anchor_steam_<n>).
 # ---------------------------------------------------------------------------
-z = FOOT + 0.2
-while z < FOOT + 12.0:
-    face((DK, "hazard", 0), [(XE + 0.012, RY(z) + 0.1, z), (XE + 0.012, RY(z + 0.6) + 0.1, z + 0.6), (XE + 0.012, RY(z + 0.6) + 0.8, z + 0.6), (XE + 0.012, RY(z) + 0.8, z)], (1, 0, 0), 1.0)
-    face((DK, "hazard", 0), [(XW - 0.012, RY(z) + 0.1, z), (XW - 0.012, RY(z + 0.6) + 0.1, z + 0.6), (XW - 0.012, RY(z + 0.6) + 0.95, z + 0.6), (XW - 0.012, RY(z) + 0.95, z)], (-1, 0, 0), 1.0)
-    z += 1.2
 for xw, out, hue in ((XW + 0.15, -1, "amber"), (XE - 0.15, 1, "white")):
     zd = EMB_Z - 3.2
     face((DK, "door", 0), [(xw + out * 0.02, 0.0, zd - 0.5), (xw + out * 0.02, 0.0, zd + 0.5), (xw + out * 0.02, 2.1, zd + 0.5), (xw + out * 0.02, 2.1, zd - 0.5)], (out, 0, 0), 1.0)
@@ -1115,27 +1397,36 @@ for i, (x, z) in enumerate(((plan.DECK_X0 + 2.4, -104.5), (-35.5, plan.DECK_Z - 
     box((DK, "metal", 1), x - 0.45, x + 0.45, B.G0, B.G0 + 0.03, z - 0.45, z + 0.45, scale=0.5)
     empty(f"anchor_steam_deck_{i}", (x, B.G0 + 0.08, z))
 
-# Where the plaza street ends against the ramp (z -179): chevrons on the
-# parapet facing it, an amber beacon either end, so the street ends at
-# something. And boards standing on the ramp's edges over the service lanes,
-# facing the pavements: the street's signs and adverts with no words, turn
-# about (more than 60 m from the avenue: their light is the west street's).
-for k in range(4):
-    zc = -181.4 + k * 1.6
-    yb = RY(zc) + 0.12
-    face((DK, "hazard", 0), [(XE + 0.014, yb, zc - 0.7), (XE + 0.014, yb, zc + 0.7), (XE + 0.014, yb + 0.72, zc + 0.7), (XE + 0.014, yb + 0.72, zc - 0.7)], (1, 0, 0), 1.0)
-    d = 1 if k >= 2 else -1     # pointing away from the middle, either way round the ramp
-    for j in (0, 1):
-        z0 = zc - d * 0.45 + d * j * 0.5
-        face((DK, "dark", 0), [(XE + 0.02, yb + 0.06, z0), (XE + 0.02, yb + 0.06, z0 + d * 0.22), (XE + 0.02, yb + 0.36, z0 + d * 0.5), (XE + 0.02, yb + 0.66, z0 + d * 0.22),
-                               (XE + 0.02, yb + 0.66, z0), (XE + 0.02, yb + 0.36, z0 + d * 0.28)], (1, 0, 0), 1.0)
-for zc in (-182.6, -175.4):
-    box((DK, "glow", 0), XE - 0.3, XE - 0.1, RY(zc) + PAR_H + 0.07, RY(zc) + PAR_H + 0.27, zc - 0.1, zc + 0.1, scale=0.5, col=glowc("ffb254", 1.0))
-    pool(XE + 1.0, 2.0, zc, "amber", 2.0)
+# Where the plaza street ends against the ramp (z -179): a chevron board the
+# width of its carriageway, standing on two posts off the plinth with its
+# top over the parapet's, lit arrows on a dark field pointing both ways
+# round the ramp, a beacon on each post and a lamp on an arm over it, so the
+# street ends at a thing made for it. And boards standing on the ramp's
+# edges over the service lanes, facing the pavements: the street's signs and
+# adverts with no words, turn about (more than 60 m from the avenue: their
+# light is the west street's).
+CHEV = glowc("ffb254", 0.5)
+CB_Z, CB_W = -179.0, 6.4
+cb_y = RY(CB_Z) + 0.72
+cb = Plate(XE + PLINTH_D + 0.2, cb_y, CB_Z, math.pi / 2)
+oriented_box((DK, "board_frame", 0), XE + PLINTH_D + 0.15, cb_y, CB_Z, CB_W + 0.12, 0.92, 0.09, math.pi / 2, scale=1.0)
+cb.rect("trim", -CB_W / 2, -0.4, CB_W / 2, 0.4, INK, 0.0)
+for a, b_, t in ((-CB_W / 2, CB_W / 2, 0.37), (-CB_W / 2, CB_W / 2, -0.4)):
+    cb.rect("hazard", a, t, b_, t + 0.03, lift=0.004, detail=1)
+for k in range(8):
+    u = -CB_W / 2 + 0.4 + k * 0.8
+    s_ = -1 if k < 4 else 1         # the reader's left half points left (south, up the ramp's side), the right half right
+    for vb, vt in ((-0.3, 0.0), (0.3, 0.0)):
+        cb.poly("glow", [(u - s_ * 0.16, vb), (u - s_ * 0.16 + s_ * 0.2, vb), (u + s_ * 0.3, vt), (u + s_ * 0.1, vt)], CHEV, 0.006)
+for dz in (-CB_W / 2 + 0.3, CB_W / 2 - 0.3):
+    box((DK, "steel", 0), XE + PLINTH_D + 0.02, XE + PLINTH_D + 0.12, PLINTH_H, cb_y + 0.75, CB_Z + dz - 0.05, CB_Z + dz + 0.05, scale=0.5, col=RAIL_C)
+    box((DK, "glow", 0), XE + PLINTH_D + 0.01, XE + PLINTH_D + 0.13, cb_y + 0.75, cb_y + 0.88, CB_Z + dz - 0.06, CB_Z + dz + 0.06, scale=0.5, col=BEACON)
+    pool(XE + 1.0, 2.0, CB_Z + dz, "amber", 2.0)
+for dz in (-1.6, 1.6):
+    pipe((DK, "steel", 1), (XE + PLINTH_D + 0.1, cb_y + 0.46, CB_Z + dz), (XE + PLINTH_D + 0.6, cb_y + 0.8, CB_Z + dz), 0.022, segs=4, col=RAIL_C)
+    box((DK, "glow", 0), XE + PLINTH_D + 0.5, XE + PLINTH_D + 0.66, cb_y + 0.76, cb_y + 0.8, CB_Z + dz - 0.25, CB_Z + dz + 0.25, scale=0.5, col=glowc("ffd8a0", 0.5), bottom=True)
 
-STEEL_LT = (0.3, 0.32, 0.34, 1.0)       # galvanised sections
-STEEL_SHEET = (0.07, 0.08, 0.09, 1.0)   # a board's back sheet
-SERVICE = glowc("ffd8a0", 1.0)
+SERVICE = glowc("ffd8a0", 0.55)
 
 
 def board_back(cx, cy, cz, w, h, yaw, catwalk=True, hue="amber"):
@@ -1214,8 +1505,10 @@ EDGE_TEAL = glowc("2ee6c8", 0.5)
 # the deck is drawn by its two edges; from below neither shows.
 xs("glow", 0, x_par, MOUTH_X, ZN + 0.15, ZN + 0.25, 0.0, up(DY, PAR_H + 0.082), sides="t", scale=1.0, col=EDGE_AMBER)
 zs("glow", 0, FOOT, ZN, XE - 0.25, XE - 0.15, 0.0, up(RY, PAR_H + 0.082), sides="t", scale=1.0, col=EDGE_AMBER)
-xs("glow", 0, x_rail, MOUTH_X, ZS - 0.062, ZS - 0.018, 0.0, up(DY, RAIL_H + 0.012), sides="t", scale=1.0, col=EDGE_TEAL)
-zs("glow", 0, FOOT, ZS, XW + 0.018, XW + 0.062, 0.0, up(RY, RAIL_H + 0.012), sides="t", scale=1.0, col=EDGE_TEAL)
+for xa, xb in runs(x_rail, MOUTH_X, GATES_X):
+    xs("glow", 0, xa, xb, ZS - 0.062, ZS - 0.018, 0.0, up(DY, RAIL_H + 0.012), sides="t", scale=1.0, col=EDGE_TEAL)
+for za, zb in runs(FOOT, ZS, GATES_Z):
+    zs("glow", 0, za, zb, XW + 0.018, XW + 0.062, 0.0, up(RY, RAIL_H + 0.012), sides="t", scale=1.0, col=EDGE_TEAL)
 
 # Studs: amber between the centre lines every four metres, white along the
 # edge lines every eight.
@@ -1420,8 +1713,13 @@ for lane in (-1.75, 1.75):
         rotated_quad((DK, "glow", 0), AX + sx, ab + 5.45, zc, 0.3, 0.3, f * math.pi / 2, col=col)
 for f in (-1, 1):
     rotated_quad((DK, "glow", 0), AX + f * 0.412, ab + 6.2, plan.DECK_Z, 9.0, 0.08, f * math.pi / 2, col=SCAN)
-    w, h = ST_SIZES["ps"]
-    sign(st_name("ps"), AX + f * 0.415, ab + 5.72, plan.DECK_Z, w, h, f * math.pi / 2, district=DK, label=False)
+    # Its display: the limit in amber figures between two arrows down.
+    pl = Plate(AX + f * 0.412, ab + 5.72, plan.DECK_Z, f * math.pi / 2)
+    pl.rect("trim", -1.3, -0.3, 1.3, 0.3, INK, 0.004)
+    pl.number("40", 0.0, 0.0, 0.42, LAMP_ON, mat="glow", lift=0.012)
+    for su in (-0.95, 0.95):
+        pl.rect("glow", su - 0.05, 0.0, su + 0.05, 0.2, LAMP_ON, 0.012)
+        pl.poly("glow", [(su - 0.17, 0.02), (su + 0.17, 0.02), (su, -0.2)], LAMP_ON, 0.012)
 for k in range(5):
     xa = AX - 1.6 + k * 0.8
     face((DK, "paint", 0), [(xa, ab + PAINT, z_par + 0.3), (xa + 0.3, ab + PAINT, z_par + 0.3), (xa + 0.3, ab + PAINT, plan.DECK_Z - 0.3), (xa, ab + PAINT, plan.DECK_Z - 0.3)], (0, 1, 0), 1.0, WHITE)
@@ -1429,31 +1727,25 @@ for k in range(5):
 pool(AX, ab + 5.0, plan.DECK_Z - 1.75, "cyan", 3.0, 1.6)
 pool(AX, ab + 5.0, plan.DECK_Z + 1.75, "cyan", 3.0, 1.6)
 
-# Sign bridges: over the climb (the street's boards, lane lights both ways)
-# and over the descent, a billboard across both lanes facing the drivers
+# Sign bridges: over the climb (a gantry: route plates and lane signals both
+# ways) and over the descent, a billboard across both lanes facing the drivers
 # coming down, an advert on its back for those coming up (both more than
 # 60 m from the avenue).
 gz = -166.0
-gy = gantry("z", gz, XW + 0.08, XE - 0.2, RY(gz), -1, 8601, sizes=("pm", "pm"))
-lane_light("z", gz, plan.DECK_X0 - 1.75, gy, -1, True)
-lane_light("z", gz, plan.DECK_X0 + 1.75, gy, -1, False)
-lane_light("z", gz, plan.DECK_X0 + 1.75, gy, 1, True)
-lane_light("z", gz, plan.DECK_X0 - 1.75, gy, 1, False)
+gantry("z", gz, RY(gz), {-1: ("7", 1), 1: ("12", 0)})
 bx = 80.0
 bb = DY(bx)
 box((DK, "metal", 0), bx - 0.16, bx + 0.16, bb, bb + 6.3, ZN + 0.04, ZN + 0.36, scale=1.0)
 box((DK, "metal", 0), bx - 0.16, bx + 0.16, bb, bb + 6.3, ZS - 0.16, ZS, scale=1.0)
 box((DK, "metal", 0), bx - 0.16, bx + 0.16, bb + 5.9, bb + 6.3, ZN + 0.2, ZS - 0.08, scale=1.0, bottom=True)
 B.billboard(DK, bx - 0.22, bb + 6.3 + 1.75, plan.DECK_Z, 8.8, 3.1, -math.pi / 2, random.Random(8602), depth=0.4)
-lane_light("x", bx, plan.DECK_Z + 1.75, bb + 5.9, -1, True)
-lane_light("x", bx, plan.DECK_Z - 1.75, bb + 5.9, -1, False)
-lane_light("x", bx, plan.DECK_Z - 1.75, bb + 5.9, 1, True)
-lane_light("x", bx, plan.DECK_Z + 1.75, bb + 5.9, 1, False)
+for f in (-1, 1):
+    signal(bx + f * 0.24, bb + 5.4, plan.DECK_Z - f * 1.75, yaw_of("x", f), True)
+    signal(bx + f * 0.24, bb + 5.4, plan.DECK_Z + f * 1.75, yaw_of("x", f), False)
 
 # Chevrons round the outside of the turn, on posts over the barrier: lit
 # arrows on dark boards, pointing the way round, for a driver coming up the
 # ramp (they face north) and for one coming along the deck (they face east).
-CHEV = glowc("ffb254", 1.0)
 for k in range(4):
     c = -82.4 + k * 1.4
     # Facing north, on the south barrier, pointing east.
@@ -1535,19 +1827,24 @@ for x in (68.5, 91.0):
     B.billboard(DK, x, cy, z_rail - 0.01, 4.2, 1.7, math.pi, rail_rng, back=False, depth=0.24)
 
 # The ramp's retaining walls carry what a wall under a road carries: the
-# deck's drains down them between the pilasters, a main painted orange along
-# their foot, a conduit over it with junction boxes.
+# deck's drains down them beside the buttresses to a shoe on the plinth, a
+# main painted orange lying along the plinth, a conduit over it with junction
+# boxes, and under each drain's mouth what it has let down the wall.
 for xw, o in ((XW + 0.15, -1), (XE - 0.15, 1)):
-    for z in (-177.5, -172.5, -167.5, -162.5, -157.5, -152.5):
+    for zb in BUTTRESS:
+        z = zb + 0.6
         top = RY(z) - DEPTH
-        pipe((DK, "steel", 1), (xw + o * 0.08, 0.05, z), (xw + o * 0.08, top + 0.05, z), 0.06, segs=5, col=PIPE_C)
-        pipe((DK, "steel", 1), (xw + o * 0.08, 0.12, z), (xw + o * 0.42, 0.04, z), 0.06, segs=5, col=PIPE_C)
-    pipe((DK, "steel", 0), (xw + o * 0.11, 0.42, -176.0), (xw + o * 0.11, 0.42, EMB_Z - 0.2), 0.085, segs=6, col=GAS_C)
+        if top < 1.0:
+            continue
+        pipe((DK, "steel", 1), (xw + o * 0.08, PLINTH_H + 0.05, z), (xw + o * 0.08, top + 0.05, z), 0.06, segs=5, col=PIPE_C)
+        pipe((DK, "steel", 1), (xw + o * 0.08, PLINTH_H + 0.1, z), (xw + o * 0.34, PLINTH_H + 0.02, z), 0.06, segs=5, col=PIPE_C)
+        stain("z", z + 0.5, xw, o, PLINTH_H, top - 0.1, w=0.5)
+    pipe((DK, "steel", 0), (xw + o * 0.2, PLINTH_H + 0.09, -178.0), (xw + o * 0.2, PLINTH_H + 0.09, EMB_Z - 0.2), 0.08, segs=6, col=GAS_C)
     pipe((DK, "steel", 1), (xw + o * 0.05, 1.05, -169.0), (xw + o * 0.05, 1.05, EMB_Z - 0.2), 0.03, segs=4, col=PIPE_C)
-    for z in (-166.0, -158.5, -154.0):
+    for z in (-167.0, -159.2, -154.6):
         box((DK, "steel", 1), *sorted((xw, xw + o * 0.12)), 0.9, 1.25, z - 0.17, z + 0.17, scale=0.5, col=PIPE_C)
-    for z in (-174.0, -164.0, -155.0):      # the main's flanges
-        box((DK, "steel", 1), *sorted((xw, xw + o * 0.22)), 0.31, 0.53, z - 0.04, z + 0.04, scale=0.5, col=GAS_C)
+    for z in (-174.0, -167.5, -157.5):      # the main's flanges
+        box((DK, "steel", 1), *sorted((xw + o * 0.1, xw + o * 0.3)), PLINTH_H - 0.01, PLINTH_H + 0.19, z - 0.04, z + 0.04, scale=0.5, col=GAS_C)
 
 # THE GIRDER OVER THE AVENUE. The span the hero sees is held (its dark south
 # face, its flat underside, the teal strip, the white lights, the sora
@@ -1561,8 +1858,8 @@ for a, b in ((-44.0, -HERO - 0.76), (HERO + 0.76, 44.0)):
     low = lambda x: DY(x) - DEPTH - DROP    # noqa: E731
     xs("concrete", 0, a, b, ZS - 0.5, ZS, low, under(DY), sides="bAB", caps="01", scale=2.0)
     xs("concrete", 0, a, b, ZN, ZN + 0.5, low, under(DY), sides="bAB", caps="01", scale=2.0)
-    band("x", a + 0.2, b - 0.2, ZS - 0.5, (0, 0, -1), under(DY), lo=0.2, hi=0.8)
-    band("x", a + 0.2, b - 0.2, ZN + 0.5, (0, 0, 1), under(DY), lo=0.2, hi=0.8)
+    strip("x", a + 0.2, b - 0.2, ZS - 0.5, -1, under(DY), drop=0.5, step=2.0)
+    strip("x", a + 0.2, b - 0.2, ZN + 0.5, 1, under(DY), drop=0.5, step=2.0)
     chipped("x", a + 0.2, b - 0.2, ZS - 0.5, (0, 0, -1), low, 0.0, 0.14)
     chipped("x", a + 0.2, b - 0.2, ZN + 0.5, (0, 0, 1), low, 0.0, 0.14)
     x = a + 4.0
@@ -1782,12 +2079,21 @@ def bay(axis, a, b, yf, stair=False):
         else:
             pipe((DK, "steel", 0), (x0 + 0.1, y - 0.14, v), (XW - 0.02, y - 1.3, v), 0.045, segs=4, col=STEEL_LT)
             pipe((DK, "steel", 1), (x1 - 0.9, y - 0.14, v), (XW - 0.02, y - 0.72, v), 0.03, segs=4, col=STEEL_LT)
-    # The gate: a leaf in the walkway's rail framed in yellow, both faces.
-    g0, g1 = y + 0.04, yf(mid) + RAIL_H - 0.04
-    for pa, plane, out in ((("z", ZS + 0.012, 1), ("z", z_rail - 0.012, -1)) if axis == "x" else (("x", XW - 0.012, -1), ("x", x_rail + 0.012, 1))):
-        for a0, a1, b0, b1 in ((mid - 0.5, mid + 0.5, g0, g0 + 0.07), (mid - 0.5, mid + 0.5, g1 - 0.07, g1), (mid - 0.5, mid + 0.5, (g0 + g1) / 2 - 0.03, (g0 + g1) / 2 + 0.03),
-                               (mid - 0.5, mid - 0.43, g0, g1), (mid + 0.43, mid + 0.5, g0, g1)):
-            vface((DK, "hazard", 1), pa, plane, a0, a1, b0, b1, out)
+    # The gate: a metre of the rail left open (rail(), above), a threshold
+    # plate through it, a post either side with a lamp on its head, and the
+    # leaf of bars swung right back against the rail's outside.
+    plane, d = (ZS, 1) if axis == "x" else (XW, -1)
+    abox((DK, "steel", 0), axis, mid - GATE, mid + GATE, plane - d * 0.17, plane + d * 0.02, y - 0.05, y + 0.005, col=BAY_FLOOR)
+    for s_ in (-1, 1):
+        v = mid + s_ * (GATE + 0.04)
+        abox((DK, "steel", 0), axis, v - 0.04, v + 0.04, plane - d * 0.1, plane, y - 0.15, y + 1.3, col=RAIL_C, bottom=False)
+        abox((DK, "glow", 0), axis, v - 0.045, v + 0.045, plane - d * 0.095, plane - d * 0.005, y + 1.3, y + 1.37, col=POST_LENS, bottom=False)
+    l0, l1 = mid - GATE - 1.14, mid - GATE - 0.08
+    for yy in (y + 0.1, y + 0.55, y + 1.0):
+        abox((DK, "steel", 1), axis, l0, l1, plane + d * 0.05, plane + d * 0.09, yy, yy + 0.04, col=RAIL_C)
+    for k in range(6):
+        v = l0 + (l1 - l0) * k / 5
+        abox((DK, "steel", 1), axis, v - 0.015, v + 0.015, plane + d * 0.055, plane + d * 0.085, y + 0.1, y + 1.04, col=RAIL_C, bottom=False)
     if axis == "x":
         pool(mid, y + 1.0, ZS + BAY / 2, "teal", 1.6)
     else:
