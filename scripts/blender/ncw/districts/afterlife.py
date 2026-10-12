@@ -138,7 +138,10 @@ for i, (z0, z1, n) in enumerate(OUTER):
         nb["+z"] = storeys(OUTER[i + 1][2])
     lot(490.0, 508.0, z0, z1, storeys(n), 9120 + i,
         {"-x": "open", "+x": "back", "-z": "party", "+z": "party" if i < len(OUTER) - 1 else "open"}, nb,
-        style=dict(roof_cap=5.0 if n > 1 else 2.4, cornice=0.0 if n < 1 else 0.5))
+        style=dict(roof_cap=5.0 if n > 1 else 2.4, cornice=0.0 if n < 1 else 0.5, balcony=0.25, ac=0.5, lit=(0.5, 0.8)))
+    # (The taller ones carry a fire escape down their face on the yard.)
+    if n >= 4:
+        K.fire_stairs(D, B.Face("-x", 490.0, z0, z1), (z1 - z0) * 0.62, SHOP_H + 0.5, storeys(n) - 3.0)
 
 
 # ---------------------------------------------------------------------------
@@ -313,8 +316,7 @@ RB = B.Face("-x", EL, -300.0, -258.0)      # s runs south from its north end
 rr = random.Random(9210)
 RB_TINT = B.TINTS["teal"]
 # (Its wall is painted, as AFTERLIFE's opposite is: flats with their grime,
-# balconies and plants, not a grid of lit panes.)
-mass(D, EL, 484.0, -300.0, -258.0, SHOP_H, 34.0, 9215, faces=("-x",), painted=2, roof=False)
+# balconies and plants, not a grid of lit panes; rooftop.py paints all four.)
 B.shopfront(D, RB, rr, 0.0, 12.8, RB_TINT, 0.6, 0.0, door=False, palette=WATSON["shop_colours"])
 B.shopfront(D, RB, rr, 22.4, 42.0, RB_TINT, 0.6, 0.0, door=True, palette=WATSON["shop_colours"])
 for a_, b_ in ((13.0, 16.4), (18.8, 22.2)):
@@ -619,7 +621,7 @@ K.hut(D, 414.5, -199.5, 26.0, 0.0, T["charcoal"])
 K.post_light(D, 418.0, -224.0, 26.0, "cyan")
 # AFTERLIFE's roof: skylights in the sign's pink, a deck by the sign's
 # posts, units, low lights (low: About's lens looks across it).
-K.skylights(D, 420.0, 429.0, -292.0, -270.0, 30.0, ro, hue="pink", along="z", n=2)
+K.skylights(D, 420.0, 429.0, -292.0, -270.0, 30.0, ro, hue="pink", along="z", n=2, glazed=True)
 K.slab(D, 403.0, 431.0, -299.0, -263.0, 30.0, "concrete", lift=0.1, scale=3.0)
 K.slab(D, 412.0, 419.0, -278.0, -264.0, 30.0)
 K.planter(D, 412.2, 418.8, -264.9, -264.1, ro, y=30.17, h=0.45, lit="green")
@@ -833,8 +835,10 @@ K.steam("afterlife_lane_4", 480.5, G0, -218.0, D)
 K.crates(D, 485.0, -317.2, rl)
 P.place("bags", 488.8, G0, -317.0, district=D)
 # AFTERLIFE's north wall, over the corner house's roof: sold to a billboard
-# that faces the boulevard.
+# that faces the boulevard. The rooftop's building has one on its north wall
+# too, over the clinic's roof.
 B.billboard(D, 415.0, 22.6, -300.32, 15.0, 8.0, math.pi, ro, back=False, depth=0.3)
+B.billboard(D, 470.0, 22.5, -300.32, 13.0, 7.0, math.pi, random.Random(9217), back=False, depth=0.3)
 
 # What the lanes' walls carry at a walker's height: both sides of every
 # lane, the kept blocks' and the new ones'.
@@ -946,7 +950,7 @@ for (x_, z_, yaw_, pose_) in ((392.2, -194.2, 0.0, "idle"), (397.8, -201.0, math
 # ---------------------------------------------------------------------------
 PEOPLE_AT = [
     # the alley's mouth on the boulevard, and down the back lane
-    (399.3, -315.0, 2.6, "smoke"), (400.9, -314.4, -2.4, "talk"), (401.2, -283.2, -math.pi / 2, "talk"), (400.0, -284.0, math.pi / 2, "talk"),
+    (399.3, -315.0, 2.6, "smoke"), (400.9, -314.4, -2.4, "talk"), (401.2, -282.2, -math.pi / 2, "talk"), (400.0, -282.2, math.pi / 2, "talk"),
     (398.6, -270.5, math.pi / 2, "lean"),
     # the lane to the street and the bar's yard
     (425.2, -259.2, math.pi / 2, "phone"), (421.0, -260.8, 0.4, "squat"), (413.4, -253.0, 2.0, "smoke"), (406.6, -252.6, 0.3, "idle"),
@@ -961,6 +965,10 @@ PEOPLE_AT = [
     # the plaza street's corner
     (424.0, -189.4, 0.0, "phone"),
 ]
+# (More of them in the lanes, down their middles, clear of what the walls keep.)
+PEOPLE_AT += [(400.4, -303.5, 2.8, "phone"), (399.5, -292.0, 0.0, "smoke"), (400.6, -276.0, math.pi, "idle"), (414.2, -259.7, math.pi / 2, "talk"),
+              (415.2, -259.7, -math.pi / 2, "talk"), (465.6, -313.7, math.pi / 2, "talk"), (466.6, -313.7, -math.pi / 2, "talk"),
+              (486.6, -303.0, 0.0, "idle"), (487.4, -268.5, math.pi, "phone"), (486.2, -291.5, math.pi / 2, "squat")]
 for x_, z_, yaw_, pose_ in PEOPLE_AT:
     stand(x_, z_, yaw_, pose_, y=G0)
 # A pair on a stoop in the bar's yard, at the back row's door.

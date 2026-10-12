@@ -8,9 +8,10 @@ from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials,
 RF = "rooftop"
 STREET_X = 440.0
 RX0, RX1, RZ0, RZ1, RH = 452.0, 484.0, -300.0, -258.0, 34.0
-# (Its face to the street, and the shops and the clinic under it, are built
-# with the street: districts/afterlife.py.)
-mass(RF, RX0, RX1, RZ0, RZ1, SHOP_H, RH, 7001, faces=("+x", "+z", "-z"), roof_mat="roof_wet")
+# Painted flats on every side, as AFTERLIFE's block is across the street.
+# (The shops and the clinic under its street face, and what hangs on it, are
+# built with the street: districts/afterlife.py.)
+mass(RF, RX0, RX1, RZ0, RZ1, SHOP_H, RH, 7001, roof_mat="roof_wet", painted=2)
 box((RF, "dark", 0), RX0 + 1.0, RX1, 0, SHOP_H, RZ0, RZ1, scale=2.0)
 for (a0, a1, b0, b1) in ((RX0, RX1, RZ1 - 0.4, RZ1), (RX0, RX1, RZ0, RZ0 + 0.4), (RX0, RX0 + 0.4, RZ0, RZ1), (RX1 - 0.4, RX1, RZ0, RZ1)):
     box((RF, "concrete", 0), a0, a1, RH, RH + 1.1, b0, b1, scale=1.5)
