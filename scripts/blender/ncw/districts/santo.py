@@ -445,6 +445,20 @@ def plant():
         for xx in (x0 + 1.0, x0 + 9.0):
             K.column(xx, -14.6, GY, 4.7, t=0.16, mat="metal")
         box(k("hazard", 1), x0 + 0.3, x0 + 9.7, 2.2, 2.4, -16.28, -16.24, scale=1.0)
+    for yy in (2.6, 3.0, 3.4, 3.8, 4.2):
+        box(k("metal", 1), 307.9, 308.0, yy, yy + 0.07, -33.7, -16.3, scale=1.0)
+    K.run([(307.3, 0.5, -33.2), (307.3, 5.2, -33.2), (307.3, 5.2, -17.0)], r=0.22, col=K.STEEL_BLUE)
+    for z in (-28.0, -22.0):
+        K.run([(307.3, 5.2, z), (307.3, 7.6, z), (308.0, 7.6, z)], r=0.14, col=K.STEEL_BLUE, detail=1)
+    K.ladder(307.98, -19.4, GY + 2.3, 9.0, -PI / 2)
+    box(k("metal"), 307.4, 308.0, GY, GY + 1.7, -31.6, -30.2, scale=1.0)
+    P.place("warning_tri", 307.38, GY + 1.0, -30.9, -PI / 2, district=D)
+    for z in (-30.0, -20.0):
+        P.place("wall_pack", 307.96, 5.9, z, -PI / 2, district=D)
+        K.sodium(306.6, 1.0, z, 5.0)
+    K.digits("1", 307.94, 6.9, -25.0, 1.6, -PI / 2, k("trim", 1), K.OXIDE, out=0.0)
+    K.verge(r, 305.3, -80.0, 305.3, -37.0, step=7.0, kinds=("bollard", "drum", "barrier", "pallets", "hydrant", "bin", "crates"))
+    K.verge(r, 305.3, -33.0, 305.3, -17.0, step=4.0, kinds=("bollard", "bollard", "barrier", "drum"))
     stand(322.0, -15.0, 0.0, "lean", 4.7)
     stand(312.4, -15.2, PI / 2, "idle", 4.7)
     for (a, b) in (((308.0, -34.0), (338.0, -34.0)), ((308.0, -16.0), (338.0, -16.0)), ((308.0, -34.0), (308.0, -16.0)), ((338.0, -34.0), (338.0, -16.0))):
@@ -919,6 +933,82 @@ def chevrons(f, y0, y1, col, n=2, wdt=0.9):
             K.band_quad(k("trim"), cx, cz, f.yaw, u0, yy, u1, yy, wdt * 0.6, col)
 
 
+def hall(f, door, pale):
+    """Block 06's street face: its number stencilled six metres tall over a
+    chevron bar, the crossed panel beside it, and between them the hall's
+    door standing open under a canopy: striped jambs and lintel, the
+    shutter part down, tube lights along the ceiling, racking at the back,
+    a truck nosing out, a forklift, pallets, and the shift inside."""
+    s0, s1, head = door
+    cx, _, cz = f.p((f.a0 + f.a1) / 2, 0.0, 0.0)
+    rx, rz = math.cos(f.yaw), -math.sin(f.yaw)
+
+    def u_of(s):
+        px, _, pz = f.p(f.at(s), 0.0, 0.0)
+        return (px - cx) * rx + (pz - cz) * rz
+
+    black = (0.02, 0.02, 0.022, 1.0)
+    # The number and its bar on one side, the crossed panel on the other.
+    nx_, _, nz_ = f.p(f.at(5.9), 0.0, 0.0)
+    K.digits("06", nx_, 12.0, nz_, 6.0, f.yaw, k("trim", 1), pale, out=0.06)
+    f.quad(k("hazard"), 1.2, 10.6, 7.9, 8.6, 0.05)
+    ua, ub = sorted((u_of(1.2), u_of(10.6)))
+    u = ua + 0.1
+    while u < ub - 0.6:
+        K.band_quad(k("trim", 1), cx, cz, f.yaw, u, 7.92, u + 0.5, 8.58, 0.2, black, out=0.08)
+        u += 0.8
+    ua, ub = sorted((u_of(21.6), u_of(31.0)))
+    for (p, q) in ((ua, ub), (ub, ua)):
+        K.band_quad(k("trim"), cx, cz, f.yaw, p, 8.0, q, 15.4, 0.9, pale)
+    for yy in (8.0, 15.4):
+        K.band_quad(k("trim"), cx, cz, f.yaw, ua, yy, ub, yy, 0.54, pale)
+    # Jambs and lintel in yellow and black, the canopy and its tube.
+    for sj in (s0 - 0.45, s1):
+        f.box(k("hazard"), sj, sj + 0.45, 0.0, head, 0.0, 0.14)
+        for i in range(6):
+            f.box(k("dark", 1), sj - 0.01, sj + 0.46, 0.5 + i * 1.0, 1.0 + i * 1.0, 0.0, 0.15)
+    f.quad(k("hazard"), s0 - 0.45, s1 + 0.45, head, head + 0.7, 0.05)
+    ua, ub = sorted((u_of(s0 - 0.45), u_of(s1 + 0.45)))
+    u = ua + 0.1
+    while u < ub - 0.6:
+        K.band_quad(k("trim", 1), cx, cz, f.yaw, u, head + 0.02, u + 0.5, head + 0.68, 0.2, black, out=0.08)
+        u += 0.8
+    f.box(K.M("steel"), s0 - 1.0, s1 + 1.0, head + 0.9, head + 1.15, 0.0, 2.0, col=K.shade(K.OLIVE, 0.5))
+    f.box(k("neon_white"), s0 + 0.6, s1 - 0.6, head + 0.82, head + 0.9, 1.2, 1.36)
+    f.quad(k("door_panel"), s0, s1, head - 1.7, head, -0.12)
+    f.box(k("hazard", 1), s0, s1, head - 1.82, head - 1.7, -0.2, -0.06)
+    # The hall behind: walls, ceiling, back wall with racking, lights.
+    (xa, _, za), (xb, _, _) = f.p(f.at(s0), 0.0, 0.0), f.p(f.at(s1), 0.0, 0.0)
+    x0, x1, z0, z1 = min(xa, xb), max(xa, xb), za, za + 18.6
+    wall = K.shade(K.CREAM, 0.9)
+    K.quad_n(K.M("cladding"), ((x0, 0.0, z0), (x0, 0.0, z1), (x0, head, z1), (x0, head, z0)), (1, 0, 0), wall)
+    K.quad_n(K.M("cladding"), ((x1, 0.0, z0), (x1, 0.0, z1), (x1, head, z1), (x1, head, z0)), (-1, 0, 0), wall)
+    K.quad_n(K.M("cladding"), ((x0, 0.0, z1), (x1, 0.0, z1), (x1, head, z1), (x0, head, z1)), (0, 0, -1), wall)
+    K.quad_n(k("dark"), ((x0, head, z0), (x1, head, z0), (x1, head, z1), (x0, head, z1)), (0, -1, 0))
+    for z in (z0 + 3.0, z0 + 8.0, z0 + 13.0):
+        for x in (x0 + 2.4, x1 - 2.4):
+            box(k("neon_white"), x - 0.08, x + 0.08, head - 0.14, head - 0.06, z - 1.2, z + 1.2, scale=0.5, bottom=True)
+        light(D, (x0 + x1) / 2, 2.0, z, "white", 5.0)
+    for x in (x0 + 0.3, (x0 + x1) / 2 - 1.2, x1 - 4.4):
+        box(k("metal"), x, x + 0.14, GY, head - 0.6, z1 - 1.2, z1 - 0.05, scale=1.0)
+    for i, yy in enumerate((1.7, 3.3, 4.9)):
+        box(k("metal"), x0 + 0.3, x1 - 4.2, yy, yy + 0.12, z1 - 1.2, z1 - 0.05, scale=1.0)
+        for j, x in enumerate((x0 + 0.8, x0 + 2.3, x0 + 3.6)):
+            if (i + j) % 3:
+                box(k("trim", 1), x, x + 1.1, yy + 0.12, yy + 1.0, z1 - 1.1, z1 - 0.2, scale=1.0, col=(K.WOOD, K.GREY, K.SAND)[(i + j) % 3])
+    K.stripe(x0 + 4.6, x0 + 4.72, z0 + 0.5, z1 - 2.0)
+    truck(x1 - 2.1, z0 + 11.2, PI / 2, "tractor_red")
+    P.place("forklift", x0 + 2.6, GY, z0 + 5.4, PI * 0.5, district=D)
+    for x, z, kind in ((x0 + 0.9, z0 + 2.2, "drum_pallet"), (x0 + 0.9, z0 + 8.4, "pallets"), (x0 + 0.9, z0 + 9.9, "drum_pallet"), (x0 + 2.4, z0 + 13.6, "crates"),
+                       (x0 + 0.8, z0 + 14.4, "pallets")):
+        P.place(kind, x, GY, z, 0.2 * x, district=D)
+    stand(x0 + 0.5, z0 + 0.9, PI / 2, "lean")
+    stand(x0 + 3.6, z0 + 3.2, PI, "idle")
+    stand(x0 + 2.2, z0 + 8.6, PI / 2, "talk")
+    stand(x0 + 3.3, z0 + 8.9, -PI / 2, "talk")
+    stand(x1 - 4.6, z0 + 2.4, PI * 0.8, "phone")
+
+
 def block_06():
     """The numbered block that closes the garage street: olive panels
     crossed with chevrons, a glass band, 06 lit from below."""
@@ -927,17 +1017,32 @@ def block_06():
     K.paved(424.0, 458.0, 12.0, 45.0)
     fs = B.faces_of(X0, X1, Z0, Z1)
     pale = c_ = (0.72, 0.76, 0.24, 1.0)
+    DOOR = (11.5, 20.5, 6.4)  # the hall door in the street face: from and to along it, and its head
     for name, f in fs.items():
         w = f.width
-        f.quad(K.M("concrete"), 0.0, w, 0.0, 3.2, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, 1.07), (0, 1.07)))
-        f.quad(K.M("cladding"), 0.0, w, 3.2, 16.2, 0.0, col=K.OLIVE)
+        for a_, b_ in (((0.0, DOOR[0]), (DOOR[1], w)) if name == "-z" else ((0.0, w),)):
+            f.quad(K.M("concrete"), a_, b_, 0.0, 3.2, 0.0)
+            f.quad(K.M("cladding"), a_, b_, 3.2, 16.2, 0.0, col=K.OLIVE)
+            f.box(k("trim"), a_ - 0.1, b_ + 0.1, 3.1, 3.4, 0.0, 0.2, col=K.shade(K.OLIVE, 0.5))
+        if name == "-z":
+            f.quad(K.M("cladding"), DOOR[0], DOOR[1], DOOR[2], 16.2, 0.0, col=K.OLIVE)
+        # Flashings across the sheet, downpipes, a wall pack between them.
+        for yy in (7.6, 11.9):
+            f.box(K.M("steel", 1), 0.0, w, yy, yy + 0.12, 0.0, 0.07, col=K.shade(K.OLIVE, 0.55))
+        for sp in (w * 0.25 + 0.5, w * 0.75 - 0.5):
+            px, py, pz = f.p(f.at(sp), GY, 0.0)
+            P.place("pipe_v", px, py, pz, f.yaw, sy=H - GY, district=D)
+        if name in ("-x", "+x"):
+            for sp in (5.0, 15.0, 25.0):
+                K.wall_lamp(f, sp, 5.4)
+            lx, _, lz = f.p(f.at(w - 3.0), 0.0, 0.02)
+            K.ladder(lx, lz, GY + 2.4, H, f.yaw)
         K.window_band(f, 16.2, 18.6, r, style=5, lit=(0.5, 0.8), warmth=(0.2, 0.6), tint="concrete")
         f.quad(K.M("cladding"), 0.0, w, 18.6, H, 0.0, col=K.OLIVE)
         f.box(k("metal"), -0.15, w + 0.15, H - 0.3, H + 0.5, 0.0, 0.25)
-        f.box(k("trim"), -0.1, w + 0.1, 3.1, 3.4, 0.0, 0.2, col=K.shade(K.OLIVE, 0.5))
         for s in (0.0, w / 2, w):
-            f.box(K.M("steel"), s - 0.3, s + 0.3, 0.0, H, 0.0, 0.22, col=K.shade(K.OLIVE, 0.6))
-        if name != "+z":
+            f.box(K.M("steel"), s - 0.3, s + 0.3, DOOR[2] if (name == "-z" and s == w / 2) else 0.0, H, 0.0, 0.22, col=K.shade(K.OLIVE, 0.6))
+        if name in ("-x", "+x"):
             chevrons(f, 4.2, 15.4, pale, n=2)
     # 06, six metres tall, on the three faces the streets see.
     for name in ("-z", "-x", "+x"):
@@ -947,8 +1052,7 @@ def block_06():
     f = fs["-z"]
     K.dock(f, 8.0, r, no=6, sill=0.0, h=3.0, state="shut", eave=H)
     K.dock(f, 24.0, r, no=7, sill=0.0, h=3.0, state="half", eave=H)
-    f.quad(k("door"), 15.4, 16.6, GY, GY + 2.3, 0.03)
-    f.box(k("neon_cyan"), 15.2, 16.8, GY + 2.5, GY + 2.6, 0.04, 0.1)
+    hall(f, DOOR, pale)
     # Lit from its foot: floods in the ground on the street side and at
     # the two flanks, so the chevrons stand in orange light.
     K.wash(X0, X1, Z0 - 1.4, Z0 - 1.4, level=1.0, step=3.5)
@@ -1150,6 +1254,15 @@ def street_cones():
                     v += 30.0
 
 
+def roofs():
+    """The sawtooth roofs, worked: walkways, ducts, air units, rooflights."""
+    r = R(8691)
+    K.saw_dress(180.0, 264.0, -160.0, -100.0, 8.6, 10, "-z", r, rise=2.6, walk=0.57)
+    K.saw_dress(246.0, 290.0, -78.0, -11.2, 8.0, 7, "+x", r, rise=2.8, walk=0.4)
+    K.saw_dress(182.0, 256.0, 16.0, 44.0, 8.0, 8, "+x", r, rise=3.0, walk=0.5)
+    K.saw_dress(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, rise=2.4, walk=0.62)
+
+
 roads()
 works()
 tank_farm()
@@ -1165,4 +1278,5 @@ gasholder()
 east()
 lines(BUS)
 frontage_light()
+roofs()
 street_cones()
