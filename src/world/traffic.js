@@ -100,27 +100,54 @@ function droneGeometry() {
   return merged;
 }
 
-/** The viaduct's train, x along it (centred), y up from the rail, z across:
- *  `cars` cars with a gap between each and rubber bellows across it, each
- *  car a rounded roof over straight sides on two bogies, and the two end
- *  cars drawn out into a sloped nose. Smooth round the section, hard at the
- *  ends. */
-function trainGeometry({ length, cars }) {
+/** A train, x along it (centred), y up from the rail, z across: `cars` cars
+ *  with a gap between each and rubber bellows across it. Each car is a
+ *  rounded roof over straight sides on two bogies of four wheels with a
+ *  third-rail shoe beam, equipment slung under its floor between them and
+ *  cooling units on its roof; the two end cars are drawn out into a long
+ *  rounded nose over a coupler; every third car carries a pantograph up to
+ *  the line's wire (`wire` metres over the rail). Smooth round the section
+ *  and along the nose. Each vertex says which part it is of (aPart: 0 the
+ *  shell, 1 underframe, 2 wheel, 3 roof gear, 4 bellows) and where on the
+ *  car's full section it would be (aRing: across, up), which the nose draws
+ *  in: the shader paints the livery, the glass and the lamps by that. */
+function trainGeometry({ length, cars, wire }) {
   const carLen = length / cars;
   const GAP = 0.9;
   // Half the section (z >= 0), from the sill up the side, round the roof's
   // shoulder to the middle of the roof.
-  const HALF = [[1.42, 0.55], [1.5, 0.95], [1.52, 2.75], [1.44, 3.12], [1.24, 3.4], [0.9, 3.56], [0, 3.62]];
+  const HALF = [[1.36, 0.5], [1.48, 0.62], [1.52, 1.0], [1.52, 2.7], [1.47, 3.05], [1.3, 3.36], [0.95, 3.55], [0.5, 3.62], [0, 3.64]];
   const RING = [...HALF, ...HALF.slice(0, -1).reverse().map(([z, y]) => [-z, y])];
   // The nose: how the section narrows, lowers and lifts over the last
   // metres of an end car (metres from the end, across, up, lift).
-  const NOSE = [[3.6, 1, 1, 0], [2.0, 0.97, 0.93, 0], [0.9, 0.86, 0.76, 0.08], [0, 0.66, 0.52, 0.22]];
+  const NOSE = [[5.0, 1, 1, 0], [3.6, 0.99, 0.985, 0], [2.4, 0.95, 0.93, 0.02], [1.4, 0.88, 0.84, 0.06], [0.7, 0.78, 0.72, 0.12], [0.25, 0.66, 0.58, 0.2], [0, 0.5, 0.44, 0.28]];
   const parts = [];
+  const finish = (g, part, given) => {
+    const n = g.attributes.position.count;
+    let ring = given;
+    if (ring === undefined) {
+      ring = new Float32Array(n * 2);
+      for (let i = 0; i < n; i++) {
+        ring[i * 2] = g.attributes.position.getZ(i);
+        ring[i * 2 + 1] = g.attributes.position.getY(i);
+      }
+    }
+    g.setAttribute("aRing", new THREE.BufferAttribute(ring, 2));
+    g.setAttribute("aPart", new THREE.BufferAttribute(new Float32Array(n).fill(part), 1));
+    parts.push(g);
+  };
+  const at = ([x, sz, sy, lift], [z, y]) => [x, 0.5 + lift + (y - 0.5) * sy, z * sz];
   const tube = (sections) => {
     // sections: [x, across, up, lift]; consecutive rings joined by quads.
     const n = RING.length;
     const pos = [];
-    for (const [x, sz, sy, lift] of sections) for (const [z, y] of RING) pos.push(x, 0.55 + lift + (y - 0.55) * sy, z * sz);
+    const ring = [];
+    for (const s of sections) {
+      for (const r of RING) {
+        pos.push(...at(s, r));
+        ring.push(...r);
+      }
+    }
     const index = [];
     // Sections run along +x; each quad wound to face out.
     for (let r = 0; r < sections.length - 1; r++) {
@@ -136,33 +163,44 @@ function trainGeometry({ length, cars }) {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("aRing", new THREE.Float32BufferAttribute(ring, 2));
     g.setIndex(index);
     g.computeVertexNormals();
-    parts.push(g.toNonIndexed());
+    const flat = g.toNonIndexed();
     g.dispose();
+    finish(flat, 0, flat.attributes.aRing.array);
   };
   const cap = (section, out) => {
     // A flat end: a fan from the section's middle, facing `out` along x.
-    const [x, sz, sy, lift] = section;
-    const pts = RING.map(([z, y]) => [x, 0.55 + lift + (y - 0.55) * sy, z * sz]);
-    const c = [x, 0.55 + lift + 1.5 * sy, 0];
+    const c = [0, 2.0];
     const pos = [];
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      const b = pts[(i + 1) % pts.length];
-      if (out > 0) pos.push(...c, ...b, ...a);
-      else pos.push(...c, ...a, ...b);
+    const ring = [];
+    for (let i = 0; i < RING.length; i++) {
+      const a = RING[i];
+      const b = RING[(i + 1) % RING.length];
+      for (const r of out > 0 ? [c, b, a] : [c, a, b]) {
+        pos.push(...at(section, r));
+        ring.push(...r);
+      }
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
     g.computeVertexNormals();
-    parts.push(g);
+    finish(g, 0, new Float32Array(ring));
   };
-  const box = (x, y, z, sx, sy, sz) => {
+  const box = (x, y, z, sx, sy, sz, part) => {
     const g = new THREE.BoxGeometry(sx, sy, sz).toNonIndexed();
     g.deleteAttribute("uv");
     g.translate(x, y, z);
-    parts.push(g);
+    finish(g, part);
+  };
+  // A bar in the car's long section, from one point (x, y) to another.
+  const bar = (x0, y0, x1, y1, z, thick, wide) => {
+    const g = new THREE.BoxGeometry(Math.hypot(x1 - x0, y1 - y0), thick, wide).toNonIndexed();
+    g.deleteAttribute("uv");
+    g.rotateZ(Math.atan2(y1 - y0, x1 - x0));
+    g.translate((x0 + x1) / 2, (y0 + y1) / 2, z);
+    finish(g, 3);
   };
   for (let c = 0; c < cars; c++) {
     const x0 = -length / 2 + c * carLen + (c > 0 ? GAP / 2 : 0);
@@ -177,9 +215,41 @@ function trainGeometry({ length, cars }) {
     tube(sections);
     cap(sections[0], -1);
     cap(sections[sections.length - 1], 1);
-    for (const f of [0.18, 0.82]) box(x0 + (x1 - x0) * f, 0.32, 0, 2.6, 0.5, 2.3);
-    if (c < cars - 1) box(x1 + GAP / 2, 2.0, 0, GAP + 0.3, 2.7, 2.5);
+    const mid = (x0 + x1) / 2;
+    for (const f of [0.2, 0.8]) {
+      // A bogie: its frame, two axles of two wheels, a shoe beam each side.
+      const xb = x0 + (x1 - x0) * f;
+      box(xb, 0.46, 0, 2.9, 0.3, 1.24, 1);
+      for (const ax of [-1.05, 1.05]) {
+        for (const sd of SIDES) {
+          const g = new THREE.CylinderGeometry(0.43, 0.43, 0.15, 12).rotateX(Math.PI / 2).toNonIndexed();
+          g.deleteAttribute("uv");
+          g.translate(xb + ax, 0.43, sd * 0.74);
+          finish(g, 2);
+        }
+      }
+      for (const sd of SIDES) box(xb, 0.2, sd * 1.02, 0.7, 0.07, 0.42, 1);
+    }
+    // Slung under the floor between the bogies, and on the roof.
+    box(mid - 1.6, 0.3, 0, 2.6, 0.42, 2.3, 1);
+    box(mid + 1.9, 0.33, 0, 1.8, 0.36, 2.0, 1);
+    for (const f of [0.3, 0.72]) box(x0 + (x1 - x0) * f, 3.7, 0, 2.4, 0.2, 1.5, 3);
+    if (c % 3 === (cars > 2 ? 1 : 0)) {
+      // The pantograph: a frame on insulators, two arms, a head with two
+      // strips against the wire.
+      const xp = mid + 0.4;
+      const top = wire - 0.05;
+      const knee = 3.86 + (top - 3.86) * 0.52;
+      box(xp, 3.74, 0, 1.5, 0.08, 1.0, 3);
+      for (const sd of SIDES) box(xp, 3.82, sd * 0.38, 1.3, 0.08, 0.07, 3);
+      bar(xp - 0.6, 3.86, xp + 0.35, knee, 0, 0.07, 0.5);
+      bar(xp + 0.35, knee, xp - 0.3, top - 0.05, 0, 0.06, 0.36);
+      for (const dx of [-0.16, 0.16]) box(xp - 0.3 + dx, top, 0, 0.07, 0.05, 1.6, 3);
+    }
+    if (c < cars - 1) box(x1 + GAP / 2, 2.0, 0, GAP + 0.3, 2.7, 2.5, 4);
   }
+  // A coupler under each nose.
+  for (const sd of SIDES) box(sd * (length / 2 - 0.2), 0.62, 0, 0.6, 0.26, 0.36, 1);
   const merged = mergeGeometries(parts, false);
   parts.forEach((g) => g.dispose());
   return merged;
@@ -807,7 +877,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // Lamps: two per aerial vehicle, four per car with its lamps on, four a
   // hazard car, two a patrol car's bar, three per drone, and the police
   // AV's light bar.
-  const lampCount = flying * 2 + flyers * 3 + (moving + pathSlots.length + standingLit + hazards) * 4 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0);
+  const lampCount = flying * 2 + flyers * 3 + (moving + pathSlots.length + standingLit + hazards) * 4 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0) + 12;
   const quad = new THREE.PlaneGeometry(1, 1);
   const lampGeo = new THREE.InstancedBufferGeometry();
   lampGeo.index = quad.index;
@@ -980,26 +1050,40 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // portal, into the halt behind the towers, half a minute standing there
   // lit, then on into the corner block's portal, the next one following, so
   // the halt has a train in it most of the time and another is often on its
-  // way. A train is only drawn between its line's portals. Its windows are
-  // a lit carriage each, between pillars, two doors a side, a passenger or
-  // two against the light, over a stripe of the line's colour; its body
-  // gives back the city's glow; its nose carries the headlamps going and
-  // the tail lamps coming. The windows are as bright as the old ones at the
-  // vanishing point and softer close to, where they would only blow out.
+  // way. A train is only drawn between its line's portals.
+  //
+  // It is a pale steel train in its line's livery: a broad band of the
+  // line's colour under the windows and another along the cant rail (the
+  // one a street under a viaduct sees), each with a lit strip, and doors in
+  // the same colour, two a side. Its windows are a lit carriage seen into:
+  // the far wall with its own dark windows and a row of cards over them,
+  // the ceiling's two strips of light, benches in the line's colour, people
+  // seated along both walls and standing down the middle. Its nose is glass
+  // over a lit bar and two lamp clusters, white going and red coming, with
+  // an amber board in the top of the glass. From down the avenue it is the
+  // row of lights it always was.
   const CAR = 18;
   // Corpo Row's track (scripts/blender/ncw/districts/corpo_north.py: its
   // TRACK_Z and TRACK_Y, its two portals, the middle of its halt). It has
-  // no anchor of its own yet, so its numbers are here.
-  const CORPO_TRACK = { z: -378.5, y: 19, x0: 133, x1: 432, halt: 246 };
+  // no anchor of its own yet, so its numbers are here. `wire`: how high
+  // over the rail each line's contact wire hangs.
+  const CORPO_TRACK = { z: -378.5, y: 19, x0: 133, x1: 432, halt: 246, wire: 4.7 };
+  const VIADUCT_WIRE = 5.5;
   const trainShader = {
     vertexShader: /* glsl */ `
+      attribute vec2 aRing;
+      attribute float aPart;
       varying vec3 vLocal;
       varying vec3 vNormalL;
       varying vec3 vWorld;
       varying vec3 vNormalW;
+      varying vec2 vRing;
+      varying float vPart;
       void main() {
         vLocal = position;
         vNormalL = normal;
+        vRing = aRing;
+        vPart = aPart;
         vec4 w = modelMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vNormalW = normalize(mat3(modelMatrix) * normal);
@@ -1011,10 +1095,35 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       uniform float uDir;
       uniform float uLen;
       uniform vec2 uClip;
+      uniform vec3 uLivery;
       varying vec3 vLocal;
       varying vec3 vNormalL;
       varying vec3 vWorld;
       varying vec3 vNormalW;
+      varying vec2 vRing;
+      varying float vPart;
+      // Somebody on the plane 'depth' metres into the carriage, where the
+      // ray from o along d (going in at dz a metre) meets it: one every
+      // 'pitch' metres or nobody, the head at 'head'. Colour and cover.
+      vec4 rider(vec3 o, vec3 d, float dz, float depth, float reach, float pitch, float head, float seed, float foot, float rate) {
+        float t = depth / dz;
+        if (t > reach) return vec4(0.0);
+        float x = o.x + d.x * t;
+        float y = o.y + d.y * t;
+        float h = hash12(vec2(floor(x / pitch), seed));
+        if (h > rate) return vec4(0.0);
+        h = fract(h * 37.7);
+        float cx = (fract(x / pitch) - 0.5) * pitch + (fract(h * 7.3) - 0.5) * 0.14;
+        float hy = head + (fract(h * 13.7) - 0.5) * 0.12;
+        float inHead = step(length(vec2(cx, (y - hy) / 1.15)), 0.105);
+        float body = step(abs(cx), 0.21 - 0.09 * smoothstep(hy - 0.3, hy - 0.15, y)) * step(y, hy - 0.12) * step(foot, y);
+        float neck = step(abs(cx), 0.05) * step(hy - 0.15, y) * step(y, hy);
+        float j = fract(h * 3.1);
+        vec3 jacket = j < 0.25 ? vec3(0.05, 0.07, 0.16) : j < 0.5 ? vec3(0.45, 0.06, 0.08) : j < 0.75 ? vec3(0.05, 0.3, 0.3) : vec3(0.5, 0.42, 0.12);
+        vec3 skin = mix(vec3(0.55, 0.36, 0.26), vec3(0.3, 0.18, 0.12), fract(h * 5.9));
+        vec3 face = mix(skin, vec3(0.03, 0.025, 0.03), step(hy + 0.035, y));
+        return vec4(mix(jacket, face, max(inHead, neck)), max(inHead, max(body, neck)));
+      }
       void main() {
         // Inside a portal it is in the block, not in the street.
         if (vWorld.x < uClip.x || vWorld.x > uClip.y) discard;
@@ -1023,68 +1132,124 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         float u = vLocal.x + LEN * 0.5;
         float car = floor(u / carLen);
         float inCar = u - car * carLen;
-        float y = vLocal.y;
+        // Where on the car's full section this is: the nose draws the
+        // section in, and its bands, glass and lamps go with it.
+        float y = vRing.y;
+        float rz = vRing.x;
         vec3 nl = normalize(vNormalL);
         vec3 n = normalize(vNormalW);
-        vec3 V = normalize(vWorld - uCam);
+        vec3 toHere = vWorld - uCam;
+        float dist = length(toHere);
+        vec3 V = toHere / dist;
         float F = 0.04 + 0.96 * pow(1.0 - abs(dot(V, n)), 5.0);
-        float dist = length(vWorld - uCam);
-        // Which end leads, and how far into its nose this point is.
+        // Which end leads, and how far from the nearer end this point is.
         float lead = uDir > 0.0 ? LEN * 0.5 - vLocal.x : vLocal.x + LEN * 0.5;
         float tail = LEN - lead;
-        float nose = 1.0 - smoothstep(3.0, 3.6, min(lead, tail));
-        // The body: dark paint giving back the lit air under it and the
-        // haze over it, and the street's light from below.
+        float end = min(lead, tail);
+        float front = step(lead, tail);
+        // What it gives back: the lit air under it and the haze over it;
+        // and what lights it: the street's light on the side it faces and
+        // from below, the glow overhead.
         vec3 R = reflect(V, n);
         vec3 env = mix(uHazeColor * 0.45 + uGlowColor * 0.7, uHazeColor * 0.25 * exp(-max(R.y, 0.0) * 4.0), step(0.0, R.y));
         float sky = max(n.y, 0.0);
-        vec3 col = vec3(0.016, 0.017, 0.022) + env * (0.08 + 0.7 * F) + spillAt(vWorld) * 0.25 * max(-n.y, 0.0) + (uHazeColor * 0.2 + uGlowColor * 0.12) * sky * uHaze;
+        vec3 spill = spillAt(vWorld);
+        vec3 light = vec3(0.045) + spillAt(vWorld + vec3(n.x, 0.0, n.z) * 6.0) * 0.5 + spill * 0.3 * max(-n.y, 0.0) + (uHazeColor * 0.5 + uGlowColor * 0.3) * (0.25 + 0.75 * sky) * uHaze;
         float glow = 0.0;
-        if (y < 0.56) col = vec3(0.006) + spillAt(vWorld) * 0.05;
-        float side = step(0.6, abs(nl.z)) * (1.0 - nose);
-        if (side > 0.5) {
-          // Two doors a side, a quarter and three quarters along.
+        vec3 col;
+        int part = int(vPart + 0.5);
+        if (part == 1) col = vec3(0.03) * light + vec3(0.004);
+        else if (part == 2) col = vec3(0.06) * light + env * 0.2 * F + vec3(0.004);
+        else if (part == 3) col = vec3(0.12, 0.125, 0.135) * light + env * 0.15 * F;
+        else if (part == 4) col = vec3(0.012) * light + vec3(0.003);
+        else {
+          float sideF = step(0.6, abs(nl.z));
+          float roof = smoothstep(3.3, 3.42, y);
+          vec3 paint = mix(vec3(0.5, 0.52, 0.55), vec3(0.13, 0.135, 0.15), roof);
+          float gloss = mix(0.4, 0.12, roof);
+          paint = mix(paint, uLivery, max(step(0.74, y) * step(y, 1.38), step(2.76, y) * step(y, 3.06)));
+          if (y < 0.74) paint = vec3(0.045, 0.047, 0.052);
+          // The passengers' part of a side: its band of windows, and two
+          // doors, a quarter and three quarters along.
+          float pass = sideF * step(3.0, end);
           float dq = min(abs(inCar - carLen * 0.25), abs(inCar - carLen * 0.75));
-          float door = step(dq, 0.68);
-          float seam = step(abs(dq - 0.68), 0.03) * step(0.62, y) * step(y, 2.86) + step(dq, 0.68) * step(abs(dq), 0.015) * step(0.62, y) * step(y, 2.86);
+          float door = step(dq, 0.68) * pass;
+          if (pass > 0.5 && y > 1.46 && y < 2.68) paint = vec3(0.03, 0.032, 0.036);
+          if (door > 0.5 && y > 0.62 && y < 2.9) paint = uLivery * 0.9;
+          float seam = door * step(0.62, y) * step(y, 2.9) * max(step(abs(dq - 0.68), 0.03), step(dq, 0.015));
+          paint = mix(paint, vec3(0.004), seam);
+          col = paint * light * 1.1 + env * (0.04 + 0.6 * F) * gloss;
+          // A lit strip along the cant rail and one under the windows.
+          float strip = max(step(abs(y - 2.72), 0.03), step(abs(y - 1.42), 0.025)) * step(2.5, end) * (1.0 - door) * step(abs(nl.x), 0.5);
+          col = mix(col, uLivery * 1.5, strip);
+          glow = max(glow, strip * 0.8);
           // Windows between pillars, a pane every 1.55 m between the doors;
           // a narrow one in each door leaf.
           float pane = fract((inCar - 0.4) / 1.55);
           float win = (1.0 - door) * step(0.1, pane) * step(pane, 0.9) * step(1.5, y) * step(y, 2.62);
           win += door * step(0.12, dq) * step(dq, 0.56) * step(1.62, y) * step(y, 2.52);
-          win *= step(0.9, inCar) * step(inCar, carLen - 0.9);
-          float id = floor((inCar - 0.4) / 1.55) + car * 17.0;
-          float lit = step(0.12, hash12(vec2(id, 3.0 + car)));
-          vec3 room = mix(vec3(1.0, 0.86, 0.66), vec3(0.8, 0.9, 1.0), step(0.7, hash12(vec2(car, 9.0))));
-          // Someone against the light now and then: a head and shoulders.
-          float who = hash12(vec2(id, 7.0));
-          float cx = fract((inCar - 0.4) / 1.55) * 1.55 - (0.35 + 0.85 * fract(who * 7.3));
-          float person = step(0.55, who) * (step(length(vec2(cx, y - 2.12) / vec2(1.0, 1.15)), 0.13) + step(length(vec2(cx, (y - 1.72) * 2.2)), 0.26) * step(y, 1.86));
-          // Inside: the ceiling's light strip along the top of the glass,
-          // seat backs along the bottom, the carriage's light between.
-          vec3 inside = room * (0.7 + 0.3 * smoothstep(1.7, 2.5, y) + 1.2 * step(2.48, y) * (1.0 - door)) * mix(0.4, 1.0, step(1.7, y));
-          inside *= 1.0 - 0.85 * min(person, 1.0) * (1.0 - door);
-          float bright = mix(0.5, 2.2, smoothstep(100.0, 450.0, dist));
-          col = mix(col, inside * bright * lit + vec3(0.01, 0.012, 0.016) * (1.0 - lit), win);
-          glow = max(glow, win * lit * 0.8);
-          col = mix(col, vec3(0.004), seam * (1.0 - win));
-          // A stripe of the line's colour under the windows.
-          float stripe = step(1.18, y) * step(y, 1.32) * (1.0 - door);
-          col = mix(col, vec3(0.1, 0.9, 1.0) * 1.6, stripe);
-          glow = max(glow, stripe * 0.8);
-        }
-        if (nose > 0.0 && y > 0.56) {
-          // The cab: a dark windscreen over the nose, and its lamps: white
-          // ahead, red behind.
-          float front = step(lead, tail);
-          float screen = step(2.05, y) * step(abs(nl.z), 0.75) * step(0.5, abs(nl.x) + nl.y);
-          col = mix(col, vec3(0.004, 0.006, 0.01) + env * (0.1 + 0.9 * F) + vec3(0.25, 0.3, 0.35) * 0.06, screen * nose);
-          float lampY = step(abs(y - 1.2), 0.16);
-          float lampZ = step(abs(abs(vLocal.z) - 0.78), 0.2);
-          float faceOn = step(0.45, abs(nl.x));
-          float lamp = lampY * lampZ * faceOn * step(min(lead, tail), 0.6);
-          col = mix(col, front > 0.5 ? vec3(1.0, 0.95, 0.85) * 6.0 : vec3(1.0, 0.06, 0.12) * 3.0, lamp);
-          glow = max(glow, lamp);
+          win *= pass * step(0.9, inCar) * step(inCar, carLen - 0.9);
+          if (win > 0.5) {
+            // Seen into: the ray goes on through the glass to the far wall
+            // (2.84 m in), the ceiling (3.3) or the floor (1.02).
+            float dz = max(-sign(vLocal.z) * V.z, 0.02);
+            float tFar = 2.84 / dz;
+            float tY = V.y > 0.0 ? (3.3 - vLocal.y) / max(V.y, 1e-4) : (1.02 - vLocal.y) / min(V.y, -1e-4);
+            float t = min(tFar, tY);
+            vec3 hit = vec3(vLocal.x + V.x * t, vLocal.y + V.y * t, dz * t);
+            float hu = hit.x + LEN * 0.5;
+            float hc = hu - floor(hu / carLen) * carLen;
+            vec3 inside;
+            if (tFar <= tY) {
+              // The far wall: its own windows with the night behind them,
+              // the benches' backs under them, a row of cards over them,
+              // its doors.
+              float fp = fract((hc - 0.4) / 1.55);
+              float fdq = min(abs(hc - carLen * 0.25), abs(hc - carLen * 0.75));
+              inside = mix(vec3(0.74, 0.72, 0.66), vec3(0.03, 0.04, 0.07), step(0.1, fp) * step(fp, 0.9) * step(1.5, hit.y) * step(hit.y, 2.62));
+              if (hit.y < 1.95) inside = uLivery * 0.55 + 0.05;
+              float cardAt = floor(hc / 0.9);
+              if (hit.y > 2.72 && hit.y < 2.98) inside = mix(inside, 0.25 + 0.6 * vec3(hash12(vec2(cardAt, 1.0)), hash12(vec2(cardAt, 2.0)), hash12(vec2(cardAt, 3.0))), step(0.08, fract(hc / 0.9)) * 0.8);
+              if (fdq < 0.68) inside = mix(vec3(0.6, 0.6, 0.58), vec3(0.03, 0.04, 0.07), step(0.12, fdq) * step(fdq, 0.56) * step(1.62, hit.y) * step(hit.y, 2.52));
+            } else if (V.y > 0.0) {
+              // The ceiling: two strips of light along it.
+              inside = mix(vec3(0.6, 0.6, 0.56), vec3(2.2), min(step(abs(hit.z - 0.85), 0.11) + step(abs(hit.z - 1.99), 0.11), 1.0));
+            } else {
+              // The floor, and the bench along the far wall.
+              inside = hit.z > 2.3 ? uLivery * 0.5 + 0.04 : vec3(0.16, 0.16, 0.17);
+            }
+            // Its people: seated along the far wall, standing down the
+            // middle, seated with their backs to this window.
+            vec4 who = rider(vLocal, V, dz, 2.5, t, 0.62, 2.14, 3.0 + car, 1.5, 0.45);
+            inside = mix(inside, who.rgb, who.a);
+            who = rider(vLocal, V, dz, 1.42, t, 1.3, 2.62, 7.0 + car, 1.02, 0.34);
+            inside = mix(inside, who.rgb, who.a);
+            who = rider(vLocal, V, dz, 0.28, t, 0.62, 2.14, 11.0 + car, 1.5, 0.4);
+            inside = mix(inside, who.rgb * 0.55, who.a);
+            vec3 room = mix(vec3(1.0, 0.9, 0.74), vec3(0.82, 0.92, 1.0), step(0.7, hash12(vec2(car, 9.0))));
+            // Softer close to, where it would only blow out; from down the
+            // avenue a row of lights.
+            inside = mix(inside, vec3(0.8), smoothstep(160.0, 420.0, dist)) * room;
+            col = inside * mix(0.55, 2.2, smoothstep(100.0, 450.0, dist)) + env * (0.03 + 0.5 * F);
+            glow = 0.8;
+          }
+          if (end < 5.0) {
+            // The cab: glass wrapped round the nose, dark, the sky in it
+            // and the desk's glow low in it; an amber board in its top; a
+            // lit bar under it; a cluster of lamps each side below that.
+            float cab = step(end, 2.5) * step(1.62, y) * step(y, 3.02);
+            vec3 glass = vec3(0.004, 0.006, 0.01) + env * (0.12 + 0.9 * F) + vec3(0.25, 0.5, 0.6) * 0.05 * smoothstep(2.1, 1.62, y);
+            col = mix(col, mix(glass, vec3(0.01), max(step(y, 1.68), step(2.96, y))), cab);
+            float cell = rz / 0.14;
+            float board = step(1.45, end) * step(end, 2.3) * step(2.74, y) * step(y, 2.94) * step(abs(rz), 0.75) * step(0.2, fract(cell)) * step(0.3, hash12(vec2(floor(cell), 5.0)));
+            float bar = step(end, 1.9) * step(abs(y - 1.5), 0.04);
+            float lamp = step(end, 1.0) * step(0.92, y) * step(y, 1.34) * step(0.62, abs(rz)) * step(abs(rz), 1.32);
+            vec3 going = front > 0.5 ? vec3(1.0, 0.95, 0.85) : vec3(1.0, 0.05, 0.1);
+            col = mix(col, vec3(1.0, 0.6, 0.12) * 2.2 * front + vec3(0.02), board);
+            col = mix(col, going * mix(2.0, 1.4, front), bar);
+            col = mix(col, going * mix(3.0, 6.0, front), lamp);
+            glow = max(glow, max(lamp, max(bar, board * front) * 0.8));
+          }
         }
         col = cityFog(col, vWorld, max(glow, 0.15));
         gl_FragColor = vec4(col, 1.0);
@@ -1094,13 +1259,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     `,
   };
   /** A train of `cars` on a line (the rail's height, where it runs across
-   *  x, the two portals it is drawn between), going where `at(clock)` says:
-   *  the middle of it along x, which way it faces, or null when it is out
-   *  of sight in a block. */
+   *  x, the two portals it is drawn between, its wire's height), in the
+   *  line's livery, going where `at(clock)` says: the middle of it along x,
+   *  which way it faces, or null when it is out of sight in a block. */
   const trains = [];
-  const addTrain = (cars, line, at) => {
-    const geometry = trainGeometry({ length: cars * CAR, cars });
-    const material = new THREE.ShaderMaterial({ uniforms: { ...shared, uDir: { value: 1 }, uLen: { value: cars * CAR }, uClip: { value: new THREE.Vector2(line.x0, line.x1) } }, ...trainShader });
+  const addTrain = (cars, line, livery, at) => {
+    const geometry = trainGeometry({ length: cars * CAR, cars, wire: line.wire });
+    const material = new THREE.ShaderMaterial({ uniforms: { ...shared, uDir: { value: 1 }, uLen: { value: cars * CAR }, uClip: { value: new THREE.Vector2(line.x0, line.x1) }, uLivery: { value: new THREE.Color(livery) } }, ...trainShader });
     material.name = "train";
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = "train";
@@ -1113,11 +1278,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const run = { x: 0, dir: 1 };
   if (rail) {
     // The viaduct: 26 s across from portal to portal, 6 s out of sight, and
-    // back. At second 12 it is over the avenue.
-    const line = { y: rail.position.y, z: rail.position.z, x0: rail.extras?.x0 ?? -94, x1: rail.extras?.x1 ?? 92 };
+    // back. At second 12, where the reviews' stills hold it, its nose is
+    // over the avenue's east kerb, lamps on, coming out from the west.
+    const line = { y: rail.position.y, z: rail.position.z, x0: rail.extras?.x0 ?? -94, x1: rail.extras?.x1 ?? 92, wire: VIADUCT_WIRE };
     const L = 6 * CAR;
-    addTrain(6, line, (clock) => {
-      const t = wrapTo(clock, 64);
+    addTrain(6, line, "#d9620f", (clock) => {
+      const t = wrapTo(clock - 3, 64);
       const k = (t % 32) / 26;
       if (k >= 1) return null;
       run.dir = t < 32 ? 1 : -1;
@@ -1134,7 +1300,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     const line = CORPO_TRACK;
     const L = 2 * CAR;
     for (const start of [86, 40]) {
-      addTrain(2, line, (clock) => {
+      addTrain(2, line, "#0d8c9e", (clock) => {
         const t = wrapTo(clock - start, 92);
         if (t >= 68) return null;
         run.dir = 1;
@@ -1497,6 +1663,16 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       if (!at) continue;
       T.mesh.position.set(at.x, T.line.y, T.line.z);
       T.material.uniforms.uDir.value = at.dir;
+      // Its lamps' glow, where an end of it is out between the portals:
+      // white ahead, red behind.
+      for (const sd of SIDES) {
+        const x = at.x + sd * at.dir * (T.length / 2 - 0.3);
+        if (x < T.line.x0 || x > T.line.x1) continue;
+        for (const side of SIDES) {
+          if (sd > 0) setLamp(li++, x, T.line.y + 1.25, T.line.z + side * 0.55, 0.9, 0.88, 0.8, 1.5);
+          else setLamp(li++, x, T.line.y + 1.25, T.line.z + side * 0.55, 0.9, 0.04, 0.08, 1.0);
+        }
+      }
       // The one the city hears is the viaduct's.
       if (rail && T === trains[0]) voices.train = T.mesh.position;
     }
