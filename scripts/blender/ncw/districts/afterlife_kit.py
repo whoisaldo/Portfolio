@@ -172,6 +172,90 @@ def word(D, cx, cy, cz, w, h, yaw, colour, text, underline="white", r=0.05, mark
         pipe((D, "steel", 1), at(u * 0.8, h * 0.3, 0.05), at(u * 0.8, h * 0.3, -0.25), 0.03, segs=4, col=RAIL)
 
 
+# Block capitals cut from plate, as the show sets the club's name
+# (BnnbP7pCIvQ@24): each a few straight-edged pieces on a unit square, listed
+# anticlockwise as read, heavy stems (STEM of the letter's width) and bars
+# (BAR of its height).
+STEM, BAR = 0.3, 0.18
+_S, _B, _M = STEM, BAR, 0.42
+_STEM = ((0, 0), (_S, 0), (_S, 1), (0, 1))
+_TOP = ((_S, 1 - _B), (1, 1 - _B), (1, 1), (_S, 1))
+_MID = ((_S, _M), (0.82, _M), (0.82, _M + _B), (_S, _M + _B))
+_FOOT = ((_S, 0), (1, 0), (1, _B), (_S, _B))
+BLOCKS = {
+    "A": (((0, 0), (_S, 0), (0.5, 1), (0.3, 1)), ((0.7, 0), (1, 0), (0.7, 1), (0.5, 1)), ((0.35, 0.25), (0.65, 0.25), (0.614, 0.43), (0.386, 0.43))),
+    "F": (_STEM, _TOP, _MID),
+    "T": (((0, 1 - _B), (1, 1 - _B), (1, 1), (0, 1)), ((0.5 - _S / 2, 0), (0.5 + _S / 2, 0), (0.5 + _S / 2, 1 - _B), (0.5 - _S / 2, 1 - _B))),
+    "E": (_STEM, _TOP, _MID, _FOOT),
+    "R": (_STEM, ((_S, 1 - _B), (1, 1 - _B), (1, 0.93), (0.9, 1), (_S, 1)), ((1 - _S, _M + _B), (1, _M + _B), (1, 1 - _B), (1 - _S, 1 - _B)),
+          ((_S, _M), (0.9, _M), (1, _M + 0.07), (1, _M + _B), (_S, _M + _B)), ((0.7, 0), (1, 0), (0.72, _M), (0.42, _M))),
+    "L": (_STEM, _FOOT),
+    "I": (((0, 0), (1, 0), (1, 1), (0, 1)),),
+}
+BLOCK_WIDTH = {"I": STEM}
+
+
+def block_word(text, s0, y0, h, w, gap, lean=0.22):
+    """A word in slanted block capitals as pieces of plate for `plates`:
+    each letter `w` wide and `h` high from s0, its foot at y0, `gap` between
+    letters, leaning `lean` of its height to the right."""
+    out, s = [], s0
+    for ch in text:
+        cw = w * BLOCK_WIDTH.get(ch, 1.0)
+        out += [[(s + u * cw + lean * v * h, y0 + v * h) for u, v in piece] for piece in BLOCKS[ch]]
+        s += cw + gap
+    return out
+
+
+def _outline(pieces):
+    """The stretches of every piece's edges that no other piece shares (two
+    pieces side by side share an edge, run opposite ways): the edges of the
+    shape they make together."""
+    edges = [(p[i], p[(i + 1) % len(p)], k) for k, p in enumerate(pieces) for i in range(len(p))]
+    out = []
+    for a, b, k in edges:
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        length = math.hypot(dx, dy)
+        if length < 1e-6:
+            continue
+        ux, uy = dx / length, dy / length
+        cuts = []
+        for c, d, j in edges:
+            if j == k:
+                continue
+            # Collinear with a to b, and running the other way.
+            if abs((c[0] - a[0]) * uy - (c[1] - a[1]) * ux) > 1e-4 or abs((d[0] - a[0]) * uy - (d[1] - a[1]) * ux) > 1e-4:
+                continue
+            t0, t1 = (d[0] - a[0]) * ux + (d[1] - a[1]) * uy, (c[0] - a[0]) * ux + (c[1] - a[1]) * uy
+            if t1 > t0 + 1e-6:
+                cuts.append((max(0.0, t0), min(length, t1)))
+        t = 0.0
+        for c0, c1 in sorted(cuts) + [(length, length)]:
+            if c0 - t > 1e-3:
+                out.append(((a[0] + ux * t, a[1] + uy * t), (a[0] + ux * c0, a[1] + uy * c0)))
+            t = max(t, c1)
+    return out
+
+
+def plates(D, f, pieces, w0, w1, face, side, inner=None, recess=0.0, detail=0):
+    """Letters cut from plate, standing off a face from w0 to w1: `pieces`
+    their outlines as (s, y), each anticlockwise as read, pieces that touch
+    making one shape. Lit letters are cans: the lit `face` set `recess` back
+    from the front of the returns (`side` outside, `inner` inside, which
+    the face lights), so from the front the whole letter shows and seen
+    along the wall its own returns hide it."""
+    wf = w1 - recess
+    for pts in pieces:
+        vpoly((D, "glow", detail), [f.p(f.at(s), y, wf) for s, y in pts], [face] * len(pts))
+    for a, b in _outline(pieces):
+        fa, fb = f.p(f.at(a[0]), a[1], w1), f.p(f.at(b[0]), b[1], w1)
+        ba, bb = f.p(f.at(a[0]), a[1], w0), f.p(f.at(b[0]), b[1], w0)
+        vpoly((D, "glow", detail), [fa, ba, bb, fb], [side] * 4)
+        if recess and inner:
+            ra, rb = f.p(f.at(a[0]), a[1], wf), f.p(f.at(b[0]), b[1], wf)
+            vpoly((D, "glow", detail), [fb, rb, ra, fa], [inner] * 4)
+
+
 def cross(D, cx, cy, cz, size, yaw, colour="green", box_=True):
     """A clinic's cross in light, on a square box, both faces."""
     nx, nz = _dir(yaw)

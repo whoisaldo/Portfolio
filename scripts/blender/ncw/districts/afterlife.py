@@ -251,7 +251,11 @@ K.fbox(AF, (D, "trim", 0), 3.0, 5.8, 4.05, SHOP_H, -0.18, 0.18, col=DARK, bottom
 # into the soffit and two pink tubes over the door.
 K.ceiling((D, "concrete", 0), 425.6, WK, -300.0, -262.0, SHOP_H - 0.004)
 box((D, "trim", 0), WK - 0.12, WK + 0.1, 4.15, SHOP_H + 0.02, -300.0, -262.0, scale=1.0, col=DARK, bottom=True)
-box((D, "neon_pink", 0), WK + 0.1, WK + 0.14, 4.2, 4.28, -299.7, -262.3, scale=1.0)
+# (In two runs, either side of the slab over the door, which hides it there:
+# the site pools a strip's light where its triangles' middles are, and one
+# run the length of the block pooled all of its pink at the door.)
+for z0_, z1_ in ((-299.7, -287.7), (-274.3, -262.3)):
+    box((D, "neon_pink", 0), WK + 0.1, WK + 0.14, 4.2, 4.28, z0_, z1_, scale=1.0)
 for sv in (0.3, 6.7, 13.0, 15.9, 22.1, 34.7, 37.7):
     a_ = AF.p(AF.at(sv), 2.9, 0.15 if 15 < sv < 23 else 0.02)
     pipe((D, "metal", 0), a_, (WK - 0.15, 4.45, a_[2]), 0.07, segs=5)
@@ -297,6 +301,49 @@ for a_ in (0.1, 11.25):
     CF.quad((D, "glow", 0), a_ + 0.1, a_ + 1.75, 4.84, 6.84, 0.06, col=yg(0.35))
     CF.quad((D, "trim", 1), m_ - 0.2, m_ + 0.2, 5.8, 6.55, 0.07, col=K.BLACK)
     poly((D, "trim", 1), [CF.p(CF.at(sv), yy, 0.07) for sv, yy in ((m_ - 0.58, 5.8), (m_, 5.12), (m_ + 0.58, 5.8))], [(0, 0), (0.5, 1), (1, 0)], K.BLACK)
+# Over the name, the sign the show hangs there (BnnbP7pCIvQ@24): AFTERLIFE in
+# slanted block capitals a storey high, cut from plate and lit in the slab's
+# own yellow-green, standing on a bar of the same light whose south end runs
+# out past the slab in a point from the A's foot, like a bolt. Channel
+# letters on two steel rails, posts down to the slab behind the name, struts
+# back to the wall.
+# (Each a can with its lit face set back a hand's breadth inside its returns:
+# from the street in front the whole name shows; along the wall, as the
+# Garage section's shot looks up the street, the returns hide most of it.)
+LIT, RETURN, INSIDE = yg(0.3), yg(0.02), yg(0.03)
+LY0, LH = 7.46, 3.0
+NAME = K.block_word("AFTERLIFE", 0.5, LY0, LH, 1.2, 0.22)
+NAME += [[(0.95, 7.04), (12.92, 7.04), (12.99, 7.36), (1.02, 7.36)],      # the bar
+         [(-1.1, 6.72), (0.95, 7.04), (1.02, 7.36), (0.5, 7.36)],         # its point
+         [(0.5, 7.36), (0.86, 7.36), (0.86, LY0), (0.5, LY0)]]            # the A's foot on it
+K.plates(D, CF, NAME, 0.04, 0.42, LIT, RETURN, INSIDE, recess=0.16)
+for y_ in (8.02, 9.82):
+    CF.box((D, "steel", 0), 0.3, 13.0, y_, y_ + 0.1, -0.05, 0.04, col=FRAME)
+for sv in (0.7, 4.6, 8.6, 12.5):
+    CF.box((D, "steel", 0), sv - 0.06, sv + 0.06, 4.72, 10.3, -0.17, -0.05, col=FRAME)
+    pipe((D, "steel", 1), CF.p(CF.at(sv), 9.87, -0.11), (WK + 0.02, 10.7, CF.at(sv)), 0.04, segs=4, col=FRAME)
+K.cable(D, (WK + 0.1, 9.3, CF.at(10.8)), CF.p(CF.at(11.6), 9.9, -0.05), 0.3, r=0.025, steps=5)
+# Its green in the doorway. The letters and the slab are drawn but are not in
+# the light the site bakes (the pink name is, as lilac over the whole front,
+# and the cyan strips), so the sign's light is set where nothing sees it:
+# panes of green and yellow under the paving of the recess, face down, which
+# the bake pools on the ground over them as it does any sign's. Low, so the
+# light lies on the recess, the carpet, the jambs' feet and whoever stands
+# at the door, falls off across the pavement to the kerb, and is gone eight
+# metres from the door; and the wall over the arcade takes less of the
+# name's lilac than it did, not more.
+DZ = AF.at(DOOR_S)
+for k in range(12):
+    xa, za = 425.7 + (k % 2) * 1.35, DZ - 2.3 + (k // 2 % 2) * 2.3
+    quad((D, "neon_green" if k % 5 < 3 else "neon_yellow", 0), (xa, -0.05 - 0.01 * (k // 4), za), (xa + 1.35, -0.05 - 0.01 * (k // 4), za),
+         (xa + 1.35, -0.05 - 0.01 * (k // 4), za + 2.3), (xa, -0.05 - 0.01 * (k // 4), za + 2.3))
+light(D, 427.0, 0.5, DZ, "green", 5.0)
+for dz_, hue_ in ((-1.6, "yellow"), (0.0, "green"), (1.6, "yellow")):
+    light(D, 429.6, 0.5, DZ + dz_, hue_, 3.0)
+# The queue's bay has its own, white and low, so the line is seen from the
+# street.
+light(D, 428.4, 2.4, AF.at(25.5), "white", 2.5)
+light(D, 428.4, 2.4, AF.at(30.5), "amber", 2.0)
 # The queue, the doorman and a second on the door.
 QUEUE = [(23.3, "idle", 0.0), (24.3, "phone", 0.2), (25.4, "talk", 0.0), (26.2, "talk", math.pi), (27.4, "idle", -0.2),
          (28.5, "smoke", 0.4), (29.6, "phone", 0.0), (30.7, "talk", 0.0), (31.5, "talk", math.pi), (32.7, "idle", 0.1)]
