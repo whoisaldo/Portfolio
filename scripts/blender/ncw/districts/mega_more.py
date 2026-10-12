@@ -242,10 +242,6 @@ for (x0, x1, z0, z1, y, hue) in ((-93.0, -84.0, -737.2, -733.0, floor_y(3), "amb
     stand((x0 + x1) / 2 + 0.5, (z0 + z1) / 2 + 0.3, -1.9, "talk", y)
     stand(x1 - 0.8, z0 + 0.8, 2.6, "sit", y + 0.4)
     tbox(x1 - 1.2, x1 - 0.4, y, y + 0.4, z0 + 0.4, z0 + 1.2, STEEL, detail=1)
-# Lit edges on the crowns that had none.
-for (x0, x1, z0, z1, y, hue) in ((-86.0, -64.0, -780.0, -748.0, floor_y(21), "magenta"), (62.0, 92.0, -782.0, -758.0, floor_y(19), "amber")):
-    walls((D, "neon_" + hue, 0), [(x0 - 0.04, z1 + 0.04), (x1 + 0.04, z1 + 0.04), (x1 + 0.04, z0 - 0.04), (x0 - 0.04, z0 - 0.04)], y + 0.83, y + 0.92, (1, 1, 1, 1))
-
 # ---------------------------------------------------------------------------
 # The ground at junction L. The megabuilding street's north pavement west
 # of x -80 and the corner it turns on the west street's (the plan's streets

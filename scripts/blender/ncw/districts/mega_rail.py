@@ -30,14 +30,14 @@ WIRE = TOP + 5.3                                 # the contact wire
 hquad((D, "trim", 0), X0, X1, RAIL_Z - 1.7, RAIL_Z + 1.7, TOP + 0.015, col=dim(CONC, 0.55))
 _x = X0 + 0.35
 while _x < X1:
-    hquad((D, "glow", 1), _x - 0.13, _x + 0.13, RAIL_Z - 1.3, RAIL_Z + 1.3, TOP + 0.035, col=dim(PALE, 0.08))
+    hquad((D, "glow", 1), _x - 0.13, _x + 0.13, RAIL_Z - 1.3, RAIL_Z + 1.3, TOP + 0.035, col=dim(PALE, 0.14))
     _x += 0.7
 # (The sleepers and the rails' running faces are drawn as the faintest glow:
 # nothing lights a deck 15 m up, and from the air the track must read. They
 # face the sky, so no lens at street level sees them.)
 for dz in (-0.72, 0.72):
     box((D, "metal", 0), X0, X1, TOP, TOP + 0.14, RAIL_Z + dz - 0.04, RAIL_Z + dz + 0.04, scale=1.0)
-    hquad((D, "glow", 0), X0, X1, RAIL_Z + dz - 0.03, RAIL_Z + dz + 0.03, TOP + 0.145, col=dim(GLOW["white"], 0.07))
+    hquad((D, "glow", 0), X0, X1, RAIL_Z + dz - 0.03, RAIL_Z + dz + 0.03, TOP + 0.145, col=dim(GLOW["white"], 0.12))
 tbox(X0, X1, TOP, TOP + 0.22, ZN + 0.55, ZN + 1.0, CONC)
 tbox(X0, X1, TOP, TOP + 0.16, ZS - 1.15, ZS - 0.8, dim(CONC, 0.8))
 box((D, "metal", 0), X0, X1, TOP, TOP + 0.9, ZN, ZN + 0.2, scale=1.0)

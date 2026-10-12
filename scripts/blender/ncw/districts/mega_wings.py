@@ -237,8 +237,8 @@ B.billboard(D, RB[0], ARM_TOP + 2.4 + 3.2, RB[1], 13.0, 6.4, RB[2], random.Rando
 for du in (-4.6, 4.6):
     bx, bz = RB[0] + math.cos(RB[2]) * du + math.sin(RB[2]) * -0.25, RB[1] - math.sin(RB[2]) * du + math.cos(RB[2]) * -0.25
     box((D, "metal", 1), bx - 0.12, bx + 0.12, ARM_TOP, ARM_TOP + 2.4, bz - 0.12, bz + 0.12, scale=0.5)
-roof_strip(80.0, AX1, AZ0, AZ1, ARM_TOP, 8467, cap=5.0)
-roof_strip(AX0, 80.0, AZ0, -727.0, ARM_TOP, 8468, cap=4.5)
+# (Its roof's plant, walk, pad and light: mega_finish.py. The generator's
+# sheet-metal boxes stood black against the camera up here.)
 for (z, pose) in ((-730.0, "idle"), (-724.6, "phone"), (-711.0, "idle")):
     stand(AX0 + 0.8, z, -math.pi / 2, pose, ARM_TOP)
 

@@ -102,7 +102,7 @@ rpipe((-13.6, RAIL_UNDER - 0.16, RAIL_Z - 2.1), (13.6, RAIL_UNDER - 0.16, RAIL_Z
 tbox(-13.6, 13.6, RAIL_UNDER - 0.14, RAIL_UNDER - 0.02, RAIL_Z + 0.6, RAIL_Z + 1.5, STEEL, detail=1, bottom=True)
 # Cables across the avenue north of the viaduct, toward the block.
 for (z, y, sag) in ((-632.0, 17.0, 2.2), (-655.0, 13.0, 1.6), (-671.0, 21.0, 2.8), (-690.0, 15.0, 2.0), (-702.0, 11.0, 1.2), (-588.0, 19.0, 2.4), (-574.0, 14.0, 1.8)):
-    bundle((-14.0, y, z), (14.0, y + _r.uniform(-2.0, 2.0), z + _r.uniform(-5.0, 5.0)), sag=sag, n=_r.choice((1, 2, 2, 3)))
+    bundle((-14.0, y, z), (14.0, y + _r.uniform(-2.0, 2.0), z + _r.uniform(-5.0, 5.0)), sag=sag, n=_r.choice((1, 2, 2, 3)), r=0.012)
 # The kerbs.
 for z in (-580.0, -596.0, -624.0, -640.0, -664.0, -688.0):
     P.place("bollard", 10.45 if int(z) % 3 else -10.45, G0, z)
@@ -118,12 +118,12 @@ for (x, z, yaw, pose) in ((10.5, -700.0, -math.pi / 2, "phone"), (-10.5, -694.0,
 # and pools at the entrance.
 # ---------------------------------------------------------------------------
 for x0, x1 in ((-46.0, -40.0), (-37.0, -31.0), (-28.0, -22.0)):
-    tube_x(x0, x1, 4.08, -743.0, "white", power=3.0, neon=True)
+    tube_x(x0, x1, 4.08, -743.0, "white", power=5.0, neon=True)
 for x0, x1, z in ((-40.0, -34.0, -736.4), (-28.0, -22.0, -737.2)):
-    tube_x(x0, x1, W_TOP - 0.74, z, "amber", power=3.4, neon=True)
+    tube_x(x0, x1, W_TOP - 0.74, z, "amber", power=5.5, neon=True)
 for x0, x1, z in ((23.0, 29.0, -737.0), (33.0, 39.0, -735.6), (41.0, 46.0, -741.0)):
     assert hero_hidden(x0, x1, 12.0, 14.5, z)
-    tube_x(x0, x1, E_TOP - 0.84, z, "white", power=3.6, neon=True)
-for (x, z, hue, pw) in ((-13.0, -737.0, "amber", 1.8), (13.0, -737.0, "amber", 1.8), (-44.0, -739.0, "amber", 2.6), (30.0, -744.0, "cyan", 2.4),
-                        (36.0, -741.0, "white", 2.8), (-24.0, -734.0, "amber", 2.4), (24.0, -734.0, "white", 2.2)):
+    tube_x(x0, x1, E_TOP - 0.84, z, "white", power=5.5, neon=True)
+for (x, z, hue, pw) in ((-13.0, -737.0, "amber", 1.8), (13.0, -737.0, "amber", 1.8), (-44.0, -739.0, "amber", 4.6), (30.0, -744.0, "cyan", 3.6),
+                        (36.0, -741.0, "white", 4.4), (-24.0, -734.0, "amber", 4.4), (24.0, -734.0, "white", 4.2)):
     light(D, x, 3.5, z, hue, pw)

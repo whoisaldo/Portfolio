@@ -218,7 +218,7 @@ def cable(a, b, sag=1.0, steps=8, r=0.035, key=None):
         quad(key, (q[0], q[1] - r, q[2]), (p[0], p[1] - r, p[2]), (p[0], p[1] + r, p[2]), (q[0], q[1] + r, q[2]))
 
 
-def bundle(a, b, sag=1.2, n=3, rng=None, spread=0.25, r=0.04):
+def bundle(a, b, sag=1.2, n=3, rng=None, spread=0.25, r=0.02):
     """A bundle of cables between two points, each with its own sag."""
     rng = rng or random.Random(int(a[0] * 31 + a[2] * 17 + b[0] * 7))
     for i in range(n):

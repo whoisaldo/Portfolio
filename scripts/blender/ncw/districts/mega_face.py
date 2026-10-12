@@ -161,7 +161,10 @@ def sign_column(x, z, ys, sizes, yaws, district=D):
     its own way."""
     for y, size, yaw in zip(ys, sizes, yaws):
         angled_sign(x, y, z, size, yaw, district=district)
-    box((district, "metal", 1), x - 0.05, x + 0.05, min(ys) - 3.0, max(ys) + 3.0, z - 0.75, z - 0.65, scale=0.5)
+        # Its bracket: two arms off the mast to the board's back.
+        for dy in (-0.5, 0.5):
+            box((district, "metal", 1), x - 0.04, x + 0.04, y + dy * ST_SIZES[size][1] * 0.6 - 0.04, y + dy * ST_SIZES[size][1] * 0.6 + 0.04, z - 0.7, z, scale=0.5)
+    box((district, "metal", 1), x - 0.09, x + 0.09, min(ys) - 3.0, max(ys) + 3.0, z - 0.8, z - 0.62, scale=0.5)
 
 
 # ---------------------------------------------------------------------------

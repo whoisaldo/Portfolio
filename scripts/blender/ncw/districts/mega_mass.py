@@ -28,6 +28,7 @@ for k, (x0, x1, z0, z1, y0, y1) in enumerate(TIERS):
     mass(D, x0, x1, z0, z1, y0, y1, 5021 + k, faces=("-x", "+x", "-z"), col=B.wall_col(0.5, 2, 0.5, 5), roof=True)
     B.ROOFS.append((D, x0, x1, z0, z1, y1))
     B.COLLISION.append(("box", x0, x1, y0, y1, z0, z1, D))
+    HERO_MASSES.append(((x0, y0, z0), (x1, y1, z1)))
     # A dark coping along each step's front, and the step's own line of light.
     box((FA, "dark", 0), x0 - 0.3, x1 + 0.3, y1 - 0.2, y1 + 1.0, z1 - 0.3, z1 + 0.3, scale=2.0)
     if k < 2:
