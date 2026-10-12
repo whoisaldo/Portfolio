@@ -317,10 +317,13 @@ export async function createRoam({ parts, world, reduced = false, city = { board
     reset,
     toggleCar,
     /** The car put down at (x, z) facing `heading` (the playtest's routes
-     *  begin where it sets it). */
+     *  begin where it sets it). False, and nothing done, if it would not
+     *  stand clear there. */
     setDown(x, z, heading, y = 0) {
+      if (!stands({ x, y, z, heading })) return false;
       vehicle.place(x, z, heading, y);
       drive();
+      return true;
     },
     /** The same on foot. False if there is no ground there. */
     standAt(x, z, yaw, y = 0) {

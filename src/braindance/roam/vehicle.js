@@ -15,8 +15,10 @@
 // and turned by what moved them, and what it was carrying into the wall is
 // taken off its velocity, so it slides along a wall and does not stick to
 // it. Each frame is cut into steps no longer than a third of a metre, so no
-// speed carries it through anything. Its height, pitch and roll are the
-// ground's under its four wheels.
+// speed carries it through anything, and a step that would leave its
+// middle over ground wheels cannot stand on is not taken at all: the car
+// is put back where it stood. Its height, pitch and roll are the ground's
+// under its four wheels.
 import { CAR } from "./nav.js";
 
 // The S4 B8.5: 4.72 m long, 1.83 wide, 2.81 between the axles.
@@ -115,6 +117,9 @@ export function createVehicle(nav) {
     const h = dt / steps;
     let scraping = false;
     for (let s = 0; s < steps; s++) {
+      const fromX = car.x;
+      const fromZ = car.z;
+      const fromHeading = car.heading;
       let fx = Math.sin(car.heading);
       let fz = Math.cos(car.heading);
       let v = vx * fx + vz * fz;
@@ -220,6 +225,18 @@ export function createVehicle(nav) {
           }
         }
         if (!any) break;
+      }
+      // Never off the road: if all that pushing has left its middle over
+      // ground it cannot stand on, it stays where it was, stopped.
+      const under = nav.floor(car.x, car.z, car.y, CAR, 0.8);
+      if (under !== under) {
+        car.x = fromX;
+        car.z = fromZ;
+        car.heading = fromHeading;
+        car.knock = Math.max(car.knock, Math.hypot(vx, vz));
+        vx = vz = 0;
+        car.touching = true;
+        break;
       }
     }
 
