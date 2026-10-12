@@ -68,7 +68,8 @@ export function wardrobe(seed) {
 // which is the S4's road and its two stops; the plaza street's north bay
 // where the S4 swings out of it for the x 120 road, and both its bays where
 // the braindance's car stands; the deck's mouth on the x 120 road; the
-// garage's door; AFTERLIFE's door and its carpet.
+// garage's door; AFTERLIFE's door and its carpet; the works barriers that
+// stand out over the garage street's west kerb.
 const CLEAR = [
   [-12, -5, -58, 20],
   [5, 12, -195, 20],
@@ -77,13 +78,16 @@ const CLEAR = [
   [110, 116, -93, -67],
   [440, 452, -230, -202],
   [430, 436, -286, -276],
+  [430, 436, -141.5, -134],
 ];
 
 // The ones asked for by place. Taxis at the kerb by the lobbies on the x 120
 // road's east side (the plaza's two canopies, and the pair further north);
 // the patrol car in the kerb lane short of junction F's stop line; the van
-// in the court behind the board; and on the garage street one car left with
-// its hazards going, where the flight in comes down past it.
+// in the court behind the board; two cars at the pumps of Santo Domingo's
+// fuel station, under its canopy, lamps on; and on the garage street one
+// car left with its hazards going, where the flight in comes down past it.
+// (`off`: not on a street.)
 const NORTH = Math.PI;
 const PLACED = [
   { x: 126.55, z: -79, yaw: NORTH, kind: "sedan", tag: TAG.taxi, body: CAB },
@@ -91,7 +95,9 @@ const PLACED = [
   { x: 126.55, z: -237.4, yaw: NORTH, kind: "sedan", tag: TAG.taxi, body: CAB },
   { x: 126.55, z: -243.9, yaw: NORTH, kind: "sedan", tag: TAG.taxi, body: CAB },
   { x: 126.55, z: -158.8, yaw: NORTH, kind: "sedan", tag: TAG.patrol, body: PATROL },
-  { x: 50, z: -288, yaw: Math.PI / 2, kind: "van" },
+  { x: 50, z: -288, yaw: Math.PI / 2, kind: "van", off: true },
+  { x: 136.1, z: 24.1, yaw: NORTH, kind: "hatch", off: true, lit: true },
+  { x: 157.9, z: 23.7, yaw: 0, kind: "pickup", off: true, lit: true },
   { x: 433.4, z: -268, yaw: 0, kind: "hatch", hazard: true },
 ];
 
@@ -108,7 +114,7 @@ export function createStanding({ rows, full = true }) {
   rows.forEach((row, r) => {
     const draw = draws(7919 + r * 131);
     const dress = wardrobe(3301 + r * 17);
-    const share = row.bay ? (full ? 0.8 : 0.4) : full ? 0.6 : 0.32;
+    const share = row.bay ? (full ? 0.8 : 0.4) : row.angled ? (full ? 0.7 : 0.3) : full ? 0.6 : 0.32;
     const most = full ? 2 : 4;
     let empty = 0;
     for (const at of row.places) {

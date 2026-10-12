@@ -27,7 +27,9 @@
 // differs on a street: `back`, the lanes of the cars going the other way
 // (toward the lower coordinate); `shape`, where its one lane changes its
 // offset along the street; `kerb`, cars parked in the kerb lane (how far out
-// from the centre line, and over which stretch if not all of it).
+// from the centre line, over which stretch if not all of it, and, where
+// they stand nose to the kerb at an angle, the angle and how far apart);
+// `speed`, where a street is driven faster than the rest.
 //
 // A street with no bay of its own is driven in its inner lane and parked
 // along its kerb lane, as a city's streets are at night, so no stretch of
@@ -35,7 +37,9 @@
 // a car turns round in, so there it keeps to the kerb lane's wide circle.
 // The west street's middle lanes are the deck's ramp from z -228 to -68:
 // its cars move over to the service lanes before the ramp's foot and stay
-// there. The S4 has a road of its own (road_spline: the avenue's east bay,
+// there. North of the ramp it is the widest street there is, twenty metres
+// kerb to kerb, and its kerbs are parked nose in at an angle, as a market
+// street's are, so it is not a bare field of tarmac. The S4 has a road of its own (road_spline: the avenue's east bay,
 // the middle of the plaza street, the x 120 road's and the garage street's
 // centre lines, the boulevard's inner eastbound lane) and stops on it for
 // the page's shots, so the lanes here keep off that line: the plaza
@@ -44,11 +48,11 @@
 const STREETS = [
   ["avenue", "z", 0, -720, 88, 10, [5.55, 1.85], 2.6],
   ["megabuilding", "x", -720, -80, 60, 8, [6], 0, { shape: [[-10, 2], [10, 6]], kerb: { offset: 6.55, from: -80, to: 0 } }],
-  ["west", "z", -80, -720, 1, 10, [7.5], 0, { shape: [[-254, 2.5], [-236, 7.5]], kerb: { offset: 8.55, from: -720, to: -262 } }],
+  ["west", "z", -80, -720, 1, 10, [7.5], 0, { shape: [[-254, 2.5], [-236, 7.5]], kerb: { offset: 7.05, from: -720, to: -262, angle: 0.87, pitch: 3.3 } }],
   ["plaza", "x", -179, -80, 440, 7, [3.2], 2.4],
   ["south", "x", 1, -80, 440, 7, [1.75], 0, { kerb: { offset: 5.55 } }],
   ["x120", "z", 120, -330, 1, 8, [2.5], 0, { kerb: { offset: 6.55 } }],
-  ["boulevard", "x", -330, 120, 440, 9, [6.75], 0, { back: [2.25], kerb: { offset: 7.55, dir: -1 } }],
+  ["boulevard", "x", -330, 120, 440, 9, [6.75], 0, { back: [2.25], kerb: { offset: 7.55, dir: -1 }, speed: 15 }],
   ["garage", "z", 440, -330, 1, 8, [2.8], 2.4],
 ].map(([name, axis, c, a, b, half, offsets, bay, more = {}]) => ({ name, axis, c, a, b, half, offsets, bay, ...more }));
 
@@ -57,6 +61,22 @@ const STREETS = [
 // right everywhere else. At the hero's own junction (0, 1) the lens lies in
 // the south mouth, 0.6 m off the road: four right turns keep to the corners.
 const PREFER = { "0,-179": "S", "120,-179": "S" };
+
+// One light is not left to the draw. The braindance's recording runs the
+// city's clock as its own (src/braindance/engine.js: second 102 of the
+// recording is second 102 here), and from 102 to 117 its chase camera rides
+// the boulevard's south kerb beside the S4, looking across the kerb lane at
+// Corpo Row's clues; a platoon in that lane then stands between the lens
+// and what the viewer is meant to find. The lights' cycle is 40 s, so that
+// is seconds 22 to 37 of every cycle. The platoon that turns onto the
+// boulevard comes up the x 120 road to junction E: its line there is given
+// a light of its own, green at GATE of each cycle, and that line is the
+// route's anchor, so its first car always leaves it at that second. With
+// the boulevard driven at 15 m/s the platoon's last car is past x 320
+// before second 22 and its first does not come round the corner again
+// until after 37 (tools/bdlane.mjs counts it). Changing the cycle, the
+// boulevard's speed or the platoon's size moves this: run the tool.
+const GATE = { key: "120,-330", heading: [0, -1], green: 33.6 };
 
 const CRUISE = 11.5;
 const TURN = 6.5;
@@ -134,7 +154,7 @@ function movement(a, b) {
 /** One way out for each way in at every junction: of all the pairings with
  *  nobody turning back, the one with the most of the junction's preferred
  *  movement. */
-function pairings(junctions) {
+function pairings(junctions, gate) {
   for (const j of junctions.values()) {
     const want = PREFER[j.key] ?? "R";
     let best = null;
@@ -163,8 +183,12 @@ function pairings(junctions) {
     j.ins.forEach((seg, i) => {
       seg.next = j.outs[best[i]];
       seg.move = movement(seg, seg.next);
-      // The lights: only where three or more streets meet.
+      // The lights: only where three or more streets meet, and the gate.
       seg.lit = j.ins.length > 2 ? j : null;
+      if (gate && j.key === gate.key && seg.heading[0] === gate.heading[0] && seg.heading[1] === gate.heading[1]) {
+        seg.lit = j;
+        seg.gate = gate.green;
+      }
     });
   }
 }
@@ -215,7 +239,7 @@ function pieces(route, lane) {
     const b = run[run.length - 1];
     const c = runLine(next, lane)[0];
     const o = seg.street.shape ? shaped(seg.street, seg.end) : seg.offsets[Math.min(lane, seg.offsets.length - 1)];
-    out.push({ ...line(run), seg, limit: CRUISE, two: seg.offsets.length > 1, run: true });
+    out.push({ ...line(run), seg, limit: seg.street.speed ?? CRUISE, two: seg.offsets.length > 1, run: true });
     let pts;
     if (seg.move === "U") {
       // Round and back: half a circle past the run's end.
@@ -253,13 +277,17 @@ function timetable(lanes, { cycle, need, phase }) {
   const limit = new Float32Array(N + 1).fill(CRUISE);
   const stops = [];
   kerb.forEach((p, k) => {
+    if (p.run) for (let i = Math.round(starts[k] / du); i <= Math.round(starts[k + 1] / du); i++) limit[i % N] = p.limit;
+  });
+  limit[N] = limit[0];
+  kerb.forEach((p, k) => {
     const from = Math.round(starts[k] / du);
     const to = Math.round(starts[k + 1] / du);
     if (p.turn) for (let i = from; i <= to + Math.round(need.length / du); i++) limit[i % N] = Math.min(limit[i % N], p.limit);
     // (A stop line is a run's: the way straight through a wide junction is
     // as long as a short run, and must not be given one in mid box.)
     else if (p.run && p.seg.lit && p.len > STOP + 6) {
-      stops.push({ i: Math.round((starts[k + 1] - STOP) / du) % N, green: (phase(p.seg.lit.key) + (p.seg.heading[0] ? cycle / 2 : 0)) % cycle });
+      stops.push({ i: Math.round((starts[k + 1] - STOP) / du) % N, green: p.seg.gate ?? (phase(p.seg.lit.key) + (p.seg.heading[0] ? cycle / 2 : 0)) % cycle, gate: p.seg.gate !== undefined });
     }
   });
   // A phase's green, less a second at its end. A platoon runs a light at
@@ -327,9 +355,12 @@ function timetable(lanes, { cycle, need, phase }) {
     const wasted = into(run.t[N], stops[anchor].green) < window - need.time ? 1 : 0;
     return { anchor, run, wasted };
   };
-  // An anchor the platoon comes back to late in the green or on the red.
+  // An anchor the platoon comes back to late in the green or on the red;
+  // the gate, where the route has it.
   let best = null;
+  const forced = stops.findIndex((s) => s.gate);
   for (let a = 0; a < stops.length; a++) {
+    if (forced >= 0 && a !== forced) continue;
     const s = solve(a);
     if (!best || s.wasted < best.wasted) best = s;
     if (!s.wasted) break;
@@ -345,15 +376,17 @@ function timetable(lanes, { cycle, need, phase }) {
     const u = i >= N || time <= run.leave[i] ? i : i + (time - run.leave[i]) / Math.max(1e-6, run.t[i + 1] - run.leave[i]);
     table[j] = Math.min(N, u) * du;
   }
-  return { table, period, length, offset: stops[anchor].i * du, t0 };
+  return { table, period, length, offset: stops[anchor].i * du, t0, wasted: best.wasted };
 }
 
 // The lights' phases are drawn from this. Any seed is as good a city as
-// another; this one was picked (of 2,500 tried) because at second 12 of the
-// clock, where every review render holds the traffic, a platoon is in sight
-// from the last metres before each corner of the loop, where a driver faces
-// a wall across the junction and only passing cars can be in view.
-const PHASES = 2452;
+// another; this one was picked (of 6,000 tried, tools/phasesearch.mjs)
+// because at second 12 of the clock, where every review render holds the
+// traffic, a platoon is in sight from the last metres before each corner of
+// the loop, where a driver faces a wall across the junction and only
+// passing cars can be in view; and because with it neither route's platoon
+// comes back to its anchor early enough to be held there a whole cycle.
+const PHASES = 1844;
 
 /**
  * The network's traffic: `perPlatoon` cars to a platoon, the lights on a
@@ -363,9 +396,9 @@ const PHASES = 2452;
  * lamps are lit (out.brake); and the rows of parking places along the
  * kerbs.
  */
-export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed = PHASES } = {}) {
+export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed = PHASES, gate = GATE } = {}) {
   const { segs, junctions } = runs();
-  pairings(junctions);
+  pairings(junctions, gate);
   const phases = new Map();
   const drawPhase = draws(seed);
   for (const key of [...junctions.keys()].sort()) phases.set(key, drawPhase() * cycle);
@@ -474,15 +507,17 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
       from = Math.max(from, (k.from ?? -1e9) + PARK_FROM);
       to = Math.min(to, k.to ?? 1e9);
     }
-    const n = Math.floor((to - from) / PITCH);
+    const pitch = (!s.bay && s.kerb.pitch) || PITCH;
+    const n = Math.floor((to - from) / pitch);
     if (n < 0) continue;
-    const yaw = Math.atan2(seg.heading[0], seg.heading[1]);
+    // Along the kerb, or nose in toward it (the kerb is on the right).
+    const yaw = Math.atan2(seg.heading[0], seg.heading[1]) - ((!s.bay && s.kerb.angle) || 0);
     const places = [];
     for (let i = 0; i <= n; i++) {
-      const p = onLane(seg, seg.dir > 0 ? from + i * PITCH : to - i * PITCH, o);
+      const p = onLane(seg, seg.dir > 0 ? from + i * pitch : to - i * pitch, o);
       places.push({ x: p[0], z: p[1], yaw });
     }
-    rows.push({ street: s.name, bay: s.bay > 0, dir: seg.dir, places });
+    rows.push({ street: s.name, bay: s.bay > 0, angled: !s.bay && !!s.kerb.angle, dir: seg.dir, places });
   }
   return { routes, cars, place, rows, cycle, streets: STREETS };
 }
