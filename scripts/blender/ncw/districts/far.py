@@ -60,7 +60,9 @@ BACKS = {
 # where a column of small boards hangs under it. The hero looks under and
 # through them: each sits over the megablock's roofline and under the
 # figure's waist in its eye, between the roofs.
-BRIDGES = ((-240.0, fl(9) - 0.6, True, None), (-338.0, fl(13) - 0.6, False, 9.0))
+BRIDGES = ((-240.0, fl(9) - 1.6, True, None), (-338.0, fl(13) - 0.6, False, 9.0))
+MEGA_HALF = 3.5         # the first is the megastructure: seven metres deep, eight tall
+PYLON_Z = -232.0        # and the stack of adverts on a mast beside it, on the left
 # What stands between the hero's lens and the canyon: the avenue's lots.
 AVENUE_MASSES = list(HERO_MASSES)
 HUES = ("cyan", "magenta", "amber", "pink", "teal")
@@ -508,7 +510,9 @@ def _dress_street(U):
     # across another, nor across the lot's column of type, the figure's
     # slogan or a skybridge's landing.
     taken = []
-    keep = [(bz, 3.2) for bz, _, _, _ in BRIDGES]
+    keep = [(bz, MEGA_HALF + 1.4 if enclosed else 3.2) for bz, _, enclosed, _ in BRIDGES]
+    if side < 0:
+        keep.append((PYLON_Z, 2.6))
     if U["k"] == 0 and L["i"] % 3 != 2:
         keep.append((U["zs"] - 3.0, 2.0))
     if side > 0:
@@ -700,7 +704,7 @@ for side in (-1, 1):
         i, U = L["i"], L["units"][0]
         if i % 3 != 2:
             h = min(L["h"] * 0.5, 40.0)
-            C.tall(f"far_{'l' if side < 0 else 'r'}{i}", side * (WALK - 1.6), SHOP_H + 3.0, h, U["zs"] - 3.0)
+            C.tall(f"far_{'l' if side < 0 else 'r'}{i}", i * 2 + (1 if side > 0 else 0), side * (WALK - 1.6), SHOP_H + 3.0, h, U["zs"] - 3.0, side * WALK)
 for side in (-1, 1):
     for L in ROWS[side]:
         for U in L["units"]:
@@ -866,7 +870,9 @@ light(CB, 45.6, 4.0, -240.0, "amber", 4.0)
 # Skybridges across the avenue, a row of boards on each (ARL_JWwKdDs@21).
 bridge_r = random.Random(4822)
 for bz, by, enclosed, hang in BRIDGES:
-    for lo, hi in C.skybridge(bz, by, bridge_r, enclosed=enclosed, hang=hang):
+    boxes = C.megabridge(bz, by, bridge_r, half=MEGA_HALF) + [C.pylon(PYLON_Z, by - 2.0, bridge_r, -1)] if enclosed else \
+        C.skybridge(bz, by, bridge_r, enclosed=False, hang=hang)
+    for lo, hi in boxes:
         if C.covers(AVENUE_MASSES, lo, hi):
             raise RuntimeError(f"the skybridge at z {bz} stands across something the hero frames: {lo} {hi}")
     if not enclosed:
@@ -877,7 +883,7 @@ for bz, by, enclosed, hang in BRIDGES:
 cable_r = random.Random(4830)
 for _ in range(26):
     z = cable_r.uniform(-700.0, -196.0)
-    if RAIL[0] - 4.0 < z < RAIL[1] + 4.0 or abs(z + 240.0) < 4.0 or abs(z + 338.0) < 4.0 or FORECOURT[0] < z < FORECOURT[1]:
+    if RAIL[0] - 4.0 < z < RAIL[1] + 4.0 or abs(z + 240.0) < 9.0 or abs(z + 338.0) < 4.0 or FORECOURT[0] < z < FORECOURT[1]:
         continue
     y = cable_r.uniform(8.0, 30.0)
     C.cable(CB, (-WALK, y, z), (WALK, y + cable_r.uniform(-3.0, 3.0), z + cable_r.uniform(-7.0, 7.0)), cable_r.uniform(0.8, 3.0))
@@ -892,6 +898,8 @@ pave_r = random.Random(4840)
 for s in (-1, 1):
     out = -s * math.pi / 2
     shut = [(a - GAP - 2.5, a + 2.5) for a in ALLEYS[s]] + [(RAIL[0] - 5.0, RAIL[1] + 5.0)]
+    if s < 0:
+        shut.append((PYLON_Z - 1.6, PYLON_Z + 1.6))
     shut += [(L["z0"] - 1.0, L["z1"] + 1.0) for L in ROWS[s] if L["arcade"]]
     if s > 0:
         shut.append((FORECOURT[0] - 1.0, FORECOURT[1] + 1.0))
