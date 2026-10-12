@@ -579,7 +579,7 @@ def movement_joint(axis, v, plane, d, yf, par_h):
     stain(axis, v + 0.12, plane, d, lo, y - LIP_D, w=0.5)
 
 
-def chipped(axis, a, b, plane, out, yf, lo, hi, detail=0):
+def chipped(axis, a, b, plane, out, yf, lo, hi, detail=0, mat="hazard", col=(1, 1, 1, 1)):
     """Yellow paint along a face from a to b, between lo and hi over yf's
     line, as years leave it: in lengths with gaps between them, a length
     gone now and then, bites out of its top or its foot."""
@@ -594,7 +594,7 @@ def chipped(axis, a, b, plane, out, yf, lo, hi, detail=0):
                 y0 = lo + (hi - lo) * chip_rng.uniform(0.25, 0.55)
             elif r > 0.62:
                 y1 = hi - (hi - lo) * chip_rng.uniform(0.25, 0.55)
-            face((DK, "hazard", detail), [_w(axis, v, o, yf(v) + y0), _w(axis, v1, o, yf(v1) + y0), _w(axis, v1, o, yf(v1) + y1), _w(axis, v, o, yf(v) + y1)], out, 1.0)
+            face((DK, mat, detail), [_w(axis, v, o, yf(v) + y0), _w(axis, v1, o, yf(v1) + y0), _w(axis, v1, o, yf(v1) + y1), _w(axis, v, o, yf(v) + y1)], out, 1.0, col)
         v = v1 + chip_rng.uniform(0.02, 0.25)
 
 
@@ -607,10 +607,10 @@ STAIR_GAP = (-65.6, -44.4)      # the stair and its lookout hang off the south f
 for a, b in ((XW, STAIR_GAP[0]), (STAIR_GAP[1], -HERO), (HERO, ABUT_X)):
     edge("x", a, b, ZS, 1, DY, UPS_H)
     stripe("x", a, b, ZS, (0, 0, 1), DY)
-edge("x", ABUT_X, MOUTH_X - 0.5, ZS, 1, DY, UPS_H, lit=False)
+edge("x", ABUT_X, MOUTH_X - 0.5, ZS, 1, DY, UPS_H)
 # The north face: the hero never sees it, so it is dressed over the avenue too.
 edge("x", XE, ABUT_X, ZN, -1, DY, PAR_H)
-edge("x", ABUT_X, MOUTH_X - 0.5, ZN, -1, DY, PAR_H, lit=False)
+edge("x", ABUT_X, MOUTH_X - 0.5, ZN, -1, DY, PAR_H)
 stripe("x", XE, ABUT_X, ZN, (0, 0, -1), DY)
 edge("z", FOOT, ZS, XW, -1, RY, UPS_H)
 stripe("z", WALL_Z, ZS, XW, (-1, 0, 0), RY)
@@ -2345,7 +2345,8 @@ def ad_panel(x, z, yaw, w=3.4, h=1.7):
     oriented_box((DK, "castconcrete", 0), x, B.G0 + 0.17, z, w + 0.5, 0.34, 0.56, yaw, scale=1.0, col=PARAPET_C)
     for f in (1, -1):
         rotated_quad((DK, "glow", 1), x + f * nx * 0.285, B.G0 + 0.3, z + f * nz * 0.285, w + 0.3, 0.035, yaw if f > 0 else yaw + math.pi, col=glowc("eceae4", 0.35))
-    hx, hz = (w / 2 + 0.25, 0.3) if abs(nx) < 0.5 else (0.3, w / 2 + 0.25)
+    hx = abs(nz) * (w / 2 + 0.25) + abs(nx) * 0.3
+    hz = abs(nx) * (w / 2 + 0.25) + abs(nz) * 0.3
     B.COLLISION.append(("box", x - hx, x + hx, 0.0, cy + h / 2, z - hz, z + hz, DK))
 
 
@@ -2422,3 +2423,143 @@ P.place("ad_drum", X0 - 2.4, B.G0, -88.2, district=DK)
 for k in range(7):
     P.place("bollard", IS0 + 1.0 + k * (IS1 - IS0 - 2.0) / 6, B.G0, ZN - 1.2, district=DK)
 stand(X0 - 1.5, -94.3, math.pi / 2, "smoke", B.G0)
+
+# ---------------------------------------------------------------------------
+# ROUND 3. THE FOOTPATH. What a walker passes between the barrier and the
+# rail: paint on both (teal along the rail's upstand, the barrier's yellow on
+# its walkway face too), a worn yellow guide strip down the middle of the
+# paving, a conduit along the upstand to a box at every lamp post, drains,
+# litter against the upstands, markers low on the hero's panel over the
+# avenue (its inner face: the hero sees its outer), and people on the stair.
+# ---------------------------------------------------------------------------
+PAINT_TEAL = (0.02, 0.14, 0.13, 1.0)
+GUIDE = (0.5, 0.36, 0.05, 1.0)
+walk_rng = random.Random(8650)
+
+
+def walk_y(axis, v):
+    return (max(DY(v) + WALK_UP, CROSS_Y + 0.004) if axis == "x" else max(RY(v) + WALK_UP, 0.162))
+
+
+def litter(axis, v, u):
+    """What collects against an upstand: scraps of paper and a can or two."""
+    y = walk_y(axis, v) + 0.006
+    for k in range(walk_rng.randrange(2, 5)):
+        cv, cu = v + walk_rng.uniform(-0.5, 0.5), u + walk_rng.uniform(-0.07, 0.07)
+        a, hw, hl = walk_rng.uniform(0, math.pi), walk_rng.uniform(0.05, 0.1), walk_rng.uniform(0.07, 0.15)
+        ca, sa = math.cos(a), math.sin(a)
+        pts = [(cv + ca * dl - sa * dw, cu + sa * dl + ca * dw) for dl, dw in ((-hl, -hw), (hl, -hw), (hl, hw), (-hl, hw))]
+        face((DK, "trim", 1), [_w(axis, pv, pu, y + 0.002 * k) for pv, pu in pts], (0, 1, 0), 1.0,
+             walk_rng.choice(((0.5, 0.48, 0.42, 1), (0.42, 0.4, 0.36, 1), (0.45, 0.1, 0.16, 1), (0.08, 0.3, 0.34, 1), (0.5, 0.4, 0.1, 1))))
+    for k in range(walk_rng.randrange(0, 3)):
+        cx, _, cz = _w(axis, v + walk_rng.uniform(-0.6, 0.6), u + walk_rng.uniform(-0.05, 0.05), 0.0)
+        cylinder((DK, "trim", 1), cx, cz, y, y + 0.12, 0.033, segs=5, col=walk_rng.choice(((0.5, 0.08, 0.06, 1), (0.07, 0.25, 0.45, 1), (0.5, 0.5, 0.5, 1))))
+
+
+def footpath(axis, a, b, rail_plane, d, bar_plane, yf, gaps=(), posts=()):
+    """Dress the walkway from a to b: rail_plane its outer upstand's outer
+    face (d the way that looks), bar_plane the barrier's walkway face."""
+    sw = xs if axis == "x" else zs
+    inner = rail_plane - d * UPS_T
+    mid = (inner + bar_plane) / 2
+    for va, vb in runs(a, b, gaps):
+        chipped(axis, va + 0.1, vb - 0.1, inner, outv(axis, -d), yf, 0.24, 0.44, detail=1, mat="trim", col=PAINT_TEAL)
+        sw("steel", 1, va + 0.1, vb - 0.1, *sorted((inner - d * 0.035, inner)), up(yf, 0.455), up(yf, 0.485), sides="tb" + ("A" if d > 0 else "B"), scale=1.0, col=PIPE_C)
+    chipped(axis, a + 0.5, b - 0.5, bar_plane, outv(axis, d), yf, 0.28, 0.42, detail=1)
+    for v in posts:         # a box at each lamp post's foot
+        if a < v < b:
+            abox((DK, "steel", 1), axis, v - 0.13, v + 0.13, inner - d * 0.09, inner, yf(v) + 0.2, yf(v) + 0.49, col=PIPE_C)
+    # The guide strip, in the lengths the years have left of it.
+    v = a + 1.0
+    while v < b - 1.5:
+        v1 = min(b - 0.5, v + walk_rng.uniform(1.4, 4.2))
+        hw = 0.12
+        vs_ = [v] + [x_ for x_ in (v + SLOPE * k for k in range(1, 3)) if x_ < v1] + [v1]
+        for p0, p1 in zip(vs_, vs_[1:]):
+            face((DK, "paint", 1), [_w(axis, p0, mid - hw, walk_y(axis, p0) + 0.005), _w(axis, p1, mid - hw, walk_y(axis, p1) + 0.005),
+                                    _w(axis, p1, mid + hw, walk_y(axis, p1) + 0.005), _w(axis, p0, mid + hw, walk_y(axis, p0) + 0.005)], (0, 1, 0), 1.0, GUIDE)
+        v = v1 + walk_rng.uniform(0.15, 1.1)
+    # Drains by the barrier, litter against one upstand or the other.
+    v, k = a + 5.0, 0
+    while v < b - 3.0:
+        cx, _, cz = _w(axis, v, bar_plane + d * 0.2, 0.0)
+        P.place("drain", cx, walk_y(axis, v) + 0.012, cz, 0.0 if axis == "x" else math.pi / 2, 1.0, 0.6, district=DK)
+        lv = v + 6.5
+        if not any(abs(lv - g) < 1.2 for g in gaps):
+            litter(axis, lv, inner - d * 0.16 if k % 2 == 0 else bar_plane + d * 0.14)
+        v += 13.0
+        k += 1
+
+
+footpath("x", XW + UPS_T + 0.2, -HERO, ZS, 1, z_bar, DY, GATES_X, POSTS_X)
+footpath("x", HERO, MOUTH_X - 1.0, ZS, 1, z_bar, DY, (), POSTS_X)
+footpath("z", FOOT + 1.2, ZS - UPS_T - 0.2, XW, -1, x_bar, RY, GATES_Z, POSTS_Z)
+# Over the avenue the rail is the hero's dark panel: on its inner face, which
+# only the walkway sees, the same teal, a conduit, and an amber marker low
+# down every five metres (glow, no pool: nothing here lights the hero's road).
+chipped("x", -HERO + 0.2, HERO - 0.2, z_rail, (0, 0, -1), DY, 0.24, 0.44, detail=1, mat="trim", col=PAINT_TEAL)
+xs("steel", 1, -HERO + 0.1, HERO - 0.1, z_rail - 0.035, z_rail, up(DY, 0.6), up(DY, 0.63), sides="tbA", scale=1.0, col=PIPE_C)
+for x in range(-15, 16, 5):
+    box((DK, "steel", 1), x - 0.1, x + 0.1, Y + 0.5, Y + 0.72, z_rail - 0.06, z_rail, scale=0.5, col=PIPE_C)
+    face((DK, "glow", 0), [(x - 0.06, Y + 0.55, z_rail - 0.064), (x + 0.06, Y + 0.55, z_rail - 0.064), (x + 0.06, Y + 0.65, z_rail - 0.064), (x - 0.06, Y + 0.65, z_rail - 0.064)], (0, 0, -1), 1.0, POST_LENS)
+v = -HERO + 1.0
+while v < HERO - 1.5:           # and the guide strip carries on across
+    v1 = min(HERO - 0.5, v + walk_rng.uniform(1.4, 4.2))
+    zm = (z_rail + z_bar) / 2
+    face((DK, "paint", 1), [(v, Y + WALK_UP + 0.005, zm - 0.12), (v1, Y + WALK_UP + 0.005, zm - 0.12), (v1, Y + WALK_UP + 0.005, zm + 0.12), (v, Y + WALK_UP + 0.005, zm + 0.12)], (0, 1, 0), 1.0, GUIDE)
+    v = v1 + walk_rng.uniform(0.15, 1.1)
+
+# People on the stair: one sat on a low step, two on their way, one stopped
+# on the landing (each on a tread's own height).
+def on_stair(x, yaw, pose):
+    lower = x < ST_X0 + ST_RUN
+    xa, ya = (ST_X0, B.G0) if lower else (ST_X0 + ST_RUN + ST_LAND, B.G0 + ST_RISE)
+    i = min(24, max(0, int((x - xa) / (ST_RUN / 25))))
+    stand(x, ZS + 0.5, yaw, pose, ya + (i + 1) * ST_RISE / 25)
+
+
+on_stair(ST_X0 + 0.9, -math.pi / 2, "sit")
+on_stair(ST_X0 + 2.3, math.pi / 2, "idle")
+on_stair(ST_X0 + 5.2, -math.pi / 2, "phone")
+stand(ST_X0 + ST_RUN + 0.6, ZS + 0.5, 0.0, "lean", B.G0 + ST_RISE + 0.02)
+on_stair(ST_X0 + ST_RUN + ST_LAND + 1.7, math.pi / 2, "idle")
+
+# ---------------------------------------------------------------------------
+# ROUND 3. THE LANDING. The plaza's blocks stand back ten metres from the
+# deck where it comes down (x 52..108): their shopfronts face it across two
+# strips that nobody had paved, so a walker on the deck looked over the rail
+# into nothing. Each strip is a forecourt along the embankment's wall:
+# paving, a row of trees in lit planters with benches between, lamp columns,
+# two wide adverts, bikes, shrubs, bollards at the x 120 road's pavement,
+# people. (More than 50 m from the avenue's line: its light is its own.)
+# ---------------------------------------------------------------------------
+for side in (-1, 1):                    # -1 the north strip (z -95..-86), +1 the south (z -74..-65)
+    def Z(dz, _s=side):
+        """dz metres out from the embankment's passage toward the shopfronts."""
+        return plan.DECK_Z + _s * (6.0 + dz)
+    B.ground_rect(DK, 52.0, MOUTH_X, *sorted((Z(0.0), Z(9.0))))
+    face_shops = math.pi if side < 0 else 0.0
+    for x in (62.0, 74.0, 86.0, 98.0):
+        P.place("planter_tree" if (x // 12) % 2 == 0 else "planter_palm", x, B.G0, Z(2.0), district=DK)
+        light(DK, x, 1.2, Z(2.0), "pink" if side < 0 else "teal", 1.6)
+    for x in (68.0, 80.0, 92.0):
+        P.place("bench", x, B.G0, Z(1.6), face_shops, district=DK)
+    for x in (57.0, 71.0, 83.0, 95.0, 105.0):
+        P.place("lamp_short", x, B.G0, Z(4.2), district=DK)
+    ad_panel(77.0, Z(4.4), face_shops + side * 0.6)       # turned: neither the strip's axis nor the deck's sees one edge on
+    ad_panel(100.6, Z(4.6), face_shops - side * 0.7, w=2.8)
+    P.place("deck_shrub", 89.0, B.G0, Z(4.4), district=DK)
+    P.place("deck_shrub", 65.5, B.G0, Z(4.6), district=DK)
+    P.place("lightbox", 59.5, B.G0, Z(3.0), math.pi / 2, district=DK)
+    for k in range(4):
+        P.place("deck_bike", 54.2 + k * 0.9, B.G0, Z(1.5) + (0.1 if k % 2 else 0.0), face_shops + (0.07 if k % 2 else -0.04), district=DK)
+    for k in range(6):
+        P.place("bollard", MOUTH_X - 0.6, B.G0, Z(0.8 + k * 1.5), district=DK)
+        P.place("bollard", 52.6, B.G0, Z(0.8 + k * 1.5), district=DK)
+    stand(68.4, Z(1.6), face_shops, "sit", B.G0 + 0.48)
+    stand(92.5, Z(1.6), face_shops, "sit", B.G0 + 0.48)
+    stand(76.2, Z(2.9), face_shops, "phone", B.G0)
+    stand(86.9, Z(3.2), 1.2, "talk", B.G0)
+    stand(87.8, Z(3.5), 1.2 + math.pi, "talk", B.G0)
+    stand(100.2, Z(3.1), face_shops, "idle", B.G0)
+    stand(56.0, Z(3.0), face_shops, "smoke", B.G0)
