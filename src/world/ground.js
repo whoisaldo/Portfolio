@@ -81,12 +81,12 @@ export const GROUND = /* glsl */ `
     vec2 dir = r.xz / run;
     float rise = max(r.y, 0.03) / run;
     vec3 sum = vec3(0.0);
-    for (int i = 0; i < 6; i++) {
-      float h = i == 0 ? 1.2 : (i == 1 ? 2.5 : (i == 2 ? 4.0 : (i == 3 ? 6.5 : (i == 4 ? 10.0 : 15.0))));
+    for (int i = 0; i < 4; i++) {
+      float h = i == 0 ? 1.5 : (i == 1 ? 3.5 : (i == 2 ? 7.0 : 13.0));
       vec4 c = texture2D(uSpill, (p.xz + dir * min(h / rise, 150.0) - uSpillBounds.xy) * uSpillBounds.zw);
       float dh = h - c.a * 15.94;
-      sum += c.rgb * c.rgb * exp(-dh * dh / (1.2 + 0.3 * h * h));
+      sum += c.rgb * c.rgb * exp(-dh * dh / (1.6 + 0.4 * h * h));
     }
-    return sum * uSpillGain * 1.1;
+    return sum * uSpillGain * 1.5;
   }
 `;

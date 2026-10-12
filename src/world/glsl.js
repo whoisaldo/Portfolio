@@ -214,7 +214,7 @@ export const COMMON = /* glsl */ `
     float low = exp(-max(p.y, 0.0) * 0.01);
     vec3 fogCol = mix(uFogColor, hazeAt(d), uHaze * low * smoothstep(40.0, 360.0, dist));
     fogCol = mix(fogCol, SODIUM, santo * 0.75 * smoothstep(20.0, 200.0, dist));
-    fogCol += cityGlow(d, p.y) * smoothstep(120.0, 900.0, dist);
+    if (dist > 120.0) fogCol += cityGlow(d, p.y) * smoothstep(120.0, 900.0, dist);
     return mix(col, fogCol, f);
   }
 `;
