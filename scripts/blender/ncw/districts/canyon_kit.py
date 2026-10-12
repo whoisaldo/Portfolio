@@ -686,37 +686,6 @@ def ngon(key, c, R, t, n=6, rot=0.0, plane="x", col=(1, 1, 1, 1), both=True):
             quad(key, q[1], q[0], q[3], q[2], col=col)
 
 
-def pool(key, x, y, z, rad, hue="amber", k=0.02, segs=14, squash=1.0):
-    """A lamp's light where it falls on a floor, painted (a court or a deck
-    takes little of the bake's pools). The material is light itself, so its
-    values are small: k at the heart, under half that a third of the way
-    out, an eighth at two thirds, nothing at the edge, so it has no edge.
-    `squash`: its length along z over its width."""
-    b = batches[(key, "glow", 0)]
-    c = GLOW[hue]
-    rings = ((0.0, 1.0), (0.3, 0.45), (0.62, 0.12), (1.0, 0.0))
-
-    def at(f, t):
-        return K.P(x + rad * f * math.cos(t), y, z + rad * f * squash * math.sin(t))
-
-    def tone(v):
-        return (c[0] * k * v, c[1] * k * v, c[2] * k * v, 1.0)
-    for i in range(segs):
-        t0, t1 = i * math.tau / segs, (i + 1) * math.tau / segs
-        for (fa, va), (fb, vb) in zip(rings, rings[1:]):
-            base = len(b.verts)
-            if fa == 0.0:
-                b.verts.extend((K.P(x, y, z), at(fb, t1), at(fb, t0)))
-                b.faces.append((base, base + 1, base + 2))
-                b.uvs.extend(((0.5, 0.5), (1, 0), (0, 0)))
-                b.cols.extend((tone(va), tone(vb), tone(vb)))
-            else:
-                b.verts.extend((at(fa, t0), at(fa, t1), at(fb, t1), at(fb, t0)))
-                b.faces.append((base, base + 1, base + 2, base + 3))
-                b.uvs.extend(((0, 0), (1, 0), (1, 1), (0, 1)))
-                b.cols.extend((tone(va), tone(va), tone(vb), tone(vb)))
-
-
 def tape(key, a, b, y=0.95, h=0.09):
     """Barrier tape from a to b ((x, z) each), read from both sides."""
     q = ((a[0], y, a[1]), (b[0], y, b[1]), (b[0], y + h, b[1]), (a[0], y + h, a[1]))
@@ -1304,7 +1273,7 @@ def roof_low(key, x0, x1, z0, z1, y, r, pad=True):
             hue = r.choice(("amber", "amber", "cyan", "white"))
             xa, xb, za, zb = rect(u - 0.12, u + 0.12, bm + 0.55, bm + 0.79)
             box((key, "glow", 0), xa, xb, y, y + 0.5, za, zb, scale=0.5, col=GLOW[hue])
-            pool(key, (xa + xb) / 2, y + 0.045, (za + zb) / 2, 3.2, hue, 0.012, segs=8)
+            light(key, (xa + xb) / 2, y + 0.6, (za + zb) / 2, hue, 8.0)
         u += 4.2
         k += 1
     ring = None
@@ -1378,7 +1347,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
             hue = r.choice(("amber", "amber", "cyan", "white"))
             lx, lz = x0 + i * w / nx + 0.5, z0 + j * d / nz + 0.5
             box((key, "glow", 0), lx - 0.12, lx + 0.12, y, y + 0.5, lz - 0.12, lz + 0.12, scale=0.5, col=GLOW[hue])
-            pool(key, lx, y + 0.045, lz, 3.2, hue, 0.012, segs=8)
+            light(key, lx, y + 0.6, lz, hue, 8.0)
     for i in range(nx):
         for j in range(nz):
             px, pz = x0 + (i + 0.5) * w / nx, z0 + (j + 0.5) * d / nz

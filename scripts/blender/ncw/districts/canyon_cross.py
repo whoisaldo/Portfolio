@@ -191,7 +191,10 @@ def megastructure(zn, zs, y0, y1, r, occ, south=FA, key=CB, step=1.5, feet=(5.0,
     for side, foot in zip((-1, 1), feet):
         f = B.Face("+x" if side < 0 else "-x", side * WALK, zn - 1.0, zs + 1.0)
         w = f.width
-        out = M._most(occ, f, 0.0, w, foot, y0, 2.2)
+        # (Where the full pier would stand across something the hero
+        # frames, a slim one.)
+        out = M._most(occ, f, 0.0, w, foot, y0, 2.2) or M._most(occ, f, 0.0, w, foot, y0, 0.75)
+        print("CANYON pier", side, "z", zn, zs, "foot", foot, "out", out)
         if out < 0.5:
             continue
         C.fbox((key, "castconcrete", 0), f, 0.0, w, foot, y0 + 0.9, 0.0, out, M.CONC)

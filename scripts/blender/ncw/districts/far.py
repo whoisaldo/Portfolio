@@ -66,7 +66,7 @@ BACKS = {
 # stands across the megablock's roofline, which on a phone it already meets)
 # and its top can stand no higher than y 46.25 at z -236 (higher, and it
 # stands across the figure's waist), so it is four storeys deep and not six;
-# its east pier stands only a metre off the wall (further, and it stands
+# its east pier stands only 0.75 m off the wall (further, and it stands
 # across the figure's slogan); nothing hangs under its west third (the
 # megablock's tallest section is behind it there), nothing more than two
 # metres under its middle, and the column of boards under its east end keeps
@@ -831,7 +831,6 @@ def _roofs(U):
         box((CB, "metal", 1), rail_x - 0.04, rail_x + 0.04, t, t + 3.5, z - 0.04, z + 0.04, scale=0.5)
         for fr in (0.4, 0.75):
             light(CB, wall_x + (edge - wall_x) * fr, t + 2.5, z, "amber", 7.0)
-            C.pool(CB, wall_x + (edge - wall_x) * fr, t + 0.045, z, 3.4, "amber", 0.014, segs=8)
         if k % 3 == 1:
             P.place("cy_deck_lamp", edge - side * 0.3, t, z + 1.6, inward, district=CB)
             light(CB, edge - side * 1.7, t + 3.0, z + 1.6, "cyan", 8.0)
