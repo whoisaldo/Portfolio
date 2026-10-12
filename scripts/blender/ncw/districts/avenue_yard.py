@@ -157,9 +157,10 @@ def crane(D, xa, xb, za, zb, h, xt, rng):
             light(D, x, 2.0, z, "white", 7.0)
 
 
-def blocks(D, x0, x1, z0, z1, rng, step=19.0, alley=3.0, heights=(8.5, 25.5)):
+def blocks(D, x0, x1, z0, z1, rng, step=19.0, alley=3.0, heights=(8.5, 25.5), tall=0.0):
     """Works and stores round courts, an alley between each: windows on
-    every side, a back's doors and lamps at the foot, roofs dressed."""
+    every side, a back's doors and lamps at the foot, roofs dressed. `tall`:
+    how many of them stand four to eight storeys over the rest."""
     B.ground_rect(D, x0, x1, z0, z1)
     x = x0
     while x < x1 - 7:
@@ -174,6 +175,8 @@ def blocks(D, x0, x1, z0, z1, rng, step=19.0, alley=3.0, heights=(8.5, 25.5)):
             lot = B.Lot(x + alley / 2, x + w - alley / 2, z + alley / 2, z + d - alley / 2, "+z",
                         {"+x": "back", "-x": "back", "+z": "back", "-z": "back"}, {}, D)
             h = B.SHOP_H + B.CELL_H * round((rng.uniform(*heights) - B.SHOP_H) / B.CELL_H)
+            if tall and rng.random() < tall:
+                h += B.CELL_H * rng.randrange(4, 9)
             B.building(lot, h, rng, style=WORKS, signs=False, ground="blank")
             # Lamps down the alleys either side, so the courts read from
             # the air: amber mostly, a cyan or a pink door among them.
@@ -188,8 +191,8 @@ def blocks(D, x0, x1, z0, z1, rng, step=19.0, alley=3.0, heights=(8.5, 25.5)):
 def build(D):
     rng = random.Random(4417)
     # Behind the arm's lots and the south street's row, to the yard's wall.
-    blocks(D, X0, -50.0, 48.0, WALL_Z, random.Random(4421), step=15.0, heights=(8.5, 22.0))
-    blocks(D, 50.0, X1, 48.0, WALL_Z, random.Random(4422))
+    blocks(D, X0, -50.0, 48.0, WALL_Z, random.Random(4421), step=15.0, heights=(8.5, 22.0), tall=0.4)
+    blocks(D, 50.0, X1, 48.0, WALL_Z, random.Random(4422), tall=0.35)
     # The pavement across the arm's end, the alleys either side of it to the
     # lanes, and the yard's own ground: wet, under floods.
     B.ground_rect(D, -50.0, 50.0, 88.0, WALL_Z)

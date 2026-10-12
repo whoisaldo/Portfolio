@@ -163,8 +163,20 @@ for s in (-1, 1):
     ARM_H[s] = [rr.choice((14.0, 18.0, 21.0, 24.0, 28.0, 31.0)) for _ in ARM]
 # The south street's south side, out to the west street's end and to the
 # x 120 road's: (x0, x1, height) west and east of the arm's corner lots.
-SOUTH_ROW = {-1: [(-66.0, -55.0, 30.4), (-55.0, -44.0, 20.2)],
-             1: [(44.0, 56.0, 23.6), (56.0, 68.8, 30.4), (68.8, 84.8, 37.2), (84.8, 97.6, 27.0), (97.6, 108.0, 16.8)]}
+SOUTH_ROW = {-1: [(-66.0, -55.0, 45.4), (-55.0, -44.0, 28.4)],
+             1: [(44.0, 56.0, 23.6), (56.0, 68.8, 38.6), (68.8, 84.8, 52.2), (84.8, 97.6, 31.8), (97.6, 108.0, 42.0)]}
+# The street's skyline: the row's taller lots are a front of six to ten
+# storeys with a tower set back behind it (none beside the arm's corner
+# lots, and none under the roofs' fixed view at x 52, 64 m up).
+TOWER_MIN = 36.0
+
+
+def south_front(h):
+    """The least a towered lot's street front stands (the generator draws
+    its true height from the lot's stream)."""
+    return SHOP_H + CELL_H * max(2, int((h - SHOP_H) / CELL_H * 0.55)) if h > TOWER_MIN else h
+
+
 for s in (-1, 1):
     hs = ARM_H[s]
     row_h = SOUTH_ROW[s][-1 if s < 0 else 0][2]
@@ -199,19 +211,20 @@ for s, lots in SOUTH_ROW.items():
         sides = {"-z": "street", "+z": "back", "-x": "party", "+x": "party"}
         nb = {}
         if j > 0:
-            nb["-x"] = lots[j - 1][2]
+            nb["-x"] = south_front(lots[j - 1][2])
         elif s > 0:
             nb["-x"] = min(ARM_H[1][:2])
         else:
             sides["-x"] = "open"
         if j < len(lots) - 1:
-            nb["+x"] = lots[j + 1][2]
+            nb["+x"] = south_front(lots[j + 1][2])
         elif s < 0:
             nb["+x"] = min(ARM_H[-1][:2])
         else:
             sides["+x"] = "open"
         back_is("+z", 42.0, h, "ce" if s > 0 else "cw")
-        B.building(B.Lot(xa, xb, 12.0, 42.0, "-z", sides, nb, AVS), h, r, style=SOUTH)
+        B.building(B.Lot(xa, xb, 12.0, 42.0, "-z", sides, nb, AVS), h, r, style=dict(SOUTH, setback_in=(5.0, 7.0)),
+                   setback=h > TOWER_MIN)
         back_is()
 
 B.st_name = ST.NAME[0] = _st_name
@@ -437,8 +450,14 @@ ST.upper(AV, WEST_FACE, WEST_LOTS, random.Random(7401), taken=WEST_NAMED)
 # And the band over the shops on the south street's south side and down the
 # arm, which a walker looks square at.
 for sx in (-1, 1):
-    row = [(a, b, h) for (a, b, h) in SOUTH_ROW[sx]] + [(sx * WALK, sx * (WALK + DEPTH), ARM_H[sx][0])]
-    ST.upper(AVS, B.Face("-z", 12.0, sx * WALK, sx * 108.0 if sx > 0 else -66.0), [tuple(sorted(r[:2])) + (r[2],) for r in row],
-             random.Random(7410 + sx), cap=12.5)
-    ST.upper(AVS, B.Face("-x" if sx > 0 else "+x", sx * WALK, 12.0, 88.0), [(za, za + d, ARM_H[sx][j]) for j, (za, d) in enumerate(ARM)],
-             random.Random(7420 + sx), cap=12.5)
+    row = [(a, b, south_front(h)) for (a, b, h) in SOUTH_ROW[sx]] + [(sx * WALK, sx * (WALK + DEPTH), ARM_H[sx][0])]
+    row = [tuple(sorted(r[:2])) + (r[2],) for r in row]
+    arm = [(za, za + d, ARM_H[sx][j]) for j, (za, d) in enumerate(ARM)]
+    f_row = B.Face("-z", 12.0, sx * WALK, sx * 108.0 if sx > 0 else -66.0)
+    f_arm = B.Face("-x" if sx > 0 else "+x", sx * WALK, 12.0, 88.0)
+    ST.upper(AVS, f_row, row, random.Random(7410 + sx), cap=12.5)
+    ST.upper(AVS, f_arm, arm, random.Random(7420 + sx), cap=12.5)
+    # And in the gaps, columns of small boards on masts and tall blades,
+    # every one turned (down the arm, south of the phone hero's frame).
+    ST.more_signs(AVS, f_row, row, random.Random(7430 + sx))
+    ST.more_signs(AVS, f_arm, arm, random.Random(7440 + sx), clear=((12.0, 33.0),))

@@ -34,6 +34,10 @@ NAME = [st_name]
 # What hangs on a facade already, for `upper` to keep clear of: (face name,
 # plane, where along it, height, half width, half height).
 SIGNED = []
+# What `upper` hung in its turn, for `more_signs`; and what stands by a
+# frontage's wall, for `south_fill`: (face name, plane, from, to along it).
+UPPER = []
+STANDS = []
 
 
 def _turn_rng(f, s, y):
@@ -133,6 +137,7 @@ def upper(D, f, lots, rng, taken=(), cap=24.0):
                     if free(a, y, hw, hh):
                         K.board(D, f, s_of(f, a), y, size, out=0.12, scale=scale)
                         taken.append((a, y, hw, hh))
+                        UPPER.append((f.name, f.plane, a, y, hw, hh))
                         break
             elif floors >= 2:
                 for _try in range(8):
@@ -146,6 +151,7 @@ def upper(D, f, lots, rng, taken=(), cap=24.0):
                         px, _, pz = f.p(a + 0.56, SHOP_H, 0.0)
                         P.place("pipe_v", px, SHOP_H, pz, f.yaw, sy=y0 + (n - 1) * CELL_H + 0.6 - SHOP_H, district=D)
                         taken.append((a, y0 + n * CELL_H / 2, 0.7, n * CELL_H / 2))
+                        UPPER.append((f.name, f.plane, a, y0 + n * CELL_H / 2, 0.7, n * CELL_H / 2))
                         break
 
 
@@ -216,17 +222,49 @@ def manhole_steam(D, name, x, z):
 
 
 def planter_box(D, f, s, rng, w=1.6):
-    """A low planter against a wall: a box of earth, bamboo or a shrub lit
-    from its foot."""
+    """A low planter against a wall: a box of earth and what grows in it,
+    lit from its foot. Off the hero's avenue the plants are clumps of long
+    leaves; on it they stay the blocks its pack has room for."""
     f.box((D, "trim", 1), s - w / 2, s + w / 2, G0, 0.6, 0.05, 0.5, col=(0.09, 0.09, 0.1, 1))
-    green = rng.choice(((0.1, 0.3, 0.14, 1), (0.14, 0.34, 0.1, 1), (0.3, 0.12, 0.22, 1)))
+    green = rng.choice(((0.1, 0.3, 0.14, 1), (0.14, 0.34, 0.1, 1), (0.08, 0.26, 0.17, 1)))
     n = max(2, int(w / 0.45))
     for k in range(n):
         px, _, pz = f.p(f.at(s - w / 2 + 0.25 + k * (w - 0.5) / (n - 1)), 0.0, 0.28)
         hh = rng.uniform(0.9, 2.0)
-        oriented_box((D, "trim", 1), px, 0.6 + hh / 2, pz, 0.34, hh, 0.3, rng.uniform(0, 1.5), scale=1.0, col=green)
+        turn = rng.uniform(0, 1.5)
+        if D == "avenue":
+            oriented_box((D, "trim", 1), px, 0.6 + hh / 2, pz, 0.34, hh, 0.3, turn, scale=1.0, col=green)
+        else:
+            leaves(D, px, 0.6, pz, hh, turn)
     p = f.p(f.at(s), 0.6, 0.6)
     light(D, p[0], 0.8, p[2], "green", 2.0)
+    if D != "avenue":
+        light(D, p[0], 1.4, p[2], "white", 2.0)
+
+
+LEAF = ((0.13, 0.42, 0.16, 1), (0.24, 0.5, 0.12, 1), (0.08, 0.3, 0.2, 1))
+
+
+def leaves(D, x, y, z, h, turn, n=5):
+    """A clump of long leaves standing out of the earth, each leaning its
+    own way: seen from both sides."""
+    k = (D, "trim", 1)
+    for j in range(n):
+        a = turn + j * math.tau / n
+        dx, dz = math.cos(a), math.sin(a)
+        tx, tz = -dz, dx
+        hh = h * (1.0 - 0.14 * (j % 3))
+        lean = (0.16 + 0.07 * (j % 3)) * hh
+        col = LEAF[j % 3]
+        b = (x + dx * 0.05, y, z + dz * 0.05)
+        m = (x + dx * (0.05 + lean * 0.4), y + hh * 0.55, z + dz * (0.05 + lean * 0.4))
+        t = (x + dx * (0.05 + lean), y + hh, z + dz * (0.05 + lean))
+        a0, b0 = (b[0] - tx * 0.06, y, b[2] - tz * 0.06), (b[0] + tx * 0.06, y, b[2] + tz * 0.06)
+        a1, b1 = (m[0] - tx * 0.11, m[1], m[2] - tz * 0.11), (m[0] + tx * 0.11, m[1], m[2] + tz * 0.11)
+        quad(k, a0, b0, b1, a1, col=col)
+        quad(k, b0, a0, a1, b1, col=col)
+        poly(k, [a1, b1, t], [(0, 0), (1, 0), (0.5, 1)], col)
+        poly(k, [b1, a1, t], [(1, 0), (0, 0), (0.5, 1)], col)
 
 
 def frontage(D, f, a0, a1, rng, stalls=(), yatai_w=(2.4, 3.0), boards=True, planters=True, vending=True, hang=True, skip=()):
@@ -239,12 +277,15 @@ def frontage(D, f, a0, a1, rng, stalls=(), yatai_w=(2.4, 3.0), boards=True, plan
         w = rng.uniform(*yatai_w)
         K.yatai(D, f, s_of(f, a), rng, w=w)
         taken.append((a - w / 2 - 1.2, a + w / 2 + 1.2))
+        STANDS.append((f.name, f.plane, a - w / 2 - 1.2, a + w / 2 + 1.2))
     lo, hi = sorted((s_of(f, a0), s_of(f, a1)))
     s = lo + rng.uniform(2.0, 5.0)
     while s < hi - 2.0:
         a = f.at(s)
         if not any(k0 < a < k1 for k0, k1 in list(taken) + list(skip)):
             roll = rng.random()
+            if roll < 0.75:
+                STANDS.append((f.name, f.plane, a - 1.6, a + 2.2))
             if roll < 0.3 and boards:
                 p = f.p(a, 0.0, rng.uniform(0.75, 0.95))
                 K.a_board(D, p[0], p[2], f.yaw + math.pi / 2 + rng.uniform(-0.4, 0.4), rng)
@@ -368,3 +409,119 @@ def build(AV, AVS, lane_w, lane_e):
     for (x, z, yaw, pose) in ((10.6, 44.0, -1.5, "squat"), (-10.6, 30.0, 1.5, "smoke"), (10.55, 63.0, -1.6, "phone"), (-10.5, 80.0, 1.4, "idle"),
                               (13.2, 55.0, -1.57, "lean"), (-13.2, 46.5, 1.57, "lean")):
         stand(x, z, yaw, pose, y=G0)
+    south_fill(AVS)
+
+
+def more_signs(D, f, lots, rng, cap=26.0, clear=()):
+    """Over a thin facade's shops, in the gaps of what hangs there: columns
+    of small boards on a mast and tall blades, every one turned its own
+    way. `lots`: (a0, a1, height) along f; `clear`: stretches of f left
+    alone."""
+    taken = [t[2:] for t in SIGNED + UPPER if t[0] == f.name and abs(t[1] - f.plane) < 1e-6]
+    for (name, x, y, z, *_rest) in P.INSTANCES:
+        if name == "ac_wall" and abs((x if f.nx else z) - f.plane) < 0.01:
+            taken.append((z if f.nx else x, y + 0.3, 0.45, 0.35))
+
+    def free(a, y, hw, hh):
+        return all(abs(a - ta) > hw + thw + 0.4 or abs(y - ty) > hh + thh + 0.4 for ta, ty, thw, thh in taken)
+    for a0, a1, h in lots:
+        top = min(h - 1.5, cap)
+        for _ in range(max(2, round((a1 - a0) / 4.5))):
+            n = rng.randrange(3, 6)
+            size, scale = rng.choice((("bl", 1.3), ("bm", 1.5), ("bl", 1.0), ("bm", 1.9), ("bx", 2.0)))
+            stacked = rng.random() < 0.5
+            hw, hh = (1.1, n * 0.525 + 0.3) if stacked else (ST_SIZES[size][0] * scale / 2 + 0.4, ST_SIZES[size][1] * scale / 2)
+            if top - hh <= SHOP_H + 1.2 + hh:
+                continue
+            for _try in range(10):
+                a, y = rng.uniform(a0 + 1.2, a1 - 1.2), rng.uniform(SHOP_H + 1.2 + hh, top - hh)
+                if free(a, y, hw, hh) and not any(c0 < a < c1 for c0, c1 in clear):
+                    ang = rng.choice((-1, 1)) * rng.uniform(0.15, 0.6)
+                    if stacked:
+                        K.stack(D, f, s_of(f, a), y - n * 0.525 + 0.3, n, ang)
+                    else:
+                        K.face_blade(D, f, s_of(f, a), y, size, ang, gap=rng.uniform(0.3, 0.7), scale=scale)
+                    taken.append((a, y, hw, hh))
+                    break
+
+
+def clear_of(f, a, hw):
+    """Nothing stands by f's wall within hw of a."""
+    return not any(n == f.name and abs(pl - f.plane) < 1e-6 and lo - hw < a < hi + hw for (n, pl, lo, hi) in STANDS)
+
+
+def wall_kiosk(D, f, a, rng, step=1.5):
+    """A shallow kiosk with its back to a frontage, at the first clear place
+    from a on, somebody buying; where it went, or None."""
+    for k in range(8):
+        if clear_of(f, a, 1.7):
+            px, _, pz = f.p(a, 0.0, 0.55)
+            K.kiosk(D, px, pz, f.yaw, rng, w=2.4, d=1.0)
+            STANDS.append((f.name, f.plane, a - 1.7, a + 1.7))
+            # Somebody at its end, turned to it along the wall.
+            side = rng.choice((-1, 1))
+            q = f.p(a + side * 1.75, 0.0, 0.8)
+            yaw = math.atan2(-side, 0.0) if f.nx == 0 else math.atan2(0.0, -side)
+            stand(q[0], q[2], yaw, rng.choice(("idle", "phone")), y=G0)
+            return a
+        a += step
+    return None
+
+
+def kerb_row(D, along, kerb, into, items, rng):
+    """What stands on a pavement's kerb strip: `along` the axis the kerb
+    runs on ("x" or "z"), `kerb` its line, `into` +1 or -1 toward the
+    shops; items (where along it, "bench" | "tree" | "sit" | a pose)."""
+    c = kerb + into * 0.3
+    for a, what in items:
+        x, z = (a, c) if along == "x" else (c, a)
+        toward = (math.pi if into < 0 else 0.0) if along == "x" else (-math.pi / 2 if into < 0 else math.pi / 2)
+        if what in ("bench", "sit"):
+            P.place("bench", x, G0, z, 0.0 if along == "x" else math.pi / 2, district=D)
+            if what == "sit":
+                o = rng.uniform(-0.5, 0.5)
+                stand(x + (o if along == "x" else 0.0), z + (o if along == "z" else 0.0), toward, "sit", y=G0 + 0.48)
+        elif what == "tree":
+            P.place(rng.choice(("planter_tree", "planter_palm")), x, G0, z + (into * 0.12 if along == "x" else 0.0), rng.uniform(0, 6.28), sxz=0.7, district=D)
+            light(D, x, 1.2, z, rng.choice(("pink", "cyan", "amber")), 2.5)
+        else:
+            stand(x, z, toward + math.pi + rng.uniform(-0.5, 0.5), what, y=G0)
+
+
+def south_fill(D):
+    """The south street's and the arm's pavements, filled as the avenue's
+    are: the long north pavement east of the east lane (the plaza block's
+    podium) gets stalls, kiosks, boards, vending and signs under its
+    fascias; every kerb strip benches, trees in planters and people on
+    them; kiosks and people along the south side. All of it by the wall or
+    on the kerb: the pavement's middle is the walkers'."""
+    rng = random.Random(7350)
+    fp = B.Face("+z", -10.0, 52.0, 108.0)
+    plaza_vending = (63.6, 66.6)
+    STANDS.append((fp.name, fp.plane) + plaza_vending)
+    frontage(D, fp, 54.0, 106.5, rng, stalls=(58.5, 76.0, 92.5), skip=[plaza_vending])
+    for a in (68.5, 85.0, 99.5):
+        wall_kiosk(D, fp, a, rng)
+    kerb_row(D, "x", -6.0, -1, ((60.5, "sit"), (72.5, "bench"), (74.5, "tree"), (84.0, "sit"), (91.0, "tree"), (93.0, "sit"), (104.5, "bench"),
+                               (106.3, "tree"), (62.4, "phone"), (82.2, "squat"), (95.2, "smoke"), (55.0, "idle")), rng)
+    for (x, z, yaw, pose) in ((70.8, -9.3, 1.3, "talk"), (71.7, -9.2, -1.7, "talk"), (88.0, -9.6, 0.0, "lean"), (103.0, -9.5, 0.3, "phone"),
+                              (56.2, -9.5, 0.0, "lean"), (80.3, -9.3, 0.9, "idle")):
+        stand(x, z, yaw, pose, y=G0)
+    # The south side, east and west of the arm, and the north side west of
+    # the avenue: kiosks in the gaps, the kerbs.
+    fs_e = B.Face("-z", 12.0, WALK, 108.0)
+    fs_w = B.Face("-z", 12.0, -66.0, -WALK)
+    fn_w = B.Face("+z", -10.0, -WALK - 30.0, -WALK)
+    for f, places in ((fs_e, (29.0, 49.0, 68.0, 86.0, 101.0)), (fs_w, (-48.0, -30.0)), (fn_w, (-27.0,))):
+        for a in places:
+            wall_kiosk(D, f, a, rng)
+    kerb_row(D, "x", 8.0, 1, ((27.5, "sit"), (33.0, "tree"), (46.0, "bench"), (57.0, "tree"), (64.0, "sit"), (79.0, "bench"), (89.5, "tree"),
+                              (96.0, "sit"), (42.0, "smoke"), (61.0, "squat"), (73.5, "phone"), (99.0, "idle"),
+                              (-24.0, "sit"), (-33.0, "tree"), (-45.0, "bench"), (-52.0, "tree"), (-62.5, "sit"), (-40.0, "phone")), rng)
+    kerb_row(D, "x", -6.0, -1, ((-25.0, "sit"), (-30.5, "tree"), (-38.5, "bench"), (-34.0, "squat")), rng)
+    for (x, z, yaw, pose) in ((45.2, 11.3, 1.4, "talk"), (46.1, 11.2, -1.6, "talk"), (72.5, 11.7, math.pi, "lean"), (90.5, 11.4, 2.6, "phone"),
+                              (104.0, 11.6, math.pi, "lean"), (-34.5, 11.6, math.pi, "lean"), (-55.0, 11.3, 2.4, "smoke")):
+        stand(x, z, yaw, pose, y=G0)
+    # The arm's kerbs, south of the phone hero's frame.
+    kerb_row(D, "z", 10.0, 1, ((36.5, "sit"), (41.0, "tree"), (56.0, "bench"), (71.0, "tree"), (75.5, "sit"), (59.0, "phone")), rng)
+    kerb_row(D, "z", -10.0, -1, ((42.5, "bench"), (47.0, "tree"), (58.0, "sit"), (73.5, "tree"), (77.0, "bench"), (69.0, "smoke")), rng)
