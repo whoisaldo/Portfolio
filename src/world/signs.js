@@ -890,14 +890,19 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   mesh.frustumCulled = false;
 
   const extra = [];
+  // The streamed districts' faces, all in one mesh: a pack's are added to
+  // what came before (in the order they came, as their own meshes were
+  // drawn), so nine packs are one draw in each pass and not nine.
+  let streamed = null;
   return {
     mesh,
     texture,
     sources,
     frames,
     /** More faces on the same atlas and material (a streamed district's):
-     *  their own mesh, and their light for the bake. Faces whose design has
-     *  no cell (a word-sign the core did not carry) are left out. */
+     *  the one mesh every district's faces are in, and their light for the
+     *  bake. Faces whose design has no cell (a word-sign the core did not
+     *  carry) are left out. */
     addFaces(more) {
       const list = [];
       for (const m of more) {
@@ -906,10 +911,19 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       }
       if (!list.length) return null;
       const built = build(list);
+      const joined = streamed && mergeGeometries([streamed.geometry, built.geometry], false);
+      if (joined) {
+        extra.splice(extra.indexOf(streamed.geometry), 1, joined);
+        streamed.geometry.dispose();
+        built.geometry.dispose();
+        streamed.geometry = joined;
+        return { mesh: streamed, sources: built.sources };
+      }
       const add = new THREE.Mesh(built.geometry, material);
       add.name = "signs_more";
       add.frustumCulled = false;
       extra.push(built.geometry);
+      streamed = add;
       return { mesh: add, sources: built.sources };
     },
     dispose() {

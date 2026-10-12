@@ -556,11 +556,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       const faces = unpack(batches);
       const added = signs.addFaces(faces);
       if (added) {
-        added.mesh.layers.enable(REFLECT_LAYER);
-        added.mesh.visible = signs.mesh.visible;
-        root.add(added.mesh);
+        // (Every pack's faces after the first join the first's mesh.)
+        if (!packSigns.includes(added.mesh)) {
+          added.mesh.layers.enable(REFLECT_LAYER);
+          added.mesh.visible = signs.mesh.visible;
+          root.add(added.mesh);
+          packSigns.push(added.mesh);
+        }
         more.push(...added.sources);
-        packSigns.push(added.mesh);
       }
       bake.add(more);
       pack.traverse((o) => {
