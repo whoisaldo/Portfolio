@@ -261,7 +261,7 @@ def barrel(key, cx, cz, y0, y1, r, segs=5, pinch=0.62, caps="b"):
         poly(key, [(x, y0, z) for x, z in ring], [(0, 0)] * segs)
 
 
-@P.proto("jt_lantern", box=(0.2, 0.3, 0.2), reach=240)
+@P.proto("jt_lantern", box=(0.2, 0.3, 0.2), reach=240, detail=True)
 def _jt_lantern(k):
     """A red paper lantern, hung by its top (the origin is its middle)."""
     barrel(k("lantern"), 0.0, 0.0, -0.26, 0.26, 0.2, caps="tb")
