@@ -516,7 +516,8 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
   // Parking: the rows of places along each run's right-hand kerb, in the
   // order a car passing them meets them: a street's bay where it has one,
   // its kerb lane where it is parked in. Each place has where it is and the
-  // way a car parked in it faces.
+  // way a car parked in it faces; a row has the way it runs (`yaw`: the
+  // kerb is on its right).
   const rows = [];
   for (const seg of segs) {
     const s = seg.street;
@@ -544,7 +545,7 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
       const p = onLane(seg, seg.dir > 0 ? from + i * pitch : to - i * pitch, o);
       places.push({ x: p[0], z: p[1], yaw });
     }
-    rows.push({ street: s.name, bay: s.bay > 0, angled: !s.bay && !!s.kerb.angle, dir: seg.dir, places });
+    rows.push({ street: s.name, bay: s.bay > 0, angled: !s.bay && !!s.kerb.angle, dir: seg.dir, yaw: Math.atan2(seg.heading[0], seg.heading[1]), places });
   }
 
   // For whoever walks: when a junction's arm can be crossed. Not the lights

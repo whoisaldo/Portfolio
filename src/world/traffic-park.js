@@ -1,15 +1,19 @@
 // src/world/traffic-park.js: the cars that stand still, and who gets which
 // car.
 //
-// A city's kerbs are parked full at night. Every row of places the network
-// has (src/world/traffic-net.js: a street's bay, or its kerb lane where it
-// has no bay) is filled most of the way along, never with more than a short
-// gap, so no stretch of road is bare whatever the lights are doing; a few
-// are left clear for what else uses them (the S4's own road and its stops,
-// the hero's near frame, a door, the deck's mouth). Then the ones somebody
-// asked for by place: taxis at the lobbies on the x 120 road, a patrol car
-// stopped by junction F with its bar lit, a van in the court behind the
-// board.
+// A city's kerbs are parked at night, and a kerb is not a showroom. Every
+// row of places the network has (src/world/traffic-net.js: a street's bay,
+// or its kerb lane where it has no bay) is parked in runs of one to six
+// with gaps of one to three places between them, each car a little off its
+// mark and not quite square to the kerb, one in eight facing the other
+// way; here and there a place holds two or three motorbikes or scooters
+// leant on their stands at an angle instead of a car; nobody parks by a
+// hydrant; and a few places are left clear for what else uses them (the
+// S4's own road and its stops, the hero's near frame, a door, the deck's
+// mouth). Then the ones somebody asked for by place: taxis at the lobbies
+// on the x 120 road, a patrol car stopped by junction F with its bar lit,
+// a van in the court behind the board, one double-parked on the boulevard
+// with its hazards going, one with two wheels up on the avenue's kerb.
 //
 // Models and paints are dealt, not drawn: along a row, and along a lane of
 // moving cars, each comes up once before any comes up again and never next
@@ -19,6 +23,9 @@
 // No three.js in here: places come out as plain numbers.
 
 export const KINDS = ["hatch", "sedan", "van", "wedge", "pickup", "micro"];
+// What else stands at a kerb (a standing thing's `kind` counts on from the
+// cars': KINDS.length is the motorbike).
+export const BIKES = ["moto", "scooter"];
 // Paint: under these streets' light a dark metallic is one more grey car, so
 // half are colours that hold at night (reds, blues, teal, violet, orange,
 // green, a wine) and the rest gunmetal, black, silver, pearl and cream. No
@@ -73,7 +80,7 @@ export function wardrobe(seed) {
 // garage's door; AFTERLIFE's door and its carpet; the works barriers that
 // stand out over the garage street's west kerb; and the boulevard's north
 // kerb beside the braindance's chase, whose clues are low on that side of
-// the street.
+// the street; and a place on the west street where Japantown's bags lie.
 const CLEAR = [
   [-12, -5, -58, 20],
   [5, 12, -195, 20],
@@ -84,7 +91,12 @@ const CLEAR = [
   [430, 436, -286, -276],
   [430, 436, -141.5, -134],
   [125, 320, -341, -334],
+  [-90, -84, -352.5, -346],
 ];
+
+// The hydrants along the kerbs (design/night-city-world/props-source.json,
+// x and z): nobody parks within a car's length of one.
+const HYDRANTS = [[431.3, -161], [-10.7, -36], [-10.7, -116], [10.7, -32], [10.7, -112], [-10.6, -324.7], [-10.6, -429.3], [-10.6, -462.9], [-10.6, -482.9], [-10.6, -489.1], [-10.6, -515.7], [-10.6, -549], [-10.6, -574], [-10.6, -596], [-10.6, -635], [10.6, -235.9], [10.6, -288.4], [10.6, -416.9], [10.6, -486.3], [10.6, -504.7], [10.6, -654.1], [10.6, -692.8], [111.7, -48.3], [111.7, -302], [128.3, -153.8], [128.3, -44.1], [128.3, -29.1], [-90.5, -442], [-90.5, -336.8], [-90.5, -132.7], [-69.5, -578.3], [-69.5, -470.7], [-69.5, -367], [-69.5, -110.2], [-69.5, -37.1], [47.2, -733], [-47, -728.5], [34.5, -711.5], [10.5, -650], [431.5, -301.2], [448.5, -227], [431.5, -222.5], [305.7, -46.7], [373.6, -11.1]];
 
 // The ones asked for by place. Taxis at the kerb by the lobbies on the x 120
 // road's east side (the plaza's two canopies, and the pair further north);
@@ -109,14 +121,23 @@ const PLACED = [
   { x: 136.1, z: 24.1, yaw: NORTH, kind: "hatch", off: true, lit: true },
   { x: 157.9, z: 23.7, yaw: 0, kind: "pickup", off: true, lit: true },
   { x: 433.4, z: -268, yaw: 0, kind: "hatch", hazard: true },
+  // Double-parked on the boulevard's north side, east of the chase's
+  // stretch: a car at the kerb and one stopped beside it in the dead space
+  // between the kerb's cars and the westbound lane, hazards going.
+  { x: 351, z: -337.55, yaw: -Math.PI / 2, kind: "sedan" },
+  { x: 350.3, z: -334.85, yaw: -Math.PI / 2, kind: "hatch", hazard: true },
+  // Two wheels up on the avenue's west kerb, where nothing stands on the
+  // pavement's edge (tools/kerbspot.mjs).
+  { x: -9.65, z: -601.5, yaw: 0.05, kind: "sedan", kerb: true, roll: -0.09, y: 0.08 },
 ];
 
 /**
- * Every car that stands: the rows filled (`full`: four places in five of a
- * bay and three in five of a kerb lane, never more than two empty together;
- * a phone keeps about half of each, never more than three empty together),
- * then the placed ones. Each: x, z, yaw, kind (an index
- * into KINDS), body, accent, tag, and hazard or glow where it has them.
+ * Everything that stands: the rows parked in runs with gaps (`full`: runs
+ * of up to six with gaps of up to three in a bay, shorter runs and longer
+ * gaps in a kerb lane; a phone keeps about half of each), then the placed
+ * ones. Each: x, z, yaw, kind (an index into KINDS, or past its end into
+ * BIKES), body, accent, tag, and where it has them: hazard, glow, lit,
+ * `roll` (leant over, radians) and `y` (lifted, metres).
  */
 export function createStanding({ rows, full = true }) {
   const out = [];
@@ -124,21 +145,44 @@ export function createStanding({ rows, full = true }) {
   rows.forEach((row, r) => {
     const draw = draws(7919 + r * 131);
     const dress = wardrobe(3301 + r * 17);
-    const share = row.bay ? (full ? 0.8 : 0.55) : row.angled ? (full ? 0.7 : 0.4) : full ? 0.6 : 0.45;
-    const most = full ? 2 : 3;
-    let empty = 0;
+    const of = (list) => list[Math.floor(draw() * list.length)];
+    const RUNS = row.bay ? (full ? [1, 2, 3, 3, 3, 4, 5, 6] : [1, 2, 2, 3]) : row.angled ? (full ? [2, 3, 3, 4, 6] : [1, 2, 3]) : full ? [1, 2, 2, 3, 3, 4] : [1, 1, 2, 3];
+    const GAPS = row.bay ? (full ? [1, 1, 1, 2, 2, 3] : [2, 3, 4]) : row.angled ? (full ? [1, 1, 2, 3] : [3, 4, 5]) : full ? [1, 1, 2, 2, 3] : [2, 3, 4, 5];
+    let run = of(RUNS);
+    let gap = draw() < 0.4 ? of(GAPS) : 0;
     for (const at of row.places) {
-      const want = draw() < share || empty >= most;
-      if (CLEAR.some(([x0, x1, z0, z1]) => at.x > x0 && at.x < x1 && at.z > z0 && at.z < z1) || taken(at.x, at.z, 6.3)) {
-        empty = 0;
+      if (gap > 0) {
+        gap--;
         continue;
       }
-      if (!want) {
-        empty++;
+      if (CLEAR.some(([x0, x1, z0, z1]) => at.x > x0 && at.x < x1 && at.z > z0 && at.z < z1) || taken(at.x, at.z, 6.3) || HYDRANTS.some(([x, z]) => Math.hypot(at.x - x, at.z - z) < 5.3)) continue;
+      if (run === 0) {
+        run = of(RUNS);
+        gap = of(GAPS) - 1;
         continue;
       }
-      empty = 0;
-      out.push({ ...at, ...dress(), tag: TAG.none });
+      run--;
+      // The way the row runs, and the kerb on its right.
+      const yaw = at.yaw;
+      const fx = Math.sin(row.yaw);
+      const fz = Math.cos(row.yaw);
+      if (row.angled === false && draw() < (full ? 0.075 : 0.04)) {
+        // Two or three bikes in a car's place, nose to the kerb at an angle,
+        // leant on their stands.
+        const n = draw() < 0.5 ? 2 : 3;
+        const bike = draw() < 0.5 ? 0 : 1;
+        for (let i = 0; i < n; i++) {
+          const along = (i - (n - 1) / 2) * 1.2 + (draw() - 0.5) * 0.1;
+          out.push({ x: at.x + fx * along - fz * 0.3, z: at.z + fz * along + fx * 0.3, yaw: yaw - 0.95 + (draw() - 0.5) * 0.12, ...dress(), kind: KINDS.length + (draw() < 0.75 ? bike : 1 - bike), tag: TAG.none, glow: false, roll: -0.15 });
+        }
+        continue;
+      }
+      // A car: a little off its mark, not quite square, and one in eight
+      // the other way round.
+      const along = (draw() - 0.5) * (row.angled ? 0.2 : 0.8);
+      const across = (draw() - 0.5) * 0.14;
+      const turned = row.angled === false && draw() < 0.125 ? Math.PI : 0;
+      out.push({ x: at.x + fx * along - fz * across, z: at.z + fz * along + fx * across, yaw: yaw + turned + (draw() - 0.5) * 0.07, ...dress(), tag: TAG.none });
     }
   });
   const dress = wardrobe(977);
