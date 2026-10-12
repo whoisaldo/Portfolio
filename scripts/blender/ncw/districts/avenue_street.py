@@ -419,6 +419,7 @@ def build(AV, AVS, lane_w, lane_e):
     big = random.Random(7360)
     advert_drum(AVS, -12.3, -170.1, big)
     marquee(AVS, 57.5, 80.5, big)
+    corner_b(AVS, fw)
 
 
 def more_signs(D, f, lots, rng, cap=26.0, clear=()):
@@ -605,3 +606,36 @@ def marquee(D, x0, x1, rng, z_wall=12.0, out=4.4, y=4.8):
         sid = K.st_id("ps")
         K.st_face(D, sid, (x, cy, zf + 0.085), (-1.0, 0.0, 0.0), K.UP, sw, sh)
         K.st_face(D, sid + "_b", (x, cy, zf + 0.275), (1.0, 0.0, 0.0), K.UP, sw, sh)
+
+
+def totem(D, x, z, yaw, size="bm", scale=0.95):
+    """A sign standing on the pavement on its own plinth, lit both sides."""
+    w, h = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    cy = G0 + 0.45 + h / 2
+    oriented_box((D, "trim", 0), x, G0 + 0.2, z, w + 0.3, 0.4, 0.5, yaw, scale=1.0, col=B.DARK_TRIM)
+    oriented_box((D, "board_frame", 0), x, cy, z, w + 0.14, h + 0.14, 0.18, yaw, scale=1.0)
+    sid = K.st_id(size)
+    K.st_face(D, sid, (x + s_ * 0.1, cy, z + c * 0.1), (c, 0.0, -s_), K.UP, w, h)
+    K.st_face(D, sid + "_b", (x - s_ * 0.1, cy, z - c * 0.1), (-c, 0.0, s_), K.UP, w, h)
+
+
+def corner_b(D, fw):
+    """Junction B's south corners, as lit and as peopled as junction A's:
+    a sign on a plinth on the east corner (west of it the drum), vending
+    by both walls, people, pools of light. The walk's line up the east
+    pavement (x 11.8) and the crossings stay clear. `fw`: the avenue's
+    west frontage, for what stands by it already."""
+    rng = random.Random(7370)
+    totem(D, 13.25, -168.75, 0.0)
+    for k in range(2):
+        K.vendor(D, WALK - 0.03, -166.6 + k * 1.06, -math.pi / 2, rng)
+    if clear_of(fw, -166.1, 1.3):
+        for k in range(2):
+            K.vendor(D, -WALK + 0.03, -166.6 + k * 1.06, math.pi / 2, rng)
+    for (x, z, yaw, pose) in ((13.1, -169.75, 0.5, "talk"), (13.75, -169.6, -2.4, "talk"), (13.3, -164.4, -math.pi / 2, "lean"),
+                              (-13.45, -171.2, 0.9, "talk"), (-12.7, -171.8, -2.3, "talk"), (-13.3, -164.4, math.pi / 2, "lean")):
+        stand(x, z, yaw, pose, y=G0)
+    for (x, z, hue, power) in ((12.6, -169.2, "pink", 7.0), (13.8, -171.4, "amber", 7.0), (11.2, -170.8, "white", 6.0),
+                               (12.8, -164.5, "cyan", 5.0), (-12.8, -164.5, "pink", 5.0)):
+        light(D, x, 2.5, z, hue, power)
