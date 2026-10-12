@@ -67,8 +67,9 @@ const io = new NodeIO()
 //   its place in the site's atlas and the beat it flickers on;
 //
 //   the street signs' ids (signs_index: `ids`, st_<size>_<n> with _b for a
-//   back) become two numbers each on a mesh of points: `_ID`, n and then
-//   twice the size's place in `sizes` plus one for a back;
+//   back) become three numbers each on a mesh of points: `_ID`, n's low 16
+//   bits, twice the size's place in `sizes` plus one for a back, and n's
+//   high 16 bits (the plaza's own ids start at 700000);
 //
 //   the people standing about (anchor_people: `stand`) become eight numbers
 //   each on a mesh of points: `_XZ`, x and then z in centimetres plus
@@ -137,12 +138,12 @@ async function compactCore(document) {
   const sizes = [];
   const codes = ids.map((id) => {
     const m = /^st_([a-z]+)_(\d+)(_b)?$/.exec(id);
-    if (!m || +m[2] > 65535) return null;
+    if (!m || +m[2] > 0xffffffff) return null;
     if (!sizes.includes(m[1])) sizes.push(m[1]);
-    return [+m[2], sizes.indexOf(m[1]) * 2 + (m[3] ? 1 : 0)];
+    return [+m[2] % 65536, sizes.indexOf(m[1]) * 2 + (m[3] ? 1 : 0), Math.floor(+m[2] / 65536)];
   });
   if (ids.length && codes.every(Boolean)) {
-    points(signsIndex, { _ID: ["VEC2", new Uint16Array(codes.flat())] });
+    points(signsIndex, { _ID: ["VEC3", new Uint16Array(codes.flat())] });
     signsIndex.setExtras({ ...signsIndex.getExtras(), ids: undefined, sizes });
   }
 

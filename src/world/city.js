@@ -76,7 +76,7 @@ function inflate(scene) {
     o.visible = false;
   };
   read("signs_index", ({ _id }, { sizes }) => ({
-    ids: Array.from({ length: _id.count }, (_, i) => `st_${sizes[_id.getY(i) >> 1]}_${_id.getX(i)}${_id.getY(i) & 1 ? "_b" : ""}`),
+    ids: Array.from({ length: _id.count }, (_, i) => `st_${sizes[_id.getY(i) >> 1]}_${_id.getX(i) + _id.getZ(i) * 65536}${_id.getY(i) & 1 ? "_b" : ""}`),
   }));
   read("anchor_people", ({ _xz, _yap }) => {
     const stand = [];
