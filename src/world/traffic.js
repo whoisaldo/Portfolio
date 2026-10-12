@@ -305,15 +305,14 @@ function carGeometry(kind) {
 // the last door's back edge; 99 where the model cuts them itself) between
 // which heights (the sill's top, the waist); where a handle sits (the back
 // edge of each door); how high its plates are (nose, tail) and their half
-// width; where its seats' heads show through the glass (front row, back
-// row, how high); and its wheels (half the wheelbase, the tyre's radius).
+// width; and its wheels (half the wheelbase, the tyre's radius).
 const DETAIL = {
-  hatch: { seam: [0.86, -0.86, 0.26, 0.88], door: [-0.3, -0.86], plate: [0.26, 0.56, 0.24], cabin: [-0.12, -1.0, 1.24], wheel: [1.225, 0.31] },
-  sedan: { seam: [1.05, -1.08, 0.25, 0.78], door: [-0.45, -1.08], plate: [0.26, 0.5, 0.26], cabin: [-0.22, -1.15, 1.08], wheel: [1.475, 0.34] },
-  van: { seam: [1.8, 0.42, 0.3, 1.07], door: [0.42, 99], plate: [0.33, 0.33, 0.26], cabin: [1.0, 99, 1.72], wheel: [1.625, 0.35] },
-  wedge: { seam: [99, 99, 0.33, 0.75], door: [-0.34, 99], plate: [0.25, 0.54, 0.24], cabin: [-0.1, 99, 0.93], wheel: [1.35, 0.34] },
-  pickup: { seam: [99, 99, 0.6, 1.19], door: [-0.077, -0.88], plate: [0.5, 0.5, 0.26], cabin: [0.2, -0.62, 1.6], wheel: [1.775, 0.44] },
-  micro: { seam: [99, 99, 0.37, 0.68], door: [-0.54, 99], plate: [0.5, 0.5, 0.2], cabin: [-0.1, 99, 1.15], wheel: [0.875, 0.25] },
+  hatch: { seam: [0.86, -0.86, 0.26, 0.88], door: [-0.3, -0.86], plate: [0.26, 0.56, 0.24], wheel: [1.225, 0.31] },
+  sedan: { seam: [1.05, -1.08, 0.25, 0.78], door: [-0.45, -1.08], plate: [0.26, 0.5, 0.26], wheel: [1.475, 0.34] },
+  van: { seam: [1.8, 0.42, 0.3, 1.07], door: [0.42, 99], plate: [0.33, 0.33, 0.26], wheel: [1.625, 0.35] },
+  wedge: { seam: [99, 99, 0.33, 0.75], door: [-0.34, 99], plate: [0.25, 0.54, 0.24], wheel: [1.35, 0.34] },
+  pickup: { seam: [99, 99, 0.6, 1.19], door: [-0.077, -0.88], plate: [0.5, 0.5, 0.26], wheel: [1.775, 0.44] },
+  micro: { seam: [99, 99, 0.37, 0.68], door: [-0.54, 99], plate: [0.5, 0.5, 0.2], wheel: [0.875, 0.25] },
 };
 
 // How far off a flying car is drawn as its own model, as its coarser self,
@@ -395,7 +394,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       uniform vec4 uSeam;
       uniform vec4 uDoor;
       uniform vec3 uPlate;
-      uniform vec3 uCabin;
       uniform vec2 uWheel;
       varying vec3 vWorld;
       varying vec3 vNormalW;
@@ -454,9 +452,14 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         // arch stands over its tyre; the roof and the bonnet lifted by the
         // glow overhead.
         float ao = 0.35 + 0.65 * smoothstep(0.12, 1.1, vLocal.y);
-        float arch = smoothstep(uWheel.y + 0.02, uWheel.y + 0.2, length(vec2(abs(vLocal.z) - uWheel.x, vLocal.y - uWheel.y)));
+        vec2 wv = vec2(abs(vLocal.z) - uWheel.x, vLocal.y - uWheel.y);
+        float wr = length(wv) / uWheel.y;
+        float arch = smoothstep(uWheel.y + 0.02, uWheel.y + 0.2, length(wv));
         ao *= mix(1.0, mix(0.4, 1.0, arch), flank);
         float sky = max(n.y, 0.0);
+        // A wheel's face has a rim in it (the far model's wheel is a plain
+        // drum: its rim is drawn on it).
+        if (k == 6 && flank > 0.5 && wr < 0.7) k = 7;
         if (k == 0) {
           vec3 body = vBody * (1.5 - 0.7 * vBody) + vec3(0.012);
           // The patrol car: black, the doors white between the sills and
@@ -486,53 +489,80 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           vec2 hd = min(abs(vec2(vLocal.z - uDoor.x - 0.15, vLocal.y - uSeam.w + 0.1)), abs(vec2(vLocal.z - uDoor.y - 0.15, vLocal.y - uSeam.w + 0.1))) - vec2(0.085, 0.016);
           float handle = step(max(hd.x, hd.y), 0.0) * flank;
           body *= 1.0 - 0.8 * max(seam, handle);
-          vec3 light = vec3(0.05) + side * (0.45 + 0.35 * sky) + spill * 0.25 + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.5 + uGlowColor * 0.3) * (0.25 + 0.75 * sky) * uHaze;
-          col = body * light * ao;
+          // Below the doors' foot the flank is dark cladding, not paint.
+          float clad = flank * (1.0 - smoothstep(uSeam.z - 0.035, uSeam.z + 0.005, vLocal.y));
+          body = mix(body, vec3(0.016, 0.017, 0.02), clad * 0.88);
+          // A flank is not one flat tone: the paint turns under toward the
+          // sill and stands up to the street's light toward the shoulder.
+          float turn = mix(1.0, 0.5 + 0.65 * smoothstep(uSeam.z, uSeam.w + 0.12, vLocal.y), flank);
+          vec3 light = vec3(0.06) + side * (0.55 + 0.35 * sky) + spill * 0.3 + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.5 + uGlowColor * 0.3) * (0.25 + 0.75 * sky) * uHaze;
+          col = body * light * ao * turn;
           // Wet paint: what it gives back, the sky's glow and the signs' on
-          // everything that faces up, a line of light along the crease, and
-          // a rim where it turns away from the eye, so that a dark car on a
-          // dark road still has its outline.
-          col += env * (0.07 + 0.93 * F) * 0.8 * (0.55 + 0.45 * ao);
+          // everything that faces up, the signs' own colour in a soft band
+          // along the flank under the shoulder with a line of light on the
+          // crease, and a rim where it turns away from the eye, so that a
+          // dark car on a dark road still has its outline.
+          col += env * (0.1 + 0.9 * F) * 0.8 * (0.55 + 0.45 * ao);
           col += (uHazeColor * 0.55 + uGlowColor * 0.3 + spill * 0.35) * sky * sky * 0.22;
+          float sheen = exp(-pow((vLocal.y - mix(uSeam.z, uSeam.w, 0.74)) / 0.1, 2.0)) * flank * (1.0 - clad);
+          col += (min(toward, vec3(1.4)) * 0.8 + min(side, vec3(1.4)) * 0.5 + uHazeColor * 0.3) * sheen * 0.2;
           col += (uHazeColor * 0.6 + side * 0.9) * smoothstep(0.004, 0.02, crease) * (1.0 - smoothstep(0.02, 0.05, crease)) * flank * 0.1;
-          col += (uHazeColor * 0.9 + side * 0.7) * pow(1.0 - ndv, 3.0) * 0.35;
+          col += (uHazeColor * 0.9 + side * 0.7) * pow(1.0 - ndv, 4.0) * 0.2;
           col += vec3(0.5, 0.52, 0.56) * (0.03 + side * 0.4) * handle * step(-0.004, hd.y);
+          // A strip of bright trim along the waist, under the glass.
+          float waist = (1.0 - smoothstep(0.011, 0.011 + aa, abs(vLocal.y - uSeam.w + 0.014))) * flank * step(uBoxMin.z + 0.55, vLocal.z) * step(vLocal.z, uBoxMax.z - 0.85);
+          col = mix(col, vec3(0.5, 0.53, 0.58) * (0.035 + side * 0.55 + spill * 0.25) + env * 0.45, waist * 0.85);
         }
-        else if (k == 1) col = vec3(0.01, 0.011, 0.013) + (spill * 0.07 + side * 0.07) * ao + env * F * 0.3;
+        else if (k == 1) col = vec3(0.011, 0.012, 0.014) + (spill * 0.07 + side * 0.1) * ao + env * (0.03 + 0.3 * F);
         else if (k == 2) {
-          // Glass: a dim cabin behind it (the street's light through the far
-          // windows, the dash's glow, the seats' heads dark against them),
-          // and over it the street given back, with a glint across it.
-          float seat = min(abs(vLocal.z - uCabin.x), abs(vLocal.z - uCabin.y));
-          float du = mix(abs(abs(vLocal.x) - 0.36), seat, flank);
-          float dy = vLocal.y - uCabin.z;
-          float head = max(step(length(vec2(du, dy * 1.1)), 0.13), step(du, 0.23) * step(dy, -0.11));
-          float up = clamp((dy + 0.4) / 0.5, 0.0, 1.0);
-          vec3 cabin = (vec3(0.01, 0.013, 0.021) + min(spill, vec3(1.0)) * 0.035 + vLook.rgb * 0.02 * lit) * (0.45 + 0.75 * up) * (1.0 - 0.85 * head);
-          float glint = smoothstep(0.8, 1.0, sin((vLocal.z + vLocal.x) * 2.4 + vLocal.y * 4.4));
-          col = cabin * (1.0 - F) + min(env, vec3(1.6)) * (0.035 + 0.965 * F) + (uHazeColor * 0.3 + min(side, vec3(1.0)) * 0.25) * glint * 0.1;
+          // Glass: a dark cabin behind it, and over that the street given
+          // back: the signs' colour from the side it faces low in the
+          // pane, the sky's glow deepening toward its top edge, and two
+          // bars of light across it, as wet glass has. Nobody is drawn
+          // inside: a head at this size is a black blob.
+          float gy = clamp((vLocal.y - uSeam.w) / max(uBoxMax.y - uSeam.w, 0.2), 0.0, 1.0);
+          vec3 cabin = (vec3(0.012, 0.016, 0.026) + min(spill, vec3(1.0)) * 0.03 + vLook.rgb * 0.02 * lit) * (0.5 + 0.5 * gy);
+          vec3 given = mix(min(side, vec3(1.2)) * 0.6 + uGlowColor * 0.25, uHazeColor * 0.9 + uGlowColor * 0.4 + min(toward, vec3(1.0)) * 0.25, gy);
+          float bars = smoothstep(0.86, 0.97, sin((vLocal.z * 0.9 + vLocal.x * 0.9 + vLocal.y * 1.6) * 3.0));
+          col = cabin * (1.0 - F) + min(env, vec3(1.6)) * (0.05 + 0.95 * F) + given * (0.15 + 0.12 * gy) + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.13;
         }
         // A light bar is a lamp unit at each end and a thin running strip
         // between them, behind a lens; lit, it is only as hot as it must be
         // to carry: a lit lens close to, where the bloom would spread it
         // across the car's whole nose, and a point the bloom can find from
         // down the street. A bar up on a roof is an amber marker strip.
+        // Unlit, a lens still catches the street.
         else if (k == 3) {
           float unit = smoothstep(0.56, 0.64, abs(vLocal.x) / uBars.x);
           vec3 beam = vec3(0.92, 0.95, 1.0) * mix(1.6, 6.5, far) * mix(0.14, 1.0, unit);
           if (vLocal.y > uBars.y + 0.4) beam = vec3(1.0, 0.55, 0.14) * 0.85;
-          col = mix(vec3(0.045, 0.05, 0.056) + env * 0.3, beam, lit);
+          vec3 lens = vec3(0.07, 0.078, 0.086) + env * 0.45 + (side * 0.25 + spill * 0.1) * mix(0.4, 1.0, unit);
+          col = mix(lens, beam, lit);
           glow = lit;
         }
         else if (k == 4) {
           float unit = smoothstep(0.5, 0.6, abs(vLocal.x) / uBars.z);
-          // Under the brakes the whole bar is lit, and brighter.
-          vec3 beam = vec3(1.0, 0.07, 0.15) * mix(1.5, 4.5, far) * mix(mix(0.4, 1.0, unit), 2.3, vBrake);
-          col = mix(vec3(0.07, 0.008, 0.012) + env * 0.2, beam, lit);
+          // Red, with next to no green or blue in it, so the gain does not
+          // wash it pink. Under the brakes the whole bar is lit, and
+          // brighter.
+          vec3 beam = vec3(1.0, 0.016, 0.028) * mix(1.25, 3.2, far) * mix(mix(0.4, 1.0, unit), 1.9, vBrake);
+          vec3 lens = vec3(0.12, 0.007, 0.012) + (side + spill) * vec3(0.16, 0.01, 0.014) + env * 0.1;
+          col = mix(lens, beam, lit);
           glow = lit;
         }
-        else if (k == 5) { col = vLook.rgb * mix(0.6, mix(1.5, 3.0, far), lit); glow = 1.0; }
-        else if (k == 6) col = vec3(0.006, 0.006, 0.007) + (spill * 0.04 + side * 0.03) + (uHazeColor * 0.4 + side * 0.4) * pow(1.0 - ndv, 3.0) * 0.12;
+        else if (k == 5) { col = vLook.rgb * max(mix(0.6, mix(1.5, 3.0, far), lit), 1.7 * vState.w); glow = 1.0; }
+        else if (k == 6) col = vec3(0.007) + (spill * 0.05 + side * 0.04) + (uHazeColor * 0.4 + side * 0.5) * pow(1.0 - ndv, 3.0) * 0.14 + side * 0.05 * flank * smoothstep(0.78, 0.86, wr) * (1.0 - smoothstep(0.9, 0.98, wr));
+        else if (k == 7) {
+          // The rim: five spokes of bright alloy from a hub to the rim's
+          // edge, dark between them; turning, they run together.
+          float spoke = smoothstep(0.4, 0.56, abs(fract(atan(wv.y, wv.x) * 0.7958) - 0.5) * 2.0);
+          float metal = mix(spoke, 0.5, lit * (1.0 - vBrake) * 0.85);
+          metal = max(metal, smoothstep(0.55, 0.61, wr));
+          metal = max(metal, 1.0 - smoothstep(0.13, 0.17, wr));
+          metal *= 1.0 - smoothstep(0.68, 0.73, wr);
+          vec3 alloy = vec3(0.36, 0.38, 0.42) * (0.045 + side * 0.9 + spill * 0.35) + env * (0.12 + 0.4 * F);
+          col = mix(vec3(0.008) + side * 0.02, alloy, metal * flank);
+        }
         else if (k == 9) {
           // The taxi's sign: a lit amber box, its ends darker.
           col = vec3(1.0, 0.62, 0.12) * mix(1.3, 3.2, far) * (0.35 + 0.65 * step(abs(vLocal.x), 0.24));
@@ -548,7 +578,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         }
         else col = vec3(0.02, 0.022, 0.026) + env * 0.2 + side * 0.05;
         // A number plate on the nose and on the tail: a pale rectangle in a
-        // dark frame, nothing written on it, the tail's under its own lamp.
+        // dark frame with a row of dark marks, the tail's under its own lamp.
         if (k < 2) {
           float nose = step(0.9, nl.z) * step(uBoxMax.z - 0.06, vLocal.z);
           float back = step(0.9, -nl.z) * step(vLocal.z, uBoxMin.z + 0.06);
@@ -556,7 +586,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           float edge = max(pd.x, pd.y);
           if ((nose + back) * step(edge, 0.0) > 0.5) {
             vec3 face = vec3(0.62, 0.6, 0.5);
-            col = face * (0.03 + side * 0.45 + spill * 0.2 + vec3(1.0, 0.92, 0.8) * lit * mix(0.1, 0.5, back));
+            // Dark marks along it, as a plate has: blocks, not letters.
+            float gx = vLocal.x / uPlate.z * 3.2;
+            float mark = step(abs(fract(gx) - 0.5), 0.33) * step(abs(pd.y + 0.052), 0.03) * step(0.28, hash12(vec2(floor(gx) + 7.0, floor(vBody.r * 97.0 + vBody.b * 31.0))));
+            face = mix(face, vec3(0.03), mark * 0.9);
+            col = face * (0.045 + side * 0.45 + spill * 0.2 + vec3(1.0, 0.92, 0.8) * lit * mix(0.1, 0.5, back));
             col = mix(col, vec3(0.006), step(-0.012, edge));
             glow = 0.25 * lit * back;
           }
@@ -735,7 +769,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const kinds = CAR_KINDS.map((kind, k) => {
     const built = carGeometry(kind);
     const detail = DETAIL[kind];
-    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uCabin: { value: new THREE.Vector3(...detail.cabin) }, uWheel: { value: new THREE.Vector2(...detail.wheel) } }, ...carShader, defines: kind === "van" ? { VAN: "" } : {} });
+    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uWheel: { value: new THREE.Vector2(...detail.wheel) } }, ...carShader, defines: kind === "van" ? { VAN: "" } : {} });
     material.name = kind === "van" ? "traffic_van" : "traffic";
     const mine = slots.filter((x) => x.kind === k);
     for (const x of mine) x.lamps = built;
@@ -823,6 +857,84 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   lamps.renderOrder = 7;
   lamps.layers.enable(reflectLayer);
   scene.add(lamps);
+
+  // What a car's lamps do to the wet road: a pool of white ahead of the
+  // nose, a shorter one of red behind the tail (more under the brakes), and
+  // under a few of them the glow of their own sill strips. One flat quad a
+  // car, laid along its own line (so it climbs the ramp with it), added to
+  // the road under it; a parked car has one only if it glows.
+  const POOLS_TO = 200;
+  const poolMax = Math.max(1, moving + pathSlots.length + standingLit + slots.filter((x) => x.parked && x.glow).length);
+  const poolGeo = new THREE.InstancedBufferGeometry();
+  const flat = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  poolGeo.index = flat.index;
+  poolGeo.setAttribute("position", flat.attributes.position);
+  const poolAt = new THREE.InstancedBufferAttribute(new Float32Array(poolMax * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const poolFwd = new THREE.InstancedBufferAttribute(new Float32Array(poolMax * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const poolTint = new THREE.InstancedBufferAttribute(new Float32Array(poolMax * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const poolMode = new THREE.InstancedBufferAttribute(new Float32Array(poolMax * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  poolGeo.setAttribute("aAt", poolAt);
+  poolGeo.setAttribute("aFwd", poolFwd);
+  poolGeo.setAttribute("aTint", poolTint);
+  poolGeo.setAttribute("aMode", poolMode);
+  poolGeo.instanceCount = 0;
+  const poolMat = new THREE.ShaderMaterial({
+    uniforms: { ...shared },
+    vertexShader: /* glsl */ `
+      attribute vec3 aAt;
+      attribute vec3 aFwd;
+      attribute vec3 aTint;
+      attribute vec4 aMode;
+      uniform vec3 uCam;
+      varying vec2 vP;
+      varying vec3 vTint;
+      varying vec4 vMode;
+      varying float vFar;
+      void main() {
+        // Metres in the car's own frame: across it, and along it (ahead is
+        // plus), from 8 m behind its middle to 15 m ahead.
+        vP = position.xz * vec2(7.0, 23.0) + vec2(0.0, 3.5);
+        vec3 f = normalize(aFwd);
+        vec3 r = normalize(vec3(f.z, 0.0, -f.x));
+        vec3 w = aAt + r * vP.x + f * vP.y + vec3(0.0, 0.045, 0.0);
+        vTint = aTint;
+        vMode = aMode;
+        vFar = distance(w, uCam);
+        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying vec2 vP;
+      varying vec3 vTint;
+      varying vec4 vMode;
+      varying float vFar;
+      void main() {
+        float ahead = vP.y - vMode.w;
+        float behind = -vP.y - vMode.w;
+        // Two beams that run together a few metres out and thin away.
+        float beams = exp(-pow((abs(vP.x) - 0.55) / (0.5 + max(ahead, 0.0) * 0.2), 2.0));
+        float head = smoothstep(-0.2, 1.6, ahead) * exp(-max(ahead, 0.0) * 0.21) * beams;
+        float tail = smoothstep(-0.1, 0.7, behind) * exp(-max(behind, 0.0) * 0.6) * exp(-pow(vP.x / (1.0 + max(behind, 0.0) * 0.2), 2.0));
+        // Under it: brightest along its sills, out from under its edges.
+        vec2 e = vec2(abs(vP.x) - 0.8, abs(vP.y) - vMode.w + 0.5);
+        float under = exp(-pow(max(e.x, 0.0) / 0.55, 2.0)) * exp(-pow(max(e.y, 0.0) / 0.6, 2.0)) * (0.3 + 0.7 * smoothstep(-0.5, 0.0, max(e.x, e.y * 0.4)));
+        vec3 col = vec3(0.8, 0.88, 1.0) * head * vMode.x * 0.42 + vec3(1.0, 0.03, 0.05) * tail * vMode.y * 0.3 + vTint * under * vMode.z * 0.34;
+        gl_FragColor = vec4(col * (1.0 - smoothstep(90.0, ${POOLS_TO.toFixed(1)}, vFar)), 1.0);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  poolMat.name = "pools";
+  const pools = new THREE.Mesh(poolGeo, poolMat);
+  pools.name = "pools";
+  pools.frustumCulled = false;
+  pools.renderOrder = 6;
+  scene.add(pools);
 
   // The trains. One model (trainGeometry) on two lines. On the viaduct at
   // the avenue's far end (anchor_rail), six cars: out of the portal in
@@ -957,7 +1069,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = "train";
     mesh.visible = false;
-    mesh.frustumCulled = false;
     mesh.layers.enable(reflectLayer);
     scene.add(mesh);
     trains.push({ mesh, material, geometry, line, at, length: cars * CAR });
@@ -1128,7 +1239,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const voices = { on: true, avs: Array.from({ length: avs }, () => new THREE.Vector3()), police: police ? new THREE.Vector3() : null, train: null };
 
   const update = (dt, on) => {
-    droneMesh.visible = lamps.visible = on;
+    droneMesh.visible = lamps.visible = pools.visible = on;
     for (const l of avLevels) l.mesh.visible = on;
     for (const k of kinds) for (const l of k.levels) l.mesh.visible = on;
     voices.on = on;
@@ -1274,6 +1385,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       setLamp(li++, tmp.x, tmp.y, tmp.z, strobe, strobe, strobe, 0.7 * far);
     }
     for (const K of kinds) for (const L of K.levels) L.n = 0;
+    let pi = 0;
     for (const x of slots) {
       locate(x, clock);
       const { shown, braking } = now;
@@ -1285,8 +1397,23 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         if (!view.intersectsSphere(ball)) continue;
       }
       if (off < BODIES_TO * BODIES_TO) put(x, shown, braking, off);
-      if (!x.lit && !x.parked?.hazard) continue;
+      if (!x.lit && !x.parked?.hazard && !x.glow) continue;
       const glow = shown * seen(p, q, x.lamps.box);
+      if (off < POOLS_TO * POOLS_TO && glow > 0 && (x.lit || x.glow)) {
+        // Its light on the road: its lamps' if they are on (low on a car
+        // that stands), its strips' if it has them lit.
+        const on = x.lit ? (x.parked ? 0.45 : 1) * glow : 0;
+        fwd.set(0, 0, 1).applyQuaternion(q);
+        p.toArray(poolAt.array, pi * 3);
+        fwd.toArray(poolFwd.array, pi * 3);
+        x.neon.toArray(poolTint.array, pi * 3);
+        poolMode.array[pi * 4] = on;
+        poolMode.array[pi * 4 + 1] = on * (1 + 1.2 * braking);
+        poolMode.array[pi * 4 + 2] = x.glow ? glow : 0;
+        poolMode.array[pi * 4 + 3] = x.lamps.box.max.z;
+        pi++;
+      }
+      if (!x.lit && !x.parked?.hazard) continue;
       if (x.parked?.hazard) {
         // Amber at the four corners, a beat on and a beat off.
         const on = (reduced ? 0.25 : step(clock * 1.5)) * glow;
@@ -1307,7 +1434,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         tmp.set(sd * head[0], head[1], head[2]).applyQuaternion(q).add(p);
         setLamp(li++, tmp.x, tmp.y, tmp.z, 0.85 * white, 0.92 * white, 1.0 * white, 0.9);
         tmp.set(sd * tail[0], tail[1], tail[2]).applyQuaternion(q).add(p);
-        setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * red, 0.05 * red, 0.15 * red, 0.6);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * red, 0.03 * red, 0.06 * red, 0.6);
       }
       if (x.tag === TAG.patrol) {
         // The bar's two ends, red and blue, trading places (steady under
@@ -1346,6 +1473,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           a.needsUpdate = true;
         }
       }
+    }
+    poolGeo.instanceCount = pi;
+    for (const a of [poolAt, poolFwd, poolTint, poolMode]) {
+      a.clearUpdateRanges();
+      a.addUpdateRange(0, pi * a.itemSize);
+      a.needsUpdate = true;
     }
     lampGeo.instanceCount = li;
     posAttr.needsUpdate = true;
@@ -1396,6 +1529,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       quad.dispose();
       lampGeo.dispose();
       lampMat.dispose();
+      scene.remove(pools);
+      flat.dispose();
+      poolGeo.dispose();
+      poolMat.dispose();
       for (const l of avLevels) l.mesh.dispose();
       avFar.dispose();
       for (const k of kinds) {

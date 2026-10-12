@@ -19,9 +19,11 @@
 // No three.js in here: places come out as plain numbers.
 
 export const KINDS = ["hatch", "sedan", "van", "wedge", "pickup", "micro"];
-// Paint: dark metallics mostly, a pearl white, reds, a cab yellow, teal,
-// violet, rust; the accents are the city's neons.
-export const PAINT = ["#25282e", "#121316", "#8f949b", "#561018", "#132440", "#5d636b", "#0f3a3b", "#9c7c0c", "#b8961a", "#a3241c", "#12706b", "#c9ced4", "#3c2a72", "#b4521a", "#1d4c9c", "#7a1a48"];
+// Paint: under these streets' light a dark metallic is one more grey car, so
+// half are colours that hold at night (reds, blues, teal, violet, orange,
+// green, a wine) and the rest gunmetal, black, silver, pearl and cream. No
+// cab yellow: that is the taxis'.
+export const PAINT = ["#2b3038", "#b0281e", "#9aa0a8", "#1d4c9c", "#15161a", "#14807a", "#d8d2c4", "#7a1420", "#4a2f8c", "#c9ced4", "#c45a1c", "#1a3566", "#3d7a3a", "#5d636b", "#8a1d52", "#0f5a56"];
 export const ACCENT = ["#27dcf2", "#ff2e88", "#ffb254", "#a24bff", "#39ff9a", "#ff3fd2"];
 // What a car is besides its model (the sedan carries both roof units).
 export const TAG = { none: 0, patrol: 1, taxi: 2 };
