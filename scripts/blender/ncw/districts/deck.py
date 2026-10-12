@@ -1143,6 +1143,21 @@ end_block(plan.DECK_X0 - 0.4, plan.DECK_X0 + 0.4, GORE_Z + 0.5, GORE_Z + 1.3, h=
 # either side of the avenue, vending machines and skips against the walls,
 # benches and trees, bollards keeping cars off the paving.
 # ---------------------------------------------------------------------------
+# A stall's signs say what a stall sells. The site draws a street sign
+# st_<size>_<n> with design n modulo the size's list (16 panels, 20 small
+# blades: src/data/world.js, src/world/sign-words.js); these are the food and
+# drink among them: RAMEN, NOODLES, yakitori, SUSHI, BENTO, SAKE BAR, OPEN
+# 24H, OPEN LATE; and the blades for noodles, sushi, sake, 24H, OPEN, BAR.
+FOOD = {"ps": (1, 8, 3, 12, 5, 2, 0, 10), "bs": (19, 6, 0, 4, 8, 5)}
+_food_n = {"ps": 0, "bs": 0}
+
+
+def food(size):
+    i = _food_n[size]
+    _food_n[size] = i + 1
+    return f"st_{size}_{FOOD[size][i % len(FOOD[size])]}"
+
+
 def stall(x, z, facing, colour, seed):
     """A market stall against a wall, its counter toward `facing` (+1 south,
     -1 north): a counter, posts, a dyed awning lit from under, its sign on
@@ -1169,14 +1184,15 @@ def stall(x, z, facing, colour, seed):
     # Its sign on the back board, its blade on a mast at one end, and what
     # is on the counter.
     sw, sh = ST_SIZES["ps"]
-    sign(st_name("ps"), x + r.uniform(-0.3, 0.3), B.G0 + 1.72, z + f * 0.135, sw, sh, 0.0 if f > 0 else math.pi, district=DK, label=False)
+    sign(food("ps"), x + r.uniform(-0.3, 0.3), B.G0 + 1.72, z + f * 0.135, sw, sh, 0.0 if f > 0 else math.pi, district=DK, label=False)
     e = r.choice((-1, 1))
     mx, mz = x + e * (w / 2 - 0.05), z + f * 1.54
     box((DK, "metal", 0), mx - 0.04, mx + 0.04, B.G0 + 2.45, B.G0 + 4.6, mz - 0.04, mz + 0.04, scale=0.5)
     bw, bh = ST_SIZES["bs"]
     oriented_box((DK, "board_frame", 0), mx, B.G0 + 3.55, mz - f * 0.5, bw + 0.1, bh + 0.1, 0.1, math.pi / 2, scale=1.0)
+    blade_id = food("bs")
     for fy in (math.pi / 2, -math.pi / 2):
-        sign(st_name("bs"), mx + math.sin(fy) * 0.06, B.G0 + 3.55, mz - f * 0.5, bw, bh, fy, district=DK, label=False)
+        sign(blade_id, mx + math.sin(fy) * 0.06, B.G0 + 3.55, mz - f * 0.5, bw, bh, fy, district=DK, label=False)
     for k in range(r.randrange(2, 5)):
         cx = x - w / 2 + 0.3 + r.random() * (w - 0.6)
         h = r.uniform(0.15, 0.4)
@@ -1607,36 +1623,47 @@ def patch(axis, v, u, length, width, mat, hf):
     face((DK, mat, 0), [_w(axis, pv, pu, hf(pv) + 0.007) for pv, pu in pts], (0, 1, 0), 1.0)
 
 
-def tar(axis, pts, w, hf, closed=False):
-    """A band of tar w wide along the points (v, u) on the road."""
+TAR = (0.02, 0.02, 0.021, 1.0)      # dark grey on the wet asphalt (the kit's `dark` is blue-black steel: it read as a drawn line)
+
+
+def tar(axis, pts, w, hf, closed=False, broken=0.0):
+    """Tar along the points (v, u) on the road: each length its own width,
+    some of them gone."""
     m = len(pts)
     for k in range(m if closed else m - 1):
         (v0, u0), (v1, u1) = pts[k], pts[(k + 1) % m]
+        if patch_rng.random() < broken:
+            continue
         dv, du = v1 - v0, u1 - u0
         ln = math.hypot(dv, du) or 1.0
-        nv, nu = -du / ln * w / 2, dv / ln * w / 2
-        ev, eu = dv / ln * w / 2, du / ln * w / 2
-        q = ((v0 - ev + nv, u0 - eu + nu), (v1 + ev + nv, u1 + eu + nu), (v1 + ev - nv, u1 + eu - nu), (v0 - ev - nv, u0 - eu - nu))
-        face((DK, "dark", 1), [_w(axis, pv, pu, hf(pv) + 0.007) for pv, pu in q], (0, 1, 0), 1.0)
+        wa, wb = (w * patch_rng.uniform(0.35, 1.0) / 2 for _ in range(2))
+        nv, nu = -du / ln, dv / ln
+        q = ((v0 + nv * wa, u0 + nu * wa), (v1 + nv * wb, u1 + nu * wb), (v1 - nv * wb, u1 - nu * wb), (v0 - nv * wa, u0 - nu * wa))
+        face((DK, "trim", 1), [_w(axis, pv, pu, hf(pv) + 0.007) for pv, pu in q], (0, 1, 0), 1.0, TAR)
 
 
 def repair(axis, v, u, length, width, hf):
-    n = 7
+    n = 9
     pts = []
     for k in range(n):
         a = 2 * math.pi * k / n + patch_rng.uniform(-0.25, 0.25)
-        rr = patch_rng.uniform(0.7, 1.0)
+        rr = patch_rng.uniform(0.6, 1.0)
         pts.append((v + math.cos(a) * length / 2 * rr, u + math.sin(a) * width / 2 * rr))
-    tar(axis, pts, 0.07, hf, closed=True)
+    tar(axis, pts, 0.07, hf, closed=True, broken=0.15)
 
 
 def crack(axis, v, u, length, hf):
-    n = max(3, int(length / 0.9))
-    pts = [(v + length * k / n, u + patch_rng.uniform(-0.22, 0.22)) for k in range(n + 1)]
-    tar(axis, pts, 0.05, hf)
+    """A sealed crack: it wanders, thins, breaks off and takes up again."""
+    n = max(5, int(length / 0.4))
+    pts, uu = [], u
+    for k in range(n + 1):
+        pts.append((v + length * k / n + patch_rng.uniform(-0.08, 0.08), uu))
+        uu = min(u + 0.4, max(u - 0.4, uu + patch_rng.uniform(-0.13, 0.13)))
+    tar(axis, pts, 0.045, hf, broken=0.25)
     if patch_rng.random() < 0.5:        # a branch off it
         k = patch_rng.randrange(1, n)
-        tar(axis, [pts[k], (pts[k][0] + patch_rng.uniform(0.3, 0.8), pts[k][1] + patch_rng.choice((-1, 1)) * patch_rng.uniform(0.35, 0.6))], 0.045, hf)
+        e = (pts[k][0] + patch_rng.uniform(0.2, 0.5), pts[k][1] + patch_rng.choice((-1, 1)) * patch_rng.uniform(0.2, 0.4))
+        tar(axis, [pts[k], e, (e[0] + patch_rng.uniform(0.15, 0.4), e[1] + patch_rng.uniform(-0.15, 0.15))], 0.035, hf)
 
 
 def worn(axis, vs, centre, arrows, hf):
@@ -1939,6 +1966,8 @@ def _deck_shrub(k):
 
 
 pass_rng = random.Random(8630)
+MAIN_Y = 5.05                           # the walls' main, over the heads of the windows (round 3)
+RISERS = {1: (19.25, 38.6, 43.7), -1: (20.3, 32.35, 43.7)}
 WALL_LAMP = glowc("ffb254", 0.9)
 
 
@@ -2015,9 +2044,9 @@ for s in (-1, 1):
         zc = wz + f * 0.05
         pipe((DK, "steel", 1), (s * 16.4, 3.3, zc), (s * 43.6, 3.3, zc), 0.03, segs=4, col=PIPE_C)
         pipe((DK, "steel", 1), (s * 16.4, 3.45, zc), (s * 43.6, 3.45, zc), 0.03, segs=4, col=PIPE_C)
-        pipe((DK, "steel", 0), (s * 16.4, 4.1, wz + f * 0.13), (s * 43.6, 4.1, wz + f * 0.13), 0.1, segs=6, col=GAS_C if f > 0 else PIPE_C)
-        for rx in (19.25, 38.6, 43.7) if f > 0 else (20.3, 32.35, 43.7):
-            pipe((DK, "steel", 1), (s * rx, B.G0, wz + f * 0.09), (s * rx, 4.1, wz + f * 0.09), 0.06, segs=5, col=PIPE_C)
+        pipe((DK, "steel", 0), (s * 16.4, MAIN_Y, wz + f * 0.13), (s * 43.6, MAIN_Y, wz + f * 0.13), 0.1, segs=6, col=GAS_C if f > 0 else PIPE_C)
+        for rx in RISERS[f]:
+            pipe((DK, "steel", 1), (s * rx, B.G0, wz + f * 0.09), (s * rx, MAIN_Y, wz + f * 0.09), 0.06, segs=5, col=PIPE_C)
             box((DK, "steel", 1), s * rx - 0.09, s * rx + 0.09, 1.3, 1.36, *sorted((wz, wz + f * 0.16)), scale=0.5, col=PIPE_C)
         for lx in (23.4, 34.0, 40.2) if f > 0 else (25.3, 37.0, 42.0):
             wall_lamp(s * lx, 3.0, wz, f)
@@ -2525,6 +2554,94 @@ stand(ST_X0 + ST_RUN + 0.6, ZS + 0.5, 0.0, "lean", B.G0 + ST_RISE + 0.02)
 on_stair(ST_X0 + ST_RUN + ST_LAND + 1.7, math.pi / 2, "idle")
 
 # ---------------------------------------------------------------------------
+# ROUND 3. THE PASSAGES' WALLS ABOVE THE ADVERTS (the avenue's rows turn a
+# bare flank to the deck): from four metres up to where the deck's edge beam
+# hides them, a row of windows with frames and sills, most of them lit
+# behind blinds, units hung between them, cables slung along under them, a
+# duct on brackets over them with its louvres and a riser, and two blade
+# signs a wall in the slot between it and the deck's edge (more than 20 m
+# from the avenue's line; nearer than that everything here is `glow` or
+# unlit).
+# ---------------------------------------------------------------------------
+up_rng = random.Random(8660)
+FRAME_C = (0.05, 0.052, 0.058, 1.0)
+DUCT_C = (0.15, 0.16, 0.17, 1.0)
+ROOMS = ((1.0, 0.56, 0.24), (1.0, 0.7, 0.4), (0.35, 0.6, 0.9), (0.9, 0.3, 0.6), (0.4, 0.9, 0.7))
+
+
+def wall_window(x, y, wz, f, w=1.1, h=1.25):
+    """A window in a flank wall: a frame and a sill proud of it, the room's
+    light behind a blind drawn part of the way, or dark glass."""
+    zf = sorted((wz, wz + f * 0.07))
+    box((DK, "trim", 1), x - w / 2 - 0.07, x + w / 2 + 0.07, y + h, y + h + 0.07, *zf, scale=0.5, col=FRAME_C, bottom=True)
+    box((DK, "trim", 0), x - w / 2 - 0.1, x + w / 2 + 0.1, y - 0.08, y, *sorted((wz, wz + f * 0.12)), scale=0.5, col=FRAME_C, bottom=True)
+    for dx in (-w / 2 - 0.035, w / 2 + 0.035):
+        box((DK, "trim", 1), x + dx - 0.035, x + dx + 0.035, y, y + h, *zf, scale=0.5, col=FRAME_C)
+    if up_rng.random() < 0.3:
+        vface((DK, "dark", 0), "z", wz + f * 0.02, x - w / 2, x + w / 2, y, y + h, f)       # a dark room (not one more material in the pack)
+    else:
+        c = up_rng.choice(ROOMS)
+        k = up_rng.uniform(0.1, 0.24)
+        drawn = up_rng.uniform(0.25, 0.7)
+        vface((DK, "glow", 0), "z", wz + f * 0.02, x - w / 2, x + w / 2, y, y + h * (1 - drawn), f, col=(c[0] * k, c[1] * k, c[2] * k, 1.0))
+        vface((DK, "glow", 0), "z", wz + f * 0.02, x - w / 2, x + w / 2, y + h * (1 - drawn), y + h, f, col=(c[0] * k * 0.45, c[1] * k * 0.45, c[2] * k * 0.4, 1.0))
+    vface((DK, "trim", 1), "z", wz + f * 0.03, x - 0.02, x + 0.02, y, y + h, f, col=FRAME_C)
+
+
+def wall_upper(s_, wz, f, blades):
+    yaw = 0.0 if f > 0 else math.pi
+    # Windows over the conduit, their heads under the main; a unit or a
+    # stain between some of them. None behind a riser or a blade.
+    x = 15.4 + up_rng.uniform(0.0, 0.6)
+    while x < 43.0:
+        if all(abs(x - rx) > 0.85 for rx in RISERS[f]) and all(abs(x - bx) > 0.8 for bx in blades):
+            wall_window(s_ * x, 3.62, wz, f, h=1.2)
+            if up_rng.random() < 0.4 and x + 1.6 < 43.0 and all(abs(x + 1.45 - rx) > 0.6 for rx in RISERS[f]):
+                P.place("ac_wall", s_ * (x + 1.45), 3.7, wz, yaw, district=DK)
+                stain("x", s_ * (x + 1.45), wz, f, 2.95, 3.7, w=0.4, col=(0.03, 0.028, 0.026, 1.0))
+        x += up_rng.choice((2.6, 2.9, 3.3))
+    # Cables slung along over the main from bracket to bracket.
+    xa = 15.0
+    while xa < 42.0:
+        xb = min(43.5, xa + up_rng.uniform(4.0, 6.5))
+        box((DK, "steel", 1), s_ * xa - 0.03, s_ * xa + 0.03, 5.45, 5.65, *sorted((wz, wz + f * 0.16)), scale=0.5, col=PIPE_C)
+        for dz, sag in ((0.1, 0.2), (0.14, 0.3)):
+            pts = [(s_ * (xa + (xb - xa) * t), 5.58 - sag * math.sin(math.pi * t), wz + f * dz) for t in (0.0, 0.25, 0.5, 0.75, 1.0)]
+            for p0, p1 in zip(pts, pts[1:]):
+                pipe((DK, "steel", 1), p0, p1, 0.016, segs=3, col=INK)
+        xa = xb
+    # The duct: high on the wall, on brackets, louvres along it, a riser at
+    # its outer end up past the deck's edge.
+    x0, x1 = 16.2, 42.6
+    box((DK, "steel", 0), *sorted((s_ * x0, s_ * x1)), 6.35, 6.75, *sorted((wz, wz + f * 0.42)), scale=1.0, col=DUCT_C, bottom=True)
+    x = x0 + 1.2
+    while x < x1:
+        box((DK, "steel", 1), s_ * x - 0.03, s_ * x + 0.03, 6.2, 6.35, *sorted((wz, wz + f * 0.46)), scale=0.5, col=PIPE_C, bottom=True)
+        x += 3.2
+    for x in (19.5, 27.5, 35.5, 41.0):
+        vface((DK, "dark", 1), "z", wz + f * 0.424, s_ * x - 0.45, s_ * x + 0.45, 6.42, 6.68, f)
+        for yy in (6.47, 6.53, 6.59, 6.65):
+            vface((DK, "steel", 1), "z", wz + f * 0.428, s_ * x - 0.43, s_ * x + 0.43, yy - 0.012, yy + 0.012, f, col=DUCT_C)
+    box((DK, "steel", 0), s_ * x1 - 0.21, s_ * x1 + 0.21, 6.75, 10.4, *sorted((wz, wz + f * 0.42)), scale=1.0, col=DUCT_C)
+    # Blade signs in the slot, read along the passage, their feet at the
+    # windows' sills.
+    for bx in blades:
+        w, h = ST_SIZES["bm"]
+        cz = wz + f * 0.55
+        oriented_box((DK, "board_frame", 0), s_ * bx, 5.2, cz, w + 0.1, h + 0.1, 0.12, math.pi / 2, scale=1.0)
+        nm = st_name("bm")
+        for fy in (math.pi / 2, -math.pi / 2):
+            sign(nm, s_ * bx + math.sin(fy) * 0.07, 5.2, cz, w, h, fy, district=DK, label=False)
+        for yy in (3.9, 6.5):
+            box((DK, "steel", 1), s_ * bx - 0.025, s_ * bx + 0.025, yy, yy + 0.05, *sorted((wz, wz + f * 0.1)), scale=0.5, col=PIPE_C)
+        light(DK, s_ * bx, 3.0, wz + f * 1.2, up_rng.choice(("pink", "cyan", "amber", "green")), 1.8)
+
+
+for s_ in (-1, 1):
+    wall_upper(s_, WN, 1, (20.6, 34.4))
+    wall_upper(s_, WS, -1, (23.6, 37.4))
+
+# ---------------------------------------------------------------------------
 # ROUND 3. THE LANDING. The plaza's blocks stand back ten metres from the
 # deck where it comes down (x 52..108): their shopfronts face it across two
 # strips that nobody had paved, so a walker on the deck looked over the rail
@@ -2563,3 +2680,9 @@ for side in (-1, 1):                    # -1 the north strip (z -95..-86), +1 th
     stand(87.8, Z(3.5), 1.2 + math.pi, "talk", B.G0)
     stand(100.2, Z(3.1), face_shops, "idle", B.G0)
     stand(56.0, Z(3.0), face_shops, "smoke", B.G0)
+
+# Steam off four of the road's own drains (the shoulder by the parapet), a
+# narrow quick breath each (the site's lane kind), none near the avenue.
+for i, (x, z) in enumerate(((x_par - 0.36, -148.0), (x_par - 0.36, -118.0), (-51.0, z_par + 0.36), (54.0, z_par + 0.36))):
+    y = RY(z) if x < XE else DY(x)
+    empty(f"anchor_steam_lane_deck_{i}", (x, y + 0.05, z))
