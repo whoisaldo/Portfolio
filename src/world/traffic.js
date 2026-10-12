@@ -1264,10 +1264,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // level along a street.
       q.multiply(tilt.setFromEuler(euler.set(0.05, 0, sky.bank)));
       body(s);
-      // Its lamps grow with distance past a hundred metres or so, to three
-      // times at 350 m, so a craft across the district still reads as its
-      // lights and not as a speck.
-      const g = s * Math.min(3.2, Math.max(1, Math.sqrt(far2) / 110));
+      // Its lamps grow with distance past 75 m, to five times at 375 m, so
+      // a craft across the district still reads as its lights and not as
+      // a speck.
+      const g = s * Math.min(5, Math.max(1, Math.sqrt(far2) / 75));
       setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * g);
       setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * g);
       // A short trail of its thrusters' light behind it, thinning out.
