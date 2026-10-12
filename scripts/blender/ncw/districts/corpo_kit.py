@@ -203,14 +203,56 @@ def board_col(r, pal=None):
     return (r.randrange(8) / 8.0 + 0.06, g, r.randrange(256) / 255.0, 1.0)
 
 
-def screen(cx, cy, cz, w, h, yaw, r, frame=True, depth=0.3, back=False, pal=None):
+# Every advert this district hangs, so the build can say when two near each
+# other would show the same one (ad_report).
+ADS = []
+
+
+def ad_art(cx, cy, cz, w, h, yaw):
+    """Which of the city's adverts a board shows over the opening seconds of
+    the city's clock (src/world/materials.js, billboard: dealt from where the
+    board's left edge and foot stand, in 4 m cells): "w0".."w15" one of the
+    sixteen wide ones, "t0".."t7" one of the eight tall."""
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    rx, rz = nz, -nx
+    fx = cx * rx + cz * rz - w / 2
+    fy = cy - h / 2
+    fz = cx * nx + cz * nz
+    board = math.floor(fx / 4.0 + 0.412) * 7 + math.floor(fy / 4.0 + 0.412) * 5 + math.floor(fz / 4.0 + 0.412) * 3
+    pick = board + 1
+    return f"t{(pick * 3) % 8}" if w / h < 0.85 else f"w{pick % 16}"
+
+
+def bb(cx, cy, cz, w, h, yaw, col, detail=0):
+    """An advert's face."""
+    ADS.append((ad_art(cx, cy, cz, w, h, yaw), cx, cy, cz, yaw, w, h))
+    rotated_quad(k("billboard", detail), cx, cy, cz, w, h, yaw, col=col)
+
+
+def ad_report(reach=34.0):
+    """Print every pair of adverts near each other and facing much the same
+    way that show the same advert (posters within 12 m, boards within
+    `reach`)."""
+    n = 0
+    for i, a in enumerate(ADS):
+        for b in ADS[i + 1:]:
+            d = math.dist(a[1:4], b[1:4])
+            near = reach if min(a[5], b[5]) > 3.0 else 12.0
+            if a[0] != b[0] or d > near or d < 0.6 or math.cos(a[4] - b[4]) < 0.3:
+                continue
+            n += 1
+            print(f"AD REPEAT {a[0]} at ({a[1]:.1f}, {a[2]:.1f}, {a[3]:.1f}) {a[5]:.1f}x{a[6]:.1f} and ({b[1]:.1f}, {b[2]:.1f}, {b[3]:.1f}) {b[5]:.1f}x{b[6]:.1f}")
+    print(f"AD BOARDS {len(ADS)} repeats {n}")
+
+
+def screen(cx, cy, cz, w, h, yaw, r, frame=True, depth=0.3, back=False, pal=None, detail=0):
     """A flat screen: an advert with no words in a dark steel frame."""
-    rotated_quad(k("billboard"), cx, cy, cz, w, h, yaw, col=board_col(r, pal))
+    bb(cx, cy, cz, w, h, yaw, board_col(r, pal), detail)
     if frame:
         nx, nz = math.sin(yaw), math.cos(yaw)
-        oriented_box(k("board_frame"), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.4, h + 0.4, depth, yaw, scale=1.0)
+        oriented_box(k("board_frame", detail), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.4, h + 0.4, depth, yaw, scale=1.0)
         if back:
-            rotated_quad(k("billboard"), cx - nx * (depth + 0.06), cy, cz - nz * (depth + 0.06), w, h, yaw + math.pi, col=board_col(r, pal))
+            bb(cx - nx * (depth + 0.06), cy, cz - nz * (depth + 0.06), w, h, yaw + math.pi, board_col(r, pal), detail)
 
 
 def panel(cx, cy, cz, w, h, yaw, colour, dim=1.0, glow=True):
@@ -376,7 +418,7 @@ def ad_panel(x, z, yaw, r, pal=None, w=1.3, h=1.9):
     oriented_box(k("board_frame"), x, G0 + 0.6 + h / 2, z, w + 0.14, h + 0.14, 0.16, yaw, scale=1.0)
     nx, nz = math.sin(yaw), math.cos(yaw)
     for s_, ang in ((1, yaw), (-1, yaw + math.pi)):
-        rotated_quad(k("billboard"), x + nx * 0.09 * s_, G0 + 0.6 + h / 2, z + nz * 0.09 * s_, w, h, ang, col=board_col(r, pal))
+        bb(x + nx * 0.09 * s_, G0 + 0.6 + h / 2, z + nz * 0.09 * s_, w, h, ang, board_col(r, pal))
 
 
 def tube_post(x, z, yaw, colour="white", h=6.2, arm=1.5):
@@ -1022,9 +1064,93 @@ def advert(cx, cy, cz, w, h, yaw, pick, seed=0.31, depth=0.12):
     """One of the city's adverts by number (eight wide, four tall), in a
     frame: boards sharing a seed change together, so a wall of them given
     different numbers never shows one advert twice."""
-    rotated_quad(k("billboard"), cx, cy, cz, w, h, yaw, col=(0.06, (pick % 8 + 0.5) / 8.0, seed, 1.0))
+    bb(cx, cy, cz, w, h, yaw, (0.06, (pick % 8 + 0.5) / 8.0, seed, 1.0))
     nx, nz = math.sin(yaw), math.cos(yaw)
     oriented_box(k("board_frame"), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.3, h + 0.3, depth, yaw, scale=1.0)
+
+
+def skin(p0, p1, y0, y1, r, seed, lit=(0.25, 0.55), hot=0.38, warm=(0.7, 1.0), force=None, belts=(), bright=(0.75, 1.0), detail=0):
+    """Curtain wall from the outline p0 at y0 to p1 at y1 (the same count of
+    points: a battered wall if they differ), in panels about three floors
+    by 9 m. The corporate shader draws floors and rooms from world position;
+    a panel's colour is its share of lit floors, its warmth and the
+    building's seed. Each run of three floors along a face has a share of
+    its own (`hot` of them nearly all lit, the rest somewhere in `lit`) and
+    each panel in it a little more or less, so a face is lit in runs of
+    floors, not in spots. `belts`: (ya, yb) bands lit from end to end, a sky
+    lobby's floors. `force`: {edge: (lit, warm)} for a whole edge."""
+    spans, y = [], y0
+    for ba, bb_ in sorted(belts):
+        ba, bb_ = max(ba, y0), min(bb_, y1)
+        if bb_ - ba < 1.0 or ba < y - 1e-6:
+            continue
+        if ba - y > 1.0:
+            spans.append((y, ba, False))
+        else:
+            ba = y
+        spans.append((ba, bb_, True))
+        y = bb_
+    if y1 - y > 1.0 or not spans:
+        spans.append((y, y1, False))
+    else:
+        spans[-1] = (spans[-1][0], y1, spans[-1][2])
+    rows = []
+    for ya, yb, belt in spans:
+        nb = 1 if belt else max(1, round((yb - ya) / (STOREY * 3)))
+        rows += [(ya + (yb - ya) * v / nb, ya + (yb - ya) * (v + 1) / nb, belt) for v in range(nb)]
+    n = len(p0)
+    for i in range(n):
+        a0, b0, a1, b1 = p0[i], p0[(i + 1) % n], p1[i], p1[(i + 1) % n]
+        length = math.hypot(b0[0] - a0[0], b0[1] - a0[1])
+        m = max(1, round(length / 9.0))
+
+        def pt(f, y_):
+            g = (y_ - y0) / (y1 - y0)
+            xa, za = a0[0] + (a1[0] - a0[0]) * g, a0[1] + (a1[1] - a0[1]) * g
+            xb, zb = b0[0] + (b1[0] - b0[0]) * g, b0[1] + (b1[1] - b0[1]) * g
+            return (xa + (xb - xa) * f, y_, za + (zb - za) * f)
+
+        for ya, yb, belt in rows:
+            base = r.uniform(*bright) if r.random() < hot else r.uniform(*lit)
+            for j in range(m):
+                if force and i in force:
+                    c = (force[i][0], force[i][1], seed, 1.0)
+                elif belt:
+                    c = (1.0, max(warm[1], 0.9), seed, 1.0)
+                else:
+                    c = (min(1.0, max(0.02, base + r.uniform(-0.12, 0.12))), r.uniform(*warm), seed, 1.0)
+                quad(k("corporate", detail), pt(j / m, ya), pt((j + 1) / m, ya), pt((j + 1) / m, yb), pt(j / m, yb),
+                     ((0, 0), (length / m, 0), (length / m, yb - ya), (0, yb - ya)), c)
+
+
+def floor_at(n):
+    """The height of the curtain wall's n-th floor line."""
+    return BASE + STOREY * n
+
+
+# The street's large blades and light boxes that a tower's face can carry
+# many times their size: the design and the colour its tubes are.
+WORDS = {"bl": ((1, "magenta"), (4, "cyan"), (8, "cyan"), (10, "teal"), (11, "yellow"), (14, "green"), (7, "blue")),
+         "bm": ((5, "green"), (9, "blue"), (21, "blue"), (16, "cyan"), (15, "magenta")),
+         "bx": ((13, "cyan"), (14, "yellow"), (3, "blue"), (22, "white"), (25, "magenta"), (19, "blue"), (27, "green"), (10, "purple"), (8, "yellow"))}
+
+
+def big_sign(cx, cy, cz, size, scale, yaw, pick, depth=0.05, lines=True, detail=0):
+    """One of the street's sign designs many times its size on a tower's
+    face, in a dark frame with a line of its own light down each edge: a
+    column of characters or a mark, read from across the boulevard."""
+    n, hue = WORDS[size][pick % len(WORDS[size])]
+    w, h = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    oriented_box(k("board_frame", detail), cx - nx * (depth / 2 + 0.01), cy, cz - nz * (depth / 2 + 0.01), w + 0.5, h + 0.5, depth, yaw, scale=1.0)
+    sign(f"st_{size}_{n}", cx + nx * 0.012, cy, cz + nz * 0.012, w, h, yaw, district=CO, label=False)
+    if lines:
+        c = GLOW[hue]
+        for s_ in (-1, 1):
+            rotated_quad(k("glow", detail), cx + rx * s_ * (w / 2 + 0.16) + nx * 0.014, cy, cz + rz * s_ * (w / 2 + 0.16) + nz * 0.014, 0.1, h + 0.3, yaw,
+                         col=(c[0] * 0.8, c[1] * 0.8, c[2] * 0.8, 1.0))
+    return w, h
 
 
 GREENS = ((0.016, 0.055, 0.028, 1), (0.024, 0.07, 0.028, 1), (0.016, 0.046, 0.036, 1), (0.032, 0.064, 0.022, 1))
@@ -1099,7 +1225,7 @@ def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white"), top=9.0, high
             pw, ph = r.choice(((1.3, 1.9), (1.3, 1.9), (2.4, 1.5)))
             cx, cy, cz = f.p(f.at(s), 2.3, 0.09)
             f.box(k("board_frame"), s - pw / 2 - 0.07, s + pw / 2 + 0.07, 2.3 - ph / 2 - 0.07, 2.3 + ph / 2 + 0.07, 0.0, 0.08)
-            rotated_quad(k("billboard"), cx, cy, cz, pw, ph, f.yaw, col=board_col(r, None))
+            bb(cx, cy, cz, pw, ph, f.yaw, board_col(r, None))
             light(CO, lx, 2.0, lz, r.choice(hues), 3.0)
         elif roll < 0.64:
             hue = r.choice(hues)

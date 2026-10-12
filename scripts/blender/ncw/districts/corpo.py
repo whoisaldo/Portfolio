@@ -119,7 +119,7 @@ HALL = {"pawtograder": (22.0, 4.2)}
 SCREENS = {
     "philips-zero-touch": (("+z", -5.0, 44.0, 10.0, 6.0), ("-x", 1.0, 62.0, 9.0, 5.6)),
     "pinnatec-auto": (("+z", -2.5, 31.0, 9.0, 5.4), ("-x", -1.0, 52.0, 7.6, 10.0)),
-    "pawtograder": (("+z", -7.5, 62.0, 9.0, 6.0), ("+x", 1.0, 38.0, 9.0, 5.6)),
+    "pawtograder": (("+z", -7.5, 58.0, 9.0, 6.0), ("+x", 1.0, 38.0, 9.0, 5.6)),
     "aws-cloudformation": (("+z", -4.5, 50.0, 10.0, 6.0), ("-x", 0.0, 34.0, 8.0, 11.0)),
     "top-choice-realty": (("+z", -4.0, 51.0, 11.0, 6.6),),
     "robert-defalco-realty": (("+z", -4.0, 55.0, 10.0, 6.0), ("-x", 1.0, 30.0, 9.0, 5.6)),
@@ -162,33 +162,38 @@ def ngon(cx, cz, apothem, n=16):
     return [(cx + rad * math.sin((i - 0.5) * 2 * math.pi / n), cz + rad * math.cos((i - 0.5) * 2 * math.pi / n)) for i in range(n)]
 
 
-def skin(p0, p1, y0, y1, r, seed, lit=(0.02, 0.1), hot=0.14, warm=(0.0, 0.45), force=None):
-    """Curtain wall from the outline p0 at y0 to p1 at y1 (the same count of
-    points: a battered wall if they differ), in panels about three floors
-    by 9 m, each with its own share of lit floors: most nearly dark, a few
-    bright, so the light on a face gathers in clusters. The corporate shader
-    draws floors and rooms from world position; a panel's colour is its lit
-    share, its warmth and the tower's seed. `force`: {edge: (lit, warm)}."""
-    nb = max(1, round((y1 - y0) / (FLOOR * 3)))
-    n = len(p0)
-    for i in range(n):
-        a0, b0, a1, b1 = p0[i], p0[(i + 1) % n], p1[i], p1[(i + 1) % n]
-        length = math.hypot(b0[0] - a0[0], b0[1] - a0[1])
-        m = max(1, round(length / 9.0))
-
-        def pt(f, g):
-            xa, za = a0[0] + (a1[0] - a0[0]) * g, a0[1] + (a1[1] - a0[1]) * g
-            xb, zb = b0[0] + (b1[0] - b0[0]) * g, b0[1] + (b1[1] - b0[1]) * g
-            return (xa + (xb - xa) * f, y0 + (y1 - y0) * g, za + (zb - za) * f)
-
-        for j in range(m):
-            for v in range(nb):
-                if force and i in force:
-                    c = (force[i][0], force[i][1], seed, 1.0)
-                else:
-                    c = (r.uniform(0.6, 0.95) if r.random() < hot else r.uniform(*lit), r.uniform(*warm), seed, 1.0)
-                quad((CO, "corporate", 0), pt(j / m, v / nb), pt((j + 1) / m, v / nb), pt((j + 1) / m, (v + 1) / nb), pt(j / m, (v + 1) / nb),
-                     ((0, 0), (length / m, 0), (length / m, (y1 - y0) / nb), (0, (y1 - y0) / nb)), c)
+skin = K.skin          # (panels of curtain wall, lit in runs of floors: corpo_kit.py)
+F = K.floor_at
+# Sky lobbies: floors lit from end to end round each tower, at heights of
+# its own (bands of the curtain wall's floors).
+BELTS = {
+    "philips-zero-touch": ((F(13), F(14)), (F(23), F(24))),
+    "pinnatec-auto": ((F(15), F(16)), (F(21), F(23))),
+    "pawtograder": ((F(11), F(12)), (F(23), F(24))),
+    "aws-cloudformation": ((F(16), F(17)), (F(25), F(26)), (F(33), F(34))),
+    "top-choice-realty": (),
+    "robert-defalco-realty": ((F(22), F(23)),),
+    "northeastern": ((F(16), F(17)), (F(27), F(28))),
+}
+# What each tower carries between its lobby's screens and its crown, on the
+# faces the boulevard and the Experience shot see (south and west) and a
+# little on the east: (kind, face, metres along it from its middle, height
+# of its middle, ...). "word" a column of characters (size, times its
+# size, which); "mark" a pictogram in a light box (times its size, which);
+# "ad" an advert (width, height). On a front they lie flat on it.
+UPPER = {
+    "philips-zero-touch": (("word", "+z", -5.2, 89.5, "bl", 3.2, 0), ("ad", "-x", -2.5, 92.0, 9.5, 6.0), ("mark", "+z", 2.6, 117.0, 3.6, 0),
+                           ("ad", "+x", -1.0, 66.0, 7.0, 10.0)),
+    "pinnatec-auto": (("ad", "+z", -0.4, 86.5, 12.0, 6.6), ("mark", "+z", 4.6, 100.5, 3.4, 1), ("word", "-x", 0.6, 93.0, "bl", 2.6, 1),
+                      ("ad", "+x", 0.0, 60.0, 9.0, 5.6)),
+    "pawtograder": (("word", "+z", -7.0, 95.5, "bm", 3.4, 0), ("ad", "-x", -6.8, 62.0, 7.2, 10.4), ("mark", "+x", 3.0, 88.0, 4.0, 2)),
+    "aws-cloudformation": (("ad", "+z", -2.4, 88.0, 11.0, 6.4), ("word", "+z", 1.8, 127.0, "bl", 2.9, 2), ("mark", "-x", 0.0, 96.0, 4.2, 3),
+                           ("ad", "-x", 0.6, 124.0, 6.4, 9.6), ("ad", "+x", 0.0, 92.0, 9.0, 5.8)),
+    "top-choice-realty": (("word", "+z", -7.4, 80.5, "bl", 2.8, 3), ("ad", "-x", 0.0, 78.0, 12.0, 6.6), ("mark", "-x", -6.5, 91.0, 3.2, 4)),
+    "robert-defalco-realty": (("ad", "+z", -1.2, 90.0, 10.4, 6.2), ("word", "-x", 1.0, 91.5, "bl", 2.7, 4), ("mark", "+z", -8.0, 68.0, 3.6, 5),
+                              ("ad", "+x", 1.0, 84.0, 9.0, 5.6)),
+    "northeastern": (("word", "+z", 0.0, 90.0, "bm", 3.3, 1), ("mark", "+z", 0.0, 113.5, 2.6, 6)),
+}
 
 
 def flat(outline, y, mat="roof", up=True):
@@ -236,7 +241,7 @@ def advert(cx, cy, cz, w, h, yaw, pick, seed=0.31, depth=0.12):
     """One of the city's adverts by number (eight wide, four tall), in a
     frame. Boards sharing a seed change together, so a wall or a band of
     them given different numbers never shows one advert twice."""
-    rotated_quad((CO, "billboard", 0), cx, cy, cz, w, h, yaw, col=(0.06, (pick % 8 + 0.5) / 8.0, seed, 1.0))
+    K.bb(cx, cy, cz, w, h, yaw, (0.06, (pick % 8 + 0.5) / 8.0, seed, 1.0))
     nx, nz = math.sin(yaw), math.cos(yaw)
     oriented_box((CO, "board_frame", 0), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.3, h + 0.3, depth, yaw, scale=1.0)
 
@@ -251,6 +256,7 @@ for i, (slug, height) in enumerate(TOWERS):
     form = TOWER_FORMS[slug]
     kind = form["kind"]
     notch = form["notch"]
+    belts = BELTS[slug]
     gseed = col[2]
     # The lobby: a lit glass box set back under a canopy, the core behind.
     # (One tower's is set deeper, behind a room open to the street: ROOM.)
@@ -293,7 +299,7 @@ for i, (slug, height) in enumerate(TOWERS):
         # Steel fins 1.75 m apart on every face, the glass 0.6 m behind them.
         for k_, (h_k, y0, y1) in enumerate(sections):
             g = notched4(tx, tz, h_k - 0.6, notch - 0.6)
-            skin(g, g, y0, y1, r, gseed, lit=(0.04, 0.16), hot=0.22, warm=(0.0, 0.3))
+            skin(g, g, y0, y1, r, gseed, lit=(0.25, 0.5), hot=0.4, warm=(0.5, 0.9), belts=belts)
             fin_rows(tx, tz, h_k, 0.6, y0, y1 + (0.9 if k_ < len(sections) - 1 else 0.0), 1.75, 0.34, (CO, "trim", 0), NAVY, notch)
             notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
             if k_:
@@ -304,7 +310,7 @@ for i, (slug, height) in enumerate(TOWERS):
         for k_, (h_k, y0, y1) in enumerate(sections):
             big = 5.5 - 1.5 * k_
             plan = chamfered(tx, tz, h_k, big, 2.6 - 0.8 * k_)
-            skin(plan, plan, y0, y1, r, gseed, lit=(0.03, 0.12), hot=0.18, warm=(0.0, 0.25))
+            skin(plan, plan, y0, y1, r, gseed, lit=(0.2, 0.5), hot=0.36, warm=(0.7, 1.0), belts=belts)
             flat(plan, y1)
             if k_:
                 ledge(chamfered(tx, tz, sections[k_ - 1][0], 5.5, 2.6), y0, 1.0)
@@ -331,7 +337,7 @@ for i, (slug, height) in enumerate(TOWERS):
         pts = [(-a_, h_k), (-sl, h_k), (-sl, h_k - dp), (sl, h_k - dp), (sl, h_k), (a_, h_k), (h_k, a_), (h_k, -a_), (a_, -h_k), (sl, -h_k),
                (sl, -h_k + dp), (-sl, -h_k + dp), (-sl, -h_k), (-a_, -h_k), (-h_k, -a_), (-h_k, a_)]
         plan = [(tx + x, tz + z) for x, z in pts]
-        skin(plan, plan, y0, y1, r, gseed, lit=(0.03, 0.14), hot=0.2, warm=(0.2, 0.7), force={2: (0.95, 0.9), 10: (0.95, 0.9)})
+        skin(plan, plan, y0, y1, r, gseed, lit=(0.25, 0.55), hot=0.4, warm=(0.6, 0.95), force={2: (0.95, 0.9), 10: (0.95, 0.9)}, belts=belts)
         for pts in ([(-a_, h_k), (-sl, h_k), (-sl, -h_k), (-a_, -h_k), (-h_k, -a_), (-h_k, a_)],
                     [(sl, h_k), (a_, h_k), (h_k, a_), (h_k, -a_), (a_, -h_k), (sl, -h_k)],
                     [(-sl, h_k - dp), (sl, h_k - dp), (sl, -h_k + dp), (-sl, -h_k + dp)]):
@@ -351,7 +357,7 @@ for i, (slug, height) in enumerate(TOWERS):
         for k_, (h_k, y0, y1) in enumerate(sections):
             lean = (1.2, 1.4, 0.0)[k_]
             p0, p1 = chamfered(tx, tz, h_k, 2.0), chamfered(tx, tz, h_k - lean, 2.0)
-            skin(p0, p1, y0, y1, r, gseed, lit=(0.04, 0.15), hot=0.22, warm=(0.3, 0.9))
+            skin(p0, p1, y0, y1, r, gseed, lit=(0.25, 0.55), hot=0.42, warm=(0.75, 1.0), belts=belts)
             flat(p1, y1)
             if k_:
                 ledge(chamfered(tx, tz, sections[k_ - 1][0] - (1.2, 1.4)[k_ - 1], 2.0), y0, 1.0)
@@ -366,8 +372,8 @@ for i, (slug, height) in enumerate(TOWERS):
         # Concrete fins 1.3 m apart, warm slits between; two sky floors where
         # the fins stop and a whole floor is lit.
         h_k, y0, y1 = sections[0]
-        belts = [FLOOR0 + FLOOR * 7, FLOOR0 + FLOOR * 15]
-        marks = [y0] + [v for b in belts for v in (b, b + FLOOR)] + [y1]
+        belts_ = [FLOOR0 + FLOOR * 7, FLOOR0 + FLOOR * 15, FLOOR0 + FLOOR * 21]
+        marks = [y0] + [v for b in belts_ for v in (b, b + FLOOR)] + [y1]
         for j in range(len(marks) - 1):
             ya, yb = marks[j], marks[j + 1]
             g = notched4(tx, tz, h_k - 0.55, notch - 0.55)
@@ -376,7 +382,7 @@ for i, (slug, height) in enumerate(TOWERS):
                 ring(h_k - 0.5, ya - 0.1, 0.16)
                 ring(h_k - 0.5, yb - 0.06, 0.16)
             else:
-                skin(g, g, ya, yb, r, gseed, lit=(0.05, 0.18), hot=0.26, warm=(0.75, 1.0))
+                skin(g, g, ya, yb, r, gseed, lit=(0.3, 0.6), hot=0.42, warm=(0.8, 1.0))
                 fin_rows(tx, tz, h_k, 0.55, ya, yb, 1.3, 0.42, (CO, "castconcrete", 0), CAST, notch)
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
         # A blade of adverts out of its east flank, a line of the tower's
@@ -385,8 +391,7 @@ for i, (slug, height) in enumerate(TOWERS):
         box((CO, "board_frame", 0), bx0, bx1, 28.0, 63.4, bz_ - 0.22, bz_ + 0.22, scale=2.0)
         for j in range(4):
             for sz, yaw in ((1, 0.0), (-1, math.pi)):
-                rotated_quad((CO, "billboard", 0), (bx0 + bx1) / 2 + 0.1, 33.0 + j * 8.6, bz_ + sz * 0.24, 3.1, 8.0, yaw,
-                             col=(0.06, ((j + (sz < 0) * 2) % 4 + 0.5) / 8.0, 0.57, 1.0))
+                K.bb((bx0 + bx1) / 2 + 0.1, 33.0 + j * 8.6, bz_ + sz * 0.24, 3.1, 8.0, yaw, (0.06, ((j + (sz < 0) * 2) % 4 + 0.5) / 8.0, 0.57, 1.0))
         lit_box(verts, faces, uvs, bx1 - 0.02, bx1 + 0.1, 28.0, 63.4, bz_ - 0.26, bz_ + 0.26, 2.0)
         for yy in (30.0, 46.0, 61.5):
             box((CO, "metal", 1), bx0 - 0.3, bx0 + 0.5, yy, yy + 0.3, bz_ - 0.5, bz_ + 0.5, scale=1.0)
@@ -402,7 +407,7 @@ for i, (slug, height) in enumerate(TOWERS):
         for ya, yb in zip(marks, marks[1:]):
             if ya in cut:
                 name, plan, inner = cut[ya]
-                skin(plan, plan, ya, yb, r, gseed, lit=(0.03, 0.12), hot=0.18, warm=(0.5, 1.0), force={e: (1.0, 1.0) for e in inner})
+                skin(plan, plan, ya, yb, r, gseed, lit=(0.22, 0.5), hot=0.38, warm=(0.7, 1.0), force={e: (1.0, 1.0) for e in inner})
                 sx, sz = (-1, 1) if name == "sw" else (1, -1)
                 xa, xb = sorted((tx + sx * h_k, tx + sx * (h_k - cs)))
                 za, zb = sorted((tz + sz * h_k, tz + sz * (h_k - cs)))
@@ -419,12 +424,12 @@ for i, (slug, height) in enumerate(TOWERS):
                 for dx_, dz_ in ((2.2, 2.4), (5.6, 2.2), (2.4, 5.6)):
                     PR.place("planter_tree", tx + sx * (h_k - dx_), ya, tz + sz * (h_k - dz_), district=CO)
             else:
-                skin(full, full, ya, yb, r, gseed, lit=(0.03, 0.12), hot=0.18, warm=(0.5, 1.0))
+                skin(full, full, ya, yb, r, gseed, lit=(0.22, 0.5), hot=0.38, warm=(0.7, 1.0))
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
         ledge(full, y1, 1.0)
         h_k, y0, y1 = sections[1]
         plan = notched4(tx, tz, h_k, notch)
-        skin(plan, plan, y0, y1, r, gseed, lit=(0.03, 0.12), hot=0.2, warm=(0.5, 1.0))
+        skin(plan, plan, y0, y1, r, gseed, lit=(0.22, 0.5), hot=0.4, warm=(0.7, 1.0), belts=belts)
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
         ring(h_k, y0 + 1.0)
         for sx in (-1, 1):
@@ -436,7 +441,7 @@ for i, (slug, height) in enumerate(TOWERS):
         aps = (13.0, 11.3, 9.6)
         for k_, (h_k, y0, y1) in enumerate(sections):
             plan = ngon(tx, tz, aps[k_])
-            skin(plan, plan, y0, y1, r, gseed, lit=(0.04, 0.16), hot=0.24, warm=(0.0, 0.5))
+            skin(plan, plan, y0, y1, r, gseed, lit=(0.25, 0.55), hot=0.4, warm=(0.55, 0.95), belts=belts)
             flat(plan, y1)
             for j, (px, pz) in enumerate(plan):
                 th = (j - 0.5) * math.pi / 8
@@ -456,7 +461,7 @@ for i, (slug, height) in enumerate(TOWERS):
         cx_ = tx + half - notch - 1.6
         box((CO, "trim", 0), cx_ - 1.6, cx_ + 1.6, LOBBY_H, sections[0][2] - 1.5, tz + 8.2, tz + half - 0.02, scale=2.0, col=NAVY)
         flat([(cx_ - 1.6, tz + half), (cx_ + 1.6, tz + half), (cx_ + 1.6, tz + 8.2), (cx_ - 1.6, tz + 8.2)], sections[0][2] - 1.5)
-        half_at = lambda y: 13.0      # noqa: E731
+        half_at = lambda y: next(aps[k_] for k_, (h_k, y0, y1) in enumerate(sections) if y0 <= y < y1)      # noqa: E731
     # The crown: a dark glass box, the logo on its faces to the boulevard
     # and to the rooftop, which sees the boulevard's face almost edge on.
     cw = top_half - 1.5
@@ -522,6 +527,42 @@ for i, (slug, height) in enumerate(TOWERS):
         else:
             sx = 1 if face == "+x" else -1
             K.screen(tx + sx * (h_s + 0.38), sy, tz + off, sw, sh, sx * math.pi / 2, rs_, pal=K.COLD)
+    # What it carries higher up, to its crown's foot: columns of characters,
+    # marks in light boxes, adverts, each on the section of the shaft that
+    # stands at its height, flat on it.
+    for n_, (what, face, off, sy, *rest) in enumerate(UPPER[slug]):
+        foot = sy - (ST_SIZES[rest[0]][1] * rest[1] if what == "word" else 1.2 * rest[0] if what == "mark" else rest[1]) / 2
+        h_s = half_at(foot + 0.01)       # (a leaning wall: where its foot stands)
+        if face == "+z":
+            px, pz, yaw = tx + off, tz + h_s + 0.07, 0.0
+        else:
+            sx = 1 if face == "+x" else -1
+            px, pz, yaw = tx + sx * (h_s + 0.09), tz + off, sx * math.pi / 2
+        if what == "ad":
+            advert(px, sy, pz, rest[0], rest[1], yaw, i * 3 + n_, seed=0.18 + 0.11 * i, depth=0.04)
+        elif what == "word":
+            K.big_sign(px, sy, pz, rest[0], rest[1], yaw, rest[2], depth=0.04)
+        else:
+            K.big_sign(px, sy, pz, "bx", rest[0], yaw, rest[1], depth=0.04)
+    if slug == "pawtograder":
+        # An advert band round its south-west corner, six metres high: two
+        # screens down the west flank, a mark on the corner's cut, one
+        # screen along the front to the slot, one frame and two lines of
+        # light round all of it.
+        ya, yb = 78.6, 85.0
+        cut = 1.5
+        fz, wx = tz + half + 0.07, tx - half - 0.09
+        advert(tx - 2.2 - 4.6, (ya + yb) / 2, fz, 9.2, yb - ya - 0.5, 0.0, 5, seed=0.83, depth=0.04)
+        for j, zc in enumerate((tz + half - cut - 4.7, tz + half - cut - 14.3)):
+            advert(wx, (ya + yb) / 2, zc, 9.2, yb - ya - 0.5, -math.pi / 2, 6 + j, seed=0.83, depth=0.04)
+        mx_, mz_ = tx - half + cut / 2 - 0.06, tz + half - cut / 2 + 0.06
+        oriented_box((CO, "board_frame", 0), mx_, (ya + yb) / 2, mz_, cut * 1.414 + 0.3, yb - ya, 0.1, -math.pi / 4, scale=1.0)
+        K.big_sign(mx_ - 0.05, (ya + yb) / 2, mz_ + 0.05, "bx", 1.5, -math.pi / 4, 8, depth=0.02, lines=False)
+        amber = GLOW["amber"]
+        for yy in (ya - 0.12, yb):
+            box((CO, "glow", 0), tx - 11.5, tx - 2.1, yy, yy + 0.12, fz - 0.05, fz + 0.01, scale=1.0, col=amber)
+            box((CO, "glow", 0), wx - 0.01, wx + 0.05, yy, yy + 0.12, tz + half - cut - 19.2, tz + half - cut, scale=1.0, col=amber)
+            oriented_box((CO, "glow", 0), mx_ - 0.06, yy + 0.06, mz_ + 0.06, cut * 1.414, 0.12, 0.05, -math.pi / 4, scale=1.0, col=amber)
 # South of the boulevard: its south side, the campus under the Experience
 # shot's dolly and the plaza street's north side, all ending at x 380
 # (corpo_south.py).
@@ -530,3 +571,8 @@ from ncw.districts import corpo_south  # noqa: E402,F401
 # North of the boulevard's centre line: either end of the towers and behind
 # them (corpo_north.py).
 from ncw.districts import corpo_north  # noqa: E402,F401
+
+# The second rank: towers on the back row's blocks (corpo_rank.py).
+from ncw.districts import corpo_rank  # noqa: E402,F401
+
+K.ad_report()

@@ -56,7 +56,7 @@ def west_block():
     box(k("board_frame"), xa - 0.5, xa + 22.7, 9.6, 46.5, LOT_N, LOT_N + 0.1, scale=2.0)
     wide = tall = 0
     for y0_, hh, row in ((10.5, 6.8, ((0.0, 10.8), (11.4, 10.8))), (17.9, 10.8, ((0.0, 7.0), (7.6, 14.6))),
-                         (29.3, 6.0, ((0.0, 7.0), (7.6, 7.0), (15.2, 7.0))), (35.9, 10.1, ((0.0, 14.6), (15.2, 7.0)))):
+                         (29.3, 6.0, ((0.0, 6.0), (6.6, 5.6), (12.8, 9.4))), (35.9, 10.1, ((0.0, 14.6), (15.2, 7.0)))):
         for dx, ww in row:
             if ww / hh < 0.85:
                 pick, tall = tall, tall + 1
@@ -78,7 +78,7 @@ def west_block():
     K.corp_block(x0, x1, BACK0, T_BACK - 1.0, 40.0, 7703, skin="windows", tint="concrete", style=2,
                  tiers=((0.7, 0.0), (1.0, (0.0, 3.0, 0.0, 3.0))), fronts={"+x": "dock", "-z": "blank", "-x": "none", "+z": "none"},
                  edge="amber", lit=(0.4, 0.7), warm=(0.4, 0.9))
-    K.roof_plant(x0 + 1, x1 - 4, BACK0 + 1, -401.0, 40.0, r, cap=5.0)
+    K.roof_plant(x0 + 1, 119.5, BACK0 + 1, -401.0, 40.0, r, cap=5.0)
     K.pad((x0 + x1) / 2, -389.0, 40.0, r=8.0, colour="amber")
     portal(x1, 1)
 
@@ -122,7 +122,7 @@ def east_blocks():
     K.roof_plant(400.0, 427.0, T_BACK + 2.0, LOT_N - 4.0, 62.0, r, cap=4.5)
     # A screen on the middle box's south face, and one on its west.
     K.screen(408.0, 40.0, LOT_N + 0.4, 12.0, 6.6, 0.0, r)
-    K.screen(394.65, 30.0, -359.0, 9.0, 5.4, -math.pi / 2, r)
+    K.screen(394.65, 30.0, -356.5, 9.0, 5.4, -math.pi / 2, r)
     # The corner block: a slab 74 m high over the junction, its face to the
     # garage street a column of screens; lower behind, where the track ends
     # in it. Along z -344 east of x 452 the Afterlife Block's block stands
@@ -153,7 +153,6 @@ def east_blocks():
     # The back part.
     K.corp_block(x0, x1, BACK0, BACK1, 48.0, 7714, skin="glass", tiers=((0.62, 0.0), (1.0, (3.0, 0.0, 0.0, 0.0))),
                  fronts={"-x": "dock", "+x": "blank", "-z": "blank", "+z": "none"}, edge="amber", lit=(0.4, 0.75), warm=(0.4, 0.9))
-    K.roof_plant(x0 + 4, x1 - 1, BACK0 + 1, BACK1 - 1, 48.0, r, cap=5.0)
     portal(x0, -1)
     # The alley between the two: tubes over it.
     for z in (-350.0, -359.0, -368.0):
@@ -164,61 +163,27 @@ def east_blocks():
 # ---------------------------------------------------------------------------
 # The back row.
 # ---------------------------------------------------------------------------
-def spire(x0, x1, z0, z1, y0, stages, r, hue, mast_h, seed):
-    """The upper stages of a second-rank tower, over a block that ends at
-    y0: each stage ((inset -x, +x, -z, +z), top) of dark glass with few lit
-    floors, fins down its south face, a line of light on its parapet and up
-    its south corners; on the last a lantern, dim, and a mast. (Where each
-    stands and how wide its top is come from the Experience shot: seen from
-    its lens the tops rise in the gaps between the row's crowns, not
-    behind a logo.)"""
-    y = y0
-    for ins, top in stages:
-        x0, x1, z0, z1 = x0 + ins[0], x1 - ins[1], z0 + ins[2], z1 - ins[3]
-        K.glass(x0, x1, z0, z1, y, top, K.glass_col(r, (0.04, 0.12), (0.2, 0.9)), roof=False)
-        K.roof_quad(x0, x1, z0, z1, top)
-        B.ROOFS.append((CO, x0, x1, z0, z1, top))
-        K.fins(B.Face("+z", z1, x0, x1), y, top, 3.4)
-        K.edge_line(x0, x1, z0, z1, top - 0.7, hue, h=0.3, out=0.1)
-        for cx in (x0, x1):
-            K.strip_v(cx, z1, y + 1.0, top - 1.0, hue)
-        y = top
-    c = GLOW[hue]
-    box(k("glow"), x0 + 0.9, x1 - 0.9, y + 0.6, y + 4.6, z0 + 0.9, z1 - 0.9, scale=1.0, col=(c[0] * 0.3, c[1] * 0.3, c[2] * 0.3, 1.0))
-    for xa, xb, za, zb in ((x0, x0 + 0.5, z0, z1), (x1 - 0.5, x1, z0, z1), (x0, x1, z0, z0 + 0.5), (x0, x1, z1 - 0.5, z1)):
-        box(k("trim"), xa, xb, y, y + 0.6, za, zb, scale=2.0, col=K.BLACK)
-    box(k("trim"), x0, x1, y + 4.6, y + 5.3, z0, z1, scale=2.0, col=K.BLACK)
-    K.edge_line(x0, x1, z0, z1, y + 5.3, hue, h=0.2, out=0.08)
-    K.mast((x0 + x1) / 2, (z0 + z1) / 2, y + 5.3, mast_h, lamps=3)
-
-
 def back_row():
     r = random.Random(7721)
     D = dict(fronts={"+z": "dock", "-z": "blank", "-x": "dock", "+x": "dock"})
     # 1: a glass shaft with fins and a ribbon-windowed wing.
     K.corp_block(137.0, 160.0, BACK0, BACK1, 72.0, 7722, skin="glass", tiers=((0.84, 0.0), (1.0, 2.2)), fin_step=4.6,
                  fin_faces=("+z", "-z"), edge="cyan", top_band="cyan", **D)
-    # (Its wing is the first of the second rank: 110 m of dim glass, then
-    # two stages to 186 m, a lantern and a mast.)
+    # (Its wing carries the first spire of the second rank: corpo_rank.py
+    # builds what stands on these blocks.)
     K.corp_block(160.0, 182.0, BACK0, BACK1, 110.0, 7723, skin="glass", tiers=((1.0, 0.0),),
                  fronts={"+z": "dock", "-z": "blank", "+x": "dock", "-x": "none"}, edge="amber", fin_step=5.5, fin_faces=("+z", "+x"),
-                 lit=(0.06, 0.16), warm=(0.5, 1.0), crown=False)
-    spire(160.0, 182.0, BACK0, BACK1, 110.0, (((6.0, 0.0, 15.5, 2.0), 150.0), ((4.0, 0.0, 6.0, 0.0), 186.0)), r, "amber", 26.0, 7723)
-    K.roof_plant(139.0, 158.0, BACK0 + 4, BACK1 - 4, 72.0, r, cap=4.0)
+                 lit=(0.4, 0.7), warm=(0.7, 1.0), crown=False)
     K.screen(171.0, 41.0, BACK1 + 0.4, 14.0, 7.6, 0.0, r)
     # 2: the tall one behind the second gap: a stepped glass tower, light
     # up its corners, screens stacked on its upper south face.
-    K.corp_block(188.0, 226.0, BACK0, BACK1, 84.0, 7724, skin="glass", tiers=((0.6, 0.0), (0.86, 3.0), (1.0, 6.0)),
+    K.corp_block(188.0, 226.0, BACK0, BACK1, 84.0, 7724, skin="glass", tiers=((0.6, 0.0), (1.0, 3.0)),
                  corners="cyan", edge="cyan", top_band="amber", lit=(0.5, 0.85), **D)
     K.screen_stack(207.0, BACK1 - 3.0 + 0.42, 56.0, 12.0, (7.0, 5.0, 6.0), 0.0, r)
-    K.roof_plant(195.0, 219.0, BACK0 + 7, BACK1 - 7, 84.0, r, cap=3.5)
-    K.mast(207.0, -402.0, 84.0, 14.0)
+    K.roof_plant(214.0, 222.0, BACK0 + 5, BACK1 - 5, 84.0, r, cap=3.5)
     # 3: the block the halt opens into.
     K.corp_block(232.0, 262.0, BACK0, BACK1, 44.0, 7725, skin="windows", tint="teal", style=4, tiers=((1.0, 0.0),),
                  edge="amber", top_band="cyan", lit=(0.55, 0.85), warm=(0.1, 0.5), **D)
-    # (Over it the tallest of the second rank: three stages to 208 m.)
-    spire(232.0, 262.0, BACK0, BACK1, 44.0, (((2.0, 4.0, 0.0, 0.0), 120.0), ((0.0, 10.0, 17.5, 2.0), 168.0), ((1.0, 2.0, 4.0, 1.0), 208.0)),
-          r, "cyan", 24.0, 7725)
     # 4: the plant building, low: cooling drums in rows on its roof, steam.
     K.podium_walls(268.0, 298.0, BACK0, BACK1, 15.6, {"-z": "blank", "+z": "dock", "-x": "dock", "+x": "dock"}, r, 5, "amber", 0.0, K.CONCRETE)
     B.ROOFS.append((CO, 268.0, 298.0, BACK0, BACK1, 15.6))
@@ -238,23 +203,17 @@ def back_row():
     K.corp_block(304.0, 338.0, BACK0, BACK1, 70.0, 7726, skin="glass",
                  tiers=((0.4, (0.0, 0.0, 0.0, 2.0)), (0.72, (5.0, 0.0, 3.0, 0.0)), (1.0, (2.0, 0.0, 0.0, 5.0))),
                  edge="amber", top_band="amber", colour="amber", lit=(0.5, 0.85), warm=(0.4, 0.9), **D)
-    K.roof_plant(307.0, 319.0, BACK0 + 1, BACK1 - 6, 70.0, r, cap=4.0)
-    # (Its east end carries the third of the second rank, to 184 m.)
-    spire(304.0, 338.0, BACK0, BACK1, 70.0, (((16.0, 0.0, 7.5, 5.0), 140.0), ((4.0, 0.0, 12.0, 0.0), 184.0)), r, "pink", 20.0, 7726)
     K.screen(322.0, 44.0, BACK1 + 0.4, 13.0, 7.0, 0.0, r)
     # 6: the tallest, a dark slab with fins and a crown of light.
     K.corp_block(344.0, 378.0, BACK0, BACK1, 90.0, 7727, skin="windows", tint="navy", style=5, tiers=((0.8, 0.0), (1.0, 2.6)),
                  fin_step=5.6, fin_faces=("+z", "-z", "+x", "-x"), corners="amber", edge="amber", top_band="cyan",
                  lit=(0.5, 0.8), warm=(0.5, 1.0), **D)
     K.screen_stack(361.0, BACK1 - 2.6 + 0.42, 74.0, 16.0, (6.0, 6.0), 0.0, r)
-    K.roof_plant(349.0, 373.0, BACK0 + 4, BACK1 - 4, 90.0, r, cap=3.5)
-    K.mast(361.0, -402.0, 90.0, 12.0)
     # 7: a glass shaft and a lower wing, by the corner block.
     K.corp_block(384.0, 408.0, BACK0, BACK1, 62.0, 7728, skin="glass", tiers=((0.8, 0.0), (1.0, 2.4)), corners="cyan",
                  edge="cyan", fronts={"+z": "dock", "-z": "blank", "-x": "dock", "+x": "none"})
     K.corp_block(408.0, 428.0, BACK0, BACK1, 46.0, 7729, skin="windows", tint="concrete", style=2, tiers=((1.0, 0.0),),
                  fronts={"+z": "dock", "-z": "blank", "+x": "dock", "-x": "none"}, edge="amber", lit=(0.45, 0.75), warm=(0.5, 1.0))
-    K.roof_plant(386.0, 406.0, BACK0 + 3, BACK1 - 3, 62.0, r, cap=4.0)
     K.roof_plant(409.0, 427.0, BACK0 + 1, BACK1 - 1, 46.0, r, cap=5.0)
     # The alleys between them: a tube of light over each, bins.
     for x in (135.0, 185.0, 229.0, 265.0, 301.0, 341.0, 381.0, 430.0):
@@ -571,7 +530,7 @@ def forecourts():
         elif i == 3:
             # The tallest: a screen on a plinth turned to the street, four
             # light masts in a row, long low beds.
-            K.screen(tx - 9.6, 3.9, -345.6, 2.6, 4.2, math.radians(18), r, depth=0.3, back=True, pal=K.COLD)
+            K.screen(tx - 9.6, 3.6, -345.6, 3.0, 3.2, math.radians(18), r, depth=0.3, back=True, pal=K.COLD)
             solid(tx - 11.0, tx - 8.2, G0, 1.6, -346.2, -345.0, K.BLACK)
             for sx in (4.6, 7.2, 9.8, 12.4):
                 K.tube_post(tx + sx, -345.0, math.pi / 2, "cyan", h=6.6, arm=0.5)
@@ -887,7 +846,7 @@ def gaps():
     stand(gx - 2.9, -350.2, 0.0, "idle")
     stand(gx + 5.2, -356.0, -math.pi / 2, "smoke")
     light(CO, gx, 3.6, -356.0, "amber", 6.0)
-    skybridge(gx, 26.6, -360.0, r, "cyan", boards=3)
+    skybridge(gx, 26.6, -360.0, r, "cyan", boards=2)
 
     # 3: the way up to the halt: a glazed lift shaft, its car a block of
     # light, a bridge from it to the platform; ticket gates, kiosks, signs.
@@ -956,11 +915,11 @@ def gaps():
     # boulevard either way (YRL74JmhVgk@133), light lines in the paving, a
     # lit link at the back and a skybridge high over it.
     gx = GAP_X[4]
-    for sx, yaw in ((-3.1, math.radians(24)), (3.1, math.radians(-24))):
+    for sx, yaw, sw, sh in ((-3.1, math.radians(24), 5.4, 3.2), (3.4, math.radians(-24), 3.3, 4.4)):
         cx, cz = gx + sx, -353.4
-        K.screen(cx, 6.0, cz, 5.4, 3.2, yaw, r, depth=0.28, back=True)
+        K.screen(cx, 4.3 + sh / 2 + 0.1, cz, sw, sh, yaw, r, depth=0.28, back=True)
         rx, rz = math.cos(yaw), -math.sin(yaw)
-        for du in (-2.0, 2.0):
+        for du in (-sw / 2 + 0.7, sw / 2 - 0.7):
             box(k("metal"), cx + rx * du - 0.1, cx + rx * du + 0.1, G0, 4.3, cz + rz * du - 0.25, cz + rz * du - 0.05, scale=1.0)
     K.planter(gx - 5.6, gx + 5.6, -355.6, -354.4, lit="cyan")
     for j in range(5):
@@ -973,7 +932,7 @@ def gaps():
     K.talk(gx + 1.4, -359.6, 1.0, 3)
     stand(gx - 0.6, -351.0, math.radians(200), "phone")
     stand(gx + 2.0, -367.4, 0.0, "lean", top)
-    skybridge(gx, 34.2, -361.0, r, "amber", boards=4)
+    skybridge(gx, 34.2, -361.0, r, "amber", boards=2)
 
     # 6: the drop-off: a canopy across the gap on four columns, striped
     # paving under it, an orange-lit doorway at the back (mH2wmyeiIpA@182).
