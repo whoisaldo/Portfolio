@@ -28,6 +28,26 @@ def k(mat, detail=0):
     return (D, mat, detail)
 
 
+# Which of the site's materials each kind of industrial surface is keyed
+# to. One table, read everywhere through M(): every tank, container, shed
+# wall, pipe and pour in the district follows it. Each of these takes its
+# colour from the vertex colour, as `trim` does, and is drawn in world
+# space (no UVs).
+MAT = {
+    "tank": "tankplate",       # shells: tanks, spheres, bullets, stacks, vessels, the gasholder
+    "container": "container",  # containers, trailers' bodies
+    "cladding": "corrugated",  # shed walls, sawtooth and parapet sheet, the 06 block's panels
+    "steel": "steel",          # painted steel: pipes, flanges, the gantry, cranes, saddles, trucks, the canopy
+    "frame": "steel",          # structural steel, dark: columns, beams, braces
+    "concrete": "castconcrete",  # bunds, piers, plinths, barriers
+}
+FRAME = (0.10, 0.10, 0.11, 1.0)  # a frame's own dark paint, where no colour is given
+
+
+def M(role, detail=0):
+    return (D, MAT[role], detail)
+
+
 def c(r, g, b):
     return (r, g, b, 1.0)
 
@@ -297,23 +317,32 @@ def band_quad(key, cx, cz, yaw, u0, y0, u1, y1, wdt, col, out=0.04):
 # ---------------------------------------------------------------------------
 # Steel: columns and beams are boxes, braces square tubes, rails ribbons.
 # ---------------------------------------------------------------------------
-def column(x, z, y0, y1, t=0.3, mat="dark", col=(1, 1, 1, 1), detail=0):
-    box(k(mat, detail), x - t / 2, x + t / 2, y0, y1, z - t / 2, z + t / 2, scale=1.0, col=col)
+def paint(mat, col):
+    """A steel member's colour: the one given, or the frame's dark paint on
+    a material that takes its colour from the vertices."""
+    if col is not None:
+        return col
+    return FRAME if mat in (MAT["frame"], "trim") else (1, 1, 1, 1)
 
 
-def beam(x0, z0, x1, z1, y, t=0.28, mat="dark", col=(1, 1, 1, 1), detail=0):
+def column(x, z, y0, y1, t=0.3, mat=MAT["frame"], col=None, detail=0):
+    box(k(mat, detail), x - t / 2, x + t / 2, y0, y1, z - t / 2, z + t / 2, scale=1.0, col=paint(mat, col))
+
+
+def beam(x0, z0, x1, z1, y, t=0.28, mat=MAT["frame"], col=None, detail=0):
     """A beam between two points at height y (its top), along x or z."""
+    col = paint(mat, col)
     if abs(x1 - x0) >= abs(z1 - z0):
         box(k(mat, detail), min(x0, x1), max(x0, x1), y - t, y, z0 - t / 2, z0 + t / 2, scale=1.0, col=col, bottom=True)
     else:
         box(k(mat, detail), x0 - t / 2, x0 + t / 2, y - t, y, min(z0, z1), max(z0, z1), scale=1.0, col=col, bottom=True)
 
 
-def brace(a, b, r=0.09, mat="dark", col=(1, 1, 1, 1), detail=0):
-    pipe(k(mat, detail), a, b, r, segs=4, col=col)
+def brace(a, b, r=0.09, mat=MAT["frame"], col=None, detail=0):
+    pipe(k(mat, detail), a, b, r, segs=4, col=paint(mat, col))
 
 
-def xbrace(x0, z0, x1, z1, y0, y1, r=0.09, mat="dark", col=(1, 1, 1, 1), detail=0):
+def xbrace(x0, z0, x1, z1, y0, y1, r=0.09, mat=MAT["frame"], col=None, detail=0):
     brace((x0, y0, z0), (x1, y1, z1), r, mat, col, detail)
     brace((x1, y0, z1), (x0, y1, z0), r, mat, col, detail)
 
@@ -430,11 +459,56 @@ def ring_pts(cx, cz, r, n, y, a0=0.0):
     return [(cx + r * math.cos(a0 + i * math.tau / n), y, cz + r * math.sin(a0 + i * math.tau / n)) for i in range(n)]
 
 
+def round_segs(r):
+    """Sides for a round shell of radius r, enough that its outline holds
+    against the sky."""
+    return max(12, min(40, int(10 + r * 2.6) // 2 * 2))
+
+
+def dull(col, f=0.4):
+    """A paint gone flat with weather: its colour drawn toward its grey."""
+    g = (col[0] + col[1] + col[2]) / 3
+    return (col[0] + (g - col[0]) * f, col[1] + (g - col[1]) * f, col[2] + (g - col[2]) * f, 1.0)
+
+
+def flange(p, d, r, col, detail=1, t=0.06):
+    """A flange on a pipe at p, across its run d: a disc wider than it."""
+    ln = math.sqrt(d[0] ** 2 + d[1] ** 2 + d[2] ** 2) or 1.0
+    u = (d[0] / ln * t, d[1] / ln * t, d[2] / ln * t)
+    pipe(M("steel", detail), (p[0] - u[0], p[1] - u[1], p[2] - u[2]), (p[0] + u[0], p[1] + u[1], p[2] + u[2]), r * 1.5 + 0.04, segs=8,
+         col=shade(col, 0.6), caps=True)
+
+
+def valve(p, d, r, col=RUST_D, detail=1):
+    """A gate valve in a level line at p (the line runs along d): a flange
+    each side, its body, the stem and a red hand wheel."""
+    ln = math.hypot(d[0], d[2]) or 1.0
+    ux, uz = d[0] / ln, d[2] / ln
+    w = r * 1.4 + 0.1
+    for s in (-1, 1):
+        flange((p[0] + ux * w * s, p[1], p[2] + uz * w * s), (ux, 0, uz), r, col, detail)
+    box(M("steel", detail), p[0] - w * 0.7, p[0] + w * 0.7, p[1] - r * 1.15, p[1] + r * 1.5, p[2] - w * 0.7, p[2] + w * 0.7, scale=1.0,
+        col=shade(col, 0.7), bottom=True)
+    top = p[1] + r * 1.5 + 0.42
+    cylinder(M("steel", detail), p[0], p[2], p[1] + r * 1.5, top, 0.035, segs=4, col=STEEL, cap=False)
+    cylinder(M("steel", detail), p[0], p[2], top, top + 0.04, 0.27, segs=8, col=c(0.45, 0.06, 0.04))
+
+
+def nozzle(cx, cy, cz, yaw, r=0.26, ln=0.7, col=RUST_D, detail=1):
+    """A flanged nozzle out of a shell toward yaw, a blind cover on it."""
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    tip = (cx + nx * ln, cy, cz + nz * ln)
+    pipe(M("steel", detail), (cx, cy, cz), tip, r, segs=8, col=shade(col, 0.8))
+    flange(tip, (nx, 0, nz), r, col, detail)
+
+
 def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, stair_at=0.0, lamp="cyan", r_=None, roof=0.16):
-    """A storage tank: its shell with a painted band, a cone roof with a
-    vent, a rail round the rim, a stair spiralling up its side to a landing
-    with a safety lamp (Fn9gKhU_2_Q@28)."""
+    """A storage tank: its shell with a painted band and two wind girders,
+    a cone roof with a vent, a rail round the rim, a stair spiralling up
+    its side to a landing with a safety lamp, a manway and a valved outlet
+    at its foot (Fn9gKhU_2_Q@28)."""
     r_ = r_ or random.Random(int(cx * 7 + cz * 13))
+    segs = max(segs, round_segs(r))
     y0, y1 = GY, GY + h
     lo, hi = ring_pts(cx, cz, r, segs, y0), ring_pts(cx, cz, r, segs, y1)
     cuts = [y0, y1]
@@ -446,12 +520,15 @@ def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, sta
         for i in range(segs):
             a, b_ = lo[i], lo[(i + 1) % segs]
             mid = ((a[0] + b_[0]) / 2 - cx, 0, (a[2] + b_[2]) / 2 - cz)
-            quad_n(k("trim"), ((a[0], ya, a[2]), (b_[0], ya, b_[2]), (b_[0], yb, b_[2]), (a[0], yb, a[2])), mid, cc)
+            quad_n(M("tank"), ((a[0], ya, a[2]), (b_[0], ya, b_[2]), (b_[0], yb, b_[2]), (a[0], yb, a[2])), mid, cc)
     apex = (cx, y1 + r * roof, cz)
     for i in range(segs):
         a, b_ = hi[i], hi[(i + 1) % segs]
-        tri_n(k("trim"), (apex, a, b_), (0, 1, 0), shade(col, 0.82))
+        tri_n(M("tank"), (apex, a, b_), (0, 1, 0), shade(col, 0.82))
     cylinder(k("metal", 1), cx, cz, apex[1] - 0.1, apex[1] + 0.5, 0.35, segs=6)
+    # Wind girders: an angle round the rim and one part way down.
+    for gy in (y1 - 0.16, y0 + h * 0.52):
+        cylinder(M("steel", 1), cx, cz, gy, gy + 0.14, r + 0.07, segs=segs, col=shade(col, 0.55), cap=False)
     # The rim's rail and its posts.
     rr = ring_pts(cx, cz, r - 0.05, segs, y1)
     for i in range(segs):
@@ -482,6 +559,15 @@ def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, sta
         box(k("glow"), lx - 0.09, lx + 0.09, y1 + 1.9, y1 + 2.15, lz - 0.09, lz + 0.09, scale=0.5, col=GLOW[lamp])
         box(k("metal", 1), lx - 0.03, lx + 0.03, y1, y1 + 1.9, lz - 0.03, lz + 0.03, scale=0.5)
         light(D, lx, y1, lz, lamp, 2.2)
+    # At its foot, away from the stair: a manway, and the outlet with its
+    # valve and hand wheel.
+    fa = stair_at + math.pi * 0.55
+    fy = math.pi / 2 - fa  # the yaw that looks out along the angle fa
+    nozzle(cx + r * math.cos(fa), y0 + 0.95, cz + r * math.sin(fa), fy, r=0.38, ln=0.35, col=col)
+    fb = fa + 1.6 / r
+    ox, oz = cx + r * math.cos(fb), cz + r * math.sin(fb)
+    nozzle(ox, y0 + 0.55, oz, math.pi / 2 - fb, r=0.2, ln=1.3, col=RUST_D)
+    valve((ox + 0.75 * math.cos(fb), y0 + 0.55, oz + 0.75 * math.sin(fb)), (math.cos(fb), 0, math.sin(fb)), 0.2)
     if number:
         nx, nz = math.sin(number_yaw), math.cos(number_yaw)
         digits(number, cx + nx * (r + 0.02), y0 + h * 0.62, cz + nz * (r + 0.02), min(2.6, h * 0.22), number_yaw, k("trim", 1),
@@ -489,8 +575,9 @@ def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, sta
     collide(cx - r * 0.75, cx + r * 0.75, cz - r * 0.75, cz + r * 0.75, y1)
 
 
-def sphere(cx, cz, r, col, segs=14, rings=8, legs=7, lamp="cyan"):
-    """A pressure sphere on its legs, a platform and a lamp on its crown."""
+def sphere(cx, cz, r, col, segs=28, rings=14, legs=8, lamp="cyan"):
+    """A pressure sphere on its tube legs, a platform and a lamp on its
+    crown, the outlet down from its belly to a valve."""
     cy = GY + r * 1.38
     for j in range(rings):
         p0, p1 = -math.pi / 2 + math.pi * j / rings, -math.pi / 2 + math.pi * (j + 1) / rings
@@ -502,26 +589,30 @@ def sphere(cx, cz, r, col, segs=14, rings=8, legs=7, lamp="cyan"):
             pm, tm = (p0 + p1) / 2, (t0 + t1) / 2
             n = (math.cos(pm) * math.cos(tm), math.sin(pm), math.cos(pm) * math.sin(tm))
             if j == 0:
-                tri_n(k("trim"), (pts[0], pts[2], pts[3]), n, cc)
+                tri_n(M("tank"), (pts[0], pts[2], pts[3]), n, cc)
             elif j == rings - 1:
-                tri_n(k("trim"), (pts[0], pts[1], pts[2]), n, cc)
+                tri_n(M("tank"), (pts[0], pts[1], pts[2]), n, cc)
             else:
-                quad_n(k("trim"), pts, n, cc)
+                quad_n(M("tank"), pts, n, cc)
     lr = r * 0.94
     feet = []
     for i in range(legs):
         t = (i + 0.5) * math.tau / legs
         fx, fz = cx + lr * math.cos(t), cz + lr * math.sin(t)
-        column(fx, fz, GY, cy - r * 0.2, t=0.32, mat="metal")
+        cylinder(M("steel"), fx, fz, GY + 0.3, cy - r * 0.2, 0.2, segs=8, col=shade(col, 0.45), cap=False)
+        box(M("concrete"), fx - 0.45, fx + 0.45, GY, GY + 0.3, fz - 0.45, fz + 0.45, scale=1.0)
         feet.append((fx, fz))
     for i in range(legs):
         (ax, az), (bx, bz) = feet[i], feet[(i + 1) % legs]
-        xbrace(ax, az, bx, bz, GY + 0.3, cy - r * 0.55, r=0.06, mat="metal", detail=1)
+        xbrace(ax, az, bx, bz, GY + 0.4, cy - r * 0.55, r=0.05, mat="metal", detail=1)
+    # The outlet: down from the belly, a valve, out to the yard's line.
+    run([(cx, cy - r + 0.1, cz), (cx, GY + 0.75, cz), (cx - r - 1.6, GY + 0.75, cz)], r=0.2, col=TANK_WHITE, valves=True)
     top = cy + r
     box(k("metal", 1), cx - 1.3, cx + 1.3, top - 0.05, top + 0.03, cz - 1.3, cz + 1.3, scale=1.0, bottom=True)
     for (a, b_) in (((cx - 1.3, top, cz - 1.3), (cx + 1.3, top, cz - 1.3)), ((cx + 1.3, top, cz - 1.3), (cx + 1.3, top, cz + 1.3)),
                     ((cx + 1.3, top, cz + 1.3), (cx - 1.3, top, cz + 1.3)), ((cx - 1.3, top, cz + 1.3), (cx - 1.3, top, cz - 1.3))):
         rail(a, b_, detail=1)
+    cylinder(M("steel", 1), cx + 0.7, cz + 0.6, top - 0.1, top + 0.7, 0.16, segs=6, col=shade(col, 0.6))
     if lamp:
         box(k("glow"), cx - 0.1, cx + 0.1, top + 1.5, top + 1.75, cz - 0.1, cz + 0.1, scale=0.5, col=GLOW[lamp])
         box(k("metal", 1), cx - 0.03, cx + 0.03, top, top + 1.5, cz - 0.03, cz + 0.03, scale=0.5)
@@ -540,26 +631,49 @@ def sphere(cx, cz, r, col, segs=14, rings=8, legs=7, lamp="cyan"):
     return top
 
 
-def bullet(x0, x1, z, r, col, y=None, segs=10, base=GY):
-    """A horizontal pressure vessel on two saddles, its ends domed."""
+def bullet(x0, x1, z, r, col, y=None, segs=None, base=GY):
+    """A horizontal pressure vessel: a barrel with dished heads, two
+    saddles on their piers with a strap over each, a manway and a relief
+    valve on its back, a flanged nozzle at one end."""
     y = (GY + r + 1.1) if y is None else y
+    segs = segs or (20 if r >= 1.5 else 14)
+    heads = ((0.0, 1.0), (0.22, 0.9), (0.42, 0.62), (0.52, 0.0))  # (how far out, how wide), in radii
     for i in range(segs):
         t0, t1 = i * math.tau / segs, (i + 1) * math.tau / segs
-        a = (math.cos(t0) * r, math.sin(t0) * r)
-        b_ = (math.cos(t1) * r, math.sin(t1) * r)
+        a, b_ = (math.cos(t0), math.sin(t0)), (math.cos(t1), math.sin(t1))
         n = (0, (a[1] + b_[1]) / 2, (a[0] + b_[0]) / 2)
-        quad_n(k("trim"), ((x0, y + a[1], z + a[0]), (x1, y + a[1], z + a[0]), (x1, y + b_[1], z + b_[0]), (x0, y + b_[1], z + b_[0])), n, col)
+        quad_n(M("tank"), ((x0, y + a[1] * r, z + a[0] * r), (x1, y + a[1] * r, z + a[0] * r), (x1, y + b_[1] * r, z + b_[0] * r),
+                           (x0, y + b_[1] * r, z + b_[0] * r)), n, col)
         for xe, s in ((x0, -1), (x1, 1)):
-            tri_n(k("trim"), ((xe + s * r * 0.45, y, z), (xe, y + a[1], z + a[0]), (xe, y + b_[1], z + b_[0])), (s, 0, 0), shade(col, 0.85))
+            for j in range(3):
+                (oa, wa), (ob, wb) = heads[j], heads[j + 1]
+                pa = [(xe + s * oa * r, y + q[1] * r * wa, z + q[0] * r * wa) for q in (a, b_)]
+                pb = [(xe + s * ob * r, y + q[1] * r * wb, z + q[0] * r * wb) for q in (a, b_)]
+                hn = (s * (0.35 + 0.3 * j), n[1] * (1 - 0.3 * j), n[2] * (1 - 0.3 * j))
+                if j == 2:
+                    tri_n(M("tank"), (pa[0], pa[1], pb[0]), hn, shade(col, 0.86))
+                else:
+                    quad_n(M("tank"), (pa[0], pa[1], pb[1], pb[0]), hn, shade(col, 0.93 - 0.04 * j))
     for sx in (x0 + (x1 - x0) * 0.2, x0 + (x1 - x0) * 0.8):
-        box(k("concrete"), sx - 0.4, sx + 0.4, base, y - r * 0.55, z - r * 0.85, z + r * 0.85, scale=1.5)
+        box(M("concrete"), sx - 0.4, sx + 0.4, base, y - r * 0.72, z - r * 0.85, z + r * 0.85, scale=1.5)
+        box(M("steel"), sx - 0.3, sx + 0.3, y - r * 0.72, y - r * 0.45, z - r * 0.9, z + r * 0.9, scale=1.0, col=shade(col, 0.45))
+        pipe(M("steel", 1), (sx - 0.1, y, z), (sx + 0.1, y, z), r + 0.035, segs=segs, col=shade(col, 0.5))
+    ln = x1 - x0
+    mx, vx = x0 + ln * 0.36, x0 + ln * 0.66
+    cylinder(M("steel", 1), mx, z, y + r - 0.08, y + r + 0.28, min(0.34, r * 0.4), segs=8, col=shade(col, 0.7))
+    cylinder(M("steel", 1), mx, z, y + r + 0.28, y + r + 0.34, min(0.34, r * 0.4) + 0.08, segs=8, col=shade(col, 0.5))
+    cylinder(M("steel", 1), vx, z, y + r - 0.05, y + r + 0.7, 0.07, segs=6, col=STEEL)
+    box(M("steel", 1), vx - 0.12, vx + 0.12, y + r + 0.7, y + r + 0.95, z - 0.1, z + 0.22, scale=0.5, col=c(0.45, 0.06, 0.04), bottom=True)
+    flange((x0 - r * 0.52, y, z), (1, 0, 0), min(0.2, r * 0.25), col)
     collide(x0, x1, z - r, z + r, y + r)
 
 
 def stack(cx, cz, h, r0, r1, col, segs=12, bands=((0.80, 0.86), (0.92, 0.97)), band_col=TANK_WHITE, platform=0.72, breathe=True,
           beacon=True, lit=None):
-    """A stack: a tapering shell with painted bands near its top, a service
-    platform, a caged ladder, red lamps, steam (mH2wmyeiIpA@60)."""
+    """A stack: a tapering steel shell in flanged lifts with painted bands
+    near its top, a service platform, a caged ladder, red lamps, steam
+    (mH2wmyeiIpA@60)."""
+    segs = max(segs, round_segs(r0) + 2)
     cuts = sorted({0.0, 1.0, *[v for b_ in bands for v in b_]})
     rad = lambda t: r0 + (r1 - r0) * t  # noqa: E731
     for j in range(len(cuts) - 1):
@@ -569,7 +683,12 @@ def stack(cx, cz, h, r0, r1, col, segs=12, bands=((0.80, 0.86), (0.92, 0.97)), b
         for i in range(segs):
             i2 = (i + 1) % segs
             mid = ((la[i][0] + la[i2][0]) / 2 - cx, 0, (la[i][2] + la[i2][2]) / 2 - cz)
-            quad_n(k("trim"), (la[i], la[i2], lb[i2], lb[i]), mid, cc)
+            quad_n(M("tank"), (la[i], la[i2], lb[i2], lb[i]), mid, cc)
+    # The joints between its lifts: a flange ring every six metres or so.
+    lifts = max(2, round(h / 6.0))
+    for j in range(1, lifts):
+        t = j / lifts
+        cylinder(M("steel", 1), cx, cz, GY + h * t - 0.08, GY + h * t + 0.08, rad(t) + 0.08, segs=segs, col=shade(col, 0.5), cap=False)
     top = GY + h
     cylinder(k("dark"), cx, cz, top - 0.05, top + 0.3, r1 + 0.12, segs=segs)
     if platform:
@@ -628,16 +747,34 @@ def flare(cx, cz, h, w=2.4):
 # ---------------------------------------------------------------------------
 # Pipes and their racks.
 # ---------------------------------------------------------------------------
-def run(points, r=0.16, col=RUST, segs=6, detail=0):
+def run(points, r=0.16, col=RUST, segs=None, detail=0, flanges=7.0, valves=False):
     """A pipe through a list of points, each leg run a little past the
-    corner so the elbows close."""
+    corner so the elbows close: round enough to read as pipe, a flange at
+    every joint, a shoe on a sleeper under a low level leg, a valve with
+    its hand wheel on the first long one if asked."""
+    segs = segs or (12 if r >= 0.25 else 10 if r >= 0.14 else 8)
+    col = dull(col)
+    valved = not valves
     for a, b_ in zip(points, points[1:]):
         dx, dy, dz = b_[0] - a[0], b_[1] - a[1], b_[2] - a[2]
         ln = math.sqrt(dx * dx + dy * dy + dz * dz)
         if ln < 1e-3:
             continue
         e = r * 0.6 / ln
-        pipe(k("trim", detail), (a[0] - dx * e, a[1] - dy * e, a[2] - dz * e), (b_[0] + dx * e, b_[1] + dy * e, b_[2] + dz * e), r, segs=segs, col=col)
+        pipe(M("steel", detail), (a[0] - dx * e, a[1] - dy * e, a[2] - dz * e), (b_[0] + dx * e, b_[1] + dy * e, b_[2] + dz * e), r, segs=segs, col=col)
+        n = int(ln // flanges)
+        for i in range(n + 2 if ln > 1.2 else 0):
+            t = min(max(i / (n + 1), 0.25 / ln), 1 - 0.25 / ln)
+            flange((a[0] + dx * t, a[1] + dy * t, a[2] + dz * t), (dx, dy, dz), r, col)
+        level = abs(dy) < 0.01
+        if level and a[1] - r < 1.3 and ln > 2.0:
+            for i in range(max(1, int(ln // 4.0))):
+                t = (i + 0.5) / max(1, int(ln // 4.0))
+                px, pz = a[0] + dx * t, a[2] + dz * t
+                box(M("concrete", 1), px - 0.22, px + 0.22, GY, a[1] - r, pz - 0.22, pz + 0.22, scale=1.0)
+        if level and not valved and ln > 1.6:
+            valve((a[0] + dx * 0.5, a[1], a[2] + dz * 0.5), (dx, 0, dz), r, col=shade(col, 0.7))
+            valved = True
 
 
 PIPE_SET = ((-1.1, 0, 0.22, RUST), (-0.5, 0, 0.14, TANK_WHITE), (0.1, 0, 0.18, STEEL_BLUE), (0.8, 0, 0.26, RUST_D),
@@ -675,10 +812,13 @@ def rack(x0, z0, x1, z1, levels=(5.4, 6.9), width=3.0, pipes=PIPE_SET, step=6.0,
             sodium(px, min(levels), pz, 3.2)
     for off, lv, r, col in pipes:
         y = levels[min(lv, len(levels) - 1)] + r
-        if along_x:
-            pipe(k("trim"), (a0 - 0.4, y, c0 + off), (a1 + 0.4, y, c0 + off), r, segs=6, col=col)
-        else:
-            pipe(k("trim"), (c0 + off, y, a0 - 0.4), (c0 + off, y, a1 + 0.4), r, segs=6, col=col)
+        col = dull(col)
+        pa, pb = ((a0 - 0.4, y, c0 + off), (a1 + 0.4, y, c0 + off)) if along_x else ((c0 + off, y, a0 - 0.4), (c0 + off, y, a1 + 0.4))
+        pipe(M("steel"), pa, pb, r, segs=10 if r >= 0.18 else 8, col=col)
+        nf = max(1, int((a1 - a0) // 18.0))
+        for i in range(nf):
+            t = (i + 0.3 + 0.4 * ((off * 7.3) % 1.0)) / nf
+            flange((pa[0] + (pb[0] - pa[0]) * t, y, pa[2] + (pb[2] - pa[2]) * t), (pb[0] - pa[0], 0, pb[2] - pa[2]), r, col)
 
 
 # ---------------------------------------------------------------------------
@@ -715,10 +855,10 @@ def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tin
         # Its sill and head, the slope behind, the gable ends, the gutter.
         for (ya, yb) in ((y, y + 0.25), (y + rise - 0.12, y + rise)):
             quad_n(k("metal"), (W(u0, ya, a), W(u1, ya, a), W(u1, yb, a), W(u0, yb, a)), gn)
-        quad_n(k("trim"), (W(u0, y + rise, a), W(u1, y + rise, a), W(u1, y, b_), W(u0, y, b_)), (0, 1, 0), shade(SHEET, r.uniform(0.85, 1.1)))
+        quad_n(M("cladding"), (W(u0, y + rise, a), W(u1, y + rise, a), W(u1, y, b_), W(u0, y, b_)), (0, 1, 0), shade(SHEET, r.uniform(0.85, 1.1)))
         for ue, s in ((u0, -1), (u1, 1)):
             en = (s, 0, 0) if ridge_x else (0, 0, s)
-            tri_n(k("trim"), (W(ue, y, a), W(ue, y + rise, a), W(ue, y, b_)), en, wall)
+            tri_n(M("cladding"), (W(ue, y, a), W(ue, y + rise, a), W(ue, y, b_)), en, wall)
         g0, g1 = W(u0, y, b_ - 0.2), W(u1, y + 0.14, b_ + 0.2)
         box(k("dark", 1), min(g0[0], g1[0]), max(g0[0], g1[0]), y, y + 0.14, min(g0[2], g1[2]), max(g0[2], g1[2]), scale=1.0)
         if vents:
@@ -762,7 +902,7 @@ def flat_roof(x0, x1, z0, z1, y, r, wall=CREAM, parapet=0.8, lights=0.6, plant=T
     t = 0.3
     if parapet:
         for (a0, a1, b0, b1) in ((x0, x1, z1 - t, z1), (x0, x1, z0, z0 + t), (x0, x0 + t, z0 + t, z1 - t), (x1 - t, x1, z0 + t, z1 - t)):
-            box(k("trim"), a0, a1, y, y + parapet, b0, b1, scale=1.5, col=shade(wall, 0.8))
+            box(M("cladding"), a0, a1, y, y + parapet, b0, b1, scale=1.5, col=shade(wall, 0.8))
         for cx_, cz_ in ((x0 + 0.15, z0 + 0.15), (x1 - 0.15, z0 + 0.15), (x0 + 0.15, z1 - 0.15), (x1 - 0.15, z1 - 0.15)):
             box(k("glow"), cx_ - 0.1, cx_ + 0.1, y + parapet, y + parapet + 0.22, cz_ - 0.1, cz_ + 0.1, scale=0.5, col=GLOW["red"])
     w, d = x1 - x0, z1 - z0
@@ -919,7 +1059,7 @@ def docks(f, r, s0, s1, n, eave, first=1, raised=True, canopy=True, open_=(), ha
         st = "open" if i in open_ else ("half" if i in half else "shut")
         dock(f, s0 + (i + 0.5) * step, r, no=first + i, sill=sill, h=h, state=st, eave=eave)
     if raised:
-        f.box(k("concrete"), s0 - 1.0, s1 + 1.0, GY, GY + sill, 0.0, 2.6, scale=1.5)
+        f.box(M("concrete"), s0 - 1.0, s1 + 1.0, GY, GY + sill, 0.0, 2.6, scale=1.5)
         f.box(k("hazard", 1), s0 - 1.0, s1 + 1.0, GY + sill - 0.12, GY + sill, 2.6, 2.63)
         # Steps up to it at each end.
         for q in range(3):
@@ -953,7 +1093,7 @@ def wall_dress(f, r, eave, col, s0=0.0, s1=None, lamps=11.0, doors=True, posters
     nb = max(1, round(w / 6.0))
     for i in range(nb + 1):
         s = s0 + w * i / nb
-        f.box(k("trim"), s - 0.16, s + 0.16, GY, eave, 0.0, 0.16, col=shade(col, 0.62))
+        f.box(M("steel"), s - 0.16, s + 0.16, GY, eave, 0.0, 0.16, col=shade(col, 0.62))
         if i % 3 == 1:
             px, py, pz = f.p(f.at(s + 0.4), GY, 0.0)
             P.place("pipe_v", px, py, pz, f.yaw, sy=eave - GY, district=D)
@@ -1016,7 +1156,7 @@ def shed(x0, x1, z0, z1, eave, col, r, faces=None, plinth=1.0, tint="concrete", 
         if spec.get("hidden"):
             continue
         w = f.width
-        f.quad(k("concrete"), 0.0, w, 0.0, GY + plinth, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, (GY + plinth) / 3.0), (0, (GY + plinth) / 3.0)))
+        f.quad(M("concrete"), 0.0, w, 0.0, GY + plinth, 0.0, uvs=((0, 0), (w / 3.0, 0), (w / 3.0, (GY + plinth) / 3.0), (0, (GY + plinth) / 3.0)))
         cuts = [GY + plinth, eave]
         band = spec.get("band")
         office = spec.get("office")
@@ -1024,11 +1164,11 @@ def shed(x0, x1, z0, z1, eave, col, r, faces=None, plinth=1.0, tint="concrete", 
             cuts = [GY + plinth, band[0], band[1], eave]
         for j in range(0, len(cuts) - 1, 2 if band else 1):
             if cuts[j + 1] - cuts[j] > 0.02:
-                f.quad(k("trim"), 0.0, w, cuts[j], cuts[j + 1], 0.0, col=col)
+                f.quad(M("cladding"), 0.0, w, cuts[j], cuts[j + 1], 0.0, col=col)
         if band:
             window_band(f, band[0], band[1], r, style=spec.get("style", 5), lit=spec.get("lit", (0.25, 0.6)), tint=tint)
         if stripe_col is not None:
-            f.quad(k("trim"), 0.0, w, eave - 1.1, eave - 0.5, 0.03, col=stripe_col)
+            f.quad(M("cladding"), 0.0, w, eave - 1.1, eave - 0.5, 0.03, col=stripe_col)
         # The eave: a gutter round the top.
         f.box(k("metal"), -0.1, w + 0.1, eave - 0.22, eave + 0.04, 0.0, 0.22)
         d = spec.get("docks")
@@ -1099,7 +1239,7 @@ def yard_wall(x0, z0, x1, z1, h=2.8, wire=True, r=None, posters=0.0, face=1):
     t = 0.22
     if along_x:
         xa, xb = min(x0, x1), max(x0, x1)
-        box(k("concrete"), xa, xb, 0.0, h, z0 - t / 2, z0 + t / 2, scale=2.5)
+        box(M("concrete"), xa, xb, 0.0, h, z0 - t / 2, z0 + t / 2, scale=2.5)
         n = max(1, round((xb - xa) / 6.0))
         for i in range(n + 1):
             x = xa + (xb - xa) * i / n
@@ -1116,7 +1256,7 @@ def yard_wall(x0, z0, x1, z1, h=2.8, wire=True, r=None, posters=0.0, face=1):
         collide(xa, xb, z0 - t / 2, z0 + t / 2, h)
     else:
         za, zb = min(z0, z1), max(z0, z1)
-        box(k("concrete"), x0 - t / 2, x0 + t / 2, 0.0, h, za, zb, scale=2.5)
+        box(M("concrete"), x0 - t / 2, x0 + t / 2, 0.0, h, za, zb, scale=2.5)
         n = max(1, round((zb - za) / 6.0))
         for i in range(n + 1):
             z = za + (zb - za) * i / n
@@ -1257,7 +1397,7 @@ def bridge(x0, z0, x1, z1, y=6.6, w=2.2, pipes=((-0.55, 0.3, STEEL_BLUE), (0.25,
         p0, p1 = Pt(a, y + 0.1, c0 - w / 2), Pt(a, y + 0.1, c0 + w / 2)
         brace(p0, p1, r=0.05, detail=1)
     for off, r_, col in pipes:
-        pipe(k("trim"), Pt(a0 - 0.3, y + 0.25 + r_, c0 + off), Pt(a1 + 0.3, y + 0.25 + r_, c0 + off), r_, segs=6, col=col)
+        pipe(M("steel"), Pt(a0 - 0.3, y + 0.25 + r_, c0 + off), Pt(a1 + 0.3, y + 0.25 + r_, c0 + off), r_, segs=10, col=dull(col))
     if lamps:
         m = max(1, round((a1 - a0) / 9.0))
         for i in range(m):
@@ -1285,11 +1425,11 @@ def low_wall(x0, z0, x1, z1, h=0.9, lamps=3):
     a0, a1 = (min(x0, x1), max(x0, x1)) if along_x else (min(z0, z1), max(z0, z1))
     c0 = z0 if along_x else x0
     if along_x:
-        box(k("concrete"), a0, a1, 0.0, h, c0 - t / 2, c0 + t / 2, scale=2.0)
+        box(M("concrete"), a0, a1, 0.0, h, c0 - t / 2, c0 + t / 2, scale=2.0)
         rail((a0, h, c0), (a1, h, c0), h=1.2, detail=0, posts=2.0)
         collide(a0, a1, c0 - t / 2, c0 + t / 2, h + 1.2)
     else:
-        box(k("concrete"), c0 - t / 2, c0 + t / 2, 0.0, h, a0, a1, scale=2.0)
+        box(M("concrete"), c0 - t / 2, c0 + t / 2, 0.0, h, a0, a1, scale=2.0)
         rail((c0, h, a0), (c0, h, a1), h=1.2, detail=0, posts=2.0)
         collide(c0 - t / 2, c0 + t / 2, a0, a1, h + 1.2)
     n = max(1, round((a1 - a0) / 6.0))
@@ -1302,7 +1442,7 @@ def low_wall(x0, z0, x1, z1, h=0.9, lamps=3):
             sodium(px, h + 0.5, pz, 3.6)
 
 
-def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", "bin", "drum", "bags", "crates", "tote", "cctv", "barrier", "lamp_short"),
+def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", "bin", "drum", "bags", "crates", "pallets", "cctv", "barrier", "lamp_short"),
           side=0.0):
     """What stands on the strip between the pavement and a yard's fence."""
     ln = math.hypot(x1 - x0, z1 - z0)
@@ -1326,39 +1466,39 @@ def crane(cx, cz, yaw, h=11.0, jib=15.0, pitch=0.5, col=YELLOW):
     a braced jib out over the yard, the hook on its rope, lamps."""
     w = 0.7
     for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
-        column(cx + sx * w, cz + sz * w, GY, h, t=0.16, mat="trim", col=col)
+        column(cx + sx * w, cz + sz * w, GY, h, t=0.16, mat=MAT["steel"], col=col)
     n = max(3, int(h / 2.6))
     for i in range(n):
         ya, yb = GY + (h - GY) * i / n, GY + (h - GY) * (i + 1) / n
         for (ax, az, bx, bz) in ((-1, -1, 1, -1), (1, -1, 1, 1), (1, 1, -1, 1), (-1, 1, -1, -1)):
-            brace((cx + ax * w, ya, cz + az * w), (cx + bx * w, yb, cz + bz * w), r=0.05, mat="trim", col=col, detail=1)
-    box(k("trim"), cx - 1.4, cx + 1.4, h, h + 0.3, cz - 1.4, cz + 1.4, scale=1.0, col=shade(col, 0.7), bottom=True)
+            brace((cx + ax * w, ya, cz + az * w), (cx + bx * w, yb, cz + bz * w), r=0.05, mat=MAT["steel"], col=col, detail=1)
+    box(M("steel"), cx - 1.4, cx + 1.4, h, h + 0.3, cz - 1.4, cz + 1.4, scale=1.0, col=shade(col, 0.7), bottom=True)
     dx, dz = math.sin(yaw), math.cos(yaw)
     rx, rz = math.cos(yaw), -math.sin(yaw)
     # The cab beside the jib's foot.
     ccx, ccz = cx + rx * 1.1 + dx * 0.4, cz + rz * 1.1 + dz * 0.4
-    oriented_box(k("trim"), ccx, h + 1.4, ccz, 1.5, 2.2, 2.0, yaw, scale=1.0, col=shade(col, 0.85))
+    oriented_box(M("steel"), ccx, h + 1.4, ccz, 1.5, 2.2, 2.0, yaw, scale=1.0, col=shade(col, 0.85))
     rotated_quad(k("glow"), ccx + dx * 1.02, h + 1.7, ccz + dz * 1.02, 1.2, 1.0, yaw, col=shade(GLASS_COOL, 1.5))
     # The jib: two chords and the web between, the counter-jib behind.
     foot = (cx, h + 0.5, cz)
     tip = (cx + dx * jib * math.cos(pitch), h + 0.5 + jib * math.sin(pitch), cz + dz * jib * math.cos(pitch))
     top = (cx, h + 4.2, cz)
-    brace(foot, tip, r=0.11, mat="trim", col=col)
-    brace(top, tip, r=0.05, mat="trim", col=col)
-    brace(foot, top, r=0.12, mat="trim", col=col)
+    brace(foot, tip, r=0.11, mat=MAT["steel"], col=col)
+    brace(top, tip, r=0.05, mat=MAT["steel"], col=col)
+    brace(foot, top, r=0.12, mat=MAT["steel"], col=col)
     m = 6
     for i in range(1, m):
         t = i / m
         pb = tuple(foot[q] + (tip[q] - foot[q]) * t for q in range(3))
-        brace(pb, (pb[0], pb[1] + 0.9 * (1 - t) + 0.25, pb[2]), r=0.04, mat="trim", col=col, detail=1)
+        brace(pb, (pb[0], pb[1] + 0.9 * (1 - t) + 0.25, pb[2]), r=0.04, mat=MAT["steel"], col=col, detail=1)
     back = (cx - dx * 4.0, h + 1.2, cz - dz * 4.0)
-    brace(foot, back, r=0.1, mat="trim", col=col)
-    brace(top, back, r=0.05, mat="trim", col=col)
-    oriented_box(k("trim"), back[0], back[1] - 0.6, back[2], 1.6, 1.4, 1.6, yaw, scale=1.0, col=STEEL)
+    brace(foot, back, r=0.1, mat=MAT["steel"], col=col)
+    brace(top, back, r=0.05, mat=MAT["steel"], col=col)
+    oriented_box(M("steel"), back[0], back[1] - 0.6, back[2], 1.6, 1.4, 1.6, yaw, scale=1.0, col=STEEL)
     hook = (tip[0], GY + 4.2, tip[2])
     both(k("dark", 1), ((tip[0] - 0.025, tip[1], tip[2]), (tip[0] + 0.025, tip[1], tip[2]), (hook[0] + 0.025, hook[1], hook[2]), (hook[0] - 0.025, hook[1], hook[2])))
     both(k("dark", 1), ((tip[0], tip[1], tip[2] - 0.025), (tip[0], tip[1], tip[2] + 0.025), (hook[0], hook[1], hook[2] + 0.025), (hook[0], hook[1], hook[2] - 0.025)))
-    box(k("trim"), hook[0] - 0.25, hook[0] + 0.25, hook[1] - 0.6, hook[1], hook[2] - 0.2, hook[2] + 0.2, scale=0.5, col=col, bottom=True)
+    box(M("steel"), hook[0] - 0.25, hook[0] + 0.25, hook[1] - 0.6, hook[1], hook[2] - 0.2, hook[2] + 0.2, scale=0.5, col=col, bottom=True)
     box(k("glow"), tip[0] - 0.12, tip[0] + 0.12, tip[1] + 0.1, tip[1] + 0.35, tip[2] - 0.12, tip[2] + 0.12, scale=0.5, col=GLOW["red"])
     box(k("glow"), cx - 0.12, cx + 0.12, h + 4.2, h + 4.45, cz - 0.12, cz + 0.12, scale=0.5, col=GLOW["red"])
     box(k("neon_amber"), ccx - 0.5, ccx + 0.5, h + 0.2, h + 0.3, ccz - 0.5, ccz + 0.5, scale=0.5, bottom=True)
@@ -1374,7 +1514,7 @@ def gate(x0, z0, x1, z1, inward, open_=True, booth=None, guard=True, lamp="cyan"
     ix, iz = inward
     along_x = abs(x1 - x0) >= abs(z1 - z0)
     for (px, pz) in ((x0, z0), (x1, z1)):
-        box(k("concrete"), px - 0.35, px + 0.35, 0.0, 3.0, pz - 0.35, pz + 0.35, scale=1.5)
+        box(M("concrete"), px - 0.35, px + 0.35, 0.0, 3.0, pz - 0.35, pz + 0.35, scale=1.5)
         box(k("hazard", 1), px - 0.37, px + 0.37, 0.4, 1.3, pz - 0.37, pz + 0.37, scale=1.0)
         box(k("glow"), px - 0.14, px + 0.14, 3.0, 3.25, pz - 0.14, pz + 0.14, scale=0.5, col=GLOW[lamp])
         light(D, px, 3.0, pz, lamp, 2.0)
@@ -1437,15 +1577,65 @@ def poles(points, yaw, can_every=3, r=None, drop=None):
 # The yard's instanced props. One material each where it can be done (the
 # colour rides on `trim`'s vertices), so a prototype is one small mesh.
 # ---------------------------------------------------------------------------
+BOX_COLS = {"red": OXIDE, "rust": RUST, "blue": c(0.07, 0.15, 0.30), "green": c(0.08, 0.22, 0.15), "grey": c(0.34, 0.35, 0.36)}
+
+
+def container(cx, cz, yaw=0.0, col="red", ln=12.19, y=GY, doors=1):
+    """A container a walker passes, built in place (the stacks behind are
+    instances): corrugated sides as ribs, corner posts, top and bottom
+    rails, two doors with their lock rods and handles at one end (`doors`:
+    1 the +x end as a prop's yaw turns it, -1 the other), a code plate."""
+    col = BOX_COLS.get(col, col)
+    key, kd = M("container"), M("container", 1)
+    hx, hz, h = ln / 2, 1.22, 2.59
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+
+    def at(u, t):
+        return cx + rx * u + nx * t, cz + rz * u + nz * t
+
+    oriented_box(key, cx, y + h / 2, cz, ln, h, 2 * hz, yaw, scale=1.0, col=col)
+    n = int(ln / 0.58)
+    for s in (-1, 1):
+        for i in range(n):
+            px, pz = at(-hx + 0.25 + (ln - 0.5) * (i + 0.5) / n, s * (hz + 0.02))
+            oriented_box(kd, px, y + h / 2, pz, 0.2, h - 0.4, 0.045, yaw, col=shade(col, 0.68))
+        for yy, hh in ((y + 0.09, 0.18), (y + h - 0.07, 0.14)):
+            px, pz = at(0.0, s * (hz + 0.02))
+            oriented_box(key, px, yy, pz, ln + 0.04, hh, 0.07, yaw, col=shade(col, 0.8))
+        for e in (-1, 1):
+            px, pz = at(e * (hx - 0.06), s * (hz - 0.04))
+            oriented_box(key, px, y + h / 2, pz, 0.16, h + 0.02, 0.16, yaw, col=shade(col, 0.75))
+        # Its code, top corner by the doors: two rows of pale marks.
+        px, pz = at(doors * (hx - 1.5), s * (hz + 0.05))
+        for dv, w_ in ((0.0, 1.1), (-0.24, 0.6)):
+            rotated_quad(k("trim", 1), px, y + h - 0.5 + dv, pz, w_, 0.15, yaw if s > 0 else yaw + math.pi, col=PAINT_WHITE)
+    # The door end: two leaves, a seam, four lock rods and their handles.
+    ey = yaw + math.pi / 2 * doors
+    for t in (-0.84, -0.32, 0.32, 0.84):
+        px, pz = at(doors * (hx + 0.03), t)
+        oriented_box(kd, px, y + h / 2, pz, 0.05, h - 0.3, 0.06, ey, col=shade(col, 0.45))
+        oriented_box(kd, px, y + 1.1, pz, 0.3, 0.05, 0.1, ey, col=shade(col, 0.4))
+    px, pz = at(doors * (hx + 0.01), 0.0)
+    oriented_box(kd, px, y + h / 2, pz, 0.035, h - 0.2, 0.03, ey, col=shade(col, 0.3))
+    for yy in (y + 0.1, y + h - 0.1):
+        oriented_box(key, px, yy, pz, 2 * hz, 0.2, 0.05, ey, col=shade(col, 0.7))
+    px, pz = at(doors * (hx + 0.05), -0.58 * doors)
+    rotated_quad(k("trim", 1), px, y + h - 0.55, pz, 0.62, 0.2, ey, col=PAINT_WHITE)
+    collide(min(at(-hx, -hz)[0], at(hx, hz)[0], at(-hx, hz)[0], at(hx, -hz)[0]), max(at(-hx, -hz)[0], at(hx, hz)[0], at(-hx, hz)[0], at(hx, -hz)[0]),
+            min(at(-hx, -hz)[1], at(hx, hz)[1], at(-hx, hz)[1], at(hx, -hz)[1]), max(at(-hx, -hz)[1], at(hx, hz)[1], at(-hx, hz)[1], at(hx, -hz)[1]), y + h)
+
+
 def _container(kk, col, ln=12.19):
     hx = ln / 2
-    box(kk("trim"), -hx, hx, 0.0, 2.59, -1.22, 1.22, scale=1.0, col=col)
+    key = kk(MAT["container"])
+    box(key, -hx, hx, 0.0, 2.59, -1.22, 1.22, scale=1.0, col=col)
     # Its corner posts and the doors' bars at one end.
     for z in (-1.22, 1.14):
-        box(kk("trim"), hx, hx + 0.03, 0.0, 2.59, z, z + 0.08, scale=1.0, col=shade(col, 0.5))
+        box(key, hx, hx + 0.03, 0.0, 2.59, z, z + 0.08, scale=1.0, col=shade(col, 0.5))
     for z in (-0.62, -0.2, 0.2, 0.62):
-        box(kk("trim"), hx, hx + 0.05, 0.15, 2.45, z - 0.025, z + 0.025, scale=1.0, col=shade(col, 0.45))
-    box(kk("trim"), -hx, hx, 2.59, 2.6, -1.22, 1.22, scale=1.0, col=shade(col, 0.7))
+        box(key, hx, hx + 0.05, 0.15, 2.45, z - 0.025, z + 0.025, scale=1.0, col=shade(col, 0.45))
+    box(key, -hx, hx, 2.59, 2.6, -1.22, 1.22, scale=1.0, col=shade(col, 0.7))
 
 
 for _name, _col in (("c40_red", OXIDE), ("c40_rust", RUST), ("c40_blue", c(0.07, 0.15, 0.30)), ("c40_green", c(0.08, 0.22, 0.15))):
@@ -1513,43 +1703,106 @@ def _drum_pallet(kk):
     box(kk("trim"), -0.66, 0.02, 1.02, 1.08, -0.66, 0.02, scale=1.0, col=c(0.1, 0.13, 0.12))
 
 
-@P.proto("trailer", box=(6.4, 2.0, 1.3), reach=700)
+TYRE = c(0.025, 0.025, 0.03)
+
+
+def _wheel(key, x, z0, z1, r=0.52):
+    """A wheel, or a twin, across the chassis: the tyre and its hub."""
+    pipe(key, (x, r, z0), (x, r, z1), r, segs=10, col=TYRE, caps=True)
+    out = z1 if abs(z1) > abs(z0) else z0
+    pipe(key, (x, r, out), (x, r, out + (0.025 if out > 0 else -0.025)), r * 0.45, segs=6, col=c(0.3, 0.3, 0.31), caps=True)
+
+
+@P.proto("trailer", box=(6.5, 2.0, 1.35), reach=700)
 def _trailer(kk):
-    """A box trailer dropped at a dock: its body on a chassis, twin axles
-    at the back, the landing legs down at the front, marker lamps."""
+    """A box trailer at a dock: a ribbed body on its chassis, twin axles
+    and their wheels at the back (-x) under mudguards, two doors with
+    their lock rods, an underrun bar and its lamps, the landing legs and
+    the kingpin plate at the nose (+x)."""
+    body, st = kk(MAT["container"]), kk(MAT["steel"])
     col = c(0.42, 0.42, 0.40)
-    box(kk("trim"), -6.4, 6.4, 1.25, 4.0, -1.27, 1.27, scale=1.0, col=col)
-    box(kk("trim"), -6.3, 6.3, 0.95, 1.25, -1.1, 1.1, scale=1.0, col=STEEL, bottom=True)
-    for x in (-5.0, -3.7):
-        for z in (-1.2, 0.8):
-            box(kk("trim"), x - 0.5, x + 0.5, 0.0, 1.0, z, z + 0.4, scale=1.0, col=c(0.03, 0.03, 0.035))
-    for z in (-0.9, 0.8):
-        box(kk("trim"), 4.2, 4.32, 0.0, 0.95, z, z + 0.12, scale=1.0, col=STEEL)
-    box(kk("trim"), -6.43, -6.4, 1.3, 3.95, -1.2, 1.2, scale=1.0, col=shade(col, 0.6))
-    for z, n_ in ((1.275, 1), (-1.275, -1)):
-        q = [(-6.3, 2.2, z), (6.3, 2.2, z), (6.3, 2.75, z), (-6.3, 2.75, z)]
-        quad(kk("trim"), *(q if n_ > 0 else q[::-1]), col=OXIDE)
-        q = [(-6.4, 1.25, z), (6.4, 1.25, z), (6.4, 1.5, z), (-6.4, 1.5, z)]
-        quad(kk("trim"), *(q if n_ > 0 else q[::-1]), col=shade(col, 0.5))
-    for z in (-1.15, 1.03):
-        box(kk("trim"), -6.45, -6.42, 1.05, 1.2, z, z + 0.12, scale=0.5, col=c(0.5, 0.04, 0.03))
+    box(body, -6.4, 6.4, 1.3, 4.0, -1.27, 1.27, scale=1.0, col=col, bottom=True)
+    for i in range(1, 8):
+        x = -6.4 + 12.8 * i / 8
+        for z0, z1 in ((1.27, 1.31), (-1.31, -1.27)):
+            box(body, x - 0.05, x + 0.05, 1.42, 3.9, z0, z1, scale=1.0, col=shade(col, 0.68))
+    for z0, z1 in ((1.27, 1.33), (-1.33, -1.27)):
+        box(st, -6.42, 6.42, 1.24, 1.42, z0, z1, scale=1.0, col=shade(col, 0.4))
+        box(st, -6.42, 6.42, 3.9, 4.02, z0, z1, scale=1.0, col=shade(col, 0.6))
+    box(st, -6.46, -6.4, 1.3, 4.0, -1.27, 1.27, scale=1.0, col=shade(col, 0.8))
+    for z in (-0.85, -0.3, 0.3, 0.85):
+        box(st, -6.5, -6.46, 1.4, 3.9, z - 0.025, z + 0.025, scale=1.0, col=shade(col, 0.4))
+    box(st, -6.49, -6.46, 1.35, 3.95, -0.015, 0.015, scale=1.0, col=STEEL)
+    box(st, -6.5, -6.38, 0.5, 0.62, -1.2, 1.2, scale=1.0, col=STEEL, bottom=True)
+    for z in (-1.15, 0.95):
+        box(st, -6.52, -6.5, 0.5, 0.62, z, z + 0.2, scale=0.5, col=c(0.55, 0.04, 0.03))
+    for z in (-0.55, 0.43):
+        box(st, -6.3, 5.4, 1.0, 1.3, z, z + 0.12, scale=1.0, col=STEEL, bottom=True)
+    for x in (-4.9, -3.55):
+        _wheel(st, x, -1.25, -0.7)
+        _wheel(st, x, 0.7, 1.25)
+        box(st, x - 0.06, x + 0.06, 0.46, 0.58, -0.7, 0.7, scale=1.0, col=STEEL)
+    for z0, z1 in ((-1.27, -0.68), (0.68, 1.27)):
+        box(st, -5.6, -2.85, 1.1, 1.16, z0, z1, scale=1.0, col=STEEL, bottom=True)
+    for z in (-0.95, 0.83):
+        box(st, 3.9, 4.02, 0.06, 1.3, z, z + 0.12, scale=1.0, col=STEEL)
+        box(st, 3.78, 4.14, 0.0, 0.06, z - 0.1, z + 0.22, scale=1.0, col=STEEL)
+    box(st, 3.93, 3.99, 0.6, 0.68, -0.83, 0.83, scale=1.0, col=STEEL)
+    box(st, 4.6, 6.3, 1.18, 1.3, -1.0, 1.0, scale=1.0, col=STEEL, bottom=True)
 
 
-@P.proto("forklift", box=(1.1, 1.1, 0.6), reach=300, detail=True)
+def _tractor(kk, col):
+    """A tractor unit: its cab over the front axle with a wind deflector,
+    glass, a grille and a bumper, the chassis and fifth wheel behind, twin
+    drive wheels under guards, tanks at its flanks, an exhaust stack. Its
+    nose is +x, as a trailer's is, so the two couple at one yaw."""
+    st = kk(MAT["steel"])
+    glass = c(0.03, 0.045, 0.06)
+    box(st, -3.0, 2.2, 0.6, 0.9, -0.5, 0.5, scale=1.0, col=STEEL, bottom=True)
+    box(st, -2.2, -0.8, 0.9, 1.16, -0.6, 0.6, scale=1.0, col=STEEL)
+    _wheel(st, -1.6, -1.25, -0.65)
+    _wheel(st, -1.6, 0.65, 1.25)
+    _wheel(st, 2.0, -1.22, -0.9)
+    _wheel(st, 2.0, 0.9, 1.22)
+    for z0, z1 in ((-1.27, -0.63), (0.63, 1.27)):
+        box(st, -2.35, -0.85, 1.1, 1.16, z0, z1, scale=1.0, col=STEEL, bottom=True)
+    box(st, 0.9, 3.0, 0.95, 3.3, -1.22, 1.22, scale=1.0, col=col, bottom=True)
+    box(st, 0.9, 2.5, 3.3, 3.75, -1.1, 1.1, scale=1.0, col=shade(col, 0.85))
+    box(st, 2.95, 3.12, 0.5, 0.95, -1.25, 1.25, scale=1.0, col=STEEL, bottom=True)
+    quad(st, (3.01, 2.0, 1.05), (3.01, 2.0, -1.05), (3.01, 2.95, -1.05), (3.01, 2.95, 1.05), col=glass)
+    quad(st, (3.01, 1.05, 0.7), (3.01, 1.05, -0.7), (3.01, 1.8, -0.7), (3.01, 1.8, 0.7), col=c(0.05, 0.05, 0.055))
+    for z in (-1.1, 0.8):
+        quad(st, (3.13, 0.6, z + 0.3), (3.13, 0.6, z), (3.13, 0.86, z), (3.13, 0.86, z + 0.3), col=c(0.7, 0.67, 0.55))
+    quad(st, (1.9, 2.0, 1.23), (2.85, 2.0, 1.23), (2.85, 2.9, 1.23), (1.9, 2.9, 1.23), col=glass)
+    quad(st, (2.85, 2.0, -1.23), (1.9, 2.0, -1.23), (1.9, 2.9, -1.23), (2.85, 2.9, -1.23), col=glass)
+    for z in (-1.02, 1.02):
+        pipe(st, (-0.55, 0.75, z), (0.75, 0.75, z), 0.32, segs=8, col=c(0.3, 0.31, 0.32), caps=True)
+    cylinder(st, 0.72, -1.05, 0.9, 3.95, 0.08, segs=6, col=STEEL)
+
+
+P.proto("tractor", box=(3.2, 1.9, 1.3), reach=700)(lambda kk: _tractor(kk, c(0.5, 0.5, 0.48)))
+P.proto("tractor_red", box=(3.2, 1.9, 1.3), reach=700)(lambda kk: _tractor(kk, OXIDE))
+
+
+@P.proto("forklift", box=(1.5, 1.2, 0.7), reach=300, detail=True)
 def _forklift(kk):
+    """A forklift: its body and counterweight, four wheels, the mast and
+    its forks, the driver's cage, an amber beacon on the cage."""
+    st = kk(MAT["steel"])
     y = c(0.62, 0.45, 0.05)
-    box(kk("trim"), -0.9, 0.7, 0.3, 1.1, -0.55, 0.55, scale=1.0, col=y)
-    box(kk("trim"), -1.0, -0.6, 0.3, 1.3, -0.55, 0.55, scale=1.0, col=STEEL)
-    for x in (-0.6, 0.45):
-        for z in (-0.6, 0.45):
-            box(kk("trim"), x - 0.22, x + 0.22, 0.0, 0.5, z, z + 0.15, scale=1.0, col=c(0.03, 0.03, 0.035))
+    box(st, -0.9, 0.7, 0.3, 1.1, -0.55, 0.55, scale=1.0, col=y, bottom=True)
+    box(st, -1.0, -0.6, 0.3, 1.3, -0.55, 0.55, scale=1.0, col=STEEL)
+    box(st, -0.35, 0.05, 1.1, 1.5, -0.25, 0.25, scale=1.0, col=STEEL)
+    for x, r in ((-0.6, 0.26), (0.45, 0.32)):
+        pipe(st, (x, r, -0.62), (x, r, 0.62), r, segs=8, col=TYRE, caps=True)
     for z in (-0.5, 0.42):
-        box(kk("trim"), 0.72, 0.8, 0.1, 2.3, z, z + 0.08, scale=1.0, col=STEEL)
-        box(kk("trim"), 0.8, 1.9, 0.12, 0.17, z - 0.02, z + 0.1, scale=1.0, col=STEEL)
-        box(kk("trim"), -0.55, -0.5, 1.1, 2.1, z, z + 0.06, scale=1.0, col=STEEL)
-        box(kk("trim"), 0.3, 0.35, 1.1, 2.1, z, z + 0.06, scale=1.0, col=STEEL)
-    box(kk("trim"), -0.6, 0.4, 2.1, 2.15, -0.52, 0.52, scale=1.0, col=STEEL, bottom=True)
-    box(kk("trim"), -0.1, 0.05, 2.15, 2.27, -0.07, 0.07, scale=0.5, col=c(0.7, 0.35, 0.05))
+        box(st, 0.72, 0.8, 0.1, 2.3, z, z + 0.08, scale=1.0, col=STEEL)
+        box(st, 0.8, 1.9, 0.12, 0.17, z - 0.02, z + 0.1, scale=1.0, col=STEEL)
+        box(st, -0.55, -0.5, 1.1, 2.1, z, z + 0.06, scale=1.0, col=STEEL)
+        box(st, 0.3, 0.35, 1.1, 2.1, z, z + 0.06, scale=1.0, col=STEEL)
+    box(st, 0.74, 0.8, 0.5, 1.2, -0.5, 0.5, scale=1.0, col=STEEL)
+    box(st, -0.6, 0.4, 2.1, 2.15, -0.52, 0.52, scale=1.0, col=STEEL, bottom=True)
+    box(kk("glow"), -0.2, -0.06, 2.15, 2.3, -0.07, 0.07, scale=0.5, col=GLOW["amber"])
 
 
 @P.proto("reel", box=(0.9, 0.9, 0.6), reach=260, detail=True)
@@ -1565,15 +1818,6 @@ def _reel(kk):
         a0, a1 = t * math.tau / 8, (t + 1) * math.tau / 8
         quad(kk("trim"), (0.5 * math.cos(a1), 0.9 + 0.5 * math.sin(a1), -0.47), (0.5 * math.cos(a0), 0.9 + 0.5 * math.sin(a0), -0.47),
              (0.5 * math.cos(a0), 0.9 + 0.5 * math.sin(a0), 0.47), (0.5 * math.cos(a1), 0.9 + 0.5 * math.sin(a1), 0.47), col=c(0.03, 0.03, 0.035))
-
-
-@P.proto("tote", box=(0.6, 0.6, 0.5), reach=260, detail=True)
-def _tote(kk):
-    """An IBC tote: a pale tank in its cage on a pallet."""
-    box(kk("trim"), -0.6, 0.6, 0.0, 0.14, -0.5, 0.5, scale=1.0, col=WOOD)
-    box(kk("trim"), -0.55, 0.55, 0.14, 1.2, -0.45, 0.45, scale=1.0, col=c(0.5, 0.52, 0.5))
-    for y in (0.45, 0.8, 1.2):
-        box(kk("trim"), -0.58, 0.58, y, y + 0.04, -0.48, 0.48, scale=1.0, col=STEEL)
 
 
 @P.proto("tyres", box=(0.4, 0.5, 0.4), reach=220, detail=True)
