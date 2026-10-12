@@ -441,7 +441,7 @@
    "name": "anchor_lamp_santo_24",
    "kind": "anchor",
    "at": [
-    350.0,
+    342.6,
     6.41,
     -15.85
    ],
@@ -452,7 +452,7 @@
    "name": "anchor_lamp_santo_25",
    "kind": "anchor",
    "at": [
-    372.0,
+    381.6,
     6.41,
     -15.85
    ],
@@ -1201,6 +1201,57 @@
     "reach": 90.0,
     "x0": -94.0,
     "x1": 92.0
+   }
+  },
+  {
+   "name": "anchor_searchlight_plaza_0",
+   "kind": "anchor",
+   "at": [
+    66.0,
+    45.25,
+    -278.0
+   ],
+   "yaw": 0.0,
+   "district": "plaza",
+   "extras": {
+    "yaw": 0.5,
+    "pitch": 1.2,
+    "length": 180.0,
+    "color": "eceae4"
+   }
+  },
+  {
+   "name": "anchor_searchlight_plaza_1",
+   "kind": "anchor",
+   "at": [
+    96.0,
+    33.05,
+    -290.0
+   ],
+   "yaw": 0.0,
+   "district": "plaza",
+   "extras": {
+    "yaw": -0.4,
+    "pitch": 1.3,
+    "length": 180.0,
+    "color": "27dcf2"
+   }
+  },
+  {
+   "name": "anchor_searchlight_plaza_2",
+   "kind": "anchor",
+   "at": [
+    143.5,
+    36.45,
+    -138.0
+   ],
+   "yaw": 0.0,
+   "district": "plaza",
+   "extras": {
+    "yaw": -1.2,
+    "pitch": 1.25,
+    "length": 180.0,
+    "color": "eceae4"
    }
   },
   {
@@ -2217,7 +2268,7 @@
    "at": [
     414.0,
     6.8,
-    -110.5
+    -108.67
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2578,9 +2629,9 @@
    "name": "anchor_steam_roof_santo_56",
    "kind": "anchor",
    "at": [
-    480.26,
+    466.87,
     9.4,
-    -90.5
+    -66.0
    ],
    "yaw": 0.0,
    "district": "santo"
