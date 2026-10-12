@@ -882,12 +882,13 @@ def _jt_duct(k):
     """A kitchen's extract: out of the wall over head height, up it in a
     square duct on two straps to a cowl, grease on the wall under it."""
     T = k("trim")
-    box(T, -0.2, 0.2, 2.3, 2.7, 0.0, 0.55, scale=1.0, col=GALV, bottom=True)
-    box(T, -0.2, 0.2, 2.7, 5.6, 0.15, 0.55, scale=1.0, col=GALV)
+    duct = (0.34, 0.35, 0.36, 1)    # (galvanised and new-ish: at GALV it was a black slab in a dark lane)
+    box(T, -0.2, 0.2, 2.3, 2.7, 0.0, 0.55, scale=1.0, col=duct, bottom=True)
+    box(T, -0.2, 0.2, 2.7, 5.6, 0.15, 0.55, scale=1.0, col=duct)
     box(T, -0.27, 0.27, 5.6, 5.85, 0.08, 0.62, scale=1.0, col=(0.13, 0.135, 0.14, 1), bottom=True)
     for y in (3.4, 4.7):
         box(T, -0.23, 0.23, y, y + 0.06, 0.0, 0.58, scale=1.0, col=STEEL_D, bottom=True)
-    quad(T, (-0.24, 0.8, 0.025), (0.3, 0.8, 0.025), (0.2, 2.3, 0.025), (-0.2, 2.3, 0.025), col=GREASE)
+    quad(T, (-0.22, 1.5, 0.025), (0.26, 1.5, 0.025), (0.2, 2.3, 0.025), (-0.2, 2.3, 0.025), col=(0.07, 0.06, 0.05, 1))
 
 
 @P.proto("jt_pipes", box=(0.35, 2.3, 0.15), reach=220, detail=True)
@@ -1218,3 +1219,21 @@ def _jt_bills(k):
         _bill(k, x, 0.6)
     _bill(k, 1.04, 0.42, half=True)
     poly(T, [(0.83, 0.49, 0.016), (1.25, 0.49, 0.016), (1.25, 0.56, 0.02), (1.1, 0.6, 0.02), (0.92, 0.54, 0.02)], [(0, 0)] * 5, PAPER_TORN)
+
+
+# ---------------------------------------------------------------------------
+# A lane's bulkhead lamp (round 3: no lane wall four metres without one): a
+# short bracket off the wall, a hood, the lens under it, in four lights.
+# The origin is on the wall's plane at the bracket's foot.
+# ---------------------------------------------------------------------------
+def _sconce(k, lens):
+    M = k("metal")
+    box(M, -0.05, 0.05, -0.12, 0.12, 0.0, 0.06, scale=0.5)
+    box(M, -0.14, 0.14, 0.12, 0.17, 0.0, 0.26, scale=0.5, bottom=True)
+    quad(k("glow"), (-0.11, 0.04, 0.22), (0.11, 0.04, 0.22), (0.11, 0.12, 0.22), (-0.11, 0.12, 0.22), col=lens)
+    quad(k("glow"), (-0.11, 0.04, 0.06), (0.11, 0.04, 0.06), (0.11, 0.04, 0.22), (-0.11, 0.04, 0.22), col=lens)
+
+
+for _nm, _col in (("jt_sconce", (0.95, 0.55, 0.22, 1)), ("jt_sconce_g", (0.35, 0.9, 0.5, 1)), ("jt_sconce_c", (0.35, 0.8, 0.95, 1)),
+                  ("jt_sconce_w", (0.62, 0.62, 0.56, 1))):
+    P.proto(_nm, box=(0.15, 0.15, 0.13), reach=200)(lambda k, _c=_col: _sconce(k, _c))

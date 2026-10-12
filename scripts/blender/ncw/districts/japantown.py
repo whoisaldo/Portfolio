@@ -624,7 +624,14 @@ def lobbies():
         quad((D, "trim", 1), p0, p1, (p1[0], 1.6, p1[2]), (p0[0], 1.6, p0[2]), col=J.GALV)
         # Its back: sheet from side to side, and the door a metre wide in its frame.
         f.quad((D, "metal", 1), a + 0.2, b - 0.2, G0, 2.44, -0.885)
-        f.quad((D, "door", 0), (a + b) / 2 - 0.475, (a + b) / 2 + 0.475, G0, G0 + 2.1, -0.87)
+        # (Round 3: a glazed door onto the lit foot of the stair, where the
+        # wall's marks drew black and white blocks over a steel leaf.)
+        m_ = (a + b) / 2
+        f.quad((D, "metal", 1), m_ - 0.475, m_ + 0.475, G0, G0 + 0.9, -0.87)
+        f.quad((D, "metal", 1), m_ - 0.475, m_ + 0.475, G0 + 2.0, G0 + 2.1, -0.87)
+        f.quad((D, "shop", 0), m_ - 0.4, m_ + 0.4, G0 + 0.9, G0 + 2.0, -0.875, uvs=((1.0, 0.5), (1.8, 0.5), (1.8, 1.6), (1.0, 1.6)), col=(0.9, 0.2, 1.0, 1.0))
+        for e_ in (m_ - 0.475, m_ + 0.4):
+            f.quad((D, "metal", 1), e_, e_ + 0.075, G0 + 0.9, G0 + 2.0, -0.865)
         J.put("jt_door", *f.p(f.at((a + b) / 2), G0, -0.88), f.yaw, 0.92)
         if n % 3 == 0:
             light(D, *f.p(f.at((a + b) / 2), 2.2, -0.4), "white", 2.6)
@@ -689,8 +696,8 @@ def _fire_escape(district, f, s, y0, y1):
         n += 1
 
 
-LANE_WALLS = ((0.16, 0.15, 0.13, 1), (0.11, 0.13, 0.15, 1), (0.15, 0.1, 0.085, 1), (0.09, 0.12, 0.115, 1), (0.13, 0.13, 0.14, 1), (0.17, 0.13, 0.1, 1),
-              (0.08, 0.09, 0.12, 1))
+LANE_WALLS = ((0.17, 0.17, 0.16, 1), (0.12, 0.16, 0.19, 1), (0.18, 0.13, 0.11, 1), (0.11, 0.16, 0.16, 1), (0.15, 0.16, 0.18, 1), (0.19, 0.16, 0.13, 1),
+              (0.1, 0.12, 0.18, 1))
 WINDOWS = ((0.8, 0.6, 1.95), (1.0, 1.1, 1.35), (1.0, 1.1, 1.35), (1.5, 1.0, 1.45), (0.7, 1.4, 1.2), (1.2, 0.8, 1.7))
 KEEP = []   # (a wall's plane, from, to): a stall or a column stands against it, so only flat things there
 
@@ -702,11 +709,12 @@ def kept(f, s0, s1):
 
 def lens(f, hue, s0, s1, y0, y1, w0, w1):
     """A lamp's lens under its hood: its front and its underside (a phone
-    draws these, so no more of it than is seen)."""
-    k = (D, "neon_" + hue, 0)
-    f.quad(k, s0, s1, y0, y1, w1)
+    draws these, so no more of it than is seen). A white one is a lit
+    `glow` (a neon white lens two metres off reads as a blown-out square)."""
+    k, col = ((D, "glow", 0), (0.3, 0.3, 0.27, 1)) if hue == "white" else ((D, "neon_" + hue, 0), (1, 1, 1, 1))
+    f.quad(k, s0, s1, y0, y1, w1, col=col)
     a, b = f.at(s0), f.at(s1)
-    quad(k, f.p(b, y0, w1), f.p(a, y0, w1), f.p(a, y0, w0), f.p(b, y0, w0))
+    quad(k, f.p(b, y0, w1), f.p(a, y0, w1), f.p(a, y0, w0), f.p(b, y0, w0), col=col)
 
 
 def conduit(f, s0, s1, y, t, out=0.07):
@@ -732,9 +740,36 @@ def services(f, s0, s1, breaks, rx, y=G0 + 3.3):
         at = max(at, b1)
 
 
+DOOR_PAINT = ((0.1, 0.17, 0.12, 1), (0.24, 0.07, 0.06, 1), (0.1, 0.13, 0.2, 1), (0.28, 0.14, 0.05, 1), (0.3, 0.29, 0.25, 1), (0.06, 0.17, 0.18, 1),
+              (0.16, 0.16, 0.17, 1), (0.2, 0.1, 0.16, 1))
+
+
 def lane_door(f, sc, r):
-    f.quad((D, "door", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.03)
+    """A back door under its lamp: painted steel, now with a lit wired pane
+    in it, now standing open on a lit room up a step (its own stream, so the
+    lane's is drawn as it was)."""
     x, _, z = f.p(f.at(sc), G0, 0.0)
+    rd = random.Random(round(x * 7.0) * 1009 + round(z * 13.0))
+    roll = rd.random()
+    paint = rd.choice(DOOR_PAINT)
+    if roll < 0.3:
+        f.quad((D, "shop", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.01, uvs=((1.0, 0.0), (1.95, 0.0), (1.95, 2.1), (1.0, 2.1)),
+               col=(rd.uniform(0.6, 1.0), rd.choice((0.2, 0.32, 0.6, 0.8)), 1.0, 1.0))
+        # The leaf stands open into the lane off its hinge.
+        hs = sc - 0.475 if rd.random() < 0.5 else sc + 0.475
+        h0 = f.p(f.at(hs), G0, 0.03)
+        ang = rd.uniform(1.1, 1.45)
+        sgn = 1.0 if hs < sc else -1.0
+        tx, tz = f.p(f.at(hs + sgn), G0, 0.0)[0] - f.p(f.at(hs), G0, 0.0)[0], f.p(f.at(hs + sgn), G0, 0.0)[2] - f.p(f.at(hs), G0, 0.0)[2]
+        nx_, nz_ = f.nx, f.nz
+        ex, ez = h0[0] + 0.92 * (math.cos(ang) * tx + math.sin(ang) * nx_), h0[2] + 0.92 * (math.cos(ang) * tz + math.sin(ang) * nz_)
+        for a_, b_ in (((h0[0], h0[2]), (ex, ez)), ((ex, ez), (h0[0], h0[2]))):
+            quad((D, "trim", 0), (a_[0], G0 + 0.02, a_[1]), (b_[0], G0 + 0.02, b_[1]), (b_[0], G0 + 2.08, b_[1]), (a_[0], G0 + 2.08, a_[1]), col=paint)
+        light(D, *f.p(f.at(sc), 0.3, 1.2), "amber", 2.4)
+    else:
+        f.quad((D, "trim", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.03, col=paint)
+        if roll < 0.55:
+            f.quad((D, "glow", 0), sc - 0.17, sc + 0.17, G0 + 1.4, G0 + 1.82, 0.035, col=rd.choice(((0.1, 0.065, 0.03, 1), (0.045, 0.06, 0.07, 1), (0.09, 0.075, 0.045, 1))))
     J.put("jt_door", x, G0, z, f.yaw)
     hue = "amber" if r.random() < 0.8 else "white"
     lens(f, hue, sc - 0.11, sc + 0.11, G0 + 2.4, G0 + 2.56, 0.06, 0.2)
@@ -754,8 +789,15 @@ def lane_window(f, s0, r, kind):
         col = (r.uniform(0.0, 0.55), r.choice((0.2, 0.26, 0.32, 0.38, 0.6, 0.8, 0.95)), 1.0, 1.0)
         f.quad((D, "shop", 0), s0, s0 + ww, y0, y0 + wh, 0.02, uvs=((1.0, 0.9), (1.0 + ww, 0.9), (1.0 + ww, 0.9 + wh), (1.0, 0.9 + wh)), col=col)
     else:
-        # (Unlit glass: the dark of the room, in the batch every tile has.)
-        f.quad((D, "glow", 0), s0, s0 + ww, y0, y0 + wh, 0.02, col=(0.0035, 0.005, 0.007, 1))
+        x, _, z = f.p(f.at(s0 + ww / 2), y0, 0.0)
+        rw = random.Random(round(x * 11.0) * 1013 + round(z * 7.0))
+        if rw.random() < 0.65:
+            # (Round 3: two in three that were dark have a lamp on low.)
+            f.quad((D, "shop", 0), s0, s0 + ww, y0, y0 + wh, 0.02, uvs=((1.0, 0.9), (1.0 + ww, 0.9), (1.0 + ww, 0.9 + wh), (1.0, 0.9 + wh)),
+                   col=(rw.uniform(0.0, 0.2), rw.choice((0.2, 0.6, 0.95)), 1.0, 1.0))
+        else:
+            # (Unlit glass: the dark of the room, in the batch every tile has.)
+            f.quad((D, "glow", 0), s0, s0 + ww, y0, y0 + wh, 0.02, col=(0.006, 0.008, 0.011, 1))
     x, _, z = f.p(f.at(s0 + ww / 2), y0, 0.0)
     J.put("jt_win" if r.random() < 0.6 else "jt_win_b", x, y0, z, f.yaw, wh, ww)
 
@@ -1026,6 +1068,35 @@ def deck_towers():
                 s += (got[0] or 0.6) + r.uniform(0.5, 1.5)
 
 
+def lane_more(f, w, fixtures, free, r):
+    """Round 3, on its own stream: no stretch of a lane's wall goes four
+    metres without a light (a bulkhead lamp on a short arm, warm or cold,
+    its pool under it); the flat stretches by an alley's mouth, where
+    nothing may stand out from the wall, are pasted with bills."""
+    pts = sorted([0.0] + fixtures + [w])
+    k = 0
+    for a, b in zip(pts, pts[1:]):
+        if b - a > 4.2:
+            sc = (a + b) / 2
+            name = r.choice(("jt_sconce", "jt_sconce", "jt_sconce_g", "jt_sconce_w", "jt_sconce_c"))
+            J.put(name, *f.p(f.at(sc), G0 + 2.6, 0.0), f.yaw)
+            if k % 2 == 0:
+                light(D, *f.p(f.at(sc), 2.5, 0.8), {"jt_sconce": "amber", "jt_sconce_g": "green", "jt_sconce_w": "white", "jt_sconce_c": "cyan"}[name], 2.2)
+            k += 1
+    run = []
+    for s in free + [9e9]:
+        if run and s - run[-1] > 0.75:
+            a, b = run[0], run[-1] + 0.6
+            if b - a > 2.4 and r.random() < 0.7:
+                x, _, z = f.p(f.at(a + 0.98), G0, 0.0)   # (a prototype's +x runs the way s does)
+                J.put("jt_bills", x, G0 + r.uniform(0.95, 1.15), z, f.yaw)
+            elif b - a > 0.75 and r.random() < 0.75:
+                x, _, z = f.p(f.at((a + b) / 2), G0, 0.0)
+                J.put("jt_bill", x, G0 + r.uniform(1.0, 1.3), z, f.yaw)
+            run = []
+        run.append(s)
+
+
 def lane_face(rec, name, cap=None):
     """A back on a lane or a side on a cross alley (see the note above)."""
     r, h = rng(rec, "lane" + name), rec["h"]
@@ -1033,7 +1104,9 @@ def lane_face(rec, name, cap=None):
     w = f.width
     side = rec["sides"][name] == "open"
     f.quad((D, "plaster", 0), 0.0, w, 0.0, SHOP_H, 0.0, col=r.choice(LANE_WALLS))
-    f.box((D, "trim", 1), 0.0, w, 0.0, 0.95, 0.0, 0.06, col=(0.2, 0.2, 0.21, 1))
+    # (Its plinth is plaster too, so what is sprayed on the wall runs on
+    # down it whole: in trim a tag came out as lone yellow strokes.)
+    f.box((D, "plaster", 1), 0.0, w, 0.0, 0.95, 0.0, 0.06, col=(0.13, 0.13, 0.135, 1))
     k = (D, "metal", 1)
     conduit(f, 0.15, w - 0.15, G0 + 3.05, 0.05)
     if r.random() < 0.6:
@@ -1049,14 +1122,15 @@ def lane_face(rec, name, cap=None):
     if w > 6.0:
         P.place("pipe_v", *f.p(f.at(w - 0.3), G0, 0.0), f.yaw, sy=h - G0, district=D)
     breaks = []
+    fixtures, free = [], []
     while s < w - 0.7:
         room = w - 0.3 - s
         if s - lamp > 7.0:
             # A caged lamp on the conduit, over head height.
             hue = "amber" if r.random() < 0.75 else "white"
-            lens(f, hue, s + 0.14, s + 0.36, G0 + 2.82, G0 + 2.98, 0.05, 0.2)
-            f.box(k, s + 0.08, s + 0.42, G0 + 2.98, G0 + 3.05, 0.0, 0.26)
+            J.put("jt_sconce" if hue == "amber" else "jt_sconce_w", *f.p(f.at(s + 0.25), G0 + 2.82, 0.0), f.yaw)
             light(D, *f.p(f.at(s + 0.25), 2.8, 0.9), hue, 3.0)
+            fixtures.append(s + 0.25)
             lamp = s
             s += 0.6
             continue
@@ -1066,6 +1140,7 @@ def lane_face(rec, name, cap=None):
         roll = r.random()
         if (roll < 0.15 or (doors == 0 and s > w * 0.35)) and room > 1.35 and s - last_door > 4.0:
             lane_door(f, s + 0.65, r)
+            fixtures.append(s + 0.65)
             doors, last_door, lamp = doors + 1, s, s
             s += 1.3
         elif roll < 0.33 and room > 1.3:
@@ -1077,6 +1152,7 @@ def lane_face(rec, name, cap=None):
         elif roll < 0.38 and room > 3.4 and not flat:
             sw = r.uniform(2.6, min(3.6, room - 0.3))
             lane_shutter(f, s + 0.15, sw, r)
+            fixtures.append(s + 0.15 + sw / 2)
             breaks.append((s - 0.1, s + sw + 0.4))
             lamp = s + sw / 2
             s += sw + 0.3
@@ -1108,9 +1184,11 @@ def lane_face(rec, name, cap=None):
         elif not flat and room > 0.9:
             s += lane_stuff(f, s, room, r, side)
         else:
+            free.append(s)
             s += 0.6
         s += r.uniform(0.2, 0.9) * 0.55
     services(f, 0.3, w - 0.3, breaks, rx)
+    lane_more(f, w, fixtures, free, rng(rec, "more" + name))
     if r.random() < 0.5 and w > 4.0:
         a = r.uniform(0.5, w - 3.0)
         strip(f, r.choice(NEONS), a, a + r.uniform(1.6, 2.6), SHOP_H + 0.25, SHOP_H + 0.33, 0.08)
@@ -1147,7 +1225,7 @@ def flush_shops(f, r, tcol):
                 J.put("jt_meters", *f2.p(f2.at(sc + 1.65), G0, 0.0), f.yaw)
             strip(f2, rd.choice(("cyan", "pink", "green", "amber")), a + 0.1, b - 0.1, 3.36, 3.43, 0.06)
         elif r.random() < 0.86:
-            f.quad((D, "shop", 0), a, b, 0.55, 3.3, 0.07, col=(r.uniform(0.4, 1.0), r.random(), 1.0 if r.random() < 0.92 else 0.0, 1.0))
+            f.quad((D, "shop", 0), a, b, 0.55, 3.3, 0.07, col=(r.uniform(0.75, 1.0), r.random(), 1.0 if r.random() < 0.92 else 0.0, 1.0))
             colour = r.choice(STYLE["shop_colours"])
             if r.random() < 0.5:
                 _awning(D, f, a, b, colour)
@@ -2965,6 +3043,83 @@ for (dist, mat, _), b in batches.items():
         if abs(cx) < 20.0 and cy > 1.0:
             _bad += 1
 B.billboard = _kit_billboard
+# The lantern alley's shops seen from three metres (the generator's panes
+# on row A's back): every room's lamps at least four fifths up, so none is a
+# dark hole with its tubes floating in it.
+_sb = batches[(D, "shop", 0)]
+_lit = 0
+for fc in _sb.faces:
+    xs_ = [_sb.verts[i][0] for i in fc]
+    if all(abs(xv - NAKA[1]) < 0.6 or abs(xv - NAKA[0]) < 0.6 for xv in xs_):
+        for i in fc:
+            c_ = _sb.cols[i]
+            if c_[0] < 0.8:
+                _sb.cols[i] = (0.8 + 0.2 * c_[0], c_[1], c_[2], c_[3])
+                _lit += 1
+print("japantown: lantern alley panes brightened:", _lit // 4)
+# A phone's pack (1.0 MB) holds the district's walls, glass, signs and
+# lamps; trim smaller than a hand's breadth square (the generator's sills,
+# brackets, the ends of rails and ledges, the frames' returns) is detail,
+# as the brief has small ornament: drawn on a desktop, left off a phone.
+def _small_to_detail(mat, amax):
+    import mathutils
+    src = batches.get((D, mat, 0))
+    if not src:
+        return 0
+    dst = batches[(D, mat, 1)]
+    keep_ = Batch()
+    moved = 0
+    for fc in src.faces:
+        v = [mathutils.Vector(src.verts[i]) for i in fc]
+        area = sum(((v[k] - v[0]).cross(v[k + 1] - v[0])).length / 2 for k in range(1, len(v) - 1))
+        tgt = dst if area < amax else keep_
+        base = len(tgt.verts)
+        tgt.verts.extend(src.verts[i] for i in fc)
+        tgt.uvs.extend(src.uvs[i] for i in fc)
+        tgt.cols.extend(src.cols[i] for i in fc)
+        tgt.faces.append(tuple(range(base, base + len(fc))))
+        moved += (len(fc) - 2) if area < amax else 0
+    batches[(D, mat, 0)] = keep_
+    return moved
+
+
+# Two pools of one hue within a stride of each other are one pool between
+# them, as strong as the stronger and a third of the other (each pool is
+# twenty bytes of the pack on both tiers).
+def _merge_lights(dist=1.6):
+    flat = LIGHTS.get(D, [])
+    pts = [list(flat[i:i + 5]) for i in range(0, len(flat), 5)]
+    pts.sort(key=lambda q: (q[3], q[0], q[2]))
+    out, used = [], [False] * len(pts)
+    for i, a in enumerate(pts):
+        if used[i]:
+            continue
+        for j in range(i + 1, min(len(pts), i + 40)):
+            b = pts[j]
+            if used[j] or b[3] != a[3] or abs(b[0] - a[0]) > dist * 10:
+                continue
+            if (b[0] - a[0]) ** 2 + (b[2] - a[2]) ** 2 < (dist * 10) ** 2 and abs(b[1] - a[1]) < 12:
+                hi, lo = (a, b) if a[4] >= b[4] else (b, a)
+                a = [round((a[0] + b[0]) / 2), round((a[1] + b[1]) / 2), round((a[2] + b[2]) / 2), a[3], round(hi[4] + lo[4] / 3)]
+                used[j] = True
+        out.append(a)
+    LIGHTS[D] = [v for q in out for v in q]
+    return len(pts), len(out)
+
+
+print("japantown: light pools merged:", _merge_lights())
+print("japantown: small trim to detail:", _small_to_detail("trim", 0.08), "triangles")
+if os.environ.get("JT_SMALL"):
+    def _area(b, fc):
+        import mathutils
+        v = [mathutils.Vector(b.verts[i]) for i in fc]
+        return sum(((v[k] - v[0]).cross(v[k + 1] - v[0])).length / 2 for k in range(1, len(v) - 1))
+    for _m in ("trim", "glow", "metal", "board_frame", "plaster"):
+        _b = batches.get((D, _m, 0))
+        if not _b:
+            continue
+        _ar = [(_area(_b, fc), len(fc) - 2) for fc in _b.faces]
+        print("japantown small", _m, sum(t for _, t in _ar), [(th, sum(t for a_, t in _ar if a_ < th)) for th in (0.01, 0.03, 0.06, 0.1, 0.2)])
 if os.environ.get("JT_DUMP"):
     # (For whoever is working on the district: every lot, to a file.)
     import json
