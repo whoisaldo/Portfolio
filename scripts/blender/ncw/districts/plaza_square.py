@@ -23,6 +23,7 @@ from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.plaza_parts import *  # noqa: F401,F403
+from ncw.districts.plaza_hub import HX, HZ, RK, RO, STAIR, at as hub_at
 
 X0, X1, Z0, Z1 = 48.0, 108.0, -262.0, -190.0
 G = 0.15
@@ -30,14 +31,14 @@ TY = SHOP_H           # the terraces' floor: a shop's height over the square
 TX = 92.0             # their west edge
 TN = (-264.0, -234.0)  # the north terrace, against the board's block
 TS = (-226.0, -200.0)  # the south terrace
-STAIR = (83.6, TX, -224.0, -206.0)
-HUB = (79.0, -213.0, 9.5)
+assert STAIR[1] == TX
 rs = random.Random(8400)
 
 # ---------------------------------------------------------------------------
 # Paving: slabs in courses, each its own tone, joints open to a dark bed.
 # ---------------------------------------------------------------------------
-ground((PL, "dark", 0), X0, X1, Z0, Z1, y=G - 0.03, scale=2.0)
+for piece in rect_minus_disc(X0, X1, Z0, Z1, HX, HZ, RK - 0.02):
+    up_poly((PL, "dark", 0), piece, G - 0.03)
 STONE = ((0.27, 0.28, 0.31), (0.27, 0.28, 0.31), (0.33, 0.34, 0.37), (0.44, 0.45, 0.48), (0.13, 0.135, 0.15))
 
 
@@ -54,8 +55,9 @@ def pave(x0, x1, z0, z1, r):
                 w = x1 - x
             t = r.choice(STONE)
             k = r.uniform(0.86, 1.14)
-            pts = ((x + 0.03, G, z - 0.03), (x + w - 0.03, G, z - 0.03), (x + w - 0.03, G, z - d + 0.03), (x + 0.03, G, z - d + 0.03))
-            quad((PL, "paint", 0), *pts, uvs=tuple((p[0] / 2.0, -p[2] / 2.0) for p in pts), col=(t[0] * k, t[1] * k, t[2] * k, 1.0))
+            # (Cut round the hub's ring of radial paving.)
+            for piece in rect_minus_disc(x + 0.03, x + w - 0.03, z - d + 0.03, z - 0.03, HX, HZ, RO):
+                up_poly((PL, "paint", 0), piece, G, (t[0] * k, t[1] * k, t[2] * k, 1.0))
             x += w
         z -= d
 
@@ -64,62 +66,10 @@ for rect in ((X0, STAIR[0], Z0, Z1), (STAIR[0], X1, TS[1], Z1), (STAIR[0], TX, S
              (STAIR[0], X1, TN[1], TS[0]), (STAIR[0], TX, Z0, TN[1])):
     pave(rect[0], rect[1], rect[2], rect[3], rs)
 
-# Lines of light in the stone: the promenade's two edges in front of the
-# board, a yellow line along the plaza street's side (YRL74JmhVgk@30), and
-# ticks round the hub like a dial.
-for z in (-233.3, -226.7):
-    gline("cyan", 50.5, z, STAIR[0] - 0.6, z, G + 0.012)
+# A yellow line of light in the stone along the plaza street's side
+# (YRL74JmhVgk@30). The hub in the square's middle, its ring and its spokes
+# are plaza_hub.py's.
 gline("yellow", 49.0, -191.5, 107.0, -191.5, G + 0.012, w=0.1)
-for i in range(16):
-    a = i * math.tau / 16 + math.tau / 32
-    gline("cyan", HUB[0] + 11.3 * math.cos(a), HUB[1] + 11.3 * math.sin(a), HUB[0] + 13.2 * math.cos(a), HUB[1] + 13.2 * math.sin(a),
-          G + 0.012, w=0.09)
-
-# ---------------------------------------------------------------------------
-# The hub: a glass roof, faceted, lit from the hall under it, in a stone
-# kerb people sit on, and over its middle a spire of light.
-# ---------------------------------------------------------------------------
-hx, hz, hr = HUB
-N = 16
-kerb = ngon(hx, hz, hr + 0.8, 24)
-walls((PL, "concrete", 0), kerb, G, 0.62, (1, 1, 1, 1))
-walls((PL, "concrete", 0), list(reversed(ngon(hx, hz, hr, 24))), 0.4, 0.62, (1, 1, 1, 1))
-ring((PL, "concrete", 0), hx, hz, hr, hr + 0.8, 0.62, n=24)
-walls((PL, "neon_cyan", 0), ngon(hx, hz, hr + 0.83, 24), G + 0.02, G + 0.08, (1, 1, 1, 1))
-RINGS = ((hr, 0.42), (6.3, 1.05), (3.1, 1.5))
-for i in range(N):
-    a0, a1 = i * math.tau / N, (i + 1) * math.tau / N
-    for j, (r0, y0) in enumerate(RINGS):
-        r1, y1 = RINGS[j + 1] if j + 1 < len(RINGS) else (0.0, 1.68)
-        p = [(hx + rr * math.cos(a), yy, hz + rr * math.sin(a)) for rr, yy in ((r0, y0), (r1, y1)) for a in (a0, a1)]
-        tone = lambda: dim("teal", rs.uniform(0.05, 0.2)) if rs.random() < 0.85 else dim("white", rs.uniform(0.07, 0.13))  # noqa: E731
-        up_tri((PL, "glow", 0), p[0], p[1], p[2], tone())
-        if r1 > 0:
-            up_tri((PL, "glow", 0), p[1], p[3], p[2], tone())
-# Its glazing bars: a rib down each joint between the panes and a ring at
-# each break in the slope, steel against the light.
-for i in range(N):
-    a = i * math.tau / N
-    pts = [(hx + rr * math.cos(a), yy + 0.03, hz + rr * math.sin(a)) for rr, yy in RINGS] + [(hx, 1.71, hz)]
-    for p0, p1 in zip(pts, pts[1:]):
-        pipe((PL, "metal", 1), p0, p1, 0.045, segs=3)
-    for rr, yy in RINGS[1:]:
-        a1 = (i + 1) * math.tau / N
-        pipe((PL, "metal", 1), (hx + rr * math.cos(a), yy + 0.03, hz + rr * math.sin(a)),
-             (hx + rr * math.cos(a1), yy + 0.03, hz + rr * math.sin(a1)), 0.045, segs=3)
-for i in range(12):
-    a = i * math.tau / 12
-    light(PL, hx + (hr + 2.0) * math.cos(a), 0.6, hz + (hr + 2.0) * math.sin(a), "teal", 3.5)
-# The spire: rings of light stepping in up a mast of four lines, a lamp at
-# its tip, all under the low camera's line to the board's foot.
-for dx, dz in ((0.45, 0.0), (-0.45, 0.0), (0.0, 0.45), (0.0, -0.45)):
-    box((PL, "glow", 0), hx + dx - 0.03, hx + dx + 0.03, 1.6, 7.7, hz + dz - 0.03, hz + dz + 0.03, scale=1.0, col=dim("cyan", 0.5))
-for i in range(7):
-    rr, yy = 2.0 - 0.22 * i, 2.5 + 0.8 * i
-    colour = "white" if i % 3 == 2 else "cyan"
-    walls((PL, "glow", 0), ngon(hx, hz, rr, 12, turn=i * 0.26), yy, yy + 0.07, dim(colour, 0.9))
-    ring((PL, "glow", 0), hx, hz, rr - 0.07, rr, yy + 0.07, n=12, col=dim(colour, 0.9), turn=i * 0.26)
-oriented_box((PL, "glow", 0), hx, 7.95, hz, 0.36, 0.36, 0.36, math.pi / 4, scale=1.0, col=GLOW["magenta"])
 
 # ---------------------------------------------------------------------------
 # Under the board: shops in the block's ground floor behind a canopy.
@@ -199,7 +149,7 @@ stair_x(STAIR[0], STAIR[1], STAIR[2], STAIR[3], G, TY + 0.01)
 for z in (STAIR[2], STAIR[3]):
     light(PL, 86.0, 1.0, z + (0.8 if z == STAIR[3] else -0.8), "cyan", 3.0)
     light(PL, 90.0, 2.0, z + (0.8 if z == STAIR[3] else -0.8), "cyan", 3.0)
-for z in (-221.0, -215.0, -209.0):
+for z in (-217.5, -212.5, -207.5):
     light(PL, 87.5, 2.4, z, "cyan", 2.0)
 # What the terraces hold: a hedge line under the screens, beds and benches,
 # palms on the south one (the Work shot's frame passes over the north).
@@ -275,18 +225,8 @@ P.place("cctv", 51.6, G, -196.2, district=PL)
 P.place("cctv", 106.0, G, -198.6, district=PL)
 big_sign("bl", 1.8, 105.6, G + 0.9 + 4.5, -196.6, math.pi / 4)
 box((PL, "concrete", 0), 104.9, 106.3, G, G + 0.9, -197.3, -195.9, scale=1.0)
-# The garden between the promenade and the board: two rows of beds, trees
-# between the far row's, benches turned to the board.
-for i, bx_ in enumerate((56.0, 64.0, 72.0, 80.0)):
-    planter(bx_, bx_ + 5.0, -247.6, -246.0, r=rs, side="+z")
-    planter(bx_ + 2.0, bx_ + 7.0, -241.0, -239.4, r=rs, side="+z")
-    P.place("bench", bx_ + 4.5, G, -238.6, 0.0, district=PL)
-    P.place("bench", bx_ + 2.5, G, -244.6, math.pi, district=PL)
-    if i < 3:
-        P.place("planter_tree", bx_ + 6.5, G, -246.8, rs.uniform(0, 6.28), district=PL)
-        light(PL, bx_ + 6.5, 1.0, -246.8, "white", 2.5)
-for (px, pz, yaw) in ((54.6, -236.0, math.pi / 2), (90.0, -238.0, -math.pi / 2), (58.0, -199.0, math.pi), (66.0, -224.5, 0.0),
-                      (54.6, -216.0, math.pi / 2), (72.0, -251.5, 0.0), (86.0, -251.5, 0.0), (100.5, -196.4, math.pi)):
+for (px, pz, yaw) in ((90.6, -247.0, -math.pi / 2), (58.0, -199.0, math.pi), (54.6, -210.0, math.pi / 2), (72.0, -257.6, 0.0),
+                      (86.0, -257.6, 0.0), (100.5, -196.4, math.pi), (76.0, -208.0, math.pi)):
     P.place("lamp_plaza", px, G, pz, yaw, district=PL)
     # Its pool on the stone (the head is too small for the bake to find).
     light(PL, px + 1.8 * math.sin(yaw), 3.0, pz + 1.8 * math.cos(yaw), "white", 8.0)
@@ -304,19 +244,16 @@ P.place("bin", 91.0, G, -236.0, district=PL)
 # ---------------------------------------------------------------------------
 SEAT = G + 0.48
 # On the benches of the garden, the west strip and the south strip.
-for (px, pz, yaw) in ((60.3, -238.6, 0.0), (61.0, -238.6, 0.0), (76.8, -238.6, 0.0), (58.3, -244.6, math.pi), (74.9, -244.6, math.pi),
-                      (82.2, -244.6, math.pi), (52.0, -255.3, math.pi / 2), (52.0, -221.4, math.pi / 2), (52.0, -210.6, math.pi / 2),
+for (px, pz, yaw) in ((52.0, -255.3, math.pi / 2), (52.0, -221.4, math.pi / 2), (52.0, -210.6, math.pi / 2),
                       (58.2, -193.6, math.pi), (66.9, -193.6, math.pi), (62.3, -258.2, 0.0), (76.4, -258.2, 0.0)):
     stand(px, pz, yaw, "sit", y=SEAT)
-# On the hub's kerb, looking out, and round it.
-for a in (0.5, 1.1, 2.6, 3.9, 4.4, 5.6):
-    stand(hx + (hr + 0.45) * math.cos(a), hz + (hr + 0.45) * math.sin(a), math.atan2(math.cos(a), math.sin(a)), "sit", y=0.62)
+# About the square.
 for (px, pz, yaw, pose) in ((67.0, -207.5, 1.0, "talk"), (68.1, -206.6, 1.0 + math.pi, "talk"), (82.6, -202.0, -1.8, "phone"),
                             (72.3, -200.4, 2.6, "idle"), (86.0, -202.5, 0.4, "talk"), (86.9, -201.5, 0.4 + math.pi, "talk"),
-                            (64.0, -221.5, math.pi, "phone"), (74.0, -236.3, math.pi, "idle"), (75.0, -236.0, math.pi, "idle"),
+                            
                             (88.0, -249.0, 2.2, "talk"), (89.0, -249.8, 2.2 + math.pi, "talk"), (88.2, -250.6, 0.4, "talk"),
                             (66.0, -252.5, math.pi, "idle"), (69.5, -254.0, 2.9, "phone"), (57.5, -251.0, 2.6, "smoke"),
-                            (58.4, -203.0, -math.pi / 2, "idle"), (59.4, -203.5, -math.pi / 2, "phone"), (53.0, -228.2, math.pi / 2, "lean"),
+                            (58.4, -203.0, -math.pi / 2, "idle"), (59.4, -203.5, -math.pi / 2, "phone"),
                             (79.5, -192.6, math.pi, "squat"), (97.0, -193.5, 0.0, "phone"), (102.5, -192.8, 2.4, "idle")):
     stand(px, pz, yaw, pose, y=G)
 # At the shops under the board, and the block's doors: security.
@@ -326,7 +263,7 @@ for (px, pz, yaw, pose) in ((55.0, -261.8, 0.0, "idle"), (71.5, -262.2, 0.0, "id
     stand(px, pz, yaw, pose, y=G)
 # On the stairs: sitting on the steps, standing on them.
 run_, rise_ = (STAIR[1] - STAIR[0]) / 28, (TY + 0.01 - G) / 28
-for (i, pz, pose) in ((5, -222.0, "sit"), (5, -221.3, "sit"), (11, -210.5, "sit"), (16, -216.5, "phone"), (8, -207.5, "idle"), (20, -223.0, "sit")):
+for (i, pz, pose) in ((5, -218.5, "sit"), (5, -217.8, "sit"), (11, -209.5, "sit"), (16, -214.5, "phone"), (8, -207.0, "idle"), (20, -219.0, "sit")):
     stand(STAIR[0] + (i + 0.5) * run_, pz, -math.pi / 2, pose, y=G + (i + 1) * rise_)
 # On the terraces: at the rails looking at the board and the square, on
 # the benches, at the kiosk, under the screens.

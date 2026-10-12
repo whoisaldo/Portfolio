@@ -80,6 +80,94 @@ def up_tri(key, a, b, c, col=(1, 1, 1, 1)):
     poly(key, [a, b, c], [(p[0] / 2.0, -p[2] / 2.0) for p in (a, b, c)], col)
 
 
+def down_poly(key, pts2, y, col=(1, 1, 1, 1), scale=2.0):
+    """The same facing down: a soffit."""
+    area = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(pts2, pts2[1:] + pts2[:1]))
+    if area < 0:
+        pts2 = list(reversed(pts2))
+    pts = [(x, y, z) for x, z in pts2]
+    poly(key, pts, [(p[0] / scale, -p[2] / scale) for p in pts], col)
+
+
+def vwall(key, a, b, y0, y1, col=(1, 1, 1, 1), scale=1.5, fit=False):
+    """A wall from a to b (x, z), facing the left of the way it is walked
+    (a to b reads left to right from in front of it). `fit` stretches one
+    picture over it (a screen); otherwise it is tiled by the metre."""
+    length = math.hypot(b[0] - a[0], b[1] - a[1])
+    uvs = ((0, 0), (1, 0), (1, 1), (0, 1)) if fit else ((0, y0 / scale), (length / scale, y0 / scale), (length / scale, y1 / scale), (0, y1 / scale))
+    quad(key, (a[0], y0, a[1]), (b[0], y0, b[1]), (b[0], y1, b[1]), (a[0], y1, a[1]), uvs, col)
+
+
+# ---------------------------------------------------------------------------
+# Cutting plans: a convex polygon of (x, z) points kept on one side of a
+# line, so paving can be laid round a circle and glazing inside one.
+# A plane is (nx, nz, d): the side kept is nx x + nz z <= d.
+# ---------------------------------------------------------------------------
+def clip_plane(pts, nx, nz, d):
+    out = []
+    for a, b in zip(pts, pts[1:] + pts[:1]):
+        da, db = nx * a[0] + nz * a[1] - d, nx * b[0] + nz * b[1] - d
+        if da <= 0:
+            out.append(a)
+        if (da < 0 < db) or (db < 0 < da):
+            t = da / (da - db)
+            out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+    return out
+
+
+def clip_planes(pts, planes):
+    pts = list(pts)
+    for nx, nz, d in planes:
+        pts = clip_plane(pts, nx, nz, d)
+        if len(pts) < 3:
+            return []
+    return pts
+
+
+def seg_clip(a, b, planes):
+    """The part of the line a to b inside every plane, or None."""
+    t0, t1 = 0.0, 1.0
+    for nx, nz, d in planes:
+        da, db = nx * a[0] + nz * a[1] - d, nx * b[0] + nz * b[1] - d
+        if da > 0 and db > 0:
+            return None
+        if da > 0:
+            t0 = max(t0, da / (da - db))
+        elif db > 0:
+            t1 = min(t1, da / (da - db))
+    if t1 - t0 < 1e-4:
+        return None
+    return ((a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0), (a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1))
+
+
+def disc_planes(cx, cz, r, n=48):
+    """The inside of the n-gon whose corners stand on the circle (at the
+    angles ngon() and ring() use, so pieces meet)."""
+    k = r * math.cos(math.pi / n)
+    return [(math.cos(a), math.sin(a), k + math.cos(a) * cx + math.sin(a) * cz) for a in ((i + 0.5) * math.tau / n for i in range(n))]
+
+
+def rect_minus_disc(x0, x1, z0, z1, cx, cz, r, n=48):
+    """A rectangle with a round hole cut in it, as the convex pieces left:
+    the whole of it when it stands clear, nothing when it is inside."""
+    rect = [(x0, z0), (x1, z0), (x1, z1), (x0, z1)]
+    k = r * math.cos(math.pi / n)
+    if math.hypot(min(max(cx, x0), x1) - cx, min(max(cz, z0), z1) - cz) >= r:
+        return [rect]
+    if max(math.hypot(x - cx, z - cz) for x, z in rect) <= k:
+        return []
+    out = []
+    for i in range(n):
+        a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
+        am = (a0 + a1) / 2
+        piece = clip_planes(rect, [(-math.cos(am), -math.sin(am), -k - math.cos(am) * cx - math.sin(am) * cz),
+                                   (math.sin(a0), -math.cos(a0), math.sin(a0) * cx - math.cos(a0) * cz),
+                                   (-math.sin(a1), math.cos(a1), -math.sin(a1) * cx + math.cos(a1) * cz)])
+        if len(piece) >= 3:
+            out.append(piece)
+    return out
+
+
 def ngon(cx, cz, r, n, turn=0.0):
     """A regular plan of n corners round (cx, cz), walked as cut_rect is
     (the outside on the left of each edge)."""
@@ -273,6 +361,38 @@ def rail(pts, y, colour="cyan", h=1.05, close=False):
         for i in range(m):
             sx, sz = ax + (bx_ - ax) * (i + 0.5) / m, az + (bz_ - az) * (i + 0.5) / m
             oriented_box((PL, "neon_" + colour, 0), sx, y + 0.07, sz, length / m, 0.05, 0.06, yaw, scale=1.0)
+
+
+def balustrade(pts, y, colour="cyan", h=1.05, close=False, lit=None, tint="teal"):
+    """A glass balustrade along a line of (x, z) points at floor level y
+    (KvMY1uzSC1E@43): slim posts, a steel top rail, the glass's lit edge
+    under it and a line of light along the foot. The glass itself is clear
+    (nothing is drawn) unless `lit` gives it a tint: what is seen against
+    the sky from below may be tinted, what is looked down through may not."""
+    segs = list(zip(pts, pts[1:] + (pts[:1] if close else [])))
+    if not close:
+        segs = segs[:len(pts) - 1]
+    for (ax, az), (bx_, bz_) in segs:
+        length = math.hypot(bx_ - ax, bz_ - az)
+        if length < 0.3:
+            continue
+        yaw = math.atan2(-(bz_ - az), bx_ - ax)
+        mx, mz = (ax + bx_) / 2, (az + bz_) / 2
+        oriented_box((PL, "metal", 0), mx, y + h, mz, length + 0.06, 0.06, 0.1, yaw, scale=0.5)
+        oriented_box((PL, "glow", 0), mx, y + h - 0.06, mz, length, 0.025, 0.03, yaw, scale=1.0, col=dim(tint, 0.8))
+        if lit:
+            for turn in (0.0, math.pi):
+                rotated_quad((PL, "glow", 0), mx, y + 0.1 + (h - 0.2) / 2, mz, length, h - 0.2, yaw + turn, col=dim(tint, lit))
+        n = max(1, int(round(length / 2.1)))
+        for i in range(n):
+            px_, pz_ = ax + (bx_ - ax) * i / n, az + (bz_ - az) * i / n
+            box((PL, "metal", 1), px_ - 0.035, px_ + 0.035, y, y + h, pz_ - 0.035, pz_ + 0.035, scale=0.5)
+        if not close and (bx_, bz_) == tuple(pts[-1]):
+            box((PL, "metal", 1), bx_ - 0.035, bx_ + 0.035, y, y + h, bz_ - 0.035, bz_ + 0.035, scale=0.5)
+        m = max(1, int(math.ceil(length / 3.2)))
+        for i in range(m):
+            sx, sz = ax + (bx_ - ax) * (i + 0.5) / m, az + (bz_ - az) * (i + 0.5) / m
+            oriented_box((PL, "neon_" + colour, 0), sx, y + 0.05, sz, length / m, 0.05, 0.05, yaw, scale=1.0)
 
 
 HEDGE = ((0.1, 0.28, 0.15, 1), (0.08, 0.24, 0.13, 1), (0.13, 0.32, 0.16, 1))
