@@ -258,6 +258,15 @@ const STANDS = [
 ];
 const HOT_PHONE = [11.4, -121.0];
 
+// A number out of a place. Everything about a person is dealt from where
+// they stand (or where their walk starts), never from how many came before
+// them: a district that stands one more somebody changes nobody else.
+function hashAt(x, z, salt = 0) {
+  let h = Math.imul(Math.round(x * 100) | 0, 73856093) ^ Math.imul(Math.round(z * 100) | 0, 19349663) ^ Math.imul((salt | 0) + 1, 83492791);
+  h = Math.imul(h ^ (h >>> 15), 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 3266489917);
+  return (h ^ (h >>> 16)) >>> 0;
+}
 function rng(seed) {
   let s = seed >>> 0;
   return () => {
@@ -279,44 +288,45 @@ const bits = (...tags) => tags.reduce((m, t) => m + 2 ** t, 0);
 // a seed) and their colours (jacket, trousers, skin, hair).
 const STRIDE = 20;
 /** Who is in the city: every walker of every walk, then everyone standing. */
-function populate({ phone, walks, standers, benches = [], bare = false }) {
-  const r = rng(1312);
+function populate({ phone, walks, standers, benches = [], bare = false, ahead = [] }) {
   const people = [];
-  const recent = [];
-  let before = { hue: -1, build: 0, hair: -1 };
   // One of a list of [what, odds] pairs, of those `ok` lets through.
-  const draw = (list, ok = null) => {
+  const draw = (r, list, ok = null) => {
     const fit = ok ? list.filter(([v]) => ok(v)) : list;
     const from = fit.length ? fit : list;
     let x = r() * from.reduce((sum, [, odds]) => sum + odds, 0);
     for (const [v, odds] of from) if ((x -= odds) < 0) return v;
     return from[from.length - 1][0];
   };
-  // A look nobody among the last few dozen shares, and nothing like the one
-  // before (who is the one beside them, ahead of them in the file or at the
-  // same stall): the jacket's colour and cut, the hair and the build are
-  // what the eye matches first, so next to each other no two have a jacket
-  // of the same family of colours (suits apart: a row of dark suits is the
-  // place), the same cut with the same hair, hair of the same colour or the
-  // same build. And nobody is one colour: the trousers and what is under the
-  // jacket are out of its family or, greys and blacks together, well apart
-  // from it in lightness; dyed hair is not the jacket's colour either.
-  const dress = ({ pose = null, umbrellaOdds = 0.38, at = [0, 0] } = {}) => {
+  // A look none of those round them shares (`near`: whoever is already
+  // dressed on the same pavement, the latest last, or within a few steps of
+  // where they stand, the nearest last), and nothing like the nearest: the
+  // jacket's colour and cut, the hair and the build are what the eye matches
+  // first, so next to each other no two have a jacket of the same family of
+  // colours (suits apart: a row of dark suits is the place), the same cut
+  // with the same hair, hair of the same colour or the same build. And nobody
+  // is one colour: the trousers and what is under the jacket are out of its
+  // family or, greys and blacks together, well apart from it in lightness;
+  // dyed hair is not the jacket's colour either. `r` is the person's own
+  // draw, out of where they are.
+  const dress = (r, near, { pose = null, umbrellaOdds = 0.38, at = [0, 0] } = {}) => {
     const where = r();
     const corpo = corpoAt(at[0], at[1]) * 0.86;
     const santo = santoAt(at[0], at[1]) * 0.86;
     const style = STYLES[where < corpo ? "corpo" : where < corpo + santo ? "santo" : "street"];
-    let cut, garment, jacket, key;
+    const before = near[near.length - 1] ?? { hue: -1, build: 0, hair: -1 };
+    let cut, garment, jacket;
     for (let tries = 0; tries < 16; tries++) {
-      cut = draw(style.hair);
-      garment = draw(style.garment);
-      jacket = draw(style.jacket(garment));
-      key = `${jacket}|${garment}|${cut}`;
+      cut = draw(r, style.hair);
+      garment = draw(r, style.garment);
+      jacket = draw(r, style.jacket(garment));
       const hue = FAMILY.jacket[jacket];
-      if (!recent.includes(key) && !recent.slice(-4).some((k) => k.startsWith(`${jacket}|`)) && !recent.slice(-3).some((k) => k.endsWith(`|${garment}|${cut}`)) && (hue === NEUTRAL || hue !== before.hue)) break;
+      const same = (n) => n.garment === garment && n.cut === cut;
+      if (!near.some((n) => n.jacket === jacket && same(n)) && !near.slice(-4).some((n) => n.jacket === jacket) && !near.slice(-3).some(same) && (hue === NEUTRAL || hue !== before.hue)) break;
     }
-    recent.push(key);
-    if (recent.length > 48) recent.shift();
+    const worn = { jacket, garment, cut, hue: FAMILY.jacket[jacket], build: 0, hair: -1 };
+    near.push(worn);
+    if (near.length > 48) near.shift();
     const hair = HAIR[cut];
     const low = pose === "sit" || pose === "squat";
     if (garment === GARMENTS.coat && (low || pose === "lean")) garment = GARMENTS.jacket;
@@ -335,11 +345,11 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
     if (open) mask += bits(TAG.open);
     if (suit && r() < style.tie) mask += bits(TAG.tie);
     if (garment !== GARMENTS.puffer && garment !== GARMENTS.coat && style.hivis(jacket)) mask += bits(TAG.hivis);
-    const shirt = draw(style.shirt, (i) => (FAMILY.shirt[i] === NEUTRAL || FAMILY.shirt[i] !== hue) && apart(light(SHIRTS[i])));
-    const trousers = draw(style.trousers, (i) => (FAMILY.trousers[i] !== NEUTRAL ? FAMILY.trousers[i] !== hue : hue !== NEUTRAL || suit || open || apart(light(TROUSERS[i]))));
-    const bag = pose === "vendor" ? 0 : draw(style.bag, (k) => !(k === 2 && (pose === "lean" || pose === "sit")) && !(k === 3 && low));
+    const shirt = draw(r, style.shirt, (i) => (FAMILY.shirt[i] === NEUTRAL || FAMILY.shirt[i] !== hue) && apart(light(SHIRTS[i])));
+    const trousers = draw(r, style.trousers, (i) => (FAMILY.trousers[i] !== NEUTRAL ? FAMILY.trousers[i] !== hue : hue !== NEUTRAL || suit || open || apart(light(TROUSERS[i]))));
+    const bag = pose === "vendor" ? 0 : draw(r, style.bag, (k) => !(k === 2 && (pose === "lean" || pose === "sit")) && !(k === 3 && low));
     if (bag) mask += bits([TAG.hipbag, TAG.backpack, TAG.tote][bag - 1]);
-    const bagColour = draw(style.bagColour, (i) => FAMILY.bag[i] === NEUTRAL || FAMILY.bag[i] !== hue);
+    const bagColour = draw(r, style.bagColour, (i) => FAMILY.bag[i] === NEUTRAL || FAMILY.bag[i] !== hue);
     const free = pose === null || pose === "idle" || pose === "talk";
     const umbrella = free && cut !== "hardhat" && r() < umbrellaOdds * style.umbrella;
     if (umbrella) mask += bits(TAG.umbrella);
@@ -358,8 +368,9 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
     // Slight to heavy, most of them between.
     let build = 0.86 + 0.36 * r() ** 1.5;
     if (Math.abs(build - before.build) < 0.07) build = build > 1.04 ? build - 0.12 : build + 0.12;
-    const hairColour = draw(style.hairColour, (i) => i !== before.hair && (FAMILY.hair[i] === NEUTRAL || FAMILY.hair[i] !== hue));
-    before = { hue, build, hair: hairColour };
+    const hairColour = draw(r, style.hairColour, (i) => i !== before.hair && (FAMILY.hair[i] === NEUTRAL || FAMILY.hair[i] !== hue));
+    worn.build = build;
+    worn.hair = hairColour;
     return {
       height: (1.55 + 0.37 * (r() + r()) * 0.5) / RIG.height,
       build,
@@ -386,7 +397,7 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
     const inward = Math.sign(across);
     a.files = [inward * 0.16, inward * 0.8];
     b.files = [inward * -0.36, inward * 0.28];
-    a.way = r() < 0.5 ? -1 : 1;
+    a.way = hashAt(a.from[0], a.from[1], 5) & 1 ? -1 : 1;
     b.way = -a.way;
     // The kerb's line is 0.7 m in from the kerb and the shops' 1.7 m out
     // from the wall.
@@ -400,6 +411,8 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
   for (const w of lines) {
     const n = w.n[phone ? 1 : 0];
     if (!n) continue;
+    // The walk's own draw, out of where it starts and how it runs.
+    const r = rng(hashAt(w.from[0], w.from[1], Math.round(w.len * 10) + 7 * Math.round(Math.atan2(w.dir[0], w.dir[1]) * 100)));
     const files = w.files ?? [-0.33, 0.33];
     const way = w.way ?? (r() < 0.5 ? -1 : 1);
     const pace = way * (1.12 + r() * 0.42);
@@ -412,7 +425,7 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
     }
     // A lane each, for the map that bends a file round what stands in it.
     const key = w.pave ?? w;
-    if (!paves.has(key)) paves.set(key, { ref: w, span: w.span ?? [Math.min(...files) - 0.6, Math.max(...files) + 0.6], files: [] });
+    if (!paves.has(key)) paves.set(key, { ref: w, span: w.span ?? [Math.min(...files) - 0.6, Math.max(...files) + 0.6], files: [], worn: [] });
     const pave = paves.get(key);
     const shift = (w.from[0] - pave.ref.from[0]) * pave.ref.dir[1] - (w.from[1] - pave.ref.from[1]) * pave.ref.dir[0];
     const lanes = files.map((off) => {
@@ -432,7 +445,7 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
         const f = size > 1 ? k : one;
         const off = files[f] + (r() - 0.5) * 0.1;
         // To the side of a line: +x of one that runs along +z.
-        const d = dress({ umbrellaOdds: k ? 0.3 : 0.38, at: [w.from[0] + w.dir[0] * at, w.from[1] + w.dir[1] * at] });
+        const d = dress(r, pave.worn, { umbrellaOdds: k ? 0.3 : 0.38, at: [w.from[0] + w.dir[0] * at, w.from[1] + w.dir[1] * at] });
         people.push({
           walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, k ? step + 0.5 : step],
           path: [w.dir[0], w.dir[1], w.len, at + k * 0.12],
@@ -456,9 +469,13 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
   // The hot phone: looking down the street toward the hero, the phone a
   // forearm ahead of them at the clue's point.
   if (!bare) spots.push({ x: HOT_PHONE[0], y: PAVE_Y, z: HOT_PHONE[1], yaw: 0.5, pose: POSES.indexOf("phone"), hot: true });
-  for (let i = 0, k = 0; i + 4 < standers.length; i += 5, k++) {
-    if (phone && k % 2) continue;
-    spots.push({ x: standers[i], y: standers[i + 1], z: standers[i + 2], yaw: standers[i + 3], pose: Math.min(POSES.length - 1, Math.max(0, Math.round(standers[i + 4]))) });
+  // (A phone keeps half of them: which half is each one's own place's to
+  // say, not their number in the list.)
+  for (const list of [ahead, standers]) {
+    for (let i = 0; i + 4 < list.length; i += 5) {
+      if (phone && hashAt(list[i], list[i + 2], 3) & 1) continue;
+      spots.push({ x: list[i], y: list[i + 1], z: list[i + 2], yaw: list[i + 3], pose: Math.min(POSES.length - 1, Math.max(0, Math.round(list[i + 4]))) });
+    }
   }
   const SIT = POSES.indexOf("sit");
   for (const bench of benches) {
@@ -475,6 +492,7 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
       if (p.pose === SIT && Math.sin(p.yaw) * front[0] + Math.cos(p.yaw) * front[1] < 0) p.yaw = bench.yaw;
     }
     // Of the empty ones about half are sat on, some of those by two.
+    const r = rng(hashAt(bench.x, bench.z, 11));
     const u = r();
     const at = (r() - 0.5) * 0.9;
     if (taken || bare || u > 0.52) continue;
@@ -490,6 +508,10 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
   const cells = new Map();
   const cellOf = (p) => `${Math.floor(p.x / NEAR)},${Math.floor(p.z / NEAR)}`;
   spots.forEach((p, i) => {
+    // Each one's own draws, out of where they stand: how they turn to
+    // company, how they are dressed, how they hold themselves.
+    p.key = hashAt(p.x, p.z, Math.round(p.y * 10));
+    p.r = rng(p.key ^ 0x51ed270b);
     const key = cellOf(p);
     if (!cells.has(key)) cells.set(key, []);
     cells.get(key).push(i);
@@ -523,14 +545,14 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
     if (p.toward === undefined || p.hot) return;
     const mate = spots[p.mate];
     if (FREE.includes(p.pose)) {
-      p.yaw = p.toward + (r() - 0.5) * 0.3;
+      p.yaw = p.toward + (p.r() - 0.5) * 0.3;
       // Two with nothing to do talk, taking turns.
       if (p.pose === FREE[0] && mate.mate === i && FREE.includes(mate.pose) && !mate.hot) p.pose = FREE[1];
     } else {
       const turn = Math.atan2(Math.sin(p.toward - p.yaw), Math.cos(p.toward - p.yaw));
       p.head = Math.min(0.75, Math.max(-0.75, turn)) * 0.8;
     }
-    p.turn = mate.turn === undefined ? r() : mate.turn + 0.5;
+    p.turn = mate.turn === undefined ? p.r() : mate.turn + 0.5;
   });
 
   // How each stands in their pose: what a hand with nothing to do does
@@ -541,6 +563,7 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
   // the walk's pace, which someone standing has no use for.
   const UPRIGHT = ["idle", "talk", "phone", "smoke", "vendor"];
   const manner = (p, name, look) => {
+    const r = rng(p.key ^ 0x2c1b3c6d);
     const has = (tag) => Math.floor(look[0] / 2 ** tag) % 2 === 1;
     const right = has(TAG.umbrella) || name === "phone" || name === "smoke" || name === "vendor";
     const left = has(TAG.cup) || has(TAG.tote) || name === "vendor";
@@ -563,13 +586,36 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
     const head = p.toward !== undefined || name === "phone" || R === 5 ? 0 : pick(r, [38, 22, 22, 18]);
     return L + 6 * R + 36 * stance + 144 * flip + 288 * head;
   };
+  // Dressed in an order that is their places' own (so one more of them
+  // somewhere moves nobody's turn), each unlike whoever within three metres
+  // is dressed already, the nearest most of all.
   const sheltered = new Set();
-  spots.forEach((p, i) => {
+  const order = spots.map((_, i) => i).sort((a, b) => spots[a].key - spots[b].key || spots[a].x - spots[b].x || spots[a].z - spots[b].z);
+  for (const i of order) {
+    const p = spots[i];
     const name = POSES[p.pose];
+    const near = [];
+    const cx = Math.floor(p.x / NEAR);
+    const cz = Math.floor(p.z / NEAR);
+    for (let ix = cx - 2; ix <= cx + 2; ix++) {
+      for (let iz = cz - 2; iz <= cz + 2; iz++) {
+        for (const j of cells.get(`${ix},${iz}`) ?? []) {
+          const q = spots[j];
+          const d = Math.hypot(q.x - p.x, q.z - p.z);
+          if (q.worn && d < 3 && Math.abs(q.y - p.y) < 1.5) near.push([d, q.worn]);
+        }
+      }
+    }
+    const worn = near.sort((a, b) => b[0] - a[0]).map(([, w]) => w);
     // Of two close together at most one holds an umbrella up: two canopies
     // do not fit between two faces.
-    const d = dress({ pose: name, umbrellaOdds: sheltered.has(p.mate) ? 0 : 0.2, at: [p.x, p.z] });
-    if (Math.floor(d.look[0] / 2 ** TAG.umbrella) % 2 === 1) sheltered.add(i);
+    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) ? 0 : 0.2, at: [p.x, p.z] });
+    p.worn = worn[worn.length - 1];
+    if (Math.floor(p.d.look[0] / 2 ** TAG.umbrella) % 2 === 1) sheltered.add(i);
+  }
+  spots.forEach((p) => {
+    const name = POSES[p.pose];
+    const d = p.d;
     let { x, z } = p;
     if (p.hot) {
       d.height = 1.58 / RIG.height;
@@ -579,7 +625,7 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
       x -= Math.sin(p.yaw) * reach;
       z -= Math.cos(p.yaw) * reach;
     }
-    people.push({ walk: [x, z, p.hot ? 0 : manner(p, name, d.look), p.turn ?? r()], path: [Math.sin(p.yaw), Math.cos(p.yaw), 1, p.head ?? 0], body: [d.height, d.build, p.pose, p.y], look: d.look, wear: d.wear });
+    people.push({ walk: [x, z, p.hot ? 0 : manner(p, name, d.look), p.turn ?? p.r()], path: [Math.sin(p.yaw), Math.cos(p.yaw), 1, p.head ?? 0], body: [d.height, d.build, p.pose, p.y], look: d.look, wear: d.wear });
   });
 
   const data = new Float32Array(people.length * STRIDE);
@@ -1874,9 +1920,9 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // Stand people anywhere, for looking at them: a flat list of x, y, z,
     // the way they look and a pose, as the builder's; `only` leaves the
     // rest of the network out, `bare` this module's own people too.
-    api.debugStand = (list, { only = false, bare = false } = {}) => {
+    api.debugStand = (list, { only = false, bare = false, ahead = [] } = {}) => {
       const t0 = performance.now();
-      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], benches: only || bare ? [] : benches, bare });
+      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], benches: only || bare ? [] : benches, bare, ahead });
       const t1 = performance.now();
       lay();
       const t2 = performance.now();
