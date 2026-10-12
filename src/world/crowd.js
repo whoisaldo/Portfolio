@@ -7,8 +7,8 @@
 // up the avenue and down it, alone and in pairs, some under umbrellas with a
 // neon rim: the way a wet street at night reads from across it, figures
 // against lit shopfronts, each umbrella a ring of colour doubled in the road.
-// Some stand: at a shop's window, by the vending machines, at the kerb of the
-// crossing, a few with a phone lit in a hand (one of them the braindance's
+// Some stand: at a shop's window, at the kerb of the crossing, two and two
+// talking, a few with a phone lit in a hand (one of them the braindance's
 // hot phone), and wherever a district has stood somebody (kit.stand: at a
 // stall, in a queue, on a bench, in a doorway), in the pose it asked for.
 //
@@ -21,22 +21,26 @@
 // body about its joint, the legs reach for footfalls that stay where they
 // land for as long as the foot is down (so nobody skates), the arms swing
 // against them, the shoulders turn against the hips, and each has their own
-// pace and step. Standing, they hold one of eight poses and shift a little.
-// Under reduced motion they stay where they are.
+// step (a walk has one pace, so nobody on it walks through anybody, and the
+// walk beside it another). Standing, they hold one of eight poses and shift
+// a little. Under reduced motion they stay where they are.
 //
-// Lit by the street: the baked spill where they stand, the spill a couple of
+// Lit by the street: the baked spill where they stand, the spill a few
 // metres along each face's own normal (so the side toward the shops is the
 // bright one), a little sky from above, the kit's lamps, a rim. Only phones,
 // cigarette tips, cyberware eyes, neon trims and umbrella rims are lit from
 // inside.
 //
-// Two meshes. Close to, the figure with a face; past the distance where the
-// difference is under a pixel or two, a figure of a few hundred triangles on
-// the same joints, the two traded through a dither so nobody sees it. The wet
-// road's mirror draws everyone as the far one. Each frame the people in the
-// frustum are sorted into the two; nobody is ever dropped for being far.
-// Where a walk's loop starts again they fade out and in, and within a step
-// of the lens they fade too, so the camera is never inside a head.
+// Three draws. Close to, the figure with a face; past the distance where the
+// difference is a pixel or two, a figure of a few hundred triangles on the
+// same joints; past a hundred metres, where a person is a dozen pixels tall,
+// a card with their shape drawn on it. Each trade is a dither, the one
+// keeping the pixels the other has not taken, so nobody sees it. The wet
+// road's mirror, which smears what it holds, draws everyone as cards. Each
+// frame the people in the frustum are sorted into the three; nobody is ever
+// dropped for being far. Where a walk's loop starts again they fade out and
+// in, and within a step of the lens they fade too, so the camera is never
+// inside a head.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { preloadProps } from "./props.js";
@@ -93,17 +97,20 @@ const WALKS = [
 const HALF_PI = Math.PI / 2;
 // Standing: x, z, which way they look (0 toward +z, a quarter turn toward
 // +x), their pose. At the kerbs of the crossings, at shop windows up both
-// pavements clear of the benches and bins, two pairs talking, one against a
-// wall, and on the garage street's pavement (a phone keeps every other one). The last is the braindance's hot phone
-// (src/braindance/places.js, `phone`): someone stopped on the right-hand
-// pavement with it lit in their hand, on every tier, placed so the phone
-// itself is at the clue's own point.
+// pavements clear of the benches and bins, pairs talking, some against a
+// wall or down on their heels at the kerb, and on the garage street's
+// pavement (a phone keeps every other one).
+// And the braindance's hot phone (src/braindance/places.js, `phone`):
+// someone stopped on the right-hand pavement with it lit in their hand, on
+// every tier, stood so the phone itself is at the clue's own point.
 const STANDS = [
   [10.5, -13.2, -HALF_PI, "idle"], [13.3, -46.0, Math.PI, "talk"], [-10.5, -12.6, HALF_PI, "phone"], [13.3, -47.15, 0, "talk"],
   [-13.3, -58.5, HALF_PI, "smoke"], [13.3, -37.2, HALF_PI, "phone"], [-13.3, -88.6, 0, "talk"], [10.5, 14.0, -HALF_PI, "smoke"],
   [-13.3, -87.45, Math.PI, "talk"], [-10.5, 13.8, HALF_PI, "idle"], [13.4, -108.5, -HALF_PI, "smoke"], [-13.3, -21.3, -HALF_PI, "idle"],
   [-13.62, -143.0, HALF_PI, "lean"], [13.3, -77.0, HALF_PI, "idle"], [431.3, -241.0, HALF_PI, "idle"], [-13.4, -112.0, -HALF_PI, "phone"],
   [431.3, -276.0, HALF_PI, "phone"], [13.3, -142.5, HALF_PI, "idle"],
+  [13.62, -52.0, -HALF_PI, "lean"], [10.55, -72.0, -HALF_PI, "squat"], [-13.62, -70.0, HALF_PI, "lean"], [13.3, -150.5, Math.PI, "talk"],
+  [-10.55, -104.0, HALF_PI, "squat"], [13.3, -151.65, 0, "talk"], [-13.3, -30.5, HALF_PI, "smoke"], [-13.3, -128.0, -HALF_PI, "idle"],
 ];
 const HOT_PHONE = [11.4, -121.0];
 
@@ -166,7 +173,7 @@ function populate({ phone, walks, standers, bare = false }) {
     if (garment === GARMENTS.coat) mask += bits(TAG.skirt);
     const collar = garment === GARMENTS.puffer ? 1 : garment === GARMENTS.coat ? 0.6 : garment === GARMENTS.jacket ? 0.25 : 0;
     if (r() < collar && !(hair.mask & bits(TAG.hood))) mask += bits(TAG.collar);
-    const bag = pose === "vendor" ? 0 : pick(r, [45, 20, pose === "lean" || pose === "sit" ? 0 : 20, 15]);
+    const bag = pose === "vendor" ? 0 : pick(r, [45, 20, pose === "lean" || pose === "sit" ? 0 : 20, low ? 0 : 15]);
     if (bag) mask += bits([TAG.hipbag, TAG.backpack, TAG.tote][bag - 1]);
     const free = pose === null || pose === "idle" || pose === "talk";
     const umbrella = free && r() < umbrellaOdds;
@@ -628,6 +635,8 @@ const VERTEX = /* glsl */ `
       gaze = 0.075 * c;
       pitch = 0.04 + 0.05 * rnd(seed * 5.7);
       nod = 0.03;
+      // Now and then a look at a window they pass.
+      gaze += 0.5 * smoothstep(0.55, 0.9, sin(t * 0.17 + seed * 50.0)) * (rnd(seed * 9.1) > 0.5 ? 1.0 : -1.0);
       if (side < 0.0 && bit(aLook.x, ${f(TAG.tote)}) > 0.5) {
         sp *= 0.3;
         el = 0.08;
@@ -1067,6 +1076,9 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       mesh.name = materials[k].name;
       mesh.frustumCulled = false;
       mesh.matrixAutoUpdate = false;
+      // The shader puts them where they are; a ray would only find the
+      // figure as built, at the origin.
+      mesh.raycast = () => {};
       const d = { mesh, geometry, buffer, count: 0, all: 0, sig: -1, triangles: shape.index.count / 3 };
       // What the camera drawing it is: the page's own (it sees layer 0) or
       // the wet road's mirror, which gets everyone as cards.
