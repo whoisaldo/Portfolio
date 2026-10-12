@@ -155,11 +155,11 @@ ex0, ex1, ez0, ez1, ey = stages(232.0, 262.0, BACK0, BACK1, 44.0, (((2.0, 13.0, 
                                 r, "cyan", 0.71, belts=((F(18), F(19)), (F(34), F(35))), warm=(0.35, 0.8))
 lantern(ex0, ex1, ez0, ez1, ey, "cyan", 24.0)
 shaft(251.0, 262.0, -416.0, -386.0, 44.0, 192.0, r, 0.29, "amber", lit=(0.4, 0.7), hot=0.45, belts=((F(12), F(13)), (F(29), F(30)), (F(44), F(45))), fin=3.6, warm=(0.05, 0.3))
-# Down its east face, over the lane: a column of adverts in one frame, a
-# line of light up its edge.
-for j, (yy, hh) in enumerate(((70.0, 9.0), (80.4, 5.4), (87.2, 9.0))):
+# Down its east face, where a flyer behind the row sees it: a column of
+# adverts in one frame, a line of light up its edge.
+for j, (yy, hh) in enumerate(((46.0, 9.0), (56.4, 5.4), (63.2, 9.0))):
     K.advert(262.0 + 0.2, yy + hh / 2, -401.0, 6.0, hh, math.pi / 2, 5 + j * 2, seed=0.61, depth=0.16)
-K.glow_box(262.0, 262.3, 69.0, 97.6, -397.6, -397.45, "amber")
+K.glow_box(262.0, 262.3, 45.0, 73.6, -397.6, -397.45, "amber")
 box(k("trim"), 250.8, 262.2, 192.0, 194.2, -416.2, -385.8, scale=2.0, col=K.BLACK)
 K.edge_line(250.8, 262.2, -416.2, -385.8, 193.4, "amber", h=0.4, out=0.06)
 K.aviation(256.5, 194.2, -401.0, 0)
@@ -174,7 +174,7 @@ gx0, gx1, gz0, gz1, gy = stages(304.0, 338.0, BACK0, BACK1, 70.0, (((16.0, 0.0, 
                                 belts=((F(28), F(29)), (F(45), F(46))), warm=(0.6, 0.95), lit=(0.45, 0.75), hot=0.5)
 lantern(gx0, gx1, gz0, gz1, gy, "pink", 20.0)
 shaft(306.2, 318.0, -416.0, -389.2, 70.0, 122.0, r, 0.83, "amber", belts=((F(24), F(25)),), fin=3.4, warm=(0.2, 0.5))
-K.big_sign(306.2 - 0.4, 98.0, -402.6, "bl", 2.8, -math.pi / 2, 2, depth=0.3)
+K.big_sign(304.0 - 0.4, 52.0, -402.6, "bl", 2.8, -math.pi / 2, 2, depth=0.3)
 K.roof_plant(307.0, 317.4, -414.0, -391.0, 122.0, r, cap=4.0)
 K.advert(329.0, 126.0, -389.0 + 0.3, 12.0, 7.0, 0.0, 4, seed=0.35, depth=0.2)
 K.big_sign(331.0, 178.0, gz1 + 0.4, "bx", 4.4, 0.0, 3, depth=0.3)
