@@ -382,6 +382,8 @@ def frame(r):
     for z in (-64.0, -52.0):
         K.tube(X0 + 0.3, levels[0] - 0.36, z, PI / 2, power=3.0, red=0.5)
     K.wash(343.0, 353.0, -69.0, -58.0, level=0.4, hue="red", r=r)
+    # The plant's name along the frame's top beam, over the street.
+    K.name_sign("SOLFUCA", 362.0, levels[2], Z1 + 0.2, 0.0, h=2.2, lift=0.2)
     K.collide(X0, X1, Z0, Z1, levels[2])
     # Two men on the first deck, one at the rail of the second.
     stand(366.0, -47.2, 0.0, "lean", levels[0])
@@ -402,7 +404,6 @@ def plant():
         "-z": dict(band=(13.6, 15.8), style=3, lit=(0.4, 0.7)), "+x": dict(dress=False), "-x": dict(dress=False)}, tint="rust", stripe_col=K.OXIDE)
     K.flat_roof(344.0, 380.0, -78.4, -71.0, 18.0, r, wall=K.CREAM, lights=0.0, plant=False, breathe=2)
     K.wash(344.0, 380.0, -70.2, -70.2, level=1.0, red=0.3, step=3.5)
-    K.name_sign("SOLFUCA", 362.0, 18.0, -74.6, 0.0, h=2.6, lift=1.0)
     for x in (349.0, 356.0, 363.0, 370.0, 376.0):
         box(k("neon_amber"), x - 0.7, x + 0.7, 10.3, 10.42, -70.9, -70.76, scale=0.5, bottom=True)
     K.wash(346.0, 378.0, -79.6, -79.6, level=0.6, red=0.3)
