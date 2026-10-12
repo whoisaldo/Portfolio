@@ -58,12 +58,20 @@ def strip(x, z, yaw, power=7.0, cone=True):
         K.cone(hx, GY + 6.26, hz)
 
 
-def truck(x, z, yaw, cab=None):
-    """A trailer backed on a dock (its doors are at -x as yaw turns it) and
-    the tractor coupled to its nose, if it has one."""
-    P.place("trailer", x, GY, z, yaw, district=D)
+def truck(x, z, yaw, cab=None, firm="HELCASO", lit=False, reefer=False, no="27", tank=False):
+    """A trailer backed on a dock (its doors are at -x as yaw turns it) in
+    its firm's livery with every lamp it shows, and the tractor coupled to
+    its nose, if it has one (`lit`: somebody in the cab, its headlamps on).
+    `tank`: a road tanker instead of a box."""
+    if tank:
+        K.tanker(x, z, yaw, firm, legs=not cab)
+    else:
+        P.place("trailer", x, GY, z, yaw, district=D)
+        K.livery(x, z, yaw, firm, reefer=reefer, nose=not cab, no=no)
     if cab:
-        P.place(cab, x + math.cos(yaw) * 6.9, GY, z - math.sin(yaw) * 6.9, yaw, district=D)
+        cx, cz = x + math.cos(yaw) * 6.9, z - math.sin(yaw) * 6.9
+        P.place(cab, cx, GY, cz, yaw, district=D)
+        K.cab_dress(cx, cz, yaw, firm, lit=lit)
 
 
 def forklift(x, z, yaw, y=GY, load=None):
@@ -168,7 +176,7 @@ def works():
     plat = out.get("+x", GY)
     for i in (0, 3, 4, 7):
         z = Z1 - (5.0 + (i + 0.5) * 6.25)
-        truck(X1 + 2.6 + 6.5, z, 0.0, {0: "tractor_red"}.get(i))
+        truck(X1 + 2.6 + 6.5, z, 0.0, {0: "tractor_red"}.get(i), firm="LUPACO" if i == 4 else "HELCASO", lit=i == 0, no=("14", "", "", "31", "08", "", "", "22")[i])
     for i in range(9):
         z = Z1 - (5.0 + i * 6.25)
         K.stripe(X1 + 2.8, X1 + 17.0, z - 0.06, z + 0.06, K.PAINT_WHITE)
@@ -188,8 +196,8 @@ def works():
     stand(X1 + 1.9, -121.8, -0.4, "talk", plat)
     stand(X1 + 1.2, -139.0, PI / 2, "smoke", plat)
     stand(281.6, -106.3, -PI / 2, "smoke")
-    stand(283.0, -128.5, PI, "talk")
-    stand(283.2, -130.0, 0.0, "talk")
+    stand(285.0, -125.4, PI, "talk")
+    stand(285.2, -126.7, 0.0, "talk")
     K.name_sign("HELCASO", 250.0, 11.2, -103.0, PI * 0.12, h=2.0)
     fw_ = B.faces_of(X0, X1, Z0, Z1)
     K.stencil(fw_["+z"], 70.0, 4.0, "01", wall=K.CREAM)
@@ -597,7 +605,8 @@ def depot():
     K.wash(185.0, 227.0, -34.6, -33.0, level=0.85)
     for i in (0, 2, 5):
         x = 180.0 + 5.0 + (i + 0.5) * 7.0
-        truck(x, -36.0 + 2.6 + 6.5, -PI / 2, {2: "tractor_red", 5: "tractor"}.get(i))
+        truck(x, -36.0 + 2.6 + 6.5, -PI / 2, {2: "tractor_red", 5: "tractor"}.get(i), firm="CAPULSA" if i == 0 else "FESCOL", lit=i == 2, reefer=i != 0,
+              no={0: "40", 2: "17", 5: "09"}[i])
     for i in range(7):
         x = 185.0 + i * 7.0
         K.stripe(x - 0.06, x + 0.06, -33.0, -18.0, K.PAINT_WHITE)
@@ -741,8 +750,18 @@ def fuel():
     P.place("tyres", 171.2, GY, 37.2, 0.0, district=D)
     P.place("tyres", 172.1, GY, 37.6, 0.6, district=D)
     P.place("pallets", 172.6, GY, 43.4, 0.0, district=D)
-    for x, z in ((126.6, 33.0), (168.0, 33.6), (150.0, 35.2)):
+    for x, z in ((121.0, 36.6), (168.0, 33.6), (150.0, 35.2)):
         P.place("bin", x, GY, z, district=D)
+    # The delivery: a tanker in the lane between the canopy and the kiosk,
+    # its hose down to the fill point's lids, cones round them, the driver.
+    truck(129.6, 33.5, PI, "tractor", firm="OPALO", lit=True, tank=True)
+    for i, fx in enumerate((129.2, 130.2, 131.2)):
+        cylinder(K.M("steel"), fx, 30.9, GY, GY + 0.05, 0.34, segs=10, col=(K.OXIDE, K.GREY, K.GREY)[i])
+    K.run([(130.0, 0.95, 32.2), (130.0, 0.24, 31.7), (129.4, 0.2, 31.1), (129.2, 0.2, 30.9)], r=0.055, col=(0.03, 0.03, 0.035, 1.0), detail=1, flanges=99.0)
+    for cx_, cz_ in ((128.2, 30.2), (132.2, 30.2), (128.2, 31.9), (132.4, 31.6)):
+        cylinder(k("trim"), cx_, cz_, GY, GY + 0.5, 0.13, segs=6, col=(0.85, 0.3, 0.05, 1.0))
+        cylinder(k("trim", 1), cx_, cz_, GY + 0.28, GY + 0.36, 0.14, segs=6, col=K.PAINT_WHITE, cap=False)
+    stand(131.0, 31.6, 0.3, "idle")
     # The air and water post, its lamp.
     box(k("metal"), 124.0, 124.8, GY, GY + 1.5, 36.0, 36.6, scale=0.6)
     box(k("glow"), 124.1, 124.7, GY + 1.5, GY + 1.75, 36.05, 36.55, scale=0.5, col=GLOW["cyan"])
@@ -1067,7 +1086,7 @@ def hall(f, door, pale):
             if (i + j) % 3:
                 box(k("trim", 1), x, x + 1.1, yy + 0.12, yy + 1.0, z1 - 1.1, z1 - 0.2, scale=1.0, col=(K.WOOD, K.GREY, K.SAND)[(i + j) % 3])
     K.stripe(x0 + 4.6, x0 + 4.72, z0 + 0.5, z1 - 2.0)
-    truck(x1 - 2.1, z0 + 11.2, PI / 2, "tractor_red")
+    truck(x1 - 2.1, z0 + 11.2, PI / 2, "tractor_red", firm="SOLFUCA", lit=True, no="06")
     forklift(x0 + 2.6, z0 + 5.4, PI * 0.5, load="crates")
     for x, z, kind in ((x0 + 0.9, z0 + 2.2, "drum_pallet"), (x0 + 0.9, z0 + 8.4, "pallets"), (x0 + 0.9, z0 + 9.9, "drum_pallet"), (x0 + 2.4, z0 + 13.6, "crates"),
                        (x0 + 0.8, z0 + 14.4, "pallets")):
@@ -1345,9 +1364,9 @@ def yards():
     K.hatch(400.0, 405.6, -114.0, -106.0)
     # Trucks: one laid up on the works' apron, one on the road's edge by
     # the rack, one backed on the boiler house, and their drivers.
-    truck(280.0, -95.6, 0.0, "tractor")
-    truck(330.0, -85.4, PI, "tractor_red")
-    truck(398.0, -49.3, -PI / 2, "tractor")
+    truck(280.0, -95.6, 0.0, "tractor", firm="HELCASO", lit=True, no="19")
+    truck(330.0, -85.4, PI, "tractor_red", firm="SOLFUCA", lit=True, tank=True)
+    truck(398.0, -49.3, -PI / 2, "tractor", firm="SOLFUCA", no="52")
     stand(291.4, -94.0, -PI / 2, "smoke")
     stand(321.6, -87.7, 0.0, "phone")
     stand(394.9, -41.2, PI / 2, "talk")

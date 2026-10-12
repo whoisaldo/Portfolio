@@ -1806,6 +1806,251 @@ def poles(points, yaw, can_every=3, r=None, drop=None):
 
 
 # ---------------------------------------------------------------------------
+# Trucks: each firm's paint and every lamp a parked truck shows at night,
+# laid over the trailer and tractor instances where they stand, and a
+# tanker built in place.
+# ---------------------------------------------------------------------------
+LIVERY = {  # a firm's body colour, its band, and the letters on the band
+    "HELCASO": (c(0.70, 0.66, 0.56), OXIDE, c(0.82, 0.79, 0.70)),
+    "FESCOL": (c(0.74, 0.78, 0.74), c(0.13, 0.36, 0.25), c(0.84, 0.87, 0.82)),
+    "SOLFUCA": (c(0.72, 0.52, 0.10), c(0.045, 0.045, 0.05), c(0.82, 0.62, 0.14)),
+    "LUPACO": (c(0.20, 0.32, 0.48), c(0.78, 0.78, 0.72), c(0.10, 0.17, 0.28)),
+    "CAPULSA": (c(0.50, 0.12, 0.08), c(0.80, 0.78, 0.70), c(0.46, 0.10, 0.07)),
+    "CHAPAS": (c(0.30, 0.34, 0.30), c(0.70, 0.42, 0.08), c(0.07, 0.08, 0.07)),
+    "OPALO": (c(0.78, 0.78, 0.74), c(0.80, 0.36, 0.06), c(0.86, 0.84, 0.78)),
+}
+TAPE_RED, TAPE_WHITE = c(0.62, 0.05, 0.04), c(0.82, 0.82, 0.78)
+LAMP_WHITE = c(0.95, 0.92, 0.82)
+TYRE = c(0.025, 0.025, 0.03)
+
+
+class Rig:
+    """A parked vehicle's own frame, as a prop's yaw turns it: x toward its
+    nose, z across it, y up from the yard."""
+
+    def __init__(self, x, z, yaw, y=GY):
+        self.x, self.z, self.yaw, self.y = x, z, yaw, y
+        self.c, self.s = math.cos(yaw), math.sin(yaw)
+
+    def at(self, lx, ly, lz):
+        return (self.x + self.c * lx + self.s * lz, self.y + ly, self.z - self.s * lx + self.c * lz)
+
+    def side(self, key, sg, x0, x1, y0, y1, col, out=1.335):
+        """A panel on a flank (sg 1 its +z one), from x0 to x1."""
+        px, py, pz = self.at((x0 + x1) / 2, (y0 + y1) / 2, sg * out)
+        rotated_quad(key, px, py, pz, abs(x1 - x0), y1 - y0, self.yaw + (0.0 if sg > 0 else math.pi), col=col)
+
+    def end(self, key, sg, lx, z0, z1, y0, y1, col):
+        """A panel across it at lx, facing its nose (sg 1) or its tail."""
+        px, py, pz = self.at(lx, (y0 + y1) / 2, (z0 + z1) / 2)
+        rotated_quad(key, px, py, pz, abs(z1 - z0), y1 - y0, self.yaw + sg * math.pi / 2, col=col)
+
+    def word(self, sg, text, lx, ly, h, col, key, out=1.35, gap=0.28):
+        px, py, pz = self.at(lx, ly, sg * out)
+        digits(text, px, py, pz, h, self.yaw + (0.0 if sg > 0 else math.pi), key, col, out=0.0, gap=gap)
+
+    def slash(self, key, sg, x0, y0, x1, y1, wdt, col, out=1.34):
+        """A slanted band on a flank, from (x0, y0) to (x1, y1)."""
+        px, _, pz = self.at(0.0, 0.0, sg * out)
+        band_quad(key, px, pz, self.yaw + (0.0 if sg > 0 else math.pi), sg * x0, self.y + y0, sg * x1, self.y + y1, wdt, col, out=0.0)
+
+    def box(self, key, x0, x1, y0, y1, z0, z1, col):
+        px, py, pz = self.at((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
+        oriented_box(key, px, py, pz, x1 - x0, y1 - y0, z1 - z0, self.yaw, col=col)
+
+    def wheel(self, key, lx, z0, z1, r=0.52):
+        pipe(key, self.at(lx, r, z0), self.at(lx, r, z1), r, segs=10, col=TYRE, caps=True)
+        out = z1 if abs(z1) > abs(z0) else z0
+        pipe(key, self.at(lx, r, out), self.at(lx, r, out + (0.03 if out > 0 else -0.03)), r * 0.45, segs=6, col=c(0.3, 0.3, 0.31), caps=True)
+
+    def lamp(self, lx, ly, lz, hue, power):
+        px, py, pz = self.at(lx, ly, lz)
+        light(D, px, py, pz, hue, power)
+
+
+def tail(g, lx, y, half=1.2):
+    """A vehicle's tail at lx: the lamp clusters each end of its bar (red,
+    then amber), a plate between them under its own lamp, and their red on
+    the ground behind."""
+    for sg in (-1, 1):
+        g.end(k("glow"), -1, lx, sg * (half - 0.3), sg * half, y, y + 0.14, GLOW["red"])
+        g.end(k("glow", 1), -1, lx, sg * (half - 0.52), sg * (half - 0.34), y, y + 0.14, SODIUM)
+    g.end(k("trim", 1), -1, lx, -0.26, 0.26, y, y + 0.13, PAINT_WHITE)
+    g.end(k("glow", 1), -1, lx, -0.2, 0.2, y + 0.15, y + 0.18, shade(LAMP_WHITE, 0.6))
+    g.lamp(lx - 1.3, 0.8, 0.0, "red", 1.5)
+
+
+def livery(x, z, yaw, firm, y=GY, reefer=False, nose=True, no="27"):
+    """A box trailer's paint and lamps, laid over the instance standing at
+    the same place and yaw: its sides and doors in the firm's colour, the
+    band with the firm's name down each side and a slash of it at the
+    tail, its fleet number, marker lamps along both rails and at the top
+    corners, red and white tape along the lower rail, a chevron board and
+    the tail lamps across the back, and the markers' light on the yard."""
+    body, band, ink = LIVERY[firm]
+    g = Rig(x, z, yaw, y)
+    kc, kt, kd, kg = M("container"), k("trim"), k("trim", 1), k("glow", 1)
+    n = len(firm)
+    h = min(0.74, 5.6 / (0.8 * n))
+    for sg in (1, -1):
+        g.side(kc, sg, -6.4, 6.4, 1.42, 3.9, body, out=1.322)
+        g.side(kt, sg, -3.4, 6.4, 2.2, 3.26, band, out=1.336)
+        g.word(sg, firm, 1.5, 2.73, h, ink, kd, out=1.35)
+        for x0 in (-5.5, -4.5):
+            g.slash(kt, sg, x0 - 0.5, 1.5, x0 + 0.5, 3.82, 0.5, band, out=1.336)
+        g.word(sg, no, 5.5, 3.6, 0.3, band, kd, out=1.336)
+        # Tape along the lower rail, marker lamps over it, one at each top corner.
+        for i in range(10):
+            a = -6.2 + i * 1.26
+            g.side(kd, sg, a, a + 0.9, 1.255, 1.315, TAPE_RED if i % 2 else TAPE_WHITE, out=1.345)
+        for lx in (-5.9, -3.0, 0.0, 3.0, 5.9):
+            g.side(kg, sg, lx - 0.09, lx + 0.09, 1.34, 1.42, SODIUM, out=1.36)
+        g.side(kg, sg, 6.05, 6.25, 3.93, 4.0, SODIUM, out=1.345)
+        g.side(kg, sg, -6.25, -6.05, 3.93, 4.0, GLOW["red"], out=1.345)
+        for lx in (-3.6, 2.6):
+            g.lamp(lx, 1.5, sg * 2.2, "amber", 1.5)
+    # The doors: the body's colour between the lock rods, a chevron board
+    # at their foot, lamps at the top corners, the tail on the underrun bar.
+    g.end(kc, -1, -6.475, -1.2, 1.2, 1.42, 3.9, body)
+    g.end(k("hazard"), -1, -6.49, -1.2, 1.2, 1.42, 1.78, (1, 1, 1, 1))
+    px, _, pz = g.at(-6.503, 0.0, 0.0)
+    u = -1.1
+    while u < 1.0:
+        band_quad(kd, px, pz, yaw - math.pi / 2, u, y + 1.44, u + 0.3, y + 1.76, 0.14, TAPE_RED, out=0.0)
+        u += 0.42
+    for sg in (-1, 1):
+        g.end(kg, -1, -6.49, sg * 0.95, sg * 1.15, 3.9, 3.98, GLOW["red"])
+    tail(g, -6.53, 0.49)
+    if nose:
+        # No tractor on it: the nose's own face and two white markers.
+        g.end(kc, 1, 6.412, -1.2, 1.2, 1.42, 3.9, body)
+        g.end(kt, 1, 6.426, -1.2, 1.2, 2.2, 3.26, band)
+        for sg in (-1, 1):
+            g.end(kg, 1, 6.426, sg * 0.95, sg * 1.15, 3.9, 3.98, LAMP_WHITE)
+    if reefer:
+        # A cold store's trailer: the chiller on its nose, its grille, a lamp.
+        g.box(M("steel"), 6.4, 6.86, 2.0, 3.9, -1.0, 1.0, c(0.72, 0.74, 0.72))
+        g.end(k("dark", 1), 1, 6.868, -0.8, 0.8, 2.25, 3.1, (1, 1, 1, 1))
+        g.end(kg, 1, 6.87, 0.55, 0.75, 3.4, 3.52, GLOW["green"])
+
+
+def cab_dress(x, z, yaw, firm, lit=False, y=GY, beacon=False):
+    """A tractor's paint and lamps over its instance: the firm's stripe and
+    name on its doors, markers along the deflector, its headlamps (on, with
+    their light down the yard, if `lit`), the cab lit inside, tail lamps."""
+    body, band, ink = LIVERY[firm]
+    g = Rig(x, z, yaw, y)
+    kd, kg = k("trim", 1), k("glow", 1)
+    for sg in (1, -1):
+        g.side(k("trim"), sg, 0.92, 2.98, 1.12, 1.5, band, out=1.232)
+        g.word(sg, firm, 1.95, 1.74, min(0.3, 1.9 / (0.8 * len(firm))), body if sum(body[:3]) > 1.2 else ink, kd, out=1.234)
+        g.lamp(1.9, 1.4, sg * 2.0, "amber", 1.2)
+    for lz in (-0.9, -0.45, 0.0, 0.45, 0.9):
+        g.end(kg, 1, 2.512, lz - 0.07, lz + 0.07, 3.62, 3.7, SODIUM)
+    for sg in (-1, 1):
+        g.end(k("glow"), 1, 3.145, sg * 0.8, sg * 1.1, 0.6, 0.86, LAMP_WHITE if lit else shade(LAMP_WHITE, 0.16))
+        g.end(kg, 1, 3.145, sg * 1.12, sg * 1.22, 0.62, 0.84, SODIUM)
+        g.end(kg, -1, -3.01, sg * 0.3, sg * 0.5, 0.92, 1.04, GLOW["red"])
+    if lit:
+        # Somebody is in it: the cab's lamp behind the glass, the lamps' pool ahead.
+        g.end(k("glow"), 1, 3.024, -1.02, 1.02, 2.04, 2.9, shade(GLASS_WARM, 0.36))
+        for sg in (1, -1):
+            g.side(k("glow"), sg, 1.94, 2.82, 2.04, 2.86, shade(GLASS_WARM, 0.3), out=1.243)
+            # A seat's back and headrest against the light, the wheel's rim.
+            g.end(k("dark", 1), 1, 3.038, sg * 0.34, sg * 0.82, 2.04, 2.5, (1, 1, 1, 1))
+            g.end(k("dark", 1), 1, 3.038, sg * 0.46, sg * 0.7, 2.5, 2.72, (1, 1, 1, 1))
+            g.side(k("dark", 1), sg, 2.0, 2.4, 2.04, 2.62, (1, 1, 1, 1), out=1.255)
+        g.end(k("dark", 1), 1, 3.038, -1.02, 1.02, 2.04, 2.16, (1, 1, 1, 1))
+        g.end(k("dark", 1), 1, 3.038, -0.04, 0.04, 2.04, 2.9, (1, 1, 1, 1))
+        g.lamp(6.4, 0.6, 0.0, "white", 5.0)
+        g.lamp(10.6, 0.6, 0.0, "white", 2.6)
+    if beacon:
+        g.box(k("glow"), 1.3, 1.5, 3.75, 3.92, -0.1, 0.1, GLOW["amber"])
+        g.lamp(1.4, 3.9, 0.0, "amber", 2.4)
+
+
+def tanker(x, z, yaw, firm="OPALO", y=GY, legs=False):
+    """A road tanker's trailer, built in place (its nose at +x as a
+    trailer's is, so a tractor couples at the same yaw): the barrel in the
+    firm's white with its bands and name, dished ends, a walkway and three
+    lids along its back, a ladder at the tail, the chassis on three axles,
+    a valve cabinet at its flank, placards, and every lamp it shows."""
+    body, band, ink = LIVERY[firm]
+    g = Rig(x, z, yaw, y)
+    st, std, kg = M("steel"), M("steel", 1), k("glow", 1)
+    R_, CY = 1.16, 2.5
+    pipe(M("tank"), g.at(-6.0, CY, 0.0), g.at(5.9, CY, 0.0), R_, segs=18, col=body, caps=True)
+    for lx, sg in ((-6.0, -1), (5.9, 1)):
+        pipe(M("tank"), g.at(lx, CY, 0.0), g.at(lx + sg * 0.26, CY, 0.0), R_ * 0.8, segs=18, col=shade(body, 0.9), caps=True)
+    for lx in (-4.3, -0.1, 4.1):
+        pipe(std, g.at(lx - 0.5, CY, 0.0), g.at(lx + 0.5, CY, 0.0), R_ + 0.012, segs=18, col=band)
+    for lx in (-2.2, 2.0):
+        pipe(std, g.at(lx - 0.05, CY, 0.0), g.at(lx + 0.05, CY, 0.0), R_ + 0.03, segs=18, col=shade(body, 0.5))
+    hh = min(0.62, 3.3 / (0.8 * len(firm)))
+    for sg in (1, -1):
+        g.word(sg, firm, 2.0, CY + 0.05, hh, band, k("trim", 1), out=R_ + 0.03)
+        g.word(sg, firm, -2.2, CY + 0.05, hh, band, k("trim", 1), out=R_ + 0.03)
+    # Its back: a walkway with a rail one side, three lids, the ladder.
+    top = CY + R_
+    g.box(std, -5.6, 5.4, top - 0.02, top + 0.05, -0.32, 0.32, c(0.2, 0.21, 0.23))
+    rail(g.at(-5.6, top + 0.05, 0.32), g.at(5.4, top + 0.05, 0.32), h=0.7, detail=1, posts=2.2)
+    for lx in (-3.6, 0.2, 4.0):
+        px, _, pz = g.at(lx, 0.0, -0.05)
+        cylinder(std, px, pz, y + top + 0.05, y + top + 0.2, 0.3, segs=8, col=shade(body, 0.6))
+    for lz in (-0.22, 0.22):
+        pa, pb = g.at(-6.32, 1.0, lz), g.at(-6.32, top + 0.5, lz)
+        both(k("metal", 1), ((pa[0], pa[1], pa[2]), (pa[0] + g.s * 0.04, pa[1], pa[2] + g.c * 0.04), (pb[0] + g.s * 0.04, pb[1], pb[2] + g.c * 0.04), (pb[0], pb[1], pb[2])))
+    ry = 1.2
+    while ry < top + 0.4:
+        g.end(k("metal", 1), -1, -6.32, -0.22, 0.22, ry, ry + 0.04, (1, 1, 1, 1))
+        ry += 0.36
+    # The chassis: two rails, saddles under the barrel, three axles, guards.
+    for lz in (-0.6, 0.48):
+        g.box(st, -6.2, 5.6, 0.98, 1.26, lz, lz + 0.12, STEEL)
+    for lx in (-5.0, -1.4, 2.2, 5.0):
+        g.box(st, lx - 0.12, lx + 0.12, 1.26, CY - R_ * 0.72, -0.9, 0.9, shade(body, 0.4))
+    for lx in (-5.3, -4.05, -2.8):
+        g.wheel(st, lx, -1.25, -0.7)
+        g.wheel(st, lx, 0.7, 1.25)
+    for z0, z1 in ((-1.27, -0.68), (0.68, 1.27)):
+        g.box(st, -6.0, -2.1, 1.1, 1.16, z0, z1, STEEL)
+    g.box(st, -6.34, -6.22, 0.5, 0.64, -1.2, 1.2, STEEL)
+    if legs:
+        for lz in (-0.95, 0.83):
+            g.box(st, 3.9, 4.02, 0.06, 1.0, lz, lz + 0.12, STEEL)
+            g.box(st, 3.78, 4.14, 0.0, 0.06, lz - 0.1, lz + 0.22, STEEL)
+    # The valve cabinet on its +z flank, side rails, tape, markers, placards.
+    g.box(st, -1.2, 0.4, 0.62, 1.3, 0.86, 1.26, shade(body, 0.7))
+    g.side(k("dark", 1), 1, -1.1, 0.3, 0.7, 1.22, (1, 1, 1, 1), out=1.264)
+    for lx in (-0.8, -0.4, 0.0):
+        px, py, pz = g.at(lx, 0.94, 1.27)
+        nozzle(px, py, pz, yaw, r=0.07, ln=0.14, col=c(0.5, 0.5, 0.48))
+    for sg in (1, -1):
+        # A skirt between the legs and the axles, taped; markers on it and
+        # on the guards over the wheels.
+        a0 = 0.6 if sg > 0 else -2.0
+        g.box(st, a0, 3.6, 0.55, 1.1, sg * 1.2 - 0.02, sg * 1.2 + 0.02, shade(body, 0.75))
+        a, i = a0 + 0.1, 0
+        while a + 0.8 < 3.6:
+            g.side(k("trim", 1), sg, a, a + 0.8, 0.98, 1.05, TAPE_RED if i % 2 else TAPE_WHITE, out=1.232)
+            a, i = a + 1.1, i + 1
+        for lx in (a0 + 0.3, 3.3):
+            g.side(kg, sg, lx - 0.09, lx + 0.09, 0.82, 0.9, SODIUM, out=1.234)
+        for lx in (-5.7, -2.4):
+            g.side(kg, sg, lx - 0.09, lx + 0.09, 1.17, 1.25, SODIUM, out=1.275)
+        px, py, pz = g.at(-5.3, 1.75, sg * 0.93)
+        P.place("haz_diamond", px, py, pz, yaw, district=D)
+        for lx in (-3.4, 2.8):
+            g.lamp(lx, 1.5, sg * 2.2, "amber", 1.5)
+    px, py, pz = g.at(-6.3, 1.9, 0.62)
+    P.place("haz_diamond", px, py, pz, yaw + math.pi / 2, district=D)
+    for sg in (-1, 1):
+        g.end(kg, -1, -6.3, sg * 0.5, sg * 0.66, CY + 0.7, CY + 0.78, GLOW["red"])
+    tail(g, -6.35, 0.5)
+    return g
+
+
+# ---------------------------------------------------------------------------
 # The yard's instanced props. One material each where it can be done (the
 # colour rides on `trim`'s vertices), so a prototype is one small mesh.
 # ---------------------------------------------------------------------------
@@ -1933,9 +2178,6 @@ def _drum_pallet(kk):
     for (x, z, col) in ((-0.31, 0.31, RUST_D), (0.31, -0.31, RUST)):
         cylinder(kk("trim"), x, z, 1.04, 1.92, 0.29, segs=8, col=col)
     box(kk("trim"), -0.66, 0.02, 1.02, 1.08, -0.66, 0.02, scale=1.0, col=c(0.1, 0.13, 0.12))
-
-
-TYRE = c(0.025, 0.025, 0.03)
 
 
 def _wheel(key, x, z0, z1, r=0.52):
