@@ -568,15 +568,22 @@ def pool(key, x, y, z, rad, hue="amber", k=0.35, segs=14, squash=1.0):
     width."""
     b = batches[(key, "glow", 0)]
     c = GLOW[hue]
-    centre, rim = (c[0] * k, c[1] * k, c[2] * k, 1.0), (c[0] * 0.004, c[1] * 0.004, c[2] * 0.004, 1.0)
+    # (A lamp's light falls off fast and then slowly: a bright heart a
+    # third of the way out, a long dim skirt to nothing. The material is
+    # light itself, so its values are small.)
+    k *= 0.22
+    centre, mid, rim = (c[0] * k, c[1] * k, c[2] * k, 1.0), (c[0] * k * 0.3, c[1] * k * 0.3, c[2] * k * 0.3, 1.0), (0.0, 0.0, 0.0, 1.0)
+
+    def at(f, t):
+        return K.P(x + rad * f * math.cos(t), y, z + rad * f * squash * math.sin(t))
     for i in range(segs):
         t0, t1 = i * math.tau / segs, (i + 1) * math.tau / segs
         base = len(b.verts)
-        b.verts.extend(K.P(*q) for q in ((x, y, z), (x + rad * math.cos(t1), y, z + rad * squash * math.sin(t1)),
-                                         (x + rad * math.cos(t0), y, z + rad * squash * math.sin(t0))))
+        b.verts.extend((K.P(x, y, z), at(0.38, t1), at(0.38, t0), at(1.0, t1), at(1.0, t0)))
         b.faces.append((base, base + 1, base + 2))
-        b.uvs.extend(((0.5, 0.5), (1, 0), (0, 0)))
-        b.cols.extend((centre, rim, rim))
+        b.faces.append((base + 2, base + 1, base + 3, base + 4))
+        b.uvs.extend(((0.5, 0.5), (1, 0), (0, 0), (1, 0), (1, 1), (0, 1), (0, 0)))
+        b.cols.extend((centre, mid, mid, mid, mid, rim, rim))
 
 
 def tape(key, a, b, y=0.95, h=0.09):
@@ -787,7 +794,8 @@ def tube(key, a, b, hue, r=0.05):
         a[1] - r, a[1] + r, min(a[2], b[2]) - (r if a[2] == b[2] else 0), max(a[2], b[2]) + (r if a[2] == b[2] else 0), scale=1.0, bottom=True)
 
 
-LANE_STUFF = ("bin", "crates", "bags", "bags", "dumpster", "crates", "cy_unit", "bags")
+LANE_STUFF = ("bin", "crates", "bags", "pallets", "dumpster", "barrel", "cy_unit", "rubbish")
+DOORS = []      # (x, z) before every lane door (canyon_lane.door): nothing is left out across one
 
 
 def lane(key, x0, x1, z0, z1, r, along="z", tubes=True, people=True, name=None):
@@ -801,7 +809,11 @@ def lane(key, x0, x1, z0, z1, r, along="z", tubes=True, people=True, name=None):
     lo, hi = (z0, z1) if along == "z" else (x0, x1)
     wa, wb = (x0, x1) if along == "z" else (z0, z1)
     pt = (lambda v, w, y: (w, y, v)) if along == "z" else (lambda v, w, y: (v, y, w))
-    off = 0.6 if wb - wa < 7.0 else 1.0
+    off = 0.75 if wb - wa < 7.0 else 1.0
+    # A gutter along the foot of one wall (not a strip down the middle,
+    # which read as a road's marking), a grating in it every few metres.
+    ga, gb = pt(lo + 0.3, wa + 0.12, 0.0), pt(hi - 0.3, wa + 0.34, 0.0)
+    flat((key, "dark", 1), min(ga[0], gb[0]), max(ga[0], gb[0]), min(ga[2], gb[2]), max(ga[2], gb[2]), G0 + 0.012)
     v = lo + r.uniform(1.5, 3.5)
     n = 0
     while v < hi - 2.0:
@@ -828,7 +840,9 @@ def lane(key, x0, x1, z0, z1, r, along="z", tubes=True, people=True, name=None):
         for w in (wa + off, wb - off):
             if r.random() < 0.62:
                 px, _, pz = pt(v + r.uniform(0.3, 2.6), w, 0.0)
-                P.place(r.choice(LANE_STUFF), px, G0, pz, r.choice((0.0, math.pi / 2, math.pi, 0.3)), district=key)
+                what, turn = r.choice(LANE_STUFF), r.choice((0.0, math.pi / 2, math.pi, 0.3))
+                if all(abs(px - dx) + abs(pz - dz) > 1.6 for dx, dz in DOORS):
+                    P.place(what, px, G0, pz, turn, district=key)
         if people and r.random() < 0.4:
             side = r.random() < 0.5
             w2 = wa + 0.75 if side else wb - 0.75
@@ -840,12 +854,6 @@ def lane(key, x0, x1, z0, z1, r, along="z", tubes=True, people=True, name=None):
             if pose == "talk":
                 ox, _, oz = pt(0.0, 1.0 * face, 0.0)
                 stand(qx + (ox if along == "z" else 0.0), qz + (0.0 if along == "z" else oz), yaw + math.pi, "talk", G0)
-        # A drain down its middle, a grating at a time.
-        dx, _, dz = pt(v, (wa + wb) / 2, 0.0)
-        if along == "z":
-            box((key, "dark", 1), dx - 0.2, dx + 0.2, G0, G0 + 0.012, dz - 1.6, dz + 1.6, scale=0.5)
-        else:
-            box((key, "dark", 1), dx - 1.6, dx + 1.6, G0, G0 + 0.012, dz - 0.2, dz + 0.2, scale=0.5)
         v += r.uniform(3.6, 5.6)
         n += 1
     if name:
@@ -926,7 +934,10 @@ def link(side_x0, side_x1, z_lo, z_hi, y, r, key=CB):
 # A service wall at street level: what a block shows a lane.
 # ---------------------------------------------------------------------------
 def service_wall(f, r, key=CB):
-    """The ground floor of a back or an alley wall, nothing on it repeated
+    """(Round 2's wall: canyon_lane.wall builds the lanes' walls now. far.py
+    still runs this for its dice alone, so every lot's later draws, its
+    terrace's height among them, fall as they did.)
+    The ground floor of a back or an alley wall, nothing on it repeated
     and no stretch of it bare: rain-stained concrete over a dark plinth, a
     pair of conduits run along it, and under them back doors with a lamp
     each, a shutter for deliveries, switch boxes with their pilot lamps,
@@ -1013,7 +1024,101 @@ def service_wall(f, r, key=CB):
 # ---------------------------------------------------------------------------
 # A roof from the air: plant, light and structure, nothing over `cap`.
 # ---------------------------------------------------------------------------
-PALE = (0.4, 0.41, 0.46, 1)      # a roof's walkway slabs and plinths, pale against its tar
+PALE = (0.62, 0.63, 0.68, 1)     # a roof's walkway slabs and plinths, pale against its tar
+LID = (0.8, 0.81, 0.84, 1)       # the top of a tank, a cabinet, a cooling tower: what the sky's light finds
+TANK = (0.42, 0.44, 0.47, 1)
+
+
+@P.proto("cy_crane", box=(0.6, 7.0, 0.6), reach=1200)
+def _cy_crane(k):
+    """A tower crane left on a roof, fourteen metres: a lattice mast, a jib
+    toward +z and a short counter-jib with its weight, ties from the apex,
+    a hook's line, red lamps at the apex and the jib's tip."""
+    T = k("trim")
+    steel = (0.5, 0.36, 0.06, 1)
+    for lx, lz in ((-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5)):
+        box(T, lx - 0.05, lx + 0.05, 0.0, 12.0, lz - 0.05, lz + 0.05, scale=1.0, col=steel)
+    for i in range(6):
+        y = i * 2.0
+        box(T, -0.55, 0.55, y + 1.95, y + 2.05, -0.55, 0.55, scale=1.0, col=steel, bottom=True)
+        for q in (((-0.5, y, 0.5), (0.5, y + 2.0, 0.5), (0.5, y + 2.1, 0.5), (-0.5, y + 0.1, 0.5)), ((0.5, y, -0.5), (-0.5, y + 2.0, -0.5), (-0.5, y + 2.1, -0.5), (0.5, y + 0.1, -0.5)),
+                  ((0.5, y, 0.5), (0.5, y + 2.0, -0.5), (0.5, y + 2.1, -0.5), (0.5, y + 0.1, 0.5)), ((-0.5, y, -0.5), (-0.5, y + 2.0, 0.5), (-0.5, y + 2.1, 0.5), (-0.5, y + 0.1, -0.5))):
+            quad(T, *q, col=steel)
+            quad(T, q[1], q[0], q[3], q[2], col=steel)
+    box(T, -0.7, 0.7, 12.0, 12.9, -0.9, 0.9, scale=1.0, col=(0.3, 0.3, 0.32, 1), bottom=True)
+    box(T, -0.3, 0.3, 12.3, 12.8, -5.0, 13.0, scale=1.0, col=steel, bottom=True)
+    box(T, -0.6, 0.6, 11.5, 12.9, -5.0, -3.6, scale=1.0, col=(0.22, 0.22, 0.24, 1), bottom=True)
+    box(T, -0.08, 0.08, 12.9, 14.6, -0.08, 0.08, scale=1.0, col=steel)
+    for za in (12.6, -4.6):
+        for q in (((-0.04, 14.5, 0.0), (0.04, 14.5, 0.0), (0.04, 12.85, za), (-0.04, 12.85, za)), ((0.0, 14.5, -0.04), (0.0, 14.5, 0.04), (0.0, 12.85, za + 0.04), (0.0, 12.85, za - 0.04))):
+            quad(T, *q, col=steel)
+            quad(T, q[1], q[0], q[3], q[2], col=steel)
+    box(T, -0.02, 0.02, 7.5, 12.3, 9.0, 9.04, scale=1.0, col=(0.1, 0.1, 0.1, 1))
+    box(T, -0.2, 0.2, 7.1, 7.5, 8.8, 9.2, scale=1.0, col=steel, bottom=True)
+    for x, y, z in ((0.0, 14.6, 0.0), (0.0, 12.85, 12.9), (0.0, 12.95, -4.9)):
+        box(k("glow"), x - 0.14, x + 0.14, y, y + 0.28, z - 0.14, z + 0.14, scale=0.5, col=GLOW["red"], bottom=True)
+
+
+@P.proto("cy_tank", box=(1.5, 1.8, 1.5), reach=900)
+def _cy_tank(k):
+    """A roof's tank on its legs: rolled plate in two courses, a pale lid, a
+    ladder, a pipe down to the roof."""
+    T = k("trim")
+    for lx, lz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+        box(T, lx * 0.95 - 0.07, lx * 0.95 + 0.07, 0.0, 0.9, lz * 0.95 - 0.07, lz * 0.95 + 0.07, scale=1.0, col=(0.05, 0.055, 0.065, 1))
+    P.lathe(k("tankplate"), 0.0, 0.0, ((0.9, 1.45), (3.4, 1.45)), segs=12, col=TANK, cap=False)
+    P.lathe(T, 0.0, 0.0, ((1.95, 1.48), (2.1, 1.48)), segs=12, col=(0.2, 0.21, 0.23, 1), cap=False)
+    P.lathe(T, 0.0, 0.0, ((3.4, 1.5), (3.65, 0.4)), segs=12, col=LID, cap=True)
+    box(T, 1.45, 1.52, 0.0, 3.4, -0.2, 0.2, scale=1.0, col=(0.3, 0.31, 0.33, 1))
+    box(T, -0.1, 0.1, 0.0, 0.9, -1.75, -1.55, scale=1.0, col=(0.3, 0.31, 0.33, 1))
+
+
+def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None):
+    """The largest thing a stretch of roof may carry where no lens of the
+    page's sees it, tried in turn: a crane, a penthouse (a stepped top with
+    its own lit floor and roof), a rank of tanks, a strip of skylight. Says
+    what it built (or None)."""
+    w, d = x1 - x0, z1 - z0
+    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+    if min(w, d) < 4.0:
+        return None
+
+    def room(xa, xb, za, zb, want, least):
+        return hidden_top(occ, xa, xb, za, zb, y, y + want, plaza=plaza, step=1.0, pad=0.3, least=least)
+    if min(w, d) >= 5.0 and r.random() < crane:
+        j0, j1 = jib or (z0 - 6.0, z1 + 6.0)
+        for yaw, za, zb in ((0.0, cz - 5.5, cz + 13.5), (math.pi, cz - 13.5, cz + 5.5)):
+            if za > j0 and zb < j1 and room(cx - 1.0, cx + 1.0, za, zb, 15.0, 15.0):
+                P.place("cy_crane", cx, y, cz, yaw, district=key)
+                flat((key, "trim", 0), cx - 1.6, cx + 1.6, cz - 1.6, cz + 1.6, y + 0.04, PALE)
+                return "crane"
+    pw, pd = min(w - 2.0, 9.0), min(d - 2.0, 14.0)
+    top = room(cx - pw / 2, cx + pw / 2, cz - pd / 2, cz + pd / 2, 7.4, 4.4) if pw >= 4.0 and pd >= 5.0 else None
+    if top:
+        ph_ = top - 0.6
+        a0, a1, b0, b1 = cx - pw / 2, cx + pw / 2, cz - pd / 2, cz + pd / 2
+        col = B.wall_col(0.95, 4, r.uniform(0.15, 0.7), B.TINTS[r.choice(("navy", "teal"))])
+        for f in B.faces_of(a0, a1, b0, b1).values():
+            wall(key, f, y, ph_, col, r.randrange(20))
+            f.box((key, "trim", 0), 0.0, f.width, ph_, ph_ + 0.5, -0.25, 0.0, col=B.TRIM[1])
+            f.quad((key, "glow", 0), 0.2, f.width - 0.2, ph_ - 0.5, ph_ - 0.32, 0.03, col=dim(r.choice(("cyan", "amber", "white")), 0.5))
+        roof(key, a0, a1, b0, b1, ph_)
+        flat((key, "trim", 0), a0 + 0.8, a1 - 0.8, cz - 0.4, cz + 0.4, ph_ + 0.03, PALE)
+        for px, pz in ((a0 + 0.4, b0 + 0.4), (a1 - 0.4, b1 - 0.4)):
+            box((key, "glow", 0), px - 0.12, px + 0.12, ph_ + 0.5, ph_ + 0.75, pz - 0.12, pz + 0.12, scale=0.5, col=GLOW["red"])
+        return "penthouse"
+    n = max(1, min(3, int((d - 1.0) // 3.6)))
+    if w >= 4.0 and room(cx - 1.7, cx + 1.7, cz - n * 1.8, cz + n * 1.8, 4.2, 4.2):
+        flat((key, "trim", 0), cx - 2.1, cx + 2.1, cz - n * 1.8 - 0.3, cz + n * 1.8 + 0.3, y + 0.04, PALE)
+        for i in range(n):
+            P.place("cy_tank", cx, y, cz + (i - (n - 1) / 2) * 3.6, r.uniform(0, 6.28), district=key)
+        return "tanks"
+    sw, sd_ = min(w - 1.5, 3.6), min(d - 1.5, 9.6)
+    box((key, "trim", 0), cx - sw / 2 - 0.2, cx + sw / 2 + 0.2, y, y + 0.32, cz - sd_ / 2 - 0.2, cz + sd_ / 2 + 0.2, scale=1.0, col=PALE)
+    flat((key, "skylight", 0), cx - sw / 2, cx + sw / 2, cz - sd_ / 2, cz + sd_ / 2, y + 0.33)
+    return "skylight"
+
+
 
 
 def _low_unit(key, px, pz, y, r, hw=0.8, hd=0.5):
@@ -1021,7 +1126,8 @@ def _low_unit(key, px, pz, y, r, hw=0.8, hd=0.5):
     on its top, a pilot lamp."""
     flat((key, "trim", 0), px - hw - 0.3, px + hw + 0.3, pz - hd - 0.3, pz + hd + 0.3, y + 0.03, PALE)
     box((key, "metal", 0), px - hw, px + hw, y, y + 0.7, pz - hd, pz + hd, scale=0.8)
-    flat((key, "dark", 1), px - hw + 0.12, px + hw - 0.12, pz - hd + 0.12, pz + hd - 0.12, y + 0.705)
+    flat((key, "trim", 0), px - hw, px + hw, pz - hd, pz + hd, y + 0.702, LID)
+    flat((key, "dark", 1), px - hw + 0.12, px + hw - 0.12, pz - hd + 0.12, pz + hd - 0.12, y + 0.708)
     flat((key, "glow", 0), px + hw - 0.3, px + hw - 0.18, pz - hd + 0.02, pz - hd + 0.1, y + 0.71, GLOW[r.choice(("green", "amber", "red"))])
 
 
@@ -1063,7 +1169,7 @@ def roof_low(key, x0, x1, z0, z1, y, r, pad=True):
             hue = r.choice(("amber", "amber", "cyan", "white"))
             xa, xb, za, zb = rect(u - 0.12, u + 0.12, bm + 0.55, bm + 0.79)
             box((key, "glow", 0), xa, xb, y, y + 0.5, za, zb, scale=0.5, col=GLOW[hue])
-            light(key, (xa + xb) / 2, y + 0.6, (za + zb) / 2, hue, 8.0)
+            pool(key, (xa + xb) / 2, y + 0.045, (za + zb) / 2, 2.6, hue, 0.2, segs=10)
         u += 4.2
         k += 1
     ring = None
@@ -1137,7 +1243,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
             hue = r.choice(("amber", "amber", "cyan", "white"))
             lx, lz = x0 + i * w / nx + 0.5, z0 + j * d / nz + 0.5
             box((key, "glow", 0), lx - 0.12, lx + 0.12, y, y + 0.5, lz - 0.12, lz + 0.12, scale=0.5, col=GLOW[hue])
-            light(key, lx, y + 0.6, lz, hue, 8.0)
+            pool(key, lx, y + 0.045, lz, 2.6, hue, 0.2, segs=10)
     for i in range(nx):
         for j in range(nz):
             px, pz = x0 + (i + 0.5) * w / nx, z0 + (j + 0.5) * d / nz
@@ -1158,7 +1264,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
             if kind == "tower":
                 hw, hd, hh = min(1.8, pw / 2), min(1.8, pd / 2), min(cap - 0.4, r.uniform(2.2, 3.2))
                 box((key, "metal", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.0)
-                box((key, "dark", 1), px - hw - 0.08, px + hw + 0.08, y + hh, y + hh + 0.1, pz - hd - 0.08, pz + hd + 0.08, scale=1.0)
+                box((key, "trim", 0), px - hw - 0.08, px + hw + 0.08, y + hh, y + hh + 0.1, pz - hd - 0.08, pz + hd + 0.08, scale=1.0, col=LID)
                 cylinder((key, "dark", 1), px, pz, y + hh + 0.1, y + hh + 0.26, min(hw, hd) * 0.62, segs=10)
                 hue = r.choice(("cyan", "amber", "red", "teal"))
                 for f in B.faces_of(px - hw, px + hw, pz - hd, pz + hd).values():
@@ -1166,7 +1272,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
             elif kind == "hut":
                 hw, hd, hh = min(1.5, pw * 0.4), min(1.3, pd * 0.4), min(2.6, cap - 0.2)
                 box((key, "trim", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.5, col=B.TRIM[5])
-                box((key, "dark", 1), px - hw - 0.1, px + hw + 0.1, y + hh, y + hh + 0.12, pz - hd - 0.1, pz + hd + 0.1, scale=1.0)
+                box((key, "trim", 0), px - hw - 0.1, px + hw + 0.1, y + hh, y + hh + 0.12, pz - hd - 0.1, pz + hd + 0.1, scale=1.0, col=PALE)
                 side = r.choice((-1, 1))
                 dz = pz + side * (hd + 0.02)
                 q = ((px - 0.45, y, dz), (px + 0.45, y, dz), (px + 0.45, y + 2.0, dz), (px - 0.45, y + 2.0, dz))
@@ -1177,7 +1283,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                 for m in range(n):
                     P.place("cy_unit", px - (n - 1) + m * 2.0, y, pz, 0.0, district=key)
             elif kind == "duct" and pw > 2.0:
-                box((key, "metal", 1), px - pw / 2, px + pw / 2, y + 0.35, y + 0.95, pz - 0.35, pz + 0.35, scale=1.0, bottom=True)
+                box((key, "trim", 1), px - pw / 2, px + pw / 2, y + 0.35, y + 0.95, pz - 0.35, pz + 0.35, scale=1.0, col=PALE, bottom=True)
                 for lx in (px - pw / 2 + 0.3, px + pw / 2 - 0.3):
                     box((key, "metal", 1), lx - 0.06, lx + 0.06, y, y + 0.35, pz - 0.3, pz + 0.3, scale=0.5)
             elif kind == "sky" and min(pw, pd) > 2.4:
@@ -1192,7 +1298,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                     cylinder((key, "metal", 1), px + sx, pz, y, y + 1.3, 0.2, segs=7)
                     cylinder((key, "dark", 1), px + sx, pz, y + 1.3, y + 1.42, 0.3, segs=7)
             elif kind == "tank":
-                P.place("tank_roof", px, y, pz, r.uniform(0, 6.28), district=key)
+                P.place("cy_tank", px, y, pz, r.uniform(0, 6.28), sxz=min(1.0, min(pw, pd) / 3.2), district=key)
             elif kind == "antenna":
                 P.place("antenna", px, y, pz, r.uniform(0, 3.14), district=key)
             elif kind == "dish":

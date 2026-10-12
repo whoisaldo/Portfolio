@@ -4,6 +4,7 @@ from ncw import props as P
 from ncw.districts import canyon_kit as C
 from ncw.districts import canyon_mass as M
 from ncw.districts import canyon_cross
+from ncw.districts import canyon_lane as LW
 from ncw import kit as K
 from ncw.districts.canyon_kit import FA, CB, fl
 
@@ -185,6 +186,27 @@ for side, lots in ROWS.items():
 HERO_MASSES.extend(OCC[len(AVENUE_MASSES):])
 
 
+VOID = "cy_void"
+
+
+def _dice(build, f, r):
+    """Run one of round 2's builders for its dice alone, into a district
+    that is thrown away: the lot's stream of draws runs on exactly as it
+    did (its terraces' heights and its crowns come later in it)."""
+    n_inst, n_ids, n_people, counts = len(P.INSTANCES), len(STREET_SIGN_IDS), len(PEOPLE), dict(ST_COUNT)
+    build(f, r, key=VOID)
+    del P.INSTANCES[n_inst:], STREET_SIGN_IDS[n_ids:], PEOPLE[n_people:]
+    ST_COUNT.clear()
+    ST_COUNT.update(counts)
+    LIGHTS.pop(VOID, None)
+    for key in [k for k in batches if k[0] == VOID]:
+        del batches[key]
+
+
+def _lane_r(L, f):
+    return random.Random(7100 + L["i"] * 19 + (0 if L["side"] > 0 else 400) + int(abs(f.plane) * 3 + abs(f.a0)))
+
+
 def _doorway(f, s, r, depth=0.45):
     """Someone in a recessed doorway, out of the rain."""
     x, _, z = f.p(f.at(s), 0.0, -depth)
@@ -313,7 +335,8 @@ def _podium(L, zn, zs, north, south):
         # Its back, on the lane: a service floor of doors, lamps and
         # shutters, the smaller windows a block turns to its back, pipes,
         # ducts and condensers.
-        C.service_wall(bk, r)
+        _dice(C.service_wall, bk, r)
+        LW.wall(bk, _lane_r(L, bk), upper=ph)
         C.wall(CB, bk, SHOP_H, ph, back_col, ov)
         B.clutter_back(CB, bk, r, SHOP_H, ph)
         for _ in range(max(1, int(bk.width / 14.0))):
@@ -342,7 +365,8 @@ def _podium(L, zn, zs, north, south):
             for s in doors:
                 _doorway(f, s, r)
         elif kind == "alley":
-            C.service_wall(f, r)
+            _dice(C.service_wall, f, r)
+            LW.wall(f, _lane_r(L, f), ends=2.8, upper=ph)
             C.wall(CB, f, SHOP_H, ph, back_col, ov)
             B.clutter_back(CB, f, r, SHOP_H, ph)
             for _ in range(2):
@@ -409,6 +433,11 @@ def _lookout(U, top, plaza):
     else:
         return None
     hue, ki = U["rail"], U["ki"]
+    # Past the lot line a balcony over the avenue, as far out as the hero's
+    # picture allows: from its rail the canyon is seen up and down.
+    out = M._most(OCC, B.Face("-x" if side > 0 else "+x", _x(side, 0.0), z0, z1), 0.0, GAP, top - 0.9, top + 1.3, 2.6)
+    if out >= 1.0 and not any(abs((z0 + z1) / 2 - zc) < half + 4.0 for zc, half, _, _ in CROSS) and M.clear(OCC, (min(_x(side, 0.0), _x(side, u0)), top - 0.9, z0), (max(_x(side, 0.0), _x(side, u0)), top + 1.3, z1)):
+        u0 = -out
     xa, xb = sorted((_x(side, u0), _x(side, sd + LOOK_W)))
     box((CB, "trim", 0), xa, xb, top - 0.35, top, z0, z1, scale=2.0, col=B.DARK_TRIM, bottom=True)
     B.ground_rect(CB, xa, xb, z0 + 0.1, z1 - 0.1, y=top + 0.03)
@@ -430,19 +459,29 @@ def _lookout(U, top, plaza):
     C.rail(CB, B.Face("+x" if side > 0 else "-x", _x(side, sd + LOOK_W), z0, z1), top, hue)
     # The slot's two walls beside it, close enough to touch: a dark dado, a
     # conduit, wall lamps with their pools, a small board.
-    wx = sorted((_x(side, u0), _x(side, sd)))
+    wx = sorted((_x(side, max(u0, 0.0)), _x(side, sd)))
+    if u0 < 0:
+        # The balcony's own sides, and a viewer on a post at its rail.
+        for zz, name in ((z0, "-z"), (z1, "+z")):
+            C.rail(CB, B.Face(name, zz, *sorted((_x(side, u0), _x(side, 0.0)))), top, hue)
+        vx = _x(side, u0 + 0.5)
+        cylinder((CB, "metal", 1), vx, (z0 + z1) / 2 + 1.7, top, top + 1.15, 0.06, segs=5)
+        box((CB, "metal", 1), vx - 0.2, vx + 0.2, top + 1.15, top + 1.45, (z0 + z1) / 2 + 1.52, (z0 + z1) / 2 + 1.88, scale=0.5, bottom=True)
     for f in (B.Face("-z", z1, *wx), B.Face("+z", z0, *wx)):
         f.quad((CB, "trim", 0), 0.0, f.width, top, top + 3.3, 0.03, col=B.DARK_TRIM)
         f.box((CB, "metal", 1), 0.0, f.width, top + 3.05, top + 3.12, 0.0, 0.08)
         f.box((CB, "neon_" + hue, 0), 0.3, f.width - 0.3, top + 3.2, top + 3.26, 0.03, 0.09)
-        # A row of adverts down each wall, a small board between two of them.
+        # One advert and a small board on each wall, by the terrace's end:
+        # the end over the avenue is left open to the view.
         s_, k_ = 0.5, 0
         while s_ + 2.2 < f.width:
             pw = min(r.uniform(2.6, 3.8), f.width - s_ - 0.4)
+            inner = abs(f.at(s_ + pw / 2)) > WALK + sd * 0.55
             if k_ == 1:
-                C.board(f, s_ + 0.9, top + 1.7, "bx", r)
+                if inner:
+                    C.board(f, s_ + 0.9, top + 1.7, "bx", r)
                 pw = 1.8
-            else:
+            elif inner:
                 cx, cy, cz = f.p(f.at(s_ + pw / 2), top + 1.65, 0.12)
                 B.billboard(CB, cx, cy, cz, pw - 0.4, 2.0, f.yaw, r, frame=True, back=False, depth=0.1)
             s_ += pw + 0.25
@@ -483,8 +522,16 @@ def _back(U):
     st, bk, so, no, xa, xb = _faces(side, sd, u1, zn, zs)
     B.COLLISION.append(("box", xa, xb, ph, top, zn, zs, "canyon"))
     look = _lookout(U, top, plaza) if U["back"] == "low" else None
+    # (What rises over the slab is a tower's top, seen from the air and from
+    # Japantown: a dark floor where it leaves the slab, then floors of amber
+    # and cyan bands.)
+    over = top > h + 6.0
+    top_col = B.wall_col(0.5, 5, U["warmth"], U["tint"])
     for f in (bk, so, no):
-        C.wall(CB, f, ph, top, U["back_col"] if f is bk else U["col"], U["ov"])
+        C.wall(CB, f, ph, h if over else top, U["back_col"] if f is bk else U["col"], U["ov"])
+        if over:
+            f.quad((CB, "trim", 0), 0.0, f.width, h, h + CELL_H, 0.0, col=M.SVC)
+            C.wall(CB, f, h + CELL_H, top, top_col, U["ov"])
         if U["back"] != "low":
             C.parapet(CB, f, top, tcol)
         elif look and f is (so if look[3] > 0 else no):
@@ -495,7 +542,7 @@ def _back(U):
         else:
             C.rail(CB, f, top, U["rail"])
     if top > h + 0.5:
-        C.wall(CB, st, h, top, U["col"], U["ov"])
+        C.wall(CB, st, h, top, top_col if over else U["col"], U["ov"])
         C.parapet(CB, st, top, tcol)
     C.roof(CB, xa, xb, zn, zs, top)
     B.ROOFS.append((CB, xa, xb, zn, zs, top))
@@ -513,7 +560,7 @@ def _back(U):
         return
     hue = r.choice(HUES + ("red",))
     for f in B.faces_of(cx0, cx1, cz0, cz1).values():
-        C.wall(CB, f, top, ctop, U["col"], U["ov"])
+        C.wall(CB, f, top, ctop, B.wall_col(0.95, 4, 0.25, U["tint"]), U["ov"])
         C.strip(CB, f, 0.0, f.width, ctop - 1.3, ctop - 0.9, hue, out=0.08)
         # Bracing across it, bay by bay (ARL_JWwKdDs@22).
         nb = max(1, round(f.width / 9.0))
@@ -681,6 +728,8 @@ def _roofs(U):
     a terrace a deck that is lived on."""
     L = U["lot"]
     side, r, h = L["side"], L["r"], U["h"]
+    rb = random.Random(7300 + L["i"] * 23 + U["k"] * 3 + (0 if side > 0 else 500))
+    plaza_ = side > 0 and L["i"] <= 4
     away = "+x" if side > 0 else "-x"
     # The slab's roof in two strips, each as high as the hero's lens allows:
     # low by the street edge, more behind it.
@@ -691,7 +740,15 @@ def _roofs(U):
         xa, xb = sorted((_x(side, u0), _x(side, u1)))
         top = C.hidden_top(OCC, xa, xb, zn, zs, h, h + 7.0, step=1.0, pad=0.2, least=1.0)
         # (Where the lens allows nothing to stand, what a roof holds under
-        # its parapet's height.)
+        # its parapet's height.) In the middle of the back strip of a long
+        # roof, the largest thing the lenses allow: a crane, a penthouse,
+        # tanks, a skylight.
+        if u0 == 8.0 and zs - zn > 26.0:
+            zm = (zn + zs) / 2
+            C.roof_big(CB, xa, xb, zm - 8.0, zm + 8.0, h, rb, OCC, plaza_)
+            C.roof_plant(CB, xa, xb, zn, zm - 8.6, h, r, (top - h) if top else 0.0, lines)
+            C.roof_plant(CB, xa, xb, zm + 8.6, zs, h, r, (top - h) if top else 0.0, lines)
+            continue
         C.roof_plant(CB, xa, xb, zn, zs, h, r, (top - h) if top else 0.0, lines)
     edge_hue = r.choice(("red", "amber", "white", "cyan", "red"))
     xr = sorted((_x(side, 0.75), _x(side, U["sd"] - 0.75)))
@@ -710,13 +767,22 @@ def _roofs(U):
             if r.random() < 0.75:
                 P.place("cy_unit", cx, t, cz, r.choice((0.0, math.pi / 2)), district=CB)
         cx0, cx1, cz0, cz1, ct = U["crown"]
-        C.roof_plant(CB, cx0 + 0.5, cx1 - 0.5, cz0 + 0.5, cz1 - 0.5, ct, r, 1.6)
+        if cz1 - cz0 > 20.0:
+            zm = (cz0 + cz1) / 2 + 5.0
+            C.roof_big(CB, cx0 + 0.5, cx1 - 0.5, zm - 4.0, zm + 4.0, ct, rb, OCC, plaza_)
+        C.roof_plant(CB, cx0 + 0.5, cx1 - 0.5, cz0 + 0.5, cz1 - 0.5 if cz1 - cz0 <= 20.0 else (cz0 + cz1) / 2, ct, r, 1.6)
         C.roof_edge(CB, cx0 + 0.5, cx1 - 0.5, cz0 + 0.5, cz1 - 0.5, ct, "red")
         C.roof_edge(CB, bx0 + 0.7, bx1 - 0.7, bz0 + 0.7, bz1 - 0.7, t, edge_hue)
         return
     if t > h:
         cap = C.hidden_top(OCC, bx0, bx1, bz0, bz1, t, t + 7.0, step=1.0, pad=0.2, least=1.0)
-        C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz1 - 0.6, t, r, (cap - t) if cap else 0.0, ring)
+        if bz1 - bz0 > 22.0:
+            zm = (bz0 + bz1) / 2
+            C.roof_big(CB, bx0 + 0.6, bx1 - 0.6, zm - 7.0, zm + 7.0, t, rb, OCC, plaza_)
+            C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, zm - 7.6, t, r, (cap - t) if cap else 0.0, ring)
+            C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, zm + 7.6, bz1 - 0.6, t, r, (cap - t) if cap else 0.0, ())
+        else:
+            C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz1 - 0.6, t, r, (cap - t) if cap else 0.0, ring)
         C.roof_edge(CB, bx0 + 0.7, bx1 - 0.7, bz0 + 0.7, bz1 - 0.7, t, edge_hue)
         # A mast at its far corner where the lenses allow one.
         mx, mz = (bx1 - 1.6 if side > 0 else bx0 + 1.6), bz0 + 1.6
@@ -736,7 +802,11 @@ def _roofs(U):
     edge = bx1 - 0.75 if side > 0 else bx0 + 0.75
     inward, out = -math.pi / 2 * side, math.pi / 2 * side
     if dz0 - bz0 > 4.0:
-        C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, dz0 - 1.0, t, r, 6.0, ())
+        # (A terrace stands well under its slab: its plant end is where a
+        # crane can be left standing.)
+        if dz0 - bz0 > 9.0 and C.roof_big(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz0 + 5.6, t, rb, OCC, plaza_, crane=1.0, jib=(bz0 - 3.0, bz1)) == "crane":
+            print("CANYON crane", side, L["i"], U["k"])
+        C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + (6.0 if dz0 - bz0 > 9.0 else 0.6), dz0 - 1.0, t, r, 6.0, ())
         x = bx0 + 2.2
         while x < bx1 - 2.0:
             P.place("cy_planter", x, t, dz0 - 0.3, 0.0, district=CB)
@@ -760,6 +830,7 @@ def _roofs(U):
         box((CB, "metal", 1), rail_x - 0.04, rail_x + 0.04, t, t + 3.5, z - 0.04, z + 0.04, scale=0.5)
         for fr in (0.4, 0.75):
             light(CB, wall_x + (edge - wall_x) * fr, t + 2.5, z, "amber", 7.0)
+            C.pool(CB, wall_x + (edge - wall_x) * fr, t + 0.045, z, 2.4, "amber", 0.22, segs=10)
         if k % 3 == 1:
             P.place("cy_deck_lamp", edge - side * 0.3, t, z + 1.6, inward, district=CB)
             light(CB, edge - side * 1.7, t + 3.0, z + 1.6, "cyan", 8.0)
@@ -780,7 +851,7 @@ def _roofs(U):
             x += 4.3
         z += 4.1
     for z in (dz0 + 0.9, bz1 - 0.9):
-        P.place("planter_tree", wall_x + side * 1.0, t, z, district=CB)
+        P.place("planter_palm", wall_x + side * 1.0, t, z, sxz=0.85, district=CB)
     z, k = dz0 + 3.0, 0
     while z < bz1 - 2.0:
         if k % 2 == 0:
