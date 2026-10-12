@@ -298,70 +298,87 @@ def lane():
 
 
 def track():
-    """The elevated track down the middle of the lane (mH2wmyeiIpA@143): a
-    concrete deck on twin teal girders, cross beams under it and a line of
-    warm light along its belly, so the lane has a lit ceiling; an upstand, a
-    rail on posts and a line of cyan light along each edge; two running
-    rails; at every pier a portal over the deck with lamps on it and the
-    wire between; piers of cast concrete on striped plinths, a sign and a
-    lamp on each."""
+    """The elevated track down the middle of the lane (mH2wmyeiIpA@143,
+    Fn9gKhU_2_Q@75): a heavy viaduct of cast concrete, a box girder two
+    metres deep and six and a half wide with a keel under it, on hammerhead
+    piers every 19 m; two warm lines of light along its underside either
+    side of the keel, so the lane has a lit ceiling; a yellow stripe along
+    each fascia with a line of cyan under it; on the deck an upstand either
+    side with a rail on posts, sleepers and two running rails; at every
+    pier a portal over the deck with lamps and the wire between; the piers
+    on striped plinths, a sign and a lamp on each. Through the halt the
+    girder narrows to its platforms' edges."""
     z = TRACK_Z
     top = TRACK_Y
     conc = (0.2, 0.2, 0.21, 1.0)
-    belly = tuple(c * 0.4 for c in GLOW["amber"][:3]) + (1.0,)
-    for s in (-1, 1):
-        za, zb = sorted((z + s * 0.8, z + s * 1.5))
-        box(k("steel"), WEST_X, EAST_X, top - 1.9, top - 0.3, za, zb, scale=3.0, col=K.TEAL, bottom=True)
-        ze, zf = sorted((z + s * 0.72, z + s * 0.86))
-        box(k("metal"), WEST_X, EAST_X, top, top + 0.16, ze, zf, scale=1.0)
-    box(k("castconcrete"), WEST_X, EAST_X, top - 0.3, top, z - 2.6, z + 2.6, scale=3.0, col=conc, bottom=True)
-    box(k("glow"), WEST_X + 1.0, EAST_X - 1.0, top - 0.36, top - 0.31, z - 0.28, z + 0.28, scale=1.0, col=belly)
-    # Its edges, either side of the halt.
-    for xa, xb in ((WEST_X, 232.0), (260.0, EAST_X)):
-        for s in (-1, 1):
-            za, zb = sorted((z + s * 2.42, z + s * 2.6))
-            box(k("castconcrete"), xa, xb, top, top + 0.4, za, zb, scale=3.0, col=conc)
-            zc, zd = sorted((z + s * 2.6, z + s * 2.65))
-            K.neon_box(xa, xb, top - 0.22, top - 0.08, zc, zd, "cyan")
-            zr = z + s * 2.5
+    keel = (0.15, 0.15, 0.16, 1.0)
+    belly = tuple(c * 0.8 for c in GLOW["amber"][:3]) + (1.0,)
+    hx0, hx1 = 232.0, 260.0
+    for xa, xb, hw in ((WEST_X, hx0, 3.25), (hx0, hx1, 2.2), (hx1, EAST_X, 3.25)):
+        box(k("castconcrete"), xa, xb, top - 2.1, top, z - hw, z + hw, scale=3.0, col=conc, bottom=True)
+        box(k("castconcrete"), xa, xb, top - 2.6, top - 2.1, z - hw + 1.0, z + hw - 1.0, scale=3.0, col=keel, bottom=True)
+        if hw < 3.0:
+            continue
+        for s_ in (-1, 1):
+            # The underside's lines of light, the fascia's stripe and cyan.
+            za, zb = sorted((z + s_ * (hw - 0.55), z + s_ * (hw - 0.8)))
+            box(k("glow"), xa + 0.6, xb - 0.6, top - 2.13, top - 2.1, za, zb, scale=1.0, col=belly)
+            za, zb = sorted((z + s_ * hw, z + s_ * (hw + 0.03)))
+            box(k("trim"), xa, xb, top - 0.8, top - 0.45, za, zb, scale=1.0, col=K.YELLOW)
+            K.neon_box(xa, xb, top - 1.98, top - 1.86, za, zb, "cyan")
+            # The upstand and its rail.
+            za, zb = sorted((z + s_ * (hw - 0.3), z + s_ * hw))
+            box(k("castconcrete"), xa, xb, top, top + 0.9, za, zb, scale=3.0, col=conc)
+            zr = z + s_ * (hw - 0.15)
             box(k("steel"), xa, xb, top + 1.12, top + 1.2, zr - 0.04, zr + 0.04, scale=1.0, col=K.TEAL)
-            box(k("steel", 1), xa, xb, top + 0.74, top + 0.79, zr - 0.03, zr + 0.03, scale=1.0, col=K.TEAL)
             x = xa + 1.2
             while x < xb - 0.5:
-                box(k("steel", 1), x - 0.04, x + 0.04, top + 0.4, top + 1.12, zr - 0.04, zr + 0.04, scale=1.0, col=K.TEAL)
-                x += 2.375
-    # Cross beams under the deck, and the lamps along it.
+                box(k("steel", 1), x - 0.04, x + 0.04, top + 0.9, top + 1.12, zr - 0.04, zr + 0.04, scale=1.0, col=K.TEAL)
+                x += 2.4
+    # Ribs across its underside every 4.75 m, and between piers a lamp
+    # hung under the keel in a dark housing.
     x = WEST_X + 2.0
     while x < EAST_X - 1.0:
-        box(k("steel", 1), x - 0.12, x + 0.12, top - 1.5, top - 0.3, z - 2.5, z + 2.5, scale=1.0, col=K.TEAL, bottom=True)
-        if not 231.0 < x < 261.0:
-            for s in (-1, 1):
-                K.glow_box(x - 0.14, x + 0.14, top + 1.2, top + 1.42, z + s * 2.5 - 0.1, z + s * 2.5 + 0.1, "pink")
+        hw = 2.2 if hx0 < x < hx1 else 3.25
+        box(k("castconcrete", 1), x - 0.22, x + 0.22, top - 2.55, top - 2.1, z - hw + 0.1, z + hw - 0.1, scale=2.0, col=keel, bottom=True)
+        if not hx0 - 2.0 < x < hx1 + 2.0 and int(round((x - WEST_X - 2.0) / 4.75)) % 2:
+            box(k("trim", 1), x - 0.5, x + 0.5, top - 2.82, top - 2.6, z - 0.3, z + 0.3, scale=1.0, col=K.BLACK)
+            box(k("glow"), x - 0.42, x + 0.42, top - 2.85, top - 2.82, z - 0.22, z + 0.22, scale=1.0, col=GLOW["white"])
         x += 4.75
+    # The rails, on sleepers.
+    for s_ in (-1, 1):
+        ze, zf = sorted((z + s_ * 0.72, z + s_ * 0.86))
+        box(k("metal"), WEST_X, EAST_X, top + 0.08, top + 0.24, ze, zf, scale=1.0)
+    x = WEST_X + 0.5
+    while x < EAST_X - 0.3:
+        quad(k("dark", 1), (x - 0.13, top + 0.08, z + 1.2), (x + 0.13, top + 0.08, z + 1.2), (x + 0.13, top + 0.08, z - 1.2), (x - 0.13, top + 0.08, z - 1.2))
+        x += 0.9
     box(k("metal", 1), WEST_X, EAST_X, top + 4.7, top + 4.74, z - 0.025, z + 0.025, scale=1.0)
     for j, px in enumerate(range(150, 430, 19)):
         if 236 < px < 256:
             continue
-        box(k("castconcrete"), px - 0.8, px + 0.8, G0, top - 2.7, z - 0.8, z + 0.8, scale=2.0, col=conc)
-        box(k("castconcrete"), px - 1.0, px + 1.0, top - 2.7, top - 1.9, z - 2.5, z + 2.5, scale=2.0, col=conc, bottom=True)
+        # A column 2.2 m square under a hammerhead.
+        box(k("castconcrete"), px - 1.1, px + 1.1, G0, top - 3.3, z - 1.1, z + 1.1, scale=2.0, col=conc)
+        box(k("castconcrete"), px - 1.2, px + 1.2, top - 3.3, top - 2.6, z - 2.2, z + 2.2, scale=2.0, col=conc, bottom=True)
+        box(k("castconcrete"), px - 1.2, px + 1.2, top - 2.95, top - 2.6, z - 3.1, z + 3.1, scale=2.0, col=conc, bottom=True)
         # The plinth, striped, a sign on the pier's two faces along the lane
         # and a lamp over each.
-        box(k("trim", 1), px - 1.05, px + 1.05, G0, G0 + 1.5, z - 1.05, z + 1.05, scale=1.0, col=K.STONE)
+        box(k("trim", 1), px - 1.35, px + 1.35, G0, G0 + 1.5, z - 1.35, z + 1.35, scale=1.0, col=K.STONE)
         for yy in (0.25, 0.75, 1.25):
-            box(k("trim", 1), px - 1.07, px + 1.07, G0 + yy, G0 + yy + 0.25, z - 1.07, z + 1.07, scale=1.0, col=K.YELLOW)
+            box(k("trim", 1), px - 1.37, px + 1.37, G0 + yy, G0 + yy + 0.25, z - 1.37, z + 1.37, scale=1.0, col=K.YELLOW)
         for sx in (-1, 1):
-            K.st_board(px + sx * 0.82, 3.6, z, "bx", sx * math.pi / 2)
-            K.glow_box(*sorted((px + sx * 0.82, px + sx * 1.1)), 4.5, 4.58, z - 0.5, z + 0.5, ("white", "amber")[j % 2], 1)
-        K.neon_box(px - 0.5, px + 0.5, top - 2.82, top - 2.74, z - 2.3, z - 1.0, "amber", 1)
-        K.neon_box(px - 0.5, px + 0.5, top - 2.82, top - 2.74, z + 1.0, z + 2.3, "amber", 1)
+            K.st_board(px + sx * 1.12, 3.6, z, "bx", sx * math.pi / 2)
+            K.glow_box(*sorted((px + sx * 1.12, px + sx * 1.4)), 4.5, 4.58, z - 0.5, z + 0.5, ("white", "amber")[j % 2], 1)
+        K.neon_box(px - 0.5, px + 0.5, top - 3.42, top - 3.34, z - 2.1, z - 1.2, "amber", 1)
+        K.neon_box(px - 0.5, px + 0.5, top - 3.42, top - 3.34, z + 1.2, z + 2.1, "amber", 1)
         light(CO, px, 12.0, z - 2.5, "amber", 4.0)
         light(CO, px, 12.0, z + 2.5, "amber", 4.0)
         light(CO, px + 9.5, 14.0, z, "amber", 4.5)
         # The portal over the deck.
-        for s in (-1, 1):
-            zp = z + s * 2.5
+        for s_ in (-1, 1):
+            zp = z + s_ * 2.5
             box(k("steel"), px - 0.09, px + 0.09, top + 0.4, top + 5.6, zp - 0.09, zp + 0.09, scale=1.0, col=K.TEAL)
-            K.glow_box(px - 0.22, px + 0.22, top + 5.1, top + 5.22, zp - s * 0.9 - 0.3, zp - s * 0.9 + 0.3, "white")
+            K.glow_box(px - 0.22, px + 0.22, top + 5.1, top + 5.22, zp - s_ * 0.9 - 0.3, zp - s_ * 0.9 + 0.3, "white")
         box(k("steel"), px - 0.09, px + 0.09, top + 5.4, top + 5.6, z - 2.6, z + 2.6, scale=1.0, col=K.TEAL)
         light(CO, px, top + 3.5, z, "white", 4.0)
         K.aviation(px, top + 5.6, z)
