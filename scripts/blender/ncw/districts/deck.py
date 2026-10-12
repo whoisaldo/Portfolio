@@ -94,9 +94,14 @@ def glowc(hex_color, k=1.0):
 
 # The soffit's lights (Fn9gKhU_2_Q@74).
 SOFFIT = {"green": glowc("39ff9a", 0.4), "amber": glowc("ff9a2a", 0.45)}
-MARKER = glowc("ffb254", 0.5)     # under white: a marker is an amber point, not a blob
+MARKER = glowc("ff9a2a", 0.38)    # under white: a marker is an amber lens in its fitting, not a blob
 KERB_GLOW = glowc("ffa020", 0.55)
 AVENUE_CLEAR = 15.0   # no new light on the ground this near the avenue's line: the hero's road stays as it was
+# And the light map washes every pool 10.5 m wide (src/world/spill.js): one
+# moved or added within that of the hero's span tints the ends of the face
+# the hero sees. So nearer the avenue's line than this the pools are round
+# 2's, where and as they were; round 3's are all further out.
+HERO_WASH = 32.0
 
 
 def pool(x, y, z, hue, power, spread=0.0):
@@ -206,8 +211,8 @@ X_BREAKS = (-HERO, HERO, plan.DECK_TOP_X1, ABUT_X, MOUTH_X, MOUTH_X + 0.6)
 Z_BREAKS = (EMB_Z, ZN)
 
 
-CONC = (0.36, 0.36, 0.37, 1.0)        # the girder's, the walls' and the soffit's concrete
-PARAPET_C = (0.43, 0.42, 0.41, 1.0)   # the parapets', paler: newer pours
+CONC = (0.29, 0.29, 0.3, 1.0)         # the girder's and the walls' concrete: weathered, a shade under the parapets'
+PARAPET_C = (0.38, 0.375, 0.365, 1.0) # the parapets', paler: newer pours
 PIER_C = (0.30, 0.295, 0.29, 1.0)      # the piers', buttresses' and cap beams' concrete
 CAP_C = (0.11, 0.11, 0.12, 1.0)         # cap beams: in the soffit's shadow
 STAIN_C = (0.15, 0.14, 0.125, 1.0)    # where water has run down it for years
@@ -552,7 +557,7 @@ def edge(axis, a, b, plane, d, yf, par_h, lit=True, lip=True):
             p0, p1 = plane + d * (LIP - 0.01), plane + d * 0.015
             face((DK, "castconcrete", 0), [_w(axis, v - 0.16, p1, f_), _w(axis, v + 0.16, p1, f_), _w(axis, v + 0.16, p0, t), _w(axis, v - 0.16, p0, t)], (out[0], -0.3, out[2]), 2.0, PARAPET_C)
             for sv in (-1, 1):
-                face((DK, "castconcrete", 1), [_w(axis, v + sv * 0.16, plane, f_), _w(axis, v + sv * 0.16, p1, f_), _w(axis, v + sv * 0.16, p0, t), _w(axis, v + sv * 0.16, plane, t)],
+                face((DK, "castconcrete", 0), [_w(axis, v + sv * 0.16, plane, f_), _w(axis, v + sv * 0.16, p1, f_), _w(axis, v + sv * 0.16, p0, t), _w(axis, v + sv * 0.16, plane, t)],
                      (sv, 0, 0) if axis == "x" else (0, 0, sv), 2.0, PARAPET_C)
         # A scupper through the fascia every fourth bay, and its stain.
         if lip and k % 4 == 2 and y - DEPTH > 0.3:
@@ -636,14 +641,24 @@ chipped("z", FOOT + 2.0, z_lane_s - 1.0, x_lane_w, (1, 0, 0), RY, 0.2, 0.36, det
 # on the hero's span). Along the walkway's rail: a slim post every eight
 # metres or so with a lantern on a short arm in over the walkway
 # (JtqIas3bYhg@64), an amber lens under a hood, and its pool.
+def marker(axis, v, u, y):
+    """A marker light on the parapet's cap: a base plate, an amber lens
+    between two cheeks, a hood over it."""
+    abox((DK, "steel", 1), axis, v - 0.14, v + 0.14, u - 0.09, u + 0.09, y, y + 0.03, col=HOUSING)
+    abox((DK, "glow", 0), axis, v - 0.08, v + 0.08, u - 0.05, u + 0.05, y + 0.03, y + 0.1, col=MARKER, bottom=False)
+    abox((DK, "steel", 1), axis, v - 0.12, v + 0.12, u - 0.075, u + 0.075, y + 0.1, y + 0.125, col=HOUSING)
+    for sv in (-1, 1):
+        abox((DK, "steel", 1), axis, v + sv * 0.1 - 0.014, v + sv * 0.1 + 0.014, u - 0.065, u + 0.065, y + 0.03, y + 0.1, col=HOUSING, bottom=False)
+
+
 x = XE + 2.0
 while x < MOUTH_X - 2.0:
     if not -HERO < x < HERO:
-        box((DK, "glow", 1), x - 0.09, x + 0.09, DY(x) + PAR_H + 0.07, DY(x) + PAR_H + 0.16, ZN + 0.12, ZN + 0.28, scale=0.5, col=MARKER)
+        marker("x", x, ZN + 0.2, DY(x) + PAR_H + 0.07)
     x += 6.0
 z = FOOT + 2.0
 while z < ZN - 1.0:
-    box((DK, "glow", 1), XE - 0.28, XE - 0.12, RY(z) + PAR_H + 0.07, RY(z) + PAR_H + 0.16, z - 0.09, z + 0.09, scale=0.5, col=MARKER)
+    marker("z", z, XE - 0.2, RY(z) + PAR_H + 0.07)
     z += 6.0
 
 
@@ -688,7 +703,8 @@ POSTS_X = (-72.0, -64.0, -52.0, -42.0, -37.5, -29.0, -21.5, 21.5, 26.5, 34.0, 41
 POSTS_Z = (-212.0, -204.0, -196.0, -188.0, -180.0, -172.0, -164.0, -156.0, -148.0, -137.5, -130.5, -121.5, -114.0, -104.5, -96.5, -87.5)
 for x in POSTS_X:
     P.place("deck_post", x, DY(x) + UPS_H, ZS - 0.08, math.pi, district=DK)
-    pool(x, DY(x) + 2.2, ZS - 0.7, "amber", 1.5)
+    if abs(x) >= HERO_WASH:
+        pool(x, DY(x) + 2.2, ZS - 0.7, "amber", 1.5)
 for z in POSTS_Z:
     P.place("deck_post", XW + 0.08, RY(z) + UPS_H, z, math.pi / 2, district=DK)
     pool(XW + 0.7, RY(z) + 2.2, z, "amber", 1.5)
@@ -806,7 +822,10 @@ def soffit_x(x, y, cz, hue, power=2.2):
     its pool on the floor under it."""
     box((DK, "dark", 1), x - 1.2, x + 1.2, y - 0.07, y, cz - 0.46, cz + 0.46, scale=1.0, bottom=True)
     face((DK, "glow", 0), [(x - 1.1, y - 0.075, cz - 0.36), (x + 1.1, y - 0.075, cz - 0.36), (x + 1.1, y - 0.075, cz + 0.36), (x - 1.1, y - 0.075, cz + 0.36)], (0, -1, 0), 1.0, SOFFIT[hue])
-    pool(x, FLOOR_POOL, cz, hue, power if hue == "amber" else 1.5, 1.8 if hue == "amber" else 1.2)
+    if abs(x) < HERO_WASH:      # as round 2 set it (see HERO_WASH)
+        pool(x, y, cz, hue, 3.0 if hue == "amber" else 1.9, 1.8 if hue == "amber" else 1.2)
+    else:
+        pool(x, FLOOR_POOL, cz, hue, power if hue == "amber" else 1.5, 1.8 if hue == "amber" else 1.2)
 
 
 def soffit_z(z, y, cx, hue, power=2.2):
@@ -865,7 +884,10 @@ def _deck_mast(k):
 def lamp(x, y, z, yaw):
     dx, dz = math.sin(yaw), math.cos(yaw)
     P.place("deck_mast", x, y, z, yaw, district=DK)
-    pool(x + dx * 2.6, y + 0.5, z + dz * 2.6, "amber", 2.6, 3.2)      # on the road, not up at the head: less of it falls through the slab
+    if abs(x) < HERO_WASH:
+        pool(x + dx * 2.6, y + 6.9, z + dz * 2.6, "amber", 6.5, 3.2)  # as round 2 set it (see HERO_WASH)
+    else:
+        pool(x + dx * 2.6, y + 0.5, z + dz * 2.6, "amber", 2.6, 3.2)  # on the road, not up at the head: less of it falls through the slab
     # A blade on the post, read along the road: one of the street's signs.
     cx, cy, cz = x + dx * 0.6, y + 4.1, z + dz * 0.6
     w, h = ST_SIZES["bs"]
@@ -1402,11 +1424,15 @@ for x in (-72.5, -68.0, -47.0, 48.0):
 # where the bake mirrors a sign into the hero's road): a route plate, the
 # limit and lane signals for both ways, their light on the road under them.
 # ---------------------------------------------------------------------------
-for gx, hues, plates in ((-33.0, ("cyan", "green"), {-1: ("7", 0), 1: ("12", -1)}), (30.0, ("green", "cyan"), {-1: ("7", 0), 1: ("12", 0)})):
+for gx, hues, plates in ((-33.0, ("cyan", "pink"), {-1: ("7", 0), 1: ("12", -1)}), (30.0, ("yellow", "red"), {-1: ("7", 0), 1: ("12", 0)})):
     base = DY(gx)
     gantry("x", gx, base, plates)
-    pool(gx - 2.0, base + 0.6, plan.DECK_Z, hues[0], 0.8, 2.0)
-    pool(gx + 2.0, base + 0.6, plan.DECK_Z, hues[1], 0.8, 2.0)
+    pool(gx - 2.0, base + 6.0, plan.DECK_Z, hues[0], 2.2, 2.0)      # as round 2 set them (see HERO_WASH)
+    pool(gx + 2.0, base + 6.0, plan.DECK_Z, hues[1], 2.2, 2.0)
+# The festoon that hung along the walkway is gone (the rail's own lamps
+# replace it); the two of its pools that lay inside HERO_WASH stay.
+for x in (-26.1, 26.4):
+    pool(x, DY(x) + 2.5, ZS - 0.6, "amber", 1.2)
 
 # ---------------------------------------------------------------------------
 # LAST THINGS. A door and its lamp in each retaining wall; steam from three
@@ -2053,7 +2079,7 @@ for s in (-1, 1):
     # Down the middle: planters of shrubs, the camera mast, a standing
     # advert toward the lane; a charging post by the bench; pallets and a
     # barrel by the shutters, a heap against the wall by the skip.
-    P.place("deck_shrub", s * 31.4, B.G0, plan.DECK_Z + 0.3, district=DK)
+    P.place("deck_shrub", s * 32.8, B.G0, plan.DECK_Z - 0.6, district=DK)
     P.place("deck_shrub", s * 37.0, B.G0, plan.DECK_Z, district=DK)
     camera_mast(s * 25.3, plan.DECK_Z - 0.9)
     P.place("lightbox", s * 40.6, B.G0, plan.DECK_Z, math.pi / 2, district=DK)
@@ -2505,8 +2531,8 @@ def footpath(axis, a, b, rail_plane, d, bar_plane, yf, gaps=(), posts=()):
         hw = 0.12
         vs_ = [v] + [x_ for x_ in (v + SLOPE * k for k in range(1, 3)) if x_ < v1] + [v1]
         for p0, p1 in zip(vs_, vs_[1:]):
-            face((DK, "paint", 1), [_w(axis, p0, mid - hw, walk_y(axis, p0) + 0.005), _w(axis, p1, mid - hw, walk_y(axis, p1) + 0.005),
-                                    _w(axis, p1, mid + hw, walk_y(axis, p1) + 0.005), _w(axis, p0, mid + hw, walk_y(axis, p0) + 0.005)], (0, 1, 0), 1.0, GUIDE)
+            face((DK, "paint", 1), [_w(axis, p0, mid - hw, walk_y(axis, p0) + PAINT), _w(axis, p1, mid - hw, walk_y(axis, p1) + PAINT),
+                                    _w(axis, p1, mid + hw, walk_y(axis, p1) + PAINT), _w(axis, p0, mid + hw, walk_y(axis, p0) + PAINT)], (0, 1, 0), 1.0, GUIDE)
         v = v1 + walk_rng.uniform(0.15, 1.1)
     # Drains by the barrier, litter against one upstand or the other.
     v, k = a + 5.0, 0
@@ -2535,7 +2561,7 @@ v = -HERO + 1.0
 while v < HERO - 1.5:           # and the guide strip carries on across
     v1 = min(HERO - 0.5, v + walk_rng.uniform(1.4, 4.2))
     zm = (z_rail + z_bar) / 2
-    face((DK, "paint", 1), [(v, Y + WALK_UP + 0.005, zm - 0.12), (v1, Y + WALK_UP + 0.005, zm - 0.12), (v1, Y + WALK_UP + 0.005, zm + 0.12), (v, Y + WALK_UP + 0.005, zm + 0.12)], (0, 1, 0), 1.0, GUIDE)
+    face((DK, "paint", 1), [(v, Y + WALK_UP + PAINT, zm - 0.12), (v1, Y + WALK_UP + PAINT, zm - 0.12), (v1, Y + WALK_UP + PAINT, zm + 0.12), (v, Y + WALK_UP + PAINT, zm + 0.12)], (0, 1, 0), 1.0, GUIDE)
     v = v1 + walk_rng.uniform(0.15, 1.1)
 
 # People on the stair: one sat on a low step, two on their way, one stopped
@@ -2634,7 +2660,9 @@ def wall_upper(s_, wz, f, blades):
             sign(nm, s_ * bx + math.sin(fy) * 0.07, 5.2, cz, w, h, fy, district=DK, label=False)
         for yy in (3.9, 6.5):
             box((DK, "steel", 1), s_ * bx - 0.025, s_ * bx + 0.025, yy, yy + 0.05, *sorted((wz, wz + f * 0.1)), scale=0.5, col=PIPE_C)
-        light(DK, s_ * bx, 3.0, wz + f * 1.2, up_rng.choice(("pink", "cyan", "amber", "green")), 1.8)
+        hue = up_rng.choice(("pink", "cyan", "amber", "green"))
+        if bx >= HERO_WASH:
+            light(DK, s_ * bx, 3.0, wz + f * 1.2, hue, 1.8)
 
 
 for s_ in (-1, 1):
@@ -2650,6 +2678,21 @@ for s_ in (-1, 1):
 # two wide adverts, bikes, shrubs, bollards at the x 120 road's pavement,
 # people. (More than 50 m from the avenue's line: its light is its own.)
 # ---------------------------------------------------------------------------
+for plane, d in ((ZN, -1), (ZS, 1)):
+    xs("concrete", 0, ABUT_X, MOUTH_X - 0.5, *sorted((plane, plane + d * PLINTH_D)), 0.0, PLINTH_H, sides="t" + ("B" if d > 0 else "A"), caps="01", scale=2.0, col=PARAPET_C)
+    x = ABUT_X + 0.4
+    while x < MOUTH_X:
+        top = DY(x) - LIP_D
+        if top > 1.2:
+            out = min(0.34, 0.1 + 0.07 * top)
+            hw = 0.36
+            f0, f1 = plane + d * out, plane + d * 0.01
+            face((DK, "castconcrete", 0), [(x - hw, PLINTH_H, f0), (x + hw, PLINTH_H, f0), (x + hw, top, f1), (x - hw, top, f1)], (0, 0.2, d), 2.0, PIER_C)
+            face((DK, "castconcrete", 0), [(x - hw, 0.0, f0), (x + hw, 0.0, f0), (x + hw, PLINTH_H, f0), (x - hw, PLINTH_H, f0)], (0, 0, d), 2.0, PIER_C)
+            for sx in (-1, 1):
+                face((DK, "castconcrete", 0), [(x + sx * hw, 0.0, plane), (x + sx * hw, 0.0, f0), (x + sx * hw, PLINTH_H, f0), (x + sx * hw, top, f1), (x + sx * hw, top, plane)], (sx, 0, 0), 2.0, PIER_C)
+            face((DK, "hazard", 1), [(x - hw, 0.02, f0 + d * 0.006), (x + hw, 0.02, f0 + d * 0.006), (x + hw, 0.3, f0 + d * 0.006), (x - hw, 0.3, f0 + d * 0.006)], (0, 0, d), 1.0)
+        x += 6.0
 for side in (-1, 1):                    # -1 the north strip (z -95..-86), +1 the south (z -74..-65)
     def Z(dz, _s=side):
         """dz metres out from the embankment's passage toward the shopfronts."""
@@ -2681,8 +2724,9 @@ for side in (-1, 1):                    # -1 the north strip (z -95..-86), +1 th
     stand(100.2, Z(3.1), face_shops, "idle", B.G0)
     stand(56.0, Z(3.0), face_shops, "smoke", B.G0)
 
-# Steam off four of the road's own drains (the shoulder by the parapet), a
-# narrow quick breath each (the site's lane kind), none near the avenue.
+# Steam off four of the road's own drains (the shoulder by the parapet): one
+# empty at each drain's mouth, which the site draws as a thin curl 1.6 m
+# high (`_drain_` in the name: src/world/steam.js). None near the avenue.
 for i, (x, z) in enumerate(((x_par - 0.36, -148.0), (x_par - 0.36, -118.0), (-51.0, z_par + 0.36), (54.0, z_par + 0.36))):
     y = RY(z) if x < XE else DY(x)
-    empty(f"anchor_steam_lane_deck_{i}", (x, y + 0.05, z))
+    empty(f"anchor_steam_drain_deck_{i}", (x, y + 0.03, z))
