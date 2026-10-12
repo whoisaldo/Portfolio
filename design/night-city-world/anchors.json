@@ -3692,6 +3692,195 @@
     -33.0
    ],
    "label": "Santo Domingo"
+  },
+  {
+   "name": "spawn_drive",
+   "kind": "spawn",
+   "at": [
+    1.85,
+    0.0,
+    -6.0
+   ],
+   "yaw": 3.1416,
+   "district": "avenue",
+   "note": "the avenue's inner northbound lane, facing north: the loop runs A B C L P Q F E I H"
+  },
+  {
+   "name": "spawn_walk",
+   "kind": "spawn",
+   "at": [
+    11.8,
+    0.16,
+    -6.0
+   ],
+   "yaw": 3.1416,
+   "district": "avenue",
+   "note": "the middle of the avenue's east pavement, facing north"
+  },
+  {
+   "name": "poi_hero_curb",
+   "kind": "poi",
+   "at": [
+    0.6,
+    0.0,
+    10.0
+   ],
+   "district": "avenue",
+   "label": "where the page opens: the avenue, looking north"
+  },
+  {
+   "name": "poi_deck_girder",
+   "kind": "poi",
+   "at": [
+    0.0,
+    8.5,
+    -80.0
+   ],
+   "district": "deck",
+   "label": "the deck's girder over the avenue"
+  },
+  {
+   "name": "poi_deck_turn",
+   "kind": "poi",
+   "at": [
+    -80.0,
+    8.5,
+    -80.0
+   ],
+   "district": "deck",
+   "label": "the deck's turn off the ramp"
+  },
+  {
+   "name": "poi_deck_stair",
+   "kind": "poi",
+   "at": [
+    -65.2,
+    0.16,
+    -74.5
+   ],
+   "district": "deck",
+   "label": "the stair's foot, west street's east pavement, up to the deck's walkway"
+  },
+  {
+   "name": "poi_arasaka",
+   "kind": "poi",
+   "at": [
+    75.0,
+    0.0,
+    -490.0
+   ],
+   "district": "canyon",
+   "label": "ARASAKA's tower and forecourt"
+  },
+  {
+   "name": "poi_megabuilding",
+   "kind": "poi",
+   "at": [
+    0.0,
+    0.0,
+    -760.0
+   ],
+   "district": "mega",
+   "label": "the megabuilding at the canyon's end"
+  },
+  {
+   "name": "poi_japantown_gate",
+   "kind": "poi",
+   "at": [
+    -80.0,
+    0.0,
+    -696.0
+   ],
+   "district": "mega",
+   "label": "the red gate over the west street"
+  },
+  {
+   "name": "poi_plaza_hub",
+   "kind": "poi",
+   "at": [
+    70.0,
+    0.0,
+    -234.0
+   ],
+   "district": "plaza",
+   "label": "Corpo Plaza's sunken hub, under the koi"
+  },
+  {
+   "name": "poi_plaza_board",
+   "kind": "poi",
+   "at": [
+    79.0,
+    26.0,
+    -263.0
+   ],
+   "district": "plaza",
+   "label": "the plaza's main board"
+  },
+  {
+   "name": "poi_corpo_row",
+   "kind": "poi",
+   "at": [
+    280.0,
+    0.0,
+    -330.0
+   ],
+   "district": "corpo",
+   "label": "the boulevard under Corpo Row's towers"
+  },
+  {
+   "name": "poi_corpo_track",
+   "kind": "poi",
+   "at": [
+    246.0,
+    19.0,
+    -378.5
+   ],
+   "district": "corpo",
+   "label": "the halt on Corpo Row's elevated track"
+  },
+  {
+   "name": "poi_afterlife",
+   "kind": "poi",
+   "at": [
+    432.0,
+    0.0,
+    -281.0
+   ],
+   "district": "afterlife",
+   "label": "AFTERLIFE's door"
+  },
+  {
+   "name": "poi_rooftop",
+   "kind": "poi",
+   "at": [
+    468.0,
+    34.0,
+    -279.0
+   ],
+   "district": "afterlife",
+   "label": "the rooftop over the garage street"
+  },
+  {
+   "name": "poi_garage",
+   "kind": "poi",
+   "at": [
+    462.0,
+    0.0,
+    -215.0
+   ],
+   "district": "afterlife",
+   "label": "the garage's bay"
+  },
+  {
+   "name": "poi_tank_farm",
+   "kind": "poi",
+   "at": [
+    300.0,
+    0.0,
+    -88.0
+   ],
+   "district": "santo",
+   "label": "Santo Domingo's estate cross, by the tank farm"
   }
  ]
 }
