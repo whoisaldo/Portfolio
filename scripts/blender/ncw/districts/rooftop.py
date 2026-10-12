@@ -180,3 +180,114 @@ for (x0_, x1_, z0_, z1_) in ((402.0, 432.0, -262.6, -262.0), (402.0, 432.0, -300
     box((RF, "concrete", 1), x0_, x1_, 30.0, 31.0, z0_, z1_, scale=1.5)
 cylinder((RF, "metal", 1), 427.0, -296.0, 30.0, 41.0, 0.08, segs=6)
 cylinder((RF, "neon_red", 0), 427.0, -296.0, 41.0, 41.3, 0.14, segs=8)
+
+# ---------------------------------------------------------------------------
+# The roof worked (the m6 review: "a black deck with plain untextured
+# boxes", "a plain tan box" of a stair hut, "a flat grey slab" of the tank
+# at About's right edge, "one flat navy parapet slab" along the bottom of
+# Stack): felt seams and laps over the wet deck, a coping round every
+# parapet with a dim line of light under it where neither lens looks along
+# it, joints, scuppers, stains and a conduit along the south parapet's
+# inner face; the units with fan blades, panel seams, skids and pipes; the
+# tanks in staves with rivets, a gauge and rust; the hut with a door frame,
+# a hood and lamp, a plate, a louvre and conduit. Nothing stands higher
+# than what was there: neither lens's sky changes.
+# ---------------------------------------------------------------------------
+_rw = random.Random(7400)
+SEAM = (0.003, 0.0035, 0.004, 1.0)   # (darker than the wet deck takes light: a seam lighter than it brightened Stack's foot)
+for k in range(31):
+    sx = RX0 + 0.9 + k * 1.0 + _rw.uniform(-0.06, 0.06)
+    if sx > 474.0:
+        break
+    quad((RF, "trim", 1), (sx - 0.02, RH + 0.012, RZ1 - 0.5), (sx + 0.02, RH + 0.012, RZ1 - 0.5), (sx + 0.02, RH + 0.012, RZ0 + 0.5), (sx - 0.02, RH + 0.012, RZ0 + 0.5),
+         col=SEAM)
+    z_ = RZ0 + 0.5 + _rw.uniform(1.0, 5.0)
+    while z_ < RZ1 - 1.0:
+        quad((RF, "trim", 1), (sx, RH + 0.013, z_ + 0.02), (sx + 1.0, RH + 0.013, z_ + 0.02), (sx + 1.0, RH + 0.013, z_ - 0.02), (sx, RH + 0.013, z_ - 0.02), col=SEAM)
+        z_ += _rw.uniform(4.5, 8.0)
+# The parapets' coping, and a dim line under its inner edge along the south
+# side, the east, and the north east of the hut (west of it About looks along it).
+COPE = (0.06, 0.065, 0.075, 1.0)
+for (a0, a1, b0, b1) in ((RX0 - 0.05, RX1 + 0.05, RZ1 - 0.46, RZ1 + 0.05), (RX0 - 0.05, RX1 + 0.05, RZ0 - 0.05, RZ0 + 0.46),
+                         (RX0 - 0.05, RX0 + 0.46, RZ0, RZ1), (RX1 - 0.46, RX1 + 0.05, RZ0, RZ1)):
+    box((RF, "trim", 1), a0, a1, RH + 1.1, RH + 1.17, b0, b1, scale=1.0, col=COPE)
+_line = tuple(c * 0.09 for c in GLOW["cyan"][:3]) + (1.0,)
+box((RF, "glow", 1), RX0 + 0.5, RX1 - 0.5, RH + 1.04, RH + 1.09, RZ1 - 0.47, RZ1 - 0.45, scale=1.0, col=_line)
+box((RF, "glow", 1), RX1 - 0.47, RX1 - 0.45, RH + 1.04, RH + 1.09, RZ0 + 0.5, RZ1 - 0.5, scale=1.0, col=_line)
+box((RF, "glow", 1), 466.0, RX1 - 0.5, RH + 1.04, RH + 1.09, RZ0 + 0.45, RZ0 + 0.47, scale=1.0, col=_line)
+# The south parapet's inner face, which fills the bottom of Stack's frame.
+ZI = RZ1 - 0.4
+for k in range(11):
+    jx = RX0 + 1.4 + k * 2.95
+    quad((RF, "trim", 1), (jx + 0.025, RH, ZI - 0.004), (jx - 0.025, RH, ZI - 0.004), (jx - 0.025, RH + 1.1, ZI - 0.004), (jx + 0.025, RH + 1.1, ZI - 0.004),
+         col=SEAM)
+for k in range(5):
+    sx = RX0 + 3.0 + k * 6.1
+    box((RF, "dark", 1), sx - 0.18, sx + 0.18, RH, RH + 0.22, ZI - 0.12, ZI, scale=1.0)
+    w_ = _rw.uniform(0.25, 0.5)
+    quad((RF, "trim", 1), (sx + w_, RH + 0.22, ZI - 0.005), (sx - w_, RH + 0.22, ZI - 0.005), (sx - w_ * 0.6, RH + 1.0, ZI - 0.005),
+         (sx + w_ * 0.6, RH + 1.0, ZI - 0.005), col=(0.035, 0.03, 0.026, 1.0))
+pipe((RF, "metal", 1), (RX0 + 0.8, RH + 0.72, ZI - 0.06), (RX1 - 0.8, RH + 0.72, ZI - 0.06), 0.03, segs=4)
+for k in range(9):
+    bx = RX0 + 1.6 + k * 3.6
+    box((RF, "metal", 1), bx - 0.03, bx + 0.03, RH + 0.62, RH + 0.8, ZI - 0.09, ZI, scale=1.0)
+for bx in (458.7, 469.5, 478.3):
+    box((RF, "metal", 1), bx - 0.18, bx + 0.18, RH + 0.5, RH + 0.92, ZI - 0.14, ZI, scale=1.0)
+    box((RF, "glow", 1), bx + 0.08, bx + 0.13, RH + 0.82, RH + 0.87, ZI - 0.145, ZI - 0.14, scale=0.5, col=GLOW["green"])
+# The units: blades in their fans, seams down their sides, skids, pipes out.
+r2 = random.Random(7100)
+for k in range(9):
+    cx, cz = r2.uniform(RX0 + 3, RX1 - 8), r2.uniform(RZ0 + 3, RZ1 - 3)
+    for ang in (0.4, 0.4 + math.pi / 2):
+        ca, sa = math.cos(ang), math.sin(ang)
+        q_ = [(cx - ca * 0.5 - sa * 0.05, RH + 1.27, cz - sa * 0.5 + ca * 0.05), (cx + ca * 0.5 - sa * 0.05, RH + 1.27, cz + sa * 0.5 + ca * 0.05),
+              (cx + ca * 0.5 + sa * 0.05, RH + 1.27, cz + sa * 0.5 - ca * 0.05), (cx - ca * 0.5 + sa * 0.05, RH + 1.27, cz - sa * 0.5 - ca * 0.05)]
+        quad((RF, "dark", 1), *q_)
+        quad((RF, "dark", 1), *q_[::-1])
+    for dz in (-0.81, 0.81):
+        for dx in (-0.35, 0.35):
+            quad((RF, "dark", 1), (cx + dx - 0.015, RH + 0.1, cz + dz), (cx + dx + 0.015, RH + 0.1, cz + dz), (cx + dx + 0.015, RH + 1.15, cz + dz),
+                 (cx + dx - 0.015, RH + 1.15, cz + dz)) if dz > 0 else \
+                quad((RF, "dark", 1), (cx + dx + 0.015, RH + 0.1, cz + dz), (cx + dx - 0.015, RH + 0.1, cz + dz), (cx + dx - 0.015, RH + 1.15, cz + dz),
+                     (cx + dx + 0.015, RH + 1.15, cz + dz))
+    for dz in (-0.6, 0.6):
+        box((RF, "dark", 1), cx - 1.1, cx + 1.1, RH, RH + 0.08, cz + dz - 0.06, cz + dz + 0.06, scale=1.0)
+    for dz in (-0.2, 0.15):
+        pipe((RF, "metal", 1), (cx - 1.0, RH + 0.35, cz + dz), (cx - 1.5, RH + 0.35, cz + dz), 0.035, segs=4)
+        pipe((RF, "metal", 1), (cx - 1.5, RH + 0.35, cz + dz), (cx - 1.5, RH + 0.02, cz + dz), 0.035, segs=4)
+# The tanks: staves of plate with rows of rivets, a level gauge with its
+# lamp, an overflow down to the deck, rust run from the hoops.
+for (cx, cz) in ((476.0, -270.0), (477.5, -285.0)):
+    for k in range(20):
+        a = k * math.tau / 20 + 0.08
+        ca, sa = math.cos(a), math.sin(a)
+        pipe((RF, "dark", 1), (cx + ca * 2.11, RH + 3.05, cz + sa * 2.11), (cx + ca * 2.11, RH + 7.15, cz + sa * 2.11), 0.012, segs=3)
+        for yy in (RH + 3.4, RH + 5.15, RH + 6.9):
+            box((RF, "metal", 1), cx + ca * 2.11 - 0.02, cx + ca * 2.11 + 0.02, yy - 0.02, yy + 0.02, cz + sa * 2.11 - 0.02, cz + sa * 2.11 + 0.02, scale=1.0)
+        if k % 3 == 1:
+            q_ = [(cx + ca * 2.115 - sa * 0.12, RH + 3.3, cz + sa * 2.115 + ca * 0.12), (cx + ca * 2.115 + sa * 0.12, RH + 3.3, cz + sa * 2.115 - ca * 0.12),
+                  (cx + ca * 2.115 + sa * 0.06, RH + 4.2, cz + sa * 2.115 - ca * 0.06), (cx + ca * 2.115 - sa * 0.06, RH + 4.2, cz + sa * 2.115 + ca * 0.06)]
+            quad((RF, "trim", 1), *q_, col=(0.12, 0.05, 0.02, 1.0))
+            quad((RF, "trim", 1), *q_[::-1], col=(0.12, 0.05, 0.02, 1.0))
+    gx, gz = cx - 2.2, cz + 0.3
+    pipe((RF, "metal", 1), (gx, RH + 3.2, gz), (gx, RH + 7.0, gz), 0.03, segs=4)
+    box((RF, "glow", 1), gx - 0.03, gx + 0.03, RH + 5.6, RH + 5.75, gz - 0.03, gz + 0.03, scale=0.5, col=GLOW["amber"])
+    pipe((RF, "metal", 1), (cx + 0.3, RH + 7.25, cz + 2.0), (cx + 0.3, RH + 0.1, cz + 2.25), 0.04, segs=4)
+# The stair hut: a steel frame round its door and a hood over it with its
+# lamp, a number plate, a mat, conduit up its north face to a louvre, stains.
+box((RF, "metal", 1), hx1 + 0.02, hx1 + 0.14, RH, RH + 2.35, -291.62, -291.5, scale=1.0)
+box((RF, "metal", 1), hx1 + 0.02, hx1 + 0.14, RH, RH + 2.35, -290.2, -290.08, scale=1.0)
+box((RF, "metal", 1), hx1 + 0.02, hx1 + 0.14, RH + 2.2, RH + 2.35, -291.62, -290.08, scale=1.0)
+box((RF, "metal", 1), hx1, hx1 + 0.55, RH + 2.85, RH + 2.93, -291.8, -289.9, scale=1.0)
+box((RF, "dark", 1), hx1 + 0.03, hx1 + 0.06, RH + 1.4, RH + 1.62, -292.2, -291.85, scale=1.0)
+quad((RF, "trim", 1), (hx1 + 0.1, RH + 0.008, -290.2), (hx1 + 1.1, RH + 0.008, -290.2), (hx1 + 1.1, RH + 0.008, -291.5), (hx1 + 0.1, RH + 0.008, -291.5),
+     col=(0.04, 0.045, 0.04, 1.0))
+for k in range(3):
+    pipe((RF, "metal", 1), (hx0 + 0.6 + k * 0.12, RH, hz1 + 0.06), (hx0 + 0.6 + k * 0.12, RH + 2.6, hz1 + 0.06), 0.022, segs=3)
+box((RF, "metal", 1), hx0 + 1.4, hx0 + 2.6, RH + 1.9, RH + 2.6, hz1, hz1 + 0.08, scale=1.0)
+for k in range(4):
+    box((RF, "dark", 1), hx0 + 1.45, hx0 + 2.55, RH + 1.96 + k * 0.16, RH + 2.02 + k * 0.16, hz1 + 0.08, hz1 + 0.1, scale=1.0)
+for sx, w_ in ((hx0 + 3.4, 0.35), (hx0 + 4.3, 0.22)):
+    quad((RF, "trim", 1), (sx - w_, RH + 0.1, hz1 + 0.005), (sx + w_, RH + 0.1, hz1 + 0.005), (sx + w_ * 0.5, RH + hh - 0.1, hz1 + 0.005),
+         (sx - w_ * 0.5, RH + hh - 0.1, hz1 + 0.005), col=(0.05, 0.045, 0.04, 1.0))
+box((RF, "dark", 1), hx0, hx1, RH, RH + 0.3, hz0 - 0.02, hz1 + 0.02, scale=1.0)
