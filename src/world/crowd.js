@@ -1834,8 +1834,9 @@ const GROUND_FRAGMENT = /* glsl */ `
   }
 `;
 
-const _sphere = new THREE.Sphere();
 const _frustum = new THREE.Frustum();
+// The frustum's six planes as numbers (normal x, y, z, constant).
+const _planes = new Float64Array(24);
 const _vp = new THREE.Matrix4();
 const NAMES = ["aWalk", "aPath", "aBody", "aLook", "aWear"];
 
@@ -1980,7 +1981,10 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     for (let k = 0; k < 16; k++) last[k] = e ? e[k] : k < 3 ? cam.getComponent(k) : 0;
     last[16] = t;
     last[17] = lens;
-    if (eye) _frustum.setFromProjectionMatrix(_vp.multiplyMatrices(eye.projectionMatrix, eye.matrixWorldInverse));
+    if (eye) {
+      _frustum.setFromProjectionMatrix(_vp.multiplyMatrices(eye.projectionMatrix, eye.matrixWorldInverse));
+      _frustum.planes.forEach(({ normal, constant }, p) => _planes.set([normal.x, normal.y, normal.z, constant], p * 4));
+    }
     // A longer lens sees a face from further off.
     const zoom = eye ? lens / 2.1445 : 1;
     const t0 = TRADES[0] * zoom;
@@ -2018,9 +2022,18 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
           y = PAVE_Y;
         }
       }
-      if (eye && !_frustum.intersectsSphere(_sphere.set(_sphere.center.set(x, y + 1, z), 2.6))) continue;
+      // (Frustum.intersectsSphere written out: a sphere of 2.6 m about the
+      // person's middle is out if it is behind any plane by more than that.)
+      if (eye) {
+        let out = false;
+        for (let p = 0; p < 24 && !out; p += 4) out = _planes[p] * x + _planes[p + 1] * (y + 1) + _planes[p + 2] * z + _planes[p + 3] < -2.6;
+        if (out) continue;
+      }
       const top = y + 1.8 * data[o + 8];
-      const d = Math.hypot(x - cam.x, z - cam.z, cam.y > top ? cam.y - top : cam.y < y ? y - cam.y : 0);
+      const dx = x - cam.x;
+      const dz = z - cam.z;
+      const dy = cam.y > top ? cam.y - top : cam.y < y ? y - cam.y : 0;
+      const d = Math.sqrt(dx * dx + dz * dz + dy * dy);
       if (d < tc * (1 + BAND)) close[nx++] = i;
       if (d > tc * (1 - BAND) && d < t0 * (1 + BAND)) near[nn++] = i;
       if (d > t0 * (1 - BAND) && d < t1 * (1 + BAND)) far[nf++] = i;
