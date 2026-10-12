@@ -19,25 +19,25 @@
 export const LANES = [
   // The loops round the hero's sky first (a phone keeps these): over the
   // canyon's mouth and over its far end, above the canyon's roofs.
-  { c: [0, -420], r: [150, 36], y: 118, v: 26, n: 3, phone: 2 },
+  { c: [0, -420], r: [60, 36], y: 195, v: 20, n: 3, phone: 2 },
   { c: [-30, -600], r: [120, 40], y: 124, v: 30, n: 3, phone: 1 },
   // Across the moon, seen from the garage's roof: a heavier craft, slower,
   // so that 300 m off it crosses the disc as a silhouette with its lamps
   // lit and not as a speck.
-  { c: [620, 120], r: [200, 70], y: 150, v: 30, s: 2.6, n: 2, phone: 1 },
+  { c: [620, 120], r: [200, 70], y: 172, v: 30, s: 2.6, n: 2, phone: 1 },
   // The streets, low: the strip of sky a driver has ahead. The canyon's is
   // the highest of them: bridges cross it up to 49 m.
-  { a: [0, -196], b: [0, -700], half: 5.5, y: 56, lift: 5, v: 9, n: 6, phone: 1 },
-  { a: [-80, -30], b: [-80, -700], half: 5, y: 36, lift: 5, v: 8.5, n: 7, phone: 1 },
+  { a: [0, -362], b: [0, -528], half: 5.5, y: 56, lift: 5, v: 9, n: 3, phone: 1 },
+  { a: [-80, -30], b: [-80, -700], half: 5, y: 43, lift: 5, v: 8.5, n: 7, phone: 1 },
   { a: [120, -20], b: [120, -310], half: 4.5, y: 32, lift: 5, v: 8, n: 4, phone: 1 },
   { a: [136, -330], b: [426, -330], half: 5, y: 30, lift: 5, v: 8.5, n: 6, phone: 1 },
   { a: [420, 1], b: [-60, 1], half: 4, y: 30, lift: 5, v: 9, n: 6, phone: 1 },
   { a: [-66, -720], b: [52, -720], half: 4, y: 34, lift: 4, v: 7, n: 4, phone: 1 },
   { a: [20, -179], b: [420, -179], half: 4, y: 34, lift: 5, v: 9, n: 5, phone: 0 },
   // Low across the deck, over its own road and its lamp masts.
-  { a: [-66, -80], b: [104, -80], half: 2.2, y: 31, lift: 4, v: 7, n: 3, phone: 1 },
+  { a: [-66, -80], b: [104, -80], half: 2.2, y: 48, lift: 4, v: 7, n: 3, phone: 1 },
   // The streets again, between the towers: higher, slower to pass.
-  { a: [0, -186], b: [0, -700], half: 5.5, y: 80, lift: -6, v: 8.5, n: 4, phone: 1 },
+  { a: [0, -320], b: [0, -580], half: 5.5, y: 80, lift: -6, v: 8.5, n: 3, phone: 1 },
   { a: [130, -330], b: [430, -330], half: 5, y: 62, lift: 5, v: 8, n: 3, phone: 0 },
   { a: [-70, 1], b: [430, 1], half: 5, y: 48, lift: 5, v: 9, n: 4, phone: 0 },
   { a: [-80, -10], b: [-80, -670], half: 6, y: 58, lift: 5, v: 8.5, n: 4, phone: 0 },
@@ -50,18 +50,52 @@ export const LANES = [
   // Japantown's low roofs, the garage's block.
   { c: [320, -260], r: [140, 70], y: 70, v: 28, n: 4, phone: 0 },
   { a: [130, -330], b: [430, -330], half: 5, y: 112, lift: 8, v: 9, n: 3, phone: 0 },
-  { c: [0, -650], r: [200, 60], y: 112, v: 40, n: 3, phone: 0 },
+  { c: [0, -650], r: [200, 60], y: 128, v: 40, n: 3, phone: 0 },
   { c: [100, -215], r: [70, 60], y: 78, v: 24, n: 3, phone: 0 },
-  { c: [-130, -375], r: [36, 360], y: 48, v: 22, n: 7, phone: 1 },
+  { c: [-130, -375], r: [36, 360], y: 54, v: 22, n: 7, phone: 1 },
   { c: [455, -200], r: [50, 120], y: 76, v: 24, n: 3, phone: 0 },
   // Across the south: Santo Domingo's yards, the arm, the plaza's south.
   { c: [300, -85], r: [130, 66], y: 72, v: 28, n: 4, phone: 1 },
-  { c: [150, -60], r: [230, 90], y: 86, v: 34, n: 4, phone: 0 },
+  { c: [150, -60], r: [230, 56], y: 86, v: 34, n: 4, phone: 0 },
   { c: [40, 30], r: [150, 50], y: 60, v: 26, n: 3, phone: 0 },
   // Over the plaza's square, round its hub.
   { c: [79, -228], r: [30, 26], y: 48, v: 12, n: 2, phone: 0 },
   // And low over the south arm, which no other lane reaches.
   { a: [0, 10], b: [0, 82], half: 5.5, y: 38, lift: 4, v: 5, n: 2, phone: 0 },
+  // Out among the far city's towers, at the height a flying lens is: the
+  // corridors between them where nothing stands as high as the lane
+  // (tools/corridors.mjs), south, west, north and east of the kit, so a
+  // view from the air has traffic at its own height whichever way it looks.
+  { a: [10, 276], b: [412, 276], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 1 },
+  { a: [10, 260], b: [296, 260], half: 4.5, y: 64, lift: 4, v: 9, n: 6, phone: 0 },
+  { a: [-60, 306], b: [-60, 634], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
+  { a: [360, 250], b: [360, 514], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
+  { a: [-470, 332], b: [-136, 332], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
+  { a: [-212, 76], b: [-212, 528], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 1 },
+  { a: [512, 208], b: [512, 518], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
+  { a: [-244, 70], b: [-244, -386], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 1 },
+  { a: [-356, -350], b: [-356, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
+  { a: [-444, -142], b: [-444, -562], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
+  { a: [-556, -284], b: [-272, -284], half: 4.5, y: 64, lift: 4, v: 9, n: 3, phone: 0 },
+  { a: [-176, 172], b: [-176, -800], half: 4, y: 70, lift: 4, v: 10, n: 24, phone: 3 },
+  { a: [-470, -936], b: [-50, -936], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
+  { a: [-646, -856], b: [-330, -856], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
+  { a: [172, -758], b: [172, -1068], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
+  { a: [364, -714], b: [364, -1082], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
+  { a: [640, -672], b: [640, -1040], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
+  { a: [110, -720], b: [584, -720], half: 4.5, y: 86, lift: 4, v: 10, n: 16, phone: 2 },
+  { a: [-288, -712], b: [-30, -712], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
+  { a: [-190, 46], b: [470, 46], half: 4.5, y: 72, lift: 4, v: 10, n: 18, phone: 3 },
+  { a: [528, -476], b: [528, -222], half: 4.5, y: 80, lift: 4, v: 10, n: 12, phone: 2 },
+  { a: [828, -120], b: [828, 300], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 0 },
+  { a: [600, 60], b: [1000, 60], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 1 },
+  { a: [570, 152], b: [1000, 152], half: 4.5, y: 64, lift: 4, v: 10, n: 8, phone: 0 },
+  { a: [444, -528], b: [444, -852], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 0 },
+  { a: [632, -302], b: [632, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 1 },
+  { a: [828, -380], b: [828, -130], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
+  { a: [120, -426], b: [120, -872], half: 4.5, y: 64, lift: 4, v: 9, n: 4, phone: 0 },
+  // Behind the megabuilding, between its tiers' backs and the towers north.
+  { a: [-46, -868], b: [112, -868], half: 4.5, y: 86, lift: 4, v: 9, n: 3, phone: 0 },
 ];
 
 const TAU = Math.PI * 2;
@@ -144,7 +178,7 @@ export function skyAt(L, u, way, k, out) {
 // another; this one was picked (tools/skysearch.mjs) for the second every
 // review render holds, 12: it leaves the fewest of the drivers' frames and
 // the air views with fewer than two craft in them.
-const SKY = 1635;
+const SKY = 1603;
 
 /** The craft: each lane's own number of them (`full`: a desktop's), spread
  *  evenly round it, each with which way it goes round and its own number. */
