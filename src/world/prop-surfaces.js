@@ -15,7 +15,11 @@
 // machines over; here the front is one quad (`face`) and all of it is drawn
 // in the fragment shader, the shelves set back behind the glass by the
 // eye's angle, and each machine its own from where it stands: its colour,
-// its mark, what is on its shelves. Far off it is its own average.
+// its mark, what is on its shelves. Far off it is its own average. There
+// are four machines under the one name, dealt so that no two neighbours are
+// the same (src/world/prop-deal.js): that one, a wall of drinks lit white
+// with a button under every bottle, a bank of six capsule machines, and a
+// dark one with a small screen, a lit slot and a line of light down its edge.
 //
 // The builder (scripts/blender/ncw/props.py) names the material `plant`;
 // the vertex colour is the part's own colour and its alpha what it is: 1 a
@@ -57,6 +61,9 @@ const SHARED = [...COMMON.matchAll(/uniform \w+ (\w+)/g)].map((m) => m[1]);
 // A lantern's colours, linear: red, orange, white, green.
 const PAPER_HUES = [[1.0, 0.11, 0.04], [1.0, 0.31, 0.04], [1.0, 0.76, 0.5], [0.16, 0.92, 0.36]].map((c) => c.map((v) => v.toFixed(2)));
 const ONE = { key: 0, color: null, gain: 1 };
+// A vending machine's front by its design: the wall of drinks is the
+// brightest, the dark one gives the street little.
+const FRONTS = [ONE, { key: 1, color: null, gain: 1.3 }, { key: 2, color: null, gain: 0.6 }, { key: 3, color: null, gain: 0.3 }];
 const PAPER_LIGHTS = PAPER_HUES.map((c, key) => ({ key, color: new THREE.Color(...c.map(Number)), gain: 1 }));
 
 /**
@@ -205,6 +212,7 @@ export function createPropSurfaces(dressed) {
       uniforms: { ...shared },
       vertexShader: /* glsl */ `
         attribute vec4 color;
+        attribute float aDeal;
         uniform vec3 uCam;
         varying vec3 vWorld;
         varying vec3 vNormalW;
@@ -212,6 +220,7 @@ export function createPropSurfaces(dressed) {
         varying vec2 vUv;
         varying vec4 vColor;
         varying float vSeed;
+        varying float vDeal;
         void main() {
           mat4 m = modelMatrix * instanceMatrix;
           vec4 w = m * vec4(position, 1.0);
@@ -229,6 +238,7 @@ export function createPropSurfaces(dressed) {
           vec3 p3 = fract(vec3(floor(instanceMatrix[3].xzx * 20.0 + 0.5)) * 0.1031);
           p3 += dot(p3, p3.yzx + 33.33);
           vSeed = fract((p3.x + p3.y) * p3.z);
+          vDeal = aDeal;
           gl_Position = projectionMatrix * viewMatrix * w;
         }
       `,
@@ -240,6 +250,7 @@ export function createPropSurfaces(dressed) {
         varying vec2 vUv;
         varying vec4 vColor;
         varying float vSeed;
+        varying float vDeal;
         float rect(vec2 p, vec2 lo, vec2 hi) {
           vec2 s = step(lo, p) * step(p, hi);
           return s.x * s.y;
@@ -557,6 +568,113 @@ export function createPropSurfaces(dressed) {
             vec3 art = advert(uv, size, fract(vSeed + 0.37 * step(vView.z, 0.0)), near);
             lit = step(8.5, kind);
             col = art * mix(shade * 0.8, vec3(1.5), lit);
+          } else if (kind > 9.75 && vDeal >= 1.0) {
+            // The other vending machines (the first is below).
+            float warm = step(vColor.b, vColor.r);
+            vec3 hue = hueOf(warm, vSeed * 6.0);
+            vec3 other = hueOf(1.0 - warm, vSeed * 37.0);
+            vec2 p = uv * vec2(0.96, 1.95);
+            float near = 1.0 - smoothstep(0.008, 0.025, fwidth(p.y));
+            vec2 slide = vView.xy / max(vView.z, 0.3);
+            if (vDeal < 2.0) {
+              // A wall of drinks: three shelves of bottles and cans before
+              // a white light, a price and a button under each, cold ones
+              // blue and hot ones red; under it a band in the machine's
+              // colour, the coins' panel, the flap the drink falls behind.
+              vec3 paint = mix(vec3(0.3, 0.31, 0.33), hue * 0.5, 0.35 + 0.4 * step(0.5, fract(vSeed * 7.31)));
+              col = paint * shade * (0.55 + 0.45 * rect(p, vec2(0.02), vec2(0.94, 1.93)));
+              vec2 w0 = vec2(0.05, 0.78);
+              vec2 w1 = vec2(0.91, 1.87);
+              float win = rect(p, w0, w1);
+              vec2 c = p - slide * 0.04;
+              vec2 g = (c - w0) / (w1 - w0) * vec2(8.0, 3.0);
+              vec2 f = fract(g);
+              float h = hash12(floor(g) + floor(vSeed * 64.0));
+              float tall = step(0.5, fract(h * 3.3));
+              float shoulder = mix(0.78, 0.88, tall);
+              float item = max(rect(f, vec2(0.2, 0.3), vec2(0.8, shoulder)), tall * rect(f, vec2(0.38, shoulder), vec2(0.62, 0.97)));
+              float belly = 0.55 + 0.45 * sin(clamp((f.x - 0.2) / 0.6, 0.0, 1.0) * 3.1416);
+              vec3 drink = hueOf(step(0.5, fract(h * 5.7)), h * 6.0) * mix(0.8, 1.2, rect(f, vec2(0.0, 0.42), vec2(1.0, 0.64))) * belly;
+              vec3 back = vec3(0.84, 0.83, 0.78);
+              vec3 cell = mix(back, drink, item);
+              vec3 button = mix(vec3(0.25, 0.55, 1.0), vec3(1.0, 0.25, 0.15), step(0.6, fract(h * 9.1))) * 1.4;
+              vec3 under = mix(vec3(0.15, 0.16, 0.18), vec3(0.72), rect(f, vec2(0.1, 0.09), vec2(0.58, 0.19)));
+              under = mix(under, button, step(length((f - vec2(0.78, 0.13)) * vec2(1.0, 3.38)), 0.15));
+              cell = mix(cell, under, step(f.y, 0.24));
+              vec3 wall = mix(mix(back, hue, 0.35) * 0.8, cell, near) * (0.72 + 0.28 * smoothstep(0.0, 1.0, (c.y - w0.y) / (w1.y - w0.y)));
+              col = mix(col, mix(vec3(0.02), wall, rect(c, w0, w1)), win);
+              vec2 bp = p - vec2(0.05, 0.5);
+              float band = rect(bp, vec2(0.0), vec2(0.62, 0.22));
+              float emblem = mark((bp - vec2(0.11, 0.11)) / 0.08, vSeed * 23.0) * near;
+              float words = rect(bp, vec2(0.24, 0.08), vec2(0.58, 0.14)) * step(0.3, fract(bp.x * 30.0)) * step(0.3, hash12(vec2(floor(bp.x * 30.0), vSeed * 91.0))) * near;
+              col = mix(col, mix(hue * 0.75, vec3(1.0, 0.97, 0.92), max(emblem, words)), band);
+              col = mix(col, vec3(0.02, 0.021, 0.025) + spill * 0.03, rect(p, vec2(0.71, 0.5), vec2(0.91, 0.72)));
+              col = mix(col, vec3(1.0, 0.62, 0.2) * 1.8, rect(p, vec2(0.76, 0.64), vec2(0.86, 0.66)));
+              col = mix(col, vec3(0.2, 1.0, 0.5) * 1.3, rect(p, vec2(0.75, 0.54), vec2(0.79, 0.575)) * near);
+              col = mix(col, vec3(0.01, 0.011, 0.014) + hue * 0.035 * smoothstep(0.4, 0.12, p.y), rect(p, vec2(0.12, 0.12), vec2(0.84, 0.4)));
+              col = mix(col, paint * shade * 2.0, rect(p, vec2(0.12, 0.37), vec2(0.84, 0.4)));
+              lit = max(win * 0.9, band * 0.7);
+            } else if (vDeal < 3.0) {
+              // A bank of capsule machines, two wide and three high: each
+              // its own colour, a window on a heap of capsules under a lit
+              // card, a knob to turn, the slot over it, a chute.
+              col = vec3(0.045, 0.047, 0.055) * shade;
+              vec2 g = (p - vec2(0.04, 0.08)) / vec2(0.44, 0.6);
+              vec2 id = floor(g);
+              vec2 q = fract(g) * vec2(0.44, 0.6);
+              float h = hash12(id + floor(vSeed * 64.0));
+              vec3 body = mix(vec3(0.42, 0.42, 0.4), hueOf(step(0.5, fract(h * 5.7)), h * 6.0) * 0.45, step(0.35, fract(h * 3.3)));
+              vec3 unit = body * shade * 1.6;
+              float win = rect(q, vec2(0.04, 0.23), vec2(0.4, 0.57));
+              vec2 c = q - slide * 0.05;
+              vec3 inside = vec3(0.03, 0.032, 0.04);
+              vec2 cg = c / 0.062;
+              cg.x += 0.5 * mod(floor(cg.y), 2.0);
+              vec2 cf = fract(cg) - 0.5;
+              float ch = hash12(floor(cg) + id * 7.0 + floor(vSeed * 64.0));
+              float heap = step(c.y, 0.41 + 0.02 * sin(c.x * 40.0 + h * 9.0));
+              vec3 capsule = mix(vec3(0.72, 0.73, 0.75), hueOf(step(0.5, fract(ch * 5.7)), ch * 6.0), step(cf.y, 0.02));
+              capsule *= 0.5 + 0.5 * smoothstep(0.5, 0.0, length(cf - vec2(-0.12, 0.14)));
+              inside = mix(inside, mix(body * 0.5 + 0.2, capsule, near) * 0.7, heap * mix(1.0, step(length(cf), 0.46), near));
+              vec3 card = mix(hueOf(step(0.5, h), h * 37.0) * 0.8, vec3(1.0, 0.96, 0.9), mark((c - vec2(0.22, 0.495)) / 0.045, h * 23.0) * near);
+              inside = mix(inside, card, rect(c, vec2(0.06, 0.435), vec2(0.38, 0.555)));
+              unit = mix(unit, mix(vec3(0.015), inside, rect(c, vec2(0.04, 0.23), vec2(0.4, 0.57))), win);
+              vec2 kp = (q - vec2(0.15, 0.115)) / 0.07;
+              float turn = h * 3.1416;
+              unit = mix(unit, vec3(0.5, 0.5, 0.52) * shade * 2.0, step(length(kp), 1.0));
+              unit = mix(unit, vec3(0.03), step(length(kp), 0.85) * step(abs(kp.x * sin(turn) - kp.y * cos(turn)), 0.24) * near);
+              unit = mix(unit, vec3(0.008), rect(q, vec2(0.125, 0.2), vec2(0.175, 0.212)));
+              unit = mix(unit, vec3(0.006) + body * 0.03, rect(q, vec2(0.27, 0.04), vec2(0.4, 0.17)));
+              unit = mix(unit, body * shade * 2.4, rect(q, vec2(0.27, 0.15), vec2(0.4, 0.17)));
+              float on = rect(q, vec2(0.012, 0.01), vec2(0.428, 0.59)) * rect(g, vec2(0.0), vec2(2.0, 3.0));
+              col = mix(col, unit, on);
+              lit = win * on * 0.6;
+            } else {
+              // A dark one: a black front the street slides over, a small
+              // screen, a lit slot under it, keys, a line of light down its
+              // edge and along its tray.
+              vec3 paint = vec3(0.012, 0.013, 0.016);
+              col = paint * (vec3(0.5) + shade * 4.0) * (0.6 + 0.4 * rect(p, vec2(0.02), vec2(0.94, 1.93)));
+              col += spill * 0.05 * smoothstep(0.3, 1.0, fract(p.x * 0.7 + p.y * 0.25 + vSeed));
+              float screen = rect(p, vec2(0.3, 1.32), vec2(0.66, 1.58));
+              vec2 sp = (p - vec2(0.3, 1.32)) / vec2(0.36, 0.26);
+              float figure = max(mark((sp - vec2(0.24, 0.56)) / vec2(0.2, 0.28), vSeed * 23.0),
+                rect(sp, vec2(0.5, 0.2), vec2(0.92, 0.8)) * step(0.45, fract(sp.y * 5.0)) * step(sp.x, 0.55 + 0.37 * hash12(vec2(floor(sp.y * 5.0), vSeed * 31.0))));
+              col = mix(col, mix(other * (0.3 + 0.12 * step(0.5, fract(p.y * 60.0)) * near), vec3(1.0, 0.97, 0.92), figure * near), screen);
+              float slot = rect(p, vec2(0.3, 1.1), vec2(0.66, 1.125));
+              vec2 sd = (p - vec2(0.48, 1.1125)) * vec2(1.0, 4.0);
+              col += hue * 0.25 * exp(-dot(sd, sd) * 30.0);
+              col = mix(col, hue * 1.9, slot);
+              float keys = rect(p, vec2(0.38, 0.8), vec2(0.58, 1.04)) * step(0.35, fract((p.x - 0.38) * 15.0)) * step(0.35, fract((p.y - 0.8) * 16.7)) * near;
+              col = mix(col, vec3(0.1, 0.105, 0.12) * (shade + 0.4), keys);
+              float edge = rect(p, vec2(0.045, 0.2), vec2(0.058, 1.85));
+              col = mix(col, hue * 1.3, edge);
+              float tray = rect(p, vec2(0.2, 0.2), vec2(0.76, 0.46));
+              col = mix(col, vec3(0.004) + hue * 0.05 * smoothstep(0.46, 0.2, p.y), tray);
+              col = mix(col, hue * 0.9, rect(p, vec2(0.2, 0.452), vec2(0.76, 0.46)));
+              col = mix(col, paint * shade * 9.0, mark((p - vec2(0.48, 1.74)) / 0.07, vSeed * 23.0) * near * 0.6);
+              lit = max(max(screen, slot), edge);
+            }
           } else {
             float warm = step(vColor.b, vColor.r);
             vec3 hue = hueOf(warm, vSeed * 6.0);
@@ -751,7 +869,7 @@ export function createPropSurfaces(dressed) {
   // bake.
   const makers = { plant, face, print: face, halo, paper };
   // The ones that read each instance's deal (the attribute aDeal).
-  const DEALT = ["paper"];
+  const DEALT = ["paper", "face"];
   // How strongly a lit face of the props' own lights the street (the bake).
   const LIGHT = { face: 0.33, paper: 0.9 };
   const clean = (name) => name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
@@ -772,7 +890,7 @@ export function createPropSurfaces(dressed) {
      * the material's light it gives; null for none.
      */
     lightOf(name, deal) {
-      if (clean(name) !== "paper") return ONE;
+      if (clean(name) !== "paper") return FRONTS[Math.floor(deal)] ?? ONE;
       return PAPER_LIGHTS[Math.floor(deal)] ?? null;
     },
     dispose() {
