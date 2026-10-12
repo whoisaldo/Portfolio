@@ -1160,9 +1160,14 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const viewMatrix = new THREE.Matrix4();
   const ball = new THREE.Sphere();
   let viewed = false;
+  // (And how long the lens is: a far craft's lamps are grown to a share of
+  // the frame, which on a phone's narrow frame or a long lens is fewer
+  // degrees.)
+  let wide = 1;
   lamps.onBeforeRender = (renderer, drawn, camera) => {
     if (!camera.layers.isEnabled(0)) return;
     view.setFromProjectionMatrix(viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    wide = Math.min(1, 1.13 / camera.projectionMatrix.elements[0]);
     viewed = true;
   };
   const BODIES_TO = full ? 340 : 240;
@@ -1264,10 +1269,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // level along a street.
       q.multiply(tilt.setFromEuler(euler.set(0.05, 0, sky.bank)));
       body(s);
-      // Its lamps grow with distance past 75 m, to five times at 375 m, so
-      // a craft across the district still reads as its lights and not as
-      // a speck.
-      const g = s * Math.min(5, Math.max(1, Math.sqrt(far2) / 75));
+      // Its lamps grow with distance past 75 m, to five times at 375 m on
+      // a desktop's lens, so a craft across the district still reads as
+      // its lights and not as a speck.
+      const g = s * Math.max(1, Math.min(5, Math.sqrt(far2) / 75) * wide);
       setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * g);
       setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * g);
       // A short trail of its thrusters' light behind it, thinning out.
