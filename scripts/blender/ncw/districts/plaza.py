@@ -81,6 +81,8 @@ from ncw.districts import plaza_life  # noqa: E402,F401
 # (When every shop stands: frames, doors, shutters, lamps, awnings' frames.)
 from ncw.districts import plaza_fronts  # noqa: E402,F401
 from ncw.districts import plaza_roofs  # noqa: E402,F401
+# (Who waits at the road edges, once everything else stands.)
+from ncw.districts import plaza_edges  # noqa: E402,F401
 # (Last: the square's slabs, lit by everything set down above.)
 from ncw.districts import plaza_paving  # noqa: E402,F401
 # (And the kit's sign counters as the plaza has always left them, for the
