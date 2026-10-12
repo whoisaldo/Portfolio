@@ -25,11 +25,17 @@
 // walk beside it another). Standing, they hold one of eight poses and shift
 // a little. Under reduced motion they stay where they are.
 //
-// Lit by the street: the baked spill where they stand, the spill a few
-// metres along each face's own normal (so the side toward the shops is the
-// bright one), a little sky from above, the kit's lamps, a rim. Only phones,
-// cigarette tips, cyberware eyes, neon trims and umbrella rims are lit from
-// inside.
+// Lit by the street, never evenly: the city's baked spill is the level where
+// they stand, and the crowd's own map of the signs and shop windows
+// (src/world/crowd-light.js), read a few steps the way each face looks and a
+// few steps behind it, is the sign beside them, which colours the side that
+// faces it and leaves the other in shade; the light off the wet ground from
+// below, a little sky from above, the kit's lamps, and a rim of whatever is
+// lit behind them as the eye sees them. Only phones, cigarette tips,
+// cyberware, neon trims and umbrella rims are lit from inside. An umbrella is
+// a canopy of eight gores on ribs, its shaft in a hand beside the shoulder,
+// its neon a line along the canopy's edge (a pixel and a half tall far off,
+// so the wet road still doubles it).
 //
 // Three draws. Close to, the figure with a face; past the distance where the
 // difference is a pixel or two, a figure of a few hundred triangles on the
@@ -46,7 +52,8 @@
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { preloadProps } from "./props.js";
-import { figureGeometry, RIG, PART, TAG, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF } from "./crowd-people.js";
+import { createStreetLight } from "./crowd-light.js";
+import { figureGeometry, RIG, PART, TAG, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF, CANOPY } from "./crowd-people.js";
 
 const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
 // The top of every pavement (the builder's PAVE_Y).
@@ -183,10 +190,18 @@ function populate({ phone, walks, standers, bare = false }) {
     if (pose === "phone" || (pose === null && !umbrella && r() < 0.12)) mask += bits(TAG.phone);
     if (pose === "smoke") mask += bits(TAG.smoke);
     if (r() < 0.2) mask += bits(TAG.trim);
-    const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.08 ? 16 : 0) + (r() < 0.5 ? 32 : 0) + (r() < 0.25 ? 64 : 0);
+    // Cyberware down a cheek on some, a visor on a few, and a cup in the
+    // free hand of some of those with nothing to do with it.
+    if (r() < 0.13) mask += bits(TAG.cyber);
+    if (r() < 0.09) mask += bits(TAG.visor);
+    if (bag !== 3 && r() < (pose === null ? 0.06 : pose === "idle" || pose === "talk" || pose === "sit" ? 0.22 : 0)) mask += bits(TAG.cup);
+    // The garment; a hat, a shaved head, lit eyes, bare arms under a vest,
+    // pale shoes; and an umbrella's cloth (black, its rim's colour, pale).
+    const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.08 ? 16 : 0) + (r() < 0.5 ? 32 : 0) + (r() < 0.25 ? 64 : 0) + 128 * pick(r, [50, 32, 18]);
     return {
       height: (1.55 + 0.37 * (r() + r()) * 0.5) / RIG.height,
-      build: 0.88 + 0.26 * r(),
+      // Slight to heavy, most of them between.
+      build: 0.86 + 0.36 * r() ** 1.5,
       look: [mask, flags, Math.floor(r() * RIMS.length) + 4 * Math.floor(r() * BAGS.length), r()],
       wear: [jacket, Math.floor(r() * TROUSERS.length), Math.floor(r() * SKINS.length), pick(r, HAIR_ODDS)],
     };
@@ -457,6 +472,7 @@ const HEAD = /* glsl */ `
   uniform vec3 uPal[${PAL.size}];
   uniform sampler2D uLanes;
   uniform float uLaneRows;
+  uniform sampler2D uSigns;
   // Where the near figure and the far one trade places and over how wide a
   // band; the same for the far figure and the card.
   uniform vec4 uLod;
@@ -473,6 +489,11 @@ const HEAD = /* glsl */ `
   }
   float rnd(float x) {
     return fract(sin(x * 91.17) * 43758.5453);
+  }
+  // The light of the signs and windows round a point (src/world/crowd-light.js).
+  vec3 signsAt(vec3 p) {
+    vec3 s = texture2D(uSigns, (p.xz - uSpillBounds.xy) * uSpillBounds.zw).rgb;
+    return s * s;
   }
   // A file at a point along it: how far to the side of its line it runs,
   // and the room to move off it toward either side.
@@ -680,7 +701,7 @@ const VERTEX = /* glsl */ `
       float amp = 0.34 + 0.26 * rnd(seed * 3.1);
       sp = side * amp * c + 0.04;
       el = 0.22 + 0.32 * (0.5 + 0.5 * side * c);
-      sr = 0.07;
+      sr = 0.035;
       inw = 0.12;
       twist = -0.09 * c;
       hips = 0.05 * c;
@@ -754,12 +775,24 @@ const VERTEX = /* glsl */ `
       el = ${f(HOLD.umbrella.elbow)};
       inw = ${f(HOLD.umbrella.inward)};
     }
+    // Arms hang from the shoulder, clear of a long coat's skirt.
+    sr += 0.04 * bit(aLook.x, ${f(TAG.skirt)});
+    // A cup is carried level, the forearm out in front.
+    if (side < 0.0 && bit(aLook.x, ${f(TAG.cup)}) > 0.5) {
+      sp = ${f(HOLD.cup.pitch)} + 0.02 * sin(t * 0.7 + seed * 30.0);
+      sr = ${f(HOLD.cup.roll)};
+      el = ${f(HOLD.cup.elbow)};
+      inw = ${f(HOLD.cup.inward)};
+    }
 
     // The figure as built, then made this person's: their build, a puffer's
     // swell, more or less hair, and the lit things kept from falling between
     // pixels far off.
     vec3 p = position;
-    vec3 n = normal;
+    // The normal's length is the shade the figure was built with: a socket,
+    // an armpit, the inside of a hood.
+    float shade = length(normal);
+    vec3 n = normal / shade;
     float wide = aBody.y;
     float garment = mod(aLook.y, 4.0);
     float px = uPass.y * eye / h;
@@ -788,6 +821,8 @@ const VERTEX = /* glsl */ `
       if (garment > 1.5 && garment < 2.5 && part == ${PART.jacket}) p.xz += normalize(p.xz + 1e-5) * 0.024 * aux;
       p.x *= wide * (1.0 + 0.07 * frame * (smoothstep(1.1, 1.35, p.y) - 1.0 + smoothstep(0.95, 1.15, p.y)));
       p.z *= mix(1.0, wide, 0.85);
+      // A paunch on some, under the jacket's front.
+      p.z += max(p.z, 0.0) * 9.0 * max(rnd(seed * 13.7) - 0.62, 0.0) * 0.2 * smoothstep(0.86, 1.02, p.y) * (1.0 - smoothstep(1.12, 1.34, p.y));
       // A coat's skirt goes with the leg under it.
       if (part == ${PART.coat}) p.z += aux * 0.3 * sin(hip);
     }
@@ -836,6 +871,8 @@ const VERTEX = /* glsl */ `
     vec3 albedo = jacket;
     vec3 lit = vec3(0.0);
     float glow = 0.0;
+    // How much of a shine it has in the wet: cloth a little, a visor a lot.
+    float gloss = 0.12;
     if (part == ${PART.skin}) albedo = skin;
     else if (part == ${PART.hair}) albedo = hair;
     else if (part == ${PART.scalp}) {
@@ -850,20 +887,32 @@ const VERTEX = /* glsl */ `
       // A vest's arms are bare, or a shirt's.
       if (garment > 2.5) albedo = bit(flags, 5.0) > 0.5 ? skin : shirt;
     }
+    // A cuff a shade darker than its sleeve; on a bare arm, a band.
+    else if (part == ${PART.cuff}) albedo = garment > 2.5 && bit(flags, 5.0) > 0.5 ? vec3(0.02) + tint * 0.08 : (garment > 2.5 ? shirt : jacket) * 0.72;
     else if (part == ${PART.hood}) albedo = jacket * 0.85;
     else if (part == ${PART.seam}) albedo = jacket * 0.4;
     else if (part == ${PART.shirt}) albedo = shirt;
     else if (part == ${PART.trousers}) albedo = uPal[${PAL.trousers} + int(aWear.y + 0.5)];
-    else if (part == ${PART.shoe}) albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.03);
+    else if (part == ${PART.shoe}) { albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.03); gloss = 0.35; }
     else if (part == ${PART.bag} || part == ${PART.brim}) albedo = carried;
     else if (part == ${PART.tote}) albedo = uPal[${PAL.bag} + int(mod(floor(aLook.z / 4.0) + 3.0, 6.0) + 0.5)];
-    else if (part == ${PART.dark}) albedo = vec3(0.015);
-    else if (part == ${PART.canopy}) albedo = vec3(0.05, 0.05, 0.07) + tint * 0.1;
+    else if (part == ${PART.dark}) { albedo = vec3(0.015); gloss = 0.5; }
+    else if (part == ${PART.canopy}) {
+      // Black cloth, the colour of its rim, or pale.
+      float kind = mod(floor(flags / 128.0), 4.0);
+      albedo = kind < 0.5 ? vec3(0.024, 0.024, 0.03) : kind < 1.5 ? tint * 0.24 + 0.012 : vec3(0.4, 0.4, 0.43);
+      gloss = 0.7;
+    }
+    else if (part == ${PART.sclera}) { albedo = vec3(0.5, 0.5, 0.47); gloss = 0.3; }
+    else if (part == ${PART.line}) albedo = skin * 0.16;
+    else if (part == ${PART.flap}) albedo = carried * 0.5 + 0.01;
+    else if (part == ${PART.metal}) { albedo = vec3(0.13, 0.14, 0.16); gloss = 0.9; }
+    else if (part == ${PART.visor}) { albedo = vec3(0.012) + tint * 0.05; gloss = 1.6; }
     else if (part == ${PART.paper}) albedo = vec3(0.5);
     else if (part == ${PART.brow}) albedo = hair * 0.7;
     else if (part == ${PART.mouth}) albedo = skin * vec3(0.55, 0.35, 0.35);
     else if (part == ${PART.eye}) {
-      albedo = skin * 0.1;
+      albedo = skin * 0.08;
       if (bit(flags, 4.0) > 0.5) { lit = tint * 1.3; glow = 1.0; }
     }
     else if (part == ${PART.rim}) { lit = tint * 3.2 * (1.0 + 0.2 * uBass); glow = 1.0; }
@@ -871,25 +920,33 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.phone}) { lit = vec3(0.6, 0.85, 1.0) * 2.2 * aux; glow = 1.0; }
     else if (part == ${PART.ember}) { lit = vec3(1.0, 0.38, 0.08) * (1.6 + 2.4 * drag); glow = 1.0; }
 
-    // Lit by the street they are in: its light where they stand, and the
-    // light a couple of metres the way each face looks (the shops' side is
-    // the bright one), more on what faces up; the sky's haze from above;
-    // the kit's lamps; and a rim of it round their edge.
+    // Lit by the street they are in, never evenly. The city's bake gives
+    // the street's level where they stand; the crowd's own map gives the
+    // signs and windows a few steps the way each face looks and a few steps
+    // behind it, and what this side has over the other is the sign beside
+    // them: it colours the side of them that faces it and leaves the other
+    // in their own shade. What faces up takes the light overhead, what faces
+    // down the light off the wet ground; the sky's haze comes from above;
+    // the kit's lamps; and from behind them, as the eye sees them, a rim of
+    // whatever is lit there.
     vec3 here = spillAt(world);
-    vec3 flatN = vec3(N.x, 0.0, N.z) * 3.0;
-    vec3 toward = spillAt(world + flatN);
-    vec3 behind = spillAt(world - flatN);
+    float upright = length(N.xz);
+    vec3 out2 = upright > 1e-3 ? vec3(N.x, 0.0, N.z) / upright : vec3(face.x, 0.0, face.y);
+    vec3 toward = signsAt(world + out2 * 3.0);
+    vec3 behind = signsAt(world - out2 * 3.0);
+    vec3 about = signsAt(world);
     float up = N.y;
-    // How much of the light is on this face's side of them: a face turned
-    // to the shops is lit, one turned from them is in their own shade.
-    float lt = dot(toward, vec3(0.3, 0.5, 0.2));
-    float share = lt / (lt + dot(behind, vec3(0.3, 0.5, 0.2)) + 1e-3);
     vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * (0.55 + 0.45 * up) * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.25 * (0.5 + 0.5 * up);
-    vec3 light = vec3(0.03, 0.03, 0.045) + here * (0.06 + 0.34 * max(up, 0.0)) + toward * (0.1 + 0.85 * smoothstep(0.3, 0.75, share)) * (1.0 - 0.6 * abs(up)) + sky * 0.8 + lampsAt(world, N) * 1.2;
+    vec3 light = vec3(0.012, 0.012, 0.02) + (max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22) * upright + about * 0.1 + here * (0.05 + 0.16 * max(up, 0.0) + 0.22 * max(-up, 0.0)) + sky * 0.62 + lampsAt(world, N) * 1.2;
     vec3 V = normalize(uCam - world);
-    float edge = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+    float graze = 1.0 - max(dot(N, V), 0.0);
+    vec3 past = signsAt(world - normalize(vec3(V.x, 0.0, V.z) + 1e-5) * 3.5);
     float ground = 0.72 + 0.28 * smoothstep(0.0, 0.5, tall);
-    vec3 col = albedo * light * ground + (max(here, toward) * 0.55 + sky * 0.6) * edge * (0.2 + albedo);
+    vec3 col = (albedo * light * ground + (past * 1.2 + here * 0.1 + sky * 0.5) * graze * graze * graze * upright * (0.14 + albedo) + (toward + sky * 0.9) * graze * graze * gloss * 0.5) * shade;
+    // The umbrella's own neon is on the cloth by its edge, and on the head
+    // and shoulders under it.
+    if (part == ${PART.canopy}) col += (0.2 + albedo) * tint * 0.3 * aux * aux * aux;
+    else if (umbrella > 0.5) col += albedo * tint * 0.2 * smoothstep(1.25, 1.7, tall);
     // A phone held up lights the face over it.
     if (phoneUp > 0.5 && seg > 1.5 && seg < 2.5) col += albedo * vec3(0.3, 0.45, 0.55) * max(n.z * 0.8 - n.y * 0.6, 0.0);
     col = mix(col, lit, glow);
@@ -977,10 +1034,9 @@ const CARD_VERTEX = /* glsl */ `
     // Lit as the figure's faces that look at the eye are.
     vec3 mid = root + vec3(0.0, h, 0.0);
     vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * 0.55 * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.12;
-    vec3 toward = spillAt(mid + vec3(toEye.x, 0.0, toEye.y) * 3.0);
-    float lt = dot(toward, vec3(0.3, 0.5, 0.2));
-    float share = lt / (lt + dot(spillAt(mid - vec3(toEye.x, 0.0, toEye.y) * 3.0), vec3(0.3, 0.5, 0.2)) + 1e-3);
-    vLight = vec4(vec3(0.03, 0.03, 0.045) + spillAt(mid) * 0.06 + toward * (0.1 + 0.85 * smoothstep(0.3, 0.75, share)) + sky * 0.8, 6.2832 * ph);
+    vec3 toward = signsAt(mid + vec3(toEye.x, 0.0, toEye.y) * 3.0);
+    vec3 behind = signsAt(mid - vec3(toEye.x, 0.0, toEye.y) * 3.0);
+    vLight = vec4(vec3(0.012, 0.012, 0.02) + max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22 + signsAt(mid) * 0.1 + spillAt(mid) * 0.09 + sky * 0.62, 6.2832 * ph);
     vec3 away = mid - uCam;
     float dist = length(away);
     vec3 fog = mix(uFogColor, uHazeColor, uHaze * exp(-max(mid.y, 0.0) * 0.01) * smoothstep(40.0, 360.0, dist));
@@ -1047,9 +1103,9 @@ const CARD_FRAGMENT = /* glsl */ `
     float canopy = 1e3;
     float rim = 1e3;
     if (vJacket.a > 0.5) {
-      vec2 q = (p - vec2(0.1, 1.905)) / vec2(0.54, 0.13);
+      vec2 q = (p - vec2(${f(CANOPY.x)}, ${f(CANOPY.edge)})) / vec2(${f(CANOPY.radius)}, 0.2);
       canopy = max(length(q) - 1.0, -q.y);
-      rim = max(abs(p.y - 1.905) - max(${f(RIM_HALF)}, 0.75 * px), abs(p.x - 0.1) - 0.54);
+      rim = max(abs(p.y - ${f(CANOPY.edge)}) - max(${f(RIM_HALF)}, 0.75 * px), abs(p.x - ${f(CANOPY.x)}) - ${f(CANOPY.radius)});
     }
     if (min(d, min(canopy, rim)) > 0.0) discard;
     float lit = vTint.a;
@@ -1078,6 +1134,7 @@ const NAMES = ["aWalk", "aPath", "aBody", "aLook", "aWear"];
 
 export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks = [], standers = [] } = {}) {
   const motion = reduced ? 0 : 1;
+  const light = createStreetLight(scene, shared);
   const palette = new Float32Array(PAL.size * 3);
   [JACKETS, TROUSERS, SKINS, HAIRS, BAGS, RIMS.map((c) => new THREE.Color(c).toArray())].flat().forEach((c, i) => palette.set(c, i * 3));
   // Where the figures trade places, through a 50 degree lens: the face for
@@ -1093,6 +1150,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     uPal: { value: palette },
     uLanes: { value: null },
     uLaneRows: { value: 1 },
+    uSigns: light.uniform,
     uLod: { value: new THREE.Vector4(TRADES[0], TRADES[0] * BAND, TRADES[1], TRADES[1] * BAND) },
   };
   const material = (name, vertexShader, fragmentShader, defines = {}) => {
@@ -1174,6 +1232,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   const refresh = () => {
     const t = shared.uTime.value * motion;
     const cam = shared.uCam.value;
+    light.check();
     if (eye) eye.updateMatrixWorld();
     const e = eye ? eye.matrixWorld.elements : null;
     const lens = eye ? eye.projectionMatrix.elements[5] : 0;
@@ -1277,6 +1336,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       for (const g of shapes) g.dispose();
       for (const m of materials) m.dispose();
       base.uLanes.value?.dispose();
+      light.dispose();
       over = true;
     },
   };
@@ -1300,9 +1360,10 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       TRADES[1] = far;
       last.fill(NaN);
     };
-    // Everyone's floats, what stands on the pavements and the lanes' map,
-    // for checking that nobody walks through anything.
-    api.debugState = () => ({ people, furniture, lanes: base.uLanes.value.image, stride: STRIDE });
+    // Everyone's floats, what stands on the pavements, the lanes' map and
+    // the signs' light, for checking that nobody walks through anything and
+    // what lights them.
+    api.debugState = () => ({ people, furniture, lanes: base.uLanes.value.image, signs: base.uSigns.value.image, signsMs: light.ms, stride: STRIDE });
   }
   return api;
 }
