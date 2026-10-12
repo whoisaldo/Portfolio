@@ -158,17 +158,47 @@ def east_blocks():
 # ---------------------------------------------------------------------------
 # The back row.
 # ---------------------------------------------------------------------------
+def spire(x0, x1, z0, z1, y0, stages, r, hue, mast_h, seed):
+    """The upper stages of a second-rank tower, over a block that ends at
+    y0: each stage ((inset -x, +x, -z, +z), top) of dark glass with few lit
+    floors, fins down its south face, a line of light on its parapet and up
+    its south corners; on the last a lantern, dim, and a mast. (Where each
+    stands and how wide its top is come from the Experience shot: seen from
+    its lens the tops rise in the gaps between the row's crowns, not
+    behind a logo.)"""
+    y = y0
+    for ins, top in stages:
+        x0, x1, z0, z1 = x0 + ins[0], x1 - ins[1], z0 + ins[2], z1 - ins[3]
+        K.glass(x0, x1, z0, z1, y, top, K.glass_col(r, (0.04, 0.12), (0.2, 0.9)), roof=False)
+        K.roof_quad(x0, x1, z0, z1, top)
+        B.ROOFS.append((CO, x0, x1, z0, z1, top))
+        K.fins(B.Face("+z", z1, x0, x1), y, top, 3.4)
+        K.edge_line(x0, x1, z0, z1, top - 0.7, hue, h=0.3, out=0.1)
+        for cx in (x0, x1):
+            K.strip_v(cx, z1, y + 1.0, top - 1.0, hue)
+        y = top
+    c = GLOW[hue]
+    box(k("glow"), x0 + 0.9, x1 - 0.9, y + 0.6, y + 4.6, z0 + 0.9, z1 - 0.9, scale=1.0, col=(c[0] * 0.3, c[1] * 0.3, c[2] * 0.3, 1.0))
+    for xa, xb, za, zb in ((x0, x0 + 0.5, z0, z1), (x1 - 0.5, x1, z0, z1), (x0, x1, z0, z0 + 0.5), (x0, x1, z1 - 0.5, z1)):
+        box(k("trim"), xa, xb, y, y + 0.6, za, zb, scale=2.0, col=K.BLACK)
+    box(k("trim"), x0, x1, y + 4.6, y + 5.3, z0, z1, scale=2.0, col=K.BLACK)
+    K.edge_line(x0, x1, z0, z1, y + 5.3, hue, h=0.2, out=0.08)
+    K.mast((x0 + x1) / 2, (z0 + z1) / 2, y + 5.3, mast_h, lamps=3)
+
+
 def back_row():
     r = random.Random(7721)
     D = dict(fronts={"+z": "dock", "-z": "blank", "-x": "dock", "+x": "dock"})
     # 1: a glass shaft with fins and a ribbon-windowed wing.
     K.corp_block(137.0, 160.0, BACK0, BACK1, 72.0, 7722, skin="glass", tiers=((0.84, 0.0), (1.0, 2.2)), fin_step=4.6,
                  fin_faces=("+z", "-z"), edge="cyan", top_band="cyan", **D)
-    K.corp_block(160.0, 182.0, BACK0, BACK1, 50.0, 7723, skin="windows", tint="teal", style=5,
-                 tiers=((1.0, 0.0),), fronts={"+z": "dock", "-z": "blank", "+x": "dock", "-x": "none"}, edge="amber",
-                 lit=(0.5, 0.8), warm=(0.5, 1.0))
+    # (Its wing is the first of the second rank: 110 m of dim glass, then
+    # two stages to 186 m, a lantern and a mast.)
+    K.corp_block(160.0, 182.0, BACK0, BACK1, 110.0, 7723, skin="glass", tiers=((1.0, 0.0),),
+                 fronts={"+z": "dock", "-z": "blank", "+x": "dock", "-x": "none"}, edge="amber", fin_step=5.5, fin_faces=("+z", "+x"),
+                 lit=(0.06, 0.16), warm=(0.5, 1.0), crown=False)
+    spire(160.0, 182.0, BACK0, BACK1, 110.0, (((6.0, 0.0, 15.5, 2.0), 150.0), ((4.0, 0.0, 6.0, 0.0), 186.0)), r, "amber", 26.0, 7723)
     K.roof_plant(139.0, 158.0, BACK0 + 4, BACK1 - 4, 72.0, r, cap=4.0)
-    K.roof_plant(161.0, 181.0, BACK0 + 1, BACK1 - 1, 50.0, r, cap=5.0)
     K.screen(171.0, 41.0, BACK1 + 0.4, 14.0, 7.6, 0.0, r)
     # 2: the tall one behind the second gap: a stepped glass tower, light
     # up its corners, screens stacked on its upper south face.
@@ -180,7 +210,9 @@ def back_row():
     # 3: the block the halt opens into.
     K.corp_block(232.0, 262.0, BACK0, BACK1, 44.0, 7725, skin="windows", tint="teal", style=4, tiers=((1.0, 0.0),),
                  edge="amber", top_band="cyan", lit=(0.55, 0.85), warm=(0.1, 0.5), **D)
-    K.roof_plant(233.0, 261.0, BACK0 + 1, BACK1 - 1, 44.0, r, cap=5.0)
+    # (Over it the tallest of the second rank: three stages to 208 m.)
+    spire(232.0, 262.0, BACK0, BACK1, 44.0, (((2.0, 4.0, 0.0, 0.0), 120.0), ((0.0, 10.0, 17.5, 2.0), 168.0), ((1.0, 2.0, 4.0, 1.0), 208.0)),
+          r, "cyan", 24.0, 7725)
     # 4: the plant building, low: cooling drums in rows on its roof, steam.
     K.podium_walls(268.0, 298.0, BACK0, BACK1, 15.6, {"-z": "blank", "+z": "dock", "-x": "dock", "+x": "dock"}, r, 5, "amber", 0.0, K.CONCRETE)
     B.ROOFS.append((CO, 268.0, 298.0, BACK0, BACK1, 15.6))
@@ -198,9 +230,11 @@ def back_row():
     K.roof_lights(268.0, 298.0, BACK0, BACK1, 15.6, "amber", step=7.5)
     # 5: stacked and shifted boxes.
     K.corp_block(304.0, 338.0, BACK0, BACK1, 70.0, 7726, skin="glass",
-                 tiers=((0.4, (0.0, 4.0, 0.0, 2.0)), (0.72, (5.0, 0.0, 3.0, 0.0)), (1.0, (2.0, 6.0, 0.0, 5.0))),
+                 tiers=((0.4, (0.0, 0.0, 0.0, 2.0)), (0.72, (5.0, 0.0, 3.0, 0.0)), (1.0, (2.0, 0.0, 0.0, 5.0))),
                  edge="amber", top_band="amber", colour="amber", lit=(0.5, 0.85), warm=(0.4, 0.9), **D)
-    K.roof_plant(307.0, 331.0, BACK0 + 1, BACK1 - 6, 70.0, r, cap=4.0)
+    K.roof_plant(307.0, 319.0, BACK0 + 1, BACK1 - 6, 70.0, r, cap=4.0)
+    # (Its east end carries the third of the second rank, to 184 m.)
+    spire(304.0, 338.0, BACK0, BACK1, 70.0, (((16.0, 0.0, 7.5, 5.0), 140.0), ((4.0, 0.0, 12.0, 0.0), 184.0)), r, "pink", 20.0, 7726)
     K.screen(322.0, 44.0, BACK1 + 0.4, 13.0, 7.0, 0.0, r)
     # 6: the tallest, a dark slab with fins and a crown of light.
     K.corp_block(344.0, 378.0, BACK0, BACK1, 90.0, 7727, skin="windows", tint="navy", style=5, tiers=((0.8, 0.0), (1.0, 2.6)),
@@ -299,37 +333,73 @@ def lane():
 
 
 def track():
-    """The elevated track: a teal beam on hammerhead piers down the middle
-    of the lane, a walkway and a rail either side, pink lamps along it
-    (mH2wmyeiIpA@143), amber under it."""
+    """The elevated track down the middle of the lane (mH2wmyeiIpA@143): a
+    concrete deck on twin teal girders, cross beams under it and a line of
+    warm light along its belly, so the lane has a lit ceiling; an upstand, a
+    rail on posts and a line of cyan light along each edge; two running
+    rails; at every pier a portal over the deck with lamps on it and the
+    wire between; piers of cast concrete on striped plinths, a sign and a
+    lamp on each."""
     z = TRACK_Z
     top = TRACK_Y
-    box(k("trim"), WEST_X, EAST_X, top - 1.5, top - 0.2, z - 1.5, z + 1.5, scale=3.0, col=K.TEAL, bottom=True)
-    box(k("trim"), WEST_X, EAST_X, top - 0.2, top, z - 2.3, z + 2.3, scale=3.0, col=K.TEAL, bottom=True)
+    conc = (0.2, 0.2, 0.21, 1.0)
+    belly = tuple(c * 0.4 for c in GLOW["amber"][:3]) + (1.0,)
     for s in (-1, 1):
-        za, zb = sorted((z + s * 2.2, z + s * 2.3))
-        box(k("trim"), WEST_X, EAST_X, top, top + 0.9, za, zb, scale=3.0, col=K.TEAL)
-        zc, zd = sorted((z + s * 2.3, z + s * 2.34))
-        K.glow_box(WEST_X, EAST_X, top - 0.12, top - 0.04, zc, zd, "pink")
-        # The running rail and its lit edge.
+        za, zb = sorted((z + s * 0.8, z + s * 1.5))
+        box(k("steel"), WEST_X, EAST_X, top - 1.9, top - 0.3, za, zb, scale=3.0, col=K.TEAL, bottom=True)
         ze, zf = sorted((z + s * 0.72, z + s * 0.86))
         box(k("metal"), WEST_X, EAST_X, top, top + 0.16, ze, zf, scale=1.0)
+    box(k("castconcrete"), WEST_X, EAST_X, top - 0.3, top, z - 2.6, z + 2.6, scale=3.0, col=conc, bottom=True)
+    box(k("glow"), WEST_X + 1.0, EAST_X - 1.0, top - 0.36, top - 0.31, z - 0.28, z + 0.28, scale=1.0, col=belly)
+    # Its edges, either side of the halt.
+    for xa, xb in ((WEST_X, 232.0), (260.0, EAST_X)):
+        for s in (-1, 1):
+            za, zb = sorted((z + s * 2.42, z + s * 2.6))
+            box(k("castconcrete"), xa, xb, top, top + 0.4, za, zb, scale=3.0, col=conc)
+            zc, zd = sorted((z + s * 2.6, z + s * 2.65))
+            K.neon_box(xa, xb, top - 0.22, top - 0.08, zc, zd, "cyan")
+            zr = z + s * 2.5
+            box(k("steel"), xa, xb, top + 1.12, top + 1.2, zr - 0.04, zr + 0.04, scale=1.0, col=K.TEAL)
+            box(k("steel", 1), xa, xb, top + 0.74, top + 0.79, zr - 0.03, zr + 0.03, scale=1.0, col=K.TEAL)
+            x = xa + 1.2
+            while x < xb - 0.5:
+                box(k("steel", 1), x - 0.04, x + 0.04, top + 0.4, top + 1.12, zr - 0.04, zr + 0.04, scale=1.0, col=K.TEAL)
+                x += 2.375
+    # Cross beams under the deck, and the lamps along it.
     x = WEST_X + 2.0
     while x < EAST_X - 1.0:
-        for s in (-1, 1):
-            K.glow_box(x - 0.14, x + 0.14, top + 0.9, top + 1.12, z + s * 2.25 - 0.1, z + s * 2.25 + 0.1, "pink")
+        box(k("steel", 1), x - 0.12, x + 0.12, top - 1.5, top - 0.3, z - 2.5, z + 2.5, scale=1.0, col=K.TEAL, bottom=True)
+        if not 231.0 < x < 261.0:
+            for s in (-1, 1):
+                K.glow_box(x - 0.14, x + 0.14, top + 1.2, top + 1.42, z + s * 2.5 - 0.1, z + s * 2.5 + 0.1, "pink")
         x += 4.75
-    for px in range(150, 430, 19):
+    box(k("metal", 1), WEST_X, EAST_X, top + 4.7, top + 4.74, z - 0.025, z + 0.025, scale=1.0)
+    for j, px in enumerate(range(150, 430, 19)):
         if 236 < px < 256:
             continue
-        box(k("trim"), px - 0.75, px + 0.75, G0, top - 2.3, z - 0.75, z + 0.75, scale=2.0, col=K.TEAL)
-        box(k("trim"), px - 0.9, px + 0.9, top - 2.3, top - 1.5, z - 2.2, z + 2.2, scale=2.0, col=K.TEAL, bottom=True)
-        box(k("trim", 1), px - 1.0, px + 1.0, G0, G0 + 0.9, z - 1.0, z + 1.0, scale=1.0, col=K.STONE)
-        box(k("trim", 1), px - 1.02, px + 1.02, G0 + 0.55, G0 + 0.75, z - 1.02, z + 1.02, scale=1.0, col=K.YELLOW)
-        K.neon_box(px - 0.5, px + 0.5, top - 2.42, top - 2.34, z - 2.0, z - 1.0, "amber", 1)
-        K.neon_box(px - 0.5, px + 0.5, top - 2.42, top - 2.34, z + 1.0, z + 2.0, "amber", 1)
+        box(k("castconcrete"), px - 0.8, px + 0.8, G0, top - 2.7, z - 0.8, z + 0.8, scale=2.0, col=conc)
+        box(k("castconcrete"), px - 1.0, px + 1.0, top - 2.7, top - 1.9, z - 2.5, z + 2.5, scale=2.0, col=conc, bottom=True)
+        # The plinth, striped, a sign on the pier's two faces along the lane
+        # and a lamp over each.
+        box(k("trim", 1), px - 1.05, px + 1.05, G0, G0 + 1.5, z - 1.05, z + 1.05, scale=1.0, col=K.STONE)
+        for yy in (0.25, 0.75, 1.25):
+            box(k("trim", 1), px - 1.07, px + 1.07, G0 + yy, G0 + yy + 0.25, z - 1.07, z + 1.07, scale=1.0, col=K.YELLOW)
+        for sx in (-1, 1):
+            K.st_board(px + sx * 0.82, 3.6, z, "bx", sx * math.pi / 2)
+            K.glow_box(*sorted((px + sx * 0.82, px + sx * 1.1)), 4.5, 4.58, z - 0.5, z + 0.5, ("white", "amber")[j % 2], 1)
+        K.neon_box(px - 0.5, px + 0.5, top - 2.82, top - 2.74, z - 2.3, z - 1.0, "amber", 1)
+        K.neon_box(px - 0.5, px + 0.5, top - 2.82, top - 2.74, z + 1.0, z + 2.3, "amber", 1)
         light(CO, px, 12.0, z - 2.5, "amber", 4.0)
         light(CO, px, 12.0, z + 2.5, "amber", 4.0)
+        light(CO, px + 9.5, 14.0, z, "amber", 4.5)
+        # The portal over the deck.
+        for s in (-1, 1):
+            zp = z + s * 2.5
+            box(k("steel"), px - 0.09, px + 0.09, top + 0.4, top + 5.6, zp - 0.09, zp + 0.09, scale=1.0, col=K.TEAL)
+            K.glow_box(px - 0.22, px + 0.22, top + 5.1, top + 5.22, zp - s * 0.9 - 0.3, zp - s * 0.9 + 0.3, "white")
+        box(k("steel"), px - 0.09, px + 0.09, top + 5.4, top + 5.6, z - 2.6, z + 2.6, scale=1.0, col=K.TEAL)
+        light(CO, px, top + 3.5, z, "white", 4.0)
+        K.aviation(px, top + 5.6, z)
 
 
 def halt():
