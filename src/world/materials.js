@@ -502,7 +502,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // The shop's own number, from what the builder gave it and the
           // wall it stands in; and each room of it its own.
           float wall = floor(n.x * 1.5 + 1.75) * 3.0 + floor(n.z * 1.5 + 1.75);
-          float shop = hash12(floor(vColor.rg * 255.0 + 0.5) + vec2(floor(dot(vWorld, n) * 0.37 + 0.123), wall * 7.0));
+          // Which pane of the wall this is: a builder's pane counts its
+          // metres from its own left edge, so where that edge stands in the
+          // world is the same number all across it and another for the pane
+          // next door (the older kit's glass: every 6.4 m of the wall).
+          // Without it every window of a street side was the same shop.
+          float way = dFdx(along) * dFdx(vUv.x) + dFdy(along) * dFdy(vUv.x) < 0.0 ? -1.0 : 1.0;
+          float paneId = mix(floor(along / 6.4), floor((along - way * vUv.x) * 2.0 + 0.37), own);
+          float shop = hash12(floor(vColor.rg * 255.0 + 0.5) + vec2(floor(dot(vWorld, n) * 0.37 + 0.123) + paneId * 3.0, wall * 7.0));
           float roomW = mix(3.2, 3.4 + 1.9 * floor(fract(shop * 7.3) * 3.0), own);
           float cell = floor(ax / roomW);
           float seed = hash12(vec2(cell + 0.5, shop * 61.0 + 0.5));
