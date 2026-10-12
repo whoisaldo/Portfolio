@@ -724,10 +724,17 @@ def showrooms(f, r, tint, colour, lobby=False):
         i += n
 
 
-def wall_front(f, top, r, tint, colour):
+WALL_ADS = [0]      # a running count, so no two wall posters show one advert
+
+
+def wall_front(f, top, r, tint, colour, lead=None):
     """A podium's wall onto a lane, not left blank: pilasters every bay and
-    between them a lit vitrine, a door under louvres, a slot of light, or a
-    small sign and a lamp; a ledge under its top."""
+    in every bay something, never the same twice running: a lit vitrine in
+    a black frame, a service door under a hood with its lamp, a vent and a
+    sign beside it, a backlit poster in a frame under a lamp, louvres with
+    light behind them over a run of pipes, or a slot of light and a small
+    sign; a ledge under its top. `lead`: the bay at that end ("left" or
+    "right" as seen from outside) is a vitrine, whatever else."""
     w = f.width
     tcol = B.TRIM[tint]
     n = max(1, round(w / 6.4))
@@ -735,36 +742,74 @@ def wall_front(f, top, r, tint, colour):
     for i in range(n + 1):
         e = min(max(i * bw, 0.22), w - 0.22)
         f.box(k("trim", 1), e - 0.22, e + 0.22, 0.0, top, 0.0, 0.14, col=tcol)
+    kinds = ["vitrine", "door", "poster", "louvre", "slot"]
+    r.shuffle(kinds)
+    last = None
     for i in range(n):
         a, b = i * bw + 0.6, (i + 1) * bw - 0.6
         mid = (a + b) / 2
         if b - a < 2.0:
             continue
-        roll = r.random()
-        if roll < 0.32 and b - a > 3.6:
+        kind = kinds[i % len(kinds)]
+        if kind == last:
+            kind = kinds[(i + 1) % len(kinds)]
+        if lead and i == (0 if lead == "left" else n - 1):
+            kind = "vitrine"
+        if kind == "vitrine" and b - a < 3.6:
+            kind = "poster"
+        last = kind
+        lx, _, lz = f.p(f.at(mid), 0.0, 1.0)
+        if kind == "vitrine":
             f.box(k("trim"), mid - 1.75, mid + 1.75, 0.3, 3.55, 0.0, 0.1, col=BLACK)
-            f.quad(k("shop"), mid - 1.5, mid + 1.5, 0.55, 3.3, 0.11, col=(r.uniform(0.6, 1.0), r.uniform(0.88, 1.0), 1.0, 1.0))
-            lx, _, lz = f.p(f.at(mid), 0.0, 1.0)
+            f.quad(k("shop"), mid - 1.5, mid + 1.5, 0.55, 3.3, 0.11, col=(r.uniform(0.6, 1.0), r.uniform(0.88, 1.0) if r.random() < 0.6 else r.uniform(0.0, 0.4), 1.0, 1.0))
+            f.box(k("trim", 1), mid - 0.04, mid + 0.04, 0.55, 3.3, 0.11, 0.16, col=BLACK)
+            f.box(k("neon_" + colour), mid - 1.5, mid + 1.5, 3.42, 3.48, 0.0, 0.06)
             light(CO, lx, 2.0, lz, "cyan", 3.0)
-        elif roll < 0.58:
-            f.box(k("dark", 1), a, b, top * 0.5, top * 0.5 + 1.8, 0.0, 0.08)
-            f.quad(k("door"), mid - 0.55, mid + 0.55, G0, 2.3, 0.03)
-            f.box(k("metal", 1), mid - 0.63, mid + 0.63, 2.3, 2.4, 0.0, 0.12)
+        elif kind == "door":
+            f.box(k("trim"), mid - 0.75, mid + 0.75, 0.0, 2.55, 0.0, 0.08, col=BLACK)
+            f.quad(k("door"), mid - 0.55, mid + 0.55, G0, 2.3, 0.09)
+            f.box(k("metal", 1), mid - 0.9, mid + 0.9, 2.55, 2.63, 0.0, 0.7)
             hue = r.choice(("amber", "white", "cyan"))
-            f.box(k("neon_" + hue), mid - 0.14, mid + 0.14, 2.56, 2.72, 0.05, 0.2)
-            lx, _, lz = f.p(f.at(mid), 0.0, 0.8)
+            f.box(k("neon_" + hue), mid - 0.2, mid + 0.2, 2.42, 2.5, 0.08, 0.2)
+            # A vent beside it, lit from behind, and a small sign over that.
+            vx = mid + (1.6 if b - mid > 2.2 else -1.6)
+            c = GLOW[hue]
+            f.box(k("glow", 1), vx - 0.45, vx + 0.45, 1.2, 1.9, 0.0, 0.03, col=(c[0] * 0.18, c[1] * 0.18, c[2] * 0.18, 1.0))
+            for j in range(5):
+                f.box(k("dark", 1), vx - 0.5, vx + 0.5, 1.2 + j * 0.15, 1.27 + j * 0.15, 0.0, 0.08)
+            sw, sh = ST_SIZES["ps"]
+            if abs(vx - mid) > 1.0 and a < vx - sw / 2 and vx + sw / 2 < b:
+                cx, cy, cz = f.p(f.at(vx), 3.0, 0.08)
+                f.box(k("board_frame"), vx - sw / 2 - 0.06, vx + sw / 2 + 0.06, 3.0 - sh / 2 - 0.06, 3.0 + sh / 2 + 0.06, 0.0, 0.07)
+                sign(st_id("ps"), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
             light(CO, lx, 2.6, lz, hue, 3.0)
-        elif roll < 0.8:
-            f.box(k("neon_" + colour), mid - 0.06, mid + 0.06, 0.7, top - 1.0, 0.0, 0.05)
-            lx, _, lz = f.p(f.at(mid), 0.0, 0.8)
-            light(CO, lx, 3.0, lz, colour, 3.0)
+        elif kind == "poster":
+            WALL_ADS[0] += 1
+            px, py, pz = f.p(f.at(mid), 2.25, 0.16)
+            advert(px, py, pz, 1.5, 2.3, f.yaw, WALL_ADS[0] * 3, seed=0.05 + 0.07 * (WALL_ADS[0] % 6), depth=0.12)
+            f.box(k("metal", 1), mid - 0.5, mid + 0.5, 3.75, 3.82, 0.0, 0.5)
+            f.box(k("glow", 1), mid - 0.4, mid + 0.4, 3.7, 3.75, 0.4, 0.48, col=GLOW["white"])
+            light(CO, lx, 3.2, lz, "white", 3.0)
+        elif kind == "louvre":
+            c = GLOW[colour]
+            f.box(k("glow"), mid - 1.4, mid + 1.4, 3.0, 4.6, 0.0, 0.03, col=(c[0] * 0.22, c[1] * 0.22, c[2] * 0.22, 1.0))
+            for j in range(7):
+                f.box(k("dark", 1), mid - 1.45, mid + 1.45, 3.0 + j * 0.24, 3.12 + j * 0.24, 0.0, 0.1)
+            for j in range(r.randrange(2, 4)):
+                px, _, pz = f.p(f.at(mid - 1.2 + j * 0.28), 0.0, 0.0)
+                P.place("pipe_v", px, G0, pz, f.yaw, sy=2.9, district=CO)
+            f.box(k("metal", 1), mid - 1.3, mid - 0.5, 1.4, 1.48, 0.0, 0.22)
+            light(CO, lx, 3.6, lz, colour, 3.0)
         else:
-            size = r.choice(("ps", "bx", "pm"))
+            f.box(k("neon_" + colour), mid - 0.06, mid + 0.06, 0.7, top - 1.0, 0.0, 0.05)
+            size = r.choice(("ps", "bx"))
             sw, sh = ST_SIZES[size]
-            if b - a > sw + 0.4:
-                cx, cy, cz = f.p(f.at(mid), 3.2, 0.08)
-                f.box(k("board_frame"), mid - sw / 2 - 0.06, mid + sw / 2 + 0.06, 3.2 - sh / 2 - 0.06, 3.2 + sh / 2 + 0.06, 0.0, 0.07)
+            sx_ = mid + 0.4 + sw / 2
+            if sx_ + sw / 2 < b:
+                cx, cy, cz = f.p(f.at(sx_), 2.4, 0.08)
+                f.box(k("board_frame"), sx_ - sw / 2 - 0.06, sx_ + sw / 2 + 0.06, 2.4 - sh / 2 - 0.06, 2.4 + sh / 2 + 0.06, 0.0, 0.07)
                 sign(st_id(size), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
+            light(CO, lx, 3.0, lz, colour, 3.0)
     f.ledge(k("trim", 1), 0.0, w, top - 0.5, 0.2, 0.12, tcol)
 
 
@@ -1242,21 +1287,21 @@ def mark3d(which, cx, cy, cz, size, yaw, col, depth=0.22, detail=0):
 
 def door_portal(f, s, colour, which, half=2.6, top=5.6, out=0.34, wings=0.0):
     """A way in, built on a face s metres along it: a dark surround standing
-    out of the wall to `top`, doors of dark glass in it with a seam of light
-    between them, a line of the house's one colour up either side of them
+    out of the wall to `top`, glass doors in it with the hall lit behind
+    them, a line of the house's one colour up either side of them
     and across over them, the house's mark raised over that and lit, and
     its pool of that colour on the pavement. `wings`: this much more
-    surround either side, a panel of dim light behind dark bars in each."""
+    surround either side, a lit room seen through dark bars in each."""
     c = GLOW[colour]
     f.box(k("trim"), s - half - wings, s + half + wings, 0.0, top, 0.02, out, col=FRAME)
     dw = min(1.5, half - 0.9)
-    # Two leaves of glass with the hall's light dim behind them, each in
+    # Two leaves of glass with the hall lit behind them, each in
     # its frame, a push bar across it and a kick plate at its foot.
-    inside = (c[0] * 0.07 + 0.012, c[1] * 0.07 + 0.012, c[2] * 0.07 + 0.014, 1.0)
+    cool = colour in ("cyan", "blue", "white", "green")
     for e in (-1, 1):
         a, b = sorted((s + e * 0.04, s + e * dw))
-        f.quad(k("glow"), a, b, G0, 2.8, out + 0.012, col=inside)
-        f.quad(k("glass_dark", 1), a + 0.1, b - 0.1, G0 + 0.3, 2.66, out + 0.02)
+        f.quad(k("shop"), a, b, G0, 2.8, out + 0.012, col=(0.85, 0.94 if cool else 0.15, 1.0, 1.0))
+        f.quad(k("clearglass", 1), a + 0.1, b - 0.1, G0 + 0.3, 2.66, out + 0.03, col=(0.55, 0.7, 0.75, 1.0))
         for u in (a, b - 0.08):
             f.box(k("trim", 1), u, u + 0.08, G0, 2.8, out + 0.012, out + 0.06, col=BLACK)
         f.box(k("trim", 1), a, b, 2.7, 2.8, out + 0.012, out + 0.06, col=BLACK)
@@ -1270,7 +1315,7 @@ def door_portal(f, s, colour, which, half=2.6, top=5.6, out=0.34, wings=0.0):
     mark3d(which, px, (3.08 + top) / 2 + 0.02, pz, size, f.yaw, c, depth=0.16)
     for e in (-1, 1) if wings else ():
         m = s + e * (half + wings / 2)
-        f.box(k("glow"), m - wings / 2 + 0.3, m + wings / 2 - 0.3, 0.7, top - 0.9, out, out + 0.02, col=(c[0] * 0.16, c[1] * 0.16, c[2] * 0.16, 1.0))
+        f.quad(k("shop"), m - wings / 2 + 0.3, m + wings / 2 - 0.3, 0.7, top - 0.9, out + 0.01, col=(0.7, 0.94 if cool else 0.15, 1.0, 1.0))
         n = max(2, round((wings - 0.6) / 0.5))
         for j in range(n + 1):
             u = m - wings / 2 + 0.3 + (wings - 0.6) * j / n

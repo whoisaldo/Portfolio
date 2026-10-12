@@ -854,7 +854,7 @@ def side_doors(gx, r, hue="white", back=T_BACK):
         K.neon_box(*sorted((xw - sx * 0.06, xw - sx * 0.12)), 7.6, 7.7, T_BACK + 0.5, LOBBY_Z - 0.3, hue)
         if back is not None and LOBBY_Z - back > 6.0:
             f = B.Face("-x" if sx > 0 else "+x", xw - sx * 0.06, back, LOBBY_Z)
-            K.wall_front(f, 7.4, r, 1, "cyan" if hue == "white" else hue)
+            K.wall_front(f, 7.4, r, 1, "cyan" if hue == "white" else hue, lead="right" if sx > 0 else "left")
             K.services(f, r, 7.4, 0.7)
             # Over all that a duct the length of the wall on brackets, a
             # riser at its end, lit grilles in it; and an advert in a frame.

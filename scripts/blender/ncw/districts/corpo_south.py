@@ -176,6 +176,17 @@ def colonnade(x0, x1, tower_x, z, hue, r, depth=3.4, top=8.0):
     zb = z + depth
     solid(x0, x0 + 0.6, 0.0, top, z, zb, K.STONE)
     solid(x1 - 0.6, x1, 0.0, top, z, zb, K.STONE)
+    # The end walls' inner faces: a backlit poster in a frame under a lamp,
+    # a line of the house's light up the wall's street edge.
+    for j, fe in enumerate((B.Face("+x", x0 + 0.6, z, zb), B.Face("-x", x1 - 0.6, z, zb))):
+        m = fe.width / 2 + 0.2
+        ax, ay, az = fe.p(fe.at(m), 2.6, 0.14)
+        K.advert(ax, ay, az, 1.6, 2.6, fe.yaw, int(x0) // 5 + j * 3 + 1, seed=0.41 + 0.04 * (int(x0) % 5), depth=0.1)
+        fe.box(k("metal", 1), m - 0.45, m + 0.45, 4.3, 4.37, 0.0, 0.45)
+        fe.box(k("glow", 1), m - 0.35, m + 0.35, 4.25, 4.3, 0.35, 0.42, col=GLOW["white"])
+        fe.box(k("glow"), 0.12, 0.2, 0.3, top - 0.9, 0.0, 0.04, col=GLOW[hue])
+        lx, _, lz = fe.p(fe.at(m), 0.0, 1.2)
+        light(CO, lx, 3.4, lz, "white", 3.0)
     a, b = hall(x0 + 0.6, x1 - 0.6, tower_x, zb - 0.02, top - 0.6)
     for xa, xb in ((x0 + 0.6, a), (b, x1 - 0.6)):
         if xb - xa > 0.3:
@@ -204,11 +215,19 @@ def colonnade(x0, x1, tower_x, z, hue, r, depth=3.4, top=8.0):
     K.glow_box(mid - 6.9, mid + 6.9, 4.93, 5.0, z + 0.1, z + 0.2, hue)
     fg = B.Face("-z", zb - 0.02, x0 + 0.6, x1 - 0.6)
     wg = fg.width
-    dim = (c[0] * 0.2, c[1] * 0.2, c[2] * 0.2, 1.0)
-    for a, b in ((0.3, wg / 2 - 3.4), (wg / 2 + 3.4, wg - 0.3)):
+    for side, (a, b) in enumerate(((0.3, wg / 2 - 3.4), (wg / 2 + 3.4, wg - 0.3))):
         fg.box(k("trim"), a, b, 0.0, top - 0.6, 0.02, 0.3, col=K.FRAME)
         m = (a + b) / 2
-        fg.box(k("glow"), m - 2.4, m + 2.4, 1.0, 3.7, 0.3, 0.32, col=dim)
+        if side == 0:
+            # A showroom window: a lit room behind glass, a mullion, a sill.
+            fg.quad(k("shop"), m - 2.4, m + 2.4, 0.55, 3.3, 0.31, col=(r.uniform(0.7, 0.95), 0.92 if hue == "cyan" else 0.2, 1.0, 1.0))
+            for u in (m - 0.8, m + 0.8):
+                fg.box(k("trim", 1), u - 0.04, u + 0.04, 0.55, 3.3, 0.31, 0.36, col=K.BLACK)
+            fg.box(k("trim", 1), m - 2.5, m + 2.5, 0.45, 0.55, 0.3, 0.42, col=K.STEEL)
+        else:
+            # A backlit advert in the wing, framed.
+            ax, ay, az = fg.p(fg.at(m), 2.2, 0.42)
+            K.advert(ax, ay, az, 4.4, 2.6, fg.yaw, int(x0) // 9, seed=0.27 + 0.05 * (int(x0) % 7), depth=0.1)
         fg.box(k("glow", 1), m - 2.5, m + 2.5, 3.7, 3.76, 0.3, 0.36, col=c)
         for u in (a + 0.5, b - 0.5):
             fg.box(k("glow"), u - 0.04, u + 0.04, 0.5, top - 1.3, 0.3, 0.33, col=(c[0] * 0.7, c[1] * 0.7, c[2] * 0.7, 1.0))
