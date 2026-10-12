@@ -218,6 +218,14 @@ export function pointerHandlers(engineRef) {
         return;
       }
       const [x, y] = toNdc(event);
+      // In free roam a press on a clue that then moves is a look, not a
+      // scan: up close a tower is a clue from edge to edge of the view, and
+      // there would be nowhere left to grab it by.
+      if (down?.scanning && bd.roam !== "off" && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6) {
+        down.scanning = false;
+        e?.press(false);
+        e?.hold(true);
+      }
       if (!down || !down.scanning) e?.pointer(x, y, true);
       if (!down || down.scanning) return;
       const dx = event.clientX - down.x;
