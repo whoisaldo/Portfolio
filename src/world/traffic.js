@@ -1,17 +1,20 @@
 // src/world/traffic.js: the city moving on its own.
 //
-// Aerial vehicles on slow loops over the avenue's canyon and the districts
-// (ten on desktop, four on a phone), and cars on every street of the
-// network, both ways, in platoons that queue at the lights with their brake
-// lamps lit and move off (src/world/traffic-net.js has the routes and the
-// timetable), their lamps in the wet road's mirror. More stand parked in
-// the kerbside bays: along the avenue's left kerb, clear of the S4's own on
-// the right, down the plaza street, the garage street and the south arm,
-// one of them with its hazards blinking. The cars are six original designs
-// (src/world/traffic-cars.js, traffic-cars-nc.js), each its own colour and
-// accent; each kind is one instanced draw of the ones in view, and every
-// lamp is one instanced sprite batch. The `traffic` switch in env.js parks
-// all of it.
+// Aerial vehicles on slow loops over the avenue's canyon and the districts,
+// and cars on every street of the network, both ways, in platoons that queue
+// at the lights with their brake lamps lit and move off
+// (src/world/traffic-net.js has the routes and the timetable), their lamps
+// in the wet road's mirror. Many more stand: every kerb is parked most of
+// the way along (src/world/traffic-park.js), in the bays where a street has
+// them and in the kerb lane where it has none, so no stretch of road is
+// bare; taxis wait at the lobbies on the x 120 road, a patrol car stands by
+// junction F with its bar lit, one car on the garage street has its hazards
+// blinking. The cars are six original designs (src/world/traffic-cars.js,
+// traffic-cars-nc.js), dealt in turn along a lane or a row so no two
+// neighbours are the same model or paint; each kind is two instanced draws
+// of the ones in view, its own model close by and a coarser one past forty
+// metres (src/world/traffic-lod.js), and every lamp is one instanced sprite
+// batch. The `traffic` switch in env.js parks all of it.
 //
 // Under them, delivery drones hop roof to roof over the avenue's canyon, the
 // garage street's blocks and corpo row's south side, lit as aircraft are;
@@ -26,11 +29,10 @@ import { createObject as createAv } from "./av-model.js";
 import { createObject as createBaseCar, KINDS as BASE_KINDS } from "./traffic-cars.js";
 import { createObject as createShowCar, KINDS as SHOW_KINDS } from "./traffic-cars-nc.js";
 import { createNetwork } from "./traffic-net.js";
+import { createStanding, wardrobe, KINDS as CAR_KINDS, TAG } from "./traffic-park.js";
+import { creased, coarse, drum, joined } from "./traffic-lod.js";
 
-// The avenue's own cars (the hero's) stay the first three kinds; the rest of
-// the network draws from all six.
-const CAR_KINDS = [...BASE_KINDS, ...SHOW_KINDS];
-const createCarModel = (kind) => (SHOW_KINDS.includes(kind) ? createShowCar(kind) : createBaseCar(kind));
+const createCarModel = (kind) => (BASE_KINDS.includes(kind) ? createBaseCar(kind) : SHOW_KINDS.includes(kind) ? createShowCar(kind) : null);
 
 // The AV's surfaces, by the model's material names (src/world/av-model.js),
 // as the kind its shader reads.
@@ -205,8 +207,14 @@ const DRONE = { climb: 3, cruise: 8, descend: 2.5, rest: [4, 8] };
 // metres over its highest roof.
 const POLICE = { c: [320, -285], r: [65, 40], y: 58, v: 14 };
 
-// The cars' surfaces, by the model's material names (traffic-cars.js).
+// The cars' surfaces, by the model's material names (traffic-cars.js); and
+// the two things a sedan may carry on its roof, which only the patrol car
+// and the taxi show (the shader folds the other away).
 const CAR_PARTS = { body: 0, trim: 1, glass: 2, lamp_head: 3, lamp_tail: 4, glow_accent: 5, tyre: 6, rim: 7 };
+const ROOF_BAR = 8;
+const ROOF_SIGN = 9;
+// Past this far a car is drawn as its coarser self (src/world/traffic-lod.js).
+const DETAIL_TO = 42;
 
 /** The part of a lamp surface that lies across the car's nose (or its tail):
  *  its vertices within 5 cm of its foremost (rearmost) point, so a marker
@@ -218,13 +226,27 @@ function lampFace(g, front, into) {
   for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getZ(i) - end) < 0.05) into.expandByPoint(v.fromBufferAttribute(pos, i));
 }
 
-/** A car of one kind as one geometry (as avGeometry builds the AV's), and
- *  where its lamps are: the outer ends of the light bars across its nose
- *  and its tail, in its own frame (front +z). */
+/** A box tagged as one surface, for the things a car carries. */
+function tagged(w, h, d, x, y, z, kind) {
+  const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
+  g.deleteAttribute("uv");
+  g.translate(x, y, z);
+  g.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(kind), 1));
+  return g;
+}
+
+/** A car of one kind as one geometry (as avGeometry builds the AV's), shaded
+ *  smooth over its curved panels and hard at its creases; the same car from
+ *  further off (its shell gathered onto a coarse grid, on four plain
+ *  wheels); and where its lamps are: the outer ends of the light bars across
+ *  its nose and its tail, in its own frame (front +z). */
 function carGeometry(kind) {
-  const model = createCarModel(kind === "police" ? "sedan" : kind);
+  const model = createCarModel(kind);
   model.updateMatrixWorld(true);
   const parts = [];
+  const shell = [];
+  const fine = [];
+  const wheels = [];
   const head = new THREE.Box3();
   const tail = new THREE.Box3();
   model.traverse((o) => {
@@ -240,25 +262,29 @@ function carGeometry(kind) {
     if (k === 3) lampFace(g, true, head);
     if (k === 4) lampFace(g, false, tail);
     parts.push(g);
+    // From further off: the shell is gathered up; the thin lit strips are
+    // kept as they are (a grid would close them up); a wheel is a drum.
+    const wheel = /^wheel_/.test(o.name) || /^wheel_/.test(o.parent?.name ?? "");
+    if (wheel && k === 6) wheels.push(g.boundingBox);
+    else if (!wheel) (k >= 3 && k <= 5 ? fine : shell).push(g);
   });
-  // An NCPD cruiser's light bar across the roof, on a dark foot.
-  if (kind === "police") {
+  // A sedan's roof units: a patrol car's light bar on a dark foot, and a
+  // taxi's lit sign.
+  if (kind === "sedan") {
     const roof = new THREE.Box3();
     for (const g of parts) roof.union(g.boundingBox);
-    for (const [w, h, d, y, k] of [[1.18, 0.05, 0.34, 0.025, 1], [1.1, 0.09, 0.26, 0.095, 8]]) {
-      const g = new THREE.BoxGeometry(w, h, d).toNonIndexed();
-      g.deleteAttribute("uv");
-      g.translate(0, roof.max.y + y - 0.01, -0.25);
-      g.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(k), 1));
-      parts.push(g);
-    }
+    const y = roof.max.y - 0.01;
+    const units = [tagged(1.18, 0.05, 0.34, 0, y + 0.025, -0.25, ROOF_BAR), tagged(1.1, 0.09, 0.26, 0, y + 0.095, -0.25, ROOF_BAR), tagged(0.62, 0.17, 0.2, 0, y + 0.085, -0.2, ROOF_SIGN)];
+    parts.push(...units);
+    fine.push(...units);
   }
-  const geometry = mergeGeometries(parts, false);
-  parts.forEach((g) => g.dispose());
+  const far = joined([coarse(joined(shell.map((g) => g.clone())), 0.2), ...fine.map((g) => creased(g.clone())), ...wheels.map((w) => drum((w.min.x + w.max.x) / 2, (w.min.z + w.max.z) / 2, w.max.y / 2, w.max.x - w.min.x, 6))]);
+  const geometry = creased(joined(parts));
   model.traverse((o) => o.isMesh && o.geometry.dispose());
   geometry.computeBoundingBox();
   return {
     geometry,
+    far,
     box: geometry.boundingBox,
     head: [head.max.x * 0.82, (head.min.y + head.max.y) / 2, head.max.z],
     tail: [tail.max.x * 0.82, (tail.min.y + tail.max.y) / 2, tail.min.z],
@@ -282,29 +308,6 @@ const DETAIL = {
   pickup: { seam: [99, 99, 0.6, 1.19], door: [-0.077, -0.88], plate: [0.5, 0.5, 0.26], cabin: [0.2, -0.62, 1.6], wheel: [1.775, 0.44] },
   micro: { seam: [99, 99, 0.37, 0.68], door: [-0.54, 99], plate: [0.5, 0.5, 0.2], cabin: [-0.1, 99, 1.15], wheel: [0.875, 0.25] },
 };
-DETAIL.police = DETAIL.sedan;
-
-// Parked: up the avenue's left kerb (the S4 parks on the right), clear of
-// the hero's near frame, and down the garage street's kerbs, which the
-// flight in comes down past. One blinks its hazards.
-const PARKED = [
-  { x: -8.4, z: -66, yaw: 0 },
-  { x: -8.4, z: -96, yaw: Math.PI },
-  { x: -8.5, z: -118, yaw: 0 },
-  { x: -8.4, z: -152, yaw: Math.PI },
-  { x: 432.6, z: -268, yaw: 0, hazard: true },
-  { x: -8.4, z: -73, yaw: 0 },
-  { x: -8.5, z: -134, yaw: 0 },
-  { x: 432.6, z: -283, yaw: Math.PI },
-  { x: 447.4, z: -300, yaw: Math.PI },
-];
-// Paint and accent per car: dark metallics mostly, a pearl white, a red, a
-// cab yellow now and then; the accents are the city's neons.
-const BODY = ["#25282e", "#121316", "#8f949b", "#561018", "#132440", "#5d636b", "#0f3a3b", "#9c7c0c"];
-// The rest of the network's cars draw from these as well: the show's streets
-// are not all gunmetal.
-const PAINT = [...BODY, "#b8961a", "#a3241c", "#12706b", "#c9ced4", "#3c2a72", "#b4521a", "#1d4c9c", "#7a1a48"];
-const ACCENT = ["#27dcf2", "#ff2e88", "#ffb254", "#a24bff", "#39ff9a", "#ff3fd2"];
 
 // Lanes over the canyon and the districts: centre, radii, altitude, speed,
 // and the size of what flies it.
@@ -357,11 +360,13 @@ const SIDES = [-1, 1];
 // and its rims and lamps left over). The network's cars never fade: they
 // are on closed routes.
 const FADE = 6;
-// How near the lens may come to a car's body before the car gives way: all
-// of it drawn from a metre off, none of it within 0.3 m or from inside.
-const NEAR = [0.3, 1];
+// How near the lens may come to a car's body before the car gives way. A
+// car is drawn whole or not at all: from a metre off its body it is all
+// there, any nearer (or from inside it) none of it is, with nothing in
+// between, since a half-drawn shell across a frame is worse than a gap.
+const NEAR = 1;
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, parkedMore = [], elevated = [], deckCars = 0 } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0 } = {}) {
   const avGeo = avGeometry();
   const full = cars >= 4;
   // The street's cars: wet paint giving back the lit street and the glow
@@ -376,8 +381,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     vertexShader: /* glsl */ `
       attribute float aKind;
       attribute vec4 aLook;
-      attribute float aFade;
-      attribute float aBrake;
+      attribute vec4 aState;
       uniform vec3 uCam;
       uniform vec3 uBoxMin;
       uniform vec3 uBoxMax;
@@ -387,11 +391,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       varying float vKind;
       varying vec3 vBody;
       varying vec4 vLook;
-      varying float vFade;
-      varying float vBrake;
+      varying vec4 vState;
       varying vec3 vLocal;
       void main() {
-        vBrake = aBrake;
+        vState = aState;
         vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vNormalW = normalize(mat3(modelMatrix * instanceMatrix) * normal);
@@ -406,9 +409,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vLook = aLook;
         vec3 lens = uCam - instanceMatrix[3].xyz;
         lens = vec3(dot(lens, instanceMatrix[0].xyz), dot(lens, instanceMatrix[1].xyz), dot(lens, instanceMatrix[2].xyz));
-        float near = smoothstep(${NEAR[0].toFixed(2)}, ${NEAR[1].toFixed(2)}, length(max(max(uBoxMin - lens, lens - uBoxMax), 0.0)));
-        vFade = aFade * near;
-        gl_Position = near > 0.0 ? projectionMatrix * viewMatrix * w : vec4(2.0, 2.0, 2.0, 1.0);
+        bool shown = length(max(max(uBoxMin - lens, lens - uBoxMax), 0.0)) >= ${NEAR.toFixed(2)};
+        // A roof unit only on the car that carries it: the bar on a patrol
+        // car (tag 1), the sign on a taxi (tag 2).
+        if (aKind > 7.5 && abs(aKind - 7.0 - aState.z) > 0.5) shown = false;
+        gl_Position = shown ? projectionMatrix * viewMatrix * w : vec4(2.0, 2.0, 2.0, 1.0);
       }
     `,
     fragmentShader: /* glsl */ `
@@ -427,10 +432,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       varying float vKind;
       varying vec3 vBody;
       varying vec4 vLook;
-      varying float vFade;
-      varying float vBrake;
+      varying vec4 vState;
       varying vec3 vLocal;
       void main() {
+        float vFade = vState.x;
+        float vBrake = vState.y;
+        int tag = int(vState.z + 0.5);
         if (vFade < 0.999 && hash12(floor(gl_FragCoord.xy)) > vFade) discard;
         vec3 n = normalize(vNormalW);
         vec3 nl = normalize(vNormalL);
@@ -481,10 +488,21 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         float sky = max(n.y, 0.0);
         if (k == 0) {
           vec3 body = vBody * (1.5 - 0.7 * vBody) + vec3(0.012);
-          #ifdef POLICE
-          // NCPD: black, the doors white between the sills and the waist.
-          body = mix(vec3(0.02), vec3(0.62, 0.64, 0.66), step(0.3, vLocal.y) * step(vLocal.y, 0.68) * step(abs(vLocal.z), 1.25));
-          #endif
+          // The patrol car: black, the doors white between the sills and
+          // the waist, a band of blue along them. A livery of its own: no
+          // force's name on it, no crest.
+          if (tag == 1) {
+            float door = step(0.3, vLocal.y) * step(vLocal.y, 0.68) * step(abs(vLocal.z), 1.25);
+            body = mix(vec3(0.02), vec3(0.62, 0.64, 0.66), door);
+            body = mix(body, vec3(0.03, 0.12, 0.5), door * flank * step(abs(vLocal.y - 0.5), 0.05));
+          }
+          // The taxi: its yellow, a row of black and yellow checks along
+          // the waist.
+          if (tag == 2) {
+            float check = step(abs(vLocal.y - 0.72), 0.045) * flank * step(abs(vLocal.z), 1.6);
+            float sq = step(0.5, fract(vLocal.z / 0.18)) * step(vLocal.y, 0.72) + (1.0 - step(0.5, fract(vLocal.z / 0.18))) * step(0.72, vLocal.y);
+            body = mix(body, vec3(0.012), check * sq);
+          }
           // Panel lines: the doors' cuts between the sill and the waist, a
           // crease along the flank that catches the light over its own
           // shadow, and a handle at the back of each door.
@@ -544,6 +562,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         }
         else if (k == 5) { col = vLook.rgb * mix(0.6, mix(1.5, 3.0, far), lit); glow = 1.0; }
         else if (k == 6) col = vec3(0.006, 0.006, 0.007) + (spill * 0.04 + side * 0.03) + (uHazeColor * 0.4 + side * 0.4) * pow(1.0 - ndv, 3.0) * 0.12;
+        else if (k == 9) {
+          // The taxi's sign: a lit amber box, its ends darker.
+          col = vec3(1.0, 0.62, 0.12) * mix(1.3, 3.2, far) * (0.35 + 0.65 * step(abs(vLocal.x), 0.24));
+          glow = 1.0;
+        }
+        else if (k == 8 && vLocal.y < uBoxMax.y - 0.1) col = vec3(0.012) + env * 0.2;
         else if (k == 8) {
           // The bar: red on one side, blue on the other, trading places.
           float flip = step(0.0, sin(uTime * 9.0 + vLocal.z * 0.1)) * 2.0 - 1.0;
@@ -672,11 +696,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
 
   // The cars: the network's (src/world/traffic-net.js: every street both
   // ways, in platoons that queue at the lights and move off), the deck's,
-  // and the parked; each its kind, its paint and accent, from a seeded draw
-  // so the street is the same street every visit.
+  // and the ones that stand (src/world/traffic-park.js: the kerbs parked
+  // full, the taxis, the patrol car); each its model, its paint and accent,
+  // dealt in turn along its lane or its row so no two neighbours match and
+  // the street is the same street every visit.
   const net = createNetwork({ perPlatoon: full ? 5 : 2 });
   // The lanes that leave the ground (the builder's "paths": the ramp, the
-  // turn and the deck, each way, as points with their heights): deckCars on
+  // turn and the deck, each way, as points with their heights): cars on
   // each, riding the line by its length.
   const paths = [];
   for (let i = 0; i + 1 < elevated.length; i += 2 + 3 * elevated[i]) {
@@ -686,92 +712,83 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     for (let k = 1; k < pts.length; k++) at.push(at[k - 1] + pts[k].distanceTo(pts[k - 1]));
     paths.push({ pts, at, len: at[at.length - 1], v: elevated[i + 1] });
   }
+  const onDeck = deckCars * (full ? 4 : 2);
   const pathSlots = [];
   paths.forEach((P, k) => {
-    for (let j = 0; j < deckCars; j++) pathSlots.push({ P, phase: (j + 0.31 + 0.23 * k) / deckCars });
+    const dress = wardrobe(613 + k * 29);
+    for (let j = 0; j < onDeck; j++) pathSlots.push({ ...dress(), tag: TAG.none, path: { P, phase: (j + 0.31 + 0.23 * k) / onDeck } });
   });
-  // Parked: the hero's own, the builder's, and then the bays filled (three
-  // in five of the places left, one in four on a phone): both kerbs of the
-  // plaza street, the garage street and the south arm, and the avenue's
-  // west kerb from where the hero's near frame ends. Its east kerb is the
-  // S4's road, and the garage's door wants its own kerb clear.
-  const more = [];
-  for (let i = 0; i + 2 < parkedMore.length; i += 3) more.push({ x: parkedMore[i], z: parkedMore[i + 1], yaw: parkedMore[i + 2] });
-  const parked = [...PARKED.slice(0, full ? PARKED.length : 5), ...more.slice(0, full ? more.length : Math.floor(more.length / 3))];
-  let seedBay = 5501;
-  const drawBay = () => ((seedBay = (seedBay * 16807) % 2147483647) - 1) / 2147483646;
-  for (const bay of net.bays) {
-    const take = drawBay() < (full ? 0.6 : 0.25);
-    if (bay.street === "avenue" && bay.z < 20 && (bay.x > 0 || bay.z > -58)) continue;
-    if (bay.street === "garage" && bay.x > 440 && bay.z > -230 && bay.z < -202) continue;
-    if (!take || parked.some((x) => Math.abs(x.x - bay.x) + Math.abs(x.z - bay.z) < 6.3)) continue;
-    parked.push(bay);
-  }
-  let seed = 7;
-  const draw = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
-  const dress = (own) => ({ kind: Math.floor(draw() * (own ? BASE_KINDS.length : CAR_KINDS.length)), body: own ? BODY[Math.floor(draw() * BODY.length)] : PAINT[Math.floor(draw() * PAINT.length)], accent: ACCENT[Math.floor(draw() * ACCENT.length)] });
-  const slots = [
-    ...net.cars.map((car) => ({ ...dress(false), car })),
-    ...pathSlots.map((path) => ({ ...dress(false), path })),
-    ...parked.map((at, i) => ({ ...dress(i < (full ? PARKED.length : 5)), parked: at })),
-  ];
+  // A route's cars follow one another round it, so each route deals its own.
+  const dressers = net.routes.map((r, k) => wardrobe(101 + k * 53));
+  const SEDAN = CAR_KINDS.indexOf("sedan");
   const moving = net.cars.length;
-  // A few of the network's moving cars are NCPD cruisers.
-  const POLICE_KIND = CAR_KINDS.length;
   let cruisers = 0;
-  slots.forEach((x, i) => {
-    if (i < moving && i % 31 === 7 && cruisers < (full ? 4 : 1)) {
-      x.kind = POLICE_KIND;
-      x.body = "#0a0a0c";
-      cruisers++;
+  const slots = [
+    ...net.cars.map((car, i) => {
+      const x = { ...dressers[net.routes.indexOf(car.route)](), tag: TAG.none, car };
+      // A few of them are patrol cars.
+      if (i % 31 === 7 && cruisers < (full ? 4 : 1)) {
+        cruisers++;
+        return { ...x, kind: SEDAN, body: "#0a0a0c", tag: TAG.patrol };
+      }
+      return x;
+    }),
+    ...pathSlots,
+    ...createStanding({ rows: net.rows, full }).map((c) => ({ ...c, parked: c })),
+  ];
+  const UPRIGHT = new THREE.Vector3(0, 1, 0);
+  for (const x of slots) {
+    x.paint = new THREE.Color(x.body);
+    x.neon = new THREE.Color(x.accent);
+    // A taxi waits and a patrol car stands with their lamps on; the rest of
+    // the parked are dark.
+    x.lit = !x.parked || x.tag !== TAG.none;
+    if (x.parked) {
+      x.at = new THREE.Vector3(x.parked.x, 0, x.parked.z);
+      x.turn = new THREE.Quaternion().setFromAxisAngle(UPRIGHT, x.parked.yaw);
     }
-  });
+  }
   // A material a kind over the same uniforms (a clone would copy them, and
   // stop the clock) with the kind's own box; the same source gives the same
-  // program, so the police and the van are the only other two.
-  const kinds = [...CAR_KINDS, "police"].map((kind, k) => {
+  // program, so the van is the only other one. Each kind is two draws: its
+  // own model for the ones close by, the coarser one for the rest.
+  const kinds = CAR_KINDS.map((kind, k) => {
     const built = carGeometry(kind);
     const detail = DETAIL[kind];
-    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uCabin: { value: new THREE.Vector3(...detail.cabin) }, uWheel: { value: new THREE.Vector2(...detail.wheel) } }, ...carShader, defines: kind === "police" ? { POLICE: "" } : kind === "van" ? { VAN: "" } : {} });
-    material.name = kind === "police" || kind === "van" ? `traffic_${kind}` : "traffic";
+    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uCabin: { value: new THREE.Vector3(...detail.cabin) }, uWheel: { value: new THREE.Vector2(...detail.wheel) } }, ...carShader, defines: kind === "van" ? { VAN: "" } : {} });
+    material.name = kind === "van" ? "traffic_van" : "traffic";
     const mine = slots.filter((x) => x.kind === k);
+    for (const x of mine) x.lamps = built;
     const n = Math.max(1, mine.length);
-    // Room for every car of the kind; each frame the ones in view are
-    // written to the front of these and the count set to them.
-    const look = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4).setUsage(THREE.DynamicDrawUsage);
-    const fade = new THREE.InstancedBufferAttribute(new Float32Array(n).fill(1), 1).setUsage(THREE.DynamicDrawUsage);
-    const brake = new THREE.InstancedBufferAttribute(new Float32Array(n), 1).setUsage(THREE.DynamicDrawUsage);
-    built.geometry.setAttribute("aLook", look);
-    built.geometry.setAttribute("aFade", fade);
-    built.geometry.setAttribute("aBrake", brake);
-    const mesh = new THREE.InstancedMesh(built.geometry, material, n);
-    mesh.name = `traffic_${kind}`;
-    mesh.frustumCulled = false;
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3).setUsage(THREE.DynamicDrawUsage);
-    mesh.layers.enable(reflectLayer);
-    for (const x of mine) {
-      x.lamps = built;
-      x.paint = new THREE.Color(x.body);
-      x.neon = new THREE.Color(x.accent);
-      if (x.parked) {
-        x.at = new THREE.Vector3(x.parked.x, 0, x.parked.z);
-        x.turn = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), x.parked.yaw);
-      }
-    }
-    mesh.count = 0;
-    scene.add(mesh);
-    return { mesh, look, fade, brake, attributes: [mesh.instanceMatrix, mesh.instanceColor, look, fade, brake], geometry: built.geometry, material, n: 0 };
+    // Room for every car of the kind in either; each frame the ones in view
+    // are written to the front of one or the other and its count set.
+    const level = (geometry, name) => {
+      const look = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4).setUsage(THREE.DynamicDrawUsage);
+      const state = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4).setUsage(THREE.DynamicDrawUsage);
+      geometry.setAttribute("aLook", look);
+      geometry.setAttribute("aState", state);
+      const mesh = new THREE.InstancedMesh(geometry, material, n);
+      mesh.name = name;
+      mesh.frustumCulled = false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3).setUsage(THREE.DynamicDrawUsage);
+      mesh.layers.enable(reflectLayer);
+      mesh.count = 0;
+      scene.add(mesh);
+      return { mesh, look, state, attributes: [mesh.instanceMatrix, mesh.instanceColor, look, state], geometry, n: 0 };
+    };
+    return { levels: [level(built.geometry, `traffic_${kind}`), level(built.far, `traffic_${kind}_far`)], material };
   });
-  // The hazard car's four corner lamps, in its own frame.
-  const hazardLamps = slots.find((y) => y.parked?.hazard)?.lamps;
-  const hazardCorners = hazardLamps
-    ? [hazardLamps.head, [-hazardLamps.head[0], hazardLamps.head[1], hazardLamps.head[2]], hazardLamps.tail, [-hazardLamps.tail[0], hazardLamps.tail[1], hazardLamps.tail[2]]]
-    : [];
+  // A car's four corner lamps, in its own frame: the hazards' places.
+  const corners = (L) => [L.head, [-L.head[0], L.head[1], L.head[2]], L.tail, [-L.tail[0], L.tail[1], L.tail[2]]];
+  const standingLit = slots.filter((x) => x.parked && x.lit).length;
+  const patrols = slots.filter((x) => x.tag === TAG.patrol).length;
+  const hazards = slots.filter((x) => x.parked?.hazard).length;
 
-  // Lamps: two per aerial vehicle, four per moving car, four hazards, three
-  // per drone, and the police AV's light bar.
-  const lampCount = flying * 2 + flyers * 3 + (moving + pathSlots.length) * 4 + 4 + rounds.length * 3 + (police ? 2 : 0);
+  // Lamps: two per aerial vehicle, four per car with its lamps on, four a
+  // hazard car, two a patrol car's bar, three per drone, and the police
+  // AV's light bar.
+  const lampCount = flying * 2 + flyers * 3 + (moving + pathSlots.length + standingLit + hazards) * 4 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0);
   const quad = new THREE.PlaneGeometry(1, 1);
   const lampGeo = new THREE.InstancedBufferGeometry();
   lampGeo.index = quad.index;
@@ -969,8 +986,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     return out.lerpVectors(P.pts[k - 1], P.pts[k], (dd - P.at[k - 1]) / (P.at[k] - P.at[k - 1] || 1));
   };
   const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
-  // How much of a car at p, turned q, the lens sees (the body's shader does
-  // the same sum for its dither): its lamps go out with it.
+  // Whether the lens sees a car at p, turned q, at all (the body's shader
+  // does the same sum): its lamps go out with it.
   const lens = new THREE.Vector3();
   const unturn = new THREE.Quaternion();
   const seen = (at, turned, box) => {
@@ -978,8 +995,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     if (lens.lengthSq() > 64) return 1;
     lens.applyQuaternion(unturn.copy(turned).invert());
     const d = Math.hypot(Math.max(box.min.x - lens.x, lens.x - box.max.x, 0), Math.max(box.min.y - lens.y, lens.y - box.max.y, 0), Math.max(box.min.z - lens.z, lens.z - box.max.z, 0));
-    const u = Math.min(1, Math.max(0, (d - NEAR[0]) / (NEAR[1] - NEAR[0])));
-    return u * u * (3 - 2 * u);
+    return d >= NEAR ? 1 : 0;
   };
   const setLamp = (i, x, y, z, r, g, b, size) => {
     lampPos[i * 3] = x;
@@ -1006,16 +1022,49 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const BODIES_TO = full ? 340 : 240;
   const LAMPS_TO = 900;
   const pose = { x: 0, z: 0, fx: 0, fz: 1, brake: 0 };
-  /** One more car of its kind this frame. */
-  const put = (x, shown, braking) => {
-    const K = kinds[x.kind];
-    const j = K.n++;
-    m.compose(p, q, one).toArray(K.mesh.instanceMatrix.array, j * 16);
-    x.paint.toArray(K.mesh.instanceColor.array, j * 3);
-    x.neon.toArray(K.look.array, j * 4);
-    K.look.array[j * 4 + 3] = x.parked ? 0 : 1;
-    K.fade.array[j] = shown;
-    K.brake.array[j] = braking;
+  /** One more car of its kind this frame, `off` metres squared from the
+   *  lens: its own model close by, the coarser one past that. */
+  const put = (x, shown, braking, off) => {
+    const L = kinds[x.kind].levels[off < DETAIL_TO * DETAIL_TO ? 0 : 1];
+    const j = L.n++;
+    m.compose(p, q, one).toArray(L.mesh.instanceMatrix.array, j * 16);
+    x.paint.toArray(L.mesh.instanceColor.array, j * 3);
+    x.neon.toArray(L.look.array, j * 4);
+    L.look.array[j * 4 + 3] = x.lit ? 1 : 0;
+    L.state.array[j * 4] = shown;
+    L.state.array[j * 4 + 1] = braking;
+    L.state.array[j * 4 + 2] = x.tag;
+    L.state.array[j * 4 + 3] = x.glow ? 1 : 0;
+  };
+  /** Where a car is at second `at` of the clock, into p and q; and into
+   *  `now` how much of it is drawn and whether it is braking. */
+  const now = { shown: 1, braking: 0 };
+  const locate = (x, at) => {
+    now.shown = 1;
+    now.braking = 0;
+    if (x.car) {
+      // On the network: where its route's timetable has it this second.
+      net.place(x.car, at, pose);
+      p.set(pose.x, 0, pose.z);
+      q.setFromAxisAngle(UP, Math.atan2(pose.fx, pose.fz));
+      now.braking = pose.brake;
+    } else if (x.path) {
+      // On the ramp and the deck: where its axles are along the line gives
+      // its place, its heading and its pitch on the slope. It fades in and
+      // out over the last metres of the line, the lamps by their brightness
+      // and the body by its dither.
+      const { P, phase: ph } = x.path;
+      const t = ((((ph + (at * P.v) / P.len) % 1) + 1) % 1);
+      onPath(P, t * P.len - 1.35, tmp);
+      onPath(P, t * P.len + 1.35, fwd);
+      p.addVectors(tmp, fwd).multiplyScalar(0.5);
+      fwd.sub(tmp).normalize();
+      q.setFromEuler(euler.set(-Math.asin(fwd.y), Math.atan2(fwd.x, fwd.z), 0, "YXZ"));
+      now.shown = Math.min(1, (Math.min(t, 1 - t) * P.len) / FADE);
+    } else {
+      p.copy(x.at);
+      q.copy(x.turn);
+    }
   };
   let clock = 0;
   let frozen = false;
@@ -1025,7 +1074,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
 
   const update = (dt, on) => {
     avMesh.visible = droneMesh.visible = lamps.visible = on;
-    for (const k of kinds) k.mesh.visible = on;
+    for (const k of kinds) for (const l of k.levels) l.mesh.visible = on;
     voices.on = on;
     if (!on) {
       train.visible = false;
@@ -1167,33 +1216,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       tmp.set(0, 0.66, -0.12).applyQuaternion(q).add(p);
       setLamp(li++, tmp.x, tmp.y, tmp.z, strobe, strobe, strobe, 0.7 * far);
     }
-    for (const K of kinds) K.n = 0;
+    for (const K of kinds) for (const L of K.levels) L.n = 0;
     for (const x of slots) {
-      let shown = 1;
-      let braking = 0;
-      if (x.car) {
-        // On the network: where its route's timetable has it this second.
-        net.place(x.car, clock, pose);
-        p.set(pose.x, 0, pose.z);
-        q.setFromAxisAngle(UP, Math.atan2(pose.fx, pose.fz));
-        braking = pose.brake;
-      } else if (x.path) {
-        // On the ramp and the deck: where its axles are along the line
-        // gives its place, its heading and its pitch on the slope. It fades
-        // in and out over the last metres of the line, the lamps by their
-        // brightness and the body by its dither.
-        const { P, phase: ph } = x.path;
-        const t = ((((ph + (clock * P.v) / P.len) % 1) + 1) % 1);
-        onPath(P, t * P.len - 1.35, tmp);
-        onPath(P, t * P.len + 1.35, fwd);
-        p.addVectors(tmp, fwd).multiplyScalar(0.5);
-        fwd.sub(tmp).normalize();
-        q.setFromEuler(euler.set(-Math.asin(fwd.y), Math.atan2(fwd.x, fwd.z), 0, "YXZ"));
-        shown = Math.min(1, (Math.min(t, 1 - t) * P.len) / FADE);
-      } else {
-        p.copy(x.at);
-        q.copy(x.turn);
-      }
+      locate(x, clock);
+      const { shown, braking } = now;
       const off = p.distanceToSquared(shared.uCam.value);
       if (off > LAMPS_TO * LAMPS_TO) continue;
       if (viewed) {
@@ -1201,27 +1227,40 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         ball.radius = 18;
         if (!view.intersectsSphere(ball)) continue;
       }
-      if (off < BODIES_TO * BODIES_TO) put(x, shown, braking);
-      if (x.parked && !x.parked.hazard) continue;
+      if (off < BODIES_TO * BODIES_TO) put(x, shown, braking, off);
+      if (!x.lit && !x.parked?.hazard) continue;
       const glow = shown * seen(p, q, x.lamps.box);
-      if (x.parked) {
+      if (x.parked?.hazard) {
         // Amber at the four corners, a beat on and a beat off.
         const on = (reduced ? 0.25 : step(clock * 1.5)) * glow;
-        for (const [lx, ly, lz] of hazardCorners) {
+        for (const [lx, ly, lz] of corners(x.lamps)) {
           tmp.set(lx, ly, lz).applyQuaternion(q).add(p);
           setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * on, 0.55 * on, 0.12 * on, 0.7);
         }
         continue;
       }
-      // White ahead, red behind, the red brighter under the brakes.
+      // White ahead, red behind, the red brighter under the brakes; a car
+      // that stands with its lamps on has them low.
       const head = x.lamps.head;
       const tail = x.lamps.tail;
-      const red = glow * (1 + 1.4 * braking);
+      const low = x.parked ? 0.45 : 1;
+      const white = glow * low;
+      const red = glow * low * (1 + 1.4 * braking);
       for (const sd of SIDES) {
         tmp.set(sd * head[0], head[1], head[2]).applyQuaternion(q).add(p);
-        setLamp(li++, tmp.x, tmp.y, tmp.z, 0.85 * glow, 0.92 * glow, 1.0 * glow, 0.9);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 0.85 * white, 0.92 * white, 1.0 * white, 0.9);
         tmp.set(sd * tail[0], tail[1], tail[2]).applyQuaternion(q).add(p);
         setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * red, 0.05 * red, 0.15 * red, 0.6);
+      }
+      if (x.tag === TAG.patrol) {
+        // The bar's two ends, red and blue, trading places (steady under
+        // reduced motion, which never flashes).
+        const flip = reduced ? 0.5 : Math.sin(clock * 9) > 0 ? 1 : 0;
+        const y = x.lamps.box.max.y - 0.04;
+        tmp.set(0.38, y, -0.25).applyQuaternion(q).add(p);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, glow * (0.3 + 0.7 * flip), 0.03 * glow, 0.08 * glow, 1.1);
+        tmp.set(-0.38, y, -0.25).applyQuaternion(q).add(p);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 0.08 * glow, 0.2 * glow, glow * (1 - 0.7 * flip), 1.1);
       }
     }
     if (rail) {
@@ -1239,11 +1278,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     avMesh.instanceMatrix.needsUpdate = true;
     droneMesh.instanceMatrix.needsUpdate = true;
     for (const K of kinds) {
-      K.mesh.count = K.n;
-      for (const a of K.attributes) {
-        a.clearUpdateRanges();
-        a.addUpdateRange(0, K.n * a.itemSize);
-        a.needsUpdate = true;
+      for (const L of K.levels) {
+        L.mesh.count = L.n;
+        for (const a of L.attributes) {
+          a.clearUpdateRanges();
+          a.addUpdateRange(0, L.n * a.itemSize);
+          a.needsUpdate = true;
+        }
       }
     }
     lampGeo.instanceCount = li;
@@ -1261,8 +1302,19 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       frozen = on;
       if (typeof at === "number") clock = at;
     },
+    /** Dev: every car there is at this second of the clock, drawn or not
+     *  (the road checks count them from a driver's seat): where it is, the
+     *  way it faces, its model, its size, whether it stands. */
+    vehicles() {
+      return slots.map((x) => {
+        locate(x, clock);
+        fwd.set(0, 0, 1).applyQuaternion(q);
+        const size = x.lamps.box;
+        return { x: p.x, y: p.y, z: p.z, fx: fwd.x, fz: fwd.z, kind: CAR_KINDS[x.kind], tag: x.tag, body: x.body, parked: !!x.parked, length: size.max.z - size.min.z, width: size.max.x - size.min.x, height: size.max.y };
+      });
+    },
     dispose() {
-      scene.remove(avMesh, droneMesh, lamps, train, ...kinds.map((k) => k.mesh));
+      scene.remove(avMesh, droneMesh, lamps, train, ...kinds.flatMap((k) => k.levels.map((l) => l.mesh)));
       trainGeo.dispose();
       trainMat.dispose();
       avGeo.dispose();
@@ -1274,9 +1326,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       lampMat.dispose();
       avMesh.dispose();
       for (const k of kinds) {
-        k.geometry.dispose();
         k.material.dispose();
-        k.mesh.dispose();
+        for (const l of k.levels) {
+          l.geometry.dispose();
+          l.mesh.dispose();
+        }
       }
     },
   };

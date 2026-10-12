@@ -23,25 +23,34 @@
 // No three.js in here: places come out as plain numbers.
 
 // The plan: name, axis, centre line, from, to, half carriageway, the lanes'
-// offsets from the centre line (kerb lane first), the parking bay. The west
-// street's middle lanes are the deck's ramp, and the megabuilding street
-// ends in a court a car turns round in, so both are driven in one lane. The
-// S4 has a road of its own (road_spline: the avenue's east bay, the middle
-// of the plaza street, the x 120 road's and the garage street's centre
-// lines, the boulevard's inner eastbound lane) and stops on it for the
-// page's shots, so the lanes here keep off that line: the plaza street's
-// further from its middle, the x 120 road's inner lane a little out, the
-// boulevard driven in its kerb lanes only.
+// offsets from the centre line (kerb lane first), the parking bay; then what
+// differs on a street: `back`, the lanes of the cars going the other way
+// (toward the lower coordinate); `shape`, where its one lane changes its
+// offset along the street; `kerb`, cars parked in the kerb lane (how far out
+// from the centre line, and over which stretch if not all of it).
+//
+// A street with no bay of its own is driven in its inner lane and parked
+// along its kerb lane, as a city's streets are at night, so no stretch of
+// the loop is ever bare road. The megabuilding street's east end is a court
+// a car turns round in, so there it keeps to the kerb lane's wide circle.
+// The west street's middle lanes are the deck's ramp from z -228 to -68:
+// its cars move over to the service lanes before the ramp's foot and stay
+// there. The S4 has a road of its own (road_spline: the avenue's east bay,
+// the middle of the plaza street, the x 120 road's and the garage street's
+// centre lines, the boulevard's inner eastbound lane) and stops on it for
+// the page's shots, so the lanes here keep off that line: the plaza
+// street's further from its middle, the x 120 road's a little out, the
+// boulevard's eastbound in its kerb lane.
 const STREETS = [
   ["avenue", "z", 0, -720, 88, 10, [5.55, 1.85], 2.6],
-  ["megabuilding", "x", -720, -80, 60, 8, [6], 0],
-  ["west", "z", -80, -720, 1, 10, [7.5], 0],
+  ["megabuilding", "x", -720, -80, 60, 8, [6], 0, { shape: [[-10, 2], [10, 6]], kerb: { offset: 6.55, from: -80, to: 0 } }],
+  ["west", "z", -80, -720, 1, 10, [7.5], 0, { shape: [[-254, 2.5], [-236, 7.5]], kerb: { offset: 8.55, from: -720, to: -262 } }],
   ["plaza", "x", -179, -80, 440, 7, [3.2], 2.4],
-  ["south", "x", 1, -80, 440, 7, [5.25, 1.75], 0],
-  ["x120", "z", 120, -330, 1, 8, [6, 2.5], 0],
-  ["boulevard", "x", -330, 120, 440, 9, [6.75], 0],
+  ["south", "x", 1, -80, 440, 7, [1.75], 0, { kerb: { offset: 5.55 } }],
+  ["x120", "z", 120, -330, 1, 8, [2.5], 0, { kerb: { offset: 6.55 } }],
+  ["boulevard", "x", -330, 120, 440, 9, [6.75], 0, { back: [2.25], kerb: { offset: 7.55, dir: -1 } }],
   ["garage", "z", 440, -330, 1, 8, [2.8], 2.4],
-].map(([name, axis, c, a, b, half, offsets, bay]) => ({ name, axis, c, a, b, half, offsets, bay }));
+].map(([name, axis, c, a, b, half, offsets, bay, more = {}]) => ({ name, axis, c, a, b, half, offsets, bay, ...more }));
 
 // Which way the cars at a junction mostly go ("x,z" of its centre): straight
 // on at the avenue's and the x 120 road's crossings with the plaza street,
@@ -61,6 +70,11 @@ const TICK = 0.25;
 const STOP = 11.6;
 // A dead end is turned round in this far short of it.
 const DEAD = 14;
+// Parked cars: the first stands this far from a junction's square (clear of
+// the crossing and the stop line the builder paints, a long car's half
+// length more), one every PITCH metres of kerb lane.
+const PARK_FROM = 13;
+const PITCH = 6.4;
 
 /** Seeded draws, so the same city has the same traffic on every load. */
 function draws(seed) {
@@ -92,8 +106,9 @@ function runs() {
       const hi = nodes[i + 1];
       const from = lo.v + (lo.dead ? DEAD : lo.box);
       const to = hi.v - (hi.dead ? DEAD : hi.box);
-      const offsets = lo.dead || hi.dead ? [s.offsets[0]] : s.offsets;
       for (const dir of [1, -1]) {
+        const lanes = dir < 0 && s.back ? s.back : s.offsets;
+        const offsets = lo.dead || hi.dead ? [lanes[0]] : lanes;
         const seg = { street: s, dir, start: dir > 0 ? from : to, end: dir > 0 ? to : from, into: dir > 0 ? hi : lo, out: dir > 0 ? lo : hi, offsets, heading: s.axis === "z" ? [0, dir] : [dir, 0] };
         segs.push(seg);
       }
@@ -159,6 +174,30 @@ function onLane(seg, along, offset) {
   return seg.street.axis === "z" ? [seg.street.c - seg.dir * offset, along] : [along, seg.street.c + seg.dir * offset];
 }
 
+/** How far out a shaped street's lane is at `along` its axis: its first
+ *  offset before the shape's first knot, its last after the last, a
+ *  straight move across between them. */
+function shaped(street, along) {
+  const k = street.shape;
+  if (along <= k[0][0]) return k[0][1];
+  for (let i = 1; i < k.length; i++) if (along <= k[i][0]) return k[i - 1][1] + ((k[i][1] - k[i - 1][1]) * (along - k[i - 1][0])) / (k[i][0] - k[i - 1][0]);
+  return k[k.length - 1][1];
+}
+
+/** A run's line in a lane: straight from its start to its end, or through
+ *  the knots of its street's shape that lie between them. */
+function runLine(seg, lane) {
+  const s = seg.street;
+  if (!s.shape) {
+    const o = seg.offsets[Math.min(lane, seg.offsets.length - 1)];
+    return [onLane(seg, seg.start, o), onLane(seg, seg.end, o)];
+  }
+  const lo = Math.min(seg.start, seg.end);
+  const hi = Math.max(seg.start, seg.end);
+  const at = [seg.start, ...s.shape.map((k) => k[0]).filter((v) => v > lo + 0.5 && v < hi - 0.5).sort((p, q) => (p - q) * seg.dir), seg.end];
+  return at.map((v) => onLane(seg, v, shaped(s, v)));
+}
+
 /** A line of points with its lengths. */
 function line(pts) {
   const at = [0];
@@ -172,12 +211,11 @@ function pieces(route, lane) {
   const out = [];
   route.forEach((seg, k) => {
     const next = route[(k + 1) % route.length];
-    const o = seg.offsets[Math.min(lane, seg.offsets.length - 1)];
-    const on = next.offsets[Math.min(lane, next.offsets.length - 1)];
-    const a = onLane(seg, seg.start, o);
-    const b = onLane(seg, seg.end, o);
-    const c = onLane(next, next.start, on);
-    out.push({ ...line([a, b]), seg, limit: CRUISE, two: seg.offsets.length > 1 });
+    const run = runLine(seg, lane);
+    const b = run[run.length - 1];
+    const c = runLine(next, lane)[0];
+    const o = seg.street.shape ? shaped(seg.street, seg.end) : seg.offsets[Math.min(lane, seg.offsets.length - 1)];
+    out.push({ ...line(run), seg, limit: CRUISE, two: seg.offsets.length > 1, run: true });
     let pts;
     if (seg.move === "U") {
       // Round and back: half a circle past the run's end.
@@ -218,11 +256,21 @@ function timetable(lanes, { cycle, need, phase }) {
     const from = Math.round(starts[k] / du);
     const to = Math.round(starts[k + 1] / du);
     if (p.turn) for (let i = from; i <= to + Math.round(need.length / du); i++) limit[i % N] = Math.min(limit[i % N], p.limit);
-    else if (p.seg.lit && p.len > STOP + 6) {
+    // (A stop line is a run's: the way straight through a wide junction is
+    // as long as a short run, and must not be given one in mid box.)
+    else if (p.run && p.seg.lit && p.len > STOP + 6) {
       stops.push({ i: Math.round((starts[k + 1] - STOP) / du) % N, green: (phase(p.seg.lit.key) + (p.seg.heading[0] ? cycle / 2 : 0)) % cycle });
     }
   });
-  const window = cycle / 2 - 3;
+  // A phase's green, less a second at its end. A platoon runs a light at
+  // speed only if its first car reaches the line a few seconds into the
+  // green (the cross street's last cars are out of the box by then) and its
+  // last is over the line before the green ends; one that has stopped at a
+  // green goes only if its queue can get away in what is left. Either way
+  // the longest wait and the queue's getting away fit inside one cycle, so
+  // the platoon a cycle behind never comes up on this one's tail.
+  const window = cycle / 2 - 1;
+  const EARLY = 6;
   const into = (t, green) => (((t - green) % cycle) + cycle) % cycle;
   if (!stops.length) {
     // Nothing to stop for: round at the road's own pace.
@@ -256,7 +304,7 @@ function timetable(lanes, { cycle, need, phase }) {
       // whole platoon: a pause and on. Otherwise the next green. The anchor
       // always leaves as its green comes on, which is what closes the lap.
       const w = into(t[i], stops[k].green);
-      leave[i] = i < N && w < window - need.time ? t[i] + 0.5 : t[i] + ((((stops[k].green + 0.6 - t[i]) % cycle) + cycle) % cycle);
+      leave[i] = i < N && w < window - need.away ? t[i] + 0.5 : t[i] + ((((stops[k].green + 0.6 - t[i]) % cycle) + cycle) % cycle);
     }
     return { v, t, leave, reach };
   };
@@ -269,15 +317,19 @@ function timetable(lanes, { cycle, need, phase }) {
     for (const k of order) {
       held[k] = false;
       const w = into(lap(anchor, held).reach.get(k), stops[k].green);
-      if (!(w > 0.2 && w < window - need.time)) held[k] = true;
+      if (!(w > EARLY && w < window - need.time)) held[k] = true;
     }
     const run = lap(anchor, held);
-    const wasted = into(run.t[N], stops[anchor].green) < window ? 1 : 0;
+    // Coming back to its anchor with the green still young, it would sit
+    // through the rest of it and the whole red (the anchor leaves as its
+    // green comes on, which is what closes the lap), and the platoon behind
+    // would find it there.
+    const wasted = into(run.t[N], stops[anchor].green) < window - need.time ? 1 : 0;
     return { anchor, run, wasted };
   };
-  // An anchor the platoon comes back to on a red, if there is one.
+  // An anchor the platoon comes back to late in the green or on the red.
   let best = null;
-  for (let a = 0; a < Math.min(stops.length, 6); a++) {
+  for (let a = 0; a < stops.length; a++) {
     const s = solve(a);
     if (!best || s.wasted < best.wasted) best = s;
     if (!s.wasted) break;
@@ -296,21 +348,28 @@ function timetable(lanes, { cycle, need, phase }) {
   return { table, period, length, offset: stops[anchor].i * du, t0 };
 }
 
+// The lights' phases are drawn from this. Any seed is as good a city as
+// another; this one was picked (of 2,500 tried) because at second 12 of the
+// clock, where every review render holds the traffic, a platoon is in sight
+// from the last metres before each corner of the loop, where a driver faces
+// a wall across the junction and only passing cars can be in view.
+const PHASES = 2452;
+
 /**
  * The network's traffic: `perPlatoon` cars to a platoon, the lights on a
  * `cycle` of seconds. Returns the cars (each with its route, for the caller
  * to dress) and `place(car, clock, out)`, which writes where the car is
  * (out.x, out.z), which way it faces (out.fx, out.fz) and whether its brake
- * lamps are lit (out.brake); and the kerbside bays' parking places.
+ * lamps are lit (out.brake); and the rows of parking places along the
+ * kerbs.
  */
-export function createNetwork({ perPlatoon = 5, cycle = 36 } = {}) {
+export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed = PHASES } = {}) {
   const { segs, junctions } = runs();
   pairings(junctions);
   const phases = new Map();
-  const drawPhase = draws(4409);
+  const drawPhase = draws(seed);
   for (const key of [...junctions.keys()].sort()) phases.set(key, drawPhase() * cycle);
   const phase = (key) => phases.get(key);
-  const headway = 0.9;
   const seen = new Set();
   const routes = [];
   const cars = [];
@@ -326,7 +385,12 @@ export function createNetwork({ perPlatoon = 5, cycle = 36 } = {}) {
     // abreast, a whole one in single file; smoothed along the route.
     const starts = [0];
     for (const p of lanes[0]) starts.push(starts[starts.length - 1] + p.len);
-    const tt = timetable(lanes, { cycle, need: { time: (perPlatoon - 1) * headway + 2, length: perPlatoon * 5 }, phase });
+    // How long a platoon takes over a stop line, its last car after its
+    // first: at speed (`time`), and from a standing queue (`away`), in
+    // single file.
+    const back = (perPlatoon - 1) * 6.9;
+    const need = { time: (perPlatoon - 1) * headway + back / CRUISE + 1, away: (perPlatoon - 1) * headway + Math.sqrt((2 * back) / ACCEL) + 1, length: perPlatoon * 5 };
+    const tt = timetable(lanes, { cycle, need, phase });
     const cells = Math.ceil(tt.length / 4);
     const raw = new Float32Array(cells);
     lanes[0].forEach((p, k) => {
@@ -367,7 +431,10 @@ export function createNetwork({ perPlatoon = 5, cycle = 36 } = {}) {
   const b = [0, 0];
   const place = (car, clock, out) => {
     const r = car.route;
-    const time = wrap(clock - car.delay, r.period) / TICK;
+    // (A route's table starts as its first car leaves its anchor's line, at
+    // that light's own green: t0 puts every route on the one clock the
+    // lights keep.)
+    const time = wrap(clock - (r.t0 ?? 0) - car.delay, r.period) / TICK;
     const j = Math.min(r.table.length - 2, Math.floor(time));
     const lead = r.table[j] + (r.table[j + 1] - r.table[j]) * (time - j);
     const speed = (r.table[j + 1] - r.table[j]) / TICK;
@@ -386,19 +453,36 @@ export function createNetwork({ perPlatoon = 5, cycle = 36 } = {}) {
     return out;
   };
 
-  // Parking: a place every seven metres or so along each bay, clear of the
-  // junctions, each with the way a car parked in it faces.
-  const bays = [];
+  // Parking: the rows of places along each run's right-hand kerb, in the
+  // order a car passing them meets them: a street's bay where it has one,
+  // its kerb lane where it is parked in. Each place has where it is and the
+  // way a car parked in it faces.
+  const rows = [];
   for (const seg of segs) {
     const s = seg.street;
-    if (!s.bay) continue;
-    const o = s.half - s.bay / 2;
-    const lo = Math.min(seg.start, seg.end) + 12;
-    const hi = Math.max(seg.start, seg.end) - 12;
-    for (let v = lo; v <= hi; v += 6.8) {
-      const p = onLane(seg, v, o);
-      bays.push({ x: p[0], z: p[1], yaw: Math.atan2(seg.heading[0], seg.heading[1]), street: s.name });
+    const lo = Math.min(seg.start, seg.end);
+    const hi = Math.max(seg.start, seg.end);
+    let from = lo + PARK_FROM;
+    let to = hi - PARK_FROM;
+    // A bay's cars stand a hand's width in from the kerb, clear of the
+    // planters and posts that stand on its edge.
+    let o = s.half - s.bay / 2 - 0.2;
+    if (!s.bay) {
+      const k = s.kerb;
+      if (!k || (k.dir && k.dir !== seg.dir)) continue;
+      o = k.offset;
+      from = Math.max(from, (k.from ?? -1e9) + PARK_FROM);
+      to = Math.min(to, k.to ?? 1e9);
     }
+    const n = Math.floor((to - from) / PITCH);
+    if (n < 0) continue;
+    const yaw = Math.atan2(seg.heading[0], seg.heading[1]);
+    const places = [];
+    for (let i = 0; i <= n; i++) {
+      const p = onLane(seg, seg.dir > 0 ? from + i * PITCH : to - i * PITCH, o);
+      places.push({ x: p[0], z: p[1], yaw });
+    }
+    rows.push({ street: s.name, bay: s.bay > 0, dir: seg.dir, places });
   }
-  return { routes, cars, place, bays, cycle };
+  return { routes, cars, place, rows, cycle, streets: STREETS };
 }
