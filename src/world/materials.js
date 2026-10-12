@@ -604,6 +604,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
+        ${VNOISE}
+        ${GROUND}
         uniform vec3 uTowerAccent[8];
         uniform float uTowerLit[8];
         uniform float uTowerTop[8];
@@ -622,7 +624,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         // What the glass gives back: a night sky lit from under by the
         // city, the haze on the horizon, and round it the city across the
         // way, a scatter of lit windows over the dark.
-        vec3 skyIn(vec3 r) {
+        vec3 skyIn(vec3 r, float near) {
           vec3 zenith = vec3(0.006, 0.005, 0.012);
           vec3 horizon = hazeAt(r) * 0.55 + glowAt(r) * 0.35;
           vec3 sky = mix(horizon, zenith, smoothstep(0.0, 0.55, r.y));
@@ -631,9 +633,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 below = uFogColor * 0.4 + uHazeColor * 0.1 * exp(min(r.y, 0.0) * 9.0);
           vec3 col = mix(below, sky, smoothstep(-0.02, 0.02, r.y)) + cityGlow(r, max(r.y, 0.0) * 600.0) * 0.45;
           // The towers opposite: their lit windows, low in the reflection.
-          vec2 cell = floor(vec2(atan(r.z, r.x) * 90.0, r.y * 160.0));
+          // (Near, each is a small soft light in its cell, not the cell: a
+          // whole cell lit was a block of colour half a pane wide.)
+          vec2 cg = vec2(atan(r.z, r.x) * 90.0, r.y * 160.0);
+          vec2 cell = floor(cg);
           float w = hash12(cell);
-          float city = step(0.9, w) * (1.0 - smoothstep(0.02, 0.28, r.y)) * step(-0.25, r.y);
+          vec2 cf = abs(fract(cg) - 0.5);
+          float dotIn = (1.0 - smoothstep(0.1, 0.22, cf.x)) * (1.0 - smoothstep(0.14, 0.3, cf.y)) * 1.6;
+          float city = step(0.9, w) * (1.0 - smoothstep(0.02, 0.28, r.y)) * step(-0.25, r.y) * mix(1.0, dotIn, near);
           col += mix(vec3(1.0, 0.7, 0.42), vec3(0.6, 0.8, 1.0), step(0.95, w)) * city * 0.35;
           return col;
         }
@@ -676,11 +683,20 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 L = vec3(0.74, 0.87, 1.0);
           if (tone > 1.0 - 0.5 * vColor.g) L = vec3(1.0, 0.76, 0.5);
           else if (tone > 0.7) L = vec3(0.96, 0.95, 0.88);
+          // A block that is no tower of the row (the plaza's, the campus's)
+          // has one light, the builder's warm or cool, and a tenant in eight
+          // the other: floor by floor in three colours it was bands of
+          // colour from across a square.
+          if (own < 0.5) L = (vColor.g > 0.45) != (tone > 0.88) ? vec3(1.0, 0.76, 0.5) : vec3(0.74, 0.87, 1.0);
           // Some floors brighter than others: a late shift, the cleaners.
           L *= 0.75 + 0.6 * hash12(vec2(tenant, seed + 9.1));
 
           // Into the floor: x along the facade, y up from the floor, z in.
           vec3 V = normalize(vWorld - uCam);
+          // Within a hundred metres or so the wall is looked at, not past:
+          // what follows marked near is drawn for that and fades out by
+          // 150 m, so the row's towers from across the city are as they were.
+          float near = 1.0 - smoothstep(90.0, 150.0, length(vWorld - uCam));
           vec3 d = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
           vec3 p = vec3(u, clamp(inFloor - SILL, 0.0, CLEAR), 0.0);
           float ty = d.y > 0.0 ? (CLEAR - p.y) / d.y : -p.y / min(d.y, -1e-4);
@@ -695,6 +711,20 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // The core: a lit wall, a dark door now and then.
             float door = step(abs(fract(h.x / 7.3) - 0.5), 0.08) * step(h.y, 2.2);
             room = L * (0.09 + 0.12 * smoothstep(0.0, CLEAR, h.y)) * (1.0 - 0.75 * door);
+            if (near > 0.0) {
+              // Near: the core is a wall of rooms. Fronts 3 m wide between
+              // dark posts under a head rail, a door leaf in half of them,
+              // one in four lit harder and one in five dim, and a cove of
+              // light along the ceiling's edge. Seen level from across a
+              // street this wall is most of what a lit floor shows.
+              float hb = hash12(vec2(floor(h.x / 3.0), level * 3.1 + seed));
+              float fx = fract(h.x / 3.0) * 3.0;
+              vec3 fronts = L * (0.24 + 0.2 * smoothstep(0.0, CLEAR, h.y)) * (hb > 0.72 ? 1.5 : (hb < 0.2 ? 0.45 : 1.0));
+              fronts = mix(fronts, fronts * 0.3, step(abs(fx - 1.5), 0.42) * step(h.y, 2.12) * step(0.5, fract(hb * 7.0)));
+              fronts = mix(fronts, fronts * 0.12, clamp(step(fx, 0.09) + step(abs(h.y - 2.15), 0.035), 0.0, 1.0));
+              fronts += L * 0.5 * step(CLEAR - 0.12, h.y);
+              room = mix(room, fronts, near);
+            }
           } else if (d.y > 0.0) {
             // The ceiling's grid of panels, faded to its average where it
             // would shimmer.
@@ -724,12 +754,24 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float screen = step(abs(fract(f.x / 1.6) - 0.5), 0.17) * step(0.78, f.y) * step(f.y, 1.06) * step(0.35, hash12(vec2(slot * 1.3, level + seed)));
             float lip = smoothstep(1.03, 1.1, f.y) * desk;
             room = mix(room, room * 0.12 + L * lip * 0.25 * on, desk);
-            room += vec3(0.45, 0.72, 1.0) * screen * desk * mix(0.25, 0.9, on);
+            // (Near, fewer are on and none is the brightest thing on the
+            // floor: a row of them all lit was a line of blue blocks.)
+            room += vec3(0.45, 0.72, 1.0) * screen * desk * mix(0.25, 0.9, on) * mix(1.0, 0.45 * step(0.5, hash12(vec2(slot * 2.7, level * 1.9 + seed))), near);
             // Now and then somebody at the glass, working late.
             float who = hash12(vec2(floor(f.x / 9.0), level + seed * 5.1));
             float fx = f.x - (floor(f.x / 9.0) + 0.2 + 0.6 * fract(who * 7.0)) * 9.0;
             float body = step(abs(fx), 0.22) * step(f.y, 1.45) + step(length(vec2(fx, f.y - 1.62)), 0.12);
             room = mix(room, room * 0.08, clamp(body, 0.0, 1.0) * step(0.8, who) * on);
+          }
+          if (near > 0.0) {
+            // Near: a column every 9 m, five metres in, and somebody
+            // crossing the floor behind the desks.
+            float tc = 5.0 / d.z;
+            vec3 f = p + d * tc;
+            float walker = hash12(vec2(floor(f.x / 9.0), level + seed * 7.7));
+            float wx = f.x - (floor(f.x / 9.0) + 0.25 + 0.5 * fract(walker * 5.0)) * 9.0;
+            float body = clamp(step(abs(wx), 0.21) * step(f.y, 1.48) + step(length(vec2(wx, f.y - 1.64)), 0.11), 0.0, 1.0) * step(0.55, walker);
+            if (tc < tm) room = mix(room, room * 0.1, near * max(step(abs(fract(f.x / 9.0) - 0.5), 0.028), body * on));
           }
           // Blinds, down part of the way on the odd pane.
           float blindPick = hash12(vec2(floor(module / 2.0), level + seed * 3.3));
@@ -744,7 +786,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 nj = normalize(n + t * jit.x * 0.06 + vec3(0.0, jit.y * 0.04, 0.0));
           vec3 R = reflect(V, nj);
           float F = 0.07 + 0.6 * pow(1.0 - abs(dot(V, nj)), 5.0);
-          vec3 env = skyIn(R);
+          vec3 env = skyIn(R, near);
 
           // The tower's colour on it: beside its fins, up from its lobby,
           // down from its crown.
@@ -757,14 +799,23 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
 
           // Mullions and transoms, 7 cm, and the spandrel at the slab: dark
           // metal and back-painted glass, catching the sky and the wash.
-          vec3 frameCol = vec3(0.016, 0.017, 0.022) + env * 0.35 + wash * 0.55 + spillAt(vWorld) * 0.3;
-          vec3 spandrel = vec3(0.012, 0.013, 0.018) + env * (0.15 + 0.6 * F) + wash * 0.4 + spillAt(vWorld) * 0.2;
+          // (The street's light on them through the smooth filter: read
+          // straight, the map's 1.5 m cells stood on the wall as blocks of
+          // colour.)
+          vec3 street = spillGround(vWorld);
+          vec3 frameCol = vec3(0.016, 0.017, 0.022) + env * 0.35 + wash * 0.55 + street * 0.3;
+          vec3 spandrel = vec3(0.012, 0.013, 0.018) + env * (0.15 + 0.6 * F) + wash * 0.4 + street * 0.2;
           spandrel *= 0.8 + 0.2 * step(0.08, abs(inFloor - SILL * 0.5));
           float mx = fract(module);
           float mw = fwidth(module);
           float fw = fwidth(fy);
-          float mull = mix(step(min(mx, 1.0 - mx) * MODULE, 0.035), 0.05, smoothstep(0.02, 0.06, mw));
-          float trans = mix(step(abs(inFloor - SILL), 0.04) + step(STOREY - inFloor, 0.035), 0.02, smoothstep(0.01, 0.03, fw));
+          // Near, a bar is never drawn thinner than about a pixel (thinner,
+          // it is drawn that wide and fainter), and the grid holds until a
+          // bay is a few pixels: the module is what says curtain wall.
+          float mhw = max(0.035, 0.55 * mw * MODULE);
+          float thw = max(0.04, 0.55 * fw * STOREY);
+          float mull = mix(step(min(mx, 1.0 - mx) * MODULE, mhw) * clamp(0.035 / mhw + 0.35, 0.0, 1.0), 0.05, smoothstep(mix(0.02, 0.1, near), mix(0.06, 0.28, near), mw));
+          float trans = mix((step(abs(inFloor - SILL), thw) + step(STOREY - inFloor, thw)) * clamp(0.04 / thw + 0.35, 0.0, 1.0), 0.02, smoothstep(mix(0.01, 0.05, near), mix(0.03, 0.14, near), fw));
           float slab = mix(step(inFloor, SILL), SILL / STOREY, smoothstep(0.08, 0.3, fw));
           vec3 col = mix(glass, frameCol, clamp(mull + trans, 0.0, 1.0));
           col = mix(col, spandrel, slab);
