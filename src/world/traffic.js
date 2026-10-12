@@ -31,6 +31,7 @@ import { createObject as createShowCar, KINDS as SHOW_KINDS } from "./traffic-ca
 import { createNetwork } from "./traffic-net.js";
 import { createStanding, wardrobe, KINDS as CAR_KINDS, TAG } from "./traffic-park.js";
 import { creased, coarse, drum, joined } from "./traffic-lod.js";
+import { createCraft, craftAt, padAt, PAD_STANDING } from "./traffic-sky.js";
 
 const createCarModel = (kind) => (BASE_KINDS.includes(kind) ? createBaseCar(kind) : SHOW_KINDS.includes(kind) ? createShowCar(kind) : null);
 
@@ -215,6 +216,12 @@ const ROOF_BAR = 8;
 const ROOF_SIGN = 9;
 // Past this far a car is drawn as its coarser self (src/world/traffic-lod.js).
 const DETAIL_TO = 42;
+// Where the first car on each of the deck's two paths starts, as a share of
+// the gap to the next: chosen so that at second 12, where the review's
+// renders hold the traffic, no car stands within eleven metres of the
+// points its panoramas are taken from on the deck (a lens a metre off a
+// car's flank shows nothing else).
+const DECK_STARTS = [0.78, 0.5];
 
 /** The part of a lamp surface that lies across the car's nose (or its tail):
  *  its vertices within 5 cm of its foremost (rearmost) point, so a marker
@@ -309,46 +316,10 @@ const DETAIL = {
   micro: { seam: [99, 99, 0.37, 0.68], door: [-0.54, 99], plate: [0.5, 0.5, 0.2], cabin: [-0.1, 99, 1.15], wheel: [0.875, 0.25] },
 };
 
-// Lanes over the canyon and the districts: centre, radii, altitude, speed,
-// and the size of what flies it.
-const SKY_LANES = [
-  { c: [0, -420], r: [150, 60], y: 58, v: 26 },
-  { c: [20, -520], r: [220, 40], y: 82, v: 34 },
-  { c: [-10, -300], r: [120, 90], y: 46, v: 22 },
-  // Across the moon, seen from the garage's roof (fourth, so a phone's four
-  // take it too): a heavier craft, slower, so that 300 m off it crosses the
-  // disc as a silhouette with its lamps lit and not as a speck.
-  { c: [620, 120], r: [200, 70], y: 150, v: 30, s: 2.6 },
-  // Over the streets themselves, between the towers, at three heights: a
-  // long narrow loop each, up one side of the street and back down the
-  // other a few metres higher (`lift`), slowing into the turn at each end
-  // as a hovering thing does. The canyon's first: x 0, z -186 to -700, 74 m
-  // up going north and 86 m coming back.
-  { c: [0, -443], r: [5.5, 255], y: 80, lift: -6, v: 8.5 },
-  { c: [280, -330], r: [150, 5], y: 62, lift: 5, v: 8 },
-  { c: [180, 1], r: [250, 5], y: 44, lift: 4, v: 9 },
-  { c: [-80, -340], r: [6, 330], y: 58, lift: 5, v: 8.5 },
-  { c: [120, -165], r: [5, 160], y: 70, lift: 5, v: 7.5 },
-  { c: [440, -165], r: [5, 160], y: 50, lift: 4, v: 7.5 },
-  { c: [180, -179], r: [255, 5], y: 96, lift: 5, v: 9 },
-  { c: [200, -300], r: [260, 120], y: 95, v: 38 },
-  { c: [320, -260], r: [140, 70], y: 70, v: 28 },
-  { c: [0, -650], r: [260, 60], y: 110, v: 42 },
-  { c: [90, -200], r: [160, 110], y: 64, v: 30 },
-  { c: [-40, -560], r: [90, 180], y: 52, v: 24 },
-  { c: [420, -250], r: [120, 160], y: 58, v: 26 },
-  // Lower, over the streets themselves: a craft going over between the
-  // roofs, as the show's frames always have one (ARL_JWwKdDs@1).
-  { c: [-40, -380], r: [70, 260], y: 34, v: 20 },
-  { c: [260, -90], r: [190, 60], y: 30, v: 22 },
-  // And low over the south arm, which no other lane reaches.
-  { c: [0, 46], r: [5.5, 40], y: 38, lift: 4, v: 5 },
-];
-// One stands on the pad on ARASAKA's annex; one more lifts off the pad on
-// the megabuilding's east roof now and then, turns about over it and comes
-// down again (x, y, z, and which way it faces at rest).
-const PAD_STANDING = [120, 14.85, -485, 0.7];
-const PAD_HOP = { at: [33, 83.3, -776, 2.4], rest: 34, climb: 9, hover: 12, rise: 26 };
+// How far off a flying car is drawn as its own model, as its coarser self,
+// and past that as its lamps alone.
+const AV_DETAIL_TO = 70;
+const AV_BODIES_TO = 700;
 /** On for the first half of every second of `t`, off for the rest. */
 const step = (t) => (t - Math.floor(t) < 0.5 ? 1 : 0);
 /** A light bar's double flash: on twice, briefly, from `from` into `beat`. */
@@ -651,18 +622,27 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     `,
   });
   avMat.name = "avs";
-  // Four times the tier's count on a desktop (twice on a phone), two or
-  // three to a lane, so no sky a roof or a street looks up at is empty; the
-  // police AV is one more of them, after the rest, then the one standing on
-  // its pad and the one that hops.
-  const flyers = avs * (full ? 4 : 2);
+  // The craft: each lane's own number of them (src/world/traffic-sky.js),
+  // spread evenly round it from a seeded draw, so the same second of the
+  // clock is the same sky on every load; then the police AV, the one
+  // standing on its pad and the one that keeps the megabuilding's. Two
+  // draws, as the cars: its own model near, a coarser one far, and only the
+  // ones in view in either.
+  const craft = createCraft(full);
+  const flyers = craft.length;
   const flying = flyers + (police ? 1 : 0) + 2;
-  const avMesh = new THREE.InstancedMesh(avGeo, avMat, Math.max(1, flying));
-  avMesh.frustumCulled = false;
-  avMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  avMesh.layers.enable(reflectLayer);
-  scene.add(avMesh);
-  avMesh.count = flying;
+  const avFar = joined([coarse(avGeo, 0.3, (k) => k >= 3), coarse(avGeo, 0.14, (k) => k < 3)]);
+  const avLevels = [avGeo, avFar].map((geometry, i) => {
+    const mesh = new THREE.InstancedMesh(geometry, avMat, Math.max(1, flying));
+    mesh.name = i ? "avs_far" : "avs";
+    mesh.frustumCulled = false;
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.layers.enable(reflectLayer);
+    mesh.count = 0;
+    scene.add(mesh);
+    return { mesh, n: 0 };
+  });
+  const avMesh = avLevels[0].mesh;
 
   // The drones: one instanced draw in the AV's shader. Each flies its own
   // round of roofs, from its own point in it; every leg is worked out once
@@ -716,7 +696,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const pathSlots = [];
   paths.forEach((P, k) => {
     const dress = wardrobe(613 + k * 29);
-    for (let j = 0; j < onDeck; j++) pathSlots.push({ ...dress(), tag: TAG.none, path: { P, phase: (j + 0.31 + 0.23 * k) / onDeck } });
+    for (let j = 0; j < onDeck; j++) pathSlots.push({ ...dress(), tag: TAG.none, path: { P, phase: (j + DECK_STARTS[k % 2]) / onDeck } });
   });
   // A route's cars follow one another round it, so each route deals its own.
   const dressers = net.routes.map((r, k) => wardrobe(101 + k * 53));
@@ -742,7 +722,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     x.neon = new THREE.Color(x.accent);
     // A taxi waits and a patrol car stands with their lamps on; the rest of
     // the parked are dark.
-    x.lit = !x.parked || x.tag !== TAG.none;
+    x.lit = !x.parked || x.tag !== TAG.none || !!x.parked.lit;
     if (x.parked) {
       x.at = new THREE.Vector3(x.parked.x, 0, x.parked.z);
       x.turn = new THREE.Quaternion().setFromAxisAngle(UPRIGHT, x.parked.yaw);
@@ -844,18 +824,26 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   lamps.layers.enable(reflectLayer);
   scene.add(lamps);
 
-  // The train on the viaduct at the avenue's far end (anchor_rail): six
-  // cars (trainGeometry), sliding across the glow at the vanishing point
-  // every half minute or so, one way and then the other. Its windows are a
-  // lit carriage each, between pillars, two doors a side, a passenger or
+  // The trains. One model (trainGeometry) on two lines. On the viaduct at
+  // the avenue's far end (anchor_rail), six cars: out of the portal in
+  // Japantown's collar, across the avenue's glow at the vanishing point and
+  // into the station, and back out the other way half a minute later. On
+  // Corpo Row's elevated track, two cars at a time: out of the west block's
+  // portal, into the halt behind the towers, half a minute standing there
+  // lit, then on into the corner block's portal, the next one following, so
+  // the halt has a train in it most of the time and another is often on its
+  // way. A train is only drawn between its line's portals. Its windows are
+  // a lit carriage each, between pillars, two doors a side, a passenger or
   // two against the light, over a stripe of the line's colour; its body
   // gives back the city's glow; its nose carries the headlamps going and
   // the tail lamps coming. The windows are as bright as the old ones at the
   // vanishing point and softer close to, where they would only blow out.
-  const TRAIN = { length: 108, cars: 6, period: 32, crossing: 13, span: 340 };
-  const trainGeo = trainGeometry(TRAIN);
-  const trainMat = new THREE.ShaderMaterial({
-    uniforms: { ...shared, uDir: { value: 1 } },
+  const CAR = 18;
+  // Corpo Row's track (scripts/blender/ncw/districts/corpo_north.py: its
+  // TRACK_Z and TRACK_Y, its two portals, the middle of its halt). It has
+  // no anchor of its own yet, so its numbers are here.
+  const CORPO_TRACK = { z: -378.5, y: 19, x0: 133, x1: 432, halt: 246 };
+  const trainShader = {
     vertexShader: /* glsl */ `
       varying vec3 vLocal;
       varying vec3 vNormalL;
@@ -873,13 +861,17 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     fragmentShader: /* glsl */ `
       ${COMMON}
       uniform float uDir;
+      uniform float uLen;
+      uniform vec2 uClip;
       varying vec3 vLocal;
       varying vec3 vNormalL;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       void main() {
-        const float LEN = ${TRAIN.length.toFixed(1)};
-        float carLen = LEN / ${TRAIN.cars.toFixed(1)};
+        // Inside a portal it is in the block, not in the street.
+        if (vWorld.x < uClip.x || vWorld.x > uClip.y) discard;
+        float LEN = uLen;
+        const float carLen = ${CAR.toFixed(1)};
         float u = vLocal.x + LEN * 0.5;
         float car = floor(u / carLen);
         float inCar = u - car * carLen;
@@ -952,20 +944,63 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         #include <colorspace_fragment>
       }
     `,
-  });
-  trainMat.name = "train";
-  const train = new THREE.Mesh(trainGeo, trainMat);
-  train.name = "train";
-  train.visible = false;
-  train.layers.enable(reflectLayer);
-  if (rail) scene.add(train);
+  };
+  /** A train of `cars` on a line (the rail's height, where it runs across
+   *  x, the two portals it is drawn between), going where `at(clock)` says:
+   *  the middle of it along x, which way it faces, or null when it is out
+   *  of sight in a block. */
+  const trains = [];
+  const addTrain = (cars, line, at) => {
+    const geometry = trainGeometry({ length: cars * CAR, cars });
+    const material = new THREE.ShaderMaterial({ uniforms: { ...shared, uDir: { value: 1 }, uLen: { value: cars * CAR }, uClip: { value: new THREE.Vector2(line.x0, line.x1) } }, ...trainShader });
+    material.name = "train";
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = "train";
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    mesh.layers.enable(reflectLayer);
+    scene.add(mesh);
+    trains.push({ mesh, material, geometry, line, at, length: cars * CAR });
+  };
+  const wrapTo = (t, period) => ((t % period) + period) % period;
+  const run = { x: 0, dir: 1 };
+  if (rail) {
+    // The viaduct: 26 s across from portal to portal, 6 s out of sight, and
+    // back. At second 12 it is over the avenue.
+    const line = { y: rail.position.y, z: rail.position.z, x0: rail.extras?.x0 ?? -94, x1: rail.extras?.x1 ?? 92 };
+    const L = 6 * CAR;
+    addTrain(6, line, (clock) => {
+      const t = wrapTo(clock, 64);
+      const k = (t % 32) / 26;
+      if (k >= 1) return null;
+      run.dir = t < 32 ? 1 : -1;
+      run.x = run.dir > 0 ? line.x0 - L / 2 + (line.x1 - line.x0 + L) * k : line.x1 + L / 2 - (line.x1 - line.x0 + L) * k;
+      return run;
+    });
+  }
+  {
+    // Corpo Row's: in from the west portal slowing into the halt (14 s),
+    // standing there (30 s), away into the east portal gathering speed
+    // (24 s); two trains, 46 s apart, so one is in the halt as the one
+    // before it nears the far portal. At second 12 one has stood there four
+    // seconds and the other is most of the way to the east portal.
+    const line = CORPO_TRACK;
+    const L = 2 * CAR;
+    for (const start of [86, 40]) {
+      addTrain(2, line, (clock) => {
+        const t = wrapTo(clock - start, 92);
+        if (t >= 68) return null;
+        run.dir = 1;
+        const from = line.x0 - L / 2;
+        const to = line.x1 + L / 2;
+        if (t < 14) run.x = from + (line.halt - from) * (1 - (1 - t / 14) ** 2);
+        else if (t < 44) run.x = line.halt;
+        else run.x = line.halt + (to - line.halt) * ((t - 44) / 24) ** 2;
+        return run;
+      });
+    }
+  }
 
-  // Where each AV is on its lane, from a seeded draw, so the same second of
-  // the clock is the same sky on every load.
-  let seedPhase = 90001;
-  const drawPhase = () => ((seedPhase = (seedPhase * 16807) % 2147483647) - 1) / 2147483646;
-  // Those that share a lane are spread evenly round it.
-  const phase = Array.from({ length: flyers }, (_, i) => (Math.floor(i / SKY_LANES.length) + 0.3 * drawPhase()) / Math.ceil((flyers - (i % SKY_LANES.length)) / SKY_LANES.length) + 0.11 * (i % SKY_LANES.length));
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const one = new THREE.Vector3(1, 1, 1);
@@ -1036,6 +1071,26 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     L.state.array[j * 4 + 2] = x.tag;
     L.state.array[j * 4 + 3] = x.glow ? 1 : 0;
   };
+  /** Whether the flying thing at p (its scale s) is in the lens' sight, or
+   *  its image in the wet road is: a craft over the frame's top edge still
+   *  shows in the road under it. */
+  const sky = { x: 0, y: 0, z: 0, fx: 0, fz: 1, bank: 0, yaw: 0, lit: 1 };
+  let far2 = 0;
+  const fly = (s) => {
+    far2 = p.distanceToSquared(shared.uCam.value);
+    if (!viewed) return true;
+    ball.center.copy(p);
+    ball.radius = 24 * s;
+    if (view.intersectsSphere(ball)) return true;
+    ball.center.y = -p.y;
+    return view.intersectsSphere(ball);
+  };
+  /** One more flying car this frame, at p turned q. */
+  const body = (s) => {
+    if (far2 > AV_BODIES_TO * AV_BODIES_TO) return;
+    const L = avLevels[far2 < AV_DETAIL_TO * AV_DETAIL_TO * s * s ? 0 : 1];
+    m.compose(p, q, scale.setScalar(s)).toArray(L.mesh.instanceMatrix.array, L.n++ * 16);
+  };
   /** Where a car is at second `at` of the clock, into p and q; and into
    *  `now` how much of it is drawn and whether it is braking. */
   const now = { shown: 1, braking: 0 };
@@ -1073,63 +1128,63 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const voices = { on: true, avs: Array.from({ length: avs }, () => new THREE.Vector3()), police: police ? new THREE.Vector3() : null, train: null };
 
   const update = (dt, on) => {
-    avMesh.visible = droneMesh.visible = lamps.visible = on;
+    droneMesh.visible = lamps.visible = on;
+    for (const l of avLevels) l.mesh.visible = on;
     for (const k of kinds) for (const l of k.levels) l.mesh.visible = on;
     voices.on = on;
     if (!on) {
-      train.visible = false;
+      for (const T of trains) T.mesh.visible = false;
       voices.train = null;
       return;
     }
     if (!reduced && !frozen) clock += dt;
     let li = 0;
-    for (let i = 0; i < flyers; i++) {
-      const lane = i % SKY_LANES.length;
-      const L = SKY_LANES[lane];
-      const way = lane % 2 ? -1 : 1;
-      const circ = Math.PI * (L.r[0] + L.r[1]);
-      const a = (phase[i] + (clock * L.v) / circ) * Math.PI * 2 * way;
-      p.set(L.c[0] + Math.cos(a) * L.r[0], L.y + Math.sin(a * 2.0 + i) * (L.lift ? 1 : 3) + (L.lift ?? 0) * Math.cos(a), L.c[1] + Math.sin(a) * L.r[1]);
-      const b = a + way * 0.01;
-      tmp.set(L.c[0] + Math.cos(b) * L.r[0], p.y, L.c[1] + Math.sin(b) * L.r[1]);
-      fwd.subVectors(tmp, p).normalize();
+    for (const l of avLevels) l.n = 0;
+    for (const c of craft) {
+      const L = c.L;
+      craftAt(c, clock, sky);
+      p.set(sky.x, sky.y, sky.z);
+      if (c.k < avs) voices.avs[c.k].copy(p);
+      const s = L.s ?? 1;
+      if (!fly(s)) continue;
+      fwd.set(sky.fx, 0, sky.fz);
       q.setFromAxisAngle(UP, Math.atan2(fwd.x, fwd.z));
       // Banked into its loop and a touch nose-down, as a thing flying does;
       // level along a street.
-      q.multiply(tilt.setFromEuler(euler.set(0.05, 0, L.lift ? 0 : -way * 0.16)));
-      const s = L.s ?? 1;
-      avMesh.setMatrixAt(i, m.compose(p, q, scale.setScalar(s)));
-      if (i < avs) voices.avs[i].copy(p);
-      setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * s);
-      setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * s);
+      q.multiply(tilt.setFromEuler(euler.set(0.05, 0, sky.bank)));
+      body(s);
+      // Its lamps grow with distance past a hundred metres or so, to three
+      // times at 350 m, so a craft across the district still reads as its
+      // lights and not as a speck.
+      const g = s * Math.min(3.2, Math.max(1, Math.sqrt(far2) / 110));
+      setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * g);
+      setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * g);
       // A short trail of its thrusters' light behind it, thinning out.
       for (let k = 1; k <= 3; k++) {
         const back = (2.6 + k * 2.4) * s;
-        setLamp(li++, p.x - fwd.x * back, p.y + 0.3 * s, p.z - fwd.z * back, 0.3 / k, 0.75 / k, 1.0 / k, (1.9 - 0.3 * k) * s);
+        setLamp(li++, p.x - fwd.x * back, p.y + 0.3 * s, p.z - fwd.z * back, 0.3 / k, 0.75 / k, 1.0 / k, (1.9 - 0.3 * k) * g);
       }
     }
-    {
-      // The one on its pad, lamps low; and the one that lifts off its own
-      // every minute or so, turns about in the air and settles again.
-      const first = flyers + (police ? 1 : 0);
-      p.set(PAD_STANDING[0], PAD_STANDING[1], PAD_STANDING[2]);
+    // The one on its pad, lamps low.
+    p.set(PAD_STANDING[0], PAD_STANDING[1], PAD_STANDING[2]);
+    if (fly(1)) {
       q.setFromAxisAngle(UP, PAD_STANDING[3]);
-      avMesh.setMatrixAt(first, m.compose(p, q, one));
+      body(1);
       fwd.set(0, 0, 1).applyQuaternion(q);
       setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.3, 0.36, 0.4, 1.0);
       setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 0.45, 0.04, 0.1, 0.8);
-      const H = PAD_HOP;
-      const whole = H.rest + 2 * H.climb + H.hover;
-      const t = ((clock % whole) + whole) % whole;
-      const up = t < H.rest ? 0 : t < H.rest + H.climb ? smoother((t - H.rest) / H.climb) : t < H.rest + H.climb + H.hover ? 1 : 1 - smoother((t - H.rest - H.climb - H.hover) / H.climb);
-      const about = smoother(Math.min(1, Math.max(0, (t - H.rest - H.climb) / H.hover)));
-      p.set(H.at[0], H.at[1] + up * H.rise, H.at[2]);
-      q.setFromAxisAngle(UP, H.at[3] + about * Math.PI * 2);
-      avMesh.setMatrixAt(first + 1, m.compose(p, q, one));
+    }
+    // And the megabuilding pad's: at rest half a minute, then up, a round
+    // out over the street's east end, back and down.
+    padAt(clock, sky);
+    p.set(sky.x, sky.y, sky.z);
+    if (fly(1)) {
+      q.setFromAxisAngle(UP, sky.yaw);
+      q.multiply(tilt.setFromEuler(euler.set(0, 0, sky.bank)));
+      body(1);
       fwd.set(0, 0, 1).applyQuaternion(q);
-      const lit = 0.35 + 0.65 * Math.min(1, up * 4);
-      setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75 * lit, 0.9 * lit, 1.0 * lit, 1.2);
-      setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0 * lit, 0.1 * lit, 0.25 * lit, 0.9);
+      setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75 * sky.lit, 0.9 * sky.lit, 1.0 * sky.lit, 1.2);
+      setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0 * sky.lit, 0.1 * sky.lit, 0.25 * sky.lit, 0.9);
     }
     if (police) {
       // The police: an AV on its own slow beat, banked into it, and its light
@@ -1144,17 +1199,19 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       fwd.subVectors(tmp, p).normalize();
       q.setFromUnitVectors(FRONT, fwd);
       q.multiply(tilt.setFromEuler(euler.set(0.04, 0, -0.12)));
-      avMesh.setMatrixAt(flyers, m.compose(p, q, one));
       voices.police.copy(p);
-      setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75, 0.9, 1.0, 1.2);
-      setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0, 0.1, 0.25, 0.9);
-      const beat = ((clock % 1.6) + 1.6) % 1.6;
-      const red = reduced ? 0.3 : 0.12 + 0.88 * twice(beat, 0);
-      const blue = reduced ? 0.3 : 0.12 + 0.88 * twice(beat, 0.8);
-      tmp.set(0.38, 1.12, -0.6).applyQuaternion(q).add(p);
-      setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * red, 0.04 * red, 0.1 * red, 1.5);
-      tmp.set(-0.38, 1.12, -0.6).applyQuaternion(q).add(p);
-      setLamp(li++, tmp.x, tmp.y, tmp.z, 0.12 * blue, 0.3 * blue, 1.0 * blue, 1.5);
+      if (fly(1)) {
+        body(1);
+        setLamp(li++, p.x + fwd.x * 2.6, p.y + 0.25, p.z + fwd.z * 2.6, 0.75, 0.9, 1.0, 1.2);
+        setLamp(li++, p.x - fwd.x * 2.6, p.y + 0.4, p.z - fwd.z * 2.6, 1.0, 0.1, 0.25, 0.9);
+        const beat = ((clock % 1.6) + 1.6) % 1.6;
+        const red = reduced ? 0.3 : 0.12 + 0.88 * twice(beat, 0);
+        const blue = reduced ? 0.3 : 0.12 + 0.88 * twice(beat, 0.8);
+        tmp.set(0.38, 1.12, -0.6).applyQuaternion(q).add(p);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * red, 0.04 * red, 0.1 * red, 1.5);
+        tmp.set(-0.38, 1.12, -0.6).applyQuaternion(q).add(p);
+        setLamp(li++, tmp.x, tmp.y, tmp.z, 0.12 * blue, 0.3 * blue, 1.0 * blue, 1.5);
+      }
     }
     for (let d = 0; d < rounds.length; d++) {
       // Where in its round this drone is: sitting on a roof, climbing off
@@ -1263,19 +1320,22 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         setLamp(li++, tmp.x, tmp.y, tmp.z, 0.08 * glow, 0.2 * glow, glow * (1 - 0.7 * flip), 1.1);
       }
     }
-    if (rail) {
-      const pass = Math.floor(clock / TRAIN.period);
-      const t = clock - pass * TRAIN.period;
-      const dir = pass % 2 ? -1 : 1;
-      train.visible = t < TRAIN.crossing;
-      if (train.visible) {
-        const k = t / TRAIN.crossing;
-        train.position.set(rail.position.x + dir * (k * 2 - 1) * TRAIN.span, rail.position.y, rail.position.z);
-        trainMat.uniforms.uDir.value = dir;
-      }
-      voices.train = train.visible ? train.position : null;
+    voices.train = null;
+    for (const T of trains) {
+      const at = T.at(clock);
+      T.mesh.visible = !!at;
+      if (!at) continue;
+      T.mesh.position.set(at.x, T.line.y, T.line.z);
+      T.material.uniforms.uDir.value = at.dir;
+      // The one the city hears is the viaduct's.
+      if (rail && T === trains[0]) voices.train = T.mesh.position;
     }
-    avMesh.instanceMatrix.needsUpdate = true;
+    for (const L of avLevels) {
+      L.mesh.count = L.n;
+      L.mesh.instanceMatrix.clearUpdateRanges();
+      L.mesh.instanceMatrix.addUpdateRange(0, L.n * 16);
+      L.mesh.instanceMatrix.needsUpdate = true;
+    }
     droneMesh.instanceMatrix.needsUpdate = true;
     for (const K of kinds) {
       for (const L of K.levels) {
@@ -1302,6 +1362,16 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       frozen = on;
       if (typeof at === "number") clock = at;
     },
+    /** Dev: the second of the traffic's own clock. */
+    time: () => clock,
+    /** Dev: where every flying car on a lane is at this second of the clock
+     *  (the sky checks count them from the street and from the air). */
+    flying() {
+      return craft.map((c) => {
+        craftAt(c, clock, sky);
+        return { x: sky.x, y: sky.y, z: sky.z };
+      });
+    },
     /** Dev: every car there is at this second of the clock, drawn or not
      *  (the road checks count them from a driver's seat): where it is, the
      *  way it faces, its model, its size, whether it stands. */
@@ -1314,9 +1384,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       });
     },
     dispose() {
-      scene.remove(avMesh, droneMesh, lamps, train, ...kinds.flatMap((k) => k.levels.map((l) => l.mesh)));
-      trainGeo.dispose();
-      trainMat.dispose();
+      scene.remove(...avLevels.map((l) => l.mesh), droneMesh, lamps, ...trains.map((T) => T.mesh), ...kinds.flatMap((k) => k.levels.map((l) => l.mesh)));
+      for (const T of trains) {
+        T.geometry.dispose();
+        T.material.dispose();
+      }
       avGeo.dispose();
       droneGeo.dispose();
       droneMesh.dispose();
@@ -1324,7 +1396,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       quad.dispose();
       lampGeo.dispose();
       lampMat.dispose();
-      avMesh.dispose();
+      for (const l of avLevels) l.mesh.dispose();
+      avFar.dispose();
       for (const k of kinds) {
         k.material.dispose();
         for (const l of k.levels) {
