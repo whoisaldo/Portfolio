@@ -969,33 +969,12 @@ box((FA, "board_frame", 0), WALK - 4.75, WALK - 0.25, SHOP_H + 2.8, SHOP_H + 33.
 # the hero's lens, where the plate has it.
 ARASAKA = (75.0, -490.0)
 ax, az = ARASAKA
-# A corporation's tower: a podium wider than the tower with a lit lobby, a
-# shaft with its corners cut back, the red band at the setback, the upper
-# floors square so the name has its whole face, the second red band, and a
-# crown of red fins round a dark head with a mast over it. The width the
-# hero's band of sky frames is the shaft's, as before.
-prism(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H, 21.0, 4500, col=(0.55, 2 / 8.0, 0.45, 1))
-box((FA, "dark", 0), ax - 32, ax + 32, 0, SHOP_H, az - 32, az + 32, scale=4.0)
-band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H - 0.62, SHOP_H - 0.54, "red", out=0.2)
-band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), 20.2, 21.0, "red", out=0.25)
-prism(FA, cut_rect(ax, az, 26.0, 26.0, 5.0), 21.0, 110.0, 4501, col=(0.3, 0.5, 0.2, 1))
-band(FA, cut_rect(ax, az, 26.0, 26.0, 5.0), 108.0, 110.0, "red", out=0.3)
-mass(FA, ax - 22, ax + 22, az - 22, az + 22, 110, 182, 4502, col=(0.22, 0.5, 0.2, 1))
-box((FA, "neon_red", 0), ax - 22.3, ax + 22.3, 180.2, 182.2, az - 22.3, az + 22.3, scale=1.0)
-sign("arasaka", ax, 159.0, az + 22.6, 44.0, 15.0, 0.0, preview="ARASAKA", district=FA)
-prism(FA, cut_rect(ax, az, 18.0, 18.0, 3.5), 182.2, 203.0, 4503, col=(0.08, 4 / 8.0, 0.2, 1))
-for sx, sz, alongx in ((0, 1, True), (0, -1, True), (1, 0, False), (-1, 0, False)):
-    for f in (-10.0, -3.4, 3.4, 10.0):
-        fx = ax + (f if alongx else sx * 18.25)
-        fz = az + (sz * 18.25 if alongx else f)
-        wx, wz = (0.45, 0.3) if alongx else (0.3, 0.45)
-        box((FA, "neon_red", 0), fx - wx, fx + wx, 184.0, 201.5, fz - wz, fz + wz, scale=1.0)
-box((FA, "neon_red", 0), ax - 18.3, ax + 18.3, 202.4, 203.2, az - 18.3, az + 18.3, scale=1.0)
-cylinder((FA, "metal", 0), ax, az, 203.0, 232.0, 0.8, segs=8)
-cylinder((FA, "neon_red", 0), ax, az, 232.0, 234.0, 1.1, segs=8)
+# The tower itself is the show's monolith (canyon_court.tower): its name on
+# a vertical belt of it, where the hero's band of sky has always had it.
+from ncw.districts import canyon_court  # noqa: E402
+canyon_court.tower(ax, az)
 
 # Its forecourt on the canyon, its lobby and terrace, the annex and landing
 # pad east of it and the blocks north of it (the canyon's pack).
-from ncw.districts import canyon_court  # noqa: E402
 canyon_court.build(ax, az, OCC, FORECOURT[0], FORECOURT[1])
 B.ground_rect(CB, 52.0, ax + 32.0, az + 32.0, -456.0)

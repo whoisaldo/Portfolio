@@ -16,7 +16,7 @@ from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts import canyon_kit as C
-from ncw.districts.canyon_kit import CB, fl
+from ncw.districts.canyon_kit import CB, FA, fl
 
 G0 = B.G0
 COURT_Y = 0.75          # the raised court, four risers over the pavement
@@ -184,15 +184,7 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     stand(22.6, az - 4.6, -math.pi / 2, "idle", COURT_Y)
     stand(20.0, az - 9.0, -math.pi / 2, "sit", G0 + 0.45)
     stand(20.0, az - 8.2, -math.pi / 2, "sit", G0 + 0.45)
-    # ---- the tower's shaft and terrace -----------------------------------
-    # Fins and a seam of light up the shaft's west, north and east faces
-    # (ax5YUmkWf_Y@39); the south face is the hero's and the Work shot's and
-    # stays as it was.
-    rib = B.DARK_TRIM
-    for f in (B.Face("-x", ax - 26.0, az - 21.0, az + 21.0), B.Face("+x", ax + 26.0, az - 21.0, az + 21.0), B.Face("-z", az - 26.0, ax - 21.0, ax + 21.0)):
-        for off in (3.0, 9.0, 15.0, 27.0, 33.0, 39.0):
-            f.box((CB, "trim", 1), off - 0.3, off + 0.3, 21.2, 107.8, 0.0, 0.5, col=rib)
-        f.quad((CB, "neon_red", 0), 20.7, 21.3, 24.0, 106.0, 0.12)
+    # ---- the terrace on the podium's roof ---------------------------------
     # The podium's roof, round the shaft: a glass rail, trees, lamps, people.
     walls((CB, "glass_dark", 1), cut_rect(ax, az, 31.7, 31.7, 5.0), 21.0, 22.1, (1, 1, 1, 1))
     walls((CB, "metal", 1), cut_rect(ax, az, 31.75, 31.75, 5.0), 22.1, 22.17, (1, 1, 1, 1))
@@ -200,7 +192,7 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
         P.place("planter_tree", ax + sx * 24.0, 21.0, az + sz * 29.0, district=CB)
         P.place("planter_tree", ax + sx * 29.0, 21.0, az + sz * 12.0, district=CB)
         P.place("cy_deck_lamp", ax + sx * 30.6, 21.0, az + sz * 22.0, -sx * math.pi / 2, district=CB)
-    for (tx, tz, yaw) in ((ax - 30.8, az + 3.0, math.pi / 2), (ax - 30.8, az + 4.1, math.pi / 2), (ax + 6.0, az + 30.8, math.pi), (ax - 12.0, az - 30.8, 0.0)):
+    for (tx, tz, yaw) in ((ax - 30.8, az + 14.0, math.pi / 2), (ax - 30.8, az + 15.1, math.pi / 2), (ax + 14.0, az + 30.8, math.pi), (ax - 14.0, az - 30.8, 0.0)):
         stand(tx, tz, yaw, "lean", 21.0)
     # ---- the yard, the annex and its landing pad ------------------------
     # East of the tower: a paved yard behind a wall with red lamps on it, a
@@ -255,3 +247,128 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     C.lane(CB, 46.0, 130.0, -530.0, -522.0, random.Random(4922), along="x", tubes=False, name="cy_service")
     for x in (60.0, 84.0, 108.0):
         P.place("lamp_short", x, G0, -522.6, district=CB)
+
+
+# ---------------------------------------------------------------------------
+# The tower: the show's monolith (ax5YUmkWf_Y@39, ARL_JWwKdDs@1). No windows
+# to count floors by: dark faces in vertical ribs and grooves that lean in
+# as they rise, a channel of red light down the middle of each, stepped
+# shoulders on the podium's roof, a vertical belt where the name stands
+# (exactly where the hero's band of sky and the Work shot have it), a
+# tapering head with a plain ring of red light on each face, a stepped cap
+# and a spire. What the hero's lens sees of it (from the roofs' line up) is
+# in the core; the rest streams in with the canyon's pack.
+# ---------------------------------------------------------------------------
+# (So high over the street no light reaches it: its ribs carry the sky's
+# violet as a faint light of their own, and its grooves stay black.)
+RIB = (0.014, 0.01, 0.023, 1)
+GROOVE = (0.02, 0.017, 0.021, 1)
+HERO_FROM = 110.0       # the canyon's roofs hide the tower below this
+
+
+def _plan(y):
+    """The monolith's half width and corner cut at a height."""
+    if y <= 150.0:
+        t = (y - 21.0) / 129.0
+        return 27.0 - 5.0 * t, 5.0 - 1.0 * t
+    if y <= 168.0:
+        return 22.0, 4.0
+    t = (y - 168.0) / 46.0
+    return 22.0 - 8.0 * t, 4.0 - 1.0 * t
+
+
+def _shell(key, cx, cz, y0, y1, strips=11, wash=0.0, grow=0.0, col=None, plan=_plan):
+    """The monolith's skin between two heights: each of its four faces in
+    vertical strips, rib and groove by turns (the middle one a groove), its
+    cut corners plain. `wash`: the forecourt's red light on it, low down."""
+    (h0, c0), (h1, c1) = plan(y0), plan(y1)
+    a, b = cut_rect(cx, cz, h0 + grow, h0 + grow, c0), cut_rect(cx, cz, h1 + grow, h1 + grow, c1)
+    for i in range(8):
+        j = (i + 1) % 8
+        n = strips if i % 2 == 0 else 1
+        for k in range(n):
+            t0, t1 = k / n, (k + 1) / n
+            rib = col is None and i % 2 == 0 and k % 2 == 0
+            c = RIB if rib else (col or GROOVE)
+            c = (c[0] + wash * (0.25 if rib else 0.5), c[1] + wash * (0.02 if rib else 0.06), c[2] + wash * (0.04 if rib else 0.09), 1)
+            quad((key, "glow" if rib else "trim", 0),
+                 (a[i][0] + (a[j][0] - a[i][0]) * t0, y0, a[i][1] + (a[j][1] - a[i][1]) * t0),
+                 (a[i][0] + (a[j][0] - a[i][0]) * t1, y0, a[i][1] + (a[j][1] - a[i][1]) * t1),
+                 (b[i][0] + (b[j][0] - b[i][0]) * t1, y1, b[i][1] + (b[j][1] - b[i][1]) * t1),
+                 (b[i][0] + (b[j][0] - b[i][0]) * t0, y1, b[i][1] + (b[j][1] - b[i][1]) * t0), col=c)
+
+
+FACES = (("s", 0, 1), ("e", 1, 0), ("n", 0, -1), ("w", -1, 0))
+
+
+def _on(cx, cz, nx, nz, u, y, out=0.0):
+    """A point on a face of the monolith: u metres to the right of its
+    middle (seen from outside), at height y, `out` proud of it."""
+    h = _plan(y)[0] + out
+    return (cx + nx * h + nz * u, y, cz + nz * h - nx * u)
+
+
+def _line(key, mat, cx, cz, nx, nz, u0, u1, y0, y1, out=0.08, col=(1, 1, 1, 1)):
+    """A strip up a face (which leans), following it."""
+    quad((key, mat, 0), _on(cx, cz, nx, nz, u0, y0, out), _on(cx, cz, nx, nz, u1, y0, out), _on(cx, cz, nx, nz, u1, y1, out),
+         _on(cx, cz, nx, nz, u0, y1, out), col=col)
+
+
+def tower(ax, az):
+    # The podium: ribbed like the tower, two slits of warm light round it,
+    # a line of red at its roof's edge.
+    pod = lambda y: (32.0, 5.0)  # noqa: E731
+    _shell(CB, ax, az, SHOP_H, 21.0, strips=17, wash=0.12, plan=pod)
+    box((FA, "dark", 0), ax - 32, ax + 32, 0, SHOP_H, az - 32, az + 32, scale=4.0)
+    outline = cut_rect(ax, az, 32.0, 32.0, 5.0)
+    poly((CB, "roof", 0), [(x, 21.0, z) for x, z in outline], [(x / 4, z / 4) for x, z in outline])
+    for y in (9.6, 15.4):
+        walls((CB, "glow", 0), cut_rect(ax, az, 32.06, 32.06, 5.0), y, y + 0.28, C.dim("amber", 0.45))
+    band(CB, outline, SHOP_H - 0.62, SHOP_H - 0.54, "red", out=0.2)
+    band(CB, outline, 20.6, 21.0, "red", out=0.25)
+    # The shaft, leaning in, in storeys with a seam between them; the belt;
+    # the head.
+    cuts = (21.0, 45.0, 75.0, HERO_FROM, 150.0, 168.0, 191.0, 214.0)
+    for y0, y1, wash in zip(cuts, cuts[1:], (0.1, 0.045, 0.015, 0.0, 0.0, 0.0, 0.0)):
+        key = FA if y0 >= HERO_FROM else CB
+        _shell(key, ax, az, y0, y1, wash=wash)
+        if y0 not in (21.0, 168.0):
+            _shell(key, ax, az, y0 - 0.25, y0 + 0.25, strips=1, grow=0.07, col=(0.012, 0.011, 0.014, 1))
+    for y in (150.0, 168.0):
+        walls((FA, "neon_red", 0), cut_rect(ax, az, 22.1, 22.1, 4.0), y - 0.2, y + 0.2, (1, 1, 1, 1))
+    # The channel of red light down the middle of each face, broken behind
+    # the name; the ring on each face of the head.
+    for name, nx, nz in FACES:
+        key = FA if name in ("s", "w") else CB
+        for y0, y1 in ((23.0, HERO_FROM), (HERO_FROM, 148.5), (148.5, 170.0), (170.0, 182.5)):
+            if name == "s" and y0 == 148.5:
+                continue
+            _line(key if y0 >= HERO_FROM else CB, "neon_red", ax, az, nx, nz, -0.22, 0.22, y0, y1)
+        yc, R, t, n = 194.0, 8.2, 1.15, 32
+        for i in range(n):
+            a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
+            q = [_on(ax, az, nx, nz, rad * math.cos(a), yc + rad * math.sin(a), 0.3) for rad, a in ((R, a0), (R, a1), (R - t, a1), (R - t, a0))]
+            quad((key, "neon_red", 0), *q)
+    # The shoulders on the podium's roof: a buttress in two steps against
+    # each face, a line of red under each step.
+    for name, nx, nz in FACES:
+        for half, out, top in ((9.0, 3.6, 58.0), (6.0, 1.8, 86.0)):
+            d0, d1 = _plan(top)[0] - 0.6, 27.0 + out
+            xs = sorted((ax + nx * d0 - nz * half, ax + nx * d1 + nz * half))
+            zs = sorted((az + nz * d0 - nx * half, az + nz * d1 + nx * half))
+            box((CB, "glow", 0), xs[0], xs[1], 21.0, top, zs[0], zs[1], scale=2.0, col=(0.03, 0.012, 0.022, 1))
+            f = B.Face({"s": "+z", "e": "+x", "n": "-z", "w": "-x"}[name], az + nz * d1 if nx == 0 else ax + nx * d1,
+                       (ax if nx == 0 else az) - half, (ax if nx == 0 else az) + half)
+            f.quad((CB, "neon_red", 0), 0.3, f.width - 0.3, top - 0.7, top - 0.5, 0.03)
+            f.quad((CB, "trim", 0), f.width / 2 - 0.7, f.width / 2 + 0.7, 21.0, top - 1.2, 0.03, col=GROOVE)
+    # The cap in two steps and the spire, a red lamp at its tip.
+    for y0, y1, h in ((214.0, 219.0, 12.5), (219.0, 226.0, 9.0)):
+        o = cut_rect(ax, az, h, h, 2.5)
+        walls((FA, "glow", 0), o, y0, y1, RIB)
+        poly((FA, "roof", 0), [(x, y1, z) for x, z in o], [(x / 4, z / 4) for x, z in o])
+        walls((FA, "neon_red", 0), cut_rect(ax, az, h + 0.08, h + 0.08, 2.5), y1 - 0.5, y1 - 0.2, (1, 1, 1, 1))
+    o = cut_rect(ax, az, *_plan(214.0))
+    poly((FA, "roof", 0), [(x, 214.0, z) for x, z in o], [(x / 4, z / 4) for x, z in o])
+    cylinder((FA, "metal", 0), ax, az, 226.0, 250.0, 0.8, segs=8)
+    cylinder((FA, "neon_red", 0), ax, az, 250.0, 252.0, 1.1, segs=8)
+    sign("arasaka", ax, 159.0, az + 22.6, 44.0, 15.0, 0.0, preview="ARASAKA", district=FA)
