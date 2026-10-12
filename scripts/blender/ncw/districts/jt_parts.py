@@ -1179,3 +1179,42 @@ def _jt_kerbkit(k):
         quad(T, (-0.42, -0.128, z + 0.025), (0.42, -0.128, z + 0.025), (0.42, -0.128, z - 0.025), (-0.42, -0.128, z - 0.025), col=(0.2, 0.2, 0.21, 1))
     quad(T, (0.75, 0.006, -0.45), (1.35, 0.006, -0.45), (1.35, 0.006, -0.95), (0.75, 0.006, -0.95), col=(0.1, 0.1, 0.11, 1))
     quad(T, (0.8, 0.009, -0.5), (1.3, 0.009, -0.5), (1.3, 0.009, -0.9), (0.8, 0.009, -0.9), col=(0.17, 0.17, 0.18, 1))
+
+
+# ---------------------------------------------------------------------------
+# Paper on walls (round 3, the ramp's walls and the lanes): the site prints
+# each bill (`print`, an advert on a board, its art the instance's own), so
+# two bills side by side are two adverts and three in one prototype are the
+# same one three times, as a fly-poster pastes them. Each stands on the
+# wall's plane (z 0) toward +z, its foot at the origin.
+# ---------------------------------------------------------------------------
+PAPER_OLD = (0.36, 0.34, 0.29, 1)
+PAPER_TORN = (0.46, 0.44, 0.38, 1)
+
+
+def _bill(k, x, w=0.58, h=0.82, z=0.012, half=False):
+    uv = ((0, 0), (1, 0), (1, 0.55), (0, 0.55)) if half else ((0, 0), (1, 0), (1, 1), (0, 1))
+    hh = h * 0.55 if half else h
+    rotated_quad(k("print"), x, 0.04 + hh / 2, z, w, hh, 0.0, uvs=uv, col=(0.5, 0.5, 0.5, P.BOARD))
+
+
+@P.proto("jt_bill", box=(0.36, 0.45, 0.03), reach=170, detail=True)
+def _jt_bill(k):
+    """One bill: under it what is left of an older one, ragged, and its own
+    top corner lifting off the paste."""
+    T = k("trim")
+    quad(T, (-0.37, 0.0, 0.004), (0.18, 0.02, 0.004), (0.24, 0.66, 0.004), (-0.34, 0.74, 0.004), col=PAPER_OLD)
+    _bill(k, 0.03)
+    poly(T, [(0.32, 0.86, 0.016), (0.16, 0.86, 0.04), (0.32, 0.7, 0.04)], [(0, 0)] * 3, PAPER_TORN)
+
+
+@P.proto("jt_bills", box=(1.0, 0.45, 0.03), reach=220, detail=True)
+def _jt_bills(k):
+    """A fly-poster's run: the same bill three times edge to edge over the
+    older paper, and a fourth torn away to its lower half."""
+    T = k("trim")
+    quad(T, (-0.98, 0.0, 0.004), (1.3, 0.03, 0.004), (1.27, 0.84, 0.004), (-0.95, 0.88, 0.004), col=PAPER_OLD)
+    for x in (-0.62, 0.0, 0.62):
+        _bill(k, x, 0.6)
+    _bill(k, 1.04, 0.42, half=True)
+    poly(T, [(0.83, 0.49, 0.016), (1.25, 0.49, 0.016), (1.25, 0.56, 0.02), (1.1, 0.6, 0.02), (0.92, 0.54, 0.02)], [(0, 0)] * 5, PAPER_TORN)

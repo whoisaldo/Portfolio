@@ -2670,17 +2670,27 @@ tr = random.Random(7400)
 ta, tb = TORII
 tc = (ta + tb) / 2
 gx = XW - 1.2
+# (Round 3: the gate stands 10.3 m to its lintel, so from the plaza
+# street's mouth, across the ramp, its posts, tie beam, plaque and lintel
+# stand over the ramp's parapet and the deck's chevron board there.)
+TORII_H = 10.3
 for z in (ta + 0.75, tb - 0.75):
-    cylinder((D, "trim", 0), gx, z, G0, 7.3, 0.32, segs=10, col=TORII_RED)
-    cylinder((D, "dark", 0), gx, z, G0, 0.8, 0.4, segs=10)
+    cylinder((D, "trim", 0), gx, z, G0, TORII_H, 0.4, segs=10, col=TORII_RED)
+    cylinder((D, "dark", 0), gx, z, G0, 0.95, 0.5, segs=10)
     J.put("lantern", gx, 5.2, z + (1.1 if z < tc else -1.1), 0.0, 2.3, 2.3)
-box((D, "trim", 0), gx - 0.35, gx + 0.35, 7.3, 7.9, ta + 0.05, tb - 0.05, scale=1.0, col=TORII_RED, bottom=True)
-box((D, "dark", 0), gx - 0.45, gx + 0.45, 7.9, 8.05, ta + 0.02, tb - 0.02, scale=1.0, bottom=True)
-box((D, "trim", 0), gx - 0.2, gx + 0.2, 5.9, 6.25, ta + 0.75, tb - 0.75, scale=1.0, col=TORII_RED, bottom=True)
-box((D, "trim", 0), gx - 0.12, gx + 0.12, 6.25, 7.3, tc - 0.75, tc + 0.75, scale=1.0, col=(0.06, 0.05, 0.05, 1))
+box((D, "trim", 0), gx - 0.32, gx + 0.32, TORII_H, TORII_H + 0.34, ta + 0.3, tb - 0.3, scale=1.0, col=TORII_RED, bottom=True)
+box((D, "trim", 0), gx - 0.46, gx + 0.46, TORII_H + 0.34, TORII_H + 0.78, ta + 0.05, tb - 0.05, scale=1.0, col=TORII_RED, bottom=True)
+box((D, "dark", 0), gx - 0.54, gx + 0.54, TORII_H + 0.78, TORII_H + 0.94, ta + 0.02, tb - 0.02, scale=1.0, bottom=True)
+for z0_, z1_ in ((ta + 0.02, ta + 0.6), (tb - 0.6, tb - 0.02)):
+    box((D, "dark", 0), gx - 0.5, gx + 0.5, TORII_H + 0.94, TORII_H + 1.02, z0_, z1_, scale=1.0)
+ny = TORII_H - 1.7
+box((D, "trim", 0), gx - 0.22, gx + 0.22, ny, ny + 0.4, ta + 0.35, tb - 0.35, scale=1.0, col=TORII_RED, bottom=True)
+box((D, "trim", 0), gx - 0.14, gx + 0.14, ny + 0.4, TORII_H, tc - 0.8, tc + 0.8, scale=1.0, col=(0.06, 0.05, 0.05, 1))
 for yaw in (HALF_PI, -HALF_PI):
-    J.slab_sign((gx + math.sin(yaw) * 0.14, 6.78, tc), basis(yaw), "bx", 0.8, both=False, depth=0.04)
-box((D, "neon_red", 0), gx + 0.36, gx + 0.42, 7.3, 7.38, ta + 0.3, tb - 0.3, scale=1.0, bottom=True)
+    J.slab_sign((gx + math.sin(yaw) * 0.16, (ny + 0.4 + TORII_H) / 2, tc), basis(yaw), "bx", 0.85, both=False, depth=0.04)
+for xo in (0.34, -0.34):
+    box((D, "neon_red", 0), gx + xo - 0.03, gx + xo + 0.03, TORII_H - 0.02, TORII_H + 0.06, ta + 0.4, tb - 0.4, scale=1.0, bottom=True)
+    box((D, "neon_red", 0), gx + xo * 0.7 - 0.03, gx + xo * 0.7 + 0.03, ny - 0.06, ny + 0.02, ta + 0.45, tb - 0.45, scale=1.0, bottom=True)
 light(D, gx + 2.0, 0.3, tc, "red", 4.0)
 x = XW - 4.0
 k = 0
@@ -2720,6 +2730,129 @@ B.billboard(D, bx, 9.6, tc, 9.0, 4.8, HALF_PI, tr)
 J.tube_sign((bx, 13.4, tc), HALF_PI, 6.4, 2.0, "red", tr)
 for z in (tc - 3.6, tc + 3.6):
     box((D, "metal", 0), bx - 0.5, bx - 0.2, G0, 14.4, z - 0.15, z + 0.15, scale=1.0)
+
+# ---------------------------------------------------------------------------
+# The ramp's walls where the street sees them (the ramp and its paint are
+# the deck's; what the street has put on them is Japantown's): bills pasted
+# along the parapet and, where it is tall enough, the retaining wall under
+# the fascia; a pair of pipes on brackets along the fascia's foot, over the
+# deck's chipped yellow there, into a box at each end; machines against the
+# wall with their light on the lane, a standing lightbox, bags, a bin, a
+# bicycle. Nothing stands more than 0.9 m off it: the service lanes' cars
+# run 2.5 m from it.
+# ---------------------------------------------------------------------------
+def ramp_y(z):
+    """The ramp's road at z (deck.py's RY)."""
+    def sm(t):
+        t = max(0.0, min(1.0, t))
+        return t * t * (3.0 - 2.0 * t)
+    Y, F, Z = plan.DECK_Y, plan.RAMP_FOOT_Z, plan.DECK_Z
+    zn = Z - plan.DECK_HALF
+    if z >= zn:
+        return Y
+    ry_ = lambda v: Y * sm((v - F) / (Z - F))  # noqa: E731
+    return ry_(z) + (Y - ry_(zn)) * max(0.0, min(1.0, (z - (zn - 10.0)) / 10.0))
+
+
+RAMP_X = {1: plan.DECK_X0 + plan.RAMP_HALF, -1: plan.DECK_X0 - plan.RAMP_HALF}   # its east and west faces
+GIRDER = plan.DECK_Y - plan.DECK_UNDER      # the fascia's depth under the road
+RAMP_KEEP = {1: [(-183.6, -174.4)], -1: [(CROSSING[0] - 1.0, CROSSING[1] + 1.0)]}   # the deck's chevron board; the walkway's crossing
+RAMP_JOINTS = (-203.0, -186.0, -168.0, -150.0)
+RAMP_BUTTS = tuple(-185.0 + 5.0 * k for k in range(8))
+RAMP_FIT = {1: ((-209.5, "bags"), (-205.8, "vending"), (-204.8, "vending"), (-199.0, "jt_bike"), (-196.6, "bin"),
+                (-163.0, "vending"), (-162.0, "vending"), (-158.6, "bin"), (-153.2, "jt_bike")),
+            -1: ((-208.0, "bags"), (-196.5, "vending"), (-191.8, "bin"), (-178.0, "vending"), (-177.0, "vending"), (-166.6, "lightbox"), (-157.5, "bags"))}
+# (Where the plaza street's cars turn out of the T, z -192..-166, the east
+# face has only what is flat on it: bills, the pipes, two lit panels.)
+RAMP_PANELS = {1: (-186.2, -171.6), -1: ()}
+
+
+def ramp_pipes(d, z0, z1):
+    """Two pipes along the fascia's foot from z0 to z1 (detail), a bracket
+    every 1.8 m, a box at each end where they turn into the wall."""
+    x = RAMP_X[d]
+    k = (D, "metal", 1)
+    zs_ = [z0 + (z1 - z0) * i / max(1, round((z1 - z0) / 2.0)) for i in range(round((z1 - z0) / 2.0) + 1)]
+    for o, dy, r in ((0.08, 0.24, 0.05), (0.06, 0.37, 0.032)):
+        for za, zb in zip(zs_, zs_[1:]):
+            pipe(k, (x + d * o, ramp_y(za) - GIRDER + dy, za), (x + d * o, ramp_y(zb) - GIRDER + dy, zb), r, segs=5, col=(0.16, 0.17, 0.18, 1))
+    z = z0 + 0.6
+    while z < z1 - 0.4:
+        y = ramp_y(z) - GIRDER
+        box(k, *sorted((x, x + d * 0.14)), y + 0.17, y + 0.42, z - 0.03, z + 0.03, scale=0.5, col=(0.1, 0.1, 0.11, 1))
+        z += 1.8
+    for z in (z0, z1):
+        y = ramp_y(z) - GIRDER
+        box(k, *sorted((x, x + d * 0.2)), y + 0.12, y + 0.56, z - 0.24, z + 0.24, scale=0.5, col=(0.2, 0.21, 0.2, 1))
+
+
+def ramp_face(d, z0, z1, r):
+    x = RAMP_X[d]
+    yaw = d * HALF_PI
+    keep = RAMP_KEEP[d] + [(j - 0.35, j + 0.35) for j in RAMP_JOINTS]
+
+    def clear(a, b):
+        return all(b < k0 or a > k1 for k0, k1 in keep)
+    # Bills along the parapet (the east face; the west one carries the
+    # walkway's upstand and open rail), at the low end's height, now in
+    # runs, now one or two. A prototype's +x runs toward -z on the east face.
+    z = z0 + r.uniform(0.5, 2.0)
+    n = 0
+    while d > 0 and z < z1 - 1.0:
+        roll = r.random()
+        if roll < 0.42 and clear(z, z + 2.3):
+            name, w, mid = "jt_bills", 2.3, z + 1.3
+        elif roll < 0.8 and clear(z, z + 0.7):
+            name, w, mid = "jt_bill", 0.7, z + 0.35
+        else:
+            z += r.uniform(0.8, 2.4)
+            continue
+        J.put(name, x + 0.002, ramp_y(z) + 0.07 + r.uniform(0.0, 0.02), mid, yaw, 0.92)
+        n += 1
+        z += w + (r.uniform(0.05, 0.3) if r.random() < 0.5 else r.uniform(1.0, 3.5))
+    # Bills on the retaining wall between the buttresses, where the wall
+    # under the fascia stands over 1.3 m.
+    for za, zb in zip(RAMP_BUTTS, RAMP_BUTTS[1:]):
+        top = ramp_y(za) - GIRDER
+        if top < 1.75:
+            continue
+        zz = za + 0.6 + r.uniform(0.0, 0.5)
+        while zz < zb - 1.2:
+            if not clear(zz, zz + 0.7):
+                zz += 0.7
+                continue
+            fits = [nm for nm, w in (("jt_bills", 2.3), ("jt_bill", 0.7)) if zz + w < zb - 0.5]
+            if not fits:
+                break
+            nm = r.choice(fits)
+            J.put(nm, x - d * 0.148, 0.5 + r.uniform(0.0, 0.25), zz + ((1.3 if d > 0 else 0.98) if nm == "jt_bills" else 0.35), yaw)
+            if top > 2.65 and r.random() < 0.6:
+                J.put("jt_bill", x - d * 0.148, 1.42 + r.uniform(0.0, 0.1), zz + r.uniform(0.3, 1.2), yaw)
+            zz += (2.3 if nm == "jt_bills" else 0.7) + r.uniform(0.2, 1.4)
+            n += 1
+    for z in RAMP_PANELS[d]:
+        J.slab_sign((x + d * 0.15, ramp_y(z - 0.77) + 0.48, z), basis(yaw), "ps", 0.85, both=False, depth=0.06)
+        for zb in (z - 0.5, z + 0.5):
+            box((D, "metal", 1), *sorted((x, x + d * 0.13)), ramp_y(z - 0.77) + 0.4, ramp_y(z - 0.77) + 0.5, zb - 0.03, zb + 0.03, scale=0.5)
+    # What stands against it on the lane.
+    for z, name in RAMP_FIT[d]:
+        if name == "vending":
+            J.put("vending", x + d * 0.6, 0.0, z, yaw)
+            light(D, x + d * 1.9, 0.3, z, r.choice(("white", "cyan", "white")), 1.3)
+        elif name == "lightbox":
+            J.put("lightbox", x + d * 0.32, 0.0, z, yaw)
+        elif name == "jt_bike":
+            J.put("jt_bike", x + d * 0.5, 0.0, z, 0.0 if r.random() < 0.5 else math.pi)
+        else:
+            J.put(name, x + d * 0.55, 0.0, z, r.uniform(0, 6.28))
+    return n
+
+
+_rr = random.Random(9177)
+_rb = sum(ramp_face(d, plan.RAMP_FOOT_Z + (3.0 if d > 0 else 1.0), -151.0, _rr) for d in (1, -1))
+ramp_pipes(1, -187.6, -151.4)
+ramp_pipes(-1, -187.6, -151.4)
+print("japantown ramp walls:", _rb, "bills;", "the gate seen over the ramp:", hero_sees((gx - 0.6, 0.0, ta), (gx + 0.6, TORII_H + 1.1, tb)))
 
 def lane_east():
     """The east lane's far wall is the back of the canyon's row, and that
