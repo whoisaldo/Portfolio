@@ -207,9 +207,19 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
   const order = new Int32Array(n).fill(-1);
   let shown = -1;
   const sphere = new THREE.Sphere();
+  // The lens as it last was: while a shot holds, nothing is tested again.
+  const last = new Float32Array(24).fill(NaN);
   return {
     mesh,
     update(frustum, eye) {
+      let moved = false;
+      frustum.planes.forEach((plane, i) => {
+        for (const [j, v] of [plane.normal.x, plane.normal.y, plane.normal.z, plane.constant].entries()) {
+          if (last[i * 4 + j] !== v) moved = true;
+          last[i * 4 + j] = v;
+        }
+      });
+      if (!moved) return;
       let k = 0;
       let changed = false;
       for (let i = 0; i < n; i++) {

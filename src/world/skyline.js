@@ -1057,6 +1057,8 @@ ${kitRects.map(([x0, z0, x1, z1]) => `        g = min(g, length(max(max(vec2(${g
         return g;
       }
       float dressedAt(vec2 p) {
+        // (Nowhere near the kit: not worth the rectangles.)
+        if (p.x < -320.0 || p.x > 655.0 || p.y < -945.0 || p.y > 270.0) return 0.0;
         return step(kitGap(p), ${DRESSED}) * (1.0 - step(430.0, p.x) * step(-212.0, p.y)) * (1.0 - step(p.y, -700.0) * step(-110.0, p.x) * step(p.x, 150.0));
       }
       float clearOfKit(vec2 p) {
@@ -2294,7 +2296,8 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
             float fj = float(j);
             vec2 at = j == 0 ? vec2(-1150.0, -260.0) : j == 1 ? vec2(-520.0, 1250.0) : j == 2 ? vec2(1500.0, -1000.0) : j == 3 ? vec2(-1000.0, 600.0) : vec2(-1250.0, -900.0);
             float u = fract(time / (7.0 + 1.5 * fj) + (j == 0 ? 0.316 : j == 1 ? 0.618 : j == 2 ? 0.5 : j == 3 ? 0.4 : 0.3));
-            float pulse = (exp(-u * 60.0) + 0.7 * exp(-abs(u - 0.035) * 90.0) + 0.5 * exp(-abs(u - 0.06) * 120.0)) * step(u, 0.12);
+            if (u > 0.12) continue;
+            float pulse = exp(-u * 60.0) + 0.7 * exp(-abs(u - 0.035) * 90.0) + 0.5 * exp(-abs(u - 0.06) * 120.0);
             vec2 off = (p.xz - at) / 520.0;
             col += vec3(0.62, 0.64, 0.92) * pulse * exp(-dot(off, off)) * (0.12 + 0.88 * cover * n) * near;
           }
