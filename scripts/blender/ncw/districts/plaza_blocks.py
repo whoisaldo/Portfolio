@@ -155,7 +155,32 @@ tower("B1 slab", 62.0, 104.0, -124.0, -100.0, 11.4, 45.4, 8315, kind="wall", win
 # The corner block's roof: a garden over the junction, and a screen turned
 # to it.
 parapet(80.0, 108.0, -168.0, -132.0, 18.2, tint=2, line="teal")
-garden(82.0, 106.0, -158.0, -134.0, 18.2, random.Random(8316), palms=3, trees=2, colour="teal")
+# (A park: paths crossing at a blossom tree, four lawns in hedges, a pergola
+# of lamps, palms and blossom, benches along the paths.)
+RY = 18.2
+rg = random.Random(8316)
+for (a0, a1, b0, b1) in ((82.6, 105.4, -147.2, -144.8), (92.8, 95.2, -157.4, -134.6)):
+    ground((PL, "sidewalk", 0), a0, a1, b0, b1, y=RY + 0.02, scale=2.0)
+P.place("planter_tree", 94.0, RY + 0.02, -146.0, 0.7, district=PL)
+for (a0, a1, b0, b1) in ((83.0, 92.0, -157.0, -148.0), (96.0, 105.0, -157.0, -148.0), (83.0, 92.0, -144.0, -135.0), (96.0, 105.0, -144.0, -135.0)):
+    lawn(a0 + 1.4, a1 - 1.4, b0 + 1.4, b1 - 1.4, RY)
+    hedge_run(a0 + 0.3, b0 + 0.6, a1 - 0.3, b0 + 0.6, RY, 0.8)
+    hedge_run(a0 + 0.3, b1 - 0.6, a1 - 0.3, b1 - 0.6, RY, 0.8)
+    cx_, cz_ = (a0 + a1) / 2, (b0 + b1) / 2
+    P.place("planter_palm" if (a0 < 90) == (b0 < -150) else "planter_tree", cx_, RY + 0.3, cz_, rg.uniform(0, 6.28), district=PL)
+for (px, pz, yaw) in ((88.0, -147.6, 0.0), (100.0, -144.4, math.pi), (92.4, -139.5, math.pi / 2), (95.6, -153.0, -math.pi / 2)):
+    P.place("bench", px, RY + 0.02, pz, yaw, district=PL)
+for (px, pz) in ((90.6, -149.4), (97.4, -142.6), (84.0, -146.0), (104.0, -146.0)):
+    P.place("lamp_short", px, RY + 0.02, pz, district=PL)
+# The pergola over the east path: posts, rafters, a string of lamps.
+for px in (98.0, 101.0, 104.0):
+    for pz in (-147.3, -144.7):
+        box((PL, "metal", 1), px - 0.06, px + 0.06, RY, RY + 2.7, pz - 0.06, pz + 0.06, scale=0.5)
+    box((PL, "metal", 1), px - 0.05, px + 0.05, RY + 2.7, RY + 2.82, -147.6, -144.4, scale=0.5)
+for pz in (-147.3, -144.7):
+    box((PL, "metal", 1), 97.6, 104.4, RY + 2.62, RY + 2.7, pz - 0.05, pz + 0.05, scale=0.5)
+for k in range(8):
+    box((PL, "glow", 1), 98.0 + k * 0.85, 98.12 + k * 0.85, RY + 2.42, RY + 2.56, -146.06, -145.94, scale=0.5, col=GLOW["amber"])
 roof_screen(102.0, -163.0, 18.2, 10.0, 5.6, math.radians(135), 8317)
 # The tower's podium roof and the slab's: plant, a skylight, lamps.
 parapet(52.0, 80.0, -168.0, -132.0, 14.8, tint=1)

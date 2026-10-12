@@ -77,3 +77,4 @@ from ncw.districts import plaza_blocks  # noqa: E402,F401
 from ncw.districts import plaza_square  # noqa: E402,F401
 from ncw.districts import plaza_streets  # noqa: E402,F401
 from ncw.districts import plaza_people  # noqa: E402,F401
+from ncw.districts import plaza_dress  # noqa: E402,F401

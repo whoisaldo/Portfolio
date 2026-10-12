@@ -455,8 +455,14 @@ def stair_x(x0, x1, z0, z1, y0, y1, colour="cyan", r=None):
         xa, xb, ya, yb = x0 + i * run, x0 + (i + 1) * run, y0 + i * rise, y0 + (i + 1) * rise
         quad(k, (xa, ya, z0), (xa, ya, z1), (xa, yb, z1), (xa, yb, z0),
              ((z0 / 1.5, ya / 1.5), (z1 / 1.5, ya / 1.5), (z1 / 1.5, yb / 1.5), (z0 / 1.5, yb / 1.5)))
-        quad(k, (xa, yb, z1), (xb, yb, z1), (xb, yb, z0), (xa, yb, z0),
-             ((xa / 1.5, -z1 / 1.5), (xb / 1.5, -z1 / 1.5), (xb / 1.5, -z0 / 1.5), (xa / 1.5, -z0 / 1.5)))
+        # The tread: pale stone, two tones turn about, a line of light let
+        # into its nosing (from above the flight is stripes, not a slab).
+        tone = (0.5, 0.51, 0.54, 1.0) if i % 2 else (0.4, 0.41, 0.44, 1.0)
+        quad((PL, "trim", 0), (xa, yb, z1), (xb, yb, z1), (xb, yb, z0), (xa, yb, z0),
+             ((xa / 1.5, -z1 / 1.5), (xb / 1.5, -z1 / 1.5), (xb / 1.5, -z0 / 1.5), (xa / 1.5, -z0 / 1.5)), tone)
+        for za, zb in ((z0 + 0.3, (z0 + z1) / 2 - 0.2), ((z0 + z1) / 2 + 0.2, z1 - 0.3)):
+            quad((PL, "glow", 0), (xa, yb + 0.006, zb), (xa + 0.045, yb + 0.006, zb), (xa + 0.045, yb + 0.006, za), (xa, yb + 0.006, za),
+                 col=dim(colour, 0.5 if i % 3 == 1 else 0.22))
         # Light in the risers: short bars, staggered up the flight.
         if i % 3 == 1:
             z = z0 + 1.0 + (1.7 if (i // 3) % 2 else 0.0)
@@ -772,7 +778,7 @@ def corner_sign(x, z, y0, size, k, yaw, out=0.9):
     w, h = ST_SIZES[size][0] * k, ST_SIZES[size][1] * k
     nx, nz = math.sin(yaw), math.cos(yaw)
     cx, cz = x + nx * out, z + nz * out
-    big_sign(size, k, cx, y0 + h / 2, cz, yaw, double=False)
+    big_sign(size, k, cx, y0 + h / 2, cz, yaw)
     for yy in (y0 + h * 0.2, y0 + h * 0.8):
         oriented_box((PL, "metal", 1), x + nx * out * 0.45, yy, z + nz * out * 0.45, 0.12, 0.12, out * 0.9, yaw, scale=0.5)
     return h
