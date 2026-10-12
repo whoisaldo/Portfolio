@@ -1195,7 +1195,7 @@ def _cy_tank(k):
     box(T, -0.1, 0.1, 0.0, 0.9, -1.75, -1.55, scale=1.0, col=(0.3, 0.31, 0.33, 1))
 
 
-def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None):
+def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None, col=None):
     """The largest thing a stretch of roof may carry where no lens of the
     page's sees it, tried in turn: a crane, a penthouse (a stepped top with
     its own lit floor and roof), a rank of tanks, a strip of skylight. Says
@@ -1219,7 +1219,8 @@ def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None):
     if top:
         ph_ = top - 0.6
         a0, a1, b0, b1 = cx - pw / 2, cx + pw / 2, cz - pd / 2, cz + pd / 2
-        col = B.wall_col(0.95, 4, r.uniform(0.15, 0.7), B.TINTS[r.choice(("navy", "teal"))])
+        # (In its tower's own window, so the top is not a second building.)
+        col = col or B.wall_col(0.6, 2, r.uniform(0.15, 0.7), B.TINTS[r.choice(("navy", "teal"))])
         for f in B.faces_of(a0, a1, b0, b1).values():
             wall(key, f, y, ph_, col, r.randrange(20))
             f.box((key, "trim", 0), 0.0, f.width, ph_, ph_ + 0.5, -0.25, 0.0, col=B.TRIM[1])

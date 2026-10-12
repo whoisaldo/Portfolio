@@ -94,6 +94,7 @@ CROSS = tuple(((m["zn"] + m["zs"]) / 2, (m["zs"] - m["zn"]) / 2 + 1.0, min(m["fe
 # What stands between the hero's lens and the canyon: the avenue's lots.
 AVENUE_MASSES = list(HERO_MASSES)
 HUES = ("cyan", "yellow", "amber", "pink", "teal")
+HOUSE = {5: 2}          # the window a tower's backs and top take for its street face's
 
 
 def _x(side, u):
@@ -395,7 +396,12 @@ def _slab(U):
     sd = DEPTH if U["back"] == "flush" else L["sd"]
     tint, tcol = U["tint"], B.TRIM[U["tint"]]
     col = B.wall_col(U["lit"], U["style"], U["warmth"], tint)
-    back_col = B.wall_col(min(1.0, U["lit"] * 1.15), U["style"] if U["style"] in (2, 4, 5) else 6, U["warmth"], tint)
+    # (Its backs, its top and its crown in its own window, at its own
+    # scale: a band building's in the office ribbon, which is the band's
+    # cell lit room by room, not a barcode of whole floors.)
+    U["house"] = HOUSE.get(U["style"], U["style"])
+    back_col = B.wall_col(min(0.8, U["lit"] * 1.15), U["house"], U["warmth"], tint)
+    U["side_col"] = B.wall_col(U["lit"], U["house"], U["warmth"], tint)
     st, bk, so, no, xa, xb = _faces(side, 0.0, sd, U["zn"], U["zs"])
     B.COLLISION.append(("box", xa, xb, ph, h, U["zn"], U["zs"], "canyon"))
     U.update(sd=sd, col=col, back_col=back_col, st=st, bk=bk, so=so, no=no, x=(xa, xb))
@@ -547,9 +553,9 @@ def _back(U):
     # and cyan bands.)
     over = top > h + 6.0
     # (Each its own windows, so two neighbours' tops are never one stripe.)
-    top_col = B.wall_col(*((0.5, 5, U["warmth"]), (0.85, 4, 0.2), (0.6, 2, 0.75))[U["idx"] % 3], U["tint"])
+    top_col = B.wall_col(min(0.7, U["lit"] + 0.05), U["house"], U["warmth"], U["tint"])
     for f in (bk, so, no):
-        C.wall(CB, f, ph, h if over else top, U["back_col"] if f is bk else U["col"], U["ov"])
+        C.wall(CB, f, ph, h if over else top, U["back_col"] if f is bk else U["side_col"], U["ov"])
         if over:
             f.quad((CB, "trim", 0), 0.0, f.width, h, h + CELL_H, 0.0, col=M.SVC)
             C.wall(CB, f, h + CELL_H, top, top_col, U["ov"])
@@ -563,7 +569,7 @@ def _back(U):
         else:
             C.rail(CB, f, top, U["rail"])
     if top > h + 0.5:
-        C.wall(CB, st, h, top, top_col if over else U["col"], U["ov"])
+        C.wall(CB, st, h, top, top_col if over else U["side_col"], U["ov"])
         C.parapet(CB, st, top, tcol)
     C.roof(CB, xa, xb, zn, zs, top)
     B.ROOFS.append((CB, xa, xb, zn, zs, top))
@@ -581,7 +587,7 @@ def _back(U):
         return
     hue = r.choice(HUES + ("red",))
     for f in B.faces_of(cx0, cx1, cz0, cz1).values():
-        C.wall(CB, f, top, ctop, B.wall_col(0.95, 4, 0.25, U["tint"]), U["ov"])
+        C.wall(CB, f, top, ctop, B.wall_col(min(0.75, U["lit"] + 0.15), U["house"], U["warmth"], U["tint"]), U["ov"])
         C.strip(CB, f, 0.0, f.width, ctop - 1.3, ctop - 0.9, hue, out=0.08)
         # Bracing across it, bay by bay (ARL_JWwKdDs@22).
         nb = max(1, round(f.width / 9.0))
@@ -777,7 +783,7 @@ def _roofs(U):
         # tanks, a skylight.
         if u0 == 8.0 and zs - zn > 26.0:
             zm = (zn + zs) / 2
-            C.roof_big(CB, xa, xb, zm - 8.0, zm + 8.0, h, rb, OCC, plaza_)
+            C.roof_big(CB, xa, xb, zm - 8.0, zm + 8.0, h, rb, OCC, plaza_, col=U["back_col"])
             C.roof_plant(CB, xa, xb, zn, zm - 8.6, h, r, (top - h) if top else 0.0, lines)
             C.roof_plant(CB, xa, xb, zm + 8.6, zs, h, r, (top - h) if top else 0.0, lines)
             continue
@@ -801,7 +807,7 @@ def _roofs(U):
         cx0, cx1, cz0, cz1, ct = U["crown"]
         if cz1 - cz0 > 20.0:
             zm = (cz0 + cz1) / 2 + 5.0
-            C.roof_big(CB, cx0 + 0.5, cx1 - 0.5, zm - 4.0, zm + 4.0, ct, rb, OCC, plaza_)
+            C.roof_big(CB, cx0 + 0.5, cx1 - 0.5, zm - 4.0, zm + 4.0, ct, rb, OCC, plaza_, col=U["back_col"])
         C.roof_plant(CB, cx0 + 0.5, cx1 - 0.5, cz0 + 0.5, cz1 - 0.5 if cz1 - cz0 <= 20.0 else (cz0 + cz1) / 2, ct, r, 1.6)
         C.roof_edge(CB, cx0 + 0.5, cx1 - 0.5, cz0 + 0.5, cz1 - 0.5, ct, "red")
         C.roof_edge(CB, bx0 + 0.7, bx1 - 0.7, bz0 + 0.7, bz1 - 0.7, t, edge_hue)
@@ -810,7 +816,7 @@ def _roofs(U):
         cap = C.hidden_top(OCC, bx0, bx1, bz0, bz1, t, t + 7.0, step=1.0, pad=0.2, least=1.0)
         if bz1 - bz0 > 22.0:
             zm = (bz0 + bz1) / 2
-            C.roof_big(CB, bx0 + 0.6, bx1 - 0.6, zm - 7.0, zm + 7.0, t, rb, OCC, plaza_)
+            C.roof_big(CB, bx0 + 0.6, bx1 - 0.6, zm - 7.0, zm + 7.0, t, rb, OCC, plaza_, col=U["back_col"])
             C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, zm - 7.6, t, r, (cap - t) if cap else 0.0, ring)
             C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, zm + 7.6, bz1 - 0.6, t, r, (cap - t) if cap else 0.0, ())
         else:
@@ -836,7 +842,7 @@ def _roofs(U):
     if dz0 - bz0 > 4.0:
         # (A terrace stands well under its slab: its plant end is where a
         # crane can be left standing.)
-        if dz0 - bz0 > 9.0 and C.roof_big(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz0 + 5.6, t, rb, OCC, plaza_, crane=1.0, jib=(bz0 - 3.0, bz1)) == "crane":
+        if dz0 - bz0 > 9.0 and C.roof_big(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz0 + 5.6, t, rb, OCC, plaza_, crane=1.0, jib=(bz0 - 3.0, bz1), col=U["back_col"]) == "crane":
             print("CANYON crane", side, L["i"], U["k"])
         C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + (6.0 if dz0 - bz0 > 9.0 else 0.6), dz0 - 1.0, t, r, 6.0, ())
         x = bx0 + 2.2
