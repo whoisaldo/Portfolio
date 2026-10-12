@@ -340,11 +340,14 @@ def tower(ax, az):
     # the name; the ring on each face of the head.
     for name, nx, nz in FACES:
         key = FA if name in ("s", "w") else CB
-        for y0, y1 in ((23.0, HERO_FROM), (HERO_FROM, 148.5), (148.5, 170.0), (170.0, 182.5)):
+        for y0, y1 in ((23.0, HERO_FROM), (HERO_FROM, 148.5), (148.5, 170.0), (170.0, 197.0)):
             if name == "s" and y0 == 148.5:
                 continue
             _line(key if y0 >= HERO_FROM else CB, "neon_red", ax, az, nx, nz, -0.22, 0.22, y0, y1)
-        yc, R, t, n = 194.0, 8.2, 1.15, 32
+        # (High on the head, over the top of the hero's frame on a desk and
+        # on a phone: a ring cut by the frame's edge would be a red arc in
+        # its band of sky.)
+        yc, R, t, n = 204.7, 6.2, 1.0, 32
         for i in range(n):
             a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
             q = [_on(ax, az, nx, nz, rad * math.cos(a), yc + rad * math.sin(a), 0.3) for rad, a in ((R, a0), (R, a1), (R - t, a1), (R - t, a0))]
