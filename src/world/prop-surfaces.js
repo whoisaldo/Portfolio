@@ -93,6 +93,9 @@ export function createPropSurfaces(dressed) {
             if (e > 1.0 || (across > 0.07 && comb > 1.0 - 0.85 * e * e)) discard;
             albedo *= 0.75 + 0.55 * uv.y;
             albedo = mix(albedo, albedo * 1.7 + 0.015, smoothstep(0.1, 0.03, across));
+            // A crown at night is a dark shape with light on its edges: its
+            // green is kept low and cool, and the light does the rest.
+            albedo = mix(vec3(dot(albedo, vec3(0.3, 0.6, 0.1))), albedo, 0.6) * vec3(0.5, 0.6, 0.66);
             thin = 0.7;
           } else if (vColor.a > 0.6) {
             // Blossom: whole at the pad's middle, clusters with sky between
@@ -124,8 +127,11 @@ export function createPropSurfaces(dressed) {
           // The lamps in the planter, from below: on the trunk, and under
           // the crown.
           float h = max(vLocal.y, 0.0);
-          vec3 lamp = vec3(1.0, 0.76, 0.48) * (0.42 / (1.0 + h * h * 0.05)) * mix(1.0, 0.3 + 0.5 * clamp(-up, 0.0, 1.0), step(0.01, thin));
-          vec3 light = vec3(0.04) * (0.7 + 0.3 * up) + spillAt(vWorld) * (0.75 + 0.3 * thin) + lamp;
+          vec3 lamp = vec3(1.0, 0.76, 0.48) * (0.26 / (1.0 + h * h * 0.09)) * mix(1.0, 0.3 + 0.5 * clamp(-up, 0.0, 1.0), step(0.01, thin));
+          // A frond takes the street's light as a rim, on the faces turned
+          // to where it comes from (below and beside), not as a wash.
+          float frondish = step(0.9, vColor.a);
+          vec3 light = vec3(0.04) * (0.7 + 0.3 * up) + spillAt(vWorld) * mix(0.75 + 0.3 * thin, 0.3 + 0.35 * clamp(-up, 0.0, 1.0), frondish) + lamp;
           light += (uHazeColor * 0.22 + uGlowColor * 0.12) * (max(up, 0.0) + 0.5 * thin) * uHaze * 1.5;
           vec3 col = cityFog(albedo * light, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);
