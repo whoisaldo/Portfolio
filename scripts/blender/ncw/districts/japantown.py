@@ -294,11 +294,13 @@ STEAM = []
 VENTS = []
 
 
-def steam(x, z, y=0.2, kind=None):
+def steam(x, z, y=0.2, kind=None, cover=G0):
+    """`cover`: the height a street vent's iron cover is laid at (None: it
+    breathes from a grate that is drawn already)."""
     kind = kind or ("stall" if 0.8 < y < 2.0 else "street")
-    if len(STEAM) < 34:
-        if kind == "street":
-            box((D, "metal", 1), x - 0.35, x + 0.35, G0, G0 + 0.05, z - 0.35, z + 0.35, scale=0.5)
+    if len(STEAM) < 130:
+        if kind == "street" and cover is not None:
+            box((D, "metal", 1), x - 0.35, x + 0.35, cover, cover + 0.04, z - 0.35, z + 0.35, scale=0.5)
         empty(f"anchor_steam_{kind}_jt{len(STEAM)}", (x, y + 0.1, z))
         STEAM.append((x, z))
 
@@ -343,6 +345,17 @@ def stall(x, z, yaw, r, y=G0, cart=None):
         back, front, hung = STALL[name]
         for lx_, lz_, ly_, k_ in hung:
             J.put("lantern", *loc(x, z, yaw, lx_, lz_)[:1], y + ly_, loc(x, z, yaw, lx_, lz_)[1], 0.0, k_, k_)
+        # (Round 3, the stall's own dice: the pot or the grill steaming, and
+        # two more who have eaten talking by it.)
+        pot = {"jt_stall": (0.75, -0.5, 1.12), "jt_stall_b": (-0.4, 0.53, 1.16), "jt_stall_d": (-0.2, 0.9, 1.08)}.get(name)
+        if pot and rv.random() < 0.6:
+            px_, pz_ = loc(x, z, yaw, pot[0], pot[1])
+            steam(px_, pz_, y + pot[2] - 0.1, "stall")
+        if rv.random() < 0.35:
+            sd_ = rv.choice((-1, 1))
+            for k2, lz2 in ((0, 1.75), (1, 2.6)):
+                px_, pz_ = loc(x, z, yaw, sd_ * (1.75 + rv.uniform(-0.1, 0.1)), lz2)
+                stand(px_, pz_, yaw + (math.pi if k2 == 0 else 0.0) + rv.uniform(-0.3, 0.3), "talk", y)
     stand(*loc(x, z, yaw, r.uniform(-0.4, 0.4), back), yaw, "vendor", y)
     for i in range(r.randrange(1, 4)):
         px, pz = loc(x, z, yaw, (-0.8, 0.05, 0.85)[i] + r.uniform(-0.12, 0.12), front + r.uniform(0.0, 0.2))
@@ -1493,6 +1506,16 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
             zb = min(za + 2.4, z1 - 0.2)
             t = rs.uniform(0.8, 1.45)
             c = (J.DECK_TEAL[0] * t * rs.uniform(0.85, 1.25), J.DECK_TEAL[1] * t, J.DECK_TEAL[2] * t * rs.uniform(0.9, 1.1), 1)
+            # (Round 3, its own dice: a slab relaid in new concrete, a patch
+            # of tar where one cracked, one stained by a leak.)
+            rp = random.Random(round(ua * 13.0 + za * 7.0 + x0 * 3.0))
+            roll = rp.random()
+            if roll < 0.14:
+                c = (c[0] * 1.9 + 0.012, c[1] * 1.75 + 0.012, c[2] * 1.6 + 0.012, 1)
+            elif roll < 0.3:
+                c = (0.03, 0.027, 0.025, 1)
+            elif roll < 0.38:
+                c = (c[0] * 1.5 + 0.02, c[1] * 1.15 + 0.008, c[2] * 0.8, 1)
             xa, xc = sorted((X(ua + 0.035), X(ub - 0.035)))
             quad((D, "glow", 1), (xa, y + 0.012, zb - 0.035), (xc, y + 0.012, zb - 0.035), (xc, y + 0.012, za + 0.035), (xa, y + 0.012, za + 0.035), col=c)
             za = zb
@@ -1509,15 +1532,21 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
         sa, sb = sorted((X(tu + 0.35 * i), X(tu + 0.35 * (i + 1))))
         box((D, "concrete", 1), sa, sb, top, top + hh, z0 + 0.5, z0 + 1.9, scale=3.0)
     gx = X(tu - 0.12)
-    ga, gb = (gx, top + 0.9, z0 + 2.1), (gx, top + 0.9, z1 - 0.4)
+    # (The glass stops short of the hut's door, z1 - 1.7, and a second pair
+    # of steps comes down from it: the lit rail ran across the doorway.)
+    ga, gb = (gx, top + 0.9, z0 + 2.1), (gx, top + 0.9, min(z1 - 0.4, z1 - 2.95))
+    for i, hh in enumerate((0.6, 0.3)):
+        sa, sb = sorted((X(tu + 0.35 * i), X(tu + 0.35 * (i + 1))))
+        box((D, "concrete", 1), sa, sb, top, top + hh, z1 - 2.75, z1 - 0.65, scale=3.0)
     # (The kit's clear glass is double-sided: one pane.)
     quad((D, "clearglass", 1), ga, gb, (gb[0], top + 1.9, gb[2]), (ga[0], top + 1.9, ga[2]), col=(0.75, 0.95, 1.0, 1))
-    zz = z0 + 2.1
-    while zz < z1 - 0.39:
+    zz, zr = z0 + 2.1, gb[2]
+    while zz < zr + 0.01:
         box((D, "metal", 1), gx - 0.04, gx + 0.04, top + 0.9, top + 1.95, zz - 0.04, zz + 0.04, scale=1.0)
-        zz += (z1 - 0.4 - z0 - 2.1) / max(1, round((z1 - z0 - 2.5) / 1.8))
+        zz += max(0.6, (zr - z0 - 2.1) / max(1, round((zr - z0 - 2.1) / 1.8)))
     key, col = lit("cyan", gx)
-    box(key, gx - 0.03, gx + 0.03, top + 1.9, top + 1.95, z0 + 2.1, z1 - 0.4, scale=1.0, col=col, bottom=True)
+    if zr - z0 - 2.1 > 0.5:
+        box(key, gx - 0.03, gx + 0.03, top + 1.9, top + 1.95, z0 + 2.1, zr, scale=1.0, col=col, bottom=True)
     for t in (0.3, 0.75):
         J.put("jt_planter", X(1.3), top + 0.9, z0 + d * t, r.uniform(0, 1.5))
     hut(X(1.6), z1 - 1.7, top + 0.9, tcol, r, door=sgn, deck=True)
@@ -1598,8 +1627,9 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
         J.put("drain", X(w - 1.3), top + 0.1, zz_, 0.0)
     if w - tu > 11.0:
         J.put("jt_ductrun", X(w - 7.4), top + 0.1, z0 + 0.75, 0.0 if sgn > 0 else math.pi, 0.7, 1.0)
-    kit = ["jt_chairs", "jt_deckbits", "crates", "jt_planter", "jt_deckbits", "bench", "bags", "jt_deckbits", "barrel", "jt_chairs", "jt_deckbits", "crates"]
-    n_kit, done, tries = min(len(kit), int((w - tu) * d / 26)), 0, 0
+    kit = ["jt_chairs", "jt_deckbits", "crates", "jt_planter", "jt_deckbits", "bench", "bags", "jt_deckbits", "barrel", "jt_chairs", "jt_deckbits", "crates",
+           "jt_plants", "pallets", "jt_cooler", "drum", "jt_deckbits", "jt_plants", "rubbish", "jt_stools"]
+    n_kit, done, tries = min(len(kit), int((w - tu) * d / 17)), 0, 0
     while done < n_kit and tries < 60 and w - tu > 5.0 and d > 5.0:
         tries += 1
         px, pz = X(rs.uniform(tu + 1.3, w - 2.2)), rs.uniform(z0 + 1.7, z1 - 1.7)
@@ -1609,6 +1639,8 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
         yaw = rs.uniform(0, 6.28)
         if name == "bench":
             bench(px, pz, yaw, rs, top + 0.1)
+        elif name == "jt_stools":
+            stools(px, pz, yaw, rs, top + 0.1)
         else:
             J.put(name, px, top + 0.1, pz, yaw)
         if name == "jt_chairs":
@@ -1969,7 +2001,7 @@ def roof(rec, weights):
         u = 2.4
         while u < w - 8.4:
             J.put("jt_sheets", X(u), top, mid + r.uniform(-0.15, 0.15), HALF_PI if r.random() < 0.5 else -HALF_PI, r.uniform(0.92, 1.1), k_)
-            u += r.uniform(1.5, 2.1)
+            u += r.uniform(1.5, 2.1) + 0.9
         pad(X(1.4), X(u), z0 + 0.6, z1 - 0.6, top, r.choice(PAVERS))
         light(D, X(u * 0.35), top + 2.2, mid, "white", 5.0)
         light(D, X(u * 0.8), top + 2.2, mid, "amber", 4.5)
@@ -2232,6 +2264,117 @@ while z < -8.0:
             light(D, x, 0.3, z, "red" if kind == "jt_string" else "amber", 3.2)
     if sr.random() < 0.5:
         light(D, -90.5 if sr.random() < 0.5 else -69.5, 5.0, z, "amber", 3.0)
+
+# Round 3, its own stream: bundles of cable over the street (three spans
+# slung together from facade to facade, each its own sag) every twenty
+# metres or so, and from one in three a sign hung on two rods, turned off
+# the street's line, at its own height (desktop detail: a phone has the
+# strings and the bridges).
+def hang_sign(c, yaw, size, r, rod_top):
+    w, h = ST_SIZES[size]
+    name = J.design(size, c)
+    if name is None:
+        return False
+    col = J.sign_id(name)
+    b = basis(yaw, r.uniform(-0.05, 0.05))
+    for t in (0.035, -0.035):
+        if t >= 0:
+            q = (J.pt(c, b, -w / 2, -h / 2, t), J.pt(c, b, w / 2, -h / 2, t), J.pt(c, b, w / 2, h / 2, t), J.pt(c, b, -w / 2, h / 2, t))
+        else:
+            q = (J.pt(c, b, w / 2, -h / 2, t), J.pt(c, b, -w / 2, -h / 2, t), J.pt(c, b, -w / 2, h / 2, t), J.pt(c, b, w / 2, h / 2, t))
+        quad((D, "sign", 1), *q, col=col)
+    J.obox((D, "board_frame", 1), c, b, w + 0.1, h + 0.1, 0.07, rim=True)
+    for u in (-w / 2 + 0.12, w / 2 - 0.12):
+        p0 = J.pt(c, b, u, h / 2 + 0.05, 0.0)
+        box((D, "metal", 1), p0[0] - 0.012, p0[0] + 0.012, p0[1], rod_top, p0[2] - 0.012, p0[2] + 0.012, scale=0.5)
+    return True
+
+
+_rb = random.Random(7303)
+_bundles, _hung = 0, 0
+z = -700.0
+while z < -236.0:
+    z += _rb.uniform(16.0, 26.0)
+    zb = z + _rb.uniform(-2.5, 2.5)
+    hw, he = height_at("A", z), height_at("E", zb)
+    if hw is None or he is None or not (clear_of(z, OVER, 3.0) and clear_of(zb, OVER, 3.0)) or any(abs(z - q) < 2.5 for q in STRUNG):
+        continue
+    y = min(min(hw, he) - 0.8, _rb.uniform(7.2, 9.8))
+    d0 = _rb.uniform(0.7, 1.3)
+    for dz, dy, dd in ((0.0, 0.0, 0.0), (0.32, -0.22, 0.35), (-0.28, 0.3, -0.2)):
+        J.span("jt_cable", (XW, z + dz), (XE, zb + dz * 1.4), y + dy, d0 + dd)
+    STRUNG.append((z + zb) / 2)
+    _bundles += 1
+    if _rb.random() < 0.45:
+        xh = _rb.uniform(-85.0, -75.0)
+        t = (xh - XW) / (XE - XW)
+        zh = z + (zb - z) * t
+        sag = y - 0.6 * d0 * math.sin(math.pi * t) - 0.3 * d0
+        size = _rb.choice(("bs", "bs", "bm", "ps", "bx"))
+        sh = ST_SIZES[size][1]
+        yaw = _rb.choice((0.0, math.pi)) + _rb.uniform(-0.55, 0.55)
+        if sag - sh - 0.35 > 4.8 and hang_sign((xh, sag - 0.3 - sh / 2, zh), yaw, size, _rb, sag + 0.05):
+            _hung += 1
+# And the lanes': cables across the lantern alley and the back lane every
+# few metres, low, and now and then a blade hung over the alley.
+for xa_, xb_ in (NAKA, BACK, LANE):
+    z = -700.0 + _rb.uniform(0.0, 4.0)
+    while z < -190.0:
+        z += _rb.uniform(3.5, 7.0)
+        if not clear_of(z, ALLEYS + [TORII, MARKET] if xa_ == NAKA[0] else ALLEYS + [TORII], 1.0):
+            continue
+        y = _rb.uniform(4.6, 7.4)
+        J.span("jt_cable", (xa_, z), (xb_, z + _rb.uniform(-1.5, 1.5)), y, _rb.uniform(0.25, 0.6))
+        if xa_ == NAKA[0] and _rb.random() < 0.18:
+            size = _rb.choice(("bs", "bx", "ps"))
+            sh = ST_SIZES[size][1]
+            if y - 0.5 - sh > 2.9 and hang_sign(((xa_ + xb_) / 2 + _rb.uniform(-0.8, 0.8), y - 0.45 - sh / 2, z), _rb.choice((0.0, math.pi)) + _rb.uniform(-0.6, 0.6), size, _rb, y - 0.1):
+                _hung += 1
+print("japantown overhead:", _bundles, "bundles over the street,", _hung, "signs hung")
+
+# Life at the ends of the street and on its floor (round 3): people waiting
+# at the kerb's edge at the corners of both junctions, in twos and threes;
+# manholes breathing in the carriageway and grates in the pavement; and in
+# the lanes, what lies on the floor, drains, and grates with steam over them.
+_rl = random.Random(7411)
+for zc_, xs_ in ((-709.0, (-90.6, -69.4)), (-8.0, (-90.6, -69.4))):
+    for xk in xs_:
+        face_ = HALF_PI if xk < -80.0 else -HALF_PI
+        zz = zc_ + _rl.uniform(-1.5, 1.5)
+        for i in range(_rl.randrange(2, 4)):
+            stand(xk, zz + i * 0.75, face_ + _rl.uniform(-0.4, 0.4), _rl.choice(("idle", "phone", "idle", "smoke")), G0)
+        if _rl.random() < 0.7:
+            stand(xk, zz - 1.4, face_ + 1.2, "talk", G0)
+            stand(xk, zz - 2.25, face_ - 1.9, "talk", G0)
+_mh = 0
+z = -690.0
+while z < -240.0:
+    z += _rl.uniform(38.0, 60.0)
+    if clear_of(z, OVER, 2.0):
+        steam(_rl.choice((-86.5, -73.5, -82.5, -77.5)), z, 0.0, cover=0.0)
+        _mh += 1
+    zg = z + _rl.uniform(-12.0, 12.0)
+    xg = _rl.choice((-90.95, -69.05))
+    if clear_of(zg, ALLEYS + [TORII, CROSSING, DECK] + PASSAGES, 2.0):
+        J.put("grate_glow", xg, G0, zg, 0.0)
+        steam(xg, zg, G0 - 0.06, "street", cover=None)
+for xa_, xb_ in (NAKA, BACK, LANE):
+    z = -702.0 + _rl.uniform(0.0, 3.0)
+    side = 1
+    while z < -192.0:
+        z += _rl.uniform(4.5, 8.0)
+        if not clear_of(z, [TORII], 1.0):
+            continue
+        side = -side
+        xw = (xa_ + 0.7) if side > 0 else (xb_ - 0.7)
+        J.put("jt_lanefloor", xw, G0, z, HALF_PI if side > 0 else -HALF_PI)
+        if _rl.random() < 0.35:
+            J.put("drain", (xa_ + xb_) / 2, G0, z + 2.0, HALF_PI)
+        if _rl.random() < 0.08:
+            J.put("grate_glow", (xa_ + xb_) / 2, G0, z - 2.0, HALF_PI)
+            steam((xa_ + xb_) / 2, z - 2.0, G0 - 0.06, "street", cover=None)
+print("japantown life: manholes", _mh, "steam vents", len(STEAM))
+
 
 # Beside the ramp: lamp columns along both kerbs with lanterns strung
 # between them, nothing over the road.
@@ -3267,6 +3410,21 @@ if os.environ.get("JT_SMALL"):
         _ar = [(_area(_b, fc), len(fc) - 2, _thin(_b, fc)) for fc in _b.faces]
         print("japantown small", _m, sum(t for _, t, _ in _ar), [(th, sum(t for a_, t, _ in _ar if a_ < th)) for th in (0.01, 0.03, 0.06, 0.1, 0.2)],
               "thin", [(th, sum(t for _, t, w_ in _ar if w_ < th)) for th in (0.03, 0.05, 0.08, 0.12)])
+    import collections as _co
+    _bm = batches.get((D, "metal", 1))
+    if _bm:
+        _hy = _co.Counter()
+        _hx = _co.Counter()
+        for fc in _bm.faces:
+            ys_ = [_bm.verts[i][2] for i in fc]
+            xs_ = [_bm.verts[i][0] for i in fc]
+            zs_ = [-_bm.verts[i][1] for i in fc]
+            ym = sum(ys_) / len(ys_)
+            _hy[min(5, int(ym // 3))] += len(fc) - 2
+            xm, zm = sum(xs_) / len(xs_), sum(zs_) / len(zs_)
+            reg = "lane" if (BACK[0] - 0.5 < xm < BACK[1] + 0.5 or NAKA[0] - 0.5 < xm < NAKA[1] + 0.5 or LANE[0] - 0.5 < xm < LANE[1] + 0.5) else "street" if XW - 0.5 < xm < XE + 0.5 else "rows"
+            _hx[reg] += len(fc) - 2
+        print("japantown metal1 by height band (3 m):", sorted(_hy.items()), "by place:", dict(_hx))
     _lp = LIGHTS.get(D, [])
     _pw = [_lp[i + 4] for i in range(0, len(_lp), 5)]
     _ys = [_lp[i + 1] for i in range(0, len(_lp), 5)]
