@@ -1437,31 +1437,37 @@ for dz in (-1.6, 1.6):
 SERVICE = glowc("ffd8a0", 0.55)
 
 
-def board_back(cx, cy, cz, w, h, yaw, catwalk=True, hue="amber"):
+def board_back(cx, cy, cz, w, h, yaw, catwalk=True, hue="amber", advert=None):
     """The back of a board where the road sees it, (cx, cy, cz) the middle
-    of its back plane and `yaw` the way that faces: sheet steel behind a
-    frame of rails, studs and braces, service lamps on arms over its top
-    with their light on it, and (where there is a parapet under it to
-    carry one) a catwalk with a handrail along its foot, on brackets."""
+    of its back plane and `yaw` the way that faces. With `advert` (a random
+    source) the board is a screen on both faces: a second advert in the
+    frame's back. Without, sheet steel behind a frame of rails, studs and
+    braces. Either way service lamps on arms over its top with their light
+    on it, and (where there is a parapet under it to carry one) a catwalk
+    with a handrail along its foot, on brackets."""
     nx, nz = math.sin(yaw), math.cos(yaw)
     rx, rz = math.cos(yaw), -math.sin(yaw)
 
     def at(su, sv, o):
         return (cx + rx * su + nx * o, cy + sv, cz + rz * su + nz * o)
 
-    rotated_quad((DK, "steel", 0), *at(0, 0, 0.012), w, h, yaw, col=STEEL_SHEET)
-    for sv in (h / 2 - 0.07, 0.0, -h / 2 + 0.07):
-        oriented_box((DK, "steel", 0), *at(0, sv, 0.05), w, 0.1, 0.08, yaw, scale=1.0, col=STEEL_LT)
     n = max(2, round(w / 1.4))
-    for k in range(n + 1):
-        su = -w / 2 + 0.05 + (w - 0.1) * k / n
-        oriented_box((DK, "steel", 1), *at(su, 0, 0.045), 0.08, h, 0.07, yaw, scale=1.0, col=STEEL_LT)
-    step = (w - 0.1) / n
-    for k in (0, n - 1):
-        a, b = -w / 2 + 0.05 + step * k, -w / 2 + 0.05 + step * (k + 1)
-        if k:
-            a, b = b, a
-        pipe((DK, "steel", 1), at(a, -h / 2 + 0.07, 0.06), at(b, h / 2 - 0.07, 0.06), 0.03, segs=4, col=STEEL_LT)
+    if advert is not None:
+        col = (advert.randrange(8) / 8.0 + 0.01, advert.randrange(8) / 8.0 + 0.01, advert.random(), 1.0)
+        rotated_quad((DK, "billboard", 0), *at(0, 0, 0.014), w - 0.36, h - 0.36, yaw, col=col)
+    else:
+        rotated_quad((DK, "steel", 0), *at(0, 0, 0.012), w, h, yaw, col=STEEL_SHEET)
+        for sv in (h / 2 - 0.07, 0.0, -h / 2 + 0.07):
+            oriented_box((DK, "steel", 0), *at(0, sv, 0.05), w, 0.1, 0.08, yaw, scale=1.0, col=STEEL_LT)
+        for k in range(n + 1):
+            su = -w / 2 + 0.05 + (w - 0.1) * k / n
+            oriented_box((DK, "steel", 1), *at(su, 0, 0.045), 0.08, h, 0.07, yaw, scale=1.0, col=STEEL_LT)
+        step = (w - 0.1) / n
+        for k in (0, n - 1):
+            a, b = -w / 2 + 0.05 + step * k, -w / 2 + 0.05 + step * (k + 1)
+            if k:
+                a, b = b, a
+            pipe((DK, "steel", 1), at(a, -h / 2 + 0.07, 0.06), at(b, h / 2 - 0.07, 0.06), 0.03, segs=4, col=STEEL_LT)
     for su in ((-w / 4, w / 4) if w > 3.5 else (0.0,)):
         pipe((DK, "steel", 1), at(su, h / 2 - 0.05, 0.05), at(su, h / 2 + 0.28, 0.5), 0.022, segs=4, col=STEEL_LT)
         oriented_box((DK, "glow", 0), *at(su, h / 2 + 0.25, 0.52), 0.5, 0.05, 0.14, yaw, scale=0.5, col=SERVICE)
@@ -1491,12 +1497,12 @@ for k, z in enumerate((-142.0, -126.0, -109.0, -92.0)):
         # and the walkway (west edge, on the rail: flat to it).
         if (k + (out > 0)) % 2 == 0:
             B.billboard(DK, xe + out * 0.12, base + 0.5 + 0.95, zc, 4.2, 1.7, yaw, edge_rng, back=False, depth=0.24)
-            board_back(xe - out * 0.14, base + 0.5 + 0.95, zc, 4.6, 2.1, yaw + math.pi, catwalk=out > 0, hue="amber" if k % 2 else "white")
+            board_back(xe - out * 0.14, base + 0.5 + 0.95, zc, 4.6, 2.1, yaw + math.pi, catwalk=out > 0, hue="amber" if k % 2 else "white", advert=edge_rng)
         else:
             w, h = ST_SIZES["pm"]
             oriented_box((DK, "board_frame", 0), xc, base + 0.5 + h / 2 + 0.08, zc, w + 0.16, h + 0.16, 0.2, yaw, scale=1.0)
             sign(st_name("pm"), xc + out * 0.115, base + 0.5 + h / 2 + 0.08, zc, w, h, yaw, district=DK, label=False)
-            board_back(xc - out * 0.1, base + 0.5 + h / 2 + 0.08, zc, w + 0.16, h + 0.16, yaw + math.pi, catwalk=out > 0, hue="amber" if k % 2 else "white")
+            board_back(xc - out * 0.1, base + 0.5 + h / 2 + 0.08, zc, w + 0.16, h + 0.16, yaw + math.pi, catwalk=out > 0, hue="amber" if k % 2 else "white", advert=edge_rng)
 
 # ---------------------------------------------------------------------------
 # THE ROAD'S OWN LAYER, what a driver and a flying car see of the deck's top:
@@ -2111,9 +2117,16 @@ def bay(axis, a, b, yf, stair=False):
 
 # At the turn's outer corner, under the board, over the west street.
 y = bay("x", XW + 0.6, XE - 0.6, DY)
-for x, dz, yaw, pose in ((-83.0, 1.35, 0.0, "idle"), (-82.1, 1.3, 0.25, "phone"), (-80.4, 1.1, math.pi / 2, "talk"), (-79.5, 1.1, -math.pi / 2, "talk"),
-                         (-78.0, 1.45, math.pi, "lean"), (-77.0, 1.3, -0.2, "smoke")):
+for x, dz, yaw, pose in ((-81.0, 1.45, 0.1, "phone"), (-80.4, 1.1, math.pi / 2, "talk"), (-79.5, 1.1, -math.pi / 2, "talk"),
+                         (-78.2, 1.45, math.pi, "lean"), (-77.0, 0.95, math.pi / 2, "idle")):
     stand(x, ZS + dz, yaw, pose, y)
+# A vending machine against its east end and a bench that looks out over the
+# street (the walkway is too narrow for either).
+P.place("vending", XE - 1.05, y, ZS + 0.95, -math.pi / 2, district=DK)
+P.place("bench", -82.3, y, ZS + 0.85, 0.0, district=DK)
+stand(-82.7, ZS + 0.85, 0.0, "sit", y + 0.48)
+stand(-81.9, ZS + 0.85, 0.0, "sit", y + 0.48)
+pool(XE - 1.9, y + 1.0, ZS + 0.95, "cyan", 1.6)
 # Over the lane behind the avenue's west row.
 y = bay("x", -49.4, -44.6, DY, stair=True)
 for x, dz, yaw, pose in ((-48.5, 1.45, math.pi, "lean"), (-47.2, 1.3, 0.1, "smoke"), (-45.6, 1.3, -0.15, "idle")):
