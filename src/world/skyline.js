@@ -897,6 +897,112 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       }
     }
   }
+  // ---- the towers' heads, and what spans between them ------------------------
+  // One crown stood on tower after tower: the dark glass box with lit edges.
+  // Two keep it. The rest are a setback floor like any other, and the roofs
+  // nothing capped carry what a tower's roof carries, each its own: a mast
+  // with its yards, a cluster of aerials, dishes on a hut, a penthouse
+  // stepped back twice, all boxes in the street's draw. Within what Contact
+  // frames every tower is as it was, and up the hero's avenue nothing rises
+  // above a roof.
+  const top = rng(8801);
+  const framed = (b) => {
+    const az = lensAz(b.ox ?? b.x, b.oz ?? b.z);
+    return az > FRAMED[0] && az < FRAMED[1];
+  };
+  const tips = [];
+  let glassCrowns = 0;
+  lots.forEach((b, i) => {
+    const s = forms[i];
+    if (b.gone || b.far || b.hero || b.screens || b.h < TOWER_FROM || framed(b)) return;
+    if (s.style === 3) {
+      const gap = gapOf(b);
+      if (glassCrowns < 2 && b.free && gap > 150 && gap < 420) glassCrowns++;
+      else forms[i] = { ...s, style: 0, parapet: 0.7 };
+    }
+    const roll = top();
+    const [t, turn, k1, k2] = [topTier(s), b.yaw + Math.floor(top() * 4) * (Math.PI / 2), top(), top()];
+    if (!b.free || forms[i].style === 2 || forms[i].style === 3 || kitOf[i] || roll < 0.18) return;
+    const [fw, fd] = [b.w * s.inset[t], b.d * s.inset[t]];
+    const r0 = Math.min(fw, fd);
+    const [cx, cz] = topCentre(b, s);
+    const y = s.roof;
+    const at = (lx, lz) => [cx + Math.cos(turn) * lx + Math.sin(turn) * lz, cz - Math.sin(turn) * lx + Math.cos(turn) * lz];
+    if (roll < 0.42) {
+      // A mast: a hut, the mast, two yards across it, a lamp at its tip.
+      const tall = Math.min(b.h * 0.3, 16 + 34 * k1);
+      const [mx, mz] = at(r0 * 0.18, -r0 * 0.12);
+      box(BOX.block, mx, y + 1.6, mz, r0 * 0.34, 3.2, r0 * 0.3, turn, [k2, 0, 0]);
+      box(BOX.steel, mx, y + 3.2 + tall / 2, mz, 1.3, tall, 1.3, turn);
+      box(BOX.steel, mx, y + 3.2 + tall * 0.55, mz, 5.4, 0.4, 0.4, turn);
+      box(BOX.steel, mx, y + 3.2 + tall * 0.78, mz, 0.4, 0.4, 3.8, turn);
+      tips.push(mx, y + 3.2 + tall + 0.5, mz);
+    } else if (roll < 0.62) {
+      // Aerials: a rack and four or five whips of different heights.
+      const [ax, az] = at(-r0 * 0.15, r0 * 0.1);
+      box(BOX.block, ax, y + 0.9, az, r0 * 0.42, 1.8, r0 * 0.2, turn, [k2, 0, 0]);
+      for (let a = 0; a < 5; a++) {
+        const whip = 6 + 16 * top();
+        const [wx, wz] = at(-r0 * 0.15 + (a - 2) * r0 * 0.09, r0 * 0.1);
+        if (a === 2 && k1 < 0.4) continue;
+        box(BOX.steel, wx, y + 1.8 + whip / 2, wz, 0.5, whip, 0.5, turn);
+        if (a === 0) tips.push(wx, y + 1.8 + whip + 0.4, wz);
+      }
+    } else if (roll < 0.8) {
+      // Dishes: a hut, a short mast, three panels facing out.
+      const [hx, hz] = at(0, 0);
+      box(BOX.block, hx, y + 1.5, hz, r0 * 0.3, 3.0, r0 * 0.3, turn, [k2, 0, 0]);
+      box(BOX.steel, hx, y + 3 + 4.5, hz, 0.9, 9, 0.9, turn);
+      for (const [dx, dz, dy, face] of [[1.6, 0, 4, 0], [-1.6, 0.4, 6.4, 0], [0, 1.6, 8, 1]]) {
+        const [px2, pz2] = at(dx, dz);
+        box(BOX.steel, px2, y + 3 + dy, pz2, face ? 2.8 : 0.35, 2.8, face ? 0.35 : 2.8, turn, [1, 0, 0]);
+      }
+      tips.push(hx, y + 12.5, hz);
+    } else {
+      // A penthouse stepped back twice, a line of light under each roof.
+      const h1 = 5 + 4 * k1;
+      const [qx, qz] = at(r0 * 0.08 * (k2 - 0.5), 0);
+      box(BOX.block, qx, y + h1 / 2, qz, fw * 0.62, h1, fd * 0.62, b.yaw, [k2, 1, 0]);
+      box(BOX.block, qx, y + h1 + 2, qz, fw * 0.34, 4, fd * 0.34, b.yaw, [k1, 1, 0]);
+      tips.push(qx, y + h1 + 4.6, qz);
+    }
+  });
+  // Megastructures: three decks at mid height between two towers a block or
+  // two apart, two floors of lit windows in a truss, and standing on each a
+  // stack of boards. Only between towers nothing capped, clear of the framed
+  // skies, and over whatever stands between them.
+  const spans = [];
+  const piers = lots.map((b, i) => ({ b, i })).filter(({ b, i }) => b.free && !b.gone && !b.far && !b.screens && !b.cone && !underMoon(b) && b.h >= 110 && forms[i].style !== 2 && gapOf(b) > 120 && gapOf(b) < 520);
+  for (const p of piers) {
+    for (const q of piers) {
+      if (q.i <= p.i) continue;
+      const [dx, dz] = [q.b.x - p.b.x, q.b.z - p.b.z];
+      const len = Math.hypot(dx, dz);
+      if (len < 70 || len > 150 || Math.min(Math.abs(dx), Math.abs(dz)) > 16) continue;
+      const y = Math.min(p.b.h, q.b.h) * (0.46 + 0.14 * top());
+      const [mx, mz] = [(p.b.x + q.b.x) / 2, (p.b.z + q.b.z) / 2];
+      if (lots.some((b) => !b.gone && b !== p.b && b !== q.b && Math.hypot(b.x - mx, b.z - mz) < len / 2 && b.h > y - 6)) continue;
+      spans.push({ mx, mz, len, y, turn: Math.atan2(-dz, dx), sector: sectorOf(p.b), gap: gapOf(p.b) });
+    }
+  }
+  spans.sort((a, b) => a.gap - b.gap);
+  const spanned = [];
+  for (const sp of spans) {
+    if (spanned.length === 3 || spanned.some((o) => Math.abs(o.sector - sp.sector) < 4 || Math.abs(o.sector - sp.sector) > SECTORS - 4)) continue;
+    spanned.push(sp);
+    const along = (a, across = 0) => [sp.mx + Math.cos(sp.turn) * a + Math.sin(sp.turn) * across, sp.mz - Math.sin(sp.turn) * a + Math.cos(sp.turn) * across];
+    box(BOX.deck, sp.mx, sp.y, sp.mz, sp.len, 7.6, 10, sp.turn, [top(), 0, 0]);
+    for (const [a, w, h, up, across] of [[-0.24, 0.3, 11, 0, 3], [0.1, 0.26, 9, 0, -3], [0.3, 0.2, 13, 0, 3.4], [-0.02, 0.22, 8, 10.4, -3]]) {
+      const [bx2, bz2] = along(a * sp.len, across);
+      box(BOX.board, bx2, sp.y + 3.8 + 1.2 + up + h / 2, bz2, w * sp.len, h, 0.7, sp.turn, [top(), 0, 0]);
+      for (const e of [-0.4, 0.4]) {
+        const [px2, pz2] = along(a * sp.len + e * w * sp.len, across);
+        box(BOX.steel, px2, sp.y + 3.8 + (1.2 + up) / 2, pz2, 0.5, 1.2 + up, 0.5, sp.turn);
+      }
+    }
+    for (const e of [-0.5, 0.5]) tips.push(...along(e * sp.len * 0.9).flatMap((v, k) => (k ? [sp.y + 4.4, v] : [v])));
+  }
+
   // The dome's lamps, as GLSL the slabs share: a lamp every eleven and a
   // half metres down each kerb, a pool of light under it. Past a pixel a
   // lamp is spread into its street rather than sparkling. On the dressed
@@ -1152,6 +1258,20 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         vec3 col = a * k * 1.9 * (1.0 - 0.6 * tear) * on + vec3(0.012, 0.014, 0.02);
         return vec4(mix(vec3(0.008, 0.009, 0.013), col, inside), inside * on);
       }
+      // A strip of boards side by side across a face: s is across and up
+      // the strip (0..1), n how many times wider than tall it is. Each
+      // board a lightbox in one of the signs' colours with blocks of a
+      // darker one where its picture is, changing every so often.
+      vec3 boardStrip(vec2 s, float n, float seed, float t) {
+        float count = max(1.0, floor(n / 1.5 + 0.5));
+        float i = floor(s.x * count);
+        vec2 q = vec2(fract(s.x * count), s.y);
+        float h = hash12(vec2(i + floor(t / (8.0 + 5.0 * hash12(vec2(i, seed))) + seed), seed * 3.1));
+        vec3 a = h < 0.25 ? vec3(1.0, 0.2, 0.3) : h < 0.5 ? vec3(0.16, 0.85, 1.0) : h < 0.7 ? vec3(1.0, 0.62, 0.2) : h < 0.85 ? vec3(1.0, 0.25, 0.7) : vec3(0.9, 0.95, 1.0);
+        float blocks = step(0.5, hash12(floor(q * vec2(5.0, 3.0)) + i + h * 31.0));
+        float edge = 1.0 - step(0.03, q.x) * step(q.x, 0.97) * step(0.06, q.y) * step(q.y, 0.94);
+        return mix(a * mix(1.3, 0.5, blocks), vec3(0.01), edge);
+      }
       // A mark under a tower's roof, nobody's: a ring and its dot, a
       // hexagon with a bar, three bars, a diamond. p is in the mark's own
       // radius.
@@ -1310,6 +1430,55 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         vec3 band = vec3(0.018, 0.018, 0.022) + spillAt(vWorld) * 0.35 + (uHazeColor * 0.2 + uGlowColor * 0.1) * uHaze * 0.3;
         band += (uHazeColor * 0.5 + uGlowColor * 0.3) * uHaze * smoothstep(-0.2, 0.0, vWorld.y - vTier.x - 0.9) * 0.5;
         col = mix(col, band, parapet);
+        // A tower's face, by its kind (see the dress code).
+        float dressCode = floor(vDress.x + 0.5);
+        float pattern = floor(dressCode / 64.0);
+        dressCode = mod(dressCode, 64.0);
+        float faceLit = 0.0;
+        if (pattern > 1.5 && vHero.x < 0.5 && onWall > 0.5 && parapet < 0.5 && vWorld.y > 4.6 && vForm.x < 4.5) {
+          vec3 solidWall = wallTint(vDress.y) * (vec3(0.6) + spillAt(vWorld) * 3.2);
+          float bay = floor(vCells.x);
+          float fx = fract(vCells.x);
+          float storey = floor(vCells.y);
+          float fy = fract(vCells.y);
+          float pxc = max(fwidth(vCells.x), fwidth(vCells.y));
+          float fine = 1.0 - smoothstep(0.3, 0.8, pxc);
+          if (pattern < 2.5) {
+            // Rooms scattered between piers every third bay and a ledge
+            // every sixth floor.
+            float pier = step(mod(bay, 3.0), 0.5) * step(fx, 0.3);
+            float ledge = step(mod(storey, 6.0), 0.5) * step(fy, 0.3);
+            col = mix(col, solidWall * 2.4, max(pier, ledge) * fine);
+          } else if (pattern < 3.5) {
+            // Strips: two bays of glass, two of solid wall, all the way up.
+            float shut = mix(step(1.5, mod(bay, 4.0)), 0.5, smoothstep(0.8, 1.8, fwidth(vCells.x)));
+            col = mix(col, solidWall * 0.8, shut);
+            win.a *= 1.0 - shut;
+          } else if (pattern < 4.5) {
+            // A dark face, a ledge every ninth floor, and across its
+            // tallest part one board.
+            float ledge = step(mod(storey, 9.0), 0.5) * step(fy, 0.3);
+            col = mix(col, solidWall * 2.2, ledge * fine);
+            float bandH = 5.0 + 4.0 * hash12(vec2(vForm.z, 3.4));
+            float y0 = mix(vTier.y, vTier.x, 0.52 + 0.24 * hash12(vec2(vForm.z, 2.2)));
+            vec2 sb = vec2((vHero.y - 0.05) / 0.9, (vWorld.y - y0) / bandH);
+            if (fract(vForm.y) > 0.05 && sb.x > 0.0 && sb.x < 1.0 && sb.y > 0.0 && sb.y < 1.0 && y0 + bandH < vTier.x - 2.0) {
+              col = boardStrip(sb, vHero.z * 0.9 / bandH, vForm.z + mod(vHero.w, 4.0) * 7.0, uTime * uMotion);
+              faceLit = 1.0;
+            }
+          } else if (pattern < 5.5) {
+            // A lattice of teal light over dark glass: a line every second
+            // bay and every third floor, and far off its sheen.
+            float lines = clamp(step(fract(vCells.x / 2.0), 0.045) + step(fract(vCells.y / 3.0), 0.04), 0.0, 1.0);
+            float k = mix(lines, 0.085, smoothstep(0.08, 0.25, pxc));
+            col = mix(col * 0.8, vec3(0.1, 0.9, 0.78) * 0.8, k);
+            faceLit = k * 0.7;
+          } else {
+            // An office's ribbons between mullions every fourth bay.
+            float mull = step(mod(bay, 4.0), 0.5) * step(fx, 0.24);
+            col = mix(col, solidWall * 2.2, mull * fine);
+          }
+        }
         float style = vForm.x;
         float top = vCrown.x;
         float dressed = step(abs(vHero.x - 1.0), 0.1);
@@ -1344,7 +1513,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         col = mix(col, stepCol * 1.15, steps);
         // And each lit step lights its own terrace the same way.
         col += stepCol * 0.4 * exp(-max(inFromEdge, 0.0) / 3.5) * step(abs(style - 4.0), 0.1) * step(0.5, vCrown.y) * (1.0 - vTier.z) * fresh * vRoof * step(0.5, n.y);
-        float blade = dressed * onWall * step(vHero.y, 0.035) * step(8.0, vWorld.y) * step(vWorld.y, top - 4.0);
+        // Contact's towers wear their blade on the faces its lens sees: on
+        // all four, from the air every one of them had the same strip up
+        // every corner.
+        float blade = dressed * onWall * step(vHero.y, 0.035) * step(8.0, vWorld.y) * step(vWorld.y, top - 4.0) * step(0.0, dot(n.xz, vec2(${CONTACT_LENS[0]}.0, ${CONTACT_LENS[1]}.0) - vWorld.xz));
         col = mix(col, (vCrown.y > 0.5 ? vec3(0.16, 0.9, 1.0) : vec3(1.0, 0.22, 0.62)) * 2.2, blade);
         // A spire: dark steel catching the glow, a lit ring every few metres.
         float spire = step(abs(style - 2.0), 0.1) * vTier.z;
@@ -1415,10 +1587,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // A tower past the framed views: a vertical blade of light up one
         // face of its tallest tier, the show's cyan more often than not, and
         // on some a mark under the roof on two opposite faces.
-        if (vDress.x > 0.5 && onWall > 0.5 && parapet < 0.5 && fract(vForm.y) > 0.05) {
+        if (dressCode > 0.5 && onWall > 0.5 && parapet < 0.5 && fract(vForm.y) > 0.05) {
           float quadrant = (atan(n.z, n.x) + 3.14159) / 1.5708;
           float squareOn = step(abs(quadrant - floor(quadrant + 0.5)), 0.3);
-          float code = floor(vDress.x + 0.5);
+          float code = dressCode;
           float bladeFace = mod(code, 8.0) - 1.0;
           float mark = floor(code / 8.0);
           float faceId = mod(vHero.w, 4.0);
@@ -1468,7 +1640,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // what is drawn at all, it is the air).
         float farOff = step(5.5, style);
         col = mix(col, col * 4.0, farOff * win.a * onWall * (1.0 - parapet));
-        col = cityFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, roofLit)))));
+        col = cityFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, max(roofLit, faceLit))))));
         col *= mix(1.0, mix(0.6 + 0.4 * win.a * onWall, 1.0, smoothstep(1900.0, 2350.0, length(vWorld - uCam))), farOff);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
@@ -1519,7 +1691,16 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     const tints = tower ? [0, 1, 1, 2, 2, 3] : [0, 1, 2, 3, 4, 5, 6, 4, 2, 5];
     const tint = tints[Math.floor(hash11(seed + 23.9) * tints.length)];
     const quarter = hash11(f32(Math.floor((b.ox ?? b.x) / 180) * 12.9898 + Math.floor((b.oz ?? b.z) / 180) * 78.233));
-    const dress = [hung, b.hero ? -1 : (tint + 0.5) / 8, hash11(seed + 9.3), quarter];
+    // A tower's face is one of six kinds (64 times its number, with what is
+    // hung on it): floors lit in bands, rooms scattered between piers and
+    // ledges, vertical strips of glass between solid ones, a dark face with
+    // one board across it, a lattice of teal light over glass, an office's
+    // ribbons between mullions. Not within what Contact frames, where a
+    // tower is as it was.
+    // (The lattice is the rarest: half of those dealt it are offices.)
+    let pattern = tower && !b.hero && !b.far && !b.screens && !framed(b) ? 1 + Math.floor(hash11(own + 33.3) * 6) : 0;
+    if (pattern === 5 && hash11(own + 37.7) < 0.5) pattern = 6;
+    const dress = [hung + 64 * pattern, b.hero ? -1 : (tint + 0.5) / 8, hash11(seed + 9.3), quarter];
     // The show's towers are lit in bands, floor by floor, more than in
     // scattered rooms: most towers take the band or the ribbon, and some
     // blocks the small windows of homes.
@@ -1530,6 +1711,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       else if (!tower && cut > 0.78) look[1] = 0.75;
       // People are home in the blocks, and no tower is a dark slab.
       look[0] = tower ? Math.max(look[0], 0.24) : 0.3 + 0.4 * hash11(seed);
+    }
+    if (pattern) {
+      look[1] = [0.625, hash11(own + 35.1) < 0.5 ? 0 : 0.125, hash11(own + 35.1) < 0.5 ? 0.125 : 0.5, 0.375, 0.5, 0.25][pattern - 1];
+      if (pattern === 4) look[0] = Math.min(look[0], 0.3);
     }
     // A megabuilding a mile off: few rooms lit, each a small window in a
     // cell several floors high (the vertex shader's), so it is a pinpoint.
@@ -1720,13 +1905,22 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   const groups = [];
   const moves = [];
   lots.forEach((b, i) => {
-    if (beaconOf[i] < 0 || b.gone) return;
+    // Outside what Contact frames every tower has its lamp, not only the
+    // tallest, and it is a lamp to be seen across the city (groups 5 to 7).
+    const all = b.h >= TOWER_FROM && !b.hero && !framed(b);
+    if ((beaconOf[i] < 0 && !all) || b.gone) return;
     const s = forms[i];
     const [cx, cz] = topCentre(b, s);
     beacons.push(cx, s.roof + s.spire + (s.spire ? 0.4 : 0.8), cz);
-    groups.push(beaconOf[i]);
+    groups.push(all ? 5 + (beaconOf[i] < 0 ? i % 3 : beaconOf[i]) : beaconOf[i]);
     moves.push(0, 0, 0, 0);
   });
+  // And one on every mast, whip and deck end.
+  for (let i = 0; i < tips.length; i += 3) {
+    beacons.push(tips[i], tips[i + 1], tips[i + 2]);
+    groups.push(5 + ((i / 3) % 3));
+    moves.push(0, 0, 0, 0);
+  }
   // AVs over the far city: lanes west, south and east of the kit, a
   // hundred and more metres up, each AV a white lamp ahead and a red one
   // behind, going along its lane and round again. Every lane keeps outside
@@ -1772,18 +1966,21 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // An AV's lamp is so far along its lane (38 m/s, standing where its
         // phase puts it under reduced motion), fading in and out at the
         // lane's ends so it never pops.
-        float flying = step(2.5, aGroup);
+        float flying = step(2.5, aGroup) * step(aGroup, 4.5);
+        float tip = step(4.5, aGroup);
         float along = mod(uTime * uMotion * 38.0 + aMove.w * aMove.z, max(aMove.z, 1.0));
         vec3 p = position + vec3(aMove.x, 0.0, aMove.y) * along * flying;
         vWorld = p;
         vKind = aGroup;
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
-        float t = fract(uTime * 0.75 + aGroup / 3.0);
+        float t = fract(uTime * 0.75 + mod(aGroup, 5.0) / 3.0);
         float blink = mix(0.6, smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.55, t)), uMotion);
+        // A tip's lamp never goes right out: it swells and falls.
+        blink = mix(blink, 0.45 + 0.55 * blink, tip);
         float ends = smoothstep(0.0, 70.0, along) * (1.0 - smoothstep(aMove.z - 70.0, aMove.z, along));
         vOn = mix(blink, ends, flying);
-        gl_PointSize = clamp(mix(2600.0, 2000.0, flying) / -mv.z, mix(2.5, 2.0, flying), mix(6.0, 5.0, flying)) * uPixel;
+        gl_PointSize = mix(clamp(mix(2600.0, 2000.0, flying) / -mv.z, mix(2.5, 2.0, flying), mix(6.0, 5.0, flying)), clamp(4200.0 / -mv.z, 3.4, 9.0), tip) * uPixel;
       }
     `,
     fragmentShader: /* glsl */ `
@@ -1793,7 +1990,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       varying vec3 vWorld;
       void main() {
         float d = length(gl_PointCoord - 0.5) * 2.0;
-        vec3 lamp = vKind < 2.5 ? vec3(1.0, 0.06, 0.04) * 3.5 : vKind < 3.5 ? vec3(0.8, 0.92, 1.0) * 2.6 : vec3(1.0, 0.1, 0.06) * 2.2;
+        vec3 lamp = vKind < 2.5 || vKind > 4.5 ? vec3(1.0, 0.06, 0.04) * 3.5 : vKind < 3.5 ? vec3(0.8, 0.92, 1.0) * 2.6 : vec3(1.0, 0.1, 0.06) * 2.2;
         vec3 col = lamp * vOn * exp(-d * d * 4.0);
         col *= exp(-length(vWorld - uCam) * uFogDensity * 0.35);
         gl_FragColor = vec4(col, 1.0);

@@ -1,5 +1,6 @@
-// src/world/far-street.js: what stands at street level on the first streets
-// past the kit.
+// src/world/far-street.js: the far city's boxes: what stands at street level
+// on the first streets past the kit, what stands on its towers' roofs, and
+// the decks that span between them.
 //
 // The far city's ground is the sky dome's (src/world/skyline.js): asphalt,
 // paint and pools of light on a plane. From the air that is a city. From the
@@ -12,13 +13,18 @@
 // hundred metres, where they are more than a pixel: twelve numbers a box
 // (x, y, z of its middle, its turn, its size, its kind and three numbers of
 // its own).
+//
+// The same draw carries the towers' heads (masts, aerials, dishes: steel;
+// huts and penthouses: blocks) and the megastructures (a deck of two lit
+// floors in a truss, the boards that stand on it).
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 
-export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4 };
+export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8 };
 
-// Past this a post is under a pixel.
-const SMALL_TO = 320;
+// How far each kind is drawn: past it, it is under a pixel (a slab, a deck
+// and its boards are always drawn).
+const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it. */
@@ -100,6 +106,43 @@ export function createFarStreet(scene, shared, boxes, { street }) {
           float head = step(0.22, along * vOwn.z);
           lit = head * step(n.y, -0.5);
           col = mix(vec3(0.012, 0.013, 0.016) + sodium * 0.05 * head, sodium * 3.0, lit);
+        } else if (kind > 4.5 && kind < 5.5) {
+          // Steel on a roof: dark against the sky, its top and edges
+          // catching the glow; a dish's panel a little paler.
+          col = vec3(0.012, 0.013, 0.017) * (1.0 + 2.0 * vOwn.x) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * max(n.y, 0.0)) * uHaze * 0.5;
+        } else if (kind > 5.5 && kind < 6.5) {
+          // A hut or a penthouse: a dark wall with louvres, and on a
+          // penthouse a line of light under its roof.
+          vec3 wall = vec3(0.022, 0.023, 0.029) * (0.75 + 0.25 * step(0.5, fract(vWorld.y * 2.2)));
+          col = wall * (vec3(0.6) + sky * 4.0 * (0.4 + max(n.y, 0.0)));
+          float line = vOwn.y * step(abs(n.y), 0.5) * step(abs(vLocal.y - (vSize.y * 0.5 - 0.9)), 0.3);
+          vec3 lc = vOwn.x < 0.4 ? vec3(1.0, 0.62, 0.3) : vOwn.x < 0.75 ? vec3(0.2, 0.85, 1.0) : vec3(1.0, 0.88, 0.72);
+          col = mix(col, lc * 1.5, line);
+          lit = line;
+        } else if (kind > 6.5 && kind < 7.5) {
+          // A megastructure's deck: two floors of windows lit bay by bay
+          // behind a truss, a dark roof and a dark belly.
+          float side = step(vSize.z * 0.5 - 0.01, abs(vLocal.z));
+          vec2 cell = vec2(vLocal.x / 3.2, (vLocal.y + vSize.y * 0.5) / 3.8);
+          vec2 f = fract(cell);
+          float pane = step(0.08, f.x) * step(f.x, 0.92) * step(0.3, f.y) * step(f.y, 0.82);
+          float on = step(0.38, hash12(floor(cell) + vOwn.x * 91.0 + step(0.0, vLocal.z) * 7.0));
+          vec3 glow = mix(vec3(1.0, 0.66, 0.34), vec3(0.6, 0.85, 1.0), step(0.7, hash12(vec2(floor(cell.y), vOwn.x * 13.0))));
+          float truss = step(abs(abs(fract(vLocal.x / 15.2) - 0.5) * 2.0 - (vLocal.y / vSize.y + 0.5)), 0.05) + step(vSize.y * 0.5 - 0.45, abs(vLocal.y));
+          vec3 steel = vec3(0.016, 0.017, 0.022) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * max(n.y, 0.0)) * uHaze * 0.5;
+          lit = pane * on * side * (1.0 - clamp(truss, 0.0, 1.0));
+          col = mix(steel, glow * 0.75, lit);
+        } else if (kind > 7.5) {
+          // A board: a lightbox both ways, its picture blocks of a darker
+          // colour, a dark frame, its edges steel.
+          float face = step(vSize.z * 0.5 - 0.01, abs(vLocal.z));
+          vec2 q = vec2(vLocal.x / vSize.x + 0.5, vLocal.y / vSize.y + 0.5);
+          float h = hash12(vec2(vOwn.x * 57.0, floor(uTime / (9.0 + 6.0 * vOwn.x) + vOwn.x * 9.0)));
+          vec3 a = h < 0.25 ? vec3(1.0, 0.2, 0.3) : h < 0.5 ? vec3(0.16, 0.85, 1.0) : h < 0.7 ? vec3(1.0, 0.62, 0.2) : h < 0.85 ? vec3(1.0, 0.25, 0.7) : vec3(0.9, 0.95, 1.0);
+          float blocks = step(0.5, hash12(floor(q * vec2(5.0, 3.0)) + h * 31.0));
+          float edge = 1.0 - step(0.02, q.x) * step(q.x, 0.98) * step(0.04, q.y) * step(q.y, 0.96);
+          col = mix(vec3(0.012, 0.013, 0.017), mix(a * mix(1.3, 0.5, blocks), vec3(0.01), edge), face);
+          lit = face * (1.0 - edge);
         } else {
           // A parked car: a body in one of a few paints, its glass, and at
           // its ends its lamps, dark.
@@ -142,7 +185,8 @@ export function createFarStreet(scene, shared, boxes, { street }) {
       for (let i = 0; i < n; i++) {
         const o = i * 12;
         sphere.center.set(boxes[o], boxes[o + 1], boxes[o + 2]);
-        if (boxes[o + 7] !== BOX.slab && sphere.center.distanceToSquared(eye) > SMALL_TO * SMALL_TO) continue;
+        const reach = REACH[boxes[o + 7]];
+        if (sphere.center.distanceToSquared(eye) > reach * reach) continue;
         sphere.radius = 0.5 * Math.hypot(boxes[o + 4], boxes[o + 5], boxes[o + 6]);
         if (!frustum.intersectsSphere(sphere)) continue;
         if (order[k] !== i) {
