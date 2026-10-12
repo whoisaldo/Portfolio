@@ -316,7 +316,7 @@ function populate({ phone, walks, standers, bare = false }) {
   }
   // Everyone a district stood somewhere: x, y, z, the way they look, pose.
   for (let i = 0, k = 0; i + 4 < standers.length; i += 5, k++) {
-    if (phone && k % 3) continue;
+    if (phone && k % 2) continue;
     stand(standers[i], standers[i + 1], standers[i + 2], standers[i + 3], Math.min(POSES.length - 1, Math.max(0, Math.round(standers[i + 4]))));
   }
 
