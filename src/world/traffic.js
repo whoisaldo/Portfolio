@@ -245,8 +245,10 @@ function carGeometry(kind) {
   const geometry = mergeGeometries(parts, false);
   parts.forEach((g) => g.dispose());
   model.traverse((o) => o.isMesh && o.geometry.dispose());
+  geometry.computeBoundingBox();
   return {
     geometry,
+    box: geometry.boundingBox,
     head: [head.max.x * 0.82, (head.min.y + head.max.y) / 2, head.max.z],
     tail: [tail.max.x * 0.82, (tail.min.y + tail.max.y) / 2, tail.min.z],
   };
@@ -311,6 +313,9 @@ const ROAD_NEAR = -40;
 // a quarter drawn, its dark body gone into the dark road and its rims and
 // lamps left over.
 const FADE = 6;
+// How near the lens may come to a car's body before the car gives way: all
+// of it drawn from a metre off, none of it within 0.3 m or from inside.
+const NEAR = [0.3, 1];
 
 export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, streets = [], parkedMore = [], streetCars = 0, elevated = [], deckCars = 0 } = {}) {
   const avGeo = avGeometry();
@@ -319,12 +324,17 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // their accents in their own neon, and a dithered fade (per car, aFade)
   // where the loop lets them in and out, so nothing pops at the kerb of the
   // intersection.
-  const carMat = new THREE.ShaderMaterial({
-    uniforms: { ...shared },
+  // No lens ever looks out from inside one: the nearer the lens comes to a
+  // car's body (its box, in its own frame), the more of it the dither takes,
+  // from a metre off down to 0.3 m, and inside that it is not drawn at all.
+  const carShader = {
     vertexShader: /* glsl */ `
       attribute float aKind;
       attribute vec4 aLook;
       attribute float aFade;
+      uniform vec3 uCam;
+      uniform vec3 uBoxMin;
+      uniform vec3 uBoxMax;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       varying float vKind;
@@ -344,8 +354,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vBody = vec3(0.2);
         #endif
         vLook = aLook;
-        vFade = aFade;
-        gl_Position = projectionMatrix * viewMatrix * w;
+        vec3 lens = uCam - instanceMatrix[3].xyz;
+        lens = vec3(dot(lens, instanceMatrix[0].xyz), dot(lens, instanceMatrix[1].xyz), dot(lens, instanceMatrix[2].xyz));
+        float near = smoothstep(${NEAR[0].toFixed(2)}, ${NEAR[1].toFixed(2)}, length(max(max(uBoxMin - lens, lens - uBoxMax), 0.0)));
+        vFade = aFade * near;
+        gl_Position = near > 0.0 ? projectionMatrix * viewMatrix * w : vec4(2.0, 2.0, 2.0, 1.0);
       }
     `,
     fragmentShader: /* glsl */ `
@@ -371,7 +384,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vec3 above = uHazeColor * 0.3 * exp(-max(R.y, 0.0) * 4.0) + vec3(0.004, 0.004, 0.008);
         vec3 env = mix(below, above, step(0.0, R.y)) + vec3(1.0, 0.4, 0.75) * band * 0.3;
         int k = int(vKind + 0.5);
-        float lit = vLook.a;
+        // Its lamps go out with it where it fades.
+        float lit = vLook.a * vFade;
         vec3 col;
         float glow = 0.0;
         #ifdef VAN
@@ -426,8 +440,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         #include <colorspace_fragment>
       }
     `,
-  });
-  carMat.name = "traffic";
+  };
+  const carUniforms = { ...shared };
   // The AVs: gunmetal and tinted glass giving back the lit city under them
   // and the haze over it, most at a glancing angle; their lamps, thrusters
   // and sill strips bright enough for the bloom to find.
@@ -581,22 +595,21 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       cruisers++;
     }
   });
-  // Its own program over the same uniforms (a clone would copy them, and
-  // stop the clock).
-  const policeMat = new THREE.ShaderMaterial({ uniforms: carMat.uniforms, vertexShader: carMat.vertexShader, fragmentShader: carMat.fragmentShader, defines: { POLICE: "" } });
-  policeMat.name = "traffic_police";
-  const vanMat = new THREE.ShaderMaterial({ uniforms: carMat.uniforms, vertexShader: carMat.vertexShader, fragmentShader: carMat.fragmentShader, defines: { VAN: "" } });
-  vanMat.name = "traffic_van";
+  // A material a kind over the same uniforms (a clone would copy them, and
+  // stop the clock) with the kind's own box; the same source gives the same
+  // program, so the police and the van are the only other two.
   const color = new THREE.Color();
   const kinds = [...CAR_KINDS, "police"].map((kind, k) => {
     const built = carGeometry(kind);
+    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max } }, ...carShader, defines: kind === "police" ? { POLICE: "" } : kind === "van" ? { VAN: "" } : {} });
+    material.name = kind === "police" || kind === "van" ? `traffic_${kind}` : "traffic";
     const mine = slots.filter((x) => x.kind === k);
     const n = Math.max(1, mine.length);
     const look = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4);
     const fade = new THREE.InstancedBufferAttribute(new Float32Array(n).fill(1), 1).setUsage(THREE.DynamicDrawUsage);
     built.geometry.setAttribute("aLook", look);
     built.geometry.setAttribute("aFade", fade);
-    const mesh = new THREE.InstancedMesh(built.geometry, kind === "police" ? policeMat : kind === "van" ? vanMat : carMat, n);
+    const mesh = new THREE.InstancedMesh(built.geometry, material, n);
     mesh.name = `traffic_${kind}`;
     mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -611,7 +624,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     });
     mesh.count = mine.length;
     scene.add(mesh);
-    return { mesh, fade, geometry: built.geometry };
+    return { mesh, fade, geometry: built.geometry, material };
   });
   // The hazard car's four corner lamps, in its own frame.
   const hazardLamps = slots.find((y) => y.parked?.hazard)?.lamps;
@@ -815,6 +828,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const tilt = new THREE.Quaternion();
   const euler = new THREE.Euler();
   const FRONT = new THREE.Vector3(0, 0, 1);
+  const UP = new THREE.Vector3(0, 1, 0);
   const smoother = (u) => u * u * u * (u * (u * 6 - 15) + 10);
   // The point a distance d along a path (held to its ends).
   const onPath = (P, d, out) => {
@@ -824,6 +838,18 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     return out.lerpVectors(P.pts[k - 1], P.pts[k], (dd - P.at[k - 1]) / (P.at[k] - P.at[k - 1] || 1));
   };
   const turn = (from, to) => Math.atan2(Math.sin(to - from), Math.cos(to - from));
+  // How much of a car at p, turned q, the lens sees (the body's shader does
+  // the same sum for its dither): its lamps go out with it.
+  const lens = new THREE.Vector3();
+  const unturn = new THREE.Quaternion();
+  const seen = (at, turned, box) => {
+    lens.copy(shared.uCam.value).sub(at);
+    if (lens.lengthSq() > 64) return 1;
+    lens.applyQuaternion(unturn.copy(turned).invert());
+    const d = Math.hypot(Math.max(box.min.x - lens.x, lens.x - box.max.x, 0), Math.max(box.min.y - lens.y, lens.y - box.max.y, 0), Math.max(box.min.z - lens.z, lens.z - box.max.z, 0));
+    const u = Math.min(1, Math.max(0, (d - NEAR[0]) / (NEAR[1] - NEAR[0])));
+    return u * u * (3 - 2 * u);
+  };
   const setLamp = (i, x, y, z, r, g, b, size) => {
     lampPos[i * 3] = x;
     lampPos[i * 3 + 1] = y;
@@ -961,8 +987,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       q.setFromUnitVectors(FRONT, fwd);
       const x = slots[i];
       x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
-      const edge = Math.min(1, (Math.min(t, 1 - t) * L.len) / FADE);
+      let edge = Math.min(1, (Math.min(t, 1 - t) * L.len) / FADE);
       kinds[x.kind].fade.setX(x.index, edge);
+      edge *= seen(p, q, x.lamps.box);
       const head = x.lamps.head;
       const tail = x.lamps.tail;
       for (const sd of SIDES) {
@@ -984,8 +1011,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       q.setFromEuler(euler.set(-Math.asin(fwd.y), Math.atan2(fwd.x, fwd.z), 0, "YXZ"));
       const x = slots[firstPath + i];
       x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
-      const edge = Math.min(1, (Math.min(t, 1 - t) * P.len) / FADE);
+      let edge = Math.min(1, (Math.min(t, 1 - t) * P.len) / FADE);
       kinds[x.kind].fade.setX(x.index, edge);
+      edge *= seen(p, q, x.lamps.box);
       const head = x.lamps.head;
       const tail = x.lamps.tail;
       for (const sd of SIDES) {
@@ -1010,8 +1038,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // Fade in and out over the last metres of the run, the lamps by their
       // brightness and the body by its dither: everywhere else the car is
       // whole.
-      const edge = Math.min(1, (Math.min(t, 1 - t) * span) / FADE);
+      let edge = Math.min(1, (Math.min(t, 1 - t) * span) / FADE);
       kinds[x.kind].fade.setX(x.index, edge);
+      edge *= seen(p, q, x.lamps.box);
       const head = x.lamps.head;
       const tail = x.lamps.tail;
       for (const s of SIDES) {
@@ -1021,7 +1050,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     }
     if (hazard) {
       // Amber at the four corners, a beat on and a beat off.
-      const on = reduced ? 0.25 : step(clock * 1.5);
+      const on = (reduced ? 0.25 : step(clock * 1.5)) * seen(p.set(hazard.x, 0, hazard.z), q.setFromAxisAngle(UP, hazard.yaw), hazardLamps.box);
       const c = Math.cos(hazard.yaw);
       const sn = Math.sin(hazard.yaw);
       for (const [lx, ly, lz] of hazardCorners) {
@@ -1067,9 +1096,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       avGeo.dispose();
       droneGeo.dispose();
       droneMesh.dispose();
-      carMat.dispose();
-      policeMat.dispose();
-      vanMat.dispose();
       avMat.dispose();
       quad.dispose();
       lampGeo.dispose();
@@ -1077,6 +1103,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       avMesh.dispose();
       for (const k of kinds) {
         k.geometry.dispose();
+        k.material.dispose();
         k.mesh.dispose();
       }
     },
