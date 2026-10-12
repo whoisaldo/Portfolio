@@ -28,6 +28,7 @@ import { createCity, preloadCity, preloadPack, PACKS, REFLECT_LAYER, MIRROR_LAYE
 import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
 import { preloadAds } from "./ads.js";
+import { createCover } from "./cover.js";
 import { createKoi, preloadKoi } from "./koi.js";
 import { createPlazaKoi } from "./plaza-koi.js";
 import { createCrowd } from "./crowd.js";
@@ -138,6 +139,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let shafts = null;
   let koi = null;
   let plazaKoi = null;
+  let cover = null;
   let crowd = null;
   let steam = null;
   let moon = null;
@@ -166,6 +168,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       facades: [c.maps.facade_t0, c.maps.facade_t1, c.maps.facade_t2],
     });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
+    cover = createCover(renderer, LIGHT_BOUNDS, { size: tier === "phone" ? 1024 : 2048 });
+    cover.render(c.root);
+    rain.setCover(cover);
     bolt = createBolt(scene, shared);
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
@@ -965,6 +970,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         // Its materials are the core's, compiled at warm-up; this makes sure
         // of any variant its meshes need before one is drawn.
         renderer.compile(city.root, camera);
+        cover?.render(city.root);
         packsIn.push(name);
       } catch (err) {
         if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
@@ -1109,6 +1115,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       c.dispose();
       skyline?.dispose();
       rain?.dispose();
+      cover?.dispose();
       bolt?.dispose();
       traffic?.dispose();
       car?.dispose();
