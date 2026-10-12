@@ -232,12 +232,13 @@ def tube_sign(c, yaw, w, h, colour, r, both=True, roll=0.0):
         write((D, "glow", 0), c, bb, text, tw, th, 0.112, thick, col, vertical)
 
 
-def letters(c, b, text, h, colour, depth=0.24, vertical=False, both=False):
-    """Standing letters, each stroke a bar `depth` deep cut from sheet: its
-    face lit in `colour`, its returns dark (detail). One character is h
-    high; the word runs across from its middle at c, or down. Returns the
-    word's width and height."""
-    kana = text[0] in F.GLYPHS and not text[0].isascii()
+def letters(c, b, text, h, colour, depth=0.24, vertical=False, both=False, sides=False):
+    """Standing letters, each stroke a bar cut from sheet with a lit face
+    in `colour`: one character is h high, the word runs across from its
+    middle at c, or down. `sides`: the bars' long returns, dark (a word on
+    a roof, seen from along it); `both`: their backs too (seen from
+    behind). Returns the word's width and height."""
+    kana = not text[0].isascii()
     n = len(text)
     cw = h * (1.12 if kana else 0.9)
     w, hh = (cw, h * 1.14 * n) if vertical else (cw * n, h)
@@ -245,8 +246,9 @@ def letters(c, b, text, h, colour, depth=0.24, vertical=False, both=False):
     for p, q in F.segments(text, w, hh, vertical, gap=0.2):
         a0, a1, nu, nv = _stroke((D, "neon_" + colour, 0), c, b, p, q, thick, depth / 2, (1, 1, 1, 1))
         ring = [(a0[0] - nu, a0[1] - nv), (a1[0] - nu, a1[1] - nv), (a1[0] + nu, a1[1] + nv), (a0[0] + nu, a0[1] + nv)]
-        for (ua, va), (ub, vb) in zip(ring, ring[1:] + ring[:1]):
-            quad((D, "trim", 1), pt(c, b, ua, va, -depth / 2), pt(c, b, ub, vb, -depth / 2), pt(c, b, ub, vb, depth / 2), pt(c, b, ua, va, depth / 2), col=STEEL_D)
+        if sides:
+            for (ua, va), (ub, vb) in ((ring[0], ring[1]), (ring[2], ring[3])):
+                quad((D, "trim", 1), pt(c, b, ua, va, -depth / 2), pt(c, b, ub, vb, -depth / 2), pt(c, b, ub, vb, depth / 2), pt(c, b, ua, va, depth / 2), col=STEEL_D)
         if both:
             quad((D, "trim", 1), pt(c, b, ring[1][0], ring[1][1], -depth / 2), pt(c, b, ring[0][0], ring[0][1], -depth / 2), pt(c, b, ring[3][0], ring[3][1], -depth / 2),
                  pt(c, b, ring[2][0], ring[2][1], -depth / 2), col=STEEL_D)

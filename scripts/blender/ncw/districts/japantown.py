@@ -22,6 +22,8 @@ than 7.5 m: the bake mirrors such light onto the avenue's road for the hero
 (src/world/spill.js), and the hero cannot see over its own west row. Light
 up there is `glow`, which the bake leaves out. Checked at the end.
 """
+import os
+
 from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P  # noqa: F401
@@ -130,6 +132,17 @@ def _quiet_billboard(district, cx, cy, cz, w, h, yaw, r, frame=True, back=True, 
     J.tube_sign((cx, cy, cz), yaw, w * 0.8, h * 0.8, r.choice(("pink", "amber", "cyan", "green", "red")), r, both=False)
 
 
+# The roofline steps (the review's "a flat line"): about one lot in six of
+# the rows that front the street and the lantern alley stands three to five
+# storeys over what the row's own dice gave it, and a pencil tower stands
+# at each kerb where the high bridge crosses (HIGH_Z). Their own dice: the
+# row's stream runs as it did. A lot a named view stands on keeps its height.
+STEP = {"E": 0.17, "A": 0.17, "B": 0.1}
+HIGH_Z = -591.0
+TOWERS = {"A": 13, "E": 12}
+KEEP_LOW = {"A": (-711.0, -598.0, -540.0), "E": (-606.5, -42.0), "B": (-80.0,)}
+
+
 def build_row(tag, xs, front, back, segs, seed, widths, floors, style, quiet=False, ground="shops"):
     rs = random.Random(seed)
     back_name = "-x" if front == "+x" else "+x"
@@ -143,6 +156,12 @@ def build_row(tag, xs, front, back, segs, seed, widths, floors, style, quiet=Fal
         for _ in spans:
             prev = pick(rs, floors, prev)
             hs.append(storeys(prev))
+        for j, (a, b) in enumerate(spans):
+            rb = random.Random(seed * 131 + round(a * 10))
+            if rb.random() < STEP.get(tag, 0.0) and not any(a <= zk <= b for zk in KEEP_LOW.get(tag, ())):
+                hs[j] += CELL_H * rb.choice((3, 3, 4, 5))
+            if tag in TOWERS and a <= HIGH_Z <= b:
+                hs[j] = storeys(TOWERS[tag])
         # Beside the deck's girder (its gap is the deck's own to dress, at
         # grade): two storeys, their roofs level with its road, and a plain
         # windowed side for its stall and machines to stand against.
@@ -408,6 +427,20 @@ def shop_face(rec, name, level="street", cap=None):
             noren(f, s, s + r.uniform(1.2, 1.8), r)
     signs_on(f, h, r, density={"street": 1.0, "alley": 0.42, "edge": 0.4}[level], small=alley, big=not alley, cap=cap)
     by_wall(f, r, alley, {"street": 0.4, "alley": 0.26, "edge": 0.08}[level])
+    if level == "street" and h < storeys(2) + 0.1 and w > 5.0:
+        # A two-storey front has one floor to show over its shops (the
+        # review: "plain flat walls with one row of small windows"): a word
+        # in standing letters across it on a rail, a tube under its eave.
+        rl = rng(rec, "low" + name)
+        hue = rl.choice(("pink", "amber", "red", "green", "cyan", "white"))
+        c = f.p(f.at(w / 2), SHOP_H + 1.75, 0.34)
+        kana = rl.random() < 0.65
+        text = J.F.pick(J.F.KANA if kana else J.F.LATIN, c, max(2, int((w - 1.2) / (1.5 * (1.12 if kana else 0.9)))), (2, 0))
+        ch = min(1.6, (w - 1.2) / (len(text) * (1.12 if kana else 0.9)))
+        wd, _ = J.letters(c, basis(f.yaw), text, ch, hue, depth=0.14)
+        for v in (-ch * 0.3, ch * 0.3):
+            f.box((D, "metal", 1), w / 2 - wd / 2 - 0.2, w / 2 + wd / 2 + 0.2, SHOP_H + 1.75 + v - 0.03, SHOP_H + 1.75 + v + 0.03, 0.18, 0.24)
+        strip(f, rl.choice(("white", "amber", "pink", "cyan")), 0.3, w - 0.3, h - 0.42, h - 0.34, 0.1)
 
 
 # ---------------------------------------------------------------------------
@@ -1119,6 +1152,47 @@ def roof_sign(x, z, top, yaw, r, span, tall_ok=True):
         box((D, "metal", 1), px - 0.08, px + 0.08, top, sy, pz - 0.08, pz + 0.08, scale=0.5)
 
 
+def sky_word(rec):
+    """What the tall lots on the street carry over its roofline
+    (Fn9gKhU_2_Q@39, ax5YUmkWf_Y@112): a word in standing letters on a frame
+    at the roof's street edge, turned a little up or down the street; and
+    on the two towers, their name in kana down a fin off the face."""
+    x0, x1, z0, z1, _, top = rec["tiers"][-1]
+    rw = rng(rec, "word")
+    sgn = 1 if rec["front"] == "+x" else -1
+    xf, d = (x1 if sgn > 0 else x0), z1 - z0
+    hue = rw.choice(("pink", "red", "amber", "cyan", "green", "magenta", "white", "red"))
+    if rec["h"] > 40.0:
+        zf = z1 - 1.6 if (z0 + z1) / 2 > HIGH_Z else z0 + 1.6
+        c = (xf + sgn * 1.9, 20.0, zf)
+        text = J.F.pick(J.F.KANA, c, 5, (1, 0))
+        ch = 14.0 / (len(text) * 1.14)
+        obox((D, "board_frame", 0), c, basis(0.0), 0.3, 15.0, 3.2)
+        for yaw in (0.0, math.pi):
+            b = basis(yaw - HALF_PI)
+            J.letters(pt(c, b, 0.0, 0.0, 0.28), b, text, min(2.6, ch), hue, depth=0.2, vertical=True)
+        for y in (13.2, 20.0, 26.8):
+            box((D, "metal", 1), min(xf, c[0]), max(xf, c[0]), y - 0.06, y + 0.06, zf - 0.06, zf + 0.06, scale=1.0)
+        light(D, c[0], 8.0, zf, hue, 5.0)
+    if rec.get("roof") in ("sign", "deck"):
+        return
+    kana = rw.random() < 0.6
+    n = max(2, min(5 if kana else 7, int((d - 0.8) / (2.2 * (1.12 if kana else 0.9)))))
+    c0 = (xf - sgn * 0.8, top + 1.3, (z0 + z1) / 2)
+    text = J.F.pick(J.F.KANA if kana else J.F.LATIN, c0, n, (1, 0) if kana else (2, 0))
+    ch = min(2.6, (d - 0.8) / (len(text) * (1.12 if kana else 0.9)))
+    yaw = HALF_PI * sgn + rw.uniform(-0.3, 0.3)
+    b = basis(yaw)
+    c = (c0[0], top + 1.3 + ch / 2, c0[2])
+    wd, _ = J.letters(c, b, text, ch, hue, depth=0.3, both=True, sides=True)
+    for v in (ch * 0.22, ch * 0.78):
+        obox((D, "trim", 1), pt((c[0], top + 1.3 + v, c[2]), b, 0.0, 0.0, -0.22), b, wd + 0.4, 0.09, 0.09, col=ESCAPE, tube=True)
+    for du in (-wd * 0.42, 0.0, wd * 0.42):
+        px, _, pz = pt(c, b, du, 0.0, -0.22)
+        box((D, "trim", 1), px - 0.06, px + 0.06, top, top + 1.3 + ch * 0.8, pz - 0.06, pz + 0.06, scale=1.0, col=ESCAPE)
+    light(D, c[0] - sgn * 1.5, top + 1.0, c[2], hue, 5.0)
+
+
 COURTS = []   # where the courts are (z): none within 170 m of another
 
 
@@ -1441,6 +1515,8 @@ for rec in LOTS:
         if rec["r"].random() < 0.6 and f.width > 8.0:
             J.board(f, f.width / 2, rec["h"] - 2.6, "pm", tilt=rec["r"].uniform(-0.25, 0.25), k=rec["r"].uniform(1.6, 2.2), out=0.3)
     roof(rec, ROOFS_W[row])
+    if rec["h"] > 24.0 and row in ("A", "E"):
+        sky_word(rec)
     if id(rec) in BY_DECK:
         deck_lot(rec)
 
@@ -1500,8 +1576,9 @@ def clear_of(z, spans, pad=0.0):
 
 # What stands over the street (z): the gate, the sign bridge, the bridge
 # between the two sides, the sign tower, the lantern arch, the south arch.
-GATE_Z, SIGNS_Z, BRIDGE_Z, TOWER_Z, ARCH_Z, SOUTH_Z = -696.0, -444.0, -528.0, -352.0, -276.0, -30.0
-OVER = [(z - 4.0, z + 4.0) for z in (GATE_Z, SIGNS_Z, BRIDGE_Z, ARCH_Z, SOUTH_Z)] + [(-616.0, -604.0)]
+GATE_Z, SIGNS_Z, BRIDGE_Z, TOWER_Z, ARCH_Z, SOUTH_Z, PIPES_Z = -696.0, -444.0, -528.0, -352.0, -276.0, -30.0, -323.5
+OVER = [(z - 4.0, z + 4.0) for z in (GATE_Z, SIGNS_Z, BRIDGE_Z, ARCH_Z, SOUTH_Z, PIPES_Z)] + [(-616.0, -604.0)]
+STRUNG = []    # where a string, a festoon or a cable crosses the street (z)
 sr = random.Random(7100)
 z = -710.0
 while z < -8.0:
@@ -1520,7 +1597,9 @@ while z < -8.0:
         yc, dc = min(hw, height_at("E", zb)) - sr.uniform(0.5, 2.5), sr.uniform(0.8, 1.6)
         if free and clear_of(zb, OVER):
             J.span(kind, (XW, z), (XE, zb), yc, dc)
+            STRUNG.append((z + zb) / 2)
     elif free:
+        STRUNG.append(z)
         if kind == "jt_string":
             J.string((XW, z), (XE, zb), y, 2.2, 3.0, 2.0)
         else:
@@ -1687,7 +1766,16 @@ def tube_arch(z, r):
     for x in (xa, xb):
         pylon(x, z, 10.6)
     box((D, "trim", 0), xa - 0.6, xb + 0.6, 10.0, 10.4, z - 0.22, z + 0.22, scale=1.0, col=STEELWORK, bottom=True)
-    J.tube_sign((-80.0, 8.55, z), 0.0, 13.0, 2.3, "pink", r)
+    # The street's name on a board hung under it, read from both sides.
+    obox((D, "board_frame", 0), (-80.0, 8.55, z), basis(0.0), 13.6, 2.6, 0.24)
+    J._burn(r, 13.0, 2.3)
+    for yaw in (0.0, math.pi):
+        b = basis(yaw)
+        J.letters(pt((-80.0, 8.55, z), b, 0.0, 0.0, 0.2), b, "サクラドオリ", 1.75, "pink", depth=0.16)
+        for v in (-1.12, 1.12):
+            J._stroke((D, "neon_amber", 0), (-80.0, 8.55, z), b, (-6.5, v), (6.5, v), 0.08, 0.13, (1, 1, 1, 1))
+    for x in (-85.0, -75.0):
+        box((D, "metal", 1), x - 0.04, x + 0.04, 9.85, 10.0, z - 0.04, z + 0.04, scale=1.0)
     box((D, "neon_amber", 0), xa, xb, 10.4, 10.48, z - 0.04, z + 0.04, scale=1.0)
     for x in (-87.0, -80.0, -73.0):
         light(D, x, 0.3, z, "pink", 3.4)
@@ -1718,29 +1806,163 @@ def sign_tower(x, z, r):
         light(D, x + 0.6, 2.0, z + dz, hue, 4.5)
 
 
-def skybridge(z, r):
-    """A bridge between the street's two sides at the third floor: a lit
-    glazed corridor on two piers, an advert along the side the traffic
-    comes at, two boards hung under the other, a tube under its floor,
-    cable bundles slung beside it."""
-    za, zb = z - 1.5, z + 1.5
-    shell = (0.07, 0.075, 0.085, 1)
+def truss(xa, xb, z, y0, y1, half, bays, col=ESCAPE, mid=None):
+    """Two Warren trusses from xa to xb, half a width either side of z,
+    between y0 and y1: their chords, a post at every panel point, the
+    diagonals between, ties across the top, the floor they carry. `mid`: a
+    middle chord (a truss two storeys deep)."""
+    k0, k1 = (D, "trim", 0), (D, "trim", 1)
+    step = (xb - xa) / bays
+    for zz in (z - half, z + half):
+        for y in (y0, y1) + ((mid,) if mid else ()):
+            box(k0, xa, xb, y - 0.13, y + 0.13, zz - 0.11, zz + 0.11, scale=1.0, col=col, bottom=True)
+        for i in range(bays + 1):
+            x = xa + step * i
+            for q in (((x - 0.08, y0, zz + 0.09), (x + 0.08, y0, zz + 0.09), (x + 0.08, y1, zz + 0.09), (x - 0.08, y1, zz + 0.09)),
+                      ((x + 0.08, y0, zz - 0.09), (x - 0.08, y0, zz - 0.09), (x - 0.08, y1, zz - 0.09), (x + 0.08, y1, zz - 0.09)),
+                      ((x - 0.08, y0, zz - 0.09), (x - 0.08, y0, zz + 0.09), (x - 0.08, y1, zz + 0.09), (x - 0.08, y1, zz - 0.09)),
+                      ((x + 0.08, y0, zz + 0.09), (x + 0.08, y0, zz - 0.09), (x + 0.08, y1, zz - 0.09), (x + 0.08, y1, zz + 0.09))):
+                quad(k1, *q, col=col)
+        levels = ((y0, mid), (mid, y1)) if mid else ((y0, y1),)
+        for ya, yb in levels:
+            for i in range(bays):
+                x0_, x1_ = xa + step * i, xa + step * (i + 1)
+                va, vb = (ya, yb) if i % 2 == 0 else (yb, ya)
+                q = ((x0_, va - 0.08, zz), (x1_, vb - 0.08, zz), (x1_, vb + 0.08, zz), (x0_, va + 0.08, zz))
+                quad(k1, *q, col=col)
+                quad(k1, q[1], q[0], q[3], q[2], col=col)
+    for i in range(bays + 1):
+        x = xa + step * i
+        box(k1, x - 0.07, x + 0.07, y1 - 0.07, y1 + 0.07, z - half, z + half, scale=1.0, col=col, bottom=True)
+    box(k0, xa, xb, y0 - 0.2, y0, z - half, z + half, scale=1.0, col=(0.05, 0.053, 0.06, 1), bottom=True)
+
+
+def legs(x, z, half, top, col=STEELWORK):
+    """A pylon of two legs on blocks at the kerb's edge, braced across."""
+    for zz in (z - half, z + half):
+        box((D, "dark", 0), x - 0.3, x + 0.3, G0, 0.9, zz - 0.3, zz + 0.3, scale=1.0)
+        box((D, "trim", 0), x - 0.16, x + 0.16, 0.9, top, zz - 0.16, zz + 0.16, scale=1.0, col=col)
+    y = 1.6
+    while y + 2.6 < top - 0.3:
+        for za, zb in ((z - half, z + half), (z + half, z - half)):
+            q = ((x, y, za), (x, y + 2.6, zb), (x, y + 2.74, zb), (x, y + 0.14, za))
+            quad((D, "trim", 1), *q, col=col)
+            quad((D, "trim", 1), q[1], q[0], q[3], q[2], col=col)
+        y += 2.6
+
+
+def panel_row(xa, xb, y, h, z, yaw, r, kinds, hue):
+    """A row of boards side by side from xa to xb, their feet at y, facing
+    yaw (0 south, pi north): adverts (the site's), words in standing
+    letters on a dark board, the street's own signs enlarged; each on two
+    struts back to the truss."""
+    n = len(kinds)
+    w = (xb - xa) / n
+    dz = math.cos(yaw)
+    for i, kind in enumerate(kinds):
+        cx, cy = xa + w * (i + 0.5), y + h / 2
+        bw = w - 0.5
+        if kind == "ad":
+            B.billboard(D, cx, cy, z + dz * 0.14, bw, h, yaw, r, back=False, depth=0.24)
+        elif kind == "word":
+            b = basis(yaw)
+            obox((D, "board_frame", 0), (cx, cy, z), b, bw, h, 0.22)
+            text = J.F.pick(J.F.KANA, (cx, cy, z), max(2, int(bw / (h * 0.62))), (2, 0))
+            ch = min(h * 0.6, bw * 0.84 / (len(text) * 1.12))
+            J.letters((cx, cy, z + dz * 0.2), b, text, ch, hue, depth=0.16)
+            for sd in (-1, 1):
+                box((D, "neon_" + hue, 0), cx - bw / 2 + 0.2, cx + bw / 2 - 0.2, cy + sd * (h / 2 - 0.16) - 0.04, cy + sd * (h / 2 - 0.16) + 0.04, z + dz * 0.12 - 0.02, z + dz * 0.12 + 0.02,
+                    scale=1.0, bottom=True)
+        else:
+            k = min(h / 1.2, bw / 2.8) * 0.94
+            if J.slab_sign((cx, cy, z + dz * 0.1), basis(yaw), "pm", k, both=False, depth=0.2, need=40.0)[0] == 0.0:
+                J.slab_sign((cx, cy, z + dz * 0.1), basis(yaw), "bx", min(h, bw) / 1.2 * 0.9, both=False, depth=0.2)
+        for du in (-bw * 0.3, bw * 0.3):
+            q = ((cx + du, y + h * 0.75, z - dz * 0.1), (cx + du, y - 0.1, z - dz * 1.1), (cx + du, y + 0.02, z - dz * 1.1), (cx + du, y + h * 0.75 + 0.12, z - dz * 0.1))
+            quad((D, "trim", 1), *q, col=ESCAPE)
+            quad((D, "trim", 1), q[1], q[0], q[3], q[2], col=ESCAPE)
+
+
+def skybridge(z, r, y0=9.6, hue="cyan", rows=(("ad", "word", "ad", "slab"), ("slab", "ad", "word", "ad"))):
+    """A footbridge between the street's two sides (Zq4zTcIM0yQ@45): two
+    steel trusses on braced pylons at the kerbs, its floor between them lit
+    from a line of lamps under the top ties, people on it; a row of boards
+    standing on its top chord turned up the street and another down it,
+    blades hung under its floor, a tube along its lower chord, cable
+    bundles slung beside it and from its pylons to the fronts."""
+    half, y1 = 1.3, y0 + 3.0
     for x in (-90.6, -69.4):
-        box((D, "trim", 0), x - 0.3, x + 0.3, G0, 9.3, z - 0.3, z + 0.3, scale=1.0, col=shell)
-    box((D, "trim", 0), XW, XE, 9.3, 9.6, za - 0.12, zb + 0.12, scale=1.0, col=shell, bottom=True)
-    box((D, "trim", 0), XW, XE, 12.4, 12.66, za - 0.25, zb + 0.25, scale=1.0, col=shell, bottom=True)
-    col = B.wall_col(0.96, 3, 0.85, B.TINTS["charcoal"])
-    for f in (B.Face("+z", zb, XW, XE), B.Face("-z", za, XW, XE)):
-        B.facade_wall((D, "facade", 0), f, 9.6, 12.4, col, 5.0 - (9.6 - SHOP_H) / CELL_H)
-    B.billboard(D, -80.0, 10.95, za - 0.28, 11.0, 2.3, math.pi, r, back=False, depth=0.2)
-    for x in (-86.0, -74.0):
-        J.slab_sign((x, 8.25, zb - 0.6), basis(0.0), "pm", 1.5)
-        box((D, "metal", 1), x - 0.04, x + 0.04, 9.15, 9.3, zb - 0.64, zb - 0.56, scale=1.0)
-    box((D, "neon_cyan", 0), XW + 3.6, XE - 3.6, 9.22, 9.3, z - 0.05, z + 0.05, scale=1.0, bottom=True)
-    for dz, y, drop in ((-2.1, 9.2, 1.0), (2.2, 12.2, 1.5), (2.5, 9.6, 0.7)):
+        legs(x, z, half, y0 - 0.2)
+    truss(XW, XE, z, y0, y1, half, 8)
+    box((D, "glow", 0), XW + 1.5, XE - 1.5, y1 - 0.2, y1 - 0.14, z - 0.12, z + 0.12, scale=1.0, col=(0.5, 0.36, 0.2, 1), bottom=True)
+    # (The handrails' infill, the floor's light on it.)
+    for zz, yaw in ((z - half + 0.12, 0.0), (z + half - 0.12, math.pi)):
+        rotated_quad((D, "glow", 0), (XW + XE) / 2, y0 + 0.55, zz, XE - XW - 0.6, 1.0, yaw, col=(0.016, 0.012, 0.008, 1))
+    panel_row(XW + 1.0, XE - 1.0, y1 + 0.3, 3.0, z - half - 0.15, math.pi, r, rows[0], hue)
+    panel_row(XW + 1.0, XE - 1.0, y1 + 0.3, 3.0, z + half + 0.15, 0.0, r, rows[1], "pink" if hue != "pink" else "amber")
+    for x in (-86.5, -80.0, -73.5):
+        J.slab_sign((x, y0 - 2.1, z + 0.2), basis(0.0), "bm", 1.1)
+        box((D, "metal", 1), x - 0.03, x + 0.03, y0 - 0.5, y0 - 0.2, z + 0.17, z + 0.23, scale=1.0)
+    box((D, "neon_" + hue, 0), XW + 3.6, XE - 3.6, y0 - 0.3, y0 - 0.22, z - 0.05, z + 0.05, scale=1.0, bottom=True)
+    for dz, y, drop in ((-2.1, y0 - 0.4, 1.0), (2.2, y1 - 0.2, 1.5), (2.6, y0, 0.7), (-2.6, y1 + 0.4, 1.2)):
+        J.span("jt_cable", (XW, z + dz), (XE, z + dz + r.uniform(-0.6, 0.6)), y, drop)
+    for x, wall in ((-90.6, XW), (-69.4, XE)):
+        for dz in (-7.0, 6.0):
+            J.span("jt_cable", (x, z), (wall, z + dz), y0 - 0.6, 0.5)
+    for x in (-85.0, -79.0, -74.0):
+        stand(x, z + r.uniform(-0.6, 0.6), r.uniform(0, 6.28), r.choice(("idle", "phone", "lean", "smoke")), y0)
+    stand(-82.0, z - half + 0.35, math.pi, "lean", y0)
+    for x in (-87.0, -80.0, -73.0):
+        light(D, x, 0.3, z, hue, 3.6)
+        light(D, x, y0 + 1.0, z, "amber", 3.0)
+
+
+def high_bridge(z, r, y0=29.5, y1=36.0):
+    """The high bridge between the two towers (the show's frame of Lucy's
+    roof has one across it): a truss two storeys deep with a lit corridor
+    on each floor behind its bracing, three great boards standing on it to
+    the south and three to the north, a tube along each chord, red lamps
+    under it for whatever flies."""
+    half, mid = 2.0, (y0 + y1) / 2
+    truss(XW, XE, z, y0, y1, half, 7, col=STEELWORK, mid=mid)
+    col = B.wall_col(0.97, 2, 0.4, B.TINTS["charcoal"])
+    for f in (B.Face("+z", z + half - 0.25, XW, XE), B.Face("-z", z - half + 0.25, XW, XE)):
+        B.facade_wall((D, "facade", 0), f, y0 + 0.2, y1 - 0.2, col, 7.0 - (y0 + 0.2 - SHOP_H) / CELL_H)
+    box((D, "trim", 0), XW, XE, y1, y1 + 0.3, z - half - 0.3, z + half + 0.3, scale=1.0, col=(0.05, 0.053, 0.06, 1), bottom=True)
+    panel_row(XW + 0.6, XE - 0.6, y1 + 0.5, 4.8, z + half + 0.2, 0.0, r, ("ad", "word", "ad"), "pink")
+    panel_row(XW + 0.6, XE - 0.6, y1 + 0.5, 4.8, z - half - 0.2, math.pi, r, ("word", "ad", "slab"), "cyan")
+    for zz, hue in ((z + half + 0.14, "cyan"), (z - half - 0.14, "magenta")):
+        box((D, "neon_" + hue, 0), XW + 0.5, XE - 0.5, y0 - 0.32, y0 - 0.22, zz - 0.04, zz + 0.04, scale=1.0, bottom=True)
+    for x in (-88.0, -80.0, -72.0):
+        box((D, "glow", 0), x - 0.12, x + 0.12, y0 - 0.42, y0 - 0.3, z - 0.12, z + 0.12, scale=1.0, col=GLOW["red"], bottom=True)
+    for dz, drop in ((-2.6, 2.2), (2.7, 3.0)):
+        J.span("jt_cable", (XW, z + dz), (XE, z + dz), y0 - 0.5, drop)
+
+
+def pipe_bridge(z, r, y0=11.4):
+    """A services bridge: a slim truss carrying pipes and cable trays from
+    one side to the other, one long board of words along it each way, tubes
+    of light under it and lanterns strung below."""
+    half, y1 = 0.8, y0 + 2.2
+    for x in (-90.6, -69.4):
+        legs(x, z, half, y0 - 0.2)
+    truss(XW, XE, z, y0, y1, half, 10, col=(0.13, 0.085, 0.05, 1))
+    for dz, rr, c in ((-0.4, 0.2, (0.2, 0.21, 0.22, 1)), (0.1, 0.13, J.RUSTY), (0.45, 0.1, (0.1, 0.11, 0.1, 1))):
+        pipe((D, "trim", 1), (XW, y0 + 0.2 + rr, z + dz), (XE, y0 + 0.2 + rr, z + dz), rr, segs=6, col=c)
+    for yaw, zz, hue, pool in ((math.pi, z - half - 0.16, "amber", J.F.LATIN), (0.0, z + half + 0.16, "green", J.F.KANA)):
+        b = basis(yaw)
+        c = (-80.0, y1 + 1.35, zz)
+        obox((D, "board_frame", 0), c, b, 21.0, 2.2, 0.2)
+        text = J.F.pick(pool, c, 8, (2, 3)) if pool is J.F.LATIN else J.F.pick(pool, (c[0] - 5.0, c[1], c[2]), 4, (1, 1)) + " " + J.F.pick(pool, (c[0] + 5.0, c[1], c[2]), 4, (1, 1))
+        J.letters(pt(c, b, 0.0, 0.0, 0.16), b, text, min(1.5, 19.0 / (len(text) * 1.12)), hue, depth=0.14)
+        for du in (-9.0, -3.0, 3.0, 9.0):
+            box((D, "metal", 1), c[0] + du - 0.05, c[0] + du + 0.05, y1, y1 + 0.3, zz - 0.05, zz + 0.05, scale=1.0)
+    box((D, "neon_pink", 0), XW + 2.0, XE - 2.0, y0 - 0.3, y0 - 0.22, z - 0.05, z + 0.05, scale=1.0, bottom=True)
+    J.string((XW + 1.0, z + 1.6), (XE - 1.0, z + 1.6), y0 - 0.4, 1.6, 3.0, 1.8)
+    for dz, y, drop in ((-1.5, y0 + 0.4, 1.1), (1.9, y1, 1.6)):
         J.span("jt_cable", (XW, z + dz), (XE, z + dz + r.uniform(-0.6, 0.6)), y, drop)
     for x in (-87.0, -80.0, -73.0):
-        light(D, x, 0.3, z, "cyan", 3.6)
+        light(D, x, 0.3, z, "pink", 3.4)
 
 
 gr = random.Random(7150)
@@ -1748,6 +1970,9 @@ street_gate(GATE_Z, sr)
 sign_bridge(SIGNS_Z, gr)
 skybridge(BRIDGE_Z, gr)
 sign_tower(-90.55, TOWER_Z, gr)
+hr = random.Random(7160)
+high_bridge(HIGH_Z, hr)
+pipe_bridge(PIPES_Z, hr)
 lantern_arch(ARCH_Z, gr)
 tube_arch(SOUTH_Z, gr)
 
@@ -1756,6 +1981,123 @@ for a, b in ALLEYS:
     gate(XW - 0.3, a, b, HALF_PI, sr)
 for a, b in PASSAGES:
     gate(XE + 0.3, a, b, -HALF_PI, sr, h=4.5)
+
+# ---------------------------------------------------------------------------
+# The street's middle and its kerbs (the review: "too wide, too empty";
+# Zq4zTcIM0yQ@41 for the kerb's kit). A reservation down the middle from the
+# gate to short of the ramp's foot, broken where a car may turn across and
+# under the megabuilding's rail: a kerbed strip with palms where nothing is
+# slung over it and shrubs where something is, lantern columns, a guard
+# rail between them, bollards and a lit keep-clear post at each nose. Along
+# both kerbs: strips of light let into the kerbstone with a gutter grate
+# and a cover by each, bicycles on their stands, bollards in runs and at
+# the alleys' mouths, bags put out, hydrants, charging posts, bins, lit
+# grates in the flags (the kit breathes steam from half of them), a signal
+# at the ramp's crossing. Nothing where something already stands.
+# ---------------------------------------------------------------------------
+MEDIAN = (-688.0, -240.0)
+TURNS = [(z - 4.5, z + 4.5) for z in (-610.0, -505.0, -402.0, -300.0)]
+
+
+def median():
+    mr = random.Random(7170)
+    z, runs = MEDIAN[0], []
+    for g0, g1 in TURNS + [(MEDIAN[1], MEDIAN[1])]:
+        if g0 - z > 8.0:
+            runs.append((z, g0))
+        z = g1
+    for a, b in runs:
+        box((D, "kerb", 0), -80.8, -79.2, 0.0, G0, a, b, scale=1.0)
+        quad((D, "sidewalk", 0), (-80.55, G0 + 0.004, b - 0.25), (-79.45, G0 + 0.004, b - 0.25), (-79.45, G0 + 0.004, a + 0.25), (-80.55, G0 + 0.004, a + 0.25),
+             uvs=((0, 0), (0.55, 0), (0.55, (b - a) / 2), (0, (b - a) / 2)))
+        for e, dz in ((a, 1.0), (b, -1.0)):
+            for x in (-80.45, -79.55):
+                J.put("bollard", x, G0, e + dz * 0.5)
+            # The nose's beacon: a banded post, an amber lamp on it.
+            for i in range(4):
+                cylinder((D, "trim", 1), -80.0, e + dz * 1.3, G0 + i * 0.28, G0 + (i + 1) * 0.28, 0.09, segs=6, col=(0.4, 0.3, 0.04, 1) if i % 2 else (0.02, 0.02, 0.024, 1), cap=i == 3)
+            cylinder((D, "glow", 0), -80.0, e + dz * 1.3, G0 + 1.12, G0 + 1.26, 0.07, segs=6, col=(0.8, 0.42, 0.08, 1))
+            light(D, -80.0, 1.3, e + dz * 1.3, "amber", 2.0)
+        z, k = a + 4.5, 0
+        while z < b - 3.5:
+            low = not clear_of(z, OVER, 2.0) or any(abs(z - u) < 3.2 for u in STRUNG)
+            if k % 4 == 0:
+                # (A palm where nothing is slung over the street, a blossom tree under what is.)
+                J.put("planter_tree" if low else "planter_palm", -80.0, G0, z, mr.uniform(0, 6.28))
+                light(D, -80.0, 1.0, z, "pink" if low else "green", 2.5)
+            elif k % 4 == 2:
+                J.put("lamp_short", -80.0, G0, z)
+                light(D, -80.0, 3.0, z, "amber", 4.0)
+            else:
+                J.put("jt_planter", -80.0, G0, z, mr.uniform(0, 1.5))
+            for dz in (2.0, 4.0):
+                if z + dz + 1.0 < b - 2.0:
+                    J.put("railing", -80.0, G0, z + dz, HALF_PI)
+            z += 6.0
+            k += 1
+
+
+def kerb_kit():
+    kr = random.Random(7180)
+    for side, xk, shut in ((1, -90.0, [CROSSING, (TORII[0] - 3.0, TORII[1] + 3.0), (DECK[0] - 2.0, DECK[1] + 2.0)] + ALLEYS),
+                           (-1, -70.0, [(-194.0, -164.0), (DECK[0] - 2.0, DECK[1] + 2.0)] + PASSAGES)):
+        xe = xk - 0.5 * side                                  # the kerb's edge strip, where furniture stands
+        used = [i[3] for i in P.INSTANCES if abs(i[1] - xe) < 0.75 and i[2] < 1.0] + [q[2] for q in PEOPLE if abs(q[0] - xe) < 0.75 and q[1] < 1.0]
+        used += [GATE_Z, SIGNS_Z, BRIDGE_Z, ARCH_Z, SOUTH_Z, PIPES_Z]
+        free = lambda z, rad=1.4: clear_of(z, shut, 0.6) and all(abs(z - u) > rad for u in used)  # noqa: E731
+        road = HALF_PI * side
+        z = -703.0 + (0.0 if side > 0 else 4.5)
+        while z < -13.0:
+            if clear_of(z, [DECK]):
+                J.put("jt_kerbkit", xk, G0, z, road)
+            z += 9.0
+        z, k = -698.0 + (0.0 if side > 0 else 13.0), 0
+        while z < -16.0:
+            roll = kr.random()
+            # (The first clear stretch within a few metres of where the dice fell.)
+            z = next((z + dz for dz in (0.0, 2.0, 4.0, 6.0) if all(free(z + dz + i * 1.6, 1.0) for i in range(4))), z)
+            if roll < 0.3:
+                n = kr.randrange(3, 6)
+                if all(free(z + i * 1.9, 1.0) for i in range(n)):
+                    for i in range(n):
+                        J.put("jt_bike", xe, G0, z + i * 1.9, kr.uniform(-0.3, 0.3) + (0.0 if kr.random() < 0.7 else math.pi))
+                        used.append(z + i * 1.9)
+                    if kr.random() < 0.5:
+                        stand(xe - 0.5 * side, z - 0.9, kr.uniform(0, 6.28), kr.choice(("idle", "phone", "squat")), G0)
+            elif roll < 0.5:
+                if all(free(z + i * 1.5, 0.8) for i in range(4)):
+                    for i in range(4):
+                        J.put("bollard", xk - 0.4 * side, G0, z + i * 1.5)
+                        used.append(z + i * 1.5)
+            elif roll < 0.68:
+                if free(z) and free(z + 1.3):
+                    J.put("bags", xe, G0, z, kr.uniform(0, 6.28))
+                    if kr.random() < 0.5:
+                        J.put("bags", xe, G0, z + 1.3, kr.uniform(0, 6.28))
+                    used += [z, z + 1.3]
+            elif roll < 0.8:
+                if free(z):
+                    J.put("hydrant" if kr.random() < 0.5 else "charge_post", xe, G0, z, -road)
+                    used.append(z)
+            elif roll < 0.9:
+                if free(z):
+                    J.put("bin", xe, G0, z, -road)
+                    used.append(z)
+            if k % 3 == 1 and clear_of(z + 5.0, shut, 1.0):
+                J.put("grate_glow", xk - 1.75 * side, G0, z + 5.0, 0.0 if kr.random() < 0.5 else HALF_PI)
+            z += kr.uniform(8.0, 12.0)
+            k += 1
+        # Bollards either side of an alley's or a passage's mouth.
+        for a, b in (ALLEYS if side > 0 else PASSAGES):
+            for zz in (a - 0.4, b + 0.4):
+                if all(abs(zz - u) > 0.8 for u in used):
+                    J.put("bollard", xk - 0.4 * side, G0, zz)
+    for zz in (CROSSING[0] + 0.6, CROSSING[1] - 0.6):
+        J.put("signal_box", -90.55, G0, zz, HALF_PI)
+
+
+median()
+kerb_kit()
 
 # ---------------------------------------------------------------------------
 # The lantern alley: strings every few metres, stalls and stools, cables,
@@ -1964,6 +2306,17 @@ for (dist, mat, _), b in batches.items():
         cy = sum(v[2] for v in vs) / len(vs)
         if cx > -60.0 and cy > 7.5:
             _bad += 1
+if os.environ.get("JT_DUMP"):
+    # (For whoever is working on the district: every lot, to a file.)
+    import json
+    with open(os.environ["JT_DUMP"], "w") as fh:
+        json.dump([dict(row=rc["row"], x0=rc["lot"].x0, x1=rc["lot"].x1, z0=round(rc["lot"].z0, 2), z1=round(rc["lot"].z1, 2), h=round(rc["h"], 1), roof=rc.get("roof"),
+                        tiers=[[round(v, 2) for v in t] for t in rc["tiers"]], sides=rc["sides"]) for rc in LOTS], fh)
+# And a check: the hero's lens sees none of what round 3 raised (its own
+# west row stands between), nor does the high bridge cross what it frames.
+_seen = [(rc["row"], round(rc["lot"].z0), rc["h"]) for rc in LOTS if rc["h"] > 22.0 and hero_sees((rc["lot"].x0, 0.0, rc["lot"].z0), (rc["lot"].x1, rc["h"] + 6.0, rc["lot"].z1))]
+print("japantown hero sees:", _seen, "the high bridge:", hero_sees((XW, 29.0, HIGH_Z - 3.0), (XE, 41.5, HIGH_Z + 3.0)), hero_covers((XW, 29.0, HIGH_Z - 3.0), (XE, 41.5, HIGH_Z + 3.0)),
+      "masses:", len(HERO_MASSES))
 print("japantown lucy:", LUCY)
 print("japantown decks:", [(rc["row"], round(rc["lot"].z0), round(rc["lot"].z1), rc["h"]) for rc in LOTS if rc.get("roof") == "deck" and rc["row"] in "AE"][:14])
 print(f"japantown: {len(LIGHTS.get(D, [])) // 5} lights, {len(STREET_SIGN_IDS)} sign ids so far in the city")
