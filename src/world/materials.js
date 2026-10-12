@@ -194,7 +194,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec3 fit = wallFittings(q, id, px);
             albedo = mix(albedo, vec3(0.2, 0.09, 0.04) * 0.5, fit.z * 0.7);
             albedo = mix(albedo, vec3(0.15, 0.16, 0.18), fit.x * 0.8) * fit.y;
-            vec4 mk = wallMarks(q, id, px, uSpray);
+            vec4 mk = wallMarks(q, id, px, tidy(vWorld.xz) > 0.5 ? -1.0 : uSpray);
             albedo = mix(albedo, mk.rgb * 0.5 * (1.0 - 0.4 * low), mk.a * (1.0 - fit.x));
           } else if (vProp < 0.5 && n.y > 0.7 && vWorld.y < 0.4 && px < 0.06) {
             // Flat on the pavement, in yellow: a tactile strip's studs, and
@@ -215,7 +215,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float mq = abs(dFdx(q.x)) + abs(dFdy(q.x));
             float mu = abs(dFdx(vUv.x)) + abs(dFdy(vUv.x));
             bool own = mu > 0.8 * mq && mu < 1.25 * mq;
-            albedo = shutterAt(albedo, q, id, px, uSpray, own ? q.y - 1.0 + vUv.y : 0.15, own ? vec2(vUv.x, 1.0 - vUv.y) : vec2(-1.0), leak);
+            albedo = shutterAt(albedo, q, id, px, tidy(vWorld.xz) > 0.5 ? -1.0 : uSpray, own ? q.y - 1.0 + vUv.y : 0.15, own ? vec2(vUv.x, 1.0 - vUv.y) : vec2(-1.0), leak);
             glowing = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.9, 1.0), step(0.7, fract(id * 0.37))) * leak;
           }
           #endif
@@ -546,7 +546,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // Shut: a roller shutter (src/world/marks.js), the street's light
             // along its slats, and at its foot a line of the shop's own.
             float leak;
-            vec3 steel = shutterAt(vec3(0.1, 0.1, 0.115), vec2(along, vWorld.y), wall * 7.0 + floor(dot(vWorld, n) * 0.37 + 0.123), px, 0.4, vWorld.y - py, own > 0.5 ? vec2(vUv.x, py) : vec2(-1.0), leak);
+            vec3 steel = shutterAt(vec3(0.1, 0.1, 0.115), vec2(along, vWorld.y), wall * 7.0 + floor(dot(vWorld, n) * 0.37 + 0.123), px, tidy(vWorld.xz) > 0.5 ? -1.0 : 0.4, vWorld.y - py, own > 0.5 ? vec2(vUv.x, py) : vec2(-1.0), leak);
             col = steel * (vec3(0.14) + spillAt(vWorld) * 1.15) + L * leak * 0.9;
           } else if (px > 0.6) {
             // Too far to see into: the light in its window.

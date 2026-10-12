@@ -37,52 +37,63 @@ export const MARKS = /* glsl */ `
     return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0));
   }
 
-  // A tag: one line as a hand goes, in one of five hands (loops run
-  // together on a line, a zigzag, tall bars struck through, runes set
-  // apart, a ring with an arrow off it). q in a box 1 wide and under half
-  // as high; the distance to the line.
+  // A tag: one line as a hand goes, in one of five hands (three rounds
+  // over a stroke, a run of humps, a tally struck through, a coil of
+  // leaning loops, a ring with an arrow off it). q in a box 1 wide and
+  // under half as high; the distance to the line.
+  // None is built of upright strokes with arms off them: a hand of those
+  // (a stem and two diagonals, five in a row) read as a letter repeated,
+  // and so did a sharp zigzag. Rounds, humps and coils spell nothing, in
+  // any script, either way round.
   float tagLine(vec2 q, float seed, float hand) {
     float dm = 1e3;
     float h9 = hash12(vec2(seed, 9.0));
     if (hand < 1.0) {
-      for (int i = 0; i < 5; i++) {
+      // Three rounds apart, each smaller than the last, and a stroke under
+      // them. (Never rings linked in a row: four of those are a car maker's.)
+      for (int i = 0; i < 3; i++) {
         float fi = float(i);
         vec2 r = vec2(hash12(vec2(seed, fi * 3.1)), hash12(vec2(seed, fi * 7.7)));
-        vec2 c = vec2(0.14 + fi * 0.18, 0.21 + 0.08 * (r.y - 0.5));
-        dm = min(dm, abs(length((q - c) * vec2(1.0, 0.75 + 0.5 * r.x)) - 0.085 - 0.04 * r.y));
+        vec2 c = vec2(0.2 + fi * (0.34 - 0.05 * fi), 0.2 + 0.05 * fi + 0.04 * (r.y - 0.5));
+        dm = min(dm, abs(length((q - c) * vec2(1.0, 0.8 + 0.4 * r.x)) - 0.15 + 0.045 * fi));
       }
-      return min(dm, segd(q, vec2(0.02, 0.1), vec2(0.98, 0.05 + 0.1 * h9)));
+      return min(dm, segd(q, vec2(0.05, -0.02), vec2(0.7 + 0.25 * h9, 0.0)));
     }
     if (hand < 2.0) {
-      vec2 a = vec2(0.04, 0.1 + 0.25 * hash12(vec2(seed, 1.0)));
-      for (int i = 1; i <= 9; i++) {
+      // Humps, all the one way up, each its own width and height.
+      float x = 0.05;
+      for (int i = 0; i < 6; i++) {
         float fi = float(i);
         vec2 r = vec2(hash12(vec2(seed, fi * 3.1)), hash12(vec2(seed, fi * 7.7)));
-        vec2 b = vec2(fi / 9.4 + (r.x - 0.5) * 0.14, mix(mod(fi, 2.0) < 0.5 ? r.y * 0.16 : 0.45 - r.y * 0.16, r.y * 0.45, 0.35));
-        dm = min(dm, segd(q, a, b));
-        a = b;
+        float rad = 0.05 + 0.028 * r.x;
+        vec2 e = (q - vec2(x + rad, 0.12)) * vec2(1.0, 1.0 / (1.3 + 1.6 * r.y));
+        dm = min(dm, e.y > 0.0 ? abs(length(e) - rad) : min(length(e - vec2(rad, 0.0)), length(e + vec2(rad, 0.0))));
+        x += rad * 2.0;
       }
       return min(dm, segd(q, vec2(0.1, -0.07), vec2(0.8 + 0.15 * h9, -0.03)));
     }
     if (hand < 3.0) {
+      // A tally: plain bars, no flag or foot on any (a bar with a flag and
+      // a line across it is a letter), and one long stroke up through them.
       for (int i = 0; i < 6; i++) {
         float fi = float(i);
         vec2 r = vec2(hash12(vec2(seed, fi * 3.1)), hash12(vec2(seed, fi * 7.7)));
-        vec2 top = vec2(0.1 + fi * 0.15 + 0.06 * (r.y - 0.5), 0.3 + 0.14 * r.x);
-        dm = min(dm, min(segd(q, vec2(0.08 + fi * 0.15, 0.03 + 0.08 * r.y), top), segd(q, top, top + vec2(0.07, -0.05))));
+        dm = min(dm, segd(q, vec2(0.1 + fi * 0.15, 0.03 + 0.08 * r.y), vec2(0.1 + fi * 0.15 + 0.06 * (r.y - 0.5), 0.3 + 0.14 * r.x)));
       }
-      return min(dm, segd(q, vec2(0.0, 0.1 + 0.12 * h9), vec2(1.0, 0.32 - 0.14 * h9)));
+      return min(dm, segd(q, vec2(0.0, 0.02 + 0.06 * h9), vec2(1.0, 0.36 + 0.08 * h9)));
     }
     if (hand < 4.0) {
-      for (int i = 0; i < 5; i++) {
+      // A coil: tall loops leaning one into the next, a lead in, a tail out.
+      for (int i = 0; i < 6; i++) {
         float fi = float(i);
         vec2 r = vec2(hash12(vec2(seed, fi * 3.1)), hash12(vec2(seed, fi * 7.7)));
-        vec2 o = vec2(0.06 + fi * 0.19, 0.02);
-        vec2 m = o + vec2(0.02, 0.12 + 0.2 * r.y);
-        dm = min(dm, segd(q, o, o + vec2(0.04 * (r.x - 0.5), 0.42)));
-        dm = min(dm, min(segd(q, m, o + vec2(0.13, 0.4 * r.x)), segd(q, m, o + vec2(0.12, 0.42 - 0.3 * r.x * r.y))));
+        vec2 e = q - vec2(0.17 + fi * 0.125, 0.2 + 0.03 * (r.y - 0.5));
+        e.x -= e.y * 0.5;
+        vec2 rad = vec2(0.075, 0.15 + 0.06 * r.x);
+        dm = min(dm, abs(length(e / rad) - 1.0) * rad.x);
       }
-      return dm;
+      dm = min(dm, segd(q, vec2(0.0, 0.03), vec2(0.1, 0.07)));
+      return min(dm, segd(q, vec2(0.88, 0.06), vec2(1.0, 0.1 * h9)));
     }
     vec2 c = vec2(0.2, 0.2);
     vec2 tip = vec2(0.95, 0.12 + 0.2 * hash12(vec2(seed, 2.0)));
@@ -92,19 +103,28 @@ export const MARKS = /* glsl */ `
     return min(dm, min(segd(q, tip, tip + back + vec2(-back.y, back.x) * 0.6), segd(q, tip, tip + back - vec2(-back.y, back.x) * 0.6)));
   }
 
-  // A fat letter, one of eight, nobody's alphabet: the distance to its
-  // edge, under 0 inside. p from -0.5 to 0.5 across it and up it.
+  // A fat form, one of eight, nobody's alphabet and no letter of anybody's.
+  // Every one is a closed lump (a round, a block, a barrel, an egg, a
+  // ring, a tablet, a cushion, a capsule) with one mark let into it (a
+  // slit, a dot), none open on any side, none with a stem, an arm or a
+  // bar, none with a point (two points side by side leave an M or a W
+  // between them) and every slit upright (two that lean together are a
+  // V): lumps that had a notch from one edge were E, U, A, T,
+  // S and X to the eye, and a run of those can spell. A run of these
+  // cannot. The
+  // distance to its edge, under 0 inside; p from -0.5 to 0.5 across it and
+  // up it.
   float glyph(vec2 p, float k) {
     vec2 a = abs(p);
-    float box = max(a.x - 0.38, a.y - 0.46);
-    if (k < 1.0) return max(length(p * vec2(1.2, 1.0)) - 0.46, 0.09 - length(p * vec2(2.4, 1.0)));
-    if (k < 2.0) return max(box, -max(abs(p.x - 0.2) - 0.26, abs(a.y - 0.19) - 0.065));
-    if (k < 3.0) return max(box, -max(abs(p.x - (p.y > 0.0 ? 0.2 : -0.2)) - 0.26, abs(a.y - 0.19) - 0.065));
-    if (k < 4.0) return max(box, -max(a.x - 0.1, abs(p.y - 0.2) - 0.36));
-    if (k < 5.0) return max(box, -min(max(a.x - 0.1, abs(p.y + 0.3) - 0.26), max(a.x - 0.1, abs(p.y - 0.2) - 0.06)));
-    if (k < 6.0) return min(max(a.x - 0.38, abs(p.y - 0.34) - 0.12), max(a.x - 0.13, a.y - 0.46));
-    if (k < 7.0) return max(box, (a.x - 0.13 - a.y * 0.6) * 0.85);
-    return min(max(a.x - 0.14, abs(p.y + 0.1) - 0.36), length(p - vec2(0.0, 0.38)) - 0.1);
+    float slit = max(a.x - 0.045, a.y - 0.24);
+    if (k < 1.0) return max(length(p * vec2(1.2, 1.0)) - 0.46, -slit);
+    if (k < 2.0) return max(max(a.x - 0.38, a.y - 0.46), 0.1 - length(p - vec2(0.0, 0.12)));
+    if (k < 3.0) return max(max(a.x - 0.4 + 0.5 * a.y * a.y, a.y - 0.46), -max(a.x - 0.045, a.y - 0.17));
+    if (k < 4.0) return max(length(vec2(p.x * (1.25 + 0.5 * p.y), p.y)) - 0.45, 0.09 - length(p + vec2(0.0, 0.12)));
+    if (k < 5.0) return max(length(p * vec2(1.1, 0.95)) - 0.44, 0.11 - length(p));
+    if (k < 6.0) return max(max(a.x - 0.38, max(-p.y - 0.46, length(vec2(p.x, max(p.y - 0.08, 0.0))) - 0.38)), 0.1 - length(p - vec2(0.0, 0.08)));
+    if (k < 7.0) return max(length(max(a - vec2(0.24, 0.32), 0.0)) - 0.14, -max(a.x - 0.05, abs(p.y + 0.04) - 0.2));
+    return max(length(vec2(p.x, max(a.y - 0.2, 0.0))) - 0.3, -slit);
   }
 
   // A word of them run together, n long, each leaning its own way: the
@@ -255,6 +275,19 @@ export const MARKS = /* glsl */ `
     return textureGrad(uAds, uv, vec2(grain.y * 0.32, 0.0), vec2(0.0, grain.x * 0.19)).rgb;
   }
 
+  // Where nobody is let near a wall with a can: Corpo Row (its towers, the
+  // boulevard at z -330 and both its frontages, and west of the Afterlife
+  // block the whole campus south of it, down to its lot line on the plaza
+  // street) and Corpo Plaza. Told by the plan's bounds alone, in world
+  // metres; 1 inside. A wall there takes a sticker or two and the rain's
+  // dirt, and no poster, bill, piece or tag (pass wallMarks and shutterAt a
+  // spray under 0).
+  float tidy(vec2 p) {
+    float row = step(124.0, p.x) * step(p.x, 446.0) * step(-420.0, p.y) * step(p.y, p.x < 384.0 ? -184.0 : -315.5);
+    float plaza = step(44.0, p.x) * step(p.x, 134.0) * step(-330.0, p.y) * step(p.y, -180.0);
+    return max(row, plaza);
+  }
+
   // What is on the wall at q (metres along it, metres up from the ground):
   // its colour, and in a how much of the wall it covers. id is the wall's
   // own number, px the metres a pixel covers, spray how much paint this
@@ -272,7 +305,8 @@ export const MARKS = /* glsl */ `
     // smaller bills pasted over their heads or their feet.
     float cx = floor(q.x / 5.8);
     float h = hash12(vec2(cx, id + 3.0));
-    if (h < 0.5) {
+    bool clean = spray < 0.0;
+    if (h < 0.5 && !clean) {
       float n = 2.0 + floor(fract(h * 37.0) * 1.99);
       vec2 size = vec2(0.62, 0.88);
       vec2 o = vec2(cx * 5.8 + 0.2 + (5.4 - n * 0.56 - 0.1) * fract(h * 23.0), 0.85 + 0.45 * fract(h * 29.0));
@@ -309,7 +343,7 @@ export const MARKS = /* glsl */ `
     // A piece: one of eight, in turn along the wall.
     cx = floor(q.x / 6.3 + 0.21);
     h = hash12(vec2(cx, id + 7.0));
-    if (h < 0.08 + 0.55 * spray) {
+    if (h < 0.08 + 0.55 * spray && !clean) {
       float k = mod(cx * 3.0 + id * 5.0, 8.0);
       vec2 size = pieceSize(k) * (0.85 + 0.3 * fract(h * 7.0));
       vec2 g = (q - vec2((cx - 0.21) * 6.3 + 0.2 + (5.9 - size.x) * fract(h * 19.0), 0.3 + (2.4 - size.y) * fract(h * 31.0) * 0.6)) / (0.85 + 0.3 * fract(h * 7.0));
@@ -323,7 +357,7 @@ export const MARKS = /* glsl */ `
     // A tag: five hands and seven paints, in turn.
     cx = floor(q.x / 2.3 + 0.37);
     h = hash12(vec2(cx, id + 11.0));
-    if (h < 0.22 + 0.5 * spray) {
+    if (h < 0.22 + 0.5 * spray && !clean) {
       float wide = 0.8 + 0.7 * fract(h * 7.0);
       vec2 g = (q - vec2((cx - 0.37) * 2.3 + 0.1 + (2.1 - wide) * fract(h * 19.0), 0.6 + 1.1 * fract(h * 31.0))) / wide;
       if (g.x > -0.05 && g.x < 1.05 && g.y > -0.14 && g.y < 0.52) {
@@ -339,7 +373,7 @@ export const MARKS = /* glsl */ `
     vec2 sc = floor(q / 0.19);
     float hs = hash12(sc + id);
     vec2 sd = (sc + 0.5) * 0.19 - hub;
-    if (h < 0.4 && hs < 0.5 * exp(-dot(sd, sd) / 0.07)) {
+    if (h < (clean ? 0.15 : 0.4) && hs < 0.5 * exp(-dot(sd, sd) / 0.07)) {
       vec2 sf = (fract(q / 0.19) - 0.5 + (vec2(fract(hs * 131.0), fract(hs * 247.0)) - 0.5) * 0.3) * 0.19;
       float big = 0.04 + 0.025 * fract(hs * 331.0);
       float d = fract(hs * 61.0) < 0.5 ? max(abs(sf.x), abs(sf.y) * 1.4) : length(sf);
@@ -398,7 +432,7 @@ export const MARKS = /* glsl */ `
     float bx = mod(loc.x, 3.2);
     float way = dFdx(q.x) * dFdx(loc.x) + dFdy(q.x) * dFdy(loc.x) < 0.0 ? -1.0 : 1.0;
     float hb = hash12(vec2(floor(loc.x / 3.2) + floor((q.x - way * loc.x) * 2.0 + 0.37), id + 31.0));
-    if (loc.x >= 0.0 && hb < 0.34 && px < 0.15) {
+    if (loc.x >= 0.0 && hb < 0.34 && px < 0.15 && spray >= 0.0) {
       float k = floor(fract(hb * 13.0) * 4.0) * 2.0;
       vec2 size = pieceSize(k);
       float scale = 2.9 / size.x;
