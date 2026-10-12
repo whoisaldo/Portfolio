@@ -93,7 +93,7 @@ def glowc(hex_color, k=1.0):
 
 
 # The soffit's lights (Fn9gKhU_2_Q@74).
-SOFFIT = {"green": glowc("39ff9a", 0.5), "amber": glowc("ff9a2a", 0.6)}
+SOFFIT = {"green": glowc("39ff9a", 0.4), "amber": glowc("ff9a2a", 0.45)}
 MARKER = glowc("ffb254", 0.5)     # under white: a marker is an amber point, not a blob
 KERB_GLOW = glowc("ffa020", 0.55)
 AVENUE_CLEAR = 15.0   # no new light on the ground this near the avenue's line: the hero's road stays as it was
@@ -208,10 +208,10 @@ Z_BREAKS = (EMB_Z, ZN)
 
 CONC = (0.36, 0.36, 0.37, 1.0)        # the girder's, the walls' and the soffit's concrete
 PARAPET_C = (0.43, 0.42, 0.41, 1.0)   # the parapets', paler: newer pours
-PIER_C = (0.40, 0.39, 0.38, 1.0)      # the piers', buttresses' and cap beams' concrete
-CAP_C = (0.36, 0.36, 0.37, 1.0)
+PIER_C = (0.30, 0.295, 0.29, 1.0)      # the piers', buttresses' and cap beams' concrete
+CAP_C = (0.11, 0.11, 0.12, 1.0)         # cap beams: in the soffit's shadow
 STAIN_C = (0.15, 0.14, 0.125, 1.0)    # where water has run down it for years
-SOFFIT_C = (0.13, 0.13, 0.14, 1.0)    # the underside: dark, sooted concrete
+SOFFIT_C = (0.055, 0.055, 0.062, 1.0)    # the underside: dark, sooted concrete
 STEEL_LT = (0.3, 0.32, 0.34, 1.0)       # galvanised sections
 STEEL_SHEET = (0.07, 0.08, 0.09, 1.0)   # a board's back sheet
 RAIL_C = (0.2, 0.215, 0.23, 1.0)        # rails, gantries: grey paint over galvanising
@@ -307,7 +307,9 @@ WALL_Z = -186.0                       # the ramp's road is a girder's depth over
 # turn's inside, its underside.
 xs("concrete", 0, XW, ABUT_X, ZS - 0.3, ZS, under(DY), DY, sides="B", scale=3.0, hero=True)
 xs("concrete", 0, XE, ABUT_X, ZN, ZN + 0.3, under(DY), DY, sides="A", scale=3.0)
-xs("concrete", 0, XW, ABUT_X, ZN, ZS, under(DY), DY, sides="b", scale=3.0, hero=True)
+xs("concrete", 0, -HERO, HERO, ZN, ZS, under(DY), DY, sides="b", scale=3.0, hero=True)
+for a, b in ((XW, -HERO), (HERO, ABUT_X)):       # either side of the hero's span the soffit is dark, sooted concrete
+    xs("concrete", 0, a, b, ZN, ZS, under(DY), DY, sides="b", scale=3.0, col=SOFFIT_C)
 # The east abutment under the girder's end, and the embankment beyond it
 # between retaining walls, down to grade at the mouth.
 face((DK, "castconcrete", 0), [(ABUT_X, 0.0, ZN), (ABUT_X, 0.0, ZS), (ABUT_X, DY(ABUT_X) - DEPTH, ZS), (ABUT_X, DY(ABUT_X) - DEPTH, ZN)], (-1, 0, 0), 3.0, CONC)
@@ -323,7 +325,7 @@ zs("concrete", 0, FOOT, EMB_Z, XE - 0.15, XE, under(RY), RY, sides="Bb", scale=3
 zs("concrete", 0, EMB_Z, ZN, XE - 0.15, XE, under(RY), RY, sides="B", scale=3.0)
 zs("concrete", 0, WALL_Z, EMB_Z, XW + 0.15, XE - 0.15, 0.0, under(RY), sides="AB", scale=3.0)
 face((DK, "castconcrete", 0), [(XW + 0.15, 0.0, EMB_Z), (XE - 0.15, 0.0, EMB_Z), (XE - 0.15, RY(EMB_Z) - DEPTH, EMB_Z), (XW + 0.15, RY(EMB_Z) - DEPTH, EMB_Z)], (0, 0, 1), 3.0, CONC)
-zs("concrete", 0, EMB_Z, ZN, XW, XE, under(RY), RY, sides="b", scale=3.0)
+zs("concrete", 0, EMB_Z, ZN, XW, XE, under(RY), RY, sides="b", scale=3.0, col=SOFFIT_C)
 # The walls' base course from the ramp's nose to the abutment: a plinth that
 # stands proud of everything over it; and buttresses up the retaining walls
 # every five metres (JtqIas3bYhg@64's ribbed wall), battered: out past the
@@ -493,7 +495,7 @@ REFLECT = glowc("ff3a1a", 0.16)
 HOUSING = (0.035, 0.037, 0.042, 1.0)
 
 
-def stain(axis, v, plane, d, y0, y1, w=0.34):
+def stain(axis, v, plane, d, y0, y1, w=0.34, col=STAIN_C):
     """What has run down a face from y1 to y0: three streaks, each its own
     length, a hair proud of the concrete and darker than it."""
     o = plane + d * 0.006
@@ -503,7 +505,7 @@ def stain(axis, v, plane, d, y0, y1, w=0.34):
         yb = y1 - (y1 - y0) * band_rng.uniform(0.45, 1.0)
         if y1 - yb < 0.15:
             continue
-        face((DK, "castconcrete", 1), [_w(axis, c - hw * 0.35, o, yb), _w(axis, c + hw * 0.35, o, yb), _w(axis, c + hw, o, y1), _w(axis, c - hw, o, y1)], outv(axis, d), 2.0, STAIN_C)
+        face((DK, "castconcrete", 1), [_w(axis, c - hw * 0.35, o, yb), _w(axis, c + hw * 0.35, o, yb), _w(axis, c + hw, o, y1), _w(axis, c - hw, o, y1)], outv(axis, d), 2.0, col)
 
 
 def strip(axis, a, b, plane, d, yf, drop=0.8, step=BAY_L, phase=0.5):
@@ -781,30 +783,36 @@ for xa, xb in ((ABUT_X, 78.0), (78.0, 92.0), (92.0, MOUTH_X)):
 # between them, green and orange (Fn9gKhU_2_Q@74), each with its pool on the
 # ground; nothing new over the avenue, which keeps its teal and white.
 # ---------------------------------------------------------------------------
-def rib_x(x, y):
-    for pts, out in (([(x - 0.2, y - 0.22, ZN + 0.3), (x + 0.2, y - 0.22, ZN + 0.3), (x + 0.2, y - 0.22, ZS - 0.3), (x - 0.2, y - 0.22, ZS - 0.3)], (0, -1, 0)),
-                     ([(x - 0.2, y - 0.22, ZN + 0.3), (x - 0.2, y - 0.22, ZS - 0.3), (x - 0.2, y + 0.1, ZS - 0.3), (x - 0.2, y + 0.1, ZN + 0.3)], (-1, 0, 0)),
-                     ([(x + 0.2, y - 0.22, ZN + 0.3), (x + 0.2, y - 0.22, ZS - 0.3), (x + 0.2, y + 0.1, ZS - 0.3), (x + 0.2, y + 0.1, ZN + 0.3)], (1, 0, 0))):
-        face((DK, "castconcrete", 1), pts, out, 2.0, CONC)
+RIB_C = (0.075, 0.075, 0.083, 1.0)
+FLOOR_POOL = 0.6        # a soffit lamp's pool is set down on the floor it lights (see the notes on the light map)
 
 
-def rib_z(z, y):
-    for pts, out in (([(XW + 0.3, y - 0.22, z - 0.2), (XE - 0.3, y - 0.22, z - 0.2), (XE - 0.3, y - 0.22, z + 0.2), (XW + 0.3, y - 0.22, z + 0.2)], (0, -1, 0)),
-                     ([(XW + 0.3, y - 0.22, z - 0.2), (XE - 0.3, y - 0.22, z - 0.2), (XE - 0.3, y + 0.1, z - 0.2), (XW + 0.3, y + 0.1, z - 0.2)], (0, 0, -1)),
-                     ([(XW + 0.3, y - 0.22, z + 0.2), (XE - 0.3, y - 0.22, z + 0.2), (XE - 0.3, y + 0.1, z + 0.2), (XW + 0.3, y + 0.1, z + 0.2)], (0, 0, 1))):
-        face((DK, "castconcrete", 1), pts, out, 2.0, CONC)
+def rib_x(x, y, deep=0.3, hw=0.2):
+    for pts, out in (([(x - hw, y - deep, ZN + 0.3), (x + hw, y - deep, ZN + 0.3), (x + hw, y - deep, ZS - 0.3), (x - hw, y - deep, ZS - 0.3)], (0, -1, 0)),
+                     ([(x - hw, y - deep, ZN + 0.3), (x - hw, y - deep, ZS - 0.3), (x - hw, y + 0.1, ZS - 0.3), (x - hw, y + 0.1, ZN + 0.3)], (-1, 0, 0)),
+                     ([(x + hw, y - deep, ZN + 0.3), (x + hw, y - deep, ZS - 0.3), (x + hw, y + 0.1, ZS - 0.3), (x + hw, y + 0.1, ZN + 0.3)], (1, 0, 0))):
+        face((DK, "castconcrete", 1), pts, out, 2.0, RIB_C)
 
 
-def soffit_x(x, y, cz, hue, power=3.0):
-    face((DK, "glow", 0), [(x - 1.1, y - 0.06, cz - 0.36), (x + 1.1, y - 0.06, cz - 0.36), (x + 1.1, y - 0.06, cz + 0.36), (x - 1.1, y - 0.06, cz + 0.36)], (0, -1, 0), 1.0, SOFFIT[hue])
-    face((DK, "dark", 1), [(x - 1.2, y - 0.025, cz - 0.46), (x + 1.2, y - 0.025, cz - 0.46), (x + 1.2, y - 0.025, cz + 0.46), (x - 1.2, y - 0.025, cz + 0.46)], (0, -1, 0), 1.0)
-    pool(x, y, cz, hue, power if hue == "amber" else 1.9, 1.8 if hue == "amber" else 1.2)
+def rib_z(z, y, deep=0.5, hw=0.25):
+    for pts, out in (([(XW + 0.3, y - deep, z - hw), (XE - 0.3, y - deep, z - hw), (XE - 0.3, y - deep, z + hw), (XW + 0.3, y - deep, z + hw)], (0, -1, 0)),
+                     ([(XW + 0.3, y - deep, z - hw), (XE - 0.3, y - deep, z - hw), (XE - 0.3, y + 0.1, z - hw), (XW + 0.3, y + 0.1, z - hw)], (0, 0, -1)),
+                     ([(XW + 0.3, y - deep, z + hw), (XE - 0.3, y - deep, z + hw), (XE - 0.3, y + 0.1, z + hw), (XW + 0.3, y + 0.1, z + hw)], (0, 0, 1))):
+        face((DK, "castconcrete", 0), pts, out, 2.0, RIB_C)
 
 
-def soffit_z(z, y, cx, hue, power=3.0):
-    face((DK, "glow", 0), [(cx - 0.36, y - 0.06, z - 1.1), (cx + 0.36, y - 0.06, z - 1.1), (cx + 0.36, y - 0.06, z + 1.1), (cx - 0.36, y - 0.06, z + 1.1)], (0, -1, 0), 1.0, SOFFIT[hue])
-    face((DK, "dark", 1), [(cx - 0.46, y - 0.025, z - 1.2), (cx + 0.46, y - 0.025, z - 1.2), (cx + 0.46, y - 0.025, z + 1.2), (cx - 0.46, y - 0.025, z + 1.2)], (0, -1, 0), 1.0)
-    pool(cx, y, z, hue, power if hue == "amber" else 1.9, 1.8 if hue == "amber" else 1.2)
+def soffit_x(x, y, cz, hue, power=2.2):
+    """A light panel let into a soffit: a dark tray, the lit lens in it, and
+    its pool on the floor under it."""
+    box((DK, "dark", 1), x - 1.2, x + 1.2, y - 0.07, y, cz - 0.46, cz + 0.46, scale=1.0, bottom=True)
+    face((DK, "glow", 0), [(x - 1.1, y - 0.075, cz - 0.36), (x + 1.1, y - 0.075, cz - 0.36), (x + 1.1, y - 0.075, cz + 0.36), (x - 1.1, y - 0.075, cz + 0.36)], (0, -1, 0), 1.0, SOFFIT[hue])
+    pool(x, FLOOR_POOL, cz, hue, power if hue == "amber" else 1.5, 1.8 if hue == "amber" else 1.2)
+
+
+def soffit_z(z, y, cx, hue, power=2.2):
+    box((DK, "dark", 1), cx - 0.46, cx + 0.46, y - 0.07, y, z - 1.2, z + 1.2, scale=1.0, bottom=True)
+    face((DK, "glow", 0), [(cx - 0.36, y - 0.075, z - 1.1), (cx + 0.36, y - 0.075, z - 1.1), (cx + 0.36, y - 0.075, z + 1.1), (cx - 0.36, y - 0.075, z + 1.1)], (0, -1, 0), 1.0, SOFFIT[hue])
+    pool(cx, FLOOR_POOL, z, hue, power if hue == "amber" else 1.5, 1.8 if hue == "amber" else 1.2)
 
 
 x, i = XW + 3.0, 0
@@ -857,7 +865,7 @@ def _deck_mast(k):
 def lamp(x, y, z, yaw):
     dx, dz = math.sin(yaw), math.cos(yaw)
     P.place("deck_mast", x, y, z, yaw, district=DK)
-    pool(x + dx * 2.6, y + 6.9, z + dz * 2.6, "amber", 6.5, 3.2)
+    pool(x + dx * 2.6, y + 0.5, z + dz * 2.6, "amber", 2.6, 3.2)      # on the road, not up at the head: less of it falls through the slab
     # A blade on the post, read along the road: one of the street's signs.
     cx, cy, cz = x + dx * 0.6, y + 4.1, z + dz * 0.6
     w, h = ST_SIZES["bs"]
@@ -1252,7 +1260,7 @@ P.place("dumpster", plan.DECK_X0 - 3.0, B.G0, EMB_Z + 0.8, 0.0, district=DK)
 P.place("dumpster", plan.DECK_X0 + 2.9, B.G0, EMB_Z + 0.8, 0.0, district=DK)
 P.place("bags", plan.DECK_X0 + 1.4, B.G0, EMB_Z + 0.7, district=DK)
 P.place("drum", plan.DECK_X0 - 1.5, B.G0, EMB_Z + 0.6, district=DK)
-P.place("crates", plan.DECK_X0 - 3.4, B.G0, EMB_Z + 3.0, 0.7, district=DK)
+P.place("crates", plan.DECK_X0 - 3.4, B.G0, EMB_Z + 1.9, 0.7, district=DK)
 for z in BENTS_Z:
     P.place("vending", XE - 1.1, B.G0, z + 1.65, math.pi / 2, district=DK)
     P.place("vending_warm", XW + 1.1, B.G0, z - 1.65, -math.pi / 2, district=DK)
@@ -1260,9 +1268,9 @@ for z in BENTS_Z:
 stall(plan.DECK_X0, BENTS_Z[1] + 0.2, 1, "pink", 8581)
 stall(plan.DECK_X0, BENTS_Z[2] + 0.2, 1, "cyan", 8582)
 P.place("bench", plan.DECK_X0, B.G0, -125.5, 0.0, district=DK)
-P.place("bench", plan.DECK_X0 - 1.5, B.G0, -108.5, math.pi / 2, district=DK)
+P.place("bench", plan.DECK_X0 - 1.7, B.G0, -105.2, math.pi / 2, district=DK)
 P.place("bench", plan.DECK_X0 + 1.5, B.G0, -91.0, -math.pi / 2, district=DK)
-P.place("planter_tree", plan.DECK_X0, B.G0, -108.5, district=DK)
+P.place("planter_tree", plan.DECK_X0 - 0.2, B.G0, -105.2, district=DK)
 P.place("planter_tree", plan.DECK_X0, B.G0, -91.0, district=DK)
 P.place("lamp_short", plan.DECK_X0 + 2.6, B.G0, -111.0, district=DK)
 P.place("lamp_short", plan.DECK_X0 - 2.6, B.G0, -94.0, district=DK)
@@ -1275,11 +1283,11 @@ for (x, z) in ((PIER[0] - 2.6, ZS - 0.8), (PIER[0] + 2.4, ZS - 1.0), (PIER[0] - 
     P.place("drum", x, B.G0, z, district=DK)
 P.place("barrier", PIER[0], B.G0, ZS - 0.5, 0.0, district=DK)
 # Bollards along the island's kerbs, keeping the service lanes off it.
-z = EMB_Z + 4.0
+z = EMB_Z + 2.5
 while z < ZS - 1.0:
     P.place("bollard", IS0 + 0.35, B.G0, z, district=DK)
-    P.place("bollard", IS1 - 0.35, B.G0, z + 3.0, district=DK)
-    z += 6.0
+    P.place("bollard", IS1 - 0.35, B.G0, z + 1.5, district=DK)
+    z += 3.0
 
 # Boards on the ramp's retaining walls where they are tall enough to carry
 # one, each in the middle of a bay between two buttresses and proud of the
@@ -1332,14 +1340,14 @@ for z in BENTS_Z:
     stand(XE - 2.1, z + 2.6, math.pi / 2 - 0.5, "phone" if z != BENTS_Z[1] else "idle", B.G0)
     stand(XW + 2.2, z - 2.7, -math.pi / 2 + 0.4, "idle", B.G0)
 stand(plan.DECK_X0, -125.5, 0.0, "sit", B.G0 + 0.48)
-stand(plan.DECK_X0 - 1.5, -108.5, math.pi / 2, "sit", B.G0 + 0.48)
+stand(plan.DECK_X0 - 1.7, -105.2, math.pi / 2, "sit", B.G0 + 0.48)
 stand(plan.DECK_X0 + 1.5, -91.0, -math.pi / 2, "sit", B.G0 + 0.48)
-stand(plan.DECK_X0 + 0.9, -106.6, 2.6, "talk", B.G0)
-stand(plan.DECK_X0 + 1.5, -107.5, -0.6, "talk", B.G0)
+stand(plan.DECK_X0 + 1.0, -103.2, 2.6, "talk", B.G0)
+stand(plan.DECK_X0 + 1.6, -104.1, -0.6, "talk", B.G0)
 stand(plan.DECK_X0 - 1.6, EMB_Z + 1.9, 0.4, "smoke", B.G0)
 stand(plan.DECK_X0 - 0.7, EMB_Z + 2.5, -2.4, "smoke", B.G0)
 stand(plan.DECK_X0 + 1.2, EMB_Z + 1.2, 0.0, "lean", B.G0)
-stand(plan.DECK_X0 - 2.0, -141.0, 0.0, "squat", B.G0)
+stand(plan.DECK_X0 - 1.0, -135.6, 0.0, "squat", B.G0)
 stand(PIER[0] + 1.55, PIER[1], math.pi / 2, "lean", B.G0)
 stand(PIER[0] - 0.4, PIER[1] + 1.6, 0.2, "phone", B.G0)
 
@@ -1381,8 +1389,8 @@ for x in (-72.5, -68.0, -47.0, 48.0):
 for gx, hues, plates in ((-33.0, ("cyan", "green"), {-1: ("7", 0), 1: ("12", -1)}), (30.0, ("green", "cyan"), {-1: ("7", 0), 1: ("12", 0)})):
     base = DY(gx)
     gantry("x", gx, base, plates)
-    pool(gx - 2.0, base + 5.0, plan.DECK_Z, hues[0], 1.6, 2.0)
-    pool(gx + 2.0, base + 5.0, plan.DECK_Z, hues[1], 1.6, 2.0)
+    pool(gx - 2.0, base + 0.6, plan.DECK_Z, hues[0], 0.8, 2.0)
+    pool(gx + 2.0, base + 0.6, plan.DECK_Z, hues[1], 0.8, 2.0)
 
 # ---------------------------------------------------------------------------
 # LAST THINGS. A door and its lamp in each retaining wall; steam from three
@@ -1724,8 +1732,8 @@ for k in range(5):
     xa = AX - 1.6 + k * 0.8
     face((DK, "paint", 0), [(xa, ab + PAINT, z_par + 0.3), (xa + 0.3, ab + PAINT, z_par + 0.3), (xa + 0.3, ab + PAINT, plan.DECK_Z - 0.3), (xa, ab + PAINT, plan.DECK_Z - 0.3)], (0, 1, 0), 1.0, WHITE)
     face((DK, "paint", 0), [(xa, ab + PAINT, plan.DECK_Z + 0.3), (xa + 0.3, ab + PAINT, plan.DECK_Z + 0.3), (xa + 0.3, ab + PAINT, z_lane_s - 0.3), (xa, ab + PAINT, z_lane_s - 0.3)], (0, 1, 0), 1.0, WHITE)
-pool(AX, ab + 5.0, plan.DECK_Z - 1.75, "cyan", 3.0, 1.6)
-pool(AX, ab + 5.0, plan.DECK_Z + 1.75, "cyan", 3.0, 1.6)
+pool(AX, ab + 0.6, plan.DECK_Z - 1.75, "cyan", 1.3, 1.6)
+pool(AX, ab + 0.6, plan.DECK_Z + 1.75, "cyan", 1.3, 1.6)
 
 # Sign bridges: over the climb (a gantry: route plates and lane signals both
 # ways) and over the descent, a billboard across both lanes facing the drivers
@@ -1814,7 +1822,7 @@ for x in (-83.4, -81.1, -78.9, -76.6):
 # Under the turn's plate: a light panel in each quarter round the pier, so
 # the cap beams are lit concrete and not a block of shadow.
 for k, (dx, dz) in enumerate(((-2.6, -2.7), (2.6, -2.7), (2.6, 2.7), (-2.6, 2.7))):
-    soffit_x(PIER[0] + dx, plan.DECK_UNDER, PIER[1] + dz, "amber" if k % 2 == 0 else "green", 3.4)
+    soffit_x(PIER[0] + dx, plan.DECK_UNDER, PIER[1] + dz, "amber" if k % 2 == 0 else "green", 2.4)
 
 # On the way down, boards stand on the south rail facing the road and the
 # walkway (more than 60 m from the avenue): a walker looking over the rail
@@ -2244,3 +2252,160 @@ for sx in (-88.4, -71.6):
         sign(st_name("pm"), sx, cy, HL_Z + f * 0.105, w, h, 0.0 if f > 0 else math.pi, district=DK, label=False)
     for dx in (-w * 0.35, w * 0.35):
         box((DK, "steel", 1), sx + dx - 0.025, sx + dx + 0.025, cy + h / 2, HL_Y0, HL_Z - 0.025, HL_Z + 0.025, scale=0.5, col=STEEL_LT)
+
+# ---------------------------------------------------------------------------
+# ROUND 3. UNDER THE RAMP (Fn9gKhU_2_Q@74, JtqIas3bYhg@64): the soffit is
+# dark and deep-ribbed (above), and carries what a road's underside carries:
+# a main and two pipes on hangers, a cable tray, conduit to every lamp, what
+# has run down the cap beams, signs hung across it, a camera mast. The
+# island under it is a place: wide adverts at pavement level down both
+# sides, a row of parked bikes in a painted bay, planters, benches, bollards
+# across both its ends.
+# ---------------------------------------------------------------------------
+X0 = plan.DECK_X0
+
+
+def US(z):
+    """The ramp's soffit at z."""
+    return RY(z) - DEPTH
+
+
+# Services: under the cap beams' feet, on hangers from every rib.
+SV = 1.15
+zv = [EMB_Z + 1.0 + 4.0 * k for k in range(16)] + [ZN - 0.6]
+for dx, r_, col, det in ((-1.55, 0.1, GAS_C, 0), (-1.25, 0.05, PIPE_C, 1), (-1.02, 0.05, PIPE_C, 1)):
+    for za, zb in zip(zv, zv[1:]):
+        pipe((DK, "steel", det), (X0 + dx, US(za) - SV, za), (X0 + dx, US(zb) - SV, zb), r_, segs=6 if det == 0 else 4, col=col)
+for za, zb in zip(zv, zv[1:]):          # the tray: a floor, two lips, the cables in it
+    for dx, w, h, col in ((1.4, 0.22, 0.02, STEEL_LT), (1.19, 0.015, 0.07, STEEL_LT), (1.61, 0.015, 0.07, STEEL_LT)):
+        ya, yb = US(za) - SV, US(zb) - SV
+        face((DK, "steel", 1), [(X0 + dx - w, ya, za), (X0 + dx + w, ya, za), (X0 + dx + w, yb, zb), (X0 + dx - w, yb, zb)], (0, -1, 0), 1.0, col)
+        if h > 0.03:
+            face((DK, "steel", 1), [(X0 + dx, ya, za), (X0 + dx, yb, zb), (X0 + dx, yb + h, zb), (X0 + dx, ya + h, za)], (1 if dx > 1.4 else -1, 0, 0), 1.0, col)
+    pipe((DK, "steel", 1), (X0 + 1.33, US(za) - SV + 0.04, za), (X0 + 1.33, US(zb) - SV + 0.04, zb), 0.03, segs=3, col=INK)
+    pipe((DK, "steel", 1), (X0 + 1.47, US(za) - SV + 0.04, za), (X0 + 1.47, US(zb) - SV + 0.04, zb), 0.025, segs=3, col=(0.3, 0.05, 0.03, 1.0))
+z = EMB_Z + 3.0
+while z < ZN - 1.0:                     # hangers at the ribs
+    if all(abs(z - bz) > 1.4 for bz in BENTS_Z):
+        y = US(z)
+        for dx in (-1.72, -0.88, 1.16, 1.64):
+            box((DK, "steel", 1), X0 + dx - 0.015, X0 + dx + 0.015, y - SV - 0.04, y - 0.5, z - 0.015, z + 0.015, scale=0.5, col=STEEL_LT)
+        box((DK, "steel", 1), X0 - 1.74, X0 - 0.86, y - SV - 0.14, y - SV - 0.1, z - 0.03, z + 0.03, scale=0.5, col=STEEL_LT, bottom=True)
+    z += 4.0
+# What has run down the cap beams.
+for bz in BENTS_Z:
+    lo = min(US(bz - 0.75), US(bz + 0.75))
+    for d in (-1, 1):
+        for dx in (-2.7, 0.4, 3.0):
+            stain("x", X0 + dx + d * 0.3, bz + d * 0.75, d, lo - 0.9, lo, w=0.6, col=(0.04, 0.038, 0.036, 1.0))
+
+
+def hung_z(z, sizes=("pm", "pm"), ids=None):
+    """Signs hung across the island from the ramp's soffit at z, a sign on
+    both faces of each."""
+    top = US(z) - SV - 0.2
+    for k, size in enumerate(sizes):
+        w, h = ST_SIZES[size]
+        xc = X0 + (k - (len(sizes) - 1) / 2) * 3.6
+        cy = top - h / 2
+        oriented_box((DK, "board_frame", 0), xc, cy, z, w + 0.14, h + 0.14, 0.18, 0.0, scale=1.0)
+        for f in (1, -1):
+            sign(st_name(size), xc, cy, z + f * 0.105, w, h, 0.0 if f > 0 else math.pi, district=DK, label=False)
+        for dx in (-w * 0.35, w * 0.35):
+            box((DK, "steel", 1), xc + dx - 0.025, xc + dx + 0.025, cy + h / 2, US(z), z - 0.025, z + 0.025, scale=0.5, col=STEEL_LT)
+
+
+hung_z(-126.0)
+hung_z(-108.5, ("pm", "ps"))
+hung_z(-91.5, ("ps", "pm"))
+camera_mast(X0 - 2.7, -137.8)
+
+ad_rng = random.Random(8640)
+
+
+def ad_panel(x, z, yaw, w=3.4, h=1.7):
+    """A wide advert at pavement level (Fn9gKhU_2_Q@74), lit on both faces:
+    a concrete plinth with a line of light along its top, the frame on it."""
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    cy = B.G0 + 0.4 + h / 2
+    B.billboard(DK, x + nx * 0.15, cy, z + nz * 0.15, w, h, yaw, ad_rng, back=True, depth=0.24)
+    oriented_box((DK, "castconcrete", 0), x, B.G0 + 0.17, z, w + 0.5, 0.34, 0.56, yaw, scale=1.0, col=PARAPET_C)
+    for f in (1, -1):
+        rotated_quad((DK, "glow", 1), x + f * nx * 0.285, B.G0 + 0.3, z + f * nz * 0.285, w + 0.3, 0.035, yaw if f > 0 else yaw + math.pi, col=glowc("eceae4", 0.35))
+    hx, hz = (w / 2 + 0.25, 0.3) if abs(nx) < 0.5 else (0.3, w / 2 + 0.25)
+    B.COLLISION.append(("box", x - hx, x + hx, 0.0, cy + h / 2, z - hz, z + hz, DK))
+
+
+@P.proto("deck_bike", box=(0.32, 0.55, 0.95), reach=240)
+def _deck_bike(k):
+    """A parked motorbike, its front toward +z: two wheels, the engine and
+    frame, a tank, a seat and a tail with its lamp, forks, bars, a headlamp."""
+    t = k("trim")
+    black, iron, paint = (0.006, 0.006, 0.008, 1), (0.05, 0.053, 0.06, 1), (0.02, 0.2, 0.22, 1)
+    for zc in (0.7, -0.68):
+        ring = [(0.31 + 0.31 * math.sin(a), zc + 0.31 * math.cos(a)) for a in (i * math.tau / 8 for i in range(8))]
+        for i in range(8):
+            (ya, za), (yb, zb) = ring[i], ring[(i + 1) % 8]
+            face(t, [(-0.06, ya, za), (0.06, ya, za), (0.06, yb, zb), (-0.06, yb, zb)], (0, (ya + yb) / 2 - 0.31, (za + zb) / 2 - zc), 1.0, black)
+        for sx in (-1, 1):
+            face(t, [(sx * 0.06, y, z) for y, z in ring], (sx, 0, 0), 1.0, black)
+            face(t, [(sx * 0.065, 0.31 + 0.13 * math.sin(a), zc + 0.13 * math.cos(a)) for a in (i * math.tau / 6 for i in range(6))], (sx, 0, 0), 1.0, iron)
+    box(t, -0.13, 0.13, 0.28, 0.62, -0.36, 0.36, scale=0.5, col=iron, bottom=True)
+    box(t, -0.15, 0.15, 0.62, 0.8, -0.02, 0.42, scale=0.5, col=paint)
+    box(t, -0.12, 0.12, 0.62, 0.73, -0.62, -0.02, scale=0.5, col=black)
+    box(t, -0.1, 0.1, 0.6, 0.76, -0.9, -0.62, scale=0.5, col=paint, bottom=True)
+    quad(k("glow"), (0.07, 0.64, -0.905), (-0.07, 0.64, -0.905), (-0.07, 0.72, -0.905), (0.07, 0.72, -0.905), col=glowc("ff1a2a", 0.3))
+    for sx in (-0.07, 0.07):
+        P.tube(t, ((sx, 0.31, 0.7), (sx, 0.96, 0.4)), (0.028, 0.024), segs=4, col=iron)
+    box(t, -0.3, 0.3, 0.95, 0.99, 0.37, 0.41, scale=0.5, col=black, bottom=True)
+    box(t, -0.09, 0.09, 0.76, 0.92, 0.44, 0.56, scale=0.5, col=iron, bottom=True)
+    quad(k("glow"), (-0.07, 0.78, 0.565), (0.07, 0.78, 0.565), (0.07, 0.9, 0.565), (-0.07, 0.9, 0.565), col=glowc("ffd8a0", 0.12))
+    P.tube(t, ((0.16, 0.36, 0.1), (0.17, 0.34, -0.5), (0.18, 0.42, -0.85)), (0.035, 0.035, 0.045), segs=4, col=(0.11, 0.115, 0.13, 1), cap=True)
+    P.tube(t, ((-0.1, 0.3, -0.1), (-0.28, 0.02, -0.16)), (0.014, 0.014), segs=3, col=iron)       # the stand
+
+
+def bike_bay(x, z0, n, yaw, pitch=0.9):
+    """n bikes parked side by side from z0 south, nose `yaw`, in a bay
+    painted on the paving."""
+    z1 = z0 + (n - 1) * pitch
+    for k in range(n):
+        P.place("deck_bike", x + (0.12 if k % 2 else 0.0), B.G0, z0 + k * pitch, yaw + (0.08 if k % 3 == 1 else -0.05 if k % 3 == 2 else 0.0), district=DK)
+    yy = B.G0 + PAINT
+    for za, zb in ((z0 - 0.55, z0 - 0.47), (z1 + 0.47, z1 + 0.55)):
+        face((DK, "paint", 1), [(x - 1.15, yy, za), (x + 1.15, yy, za), (x + 1.15, yy, zb), (x - 1.15, yy, zb)], (0, 1, 0), 1.0, YELLOW)
+    e = x - 1.15 if math.sin(yaw) < 0 else x + 1.07
+    face((DK, "paint", 1), [(e, yy, z0 - 0.55), (e + 0.08, yy, z0 - 0.55), (e + 0.08, yy, z1 + 0.55), (e, yy, z1 + 0.55)], (0, 1, 0), 1.0, YELLOW)
+
+
+# North of the first bent: adverts down the west side, bikes on the east, a
+# planter between; a run of bollards across the island's end.
+for k in range(7):
+    P.place("bollard", IS0 + 1.0 + k * (IS1 - IS0 - 2.0) / 6, B.G0, EMB_Z + 3.6, district=DK)
+ad_panel(X0 - 3.3, -141.2, math.pi / 2)
+bike_bay(X0 + 3.0, -143.6, 5, -math.pi / 2)
+P.place("deck_shrub", X0 + 0.2, B.G0, -139.6, district=DK)
+P.place("bench", X0 + 0.2, B.G0, -137.9, 0.0, district=DK)
+stand(X0 + 0.2, -137.9, 0.0, "sit", B.G0 + 0.48)
+stand(X0 + 1.9, -141.4, -math.pi / 2, "idle", B.G0)
+stand(X0 - 1.9, -142.4, -math.pi / 2 + 0.3, "phone", B.G0)
+# Between the first two bents: adverts both sides, a planter, bikes.
+ad_panel(X0 - 3.3, -127.2, math.pi / 2)
+ad_panel(X0 + 3.3, -122.0, -math.pi / 2, w=2.8)
+P.place("deck_shrub", X0 - 1.6, B.G0, -130.0, district=DK)
+P.place("ad_drum", X0 + 1.2, B.G0, -129.4, district=DK)
+stand(X0 - 1.9, -126.2, -math.pi / 2, "idle", B.G0)
+stand(X0 + 1.9, -121.6, math.pi / 2, "phone", B.G0)
+# Between the second and the third: adverts flank the open middle.
+ad_panel(X0 + 3.3, -108.4, -math.pi / 2)
+ad_panel(X0 - 3.3, -112.0, math.pi / 2, w=2.8)
+P.place("lightbox", X0 - 2.9, B.G0, -106.8, math.pi / 2, district=DK)
+stand(X0 + 2.5, -109.2, math.pi / 2, "idle", B.G0)
+stand(X0 + 2.4, -107.4, math.pi / 2 + 0.3, "phone", B.G0)
+# South of the third, toward the turn: bikes on the west, a planter, and a
+# run of bollards before the turn's pier.
+bike_bay(X0 - 3.0, -92.8, 4, math.pi / 2)
+P.place("deck_shrub", X0 + 2.5, B.G0, -95.2, district=DK)
+P.place("ad_drum", X0 - 2.4, B.G0, -88.2, district=DK)
+for k in range(7):
+    P.place("bollard", IS0 + 1.0 + k * (IS1 - IS0 - 2.0) / 6, B.G0, ZN - 1.2, district=DK)
+stand(X0 - 1.5, -94.3, math.pi / 2, "smoke", B.G0)
