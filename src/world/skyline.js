@@ -1799,7 +1799,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           } else if (use < 0.66) {
             vec2 g = q / vec2(5.2, 3.6);
             vec2 f = (fract(g) - 0.5) * vec2(5.2, 3.6);
-            float on = step(0.4, hash12(floor(g) + seed * 11.0));
+            float on = step(0.3, hash12(floor(g) + seed * 11.0));
             float glass = step(abs(f.x), 1.7) * step(abs(f.y), 0.85);
             float bars = step(abs(fract(f.x / 0.85) - 0.5), 0.44);
             vec3 glow = hash12(vec2(seed, 83.3)) < 0.55 ? vec3(1.0, 0.72, 0.42) : vec3(0.6, 0.82, 1.0);
@@ -1827,7 +1827,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             col += vec3(1.0, 0.7, 0.42) * 0.12 * lamp;
           }
         }
-        if (hash12(vec2(seed, 91.9)) < 0.3 && S > 9.0) {
+        if (hash12(vec2(seed, 91.9)) < 0.38 && S > 9.0) {
           float hl = hash12(vec2(seed, 93.7));
           vec3 lc = hl < 0.4 ? vec3(0.16, 0.9, 1.0) : hl < 0.75 ? vec3(1.0, 0.6, 0.26) : hl < 0.9 ? vec3(0.9, 0.95, 1.0) : vec3(1.0, 0.22, 0.62);
           float line = 1.0 - smoothstep(0.12, 0.12 + px, abs(inEdge - 0.4));
@@ -1993,7 +1993,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           // is as it was, but for an eye above the roofs.)
           float roofNew = 1.0 - step(511.5, vDress.x) * (1.0 - lift) * step(vTier.x, 13.0);
           if (roofNew > 0.001) {
-            vec4 above = roofTop(vPlan.xy, vPlan.zw, vForm.z + vTier.x * 0.37, vec3(0.4) + (uHazeColor * 0.3 + uGlowColor * 0.16) * uHaze * 24.0 + spillAt(vWorld) * 6.0);
+            // (For an eye above the roofs the sky's light on them is the
+            // lit air's: a roof's covering and what is on it read.)
+            vec4 above = roofTop(vPlan.xy, vPlan.zw, vForm.z + vTier.x * 0.37, (vec3(0.4) + (uHazeColor * 0.3 + uGlowColor * 0.16) * uHaze * 24.0) * mix(1.0, 1.8, lift) + spillAt(vWorld) * 6.0);
             col = mix(col, above.rgb, roofNew);
             roofLit = above.a * roofNew;
           }
