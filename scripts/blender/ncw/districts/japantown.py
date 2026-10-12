@@ -647,14 +647,24 @@ def parapet(x0, x1, z0, z1, top, col, h=0.9, t=0.25):
         quad(k, (ax, top + h, az), (bx, top + h, az), (bx, top + h, bz), (ax, top + h, bz), col=col)
 
 
-def skylight(x, z, top, r, w=1.3, d=2.3):
-    """A roof light: a kerbed pane lit from the room under it, and its glow
-    on the roof round it."""
+def skylight(x, z, top, r, w=1.2, d=2.4):
+    """A roof light: a pale kerb and the glazing in it (the kit's own, bars
+    every 1.2 m, each pane its own brightness), and its glow on the roof
+    round it."""
     c = r.choice(("amber", "amber", "cyan", "white", "pink"))
-    box((D, "trim", 1), x - w / 2 - 0.1, x + w / 2 + 0.1, top, top + 0.3, z - d / 2 - 0.1, z + d / 2 + 0.1, scale=1.0, col=(0.1, 0.1, 0.11, 1))
-    quad((D, "glow", 0), (x - w / 2, top + 0.37, z + d / 2), (x + w / 2, top + 0.37, z + d / 2), (x + w / 2, top + 0.37, z - d / 2), (x - w / 2, top + 0.37, z - d / 2),
-         col=tuple(v * 0.55 for v in GLOW[c][:3]) + (1,))
-    light(D, x, top + 0.5, z, c, 4.5)
+    box((D, "trim", 1), x - w / 2 - 0.12, x + w / 2 + 0.12, top, top + 0.32, z - d / 2 - 0.12, z + d / 2 + 0.12, scale=1.0, col=(0.3, 0.3, 0.31, 1))
+    quad((D, "skylight", 0), (x - w / 2, top + 0.36, z + d / 2), (x + w / 2, top + 0.36, z + d / 2), (x + w / 2, top + 0.36, z - d / 2), (x - w / 2, top + 0.36, z - d / 2),
+         col=(1.0, 0.89, 0.72, 1))
+    light(D, x, top + 0.5, z, c, 4.0)
+
+
+def pad(xa, xb, za, zb, top, col):
+    """Pavers laid on a roof under what stands there (pale: see jt_parts)."""
+    xa, xb = sorted((xa, xb))
+    quad((D, "trim", 0), (xa, top + 0.05, zb), (xb, top + 0.05, zb), (xb, top + 0.05, za), (xa, top + 0.05, za), col=col)
+
+
+PAVERS = ((0.3, 0.3, 0.31, 1), (0.34, 0.31, 0.27, 1), (0.25, 0.28, 0.29, 1), (0.36, 0.35, 0.33, 1))
 
 
 HUTS = ((0.3, 0.29, 0.25, 1), (0.21, 0.24, 0.26, 1), (0.27, 0.2, 0.16, 1), (0.18, 0.23, 0.2, 1))
@@ -835,7 +845,12 @@ def roof_sign(x, z, top, yaw, r, span, tall_ok=True):
         sw = min(span * 0.85, 9.0)
         sh = sw * 0.45
         c = (x, top + 1.8 + sh / 2, z)
-        B.billboard(D, c[0], c[1], c[2], sw, sh, yaw, r)
+        # Its back is its frame (the roofs behind it see that, not a second
+        # advert): the box, and three rails across it.
+        B.billboard(D, c[0], c[1], c[2], sw, sh, yaw, r, back=False)
+        bb = basis(yaw + math.pi)
+        for v in (-sh * 0.32, 0.0, sh * 0.32):
+            obox((D, "steel", 1), pt(c, bb, 0.0, v, 0.44), bb, sw + 0.3, 0.12, 0.08, col=ESCAPE, tube=True)
         legs, sy = (-sw * 0.36, sw * 0.36), c[1] - sh / 2
     else:
         sw, sh = min(span * 0.8, 5.6), 2.0
@@ -846,6 +861,9 @@ def roof_sign(x, z, top, yaw, r, span, tall_ok=True):
     for du in legs:
         px, _, pz = pt((x, 0.0, z), b, du, 0.0, -0.2)
         box((D, "metal", 1), px - 0.08, px + 0.08, top, sy, pz - 0.08, pz + 0.08, scale=0.5)
+
+
+COURTS = []   # where the courts are (z): none within 170 m of another
 
 
 def roof(rec, weights):
@@ -889,71 +907,175 @@ def roof(rec, weights):
             key, col = lit(colour, max(ax, bx))
             quad(key, (ax, top + 0.82, az), (bx, top + 0.82, bz), (bx, top + 0.9, bz), (ax, top + 0.9, az), col=col)
     mid = (z0 + z1) / 2
+    wide = d >= 6.2
+    if kind == "court" and (d < 10.0 or w < 20.0 or any(abs(mid - cz) < 170.0 for cz in COURTS)):
+        kind = "laundry"
+    if kind == "court":
+        COURTS.append(mid)
+    if kind == "solar" and d < 5.0:
+        kind = "plant"
+    rec["roof"] = kind
+    tank = lambda u, z, k=1.0: J.put(r.choice(("jt_tank", "jt_tank", "jt_tank_r")), X(u), top, z, r.uniform(0, 6.28), r.uniform(0.8, 1.1) * k,  # noqa: E731
+                                    min(1.0, (d - 1.2) / 3.2) * k)
     if kind == "shack":
-        n = 2 if d * w > 150 and r.random() < 0.6 else 1
+        # Somebody lives up here: a shack or two on pavers, a tank, washing,
+        # pots, a roof light, the stair hut.
+        us = r.uniform(2.6, max(2.7, w * 0.3))
+        pad(X(us - 1.2), X(min(w - 1.0, us + 9.0)), z0 + 0.5, z1 - 0.5, top, r.choice(PAVERS))
+        n = 2 if w >= 20.0 and d * w > 150 and r.random() < 0.6 else 1
         for i in range(n):
-            u = r.uniform(3.2, w * 0.5) if i == 0 else r.uniform(w * 0.55, w - 3.6)
-            yaw = r.choice((0.0, math.pi)) if d < 7.5 else r.choice((0.0, HALF_PI, math.pi, -HALF_PI))
-            J.put("jt_shack", X(u), top, mid + r.uniform(-0.4, 0.4) * max(0.0, d - 5.6), yaw + r.uniform(-0.12, 0.12), r.uniform(0.9, 1.25), r.uniform(0.85, min(1.2, (d - 0.8) / 4.2)))
-        if d >= 5.6 and r.random() < 0.5:
-            J.put("tank_roof", X(w - 2.6), top, mid + r.uniform(-0.3, 0.3) * (d - 4.0), r.uniform(0, 6.28), r.uniform(0.8, 1.1), min(1.0, (d - 1.2) / 3.4))
-        J.put("jt_laundry", X(w * 0.5 + r.uniform(-1.5, 1.5)), top, z0 + 0.9 if r.random() < 0.5 else z1 - 0.9, r.uniform(-0.1, 0.1))
-        J.put("ac_roof", X(r.uniform(1.2, w - 1.2)), top, r.choice((z0 + 1.0, z1 - 1.0)))
-        J.put("jt_plants", X(r.uniform(2.0, w - 2.0)), top, mid + r.uniform(-1.0, 1.0), r.uniform(0, 3))
-        # A slab somebody laid by the shack, its window's light on it, and
-        # whoever lives up here.
-        us = r.uniform(3.2, w - 4.5)
-        xa_, xb_ = sorted((X(us), X(us + 3.4)))
-        quad((D, "concrete", 0), (xa_, top + 0.1, z1 - 0.5), (xb_, top + 0.1, z1 - 0.5), (xb_, top + 0.1, z0 + 0.5), (xa_, top + 0.1, z0 + 0.5),
-             ((0, 0), (1.1, 0), (1.1, d / 3), (0, d / 3)))
-        light(D, X(us + 1.7), top + 1.0, mid, r.choice(("amber", "amber", "pink", "cyan")), 5.0)
+            u = us + 1.2 + i * r.uniform(5.0, 6.0)
+            yaw = (0.0 if sgn > 0 else math.pi) if d < 10.0 else r.choice((0.0, HALF_PI, math.pi, -HALF_PI))
+            J.put(r.choice(("jt_shack", "jt_shack_b")), X(u), top, mid + r.uniform(-0.3, 0.3) * max(0.0, d - 6.4), yaw + r.uniform(-0.1, 0.1), r.uniform(0.9, 1.2),
+                  r.uniform(0.85, min(1.15, (d - 0.8) / 4.6)))
+            light(D, X(u), top + 1.0, mid, r.choice(("amber", "amber", "pink", "cyan")), 5.0)
+        if d >= 5.6 and r.random() < 0.7:
+            tank(w - 2.6, mid + r.uniform(-0.3, 0.3) * (d - 4.0))
+        J.put("jt_laundry", X(w - 5.6), top, z0 + 0.9 if r.random() < 0.5 else z1 - 0.9, r.uniform(-0.1, 0.1))
+        J.put("ac_roof", X(r.uniform(1.2, 2.0)), top, r.choice((z0 + 1.0, z1 - 1.0)))
+        J.put("jt_plants", X(us + 4.4), top + 0.05, mid + r.uniform(-1.0, 1.0), r.uniform(0, 3))
         if r.random() < 0.7:
-            stand(X(us + 1.7) + r.uniform(-1, 1), mid + r.uniform(-1.0, 1.0), r.uniform(0, 6.28), r.choice(("smoke", "squat", "phone", "idle")), top + 0.04)
+            stand(X(us + 4.0) + r.uniform(-0.5, 0.5), mid + r.choice((-1, 1)) * min(2.0, d / 2 - 0.9), r.uniform(0, 6.28), r.choice(("smoke", "squat", "phone", "idle")), top + 0.05)
         if d > 7.0:
-            skylight(X(w - 5.0), mid + r.choice((-1, 1)) * (d / 2 - 1.8), top, r)
+            skylight(X(w - 6.2), mid + r.choice((-1, 1)) * (d / 2 - 2.0), top, r)
+        if w >= 20.0 and wide:
+            hut(X(w - 9.2), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
     elif kind == "plant":
-        n = r.randrange(2, 5)
-        u0 = r.uniform(1.5, max(1.6, w - n * 1.8 - 1.0))
-        zz = r.choice((z0 + 1.2, z1 - 1.2))
+        # Plant: chillers in a row on pavers, a duct from them to a riser,
+        # tanks, the hut, a mast or a dish, a ridge of roof lights.
+        n = r.randrange(2, 4) if w > 18 else 2
+        u0 = r.uniform(2.0, 3.0)
+        zz = z0 + 1.4 if r.random() < 0.5 else z1 - 1.4
+        other = mid + (mid - zz) * 0.55
+        pad(X(u0 - 1.6), X(u0 + n * 3.0), zz - 1.1, zz + 1.1, top, r.choice(PAVERS))
         for i in range(n):
-            if u0 + i * 1.8 < w - 1.0:
-                J.put("ac_roof", X(u0 + i * 1.8), top, zz)
-        da, db = sorted((X(u0 - 0.5), X(min(w - 1.0, u0 + n * 1.8))))
-        dz_ = zz + (1.2 if zz < mid else -1.2)
-        box((D, "metal", 1), da, db, top + 0.25, top + 0.75, dz_ - 0.25, dz_ + 0.25, scale=1.0)
-        box((D, "metal", 1), da, da + 0.6, top, top + 1.5, dz_ - 0.3, dz_ + 0.3, scale=1.0)
-        hut(X(w - 2.0), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
-        if d >= 5.6 and r.random() < 0.35:
-            J.put("tank_roof", X(w * 0.5), top, mid, 0.0, 1.0, min(1.0, (d - 1.2) / 3.4))
-        J.put("antenna" if r.random() < 0.6 else "dish", X(r.uniform(1.5, 3.0)), top, mid + r.uniform(-1.0, 1.0), r.uniform(0, 3.1), r.uniform(0.7, 1.3))
-        for t in ((0.3, 0.62) if w > 18 else (0.4,)):
-            skylight(X(w * t), mid + (dz_ - zz) * 0.75, top, r, 2.3, 1.2)
+            J.put("jt_cooler", X(u0 + i * 3.0), top + 0.05, zz, r.choice((0.0, math.pi)))
+        if wide:
+            J.put("jt_ductrun", X(u0 + 1.4), top, other, 0.0 if sgn > 0 else math.pi, 1.0, 1.0)
+            J.put("jt_ductrun", X(u0 + 5.4), top, other, 0.0 if sgn > 0 else math.pi, 1.0, 1.0)
+        hut(X(w - 2.2), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
+        if d >= 5.6:
+            tz = z0 + 1.75 if zz < mid else z1 - 1.75
+            tank(w - 6.0, tz)
+            if w > 20 and n == 2 and r.random() < 0.6:
+                tank(w - 9.4, tz, 0.8)
+        J.put("antenna" if r.random() < 0.6 else "dish", X(r.uniform(0.9, 1.4)), top, mid + r.uniform(-1.0, 1.0), r.uniform(0, 3.1), r.uniform(0.9, 1.5))
+        if wide:
+            for i in range(2 if w < 20 else 3):
+                skylight(X(u0 + n * 3.0 + 1.6 + i * 1.9), other, top, r, 1.2, 2.4 if d > 7.5 else 1.2)
+        J.put("ac_roof", X(w - 3.6), top, zz)
     elif kind == "sign":
-        roof_sign(X(w - 1.3), mid, top, out_yaw + r.choice((-1, 1)) * r.uniform(0.15, 0.7), r, d)
-        hut(X(r.uniform(2.5, w * 0.5)), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
-        J.put("ac_roof", X(w * 0.6), top, r.choice((z0 + 1.0, z1 - 1.0)))
+        # A sign on its frame at the street edge, and its back: raking
+        # struts down to blocks, a lamp for whoever climbs it.
+        syaw = out_yaw + r.choice((-1, 1)) * r.uniform(0.15, 0.7)
+        roof_sign(X(w - 1.3), mid, top, syaw, r, d)
+        k = (D, "steel", 1)
+        for dz_ in (-min(1.6, d * 0.22), min(1.6, d * 0.22)):
+            a_, b_ = (X(w - 1.5), top + 3.4, mid + dz_), (X(w - 4.4), top + 0.3, mid + dz_)
+            q = (a_, b_, (b_[0], b_[1] + 0.1, b_[2]), (a_[0], a_[1] + 0.1, a_[2]))
+            quad(k, *q, col=ESCAPE)
+            quad(k, q[1], q[0], q[3], q[2], col=ESCAPE)
+            t = ((a_[0], a_[1] + 0.1, a_[2] - 0.06), (b_[0], b_[1] + 0.1, b_[2] - 0.06), (b_[0], b_[1] + 0.1, b_[2] + 0.06), (a_[0], a_[1] + 0.1, a_[2] + 0.06))
+            quad(k, *(t if sgn < 0 else (t[1], t[0], t[3], t[2])), col=ESCAPE)
+            xa_, xb_ = sorted((X(w - 4.9), X(w - 4.1)))
+            box((D, "trim", 1), xa_, xb_, top, top + 0.3, mid + dz_ - 0.3, mid + dz_ + 0.3, scale=1.0, col=(0.33, 0.33, 0.34, 1))
+        hut(X(r.uniform(2.5, w * 0.4)), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
+        J.put("jt_cooler" if wide else "ac_roof", X(w * 0.55), top, z0 + 1.2 if r.random() < 0.5 else z1 - 1.2)
         if r.random() < 0.5:
-            J.put("antenna", X(1.5), top, mid, 0.0, r.uniform(0.7, 1.2))
-        skylight(X(w * 0.72), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.0), top, r)
-        light(D, X(w - 2.2), top + 1.0, mid, r.choice(("pink", "magenta", "red", "amber")), 5.5)
-    else:  # a roof garden: festoons on four posts, stools, a cart, planters
-        ua, ub = max(1.0, w * 0.5 - 4.5), min(w - 1.0, w * 0.5 + 4.5)
+            J.put("antenna", X(1.2), top, mid, 0.0, r.uniform(0.9, 1.4))
+        if wide:
+            skylight(X(w * 0.7), mid + r.choice((-1, 1)) * (d / 2 - 1.9), top, r)
+        light(D, X(w - 3.0), top + 1.0, mid, r.choice(("pink", "magenta", "red", "amber")), 5.5)
+    elif kind == "garden":
+        # A garden: beds of planks in rows either side of a path of pavers,
+        # a glasshouse lit from inside, bulbs on four posts, a butt, stools.
+        ua, ub = 2.0, w - 4.6
+        pad(X(ua - 0.6), X(ub + 0.6), mid - 0.45, mid + 0.45, top, (0.4, 0.37, 0.31, 1))
+        rows = (-1, 1) if d >= 5.4 else (r.choice((-1, 1)),)
+        off = min(1.7, d / 2 - 1.1)
+        glass = w >= 16.0 and d >= 7.0
+        u = ua + 1.5
+        while u + 1.5 < ub - (4.4 if glass else 0.0):
+            for sd in rows:
+                J.put("jt_bed", X(u), top, mid + sd * off, 0.0 if r.random() < 0.5 else math.pi, r.uniform(0.9, 1.25))
+            u += 3.5
+        if glass:
+            gu, gz = ub - 2.2, mid + r.choice((-1, 1)) * (d / 2 - 2.2)
+            ga, gb = sorted((X(gu - 1.8), X(gu + 1.8)))
+            for q in (((ga, top, gz + 1.2), (gb, top, gz + 1.2)), ((gb, top, gz - 1.2), (ga, top, gz - 1.2)), ((gb, top, gz + 1.2), (gb, top, gz - 1.2)), ((ga, top, gz - 1.2), (ga, top, gz + 1.2))):
+                (ax, _, az), (bx, _, bz) = q
+                quad((D, "glow", 0), (ax, top, az), (bx, top, bz), (bx, top + 1.5, bz), (ax, top + 1.5, az), col=(0.05, 0.075, 0.035, 1))
+            for sd in (1, -1):
+                e = ((ga, top + 1.5, gz + 1.2 * sd), (gb, top + 1.5, gz + 1.2 * sd), (gb, top + 2.2, gz), (ga, top + 2.2, gz))
+                quad((D, "skylight", 0), *(e if sd > 0 else (e[1], e[0], e[3], e[2])), col=(0.8, 1.0, 0.7, 1))
+            box((D, "trim", 1), ga - 0.05, gb + 0.05, top + 2.18, top + 2.25, gz - 0.05, gz + 0.05, scale=1.0, col=J.PALE)
+            light(D, (ga + gb) / 2, top + 1.0, gz, "green", 4.5)
         posts = [(X(ua), z0 + 0.8), (X(ub), z0 + 0.8), (X(ub), z1 - 0.8), (X(ua), z1 - 0.8)]
         for px, pz in posts:
             box((D, "metal", 1), px - 0.05, px + 0.05, top, top + 2.9, pz - 0.05, pz + 0.05, scale=0.5)
-        for a, b in ((posts[0], posts[1]), (posts[2], posts[3]), (posts[0], posts[2])):
-            J.span("jt_festoon", a, b, top + 2.85, 0.5)
-        xa_, xb_ = sorted((X(ua - 0.6), X(ub + 0.6)))
-        quad((D, "sidewalk", 0), (xa_, top + 0.1, z1 - 0.4), (xb_, top + 0.1, z1 - 0.4), (xb_, top + 0.1, z0 + 0.4), (xa_, top + 0.1, z0 + 0.4),
-             ((0, 0), ((xb_ - xa_) / 2, 0), ((xb_ - xa_) / 2, d / 2), (0, d / 2)))
-        for t in (0.25, 0.75):
+        for a_, b_ in ((posts[0], posts[1]), (posts[2], posts[3])):
+            J.span("jt_festoon", a_, b_, top + 2.85, 0.5)
+        for t in (0.25, 0.7):
             light(D, X(ua + (ub - ua) * t), top + 2.0, mid, "amber", 5.0)
-        stall(X(ua + 1.2), mid, out_yaw, r, top + 0.04, cart=True)
-        for t in (0.45, 0.68, 0.9):
-            stools(X(ua + (ub - ua) * t), mid + r.uniform(-0.6, 0.6), r.uniform(0, 6.28), r, top + 0.04)
-        J.put("jt_planter", X(ub - 0.2), top, z0 + 1.2)
-        J.put("jt_planter", X(ua + 0.2), top, z1 - 1.2)
-        hut(X(w - 2.0), mid, top, tcol, r)
+        J.put("barrel", X(ua - 0.4), top, mid + off, 0.0)
+        stools(X(ub + 1.6), mid + r.uniform(-0.5, 0.5), r.uniform(0, 6.28), r, top + 0.04)
+        if r.random() < 0.7:
+            stand(X(ua + 3.2), mid + r.uniform(-0.2, 0.2), HALF_PI * r.choice((-1, 1)) + (0 if sgn > 0 else math.pi), r.choice(("squat", "idle", "smoke")), top + 0.05)
+        hut(X(w - 2.2), mid, top, tcol, r)
+    elif kind == "laundry":
+        # A laundry's roof: sheets on lines from side to side, row behind
+        # row, a wash house, tubs, a lamp to hang them by.
+        k_ = max(0.6, min(1.6, (d - 1.4) / 5.0))
+        u = 2.4
+        while u < w - 8.4:
+            J.put("jt_sheets", X(u), top, mid + r.uniform(-0.15, 0.15), HALF_PI if r.random() < 0.5 else -HALF_PI, r.uniform(0.92, 1.1), k_)
+            u += r.uniform(1.5, 2.1)
+        pad(X(1.4), X(u), z0 + 0.6, z1 - 0.6, top, r.choice(PAVERS))
+        light(D, X(u * 0.35), top + 2.2, mid, "white", 5.0)
+        light(D, X(u * 0.8), top + 2.2, mid, "amber", 4.5)
+        if wide:
+            # The wash house, its tarp toward the lines (it covers the stair).
+            J.put("jt_shack_b", X(w - 3.6), top, mid + r.uniform(-0.2, 0.2) * max(0.0, d - 6.6), math.pi if sgn > 0 else 0.0, 1.0, min(1.0, (d - 0.8) / 4.8))
+            light(D, X(w - 5.6), top + 1.0, mid, "cyan", 4.0)
+        for i in range(2):
+            J.put("barrel", X(u + 0.7), top, z0 + 0.9 + i * 0.7, 0.0)
+        if r.random() < 0.75:
+            stand(X(u * 0.5 + 0.8), mid + r.uniform(-1.0, 1.0), HALF_PI * sgn, r.choice(("idle", "idle", "phone")), top + 0.05)
+        if not wide:
+            hut(X(w - 2.2), mid, top, tcol, r)
+    elif kind == "solar":
+        # Panels in rows, tilted to the south, an inverter, the hut, a mast.
+        n = max(1, int((d - 1.2) / 3.3))
+        u = 2.2
+        while u < w - 6.0:
+            for i in range(n):
+                J.put("jt_solar", X(u), top, mid + (i - (n - 1) / 2) * 3.3, HALF_PI * sgn)
+            u += 2.3
+        J.put("ac_roof", X(w - 4.6), top, r.choice((z0 + 1.0, z1 - 1.0)))
+        hut(X(w - 2.2), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
+        if r.random() < 0.6:
+            J.put("antenna", X(1.0), top, mid + r.uniform(-1.0, 1.0), 0.0, r.uniform(0.9, 1.4))
+    else:  # a court in a cage
+        ua, ub = 2.0, w - 6.0
+        za, zb = mid - min(4.5, d / 2 - 1.2), mid + min(4.5, d / 2 - 1.2)
+        pad(X(ua), X(ub), za, zb, top, (0.1, 0.3, 0.27, 1))
+        xa_, xb_ = sorted((X(ua + 0.3), X(ub - 0.3)))
+        xm = (xa_ + xb_) / 2
+        for (lx0, lx1, lz0, lz1) in ((xa_, xb_, za + 0.3, za + 0.4), (xa_, xb_, zb - 0.4, zb - 0.3), (xa_, xa_ + 0.1, za + 0.3, zb - 0.3), (xb_ - 0.1, xb_, za + 0.3, zb - 0.3),
+                                     (xm - 0.05, xm + 0.05, za + 0.3, zb - 0.3), (xa_ + 2.6, xa_ + 2.7, mid - 1.8, mid + 1.8), (xb_ - 2.7, xb_ - 2.6, mid - 1.8, mid + 1.8)):
+            quad((D, "paint", 0), (lx0, top + 0.08, lz1), (lx1, top + 0.08, lz1), (lx1, top + 0.08, lz0), (lx0, top + 0.08, lz0), col=WHITE)
+        xx = min(X(ua), X(ub)) + 1.2
+        while xx < max(X(ua), X(ub)):
+            for zz_, yw in ((za, 0.0), (zb, 0.0)):
+                J.put("fence_mesh", xx, top, zz_, yw)
+            xx += 2.4
+        for u_, zz_ in ((ua + 0.6, za + 0.2), (ub - 0.6, zb - 0.2)):
+            J.put("jt_lamp_arm", X(u_), top, zz_, 0.0 if zz_ < mid else math.pi)
+            light(D, X(u_), top + 4.6, zz_ + (2.0 if zz_ < mid else -2.0), "white", 8.0)
+        for i in range(r.randrange(3, 6)):
+            stand(r.uniform(xa_ + 1.0, xb_ - 1.0), r.uniform(za + 1.0, zb - 1.0), r.uniform(0, 6.28), r.choice(("idle", "idle", "talk", "phone")), top + 0.08)
+        bench(X(ub + 1.2), mid, -HALF_PI * sgn, r, top)
+        hut(X(w - 2.2), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
 
 
 # ---------------------------------------------------------------------------
@@ -1027,10 +1149,10 @@ for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.45, 26.0), (
 # looks over every roof between it and the canyon.
 LUCY_LOT = max((rc for rc in LOTS if rc["row"] == "C" and -560.0 < rc["lot"].z0 and rc["lot"].z1 < -380.0 and rc["lot"].z1 - rc["lot"].z0 >= 12.0),
                key=lambda rc: (rc["h"], -abs((rc["lot"].z0 + rc["lot"].z1) / 2 + 470.0)))
-ROOFS_W = {"E": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden", 3)),
-           "A": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden", 3)),
-           "B": (("deck", 3), ("shack", 7), ("plant", 5), ("sign", 2), ("garden", 3)),
-           "C": (("deck", 2), ("shack", 3), ("plant", 6), ("sign", 8), ("garden", 1))}
+ROOFS_W = {"E": (("deck", 4), ("shack", 4), ("plant", 2), ("sign", 4), ("garden", 3), ("laundry", 3), ("solar", 2)),
+           "A": (("deck", 4), ("shack", 4), ("plant", 2), ("sign", 4), ("garden", 3), ("laundry", 3), ("solar", 2)),
+           "B": (("deck", 3), ("shack", 5), ("plant", 4), ("sign", 2), ("garden", 3), ("laundry", 3), ("solar", 2), ("court", 2)),
+           "C": (("deck", 2), ("shack", 2), ("plant", 5), ("sign", 6), ("garden", 1), ("laundry", 1), ("solar", 3), ("court", 2))}
 for rec in LOTS:
     row = rec["row"]
     if row in ("B", "C"):

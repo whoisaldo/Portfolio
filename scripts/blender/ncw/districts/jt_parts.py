@@ -370,18 +370,38 @@ def _jt_cart(k):
     box(T, -0.5, 0.5, 2.1, 2.15, -0.04, 0.04, scale=1.0, col=(0.9, 0.7, 0.4, 1), bottom=True)
 
 
-@P.proto("jt_shack", box=(1.7, 1.2, 1.3), reach=520)
-def _jt_shack(k):
-    """A shack somebody built on a roof: boarded walls, a tin roof with an
-    overhang, a lit window and a door."""
+def _shack(k, walls, tin, patch, tarp, window):
     T = k("trim")
-    box(T, -1.7, 1.7, 0.0, 2.3, -1.3, 1.3, scale=1.0, col=(0.13, 0.15, 0.15, 1))
-    quad(T, (-1.95, 2.25, 1.75), (1.95, 2.25, 1.75), (1.95, 2.7, -1.5), (-1.95, 2.7, -1.5), col=(0.17, 0.19, 0.21, 1))
+    box(T, -1.7, 1.7, 0.0, 2.3, -1.3, 1.3, scale=1.0, col=walls)
+    quad(T, (-1.95, 2.25, 1.75), (1.95, 2.25, 1.75), (1.95, 2.7, -1.5), (-1.95, 2.7, -1.5), col=tin)
     quad(T, (1.95, 2.25, 1.75), (-1.95, 2.25, 1.75), (-1.95, 2.7, -1.5), (1.95, 2.7, -1.5), col=(0.1, 0.11, 0.12, 1))
+    # A sheet laid over a leak, and a tarp off one side on two poles.
+    quad(T, (-1.6, 2.33, 1.2), (-0.3, 2.33, 1.2), (-0.3, 2.5, -0.1), (-1.6, 2.5, -0.1), col=patch)
+    tp = ((1.95, 2.2, 1.3), (3.5, 1.85, 1.3), (3.5, 1.85, -1.1), (1.95, 2.2, -1.1))
+    quad(T, *tp, col=tarp)
+    quad(T, tp[1], tp[0], tp[3], tp[2], col=tuple(v * 0.5 for v in tarp[:3]) + (1,))
+    for z in (1.25, -1.05):
+        box(T, 3.42, 3.48, 0.0, 1.86, z - 0.03, z + 0.03, scale=1.0, col=GREY)
+    cylinder(T, -1.2, -0.8, 2.5, 3.3, 0.09, segs=5, col=GREY)
     G = k("glow")
-    quad(G, (0.3, 1.0, 1.31), (1.4, 1.0, 1.31), (1.4, 1.9, 1.31), (0.3, 1.9, 1.31), col=GLOW["amber"])
+    quad(G, (0.3, 1.0, 1.31), (1.4, 1.0, 1.31), (1.4, 1.9, 1.31), (0.3, 1.9, 1.31), col=window)
     quad(G, (1.71, 1.1, 0.6), (1.71, 1.1, -0.4), (1.71, 1.8, -0.4), (1.71, 1.8, 0.6), col=(0.25, 0.5, 0.9, 1))
     quad(T, (-1.3, 0.0, 1.31), (-0.4, 0.0, 1.31), (-0.4, 2.0, 1.31), (-1.3, 2.0, 1.31), col=(0.2, 0.09, 0.06, 1))
+
+
+@P.proto("jt_shack", box=(1.7, 1.2, 1.3), reach=520)
+def _jt_shack(k):
+    """A shack somebody built on a roof: boarded walls, a rusted tin roof
+    with an overhang and a sheet laid over its leak, a blue tarp off one
+    side, a lit window and a door."""
+    _shack(k, (0.16, 0.18, 0.18, 1), (0.36, 0.16, 0.08, 1), (0.5, 0.5, 0.48, 1), (0.07, 0.2, 0.5, 1), GLOW["amber"])
+
+
+@P.proto("jt_shack_b", box=(1.7, 1.2, 1.3), reach=520)
+def _jt_shack_b(k):
+    """Another: pale green boards under grey sheet, a patch of rust, an
+    orange tarp, a television's light in its window."""
+    _shack(k, (0.17, 0.26, 0.2, 1), (0.44, 0.45, 0.47, 1), (0.34, 0.15, 0.08, 1), (0.6, 0.3, 0.06, 1), (0.45, 0.75, 1.0, 1))
 
 
 @P.proto("jt_rail", box=(1.0, 0.55, 0.06), reach=220, detail=True)
@@ -736,3 +756,129 @@ def _jt_hutdoor(k):
     quad(T, leaf[1], leaf[0], leaf[3], leaf[2], col=(0.06, 0.09, 0.085, 1))
     box(T, -0.14, 0.14, 2.24, 2.28, 0.0, 0.2, scale=1.0, col=STEEL_D, bottom=True)
     box(k("glow"), -0.1, 0.1, 2.13, 2.24, 0.03, 0.14, scale=1.0, col=GLOW["amber"], bottom=True)
+
+
+# ---------------------------------------------------------------------------
+# What reads on a roof from the air. A roof's own surface takes nine times
+# the sky's light a prop's does (src/world/materials.js, `sky`), so what is
+# to be seen from above is pale on top: lids, sheets, panels' frames, beds.
+# ---------------------------------------------------------------------------
+PALE = (0.5, 0.5, 0.48, 1)
+TANK = (0.4, 0.41, 0.4, 1)
+
+
+def _tank(k, body, band, lid, cone):
+    T = k("trim")
+    for lx, lz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+        box(T, lx * 0.9 - 0.07, lx * 0.9 + 0.07, 0.0, 1.7, lz * 0.9 - 0.07, lz * 0.9 + 0.07, scale=1.0, col=STEEL_D)
+    box(T, -1.15, 1.15, 1.62, 1.72, -1.15, 1.15, scale=1.0, col=STEEL_D, bottom=True)
+    P.lathe(T, 0.0, 0.0, ((1.72, 1.3), (2.4, 1.3)), segs=10, col=body, cap=False)
+    P.lathe(T, 0.0, 0.0, ((2.4, 1.33), (2.52, 1.33)), segs=10, col=band, cap=False)
+    P.lathe(T, 0.0, 0.0, ((2.52, 1.3), (3.3, 1.3)), segs=10, col=body, cap=False)
+    P.lathe(T, 0.0, 0.0, ((3.3, 1.33), (3.42, 1.33)), segs=10, col=band, cap=False)
+    P.lathe(T, 0.0, 0.0, ((3.42, 1.3), (4.0, 1.3)), segs=10, col=body, cap=not cone)
+    if cone:
+        P.lathe(T, 0.0, 0.0, ((4.0, 1.42), (4.0 + cone, 0.12)), segs=10, col=lid, cap=True)
+    else:
+        _wetless_disc(T, 4.012, 1.22, lid)
+    box(T, 1.3, 1.36, 0.0, 4.0, -0.2, 0.2, scale=1.0, col=GREY)
+
+
+def _wetless_disc(T, y, r, col, cx=0.0, cz=0.0, segs=10):
+    poly(T, [(cx + r * math.cos(-i * math.tau / segs), y, cz + r * math.sin(-i * math.tau / segs)) for i in range(segs)], [(0, 0)] * segs, col)
+
+
+@P.proto("jt_tank", box=(1.4, 2.1, 1.4), reach=700)
+def _jt_tank(k):
+    """A roof's water tank on its stand: rolled plate in three courses, a
+    pale lid, a ladder up its side."""
+    _tank(k, TANK, (0.25, 0.26, 0.26, 1), (0.56, 0.56, 0.53, 1), 0.0)
+
+
+@P.proto("jt_tank_r", box=(1.4, 2.4, 1.4), reach=700)
+def _jt_tank_r(k):
+    """An older one of staves, hooped, under a cone."""
+    _tank(k, (0.3, 0.15, 0.08, 1), (0.08, 0.07, 0.07, 1), (0.42, 0.3, 0.2, 1), 0.75)
+
+
+@P.proto("jt_cooler", box=(1.2, 0.8, 0.8), reach=520, detail=True)
+def _jt_cooler(k):
+    """A chiller: a pale cabinet on a frame, two fans in its top, louvres
+    down its long sides."""
+    T = k("trim")
+    box(T, -1.15, 1.15, 0.25, 1.55, -0.75, 0.75, scale=1.0, col=PALE, bottom=True)
+    for x in (-1.05, 1.05):
+        box(T, x - 0.05, x + 0.05, 0.0, 0.25, -0.7, 0.7, scale=1.0, col=STEEL_D)
+    for x in (-0.55, 0.55):
+        _wetless_disc(T, 1.562, 0.46, (0.02, 0.02, 0.025, 1), x, 0.0, 8)
+        _wetless_disc(T, 1.574, 0.12, PALE, x, 0.0, 6)
+    for sd in (1, -1):
+        for y in (0.55, 0.8, 1.05, 1.3):
+            z = 0.756 * sd
+            q = ((-1.0, y, z), (1.0, y, z), (1.0, y + 0.1, z), (-1.0, y + 0.1, z))
+            quad(T, *(q if sd > 0 else (q[1], q[0], q[3], q[2])), col=(0.1, 0.1, 0.11, 1))
+
+
+@P.proto("jt_ductrun", box=(2.0, 0.5, 0.3), reach=520, detail=True)
+def _jt_ductrun(k):
+    """Four metres of galvanised duct on three sleepers, flanged, turned
+    down into the roof at one end."""
+    T = k("trim")
+    box(T, -2.0, 2.0, 0.35, 0.8, -0.27, 0.27, scale=1.0, col=(0.42, 0.43, 0.44, 1), bottom=True)
+    box(T, 1.5, 2.0, 0.0, 0.35, -0.27, 0.27, scale=1.0, col=(0.36, 0.37, 0.38, 1))
+    for x in (-1.9, -0.6, 0.7):
+        box(T, x - 0.04, x + 0.04, 0.33, 0.83, -0.3, 0.3, scale=1.0, col=(0.2, 0.21, 0.22, 1))
+        box(T, x - 0.1, x + 0.1, 0.0, 0.35, -0.2, 0.2, scale=1.0, col=(0.3, 0.3, 0.31, 1))
+
+
+@P.proto("jt_solar", box=(1.6, 0.6, 0.9), reach=520, detail=True)
+def _jt_solar(k):
+    """Three panels on a tilted frame (3.2 m along x): pale frame, dark
+    blue glass."""
+    T = k("trim")
+    lo, hi = (0.35, 0.8), (0.95, -0.8)     # (y, z) of the low and high edges
+    quad(T, (-1.6, lo[0], lo[1]), (1.6, lo[0], lo[1]), (1.6, hi[0], hi[1]), (-1.6, hi[0], hi[1]), col=(0.55, 0.56, 0.58, 1))
+    quad(T, (1.6, lo[0], lo[1]), (-1.6, lo[0], lo[1]), (-1.6, hi[0], hi[1]), (1.6, hi[0], hi[1]), col=STEEL_D)
+    for i in range(3):
+        xa, xb = -1.56 + i * 1.066, -1.56 + i * 1.066 + 0.99
+        t0, t1 = 0.04, 0.96
+        pa = (lo[0] + (hi[0] - lo[0]) * t0 + 0.012, lo[1] + (hi[1] - lo[1]) * t0)
+        pb = (lo[0] + (hi[0] - lo[0]) * t1 + 0.012, lo[1] + (hi[1] - lo[1]) * t1)
+        quad(T, (xa, pa[0], pa[1]), (xb, pa[0], pa[1]), (xb, pb[0], pb[1]), (xa, pb[0], pb[1]), col=(0.015, 0.03, 0.1, 1))
+    for x in (-1.5, 1.5):
+        box(T, x - 0.03, x + 0.03, 0.0, 0.93, -0.8, -0.74, scale=1.0, col=GREY)
+        box(T, x - 0.03, x + 0.03, 0.0, 0.34, 0.74, 0.8, scale=1.0, col=GREY)
+
+
+@P.proto("jt_bed", box=(1.5, 0.45, 0.6), reach=420, detail=True)
+def _jt_bed(k):
+    """A raised bed of planks, three metres of it: dark soil, two rows of
+    leaves in three greens, canes at one end."""
+    T = k("trim")
+    box(T, -1.5, 1.5, 0.0, 0.42, -0.55, 0.55, scale=1.0, col=(0.27, 0.17, 0.09, 1))
+    quad(T, (-1.42, 0.43, 0.47), (1.42, 0.43, 0.47), (1.42, 0.43, -0.47), (-1.42, 0.43, -0.47), col=(0.05, 0.035, 0.025, 1))
+    greens = ((0.16, 0.42, 0.12, 1), (0.26, 0.48, 0.14, 1), (0.1, 0.3, 0.16, 1))
+    for i in range(6):
+        for j, z in enumerate((-0.24, 0.24)):
+            x = -1.2 + i * 0.48 + j * 0.1
+            hgt = 0.22 + 0.12 * ((i * 3 + j) % 3)
+            obox(T, (x, 0.43 + hgt / 2, z), basis(0.5 * i + j), 0.36, hgt, 0.36, col=greens[(i + j * 2) % 3], bottom=False)
+    for z in (-0.3, 0.3):
+        box(T, 1.3, 1.33, 0.42, 1.7, z - 0.015, z + 0.015, scale=1.0, col=(0.45, 0.38, 0.2, 1))
+
+
+@P.proto("jt_sheets", box=(2.5, 1.1, 0.2), reach=420, detail=True)
+def _jt_sheets(k):
+    """Five metres of washing line between two poles, sheets on it blown a
+    little off the plumb, so the sky and the lamps find them."""
+    T = k("trim")
+    for x in (-2.5, 2.5):
+        box(T, x - 0.03, x + 0.03, 0.0, 2.25, -0.03, 0.03, scale=1.0, col=GREY)
+        box(T, x - 0.03, x + 0.03, 2.2, 2.25, -0.35, 0.35, scale=1.0, col=GREY, bottom=True)
+    x = -2.3
+    for i, (w, h, col) in enumerate(((1.3, 1.5, (0.62, 0.62, 0.58, 1)), (0.9, 1.2, (0.3, 0.44, 0.6, 1)), (1.2, 1.6, (0.6, 0.34, 0.4, 1)), (0.9, 1.3, (0.6, 0.56, 0.4, 1)))):
+        blow = 0.28 if i % 2 else -0.22
+        q = ((x, 2.18 - h, blow), (x + w, 2.18 - h, blow * 0.8), (x + w, 2.18, 0.0), (x, 2.18, 0.0))
+        quad(T, *q, col=col)
+        quad(T, q[1], q[0], q[3], q[2], col=col)
+        x += w + 0.1
