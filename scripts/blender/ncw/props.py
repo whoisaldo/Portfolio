@@ -11,13 +11,32 @@ material, culled per instance.
 
 A prototype's `box` is its footprint for collision.json (half sizes x, y,
 z, in its own frame, its base at y 0); `detail` drops it from the phone.
+
+Small ornament (a bolt, a chain, a coin slot) is drawn through `k(material,
+1)`: it becomes a prototype of its own, `<name>__near`, tagged detail and
+with a short reach, which nobody places; the site draws it wherever its
+prototype stands, near by only, and a phone not at all.
+
+Plants wear a material of their own, `plant`, that only the site's props
+draw (src/world/prop-surfaces.js): the vertex colour is the part's colour
+and its alpha says what it is (WOOD, BARK, BLOSSOM, FROND); a frond's UV runs
+u across it and v from the crown to its tip, a blossom pad's from its
+middle (0.5, 0.5) out to its rim.
 """
 import math
+import random
+
+from mathutils import Vector
 
 from ncw.kit import *  # noqa: F401,F403
 
 PROTOS = {}
 INSTANCES = []
+NEAR = "__near"
+NEAR_REACH = 42.0
+
+material("plant", "24402c", rough=0.8)
+WOOD, BARK, BLOSSOM, FROND = 0.25, 0.5, 0.75, 1.0
 
 
 def proto(name, box=(0.3, 0.5, 0.3), detail=False, reach=None):
@@ -42,10 +61,105 @@ def place(name, x, y, z, yaw=0.0, sy=1.0, sxz=1.0, district=None):
 
 
 def build_protos():
-    for name, p in PROTOS.items():
-        def k(mat, detail=0, _n=name):
-            return ("proto/" + _n, mat, detail)
+    for name, p in list(PROTOS.items()):
+        near = []
+
+        def k(mat, detail=0, _n=name, _near=near):
+            if detail:
+                _near.append(mat)
+                return ("proto/" + _n + NEAR, mat, 0)
+            return ("proto/" + _n, mat, 0)
         p["build"](k)
+        if near:
+            PROTOS[name + NEAR] = {"build": None, "box": p["box"], "detail": True, "reach": NEAR_REACH}
+
+
+# ---------------------------------------------------------------------------
+# Shapes the prototypes are turned and bent from.
+# ---------------------------------------------------------------------------
+def lathe(key, cx, cz, prof, segs=8, col=(1, 1, 1, 1), cap=True):
+    """A turned shape about a vertical axis: `prof` is (y, radius) pairs from
+    the bottom up."""
+    rings = [[(cx + r * math.cos(i * math.tau / segs), y, cz + r * math.sin(i * math.tau / segs)) for i in range(segs)]
+             for y, r in prof]
+    for lo, hi in zip(rings, rings[1:]):
+        for i in range(segs):
+            j = (i + 1) % segs
+            u0, u1 = i / segs * 2, (i + 1) / segs * 2
+            quad(key, lo[j], lo[i], hi[i], hi[j], ((u1, lo[0][1] / 2), (u0, lo[0][1] / 2), (u0, hi[0][1] / 2), (u1, hi[0][1] / 2)), col)
+    if cap:
+        poly(key, list(reversed(rings[-1])), [(0.5, 0.5)] * segs, col)
+
+
+def tube(key, pts, radii, segs=6, col=(1, 1, 1, 1)):
+    """A bent, tapering limb through `pts`, `radii[i]` thick at each."""
+    pts = [Vector(p) for p in pts]
+    rings = []
+    for i, p in enumerate(pts):
+        w = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+        ref = Vector((1, 0, 0)) if abs(w.x) < 0.9 else Vector((0, 0, 1))
+        u = w.cross(ref).normalized()
+        v = w.cross(u).normalized()
+        rings.append([tuple(p + (u * math.cos(t) + v * math.sin(t)) * radii[i]) for t in (n * math.tau / segs for n in range(segs))])
+    for n, (a, b) in enumerate(zip(rings, rings[1:])):
+        for i in range(segs):
+            j = (i + 1) % segs
+            quad(key, a[i], a[j], b[j], b[i], ((i / segs, n), ((i + 1) / segs, n), ((i + 1) / segs, n + 1), (i / segs, n + 1)), col)
+
+
+def frond(key, base, yaw, pitch, length, bend, width, col, segs=4, vee=True):
+    """A palm frond from `base`: out along `yaw`, leaving at `pitch` and
+    bending down `bend` radians by its tip; the rib with a blade to each
+    side, hanging a little below it (`vee`), or one flat blade."""
+    dx, dz = math.sin(yaw), math.cos(yaw)
+    across = Vector((dz, 0, -dx)) * (width / 2)
+    col = (*col[:3], FROND)
+    rib = [Vector(base)]
+    hang = []
+    for i in range(segs + 1):
+        ang = pitch - bend * (i / segs) ** 1.2
+        hang.append(Vector((dx * math.sin(ang), -math.cos(ang), dz * math.sin(ang))) * (0.2 * width if vee else 0.0))
+        if i < segs:
+            mid = pitch - bend * ((i + 0.5) / segs) ** 1.2
+            rib.append(rib[-1] + Vector((dx * math.cos(mid), math.sin(mid), dz * math.cos(mid))) * (length / segs))
+    for i in range(segs):
+        r0, r1 = rib[i], rib[i + 1]
+        v0, v1 = i / segs, (i + 1) / segs
+        l0, l1, e0, e1 = r0 - across + hang[i], r1 - across + hang[i + 1], r0 + across + hang[i], r1 + across + hang[i + 1]
+        if vee:
+            quad(key, tuple(l0), tuple(r0), tuple(r1), tuple(l1), ((0.0, v0), (0.5, v0), (0.5, v1), (0.0, v1)), col)
+            quad(key, tuple(r0), tuple(e0), tuple(e1), tuple(r1), ((0.5, v0), (1.0, v0), (1.0, v1), (0.5, v1)), col)
+        else:
+            quad(key, tuple(l0), tuple(e0), tuple(e1), tuple(l1), ((0.0, v0), (1.0, v0), (1.0, v1), (0.0, v1)), col)
+
+
+def pad(key, cx, cy, cz, r, col, segs=7):
+    """A pad of blossom or leaves: a shallow dome r across, its rim drooping."""
+    col = (*col[:3], BLOSSOM)
+
+    def ring(f, y):
+        return [((cx + r * f * math.cos(t), cy + y, cz + r * f * math.sin(t)), (0.5 + 0.5 * f * math.cos(t), 0.5 + 0.5 * f * math.sin(t)))
+                for t in ((i + 0.5 * (f < 1)) * math.tau / segs for i in range(segs))]
+    mid, rim = ring(0.55, 0.2 * r), ring(1.0, -0.06 * r)
+    top = ((cx, cy + 0.3 * r, cz), (0.5, 0.5))
+    for i in range(segs):
+        j = (i + 1) % segs
+        poly(key, [top[0], mid[i][0], mid[j][0]], [top[1], mid[i][1], mid[j][1]], col)
+        poly(key, [mid[i][0], rim[j][0], mid[j][0]], [mid[i][1], rim[j][1], mid[j][1]], col)
+        poly(key, [mid[i][0], rim[i][0], rim[j][0]], [mid[i][1], rim[i][1], rim[j][1]], col)
+
+
+def planter(k, h, lamp, stone=(0.5, 0.5, 0.52, 1)):
+    """A square planter 1.6 m across and h high: a concrete body under a
+    stone rim, earth in it, a strip of light let in under the rim on every
+    side, and two lamps in the earth turned up at what grows there."""
+    box(k("concrete"), -0.76, 0.76, 0.0, h - 0.1, -0.76, 0.76, scale=1.0)
+    box(k("trim"), -0.8, 0.8, h - 0.1, h, -0.8, 0.8, scale=1.0, col=stone)
+    quad(k("trim"), (-0.64, h + 0.012, 0.64), (0.64, h + 0.012, 0.64), (0.64, h + 0.012, -0.64), (-0.64, h + 0.012, -0.64), col=(0.07, 0.055, 0.045, 1))
+    for yaw in (0.0, math.pi / 2, math.pi, -math.pi / 2):
+        rotated_quad(k("glow"), math.sin(yaw) * 0.763, h - 0.14, math.cos(yaw) * 0.763, 1.44, 0.035, yaw, col=lamp)
+    for x, z in ((0.34, 0.36), (-0.36, -0.3)):
+        quad(k("glow"), (x - 0.06, h + 0.02, z + 0.06), (x + 0.06, h + 0.02, z + 0.06), (x + 0.06, h + 0.02, z - 0.06), (x - 0.06, h + 0.02, z - 0.06), col=lamp)
 
 
 # ---------------------------------------------------------------------------
@@ -132,40 +246,44 @@ def _traffic_light(k):
 
 @proto("planter_palm", box=(0.8, 1.5, 0.8))
 def _planter_palm(k):
-    """A palm in a square concrete planter (Fn9gKhU_2_Q@69)."""
-    box(k("concrete"), -0.8, 0.8, 0.0, 0.7, -0.8, 0.8, scale=1.0)
-    box(k("dark"), -0.68, 0.68, 0.7, 0.72, -0.68, 0.68, scale=1.0)
-    # An uplight in the soil, so the trunk and the fronds read at night.
-    box(k("glow"), -0.12, 0.12, 0.72, 0.76, 0.3, 0.42, scale=0.5, col=GLOW["amber"])
-    cylinder(k("trim"), 0.0, 0.0, 0.7, 6.8, 0.16, segs=7, col=(0.3, 0.22, 0.16, 1))
-    for i in range(9):
-        t = (i + 0.3 * (i % 2)) / 9 * math.tau
-        dx, dz = math.cos(t), math.sin(t)
-        # A frond: a long leaf drooping out from the crown, some lower.
-        droop = 0.5 * (i % 3)
-        a = (dx * 0.1, 6.8, dz * 0.1)
-        b = (dx * 1.5, 7.0 - droop * 0.4, dz * 1.5)
-        c = (dx * 2.5, 6.2 - droop, dz * 2.5)
-        w = 0.34
-        px, pz = -dz * w, dx * w
-        for (p0, p1) in ((a, b), (b, c)):
-            quad(k("trim"), (p0[0] - px, p0[1], p0[2] - pz), (p0[0] + px, p0[1], p0[2] + pz),
-                 (p1[0] + px * 0.6, p1[1], p1[2] + pz * 0.6), (p1[0] - px * 0.6, p1[1], p1[2] - pz * 0.6),
-                 col=(0.16, 0.34, 0.2, 1))
-            quad(k("trim"), (p0[0] + px, p0[1], p0[2] + pz), (p0[0] - px, p0[1], p0[2] - pz),
-                 (p1[0] - px * 0.6, p1[1], p1[2] - pz * 0.6), (p1[0] + px * 0.6, p1[1], p1[2] + pz * 0.6),
-                 col=(0.1, 0.24, 0.14, 1))
+    """A palm in a lit square planter (Fn9gKhU_2_Q@77, YRL74JmhVgk@30): a
+    ringed trunk leaning a little, the boot of old frond bases under the
+    crown, and the crown itself: young fronds standing, the season's arching
+    out and over, last year's hanging brown under them."""
+    planter(k, 0.7, GLOW["amber"])
+    bark = (0.2, 0.165, 0.135, BARK)
+    trunk = ((0.0, 0.62, 0.0), (0.04, 1.5, 0.02), (0.14, 3.1, 0.05), (0.27, 4.8, 0.06), (0.36, 6.2, 0.04))
+    tube(k("plant"), trunk, (0.2, 0.15, 0.13, 0.12, 0.115), segs=6, col=bark)
+    tube(k("plant"), ((0.36, 6.2, 0.04), (0.385, 6.5, 0.035), (0.4, 6.82, 0.03)), (0.12, 0.2, 0.11), segs=6, col=(0.15, 0.14, 0.09, BARK))
+    top = (0.4, 6.75, 0.03)
+    rng = random.Random(11)
+    tiers = ((5, (0.95, 1.25), (1.5, 1.9), (2.5, 2.8), (0.13, 0.33, 0.15), 4, True),
+             (5, (0.25, 0.55), (1.35, 1.65), (2.75, 3.0), (0.11, 0.29, 0.13), 4, True),
+             (4, (-0.35, -0.05), (0.9, 1.2), (2.3, 2.6), (0.2, 0.22, 0.09), 3, False))
+    for n, pitch, bend, length, col, segs, vee in tiers:
+        turn = rng.uniform(0.0, math.tau)
+        for i in range(n):
+            yaw = turn + (i + rng.uniform(-0.22, 0.22)) * math.tau / n
+            frond(k("plant"), top, yaw, rng.uniform(*pitch), rng.uniform(*length), rng.uniform(*bend), 1.0, col, segs, vee)
 
 
 @proto("planter_tree", box=(0.8, 1.5, 0.8))
 def _planter_tree(k):
-    """A tree in a stone planter, its crown a dark mass catching the signs'
-    light (KvMY1uzSC1E@94 has it in blossom)."""
-    box(k("concrete"), -0.8, 0.8, 0.0, 0.6, -0.8, 0.8, scale=1.0)
-    box(k("glow"), -0.12, 0.12, 0.62, 0.66, 0.3, 0.42, scale=0.5, col=GLOW["white"])
-    cylinder(k("trim"), 0.0, 0.0, 0.6, 2.6, 0.12, segs=6, col=(0.28, 0.2, 0.16, 1))
-    for (cx, cy, cz, r) in ((0.0, 3.3, 0.0, 1.3), (0.6, 2.9, 0.3, 0.9), (-0.5, 3.0, -0.4, 0.9), (0.2, 3.9, -0.3, 0.8)):
-        oriented_box(k("trim"), cx, cy, cz, r * 1.6, r * 1.2, r * 1.6, 0.4 + cx, scale=1.0, col=(0.36, 0.14, 0.28, 1))
+    """A blossom tree in a low stone planter (KvMY1uzSC1E@94): a dark trunk
+    that twists as it climbs, three limbs, and the blossom in pads at their
+    ends, tier over tier."""
+    planter(k, 0.6, GLOW["white"], stone=(0.42, 0.4, 0.42, 1))
+    bark = (0.13, 0.09, 0.085, WOOD)
+    tube(k("plant"), ((0.0, 0.5, 0.0), (0.13, 1.05, 0.06), (-0.09, 1.65, 0.13), (0.1, 2.25, 0.0), (0.02, 2.8, -0.1)),
+         (0.21, 0.16, 0.135, 0.11, 0.08), segs=6, col=bark)
+    for limb in (((-0.09, 1.65, 0.13), (-0.42, 2.1, 0.36), (-0.6, 2.55, 0.5)),
+                 ((0.1, 2.25, 0.0), (0.45, 2.6, -0.22), (0.6, 3.0, -0.34)),
+                 ((0.02, 2.8, -0.1), (0.0, 3.3, -0.3), (-0.12, 3.7, -0.42))):
+        tube(k("plant"), limb, (0.085, 0.06, 0.04), segs=4, col=bark)
+    pink, rose, pale = (0.8, 0.27, 0.46), (0.74, 0.17, 0.36), (0.82, 0.45, 0.58)
+    for cx, cy, cz, r, col in ((-0.62, 2.62, 0.52, 0.8, pink), (0.62, 3.08, -0.36, 0.82, rose), (-0.12, 3.82, -0.44, 0.78, pale),
+                               (-0.1, 3.2, 0.2, 0.7, rose), (0.42, 2.5, 0.5, 0.52, pale), (-0.52, 3.3, -0.5, 0.56, pink)):
+        pad(k("plant"), cx, cy, cz, r, col)
 
 
 @proto("bench", box=(1.0, 0.25, 0.3), reach=220, detail=True)

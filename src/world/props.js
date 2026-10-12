@@ -16,11 +16,19 @@
 // buffers and the count set to them: a cell is a contiguous run, so this is
 // a handful of typed-array copies, and small things far off (a bollard past
 // 260 m is under two pixels) are not drawn at all.
+//
+// A prototype's small ornament (its bolts, its chain, its coin slot) is a
+// prototype of its own, <name>__near, that nobody places: it is drawn where
+// its prototype stands, in the cells within its own short reach, so a
+// hydrant is whole at arm's length and four boxes at sixty metres, and a
+// phone, whose kit leaves the ornament out, never draws it.
 import * as THREE from "three";
 import { worldPropsUrl } from "../data/world-assets.js";
 import { NEON } from "./materials.js";
+import { createPropSurfaces } from "./prop-surfaces.js";
 
 const CELL = 48;
+const NEAR = "__near";
 const cache = new Map();
 
 /** The tier's props file, fetched once. */
@@ -68,6 +76,9 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const { protos, data, count } = parse(buffer);
   const group = new THREE.Group();
   group.name = "props";
+  // The props' own materials (plants) share the kit's uniforms, which any
+  // part the kit dressed carries.
+  const own = createPropSurfaces(protoMeshes.find((m) => m.material.uniforms?.uSpill).material.uniforms);
   // The parts of each prototype by name.
   const parts = new Map();
   for (const mesh of protoMeshes) {
@@ -134,20 +145,25 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       run.end = j + 1;
       cellList[run.ci].expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
     });
-    const instanced = meshes.map((src) => {
-      const im = new THREE.InstancedMesh(src.geometry, src.material, n);
-      im.name = `props_${k.name}_${src.material.name}`;
+    const instance = (src) => {
+      const material = own.forName(src.material.name) ?? src.material;
+      const im = new THREE.InstancedMesh(src.geometry, material, n);
+      im.name = `props_${k.name}_${material.name}`;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
       im.visible = false;
       im.frustumCulled = false;
       im.matrixAutoUpdate = false;
       im.userData.hue = src.userData.hue;
-      if (/^(neon_|glow|lantern)/.test(src.material.name)) im.layers.enable(reflectLayer);
+      if (/^(neon_|glow|lantern)/.test(material.name)) im.layers.enable(reflectLayer);
       group.add(im);
       return im;
-    });
-    sets.push({ k, matrices, runs, instanced, n, sig: -1 });
+    };
+    sets.push({ name: k.name, reach: k.reach, matrices, runs, instanced: meshes.map(instance), n, sig: -1 });
+    // Its ornament: the same instances, near by only.
+    const near = kinds.find((o) => o.name === k.name + NEAR);
+    const ornament = parts.get(k.name + NEAR);
+    if (near && ornament?.length) sets.push({ near: true, reach: near.reach, matrices, runs, instanced: ornament.map(instance), n, sig: -1 });
   }
 
   // Whenever the camera has moved or turned enough: which cells the frustum
@@ -173,7 +189,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       cellVis[c] = _frustum.intersectsBox(cellList[c]) ? 1 : 0;
     }
     for (const set of sets) {
-      const reach = set.k.reach;
+      const reach = set.reach;
       // The set of cells it is drawn in, as a hash.
       let sig = 2166136261;
       for (const run of set.runs) {
@@ -205,6 +221,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const sources = [];
   const bakeMeshes = [];
   for (const set of sets) {
+    if (set.near) continue;
     for (const im of set.instanced) {
       const name = im.material.name;
       if (!/^(neon_|glow|lantern)/.test(name)) continue;
@@ -249,7 +266,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     sources,
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {
-      return Object.fromEntries(sets.map((st) => [st.k.name, `${st.instanced[0].count}/${st.n}`]));
+      return Object.fromEntries(sets.filter((st) => !st.near).map((st) => [st.name, `${st.instanced[0].count}/${st.n}`]));
     },
     disposeBake() {
       for (const m of bakeMeshes) m.geometry.dispose();
@@ -258,6 +275,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     dispose() {
       for (const m of bakeMeshes) m.geometry.dispose();
       for (const set of sets) for (const im of set.instanced) im.dispose();
+      own.dispose();
       group.removeFromParent();
     },
   };
