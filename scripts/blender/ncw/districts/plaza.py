@@ -77,5 +77,6 @@ from ncw.districts import plaza_streets  # noqa: E402,F401
 from ncw.districts import plaza_people  # noqa: E402,F401
 from ncw.districts import plaza_dress  # noqa: E402,F401
 from ncw.districts import plaza_corp  # noqa: E402,F401
+from ncw.districts import plaza_life  # noqa: E402,F401
 # (Last: the square's slabs, lit by everything set down above.)
 from ncw.districts import plaza_paving  # noqa: E402,F401

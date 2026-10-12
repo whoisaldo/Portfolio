@@ -210,18 +210,18 @@ RY = 18.2
 # two paths, which a line of light edges. No street light climbs here, so
 # the lamps' light is drawn on the flags themselves: glow, each corner as
 # bright as the lamps near it make it, the night's blue between.)
-GARDEN_LAMPS = ((90.6, -149.4, "amber"), (97.4, -142.6, "amber"), (84.0, -146.0, "white"), (104.0, -146.0, "amber"), (94.0, -155.0, "white"),
-                (94.0, -137.0, "white"), (87.5, -139.5, "amber"), (100.5, -152.5, "amber"), (101.0, -146.0, "amber"), (94.0, -163.5, "amber"),
+GARDEN_LAMPS = ((90.6, -149.4, "amber"), (97.4, -142.6, "amber"), (84.0, -146.0, "amber"), (104.0, -146.0, "amber"), (94.0, -155.0, "amber"),
+                (94.0, -137.0, "amber"), (87.5, -139.5, "amber"), (100.5, -152.5, "amber"), (101.0, -146.0, "amber"), (94.0, -163.5, "amber"),
                 (83.0, -160.0, "white"), (105.0, -136.0, "white"))
-GARDEN_POOLS = [(px, pz, 5.0, TINT[hue], 0.9) for px, pz, hue in GARDEN_LAMPS]
+GARDEN_POOLS = [(px, pz, 4.0, TINT[hue], 0.9) for px, pz, hue in GARDEN_LAMPS]
 z = -167.4
 while z < -132.8:
     x = 80.6
     while x < 107.2:
         on_path = (-147.4 < z + 1.0 < -144.6) or (92.6 < x + 1.0 < 95.4)
-        kk = rg.uniform(0.84, 1.1) * (0.13 if on_path else 0.085)
+        kk = rg.uniform(0.84, 1.1) * (0.11 if on_path else 0.07)
         lit_poly((PL, "glow", 0), [(x + 0.03, z + 0.03), (x + 1.97, z + 0.03), (x + 1.97, z + 1.97), (x + 0.03, z + 1.97)], RY + 0.02,
-                 (kk, kk, kk * 1.05), pools=GARDEN_POOLS, dark=(0.13, 0.15, 0.2))
+                 (kk, kk, kk), pools=GARDEN_POOLS, dark=(0.09, 0.095, 0.115))
         x += 2.0
     z += 2.0
 for (a0, a1, b0, b1) in ((82.6, 105.4, -147.2, -147.12), (82.6, 105.4, -144.88, -144.8), (92.8, 92.88, -157.4, -134.6), (95.12, 95.2, -157.4, -134.6)):
@@ -323,12 +323,27 @@ for f, a0 in ((B.Face("-x", 136.0, -164.0, -130.0), 0), (B.Face("-z", -164.0, 13
 parapet(132.0, 170.0, -168.0, -126.0, 14.8, tint=5)
 podium(132.0, 170.0, -126.0, -98.0, 11.4, {"-x": "street", "+x": "open", "+z": "party", "-z": "party"}, 8333,
        nb={"+z": 11.4, "-z": 14.8}, tint="navy", ground="blank", signs=False, style=dict(OFFICE, canopy=0.0))
-lobby_front(B.Face("-x", 132.0, -126.0, -98.0), 1.0, 27.0, random.Random(8345), accent="amber")
+# (Its ground floor to the road is three fronts: a shop, the lobby, a dock.)
+fd2 = B.Face("-x", 132.0, -126.0, -98.0)
+front_bay(fd2, 0.8, 8.2, "shop", random.Random(8347), colour="amber")
+lobby_front(fd2, 9.0, 21.0, random.Random(8345), accent="amber")
+front_bay(fd2, 21.8, 27.4, "dock", random.Random(8348), colour="amber")
 tower("D2", 137.0, 165.0, -123.0, -101.0, 11.4, 58.0, 8334, cut=2.0, accent="amber", crown="blades", lit=0.66, warm=0.75,
       marks=(("chevrons", "-x", 49.0, 7.0, "amber"), ("chevrons", "+x", 49.0, 7.0, "amber")))
 podium(132.0, 170.0, -98.0, -60.0, 11.4, {"-x": "street", "+x": "open", "+z": "party", "-z": "party"}, 8335,
        nb={"+z": 11.4, "-z": 11.4}, tint="charcoal", window=4, ground="blank", signs=False, style=dict(OFFICE, canopy=0.0))
-lobby_front(B.Face("-x", 132.0, -98.0, -60.0), 1.0, 37.0, random.Random(8346), accent="magenta")
+# (The deck runs into this face at junction Q: adverts in frames at eye
+# level, the lobby on the deck's axis, a shop under an awning, a tall sign
+# standing off the wall, boards and lamps on the parapet over them.)
+fd3 = B.Face("-x", 132.0, -98.0, -60.0)
+front_bay(fd3, 0.8, 9.8, "screens", random.Random(8349), colour="magenta")
+lobby_front(fd3, 10.6, 27.4, random.Random(8346), accent="magenta")
+front_bay(fd3, 28.2, 37.2, "shop", random.Random(8350), colour="pink")
+blade_off(fd3, 1.3, 5.2, "bl", 1.9, angle=0.35)
+for z, size, k in ((-92.0, "pm", 2.0), (-66.5, "ps", 2.6)):
+    big_sign(size, k, 132.5, 12.4 + 0.5 + ST_SIZES[size][1] * k / 2, z, -math.pi / 2, double=False)
+    for dz in (-1.6, 1.6):
+        box((PL, "metal", 1), 132.52, 132.64, 12.4, 12.9, z + dz - 0.06, z + dz + 0.06, scale=0.5)
 D3 = tower("D3", 136.0, 166.0, -94.0, -64.0, 11.4, 80.0, 8336, steps=((60.0, 3.0),), cut=3.0, accent="magenta", crown="halo",
            lit=0.7, warm=0.15, edge=True, marks=(("rings", "-x", 70.0, 8.0, "magenta"), ("rings", "-z", 70.0, 8.0, "magenta"),
                                      ("rings", "+z", 70.0, 8.0, "magenta")))

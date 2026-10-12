@@ -19,6 +19,14 @@ from ncw.districts.plaza_parts import *  # noqa: F401,F403
 
 G = 0.15
 POSES_WALL = ("lean", "lean", "phone", "smoke", "idle")
+# What the streets have already stood at their kerbs (lamps, signals,
+# poles): nothing of the plaza's is set down within three metres of one, so
+# a walker never passes a knot of posts.
+STREET_POSTS = [(i[1], i[3]) for i in P.INSTANCES if i[0] in ("lamp_sodium", "traffic_light", "signal_box", "pole_utility", "phone_booth")]
+
+
+def free_kerb(x, z, reach=3.0):
+    return not any(abs(px - x) < 1.6 and abs(pz - z) < reach or abs(pz - z) < 1.6 and abs(px - x) < reach for px, pz in STREET_POSTS)
 
 
 def frontage(axis, lot, out, a0, a1, seed, people=1.6, skip=(), palms=True, wall=True):
@@ -41,7 +49,9 @@ def frontage(axis, lot, out, a0, a1, seed, people=1.6, skip=(), palms=True, wall
         if clear(a):
             pick = r.random()
             x, z = at(a, 3.72)
-            if pick < 0.26:
+            if not free_kerb(x, z):
+                pass
+            elif pick < 0.26:
                 for k in range(r.randrange(2, 5)):
                     xx, zz = at(a + k * 1.5, 3.72)
                     if a + k * 1.5 < a1 - 1.0 and clear(a + k * 1.5):
@@ -64,7 +74,7 @@ def frontage(axis, lot, out, a0, a1, seed, people=1.6, skip=(), palms=True, wall
     # Palms at the kerb, slender, lit from their planters (YRL74JmhVgk@30).
     a = a0 + r.uniform(9.0, 16.0)
     while palms and a < a1 - 6.0:
-        if clear(a):
+        if clear(a) and free_kerb(*at(a, 3.62), reach=4.0):
             x, z = at(a, 3.62)
             P.place("planter_palm", x, G, z, r.uniform(0, 6.28), sy=r.uniform(1.05, 1.25), sxz=0.55, district=PL)
             light(PL, *at(a, 2.6)[:1], 1.2, at(a, 2.6)[1], "amber", 3.5)
@@ -130,7 +140,7 @@ frontage("x", 108.0, 1, -166.0, -98.0, 8502)
 frontage("x", 108.0, 1, -342.0, -266.0, 8503)
 frontage("x", 108.0, 1, -262.0, -202.0, 8509, people=0, skip=((-236.0, -224.0),))
 frontage("x", 132.0, -1, -166.0, -12.0, 8504, skip=((-126.0, -60.0),))
-frontage("x", 132.0, -1, -124.0, -62.0, 8510, people=0, wall=False)
+frontage("x", 132.0, -1, -124.0, -62.0, 8510, people=0, wall=False, skip=((-118.0, -104.0), (-86.0, -72.0)))
 frontage("z", -168.0, -1, 54.0, 106.0, 8505)
 frontage("z", -168.0, -1, 134.0, 168.0, 8506)
 frontage("z", -10.0, 1, 54.0, 106.0, 8507)

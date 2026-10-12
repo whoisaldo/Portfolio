@@ -145,6 +145,24 @@ for (px, pz) in ((100.5, -236.0), (95.5, -224.0), (101.0, -201.8), (93.2, -235.2
     P.place("lamp_short", px, TY, pz, district=PL)
     shine(px, TY + 3.0, pz, "amber", 8.0)
 P.place("kiosk", 102.0, TY, -256.5, -math.pi / 2, district=PL)
+# (The north terrace's middle: two bench groups round a lamp and a bed, a
+# camera post at each end, cubes at the bridge's foot; under 2.7 m north of
+# z -247, where the Work shot's frame passes over.)
+for (px, pz, yaw) in ((96.0, -243.4, 0.0), (96.0, -240.2, math.pi), (97.9, -241.8, -math.pi / 2), (104.0, -247.6, math.pi), (104.0, -251.0, 0.0)):
+    P.place("bench", px, TY, pz, yaw, district=PL)
+shrub_bed(94.6, 97.2, -242.4, -241.2, rs, y=TY, h=0.3, side="+z", edge=None)
+P.place("lamp_short", 99.6, TY, -245.4, district=PL)
+shine(99.6, TY + 3.0, -245.4, "amber", 8.0)
+for (px, pz) in ((93.4, -262.6), (106.6, -236.4), (106.6, -224.2), (93.6, -201.0)):
+    P.place("cctv", px, TY, pz, district=PL)
+for (px, pz) in ((96.2, -235.4), (98.0, -235.4), (102.0, -235.4), (103.8, -235.4), (96.2, -224.6), (103.8, -224.6)):
+    P.place("bollard_cube", px, TY, pz, district=PL)
+P.place("vending", 106.2, TY, -258.4, -math.pi / 2, district=PL)
+P.place("vending_warm", 106.2, TY, -259.5, -math.pi / 2, district=PL)
+shine(104.6, TY + 1.4, -259.0, "white", 4.0)
+P.place("bin", 98.6, TY, -246.4, district=PL)
+P.place("bin", 100.4, TY, -214.6, district=PL)
+P.place("charge_post", 97.0, TY, -238.6, 0.0, district=PL)
 # (Their floors are lit by their lamps, the kiosk and the screens over them:
 # pools, and dark between.)
 shine(100.2, TY + 1.6, -256.5, "amber", 5.0)
@@ -165,9 +183,21 @@ for cz, masts in ((-205.0, (-209.0, -201.0)), (-228.0, (-234.6, -225.4))):
 # ---------------------------------------------------------------------------
 # West strip, low under the GPU on the canyon's wall: hedges, benches,
 # cubes along the lane's edge.
-for k, (za, zb) in enumerate(((-258.0, -252.0), (-248.0, -242.0), (-224.0, -218.0), (-214.0, -208.0), (-204.5, -199.0))):
-    planter(49.4, 51.0, za, zb, r=rs, side="+x", edge=("white", None, "amber", None, "white")[k])
-    P.place("bench", 52.0, G, (za + zb) / 2, math.pi / 2, district=PL)
+# (Each bay its own: a long hedge, a low bed of shrubs between cubes, two
+# blossom trees in a kerbed bed, a long advert at bench height, a tall
+# short hedge; benches at three of them.)
+planter(49.4, 51.0, -258.0, -252.0, r=rs, side="+x", edge="white")
+shrub_bed(49.5, 50.9, -247.4, -243.6, rs, h=0.32, side="+x", edge=None)
+for z in (-248.4, -242.6):
+    P.place("bollard_cube", 50.2, G, z, district=PL)
+box((PL, "concrete", 0), 49.4, 51.0, G, G + 0.42, -224.0, -218.2, scale=1.5)
+for z in (-222.6, -219.6):
+    P.place("planter_tree", 50.2, G + 0.1, z, rs.uniform(0, 6.28), sxz=0.8, district=PL)
+    shine(51.4, 1.0, z, "white", 3.0)
+nbox("amber", 51.0, 51.03, G + 0.03, G + 0.08, -223.9, -218.3)
+planter(49.5, 50.9, -204.2, -200.4, r=rs, side="+x", edge="white", h=0.7, hedge=1.0)
+for z in (-255.0, -221.1, -202.3):
+    P.place("bench", 52.0, G, z, math.pi / 2, district=PL)
 z = -260.0
 while z < -191.0:
     if not -234.0 < z < -226.0:
@@ -194,7 +224,7 @@ P.place("bin", 98.5, G, -198.9, district=PL)
 P.place("kiosk", 56.0, G, -203.0, math.pi / 2, district=PL)
 P.place("cctv", 51.6, G, -196.2, district=PL)
 P.place("cctv", 106.0, G, -198.6, district=PL)
-big_sign("bl", 1.8, 105.6, G + 0.9 + 4.5, -196.6, math.pi / 4)
+# (The octagonal sign stands on this plinth: plaza_life.py.)
 box((PL, "concrete", 0), 104.9, 106.3, G, G + 0.9, -197.3, -195.9, scale=1.0)
 for (px, pz, yaw) in ((90.6, -247.0, -math.pi / 2), (58.0, -199.0, math.pi), (54.6, -210.0, math.pi / 2), (72.0, -257.6, 0.0),
                       (86.0, -257.6, 0.0), (100.5, -196.4, math.pi), (76.0, -208.0, math.pi)):
@@ -217,14 +247,10 @@ P.place("bin", 91.0, G, -236.0, district=PL)
 # camera looks up it at the koi and the board.
 # ---------------------------------------------------------------------------
 # On the carpet: two long adverts at eye level, a bench against each face.
-for bx_ in (60.0, 68.0):
-    P.place("ad_board", bx_, G, -205.5, 0.0, district=PL)
-    P.place("bench", bx_, G, -204.6, 0.0, district=PL)
-    P.place("bench", bx_, G, -206.4, math.pi, district=PL)
-    for z in (-204.0, -207.0):
-        shine(bx_, 1.6, z, "white", 4.0)
-P.place("charge_post", 61.25, G, -204.6, 0.0, district=PL)
-P.place("charge_post", 69.25, G, -206.4, math.pi, district=PL)
+for bx_ in (60.6, 69.4):
+    P.place("bench", bx_ - 3.3, G, -205.5, -math.pi / 2, district=PL)
+    P.place("bench", bx_ + 3.3, G, -205.5, math.pi / 2, district=PL)
+P.place("charge_post", 65.0, G, -205.5, 0.0, district=PL)
 for (px, pz, kind) in ((56.6, -211.2, "planter_palm"), (74.0, -200.0, "planter_palm"), (56.6, -199.8, "planter_tree"), (64.0, -211.2, "planter_tree")):
     P.place(kind, px, G, pz, rs.uniform(0, 6.28), district=PL)
     shine(px, 1.0, pz, "amber" if kind == "planter_palm" else "white", 3.0)
@@ -238,18 +264,20 @@ for (px, pz, yaw) in ((58.0, -215.6, math.pi / 4), (79.0, -214.4, -math.pi / 4))
     P.place("food_cart", px, G, pz, yaw, district=PL)
     shine(px + 1.2 * math.sin(yaw), 1.8, pz + 1.2 * math.cos(yaw), "amber", 5.0)
     stand(px - 0.9 * math.sin(yaw), pz - 0.9 * math.cos(yaw), yaw, "vendor", y=G)
-    for o, side, pose in ((1.5, 0.0, "idle"), (2.3, 0.3, "phone"), (3.1, -0.2, "idle")):
+    line = ((1.4, 0.0, "idle"), (2.15, 0.2, "phone"), (2.9, -0.1, "idle"), (3.7, 0.15, "idle"), (4.4, -0.2, "phone"), (5.2, 0.1, "idle")) if px > 70 else \
+        ((1.4, 0.0, "idle"), (2.2, 0.25, "phone"))
+    for o, side, pose in line:
         stand(px + o * math.sin(yaw) + side * math.cos(yaw), pz + o * math.cos(yaw) - side * math.sin(yaw), yaw + math.pi, pose, y=G)
 for i, px in enumerate((88.2, 89.3, 90.4)):
     P.place("vending" if i != 1 else "vending_warm", px, G, STAIR[3] + 0.5, 0.0, district=PL)
     P.place("vending_warm" if i != 1 else "vending", px, G, STAIR[2] - 0.5, math.pi, district=PL)
 # Standing adverts down the west side, cameras, bins, lit grates that
 # breathe, boards outside the shops.
-for pz in (-238.5, -226.0, -216.0, -206.5):
+for pz in (-226.6, -206.6):
     P.place("lightbox", 49.6, G, pz, math.pi / 2, district=PL)
 for (px, pz) in ((82.4, -198.2), (51.2, -251.0), (87.6, -243.6)):
     P.place("cctv", px, G, pz, district=PL)
-for (px, pz) in ((57.4, -205.5), (71.0, -205.5), (89.4, -241.5)):
+for (px, pz) in ((57.4, -207.8), (73.6, -207.4), (89.4, -241.5)):
     P.place("bin", px, G, pz, district=PL)
 for i, (px, pz) in enumerate(((64.6, -201.0), (87.2, -228.6), (53.0, -246.6))):
     P.place("grate_glow", px, G, pz, district=PL)
@@ -263,17 +291,16 @@ for px in (57.0, 70.4, 85.0):
 # ---------------------------------------------------------------------------
 SEAT = G + 0.48
 # On the benches of the garden, the west strip and the south strip.
-for (px, pz, yaw) in ((52.0, -255.3, math.pi / 2), (52.0, -221.4, math.pi / 2), (52.0, -210.6, math.pi / 2),
+for (px, pz, yaw) in ((52.0, -255.3, math.pi / 2), (52.0, -254.6, math.pi / 2), (52.0, -221.4, math.pi / 2), (52.0, -202.0, math.pi / 2),
                       (58.2, -193.6, math.pi), (65.4, -193.0, 0.0), (66.3, -193.0, 0.0), (62.3, -258.2, 0.0), (76.4, -258.2, 0.0),
-                      (59.6, -204.6, 0.0), (60.4, -204.6, 0.0), (68.3, -204.6, 0.0), (59.7, -206.4, math.pi), (67.6, -206.4, math.pi),
-                      (68.4, -206.4, math.pi)):
+                      (57.3, -205.2, -math.pi / 2), (57.3, -205.9, -math.pi / 2), (63.9, -205.3, math.pi / 2), (72.7, -205.8, math.pi / 2)):
     stand(px, pz, yaw, "sit", y=SEAT)
 # About the square.
 for (px, pz, yaw, pose) in ((64.3, -208.0, 0.85, "talk"), (65.2, -207.0, 0.85 + math.pi, "talk"), (82.6, -202.0, -1.8, "phone"),
                             (72.3, -200.4, 2.6, "idle"), (86.0, -202.5, 0.4, "talk"), (86.9, -201.5, 0.4 + math.pi, "talk"),
                             
                             (88.0, -249.0, 2.2, "talk"), (89.0, -249.8, 2.2 + math.pi, "talk"), (88.2, -250.6, 0.4, "talk"),
-                            (66.0, -252.5, math.pi, "idle"), (69.5, -254.0, 2.9, "phone"), (57.5, -251.0, 2.6, "smoke"),
+                            (71.6, -251.6, math.pi, "idle"), (72.4, -254.6, 2.9, "phone"), (57.5, -251.0, 2.6, "smoke"),
                             (58.4, -203.0, -math.pi / 2, "idle"), (59.4, -203.5, -math.pi / 2, "phone"),
                             (79.5, -192.6, math.pi, "squat"), (97.0, -193.5, 0.0, "phone"), (102.5, -192.8, 2.4, "idle")):
     stand(px, pz, yaw, pose, y=G)
@@ -297,10 +324,10 @@ for (px, pz, yaw, pose) in ((93.0, -251.0, -math.pi / 2, "idle"), (93.0, -249.8,
 for (px, pz, yaw) in ((99.0, -249.3, -math.pi / 2), (99.0, -240.2, -math.pi / 2), (94.2, -245.7, -math.pi / 2), (99.0, -218.3, -math.pi / 2), (99.5, -206.5, math.pi)):
     stand(px, pz, yaw, "sit", y=TY + 0.5)
 # In the passage and along the terraces' shops on the road.
-for (px, pz, yaw, pose) in ((96.0, -232.9, math.pi, "idle"), (103.0, -227.2, 0.0, "phone"), (108.6, -256.0, math.pi / 2, "lean"),
-                            (108.6, -246.5, -math.pi / 2, "idle"), (108.7, -239.0, math.pi / 2, "smoke"), (108.6, -220.0, math.pi / 2, "lean"),
-                            (108.6, -211.0, -math.pi / 2, "idle"), (108.6, -210.0, -math.pi / 2, "idle"), (108.7, -203.0, math.pi / 2, "phone"),
-                            (108.6, -278.0, math.pi / 2, "lean"), (108.7, -268.5, -math.pi / 2, "idle")):
+for (px, pz, yaw, pose) in ((96.0, -232.9, math.pi, "idle"), (103.0, -227.2, 0.0, "phone"), (108.6, -256.2, math.pi, "talk"),
+                            (108.6, -257.1, 0.0, "talk"), (108.7, -241.0, math.pi / 2, "smoke"), (108.55, -211.6, math.pi / 2, "lean"),
+                            (108.6, -210.7, math.pi, "talk"), (108.7, -209.8, 0.0, "talk"), (108.6, -278.0, math.pi / 2, "lean"),
+                            (108.7, -268.9, math.pi, "talk"), (108.65, -269.8, 0.0, "talk")):
     stand(px, pz, yaw, pose, y=G)
 
 # ---------------------------------------------------------------------------
@@ -334,6 +361,6 @@ for z in (-256.0, -248.0, -240.0):
 # Machines, drums, standing adverts and the kiosk light the stone they stand on.
 for (px, pz, hue, p) in ((88.2, STAIR[3] + 1.6, "white", 3.5), (90.4, STAIR[2] - 1.6, "amber", 3.5), (52.6, -214.6, "white", 4.0),
                          (88.8, -223.0, "white", 4.0), (85.4, -247.6, "pink", 4.0), (57.8, -203.0, "amber", 4.5), (75.0, -193.4, "white", 3.5),
-                         (50.6, -238.5, "white", 3.0), (50.6, -226.0, "cyan", 3.0), (50.6, -216.0, "white", 3.0), (50.6, -206.5, "pink", 3.0),
+                         (50.6, -226.6, "cyan", 3.0), (50.6, -206.6, "pink", 3.0),
                          (50.4, -262.2, "white", 3.5), (51.4, -193.2, "white", 3.0)):
     shine(px, 1.4, pz, hue, p)

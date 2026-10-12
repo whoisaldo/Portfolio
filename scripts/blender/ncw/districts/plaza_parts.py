@@ -952,6 +952,101 @@ def skylight(x0, x1, z0, z1, y, colour="white", k=0.3, pitch=1.2):
 
 
 # ---------------------------------------------------------------------------
+# The plaza's sign kit (Fn9gKhU_2_Q@74, @81, YRL74JmhVgk@133, @30).
+# ---------------------------------------------------------------------------
+def low_screen(cx, cz, w, yaw, r, y=0.15, h=1.2, foot=0.35, hue="white"):
+    """A long advert at bench height, on a dark plinth, read from both
+    sides: the city's drawn adverts, a line of light along its top, and its
+    light on the ground either side."""
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    oriented_box((PL, "board_frame", 0), cx, y + foot / 2, cz, w * 0.86, foot, 0.34, yaw, scale=1.0)
+    oriented_box((PL, "board_frame", 0), cx, y + foot + h / 2, cz, w + 0.16, h + 0.16, 0.2, yaw, scale=1.0)
+    for sgn in (1, -1):
+        rotated_quad((PL, "billboard", 0), cx + nx * 0.105 * sgn, y + foot + h / 2, cz + nz * 0.105 * sgn, w, h, yaw + (0.0 if sgn > 0 else math.pi),
+                     col=(r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0))
+        shine(cx + nx * 1.5 * sgn, y + 1.0, cz + nz * 1.5 * sgn, hue, 4.5)
+    oriented_box((PL, "glow", 0), cx, y + foot + h + 0.1, cz, w + 0.16, 0.04, 0.06, yaw, scale=1.0, col=dim("cyan", 0.7))
+
+
+def holo_wrap(cx, cz, y0, y1, r, hue, hue2="white"):
+    """A hologram's sleeve round a post or a trunk: thin rings of light,
+    one above another, the air between them empty."""
+    plan = ngon(cx, cz, r, 8)
+    n = max(2, int((y1 - y0) / 0.4))
+    for i in range(n + 1):
+        y = y0 + (y1 - y0) * i / n
+        walls((PL, "glow", 0), plan, y - 0.02, y + 0.02, dim(hue if i % 2 == 0 else hue2, 0.75))
+    shine(cx, y0, cz + r + 0.4, hue if hue in TINT else "white", 3.0)
+
+
+def octagon_sign(cx, cy, cz, across, yaw, hue="cyan", size="bx"):
+    """One large octagonal sign, both faces: a pictogram in a dark octagon
+    edged twice in light."""
+    pl = Plane(cx, cy, cz, yaw)
+    r = across / 2 / math.cos(math.pi / 8)
+    pts = [(r * math.cos(math.pi / 8 + i * math.tau / 8), r * math.sin(math.pi / 8 + i * math.tau / 8)) for i in range(8)]
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    sid = house_name(size)
+    k = across * 0.56 / ST_SIZES[size][0]
+    w, h = ST_SIZES[size][0] * k, ST_SIZES[size][1] * k
+    for sgn in (1, -1):
+        face = [pl.at(u * sgn, v, 0.07 * sgn) for u, v in pts]
+        poly((PL, "board_frame", 0), face, [(0.5, 0.5)] * 8)
+        for f_, t, kk in ((1.0, 0.16, 0.9), (0.84, 0.07, 0.5)):
+            for (ua, va), (ub, vb) in zip(pts, pts[1:] + pts[:1]):
+                a_ = pl.at(ua * f_ * sgn, va * f_, 0.09 * sgn)
+                b_ = pl.at(ub * f_ * sgn, vb * f_, 0.09 * sgn)
+                a2 = pl.at(ua * (f_ - t) * sgn, va * (f_ - t), 0.09 * sgn)
+                b2 = pl.at(ub * (f_ - t) * sgn, vb * (f_ - t), 0.09 * sgn)
+                quad((PL, "glow", 0), a_, b_, b2, a2, col=dim(hue, kk))
+        sign(sid if sgn > 0 else sid + "_b", cx + nx * 0.1 * sgn, cy, cz + nz * 0.1 * sgn, w, h, yaw + (0.0 if sgn > 0 else math.pi), district=PL, label=False)
+
+
+def front_bay(f, s0, s1, kind, r, colour="amber"):
+    """A stretch of ground floor on a blank podium face `f`, standing a
+    hand proud of the wall: "shop" (a lit window between steel posts under a
+    board, an awning), "screens" (adverts in frames at eye level), "dock" (a
+    roller shutter under a lit header, hazard posts)."""
+    if kind == "shop":
+        f.quad((PL, "shop", 0), s0 + 0.2, s1 - 0.2, 0.55, 3.3, 0.06, col=(r.uniform(0.6, 1.0), r.random(), 1.0, 1.0))
+        f.box((PL, "trim", 0), s0, s1, G_LOBBY, 0.55, 0.0, 0.1, col=B.DARK_TRIM)
+        n = max(1, int(round((s1 - s0) / 3.0)))
+        for i in range(n + 1):
+            s = s0 + (s1 - s0) * i / n
+            f.box((PL, "metal", 0), s - 0.08, s + 0.08, G_LOBBY, 3.4, 0.0, 0.14)
+        f.box((PL, "trim", 0), s0, s1, 3.3, 4.3, 0.0, 0.12, col=B.DARK_TRIM)
+        w, h = ST_SIZES["pm"]
+        mid = (s0 + s1) / 2
+        cx, cy, cz = f.p(f.at(mid), 3.82, 0.15)
+        sign(house_name("pm"), cx, cy, cz, w, h * 0.72, f.yaw, district=PL, label=False)
+        B.awning(PL, f, s0 + 0.3, s1 - 0.3, colour)
+        lx, _, lz = f.p(f.at(mid), 0.0, 1.6)
+        light(PL, lx, 2.2, lz, colour, 5.0)
+    elif kind == "screens":
+        f.box((PL, "trim", 0), s0, s1, G_LOBBY, 4.3, 0.0, 0.1, col=B.TRIM[1])
+        n = max(1, int((s1 - s0) / 3.1))
+        for i in range(n):
+            a, b = s0 + (s1 - s0) * i / n + 0.25, s0 + (s1 - s0) * (i + 1) / n - 0.25
+            f.box((PL, "board_frame", 0), a - 0.08, b + 0.08, 0.62, 3.58, 0.1, 0.18)
+            f.quad((PL, "billboard", 0), a, b, 0.7, 3.5, 0.19, uvs=((0, 0), (1, 0), (1, 1), (0, 1)),
+                   col=(r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0))
+        f.box((PL, "glow", 0), s0 + 0.2, s1 - 0.2, 3.86, 3.94, 0.1, 0.13, col=dim(colour, 0.7))
+    else:
+        f.box((PL, "trim", 0), s0, s1, G_LOBBY, 4.3, 0.0, 0.08, col=B.DARK_TRIM)
+        n = max(1, int((s1 - s0) / 3.4))
+        for i in range(n):
+            a, b = s0 + (s1 - s0) * i / n + 0.3, s0 + (s1 - s0) * (i + 1) / n - 0.3
+            f.quad((PL, "door_panel", 0), a, b, G_LOBBY, 3.3, 0.09)
+            f.box((PL, "metal", 0), a - 0.12, a, G_LOBBY, 3.4, 0.08, 0.16)
+            f.box((PL, "metal", 0), b, b + 0.12, G_LOBBY, 3.4, 0.08, 0.16)
+            f.box((PL, "glow", 0), a, b, 3.4, 3.5, 0.08, 0.12, col=dim(colour, 0.9))
+            lx, _, lz = f.p(f.at((a + b) / 2), 0.0, 1.2)
+            light(PL, lx, 3.0, lz, colour, 4.0)
+        for s in (s0 + 0.15, s1 - 0.15):
+            f.box((PL, "trim", 1), s - 0.09, s + 0.09, G_LOBBY, 1.1, 0.3, 0.48, col=(0.62, 0.48, 0.06, 1.0))
+
+
+# ---------------------------------------------------------------------------
 # Props of the plaza's own.
 # ---------------------------------------------------------------------------
 @P.proto("lamp_plaza", box=(0.12, 3.0, 0.12))
@@ -960,6 +1055,11 @@ def _lamp_plaza(k):
     cool white light under it (KvMY1uzSC1E@29)."""
     cylinder(k("metal"), 0.0, 0.0, 0.0, 5.4, 0.07, segs=6)
     cylinder(k("metal"), 0.0, 0.0, 0.0, 0.4, 0.13, segs=6)
+    # (Dressed: a collar and two bands of light, so the mast is not a bare
+    # black line to somebody standing by it.)
+    cylinder(k("metal"), 0.0, 0.0, 1.9, 2.3, 0.1, segs=6)
+    for y in (1.05, 3.1, 3.25):
+        cylinder(k("neon_white"), 0.0, 0.0, y, y + 0.05, 0.085, segs=6, cap=False)
     pipe(k("metal"), (0.0, 5.4, 0.0), (0.0, 6.1, 0.45), 0.055, segs=5)
     pipe(k("metal"), (0.0, 6.1, 0.45), (0.0, 6.35, 1.3), 0.05, segs=5)
     box(k("metal"), -0.16, 0.16, 6.3, 6.4, 1.2, 2.2, scale=0.5)
@@ -1120,15 +1220,12 @@ def lobby_front(f, s0, s1, r, accent="cyan", guards=True):
     a, b = f.at(s0 + 0.3), f.at(s1 - 0.3)
     pa, pb = f.p(a, 4.3, 0.14), f.p(b, 4.36, 0.17)
     nbox(accent, min(pa[0], pb[0]), max(pa[0], pb[0]), 4.3, 4.36, min(pa[2], pb[2]), max(pa[2], pb[2]))
-    for d in (-3.6, -1.2, 1.2, 3.6):
+    for d, kind in ((-4.4, "planter_tree"), (-2.6, "bollard"), (-1.5, "bollard"), (1.5, "bollard"), (2.6, "bollard"), (4.2, "lightbox")):
         px_, _, pz_ = f.p(f.at(mid + d), 0.0, 3.72)
-        P.place("bollard_cube", px_, G_LOBBY, pz_, district=PL)
+        P.place(kind, px_, G_LOBBY, pz_, f.yaw + math.pi / 2 if kind == "lightbox" else 0.0, sxz=0.6 if kind == "planter_tree" else 1.0, district=PL)
     if guards:
-        for d in (-3.0, 3.0):
-            px_, _, pz_ = f.p(f.at(mid + d), 0.0, 0.62)
-            stand(px_, pz_, f.yaw, "idle", y=G_LOBBY)
-        px_, _, pz_ = f.p(f.at(mid - 7.0), 0.0, 0.62)
-        stand(px_, pz_, f.yaw + 0.4, "phone", y=G_LOBBY)
+        px_, _, pz_ = f.p(f.at(mid + 2.9), 0.0, 0.62)
+        stand(px_, pz_, f.yaw, "idle", y=G_LOBBY)
 
 
 G_LOBBY = 0.15
