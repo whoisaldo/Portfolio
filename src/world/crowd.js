@@ -64,16 +64,16 @@ const PAVE_Y = 0.15;
 // blue, lime, burgundy and cream; trousers darker; skin; hair (black, browns,
 // bleached, pink, cyan, red, silver, green, violet); bags and hats.
 const JACKETS = [
-  [0.62, 0.48, 0.06], [0.46, 0.05, 0.05], [0.04, 0.3, 0.32], [0.22, 0.09, 0.36], [0.56, 0.56, 0.54], [0.035, 0.035, 0.04],
+  [0.62, 0.48, 0.06], [0.46, 0.05, 0.05], [0.04, 0.3, 0.32], [0.22, 0.09, 0.36], [0.56, 0.56, 0.54], [0.05, 0.052, 0.065],
   [0.18, 0.21, 0.08], [0.6, 0.24, 0.04], [0.05, 0.08, 0.2], [0.56, 0.14, 0.3], [0.22, 0.22, 0.24], [0.38, 0.3, 0.2],
-  [0.06, 0.22, 0.5], [0.3, 0.48, 0.08], [0.25, 0.03, 0.1], [0.62, 0.55, 0.4],
+  [0.06, 0.22, 0.5], [0.27, 0.42, 0.09], [0.25, 0.03, 0.1], [0.62, 0.55, 0.4],
 ];
 // The jackets by family of colour: yellows and tans, reds and pinks, greens,
 // purple, whites, black and grey, blues.
 const HUES = [0, 1, 2, 3, 4, 5, 2, 0, 6, 1, 5, 0, 6, 2, 1, 4];
-const TROUSERS = [[0.03, 0.03, 0.035], [0.08, 0.1, 0.18], [0.16, 0.14, 0.12], [0.05, 0.12, 0.12], [0.24, 0.05, 0.06], [0.3, 0.3, 0.3], [0.12, 0.12, 0.05], [0.02, 0.02, 0.025]];
-const SKINS = [[0.52, 0.34, 0.24], [0.32, 0.2, 0.13], [0.66, 0.48, 0.37], [0.2, 0.13, 0.09], [0.6, 0.42, 0.3], [0.44, 0.27, 0.17]];
-const HAIRS = [[0.02, 0.018, 0.016], [0.05, 0.035, 0.03], [0.12, 0.07, 0.04], [0.7, 0.62, 0.44], [0.7, 0.16, 0.45], [0.1, 0.55, 0.6], [0.5, 0.08, 0.05], [0.6, 0.6, 0.62], [0.2, 0.6, 0.15], [0.35, 0.12, 0.55]];
+const TROUSERS = [[0.045, 0.046, 0.058], [0.08, 0.1, 0.18], [0.16, 0.14, 0.12], [0.05, 0.12, 0.12], [0.24, 0.05, 0.06], [0.3, 0.3, 0.3], [0.12, 0.12, 0.05], [0.035, 0.036, 0.046]];
+const SKINS = [[0.5, 0.31, 0.21], [0.32, 0.2, 0.13], [0.6, 0.4, 0.29], [0.2, 0.13, 0.09], [0.56, 0.36, 0.25], [0.44, 0.27, 0.17]];
+const HAIRS = [[0.035, 0.031, 0.03], [0.05, 0.035, 0.03], [0.12, 0.07, 0.04], [0.7, 0.62, 0.44], [0.7, 0.16, 0.45], [0.1, 0.55, 0.6], [0.5, 0.08, 0.05], [0.6, 0.6, 0.62], [0.2, 0.6, 0.15], [0.35, 0.12, 0.55]];
 const HAIR_ODDS = [30, 14, 12, 10, 8, 7, 6, 5, 4, 4];
 const BAGS = [[0.03, 0.03, 0.035], [0.3, 0.2, 0.1], [0.45, 0.05, 0.06], [0.6, 0.6, 0.58], [0.6, 0.55, 0.05], [0.06, 0.1, 0.25]];
 const PAL = { jacket: 0, trousers: 16, skin: 24, hair: 30, bag: 40, rim: 46, size: 50 };
@@ -484,6 +484,16 @@ function layLanes(paves, rows, solid) {
 const f = (x) => (Number.isInteger(x) ? x.toFixed(1) : String(x));
 const v3 = (a) => `vec3(${a.map(f).join(", ")})`;
 
+// In the dark a colour is mostly its own lightness, seen blue: a pink coat in
+// an unlit doorway is a dark blue coat, lighter than the trousers under it
+// and darker than the face over it.
+const BY_NIGHT = /* glsl */ `
+  vec3 byNight(vec3 albedo, vec3 light) {
+    float dim = 1.0 - smoothstep(0.04, 0.26, max(light.r, max(light.g, light.b)));
+    return mix(albedo, dot(albedo, vec3(0.3, 0.5, 0.2)) * vec3(0.72, 0.88, 1.3), 0.7 * dim);
+  }
+`;
+
 // What both shaders start from: a person's floats, the shared light, and
 // where that person is this instant.
 const HEAD = /* glsl */ `
@@ -519,6 +529,23 @@ const HEAD = /* glsl */ `
     vec3 s = texture2D(uSigns, (p.xz - uSpillBounds.xy) * uSpillBounds.zw).rgb;
     return s * s;
   }
+  // What the street's light does to a person. Its level lights them (a
+  // sign's own colour counts for as much as its luminance does: a blue or a
+  // magenta tube lights a face, it does not black it out), easing off
+  // toward a ceiling so the palest skin under the brightest sign stays skin;
+  // its colour is only a wash over their own (a third of the way from white),
+  // so a jacket is still its own colour under a green sign and the trousers,
+  // the skin and the hair are still theirs.
+  vec3 person(vec3 L) {
+    float peak = max(L.r, max(L.g, L.b));
+    float level = mix(dot(L, vec3(0.2126, 0.7152, 0.0722)), peak, 0.5);
+    level = level < 0.45 ? level : 0.45 + 0.5 * (1.0 - exp((0.45 - level) / 0.5));
+    return level * mix(vec3(1.0), L / max(peak, 1e-4), 0.32);
+  }
+  ${BY_NIGHT}
+  // The night's own light where no sign reaches: enough that someone in the
+  // dark is a dark blue shape with a face, a jacket and legs, not a hole.
+  const vec3 NIGHT = vec3(0.03, 0.04, 0.075);
   // A file at a point along it: how far to the side of its line it runs,
   // and the room to move off it toward either side.
   vec3 laneAt(float u, float row) {
@@ -917,7 +944,7 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.seam}) albedo = jacket * 0.4;
     else if (part == ${PART.shirt}) albedo = shirt;
     else if (part == ${PART.trousers}) albedo = uPal[${PAL.trousers} + int(aWear.y + 0.5)];
-    else if (part == ${PART.shoe}) { albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.03); gloss = 0.35; }
+    else if (part == ${PART.shoe}) { albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.04, 0.04, 0.05); gloss = 0.35; }
     else if (part == ${PART.bag} || part == ${PART.brim}) albedo = carried;
     else if (part == ${PART.tote}) albedo = uPal[${PAL.bag} + int(mod(floor(aLook.z / 4.0) + 3.0, 6.0) + 0.5)];
     else if (part == ${PART.dark}) { albedo = vec3(0.015); gloss = 0.5; }
@@ -962,18 +989,24 @@ const VERTEX = /* glsl */ `
     vec3 about = signsAt(world);
     float up = N.y;
     vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * (0.55 + 0.45 * up) * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.25 * (0.5 + 0.5 * up);
-    vec3 light = vec3(0.012, 0.012, 0.02) + (max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22) * upright + about * 0.1 + here * (0.13 + 0.16 * max(up, 0.0) + 0.22 * max(-up, 0.0)) + sky * 0.62 + lampsAt(world, N) * 1.2;
+    vec3 light = person(NIGHT * (0.8 + 0.2 * up) + (max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22) * upright + about * 0.1 + here * (0.13 + 0.16 * max(up, 0.0) + 0.22 * max(-up, 0.0)) + sky * 0.62 + lampsAt(world, N) * 1.2);
     vec3 V = normalize(uCam - world);
     float graze = 1.0 - max(dot(N, V), 0.0);
     vec3 past = signsAt(world - normalize(vec3(V.x, 0.0, V.z) + 1e-5) * 3.5);
     float ground = 0.72 + 0.28 * smoothstep(0.0, 0.5, tall);
-    vec3 col = (albedo * light * ground + (past * 1.2 + here * 0.1 + sky * 0.5) * graze * graze * graze * upright * (0.14 + albedo) + (toward + sky * 0.9) * graze * graze * gloss * 0.5) * shade;
+    // The sign behind them is a rim in its own colour along their edge, no
+    // brighter for a pale coat than for a dark one; the wet shine likewise.
+    float body = max(albedo.r, max(albedo.g, albedo.b));
+    vec3 rim = min((past * 1.2 + here * 0.1 + sky * 0.5) * graze * graze * graze * upright * (0.16 + 0.5 * body), vec3(0.55));
+    vec3 col = (byNight(albedo, light) * light * ground + rim + NIGHT * 0.05 * (0.3 + graze * graze) + (toward + sky * 0.9) * graze * graze * gloss * 0.5) * shade;
     // The umbrella's own neon is on the cloth by its edge, and on the head
     // and shoulders under it.
     if (part == ${PART.canopy}) col += (0.2 + albedo) * tint * 0.3 * aux * aux * aux;
     else if (umbrella > 0.5) col += albedo * tint * 0.2 * smoothstep(1.25, 1.7, tall);
     // A phone held up lights the face over it.
     if (phoneUp > 0.5 && seg > 1.5 && seg < 2.5) col += albedo * vec3(0.3, 0.45, 0.55) * max(n.z * 0.8 - n.y * 0.6, 0.0);
+    // Nothing that is not lit from inside reaches the bloom.
+    col *= min(1.0, 0.84 / max(max(col.r, max(col.g, col.b)), 1e-4));
     col = mix(col, lit, glow);
     vColor = cityFog(col, world, glow);
 
@@ -1061,7 +1094,7 @@ const CARD_VERTEX = /* glsl */ `
     vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * 0.55 * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.12;
     vec3 toward = signsAt(mid + vec3(toEye.x, 0.0, toEye.y) * 3.0);
     vec3 behind = signsAt(mid - vec3(toEye.x, 0.0, toEye.y) * 3.0);
-    vLight = vec4(vec3(0.012, 0.012, 0.02) + max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22 + signsAt(mid) * 0.1 + spillAt(mid) * 0.15 + sky * 0.62, 6.2832 * ph);
+    vLight = vec4(person(NIGHT + max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22 + signsAt(mid) * 0.1 + spillAt(mid) * 0.15 + sky * 0.62), 6.2832 * ph);
     vec3 away = mid - uCam;
     float dist = length(away);
     vec3 fog = mix(uFogColor, uHazeColor, uHaze * exp(-max(mid.y, 0.0) * 0.01) * smoothstep(40.0, 360.0, dist));
@@ -1102,6 +1135,7 @@ const CARD_FRAGMENT = /* glsl */ `
     p3 += dot(p3, p3.yzx + 33.33);
     return fract((p3.x + p3.y) * p3.z);
   }
+  ${BY_NIGHT}
   // A segment whose radius runs from ra at a to rb at b.
   float limb(vec2 p, vec2 a, vec2 b, float ra, float rb) {
     vec2 pa = p - a;
@@ -1139,7 +1173,7 @@ const CARD_FRAGMENT = /* glsl */ `
     if (dBody <= 0.0 || dCoat <= 0.0) albedo = vJacket.rgb;
     if (dHead <= 0.0) albedo = lit > 3.5 || p.y > 1.7 ? vHair.rgb : vSkin.rgb;
     if (canopy <= 0.0) albedo = vec3(0.05, 0.05, 0.07) + vTint.rgb * 0.1;
-    vec3 col = albedo * vLight.rgb;
+    vec3 col = byNight(albedo, vLight.rgb) * vLight.rgb;
     float glow = 1.0;
     if (rim <= 0.0) col = vTint.rgb * 3.2 * (1.0 + 0.2 * uBass);
     else if (mod(lit, 2.0) > 0.5 && dBody <= 0.0 && abs(p.y - 0.93) < max(0.007, 0.5 * px)) col = vTint.rgb * 1.25;
@@ -1388,7 +1422,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // Everyone's floats, what stands on the pavements, the lanes' map and
     // the signs' light, for checking that nobody walks through anything and
     // what lights them.
-    api.debugState = () => ({ people, furniture, lanes: base.uLanes.value.image, signs: base.uSigns.value.image, signsMs: light.ms, stride: STRIDE });
+    api.debugState = () => ({ people, furniture, lanes: base.uLanes.value.image, signs: base.uSigns.value.image, signsMs: light.ms, signsWork: light.work, signsPending: light.pending, stride: STRIDE });
   }
   return api;
 }

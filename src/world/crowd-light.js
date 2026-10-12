@@ -135,12 +135,16 @@ export function createStreetLight(scene, shared) {
     uniform.value.dispose();
     uniform.value = map;
   }
-  const later = globalThis.requestIdleCallback ?? setTimeout;
+  // In an idle moment, or after a fifth of a second without one: a page
+  // whose frames take longer than the screen's has no idle moments at all,
+  // and the people in it would wait for their light for ever.
+  const later = globalThis.requestIdleCallback ? (step) => globalThis.requestIdleCallback(step, { timeout: 200 }) : (step) => setTimeout(step, 16);
   const run = (steps) => {
     const t0 = performance.now();
     let done = false;
     while (!over && !done && performance.now() - t0 < 3) done = steps.next().done;
     api.ms = Math.max(api.ms, performance.now() - t0);
+    api.work += performance.now() - t0;
     if (done || over) pending = false;
     else later(() => run(steps));
   };
@@ -148,8 +152,14 @@ export function createStreetLight(scene, shared) {
   const api = {
     /** The map: its bounds are the city's own bake's (uSpillBounds). */
     uniform,
-    /** The longest step of the last bake, in milliseconds. */
+    /** The longest step of the last bake and all of its steps together, in
+     *  milliseconds. */
     ms: 0,
+    work: 0,
+    /** Whether a bake is under way. */
+    get pending() {
+      return pending;
+    },
     /** Bake it again if the city has baked its own since. */
     check() {
       const spill = shared.uSpill.value;
@@ -159,12 +169,18 @@ export function createStreetLight(scene, shared) {
       seen = now;
       pending = true;
       api.ms = 0;
+      api.work = 0;
       later(() => run(bake()));
     },
     dispose() {
       over = true;
+      clearInterval(watch);
       uniform.value.dispose();
     },
   };
+  // The crowd asks on every frame it is drawn in; a page at rest draws none,
+  // so a district that arrives while nothing moves is noticed here, and its
+  // signs light the people in the next frame there is.
+  const watch = setInterval(api.check, 400);
   return api;
 }
