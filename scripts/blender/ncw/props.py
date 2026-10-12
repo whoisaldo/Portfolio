@@ -456,10 +456,10 @@ def _planter_tree(k):
         pad(k("plant"), cx, cy, cz, r, col)
 
 
-@proto("bench", box=(1.0, 0.25, 0.3), reach=220, detail=True)
+@proto("bench", box=(1.0, 0.25, 0.3), reach=220)
 def _bench(k):
     """A bench, its front toward +z: a slatted seat and a back on two cast
-    frames."""
+    frames. Not detail: people sit on it, on a phone too."""
     slat = (0.16, 0.1, 0.06, 1)
     box(k("trim"), -0.95, 0.95, 0.42, 0.47, -0.22, 0.25, scale=0.6, col=slat)
     box(k("trim"), -0.95, 0.95, 0.56, 0.86, -0.27, -0.23, scale=0.6, col=slat)
