@@ -192,6 +192,14 @@ const ICONS = {
   note(c, s) { c.moveTo(0.44 * s, 0.72 * s); c.arc(0.36 * s, 0.72 * s, 0.08 * s, 0, Math.PI * 2); c.moveTo(0.44 * s, 0.72 * s); c.lineTo(0.44 * s, 0.2 * s); c.lineTo(0.72 * s, 0.14 * s); c.lineTo(0.72 * s, 0.64 * s); c.moveTo(0.8 * s, 0.64 * s); c.arc(0.64 * s + 0.0 * s, 0.64 * s, 0.08 * s, 0, Math.PI * 2); },
   waves(c, s) { for (const y of [0.34, 0.5, 0.66]) { c.moveTo(0.16 * s, y * s); for (let i = 1; i <= 4; i++) c.quadraticCurveTo((0.16 + (i - 0.5) * 0.17) * s, (y + (i % 2 ? -0.07 : 0.07)) * s, (0.16 + i * 0.17) * s, y * s); } },
   dice(c, s) { roundRect(c, 0.2 * s, 0.2 * s, 0.6 * s, 0.6 * s, 0.1 * s); for (const [x, y] of [[0.35, 0.35], [0.65, 0.35], [0.5, 0.5], [0.35, 0.65], [0.65, 0.65]]) { c.moveTo((x + 0.035) * s, y * s); c.arc(x * s, y * s, 0.035 * s, 0, Math.PI * 2); } },
+  key(c, s) { c.moveTo(0.48 * s, 0.5 * s); c.arc(0.34 * s, 0.5 * s, 0.14 * s, 0, Math.PI * 2); c.lineTo(0.84 * s, 0.5 * s); c.moveTo(0.7 * s, 0.5 * s); c.lineTo(0.7 * s, 0.63 * s); c.moveTo(0.8 * s, 0.5 * s); c.lineTo(0.8 * s, 0.6 * s); },
+  cup(c, s) { c.moveTo(0.24 * s, 0.42 * s); c.lineTo(0.28 * s, 0.78 * s); c.lineTo(0.62 * s, 0.78 * s); c.lineTo(0.66 * s, 0.42 * s); c.closePath(); c.moveTo(0.66 * s, 0.48 * s); c.arc(0.66 * s, 0.58 * s, 0.1 * s, -Math.PI / 2, Math.PI / 2); for (const x of [0.36, 0.52]) { c.moveTo(x * s, 0.32 * s); c.quadraticCurveTo((x - 0.05) * s, 0.25 * s, (x + 0.02) * s, 0.17 * s); } },
+  gear(c, s) { for (let i = 0; i < 8; i++) { const a = (i * Math.PI) / 4; c.moveTo((0.5 + 0.24 * Math.cos(a)) * s, (0.5 + 0.24 * Math.sin(a)) * s); c.lineTo((0.5 + 0.35 * Math.cos(a)) * s, (0.5 + 0.35 * Math.sin(a)) * s); } c.moveTo(0.74 * s, 0.5 * s); c.arc(0.5 * s, 0.5 * s, 0.24 * s, 0, Math.PI * 2); c.moveTo(0.59 * s, 0.5 * s); c.arc(0.5 * s, 0.5 * s, 0.09 * s, 0, Math.PI * 2); },
+  flame(c, s) { c.moveTo(0.5 * s, 0.14 * s); c.bezierCurveTo(0.84 * s, 0.44 * s, 0.76 * s, 0.84 * s, 0.5 * s, 0.86 * s); c.bezierCurveTo(0.24 * s, 0.84 * s, 0.18 * s, 0.5 * s, 0.4 * s, 0.4 * s); c.bezierCurveTo(0.42 * s, 0.5 * s, 0.5 * s, 0.46 * s, 0.5 * s, 0.14 * s); c.moveTo(0.5 * s, 0.58 * s); c.quadraticCurveTo(0.6 * s, 0.72 * s, 0.5 * s, 0.8 * s); c.quadraticCurveTo(0.4 * s, 0.72 * s, 0.5 * s, 0.58 * s); },
+  anchor(c, s) { c.moveTo(0.56 * s, 0.24 * s); c.arc(0.5 * s, 0.24 * s, 0.06 * s, 0, Math.PI * 2); c.moveTo(0.5 * s, 0.3 * s); c.lineTo(0.5 * s, 0.82 * s); c.moveTo(0.36 * s, 0.42 * s); c.lineTo(0.64 * s, 0.42 * s); c.moveTo(0.22 * s, 0.6 * s); c.quadraticCurveTo(0.26 * s, 0.84 * s, 0.5 * s, 0.82 * s); c.quadraticCurveTo(0.74 * s, 0.84 * s, 0.78 * s, 0.6 * s); },
+  gem(c, s) { c.moveTo(0.3 * s, 0.26 * s); c.lineTo(0.7 * s, 0.26 * s); c.lineTo(0.86 * s, 0.44 * s); c.lineTo(0.5 * s, 0.84 * s); c.lineTo(0.14 * s, 0.44 * s); c.closePath(); c.moveTo(0.14 * s, 0.44 * s); c.lineTo(0.86 * s, 0.44 * s); for (const x of [0.3, 0.7]) { c.moveTo(x * s, 0.26 * s); c.lineTo((0.5 + (x - 0.5) * 0.5) * s, 0.44 * s); c.lineTo(0.5 * s, 0.84 * s); } },
+  clock(c, s) { c.moveTo(0.82 * s, 0.5 * s); c.arc(0.5 * s, 0.5 * s, 0.32 * s, 0, Math.PI * 2); c.moveTo(0.5 * s, 0.28 * s); c.lineTo(0.5 * s, 0.5 * s); c.lineTo(0.66 * s, 0.58 * s); },
+  signal(c, s) { c.moveTo(0.54 * s, 0.76 * s); c.arc(0.5 * s, 0.76 * s, 0.04 * s, 0, Math.PI * 2); for (const r of [0.17, 0.31, 0.45]) { c.moveTo((0.5 - r * Math.SQRT1_2) * s, (0.76 - r * Math.SQRT1_2) * s); c.arc(0.5 * s, 0.76 * s, r * s, -Math.PI * 0.75, -Math.PI * 0.25); } },
 };
 
 function street(ctx, spec, w, h) {
@@ -247,9 +255,23 @@ function street(ctx, spec, w, h) {
   if (spec.style === "icon") {
     const s = Math.min(w, h);
     const tw = Math.max(2, s * 0.045);
-    strokeTube(ctx, color, tw, () => roundRect(ctx, s * 0.06, s * 0.06, w - s * 0.12, h - s * 0.12, s * 0.12));
+    // The box's own shape in tube: a square with round corners, or a
+    // disc, a lozenge, a hexagon, a square with its corners cut (the
+    // pictogram drawn smaller, to sit inside it).
+    const cx = w / 2;
+    const cy = h / 2;
+    const [sides, turn, fit] = { disc: [48, 0, 0.8], lozenge: [4, 0, 0.6], hex: [6, 0, 0.72], cut: [8, Math.PI / 8, 0.86] }[spec.frame] ?? [0, 0, 1];
+    strokeTube(ctx, color, tw, () => {
+      if (!sides) return roundRect(ctx, s * 0.06, s * 0.06, w - s * 0.12, h - s * 0.12, s * 0.12);
+      const r = (s * 0.45) / (sides === 8 ? Math.cos(Math.PI / 8) : 1);
+      for (let i = 0; i <= sides; i++) {
+        const a = turn + (i * Math.PI * 2) / sides - Math.PI / 2;
+        ctx[i ? "lineTo" : "moveTo"](cx + r * Math.cos(a), cy + r * Math.sin(a));
+      }
+    });
     ctx.save();
-    ctx.translate((w - s) / 2, (h - s) / 2);
+    ctx.translate(cx - (s * fit) / 2, cy - (s * fit) / 2);
+    ctx.scale(fit, fit);
     if (spec.icon === "yen") {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
