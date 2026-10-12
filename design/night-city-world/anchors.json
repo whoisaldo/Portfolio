@@ -2076,6 +2076,17 @@
    "district": "afterlife"
   },
   {
+   "name": "anchor_steam_roof_afterlife_garage",
+   "kind": "anchor",
+   "at": [
+    466.4,
+    9.6,
+    -228.3
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
    "name": "anchor_steam_roof_corpo_campus",
    "kind": "anchor",
    "at": [
