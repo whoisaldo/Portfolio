@@ -24,6 +24,18 @@ G0 = B.G0
 # of their own, so nothing built here moves the street's own count
 # (kit.st_name) and with it the designs on the hero's facades.
 _names = random.Random(77011)
+# The core's own small signs (the hero's pavements and its west wall) draw
+# from a stream of their own, so nothing added off the hero's frame changes
+# the designs it shows.
+CORE_NAMES = random.Random(77100)
+
+
+def use_names(stream):
+    """Draw sign names from `stream` from now on; returns the stream it
+    replaces."""
+    global _names
+    old, _names = _names, stream
+    return old
 
 
 def st_id(size):

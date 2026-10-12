@@ -68,6 +68,10 @@ B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape, B.balcony = _back_g
 # turned its own way instead of square to its wall.
 _face_signs = B.face_signs
 B.face_signs = ST.face_signs
+# And the roofs it builds for the south pack are dressed by avenue_roofs (the
+# kit's dressing drawn for nobody, its draws made as they were).
+_roof_dress = B.roof_dress
+B.roof_dress = RF.kit_roof(_roof_dress, AVS)
 
 
 # The lots, north of the intersection: (z_start, depth along the street,
@@ -228,7 +232,8 @@ for s, lots in SOUTH_ROW.items():
         back_is()
 
 B.st_name = ST.NAME[0] = _st_name
-RF.light_roofs(AVS, list(B.ROOFS))
+B.roof_dress = _roof_dress
+RF.dress_queue(AVS)
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.
@@ -394,6 +399,7 @@ for key in [k for k in batches if k[0] == "void"]:
     del batches[key]
 P.INSTANCES[:] = [i for i in P.INSTANCES if i[7] != "void"]
 LIGHTS.pop("void", None)
+B.ROOFS[:] = [t for t in B.ROOFS if t[0] != "void"]
 
 # The backs of the avenue's lots, above their street fronts' roofs.
 RF.rear(AVS, AV_LOTS, WALK, DEPTH, STYLE)
@@ -447,8 +453,10 @@ WEST_NAMED = [(-21.0, 8.35, 3.6, 4.6), (-136.0, 17.0, 4.0, 5.6), (-26.5, 4.2, 2.
               (-92.0, 12.0, 0.7, 2.5)]
 WEST_FACE = B.Face("+x", -WALK, -168.0, -10.0)
 WEST_LOTS = [(z - d, z, h) for (z, d, h) in LOTS[-1] if z <= -30 and z - d > -165]
+_names = K.use_names(K.CORE_NAMES)
 ST.upper(AV, WEST_FACE, WEST_LOTS, random.Random(7400), taken=WEST_NAMED, cap=11.5)
 ST.upper(AV, WEST_FACE, WEST_LOTS, random.Random(7401), taken=WEST_NAMED)
+K.use_names(_names)
 # And the band over the shops on the south street's south side and down the
 # arm, which a walker looks square at.
 for sx in (-1, 1):

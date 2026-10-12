@@ -314,6 +314,7 @@ def build(AV, AVS, lane_w, lane_e):
     fw = B.Face("+x", -WALK, -168.0, -10.0)
     fe = B.Face("-x", WALK, -168.0, -10.0)
     gap = [(-88.0, -72.0)]
+    names = K.use_names(K.CORE_NAMES)
     # (What already stands by the west wall: Kiroshi's screen, the vending
     # pair, the palms and their benches, a phone booth, a food box, bins.)
     west_taken = gap + [(-28.0, -15.0), (-44.5, -37.5), (-54.0, -50.0), (-66.5, -62.5), (-99.5, -92.0), (-125.5, -118.5),
@@ -326,6 +327,7 @@ def build(AV, AVS, lane_w, lane_e):
     # stands here keeps to the wall.) Two stalls at its far end.
     for z in (-146.0, -157.5):
         K.yatai(AV, fe, s_of(fe, z), rng, w=2.6)
+    K.use_names(names)
 
     # ---- Junction B's south corners: a kiosk and a cart on the corner
     # squares (the walkers' lines stop short of them), stalls and boards
