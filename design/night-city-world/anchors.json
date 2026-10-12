@@ -3055,6 +3055,39 @@
    "district": "canyon"
   },
   {
+   "name": "anchor_steam_stall_fc_a",
+   "kind": "anchor",
+   "at": [
+    404.35,
+    1.57,
+    -212.48
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_stall_fc_b",
+   "kind": "anchor",
+   "at": [
+    404.35,
+    1.57,
+    -204.88
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
+   "name": "anchor_steam_stall_fc_c",
+   "kind": "anchor",
+   "at": [
+    386.05,
+    1.57,
+    -196.22
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
+  },
+  {
    "name": "anchor_steam_street_0",
    "kind": "anchor",
    "at": [
@@ -3097,6 +3130,17 @@
    ],
    "yaw": 0.0,
    "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_street_afterlife_court",
+   "kind": "anchor",
+   "at": [
+    399.0,
+    0.2,
+    -204.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife"
   },
   {
    "name": "anchor_steam_street_b0",
