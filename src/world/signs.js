@@ -71,9 +71,12 @@ const turned = (color, turn) => {
 // all of them, and held to two hues that frame lost a twentieth of its
 // light. All of it north of that, its canyon, is amber with cyan, the
 // show's own pair, so the far end of the street is two colours and white.
+// Corpo Plaza, junction F and Corpo Row's west end are green with amber, the
+// show's corpo pair (their blocks dealt pink with cyan and pink with violet).
 const BLOCK_HUES = [[5, 3], [1, 3], [0, 1], [5, 4], [3, 4], [1, 5], [2, 5], [0, 3]];
 const blockHues = (x, z) => {
   if (Math.abs(x) < 40) return z > -128 ? null : [1, 3];
+  if (x > 46 && x < 172 && z < -10 && z > -460) return [2, 1];
   const n = Math.abs(Math.sin(Math.floor(x / 160) * 127.1 + Math.floor(z / 160) * 311.7) * 43758.5453);
   return BLOCK_HUES[Math.floor((n - Math.floor(n)) * BLOCK_HUES.length)];
 };
