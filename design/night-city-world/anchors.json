@@ -1625,17 +1625,6 @@
    "district": "japantown"
   },
   {
-   "name": "anchor_steam_drain_jt8",
-   "kind": "anchor",
-   "at": [
-    -143.3,
-    21.74,
-    -339.2
-   ],
-   "yaw": 0.0,
-   "district": "japantown"
-  },
-  {
    "name": "anchor_steam_lane_0",
    "kind": "anchor",
    "at": [
@@ -1920,6 +1909,138 @@
    ],
    "yaw": 0.0,
    "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_lane_jt75",
+   "kind": "anchor",
+   "at": [
+    -59.39,
+    2.3,
+    -538.2
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_lane_jt78",
+   "kind": "anchor",
+   "at": [
+    -65.1,
+    2.3,
+    -368.2
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_lane_jt79",
+   "kind": "anchor",
+   "at": [
+    -49.8,
+    2.3,
+    -72.57
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
+   "name": "anchor_steam_lane_jt82",
+   "kind": "anchor",
+   "at": [
+    -99.31,
+    2.3,
+    -252.3
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_lane_jt84",
+   "kind": "anchor",
+   "at": [
+    -124.33,
+    2.3,
+    -652.7
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_lane_jt86",
+   "kind": "anchor",
+   "at": [
+    -138.2,
+    2.3,
+    -490.68
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_lane_jt88",
+   "kind": "anchor",
+   "at": [
+    -138.2,
+    2.3,
+    -309.03
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_lane_jt90",
+   "kind": "anchor",
+   "at": [
+    -138.2,
+    2.3,
+    -37.53
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_lane_jt91",
+   "kind": "anchor",
+   "at": [
+    -141.8,
+    2.3,
+    -661.99
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_lane_jt92",
+   "kind": "anchor",
+   "at": [
+    -141.8,
+    2.3,
+    -478.48
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_lane_jt94",
+   "kind": "anchor",
+   "at": [
+    -141.8,
+    2.3,
+    -192.98
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_lane_jt96",
+   "kind": "anchor",
+   "at": [
+    -146.22,
+    2.3,
+    12.2
+   ],
+   "yaw": 0.0,
+   "district": "far"
   },
   {
    "name": "anchor_steam_lane_w1",
@@ -2217,6 +2338,116 @@
    ],
    "yaw": 0.0,
    "district": "mega"
+  },
+  {
+   "name": "anchor_steam_roof_jt76",
+   "kind": "anchor",
+   "at": [
+    -52.9,
+    16.6,
+    -489.8
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_roof_jt77",
+   "kind": "anchor",
+   "at": [
+    -52.81,
+    13.2,
+    -458.4
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_roof_jt80",
+   "kind": "anchor",
+   "at": [
+    -52.17,
+    16.6,
+    -39.4
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_roof_jt81",
+   "kind": "anchor",
+   "at": [
+    -107.38,
+    16.6,
+    -441.5
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_roof_jt83",
+   "kind": "anchor",
+   "at": [
+    -107.48,
+    20.0,
+    -24.3
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_roof_jt85",
+   "kind": "anchor",
+   "at": [
+    -135.5,
+    13.2,
+    -645.9
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_roof_jt87",
+   "kind": "anchor",
+   "at": [
+    -135.43,
+    33.6,
+    -434.3
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_roof_jt89",
+   "kind": "anchor",
+   "at": [
+    -135.19,
+    20.0,
+    -128.9
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_roof_jt93",
+   "kind": "anchor",
+   "at": [
+    -144.14,
+    30.2,
+    -274.5
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_roof_jt95",
+   "kind": "anchor",
+   "at": [
+    -144.49,
+    23.4,
+    -48.9
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
   },
   {
    "name": "anchor_steam_roof_plaza_0",
@@ -3088,6 +3319,512 @@
    "district": "afterlife"
   },
   {
+   "name": "anchor_steam_stall_jt25",
+   "kind": "anchor",
+   "at": [
+    -114.52,
+    1.31,
+    -731.6
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt26",
+   "kind": "anchor",
+   "at": [
+    -115.55,
+    1.27,
+    -714.1
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt27",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -712.45
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt28",
+   "kind": "anchor",
+   "at": [
+    -111.85,
+    1.23,
+    -703.58
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt29",
+   "kind": "anchor",
+   "at": [
+    -111.48,
+    1.31,
+    -687.41
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt30",
+   "kind": "anchor",
+   "at": [
+    -114.15,
+    1.23,
+    -677.23
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt31",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -676.53
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt32",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -634.17
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt33",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -596.59
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt34",
+   "kind": "anchor",
+   "at": [
+    -111.48,
+    1.31,
+    -563.92
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt35",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -554.09
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt36",
+   "kind": "anchor",
+   "at": [
+    -114.15,
+    1.23,
+    -534.34
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt37",
+   "kind": "anchor",
+   "at": [
+    -115.55,
+    1.27,
+    -518.78
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt38",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -517.13
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt39",
+   "kind": "anchor",
+   "at": [
+    -114.52,
+    1.31,
+    -500.53
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt40",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -471.37
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt41",
+   "kind": "anchor",
+   "at": [
+    -110.45,
+    1.27,
+    -439.76
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt42",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -431.02
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt43",
+   "kind": "anchor",
+   "at": [
+    -114.15,
+    1.23,
+    -412.51
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt44",
+   "kind": "anchor",
+   "at": [
+    -110.45,
+    1.27,
+    -388.72
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt45",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -380.22
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt46",
+   "kind": "anchor",
+   "at": [
+    -111.85,
+    1.23,
+    -372.38
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt47",
+   "kind": "anchor",
+   "at": [
+    -114.52,
+    1.31,
+    -345.87
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt48",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -345.37
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt49",
+   "kind": "anchor",
+   "at": [
+    -111.48,
+    1.31,
+    -301.12
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt50",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -291.65
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt51",
+   "kind": "anchor",
+   "at": [
+    -111.48,
+    1.31,
+    -284.81
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt52",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -257.44
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt53",
+   "kind": "anchor",
+   "at": [
+    -111.85,
+    1.23,
+    -241.74
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt54",
+   "kind": "anchor",
+   "at": [
+    -115.55,
+    1.27,
+    -233.48
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt55",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -215.4
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt56",
+   "kind": "anchor",
+   "at": [
+    -114.52,
+    1.31,
+    -199.36
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt57",
+   "kind": "anchor",
+   "at": [
+    -110.45,
+    1.27,
+    -190.28
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt58",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -161.21
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt59",
+   "kind": "anchor",
+   "at": [
+    -110.45,
+    1.27,
+    -132.58
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt60",
+   "kind": "anchor",
+   "at": [
+    -114.15,
+    1.23,
+    -115.18
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt61",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -114.48
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt62",
+   "kind": "anchor",
+   "at": [
+    -115.55,
+    1.27,
+    -96.1
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt63",
+   "kind": "anchor",
+   "at": [
+    -111.48,
+    1.31,
+    -86.92
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt64",
+   "kind": "anchor",
+   "at": [
+    -115.55,
+    1.27,
+    -78.65
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt65",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -77.0
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt66",
+   "kind": "anchor",
+   "at": [
+    -111.48,
+    1.31,
+    -69.17
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt67",
+   "kind": "anchor",
+   "at": [
+    -115.05,
+    1.2,
+    -28.23
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt68",
+   "kind": "anchor",
+   "at": [
+    -111.48,
+    1.31,
+    -18.59
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt69",
+   "kind": "anchor",
+   "at": [
+    -132.28,
+    1.2,
+    -175.6
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_stall_jt70",
+   "kind": "anchor",
+   "at": [
+    -154.11,
+    1.2,
+    -175.6
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
    "name": "anchor_steam_street_0",
    "kind": "anchor",
    "at": [
@@ -3445,7 +4182,7 @@
    "at": [
     -68.25,
     0.25,
-    -418.06
+    -472.29
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3456,7 +4193,7 @@
    "at": [
     -68.25,
     0.25,
-    -320.87
+    -418.06
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3575,20 +4312,130 @@
    "name": "anchor_steam_street_jt0",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -712.45
+    -77.5,
+    0.1,
+    -647.54
    ],
    "yaw": 0.0,
-   "district": "japantown"
+   "district": "mega"
   },
   {
    "name": "anchor_steam_street_jt1",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -660.11
+    -86.5,
+    0.1,
+    -596.73
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_street_jt10",
+   "kind": "anchor",
+   "at": [
+    -69.05,
+    0.19,
+    -375.36
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt11",
+   "kind": "anchor",
+   "at": [
+    -69.05,
+    0.19,
+    -321.78
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt12",
+   "kind": "anchor",
+   "at": [
+    -86.5,
+    0.1,
+    -224.33
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt13",
+   "kind": "anchor",
+   "at": [
+    -90.95,
+    0.19,
+    -233.47
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt14",
+   "kind": "anchor",
+   "at": [
+    -113.0,
+    0.19,
+    -644.35
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt15",
+   "kind": "anchor",
+   "at": [
+    -113.0,
+    0.19,
+    -621.56
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt16",
+   "kind": "anchor",
+   "at": [
+    -113.0,
+    0.19,
+    -538.86
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt17",
+   "kind": "anchor",
+   "at": [
+    -113.0,
+    0.19,
+    -334.58
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt18",
+   "kind": "anchor",
+   "at": [
+    -140.0,
+    0.19,
+    -651.82
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt19",
+   "kind": "anchor",
+   "at": [
+    -140.0,
+    0.19,
+    -417.14
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3597,20 +4444,75 @@
    "name": "anchor_steam_street_jt2",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -596.59
+    -69.05,
+    0.19,
+    -590.84
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_street_jt20",
+   "kind": "anchor",
+   "at": [
+    -140.0,
+    0.19,
+    -214.62
    ],
    "yaw": 0.0,
    "district": "japantown"
   },
   {
+   "name": "anchor_steam_street_jt21",
+   "kind": "anchor",
+   "at": [
+    -47.0,
+    0.19,
+    -638.51
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_street_jt22",
+   "kind": "anchor",
+   "at": [
+    -47.0,
+    0.19,
+    -448.17
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_street_jt23",
+   "kind": "anchor",
+   "at": [
+    -47.0,
+    0.19,
+    -394.43
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_street_jt24",
+   "kind": "anchor",
+   "at": [
+    -47.0,
+    0.19,
+    -277.82
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
    "name": "anchor_steam_street_jt3",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -533.64
+    -73.5,
+    0.1,
+    -537.55
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3619,9 +4521,9 @@
    "name": "anchor_steam_street_jt4",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -471.37
+    -90.95,
+    0.19,
+    -535.37
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3630,9 +4532,9 @@
    "name": "anchor_steam_street_jt5",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -411.81
+    -86.5,
+    0.1,
+    -482.39
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3641,9 +4543,9 @@
    "name": "anchor_steam_street_jt6",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -345.37
+    -69.05,
+    0.19,
+    -478.86
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3652,9 +4554,53 @@
    "name": "anchor_steam_street_jt7",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -272.55
+    -86.5,
+    0.1,
+    -425.77
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt71",
+   "kind": "anchor",
+   "at": [
+    -47.0,
+    0.3,
+    -520.0
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_street_jt72",
+   "kind": "anchor",
+   "at": [
+    -47.0,
+    0.3,
+    -300.0
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_street_jt73",
+   "kind": "anchor",
+   "at": [
+    -140.0,
+    0.3,
+    -350.0
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_jt74",
+   "kind": "anchor",
+   "at": [
+    -140.0,
+    0.3,
+    -600.0
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3663,9 +4609,9 @@
    "name": "anchor_steam_street_jt8",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -215.4
+    -90.95,
+    0.19,
+    -429.94
    ],
    "yaw": 0.0,
    "district": "japantown"
@@ -3674,9 +4620,9 @@
    "name": "anchor_steam_street_jt9",
    "kind": "anchor",
    "at": [
-    -115.05,
-    1.2,
-    -142.94
+    -86.5,
+    0.1,
+    -379.45
    ],
    "yaw": 0.0,
    "district": "japantown"
