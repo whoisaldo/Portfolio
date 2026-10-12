@@ -14,9 +14,10 @@
   districts.json      each district's territory and label
   anchors.json        named places: every empty the kit sets down (the
                       page's cameras and anchors, the lamps, the set
-                      pieces' marks), the loop's junctions by letter, and
-                      each district's centre, for spawning, waypoints and
-                      a braindance's marks
+                      pieces' marks), the loop's junctions by letter, each
+                      district's centre, where a drive and a walk begin
+                      (spawn_drive, spawn_walk) and the landmarks by name
+                      (poi_*)
 
 Unused by the page for now: they are for the drive, the walk and a richer
 braindance (design/night-city-world/README.md, "Exports for later").
@@ -182,6 +183,32 @@ def anchors():
     junctions = [{"name": f"junction_{n}", "kind": "junction", "at": [x, 0.0, z], "district": plan.district_at(x, z)} for n, (x, z) in plan.LOOP]
     centres = [{"name": f"district_{n}", "kind": "district", "at": [_r((b[0] + b[2]) / 2), 0.0, _r((b[1] + b[3]) / 2)], "label": label}
                for n, b, label in plan.DISTRICTS]
+    # Where a drive and a walk begin (the loop's start at A, heading north up
+    # the avenue: yaw is the kit's, 0 facing +z and pi facing -z), and the
+    # landmarks a map, a waypoint or a braindance mark would name.
+    spawns = [
+        {"name": "spawn_drive", "kind": "spawn", "at": [1.85, 0.0, -6.0], "yaw": _r(math.pi, 4), "district": "avenue",
+         "note": "the avenue's inner northbound lane, facing north: the loop runs A B C L P Q F E I H"},
+        {"name": "spawn_walk", "kind": "spawn", "at": [11.8, 0.16, -6.0], "yaw": _r(math.pi, 4), "district": "avenue",
+         "note": "the middle of the avenue's east pavement, facing north"},
+    ]
+    pois = [{"name": f"poi_{n}", "kind": "poi", "at": [x, y, z], "district": plan.district_at(x, z), "label": label} for n, x, y, z, label in (
+        ("hero_curb", 0.6, 0.0, 10.0, "where the page opens: the avenue, looking north"),
+        ("deck_girder", 0.0, 8.5, -80.0, "the deck's girder over the avenue"),
+        ("deck_turn", -80.0, 8.5, -80.0, "the deck's turn off the ramp"),
+        ("deck_stair", -65.2, 0.16, -74.5, "the stair's foot, west street's east pavement, up to the deck's walkway"),
+        ("arasaka", 75.0, 0.0, -490.0, "ARASAKA's tower and forecourt"),
+        ("megabuilding", 0.0, 0.0, -760.0, "the megabuilding at the canyon's end"),
+        ("japantown_gate", -80.0, 0.0, -696.0, "the red gate over the west street"),
+        ("plaza_hub", 70.0, 0.0, -234.0, "Corpo Plaza's sunken hub, under the koi"),
+        ("plaza_board", 79.0, 26.0, -263.0, "the plaza's main board"),
+        ("corpo_row", 280.0, 0.0, -330.0, "the boulevard under Corpo Row's towers"),
+        ("corpo_track", 246.0, 19.0, -378.5, "the halt on Corpo Row's elevated track"),
+        ("afterlife", 432.0, 0.0, -281.0, "AFTERLIFE's door"),
+        ("rooftop", 468.0, 34.0, -279.0, "the rooftop over the garage street"),
+        ("garage", 462.0, 0.0, -215.0, "the garage's bay"),
+        ("tank_farm", 300.0, 0.0, -88.0, "Santo Domingo's estate cross, by the tank farm"),
+    )]
     return {"frame": "world metres, +x east, +y up, +z south (toward the hero's lens)",
             "note": "unused by the page for now: for the drive, the walk and a richer braindance",
-            "anchors": out + junctions + centres}
+            "anchors": out + junctions + centres + spawns + pois}
