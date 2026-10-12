@@ -3367,6 +3367,50 @@
    "district": "santo"
   },
   {
+   "name": "anchor_steam_zz_deck_drain_0",
+   "kind": "anchor",
+   "at": [
+    -75.76,
+    4.46,
+    -148.0
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_zz_deck_drain_1",
+   "kind": "anchor",
+   "at": [
+    -75.76,
+    6.99,
+    -118.0
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_zz_deck_drain_2",
+   "kind": "anchor",
+   "at": [
+    -51.0,
+    8.53,
+    -84.24
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
+   "name": "anchor_steam_zz_deck_drain_3",
+   "kind": "anchor",
+   "at": [
+    54.0,
+    5.81,
+    -84.24
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
    "name": "anchor_tower_aws-cloudformation",
    "kind": "anchor",
    "at": [
