@@ -217,7 +217,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float painted = 0.85 * crack * (1.0 - 0.8 * worn * near);
         albedo = mix(albedo, vPaint, painted);
         stone = max(stone, painted);
-        vec3 col = albedo * (vec3(0.16, 0.14, 0.18) + spill * 1.6);
+        // (The light on it eased toward a ceiling: a white line under six
+        // signs is a painted line, not a tube.)
+        vec3 col = albedo * (vec3(0.13, 0.14, 0.18) + spill * 1.6 / (1.0 + 1.3 * max(spill.r, max(spill.g, spill.b))));
         #else
         albedo *= mix(1.0, 0.72, wet);
         vec3 col = albedo * 0.55 * (vec3(0.07) + spill * mix(1.0, 0.45, puddle)) + albedo * cityGlow(-V, 0.0) * 0.12;

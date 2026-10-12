@@ -674,7 +674,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
             float panel = mix(step(c.x, 0.36) * step(c.y, 0.12), 0.17, aa);
             float deep = 1.0 - 0.55 * smoothstep(0.0, DEEP, h.z);
-            room = L * (0.26 + 2.1 * panel) * deep;
+            room = L * (0.26 + 1.25 * panel) * deep;
           } else {
             // The floor: pools of light under the ceiling's panels, as the
             // floors of a lit office are seen from above.
@@ -884,12 +884,12 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             col += light * seam * 1.1;
             col += accent * (0.6 + 2.2 * tlit) * step(abs(hit.y - 4.3), 0.28);
           } else if (tm == ty && d.y > 0.0) {
-            col = light * (0.4 + 2.4 * panels(hit.xz));
+            col = light * (0.34 + 1.05 * panels(hit.xz));
           } else if (tm == ty) {
             // The floor, polished: the ceiling again, softer, and darker
             // toward the back.
             vec3 m2 = hit + vec3(d.x, -d.y, d.z) * ((H) / max(-d.y, 1e-3));
-            col = light * (0.16 + 0.7 * panels(m2.xz)) * (1.0 - 0.35 * hit.z / D);
+            col = light * (0.16 + 0.42 * panels(m2.xz)) * (1.0 - 0.35 * hit.z / D);
           } else {
             col = light * (0.26 + 0.12 * smoothstep(0.0, H, hit.y));
           }
@@ -970,8 +970,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  // A paper lantern: hot through its belly, dim at the rims, the paper's
-  // ribs in the glow, and a dark cap. The kit's cylinder runs v up its side
+  // A paper lantern: hot through its belly but never past white (its red
+  // and its ribs are its shape), dim at the rims, and a dark cap. The kit's cylinder runs v up its side
   // half a unit a metre, so a 0.56 m lantern is 0.28 of v, and glTF counts
   // v down from 1.
   const lantern = () => {
@@ -989,8 +989,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float t = clamp((1.0 - vUv.y) / 0.28, 0.0, 1.0);
           float belly = sin(3.14159 * t);
           float ribs = 0.8 + 0.2 * cos(t * 3.14159 * 14.0);
-          vec3 col = uColor * (0.2 + 2.6 * belly * belly) * ribs * (1.0 + 0.3 * uBass);
-          col += vec3(1.0, 0.75, 0.4) * pow(belly, 6.0) * 0.8;
+          vec3 col = uColor * (0.22 + 1.25 * belly * belly) * ribs * (1.0 + 0.3 * uBass);
+          col += vec3(1.0, 0.75, 0.4) * pow(belly, 6.0) * 0.35;
           col *= 1.0 - 0.9 * step(0.5, abs(vNormalW.y));
           col = cityFog(col, vWorld, 1.0);
           gl_FragColor = vec4(col, 1.0);
@@ -1075,6 +1075,41 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     }));
     m.name = "glow";
     made.set("glow", m);
+    return m;
+  };
+
+  // A roof light: glass lit from the room under it, each pane its own
+  // brightness between glazing bars 1.2 m apart (drawn in world space, so
+  // it needs no UVs), dimmer toward its frame, and never past white: from
+  // the air it is a lit window with a shape, not a clipped quad.
+  const skylight = () => {
+    if (made.has("skylight")) return made.get("skylight");
+    const m = keep(new THREE.ShaderMaterial({
+      uniforms: { ...shared, uColor: { value: new THREE.Color("#ffe2b8") } },
+      vertexShader: VERT_WORLD,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        uniform vec3 uColor;
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec2 vUv;
+        void main() {
+          vec2 g = vWorld.xz / 1.2;
+          vec2 f = abs(fract(g) - 0.5);
+          float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 2.0, 0.0, 1.0);
+          float bar = mix(smoothstep(0.44, 0.47, max(f.x, f.y)), 0.12, aa);
+          float pane = hash12(floor(g) + 2.7);
+          vec3 tone = mix(uColor, vec3(0.72, 0.86, 1.0), step(0.8, pane));
+          vec3 col = tone * (0.3 + 0.55 * pane) * (1.0 - 0.6 * smoothstep(0.2, 0.5, max(f.x, f.y)) * (1.0 - aa));
+          col = mix(col, vec3(0.012, 0.013, 0.016), bar);
+          col = cityFog(col, vWorld, 0.8);
+          gl_FragColor = vec4(col, 1.0);
+          ${OUT}
+        }
+      `,
+    }));
+    m.name = "skylight";
+    made.set("skylight", m);
     return m;
   };
 
@@ -1328,6 +1363,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "roof_wet": return wetFloor("roof").material;
       case "tube": return tube();
       case "glow": return glow();
+      case "skylight": return skylight();
       case "tool_red": return surface("tool_red", { color: "#7a2028", ambient: 0.06, spill: 2.0 });
       case "hazard": return surface("hazard", { color: "#d8ab22", ambient: 0.07, spill: 1.8 });
       case "glass_dark": return surface("glass_dark", { color: "#0d1418", ambient: 0.02 });

@@ -17,7 +17,9 @@
 //                  moving, as a film camera's half-open shutter smears it,
 //                  with the split drawn out along it (world-scene.js works
 //                  out how the picture moved).
-//   bloom          a high luminance threshold, so only emissives bloom
+//   bloom          a high luminance threshold, so only emissives bloom, and
+//                  little enough of it that a lit sign keeps its lettering
+//                  and a lantern its shape
 //   streaks        desktop: the hottest lights drawn out sideways, a little
 //                  blue, from the bloom's own bright pass (no pass of its own)
 //   glass          the page's panes of smoked glass: inside each one the
@@ -157,7 +159,7 @@ class GradeEffect extends Effect {
         ["uShadowTint", new THREE.Uniform(new THREE.Vector3(-0.008, 0.006, 0.016))],
         ["uHighTint", new THREE.Uniform(new THREE.Vector3(0.024, 0.006, 0.004))],
         ["uContrast", new THREE.Uniform(0.35)],
-        ["uExposure", new THREE.Uniform(0.95)],
+        ["uExposure", new THREE.Uniform(0.98)],
       ]),
     });
   }
@@ -313,6 +315,9 @@ class BraindanceEffect extends Effect {
   }
 }
 
+// The luminance past which a pixel blooms.
+const BLOOM_AT = 0.9;
+
 export function createPost(renderer, scene, camera, quality, { extra = [] } = {}) {
   const composer = new EffectComposer(renderer, {
     frameBufferType: THREE.HalfFloatType,
@@ -330,9 +335,9 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
 
   const glitch = new BraindanceEffect(quality.name === "phone" ? 4 : 8);
   const bloom = new BloomEffect({
-    luminanceThreshold: 0.72,
-    luminanceSmoothing: 0.25,
-    intensity: 1.15,
+    luminanceThreshold: BLOOM_AT,
+    luminanceSmoothing: 0.3,
+    intensity: 0.8,
     mipmapBlur: true,
     radius: 0.72,
     levels: quality.name === "phone" ? 5 : 7,
@@ -386,7 +391,7 @@ export function createPost(renderer, scene, camera, quality, { extra = [] } = {}
      */
     view(moon) {
       cityPass.enabled = moon !== "only";
-      bloom.luminanceMaterial.threshold = moon === "only" ? 1.4 : 0.72;
+      bloom.luminanceMaterial.threshold = moon === "only" ? 1.4 : BLOOM_AT;
       if (!moonPass) return;
       moonPass.enabled = Boolean(moon);
       moonPass.clearPass.setClearFlags(moon !== "over", true, false);
