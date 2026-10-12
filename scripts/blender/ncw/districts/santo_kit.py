@@ -258,6 +258,10 @@ def wash(x0, x1, z0, z1, level=0.7, step=4.5, hue="amber", red=0.0, r=None, fill
     p = level * cells / 1.4
     for i in range(nx):
         for j in range(nz):
+            # One pool in two: light under lamps and dark between them,
+            # not a sheet of it.
+            if (i + j) % 2 == 1 and nx * nz > 2:
+                continue
             if r.random() > fill:
                 continue
             px = x0 + (i + 0.5) * sx + r.uniform(-0.3, 0.3) * min(sx, 1.0)
@@ -1587,6 +1591,28 @@ def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", 
             P.place(kind, px + ux * 1.4, GY, pz + uz * 1.4, 0.0, district=D)
         if kind == "lamp_short":
             sodium(px, 3.6, pz, 4.0)
+
+
+def tube(x, y, z, yaw, ln=1.5, power=4.0, hue="amber", red=0.2):
+    """A tube light hung under a beam or a gantry: its batten, the tube,
+    and its pool on the ground below. `yaw`: the way the tube runs is
+    across it."""
+    oriented_box(k("metal", 1), x, y + 0.05, z, ln + 0.1, 0.06, 0.14, yaw)
+    oriented_box(k("neon_amber" if hue == "amber" else "neon_white"), x, y - 0.03, z, ln, 0.07, 0.08, yaw)
+    if power:
+        sodium(x, y, z, power, red=red if hue == "amber" else 0.0, hue=hue)
+
+
+def flood(x, z, tx, tz, y=1.1, power=6.5, hue="amber"):
+    """A ground flood aimed at what stands at (tx, tz): a stem, its head,
+    the lit lens toward its target, and its pool at the target's foot."""
+    yaw = math.atan2(tx - x, tz - z)
+    box(k("metal"), x - 0.05, x + 0.05, GY, GY + y, z - 0.05, z + 0.05, scale=0.5)
+    oriented_box(k("metal"), x, GY + y + 0.18, z, 0.5, 0.36, 0.3, yaw)
+    rotated_quad(k("neon_amber" if hue == "amber" else "neon_white"), x, GY + y + 0.18, z, 0.42, 0.28, yaw, depth=0.16)
+    d = math.hypot(tx - x, tz - z) or 1.0
+    f = min(0.75, 3.2 / d)
+    sodium(x + (tx - x) * f, 1.0, z + (tz - z) * f, power, hue=hue)
 
 
 def weeds(r, x0, z0, x1, z1, n):

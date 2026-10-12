@@ -43,8 +43,8 @@ def mast(x, z, yaw, level=0.75, red=0.0, hue="amber", size=10.0):
         hx, hz = x + math.cos(yaw) * dx + math.sin(yaw) * 0.12, z - math.sin(yaw) * dx + math.cos(yaw) * 0.12
         rotated_quad(k("neon_" + ("amber" if hue == "amber" else "white")), hx, GY + 11.53, hz, 0.5, 0.32, yaw)
         K.lens(hx, GY + 11.36, hz - 0.0, 0.5, 0.18, yaw, key=k("neon_" + ("amber" if hue == "amber" else "white")), h=0.02)
-    cx, cz = x + math.sin(yaw) * (size * 0.5 + 0.5), z + math.cos(yaw) * (size * 0.5 + 0.5)
-    K.wash(cx - size / 2, cx + size / 2, cz - size / 2, cz + size / 2, level=level, hue=hue, red=red)
+    for dist, pw in ((3.2, 8.0), (8.0, 4.5)):
+        K.sodium(x + math.sin(yaw) * dist, 1.0, z + math.cos(yaw) * dist, pw * level / 0.75, red=red, hue=hue)
 
 
 def strip(x, z, yaw, power=7.0, cone=True):
@@ -251,8 +251,8 @@ def tank_farm():
     for x in (324.0, 345.0, 366.0, 387.0):
         K.ring_wash(x, -113.0, 8.4, -PI * 0.15, PI * 0.9, level=0.75)
     for z in (-152.0, -132.0):
-        K.ring_wash(414.0, z, 8.2, -PI * 0.5, PI * 0.55, level=0.7)
-        K.ring_wash(414.0, z, 4.0, 0.0, PI * 2, level=0.45)
+        for ang in (-0.75, 0.75, PI - 0.6, PI + 0.6):
+            K.flood(414.0 + 9.2 * math.cos(ang), z + 9.2 * math.sin(ang), 414.0, z)
     K.wash(406.0, 422.0, -103.0, -103.0, level=0.5)
     scatter(r, 406.0, 424.0, -100.0, -94.0, 4, kinds=("drum_pallet", "pallets", "drum"))
     K.bridge(424.4, -101.0, 453.6, -101.0, y=6.8)
@@ -377,6 +377,10 @@ def frame(r):
     cylinder(K.M("tank"), 348.4, -64.0, 10.2, 22.0, 0.8, segs=14, col=K.RUST, cap=True)
     K.steam(348.4, 22.4, -64.0)
     K.wash(X0 + 1.0, X1 - 1.0, Z0 + 1.0, Z1 - 1.0, level=0.8, red=0.5, r=r)
+    for i in range(6):
+        K.tube(xs[i] + 3.0, levels[i % 2] - 0.36, Z1 - 0.3, 0.0, power=3.0 if i % 2 == 0 else 0.0, red=0.5)
+    for z in (-64.0, -52.0):
+        K.tube(X0 + 0.3, levels[0] - 0.36, z, PI / 2, power=3.0, red=0.5)
     K.wash(343.0, 353.0, -69.0, -58.0, level=0.4, hue="red", r=r)
     K.collide(X0, X1, Z0, Z1, levels[2])
     # Two men on the first deck, one at the rail of the second.
@@ -824,6 +828,12 @@ def container_yard():
     for z in (Z0, Z1):
         box(k("glow"), GX - 4.5, GX - 4.2, 2.2, 2.5, z - 0.16, z + 0.16, scale=0.5, col=K.SODIUM)
     K.ladder(GX + 4.36, Z0, GY + 1.0, TOP - 1.4, PI / 2)
+    for z in (Z0 + 6.5, Z1 - 6.5):
+        for x in (GX - 2.6, GX + 2.6):
+            K.tube(x, TOP - 1.46, z, PI / 2, ln=2.2, power=5.0, red=0.1)
+    for z in (Z0, Z1):
+        for x in (GX - 4.0, GX + 4.0):
+            box(k("neon_amber"), x - 0.04, x + 0.04, 3.2, 4.8, z + (0.36 if z == Z0 else -0.42), z + (0.42 if z == Z0 else -0.36), scale=0.5)
     K.wash(GX - 9.0, GX + 9.0, Z0 + 1.0, Z1 - 1.0, level=0.85, hue="white", step=5.0)
     K.collide(GX - 4.4, GX - 3.6, Z0 - 0.4, Z0 + 0.4, TOP)
     K.collide(GX + 3.6, GX + 4.4, Z0 - 0.4, Z0 + 0.4, TOP)
@@ -1345,9 +1355,9 @@ def yards():
 def roofs():
     """The sawtooth roofs, worked: walkways, ducts, air units, rooflights."""
     r = R(8691)
-    K.saw_dress(180.0, 264.0, -160.0, -100.0, 8.6, 10, "-z", r, rise=2.6, walk=0.57)
-    K.saw_dress(246.0, 290.0, -78.0, -11.2, 8.0, 7, "+x", r, rise=2.8, walk=0.4)
-    K.saw_dress(182.0, 256.0, 16.0, 44.0, 8.0, 8, "+x", r, rise=3.0, walk=0.5)
+    K.saw_dress(180.0, 264.0, -160.0, -100.0, 8.6, 10, "-z", r, rise=2.6, walk=0.57, lamps=K.SODIUM)
+    K.saw_dress(246.0, 290.0, -78.0, -11.2, 8.0, 7, "+x", r, rise=2.8, walk=0.4, lamps=K.SODIUM)
+    K.saw_dress(182.0, 256.0, 16.0, 44.0, 8.0, 8, "+x", r, rise=3.0, walk=0.5, lamps=K.SODIUM)
     K.saw_dress(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, rise=2.4, walk=0.62)
 
 
