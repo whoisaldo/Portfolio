@@ -1486,6 +1486,105 @@
    "district": "canyon"
   },
   {
+   "name": "anchor_steam_drain_jt0",
+   "kind": "anchor",
+   "at": [
+    -64.7,
+    18.34,
+    -609.5
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_drain_jt1",
+   "kind": "anchor",
+   "at": [
+    -64.7,
+    18.34,
+    -586.3
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_drain_jt2",
+   "kind": "anchor",
+   "at": [
+    -64.7,
+    11.54,
+    -487.7
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_drain_jt3",
+   "kind": "anchor",
+   "at": [
+    -95.3,
+    25.14,
+    -439.4
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_drain_jt4",
+   "kind": "anchor",
+   "at": [
+    -95.3,
+    8.14,
+    -77.8
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_drain_jt5",
+   "kind": "anchor",
+   "at": [
+    -117.3,
+    21.74,
+    -632.6
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_drain_jt6",
+   "kind": "anchor",
+   "at": [
+    -117.3,
+    11.54,
+    -621.4
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_drain_jt7",
+   "kind": "anchor",
+   "at": [
+    -143.3,
+    31.94,
+    -490.0
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_drain_jt8",
+   "kind": "anchor",
+   "at": [
+    -143.3,
+    21.74,
+    -339.2
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
    "name": "anchor_steam_lane_0",
    "kind": "anchor",
    "at": [
@@ -2061,7 +2160,7 @@
    "name": "anchor_steam_roof_plaza_0",
    "kind": "anchor",
    "at": [
-    98.0,
+    101.4,
     47.1,
     -104.0
    ],
@@ -2113,67 +2212,34 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_14",
+   "name": "anchor_steam_roof_santo_10",
    "kind": "anchor",
    "at": [
-    348.4,
-    22.4,
-    -64.0
+    414.0,
+    6.8,
+    -110.5
    ],
    "yaw": 0.0,
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_15",
+   "name": "anchor_steam_roof_santo_12",
    "kind": "anchor",
    "at": [
-    362.0,
-    20.0,
-    -72.7
+    375.0,
+    32.6,
+    -66.0
    ],
    "yaw": 0.0,
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_16",
+   "name": "anchor_steam_roof_santo_13",
    "kind": "anchor",
    "at": [
-    371.0,
-    20.0,
-    -74.07
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_17",
-   "kind": "anchor",
-   "at": [
-    402.0,
-    15.6,
-    -60.69
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_18",
-   "kind": "anchor",
-   "at": [
-    403.0,
-    38.75,
-    -49.0
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_19",
-   "kind": "anchor",
-   "at": [
-    402.5,
-    42.15,
-    -48.78
+    374.5,
+    36.0,
+    -65.78
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2190,45 +2256,12 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_20",
-   "kind": "anchor",
-   "at": [
-    402.0,
-    45.55,
-    -48.56
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_21",
-   "kind": "anchor",
-   "at": [
-    416.5,
-    29.75,
-    -62.0
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_22",
-   "kind": "anchor",
-   "at": [
-    416.0,
-    33.15,
-    -61.78
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
    "name": "anchor_steam_roof_santo_23",
    "kind": "anchor",
    "at": [
-    415.5,
-    36.55,
-    -61.56
+    348.4,
+    22.4,
+    -64.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2237,9 +2270,9 @@
    "name": "anchor_steam_roof_santo_24",
    "kind": "anchor",
    "at": [
-    421.0,
-    34.65,
-    -73.2
+    362.0,
+    20.0,
+    -72.7
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2248,9 +2281,9 @@
    "name": "anchor_steam_roof_santo_25",
    "kind": "anchor",
    "at": [
-    313.0,
-    12.0,
-    -25.0
+    371.0,
+    20.0,
+    -74.07
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2259,31 +2292,9 @@
    "name": "anchor_steam_roof_santo_26",
    "kind": "anchor",
    "at": [
-    312.5,
-    15.4,
-    -24.78
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_27",
-   "kind": "anchor",
-   "at": [
-    312.0,
-    18.8,
-    -24.56
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_28",
-   "kind": "anchor",
-   "at": [
-    314.4,
-    12.0,
-    -24.0
+    402.0,
+    15.6,
+    -60.69
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2292,9 +2303,9 @@
    "name": "anchor_steam_roof_santo_29",
    "kind": "anchor",
    "at": [
-    323.0,
-    12.0,
-    -25.0
+    403.0,
+    38.75,
+    -49.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2314,9 +2325,9 @@
    "name": "anchor_steam_roof_santo_30",
    "kind": "anchor",
    "at": [
-    322.5,
-    15.4,
-    -24.78
+    402.5,
+    42.15,
+    -48.78
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2325,9 +2336,9 @@
    "name": "anchor_steam_roof_santo_31",
    "kind": "anchor",
    "at": [
-    322.0,
-    18.8,
-    -24.56
+    402.0,
+    45.55,
+    -48.56
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2336,9 +2347,9 @@
    "name": "anchor_steam_roof_santo_32",
    "kind": "anchor",
    "at": [
-    324.4,
-    12.0,
-    -24.0
+    416.5,
+    29.75,
+    -62.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2347,9 +2358,9 @@
    "name": "anchor_steam_roof_santo_33",
    "kind": "anchor",
    "at": [
-    333.0,
-    12.0,
-    -25.0
+    416.0,
+    33.15,
+    -61.78
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2358,9 +2369,9 @@
    "name": "anchor_steam_roof_santo_34",
    "kind": "anchor",
    "at": [
-    332.5,
-    15.4,
-    -24.78
+    415.5,
+    36.55,
+    -61.56
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2369,9 +2380,9 @@
    "name": "anchor_steam_roof_santo_35",
    "kind": "anchor",
    "at": [
-    332.0,
-    18.8,
-    -24.56
+    421.0,
+    34.65,
+    -73.2
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2380,9 +2391,31 @@
    "name": "anchor_steam_roof_santo_36",
    "kind": "anchor",
    "at": [
-    334.4,
+    313.0,
     12.0,
-    -24.0
+    -25.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_37",
+   "kind": "anchor",
+   "at": [
+    312.5,
+    15.4,
+    -24.78
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_38",
+   "kind": "anchor",
+   "at": [
+    312.0,
+    18.8,
+    -24.56
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2391,9 +2424,9 @@
    "name": "anchor_steam_roof_santo_39",
    "kind": "anchor",
    "at": [
-    212.0,
-    11.4,
-    -49.48
+    314.4,
+    12.0,
+    -24.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2413,6 +2446,105 @@
    "name": "anchor_steam_roof_santo_40",
    "kind": "anchor",
    "at": [
+    323.0,
+    12.0,
+    -25.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_41",
+   "kind": "anchor",
+   "at": [
+    322.5,
+    15.4,
+    -24.78
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_42",
+   "kind": "anchor",
+   "at": [
+    322.0,
+    18.8,
+    -24.56
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_43",
+   "kind": "anchor",
+   "at": [
+    324.4,
+    12.0,
+    -24.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_44",
+   "kind": "anchor",
+   "at": [
+    333.0,
+    12.0,
+    -25.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_45",
+   "kind": "anchor",
+   "at": [
+    332.5,
+    15.4,
+    -24.78
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_46",
+   "kind": "anchor",
+   "at": [
+    332.0,
+    18.8,
+    -24.56
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_47",
+   "kind": "anchor",
+   "at": [
+    334.4,
+    12.0,
+    -24.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_50",
+   "kind": "anchor",
+   "at": [
+    212.0,
+    11.4,
+    -49.48
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_roof_santo_51",
+   "kind": "anchor",
+   "at": [
     212.0,
     11.4,
     -46.64
@@ -2421,7 +2553,7 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_41",
+   "name": "anchor_steam_roof_santo_53",
    "kind": "anchor",
    "at": [
     401.33,
@@ -2432,7 +2564,7 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_42",
+   "name": "anchor_steam_roof_santo_55",
    "kind": "anchor",
    "at": [
     432.0,
@@ -2443,7 +2575,7 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_43",
+   "name": "anchor_steam_roof_santo_56",
    "kind": "anchor",
    "at": [
     477.0,
@@ -2454,45 +2586,12 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_44",
+   "name": "anchor_steam_roof_santo_57",
    "kind": "anchor",
    "at": [
     480.26,
     9.4,
     -90.5
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_5",
-   "kind": "anchor",
-   "at": [
-    414.0,
-    6.8,
-    -110.5
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_7",
-   "kind": "anchor",
-   "at": [
-    375.0,
-    32.6,
-    -66.0
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_8",
-   "kind": "anchor",
-   "at": [
-    374.5,
-    36.0,
-    -65.78
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2518,6 +2617,160 @@
    ],
    "yaw": 0.0,
    "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_stack_santo_19",
+   "kind": "anchor",
+   "at": [
+    362.6,
+    17.8,
+    -57.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_20",
+   "kind": "anchor",
+   "at": [
+    365.0,
+    25.4,
+    -61.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_21",
+   "kind": "anchor",
+   "at": [
+    353.0,
+    8.9,
+    -52.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_22",
+   "kind": "anchor",
+   "at": [
+    376.6,
+    19.4,
+    -64.6
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_27",
+   "kind": "anchor",
+   "at": [
+    389.6,
+    21.7,
+    -59.4
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_28",
+   "kind": "anchor",
+   "at": [
+    392.6,
+    20.5,
+    -59.4
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_5",
+   "kind": "anchor",
+   "at": [
+    199.4,
+    19.3,
+    -96.6
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_52",
+   "kind": "anchor",
+   "at": [
+    229.6,
+    15.9,
+    -74.4
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_54",
+   "kind": "anchor",
+   "at": [
+    416.6,
+    12.3,
+    41.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_58",
+   "kind": "anchor",
+   "at": [
+    485.2,
+    11.9,
+    -43.6
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_6",
+   "kind": "anchor",
+   "at": [
+    328.0,
+    14.38,
+    -146.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_7",
+   "kind": "anchor",
+   "at": [
+    386.0,
+    13.58,
+    -146.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_8",
+   "kind": "anchor",
+   "at": [
+    345.0,
+    10.82,
+    -113.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_stack_santo_9",
+   "kind": "anchor",
+   "at": [
+    387.0,
+    10.42,
+    -113.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
   },
   {
    "name": "anchor_steam_stall_cy0",
@@ -2993,6 +3246,17 @@
    "district": "corpo"
   },
   {
+   "name": "anchor_steam_street_grate_19",
+   "kind": "anchor",
+   "at": [
+    -91.75,
+    0.25,
+    -506.89
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
    "name": "anchor_steam_street_grate_2",
    "kind": "anchor",
    "at": [
@@ -3004,6 +3268,116 @@
    "district": "canyon"
   },
   {
+   "name": "anchor_steam_street_grate_20",
+   "kind": "anchor",
+   "at": [
+    -91.75,
+    0.25,
+    -437.03
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_grate_21",
+   "kind": "anchor",
+   "at": [
+    -91.75,
+    0.25,
+    -365.95
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_grate_22",
+   "kind": "anchor",
+   "at": [
+    -91.75,
+    0.25,
+    -331.82
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_grate_23",
+   "kind": "anchor",
+   "at": [
+    -91.75,
+    0.25,
+    -58.18
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_grate_24",
+   "kind": "anchor",
+   "at": [
+    -68.25,
+    0.25,
+    -640.27
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_street_grate_25",
+   "kind": "anchor",
+   "at": [
+    -68.25,
+    0.25,
+    -612.15
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_street_grate_26",
+   "kind": "anchor",
+   "at": [
+    -68.25,
+    0.25,
+    -573.26
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_street_grate_27",
+   "kind": "anchor",
+   "at": [
+    -68.25,
+    0.25,
+    -418.06
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_grate_28",
+   "kind": "anchor",
+   "at": [
+    -68.25,
+    0.25,
+    -320.87
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_grate_29",
+   "kind": "anchor",
+   "at": [
+    -68.25,
+    0.25,
+    -247.48
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
    "name": "anchor_steam_street_grate_3",
    "kind": "anchor",
    "at": [
@@ -3013,6 +3387,28 @@
    ],
    "yaw": 0.0,
    "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_street_grate_30",
+   "kind": "anchor",
+   "at": [
+    -68.25,
+    0.25,
+    -52.94
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_street_grate_31",
+   "kind": "anchor",
+   "at": [
+    -68.25,
+    0.25,
+    -23.23
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
   },
   {
    "name": "anchor_steam_street_grate_4",
@@ -3279,73 +3675,7 @@
    "district": "far"
   },
   {
-   "name": "anchor_steam_street_santo_10",
-   "kind": "anchor",
-   "at": [
-    360.0,
-    0.25,
-    -55.0
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
    "name": "anchor_steam_street_santo_11",
-   "kind": "anchor",
-   "at": [
-    371.0,
-    0.25,
-    -47.4
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_street_santo_12",
-   "kind": "anchor",
-   "at": [
-    377.6,
-    0.25,
-    -58.0
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_street_santo_13",
-   "kind": "anchor",
-   "at": [
-    352.0,
-    0.25,
-    -58.6
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_street_santo_37",
-   "kind": "anchor",
-   "at": [
-    360.0,
-    0.25,
-    -11.3
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_street_santo_38",
-   "kind": "anchor",
-   "at": [
-    427.0,
-    0.25,
-    -46.0
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_street_santo_6",
    "kind": "anchor",
    "at": [
     427.0,
@@ -3356,12 +3686,78 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_street_santo_9",
+   "name": "anchor_steam_street_santo_14",
    "kind": "anchor",
    "at": [
     347.0,
     0.25,
     -47.6
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_street_santo_15",
+   "kind": "anchor",
+   "at": [
+    360.0,
+    0.25,
+    -55.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_street_santo_16",
+   "kind": "anchor",
+   "at": [
+    371.0,
+    0.25,
+    -47.4
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_street_santo_17",
+   "kind": "anchor",
+   "at": [
+    377.6,
+    0.25,
+    -58.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_street_santo_18",
+   "kind": "anchor",
+   "at": [
+    352.0,
+    0.25,
+    -58.6
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_street_santo_48",
+   "kind": "anchor",
+   "at": [
+    360.0,
+    0.25,
+    -11.3
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_street_santo_49",
+   "kind": "anchor",
+   "at": [
+    427.0,
+    0.25,
+    -46.0
    ],
    "yaw": 0.0,
    "district": "santo"
