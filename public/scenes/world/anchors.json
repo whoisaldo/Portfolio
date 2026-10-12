@@ -2322,6 +2322,138 @@
    "district": "canyon"
   },
   {
+   "name": "anchor_steam_street_grate_0",
+   "kind": "anchor",
+   "at": [
+    53.0,
+    0.25,
+    -246.6
+   ],
+   "yaw": 0.0,
+   "district": "plaza"
+  },
+  {
+   "name": "anchor_steam_street_grate_1",
+   "kind": "anchor",
+   "at": [
+    110.2,
+    0.25,
+    -50.77
+   ],
+   "yaw": 0.0,
+   "district": "plaza"
+  },
+  {
+   "name": "anchor_steam_street_grate_10",
+   "kind": "anchor",
+   "at": [
+    220.4,
+    0.25,
+    -345.8
+   ],
+   "yaw": 0.0,
+   "district": "corpo"
+  },
+  {
+   "name": "anchor_steam_street_grate_11",
+   "kind": "anchor",
+   "at": [
+    236.4,
+    0.25,
+    -345.8
+   ],
+   "yaw": 0.0,
+   "district": "corpo"
+  },
+  {
+   "name": "anchor_steam_street_grate_2",
+   "kind": "anchor",
+   "at": [
+    110.2,
+    0.25,
+    -144.06
+   ],
+   "yaw": 0.0,
+   "district": "plaza"
+  },
+  {
+   "name": "anchor_steam_street_grate_3",
+   "kind": "anchor",
+   "at": [
+    110.2,
+    0.25,
+    -251.12
+   ],
+   "yaw": 0.0,
+   "district": "corpo"
+  },
+  {
+   "name": "anchor_steam_street_grate_4",
+   "kind": "anchor",
+   "at": [
+    129.8,
+    0.25,
+    -44.41
+   ],
+   "yaw": 0.0,
+   "district": "plaza"
+  },
+  {
+   "name": "anchor_steam_street_grate_5",
+   "kind": "anchor",
+   "at": [
+    129.8,
+    0.25,
+    -102.44
+   ],
+   "yaw": 0.0,
+   "district": "plaza"
+  },
+  {
+   "name": "anchor_steam_street_grate_6",
+   "kind": "anchor",
+   "at": [
+    129.8,
+    0.25,
+    -71.42
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
+   "name": "anchor_steam_street_grate_7",
+   "kind": "anchor",
+   "at": [
+    72.56,
+    0.25,
+    -7.8
+   ],
+   "yaw": 0.0,
+   "district": "far"
+  },
+  {
+   "name": "anchor_steam_street_grate_8",
+   "kind": "anchor",
+   "at": [
+    145.55,
+    0.25,
+    -7.8
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_street_grate_9",
+   "kind": "anchor",
+   "at": [
+    215.6,
+    0.25,
+    -345.8
+   ],
+   "yaw": 0.0,
+   "district": "corpo"
+  },
+  {
    "name": "anchor_steam_street_jt0",
    "kind": "anchor",
    "at": [
