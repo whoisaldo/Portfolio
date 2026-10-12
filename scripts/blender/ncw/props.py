@@ -44,8 +44,10 @@ material("print", "6a6258", rough=0.9)
 # A lamp's light in the wet air under its head (lamp_air below).
 material("halo", "ffb254", emit=1.0)
 WOOD, BARK, BLOSSOM, FROND = 0.25, 0.5, 0.75, 1.0
-# Which front a `face` or a `print` is, in its vertex colour's alpha.
-BANNER, VENDING = 0.75, 1.0
+# Which front a `face` or a `print` is, in its vertex colour's alpha (tenths).
+SIGNAL, PHONE, GRATE, RAIL, FOOD, MESH, BANNER, BOARD, POSTER, VENDING = (i / 10 for i in range(1, 11))
+# The kit's bare steel and its black, as `trim` colours (one draw a prototype).
+STEEL, BLACK, CAST = (0.034, 0.038, 0.048, 1), (0.0045, 0.005, 0.0065, 1), (0.02, 0.022, 0.028, 1)
 
 
 def proto(name, box=(0.3, 0.5, 0.3), detail=False, reach=None):
@@ -165,13 +167,19 @@ def planter(k, h, lamp, stone=(0.5, 0.5, 0.52, 1)):
     """A square planter 1.6 m across and h high: a concrete body under a
     stone rim, earth in it, a strip of light let in under the rim on every
     side, and two lamps in the earth turned up at what grows there."""
-    box(k("concrete"), -0.76, 0.76, 0.0, h - 0.1, -0.76, 0.76, scale=1.0)
+    box(k("trim"), -0.76, 0.76, 0.0, h - 0.1, -0.76, 0.76, scale=1.0, col=(0.15, 0.155, 0.165, 1))
     box(k("trim"), -0.8, 0.8, h - 0.1, h, -0.8, 0.8, scale=1.0, col=stone)
     quad(k("trim"), (-0.64, h + 0.012, 0.64), (0.64, h + 0.012, 0.64), (0.64, h + 0.012, -0.64), (-0.64, h + 0.012, -0.64), col=(0.07, 0.055, 0.045, 1))
     for yaw in (0.0, math.pi / 2, math.pi, -math.pi / 2):
         rotated_quad(k("glow"), math.sin(yaw) * 0.763, h - 0.14, math.cos(yaw) * 0.763, 1.44, 0.035, yaw, col=lamp)
     for x, z in ((0.34, 0.36), (-0.36, -0.3)):
         quad(k("glow"), (x - 0.06, h + 0.02, z + 0.06), (x + 0.06, h + 0.02, z + 0.06), (x + 0.06, h + 0.02, z - 0.06), (x - 0.06, h + 0.02, z - 0.06), col=lamp)
+
+
+def face(k, kind, cx, cy, cz, w, h, yaw, light=(0.5, 0.5, 0.5), mat="face"):
+    """A front the site draws (`kind`: VENDING, POSTER, FOOD ...), w by h,
+    facing yaw; `light` is the light it gives the street."""
+    rotated_quad(k(mat), cx, cy, cz, w, h, yaw, col=(*light[:3], kind))
 
 
 def lamp_air(k, y, z, fall, colour):
@@ -208,11 +216,9 @@ def _lamp_sodium(k):
     # The banner's bracket, and the banner (one lamp in two flies one).
     box(t, -0.02, 0.02, 4.86, 4.9, -0.78, -0.06, scale=0.5, col=cast)
     rotated_quad(k("print"), 0.0, 4.06, -0.42, 0.6, 1.6, math.pi / 2, col=(0.3, 0.3, 0.3, BANNER))
-    # Near by: the access door in the base, a junction box, the collar under
-    # the neck.
-    quad(k("trim", 1), (-0.07, 0.08, -0.165), (-0.07, 0.36, -0.165), (0.07, 0.36, -0.165), (0.07, 0.08, -0.165), col=steel)
-    box(k("trim", 1), -0.09, 0.09, 2.3, 2.62, -0.2, -0.085, scale=0.5, col=cast)
-    lathe(k("trim", 1), 0.0, 0.0, ((6.62, 0.085), (6.74, 0.085)), segs=6, col=cast, cap=False)
+    # The access door in the base and a junction box, on the pavement side.
+    quad(t, (-0.07, 0.08, -0.165), (-0.07, 0.36, -0.165), (0.07, 0.36, -0.165), (0.07, 0.08, -0.165), col=steel)
+    box(t, -0.09, 0.09, 2.3, 2.62, -0.2, -0.085, scale=0.5, col=cast)
 
 
 @proto("lamp_short", box=(0.12, 2.0, 0.12), reach=380)
@@ -225,21 +231,22 @@ def _lamp_short(k):
     lathe(k("neon_amber"), 0.0, 0.0, ((3.6, 0.13), (4.3, 0.13)), segs=6, cap=False)
     lathe(t, 0.0, 0.0, ((4.3, 0.2), (4.47, 0.04)), segs=6, col=cast)
     lamp_air(k, 3.95, 0.0, 2.6, GLOW["amber"])
-    # Near by: the lantern's glazing bars and the band round the post.
+    # The lantern's glazing bars.
     for i in range(6):
         a = i * math.tau / 6
-        rotated_quad(k("trim", 1), 0.134 * math.cos(a), 3.95, 0.134 * math.sin(a), 0.022, 0.7, math.pi / 2 - a, col=cast)
-    lathe(k("trim", 1), 0.0, 0.0, ((1.1, 0.075), (1.2, 0.075)), segs=6, col=cast, cap=False)
+        rotated_quad(t, 0.134 * math.cos(a), 3.95, 0.134 * math.sin(a), 0.022, 0.7, math.pi / 2 - a, col=cast)
 
 
-@proto("bollard", box=(0.12, 0.5, 0.12), reach=260)
+@proto("bollard", box=(0.12, 0.5, 0.12), reach=260, detail=True)
 def _bollard(k):
-    """A black steel bollard with a reflective band (Zq4zTcIM0yQ@40)."""
-    cylinder(k("dark"), 0.0, 0.0, 0.0, 0.95, 0.11, segs=8)
-    cylinder(k("glow"), 0.0, 0.0, 0.72, 0.78, 0.115, segs=8, col=GLOW["amber"])
+    """A black steel bollard: a foot, a reflective band under a domed cap
+    (Zq4zTcIM0yQ@40)."""
+    lathe(k("trim"), 0.0, 0.0, ((0.0, 0.125), (0.07, 0.105), (0.72, 0.105)), segs=6, col=CAST, cap=False)
+    lathe(k("glow"), 0.0, 0.0, ((0.72, 0.112), (0.78, 0.112)), segs=6, col=GLOW["amber"], cap=False)
+    lathe(k("trim"), 0.0, 0.0, ((0.78, 0.105), (0.95, 0.07)), segs=6, col=CAST)
 
 
-@proto("bollard_cube", box=(0.3, 0.3, 0.3), reach=260)
+@proto("bollard_cube", box=(0.3, 0.3, 0.3), reach=260, detail=True)
 def _bollard_cube(k):
     """A concrete cube, corpo plazas' kind (Fn9gKhU_2_Q@77)."""
     box(k("concrete"), -0.3, 0.3, 0.0, 0.6, -0.3, 0.3, scale=1.0)
@@ -247,8 +254,13 @@ def _bollard_cube(k):
 
 @proto("bin", box=(0.3, 0.5, 0.3), reach=260, detail=True)
 def _bin(k):
-    cylinder(k("metal"), 0.0, 0.0, 0.0, 0.95, 0.28, segs=10)
-    cylinder(k("dark"), 0.0, 0.0, 0.95, 1.02, 0.3, segs=10)
+    """A litter bin: a drum with the city's yellow band, a hooded top, its
+    mouth to the front."""
+    green = (0.03, 0.045, 0.045, 1)
+    lathe(k("trim"), 0.0, 0.0, ((0.0, 0.25), (0.62, 0.28)), segs=7, col=green, cap=False)
+    lathe(k("trim"), 0.0, 0.0, ((0.62, 0.285), (0.72, 0.285)), segs=7, col=(0.4, 0.3, 0.03, 1), cap=False)
+    lathe(k("trim"), 0.0, 0.0, ((0.72, 0.28), (0.92, 0.29), (1.02, 0.2)), segs=7, col=green)
+    rotated_quad(k("trim"), 0.0, 0.83, 0.294, 0.26, 0.1, 0.0, col=BLACK)
 
 
 def _vending_machine(k, light):
@@ -274,28 +286,39 @@ def _vending_warm(k):
 
 @proto("food_box", box=(0.35, 0.6, 0.3), reach=300, detail=True)
 def _food_box(k):
-    """An Insta Food box: a yellow lit cabinet on a post (Fn9gKhU_2_Q@34)."""
-    box(k("metal"), -0.06, 0.06, 0.0, 0.7, -0.06, 0.06, scale=0.5)
-    box(k("glow"), -0.33, 0.33, 0.7, 1.3, -0.26, 0.26, scale=0.5, col=GLOW["yellow"])
+    """An Insta Food box (Fn9gKhU_2_Q@34): a yellow cabinet on a post, its
+    menu lit on both faces."""
+    box(k("trim"), -0.06, 0.06, 0.0, 0.7, -0.06, 0.06, scale=0.5, col=CAST)
+    box(k("trim"), -0.35, 0.35, 0.68, 1.32, -0.26, 0.26, scale=0.5, col=(0.3, 0.24, 0.03, 1))
+    for yaw, z in ((0.0, 0.266), (math.pi, -0.266)):
+        face(k, FOOD, 0.0, 1.0, z, 0.66, 0.6, yaw, GLOW["yellow"])
 
 
 @proto("signal_box", box=(0.3, 0.7, 0.25), reach=300, detail=True)
 def _signal_box(k):
-    """A crossing's signal box on its post, the walk figure lit
-    (Zq4zTcIM0yQ@40)."""
-    cylinder(k("metal"), 0.0, 0.0, 0.0, 2.9, 0.06, segs=6)
-    box(k("dark"), -0.22, 0.22, 2.2, 2.85, -0.12, 0.14, scale=0.5)
-    box(k("glow"), -0.14, 0.14, 2.32, 2.72, 0.14, 0.15, scale=0.5, col=GLOW["yellow"])
+    """A crossing's signal on its post (Zq4zTcIM0yQ@40): the walking figure
+    lit and the seconds left over it, under a hood; the button's box below."""
+    lathe(k("trim"), 0.0, 0.0, ((0.0, 0.06), (2.9, 0.06)), segs=6, col=CAST)
+    box(k("trim"), -0.22, 0.22, 2.2, 2.85, -0.12, 0.14, scale=0.5, col=BLACK)
+    face(k, SIGNAL, 0.0, 2.52, 0.146, 0.28, 0.4, 0.0, GLOW["yellow"])
+    box(k("trim"), -0.24, 0.24, 2.85, 2.88, -0.12, 0.27, scale=0.5, col=CAST)
+    box(k("trim"), -0.07, 0.07, 1.0, 1.2, 0.05, 0.13, scale=0.5, col=(0.3, 0.24, 0.03, 1))
 
 
 @proto("traffic_light", box=(0.15, 3.0, 0.15))
 def _traffic_light(k):
-    """A signal mast with its arm out over the lanes (toward +z) and the
-    head on it."""
-    cylinder(k("metal"), 0.0, 0.0, 0.0, 6.0, 0.1, segs=8)
-    box(k("metal"), -0.05, 0.05, 5.8, 5.92, 0.0, 4.5, scale=0.5)
-    box(k("dark"), -0.18, 0.18, 4.9, 5.8, 4.2, 4.5, scale=0.5)
-    box(k("glow"), -0.11, 0.11, 5.48, 5.7, 4.5, 4.52, scale=0.5, col=GLOW["red"])
+    """A signal mast: a cast base, a column, its arm out over the lanes
+    (toward +z) and the head hung on it, three lenses to the traffic it
+    stops (which comes from +x), the red one lit."""
+    t = k("trim")
+    lathe(t, 0.0, 0.0, ((0.0, 0.18), (0.5, 0.18), (0.6, 0.1), (6.0, 0.085)), segs=6, col=CAST)
+    tube(t, ((0.0, 5.86, 0.0), (0.0, 5.86, 4.5)), (0.055, 0.045), segs=4, col=STEEL, cap=True)
+    box(t, -0.13, 0.13, 4.85, 5.8, 4.1, 4.42, scale=0.5, col=BLACK)
+    for y, col in ((5.55, GLOW["red"]), (5.3, tuple(v * 0.12 for v in GLOW["amber"][:3]) + (1,)), (5.05, tuple(v * 0.1 for v in GLOW["green"][:3]) + (1,))):
+        rotated_quad(k("glow"), 0.136, y, 4.26, 0.2, 0.2, math.pi / 2, col=col)
+    # The head's backplate and the arm's brace.
+    rotated_quad(t, -0.134, 5.32, 4.26, 0.46, 1.06, -math.pi / 2, col=CAST)
+    tube(t, ((0.0, 5.1, 0.07), (0.0, 5.8, 1.0)), (0.03, 0.03), segs=4, col=STEEL)
 
 
 @proto("planter_palm", box=(0.8, 1.5, 0.8))
@@ -342,16 +365,21 @@ def _planter_tree(k):
 
 @proto("bench", box=(1.0, 0.25, 0.3), reach=220, detail=True)
 def _bench(k):
-    box(k("metal"), -0.95, 0.95, 0.42, 0.48, -0.25, 0.25, scale=0.6)
+    """A bench, its front toward +z: a slatted seat and a back on two cast
+    frames."""
+    slat = (0.16, 0.1, 0.06, 1)
+    box(k("trim"), -0.95, 0.95, 0.42, 0.47, -0.22, 0.25, scale=0.6, col=slat)
+    box(k("trim"), -0.95, 0.95, 0.56, 0.86, -0.27, -0.23, scale=0.6, col=slat)
     for x in (-0.8, 0.8):
-        box(k("dark"), x - 0.05, x + 0.05, 0.0, 0.42, -0.2, 0.2, scale=0.5)
+        box(k("trim"), x - 0.04, x + 0.04, 0.0, 0.42, -0.2, 0.2, scale=0.5, col=CAST)
+        box(k("trim"), x - 0.03, x + 0.03, 0.42, 0.86, -0.3, -0.26, scale=0.5, col=CAST)
 
 
 @proto("cctv", box=(0.1, 2.5, 0.1), reach=300, detail=True)
 def _cctv(k):
-    cylinder(k("metal"), 0.0, 0.0, 0.0, 4.8, 0.07, segs=6)
+    cylinder(k("trim"), 0.0, 0.0, 0.0, 4.8, 0.07, segs=6, col=STEEL)
     for yaw in (0.3, 2.4, 4.4):
-        oriented_box(k("dark"), math.sin(yaw) * 0.25, 4.6, math.cos(yaw) * 0.25, 0.14, 0.14, 0.4, yaw, scale=0.5)
+        oriented_box(k("trim"), math.sin(yaw) * 0.25, 4.6, math.cos(yaw) * 0.25, 0.14, 0.14, 0.4, yaw, scale=0.5, col=BLACK)
     box(k("glow"), -0.03, 0.03, 4.85, 4.9, -0.03, 0.03, scale=0.5, col=GLOW["red"])
 
 
@@ -359,14 +387,14 @@ def _cctv(k):
 def _ac_wall(k):
     """An air conditioner hung on a wall (its back at z 0, out toward +z),
     its fan's grille drawn as a dark disc."""
-    box(k("metal"), -0.42, 0.42, 0.0, 0.58, 0.0, 0.5, scale=0.6)
-    quad(k("dark"), (-0.32, 0.08, 0.505), (0.12, 0.08, 0.505), (0.12, 0.5, 0.505), (-0.32, 0.5, 0.505))
+    box(k("trim"), -0.42, 0.42, 0.0, 0.58, 0.0, 0.5, scale=0.6, col=STEEL)
+    quad(k("trim"), (-0.32, 0.08, 0.505), (0.12, 0.08, 0.505), (0.12, 0.5, 0.505), (-0.32, 0.5, 0.505), col=BLACK)
 
 
 @proto("ac_roof", box=(0.7, 0.5, 0.5), reach=420, detail=True)
 def _ac_roof(k):
-    box(k("metal"), -0.7, 0.7, 0.0, 0.95, -0.5, 0.5, scale=0.8)
-    cylinder(k("dark"), 0.0, 0.0, 0.95, 1.0, 0.36, segs=10)
+    box(k("trim"), -0.7, 0.7, 0.0, 0.95, -0.5, 0.5, scale=0.8, col=STEEL)
+    cylinder(k("trim"), 0.0, 0.0, 0.95, 1.0, 0.36, segs=10, col=BLACK)
 
 
 @proto("pipe_v", box=(0.08, 0.5, 0.08), reach=260, detail=True)
@@ -383,7 +411,11 @@ def _lantern(k):
 
 @proto("drum", box=(0.3, 0.45, 0.3), reach=260, detail=True)
 def _drum(k):
-    cylinder(k("trim"), 0.0, 0.0, 0.0, 0.88, 0.29, segs=10, col=(0.36, 0.14, 0.07, 1))
+    """An oil drum, rusted, with its two hoops."""
+    rust = (0.36, 0.14, 0.07, 1)
+    lathe(k("trim"), 0.0, 0.0, ((0.0, 0.285), (0.88, 0.285)), segs=8, col=rust)
+    for y in (0.28, 0.58):
+        lathe(k("trim"), 0.0, 0.0, ((y, 0.3), (y + 0.04, 0.3)), segs=8, col=(0.25, 0.1, 0.05, 1), cap=False)
 
 
 @proto("hydrant", box=(0.15, 0.4, 0.15), reach=200, detail=True)
@@ -412,20 +444,23 @@ def _hydrant(k):
 
 @proto("phone_booth", box=(0.5, 1.2, 0.5))
 def _phone_booth(k):
-    box(k("metal"), -0.5, 0.5, 0.0, 0.12, -0.5, 0.5, scale=0.6)
+    """A phone booth open to +z: two sides and a back of dark glass under a
+    lit top, the phone's panel on the back."""
+    box(k("trim"), -0.5, 0.5, 0.0, 0.12, -0.5, 0.5, scale=0.6, col=STEEL)
     for x in (-0.47, 0.47):
-        box(k("metal"), x - 0.03, x + 0.03, 0.12, 2.3, -0.47, 0.47, scale=0.5)
+        box(k("trim"), x - 0.03, x + 0.03, 0.12, 2.3, -0.47, 0.47, scale=0.5, col=STEEL)
     box(k("glow"), -0.5, 0.5, 2.3, 2.5, -0.5, 0.5, scale=0.5, col=GLOW["cyan"])
-    box(k("glass_dark"), -0.44, 0.44, 0.3, 2.2, -0.46, -0.44, scale=0.5)
+    box(k("trim"), -0.44, 0.44, 0.3, 2.2, -0.46, -0.44, scale=0.5, col=(0.008, 0.012, 0.016, 1))
+    face(k, PHONE, 0.0, 1.35, -0.43, 0.5, 0.9, 0.0, GLOW["cyan"])
 
 
 @proto("tank_roof", box=(1.4, 2.2, 1.4), reach=700)
 def _tank_roof(k):
     """A water tank on its stand, a roof's signature."""
     for lx, lz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
-        box(k("metal"), lx * 0.95 - 0.08, lx * 0.95 + 0.08, 0.0, 1.9, lz * 0.95 - 0.08, lz * 0.95 + 0.08, scale=0.5)
-    cylinder(k("metal"), 0.0, 0.0, 1.9, 4.1, 1.35, segs=10)
-    cylinder(k("dark"), 0.0, 0.0, 4.1, 4.35, 1.42, segs=10)
+        box(k("trim"), lx * 0.95 - 0.08, lx * 0.95 + 0.08, 0.0, 1.9, lz * 0.95 - 0.08, lz * 0.95 + 0.08, scale=0.5, col=STEEL)
+    cylinder(k("trim"), 0.0, 0.0, 1.9, 4.1, 1.35, segs=10, col=STEEL)
+    cylinder(k("trim"), 0.0, 0.0, 4.1, 4.35, 1.42, segs=10, col=BLACK)
 
 
 @proto("antenna", box=(0.1, 3.0, 0.1), reach=700)
@@ -475,14 +510,16 @@ def _dumpster(k):
     box(k("trim"), -0.95, 0.95, 1.2, 1.28, -0.6, 0.6, scale=1.0, col=(0.05, 0.12, 0.08, 1))
     for x in (-0.7, 0.7):
         for z in (-0.4, 0.4):
-            cylinder(k("dark"), x, z, 0.0, 0.18, 0.09, segs=6)
+            cylinder(k("trim"), x, z, 0.0, 0.18, 0.09, segs=6, col=BLACK)
 
 
 @proto("bags", box=(0.7, 0.35, 0.5), reach=220, detail=True)
 def _bags(k):
-    """Bin bags heaped by a door: black plastic, lumpy."""
-    for (x, z, r_, h) in ((-0.35, 0.0, 0.32, 0.55), (0.2, 0.15, 0.36, 0.62), (0.3, -0.3, 0.26, 0.45), (-0.1, -0.35, 0.24, 0.4)):
-        oriented_box(k("trim"), x, h / 2, z, r_ * 1.6, h, r_ * 1.5, x * 2.0, scale=1.0, col=(0.02, 0.02, 0.025, 1))
+    """Bin bags heaped by a door: black plastic, slumped, drawn in at the
+    neck."""
+    for x, z, r_, h, col in ((-0.33, 0.02, 0.3, 0.52, (0.02, 0.02, 0.025, 1)), (0.22, 0.14, 0.34, 0.6, (0.014, 0.016, 0.022, 1)),
+                             (0.2, -0.28, 0.24, 0.42, (0.03, 0.03, 0.04, 1))):
+        lathe(k("trim"), x, z, ((0.0, r_ * 0.8), (h * 0.4, r_), (h, r_ * 0.15)), segs=5, col=col)
 
 
 @proto("crates", box=(0.6, 0.6, 0.6), reach=220, detail=True)
@@ -493,3 +530,114 @@ def _crates(k):
     box(k("trim"), -0.55, 0.0, 0.14, 0.7, -0.45, 0.45, scale=1.0, col=(0.24, 0.16, 0.09, 1))
     box(k("trim"), 0.05, 0.55, 0.14, 0.6, -0.4, 0.3, scale=1.0, col=wood)
     box(k("trim"), -0.45, 0.1, 0.7, 1.15, -0.35, 0.35, scale=1.0, col=(0.26, 0.18, 0.1, 1))
+
+
+# ---------------------------------------------------------------------------
+# More of what a street has (the catalogue: agents/props/CATALOGUE.md).
+# ---------------------------------------------------------------------------
+ADVERT = (0.55, 0.45, 0.65)
+
+
+@proto("lightbox", box=(0.5, 1.1, 0.14), reach=400)
+def _lightbox(k):
+    """A standing advert, 1 m by 2.2: a lit box on a plinth with an advert on
+    each face (the site draws them, every box its own, no words)."""
+    box(k("trim"), -0.42, 0.42, 0.0, 0.42, -0.1, 0.1, scale=0.5, col=CAST)
+    box(k("trim"), -0.5, 0.5, 0.42, 2.2, -0.12, 0.12, scale=0.5, col=CAST)
+    for yaw, z in ((0.0, 0.126), (math.pi, -0.126)):
+        face(k, POSTER, 0.0, 1.31, z, 0.9, 1.66, yaw, ADVERT)
+
+
+@proto("ad_drum", box=(0.75, 1.5, 0.75), reach=500)
+def _ad_drum(k):
+    """An advertising drum for a corner (Fn9gKhU_2_Q@69): a foot, a lit band
+    of adverts 2.1 m high round it, a cap."""
+    lathe(k("trim"), 0.0, 0.0, ((0.0, 0.62), (0.5, 0.62)), segs=9, col=CAST, cap=False)
+    for i in range(9):
+        a, b = i * math.tau / 9, (i + 1) * math.tau / 9
+        ur, ul = 1 - (i % 3) / 3, 1 - (i % 3 + 1) / 3
+        quad(k("face"), (0.7 * math.cos(b), 0.5, 0.7 * math.sin(b)), (0.7 * math.cos(a), 0.5, 0.7 * math.sin(a)),
+             (0.7 * math.cos(a), 2.6, 0.7 * math.sin(a)), (0.7 * math.cos(b), 2.6, 0.7 * math.sin(b)),
+             ((ul, 0), (ur, 0), (ur, 1), (ul, 1)), (*ADVERT, POSTER))
+    lathe(k("trim"), 0.0, 0.0, ((2.6, 0.74), (2.72, 0.74), (2.95, 0.25)), segs=9, col=CAST)
+
+
+@proto("charge_post", box=(0.2, 0.75, 0.12), reach=260, detail=True)
+def _charge_post(k):
+    """A phone and charging post: a slab 1.5 m high, a lit panel on its
+    front (a screen, keys, a reader)."""
+    box(k("trim"), -0.2, 0.2, 0.0, 1.5, -0.1, 0.1, scale=0.5, col=CAST)
+    face(k, PHONE, 0.0, 0.98, 0.106, 0.36, 0.65, 0.0, GLOW["cyan"])
+
+
+@proto("grate_glow", box=(0.6, 0.02, 0.3), reach=200, detail=True)
+def _grate_glow(k):
+    """A grate in the pavement, 1.2 m by 0.6, with warm light under its
+    bars (set a steam anchor over it)."""
+    quad(k("face"), (-0.6, 0.012, 0.3), (0.6, 0.012, 0.3), (0.6, 0.012, -0.3), (-0.6, 0.012, -0.3), col=(*GLOW["amber"][:3], GRATE))
+
+
+@proto("fence_mesh", box=(1.2, 1.0, 0.05), reach=300, detail=True)
+def _fence_mesh(k):
+    """A mesh fence panel 2.4 m wide and 2 m high: its frame and the wire,
+    cut out of one quad by the site (set panels 2.4 m apart)."""
+    face(k, MESH, 0.0, 1.0, 0.0, 2.4, 2.0, 0.0, mat="print")
+
+
+@proto("railing", box=(1.0, 0.55, 0.05), reach=220, detail=True)
+def _railing(k):
+    """A kerb's guard rail 2 m long and 1.1 high: posts, two rails and the
+    bars between, cut out of one quad by the site (set them 2 m apart)."""
+    face(k, RAIL, 0.0, 0.55, 0.0, 2.0, 1.1, 0.0, mat="print")
+
+
+@proto("aframe", box=(0.3, 0.5, 0.3), reach=180, detail=True)
+def _aframe(k):
+    """A standing A-frame: two printed boards leaning together, an advert
+    on each."""
+    for s_ in (1, -1):
+        quad(k("print"), (-0.3, 0.0, s_ * 0.27), (0.3, 0.0, s_ * 0.27), (0.3, 1.0, s_ * 0.03), (-0.3, 1.0, s_ * 0.03), col=(0.5, 0.5, 0.5, BOARD))
+
+
+@proto("pallets", box=(0.6, 0.38, 0.5), reach=220, detail=True)
+def _pallets(k):
+    """Four pallets stacked: their boards, and the dark between them."""
+    box(k("trim"), -0.57, 0.57, 0.0, 0.6, -0.47, 0.47, scale=1.0, col=(0.015, 0.012, 0.01, 1))
+    for i in range(4):
+        w = (0.2, 0.13, 0.07, 1) if i % 2 else (0.24, 0.16, 0.09, 1)
+        box(k("trim"), -0.6, 0.6, i * 0.15 + 0.1, i * 0.15 + 0.15, -0.5, 0.5, scale=1.0, col=w)
+
+
+@proto("barrel", box=(0.31, 0.45, 0.31), reach=260, detail=True)
+def _barrel(k):
+    """A plastic barrel, blue, bulged at the middle."""
+    lathe(k("trim"), 0.0, 0.0, ((0.0, 0.26), (0.3, 0.31), (0.62, 0.31), (0.9, 0.27)), segs=7, col=(0.03, 0.09, 0.22, 1))
+
+
+@proto("rubbish", box=(0.9, 0.3, 0.7), reach=220, detail=True)
+def _rubbish(k):
+    """A rubbish heap against a wall (its back at -z): a slumped mound, a
+    tied bag and a wet box on it, sheets loose in front."""
+    lathe(k("trim"), 0.0, -0.1, ((0.0, 0.6), (0.24, 0.42), (0.46, 0.12)), segs=6, col=(0.025, 0.024, 0.026, 1))
+    lathe(k("trim"), 0.45, 0.05, ((0.0, 0.26), (0.22, 0.3), (0.5, 0.05)), segs=5, col=(0.014, 0.016, 0.022, 1))
+    oriented_box(k("trim"), -0.45, 0.2, 0.15, 0.5, 0.4, 0.36, 0.5, scale=1.0, col=(0.2, 0.15, 0.09, 1))
+    for x, z, yaw in ((0.1, 0.56, 0.3), (-0.62, 0.5, -0.5)):
+        c, s_ = math.cos(yaw) * 0.14, math.sin(yaw) * 0.14
+        quad(k("trim"), (x - c, 0.012, z + s_ + 0.1), (x + c, 0.012, z - s_ + 0.1), (x + c, 0.012, z - s_ - 0.1), (x - c, 0.012, z + s_ - 0.1), col=(0.3, 0.3, 0.28, 1))
+
+
+@proto("food_cart", box=(1.0, 1.15, 0.6), reach=320)
+def _food_cart(k):
+    """A food cart, its counter to +z: a steel body on two wheels with its
+    menu lit on the front, a canopy on four posts with a strip of light
+    under its edge."""
+    box(k("trim"), -0.95, 0.95, 0.45, 1.0, -0.5, 0.5, scale=0.6, col=(0.1, 0.105, 0.115, 1))
+    box(k("trim"), -1.0, 1.0, 1.0, 1.05, -0.6, 0.6, scale=0.6, col=STEEL)
+    box(k("trim"), -1.0, 1.0, 2.1, 2.2, -0.6, 0.6, scale=0.6, col=(0.3, 0.05, 0.06, 1))
+    face(k, FOOD, 0.0, 0.73, 0.506, 0.55, 0.5, 0.0, GLOW["yellow"])
+    rotated_quad(k("glow"), 0.0, 2.07, 0.6, 1.96, 0.05, 0.0, col=GLOW["amber"])
+    for s_ in (-1, 1):
+        tube(k("trim"), ((0.0, 0.3, s_ * 0.5), (0.0, 0.3, s_ * 0.58)), (0.3, 0.3), segs=7, col=BLACK, cap=s_ > 0)
+        for x in (-0.94, 0.94):
+            box(k("trim"), x - 0.025, x + 0.025, 1.05, 2.1, s_ * 0.54 - 0.025, s_ * 0.54 + 0.025, scale=0.5, col=STEEL)
+
