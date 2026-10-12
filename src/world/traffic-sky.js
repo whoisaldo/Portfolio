@@ -45,10 +45,11 @@ export const LANES = [
   { a: [440, -5], b: [440, -325], half: 5, y: 50, lift: 4, v: 7.5, n: 5, phone: 1 },
   { a: [-75, -179], b: [435, -179], half: 5, y: 96, lift: 5, v: 9, n: 4, phone: 0 },
   // The loops over the districts, for the roofs and the air: Corpo Row's
-  // south side, over its towers' crowns, the megabuilding's street, the
-  // plaza and the x 120 road, Japantown's low roofs, the garage's block.
+  // south side, a third lane high along the boulevard before its towers'
+  // faces, the megabuilding's street, the plaza and the x 120 road,
+  // Japantown's low roofs, the garage's block.
   { c: [320, -260], r: [140, 70], y: 70, v: 28, n: 4, phone: 0 },
-  { c: [265, -370], r: [170, 30], y: 178, v: 36, n: 3, phone: 0 },
+  { a: [130, -330], b: [430, -330], half: 5, y: 112, lift: 8, v: 9, n: 3, phone: 0 },
   { c: [0, -650], r: [200, 60], y: 112, v: 40, n: 3, phone: 0 },
   { c: [100, -215], r: [70, 60], y: 78, v: 24, n: 3, phone: 0 },
   { c: [-130, -375], r: [36, 360], y: 48, v: 22, n: 7, phone: 1 },
