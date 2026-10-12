@@ -266,6 +266,23 @@ function carGeometry(kind) {
   };
 }
 
+// What the cars' shader has to be told of each kind, in the car's own frame
+// (metres, front +z): where its doors are cut (the front door's front edge,
+// the last door's back edge; 99 where the model cuts them itself) between
+// which heights (the sill's top, the waist); where a handle sits (the back
+// edge of each door); how high its plates are (nose, tail) and their half
+// width; where its seats' heads show through the glass (front row, back
+// row, how high); and its wheels (half the wheelbase, the tyre's radius).
+const DETAIL = {
+  hatch: { seam: [0.86, -0.86, 0.26, 0.88], door: [-0.3, -0.86], plate: [0.26, 0.56, 0.24], cabin: [-0.12, -1.0, 1.24], wheel: [1.225, 0.31] },
+  sedan: { seam: [1.05, -1.08, 0.25, 0.78], door: [-0.45, -1.08], plate: [0.26, 0.5, 0.26], cabin: [-0.22, -1.15, 1.08], wheel: [1.475, 0.34] },
+  van: { seam: [1.8, 0.42, 0.3, 1.07], door: [0.42, 99], plate: [0.33, 0.33, 0.26], cabin: [1.0, 99, 1.72], wheel: [1.625, 0.35] },
+  wedge: { seam: [99, 99, 0.33, 0.75], door: [-0.34, 99], plate: [0.25, 0.54, 0.24], cabin: [-0.1, 99, 0.93], wheel: [1.35, 0.34] },
+  pickup: { seam: [99, 99, 0.6, 1.19], door: [-0.077, -0.88], plate: [0.5, 0.5, 0.26], cabin: [0.2, -0.62, 1.6], wheel: [1.775, 0.44] },
+  micro: { seam: [99, 99, 0.37, 0.68], door: [-0.54, 99], plate: [0.5, 0.5, 0.2], cabin: [-0.1, 99, 1.15], wheel: [0.875, 0.25] },
+};
+DETAIL.police = DETAIL.sedan;
+
 // Parked: up the avenue's left kerb (the S4 parks on the right), clear of
 // the hero's near frame, and down the garage street's kerbs, which the
 // flight in comes down past. One blinks its hazards.
@@ -283,6 +300,9 @@ const PARKED = [
 // Paint and accent per car: dark metallics mostly, a pearl white, a red, a
 // cab yellow now and then; the accents are the city's neons.
 const BODY = ["#25282e", "#121316", "#8f949b", "#561018", "#132440", "#5d636b", "#0f3a3b", "#9c7c0c"];
+// The rest of the network's cars draw from these as well: the show's streets
+// are not all gunmetal.
+const PAINT = [...BODY, "#b8961a", "#a3241c", "#12706b", "#c9ced4", "#3c2a72", "#b4521a", "#1d4c9c", "#7a1a48"];
 const ACCENT = ["#27dcf2", "#ff2e88", "#ffb254", "#a24bff", "#39ff9a", "#ff3fd2"];
 
 // Lanes over the canyon and the districts: centre, radii, altitude, speed,
@@ -349,6 +369,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       uniform vec3 uBoxMax;
       varying vec3 vWorld;
       varying vec3 vNormalW;
+      varying vec3 vNormalL;
       varying float vKind;
       varying vec3 vBody;
       varying vec4 vLook;
@@ -358,6 +379,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vNormalW = normalize(mat3(modelMatrix * instanceMatrix) * normal);
+        vNormalL = normal;
         vKind = aKind;
         vLocal = position;
         #ifdef USE_INSTANCING_COLOR
@@ -375,9 +397,17 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      uniform vec3 uBoxMin;
+      uniform vec3 uBoxMax;
       uniform vec4 uBars;
+      uniform vec4 uSeam;
+      uniform vec4 uDoor;
+      uniform vec3 uPlate;
+      uniform vec3 uCabin;
+      uniform vec2 uWheel;
       varying vec3 vWorld;
       varying vec3 vNormalW;
+      varying vec3 vNormalL;
       varying float vKind;
       varying vec3 vBody;
       varying vec4 vLook;
@@ -386,56 +416,96 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       void main() {
         if (vFade < 0.999 && hash12(floor(gl_FragCoord.xy)) > vFade) discard;
         vec3 n = normalize(vNormalW);
+        vec3 nl = normalize(vNormalL);
         vec3 V = normalize(vWorld - uCam);
         vec3 R = reflect(V, n);
-        float F = 0.04 + 0.96 * pow(1.0 - abs(dot(V, n)), 5.0);
-        // What the paint gives back: the lit street under it, the band of
-        // neon at the horizon, the haze over it and the dark above.
-        float band = exp(-abs(R.y) * 12.0);
+        float ndv = abs(dot(V, n));
+        float F = 0.04 + 0.96 * pow(1.0 - ndv, 5.0);
+        // The street's light where the car stands, on the side this surface
+        // faces, and on the side it looks back at: a car between a pink row
+        // and a cyan one is pink down one flank and cyan down the other.
         vec3 spill = spillAt(vWorld);
+        vec3 side = spillAt(vWorld + vec3(n.x, 0.0, n.z) * 4.0);
+        vec3 toward = spillAt(vWorld + vec3(R.x, 0.0, R.z) * 9.0);
+        // What paint and glass give back: the lit street under them, the
+        // band of neon at the horizon, the haze over it and the dark above;
+        // and the row of signs, a band a little over the horizon in that
+        // side's own colour, broken as a row of signs is.
+        float band = exp(-abs(R.y) * 12.0);
         vec3 below = uHazeColor * 0.35 + uGlowColor * 0.6 + spill * 0.8;
         vec3 above = uHazeColor * 0.3 * exp(-max(R.y, 0.0) * 4.0) + vec3(0.004, 0.004, 0.008);
-        vec3 env = mix(below, above, step(0.0, R.y)) + vec3(1.0, 0.4, 0.75) * band * 0.3;
+        float signs = smoothstep(-0.04, 0.06, R.y) * (1.0 - smoothstep(0.2, 0.5, R.y)) * (0.55 + 0.45 * sin(atan(R.z, R.x) * 9.0 + R.y * 6.0));
+        vec3 env = mix(below, above, step(0.0, R.y)) + vec3(1.0, 0.4, 0.75) * band * 0.2 + (toward * 1.5 + uHazeColor * 0.45) * signs;
         int k = int(vKind + 0.5);
         // Its lamps go out with it where it fades.
         float lit = vLook.a * vFade;
         float far = smoothstep(10.0, 90.0, length(vWorld - uCam));
         vec3 col;
         float glow = 0.0;
+        float flank = step(0.7, abs(nl.x));
         #ifdef VAN
         // The van's flanks and back: a row of cabin windows between pillars,
         // the rear doors' two lights and their split, a rubbing strip.
         if (k == 0) {
-          float side = step(0.7, abs(n.x));
-          float back = step(n.z, -0.7);
+          float back = step(nl.z, -0.7);
           float pil = step(0.05, abs(fract((vLocal.z + 2.35) / 0.95) - 0.5) * 0.95);
-          float win = side * step(1.22, vLocal.y) * step(vLocal.y, 1.84) * step(-2.3, vLocal.z) * step(vLocal.z, 0.5) * pil;
+          float win = flank * step(1.22, vLocal.y) * step(vLocal.y, 1.84) * step(-2.3, vLocal.z) * step(vLocal.z, 0.5) * pil;
           win = max(win, back * step(1.18, vLocal.y) * step(vLocal.y, 1.9) * step(abs(vLocal.x), 0.82) * step(0.04, abs(vLocal.x)));
           if (win > 0.5) k = 2;
-          else if (side * step(abs(vLocal.y - 0.55), 0.045) > 0.5) k = 1;
+          else if (flank * step(abs(vLocal.y - 0.55), 0.045) > 0.5) k = 1;
         }
         #endif
-        // Grounded: darker toward the sills and into the arches, the roof
-        // and the hood lifted by the glow overhead.
-        float ao = 0.35 + 0.65 * smoothstep(0.12, 1.1, vWorld.y);
+        // Grounded: darker toward the sills and round each wheel, where the
+        // arch stands over its tyre; the roof and the bonnet lifted by the
+        // glow overhead.
+        float ao = 0.35 + 0.65 * smoothstep(0.12, 1.1, vLocal.y);
+        float arch = smoothstep(uWheel.y + 0.02, uWheel.y + 0.2, length(vec2(abs(vLocal.z) - uWheel.x, vLocal.y - uWheel.y)));
+        ao *= mix(1.0, mix(0.4, 1.0, arch), flank);
         float sky = max(n.y, 0.0);
-        vec3 body = vBody;
-        #ifdef POLICE
-        // NCPD: black, the doors white between the sills and the waist.
-        body = mix(vec3(0.02), vec3(0.62, 0.64, 0.66), step(0.3, vLocal.y) * step(vLocal.y, 0.68) * step(abs(vLocal.z), 1.25));
-        #endif
-        // Panel seams: the door cuts and the waist's crease, thin dark lines
-        // that keep a flank from reading as one smooth shell.
         if (k == 0) {
-          float zs = min(abs(vLocal.z - 0.3), abs(vLocal.z + 0.85));
+          vec3 body = vBody * (1.5 - 0.7 * vBody) + vec3(0.012);
+          #ifdef POLICE
+          // NCPD: black, the doors white between the sills and the waist.
+          body = mix(vec3(0.02), vec3(0.62, 0.64, 0.66), step(0.3, vLocal.y) * step(vLocal.y, 0.68) * step(abs(vLocal.z), 1.25));
+          #endif
+          // Panel lines: the doors' cuts between the sill and the waist, a
+          // crease along the flank that catches the light over its own
+          // shadow, and a handle at the back of each door.
           float aa = fwidth(vLocal.z) + fwidth(vLocal.y);
-          float seam = (1.0 - smoothstep(0.008, 0.008 + aa, zs)) * step(0.25, vLocal.y) * step(vLocal.y, 1.05) * step(0.7, abs(n.x));
-          seam = max(seam, (1.0 - smoothstep(0.006, 0.006 + aa, abs(vLocal.y - 0.8))) * 0.6 * step(0.7, abs(n.x)));
-          body *= 1.0 - 0.75 * seam;
+          float zs = min(abs(vLocal.z - uSeam.x), abs(vLocal.z - uSeam.y));
+          float between = step(uSeam.z, vLocal.y) * step(vLocal.y, uSeam.w);
+          float seam = (1.0 - smoothstep(0.007, 0.007 + aa, zs)) * between * flank;
+          float crease = vLocal.y - mix(uSeam.z, uSeam.w, 0.6);
+          seam = max(seam, (1.0 - smoothstep(0.005, 0.005 + aa, abs(crease))) * 0.55 * flank);
+          vec2 hd = min(abs(vec2(vLocal.z - uDoor.x - 0.15, vLocal.y - uSeam.w + 0.1)), abs(vec2(vLocal.z - uDoor.y - 0.15, vLocal.y - uSeam.w + 0.1))) - vec2(0.085, 0.016);
+          float handle = step(max(hd.x, hd.y), 0.0) * flank;
+          body *= 1.0 - 0.8 * max(seam, handle);
+          vec3 light = vec3(0.05) + side * (0.45 + 0.35 * sky) + spill * 0.25 + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.5 + uGlowColor * 0.3) * (0.25 + 0.75 * sky) * uHaze;
+          col = body * light * ao;
+          // Wet paint: what it gives back, the sky's glow and the signs' on
+          // everything that faces up, a line of light along the crease, and
+          // a rim where it turns away from the eye, so that a dark car on a
+          // dark road still has its outline.
+          col += env * (0.07 + 0.93 * F) * 0.8 * (0.55 + 0.45 * ao);
+          col += (uHazeColor * 0.55 + uGlowColor * 0.3 + spill * 0.35) * sky * sky * 0.22;
+          col += (uHazeColor * 0.6 + side * 0.9) * smoothstep(0.004, 0.02, crease) * (1.0 - smoothstep(0.02, 0.05, crease)) * flank * 0.1;
+          col += (uHazeColor * 0.9 + side * 0.7) * pow(1.0 - ndv, 3.0) * 0.35;
+          col += vec3(0.5, 0.52, 0.56) * (0.03 + side * 0.4) * handle * step(-0.004, hd.y);
         }
-        if (k == 0) col = body * (0.03 + spill * 0.6 * (0.5 + 0.5 * sky) + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.25 + uGlowColor * 0.15) * sky * uHaze) * ao + env * (0.06 + 0.94 * F) * 0.7 * (0.55 + 0.45 * ao);
-        else if (k == 1) col = vec3(0.008, 0.009, 0.011) + spill * 0.08 + env * F * 0.3;
-        else if (k == 2) col = vec3(0.003, 0.005, 0.009) + env * (0.06 + 0.94 * F);
+        else if (k == 1) col = vec3(0.01, 0.011, 0.013) + (spill * 0.07 + side * 0.07) * ao + env * F * 0.3;
+        else if (k == 2) {
+          // Glass: a dim cabin behind it (the street's light through the far
+          // windows, the dash's glow, the seats' heads dark against them),
+          // and over it the street given back, with a glint across it.
+          float seat = min(abs(vLocal.z - uCabin.x), abs(vLocal.z - uCabin.y));
+          float du = mix(abs(abs(vLocal.x) - 0.36), seat, flank);
+          float dy = vLocal.y - uCabin.z;
+          float head = max(step(length(vec2(du, dy * 1.1)), 0.13), step(du, 0.23) * step(dy, -0.11));
+          float up = clamp((dy + 0.4) / 0.5, 0.0, 1.0);
+          vec3 cabin = (vec3(0.01, 0.013, 0.021) + min(spill, vec3(1.0)) * 0.035 + vLook.rgb * 0.02 * lit) * (0.45 + 0.75 * up) * (1.0 - 0.85 * head);
+          float glint = smoothstep(0.8, 1.0, sin((vLocal.z + vLocal.x) * 2.4 + vLocal.y * 4.4));
+          col = cabin * (1.0 - F) + min(env, vec3(1.6)) * (0.035 + 0.965 * F) + (uHazeColor * 0.3 + min(side, vec3(1.0)) * 0.25) * glint * 0.1;
+        }
         // A light bar is a lamp unit at each end and a thin running strip
         // between them, behind a lens; lit, it is only as hot as it must be
         // to carry: a lit lens close to, where the bloom would spread it
@@ -455,15 +525,29 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           glow = lit;
         }
         else if (k == 5) { col = vLook.rgb * mix(0.6, mix(1.5, 3.0, far), lit); glow = 1.0; }
-        else if (k == 6) col = vec3(0.006, 0.006, 0.007) + spill * 0.05;
+        else if (k == 6) col = vec3(0.006, 0.006, 0.007) + (spill * 0.04 + side * 0.03) + (uHazeColor * 0.4 + side * 0.4) * pow(1.0 - ndv, 3.0) * 0.12;
         else if (k == 8) {
           // The bar: red on one side, blue on the other, trading places.
           float flip = step(0.0, sin(uTime * 9.0 + vLocal.z * 0.1)) * 2.0 - 1.0;
-          float side = step(0.0, vLocal.x * flip);
-          col = mix(vec3(1.0, 0.04, 0.08), vec3(0.1, 0.25, 1.0), side) * 6.0 * (0.6 + 0.4 * step(0.5, fract(uTime * 4.0)));
+          float port = step(0.0, vLocal.x * flip);
+          col = mix(vec3(1.0, 0.04, 0.08), vec3(0.1, 0.25, 1.0), port) * mix(2.2, 6.0, far) * (0.6 + 0.4 * step(0.5, fract(uTime * 4.0)));
           glow = 1.0;
         }
-        else col = vec3(0.02, 0.022, 0.026) + env * 0.35;
+        else col = vec3(0.02, 0.022, 0.026) + env * 0.2 + side * 0.05;
+        // A number plate on the nose and on the tail: a pale rectangle in a
+        // dark frame, nothing written on it, the tail's under its own lamp.
+        if (k < 2) {
+          float nose = step(0.9, nl.z) * step(uBoxMax.z - 0.06, vLocal.z);
+          float back = step(0.9, -nl.z) * step(vLocal.z, uBoxMin.z + 0.06);
+          vec2 pd = abs(vec2(vLocal.x, vLocal.y - mix(uPlate.y, uPlate.x, nose))) - vec2(uPlate.z, 0.052);
+          float edge = max(pd.x, pd.y);
+          if ((nose + back) * step(edge, 0.0) > 0.5) {
+            vec3 face = vec3(0.62, 0.6, 0.5);
+            col = face * (0.03 + side * 0.45 + spill * 0.2 + vec3(1.0, 0.92, 0.8) * lit * mix(0.1, 0.5, back));
+            col = mix(col, vec3(0.006), step(-0.012, edge));
+            glow = 0.25 * lit * back;
+          }
+        }
         col = cityFog(col, vWorld, glow);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
@@ -604,7 +688,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const slots = [];
   for (let i = 0; i < moving + parked.length; i++) {
     const own = i < avenueMoving || (i >= moving && i - moving < avenueParked);
-    slots.push({ kind: Math.floor(draw() * (own ? BASE_KINDS.length : CAR_KINDS.length)), body: BODY[Math.floor(draw() * BODY.length)], accent: ACCENT[Math.floor(draw() * ACCENT.length)], parked: i >= moving ? parked[i - moving] : null });
+    slots.push({ kind: Math.floor(draw() * (own ? BASE_KINDS.length : CAR_KINDS.length)), body: own ? BODY[Math.floor(draw() * BODY.length)] : PAINT[Math.floor(draw() * PAINT.length)], accent: ACCENT[Math.floor(draw() * ACCENT.length)], parked: i >= moving ? parked[i - moving] : null });
   }
   // The deck's cars come last and from their own draw, so every other car
   // keeps the kind and paint it had.
@@ -612,7 +696,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   let seedPath = 4211;
   const drawPath = () => ((seedPath = (seedPath * 16807) % 2147483647) - 1) / 2147483646;
   for (let i = 0; i < pathSlots.length; i++) {
-    slots.push({ kind: Math.floor(drawPath() * CAR_KINDS.length), body: BODY[Math.floor(drawPath() * BODY.length)], accent: ACCENT[Math.floor(drawPath() * ACCENT.length)], parked: null });
+    slots.push({ kind: Math.floor(drawPath() * CAR_KINDS.length), body: PAINT[Math.floor(drawPath() * PAINT.length)], accent: ACCENT[Math.floor(drawPath() * ACCENT.length)], parked: null });
   }
   // A few of the network's moving cars are NCPD cruisers (never on the
   // avenue's own lanes, which the hero sees).
@@ -631,7 +715,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const color = new THREE.Color();
   const kinds = [...CAR_KINDS, "police"].map((kind, k) => {
     const built = carGeometry(kind);
-    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars } }, ...carShader, defines: kind === "police" ? { POLICE: "" } : kind === "van" ? { VAN: "" } : {} });
+    const detail = DETAIL[kind];
+    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uCabin: { value: new THREE.Vector3(...detail.cabin) }, uWheel: { value: new THREE.Vector2(...detail.wheel) } }, ...carShader, defines: kind === "police" ? { POLICE: "" } : kind === "van" ? { VAN: "" } : {} });
     material.name = kind === "police" || kind === "van" ? `traffic_${kind}` : "traffic";
     const mine = slots.filter((x) => x.kind === k);
     const n = Math.max(1, mine.length);
