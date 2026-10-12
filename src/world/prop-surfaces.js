@@ -453,11 +453,11 @@ export function createPropSurfaces(dressed) {
             vec3 plastic = mix(vec3(0.011, 0.011, 0.015), mix(vec3(0.018, 0.028, 0.052), vec3(0.08, 0.08, 0.075), step(0.5, fract(sd * 11.0))), step(0.74, fract(sd * 5.3)));
             float speck = hash12(floor(vec2(around * 9.0, uv.y * 14.0)) + sd * 7.0);
             vec3 heap = vec3(0.03, 0.027, 0.024) * (0.4 + vnoise(vec2(around * 4.0, uv.y * 8.0) + sd * 7.0))
-              + hueOf(step(0.5, fract(speck * 7.0)), speck * 60.0) * 0.05 * step(0.9, speck) * near;
+              + hueOf(step(0.5, fract(speck * 7.0)), speck * 60.0) * 0.022 * step(0.94, speck) * near;
             vec3 n = normalize(vNormalW);
             vec3 toward = spillAt(vWorld + vec3(n.x, 0.0, n.z) * 1.3);
             vec3 light = vec3(0.03) + (spill * 0.3 + toward * 0.7) * (0.6 + 0.4 * max(n.y, 0.0));
-            col = mix(plastic * (1.0 - 0.4 * smoothstep(0.8, 0.9, uv.y)), heap, vColor.b) * light + toward * 0.06 * crease * (1.0 - vColor.b);
+            col = mix(plastic * (1.0 - 0.4 * smoothstep(0.8, 0.9, uv.y)), heap, vColor.b) * light + toward * 0.035 * crease * (1.0 - vColor.b);
           } else if (kind < 1.5) {
             // A crossing's signal: the walking figure lit, the seconds left
             // in bars over it.
