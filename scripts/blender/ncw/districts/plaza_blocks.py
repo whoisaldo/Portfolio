@@ -276,7 +276,26 @@ for px in (76.5, 85.5):
 B.ground_rect(PL, 132.0, 170.0, -168.0, -10.0)
 podium(132.0, 170.0, -168.0, -126.0, 14.8, {"-x": "street", "-z": "street", "+x": "open", "+z": "party"}, 8331, nb={"+z": 11.4},
        tint="concrete", window=2)
-tower("D1", 136.0, 168.0, -164.0, -130.0, 14.8, 35.2, 8332, kind="wall", window=2, tint="concrete", accent="amber", crown="pad", plant=0)
+# (D1 is one finned glass house in two steps: a wing 35 m high to the road,
+# a landing pad on it, which the aerial looks over into the square; and
+# behind it the shaft that closes the square's view east, seen down the
+# causeway and over the junction, with MILITECH's name under its crown.)
+tower("D1 wing", 136.0, 151.0, -164.0, -130.0, 14.8, 35.2, 8332, cut=1.6, accent="amber", crown="pad", lit=0.74, warm=0.55, plant=0)
+D1T = tower("D1 shaft", 151.0, 168.0, -164.0, -136.0, 14.8, 64.0, 8387, steps=((54.0, 1.5),), cut=1.6, accent="yellow", crown="blades",
+            lit=0.8, warm=0.3, plant=1)
+rf = random.Random(8388)
+for name, plane, a0, a1 in (("-x", 151.0, -164.0, -136.0), ("+x", 168.0, -164.0, -136.0), ("-z", -164.0, 151.0, 168.0), ("+z", -136.0, 151.0, 168.0)):
+    f = B.Face(name, plane, a0, a1)
+    fin_row(f, 2.0, f.width - 2.0, 36.0 if name == "-x" else 16.0, 53.6, rf, step=(2.0, 2.6), out=0.6, lit="white" if name in ("-x", "+z") else None, every=4, k=0.2)
+for name, plane, a0, a1 in (("-x", 152.5, -162.5, -137.5), ("+z", -137.5, 152.5, 166.5), ("+x", 166.5, -162.5, -137.5), ("-z", -162.5, 152.5, 166.5)):
+    f = B.Face(name, plane, a0, a1)
+    fin_row(f, 1.8, f.width - 1.8, 54.9, 56.6, rf, step=(2.0, 2.6), out=0.5)
+    fin_row(f, 1.8, f.width - 1.8, 61.4, 64.6, rf, step=(2.0, 2.6), out=0.5)
+lit_band(151.0, 168.0, -164.0, -136.0, 53.7, 54.0, "yellow", k=0.5, cut=1.6)
+wordmark("militech_far", 152.5 - 0.3, 59.0, -150.0, 16.0, 3.4, -math.pi / 2)
+wordmark("militech_b", 159.5, 59.0, -137.5 + 0.3, 11.0, 2.4, 0.0)
+for f, a0 in ((B.Face("-x", 136.0, -164.0, -130.0), 0), (B.Face("-z", -164.0, 136.0, 151.0), 1)):
+    fin_row(f, 2.0, f.width - 2.0, 16.0, 34.6, rf, step=(2.2, 3.0), out=0.5, lit="amber", every=4, k=0.28)
 parapet(132.0, 170.0, -168.0, -126.0, 14.8, tint=5)
 podium(132.0, 170.0, -126.0, -98.0, 11.4, {"-x": "street", "+x": "open", "+z": "party", "-z": "party"}, 8333,
        nb={"+z": 11.4, "-z": 14.8}, tint="navy", ground="blank", signs=False, style=dict(OFFICE, canopy=0.0))

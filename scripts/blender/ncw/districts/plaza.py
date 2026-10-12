@@ -59,17 +59,15 @@ for i, (cx, cy, cz, w, h, yaw) in enumerate(SMALL_BOARDS, start=1):
     named_quad(f"board_{i}", "board", cx, cy, cz, w, h, yaw, props={"board": i, "district": PL})
     nx, nz = math.sin(yaw), math.cos(yaw)
     oriented_box((PL, "board_frame", 0), cx - nx * 0.3, cy, cz - nz * 0.3, w + 0.5, h + 0.5, 0.5, yaw, scale=1.0)
-# The blocks round the square and along the cross street are the avenue's
-# kind: painted apartment walls, lived in, with the board hung on one. The
-# camera cranes past them on its way from the hero to the board.
-# The block the board hangs on, north of the square. (The square's east
-# block and the cross street's south side stood across the x 120 road, which
-# the S4 drove through unseen; the road is real now and the blocks round it
-# are massing.py's.)
-for i, (x0, x1, z0, z1, h, seed) in enumerate(((PX0, PX1, -284.0, -264.0, 44, 5103),)):
-    mass(PL, x0, x1, z0, z1, SHOP_H, h, seed, painted=i)
-    box((PL, "dark", 0), x0, x1, 0, SHOP_H, z0, z1, scale=2.0)
-    dress_roof(PL, x0, x1, z0, z1, h, seed + 41, cap=6.0)
+# The block the board hangs on, north of the square, is a corporate house:
+# its faces to the square and to the x 120 road are a curtain wall behind
+# fins (plaza_corp.py), its backs to the canyon's lane and to the court are
+# the painted flats it was built as. The camera cranes past it on its way
+# from the hero to the board.
+BLOCK = (PX0, PX1, -284.0, -264.0, 44.0)
+mass(PL, BLOCK[0], BLOCK[1], BLOCK[2], BLOCK[3], SHOP_H, BLOCK[4], 5103, faces=("-x", "-z"), painted=0)
+box((PL, "dark", 0), BLOCK[0], BLOCK[1], 0, SHOP_H, BLOCK[2], BLOCK[3], scale=2.0)
+dress_roof(PL, BLOCK[0], BLOCK[1], BLOCK[2], BLOCK[3], BLOCK[4], 5103 + 41, cap=6.0)
 
 # The blocks round the square and along the x 120 road, and the north
 # quarter behind the board.
@@ -78,5 +76,6 @@ from ncw.districts import plaza_square  # noqa: E402,F401
 from ncw.districts import plaza_streets  # noqa: E402,F401
 from ncw.districts import plaza_people  # noqa: E402,F401
 from ncw.districts import plaza_dress  # noqa: E402,F401
+from ncw.districts import plaza_corp  # noqa: E402,F401
 # (Last: the square's slabs, lit by everything set down above.)
 from ncw.districts import plaza_paving  # noqa: E402,F401

@@ -59,7 +59,6 @@ while x < TX - 3.0:
 for k, (za, zb) in enumerate(((-284.0, -274.0), (-274.0, -264.0))):
     shopfront(PL, -1, za, zb, 8403 + k, awning=True, xf=108.03)
 fascia_signs_z(-283.4, -264.6, 108.03, 1, random.Random(8405))
-clutter(PL, -1, -283.0, -265.0, 16.0, 8406, xw=108.0)
 # Its backs, to the canyon's lane and to the yard behind it: concrete at
 # street level with its doors, caged lamps and what a back keeps by them.
 B.back_ground(PL, B.Face("-x", 47.97, -284.0, -264.0), random.Random(8407), B.TRIM[0])

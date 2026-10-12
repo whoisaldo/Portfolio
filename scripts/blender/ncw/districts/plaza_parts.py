@@ -347,13 +347,28 @@ def screen_on_legs(cx, cz, y0, w, h, yaw, r, base=0.15, back=True):
     oriented_box((PL, "metal", 1), px_, y0 - 0.5, pz_, w * 0.72, 0.12, 0.12, yaw, scale=0.5)
 
 
+# The street's standard designs a corporate square would carry (the site
+# deals each size's designs by the number in a sign's id, src/data/world.js
+# STREET_SIGNS): cyberware, braindance, a clinic, electronics, an exchange,
+# an eye clinic, the pictograms; not the noodle bars and the karaoke.
+HOUSE = {"pm": (1, 4, 7, 2), "ps": (0, 6), "bl": (1, 4, 7), "bm": (9, 5, 8, 10), "bs": (4, 7, 9, 8), "bx": (3, 4, 6, 8, 10)}
+HOUSE_N = {}
+
+
+def house_name(size):
+    """The id of the next corporate design of a size."""
+    n = HOUSE_N.get(size, 0)
+    HOUSE_N[size] = n + 1
+    return f"st_{size}_{HOUSE[size][n % len(HOUSE[size])]}"
+
+
 def big_sign(size, k, cx, cy, cz, yaw, double=True, frame=True):
     """One of the street's standard signs drawn k times its size (the site
     paints the same face larger): a tower's column of type, a podium's
     board. Both faces painted when it stands out from a wall."""
     w, h = ST_SIZES[size][0] * k, ST_SIZES[size][1] * k
     nx, nz = math.sin(yaw), math.cos(yaw)
-    sid = st_name(size)
+    sid = house_name(size)
     sign(sid, cx + nx * 0.14, cy, cz + nz * 0.14, w, h, yaw, district=PL, label=False)
     if double:
         sign(sid + "_b", cx - nx * 0.14, cy, cz - nz * 0.14, w, h, yaw + math.pi, district=PL, label=False)
@@ -377,8 +392,9 @@ def blade_off(f, s, y, size, k, out=None, angle=0.0):
     return h
 
 
-def fascia_signs_x(x0, x1, zf, facing, r, rate=0.75, y=3.95):
-    """A board on the fascia over each shop of a row along x."""
+def fascia_signs_x(x0, x1, zf, facing, r, rate=0.75, y=3.95, house=0.6):
+    """A board on the fascia over each shop of a row along x (`house`: the
+    share of them that are corporate designs)."""
     f = 1 if facing > 0 else -1
     x = x0 + 1.2
     while x < x1 - 2.0:
@@ -386,11 +402,11 @@ def fascia_signs_x(x0, x1, zf, facing, r, rate=0.75, y=3.95):
         w, h = ST_SIZES[size]
         if r.random() < rate and x + w < x1 - 0.6:
             box((PL, "board_frame", 0), x - 0.06, x + w + 0.06, y - h / 2 - 0.06, y + h / 2 + 0.06, *sorted((zf + f * 0.14, zf + f * 0.2)), scale=1.0)
-            sign(st_name(size), x + w / 2, y, zf + f * 0.215, w, h, 0.0 if f > 0 else math.pi, district=PL, label=False)
+            sign(house_name(size) if r.random() < house else st_name(size), x + w / 2, y, zf + f * 0.215, w, h, 0.0 if f > 0 else math.pi, district=PL, label=False)
         x += w + r.uniform(2.2, 4.6)
 
 
-def fascia_signs_z(z0, z1, xf, facing, r, rate=0.75, y=3.95):
+def fascia_signs_z(z0, z1, xf, facing, r, rate=0.75, y=3.95, house=0.6):
     """The same along z, on a wall facing `facing` x."""
     f = 1 if facing > 0 else -1
     z = z0 + 1.2
@@ -399,7 +415,7 @@ def fascia_signs_z(z0, z1, xf, facing, r, rate=0.75, y=3.95):
         w, h = ST_SIZES[size]
         if r.random() < rate and z + w < z1 - 0.6:
             box((PL, "board_frame", 0), *sorted((xf + f * 0.14, xf + f * 0.2)), y - h / 2 - 0.06, y + h / 2 + 0.06, z - 0.06, z + w + 0.06, scale=1.0)
-            sign(st_name(size), xf + f * 0.215, y, z + w / 2, w, h, f * math.pi / 2, district=PL, label=False)
+            sign(house_name(size) if r.random() < house else st_name(size), xf + f * 0.215, y, z + w / 2, w, h, f * math.pi / 2, district=PL, label=False)
         z += w + r.uniform(2.2, 4.6)
 
 
@@ -571,6 +587,30 @@ def fins(x0, x1, z0, z1, y0, y1, colour, cut=2.0, k=0.55):
         fx = sx + (cut * 0.5 if sx == x0 else -cut * 0.5)
         fz = sz + (cut * 0.5 if sz == z0 else -cut * 0.5)
         box((PL, "glow", 0), fx - 0.14, fx + 0.14, y0, y1, fz - 0.14, fz + 0.14, scale=1.0, col=col)
+
+
+def fin_row(f, s0, s1, y0, y1, r, step=(2.1, 2.9), out=0.55, w=0.26, tint=1, lit=None, every=3, k=0.3, skip=()):
+    """Vertical fins standing out of a face `f` (a buildings.Face) between
+    s0 and s1 along it, from y0 to y1; one in `every` carries a line of
+    light up its edge. `skip`: (s0, s1) stretches left bare."""
+    s, i = s0 + r.uniform(0.2, 0.9), 0
+    while s < s1 - 0.2:
+        if not any(a <= s <= b for a, b in skip):
+            f.box((PL, "trim", 0), s - w / 2, s + w / 2, y0, y1, 0.0, out, col=B.TRIM[tint], scale=2.0)
+            if lit and i % every == 0:
+                f.box((PL, "glow", 0), s - 0.035, s + 0.035, y0 + 0.2, y1 - 0.2, out, out + 0.03, col=dim(lit, k))
+        s += r.uniform(*step)
+        i += 1
+
+
+def wordmark(sid, cx, cy, cz, w, h, yaw, frame=True):
+    """One of the city's houses by name (ARASAKA, MILITECH, KIROSHI, NICOLA:
+    `sid` is the house with _b or _far, each id once) in its own letters, on
+    a dark board."""
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    sign(sid, cx + nx * 0.16, cy, cz + nz * 0.16, w, h, yaw, district=PL, label=False)
+    if frame:
+        oriented_box((PL, "board_frame", 0), cx, cy, cz, w + 0.4, h + 0.4, 0.26, yaw, scale=1.0)
 
 
 def lit_band(x0, x1, z0, z1, y0, y1, colour, k=0.7, out=0.12, cut=0.0):
