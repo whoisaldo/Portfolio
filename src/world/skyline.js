@@ -2234,6 +2234,11 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // (For an eye above the roofs it is the city's like the rest.)
         float lift = smoothstep(40.0, 62.0, uCam.y);
         float held = step(511.5, vDress.x) * (1.0 - lift);
+        // Across a face as one standing before it reads it: the walls' own
+        // u runs from right to left seen from outside, so every advert,
+        // word and board drawn on them came out mirrored. (What Contact
+        // frames is drawn as it was.)
+        float faceU = mix(vHero.y, 1.0 - vHero.y, 1.0 - held);
         // Above its roof line the wall is the parapet, a concrete band.
         float parapet = onWall * step(vTier.x, vWorld.y);
         // Whether it is dressed (see aDress): all but Contact's own towers,
@@ -2430,7 +2435,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             col = mix(col, solidWall * 2.2, ledge * fine);
             float bandH = 5.0 + 4.0 * hash12(vec2(vForm.z, 3.4));
             float y0 = mix(vTier.y, vTier.x, 0.52 + 0.24 * hash12(vec2(vForm.z, 2.2)));
-            vec2 sb = vec2((vHero.y - 0.05) / 0.9, (vWorld.y - y0) / bandH);
+            vec2 sb = vec2((faceU - 0.05) / 0.9, (vWorld.y - y0) / bandH);
             if (fract(vForm.y) > 0.05 && sb.x > 0.0 && sb.x < 1.0 && sb.y > 0.0 && sb.y < 1.0 && y0 + bandH < vTier.x - 2.0) {
               col = boardStrip(sb, vHero.z * 0.9 / bandH, vForm.z + mod(vHero.w, 4.0) * 7.0, uTime * uMotion, vKind.z + mod(vHero.w, 4.0) * 3.0);
               faceLit = 1.0;
@@ -2515,7 +2520,22 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         float bh = fract(vCrown.y * 29.7);
         vec3 bandCol = dressed > 0.5 || style > 1.5 || abs(style - 1.0) > 0.1 ? crownCol : bh > 0.7 ? vec3(1.0, 0.6, 0.28) : bh > 0.45 ? vec3(1.0, 0.86, 0.66) : crownCol;
         if (worn > 0.5) bandCol = accent;
-        col = mix(col, bandCol * 1.8, crown);
+        // Close to, for an eye above the roofs, the band is a sign round the
+        // tower, not a slab of light that burns out to white: a word across
+        // each face lit in the band's colour on a dark band, a tube along
+        // its top and its foot. Far off, the line of light it was.
+        vec3 bandLook = bandCol * 1.8;
+        float bandPx = fwidth(vWorld.y);
+        if (crown > 0.5 && lift > 0.001) {
+          float by0 = vTier.x - mix(3.4, 4.2, worn);
+          vec2 bs = vec2(faceU, (vWorld.y - by0) / (vTier.x - mix(2.1, 1.6, worn) - by0));
+          float bpx = bandPx / (vTier.x - mix(2.1, 1.6, worn) - by0);
+          float tube = step(bs.y, 0.1) + step(0.9, bs.y);
+          float word = wordAcross(vec2((bs.x - 0.04) / 0.92, (bs.y - 0.5) / 0.74 + 0.5), vHero.z * 0.92 / (vTier.x - mix(2.1, 1.6, worn) - by0) / 0.74, hash12(vec2(vForm.z, 21.7) + mod(vHero.w, 4.0))) * step(0.04, bs.x) * step(bs.x, 0.96);
+          vec3 lettered = vec3(0.01, 0.011, 0.016) + bandCol * (min(tube, 1.0) * 1.1 + word * 1.3);
+          bandLook = mix(bandLook, mix(lettered, bandCol * 1.8, smoothstep(0.08, 0.3, bpx)), lift * uHasWords);
+        }
+        col = mix(col, bandLook, crown);
         // Seen from above, a lit band round a dark roof is an empty frame
         // in the sky: the band lights the roof inside it, from its edge in.
         float inFromEdge = min(vPlan.z - abs(vPlan.x), vPlan.w - abs(vPlan.y));
@@ -2602,7 +2622,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             // for one, under the same scanlines and inside a dark frame.
             if (held < 0.5 && uHasAds > 0.5) {
               float edge = 1.0 - step(0.02, s.x) * step(s.x, 0.98) * step(0.012, s.y) * step(s.y, 0.988);
-              col = mix(boardFace(s, 0.72 * vHero.z / (y1 - y0), vKind.z + floor(uTime * uMotion / 14.0 + fract(vForm.z) * 0.15), vForm.z) * 1.5 * (0.84 + 0.16 * step(0.5, fract(s.y * 140.0))), vec3(0.01), edge);
+              col = mix(boardFace(vec2(1.0 - s.x, s.y), 0.72 * vHero.z / (y1 - y0), vKind.z + floor(uTime * uMotion / 14.0 + fract(vForm.z) * 0.15), vForm.z) * 1.5 * (0.84 + 0.16 * step(0.5, fract(s.y * 140.0))), vec3(0.01), edge);
             }
             screen = 1.0;
           }
@@ -2632,7 +2652,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
               // other one, and none is a white bar.)
               float hb = hash12(vec2(vForm.z, 17.3));
               if (held < 0.5) bc = hb < 0.24 ? vec3(0.16, 0.9, 1.0) : hb < 0.4 ? vec3(1.0, 0.58, 0.22) : hb < 0.54 ? vec3(1.0, 0.22, 0.62) : hb < 0.66 ? vec3(0.3, 1.0, 0.55) : hb < 0.77 ? vec3(1.0, 0.16, 0.12) : hb < 0.87 ? vec3(1.0, 0.86, 0.2) : hb < 0.94 ? vec3(0.3, 0.5, 1.0) : vec3(0.72, 0.36, 1.0);
-              col = hangingSign(vec2((um - u0) / bw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (bw * 1.15))), vForm.z * 3.7, uTime * uMotion, bc, 1.0 - held, (y1 - y0) / bw);
+              col = hangingSign(vec2(mix((um - u0) / bw, 1.0 - (um - u0) / bw, 1.0 - held), 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (bw * 1.15))), vForm.z * 3.7, uTime * uMotion, bc, 1.0 - held, (y1 - y0) / bw);
               sign = 1.0;
             }
           }
@@ -2647,7 +2667,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             if (held < 0.5 && uHasAds > 0.5) {
               vec2 st = mp / 2.24 + 0.5;
               float tube = step(0.465, max(abs(st.x - 0.5), abs(st.y - 0.5)));
-              col = mix(boardFace(st, 1.0, vKind.z + 8.0 * step(1.5, faceId), vForm.z + 7.0 + faceId) * 1.35, mc * 1.8, tube);
+              col = mix(boardFace(vec2(1.0 - st.x, st.y), 1.0, vKind.z + 8.0 * step(1.5, faceId), vForm.z + 7.0 + faceId) * 1.35, mc * 1.8, tube);
               k = 1.0;
             }
             sign = max(sign, k);
@@ -2660,7 +2680,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         if (abs(style - 5.0) < 0.1 && onWall > 0.5 && parapet < 0.5 && vForm.w > 0.5) {
           vec3 rim = hash12(vec2(vForm.z, 8.8)) > 0.12 ? vec3(0.16, 0.9, 1.0) : vec3(1.0, 0.22, 0.72);
           if (vForm.w < 1.5) {
-            vec4 sc = screenColumn(vec2(vHero.y, vWorld.y - vTier.y - 2.0), vHero.z, vTier.x - vTier.y - 4.0, vForm.z + mod(vHero.w, 4.0) * 13.0, uTime * uMotion);
+            vec4 sc = screenColumn(vec2(faceU, vWorld.y - vTier.y - 2.0), vHero.z, vTier.x - vTier.y - 4.0, vForm.z + mod(vHero.w, 4.0) * 13.0, uTime * uMotion);
             float corner = step(min(vHero.y, 1.0 - vHero.y), 0.03);
             col = mix(sc.rgb, rim * 1.5, corner);
             screens = max(sc.a, corner);
