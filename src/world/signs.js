@@ -73,6 +73,49 @@ function panel(hex, level) {
   return `#${c.multiplyScalar(Math.min(1, level / (GAIN * Math.max(lum, 1e-3)))).getHexString()}`;
 }
 
+/** A lit box's face: acrylic over tubes. The panel's colour (panel()),
+ * a little brighter over each tube and darker between them, now and then a
+ * bay gone dim, the frame's shadow round its edge and a keyline inside it:
+ * a flat fill of one colour reads as a card, not a box with light in it. */
+function lightbox(ctx, x, y, w, h, color, seed) {
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, panel(color, 1.1));
+  g.addColorStop(1, panel(color, 0.8));
+  ctx.fillStyle = g;
+  ctx.fillRect(x, y, w, h);
+  const wide = w >= h;
+  const n = Math.max(2, Math.round(((wide ? w / h : h / w)) * 1.5));
+  for (let i = 0; i < n; i++) {
+    const a = i / n;
+    const b = (i + 1) / n;
+    const band = wide ? ctx.createLinearGradient(x + a * w, 0, x + b * w, 0) : ctx.createLinearGradient(0, y + a * h, 0, y + b * h);
+    const dead = (seed * 7 + i * 13) % 11 === 0;
+    band.addColorStop(0, "rgba(0,0,0,0.2)");
+    band.addColorStop(0.5, dead ? "rgba(0,0,0,0.36)" : "rgba(255,255,255,0.07)");
+    band.addColorStop(1, "rgba(0,0,0,0.2)");
+    ctx.fillStyle = band;
+    if (wide) ctx.fillRect(x + a * w, y, w / n + 1, h);
+    else ctx.fillRect(x, y + a * h, w, h / n + 1);
+  }
+  const e = Math.min(w, h) * 0.12;
+  for (const [x0, y0, x1, y1, rx, ry, rw, rh] of [[x, 0, x + e, 0, x, y, e, h], [x + w, 0, x + w - e, 0, x + w - e, y, e, h], [0, y, 0, y + e, x, y, w, e], [0, y + h, 0, y + h - e, x, y + h - e, w, e]]) {
+    const shade = ctx.createLinearGradient(x0, y0, x1, y1);
+    shade.addColorStop(0, "rgba(0,0,0,0.42)");
+    shade.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = shade;
+    ctx.fillRect(rx, ry, rw, rh);
+  }
+  ctx.strokeStyle = "rgba(0,0,0,0.5)";
+  ctx.lineWidth = Math.max(1, Math.min(w, h) * 0.02);
+  ctx.strokeRect(x + e * 0.5, y + e * 0.5, w - e, h - e);
+}
+
+function seedOf(spec) {
+  let n = 0;
+  for (const line of spec.lines ?? []) for (let i = 0; i < line.length; i++) n = (n * 31 + line.charCodeAt(i)) % 9973;
+  return n;
+}
+
 function lighten(hex, amount) {
   const c = new THREE.Color(hex);
   return `#${c.lerp(new THREE.Color("#ffffff"), amount).getHexString()}`;
@@ -211,11 +254,11 @@ function street(ctx, spec, w, h) {
     ctx.fillStyle = "#0a0808";
     ctx.fillRect(0, 0, w, h);
     const fr = Math.min(w, h) * 0.07;
-    const g = ctx.createLinearGradient(0, fr, 0, h - fr);
-    g.addColorStop(0, panel(color, 1.1));
-    g.addColorStop(1, panel(color, 0.8));
-    ctx.fillStyle = g;
-    ctx.fillRect(fr, fr, w - fr * 2, h - fr * 2);
+    // (The frame: a lip that catches the street along its top and left.)
+    ctx.fillStyle = "rgba(255,255,255,0.1)";
+    ctx.fillRect(0, 0, w, fr * 0.3);
+    ctx.fillRect(0, 0, fr * 0.3, h);
+    lightbox(ctx, fr, fr, w - fr * 2, h - fr * 2, color, seedOf(spec));
     const ink = dim(color, 0.012);
     layout(ctx, spec, w, h, inset + fr * 0.5, (text, x, y, px, weight) => {
       ctx.font = FONT(weight, px);
@@ -348,11 +391,7 @@ const DRAW = {
     }
   },
   board(ctx, spec, w, h) {
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, panel(spec.color, 1.1));
-    g.addColorStop(1, panel(spec.color, 0.8));
-    ctx.fillStyle = g;
-    ctx.fillRect(w * 0.04, h * 0.04, w * 0.92, h * 0.92);
+    lightbox(ctx, w * 0.04, h * 0.04, w * 0.92, h * 0.92, spec.color, seedOf(spec));
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = dim(spec.color, 0.012);
