@@ -282,7 +282,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // damp and darker for a hand's width round each: not a smear.)
             float pool = vnoise(pr * 0.47 + 2.0) * 0.5 + vnoise(pr.yx * 1.3) * 0.32 + vnoise(pr * 3.7) * 0.18;
             float brim = 0.68 - 0.06 * yard;
-            water = smoothstep(brim, brim + 0.02 + px, pool + 0.04 * tar) * (1.0 - scrap);
+            // (Its shore is a hand wide, shallow water thinning over the
+            // stone: a cut edge reads as a sticker laid on the flags.)
+            water = smoothstep(brim - 0.012, brim + 0.075 + px, pool + 0.04 * tar) * (1.0 - scrap);
             sheen = (0.3 + 0.16 * smoothstep(0.3, 0.7, pool) + 0.15 * tar) * (1.0 - 0.6 * joint);
             albedo *= mix(1.0, 0.45, water) * (1.0 - 0.22 * smoothstep(brim - 0.09, brim, pool));
           }
@@ -367,7 +369,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec3 sky = mix((hazeV * 1.2 + glowV * 0.5) * 0.4, SODIUM * 0.9, 0.85 * santoAt(vWorld.xz)) * uHaze;
             vec3 give = back * sheen * (0.15 + 0.85 * graze);
             #ifdef PAVING
-            if (water > 0.01) give = mix(give, (back * 1.4 + sky) * (0.25 + 0.75 * graze), water);
+            if (water > 0.01) give = mix(give, (back * 1.4 + sky * 0.55) * (0.25 + 0.75 * graze), water * water);
             #endif
             col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
           }
