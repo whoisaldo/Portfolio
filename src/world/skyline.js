@@ -2257,6 +2257,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         vec3 params = vParams;
         vec3 zoneTint = vec3(1.0);
         float zoneStart = 0.0;
+        float zoneOdd = 0.0;
         if (zoned > 0.001) {
           float storey = floor(vCells.y);
           // (A block's runs are two to four floors: ten floors of homes
@@ -2272,9 +2273,21 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           vec4 light = zoneLight(vKind.x, hash12(zone * vec2(5.3, 1.9) + vForm.z + 9.5));
           zoneTint = light.rgb;
           zoneStart = step(mod(sb, LB), 0.5);
-          params = mix(vParams, vec3(zh < share.x ? 1.25 : zh < share.y ? 0.45 + 0.3 * hash12(vec2(vForm.z, 6.6)) : mix(0.1, 0.22, low), vParams.y, light.a), zoned);
+          zoneOdd = mod(zone.y, 2.0);
+          // (A dark run seen close is a third lit: see below.)
+          float dark = mix(mix(0.1, 0.22, low), 0.34, (1.0 - smoothstep(90.0, 220.0, length(vWorld - uCam))) * step(vHero.x, 0.5));
+          params = mix(vParams, vec3(zh < share.x ? 1.25 : zh < share.y ? 0.45 + 0.3 * hash12(vec2(vForm.z, 6.6)) : dark, vParams.y, light.a), zoned);
         }
         vec4 win = windowsT(vCells, params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y);
+        // A tower seen close, from a street at the city's edge or a car in
+        // the air, is not a navy face with a few window strips: the rooms
+        // another run of its floors would have lit are lit as well (the same
+        // windows, dealt again along the floor). Not one the page holds.
+        float close = (1.0 - smoothstep(90.0, 220.0, length(vWorld - uCam))) * (1.0 - held) * step(vHero.x, 0.5);
+        if (close > 0.001) {
+          vec4 more = windowsT(vCells + vec2(37.0, 0.0), params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y);
+          win = mix(win, more, step(win.a + 0.01, more.a) * close);
+        }
         // Lit glass in the zone's light, and brighter than a room is: an
         // office floor left on.
         win.rgb *= mix(vec3(1.0), zoneTint * 1.3, zoned * clamp(win.a * 2.2, 0.0, 1.0));
@@ -2473,6 +2486,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           float pxY = fwidth(vCells.y);
           float fy = fract(vCells.y);
           float lines = step(abs(vKind.x - 5.0), 0.1);
+          // (Seen close, every tower is banded: every other run of floors
+          // begins at a line of light, the rest at a plant floor.)
+          lines = max(lines, step(0.5, close) * step(0.5, zoneOdd));
           if (zoneStart > 0.5 && lines > 0.5) {
             // A line of light round the tower where a run of floors begins.
             float k = mix(step(fy, 0.16), 0.16, smoothstep(0.35, 1.0, pxY));
