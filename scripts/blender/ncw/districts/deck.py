@@ -788,11 +788,27 @@ for o in (-1, 1):
         vface((DK, "hazard", 0), "x", PIER[0] + o * 1.012, a, b, _cy, _cy + 0.18, o)
 B.COLLISION.append(("box", PIER[0] - 2.0, PIER[0] + 2.0, 0.0, plan.DECK_UNDER, PIER[1] - 2.0, PIER[1] + 2.0, DK))
 keep_clear(PIER[0], PIER[1], 2.5)
-# What a car or a walker must not pass through of the embankments.
-for za, zb in ((FOOT, -200.0), (-200.0, -180.0), (-180.0, -165.0), (-165.0, EMB_Z)):
-    B.COLLISION.append(("box", XW, XE, 0.0, RY(zb) + PAR_H, za, zb, DK))
-for xa, xb in ((ABUT_X, 78.0), (78.0, 92.0), (92.0, MOUTH_X)):
-    B.COLLISION.append(("box", xa, xb, 0.0, DY(xa) + PAR_H, ZN, ZS, DK))
+# What a car or a walker must not pass through of the embankments: the
+# earth under the road and the two parapets, in five-metre lengths. Not the
+# road itself: a length's fill stops at the road's lowest point over it, so
+# the box's top is the road or under it and a car on the ramp is on a box,
+# never in one; the parapets' boxes stand to the top of the parapet at the
+# length's high end.
+def _lengths(a, b, step=5.0):
+    n = max(1, int(round((b - a) / step)))
+    return [(a + (b - a) * i / n, a + (b - a) * (i + 1) / n) for i in range(n)]
+
+
+for za, zb in _lengths(FOOT, EMB_Z):
+    if RY(za) > 0.05:
+        B.COLLISION.append(("box", XW + PAR, XE - PAR, 0.0, RY(za), za, zb, DK))
+    for xa, xb in ((XW, XW + PAR), (XE - PAR, XE)):
+        B.COLLISION.append(("box", xa, xb, 0.0, RY(zb) + PAR_H, za, zb, DK))
+for xa, xb in _lengths(ABUT_X, MOUTH_X):
+    if DY(xb) > 0.05:
+        B.COLLISION.append(("box", xa, xb, 0.0, DY(xb), ZN + PAR, ZS - PAR, DK))
+    for za, zb in ((ZN, ZN + PAR), (ZS - PAR, ZS)):
+        B.COLLISION.append(("box", xa, xb, 0.0, DY(xa) + PAR_H, za, zb, DK))
 
 # ---------------------------------------------------------------------------
 # THE UNDERSIDE. Ribs across the soffit every four metres and light panels
@@ -2261,7 +2277,15 @@ box((DK, "glow", 0), ST_X0 - 0.2, ST_X0 + 0.5, B.G0 + 2.5, B.G0 + 2.56, ST_Z1 - 
 face((DK, "paint", 1), [(ST_X0 - 0.9, B.G0 + PAINT, ZS), (ST_X0, B.G0 + PAINT, ZS), (ST_X0, B.G0 + PAINT, ZS + 1.0), (ST_X0 - 0.9, B.G0 + PAINT, ZS + 1.0)], (0, 1, 0), 1.0, YELLOW)
 pool(ST_X0 + 0.2, 2.4, ZS + 0.5, "white", 2.6)
 pool(ST_X1 - 1.0, ST_TOP + 1.0, ZS + 0.5, "amber", 2.0)
-B.COLLISION.append(("box", ST_X0, ST_X0 + 3.4, 0.0, 2.2, ST_Z0, ST_Z1, DK))
+# Under the first flight, where there is no room to stand: a box a tread
+# long under each of its first steps, its top the step's own height at its
+# low end, so the stair is walked up and not into.
+_x = ST_X0
+while _x < ST_X0 + 3.4 - 1e-6:
+    _top = B.G0 + (_x - ST_X0) * ST_RISE / ST_RUN
+    if _top - B.G0 > 0.3:
+        B.COLLISION.append(("box", _x, _x + 0.425, 0.0, _top - 0.05, ST_Z0, ST_Z1, DK))
+    _x += 0.425
 
 # ---------------------------------------------------------------------------
 # THE HIGH LINE. A second line at another height behind the turn
