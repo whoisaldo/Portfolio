@@ -26,7 +26,14 @@ export function createCover(renderer, { x0, z0, x1, z1 }, { size = 2048 } = {}) 
   camera.lookAt(0, 0, 0);
   camera.updateMatrixWorld(true);
   const stage = new THREE.Scene();
-  stage.overrideMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, side: THREE.DoubleSide });
+  // A shader of its own, which draws the kit's cell-cut meshes (merge.js,
+  // Tiled) as it draws any other; three's own materials would not.
+  stage.overrideMaterial = new THREE.ShaderMaterial({
+    colorWrite: false,
+    side: THREE.DoubleSide,
+    vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: "void main() { gl_FragColor = vec4(0.0); }",
+  });
   const hidden = [];
 
   return {

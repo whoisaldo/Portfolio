@@ -31,7 +31,7 @@ import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { attributeKey, mergeMeshes, splitByTile } from "./merge.js";
+import { attributeKey, mergeMeshes, createCells, Tiled } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -40,10 +40,8 @@ export const REFLECT_LAYER = 2;
 export const MIRROR_LAYER = 3;
 
 const cache = new Map();
-// The kit's tiles, metres on a side, and the fewest triangles a material
-// needs before it is cut into them (see the merge below).
-const TILE = 256;
-const TILE_MIN_TRIS = 40000;
+// The cells the kit is drawn by, metres on a side (see the merge below).
+const CELL = 48;
 
 // The signs across the rooftop's roof, which its puddles hold and its steam
 // is lit by.
@@ -366,16 +364,16 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   road.setStreaks(light.streaks, light.streakBounds);
   paint.setStreaks(light.streaks, light.streakBounds);
 
-  // One draw per material and TILE-metre tile (see merge.js): merged, then
-  // cut into tiles that share its buffers, so the camera culls the tiles
-  // behind it and the city's size does not cost every frame. What the bake
+  // One draw per material (see merge.js): merged, its index in the order of
+  // CELL-metre cells of ground, and of those only the cells a camera holds
+  // are drawn, so the city's size does not cost every frame. What the bake
   // needed from the meshes one by one it has had; from here the kit is
   // static.
   // Per material, the merged geometry of every part of the city that has
-  // arrived, cut into tiles: a streamed pack's share is merged into it and
-  // the tiles cut again, so a material is one draw a tile however many
-  // packs it came in.
+  // arrived: a streamed pack's share is merged into it and the cells cut
+  // again, so a material is one draw however many packs it came in.
   const merged = new Map();
+  const cells = createCells(CELL);
   // The wet road's mirror draws only what glows or is glazed (the reflect
   // layer), so it saw straight through every other wall to the signs
   // behind it. Each wall's merged mesh gets a twin for the mirror alone:
@@ -384,7 +382,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // them and keep that picture: the twins are shown only to a camera that
   // is driven (a drive, a walk, the braindance), see setOccluders.
   const OCCLUDES = new Set(["trim", "concrete", "castconcrete", "plaster", "corrugated", "container", "tankplate", "dark", "glass_dark", "door", "door_panel", "board_frame"]);
-  const occluder = quality.reflection > 0 ? new THREE.MeshBasicMaterial({ color: new THREE.Color(0.004, 0.006, 0.011), side: THREE.DoubleSide, toneMapped: false }) : null;
+  const occluder = quality.reflection > 0
+    ? new THREE.ShaderMaterial({
+      name: "occluder",
+      side: THREE.DoubleSide,
+      vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      fragmentShader: "void main() { gl_FragColor = vec4(0.004, 0.006, 0.011, 1.0); }",
+    })
+    : null;
   const occluders = new THREE.Group();
   occluders.name = "occluders";
   occluders.visible = false;
@@ -403,37 +408,31 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       if (prev) {
         const both = mergeGeometries([prev.whole, whole], false);
         whole.dispose();
-        for (const m of prev.meshes) {
-          m.removeFromParent();
-          m.userData.twin?.removeFromParent();
-          m.geometry.dispose();
-        }
+        prev.mesh.removeFromParent();
+        prev.mesh.userData.twin?.removeFromParent();
         prev.whole.dispose();
         both.computeBoundingSphere();
         both.computeBoundingBox();
         whole = both;
       }
-      // Only what is heavy is worth a draw per tile: a material with a few
-      // thousand triangles costs less drawn whole than culled in pieces.
-      const pieces = whole.index.count / 3 > TILE_MIN_TRIS ? splitByTile(whole, TILE) : [{ key: "all", geometry: whole }];
-      const made = pieces.map(({ key: tile, geometry }) => {
-        const mesh = new THREE.Mesh(geometry, list[0].material);
-        mesh.name = `kit_${list[0].material.name}_${tile}`;
-        mesh.layers.mask = list[0].layers.mask;
-        mesh.renderOrder = list[0].renderOrder;
-        mesh.matrixAutoUpdate = false;
-        root.add(mesh);
-        if (occluder && OCCLUDES.has(list[0].material.name) && !mesh.layers.isEnabled(REFLECT_LAYER)) {
-          const twin = new THREE.Mesh(geometry, occluder);
-          twin.name = `occ_${list[0].material.name}_${tile}`;
-          twin.layers.set(MIRROR_LAYER);
-          twin.matrixAutoUpdate = false;
-          occluders.add(twin);
-          mesh.userData.twin = twin;
-        }
-        return mesh;
-      });
-      merged.set(key, { whole, meshes: made });
+      // What blends is drawn whole, in the order it was built: its picture
+      // depends on that order.
+      const material = list[0].material;
+      const mesh = material.transparent ? new THREE.Mesh(whole, material) : new Tiled(whole, material, cells);
+      mesh.name = `kit_${material.name}`;
+      mesh.layers.mask = list[0].layers.mask;
+      mesh.renderOrder = list[0].renderOrder;
+      mesh.matrixAutoUpdate = false;
+      root.add(mesh);
+      if (occluder && OCCLUDES.has(material.name) && !mesh.layers.isEnabled(REFLECT_LAYER)) {
+        const twin = mesh.runs ? new Tiled(whole, occluder, cells, mesh.runs) : new THREE.Mesh(whole, occluder);
+        twin.name = `occ_${material.name}`;
+        twin.layers.set(MIRROR_LAYER);
+        twin.matrixAutoUpdate = false;
+        occluders.add(twin);
+        mesh.userData.twin = twin;
+      }
+      merged.set(key, { whole, mesh });
       for (const mesh of list) mesh.removeFromParent();
     }
   };
