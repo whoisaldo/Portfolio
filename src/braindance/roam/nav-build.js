@@ -82,7 +82,11 @@ const BLOCK = TILE * 4;
  *              a kerb (a drive's apron that the kit builds as a kerb)
  *   keepAll    keep the floors no flood reached too (for looking at why)
  *   diagnose   also report where reached ground ends at nothing (`voids`)
- *              or at a drop (`drops`), as { "x,z": cells } on an 8 m grid
+ *              or at a drop (`drops`), as { "x,z": cells } on an 8 m grid,
+ *              and the edges themselves (`edges`): runs of reached ground
+ *              with nothing at all beside it, as [axis, at, from, to, side]
+ *              (axis 0: the edge runs along z at x = `at`, nothing on the
+ *              -x side for side -1; axis 1 the same along x)
  *
  * Returns { x0, z0, tw, th, tiles, stats } with tiles a list of
  * { i, y, m, xc, xy, xm } (i = tz * tw + tx; y and m per cell, the lowest
@@ -372,11 +376,14 @@ export function buildNav({ positions, index, parts = null, boxes, seals = null, 
           const nx = sNext[s];
           const top = sHi[s];
           const gap = nx === -1 ? 99 : sLo[nx] - top;
+          // Something stands in this column, floor or none: it is not the
+          // edge of everything (the diagnosis below tells the two apart).
+          if (first && !tile) tile = tiles[ti] = { i: ti, y: new Int16Array(N).fill(NONE), m: new Uint8Array(N), xc: null, xy: null, xm: null };
+          if (first && tile.y[cell] === NONE) tile.m[cell] = 1;
           if (gap >= CAR_CLEAR && top < Y_TOP - 0.01) {
             const y = Math.round(top * UNIT);
             const m = headroom(gap);
             if (first) {
-              if (!tile) tile = tiles[ti] = { i: ti, y: new Int16Array(N).fill(NONE), m: new Uint8Array(N), xc: null, xy: null, xm: null };
               tile.y[cell] = y;
               tile.m[cell] = m;
               first = false;
@@ -607,7 +614,16 @@ export function buildNav({ positions, index, parts = null, boxes, seals = null, 
   // ---- where the reached ground just ends (for whoever closes the edges) ----
   const voids = {};
   const drops = {};
+  const edges = [];
   if (diagnose) {
+    // Reached cells with nothing beside them, by the line the edge lies on.
+    const lines = new Map();
+    const edge = (axis, at, along, side) => {
+      const key = `${axis},${at},${side}`;
+      let list = lines.get(key);
+      if (!list) lines.set(key, (list = []));
+      list.push(along);
+    };
     const note = (into, gx, gz) => {
       const key = `${Math.round((x0 + gx * CELL) / 8) * 8},${Math.round((z0 + gz * CELL) / 8) * 8}`;
       into[key] = (into[key] ?? 0) + 1;
@@ -624,10 +640,14 @@ export function buildNav({ positions, index, parts = null, boxes, seals = null, 
           const nz = gz + (d === 2 ? 1 : d === 3 ? -1 : 0);
           const other = nx < 0 || nz < 0 || nx >= W || nz >= H ? null : tiles[(nz >> 6) * tw + (nx >> 6)];
           const oc = (nz & 63) * TILE + (nx & 63);
-          if (!other || other.y[oc] === NONE) {
+          // No floor there and nothing standing there either.
+          if (!other || (other.y[oc] === NONE && other.m[oc] === 0)) {
             note(voids, gx, gz);
+            if (d < 2) edge(0, x0 + (d === 0 ? gx + 1 : gx) * CELL, z0 + gz * CELL, d === 0 ? 1 : -1);
+            else edge(1, z0 + (d === 2 ? gz + 1 : gz) * CELL, x0 + gx * CELL, d === 2 ? 1 : -1);
             return;
           }
+          if (other.y[oc] === NONE) continue;
           // Nothing within two metres below or a step above: a drop.
           let top = other.y[oc];
           if (other.m[oc] & MORE) for (let e = firstExtra(other, oc); e !== -1 && e < other.xc.length && other.xc[e] === oc; e++) if (other.xy[e] <= fy + UNIT) top = Math.max(top, other.xy[e]);
@@ -639,6 +659,21 @@ export function buildNav({ positions, index, parts = null, boxes, seals = null, 
       };
       for (let cell = 0; cell < N; cell++) if (tile.y[cell] !== NONE && tile.m[cell] & WALK) look(cell, tile.y[cell]);
       if (tile.xc) for (let e = 0; e < tile.xc.length; e++) if (tile.xm[e] & WALK) look(tile.xc[e], tile.xy[e]);
+    }
+    // Joined into runs (a gap of under a metre is the same run).
+    for (const [key, list] of lines) {
+      const [axis, at, side] = key.split(",").map(Number);
+      list.sort((p, q) => p - q);
+      let from = list[0];
+      let to = list[0];
+      for (let n = 1; n <= list.length; n++) {
+        if (n < list.length && list[n] - to <= 1) {
+          to = list[n];
+          continue;
+        }
+        if (to - from >= 0.5) edges.push([axis, at, from, to + CELL, side]);
+        from = to = list[n];
+      }
     }
   }
 
@@ -709,6 +744,7 @@ export function buildNav({ positions, index, parts = null, boxes, seals = null, 
       openBoxes,
       voids,
       drops,
+      edges,
       cells: W * H,
       floors,
       walked,
