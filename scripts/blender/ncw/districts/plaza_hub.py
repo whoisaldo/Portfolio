@@ -206,7 +206,7 @@ for j, n in enumerate((8, 16, 24, 32)):
         a0, a1 = (i + 0.5 * (j % 2)) * math.tau / n, (i + 1 + 0.5 * (j % 2)) * math.tau / n
         g0 = 0.05 / max(r0, 1.0)
         edge = 1.4 if j == 3 else 1.0   # brighter by the shop windows
-        tone = dim("white", rh.uniform(0.9, 1.4) * edge) if rh.random() < 0.7 else dim("amber", rh.uniform(0.3, 0.45) * edge)
+        tone = dim("white", rh.uniform(0.55, 0.95) * edge) if rh.random() < 0.7 else dim("amber", rh.uniform(0.22, 0.34) * edge)
         tone = tone if rh.random() < 0.9 else dim("teal", 0.4)
         up_poly((PL, "glow", 0), [at(r0, a0 + g0), at(r0, a1 - g0), at(r1, a1 - g0), at(r1, a0 + g0)] if j else [at(0.0, 0.0), at(r1, a0 + g0), at(r1, a1 - g0)],
                 FLOOR, tone)
