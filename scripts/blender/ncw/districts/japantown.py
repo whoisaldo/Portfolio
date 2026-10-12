@@ -878,16 +878,53 @@ def lane_stuff(f, s, room, r, alley):
     return wd
 
 
-def deck_face(f, h, r, door_s=None):
-    """A wall beside the deck's gap (the deck's stair climbs along the south
-    one, half a metre off it, so nothing here stands further out than a
-    hand): render over both floors, framed windows on each with most of
-    them lit, pipes, meters, vents, a small unit, a conduit, a sign of bent
-    tube, and (`door_s`) a door under its lamp where the stair starts."""
+# The deck's stair (deck.py, ST_*): two flights and a landing up the south
+# wall of the gap, 5 cm off it (z -74.95..-74.05), from x -65.2 at 0.15 m to
+# x -49.4 at 8.65 m. What stands out from that wall keeps out of the band
+# the stair fills at its x: its soffit 0.2 m under the treads, its rails
+# 1.1 m over them.
+STAIR_X, STAIR_LAND, STAIR_Y = (-65.2, -49.4), 1.2, (B.G0, plan.DECK_Y + 0.15)
+
+
+def stair_band(x):
+    x0, x1 = STAIR_X
+    if not x0 - 0.3 < x < x1 + 0.3:
+        return None
+    run, rise = (x1 - x0 - STAIR_LAND) / 2, (STAIR_Y[1] - STAIR_Y[0]) / 2
+    u = min(max(x - x0, 0.0), x1 - x0)
+    y = STAIR_Y[0] + rise * (min(u, run) / run) + (rise * min(max(u - run - STAIR_LAND, 0.0), run) / run)
+    return y - 0.25, y + 1.2
+
+
+def clear_of_stair(f, s0, s1, y0, y1, stair):
+    if not stair:
+        return True
+    for t in (0.0, 0.25, 0.5, 0.75, 1.0):
+        b = stair_band(f.at(s0 + (s1 - s0) * t))
+        if b and y0 < b[1] and y1 > b[0]:
+            return False
+    return True
+
+
+def deck_face(f, h, r, door_s=None, stair=False):
+    """A wall beside the deck's gap (`stair`: the south one, along which the
+    deck's stair climbs 5 cm off it; nothing that stands out from it is
+    where the stair is): render over both floors, framed windows on each
+    with most of them lit, pipes, meters, vents, a small unit, a conduit, a
+    sign of bent tube, and (`door_s`) a door under its lamp, under the
+    stair's landing."""
     w = f.width
+    ok = lambda s0, s1, y0, y1: clear_of_stair(f, s0, s1, y0, y1, stair)  # noqa: E731
     f.quad((D, "plaster", 0), 0.0, w, 0.0, h, 0.0, col=r.choice(LANE_WALLS))
     f.box((D, "trim", 1), 0.0, w, 0.0, 0.95, 0.0, 0.05, col=(0.2, 0.2, 0.21, 1))
-    conduit(f, 0.15, w - 0.15, G0 + 3.05, 0.05)
+    cs = [0.15]
+    for t in range(1, 60):
+        if ok(cs[-1], 0.15 + (w - 0.3) * t / 59, G0 + 3.0, G0 + 3.12) != ok(cs[-1], cs[-1], G0 + 3.0, G0 + 3.12):
+            cs.append(0.15 + (w - 0.3) * t / 59)
+    cs.append(w - 0.15)
+    for a, b in zip(cs, cs[1:]):
+        if b - a > 0.4 and ok((a + b) / 2, (a + b) / 2, G0 + 3.0, G0 + 3.12):
+            conduit(f, a, b, G0 + 3.05, 0.05)
     end = w - 0.6
     if door_s is not None:
         lane_door(f, door_s, r)
@@ -897,29 +934,39 @@ def deck_face(f, h, r, door_s=None):
         roll = r.random()
         if roll < 0.5 and end - s > 1.8:
             kind = r.choice(WINDOWS[1:4])
-            lane_window(f, s + 0.12, r, kind)
+            if ok(s, s + kind[0] + 0.25, kind[2] - 0.15, kind[2] + kind[1] + 0.12):
+                lane_window(f, s + 0.12, r, kind)
             s += kind[0] + 0.3
         elif roll < 0.68:
-            J.put("jt_pipes", *f.p(f.at(s + 0.4), G0, 0.0), f.yaw)
+            if ok(s, s + 0.8, 0.0, 4.6):
+                J.put("jt_pipes", *f.p(f.at(s + 0.4), G0, 0.0), f.yaw)
             s += 0.8
         elif roll < 0.8 and end - s > 1.3:
-            J.put("jt_meters", *f.p(f.at(s + 0.6), G0, 0.0), f.yaw)
+            if ok(s, s + 1.2, 0.0, 3.5):
+                J.put("jt_meters", *f.p(f.at(s + 0.6), G0, 0.0), f.yaw)
             s += 1.2
         elif roll < 0.9:
-            J.put("jt_vent", *f.p(f.at(s + 0.42), G0, 0.0), f.yaw)
+            if ok(s, s + 0.85, 0.0, 2.7):
+                J.put("jt_vent", *f.p(f.at(s + 0.42), G0, 0.0), f.yaw)
             s += 0.85
         else:
-            J.put("jt_ac", *f.p(f.at(s + 0.45), G0, 0.0), f.yaw, 1.0, 0.75)
+            if ok(s, s + 0.9, 0.0, 3.1):
+                J.put("jt_ac", *f.p(f.at(s + 0.45), G0, 0.0), f.yaw, 1.0, 0.75)
             s += 0.9
         s += r.uniform(0.3, 1.0)
     # The floor over: a window a bay, under 7.5 m (see the module's note).
     s = r.uniform(0.8, 1.6)
     while s + 1.3 < w - 0.5:
-        if r.random() < 0.85:
+        if r.random() < 0.85 and ok(s - 0.1, s + 1.3, SHOP_H + 0.85, SHOP_H + 2.45):
             lane_window(f, s, r, (1.2, 1.3, SHOP_H + 1.0))
         s += r.uniform(2.6, 3.4)
-    cx, _, cz = f.p(f.at(min(w - 4.2, max(3.0, end - 2.6))), 0.0, 0.14)
-    J.tube_sign((cx, 4.15, cz), f.yaw, 2.8, 0.95, r.choice(("pink", "cyan", "amber", "green")), r, both=False)
+    sc_ = min(w - 4.2, max(3.0, end - 2.6))
+    cx, _, cz = f.p(f.at(sc_), 0.0, 0.14)
+    if ok(sc_ - 1.6, sc_ + 1.6, 3.5, 4.8):
+        J.tube_sign((cx, 4.15, cz), f.yaw, 2.8, 0.95, r.choice(("pink", "cyan", "amber", "green")), r, both=False)
+    else:
+        r.choice(("pink", "cyan", "amber", "green"))
+        J._burn(r, 2.8, 0.95)
     light(D, *f.p(f.at(w / 2), 2.6, 0.9), "amber", 2.5)
 
 
@@ -932,7 +979,9 @@ def deck_lot(rec):
     name, far = ("-z", "+z") if south else ("+z", "-z")
     f = face(rec, name)
     # (A hair proud of the generator's own windowed side.)
-    deck_face(B.Face(name, f.plane + 0.03 * f.nz, f.a0, f.a1), rec["h"], r, door_s=15.35 if south else None)
+    # (The door to the flats stands under the stair's landing, x -57.3: at its
+    # foot it opened onto the treads.)
+    deck_face(B.Face(name, f.plane + 0.03 * f.nz, f.a0, f.a1), rec["h"], r, door_s=7.3 if south else None, stair=south)
     x0, x1, z0, z1, _, top = rec["tiers"][-1]
     over = lot.neighbours.get(far, 0.0) - top
     if over > 2.8:
@@ -3188,6 +3237,18 @@ def _fold(src_key, dst_key):
 print("japantown: thin frames to detail:", _thin_to_detail("board_frame", 0.08), "triangles; folded:",
       [(k_[1], _fold(k_, v_)) for k_, v_ in (((D, "neon_purple", 0), (D, "neon_magenta", 0)), ((D, "neon_teal", 0), (D, "neon_cyan", 0)),
                                            ((D, "metal", 0), (D, "metal", 1)), ((D, "clearglass", 0), (D, "clearglass", 1)))])
+# What of Japantown's stands by the deck's stair (the walk agent's check):
+# every prop within the stair's x and a metre of its wall, its box against
+# the stair's band at its x.
+_st = []
+for nm_, x_, y_, z_, yaw_, sy_, sxz_, d_ in P.INSTANCES:
+    if d_ == D and STAIR_X[0] - 1.0 < x_ < STAIR_X[1] + 0.5 and -75.2 < z_ < -73.5:
+        bx_ = P.PROTOS[nm_]["box"]
+        hi_ = y_ + 2.0 * bx_[1] * sy_
+        b_ = [stair_band(x_ + dx_) for dx_ in (-bx_[0] * sxz_, 0.0, bx_[0] * sxz_)]
+        hit_ = any(b and y_ < b[1] and hi_ > b[0] for b in b_)
+        _st.append((nm_, round(x_, 2), round(z_, 2), round(y_, 2), round(hi_, 2), "HIT" if hit_ else "clear"))
+print("japantown by the deck's stair:", _st)
 if os.environ.get("JT_SMALL"):
     def _area(b, fc):
         import mathutils
