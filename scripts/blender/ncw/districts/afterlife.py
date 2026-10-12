@@ -75,6 +75,20 @@ def lot(x0, x1, z0, z1, h, seed, sides, nb=None, style=None, roof=False, **kw):
 F = SHOP_H + CELL_H  # a storey over the shops: heights are SHOP_H + n storeys
 
 
+class own_ids:
+    """Signs added since round 3 draw their designs from a stream of their
+    own, so every sign built after them keeps the design it had."""
+
+    def __init__(self, seed):
+        self.seed = seed
+
+    def __enter__(self):
+        self.saved, K._ids = K._ids, random.Random(self.seed)
+
+    def __exit__(self, *exc):
+        K._ids = self.saved
+
+
 def storeys(n):
     return SHOP_H + n * CELL_H
 
@@ -546,6 +560,32 @@ for sv in (12.9, 17.1):
 K.cable(D, GF.p(GF.at(17.4), 5.62, 0.2), GF.p(GF.at(19.0), 5.5, 0.25), 0.22, r=0.02, steps=5)
 K.cable(D, GF.p(GF.at(12.6), 5.62, 0.2), GF.p(GF.at(11.0), 5.5, 0.25), 0.22, r=0.02, steps=5)
 K.awning(D, GF, 21.5, 28.7, col=K.RUST, out=1.5, y=3.25)
+# Its upper storey (the m6 review: "a mostly blank grey band with three
+# black boxes"): the office's windows lit behind blinds between the units,
+# MOTOR in tube over them, a board and a blade, a duct from a vent up to the
+# roof, cables slung along under the coping, two lamps over the apron, a
+# camera on the corner. All within half a metre of the wall south of the
+# door, where the page flies out over the roof to Contact.
+for sv in (3.45, 6.55):
+    K.window(D, GF, sv, 5.62, rg, lit=1.0, style=3, over="blind", out=0.05)
+K.word(D, *GF.p(GF.at(4.2), 7.75, 0.12), 4.6, 0.85, GF.yaw, "amber", "MOTOR", underline="pink", r=0.045)
+with own_ids(95400):
+    K.board(D, *GF.p(GF.at(27.3), 7.55, 0.1), "pm", GF.yaw)
+    K.blade(D, EL, GF.at(0.25), 6.4, "bm", GF.yaw - 0.35)
+GF.box((D, "metal", 1), 10.25, 11.05, 4.75, 8.45, 0.0, 0.4)
+GF.box((D, "metal", 1), 10.05, 11.25, 5.2, 5.95, 0.0, 0.45)
+for k in range(4):
+    GF.box((D, "dark", 1), 10.12, 11.18, 5.3 + k * 0.16, 5.36 + k * 0.16, 0.45, 0.47)
+for a_, b_, y_ in ((0.2, 10.0, 8.15), (19.4, 29.8, 8.2)):
+    K.cable(D, GF.p(GF.at(a_), y_, 0.08), GF.p(GF.at(b_), y_ + 0.05, 0.08), 0.32, r=0.022, steps=7)
+    K.cable(D, GF.p(GF.at(a_ + 0.4), y_ - 0.1, 0.1), GF.p(GF.at(b_ - 0.6), y_ - 0.05, 0.1), 0.45, r=0.018, steps=7)
+for sv in (11.6, 18.4):
+    GF.box((D, "metal", 1), sv - 0.04, sv + 0.04, 7.6, 7.68, 0.0, 0.55)
+    GF.box((D, "glow", 0), sv - 0.18, sv + 0.18, 7.45, 7.6, 0.35, 0.6, col=GLOW["white"])
+# (Their light is the shut door's own lamp's: thrown on the shutter, which
+# takes light strongly, they made it the brightest thing on the street.)
+GF.box((D, "metal", 1), 0.05, 0.35, 7.9, 8.1, 0.0, 0.3)
+GF.box((D, "dark", 1), 0.08, 0.32, 7.65, 7.9, 0.2, 0.5)
 # The forecourt: a tool cart by the office window, drums by the wall.
 tx_, tz_ = 451.15, -208.9
 box((D, "tool_red", 1), tx_ - 0.3, tx_ + 0.3, G0 + 0.14, G0 + 0.95, tz_ - 0.45, tz_ + 0.45, scale=1.0)
@@ -1281,7 +1321,21 @@ CB = B.Face("-x", EL, -344.0, -316.0)      # s runs south from its north end
 rb = random.Random(9213)
 CB_TINT = T["charcoal"]
 CB_TRIM = B.TRIM[CB_TINT]
-B.facade_wall((D, "facade", 0), CB, SHOP_H, storeys(7), B.wall_col(0.8, 0, 0.7, CB_TINT), 11)
+# (Not one grid of one window, as the m6 review found it: the flats change
+# every two storeys, each band its own window, light and warmth, and up the
+# north and south ends a column of signs and a strip of light.)
+for k0, k1, lit_, style_, warm_ in ((0, 2, 0.85, 0, 0.8), (2, 4, 0.55, 6, 0.45), (4, 6, 0.8, 3, 0.95), (6, 7, 0.9, 1, 0.3)):
+    B.facade_wall((D, "facade", 0), CB, SHOP_H + k0 * CELL_H, SHOP_H + k1 * CELL_H, B.wall_col(lit_, style_, warm_, CB_TINT), 11 + 3 * k0)
+for k in (2, 4, 6):
+    CB.ledge((D, "trim", 0), 0.0, 28.0, SHOP_H + k * CELL_H - 0.3, 0.3, 0.42, CB_TRIM)
+with own_ids(95500):
+    K.stack(D, EL, CB.at(0.7), 6.2, 5, CB.yaw - 0.35)
+    K.blade(D, EL, CB.at(27.3), 15.5, "bl", CB.yaw + 0.3)
+    K.blade(D, EL, CB.at(27.3), 9.8, "bm", CB.yaw + 0.3)
+    for sv, yy, size_ in ((6.8, 11.0, "pm"), (20.6, 18.0, "pm"), (11.0, 21.4, "ps")):
+        K.board(D, *CB.p(CB.at(sv), yy, 0.14), size_, CB.yaw)
+CB.box((D, "neon_pink", 0), 0.12, 0.2, SHOP_H + 0.4, storeys(7) - 0.6, 0.0, 0.08)
+CB.box((D, "neon_cyan", 0), 27.8, 27.88, SHOP_H + 0.4, storeys(7) - 0.6, 0.0, 0.08)
 for a_, b_, signed in ((0.0, 6.4, 0.9), (9.6, 12.8, 0.0), (15.2, 21.6, 0.9), (24.8, 28.0, 0.0)):
     B.shopfront(D, CB, rb, a_, b_, CB_TINT, signed, 0.0, door=False, palette=WATSON["shop_colours"])
     light(D, EL - 1.4, 2.2, CB.at((a_ + b_) / 2), "amber", 3.0)
@@ -1299,7 +1353,7 @@ B.ground_rect(D, EL, EL + 0.95, CB.at(13.06), CB.at(14.94))
 K.lit_door(D, CB, 14.0, "cyan", w=1.2, h=2.4, power=4.5, back=0.92)
 CB.box((D, "neon_cyan", 0), 13.3, 14.7, 2.92, 3.0, 0.0, 0.06)
 K.pipes(D, CB, 0.6, 27.4, 5.02, rb, n=3)
-K.dress(D, CB, storeys(7), rb, dict(ST, balcony=0.22, ac=0.45, signs=0.5), CB_TINT, escape=18.4)
+K.dress(D, CB, storeys(7), rb, dict(ST, balcony=0.34, ac=0.5, signs=0.5, ledge_every=0), CB_TINT, escape=18.4)
 for sv, yy, size, ang in ((9.6, 5.7, "bx", -0.3), (15.2, 6.6, "bs", 0.4), (24.8, 5.6, "bx", -0.35)):
     K.blade(D, EL, CB.at(sv), yy, size, CB.yaw + ang)
 # What stands on the pavement against it, and who.
