@@ -84,7 +84,39 @@ def hidden_top(occ, x0, x1, z0, z1, y0, want, plaza=False, step=2.0, pad=1.0, le
 # Walls, roofs, edges.
 # ---------------------------------------------------------------------------
 def wall(key, f, y0, y1, col, ov, s0=0.0, s1=None):
-    B.facade_wall((key, "facade", 0), f, y0, y1, col, ov, s0, s1)
+    """Window cells over a face in the canyon's module: half the avenue's
+    bay (1.6 m), and for the ribbon and curtain-wall styles two ribbons to
+    a storey, so a tower's face counts as many small windows as the show's
+    megablocks do and reads tall. Storeys stay on the floor lines."""
+    s1 = f.width if s1 is None else s1
+    w = s1 - s0
+    if w < 0.5 or y1 - y0 < 0.3:
+        return
+    kv = 2 if round(col[1] * 8) in (2, 4, 5) else 1
+    bays = max(1, round(w / CELL_W)) * 2
+    v0, v1 = (ov + (y0 - SHOP_H) / CELL_H) * kv, (ov + (y1 - SHOP_H) / CELL_H) * kv
+    f.quad((key, "facade", 0), s0, s1, y0, y1, 0.0, ((0, v0), (bays, v0), (bays, v1), (0, v1)), col)
+
+
+def balcony(key, f, s0, s1, y, col, out=1.0):
+    """A balcony at a floor line: a slab, a solid front and ends."""
+    fbox((key, "trim", 1), f, s0, s1, y - 0.14, y, 0.0, out, col)
+    a, b = f.at(s0), f.at(s1)
+    pa, pb, wa, wb = f.p(a, y, out), f.p(b, y, out), f.p(a, y, 0.0), f.p(b, y, 0.0)
+    up = lambda q: (q[0], y + 1.0, q[2])  # noqa: E731
+    quad((key, "trim", 1), pa, pb, up(pb), up(pa), col=col)
+    quad((key, "trim", 1), wa, pa, up(pa), up(wa), col=col)
+    quad((key, "trim", 1), pb, wb, up(wb), up(pb), col=col)
+
+
+def brace(key, f, s0, s1, y0, y1, col, wd=0.22, out=0.12):
+    """A cross of bracing over a stretch of wall, seen from outside."""
+    for sa, sb in ((s0, s1), (s1, s0)):
+        a, b = f.p(f.at(sa), y0, out), f.p(f.at(sb), y1, out)
+        if sa < sb:
+            quad((key, "trim", 1), (a[0], a[1] - wd, a[2]), (b[0], b[1] - wd, b[2]), (b[0], b[1] + wd, b[2]), (a[0], a[1] + wd, a[2]), col=col)
+        else:
+            quad((key, "trim", 1), (b[0], b[1] - wd, b[2]), (a[0], a[1] - wd, a[2]), (a[0], a[1] + wd, a[2]), (b[0], b[1] + wd, b[2]), col=col)
 
 
 def roof(key, x0, x1, z0, z1, y, mat="roof"):
@@ -1016,27 +1048,119 @@ def service_wall(f, r, key=CB):
 # ---------------------------------------------------------------------------
 # A roof from the air: plant, light and structure, nothing over `cap`.
 # ---------------------------------------------------------------------------
+def _low_unit(key, px, pz, y, r, hw=0.8, hd=0.5):
+    """A low condenser: a cabinet under a parapet's height, a dark grille
+    on its top, a pilot lamp."""
+    box((key, "metal", 0), px - hw, px + hw, y, y + 0.7, pz - hd, pz + hd, scale=0.8)
+    flat((key, "dark", 1), px - hw + 0.12, px + hw - 0.12, pz - hd + 0.12, pz + hd - 0.12, y + 0.705)
+    flat((key, "glow", 0), px + hw - 0.3, px + hw - 0.18, pz - hd + 0.02, pz - hd + 0.1, y + 0.71, GLOW[r.choice(("green", "amber", "red"))])
+
+
+def roof_edge(key, x0, x1, z0, z1, y, hue, every=4.6):
+    """Small lamps at intervals round a roof just inside its parapet: from
+    the air every roof is drawn in dots of light."""
+    c = dim(hue, 0.9)
+    for xa, za, xb, zb in ((x0, z0, x1, z0), (x1, z0, x1, z1), (x1, z1, x0, z1), (x0, z1, x0, z0)):
+        n = max(1, round(math.hypot(xb - xa, zb - za) / every))
+        for i in range(n):
+            px, pz = xa + (xb - xa) * (i + 0.5) / n, za + (zb - za) * (i + 0.5) / n
+            flat((key, "glow", 0), px - 0.13, px + 0.13, pz - 0.13, pz + 0.13, y + 0.07, c)
+
+
+def roof_low(key, x0, x1, z0, z1, y, r, pad=True):
+    """What a roof holds that stays under its parapet (0.8 m at most), so a
+    lens low on the avenue never sees it: a walkway of grating down its
+    length, duct runs on low legs, low condensers with a pilot lamp,
+    hatches, skylights in strips, and on a broad roof a landing pad's ring."""
+    w, d = x1 - x0, z1 - z0
+    if w < 2.5 or d < 2.5:
+        return
+    lz = d >= w
+    a0, a1, b0, b1 = (z0, z1, x0, x1) if lz else (x0, x1, z0, z1)
+    bm, bw = (b0 + b1) / 2, (b1 - b0)
+    rect = (lambda u0, u1, v0, v1: (v0, v1, u0, u1)) if lz else (lambda u0, u1, v0, v1: (u0, u1, v0, v1))
+    flat((key, "metal", 1), *rect(a0, a1, bm - 0.32, bm + 0.32), y + 0.03)
+    ring = None
+    if pad and bw > 13.0 and a1 - a0 > 16.0:
+        ring = ((a0 + a1) / 2, 4.6)
+        cx, cz = (bm, ring[0]) if lz else (ring[0], bm)
+        for i in range(24):
+            t0, t1 = i * math.tau / 24, (i + 1) * math.tau / 24
+            quad((key, "glow", 0), (cx + 4.6 * math.cos(t1), y + 0.05, cz + 4.6 * math.sin(t1)), (cx + 4.6 * math.cos(t0), y + 0.05, cz + 4.6 * math.sin(t0)),
+                 (cx + 4.3 * math.cos(t0), y + 0.05, cz + 4.3 * math.sin(t0)), (cx + 4.3 * math.cos(t1), y + 0.05, cz + 4.3 * math.sin(t1)), col=dim("amber", 0.8))
+        flat((key, "glow", 0), cx - 1.6, cx + 1.6, cz - 0.14, cz + 0.14, y + 0.05, dim("white", 0.6))
+        flat((key, "glow", 0), cx - 0.14, cx + 0.14, cz - 1.6, cz + 1.6, y + 0.05, dim("white", 0.6))
+    half = bw / 4 - 0.5
+    if half < 0.45:
+        return
+    u = a0 + 2.2
+    while u < a1 - 1.6:
+        for sgn in (-1, 1):
+            v = bm + sgn * (bw / 4 + 0.25)
+            if ring and abs(u - ring[0]) < ring[1] + 1.6:
+                continue
+            kind = r.random()
+            if kind < 0.3:
+                hw, hd = (min(half, 0.55), 0.9) if lz else (0.9, min(half, 0.55))
+                _low_unit(key, *((v, u) if lz else (u, v)), y, r, hw, hd)
+            elif kind < 0.52:
+                xa, xb, za, zb = rect(u - 1.7, u + 1.7, v - 0.25, v + 0.25)
+                box((key, "metal", 1), xa, xb, y + 0.22, y + 0.66, za, zb, scale=1.0, bottom=True)
+                for du in (-1.4, 1.4):
+                    la = rect(u + du - 0.06, u + du + 0.06, v - 0.2, v + 0.2)
+                    box((key, "metal", 1), la[0], la[1], y, y + 0.22, la[2], la[3], scale=0.5)
+            elif kind < 0.66:
+                hue = r.choice(("white", "amber", "cyan"))
+                for k in (-1, 0, 1):
+                    flat((key, "glow", 0), *rect(u + k * 0.7 - 0.2, u + k * 0.7 + 0.2, v - min(half, 1.3), v + min(half, 1.3)), y + 0.16, dim(hue, 0.5))
+                xa, xb, za, zb = rect(u - 1.05, u + 1.05, v - min(half, 1.3) - 0.1, v + min(half, 1.3) + 0.1)
+                box((key, "trim", 1), xa, xb, y, y + 0.15, za, zb, scale=1.0, col=B.TRIM[5])
+            elif kind < 0.8:
+                xa, xb, za, zb = rect(u - 0.5, u + 0.5, v - 0.5, v + 0.5)
+                box((key, "trim", 0), xa, xb, y, y + 0.4, za, zb, scale=1.0, col=B.TRIM[5])
+                flat((key, "glow", 0), xa + 0.1, xb - 0.1, za + 0.44, za + 0.5, y + 0.405, dim("amber", 0.8))
+        u += 4.2
+
+
 def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
-    """Fill a roof with what a tower's roof holds, plot by plot: cooling
-    towers with a line of light at their foot, a stair hut with its door
-    lit and a lamp's pool before it, condensers in rows, ducts on legs,
-    skylights, a tank, an antenna, a dish. `lines`: the edges ("+x", "-z"...)
-    to draw in a thin line of light at the parapet's top (ARL_JWwKdDs@23)."""
+    """Fill a roof with what a tower's roof holds, plot by plot and no plot
+    bare: cooling towers with a line of light at their foot, a stair hut
+    with its door lit and a lamp's pool before it, condensers in rows, ducts
+    on legs, vent stacks, skylights in strips, a tank, an antenna, a dish, a
+    board on struts: each only where `cap` (how high the lenses allow)
+    lets it stand. `lines`: the edges ("+x", "-z"...) to draw in a thin
+    line of light at the parapet's top (ARL_JWwKdDs@23)."""
     w, d = x1 - x0, z1 - z0
     if lines:
         hue = r.choice(("cyan", "cyan", "amber", "pink", "teal", "magenta"))
         fs = B.faces_of(x0, x1, z0, z1)
         for name in lines:
             fs[name].quad((key, "neon_" + hue, 0), 0.0, fs[name].width, y + 0.84, y + 0.94, 0.04)
-    if w < 3.5 or d < 3.5 or cap < 1.0:
+    if w < 3.5 or d < 3.5:
+        return
+    if cap < 1.7:
+        roof_low(key, x0, x1, z0, z1, y, r)
         return
     nx, nz = max(1, int(w // 5.2)), max(1, int(d // 5.2))
     pw, pd = w / nx - 1.2, d / nz - 1.2
     for i in range(nx):
         for j in range(nz):
             px, pz = x0 + (i + 0.5) * w / nx, z0 + (j + 0.5) * d / nz
-            kind = r.random()
-            if kind < 0.16 and cap >= 2.7 and min(pw, pd) > 2.6:
+            kinds = ["low", "duct", "sky", "stack", "units", "units"]
+            if cap >= 2.7 and min(pw, pd) > 2.6:
+                kinds += ["tower", "tower"]
+            if cap >= 2.6 and min(pw, pd) > 2.4:
+                kinds += ["hut"]
+            if cap >= 4.5 and min(pw, pd) > 3.0:
+                kinds += ["tank", "tank"]
+            if cap >= 6.5:
+                kinds += ["antenna"]
+            if cap >= 2.3:
+                kinds += ["dish"]
+            if cap >= 4.4 and pw > 3.4:
+                kinds += ["board", "board"]
+            kind = r.choice(kinds)
+            if kind == "tower":
                 hw, hd, hh = min(1.8, pw / 2), min(1.8, pd / 2), min(cap - 0.4, r.uniform(2.2, 3.2))
                 box((key, "metal", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.0)
                 box((key, "dark", 1), px - hw - 0.08, px + hw + 0.08, y + hh, y + hh + 0.1, pz - hd - 0.08, pz + hd + 0.08, scale=1.0)
@@ -1044,35 +1168,48 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                 hue = r.choice(("cyan", "amber", "red", "teal"))
                 for f in B.faces_of(px - hw, px + hw, pz - hd, pz + hd).values():
                     f.quad((key, "neon_" + hue, 0), 0.1, f.width - 0.1, y + 0.3, y + 0.4, 0.03)
-            elif kind < 0.3 and cap >= 2.6 and min(pw, pd) > 2.4:
+            elif kind == "hut":
                 hw, hd, hh = min(1.5, pw * 0.4), min(1.3, pd * 0.4), min(2.6, cap - 0.2)
                 box((key, "trim", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.5, col=B.TRIM[5])
                 box((key, "dark", 1), px - hw - 0.1, px + hw + 0.1, y + hh, y + hh + 0.12, pz - hd - 0.1, pz + hd + 0.1, scale=1.0)
                 side = r.choice((-1, 1))
                 dz = pz + side * (hd + 0.02)
                 q = ((px - 0.45, y, dz), (px + 0.45, y, dz), (px + 0.45, y + 2.0, dz), (px - 0.45, y + 2.0, dz))
-                quad((key, "glow", 0), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=GLOW["amber"])
+                quad((key, "glow", 0), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=dim("amber", 0.7))
                 light(key, px, y + 1.5, pz + side * (hd + 1.2), "amber", 4.0)
-            elif kind < 0.48:
+            elif kind == "units":
                 n = max(1, min(4, int(pw // 2.0)))
                 for m in range(n):
                     P.place("cy_unit", px - (n - 1) + m * 2.0, y, pz, 0.0, district=key)
-            elif kind < 0.62 and pw > 2.0:
+            elif kind == "duct" and pw > 2.0:
                 box((key, "metal", 1), px - pw / 2, px + pw / 2, y + 0.35, y + 0.95, pz - 0.35, pz + 0.35, scale=1.0, bottom=True)
                 for lx in (px - pw / 2 + 0.3, px + pw / 2 - 0.3):
                     box((key, "metal", 1), lx - 0.06, lx + 0.06, y, y + 0.35, pz - 0.3, pz + 0.3, scale=0.5)
-            elif kind < 0.74 and min(pw, pd) > 2.4:
+            elif kind == "sky" and min(pw, pd) > 2.4:
                 hw, hd = min(1.5, pw / 2 - 0.2), min(1.1, pd / 2 - 0.2)
                 box((key, "trim", 0), px - hw - 0.15, px + hw + 0.15, y, y + 0.3, pz - hd - 0.15, pz + hd + 0.15, scale=1.0, col=B.TRIM[5])
                 hue = r.choice(("white", "amber", "cyan", "white"))
-                for k in range(3):
-                    xa = px - hw + k * (2 * hw / 3) + 0.06
-                    quad((key, "glow", 0), (xa, y + 0.31, pz + hd), (xa + 2 * hw / 3 - 0.12, y + 0.31, pz + hd),
-                         (xa + 2 * hw / 3 - 0.12, y + 0.31, pz - hd), (xa, y + 0.31, pz - hd), col=GLOW[hue])
-                light(key, px, y + 0.5, pz, hue, 3.5)
-            elif kind < 0.8 and cap >= 4.5 and min(pw, pd) > 3.0:
+                for k in range(4):
+                    xa = px - hw + k * (2 * hw / 4) + 0.12
+                    flat((key, "glow", 0), xa, xa + 2 * hw / 4 - 0.24, pz - hd, pz + hd, y + 0.31, dim(hue, 0.5))
+            elif kind == "stack":
+                for sx in (-0.5, 0.5) if pw > 2.6 else (0.0,):
+                    cylinder((key, "metal", 1), px + sx, pz, y, y + 1.3, 0.2, segs=7)
+                    cylinder((key, "dark", 1), px + sx, pz, y + 1.3, y + 1.42, 0.3, segs=7)
+            elif kind == "tank":
                 P.place("tank_roof", px, y, pz, r.uniform(0, 6.28), district=key)
-            elif kind < 0.86 and cap >= 6.5:
+            elif kind == "antenna":
                 P.place("antenna", px, y, pz, r.uniform(0, 3.14), district=key)
-            elif kind < 0.92 and cap >= 2.3:
+            elif kind == "dish":
                 P.place("dish", px, y, pz, r.uniform(0, 6.28), district=key)
+            elif kind == "board":
+                bw, bh = min(pw, 4.8), 2.4
+                yaw = r.choice((0.0, math.pi / 2, math.pi, -math.pi / 2)) + r.uniform(-0.3, 0.3)
+                cy = y + 1.5 + bh / 2
+                advert(key, key, px, cy, pz, bw, bh, yaw, r)
+                board_back(key, px, cy, pz, bw, bh, yaw, r.choice(("cyan", "amber", "pink")))
+                for sg in (-1, 1):
+                    lx, lz = px + math.cos(yaw) * sg * bw * 0.3 - math.sin(yaw) * 0.2, pz - math.sin(yaw) * sg * bw * 0.3 - math.cos(yaw) * 0.2
+                    box((key, "metal", 1), lx - 0.06, lx + 0.06, y, cy - bh / 2, lz - 0.06, lz + 0.06, scale=0.5)
+            else:
+                _low_unit(key, px, pz, y, r, min(0.9, pw / 2), min(0.55, pd / 2))

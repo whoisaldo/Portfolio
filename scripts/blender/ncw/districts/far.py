@@ -465,6 +465,11 @@ def _back(U):
     for f in B.faces_of(cx0, cx1, cz0, cz1).values():
         C.wall(CB, f, top, ctop, U["col"], U["ov"])
         C.strip(CB, f, 0.0, f.width, ctop - 1.3, ctop - 0.9, hue, out=0.08)
+        # Bracing across it, bay by bay (ARL_JWwKdDs@22).
+        nb = max(1, round(f.width / 9.0))
+        for b in range(nb):
+            C.brace(CB, f, f.width * b / nb + 0.3, f.width * (b + 1) / nb - 0.3, top + 0.3, ctop - 1.6, tcol)
+            f.box((CB, "trim", 1), f.width * b / nb - 0.15, f.width * b / nb + 0.15, top, ctop, 0.0, 0.2, col=tcol)
     C.roof(CB, cx0, cx1, cz0, cz1, ctop)
     B.ROOFS.append((CB, cx0, cx1, cz0, cz1, ctop))
     OCC.append(((cx0, 0.0, cz0), (cx1, ctop, cz1)))
@@ -491,6 +496,16 @@ def _dress_street(U):
     while y < h - 3.0:
         st.ledge((CB, "trim", 1), 0.0, w, y - 0.22, 0.22, 0.2, tcol)
         y += CELL_H * every
+    # (A second set of dice for what was added later, so the first set's
+    # signs stay where the hero has them.)
+    r2 = random.Random(5300 + L["i"] * 17 + U["k"] * 5 + (0 if side > 0 else 700))
+    spandrels = r2.random() < 0.5
+    if spandrels:
+        # A spandrel's lip at every floor: the face reads in storeys.
+        y = ph + CELL_H
+        while y < h - 1.0:
+            st.ledge((CB, "trim", 1), 0.0, w, y - 0.12, 0.12, 0.1, tcol, caps=False)
+            y += CELL_H
     if r.random() < 0.4:
         bays = max(1, round(w / CELL_W))
         for b in range(0, bays + 1, 2):
@@ -535,6 +550,34 @@ def _dress_street(U):
         ss, sy = r.uniform(1.5, w - 1.5), r.uniform(ph + 14.0, h - 8.0)
         if C._free(taken, (ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.8)):
             C.blade(st, ss, sy, "bl", r.choice((0.0, 0.3, -0.3)), FA, CB, CB)
+    # Over the signs: balconies in stacks up the face, floor on floor, clear
+    # of every sign; condensers under windows on the lower floors; a
+    # downpipe at each end of the face.
+    bays = max(1, round(w / CELL_W))
+    bw_ = w / bays
+    ka, kb = int((ph + 9.0 - SHOP_H) / CELL_H) + 1, int((h - 4.0 - SHOP_H) / CELL_H)
+    if kb - ka >= 3 and bays >= 3:
+        for _ in range(r2.randrange(1, 4) if r2.random() < 0.75 else 0):
+            nb = r2.choice((1, 1, 2))
+            b0 = r2.randrange(0, bays - nb + 1)
+            k0 = r2.randrange(ka, kb - 2)
+            k1 = r2.randrange(k0 + 2, kb + 1)
+            s0_, s1_ = b0 * bw_ + 0.25, (b0 + nb) * bw_ - 0.25
+            if C._free(taken, (s0_ - 0.4, s1_ + 0.4, fl(k0) - 0.5, fl(k1) + 1.4), pad=0.6):
+                step = r2.choice((1, 1, 2))
+                for k in range(k0, k1 + 1, step):
+                    C.balcony(CB, st, s0_, s1_, fl(k), tcol)
+    for k in range(int((ph - SHOP_H) / CELL_H), min(kb, int((ph - SHOP_H) / CELL_H) + 9)):
+        for b in range(bays):
+            if r2.random() < 0.13:
+                sa = (b + 0.5) * bw_ + r2.uniform(-0.5, 0.5)
+                if all(not (a0 - 0.6 < sa < a1 + 0.6 and c0 - 0.9 < fl(k) < c1 + 0.3) for a0, a1, c0, c1 in taken):
+                    ax_, _, az_ = st.p(st.at(sa), 0.0, 0.0)
+                    P.place("ac_wall", ax_, fl(k) + 0.08, az_, st.yaw, district=CB)
+    for sa in (0.22, w - 0.22):
+        if r2.random() < 0.7:
+            ax_, _, az_ = st.p(st.at(sa), 0.0, 0.0)
+            P.place("pipe_v", ax_, ph, az_, st.yaw, sy=h - ph - 0.5, district=CB)
 
 
 def _dress_back(U):
@@ -593,8 +636,12 @@ def _roofs(U):
             continue
         xa, xb = sorted((_x(side, u0), _x(side, u1)))
         top = C.hidden_top(OCC, xa, xb, zn, zs, h, h + 7.0, step=1.0, pad=0.2, least=1.0)
-        if top:
-            C.roof_plant(CB, xa, xb, zn, zs, h, r, top - h, lines)
+        # (Where the lens allows nothing to stand, what a roof holds under
+        # its parapet's height.)
+        C.roof_plant(CB, xa, xb, zn, zs, h, r, (top - h) if top else 0.0, lines)
+    edge_hue = r.choice(("red", "amber", "white", "cyan", "red"))
+    xr = sorted((_x(side, 0.75), _x(side, U["sd"] - 0.75)))
+    C.roof_edge(CB, xr[0], xr[1], U["zn"] + 0.75, U["zs"] - 0.75, h, edge_hue)
     if U["back"] == "flush":
         return
     bx0, bx1 = U["bx"]
@@ -610,10 +657,19 @@ def _roofs(U):
                 P.place("cy_unit", cx, t, cz, r.choice((0.0, math.pi / 2)), district=CB)
         cx0, cx1, cz0, cz1, ct = U["crown"]
         C.roof_plant(CB, cx0 + 0.5, cx1 - 0.5, cz0 + 0.5, cz1 - 0.5, ct, r, 1.6)
+        C.roof_edge(CB, cx0 + 0.5, cx1 - 0.5, cz0 + 0.5, cz1 - 0.5, ct, "red")
+        C.roof_edge(CB, bx0 + 0.7, bx1 - 0.7, bz0 + 0.7, bz1 - 0.7, t, edge_hue)
         return
     if t > h:
         cap = C.hidden_top(OCC, bx0, bx1, bz0, bz1, t, t + 7.0, step=1.0, pad=0.2, least=1.0)
         C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz1 - 0.6, t, r, (cap - t) if cap else 0.0, ring)
+        C.roof_edge(CB, bx0 + 0.7, bx1 - 0.7, bz0 + 0.7, bz1 - 0.7, t, edge_hue)
+        # A mast at its far corner where the lenses allow one.
+        mx, mz = (bx1 - 1.6 if side > 0 else bx0 + 1.6), bz0 + 1.6
+        plaza = side > 0 and L["i"] <= 4
+        mtop = C.hidden_top(OCC, mx - 0.5, mx + 0.5, mz - 0.5, mz + 0.5, t, t + 16.5, plaza=plaza, pad=0.3, least=7.0)
+        if mtop:
+            P.place("cy_mast", mx, t, mz, r.uniform(0, 1.5), sy=(mtop - t) / 16.3, district=CB)
         return
     # A terrace: plant at its north end behind a row of planters, the rest a
     # deck that is lived on: paving with lines of light in it, a bar's lit
