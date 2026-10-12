@@ -269,7 +269,7 @@ const bits = (...tags) => tags.reduce((m, t) => m + 2 ** t, 0);
 // a seed) and their colours (jacket, trousers, skin, hair).
 const STRIDE = 20;
 /** Who is in the city: every walker of every walk, then everyone standing. */
-function populate({ phone, walks, standers, bare = false }) {
+function populate({ phone, walks, standers, benches = [], bare = false }) {
   const r = rng(1312);
   const people = [];
   const recent = [];
@@ -434,28 +434,141 @@ function populate({ phone, walks, standers, bare = false }) {
     });
   }
 
-  const stand = (x, y, z, yaw, pose, d = dress({ pose: POSES[pose], umbrellaOdds: 0.2, at: [x, z] })) => {
-    people.push({ walk: [x, z, 0, r()], path: [Math.sin(yaw), Math.cos(yaw), 1, 0], body: [d.height, d.build, pose, y], look: d.look, wear: d.wear });
-  };
+  // Everyone standing: this module's own, the one with the hot phone,
+  // everyone a district stood somewhere (x, y, z, the way they look, their
+  // pose), and somebody on some of the benches nobody was sat on.
+  const spots = [];
   STANDS.forEach(([x, z, yaw, pose], i) => {
-    if (!bare && (!phone || i % 2 === 0)) stand(x, PAVE_Y, z, yaw, POSES.indexOf(pose));
+    if (!bare && (!phone || i % 2 === 0)) spots.push({ x, y: PAVE_Y, z, yaw, pose: POSES.indexOf(pose) });
   });
-  if (!bare) {
-    // The hot phone: looking down the street toward the hero, the phone a
-    // forearm ahead of them at the clue's point.
-    const d = dress({ pose: "phone", at: HOT_PHONE });
-    d.height = 1.58 / RIG.height;
-    d.look[0] = bits(TAG.hair, TAG.phone, TAG.open);
-    d.look[1] = GARMENTS.jacket;
-    const reach = 0.385 * d.height;
-    const yaw = 0.5;
-    stand(HOT_PHONE[0] - Math.sin(yaw) * reach, PAVE_Y, HOT_PHONE[1] - Math.cos(yaw) * reach, yaw, POSES.indexOf("phone"), d);
-  }
-  // Everyone a district stood somewhere: x, y, z, the way they look, pose.
+  // The hot phone: looking down the street toward the hero, the phone a
+  // forearm ahead of them at the clue's point.
+  if (!bare) spots.push({ x: HOT_PHONE[0], y: PAVE_Y, z: HOT_PHONE[1], yaw: 0.5, pose: POSES.indexOf("phone"), hot: true });
   for (let i = 0, k = 0; i + 4 < standers.length; i += 5, k++) {
     if (phone && k % 2) continue;
-    stand(standers[i], standers[i + 1], standers[i + 2], standers[i + 3], Math.min(POSES.length - 1, Math.max(0, Math.round(standers[i + 4]))));
+    spots.push({ x: standers[i], y: standers[i + 1], z: standers[i + 2], yaw: standers[i + 3], pose: Math.min(POSES.length - 1, Math.max(0, Math.round(standers[i + 4]))) });
   }
+  const SIT = POSES.indexOf("sit");
+  for (const bench of benches) {
+    // Its seat runs across the way it faces. Whoever a district sat on it
+    // sits the way it faces, not through its back.
+    const along = [Math.cos(bench.yaw), -Math.sin(bench.yaw)];
+    const front = [Math.sin(bench.yaw), Math.cos(bench.yaw)];
+    let taken = false;
+    for (const p of spots) {
+      const dx = p.x - bench.x;
+      const dz = p.z - bench.z;
+      if (Math.abs(dx * along[0] + dz * along[1]) > 1.05 || Math.abs(dx * front[0] + dz * front[1]) > 0.6 || Math.abs(p.y - bench.y - 0.3) > 0.6) continue;
+      taken = true;
+      if (p.pose === SIT && Math.sin(p.yaw) * front[0] + Math.cos(p.yaw) * front[1] < 0) p.yaw = bench.yaw;
+    }
+    // Of the empty ones about half are sat on, some of those by two.
+    const u = r();
+    const at = (r() - 0.5) * 0.9;
+    if (taken || bare || u > 0.52) continue;
+    const two = u < 0.14;
+    for (const o of two ? [-0.42 + at * 0.2, 0.42 + at * 0.2] : [at]) spots.push({ x: bench.x + along[0] * o, y: bench.y + 0.48, z: bench.z + along[1] * o, yaw: bench.yaw, pose: SIT });
+  }
+
+  // Two within 1.6 m of each other are together: whoever is free to turns to
+  // the other (to the middle of the others, of three or more), two idlers
+  // fall to talking, and whoever is sat or against a wall turns their head.
+  const FREE = [POSES.indexOf("idle"), POSES.indexOf("talk"), POSES.indexOf("smoke")];
+  const NEAR = 1.6;
+  const cells = new Map();
+  const cellOf = (p) => `${Math.floor(p.x / NEAR)},${Math.floor(p.z / NEAR)}`;
+  spots.forEach((p, i) => {
+    const key = cellOf(p);
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key).push(i);
+  });
+  spots.forEach((p, i) => {
+    let sx = 0;
+    let sz = 0;
+    let n = 0;
+    let least = NEAR;
+    const cx = Math.floor(p.x / NEAR);
+    const cz = Math.floor(p.z / NEAR);
+    for (let ix = cx - 1; ix <= cx + 1; ix++) {
+      for (let iz = cz - 1; iz <= cz + 1; iz++) {
+        for (const j of cells.get(`${ix},${iz}`) ?? []) {
+          const q = spots[j];
+          const d = Math.hypot(q.x - p.x, q.z - p.z);
+          if (j === i || d >= NEAR || d < 0.05 || Math.abs(q.y - p.y) > 0.7) continue;
+          sx += q.x;
+          sz += q.z;
+          n++;
+          if (d < least) {
+            least = d;
+            p.mate = j;
+          }
+        }
+      }
+    }
+    if (n) p.toward = Math.atan2(sx / n - p.x, sz / n - p.z);
+  });
+  spots.forEach((p, i) => {
+    if (p.toward === undefined || p.hot) return;
+    const mate = spots[p.mate];
+    if (FREE.includes(p.pose)) {
+      p.yaw = p.toward + (r() - 0.5) * 0.3;
+      // Two with nothing to do talk, taking turns.
+      if (p.pose === FREE[0] && mate.mate === i && FREE.includes(mate.pose) && !mate.hot) p.pose = FREE[1];
+    } else {
+      const turn = Math.atan2(Math.sin(p.toward - p.yaw), Math.cos(p.toward - p.yaw));
+      p.head = Math.min(0.75, Math.max(-0.75, turn)) * 0.8;
+    }
+    p.turn = mate.turn === undefined ? r() : mate.turn + 0.5;
+  });
+
+  // How each stands in their pose: what a hand with nothing to do does
+  // (hangs, is in a pocket, folded with the other, on a hip, at a bag's
+  // strap, holds a phone to an ear), where the weight is (even, on one leg
+  // or the other, feet apart), which leg is the pose's bent one, and where
+  // the head is turned (as the pose has it, to a side, down). Packed into
+  // the walk's pace, which someone standing has no use for.
+  const UPRIGHT = ["idle", "talk", "phone", "smoke", "vendor"];
+  const manner = (p, name, look) => {
+    const has = (tag) => Math.floor(look[0] / 2 ** tag) % 2 === 1;
+    const right = has(TAG.umbrella) || name === "phone" || name === "smoke" || name === "vendor";
+    const left = has(TAG.cup) || has(TAG.tote) || name === "vendor";
+    let L = 0;
+    let R = 0;
+    const u = r();
+    if (name === "idle" || name === "talk") {
+      if (u < 0.17 && !left && !right) L = R = 2;
+      else if (u < 0.42) [L, R] = [left ? 0 : 1, right ? 0 : 1];
+      else if (u < 0.55 && !left) L = 3;
+      else if (u < 0.65 && !right) R = 4;
+      else if (u < 0.74 && !right && name === "idle" && p.toward === undefined) {
+        R = 5;
+        if (!has(TAG.phone)) look[0] += bits(TAG.phone);
+      } else if (u < 0.86 && !left) L = 1;
+    } else if ((name === "smoke" || name === "phone") && !left && u < 0.62) L = u < 0.4 ? 1 : 3;
+    const upright = UPRIGHT.includes(name);
+    const stance = upright ? pick(r, [24, 30, 30, 16]) : 0;
+    const flip = (upright || name === "lean") && r() < 0.5 ? 1 : 0;
+    const head = p.toward !== undefined || name === "phone" || R === 5 ? 0 : pick(r, [38, 22, 22, 18]);
+    return L + 6 * R + 36 * stance + 144 * flip + 288 * head;
+  };
+  const sheltered = new Set();
+  spots.forEach((p, i) => {
+    const name = POSES[p.pose];
+    // Of two close together at most one holds an umbrella up: two canopies
+    // do not fit between two faces.
+    const d = dress({ pose: name, umbrellaOdds: sheltered.has(p.mate) ? 0 : 0.2, at: [p.x, p.z] });
+    if (Math.floor(d.look[0] / 2 ** TAG.umbrella) % 2 === 1) sheltered.add(i);
+    let { x, z } = p;
+    if (p.hot) {
+      d.height = 1.58 / RIG.height;
+      d.look[0] = bits(TAG.hair, TAG.phone, TAG.open);
+      d.look[1] = GARMENTS.jacket;
+      const reach = 0.385 * d.height;
+      x -= Math.sin(p.yaw) * reach;
+      z -= Math.cos(p.yaw) * reach;
+    }
+    people.push({ walk: [x, z, p.hot ? 0 : manner(p, name, d.look), p.turn ?? r()], path: [Math.sin(p.yaw), Math.cos(p.yaw), 1, p.head ?? 0], body: [d.height, d.build, p.pose, p.y], look: d.look, wear: d.wear });
+  });
 
   const data = new Float32Array(people.length * STRIDE);
   people.forEach((p, i) => {
@@ -488,16 +601,18 @@ const BACK = 1;
 
 /** What stands on the ground in the props file (src/world/props.js packs
  *  it): x, z, the way it faces (as a cosine and a sine) and its half
- *  sizes. */
+ *  sizes; and the benches, each where it stands and the way it faces. */
 function footprints(buffer) {
   const view = new DataView(buffer);
   const hl = view.getUint32(0, true);
   const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 4, hl)));
   const data = new Int16Array(buffer, 4 + hl, header.count * 8);
   const out = [];
+  const benches = [];
   for (let i = 0; i < header.count; i++) {
     const o = i * 8;
     const box = header.protos[data[o]]?.box;
+    if (header.protos[data[o]]?.name === "bench") benches.push({ x: data[o + 1] / 20, y: data[o + 2] / 50, z: data[o + 3] / 20, yaw: data[o + 4] / 10430.2 });
     // On a pavement, and more than a kerb high. Wider than a metre is
     // leaves overhead, not the tub they grow from.
     if (!box || data[o + 2] / 50 > 0.6 || (box[1] * data[o + 5]) / 100 < 0.15) continue;
@@ -505,7 +620,7 @@ function footprints(buffer) {
     const yaw = data[o + 4] / 10430.2;
     out.push({ x: data[o + 1] / 20, z: data[o + 3] / 20, cos: Math.cos(yaw), sin: Math.sin(yaw), hx: Math.min(box[0] * k, 1), hz: Math.min(box[2] * k, 0.55) });
   }
-  return out;
+  return { solid: out, benches };
 }
 
 /** The files of one pavement at one point along it: as near where each
@@ -708,7 +823,10 @@ const HEAD = /* glsl */ `
     bool walking = aBody.z < -0.5;
     float way = aWalk.z < 0.0 ? -1.0 : 1.0;
     gone = walking ? abs(aWalk.z) * t + 0.3 * sin(t * 0.21 + aLook.w * 40.0) : 0.0;
-    float s = mod(aPath.w + way * gone, aPath.z);
+    // (Someone standing keeps other things where a walker keeps a pace, a
+    // step and a place along the walk.)
+    float s = walking ? mod(aPath.w + way * gone, aPath.z) : 0.0;
+    if (!walking) way = 1.0;
     face = aPath.xy * way;
     vec2 at = aWalk.xy + aPath.xy * s;
     fade = 1.0;
@@ -802,6 +920,17 @@ const VERTEX = /* glsl */ `
     p += o;
     n.xy = vec2(n.x * c - n.y * s, n.x * s + n.y * c);
   }
+  // An arm with nothing to do, one of five ways (shoulder forward, out,
+  // elbow, forearm turned in): a hand in a pocket, folded across the chest
+  // with the other, a hand on the hip, at the strap of a bag, a phone held
+  // to the ear.
+  vec4 armAt(float kind, float side) {
+    if (kind < 1.5) return vec4(-0.1, 0.07, 0.62, 0.3);
+    if (kind < 2.5) return side < 0.0 ? vec4(0.3, 0.03, 1.27, 1.3) : vec4(0.35, 0.03, 1.42, 1.32);
+    if (kind < 3.5) return vec4(-0.15, 0.5, 1.3, 1.4);
+    if (kind < 4.5) return vec4(0.28, 0.05, 2.2, 0.45);
+    return vec4(0.62, 0.34, 2.46, 0.16);
+  }
   // A walking leg's ankle: how far ahead of the hip, how far off the
   // ground, and the foot's tilt (toes up). u is the leg's place in its cycle:
   // from 0 the foot is down, coming back under the body exactly as fast as
@@ -892,6 +1021,14 @@ const VERTEX = /* glsl */ `
     float el = 0.0;
     float inw = 0.0;
     float drag = 0.0;
+    // Standing: the pelvis over one leg, the chest leaning back over it, the
+    // legs apart, the free leg's heel off the ground, the chest's rise with
+    // a breath.
+    float shift = 0.0;
+    float tilt = 0.0;
+    float splay = 0.0;
+    float heel = 0.0;
+    float rise = 0.0;
     if (walking) {
       // A longer step at a quicker pace; the step's phase is how far they
       // have gone, so a planted foot stays planted.
@@ -938,30 +1075,61 @@ const VERTEX = /* glsl */ `
       vec4 B = uPose[k + 1];
       vec4 C = side < 0.0 ? uPose[k + 2] : uPose[k + 3];
       vec4 D = uPose[k + 4];
+      // The pose, and this person's own way of standing in it (crowd.js
+      // deals it): what each idle hand does, where the weight is, which leg
+      // is the pose's bent one, where the head is turned.
+      float manner = aWalk.z;
+      float idle = mod(floor(manner / (side < 0.0 ? 1.0 : 6.0)), 6.0);
+      float stance = mod(floor(manner / 36.0), 4.0);
+      float leg = mod(floor(manner / 144.0), 2.0) > 0.5 ? -side : side;
+      float head = mod(floor(manner / 288.0), 4.0);
       drop = A.x;
       lean = A.y;
       pitch = A.z;
-      nod = A.w;
-      hip = side < 0.0 ? B.x : B.z;
-      knee = side < 0.0 ? B.y : B.w;
+      nod = A.w + (head > 2.5 ? 0.24 : 0.0);
+      hip = leg < 0.0 ? B.x : B.z;
+      knee = leg < 0.0 ? B.y : B.w;
+      if (idle > 0.5) C = armAt(idle, side);
       sp = C.x;
       sr = C.y;
       el = C.z;
       inw = C.w;
-      gaze = D.y;
+      gaze = D.y + aPath.w + (head > 0.5 && head < 2.5 ? (head < 1.5 ? -0.42 : 0.42) : 0.0);
       back = D.z;
-      // Nobody stands still: weight shifts, a breath, a look round; a
-      // talker's hand, a cigarette to the mouth, a vendor's hands, a thumb.
+      // Nobody stands still: the weight shifts, a breath lifts the chest, a
+      // look round; a talker's hands, a cigarette to the mouth, a vendor's
+      // hands, a thumb.
       float tt = t + seed * 100.0;
+      rise = 0.004 * sin(tt * 1.45);
       lean += 0.012 * sin(tt * 0.5);
       pitch += 0.008 * sin(tt * 1.3);
-      gaze += 0.4 * sin(tt * 0.23) * smoothstep(0.2, 0.9, sin(tt * 0.071 + 1.0));
-      if (D.x > 0.5 && D.x < 1.5) {
-        if (side > 0.0) {
-          el += 0.32 * sin(tt * 2.1) * (0.5 + 0.5 * sin(tt * 0.37));
-          sp += 0.12 * sin(tt * 1.3);
+      gaze += (aPath.w == 0.0 && D.x < 0.5 ? 0.4 : 0.14) * sin(tt * 0.23) * smoothstep(0.2, 0.9, sin(tt * 0.071 + 1.0));
+      if (stance > 0.5 && stance < 2.5) {
+        // On one leg: the other knee eases, its heel lifts, and the weight
+        // comes back toward the middle and goes out again, slowly.
+        float to = stance < 1.5 ? -1.0 : 1.0;
+        float much = 0.8 + 0.2 * sin(tt * 0.19);
+        shift = 0.034 * to * much;
+        tilt = 0.05 * to * much;
+        if (side * to < 0.0) {
+          hip += 0.17 * much;
+          knee += 0.36 * much;
+          heel = 0.14 * much;
         }
-        nod += 0.06 * sin(tt * 1.7);
+      } else if (stance > 2.5) splay = 0.055;
+      if (D.x > 0.5 && D.x < 1.5) {
+        // Talking by turns (the two of a pair are half a turn apart): whose
+        // turn it is talks with a hand, or both; the other listens with
+        // theirs at rest, and nods now and then.
+        float say = smoothstep(0.1, 0.5, sin(t * 0.3 + aWalk.w * 6.2832));
+        float mine = say * (side > 0.0 ? step(idle, 4.5) : step(0.55, rnd(seed * 4.3)) * step(idle, 2.5));
+        if (umbrella > 0.5 && side > 0.0) mine = 0.0;
+        sp = mix(sp, (side > 0.0 ? 0.38 : 0.26) + 0.12 * sin(tt * 1.3 + side), mine);
+        sr = mix(sr, 0.14, mine);
+        el = mix(el, (side > 0.0 ? 1.5 : 1.3) + 0.32 * sin(tt * 2.1 + side * 1.3) * (0.5 + 0.5 * sin(tt * 0.37)), mine);
+        inw = mix(inw, 0.27, mine);
+        nod += 0.06 * sin(tt * 1.7) * say + 0.07 * (1.0 - say) * smoothstep(0.55, 1.0, sin(tt * 0.83));
+        pitch += 0.035 * say;
       } else if (D.x > 1.5 && D.x < 2.5) {
         float cyc = fract(tt / 9.0);
         drag = smoothstep(0.0, 0.1, cyc) - smoothstep(0.28, 0.4, cyc);
@@ -978,7 +1146,7 @@ const VERTEX = /* glsl */ `
         el += 0.03 * sin(tt * 3.0);
         nod += 0.03 * sin(tt * 0.6);
       }
-      ankle = knee - hip - lean;
+      ankle = knee - hip - lean + heel;
     }
     if (side > 0.0 && umbrella > 0.5) {
       sp = ${f(HOLD.umbrella.pitch)};
@@ -1043,6 +1211,9 @@ const VERTEX = /* glsl */ `
       if (seg > 6.5) swing(p, n, vec3(0.0, ANKLE_Y, 0.0), ankle);
       if (seg > 5.5) swing(p, n, vec3(0.0, KNEE_Y, 0.0), -knee);
       swing(p, n, vec3(0.0, HIP_Y, 0.0), hip);
+      // The pelvis has moved over one leg: both lean back under it, so the
+      // feet stay where they were. Or they stand apart.
+      lift(p, n, vec3(side * ${f(RIG.hipX)}, HIP_Y, 0.0), side * splay - shift / (HIP_Y - ANKLE_Y));
     } else if (seg > 2.5) {
       vec3 shoulder = vec3(shoulderX, ${f(RIG.shoulderY)}, 0.0);
       if (seg > 3.5) {
@@ -1061,8 +1232,11 @@ const VERTEX = /* glsl */ `
       }
       turn(p, n, vec3(0.0), twist);
       swing(p, n, vec3(0.0, ${f(RIG.waistY)}, 0.0), -pitch);
+      lift(p, n, vec3(0.0, ${f(RIG.waistY)}, 0.0), tilt);
+      p.y += rise * smoothstep(1.05, 1.4, p.y);
     }
     turn(p, n, vec3(0.0), hips);
+    p.x += shift;
     p.y -= drop;
     p.z += back;
     swing(p, n, vec3(0.0), lean);
@@ -1416,7 +1590,9 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   scene.add(group);
 
   // Everyone, and each draw's own list of them, packed again as it changes.
-  let people = populate({ phone, walks, standers });
+  // Nobody until the street furniture's file is in (it is the city's own,
+  // fetched before any of this is made): who sits where waits on the benches.
+  let people = { data: new Float32Array(0), count: 0, rows: 0, paves: [] };
   let drawn = [];
   let eye = null;
   const last = new Float32Array(18).fill(NaN);
@@ -1538,6 +1714,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   // furniture once its file is in (it is the city's own, fetched before any
   // of this is made).
   let furniture = [];
+  let benches = [];
   let over = false;
   const lay = () => {
     const { data, count, rows, paves } = people;
@@ -1554,11 +1731,14 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   base.uLanes.value.needsUpdate = true;
   preloadProps(phone ? "phone" : "high")
     .then((buffer) => {
-      furniture = footprints(buffer);
+      ({ solid: furniture, benches } = footprints(buffer));
     })
     .catch(() => {})
     .then(() => {
-      if (!over) lay();
+      if (over) return;
+      people = populate({ phone, walks, standers, benches });
+      fill();
+      lay();
     });
   fill();
   // world-scene.js draws the scene without telling the crowd: every draw of
@@ -1597,7 +1777,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // rest of the network out, `bare` this module's own people too.
     api.debugStand = (list, { only = false, bare = false } = {}) => {
       const t0 = performance.now();
-      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], bare });
+      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], benches: only || bare ? [] : benches, bare });
       const t1 = performance.now();
       lay();
       const t2 = performance.now();
