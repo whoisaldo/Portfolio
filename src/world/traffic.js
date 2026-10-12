@@ -338,6 +338,8 @@ const SKY_LANES = [
   // roofs, as the show's frames always have one (ARL_JWwKdDs@1).
   { c: [-40, -380], r: [70, 260], y: 34, v: 20 },
   { c: [260, -90], r: [190, 60], y: 30, v: 22 },
+  // And low over the south arm, which no other lane reaches.
+  { c: [0, 46], r: [5.5, 40], y: 38, lift: 4, v: 5 },
 ];
 // One stands on the pad on ARASAKA's annex; one more lifts off the pad on
 // the megabuilding's east roof now and then, turns about over it and comes
