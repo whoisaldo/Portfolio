@@ -507,11 +507,12 @@ export function createPropSurfaces(dressed) {
             vec2 run = vec2(-vView.x, vView.z) / max(vView.y, 0.12 * length(vView)) + 1e-4;
             vec2 edge = (at + mix(vec2(0.45, 0.06), vec2(1.0), step(0.0, run))) * pitch;
             vec2 down = (edge - m) / run;
-            float deep = min(down.x, down.y);
+            // (On a bar's own top the way down is behind it: nothing.)
+            float deep = max(min(down.x, down.y), 0.0);
             vec2 floorAt = m + run * 0.3;
             float off = size.x > size.y ? floorAt.y - size.y * 0.5 : floorAt.x - size.x * 0.5;
             float lamp = mix(0.3, 0.35 + exp(-off * off / 0.012), rect(floorAt, vec2(0.05), size - 0.05)) * (0.85 + 0.3 * hash12(floor(floorAt / 0.03)));
-            vec3 under = vColor.rgb * (deep < 0.04 ? 0.55 * pow(deep / 0.04, 1.5) : lamp);
+            vec3 under = vColor.rgb * (deep < 0.04 ? 0.55 * pow(deep / 0.04 + 1e-4, 1.5) : lamp);
             lit = rect(m, vec2(0.05), size - 0.05) * mix(0.35, gap, near);
             col = mix(vec3(0.02, 0.021, 0.025) * shade * 4.0, mix(vColor.rgb * 0.6, under, near), lit);
           } else if (kind < 4.5) {
