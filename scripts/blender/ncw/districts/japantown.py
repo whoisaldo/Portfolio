@@ -393,43 +393,179 @@ def shop_face(rec, name, level="street", cap=None):
     by_wall(f, r, alley, {"street": 0.4, "alley": 0.26, "edge": 0.08}[level])
 
 
+# ---------------------------------------------------------------------------
+# A lane's wall. The generator's back (a concrete plane, a caged lamp every
+# few metres, a flat door now and then) is left out, its draws of the lot's
+# stream kept, and the ground floor is laid out here a slot at a time, so
+# that nothing is further than arm's length from the next thing: steel doors
+# under a lamp each, framed windows of back rooms, shutters, air
+# conditioners dripping down the wall, meters, vents, a kitchen's duct,
+# pipes on straps, a ladder to the roof, and what is put out the back. Only
+# a fixture lights the lane, so it is dark between them.
+# ---------------------------------------------------------------------------
+_kit_back = B.back_ground
+VOID = "jt_void"
+
+
+def _no_back(district, f, r, tcol):
+    """The generator's back, drawn into a district that is thrown away: the
+    lot's stream runs on exactly as it did."""
+    n_inst, n_ids = len(P.INSTANCES), len(STREET_SIGN_IDS)
+    _kit_back(VOID, f, r, tcol)
+    del P.INSTANCES[n_inst:], STREET_SIGN_IDS[n_ids:]
+    LIGHTS.pop(VOID, None)
+    for key in [k for k in batches if k[0] == VOID]:
+        del batches[key]
+
+
+LANE_WALLS = ((0.16, 0.15, 0.13, 1), (0.11, 0.13, 0.15, 1), (0.15, 0.1, 0.085, 1), (0.09, 0.12, 0.115, 1), (0.13, 0.13, 0.14, 1), (0.17, 0.13, 0.1, 1),
+              (0.08, 0.09, 0.12, 1))
+WINDOWS = ((0.8, 0.6, 1.95), (1.0, 1.1, 1.35), (1.0, 1.1, 1.35), (1.5, 1.0, 1.45), (0.7, 1.4, 1.2), (1.2, 0.8, 1.7))
+KEEP = []   # (a wall's plane, from, to): a stall or a column stands against it, so only flat things there
+
+
+def kept(f, s0, s1):
+    a, b = sorted((f.at(s0), f.at(s1)))
+    return any(abs(f.plane - pl) < 0.01 and a < hi and b > lo for pl, lo, hi in KEEP)
+
+
+def lane_door(f, sc, r):
+    f.quad((D, "door", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.03)
+    x, _, z = f.p(f.at(sc), G0, 0.0)
+    J.put("jt_door", x, G0, z, f.yaw)
+    hue = "amber" if r.random() < 0.8 else "white"
+    f.box((D, "neon_" + hue, 0), sc - 0.11, sc + 0.11, G0 + 2.4, G0 + 2.56, 0.06, 0.2)
+    if r.random() < 0.26:
+        # A bar's back door: a tube over it.
+        hue = r.choice(("cyan", "cyan", "pink", "green", "red"))
+        strip(f, hue, sc - 0.7, sc + 0.7, G0 + 2.78, G0 + 2.85, 0.07)
+    light(D, *f.p(f.at(sc), 2.6, 0.9), hue, 3.2)
+
+
+def lane_window(f, s0, r, kind):
+    """A back room's window: its glass a hair proud of the wall with the
+    room behind it (the shop's shader, dim, seen from a metre up the room),
+    or dark; its frame, sill and bars or blind stand over it."""
+    ww, wh, y0 = kind
+    if r.random() < 0.7:
+        col = (r.uniform(0.0, 0.55), r.choice((0.2, 0.26, 0.32, 0.38, 0.6, 0.8, 0.95)), 1.0, 1.0)
+        f.quad((D, "shop", 0), s0, s0 + ww, y0, y0 + wh, 0.02, uvs=((1.0, 0.9), (1.0 + ww, 0.9), (1.0 + ww, 0.9 + wh), (1.0, 0.9 + wh)), col=col)
+    else:
+        f.quad((D, "glass_dark", 0), s0, s0 + ww, y0, y0 + wh, 0.02)
+    x, _, z = f.p(f.at(s0 + ww / 2), y0, 0.0)
+    J.put("jt_win" if r.random() < 0.6 else "jt_win_b", x, y0, z, f.yaw, wh, ww)
+
+
+def lane_shutter(f, s0, sw, r):
+    k = (D, "metal", 1)
+    f.quad((D, "door_panel", 0), s0, s0 + sw, G0, 2.9, 0.03)
+    f.box(k, s0 - 0.1, s0 + sw + 0.1, 2.9, 3.2, 0.0, 0.26)
+    for e in (s0 - 0.09, s0 + sw):
+        f.box(k, e, e + 0.09, G0, 2.9, 0.0, 0.1)
+    f.box(k, s0, s0 + sw, G0, G0 + 0.09, 0.03, 0.09)
+    mid = s0 + sw / 2
+    f.box((D, "neon_white", 0), mid - 0.2, mid + 0.2, 3.36, 3.46, 0.05, 0.18)
+    f.box(k, mid - 0.26, mid + 0.26, 3.46, 3.5, 0.0, 0.24)
+    light(D, *f.p(f.at(mid), 3.3, 0.9), "white", 2.2)
+
+
+def lane_stuff(f, s, room, r, alley):
+    """What is put out the back, or who is: returns the width it took."""
+    here = lambda ss, o: (f.p(f.at(ss), G0, o)[0], f.p(f.at(ss), G0, o)[2])  # noqa: E731
+    roll = r.random()
+    if roll < 0.3:
+        pose = r.choice(("lean", "lean", "smoke", "phone", "squat"))
+        if pose != "squat" and r.random() < 0.3 and room > 1.9:
+            along = math.atan2(here(s + 1.4, 0.5)[0] - here(s + 0.4, 0.5)[0], here(s + 1.4, 0.5)[1] - here(s + 0.4, 0.5)[1])
+            stand(*here(s + 0.4, 0.5), along, "talk", G0)
+            stand(*here(s + 1.35, 0.5), along + math.pi, "talk", G0)
+            return 1.8
+        stand(*here(s + 0.5, 0.38), f.yaw + r.uniform(-0.3, 0.3), pose, G0)
+        return 1.0
+    if room < 0.8:
+        return 0.6
+    name, wd, out = r.choice([c for c in (("crates", 1.3, 0.6), ("crates", 1.3, 0.6), ("bags", 1.5, 0.6), ("bags", 1.5, 0.6), ("pallets", 1.3, 0.6),
+                                          ("pallets", 1.3, 0.6), ("barrel", 1.4, 0.42), ("rubbish", 1.9, 0.78), ("rubbish", 1.9, 0.78),
+                                          ("dumpster", 2.0, 0.72), ("dumpster", 2.0, 0.72), ("drum", 0.8, 0.42), ("bin", 0.8, 0.45), ("vending", 1.2, 0.48),
+                                          ("jt_stools", 2.0, 1.0)) if c[1] <= room and (alley or c[0] != "jt_stools")])
+    if name == "jt_stools":
+        stools(*here(s + wd / 2, out), r.uniform(0, 6.28), r)
+    elif name == "barrel":
+        for i in range(r.randrange(1, 3)):
+            x, z = here(s + 0.4 + i * 0.66, out + r.uniform(-0.04, 0.1))
+            J.put(name, x, G0, z, r.uniform(0, 6.28))
+    else:
+        x, z = here(s + wd / 2, out)
+        J.put(name, x, G0, z, f.yaw + (r.uniform(-0.12, 0.12) if name in ("crates", "pallets", "bags") else 0.0))
+    return wd
+
+
 def lane_face(rec, name, cap=None):
-    """A back on a lane, which is dark but never black: a pool of light
-    every few metres in the colours of the doors' tubes, small signs for the
-    bars that open onto it, lanterns on some, a tube over a door, and
-    whoever is out the back."""
+    """A back on a lane or a side on a cross alley (see the note above)."""
     r, h = rng(rec, "lane" + name), rec["h"]
     f = face(rec, name)
     w = f.width
-    # Small barred windows of back rooms, lit, along the ground floor, a
-    # conduit over them: a back wall is somebody's kitchen, store or office.
-    s = r.uniform(0.6, 2.4)
-    while s < w - 1.3:
-        c = r.choice(("amber", "amber", "amber", "cyan", "pink", "white"))
-        k = r.uniform(0.22, 0.5)
-        f.quad((D, "glow", 0), s, s + 0.9, 1.75, 2.5, 0.02, col=tuple(v * k for v in GLOW[c][:3]) + (1,))
-        f.box((D, "metal", 1), s - 0.06, s + 0.96, 1.66, 1.75, 0.0, 0.1)
-        for bx_ in (0.3, 0.6):
-            f.quad((D, "metal", 1), s + bx_ - 0.02, s + bx_ + 0.02, 1.75, 2.5, 0.05)
-        s += r.uniform(2.6, 4.4)
-    f.box((D, "metal", 1), 0.2, w - 0.2, 3.02, 3.1, 0.0, 0.07)
-    s = r.uniform(0.8, 2.6)
-    while s < w - 0.4:
-        light(D, *f.p(f.at(s), 2.8, 1.3), r.choice(("amber", "amber", "amber", "pink", "cyan", "green", "red")), 5.0)
-        s += r.uniform(6.5, 10.0)
-    if r.random() < 0.3:
-        J.lantern_row(f, 0.6, w - 0.6, 3.0, 0.45, 1.5)
-    if r.random() < 0.55 and w > 4.0:
-        s = r.uniform(0.5, w - 3.0)
-        strip(f, r.choice(NEONS), s, s + r.uniform(1.6, 2.6), 3.3, 3.38, 0.08)
-    if r.random() < 0.45 and w > 6.0:
-        # Lit advert panels pasted in a row at head height.
-        s = r.uniform(0.6, w - 4.2)
-        for i in range(r.randrange(3, 7)):
-            f.quad((D, "billboard", 0), s + i * 0.56, s + i * 0.56 + 0.46, 0.75, 1.45, 0.03,
-                   col=(r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0))
+    side = rec["sides"][name] == "open"
+    f.quad((D, "plaster", 0), 0.0, w, 0.0, SHOP_H, 0.0, col=r.choice(LANE_WALLS))
+    f.box((D, "concrete", 1), 0.0, w, 0.0, 0.95, 0.0, 0.06, scale=3.0)
+    k = (D, "metal", 1)
+    f.box(k, 0.15, w - 0.15, G0 + 3.05, G0 + 3.1, 0.02, 0.07)
+    if r.random() < 0.6:
+        a = r.uniform(0.2, w * 0.4)
+        f.box(k, a, r.uniform(w * 0.6, w - 0.2), G0 + 3.22, G0 + 3.26, 0.02, 0.06)
+    s = r.uniform(0.3, 0.9)
+    doors, last_door, ladder = 0, -9.0, w > 4.5 and h < 23.0 and r.random() < 0.3
+    while s < w - 0.7:
+        room = w - 0.3 - s
+        # By a cross alley's mouths, and where a stall or a column stands:
+        # only what lies within a hand of the wall.
+        flat = kept(f, s - 0.2, s + 1.6) or (side and (s < 2.4 or s > w - 3.8))
+        roll = r.random()
+        if (roll < 0.15 or (doors == 0 and s > w * 0.35)) and room > 1.35 and s - last_door > 4.0:
+            lane_door(f, s + 0.65, r)
+            doors, last_door = doors + 1, s
+            s += 1.3
+        elif roll < 0.37 and room > 1.3:
+            kind = r.choice([wk for wk in WINDOWS if wk[0] + 0.25 < room])
+            lane_window(f, s + 0.12, r, kind)
+            if not flat and r.random() < 0.25:
+                lane_stuff(f, s, kind[0], r, False)
+            s += kind[0] + 0.25
+        elif roll < 0.43 and room > 3.4 and not flat:
+            sw = r.uniform(2.6, min(3.6, room - 0.3))
+            lane_shutter(f, s + 0.15, sw, r)
+            s += sw + 0.3
+        elif roll < 0.53 and room > 1.0 and not flat:
+            J.put("jt_ac", *f.p(f.at(s + 0.5), G0, 0.0), f.yaw, r.uniform(0.92, 1.12))
+            s += 1.0
+        elif roll < 0.59 and room > 1.2:
+            J.put("jt_meters", *f.p(f.at(s + 0.6), G0, 0.0), f.yaw)
+            s += 1.2
+        elif roll < 0.64 and room > 0.9:
+            J.put("jt_vent", *f.p(f.at(s + 0.42), G0, 0.0), f.yaw)
+            s += 0.85
+        elif roll < 0.68 and room > 0.8 and not flat:
+            J.put("jt_duct", *f.p(f.at(s + 0.35), G0, 0.0), f.yaw, min(1.0, (h - 1.2) / 5.85))
+            s += 0.7
+        elif roll < 0.75 and room > 0.9:
+            J.put("jt_pipes", *f.p(f.at(s + 0.4), G0, 0.0), f.yaw)
+            s += 0.8
+        elif roll < 0.79 and ladder and room > 1.0 and not flat:
+            n = math.ceil((h + 1.0 - 2.7) / 3.0)
+            for i in range(n):
+                sy = (h + 1.0 - 2.7) / (3.0 * n)
+                J.put("jt_ladder", *f.p(f.at(s + 0.45), 2.7 + i * 3.0 * sy, 0.0), f.yaw, sy)
+            ladder = False
+            s += 0.9
+        elif not flat and room > 0.9:
+            s += lane_stuff(f, s, room, r, side)
+        else:
+            s += 0.6
+        s += r.uniform(0.2, 0.9)
+    if r.random() < 0.5 and w > 4.0:
+        a = r.uniform(0.5, w - 3.0)
+        strip(f, r.choice(NEONS), a, a + r.uniform(1.6, 2.6), SHOP_H + 0.25, SHOP_H + 0.33, 0.08)
     signs_on(f, h, r, density=0.16, small=True, big=False, cap=cap)
-    by_wall(f, r, alley=True, people=0.14)
 
 
 def flush_shops(f, r, tcol):
@@ -698,6 +834,7 @@ cuts_w = [(a, b, "open") for a, b in ALLEYS] + [(TORII[0], TORII[1], "street")]
 cuts_c = [(a, b, "open") for a, b in (ALLEYS[1], ALLEYS[3], ALLEYS[7])] + [(TORII[0], TORII[1], "street")]
 cuts_e = [(a, b, "open") for a, b in PASSAGES] + [(-190.0, -168.0, "street"), (-86.0, -74.0, "deck")]
 
+B.back_ground = _no_back
 build_row("E", ROW_E, "-x", "back", segments(-708.0, -10.0, cuts_e, "street", "street"), 811, W_NARROW,
           ((2, 3), (3, 4), (4, 3), (5, 2)), STYLE, quiet=True)
 build_row("A", ROW_A, "+x", "street", segments(ZN, ZS, cuts_w), 812, W_NARROW,
@@ -706,6 +843,55 @@ build_row("B", ROW_B, "+x", "back", segments(ZN, ZS, cuts_w), 813, (8.0, 9.6, 11
           ((3, 3), (4, 3), (5, 3), (6, 2)), STYLE_B, ground="blank")
 build_row("C", ROW_C, "-x", "back", segments(ZN, ZS, cuts_c), 814, (12.8, 16.0, 19.2, 22.4),
           ((5, 2), (6, 3), (7, 3), (8, 2), (9, 1)), STYLE_C, ground="blank")
+B.back_ground = _kit_back
+
+# ---------------------------------------------------------------------------
+# The lanes: the east lane behind the shallow lots, the back lane, the
+# edge strip. Cables over them, lamp columns, a few strings, what stands
+# about; steam.
+# ---------------------------------------------------------------------------
+lr = random.Random(7500)
+for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.45, 26.0), (BACK, ZN + 2.0, ZS - 2.0, 0.3, 30.0), (EDGE, ZN + 2.0, ZS - 2.0, 0.0, 22.0)):
+    z = za + 3.0
+    while z < zb:
+        if xa == EDGE[0]:
+            pass
+        elif lr.random() < strings:
+            J.span("jt_string_s", (xa, z), (xb, z + lr.uniform(-0.6, 0.6)), lr.uniform(4.6, 5.4), 0.9, unit=5.0)
+            light(D, (xa + xb) / 2, 0.3, z, "red", 2.0)
+        else:
+            J.span("jt_cable", (xa, z), (xb, z + lr.uniform(-3.0, 3.0)), lr.uniform(5.0, 7.3), 0.45)
+        z += lr.uniform(5.0, 10.0)
+    z = za + 6.0
+    k = 0
+    while z < zb:
+        # A column stands clear of what its wall carries.
+        x = xa + 1.5 if k % 2 == 0 else xb - 1.5
+        if xa == EDGE[0]:
+            x = xa + 0.6
+        J.put("lamp_short", x, G0, z)
+        light(D, x, 3.0, z, "amber", 4.0)
+        if xa == LANE[0] and k % 3 == 1:
+            stall(xa + 0.95, z + 9.0, HALF_PI, lr)
+            stools(xa + 1.2, z + 11.6, lr.uniform(0, 6.28), lr)
+            KEEP.append((xa, z + 7.0, z + 12.8))
+        roll = lr.random()
+        if roll < 0.3:
+            J.put("drum", x, G0, z + 2.0)
+            J.put("drum", x + (0.1 if k % 2 == 0 else -0.1), G0, z + 2.7)
+        elif roll < 0.55:
+            J.put("bin", x, G0, z - 1.6)
+        elif roll < 0.7 and xa == EDGE[0]:
+            J.put("planter_tree", xa + 1.3, G0, z + 6.0, lr.uniform(0, 6.28))
+        # Somebody against the strip's wall (a lane's walls stand their own).
+        roll = lr.random()
+        if xa == EDGE[0] and roll < 0.45:
+            stand(xb - 0.38, z + 3.5, -HALF_PI + lr.uniform(-0.3, 0.3), lr.choice(("smoke", "lean", "phone", "squat")), G0)
+        elif xa == EDGE[0] and roll < 0.6:
+            stand(xb - 0.38, z + 3.2, 0.0, "talk", G0)
+            stand(xb - 0.38, z + 4.1, math.pi, "talk", G0)
+        k += 1
+        z += columns * lr.uniform(0.8, 1.2)
 
 ROOFS_W = {"E": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden", 3)),
            "A": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden", 3)),
@@ -961,10 +1147,8 @@ for a, b in ALLEYS:
     for xa, xb in (ROW_A, ROW_B):
         J.span("jt_cable", ((xa + xb) / 2 + 2.0, a), ((xa + xb) / 2 - 2.0, b), nr.uniform(5.5, 7.2), 0.4)
         J.span("jt_string_s", ((xa + xb) / 2 - 3.0, a), ((xa + xb) / 2 - 3.5, b), 4.6, 0.9, unit=5.0)
-        J.put("vending", (xa + xb) / 2 + 4.0, G0, a + 0.45, 0.0)
-        light(D, (xa + xb) / 2 + 4.0, 1.2, a + 1.3, "cyan", 1.8)
-        J.put("jt_scooter", (xa + xb) / 2 - 5.0, G0, b - 0.5, HALF_PI + nr.uniform(-0.2, 0.2))
-        stand((xa + xb) / 2 + nr.uniform(-1.0, 2.5), a + 0.4, 0.0, nr.choice(("lean", "smoke", "squat", "phone")), G0)
+        J.put("jt_scooter", (xa + xb) / 2 - 5.0, G0, b - 1.6, HALF_PI + nr.uniform(-0.2, 0.2))
+        nr.uniform(-1.0, 2.5), nr.choice(("lean", "smoke", "squat", "phone"))   # (the stream as it ran)
     # White hatching on the slabs at its mouth (KvMY1uzSC1E@94).
     for i in range(5):
         x = XW - 1.0 - i * 0.55
@@ -1064,53 +1248,7 @@ J.tube_sign((bx, 13.4, tc), HALF_PI, 6.4, 2.0, "red", tr)
 for z in (tc - 3.6, tc + 3.6):
     box((D, "metal", 0), bx - 0.5, bx - 0.2, G0, 14.4, z - 0.15, z + 0.15, scale=1.0)
 
-# ---------------------------------------------------------------------------
-# The lanes: the east lane behind the shallow lots, the back lane, the
-# edge strip. Cables over them, lamp columns, a few strings, what stands
-# about; steam.
-# ---------------------------------------------------------------------------
-lr = random.Random(7500)
-for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.45, 26.0), (BACK, ZN + 2.0, ZS - 2.0, 0.3, 30.0), (EDGE, ZN + 2.0, ZS - 2.0, 0.0, 22.0)):
-    z = za + 3.0
-    while z < zb:
-        if xa == EDGE[0]:
-            pass
-        elif lr.random() < strings:
-            J.span("jt_string_s", (xa, z), (xb, z + lr.uniform(-0.6, 0.6)), lr.uniform(4.6, 5.4), 0.9, unit=5.0)
-            light(D, (xa + xb) / 2, 0.3, z, "red", 2.0)
-        else:
-            J.span("jt_cable", (xa, z), (xb, z + lr.uniform(-3.0, 3.0)), lr.uniform(5.0, 7.3), 0.45)
-        z += lr.uniform(5.0, 10.0)
-    z = za + 6.0
-    k = 0
-    while z < zb:
-        x = xa + 0.55 if k % 2 == 0 else xb - 0.55
-        if xa == EDGE[0]:
-            x = xa + 0.6
-        J.put("lamp_short", x, G0, z)
-        light(D, x, 3.0, z, "amber", 4.0)
-        if xa == LANE[0] and k % 3 == 1:
-            stall(xa + 0.95, z + 9.0, HALF_PI, lr)
-            stools(xa + 1.2, z + 11.6, lr.uniform(0, 6.28), lr)
-        roll = lr.random()
-        if roll < 0.3:
-            J.put("drum", x, G0, z + 2.0)
-            J.put("drum", x + (0.1 if k % 2 == 0 else -0.1), G0, z + 2.7)
-        elif roll < 0.55:
-            J.put("bin", x, G0, z - 1.6)
-        elif roll < 0.7 and xa == EDGE[0]:
-            J.put("planter_tree", xa + 1.3, G0, z + 6.0, lr.uniform(0, 6.28))
-        # Somebody against the wall: mine is the lane's west one, the back
-        # lane's both, the strip's east.
-        wx, wyaw = (xa + 0.38, HALF_PI) if xa != EDGE[0] and (xa == LANE[0] or k % 2 == 0) else (xb - 0.38, -HALF_PI)
-        roll = lr.random()
-        if roll < 0.45:
-            stand(wx, z + 3.5, wyaw + lr.uniform(-0.3, 0.3), lr.choice(("smoke", "lean", "phone", "squat")), G0)
-        elif roll < 0.6:
-            stand(wx, z + 3.2, 0.0, "talk", G0)
-            stand(wx, z + 4.1, math.pi, "talk", G0)
-        k += 1
-        z += columns * lr.uniform(0.8, 1.2)
+# (The lanes' columns, strings and stalls are set down before their walls are dressed: see LANES.)
 steam(-47.0, -520.0)
 steam(-47.0, -300.0)
 steam(-140.0, -350.0)

@@ -517,3 +517,182 @@ def _jt_nobori(k):
                 wj = (0.3, 0.2, 0.26, 0.16, 0.28)[j]
                 ma, mb = (x + 0.29 - wj / 2, x + 0.29 + wj / 2) if sd > 0 else (x + 0.29 + wj / 2, x + 0.29 - wj / 2)
                 quad(T, (ma, y - 0.1, 0.006 * sd), (mb, y - 0.1, 0.006 * sd), (mb, y + 0.1, 0.006 * sd), (ma, y + 0.1, 0.006 * sd), col=ink)
+
+
+# ---------------------------------------------------------------------------
+# What a lane's wall carries at arm's length. Each is drawn on the wall's
+# plane (z 0) standing out toward +z; the ones that reach the ground stand
+# on it. All of it is detail: a phone has the wall, its glass, doors and
+# lamps.
+# ---------------------------------------------------------------------------
+STEEL_D = (0.03, 0.034, 0.042, 1)
+FRAME = (0.11, 0.115, 0.125, 1)
+GALV = (0.2, 0.21, 0.22, 1)
+OFFWHITE = (0.34, 0.34, 0.31, 1)
+RUSTY = (0.17, 0.075, 0.04, 1)
+DAMP = (0.01, 0.012, 0.014, 1)
+GREASE = (0.02, 0.015, 0.01, 1)
+
+
+def _frame(T, t=0.07, d=0.11):
+    """The frame round an opening a metre square whose foot is the origin
+    (an instance is stretched to its window): jambs and a head standing
+    proud of the glass, which is their reveal, and a sill further out."""
+    box(T, -0.5 - t, -0.5, -0.02, 1.0 + t, 0.0, d, scale=1.0, col=FRAME)
+    box(T, 0.5, 0.5 + t, -0.02, 1.0 + t, 0.0, d, scale=1.0, col=FRAME)
+    box(T, -0.5, 0.5, 1.0, 1.0 + t, 0.0, d, scale=1.0, col=FRAME, bottom=True)
+    box(T, -0.62, 0.62, -0.1, 0.0, 0.0, d + 0.08, scale=1.0, col=(0.19, 0.19, 0.2, 1), bottom=True)
+
+
+@P.proto("jt_win", box=(0.6, 0.6, 0.1), reach=170, detail=True)
+def _jt_win(k):
+    """A back room's window: its frame and sill, three bars and their tie."""
+    T = k("trim")
+    _frame(T)
+    for x in (-0.25, 0.0, 0.25):
+        box(T, x - 0.016, x + 0.016, 0.0, 1.0, 0.06, 0.09, scale=1.0, col=STEEL_D)
+    box(T, -0.5, 0.5, 0.47, 0.51, 0.05, 0.075, scale=1.0, col=STEEL_D, bottom=True)
+
+
+@P.proto("jt_win_b", box=(0.6, 0.6, 0.1), reach=170, detail=True)
+def _jt_win_b(k):
+    """A window with its blind let down two thirds: the room's light comes
+    between the slats and under it."""
+    T = k("trim")
+    _frame(T)
+    for i in range(8):
+        y = 0.97 - i * 0.08
+        quad(T, (-0.49, y - 0.06, 0.03), (0.49, y - 0.06, 0.03), (0.49, y, 0.055), (-0.49, y, 0.055), col=(0.3, 0.29, 0.25, 1))
+    box(T, -0.02, 0.02, 0.0, 1.0, 0.02, 0.07, scale=1.0, col=FRAME)
+
+
+@P.proto("jt_door", box=(0.7, 1.6, 0.25), reach=190, detail=True)
+def _jt_door(k):
+    """A steel door's frame, step, kick plate, handle and notice, and the
+    bulkhead lamp over it on its conduit (the leaf and the lens are the
+    wall's own)."""
+    T = k("trim")
+    for x0, x1 in ((-0.56, -0.475), (0.475, 0.56)):
+        box(T, x0, x1, 0.0, 2.19, 0.0, 0.1, scale=1.0, col=FRAME)
+    box(T, -0.475, 0.475, 2.1, 2.19, 0.0, 0.1, scale=1.0, col=FRAME, bottom=True)
+    box(T, -0.68, 0.68, 0.0, 0.1, 0.0, 0.42, scale=1.0, col=(0.2, 0.2, 0.21, 1))
+    box(T, -0.44, 0.44, 0.14, 0.44, 0.034, 0.048, scale=1.0, col=GALV)
+    box(T, 0.3, 0.36, 0.98, 1.16, 0.034, 0.1, scale=1.0, col=GALV, bottom=True)
+    box(T, -0.3, -0.06, 1.5, 1.66, 0.034, 0.042, scale=1.0, col=(0.45, 0.42, 0.3, 1))
+    box(T, -0.16, 0.16, 2.36, 2.6, 0.0, 0.06, scale=1.0, col=STEEL_D)
+    box(T, -0.2, 0.2, 2.6, 2.64, 0.0, 0.26, scale=1.0, col=STEEL_D, bottom=True)
+    box(T, -0.02, 0.02, 2.64, 3.05, 0.02, 0.06, scale=1.0, col=GALV)
+
+
+def _disc(T, cx, cy, z, r, col, segs=8):
+    poly(T, [(cx + r * math.cos(i * math.tau / segs), cy + r * math.sin(i * math.tau / segs), z) for i in range(segs)], [(0, 0)] * segs, col)
+
+
+def _wet(T, cx, cz, rx, rz, col=DAMP, segs=8):
+    """What drips leaves on the ground: a dark patch."""
+    poly(T, [(cx + rx * math.cos(-i * math.tau / segs), 0.025, cz + rz * math.sin(-i * math.tau / segs)) for i in range(segs)], [(0, 0)] * segs, col)
+
+
+@P.proto("jt_ac", box=(0.5, 1.55, 0.3), reach=220, detail=True)
+def _jt_ac(k):
+    """An air conditioner over head height on two brackets, its fan behind
+    a grille, its drain down the wall, the stain under it and the wet it
+    leaves on the ground."""
+    T = k("trim")
+    box(T, -0.42, 0.42, 2.46, 3.04, 0.1, 0.46, scale=1.0, col=OFFWHITE, bottom=True)
+    _disc(T, -0.1, 2.75, 0.468, 0.23, (0.02, 0.02, 0.024, 1))
+    for q in (((-0.33, 2.735, 0.474), (0.13, 2.735, 0.474), (0.13, 2.765, 0.474), (-0.33, 2.765, 0.474)),
+              ((-0.115, 2.52, 0.474), (-0.085, 2.52, 0.474), (-0.085, 2.98, 0.474), (-0.115, 2.98, 0.474))):
+        quad(T, *q, col=OFFWHITE)
+    for x in (-0.3, 0.3):
+        box(T, x - 0.02, x + 0.02, 2.4, 2.46, 0.0, 0.5, scale=1.0, col=STEEL_D, bottom=True)
+        g = [(x, 2.4, 0.0), (x, 2.02, 0.0), (x, 2.4, 0.42)]
+        poly(T, g, [(0, 0)] * 3, STEEL_D)
+        poly(T, g[::-1], [(0, 0)] * 3, STEEL_D)
+    box(T, 0.34, 0.37, 0.0, 2.46, 0.0, 0.035, scale=1.0, col=(0.25, 0.25, 0.24, 1))
+    quad(T, (0.18, 0.0, 0.025), (0.54, 0.0, 0.025), (0.44, 2.4, 0.025), (0.3, 2.4, 0.025), col=DAMP)
+    _wet(T, 0.36, 0.32, 0.42, 0.3)
+
+
+@P.proto("jt_meters", box=(0.6, 1.75, 0.12), reach=170, detail=True)
+def _jt_meters(k):
+    """Three meters on a board, their breaker box, and the conduits up
+    from them."""
+    T = k("trim")
+    box(T, -0.52, 0.52, 1.0, 1.95, 0.0, 0.04, scale=1.0, col=(0.09, 0.07, 0.05, 1))
+    for x in (-0.32, 0.0, 0.32):
+        box(T, x - 0.12, x + 0.12, 1.5, 1.84, 0.04, 0.17, scale=1.0, col=(0.2, 0.2, 0.19, 1), bottom=True)
+        quad(T, (x - 0.07, 1.68, 0.176), (x + 0.07, 1.68, 0.176), (x + 0.07, 1.79, 0.176), (x - 0.07, 1.79, 0.176), col=(0.5, 0.5, 0.42, 1))
+        box(T, x - 0.018, x + 0.018, 1.84, 3.3 + x * 0.6, 0.05, 0.085, scale=1.0, col=GALV)
+    box(T, -0.44, 0.1, 1.06, 1.4, 0.04, 0.15, scale=1.0, col=GALV, bottom=True)
+    box(T, 0.28, 0.32, 0.0, 1.5, 0.04, 0.08, scale=1.0, col=STEEL_D)
+
+
+@P.proto("jt_vent", box=(0.4, 1.35, 0.15), reach=170, detail=True)
+def _jt_vent(k):
+    """A louvred vent under a hood and what has run down the wall from it,
+    and a low grille by the ground."""
+    T = k("trim")
+    box(T, -0.36, 0.36, 2.0, 2.56, 0.0, 0.06, scale=1.0, col=FRAME, bottom=True)
+    for i in range(5):
+        y = 2.52 - i * 0.1
+        quad(T, (-0.31, y - 0.085, 0.13), (0.31, y - 0.085, 0.13), (0.31, y, 0.06), (-0.31, y, 0.06), col=GALV)
+    hood = ((-0.4, 2.56, 0.26), (0.4, 2.56, 0.26), (0.4, 2.68, 0.0), (-0.4, 2.68, 0.0))
+    quad(T, *hood, col=GALV)
+    quad(T, hood[1], hood[0], hood[3], hood[2], col=STEEL_D)
+    quad(T, (-0.14, 0.5, 0.025), (0.2, 0.5, 0.025), (0.3, 2.0, 0.025), (-0.3, 2.0, 0.025), col=GREASE)
+    box(T, -0.3, 0.3, 0.2, 0.5, 0.0, 0.04, scale=1.0, col=STEEL_D)
+    for y in (0.27, 0.35, 0.43):
+        quad(T, (-0.26, y - 0.02, 0.045), (0.26, y - 0.02, 0.045), (0.26, y + 0.02, 0.045), (-0.26, y + 0.02, 0.045), col=GALV)
+
+
+@P.proto("jt_duct", box=(0.3, 2.95, 0.32), reach=280, detail=True)
+def _jt_duct(k):
+    """A kitchen's extract: out of the wall over head height, up it in a
+    square duct on two straps to a cowl, grease on the wall under it."""
+    T = k("trim")
+    box(T, -0.2, 0.2, 2.3, 2.7, 0.0, 0.55, scale=1.0, col=GALV, bottom=True)
+    box(T, -0.2, 0.2, 2.7, 5.6, 0.15, 0.55, scale=1.0, col=GALV)
+    box(T, -0.27, 0.27, 5.6, 5.85, 0.08, 0.62, scale=1.0, col=(0.13, 0.135, 0.14, 1), bottom=True)
+    for y in (3.4, 4.7):
+        box(T, -0.23, 0.23, y, y + 0.06, 0.0, 0.58, scale=1.0, col=STEEL_D, bottom=True)
+    quad(T, (-0.24, 0.8, 0.025), (0.3, 0.8, 0.025), (0.2, 2.3, 0.025), (-0.2, 2.3, 0.025), col=GREASE)
+
+
+@P.proto("jt_pipes", box=(0.35, 2.3, 0.15), reach=220, detail=True)
+def _jt_pipes(k):
+    """Three pipes up a wall, standing off it on straps: a rusted soil
+    pipe, a thin one from a foot off the ground, one that turns into the
+    wall under the first floor; a red valve."""
+    T = k("trim")
+    cylinder(T, -0.22, 0.13, 0.0, 4.5, 0.06, segs=5, col=RUSTY, cap=False)
+    cylinder(T, 0.0, 0.11, 0.3, 4.5, 0.035, segs=5, col=GALV, cap=False)
+    cylinder(T, 0.2, 0.12, 0.0, 3.6, 0.045, segs=5, col=(0.1, 0.11, 0.1, 1))
+    box(T, 0.155, 0.245, 3.6, 3.69, 0.0, 0.165, scale=1.0, col=(0.1, 0.11, 0.1, 1), bottom=True)
+    box(T, -0.035, 0.035, 0.3, 0.37, 0.0, 0.145, scale=1.0, col=GALV, bottom=True)
+    for y in (0.9, 2.4, 3.9):
+        box(T, -0.32, 0.3, y, y + 0.05, 0.0, 0.2, scale=1.0, col=STEEL_D, bottom=True)
+    box(T, -0.07, 0.07, 1.25, 1.39, 0.06, 0.25, scale=1.0, col=(0.4, 0.05, 0.04, 1), bottom=True)
+
+
+@P.proto("jt_ladder", box=(0.4, 1.5, 0.45), reach=280, detail=True)
+def _jt_ladder(k):
+    """Three metres of a roof's ladder off the wall: stiles, rungs, the
+    brackets back to the wall, two hoops of its cage and their straps."""
+    T = k("trim")
+    for x in (-0.22, 0.22):
+        box(T, x - 0.02, x + 0.02, 0.0, 3.0, 0.2, 0.25, scale=1.0, col=GALV)
+        for y in (0.4, 1.9):
+            box(T, x - 0.02, x + 0.02, y, y + 0.04, 0.0, 0.2, scale=1.0, col=GALV, bottom=True)
+    for i in range(10):
+        y = 0.15 + i * 0.3
+        quad(T, (-0.2, y, 0.24), (0.2, y, 0.24), (0.2, y + 0.035, 0.24), (-0.2, y + 0.035, 0.24), col=GALV)
+        quad(T, (-0.2, y + 0.035, 0.24), (0.2, y + 0.035, 0.24), (0.2, y + 0.035, 0.21), (-0.2, y + 0.035, 0.21), col=GALV)
+    hoop = [(0.3 * math.cos(i * math.pi / 4), 0.25 + 0.55 * math.sin(i * math.pi / 4)) for i in range(5)]
+    for y in (0.75, 2.25):
+        for (xa, za), (xb, zb) in zip(hoop, hoop[1:]):
+            q = ((xa, y, za), (xb, y, zb), (xb, y + 0.05, zb), (xa, y + 0.05, za))
+            quad(T, *q, col=GALV)
+            quad(T, q[1], q[0], q[3], q[2], col=GALV)
+    for x, z in hoop[1:4]:
+        box(T, x - 0.015, x + 0.015, 0.0, 3.0, z - 0.015, z + 0.015, scale=1.0, col=GALV)
