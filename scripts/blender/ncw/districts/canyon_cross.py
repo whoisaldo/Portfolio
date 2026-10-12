@@ -26,21 +26,6 @@ CHORD = (0.016, 0.02, 0.032, 1)
 MULL = (0.01, 0.012, 0.018, 1)
 
 
-def ad_set(r, n):
-    """Colours for n billboards that are one system: the site draws each
-    board's advert from its colour (which of its sixteen, and when it
-    changes), so boards with one seed change together, and with n different
-    greens never show the same advert as each other, wide or tall."""
-    for _ in range(200):
-        cr, cb = r.randrange(8) / 8.0 + 0.01, r.randrange(256) / 255.0
-        ks = r.sample(range(8), n)
-        picks = [int((cb * 7.31 + (k / 8.0 + 0.01) * 3.7 + cr * 1.3) % 1.0 * 16.0) for k in ks]
-        edge = [abs(((cb * 7.31 + (k / 8.0 + 0.01) * 3.7 + cr * 1.3) % 1.0 * 16.0) % 1.0 - 0.5) for k in ks]
-        if len({p % 8 for p in picks}) == n and max(edge) < 0.4:
-            break
-    return [(cr, k / 8.0 + 0.01, cb, 1.0) for k in ks]
-
-
 def ribbon(key, f, y0, y1, hue, r, pane=1.4, k=0.3, out=0.02):
     """A row of small lit windows right across a face: a ribbon of light
     behind mullions, a pane dark here and there."""
@@ -109,15 +94,14 @@ def megastructure(zn, zs, y0, y1, r, occ, south=FA, key=CB, step=1.5, feet=(5.0,
         for i in range(6):
             s = 1.5 + (w - 3.0) * i / 5
             C.over((key, "glow", 0), lo, s - 0.15, s + 0.15, -step * 0.5 - 0.15, -step * 0.5 + 0.15, ym + 0.06, GLOW["amber" if i % 2 else "cyan"])
-        # Its screens, one system (they change together and never show the
-        # same advert), each on brackets off the lower face; its brand
-        # boards flat on the wall.
+        # Its screens, each on brackets off the lower face (the site gives
+        # each board its advert by where it stands, so no two neighbours
+        # show the same); its brand boards flat on the wall.
         screens, brands = layout[name]
-        ads = ad_set(r, len(screens))
-        for (s, bw, bh, dy), col in zip(screens, ads):
+        for s, bw, bh, dy in screens:
             yc = min(max(y0 + dy, y0 + bh / 2 + 0.25), y1 - bh / 2 - 0.3)
             cx, _, cz = lo.p(lo.at(s), yc, 0.9)
-            C.advert(k2, key, cx, yc, cz, bw, bh, lo.yaw, r, col=col)
+            C.advert(k2, key, cx, yc, cz, bw, bh, lo.yaw, r)
             for ds in (-bw * 0.3, bw * 0.3):
                 lo.box((key, "metal", 1), s + ds - 0.06, s + ds + 0.06, max(yc - bh / 2, y0 + 0.2), min(yc + bh / 2, ym - 0.2), 0.0, 0.76)
         for s, bw, dy, upper in brands:

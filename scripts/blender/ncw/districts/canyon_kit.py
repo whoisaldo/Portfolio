@@ -155,6 +155,25 @@ def strip(key, f, s0, s1, y0, y1, hue, out=0.06):
 # frame, so the lit glass is in the core and the joinery in the pack.
 # ---------------------------------------------------------------------------
 REC, PIL = B.REC, B.PIL
+STEAM = {}      # how many steam sources of each kind the canyon has set
+
+
+def steam(kind, x, y, z, most=99):
+    """A source of steam at its mouth (src/world/steam.js reads the kind
+    from the name: stall, lane, roof, drain, street), up to `most` of a
+    kind. Says whether it was set."""
+    n = STEAM.get(kind, 0)
+    if n >= most:
+        return False
+    STEAM[kind] = n + 1
+    empty(f"anchor_steam_{kind}_cy{n}", (x, y, z))
+    return True
+
+
+def stall_steam(px, pz, yaw, most=14):
+    """Off the pot on a cy_stall's counter."""
+    return steam("stall", px + 0.7 * math.cos(yaw) + 0.33 * math.sin(yaw), 1.32, pz - 0.7 * math.sin(yaw) + 0.33 * math.cos(yaw), most)
+
 TRADES = ("glass", "counter", "glass", "machines", "cabinets", "glass", "counter", "glass", "hatch", "cabinets")
 FRONTS = []     # every shop front built, in order: the next takes the next trade
 WOOD = (0.13, 0.1, 0.09, 1)
@@ -206,6 +225,8 @@ def _front(trade, f, s0, s1, key):
             s = s0 + 0.5 + (s1 - s0 - 1.0) * i / max(1, n - 1)
             if i % 3 == 2:
                 f.box((key, "trim", 1), s - 0.16, s + 0.16, 1.05, 1.3, -0.3, -0.02, col=(0.3, 0.2, 0.11, 1))
+                if i == 2 and len(FRONTS) % 3 == 0:
+                    steam("stall", *f.p(f.at(s), 1.32, -0.16), most=22)
             else:
                 f.box((key, "trim", 1), s - 0.11, s + 0.11, 1.05, 1.12, -0.26, -0.04, col=(0.5, 0.48, 0.44, 1))
         f.box((key, "metal", 1), s0 + 0.3, s1 - 0.3, 1.7, 1.74, -d, -d + 0.2)
@@ -440,8 +461,9 @@ def tall(sid, n, x, y0, h, z, wall_x, w=2.2, key=FA, back=CB, preview="夜"):
             if pr.random() < 0.12:
                 box((back, "board_frame", 0), x - w / 2, x + w / 2, py - ph_ / 2, py + ph_ / 2, z - 0.2, z - 0.1, scale=1.0, bottom=True)
                 continue
+            # (In the pack, both faces: the core carries the word alone.)
             sid_ = st_name("bx")
-            sign(sid_, x, py, z - 0.02, w, ph_, 0.0, district=key, label=False)
+            sign(sid_, x, py, z - 0.02, w, ph_, 0.0, district=back, label=False)
             sign(sid_ + "_b", x, py, z - 0.28, w, ph_, math.pi, district=back, label=False)
     for yb in (y0 + 0.4, yc, y0 + h - 0.4):
         xa, xb = sorted((x + (w / 2 + 0.2) * (1 if wall_x > x else -1), wall_x))
@@ -450,11 +472,10 @@ def tall(sid, n, x, y0, h, z, wall_x, w=2.2, key=FA, back=CB, preview="夜"):
         box((key, "neon_" + hue, 0), x - w / 2 - 0.2, x + w / 2 + 0.2, yb, yb + 0.12, z - 0.22, z - 0.08, scale=1.0, bottom=True)
 
 
-def advert(face_key, frame_key, cx, cy, cz, w, h, yaw, r, depth=0.25, col=None):
+def advert(face_key, frame_key, cx, cy, cz, w, h, yaw, r, depth=0.25):
     """A screen (the site draws its advert) in a thin dark frame, the face
-    and the frame keyed apart. `col`: its colour, where a set of screens is
-    one system (canyon_cross.ad_set)."""
-    col = col or (r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0)
+    and the frame keyed apart."""
+    col = (r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0)
     rotated_quad((face_key, "billboard", 0), cx, cy, cz, w, h, yaw, col=col)
     nx, nz = math.sin(yaw), math.cos(yaw)
     oriented_box((frame_key, "board_frame", 0), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.3, h + 0.3, depth, yaw, scale=1.0)
@@ -593,7 +614,7 @@ def _cy_stall(k):
     cylinder(k("metal"), 0.7, 0.33, 1.0, 1.3, 0.2, segs=8)
 
 
-@P.proto("cy_stool", box=(0.2, 0.25, 0.2), reach=180, detail=True)
+@P.proto("cy_stool", box=(0.2, 0.25, 0.2), reach=180)
 def _cy_stool(k):
     cylinder(k("metal"), 0.0, 0.0, 0.0, 0.45, 0.04, segs=5, cap=False)
     cylinder(k("trim"), 0.0, 0.0, 0.45, 0.5, 0.18, segs=8, col=(0.38, 0.07, 0.08, 1))
@@ -963,7 +984,7 @@ def lane(key, x0, x1, z0, z1, r, along="z", tubes=True, people=True, name=None):
     if name:
         sx, _, sz = pt((lo + hi) / 2 + r.uniform(-6.0, 6.0), (wa + wb) / 2, 0.0)
         box((key, "metal", 1), sx - 0.4, sx + 0.4, G0, G0 + 0.06, sz - 0.4, sz + 0.4, scale=0.5)
-        empty("anchor_steam_" + name, (sx, 0.3, sz))
+        empty("anchor_steam_drain_" + name, (sx, G0 + 0.08, sz))
 
 
 def pipe_rack(key, x, z0, z1, r, y=3.3, post=1):
@@ -1002,14 +1023,11 @@ def pylon(z, y_top, r, side, key=FA, back=CB):
         box((back, "metal", 1), wx - 0.34, wx + 0.34, y, y + 0.06, z - 0.34, z + 0.34, scale=0.5, bottom=True)
         y += 3.0
     y, reach = 7.6, 0.0
-    # (One system: its adverts change together and no two are the same.)
-    from ncw.districts.canyon_cross import ad_set
-    south, north = ad_set(r, 8), ad_set(r, 8)
     while y < y_top - 2.4:
         w, h = r.uniform(2.8, 3.7), min(r.uniform(2.2, 3.9), y_top - y - 0.2)
         cx = side * (WALK - 1.0 - w / 2)
-        advert(key, back, cx, y + h / 2, z + 0.42, w, h, r.uniform(-0.1, 0.1), r, col=south.pop())
-        advert(back, back, cx, y + h / 2, z - 0.42, w, h, math.pi + r.uniform(-0.1, 0.1), r, col=north.pop())
+        advert(key, back, cx, y + h / 2, z + 0.42, w, h, r.uniform(-0.1, 0.1), r)
+        advert(back, back, cx, y + h / 2, z - 0.42, w, h, math.pi + r.uniform(-0.1, 0.1), r)
         box((back, "metal", 1), min(cx, wx), max(cx, wx), y + h / 2 - 0.06, y + h / 2 + 0.06, z - 0.06, z + 0.06, scale=0.5, bottom=True)
         reach = max(reach, w + 1.2)
         y += h + r.uniform(0.35, 0.9)
@@ -1373,6 +1391,10 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                 hue = r.choice(("cyan", "amber", "red", "teal"))
                 for f in B.faces_of(px - hw, px + hw, pz - hd, pz + hd).values():
                     f.quad((key, "neon_" + hue, 0), 0.1, f.width - 0.1, y + 0.3, y + 0.4, 0.03)
+                # (A cooling tower's plume, on one roof in three.)
+                if STEAM.setdefault("towers", 0) % 3 == 0:
+                    steam("roof", px, y + hh + 0.3, pz, most=9)
+                STEAM["towers"] += 1
             elif kind == "hut":
                 hw, hd, hh = min(1.5, pw * 0.4), min(1.3, pd * 0.4), min(2.6, cap - 0.2)
                 box((key, "trim", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.5, col=B.TRIM[5])

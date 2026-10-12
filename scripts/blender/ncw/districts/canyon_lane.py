@@ -27,6 +27,7 @@ RUSTY = (0.17, 0.075, 0.04, 1)
 DAMP = (0.01, 0.012, 0.014, 1)
 GREASE = (0.02, 0.015, 0.01, 1)
 WINDOWS = ((0.8, 0.6, 1.95), (1.0, 1.1, 1.35), (1.0, 1.1, 1.35), (1.5, 1.0, 1.45), (0.7, 1.4, 1.2), (1.2, 0.8, 1.7))
+VENTS = []      # every vent and duct set on a lane wall, in order: some of them steam
 
 
 def _frame(T, t=0.07, d=0.11):
@@ -270,9 +271,16 @@ def wall(f, r, top=SHOP_H, ends=0.0, upper=None):
             s += 1.2
         elif roll < 0.76 and room > 0.9:
             put("cy_vent", f, s + 0.42)
+            # (Every third vent breathes: a wisp gone by the lintel.)
+            if len(VENTS) % 3 == 0:
+                C.steam("lane", *f.p(f.at(s + 0.42), 2.3, 0.16), most=18)
+            VENTS.append(s)
             s += 0.85
         elif roll < 0.82 and room > 0.8 and not flat:
             put("cy_kduct", f, s + 0.35)
+            if len(VENTS) % 2 == 0:
+                C.steam("lane", *f.p(f.at(s + 0.35), 5.86, 0.35), most=18)
+            VENTS.append(s)
             s += 0.7
         elif roll < 0.92 and room > 0.9:
             put("cy_pipes", f, s + 0.4)

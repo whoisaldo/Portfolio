@@ -276,6 +276,7 @@ def _podium(L, zn, zs, north, south):
             bx_ = _x(side, deep - 1.25)
             if roll < 0.4:
                 P.place("cy_stall", bx_, B.G0, z, out, district=CB)
+                C.stall_steam(bx_, z, out)
                 stand(bx_ + side * 0.55, z, out, "vendor", B.G0)
                 for dz in (-0.7, 0.6):
                     if r.random() < 0.8:
@@ -731,6 +732,10 @@ def _roofs(U):
     side, r, h = L["side"], L["r"], U["h"]
     rb = random.Random(7300 + L["i"] * 23 + U["k"] * 3 + (0 if side > 0 else 500))
     plaza_ = side > 0 and L["i"] <= 4
+    # The right-hand row's second lot backs onto the square, and the plaza
+    # has dressed that back to just under this roof (plaza_corp.py): nothing
+    # on it stands over its parapet.
+    bare = side > 0 and L["i"] == 1
     away = "+x" if side > 0 else "-x"
     # The slab's roof in two strips, each as high as the hero's lens allows:
     # low by the street edge, more behind it.
@@ -740,6 +745,9 @@ def _roofs(U):
             continue
         xa, xb = sorted((_x(side, u0), _x(side, u1)))
         top = C.hidden_top(OCC, xa, xb, zn, zs, h, h + 7.0, step=1.0, pad=0.2, least=1.0)
+        if bare:
+            C.roof_plant(CB, xa, xb, zn, zs, h, r, 0.0, lines)
+            continue
         # (Where the lens allows nothing to stand, what a roof holds under
         # its parapet's height.) In the middle of the back strip of a long
         # roof, the largest thing the lenses allow: a crane, a penthouse,
@@ -911,12 +919,13 @@ for side in (-1, 1):
             # A vent breathing steam near its lane end.
             vx, vz = _x(side, 25.0), (z_lo + z_hi) / 2
             box((CB, "metal", 1), vx - 0.4, vx + 0.4, B.G0, B.G0 + 0.06, vz - 0.4, vz + 0.4, scale=0.5)
-            empty(f"anchor_steam_cy_alley_{_alleys}", (vx, 0.3, vz))
+            C.steam("drain", vx, B.G0 + 0.08, vz)
             _alleys += 1
             if not rail:
                 # A stall just inside its mouth, someone serving, someone eating.
                 sx, sz = _x(side, 2.4), z_lo + 1.25
                 P.place("cy_stall", sx, B.G0, sz, 0.0, district=CB)
+                C.stall_steam(sx, sz, 0.0)
                 stand(sx, sz - 0.55, 0.0, "vendor", B.G0)
                 for dx in (-0.6, 0.7):
                     P.place("cy_stool", sx + dx, B.G0, sz + 1.5, district=CB)
@@ -965,6 +974,7 @@ while lz > -450.0:
     pick = k % 4
     if pick == 0:
         P.place("cy_stall", 50.5, B.G0, lz, -math.pi / 2, district=CB)
+        C.stall_steam(50.5, lz, -math.pi / 2)
         stand(51.05, lz, -math.pi / 2, "vendor", B.G0)
         for dz in (-0.6, 0.7):
             P.place("cy_stool", 49.0, B.G0, lz + dz, district=CB)
@@ -1002,34 +1012,167 @@ stand(51.2, -456.4, math.pi, "idle", B.G0)
 # planters, benches, totems: all low enough to leave the wall and its boards
 # in view.
 C.flat((CB, "glow", 0), 47.86, 47.96, -262.0, -191.0, B.G0 + 0.02, C.dim("teal", 0.55))
-ez, k = -192.5, 0
+ez = -192.5
 while ez > -262.0:
     C.flat((CB, "trim", 1), 44.2, 47.86, ez - 0.08, ez + 0.08, B.G0 + 0.012, (0.02, 0.021, 0.026, 1))
     P.place("cy_bollard", 48.0, B.G0, ez - 1.75, district=CB)
     light(CB, 47.4, 1.0, ez - 1.75, "white", 1.5)
     light(CB, 45.2, 3.0, ez, "amber", 5.0)
-    pick = k % 5
-    if pick in (0, 3):
-        P.place("cy_stall", 45.4, B.G0, ez - 1.75, math.pi / 2, district=CB)
-        stand(44.85, ez - 1.75, math.pi / 2, "vendor", B.G0)
-        P.place("cy_stool", 46.9, B.G0, ez - 2.35, district=CB)
-        stand(46.9, ez - 2.35, -math.pi / 2, "sit", B.G0 + 0.5)
-        stand(47.2, ez - 1.05, -math.pi / 2, lane_r.choice(("idle", "phone")), B.G0)
-        light(CB, 46.4, 2.2, ez - 1.75, lane_r.choice(("white", "amber")), 6.0)
-    elif pick == 1:
-        P.place("cy_table", 46.3, B.G0, ez - 1.75, 0.0, district=CB)
-        for i in range(3):
-            if lane_r.random() < 0.65:
-                a = i * math.tau / 3 + 0.5
-                stand(46.3 + 0.85 * math.cos(a), ez - 1.75 + 0.85 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)), "sit", B.G0 + 0.5)
-    elif pick == 2:
-        P.place("cy_planter", 47.3, B.G0, ez - 1.75, math.pi / 2, district=CB)
-        P.place("bench", 46.5, B.G0, ez - 1.75, math.pi / 2, district=CB)
-        stand(46.5, ez - 1.75 + lane_r.uniform(-0.5, 0.5), -math.pi / 2, "sit", B.G0 + 0.48)
-    else:
-        C.totem(CB, 47.0, B.G0, ez - 1.75, math.pi / 2, lane_r, w=1.3, h=3.2)
     ez -= 3.5
-    k += 1
+
+
+def _sq_awning(z0, z1, depth, colour, ya=2.85, yb=2.35):
+    """A stall's awning on its own frame: dyed cloth sloping from a rail at
+    the shops' wall to a rail `depth` out, a valance and a lit hem along the
+    front, a post under each corner."""
+    dye = tuple(int(NEON[colour][i:i + 2], 16) / 255 for i in (0, 2, 4)) + (1.0,)
+    xa, xb = 44.3, 44.3 + depth
+    k = (CB, "awning", 1)
+    for q in (((xa, ya, z1), (xa, ya, z0), (xb, yb, z0), (xb, yb, z1)), ((xb, yb - 0.3, z1), (xb, yb - 0.3, z0), (xb, yb, z0), (xb, yb, z1))):
+        quad(k, *q, col=dye)
+        quad(k, q[1], q[0], q[3], q[2], uvs=((1, 0), (0, 0), (0, 1), (1, 1)), col=dye)
+    box((CB, "neon_" + colour, 0), xb - 0.02, xb + 0.02, yb - 0.36, yb - 0.3, z0, z1, scale=1.0, bottom=True)
+    for x, y in ((xa, ya), (xb, yb)):
+        box((CB, "metal", 1), x - 0.03, x + 0.03, y - 0.03, y + 0.03, z0, z1, scale=0.5, bottom=True)
+        for z in (z0 + 0.04, z1 - 0.04):
+            box((CB, "metal", 0), x - 0.035, x + 0.035, B.G0, y, z - 0.035, z + 0.035, scale=0.5)
+    return xb
+
+
+def _sq_sign(x, y, z, size, k=1.0):
+    """A stall's sign over its awning's edge, read from the square."""
+    sw, sh = ST_SIZES[size][0] * k, ST_SIZES[size][1] * k
+    box((CB, "board_frame", 0), x - 0.1, x, y - 0.07, y + sh + 0.07, z - sw / 2 - 0.07, z + sw / 2 + 0.07, scale=1.0, bottom=True)
+    sign(st_name(size), x + 0.015, y + sh / 2, z, sw, sh, math.pi / 2, district=CB, label=False)
+
+
+def _sq_stall(zc, hw, colour, depth, size, r):
+    """A stall under the wall, its counter to the square: a back board with
+    a shelf of bottles, a counter with a lit menu on its front, a pot
+    steaming on it, its own awning (its own colour and depth) and sign,
+    lanterns, the vendor, stools and whoever is eating."""
+    xb = _sq_awning(zc - hw - 0.2, zc + hw + 0.2, depth, colour)
+    box((CB, "trim", 0), 44.25, 44.4, B.G0, 1.95, zc - hw, zc + hw, scale=1.0, col=C.WOOD)
+    box((CB, "metal", 1), 44.4, 44.62, 1.5, 1.54, zc - hw + 0.1, zc + hw - 0.1, scale=0.5, bottom=True)
+    for i in range(int((2 * hw - 0.4) / 0.24)):
+        z = zc - hw + 0.3 + i * 0.24
+        quad((CB, "glow", 1), (44.63, 1.54, z + 0.035), (44.63, 1.54, z - 0.035), (44.63, 1.78, z - 0.035), (44.63, 1.78, z + 0.035),
+             col=C.dim(("amber", "green", "yellow", "cyan", "white", "red")[i % 6], 0.3))
+    cx0, cx1 = 45.1, 45.65
+    box((CB, "trim", 0), cx0, cx1, B.G0, 0.95, zc - hw, zc + hw, scale=1.0, col=C.WOOD)
+    box((CB, "metal", 1), cx0 - 0.05, cx1 + 0.07, 0.95, 1.0, zc - hw - 0.05, zc + hw + 0.05, scale=0.6)
+    quad((CB, "glow", 0), (cx1 + 0.005, 0.22, zc + hw - 0.1), (cx1 + 0.005, 0.22, zc - hw + 0.1), (cx1 + 0.005, 0.8, zc - hw + 0.1), (cx1 + 0.005, 0.8, zc + hw - 0.1),
+         col=C.dim(colour, 0.12))
+    n = max(2, int(2 * hw / 0.5))
+    for i in range(n):
+        z = zc + hw - 0.3 - i * (2 * hw - 0.6) / max(1, n - 1)
+        quad((CB, "glow", 1), (cx1 + 0.01, 0.42, z + 0.16), (cx1 + 0.01, 0.42, z - 0.16), (cx1 + 0.01, 0.7, z - 0.16), (cx1 + 0.01, 0.7, z + 0.16),
+             col=C.dim(("red", "white", "green", "yellow", "cyan")[i % 5], 0.55))
+    pz = zc + hw * r.choice((-0.5, 0.5))
+    cylinder((CB, "metal", 1), cx0 + 0.25, pz, 1.0, 1.3, 0.2, segs=8)
+    C.steam("stall", cx0 + 0.25, 1.32, pz, most=30)
+    for z in (zc - hw, zc + hw):
+        P.place("lantern", xb - 0.1, 1.95, z, district=CB)
+    _sq_sign(xb + 0.12, 2.42, zc + r.uniform(-0.3, 0.3), size, k=min(1.0, (2 * hw + 0.2) / ST_SIZES[size][0]))
+    stand(44.78, zc + r.uniform(-0.3, 0.3), math.pi / 2, "vendor", B.G0)
+    for z in (zc - 0.55, zc + 0.6):
+        if r.random() < 0.75:
+            P.place("cy_stool", cx1 + 0.5, B.G0, z, district=CB)
+            if r.random() < 0.8:
+                stand(cx1 + 0.5, z, -math.pi / 2, "sit", B.G0 + 0.5)
+    if r.random() < 0.6:
+        stand(cx1 + 1.2, zc + r.uniform(-0.8, 0.8), -math.pi / 2, r.choice(("idle", "phone")), B.G0)
+    light(CB, cx1 + 0.6, 2.0, zc, "amber", 5.0)
+
+
+def _sq_bar(zc, half, colour, depth, r):
+    """A bar under a deep awning: a long counter along the walk with
+    stools down its square side and people on them, the barman behind it,
+    a back bar of bottles against the wall under a lit sign, lanterns in a
+    row over the counter."""
+    xb = _sq_awning(zc - half - 0.3, zc + half + 0.3, depth, colour, ya=3.0, yb=2.45)
+    box((CB, "trim", 0), 44.25, 44.5, B.G0, 2.1, zc - half, zc + half, scale=1.0, col=C.WOOD)
+    for y in (1.2, 1.62):
+        box((CB, "metal", 1), 44.5, 44.72, y - 0.03, y, zc - half + 0.1, zc + half - 0.1, scale=0.5, bottom=True)
+        for i in range(int((2 * half - 0.4) / 0.26)):
+            z = zc - half + 0.3 + i * 0.26
+            quad((CB, "glow", 1), (44.73, y, z + 0.04), (44.73, y, z - 0.04), (44.73, y + 0.26, z - 0.04), (44.73, y + 0.26, z + 0.04),
+                 col=C.dim(("amber", "green", "cyan", "amber", "white", "red", "yellow")[(i + int(y * 5)) % 7], 0.3))
+    sw, sh = ST_SIZES["pm"]
+    sign(st_name("pm"), 44.52, 2.55, zc, sw, sh, math.pi / 2, district=CB, label=False)
+    cx0, cx1 = 45.9, 46.4
+    box((CB, "trim", 0), cx0, cx1, B.G0, 1.05, zc - half, zc + half, scale=1.0, col=C.WOOD)
+    box((CB, "metal", 1), cx0 - 0.06, cx1 + 0.1, 1.05, 1.1, zc - half - 0.06, zc + half + 0.06, scale=0.6)
+    quad((CB, "glow", 0), (cx1 + 0.005, 0.12, zc + half - 0.1), (cx1 + 0.005, 0.12, zc - half + 0.1), (cx1 + 0.005, 0.2, zc - half + 0.1), (cx1 + 0.005, 0.2, zc + half - 0.1),
+         col=C.dim(colour, 0.7))
+    z = zc - half + 0.55
+    while z < zc + half - 0.3:
+        P.place("cy_stool", cx1 + 0.45, B.G0, z, district=CB)
+        if r.random() < 0.7:
+            stand(cx1 + 0.45, z, -math.pi / 2, "sit", B.G0 + 0.5)
+        z += r.uniform(0.95, 1.35)
+    z = zc - half + 0.4
+    while z < zc + half:
+        P.place("lantern", cx1 + 0.3, 2.15, z, district=CB)
+        z += 1.25
+    box((CB, "metal", 1), cx1 + 0.28, cx1 + 0.32, 2.42, 2.45, zc - half, zc + half, scale=0.5, bottom=True)
+    stand(45.25, zc - half * 0.4, math.pi / 2, "vendor", B.G0)
+    stand(45.3, zc + half * 0.55, math.pi / 2, "idle", B.G0)
+    light(CB, 46.8, 2.1, zc - half * 0.5, "amber", 5.0)
+    light(CB, 46.8, 2.1, zc + half * 0.5, "amber", 5.0)
+
+
+def _sq_shut(zc, r):
+    """A kiosk shut for the night: a steel box, its front a roller shutter
+    with a hazard strip at its foot, its awning rolled up under a dead
+    sign, crates and bags left beside it, someone leaning on it."""
+    box((CB, "trim", 0), 44.25, 45.5, B.G0, 2.55, zc - 1.4, zc + 1.4, scale=1.0, col=(0.07, 0.075, 0.09, 1))
+    quad((CB, "door_panel", 0), (45.51, B.G0 + 0.1, zc + 1.25), (45.51, B.G0 + 0.1, zc - 1.25), (45.51, 2.1, zc - 1.25), (45.51, 2.1, zc + 1.25),
+         uvs=((0, 0), (2.5, 0), (2.5, 2.0), (0, 2.0)))
+    box((CB, "hazard", 1), 45.51, 45.54, B.G0, B.G0 + 0.12, zc - 1.25, zc + 1.25, scale=0.5)
+    box((CB, "trim", 1), 45.5, 45.72, 2.2, 2.42, zc - 1.35, zc + 1.35, scale=1.0, col=(0.2, 0.05, 0.05, 1), bottom=True)
+    box((CB, "board_frame", 0), 45.5, 45.58, 2.6, 3.2, zc - 1.0, zc + 1.0, scale=1.0, bottom=True)
+    box((CB, "metal", 1), 45.52, 45.6, 1.0, 1.14, zc - 0.06, zc + 0.06, scale=0.5, bottom=True)
+    P.place("crates", 46.0, B.G0, zc + 2.0, 0.3, district=CB)
+    P.place("bags", 45.2, B.G0, zc - 2.1, math.pi / 2, district=CB)
+    stand(45.75, zc - 0.5, math.pi / 2, "lean", B.G0)
+    stand(46.3, zc + 0.7, -2.2, "squat", B.G0)
+
+
+# What stands along it, from the plaza street north: no two stalls alike
+# (each its own width, awning, sign and what is on its counter), one of
+# them shut, one a bar with a row of stools; between them tables, benches,
+# hedges and palms of different sizes, totems; nothing at an even step.
+sq_r = random.Random(4860)
+for zc, what, a in ((-194.2, "stall", (1.3, "amber", 2.2, "pm")), (-198.7, "table", ()), (-202.2, "hedge", (1.15,)), (-207.5, "bar", (2.5, "teal", 2.8)),
+                    (-212.6, "totem", ()), (-216.1, "shut", ()), (-220.3, "palm", ()), (-225.2, "stall", (1.1, "cyan", 1.8, "bx")), (-229.3, "bench", ()),
+                    (-234.8, "stall", (1.5, "yellow", 2.6, "ps")), (-239.7, "table", ()), (-243.3, "hedge", (0.8,)), (-249.0, "stall", (1.25, "red", 2.0, "pm")),
+                    (-254.3, "totem", ()), (-258.7, "bench", ())):
+    if what == "stall":
+        _sq_stall(zc, *a, sq_r)
+    elif what == "bar":
+        _sq_bar(zc, *a, sq_r)
+    elif what == "shut":
+        _sq_shut(zc, sq_r)
+    elif what == "table":
+        P.place("cy_table", 46.3, B.G0, zc, sq_r.uniform(0, 2.0), district=CB)
+        for i in range(3):
+            if sq_r.random() < 0.65:
+                ang = i * math.tau / 3 + 0.5
+                stand(46.3 + 0.85 * math.cos(ang), zc + 0.85 * math.sin(ang), math.atan2(-math.cos(ang), -math.sin(ang)), "sit", B.G0 + 0.5)
+    elif what == "hedge":
+        P.place("cy_planter", 47.2, B.G0, zc, math.pi / 2, sy=a[0], sxz=a[0], district=CB)
+        stand(46.3, zc + 0.4, 0.0, "talk", B.G0)
+        stand(46.3, zc + 1.4, math.pi, "talk", B.G0)
+    elif what == "palm":
+        P.place("planter_palm", 46.9, B.G0, zc, sq_r.uniform(0, 6.28), sxz=0.9, district=CB)
+        P.place("lightbox", 45.2, B.G0, zc + 1.6, math.pi / 2, district=CB)
+    elif what == "bench":
+        P.place("bench", 46.5, B.G0, zc, math.pi / 2, district=CB)
+        stand(46.5, zc + sq_r.uniform(-0.5, 0.5), -math.pi / 2, "sit", B.G0 + 0.48)
+        P.place("planter_tree", 47.1, B.G0, zc - 2.0, district=CB)
+    else:
+        C.totem(CB, 47.0, B.G0, zc, math.pi / 2, sq_r, w=1.3, h=3.2)
 # The braindance's GPU clue sits at (44.4, 22, -240) on this wall: a server
 # rack's cooling plant bolted to it, lit warm from inside, clear of
 # everything else. A cabinet with louvres, its amber heart showing between
@@ -1160,9 +1303,9 @@ for s in (-1, 1):
                 if pave_r.random() < 0.6:
                     stand(s * 10.55, zz + 1.0, out + math.pi, "lean", B.G0)
             elif roll < 0.72 and grates < 5:
-                # A grate with warm light under it, breathing steam.
+                # A grate with warm light under it (the kit gives one in
+                # two of them its breath of steam).
                 P.place("grate_glow", s * 10.9, B.G0, zz, math.pi / 2, district=CB)
-                empty(f"anchor_steam_cy_grate_{'l' if s < 0 else 'r'}{grates}", (s * 10.9, 0.3, zz))
                 grates += 1
             elif roll < 0.9:
                 # People at the kerb, waiting to cross: one, or three or four.
@@ -1189,9 +1332,9 @@ for n, m in enumerate(MEGA):
             stand(s * 11.4 + 1.55 * math.cos(a), zc + s * 1.5 + 1.55 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)) + pave_r.uniform(-0.5, 0.5),
                   pave_r.choice(("idle", "phone", "talk", "smoke")), B.G0)
 # Manholes up the canyon breathing steam into the signs' light.
-for i, (sx, sz) in enumerate(((-5.5, -262.0), (4.0, -386.0), (-3.0, -540.0))):
+for sx, sz in ((-5.5, -262.0), (4.0, -386.0), (-3.0, -540.0), (5.2, -322.0), (3.5, -655.0)):
     cylinder((CB, "metal", 1), sx, sz, 0.0, 0.025, 0.42, segs=14)
-    empty(f"anchor_steam_street_cy{i}", (sx, 0.05, sz))
+    C.steam("street", sx, 0.05, sz)
 
 print("CANYON people", len(PEOPLE))
 # Every roof the hero looks along, dressed now that all their masses are
