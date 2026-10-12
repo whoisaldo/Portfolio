@@ -46,9 +46,9 @@
 // frame the people in the frustum are sorted into the three; nobody is ever
 // dropped for being far. Where a walk's loop starts again they fade out and
 // in. The lens is one more thing the files bend round: walkers pass it a
-// metre clear and whoever stands free steps back from it, so nobody is
-// ever seen half there; only someone who cannot move is gone, all at once, a
-// forearm short of it.
+// pace and a half clear and whoever stands free steps back from it, and
+// nobody is ever drawn within 1.2 m of it (an umbrella's holder a little
+// further): whoever cannot keep that far is gone, whole and all at once.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { preloadProps } from "./props.js";
@@ -652,10 +652,16 @@ const BODY = 0.3;
 const GAP = 0.46;
 const EASE = 2;
 // How far to the side of the eye a walker passes it, how far to either side
-// of it a file gives way at all, and how far someone standing steps back.
-const CLEAR = 1.3;
-const CLEAR_REACH = 2.6;
-const BACK = 1;
+// of it a file gives way at all, how far off someone standing free has
+// stepped back to by the time the eye is where they stood, and how near the
+// eye anyone is ever drawn: whoever cannot keep that far (no room on the
+// pavement, a seat, a wall, a stall) is not there at all, never half there.
+// An umbrella wants that much more room than its holder.
+const CLEAR = 1.45;
+const CLEAR_REACH = 2.9;
+const BACK = 1.4;
+const NEAREST = 1.2;
+const BROLLY = 0.3;
 
 /** What stands on the ground in the props file (src/world/props.js packs
  *  it): x, z, the way it faces (as a cosine and a sine) and its half
@@ -897,6 +903,7 @@ const HEAD = /* glsl */ `
     // The ground under them: a stander's own, a walker's pavement.
     float ground = walking && aBody.w < 0.0 ? ${f(PAVE_Y)} : aBody.w;
     float among = smoothstep(-1.2, -0.4, uCam.y - ground) * (1.0 - smoothstep(2.6, 3.4, uCam.y - ground));
+    float brolly = ${f(BROLLY)} * bit(aLook.x, ${f(TAG.umbrella)});
     vec2 rel = at - uCam.xz;
     float ends = 1.0;
     if (walking) {
@@ -926,7 +933,7 @@ const HEAD = /* glsl */ `
       float la = dot(rel, across);
       float sgn = la + clamp((lane.z - lane.y) * 0.5, -0.45, 0.45) + (aLook.w - 0.5) * 0.1 < 0.0 ? -1.0 : 1.0;
       float m = sgn * la;
-      float k = sgn * among * min(m > 0.0 ? ${f(CLEAR)} * max(1.0 - m / ${f(CLEAR_REACH)}, 0.0) : ${f(CLEAR)} - m, sgn > 0.0 ? lane.z : lane.y);
+      float k = sgn * among * min(m > 0.0 ? (${f(CLEAR)} + brolly) * max(1.0 - m / ${f(CLEAR_REACH)}, 0.0) : ${f(CLEAR)} + brolly - m, sgn > 0.0 ? lane.z : lane.y);
       float b0 = 1.0 - smoothstep(1.4, 4.6, abs(al));
       float b1 = 1.0 - smoothstep(1.4, 4.6, abs(al + 0.6));
       at += across * k * b0;
@@ -943,22 +950,24 @@ const HEAD = /* glsl */ `
       // Standing with nothing to keep them where they are (not on a seat,
       // against a wall, behind a stall or over a phone), they step back
       // from an eye that comes within reach.
+      // (Two metres off they have not moved; with the eye where they stood
+      // they are a pace and a half away.)
       float d = length(rel) + 1e-4;
-      float q = max(1.0 - d / ${f(2 * BACK)}, 0.0);
-      at += rel / d * ${f(BACK)} * q * q * among;
+      at += rel / d * max(${f(BACK)} + brolly - d * ${f(BACK / 2)}, 0.0) * among;
       // And back from free roam's car.
       vec2 car = at - uAvoid.xy;
       at += car / (length(car) + 1e-4) * max(uAvoid.z - length(car), 0.0);
     }
     root = vec3(at.x, ground, at.y);
-    eye = distance(uCam, vec3(root.x, clamp(uCam.y, root.y, root.y + 1.8 * aBody.x), root.z));
+    eye = distance(uCam, vec3(root.x, clamp(uCam.y, root.y, root.y + 1.8 * aBody.x + brolly), root.z));
     // Where a walk's loop starts again they come and go through a dither:
     // over a few steps far off, where it reads as a fade, and all but at
     // once close to, where a body half there would read as a fault.
     fade = clamp(ends / mix(0.25, 3.0, smoothstep(14.0, 40.0, eye)), 0.0, 1.0);
-    // The one who cannot move out of the lens (or will not) is gone a
-    // forearm short of it, so it is never inside a head.
-    fade *= smoothstep(0.42, 0.47, eye);
+    // The one who cannot move out of the lens (on a seat, against a wall,
+    // on a pavement with no room) is gone before they fill it, whole, with
+    // whatever they hold: a lens is never inside a head or an umbrella.
+    fade *= step(${f(NEAREST)} + brolly, eye);
   }
 `;
 
