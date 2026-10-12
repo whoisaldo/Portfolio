@@ -460,10 +460,11 @@ def skylight(x0, x1, z0, z1, y, rise=1.6, colour="white", nx=4, nz=3):
             tris = ((a, b, c), (a, c, d)) if (i + j) % 2 == 0 else ((a, b, d), (b, c, d))
             for t in tris:
                 # Each pane its own: most dim (a dark floor under it), some lit.
-                g = rr.choice((0.015, 0.02, 0.03, 0.03, 0.05, 0.08, 0.14))
+                g = rr.choice((0.2, 0.25, 0.3, 0.35, 0.5, 0.7, 1.0))
                 m = rr.uniform(0.3, 0.8)
-                col = tuple((base[n] * m + white[n] * (1 - m)) * g for n in range(3)) + (1,)
-                poly(k("glow"), list(t), [(0, 0), (1, 0), (0.5, 1)], col)
+                top_ = max(base[:3]) or 1.0
+                col = tuple((base[n] / top_ * m + (1 - m)) * g for n in range(3)) + (1,)
+                poly(k("skylight"), list(t), [(0, 0), (1, 0), (0.5, 1)], col)
     # Ribs along the grid's lines, a hair over the glass.
     for i in range(nx + 1):
         x = x0 + (x1 - x0) * i / nx
@@ -481,8 +482,19 @@ def cooler(x, z, y, r=1.5, h=2.4):
     """A cooling tower on a roof: a drum on a skid, its fan a dark disc
     under a lit rim."""
     solid(x - r - 0.2, x + r + 0.2, y, y + 0.3, z - r - 0.2, z + r + 0.2, STEEL)
-    cylinder(k("metal"), x, z, y + 0.3, y + h, r, segs=10, cap=False)
+    cylinder(k("tankplate"), x, z, y + 0.3, y + h, r, segs=10, cap=False, col=(0.2, 0.21, 0.22, 1.0))
     cylinder(k("dark"), x, z, y + h - 0.25, y + h - 0.2, r * 0.96, segs=10)
+    # A band of louvres round its foot with light behind them, a ladder up
+    # its side to a rail round the top, a pipe to the skid, a red lamp.
+    cylinder(k("glow", 1), x, z, y + 0.42, y + 0.7, r + 0.02, segs=10, cap=False, col=tuple(c * 0.25 for c in GLOW["amber"][:3]) + (1.0,))
+    for dz in (-0.22, 0.22):
+        box(k("metal", 1), x + r + 0.04, x + r + 0.09, y + 0.3, y + h + 0.5, z + dz - 0.025, z + dz + 0.025, scale=1.0)
+    for i in range(int(h / 0.45)):
+        box(k("metal", 1), x + r + 0.04, x + r + 0.08, y + 0.6 + i * 0.45, y + 0.64 + i * 0.45, z - 0.22, z + 0.22, scale=1.0)
+    cylinder(k("metal", 1), x, z, y + h + 0.42, y + h + 0.48, r + 0.03, segs=10, cap=False)
+    pipe(k("trim", 1), (x - r * 0.6, y + h * 0.55, z - r), (x - r * 0.6, y + h * 0.55, z - r - 0.5), 0.12, segs=5, col=STEEL)
+    pipe(k("trim", 1), (x - r * 0.6, y + h * 0.55, z - r - 0.5), (x - r * 0.6, y + 0.3, z - r - 0.5), 0.12, segs=5, col=STEEL)
+    aviation(x - r * 0.7, y + h, z + r * 0.7)
 
 
 def chiller(x0, x1, z0, z1, y, h=2.2):
@@ -876,7 +888,8 @@ def roof_windows(x0, x1, z0, z1, y, n=3, colour="white", dim=0.22):
     """Strip rooflights in a row: glass lit from the floor under, in dark
     kerbs. From the air a roof with people under it."""
     c = GLOW[colour]
-    col = (c[0] * dim, c[1] * dim, c[2] * dim, 1.0)
+    m = max(c[:3]) or 1.0
+    col = (0.25 + 0.6 * c[0] / m, 0.25 + 0.6 * c[1] / m, 0.25 + 0.6 * c[2] / m, 1.0)     # (the skylight material: bars and panes, tinted)
     along_x = x1 - x0 >= z1 - z0
     for i in range(n):
         if along_x:
@@ -888,7 +901,7 @@ def roof_windows(x0, x1, z0, z1, y, n=3, colour="white", dim=0.22):
             b = x0 + (x1 - x0) * (i + 0.8) / n
             ax0, ax1, az0, az1 = a, b, z0, z1
         solid(ax0 - 0.15, ax1 + 0.15, y, y + 0.3, az0 - 0.15, az1 + 0.15, BLACK)
-        quad(k("glow"), (ax0, y + 0.31, az1), (ax1, y + 0.31, az1), (ax1, y + 0.31, az0), (ax0, y + 0.31, az0), col=col)
+        quad(k("skylight"), (ax0, y + 0.31, az1), (ax1, y + 0.31, az1), (ax1, y + 0.31, az0), (ax0, y + 0.31, az0), col=col)
         light(CO, (ax0 + ax1) / 2, y + 1.0, (az0 + az1) / 2, colour, 2.5)
 
 
@@ -912,7 +925,148 @@ def tubes_over(a, b, z0, z1, y, hue, step=9.0, along="z", power=3.0):
         v += step
 
 
-def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white")):
+def services(f, r, top=9.0, density=1.0):
+    """A wall's services, so a lane's wall is a back and not a plane: pipes
+    in twos and threes from the ground to the parapet, air conditioners in
+    rows and stacks, a duct on brackets, conduit run to a box with a lamp
+    on it, a small sign."""
+    w = f.width
+    s = r.uniform(0.8, 2.5)
+    while s < w - 1.2:
+        roll = r.random()
+        if roll < 0.12 and s + 4.4 < w - 0.6:
+            # A shuttered bay framed in hazard yellow, a lamp over it.
+            f.box(k("trim"), s, s + 4.0, 0.0, 4.2, 0.0, 0.12, col=BLACK)
+            f.quad(k("door_panel"), s + 0.35, s + 3.65, G0, 3.7, 0.13)
+            for a, b in ((s, s + 0.35), (s + 3.65, s + 4.0)):
+                f.box(k("trim", 1), a, b, G0, 3.7, 0.12, 0.17, col=YELLOW)
+            f.box(k("trim", 1), s, s + 4.0, 3.7, 4.05, 0.12, 0.17, col=YELLOW)
+            hue = r.choice(("amber", "red", "white"))
+            f.box(k("neon_" + hue), s + 1.7, s + 2.3, 4.3, 4.46, 0.0, 0.2)
+            lx, _, lz = f.p(f.at(s + 2.0), 0.0, 1.4)
+            light(CO, lx, 3.6, lz, hue, 5.0)
+            s += 4.0
+        elif roll < 0.2 and s + 3.0 < w - 0.6 and top > 7.0:
+            # Louvres with light behind them.
+            c = GLOW[r.choice(("amber", "cyan"))]
+            f.box(k("glow"), s, s + 2.6, 5.0, 6.6, 0.0, 0.03, col=(c[0] * 0.2, c[1] * 0.2, c[2] * 0.2, 1.0))
+            for i in range(7):
+                f.box(k("dark", 1), s - 0.05, s + 2.65, 5.0 + i * 0.24, 5.12 + i * 0.24, 0.0, 0.1)
+            s += 2.6
+        elif roll < 0.4:
+            for n in range(r.randrange(1, 4)):
+                px, _, pz = f.p(f.at(s + n * 0.26), 0.0, 0.0)
+                P.place("pipe_v", px, G0, pz, f.yaw, sy=max(3.0, top - 0.4 - r.uniform(0.0, 1.5)), district=CO)
+            f.box(k("metal", 1), s - 0.1, s + 0.75, 1.6, 1.68, 0.0, 0.22)
+            s += 0.6
+        elif roll < 0.58:
+            n = r.randrange(1, 4)
+            stack = r.random() < 0.4
+            row = r.choice((4.4, 5.5, 6.5))
+            for m in range(n):
+                ax, ay, az = f.p(f.at(s + (0.0 if stack else m * 1.1)), min(top - 1.0, (5.0 + m * 0.9) if stack else row), 0.0)
+                P.place("ac_wall", ax, ay, az, f.yaw, district=CO)
+            s += 0.5 if stack else n * 1.1
+        elif roll < 0.74 and s + 4.2 < w - 0.5:
+            length = min(r.uniform(4.0, 9.0), w - 0.6 - s)
+            yy = min(top - 1.2, r.choice((5.4, 6.4, 7.2)))
+            f.box(k("steel", 1), s, s + length, yy, yy + 0.55, 0.06, 0.62, col=STEEL)
+            for d in (0.4, length - 0.4):
+                f.box(k("metal", 1), s + d - 0.04, s + d + 0.04, yy - 0.45, yy, 0.0, 0.5)
+            f.box(k("dark", 1), s + length - 0.5, s + length - 0.1, yy + 0.1, yy + 0.45, 0.62, 0.64)
+            s += length
+        elif roll < 0.88 and s + 3.2 < w - 0.5:
+            length = min(r.uniform(3.0, 7.0), w - 0.6 - s)
+            yy = r.uniform(3.6, 4.2)
+            for dy in (0.0, 0.09, 0.18):
+                f.box(k("metal", 1), s, s + length, yy + dy, yy + dy + 0.04, 0.0, 0.05)
+            f.box(k("trim", 1), s + length - 0.5, s + length, yy - 1.0, yy - 0.3, 0.0, 0.16, col=STEEL)
+            f.box(k("glow", 1), s + length - 0.2, s + length - 0.13, yy - 0.52, yy - 0.45, 0.16, 0.18, col=GLOW[r.choice(("green", "amber", "red"))])
+            s += length
+        else:
+            size = r.choice(("ps", "bs", "bx"))
+            sw, sh = ST_SIZES[size]
+            if s + sw < w - 0.4 and 5.0 + sh < top:
+                cx, cy, cz = f.p(f.at(s + sw / 2), 5.0 + sh / 2, 0.08)
+                f.box(k("board_frame"), s - 0.06, s + sw + 0.06, 5.0 - 0.06, 5.0 + sh + 0.06, 0.0, 0.07)
+                sign(st_id(size), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
+            s += sw
+        s += r.uniform(2.2, 4.5) / density
+
+
+def risers(f, r, y0, y1):
+    """A tall back's upper wall: service risers in steel from y0 to the
+    top, air conditioners in columns floor by floor beside them, a slot of
+    stair light."""
+    w = f.width
+    n = max(1, round(w / 13.0))
+    for i in range(n):
+        s = w * (i + 0.5) / n + r.uniform(-2.5, 2.5)
+        rw = r.uniform(0.7, 1.3)
+        f.box(k("steel"), s, s + rw, y0, y1 - r.uniform(0.5, 2.5), 0.0, 0.6, col=STEEL)
+        side = r.choice((-1, 1))
+        y = y0 + 1.5
+        while y < y1 - 2.0:
+            if r.random() < 0.6:
+                ax, ay, az = f.p(f.at(s + (rw + 0.7 if side > 0 else -0.7)), y, 0.0)
+                P.place("ac_wall", ax, ay, az, f.yaw, district=CO)
+            y += 3.4
+        hue = r.choice(("amber", "cyan", "white"))
+        c = GLOW[hue]
+        t = s - side * 2.2
+        if 0.6 < t < w - 0.6:
+            f.box(k("glow"), t - 0.1, t + 0.1, y0 + 1.0, y1 - 2.0, 0.0, 0.04, col=(c[0] * 0.3, c[1] * 0.3, c[2] * 0.3, 1.0))
+
+
+def advert(cx, cy, cz, w, h, yaw, pick, seed=0.31, depth=0.12):
+    """One of the city's adverts by number (eight wide, four tall), in a
+    frame: boards sharing a seed change together, so a wall of them given
+    different numbers never shows one advert twice."""
+    rotated_quad(k("billboard"), cx, cy, cz, w, h, yaw, col=(0.06, (pick % 8 + 0.5) / 8.0, seed, 1.0))
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    oriented_box(k("board_frame"), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.3, h + 0.3, depth, yaw, scale=1.0)
+
+
+GREENS = ((0.016, 0.055, 0.028, 1), (0.024, 0.07, 0.028, 1), (0.016, 0.046, 0.036, 1), (0.032, 0.064, 0.022, 1))
+
+
+def shrubs(xa, xb, zc, y, r, spread=0.3, hmax=0.55):
+    """Planting along a strip: shrubs in clusters of two to four, each a
+    low mound of seven sides and a smaller one on it, in four dark greens,
+    blades of a taller grass standing among them, gaps between."""
+    x = xa
+    while x < xb - 0.4:
+        for _ in range(r.randrange(2, 5)):
+            if x > xb - 0.4:
+                break
+            rad = r.uniform(0.26, 0.46)
+            h = r.uniform(hmax * 0.45, hmax)
+            cz = zc + r.uniform(-spread, spread)
+            col = r.choice(GREENS)
+            cylinder(k("trim"), x, cz, y, y + h, rad, segs=7, col=col)
+            cylinder(k("trim", 1), x + r.uniform(-0.1, 0.1), cz + r.uniform(-0.1, 0.1), y + h, y + h + rad * 0.45, rad * 0.6, segs=5,
+                     col=tuple(c * 1.3 for c in col[:3]) + (1,))
+            x += rad * r.uniform(1.3, 1.9)
+        # Grass: thin blades, leaning.
+        gx, gz = x + 0.2, zc + r.uniform(-spread, spread)
+        for _ in range(3):
+            yaw = r.uniform(0.0, math.pi)
+            lean = r.uniform(-0.12, 0.12)
+            hh = hmax * r.uniform(0.9, 1.5)
+            for turn in (0.0, math.pi):
+                rotated_quad(k("trim", 1), gx + lean, y + hh / 2, gz, 0.1, hh, yaw + turn, col=(0.03, 0.08, 0.03, 1))
+            gx += 0.12
+        x += r.uniform(0.4, 1.2)
+
+
+def block_seat(x, z, w=1.8, yaw=0.0, hue=None):
+    """A block of cast concrete to sit on, a line of light under its edge."""
+    oriented_box(k("castconcrete"), x, G0 + 0.24, z, w, 0.48, 0.6, yaw, scale=1.0, col=(0.22, 0.22, 0.22, 1.0))
+    if hue:
+        oriented_box(k("neon_" + hue, 1), x, G0 + 0.04, z, w - 0.1, 0.04, 0.64, yaw, scale=1.0)
+
+
+def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white"), top=9.0, high=0.0):
     """What a lane's wall carries between its doors, so no stretch of it is
     dark or bare: vending machines lit cyan and amber, posters in frames,
     bulkhead lamps, a pipe run with indicator lamps, crates and bins; each
@@ -961,6 +1115,9 @@ def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white")):
         else:
             P.place(r.choice(("crates", "bags", "bin", "drum", "dumpster")), px, G0, pz, f.yaw, district=CO)
         s += r.uniform(4.0, 7.5) / density
+    services(f, r, top, density)
+    if high > top + 6.0:
+        risers(f, r, top + 1.0, high)
 
 
 def holo_sign(x, z, yaw, r, hue="cyan", y=7.4, size=3.4, n=None, base=G0):
