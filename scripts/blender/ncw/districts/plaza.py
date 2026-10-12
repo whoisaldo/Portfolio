@@ -81,3 +81,7 @@ from ncw.districts import plaza_life  # noqa: E402,F401
 from ncw.districts import plaza_roofs  # noqa: E402,F401
 # (Last: the square's slabs, lit by everything set down above.)
 from ncw.districts import plaza_paving  # noqa: E402,F401
+# (And the kit's sign counters as the plaza has always left them, for the
+# districts built after it: plaza_parts.kit_turns.)
+from ncw.districts.plaza_parts import kit_turns_end  # noqa: E402
+kit_turns_end()

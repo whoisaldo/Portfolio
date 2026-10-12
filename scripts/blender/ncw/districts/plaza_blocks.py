@@ -57,13 +57,9 @@ def checked(x0, x1, z0, z1, top, what):
 def podium(x0, x1, z0, z1, h, sides, seed, nb=None, style=OFFICE, ground="shops", **kw):
     front = next((k for k, v in sides.items() if v == "street"), "+z")
     full = dict({"+x": "back", "-x": "back", "+z": "back", "-z": "back"}, **sides)
-    # (Its shop boards and blades are the kit's, named by the plaza's picker.)
-    old = kit_signs((x0 + x1) / 2, (z0 + z1) / 2)
-    try:
-        B.building(B.Lot(x0, x1, z0, z1, front, full, dict(nb or {}), PL), h, random.Random(seed), style=style, setback=False,
-                   ground=ground, roof=False, **kw)
-    finally:
-        B.st_name = old
+    kit_turns(seed)
+    B.building(B.Lot(x0, x1, z0, z1, front, full, dict(nb or {}), PL), h, random.Random(seed), style=style, setback=False,
+               ground=ground, roof=False, **kw)
     checked(x0, x1, z0, z1, h + 1.2, f"podium {seed}")
 
 
@@ -206,7 +202,7 @@ def roof_screen(cx, cz, y, w, h, yaw, seed):
 # ---------------------------------------------------------------------------
 B.ground_rect(PL, 52.0, 108.0, -168.0, -95.0)
 glass_podium(52.0, 80.0, -168.0, -132.0, 14.8, {"-z": "street", "-x": "back", "+x": "party", "+z": "party"}, 8311, ("-z",),
-             nb={"+x": 18.2, "+z": 11.4}, lit=0.8, warm=0.2, fin="teal", band="teal", trim=2, style=OFFICE)
+             nb={"+x": 18.2, "+z": 11.4}, lit=0.8, warm=0.2, fin="teal", band="teal", trim=2, style=OFFICE, skip={"-z": [(20.0, 28.0)]})
 glass_podium(80.0, 108.0, -168.0, -132.0, 18.2, {"+x": "street", "-z": "street", "-x": "party", "+z": "party"}, 8312, ("+x", "-z"),
              nb={"-x": 14.8, "+z": 11.4}, window=4, tint="teal", lit=0.86, warm=0.6, fin="yellow", band="yellow", signs=False,
              every=4, trim=2)
@@ -481,8 +477,12 @@ screen(108.45, 19.0, -330.0, 15.0, 8.4, math.pi / 2, random.Random(8355), back=F
 mark("delta", "+x", (78.0, 108.0, -344.0, -310.0), 33.0, 6.0, "teal")
 tower("C1", 54.0, 74.0, -338.0, -292.0, 0.15, 46.0, 8356, cut=2.0, accent="teal", crown="blades", lit=0.7, warm=0.3,
       marks=(("bars", "+z", 38.0, 6.0, "teal"),))
-glass_podium(54.0, 106.0, -396.0, -348.0, 14.8, dict(ALL_OPEN), 8361, ("+x", "-x", "+z", "-z"), tint="charcoal", ground="blank",
-             lit=0.7, warm=0.3, fin=None, trim=0, every=4)
+# (West of x 60 a lit wall is a streak down the hero's road, whatever stands
+# between: the bake asks nothing else of it. So the west ends of these
+# podiums, and of B1's on the plaza street, keep the painted walls and the
+# kit's own build they had, light for light.)
+glass_podium(54.0, 106.0, -396.0, -348.0, 14.8, dict(ALL_OPEN), 8361, ("+x", "+z", "-z"), tint="charcoal", ground="blank",
+             lit=0.7, warm=0.3, fin=None, trim=0, every=4, style=OFFICE, skip={"+z": [(0.0, 6.0)], "-z": [(46.0, 52.0)]})
 parapet(54.0, 106.0, -396.0, -348.0, 14.8, tint=0)
 tower("T1", 56.0, 78.0, -392.0, -352.0, 14.8, 77.0, 8362, steps=((58.0, 2.5), (70.0, 5.0)), cut=2.2, accent="amber", crown="frame",
       lit=0.8, warm=0.6, marks=(("delta", "+z", 64.0, 6.5, "amber"), ("delta", "+x", 64.0, 6.5, "amber")))
@@ -495,8 +495,8 @@ for name, f in B.faces_of(84.0, 104.0, -392.0, -356.0).items():
 pool(86.0, 102.0, -354.5, -350.5, 14.8, colour="teal")
 skylight(79.0, 83.0, -390.0, -356.0, 14.8, colour="cyan", k=0.26, pitch=0.8)
 garden(56.0, 78.0, -351.5, -348.5, 14.8, random.Random(8364), palms=0, trees=2, colour="amber", lamps=1)
-glass_podium(54.0, 106.0, -452.0, -402.0, 18.2, dict(ALL_OPEN), 8371, ("+x", "-x", "+z", "-z"), tint="navy", ground="blank",
-             lit=0.72, warm=0.2, fin=None, trim=1, every=4)
+glass_podium(54.0, 106.0, -452.0, -402.0, 18.2, dict(ALL_OPEN), 8371, ("+x", "+z", "-z"), tint="navy", ground="blank",
+             lit=0.72, warm=0.2, fin=None, trim=1, every=4, style=OFFICE, skip={"+z": [(0.0, 6.0)], "-z": [(46.0, 52.0)]})
 parapet(54.0, 106.0, -452.0, -402.0, 18.2, tint=1)
 T3 = tower("T3", 58.0, 82.0, -448.0, -408.0, 18.2, 104.0, 8372, steps=((72.0, 2.5), (88.0, 5.0), (98.0, 7.5)), cut=2.6, accent="white", crown="spire",
            spire=5.4, lit=0.82, warm=0.1, marks=(("rings", "+z", 80.0, 7.0, "white"), ("rings", "+x", 80.0, 7.0, "white")))

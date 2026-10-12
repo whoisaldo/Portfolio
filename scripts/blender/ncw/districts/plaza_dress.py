@@ -125,8 +125,8 @@ rl = random.Random(8840)
 screen(131.62, 8.1, -112.0, 15.0, 3.6, -math.pi / 2, rl, back=False, depth=0.3)
 for z in (-124.6, -121.4, -102.6, -99.4):
     box((PL, "glow", 0), 131.86, 131.98, 4.9, 11.2, z - 0.09, z + 0.09, scale=1.0, col=dim("amber", 0.6))
-for z, n in ((-88.5, 5), (-69.5, 7)):
-    big_sign("pm", 2.4, 131.8, 8.0, z, -math.pi / 2, double=False, n=n)
+for z in (-88.5, -69.5):
+    big_sign("pm", 2.4, 131.8, 8.0, z, -math.pi / 2, double=False)
 Plane(131.9, 8.0, -79.0, -math.pi / 2).rect((PL, "board_frame", 0), -3.0, 3.0, -2.9, 2.9)
 emblem("rings", 131.88, 8.0, -79.0, 4.4, -math.pi / 2, "green")
 for z in (-96.6, -61.4):

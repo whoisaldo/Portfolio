@@ -347,44 +347,53 @@ def screen_on_legs(cx, cz, y0, w, h, yaw, r, base=0.15, back=True):
     oriented_box((PL, "metal", 1), px_, y0 - 0.5, pz_, w * 0.72, 0.12, 0.12, yaw, scale=0.5)
 
 
-# The street's standard designs a corporate square would carry (the site
-# deals each size's designs by the number in a sign's id, src/data/world.js
-# STREET_SIGNS): cyberware, braindance, a clinic, electronics, an exchange,
-# an eye clinic, the pictograms; not the noodle bars and the karaoke.
-HOUSE = {"pm": (5, 7, 4, 1, 6, 2), "ps": (0, 6, 5, 2, 7, 4), "bl": (4, 2, 3, 7, 1, 6), "bm": (5, 6, 10, 4, 9, 7, 8), "bs": (9, 7, 4, 8, 1, 5),
-         "bx": (4, 9, 8, 6, 3, 11, 2, 10)}
-# (Two designs that say the same thing in two sizes are one name.)
-SAME = {("ps", 6): ("bm", 5), ("bs", 8): ("ps", 0), ("bs", 4): ("ps", 0)}
-PLACED = []     # (size, design, x, z) of every sign the plaza has hung
-SIGN_AT = [None]
+# Standard signs' ids. The site deals a design to each id once, by where its
+# first face hangs (src/world/signs.js: the next design whose name hangs
+# nowhere within 40 m), so every sign needs an id of its own. The kit hands
+# ids out in the builder's turn (kit.st_name), one counter a size for the
+# whole city: a sign more or fewer here would give every district built
+# after the plaza other designs. So the plaza's own signs take ids from a
+# range of their own (house_name), each kit building of the plaza's starts
+# from the turn it had when the city's signs were dealt (kit_turns: offsets
+# from the counters as the plaza found them, so the hotel's signs on the
+# south street, which the hero's wet road mirrors, are the ones it had), and
+# the plaza leaves the counters where it always left them (kit_turns_end).
+SIZES = ("bx", "bs", "ps", "pm", "bl", "bm")
+ST0 = {size: K.ST_COUNT.get(size, 0) for size in SIZES}
+KIT_TURNS = {8311: (0, 0, 0, 0, 0, 0), 8312: (0, 0, 2, 3, 1, 1), 8313: (7, 1, 11, 7, 5, 3), 8321: (10, 4, 22, 13, 12, 5), 8331: (22, 7, 52, 26, 13, 11),
+             8333: (28, 9, 77, 31, 13, 14), 8335: (28, 9, 78, 31, 13, 14), 8338: (28, 9, 79, 31, 13, 14), 8351: (32, 10, 90, 42, 16, 16),
+             8353: (34, 11, 92, 42, 18, 17), 8361: (34, 11, 97, 44, 18, 17), 8371: (34, 11, 102, 44, 18, 17)}
+KIT_END = (34, 11, 119, 45, 18, 17)
+OWN = {}
+# The plaza's own signs west of x 60, by where they hang: (size, x, z) and
+# the id each has always had. A sign there is a streak of its colour down
+# the hero's road (the bake runs every light within 60 m of the avenue down
+# it, whatever stands between), so those five keep their designs.
+PINNED = (("ps", 50.7, -264.0, 6), ("ps", 56.7, -264.0, ST0["ps"] + 106), ("pm", 44.5, -248.0, 2), ("ps", 44.5, -253.5, 6), ("ps", 59.5, -284.2, 0))
 
 
 def house_name(size, x=None, z=None, n=None):
-    """The id of a design of a size for a sign at (x, z): the one whose
-    nearest twin hangs furthest away (no name twice within sight of itself),
-    the list's order breaking ties, so teal, green, yellow and white come
-    before pink. `n`: this design and no other."""
-    if x is None:
-        x, z = SIGN_AT[0] or (0.0, 0.0)
-
-    def far(d):
-        key = SAME.get((size, d), (size, d))
-        return min([math.hypot(px - x, pz - z) for s_, d_, px, pz in PLACED if SAME.get((s_, d_), (s_, d_)) == key] or [1e6])
-
-    if n is None:
-        n = max(HOUSE[size], key=lambda d: (min(far(d), 400.0), -HOUSE[size].index(d)))
-    PLACED.append((size, n, x, z))
-    return f"st_{size}_{n}"
+    """An id for a sign of the plaza's own placing: its own, from the
+    plaza's range. `n`: this turn and no other (the two columns of type on
+    the board's housing keep the ids, and so the words, the Work shot has
+    always shown them with)."""
+    if n is None and x is not None:
+        n = next((t for s_, px, pz, t in PINNED if s_ == size and abs(px - x) < 0.4 and abs(pz - z) < 0.5), None)
+    if n is not None:
+        return f"st_{size}_{n}"
+    OWN[size] = OWN.get(size, 0) + 1
+    return f"st_{size}_{700000 + OWN[size]}"
 
 
-def kit_signs(x, z):
-    """While a kit building of the plaza's is built, the kit's own signs
-    (its shop boards, its blades) are named by the plaza's picker, as hung
-    at (x, z): returns what to restore buildings.st_name to."""
-    old = B.st_name
-    SIGN_AT[0] = (x, z)
-    B.st_name = lambda size: house_name(size)
-    return old
+def kit_turns(seed):
+    """Set the kit's sign counters to where they stood when the plaza's kit
+    building `seed` was built."""
+    for size, o in zip(SIZES, KIT_TURNS.get(seed, KIT_END)):
+        K.ST_COUNT[size] = ST0[size] + o
+
+
+def kit_turns_end():
+    kit_turns(None)
 
 
 def big_sign(size, k, cx, cy, cz, yaw, double=True, frame=True, n=None):
@@ -427,6 +436,7 @@ def fascia_signs_x(x0, x1, zf, facing, r, rate=0.75, y=3.95, house=0.6):
         w, h = ST_SIZES[size]
         if r.random() < rate and x + w < x1 - 0.6:
             box((PL, "board_frame", 0), x - 0.06, x + w + 0.06, y - h / 2 - 0.06, y + h / 2 + 0.06, *sorted((zf + f * 0.14, zf + f * 0.2)), scale=1.0)
+            r.random()   # (the draw that once chose between two lists of names: the boards stand where they stood)
             sign(house_name(size, x + w / 2, zf), x + w / 2, y, zf + f * 0.215, w, h, 0.0 if f > 0 else math.pi, district=PL, label=False)
         x += w + r.uniform(2.2, 4.6)
 
@@ -440,6 +450,7 @@ def fascia_signs_z(z0, z1, xf, facing, r, rate=0.75, y=3.95, house=0.6):
         w, h = ST_SIZES[size]
         if r.random() < rate and z + w < z1 - 0.6:
             box((PL, "board_frame", 0), *sorted((xf + f * 0.14, xf + f * 0.2)), y - h / 2 - 0.06, y + h / 2 + 0.06, z - 0.06, z + w + 0.06, scale=1.0)
+            r.random()
             sign(house_name(size, xf, z + w / 2), xf + f * 0.215, y, z + w / 2, w, h, f * math.pi / 2, district=PL, label=False)
         z += w + r.uniform(2.2, 4.6)
 

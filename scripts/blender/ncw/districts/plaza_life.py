@@ -69,13 +69,13 @@ for x, hue in ((52.5, "amber"), (56.8, "white"), (62.0, "amber"), (66.8, "white"
 # board stays what the eye finds.
 # ---------------------------------------------------------------------------
 MZ = -263.85
-for xa, xb, sx in ((55.4, 64.5, 56.9), (93.5, 102.6, 101.1)):
+for xa, xb, sx, turn in ((55.4, 64.5, 56.9, 10), (93.5, 102.6, 101.1, 9)):
     for k in range(7):
         y = 15.75 + k * 3.1
         if 22.0 < y < 29.5:
             continue
         box((PL, "glow", 0), xa + 0.3, xb - 0.3, y, y + 0.05, MZ, MZ + 0.02, scale=1.0, col=dim("white", 0.16))
-    big_sign("bm", 1.5, sx, 34.2, MZ + 0.36, 0.0, double=False)
+    big_sign("bm", 1.5, sx, 34.2, MZ + 0.36, 0.0, double=False, n=turn)
     for i, hue in enumerate(("green", "amber", "red")):
         box((PL, "glow", 1), sx - 0.5 + i * 0.5 - 0.07, sx - 0.5 + i * 0.5 + 0.07, 31.0, 31.14, MZ + 0.02, MZ + 0.08, scale=0.5, col=GLOW[hue])
 
