@@ -149,6 +149,15 @@ def _w(axis, v, u, y):
     return (v, y, u) if axis == "x" else (u, y, v)
 
 
+def vface(key, plane_axis, plane, a, b, y0, y1, out, scale=1.0, col=(1, 1, 1, 1)):
+    """An upright rectangle in the plane x = `plane` ("x") or z = `plane`
+    ("z"), from a to b along the other axis, facing `out` (+1 or -1)."""
+    if plane_axis == "x":
+        face(key, [(plane, y0, a), (plane, y0, b), (plane, y1, b), (plane, y1, a)], (out, 0, 0), scale, col)
+    else:
+        face(key, [(a, y0, plane), (b, y0, plane), (b, y1, plane), (a, y1, plane)], (0, 0, out), scale, col)
+
+
 def sweep(key, axis, vs, u0, u1, bot, top, sides="tbAB", caps="", scale=2.0, col=(1, 1, 1, 1)):
     """A beam along `axis` ("x" or "z") through the stations vs (increasing),
     across it from u0 to u1 (z for an x run, x for a z run), its bottom and
@@ -445,9 +454,13 @@ while z < ZN - 1.0:
 # yellow and black, in the gaps between the lots: none in a street, a lane or
 # on a pavement. The turn's plate stands on one pier in the street's middle.
 # ---------------------------------------------------------------------------
+PIER_C = (0.40, 0.39, 0.38, 1.0)      # the piers' and cap beams' concrete (castconcrete takes its colour here)
+CAP_C = (0.36, 0.36, 0.37, 1.0)
+
+
 def column(cx, cz, top, r=0.55, foot=0.95):
-    box((DK, "concrete", 0), cx - foot, cx + foot, 0.0, 0.6, cz - foot, cz + foot, scale=1.5)
-    cylinder((DK, "concrete", 0), cx, cz, 0.6, top, r, segs=8, cap=False)
+    box((DK, "castconcrete", 0), cx - foot, cx + foot, 0.0, 0.6, cz - foot, cz + foot, scale=1.5, col=PIER_C)
+    cylinder((DK, "castconcrete", 0), cx, cz, 0.6, top, r, segs=8, cap=False, col=PIER_C)
     cylinder((DK, "hazard", 0), cx, cz, 0.6, 1.5, r + 0.02, segs=8, cap=False)
     for y in (0.82, 1.18):
         cylinder((DK, "dark", 1), cx, cz, y, y + 0.16, r + 0.03, segs=8, cap=False)
@@ -469,14 +482,19 @@ def bent_x(x):
     lo, hi = sorted((DY(x - 0.75) - DEPTH, DY(x + 0.75) - DEPTH))
     for cz in (ZN + 2.0, ZS - 2.0):
         column(x, cz, lo - 0.9)
-    box((DK, "concrete", 0), x - 0.75, x + 0.75, lo - 0.9, hi, ZN + 0.5, ZS - 0.5, scale=2.0, bottom=True)
+    box((DK, "castconcrete", 0), x - 0.75, x + 0.75, lo - 0.9, hi, ZN + 0.5, ZS - 0.5, scale=2.0, bottom=True, col=CAP_C)
+    if abs(x) > HERO + 1.0:      # a yellow stripe along the cap beam's foot, both faces (not the hero's bents)
+        for o in (-1, 1):
+            vface((DK, "hazard", 1), "x", x + o * 0.762, ZN + 0.5, ZS - 0.5, lo - 0.9, lo - 0.74, o)
 
 
 def bent_z(z):
     lo, hi = sorted((RY(z - 0.75) - DEPTH, RY(z + 0.75) - DEPTH))
     for cx in (XW + 2.0, XE - 2.0):
         column(cx, z, lo - 0.9)
-    box((DK, "concrete", 0), XW + 0.5, XE - 0.5, lo - 0.9, hi, z - 0.75, z + 0.75, scale=2.0, bottom=True)
+    box((DK, "castconcrete", 0), XW + 0.5, XE - 0.5, lo - 0.9, hi, z - 0.75, z + 0.75, scale=2.0, bottom=True, col=CAP_C)
+    for o in (-1, 1):
+        vface((DK, "hazard", 1), "z", z + o * 0.762, XW + 0.5, XE - 0.5, lo - 0.9, lo - 0.74, o)
 
 
 BENTS_X = (-60.0, -38.0, -HERO, HERO, 38.0, 56.0)
@@ -487,13 +505,22 @@ for z in BENTS_Z:
     bent_z(z)
 # The turn's pier: an eight-sided column, cap beams both ways.
 PIER = (plan.DECK_X0, plan.DECK_Z)
-box((DK, "concrete", 0), PIER[0] - 2.0, PIER[0] + 2.0, 0.0, 0.75, PIER[1] - 2.0, PIER[1] + 2.0, scale=1.5)
-cylinder((DK, "concrete", 0), PIER[0], PIER[1], 0.75, plan.DECK_UNDER - 1.1, 1.25, segs=8, cap=False)
+box((DK, "castconcrete", 0), PIER[0] - 2.0, PIER[0] + 2.0, 0.0, 0.75, PIER[1] - 2.0, PIER[1] + 2.0, scale=1.5, col=PIER_C)
+cylinder((DK, "castconcrete", 0), PIER[0], PIER[1], 0.75, plan.DECK_UNDER - 1.1, 1.25, segs=8, cap=False, col=PIER_C)
 cylinder((DK, "hazard", 0), PIER[0], PIER[1], 0.75, 2.1, 1.27, segs=8, cap=False)
 for y in (1.05, 1.6):
     cylinder((DK, "dark", 1), PIER[0], PIER[1], y, y + 0.25, 1.28, segs=8, cap=False)
-box((DK, "concrete", 0), XW + 0.5, XE - 0.5, plan.DECK_UNDER - 1.1, plan.DECK_UNDER, PIER[1] - 1.0, PIER[1] + 1.0, scale=2.0, bottom=True)
-box((DK, "concrete", 0), PIER[0] - 1.0, PIER[0] + 1.0, plan.DECK_UNDER - 1.1, plan.DECK_UNDER, ZN + 0.5, ZS - 0.5, scale=2.0, bottom=True)
+box((DK, "castconcrete", 0), XW + 0.5, XE - 0.5, plan.DECK_UNDER - 1.1, plan.DECK_UNDER, PIER[1] - 1.0, PIER[1] + 1.0, scale=2.0, bottom=True, col=CAP_C)
+box((DK, "castconcrete", 0), PIER[0] - 1.0, PIER[0] + 1.0, plan.DECK_UNDER - 1.1, plan.DECK_UNDER, ZN + 0.5, ZS - 0.5, scale=2.0, bottom=True, col=CAP_C)
+# The plate's cap beams were a dark block from the street: a yellow stripe
+# along each one's foot, a light panel in each quarter of the plate's
+# underside, and their light on the beams' sides.
+_cy = plan.DECK_UNDER - 1.1
+for o in (-1, 1):
+    for a, b in ((XW + 0.5, PIER[0] - 1.0), (PIER[0] + 1.0, XE - 0.5)):
+        vface((DK, "hazard", 0), "z", PIER[1] + o * 1.012, a, b, _cy, _cy + 0.18, o)
+    for a, b in ((ZN + 0.5, PIER[1] - 1.0), (PIER[1] + 1.0, ZS - 0.5)):
+        vface((DK, "hazard", 0), "x", PIER[0] + o * 1.012, a, b, _cy, _cy + 0.18, o)
 B.COLLISION.append(("box", PIER[0] - 2.0, PIER[0] + 2.0, 0.0, plan.DECK_UNDER, PIER[1] - 2.0, PIER[1] + 2.0, DK))
 keep_clear(PIER[0], PIER[1], 2.5)
 # What a car or a walker must not pass through of the embankments.
@@ -887,7 +914,7 @@ P.place("planter_tree", plan.DECK_X0, B.G0, -91.0, district=DK)
 P.place("lamp_short", plan.DECK_X0 + 2.6, B.G0, -111.0, district=DK)
 P.place("lamp_short", plan.DECK_X0 - 2.6, B.G0, -94.0, district=DK)
 P.place("food_box", plan.DECK_X0 - 3.6, B.G0, -121.5, -math.pi / 2, district=DK)
-P.place("phone_booth", plan.DECK_X0 + 3.4, B.G0, -127.5, district=DK)
+P.place("phone_booth", plan.DECK_X0 + 3.4, B.G0, -127.5, math.pi / 2, district=DK)    # open to the east service lane, not side on to it
 P.place("cctv", PIER[0] + 2.3, B.G0, PIER[1] - 2.3, district=DK)
 for yaw in (0.0, math.pi / 2, math.pi, -math.pi / 2):
     P.place("warning_tri", PIER[0] + math.sin(yaw) * 1.3, 2.4, PIER[1] + math.cos(yaw) * 1.3, yaw, district=DK)
@@ -1103,6 +1130,52 @@ for zc in (-182.6, -175.4):
     box((DK, "glow", 0), XE - 0.3, XE - 0.1, RY(zc) + PAR_H + 0.07, RY(zc) + PAR_H + 0.27, zc - 0.1, zc + 0.1, scale=0.5, col=glowc("ffb254", 1.0))
     pool(XE + 1.0, 2.0, zc, "amber", 2.0)
 
+STEEL_LT = (0.33, 0.35, 0.37, 1.0)      # galvanised sections
+STEEL_SHEET = (0.15, 0.17, 0.19, 1.0)   # a board's back sheet
+SERVICE = glowc("ffd8a0", 1.0)
+
+
+def board_back(cx, cy, cz, w, h, yaw, catwalk=True, hue="amber"):
+    """The back of a board where the road sees it, (cx, cy, cz) the middle
+    of its back plane and `yaw` the way that faces: sheet steel behind a
+    frame of rails, studs and braces, service lamps on arms over its top
+    with their light on it, and (where there is a parapet under it to
+    carry one) a catwalk with a handrail along its foot, on brackets."""
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+
+    def at(su, sv, o):
+        return (cx + rx * su + nx * o, cy + sv, cz + rz * su + nz * o)
+
+    rotated_quad((DK, "steel", 0), *at(0, 0, 0.012), w, h, yaw, col=STEEL_SHEET)
+    for sv in (h / 2 - 0.07, 0.0, -h / 2 + 0.07):
+        oriented_box((DK, "steel", 0), *at(0, sv, 0.05), w, 0.1, 0.08, yaw, scale=1.0, col=STEEL_LT)
+    n = max(2, round(w / 1.4))
+    for k in range(n + 1):
+        su = -w / 2 + 0.05 + (w - 0.1) * k / n
+        oriented_box((DK, "steel", 1), *at(su, 0, 0.045), 0.08, h, 0.07, yaw, scale=1.0, col=STEEL_LT)
+    step = (w - 0.1) / n
+    for k in (0, n - 1):
+        a, b = -w / 2 + 0.05 + step * k, -w / 2 + 0.05 + step * (k + 1)
+        if k:
+            a, b = b, a
+        pipe((DK, "steel", 1), at(a, -h / 2 + 0.07, 0.06), at(b, h / 2 - 0.07, 0.06), 0.03, segs=4, col=STEEL_LT)
+    for su in ((-w / 4, w / 4) if w > 3.5 else (0.0,)):
+        pipe((DK, "steel", 1), at(su, h / 2 - 0.05, 0.05), at(su, h / 2 + 0.28, 0.5), 0.022, segs=4, col=STEEL_LT)
+        oriented_box((DK, "glow", 0), *at(su, h / 2 + 0.25, 0.52), 0.5, 0.05, 0.14, yaw, scale=0.5, col=SERVICE)
+        px, py, pz = at(su, 0.0, 0.45)
+        pool(px, py, pz, hue, 2.4)
+    if catwalk:
+        yc = -h / 2 - 0.1
+        oriented_box((DK, "steel", 0), *at(0, yc, 0.28), w, 0.05, 0.5, yaw, scale=0.5, col=STEEL_LT)
+        oriented_box((DK, "steel", 1), *at(0, yc + 1.0, 0.51), w, 0.04, 0.04, yaw, scale=0.5, col=STEEL_LT)
+        oriented_box((DK, "steel", 1), *at(0, yc + 0.52, 0.51), w, 0.03, 0.03, yaw, scale=0.5, col=STEEL_LT)
+        for k in range(n + 1):
+            su = -w / 2 + 0.05 + (w - 0.1) * k / n
+            oriented_box((DK, "steel", 1), *at(su, yc + 0.5, 0.51), 0.04, 1.0, 0.04, yaw, scale=0.5, col=STEEL_LT)
+            pipe((DK, "steel", 1), at(su, yc - 0.02, 0.5), at(su, yc - 0.42, 0.03), 0.02, segs=4, col=STEEL_LT)
+
+
 edge_rng = random.Random(8590)
 for k, z in enumerate((-142.0, -126.0, -109.0, -92.0)):
     for xe, out in ((XW, -1), (XE, 1)):
@@ -1112,12 +1185,16 @@ for k, z in enumerate((-142.0, -126.0, -109.0, -92.0)):
         xc = xe - out * 0.06
         for dz in (-1.2, 1.2):
             box((DK, "metal", 0), xc - 0.05, xc + 0.05, base, base + 0.5, zc + dz - 0.05, zc + dz + 0.05, scale=0.5)
+        # Their backs face the road (east edge, over the parapet: a catwalk)
+        # and the walkway (west edge, on the rail: flat to it).
         if (k + (out > 0)) % 2 == 0:
             B.billboard(DK, xe + out * 0.12, base + 0.5 + 0.95, zc, 4.2, 1.7, yaw, edge_rng, back=False, depth=0.24)
+            board_back(xe - out * 0.14, base + 0.5 + 0.95, zc, 4.6, 2.1, yaw + math.pi, catwalk=out > 0, hue="amber" if k % 2 else "white")
         else:
             w, h = ST_SIZES["pm"]
             oriented_box((DK, "board_frame", 0), xc, base + 0.5 + h / 2 + 0.08, zc, w + 0.16, h + 0.16, 0.2, yaw, scale=1.0)
             sign(st_name("pm"), xc + out * 0.115, base + 0.5 + h / 2 + 0.08, zc, w, h, yaw, district=DK, label=False)
+            board_back(xc - out * 0.1, base + 0.5 + h / 2 + 0.08, zc, w + 0.16, h + 0.16, yaw + math.pi, catwalk=out > 0, hue="amber" if k % 2 else "white")
 
 # ---------------------------------------------------------------------------
 # THE ROAD'S OWN LAYER, what a driver and a flying car see of the deck's top:
@@ -1193,24 +1270,26 @@ arrow("z", -100.0, plan.DECK_X0 - 1.75, 1, RY, bend=1)
 for z in (-112.0, -150.0, -188.0):
     arrow("z", z, plan.DECK_X0 + 1.75, -1, RY)
 
-# Expansion joints: a steel strip across the road and the walkway over
-# every bent and abutment, and its line down the parapet.
-for x in BENTS_X + (ABUT_X, XE):
-    yy = road_top(x)
-    face((DK, "metal", 0), [(x - 0.11, road_top(x - 0.11) + 0.02, z_par + 0.08), (x + 0.11, road_top(x + 0.11) + 0.02, z_par + 0.08),
-                            (x + 0.11, road_top(x + 0.11) + 0.02, z_lane_s - 0.08), (x - 0.11, road_top(x - 0.11) + 0.02, z_lane_s - 0.08)], (0, 1, 0), 0.5)
-    face((DK, "metal", 1), [(x - 0.06, yy + WALK_UP + 0.006, z_bar), (x + 0.06, yy + WALK_UP + 0.006, z_bar), (x + 0.06, yy + WALK_UP + 0.006, z_rail), (x - 0.06, yy + WALK_UP + 0.006, z_rail)], (0, 1, 0), 0.5)
-    face((DK, "dark", 1), [(x - 0.03, yy + 0.1, z_par + 0.006), (x + 0.03, yy + 0.1, z_par + 0.006), (x + 0.03, yy + PAR_H, z_par + 0.006), (x - 0.03, yy + PAR_H, z_par + 0.006)], (0, 0, 1), 0.5)
-for z in BENTS_Z + (EMB_Z, ZN):
-    yy = RY(z)
-    face((DK, "metal", 0), [(x_lane_w + 0.08, RY(z - 0.11) + 0.02, z - 0.11), (x_par - 0.08, RY(z - 0.11) + 0.02, z - 0.11),
-                            (x_par - 0.08, RY(z + 0.11) + 0.02, z + 0.11), (x_lane_w + 0.08, RY(z + 0.11) + 0.02, z + 0.11)], (0, 1, 0), 0.5)
-    face((DK, "metal", 1), [(x_rail, yy + WALK_UP + 0.006, z - 0.06), (x_bar, yy + WALK_UP + 0.006, z - 0.06), (x_bar, yy + WALK_UP + 0.006, z + 0.06), (x_rail, yy + WALK_UP + 0.006, z + 0.06)], (0, 1, 0), 0.5)
-    face((DK, "dark", 1), [(x_par - 0.006, yy + 0.1, z - 0.03), (x_par - 0.006, yy + 0.1, z + 0.03), (x_par - 0.006, yy + PAR_H, z + 0.03), (x_par - 0.006, yy + PAR_H, z - 0.03)], (-1, 0, 0), 0.5)
+# Expansion joints over every bent and abutment: two steel angles and the
+# gap between them, lying on the road from kerb strip to kerb strip (they
+# stop there: nothing up the parapet or across the walkway).
+def joint(axis, v, u0, u1, hf):
+    for w, mat, lift, det in ((0.16, "metal", 0.014, 0), (0.04, "dark", 0.017, 1)):
+        face((DK, mat, det), [_w(axis, v - w / 2, u0, hf(v - w / 2) + lift), _w(axis, v + w / 2, u0, hf(v + w / 2) + lift),
+                              _w(axis, v + w / 2, u1, hf(v + w / 2) + lift), _w(axis, v - w / 2, u1, hf(v - w / 2) + lift)], (0, 1, 0), 0.5)
 
-# Patched tarmac: fresh tar and old grey repairs, inside the lanes (off the
-# lines and the arrows).
+
+for x in BENTS_X + (ABUT_X, XE + 0.6):
+    joint("x", x, z_par + 0.07, z_lane_s - 0.07, road_top)
+for z in BENTS_Z + (EMB_Z, ZN - 0.6):
+    joint("z", z, x_lane_w + 0.07, x_par - 0.07, RY)
+
+# Repairs, as a road wears them: a cut-out's outline sealed with tar (an
+# uneven ring inside its lane, the fill the road's own asphalt) and cracks
+# sealed along the lanes. No slab of another colour lies on the road.
 patch_rng = random.Random(8600)
+ARROWS_X = {1: (-68.0, -24.0, 8.0, 44.0, 76.0), -1: (88.0, 52.0, 14.0, -22.0, -62.0)}
+ARROWS_Z = {-1: (-203.0, -170.0, -135.0, -100.0), 1: (-112.0, -150.0, -188.0)}
 
 
 def patch(axis, v, u, length, width, mat, hf):
@@ -1218,14 +1297,55 @@ def patch(axis, v, u, length, width, mat, hf):
     face((DK, mat, 0), [_w(axis, pv, pu, hf(pv) + 0.007) for pv, pu in pts], (0, 1, 0), 1.0)
 
 
-for x in (-49.0, -37.5, -15.0, -4.0, 19.0, 27.0, 36.5, 59.0, 64.5, 70.5, 82.0, 97.0):
-    lane = patch_rng.choice((-1, 1))
-    patch("x", x + patch_rng.uniform(-1.5, 1.5), plan.DECK_Z + lane * patch_rng.uniform(1.3, 2.2), patch_rng.uniform(1.2, 3.6), patch_rng.uniform(0.7, 1.7),
-          patch_rng.choice(("dark", "dark", "kerb")), road_top)
-for z in (-208.0, -194.0, -181.0, -160.0, -144.0, -124.0, -106.0, -92.0):
-    lane = patch_rng.choice((-1, 1))
-    patch("z", z + patch_rng.uniform(-1.5, 1.5), plan.DECK_X0 + lane * patch_rng.uniform(1.3, 2.2), patch_rng.uniform(1.2, 3.6), patch_rng.uniform(0.7, 1.7),
-          patch_rng.choice(("dark", "dark", "kerb")), RY)
+def tar(axis, pts, w, hf, closed=False):
+    """A band of tar w wide along the points (v, u) on the road."""
+    m = len(pts)
+    for k in range(m if closed else m - 1):
+        (v0, u0), (v1, u1) = pts[k], pts[(k + 1) % m]
+        dv, du = v1 - v0, u1 - u0
+        ln = math.hypot(dv, du) or 1.0
+        nv, nu = -du / ln * w / 2, dv / ln * w / 2
+        ev, eu = dv / ln * w / 2, du / ln * w / 2
+        q = ((v0 - ev + nv, u0 - eu + nu), (v1 + ev + nv, u1 + eu + nu), (v1 + ev - nv, u1 + eu - nu), (v0 - ev - nv, u0 - eu - nu))
+        face((DK, "dark", 1), [_w(axis, pv, pu, hf(pv) + 0.007) for pv, pu in q], (0, 1, 0), 1.0)
+
+
+def repair(axis, v, u, length, width, hf):
+    n = 7
+    pts = []
+    for k in range(n):
+        a = 2 * math.pi * k / n + patch_rng.uniform(-0.25, 0.25)
+        rr = patch_rng.uniform(0.7, 1.0)
+        pts.append((v + math.cos(a) * length / 2 * rr, u + math.sin(a) * width / 2 * rr))
+    tar(axis, pts, 0.07, hf, closed=True)
+
+
+def crack(axis, v, u, length, hf):
+    n = max(3, int(length / 0.9))
+    pts = [(v + length * k / n, u + patch_rng.uniform(-0.22, 0.22)) for k in range(n + 1)]
+    tar(axis, pts, 0.05, hf)
+    if patch_rng.random() < 0.5:        # a branch off it
+        k = patch_rng.randrange(1, n)
+        tar(axis, [pts[k], (pts[k][0] + patch_rng.uniform(0.3, 0.8), pts[k][1] + patch_rng.choice((-1, 1)) * patch_rng.uniform(0.35, 0.6))], 0.045, hf)
+
+
+def worn(axis, vs, centre, arrows, hf):
+    for i, v in enumerate(vs):
+        lane = patch_rng.choice((-1, 1))
+        v += patch_rng.uniform(-1.5, 1.5)
+        if any(abs(v - a) < 4.5 for a in arrows[lane]):
+            lane = -lane
+            if any(abs(v - a) < 4.5 for a in arrows[lane]):
+                continue
+        u = centre + lane * patch_rng.uniform(1.45, 2.0)
+        if i % 3 == 0:
+            repair(axis, v, u, patch_rng.uniform(1.6, 3.0), patch_rng.uniform(1.0, 1.7), hf)
+        else:
+            crack(axis, v - 1.5, u, patch_rng.uniform(2.5, 5.0), hf)
+
+
+worn("x", (-66.0, -49.0, -37.5, -30.0, -15.0, -4.0, 19.0, 27.0, 36.5, 48.0, 59.0, 64.5, 70.5, 82.0, 97.0), plan.DECK_Z, ARROWS_X, road_top)
+worn("z", (-208.0, -194.0, -181.0, -160.0, -144.0, -124.0, -106.0, -92.0), plan.DECK_X0, ARROWS_Z, RY)
 
 # Drains on the shoulder by the parapet, conduit and junction boxes along
 # the parapet's face.
@@ -1370,3 +1490,41 @@ box((DK, "glow", 0), WK + 0.9, WK + 1.3, Y + 1.9, Y + 2.15, z_par + 0.24, z_par 
 pool(WK, Y + 1.9, z_par + 0.8, "white", 3.0, 1.5)
 stand(WK - 1.0, z_par + 0.3, 0.0, "squat", Y)
 stand(WK + 0.4, z_par + 0.3, 1.2, "idle", Y)
+
+# ---------------------------------------------------------------------------
+# ROUND 2. What the first blind review of the merged city named.
+# ---------------------------------------------------------------------------
+# The turn's board is a structure, not a slab: a catwalk with a handrail
+# along the foot of its south face (over the street) on brackets from its
+# posts, and service lamps on arms over the top of both faces.
+TB_Y0, TB_Y1 = Y + 2.4, Y + 7.0
+box((DK, "steel", 0), XW + 0.3, XE - 0.3, TB_Y0 - 0.2, TB_Y0 - 0.14, ZS + 0.44, ZS + 1.0, scale=0.5, col=STEEL_LT, bottom=True)
+for yy, t in ((TB_Y0 + 0.85, 0.04), (TB_Y0 + 0.35, 0.03)):
+    box((DK, "steel", 1), XW + 0.3, XE - 0.3, yy, yy + t, ZS + 0.96, ZS + 1.0, scale=0.5, col=STEEL_LT, bottom=True)
+x = XW + 0.3
+while x < XE - 0.2:
+    box((DK, "steel", 1), x - 0.02, x + 0.02, TB_Y0 - 0.14, TB_Y0 + 0.85, ZS + 0.96, ZS + 1.0, scale=0.5, col=STEEL_LT)
+    x += 1.88
+for px in (XW + 1.6, XE - 1.6):
+    pipe((DK, "steel", 0), (px, TB_Y0 - 0.2, ZS + 0.98), (px, Y + 0.9, ZS + 0.3), 0.045, segs=4, col=STEEL_LT)
+    pipe((DK, "steel", 0), (px, TB_Y1, ZS + 0.2), (px, TB_Y1 + 0.5, ZS + 0.2), 0.05, segs=4, col=STEEL_LT)
+for x in (-83.4, -81.1, -78.9, -76.6):
+    for o in (-1, 1):
+        zc = ZS + 0.2 + o * 0.2
+        pipe((DK, "steel", 1), (x, TB_Y1, zc), (x, TB_Y1 + 0.3, zc + o * 0.75), 0.025, segs=4, col=STEEL_LT)
+        box((DK, "glow", 0), x - 0.3, x + 0.3, TB_Y1 + 0.24, TB_Y1 + 0.29, zc + o * 0.7 - 0.07, zc + o * 0.7 + 0.07, scale=0.5, col=SERVICE, bottom=True)
+
+# Under the turn's plate: a light panel in each quarter round the pier, so
+# the cap beams are lit concrete and not a block of shadow.
+for k, (dx, dz) in enumerate(((-2.6, -2.7), (2.6, -2.7), (2.6, 2.7), (-2.6, 2.7))):
+    soffit_x(PIER[0] + dx, plan.DECK_UNDER, PIER[1] + dz, "amber" if k % 2 == 0 else "green", 3.4)
+
+# On the way down, boards stand on the south rail facing the road and the
+# walkway (more than 60 m from the avenue): a walker looking over the rail
+# sees them before the wall of the plaza's block a metre beyond it.
+rail_rng = random.Random(8610)
+for x in (68.5, 91.0):
+    cy = DY(x) + RAIL_H + 0.5 + 0.95
+    for dx in (-1.3, 1.3):
+        box((DK, "steel", 0), x + dx - 0.05, x + dx + 0.05, DY(x + dx) + RAIL_H, cy - 1.0, ZS - 0.07, ZS + 0.03, scale=0.5, col=STEEL_LT)
+    B.billboard(DK, x, cy, z_rail - 0.01, 4.2, 1.7, math.pi, rail_rng, back=False, depth=0.24)
