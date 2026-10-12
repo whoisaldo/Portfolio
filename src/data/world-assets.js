@@ -13,8 +13,8 @@ export const worldPackUrl = {
     plaza: "/scenes/world/world-high-plaza.glb?v=b72694573a1e",
     deck: "/scenes/world/world-high-deck.glb?v=ac580aa0b8ad",
     corpo: "/scenes/world/world-high-corpo.glb?v=3e8149f26cc4",
-    afterlife: "/scenes/world/world-high-afterlife.glb?v=3c64e2ca7a1e",
-    santo: "/scenes/world/world-high-santo.glb?v=a9bd9c48c750",
+    afterlife: "/scenes/world/world-high-afterlife.glb?v=88889b692bf7",
+    santo: "/scenes/world/world-high-santo.glb?v=a2d4274e74c8",
     japantown: "/scenes/world/world-high-japantown.glb?v=6e3a26b95c5d",
     mega: "/scenes/world/world-high-mega.glb?v=207ba4347a6e",
   },
@@ -24,8 +24,8 @@ export const worldPackUrl = {
     plaza: "/scenes/world/world-phone-plaza.glb?v=aef5ac8053d2",
     deck: "/scenes/world/world-phone-deck.glb?v=9a41439f01e0",
     corpo: "/scenes/world/world-phone-corpo.glb?v=62d20ac69374",
-    afterlife: "/scenes/world/world-phone-afterlife.glb?v=2142473ef61f",
-    santo: "/scenes/world/world-phone-santo.glb?v=67dd48cf3c22",
+    afterlife: "/scenes/world/world-phone-afterlife.glb?v=8e33b5b59ea0",
+    santo: "/scenes/world/world-phone-santo.glb?v=01e36a8a3036",
     japantown: "/scenes/world/world-phone-japantown.glb?v=593d2f9f50c4",
     mega: "/scenes/world/world-phone-mega.glb?v=47660206fd20",
   },
@@ -60,6 +60,6 @@ export const worldShopsUrl = {
   phone: "/scenes/world/shops-phone.webp?v=27d6f90aadb2",
 };
 export const worldPropsUrl = {
-  high: "/scenes/world/props-high.bin?v=7dd6230388bc",
-  phone: "/scenes/world/props-phone.bin?v=6ae7c7aa1441",
+  high: "/scenes/world/props-high.bin?v=855426bab223",
+  phone: "/scenes/world/props-phone.bin?v=abe662bf156f",
 };

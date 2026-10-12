@@ -1,4 +1,5 @@
 from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials, street constants)
+from ncw import props as _props
 
 # ---------------------------------------------------------------------------
 # THE ROOFTOP. About and Stack share it: a mid-height roof at the east end of
@@ -18,11 +19,28 @@ for (a0, a1, b0, b1) in ((RX0, RX1, RZ1 - 0.4, RZ1), (RX0, RX1, RZ0, RZ0 + 0.4),
 for (cx, cz) in ((476.0, -270.0), (477.5, -285.0)):
     for lx, lz in ((-1.4, -1.4), (1.4, -1.4), (1.4, 1.4), (-1.4, 1.4)):
         box((RF, "metal", 1), cx + lx - 0.1, cx + lx + 0.1, RH, RH + 3.0, cz + lz - 0.1, cz + lz + 0.1, scale=0.5)
-    cylinder((RF, "metal", 0), cx, cz, RH + 3.0, RH + 7.2, 2.1, segs=20)
+    cylinder((RF, "tankplate", 0), cx, cz, RH + 3.0, RH + 7.2, 2.1, segs=20, col=(0.17, 0.2, 0.2, 1.0))
+    # A lamp in a cage under it, and its pool on the roof: the tank by the
+    # lens was a black wall to anyone who turned round.
+    box((RF, "neon_amber", 0), cx - 0.1, cx + 0.1, RH + 2.82, RH + 2.92, cz - 0.1, cz + 0.1, scale=1.0)
+    light(RF, cx, RH + 2.6, cz, "amber", 1.8)
+    # A ladder up its east side, clear of both lenses' frames.
+    for dz in (-0.22, 0.22):
+        box((RF, "metal", 1), cx + 2.14, cx + 2.2, RH + 0.2, RH + 7.5, cz + dz - 0.03, cz + dz + 0.03, scale=0.5)
+    for k in range(18):
+        box((RF, "metal", 1), cx + 2.14, cx + 2.2, RH + 0.5 + k * 0.4, RH + 0.54 + k * 0.4, cz - 0.22, cz + 0.22, scale=0.5)
     cylinder((RF, "dark", 1), cx, cz, RH + 7.2, RH + 7.6, 2.2, segs=20)
     # Its hoops.
     for hy in (RH + 4.2, RH + 6.1):
         cylinder((RF, "dark", 1), cx, cz, hy, hy + 0.12, 2.16, segs=20, cap=False)
+# Behind both lenses (they look west): the east parapet's lamps and their
+# pools, units, a mast, so the roof's east side is not a black floor.
+for lz, hue in ((-262.5, "amber"), (-277.0, "white"), (-291.0, "amber")):
+    box((RF, "metal", 1), RX1 - 0.52, RX1 - 0.4, RH + 1.1, RH + 1.5, lz - 0.05, lz + 0.05, scale=0.5)
+    box((RF, "neon_" + hue, 0), RX1 - 0.62, RX1 - 0.52, RH + 1.38, RH + 1.46, lz - 0.14, lz + 0.14, scale=1.0)
+    light(RF, RX1 - 1.6, RH + 0.5, lz, hue, 1.6)
+for name, px, pz, yaw in (("ac_roof", 480.6, -272.5, 0.0), ("ac_roof", 480.8, -281.0, math.pi / 2), ("antenna", 482.6, -297.0, 0.0)):
+    _props.place(name, px, RH, pz, yaw, district="afterlife")
 r = random.Random(7100)
 for k in range(9):
     cx, cz = r.uniform(RX0 + 3, RX1 - 8), r.uniform(RZ0 + 3, RZ1 - 3)

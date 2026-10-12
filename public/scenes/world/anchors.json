@@ -1026,6 +1026,20 @@
    }
   },
   {
+   "name": "anchor_lights_rooftop",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue",
+   "extras": {
+    "pack": "afterlife"
+   }
+  },
+  {
    "name": "anchor_lights_santo",
    "kind": "anchor",
    "at": [
