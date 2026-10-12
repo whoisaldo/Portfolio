@@ -59,7 +59,7 @@ export function createYield(traffic) {
     const hl = Math.max(b.max.z, -b.min.z);
     const hw = Math.max(b.max.x, -b.min.x);
     if (x.parked) parked.push({ x: x.at.x, y: 0, z: x.at.z, fx: Math.sin(x.parked.yaw), fz: Math.cos(x.parked.yaw), hl, hw });
-    else movers.push({ slot: x, x: 0, y: 0, z: 0, fx: 0, fz: 1, hl, hw, late: 0, rate: 1, v: 0, u: 0, lead: 0, lane: 0, there: true, behind: false });
+    else movers.push({ slot: x, x: 0, y: 0, z: 0, fx: 0, fz: 1, hl, hw, late: 0, rate: 1, v: 0, u: 0, lead: 0, lane: 0, there: true, solid: false, behind: false });
   }
   // The S4 where it stands while the player is on foot.
   const own = { x: 0, y: 0, z: 0, fx: 0, fz: 1, hl: 2.36, hw: 0.92 };
@@ -176,7 +176,17 @@ export function createYield(traffic) {
       locate(m, clock);
       m.behind = m.late > 0.05 || m.rate < 0.99;
       if (m.behind) lates.push(m);
-      if (m.there && Math.abs(m.x - px) < TOUCH && Math.abs(m.z - pz) < TOUCH) bodies.push(m);
+      // A car is solid to the player from the first moment it is there and
+      // clear of him: one that comes onto its line where he already is (the
+      // deck's cars come and go at the ramp's foot and the deck's end), or
+      // that he is set down in, waits as a ghost and never shoves him.
+      if (!m.there) m.solid = false;
+      else if (!m.solid && Math.abs(m.x - px) < TOUCH && Math.abs(m.z - pz) < TOUCH) {
+        let apart = true;
+        for (let n = 0; n < nThings && apart; n++) apart = Math.abs(things[n].y - m.y) > 2 || !clear(m, things[n].x, things[n].z, things[n].r + 0.3);
+        m.solid = apart;
+      } else m.solid = true;
+      if (m.solid && Math.abs(m.x - px) < TOUCH && Math.abs(m.z - pz) < TOUCH) bodies.push(m);
     }
     for (const c of parked) if (Math.abs(c.x - px) < TOUCH && Math.abs(c.z - pz) < TOUCH) bodies.push(c);
     if (player.afoot) {
@@ -208,7 +218,8 @@ export function createYield(traffic) {
         for (let n = 0; n < nThings; n++) {
           const t = things[n];
           const k = meets(t.x, t.y, t.z, t.r, m.hw);
-          if (k >= 0) allow = cap(allow, m.fx, m.fz, k, t.vx, t.vz);
+          // (A ghost stands until the player is well clear of it.)
+          if (k >= 0) allow = !m.solid && k <= 2 ? 0 : cap(allow, m.fx, m.fz, k, t.vx, t.vz);
         }
       }
       for (const o of others) {
@@ -318,6 +329,7 @@ export function createYield(traffic) {
       for (const m of movers) {
         m.late = 0;
         m.rate = 1;
+        m.solid = false;
         m.slot.late = 0;
         m.slot.held = 0;
       }
