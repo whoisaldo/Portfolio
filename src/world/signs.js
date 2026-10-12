@@ -37,6 +37,46 @@ const nameOf = (d) => {
   return word ? word.replace(/(?<=.{4})S$/, "") : d.lines[0];
 };
 const STREET_NAMES = Object.fromEntries(Object.entries(STREET_DESIGNS).map(([k, list]) => [k, list.map(nameOf)]));
+// A design's hue as the street reads it from a block off: 0 red, 1 amber
+// and yellow, 2 green, 3 cyan, 4 blue and violet, 5 pink; -1 a white one,
+// which goes with any.
+const hueOf = (d) => {
+  const hsl = { h: 0, s: 0, l: 0 };
+  new THREE.Color(d.color).getHSL(hsl);
+  const h = hsl.h * 360;
+  return [hsl.s < 0.3 ? -1 : h < 26 || h >= 345 ? 0 : h < 70 ? 1 : h < 160 ? 2 : h < 200 ? 3 : h < 290 ? 4 : 5, h];
+};
+const STREET_HUES = Object.fromEntries(Object.entries(STREET_DESIGNS).map(([k, list]) => [k, list.map(hueOf)]));
+// Each family's own angle, in degrees, and a colour turned about the grey
+// axis by a share of a full turn (as the signs' shader turns a face's).
+const HUE_AT = [4, 42, 140, 186, 262, 322];
+const turned = (color, turn) => {
+  const a = turn * Math.PI * 2;
+  const co = Math.cos(a);
+  const si = Math.sin(a) / Math.sqrt(3);
+  const m = ((color.r + color.g + color.b) / 3) * (1 - co);
+  const out = new THREE.Color(Math.max(0, color.r * co + (color.b - color.g) * si + m), Math.max(0, color.g * co + (color.r - color.b) * si + m), Math.max(0, color.b * co + (color.g - color.r) * si + m));
+  // (Held near its own brightness: a yellow turned to pink would be a
+  // third as bright, and a street of them a darker street.)
+  const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  return out.multiplyScalar(Math.min(1.7, Math.max(0.75, lum(color) / Math.max(lum(out), 1e-3))));
+};
+// The two hues a block's standard signs keep to (with white), so that a
+// street's far end is two or three colours and not every hue at once: pink
+// with cyan, amber with cyan, red with amber, pink with violet, cyan with
+// violet, amber with pink, green with pink, red with cyan. A block is 160 m
+// a side. The avenue is named. Its first 128 m north of the hero's lens,
+// and the arm behind it, keep every hue (null): those signs are few and
+// large in the page's first frame, which fades in from a painted plate in
+// all of them, and held to two hues that frame lost a twentieth of its
+// light. All of it north of that, its canyon, is amber with cyan, the
+// show's own pair, so the far end of the street is two colours and white.
+const BLOCK_HUES = [[5, 3], [1, 3], [0, 1], [5, 4], [3, 4], [1, 5], [2, 5], [0, 3]];
+const blockHues = (x, z) => {
+  if (Math.abs(x) < 40) return z > -128 ? null : [1, 3];
+  const n = Math.abs(Math.sin(Math.floor(x / 160) * 127.1 + Math.floor(z / 160) * 311.7) * 43758.5453);
+  return BLOCK_HUES[Math.floor((n - Math.floor(n)) * BLOCK_HUES.length)];
+};
 import { COMMON } from "./glsl.js";
 
 const PX_PER_M = 46;
@@ -350,6 +390,41 @@ function street(ctx, spec, w, h) {
     ctx.restore();
     return;
   }
+  if (spec.style === "name") {
+    // A named shop's sign on a square face is no tile: a wide box across
+    // it, a blade down it, a disc, or two boxes one over the other, and
+    // the rest of the face is the dark backing it hangs on. A lit box with
+    // dark letters, or (lit: "tube") the name in glass inside an outline
+    // of the shape.
+    const boxes = { wide: [[0.03, 0.29, 0.94, 0.42]], blade: [[0.29, 0.03, 0.42, 0.94]], round: [[0.06, 0.06, 0.88, 0.88]], pair: [[0.05, 0.08, 0.9, 0.36], [0.16, 0.54, 0.68, 0.34]] }[spec.shape] ?? [[0.03, 0.29, 0.94, 0.42]];
+    boxes.forEach(([bx, by, bw, bh], i) => {
+      const ww = bw * w;
+      const hh = bh * h;
+      const hue = i ? spec.second ?? color : color;
+      const one = { ...spec, lines: [spec.lines[i] ?? spec.lines[0]] };
+      const m = Math.min(ww, hh);
+      const outline = () => (spec.shape === "round" ? ctx.arc(ww / 2, hh / 2, ww / 2 - m * 0.04, 0, Math.PI * 2) : roundRect(ctx, m * 0.06, m * 0.06, ww - m * 0.12, hh - m * 0.12, m * 0.16));
+      ctx.save();
+      ctx.translate(bx * w, by * h);
+      if (spec.lit === "tube") {
+        strokeTube(ctx, hue, Math.max(2, m * 0.06), outline);
+        layout(ctx, one, ww, hh, m * 0.2, (text, x, y, px, weight) => tube(ctx, text, x, y, px, hue, weight), 700);
+      } else {
+        ctx.beginPath();
+        outline();
+        ctx.clip();
+        lightbox(ctx, 0, 0, ww, hh, hue, seedOf(one) + i);
+        const ink = dim(hue, 0.012);
+        layout(ctx, one, ww, hh, m * 0.16, (text, x, y, px, weight) => {
+          ctx.font = FONT(weight, px);
+          ctx.fillStyle = ink;
+          ctx.fillText(text, x, y);
+        }, 800);
+      }
+      ctx.restore();
+    });
+    return;
+  }
   if (spec.style === "chunky") {
     // The show's painted sign: fat letters in one colour inside a thick
     // outline in another, lit, leaning on some. The outline runs the
@@ -549,10 +624,10 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   // every lane. So the design is dealt here by where the face hangs: the
   // builder's turn if nothing of that name (nameOf) hangs within 40 m, else
   // the next design on that does not, else the one whose namesake is
-  // furthest off. The avenue and the canyon north of the hero's lens (all
-  // of it is in the page's first frame, and its signs' colours are in the
-  // light baked onto that street) keep the builder's turn among the
-  // designs they always had.
+  // furthest off; and of those, one in the two hues its block keeps to
+  // (blockHues). The avenue and its canyon are dealt as every street is
+  // (until round 5 they kept the builder's turn for the page's first frame,
+  // which left one purple crescent in a ring in nine of a reviewer's views).
   const turns = new Map();
   const hung = new Map();
   const dealStreet = (size, n, mesh) => {
@@ -563,23 +638,44 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     for (let i = 0; i < pos.count; i++) c.add(v.fromBufferAttribute(pos, i));
     c.multiplyScalar(1 / pos.count).applyMatrix4(mesh.matrixWorld);
     const names = STREET_NAMES[size];
-    let pick = n % (OLD_COUNT[size] ?? names.length);
-    if (!(Math.abs(c.x) < 30 && c.z > -520 && c.z < 12)) {
-      let best = -1;
-      for (let k = 0; k < names.length; k++) {
-        const i = (n + k) % names.length;
-        let near = Infinity;
-        for (const h of hung.get(names[i]) ?? []) near = Math.min(near, Math.hypot(h.x - c.x, h.z - c.z));
-        if (near > best) {
-          best = near;
-          pick = i;
-        }
-        if (near >= 40) break;
-      }
+    const hues = STREET_HUES[size];
+    const designs = STREET_DESIGNS[size];
+    const pair = blockHues(c.x, c.z);
+    // Where the walk through the designs starts is the face's own (its
+    // turn and its place: the builder's turn alone runs 0 to 27, the
+    // pictograms). A square face is a named shop's sign or a pictogram
+    // turn about up its column and along its wall, so a stack of them is
+    // boards, blades and discs between the tiles.
+    const r = Math.abs(Math.sin(n * 12.9898 + Math.round(c.x) * 78.233 + Math.round(c.z) * 37.719) * 43758.5453);
+    const start = Math.floor((r - Math.floor(r)) * names.length);
+    const named = (Math.round(c.y / 1.3) + Math.round(c.x / 3) + Math.round(c.z / 3)) % 2 === 0;
+    // The first design on from there (of the face's kind) with no namesake
+    // within 40 m; failing that the best of those with none inside 25 m,
+    // then of any kind.
+    const tiers = [{ d: -1, i: start }, { d: -1, i: start }];
+    for (let k = 0; k < names.length; k++) {
+      const i = (start + k) % names.length;
+      let near = Infinity;
+      for (const h of hung.get(names[i]) ?? []) near = Math.min(near, Math.hypot(h.x - c.x, h.z - c.z));
+      const tier = size === "bx" && !designs[i].icon !== named ? 1 : 0;
+      if (near > tiers[tier].d) tiers[tier] = { d: near, i };
+      if (tier === 0 && near >= 40) break;
+    }
+    const pick = (tiers.find((t) => t.d >= 25) ?? tiers.reduce((a, t) => (t.d > a.d ? t : a))).i;
+    // And it is shown in one of its block's two hues: its own if that is
+    // one of them (or it is white), else turned to the nearer of the two.
+    // Choosing only among the designs of those hues left a third of each
+    // size to deal, and the avenue hangs up to 72 of one size inside 40 m.
+    const [family, angle] = hues[pick];
+    let turn = 0;
+    if (pair && family >= 0 && !pair.includes(family)) {
+      const da = ((HUE_AT[pair[0]] - angle + 540) % 360) - 180;
+      const db = ((HUE_AT[pair[1]] - angle + 540) % 360) - 180;
+      turn = (Math.abs(da) < Math.abs(db) ? da : db) / 360;
     }
     if (!hung.has(names[pick])) hung.set(names[pick], []);
     hung.get(names[pick]).push(c);
-    return pick;
+    return [pick, turn];
   };
   const specOf = (mesh) => {
     const id = mesh.name.replace(/^sign_/, "");
@@ -587,7 +683,8 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     const street = base.match(/^st_([a-z]{2})_(\d+)$/);
     if (!street || !STREET_NAMES[street[1]]) return signSpec(id);
     if (!turns.has(base)) turns.set(base, dealStreet(street[1], Number(street[2]), mesh));
-    return signSpec(id, turns.get(base));
+    const [pick, turn] = turns.get(base);
+    return { ...signSpec(id, pick), turn };
   };
   for (const mesh of meshes) {
     const id = mesh.name.replace(/^sign_/, "");
@@ -667,6 +764,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       const N = new Float32Array(n * 3);
       const U = new Float32Array(n * 2);
       const S = new Float32Array(n * 2);
+      const H = new Float32Array(n).fill(spec.turn ?? 0);
       const v = new THREE.Vector3();
       const nm = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
       for (let i = 0; i < n; i++) {
@@ -707,7 +805,8 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
           v: b.clone().sub(o),
           normal,
           atlas: new THREE.Vector4(cell.x / ATLAS, cell.y / HEIGHT, cell.pw / ATLAS, cell.ph / HEIGHT),
-          color: new THREE.Color(spec.color),
+          color: turned(new THREE.Color(spec.color), spec.turn ?? 0),
+          turn: spec.turn ?? 0,
           sign: [index, spec.flicker && !reduced ? 1 : 0],
         });
       }
@@ -715,9 +814,10 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       g.setAttribute("normal", new THREE.BufferAttribute(N, 3));
       g.setAttribute("uv", new THREE.BufferAttribute(U, 2));
       g.setAttribute("aSign", new THREE.BufferAttribute(S, 2));
+      g.setAttribute("aHue", new THREE.BufferAttribute(H, 1));
       if (src.index) g.setIndex(src.index.clone());
       geos.push(g);
-      sources.push({ mesh, color: new THREE.Color(spec.color), intensity: spec.draw === "board" ? 0.9 : 1.6 });
+      sources.push({ mesh, color: turned(new THREE.Color(spec.color), spec.turn ?? 0), intensity: spec.draw === "board" ? 0.9 : 1.6 });
     });
     indexBase += faces.length;
     const geometry = mergeGeometries(geos, false);
@@ -730,14 +830,17 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     uniforms: { ...shared, uAtlas: { value: texture }, uIntensity: { value: GAIN } },
     vertexShader: /* glsl */ `
       attribute vec2 aSign;
+      attribute float aHue;
       varying vec3 vWorld;
       varying vec2 vUv;
       varying vec2 vSign;
+      varying float vHue;
       void main() {
         vec4 w = modelMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
         vUv = uv;
         vSign = aSign;
+        vHue = aHue;
         gl_Position = projectionMatrix * viewMatrix * w;
       }
     `,
@@ -748,8 +851,21 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       varying vec3 vWorld;
       varying vec2 vUv;
       varying vec2 vSign;
+      varying float vHue;
       void main() {
         vec3 tex = texture2D(uAtlas, vUv).rgb;
+        // A standard sign is shown in one of its block's two hues (the
+        // dealer in createSigns): its design's colours turned about the
+        // grey axis by the face's share of a full turn.
+        if (vHue != 0.0) {
+          float a = vHue * 6.2832;
+          vec3 k = vec3(0.57735);
+          vec3 was = tex;
+          tex = max(tex * cos(a) + cross(k, tex) * sin(a) + k * dot(k, tex) * (1.0 - cos(a)), 0.0);
+          // (Held near its own brightness: a yellow turned to pink would be
+          // a third as bright.)
+          tex *= clamp(dot(was, vec3(0.2126, 0.7152, 0.0722)) / max(dot(tex, vec3(0.2126, 0.7152, 0.0722)), 1e-3), 0.75, 1.7);
+        }
         // A flickering tube cuts out for a frame or two at seeded moments,
         // and now and then stutters for longer.
         float t = floor(uTime * 14.0);
