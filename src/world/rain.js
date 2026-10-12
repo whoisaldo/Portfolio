@@ -125,7 +125,7 @@ export function createRain(scene, shared, { count = 6000, reduced = false } = {}
         // (The street's colour reaches a drop only near the street: high
         // over a roof or far from any sign the rain is the night's own cool
         // grey, not pink.)
-        vCol = vec3(0.15, 0.16, 0.2) + uHazeColor * 0.16 + spillAt(p) * 1.9 * exp(-max(p.y - 9.0, 0.0) * 0.09) + lampsAt(p, toCam) * 2.0;
+        vCol = vec3(0.15, 0.16, 0.2) + uHazeColor * 0.16 + spillAt(p) * 1.9 * exp(-max(p.y - 5.0, 0.0) * 0.22) + lampsAt(p, toCam) * 2.0;
         vUv = uv;
       }
     `,
