@@ -88,11 +88,11 @@ def shine(x, y, z, hue, power, reach=None):
     POOLS.append((x, z, reach or 2.6 + 0.5 * power, TINT[hue], min(1.0, 0.25 + power / 9.0)))
 
 
-def lit_at(x, z):
+def lit_at(x, z, pools=None, base=(0.2, 0.225, 0.29)):
     """How bright the stone is at (x, z), as a colour to multiply its tone
     by: the night's own blue where no pool reaches."""
-    r, g, b = 0.2, 0.225, 0.29
-    for px, pz, reach, c, k in POOLS:
+    r, g, b = base
+    for px, pz, reach, c, k in (POOLS if pools is None else pools):
         d2 = ((x - px) ** 2 + (z - pz) ** 2) / (reach * reach)
         if d2 < 5.0:
             w = k / ((1.0 + 2.2 * d2) ** 2)
@@ -115,7 +115,7 @@ def lit_slab(key, x0, x1, z0, z1, y, tone, cut=None, cell=2.0):
                 lit_poly(key, pts, y, tone)
 
 
-def lit_poly(key, pts2, y, tone):
+def lit_poly(key, pts2, y, tone, pools=None, dark=(0.2, 0.225, 0.29)):
     """A flat polygon facing up, each corner's colour the stone's tone under
     the light that reaches it."""
     area = sum(a[0] * c[1] - c[0] * a[1] for a, c in zip(pts2, pts2[1:] + pts2[:1]))
@@ -127,7 +127,7 @@ def lit_poly(key, pts2, y, tone):
     b.faces.append(tuple(range(base, base + len(pts2))))
     b.uvs.extend((x / 2.0, -z / 2.0) for x, z in pts2)
     for x, z in pts2:
-        l = lit_at(x, z)
+        l = lit_at(x, z, pools, dark)
         b.cols.append((tone[0] * l[0], tone[1] * l[1], tone[2] * l[2], 1.0))
 
 
@@ -774,14 +774,18 @@ def garden(x0, x1, z0, z1, y, r, palms=0, trees=2, colour="cyan", lamps=2):
 # A working roof (ax5YUmkWf_Y@9, mH2wmyeiIpA@143: packed, and lit). The
 # site's roof is near black and the street's light does not climb to it, so
 # from the air plant in dark steel on it is nothing. Here a roof gets what
-# shows: a service path of pale pavers with lamps along it (each a pool on
-# the pavers, kit.light at the roof's own height), plant in pale painted
-# steel on concrete pads beside the path (chillers with fans, housings with
-# a lit door, ducts on legs, tanks, cable trays, lit hatches), lamps along
-# the parapet, and red lamps on whatever stands tall.
+# shows: a service path of pavers with lamps along it, and the lamps' light
+# drawn on the pavers themselves (glow, brightest by each lamp: a lit floor
+# is the only light a roof has); plant in pale painted steel on pale pads
+# beside the path (chillers with fans, housings with a lit door and its
+# light on an apron, ducts on legs, tanks, cable trays, lit hatches), which
+# reads dark against the pads; lamps along the parapet, and red lamps on
+# whatever stands tall.
 # ---------------------------------------------------------------------------
 PLANT_PAINT = ((0.34, 0.36, 0.39), (0.27, 0.29, 0.32), (0.4, 0.4, 0.37), (0.22, 0.27, 0.26), (0.36, 0.32, 0.27))
 PAVER = ((0.36, 0.37, 0.4), (0.3, 0.31, 0.34), (0.42, 0.42, 0.44))
+PAD = (0.03, 0.032, 0.04)
+LAMP_ON = {"white": (0.2, 0.2, 0.19), "amber": (0.24, 0.15, 0.06), "cyan": (0.08, 0.2, 0.24), "magenta": (0.24, 0.08, 0.2), "pink": (0.24, 0.08, 0.13)}
 STEEL_D = (0.06, 0.065, 0.075, 1.0)
 
 
@@ -825,20 +829,28 @@ def roof_works(x0, x1, z0, z1, y, seed, lamp="white", cap=3.2, density=1.0, path
         return
     wide = b1 - b0 >= 5.0
     pb = b0 + (b1 - b0) * (r.uniform(0.35, 0.65) if wide else 0.5)
+    def pad(a_lo, a_hi, b_lo, b_hi, col=PAD):
+        xa, xb, za, zb = rect(a_lo, a_hi, b_lo, b_hi)
+        up_poly((PL, "glow", 0), [(xa, za), (xb, za), (xb, zb), (xa, zb)], y + 0.03, (*col[:3], 1.0))
+
     if path and wide:
-        # The path: pavers, each its own grey, and lamps beside it.
-        a = a0 + 0.6
-        while a + 1.5 <= a1 - 0.6:
-            t, kk = r.choice(PAVER), r.uniform(0.86, 1.1)
-            slab((PL, "castconcrete", 0), a + 0.03, a + 1.47, pb - 0.55, pb + 0.55, y, y + 0.06, (t[0] * kk, t[1] * kk, t[2] * kk))
-            a += 1.5
+        # The path: lamps beside it, and pavers each as bright as the lamps
+        # near it make it.
+        lamps = []
         a = a0 + r.uniform(2.0, 4.0)
         while a < a1 - 1.5:
             px, pz = at(a, pb + 0.8)
             box((PL, "steel", 1), px - 0.035, px + 0.035, y, y + 0.95, pz - 0.035, pz + 0.035, scale=0.5, col=STEEL_D)
             box((PL, "glow", 0), px - 0.1, px + 0.1, y + 0.95, y + 1.07, pz - 0.1, pz + 0.1, scale=0.5, col=GLOW[lamp])
             light(PL, px, y + 1.0, pz, lamp, 6.0)
-            a += r.uniform(7.0, 10.0)
+            lamps.append(a)
+            a += r.uniform(6.0, 9.0)
+        on = LAMP_ON[lamp]
+        a = a0 + 0.6
+        while a + 1.5 <= a1 - 0.6:
+            kk = r.uniform(0.86, 1.1) * (0.1 + sum(1.0 / (1.0 + ((a + 0.75 - la) / 2.4) ** 2) ** 2 for la in lamps))
+            pad(a + 0.03, a + 1.47, pb - 0.6, pb + 0.6, (on[0] * kk, on[1] * kk, on[2] * kk))
+            a += 1.5
     for lo, hi in (((b0 + 0.6, pb - 1.2), (pb + 1.4, b1 - 0.6)) if wide else ((b0 + 0.3, b1 - 0.3),)):
         depth = hi - lo
         if depth < 1.5:
@@ -855,7 +867,7 @@ def roof_works(x0, x1, z0, z1, y, seed, lamp="white", cap=3.2, density=1.0, path
             if kind < 0.2 and depth >= 2.0:
                 # A chiller: a long cabinet on a pad, fans in its top, a status lamp.
                 ln, dd, hh = min(r.uniform(2.6, 4.4), room), min(r.uniform(1.5, 2.1), depth - 0.3), min(r.uniform(1.4, 2.0), cap - 0.3)
-                slab((PL, "castconcrete", 0), a - 0.2, a + ln + 0.2, mid - dd / 2 - 0.2, mid + dd / 2 + 0.2, y, y + 0.12, PAVER[1])
+                pad(a - 0.4, a + ln + 0.4, mid - dd / 2 - 0.4, mid + dd / 2 + 0.4)
                 slab((PL, "steel", 0), a, a + ln, mid - dd / 2, mid + dd / 2, y + 0.12, y + 0.12 + hh, paint)
                 for j in range(max(1, int(ln / 1.3))):
                     fx, fz = at(a + (j + 0.5) * ln / max(1, int(ln / 1.3)), mid)
@@ -869,6 +881,7 @@ def roof_works(x0, x1, z0, z1, y, seed, lamp="white", cap=3.2, density=1.0, path
                 slab((PL, "steel", 0), a, a + ln, mid - dd / 2, mid + dd / 2, y, y + hh, paint)
                 slab((PL, "steel", 0), a - 0.1, a + ln + 0.1, mid - dd / 2 - 0.1, mid + dd / 2 + 0.1, y + hh, y + hh + 0.1, STEEL_D)
                 slab((PL, "glow", 0), a + ln * 0.5 - 0.42, a + ln * 0.5 + 0.42, mid + dd / 2, mid + dd / 2 + 0.03, y + 0.05, y + min(2.0, hh - 0.2), dim("amber", 0.75))
+                pad(a + ln * 0.5 - 1.5, a + ln * 0.5 + 1.5, mid + dd / 2, min(hi + 0.4, mid + dd / 2 + 1.8), (0.16, 0.1, 0.04))
                 lx, lz = at(a + ln * 0.5, mid + dd / 2 + 0.8)
                 light(PL, lx, y + 1.5, lz, "amber", 5.0)
                 a += ln
@@ -876,6 +889,7 @@ def roof_works(x0, x1, z0, z1, y, seed, lamp="white", cap=3.2, density=1.0, path
                 # A duct on legs, an elbow up into a cowl at one end.
                 ln = min(r.uniform(4.0, 8.0), room)
                 off = r.uniform(-0.3, 0.3) * max(0.0, depth - 1.0)
+                pad(a - 0.3, a + ln + 0.3, mid + off - 0.7, mid + off + 0.7)
                 slab((PL, "steel", 0), a, a + ln, mid + off - 0.3, mid + off + 0.3, y + 0.4, y + 0.95, paint, bottom=True)
                 for t in (0.12, 0.5, 0.88):
                     slab((PL, "steel", 1), a + ln * t - 0.06, a + ln * t + 0.06, mid + off - 0.34, mid + off + 0.34, y, y + 0.4, STEEL_D)
@@ -885,6 +899,7 @@ def roof_works(x0, x1, z0, z1, y, seed, lamp="white", cap=3.2, density=1.0, path
                 # A tank lying on saddles.
                 ln = min(r.uniform(2.6, 4.0), room)
                 rr = min(0.8, depth * 0.36)
+                pad(a - 0.3, a + ln + 0.3, mid - rr - 0.3, mid + rr + 0.3)
                 cxa, cza = at(a, mid)
                 cxb, czb = at(a + ln, mid)
                 pipe((PL, "steel", 0), (cxa, y + 0.3 + rr, cza), (cxb, y + 0.3 + rr, czb), rr, segs=8, col=(*paint, 1.0), caps=True)
@@ -894,10 +909,10 @@ def roof_works(x0, x1, z0, z1, y, seed, lamp="white", cap=3.2, density=1.0, path
             elif kind < 0.82:
                 # Units in a row on a pad.
                 n = max(2, min(r.randrange(2, 5), int(room / 1.25)))
-                slab((PL, "castconcrete", 0), a - 0.2, a + n * 1.25 - 0.05, mid - 0.65, mid + 0.65, y, y + 0.1, PAVER[0])
+                pad(a - 0.3, a + n * 1.25 + 0.05, mid - 0.85, mid + 0.85)
                 for j in range(n):
                     ux, uz = at(a + 0.5 + j * 1.25, mid)
-                    P.place("ac_roof", ux, y + 0.1, uz, 0.0 if long_x else math.pi / 2, district=PL)
+                    P.place("ac_roof", ux, y, uz, 0.0 if long_x else math.pi / 2, district=PL)
                 a += n * 1.25
             elif kind < 0.92:
                 # A lit hatch: a light well's glazing on a kerb.

@@ -206,24 +206,29 @@ rg = random.Random(8316)
 # (A park: paths crossing at a blossom tree, four lawns in hedges, a pergola
 # of lamps, palms and blossom, benches along the paths.)
 RY = 18.2
-# (Its floor: pale flags with open joints over the whole roof, paler along
-# the two paths, which a line of light edges; each lamp is a pool on them.)
+# (Its floor: flags with open joints over the whole roof, paler along the
+# two paths, which a line of light edges. No street light climbs here, so
+# the lamps' light is drawn on the flags themselves: glow, each corner as
+# bright as the lamps near it make it, the night's blue between.)
+GARDEN_LAMPS = ((90.6, -149.4, "amber"), (97.4, -142.6, "amber"), (84.0, -146.0, "white"), (104.0, -146.0, "amber"), (94.0, -155.0, "white"),
+                (94.0, -137.0, "white"), (87.5, -139.5, "amber"), (100.5, -152.5, "amber"), (101.0, -146.0, "amber"), (94.0, -163.5, "amber"),
+                (83.0, -160.0, "white"), (105.0, -136.0, "white"))
+GARDEN_POOLS = [(px, pz, 5.0, TINT[hue], 0.9) for px, pz, hue in GARDEN_LAMPS]
 z = -167.4
 while z < -132.8:
     x = 80.6
     while x < 107.2:
         on_path = (-147.4 < z + 1.0 < -144.6) or (92.6 < x + 1.0 < 95.4)
-        kk = rg.uniform(0.84, 1.1) * (1.25 if on_path else 0.8)
-        up_poly((PL, "castconcrete", 0), [(x + 0.03, z + 0.03), (x + 1.97, z + 0.03), (x + 1.97, z + 1.97), (x + 0.03, z + 1.97)], RY + 0.02,
-                (0.34 * kk, 0.35 * kk, 0.38 * kk, 1.0), scale=1.0)
+        kk = rg.uniform(0.84, 1.1) * (0.13 if on_path else 0.085)
+        lit_poly((PL, "glow", 0), [(x + 0.03, z + 0.03), (x + 1.97, z + 0.03), (x + 1.97, z + 1.97), (x + 0.03, z + 1.97)], RY + 0.02,
+                 (kk, kk, kk * 1.05), pools=GARDEN_POOLS, dark=(0.13, 0.15, 0.2))
         x += 2.0
     z += 2.0
 for (a0, a1, b0, b1) in ((82.6, 105.4, -147.2, -147.12), (82.6, 105.4, -144.88, -144.8), (92.8, 92.88, -157.4, -134.6), (95.12, 95.2, -157.4, -134.6)):
     box((PL, "glow", 0), a0, a1, RY + 0.03, RY + 0.07, b0, b1, scale=1.0, col=dim("amber", 0.5))
-for (px, pz, hue) in ((90.6, -149.4, "amber"), (97.4, -142.6, "amber"), (84.0, -146.0, "white"), (104.0, -146.0, "amber"), (94.0, -155.0, "white"), (94.0, -137.0, "white"),
-                      (87.5, -139.5, "amber"), (100.5, -152.5, "amber"), (101.0, -146.0, "amber")):
+for (px, pz, hue) in GARDEN_LAMPS:
     light(PL, px, RY + 2.6, pz, hue, 7.0)
-for (px, pz) in ((94.0, -155.0), (94.0, -137.0), (87.5, -139.5), (100.5, -152.5)):
+for (px, pz) in ((94.0, -155.0), (94.0, -137.0), (87.5, -139.5), (100.5, -152.5), (94.0, -163.5), (83.0, -160.0), (105.0, -136.0)):
     box((PL, "metal", 1), px - 0.05, px + 0.05, RY, RY + 0.8, pz - 0.05, pz + 0.05, scale=0.5)
     box((PL, "glow", 0), px - 0.12, px + 0.12, RY + 0.8, RY + 0.92, pz - 0.12, pz + 0.12, scale=0.5, col=GLOW["amber"])
 P.place("planter_tree", 94.0, RY + 0.02, -146.0, 0.7, district=PL)
@@ -300,7 +305,7 @@ podium(132.0, 170.0, -168.0, -126.0, 14.8, {"-x": "street", "-z": "street", "+x"
 # behind it the shaft that closes the square's view east, seen down the
 # causeway and over the junction, with MILITECH's name under its crown.)
 tower("D1 wing", 136.0, 151.0, -164.0, -130.0, 14.8, 35.2, 8332, cut=1.6, accent="amber", crown="pad", lit=0.74, warm=0.55, plant=0)
-D1T = tower("D1 shaft", 151.0, 168.0, -164.0, -136.0, 14.8, 64.0, 8387, steps=((54.0, 1.5),), cut=1.6, accent="yellow", crown="blades",
+D1T = tower("D1 shaft", 151.0, 168.0, -164.0, -136.0, 14.8, 64.0, 8387, steps=((54.0, 1.5),), cut=1.6, accent="amber", crown="band",
             lit=0.8, warm=0.3, plant=1)
 rf = random.Random(8388)
 for name, plane, a0, a1 in (("-x", 151.0, -164.0, -136.0), ("+x", 168.0, -164.0, -136.0), ("-z", -164.0, 151.0, 168.0), ("+z", -136.0, 151.0, 168.0)):
@@ -310,7 +315,7 @@ for name, plane, a0, a1 in (("-x", 152.5, -162.5, -137.5), ("+z", -137.5, 152.5,
     f = B.Face(name, plane, a0, a1)
     fin_row(f, 1.8, f.width - 1.8, 54.9, 56.6, rf, step=(2.0, 2.6), out=0.5)
     fin_row(f, 1.8, f.width - 1.8, 61.4, 64.6, rf, step=(2.0, 2.6), out=0.5)
-lit_band(151.0, 168.0, -164.0, -136.0, 53.7, 54.0, "yellow", k=0.5, cut=1.6)
+lit_band(151.0, 168.0, -164.0, -136.0, 53.7, 54.0, "amber", k=0.4, cut=1.6)
 wordmark("militech_far", 152.5 - 0.3, 59.0, -150.0, 16.0, 3.4, -math.pi / 2)
 wordmark("militech_b", 159.5, 59.0, -137.5 + 0.3, 11.0, 2.4, 0.0)
 for f, a0 in ((B.Face("-x", 136.0, -164.0, -130.0), 0), (B.Face("-z", -164.0, 136.0, 151.0), 1)):
