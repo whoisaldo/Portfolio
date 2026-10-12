@@ -7,7 +7,7 @@ road.
 
 Kept clear: the walk camera's line (the pavement's middle, 2.5 m from the
 lot line) by a metre, so whoever stands here is within 1.5 m of the lot
-line or at the kerb, 3.45 m out; the road itself (the traffic agent parks
+line or at the kerb, 3.6 m out; the road itself (the traffic agent parks
 in the bays and stands taxis at z -79 and -112 and a patrol car at
 (126.5, -158.8)); and whatever already stands: a spot taken by a prop or a
 person slides along the kerb, or is left out.
@@ -60,14 +60,14 @@ put(128.4, -157.85, N, "talk")
 # road they wait on. Junction F's south corners (B1's, D1's), the square's
 # corner on the plaza street, the south street's junction (B2's, D4's).
 CORNERS = (
-    (((111.45, -165.4), (111.5, -164.6)), E, ("idle", "phone"), "z"),
-    (((105.9, -171.45), (105.1, -171.5)), N, ("phone", "idle"), "x"),
-    (((128.55, -165.4), (128.4, -166.4)), W_, ("idle", "idle"), "z"),
-    (((134.2, -171.45), (135.0, -171.55), (135.7, -171.4)), N, ("idle", "phone", "smoke"), "x"),
-    (((105.4, -186.55), (104.6, -186.6)), S, ("idle", "phone"), "x"),
-    (((111.45, -12.4), (111.5, -13.25)), E, ("phone", "idle"), "z"),
-    (((128.55, -12.4), (128.45, -13.3)), W_, ("idle", "phone"), "z"),
-    (((134.1, -6.55), (134.9, -6.6)), S, ("phone", "idle"), "x"),
+    (((111.6, -165.4), (111.6, -164.6)), E, ("idle", "phone"), "z"),
+    (((105.9, -171.6), (105.1, -171.6)), N, ("phone", "idle"), "x"),
+    (((128.4, -165.4), (128.4, -166.4)), W_, ("idle", "idle"), "z"),
+    (((134.2, -171.6), (135.0, -171.6)), N, ("idle", "phone"), "x"),
+    (((105.4, -186.4), (104.6, -186.4)), S, ("idle", "phone"), "x"),
+    (((111.6, -12.4), (111.6, -13.25)), E, ("phone", "idle"), "z"),
+    (((128.4, -12.4), (128.4, -13.3)), W_, ("idle", "phone"), "z"),
+    (((134.1, -6.4), (134.9, -6.4)), S, ("phone", "idle"), "x"),
 )
 for pts, yaw, poses, along in CORNERS:
     for (x, z), pose in zip(pts, poses):
