@@ -70,6 +70,7 @@ for module in (
     "districts.deck",
     "districts.afterlife",
     "districts.santo",
+    "districts.edges",
     "road",
     "cameras",
     "preview",
