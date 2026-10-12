@@ -55,14 +55,16 @@ def lot(x0, x1, z0, z1, h, seed, sides, nb=None, style=None, roof=False, **kw):
     """A building on a lot. Its roof is dressed further down, by hand (the
     roofs are seen from the rooftop and from the air): the generator's own
     draw only where `roof` asks."""
-    # (A back onto a lane is this district's own, cold and dark: the
-    # generator draws it through K.back_ground while it builds here.)
-    kit_back, B.back_ground = B.back_ground, K.back_ground
+    # (A back onto a lane is this district's own, cold and dark, and its
+    # fire escapes are open steel: the generator draws both through this
+    # district's kit while it builds here.)
+    kit_parts = B.back_ground, B.fire_escape
+    B.back_ground, B.fire_escape = K.back_ground, K.fire_stairs
     try:
         return B.building(B.Lot(x0, x1, z0, z1, "+x", sides, nb or {}, D), h, random.Random(seed),
                           style=dict(WATSON, **(style or {})), roof=roof, **kw)
     finally:
-        B.back_ground = kit_back
+        B.back_ground, B.fire_escape = kit_parts
 
 
 F = SHOP_H + CELL_H  # a storey over the shops: heights are SHOP_H + n storeys
@@ -75,10 +77,13 @@ def storeys(n):
 # ---------------------------------------------------------------------------
 # West of the street.
 # ---------------------------------------------------------------------------
+# (The two on the boulevard are seen across its whole width: paired windows
+# most of them lit, balconies, units, a fire escape each, signs.)
+BLVD = dict(lit=(0.65, 0.85), balcony=0.3, ac=0.5, fire_escape=1.0, signs=0.9, shop_sign=0.8)
 lot(380.0, 398.0, -316.0, -300.0, storeys(6), 9101, {"-z": "street", "+z": "party", "-x": "back", "+x": "open"},
-    {"+z": storeys(5)}, tint="navy")
+    {"+z": storeys(5)}, tint="navy", window=0, style=BLVD)
 lot(402.0, 428.0, -316.0, -300.0, storeys(3), 9102, {"-z": "street", "+x": "street", "-x": "open", "+z": "party"},
-    {"+z": 30.0}, tint="concrete", style=dict(roof_cap=3.0))
+    {"+z": 30.0}, tint="rust", window=0, style=dict(BLVD, roof_cap=3.0))
 lot(380.0, 398.0, -300.0, -276.0, storeys(5), 9103, {"+x": "open", "-x": "back", "-z": "party", "+z": "party"},
     {"-z": storeys(6), "+z": storeys(3)}, tint="teal")
 lot(380.0, 398.0, -276.0, -250.0, storeys(3), 9104, {"+x": "open", "-x": "back", "-z": "party", "+z": "party"},
@@ -303,7 +308,9 @@ ST = dict(B.STYLE_DEFAULTS, **WATSON)
 RB = B.Face("-x", EL, -300.0, -258.0)      # s runs south from its north end
 rr = random.Random(9210)
 RB_TINT = B.TINTS["teal"]
-B.facade_wall((D, "facade", 0), RB, SHOP_H, 34.0, B.wall_col(0.55, 1, 0.6, RB_TINT), 7)
+# (Its wall is painted, as AFTERLIFE's opposite is: flats with their grime,
+# balconies and plants, not a grid of lit panes.)
+mass(D, EL, 484.0, -300.0, -258.0, SHOP_H, 34.0, 9215, faces=("-x",), painted=2, roof=False)
 B.shopfront(D, RB, rr, 0.0, 12.8, RB_TINT, 0.6, 0.0, door=False, palette=WATSON["shop_colours"])
 B.shopfront(D, RB, rr, 22.4, 42.0, RB_TINT, 0.6, 0.0, door=True, palette=WATSON["shop_colours"])
 for a_, b_ in ((13.0, 16.4), (18.8, 22.2)):
@@ -321,7 +328,11 @@ cx_, _, cz_ = RB.p(RB.at(17.6), 0.0, 1.0)
 K.cross(D, cx_, 6.2, cz_, 1.4, 0.0, "green")
 pipe((D, "metal", 1), (EL, 7.0, cz_), (cx_ - 0.4, 7.0, cz_), 0.04, segs=4)
 K.board(D, *RB.p(RB.at(20.6), 5.3, 0.1), "ps", RB.yaw)
-K.dress(D, RB, 34.0, rr, ST, RB_TINT, escape=31.5)
+K.dress(D, RB, 34.0, rr, dict(ST, ledge_every=0, balcony=0.0, ac=0.3, cornice=1.0), RB_TINT, escape=31.5)
+K.pipe_bundle(D, RB, 23.0, 41.4, 5.05, rr, n=3)
+# AFTERLIFE's block has its own fire escape in the same steel, north of the
+# entrance.
+K.fire_stairs(D, B.Face("+x", WK, -300.0, -262.0), 30.0, SHOP_H + 0.5, 27.0)
 # Its north wall at the pavement, where the clinic next door stands back.
 quad((D, "concrete", 0), (454.0, 0.0, -300.02), (EL, 0.0, -300.02), (EL, SHOP_H, -300.02), (454.0, SHOP_H, -300.02),
      ((0, 0), (1, 0), (1, 2), (0, 2)))

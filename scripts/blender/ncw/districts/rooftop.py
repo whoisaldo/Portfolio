@@ -65,7 +65,7 @@ mass(RF, 402.0, 432.0, -300.0, -262.0, SHOP_H, 30.0, 7201, painted=1)
 box((RF, "dark", 0), 402.0, 425.6, 0, SHOP_H, -300.0, -262.0, scale=2.0)
 clutter(RF, -1, -300.0, -262.0, 30.0, 7220, xw=432.0)
 ac_units(RF, -1, -300.0, -262.0, SHOP_H + 1, 26.0, 7221, xw=432.0)
-fire_escape(RF, -1, -292.0, SHOP_H + 0.5, 27.0, xw=432.0)
+# (Its fire escape is built with the street's, in open steel: districts/afterlife.py.)
 # A hair proud of its frame's face, or the two fight for the same pixels.
 sign("afterlife", 431.26, 38.0, -281.0, 13.0, 3.0, math.radians(90), preview="AFTERLIFE", district=RF)
 box((RF, "board_frame", 0), 430.6, 431.2, 36.2, 39.8, -288.0, -274.0, scale=1.0)

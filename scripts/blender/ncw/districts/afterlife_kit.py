@@ -572,9 +572,45 @@ def dress(D, f, y1, r, st, tint, signs=True, fascia=True, escape=None):
         px_, py_, pz_ = f.p(f.at(s), 0.0, 0.0)
         P.place("pipe_v", px_, py_, pz_, f.yaw, sy=y1, district=D)
     if escape is not None:
-        B.fire_escape(D, f, escape, SHOP_H + 0.5, min(y1 - 3.0, 40.0))
+        fire_stairs(D, f, escape, SHOP_H + 0.5, min(y1 - 3.0, 40.0))
     if signs:
         B.face_signs(D, f, r, 0.5, f.width - 0.5, y1, st["signs"], st["sign_colours"])
+
+
+STAIR = (0.115, 0.12, 0.13, 1)
+
+
+def fire_stairs(district, f, s, y0, y1):
+    """A fire escape down a face, centred s from its left edge (it takes
+    buildings.fire_escape's place in this district): landings of steel
+    plate, railings of posts and two rails that the wall shows through, a
+    flight of treads between two stringers up to the next landing, a ladder
+    dropped from the lowest, and a lamp under every other landing."""
+    k0, k1 = (district, "steel", 0), (district, "steel", 1)
+    y, n = y0, 0
+    while y < y1:
+        f.box(k0, s - 2.2, s + 2.2, y, y + 0.07, 0.0, 1.1, col=STAIR)
+        for e in (s - 2.17, s, s + 2.17):
+            f.box(k1, e - 0.03, e + 0.03, y + 0.07, y + 1.04, 1.04, 1.1, col=STAIR)
+        for yy in (y + 0.55, y + 1.02):
+            f.box(k1, s - 2.2, s + 2.2, yy, yy + 0.045, 1.04, 1.1, col=STAIR)
+        for e in (s - 2.2, s + 2.155):
+            f.box(k1, e, e + 0.045, y + 1.02, y + 1.065, 0.0, 1.1, col=STAIR)
+        if y + CELL_H < y1 + 0.1:
+            a0, a1 = f.at(s - 2.0), f.at(s + 1.6)
+            for w in (0.2, 0.95):
+                pipe(k0, f.p(a0, y + 0.07, w), f.p(a1, y + CELL_H, w), 0.045, segs=4, col=STAIR)
+            for i in range(1, 7):
+                t = i / 7
+                ss = s - 2.0 + 3.6 * t
+                f.box(k1, ss - 0.15, ss + 0.15, y + 0.04 + CELL_H * t, y + 0.075 + CELL_H * t, 0.2, 0.95, col=STAIR)
+        if n % 2 == 0:
+            f.box((district, "glow", 1), s + 1.7, s + 1.95, y - 0.08, y - 0.01, 0.08, 0.3, col=GLOW["amber" if n % 4 else "white"])
+            if y < 12.0:
+                light(district, *f.p(f.at(s + 1.8), y - 0.4, 0.8), "amber" if n % 4 else "white", 2.0)
+        y += CELL_H
+        n += 1
+    ladder(district, f, s - 1.9, y0 - 2.3, y0, out=1.0)
 
 
 def ribs(D, f, s0, s1, y0, y1, w, step=0.8, out=0.07, col=BLACK, strips=(), strip="cyan"):
