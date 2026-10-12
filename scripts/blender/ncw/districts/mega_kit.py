@@ -480,6 +480,19 @@ def block(x0, x1, y0, y1, z0, z1, seed, faces=("+z", "-x", "+x"), lit=0.7, windo
         hquad((D, "glow", 1), cx - 0.45, cx + 0.45, cz - 0.45, cz + 0.45, y0 - 0.02, up=False, col=dim(GLOW["amber"], 0.45))
 
 
+def lozenge(text, cx, cy, cz, w, h, yaw, th=None, out=0.05):
+    """The line's name as the show paints it (Fn9gKhU_2_Q@34): a teal
+    lozenge with a dark rim, yellow letters, on a wall facing `yaw`."""
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    for grow, key, col, o in ((0.22, (D, "trim", 0), BLACK, out), (0.0, (D, "glow", 0), dim(GLOW["teal"], 0.26), out + 0.02)):
+        hw, hh = w / 2 + grow, h / 2 + grow
+        c = hh * 0.9
+        pts = ((-hw, 0.0), (-hw + c, -hh), (hw - c, -hh), (hw, 0.0), (hw - c, hh), (-hw + c, hh))
+        poly(key, [(cx + rx * u + nx * o, cy + v, cz + rz * u + nz * o) for u, v in pts], [(u / w + 0.5, v / h + 0.5) for u, v in pts], col)
+    strokes((D, "glow", 0), text, cx, cy, cz, th or h * 0.5, yaw, dim(GLOW["yellow"], 0.95), weight=0.18, gap=0.3, out=out + 0.045)
+
+
 def numeral(text, cx, cy, cz, h, yaw, lit=0.5, pad=1.8):
     """The block's number on a wall, storeys high: yellow paint under
     floodlight on a band of bare concrete."""

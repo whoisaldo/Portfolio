@@ -241,12 +241,31 @@ for z in (PZ0 - 0.25, PZ1 + 0.25):
     box((D, "neon_amber", 0), HX0 - 0.1, HX0, PLAT + 0.4, PY1, z - 0.08, z + 0.08, scale=1.0)
 tbox(HX0 - 0.12, HX0, PY1, PY1 + 0.45, PZ0 - 0.4, PZ1 + 0.4, YEL)
 # The name, big, over the portal; a red strip under it.
-box((D, "board_frame", 0), HX0 - 0.3, HX0, PY1 + 0.9, PY1 + 4.3, RAIL_Z - 9.5, RAIL_Z + 9.5, scale=1.0)
-strokes((D, "glow", 0), "NCART", HX0 - 0.31, PY1 + 2.6, RAIL_Z, 2.3, -math.pi / 2, GLOW["cyan"], weight=0.17, gap=0.3)
-box((D, "neon_red", 0), HX0 - 0.36, HX0 - 0.3, PY1 + 0.96, PY1 + 1.1, RAIL_Z - 9.2, RAIL_Z + 9.2, scale=1.0)
+box((D, "board_frame", 0), HX0 - 0.3, HX0, PY1 + 0.7, PY1 + 4.9, RAIL_Z - 10.5, RAIL_Z + 10.5, scale=1.0)
+lozenge("NCART", HX0 - 0.3, PY1 + 2.8, RAIL_Z, 19.0, 3.4, -math.pi / 2, th=2.1)
+box((D, "neon_red", 0), HX0 - 0.36, HX0 - 0.3, PY1 + 0.76, PY1 + 0.9, RAIL_Z - 10.2, RAIL_Z + 10.2, scale=1.0)
 for (z, yaw) in ((HZ1 + 0.02, 0.0), (HZ0 - 0.02, math.pi)):
-    strokes((D, "glow", 0), "NCART", 111.0, 12.0, z, 1.8, yaw, GLOW["cyan"], weight=0.17, gap=0.3)
-    rotated_quad((D, "neon_red", 0), 111.0, 10.4, z, 16.0, 0.14, yaw)
+    lozenge("NCART", 111.0, 10.6, z, 22.0, 4.6, yaw, th=2.5)
+    rotated_quad((D, "neon_red", 0), 111.0, 7.4, z, 30.0, 0.14, yaw)
+# The hall over the platforms is glass, not flats: tall panes lit from the
+# platforms behind them between steel fins, a transom, a deep fascia.
+PANE = (0.72, 0.9, 1.0, 1.0)
+for f in (face("+z", HZ1, HX0, HX1), face("-z", HZ0, HX0, HX1), face("-x", HX0, HZ0, PZ0), face("-x", HX0, PZ1, HZ1)):
+    f.quad((D, "glow", 0), 0.0, f.width, PLAT + 0.7, HTOP - 1.5, 0.05, col=dim(PANE, 0.06))
+    f.quad((D, "glow", 0), 0.0, f.width, PLAT + 0.7, PLAT + 2.6, 0.06, col=dim(PANE, 0.13))
+    fbox(f, (D, "trim", 0), 0.0, f.width, HTOP - 1.5, HTOP, 0.0, 0.4, col=BLUEGREY, bottom=True)
+    fbox(f, (D, "trim", 0), 0.0, f.width, PLAT, PLAT + 0.7, 0.0, 0.3, col=BLUEGREY, bottom=True)
+    f.quad((D, "trim", 1), 0.0, f.width, PLAT + 5.6, PLAT + 5.85, 0.08, col=BLUEGREY)
+    n = max(1, round(f.width / 3.4))
+    for i in range(n + 1):
+        sx = min(max(f.width * i / n, 0.14), f.width - 0.14)
+        fbox(f, (D, "trim", 0), sx - 0.14, sx + 0.14, PLAT + 0.7, HTOP - 1.5, 0.0, 0.36, col=BLUEGREY)
+    # People waiting on the platform, against the light.
+    for i in range(n):
+        if (i * 7 + int(f.plane)) % 3 == 0:
+            sx = f.width * (i + 0.5) / n
+            f.quad((D, "trim", 1), sx - 0.22, sx + 0.22, PLAT + 0.7, PLAT + 2.3, 0.07, col=BLACK)
+            f.quad((D, "trim", 1), sx + 0.5, sx + 0.9, PLAT + 0.7, PLAT + 2.15, 0.07, col=BLACK)
 # The concourse's doors on the west front, either side of the track's piers,
 # under a canopy; the stair up inside is the hall's own business.
 fH = face("-x", HX0, HZ0, HZ1)
@@ -257,15 +276,37 @@ for (s0, s1) in ((1.6, 10.4), (21.6, 30.4)):
     fH.box((D, "neon_cyan", 0), s0, s1, 3.72, 3.8, 0.0, 0.08)
     fbox(fH, (D, "trim", 0), s0 - 0.6, s1 + 0.6, 4.0, 4.3, 0.0, 2.6, col=BLUEGREY, bottom=True)
     for s in (s0 + 1.5, s1 - 1.5):
-        px_, _, pz_ = fH.p(fH.at(s), 0.0, 1.6)
+        px_, _, pz_ = fH.p(fH.at(s), 0.0, 4.6)
         stand(px_, pz_, -math.pi / 2 + (0.5 if s < 16 else -0.5), "idle" if s < 16 else "phone", G0)
-P.place("food_box", HX0 - 1.0, G0, HZ0 + 12.4, -math.pi / 2)
-P.place("food_box", HX0 - 1.0, G0, HZ1 - 12.0, -math.pi / 2)
-P.place("vending", HX0 - 0.5, G0, HZ0 + 0.8, -math.pi / 2)
-P.place("vending_warm", HX0 - 0.5, G0, HZ1 - 0.8, -math.pi / 2)
-talkers(HX0 - 2.6, HZ0 + 6.0, G0, n=2, turn=0.3)
-talkers(HX0 - 3.0, HZ1 - 6.4, G0, n=3, turn=1.0)
-stand(HX0 - 0.6, HZ1 - 13.0, -math.pi / 2, "lean", G0)
+# The concourse before each pair of doors: a terrace three steps up from
+# the lane, a glass rail at its ends, fare gates in a row at the top.
+CON = 0.55
+for (za, zb) in ((HZ0 + 1.0, HZ0 + 11.0), (HZ1 - 11.0, HZ1 - 1.0)):
+    cbox(HX0 - 2.6, HX0, 0.0, CON, za, zb)
+    stairs("x", za, zb, HX0 - 3.8, HX0 - 2.6, G0, CON, steps=3)
+    for i in range(3):
+        xx, yy = HX0 - 3.8 + 1.2 * i / 3, G0 + (CON - G0) * (i + 1) / 3
+        vquad((D, "trim", 1), (xx - 0.006, zb), (xx - 0.006, za), yy - 0.05, yy, col=YEL)
+    for z in (za, zb):
+        glass_rail((HX0 - 2.6, z), (HX0, z), CON)
+        box((D, "glow", 1), HX0 - 2.6, HX0, CON + 0.02, CON + 0.08, z - 0.025, z + 0.025, scale=0.5, col=dim(GLOW["cyan"], 0.45))
+    n = int((zb - za - 1.6) // 1.4)
+    for i in range(n + 1):
+        gz = za + 0.8 + i * (zb - za - 1.6) / n
+        box((D, "metal", 0), HX0 - 1.75, HX0 - 0.75, CON, CON + 1.05, gz - 0.15, gz + 0.15, scale=0.5)
+        rotated_quad((D, "glow", 1), HX0 - 1.756, CON + 0.82, gz, 0.18, 0.18, -math.pi / 2, col=dim(GLOW["green" if i % 3 else "red"], 0.8))
+        if i < n:
+            tbox(HX0 - 1.28, HX0 - 1.22, CON + 0.5, CON + 0.9, gz + 0.15, gz + 0.6, YEL, detail=1)
+    light(D, HX0 - 2.4, 3.0, (za + zb) / 2, "white", 6.0)
+    stand(HX0 - 0.45, (za + zb) / 2 + 1.1, -math.pi / 2, "idle", CON)
+    stand(HX0 - 2.2, za + 0.5, -math.pi / 2, "lean", CON)
+P.place("food_box", HX0 - 4.6, G0, HZ0 + 12.4, -math.pi / 2)
+P.place("food_box", HX0 - 4.6, G0, HZ1 - 12.0, -math.pi / 2)
+P.place("vending", HX0 - 0.5, G0, HZ0 + 0.5, -math.pi / 2)
+P.place("vending_warm", HX0 - 0.5, G0, HZ1 - 0.5, -math.pi / 2)
+talkers(HX0 - 5.4, HZ0 + 6.0, G0, n=2, turn=0.3)
+talkers(HX0 - 5.6, HZ1 - 6.4, G0, n=3, turn=1.0)
+stand(HX0 - 4.2, HZ1 - 13.0, -math.pi / 2, "lean", G0)
 # Its roof: a monitor of skylights down the middle, plant, a mast, the edge lit.
 parapet(HX0, HX1, HZ0, HZ1, HTOP, rim="cyan", col=BLUEGREY)
 tbox(HX0 + 4.0, HX1 - 4.0, HTOP, HTOP + 1.4, RAIL_Z - 3.4, RAIL_Z + 3.4, BLUEGREY)

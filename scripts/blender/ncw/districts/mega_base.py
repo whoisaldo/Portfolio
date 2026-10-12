@@ -174,8 +174,13 @@ cbox(22.0, 45.0, 0.0, TY, FP, TZ)
 tbox(22.0, SX0, G0, TY - 0.02, TZ, TZ + 0.05, BLUEGREY)
 tbox(SX1, 45.0, G0, TY - 0.02, TZ, TZ + 0.05, BLUEGREY)
 stairs("z", SX0, SX1, SFOOT, TZ, G0, TY, steps=12)
+# Each step's edge in yellow, so the flight reads as a flight from across the street.
+for i in range(12):
+    zz, yy = SFOOT + (TZ - SFOOT) * i / 12, G0 + (TY - G0) * (i + 1) / 12
+    vquad((D, "trim", 1), (SX0, zz + 0.006), (SX1, zz + 0.006), yy - 0.055, yy, col=YEL)
 for x in (SX0 + 0.05, (SX0 + SX1) / 2, SX1 - 0.05):
     pipe((D, "metal", 1), (x, G0 + 0.95, SFOOT), (x, TY + 0.95, TZ), 0.035, segs=4)
+    pipe((D, "glow", 1), (x, G0 + 0.88, SFOOT), (x, TY + 0.88, TZ), 0.018, segs=4, col=dim(GLOW["white"], 0.5))
     for t in (0.0, 0.5, 1.0):
         zz, yy = SFOOT + (TZ - SFOOT) * t, G0 + (TY - G0) * t
         box((D, "metal", 1), x - 0.03, x + 0.03, yy, yy + 0.95, zz - 0.03, zz + 0.03, scale=0.5)
@@ -183,6 +188,20 @@ glass_rail((22.0, TZ), (SX0, TZ), TY)
 glass_rail((41.2, TZ), (45.0, TZ), TY)
 glass_rail((22.0, FP), (22.0, TZ), TY)
 glass_rail((45.0, TZ), (45.0, FP), TY)
+# A line of light in the foot of each pane, and the terrace's own lamps' pools.
+for (ax, bx, az, bz) in ((22.0, SX0, TZ, TZ), (41.2, 45.0, TZ, TZ), (22.0, 22.0, TZ, FP), (45.0, 45.0, TZ, FP)):
+    box((D, "glow", 1), min(ax, bx) - 0.025, max(ax, bx) + 0.025, TY + 0.02, TY + 0.08, min(az, bz) - 0.025, max(az, bz) + 0.025, scale=0.5, col=dim(GLOW["cyan"], 0.45))
+# The gates: a row of fare gates on the terrace before the entrance, each
+# with its lamp, yellow paddles between.
+GATE_Z = FP + 1.55
+for i in range(6):
+    gx = 30.0 + i * 1.4
+    box((D, "metal", 0), gx - 0.15, gx + 0.15, TY, TY + 1.05, GATE_Z - 0.55, GATE_Z + 0.55, scale=0.5)
+    rotated_quad((D, "glow", 1), gx, TY + 0.82, GATE_Z + 0.556, 0.18, 0.18, 0.0, col=dim(GLOW["green" if i % 3 else "red"], 0.8))
+    hquad((D, "glow", 1), gx - 0.1, gx + 0.1, GATE_Z - 0.3, GATE_Z + 0.3, TY + 1.055, col=dim(GLOW["white"], 0.25))
+    if i < 5:
+        tbox(gx + 0.15, gx + 0.62, TY + 0.5, TY + 0.9, GATE_Z - 0.03, GATE_Z + 0.03, YEL, detail=1)
+        tbox(gx + 0.78, gx + 1.25, TY + 0.5, TY + 0.9, GATE_Z - 0.03, GATE_Z + 0.03, YEL, detail=1)
 # The orange wall, its gate, the red strip, the panel and its letters.
 WZ = FP + 0.12
 tbox(NX0, NX1, G0, floor_y(2), FZ, WZ, ORANGE)
@@ -196,23 +215,19 @@ while _gx < GX1 - 0.3:
     _gx += 0.5
 box((D, "metal", 0), GX0 - 0.1, GX1 + 0.1, 4.85, 5.05, WZ, WZ + 0.22, scale=0.5)
 box((D, "neon_red", 0), GX0 - 0.3, GX1 + 0.3, 5.12, 5.32, WZ, WZ + 0.08, scale=1.0)
-PA0, PA1, PY0, PY1 = 25.5, 41.5, 5.6, 7.75
-box((D, "neon_red", 0), NX0 + 0.6, PA0 - 0.6, 6.6, 6.72, WZ, WZ + 0.06, scale=1.0)
-box((D, "board_frame", 0), PA0, PA1, PY0, PY1, WZ, WZ + 0.18, scale=1.0)
-for (ax, bx, ay, by) in ((PA0, PA1, PY1 - 0.1, PY1), (PA0, PA1, PY0, PY0 + 0.1), (PA0, PA0 + 0.1, PY0, PY1), (PA1 - 0.1, PA1, PY0, PY1)):
-    box((D, "neon_cyan", 0), ax, bx, ay, by, WZ + 0.18, WZ + 0.22, scale=1.0)
-strokes((D, "glow", 0), "NCART", 29.6, 6.72, WZ + 0.18, 1.2, 0.0, GLOW["cyan"], weight=0.17, gap=0.28)
-for row, n in ((7.02, 9), (6.62, 7), (6.22, 8)):
-    for i in range(n):
-        rotated_quad((D, "glow", 1), 34.4 + i * 0.74, row, WZ + 0.2, 0.52, 0.09, 0.0, col=dim(GLOW["white"], 0.45))
+PA0, PA1, PY0, PY1 = 26.0, 41.0, 5.55, 7.85
+box((D, "neon_red", 0), NX0 + 0.6, PA0 - 0.9, 6.64, 6.76, WZ, WZ + 0.06, scale=1.0)
+box((D, "neon_red", 0), PA1 + 0.9, NX1 - 0.6, 6.64, 6.76, WZ, WZ + 0.06, scale=1.0)
+lozenge("NCART", (PA0 + PA1) / 2, (PY0 + PY1) / 2, WZ, PA1 - PA0, PY1 - PY0, 0.0, th=1.25)
 # A warning plate and the lamps on the wall.
 tbox(38.0, 39.1, 3.0, 4.3, WZ, WZ + 0.03, YEL)
 poly((D, "trim", 1), [(38.2, 3.5, WZ + 0.04), (38.9, 3.5, WZ + 0.04), (38.55, 4.15, WZ + 0.04)], [(0, 0), (1, 0), (0.5, 1)], BLACK)
 for i in range(3):
     rotated_quad((D, "trim", 1), 38.55, 3.36 - i * 0.11, WZ + 0.04, 0.8 - i * 0.15, 0.05, 0.0, col=BLACK)
-wall_lamp(24.2, 4.7, WZ, 0, 1, "amber", 3.0)
-wall_lamp(43.0, 4.7, WZ, 0, 1, "amber", 3.0)
-wall_lamp(28.0, 4.7, WZ, 0, 1, "white", 2.0)
+wall_lamp(24.2, 4.7, WZ, 0, 1, "amber", 5.0)
+wall_lamp(43.0, 4.7, WZ, 0, 1, "amber", 5.0)
+wall_lamp(28.0, 4.7, WZ, 0, 1, "white", 3.5)
+wall_lamp(39.6, 4.7, WZ, 0, 1, "white", 3.5)
 strokes((D, "trim", 1), "H4", 43.2, 6.7, WZ, 1.1, 0.0, dim(ORANGE, 0.45), weight=0.16)
 # On the terrace and at the stair's foot.
 P.place("vending", 23.5, TY, FP + 0.62, 0.0)
@@ -238,7 +253,8 @@ stand(34.2, SFOOT + (TZ - SFOOT) * 0.45, math.pi, "idle", G0 + (TY - G0) * 0.42)
 stand(28.2, SFOOT + 0.25, math.pi, "phone", G0)
 stand(27.1, SFOOT - 0.1, 0.9, "idle", G0)
 stand(39.3, SFOOT - 0.2, math.pi, "idle", G0)
-light(D, 33.5, 3.0, -737.4, "white", 3.0)
+light(D, 33.5, 3.0, -737.4, "white", 6.5)
+light(D, 33.5, 3.0, -741.6, "amber", 5.0)
 
 # ---------------------------------------------------------------------------
 # The columns and the decks over the forecourt, each at its own height.
