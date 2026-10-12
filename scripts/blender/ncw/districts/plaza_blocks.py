@@ -211,8 +211,10 @@ glass_podium(52.0, 108.0, -132.0, -95.0, 11.4, {"+x": "street", "+z": "street", 
 # (The corner block hangs a box of two floors out over the road's pavement.)
 cantilever(B.Face("+x", 108.0, -168.0, -132.0), 14.0, 28.0, 8.0, 15.6, 2.2, 8397, accent="yellow", warm=0.7, tint=2)
 # (The hero's lens finds anything here over 70 m above the avenue's roofs.)
+# (Its rooms, B5's and T3's are lit warm: in the corporate shader's cool
+# light they read from the air as grey bands and a checker of white blocks.)
 B1T = tower("B1 tower", 55.0, 77.0, -165.0, -136.0, 14.8, 60.0, 8314, steps=((44.0, 2.0), (54.0, 4.5)), cut=2.4, accent="teal", crown="spire",
-            spire=4.4, marks=(("hex", "-z", 49.0, 7.0, "teal"), ("hex", "+x", 49.0, 7.0, "teal")), lit=0.8, warm=0.2)
+            spire=4.4, marks=(("hex", "-z", 49.0, 7.0, "teal"), ("hex", "+x", 49.0, 7.0, "teal")), lit=0.8, warm=0.62)
 # (Fins with lines of light up its faces to the square and the road: from
 # the air its glass was dark bands and nothing else.)
 rb = random.Random(8396)
@@ -452,7 +454,7 @@ roof_screen(137.0, -14.5, 11.4, 8.0, 4.6, math.radians(-45), 8341)
 B.ground_rect(PL, 52.0, 108.0, -456.0, -284.0)
 B.ground_rect(PL, 108.0, 170.0, -456.0, -420.0)
 glass_podium(78.0, 108.0, -310.0, -284.0, 31.8, {"+x": "street", "+z": "party", "-z": "party", "-x": "back"}, 8351, ("+x",),
-             nb={"+z": 44.0, "-z": 42.0}, window=4, tint="navy", lit=0.8, warm=0.25, fin="teal", band="teal", trim=1)
+             nb={"+z": 44.0, "-z": 42.0}, window=4, tint="navy", lit=0.8, warm=0.6, fin="teal", band="teal", trim=1)
 parapet(78.0, 108.0, -310.0, -284.0, 31.8, tint=1)
 roof_works(79.0, 107.0, -309.2, -300.0, 31.8, 8352, cap=3.2)
 roof_works(79.0, 107.0, -294.6, -284.8, 31.8, 8357, lamp="amber", cap=3.2)
@@ -463,7 +465,7 @@ skylight(80.5, 105.5, -299.0, -295.5, 31.8, colour="white", k=0.26, pitch=0.9)
 glass_podium(78.0, 108.0, -344.0, -310.0, 42.0, {"+x": "street", "+z": "party", "-z": "open", "-x": "back"}, 8353, ("+x", "-z"),
              nb={"+z": 31.8}, window=5, tint="teal", signs=False, lit=0.78, warm=0.5, fin="yellow", trim=2, skip={"+x": [(12.0, 28.0)]})
 parapet(78.0, 108.0, -344.0, -310.0, 42.0, tint=2)
-tower("B5 top", 82.0, 102.0, -341.0, -319.0, 42.0, 57.2, 8394, cut=1.4, accent="teal", crown="none", lit=0.8, warm=0.2, plant=0)
+tower("B5 top", 82.0, 102.0, -341.0, -319.0, 42.0, 57.2, 8394, cut=1.4, accent="teal", crown="none", lit=0.8, warm=0.62, plant=0)
 roof_logo(92.0, -330.0, 57.2, 4.6, math.pi / 2, "delta", "teal")
 checked(82.0, 102.0, -341.0, -319.0, 66.0, "B5 top mark")
 rq = random.Random(8389)
@@ -499,7 +501,7 @@ glass_podium(54.0, 106.0, -452.0, -402.0, 18.2, dict(ALL_OPEN), 8371, ("+x", "+z
              lit=0.72, warm=0.2, fin=None, trim=1, every=4, style=OFFICE, skip={"+z": [(0.0, 6.0)], "-z": [(46.0, 52.0)]})
 parapet(54.0, 106.0, -452.0, -402.0, 18.2, tint=1)
 T3 = tower("T3", 58.0, 82.0, -448.0, -408.0, 18.2, 104.0, 8372, steps=((72.0, 2.5), (88.0, 5.0), (98.0, 7.5)), cut=2.6, accent="white", crown="spire",
-           spire=5.4, lit=0.82, warm=0.1, marks=(("rings", "+z", 80.0, 7.0, "white"), ("rings", "+x", 80.0, 7.0, "white")))
+           spire=5.4, lit=0.82, warm=0.58, marks=(("rings", "+z", 80.0, 7.0, "white"), ("rings", "+x", 80.0, 7.0, "white")))
 tower("T4", 88.0, 104.0, -448.0, -410.0, 18.2, 89.6, 8373, cut=1.4, accent="green", crown="twin",
       steps=((72.6, 2.5),), marks=(("gate", "+z", 62.0, 6.0, "green"), ("gate", "+x", 62.0, 6.0, "green")), lit=0.76, warm=0.55, plant=0)
 for name, f in B.faces_of(88.0, 104.0, -448.0, -410.0).items():
