@@ -378,29 +378,53 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
   // repacked only when the set changes.
   const order = new Int32Array(n).fill(-1);
   let shown = -1;
-  const sphere = new THREE.Sphere();
+  // Each box's bounding sphere and how far it is drawn, worked out once:
+  // middle x, y, z, radius, and the square of its reach (the kind's reach
+  // and the radius). Doubles, so a box is kept or dropped exactly as the
+  // same sums made each frame kept or dropped it.
+  const cull = new Float64Array(n * 5);
+  for (let i = 0; i < n; i++) {
+    const o = i * 12;
+    const radius = 0.5 * Math.hypot(boxes[o + 4], boxes[o + 5], boxes[o + 6]);
+    const reach = REACH[boxes[o + 7]] + radius;
+    cull.set([boxes[o], boxes[o + 1], boxes[o + 2], radius, reach * reach], i * 5);
+  }
   // The lens as it last was: while a shot holds, nothing is tested again.
-  const last = new Float32Array(24).fill(NaN);
+  // (Doubles: a Float32Array rounds what it holds, so a plane never
+  // compared equal to itself and every box was tested every frame.)
+  const last = new Float64Array(24).fill(NaN);
   return {
     mesh,
     update(frustum, eye) {
       let moved = false;
-      frustum.planes.forEach((plane, i) => {
-        for (const [j, v] of [plane.normal.x, plane.normal.y, plane.normal.z, plane.constant].entries()) {
-          if (last[i * 4 + j] !== v) moved = true;
-          last[i * 4 + j] = v;
-        }
-      });
+      for (let i = 0; i < 6; i++) {
+        const { normal, constant } = frustum.planes[i];
+        const o = i * 4;
+        if (last[o] !== normal.x || last[o + 1] !== normal.y || last[o + 2] !== normal.z || last[o + 3] !== constant) moved = true;
+        last[o] = normal.x;
+        last[o + 1] = normal.y;
+        last[o + 2] = normal.z;
+        last[o + 3] = constant;
+      }
       if (!moved) return;
+      const ex = eye.x;
+      const ey = eye.y;
+      const ez = eye.z;
       let k = 0;
       let changed = false;
-      for (let i = 0; i < n; i++) {
-        const o = i * 12;
-        sphere.center.set(boxes[o], boxes[o + 1], boxes[o + 2]);
-        sphere.radius = 0.5 * Math.hypot(boxes[o + 4], boxes[o + 5], boxes[o + 6]);
-        const reach = REACH[boxes[o + 7]] + sphere.radius;
-        if (sphere.center.distanceToSquared(eye) > reach * reach) continue;
-        if (!frustum.intersectsSphere(sphere)) continue;
+      // (Frustum.intersectsSphere written out: outside if behind any plane
+      // by more than the radius.)
+      boxes: for (let i = 0; i < n; i++) {
+        const c = i * 5;
+        const x = cull[c];
+        const y = cull[c + 1];
+        const z = cull[c + 2];
+        const dx = x - ex;
+        const dy = y - ey;
+        const dz = z - ez;
+        if (dx * dx + dy * dy + dz * dz > cull[c + 4]) continue;
+        const r = -cull[c + 3];
+        for (let p = 0; p < 24; p += 4) if (last[p] * x + last[p + 1] * y + last[p + 2] * z + last[p + 3] < r) continue boxes;
         if (order[k] !== i) {
           order[k] = i;
           changed = true;
