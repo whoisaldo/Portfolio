@@ -2567,17 +2567,6 @@
    "name": "anchor_steam_roof_santo_55",
    "kind": "anchor",
    "at": [
-    432.0,
-    24.0,
-    33.65
-   ],
-   "yaw": 0.0,
-   "district": "santo"
-  },
-  {
-   "name": "anchor_steam_roof_santo_56",
-   "kind": "anchor",
-   "at": [
     477.0,
     9.6,
     -100.6
@@ -2586,7 +2575,7 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_roof_santo_57",
+   "name": "anchor_steam_roof_santo_56",
    "kind": "anchor",
    "at": [
     480.26,
@@ -2718,7 +2707,7 @@
    "district": "santo"
   },
   {
-   "name": "anchor_steam_stack_santo_58",
+   "name": "anchor_steam_stack_santo_57",
    "kind": "anchor",
    "at": [
     485.2,
