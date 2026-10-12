@@ -376,6 +376,19 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // the tiles cut again, so a material is one draw a tile however many
   // packs it came in.
   const merged = new Map();
+  // The wet road's mirror draws only what glows or is glazed (the reflect
+  // layer), so it saw straight through every other wall to the signs
+  // behind it. Each wall's merged mesh gets a twin for the mirror alone:
+  // the same geometry, near black, one cheap draw. The page's own two
+  // mirrored shots (the hero, the garage's street) were composed without
+  // them and keep that picture: the twins are shown only to a camera that
+  // is driven (a drive, a walk, the braindance), see setOccluders.
+  const OCCLUDES = new Set(["trim", "concrete", "castconcrete", "plaster", "corrugated", "container", "tankplate", "dark", "glass_dark", "door", "door_panel", "board_frame"]);
+  const occluder = quality.reflection > 0 ? new THREE.MeshBasicMaterial({ color: new THREE.Color(0.004, 0.006, 0.011), side: THREE.DoubleSide, toneMapped: false }) : null;
+  const occluders = new THREE.Group();
+  occluders.name = "occluders";
+  occluders.visible = false;
+  root.add(occluders);
   const mergeInto = (meshes) => {
     root.updateMatrixWorld(true);
     const groups = new Map();
@@ -392,6 +405,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         whole.dispose();
         for (const m of prev.meshes) {
           m.removeFromParent();
+          m.userData.twin?.removeFromParent();
           m.geometry.dispose();
         }
         prev.whole.dispose();
@@ -409,6 +423,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         mesh.renderOrder = list[0].renderOrder;
         mesh.matrixAutoUpdate = false;
         root.add(mesh);
+        if (occluder && OCCLUDES.has(list[0].material.name) && !mesh.layers.isEnabled(REFLECT_LAYER)) {
+          const twin = new THREE.Mesh(geometry, occluder);
+          twin.name = `occ_${list[0].material.name}_${tile}`;
+          twin.layers.set(MIRROR_LAYER);
+          twin.matrixAutoUpdate = false;
+          occluders.add(twin);
+          mesh.userData.twin = twin;
+        }
         return mesh;
       });
       merged.set(key, { whole, meshes: made });
@@ -519,6 +541,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       packsAdded.push(name);
       return name;
     },
+    /** The walls' dark twins in the road's mirror: on for a driven camera. */
+    setOccluders(on) {
+      occluders.visible = on;
+    },
     setSignsVisible(on) {
       signs.mesh.visible = on;
       for (const m of packSigns) m.visible = on;
@@ -550,6 +576,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       paint.dispose();
       dressed.forEach((d) => d.dispose());
       signs.dispose();
+      occluder?.dispose();
       ads.dispose();
       props.dispose();
       light.dispose();

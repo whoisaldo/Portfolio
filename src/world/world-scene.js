@@ -713,6 +713,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         }
       }
       if (mirror && city && env.wet && k < 1) {
+        city.setOccluders(!!directed && (directed.occluders ?? 1) > 0);
         camera.updateMatrixWorld();
         const drew = mirror.render(scene, camera);
         for (const r of city.roadMaterials) r.setReflection(drew ? mirror.texture : null, mirror.matrix, mirror.horizonV);
