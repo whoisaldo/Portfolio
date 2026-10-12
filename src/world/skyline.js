@@ -41,6 +41,7 @@ import * as THREE from "three";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON, WINDOWS } from "./glsl.js";
 import { createSkyColumns } from "./sky-columns.js";
+import { BOX, createFarStreet } from "./far-street.js";
 
 // Rectangles (x0, z0, x1, z1) the far city stays out of: the kit's whole
 // footprint (BIBLE.md), so it starts behind the last lot line every street
@@ -113,6 +114,10 @@ const FAR_UNDER = [
   [456, 10.4, -203, 46, 84, 11.5],
   [120, 30, -230, -96, -27, 7.5],
 ];
+// How far past the kit's ground the streets are dressed for a walker
+// looking out from the loop (a kerb and paving under every block, a post
+// under every lamp, parked cars): the first three blocks.
+const DRESSED = 141.3;
 // Aviation lights on anything this tall, blinking red in three groups.
 const BEACON_OVER = 92;
 // The cloud deck's height, over the tallest roofs.
@@ -645,7 +650,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
 
   // The lots stood by hand go last, after the split, so every dealt lot
   // keeps its own draws from each stream.
-  for (const [x, z, w, d, h] of EXTRA_LOTS) lots.push({ x, z, w, d, h, yaw: 0, free: false, cone: false, hero: false });
+  for (const [x, z, w, d, h] of EXTRA_LOTS) lots.push({ x, z, w, d, h, yaw: 0, free: false, cone: false, hero: false, extra: true });
 
   const f = rng(31337);
   const forms = lots.map((b) => formOf(b, f));
@@ -796,6 +801,152 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       beaconOf.push(Math.floor(ring() * 3));
     }
   }
+
+  // ---- the first streets past the kit -----------------------------------------
+  // Where the far city meets the kit a walker on the loop sees its first
+  // rows from across a street. There each block of the grid is a paved slab
+  // with a kerb, the buildings dealt onto it are moved and, where they must
+  // be, narrowed to stand on it with a pavement round them (their height is
+  // what it was), a post stands under every lamp the dome lights, and cars
+  // are parked along the kerbs. Not in the quarter Contact and the boston
+  // clue look into, nor north of the megabuilding in the hero's band of sky,
+  // where every lot stays where it was dealt.
+  const kitRects = [...KEEP_OUT, ...KEEP_OUT_SINCE];
+  const solid = [...kitRects, ...keepOut];
+  const kitGap = (x, z) => Math.min(...kitRects.map(([x0, z0, x1, z1]) => Math.hypot(Math.max(x0 - x, 0, x - x1), Math.max(z0 - z, 0, z - z1))));
+  const dressedAt = (x, z) => kitGap(x, z) < DRESSED && !(x > 430 && z > -212) && !(z < -700 && x > -110 && x < 150);
+  const clearOf = (x, z, m) => !solid.some(([x0, z0, x1, z1]) => x > x0 - m && x < x1 + m && z > z0 - m && z < z1 + m);
+  const inCell = new Map();
+  lots.forEach((b, i) => {
+    if (b.gone || b.far || b.hero || b.extra) return;
+    const o = b.block ?? b;
+    const key = Math.round((o.x + 900) / cell) * 1000 + Math.round((o.z + 1700) / cell);
+    if (!inCell.has(key)) inCell.set(key, []);
+    inCell.get(key).push(i);
+  });
+  const half = (b) => {
+    const [cs, sn] = [Math.abs(Math.cos(b.yaw)), Math.abs(Math.sin(b.yaw))];
+    return [(b.w * cs + b.d * sn) / 2, (b.w * sn + b.d * cs) / 2];
+  };
+  const boxes = [];
+  const box = (kind, x, y, z, sx, sy, sz, turn = 0, own = [0, 0, 0]) => boxes.push(x, y, z, turn, sx, sy, sz, kind, ...own, 0);
+  const KERB = 0.16;
+  for (let i = 0; i < 53; i++) {
+    for (let j = 0; j < 57; j++) {
+      const [gx, gz] = [i * cell - 900, j * cell - 1700];
+      if (!dressedAt(gx, gz)) continue;
+      // The slab: the block inside its four roads, cut back from the kit.
+      let slab = [gx - 17, gz - 17, gx + 17, gz + 17];
+      for (const [x0, z0, x1, z1] of solid) {
+        const k = [x0 - 0.5, z0 - 0.5, x1 + 0.5, z1 + 0.5];
+        if (!(slab[2] > k[0] && slab[0] < k[2] && slab[3] > k[1] && slab[1] < k[3])) continue;
+        const area = (c) => Math.max(0, c[2] - c[0]) * Math.max(0, c[3] - c[1]);
+        slab = [[slab[0], slab[1], Math.min(slab[2], k[0]), slab[3]], [Math.max(slab[0], k[2]), slab[1], slab[2], slab[3]],
+          [slab[0], slab[1], slab[2], Math.min(slab[3], k[1])], [slab[0], Math.max(slab[1], k[3]), slab[2], slab[3]]].sort((a, b) => area(b) - area(a))[0];
+      }
+      const [sw, sd] = [slab[2] - slab[0], slab[3] - slab[1]];
+      if (Math.min(sw, sd) >= 4) box(BOX.slab, (slab[0] + slab[2]) / 2, KERB / 2, (slab[1] + slab[3]) / 2, sw, KERB, sd);
+      // Its buildings, onto it with 2.6 m of pavement round them.
+      const group = inCell.get(i * 1000 + j) ?? [];
+      if (group.length && Math.min(sw, sd) >= 11.2) {
+        let [x0, z0, x1, z1] = [1e9, 1e9, -1e9, -1e9];
+        for (const k of group) {
+          const b = lots[k];
+          const [ex, ez] = half(b);
+          [x0, z0, x1, z1] = [Math.min(x0, b.x - ex), Math.min(z0, b.z - ez), Math.max(x1, b.x + ex), Math.max(z1, b.z + ez)];
+        }
+        const [kx, kz] = [Math.min(1, ((sw - 5.2) / (x1 - x0)) * 0.97), Math.min(1, ((sd - 5.2) / (z1 - z0)) * 0.97)];
+        const [mx, mz] = [(x0 + x1) / 2, (z0 + z1) / 2];
+        const [hx, hz] = [((x1 - x0) * kx) / 2, ((z1 - z0) * kz) / 2];
+        const nx = Math.min(Math.max(mx, slab[0] + 2.6 + hx), slab[2] - 2.6 - hx);
+        const nz = Math.min(Math.max(mz, slab[1] + 2.6 + hz), slab[3] - 2.6 - hz);
+        for (const k of group) {
+          const b = lots[k];
+          // Where it was dealt stays its own (its look is hashed from it).
+          lots[k] = { ...b, ox: b.x, oz: b.z, x: nx + (b.x - mx) * kx, z: nz + (b.z - mz) * kz, w: b.w * kx, d: b.d * kz };
+          if (kitOf[k]) {
+            const [cx, cz] = topCentre(lots[k], forms[k]);
+            kitOf[k].at[0] = cx;
+            kitOf[k].at[2] = cz;
+            kitOf[k].look[0] *= Math.min(kx, kz);
+          }
+        }
+      }
+      // A post under every lamp on the block's four kerbs (the dome lights
+      // a lamp here by the same rule, kerbLamps): not in a junction, not on
+      // the kit's ground. And now and then a car at the kerb.
+      for (const [alongZ, side] of [[1, 1], [1, -1], [0, 1], [0, -1]]) {
+        const streetAt = (alongZ ? gx : gz) - side * 23;
+        const mid = alongZ ? gz : gx;
+        const index = Math.round((streetAt + (alongZ ? 877 : 1677)) / cell);
+        const place = (across, along) => (alongZ ? [streetAt + side * across, along] : [along, streetAt + side * across]);
+        for (let a = Math.ceil((mid - 16.4) / 11.5); a * 11.5 <= mid + 16.4; a++) {
+          const [px, pz] = place(6.5, a * 11.5);
+          if (!clearOf(px, pz, 1.1)) continue;
+          box(BOX.post, px, KERB + 3.1, pz, 0.16, 6.2, 0.16);
+          const [ax, az] = place(5.0, a * 11.5);
+          box(BOX.head, ax, KERB + 6.25, az, alongZ ? 3.1 : 0.36, 0.14, alongZ ? 0.36 : 3.1, 0, [index, alongZ ? 0 : 1, -side]);
+        }
+        if (ring() < 0.5) {
+          const [cx, cz] = place(4.85, mid + (ring() - 0.5) * 22);
+          const [paint, turn, nose] = [ring(), alongZ ? Math.PI / 2 : 0, ring() < 0.5 ? 1 : -1];
+          if (!clearOf(cx, cz, 3)) continue;
+          box(BOX.car, cx, 0.2 + 0.36, cz, 4.4, 0.72, 1.8, turn, [paint, nose, 0]);
+          box(BOX.cabin, cx + (alongZ ? 0 : -0.3 * nose), 0.92 + 0.27, cz + (alongZ ? 0.3 * nose : 0), 2.3, 0.54, 1.62, turn, [paint, 0, 0]);
+        }
+      }
+    }
+  }
+  // The dome's lamps, as GLSL the slabs share: a lamp every eleven and a
+  // half metres down each kerb, a pool of light under it. Past a pixel a
+  // lamp is spread into its street rather than sparkling. On the dressed
+  // streets a lamp is lit where a post stands, by the rule above.
+  const g1 = (v) => v.toFixed(1);
+  const STREET = /* glsl */ `
+      float kitGap(vec2 p) {
+        float g = 1e5;
+${kitRects.map(([x0, z0, x1, z1]) => `        g = min(g, length(max(max(vec2(${g1(x0)}, ${g1(z0)}) - p, p - vec2(${g1(x1)}, ${g1(z1)})), 0.0)));`).join("\n")}
+        return g;
+      }
+      float dressedAt(vec2 p) {
+        return step(kitGap(p), ${DRESSED}) * (1.0 - step(430.0, p.x) * step(-212.0, p.y)) * (1.0 - step(p.y, -700.0) * step(-110.0, p.x) * step(p.x, 150.0));
+      }
+      float clearOfKit(vec2 p) {
+        float k = 1.0;
+${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x) * step(p.x, ${g1(x1 + 1.1)}) * step(${g1(z0 - 1.1)}, p.y) * step(p.y, ${g1(z1 + 1.1)});`).join("\n")}
+        return k;
+      }
+      vec3 kerbLamps(float across, float along, float street, float k, float px) {
+        float dz = abs(fract(along / 11.5 + 0.5) - 0.5) * 11.5;
+        float dk = abs(abs(across) - 4.2);
+        float d2 = dk * dk + dz * dz;
+        float r = max(0.9, px);
+        float lamp = exp(-d2 / (r * r)) * (0.81 / (r * r));
+        float on = step(0.12, hash12(vec2(floor(along / 11.5 + 0.5), street * 3.1 + k)));
+        // Each lamp's pool runs into the next, so a street reads as a line.
+        float pool = exp(-dk * dk / 8.0 - dz * dz / 45.0) * 0.12;
+        vec3 sodium = mix(vec3(1.0, 0.55, 0.2), vec3(0.85, 0.9, 1.0), step(0.7, hash12(vec2(street, k + 3.0))));
+        float lampAlong = floor(along / 11.5 + 0.5) * 11.5;
+        float side = across < 0.0 ? -1.0 : 1.0;
+        float streetAt = street * ${cell}.0 - (k < 0.5 ? 877.0 : 1677.0);
+        float base = k < 0.5 ? 1700.0 : 900.0;
+        float mid = floor((lampAlong + base) / ${cell}.0 + 0.5) * ${cell}.0 - base;
+        vec2 c = k < 0.5 ? vec2(streetAt + side * 23.0, mid) : vec2(mid, streetAt + side * 23.0);
+        vec2 post = k < 0.5 ? vec2(streetAt + side * 6.5, lampAlong) : vec2(lampAlong, streetAt + side * 6.5);
+        float dressed = dressedAt(c);
+        float stands = step(abs(lampAlong - mid), 16.4) * clearOfKit(post);
+        on = mix(on, stands, dressed);
+        return sodium * (lamp * 1.4 * on * mix(0.25, 1.0, smoothstep(0.1, 0.8, px)) + pool * (0.4 + 0.6 * on)) * mix(1.0, stands, dressed);
+      }
+      // Both streets' lamps at a point on the ground.
+      vec3 streetLamps(vec3 p, float px) {
+        vec2 q = (p.xz + vec2(${900 - cell / 2}.0, ${1700 - cell / 2}.0)) / ${cell}.0;
+        vec2 off = (fract(q + 0.5) - 0.5) * ${cell}.0;
+        vec2 id = floor(q + 0.5);
+        return kerbLamps(off.x, p.z, id.x, 0.0, px) * step(abs(off.x), 9.0 + px) + kerbLamps(off.y, p.x, id.y, 1.0, px) * step(abs(off.y), 9.0 + px);
+      }
+  `;
+  const farStreet = createFarStreet(scene, shared, boxes, { street: STREET });
 
   // ---- the buildings: blocks on a square plan, towers on a cut one ----------
   const material = new THREE.ShaderMaterial({
@@ -1066,7 +1217,9 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         float footLit = 0.0;
         if (fresh > 0.5 && onWall > 0.5 && parapet < 0.5) {
           vec3 spill = spillAt(vWorld);
-          vec3 street = quarterLight(vDress.w) * exp(-max(vWorld.y, 0.0) * 0.05);
+          // A tower takes it on its first floors only: up a tall dark wall
+          // it was a slab of the lamp's colour.
+          vec3 street = quarterLight(vDress.w) * exp(-max(vWorld.y, 0.0) * 0.05) * mix(1.0, 0.55 * exp(-max(vWorld.y, 0.0) * 0.09), step(vHero.x, 0.5));
           vec3 tintCol = wallTint(vDress.y);
           vec3 wallC = tintCol * (vec3(0.6) + spill * 3.2 + street * 1.6);
           col += tintCol * street * 1.6 * (1.0 - win.a);
@@ -1111,17 +1264,31 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
               col = bc * mix(1.1, 0.14, max(mark * near, edge * near));
               footLit = 1.0;
             }
-          } else if (vHero.x < 0.5 && vWorld.y < 4.6) {
-            // Glass between piers 6.4 m apart; one tower in three is shut
-            // at the street but for its entrance.
-            float bayU = um / 6.4;
-            float pierL = step(min(fract(bayU), 1.0 - fract(bayU)), 0.07);
-            float glassY = step(0.5, vWorld.y) * step(vWorld.y, 3.9) * (1.0 - pierL);
+          } else if (vHero.x < 0.5 && vWorld.y < 4.6 && vForm.x < 5.5) {
+            // A tower's podium storey: shops along its foot as a block has
+            // them (two towers in three; the third is shut at the street,
+            // shutters between its piers), and in the middle of each face
+            // its own door: glass doors between steel frames under a lit
+            // canopy, the hall behind them lit from its ceiling.
             float hl = hash12(vec2(vForm.z, 6.6));
-            float lobbyOpen = hl > 0.33 ? step(0.25, hash12(vec2(floor(bayU), vForm.z))) : step(abs(um - vHero.z * 0.5), 3.2);
-            vec3 lobby = (hl > 0.6 ? vec3(0.78, 0.88, 1.0) : vec3(1.0, 0.74, 0.46)) * (0.05 + 0.2 * smoothstep(0.5, 3.9, vWorld.y));
-            col = mix(wallC, lobby, glassY * lobbyOpen);
-            footLit = glassY * lobbyOpen * 0.6;
+            vec4 front = shopFront(um, vWorld.y, vForm.z + mod(vHero.w, 4.0) * 3.0, wallC, spill);
+            if (hl < 0.33) {
+              float pier = step(min(fract(um / 6.4), 1.0 - fract(um / 6.4)), 0.05);
+              float slat = 0.55 + 0.45 * step(0.5, fract(vWorld.y * 7.0));
+              front = vec4(mix((vec3(0.03, 0.031, 0.036) + wallC * 0.6) * slat, wallC, max(pier, step(3.5, vWorld.y))), 0.0);
+            }
+            float eu = um - vHero.z * 0.5;
+            if (abs(eu) < 3.2 && vHero.z > 12.0) {
+              vec3 hallCol = hl > 0.6 ? vec3(0.78, 0.88, 1.0) : vec3(1.0, 0.74, 0.46);
+              float frame = clamp(step(3.0, abs(eu)) + step(abs(fract(eu / 1.6 + 0.5) - 0.5) * 1.6, 0.05) + step(abs(vWorld.y - 2.5), 0.04), 0.0, 1.0);
+              float desk = step(abs(eu + 0.9), 1.1) * step(vWorld.y, 1.1) * step(0.35, vWorld.y);
+              vec3 hall = hallCol * (0.07 + 0.3 * smoothstep(0.2, 3.3, vWorld.y)) * (1.0 - 0.6 * desk);
+              float canopy = step(3.3, vWorld.y) * step(vWorld.y, 3.7);
+              front = vec4(mix(mix(hall, wallC * 0.5, frame), hallCol * 1.5, canopy), max(canopy, 0.6 * (1.0 - frame)));
+              if (vWorld.y > 3.7) front = vec4(wallC, 0.0);
+            }
+            col = front.rgb;
+            footLit = front.a;
           }
         }
         // Seen from the air a low district is its roofs: a few small lights
@@ -1318,7 +1485,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // windows' lit fraction, style and warmth, where its cells start, and its
   // crown's draw. A split block's two buildings share the block's look.
   const f32 = Math.fround;
-  const at = (b) => f32(f32(f32(b.x) * f32(0.013)) + f32(f32(b.z) * f32(0.071)));
+  const at = (b) => f32(f32(f32(b.ox ?? b.x) * f32(0.013)) + f32(f32(b.oz ?? b.z) * f32(0.071)));
   const hash11 = (n) => {
     const v = f32(f32(Math.sin(f32(n))) * f32(43758.5453123));
     return v - Math.floor(v);
@@ -1351,7 +1518,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     }
     const tints = tower ? [0, 1, 1, 2, 2, 3] : [0, 1, 2, 3, 4, 5, 6, 4, 2, 5];
     const tint = tints[Math.floor(hash11(seed + 23.9) * tints.length)];
-    const quarter = hash11(f32(Math.floor(b.x / 180) * 12.9898 + Math.floor(b.z / 180) * 78.233));
+    const quarter = hash11(f32(Math.floor((b.ox ?? b.x) / 180) * 12.9898 + Math.floor((b.oz ?? b.z) / 180) * 78.233));
     const dress = [hung, b.hero ? -1 : (tint + 0.5) / 8, hash11(seed + 9.3), quarter];
     // The show's towers are lit in bands, floor by floor, more than in
     // scattered rooms: most towers take the band or the ribbon, and some
@@ -1680,6 +1847,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         return s / 0.9375;
       }
 
+${STREET}
       // The far city's ground: its blocks stand on a ${cell} m grid, so its
       // streets run between them: wet asphalt 12 m wide between kerbs, a
       // dashed line down its middle, paving either side to the lot line,
@@ -1716,22 +1884,17 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         float lh = hash12(lot + 11.1);
         base += (lh > 0.8 ? vec3(0.2, 0.85, 0.95) : lh > 0.66 ? vec3(1.0, 0.25, 0.7) : vec3(1.0, 0.6, 0.3)) * exp(-dot(inLot, inLot) / 34.0) * 0.05 * step(0.3, lh);
         vec3 light = vec3(0.0);
+        // On the dressed streets, seen from the pavement, a shop's light is
+        // the shop's own and a car is a car: the glow that stands for them
+        // from the air is for the air.
+        float afar = mix(1.0, smoothstep(0.15, 0.6, px), dressedAt(p.xz));
         // Streets along z (off.x small) and along x (off.y small).
         for (int k = 0; k < 2; k++) {
           float across = k == 0 ? off.x : off.y;
           float along = k == 0 ? p.z : p.x;
           float street = k == 0 ? id.x : id.y;
           if (abs(across) > 9.0 + px) continue;
-          float dz = abs(fract(along / 11.5 + 0.5) - 0.5) * 11.5;
-          float dk = abs(abs(across) - 4.2);
-          float d2 = dk * dk + dz * dz;
-          float r = max(0.9, px);
-          float lamp = exp(-d2 / (r * r)) * (0.81 / (r * r));
-          float on = step(0.12, hash12(vec2(floor(along / 11.5 + 0.5), street * 3.1 + float(k))));
-          // Each lamp's pool runs into the next, so a street reads as a line.
-          float pool = exp(-dk * dk / 8.0 - dz * dz / 45.0) * 0.12;
-          vec3 sodium = mix(vec3(1.0, 0.55, 0.2), vec3(0.85, 0.9, 1.0), step(0.7, hash12(vec2(street, float(k) + 3.0))));
-          light += sodium * (lamp * 1.4 * on * mix(0.25, 1.0, smoothstep(0.1, 0.8, px)) + pool * (0.4 + 0.6 * on));
+          light += kerbLamps(across, along, street, float(k), px);
           // Shopfronts at the foot of the blocks: a band of light along each
           // kerb, a colour to each front, some of them shut.
           float front = hash12(vec2(floor(along / 7.0), street * 5.3 + float(k) * 7.0 + step(0.0, across)));
@@ -1739,7 +1902,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           float within = step(abs(fract(along / 7.0) - 0.5), 0.36);
           float rs = max(1.2, px);
           float kerb = abs(across) - 7.4;
-          light += shopCol * exp(-kerb * kerb / (rs * rs)) * (1.2 / rs) * step(0.55, front) * mix(0.72, within, 1.0 - smoothstep(1.0, 4.0, px)) * 0.22;
+          light += shopCol * exp(-kerb * kerb / (rs * rs)) * (1.2 / rs) * step(0.55, front) * mix(0.72, within, 1.0 - smoothstep(1.0, 4.0, px)) * 0.22 * afar;
           // Cars: a lane each way, one every sixty metres or so, some of
           // them missing, head lamps one way and tail lamps the other.
           for (int lane = 0; lane < 2; lane++) {
@@ -1752,7 +1915,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
             float dl = abs(across - sgn * 1.8);
             float rc = max(0.7, px);
             float car = exp(-(ds * ds * 0.5 + dl * dl * 1.5) / (rc * rc)) * (0.5 / (rc * rc));
-            light += (lane == 0 ? vec3(1.0, 0.92, 0.8) : vec3(1.0, 0.08, 0.05)) * car * present * 2.0;
+            light += (lane == 0 ? vec3(1.0, 0.92, 0.8) : vec3(1.0, 0.08, 0.05)) * car * present * 2.0 * afar;
           }
         }
         return base + light;
@@ -1867,17 +2030,19 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
     mesh,
     sky,
     // What stands where (the tools under the city's cache read it).
-    plan: { lots, forms },
+    plan: { lots, forms, boxes },
     update(camera, pixelRatio = 1) {
       sky.position.copy(camera.position);
       beaconMat.uniforms.uPixel.value = pixelRatio;
       camera.updateMatrixWorld();
       frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       for (const c of cullers) c.update(frustum);
+      farStreet.update(frustum, camera.position);
     },
     dispose() {
       scene.remove(mesh, blocks, squares, sky, beaconPoints, ...roofMeshes);
       skyColumns.dispose();
+      farStreet.dispose();
       kitGeos.forEach((g) => g.dispose());
       roofMat.dispose();
       beaconGeo.dispose();
