@@ -169,13 +169,26 @@ F = K.floor_at
 # Sky lobbies: floors lit from end to end round each tower, at heights of
 # its own (bands of the curtain wall's floors).
 BELTS = {
-    "philips-zero-touch": ((F(13), F(14)), (F(23), F(24))),
+    "philips-zero-touch": ((F(13), F(14)), (F(18), F(19)), (F(23), F(24))),
     "pinnatec-auto": ((F(15), F(16)), (F(21), F(23))),
     "pawtograder": ((F(11), F(12)), (F(23), F(24))),
     "aws-cloudformation": ((F(16), F(17)), (F(25), F(26)), (F(33), F(34))),
     "top-choice-realty": (),
     "robert-defalco-realty": ((F(22), F(23)),),
     "northeastern": ((F(16), F(17)), (F(27), F(28))),
+}
+# How each tower is lit (its curtain wall's share of lit floors, how many
+# runs of floors are lit nearly through, and how warm its light is): no two
+# towers alike, from a dark monolith with a few cool floors on to a slab lit
+# warm in long runs.
+LIGHT = {
+    "philips-zero-touch": dict(lit=(0.32, 0.6), hot=0.5, warm=(0.0, 0.18), bright=(0.9, 1.0)),
+    "pinnatec-auto": dict(lit=(0.3, 0.6), hot=0.46, warm=(0.05, 0.3), bright=(0.9, 1.0)),
+    "pawtograder": dict(lit=(0.34, 0.66), hot=0.5, warm=(0.85, 1.0)),
+    "aws-cloudformation": dict(lit=(0.22, 0.52), hot=0.4, warm=(0.25, 0.5), bright=(0.9, 1.0)),
+    "top-choice-realty": dict(lit=(0.36, 0.66), hot=0.5, warm=(0.8, 1.0)),
+    "robert-defalco-realty": dict(lit=(0.06, 0.24), hot=0.16, warm=(0.35, 0.6)),
+    "northeastern": dict(lit=(0.2, 0.45), hot=0.32, warm=(0.0, 0.25)),
 }
 # What each tower carries between its lobby's screens and its crown, on the
 # faces the boulevard and the Experience shot see (south and west) and a
@@ -301,7 +314,7 @@ for i, (slug, height) in enumerate(TOWERS):
         # Steel fins 1.75 m apart on every face, the glass 0.6 m behind them.
         for k_, (h_k, y0, y1) in enumerate(sections):
             g = notched4(tx, tz, h_k - 0.6, notch - 0.6)
-            skin(g, g, y0, y1, r, gseed, lit=(0.25, 0.5), hot=0.4, warm=(0.5, 0.9), belts=belts)
+            skin(g, g, y0, y1, r, gseed, **LIGHT[slug], belts=belts)
             fin_rows(tx, tz, h_k, 0.6, y0, y1 + (0.9 if k_ < len(sections) - 1 else 0.0), 1.75, 0.34, (CO, "trim", 0), NAVY, notch)
             notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
             if k_:
@@ -312,7 +325,7 @@ for i, (slug, height) in enumerate(TOWERS):
         for k_, (h_k, y0, y1) in enumerate(sections):
             big = 5.5 - 1.5 * k_
             plan = chamfered(tx, tz, h_k, big, 2.6 - 0.8 * k_)
-            skin(plan, plan, y0, y1, r, gseed, lit=(0.2, 0.5), hot=0.36, warm=(0.7, 1.0), belts=belts)
+            skin(plan, plan, y0, y1, r, gseed, **LIGHT[slug], belts=belts)
             flat(plan, y1)
             if k_:
                 ledge(chamfered(tx, tz, sections[k_ - 1][0], 5.5, 2.6), y0, 1.0)
@@ -339,7 +352,7 @@ for i, (slug, height) in enumerate(TOWERS):
         pts = [(-a_, h_k), (-sl, h_k), (-sl, h_k - dp), (sl, h_k - dp), (sl, h_k), (a_, h_k), (h_k, a_), (h_k, -a_), (a_, -h_k), (sl, -h_k),
                (sl, -h_k + dp), (-sl, -h_k + dp), (-sl, -h_k), (-a_, -h_k), (-h_k, -a_), (-h_k, a_)]
         plan = [(tx + x, tz + z) for x, z in pts]
-        skin(plan, plan, y0, y1, r, gseed, lit=(0.25, 0.55), hot=0.4, warm=(0.6, 0.95), force={2: (0.95, 0.9), 10: (0.95, 0.9)}, belts=belts)
+        skin(plan, plan, y0, y1, r, gseed, **LIGHT[slug], force={2: (0.95, 0.9), 10: (0.95, 0.9)}, belts=belts)
         for pts in ([(-a_, h_k), (-sl, h_k), (-sl, -h_k), (-a_, -h_k), (-h_k, -a_), (-h_k, a_)],
                     [(sl, h_k), (a_, h_k), (h_k, a_), (h_k, -a_), (a_, -h_k), (sl, -h_k)],
                     [(-sl, h_k - dp), (sl, h_k - dp), (sl, -h_k + dp), (-sl, -h_k + dp)]):
@@ -359,7 +372,7 @@ for i, (slug, height) in enumerate(TOWERS):
         for k_, (h_k, y0, y1) in enumerate(sections):
             lean = (1.2, 1.4, 0.0)[k_]
             p0, p1 = chamfered(tx, tz, h_k, 2.0), chamfered(tx, tz, h_k - lean, 2.0)
-            skin(p0, p1, y0, y1, r, gseed, lit=(0.25, 0.55), hot=0.42, warm=(0.75, 1.0), belts=belts)
+            skin(p0, p1, y0, y1, r, gseed, **LIGHT[slug], belts=belts)
             flat(p1, y1)
             if k_:
                 ledge(chamfered(tx, tz, sections[k_ - 1][0] - (1.2, 1.4)[k_ - 1], 2.0), y0, 1.0)
@@ -384,7 +397,7 @@ for i, (slug, height) in enumerate(TOWERS):
                 ring(h_k - 0.5, ya - 0.1, 0.16)
                 ring(h_k - 0.5, yb - 0.06, 0.16)
             else:
-                skin(g, g, ya, yb, r, gseed, lit=(0.3, 0.6), hot=0.42, warm=(0.8, 1.0))
+                skin(g, g, ya, yb, r, gseed, **LIGHT[slug])
                 fin_rows(tx, tz, h_k, 0.55, ya, yb, 1.3, 0.42, (CO, "castconcrete", 0), CAST, notch)
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
         # A blade of adverts out of its east flank, a line of the tower's
@@ -409,7 +422,7 @@ for i, (slug, height) in enumerate(TOWERS):
         for ya, yb in zip(marks, marks[1:]):
             if ya in cut:
                 name, plan, inner = cut[ya]
-                skin(plan, plan, ya, yb, r, gseed, lit=(0.22, 0.5), hot=0.38, warm=(0.7, 1.0), force={e: (1.0, 1.0) for e in inner})
+                skin(plan, plan, ya, yb, r, gseed, **LIGHT[slug], force={e: (1.0, 1.0) for e in inner})
                 sx, sz = (-1, 1) if name == "sw" else (1, -1)
                 xa, xb = sorted((tx + sx * h_k, tx + sx * (h_k - cs)))
                 za, zb = sorted((tz + sz * h_k, tz + sz * (h_k - cs)))
@@ -426,12 +439,12 @@ for i, (slug, height) in enumerate(TOWERS):
                 for dx_, dz_ in ((2.2, 2.4), (5.6, 2.2), (2.4, 5.6)):
                     PR.place("planter_tree", tx + sx * (h_k - dx_), ya, tz + sz * (h_k - dz_), district=CO)
             else:
-                skin(full, full, ya, yb, r, gseed, lit=(0.22, 0.5), hot=0.38, warm=(0.7, 1.0))
+                skin(full, full, ya, yb, r, gseed, **LIGHT[slug])
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
         ledge(full, y1, 1.0)
         h_k, y0, y1 = sections[1]
         plan = notched4(tx, tz, h_k, notch)
-        skin(plan, plan, y0, y1, r, gseed, lit=(0.22, 0.5), hot=0.4, warm=(0.7, 1.0), belts=belts)
+        skin(plan, plan, y0, y1, r, gseed, **LIGHT[slug], belts=belts)
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
         ring(h_k, y0 + 1.0)
         for sx in (-1, 1):
@@ -443,7 +456,7 @@ for i, (slug, height) in enumerate(TOWERS):
         aps = (13.0, 11.3, 9.6)
         for k_, (h_k, y0, y1) in enumerate(sections):
             plan = ngon(tx, tz, aps[k_])
-            skin(plan, plan, y0, y1, r, gseed, lit=(0.25, 0.55), hot=0.4, warm=(0.55, 0.95), belts=belts)
+            skin(plan, plan, y0, y1, r, gseed, **LIGHT[slug], belts=belts)
             flat(plan, y1)
             for j, (px, pz) in enumerate(plan):
                 th = (j - 0.5) * math.pi / 8

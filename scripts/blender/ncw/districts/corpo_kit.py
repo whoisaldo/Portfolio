@@ -735,6 +735,9 @@ def wall_front(f, top, r, tint, colour, lead=None):
     light behind them over a run of pipes, or a slot of light and a small
     sign; a ledge under its top. `lead`: the bay at that end ("left" or
     "right" as seen from outside) is a vitrine, whatever else."""
+    # (Its own dice, from where the face stands: what it draws does not
+    # re-deal the windows of the block it is on.)
+    r = random.Random(int(f.plane * 31.0 + f.a0 * 7.0 + f.a1 * 3.0) + len(f.name))
     w = f.width
     tcol = B.TRIM[tint]
     n = max(1, round(w / 6.4))
@@ -785,10 +788,11 @@ def wall_front(f, top, r, tint, colour, lead=None):
             light(CO, lx, 2.6, lz, hue, 3.0)
         elif kind == "poster":
             WALL_ADS[0] += 1
-            px, py, pz = f.p(f.at(mid), 2.25, 0.16)
-            advert(px, py, pz, 1.5, 2.3, f.yaw, WALL_ADS[0] * 3, seed=0.05 + 0.07 * (WALL_ADS[0] % 6), depth=0.12)
-            f.box(k("metal", 1), mid - 0.5, mid + 0.5, 3.75, 3.82, 0.0, 0.5)
-            f.box(k("glow", 1), mid - 0.4, mid + 0.4, 3.7, 3.75, 0.4, 0.48, col=GLOW["white"])
+            pm = mid + (1.2 if b - a > 4.2 else 0.0)
+            px, py, pz = f.p(f.at(pm), 2.25, 0.16)
+            advert(px, py, pz, 1.5, 2.3, f.yaw, WALL_ADS[0] * 5 + 3, seed=0.05 + 0.07 * (WALL_ADS[0] % 6), depth=0.12)
+            f.box(k("metal", 1), pm - 0.5, pm + 0.5, 3.75, 3.82, 0.0, 0.5)
+            f.box(k("glow", 1), pm - 0.4, pm + 0.4, 3.7, 3.75, 0.4, 0.48, col=GLOW["white"])
             light(CO, lx, 3.2, lz, "white", 3.0)
         elif kind == "louvre":
             c = GLOW[colour]
