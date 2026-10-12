@@ -88,7 +88,7 @@ for k, (za, zb) in enumerate((TN, TS)):
         box((PL, "concrete", 0), a0, a1, TY - 0.28, TY + 0.02, b0, b1, scale=1.5, bottom=True)
     nbox("amber" if k else "cyan", TX - 0.28, TX - 0.25, TY - 0.24, TY - 0.18, za + 0.1, zb - 0.1)
     if k:
-        nbox("magenta", X1 + 0.25, X1 + 0.28, TY - 0.24, TY - 0.18, za + 0.1, zb - 0.1)
+        nbox("teal", X1 + 0.25, X1 + 0.28, TY - 0.24, TY - 0.18, za + 0.1, zb - 0.1)
     # Shops in the base, to the road.
     z = za
     for j, w in enumerate((7.5, 7.5, 7.5, 7.5) if k == 0 else (6.5, 6.5, 6.5, 6.5)):
@@ -349,11 +349,11 @@ for (px, pz, yaw, pose) in ((96.0, -232.9, math.pi, "idle"), (103.0, -227.2, 0.0
 # ---------------------------------------------------------------------------
 wash(79.0, -257.0, 17.0, "blue", 0.5)
 wash(79.0, -250.0, 9.0, "white", 0.22)
-for (wx, wz, hue) in ((49.5, -205.0, "purple"), (49.5, -228.0, "pink"), (103.0, -205.0, "cyan"), (103.0, -228.0, "magenta")):
+for (wx, wz, hue) in ((49.5, -205.0, "teal"), (49.5, -228.0, "yellow"), (103.0, -205.0, "cyan"), (103.0, -228.0, "green")):
     wash(wx, wz, 8.0, hue, 0.24)
     light(PL, wx, 6.0, wz, hue, 2.0)
 rl = random.Random(8480)
-SHOP_HUES = ("amber", "amber", "white", "pink", "cyan", "amber", "yellow")
+SHOP_HUES = ("amber", "amber", "white", "green", "cyan", "amber", "yellow")
 x = X0 + 3.4
 while x < TX - 2.0:
     shine(x, 2.2, -262.2, rl.choice(SHOP_HUES), rl.uniform(4.0, 6.0))
@@ -371,7 +371,7 @@ for z in (-256.0, -248.0, -240.0):
     light(PL, TX - 0.5, 3.4, z, "amber", 3.0)
 # Machines, drums, standing adverts and the kiosk light the stone they stand on.
 for (px, pz, hue, p) in ((88.2, STAIR[3] + 1.6, "white", 3.5), (90.4, STAIR[2] - 1.6, "amber", 3.5), (52.6, -214.6, "white", 4.0),
-                         (88.8, -223.0, "white", 4.0), (85.4, -247.6, "pink", 4.0), (57.8, -203.0, "amber", 4.5), (75.0, -193.4, "white", 3.5),
-                         (50.6, -226.6, "cyan", 3.0), (50.6, -206.6, "pink", 3.0),
+                         (88.8, -223.0, "white", 4.0), (85.4, -247.6, "teal", 4.0), (57.8, -203.0, "amber", 4.5), (75.0, -193.4, "white", 3.5),
+                         (50.6, -226.6, "cyan", 3.0), (50.6, -206.6, "yellow", 3.0),
                          (50.4, -262.2, "white", 3.5), (51.4, -193.2, "white", 3.0)):
     shine(px, 1.4, pz, hue, p)

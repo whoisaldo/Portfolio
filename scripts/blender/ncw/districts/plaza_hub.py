@@ -365,7 +365,7 @@ for i in range(8):
     (ax, az), (bx_, bz_) = at(6.3, a), at(11.0, a)
     px, pz = -math.sin(a) * 0.06, math.cos(a) * 0.06
     up_poly((PL, "glow", 0), [(ax - px, az - pz), (bx_ - px, bz_ - pz), (bx_ + px, bz_ + pz), (ax + px, az + pz)], FLOOR + 0.012, dim("teal", 0.5))
-WINDOWS = (("amber", 0.34), ("white", 0.5), ("teal", 0.32), ("pink", 0.24), ("amber", 0.42), ("cyan", 0.26))
+WINDOWS = (("amber", 0.34), ("white", 0.5), ("teal", 0.32), ("green", 0.24), ("amber", 0.42), ("cyan", 0.26))
 shop = WINDOWS[0]
 for i in range(NSEG):
     a0, a1 = i * STEP, (i + 1) * STEP

@@ -19,7 +19,7 @@ rl = random.Random(8950)
 # one before the shops under the board, one on each terrace. All under
 # 1.8 m: every camera's line across the square passes over them.
 # ---------------------------------------------------------------------------
-for (cx, cz, w, yaw, y, hue) in ((60.6, -205.5, 5.0, 0.0, G, "white"), (69.4, -205.5, 5.0, 0.0, G, "pink"),
+for (cx, cz, w, yaw, y, hue) in ((60.6, -205.5, 5.0, 0.0, G, "white"), (69.4, -205.5, 5.0, 0.0, G, "yellow"),
                                  (50.4, -238.0, 4.6, math.pi / 2, G, "cyan"), (50.4, -211.2, 4.6, math.pi / 2, G, "white"),
                                  (66.8, -252.6, 5.0, 0.0, G, "amber"), (96.4, -251.6, 4.6, math.pi / 2, TY, "white"),
                                  (96.0, -211.6, 4.6, math.pi / 2, TY, "cyan")):
@@ -32,8 +32,8 @@ for (cx, cz, w, yaw, y, hue) in ((60.6, -205.5, 5.0, 0.0, G, "white"), (69.4, -2
 # the kit's.)
 # ---------------------------------------------------------------------------
 for (cx, cz, y0, y1, r, hue, hue2) in ((54.6, -210.0, G + 1.3, G + 2.9, 0.2, "cyan", "white"), (76.0, -208.0, G + 1.3, G + 2.9, 0.2, "magenta", "white"),
-                                      (90.6, -247.0, G + 1.3, G + 2.9, 0.2, "amber", "white"), (56.6, -211.2, G + 1.6, G + 3.2, 0.36, "cyan", "magenta"),
-                                      (74.0, -200.0, G + 1.6, G + 3.2, 0.36, "pink", "white"), (102.8, -210.5, TY + 1.6, TY + 3.2, 0.36, "cyan", "white")):
+                                      (90.6, -247.0, G + 1.3, G + 2.9, 0.2, "amber", "white"), (56.6, -211.2, G + 1.6, G + 3.2, 0.36, "teal", "yellow"),
+                                      (74.0, -200.0, G + 1.6, G + 3.2, 0.36, "green", "white"), (102.8, -210.5, TY + 1.6, TY + 3.2, 0.36, "cyan", "white")):
     holo_wrap(cx, cz, y0, y1, r, hue, hue2)
 
 # ---------------------------------------------------------------------------
@@ -109,7 +109,7 @@ fd = B.Face("-x", 132.0, -60.0, -10.0)
 fd.box((PL, "metal", 0), 12.0, 22.0, 3.5, 3.66, 0.0, 2.2)
 for s in (13.5, 17.0, 20.5):
     fd.box((PL, "neon_white", 0), s - 0.4, s + 0.4, 3.46, 3.5, 1.0, 1.2)
-fd.box((PL, "glow", 0), 12.0, 22.0, 3.52, 3.6, 2.2, 2.23, col=dim("pink", 0.7))
+fd.box((PL, "glow", 0), 12.0, 22.0, 3.52, 3.6, 2.2, 2.23, col=dim("yellow", 0.7))
 # And by the deck's mouth, B2's corner to the road: light on its pavement.
 for (x, z, hue) in ((110.2, -63.0, "amber"), (110.6, -59.0, "white")):
     light(PL, x, 2.6, z, hue, 6.0)

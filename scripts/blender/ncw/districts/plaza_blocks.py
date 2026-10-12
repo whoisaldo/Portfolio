@@ -24,10 +24,10 @@ from ncw.districts.plaza_crowns import cantilever, reclad, crown_lantern, crown_
 OFFICE = dict(windows=(2, 4, 5), lit=(0.6, 0.92), warmth=(0.05, 0.45), tints=("navy", "teal", "concrete", "charcoal"),
               balcony=0.0, ac=0.03, signs=0.5, awning=0.2, shop_sign=0.7, canopy=0.5, roof_cap=4.4, setback=0.0,
               fire_escape=0.0, cornice=0.35, ledge_every=(2, 3), pipes=0.15, roof_sign=0.0,
-              shop_colours=["cyan", "white", "teal", "blue", "amber"], sign_colours=["cyan", "white", "teal", "amber", "magenta"])
+              shop_colours=["cyan", "white", "teal", "blue", "amber"], sign_colours=["cyan", "white", "teal", "amber", "green"])
 HOTEL = dict(OFFICE, windows=(0, 1), lit=(0.62, 0.9), warmth=(0.65, 1.0), tints=("plum", "brown", "navy"),
              balcony=0.34, balcony_glass=0.0, ledge_every=(1,), cornice=0.6,
-             shop_colours=["amber", "pink", "white", "cyan"], awning=0.5)
+             shop_colours=["amber", "yellow", "white", "cyan"], awning=0.5)
 # (A podium whose storeys are re-clad in office glass: no ledges, cornice,
 # units or pipes on the painted wall behind it.)
 GLASSY = dict(OFFICE, ledge_every=(0,), cornice=0.0, ac=0.0, pipes=0.0, fire_escape=0.0)

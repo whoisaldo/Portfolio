@@ -102,3 +102,39 @@ for i, pose in enumerate(("queue", "phone", "queue", "idle", "queue")):
 for x, pose, yaw in ((115.2, "rail", N), (116.0, "rail", N + 0.3), (124.6, "idle", E)):
     stand(x, WZ0 + 0.45 if pose == "rail" else -157.6, yaw, pose, y=WY)
 assert WX0 < 115.2 and 124.6 < WX1
+
+# ---------------------------------------------------------------------------
+# The roads' edges in light (ax5YUmkWf_Y@9, YRL74JmhVgk@30): a stud of teal
+# every two metres along the top of every kerb the plaza's own frontages
+# face, and the kerb's light on the road and the pavement beside it, so from
+# the air the district's streets are drawn in dotted light and from the road
+# the wet asphalt gives the line back. Short of every crossing's painted
+# kerb (4.6 to 8 m out from a junction's square, and 1.5 m more), and none
+# west of x 62, where the bake's streak map would run them down the hero's
+# road.
+# ---------------------------------------------------------------------------
+STUD, PITCH, POOL = 0.36, 2.0, 8.0
+KERBS = (  # (the axis the kerb runs along, its top's middle, the way to the road, from, to)
+    ("z", 111.85, 1, -305.0, -197.0), ("z", 111.85, 1, -161.0, -98.0), ("z", 111.85, 1, -62.0, -17.0),
+    ("z", 128.15, -1, -161.0, -98.0), ("z", 128.15, -1, -89.0, -71.0), ("z", 128.15, -1, -62.0, -17.0),
+    ("x", -171.85, -1, 62.0, 101.0), ("x", -171.85, -1, 139.0, 168.0),
+    ("x", -186.15, 1, 62.0, 101.0),
+    ("x", -6.15, 1, 62.0, 101.0), ("x", -6.15, 1, 139.0, 168.0),
+)
+for along, line, out, a0, a1 in KERBS:
+    # (Each stud a block let into the kerb: its top, seen from the air, and
+    # its face standing 2 cm proud of the kerb's, seen from the road.)
+    u0, u1 = sorted((line - out * 0.05, line + out * 0.17))
+    n = int((a1 - a0) / PITCH)
+    lead = (a1 - a0 - n * PITCH) / 2
+    for i in range(n + 1):
+        a = a0 + lead + i * PITCH
+        if along == "z":
+            box((PL, "neon_teal", 0), u0, u1, 0.04, 0.157, a - STUD / 2, a + STUD / 2, scale=1.0)
+        else:
+            box((PL, "neon_teal", 0), a - STUD / 2, a + STUD / 2, 0.04, 0.157, u0, u1, scale=1.0)
+    k = max(1, int(round((a1 - a0) / POOL)))
+    for i in range(k + 1):
+        a = a0 + (a1 - a0) * i / k
+        x, z = (line, a) if along == "z" else (a, line)
+        light(PL, x, 0.35, z, "teal", 2.2)
