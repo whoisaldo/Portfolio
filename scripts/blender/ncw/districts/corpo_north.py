@@ -430,13 +430,20 @@ def forecourts():
         room_tower = i == 0
         # The canopy's soffit, lit in strips, and a line of light along its
         # front edge.
-        quad(k("trim"), (tx - 13.0, 7.49, LOBBY_Z), (tx + 13.0, 7.49, LOBBY_Z), (tx + 13.0, 7.49, LOT_N), (tx - 13.0, 7.49, LOT_N), col=K.STEEL)
+        # (The braindance reads the first tower's lower 14 m and the third's
+        # lower 22 m from the boulevard, as boxes ending at the towers'
+        # face, z -347: the third's canopy stops at that face, and neither
+        # forecourt carries anything tall between the face and the kerb.)
+        heat_tower = i == 2
+        cz = T_FRONT if heat_tower else LOT_N
+        quad(k("trim"), (tx - 13.0, 7.49, LOBBY_Z), (tx + 13.0, 7.49, LOBBY_Z), (tx + 13.0, 7.49, cz), (tx - 13.0, 7.49, cz), col=K.STEEL)
+        sz = -347.9 if heat_tower else -346.9
         for sx in (-9.0, -4.5, 0.0, 4.5, 9.0):
-            K.glow_box(tx + sx - 1.6, tx + sx + 1.6, 7.44, 7.49, -346.9, -346.5, "white")
+            K.glow_box(tx + sx - 1.6, tx + sx + 1.6, 7.44, 7.49, sz, sz + 0.4, "white")
             light(CO, tx + sx, 6.8, -346.0, "white", 4.0)
-        K.neon_box(tx - 13.0, tx + 13.0, 7.5, 7.62, LOT_N, LOT_N + 0.05, hue)
+        K.neon_box(tx - 13.0, tx + 13.0, 7.5, 7.62, cz, cz + 0.05, hue)
         # Slim columns under its front edge.
-        for sx in (-12.6, -4.2, 4.2, 12.6):
+        for sx in () if heat_tower else (-12.6, 12.6) if room_tower else (-12.6, -4.2, 4.2, 12.6):
             box(k("metal"), tx + sx - 0.2, tx + sx + 0.2, G0, 7.5, LOT_N - 0.7, LOT_N - 0.3, scale=1.0)
         # Paving: a carpet of pale stone from the doors to the kerb, light
         # lines either side of it.
@@ -450,14 +457,20 @@ def forecourts():
             stand(tx - 3.9, LOBBY_Z + 1.0, 0.0, "idle")
             stand(tx + 3.9, LOBBY_Z + 1.1, 0.0, "idle")
         side = -1 if i % 2 else 1
-        K.bollards(tx - 11.0, tx + 11.0, KERB_N - 0.28, step=(2.75, 2.2, 3.1)[i % 3], proto="bollard")
+        if i in (0, 2):
+            # (Studs of light along the kerb in place of bollards.)
+            for bx in range(-10, 11, 2):
+                K.glow_box(tx + bx - 0.12, tx + bx + 0.12, G0, G0 + 0.03, KERB_N - 0.4, KERB_N - 0.16, hue, 1)
+        else:
+            K.bollards(tx - 11.0, tx + 11.0, KERB_N - 0.28, step=(2.75, 2.2, 3.1)[i % 3], proto="bollard")
         if i == 0:
-            # The room's tower: open to the street; low hedges, a totem.
-            K.planter(tx - 12.2, tx - 9.0, -347.2, -345.6, lit=hue)
-            K.planter(tx + 9.0, tx + 12.2, -347.2, -345.6, lit=hue)
-            K.totem(tx - 9.5, FORE_N, math.radians(28), r, colour=hue, sizes=("bx", "ps"))
-            stand(tx + 8.2, -345.0, math.radians(-20), "phone")
-            K.talk(tx - 7.4, -344.9, 0.3)
+            # The room's tower: open to the street, its forecourt bare but
+            # for light in the paving: a field of lines either side of the
+            # way in.
+            for sx in (-1, 1):
+                for j in range(4):
+                    xa, xb = sorted((tx + sx * 5.0, tx + sx * 12.2))
+                    K.light_strip_ground(xa, xb, -347.1 + j * 0.8, -347.02 + j * 0.8, hue if j % 2 == 0 else "white")
         elif i == 1:
             # A booth, hedged beds, two tube lamps.
             K.stripes(tx - 12.6, tx - 3.6, LOT_N - 0.75, LOT_N - 0.1, step=1.5, w=0.75, skew=0.5)
@@ -470,17 +483,15 @@ def forecourts():
             K.totem(tx - 8.5, FORE_N, math.radians(-28), r, colour=hue, sizes=("bm",))
             stand(tx - 6.2, -345.1, math.radians(20), "phone")
         elif i == 2:
-            # The server hall's tower: plant at street level too: a row of
-            # cube bollards, a service terminal, red lines in the paving.
-            K.bollards(tx - 12.0, tx - 4.0, -345.7, step=2.0)
-            K.bollards(tx + 4.0, tx + 12.0, -345.7, step=2.0)
+            # The server hall's tower: an open court, nothing standing on
+            # it: red lines of light and hazard stripes in the paving, grates
+            # glowing warm over the plant under it.
             for sx in (-8.0, 8.0):
-                K.light_strip_ground(tx + sx - 3.6, tx + sx + 3.6, -346.3, -346.2, "red")
-            K.kiosk(tx + 10.4, -346.8, 0.0, "amber", w=2.4, d=1.0, h=2.2)
-            K.booth(tx - 10.6, -346.6, 0.0, r, "amber")
-            stand(tx - 8.9, -346.2, 0.0, "idle")
-            K.totem(tx + 9.5, FORE_N, math.radians(28), r, colour="red", sizes=("bx", "bx"))
-            K.talk(tx + 6.2, -345.4, 1.1)
+                for lz in (-346.3, -345.3):
+                    K.light_strip_ground(tx + sx - 3.6, tx + sx + 3.6, lz, lz + 0.1, "red")
+                K.stripes(tx + sx - 4.2, tx + sx + 4.2, LOT_N - 0.75, LOT_N - 0.1, step=1.5, w=0.75, skew=0.5)
+                for gxo in (-2.4, 0.0, 2.4):
+                    P.place("grate_glow", tx + sx + gxo, G0, -345.8, district=CO)
         elif i == 3:
             # The tallest: a screen on a plinth turned to the street, four
             # light masts in a row, long low beds.
@@ -529,7 +540,7 @@ def forecourts():
             K.totem(tx + 9.5, FORE_N, math.radians(-28), r, colour=hue, sizes=("bm",))
             K.talk(tx + 3.6, -345.2, 0.9)
             stand(tx + 10.6, -345.0, math.radians(160), "phone")
-        if i not in (4,):
+        if i not in (2, 4):
             P.place("cctv", tx - side * 12.7, G0, -344.6, district=CO)
 
 
@@ -600,12 +611,15 @@ def room():
 
 def server_wall():
     """The third tower's lower floors, the braindance's heat: a hall of
-    server racks behind an open steel frame on the canopy, from 8 m to 22 m,
-    rows of lamps on every rack, a red glow behind them, hot air units and
-    their pipes on the canopy at its foot."""
+    server racks behind an open steel frame, from 8 m to 22 m, open to the
+    boulevard and wholly inside the tower's plan (corpo.py HALL leaves the
+    hall open; the braindance reads this front as a box that ends at the
+    tower's face, so nothing of it may stand proud of z -347): rows of
+    lamps on every rack, a red glow behind them, hot air units and their
+    pipes on the hall's floor at its foot."""
     tx = TOWER_X[2]
     x0, x1 = tx - 11.0, tx + 11.0
-    zb, zf = T_FRONT + 0.06, T_FRONT + 1.5       # the racks' back, and their faces
+    zb, zf = T_FRONT - 4.14, T_FRONT - 2.7       # the racks' back, and their faces
     y0, y1 = 8.0, 22.0
     # A dark wall behind, glowing red at its foot and between the tiers.
     quad(k("trim"), (x0, y0, zb), (x1, y0, zb), (x1, y1, zb), (x0, y1, zb), col=(0.05, 0.012, 0.01, 1))
@@ -633,18 +647,29 @@ def server_wall():
         box(k("metal"), xx - 0.12, xx + 0.12, y0, y1, zf + 0.42, zf + 0.62, scale=1.0)
     for t in range(1, 5):
         box(k("metal"), x0, x1, y0 + t * tier - 0.12, y0 + t * tier + 0.12, zf + 0.42, zf + 0.62, scale=1.0)
-    box(k("trim"), x0 - 0.3, x1 + 0.3, y1, y1 + 0.4, zb, zf + 0.7, scale=1.0, col=K.BLACK)
-    K.neon_box(x0 - 0.3, x1 + 0.3, y1 - 0.02, y1 + 0.08, zf + 0.7, zf + 0.75, "red")
-    # On the canopy: hot air units, their fans up, and pipes up the frame.
+    K.neon_box(x0 - 0.9, x1 + 0.9, y1 - 0.14, y1 - 0.04, T_FRONT - 0.12, T_FRONT - 0.06, "red")
+    # Its ends: louvred cheeks just inside the tower's flanks, a red line
+    # under every blade.
+    for sx in (-1, 1):
+        xa, xb = sorted((tx + sx * 12.1, tx + sx * 12.3))
+        box(k("steel"), xa, xb, y0, y1, zb, T_FRONT - 0.06, scale=1.0, col=K.STEEL)
+        yy = y0 + 0.9
+        while yy < y1 - 0.5:
+            xc, xd = sorted((tx + sx * 12.3, tx + sx * 12.34))
+            K.glow_box(xc, xd, yy, yy + 0.07, zb + 0.3, T_FRONT - 0.4, "red", 1)
+            yy += 1.3
+    K.neon_box(x0 - 0.9, x1 + 0.9, y0, y0 + 0.1, T_FRONT - 0.12, T_FRONT - 0.06, "red")
+    # On the hall's floor, before the racks: hot air units, their fans up,
+    # and pipes up the frame.
     for cx in (tx - 9.0, tx - 3.0, tx + 3.0, tx + 9.0):
-        K.chiller(cx - 1.6, cx + 1.6, -345.6, -344.5, 8.0, h=1.5)
-        pipe(k("trim", 1), (cx, 8.3, -345.6), (cx, 8.3, zf + 0.8), 0.14, segs=5, col=K.RED)
+        K.chiller(cx - 1.6, cx + 1.6, T_FRONT - 1.5, T_FRONT - 0.4, 8.0, h=1.3)
+        pipe(k("trim", 1), (cx, 8.3, T_FRONT - 1.5), (cx, 8.3, zf + 0.8), 0.14, segs=5, col=K.RED)
         pipe(k("trim", 1), (cx, 8.3, zf + 0.8), (cx, 21.5, zf + 0.8), 0.14, segs=5, col=K.RED)
-        K.glow_box(cx - 1.5, cx + 1.5, 9.5, 9.56, -344.5, -344.47, "red", 1)
-    K.steam("servers", tx + 3.0, 9.7, -345.0, roof=True)
+        K.glow_box(cx - 1.5, cx + 1.5, 9.3, 9.36, T_FRONT - 0.4, T_FRONT - 0.37, "red", 1)
+    K.steam("servers", tx + 3.0, 9.6, T_FRONT - 1.0, roof=True)
     for lx in (tx - 8.0, tx, tx + 8.0):
-        light(CO, lx, 9.0, -343.6, "red", 6.0)
-        light(CO, lx, 15.0, -343.0, "amber", 5.0)
+        light(CO, lx, 9.0, -345.6, "red", 6.0)
+        light(CO, lx, 15.0, -346.0, "amber", 5.0)
 
 
 # ---------------------------------------------------------------------------
@@ -881,7 +906,7 @@ def gaps():
 # The boulevard itself: its median and the gantries over it.
 # ---------------------------------------------------------------------------
 MEDIAN = (146.0, 422.0, -330.6, -329.4)
-GANTRY_X = (134.3, 283.0)
+GANTRY_X = (283.0,)
 
 
 def median():
@@ -899,7 +924,11 @@ def median():
         cylinder(k("kerb"), xe, (z0 + z1) / 2, 0.0, 0.2, 0.6, segs=10)
         box(k("trim", 1), xe + s * 0.2 - 0.25, xe + s * 0.2 + 0.25, 0.2, 1.1, -330.08, -329.92, scale=1.0, col=K.BLACK)
         K.glow_box(xe + s * 0.2 - 0.2, xe + s * 0.2 + 0.2, 0.55, 1.0, -330.1 if s < 0 else -329.92, -330.08 if s < 0 else -329.9, "amber", 1)
-    palms = [176.0, 195.0, 252.0, 271.0, 300.0, 319.0, 338.0, 357.0, 376.0, 395.0, 414.0]
+    # (The braindance's car rides z -328 with its camera low beside it,
+    # reading the first and third towers' fronts across the median from
+    # x 120 to 320, ahead and then back over its shoulder: nothing on that
+    # stretch stands taller than the hedge.)
+    palms = [319.0, 338.0, 357.0, 376.0, 395.0, 414.0]
     for x in palms:
         P.place("planter_palm", x, 0.2, -330.0, 0.7 * x, sy=1.25, sxz=0.68, district=CO)
     # A clipped hedge along it, knee high, in runs between the palms and
@@ -919,50 +948,60 @@ def median():
         n = max(1, round((b - a) / 19.0))
         for j in range(n):
             x = a + (b - a) * (j + 0.5) / n
-            if any(abs(x - g) < 4.0 for g in GANTRY_X):
+            if x < 316.0:
+                # (No lamp column there either: a light in the planting.)
+                K.glow_box(x - 0.5, x + 0.5, 0.62, 0.66, -330.12, -329.88, "amber", 1)
+                light(CO, x, 1.2, -330.0, "amber", 3.0)
                 continue
             P.place("lamp_short", x, 0.2, -330.0, district=CO)
 
 
 def gantry(gx):
-    """A gantry over the boulevard (mH2wmyeiIpA@182): slim legs at the two
-    kerbs, clear of the walkers' lines, a deep beam, a strip of red light
-    under each face, a lit box over every lane, a row of cyan windows in the
-    housing on top, lamps and masts on it."""
-    zn, zs = KERB_N - 0.2, -320.5
-    y0, y1 = 7.6, 9.9
-    for z in (zn, zs):
-        s = 1 if z == zn else -1
-        box(k("trim"), gx - 0.3, gx + 0.3, G0, y0 + 0.3, z - 0.15, z + 0.15, scale=1.5, col=K.BLACK)
-        box(k("trim", 1), gx - 0.34, gx + 0.34, G0 + 0.2, G0 + 0.9, z - 0.17, z + 0.17, scale=1.0, col=K.YELLOW)
-        K.glow_box(gx - 0.05, gx + 0.05, G0 + 1.4, y0, z + s * 0.15, z + s * 0.17, "white")
-        # A knee brace up to the beam.
-        pipe(k("metal"), (gx, 5.4, z + s * 0.15), (gx, y0 + 0.2, z + s * 2.6), 0.11, segs=5)
-    box(k("trim"), gx - 0.95, gx + 0.95, y0, y1, zn - 0.5, zs + 0.5, scale=2.0, col=K.BLACK, bottom=True)
-    box(k("trim"), gx - 0.6, gx + 0.6, y1, y1 + 1.2, zn + 2.2, zs - 2.2, scale=2.0, col=K.STEEL)
+    """A lane gantry over the eastbound carriageway (mH2wmyeiIpA@182): a
+    steel mast at the south kerb's edge, clear of the walkers' lines, a
+    trussed arm out to the median held by a stay, an advert over each lane
+    facing the traffic and one long one on its back, lane lamps under
+    them, a strip of red light along its foot. (Nothing spans the westbound
+    side, and no leg stands on the median: the braindance's cameras ride
+    low beside the car and read the towers' fronts across both.)"""
+    r = random.Random(int(gx) * 7 + 5)
+    zs, ze = -320.48, MEDIAN[3] + 0.25
+    y0, y1 = 7.6, 9.7
+    paint = (0.07, 0.085, 0.11, 1.0)
+    box(k("steel"), gx - 0.26, gx + 0.26, G0, 13.0, zs - 0.2, zs + 0.2, scale=1.5, col=paint)
+    box(k("trim", 1), gx - 0.3, gx + 0.3, G0 + 0.2, G0 + 0.9, zs - 0.24, zs + 0.24, scale=1.0, col=K.YELLOW)
+    K.glow_box(gx - 0.05, gx + 0.05, G0 + 1.4, y0, zs - 0.23, zs - 0.2, "white")
+    # The arm: two chords, posts and braces between them.
+    for ya, yb in ((y0, y0 + 0.2), (y1 - 0.2, y1)):
+        box(k("steel"), gx - 0.42, gx + 0.42, ya, yb, ze, zs - 0.2, scale=1.5, col=paint, bottom=True)
+    n = 5
+    for j in range(n + 1):
+        z = ze + 0.1 + (zs - 0.4 - ze) * j / n
+        for sx in (-0.36, 0.36):
+            box(k("steel"), gx + sx - 0.06, gx + sx + 0.06, y0 + 0.2, y1 - 0.2, z - 0.06, z + 0.06, scale=1.0, col=paint)
+            if j < n:
+                zn_ = ze + 0.1 + (zs - 0.4 - ze) * (j + 1) / n
+                pipe(k("steel", 1), (gx + sx, y0 + 0.2, z) if j % 2 else (gx + sx, y1 - 0.2, z),
+                     (gx + sx, y1 - 0.2, zn_) if j % 2 else (gx + sx, y0 + 0.2, zn_), 0.045, segs=4, col=paint)
+    pipe(k("steel"), (gx, 12.8, zs), (gx, y1, ze + 1.2), 0.05, segs=5, col=paint)
+    pipe(k("steel"), (gx, 12.8, zs), (gx, y1, (ze + zs) / 2), 0.05, segs=5, col=paint)
+    K.aviation(gx, 13.0, zs)
     for f in (-1, 1):
-        xa, xb = sorted((gx + f * 0.95, gx + f * 1.0))
-        K.neon_box(xa, xb, y0 + 0.02, y0 + 0.2, zn - 0.3, zs + 0.3, "red")
-        for j, z in enumerate((-336.75, -332.25, -327.75, -323.25)):
-            hue = ("amber", "blue", "blue", "amber")[j] if f < 0 else ("blue", "amber", "amber", "blue")[j]
-            K.glow_box(xa - 0.04 * (f < 0), xb + 0.04 * (f > 0), y0 + 0.5, y1 - 0.35, z - 1.1, z + 1.1, hue)
-            light(CO, gx + f * 2.5, 6.0, z, hue, 5.0)
-        xc, xd = sorted((gx + f * 0.6, gx + f * 0.64))
-        K.glow_box(xc, xd, y1 + 0.35, y1 + 0.85, zn + 2.6, zs - 2.6, "cyan")
-        z = zn + 2.6
-        while z < zs - 2.6:
-            box(k("trim", 1), *sorted((gx + f * 0.64, gx + f * 0.67)), y1 + 0.3, y1 + 0.9, z - 0.08, z + 0.08, scale=1.0, col=K.BLACK)
-            z += 1.3
-    # Street signs hung under its ends, over the pavements, askew.
-    for z, lean, n in ((zn - 1.5, 6, K.ARROW), (zs + 1.5, -8, K.BOLT)):
-        K.st_blade(gx, y0 - 0.66, z, "bx", math.radians(90 + lean), n=n)
-        for dz in (-0.5, 0.5):
-            box(k("metal", 1), gx - 0.03, gx + 0.03, y0 - 0.1, y0, z + dz - 0.03, z + dz + 0.03, scale=0.5)
-    for z in (zn + 2.0, zs - 2.0):
-        cylinder(k("metal", 1), gx, z, y1, y1 + 2.6, 0.05, segs=4, cap=False)
-        K.aviation(gx, y1 + 2.6, z)
-    for z in (zn - 0.4, zs + 0.4):
-        K.aviation(gx, y1, z, 0)
+        xa, xb = sorted((gx + f * 0.42, gx + f * 0.46))
+        K.neon_box(xa, xb, y0 - 0.1, y0, ze + 0.2, zs - 0.4, "red")
+    # Over each lane, facing the traffic: an advert, and a lane lamp under it.
+    for j, z in enumerate((-327.25, -322.95)):
+        K.screen(gx - 0.56, 8.75, z, 3.7, 2.5, -math.pi / 2, r, depth=0.14, pal=K.COLD)
+        K.glow_box(gx - 0.6, gx - 0.56, y0 - 0.75, y0 - 0.25, z - 0.25, z + 0.25, ("green", "amber")[j])
+        box(k("trim", 1), gx - 0.56, gx - 0.4, y0 - 0.82, y0 - 0.18, z - 0.32, z + 0.32, scale=1.0, col=K.BLACK)
+        light(CO, gx - 2.5, 6.0, z, ("cyan", "amber")[j], 5.0)
+    # On its back, one long advert.
+    K.screen(gx + 0.56, 8.75, (ze + zs) / 2 - 0.2, 7.6, 2.5, math.pi / 2, r, depth=0.14, pal=K.WARM)
+    light(CO, gx + 2.5, 6.0, -325.0, "amber", 5.0)
+    # A street sign hung under its foot, over the kerb, askew.
+    K.st_blade(gx, y0 - 0.66, zs - 1.3, "bx", math.radians(82), n=K.BOLT)
+    for dz in (-0.5, 0.5):
+        box(k("metal", 1), gx - 0.03, gx + 0.03, y0 - 0.1, y0, zs - 1.3 + dz - 0.03, zs - 1.3 + dz + 0.03, scale=0.5)
 
 
 def corners():
@@ -1050,6 +1089,6 @@ gaps()
 median()
 for _gx in GANTRY_X:
     gantry(_gx)
-gantry_paving(GANTRY_X[1])
+gantry_paving(GANTRY_X[0])
 pavement_n()
 corners()

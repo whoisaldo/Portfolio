@@ -90,6 +90,11 @@ INSET = 2.4
 # stands this far back, behind a hall open to the boulevard with a gallery
 # in it (corpo_north.py builds the hall).
 ROOM = {"philips-zero-touch": 5.0}
+# The braindance's "grader" is the third tower's lower 22 m, read from the
+# boulevard: its floors from the lobby's roof to HALL's top stand open to the
+# street as a hall this deep, INSIDE the tower's plan (corpo_north.py builds
+# the racks in it), and its canopy does not reach past its front.
+HALL = {"pawtograder": (22.0, 4.2)}
 # Flat screens at mid height (mH2wmyeiIpA@143), clear of each tower's name
 # sign and its braindance box's reading: (face, metres along it from its
 # middle, height of its middle, width, height).
@@ -119,9 +124,16 @@ for i, (slug, height) in enumerate(TOWERS):
     quad((CO, "lobby", 0), (tx - half + 0.6, 0.15, lz + 0.1), (tx + half - 0.6, 0.15, lz + 0.1),
          (tx + half - 0.6, LOBBY_H, lz + 0.1), (tx - half + 0.6, LOBBY_H, lz + 0.1),
          ((0, 0), (1, 0), (1, 1), (0, 1)), (r.random(), r.random(), 1.0, 1.0))
-    box((CO, "metal", 0), tx - half, tx + half, LOBBY_H - 0.5, LOBBY_H, tz + half - 1.6, tz + half + 3.0, scale=1.0)
+    hall = HALL.get(slug)
+    box((CO, "metal", 0), tx - half, tx + half, LOBBY_H - 0.5, LOBBY_H, tz + half - 1.6, tz + half + (0.0 if hall else 3.0), scale=1.0)
+    if hall:
+        # The open hall: the curtain wall round its back and its sides
+        # behind it, a soffit over it; its own sides stand open.
+        hz = tz + half - hall[1]
+        walls((CO, "corporate", 0), [(tx - half, hz), (tx + half, hz), (tx + half, tz - half), (tx - half, tz - half)], LOBBY_H, hall[0], col)
+        quad((CO, "dark", 0), (tx - half, hall[0], hz), (tx + half, hall[0], hz), (tx + half, hall[0], tz + half), (tx - half, hall[0], tz + half))
     # The shaft, in sections, each stepped back from the one under it.
-    cuts = [LOBBY_H] + [height * f for f in form["steps"]] + [height]
+    cuts = [hall[0] if hall else LOBBY_H] + [height * f for f in form["steps"]] + [height]
     sections = []
     for k in range(len(cuts) - 1):
         h_k = half - INSET * k
@@ -190,7 +202,7 @@ for i, (slug, height) in enumerate(TOWERS):
             tz + sz * cw + 0.2, scale=1.0)
     # The name, as type, on a tall sign on the lowest section.
     sign_top = sections[0][2] - 4.0
-    sign_bottom = LOBBY_H + 4.0
+    sign_bottom = (hall[0] + 2.0) if hall else LOBBY_H + 4.0
     sign("tower_" + slug, tx + half - notch - 1.6, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
          preview=slug.upper(), district=CO)
     empty("anchor_tower_" + slug, (tx, top + 1.8, tz), props={"height": top})
@@ -199,7 +211,9 @@ for i, (slug, height) in enumerate(TOWERS):
     for face, off, sy, sw, sh in SCREENS[slug]:
         h_s = next(h_k for h_k, y0, y1 in sections if y0 <= sy < y1)
         if face == "+z":
-            K.screen(tx + off, sy, tz + h_s + 0.38, sw, sh, 0.0, rs_, pal=K.COLD)
+            # (Flat on the glass: the braindance reads each tower as a box
+            # that ends at its front, and a screen proud of it hides it.)
+            K.screen(tx + off, sy, tz + h_s + 0.07, sw, sh, 0.0, rs_, depth=0.04, pal=K.COLD)
         else:
             sx = 1 if face == "+x" else -1
             K.screen(tx + sx * (h_s + 0.38), sy, tz + off, sw, sh, sx * math.pi / 2, rs_, pal=K.COLD)
