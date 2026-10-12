@@ -829,8 +829,10 @@ end_block(plan.DECK_X0 - 0.4, plan.DECK_X0 + 0.4, GORE_Z + 0.5, GORE_Z + 1.3, h=
 # ---------------------------------------------------------------------------
 def stall(x, z, facing, colour, seed):
     """A market stall against a wall, its counter toward `facing` (+1 south,
-    -1 north): a counter, posts, a dyed awning lit from under, a lit menu
-    strip, a strip lamp under the awning with its pool."""
+    -1 north): a counter, posts, a dyed awning lit from under, its sign on
+    the back board and a blade on a mast at its end (the street's sign
+    faces: the site letters them), a strip lamp under the awning with its
+    pool."""
     r = random.Random(seed)
     f = facing
     w = 2.8
@@ -848,11 +850,17 @@ def stall(x, z, facing, colour, seed):
     face((DK, "awning", 1), [a, b, c, d], (0, -1, 0), 1.0, dye)
     hem = sorted((z + f * 1.9, z + f * 1.94))
     box((DK, "glow", 1), x - w / 2 - 0.2, x + w / 2 + 0.2, B.G0 + 2.27, B.G0 + 2.35, hem[0], hem[1], scale=1.0, col=glowc(NEON[colour], 0.7))
-    # The menu: lit panels on the back board, and what is on the counter.
-    for k in range(3):
-        mx = x - w / 2 + 0.35 + k * 0.85
-        rotated_quad((DK, "glow", 0), mx + 0.3, B.G0 + 1.85, z + f * 0.13, 0.6, 0.42, 0.0 if f > 0 else math.pi,
-                     col=glowc(r.choice(("ffd21a", "ff8a1c", "eceae4", "ff2e88", "27dcf2")), 0.55))
+    # Its sign on the back board, its blade on a mast at one end, and what
+    # is on the counter.
+    sw, sh = ST_SIZES["ps"]
+    sign(st_name("ps"), x + r.uniform(-0.3, 0.3), B.G0 + 1.72, z + f * 0.135, sw, sh, 0.0 if f > 0 else math.pi, district=DK, label=False)
+    e = r.choice((-1, 1))
+    mx, mz = x + e * (w / 2 - 0.05), z + f * 1.54
+    box((DK, "metal", 0), mx - 0.04, mx + 0.04, B.G0 + 2.45, B.G0 + 4.6, mz - 0.04, mz + 0.04, scale=0.5)
+    bw, bh = ST_SIZES["bs"]
+    oriented_box((DK, "board_frame", 0), mx, B.G0 + 3.55, mz - f * 0.5, bw + 0.1, bh + 0.1, 0.1, math.pi / 2, scale=1.0)
+    for fy in (math.pi / 2, -math.pi / 2):
+        sign(st_name("bs"), mx + math.sin(fy) * 0.06, B.G0 + 3.55, mz - f * 0.5, bw, bh, fy, district=DK, label=False)
     for k in range(r.randrange(2, 5)):
         cx = x - w / 2 + 0.3 + r.random() * (w - 0.6)
         h = r.uniform(0.15, 0.4)
@@ -873,20 +881,20 @@ WN, WS = ZN - 1.0, ZS + 1.0     # the walls either side of the gap
 # the deck (Fn9gKhU_2_Q@74's plaza under its deck), bollards along the
 # avenue's pavement, a tree and a bench.
 for s in (-1, 1):
-    stall(s * 24.5, WN + 0.05, 1, "red" if s < 0 else "amber", 8530 + s)
-    stall(s * 31.0, WN + 0.05, 1, "teal" if s < 0 else "pink", 8540 + s)
+    stall(s * 25.5, WN + 0.05, 1, "red" if s < 0 else "amber", 8530 + s)
+    stall(s * 31.5, WN + 0.05, 1, "teal" if s < 0 else "pink", 8540 + s)
     stall(s * 28.0, WS - 0.05, -1, "amber" if s < 0 else "cyan", 8550 + s)
     for z in (ZN + 0.4, ZN + 2.9, ZS - 2.9, ZS - 0.4):
         P.place("bollard", s * 14.5, B.G0, z, district=DK)
     P.place("planter_tree", s * 21.0, B.G0, plan.DECK_Z, district=DK)
     P.place("bench", s * 23.0, B.G0, plan.DECK_Z, s * math.pi / 2, district=DK)
     P.place("bench", s * 34.0, B.G0, plan.DECK_Z + 0.4, -s * math.pi / 2, district=DK)
-    P.place("bin", s * 19.3, B.G0, ZS - 0.6, district=DK)
-    P.place("bin", s * 36.0, B.G0, WS - 0.5, district=DK)
+    P.place("bin", s * 17.6, B.G0, ZS - 0.6, district=DK)
+    P.place("bin", s * 37.2, B.G0, WS - 0.5, district=DK)
     P.place("dumpster", s * 41.5, B.G0, WN + 0.7, 0.0, district=DK)
     P.place("bags", s * 40.0, B.G0, WN + 0.6, district=DK)
-    P.place("crates", s * 34.6, B.G0, WN + 0.7, 0.3, district=DK)
-    P.place("crates", s * 21.6, B.G0, WS - 0.7, 1.2, district=DK)
+    P.place("crates", s * 39.0, B.G0, WN + 0.7, 0.3, district=DK)
+    P.place("crates", s * 18.9, B.G0, WS - 0.7, 1.2, district=DK)
     P.place("drum", s * 42.6, B.G0, WS - 0.5, district=DK)
     P.place("drum", s * 43.2, B.G0, WS - 1.1, district=DK)
     P.place("cctv", s * 16.2, B.G0, ZS + 0.5, district=DK)
@@ -904,14 +912,12 @@ P.place("bench", -55.5, B.G0, plan.DECK_Z + 0.3, 0.0, district=DK)
 for z in (ZN + 0.4, ZN + 2.9, ZS - 2.9, ZS - 0.4):
     P.place("bollard", -65.5, B.G0, z, district=DK)
 # The plaza's gap (x 52..64), low under the deck coming down: a yard up to
-# the abutment, its door and lamp, barriers across its mouth, drums, skips.
+# the abutment, its door and lamp, a fence across its mouth (below), drums, skips.
 face((DK, "door", 0), [(ABUT_X - 0.02, B.G0, plan.DECK_Z - 0.6), (ABUT_X - 0.02, B.G0, plan.DECK_Z + 0.6), (ABUT_X - 0.02, B.G0 + 2.2, plan.DECK_Z + 0.6),
                       (ABUT_X - 0.02, B.G0 + 2.2, plan.DECK_Z - 0.6)], (-1, 0, 0), 1.0)
 box((DK, "glow", 0), ABUT_X - 0.14, ABUT_X - 0.02, B.G0 + 2.4, B.G0 + 2.52, plan.DECK_Z - 0.2, plan.DECK_Z + 0.2, scale=0.5, col=glowc("eceae4", 0.8))
 light(DK, ABUT_X - 0.8, 2.4, plan.DECK_Z, "white", 2.6)
 box((DK, "hazard", 1), ABUT_X - 0.03, ABUT_X, B.G0, B.G0 + 0.5, ZN + 0.3, ZS - 0.3, scale=1.0)
-P.place("barrier", 52.8, B.G0, plan.DECK_Z - 2.6, math.pi / 2, district=DK)
-P.place("barrier", 52.8, B.G0, plan.DECK_Z + 2.6, math.pi / 2, district=DK)
 P.place("dumpster", 61.5, B.G0, ZN + 0.9, 0.0, district=DK)
 P.place("dumpster", 59.2, B.G0, ZN + 0.9, 0.0, district=DK)
 P.place("bags", 62.8, B.G0, ZS - 0.8, district=DK)
@@ -1026,7 +1032,7 @@ for s in (-1, 1):
     stand(s * 15.9, plan.DECK_Z + 1.3, -s * math.pi / 2, "smoke", B.G0)
     stand(s * 19.4, plan.DECK_Z - 1.1, 0.4, "talk", B.G0)
     stand(s * 19.9, plan.DECK_Z - 0.3, 0.4 + math.pi, "talk", B.G0)
-    stand(s * 26.5, plan.DECK_Z + 0.2, s * 0.6, "phone", B.G0)
+    stand(s * 24.5, plan.DECK_Z + 1.2, s * 0.6, "phone", B.G0)
     stand(s * 40.4, WS - 0.7, math.pi, "squat", B.G0)
 stand(HERO + 0.2, ZS - 2.0 + 0.8, 0.0, "lean", B.G0)
 stand(-HERO - 0.3, ZN + 2.0 + 0.85, 0.3, "lean", B.G0)
@@ -1630,3 +1636,135 @@ for k, x in enumerate((-12.0, -4.0, 4.0, 12.0)):
     for o in (-1, 1):
         vface((DK, "dark", 0), "z", cz + o * 0.34, x - 1.2, x + 1.2, y - 0.09, y, o)
         vface((DK, "dark", 0), "z", cz + o * 0.34, x - 1.2, x + 1.2, y - 0.09, y, -o)
+
+# ---------------------------------------------------------------------------
+# THE PASSAGES under the deck either side of the avenue, after the show's
+# plaza under its deck (Fn9gKhU_2_Q@74, @81): against each wall two large
+# adverts in lit frames at eye level, a shutter and a door with their lamps,
+# conduit, a main and risers over them, caged lamps between; down the
+# middle, planters of shrubs, a camera mast, a standing advert; tape round
+# a pier of each bent; a fenced yard with amber lamps on the fence's posts
+# where the deck comes down (JtqIas3bYhg@64). Everything lit stands more
+# than 20 m from the avenue's line.
+# ---------------------------------------------------------------------------
+@P.proto("deck_shrub", box=(0.8, 0.6, 0.8), reach=260)
+def _deck_shrub(k):
+    """A planter of shrubs: clipped pads of dark leaf over a low stone
+    planter lit under its rim."""
+    P.planter(k, 0.6, GLOW["teal"], stone=(0.42, 0.42, 0.44, 1))
+    for cx, cy, cz, r, col in ((-0.28, 0.78, 0.2, 0.52, (0.07, 0.2, 0.09)), (0.3, 0.86, -0.18, 0.56, (0.05, 0.16, 0.08)),
+                               (0.05, 1.05, 0.1, 0.46, (0.09, 0.24, 0.1)), (-0.2, 0.8, -0.34, 0.4, (0.06, 0.18, 0.12))):
+        P.pad(k("plant"), cx, cy, cz, r, col)
+
+
+pass_rng = random.Random(8630)
+WALL_LAMP = glowc("ffb254", 0.9)
+
+
+def wall_ad(x, wz, f, w=3.0, h=1.9):
+    """A large advert at eye level against the wall at wz (f: +1 the wall
+    faces south, -1 north): the advert in a lit frame on two feet, a strip
+    of light under it."""
+    cy = B.G0 + 0.75 + h / 2
+    B.billboard(DK, x, cy, wz + f * 0.22, w, h, 0.0 if f > 0 else math.pi, pass_rng, back=False, depth=0.18)
+    for dx in (-w / 2 + 0.3, w / 2 - 0.3):
+        box((DK, "steel", 0), x + dx - 0.07, x + dx + 0.07, B.G0, cy - h / 2 - 0.2, *sorted((wz + f * 0.04, wz + f * 0.18)), scale=0.5, col=STEEL_LT)
+    box((DK, "glow", 1), x - w / 2, x + w / 2, cy - h / 2 - 0.3, cy - h / 2 - 0.25, *sorted((wz + f * 0.12, wz + f * 0.2)), scale=0.5, col=glowc("eceae4", 0.7))
+    pipe((DK, "steel", 1), (x + w / 2 - 0.3, cy + h / 2 + 0.2, wz + f * 0.06), (x + w / 2 - 0.3, 3.3, wz + f * 0.06), 0.025, segs=4, col=PIPE_C)
+
+
+def shutter(x, wz, f, w=2.6, h=2.5):
+    """A roller shutter in the wall: its ribbed curtain down, steel guides
+    and a hood, a striped sill, a caged lamp over it and its pool."""
+    vface((DK, "door_panel", 0), "z", wz + f * 0.03, x - w / 2, x + w / 2, B.G0, B.G0 + h, f)
+    for dx in (-w / 2 - 0.06, w / 2 + 0.06):
+        box((DK, "steel", 1), x + dx - 0.06, x + dx + 0.06, B.G0, B.G0 + h + 0.1, *sorted((wz, wz + f * 0.08)), scale=0.5, col=PIPE_C)
+    box((DK, "steel", 0), x - w / 2 - 0.12, x + w / 2 + 0.12, B.G0 + h, B.G0 + h + 0.28, *sorted((wz, wz + f * 0.16)), scale=0.5, col=PIPE_C)
+    vface((DK, "hazard", 1), "z", wz + f * 0.034, x - w / 2, x + w / 2, B.G0, B.G0 + 0.28, f)
+    wall_lamp(x, B.G0 + h + 0.42, wz, f)
+
+
+def wall_door(x, wz, f, hue="white"):
+    vface((DK, "door", 0), "z", wz + f * 0.03, x - 0.5, x + 0.5, B.G0, B.G0 + 2.1, f)
+    box((DK, "steel", 1), x - 0.6, x + 0.6, B.G0 + 2.1, B.G0 + 2.2, *sorted((wz, wz + f * 0.1)), scale=0.5, col=PIPE_C)
+    box((DK, "glow", 0), x - 0.18, x + 0.18, B.G0 + 2.3, B.G0 + 2.42, *sorted((wz + f * 0.02, wz + f * 0.13)), scale=0.5, col=glowc(NEON[hue], 0.85))
+    light(DK, x, 2.3, wz + f * 0.8, hue, 2.2)
+
+
+def wall_lamp(x, y, wz, f):
+    """A caged bulkhead lamp on the wall, and its pool."""
+    box((DK, "steel", 1), x - 0.2, x + 0.2, y - 0.02, y + 0.16, *sorted((wz, wz + f * 0.06)), scale=0.5, col=PIPE_C)
+    box((DK, "glow", 0), x - 0.15, x + 0.15, y, y + 0.12, *sorted((wz + f * 0.06, wz + f * 0.15)), scale=0.5, col=WALL_LAMP)
+    if abs(x) >= 20.0:
+        light(DK, x, y, wz + f * 0.9, "amber", 2.6)
+
+
+def camera_mast(x, z):
+    """A camera mast (Fn9gKhU_2_Q@74): a post, a ring of light, a cross
+    arm with three cameras, a cabinet at its foot."""
+    cylinder((DK, "steel", 0), x, z, B.G0, B.G0 + 4.5, 0.075, segs=6, cap=False, col=STEEL_LT)
+    box((DK, "steel", 0), x - 0.2, x + 0.2, B.G0, B.G0 + 1.0, z - 0.14, z + 0.14, scale=0.5, col=PIPE_C)
+    cylinder((DK, "glow", 0), x, z, B.G0 + 2.7, B.G0 + 2.8, 0.13, segs=6, cap=False, col=glowc("27dcf2", 0.9))
+    box((DK, "steel", 0), x - 0.7, x + 0.7, B.G0 + 4.3, B.G0 + 4.36, z - 0.03, z + 0.03, scale=0.5, col=STEEL_LT)
+    for dx, yaw in ((-0.7, -2.2), (0.7, 2.0), (0.0, 0.3)):
+        cx, cz = x + dx + math.sin(yaw) * 0.16, z + math.cos(yaw) * 0.16
+        oriented_box((DK, "steel", 0), cx, B.G0 + 4.2, cz, 0.15, 0.15, 0.42, yaw, scale=0.5, col=PIPE_C)
+        oriented_box((DK, "glow", 1), cx + math.sin(yaw) * 0.215, B.G0 + 4.2, cz + math.cos(yaw) * 0.215, 0.05, 0.05, 0.02, yaw, scale=0.5, col=glowc("ff003c", 1.0))
+    light(DK, x, 2.7, z, "cyan", 1.6)
+    B.COLLISION.append(("box", x - 0.2, x + 0.2, 0.0, 4.5, z - 0.2, z + 0.2, DK))
+
+
+def taped(cx, cz, h=1.25):
+    """Tape strung round a pier's footing on four stakes."""
+    q = [(cx - h, cz - h), (cx + h, cz - h), (cx + h, cz + h), (cx - h, cz + h)]
+    for (xa, za), (xb, zb) in zip(q, q[1:] + q[:1]):
+        cylinder((DK, "hazard", 1), xa, za, B.G0, B.G0 + 1.1, 0.03, segs=4, cap=False)
+        for out in (1, -1):
+            n = ((zb - za) * out, 0, -(xb - xa) * out)
+            face((DK, "hazard", 1), [(xa, B.G0 + 0.94, za), (xb, B.G0 + 0.94, zb), (xb, B.G0 + 1.03, zb), (xa, B.G0 + 1.03, za)], n, 1.0)
+
+
+for s in (-1, 1):
+    for wz, f, ads, shut, door in ((WN, 1, (21.2, 36.5), 17.6, 28.5), (WS, -1, (22.6, 34.6), 39.5, 31.2)):
+        for ax in ads:
+            wall_ad(s * ax, wz, f)
+        shutter(s * shut, wz, f)
+        wall_door(s * door, wz, f, "white" if f > 0 else "amber")
+        # Conduit and a main along the wall over the frames, risers, lamps.
+        zc = wz + f * 0.05
+        pipe((DK, "steel", 1), (s * 16.4, 3.3, zc), (s * 43.6, 3.3, zc), 0.03, segs=4, col=PIPE_C)
+        pipe((DK, "steel", 1), (s * 16.4, 3.45, zc), (s * 43.6, 3.45, zc), 0.03, segs=4, col=PIPE_C)
+        pipe((DK, "steel", 0), (s * 16.4, 4.1, wz + f * 0.13), (s * 43.6, 4.1, wz + f * 0.13), 0.1, segs=6, col=GAS_C if f > 0 else PIPE_C)
+        for rx in (19.25, 38.6, 43.7) if f > 0 else (20.3, 32.35, 43.7):
+            pipe((DK, "steel", 1), (s * rx, B.G0, wz + f * 0.09), (s * rx, 4.1, wz + f * 0.09), 0.06, segs=5, col=PIPE_C)
+            box((DK, "steel", 1), s * rx - 0.09, s * rx + 0.09, 1.3, 1.36, *sorted((wz, wz + f * 0.16)), scale=0.5, col=PIPE_C)
+        for lx in (23.4, 34.0, 40.2) if f > 0 else (25.3, 37.0, 42.0):
+            wall_lamp(s * lx, 3.0, wz, f)
+    # Down the middle: planters of shrubs, the camera mast, a standing
+    # advert toward the lane; a charging post by the bench; pallets and a
+    # barrel by the shutters, a heap against the wall by the skip.
+    P.place("deck_shrub", s * 31.4, B.G0, plan.DECK_Z + 0.3, district=DK)
+    P.place("deck_shrub", s * 37.0, B.G0, plan.DECK_Z, district=DK)
+    camera_mast(s * 25.3, plan.DECK_Z - 0.9)
+    P.place("lightbox", s * 40.6, B.G0, plan.DECK_Z, math.pi / 2, district=DK)
+    P.place("charge_post", s * 35.4, B.G0, plan.DECK_Z + 0.4, -s * math.pi / 2, district=DK)
+    P.place("pallets", s * 38.6, B.G0, WS - 0.8, 0.2, district=DK)
+    P.place("barrel", s * 41.5, B.G0, WS - 0.5, district=DK)
+    P.place("pallets", s * 16.8, B.G0, WN + 0.75, -0.15, district=DK)
+    P.place("rubbish", s * 43.2, B.G0, WN + 0.75, 0.0, district=DK)
+    # Tape round one pier of each bent (the other has somebody on it).
+    taped(s * 38.0, ZS - 2.0)
+    taped(s * HERO, ZN + 2.0 if s > 0 else ZS - 2.0)
+# A lit grate under each plume of steam in the passages.
+P.place("grate_glow", -35.5, B.G0, plan.DECK_Z - 1.2, district=DK)
+P.place("grate_glow", 41.0, B.G0, plan.DECK_Z + 1.6, district=DK)
+# The plaza's yard under the deck coming down: a mesh fence across its
+# mouth, an amber lamp on every post.
+for k in range(5):
+    zf = ZN + 0.4 + k * 2.3
+    cylinder((DK, "steel", 0), 52.5, zf, B.G0, B.G0 + 2.5, 0.04, segs=5, cap=False, col=STEEL_LT)
+    box((DK, "glow", 0), 52.42, 52.58, B.G0 + 2.5, B.G0 + 2.62, zf - 0.08, zf + 0.08, scale=0.5, col=WALL_LAMP)
+    light(DK, 52.5, 2.5, zf, "amber", 1.8)
+    if k < 4 and k != 2:        # the gate's panel stands open
+        P.place("fence_mesh", 52.5, B.G0, zf + 1.15, math.pi / 2, district=DK)
+P.place("fence_mesh", 53.5, B.G0, ZN + 0.4 + 2 * 2.3 + 0.2, 0.35, district=DK)
