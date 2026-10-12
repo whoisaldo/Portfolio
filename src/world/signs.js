@@ -513,9 +513,10 @@ const DRAW = {
  */
 export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false, atlas = 4096, density = 1, overrides = null, allStreet = false } = {}) {
   // 4096 wide on a desktop; a phone gets 2048 at half the pixels a metre.
-  // Only as tall as the packed signs need (a power of two): the square
-  // atlas was more than half empty, and a 4096 square with its mipmaps is
-  // some 85 MB of video memory.
+  // Only as tall as the packed signs need, to the next 64 px (so its first
+  // six mip levels halve evenly, as a power of two's do): the signs pack to
+  // a little over 2048 px, which a power of two rounded up to a 4096 square,
+  // some 85 MB of video memory with its mipmaps.
   const ATLAS = atlas;
   // (The shops' rooms are dealt by the signs over them: src/world/trades.js.)
   clearSigns();
@@ -619,7 +620,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     shelf = Math.max(shelf, c.ph + PAD * 2);
     if (y + shelf > ATLAS) throw new Error("Sign atlas overflow");
   }
-  const HEIGHT = Math.min(ATLAS, 2 ** Math.ceil(Math.log2(Math.max(256, y + shelf))));
+  const HEIGHT = Math.min(ATLAS, Math.ceil(Math.max(256, y + shelf) / 64) * 64);
   const canvas = document.createElement("canvas");
   canvas.width = ATLAS;
   canvas.height = HEIGHT;
