@@ -391,13 +391,16 @@ function timetable(lanes, { cycle, need, phase }) {
 }
 
 // The lights' phases are drawn from this. Any seed is as good a city as
-// another; this one was picked (of 9,000 tried, tools/phasesearch.mjs)
-// because at second 12 of the clock, where every review render holds the
-// traffic, a platoon is in sight from the last metres before each corner of
-// the loop, where a driver faces a wall across the junction and only
-// passing cars can be in view; and because with it neither route's platoon
-// comes back to its anchor early enough to be held there a whole cycle.
-const PHASES = 1600;
+// another; this one was picked (of 40,000 tried, tools/r3net.mjs) for
+// second 12 of the clock, where every review render holds the traffic: at
+// that second ten of the twelve junctions have a car turning in them or
+// crossing (all but the hero's own, whose lens lies in its mouth, and the
+// garage street's gated one), every driver's frame round the loop holds two
+// cars or more, neither route's platoon comes back to its anchor early
+// enough to be held there a whole cycle, the braindance's lane is clear
+// from 102 to 117, and nothing ever touches, on a desktop's network and on
+// a phone's.
+const PHASES = 21350;
 
 /**
  * The network's traffic: `perPlatoon` cars to a platoon, the lights on a

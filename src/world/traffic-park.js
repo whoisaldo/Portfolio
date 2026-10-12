@@ -26,6 +26,11 @@ export const KINDS = ["hatch", "sedan", "van", "wedge", "pickup", "micro"];
 // What else stands at a kerb (a standing thing's `kind` counts on from the
 // cars': KINDS.length is the motorbike).
 export const BIKES = ["moto", "scooter"];
+// And after the bikes: the bus that stands at its stop on the west street,
+// and the stop.
+// and the stop; then a door's leaf and a boot's lid, for the few cars left
+// with one open.
+export const FIXED = ["bus", "stop", "leaf", "lid"];
 // Paint: under these streets' light a dark metallic is one more grey car, so
 // half are colours that hold at night (reds, blues, teal, violet, orange,
 // green, a wine) and the rest gunmetal, black, silver, pearl and cream. No
@@ -33,7 +38,8 @@ export const BIKES = ["moto", "scooter"];
 export const PAINT = ["#2b3038", "#b0281e", "#9aa0a8", "#1d4c9c", "#15161a", "#14807a", "#d8d2c4", "#7a1420", "#4a2f8c", "#c9ced4", "#c45a1c", "#1a3566", "#3d7a3a", "#5d636b", "#8a1d52", "#0f5a56"];
 export const ACCENT = ["#27dcf2", "#ff2e88", "#ffb254", "#a24bff", "#39ff9a", "#ff3fd2"];
 // What a car is besides its model (the sedan carries both roof units).
-export const TAG = { none: 0, patrol: 1, taxi: 2 };
+// (And the two a car is left open by: its driver's door, its boot.)
+export const TAG = { none: 0, patrol: 1, taxi: 2, door: 3, boot: 4 };
 const CAB = "#c79a12";
 const PATROL = "#0a0a0c";
 
@@ -80,7 +86,8 @@ export function wardrobe(seed) {
 // garage's door; AFTERLIFE's door and its carpet; the works barriers that
 // stand out over the garage street's west kerb; and the boulevard's north
 // kerb beside the braindance's chase, whose clues are low on that side of
-// the street; and a place on the west street where Japantown's bags lie.
+// the street; a place on the west street where Japantown's bags lie; and
+// the west street's west kerb where the bus stands at its stop.
 const CLEAR = [
   [-12, -5, -58, 20],
   [5, 12, -195, 20],
@@ -92,6 +99,7 @@ const CLEAR = [
   [430, 436, -141.5, -134],
   [125, 320, -341, -334],
   [-90, -84, -352.5, -346],
+  [-90.5, -84, -339, -315],
 ];
 
 // The hydrants along the kerbs (design/night-city-world/props-source.json,
@@ -129,6 +137,11 @@ const PLACED = [
   // Two wheels up on the avenue's west kerb, where nothing stands on the
   // pavement's edge (tools/kerbspot.mjs).
   { x: -9.65, z: -601.5, yaw: 0.05, kind: "sedan", kerb: true, roll: -0.09, y: 0.08 },
+  // The west street's bus, standing at its stop with its lamps and its
+  // inside lit, and the stop: a shelter on the pavement beside its back
+  // door (props-source.json has nothing standing at either place).
+  { x: -88.5, z: -327, yaw: 0, kind: "bus", lit: true, body: "#c45a1c", accent: "#ffb254", glow: false },
+  { x: -92.1, z: -330.5, yaw: 0, kind: "stop", off: true, body: "#2b3038", accent: "#27dcf2", glow: true },
 ];
 
 /**
@@ -146,6 +159,7 @@ export function createStanding({ rows, full = true }) {
     const draw = draws(7919 + r * 131);
     const dress = wardrobe(3301 + r * 17);
     const of = (list) => list[Math.floor(draw() * list.length)];
+    const whim = draws(104729 + r * 7);
     const RUNS = row.bay ? (full ? [1, 2, 3, 3, 3, 4, 5, 6] : [1, 2, 2, 3]) : row.angled ? (full ? [2, 3, 3, 4, 6] : [1, 2, 3]) : full ? [1, 2, 2, 3, 3, 4] : [1, 1, 2, 3];
     const GAPS = row.bay ? (full ? [1, 1, 1, 2, 2, 3] : [2, 3, 4]) : row.angled ? (full ? [1, 1, 2, 3] : [3, 4, 5]) : full ? [1, 1, 2, 2, 3] : [2, 3, 4, 5];
     let run = of(RUNS);
@@ -182,10 +196,16 @@ export function createStanding({ rows, full = true }) {
       const along = (draw() - 0.5) * (row.angled ? 0.2 : 0.8);
       const across = (draw() - 0.5) * 0.14;
       const turned = row.angled === false && draw() < 0.125 ? Math.PI : 0;
-      out.push({ x: at.x + fx * along - fz * across, z: at.z + fz * along + fx * across, yaw: yaw + turned + (draw() - 0.5) * 0.07, ...dress(), tag: TAG.none });
+      const car = { x: at.x + fx * along - fz * across, z: at.z + fz * along + fx * across, yaw: yaw + turned + (draw() - 0.5) * 0.07, ...dress(), tag: TAG.none };
+      // A few are left open: a hatch's driver's door, where it opens onto
+      // a kerb lane nobody drives in; a sedan's boot.
+      if (KINDS[car.kind] === "hatch" && row.bay === false && row.angled === false && turned === 0 && whim() < 0.3) car.tag = TAG.door;
+      else if (KINDS[car.kind] === "sedan" && whim() < 0.07) car.tag = TAG.boot;
+      out.push(car);
     }
   });
   const dress = wardrobe(977);
-  for (const c of PLACED) out.push({ accent: ACCENT[0], tag: TAG.none, ...dress(), ...c, kind: KINDS.indexOf(c.kind) });
+  const all = [...KINDS, ...BIKES, ...FIXED];
+  for (const c of PLACED) out.push({ accent: ACCENT[0], tag: TAG.none, ...dress(), ...c, kind: all.indexOf(c.kind) });
   return out;
 }
