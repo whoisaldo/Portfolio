@@ -73,7 +73,18 @@ export async function dressHolo(mesh, shared, { reduced = false } = {}) {
         // rather than washing into it. The picture's black is not her.
         float figure = smoothstep(0.03, 0.14, max(c.r, max(c.g, c.b)));
         float cover = figure * 0.72 * haze * (1.0 - 0.5 * band);
-        gl_FragColor = vec4(col, cover);
+        // From the avenue she is a figure in the sky; from close by, from
+        // under her or from the side she would be a striped sheet: she
+        // thins out inside a couple of hundred metres, her lower edge
+        // dissolves instead of ending in a line, and edge on she is gone.
+        // The hero, 580 m off and square to her, sees none of this.
+        vec3 toEye = uCam - vWorld;
+        float far = length(toEye);
+        float stand = smoothstep(60.0, 180.0, far);
+        float foot = mix(smoothstep(0.0, 0.2, vUv.y), 1.0, smoothstep(250.0, 450.0, far));
+        float square = smoothstep(0.08, 0.3, abs(toEye.z) / max(far, 1.0));
+        float seen = stand * foot * square;
+        gl_FragColor = vec4(col * seen, cover * seen);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
