@@ -16,7 +16,7 @@
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 
-const TONES = ["#3fe4ff", "#3fe4ff", "#52ffd0", "#3fe4ff", "#ff4fd0"];
+const TONES = ["#3fe4ff", "#3fe4ff", "#52ffd0", "#3fe4ff", "#4fb4ff"];
 
 // One of the city's twelve adverts (public/scenes/world/ads.webp, laid out
 // by scripts/pack-ads.mjs: eight wide ones in two rows of four, four tall
@@ -113,17 +113,19 @@ export function createSkyColumns(scene, shared, columns, { reduced = false, ads 
         float inStack = step(row, rows - 0.5);
         vec3 drawn = advert((f - m) / (1.0 - 2.0 * m), wide > 0.5 ? 1.3333 : 0.6667, pick);
         vec3 plain = mix(vTone.rgb, vec3(1.0, 0.3, 0.7), step(0.6, h)) * (0.3 + 0.4 * f.y);
-        vec3 art = mix(plain, drawn, uHasAds);
+        // A hologram's advert is light of the column's own colour as much
+        // as it is the picture's.
+        vec3 art = mix(plain, mix(drawn, vTone.rgb * dot(drawn, vec3(0.35, 0.5, 0.15)) * 1.5, 0.5), uHasAds);
         float lines = up * vSize.y * 1.4 - t * 2.4;
         float scan = mix(0.84 + 0.16 * sin(lines * 6.2832), 0.84, clamp(fwidth(lines) * 2.0, 0.0, 1.0));
-        vec3 col = art * 0.8 * inset * on * inStack * scan;
+        vec3 col = art * 0.55 * inset * on * inStack * scan;
         // Its own light: a hairline round every advert, a glow down both
         // edges, a faint body behind the stack, and over the stack the beam.
         float body = sqrt(max(1.0 - across * across, 0.0));
         float edge = smoothstep(0.82, 0.98, across);
         float over = clamp((up - STACK) / (1.0 - STACK), 0.0, 1.0);
         float beam = 1.0 - inStack;
-        col += vTone.rgb * ((1.0 - inset) * 0.22 + edge * 0.85 + body * 0.05) * inStack;
+        col += vTone.rgb * ((1.0 - inset) * 0.26 + edge * 1.1 + body * 0.06) * inStack;
         col += vTone.rgb * (body * 0.34 + smoothstep(0.3, 0.0, across) * 0.3 + edge * 0.5) * pow(1.0 - over, 1.7) * beam;
         float breath = 0.88 + 0.12 * sin(t * 0.5 + vTone.a * 40.0);
         col *= smoothstep(0.0, 0.02, up) * breath * uHaze;

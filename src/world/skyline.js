@@ -1248,8 +1248,16 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       // The street's light at a building's foot, one colour to a
       // neighbourhood: sodium mostly, here and there the signs' cyan, pink
       // or green.
-      vec3 quarterLight(float q) {
-        return q < 0.5 ? vec3(1.0, 0.6, 0.3) : q < 0.72 ? vec3(0.2, 0.85, 0.95) : q < 0.9 ? vec3(1.0, 0.25, 0.7) : vec3(0.45, 1.0, 0.6);
+      vec3 quarterLight(float q, float held) {
+        if (held > 0.5) return q < 0.5 ? vec3(1.0, 0.6, 0.3) : q < 0.72 ? vec3(0.2, 0.85, 0.95) : q < 0.9 ? vec3(1.0, 0.25, 0.7) : vec3(0.45, 1.0, 0.6);
+        // The night is navy and teal: sodium and cyan, a teal, and pink for
+        // one quarter in twenty.
+        return q < 0.55 ? vec3(1.0, 0.6, 0.3) : q < 0.84 ? vec3(0.2, 0.85, 0.95) : q < 0.95 ? vec3(0.25, 0.95, 0.75) : vec3(1.0, 0.25, 0.7);
+      }
+      // A sign's colour in that night: cyan and amber, some pale, a few
+      // teal, and pink the accent.
+      vec3 signCol(float h) {
+        return h < 0.38 ? vec3(0.16, 0.9, 1.0) : h < 0.72 ? vec3(1.0, 0.58, 0.22) : h < 0.85 ? vec3(1.0, 0.86, 0.6) : h < 0.92 ? vec3(0.2, 1.0, 0.78) : vec3(1.0, 0.22, 0.62);
       }
       // A screen tower's shaft: a column of screens up each face, each an
       // advert with no words (a field of one colour with a bar of light
@@ -1354,6 +1362,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       void main() {
         vec3 n = normalize(vNormalW);
         float onWall = 1.0 - vRoof;
+        // Within what Contact frames (512 in the dress code) a building is
+        // drawn, and lit, as it was.
+        float held = step(511.5, vDress.x);
         // Above its roof line the wall is the parapet, a concrete band.
         float parapet = onWall * step(vTier.x, vWorld.y);
         // Whether it is dressed (see aDress): all but Contact's own towers,
@@ -1375,7 +1386,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           vec3 spill = spillAt(vWorld);
           // A tower takes it on its first floors only: up a tall dark wall
           // it was a slab of the lamp's colour.
-          vec3 street = quarterLight(vDress.w) * exp(-max(vWorld.y, 0.0) * 0.05) * mix(1.0, 0.55 * exp(-max(vWorld.y, 0.0) * 0.09), step(vHero.x, 0.5));
+          vec3 street = quarterLight(vDress.w, held) * exp(-max(vWorld.y, 0.0) * 0.05) * mix(1.0, 0.55 * exp(-max(vWorld.y, 0.0) * 0.09), step(vHero.x, 0.5));
           vec3 tintCol = wallTint(vDress.y);
           vec3 wallC = tintCol * (vec3(0.6) + spill * 3.2 + street * 1.6);
           col += tintCol * street * 1.6 * (1.0 - win.a);
@@ -1467,10 +1478,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         band += (uHazeColor * 0.5 + uGlowColor * 0.3) * uHaze * smoothstep(-0.2, 0.0, vWorld.y - vTier.x - 0.9) * 0.5;
         col = mix(col, band, parapet);
         // A tower's face, by its kind (see the dress code).
-        float dressCode = floor(vDress.x + 0.5);
-        // Within what Contact frames (512), drawn as it was.
-        float held = step(511.5, dressCode);
-        dressCode = mod(dressCode, 512.0);
+        float dressCode = mod(floor(vDress.x + 0.5), 512.0);
         float pattern = floor(dressCode / 64.0);
         dressCode = mod(dressCode, 64.0);
         float faceLit = 0.0;
@@ -1596,6 +1604,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             if (um > u0 && um < u0 + sw && vWorld.y > y0 && vWorld.y < y1) {
               vec3 sc = neonOf(floor(hash12(vec2(fs * 91.0, 2.0)) * 4.0));
               if (hash12(vec2(fs * 91.0, 9.0)) > 0.7) sc = vec3(1.0, 0.86, 0.6);
+              if (held < 0.5) sc = signCol(hash12(vec2(fs * 91.0, 2.0)));
               col = hangingSign(vec2((um - u0) / sw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (sw * 1.1))), fs * 91.0, uTime * uMotion, sc, 1.0 - held);
               sign = 1.0;
             }
@@ -1603,7 +1612,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             float yl = 4.6 + 3.4 * floor(1.0 + 3.0 * hash12(vec2(fs, 11.0)));
             float edge = step(0.04, vHero.y) * step(vHero.y, 0.96);
             if (abs(vWorld.y - yl) < 0.08 && yl < vTier.x - 1.0 && edge > 0.5) {
-              col = neonOf(floor(hash12(vec2(fs, 12.0)) * 4.0)) * 2.0;
+              col = (held > 0.5 ? neonOf(floor(hash12(vec2(fs, 12.0)) * 4.0)) : signCol(hash12(vec2(fs, 12.0)))) * 2.0;
               sign = 1.0;
             }
           }
@@ -1649,7 +1658,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             float y0 = mix(vTier.y, vTier.x, 0.1) + 2.0;
             float y1 = min(mix(vTier.y, vTier.x, 0.9), y0 + 84.0);
             if (um > u0 && um < u0 + bw && vWorld.y > y0 && vWorld.y < y1) {
-              vec3 bc = hc < 0.55 ? vec3(0.16, 0.9, 1.0) : hc < 0.75 ? vec3(1.0, 0.22, 0.72) : hc < 0.9 ? vec3(1.0, 0.58, 0.22) : vec3(0.9, 0.95, 1.0);
+              vec3 bc = hc < 0.55 ? vec3(0.16, 0.9, 1.0) : hc < 0.63 ? vec3(1.0, 0.22, 0.72) : hc < 0.9 ? vec3(1.0, 0.58, 0.22) : vec3(0.9, 0.95, 1.0);
               col = hangingSign(vec2((um - u0) / bw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (bw * 1.15))), vForm.z * 3.7, uTime * uMotion, bc, 1.0 - held);
               sign = 1.0;
             }
@@ -1676,7 +1685,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // light.
         float screens = 0.0;
         if (abs(style - 5.0) < 0.1 && onWall > 0.5 && parapet < 0.5 && vForm.w > 0.5) {
-          vec3 rim = hash12(vec2(vForm.z, 8.8)) > 0.35 ? vec3(0.16, 0.9, 1.0) : vec3(1.0, 0.22, 0.72);
+          vec3 rim = hash12(vec2(vForm.z, 8.8)) > 0.12 ? vec3(0.16, 0.9, 1.0) : vec3(1.0, 0.22, 0.72);
           if (vForm.w < 1.5) {
             vec4 sc = screenColumn(vec2(vHero.y, vWorld.y - vTier.y - 2.0), vHero.z, vTier.x - vTier.y - 4.0, vForm.z + mod(vHero.w, 4.0) * 13.0, uTime * uMotion);
             float corner = step(min(vHero.y, 1.0 - vHero.y), 0.03);
@@ -1741,7 +1750,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       if (b.h >= 70 && hang < 0.4) hung += 1 + face;
       if (b.h >= 105 && hang > 0.78) hung += 8 * (1 + Math.floor(hash11(own + 29.9) * 4));
     }
-    const tints = tower ? [0, 1, 1, 2, 2, 3] : [0, 1, 2, 3, 4, 5, 6, 4, 2, 5];
+    // In the navy night a far wall is charcoal, navy or teal-black, a
+    // block now and then brown or concrete; the plum and the rust were the
+    // violet night's (and still are within what Contact frames).
+    const tints = framed(b) ? (tower ? [0, 1, 1, 2, 2, 3] : [0, 1, 2, 3, 4, 5, 6, 4, 2, 5]) : tower ? [0, 1, 1, 2, 2, 1] : [0, 1, 2, 1, 4, 5, 2, 4, 2, 5];
     const tint = tints[Math.floor(hash11(seed + 23.9) * tints.length)];
     const quarter = hash11(f32(Math.floor((b.ox ?? b.x) / 180) * 12.9898 + Math.floor((b.oz ?? b.z) / 180) * 78.233));
     // A tower's face is one of six kinds (64 times its number, with what is
@@ -1922,7 +1934,8 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           if (vLook.w < 0.5 && uHasAds > 0.5) {
             vec2 st = vec2(fract(vSignUv.x * 2.0), vSignUv.y);
             float tube = 1.0 - step(0.035, st.x) * step(st.x, 0.965) * step(0.07, st.y) * step(st.y, 0.93);
-            col = mix(advert(st, 1.4, floor(seed * 50.0) + floor(vSignUv.x * 2.0) * 3.0) * 1.4, neon(vLook.y) * 2.2, tube) * (1.0 - 0.85 * cut);
+            float ni = abs(vLook.y - 3.0) < 0.5 ? 1.0 : abs(vLook.y - 5.0) < 0.5 ? 2.0 : vLook.y;
+            col = mix(advert(st, 1.4, floor(seed * 50.0) + floor(vSignUv.x * 2.0) * 3.0) * 1.4, neon(ni) * 2.2, tube) * (1.0 - 0.85 * cut);
           }
           emissive = 1.0;
         } else if (vGlow > 2.5 && vGlow < 3.5) {
@@ -2141,7 +2154,11 @@ ${STREET}
         vec2 lot = floor(q);
         vec2 inLot = (fract(q) - 0.5) * ${cell}.0 - (vec2(hash12(lot + 2.3), hash12(lot + 7.9)) - 0.5) * 20.0;
         float lh = hash12(lot + 11.1);
-        base += (lh > 0.8 ? vec3(0.2, 0.85, 0.95) : lh > 0.66 ? vec3(1.0, 0.25, 0.7) : vec3(1.0, 0.6, 0.3)) * exp(-dot(inLot, inLot) / 34.0) * 0.05 * step(0.3, lh);
+        // (Cyan and sodium in the navy night, pink for one in twenty five;
+        // within what Contact frames, as they were.)
+        float bearing = degrees(atan(p.z - ${CONTACT_LENS[1]}.0, p.x - ${CONTACT_LENS[0]}.0));
+        float pinkFrom = mix(0.66, 0.76, step(bearing, ${FRAMED[0]}.0) + step(${FRAMED[1]}.0, bearing));
+        base += (lh > 0.8 ? vec3(0.2, 0.85, 0.95) : lh > 0.66 ? (lh > pinkFrom ? vec3(1.0, 0.25, 0.7) : vec3(0.2, 0.85, 0.95)) : vec3(1.0, 0.6, 0.3)) * exp(-dot(inLot, inLot) / 34.0) * 0.05 * step(0.3, lh);
         vec3 light = vec3(0.0);
         // On the dressed streets, seen from the pavement, a shop's light is
         // the shop's own and a car is a car: the glow that stands for them
