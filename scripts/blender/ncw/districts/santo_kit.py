@@ -510,7 +510,7 @@ def flange(p, d, r, col, detail=1, t=0.06):
     """A flange on a pipe at p, across its run d: a disc wider than it."""
     ln = math.sqrt(d[0] ** 2 + d[1] ** 2 + d[2] ** 2) or 1.0
     u = (d[0] / ln * t, d[1] / ln * t, d[2] / ln * t)
-    pipe(M("steel", detail), (p[0] - u[0], p[1] - u[1], p[2] - u[2]), (p[0] + u[0], p[1] + u[1], p[2] + u[2]), r * 1.5 + 0.04, segs=8,
+    pipe(M("steel", detail), (p[0] - u[0], p[1] - u[1], p[2] - u[2]), (p[0] + u[0], p[1] + u[1], p[2] + u[2]), r * 1.5 + 0.04, segs=12 if r >= 0.18 else 8,
          col=shade(col, 0.6), caps=True)
 
 
@@ -606,10 +606,39 @@ def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, sta
     ox, oz = cx + r * math.cos(fb), cz + r * math.sin(fb)
     nozzle(ox, y0 + 0.55, oz, math.pi / 2 - fb, r=0.2, ln=1.3, col=RUST_D)
     valve((ox + 0.75 * math.cos(fb), y0 + 0.55, oz + 0.75 * math.sin(fb)), (math.cos(fb), 0, math.sin(fb)), 0.2)
+    # The rim: a kerb angle proud of the shell, a dark band under it.
+    cylinder(M("steel"), cx, cz, y1 - 0.05, y1 + 0.2, r + 0.14, segs=segs, col=shade(col, 0.4), cap=False)
+    rb = ring_pts(cx, cz, r + 0.02, segs, 0.0)
+    for i in range(segs):
+        a, b_ = rb[i], rb[(i + 1) % segs]
+        mid = ((a[0] + b_[0]) / 2 - cx, 0, (a[2] + b_[2]) / 2 - cz)
+        quad_n(M("tank", 1), ((a[0], y1 - 0.95, a[2]), (b_[0], y1 - 0.95, b_[2]), (b_[0], y1 - 0.05, b_[2]), (a[0], y1 - 0.05, a[2])), mid, shade(col, 0.45))
+    # Foam lines up the shell to their pourers at the rim, red.
+    red = c(0.5, 0.06, 0.04)
+    for fo in (2.3, 3.2):
+        an = stair_at + fo
+        px, pz = cx + (r + 0.1) * math.cos(an), cz + (r + 0.1) * math.sin(an)
+        pipe(M("steel", 1), (px, y0 + 0.25, pz), (px, y1 + 0.2, pz), 0.065, segs=5, col=red)
+        box(M("steel", 1), px - 0.2, px + 0.2, y1 + 0.02, y1 + 0.42, pz - 0.2, pz + 0.2, scale=0.5, col=red, bottom=True)
+        box(M("steel", 1), px - 0.16, px + 0.16, y0 + 0.2, y0 + 0.75, pz - 0.16, pz + 0.16, scale=0.5, col=red)
+    # The level gauge's board by the stair's foot: white, its marks, the pointer.
+    ga = stair_at - sweep - 0.45
+    gx, gz, gyaw = cx + (r + 0.04) * math.cos(ga), cz + (r + 0.04) * math.sin(ga), math.pi / 2 - ga
+    rotated_quad(k("trim", 1), gx, y0 + h * 0.5, gz, 0.36, h * 0.8, gyaw, col=PAINT_WHITE)
+    for i in range(7):
+        rotated_quad(k("trim", 1), gx, y0 + h * (0.14 + 0.12 * i), gz, 0.2 if i % 2 else 0.3, 0.05, gyaw, col=c(0.03, 0.03, 0.03), depth=0.012)
+    rotated_quad(k("trim", 1), gx, y0 + h * (0.3 + 0.4 * r_.random()), gz, 0.44, 0.12, gyaw, col=red, depth=0.02)
+    # Two more nozzles round its foot, one valved.
+    for q, fo in enumerate((2.2, -1.5)):
+        fc = fa + fo
+        nx_, nz_ = cx + r * math.cos(fc), cz + r * math.sin(fc)
+        nozzle(nx_, y0 + 1.1 + 0.5 * q, nz_, math.pi / 2 - fc, r=0.17, ln=0.55 + 0.5 * q, col=col)
+        if q:
+            valve((nx_ + 0.8 * math.cos(fc), y0 + 1.6, nz_ + 0.8 * math.sin(fc)), (math.cos(fc), 0, math.sin(fc)), 0.17)
     if number:
-        # Its number on both sides, round the shell, tall enough for the gate.
-        for ny in (number_yaw, number_yaw + math.pi):
-            shell_text(cx, cz, r, y0 + h * 0.6, number, min(3.2, h * 0.3), ny, shade(col, 0.35) if sum(col[:3]) > 1.0 else TANK_WHITE)
+        # Its number four times round the shell, tall enough for the gate.
+        for q in range(4):
+            shell_text(cx, cz, r, y0 + h * 0.6, number, min(3.2, h * 0.3), number_yaw + q * math.pi / 2, shade(col, 0.35) if sum(col[:3]) > 1.0 else TANK_WHITE)
     collide(cx - r * 0.75, cx + r * 0.75, cz - r * 0.75, cz + r * 0.75, y1)
 
 
@@ -1602,6 +1631,37 @@ def shed(x0, x1, z0, z1, eave, col, r, faces=None, plinth=1.0, tint="concrete", 
             nb_ = max(1, round((o1 - o0) / 2.4))
             f.quad(k("facade"), o0, o1, GY + 1.0, GY + 3.2, 0.03, uvs=((0, vo), (nb_, vo), (nb_, vo + 1), (0, vo + 1)),
                    col=B.wall_col(r.uniform(0.7, 0.95), 4, wq, B.TINTS[tint]))
+            rr = random.Random(int(o0 * 31 + w * 7 + eave * 13 + abs(f.plane) * 3))
+            f.box(M("steel"), o0 - 0.12, o1 + 0.12, GY + 0.88, GY + 1.0, 0.0, 0.18, col=shade(col, 0.5))
+            f.box(M("steel"), o0 - 0.12, o1 + 0.12, GY + 3.2, GY + 3.36, 0.0, 0.16, col=shade(col, 0.5))
+            bw_ = (o1 - o0) / nb_
+            for i in range(nb_ + 1):
+                f.box(M("steel", 1), o0 + i * bw_ - 0.07, o0 + i * bw_ + 0.07, GY + 1.0, GY + 3.2, 0.0, 0.12, col=shade(col, 0.42))
+            for i in range(nb_):
+                sa, sb = o0 + i * bw_ + 0.07, o0 + (i + 1) * bw_ - 0.07
+                roll = rr.random()
+                if roll < 0.2:
+                    # Shut for the night behind a roller shutter.
+                    f.quad(k("door_panel"), sa, sb, GY + 1.0, GY + 3.2, 0.05)
+                elif roll < 0.5:
+                    # A blind part down with the light on behind it, its slats.
+                    drop = rr.uniform(0.7, 1.7)
+                    f.quad(k("glow"), sa, sb, GY + 3.2 - drop, GY + 3.2, 0.045, col=shade(SODIUM, rr.uniform(0.28, 0.5)))
+                    yy = GY + 3.2 - drop + 0.14
+                    while yy < GY + 3.15:
+                        f.quad(k("dark", 1), sa, sb, yy, yy + 0.04, 0.055)
+                        yy += 0.26
+                elif roll < 0.78:
+                    # Somebody working late: a screen's glow, the desk and chair against the light.
+                    sm = (sa + sb) / 2 + rr.uniform(-0.4, 0.4)
+                    f.quad(k("dark", 1), sa + 0.1, sb - 0.1, GY + 1.0, GY + 1.5, 0.05)
+                    f.quad(k("glow"), sm - 0.26, sm + 0.26, GY + 1.56, GY + 1.9, 0.05, col=shade(GLASS_COOL, rr.uniform(1.0, 1.8)))
+                    f.quad(k("dark", 1), sm + 0.5, sm + 0.9, GY + 1.5, GY + 2.2, 0.05)
+                else:
+                    # Bars over the glass.
+                    for q in range(1, 6):
+                        sq = sa + (sb - sa) * q / 6
+                        f.quad(k("dark", 1), sq - 0.02, sq + 0.02, GY + 1.0, GY + 3.2, 0.05)
             lx, ly, lz = f.p(f.at((o0 + o1) / 2), 1.0, 1.6)
             wash(min(f.p(f.at(o0), 0, 1.6)[0], f.p(f.at(o1), 0, 1.6)[0]), max(f.p(f.at(o0), 0, 1.6)[0], f.p(f.at(o1), 0, 1.6)[0]),
                  min(f.p(f.at(o0), 0, 1.6)[2], f.p(f.at(o1), 0, 1.6)[2]), max(f.p(f.at(o0), 0, 1.6)[2], f.p(f.at(o1), 0, 1.6)[2]),
@@ -1924,35 +1984,9 @@ def weeds(r, x0, z0, x1, z1, n):
             P.place("weed", x0 + ux * a - uz * c_, GY, z0 + uz * a + ux * c_, r.uniform(0, 6.28), sy=r.uniform(0.7, 1.7), sxz=r.uniform(0.8, 1.8), district=D)
 
 
-def mural(cx, cz, yaw, length, r, y0=0.1, y1=0.84, out=0.16, fill=0.6):
-    """Paint along a low wall or a row of barriers, facing yaw: blocks of
-    colour crossed with slanted bands, bars and stripes, bare concrete
-    between them. What a yard's wall gathers."""
-    pal = (OXIDE, YELLOW, STEEL_BLUE, TANK_WHITE, PALE_GREEN, c(0.08, 0.34, 0.36), c(0.42, 0.07, 0.24), c(0.03, 0.03, 0.035))
-    ym, hh = (y0 + y1) / 2, y1 - y0
-    u = -length / 2 + 0.4
-    while u < length / 2 - 1.6:
-        w = min(r.uniform(1.4, 4.2), length / 2 - u - 0.2)
-        if r.random() < fill:
-            a, b_, d_ = r.sample(pal, 3)
-            band_quad(k("trim", 1), cx, cz, yaw, u, ym, u + w, ym, hh, a, out=out)
-            kind = r.randrange(3)
-            if kind == 0:
-                band_quad(k("trim", 1), cx, cz, yaw, u + w * 0.2, y0 + 0.04, u + w * 0.45, y1 - 0.04, 0.26, b_, out=out + 0.012)
-                band_quad(k("trim", 1), cx, cz, yaw, u + w * 0.5, y0 + 0.04, u + w * 0.75, y1 - 0.04, 0.26, d_, out=out + 0.012)
-            elif kind == 1:
-                for j in range(3):
-                    uu = u + w * (0.2 + 0.25 * j)
-                    band_quad(k("trim", 1), cx, cz, yaw, uu, y0 + 0.08, uu, y1 - 0.08, 0.16, b_, out=out + 0.012)
-            else:
-                band_quad(k("trim", 1), cx, cz, yaw, u + w * 0.15, y0 + hh * 0.3, u + w * 0.85, y0 + hh * 0.3, hh * 0.22, b_, out=out + 0.012)
-                band_quad(k("trim", 1), cx, cz, yaw, u + w * 0.3, y0 + hh * 0.7, u + w * 0.7, y0 + hh * 0.7, hh * 0.2, d_, out=out + 0.012)
-        u += w + r.uniform(0.3, 2.5)
-
-
-def jersey(x0, z0, x1, z1, r, paint=0.6):
-    """A row of concrete barriers, three metres each on a wide foot, paint
-    on both faces of most of them."""
+def jersey(x0, z0, x1, z1):
+    """A row of concrete barriers, three metres each on a wide foot (poured
+    concrete: the street's tags and pieces find them)."""
     ln = math.hypot(x1 - x0, z1 - z0)
     n = max(1, int(ln / 3.1))
     yaw = math.atan2(-(z1 - z0), x1 - x0)
@@ -1961,10 +1995,102 @@ def jersey(x0, z0, x1, z1, r, paint=0.6):
         cx, cz = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
         oriented_box(M("concrete"), cx, GY + 0.12, cz, 3.0, 0.24, 0.62, yaw, col=CONC)
         oriented_box(M("concrete"), cx, GY + 0.55, cz, 3.0, 0.62, 0.3, yaw, col=CONC)
-        if r.random() < paint:
-            for fy in (yaw, yaw + math.pi):
-                mural(cx, cz, fy, 3.0, r, y0=GY + 0.26, y1=GY + 0.84, out=0.155, fill=1.0)
     collide(min(x0, x1) - 0.3, max(x0, x1) + 0.3, min(z0, z1) - 0.3, max(z0, z1) + 0.3, 1.0)
+
+
+def piers(x0, z0, x1, z1, h=1.15, step=5.0):
+    """Buttresses along a bund's wall, so it is not one flat face."""
+    ln = math.hypot(x1 - x0, z1 - z0)
+    n = max(1, round(ln / step))
+    for i in range(n + 1):
+        px, pz = x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n
+        box(M("concrete"), px - 0.28, px + 0.28, 0.0, h + 0.14, pz - 0.28, pz + 0.28, scale=1.5, col=shade(CONC, 0.9))
+
+
+def stile(x, z, along_x=False, h=1.15):
+    """Steel steps over a bund's wall at (x, z), crossing it along z (or
+    x): a flight each side, a landing on the wall, yellow rails."""
+    top = h + 0.3
+    if along_x:
+        stair((x - 1.9, GY, z), (x - 0.45, top, z), w=0.9, detail=0)
+        stair((x + 0.45, top, z), (x + 1.9, GY, z), w=0.9, detail=0)
+        deck(x - 0.45, x + 0.45, z - 0.45, z + 0.45, top)
+    else:
+        stair((x, GY, z - 1.9), (x, top, z - 0.45), w=0.9, detail=0)
+        stair((x, top, z + 0.45), (x, GY, z + 1.9), w=0.9, detail=0)
+        deck(x - 0.45, x + 0.45, z - 0.45, z + 0.45, top)
+    box(k("hazard", 1), x - 0.5, x + 0.5, top - 0.1, top - 0.02, z - 0.5, z + 0.5, scale=0.6)
+
+
+TAR, PATCH = c(0.035, 0.035, 0.04), c(0.34, 0.34, 0.33)
+
+
+def cracks(r, x0, z0, x1, z1, n, y=GY + 0.02):
+    """Worn ground in a patch of yard or verge: cracks running across it,
+    tar poured along some, squares cut out and made good in newer
+    concrete or blacktop, an oil stain."""
+    for _ in range(n):
+        px, pz = r.uniform(x0, x1), r.uniform(z0, z1)
+        roll = r.random()
+        if roll < 0.55:
+            # A crack: a few short legs, each turning a little.
+            ang, w = r.uniform(0, math.tau), r.uniform(0.035, 0.08)
+            for _j in range(r.randrange(3, 6)):
+                ln = r.uniform(0.5, 1.3)
+                qx, qz = px + math.cos(ang) * ln, pz + math.sin(ang) * ln
+                if not (x0 - 0.3 <= qx <= x1 + 0.3 and z0 - 0.3 <= qz <= z1 + 0.3):
+                    break
+                ox, oz = -math.sin(ang) * w / 2, math.cos(ang) * w / 2
+                quad_n(k("trim", 1), ((px - ox, y, pz - oz), (px + ox, y, pz + oz), (qx + ox, y, qz + oz), (qx - ox, y, qz - oz)), (0, 1, 0), TAR)
+                px, pz, ang = qx, qz, ang + r.uniform(-0.7, 0.7)
+        else:
+            w, d = r.uniform(0.7, 2.0), r.uniform(0.5, 1.4)
+            w, d = min(w, x1 - x0), min(d, z1 - z0)
+            px, pz = min(max(px, x0 + w / 2), x1 - w / 2), min(max(pz, z0 + d / 2), z1 - d / 2)
+            sk = r.uniform(-0.12, 0.12)
+            col = shade(PATCH, r.uniform(0.7, 1.15)) if roll < 0.8 else TAR
+            quad_n(k("trim", 1), ((px - w / 2, y, pz - d / 2 + sk), (px + w / 2, y, pz - d / 2), (px + w / 2 - sk, y, pz + d / 2), (px - w / 2, y, pz + d / 2 - sk)), (0, 1, 0), col)
+
+
+def kerbside(r, x0, z0, x1, z1, yaw, n, depth=0.9):
+    """What collects along a fence's foot on the pavement side, n lots of
+    it between the two points: drums on pallets in twos and threes, a
+    stack of pallets with crates beside it, a rubbish heap against the
+    fence, bags, barrels, blocks, each with litter blown round it. `yaw`:
+    the way the fence looks at the pavement."""
+    ln = math.hypot(x1 - x0, z1 - z0)
+    ux, uz = (x1 - x0) / ln, (z1 - z0) / ln
+    ox, oz = math.sin(yaw), math.cos(yaw)   # out from the fence
+    for i in range(n):
+        t = (i + r.uniform(0.2, 0.8)) / n * ln
+        bx, bz = x0 + ux * t + ox * depth * 0.62, z0 + uz * t + oz * depth * 0.62
+        kind = r.randrange(6)
+        if kind == 0:
+            for j in range(r.randrange(2, 4)):
+                P.place("drum_pallet", bx + ux * j * 1.42, GY, bz + uz * j * 1.42, yaw + (math.pi / 2) * r.randrange(4), district=D)
+        elif kind == 1:
+            P.place("pallets", bx, GY, bz, yaw + r.uniform(-0.2, 0.2), district=D)
+            P.place("crates", bx + ux * 1.5, GY, bz + uz * 1.5, yaw + r.uniform(-0.3, 0.3), district=D)
+        elif kind == 2:
+            P.place("rubbish", bx - ox * depth * 0.1, GY, bz - oz * depth * 0.1, yaw, district=D)
+        elif kind == 3:
+            for j in range(2):
+                P.place("bags", bx + ux * j * 0.9, GY, bz + uz * j * 0.9, yaw + r.uniform(-0.5, 0.5), district=D)
+        elif kind == 4:
+            for j in range(r.randrange(2, 4)):
+                P.place("barrel", bx + ux * j * 0.7, GY, bz + uz * j * 0.7 , r.uniform(0, 6.28), district=D)
+            P.place("blocks", bx + ux * 2.4, GY, bz + uz * 2.4, r.uniform(0, 6.28), district=D)
+        else:
+            P.place("crates", bx, GY, bz, yaw + r.uniform(-0.4, 0.4), district=D)
+            P.place("tyres", bx + ux * 1.3, GY, bz + uz * 1.3, 0.0, district=D)
+        if i % 3 == 1:
+            # A lantern column by it, and its pool.
+            lx, lz = bx - ux * 1.4 + ox * depth * 0.2, bz - uz * 1.4 + oz * depth * 0.2
+            P.place("lamp_short", lx, GY, lz, yaw, district=D)
+            sodium(lx + ox * 0.6, 3.6, lz + oz * 0.6, 4.5)
+        for _j in range(2):
+            P.place("santo_litter", bx + ux * r.uniform(-2.5, 3.5) + ox * r.uniform(0.0, 0.8), GY + 0.004, bz + uz * r.uniform(-2.5, 3.5) + oz * r.uniform(0.0, 0.8),
+                    r.uniform(0, 6.28), district=D)
 
 
 def crane(cx, cz, yaw, h=11.0, jib=15.0, pitch=0.5, col=YELLOW):
@@ -2446,7 +2572,7 @@ def tanker(x, z, yaw, firm="OPALO", y=GY, legs=False):
 BOX_COLS = {"red": OXIDE, "rust": RUST, "blue": c(0.07, 0.15, 0.30), "green": c(0.08, 0.22, 0.15), "grey": c(0.2, 0.21, 0.23)}
 
 
-def container(cx, cz, yaw=0.0, col="red", ln=12.19, y=GY, doors=1):
+def container(cx, cz, yaw=0.0, col="red", ln=12.19, y=GY, doors=1, solid=True):
     """A container a walker passes, built in place (the stacks behind are
     instances): corrugated sides as ribs, corner posts, top and bottom
     rails, two doors with their lock rods and handles at one end (`doors`:
@@ -2488,6 +2614,11 @@ def container(cx, cz, yaw=0.0, col="red", ln=12.19, y=GY, doors=1):
         oriented_box(key, px, yy, pz, 2 * hz, 0.2, 0.05, ey, col=shade(col, 0.7))
     px, pz = at(doors * (hx + 0.05), -0.58 * doors)
     rotated_quad(k("trim", 1), px, y + h - 0.55, pz, 0.62, 0.2, ey, col=PAINT_WHITE)
+    if not solid:
+        # It hangs: its floor is seen from under it.
+        quad_n(key, ((*at(-hx, -hz)[:1], y, at(-hx, -hz)[1]), (*at(hx, -hz)[:1], y, at(hx, -hz)[1]), (*at(hx, hz)[:1], y, at(hx, hz)[1]), (*at(-hx, hz)[:1], y, at(-hx, hz)[1])),
+               (0, -1, 0), shade(col, 0.5))
+        return
     collide(min(at(-hx, -hz)[0], at(hx, hz)[0], at(-hx, hz)[0], at(hx, -hz)[0]), max(at(-hx, -hz)[0], at(hx, hz)[0], at(-hx, hz)[0], at(hx, -hz)[0]),
             min(at(-hx, -hz)[1], at(hx, hz)[1], at(-hx, hz)[1], at(hx, -hz)[1]), max(at(-hx, -hz)[1], at(hx, hz)[1], at(-hx, hz)[1], at(hx, -hz)[1]), y + h)
 
@@ -2506,7 +2637,7 @@ def _container(kk, col, ln=12.19):
 
 for _name, _col in (("c40_red", OXIDE), ("c40_rust", RUST), ("c40_blue", c(0.07, 0.15, 0.30)), ("c40_green", c(0.08, 0.22, 0.15))):
     P.proto(_name, box=(6.1, 1.3, 1.22), reach=700)(lambda kk, _c=_col: _container(kk, _c))
-P.proto("c20_grey", box=(3.05, 1.3, 1.22), reach=700)(lambda kk: _container(kk, c(0.2, 0.21, 0.23), ln=6.06))
+P.proto("c20_grey", box=(3.05, 1.3, 1.22), reach=700)(lambda kk: _container(kk, c(0.36, 0.2, 0.1), ln=6.06))
 
 
 @P.proto("fence_pal", box=(1.5, 1.2, 0.05), reach=300)
@@ -2717,6 +2848,14 @@ def _weed(kk):
         b0, b1, tip = (-dz * 0.07, 0.0, dx * 0.07), (dz * 0.07, 0.0, -dx * 0.07), (dx * ln, h, dz * ln)
         poly(kk("trim"), [b0, b1, tip], [(0, 0), (1, 0), (0.5, 1)], col)
         poly(kk("trim"), [b1, b0, tip], [(0, 0), (1, 0), (0.5, 1)], col)
+
+
+@P.proto("santo_litter", box=(0.8, 0.03, 0.8), reach=60, detail=True)
+def _santo_litter(kk):
+    """What the wind leaves at a fence's foot: two sheets and a trodden card."""
+    P.litter(kk, -0.42, 0.2, 0.3, 0.21, 0.4, 0.31)
+    P.litter(kk, 0.36, -0.3, 0.21, 0.3, 1.9, 0.67)
+    P.litter(kk, 0.1, 0.52, 0.5, 0.36, 2.6, 0.13, what=P.SODDEN)
 
 
 @P.proto("blocks", box=(0.5, 0.35, 0.45), reach=200, detail=True)
