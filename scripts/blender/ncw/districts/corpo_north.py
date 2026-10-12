@@ -516,6 +516,17 @@ def forecourts():
             # (Studs of light along the kerb in place of bollards.)
             for bx in range(-10, 11, 2):
                 K.glow_box(tx + bx - 0.12, tx + bx + 0.12, G0, G0 + 0.03, KERB_N - 0.4, KERB_N - 0.16, hue, 1)
+        elif i == 3:
+            # Concrete barrier blocks along the forecourt's edge, gaps
+            # between them (clear of the walkers' line at z -342.6), and the
+            # usual bollards at the kerb.
+            for bx in (-10.2, -6.6, 6.6, 10.2):
+                jersey(tx + bx, LOT_N + 0.4)
+            K.bollards(tx - 11.0, tx + 11.0, KERB_N - 0.28, step=2.75, proto="bollard")
+        elif i == 5:
+            # Lit bollards, a pool of warm light at each.
+            for bx in range(-10, 11, 3):
+                K.bollard_light(tx + bx + 0.5, KERB_N - 0.3, G0, "amber", h=0.9, pool=2.4, detail=1)
         else:
             K.bollards(tx - 11.0, tx + 11.0, KERB_N - 0.28, step=(2.75, 2.2, 3.1)[i % 3], proto="bollard")
         if i == 0:
@@ -710,6 +721,24 @@ def lobby(i):
     stand(tx - side * 3.9, zt + 1.0, math.radians(-150 * side), "phone", base)
     for sx in (-10.6, 10.6):
         P.place("planter_tree", tx + sx, g0, min(zg + LOBBY_DEPTH[i] - 1.4, zf - 2.0), sy=0.95 - base * 0.15, sxz=0.8, district=CO)
+    # The day's end at the doors: people through the gates on their way
+    # out, three talking by the way in, one on a phone, one waiting by the
+    # trees. (All of them inside the tower's face, z -347.)
+    K.talk(tx + side * 4.8, zf - 1.0, 0.3 * i, 3, y=base)
+    stand(tx - side * 1.4, zf - 0.7, math.radians(10 * i), "idle", base)
+    stand(tx - side * 0.6, zf - 1.5, math.radians(-12 * i), "idle", base)
+    stand(tx + side * 1.6, zf - 1.2, math.radians(160 + 7 * i), "phone", base)
+    stand(tx - side * 8.8, zf - 0.8, math.radians(30), "idle", base)
+
+
+def jersey(x, z, w=1.9):
+    """A concrete barrier block before a forecourt: a battered block on a broad
+    foot, a band of hazard yellow round it, a reflector at each end."""
+    box(k("castconcrete"), x - w / 2, x + w / 2, G0, G0 + 0.3, z - 0.32, z + 0.32, scale=1.5, col=(0.36, 0.36, 0.37, 1.0))
+    box(k("castconcrete"), x - w / 2, x + w / 2, G0 + 0.3, G0 + 0.82, z - 0.14, z + 0.14, scale=1.5, col=(0.36, 0.36, 0.37, 1.0))
+    box(k("trim", 1), x - w / 2 - 0.005, x + w / 2 + 0.005, G0 + 0.52, G0 + 0.64, z - 0.145, z + 0.145, scale=1.0, col=K.YELLOW)
+    for e in (-1, 1):
+        K.glow_box(x + e * (w / 2 - 0.12) - 0.05, x + e * (w / 2 - 0.12) + 0.05, G0 + 0.66, G0 + 0.74, z + 0.14, z + 0.15, "amber", 1)
 
 
 def gate(x, z, hue, y=G0):
