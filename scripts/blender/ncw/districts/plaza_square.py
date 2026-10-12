@@ -297,7 +297,7 @@ shrub_bed(53.0, 54.4, -211.8, -206.6, rs, side="+x")
 shrub_bed(53.0, 54.4, -204.6, -199.4, rs, side="+x")
 # Drums of adverts where ways meet, carts with their queues, vending rows
 # in the lee of the stair's flanks.
-for (px, pz) in ((52.6, -214.6), (88.8, -223.0), (81.2, -253.4)):
+for (px, pz) in ((52.6, -214.6), (88.8, -223.0), (85.4, -247.6)):
     P.place("ad_drum", px, G, pz, district=PL)
 for (px, pz, yaw) in ((58.0, -215.6, math.pi / 4), (79.0, -214.4, -math.pi / 4)):
     P.place("food_cart", px, G, pz, yaw, district=PL)
