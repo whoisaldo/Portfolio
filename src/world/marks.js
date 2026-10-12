@@ -235,7 +235,7 @@ export const MARKS = /* glsl */ `
     return mix(paper, ink, clamp(shape + bars + rule, 0.0, 1.0));
   }
 
-  // A poster's print, one of the city's twenty-four adverts (the first twelve) (the billboards'
+  // A poster's print, one of the city's twenty-four adverts (the billboards'
   // atlas, scripts/pack-ads.mjs) stood upright with a paper margin and a
   // line of lettering under it. f across and up the sheet, art which,
   // grain the metres a pixel covers over the sheet's size.
@@ -246,11 +246,12 @@ export const MARKS = /* glsl */ `
       return mix(vec3(0.78, 0.76, 0.7), vec3(0.06), bars);
     }
     float rowH = 341.0 / 2048.0;
-    if (art < 8.0) {
+    if (art < 16.0) {
       vec2 uv = vec2((mod(art, 4.0) + 0.5 + (a.x - 0.5) * 0.444) * 0.25, 1.0 - (floor(art / 4.0) + 1.0 - a.y) * rowH);
       return textureGrad(uAds, uv, vec2(grain.x * 0.126, 0.0), vec2(0.0, grain.y * 0.215)).rgb;
     }
-    vec2 uv = vec2((art - 8.0 + a.y) * 0.25, 1.0 - (1365.0 + a.x * 341.0) / 2048.0);
+    float j = art - 16.0;
+    vec2 uv = vec2((mod(j, 4.0) + a.y) * 0.25, 1.0 - (1365.0 + (floor(j / 4.0) + a.x) * 341.0) / 2048.0);
     return textureGrad(uAds, uv, vec2(grain.y * 0.32, 0.0), vec2(0.0, grain.x * 0.19)).rgb;
   }
 
@@ -288,7 +289,7 @@ export const MARKS = /* glsl */ `
         float rag = vnoise(q * 8.0 + hp * 50.0);
         float corner = length((f - step(0.5, vec2(fract(hp * 3.0), fract(hp * 5.0)))) * size);
         float whole = smoothstep(0.0, 0.03, min(edge - 0.07 * smoothstep(0.45, 0.8, rag), corner - step(fract(hp * 11.0), 0.4) * (0.12 + 0.3 * fract(hp * 17.0)) * (0.6 + 0.8 * rag)));
-        float art = mod(cx * 3.0 + i + id * 5.0, 12.0);
+        float art = floor(mod(cx * 7.0 + i * 5.0 + id * 11.0, 24.0));
         vec3 c3 = uHasAds > 0.5 ? poster(f, art, vec2(px) / size) : bill(f, hp);
         c3 = mix(vec3(0.74, 0.72, 0.66), c3 * (0.72 + 0.28 * vnoise(q * 23.0)), smoothstep(0.35, 0.8, whole));
         m = mix(m, vec4(c3, 1.0), smoothstep(0.0, 0.35, whole) * far);
