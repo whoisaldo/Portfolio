@@ -71,43 +71,41 @@ const MULTI_DRAW = "_multiDrawStarts" in new THREE.BatchedMesh(1, 3, 3);
 
 const _frustum = new THREE.Frustum();
 const _view = new THREE.Matrix4();
-const _eye = new THREE.Vector3();
 
 /** The ground in `size`-metre cells: the cells every Tiled mesh of a city
  *  is cut to, each with the bounds of all that stands in it. */
 export function createCells(size) {
-  return { size, list: [], ids: new Map(), frame: -1, seen: [] };
+  return { size, list: [], ids: new Map(), frame: -1 };
 }
 
-/** Which cells a camera holds, nearest first: worked out once for each
- *  render call (a frame has two that see the kit, the scene and the wet
- *  road's mirror) and read by every mesh that call draws. */
+/** Which cells a camera holds: worked out once for each render call (a
+ *  frame has two that see the kit, the scene and the wet road's mirror),
+ *  each cell in sight marked with the call's number, which is returned. */
 function look(cells, renderer, camera) {
   const frame = renderer.info.render.frame;
-  if (cells.frame === frame) return cells.seen;
+  if (cells.frame === frame) return frame;
   cells.frame = frame;
   _frustum.setFromProjectionMatrix(_view.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  _eye.setFromMatrixPosition(camera.matrixWorld);
-  cells.seen.length = 0;
-  for (const cell of cells.list) {
-    if (!_frustum.intersectsBox(cell.box)) continue;
-    cell.far = cell.box.distanceToPoint(_eye);
-    cells.seen.push(cell);
-  }
-  return cells.seen.sort((a, b) => a.far - b.far);
+  for (const cell of cells.list) if (_frustum.intersectsBox(cell.box)) cell.seen = frame;
+  return frame;
 }
 
 /**
  * `geometry` (indexed, plain float positions, world space) put in the
- * order of `cells`: each triangle to the cell its middle
- * stands in, a cell's triangles together in the index. Returns the runs,
- * `cell[i]` the cell's number and `start[i]`, `count[i]` its part of the
- * index, and grows each cell's bounds by what is now in it.
+ * order of `cells`: each triangle to the cell its middle stands in, a
+ * cell's triangles together in the index, the cells row by row across the
+ * map so that neighbours along a row are neighbours in the index. Returns
+ * the runs in that order, `cell[i]` the cell's number and `start[i]`,
+ * `count[i]` its part of the index, and grows each cell's bounds by what is
+ * now in it. A geometry of fewer than `min` triangles is left as it is, one
+ * run that belongs to no cell (-1): culling so little saves less than
+ * drawing it in pieces costs.
  */
-export function cutToCells(geometry, cells) {
+export function cutToCells(geometry, cells, min = 0) {
   const pos = geometry.attributes.position.array;
   const index = geometry.index.array;
   const tris = index.length / 3;
+  if (tris < min) return { cell: Int32Array.of(-1), start: Int32Array.of(0), count: Int32Array.of(index.length) };
   const runOf = new Int32Array(tris);
   const runAt = new Map();
   const runs = [];
@@ -122,7 +120,7 @@ export function cutToCells(geometry, cells) {
     if (id === undefined) {
       id = cells.list.length;
       cells.ids.set(key, id);
-      cells.list.push({ id, box: new THREE.Box3(), far: 0 });
+      cells.list.push({ id, cx, cz, box: new THREE.Box3(), seen: -1 });
     }
     let r = runAt.get(id);
     if (r === undefined) {
@@ -132,13 +130,14 @@ export function cutToCells(geometry, cells) {
     }
     runOf[t] = r;
     runs[r].count += 3;
-    const { min, max } = cells.list[id].box;
-    min.set(Math.min(min.x, pos[a], pos[b], pos[c]), Math.min(min.y, pos[a + 1], pos[b + 1], pos[c + 1]), Math.min(min.z, pos[a + 2], pos[b + 2], pos[c + 2]));
-    max.set(Math.max(max.x, pos[a], pos[b], pos[c]), Math.max(max.y, pos[a + 1], pos[b + 1], pos[c + 1]), Math.max(max.z, pos[a + 2], pos[b + 2], pos[c + 2]));
+    const { min: lo, max: hi } = cells.list[id].box;
+    lo.set(Math.min(lo.x, pos[a], pos[b], pos[c]), Math.min(lo.y, pos[a + 1], pos[b + 1], pos[c + 1]), Math.min(lo.z, pos[a + 2], pos[b + 2], pos[c + 2]));
+    hi.set(Math.max(hi.x, pos[a], pos[b], pos[c]), Math.max(hi.y, pos[a + 1], pos[b + 1], pos[c + 1]), Math.max(hi.z, pos[a + 2], pos[b + 2], pos[c + 2]));
   }
-  const start = new Int32Array(runs.length);
+  const rows = [...runs].sort((p, q) => cells.list[p.id].cz - cells.list[q.id].cz || cells.list[p.id].cx - cells.list[q.id].cx);
+  const start = new Int32Array(rows.length);
   let at = 0;
-  runs.forEach((run, r) => {
+  rows.forEach((run, r) => {
     start[r] = run.at = at;
     at += run.count;
   });
@@ -151,25 +150,24 @@ export function cutToCells(geometry, cells) {
   }
   index.set(sorted);
   geometry.index.needsUpdate = true;
-  return { cell: Int32Array.from(runs, (run) => run.id), start, count: Int32Array.from(runs, (run) => run.count) };
+  return { cell: Int32Array.from(rows, (run) => run.id), start, count: Int32Array.from(rows, (run) => run.count) };
 }
 
 /**
  * A mesh drawn a cell at a time: of its geometry (cut by cutToCells, or
  * sharing the `runs` of a mesh that was), only the cells the camera of each
- * render call holds, the nearest first, in one draw. The kit is one of these
- * a material, so its draws are the materials and not the materials times
- * the tiles, and a camera is given only the ground it can see.
+ * render call holds, in one draw. Each run handed over is still a draw to
+ * the graphics driver, so cells in sight that follow one another in the
+ * index (neighbours along a row of the map) go as one run: a frustum's
+ * share of a row is one piece. The kit is one of these a material, so its
+ * draws are the materials and not the materials times the tiles, and a
+ * camera is given only the ground it can see.
  */
 export class Tiled extends THREE.Mesh {
-  constructor(geometry, material, cells, runs = cutToCells(geometry, cells)) {
+  constructor(geometry, material, cells, runs) {
     super(geometry, material);
     this.cells = cells;
     this.runs = runs;
-    // The run of each cell, by the cell's number (cells a later part of the
-    // city adds are past its end).
-    this.runAt = new Int32Array(cells.list.length).fill(-1);
-    runs.cell.forEach((id, r) => (this.runAt[id] = r));
     this.frustumCulled = false;
     if (MULTI_DRAW) {
       this.isBatchedMesh = true;
@@ -182,15 +180,23 @@ export class Tiled extends THREE.Mesh {
 
   onBeforeRender(renderer, scene, camera) {
     if (!MULTI_DRAW) return;
-    const { runAt, runs } = this;
+    const { cell, start, count } = this.runs;
+    const { list } = this.cells;
+    const seen = look(this.cells, renderer, camera);
+    // A run's start is asked for in bytes.
+    const bytes = this.geometry.index.array.BYTES_PER_ELEMENT;
     let n = 0;
-    for (const cell of look(this.cells, renderer, camera)) {
-      const r = cell.id < runAt.length ? runAt[cell.id] : -1;
-      if (r < 0) continue;
-      // A run's start is asked for in bytes.
-      this._multiDrawStarts[n] = runs.start[r] * this.geometry.index.array.BYTES_PER_ELEMENT;
-      this._multiDrawCounts[n] = runs.count[r];
-      n++;
+    let joined = false;
+    for (let r = 0; r < cell.length; r++) {
+      if (cell[r] >= 0 && list[cell[r]].seen !== seen) {
+        joined = false;
+      } else if (joined) {
+        this._multiDrawCounts[n - 1] += count[r];
+      } else {
+        this._multiDrawStarts[n] = start[r] * bytes;
+        this._multiDrawCounts[n++] = count[r];
+        joined = true;
+      }
     }
     this._multiDrawCount = n;
   }

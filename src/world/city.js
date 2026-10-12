@@ -31,7 +31,7 @@ import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { attributeKey, mergeMeshes, createCells, Tiled } from "./merge.js";
+import { attributeKey, mergeMeshes, createCells, cutToCells, Tiled } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -40,8 +40,10 @@ export const REFLECT_LAYER = 2;
 export const MIRROR_LAYER = 3;
 
 const cache = new Map();
-// The cells the kit is drawn by, metres on a side (see the merge below).
+// The cells the kit is drawn by, metres on a side, and the fewest triangles
+// a material needs before it is cut to them (see the merge below).
 const CELL = 48;
+const CELL_MIN_TRIS = 3000;
 
 // The signs across the rooftop's roof, which its puddles hold and its steam
 // is lit by.
@@ -418,7 +420,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       // What blends is drawn whole, in the order it was built: its picture
       // depends on that order.
       const material = list[0].material;
-      const mesh = material.transparent ? new THREE.Mesh(whole, material) : new Tiled(whole, material, cells);
+      const mesh = material.transparent ? new THREE.Mesh(whole, material) : new Tiled(whole, material, cells, cutToCells(whole, cells, CELL_MIN_TRIS));
       mesh.name = `kit_${material.name}`;
       mesh.layers.mask = list[0].layers.mask;
       mesh.renderOrder = list[0].renderOrder;
