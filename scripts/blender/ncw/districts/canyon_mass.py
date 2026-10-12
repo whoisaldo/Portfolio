@@ -72,9 +72,9 @@ def _around(f, pieces, cross, y0, y1, least=4.0):
     """Stretches of a face (s0, s1) with the landings of what crosses the
     avenue between y0 and y1 taken out of them."""
     for zc, half, cy0, cy1 in cross:
-        if cy1 + 1.5 < y0 or cy0 - 1.5 > y1 or zc + half + 1.6 < f.a0 or zc - half - 1.6 > f.a1:
+        if cy1 + 1.5 < y0 or cy0 - 1.5 > y1 or zc + half + 0.6 < f.a0 or zc - half - 0.6 > f.a1:
             continue
-        a, b = sorted((C.s_of(f, min(max(zc - half - 1.6, f.a0), f.a1)), C.s_of(f, min(max(zc + half + 1.6, f.a0), f.a1))))
+        a, b = sorted((C.s_of(f, min(max(zc - half - 0.6, f.a0), f.a1)), C.s_of(f, min(max(zc + half + 0.6, f.a0), f.a1))))
         nxt = []
         for p0, p1 in pieces:
             if b <= p0 or a >= p1:
@@ -388,7 +388,7 @@ def _spot(U, frac, wd, cross):
             continue
         if side > 0 and abs(zc + 261.0) < 4.5:
             continue
-        if any(abs(zc - z) < half + 2.4 + wd / 2 for z, half, _, _ in cross):
+        if any(abs(zc - z) < half + 1.4 + wd / 2 for z, half, _, _ in cross):
             continue
         s = C.s_of(st, zc)
         if all(s + wd / 2 + 0.6 < a or s - wd / 2 - 0.6 > b for a, b in U["spots"]):

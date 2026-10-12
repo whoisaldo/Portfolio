@@ -324,10 +324,11 @@ def tall(sid, n, x, y0, h, z, wall_x, w=2.2, key=FA, back=CB, preview="夜"):
         box((key, "neon_" + hue, 0), x - w / 2 - 0.2, x + w / 2 + 0.2, yb, yb + 0.12, z - 0.22, z - 0.08, scale=1.0, bottom=True)
 
 
-def advert(face_key, frame_key, cx, cy, cz, w, h, yaw, r, depth=0.25):
+def advert(face_key, frame_key, cx, cy, cz, w, h, yaw, r, depth=0.25, col=None):
     """A screen (the site draws its advert) in a thin dark frame, the face
-    and the frame keyed apart."""
-    col = (r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0)
+    and the frame keyed apart. `col`: its colour, where a set of screens is
+    one system (canyon_cross.ad_set)."""
+    col = col or (r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0)
     rotated_quad((face_key, "billboard", 0), cx, cy, cz, w, h, yaw, col=col)
     nx, nz = math.sin(yaw), math.cos(yaw)
     oriented_box((frame_key, "board_frame", 0), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.3, h + 0.3, depth, yaw, scale=1.0)
@@ -823,149 +824,8 @@ def pipe_rack(key, x, z0, z1, r, y=3.3, post=1):
 
 
 # ---------------------------------------------------------------------------
-# A skybridge across the avenue, carrying a row of boards (ARL_JWwKdDs@21).
+# Beside a crossing (canyon_cross.megastructure), and between two towers.
 # ---------------------------------------------------------------------------
-def skybridge(z, y0, r, enclosed=True, x0=-WALK, x1=WALK, key=FA, back=CB, hang=9.0):
-    """From wall to wall at z, its deck at y0. `key` is everything the hero's
-    lens sees of it (it looks north, so the south side); `back` the rest.
-    Returns the boxes it fills, for the lens checks."""
-    zs, zn = z + 2.0, z - 2.0
-    y1 = y0 + 4.4
-    if enclosed:
-        # A glazed walkway: a dark tube, a band of lit windows down each side.
-        box((key, "board_frame", 0), x0, x1, y0, y1, zn, zs, scale=2.0, bottom=True)
-        col = B.wall_col(0.95, 5, r.uniform(0.3, 0.9), B.TINTS["navy"])
-        wall(key, B.Face("+z", zs + 0.03, x0, x1), y0 + 0.6, y0 + 4.0, col, 0)
-        wall(back, B.Face("-z", zn - 0.03, x0, x1), y0 + 0.6, y0 + 4.0, col, 0)
-        strip(key, B.Face("+z", zs + 0.03, x0, x1), 0.0, x1 - x0, y0 + 0.1, y0 + 0.3, r.choice(("cyan", "magenta")), out=0.02)
-    else:
-        # An open truss: a deck, two chords over it on posts, braces, rails.
-        box((key, "board_frame", 0), x0, x1, y0, y0 + 0.5, zn, zs, scale=2.0, bottom=True)
-        for zz in (zn + 0.1, zs - 0.1):
-            k2 = key if zz > z else back
-            box((k2, "board_frame", 0), x0, x1, y1 - 0.3, y1, zz - 0.12, zz + 0.12, scale=1.0, bottom=True)
-            box((k2, "metal", 1), x0, x1, y0 + 1.5, y0 + 1.58, zz - 0.04, zz + 0.04, scale=0.5)
-            n = 8
-            for i in range(n + 1):
-                x = x0 + (x1 - x0) * i / n
-                box((k2, "board_frame", 0), x - 0.1, x + 0.1, y0 + 0.5, y1 - 0.3, zz - 0.1, zz + 0.1, scale=1.0)
-                if i < n:
-                    xa, xb = (x, x + (x1 - x0) / n) if i % 2 == 0 else (x + (x1 - x0) / n, x)
-                    q = ((xa, y0 + 0.5, zz), (xa + 0.18, y0 + 0.5, zz), (xb + 0.18, y1 - 0.3, zz), (xb, y1 - 0.3, zz))
-                    quad((k2, "board_frame", 0), *q)
-                    quad((k2, "board_frame", 0), q[1], q[0], q[3], q[2])
-            strip(k2, B.Face("+z" if zz > z else "-z", zz + (0.13 if zz > z else -0.13), x0, x1), 0.0, x1 - x0, y0 + 0.05, y0 + 0.2, "amber", out=0.0)
-    # Lamps under it, pooling on the road.
-    for x in (x0 + 5.0, (x0 + x1) / 2, x1 - 5.0):
-        box((back, "glow", 0), x - 1.2, x + 1.2, y0 - 0.06, y0, z - 0.15, z + 0.15, scale=0.5, col=GLOW["white"], bottom=True)
-        light(back, x, y0, z, "white", 6.5)
-    # The row of boards: standing along its top and hung on its side, each
-    # its own size, the row broken and uneven.
-    boxes = [((x0, y0, zn), (x1, y1, zs))]
-    for face_z, yaw, k2 in ((zs + 0.25, 0.0, key), (zn - 0.25, math.pi, back)):
-        x = x0 + r.uniform(1.0, 2.5)
-        while x < x1 - 3.5:
-            roll = r.random()
-            if roll < 0.3:
-                w, h = r.uniform(4.0, 5.6), r.uniform(2.2, 3.0)
-                yc = y1 + 0.5 + h / 2
-                by = yaw + r.uniform(-0.12, 0.12)
-                advert(k2, back, x + w / 2, yc, face_z - math.cos(yaw) * 0.2, w, h, by, r)
-                board_back(back, x + w / 2, yc, face_z - math.cos(yaw) * 0.2, w, h, by, r.choice(("cyan", "amber", "pink")))
-                for px in (x + w * 0.25, x + w * 0.75):
-                    box((k2, "metal", 1), px - 0.06, px + 0.06, y1, yc - h / 2, face_z - 0.3, face_z - 0.18, scale=0.5)
-            else:
-                size = r.choice(("pm", "pm", "ps", "bx"))
-                w, h = ST_SIZES[size]
-                yc = r.choice((y1 + 0.35 + h / 2, y0 + 2.2, y0 + 1.0 + h / 2))
-                box((k2, "board_frame", 0), x - 0.07, x + w + 0.07, yc - h / 2 - 0.07, yc + h / 2 + 0.07, min(face_z, face_z - math.cos(yaw) * 0.12),
-                    max(face_z, face_z - math.cos(yaw) * 0.12), scale=1.0)
-                sign(st_name(size), x + w / 2, yc, face_z + math.cos(yaw) * 0.015, w, h, yaw, district=k2, label=False)
-            boxes.append(((x, y1, zn), (x + w, y1 + 3.6, zs)))
-            x += w + r.uniform(0.5, 2.2)
-    # The column of small boards hung under it, on the right of the gap.
-    if hang is not None:
-        yy = y0 - 0.3
-        box((key, "metal", 1), hang - 0.06, hang + 0.06, y0 - 5.6, y0, z - 0.06, z + 0.06, scale=0.5)
-        for _ in range(4):
-            size = r.choice(("ps", "bx", "ps"))
-            w, h = ST_SIZES[size]
-            yy -= h + 0.2
-            box((back, "board_frame", 0), hang - w / 2 - 0.06, hang + w / 2 + 0.06, yy - 0.06, yy + h + 0.06, z - 0.07, z + 0.07, scale=1.0)
-            sid = st_name(size)
-            sign(sid, hang, yy + h / 2, z + 0.08, w, h, 0.0, district=key, label=False)
-            sign(sid + "_b", hang, yy + h / 2, z - 0.08, w, h, math.pi, district=back, label=False)
-        boxes.append(((hang - 1.0, yy, z - 0.2), (hang + 1.0, y0, z + 0.2)))
-    # A red lamp over each end.
-    for x in (x0 + 0.6, x1 - 0.6):
-        box((key, "glow", 0), x - 0.12, x + 0.12, y1, y1 + 0.25, z - 0.12, z + 0.12, scale=0.5, col=GLOW["red"])
-    return boxes
-
-
-def megabridge(z, y0, r, x0=-WALK, x1=WALK, key=FA, back=CB, half=3.5, height=8.0):
-    """The show's crossing (ARL_JWwKdDs@21, ax5YUmkWf_Y@130): a slab of
-    floors from wall to wall high over the avenue, rows of small lit
-    windows down both its faces between ribs, a chord top and bottom with a
-    line of light on the lower, adverts and signs hung on its faces each
-    its own size, lamps under it whose light pools on the road, red lamps
-    on its roof. `key` is what the hero's lens sees of it (the south face);
-    `back` the rest. Returns the boxes it fills, for the lens checks."""
-    zs, zn, y1 = z + half, z - half, y0 + height
-    box((key, "board_frame", 0), x0, x1, y0, y1, zn, zs, scale=2.0, bottom=True)
-    # (The band style: each row lit right across, amber or cyan, in panes
-    # a third of a metre wide.)
-    lit = B.wall_col(0.95, 5, r.uniform(0.35, 0.8), B.TINTS["navy"])
-    rows = max(2, round((height - 1.2) / 1.7))
-    hue = r.choice(("cyan", "magenta", "amber"))
-    for fz, name, k2 in ((zs + 0.03, "+z", key), (zn - 0.03, "-z", back)):
-        f = B.Face(name, fz, x0, x1)
-        w = f.width
-        bays = round(w / 1.4)
-        f.quad((k2, "facade", 0), 0.0, w, y0 + 0.7, y1 - 0.5, 0.0, ((0, 0), (bays, 0), (bays, rows), (0, rows)), lit)
-        for ya, yb in ((y0, y0 + 0.7), (y1 - 0.5, y1)):
-            fbox((back, "trim", 0), f, 0.0, w, ya, yb, 0.0, 0.35, col=B.DARK_TRIM)
-        for i in range(8):
-            sr = min(max(w * i / 7, 0.2), w - 0.2)
-            f.box((back, "trim", 1), sr - 0.2, sr + 0.2, y0 + 0.7, y1 - 0.5, 0.0, 0.3, col=B.DARK_TRIM)
-        strip(k2, f, 0.0, w, y0 + 0.25, y0 + 0.4, hue, out=0.36)
-        # Its boards: adverts on brackets and standard signs between them,
-        # none the same size, the row uneven.
-        x = r.uniform(0.8, 2.2)
-        sizes = [(5.2, 3.2), (3.0, 4.8), (6.4, 3.6), (4.0, 4.2), (2.6, 5.6), (4.6, 2.8)]
-        r.shuffle(sizes)
-        while x < w - 3.2:
-            if r.random() < 0.72 and sizes:
-                bw, bh = sizes.pop()
-                bw = min(bw, w - x - 0.6)
-                yc = r.uniform(y0 + 0.1 + bh / 2, max(y0 + 0.2 + bh / 2, y1 + 0.6 - bh / 2))
-                cx, _, cz = f.p(f.at(x + bw / 2), yc, 0.8)
-                advert(k2, back, cx, yc, cz, bw, bh, f.yaw + r.uniform(-0.1, 0.1), r)
-                for dx in (bw * 0.25, bw * 0.75):
-                    f.box((back, "metal", 1), x + dx - 0.05, x + dx + 0.05, yc - 0.05, yc + 0.05, 0.0, 0.6)
-            else:
-                size = r.choice(("pm", "bx", "ps", "pm"))
-                bw, bh = ST_SIZES[size]
-                yc = r.uniform(y0 + 1.2, y1 - 1.2)
-                f.box((back, "board_frame", 0), x - 0.07, x + bw + 0.07, yc - bh / 2 - 0.07, yc + bh / 2 + 0.07, 0.3, 0.5)
-                cx, _, cz = f.p(f.at(x + bw / 2), yc, 0.515)
-                sign(st_name(size), cx, yc, cz, bw, bh, f.yaw, district=k2, label=False)
-            x += bw + r.uniform(0.6, 1.8)
-    # Lamps under it in two rows, each a pool on the road; a row of amber
-    # markers along its lower edges.
-    for x in (x0 + 4.0, x0 + 9.5, x1 - 9.5, x1 - 4.0):
-        for zz in (z - half * 0.5, z + half * 0.5):
-            box((key if zz > z else back, "glow", 0), x - 1.3, x + 1.3, y0 - 0.07, y0, zz - 0.14, zz + 0.14, scale=0.5, col=GLOW["white"], bottom=True)
-            light(back, x, y0, zz, "white", 6.5)
-    # Its roof: a kerb, plant, red lamps at its corners.
-    roof(back, x0, x1, zn, zs, y1 + 0.005)
-    for x in (x0 + 0.6, x1 - 0.6):
-        for zz in (zn + 0.5, zs - 0.5):
-            box((key if zz > z else back, "glow", 0), x - 0.12, x + 0.12, y1, y1 + 0.3, zz - 0.12, zz + 0.12, scale=0.5, col=GLOW["red"])
-    for x in (x0 + 7.0, x1 - 8.0):
-        P.place("cy_unit", x, y1, z, 0.0, district=back)
-    return [((x0, y0 - 0.7, zn - 1.3), (x1, y1 + 1.0, zs + 1.3))]
-
-
 def pylon(z, y_top, r, side, key=FA, back=CB):
     """A lattice mast against the wall beside a crossing, carrying a stack
     of adverts out over the pavement above head height, read up and down
@@ -979,11 +839,14 @@ def pylon(z, y_top, r, side, key=FA, back=CB):
         box((back, "metal", 1), wx - 0.34, wx + 0.34, y, y + 0.06, z - 0.34, z + 0.34, scale=0.5, bottom=True)
         y += 3.0
     y, reach = 7.6, 0.0
+    # (One system: its adverts change together and no two are the same.)
+    from ncw.districts.canyon_cross import ad_set
+    south, north = ad_set(r, 8), ad_set(r, 8)
     while y < y_top - 2.4:
         w, h = r.uniform(2.8, 3.7), min(r.uniform(2.2, 3.9), y_top - y - 0.2)
         cx = side * (WALK - 1.0 - w / 2)
-        advert(key, back, cx, y + h / 2, z + 0.42, w, h, r.uniform(-0.1, 0.1), r)
-        advert(back, back, cx, y + h / 2, z - 0.42, w, h, math.pi + r.uniform(-0.1, 0.1), r)
+        advert(key, back, cx, y + h / 2, z + 0.42, w, h, r.uniform(-0.1, 0.1), r, col=south.pop())
+        advert(back, back, cx, y + h / 2, z - 0.42, w, h, math.pi + r.uniform(-0.1, 0.1), r, col=north.pop())
         box((back, "metal", 1), min(cx, wx), max(cx, wx), y + h / 2 - 0.06, y + h / 2 + 0.06, z - 0.06, z + 0.06, scale=0.5, bottom=True)
         reach = max(reach, w + 1.2)
         y += h + r.uniform(0.35, 0.9)

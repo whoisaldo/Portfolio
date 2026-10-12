@@ -3,6 +3,8 @@ from ncw import buildings as B
 from ncw import props as P
 from ncw.districts import canyon_kit as C
 from ncw.districts import canyon_mass as M
+from ncw.districts import canyon_cross
+from ncw import kit as K
 from ncw.districts.canyon_kit import FA, CB, fl
 
 # ---------------------------------------------------------------------------
@@ -57,16 +59,27 @@ BACKS = {
     1: {0: ("low",), 1: ("flush",), 2: ("low",), 3: ("flush",), 4: ("low",), 5: (28, "low"), 6: (20,), 7: ("low", 30),
         8: (26, "low"), 9: ("low", 22)},
 }
-# Skybridges across the avenue: z, the deck's height, glazed or open, and
-# where a column of small boards hangs under it. The hero looks under and
-# through them: each sits over the megablock's roofline and under the
-# figure's waist in its eye, between the roofs.
-BRIDGES = ((-240.0, fl(9) - 1.6, True, None), (-338.0, fl(13) - 0.6, False, 9.0))
-MEGA_HALF = 3.5         # the first is the megastructure: seven metres deep, eight tall
-PYLON_Z = -232.0        # and the stack of adverts on a mast beside it, on the left
+# The megastructure that crosses the avenue (canyon_cross.megastructure),
+# twice. The hero looks straight at the first, and what it frames there
+# fixes it: its foot can come no lower than y 33.6 at z -243.5 (lower, and it
+# stands across the megablock's roofline, which on a phone it already meets)
+# and its top can stand no higher than y 46.25 at z -236 (higher, and it
+# stands across the figure's waist), so it is four storeys deep and not six;
+# its east pier stands only a metre off the wall (further, and it stands
+# across the figure's slogan); nothing hangs under its west third (the
+# megablock's tallest section is behind it there), nothing more than two
+# metres under its middle, and the column of boards under its east end keeps
+# left of the slogan's line. The second stands where the first hides all of
+# it from that lens (checked below), so it is as deep as its towers allow.
+MEGA = (dict(zn=-243.5, zs=-234.5, y0=fl(9) - 1.6, y1=46.0, step=1.5, south=FA, feet=(5.0, 5.0), tray=(-5.0, 13.0), hang=(7.3, 2), plant=0.4,
+             drops=((-3.2, 1.9, "signal"), (3.2, 1.9, "signal"), (0.0, 1.1, "white"))),
+        # (Its west pier starts over the lot's column of type.)
+        dict(zn=-342.0, zs=-334.0, y0=47.4, y1=61.0, step=1.2, south=CB, feet=(40.0, 5.0), tray=(-13.0, 13.0), hang=(9.0, 4), plant=2.4,
+             drops=((-7.0, 1.4, "signal"), (-2.4, 1.4, "signal"), (2.4, 1.4, "signal"), (7.0, 1.4, "amber"))))
+PYLON_Z = -230.5        # the stack of adverts on a mast beside the first, on the left
 # What crosses the avenue, for whatever is hung on its walls to keep clear
-# of: z, half its depth, its foot and its top.
-CROSS = ((-240.0, MEGA_HALF, fl(9) - 1.6, fl(9) + 6.4), (-338.0, 2.0, fl(13) - 0.6, fl(13) + 7.4))
+# of: z, half its depth, its piers' foot and its top.
+CROSS = tuple(((m["zn"] + m["zs"]) / 2, (m["zs"] - m["zn"]) / 2 + 1.0, min(m["feet"]), m["y1"]) for m in MEGA)
 # What stands between the hero's lens and the canyon: the avenue's lots.
 AVENUE_MASSES = list(HERO_MASSES)
 HUES = ("cyan", "yellow", "amber", "pink", "teal")
@@ -279,7 +292,7 @@ def _podium(L, zn, zs, north, south):
         notch.append((zt - 1.0, zt + 0.8))
     if side < 0:
         notch.append((PYLON_Z - 1.0, PYLON_Z + 1.0))
-    notch += [(zc - half - 2.4, zc + half + 2.4) for zc, half, _, _ in CROSS[:1]]
+    notch += [(zc - half - 0.4, zc + half + 0.4) for zc, half, _, _ in CROSS]
     notch = [tuple(sorted((C.s_of(st, min(max(a, zn), zs)), C.s_of(st, min(max(b, zn), zs))))) for a, b in notch if b > zn and a < zs]
     M.base(L, st, variant, canopy, notch, L["arcade"])
     st.ledge((CB, "trim", 0), 0.0, w, SHOP_H - 0.05, 0.3, 0.35, tcol)
@@ -564,7 +577,7 @@ def _dress_street(U):
     # across another, nor across the lot's column of type, the figure's
     # slogan or a skybridge's landing.
     taken = M.reserve(U, OCC, CROSS)
-    keep = [(bz, half + 1.4) for bz, half, _, _ in CROSS]
+    keep = [(bz, half + 0.4) for bz, half, _, _ in CROSS]
     if side < 0:
         keep.append((PYLON_Z, 2.6))
     if U["k"] == 0 and L["i"] % 3 != 2:
@@ -964,23 +977,26 @@ box((CB, "metal", 1), gx0 + 0.86, gx0 + 0.9, gy0 - 0.06, gy0 + 0.9, gz0 - 0.3, g
 P.place("pipe_v", 44.0, fl(4), gz0 - 0.6, math.pi / 2, sy=gy0 + 0.6 - fl(4), district=CB)
 light(CB, 45.6, 4.0, -240.0, "amber", 4.0)
 
-# Skybridges across the avenue, a row of boards on each (ARL_JWwKdDs@21).
+# The megastructure across the avenue, twice (ARL_JWwKdDs@22), and the mast
+# of adverts beside the first.
 bridge_r = random.Random(4822)
-for bz, by, enclosed, hang in BRIDGES:
-    boxes = C.megabridge(bz, by, bridge_r, half=MEGA_HALF) + [C.pylon(PYLON_Z, by - 2.0, bridge_r, -1)] if enclosed else \
-        C.skybridge(bz, by, bridge_r, enclosed=False, hang=hang)
+for n, m in enumerate(MEGA):
+    boxes = canyon_cross.megastructure(r=bridge_r, occ=OCC, **m)
+    if n == 0:
+        boxes.append(C.pylon(PYLON_Z, m["y0"] - 2.0, bridge_r, -1))
+        first = boxes[0]
     for lo, hi in boxes:
         if C.covers(AVENUE_MASSES, lo, hi):
-            raise RuntimeError(f"the skybridge at z {bz} stands across something the hero frames: {lo} {hi}")
-    if not enclosed:
-        for bx_, dz, yaw in ((-6.0, 1.3, math.pi), (3.5, 1.3, math.pi), (4.4, 1.3, math.pi), (-1.0, -1.3, 0.0)):
-            stand(bx_, bz + dz, yaw, "lean", by + 0.5)
+            raise RuntimeError(f"the megastructure at z {m['zn']} stands across something the hero frames: {lo} {hi}")
+    if n and not all(K._crosses(e, (x, y, z), *first) for e in HERO_EYES for x in (-WALK, 0.0, WALK) for y in (m["y0"] - 1.4, m["y1"] + 0.45)
+                     for z in (m["zn"], m["zs"])):
+        raise RuntimeError("the second megastructure shows past the first in the hero's lens")
 
 # Cables slung across the avenue between the towers, at every height.
 cable_r = random.Random(4830)
 for _ in range(26):
     z = cable_r.uniform(-700.0, -196.0)
-    if RAIL[0] - 4.0 < z < RAIL[1] + 4.0 or abs(z + 240.0) < 9.0 or abs(z + 338.0) < 4.0 or FORECOURT[0] < z < FORECOURT[1]:
+    if RAIL[0] - 4.0 < z < RAIL[1] + 4.0 or any(abs(z - zc) < half + 4.0 for zc, half, _, _ in CROSS) or FORECOURT[0] < z < FORECOURT[1]:
         continue
     y = cable_r.uniform(8.0, 30.0)
     C.cable(CB, (-WALK, y, z), (WALK, y + cable_r.uniform(-3.0, 3.0), z + cable_r.uniform(-7.0, 7.0)), cable_r.uniform(0.8, 3.0))
