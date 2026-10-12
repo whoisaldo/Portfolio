@@ -39,8 +39,10 @@
 // road's mirror, which smears what it holds, draws everyone as cards. Each
 // frame the people in the frustum are sorted into the three; nobody is ever
 // dropped for being far. Where a walk's loop starts again they fade out and
-// in, and within a step of the lens they fade too, so the camera is never
-// inside a head.
+// in. The lens is one more thing the files bend round: walkers pass it a
+// metre clear and whoever stands free steps back from it, so nobody is
+// ever seen half there; only someone who cannot move is gone, all at once, a
+// forearm short of it.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { preloadProps } from "./props.js";
@@ -309,6 +311,11 @@ const LANE_W = 512;
 const BODY = 0.3;
 const GAP = 0.46;
 const EASE = 2;
+// How far to the side of the eye a walker passes it, how far to either side
+// of it a file gives way at all, and how far someone standing steps back.
+const CLEAR = 1;
+const CLEAR_REACH = 2;
+const BACK = 0.7;
 
 /** What stands on the ground in the props file (src/world/props.js packs
  *  it): x, z, the way it faces (as a cosine and a sine) and its half
@@ -470,22 +477,49 @@ const HEAD = /* glsl */ `
     face = aPath.xy * way;
     vec2 at = aWalk.xy + aPath.xy * s;
     fade = 1.0;
+    // The eye is one more thing on the pavement: nobody walks into it. Only
+    // an eye among them counts, not one on a roof or in the air.
+    float among = smoothstep(-1.2, -0.4, uCam.y - aBody.w) * (1.0 - smoothstep(2.6, 3.4, uCam.y - aBody.w));
+    vec2 rel = at - uCam.xz;
+    float ends = 1.0;
     if (walking) {
-      // Into and out of the loop's ends they fade; along it, their file
-      // bends round what stands in it.
-      fade = clamp(min(s, aPath.z - s) / 3.0, 0.0, 1.0);
+      // Along the walk their file bends round what stands in it.
       float row = (-aBody.z - 0.5) / uLaneRows;
       float u = s / aPath.z;
       float o0 = laneAt(u, row);
       float o1 = laneAt(u + 0.6 / aPath.z, row);
       vec2 across = vec2(aPath.y, -aPath.x);
       at += across * o0;
-      face = normalize(aPath.xy + across * (o1 - o0) / 0.6) * way;
+      // And round the eye: a few steps short of it everyone moves to the
+      // side they were already on, most those who were heading straight for
+      // it, and passes a metre clear: further off than an arm's length by the
+      // time the frame's edge cuts them.
+      rel = at - uCam.xz;
+      float al = dot(rel, aPath.xy);
+      float la = dot(rel, across);
+      float k = (la + (aLook.w - 0.5) * 0.3 < 0.0 ? -1.0 : 1.0) * ${f(CLEAR)} * among * max(1.0 - abs(la) / ${f(CLEAR_REACH)}, 0.0);
+      float b0 = 1.0 - smoothstep(1.4, 4.6, abs(al));
+      float b1 = 1.0 - smoothstep(1.4, 4.6, abs(al + 0.6));
+      at += across * k * b0;
+      face = normalize(aPath.xy + across * (o1 - o0 + k * (b1 - b0)) / 0.6) * way;
+      ends = min(s, aPath.z - s);
+    } else if (aBody.z < 1.5 || aBody.z > 6.5) {
+      // Standing with nothing to keep them where they are (not on a seat,
+      // against a wall, behind a stall or over a phone), they step back
+      // from an eye that comes within reach.
+      float d = length(rel) + 1e-4;
+      float q = max(1.0 - d / ${f(2 * BACK)}, 0.0);
+      at += rel / d * ${f(BACK)} * q * q * among;
     }
     root = vec3(at.x, aBody.w, at.y);
     eye = distance(uCam, vec3(root.x, clamp(uCam.y, root.y, root.y + 1.8 * aBody.x), root.z));
-    // Within a step of the lens they are gone, so it is never inside a head.
-    fade *= smoothstep(0.75, 1.35, eye);
+    // Where a walk's loop starts again they come and go through a dither:
+    // over a few steps far off, where it reads as a fade, and all but at
+    // once close to, where a body half there would read as a fault.
+    fade = clamp(ends / mix(0.25, 3.0, smoothstep(14.0, 40.0, eye)), 0.0, 1.0);
+    // The one who cannot move out of the lens (or will not) is gone a
+    // forearm short of it, so it is never inside a head.
+    fade *= smoothstep(0.42, 0.47, eye);
   }
 `;
 
