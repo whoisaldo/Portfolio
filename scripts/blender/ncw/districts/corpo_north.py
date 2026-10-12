@@ -484,7 +484,7 @@ def forecourts():
             light(CO, tx + sx, 6.8, -346.0, hue, 3.5)
         box(k("glow"), tx - 13.0, tx + 13.0, 7.5, 7.62, cz, cz + 0.05, scale=1.0, col=K.brand(i))
         # Slim columns under its front edge.
-        for sx in () if heat_tower else (-12.6, 12.6) if room_tower else (-12.6, -4.2, 4.2, 12.6):
+        for sx in () if heat_tower else (-12.6, 12.6) if room_tower or i in RAISED else (-12.6, -4.2, 4.2, 12.6):
             box(k("metal"), tx + sx - 0.2, tx + sx + 0.2, G0, 7.5, LOT_N - 0.7, LOT_N - 0.3, scale=1.0)
         # Paving: a carpet of pale stone from the doors to the kerb, light
         # lines either side of it.
@@ -543,16 +543,37 @@ def forecourts():
             K.talk(tx - 6.0, -345.2, 0.5, 3)
             K.totem(tx - 5.6, FORE_N, math.radians(-28), r, colour=hue, sizes=("bx", "bx"))
         elif i == 4:
-            # Trees in stone planters under the canopy, benches, people.
-            for sx in (-10.4, -6.0, 6.0, 10.4):
-                P.place("planter_tree", tx + sx, G0, -346.3, district=CO)
-            for sx, yaw in ((-8.2, 0.0), (8.2, 0.0)):
-                P.place("bench", tx + sx, G0, -345.0, yaw, district=CO)
-            stand(tx - 8.2, -345.0, 0.0, "sit", G0 + 0.45)
-            stand(tx + 8.6, -345.0, 0.0, "sit", G0 + 0.45)
-            stand(tx + 7.6, -345.0, 0.0, "sit", G0 + 0.45)
-            K.talk(tx - 5.0, -345.2, 0.2)
-            P.place("cctv", tx + 12.7, G0, -344.6, district=CO)
+            # A raised court: the lobby's floor and the court before it
+            # stand a metre over the pavement, six steps down to it across
+            # the middle with light in their risers, a low wall and a
+            # handrail either side of the flight; either side of that the
+            # court's edge is a planted bed behind a wall with a line of
+            # light under its coping; trees in tubs and benches on the
+            # court, people on it and on the steps.
+            py = G0 + RAISED[i]
+            zg = LOBBY_Z - LOBBY_DEPTH[i] + 0.1
+            solid(tx - 13.0, tx + 13.0, 0.0, py, zg, STEP_TOP, K.CONCRETE)
+            K.paving_band(tx - 13.0, tx + 13.0, LOBBY_Z, STEP_TOP, CARPET, y=py + 0.004)
+            K.steps_z(tx - 6.5, tx + 6.5, LOT_N - 0.1, STEP_TOP, G0, py, hue)
+            for sx in (-1, 1):
+                xa, xb = sorted((tx + sx * 6.9, tx + sx * 13.0))
+                K.planter(xa, xb, STEP_TOP, LOT_N - 0.1, y=0.0, h=py + 0.12, hedge=0, lit=hue)
+                quad(k("trim"), (xa + 0.18, py + 0.124, LOT_N - 0.28), (xb - 0.18, py + 0.124, LOT_N - 0.28), (xb - 0.18, py + 0.124, STEP_TOP + 0.18), (xa + 0.18, py + 0.124, STEP_TOP + 0.18), col=K.SOIL)
+                K.shrubs(xa + 0.4, xb - 0.3, (STEP_TOP + LOT_N) / 2 - 0.05, py + 0.12, random.Random(int(tx) + sx), spread=0.5, hmax=0.75)
+                ca, cb = sorted((tx + sx * 6.5, tx + sx * 6.9))
+                solid(ca, cb, 0.0, py + 0.5, STEP_TOP - 0.3, LOT_N - 0.1, K.STONE)
+                pipe(k("metal", 1), (tx + sx * 6.3, py + 0.95, STEP_TOP - 0.2), (tx + sx * 6.3, G0 + 0.95, LOT_N - 0.2), 0.03, segs=5)
+                for pz_, py_ in ((STEP_TOP - 0.2, py), (LOT_N - 0.2, G0)):
+                    box(k("metal", 1), tx + sx * 6.3 - 0.025, tx + sx * 6.3 + 0.025, py_, py_ + 0.95, pz_ - 0.025, pz_ + 0.025, scale=0.5)
+            for sx in (-10.4, 10.4):
+                P.place("planter_tree", tx + sx, py, -347.2, sxz=0.85, district=CO)
+            for sx in (-8.0, 8.0):
+                P.place("bench", tx + sx, py, -346.7, 0.0, district=CO)
+            stand(tx - 8.0, -346.7, 0.0, "sit", py + 0.45)
+            stand(tx + 8.4, -346.7, 0.0, "sit", py + 0.45)
+            K.talk(tx - 4.6, -346.6, 0.2, y=RAISED[i])
+            stand(tx + 2.4, LOT_N - 1.0, 0.0, "phone", G0 + (py - G0) * 0.5 - G0)
+            stand(tx - 1.6, STEP_TOP - 0.5, math.radians(20), "idle", RAISED[i])
             K.ad_panel(tx - 9.0, KERB_STRIP_N, 0.0, r, pal=K.COLD)
         elif i == 5:
             # Barriers and a booth: a checked way in, hazard stripes.
@@ -585,8 +606,12 @@ def forecourts():
             # edge on to the road, and blocks to sit on under the canopy.
             for sx in (-5.6, -4.4, 4.4, 5.6):
                 P.place("lightbox", tx + sx, G0, KERB_STRIP_N, math.pi / 2, district=CO)
-            for sx in ((-6.4,), (6.4, -11.2), (-7.0, 7.0), (6.2,))[i - 3]:
+            for sx in ((-6.4,), (), (-7.0, 7.0), (6.2,))[i - 3]:
                 K.block_seat(tx + sx, -346.5, 1.8, 0.0, hue if hue != "white" else "cyan")
+
+
+RAISED = {4: 1.05}        # the fifth tower's lobby and court stand this far up, steps down to the pavement
+STEP_TOP = LOT_N - 1.9    # where its steps reach the court
 
 
 def lobby(i):
@@ -603,6 +628,8 @@ def lobby(i):
     tx = TOWER_X[i]
     hue = ACCENTS[i]
     bc = K.brand(i)
+    base = RAISED.get(i, 0.0)
+    g0 = G0 + base
     zg = LOBBY_Z - LOBBY_DEPTH[i] + 0.1      # the hall's glass
     zf = T_FRONT - 0.05                      # the portal's face
     f = B.Face("+z", zg, tx - 12.3, tx + 12.3)
@@ -621,13 +648,13 @@ def lobby(i):
         K.bar2d(tx, my, zf - 0.3, 0.0, (sx * 2.4, 0.0), (sx * 9.6, 0.0), 0.09, 0.06, K.brand(i, 0.6))
     # The vestibule's ceiling and floor.
     quad(k("trim"), (tx - 12.3, 7.49, zg), (tx + 12.3, 7.49, zg), (tx + 12.3, 7.49, LOBBY_Z), (tx - 12.3, 7.49, LOBBY_Z), col=K.BLACK)
-    K.paving_band(tx - 12.3, tx + 12.3, zg, LOBBY_Z, K.STONE)
+    K.paving_band(tx - 12.3, tx + 12.3, zg, LOBBY_Z, K.STONE, y=g0 + 0.012)
     zc = (zg + LOBBY_Z) / 2
     for sx in (-7.6, 0.0, 7.6):
         quad(k("glow"), (tx + sx - 2.6, 7.47, zc - 0.14), (tx + sx + 2.6, 7.47, zc - 0.14), (tx + sx + 2.6, 7.47, zc + 0.14), (tx + sx - 2.6, 7.47, zc + 0.14),
              col=K.brand(i, 0.9))
         light(CO, tx + sx, 6.0, zc, hue, 4.5)
-    box(k("glow"), tx - 11.4, tx + 11.4, G0 + 0.012, G0 + 0.03, zf - 0.98, zf - 0.9, scale=1.0, col=K.brand(i, 0.7))
+    box(k("glow"), tx - 11.4, tx + 11.4, g0 + 0.012, g0 + 0.03, zf - 0.98, zf - 0.9, scale=1.0, col=K.brand(i, 0.7))
     # Before the glass: by turns fins either side of the doors, dark wings
     # with a lit niche in each, or fins and a louvred transom right across.
     kind = i % 3
@@ -649,31 +676,31 @@ def lobby(i):
     # The gates across the way in, security at them.
     zt = zg + min(1.5, LOBBY_DEPTH[i] * 0.45)
     for sx in ((-2.4, -0.8, 0.8, 2.4), (-1.6, 0.0, 1.6), (-3.2, -1.6, 0.0, 1.6, 3.2))[i % 3]:
-        gate(tx + sx, zt, hue)
-    stand(tx - 4.2, zt + 0.3, 0.0, "idle")
-    stand(tx + 4.3, zt + 0.2, 0.0, "idle")
+        gate(tx + sx, zt, hue, g0)
+    stand(tx - 4.2, zt + 0.3, 0.0, "idle", base)
+    stand(tx + 4.3, zt + 0.2, 0.0, "idle", base)
     # A desk one side, its top edge lit, somebody behind it; seats the
     # other, somebody waiting; a tree in a tub at each end.
     side = 1 if i % 2 else -1
     dx = tx + side * 8.0
-    solid(dx - 1.7, dx + 1.7, G0, G0 + 1.05, zg + 1.2, zg + 1.85, K.BLACK)
-    box(k("glow"), dx - 1.7, dx + 1.7, G0 + 1.05, G0 + 1.09, zg + 1.77, zg + 1.85, scale=1.0, col=bc)
-    box(k("glow", 1), dx - 1.5, dx + 1.5, G0 + 0.08, G0 + 0.12, zg + 1.85, zg + 1.87, scale=1.0, col=K.brand(i, 0.6))
-    stand(dx + 0.3, zg + 0.9, 0.0, "vendor")
+    solid(dx - 1.7, dx + 1.7, g0, g0 + 1.05, zg + 1.2, zg + 1.85, K.BLACK)
+    box(k("glow"), dx - 1.7, dx + 1.7, g0 + 1.05, g0 + 1.09, zg + 1.77, zg + 1.85, scale=1.0, col=bc)
+    box(k("glow", 1), dx - 1.5, dx + 1.5, g0 + 0.08, g0 + 0.12, zg + 1.85, zg + 1.87, scale=1.0, col=K.brand(i, 0.6))
+    stand(dx + 0.3, zg + 0.9, 0.0, "vendor", base)
     for bx in (tx - side * 6.4, tx - side * 9.0):
-        P.place("bench", bx, G0, zg + 1.25, 0.0, district=CO)
-    stand(tx - side * 6.4, zg + 1.25, 0.0, "sit", G0 + 0.45)
-    stand(tx - side * 3.9, zt + 1.0, math.radians(-150 * side), "phone")
+        P.place("bench", bx, g0, zg + 1.25, 0.0, district=CO)
+    stand(tx - side * 6.4, zg + 1.25, 0.0, "sit", g0 + 0.45)
+    stand(tx - side * 3.9, zt + 1.0, math.radians(-150 * side), "phone", base)
     for sx in (-10.6, 10.6):
-        P.place("planter_tree", tx + sx, G0, min(zg + LOBBY_DEPTH[i] - 1.4, zf - 2.0), sy=0.95, sxz=0.8, district=CO)
+        P.place("planter_tree", tx + sx, g0, min(zg + LOBBY_DEPTH[i] - 1.4, zf - 2.0), sy=0.95 - base * 0.15, sxz=0.8, district=CO)
 
 
-def gate(x, z, hue):
+def gate(x, z, hue, y=G0):
     """A scanner arch: two posts and a lintel, lit down their inner edges."""
     for sx in (-0.55, 0.55):
-        box(k("trim"), x + sx - 0.09, x + sx + 0.09, G0, G0 + 2.3, z - 0.3, z + 0.3, scale=1.0, col=K.BLACK)
-        K.glow_box(x + sx - math.copysign(0.1, sx) - 0.01, x + sx - math.copysign(0.1, sx) + 0.01, G0 + 0.2, G0 + 2.2, z + 0.24, z + 0.3, hue, 1)
-    box(k("trim"), x - 0.64, x + 0.64, G0 + 2.3, G0 + 2.45, z - 0.3, z + 0.3, scale=1.0, col=K.BLACK)
+        box(k("trim"), x + sx - 0.09, x + sx + 0.09, y, y + 2.3, z - 0.3, z + 0.3, scale=1.0, col=K.BLACK)
+        K.glow_box(x + sx - math.copysign(0.1, sx) - 0.01, x + sx - math.copysign(0.1, sx) + 0.01, y + 0.2, y + 2.2, z + 0.24, z + 0.3, hue, 1)
+    box(k("trim"), x - 0.64, x + 0.64, y + 2.3, y + 2.45, z - 0.3, z + 0.3, scale=1.0, col=K.BLACK)
 
 
 def room():

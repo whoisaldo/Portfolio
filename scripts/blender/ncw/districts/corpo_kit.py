@@ -364,6 +364,24 @@ def stairs_z(x0, x1, z_foot, z_top, y0, y1, colour="cyan", col=CONCRETE):
             neon_box(x0 + 0.3, x1 - 0.3, ya - 0.1, ya - 0.05, z0, z1, colour, 1)
 
 
+def steps_z(x0, x1, z_foot, z_top, y0, y1, colour="cyan", col=CONCRETE, tread=PALE):
+    """A flight of steps climbing along z from z_foot (at y0) to z_top (at
+    y1), built step by step: each a riser of cast stone with a nosing of
+    paler stone over it and a line of light under the nosing, on a solid
+    string that follows the pitch."""
+    n = max(2, round((y1 - y0) / 0.175))
+    d = (z_top - z_foot) / n
+    s = math.copysign(1.0, d)
+    for i in range(n):
+        zf, yb, yt_ = z_foot + d * i, y0 + (y1 - y0) * i / n, y0 + (y1 - y0) * (i + 1) / n
+        za, zb = sorted((zf, zf + d))
+        solid(x0, x1, yb - 0.3 if i else 0.0, yt_ - 0.04, za, zb, col)
+        na, nb_ = sorted((zf - s * 0.03, zf + d))
+        solid(x0 - 0.02, x1 + 0.02, yt_ - 0.04, yt_, na, nb_, tread)
+        la, lb = sorted((zf - s * 0.035, zf - s * 0.005))
+        neon_box(x0 + 0.25, x1 - 0.25, yt_ - 0.09, yt_ - 0.05, la, lb, colour, 1)
+
+
 def stairs_x(z0, z1, x_foot, x_top, y0, y1, colour="cyan", col=CONCRETE):
     n = max(2, round((y1 - y0) / 0.17))
     d = (x_top - x_foot) / n
