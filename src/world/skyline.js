@@ -99,6 +99,20 @@ const UNDER_THE_MOON = [
   [650, 30, 24, 64],
   [520, 60, 20, 58],
 ];
+// What Contact's lens frames, as bearings from it in degrees (from east,
+// toward south): a 16:9 screen's frame and the moon shot's, with a margin.
+// Outside it the low zone need not be low.
+const FRAMED = [7, 84];
+// The far layer of megabuildings, seen from the lenses whose pictures hold,
+// stands no higher than this: lens x, y, z, the bearings it frames and the
+// elevation in degrees. Contact left of the moon, Contact under the moon
+// (its lower edge is 13.1 degrees up, the moon shot's frame 12.6), and
+// Corpo Row's low angle, whose frame starts 9 degrees up.
+const FAR_UNDER = [
+  [456, 10.4, -203, 7, 46, 13.5],
+  [456, 10.4, -203, 46, 84, 11.5],
+  [120, 30, -230, -96, -27, 7.5],
+];
 // Aviation lights on anything this tall, blinking red in three groups.
 const BEACON_OVER = 92;
 // The cloud deck's height, over the tallest roofs.
@@ -557,6 +571,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       const dd = 16 + r() * 22;
       let h = 24 + Math.pow(r(), 2.2) * 150 + Math.min(80, d * 0.05);
       if (r() < 0.05) h += 90 + r() * 110;
+      // What it was dealt, before anything below caps it.
+      const tall = h;
       let free = true;
       let cone = false;
       const [lx0, lz0, lx1, lz1] = LOW;
@@ -586,7 +602,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       const [cs, sn] = [Math.abs(Math.cos(yaw)), Math.abs(Math.sin(yaw))];
       const [ex, ez] = [(w * cs + dd * sn) / 2, (w * sn + dd * cs) / 2];
       const gone = KEEP_OUT_SINCE.some(([x0, z0, x1, z1]) => x + ex > x0 && x - ex < x1 && z + ez > z0 && z - ez < z1);
-      lots.push({ x, z, w, d: dd, h, yaw, free, cone, hero: false, gone });
+      lots.push({ x, z, w, d: dd, h, tall, yaw, free, cone, hero: false, gone });
     }
   }
   // More candidates than the tier draws (a phone's 1,200): keep the nearest
@@ -732,6 +748,55 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   }
   const skyColumns = createSkyColumns(scene, shared, columns, { reduced });
 
+  // ---- the ring ---------------------------------------------------------------
+  // Something stands on the horizon on every bearing. South-east the lots
+  // were all dealt low for Contact's moon, and from the air the low roofs
+  // ran out to a fog line. Outside Contact's own frame (and the moon
+  // shot's), seen from its lens, they stand as tall as they were dealt, as
+  // the north and the west do; a split block is one lot again under its
+  // tower. Inside the frame every lot is as it was.
+  const ring = rng(60606);
+  const lensAz = (x, z) => Math.atan2(z - CONTACT_LENS[1], x - CONTACT_LENS[0]) * (180 / Math.PI);
+  const reform = (i, b) => {
+    lots[i] = b;
+    forms[i] = formOf(b, ring);
+    kitOf[i] = null;
+    beaconOf[i] = forms[i].roof + forms[i].spire < BEACON_OVER ? -1 : Math.floor(ring() * 3);
+  };
+  for (let i = 0; i < lots.length; i++) {
+    const b = lots[i];
+    const whole = b.block ?? b;
+    if (b.second || b.hero || b.gone || whole.cone || !whole.tall || whole.tall < TOWER_FROM || whole.tall <= whole.h) continue;
+    const az = lensAz(whole.x, whole.z);
+    if ((az > FRAMED[0] && az < FRAMED[1]) || Math.hypot(whole.x - CONTACT_LENS[0], whole.z - CONTACT_LENS[1]) < 260) continue;
+    if (b.block) lots[i + 1] = { ...lots[i + 1], gone: true };
+    reform(i, { ...whole, h: whole.tall, free: true, block: undefined });
+  }
+  // And behind the last dealt lot, past the grid's edge, a further layer:
+  // megabuildings a mile off, dark against the horizon, their windows
+  // pinpoints, a red lamp on each. Not up the hero's avenue, where the band
+  // of sky is the landmark towers'; and from each framed lens no taller
+  // than the elevation its picture has room for (under Contact's moon,
+  // clear of its lower edge and of the five towers that reach it).
+  for (let gx = -1320; gx < 1920; gx += 92) {
+    for (let gz = -2120; gz < 1320; gz += 92) {
+      const x = gx + (ring() - 0.5) * 50;
+      const z = gz + (ring() - 0.5) * 50;
+      const [w, d, k, skip] = [38 + ring() * 44, 38 + ring() * 44, ring(), ring()];
+      const out = Math.max(-940 - x, x - 1530, -1740 - z, z - 916);
+      if (out < 36 || skip < 0.22 || (10 - z > 0 && Math.abs(x - 0.6) < (10 - z) * 0.9)) continue;
+      let h = 150 + 190 * Math.pow(k, 1.4) + out * 0.25;
+      for (const [lx, ly, lz, a0, a1, elevation] of FAR_UNDER) {
+        const a = Math.atan2(z - lz, x - lx) * (180 / Math.PI);
+        if (a > a0 && a < a1) h = Math.min(h, (ly + Math.hypot(x - lx, z - lz) * Math.tan(elevation * (Math.PI / 180))) * (0.56 + 0.44 * k));
+      }
+      lots.push({ x, z, w, d, h, yaw: (ring() - 0.5) * 0.3, free: false, cone: false, hero: false, far: true });
+      forms.push({ ...formOf(lots[lots.length - 1], ring), style: 6, screen: 0 });
+      kitOf.push(null);
+      beaconOf.push(Math.floor(ring() * 3));
+    }
+  }
+
   // ---- the buildings: blocks on a square plan, towers on a cut one ----------
   const material = new THREE.ShaderMaterial({
     uniforms: { ...shared, uMotion: { value: reduced ? 0 : 1 } },
@@ -792,6 +857,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // Window cells from world position, along whichever way the face runs.
         float along = dot(w.xz, vec2(n.z, -n.x));
         vCells = vec2(along / 3.2, (w.y - 4.6) / 3.4);
+        // A megabuilding a mile off is read in cells of several floors.
+        if (aForm.y > 5.5) vCells /= 2.6;
         float seed = fract(aForm.w) * 100.0;
         vParams = aLook.xyz;
         vCells += vec2(aLook.w, 0.0);
@@ -1229,7 +1296,13 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
             screens = lines;
           }
         }
+        // The far layer: its lit rooms carry a mile, and what is not lit
+        // stands darker than the lit air behind it (until, at the edge of
+        // what is drawn at all, it is the air).
+        float farOff = step(5.5, style);
+        col = mix(col, col * 4.0, farOff * win.a * onWall * (1.0 - parapet));
         col = cityFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, roofLit)))));
+        col *= mix(1.0, mix(0.6 + 0.4 * win.a * onWall, 1.0, smoothstep(1900.0, 2350.0, length(vWorld - uCam))), farOff);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -1290,6 +1363,12 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       else if (!tower && cut > 0.78) look[1] = 0.75;
       // People are home in the blocks, and no tower is a dark slab.
       look[0] = tower ? Math.max(look[0], 0.24) : 0.3 + 0.4 * hash11(seed);
+    }
+    // A megabuilding a mile off: few rooms lit, each a small window in a
+    // cell several floors high (the vertex shader's), so it is a pinpoint.
+    if (b.far) {
+      look[0] = 0.2 + 0.16 * hash11(seed);
+      look[1] = 0.375;
     }
     return { look, seed: hash11(at(b) + 14.9), dress };
   });
@@ -1787,6 +1866,8 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
   return {
     mesh,
     sky,
+    // What stands where (the tools under the city's cache read it).
+    plan: { lots, forms },
     update(camera, pixelRatio = 1) {
       sky.position.copy(camera.position);
       beaconMat.uniforms.uPixel.value = pixelRatio;
