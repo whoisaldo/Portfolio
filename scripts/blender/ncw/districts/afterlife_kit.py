@@ -675,15 +675,18 @@ def bulbs(D, a, b, sag=0.6, n=9, hue="amber", lit=True, floor=None):
         pool(D, (a[0] + b[0]) / 2, (a[2] + b[2]) / 2, floor, hue, r=max(3.0, math.hypot(b[0] - a[0], b[2] - a[2]) * 0.45), k=0.07)
 
 
-def hut(D, x, z, y, yaw, tint=5, w=3.2, d=2.6, h=2.7, hue="amber"):
-    """A stair hut: its door open on the lit stair, a lamp over it."""
+def hut(D, x, z, y, yaw, tint=5, w=3.2, d=2.6, h=2.7, hue="amber", drawn_pool=True):
+    """A stair hut: its door open on the lit stair, a lamp over it.
+    `drawn_pool`: its pool of light drawn on the roof (off on a deck that
+    takes light itself)."""
     oriented_box((D, "trim", 0), x, y + h / 2, z, w, h, d, yaw, scale=1.5, col=B.TRIM[tint])
     oriented_box((D, "dark", 1), x, y + h + 0.07, z, w + 0.3, 0.14, d + 0.3, yaw, scale=1.0)
     nx, nz = _dir(yaw)
     dxp, dzp = x + nx * (d / 2 + 0.02), z + nz * (d / 2 + 0.02)
     rotated_quad((D, "neon_" + hue, 0), dxp, y + 1.05, dzp, 0.95, 2.1, yaw)
     light(D, x + nx * (d / 2 + 1.2), y + 1.2, z + nz * (d / 2 + 1.2), hue, 6.0)
-    pool(D, x + nx * (d / 2 + 1.0), z + nz * (d / 2 + 1.0), y, hue, r=2.8, k=0.1)
+    if drawn_pool:
+        pool(D, x + nx * (d / 2 + 1.0), z + nz * (d / 2 + 1.0), y, hue, r=2.8, k=0.1)
 
 
 def unit(D, x, z, y, yaw=0.0, w=2.4, d=1.5, h=1.5, fans=2, lamp=None):

@@ -1105,16 +1105,18 @@ K.cable(D, (457.0 + 4.5 * ux_, 37.3, -283.0 + 4.5 * uz_), (457.4, 37.5, -288.0),
 # parapets, and a low cool fill round the tanks so the deck, the units and
 # the tanks' legs can be seen.
 # ---------------------------------------------------------------------------
-K.hut(D, 481.2, -296.6, 34.0, -math.pi / 2, T["teal"], hue="white")
+K.hut(D, 481.2, -296.6, 34.0, -math.pi / 2, T["teal"], hue="white", drawn_pool=False)
 K.rail(D, [(459.0, -299.8), (483.8, -299.8), (483.8, -258.2), (473.0, -258.2)], 35.1, h=0.9, thick=False)
 # (The tanks stand on a deck of pavers down the roof's east side, which
 # takes the light the wet tar does not.)
 K.slab(D, 474.2, 483.6, -299.6, -258.4, 34.0, "concrete", lift=0.06, scale=3.0)
-for (x_, z_, r_) in ((474.5, -292.0, 4.5), (480.0, -278.0, 4.5), (480.5, -264.0, 3.5), (469.5, -296.0, 3.5)):
-    K.pool(D, x_, z_, 34.0, "cyan", r=r_, k=0.045)
+# (No pools drawn on it: a drawn pool's dark rim shows on a deck that is lit.)
+for (x_, z_) in ((474.5, -292.0), (480.0, -278.0), (480.5, -264.0)):
     light(D, x_, 35.2, z_, "cyan", 5.0)
 for (x_, z_, hue_) in ((481.6, -288.0, "white"), (482.0, -271.5, "cyan"), (478.6, -261.0, "white")):
-    K.post_light(D, x_, z_, 34.06, hue_, h=0.9, power=6.0)
+    cylinder((D, "metal", 1), x_, z_, 34.06, 34.96, 0.05, segs=5)
+    box((D, "neon_" + hue_, 0), x_ - 0.07, x_ + 0.07, 34.96, 35.1, z_ - 0.07, z_ + 0.07, scale=0.5)
+    light(D, x_, 34.9, z_, hue_, 6.0)
 
 # ---------------------------------------------------------------------------
 # MILITECH's tower (rooftop.py's masses, 30 by 28 to 46 m, a tier to 58 and
