@@ -83,18 +83,31 @@ export const SHOP_ROOM = /* glsl */ `
     return tm;
   }
 
-  // A store's stock: packets in facings (one product three or so abreast),
-  // a label's band across some; its average where they are finer than a
-  // pixel (fine 0).
+  // A store's stock, a facing to a cell (one product three or so abreast):
+  // bottles with their shoulders, necks and caps, boxes and pouches with a
+  // label's band, each shaded round, stood on a shelf whose edge carries a
+  // strip of price tickets; dark behind them. Its average where they are
+  // finer than a pixel (fine 0). Flat pastel rectangles read as no stock.
   vec3 stock(vec2 q, vec2 size, float seed, float fine) {
     vec2 g = q / size;
     vec2 f = fract(g);
     float h = hash12(floor(g) + seed);
     float run = hash12(vec2(floor(g.x / 3.0), floor(g.y)) + seed);
-    float item = step(0.1, h) * step(0.07, f.x) * step(f.x, 0.93) * step(0.08, f.y) * step(f.y, 0.55 + 0.35 * fract(run * 9.0));
-    vec3 c = mix(vec3(0.85), neonOf(run * 3.7), 0.75) * (0.5 + 0.5 * fract(run * 17.0));
-    c = mix(c, vec3(0.9), step(abs(f.y - 0.3), 0.06) * step(0.5, fract(run * 5.0)));
-    return mix(vec3(0.3, 0.3, 0.31), c * item + vec3(0.05) * step(f.y, 0.08), fine);
+    float kind = fract(run * 9.0);
+    float y = (f.y - 0.1) / (0.5 + 0.34 * fract(run * 5.0));
+    float x = abs(f.x - 0.5);
+    float hw = kind < 0.4 ? (y < 0.6 ? 0.36 : max(0.36 - (y - 0.6) * 1.9, 0.13)) : (kind < 0.75 ? 0.41 : 0.4 - 0.12 * smoothstep(0.7, 1.0, y));
+    float item = step(x, hw) * step(0.0, y) * step(y, 1.0) * step(0.08, h);
+    vec3 body = mix(neonOf(run * 3.7) * 0.5, vec3(0.72, 0.7, 0.64), step(0.7, fract(run * 13.0)));
+    if (kind < 0.4) body = mix(body, vec3(0.05, 0.17, 0.09), step(0.5, fract(run * 21.0)));
+    float label = step(abs(y - 0.36), 0.15) * (kind < 0.4 ? 1.0 : step(0.4, fract(run * 17.0)));
+    vec3 c = mix(body, mix(vec3(0.86, 0.84, 0.76), neonOf(run * 7.1 + 0.3) * 0.8, 0.5 * step(0.5, fract(run * 29.0))), label);
+    c = mix(c, vec3(0.7, 0.08, 0.06), step(0.88, y) * step(kind, 0.4));
+    c *= 0.62 + 0.38 * smoothstep(hw, 0.0, x);
+    vec3 full = mix(vec3(0.03), c, item);
+    float ticket = step(abs(f.x - 0.5), 0.24) * step(0.02, f.y) * step(f.y, 0.065);
+    full = mix(full, mix(vec3(0.5, 0.5, 0.48), mix(vec3(0.85, 0.84, 0.8), vec3(0.9, 0.72, 0.08), step(0.8, fract(run * 3.0))), ticket), step(f.y, 0.085));
+    return mix(vec3(0.19, 0.19, 0.2), full, fine);
   }
 
   // A game's screen: two of the city's colours running in bars.
@@ -117,7 +130,7 @@ export const SHOP_ROOM = /* glsl */ `
     vec3 col;
     if (face < 0.5) {
       float fridge = step(0.12, q.y) * step(q.y, 2.2);
-      vec3 inside = vec3(0.55, 0.85, 1.0) * 0.8 + stock(q, vec2(0.13, 0.36), seed * 31.0, fine) * 0.45;
+      vec3 inside = vec3(0.55, 0.85, 1.0) * 0.3 + stock(q, vec2(0.13, 0.36), seed * 31.0, fine) * 0.85;
       col = mix(lit * 0.3, inside, fridge);
       col *= 1.0 - 0.8 * step(fract(q.x / 0.78), 0.06) * fridge;
       col = mix(col, acc * 1.2, step(abs(q.y - 2.48), 0.14));
@@ -249,13 +262,23 @@ export const SHOP_ROOM = /* glsl */ `
       col = mix(col, mix(vec3(0.8, 0.72, 0.55), hs > 0.8 ? vec3(0.7, 0.06, 0.04) : vec3(0.05), ink), slip);
       // The pass: tiles, pans hung in a row, the hood's edge, steam.
       float pass = within(q, vec2(W * 0.14, 1.08), vec2(W * 0.86, 2.0));
-      vec3 kitchen = vec3(1.0, 0.92, 0.7) * 1.5;
-      kitchen *= 1.0 - 0.18 * fine * (step(fract(q.x / 0.15), 0.08) + step(fract(q.y / 0.15), 0.08));
+      // (Lit from its hood, so bright under it and dim at the range: lit
+      // evenly at one and a half it was a blank white board with a grid.)
+      vec3 kitchen = vec3(1.0, 0.86, 0.6) * (0.3 + 0.62 * smoothstep(1.1, 1.86, q.y));
+      kitchen *= 1.0 - 0.1 * fine * (step(fract(q.x / 0.15), 0.08) + step(fract(q.y / 0.15), 0.08));
       float pan = step(length(vec2((fract(q.x / 0.42) - 0.5) * 0.42, q.y - 1.72)), 0.13) * step(0.4, hash12(vec2(floor(q.x / 0.42), seed)));
       kitchen = mix(kitchen, vec3(0.05, 0.04, 0.035), pan);
+      // A shelf of bowls stacked, and the pots on the range under it.
+      vec2 bw = vec2(fract(q.x / 0.3) - 0.5, q.y - 1.36);
+      float hbw = hash12(vec2(floor(q.x / 0.3), seed * 3.0));
+      kitchen = mix(kitchen, vec3(0.8, 0.78, 0.7) * (0.35 + 0.3 * step(0.5, fract(bw.y / 0.045))), step(abs(bw.x), 0.3) * step(0.0, bw.y) * step(bw.y, 0.05 + 0.14 * hbw) * step(0.3, hbw));
+      kitchen = mix(kitchen, vec3(0.04, 0.035, 0.03), step(abs(q.y - 1.345), 0.014));
+      vec2 pt = vec2((fract(q.x / 0.56 + 0.3) - 0.5) * 0.56, q.y - 1.08);
+      float hpt = hash12(vec2(floor(q.x / 0.56 + 0.3), seed * 5.0));
+      kitchen = mix(kitchen, vec3(0.22, 0.22, 0.23) * (0.5 + 0.9 * smoothstep(0.17, 0.0, abs(pt.x + 0.05))), step(abs(pt.x), 0.17) * step(pt.y, 0.12 + 0.1 * hpt) * step(0.25, hpt));
       kitchen *= 1.0 - 0.85 * step(1.88, q.y);
       float steam = vnoise(vec2(q.x * 2.3 + seed * 9.0, q.y * 1.6 - uTime * 0.5)) * vnoise(vec2(q.x * 5.0 - uTime * 0.2, q.y * 3.0 - uTime * 0.9));
-      kitchen = mix(kitchen, vec3(1.0, 0.97, 0.9) * 1.5, smoothstep(0.25, 0.7, steam) * 0.55);
+      kitchen = mix(kitchen, vec3(1.0, 0.95, 0.85) * 0.95, smoothstep(0.25, 0.7, steam) * 0.5);
       col = mix(col, kitchen, pass);
     } else if (face < 1.5) {
       col = warm * 0.1 * (1.0 + step(fract(h.x / 0.6), 0.12));
@@ -264,9 +287,22 @@ export const SHOP_ROOM = /* glsl */ `
     } else {
       vec2 s = vec2(h.z, h.y - FLOOR_Y);
       col = warm * timber * 0.7 * (1.0 - 0.25 * step(fract(s.x / 0.14), 0.1) * fine);
-      vec2 g = vec2(s.x / 0.8, (s.y - 1.1) / 1.0);
-      float card = step(0.0, g.y) * step(g.y, 1.0) * within(fract(g), vec2(0.15, 0.1), vec2(0.85, 0.9));
-      col = mix(col, mix(vec3(0.75, 0.1, 0.05), vec3(0.95, 0.86, 0.66), step(length(fract(g) - vec2(0.5, 0.55)), 0.22)) * 0.55, card);
+      // What hangs on it is the shop's own: red cards with a disc on
+      // each, shelves of jars and bottles, or one long black menu board
+      // (the cards alone made every counter in the city the same wall).
+      float look = fract(seed * 41.0);
+      if (look < 0.34) {
+        vec2 g = vec2(s.x / 0.8, (s.y - 1.1) / 1.0);
+        float card = step(0.0, g.y) * step(g.y, 1.0) * within(fract(g), vec2(0.15, 0.1), vec2(0.85, 0.9));
+        col = mix(col, mix(vec3(0.75, 0.1, 0.05), vec3(0.95, 0.86, 0.66), step(length(fract(g) - vec2(0.5, 0.55)), 0.22)) * 0.55, card);
+      } else if (look < 0.67) {
+        col = mix(col, warm * 0.05 + stock(s, vec2(0.16, 0.36), seed * 47.0 + step(d.x, 0.0), fine) * warm * 0.7, step(0.4, s.x) * step(s.x, D - 0.3) * step(1.0, s.y) * step(s.y, 2.1));
+      } else {
+        vec2 g = vec2(s.x - D * 0.5, s.y - 1.6);
+        float board = step(abs(g.x), D * 0.36) * step(abs(g.y), 0.5);
+        float chalk = step(abs(fract(g.y / 0.2) - 0.5), 0.2) * step(0.3, hash12(floor(vec2(g.x / 0.09, g.y / 0.2)) + seed)) * step(abs(g.x), D * 0.36 - 0.12) * fine;
+        col = mix(col, mix(vec3(0.025), vec3(0.8, 0.76, 0.6) * 0.5, chalk), board);
+      }
     }
     col *= 1.0 - 0.2 * h.z / D;
     float bar = FLOOR_Y + 1.02;
@@ -312,7 +348,7 @@ export const SHOP_ROOM = /* glsl */ `
       float cap = step(abs(l.x), 0.07) * step(abs(abs(l.y) - 0.23), 0.025);
       float cord = step(abs(l.x), 0.008) * step(0.23, l.y);
       col = mix(col, vec3(0.01), max(cap, cord));
-      col = mix(col, vec3(1.0, 0.2, 0.06) * (2.5 - 18.0 * dot(l, l)) * (0.85 + 0.15 * step(0.5, fract(l.y * 22.0)) * fine), body);
+      col = mix(col, (fract(seed * 61.0) < 0.67 ? vec3(1.0, 0.2, 0.06) * 2.5 : vec3(1.0, 0.82, 0.55) * 1.3) * (1.0 - 7.0 * dot(l, l)) * (0.85 + 0.15 * step(0.5, fract(l.y * 22.0)) * fine), body);
     }
     // The curtain across the top of the window, a ring dyed on each width.
     t = 0.1 / d.z;
@@ -320,9 +356,14 @@ export const SHOP_ROOM = /* glsl */ `
     if (w.y > 2.2) {
       float fx = fract(w.x / 0.62);
       float cloth = step(0.04, fx) * step(2.2 + 0.05 * step(0.5, fract(w.x / 1.24)), w.y);
-      vec3 dye = mix(vec3(0.04, 0.07, 0.26), acc * 0.3, step(0.6, fract(seed * 13.0))) + warm * 0.1;
+      float nk = fract(seed * 13.0);
+      vec3 dye = (nk < 0.4 ? vec3(0.04, 0.07, 0.26) : (nk < 0.7 ? acc * 0.3 : (nk < 0.85 ? vec3(0.3, 0.03, 0.03) : vec3(0.5, 0.46, 0.38)))) + warm * 0.1;
+      // Its mark: a ring, three bars, or a band along its hem.
+      float mk = fract(seed * 67.0);
       float ring = length(vec2((fx - 0.52) * 0.62, w.y - 2.5));
-      dye = mix(dye, vec3(0.63, 0.6, 0.56), step(ring, 0.11) - step(ring, 0.07));
+      float mark = mk < 0.34 ? step(ring, 0.11) - step(ring, 0.07)
+                 : (mk < 0.67 ? step(abs(fract(fx * 5.0) - 0.5), 0.2) * step(abs(fx - 0.52), 0.3) * step(abs(w.y - 2.5), 0.1) : step(abs(w.y - 2.3), 0.03));
+      dye = mix(dye, nk < 0.85 ? vec3(0.63, 0.6, 0.56) : vec3(0.05, 0.05, 0.12), mark);
       col = mix(col, dye, cloth);
     }
     return col;
@@ -397,8 +438,12 @@ export const SHOP_ROOM = /* glsl */ `
     vec2 q = vec2(h.x, h.y - FLOOR_Y);
     vec3 col;
     if (face < 0.5) {
+      // (Tiles to a dado in green, paler over it; all of it under the
+      // street's signs: at 0.62 and bare the room was three blank pale
+      // panes from across the avenue.)
       vec2 tile = abs(fract(q / 0.3) - 0.5);
-      col = lit * 0.62 * (1.0 - 0.2 * step(0.47, max(tile.x, tile.y)) * fine);
+      col = lit * mix(vec3(0.3, 0.52, 0.42) * 0.55, vec3(0.42), step(1.05, q.y)) * (1.0 - 0.25 * step(0.47, max(tile.x, tile.y)) * fine);
+      col = mix(col, green * 0.5, step(abs(q.y - 1.05), 0.03));
       float shelves = within(q, vec2(W * 0.4, 1.0), vec2(W - 0.25, 2.3));
       vec2 g = vec2(q.x / 0.1, (q.y - 1.0) / 0.26);
       float hb = hash12(vec2(floor(g.x / 2.0), floor(g.y)) + seed * 13.0);
@@ -411,17 +456,28 @@ export const SHOP_ROOM = /* glsl */ `
       col = mix(col, green * 2.4, cross);
     } else if (face < 1.5) {
       vec2 f = abs(fract(h.xz / 1.2) - 0.5);
-      col = lit * (0.25 + 2.3 * mix(0.3, step(f.x, 0.36) * step(f.y, 0.36), fine));
+      col = lit * (0.12 + 1.5 * mix(0.3, step(f.x, 0.36) * step(f.y, 0.36), fine));
     } else if (face < 2.5) {
       vec2 tile = abs(fract(h.xz / 0.45) - 0.5);
-      col = lit * 0.3 * (1.0 - 0.25 * step(0.48, max(tile.x, tile.y)) * fine);
+      col = lit * 0.2 * (1.0 - 0.3 * step(0.48, max(tile.x, tile.y)) * fine);
     } else {
+      // A side wall: the dado again, and over it a glass cabinet of boxes
+      // on the one side, the eye chart and a row of hooks on the other.
       vec2 s = vec2(h.z, h.y - FLOOR_Y);
-      col = lit * 0.5;
-      vec2 g = (s - vec2(D * 0.45, 1.2)) / vec2(0.7, 0.95);
-      float rowN = floor(g.y * 5.0);
-      float marks = step(0.5, fract(g.x * (11.0 - rowN * 2.0))) * step(0.3, fract(g.y * 5.0)) * within(g, vec2(0.1, 0.05), vec2(0.9, 0.95));
-      col = mix(col, mix(vec3(0.9), vec3(0.08), marks * fine), within(g, vec2(0.0), vec2(1.0)));
+      col = lit * mix(vec3(0.3, 0.52, 0.42) * 0.42, vec3(0.3), step(1.05, s.y));
+      col = mix(col, green * 0.4, step(abs(s.y - 1.05), 0.03));
+      if (d.x > 0.0) {
+        float cab = within(s, vec2(0.7, 1.2), vec2(D - 0.5, 2.3));
+        col = mix(col, lit * 0.06 + stock(s, vec2(0.11, 0.275), seed * 23.0, fine) * lit * 0.7, cab);
+        col = mix(col, lit * 0.03, cab * step(fract((s.x - 0.7) / 0.9), 0.04));
+      } else {
+        vec2 g = (s - vec2(D * 0.45, 1.25)) / vec2(0.7, 0.95);
+        float rowN = floor(g.y * 5.0);
+        float marks = step(0.5, fract(g.x * (11.0 - rowN * 2.0))) * step(0.3, fract(g.y * 5.0)) * within(g, vec2(0.1, 0.05), vec2(0.9, 0.95));
+        col = mix(col, mix(vec3(0.62), vec3(0.06), marks * fine), within(g, vec2(0.0), vec2(1.0)));
+        float coat = within(vec2((fract(s.x / 0.45) - 0.5) * 0.45, s.y), vec2(-0.13, 1.1), vec2(0.13, 1.85)) * step(s.x, D * 0.3);
+        col = mix(col, lit * vec3(0.6, 0.62, 0.6) * 0.5, coat);
+      }
     }
     col *= 1.0 - 0.15 * h.z / D;
     float bar = FLOOR_Y + 1.0;
@@ -433,11 +489,11 @@ export const SHOP_ROOM = /* glsl */ `
     }
     t = (bar - p.y) / min(d.y, -1e-4);
     w = p + d * t;
-    if (d.y < 0.0 && t < tm && w.z > 2.3 && w.z < 2.75 && w.x > W * 0.36) { col = lit * 0.75; tm = t; }
+    if (d.y < 0.0 && t < tm && w.z > 2.3 && w.z < 2.75 && w.x > W * 0.36) { col = lit * 0.5; tm = t; }
     t = 2.3 / d.z;
     w = p + d * t;
     if (t < tm && w.y < bar && w.x > W * 0.36) {
-      col = mix(lit * 0.42, green * 0.9, step(abs(w.y - bar + 0.22), 0.06));
+      col = mix(lit * 0.26, green * 0.8, step(abs(w.y - bar + 0.22), 0.06));
       tm = t;
     }
     t = 1.5 / d.z;
@@ -448,8 +504,24 @@ export const SHOP_ROOM = /* glsl */ `
     float arm = max(within(c, vec2(0.98, 0.0), vec2(1.03, 2.0)), within(c, vec2(0.45, 1.97), vec2(1.03, 2.02)));
     if (t < tm && W > 3.0) {
       col = mix(col, mix(vec3(0.03, 0.2, 0.22) * lit, vec3(0.05), arm), max(chair, arm));
-      col = mix(col, vec3(0.92, 0.98, 1.0) * 2.8, step(abs(length(c - vec2(0.45, 1.86)) - 0.13), 0.03));
+      col = mix(col, vec3(0.92, 0.98, 1.0) * 2.0, step(abs(length(c - vec2(0.45, 1.86)) - 0.13), 0.03));
     }
+    // Seats in a row inside the glass and who waits on them, dark against
+    // the room.
+    t = 0.7 / d.z;
+    w = p + d * t;
+    float sx = (fract(w.x / 0.62) - 0.5) * 0.62;
+    float who = hash12(vec2(floor(w.x / 0.62), seed * 53.0));
+    float seat = max(step(abs(sx), 0.25) * step(abs(w.y - FLOOR_Y - 0.45), 0.035), step(abs(sx), 0.25) * step(abs(w.y - FLOOR_Y - 0.72), 0.13) * step(0.3, who));
+    float sat = step(0.6, who) * person(vec2(sx, w.y - 0.3), 0.0);
+    if (w.x > W * 0.45 && w.x < W - 0.3 && max(seat, sat) > 0.5) col = mix(lit * vec3(0.05, 0.2, 0.16) * 0.5, lit * 0.02, sat);
+    // A band of green film across the glass, a cross cut out of it a pane.
+    t = 0.02 / d.z;
+    w = p + d * t;
+    vec2 k = vec2((fract(w.x / 1.5) - 0.5) * 1.5, w.y - 1.25);
+    float film = step(abs(k.y), 0.3);
+    float cut = max(step(abs(k.x), 0.2) * step(abs(k.y), 0.07), step(abs(k.x), 0.07) * step(abs(k.y), 0.2));
+    col = mix(col, mix(green * vec3(0.5, 0.3, 0.4) * 0.3 + col * 0.25, lit * 0.55, cut), film);
     return col;
   }
 
@@ -656,7 +728,7 @@ export const SHOP_ROOM = /* glsl */ `
     if (kind < 1.5) return vec3(1.0, 0.5, 0.25) * 0.2;
     if (kind < 2.5) return vec3(1.0, 0.6, 0.3) * 0.5;
     if (kind < 3.5) return vec3(0.55, 0.3, 0.9) * 0.27;
-    if (kind < 4.5) return vec3(0.75, 1.0, 0.9) * 0.5;
+    if (kind < 4.5) return vec3(0.7, 1.0, 0.86) * 0.36;
     if (kind < 5.5) return vec3(1.0, 0.8, 0.6) * 0.34;
     if (kind < 6.5) return vec3(0.95, 0.85, 0.5) * 0.21;
     return vec3(0.03, 0.04, 0.05);
@@ -677,5 +749,154 @@ export const SHOP_ROOM = /* glsl */ `
     if (kind < 5.5) return roomBoutique(p, d, roomW, seed, fine);
     if (kind < 6.5) return roomWorkshop(p, d, roomW, seed, fine);
     return roomDark(p, d, roomW, seed, fine, street);
+  }
+`;
+
+// A lobby that is no tower's hall (materials.js lobby() draws those): the
+// way in to a depot's offices, a block's street door. Such a pane carries
+// its own metres (u from its left edge, v down from a metre over its foot),
+// so the hall is laid out from that edge: nine metres wide, the pane's left
+// edge half a metre in from its left wall, storeys 3.1 m apart. The ground
+// storey is the hall: a desk before a lit wall with the house's mark, a
+// lift, a notice board, seats, a plant, who is on the desk and who waits.
+// Any storey over it is an office under its ceiling's panels, desks with
+// their screens on. All of it under the signs' brightness. Needs glsl.js's
+// COMMON above it.
+export const HALL = /* glsl */ `
+  float hallPanels(vec2 c, vec2 cell, vec2 fill) {
+    vec2 g = c / cell;
+    vec2 f = abs(fract(g) - 0.5);
+    float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
+    return mix(step(f.x, fill.x) * step(f.y, fill.y), 4.0 * fill.x * fill.y, aa);
+  }
+  // Somebody stood at x0, feet at 0.
+  float hallBody(vec2 q, float x0) {
+    float fx = q.x - x0;
+    return max(step(abs(fx), 0.21 - 0.05 * smoothstep(1.05, 1.45, q.y)) * step(q.y, 1.48) * step(0.0, q.y), step(length(vec2(fx, q.y - 1.63)), 0.11));
+  }
+  vec3 hall(vec2 at, vec3 d, float seed, vec3 light, vec3 accent) {
+    const float W = 9.0;
+    const float D = 5.6;
+    const float S = 3.1;
+    const float H = 2.8;
+    float storey = floor(at.y / S);
+    vec3 p = vec3(at.x + 0.5, at.y - storey * S, 0.0);
+    // The slab's edge between two storeys.
+    if (p.y > H) return light * 0.012;
+    float tx = d.x > 0.0 ? (W - p.x) / d.x : -p.x / min(d.x, -1e-4);
+    float ty = d.y > 0.0 ? (H - p.y) / d.y : -p.y / min(d.y, -1e-4);
+    float tz = D / d.z;
+    float tm = min(min(tx, ty), tz);
+    vec3 h = p + d * tm;
+    float hs = hash12(vec2(seed, 7.0 + storey));
+    vec3 col;
+    if (storey > 0.5) {
+      if (tm == tz) {
+        // The back wall: a door, and a board with its rows of notes.
+        col = light * (0.13 + 0.05 * h.y / H);
+        col = mix(col, light * 0.045, step(abs(h.x - W * (0.2 + 0.2 * hs)), 0.48) * step(h.y, 2.1));
+        vec2 b = vec2(h.x - W * (0.72 - 0.2 * hs), h.y - 1.55);
+        float board = step(abs(b.x), 1.1) * step(abs(b.y), 0.55);
+        col = mix(col, light * 0.4, board);
+        col = mix(col, light * 0.1, board * step(abs(b.x), 0.95) * step(abs(fract(b.y / 0.18) - 0.5), 0.14) * step(0.3, hash12(floor(vec2(b.x / 0.3, b.y / 0.18)) + seed)));
+      } else if (tm == ty && d.y > 0.0) {
+        col = light * (0.09 + 0.8 * hallPanels(h.xz, vec2(1.2, 1.4), vec2(0.36, 0.2)));
+      } else if (tm == ty) {
+        col = light * vec3(0.3, 0.33, 0.4) * 0.18;
+      } else {
+        col = light * 0.11;
+      }
+      col *= 1.0 - 0.3 * h.z / D;
+      // Two rows of desks, a screen on most, somebody sat at some.
+      for (int i = 0; i < 2; i++) {
+        float t = (i == 0 ? 3.6 : 1.7) / d.z;
+        if (t >= tm) continue;
+        vec3 q = p + d * t;
+        float g = q.x / 1.6 + 0.3 * float(i);
+        float cx = (fract(g) - 0.5) * 1.6;
+        float hd = hash12(vec2(floor(g), seed + storey * 3.0 + float(i)));
+        if (q.y < 0.74 && abs(cx) < 0.7) col = light * 0.03;
+        else if (hd > 0.3 && abs(cx) < 0.27 && abs(q.y - 1.0) < 0.17) col = mix(vec3(0.5, 0.75, 1.0), accent, 0.3) * (0.22 + 0.25 * step(0.5, fract(q.y * 14.0)));
+        else if (hd > 0.55 && hallBody(vec2(cx - 0.48, q.y + 0.4), 0.0) > 0.5) col = light * 0.016;
+      }
+      return col;
+    }
+    if (tm == tz) {
+      // The back wall: stone in panels, the lit wall behind the desk with
+      // the house's mark and its name as bars, a lift with its lamp.
+      col = light * (0.1 + 0.05 * h.y / H) * (1.0 - 0.35 * step(fract(h.x / 1.5), 0.016));
+      vec2 w = vec2(h.x - 3.6, h.y - 1.75);
+      if (abs(w.x) < 1.7 && abs(w.y) < 0.75) {
+        float r = length(w + vec2(0.95, 0.0));
+        float mark = step(abs(r - 0.36), 0.08) * step(0.12, abs(w.x + 0.95 - w.y) * 0.7) + step(r, 0.11);
+        float name = step(abs(w.y), 0.1) * step(-0.3, w.x) * step(w.x, 1.3) * step(0.2, fract(w.x * 4.0)) * step(0.15, hash12(vec2(floor(w.x * 4.0), seed)));
+        col = mix(light * 0.5, accent * 0.5 + light * 0.02, clamp(mark + name, 0.0, 1.0));
+        col *= 1.0 - 0.6 * step(1.64, abs(w.x)) - 0.6 * step(0.7, abs(w.y));
+      }
+      vec2 l = vec2(h.x - 7.2, h.y);
+      col = mix(col, light * 0.035, step(abs(l.x), 0.75) * step(l.y, 2.25));
+      col += light * 0.55 * (step(abs(abs(l.x) - 0.78), 0.02) * step(l.y, 2.28) + step(abs(l.y - 2.28), 0.02) * step(abs(l.x), 0.8) + 0.5 * step(abs(l.x), 0.012) * step(l.y, 2.25));
+      col += accent * 0.9 * step(abs(l.x), 0.12) * step(abs(l.y - 2.5), 0.05);
+    } else if (tm == ty && d.y > 0.0) {
+      col = light * (0.07 + 0.9 * hallPanels(h.xz, vec2(1.5, 1.3), vec2(0.1, 0.38)));
+    } else if (tm == ty) {
+      // The floor, polished: the ceiling's strips again, softer.
+      vec3 m2 = h + vec3(d.x, -d.y, d.z) * (H / max(-d.y, 1e-3));
+      col = light * (0.05 + 0.26 * hallPanels(m2.xz, vec2(1.5, 1.3), vec2(0.1, 0.38))) * (1.0 - 0.4 * h.z / D);
+    } else {
+      // A side wall: a board of notices under its own lamp.
+      vec2 s = vec2(h.z - 2.6, h.y - 1.6);
+      col = light * 0.1;
+      col = mix(col, light * 0.34, step(abs(s.x), 0.9) * step(abs(s.y), 0.5));
+      col = mix(col, light * 0.07, step(abs(s.x), 0.8) * step(abs(s.y), 0.42) * step(0.4, hash12(floor(s * vec2(3.0, 5.0)) + seed)) * step(0.12, fract(s.x * 3.0)) * step(0.15, fract(s.y * 5.0)));
+    }
+    col *= 1.0 - 0.2 * h.z / D;
+    // Whoever is on the desk, head and shoulders over it.
+    float t = 4.3 / d.z;
+    vec3 q = p + d * t;
+    if (t < tm && hallBody(q.xy, 3.6 + 1.4 * (hs - 0.5)) > 0.5) col *= 0.06;
+    // The desk: dark stone, a strip of the house's colour let into its
+    // front, light along its top and under its foot, a screen stood on it.
+    t = 3.7 / d.z;
+    q = p + d * t;
+    if (t < tm && abs(q.x - 3.6) < 1.6 && q.y < 1.08) {
+      col = light * (0.025 + 0.015 * step(0.04, fract(q.x / 1.1))) + accent * 0.35 * step(abs(q.y - 0.55), 0.045) + light * 0.9 * step(1.02, q.y) + light * 0.5 * step(q.y, 0.05);
+    } else if (t < tm && abs(q.x - 4.5) < 0.28 && abs(q.y - 1.3) < 0.18) {
+      col = light * 0.012;
+    }
+    // A caller at the desk, and somebody crossing the hall.
+    t = 3.2 / d.z;
+    q = p + d * t;
+    if (t < tm && hs > 0.35 && hallBody(q.xy, 4.4) > 0.5) col *= 0.07;
+    t = 2.4 / d.z;
+    q = p + d * t;
+    if (t < tm && hallBody(q.xy, mix(-1.5, W + 1.5, fract(uTime * 0.03 + hs))) > 0.5) col *= 0.07;
+    // Seats by the glass at the far end, a low table and its lamp, a sitter.
+    t = 1.7 / d.z;
+    q = p + d * t;
+    if (t < tm) {
+      float sx = q.x - 5.9;
+      if (sx > 0.0 && sx < 2.5 && q.y < 0.84 && abs(sx - 1.25) > 0.18) col = light * (0.03 + 0.09 * step(abs(q.y - 0.43), 0.02) + 0.13 * step(0.81, q.y)) + accent * 0.04;
+      if (abs(sx - 1.25) < 0.08 && abs(q.y - 0.6) < 0.2) col = vec3(1.0, 0.8, 0.5) * (1.0 - 1.8 * abs(q.y - 0.6));
+      float fx = sx - 0.55 - 1.4 * step(0.5, fract(hs * 7.0));
+      col = mix(col, col * 0.06, max(step(abs(fx), 0.21) * step(0.3, q.y) * step(q.y, 0.98), step(length(vec2(fx, q.y - 1.12)), 0.11)));
+    }
+    // A plant in its tub inside the glass.
+    t = 0.9 / d.z;
+    q = p + d * t;
+    if (t < tm) {
+      vec2 g = vec2(abs(q.x - 1.0), q.y);
+      float leaf = 0.0;
+      for (int i = 0; i < 5; i++) {
+        float a = (float(i) - 2.0) * 0.36 + 0.1 * sin(float(i) * 5.0 + seed);
+        vec2 tip = vec2(sin(a), cos(a)) * (1.05 + 0.25 * cos(float(i) * 3.0 + seed));
+        vec2 pa = g - vec2(0.0, 0.5);
+        float k = clamp(dot(pa, tip) / dot(tip, tip), 0.0, 1.0);
+        leaf = max(leaf, step(length(pa - tip * k), 0.09 * sin(k * 3.1) + 0.012));
+      }
+      col = mix(col, light * vec3(0.025, 0.09, 0.045), leaf);
+      if (g.x < 0.27 && g.y < 0.5) col = light * (0.035 + 0.12 * step(0.47, g.y));
+    }
+    return col;
   }
 `;

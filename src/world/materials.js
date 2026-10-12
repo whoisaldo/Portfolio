@@ -31,7 +31,7 @@ import * as THREE from "three";
 import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
 import { GROUND, VNOISE } from "./ground.js";
 import { kindSource } from "./kinds.js";
-import { SHOP_ROOM } from "./interiors.js";
+import { SHOP_ROOM, HALL } from "./interiors.js";
 import { dealTrades } from "./trades.js";
 import { MIRROR_UNIFORMS } from "./road.js";
 import { MARKS } from "./marks.js";
@@ -658,6 +658,50 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec3 f = p + d * (mix(0.5, 1.2, fract(seed * 43.0)) / d.z);
             col = mix(col, col * 0.05, person(f.xy, roomW * mix(0.2, 0.8, fract(seed * 53.0))) * step(fract(seed * 59.0), 0.3) * step(kind, 6.5));
             col = mix(away, col, 1.0 - smoothstep(0.25, 0.6, px)) * power * 0.52;
+            // What is on the glass itself, each shop's own, so that no lit
+            // pane is bare whatever lies behind it and however the eye
+            // meets it: bills pasted inside facing out (the street lights
+            // them), a strip of film along its foot with a line of
+            // lettering, a small tube sign hung in it, and now and then the
+            // shutter drawn part of the way down. Not where it would be
+            // finer than a pixel, and not on a unit that is shut.
+            float gl = 1.0 - smoothstep(0.1, 0.3, px);
+            if (gl > 0.0 && kind < 6.5) {
+              vec2 g = vec2(p.x, py);
+              float gs = fract(seed * 71.0);
+              for (int i = 0; i < 2; i++) {
+                float hb = hash12(vec2(seed * 91.0 + float(i) * 7.0, shop * 13.0));
+                if (hb < 0.4) continue;
+                vec2 size = hb < 0.7 ? vec2(0.42, 0.6) : vec2(0.62, 0.44);
+                vec2 b = (g - vec2(roomW * (0.08 + 0.6 * fract(hb * 7.0)) + float(i) * 0.3, 0.4 + 1.1 * fract(hb * 13.0))) / size;
+                if (b.x > 0.0 && b.x < 1.0 && b.y > 0.0 && b.y < 1.0) {
+                  vec3 paper = hb < 0.55 ? vec3(0.8, 0.76, 0.62) : (hb < 0.7 ? vec3(0.85, 0.7, 0.1) : (hb < 0.85 ? vec3(0.8, 0.2, 0.35) : vec3(0.15, 0.6, 0.7)));
+                  float block = step(0.5, b.y) * step(b.y, 0.9) * step(0.1, b.x) * step(b.x, 0.9);
+                  float lines = step(0.1, b.y) * step(b.y, 0.42) * step(abs(fract(b.y * 9.0) - 0.5), 0.2) * step(0.1, b.x) * step(b.x, 0.25 + 0.65 * hash12(vec2(floor(b.y * 9.0), hb)));
+                  vec3 bill = mix(paper, mix(vec3(0.05), neonOf(hb * 5.0) * 0.5, step(0.5, fract(hb * 29.0))), max(block, lines));
+                  bill = mix(bill, paper, block * step(length((b - vec2(0.5, 0.7)) * size), 0.09));
+                  col = mix(col, bill * (vec3(0.06) + street * 0.8) + col * 0.12, gl);
+                }
+              }
+              if (fract(shop * 37.0) < 0.45 && py < 0.2) {
+                float bars = step(0.25, fract(g.x * 2.2)) * step(abs(py - 0.1), 0.045) * step(0.2, hash12(vec2(floor(g.x * 2.2), shop)));
+                col = mix(col, mix(L * 0.14, vec3(0.85, 0.82, 0.75) * 0.4, bars), gl * 0.85);
+              }
+              if (gs < 0.35) {
+                vec2 c = g - vec2(roomW * (0.3 + 0.4 * fract(gs * 17.0)), 1.95);
+                vec2 e = abs(c) - vec2(0.3, 0.1);
+                float rb = length(max(e, 0.0)) + min(max(e.x, e.y), 0.0);
+                float loop = 1.0 - smoothstep(0.012, 0.03, abs(rb - 0.05));
+                float dash = step(abs(c.y), 0.035) * step(abs(c.x), 0.2) * step(0.3, fract(c.x * 9.0));
+                col += neonOf(shop * 5.3 + gs) * (loop * 1.3 + dash * 0.9) * gl;
+              }
+              float drop = fract(shop * 53.0);
+              float foot = GLASS * (0.45 + 0.3 * fract(drop * 31.0));
+              if (drop < 0.14 && py > foot) {
+                vec3 slat = vec3(0.1, 0.1, 0.115) * (0.7 + 0.3 * smoothstep(0.0, 0.6, fract(py / 0.085))) * (1.0 + 0.5 * step(py, foot + 0.06));
+                col = mix(col, slat * (vec3(0.14) + street * 1.15), gl);
+              }
+            }
             // Mullions down the glass and a transom rail across it.
             float module = 1.3 + 0.7 * fract(shop * 17.0);
             float mu = fract(ax / module) * module;
@@ -1017,6 +1061,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
+        ${HALL}
         uniform vec3 uTowerAccent[8];
         uniform float uTowerLit[8];
         uniform vec2 uTowerCentre[8];
@@ -1054,6 +1099,26 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // Into the hall: x along the glass from its left end, y up, z in.
           vec3 V = normalize(vWorld - uCam);
           vec3 d = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
+          // A pane that counts its own metres is no tower's hall: a depot's
+          // way in, a block's street door (src/world/interiors.js). Before
+          // this it was drawn as the far end of a tower's hall a district
+          // away: six blank cream panes.
+          float run = dot(vWorld, t);
+          float metres = abs(dFdx(run)) + abs(dFdy(run));
+          if (abs(dFdx(vUv.x)) + abs(dFdy(vUv.x)) > 0.5 * metres) {
+            float way = dFdx(run) * dFdx(vUv.x) + dFdy(run) * dFdy(vUv.x) < 0.0 ? -1.0 : 1.0;
+            vec2 at = vec2(vUv.x, 1.0 - vUv.y);
+            float own = vColor.r * 37.0 + vColor.g * 11.0;
+            vec3 house = fract(own * 0.37) < 0.34 ? vec3(0.15, 0.86, 0.95) : (fract(own * 0.37) < 0.67 ? vec3(1.0, 0.62, 0.2) : vec3(0.22, 1.0, 0.6));
+            vec3 hc = hall(at, vec3(d.x * way, d.y, d.z), own, light, house);
+            float bar = fract(at.x / 2.0);
+            hc = mix(hc, vec3(0.015), clamp(step(bar, 0.02) + step(0.98, bar), 0.0, 1.0));
+            float glance = pow(1.0 - abs(dot(V, n)), 4.0);
+            hc = hc * (1.0 - 0.5 * glance) + (spillAt(vWorld) * 0.3 + uHazeColor * 0.1) * glance;
+            gl_FragColor = vec4(cityFog(hc, vWorld, 0.8), 1.0);
+            ${OUT}
+            return;
+          }
           vec3 p = vec3(clamp(along + W * 0.5, 0.0, W), h * H, 0.0);
           float tx = d.x > 0.0 ? (W - p.x) / d.x : -p.x / min(d.x, -1e-4);
           float ty = d.y > 0.0 ? (H - p.y) / d.y : -p.y / min(d.y, -1e-4);
@@ -1656,6 +1721,53 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float cut = step(0.992, hash12(vec2(t, floor(vWorld.x * 0.3 + vWorld.z * 0.2) + seed))) * uFlicker * step(0.5, vColor.a);
           float breathe = 1.0 + 0.45 * uBass + 0.15 * uLevel;
           vec3 col = vColor.rgb * uIntensity * breathe * (1.0 - 0.8 * cut);
+          // The avenue's four vending machines are the builder's boxes with
+          // a slab of this neon for a front (0.8 m by 1.1, at the pavement's
+          // edge, facing the road): a blank glowing rectangle. Each is drawn
+          // as a machine's front here, from where it stands: a lit case of
+          // bottles and cans on four shelves, a strip of price tickets under
+          // each, and down its right side a small screen, the keys and the
+          // coin slot, in a rim of the machine's own colour.
+          float vz = vWorld.x < 0.0 ? (vWorld.z > -20.05 ? -19.5 : -20.6) : (vWorld.z > -50.0 ? -36.0 : -71.0);
+          if (abs(abs(vWorld.x) - 13.03) < 0.03 && abs(vWorld.z - vz) < 0.405 && vWorld.y > 0.79 && vWorld.y < 1.91 && abs(vNormalW.x) > 0.5) {
+            vec2 m = vec2((vWorld.z - vz) * sign(vWorld.x) + 0.4, vWorld.y - 0.8);
+            vec3 hue = vColor.rgb;
+            float px = fwidth(m.x) + fwidth(m.y);
+            float near = 1.0 - smoothstep(0.012, 0.04, px);
+            vec3 face = hue * 0.9;
+            // The case: dark behind its glass, lit from its top.
+            vec2 w = (m - vec2(0.035, 0.2)) / vec2(0.55, 0.86);
+            if (w.x > 0.0 && w.x < 1.0 && w.y > 0.0 && w.y < 1.0) {
+              vec2 g = w * vec2(6.0, 4.0);
+              vec2 f = fract(g);
+              float run = hash12(vec2(floor(g.x / 2.0), floor(g.y)) + vz);
+              float tall = 0.55 + 0.25 * fract(run * 5.0);
+              float y = (f.y - 0.16) / tall;
+              float x = abs(f.x - 0.5);
+              float hw = fract(run * 9.0) < 0.5 ? (y < 0.62 ? 0.34 : max(0.34 - (y - 0.62) * 1.8, 0.12)) : 0.36;
+              float item = step(x, hw) * step(0.0, y) * step(y, 1.0);
+              vec3 can = mix(mix(vec3(1.0, 0.18, 0.2), vec3(0.15, 0.7, 0.95), step(0.5, fract(run * 3.0))), mix(vec3(0.98, 0.8, 0.12), vec3(0.2, 0.9, 0.45), step(0.5, fract(run * 7.0))), step(0.5, fract(run * 13.0)));
+              can = mix(can, vec3(0.9, 0.88, 0.82), step(abs(y - 0.4), 0.13));
+              can *= 0.55 + 0.45 * smoothstep(hw, 0.0, x);
+              vec3 shelf = mix(vec3(0.04, 0.045, 0.06), can * 0.8, item * near);
+              shelf = mix(shelf, vec3(0.2, 0.2, 0.22), (1.0 - near) * 0.6);
+              // The ticket strip, a lit line of small labels.
+              shelf = mix(shelf, mix(vec3(0.75, 0.75, 0.7), vec3(0.9, 0.2, 0.1), step(abs(f.x - 0.5), 0.2) * step(0.5, fract(run * 17.0)) * near) * 0.8, step(f.y, 0.12));
+              face = shelf * (0.75 + 0.5 * w.y);
+            } else if (m.x > 0.625 && m.x < 0.765) {
+              // The column: screen, keys, slot.
+              face = vec3(0.03, 0.032, 0.04);
+              vec2 c = vec2(m.x - 0.695, m.y);
+              if (abs(c.x) < 0.055 && abs(c.y - 0.9) < 0.08) face = hue * (0.5 + 0.5 * step(0.5, fract(c.y * 60.0)) * near);
+              vec2 key = fract(vec2(c.x / 0.036 + 0.5, (c.y - 0.52) / 0.045));
+              if (abs(c.x) < 0.054 && c.y > 0.52 && c.y < 0.745) face = mix(face, vec3(0.28, 0.29, 0.31), step(0.2, key.x) * step(0.25, key.y) * near);
+              if (abs(c.x) < 0.04 && abs(c.y - 0.4) < 0.012) face = vec3(1.0, 0.7, 0.25) * 1.2;
+            } else if (m.y < 0.17 && m.y > 0.03 && m.x > 0.035 && m.x < 0.765) {
+              // Under the case: the tray's dark mouth and a band of the mark.
+              face = mix(hue * 0.35, vec3(0.012), step(abs(m.x - 0.3), 0.2) * step(abs(m.y - 0.09), 0.05));
+            }
+            col = face * breathe;
+          }
           col = cityFog(col, vWorld, 1.0);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
