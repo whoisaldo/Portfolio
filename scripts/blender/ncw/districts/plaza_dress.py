@@ -236,3 +236,23 @@ for (x0, x1, z0, z1, ya, yb, hue) in ((60.5, 79.5, -445.5, -410.5, 73.2, 87.4, "
     for name, plane, a0, a1 in (("-x", x0, z0, z1), ("+x", x1, z0, z1), ("-z", z0, x0, x1), ("+z", z1, x0, x1)):
         f = B.Face(name, plane, a0, a1)
         fin_row(f, 2.8, f.width - 2.8, ya, yb, rt, step=(2.2, 3.0), out=0.5, lit=hue, every=3, k=0.2 if name in ("+z", "-x") else 0.32)
+
+
+def roof_mark(cx, cz, y, r, hue, k=0.45):
+    """A mark in light flat on a roof, for whoever flies over: a ring and a
+    bar across it, as a pad's or a house's."""
+    ring((PL, "glow", 0), cx, cz, r - 0.4, r, y + 0.05, n=20, col=dim(hue, k))
+    ring((PL, "glow", 0), cx, cz, r * 0.45 - 0.25, r * 0.45, y + 0.05, n=12, col=dim(hue, k * 0.7))
+    up_poly((PL, "glow", 0), [(cx - r * 1.25, cz - 0.2), (cx + r * 1.25, cz - 0.2), (cx + r * 1.25, cz + 0.2), (cx - r * 1.25, cz + 0.2)], y + 0.05, dim("white", k * 0.6))
+
+
+for (cx, cz, y, r, hue) in ((92.0, -270.0, 44.0, 3.6, "cyan"), (83.0, -112.0, 45.4, 4.6, "amber"), (82.0, -24.0, 45.4, 4.2, "pink"),
+                            (151.0, -112.0, 58.0, 4.6, "amber"), (123.0, -438.0, 45.4, 4.6, "cyan"), (93.0, -317.0, 42.0, 3.4, "cyan"),
+                            (93.0, -374.0, 76.0, 4.2, "teal"), (64.0, -315.0, 46.0, 3.6, "teal"), (155.0, -438.0, 52.0, 4.6, "cyan")):
+    roof_mark(cx, cz, y, r, hue)
+# The board's block: its lit path behind the plant, as pavers of light.
+x = 71.5
+while x < 106.0:
+    kk = 0.1 + sum(1.0 / (1.0 + ((x + 0.7 - lx) / 2.4) ** 2) ** 2 for lx in (74.0, 82.0, 90.0, 98.0, 105.0))
+    up_poly((PL, "glow", 0), [(x + 0.03, -282.5), (x + 1.42, -282.5), (x + 1.42, -281.4), (x + 0.03, -281.4)], 44.03, (0.24 * kk, 0.15 * kk, 0.06 * kk, 1.0))
+    x += 1.45

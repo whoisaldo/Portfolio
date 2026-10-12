@@ -186,7 +186,7 @@ P.place("vending", 59.2, G, -284.5, math.pi, district=PL)
 P.place("bin", 71.0, G, -284.8, district=PL)
 gline("cyan", 53.0, -291.4, 77.0, -291.4, G + 0.012)
 for (px, pz, yaw, pose) in ((64.6, -290.6, math.pi, "sit"), (60.4, -285.6, math.pi, "phone"), (70.0, -286.2, 0.6, "smoke"),
-                            (66.8, -287.6, -2.2, "talk"), (65.9, -288.3, 0.9, "talk")):
+                            (70.6, -288.0, -2.2, "talk"), (69.7, -288.7, 0.9, "talk")):
     stand(px, pz, yaw, pose, y=G + (0.48 if pose == "sit" else 0.0))
 # The lanes: a line of light down each, a pool at each crossing, trees
 # where two meet.

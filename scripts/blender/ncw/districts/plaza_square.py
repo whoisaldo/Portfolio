@@ -55,6 +55,14 @@ x = X0 + 3.0
 while x < TX - 3.0:
     box((PL, "neon_white", 0), x - 0.35, x + 0.35, 4.58, 4.62, -261.5, -261.4, scale=0.5)
     x += 6.6
+# (Its soffit is not a bare plane: beams across it, and between them panels
+# of light, warm and white turn about.)
+x, k = X0 + 2.6, 0
+while x < TX - 2.2:
+    box((PL, "board_frame", 0), x - 1.71, x - 1.59, 4.48, 4.62, -263.9, -260.7, scale=1.0, bottom=True)
+    box((PL, "glow", 0), x - 0.75, x + 0.75, 4.585, 4.62, -263.0, -261.9, scale=1.0, col=dim("amber" if k % 3 == 0 else "white", 0.5), bottom=True)
+    x += 3.3
+    k += 1
 # The block's face to the x 120 road, and its back corner to the lane.
 for k, (za, zb) in enumerate(((-284.0, -274.0), (-274.0, -264.0))):
     shopfront(PL, -1, za, zb, 8403 + k, awning=True, xf=108.03)

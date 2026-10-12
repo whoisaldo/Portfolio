@@ -133,8 +133,8 @@ def lobe_loop(r, zline, south):
 
 RB = RK - KW
 RAIL_Z = (CW[0] + KW / 2, CW[1] - KW / 2)
-balustrade(lobe_loop(RB, RAIL_Z[1], True), KY, colour="amber", close=True)
-balustrade(lobe_loop(RB, RAIL_Z[0], False), KY, colour="amber", close=True)
+balustrade(lobe_loop(RB, RAIL_Z[1], True), KY, colour="amber", close=True, k=0.45)
+balustrade(lobe_loop(RB, RAIL_Z[0], False), KY, colour="amber", close=True, k=0.45)
 
 # ---------------------------------------------------------------------------
 # The glazing (PzkEqhVByw4@86): a lattice of triangles over each half, every
