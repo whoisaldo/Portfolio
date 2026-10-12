@@ -61,22 +61,143 @@ const PAVE_Y = 0.15;
 
 // What they wear, in the show's street colours (linear): jackets in yellow,
 // red, teal, purple, white, black, olive, orange, navy, pink, grey, tan,
-// blue, lime, burgundy and cream; trousers darker; skin; hair (black, browns,
-// bleached, pink, cyan, red, silver, green, violet); bags and hats.
+// blue, lime, burgundy and cream, then a suit's charcoal and midnight and a
+// site vest's two hi-vis colours; trousers darker; what is under the jacket
+// (white, black, grey, pale blue, red, yellow, teal, pink); skin; hair
+// (black, browns, bleached, pink, cyan, red, silver, green, violet); bags
+// and hats; hard hats.
 const JACKETS = [
-  [0.62, 0.48, 0.06], [0.46, 0.05, 0.05], [0.04, 0.3, 0.32], [0.22, 0.09, 0.36], [0.56, 0.56, 0.54], [0.05, 0.052, 0.065],
+  [0.62, 0.48, 0.06], [0.46, 0.05, 0.05], [0.04, 0.3, 0.32], [0.22, 0.09, 0.36], [0.56, 0.56, 0.54], [0.06, 0.062, 0.076],
   [0.18, 0.21, 0.08], [0.6, 0.24, 0.04], [0.05, 0.08, 0.2], [0.56, 0.14, 0.3], [0.22, 0.22, 0.24], [0.38, 0.3, 0.2],
   [0.06, 0.22, 0.5], [0.27, 0.42, 0.09], [0.25, 0.03, 0.1], [0.62, 0.55, 0.4],
+  [0.11, 0.113, 0.13], [0.042, 0.056, 0.115], [0.66, 0.74, 0.06], [0.78, 0.27, 0.03],
 ];
-// The jackets by family of colour: yellows and tans, reds and pinks, greens,
-// purple, whites, black and grey, blues.
-const HUES = [0, 1, 2, 3, 4, 5, 2, 0, 6, 1, 5, 0, 6, 2, 1, 4];
-const TROUSERS = [[0.045, 0.046, 0.058], [0.08, 0.1, 0.18], [0.16, 0.14, 0.12], [0.05, 0.12, 0.12], [0.24, 0.05, 0.06], [0.3, 0.3, 0.3], [0.12, 0.12, 0.05], [0.035, 0.036, 0.046]];
+const TROUSERS = [[0.052, 0.053, 0.066], [0.08, 0.1, 0.18], [0.16, 0.14, 0.12], [0.05, 0.12, 0.12], [0.24, 0.05, 0.06], [0.3, 0.3, 0.3], [0.12, 0.12, 0.05], [0.04, 0.041, 0.052]];
+const SHIRTS = [[0.58, 0.58, 0.56], [0.05, 0.05, 0.062], [0.24, 0.24, 0.26], [0.3, 0.42, 0.6], [0.5, 0.07, 0.07], [0.62, 0.5, 0.08], [0.05, 0.32, 0.34], [0.58, 0.2, 0.36]];
 const SKINS = [[0.5, 0.31, 0.21], [0.32, 0.2, 0.13], [0.6, 0.4, 0.29], [0.2, 0.13, 0.09], [0.56, 0.36, 0.25], [0.44, 0.27, 0.17]];
 const HAIRS = [[0.035, 0.031, 0.03], [0.05, 0.035, 0.03], [0.12, 0.07, 0.04], [0.7, 0.62, 0.44], [0.7, 0.16, 0.45], [0.1, 0.55, 0.6], [0.5, 0.08, 0.05], [0.6, 0.6, 0.62], [0.2, 0.6, 0.15], [0.35, 0.12, 0.55]];
-const HAIR_ODDS = [30, 14, 12, 10, 8, 7, 6, 5, 4, 4];
 const BAGS = [[0.03, 0.03, 0.035], [0.3, 0.2, 0.1], [0.45, 0.05, 0.06], [0.6, 0.6, 0.58], [0.6, 0.55, 0.05], [0.06, 0.1, 0.25]];
-const PAL = { jacket: 0, trousers: 16, skin: 24, hair: 30, bag: 40, rim: 46, size: 50 };
+const HELMETS = [[0.7, 0.58, 0.05], [0.6, 0.6, 0.58], [0.78, 0.3, 0.04]];
+const PAL = { jacket: 0, trousers: 20, skin: 28, hair: 34, bag: 44, rim: 50, shirt: 54, helmet: 62, size: 65 };
+
+// A colour's family: what the eye calls it from across a street. A look is
+// never all one family: the trousers, what is under the jacket and dyed hair
+// are each picked out of the jacket's.
+const NEUTRAL = 0;
+function family([r, g, b]) {
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (d / max < 0.36) return NEUTRAL;
+  let h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  // Reds and pinks, oranges and yellows, greens, teals, blues, purples.
+  return h >= 5.5 || h < 0.3 ? 1 : h < 1.4 ? 2 : h < 2.6 ? 3 : h < 3.5 ? 4 : h < 4.4 ? 5 : 6;
+}
+const light = ([r, g, b]) => 0.3 * r + 0.5 * g + 0.2 * b;
+const FAMILY = {
+  jacket: JACKETS.map(family),
+  trousers: TROUSERS.map(family),
+  shirt: SHIRTS.map(family),
+  // Black, the browns, bleached and silver are nobody's colour but hair's.
+  hair: HAIRS.map((c, i) => ([0, 1, 2, 3, 7].includes(i) ? NEUTRAL : family(c))),
+  bag: BAGS.map(family),
+};
+
+const GARMENTS = { jacket: 0, coat: 1, puffer: 2, vest: 3 };
+// Hair: a cap of it, long, a mohawk over shaved sides, a bun, shaved, under a
+// cap, a hood up, long under a cap, under a hard hat.
+const HAIR = {
+  short: { mask: [TAG.hair] },
+  long: { mask: [TAG.hair, TAG.long] },
+  mohawk: { mask: [TAG.hair, TAG.mohawk], buzz: true },
+  bun: { mask: [TAG.hair, TAG.bun] },
+  buzz: { mask: [TAG.hair], buzz: true },
+  cap: { mask: [TAG.hair, TAG.brim], hat: true },
+  hood: { mask: [TAG.hood] },
+  capLong: { mask: [TAG.hair, TAG.brim, TAG.long], hat: true },
+  hardhat: { mask: [TAG.hair, TAG.hardhat] },
+};
+// How a place dresses. Each list is [what, odds] pairs: the garment, the
+// jacket's colour (by garment where it matters), the trousers', the shirt's,
+// the hair and its colour, the bag (none, a satchel, a pack, a carried bag)
+// and its colour; then how often a jacket is worn open, a suit's shirt and
+// lapels show, there is a tie, an umbrella's cloth is black, its colour or
+// pale, and the rest.
+const STYLES = {
+  // Japantown, the avenue and everywhere else: street fashion.
+  street: {
+    garment: [[GARMENTS.jacket, 42], [GARMENTS.coat, 22], [GARMENTS.puffer, 20], [GARMENTS.vest, 16]],
+    jacket: () => Array.from({ length: 16 }, (_, i) => [i, 1]),
+    trousers: [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1]],
+    shirt: [[0, 22], [1, 20], [2, 12], [3, 8], [4, 10], [5, 10], [6, 9], [7, 9]],
+    hair: [["short", 20], ["long", 20], ["mohawk", 8], ["bun", 10], ["buzz", 9], ["cap", 12], ["hood", 14], ["capLong", 7]],
+    hairColour: [[0, 30], [1, 14], [2, 12], [3, 10], [4, 8], [5, 7], [6, 6], [7, 5], [8, 4], [9, 4]],
+    bag: [[0, 45], [1, 20], [2, 20], [3, 15]],
+    bagColour: [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1]],
+    open: { [GARMENTS.jacket]: 0.62, [GARMENTS.coat]: 0.35, [GARMENTS.puffer]: 0, [GARMENTS.vest]: 0.5 },
+    suit: 0,
+    tie: 0,
+    canopy: [50, 32, 18],
+    umbrella: 1,
+    trim: 0.2,
+    cyber: 0.13,
+    visor: 0.09,
+    paleShoes: 0.25,
+    bare: 0.5,
+    hivis: () => 0,
+  },
+  // Corpo Plaza and Corpo Row: suits and long coats in dark tones, a white
+  // shirt, and a tie, an umbrella's rim or a bag for the one bright thing.
+  corpo: {
+    garment: [[GARMENTS.jacket, 58], [GARMENTS.coat, 34], [GARMENTS.vest, 8]],
+    jacket: (g) => (g === GARMENTS.coat ? [[5, 24], [16, 20], [17, 14], [8, 12], [10, 8], [11, 12], [14, 4], [15, 4], [4, 2]] : [[5, 26], [16, 24], [17, 18], [8, 16], [10, 9], [14, 4], [4, 3]]),
+    trousers: [[0, 34], [7, 24], [1, 18], [5, 12], [2, 12]],
+    shirt: [[0, 72], [3, 12], [1, 9], [2, 7]],
+    hair: [["short", 36], ["long", 24], ["bun", 18], ["buzz", 9], ["cap", 2], ["capLong", 1]],
+    hairColour: [[0, 36], [1, 20], [2, 15], [3, 10], [7, 11], [4, 2], [5, 2], [6, 2], [9, 2]],
+    bag: [[0, 44], [1, 24], [2, 4], [3, 28]],
+    bagColour: [[0, 5], [1, 3], [5, 2], [2, 1]],
+    open: {},
+    suit: 0.92,
+    tie: 0.55,
+    canopy: [72, 10, 18],
+    umbrella: 1.2,
+    trim: 0.05,
+    cyber: 0.2,
+    visor: 0.12,
+    paleShoes: 0.04,
+    bare: 0,
+    hivis: () => 0,
+  },
+  // Santo Domingo: work clothes, hi-vis vests with their bands, hard hats.
+  santo: {
+    garment: [[GARMENTS.jacket, 38], [GARMENTS.coat, 3], [GARMENTS.puffer, 13], [GARMENTS.vest, 46]],
+    jacket: (g) => (g === GARMENTS.vest ? [[18, 50], [19, 36], [6, 7], [10, 7]] : g === GARMENTS.puffer ? [[8, 3], [5, 3], [6, 2], [10, 2]] : [[8, 20], [11, 16], [6, 16], [10, 14], [7, 8], [12, 10], [5, 8], [18, 5], [19, 3]]),
+    trousers: [[1, 26], [2, 22], [6, 16], [0, 14], [5, 14], [7, 8]],
+    shirt: [[2, 30], [1, 20], [3, 20], [4, 10], [0, 10], [6, 10]],
+    hair: [["hardhat", 42], ["cap", 20], ["hood", 10], ["short", 14], ["buzz", 10], ["long", 4]],
+    hairColour: [[0, 38], [1, 22], [2, 18], [3, 8], [7, 9], [6, 3], [5, 2]],
+    bag: [[0, 55], [1, 10], [2, 20], [3, 15]],
+    bagColour: [[0, 4], [1, 3], [5, 2], [4, 1]],
+    open: { [GARMENTS.jacket]: 0.45, [GARMENTS.vest]: 0.7 },
+    suit: 0,
+    tie: 0,
+    canopy: [70, 10, 20],
+    umbrella: 0.25,
+    trim: 0.03,
+    cyber: 0.15,
+    visor: 0.05,
+    paleShoes: 0.03,
+    bare: 0.3,
+    hivis: (jacket) => (jacket === 18 || jacket === 19 ? 1 : 0),
+  },
+};
+// Where each is worn, 0 to 1 at a point of the plan, easing over a dozen
+// metres at its edges so the places leak into each other: Corpo Plaza and
+// the boulevard's two pavements and forecourts; Santo Domingo east of the
+// garage street, and the south street east of x 300.
+const within = (v, a, b, soft = 12) => Math.min(1, Math.max(0, (v - a) / soft + 0.5), Math.max(0, (b - v) / soft + 0.5));
+const corpoAt = (x, z) => Math.max(within(x, 44, 132) * within(z, -330, -200), within(x, 132, 436) * within(z, -356, -304, 8));
+const santoAt = (x, z) => Math.max(within(x, 442, 1e4), within(x, 300, 1e4, 30) * within(z, -16, 18, 8));
 
 // Walks: a start, a direction (unit, in the ground plane), a length, how
 // many people share it on a desktop and on a phone, the files they keep to
@@ -147,77 +268,93 @@ const bits = (...tags) => tags.reduce((m, t) => m + 2 ** t, 0);
 // they wear as a mask, the garment and its flags, the neon and bag colours,
 // a seed) and their colours (jacket, trousers, skin, hair).
 const STRIDE = 20;
-const HAIR_STYLES = [
-  { odds: 20, mask: bits(TAG.hair) },
-  { odds: 20, mask: bits(TAG.hair, TAG.long) },
-  { odds: 7, mask: bits(TAG.mohawk) },
-  { odds: 10, mask: bits(TAG.hair, TAG.bun) },
-  { odds: 9, mask: bits(TAG.hair), buzz: true },
-  { odds: 12, mask: bits(TAG.hair, TAG.brim), hat: true },
-  { odds: 12, mask: bits(TAG.hood) },
-  { odds: 3, mask: 0 },
-  { odds: 7, mask: bits(TAG.hair, TAG.brim, TAG.long), hat: true },
-];
-const GARMENTS = { jacket: 0, coat: 1, puffer: 2, vest: 3 };
-
 /** Who is in the city: every walker of every walk, then everyone standing. */
 function populate({ phone, walks, standers, bare = false }) {
   const r = rng(1312);
   const people = [];
   const recent = [];
   let before = { hue: -1, build: 0, hair: -1 };
+  // One of a list of [what, odds] pairs, of those `ok` lets through.
+  const draw = (list, ok = null) => {
+    const fit = ok ? list.filter(([v]) => ok(v)) : list;
+    const from = fit.length ? fit : list;
+    let x = r() * from.reduce((sum, [, odds]) => sum + odds, 0);
+    for (const [v, odds] of from) if ((x -= odds) < 0) return v;
+    return from[from.length - 1][0];
+  };
   // A look nobody among the last few dozen shares, and nothing like the one
   // before (who is the one beside them, ahead of them in the file or at the
   // same stall): the jacket's colour and cut, the hair and the build are
   // what the eye matches first, so next to each other no two have a jacket
-  // of the same family of colours, the same cut with the same hair, hair of
-  // the same colour or the same build.
-  const dress = ({ pose = null, umbrellaOdds = 0.38 } = {}) => {
-    let style, garment, jacket, key;
+  // of the same family of colours (suits apart: a row of dark suits is the
+  // place), the same cut with the same hair, hair of the same colour or the
+  // same build. And nobody is one colour: the trousers and what is under the
+  // jacket are out of its family or, greys and blacks together, well apart
+  // from it in lightness; dyed hair is not the jacket's colour either.
+  const dress = ({ pose = null, umbrellaOdds = 0.38, at = [0, 0] } = {}) => {
+    const where = r();
+    const corpo = corpoAt(at[0], at[1]) * 0.86;
+    const santo = santoAt(at[0], at[1]) * 0.86;
+    const style = STYLES[where < corpo ? "corpo" : where < corpo + santo ? "santo" : "street"];
+    let cut, garment, jacket, key;
     for (let tries = 0; tries < 16; tries++) {
-      style = pick(r, HAIR_STYLES.map((x) => x.odds));
-      garment = pick(r, [42, 22, 20, 16]);
-      jacket = Math.floor(r() * JACKETS.length);
-      key = `${jacket}|${garment}|${style}`;
-      if (!recent.includes(key) && !recent.slice(-4).some((k) => k.startsWith(`${jacket}|`)) && !recent.slice(-3).some((k) => k.endsWith(`|${garment}|${style}`)) && HUES[jacket] !== before.hue) break;
+      cut = draw(style.hair);
+      garment = draw(style.garment);
+      jacket = draw(style.jacket(garment));
+      key = `${jacket}|${garment}|${cut}`;
+      const hue = FAMILY.jacket[jacket];
+      if (!recent.includes(key) && !recent.slice(-4).some((k) => k.startsWith(`${jacket}|`)) && !recent.slice(-3).some((k) => k.endsWith(`|${garment}|${cut}`)) && (hue === NEUTRAL || hue !== before.hue)) break;
     }
     recent.push(key);
     if (recent.length > 48) recent.shift();
-    const hair = HAIR_STYLES[style];
+    const hair = HAIR[cut];
     const low = pose === "sit" || pose === "squat";
     if (garment === GARMENTS.coat && (low || pose === "lean")) garment = GARMENTS.jacket;
-    if (garment === GARMENTS.vest && hair.mask === bits(TAG.hood)) garment = GARMENTS.jacket;
-    let mask = hair.mask;
+    const hue = FAMILY.jacket[jacket];
+    const tone = light(JACKETS[jacket]);
+    const apart = (other) => Math.max(other, tone) > 1.8 * Math.min(other, tone);
+    let mask = bits(...hair.mask);
     if (garment === GARMENTS.coat) mask += bits(TAG.skirt);
-    const collar = garment === GARMENTS.puffer ? 1 : garment === GARMENTS.coat ? 0.6 : garment === GARMENTS.jacket ? 0.25 : 0;
-    if (r() < collar && !(hair.mask & bits(TAG.hood))) mask += bits(TAG.collar);
-    const bag = pose === "vendor" ? 0 : pick(r, [45, 20, pose === "lean" || pose === "sit" ? 0 : 20, low ? 0 : 15]);
+    const collar = garment === GARMENTS.puffer ? 1 : garment === GARMENTS.coat ? 0.6 : garment === GARMENTS.jacket ? (style.suit ? 0.06 : 0.25) : 0;
+    if (r() < collar && cut !== "hood") mask += bits(TAG.collar);
+    // A suit shows its shirt between the lapels; a jacket worn open (more
+    // often over a hood: it is the hoodie's own) shows what is under it.
+    const suit = garment !== GARMENTS.puffer && r() < style.suit;
+    const open = !suit && r() < (style.open[garment] ?? 0) + (cut === "hood" && garment !== GARMENTS.puffer ? 0.25 : 0);
+    if (suit) mask += bits(TAG.suit);
+    if (open) mask += bits(TAG.open);
+    if (suit && r() < style.tie) mask += bits(TAG.tie);
+    if (garment !== GARMENTS.puffer && garment !== GARMENTS.coat && style.hivis(jacket)) mask += bits(TAG.hivis);
+    const shirt = draw(style.shirt, (i) => (FAMILY.shirt[i] === NEUTRAL || FAMILY.shirt[i] !== hue) && apart(light(SHIRTS[i])));
+    const trousers = draw(style.trousers, (i) => (FAMILY.trousers[i] !== NEUTRAL ? FAMILY.trousers[i] !== hue : hue !== NEUTRAL || suit || open || apart(light(TROUSERS[i]))));
+    const bag = pose === "vendor" ? 0 : draw(style.bag, (k) => !(k === 2 && (pose === "lean" || pose === "sit")) && !(k === 3 && low));
     if (bag) mask += bits([TAG.hipbag, TAG.backpack, TAG.tote][bag - 1]);
+    const bagColour = draw(style.bagColour, (i) => FAMILY.bag[i] === NEUTRAL || FAMILY.bag[i] !== hue);
     const free = pose === null || pose === "idle" || pose === "talk";
-    const umbrella = free && r() < umbrellaOdds;
+    const umbrella = free && cut !== "hardhat" && r() < umbrellaOdds * style.umbrella;
     if (umbrella) mask += bits(TAG.umbrella);
     if (pose === "phone" || (pose === null && !umbrella && r() < 0.12)) mask += bits(TAG.phone);
     if (pose === "smoke") mask += bits(TAG.smoke);
-    if (r() < 0.2) mask += bits(TAG.trim);
+    if (r() < style.trim) mask += bits(TAG.trim);
     // Cyberware down a cheek on some, a visor on a few, and a cup in the
     // free hand of some of those with nothing to do with it.
-    if (r() < 0.13) mask += bits(TAG.cyber);
-    if (r() < 0.09) mask += bits(TAG.visor);
+    if (r() < style.cyber) mask += bits(TAG.cyber);
+    if (r() < style.visor) mask += bits(TAG.visor);
     if (bag !== 3 && r() < (pose === null ? 0.06 : pose === "idle" || pose === "talk" || pose === "sit" ? 0.22 : 0)) mask += bits(TAG.cup);
-    // The garment; a hat, a shaved head, lit eyes, bare arms under a vest,
-    // pale shoes; and an umbrella's cloth (black, its rim's colour, pale).
-    const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.08 ? 16 : 0) + (r() < 0.5 ? 32 : 0) + (r() < 0.25 ? 64 : 0) + 128 * pick(r, [50, 32, 18]);
+    // The garment; a hat, a shaved head, lit eyes, bare arms under a vest
+    // (never with a hood: that is a hoodie's, and it has sleeves), pale
+    // shoes; and an umbrella's cloth (black, its rim's colour, pale).
+    const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.08 ? 16 : 0) + (cut !== "hood" && r() < style.bare ? 32 : 0) + (r() < style.paleShoes ? 64 : 0) + 128 * pick(r, style.canopy);
     // Slight to heavy, most of them between.
     let build = 0.86 + 0.36 * r() ** 1.5;
     if (Math.abs(build - before.build) < 0.07) build = build > 1.04 ? build - 0.12 : build + 0.12;
-    let hairColour = pick(r, HAIR_ODDS);
-    if (hairColour === before.hair) hairColour = (hairColour + 1 + Math.floor(r() * (HAIRS.length - 1))) % HAIRS.length;
-    before = { hue: HUES[jacket], build, hair: hairColour };
+    const hairColour = draw(style.hairColour, (i) => i !== before.hair && (FAMILY.hair[i] === NEUTRAL || FAMILY.hair[i] !== hue));
+    before = { hue, build, hair: hairColour };
     return {
       height: (1.55 + 0.37 * (r() + r()) * 0.5) / RIG.height,
       build,
-      look: [mask, flags, Math.floor(r() * RIMS.length) + 4 * Math.floor(r() * BAGS.length), r()],
-      wear: [jacket, Math.floor(r() * TROUSERS.length), Math.floor(r() * SKINS.length), hairColour],
+      look: [mask, flags, Math.floor(r() * RIMS.length) + 4 * bagColour, r()],
+      wear: [jacket, trousers + 8 * shirt, Math.floor(r() * SKINS.length), hairColour],
     };
   };
 
@@ -285,7 +422,7 @@ function populate({ phone, walks, standers, bare = false }) {
         const f = size > 1 ? k : one;
         const off = files[f] + (r() - 0.5) * 0.1;
         // To the side of a line: +x of one that runs along +z.
-        const d = dress({ umbrellaOdds: k ? 0.3 : 0.38 });
+        const d = dress({ umbrellaOdds: k ? 0.3 : 0.38, at: [w.from[0] + w.dir[0] * at, w.from[1] + w.dir[1] * at] });
         people.push({
           walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, k ? step + 0.5 : step],
           path: [w.dir[0], w.dir[1], w.len, at + k * 0.12],
@@ -297,7 +434,7 @@ function populate({ phone, walks, standers, bare = false }) {
     });
   }
 
-  const stand = (x, y, z, yaw, pose, d = dress({ pose: POSES[pose], umbrellaOdds: 0.2 })) => {
+  const stand = (x, y, z, yaw, pose, d = dress({ pose: POSES[pose], umbrellaOdds: 0.2, at: [x, z] })) => {
     people.push({ walk: [x, z, 0, r()], path: [Math.sin(yaw), Math.cos(yaw), 1, 0], body: [d.height, d.build, pose, y], look: d.look, wear: d.wear });
   };
   STANDS.forEach(([x, z, yaw, pose], i) => {
@@ -306,9 +443,9 @@ function populate({ phone, walks, standers, bare = false }) {
   if (!bare) {
     // The hot phone: looking down the street toward the hero, the phone a
     // forearm ahead of them at the clue's point.
-    const d = dress({ pose: "phone" });
+    const d = dress({ pose: "phone", at: HOT_PHONE });
     d.height = 1.58 / RIG.height;
-    d.look[0] = bits(TAG.hair, TAG.phone);
+    d.look[0] = bits(TAG.hair, TAG.phone, TAG.open);
     d.look[1] = GARMENTS.jacket;
     const reach = 0.385 * d.height;
     const yaw = 0.5;
@@ -345,9 +482,9 @@ const GAP = 0.46;
 const EASE = 2;
 // How far to the side of the eye a walker passes it, how far to either side
 // of it a file gives way at all, and how far someone standing steps back.
-const CLEAR = 1;
-const CLEAR_REACH = 2;
-const BACK = 0.7;
+const CLEAR = 1.3;
+const CLEAR_REACH = 2.6;
+const BACK = 1;
 
 /** What stands on the ground in the props file (src/world/props.js packs
  *  it): x, z, the way it faces (as a cosine and a sine) and its half
@@ -490,7 +627,7 @@ const v3 = (a) => `vec3(${a.map(f).join(", ")})`;
 const BY_NIGHT = /* glsl */ `
   vec3 byNight(vec3 albedo, vec3 light) {
     float dim = 1.0 - smoothstep(0.04, 0.26, max(light.r, max(light.g, light.b)));
-    return mix(albedo, dot(albedo, vec3(0.3, 0.5, 0.2)) * vec3(0.72, 0.88, 1.3), 0.7 * dim);
+    return mix(albedo, dot(albedo, vec3(0.3, 0.5, 0.2)) * vec3(0.8, 0.9, 1.2), 0.62 * dim);
   }
 `;
 
@@ -533,14 +670,14 @@ const HEAD = /* glsl */ `
   // sign's own colour counts for as much as its luminance does: a blue or a
   // magenta tube lights a face, it does not black it out), easing off
   // toward a ceiling so the palest skin under the brightest sign stays skin;
-  // its colour is only a wash over their own (a third of the way from white),
+  // its colour is only a wash over their own (a quarter of the way from white),
   // so a jacket is still its own colour under a green sign and the trousers,
   // the skin and the hair are still theirs.
   vec3 person(vec3 L) {
     float peak = max(L.r, max(L.g, L.b));
     float level = mix(dot(L, vec3(0.2126, 0.7152, 0.0722)), peak, 0.5);
     level = level < 0.45 ? level : 0.45 + 0.5 * (1.0 - exp((0.45 - level) / 0.5));
-    return level * mix(vec3(1.0), L / max(peak, 1e-4), 0.32);
+    return level * mix(vec3(1.0), L / max(peak, 1e-4), 0.28);
   }
   ${BY_NIGHT}
   // The night's own light where no sign reaches: enough that someone in the
@@ -864,7 +1001,7 @@ const VERTEX = /* glsl */ `
       p.x = shoulderX + (p.x - ax) * wide;
       p.z *= wide;
     } else if (seg > 1.5) {
-      if (part == ${PART.scalp}) p = vec3(0.0, 1.68, -0.01) + (p - vec3(0.0, 1.68, -0.01)) * (1.0 + 0.16 * aux * rnd(seed * 7.3) * rnd(seed * 2.9));
+      if (part == ${PART.scalp} && bit(aLook.x, ${f(TAG.hardhat)}) < 0.5) p = vec3(0.0, 1.68, -0.01) + (p - vec3(0.0, 1.68, -0.01)) * (1.0 + 0.16 * aux * rnd(seed * 7.3) * rnd(seed * 2.9));
       // A head is not much smaller on a short person, nor wider on a broad.
       p = vec3(0.0, ${f(RIG.headY)}, 0.0) + (p - vec3(0.0, ${f(RIG.headY)}, 0.0)) * 1.07 * pow(h, -0.55);
       p.xz *= mix(1.0, wide, 0.3);
@@ -918,7 +1055,8 @@ const VERTEX = /* glsl */ `
     vec3 hair = uPal[${PAL.hair} + int(aWear.w + 0.5)];
     vec3 tint = uPal[${PAL.rim} + int(mod(aLook.z, 4.0) + 0.5)];
     vec3 carried = uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)];
-    vec3 shirt = uPal[${PAL.jacket} + int(mod(aWear.x * 7.0 + 5.0, 16.0) + 0.5)] * 0.8;
+    // What is under the jacket: a shirt, or the hoodie whose hood is up.
+    vec3 shirt = uPal[${PAL.shirt} + int(floor(aWear.y / 8.0) + 0.5)];
     vec3 albedo = jacket;
     vec3 lit = vec3(0.0);
     float glow = 0.0;
@@ -929,9 +1067,10 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.scalp}) {
       // Hair, a hat's dome, a shaved head's shadow; on the far figure, whose
       // head is one piece, a hood too, or nothing.
-      albedo = bit(flags, 2.0) > 0.5 ? carried : bit(flags, 3.0) > 0.5 ? mix(skin, hair, 0.45) : hair;
+      albedo = bit(flags, 2.0) > 0.5 ? carried : bit(flags, 3.0) > 0.5 ? mix(skin, hair, 0.72) : hair;
       #ifndef NEAR
-      if (bit(aLook.x, ${f(TAG.hair)}) < 0.5) albedo = bit(aLook.x, ${f(TAG.hood)}) > 0.5 ? jacket * 0.85 : skin;
+      if (bit(aLook.x, ${f(TAG.hardhat)}) > 0.5) albedo = uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)];
+      else if (bit(aLook.x, ${f(TAG.hair)}) < 0.5) albedo = bit(aLook.x, ${f(TAG.hood)}) > 0.5 ? shirt : mix(skin, hair, 0.72);
       #endif
     }
     else if (part == ${PART.sleeve}) {
@@ -940,11 +1079,18 @@ const VERTEX = /* glsl */ `
     }
     // A cuff a shade darker than its sleeve; on a bare arm, a band.
     else if (part == ${PART.cuff}) albedo = garment > 2.5 && bit(flags, 5.0) > 0.5 ? vec3(0.02) + tint * 0.08 : (garment > 2.5 ? shirt : jacket) * 0.72;
-    else if (part == ${PART.hood}) albedo = jacket * 0.85;
+    // A hood is the hoodie's under the jacket, and so is the collar at the
+    // throat; a collar turned up and a lapel are the jacket's own.
+    else if (part == ${PART.hood}) albedo = shirt * 0.92;
+    else if (part == ${PART.lapel}) albedo = jacket * 0.76 + 0.006;
     else if (part == ${PART.seam}) albedo = jacket * 0.4;
     else if (part == ${PART.shirt}) albedo = shirt;
-    else if (part == ${PART.trousers}) albedo = uPal[${PAL.trousers} + int(aWear.y + 0.5)];
-    else if (part == ${PART.shoe}) { albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.04, 0.04, 0.05); gloss = 0.35; }
+    else if (part == ${PART.tie}) albedo = tint * 0.4 + 0.012;
+    else if (part == ${PART.band}) { albedo = vec3(0.6, 0.62, 0.58); gloss = 1.1; }
+    else if (part == ${PART.helmet}) { albedo = uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)]; gloss = 0.55; }
+    else if (part == ${PART.socket}) albedo = skin * 0.62;
+    else if (part == ${PART.trousers}) albedo = uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)];
+    else if (part == ${PART.shoe}) { albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.04, 0.04, 0.05); gloss = 0.16; }
     else if (part == ${PART.bag} || part == ${PART.brim}) albedo = carried;
     else if (part == ${PART.tote}) albedo = uPal[${PAL.bag} + int(mod(floor(aLook.z / 4.0) + 3.0, 6.0) + 0.5)];
     else if (part == ${PART.dark}) { albedo = vec3(0.015); gloss = 0.5; }
@@ -994,11 +1140,13 @@ const VERTEX = /* glsl */ `
     float graze = 1.0 - max(dot(N, V), 0.0);
     vec3 past = signsAt(world - normalize(vec3(V.x, 0.0, V.z) + 1e-5) * 3.5);
     float ground = 0.72 + 0.28 * smoothstep(0.0, 0.5, tall);
-    // The sign behind them is a rim in its own colour along their edge, no
-    // brighter for a pale coat than for a dark one; the wet shine likewise.
-    float body = max(albedo.r, max(albedo.g, albedo.b));
-    vec3 rim = min((past * 1.2 + here * 0.1 + sky * 0.5) * graze * graze * graze * upright * (0.16 + 0.5 * body), vec3(0.55));
-    vec3 col = (byNight(albedo, light) * light * ground + rim + NIGHT * 0.05 * (0.3 + graze * graze) + (toward + sky * 0.9) * graze * graze * gloss * 0.5) * shade;
+    // The sign behind them is a rim in its own colour along their edge, and
+    // never more than they are themselves: someone in the dark in front of a
+    // cyan sign is a dark figure with a faint edge, not a cyan one.
+    vec3 own = byNight(albedo, light) * light * ground;
+    vec3 rim = (past * 1.2 + here * 0.1 + sky * 0.5) * graze * graze * graze * upright * 0.4;
+    rim *= min(1.0, (0.02 + 1.2 * max(own.r, max(own.g, own.b))) / max(max(rim.r, max(rim.g, rim.b)), 1e-4));
+    vec3 col = (own + rim + NIGHT * 0.05 * (0.3 + graze * graze) + (toward + sky * 0.9) * graze * graze * gloss * 0.5) * shade;
     // The umbrella's own neon is on the cloth by its edge, and on the head
     // and shoulders under it.
     if (part == ${PART.canopy}) col += (0.2 + albedo) * tint * 0.3 * aux * aux * aux;
@@ -1106,9 +1254,9 @@ const CARD_VERTEX = /* glsl */ `
     vec3 skin = uPal[${PAL.skin} + int(aWear.z + 0.5)];
     float facing = dot(face, toEye);
     // The top of the head, and all of it from behind: hair, a hat, a hood.
-    vec3 top = bit(mask, ${f(TAG.hood)}) > 0.5 ? jacket * 0.85 : bit(flags, 2.0) > 0.5 ? uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)] : bit(mask, ${f(TAG.hair)}) + bit(mask, ${f(TAG.mohawk)}) > 0.5 ? uPal[${PAL.hair} + int(aWear.w + 0.5)] : skin;
+    vec3 top = bit(mask, ${f(TAG.hardhat)}) > 0.5 ? uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)] : bit(mask, ${f(TAG.hood)}) > 0.5 ? uPal[${PAL.shirt} + int(floor(aWear.y / 8.0) + 0.5)] : bit(flags, 2.0) > 0.5 ? uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)] : uPal[${PAL.hair} + int(aWear.w + 0.5)];
     vJacket = vec4(jacket, bit(mask, ${f(TAG.umbrella)}));
-    vLegs = vec4(uPal[${PAL.trousers} + int(aWear.y + 0.5)], bit(mask, ${f(TAG.skirt)}));
+    vLegs = vec4(uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)], bit(mask, ${f(TAG.skirt)}));
     vSkin = vec4(skin, abs(facing));
     vHair = vec4(top, uPass.y * eye / h);
     vTint = vec4(uPal[${PAL.rim} + int(mod(aLook.z, 4.0) + 0.5)], bit(mask, ${f(TAG.trim)}) + 2.0 * bit(mask, ${f(TAG.phone)}) + 4.0 * step(facing, 0.0));
@@ -1195,7 +1343,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   const motion = reduced ? 0 : 1;
   const light = createStreetLight(scene, shared);
   const palette = new Float32Array(PAL.size * 3);
-  [JACKETS, TROUSERS, SKINS, HAIRS, BAGS, RIMS.map((c) => new THREE.Color(c).toArray())].flat().forEach((c, i) => palette.set(c, i * 3));
+  [JACKETS, TROUSERS, SKINS, HAIRS, BAGS, RIMS.map((c) => new THREE.Color(c).toArray()), SHIRTS, HELMETS].flat().forEach((c, i) => palette.set(c, i * 3));
   // Where the figures trade places, through a 50 degree lens: the face for
   // the far figure where a person is about seventy pixels tall on a desktop,
   // the far figure for the card where they are under twenty; sooner on a

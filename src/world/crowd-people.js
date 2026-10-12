@@ -73,6 +73,11 @@ export const PART = {
   metal: 27,
   visor: 28,
   cuff: 29,
+  lapel: 30,
+  band: 31,
+  helmet: 32,
+  tie: 33,
+  socket: 34,
 };
 
 /** What only some people have: a bit each in a person's mask. */
@@ -95,6 +100,14 @@ export const TAG = {
   cyber: 16,
   visor: 17,
   cup: 18,
+  // A jacket worn open over what is under it; a suit's lapels and the shirt
+  // between them; a tie; a hi-vis vest's reflective bands; a hard hat. (A
+  // person's mask is a float: 23 is the last bit it keeps exactly.)
+  open: 19,
+  suit: 20,
+  tie: 21,
+  hivis: 22,
+  hardhat: 23,
 };
 
 /** How an arm holds an umbrella up (the hand in front of the shoulder, so
@@ -323,6 +336,27 @@ function farFigure() {
   loft(TORSO.map(([y, cz, rx, rz, seg, aux]) => ell(NT, y, 0, cz, rx, rz, seg, aux)), { part: PART.jacket, smooth: 1 });
   // A neon band round the hem.
   loft([0.921, 0.935].map((y) => ell(NT, y, 0, 0, 0.177 - (y - 0.915) * 0.1, 0.121 - (y - 0.915) * (0.008 / 0.07), pelvis)), { part: PART.trim, tag: TAG.trim });
+  // What shows down the front of an open jacket, and between a suit's
+  // lapels: a strip folded over the chest's ridge.
+  {
+    const front = (y, x, out) => {
+      let i = 0;
+      while (i < TORSO.length - 2 && TORSO[i + 1][0] < y) i++;
+      const t = Math.min(1, Math.max(0, (y - TORSO[i][0]) / (TORSO[i + 1][0] - TORSO[i][0])));
+      const at = (k) => TORSO[i][k] + (TORSO[i + 1][k] - TORSO[i][k]) * t;
+      const k = widen(NT);
+      // From the ridge at the front to the corner beside it.
+      const cx = at(2) * k * Math.cos(Math.PI / 6);
+      const z0 = at(1) + at(3) * k;
+      const z1 = at(1) + at(3) * k * 0.5;
+      return [x, y, z0 + (z1 - z0) * (Math.abs(x) / cx) + out, y < 1.0 ? pelvis : torso, 0];
+    };
+    const strip = (rows, o) => loft(rows.map(([y, w]) => [front(y, -w, 0.006), front(y, 0, 0.006), front(y, w, 0.006)]), o, { open: true, ref: [0, 1.2, 0] });
+    strip([[0.94, 0.03], [1.2, 0.036], [1.43, 0.05]], { part: PART.shirt, tag: TAG.open });
+    strip([[1.13, 0.004], [1.3, 0.036], [1.44, 0.062]], { part: PART.shirt, tag: TAG.suit });
+    // A hi-vis vest's band round the chest.
+    loft([1.17, 1.22].map((y) => ell(NT, y, 0, 0.01, 0.172, 0.117, torso)), { part: PART.band, tag: TAG.hivis });
+  }
 
   for (const sx of [-1, 1]) {
     // ---- a leg and a shoe ----
@@ -527,6 +561,30 @@ function nearFigure() {
   const around = (y, out) => Array.from({ length: NT }, (_, i) => onTorso(y, ((i + 0.5) / NT) * 360, out));
   // A neon band round the hem.
   loft([around(0.922, 0.004), around(0.937, 0.004)], { part: PART.trim, tag: TAG.trim });
+  // A jacket worn open: what is under it shows in a strip from the hem to
+  // the throat, wider toward the collar, the jacket's two edges dark lines
+  // either side of it.
+  {
+    const rows = [[0.925, 9], [0.99, 9.5], [1.08, 10], [1.19, 11], [1.29, 12.5], [1.375, 16], [1.435, 21]];
+    loft(rows.map(([y, half]) => [onTorso(y, 90 + half, 0.0045), onTorso(y, 90, 0.0052), onTorso(y, 90 - half, 0.0045)]), { part: PART.shirt, tag: TAG.open, smooth: 41 }, { open: true, ref: [0, 1.2, 0] });
+    for (const s of [-1, 1]) loft(rows.map(([y, half]) => [onTorso(y, 90 + s * half, 0.0062), onTorso(y, 90 + s * (half + 2.6), 0.0062)]), { part: PART.seam, tag: TAG.open }, { open: true, ref: [0, 1.2, 0] });
+  }
+  // A suit: the shirt in a V from the collar to the button, a lapel down
+  // each side of it, and for some a tie from the knot to its point.
+  {
+    const rows = [[1.14, 0.4, 2.5], [1.19, 3.6, 4.5], [1.29, 10, 7.5], [1.375, 17, 9.5], [1.44, 24, 8]];
+    loft(rows.map(([y, half]) => [onTorso(y, 90 + half, 0.0045), onTorso(y, 90, 0.0052), onTorso(y, 90 - half, 0.0045)]), { part: PART.shirt, tag: TAG.suit, smooth: 42 }, { open: true, ref: [0, 1.2, 0] });
+    for (const s of [-1, 1]) loft(rows.map(([y, half, wide]) => [onTorso(y, 90 + s * half, 0.0075), onTorso(y, 90 + s * (half + wide), 0.0062)]), { part: PART.lapel, tag: TAG.suit }, { open: true, ref: [0, 1.2, 0] });
+    const tie = [[1.165, 0.3], [1.2, 3.4], [1.3, 2.9], [1.405, 2.1], [1.418, 3.3], [1.44, 3.3]];
+    loft(tie.map(([y, half]) => [onTorso(y, 90 + half, 0.0078), onTorso(y, 90 - half, 0.0078)]), { part: PART.tie, tag: TAG.tie }, { open: true, ref: [0, 1.2, 0] });
+  }
+  // A hi-vis vest's reflective bands: two round the body, and a brace up
+  // from the upper one over each shoulder, front and back.
+  {
+    const o = { part: PART.band, tag: TAG.hivis };
+    for (const [y0, y1] of [[0.985, 1.032], [1.185, 1.232]]) loft([around(y0, 0.0058), around(y1, 0.0058)], o);
+    for (const mid of [90 - 27, 90 + 27, 270 - 27, 270 + 27]) loft([1.232, 1.3, 1.375, 1.418].map((y) => [onTorso(y, mid - 4, 0.0058), onTorso(y, mid + 4, 0.0058)]), o, { open: true, ref: [0, 1.3, 0] });
+  }
   // The fastening down the front, and the jacket's own low collar, open
   // at the front.
   loft([0.91, 0.99, 1.08, 1.19, 1.29, 1.375, 1.405].map((y) => [onTorso(y, 92.6, 0.003), onTorso(y, 87.4, 0.003)]), { part: PART.seam }, { open: true, ref: [0, 1.2, 0] });
@@ -642,7 +700,7 @@ function nearFigure() {
   {
     // The sockets either side of the nose are in the brow's shade, and so
     // is what is under the jaw.
-    const shade = (r, i) => (r === 5 && (i === 1 || i === NH - 1) ? 0.6 : r === 5 && i === 0 ? 0.82 : r === 0 ? 0.65 : r === 1 && i > 3 && i < NH - 3 ? 0.8 : 1);
+    const shade = (r, i) => (r === 5 && (i === 1 || i === NH - 1) ? 0.52 : r === 5 && (i === 2 || i === NH - 2) ? 0.82 : r === 5 && i === 0 ? 0.8 : r === 0 ? 0.6 : r === 1 && i > 3 && i < NH - 3 ? 0.76 : r === 3 && (i === 2 || i === NH - 2) ? 0.9 : 1);
     const rings = SKULL.map(([y], r) => Array.from({ length: NH }, (_, i) => skull(round(i), y, 0, head, 0, shade(r, i))));
     loft(rings, { part: PART.skin, smooth: 14 });
     cap(rings[0], [0, 1.526, 0.03, head, 0, 0.65], { part: PART.skin, smooth: 14 }, centre);
@@ -686,11 +744,16 @@ function nearFigure() {
       const hgt = 0.005;
       const white = [[-w, 0], [-0.5 * w, -hgt], [0.5 * w, -hgt], [w, 0.0008], [0.5 * w, hgt], [-0.5 * w, hgt]].map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0017));
       cap(white, onFace(ex, ey, 0.0019), { part: PART.sclera }, centre);
-      quad(onFace(ex - 0.0047, ey - 0.0052, 0.0027), onFace(ex + 0.0047, ey - 0.0052, 0.0027), onFace(ex + 0.0047, ey + 0.0052, 0.0027), onFace(ex - 0.0047, ey + 0.0052, 0.0027), { part: PART.eye }, centre);
-      const lid = [[-w * 1.06, 0.0006], [-0.5 * w, hgt], [0.5 * w, hgt], [w * 1.12, 0.0014]];
-      loft([lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0031)), lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy + 0.004, 0.0031))], { part: PART.line }, { open: true, ref: centre });
-      const brow = [[0.01, 1.6885, 0.0078], [0.03, 1.694, 0.0068], [0.0485, 1.6885, 0.0045]];
-      loft([brow.map(([x, y]) => onFace(s * x, y, 0.0022)), brow.map(([x, y, t]) => onFace(s * x, y + t, 0.0022))], { part: PART.brow }, { open: true, ref: centre });
+      quad(onFace(ex - 0.0056, ey - 0.0054, 0.0027), onFace(ex + 0.0056, ey - 0.0054, 0.0027), onFace(ex + 0.0056, ey + 0.0054, 0.0027), onFace(ex - 0.0056, ey + 0.0054, 0.0027), { part: PART.eye }, centre);
+      const lid = [[-w * 1.1, 0.0002], [-0.5 * w, hgt], [0.5 * w, hgt], [w * 1.2, 0.001]];
+      loft([lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0031)), lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy + 0.0058, 0.0031))], { part: PART.line }, { open: true, ref: centre });
+      // The brow, heavy enough to read from across a pavement, and the
+      // shadow it throws over the eye: the two are what a face is at four
+      // metres.
+      const brow = [[0.009, 1.6885, 0.0105], [0.03, 1.6945, 0.0095], [0.05, 1.688, 0.0065]];
+      loft([brow.map(([x, y]) => onFace(s * x, y, 0.0024)), brow.map(([x, y, t]) => onFace(s * x, y + t, 0.0024))], { part: PART.brow }, { open: true, ref: centre });
+      const socket = [[0.011, 1.6895], [0.03, 1.6955], [0.0495, 1.689]];
+      loft([socket.map(([x]) => onFace(s * x, 1.6685, 0.0011)), socket.map(([x, y]) => onFace(s * x, y, 0.0011))], { part: PART.socket }, { open: true, ref: centre });
       // An ear: its rim, the hollow inside it, and its back to the head.
       const rim = [[1.684, -0.002, 0.0785], [1.693, -0.02, 0.087], [1.676, -0.037, 0.0905], [1.648, -0.035, 0.089], [1.626, -0.02, 0.083], [1.636, -0.004, 0.078]].map(([y, z, x]) => [s * x, y, z, head, 0]);
       cap(rim, [s * 0.079, 1.657, -0.016, head, 0, 0.5], { part: PART.skin, smooth: 31 }, [0, 1.657, -0.016]);
@@ -718,7 +781,7 @@ function nearFigure() {
   // The cap of it every haired head has (a hat's dome too): from the
   // hairline (across the forehead, over the ears, down to the nape) to the
   // crown, standing off the skull.
-  const HAIRLINE = [1.722, 1.726, 1.712, 1.699, 1.696, 1.6, 1.575, 1.57];
+  const HAIRLINE = [1.722, 1.726, 1.708, 1.652, 1.696, 1.6, 1.575, 1.57];
   {
     const o = { part: PART.scalp, tag: TAG.hair, smooth: 15 };
     const line = (i) => HAIRLINE[i <= NH / 2 ? i : NH - i];
@@ -769,6 +832,20 @@ function nearFigure() {
     quad(...under, o, [0, 1.8, 0.12]);
     quad(top[3], top[2], under[2], under[3], o, [0, 1.72, 0.1]);
   }
+  // A hard hat: a shell standing off the head, a brim all round it, longer
+  // at the front.
+  {
+    const o = { part: PART.helmet, tag: TAG.hardhat, smooth: 43 };
+    const shell = (y, hw, zf, zb, shade = 1) => Array.from({ length: NH }, (_, i) => {
+      const a = (round(i) * Math.PI) / 180;
+      const c = Math.cos(a);
+      return [hw * Math.sin(a), y, EAR_Z + (c >= 0 ? (zf - EAR_Z) * c : (zb - EAR_Z) * -c), head, 0, shade];
+    });
+    const rings = [shell(1.706, 0.106, 0.142, -0.128), shell(1.714, 0.093, 0.11, -0.117), shell(1.748, 0.091, 0.106, -0.115), shell(1.782, 0.075, 0.082, -0.097), shell(1.805, 0.045, 0.046, -0.064)];
+    loft(rings, o);
+    cap(rings[4], [0, 1.814, -0.01, head, 0], o, centre);
+    loft([rings[0], shell(1.7, 0.079, 0.1, -0.103, 0.45)], { part: PART.helmet, tag: TAG.hardhat, ao: 0.45 }, { ref: [0, 1.9, -0.01] });
+  }
   // A hood: up from the shoulders, round the face, its peak over the brow.
   {
     const rows = [1.47, 1.52, 1.57, 1.63, 1.69, 1.735, 1.767];
@@ -809,8 +886,8 @@ function nearFigure() {
   {
     const rings = [ring(10, 1.455, 0, -0.004, 0.08, 0.078, torso), ring(10, 1.527, 0, -0.002, 0.09, 0.092, torso)];
     const open = (r, i) => i === 1 || i === 2;
-    loft(rings, { part: PART.hood, tag: TAG.collar, smooth: 32 }, { skip: open });
-    loft(rings, { part: PART.hood, tag: TAG.collar, inside: true, ao: 0.5 }, { skip: open });
+    loft(rings, { part: PART.lapel, tag: TAG.collar, smooth: 32 }, { skip: open });
+    loft(rings, { part: PART.lapel, tag: TAG.collar, inside: true, ao: 0.5 }, { skip: open });
   }
 
   // ---- bags ----
