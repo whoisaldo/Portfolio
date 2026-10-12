@@ -598,15 +598,16 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     }
   };
   /** How long from second `clock` until a car is next on the band (0 if one
-   *  is on it now), and if one is, how long until that one is off it. */
-  const next = (band, clock) => {
+   *  is on it now), and if one is, how long until that one is off it.
+   *  `late(car)`: the seconds free roam has made a car late, if any. */
+  const next = (band, clock, late) => {
     let until = 1e9;
     let busy = 0;
     for (const car of cars) {
       const r = car.route;
       const passes = band.passes.get(routes.indexOf(r) * 64 + car.index);
       if (!passes) continue;
-      const t = wrap(clock - (r.t0 ?? 0) - car.delay, r.period);
+      const t = wrap(clock - (late ? late(car) : 0) - (r.t0 ?? 0) - car.delay, r.period);
       for (const [a0, a1] of passes) {
         if (t >= a0 && t < a1) busy = Math.max(busy, a1 - t);
         else until = Math.min(until, wrap(a0 - t, r.period));
@@ -622,8 +623,10 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
    * while no car is on that crossing, and left is then the seconds until
    * the next one is; walk false, left is the seconds until the crossing is
    * clear again. Null where there is no such junction within 30 m.
+   * `late(car)`, where free roam has made cars wait: each one's seconds
+   * behind its timetable.
    */
-  const walk = (clock, x, z, arm) => {
+  const walk = (clock, x, z, arm, late = null) => {
     if (!bands) survey();
     let best = null;
     let d = 30;
@@ -637,13 +640,13 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     }
     const band = best && bands.get(`${best},${arm}`);
     if (!band) return null;
-    const first = next(band, clock);
+    const first = next(band, clock, late);
     if (first >= 0) return { walk: true, left: Math.min(first, 600) };
     // On it now: clear when this car and any that follow nose to tail are
     // off it.
     let wait = -first;
     for (let k = 0; k < 8; k++) {
-      const then = next(band, clock + wait + 0.01);
+      const then = next(band, clock + wait + 0.01, late);
       if (then >= 0) break;
       wait += -then + 0.01;
     }

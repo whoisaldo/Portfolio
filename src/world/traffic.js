@@ -877,7 +877,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // Lamps: two per aerial vehicle, four per car with its lamps on, four a
   // hazard car, two a patrol car's bar, three per drone, and the police
   // AV's light bar.
-  const lampCount = flying * 2 + flyers * 3 + (moving + pathSlots.length + standingLit + hazards) * 4 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0) + 12;
+  const lampCount = flying * 2 + (moving + pathSlots.length + standingLit + hazards) * 4 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0) + 12;
   const quad = new THREE.PlaneGeometry(1, 1);
   const lampGeo = new THREE.InstancedBufferGeometry();
   lampGeo.index = quad.index;
@@ -932,6 +932,61 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   lamps.renderOrder = 7;
   lamps.layers.enable(reflectLayer);
   scene.add(lamps);
+
+  // What a flying car leaves behind it: one streak of its thrusters' light,
+  // as long as it is fast, brightest at the craft and thinning away to
+  // nothing; a ribbon turned to face the lens, one instance a craft. (It
+  // was three sprites in a row, which a still showed as three dots.)
+  const trailGeo = new THREE.InstancedBufferGeometry();
+  trailGeo.index = quad.index;
+  trailGeo.setAttribute("position", quad.attributes.position);
+  const trailFrom = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, flyers) * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const trailBack = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, flyers) * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const trailTone = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, flyers) * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  trailGeo.setAttribute("aFrom", trailFrom);
+  trailGeo.setAttribute("aBack", trailBack);
+  trailGeo.setAttribute("aTone", trailTone);
+  trailGeo.instanceCount = 0;
+  const trailMat = new THREE.ShaderMaterial({
+    uniforms: { ...shared },
+    vertexShader: /* glsl */ `
+      attribute vec3 aFrom;
+      attribute vec3 aBack;
+      attribute vec4 aTone;
+      uniform vec3 uCam;
+      varying vec2 vUv;
+      varying vec3 vTone;
+      void main() {
+        float u = position.x + 0.5;
+        vec3 w = aFrom + aBack * u;
+        vec3 side = normalize(cross(aBack, w - uCam));
+        w += side * position.y * aTone.a * (1.0 - 0.65 * u);
+        vUv = vec2(u, position.y * 2.0);
+        vTone = aTone.rgb;
+        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying vec2 vUv;
+      varying vec3 vTone;
+      void main() {
+        float across = exp(-vUv.y * vUv.y * 5.0) * smoothstep(1.0, 0.7, abs(vUv.y));
+        float along = pow(1.0 - vUv.x, 1.6) * smoothstep(0.0, 0.04, vUv.x);
+        gl_FragColor = vec4(vTone * across * along * 1.5, 1.0);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  });
+  trailMat.name = "trails";
+  const trails = new THREE.Mesh(trailGeo, trailMat);
+  trails.name = "trails";
+  trails.frustumCulled = false;
+  trails.renderOrder = 7;
+  trails.layers.enable(reflectLayer);
+  scene.add(trails);
 
   // What a car's lamps do to the wet road, and it is not much: a soft patch
   // of white a couple of metres out from each headlamp, a shorter one of
@@ -1443,12 +1498,15 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   };
   let clock = 0;
   let frozen = false;
+  // (For walk(): the seconds free roam has made a network car late.)
+  const slotOf = new Map(slots.filter((x) => x.car).map((x) => [x.car, x]));
+  const lateOf = (car) => slotOf.get(car)?.late || 0;
   // Where the things the city hears are (soundscape.js): the AVs, the
   // police, and the train while it crosses.
   const voices = { on: true, avs: Array.from({ length: avs }, () => new THREE.Vector3()), police: police ? new THREE.Vector3() : null, train: null };
 
   const update = (dt, on) => {
-    droneMesh.visible = lamps.visible = pools.visible = on;
+    droneMesh.visible = lamps.visible = pools.visible = trails.visible = on;
     for (const l of avLevels) l.mesh.visible = on;
     for (const k of kinds) for (const l of k.levels) l.mesh.visible = on;
     voices.on = on;
@@ -1459,6 +1517,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     }
     if (!reduced && !frozen) clock += dt;
     let li = 0;
+    let ti = 0;
     for (const l of avLevels) l.n = 0;
     for (const c of craft) {
       const L = c.L;
@@ -1479,11 +1538,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       const g = s * Math.max(1, Math.min(5, Math.sqrt(far2) / 75) * wide);
       setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * g);
       setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * g);
-      // A short trail of its thrusters' light behind it, thinning out.
-      for (let k = 1; k <= 3; k++) {
-        const back = (2.6 + k * 2.4) * s;
-        setLamp(li++, p.x - fwd.x * back, p.y + 0.3 * s, p.z - fwd.z * back, 0.3 / k, 0.75 / k, 1.0 / k, (1.9 - 0.3 * k) * g);
-      }
+      // The streak of its thrusters' light behind it: longer the faster it
+      // flies, and as wide as its lamps are grown.
+      const len = Math.min(30, Math.max(10, L.v * 1.2)) * s;
+      trailFrom.setXYZ(ti, p.x - fwd.x * 2.7 * s, p.y + 0.3 * s, p.z - fwd.z * 2.7 * s);
+      trailBack.setXYZ(ti, -fwd.x * len, 0, -fwd.z * len);
+      trailTone.setXYZW(ti, 0.3, 0.75, 1.0, 0.55 * g);
+      ti++;
     }
     // The one on its pad, lamps low.
     p.set(PAD_STANDING[0], PAD_STANDING[1], PAD_STANDING[2]);
@@ -1708,6 +1769,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     lampGeo.instanceCount = li;
     posAttr.needsUpdate = true;
     colAttr.needsUpdate = true;
+    trailGeo.instanceCount = ti;
+    for (const a of [trailFrom, trailBack, trailTone]) {
+      a.clearUpdateRanges();
+      a.addUpdateRange(0, ti * a.itemSize);
+      a.needsUpdate = true;
+    }
   };
 
   return {
@@ -1731,7 +1798,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
      *  Null where there is no junction. (The timetable's own answer, not
      *  the lights': a car turning right comes onto an arm while that arm's
      *  own traffic is held.) */
-    walk: (x, z, arm) => net.walk(clock, x, z, arm),
+    walk: (x, z, arm) => net.walk(clock, x, z, arm, lateOf),
     /** Dev: where every flying car on a lane is at this second of the clock
      *  (the sky checks count them from the street and from the air). */
     flying() {
@@ -1769,6 +1836,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       quad.dispose();
       lampGeo.dispose();
       lampMat.dispose();
+      scene.remove(trails);
+      trailGeo.dispose();
+      trailMat.dispose();
       scene.remove(pools);
       flat.dispose();
       poolGeo.dispose();

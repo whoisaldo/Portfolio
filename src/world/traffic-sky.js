@@ -94,6 +94,10 @@ export const LANES = [
   { a: [632, -302], b: [632, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 1 },
   { a: [828, -380], b: [828, -130], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
   { a: [120, -426], b: [120, -872], half: 4.5, y: 64, lift: 4, v: 9, n: 4, phone: 0 },
+  // Two that the review's own aerial stills look straight down: south from
+  // over Santo Domingo, north from over Corpo Row's back.
+  { a: [228, 166], b: [228, 380], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
+  { a: [276, -480], b: [276, -696], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
   // Behind the megabuilding, between its tiers' backs and the towers north.
   { a: [-46, -868], b: [112, -868], half: 4.5, y: 86, lift: 4, v: 9, n: 3, phone: 0 },
 ];
