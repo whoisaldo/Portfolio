@@ -43,6 +43,7 @@ import { COMMON, WINDOWS } from "./glsl.js";
 import { ADVERT, createSkyColumns } from "./sky-columns.js";
 import { BOX, createFarStreet } from "./far-street.js";
 import { createSkyWords } from "./sky-words.js";
+import { LANES } from "./traffic-sky.js";
 
 // Rectangles (x0, z0, x1, z1) the far city stays out of: the kit's whole
 // footprint (BIBLE.md), so it starts behind the last lot line every street
@@ -800,6 +801,25 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // degrees up) nor into the moon's disc or the band of sky one of its
   // radii wide round it (the disc as a wide screen draws it, 105 m across
   // at 780 m: 7.7 degrees, about bearing 64.7 and 24.2 degrees up).
+  // The kit's flying cars have lanes out among these towers, each set in a
+  // corridor where nothing stood as high as the lane (traffic-sky.js). What
+  // is stood or raised here since keeps under them: the lowest belly of any
+  // lane whose sweep comes within reach of a point (Infinity where none does).
+  const laneBelly = (x, z, reach) => {
+    let low = Infinity;
+    for (const l of LANES) {
+      let off;
+      if (l.a) {
+        const [ax, az, bx, bz] = [l.a[0], l.a[1], l.b[0] - l.a[0], l.b[1] - l.a[1]];
+        const t = Math.min(1, Math.max(0, ((x - ax) * bx + (z - az) * bz) / (bx * bx + bz * bz)));
+        off = Math.hypot(x - ax - bx * t, z - az - bz * t) - l.half;
+      } else {
+        off = Math.abs(Math.hypot((x - l.c[0]) / l.r[0], (z - l.c[1]) / l.r[1]) - 1) * Math.min(l.r[0], l.r[1]);
+      }
+      if (off < reach + 4) low = Math.min(low, l.y + Math.min(l.lift ?? 0, 0));
+    }
+    return low;
+  };
   const MOON_FROM_LENS = [64.7, 24.2, 7.74];
   const capEl = (az) => {
     if (az < FRAMED[0] || az > FRAMED[1]) return 90;
@@ -955,7 +975,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   const MEGATOWERS = [
     [13.5, 410, 46, 30, 235, "slab", 1, 0, ["screen", "cantilever"]],
     [26, 350, 22, 26, 150, "twin", 6, 5, ["bridge", "mast"]],
-    [37.5, 440, 34, 34, 128, "drum", 1, 0, ["pad"]],
+    // (At (792, 106): between the lanes along z 60 and z 152 and west of x 828's.)
+    [42.6, 456.5, 34, 34, 128, "drum", 1, 0, ["pad"]],
     [22, 700, 44, 44, 350, "drum", 6, 1, ["pad", "screen", "mast"]],
     [31, 610, 50, 46, 255, "stepped", 0, 1, ["gantry"]],
     [42, 740, 24, 30, 195, "twin", 1, 0, ["bridge"]],
@@ -1342,40 +1363,12 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     for (const e of [-0.5, 0.5]) tips.push(...along(e * sp.len * 0.9).flatMap((v, k) => (k ? [sp.y + 4.4, v] : [v])));
   }
 
-  // AVs over the far city: lanes west, south and east of the kit, a
-  // hundred and more metres up, each AV a body in the boxes' draw between a
-  // white lamp ahead and a red one behind (the aviation lamps' draw), going
-  // along its lane and round again. Every lane keeps outside the hero's
-  // view up the avenue and the quarter Contact looks into.
-  // A lane: where it starts (x, y, z), which way it goes (x, z), how long.
-  const AIR_LANES = [
-    [-430, 130, 420, 0, -1, 800],
-    [-462, 152, -380, 0, 1, 800],
-    [-430, 112, 330, 1, 0, 760],
-    [330, 138, 362, -1, 0, 760],
-    [780, 142, -280, 0, -1, 520],
-    [812, 122, -800, 0, 1, 520],
-    [-700, 180, 200, 0.6, -0.8, 600],
-    [700, 150, -380, 0.45, -0.893, 600],
-    [-520, 148, 60, 0.8, 0.6, 620],
-    // Three nearer the kit, between its edge and the first megatowers:
-    // down the west side, along the south (no further east than Contact's
-    // quarter begins) and up the east past the boulevard's end.
-    [-262, 96, 300, 0, -1, 960],
-    [-200, 104, 142, 1, 0, 610],
-    [622, 118, -900, 0, 1, 640],
-  ];
-  const avs = [];
-  for (const [x, y, z, dx, dz, length] of AIR_LANES) {
-    // A lane is a file of craft sixty to eighty metres apart, not one or
-    // two: ten to a lane (five on a phone).
-    const each = count < 2000 ? 5 : 10;
-    for (let i = 0; i < each; i++) {
-      const phase = (i + edit() * 0.6) / each;
-      avs.push([x, y, z, dx, dz, length, phase]);
-      box(BOX.av, x, y, z, 6.4, 1.5, 2.8, Math.atan2(-dz, dx), [length, phase, edit()]);
-    }
-  }
+  // (The far city flew AVs of its own here on twelve straight lanes. None
+  // had been laid between the towers: every lane went through two to eight
+  // of them. The kit's flying cars have lanes out here since, set in the
+  // corridors between the towers and each craft with its streak
+  // (src/world/traffic-sky.js), so these are gone, and what stands out here
+  // keeps out of those lanes: see laneBelly.)
 
   // ---- every tower its own face ------------------------------------------------
   // A tower is one of eight kinds, and no two neighbours are the same kind:
@@ -1687,7 +1680,8 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     const whole = b.block ?? b;
     if (b.second || b.hero || b.gone || b.far || b.extra || b.mid || b.screens || !framed(whole)) continue;
     if (Math.hypot(whole.x - CONTACT_LENS[0], whole.z - CONTACT_LENS[1]) < 300 || downGarageStreet(whole.x, whole.z)) continue;
-    const most = capAt(whole.x, whole.z, Math.hypot(whole.w, whole.d));
+    // (Under Contact's cap, and eight metres under any flying lane over it.)
+    const most = Math.min(capAt(whole.x, whole.z, Math.hypot(whole.w, whole.d)), laneBelly(whole.x, whole.z, Math.hypot(whole.w, whole.d) / 2) - 5);
     const h = Math.min(whole.tall ?? 0, most - 3);
     if (h >= TOWER_FROM && h >= b.h + 10) {
       if (b.block) lots[i + 1] = { ...lots[i + 1], gone: true };
@@ -1723,7 +1717,11 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   };
   for (let c = 0; c < columns.length; c += 6) {
     const [x, z, w, h, tone, seed] = columns.slice(c, c + 6);
-    box(BOX.screen, x, h * 0.36, z, w * 0.8, h * 0.72, w * 0.8, (seed - 0.5) * 0.5, [seed, [0, 0, 1, 0, 2, 3][tone % 6], 0, columnHeld(x, z) ? 1 : 0]);
+    // (Where a flying lane passes, the stack begins over it: the craft go
+    // under it between the two lines of light its edges are.)
+    const belly = laneBelly(x, z, w * 0.4);
+    const foot = belly < Infinity ? belly + 24 : 0;
+    box(BOX.screen, x, (foot + h * 0.72) / 2, z, w * 0.8, h * 0.72 - foot, w * 0.8, (seed - 0.5) * 0.5, [seed, [0, 0, 1, 0, 2, 3][tone % 6], 0, columnHeld(x, z) ? 1 : 0]);
   }
   const skyColumns = createSkyColumns(scene, shared, columns, { reduced, ads, held: columnHeld });
 
@@ -2953,10 +2951,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   // Aviation lights: a red lamp on every tall roof (at a spire's tip, where
   // there is one), a third of them on at a time, a little under a second
   // each, so the skyline blinks slowly across itself. Steady under reduced
-  // motion. One draw, which the far city's air traffic shares.
+  // motion. One draw.
   const beacons = [];
   const groups = [];
-  const moves = [];
   lots.forEach((b, i) => {
     // Outside what Contact frames every tower has its lamp, not only the
     // tallest, and it is a lamp to be seen across the city (groups 5 to 7).
@@ -2966,66 +2963,45 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     const [cx, cz] = topCentre(b, s);
     beacons.push(cx, s.roof + s.spire + (s.spire ? 0.4 : 0.8), cz);
     groups.push(all ? 5 + (beaconOf[i] < 0 ? i % 3 : beaconOf[i]) : beaconOf[i]);
-    moves.push(0, 0, 0, 0);
   });
   // And one on every mast, whip and deck end.
   for (let i = 0; i < tips.length; i += 3) {
     beacons.push(tips[i], tips[i + 1], tips[i + 2]);
     groups.push(5 + ((i / 3) % 3));
-    moves.push(0, 0, 0, 0);
-  }
-  // The AVs' lamps: one ahead (group 3) and one six metres behind it (4).
-  for (const [x, y, z, dx, dz, length, phase] of avs) {
-    beacons.push(x, y, z, x, y, z);
-    groups.push(3, 4);
-    moves.push(dx, dz, length, phase, dx, dz, length, phase - 6 / length);
   }
   const beaconGeo = new THREE.BufferGeometry();
   beaconGeo.setAttribute("position", new THREE.Float32BufferAttribute(beacons, 3));
   beaconGeo.setAttribute("aGroup", new THREE.Float32BufferAttribute(groups, 1));
-  beaconGeo.setAttribute("aMove", new THREE.Float32BufferAttribute(moves, 4));
-  // The lamps on the roofs stand where their positions say; the AVs do not.
   beaconGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(300, 120, -400), 2400);
   const beaconMat = new THREE.ShaderMaterial({
     uniforms: { ...shared, uPixel: { value: 1 }, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       attribute float aGroup;
-      attribute vec4 aMove;
       uniform float uTime;
       uniform float uPixel;
       uniform float uMotion;
       varying float vOn;
-      varying float vKind;
       varying vec3 vWorld;
       void main() {
-        // An AV's lamp is so far along its lane (38 m/s, standing where its
-        // phase puts it under reduced motion), fading in and out at the
-        // lane's ends so it never pops.
-        float flying = step(2.5, aGroup) * step(aGroup, 4.5);
         float tip = step(4.5, aGroup);
-        float along = mod(uTime * uMotion * 38.0 + aMove.w * aMove.z, max(aMove.z, 1.0));
-        vec3 p = position + vec3(aMove.x, 0.0, aMove.y) * along * flying;
-        vWorld = p;
-        vKind = aGroup;
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        vWorld = position;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * mv;
         float t = fract(uTime * 0.75 + mod(aGroup, 5.0) / 3.0);
         float blink = mix(0.6, smoothstep(0.0, 0.05, t) * (1.0 - smoothstep(0.42, 0.55, t)), uMotion);
         // A tip's lamp never goes right out: it swells and falls.
         blink = mix(blink, 0.45 + 0.55 * blink, tip);
-        float ends = smoothstep(0.0, 70.0, along) * (1.0 - smoothstep(aMove.z - 70.0, aMove.z, along));
-        vOn = mix(blink, ends, flying);
-        gl_PointSize = mix(clamp(mix(2600.0, 3400.0, flying) / -mv.z, mix(2.5, 2.8, flying), mix(6.0, 8.0, flying)), clamp(4200.0 / -mv.z, 3.4, 9.0), tip) * uPixel;
+        vOn = blink;
+        gl_PointSize = mix(clamp(2600.0 / -mv.z, 2.5, 6.0), clamp(4200.0 / -mv.z, 3.4, 9.0), tip) * uPixel;
       }
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
       varying float vOn;
-      varying float vKind;
       varying vec3 vWorld;
       void main() {
         float d = length(gl_PointCoord - 0.5) * 2.0;
-        vec3 lamp = vKind < 2.5 || vKind > 4.5 ? vec3(1.0, 0.06, 0.04) * 3.5 : vKind < 3.5 ? vec3(0.8, 0.92, 1.0) * 2.6 : vec3(1.0, 0.1, 0.06) * 2.2;
+        vec3 lamp = vec3(1.0, 0.06, 0.04) * 3.5;
         vec3 col = lamp * vOn * exp(-d * d * 4.0);
         col *= exp(-length(vWorld - uCam) * uFogDensity * 0.35);
         gl_FragColor = vec4(col, 1.0);

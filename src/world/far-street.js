@@ -16,10 +16,8 @@
 //
 // The same draw carries the towers' heads (masts, aerials, dishes: steel;
 // huts and penthouses: blocks) and the megastructures (a deck of two lit
-// floors in a truss, the boards that stand on it), and the far city's AVs:
-// a body that flies its lane in the vertex shader (its own numbers: the
-// lane's length, where along it the AV starts, a seed), shrinking to nothing
-// at the lane's ends so it never pops.
+// floors in a truss, the boards that stand on it). (Kind 9 was the far
+// city's own AVs: the kit's flying cars fly out here now, traffic-sky.js.)
 //
 // And who is out on those first pavements: somebody standing or waiting, a
 // box cut to a head, a jacket and two legs, half of them under an umbrella
@@ -42,7 +40,7 @@ const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
  *  `ads` the advert atlas's uniforms, for the boards. */
-export function createFarStreet(scene, shared, boxes, { street, ads, reduced = false }) {
+export function createFarStreet(scene, shared, boxes, { street, ads }) {
   const n = boxes.length / 12;
   const unit = new THREE.BoxGeometry(1, 1, 1);
   const geometry = new THREE.InstancedBufferGeometry();
@@ -57,13 +55,11 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
   geometry.instanceCount = 0;
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(160, 0, -330), 900);
   const material = new THREE.ShaderMaterial({
-    uniforms: { ...shared, ...ads, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, ...ads },
     vertexShader: /* glsl */ `
       attribute vec4 aAt;
       attribute vec4 aSize;
       attribute vec4 aOwn;
-      uniform float uTime;
-      uniform float uMotion;
       uniform vec3 uCam;
       varying vec3 vWorld;
       varying vec3 vNormalW;
@@ -74,15 +70,6 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
         vec3 l = position * aSize.xyz;
         float cs = cos(aAt.w);
         float sn = sin(aAt.w);
-        // An AV is so far along its lane (38 m/s, as its lamps are). (Only
-        // an AV: every kind numbered after it was flown too, and shrunk to
-        // nothing at its lane's start, so no mast, nobody on a pavement and
-        // no vending machine was ever drawn.)
-        if (aSize.w > 8.5 && aSize.w < 9.5) {
-          float along = mod(uTime * uMotion * 38.0 + aOwn.y * aOwn.x, max(aOwn.x, 1.0));
-          l *= smoothstep(0.0, 70.0, along) * (1.0 - smoothstep(aOwn.x - 70.0, aOwn.x, along));
-          l.x += along - 3.0;
-        }
         // (A box whose fourth own number is 1 stands only for an eye above
         // the roofs: the stack of a column one of the page's roofs frames,
         // which from there is the hologram it was, sky-columns.js.)
@@ -327,20 +314,6 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           float member = step(min(fu, 1.0 - fu), t) + step(min(fv, 1.0 - fv), t * 0.7) + step(abs(fu - fv), t) + step(abs(fu - (1.0 - fv)), t);
           if (member < 0.5 && fwidth(u * span) < 0.3) discard;
           col = vec3(0.014, 0.015, 0.02) + (uHazeColor * 0.35 + uGlowColor * 0.2) * uHaze * 0.3;
-        } else if (kind > 8.5) {
-          // An AV: a dark hull, a strip of running light down each side,
-          // white at its nose, red at its tail, thrusters glowing under it.
-          vec3 trim = vOwn.z < 0.5 ? vec3(0.16, 0.9, 1.0) : vec3(1.0, 0.6, 0.25);
-          float side = step(vSize.z * 0.5 - 0.01, abs(vLocal.z)) * step(abs(vLocal.y + 0.1), 0.12);
-          float nose = step(vSize.x * 0.5 - 0.01, vLocal.x) * step(abs(abs(vLocal.z) - 0.8), 0.3);
-          float tail = step(vLocal.x, -vSize.x * 0.5 + 0.01) * step(abs(vLocal.y), 0.2);
-          float jets = step(n.y, -0.5) * step(abs(abs(vLocal.x) - 2.0), 0.6) * step(abs(vLocal.z), 0.8);
-          col = vec3(0.02, 0.022, 0.028) + sky * (0.3 + max(n.y, 0.0));
-          col = mix(col, trim * 1.6, side);
-          col = mix(col, vec3(0.85, 0.93, 1.0) * 2.4, nose);
-          col = mix(col, vec3(1.0, 0.1, 0.06) * 2.2, tail);
-          col = mix(col, vec3(0.3, 0.8, 1.0) * 2.0, jets);
-          lit = max(max(side, nose), max(tail, jets));
         } else if (kind > 7.5) {
           // A board: one of the city's adverts both ways (before they
           // land, a lightbox with blocks of a darker colour), a dark frame,
@@ -425,13 +398,6 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
         const o = i * 12;
         sphere.center.set(boxes[o], boxes[o + 1], boxes[o + 2]);
         sphere.radius = 0.5 * Math.hypot(boxes[o + 4], boxes[o + 5], boxes[o + 6]);
-        // An AV is somewhere along its lane: the lane is what is tested.
-        if (boxes[o + 7] === BOX.av) {
-          const reachAlong = boxes[o + 8] / 2;
-          sphere.center.x += Math.cos(boxes[o + 3]) * reachAlong;
-          sphere.center.z -= Math.sin(boxes[o + 3]) * reachAlong;
-          sphere.radius += reachAlong;
-        }
         const reach = REACH[boxes[o + 7]] + sphere.radius;
         if (sphere.center.distanceToSquared(eye) > reach * reach) continue;
         if (!frustum.intersectsSphere(sphere)) continue;
