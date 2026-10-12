@@ -55,6 +55,13 @@ export function signSpec(id) {
   return spec ? { key: base, ...spec } : null;
 }
 
+// A colour at a share of its light: every sign is shown at one gain
+// (uIntensity), so a lit panel is drawn at under half its colour to stay
+// under white there and keep the lettering on it.
+function dim(hex, share) {
+  return `#${new THREE.Color(hex).multiplyScalar(share).getHexString()}`;
+}
+
 function lighten(hex, amount) {
   const c = new THREE.Color(hex);
   return `#${c.lerp(new THREE.Color("#ffffff"), amount).getHexString()}`;
@@ -180,17 +187,17 @@ function street(ctx, spec, w, h) {
   const color = spec.color;
   const inset = Math.min(w, h) * 0.12;
   if (spec.style === "backlit") {
-    // A lit box: a pale-to-full panel, dark letters, a thin dark frame.
+    // A lit box: a panel in its colour at a mid tone (so the gain leaves
+    // it a colour, not white), near-black letters, a thin dark frame.
     ctx.fillStyle = "#0a0808";
     ctx.fillRect(0, 0, w, h);
     const fr = Math.min(w, h) * 0.07;
     const g = ctx.createLinearGradient(0, fr, 0, h - fr);
-    g.addColorStop(0, lighten(color, 0.55));
-    g.addColorStop(0.5, lighten(color, 0.2));
-    g.addColorStop(1, color);
+    g.addColorStop(0, dim(color, 0.42));
+    g.addColorStop(1, dim(color, 0.28));
     ctx.fillStyle = g;
     ctx.fillRect(fr, fr, w - fr * 2, h - fr * 2);
-    const ink = `#${new THREE.Color(color).multiplyScalar(0.12).getHexString()}`;
+    const ink = dim(color, 0.012);
     layout(ctx, spec, w, h, inset + fr * 0.5, (text, x, y, px, weight) => {
       ctx.font = FONT(weight, px);
       ctx.fillStyle = ink;
@@ -200,36 +207,30 @@ function street(ctx, spec, w, h) {
   }
   board(ctx, w, h);
   if (spec.style === "led") {
-    // Bulbs: the words set small, then every lit pixel drawn as a dot, on a
-    // grid of dark ones.
+    // Bulbs: a grid of dark ones, the words lit across it, and the grid's
+    // own lines cut back into the light. (The words are drawn whole: a
+    // sign this size has a dozen rows of bulbs, too few to spell with, and
+    // letters set in them lost their first strokes.)
     const pitch = Math.max(3, Math.round(Math.min(w, h) / 14));
-    const cols = Math.floor(w / pitch);
-    const rows = Math.floor(h / pitch);
-    const off = document.createElement("canvas");
-    off.width = cols;
-    off.height = rows;
-    const oc = off.getContext("2d");
-    oc.fillStyle = "#000";
-    oc.fillRect(0, 0, cols, rows);
-    oc.fillStyle = "#fff";
-    layout(oc, spec, cols, rows, 1, (text, x, y, px) => {
-      oc.font = FONT(700, px);
-      oc.fillText(text, x, y);
-    }, 700);
-    const lit = oc.getImageData(0, 0, cols, rows).data;
-    const r = pitch * 0.34;
-    for (let j = 0; j < rows; j++) {
-      for (let i = 0; i < cols; i++) {
-        const on = lit[(j * cols + i) * 4] > 110;
-        ctx.fillStyle = on ? lighten(color, 0.35) : "rgba(255,255,255,0.05)";
-        ctx.shadowColor = color;
-        ctx.shadowBlur = on ? pitch * 0.9 : 0;
+    ctx.fillStyle = "rgba(255,255,255,0.05)";
+    for (let y = pitch / 2; y < h; y += pitch) {
+      for (let x = pitch / 2; x < w; x += pitch) {
         ctx.beginPath();
-        ctx.arc((i + 0.5) * (w / cols), (j + 0.5) * (h / rows), r, 0, Math.PI * 2);
+        ctx.arc(x, y, pitch * 0.34, 0, Math.PI * 2);
         ctx.fill();
       }
     }
+    ctx.shadowColor = color;
+    ctx.shadowBlur = pitch * 0.9;
+    layout(ctx, spec, w, h, inset, (text, x, y, px) => {
+      ctx.font = FONT(700, px);
+      ctx.fillStyle = lighten(color, 0.35);
+      ctx.fillText(text, x, y);
+    }, 700);
     ctx.shadowBlur = 0;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    for (let x = 0; x < w; x += pitch) ctx.fillRect(Math.round(x), 0, 1, h);
+    for (let y = 0; y < h; y += pitch) ctx.fillRect(0, Math.round(y), w, 1);
     return;
   }
   if (spec.style === "icon") {
@@ -315,13 +316,13 @@ const DRAW = {
   },
   board(ctx, spec, w, h) {
     const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, lighten(spec.color, 0.25));
-    g.addColorStop(1, spec.color);
+    g.addColorStop(0, dim(spec.color, 0.42));
+    g.addColorStop(1, dim(spec.color, 0.28));
     ctx.fillStyle = g;
     ctx.fillRect(w * 0.04, h * 0.04, w * 0.92, h * 0.92);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "#3a0a06";
+    ctx.fillStyle = dim(spec.color, 0.012);
     const n = spec.lines.length;
     spec.lines.forEach((line, i) => {
       const px = fitFont(ctx, line, w * 0.8, (h * 0.8) / n * (i === 0 ? 0.9 : 0.55));
