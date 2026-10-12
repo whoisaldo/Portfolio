@@ -24,16 +24,20 @@
 // And who is out on those first pavements: somebody standing or waiting, a
 // box cut to a head, a jacket and two legs, half of them under an umbrella
 // (an eight-sided canopy, a few with a line of light round the rim), and
-// here and there a vending machine lit from inside, against the wall.
+// here and there a vending machine lit from inside, against the wall. And
+// what makes those pavements a shop street: awnings over some shops, their
+// undersides lit by the shop, lightbox signs at head height standing out
+// from the piers and boards stood on the pavement (each a word), and along
+// the kerb bins, crates, cabinets and striped barriers.
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { ADVERT } from "./sky-columns.js";
 
-export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13, screen: 14, pad: 15 };
+export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13, screen: 14, pad: 15, awning: 16, sign: 17, clutter: 18 };
 
 // How far each kind is drawn: past it, it is under a pixel (a slab, a deck
 // and its boards are always drawn).
-const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320, Infinity, Infinity];
+const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320, Infinity, Infinity, 420, 420, 220];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
@@ -60,6 +64,7 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
       attribute vec4 aOwn;
       uniform float uTime;
       uniform float uMotion;
+      uniform vec3 uCam;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       varying vec3 vLocal;
@@ -69,12 +74,19 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
         vec3 l = position * aSize.xyz;
         float cs = cos(aAt.w);
         float sn = sin(aAt.w);
-        // An AV is so far along its lane (38 m/s, as its lamps are).
-        if (aSize.w > 8.5) {
+        // An AV is so far along its lane (38 m/s, as its lamps are). (Only
+        // an AV: every kind numbered after it was flown too, and shrunk to
+        // nothing at its lane's start, so no mast, nobody on a pavement and
+        // no vending machine was ever drawn.)
+        if (aSize.w > 8.5 && aSize.w < 9.5) {
           float along = mod(uTime * uMotion * 38.0 + aOwn.y * aOwn.x, max(aOwn.x, 1.0));
           l *= smoothstep(0.0, 70.0, along) * (1.0 - smoothstep(aOwn.x - 70.0, aOwn.x, along));
           l.x += along - 3.0;
         }
+        // (A box whose fourth own number is 1 stands only for an eye above
+        // the roofs: the stack of a column one of the page's roofs frames,
+        // which from there is the hologram it was, sky-columns.js.)
+        if (aOwn.w > 0.5) l *= smoothstep(40.0, 62.0, uCam.y);
         vec3 w = vec3(aAt.x + cs * l.x + sn * l.z, aAt.y + l.y, aAt.z - sn * l.x + cs * l.z);
         vWorld = w;
         vNormalW = vec3(cs * normal.x + sn * normal.z, normal.y, -sn * normal.x + cs * normal.z);
@@ -153,6 +165,49 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 steel = vec3(0.016, 0.017, 0.022) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * max(n.y, 0.0)) * uHaze * 0.5;
           lit = pane * on * side * (1.0 - clamp(truss, 0.0, 1.0));
           col = mix(steel, glow * 0.75, lit);
+        } else if (kind > 17.5) {
+          // What stands along a kerb: a bin, a stack of crates, a cabinet,
+          // a barrier (its second number: striped). Plastic and painted
+          // steel in a few colours, a seam at every crate, lit by the street.
+          float h = vOwn.x;
+          vec3 paint = h < 0.2 ? vec3(0.03, 0.1, 0.05) : h < 0.38 ? vec3(0.32, 0.2, 0.02) : h < 0.54 ? vec3(0.03, 0.08, 0.24) : h < 0.7 ? vec3(0.3, 0.07, 0.02) : h < 0.85 ? vec3(0.09, 0.09, 0.1) : vec3(0.28, 0.28, 0.26);
+          float v = vLocal.y / vSize.y + 0.5;
+          float seam = step(abs(fract(v * max(1.0, floor(vSize.y / 0.4))) - 0.5), 0.08) * close;
+          float stripe = step(0.5, fract((vLocal.x + vLocal.y) * 2.4));
+          vec3 c = mix(paint * (1.0 - 0.4 * seam), mix(vec3(0.5, 0.2, 0.02), vec3(0.4), stripe), step(0.5, vOwn.y));
+          col = c * (vec3(0.45) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0);
+        } else if (kind > 16.5) {
+          // A sign at head height: a lightbox standing out from a wall, or
+          // a board stood on the pavement, a word on both its faces (one in
+          // two a lit box with dark characters, the other the characters
+          // lit on a dark box).
+          float face = step(vSize.z * 0.5 - 0.01, abs(vLocal.z));
+          vec2 q = vec2(vLocal.x / vSize.x + 0.5, vLocal.y / vSize.y + 0.5);
+          if (vLocal.z < 0.0) q.x = 1.0 - q.x;
+          float hc = vOwn.y;
+          vec3 a = hc < 0.22 ? vec3(0.1, 0.85, 1.0) : hc < 0.42 ? vec3(1.0, 0.62, 0.16) : hc < 0.58 ? vec3(1.0, 0.16, 0.5) : hc < 0.72 ? vec3(1.0, 0.2, 0.14) : hc < 0.84 ? vec3(0.3, 1.0, 0.6) : vec3(1.0, 0.92, 0.3);
+          float aspect = vSize.x / vSize.y;
+          float k = (aspect >= 1.0 ? wordAcross(vec2(q.x, (q.y - 0.5) / 0.86 + 0.5), aspect, vOwn.x) : wordDown(vec2((q.x - 0.08) / 0.84, 1.0 - q.y), 1.0 / aspect, vOwn.x)) * uHasWords;
+          float edge = 1.0 - step(0.05, q.x) * step(q.x, 0.95) * step(0.02, q.y) * step(q.y, 0.98);
+          vec3 art = fract(vOwn.x * 7.0) < 0.5 ? mix(a * 0.75, vec3(0.02, 0.02, 0.03), k) : mix(a * 0.1, a * 1.4, k);
+          // (Far off it is its light, not its letters.)
+          art = mix(art, a * 0.5, smoothstep(0.12, 0.4, fwidth(q.x)));
+          col = mix(vec3(0.012, 0.013, 0.017), mix(art, vec3(0.01), edge), face);
+          lit = face * (1.0 - edge);
+        } else if (kind > 15.5) {
+          // An awning over a shop: cloth in its colour, on most of them
+          // striped with a pale one, and its underside lit by the shop it
+          // shades.
+          float h = vOwn.x;
+          vec3 cloth = h < 0.22 ? vec3(0.5, 0.05, 0.05) : h < 0.42 ? vec3(0.03, 0.3, 0.32) : h < 0.6 ? vec3(0.55, 0.36, 0.05) : h < 0.74 ? vec3(0.06, 0.3, 0.1) : h < 0.88 ? vec3(0.07, 0.12, 0.4) : vec3(0.5, 0.2, 0.04);
+          vec3 c = mix(cloth, vec3(0.42, 0.4, 0.36), step(0.5, fract(vLocal.x / 0.9 + 0.25)) * step(0.5, vOwn.y) * (1.0 - smoothstep(0.2, 0.5, px)));
+          vec3 shop = vec3(1.0, 0.74, 0.46);
+          if (n.y < -0.5) {
+            col = c * (0.3 + shop * 1.5);
+            lit = 0.5;
+          } else {
+            col = c * (vec3(0.35) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0 + shop * 0.22 * step(abs(n.y), 0.5));
+          }
         } else if (kind > 14.5) {
           // A landing pad standing out round a tower, or on its roof: a
           // dark deck, a painted ring and a cross in it, a ring of lamps, a
@@ -253,7 +308,9 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           if ((v > 0.87 && ax > 0.12) || (v > 0.82 && v <= 0.87 && ax > 0.07) || (v < 0.47 && ax < 0.035)) discard;
           vec3 jacket = vOwn.x < 0.34 ? vec3(0.022, 0.023, 0.028) : vOwn.x < 0.5 ? vec3(0.07, 0.072, 0.08) : vOwn.x < 0.62 ? vec3(0.11, 0.02, 0.025) : vOwn.x < 0.76 ? vec3(0.018, 0.04, 0.1) : vOwn.x < 0.88 ? vec3(0.12, 0.085, 0.02) : vec3(0.02, 0.08, 0.07);
           vec3 body = v > 0.87 ? vec3(0.075, 0.055, 0.045) : v > 0.47 ? jacket : vec3(0.016, 0.017, 0.022);
-          col = body * (vec3(0.5) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0);
+          // (Lit by the shops they walk past as much as by the lamps: at
+          // half that, nobody on the far pavements could be made out.)
+          col = body * (vec3(1.1, 1.0, 0.9) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0);
         } else if (kind > 9.5) {
           // A lattice mast's section, or a truss round a roof: legs at its
           // corners, a ring at every panel, a cross in each, and between
@@ -314,12 +371,18 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           if (kind < 3.5) {
             float ends = step(vSize.x * 0.5 - 0.02, abs(vLocal.x)) * step(abs(abs(vLocal.z) - vSize.z * 0.32), 0.2) * step(abs(vLocal.y - 0.08), 0.1);
             col = paint * (vec3(0.5) + sky * 5.0 * (0.3 + up) + light * 9.0);
-            col = mix(col, vLocal.x * vOwn.y > 0.0 ? vec3(0.3, 0.3, 0.26) : vec3(0.25, 0.012, 0.01), ends);
+            // Wet steel gives the sky and the lamps back off its bonnet and
+            // boot, and one car in three stands with its sidelights on, so
+            // a kerb of them reads as cars and not as dark bricks.
+            col += (sky * 0.9 + light * 0.4) * up;
+            float on = step(0.66, fract(h * 13.7));
+            col = mix(col, vLocal.x * vOwn.y > 0.0 ? mix(vec3(0.3, 0.3, 0.26), vec3(1.0, 0.94, 0.8) * 1.5, on) : mix(vec3(0.25, 0.012, 0.01), vec3(1.0, 0.07, 0.04) * 1.7, on), ends);
+            lit = ends * on;
             // The sill line and the arches, so it is not a brick.
             col *= 1.0 - 0.5 * step(abs(n.y), 0.5) * step(vLocal.y, -vSize.y * 0.5 + 0.12);
           } else {
             float glass = step(abs(n.y), 0.5) * step(-vSize.y * 0.5 + 0.06, vLocal.y) * step(vLocal.y, vSize.y * 0.5 - 0.05);
-            col = mix(paint * (vec3(0.5) + sky * 5.0 * (0.3 + up) + light * 9.0), vec3(0.006, 0.008, 0.012) + sky * 0.5 + light * 0.25, glass);
+            col = mix(paint * (vec3(0.5) + sky * 5.0 * (0.3 + up) + light * 9.0) + (sky * 0.9 + light * 0.4) * up, vec3(0.006, 0.008, 0.012) + sky * 0.5 + light * 0.25, glass);
           }
         }
         vec3 fogged = cityFog(col, vWorld, lit);

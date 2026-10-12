@@ -120,8 +120,11 @@ export const ADVERT = /* glsl */ `
 `;
 
 /** `columns` is x, z, width, height, tone (an index into the tones) and a
- *  seed, six numbers a column; `ads` the atlas's uniforms (uAds, uHasAds). */
-export function createSkyColumns(scene, shared, columns, { reduced = false, ads } = {}) {
+ *  seed, six numbers a column; `ads` the atlas's uniforms (uAds, uHasAds);
+ *  `held` says of a column (x, z) whether one of the page's own roofs
+ *  frames it: from under the roofs' height such a column is the hologram
+ *  it was (its seed is carried with 2 added). */
+export function createSkyColumns(scene, shared, columns, { reduced = false, ads, held = () => false } = {}) {
   const n = columns.length / 6;
   const quad = new THREE.PlaneGeometry(1, 1);
   quad.translate(0, 0.5, 0);
@@ -135,7 +138,7 @@ export function createSkyColumns(scene, shared, columns, { reduced = false, ads 
   for (let i = 0; i < n; i++) {
     place.set(columns.slice(i * 6, i * 6 + 4), i * 4);
     c.set(TONES[columns[i * 6 + 4] % TONES.length]);
-    tone.set([c.r, c.g, c.b, columns[i * 6 + 5]], i * 4);
+    tone.set([c.r, c.g, c.b, columns[i * 6 + 5] + (held(columns[i * 6], columns[i * 6 + 1]) ? 2 : 0)], i * 4);
   }
   geometry.setAttribute("aPlace", new THREE.InstancedBufferAttribute(place, 4));
   geometry.setAttribute("aTone", new THREE.InstancedBufferAttribute(tone, 4));
@@ -201,9 +204,44 @@ export function createSkyColumns(scene, shared, columns, { reduced = false, ads 
         vec3 rim = mix(vTone.rgb, vec3(0.82, 0.93, 1.0), 0.5) * 1.6;
         vec3 col = rim * edge * 0.5 * inStack;
         col += (vTone.rgb * (body * 0.34 + smoothstep(0.3, 0.0, across) * 0.3) + rim * edge * 0.3) * pow(1.0 - over, 1.7) * beam;
+        // A column one of the page's roofs frames is, from under the roofs'
+        // height, the hologram it was there (no solid stack stands for that
+        // eye: far-street.js): light, not paint, rows of two tall adverts
+        // or one wide one in the column's own colour, hairlines between
+        // them, scan lines drifting up.
+        float seed = vTone.a > 1.5 ? vTone.a - 2.0 : vTone.a;
+        float asWas = step(1.5, vTone.a) * (1.0 - lift);
+        if (asWas > 0.001) {
+          float rowH = vSize.x * 0.75;
+          float rows = floor(vSize.y * STACK / rowH);
+          float gy = up * vSize.y / rowH;
+          float row = floor(gy);
+          float wide = step(0.5, hash12(vec2(row, seed * 77.0)));
+          float gx = wide > 0.5 ? vUv.x : vUv.x * 2.0;
+          vec2 id = vec2(floor(gx), row);
+          vec2 f = vec2(fract(gx), fract(gy));
+          float h = hash12(id + seed * 91.0);
+          float slot = floor(t / (9.0 + 8.0 * h) + h * 7.0);
+          float pick = mod(floor(seed * 24.0) + (row * 2.0 + id.x) * 7.0 + slot * 5.0, 24.0);
+          float on = step(0.14, hash12(id * 1.3 + slot + seed * 5.0));
+          vec2 m = wide > 0.5 ? vec2(0.03, 0.04) : vec2(0.06, 0.04);
+          float inset = step(m.x, f.x) * step(f.x, 1.0 - m.x) * step(m.y, f.y) * step(f.y, 1.0 - m.y);
+          float rowIn = step(row, rows - 0.5);
+          vec3 drawn = advert((f - m) / (1.0 - 2.0 * m), wide > 0.5 ? 1.3333 : 0.6667, pick);
+          vec3 plain = mix(vTone.rgb, vec3(1.0, 0.3, 0.7), step(0.6, h)) * (0.3 + 0.4 * f.y);
+          vec3 art = mix(plain, mix(drawn, vTone.rgb * dot(drawn, vec3(0.35, 0.5, 0.15)) * 1.5, 0.5), uHasAds);
+          float lines = up * vSize.y * 1.4 - t * 2.4;
+          float scan = mix(0.84 + 0.16 * sin(lines * 6.2832), 0.84, clamp(fwidth(lines) * 2.0, 0.0, 1.0));
+          vec3 was = art * 0.55 * inset * on * rowIn * scan;
+          float edgeWas = smoothstep(0.82, 0.98, across);
+          vec3 rimWas = vTone.rgb * 1.1;
+          was += vTone.rgb * ((1.0 - inset) * 0.26 + body * 0.06) * rowIn + rimWas * edgeWas * rowIn;
+          was += (vTone.rgb * (body * 0.34 + smoothstep(0.3, 0.0, across) * 0.3) + rimWas * edgeWas * 0.45) * pow(1.0 - over, 1.7) * (1.0 - rowIn);
+          col = mix(col, was, asWas);
+        }
         // And the haze at its foot is lit by it.
         col += vTone.rgb * 0.45 * exp(-up * vSize.y / 55.0) * lift;
-        float breath = 0.88 + 0.12 * sin(t * 0.5 + vTone.a * 40.0);
+        float breath = 0.88 + 0.12 * sin(t * 0.5 + seed * 40.0);
         col *= smoothstep(0.0, 0.02, up) * breath * uHaze;
         // Light in the air fades into the haze; it does not turn into it.
         col *= exp(-length(vWorld - uCam) * uFogDensity * 0.3);

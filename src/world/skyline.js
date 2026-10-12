@@ -979,6 +979,11 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   for (const [az, dist, w, h, tone, seed] of [[15.5, 900, 26, 760, 0, 0.37], [34.5, 920, 24, 590, 4, 0.81]]) {
     columns.push(CONTACT_LENS[0] + dist * Math.cos(az * (Math.PI / 180)), CONTACT_LENS[1] + dist * Math.sin(az * (Math.PI / 180)), w, h, tone, seed);
   }
+  // And one on the axis of each street that left the city toward nothing
+  // but a dim tower a kilometre off (a column keeps its light through the
+  // haze): south down the west street, and west along the south street.
+  // Neither is in any of the page's frames. x, z, width, height, tone, seed.
+  for (const column of [[-82, 190, 28, 640, 1, 0.23], [-440, 2, 26, 600, 2, 0.58]]) columns.push(...column);
   // Whatever was dealt onto a megatower's ground, or stands where a column
   // does (a column is a solid stack of screens now, and nothing crosses
   // it), is left out: marked here, while every pass below still takes its
@@ -1021,8 +1026,20 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     return [(b.w * cs + b.d * sn) / 2, (b.w * sn + b.d * cs) / 2];
   };
   const boxes = [];
-  const box = (kind, x, y, z, sx, sy, sz, turn = 0, own = [0, 0, 0]) => boxes.push(x, y, z, turn, sx, sy, sz, kind, ...own, 0);
+  const box = (kind, x, y, z, sx, sy, sz, turn = 0, own = [0, 0, 0]) => boxes.push(x, y, z, turn, sx, sy, sz, kind, own[0], own[1], own[2], own[3] ?? 0);
   const KERB = 0.16;
+  // A thing fixed to a tower's face: f is the face by the tower's own plan
+  // (0 +x, 1 +z, 2 -x, 3 -z), tier whose face, u how far across it (-0.5 to
+  // 0.5), out how far it stands off the wall. Returns where, and the turn
+  // that sets a box's own z along the face's normal.
+  const onFace = (b, s, f, tier, u, out) => {
+    const n = [[1, 0], [0, 1], [-1, 0], [0, -1]][f];
+    const [hw, hd] = [(b.w * s.inset[tier]) / 2, (b.d * s.inset[tier]) / 2];
+    const [lx, lz] = f % 2 === 0 ? [n[0] * (hw + out), u * hd * 2] : [u * hw * 2, n[1] * (hd + out)];
+    const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
+    const world = [cs * n[0] + sn * n[1], -sn * n[0] + cs * n[1]];
+    return { x: b.x + cs * lx + sn * lz, z: b.z - sn * lx + cs * lz, turn: Math.atan2(world[0], world[1]), wide: (f % 2 === 0 ? hd : hw) * 2 };
+  };
   for (let i = 0; i < 53; i++) {
     for (let j = 0; j < 57; j++) {
       const [gx, gz] = [i * cell - 900, j * cell - 1700];
@@ -1064,6 +1081,48 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
           }
         }
       }
+      // What a walker reads a shop street by, on every building of the
+      // block: over about half its shops an awning, at some of the piers
+      // between them a lightbox sign standing out at head height, and
+      // outside a few a board stood on the pavement. (All by the hash of
+      // where the building was dealt: no stream is touched.)
+      const within = (x, z, m) => x > slab[0] + m && x < slab[2] - m && z > slab[1] + m && z < slab[3] - m;
+      const inLot = (x, z, m, skip = -1) => group.some((k) => {
+        if (k === skip || lots[k].cleared) return false;
+        const o = lots[k];
+        const [cs, sn] = [Math.cos(o.yaw), Math.sin(o.yaw)];
+        const [dx, dz] = [x - o.x, z - o.z];
+        return Math.abs(cs * dx - sn * dz) < o.w / 2 + m && Math.abs(sn * dx + cs * dz) < o.d / 2 + m;
+      });
+      for (const k of group) {
+        const [b, s] = [lots[k], forms[k]];
+        if (b.cleared || b.ox === undefined || s.tiers[0] < 4.6) continue;
+        for (let f = 0; f < 4; f++) {
+          const wide = onFace(b, s, f, 0, 0, 0).wide;
+          const shops = Math.floor(wide / 6.4);
+          const seed = hash11(f32(b.ox * 0.731 + b.oz * 0.377 + f * 5.1));
+          for (let n = 0; n < shops; n++) {
+            if (s.chamfer > 0.05 && (n === 0 || n === shops - 1)) continue;
+            const hn = hash11(seed * 61.3 + n * 9.7);
+            const u = (3.2 + 6.4 * n) / wide - 0.5;
+            const front = onFace(b, s, f, 0, u, 1.1);
+            if (!within(front.x, front.z, 0.3) || !clearOf(front.x, front.z, 1.2) || inLot(front.x, front.z, 0.5, k)) continue;
+            if (hn < 0.52) {
+              const a = onFace(b, s, f, 0, u, 0.72);
+              box(BOX.awning, a.x, 3.46, a.z, 5.6, 0.34, 1.44, a.turn, [hash11(hn * 37.1), hash11(hn * 11.9) < 0.6 ? 1 : 0, 0]);
+            }
+            if (n > 0 && hash11(hn * 71.3) < 0.44) {
+              const g = onFace(b, s, f, 0, u - 3.2 / wide, 0.64);
+              const tall = 2.2 + 1.5 * hash11(hn * 3.1);
+              box(BOX.sign, g.x, 3.0 + tall / 2 + 0.9 * hash11(hn * 5.3), g.z, 0.86, tall, 0.2, g.turn + Math.PI / 2, [hash11(hn * 13.7), hash11(hn * 29.3), 0]);
+            }
+            if (count >= 2000 && hash11(hn * 83.9) < 0.18) {
+              const g = onFace(b, s, f, 0, u + 1.5 / wide, 1.5);
+              box(BOX.sign, g.x, KERB + 0.56, g.z, 0.62, 1.04, 0.1, g.turn + (hn - 0.26) * 0.9, [hash11(hn * 43.1), hash11(hn * 59.9), 0]);
+            }
+          }
+        }
+      }
       // A post under every lamp on the block's four kerbs (the dome lights
       // a lamp here by the same rule, kerbLamps): not in a junction, not on
       // the kit's ground. And now and then a car at the kerb.
@@ -1085,22 +1144,55 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // below keep their draws.)
         const onSlab = (x, z) => x > slab[0] + 0.4 && x < slab[2] - 0.4 && z > slab[1] + 0.4 && z < slab[3] - 0.4;
         const here = hash11(f32(gx * 0.37 + gz * 0.61 + (alongZ ? 3.1 : 7.7) + side));
-        for (let k = 0; k < Math.floor(here * 4); k++) {
+        // (Since: up to three more on a wide screen, and nobody inside a wall.)
+        for (let k = 0; k < Math.floor(here * 4) + (count < 2000 ? 0 : Math.floor(hash11(here * 5.9) * 3.6)); k++) {
           const hk = hash11(here * 91.7 + k * 13.3);
           const [qx, qz] = place(6.9 + 1.4 * hash11(hk * 57.1), mid + (hk - 0.5) * 30);
-          if (!onSlab(qx, qz) || !clearOf(qx, qz, 1.2)) continue;
+          if (!onSlab(qx, qz) || !clearOf(qx, qz, 1.2) || inLot(qx, qz, 0.3)) continue;
           const tall = 1.58 + 0.24 * hash11(hk * 31.9);
           box(BOX.person, qx, KERB + tall / 2, qz, 0.46, tall, 0.3, hk * 6.283, [hash11(hk * 17.3), 0, 0]);
           if (hash11(hk * 23.9) < 0.5) box(BOX.umbrella, qx, KERB + tall + 0.32, qz, 1.1, 0.1, 1.1, hk * 3.1, [hash11(hk * 41.3), 0, 0]);
         }
-        if (here > 0.66) {
+        if (here > 0.4) {
           const [vx, vz] = place(8.25, mid + (hash11(here * 7.7) - 0.5) * 24);
-          if (onSlab(vx, vz) && clearOf(vx, vz, 1.2)) box(BOX.vending, vx, KERB + 0.95, vz, 1.1, 1.9, 0.7, alongZ ? Math.PI / 2 : 0, [hash11(here * 19.1), 0, 0]);
+          if (onSlab(vx, vz) && clearOf(vx, vz, 1.2) && !inLot(vx, vz, 0.2)) box(BOX.vending, vx, KERB + 0.95, vz, 1.1, 1.9, 0.7, alongZ ? Math.PI / 2 : 0, [hash11(here * 19.1), 0, 0]);
         }
+        // Along the kerb, what a pavement collects: a bin, a stack of
+        // crates, a cabinet, and where something is being dug a striped
+        // barrier. Two to five things a kerb (none on a phone: under a
+        // pixel there).
+        for (let k = 0; k < (count < 2000 ? 0 : 2 + Math.floor(hash11(here * 3.7) * 4)); k++) {
+          const hk = hash11(here * 67.1 + k * 21.7);
+          const what = hash11(hk * 9.1);
+          const [qx, qz] = place(what < 0.45 ? 6.5 : 7.9 + 1.1 * hash11(hk * 33.3), mid + (hk - 0.5) * 31);
+          if (!onSlab(qx, qz) || !clearOf(qx, qz, 1.2) || inLot(qx, qz, 0.5)) continue;
+          const turn = (alongZ ? Math.PI / 2 : 0) + (hash11(hk * 77.7) - 0.5) * 0.3;
+          if (what < 0.25) box(BOX.clutter, qx, KERB + 0.5, qz, 0.56, 1.0, 0.56, turn, [0.1 + 0.8 * hash11(hk * 5.5), 0, 0]);
+          else if (what < 0.45) box(BOX.clutter, qx, KERB + 0.5, qz, 1.9, 1.0, 0.12, turn, [0.5, 1, 0]);
+          else if (what < 0.8) box(BOX.clutter, qx, KERB + 0.2 * (1 + Math.floor(hash11(hk * 3.9) * 4)), qz, 0.62, 0.4 * (1 + Math.floor(hash11(hk * 3.9) * 4)), 0.44, turn, [hash11(hk * 15.1), 0, 0]);
+          else box(BOX.clutter, qx, KERB + 0.7, qz, 0.9, 1.4, 0.4, turn, [0.86 + 0.13 * hash11(hk * 2.3), 0, 0]);
+        }
+        let parkedAt = null;
         if (ring() < 0.5) {
-          const [cx, cz] = place(4.85, mid + (ring() - 0.5) * 22);
+          const along = mid + (ring() - 0.5) * 22;
+          const [cx, cz] = place(4.85, along);
           const [paint, turn, nose] = [ring(), alongZ ? Math.PI / 2 : 0, ring() < 0.5 ? 1 : -1];
+          if (clearOf(cx, cz, 3)) {
+            parkedAt = along;
+            box(BOX.car, cx, 0.2 + 0.36, cz, 4.4, 0.72, 1.8, turn, [paint, nose, 0]);
+            box(BOX.cabin, cx + (alongZ ? 0 : -0.3 * nose), 0.92 + 0.27, cz + (alongZ ? 0.3 * nose : 0), 2.3, 0.54, 1.62, turn, [paint, 0, 0]);
+          }
+        }
+        // Every kerb of the kit is parked, and so are these: four bays a
+        // kerb, about three in five taken (by the hash: the car the stream
+        // dealt keeps its place and its draws).
+        for (let k = 0; k < 4; k++) {
+          const hk = hash11(here * 53.3 + k * 7.7);
+          const along = mid - 12.6 + k * 8.4 + (hash11(hk * 3.3) - 0.5) * 1.8;
+          if (hk < 0.4 || (parkedAt !== null && Math.abs(along - parkedAt) < 5.4)) continue;
+          const [cx, cz] = place(4.85, along);
           if (!clearOf(cx, cz, 3)) continue;
+          const [paint, turn, nose] = [hash11(hk * 19.9), alongZ ? Math.PI / 2 : 0, hash11(hk * 27.1) < 0.5 ? 1 : -1];
           box(BOX.car, cx, 0.2 + 0.36, cz, 4.4, 0.72, 1.8, turn, [paint, nose, 0]);
           box(BOX.cabin, cx + (alongZ ? 0 : -0.3 * nose), 0.92 + 0.27, cz + (alongZ ? 0.3 * nose : 0), 2.3, 0.54, 1.62, turn, [paint, 0, 0]);
         }
@@ -1485,18 +1577,6 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   lots.forEach((b, i) => {
     if (b.cleared && !b.gone) lots[i] = { ...b, gone: true };
   });
-  // A thing fixed to a tower's face: f is the face by the tower's own plan
-  // (0 +x, 1 +z, 2 -x, 3 -z), tier whose face, u how far across it (-0.5 to
-  // 0.5), out how far it stands off the wall. Returns where, and the turn
-  // that sets a box's own z along the face's normal.
-  const onFace = (b, s, f, tier, u, out) => {
-    const n = [[1, 0], [0, 1], [-1, 0], [0, -1]][f];
-    const [hw, hd] = [(b.w * s.inset[tier]) / 2, (b.d * s.inset[tier]) / 2];
-    const [lx, lz] = f % 2 === 0 ? [n[0] * (hw + out), u * hd * 2] : [u * hw * 2, n[1] * (hd + out)];
-    const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
-    const world = [cs * n[0] + sn * n[1], -sn * n[0] + cs * n[1]];
-    return { x: b.x + cs * lx + sn * lz, z: b.z - sn * lx + cs * lz, turn: Math.atan2(world[0], world[1]), wide: (f % 2 === 0 ? hd : hw) * 2 };
-  };
   // Which of a tower's faces looks most at a point.
   const faceToward = (b, x, z) => {
     const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
@@ -1633,11 +1713,19 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   }
   // The columns: each a solid stack of screens on its own ground, 0.72 of
   // its height (the rest is its beam, sky-columns.js).
+  // (A column the rooftop's lens frames, west-north-west from the
+  // Afterlife's roof, or the garage street's, south down its street, is
+  // the hologram it was from under the roofs' height, and solid only for an
+  // eye above them: those two pictures hold.)
+  const columnHeld = (x, z) => {
+    const [roof, street] = [Math.atan2(z + 266, x - 476) * (180 / Math.PI), Math.atan2(z + 292, x - 437) * (180 / Math.PI)];
+    return roof > 170 || roof < -113 || (street > 41 && street < 127);
+  };
   for (let c = 0; c < columns.length; c += 6) {
     const [x, z, w, h, tone, seed] = columns.slice(c, c + 6);
-    box(BOX.screen, x, h * 0.36, z, w * 0.8, h * 0.72, w * 0.8, (seed - 0.5) * 0.5, [seed, [0, 0, 1, 0, 2, 3][tone % 6], 0]);
+    box(BOX.screen, x, h * 0.36, z, w * 0.8, h * 0.72, w * 0.8, (seed - 0.5) * 0.5, [seed, [0, 0, 1, 0, 2, 3][tone % 6], 0, columnHeld(x, z) ? 1 : 0]);
   }
-  const skyColumns = createSkyColumns(scene, shared, columns, { reduced, ads });
+  const skyColumns = createSkyColumns(scene, shared, columns, { reduced, ads, held: columnHeld });
 
   // The dome's lamps, as GLSL the slabs share: a lamp every eleven and a
   // half metres down each kerb, a pool of light under it. Past a pixel a
@@ -2243,7 +2331,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             if (hl < mix(0.2, 0.33, held)) {
               float pier = step(min(fract(um / 6.4), 1.0 - fract(um / 6.4)), 0.05);
               float slat = 0.55 + 0.45 * step(0.5, fract(vWorld.y * 7.0));
-              front = vec4(mix((vec3(0.03, 0.031, 0.036) + wallC * 0.6) * slat, wallC, max(pier, step(3.5, vWorld.y))), 0.0);
+              // (Not its whole frontage: about every other shop still trades
+              // behind its glass, or its foot was a ribbed blank base.)
+              front = mix(vec4(mix((vec3(0.03, 0.031, 0.036) + wallC * 0.6) * slat, wallC, max(pier, step(3.5, vWorld.y))), 0.0), front, (1.0 - held) * step(0.5, hash12(vec2(floor(um / 6.4), vForm.z + 2.2))));
             }
             // (No two doors alike: each face's is its own width, a little
             // off the middle, its hall one of five lights, its canopy a
