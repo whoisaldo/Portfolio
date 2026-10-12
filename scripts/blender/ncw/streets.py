@@ -396,10 +396,7 @@ def build():
             while v < b - 8.0:
                 x, z = _w(s, side * (s.half - 0.35), v)
                 dd = _d(x, z)
-                if s.axis == "z":
-                    box((dd, "dark", 1), x - 0.3, x + 0.3, 0.0, 0.018, z - 0.5, z + 0.5, scale=0.5)
-                else:
-                    box((dd, "dark", 1), x - 0.5, x + 0.5, 0.0, 0.018, z - 0.3, z + 0.3, scale=0.5)
+                P.place("drain", x, 0.0, z, yaw=math.pi / 2 if s.axis == "z" else 0.0, district=dd)
                 if rng.random() < 0.45:
                     mx_, mz_ = _w(s, rng.choice((-1, 1)) * rng.uniform(1.0, s.half - 2.0), v + rng.uniform(-6, 6))
                     cylinder((_d(mx_, mz_), "metal", 1), mx_, mz_, 0.0, 0.02, 0.38, segs=14)

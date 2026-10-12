@@ -577,6 +577,13 @@ def _grate_glow(k):
     quad(k("face"), (-0.6, 0.012, 0.3), (0.6, 0.012, 0.3), (0.6, 0.012, -0.3), (-0.6, 0.012, -0.3), col=(*GLOW["amber"][:3], GRATE))
 
 
+@proto("drain", box=(0.5, 0.02, 0.3), reach=70, detail=True)
+def _drain(k):
+    """A kerb drain, 1 m by 0.6: bars over a slot with a glint of water down
+    it (streets.py sets one every 25 to 30 m along each kerb)."""
+    quad(k("face"), (-0.5, 0.019, 0.3), (0.5, 0.019, 0.3), (0.5, 0.019, -0.3), (-0.5, 0.019, -0.3), col=(0.008, 0.013, 0.015, GRATE))
+
+
 @proto("fence_mesh", box=(1.2, 1.0, 0.05), reach=300, detail=True)
 def _fence_mesh(k):
     """A mesh fence panel 2.4 m wide and 2 m high: its frame and the wire,
