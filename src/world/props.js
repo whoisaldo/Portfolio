@@ -28,6 +28,16 @@
 // each has a design of its own besides (a lantern's colour, a machine's
 // front), from where it stands (src/world/prop-deal.js). The props' own
 // materials read the design as an instanced attribute, aDeal.
+//
+// Most of those draws are small: of the two hundred a street view asks for,
+// over half carry under a thousand triangles, and a draw costs the page and
+// the browser the same whatever it carries. So a part with few vertices in
+// the whole city (BAKED or under, every instance counted) is not instanced:
+// its instances are written out as plain triangles, with every other small
+// part that wears the same material, into one mesh in the order of the
+// cells, and of that mesh each part's cells in sight and in its reach (the
+// same cells it would draw instanced) go in one draw. Only parts in the
+// kit's own materials: the props' own read each instance's frame.
 import * as THREE from "three";
 import { worldPropsUrl } from "../data/world-assets.js";
 import { NEON } from "./materials.js";
@@ -35,6 +45,12 @@ import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
 
 const CELL = 48;
+// The most vertices a part may have in the whole city and be written out.
+const BAKED = 6000;
+// three draws a list of runs of an index in one call for its own
+// BatchedMesh; a Baked mesh borrows that path, as merge.js's Tiled does
+// (see there for what it rests on).
+const MULTI_DRAW = "_multiDrawStarts" in new THREE.BatchedMesh(1, 3, 3);
 const NEAR = "__near";
 const SHAPE = /^__v(\d+)$/;
 const cache = new Map();
@@ -74,6 +90,142 @@ const _vp = new THREE.Matrix4();
 const _last = new THREE.Vector3(1e9, 0, 0);
 const _lastDir = new THREE.Vector3();
 const _dir = new THREE.Vector3();
+
+/**
+ * Small parts written out, one mesh a material: an instanced mesh of one
+ * instance that stands where it is (so the materials' instanced shaders,
+ * which know a prop from a wall by being instanced, draw it as they draw a
+ * prop), drawn a run of cells at a time.
+ */
+class Baked extends THREE.InstancedMesh {
+  constructor(material) {
+    super(new THREE.BufferGeometry(), material, 1);
+    this.setMatrixAt(0, _m.identity());
+    // What it is made of: { set, src } for each part, and where in its index
+    // the triangles are of each cell's parts that are seen equally far.
+    this.parts = [];
+    this.cells = { ci: new Int32Array(0), reach: new Float32Array(0), start: new Int32Array(0), count: new Int32Array(0) };
+    this.frustumCulled = false;
+    this.matrixAutoUpdate = false;
+    this.visible = false;
+    if (MULTI_DRAW) {
+      this.isBatchedMesh = true;
+      this._multiDrawStarts = new Int32Array(0);
+      this._multiDrawCounts = new Int32Array(0);
+      this._multiDrawCount = 0;
+      this._matricesTexture = this._indirectTexture = this._colorsTexture = null;
+    }
+  }
+
+  /** Every instance of every part as triangles, a cell's together, the
+   *  cells in `rank`'s order (row by row across the map, so that cells in
+   *  sight side by side are side by side in the index and go as one run). */
+  write(rank) {
+    const names = Object.keys(this.parts[0].src.geometry.attributes);
+    let verts = 0;
+    let indices = 0;
+    // Each instance of each part, by its cell and then by how far it is seen.
+    const items = [];
+    for (const { set, src } of this.parts) {
+      const g = src.geometry;
+      for (const run of set.runs) for (let j = run.start; j < run.end; j++) items.push({ ci: run.ci, set, g, j });
+      verts += set.n * g.attributes.position.count;
+      indices += set.n * g.index.count;
+    }
+    items.sort((a, b) => rank[a.ci] - rank[b.ci] || a.set.reach - b.set.reach);
+    const out = Object.fromEntries(names.map((name) => [name, new Float32Array(verts * this.parts[0].src.geometry.attributes[name].itemSize)]));
+    const index = verts > 65535 ? new Uint32Array(indices) : new Uint16Array(indices);
+    const ci = [];
+    const reach = [];
+    const start = [];
+    const count = [];
+    let v = 0;
+    let i = 0;
+    for (const { ci: cell, set, g, j } of items) {
+      if (ci[ci.length - 1] !== cell || reach[reach.length - 1] !== set.reach) {
+        ci.push(cell);
+        reach.push(set.reach);
+        start.push(i);
+        count.push(0);
+      }
+      // The instance's matrix (a frame: no projective row), written out by
+      // hand: the same sums as Matrix4 and Matrix3 make, without the calls.
+      const e = set.matrices;
+      const o = j * 16;
+      const m0 = e[o], m1 = e[o + 1], m2 = e[o + 2];
+      const m4 = e[o + 4], m5 = e[o + 5], m6 = e[o + 6];
+      const m8 = e[o + 8], m9 = e[o + 9], m10 = e[o + 10];
+      const m12 = e[o + 12], m13 = e[o + 13], m14 = e[o + 14];
+      const n = g.attributes.position.count;
+      for (const name of names) {
+        const from = g.attributes[name].array;
+        const to = out[name];
+        if (name === "position") {
+          for (let k = 0, s = 0, d = v * 3; k < n; k++, s += 3, d += 3) {
+            const x = from[s], y = from[s + 1], z = from[s + 2];
+            to[d] = m0 * x + m4 * y + m8 * z + m12;
+            to[d + 1] = m1 * x + m5 * y + m9 * z + m13;
+            to[d + 2] = m2 * x + m6 * y + m10 * z + m14;
+          }
+        } else if (name === "normal") {
+          // As the shaders turn it: the matrix's own three by three, made a unit again.
+          for (let k = 0, s = 0, d = v * 3; k < n; k++, s += 3, d += 3) {
+            const x = from[s], y = from[s + 1], z = from[s + 2];
+            const nx = m0 * x + m4 * y + m8 * z;
+            const ny = m1 * x + m5 * y + m9 * z;
+            const nz = m2 * x + m6 * y + m10 * z;
+            const l = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+            to[d] = nx / l;
+            to[d + 1] = ny / l;
+            to[d + 2] = nz / l;
+          }
+        } else {
+          const size = g.attributes[name].itemSize;
+          to.set(from.subarray(0, n * size), v * size);
+        }
+      }
+      const src = g.index.array;
+      for (let k = 0; k < src.length; k++) index[i + k] = src[k] + v;
+      v += n;
+      i += src.length;
+      count[count.length - 1] += src.length;
+    }
+    this.geometry.dispose();
+    const geometry = new THREE.BufferGeometry();
+    for (const name of names) geometry.setAttribute(name, new THREE.BufferAttribute(out[name], this.parts[0].src.geometry.attributes[name].itemSize));
+    geometry.setIndex(new THREE.BufferAttribute(index, 1));
+    this.geometry = geometry;
+    this.cells = { ci: Int32Array.from(ci), reach: Float32Array.from(reach), start: Int32Array.from(start), count: Int32Array.from(count) };
+    if (MULTI_DRAW) {
+      this._multiDrawStarts = new Int32Array(ci.length);
+      this._multiDrawCounts = new Int32Array(ci.length);
+    }
+  }
+
+  /** The cells in sight and in reach, as an instanced part has them: those
+   *  that follow one another in the index go as one run. */
+  show(cellVis, cellDist) {
+    const { ci, reach, start, count } = this.cells;
+    const bytes = this.geometry.index.array.BYTES_PER_ELEMENT;
+    let n = 0;
+    let joined = false;
+    for (let r = 0; r < ci.length; r++) {
+      if (!cellVis[ci[r]] || cellDist[ci[r]] > reach[r]) {
+        joined = false;
+      } else if (!MULTI_DRAW) {
+        n++;
+      } else if (joined) {
+        this._multiDrawCounts[n - 1] += count[r];
+      } else {
+        this._multiDrawStarts[n] = start[r] * bytes;
+        this._multiDrawCounts[n++] = count[r];
+        joined = true;
+      }
+    }
+    if (MULTI_DRAW) this._multiDrawCount = n;
+    this.visible = n > 0;
+  }
+}
 
 /**
  * `protoMeshes`: the GLB's proto_ meshes (already dressed in the kit's
@@ -146,6 +298,9 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const sets = [];
   const built = new Set();
   const owned = [];
+  // The small parts' meshes, by material and attributes.
+  const baked = new Map();
+  const unwritten = new Set();
   // A prototype's instances and their draws, once its meshes are here (the
   // core's at the start; a district's own arrive with its pack).
   const build = (k) => {
@@ -181,6 +336,18 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const instance = (src) => {
       const mine = own.forName(src.material.name);
       const material = mine ?? src.material;
+      if (!mine && !material.transparent && n * src.geometry.attributes.position.count <= BAKED) {
+        const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}`;
+        if (!baked.has(key)) {
+          const mesh = new Baked(material);
+          mesh.name = `props_small_${material.name}`;
+          if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) mesh.layers.enable(reflectLayer);
+          group.add(mesh);
+          baked.set(key, mesh);
+        }
+        unwritten.add(baked.get(key));
+        return { baked: baked.get(key), src };
+      }
       let geometry = src.geometry;
       if (mine?.userData.dealt) {
         // Its own geometry over the prototype's attributes (two prototypes
@@ -205,7 +372,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       group.add(im);
       return im;
     };
-    const set = (extra, instanced) => ({ ...extra, matrices, deals: dealt, runs, instanced, aDeal: instanced.map((im) => im.geometry.attributes.aDeal).filter(Boolean), n, sig: -1 });
+    // A set's parts are its instanced meshes and, of the small ones written
+    // out, the prototype's own mesh (`small`, for the light they give).
+    const set = (extra, made) => {
+      const instanced = made.filter((part) => !part.baked);
+      const one = { ...extra, matrices, deals: dealt, runs, instanced, small: made.filter((part) => part.baked).map((part) => part.src), aDeal: instanced.map((im) => im.geometry.attributes.aDeal).filter(Boolean), n, count: 0, sig: -1 };
+      for (const part of made) if (part.baked) part.baked.parts.push({ set: one, src: part.src });
+      return one;
+    };
     mine.push(set({ name: k.name, reach: k.reach }, meshes.map(instance)));
     // Its ornament: the same instances, near by only.
     const near = kinds.find((o) => o.name === k.name + NEAR);
@@ -214,7 +388,20 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     sets.push(...mine);
     return mine;
   };
+  // The small parts' meshes that have gained a part, written again, their
+  // cells row by row across the map.
+  const write = () => {
+    if (!unwritten.size) return;
+    const rank = new Int32Array(cellList.length);
+    const rows = [...cellAt].map(([key, ci]) => [ci, ...key.split(",").map(Number)]);
+    rows.sort((a, b) => a[2] - b[2] || a[1] - b[1]).forEach(([ci], r) => {
+      rank[ci] = r;
+    });
+    for (const mesh of unwritten) mesh.write(rank);
+    unwritten.clear();
+  };
   for (const k of kinds) build(k);
+  write();
 
   // Whenever the camera has moved or turned enough: which cells the frustum
   // holds and how far each is, once for everyone; then each prototype's
@@ -254,14 +441,15 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (sig === set.sig) continue;
       set.sig = sig;
       let c = 0;
-      const dst = set.instanced[0].instanceMatrix.array;
+      const dst = set.instanced[0]?.instanceMatrix.array;
       const dealt = set.aDeal;
       for (const run of set.runs) {
         if (!cellVis[run.ci] || cellDist[run.ci] > reach) continue;
-        dst.set(set.matrices.subarray(run.start * 16, run.end * 16), c * 16);
+        dst?.set(set.matrices.subarray(run.start * 16, run.end * 16), c * 16);
         if (dealt.length) dealt[0].array.set(set.deals.subarray(run.start, run.end), c);
         c += run.end - run.start;
       }
+      set.count = c;
       for (let m = 0; m < set.instanced.length; m++) {
         const im = set.instanced[m];
         if (m > 0) im.instanceMatrix.array.set(dst.subarray(0, c * 16));
@@ -278,6 +466,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         dealt[m].needsUpdate = true;
       }
     }
+    for (const mesh of baked.values()) mesh.show(cellVis, cellDist);
   };
 
   // The light the props give the street, for the bake (src/world/spill.js):
@@ -288,7 +477,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const sources = [];
     for (const set of list) {
       if (set.near) continue;
-      for (const im of set.instanced) {
+      for (const im of [...set.instanced, ...set.small]) {
         const name = im.material.name;
         const face = own.light(name);
         if (!/^(neon_|glow|lantern)/.test(name) && !face) continue;
@@ -356,12 +545,13 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       }
       const added = [];
       for (const k of kinds) if (names.has(k.name)) added.push(...build(k));
+      write();
       stale = true;
       return sourcesOf(added);
     },
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {
-      return Object.fromEntries(sets.filter((st) => !st.near).map((st) => [st.name, `${st.instanced[0].count}/${st.n}`]));
+      return Object.fromEntries(sets.filter((st) => !st.near).map((st) => [st.name, `${st.count}/${st.n}`]));
     },
     disposeBake() {
       for (const m of bakeMeshes) m.geometry.dispose();
@@ -370,6 +560,10 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     dispose() {
       for (const m of bakeMeshes) m.geometry.dispose();
       for (const set of sets) for (const im of set.instanced) im.dispose();
+      for (const mesh of baked.values()) {
+        mesh.geometry.dispose();
+        mesh.dispose();
+      }
       for (const geometry of owned) geometry.dispose();
       own.dispose();
       group.removeFromParent();
