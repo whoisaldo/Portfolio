@@ -207,9 +207,19 @@ const POLICE = { c: [320, -285], r: [65, 40], y: 58, v: 14 };
 // The cars' surfaces, by the model's material names (traffic-cars.js).
 const CAR_PARTS = { body: 0, trim: 1, glass: 2, lamp_head: 3, lamp_tail: 4, glow_accent: 5, tyre: 6, rim: 7 };
 
+/** The part of a lamp surface that lies across the car's nose (or its tail):
+ *  its vertices within 5 cm of its foremost (rearmost) point, so a marker
+ *  strip on a roof or round a flank is left out of it. */
+function lampFace(g, front, into) {
+  const pos = g.attributes.position;
+  const end = front ? g.boundingBox.max.z : g.boundingBox.min.z;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getZ(i) - end) < 0.05) into.expandByPoint(v.fromBufferAttribute(pos, i));
+}
+
 /** A car of one kind as one geometry (as avGeometry builds the AV's), and
- *  where its lamps are: the outer ends of its head and tail light bars, in
- *  its own frame (front +z). */
+ *  where its lamps are: the outer ends of the light bars across its nose
+ *  and its tail, in its own frame (front +z). */
 function carGeometry(kind) {
   const model = createCarModel(kind === "police" ? "sedan" : kind);
   model.updateMatrixWorld(true);
@@ -226,8 +236,8 @@ function carGeometry(kind) {
     g.applyMatrix4(o.matrixWorld);
     g.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(k), 1));
     g.computeBoundingBox();
-    if (k === 3) head.union(g.boundingBox);
-    if (k === 4) tail.union(g.boundingBox);
+    if (k === 3) lampFace(g, true, head);
+    if (k === 4) lampFace(g, false, tail);
     parts.push(g);
   });
   // An NCPD cruiser's light bar across the roof, on a dark foot.
@@ -251,6 +261,8 @@ function carGeometry(kind) {
     box: geometry.boundingBox,
     head: [head.max.x * 0.82, (head.min.y + head.max.y) / 2, head.max.z],
     tail: [tail.max.x * 0.82, (tail.min.y + tail.max.y) / 2, tail.min.z],
+    // For the shader: each bar's half width and its height off the road.
+    bars: new THREE.Vector4(head.max.x, (head.min.y + head.max.y) / 2, tail.max.x, (tail.min.y + tail.max.y) / 2),
   };
 }
 
@@ -363,6 +375,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      uniform vec4 uBars;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       varying float vKind;
@@ -386,6 +399,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         int k = int(vKind + 0.5);
         // Its lamps go out with it where it fades.
         float lit = vLook.a * vFade;
+        float far = smoothstep(10.0, 90.0, length(vWorld - uCam));
         vec3 col;
         float glow = 0.0;
         #ifdef VAN
@@ -422,9 +436,25 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         if (k == 0) col = body * (0.03 + spill * 0.6 * (0.5 + 0.5 * sky) + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.25 + uGlowColor * 0.15) * sky * uHaze) * ao + env * (0.06 + 0.94 * F) * 0.7 * (0.55 + 0.45 * ao);
         else if (k == 1) col = vec3(0.008, 0.009, 0.011) + spill * 0.08 + env * F * 0.3;
         else if (k == 2) col = vec3(0.003, 0.005, 0.009) + env * (0.06 + 0.94 * F);
-        else if (k == 3) { col = mix(vec3(0.06, 0.065, 0.07), vec3(0.92, 0.95, 1.0) * 6.5, lit); glow = lit; }
-        else if (k == 4) { col = mix(vec3(0.08, 0.008, 0.012), vec3(1.0, 0.07, 0.15) * 4.5, lit); glow = lit; }
-        else if (k == 5) { col = vLook.rgb * mix(0.6, 3.0, lit); glow = 1.0; }
+        // A light bar is a lamp unit at each end and a thin running strip
+        // between them, behind a lens; lit, it is only as hot as it must be
+        // to carry: a lit lens close to, where the bloom would spread it
+        // across the car's whole nose, and a point the bloom can find from
+        // down the street. A bar up on a roof is an amber marker strip.
+        else if (k == 3) {
+          float unit = smoothstep(0.56, 0.64, abs(vLocal.x) / uBars.x);
+          vec3 beam = vec3(0.92, 0.95, 1.0) * mix(1.6, 6.5, far) * mix(0.14, 1.0, unit);
+          if (vLocal.y > uBars.y + 0.4) beam = vec3(1.0, 0.55, 0.14) * 0.85;
+          col = mix(vec3(0.045, 0.05, 0.056) + env * 0.3, beam, lit);
+          glow = lit;
+        }
+        else if (k == 4) {
+          float unit = smoothstep(0.5, 0.6, abs(vLocal.x) / uBars.z);
+          vec3 beam = vec3(1.0, 0.07, 0.15) * mix(1.5, 4.5, far) * mix(0.4, 1.0, unit);
+          col = mix(vec3(0.07, 0.008, 0.012) + env * 0.2, beam, lit);
+          glow = lit;
+        }
+        else if (k == 5) { col = vLook.rgb * mix(0.6, mix(1.5, 3.0, far), lit); glow = 1.0; }
         else if (k == 6) col = vec3(0.006, 0.006, 0.007) + spill * 0.05;
         else if (k == 8) {
           // The bar: red on one side, blue on the other, trading places.
@@ -601,7 +631,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const color = new THREE.Color();
   const kinds = [...CAR_KINDS, "police"].map((kind, k) => {
     const built = carGeometry(kind);
-    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max } }, ...carShader, defines: kind === "police" ? { POLICE: "" } : kind === "van" ? { VAN: "" } : {} });
+    const material = new THREE.ShaderMaterial({ uniforms: { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars } }, ...carShader, defines: kind === "police" ? { POLICE: "" } : kind === "van" ? { VAN: "" } : {} });
     material.name = kind === "police" || kind === "van" ? `traffic_${kind}` : "traffic";
     const mine = slots.filter((x) => x.kind === k);
     const n = Math.max(1, mine.length);
@@ -663,9 +693,14 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       varying vec2 vUv;
       void main() {
         vec4 mv = viewMatrix * vec4(aPos, 1.0);
-        mv.xy += position.xy * aCol.a;
+        // Close to, a lamp's glow is its lens and a breath round it: smaller
+        // and gentler the nearer the lens, so that two headlamps never join
+        // into one bar across the car that carries them. From 70 m on it is
+        // the size and the brightness it always was.
+        float k = smoothstep(8.0, 70.0, -mv.z);
+        mv.xy += position.xy * aCol.a * mix(0.5, 1.0, k);
         gl_Position = projectionMatrix * mv;
-        vCol = aCol;
+        vCol = vec4(aCol.rgb * mix(0.42, 1.0, k * k), aCol.a);
         vUv = uv;
       }
     `,
