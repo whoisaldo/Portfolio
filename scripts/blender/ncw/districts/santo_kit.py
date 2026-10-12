@@ -537,7 +537,7 @@ def nozzle(cx, cy, cz, yaw, r=0.26, ln=0.7, col=RUST_D, detail=1):
     flange(tip, (nx, 0, nz), r, col, detail)
 
 
-def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, stair_at=0.0, lamp="cyan", r_=None, roof=0.16):
+def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, stair_at=0.0, lamp="cyan", r_=None, roof=0.16, breathe=False):
     """A storage tank: its shell with a painted band and two wind girders,
     a cone roof with a vent, a rail round the rim, a stair spiralling up
     its side to a landing with a safety lamp, a manway and a valved outlet
@@ -561,6 +561,9 @@ def tank(cx, cz, r, h, col, segs=20, band=None, number=None, number_yaw=0.0, sta
         a, b_ = hi[i], hi[(i + 1) % segs]
         tri_n(M("tank"), (apex, a, b_), (0, 1, 0), shade(col, 0.82))
     cylinder(k("metal", 1), cx, cz, apex[1] - 0.1, apex[1] + 0.5, 0.35, segs=6)
+    if breathe:
+        # Its roof vent breathing: vapour off the rim, lit from the landing.
+        steam(cx, apex[1] + 0.55, cz, kind="stack", lit=3.0, red=0.3)
     # Wind girders: an angle round the rim and one part way down.
     for gy in (y1 - 0.16, y0 + h * 0.52):
         cylinder(M("steel", 1), cx, cz, gy, gy + 0.14, r + 0.07, segs=segs, col=shade(col, 0.55), cap=False)
@@ -704,7 +707,7 @@ def bullet(x0, x1, z, r, col, y=None, segs=None, base=GY):
 
 
 def stack(cx, cz, h, r0, r1, col, segs=12, bands=((0.80, 0.86), (0.92, 0.97)), band_col=TANK_WHITE, platform=0.72, breathe=True,
-          beacon=True, lit=None):
+          beacon=True, lit=None, puffs=3):
     """A stack: a tapering steel shell in flanged lifts with painted bands
     near its top, a service platform, a caged ladder, red lamps, steam
     (mH2wmyeiIpA@60)."""
@@ -745,9 +748,25 @@ def stack(cx, cz, h, r0, r1, col, segs=12, bands=((0.80, 0.86), (0.92, 0.97)), b
     if lit:
         sodium(cx + r0 + 1.5, 1.0, cz + r0 + 1.5, lit, red=0.4)
     if breathe:
-        plume(cx, top + 0.6, cz)
+        plume(cx, top + 0.6, cz, n=puffs)
     collide(cx - r0, cx + r0, cz - r0, cz + r0, top)
     return top
+
+
+def flue(x, z, y0, y1, r=0.4, col=RUST, lit=3.0):
+    """A steel flue up from a roof: its shell in two lifts with a flange
+    between, a plate at its foot, three stays, a red lamp at its lip, and
+    what it burns going up from it."""
+    cylinder(M("tank"), x, z, y0, y1, r, segs=10, col=col, cap=False)
+    ym = (y0 + y1) / 2
+    cylinder(M("steel", 1), x, z, ym - 0.06, ym + 0.06, r + 0.07, segs=10, col=shade(col, 0.5), cap=False)
+    cylinder(k("dark"), x, z, y1 - 0.04, y1 + 0.22, r + 0.08, segs=10)
+    box(M("steel"), x - r - 0.25, x + r + 0.25, y0, y0 + 0.25, z - r - 0.25, z + r + 0.25, scale=1.0, col=shade(col, 0.5))
+    ys = y0 + (y1 - y0) * 0.7
+    for a in (0.4, 2.5, 4.6):
+        cable((x + r * math.cos(a), ys, z + r * math.sin(a)), (x + 2.4 * math.cos(a), y0 + 0.05, z + 2.4 * math.sin(a)), sag=0.0, steps=1)
+    box(k("glow"), x + r + 0.02, x + r + 0.2, y1 - 0.5, y1 - 0.3, z - 0.09, z + 0.09, scale=0.5, col=GLOW["red"])
+    steam(x, y1 + 0.3, z, kind="stack", lit=lit)
 
 
 def flare(cx, cz, h, w=2.4):
@@ -1576,8 +1595,9 @@ def low_wall(x0, z0, x1, z1, h=0.9, lamps=3):
 
 
 def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", "bin", "drum", "bags", "crates", "pallets", "cctv", "barrier", "lamp_short", "blocks", "barrel", "drum_pallet"),
-          side=0.0):
-    """What stands on the strip between the pavement and a yard's fence."""
+          side=0.0, skip=()):
+    """What stands on the strip between the pavement and a yard's fence.
+    `skip`: stretches (from, to in metres along it) left clear."""
     ln = math.hypot(x1 - x0, z1 - z0)
     n = max(1, int(ln / step))
     ux, uz = (x1 - x0) / ln, (z1 - z0) / ln
@@ -1587,7 +1607,10 @@ def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", 
         j = r.uniform(-0.4, 0.4) + side
         kind = r.choice(kinds)
         px, pz = x0 + (x1 - x0) * t - uz * j, z0 + (z1 - z0) * t + ux * j
-        P.place(kind, px, GY, pz, yaw + (0.0 if kind in ("barrier", "crates") else r.uniform(0, 6.28)), district=D)
+        turn = yaw + (0.0 if kind in ("barrier", "crates") else r.uniform(0, 6.28))
+        if any(a - 1.2 < t * ln < b + 1.2 for a, b in skip):
+            continue
+        P.place(kind, px, GY, pz, turn, district=D)
         if kind == "bollard":
             P.place(kind, px + ux * 1.4, GY, pz + uz * 1.4, 0.0, district=D)
         if kind == "lamp_short":

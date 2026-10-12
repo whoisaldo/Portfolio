@@ -66,6 +66,22 @@ def truck(x, z, yaw, cab=None):
         P.place(cab, x + math.cos(yaw) * 6.9, GY, z - math.sin(yaw) * 6.9, yaw, district=D)
 
 
+def forklift(x, z, yaw, y=GY, load=None):
+    """A forklift at work (its forks point where a trailer's nose would at
+    the same yaw): the beacon's amber on the ground round it, two work
+    lamps lit on its cage and their pool ahead of the forks, a load on
+    them if it carries one."""
+    P.place("forklift", x, y, z, yaw, district=D)
+    fx, fz = math.cos(yaw), -math.sin(yaw)
+    sx, sz = math.sin(yaw), math.cos(yaw)
+    light(D, x - fx * 0.1, y + 2.2, z - fz * 0.1, "amber", 2.4)
+    for s in (-0.4, 0.4):
+        rotated_quad(k("glow", 1), x + fx * 0.36 + sx * s, y + 2.0, z + fz * 0.36 + sz * s, 0.18, 0.11, yaw + PI / 2, col=(0.9, 0.88, 0.8, 1.0))
+    light(D, x + fx * 3.4, y + 0.4, z + fz * 3.4, "white", 2.6)
+    if load:
+        P.place(load, x + fx * 1.4, y + 0.17, z + fz * 1.4, yaw, district=D)
+
+
 def scatter(r, x0, x1, z0, z1, n, kinds=("drum_pallet", "drum_pallet", "pallets", "crates", "reel", "tyres", "drum", "barrel", "blocks", "drum_pallet"), yaw=None):
     """Yard clutter set down in a patch, in twos and threes."""
     for _ in range(n):
@@ -115,8 +131,8 @@ def roads():
     K.totem(424.0, -94.8, PI * 0.38)
     K.totem(306.6, -14.4, PI * 0.14)
     # A pair talking at the south gate, a driver waiting at the east one.
-    stand(298.2, -15.8, PI / 2, "talk")
-    stand(299.4, -15.7, -PI / 2, "talk")
+    stand(303.3, -17.4, PI / 2, "talk")
+    stand(304.4, -17.1, -PI / 2, "talk")
     stand(422.6, -86.2, PI / 2, "phone")
     # The service lane on the west: lamps, bins, a skip.
     for z in (-150.0, -112.0, -70.0, -30.0):
@@ -146,6 +162,7 @@ def works():
            tint="rust")
     K.flat_roof(186.0, 204.0, -100.0, -93.2, 11.6, r, wall=K.BRICK, lights=0.0, plant=False, breathe=2)
     K.stack(182.6, -96.6, 31.0, 1.5, 1.0, K.BRICK, segs=8, bands=((0.9, 0.95),), band_col=K.CREAM, lit=5.0)
+    K.flue(199.4, -96.6, 11.6, 19.0, r=0.45, col=K.RUST_D)
     box(K.M("tank"), 183.6, 186.0, 6.0, 7.6, -97.4, -95.8, scale=1.0, col=K.RUST_D)
     # The court: trailers on four doors, bays painted out, floods.
     plat = out.get("+x", GY)
@@ -164,12 +181,13 @@ def works():
     K.wash(X0, X1, Z0 - 1.2, Z0 - 1.2, level=0.45, step=6.0)
     K.wash(208.0, 240.0, Z1 + 1.2, Z1 + 1.2, level=0.6)
     K.wash(186.0, 204.0, -92.2, -92.2, level=0.6, red=0.3)
-    P.place("forklift", X1 + 1.3, plat, -117.0, PI * 0.9, district=D)
+    forklift(X1 + 1.3, -117.0, PI * 0.9, plat)
     P.place("crates", X1 + 1.2, plat, -124.0, 0.3, district=D)
     P.place("crates", X1 + 1.5, plat, -146.0, 1.2, district=D)
     stand(X1 + 1.4, -120.6, PI / 2, "idle", plat)
     stand(X1 + 1.9, -121.8, -0.4, "talk", plat)
     stand(X1 + 1.2, -139.0, PI / 2, "smoke", plat)
+    stand(281.6, -106.3, -PI / 2, "smoke")
     stand(283.0, -128.5, PI, "talk")
     stand(283.2, -130.0, 0.0, "talk")
     K.name_sign("HELCASO", 250.0, 11.2, -103.0, PI * 0.12, h=2.0)
@@ -206,13 +224,13 @@ def tank_farm():
         for (a0, a1, b0, b1) in ((x0, x1, z0, z0 + 0.3), (x0, x1, z1 - 0.3, z1), (x0, x0 + 0.3, z0, z1), (x1 - 0.3, x1, z0, z1)):
             box(K.M("concrete"), a0, a1, 0.0, 1.15, b0, b1, scale=2.0, col=K.CONC)
         box(k("hazard", 1), x0, x1, 1.15, 1.2, z1 - 0.3, z1, scale=1.0)
-    K.tank(328.0, -146.0, 10.5, 12.0, K.RUST, band=(0.78, 0.86), number="01", number_yaw=PI * 0.8, stair_at=PI * 0.75, r_=r)
+    K.tank(328.0, -146.0, 10.5, 12.0, K.RUST, band=(0.78, 0.86), number="01", number_yaw=PI * 0.8, stair_at=PI * 0.75, r_=r, breathe=True)
     K.tank(357.0, -146.0, 10.5, 12.6, K.TANK_WHITE, band=(0.78, 0.86), number="02", number_yaw=PI * 0.8, stair_at=PI * 0.7, r_=r)
-    K.tank(386.0, -146.0, 10.5, 11.2, K.RUST, band=(0.78, 0.86), number="03", number_yaw=PI * 0.72, stair_at=PI * 0.3, r_=r)
+    K.tank(386.0, -146.0, 10.5, 11.2, K.RUST, band=(0.78, 0.86), number="03", number_yaw=PI * 0.72, stair_at=PI * 0.3, r_=r, breathe=True)
     K.tank(324.0, -113.0, 7.0, 10.0, K.TANK_WHITE, segs=16, band=(0.1, 0.18), number="04", number_yaw=PI * 0.5, stair_at=-PI * 0.6, r_=r)
-    K.tank(345.0, -113.0, 7.0, 9.0, K.RUST, segs=16, number="05", number_yaw=PI * 0.4, stair_at=PI * 0.5, r_=r)
+    K.tank(345.0, -113.0, 7.0, 9.0, K.RUST, segs=16, number="05", number_yaw=PI * 0.4, stair_at=PI * 0.5, r_=r, breathe=True)
     K.tank(366.0, -113.0, 7.0, 10.4, K.TANK_WHITE, segs=16, band=(0.1, 0.18), number="07", number_yaw=PI * 0.4, stair_at=PI * 0.5, r_=r)
-    K.tank(387.0, -113.0, 7.0, 8.6, K.RUST, segs=16, number="08", number_yaw=PI * 0.45, stair_at=PI * 0.25, r_=r)
+    K.tank(387.0, -113.0, 7.0, 8.6, K.RUST, segs=16, number="08", number_yaw=PI * 0.45, stair_at=PI * 0.25, r_=r, breathe=True)
     K.shell_text(357.0, -146.0, 10.5, GY + 3.6, "SOLFUCA", 1.5, PI * 0.8, K.shade(K.TANK_WHITE, 0.3))
     K.shell_text(386.0, -146.0, 10.5, GY + 3.4, "SOLFUCA", 1.5, PI * 0.5, K.TANK_WHITE)
     K.sphere(414.0, -152.0, 6.4, K.TANK_WHITE)
@@ -266,6 +284,10 @@ def tank_farm():
     stand(404.4, -108.2, PI / 2, "talk")
     stand(405.2, -109.4, -PI / 3, "talk")
     stand(424.4, -141.0, PI / 2, "smoke")
+    # Three on the tanks' stairs, part way up (the stair winds at r + 0.5).
+    stand(396.89, -144.44, -0.14, "idle", GY + 5.6)
+    stand(326.91, -135.05, -1.67, "idle", GY + 7.2)
+    stand(371.84, -108.29, -0.68, "phone", GY + 6.24)
 
 
 # ---------------------------------------------------------------------------
@@ -363,6 +385,8 @@ def frame(r):
     # Steam leaking low in the frame, lit by its lamps: the plant's haze.
     for vx, vz in ((347.0, -47.6), (360.0, -55.0), (371.0, -47.4), (377.6, -58.0), (352.0, -58.6)):
         K.vent(vx, vz, lit=0.0)
+    for sx, sy, sz in ((362.6, levels[2] + 1.3, -57.0), (365.0, 25.4, -61.0), (353.0, levels[0] + 3.4, -52.0), (376.6, 19.4, -64.6)):
+        K.steam(sx, sy, sz, kind="stack", lit=0.0)
     for z in (-49.0, -51.6):
         K.bullet(361.0, 371.0, z, 0.75, K.STEEL_BLUE, y=GY + 1.7)
     # The heater: a rust box on legs, burners glowing along its foot, its
@@ -413,6 +437,8 @@ def plant():
         "+z": dict(band=(9.6, 11.8), style=3, lit=(0.55, 0.9), docks=dict(n=2, s0=3.0, s1=15.0, raised=False, canopy=False, half=(0,), first=31)),
         "+x": dict(band=(9.6, 11.8), style=3, lit=(0.4, 0.7)), "-z": dict(band=(9.6, 11.8), style=3), "-x": dict(dress=False)}, tint="rust")
     K.flat_roof(386.0, 410.0, -76.0, -56.0, 13.6, r, wall=K.SAND, lights=0.35, breathe=1)
+    K.flue(389.6, -59.4, 13.6, 21.4, r=0.5, col=K.RUST)
+    K.flue(392.6, -59.4, 13.6, 20.2, r=0.4, col=K.TANK_WHITE)
     K.stack(403.0, -49.0, 38.0, 2.3, 1.5, K.RUST, lit=7.0)
     box(K.M("tank"), 402.0, 404.0, 8.0, 10.0, -56.0, -50.6, scale=1.0, col=K.RUST_D, bottom=True)
     K.stack(416.5, -62.0, 29.0, 1.5, 1.0, K.TANK_WHITE, band_col=K.OXIDE, lit=6.0)
@@ -493,8 +519,8 @@ def plant():
     K.low_wall(312.8, -12.4, 388.0, -12.4)
     K.low_wall(425.8, -83.2, 425.8, -10.8)
     K.low_wall(424.0, -10.8, 425.8, -10.8, lamps=0)
-    K.verge(r, 314.0, -11.2, 386.0, -11.2, step=4.6)
-    K.verge(r, 426.9, -82.0, 426.9, -12.0, step=4.6)
+    K.verge(r, 314.0, -11.2, 386.0, -11.2, step=4.6, skip=((50.0, 55.6),))
+    K.verge(r, 426.9, -82.0, 426.9, -12.0, step=4.6, skip=((66.0, 70.0),))
     for x in (392.0, 404.0, 416.0):
         P.place("bench", x, GY, -10.3, 0.0, district=D)
     P.place("food_box", 398.4, GY, -10.3, 0.0, district=D)
@@ -526,6 +552,18 @@ def plant():
     # control building's side door, one by the bullets.
     stand(337.2, -24.0, PI / 2, "lean", 9.0)
     stand(392.6, -54.4, 0.0, "idle")
+    # The huddle at the plant's corner, where the loop turns (Fn9gKhU_2_Q@28):
+    # six in a ring inside the low wall, one with her back to it.
+    for i, pose in enumerate(("talk", "talk", "idle", "lean", "smoke", "phone")):
+        a = (20 + 60 * i) * PI / 180
+        hx, hz = 426.9 + 0.95 * math.cos(a), -12.55 + 0.95 * math.sin(a)
+        stand(hx, hz, math.atan2(426.9 - hx, -12.55 - hz), pose)
+    # And four of the shift against the wall under the frame.
+    stand(365.2, -11.85, 0.3, "lean")
+    stand(366.5, -11.9, -0.2, "lean")
+    stand(366.0, -10.75, PI, "talk")
+    stand(367.6, -10.9, PI + 0.6, "smoke")
+    stand(368.5, -11.7, -0.8, "squat")
     stand(424.8, -30.0, PI / 2, "smoke")
     stand(425.0, -31.4, 0.3, "talk")
     stand(309.4, -52.4, 0.0, "phone")
@@ -548,6 +586,7 @@ def depot():
         "-z": dict(band=(6.2, 8.2), style=5, lit=(0.3, 0.55)), "-x": dict(band=(6.2, 8.2), style=5), "+x": dict(band=(6.2, 8.2), style=5, doors=False)},
         tint="teal")
     K.flat_roof(180.0, 236.0, -78.0, -36.0, 9.4, r, wall=K.PALE_GREEN, lights=0.7, breathe=2)
+    K.flue(229.6, -74.4, 9.4, 15.6, r=0.42, col=K.TANK_WHITE)
     plat = out.get("+z", GY)
     K.stair((237.0, GY, -44.0), (237.0, 6.0, -56.0), w=1.1, detail=0)
     K.deck(236.0, 238.0, -58.2, -56.0, 6.0)
@@ -562,7 +601,7 @@ def depot():
     for i in range(7):
         x = 185.0 + i * 7.0
         K.stripe(x - 0.06, x + 0.06, -33.0, -18.0, K.PAINT_WHITE)
-    P.place("forklift", 199.0, plat, -34.6, 0.4, district=D)
+    forklift(199.0, -34.6, 0.4, plat)
     P.place("crates", 213.0, plat, -34.8, 0.9, district=D)
     P.place("crates", 195.0, plat, -34.9, 2.0, district=D)
     stand(192.4, -34.7, 0.0, "idle", plat)
@@ -570,6 +609,7 @@ def depot():
     stand(206.2, -34.6, PI / 2, "talk", plat)
     stand(207.4, -34.5, -PI / 2, "talk", plat)
     stand(230.6, -20.0, PI, "smoke")
+    stand(225.3, -18.9, 0.6, "phone")
     K.name_sign("FESCOL", 208.0, 10.2, -38.4, PI * 0.06, h=1.8, col=COOL)
     fc_ = B.faces_of(180.0, 236.0, -78.0, -36.0)
     K.stencil(fc_["+z"], 52.0, 4.6, "02", h=2.6, wall=K.PALE_GREEN)
@@ -603,7 +643,7 @@ def depot():
         P.place("vending", door[0] + 3.4, GY, -10.75, 0.0, district=D)
         P.place("vending_warm", door[0] + 4.5, GY, -10.75, 0.0, district=D)
         stand(door[0] - 2.2, -10.6, 0.3, "lean")
-    P.place("forklift", 293.0, GY, -56.0, -PI / 2, district=D)
+    forklift(293.0, -56.0, -PI / 2)
     stand(293.4, -52.6, -PI / 2, "idle")
     scatter(r, 291.0, 295.0, -44.0, -24.0, 3, kinds=("drum_pallet", "pallets", "crates"))
     # The lane between the two, and the apron behind them on the estate
@@ -728,7 +768,10 @@ def fuel():
     stand(115.0, 40.6, PI, "vendor")
     stand(113.6, 37.9, 0.0, "idle")
     stand(116.6, 36.3, 0.0, "sit", GY + 1.1)
-    stand(145.6, 24.0, PI / 2, "phone")
+    stand(132.6, 23.2, PI / 2, "idle")
+    stand(148.1, 24.4, 0.5, "idle")
+    stand(161.1, 21.0, PI / 2 + 0.4, "phone")
+    stand(155.6, 33.2, PI, "idle")
     stand(151.0, 34.6, 0.6, "talk")
     stand(152.2, 34.8, -1.9, "talk")
     stand(125.6, 36.4, -PI / 2, "squat")
@@ -754,7 +797,7 @@ def street_shed():
     K.name_sign("LUPACO", 196.0, 9.6, 30.0, PI * 0.92, h=1.8, lift=2.2)
     for x in (188.0, 212.0, 236.0):
         cylinder(k("hazard", 1), x, 13.0, GY, GY + 1.1, 0.14, segs=8)
-    P.place("forklift", 240.5, GY, 14.2, PI, district=D)
+    forklift(240.5, 14.2, PI, load="pallets")
     stand(238.4, 14.6, PI, "idle")
     stand(243.0, 14.9, PI * 0.8, "talk")
     stand(244.0, 14.0, -PI * 0.3, "talk")
@@ -847,7 +890,7 @@ def container_yard():
     mast(262.0, 14.2, PI * 0.25, hue="white", level=0.6)
     mast(338.0, 14.2, -PI * 0.25, hue="white", level=0.6)
     K.wash(264.0, 338.0, 17.6, 17.6, level=0.5, step=6.0)
-    P.place("forklift", 309.0, GY, 16.6, 1.2, district=D)
+    forklift(309.0, 16.6, 1.2)
     scatter(r, 290.0, 312.0, 14.0, 17.4, 3, kinds=("pallets", "drum_pallet", "tyres"))
     stand(303.0, 17.4, PI, "talk")
     stand(304.3, 16.8, -PI * 0.6, "talk")
@@ -920,6 +963,7 @@ def workshop():
         "-z": dict(docks=dict(n=3, s0=2.0, s1=26.0, raised=False, canopy=False, first=1, open=(0, 2), half=(1,))),
         "+z": dict(hidden=True), "-x": dict(dress=False), "+x": dict(dress=False)}, plinth=0.6, tint="rust")
     K.flat_roof(392.0, 420.0, 30.0, 44.4, 6.4, r, wall=K.RUST_D, lights=0.6, breathe=1)
+    K.flue(416.6, 41.0, 6.4, 12.0, r=0.38, col=K.RUST)
     K.wash(394.0, 418.0, 27.4, 29.0, level=0.9)
     K.fence(388.4, 12.5, 400.0, 12.5)
     K.gate(400.6, 12.5, 407.4, 12.5, (0, 1), open_=True)
@@ -942,6 +986,7 @@ def workshop():
     stand(399.0, 28.0, PI * 0.7, "idle")
     stand(412.6, 27.8, PI, "smoke")
     stand(415.6, 16.8, PI, "sit", GY + 1.0)
+    stand(408.6, 13.9, PI, "smoke")
 
 
 def chevrons(f, y0, y1, col, n=2, wdt=0.9):
@@ -1023,7 +1068,7 @@ def hall(f, door, pale):
                 box(k("trim", 1), x, x + 1.1, yy + 0.12, yy + 1.0, z1 - 1.1, z1 - 0.2, scale=1.0, col=(K.WOOD, K.GREY, K.SAND)[(i + j) % 3])
     K.stripe(x0 + 4.6, x0 + 4.72, z0 + 0.5, z1 - 2.0)
     truck(x1 - 2.1, z0 + 11.2, PI / 2, "tractor_red")
-    P.place("forklift", x0 + 2.6, GY, z0 + 5.4, PI * 0.5, district=D)
+    forklift(x0 + 2.6, z0 + 5.4, PI * 0.5, load="crates")
     for x, z, kind in ((x0 + 0.9, z0 + 2.2, "drum_pallet"), (x0 + 0.9, z0 + 8.4, "pallets"), (x0 + 0.9, z0 + 9.9, "drum_pallet"), (x0 + 2.4, z0 + 13.6, "crates"),
                        (x0 + 0.8, z0 + 14.4, "pallets")):
         P.place(kind, x, GY, z, 0.2 * x, district=D)
@@ -1196,12 +1241,13 @@ def east():
                    docks=dict(n=3, s0=28.0, s1=48.0, raised=False, canopy=False, first=5, open=(0,), half=(2,))),
         "-z": dict(band=(5.2, 6.6), style=6), "+z": dict(band=(5.2, 6.6), style=6), "+x": dict(dress=False)}, stripe_col=K.YELLOW)
     K.flat_roof(456.0, 488.0, -92.0, -40.0, 7.4, r, wall=K.GREY, lights=0.75, breathe=1)
+    K.flue(485.2, -43.6, 7.4, 11.6, r=0.36, col=K.RUST_D)
     K.wash(454.6, 454.6, -90.0, -42.0, level=0.6)
     fw = B.faces_of(456.0, 488.0, -92.0, -40.0)
     K.blade(fw["-x"], 1.0, 3.2, "bl", scale=0.85)
     K.blade(fw["-x"], 26.0, 3.8, "bs", scale=1.2)
     K.stencil(fw["-x"], 50.0, 3.4, "10", h=2.6, wall=K.GREY)
-    P.place("forklift", 454.4, GY, -80.0, -PI / 2, district=D)
+    forklift(454.4, -80.0, -PI / 2)
     stand(454.2, -77.4, -PI / 2, "idle")
     scatter(r, 453.0, 455.2, -94.0, -92.6, 1, kinds=("dumpster",), yaw=PI)
     scatter(r, 453.2, 455.0, -39.4, -37.0, 2, kinds=("bags", "crates", "dumpster"))
@@ -1304,8 +1350,8 @@ def yards():
     truck(398.0, -49.3, -PI / 2, "tractor")
     stand(291.4, -94.0, -PI / 2, "smoke")
     stand(321.6, -87.7, 0.0, "phone")
-    stand(396.0, -40.6, PI / 2, "talk")
-    stand(397.2, -40.2, -PI / 2, "talk")
+    stand(394.9, -41.2, PI / 2, "talk")
+    stand(396.0, -40.9, -PI / 2, "talk")
     # Built containers at ground level in three yards.
     K.container(293.8, -150.0, PI / 2, "blue")
     K.container(350.0, -164.5, 0.0, "rust")
@@ -1315,8 +1361,7 @@ def yards():
         P.place("drum_pallet", 294.4, GY, z, (0.0, PI / 2, PI, 0.0)[i], district=D)
     P.place("pallets", 294.4, GY, -131.6, 0.2, district=D)
     P.place("blocks", 294.3, GY, -129.9, 1.0, district=D)
-    P.place("forklift", 279.0, GY, -150.0, 0.7, district=D)
-    P.place("pallets", 281.2, GY, -148.4, 0.7, district=D)
+    forklift(279.0, -150.0, 0.7, load="pallets")
     stand(280.6, -151.4, 0.7, "idle")
     for x, z, kind, yaw in ((305.6, -94.9, "drum_pallet", 0.0), (305.6, -93.4, "drum_pallet", PI / 2), (306.9, -93.3, "barrel", 0.0), (306.8, -95.0, "blocks", 0.4),
                             (294.2, -82.4, "dumpster", PI / 2), (294.3, -80.2, "pallets", 0.1), (292.6, -80.0, "blocks", 2.0),
@@ -1346,6 +1391,18 @@ def yards():
     stand(408.2, -140.2, -PI / 2, "talk")
     stand(303.0, -60.0, -PI / 2, "phone")
     stand(297.2, -120.0, PI / 2, "idle")
+    # The estate road at work: a forklift carrying north up it behind its
+    # banksman, two walking down to the gate, a pair by the barriers, one
+    # smoking at the cross, one waiting by the rack.
+    forklift(298.3, -58.0, PI / 2, load="crates")
+    stand(297.0, -64.6, 0.0, "idle")
+    stand(301.7, -37.8, PI / 2, "talk")
+    stand(302.9, -37.5, -PI / 2, "talk")
+    stand(302.4, -112.0, PI / 2, "talk")
+    stand(303.5, -111.6, -PI / 2, "talk")
+    stand(305.6, -81.6, -PI / 2, "smoke")
+    stand(336.5, -90.6, 0.0, "idle")
+    stand(293.2, -165.6, 0.0, "smoke")
     stand(204.6, -18.6, PI / 2, "talk")
     stand(205.8, -18.3, -PI / 2, "talk")
     stand(455.4, -110.0, -PI / 2, "idle")
