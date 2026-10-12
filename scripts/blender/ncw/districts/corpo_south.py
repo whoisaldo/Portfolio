@@ -219,12 +219,67 @@ def terrace(x0, x1, z0, z1, y, r, trees=False):
 # ---------------------------------------------------------------------------
 # The campus under the Experience shot's dolly: low, every roof finished.
 # ---------------------------------------------------------------------------
+def west_fronts(x, z0, z1, top, r):
+    """The first campus block's face on the x 120 road, 58 m of it, as
+    three fronts, none like the next or like the corner lot's lobby north
+    of the mews: a lobby in amber behind a portal that stands a metre out
+    of the wall, no canopy; a service bay, bare concrete, a shuttered way
+    in framed in hazard yellow under a red lamp, louvres over it; a
+    showroom lit white under a low awning, its sign over that."""
+    cuts = (z0, z0 + 22.0, z0 + 40.0, z1)
+    # 1: the lobby.
+    f = B.Face("-x", x, cuts[0], cuts[1])
+    w = f.width
+    f.quad(k("trim"), 0.0, w, SHOP_H, top, 0.0, col=K.STONE)
+    K.front(f, top, "glass", random.Random(7831), 1, "amber", 0.0)
+    for a, b in ((w / 2 - 5.0, w / 2 - 4.3), (w / 2 + 4.3, w / 2 + 5.0)):
+        f.box(k("trim"), a, b, 0.0, 8.2, 0.0, 1.0, col=K.BLACK)
+    f.box(k("trim"), w / 2 - 5.0, w / 2 + 5.0, 7.4, 8.2, 0.0, 1.0, col=K.BLACK)
+    f.box(k("neon_amber"), w / 2 - 4.3, w / 2 + 4.3, 7.32, 7.4, 0.9, 1.0)
+    for a in (w / 2 - 4.26, w / 2 + 4.2):
+        f.box(k("neon_amber"), a, a + 0.06, 0.4, 7.3, 0.9, 1.0)
+    px, _, pz = f.p(f.at(w / 2), 0.0, 1.6)
+    light(CO, px, 5.0, pz, "amber", 6.0)
+    sx, _, sz = f.p(f.at(1.2), 0.0, 0.9)
+    K.st_blade(sx, 8.6, sz, "bl", f.yaw + math.pi / 2, bracket=f.p(f.at(1.2), 0.0, 0.0)[::2])
+    # 2: the service bay.
+    f = B.Face("-x", x, cuts[1], cuts[2])
+    w = f.width
+    f.quad(k("castconcrete"), 0.0, w, SHOP_H, top, 0.0, col=(0.17, 0.17, 0.175, 1.0))
+    K.front(f, top, "dock", random.Random(7832), 1)
+    f.box(k("trim"), w / 2 - 3.6, w / 2 + 3.6, 0.0, 5.0, 0.0, 0.14, col=K.BLACK)
+    f.quad(k("door_panel"), w / 2 - 3.2, w / 2 + 3.2, G0, 4.6, 0.15)
+    for a, b in ((w / 2 - 3.6, w / 2 - 3.2), (w / 2 + 3.2, w / 2 + 3.6)):
+        f.box(k("trim", 1), a, b, G0, 4.6, 0.14, 0.2, col=K.YELLOW)
+    f.box(k("trim", 1), w / 2 - 3.6, w / 2 + 3.6, 4.6, 5.0, 0.14, 0.2, col=K.YELLOW)
+    f.box(k("neon_red"), w / 2 - 0.3, w / 2 + 0.3, 5.3, 5.5, 0.0, 0.2)
+    for yy in (6.6, 8.2, 9.8):
+        f.box(k("dark", 1), 1.0, w - 1.0, yy, yy + 1.1, 0.0, 0.1)
+    px, _, pz = f.p(f.at(w / 2), 0.0, 1.5)
+    light(CO, px, 4.0, pz, "red", 5.0)
+    K.services(f, r, top, 0.8)
+    # 3: the showroom.
+    f = B.Face("-x", x, cuts[2], cuts[3])
+    w = f.width
+    f.quad(k("trim"), 0.0, w, SHOP_H, top, 0.0, col=K.PALE)
+    K.front(f, top, "shop", random.Random(7833), 1, "white", 1.7)
+    cx, cy, cz = f.p(f.at(w / 2), SHOP_H + 2.3, 0.1)
+    sw, sh = ST_SIZES["pm"]
+    f.box(k("board_frame"), w / 2 - sw - 0.1, w / 2 + sw + 0.1, SHOP_H + 2.3 - sh - 0.1, SHOP_H + 2.3 + sh + 0.1, 0.0, 0.09)
+    sign(K.st_id("pm"), cx, cy, cz, sw * 2, sh * 2, f.yaw, district=CO, label=False)
+    # A pier between each pair, proud of both.
+    for zc in cuts[1:3]:
+        box(k("trim"), x - 0.35, x, 0.0, top, zc - 0.5, zc + 0.5, scale=2.0, col=K.BLACK)
+
+
 def campus_block(i, x0, x1, r):
     z0, z1 = CAMPUS
     west_street = i == 0
     east_end = i == len(CAMPUS_LOTS) - 1
-    fronts = {"-z": "shop", "+z": "dock", "-x": "glass" if west_street else ("dock" if i % 2 else "blank"),
+    fronts = {"-z": "shop", "+z": "dock", "-x": "none" if west_street else ("dock" if i % 2 else "blank"),
               "+x": "blank" if east_end else ("dock" if i % 2 else "blank")}
+    if west_street:
+        west_fronts(x0, z0, z1, 11.8, r)
     hue = ("cyan", "amber")[i % 2]
     # The podium, and on its north half an upper block of two or three
     # floors; the south half, under the dolly, stays a roof.
