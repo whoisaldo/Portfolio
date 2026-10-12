@@ -3392,43 +3392,6 @@ for nm_, x_, y_, z_, yaw_, sy_, sxz_, d_ in P.INSTANCES:
         hit_ = any(b and y_ < b[1] and hi_ > b[0] for b in b_)
         _st.append((nm_, round(x_, 2), round(z_, 2), round(y_, 2), round(hi_, 2), "HIT" if hit_ else "clear"))
 print("japantown by the deck's stair:", _st)
-if os.environ.get("JT_SMALL"):
-    def _area(b, fc):
-        import mathutils
-        v = [mathutils.Vector(b.verts[i]) for i in fc]
-        return sum(((v[k] - v[0]).cross(v[k + 1] - v[0])).length / 2 for k in range(1, len(v) - 1))
-    for _m in ("trim", "glow", "metal", "board_frame", "plaster"):
-        _b = batches.get((D, _m, 0))
-        if not _b:
-            continue
-        import mathutils as _mu
-
-        def _thin(b, fc):
-            v = [_mu.Vector(b.verts[i]) for i in fc]
-            e = max((v[(k + 1) % len(v)] - v[k]).length for k in range(len(v)))
-            return _area(b, fc) / max(e, 1e-6)
-        _ar = [(_area(_b, fc), len(fc) - 2, _thin(_b, fc)) for fc in _b.faces]
-        print("japantown small", _m, sum(t for _, t, _ in _ar), [(th, sum(t for a_, t, _ in _ar if a_ < th)) for th in (0.01, 0.03, 0.06, 0.1, 0.2)],
-              "thin", [(th, sum(t for _, t, w_ in _ar if w_ < th)) for th in (0.03, 0.05, 0.08, 0.12)])
-    import collections as _co
-    _bm = batches.get((D, "metal", 1))
-    if _bm:
-        _hy = _co.Counter()
-        _hx = _co.Counter()
-        for fc in _bm.faces:
-            ys_ = [_bm.verts[i][2] for i in fc]
-            xs_ = [_bm.verts[i][0] for i in fc]
-            zs_ = [-_bm.verts[i][1] for i in fc]
-            ym = sum(ys_) / len(ys_)
-            _hy[min(5, int(ym // 3))] += len(fc) - 2
-            xm, zm = sum(xs_) / len(xs_), sum(zs_) / len(zs_)
-            reg = "lane" if (BACK[0] - 0.5 < xm < BACK[1] + 0.5 or NAKA[0] - 0.5 < xm < NAKA[1] + 0.5 or LANE[0] - 0.5 < xm < LANE[1] + 0.5) else "street" if XW - 0.5 < xm < XE + 0.5 else "rows"
-            _hx[reg] += len(fc) - 2
-        print("japantown metal1 by height band (3 m):", sorted(_hy.items()), "by place:", dict(_hx))
-    _lp = LIGHTS.get(D, [])
-    _pw = [_lp[i + 4] for i in range(0, len(_lp), 5)]
-    _ys = [_lp[i + 1] for i in range(0, len(_lp), 5)]
-    print("japantown lights by power", [(t, sum(1 for q in _pw if q < t * 10)) for t in (1.5, 2.0, 2.5, 3.0, 4.0)], "over 8 m", sum(1 for y in _ys if y > 80))
 if os.environ.get("JT_DUMP"):
     # (For whoever is working on the district: every lot, to a file.)
     import json
