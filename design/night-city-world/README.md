@@ -622,6 +622,64 @@ replaced one box with the cars painted on.
   (which in Look and the film neither covers the city nor draws). The
   shutter takes at most eight taps on high and four on a phone.
 
+## Exports for later
+
+The builder (`scripts/blender/ncw/exports.py`) writes five JSON files next
+to the GLBs, in `public/scenes/world/` with a copy in this folder. The page
+reads none of them yet: they are for a drive, a walk and a richer
+braindance. All are in world metres, +x east, +y up, +z south (toward the
+hero's lens); north is -z.
+
+- `road-graph.json`: the street network.
+  - `nodes`: 17 junctions and ends, each `{ id, x, z, kind }`.
+  - `edges`: 23 stretches between nodes, each `{ id, street, from, to,
+    length, points, lanes, half, bay, speed, pavements, district, loop }`.
+    `points` is the centre line as a polyline at 1 m (x, y, z: the ramp and
+    the deck carry their height). `lanes` are `{ offset, toward, width }`:
+    `offset` is metres from the centre line (+ toward +x on a street that
+    runs north-south, toward +z on one that runs east-west), `toward` is the
+    node the lane drives to; traffic keeps right. `pavements` are
+    `{ offset, width }`, the middle of each walkable strip. `half` is centre
+    line to kerb, `bay` the kerbside parking bay's width, `speed` m/s. An
+    edge with `elevated: true` (the ramp, the deck) is off the ground.
+  - `loop`: the closed drive, 2,983 m: `order` (node ids) and `names`
+    (A B C L P Q F E I H): north up the avenue from A (0, 1) through B to C
+    (0, -720), west along the megabuilding street to L (-80, -720), south
+    down the west street and up the ramp to the deck at P (-80, -80), east
+    over the avenue on the deck to Q (120, -80), north to F (120, -179) and
+    E (120, -330), east along the boulevard to I (440, -330), south down
+    the garage street to H (440, 1), west along the south street to A.
+    `deck` gives the elevated part: its height (8.5 m), where the ramp's
+    foot is (z -220) and where the descent reaches grade (x 110).
+- `collision.json`: `boxes`, about 8,900 axis-aligned boxes
+  `{ min, max, district, kind }` a car or a walker must not pass through.
+  `kind` is `building` (every building mass the generator placed) or a
+  prop's name (each prop standing on the ground, its box turned to its yaw
+  and grown to the axes). Props on roofs and walls are left out. A consumer
+  that wants walkers to brush through small things can filter by `kind`
+  (`weed`, `bags`, `rubbish`).
+- `districts.json`: `districts`, each `{ name, label, bounds: { x0, z0, x1,
+  z1 } }`, and `streets`, each `{ name, axis, c, from, to, half, walk,
+  lanes, bay, loop }` (`axis` z runs north-south at x = `c`).
+- `anchors.json`: `anchors`, about 340 named places `{ name, kind, at, yaw,
+  district }` with `extras` where the kit set any. Kinds: `cam` (the page's
+  shots), `car` (where the S4 stops), `anchor` (steam sources, lamps'
+  lights, the towers, the garage, the crowd's and traffic's payloads),
+  `lamp`, `logo`, `signs`, `road`, `junction` (the loop's ten, by letter),
+  `district` (each centre, with its label), `spawn` (`spawn_drive`: the
+  avenue's inner northbound lane at A, facing north; `spawn_walk`: the
+  middle of the avenue's east pavement) and `poi` (fifteen landmarks:
+  `poi_arasaka`, `poi_plaza_hub`, `poi_afterlife`, `poi_garage` and the
+  rest, each with a `label`). `yaw` is the kit's: 0 faces +z, pi faces -z.
+- `props-source.json` (this folder only): every placed prop, for tools.
+  `protos` (name, half-size `box`, `detail`, `reach`), `districts`, and
+  `instances` as rows `[proto, x, y, z, yaw, scaleY, scaleXZ, district]`.
+
+The walker's line the review harness uses (`src/world/devcam.js`) is not in
+the files: it keeps to the middle of one pavement of each loop edge and cuts
+corners 0.9 m toward the building. The same module's `drive` pose rides
+1.9 m right of the centre line, eye at 1.25 m.
+
 ## Verification
 
 - `npm run check:world` decodes both GLBs and checks the shots, the anchors,
