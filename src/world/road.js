@@ -217,6 +217,11 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float wet = uWet * mix(0.3, 1.0, damp);
 
         vec3 spill = spillGround(vWorld);
+        // (The baked light is the ground's too: up on the deck most of what
+        // it holds is the signs of the street below, so there it is greyed
+        // toward the deck's own sodium masts.)
+        float lifted = smoothstep(0.15, 0.7, abs(vWorld.y));
+        spill = mix(spill, dot(spill, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.75, lifted * 0.8);
         #if PAINT == 1
         // Road paint over the same asphalt: worn through where the stones
         // stand proud and where the wheels run, pale, and lit by the whole
@@ -269,6 +274,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         vec3 soft = vec3(0.0);
         #if MIRROR == 1
         mk = uReflectOn * clamp(uReflectGain / ${MIRROR_FULL.toFixed(1)}, 0.0, 1.0);
+        // The mirror is the ground's: a road off the ground (the deck, its
+        // ramp) would show the ground's picture, so it keeps the baked light.
+        mk *= 1.0 - smoothstep(0.15, 0.7, abs(vWorld.y));
         if (mk > 0.001) {
           // The mirror's picture is of the world as the road's plane throws
           // it back, so a direction's vanishing point in it is where that
@@ -306,6 +314,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           // No mirror: the baked light along the ray (ground.js), a little
           // off its colour and capped, as a wet road gives a light back.
           baked = tame(spillReflect(vWorld, R) * 0.14, 0.5);
+          baked = mix(baked, dot(baked, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.8, lifted * 0.8);
           // Standing water gives the same light back whole, where the film
           // gives a part of it.
           if (puddle > 0.01) sharp = mix(baked * 2.2, sharp, mk);

@@ -36,7 +36,9 @@ export function createPlazaKoi(scene, shared, { reduced = false, reflectLayer = 
     map.colorSpace = THREE.SRGBColorSpace;
     return map;
   });
-  const quiet = [new THREE.Vector3(...WORK), new THREE.Vector3(...HERO)];
+  // The wide screen's two poses always, and this screen's own two (a phone
+  // stands further back): a camera at any of the four sees no fish.
+  const quiet = [new THREE.Vector3(...WORK), new THREE.Vector3(...HERO), new THREE.Vector3(...WORK), new THREE.Vector3(...HERO)];
   const fish = FISH.map((spec, i) => {
     const height = spec.length / 1.5;
     // Along x, head at +x (the pictures face right): the flank upright, and
@@ -69,8 +71,7 @@ export function createPlazaKoi(scene, shared, { reduced = false, reflectLayer = 
         uSeed: { value: 3.1 + i * 1.7 },
         uMotion: { value: reduced ? 0 : 1 },
         uTint: { value: new THREE.Vector3(...spec.tint) },
-        uWork: { value: quiet[0] },
-        uHero: { value: quiet[1] },
+        uQuiet: { value: quiet },
       },
       vertexShader: /* glsl */ `
         uniform float uTime;
@@ -102,8 +103,7 @@ export function createPlazaKoi(scene, shared, { reduced = false, reflectLayer = 
         uniform float uSeed;
         uniform float uMotion;
         uniform vec3 uTint;
-        uniform vec3 uWork;
-        uniform vec3 uHero;
+        uniform vec3 uQuiet[4];
         varying vec2 vUv;
         varying vec3 vWorld;
         varying vec3 vNormalW;
@@ -118,7 +118,8 @@ export function createPlazaKoi(scene, shared, { reduced = false, reflectLayer = 
           float scan = 0.82 + 0.18 * sin(vWorld.y * 9.0 - t * 5.0);
           float flicker = 0.9 + 0.1 * step(0.6, hash12(vec2(floor(t * 9.0), uSeed)));
           float near = smoothstep(6.0, 22.0, far);
-          float work = smoothstep(5.0, 18.0, distance(uCam, uWork)) * smoothstep(5.0, 18.0, distance(uCam, uHero));
+          float work = 1.0;
+          for (int i = 0; i < 4; i++) work *= smoothstep(5.0, 18.0, distance(uCam, uQuiet[i]));
           vec3 col = c * c * uTint * 1.9 * facing * scan * flicker * near * work * (1.0 + 0.2 * uBass);
           col *= exp(-far * uFogDensity * 0.4);
           gl_FragColor = vec4(col, 1.0);
@@ -160,8 +161,8 @@ export function createPlazaKoi(scene, shared, { reduced = false, reflectLayer = 
     update: place,
     /** Where the Work shot's camera and the hero's stand on this screen. */
     quiet(work, hero) {
-      quiet[0].copy(work);
-      quiet[1].copy(hero);
+      quiet[2].copy(work);
+      quiet[3].copy(hero);
     },
     dispose() {
       for (const f of fish) {
