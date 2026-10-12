@@ -210,10 +210,10 @@ const santoAt = (x, z) => Math.max(within(x, 442, 1e4), within(x, 300, 1e4, 30) 
 // The avenue's pavements run the length the hero and the intro see, between
 // the lamps and hydrants by the kerb and the bins and benches by the shops.
 const WALKS = [
-  { from: [11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: -1, pave: 1, span: [-0.92, 2.15] },
-  { from: [12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: 1, pave: 1 },
-  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: 1, pave: 2, span: [-2.15, 0.92] },
-  { from: [-12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: -1, pave: 2 },
+  { from: [11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: -1, pave: 1, span: [-0.92, 2.15], mouth: 1 },
+  { from: [12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: 1, pave: 1, mouth: 1 },
+  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: 1, pave: 2, span: [-2.15, 0.92], mouth: -1 },
+  { from: [-12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: -1, pave: 2, mouth: -1 },
   // The cross street's pavements, either side of the avenue.
   { from: [-88, -8.2], dir: [1, 0], len: 74, n: [2, 0] },
   { from: [16, 9.8], dir: [1, 0], len: 72, n: [2, 0] },
@@ -228,6 +228,16 @@ const WALKS = [
   { from: [430.2, -298], dir: [0, 1], len: 100, n: [2, 1] },
   { from: [449.8, -298], dir: [0, 1], len: 46, n: [1, 0] },
 ];
+// Where the avenue's own four walks meet the south street: they do not walk
+// its mouth at the corner, a kerb's height over the road. Along the walk,
+// in metres: they turn out across the corner's pavement (`out` metres to the
+// street's side) onto the painted crossing, step down onto the road, cross
+// it, step up and turn back in.
+const MOUTH = { turn: [157.4, 161.4], road: [162, 176], back: [176.6, 180.6], out: 4.6 };
+const ease = (a, b, v) => {
+  const u = Math.min(1, Math.max(0, (v - a) / (b - a)));
+  return u * u * (3 - 2 * u);
+};
 const HALF_PI = Math.PI / 2;
 // Standing: x, z, which way they look (0 toward +z, a quarter turn toward
 // +x), their pose. At the kerbs of the crossings, at shop windows up both
@@ -426,7 +436,9 @@ function populate({ phone, walks, standers, benches = [], bare = false }) {
         people.push({
           walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, k ? step + 0.5 : step],
           path: [w.dir[0], w.dir[1], w.len, at + k * 0.12],
-          body: [d.height, d.build, -(lanes[f] + 1), PAVE_Y],
+          // (The ground under a walker is the pavement's top; where their
+          // walk crosses the mouth it says which side the crossing is.)
+          body: [d.height, d.build, -(lanes[f] + 1), w.mouth ? (w.mouth > 0 ? -1 : -2) : PAVE_Y],
           look: d.look,
           wear: d.wear,
         });
@@ -832,7 +844,9 @@ const HEAD = /* glsl */ `
     fade = 1.0;
     // The eye is one more thing on the pavement: nobody walks into it. Only
     // an eye among them counts, not one on a roof or in the air.
-    float among = smoothstep(-1.2, -0.4, uCam.y - aBody.w) * (1.0 - smoothstep(2.6, 3.4, uCam.y - aBody.w));
+    // The ground under them: a stander's own, a walker's pavement.
+    float ground = walking && aBody.w < 0.0 ? ${f(PAVE_Y)} : aBody.w;
+    float among = smoothstep(-1.2, -0.4, uCam.y - ground) * (1.0 - smoothstep(2.6, 3.4, uCam.y - ground));
     vec2 rel = at - uCam.xz;
     float ends = 1.0;
     if (walking) {
@@ -843,6 +857,14 @@ const HEAD = /* glsl */ `
       float o0 = lane.x;
       float o1 = laneAt(u + 0.6 / aPath.z, row).x;
       vec2 across = vec2(aPath.y, -aPath.x);
+      // Where the walk meets the south street they turn out onto its
+      // painted crossing and go over at the road's own height.
+      if (aBody.w < 0.0) {
+        float aside = aBody.w > -1.5 ? ${f(MOUTH.out)} : ${f(-MOUTH.out)};
+        o0 += aside * (smoothstep(${f(MOUTH.turn[0])}, ${f(MOUTH.turn[1])}, s) - smoothstep(${f(MOUTH.back[0])}, ${f(MOUTH.back[1])}, s));
+        o1 += aside * (smoothstep(${f(MOUTH.turn[0])}, ${f(MOUTH.turn[1])}, s + 0.6) - smoothstep(${f(MOUTH.back[0])}, ${f(MOUTH.back[1])}, s + 0.6));
+        ground *= 1.0 - smoothstep(${f(MOUTH.road[0] - 0.15)}, ${f(MOUTH.road[0] + 0.15)}, s) + smoothstep(${f(MOUTH.road[1] - 0.15)}, ${f(MOUTH.road[1] + 0.15)}, s);
+      }
       at += across * o0;
       // And round the eye: a few steps short of it everyone moves to the
       // side of it they are on (or, heading straight for it, to the side
@@ -868,7 +890,7 @@ const HEAD = /* glsl */ `
       float q = max(1.0 - d / ${f(2 * BACK)}, 0.0);
       at += rel / d * ${f(BACK)} * q * q * among;
     }
-    root = vec3(at.x, aBody.w, at.y);
+    root = vec3(at.x, ground, at.y);
     eye = distance(uCam, vec3(root.x, clamp(uCam.y, root.y, root.y + 1.8 * aBody.x), root.z));
     // Where a walk's loop starts again they come and go through a dither:
     // over a few steps far off, where it reads as a fade, and all but at
@@ -1735,7 +1757,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       const o = i * STRIDE;
       let x = data[o];
       let z = data[o + 1];
-      const y = data[o + 11];
+      let y = data[o + 11];
       if (data[o + 10] < -0.5) {
         const pace = data[o + 2];
         const len = data[o + 6];
@@ -1745,6 +1767,13 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
         if (Math.min(s, len - s) < 0.03) continue;
         x += data[o + 4] * s;
         z += data[o + 5] * s;
+        if (y < 0) {
+          // Out on the south street's crossing.
+          const out = (y > -1.5 ? MOUTH.out : -MOUTH.out) * (ease(MOUTH.turn[0], MOUTH.turn[1], s) - ease(MOUTH.back[0], MOUTH.back[1], s));
+          x += data[o + 5] * out;
+          z -= data[o + 4] * out;
+          y = PAVE_Y;
+        }
       }
       if (eye && !_frustum.intersectsSphere(_sphere.set(_sphere.center.set(x, y + 1, z), 2.6))) continue;
       const top = y + 1.8 * data[o + 8];
