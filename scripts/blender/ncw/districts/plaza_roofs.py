@@ -37,14 +37,23 @@ tanks(60.0, -277.5, 44.0, n=4, r=1.0, h=2.4)
 roof_logo(123.0, -430.0, 45.4, 4.2, 0.0, "hex", "teal")
 checked(110.0, 136.0, -454.0, -422.0, 45.4 + 2.2 + 4.2 * 1.32 + 0.4, "S1 mark")
 
-# Searchlights on three roofs behind the koi (YRL74JmhVgk@18's beams): the
-# lamp housings stand here; the beam itself is the site's to draw, from the
-# anchor (yaw from south toward east, pitch up from level, in radians).
-for i, (x, y, z, yaw, pitch, hue) in enumerate(((66.0, 44.0, -278.0, 0.5, 1.2, "white"), (96.0, 31.8, -290.0, -0.4, 1.3, "cyan"),
-                                               (143.5, 35.2, -138.0, -1.2, 1.25, "white"))):
+# Searchlights on three roofs south of the square (YRL74JmhVgk@18's beams):
+# from the square's north end looking south they rise behind the koi and
+# lean together over the x 120 road. The lamp housings stand here; the beam
+# itself is the site's to draw, from the anchor (yaw from south toward east,
+# pitch up from level, in radians). Why these roofs: a beam from any roof
+# north of the square stands in the sky of the page's hero and Work shot
+# (over ARASAKA's name), and one from D1 or D2 passes within metres of
+# plaza-aerial's lens at (150, 90, -120); these three are outside the hero's,
+# the Work shot's, corpo-row's and plaza-aerial's frames on both tiers for
+# all 180 m of their length (the Stack's pan, which ends looking at this
+# corner of the city, sees them).
+for i, (x, y, z, yaw, pitch, hue) in enumerate(((93.5, 70.2, -106.0, math.pi, 1.2, "white"), (156.0, 106.2, -84.0, -2.2, 1.2, "cyan"),
+                                               (160.0, 42.0, -40.0, -2.5, 1.15, "white"))):
     box((PL, "steel", 0), x - 0.5, x + 0.5, y, y + 0.5, z - 0.5, z + 0.5, scale=1.0, col=STEEL_D)
     cylinder((PL, "steel", 0), x, z, y + 0.5, y + 1.2, 0.42, segs=8, col=STEEL_D)
     up_poly((PL, "glow", 0), ngon(x, z, 0.36, 8), y + 1.21, GLOW[hue])
     empty(f"anchor_searchlight_plaza_{i}", (x, y + 1.25, z), props={"yaw": yaw, "pitch": pitch, "length": 180.0, "color": NEON[hue]})
+    checked(x - 0.5, x + 0.5, z - 0.5, z + 0.5, y + 1.25, f"searchlight {i}")
 
 roof_decks(skip=((80.0, 108.0, -168.0, -132.0),), low=((48.0, 108.0, -284.0, -264.0),))
