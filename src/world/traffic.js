@@ -1514,6 +1514,16 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     },
     /** Dev: the second of the traffic's own clock. */
     time: () => clock,
+    /** For the crowd: whether the crossing on one arm of a junction can be
+     *  walked now. The junction by its centre (x, z; the nearest within
+     *  30 m), the arm by the side of the junction it is on: "n" toward -z,
+     *  "s" toward +z, "e" toward +x, "w" toward -x. Returns { walk, left }:
+     *  walk true while no car is on that crossing, left the seconds until
+     *  the next one is; walk false, left the seconds until it is clear.
+     *  Null where there is no junction. (The timetable's own answer, not
+     *  the lights': a car turning right comes onto an arm while that arm's
+     *  own traffic is held.) */
+    walk: (x, z, arm) => net.walk(clock, x, z, arm),
     /** Dev: where every flying car on a lane is at this second of the clock
      *  (the sky checks count them from the street and from the air). */
     flying() {
