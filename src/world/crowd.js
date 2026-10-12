@@ -37,7 +37,11 @@
 // its neon a line along the canopy's edge (a pixel and a half tall far off,
 // so the wet road still doubles it).
 //
-// Three draws. Close to, the figure with a face; past the distance where the
+// Four levels of them. Within a few steps of the eye, the closest figure: a
+// face that is modelled, hair with a parting or a fringe, fingers, cloth that
+// folds (nine thousand triangles with everything anyone wears, about five
+// and a half thousand on a person, and never more than a handful of people).
+// To two dozen metres, the figure with a face; past the distance where the
 // difference is a pixel or two, a figure of a few hundred triangles on the
 // same joints; past a hundred metres, where a person is a dozen pixels tall,
 // a card with their shape drawn on it. Each trade is a dither, the one
@@ -53,7 +57,7 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { preloadProps } from "./props.js";
 import { createStreetLight, PROP_LIGHTS } from "./crowd-light.js";
-import { figureGeometry, RIG, PART, TAG, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF, CANOPY } from "./crowd-people.js";
+import { figureGeometry, RIG, PART, TAG, STYLE, CARRIED, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF, CANOPY } from "./crowd-people.js";
 
 const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
 // The top of every pavement (the builder's PAVE_Y).
@@ -255,6 +259,9 @@ const STANDS = [
   [431.3, -276.0, HALF_PI, "phone"], [13.3, -142.5, HALF_PI, "idle"],
   [13.62, -52.0, -HALF_PI, "lean"], [10.55, -72.0, -HALF_PI, "squat"], [-13.62, -70.0, HALF_PI, "lean"], [13.3, -150.5, Math.PI, "talk"],
   [-10.55, -104.0, HALF_PI, "squat"], [13.3, -151.65, 0, "talk"], [-13.3, -30.5, HALF_PI, "smoke"], [-13.3, -128.0, -HALF_PI, "idle"],
+  // The megabuilding's passage, between what is dumped along its walls:
+  // sat on the ground with their backs to a wall, and lying along it.
+  [-4.42, -758.4, HALF_PI, "floor"], [-4.25, -763.0, 0, "lie"], [4.42, -757.5, -HALF_PI, "floor"], [4.2, -766.3, Math.PI, "lie"], [4.42, -764.2, -HALF_PI, "floor"],
 ];
 const HOT_PHONE = [11.4, -121.0];
 
@@ -288,7 +295,7 @@ const bits = (...tags) => tags.reduce((m, t) => m + 2 ** t, 0);
 // a seed) and their colours (jacket, trousers, skin, hair).
 const STRIDE = 20;
 /** Who is in the city: every walker of every walk, then everyone standing. */
-function populate({ phone, walks, standers, benches = [], bare = false, ahead = [] }) {
+function populate({ phone, walks, standers, benches = [], rails = [], bare = false, ahead = [] }) {
   const people = [];
   // One of a list of [what, odds] pairs, of those `ok` lets through.
   const draw = (r, list, ok = null) => {
@@ -328,7 +335,7 @@ function populate({ phone, walks, standers, benches = [], bare = false, ahead = 
     near.push(worn);
     if (near.length > 48) near.shift();
     const hair = HAIR[cut];
-    const low = pose === "sit" || pose === "squat";
+    const low = pose === "sit" || pose === "squat" || pose === "floor" || pose === "lie" || pose === "work";
     if (garment === GARMENTS.coat && (low || pose === "lean")) garment = GARMENTS.jacket;
     const hue = FAMILY.jacket[jacket];
     const tone = light(JACKETS[jacket]);
@@ -347,7 +354,7 @@ function populate({ phone, walks, standers, benches = [], bare = false, ahead = 
     if (garment !== GARMENTS.puffer && garment !== GARMENTS.coat && style.hivis(jacket)) mask += bits(TAG.hivis);
     const shirt = draw(r, style.shirt, (i) => (FAMILY.shirt[i] === NEUTRAL || FAMILY.shirt[i] !== hue) && apart(light(SHIRTS[i])));
     const trousers = draw(r, style.trousers, (i) => (FAMILY.trousers[i] !== NEUTRAL ? FAMILY.trousers[i] !== hue : hue !== NEUTRAL || suit || open || apart(light(TROUSERS[i]))));
-    const bag = pose === "vendor" ? 0 : draw(r, style.bag, (k) => !(k === 2 && (pose === "lean" || pose === "sit")) && !(k === 3 && low));
+    const bag = pose === "vendor" || pose === "carry" ? 0 : draw(r, style.bag, (k) => !(k === 2 && (pose === "lean" || pose === "sit" || pose === "floor" || pose === "lie")) && !(k === 3 && (low || pose === "rail")));
     if (bag) mask += bits([TAG.hipbag, TAG.backpack, TAG.tote][bag - 1]);
     const bagColour = draw(r, style.bagColour, (i) => FAMILY.bag[i] === NEUTRAL || FAMILY.bag[i] !== hue);
     const free = pose === null || pose === "idle" || pose === "talk";
@@ -500,6 +507,39 @@ function populate({ phone, walks, standers, benches = [], bare = false, ahead = 
     for (const o of two ? [-0.42 + at * 0.2, 0.42 + at * 0.2] : [at]) spots.push({ x: bench.x + along[0] * o, y: bench.y + 0.48, z: bench.z + along[1] * o, yaw: bench.yaw, pose: SIT });
   }
 
+  // Whoever a district stood at a rail and looking at it leans on it, on
+  // their forearms, square to it and a forearm's reach from it, looking out.
+  const RAIL = POSES.indexOf("rail");
+  const LOOKERS = [POSES.indexOf("idle"), POSES.indexOf("lean"), POSES.indexOf("smoke"), RAIL];
+  for (const p of spots) {
+    if (!LOOKERS.includes(p.pose)) continue;
+    for (const rail of rails) {
+      const dx = p.x - rail.x;
+      const dz = p.z - rail.z;
+      if (Math.abs(dx) > 3 || Math.abs(dz) > 3 || Math.abs(p.y - rail.y) > 0.5) continue;
+      const cos = Math.cos(rail.yaw);
+      const sin = Math.sin(rail.yaw);
+      const along = dx * cos - dz * sin;
+      const off = dx * sin + dz * cos;
+      if (Math.abs(along) > rail.half + 0.1 || Math.abs(off) < 0.15 || Math.abs(off) > 0.8) continue;
+      const side = Math.sign(off);
+      if (Math.sin(p.yaw) * -side * sin + Math.cos(p.yaw) * -side * cos < 0.5) continue;
+      p.pose = RAIL;
+      p.yaw = Math.atan2(-side * sin, -side * cos);
+      p.x = rail.x + cos * along + sin * side * 0.42;
+      p.z = rail.z - sin * along + cos * side * 0.42;
+      break;
+    }
+  }
+
+  // Whoever holds one end of a crate has somebody on the other end, a crate's
+  // length off and facing them, unless a district stood one there itself.
+  const CARRY = POSES.indexOf("carry");
+  for (const p of spots.filter((q) => q.pose === CARRY)) {
+    if (spots.some((q) => q !== p && q.pose === CARRY && Math.hypot(q.x - p.x, q.z - p.z) < 2.2 && Math.abs(q.y - p.y) < 0.5)) continue;
+    spots.push({ x: p.x + Math.sin(p.yaw) * 1.5, y: p.y, z: p.z + Math.cos(p.yaw) * 1.5, yaw: p.yaw + Math.PI, pose: CARRY });
+  }
+
   // Two within 1.6 m of each other are together: whoever is free to turns to
   // the other (to the middle of the others, of three or more), two idlers
   // fall to talking, and whoever is sat or against a wall turns their head.
@@ -516,6 +556,35 @@ function populate({ phone, walks, standers, benches = [], bare = false, ahead = 
     if (!cells.has(key)) cells.set(key, []);
     cells.get(key).push(i);
   });
+  // A queue is a queue: three or more with nothing to do, one behind
+  // another and all looking the same way, keep looking that way (they do
+  // not turn to each other and fall to talking), each with their own way of
+  // waiting.
+  const QUEUE = POSES.indexOf("queue");
+  const WAITS = [FREE[0], POSES.indexOf("phone"), FREE[2], QUEUE];
+  const behind = spots.map((p, i) => {
+    const out = [];
+    if (p.pose !== FREE[0]) return out;
+    const cx = Math.floor(p.x / NEAR);
+    const cz = Math.floor(p.z / NEAR);
+    for (let ix = cx - 2; ix <= cx + 2; ix++) {
+      for (let iz = cz - 2; iz <= cz + 2; iz++) {
+        for (const j of cells.get(`${ix},${iz}`) ?? []) {
+          const q = spots[j];
+          const dx = q.x - p.x;
+          const dz = q.z - p.z;
+          const d = Math.hypot(dx, dz);
+          if (j === i || !WAITS.includes(q.pose) || d > 2.4 || d < 0.3 || Math.abs(q.y - p.y) > 0.4) continue;
+          if (Math.abs(dx * Math.cos(p.yaw) - dz * Math.sin(p.yaw)) < 0.4 && Math.cos(q.yaw - p.yaw) > 0.92) out.push(j);
+        }
+      }
+    }
+    return out;
+  });
+  spots.forEach((p, i) => {
+    if (behind[i].length >= 2 || behind[i].some((j) => behind[j].length >= 2)) p.queue = true;
+  });
+  for (const p of spots) if (p.queue) p.pose = QUEUE;
   spots.forEach((p, i) => {
     let sx = 0;
     let sz = 0;
@@ -548,7 +617,7 @@ function populate({ phone, walks, standers, benches = [], bare = false, ahead = 
       p.yaw = p.toward + (p.r() - 0.5) * 0.3;
       // Two with nothing to do talk, taking turns.
       if (p.pose === FREE[0] && mate.mate === i && FREE.includes(mate.pose) && !mate.hot) p.pose = FREE[1];
-    } else {
+    } else if (p.pose !== QUEUE && p.pose !== CARRY && p.pose !== POSES.indexOf("lie")) {
       const turn = Math.atan2(Math.sin(p.toward - p.yaw), Math.cos(p.toward - p.yaw));
       p.head = Math.min(0.75, Math.max(-0.75, turn)) * 0.8;
     }
@@ -561,7 +630,7 @@ function populate({ phone, walks, standers, benches = [], bare = false, ahead = 
   // or the other, feet apart), which leg is the pose's bent one, and where
   // the head is turned (as the pose has it, to a side, down). Packed into
   // the walk's pace, which someone standing has no use for.
-  const UPRIGHT = ["idle", "talk", "phone", "smoke", "vendor"];
+  const UPRIGHT = ["idle", "talk", "phone", "smoke", "vendor", "queue"];
   const manner = (p, name, look) => {
     const r = rng(p.key ^ 0x2c1b3c6d);
     const has = (tag) => Math.floor(look[0] / 2 ** tag) % 2 === 1;
@@ -570,20 +639,21 @@ function populate({ phone, walks, standers, benches = [], bare = false, ahead = 
     let L = 0;
     let R = 0;
     const u = r();
-    if (name === "idle" || name === "talk") {
+    const alone = p.toward === undefined || name === "queue";
+    if (name === "idle" || name === "talk" || name === "queue") {
       if (u < 0.17 && !left && !right) L = R = 2;
       else if (u < 0.42) [L, R] = [left ? 0 : 1, right ? 0 : 1];
       else if (u < 0.55 && !left) L = 3;
       else if (u < 0.65 && !right) R = 4;
-      else if (u < 0.74 && !right && name === "idle" && p.toward === undefined) {
+      else if (u < 0.74 && !right && name !== "talk" && alone) {
         R = 5;
         if (!has(TAG.phone)) look[0] += bits(TAG.phone);
       } else if (u < 0.86 && !left) L = 1;
     } else if ((name === "smoke" || name === "phone") && !left && u < 0.62) L = u < 0.4 ? 1 : 3;
     const upright = UPRIGHT.includes(name);
     const stance = upright ? pick(r, [24, 30, 30, 16]) : 0;
-    const flip = (upright || name === "lean") && r() < 0.5 ? 1 : 0;
-    const head = p.toward !== undefined || name === "phone" || R === 5 ? 0 : pick(r, [38, 22, 22, 18]);
+    const flip = (upright || name === "lean" || name === "floor" || name === "work" || name === "lie") && r() < 0.5 ? 1 : 0;
+    const head = !alone || name === "phone" || name === "rail" || name === "carry" || name === "work" || R === 5 ? 0 : pick(r, [38, 22, 22, 18]);
     return L + 6 * R + 36 * stance + 144 * flip + 288 * head;
   };
   // Dressed in an order that is their places' own (so one more of them
@@ -665,7 +735,8 @@ const BROLLY = 0.3;
 
 /** What stands on the ground in the props file (src/world/props.js packs
  *  it): x, z, the way it faces (as a cosine and a sine) and its half
- *  sizes; the benches, each where it stands and the way it faces; and the
+ *  sizes; the benches and the railings, each where it stands and the way
+ *  it faces; and the
  *  lamps (src/world/crowd-light.js says which things are one): x, y, z of
  *  its light and its colour, six floats each. */
 function footprints(buffer) {
@@ -675,10 +746,13 @@ function footprints(buffer) {
   const data = new Int16Array(buffer, 4 + hl, header.count * 8);
   const out = [];
   const benches = [];
+  const rails = [];
   const lamps = [];
   for (let i = 0; i < header.count; i++) {
     const o = i * 8;
     const box = header.protos[data[o]]?.box;
+    const called = header.protos[data[o]]?.name;
+    if (box && (called === "railing" || called === "jt_rail")) rails.push({ x: data[o + 1] / 20, y: data[o + 2] / 50, z: data[o + 3] / 20, yaw: data[o + 4] / 10430.2, half: (box[0] * data[o + 6]) / 1000 });
     const lamp = PROP_LIGHTS[header.protos[data[o]]?.name];
     if (lamp) lamps.push(data[o + 1] / 20, data[o + 2] / 50 + (lamp[4] * 2 * (box?.[1] ?? 1) * data[o + 5]) / 100, data[o + 3] / 20, lamp[0] * lamp[3], lamp[1] * lamp[3], lamp[2] * lamp[3]);
     if (header.protos[data[o]]?.name === "bench") benches.push({ x: data[o + 1] / 20, y: data[o + 2] / 50, z: data[o + 3] / 20, yaw: data[o + 4] / 10430.2 });
@@ -689,7 +763,7 @@ function footprints(buffer) {
     const yaw = data[o + 4] / 10430.2;
     out.push({ x: data[o + 1] / 20, z: data[o + 3] / 20, cos: Math.cos(yaw), sin: Math.sin(yaw), hx: Math.min(box[0] * k, 1), hz: Math.min(box[2] * k, 0.55) });
   }
-  return { solid: out, benches, lamps: new Float32Array(lamps) };
+  return { solid: out, benches, rails, lamps: new Float32Array(lamps) };
 }
 
 /** The files of one pavement at one point along it: as near where each
@@ -831,6 +905,8 @@ const HEAD = /* glsl */ `
   // Where the near figure and the far one trade places and over how wide a
   // band; the same for the far figure and the card.
   uniform vec4 uLod;
+  // And the closest figure and the near one.
+  uniform vec2 uClose;
   // Whether this pass draws everyone with this mesh, and a pixel's angle.
   uniform vec2 uPass;
   // The rain's own map of the highest thing over every spot (src/world/cover.js).
@@ -994,7 +1070,7 @@ const HEAD = /* glsl */ `
         float side = dot(car, across);
         at += across * (side < 0.0 ? -1.0 : 1.0) * max(uAvoid.z - abs(side), 0.0) * (1.0 - smoothstep(uAvoid.w, uAvoid.w + 3.0, abs(dot(car, aPath.xy))));
       }
-    } else if (aBody.z < 1.5 || aBody.z > 6.5) {
+    } else if (aBody.z < 1.5 || (aBody.z > 6.5 && aBody.z < 7.5) || (aBody.z > ${f(POSES.indexOf("queue") - 0.5)} && aBody.z < ${f(POSES.indexOf("queue") + 0.5)})) {
       // Standing with nothing to keep them where they are (not on a seat,
       // against a wall, behind a stall or over a phone), they step back
       // from an eye that comes within reach.
@@ -1102,9 +1178,14 @@ const VERTEX = /* glsl */ `
   }
 
   void main() {
-    // What this person does not wear folds away to nothing.
+    // What this person does not wear folds away to nothing. (The closest
+    // figure's ways of wearing hair are dealt by the person's seed, to
+    // whoever has hair with any length to it and nothing over it.)
     float tag = aRig.z;
-    if (tag > 0.5 && bit(aLook.x, tag) < 0.5) {
+    bool worn = tag < 0.5 || bit(aLook.x, tag) > 0.5;
+    if (tag > ${f(CARRIED - 0.5)}) worn = abs(aBody.z - ${f(POSES.indexOf("carry"))}) < 0.5;
+    else if (tag > 31.5) worn = bit(aLook.x, ${f(TAG.hair)}) > 0.5 && bit(aLook.y, 2.0) + bit(aLook.y, 3.0) + bit(aLook.x, ${f(TAG.hardhat)}) < 0.5 && abs(floor(rnd(aLook.w * 17.1) * 3.0) + ${f(STYLE.parted)} - tag) < 0.5;
+    if (!worn) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       vColor = vec3(0.0);
       vFade = vec2(-1.0, 2.0);
@@ -1286,6 +1367,8 @@ const VERTEX = /* glsl */ `
         nod += 0.03 * sin(tt * 0.6);
       }
       ankle = knee - hip - lean + heel;
+      // Lying down, a straight leg's foot points up, not along the ground.
+      if (lean > 1.0 && knee < 0.5) ankle += 1.3;
     }
     if (side > 0.0 && umbrella > 0.5) {
       sp = ${f(HOLD.umbrella.pitch)};
@@ -1316,7 +1399,7 @@ const VERTEX = /* glsl */ `
     float px = uPass.y * eye / h;
     // Broad in the shoulder or broad in the hip, a little, by the person.
     float frame = rnd(seed * 11.3) * 2.0 - 1.0;
-    float shoulderX = side * ${f(RIG.shoulderX)} * (1.0 + (wide - 1.0) * 0.9) * (1.0 + 0.07 * frame);
+    float shoulderX = side * ${f(RIG.shoulderX)} * (1.0 + (wide - 1.0) * 0.9) * (1.0 + 0.1 * frame);
     float elbowX = shoulderX + side * ${f(RIG.elbowX - RIG.shoulderX)} * wide;
     if (part == ${PART.rim}) p.y += aux * max(0.75 * px - ${f(RIM_HALF)}, 0.0);
     else if (part == ${PART.phone}) p = ${v3(PHONE_AT)} + (p - ${v3(PHONE_AT)}) * clamp(1.3 * px / 0.036, 1.0, 5.0);
@@ -1331,13 +1414,13 @@ const VERTEX = /* glsl */ `
       p.x = shoulderX + (p.x - ax) * wide;
       p.z *= wide;
     } else if (seg > 1.5) {
-      if (part == ${PART.scalp} && bit(aLook.x, ${f(TAG.hardhat)}) < 0.5) p = vec3(0.0, 1.68, -0.01) + (p - vec3(0.0, 1.68, -0.01)) * (1.0 + 0.16 * aux * rnd(seed * 7.3) * rnd(seed * 2.9));
+      if ((part == ${PART.scalp} || (tag > 31.5 && tag < ${f(CARRIED - 0.5)})) && bit(aLook.x, ${f(TAG.hardhat)}) < 0.5) p = vec3(0.0, 1.68, -0.01) + (p - vec3(0.0, 1.68, -0.01)) * (1.0 + 0.16 * aux * rnd(seed * 7.3) * rnd(seed * 2.9));
       // A head is not much smaller on a short person, nor wider on a broad.
       p = vec3(0.0, ${f(RIG.headY)}, 0.0) + (p - vec3(0.0, ${f(RIG.headY)}, 0.0)) * 1.07 * pow(h, -0.55);
       p.xz *= mix(1.0, wide, 0.3);
-    } else if (tag < ${f(TAG.umbrella - 0.5)} || tag > ${f(TAG.umbrella + 0.5)}) {
+    } else if ((tag < ${f(TAG.umbrella - 0.5)} || tag > ${f(TAG.umbrella + 0.5)}) && tag < ${f(CARRIED - 0.5)}) {
       if (garment > 1.5 && garment < 2.5 && part == ${PART.jacket}) p.xz += normalize(p.xz + 1e-5) * 0.024 * aux;
-      p.x *= wide * (1.0 + 0.07 * frame * (smoothstep(1.1, 1.35, p.y) - 1.0 + smoothstep(0.95, 1.15, p.y)));
+      p.x *= wide * (1.0 + 0.1 * frame * (smoothstep(1.1, 1.35, p.y) - 1.0 + smoothstep(0.95, 1.15, p.y)));
       p.z *= mix(1.0, wide, 0.85);
       // A paunch on some, under the jacket's front.
       p.z += max(p.z, 0.0) * 9.0 * max(rnd(seed * 13.7) - 0.62, 0.0) * 0.2 * smoothstep(0.86, 1.02, p.y) * (1.0 - smoothstep(1.12, 1.34, p.y));
@@ -1426,17 +1509,21 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.helmet}) { albedo = uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)]; gloss = 0.55; }
     else if (part == ${PART.socket}) albedo = skin * 0.62;
     else if (part == ${PART.trousers}) albedo = uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)];
+    else if (part == ${PART.stitch}) albedo = uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)] * 0.5;
     else if (part == ${PART.shoe}) { albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.04, 0.04, 0.05); gloss = 0.16; }
+    // A sole and laces of the other tone: pale under a dark shoe, dark under a pale one.
+    else if (part == ${PART.sole}) albedo = bit(flags, 6.0) > 0.5 ? vec3(0.05, 0.05, 0.06) : vec3(0.3, 0.3, 0.28);
     else if (part == ${PART.bag} || part == ${PART.brim}) albedo = carried;
     else if (part == ${PART.tote}) albedo = uPal[${PAL.bag} + int(mod(floor(aLook.z / 4.0) + 3.0, 6.0) + 0.5)];
     else if (part == ${PART.dark}) { albedo = vec3(0.015); gloss = 0.5; }
+    else if (part == ${PART.crate}) albedo = vec3(0.3, 0.21, 0.11);
     else if (part == ${PART.canopy}) {
       // Black cloth, the colour of its rim, or pale.
       float kind = mod(floor(flags / 128.0), 4.0);
       albedo = kind < 0.5 ? vec3(0.024, 0.024, 0.03) : kind < 1.5 ? tint * 0.24 + 0.012 : vec3(0.4, 0.4, 0.43);
       gloss = 0.7;
     }
-    else if (part == ${PART.sclera}) { albedo = vec3(0.5, 0.5, 0.47); gloss = 0.3; }
+    else if (part == ${PART.sclera}) { albedo = vec3(0.4, 0.4, 0.38); gloss = 0.3; }
     else if (part == ${PART.line}) albedo = skin * 0.16;
     else if (part == ${PART.flap}) albedo = carried * 0.5 + 0.01;
     else if (part == ${PART.metal}) { albedo = vec3(0.13, 0.14, 0.16); gloss = 0.9; }
@@ -1489,7 +1576,7 @@ const VERTEX = /* glsl */ `
     // The edges turned away have the night's blue, so that someone under no
     // sign at all is a dark shape with a faint blue edge and never a hole.
     // The wet shine goes with it on what is glossy.
-    float g3 = graze * graze * graze;
+    float g3 = pow(graze, 2.5);
     vec3 rim = key / max(peak, 1e-4) * source * 1.0 * g3 * smoothstep(-0.25, 0.35, toward) + EDGE * g3 * (0.45 + 0.55 * clamp(0.3 - toward, 0.0, 1.0)) * (0.6 + 0.4 * max(up, 0.0));
     vec3 shine = (key * clamp(toward, 0.0, 1.0) + sky * 0.9) * graze * graze * gloss * 0.5;
     #ifdef NEAR
@@ -1516,8 +1603,10 @@ const VERTEX = /* glsl */ `
     // The trades: the near figure keeps the pixels the far one has not
     // taken yet, and the far one those the card has not.
     float trade = smoothstep(uLod.x - uLod.y, uLod.x + uLod.y, eye);
-    #ifdef NEAR
-    vFade = vec2(fade, trade);
+    #ifdef CLOSE
+    vFade = vec2(fade, smoothstep(uClose.x - uClose.y, uClose.x + uClose.y, eye));
+    #elif defined(NEAR)
+    vFade = vec2(min(fade, smoothstep(uClose.x - uClose.y, uClose.x + uClose.y, eye)), trade);
     #else
     vFade = vec2(min(fade, trade), smoothstep(uLod.z - uLod.w, uLod.z + uLod.w, eye));
     #endif
@@ -1584,6 +1673,9 @@ const CARD_VERTEX = /* glsl */ `
       squash = 0.74;
       foot = -0.46;
     } else if (pose > 4.5 && pose < 5.5) squash = 0.56;
+    else if (pose > ${f(POSES.indexOf("floor") - 0.5)} && pose < ${f(POSES.indexOf("floor") + 0.5)}) squash = 0.5;
+    else if (pose > ${f(POSES.indexOf("lie") - 0.5)} && pose < ${f(POSES.indexOf("lie") + 0.5)}) squash = 0.17;
+    else if (pose > ${f(POSES.indexOf("work") - 0.5)}) squash = 0.6;
     vec2 toEye = normalize(uCam.xz - root.xz + 1e-5);
     vec2 right = vec2(toEye.y, -toEye.x);
     vec2 local = vec2(position.x * 1.3, (position.y + 0.5) * 2.3);
@@ -1720,6 +1812,10 @@ const GROUND_VERTEX = /* glsl */ `
       down = ${f(RIG.shin + RIG.ankleY - (RIG.hipY - RIG.seat))};
       ahead = 0.34;
     } else if (pose > 4.5 && pose < 5.5) half2 = vec2(0.37, 0.37);
+    else if (pose > ${f(POSES.indexOf("floor") - 0.5)} && pose < ${f(POSES.indexOf("floor") + 0.5)}) {
+      half2 = vec2(0.4, 0.55);
+      ahead = 0.25;
+    } else if (pose > ${f(POSES.indexOf("lie") - 0.5)} && pose < ${f(POSES.indexOf("lie") + 0.5)}) half2 = vec2(0.42, 1.0);
     vec2 right = vec2(face.y, -face.x);
     vec2 at = root.xz + face * ahead * h + (right * position.x * half2.x + face * position.y * half2.y) * 2.0 * h;
     vec3 world = vec3(at.x, root.y - down * h + 0.014, at.y);
@@ -1770,7 +1866,9 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   // the far figure where a person is about seventy pixels tall on a desktop,
   // the far figure for the card where they are under twenty; sooner on a
   // phone's small screen.
-  const TRADES = phone ? [15, 70] : [22, 100];
+  // And nearer than a few steps, where a head is a few dozen pixels across,
+  // the closest figure for the near one.
+  const TRADES = phone ? [15, 70, 6.5] : [22, 100, 10.5];
   const BAND = 0.12;
   const base = {
     ...shared,
@@ -1782,6 +1880,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     uSigns: light.uniform,
     ...overhead,
     uLod: { value: new THREE.Vector4(TRADES[0], TRADES[0] * BAND, TRADES[1], TRADES[1] * BAND) },
+    uClose: { value: new THREE.Vector2(TRADES[2], TRADES[2] * BAND) },
     uAvoid: { value: new THREE.Vector4() },
   };
   const material = (name, vertexShader, fragmentShader, defines = {}) => {
@@ -1789,12 +1888,12 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     m.name = name;
     return m;
   };
-  // The draws: the figure with a face, the far figure, the card, and what
-  // is on the ground under whoever is not yet a card.
+  // The draws: the closest figure, the figure with a face, the far figure,
+  // the card, and what is on the ground under whoever is not yet a card.
   const flat = new THREE.PlaneGeometry(1, 1);
-  const shapes = [figureGeometry(false), figureGeometry(true), flat, flat];
-  const materials = [material("crowd", VERTEX, FRAGMENT, { NEAR: "" }), material("crowd_far", VERTEX, FRAGMENT), material("crowd_card", CARD_VERTEX, CARD_FRAGMENT), material("crowd_ground", GROUND_VERTEX, GROUND_FRAGMENT)];
-  Object.assign(materials[3], { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const shapes = [figureGeometry(false, true), figureGeometry(false), figureGeometry(true), flat, flat];
+  const materials = [material("crowd_close", VERTEX, FRAGMENT, { NEAR: "", CLOSE: "" }), material("crowd", VERTEX, FRAGMENT, { NEAR: "" }), material("crowd_far", VERTEX, FRAGMENT), material("crowd_card", CARD_VERTEX, CARD_FRAGMENT), material("crowd_ground", GROUND_VERTEX, GROUND_FRAGMENT)];
+  Object.assign(materials[4], { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const group = new THREE.Group();
   group.name = "crowd";
   scene.add(group);
@@ -1814,7 +1913,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     drawn = shapes.map((shape, k) => {
       const geometry = new THREE.InstancedBufferGeometry();
       geometry.index = shape.index;
-      for (const name of k < 2 ? ["position", "normal", "aRig"] : ["position"]) geometry.setAttribute(name, shape.attributes[name]);
+      for (const name of k < 3 ? ["position", "normal", "aRig"] : ["position"]) geometry.setAttribute(name, shape.attributes[name]);
       const buffer = new THREE.InstancedInterleavedBuffer(new Float32Array(Math.max(1, people.count) * STRIDE), STRIDE, 1).setUsage(THREE.DynamicDrawUsage);
       NAMES.forEach((name, i) => geometry.setAttribute(name, new THREE.InterleavedBufferAttribute(buffer, 4, i * 4)));
       geometry.instanceCount = 0;
@@ -1839,9 +1938,9 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       group.add(mesh);
       return d;
     });
-    drawn[2].mesh.layers.enable(reflectLayer);
+    drawn[3].mesh.layers.enable(reflectLayer);
     // Under everything else that is seen through: glass, rain, steam.
-    drawn[3].mesh.renderOrder = -1;
+    drawn[4].mesh.renderOrder = -1;
     last.fill(NaN);
   };
 
@@ -1886,10 +1985,13 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     const zoom = eye ? lens / 2.1445 : 1;
     const t0 = TRADES[0] * zoom;
     const t1 = TRADES[1] * zoom;
+    const tc = TRADES[2] * zoom;
     base.uLod.value.set(t0, t0 * BAND, t1, t1 * BAND);
+    base.uClose.value.set(tc, tc * BAND);
     const { data, count } = people;
-    if (!lists.length || lists[0].length < count) lists = [0, 1, 2, 3].map(() => new Uint16Array(Math.max(1, count)));
-    const [near, far, cards, rest] = lists;
+    if (!lists.length || lists[0].length < count) lists = [0, 1, 2, 3, 4].map(() => new Uint16Array(Math.max(1, count)));
+    const [near, far, cards, rest, close] = lists;
+    let nx = 0;
     let nn = 0;
     let nf = 0;
     let nc = 0;
@@ -1919,22 +2021,25 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       if (eye && !_frustum.intersectsSphere(_sphere.set(_sphere.center.set(x, y + 1, z), 2.6))) continue;
       const top = y + 1.8 * data[o + 8];
       const d = Math.hypot(x - cam.x, z - cam.z, cam.y > top ? cam.y - top : cam.y < y ? y - cam.y : 0);
-      if (d < t0 * (1 + BAND)) near[nn++] = i;
+      if (d < tc * (1 + BAND)) close[nx++] = i;
+      if (d > tc * (1 - BAND) && d < t0 * (1 + BAND)) near[nn++] = i;
       if (d > t0 * (1 - BAND) && d < t1 * (1 + BAND)) far[nf++] = i;
       if (d > t1 * (1 - BAND)) cards[nc++] = i;
       else rest[nr++] = i;
     }
-    pack(drawn[0], near, nn, rest, 0);
-    pack(drawn[1], far, nf, rest, 0);
+    pack(drawn[0], close, nx, rest, 0);
+    pack(drawn[1], near, nn, rest, 0);
+    pack(drawn[2], far, nf, rest, 0);
     // The cards' list ends with everyone nearer: the mirror draws to its end.
-    pack(drawn[2], cards, nc, rest, nr);
-    pack(drawn[3], rest, nr, rest, 0);
+    pack(drawn[3], cards, nc, rest, nr);
+    pack(drawn[4], rest, nr, rest, 0);
   };
   // The lanes: round everyone standing, and round the city's street
   // furniture once its file is in (it is the city's own, fetched before any
   // of this is made).
   let furniture = [];
   let benches = [];
+  let rails = [];
   let over = false;
   const lay = () => {
     const { data, count, rows, paves } = people;
@@ -1952,13 +2057,13 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   preloadProps(phone ? "phone" : "high")
     .then((buffer) => {
       let lamps;
-      ({ solid: furniture, benches, lamps } = footprints(buffer));
+      ({ solid: furniture, benches, rails, lamps } = footprints(buffer));
       light.setLamps(lamps);
     })
     .catch(() => {})
     .then(() => {
       if (over) return;
-      people = populate({ phone, walks, standers, benches });
+      people = populate({ phone, walks, standers, benches, rails });
       fill();
       lay();
     });
@@ -1985,8 +2090,8 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     },
     /** People in the city, and how many each draw held last frame. */
     stats() {
-      const [near, far, cards, ground] = drawn.map((d) => d.count);
-      return { people: people.count, near, far, cards, ground, mirror: drawn[2].all, triangles: near * drawn[0].triangles + far * drawn[1].triangles + (cards + ground) * 2 };
+      const [close, near, far, cards, ground] = drawn.map((d) => d.count);
+      return { people: people.count, close, near, far, cards, ground, mirror: drawn[3].all, triangles: close * drawn[0].triangles + near * drawn[1].triangles + far * drawn[2].triangles + (cards + ground) * 2 };
     },
     dispose() {
       scene.remove(group);
@@ -2004,7 +2109,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // rest of the network out, `bare` this module's own people too.
     api.debugStand = (list, { only = false, bare = false, ahead = [] } = {}) => {
       const t0 = performance.now();
-      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], benches: only || bare ? [] : benches, bare, ahead });
+      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], benches: only || bare ? [] : benches, rails: only || bare ? [] : rails, bare, ahead });
       const t1 = performance.now();
       lay();
       const t2 = performance.now();
@@ -2013,9 +2118,10 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       return [t1 - t0, t2 - t1, performance.now() - t2];
     };
     // Move where the figures trade places, to look at each on its own.
-    api.debugTrades = (near, far) => {
+    api.debugTrades = (near, far, close = TRADES[2]) => {
       TRADES[0] = near;
       TRADES[1] = far;
+      TRADES[2] = close;
       last.fill(NaN);
     };
     // Forget what is overhead (or know it again), to see what it changes.

@@ -78,6 +78,9 @@ export const PART = {
   helmet: 32,
   tie: 33,
   socket: 34,
+  sole: 35,
+  stitch: 36,
+  crate: 37,
 };
 
 /** What only some people have: a bit each in a person's mask. */
@@ -109,6 +112,13 @@ export const TAG = {
   hivis: 22,
   hardhat: 23,
 };
+/** What the closest figure has more of, dealt by a person's seed and not by
+ *  a bit of their mask (crowd.js's vertex shader): three ways of wearing
+ *  hair that has any length to it. */
+export const STYLE = { parted: 32, fringe: 33, swept: 34 };
+/** And what a pose brings with it: the near half of a crate two people
+ *  carry between them. */
+export const CARRIED = 35;
 
 /** How an arm holds an umbrella up (the hand in front of the shoulder, so
  *  the shaft passes beside the head), a phone in front of the chest, a cup:
@@ -158,8 +168,17 @@ export const CANOPY = { x: gripAt(HOLD.umbrella)[0] - 0.13, z: gripAt(HOLD.umbre
 // the +x leg; the -x arm (shoulder forward, out, elbow, forearm turned in);
 // the +x arm; what moves while they stand (0 a sway, 1 a talker's hand, 2 a
 // cigarette to the mouth, 3 a vendor's hands, 4 a thumb on a phone), the
-// head's turn, and how far the hips sit back from where they stand.
-export const POSES = ["idle", "talk", "lean", "sit", "phone", "squat", "vendor", "smoke"];
+// head's turn, how far the hips sit back from where they stand, and whether
+// the hands are full (so nobody is dealt a cup, a phone at the ear or a hand
+// in a pocket with it).
+// After the builder's eight: sat on the ground with the knees up, lying on
+// the back with a knee up (the lean is a quarter turn: the drop then lays
+// them about where they are stood, and the sit back is how high the back
+// lies), leaning on a rail on the forearms and looking out over it, standing
+// in a queue (as idle, but nobody turns to their neighbour), holding one end
+// of a crate (crowd.js stands the other end's holder), and down on one knee
+// at a job with both hands on it.
+export const POSES = ["idle", "talk", "lean", "sit", "phone", "squat", "vendor", "smoke", "floor", "lie", "rail", "queue", "carry", "work"];
 export const POSE_TABLE = [
   // idle
   [0, 0, 0.02, 0.03, 0, 0.03, 0, 0.03, 0.03, 0.02, 0.2, 0.12, 0.03, 0.02, 0.2, 0.12, 0, 0, 0, 0],
@@ -177,6 +196,18 @@ export const POSE_TABLE = [
   [0, 0, 0.08, 0.05, 0, 0.03, 0, 0.03, 0.25, 0.12, 1.15, 0.15, 0.25, 0.12, 1.15, 0.15, 3, 0, 0, 0],
   // smoke
   [0, 0, 0.02, 0, 0, 0, 0.1, 0.2, -0.05, 0.04, 0.35, 0.2, 0.15, 0.08, 1.0, 0.3, 2, 0, 0, 0],
+  // floor
+  [0.8, 0.1, 0.28, 0.08, 2.25, 1.54, 1.68, 0.3, 0.95, 0.1, 0.5, 0.2, -0.2, 0.25, 0.15, 0, 0, 0, 0, 0],
+  // lie
+  [0.88, 1.5708, 0, -0.1, 0.05, 0.1, 0.5, 1.0, 0.35, 0.05, 1.5, 0.9, -0.1, 0.5, 0.3, 0, 0, 0.5, 0.11, 0],
+  // rail
+  [0.02, 0, 0.6, -0.32, -0.12, 0.05, 0.2, 0.45, 0.1, 0.12, 0.87, 0.5, 0.1, 0.12, 0.87, 0.45, 0, 0, -0.1, 1],
+  // queue
+  [0, 0, 0.02, 0.03, 0, 0.03, 0, 0.03, 0.03, 0.02, 0.2, 0.12, 0.03, 0.02, 0.2, 0.12, 0, 0, 0, 0],
+  // carry
+  [0.03, 0, -0.06, 0.02, 0.15, 0.2, -0.1, 0.05, 0.42, 0.06, 0.4, 0.12, 0.42, 0.06, 0.4, 0.12, 0, 0, 0, 1],
+  // work
+  [0.4, 0, 0.6, 0.25, -0.15, 1.55, 1.45, 1.6, 0.8, 0.08, 0.5, 0.25, 0.8, 0.08, 0.5, 0.25, 3, 0, 0, 1],
 ];
 
 // ---- building ---------------------------------------------------------------
@@ -481,8 +512,14 @@ function farFigure() {
   return finish(tris);
 }
 
-/** The near figure: the one with a face. */
-function nearFigure() {
+/** The near figure: the one with a face. `close` is the same figure for
+ *  the few people within a few steps of the eye: rounder everywhere, a head
+ *  whose face is modelled (a brow ridge, sockets, a nose with wings, cheek
+ *  and jaw planes, lips either side of the mouth's line), hair that stands
+ *  off the head with a parting, a fringe or a sweep to it, fingers, a
+ *  shirt's collar and cuffs, a belt, soles and laces, and cloth that folds
+ *  at the elbow, the knee and the ankle. */
+function nearFigure(close = false) {
   const { tris, tri, quad, loft, cap, box } = soup();
   const { pelvis, torso, head, upper, fore, thigh, shin, foot } = SEG;
   const TAU = Math.PI * 2;
@@ -520,21 +557,57 @@ function nearFigure() {
   // ---- the jacket: hem, waist, a fold over it, chest, shoulders, the neck ----
   // y, middle z, half width, half depth, what it rides, how much a puffer
   // swells it.
-  const TORSO = [
-    [0.905, 0, 0.178, 0.122, pelvis, 0.5],
-    [0.935, 0, 0.173, 0.118, pelvis, 0.6],
-    [0.99, 0, 0.164, 0.109, pelvis, 0.85],
-    [1.08, 0, 0.147, 0.099, torso, 1],
-    [1.105, 0, 0.152, 0.104, torso, 1],
-    [1.19, 0.006, 0.16, 0.108, torso, 1],
-    [1.29, 0.012, 0.171, 0.117, torso, 1],
-    [1.375, 0.006, 0.177, 0.106, torso, 1],
-    [1.425, 0, 0.16, 0.09, torso, 0.7],
-    [1.455, -0.003, 0.108, 0.074, torso, 0.4],
-    [1.478, -0.004, 0.064, 0.063, torso, 0.2],
-  ];
-  const NT = 12;
-  const torsoRings = TORSO.map(([y, cz, rx, rz, seg, aux]) => ring(NT, y, 0, cz, rx, rz, seg, aux, 0.85));
+  // (Close to, a puffer is quilted: every second row swells less.)
+  const TORSO = close
+    ? [
+        [0.905, 0, 0.178, 0.122, pelvis, 0.5],
+        [0.935, 0, 0.173, 0.118, pelvis, 0.6],
+        [0.99, 0, 0.164, 0.109, pelvis, 0.9],
+        [1.04, 0, 0.154, 0.103, pelvis, 1],
+        [1.08, 0, 0.147, 0.099, torso, 0.6],
+        [1.105, 0, 0.152, 0.104, torso, 0.7],
+        [1.148, 0.003, 0.157, 0.1065, torso, 1],
+        [1.19, 0.006, 0.16, 0.108, torso, 0.62],
+        [1.24, 0.009, 0.166, 0.113, torso, 1],
+        [1.29, 0.012, 0.171, 0.117, torso, 0.62],
+        [1.335, 0.009, 0.175, 0.112, torso, 1],
+        [1.375, 0.006, 0.177, 0.106, torso, 0.8],
+        [1.415, 0.002, 0.176, 0.094, torso, 0.7],
+        [1.44, -0.001, 0.15, 0.08, torso, 0.5],
+        [1.46, -0.003, 0.105, 0.072, torso, 0.4],
+        [1.478, -0.004, 0.064, 0.063, torso, 0.2],
+      ]
+    : [
+        [0.905, 0, 0.178, 0.122, pelvis, 0.5],
+        [0.935, 0, 0.173, 0.118, pelvis, 0.6],
+        [0.99, 0, 0.164, 0.109, pelvis, 0.85],
+        [1.08, 0, 0.147, 0.099, torso, 1],
+        [1.105, 0, 0.152, 0.104, torso, 1],
+        [1.19, 0.006, 0.16, 0.108, torso, 1],
+        [1.29, 0.012, 0.171, 0.117, torso, 1],
+        [1.375, 0.006, 0.177, 0.106, torso, 1],
+        [1.425, 0, 0.16, 0.09, torso, 0.7],
+        [1.455, -0.003, 0.108, 0.074, torso, 0.4],
+        [1.478, -0.004, 0.064, 0.063, torso, 0.2],
+      ];
+  const NT = close ? 20 : 12;
+  // How many sides a limb has.
+  const NL = close ? 12 : 8;
+  // Cloth round a limb is not a tube: its radius comes and goes round it,
+  // differently at each height, which reads as folds once it is lit.
+  const fold = (pts, amp, k, phase) => {
+    if (!amp) return pts;
+    const m = [0, 0];
+    for (const q of pts) {
+      m[0] += q[0] / pts.length;
+      m[1] += q[2] / pts.length;
+    }
+    return pts.map((q) => {
+      const g = 1 + amp * Math.cos(k * Math.atan2(q[2] - m[1], q[0] - m[0]) + phase);
+      return [m[0] + (q[0] - m[0]) * g, q[1], m[1] + (q[2] - m[1]) * g, q[3], q[4], q[5]];
+    });
+  };
+  const torsoRings = TORSO.map(([y, cz, rx, rz, seg, aux], r) => fold(ring(NT, y, 0, cz, rx, rz, seg, aux, 0.85), close && y > 0.95 && y < 1.2 ? 0.018 : 0, 5, r * 1.3));
   loft(torsoRings, { part: PART.jacket, smooth: 1 });
   // The hem's underside: the jacket stands off the hips.
   loft([torsoRings[0], ring(NT, 0.918, 0, 0, 0.15, 0.098, pelvis, 0, 0.85)], { part: PART.jacket, ao: 0.45 }, { ref: [0, 1.3, 0] });
@@ -605,63 +678,140 @@ function nearFigure() {
   for (const sx of [-1, 1]) {
     // ---- a leg: thigh, knee, calf, the trouser's hem at the ankle ----
     const hx = sx * RIG.hipX;
-    const legRings = [
-      [0.905, 0.082, 0.092, 0, thigh],
-      [0.8, 0.078, 0.088, 0.002, thigh],
-      [0.66, 0.068, 0.077, 0.004, thigh],
-      [0.55, 0.06, 0.067, 0.008, thigh],
-      [0.5, 0.058, 0.064, 0.01, shin],
-      [0.45, 0.054, 0.062, 0.002, shin],
-      [0.36, 0.055, 0.065, -0.01, shin],
-      [0.22, 0.048, 0.055, -0.006, shin],
-      [0.105, 0.05, 0.058, -0.002, shin],
-    ].map(([y, rx, rz, cz, seg]) => ring(8, y, hx, cz, rx, rz, seg));
+    // (The last of each row: how deep the cloth folds there, close to.)
+    const LEG = close
+      ? [
+          [0.905, 0.082, 0.092, 0, thigh, 0],
+          [0.8, 0.078, 0.088, 0.002, thigh, 0.03],
+          [0.66, 0.068, 0.077, 0.004, thigh, 0],
+          [0.585, 0.062, 0.07, 0.007, thigh, 0.035],
+          [0.55, 0.06, 0.067, 0.008, thigh, 0.045],
+          [0.5, 0.058, 0.064, 0.01, shin, 0.045],
+          [0.45, 0.054, 0.062, 0.002, shin, 0.04],
+          [0.36, 0.055, 0.065, -0.01, shin, 0],
+          [0.22, 0.048, 0.055, -0.006, shin, 0.03],
+          [0.165, 0.051, 0.059, -0.004, shin, 0.05],
+          [0.135, 0.047, 0.054, -0.003, shin, 0.05],
+          [0.105, 0.05, 0.058, -0.002, shin, 0.04],
+        ]
+      : [
+          [0.905, 0.082, 0.092, 0, thigh, 0],
+          [0.8, 0.078, 0.088, 0.002, thigh, 0],
+          [0.66, 0.068, 0.077, 0.004, thigh, 0],
+          [0.55, 0.06, 0.067, 0.008, thigh, 0],
+          [0.5, 0.058, 0.064, 0.01, shin, 0],
+          [0.45, 0.054, 0.062, 0.002, shin, 0],
+          [0.36, 0.055, 0.065, -0.01, shin, 0],
+          [0.22, 0.048, 0.055, -0.006, shin, 0],
+          [0.105, 0.05, 0.058, -0.002, shin, 0],
+        ];
+    const legRings = LEG.map(([y, rx, rz, cz, seg, amp], r) => fold(ring(NL, y, hx, cz, rx, rz, seg), amp, 3, r * 1.7 + sx));
     loft(legRings, { part: PART.trousers, smooth: 3 });
-    loft([legRings[8], ring(8, 0.114, hx, -0.002, 0.034, 0.04, shin)], { part: PART.trousers, ao: 0.4 }, { ref: [hx, 0.6, 0] });
+    loft([legRings[legRings.length - 1], ring(NL, 0.114, hx, -0.002, 0.034, 0.04, shin)], { part: PART.trousers, ao: 0.4 }, { ref: [hx, 0.6, 0] });
+    if (close) {
+      // A pocket's slit at the hip, a seam down the outside of the leg and
+      // the hem's own line, a shade under the cloth's colour.
+      const o = { part: PART.stitch };
+      const on = (y, deg, out = 0.004) => {
+        let i = 0;
+        while (i < LEG.length - 2 && LEG[i + 1][0] > y) i++;
+        const t = (LEG[i][0] - y) / (LEG[i][0] - LEG[i + 1][0]);
+        const at = (k) => LEG[i][k] + (LEG[i + 1][k] - LEG[i][k]) * t;
+        const a = (deg * Math.PI) / 180;
+        return [hx + (at(1) * widen(NL) * 1.05 + out) * Math.cos(a), y, at(3) + (at(2) * widen(NL) * 1.05 + out) * Math.sin(a), LEG[i][0] - y < 0.001 ? LEG[i][4] : LEG[i + 1][4], 0];
+      };
+      const out = sx > 0 ? 0 : 180;
+      const slit = [[0.875, 62], [0.83, 44], [0.79, 30]];
+      loft([slit.map(([y, d]) => on(y, out + sx * (d - 5))), slit.map(([y, d]) => on(y, out + sx * (d + 5)))], o, { open: true, ref: [hx, 0.8, 0] });
+      const seam = [0.78, 0.66, 0.55, 0.5, 0.45, 0.36, 0.22, 0.125];
+      loft([seam.map((y) => on(y, out - 4)), seam.map((y) => on(y, out + 4))], o, { open: true, ref: [hx, 0.5, 0] });
+      loft([Array.from({ length: NL + 1 }, (_, k) => on(0.124, (k / NL) * 360, 0.005)), Array.from({ length: NL + 1 }, (_, k) => on(0.136, (k / NL) * 360, 0.005))], o, { open: true, ref: [hx, 0.13, 0] });
+    }
     // ---- a shoe: heel, the opening the ankle goes into, instep, toe ----
     const across = (z, w, top) => [[hx - w, 0, z], [hx + w, 0, z], [hx + w, top * 0.55, z], [hx + w * 0.55, top, z], [hx - w * 0.55, top, z], [hx - w, top * 0.55, z]].map(([x, y, zz]) => [x, y, zz, foot, 0]);
     const shoe = [across(-0.078, 0.034, 0.095), across(-0.04, 0.043, 0.118), across(0.04, 0.049, 0.095), across(0.12, 0.047, 0.06), across(0.178, 0.036, 0.04)];
     loft(shoe, { part: PART.shoe, smooth: 8 });
     cap(shoe[0], [hx, 0.045, -0.09, foot, 0], { part: PART.shoe, smooth: 8 }, [hx, 0.05, 0.05]);
     cap(shoe[4], [hx, 0.018, 0.196, foot, 0], { part: PART.shoe, smooth: 8 }, [hx, 0.05, 0.05]);
+    if (close) {
+      // A sole of another tone under it, standing a little proud, and the
+      // laces over the instep.
+      const sole = [[-0.082, 0.037], [-0.04, 0.046], [0.04, 0.052], [0.12, 0.05], [0.182, 0.039]].map(([z, w]) => [[hx - w, 0, z], [hx + w, 0, z], [hx + w, 0.019, z], [hx - w, 0.019, z]].map(([x, y, zz]) => [x, y, zz, foot, 0]));
+      loft(sole, { part: PART.sole });
+      quad(...sole[0], { part: PART.sole }, [hx, 0.01, 0.05]);
+      quad(...sole[4], { part: PART.sole }, [hx, 0.01, 0.05]);
+      quad([hx - 0.014, 0.113, -0.005, foot, 0], [hx + 0.014, 0.113, -0.005, foot, 0], [hx + 0.012, 0.081, 0.085, foot, 0], [hx - 0.012, 0.081, 0.085, foot, 0], { part: PART.sole }, [hx, 0, 0.04]);
+    }
 
     // ---- an arm: shoulder, a fold at the elbow, the cuff ----
-    const ARM = [
-      [1.434, 0.176, 0.03, 0.04, upper, 0.5],
-      [1.405, 0.188, 0.046, 0.053, upper, 1],
-      [1.36, 0.192, 0.047, 0.052, upper, 1],
-      [1.26, 0.196, 0.043, 0.047, upper, 1],
-      [1.19, 0.198, 0.043, 0.046, upper, 1],
-      [1.15, 0.199, 0.039, 0.042, fore, 0.9],
-      [1.11, 0.2, 0.042, 0.046, fore, 0.9],
-      [1.02, 0.203, 0.038, 0.042, fore, 0.7],
-      [0.95, 0.205, 0.034, 0.038, fore, 0.3],
-    ];
-    const armRings = ARM.map(([y, cx, rx, rz, seg, aux]) => ring(8, y, sx * cx, 0, rx, rz, seg, aux));
+    const ARM = close
+      ? [
+          [1.434, 0.176, 0.03, 0.04, upper, 0.5, 0],
+          [1.405, 0.188, 0.046, 0.053, upper, 0.7, 0],
+          [1.36, 0.192, 0.047, 0.052, upper, 1, 0],
+          [1.31, 0.194, 0.045, 0.0495, upper, 0.6, 0.02],
+          [1.26, 0.196, 0.043, 0.047, upper, 1, 0.03],
+          [1.19, 0.198, 0.043, 0.046, upper, 0.6, 0.05],
+          [1.15, 0.199, 0.039, 0.042, fore, 0.5, 0.05],
+          [1.11, 0.2, 0.042, 0.046, fore, 1, 0.05],
+          [1.065, 0.2015, 0.04, 0.044, fore, 0.55, 0.03],
+          [1.02, 0.203, 0.038, 0.042, fore, 0.8, 0.03],
+          [0.975, 0.2042, 0.0365, 0.0405, fore, 0.45, 0.045],
+          [0.95, 0.205, 0.034, 0.038, fore, 0.3, 0.03],
+        ]
+      : [
+          [1.434, 0.176, 0.03, 0.04, upper, 0.5, 0],
+          [1.405, 0.188, 0.046, 0.053, upper, 1, 0],
+          [1.36, 0.192, 0.047, 0.052, upper, 1, 0],
+          [1.26, 0.196, 0.043, 0.047, upper, 1, 0],
+          [1.19, 0.198, 0.043, 0.046, upper, 1, 0],
+          [1.15, 0.199, 0.039, 0.042, fore, 0.9, 0],
+          [1.11, 0.2, 0.042, 0.046, fore, 0.9, 0],
+          [1.02, 0.203, 0.038, 0.042, fore, 0.7, 0],
+          [0.95, 0.205, 0.034, 0.038, fore, 0.3, 0],
+        ];
+    const armRings = ARM.map(([y, cx, rx, rz, seg, aux, amp], r) => fold(ring(NL, y, sx * cx, 0, rx, rz, seg, aux), amp, 3, r * 2.1 + sx));
     loft(armRings, { part: PART.sleeve, smooth: 4 });
     cap(armRings[0], [sx * 0.168, 1.443, 0, upper, 0.5], { part: PART.sleeve, smooth: 4 }, [sx * 0.19, 1.3, 0]);
     const ax = sx * 0.2055;
-    const cuff = [ring(8, 0.95, ax, 0, 0.039, 0.043, fore, 0.3), ring(8, 0.918, ax, 0, 0.038, 0.042, fore, 0.3)];
-    loft([armRings[8], cuff[0]], { part: PART.cuff, ao: 0.7 }, { ref: [ax, 0.8, 0] });
+    const cuff = [ring(NL, 0.95, ax, 0, 0.039, 0.043, fore, 0.3), ring(NL, 0.918, ax, 0, 0.038, 0.042, fore, 0.3)];
+    loft([armRings[armRings.length - 1], cuff[0]], { part: PART.cuff, ao: 0.7 }, { ref: [ax, 0.8, 0] });
     loft(cuff, { part: PART.cuff, smooth: 5 });
-    loft([cuff[1], ring(8, 0.92, ax, 0, 0.022, 0.027, fore)], { part: PART.cuff, ao: 0.4 }, { ref: [ax, 1.1, 0] });
+    loft([cuff[1], ring(NL, 0.92, ax, 0, 0.022, 0.027, fore)], { part: PART.cuff, ao: 0.4 }, { ref: [ax, 1.1, 0] });
+    // A suit's sleeve shows a finger's width of shirt at the wrist.
+    if (close) loft([ring(NL, 0.921, ax, 0, 0.0352, 0.0392, fore), ring(NL, 0.899, ax, 0, 0.0335, 0.0375, fore)], { part: PART.shirt, tag: TAG.suit, smooth: 60 });
     // ---- a hand: the palm toward the body, a mitten of fingers curling
     // in, the thumb forward of them ----
-    const hand = [slab(0.92, ax, 0, 0.02, 0.026, fore), slab(0.885, ax, 0.004, 0.015, 0.036, fore), slab(0.84, ax, 0.009, 0.0165, 0.043, fore), slab(0.8, ax - sx * 0.002, 0.013, 0.015, 0.041, fore), slab(0.765, ax - sx * 0.008, 0.019, 0.0125, 0.037, fore), slab(0.738, ax - sx * 0.018, 0.024, 0.009, 0.03, fore)];
-    loft(hand, { part: PART.skin, smooth: 6 });
-    cap(hand[5], [ax - sx * 0.021, 0.73, 0.025, fore, 0], { part: PART.skin, smooth: 6 }, [ax, 0.8, 0.01]);
-    const thumb = rod([[ax - sx * 0.004, 0.878, 0.034], [ax - sx * 0.008, 0.838, 0.064], [ax - sx * 0.012, 0.802, 0.075]], [0.0125, 0.011, 0.0085], fore, { part: PART.skin, smooth: 36 });
-    cap(thumb[2], [ax - sx * 0.013, 0.79, 0.079, fore, 0], { part: PART.skin, smooth: 36 }, [ax, 0.84, 0.06]);
+    if (close) {
+      // The back of the hand down to the knuckles, four fingers of their
+      // own lengths curling in toward the leg, and the thumb forward of them.
+      const palm = [slab(0.92, ax, 0, 0.02, 0.026, fore), slab(0.885, ax, 0.004, 0.015, 0.036, fore), slab(0.845, ax, 0.009, 0.0155, 0.043, fore)];
+      loft(palm, { part: PART.skin, smooth: 6 });
+      cap(palm[2], [ax, 0.838, 0.009, fore, 0, 0.7], { part: PART.skin, smooth: 6 }, [ax, 0.9, 0.009]);
+      [0.07, 0.08, 0.074, 0.058].forEach((len, k) => {
+        const z = 0.009 + (1.5 - k) * 0.0205;
+        const finger = rod([[ax, 0.848, z], [ax - sx * 0.003, 0.848 - len * 0.5, z + 0.002], [ax - sx * 0.012, 0.848 - len * 0.86, z + 0.004], [ax - sx * 0.019, 0.848 - len, z + 0.005]], [0.0092, 0.0085, 0.0074, 0.0062].map((v) => v * (k === 3 ? 0.86 : 1)), fore, { part: PART.skin, smooth: 61 + k });
+        cap(finger[3], [ax - sx * 0.022, 0.843 - len, z + 0.005, fore, 0], { part: PART.skin, smooth: 61 + k }, [ax, 0.8, z]);
+      });
+      const thumb = rod([[ax - sx * 0.004, 0.884, 0.034], [ax - sx * 0.007, 0.852, 0.058], [ax - sx * 0.01, 0.822, 0.07], [ax - sx * 0.013, 0.798, 0.075]], [0.013, 0.0115, 0.0098, 0.008], fore, { part: PART.skin, smooth: 36 });
+      cap(thumb[3], [ax - sx * 0.014, 0.788, 0.077, fore, 0], { part: PART.skin, smooth: 36 }, [ax, 0.84, 0.06]);
+    } else {
+      const hand = [slab(0.92, ax, 0, 0.02, 0.026, fore), slab(0.885, ax, 0.004, 0.015, 0.036, fore), slab(0.84, ax, 0.009, 0.0165, 0.043, fore), slab(0.8, ax - sx * 0.002, 0.013, 0.015, 0.041, fore), slab(0.765, ax - sx * 0.008, 0.019, 0.0125, 0.037, fore), slab(0.738, ax - sx * 0.018, 0.024, 0.009, 0.03, fore)];
+      loft(hand, { part: PART.skin, smooth: 6 });
+      cap(hand[5], [ax - sx * 0.021, 0.73, 0.025, fore, 0], { part: PART.skin, smooth: 6 }, [ax, 0.8, 0.01]);
+      const thumb = rod([[ax - sx * 0.004, 0.878, 0.034], [ax - sx * 0.008, 0.838, 0.064], [ax - sx * 0.012, 0.802, 0.075]], [0.0125, 0.011, 0.0085], fore, { part: PART.skin, smooth: 36 });
+      cap(thumb[2], [ax - sx * 0.013, 0.79, 0.079, fore, 0], { part: PART.skin, smooth: 36 }, [ax, 0.84, 0.06]);
+    }
     // A neon stripe down the sleeve.
     const stripe = ARM.slice(1).map(([y, cx, rx, , seg]) => [
-      [sx * (cx + rx * widen(8) + 0.004), y, -0.007, seg, 0],
-      [sx * (cx + rx * widen(8) + 0.004), y, 0.007, seg, 0],
+      [sx * (cx + rx * widen(NL) * (close ? 1.05 : 1) + 0.004), y, -0.007, seg, 0],
+      [sx * (cx + rx * widen(NL) * (close ? 1.05 : 1) + 0.004), y, 0.007, seg, 0],
     ]);
     loft(stripe, { part: PART.trim, tag: TAG.trim }, { open: true, ref: [sx * 0.1, 1.2, 0] });
   }
 
   // ---- the neck ----
-  loft([ring(8, 1.45, 0, -0.008, 0.05, 0.054, torso), ring(8, 1.5, 0, -0.004, 0.047, 0.051, head), ring(8, 1.552, 0, 0.002, 0.046, 0.05, head, 0, 1, 0.7)], { part: PART.skin, smooth: 7 });
+  loft([ring(NL, 1.45, 0, -0.008, 0.05, 0.054, torso), ring(NL, 1.5, 0, -0.004, 0.047, 0.051, head), ring(NL, 1.552, 0, 0.002, 0.046, 0.05, head, 0, 1, 0.7)], { part: PART.skin, smooth: 7 });
 
   // ---- the head ----
   // Its outline at a height: how far forward the face is, the half width,
@@ -672,8 +822,8 @@ function nearFigure() {
     [1.546, 0.083, 0.05, -0.04, 1.15],
     [1.572, 0.091, 0.062, -0.066, 1.05],
     [1.6, 0.096, 0.069, -0.082, 0.95],
-    [1.632, 0.097, 0.074, -0.092, 0.85],
-    [1.664, 0.0935, 0.076, -0.098, 0.8],
+    [1.632, close ? 0.098 : 0.097, 0.074, -0.092, 0.85],
+    [1.664, close ? 0.098 : 0.0935, 0.076, -0.098, 0.8],
     [1.69, 0.099, 0.077, -0.101, 0.8],
     [1.722, 0.094, 0.075, -0.099, 0.8],
     [1.746, 0.077, 0.064, -0.088, 0.85],
@@ -694,10 +844,14 @@ function nearFigure() {
     const c = Math.cos(a);
     return [(hw + grow) * pw(Math.sin(a), 0.8), y, EAR_Z + (c >= 0 ? (zf + grow - EAR_Z) * c ** ef : (zb - grow - EAR_Z) * (-c) ** 0.85), seg, aux, shade];
   };
-  const NH = 14;
-  const round = (i) => (i * 360) / NH;
+  // The angles round the head its surface is built at: evenly, or, close
+  // to, crowded toward the face, where the nose, the sockets and the lips
+  // want a point every few millimetres.
+  const DEGS = close ? [0, 2, 5, 9, 13, 18, 23, 29, 36, 44, 53, 63, 74, 86, 100, 116, 134, 155, 180, 205, 226, 244, 260, 274, 286, 297, 307, 316, 324, 331, 337, 342, 347, 351, 355, 358] : Array.from({ length: 14 }, (_, i) => (i * 360) / 14);
+  const NH = DEGS.length;
+  const round = (i) => (i < NH ? DEGS[i] : 360 + DEGS[i - NH]);
   const centre = [0, 1.65, -0.005];
-  {
+  if (!close) {
     // The sockets either side of the nose are in the brow's shade, and so
     // is what is under the jaw.
     const shade = (r, i) => (r === 5 && (i === 1 || i === NH - 1) ? 0.52 : r === 5 && (i === 2 || i === NH - 2) ? 0.82 : r === 5 && i === 0 ? 0.8 : r === 0 ? 0.6 : r === 1 && i > 3 && i < NH - 3 ? 0.76 : r === 3 && (i === 2 || i === NH - 2) ? 0.9 : 1);
@@ -707,12 +861,12 @@ function nearFigure() {
     cap(rings[SKULL.length - 1], [0, 1.767, -0.008, head, 0], { part: PART.skin, smooth: 14 }, centre);
   }
   // A point on the face at a distance to the side of the nose and a height.
-  const onFace = (x, y, out = 0.0015) => {
+  let onFace = (x, y, out = 0.0015) => {
     const [, zf, hw, , ef] = skullRow(y);
     const s = Math.min(0.999, (Math.abs(x) / hw) ** 1.25);
     return [x, y, EAR_Z + (zf - EAR_Z) * Math.sqrt(1 - s * s) ** ef + out, head, 0];
   };
-  {
+  if (!close) {
     // The nose: from between the brows down its ridge to the tip, the
     // wings, and the shade under it.
     const o = { part: PART.skin, smooth: 30 };
@@ -760,6 +914,111 @@ function nearFigure() {
       loft([rim, rim.map(([, y, z]) => [s * 0.07, y, z - 0.003, head, 0, 0.7])], { part: PART.skin, smooth: 31 }, { ref: [s * 0.075, 1.657, -0.01] });
     }
   }
+  if (close) {
+    // ---- the head, close to ----
+    // The skull's oval with a face modelled on the front of it: how far
+    // each point of the face stands forward of the oval (the nose's ridge
+    // and tip and its wings, the brow's ridge over each eye, the sockets
+    // and the eyes in them, the cheekbones and the hollows under them, the
+    // muzzle, the two lips either side of the mouth's line, the dip under
+    // the lower one, the chin), and how much of the street's light reaches
+    // it there.
+    const RAD = Math.PI / 180;
+    const G = (dx, dy, sx, sy) => Math.exp(-((dx / sx) ** 2) - (dy / sy) ** 2);
+    const relief = (x, y) => {
+      const ax = Math.abs(x);
+      const t = Math.min(1, Math.max(0, (1.69 - y) / 0.054));
+      const ridge = y > 1.69 ? 0.004 * Math.exp(-(((y - 1.69) / 0.01) ** 2)) : y > 1.636 ? 0.004 + 0.023 * t ** 1.15 : 0.027 * Math.max(0, 1 - ((1.636 - y) / 0.017) ** 2);
+      return (
+        ridge * Math.exp(-((x / (0.0065 + 0.0065 * t)) ** 2)) +
+        0.006 * G(ax - 0.0155, y - 1.6265, 0.006, 0.006) +
+        0.0045 * G(ax - 0.031, y - 1.693, 0.024, 0.0065) +
+        0.002 * G(x, y - 1.692, 0.012, 0.008) -
+        0.0075 * G(ax - 0.031, y - 1.668, 0.0155, 0.0095) +
+        0.003 * G(ax - 0.031, y - 1.667, 0.009, 0.006) +
+        0.0035 * G(ax - 0.05, y - 1.642, 0.016, 0.012) -
+        0.003 * G(ax - 0.046, y - 1.598, 0.014, 0.018) +
+        0.0035 * G(x, y - 1.602, 0.024, 0.016) +
+        0.003 * G(x, y - 1.6045, 0.016, 0.004) +
+        0.0038 * G(x, y - 1.5925, 0.014, 0.0045) -
+        0.0035 * G(x, y - 1.5985, 0.021, 0.0022) -
+        0.002 * G(x, y - 1.583, 0.012, 0.005) +
+        0.0045 * G(x, y - 1.556, 0.015, 0.012)
+      );
+    };
+    const open = (x, y) => Math.max(0.5, 1 - 0.42 * G(Math.abs(x) - 0.031, y - 1.671, 0.014, 0.008) - 0.4 * G(x, y - 1.6185, 0.011, 0.0045) - 0.35 * G(x, y - 1.5985, 0.02, 0.002) - 0.2 * G(x, y - 1.583, 0.012, 0.005));
+    const ROWS = [1.532, 1.54, 1.549, 1.558, 1.568, 1.578, 1.587, 1.594, 1.5985, 1.603, 1.609, 1.616, 1.622, 1.627, 1.632, 1.638, 1.646, 1.655, 1.662, 1.667, 1.672, 1.678, 1.685, 1.691, 1.697, 1.705, 1.722, 1.742, 1.756, 1.762];
+    const rings = ROWS.map((y) =>
+      DEGS.map((deg) => {
+        const q = skull(deg, y);
+        const c = Math.cos(deg * RAD);
+        if (c > 0) {
+          const k = Math.min(1, c / 0.4);
+          const w = k * k * (3 - 2 * k);
+          q[2] += relief(q[0], y) * w;
+          q[5] = 1 - (1 - open(q[0], y)) * w;
+        }
+        // Under the jaw.
+        if (y < 1.545) q[5] = Math.min(q[5], y < 1.536 ? 0.6 : 0.74);
+        return q;
+      }),
+    );
+    loft(rings, { part: PART.skin, smooth: 14 });
+    cap(rings[0], [0, 1.526, 0.03, head, 0, 0.6], { part: PART.skin, smooth: 14 }, centre);
+    cap(rings[rings.length - 1], [0, 1.767, -0.008, head, 0], { part: PART.skin, smooth: 14 }, centre);
+    // The face as it was built, for what is laid on it: across each row
+    // from cheek to cheek, and between the rows.
+    const faces = rings.map((ring) => ring.filter((_, i) => Math.cos(DEGS[i] * RAD) > 0.05).map((q) => [q[0], q[2]]).sort((a, b) => a[0] - b[0]));
+    const zAt = (k, x) => {
+      const row = faces[k];
+      let j = 0;
+      while (j < row.length - 2 && row[j + 1][0] < x) j++;
+      const u = Math.min(1, Math.max(0, (x - row[j][0]) / (row[j + 1][0] - row[j][0])));
+      return row[j][1] + (row[j + 1][1] - row[j][1]) * u;
+    };
+    onFace = (x, y, out = 0.0015) => {
+      let k = 0;
+      while (k < ROWS.length - 2 && ROWS[k + 1] < y) k++;
+      const t = Math.min(1, Math.max(0, (y - ROWS[k]) / (ROWS[k + 1] - ROWS[k])));
+      const z0 = zAt(k, x);
+      return [x, y, z0 + (zAt(k + 1, x) - z0) * t + out, head, 0];
+    };
+    // The mouth: the dark line between the lips, the upper lip with its
+    // bow, the fuller lower one.
+    const xs = [-0.024, -0.018, -0.012, -0.006, 0, 0.006, 0.012, 0.018, 0.024];
+    const lineY = (x) => 1.5985 - 0.0016 * (Math.abs(x) / 0.024) ** 2;
+    loft([xs.map((x) => onFace(x, lineY(x) - 0.001, 0.0022)), xs.map((x) => onFace(x, lineY(x) + 0.001, 0.0022))], { part: PART.line }, { open: true, ref: centre });
+    const upper = (x) => lineY(x) + 0.001 + 0.0056 * (1 - (Math.abs(x) / 0.0235) ** 1.7) - 0.0013 * Math.exp(-((x / 0.0045) ** 2));
+    const lower = (x) => lineY(x) - 0.001 - 0.0082 * (1 - (Math.abs(x) / 0.0235) ** 1.5);
+    const lip = xs.map((x) => x * 0.94);
+    loft([lip.map((x) => onFace(x, lineY(x) + 0.0008, 0.0018)), lip.map((x) => onFace(x, upper(x), 0.0018))], { part: PART.mouth, smooth: 65 }, { open: true, ref: centre });
+    loft([lip.map((x) => onFace(x, lower(x), 0.0018)), lip.map((x) => onFace(x, lineY(x) - 0.0008, 0.0018))], { part: PART.mouth, smooth: 65 }, { open: true, ref: centre });
+    for (const s of [-1, 1]) {
+      // An eye: its white, the iris with a glint on it, the upper lid's
+      // dark line (heavier toward the outer corner), the lower lid, the
+      // brow, and the nostril under the nose's wing.
+      const ex = s * 0.031;
+      const ey = 1.667;
+      const w = 0.0135;
+      const hgt = 0.0052;
+      const white = [[-w, -0.0006], [-0.5 * w, -hgt * 0.85], [0.3 * w, -hgt], [w, 0.001], [0.45 * w, hgt], [-0.5 * w, hgt * 0.9]].map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0014));
+      cap(white, onFace(ex, ey, 0.0022), { part: PART.sclera, smooth: 66 }, centre);
+      const iris = Array.from({ length: 8 }, (_, k) => onFace(ex + 0.0054 * Math.cos((k / 8) * TAU), ey + 0.0004 + 0.0054 * Math.sin((k / 8) * TAU), 0.0027));
+      cap(iris, onFace(ex, ey + 0.0004, 0.003), { part: PART.eye }, centre);
+      quad(onFace(ex + 0.0012, ey + 0.0016, 0.0034), onFace(ex + 0.0028, ey + 0.0016, 0.0034), onFace(ex + 0.0028, ey + 0.0032, 0.0034), onFace(ex + 0.0012, ey + 0.0032, 0.0034), { part: PART.sclera }, centre);
+      const lid = [[-w * 1.1, -0.0004, 0.0016], [-0.5 * w, hgt * 0.95, 0.0022], [0.45 * w, hgt * 1.05, 0.0026], [w * 1.18, 0.0016, 0.002]];
+      loft([lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0031)), lid.map(([dx, dy, t]) => onFace(ex + s * dx, ey + dy + t, 0.0031))], { part: PART.line }, { open: true, ref: centre });
+      const under = [[-w * 0.9, -0.0022], [-0.3 * w, -hgt * 1.05], [0.4 * w, -hgt * 1.1], [w, -0.0006]];
+      loft([under.map(([dx, dy]) => onFace(ex + s * dx, ey + dy - 0.0009, 0.0024)), under.map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0024))], { part: PART.socket }, { open: true, ref: centre });
+      const brow = [[0.01, 1.6885, 0.0042], [0.022, 1.6935, 0.0056], [0.037, 1.695, 0.0048], [0.0535, 1.6895, 0.0022]];
+      loft([brow.map(([x, y]) => onFace(s * x, y, 0.0022)), brow.map(([x, y, t]) => onFace(s * x, y + t, 0.0022))], { part: PART.brow, smooth: 67 }, { open: true, ref: centre });
+      quad(onFace(s * 0.0045, 1.6195, 0.0012), onFace(s * 0.011, 1.6205, 0.0012), onFace(s * 0.0105, 1.6238, 0.0012), onFace(s * 0.005, 1.6232, 0.0012), { part: PART.line }, centre);
+      // An ear: its rim, the hollow inside it, and its back to the head.
+      const rim = [[1.684, -0.002, 0.0785], [1.693, -0.02, 0.087], [1.676, -0.037, 0.0905], [1.648, -0.035, 0.089], [1.626, -0.02, 0.083], [1.636, -0.004, 0.078]].map(([y, z, x]) => [s * x, y, z, head, 0]);
+      cap(rim, [s * 0.079, 1.657, -0.016, head, 0, 0.5], { part: PART.skin, smooth: 31 }, [0, 1.657, -0.016]);
+      loft([rim, rim.map(([, y, z]) => [s * 0.07, y, z - 0.003, head, 0, 0.7])], { part: PART.skin, smooth: 31 }, { ref: [s * 0.075, 1.657, -0.01] });
+    }
+  }
   // Cyberware on some: a seam of light from the temple down the cheek to
   // the jaw, and a plate under the other eye.
   {
@@ -782,23 +1041,73 @@ function nearFigure() {
   // hairline (across the forehead, over the ears, down to the nape) to the
   // crown, standing off the skull.
   const HAIRLINE = [1.722, 1.726, 1.708, 1.652, 1.696, 1.6, 1.575, 1.57];
+  // (Its height at an angle round from the front, either way.)
+  const hairlineAt = (deg) => {
+    const turn = ((deg % 360) + 360) % 360;
+    const fr = Math.min(turn, 360 - turn) / (360 / 14);
+    const i0 = Math.min(6, Math.floor(fr + 1e-6));
+    return HAIRLINE[i0] + (HAIRLINE[i0 + 1] - HAIRLINE[i0]) * Math.min(1, Math.max(0, fr - i0));
+  };
   {
     const o = { part: PART.scalp, tag: TAG.hair, smooth: 15 };
-    const line = (i) => HAIRLINE[i <= NH / 2 ? i : NH - i];
+    const line = (i) => hairlineAt(round(i));
     const rows = [[0, 0.0015, 0.5], [0.07, 0.008, 0.5], [0.4, 0.0095, 1], [0.75, 0.011, 1], [1, 0.011, 1]];
     const rings = rows.map(([up, grow, aux]) => Array.from({ length: NH }, (_, i) => skull(round(i), line(i) + (1.759 - line(i)) * up, grow, head, aux)));
     loft(rings, o);
     cap(rings[4], [0, 1.781, -0.012, head, 1], o, centre);
   }
+  if (close) {
+    // Hair with any length to it stands off the head, in one of three ways
+    // (a person's seed says which): parted to one side, the longer side
+    // swept over the forehead and the parting a groove from the brow back;
+    // a fringe cut straight over the brows and down over the ears; or
+    // swept up and back from the forehead. Strand by strand it is lighter
+    // and darker, and its edge is in its own shade.
+    const signed = (deg) => ((((deg + 180) % 360) + 360) % 360) - 180;
+    const shell = (tag, edge, lineAt, growAt) => {
+      const o = { part: PART.hair, tag, smooth: 38 + tag };
+      const rings = [0, 0.07, 0.22, 0.42, 0.62, 0.82, 1].map((up, r) =>
+        DEGS.map((deg, i) => {
+          const fr = signed(deg);
+          const y0 = lineAt(fr, i);
+          const g = r === 0 ? edge : Math.max(0.0025, growAt(fr, up));
+          const q = skull(deg, y0 + (1.759 - y0) * up, g, head, 1, r === 0 ? 0.55 : i % 2 ? 0.82 : 1);
+          q[1] += g * up * up;
+          return q;
+        }),
+      );
+      loft(rings, o);
+      cap(rings[6], [0, rings[6].reduce((m, q) => Math.max(m, q[1]), 0) + 0.004, -0.012, head, 1], o, centre);
+    };
+    const hump = (up) => Math.sin(Math.PI * Math.min(1, Math.max(0, up)));
+    shell(
+      STYLE.parted,
+      0.003,
+      (fr) => hairlineAt(fr) - 0.017 * Math.exp(-(((fr - 24) / 26) ** 2)),
+      (fr, up) => 0.012 + 0.007 * hump(up) + (fr > -29 && fr < 150 ? 0.005 * hump(up) : 0) - 0.0095 * Math.exp(-(((fr + 29) / 6.5) ** 2)) * Math.min(1, Math.max(0, (up - 0.15) / 0.25)),
+    );
+    shell(
+      STYLE.fringe,
+      0.009,
+      (fr, i) => (Math.abs(fr) < 60 ? 1.6985 + 0.003 * (i % 2) : Math.abs(fr) < 122 ? 1.642 + 0.004 * (i % 2) : hairlineAt(fr)),
+      (fr, up) => 0.0165 + 0.0055 * hump(up) + (Math.abs(fr) > 80 && Math.abs(fr) < 125 ? 0.004 * (1 - up) : 0),
+    );
+    shell(
+      STYLE.swept,
+      0.003,
+      (fr) => hairlineAt(fr) + 0.003 * Math.exp(-(((Math.abs(fr) - 40) / 15) ** 2)),
+      (fr, up) => 0.0105 + 0.021 * Math.exp(-((fr / 55) ** 2)) * hump(up * 1.25) + 0.004 * hump(up),
+    );
+  }
   // Long hair: from behind the ears round the back, down to the shoulder
   // blades.
   {
-    const degs = [78, 103, 129, 154, 180, 206, 231, 257, 282];
+    const degs = close ? [74, 86, 100, 116, 134, 155, 180, 205, 226, 244, 260, 274, 286] : [78, 103, 129, 154, 180, 206, 231, 257, 282];
     const rows = [[1.7, 0.012], [1.6, 0.017], [1.5, 0.019], [1.39, 0.02]];
-    const strip = rows.map(([y, grow], r) => degs.map((d) => {
+    const strip = rows.map(([y, grow], r) => degs.map((d, k) => {
       const p = skull(d, Math.max(y, 1.585), grow, r === rows.length - 1 ? torso : head, r / (rows.length - 1));
       const down = Math.max(1.585 - y, 0);
-      return [p[0] * (1 + down * 1.25), y, p[2] * (1 + down * 0.5) - down * 0.24, p[3], p[4]];
+      return [p[0] * (1 + down * 1.25), y, p[2] * (1 + down * 0.5) - down * 0.24, p[3], p[4], close && k % 2 ? 0.82 : 1];
     }));
     loft(strip, { part: PART.hair, tag: TAG.long, smooth: 16 }, { open: true, ref: [0, 1.5, 0] });
     loft(strip, { part: PART.hair, tag: TAG.long, inside: true, ao: 0.5 }, { open: true, ref: [0, 1.5, 0] });
@@ -819,7 +1128,8 @@ function nearFigure() {
   {
     const c = [0, 1.772, -0.086];
     const o = { part: PART.hair, tag: TAG.bun, smooth: 37 };
-    const rings = [[-0.034, 0.03], [0, 0.047], [0.03, 0.034]].map(([dy, r]) => Array.from({ length: 6 }, (_, i) => [c[0] + r * Math.cos((i / 6) * TAU), c[1] + dy, c[2] + r * Math.sin((i / 6) * TAU), head, 0]));
+    const sides = close ? 10 : 6;
+    const rings = [[-0.034, 0.03], [0, 0.047], [0.03, 0.034]].map(([dy, r]) => Array.from({ length: sides }, (_, i) => [c[0] + r * Math.cos((i / sides) * TAU), c[1] + dy, c[2] + r * Math.sin((i / sides) * TAU), head, 0]));
     loft(rings, o);
     cap(rings[2], [c[0], c[1] + 0.044, c[2], head, 0], o, c);
   }
@@ -872,15 +1182,16 @@ function nearFigure() {
   // ---- a long coat's skirt, from the hem to the knee: folds down it, and
   // open at the front so a stride shows ----
   {
-    const n = 12;
+    const n = NT;
     const rows = [[0.93, 0.182, 0.124, 0], [0.8, 0.19, 0.134, 0.35], [0.66, 0.198, 0.144, 0.7], [0.53, 0.206, 0.154, 1]];
     const rings = rows.map(([y, rx, rz, aux]) => ring(n, y, 0, 0, rx, rz, pelvis, aux, 0.85).map((p, i) => {
       const fold = 1 + 0.045 * aux * Math.cos(((i + 0.5) / n) * TAU * 3 + 0.6);
       return [p[0] * fold, p[1], p[2] * fold, p[3], p[4]];
     }));
-    const vent = (r, i) => r > 0 && i === 2;
+    const front = n / 4 - 1;
+    const vent = (r, i) => r > 0 && i === front;
     loft(rings, { part: PART.coat, tag: TAG.skirt, smooth: 9 }, { skip: vent });
-    loft(rings, { part: PART.coat, tag: TAG.skirt, inside: true, ao: 0.4 }, { skip: (r, i) => vent(r, i) || (i !== 1 && i !== 3) });
+    loft(rings, { part: PART.coat, tag: TAG.skirt, inside: true, ao: 0.4 }, { skip: (r, i) => vent(r, i) || (i !== front - 1 && i !== front + 1) });
   }
   // ---- a collar turned up, open at the throat ----
   {
@@ -889,6 +1200,30 @@ function nearFigure() {
     loft(rings, { part: PART.lapel, tag: TAG.collar, smooth: 32 }, { skip: open });
     loft(rings, { part: PART.lapel, tag: TAG.collar, inside: true, ao: 0.5 }, { skip: open });
   }
+
+  if (close) {
+    // What an open jacket shows at the waist: the trousers' top, a belt in
+    // the bag's leather and its buckle.
+    const across = (y, half, out) => [onTorso(y, 90 + half, out), onTorso(y, 90, out + 0.0006), onTorso(y, 90 - half, out)];
+    loft([across(0.925, 8.8, 0.0056), across(0.948, 8.9, 0.0056)], { part: PART.trousers, tag: TAG.open }, { open: true, ref: [0, 1.2, 0] });
+    loft([across(0.948, 8.9, 0.0058), across(0.973, 9.1, 0.0058)], { part: PART.flap, tag: TAG.open }, { open: true, ref: [0, 1.2, 0] });
+    loft([across(0.9455, 2.5, 0.007), across(0.9755, 2.5, 0.007)], { part: PART.metal, tag: TAG.open }, { open: true, ref: [0, 1.2, 0] });
+    // The shirt's collar, a leaf each side of the throat, on a suit and
+    // under an open jacket.
+    for (const tag of [TAG.suit, TAG.open]) {
+      for (const s of [-1, 1]) quad(onTorso(1.452, 90 + s * 30, 0.012), onTorso(1.468, 90 + s * 9, 0.011), onTorso(1.418, 90 + s * 6, 0.0095), onTorso(1.432, 90 + s * 24, 0.0105), { part: PART.shirt, tag }, [0, 1.4, 0]);
+    }
+    // A suit's two buttons, and a square in the breast pocket in the tie's
+    // colour.
+    for (const y of [1.1, 1.045]) quad(onTorso(y - 0.007, 92.6, 0.0085), onTorso(y - 0.007, 87.4, 0.0085), onTorso(y + 0.007, 87.4, 0.0085), onTorso(y + 0.007, 92.6, 0.0085), { part: PART.metal, tag: TAG.suit }, [0, 1.1, 0]);
+    quad(onTorso(1.322, 56, 0.0082), onTorso(1.322, 43, 0.0082), onTorso(1.337, 43, 0.0082), onTorso(1.337, 56, 0.0082), { part: PART.tie, tag: TAG.suit }, [0, 1.3, 0]);
+    // A pocket's flap on each hip.
+    for (const s of [-1, 1]) loft([[62, 48, 34].map((d) => onTorso(1.0, 90 + s * d, 0.0058)), [62, 48, 34].map((d) => onTorso(1.013, 90 + s * d, 0.0058))], { part: PART.seam }, { open: true, ref: [0, 1.0, 0] });
+  }
+  // ---- one end of a crate carried between two: its near half, in the
+  // hands, banded ----
+  box([0, 0.99, 0.5], [0.26, 0.13, 0.25], pelvis, { part: PART.crate, tag: CARRIED }, { skip: "z+" });
+  for (const z of [0.36, 0.64]) box([0, 0.99, z], [0.264, 0.134, 0.022], pelvis, { part: PART.dark, tag: CARRIED }, { skip: "z+z-" });
 
   // ---- bags ----
   // A satchel at the hip, its flap buckled, on a strap across the chest.
@@ -1035,8 +1370,9 @@ function nearFigure() {
 }
 
 /**
- * The figure: `far` false for the one with a face, true for the cheap one.
+ * The figure: `far` false for the one with a face, true for the cheap one;
+ * `close` for the one with a face as it is within a few steps of the eye.
  */
-export function figureGeometry(far = false) {
-  return far ? farFigure() : nearFigure();
+export function figureGeometry(far = false, close = false) {
+  return far ? farFigure() : nearFigure(close);
 }
