@@ -29,7 +29,12 @@
 // an advert of any shape, 5 a food box's menu (0.66 by 0.6), 3 a grate lit
 // from under, 2 a phone's panel (0.5 by 0.9), 1 a crossing's signal (0.28
 // by 0.4). A `print` is the same, unlit: 8 an advert on a board, 7 a
-// lamp's banner (0.6 by 1.6), 6 a mesh fence panel, 4 a guard rail. A `halo` is a
+// lamp's banner (0.6 by 1.6), 6 a mesh fence panel, 4 a guard rail; and, in
+// twentieths, 9.5 a box's side or top (a carton with its tape, its print, a
+// label and straps, a wooden crate, a plastic one, stacked pallets, a sheet
+// of paper: the red of its colour is a seed of its own, the green 1 on a top
+// and 0.5 on a side, the blue what it is) and 8.5 a bin bag or a heap
+// (turned: u once round it, v up it). A `halo` is a
 // lamp's light in the wet air (src/world/shafts.js): a quad in the lamp's
 // own plane through its head, turned here about the lamp's axis to face
 // the eye; its uv is metres across and metres below the head, its colour
@@ -202,6 +207,7 @@ export function createPropSurfaces(dressed) {
         attribute vec4 color;
         uniform vec3 uCam;
         varying vec3 vWorld;
+        varying vec3 vNormalW;
         varying vec3 vView;
         varying vec2 vUv;
         varying vec4 vColor;
@@ -210,6 +216,9 @@ export function createPropSurfaces(dressed) {
           mat4 m = modelMatrix * instanceMatrix;
           vec4 w = m * vec4(position, 1.0);
           vWorld = w.xyz;
+          // A bag is turned: its normal from u, smooth across its facets.
+          float a = uv.x * 6.2832;
+          vNormalW = normalize(mat3(m) * (abs(color.a - 0.85) < 0.02 ? vec3(cos(a), 0.45, sin(a)) : normal));
           vUv = uv;
           vColor = color;
           // The eye from here, in the prop's own frame: x to its right, y
@@ -226,6 +235,7 @@ export function createPropSurfaces(dressed) {
       fragmentShader: /* glsl */ `
         ${COMMON}
         varying vec3 vWorld;
+        varying vec3 vNormalW;
         varying vec3 vView;
         varying vec2 vUv;
         varying vec4 vColor;
@@ -233,6 +243,16 @@ export function createPropSurfaces(dressed) {
         float rect(vec2 p, vec2 lo, vec2 hi) {
           vec2 s = step(lo, p) * step(p, hi);
           return s.x * s.y;
+        }
+        float vnoise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+        // This way up: p from -1 to 1 over one arrow.
+        float arrowUp(vec2 p) {
+          return max(step(abs(p.x), 0.62 * (1.0 - p.y)) * step(0.1, p.y) * step(p.y, 1.0), step(abs(p.x), 0.2) * step(-0.9, p.y) * step(p.y, 0.1));
         }
         // The city's colours, six warm and six cool.
         vec3 hueOf(float warm, float i) {
@@ -308,8 +328,126 @@ export function createPropSurfaces(dressed) {
           vec3 shade = vec3(0.06) + spill * 1.3;
           vec3 col = vec3(0.0);
           float lit = 0.0;
-          float kind = floor(vColor.a * 10.0 + 0.5);
-          if (kind < 1.5) {
+          float kind = floor(vColor.a * 20.0 + 0.5) * 0.5;
+          if (abs(kind - 9.5) < 0.1) {
+            // A box, a crate, a stack of pallets, a sheet: card, timber and
+            // plastic the street lights, each thing its own from where it
+            // stands and its seed.
+            vec2 size = faceSize();
+            vec2 m = uv * size;
+            float near = 1.0 - smoothstep(0.004, 0.016, fwidth(m.x) + fwidth(m.y));
+            float top = step(0.75, vColor.g);
+            float sd = fract(vSeed * 7.31 + vColor.r * 3.77);
+            float blotch = vnoise(m * 5.0 + sd * 20.0);
+            vec3 ink = mix(vec3(0.012), hueOf(step(0.5, fract(sd * 9.1)), sd * 6.0) * 0.14, step(0.45, fract(sd * 17.3)));
+            // What is printed on a side: a mark, a line of characters under
+            // it, and which way up it goes.
+            vec2 mp = (m - size * vec2(0.3, 0.56)) / (min(size.x, size.y) * 0.2);
+            float row = size.y * 0.1;
+            vec2 gp = (m - size * vec2(0.1, 0.14)) / row;
+            float chars = step(0.0, gp.x) * step(gp.x, floor(size.x * 0.5 / row)) * step(0.0, gp.y) * step(gp.y, 1.0) * glyph(gp, floor(gp.x) * 7.0 + floor(sd * 50.0));
+            vec2 ap = (m - size * vec2(0.78, 0.7)) / (size.y * 0.1);
+            float arrows = max(max(arrowUp(ap + vec2(0.7, 0.0)), arrowUp(ap - vec2(0.7, 0.0))), rect(ap, vec2(-1.4, -1.3), vec2(1.4, -1.08)));
+            float printed = max(mark(mp, sd * 23.0), max(chars, arrows)) * (1.0 - top) * mix(0.3, 1.0, near);
+            vec3 albedo;
+            float pick = fract(sd * 13.7);
+            if (vColor.b > 0.9) {
+              // Inside an open box.
+              albedo = vec3(0.005);
+            } else if (vColor.b > 0.37) {
+              // A sheet of paper (0.75), or card trodden flat (0.5): torn
+              // at its edges.
+              float sheet = step(0.6, vColor.b);
+              float torn = vnoise(m * 40.0 + sd * 9.0);
+              if (min(min(m.x, size.x - m.x), min(m.y, size.y - m.y)) < mix(0.03, 0.012, sheet) * torn) discard;
+              float lines = step(0.4, fract(m.y / 0.016)) * rect(m / size, vec2(0.08, 0.06), vec2(0.92, 0.94)) * step(hash12(vec2(floor(m.y / 0.016), sd)), 0.8);
+              vec3 paper = vec3(0.17, 0.165, 0.15) * (1.0 - 0.5 * lines * near);
+              paper = mix(paper, vec3(0.04), rect(m / size, vec2(0.1, 0.5), vec2(0.52, 0.9)) * step(0.4, sd));
+              albedo = mix(vec3(0.06, 0.043, 0.027) * (0.6 + 0.6 * blotch), paper * (0.6 + 0.4 * blotch), sheet);
+            } else if (vColor.b > 0.12) {
+              // Pallets, one on another: on a side the top boards' ends, the
+              // stringer, three blocks with the dark between them, the foot
+              // board; on top the boards and their gaps.
+              float t = fract(m.y / 0.15) * 0.15;
+              float block = max(max(step(m.x, 0.1), step(size.x - 0.1, m.x)), step(abs(m.x - size.x * 0.5), 0.05));
+              float solid = mix(t < 0.02 || t > 0.11 ? 1.0 : block, 1.0, top);
+              float boards = mix(step(0.13, t), 1.0, top);
+              solid *= 1.0 - boards * step(0.84, fract(mix(m.x, m.y, top) / 0.12));
+              float which = floor(m.y / 0.15) * 4.0 + step(0.02, t) + step(0.11, t) + step(0.13, t) + 17.0 * floor(mix(m.x, m.y, top) / 0.12) * boards;
+              vec3 wood = vec3(0.082, 0.062, 0.041) * (0.65 + 0.6 * hash12(vec2(which, sd * 31.0))) * (0.85 + 0.3 * vnoise(vec2(m.x * 5.0, m.y * 80.0)));
+              albedo = mix(vec3(0.004), wood, mix(0.72, solid, near));
+              // A strap round a stack of three or more, and a tag stapled
+              // to it.
+              float tall = step(0.4, size.y) * (1.0 - top);
+              albedo = mix(albedo, vec3(0.012), step(abs(m.x - size.x * 0.3), 0.009) * tall);
+              albedo = mix(albedo, vec3(0.2, 0.19, 0.16) * (1.0 - 0.6 * step(0.5, fract(m.y / 0.012)) * near), rect(m, vec2(size.x * 0.3 + 0.02, 0.2), vec2(size.x * 0.3 + 0.11, 0.26)) * tall * step(0.4, sd));
+            } else if (pick < 0.58) {
+              // A carton: brown card, or grey, or white now and then.
+              vec3 card = mix(vec3(0.105, 0.075, 0.046), vec3(0.082, 0.068, 0.054), fract(sd * 3.1));
+              card = mix(card, vec3(0.125, 0.125, 0.12), step(0.84, fract(sd * 5.9)));
+              albedo = card * (0.8 + 0.34 * blotch);
+              float yellow = step(0.7, fract(sd * 23.0));
+              vec3 tape = mix(vec3(0.15, 0.115, 0.062), vec3(0.17, 0.135, 0.02), yellow);
+              // The long way of its top, where the tape runs over the seam.
+              vec2 q = size.x > size.y ? m : m.yx;
+              vec2 qs = size.x > size.y ? size : size.yx;
+              float over = top * step(abs(q.y - qs.y * 0.5), 0.027);
+              float tab = (1.0 - top) * rect(m, vec2(size.x * 0.5 - 0.027, size.y - 0.08), vec2(size.x * 0.5 + 0.027, size.y + 1.0));
+              albedo = mix(albedo, albedo * 0.35, top * step(abs(q.y - qs.y * 0.5), 0.003));
+              albedo = mix(albedo, tape * (1.0 - 0.45 * yellow * step(0.5, fract((q.x + q.y) / 0.05)) * near), max(over, tab) * 0.92);
+              albedo = mix(albedo, ink, printed * step(0.25, fract(sd * 29.0)));
+              // A label, with its bars and its lines.
+              vec2 l0 = size * vec2(0.5 + 0.18 * fract(sd * 41.0), 0.16 + 0.3 * fract(sd * 37.0));
+              vec2 lp = (m - l0) / vec2(0.15, 0.1);
+              float label = rect(lp, vec2(0.0), vec2(1.0)) * (1.0 - top) * step(0.35, fract(sd * 53.0));
+              float bars = rect(lp, vec2(0.08, 0.1), vec2(0.92, 0.45)) * step(0.5, hash12(vec2(floor(lp.x * 40.0), sd * 3.0)))
+                + rect(lp, vec2(0.08, 0.58), vec2(0.7, 0.68)) + rect(lp, vec2(0.08, 0.76), vec2(0.5, 0.86));
+              albedo = mix(albedo, vec3(0.23, 0.23, 0.21) * (1.0 - 0.8 * min(bars, 1.0) * near), label);
+              // Straps round it, two.
+              float strap = step(0.62, fract(sd * 61.0)) * max(step(abs(q.x - qs.x * 0.22), 0.008), step(abs(q.x - qs.x * 0.78), 0.008));
+              albedo = mix(albedo, mix(vec3(0.01), vec3(0.15, 0.115, 0.01), step(0.5, fract(sd * 67.0))), strap);
+            } else if (pick < 0.87) {
+              // A wooden crate: boards with the dark between them, a batten
+              // up each end, a stencil.
+              float plank = floor(m.y / 0.095);
+              vec3 wood = vec3(0.078, 0.054, 0.033) * (0.65 + 0.6 * hash12(vec2(plank, sd * 77.0))) * (0.85 + 0.3 * vnoise(vec2(m.x * 5.0, m.y * 70.0)));
+              float batten = max(step(m.x, 0.055), step(size.x - 0.055, m.x));
+              albedo = mix(wood, vec3(0.005), step(fract(m.y / 0.095), 0.07) * (1.0 - batten) * near);
+              albedo = mix(albedo, wood * 1.25, batten * 0.6);
+              albedo = mix(albedo, vec3(0.01), printed * 0.85);
+            } else {
+              // A plastic crate: ribbed, a hand hole, a rim.
+              float c = floor(fract(sd * 43.0) * 4.0);
+              vec3 body = c < 0.5 ? vec3(0.018, 0.045, 0.11) : c < 1.5 ? vec3(0.11, 0.018, 0.016) : c < 2.5 ? vec3(0.02, 0.075, 0.04) : vec3(0.13, 0.095, 0.012);
+              float ribs = step(0.5, fract(m.x / 0.045)) * step(size.y * 0.08, m.y) * step(m.y, size.y * 0.72) * (1.0 - top);
+              albedo = body * (0.78 + 0.32 * ribs * near);
+              albedo = mix(albedo, vec3(0.004), rect(m, vec2(size.x * 0.5 - 0.06, size.y * 0.78), vec2(size.x * 0.5 + 0.06, size.y * 0.87)) * (1.0 - top));
+              albedo = mix(albedo, body * 1.5, max(step(size.y - 0.03, m.y) * (1.0 - top), top * (1.0 - rect(m, vec2(0.04), size - 0.04))));
+            }
+            // Creased at its edges, damp and dirty toward the ground.
+            albedo *= 1.0 - 0.35 * (1.0 - rect(m, vec2(0.006), size - 0.006)) * step(vColor.b, 0.37);
+            albedo *= 1.0 - (1.0 - top) * 0.5 * smoothstep(0.18, 0.0, m.y) * (0.5 + 0.5 * vnoise(vec2(m.x * 14.0, sd * 5.0)));
+            // Lit from the side the street's light comes from, its top by
+            // what is over it.
+            vec3 n = normalize(vNormalW) * (gl_FrontFacing ? 1.0 : -1.0);
+            vec3 toward = spillAt(vWorld + vec3(n.x, 0.0, n.z) * 1.3);
+            col = albedo * (vec3(0.035) + (spill * 0.3 + toward * 0.7) * (0.6 + 0.4 * max(n.y, 0.0)) + uHazeColor * 0.05 * max(n.y, 0.0) * uHaze);
+          } else if (abs(kind - 8.5) < 0.1) {
+            // A bin bag: plastic creased from its neck, the street's light
+            // a glint on each crease. Or a heap of what was swept up.
+            float sd = fract(vSeed * 7.31 + vColor.r * 3.77);
+            float near = 1.0 - smoothstep(0.004, 0.02, fwidth(uv.y));
+            float around = uv.x * 6.2832;
+            float crease = pow(abs(sin(around * 4.0 + 2.5 * sin(uv.y * 6.0 + sd * 20.0) + sd * 9.0)), 8.0) * near;
+            vec3 plastic = mix(vec3(0.011, 0.011, 0.015), mix(vec3(0.018, 0.028, 0.052), vec3(0.08, 0.08, 0.075), step(0.5, fract(sd * 11.0))), step(0.74, fract(sd * 5.3)));
+            float speck = hash12(floor(vec2(around * 9.0, uv.y * 14.0)) + sd * 7.0);
+            vec3 heap = vec3(0.03, 0.027, 0.024) * (0.4 + vnoise(vec2(around * 4.0, uv.y * 8.0) + sd * 7.0))
+              + hueOf(step(0.5, fract(speck * 7.0)), speck * 60.0) * 0.05 * step(0.9, speck) * near;
+            vec3 n = normalize(vNormalW);
+            vec3 toward = spillAt(vWorld + vec3(n.x, 0.0, n.z) * 1.3);
+            vec3 light = vec3(0.03) + (spill * 0.3 + toward * 0.7) * (0.6 + 0.4 * max(n.y, 0.0));
+            col = mix(plastic * (1.0 - 0.4 * smoothstep(0.8, 0.9, uv.y)), heap, vColor.b) * light + toward * 0.06 * crease * (1.0 - vColor.b);
+          } else if (kind < 1.5) {
             // A crossing's signal: the walking figure lit, the seconds left
             // in bars over it.
             vec2 s = uv * vec2(0.28, 0.4);

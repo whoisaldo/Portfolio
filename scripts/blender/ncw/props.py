@@ -63,6 +63,13 @@ WOOD, BARK, BLOSSOM, FROND = 0.25, 0.5, 0.75, 1.0
 LIMB = 0.125
 # Which front a `face` or a `print` is, in its vertex colour's alpha (tenths).
 SIGNAL, PHONE, GRATE, RAIL, FOOD, MESH, BANNER, BOARD, POSTER, VENDING = (i / 10 for i in range(1, 11))
+# And two more `print`s, in twentieths: a box, a crate, a pallet or a sheet
+# of paper (CARTON: the red of its vertex colour is a seed of the thing's
+# own, its green 1 on a top and 0.5 on a side, its blue what it is, below)
+# and a bin bag or a heap (BAG: turned, u once round it, v up it; blue 1 a
+# heap).
+CARTON, BAG = 0.95, 0.85
+BOXED, TIMBER, SODDEN, SHEET, INSIDE = 0.0, 0.25, 0.5, 0.75, 1.0
 # The kit's bare steel and its black, as `trim` colours (one draw a prototype).
 STEEL, BLACK, CAST = (0.034, 0.038, 0.048, 1), (0.0045, 0.005, 0.0065, 1), (0.02, 0.022, 0.028, 1)
 
@@ -220,6 +227,30 @@ def face(k, kind, cx, cy, cz, w, h, yaw, light=(0.5, 0.5, 0.5), mat="face"):
     """A front the site draws (`kind`: VENDING, POSTER, FOOD ...), w by h,
     facing yaw; `light` is the light it gives the street."""
     rotated_quad(k(mat), cx, cy, cz, w, h, yaw, col=(*light[:3], kind))
+
+
+def carton(k, x0, x1, y0, y1, z0, z1, seed, what=BOXED, yaw=0.0, top=True):
+    """A box the site draws on four sides and its top (`print` quads): by
+    where it stands and `seed`, a carton with its tape, its print, a label
+    and straps, a wooden crate with a stencil or a plastic one; or `what`
+    (TIMBER: pallets stacked). Turned `yaw` about its own middle."""
+    cx, cz, c, s_ = (x0 + x1) / 2, (z0 + z1) / 2, math.cos(yaw), math.sin(yaw)
+
+    def at(x, y, z):
+        return (cx + (x - cx) * c + (z - cz) * s_, y, cz - (x - cx) * s_ + (z - cz) * c)
+    key = k("print")
+    for (xa, za), (xb, zb) in (((x0, z1), (x1, z1)), ((x1, z1), (x1, z0)), ((x1, z0), (x0, z0)), ((x0, z0), (x0, z1))):
+        quad(key, at(xa, y0, za), at(xb, y0, zb), at(xb, y1, zb), at(xa, y1, za), col=(seed, 0.5, what, CARTON))
+    if top:
+        quad(key, at(x0, y1, z1), at(x1, y1, z1), at(x1, y1, z0), at(x0, y1, z0), col=(seed, 1.0, what, CARTON))
+
+
+def litter(k, x, z, w, d, yaw, seed, what=SHEET):
+    """Something flat on the ground: a sheet of paper, or (SODDEN) a carton
+    trodden flat, its edges torn."""
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    quad(k("print"), *((x + px * c + pz * s_, 0.012, z - px * s_ + pz * c) for px, pz in ((-w / 2, d / 2), (w / 2, d / 2), (w / 2, -d / 2), (-w / 2, -d / 2))),
+         col=(seed, 1.0, what, CARTON))
 
 
 def lamp_air(k, y, z, fall, colour):
@@ -616,21 +647,29 @@ def _dumpster(k):
 
 @proto("bags", box=(0.7, 0.35, 0.5), reach=220, detail=True)
 def _bags(k):
-    """Bin bags heaped by a door: black plastic, slumped, drawn in at the
-    neck."""
-    for x, z, r_, h, col in ((-0.33, 0.02, 0.3, 0.52, (0.02, 0.02, 0.025, 1)), (0.22, 0.14, 0.34, 0.6, (0.014, 0.016, 0.022, 1)),
-                             (0.2, -0.28, 0.24, 0.42, (0.03, 0.03, 0.04, 1))):
-        lathe(k("trim"), x, z, ((0.0, r_ * 0.8), (h * 0.4, r_), (h, r_ * 0.15)), segs=5, col=col)
+    """Bin bags heaped by a door: plastic, slumped, drawn in at the neck
+    they are tied by and flared over it (the site draws their creases and
+    the street's glint on them; most are black)."""
+    for x, z, r_, h, seed in ((-0.33, 0.02, 0.3, 0.52, 0.15), (0.22, 0.14, 0.34, 0.6, 0.45), (0.2, -0.28, 0.24, 0.42, 0.8)):
+        turned(k("print"), ((0.0, r_ * 0.8), (h * 0.38, r_), (h * 0.8, r_ * 0.36), (h * 0.9, r_ * 0.12), (h, r_ * 0.2)),
+               segs=6, col=(seed, 0, 0, BAG), cx=x, cz=z, ends="t")
 
 
 @proto("crates", box=(0.6, 0.6, 0.6), reach=220, detail=True)
 def _crates(k):
-    """Crates stacked on a pallet."""
-    wood = (0.2, 0.13, 0.07, 1)
-    box(k("trim"), -0.6, 0.6, 0.0, 0.14, -0.5, 0.5, scale=1.0, col=wood)
-    box(k("trim"), -0.55, 0.0, 0.14, 0.7, -0.45, 0.45, scale=1.0, col=(0.24, 0.16, 0.09, 1))
-    box(k("trim"), 0.05, 0.55, 0.14, 0.6, -0.4, 0.3, scale=1.0, col=wood)
-    box(k("trim"), -0.45, 0.1, 0.7, 1.15, -0.35, 0.35, scale=1.0, col=(0.26, 0.18, 0.1, 1))
+    """Goods on a pallet: cartons taped, printed, labelled and strapped, a
+    wooden crate or a plastic one among them (the site draws them, every
+    pallet's its own), dirtier toward the ground; the small one on top is
+    open, one flap up and one torn down."""
+    carton(k, -0.6, 0.6, 0.0, 0.14, -0.5, 0.5, 0.1, TIMBER)
+    carton(k, -0.56, -0.02, 0.14, 0.68, -0.44, 0.44, 0.23, yaw=0.03)
+    carton(k, 0.04, 0.56, 0.14, 0.58, -0.4, 0.28, 0.47, yaw=-0.06)
+    carton(k, -0.47, 0.07, 0.68, 1.1, -0.33, 0.33, 0.71, yaw=0.2)
+    carton(k, 0.14, 0.5, 0.58, 0.84, -0.28, 0.1, 0.89, top=False)
+    p = k("print")
+    quad(p, (0.15, 0.8, 0.09), (0.49, 0.8, 0.09), (0.49, 0.8, -0.27), (0.15, 0.8, -0.27), col=(0.89, 1.0, INSIDE, CARTON))
+    quad(p, (0.14, 0.84, 0.1), (0.5, 0.84, 0.1), (0.5, 0.96, 0.2), (0.14, 0.96, 0.2), col=(0.89, 0.5, BOXED, CARTON))
+    quad(p, (0.5, 0.84, -0.28), (0.14, 0.84, -0.28), (0.14, 0.67, -0.31), (0.5, 0.67, -0.31), col=(0.89, 0.5, SODDEN, CARTON))
 
 
 # ---------------------------------------------------------------------------
@@ -709,11 +748,11 @@ def _aframe(k):
 
 @proto("pallets", box=(0.6, 0.38, 0.5), reach=220, detail=True)
 def _pallets(k):
-    """Four pallets stacked: their boards, and the dark between them."""
-    box(k("trim"), -0.57, 0.57, 0.0, 0.6, -0.47, 0.47, scale=1.0, col=(0.015, 0.012, 0.01, 1))
-    for i in range(4):
-        w = (0.2, 0.13, 0.07, 1) if i % 2 else (0.24, 0.16, 0.09, 1)
-        box(k("trim"), -0.6, 0.6, i * 0.15 + 0.1, i * 0.15 + 0.15, -0.5, 0.5, scale=1.0, col=w)
+    """Four pallets stacked, the top one askew: their boards and blocks, a
+    strap round the three under it, and the dark between them (the site
+    draws them)."""
+    carton(k, -0.6, 0.6, 0.0, 0.45, -0.5, 0.5, 0.3, TIMBER)
+    carton(k, -0.58, 0.62, 0.45, 0.6, -0.5, 0.5, 0.6, TIMBER, yaw=0.09)
 
 
 @proto("barrel", box=(0.31, 0.45, 0.31), reach=260, detail=True)
@@ -724,14 +763,16 @@ def _barrel(k):
 
 @proto("rubbish", box=(0.9, 0.3, 0.7), reach=220, detail=True)
 def _rubbish(k):
-    """A rubbish heap against a wall (its back at -z): a slumped mound, a
-    tied bag and a wet box on it, sheets loose in front."""
-    lathe(k("trim"), 0.0, -0.1, ((0.0, 0.6), (0.24, 0.42), (0.46, 0.12)), segs=6, col=(0.025, 0.024, 0.026, 1))
-    lathe(k("trim"), 0.45, 0.05, ((0.0, 0.26), (0.22, 0.3), (0.5, 0.05)), segs=5, col=(0.014, 0.016, 0.022, 1))
-    oriented_box(k("trim"), -0.45, 0.2, 0.15, 0.5, 0.4, 0.36, 0.5, scale=1.0, col=(0.2, 0.15, 0.09, 1))
-    for x, z, yaw in ((0.1, 0.56, 0.3), (-0.62, 0.5, -0.5)):
-        c, s_ = math.cos(yaw) * 0.14, math.sin(yaw) * 0.14
-        quad(k("trim"), (x - c, 0.012, z + s_ + 0.1), (x + c, 0.012, z - s_ + 0.1), (x + c, 0.012, z - s_ - 0.1), (x - c, 0.012, z + s_ - 0.1), col=(0.3, 0.3, 0.28, 1))
+    """A rubbish heap against a wall (its back at -z): a slumped mound of
+    what was swept there, a tied bag and a box on it, a carton trodden flat
+    and sheets of paper loose in front (the site draws them)."""
+    p = k("print")
+    turned(p, ((0.0, 0.6), (0.24, 0.42), (0.46, 0.12)), segs=7, col=(0.3, 0, 1, BAG), cz=-0.1, ends="t")
+    turned(p, ((0.0, 0.24), (0.2, 0.3), (0.42, 0.11), (0.48, 0.04), (0.54, 0.07)), segs=6, col=(0.6, 0, 0, BAG), cx=0.45, cz=0.05, ends="t")
+    carton(k, -0.7, -0.2, 0.0, 0.4, -0.03, 0.33, 0.4, yaw=0.5)
+    litter(k, 0.1, 0.56, 0.3, 0.21, 0.3, 0.2)
+    litter(k, -0.62, 0.5, 0.3, 0.21, -0.5, 0.7)
+    litter(k, 0.6, 0.42, 0.5, 0.34, 1.1, 0.5, SODDEN)
 
 
 @proto("food_cart", box=(1.0, 1.15, 0.6), reach=320)
