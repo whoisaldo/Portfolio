@@ -346,9 +346,12 @@ def build(AV, AVS, lane_w, lane_e):
             light(AVS, lx, 2.5, lz, hue, 6.0)
         # The corner's tall sign, on the diagonal.
         d = (-sx * 0.7071, -0.7071)
-        K.blade(AVS, (sx * WALK, -168.0), d, 11.0, "bl", gap=0.5, scale=1.9)
+        if sx > 0:
+            K.blade(AVS, (sx * WALK, -168.0), d, 11.0, "bl", gap=0.5, scale=1.9)
+        else:
+            K.st_id("bl")  # (the west corner's lower blade made way for the advert drum; the signs' names run on as they did)
         K.blade(AVS, (sx * WALK, -168.0), d, 19.5, "bx", gap=0.5, scale=1.9)
-        for yy in (6.4, 15.6):
+        for yy in (6.4, 15.6) if sx > 0 else (15.6,):
             pipe((AVS, "metal", 1), (sx * WALK, yy, -168.0), (sx * WALK + d[0] * 2.6, yy, -168.0 + d[1] * 2.6), 0.06, segs=4)
     # (The walk goes up the middle of the avenue's east pavement and on
     # across the plaza street: the east corner keeps that line clear.)
@@ -410,6 +413,12 @@ def build(AV, AVS, lane_w, lane_e):
                               (13.2, 55.0, -1.57, "lean"), (-13.2, 46.5, 1.57, "lean")):
         stand(x, z, yaw, pose, y=G0)
     south_fill(AVS)
+    # The street's two large forms: an advert drum on a column over the
+    # kiosk on junction B's south-west corner, and a canopy cantilevered
+    # over the south street's south pavement between its two lamp posts.
+    big = random.Random(7360)
+    advert_drum(AVS, -12.3, -170.1, big)
+    marquee(AVS, 57.5, 80.5, big)
 
 
 def more_signs(D, f, lots, rng, cap=26.0, clear=()):
@@ -525,3 +534,74 @@ def south_fill(D):
     # The arm's kerbs, south of the phone hero's frame.
     kerb_row(D, "z", 10.0, 1, ((36.5, "sit"), (41.0, "tree"), (56.0, "bench"), (71.0, "tree"), (75.5, "sit"), (59.0, "phone")), rng)
     kerb_row(D, "z", -10.0, -1, ((42.5, "bench"), (47.0, "tree"), (58.0, "sit"), (73.5, "tree"), (77.0, "bench"), (69.0, "smoke")), rng)
+
+
+def advert_drum(D, x, z, rng, y0=9.0, r=1.8, base=2.66):
+    """An advert drum on a column (the show's street corners carry them): a
+    steel column ringed with light, struts up to a short drum 9 to 12 m up,
+    two bands of adverts round it, three to a band, rings of light at the
+    bands' edges, its underside dark over the pavement's pools, a red lamp
+    on a mast on top."""
+    cylinder((D, "trim", 0), x, z, base, y0, 0.42, segs=10, col=K.STEEL, cap=False)
+    for yy, hue in ((4.2, "cyan"), (6.6, "pink")):
+        cylinder((D, "neon_" + hue, 0), x, z, yy, yy + 0.1, 0.45, segs=10, cap=False)
+    for k in range(4):
+        a = k * math.pi / 2 + 0.4
+        pipe((D, "metal", 1), (x + 0.4 * math.cos(a), y0 - 1.5, z + 0.4 * math.sin(a)), (x + (r - 0.3) * math.cos(a), y0, z + (r - 0.3) * math.sin(a)), 0.06, segs=4)
+    top = y0 + 3.0
+    n = 30
+
+    def at(a, y, rr=r):
+        return (x + rr * math.cos(a), y, z + rr * math.sin(a))
+    cylinder((D, "trim", 0), x, z, y0, top, r - 0.04, segs=n, col=B.DARK_TRIM)
+    for i in range(n):
+        a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
+        poly((D, "trim", 0), [(x, y0, z), at(a0, y0, r - 0.04), at(a1, y0, r - 0.04)], [(0.5, 0.5), (0, 0), (1, 0)], B.DARK_TRIM)
+    for yy, hue in ((y0 - 0.02, "pink"), (y0 + 1.3, "cyan"), (top - 0.08, "pink")):
+        cylinder((D, "neon_" + hue, 0), x, z, yy, yy + 0.1, r + 0.03, segs=n, cap=False)
+    for (ya, yb, phase) in ((y0 + 0.12, y0 + 1.26, 0.0), (y0 + 1.44, top - 0.12, math.pi / 3)):
+        for k in range(3):
+            col = (rng.randrange(8) / 8.0 + 0.01, rng.randrange(8) / 8.0 + 0.01, rng.random(), 1.0)
+            for j in range(n // 3):
+                lo = phase + (k * (n // 3) + j) * math.tau / n
+                hi = lo + math.tau / n
+                u_lo, u_hi = 1.0 - j / (n // 3), 1.0 - (j + 1) / (n // 3)
+                quad((D, "billboard", 0), at(hi, ya), at(lo, ya), at(lo, yb), at(hi, yb), uvs=((u_hi, 0), (u_lo, 0), (u_lo, 1), (u_hi, 1)), col=col)
+    cylinder((D, "metal", 1), x, z, top, top + 2.2, 0.05, segs=4, cap=False)
+    box((D, "glow", 0), x - 0.1, x + 0.1, top + 2.2, top + 2.42, z - 0.1, z + 0.1, scale=0.5, col=GLOW["red"])
+    for k, hue in enumerate(("pink", "cyan", "white", "pink", "cyan")):
+        a = k * math.tau / 5 + 0.6
+        light(D, x + 2.2 * math.cos(a), 2.5, z + 2.2 * math.sin(a), hue, 6.0)
+
+
+def marquee(D, x0, x1, rng, z_wall=12.0, out=4.4, y=4.8):
+    """A canopy cantilevered over the south street's south pavement, from
+    the fascias to the kerb: a dark slab hung on rods from the wall, strip
+    lights across its soffit and their pools on the pavement, a band of
+    light along its edge, boards standing on it turned to the street."""
+    zf = z_wall - out
+    box((D, "trim", 0), x0, x1, y, y + 0.3, zf, z_wall - 0.05, scale=1.0, col=B.DARK_TRIM, bottom=True)
+    box((D, "neon_cyan", 0), x0, x1, y + 0.03, y + 0.15, zf - 0.04, zf, scale=1.0)
+    box((D, "neon_pink", 0), x0, x1, y + 0.3, y + 0.36, zf, zf + 0.06, scale=1.0)
+    for xe in (x0 - 0.04, x1):
+        box((D, "neon_cyan", 0), xe, xe + 0.04, y + 0.03, y + 0.15, zf, z_wall - 0.4, scale=1.0)
+    n = round((x1 - x0) / 2.3)
+    for k in range(n):
+        x = x0 + (k + 0.5) * (x1 - x0) / n
+        box((D, "neon_white", 0), x - 0.07, x + 0.07, y - 0.04, y, zf + 0.5, z_wall - 0.7, scale=0.5, bottom=True)
+        if k % 2 == 0:
+            light(D, x, 2.6, zf + out / 2, rng.choice(("white", "cyan", "white", "pink")), 6.0)
+    m = round((x1 - x0) / 4.6)
+    for k in range(m + 1):
+        x = x0 + 0.3 + k * (x1 - x0 - 0.6) / m
+        pipe((D, "metal", 1), (x, y + 0.3, zf + 0.9), (x, y + 4.4, z_wall - 0.02), 0.05, segs=4)
+        box((D, "metal", 1), x - 0.12, x + 0.12, y + 0.3, y + 0.42, zf + 0.75, zf + 1.05, scale=0.5)
+    sw, sh = ST_SIZES["ps"][0] * 1.5, ST_SIZES["ps"][1] * 1.5
+    b = round((x1 - x0) / 5.6)
+    for k in range(b):
+        x = x0 + (k + 0.5) * (x1 - x0) / b + rng.uniform(-0.5, 0.5)
+        cy = y + 0.46 + sh / 2
+        box((D, "board_frame", 0), x - sw / 2 - 0.07, x + sw / 2 + 0.07, cy - sh / 2 - 0.07, cy + sh / 2 + 0.07, zf + 0.1, zf + 0.26, scale=1.0)
+        sid = K.st_id("ps")
+        K.st_face(D, sid, (x, cy, zf + 0.085), (-1.0, 0.0, 0.0), K.UP, sw, sh)
+        K.st_face(D, sid + "_b", (x, cy, zf + 0.275), (1.0, 0.0, 0.0), K.UP, sw, sh)
