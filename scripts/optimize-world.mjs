@@ -26,7 +26,7 @@
 // brief are asserted here, so a build that outgrows them fails loudly.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { NodeIO, PropertyType } from "@gltf-transform/core";
+import { NodeIO, Primitive, PropertyType } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, weld, meshopt, prune, textureCompress } from "@gltf-transform/functions";
 import { MeshoptEncoder } from "meshoptimizer";
@@ -51,6 +51,123 @@ await MeshoptEncoder.ready;
 const io = new NodeIO()
   .registerExtensions(ALL_EXTENSIONS)
   .registerDependencies({ "meshopt.encoder": MeshoptEncoder });
+
+// The core's long lists and its named signs, out of the JSON. A GLB's JSON
+// is text nobody compresses on the way (it is inside the file), a node with
+// a mesh costs about a kilobyte and a half of it before its first triangle,
+// and a number in an extra about five bytes. So, in the core only, after
+// everything else has been done to it:
+//
+//   the named signs (sign_<name>, ninety-odd quads, a node and a mesh each)
+//   become one mesh, `signs_named`, each sign's place in the list in its
+//   vertices' colour as the street's batches have it, with `names` and `wh`
+//   (each sign's width and height, metres) on the node. Every vertex is
+//   written where the site would have put it from the sign's own node, to
+//   the bit, and the list is in the order the nodes had: a sign's turn is
+//   its place in the site's atlas and the beat it flickers on;
+//
+//   the street signs' ids (signs_index: `ids`, st_<size>_<n> with _b for a
+//   back) become two numbers each on a mesh of points: `_ID`, n and then
+//   twice the size's place in `sizes` plus one for a back;
+//
+//   the people standing about (anchor_people: `stand`) become eight numbers
+//   each on a mesh of points: `_XZ`, x and then z in centimetres plus
+//   131072 as a low and a high 16 bits, and `_YAP`, y in centimetres, the
+//   yaw in thousandths of a radian, the pose and a zero.
+//
+// src/world/city.js reads them back (inflate, and the signs' unpack) into
+// what the builder wrote. A list that does not fit its numbers exactly is
+// left as it was, and the site reads either.
+async function compactCore(document) {
+  const root = document.getRoot();
+  const buffer = root.listBuffers()[0];
+  const accessor = (type, array, normalized = false) => document.createAccessor().setType(type).setArray(array).setNormalized(normalized).setBuffer(buffer);
+  const points = (node, attributes) => {
+    const prim = document.createPrimitive().setMode(Primitive.Mode.POINTS);
+    for (const [name, [type, array]] of Object.entries(attributes)) prim.setAttribute(name, accessor(type, array));
+    node.setMesh(document.createMesh(node.getName()).addPrimitive(prim));
+  };
+
+  const signs = root.listScenes()[0].listChildren().filter((n) => n.getName().startsWith("sign_") && n.getMesh());
+  if (signs.length) {
+    const first = signs[0].getMesh().listPrimitives()[0];
+    const like = (semantic) => first.getAttribute(semantic);
+    const position = [];
+    const color = [];
+    const index = [];
+    const normal = [];
+    const uv = [];
+    const wh = [];
+    signs.forEach((node, k) => {
+      const prim = node.getMesh().listPrimitives()[0];
+      for (const semantic of ["NORMAL", "TEXCOORD_0"]) {
+        const a = prim.getAttribute(semantic);
+        if (a.getComponentType() !== like(semantic).getComponentType() || a.getNormalized() !== like(semantic).getNormalized()) throw new Error(`${node.getName()}: its ${semantic} is not stored as the other signs' is`);
+      }
+      const m = node.getWorldMatrix();
+      const pos = prim.getAttribute("POSITION");
+      const base = position.length / 3;
+      for (let i = 0; i < pos.getCount(); i++) {
+        // As three.js puts a vertex through its node's matrix.
+        const [x, y, z] = pos.getElement(i, []);
+        position.push(m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]);
+        color.push(k % 256, Math.floor(k / 256), 0, 255);
+      }
+      normal.push(...prim.getAttribute("NORMAL").getArray());
+      uv.push(...prim.getAttribute("TEXCOORD_0").getArray());
+      index.push(...Array.from(prim.getIndices().getArray(), (i) => base + i));
+      wh.push(node.getExtras().w, node.getExtras().h);
+    });
+    const prim = document.createPrimitive()
+      .setMaterial(first.getMaterial())
+      .setIndices(accessor("SCALAR", new Uint16Array(index)))
+      .setAttribute("POSITION", accessor("VEC3", new Float32Array(position)))
+      .setAttribute("NORMAL", accessor(like("NORMAL").getType(), new (like("NORMAL").getArray().constructor)(normal), like("NORMAL").getNormalized()))
+      .setAttribute("TEXCOORD_0", accessor("VEC2", new (like("TEXCOORD_0").getArray().constructor)(uv), like("TEXCOORD_0").getNormalized()))
+      .setAttribute("COLOR_0", accessor("VEC4", new Uint8Array(color), true));
+    const batch = document.createNode("signs_named")
+      .setMesh(document.createMesh("signs_named").addPrimitive(prim))
+      .setExtras({ names: signs.map((n) => n.getName().slice(5)), wh });
+    root.listScenes()[0].addChild(batch);
+    for (const node of signs) node.dispose();
+  }
+
+  const signsIndex = root.listNodes().find((n) => n.getName() === "signs_index");
+  const ids = signsIndex?.getExtras().ids ?? [];
+  const sizes = [];
+  const codes = ids.map((id) => {
+    const m = /^st_([a-z]+)_(\d+)(_b)?$/.exec(id);
+    if (!m || +m[2] > 65535) return null;
+    if (!sizes.includes(m[1])) sizes.push(m[1]);
+    return [+m[2], sizes.indexOf(m[1]) * 2 + (m[3] ? 1 : 0)];
+  });
+  if (ids.length && codes.every(Boolean)) {
+    points(signsIndex, { _ID: ["VEC2", new Uint16Array(codes.flat())] });
+    signsIndex.setExtras({ ...signsIndex.getExtras(), ids: undefined, sizes });
+  }
+
+  const people = root.listNodes().find((n) => n.getName() === "anchor_people");
+  const stand = people?.getExtras().stand ?? [];
+  const xz = [];
+  const yap = [];
+  let exact = stand.length > 0;
+  for (let i = 0; i + 4 < stand.length; i += 5) {
+    const [x, y, z, yaw, pose] = stand.slice(i, i + 5);
+    const X = Math.round(x * 100) + 131072;
+    const Z = Math.round(z * 100) + 131072;
+    const Y = Math.round(y * 100);
+    const A = Math.round(yaw * 1000);
+    exact &&= (X - 131072) / 100 === x && (Z - 131072) / 100 === z && Y / 100 === y && A / 1000 === yaw && Number.isInteger(pose)
+      && X >= 0 && X < 262144 && Z >= 0 && Z < 262144 && Math.abs(Y) < 32768 && Math.abs(A) < 32768 && Math.abs(pose) < 32768;
+    xz.push(X % 65536, Math.floor(X / 65536), Z % 65536, Math.floor(Z / 65536));
+    yap.push(Y, A, pose, 0);
+  }
+  if (exact) {
+    points(people, { _XZ: ["VEC4", new Uint16Array(xz)], _YAP: ["VEC4", new Int16Array(yap)] });
+    people.setExtras({ ...people.getExtras(), stand: undefined });
+  }
+  await document.transform(prune({ keepLeaves: true, keepExtras: true, keepAttributes: true }));
+}
 
 await mkdir(OUT, { recursive: true });
 const sizes = {};
@@ -147,6 +264,7 @@ for (const [tier, opts] of Object.entries(TIERS)) for (const pack of PACKS) {
     textureCompress({ encoder: sharp, targetFormat: "webp", resize: [opts.size, opts.size], quality: opts.quality }),
     meshopt({ encoder: MeshoptEncoder, level: "high", quantizePosition: 16, quantizeNormal: 10, quantizeTexcoord: 14 }),
   );
+  if (pack === "core") await compactCore(document);
   const path = pack === "core" ? `${OUT}/world-${tier}.glb` : `${OUT}/world-${tier}-${pack}.glb`;
   await io.write(path, document);
   const size = (await stat(path)).size;

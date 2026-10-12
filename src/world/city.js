@@ -65,6 +65,29 @@ function lampPoints(flat = []) {
   return out;
 }
 
+/** The core's long lists come as vertices (scripts/optimize-world.mjs,
+ *  compactCore, where each layout is): back onto their nodes as the builder
+ *  wrote them, the street signs' ids and the people standing about. */
+function inflate(scene) {
+  const read = (name, to) => {
+    const o = scene.getObjectByName(name);
+    if (!o?.isPoints) return;
+    Object.assign(o.userData, to(o.geometry.attributes, o.userData));
+    o.visible = false;
+  };
+  read("signs_index", ({ _id }, { sizes }) => ({
+    ids: Array.from({ length: _id.count }, (_, i) => `st_${sizes[_id.getY(i) >> 1]}_${_id.getX(i)}${_id.getY(i) & 1 ? "_b" : ""}`),
+  }));
+  read("anchor_people", ({ _xz, _yap }) => {
+    const stand = [];
+    for (let i = 0; i < _xz.count; i++) {
+      stand.push((_xz.getX(i) + _xz.getY(i) * 65536 - 131072) / 100, _yap.getX(i) / 100, (_xz.getZ(i) + _xz.getW(i) * 65536 - 131072) / 100, _yap.getY(i) / 1000, _yap.getZ(i));
+    }
+    return { stand };
+  });
+  return scene;
+}
+
 export function preloadCity(tier) {
   if (!cache.has(tier)) {
     // The kit, and the rooms its shop windows look into.
@@ -72,7 +95,7 @@ export function preloadCity(tier) {
       new GLTFLoader()
         .setMeshoptDecoder(MeshoptDecoder)
         .loadAsync(worldModelUrl[tier], (e) => markBytes("city", e.loaded, e.total))
-        .then((gltf) => gltf.scene),
+        .then((gltf) => inflate(gltf.scene)),
       new THREE.TextureLoader().loadAsync(worldShopsUrl[tier]),
       preloadProps(tier),
     ])
@@ -119,6 +142,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const meshes = [];
   const protoMeshes = [];
   const signBatches = [];
+  let namedBatch = null;
   const pos = new THREE.Vector3();
   const quat = new THREE.Quaternion();
   const scl = new THREE.Vector3();
@@ -130,6 +154,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     if (!o.isMesh) return;
     if (o.name.startsWith("proto_")) protoMeshes.push(o);
     else if (o.name.startsWith("sign_")) signMeshes.push(o);
+    else if (o.name === "signs_named") namedBatch = o;
     else if (o.name.startsWith("ad_")) adMeshes.push(o);
     else if (/^NCW_sign(\.\d+)?$/.test(o.material?.name ?? "") && o.geometry.attributes.color) signBatches.push(o);
     else if (/^(board_|crown_|holo_figure|moon_disc|garage_door|garage_screen)/.test(o.name)) named[o.name] = o;
@@ -245,7 +270,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // face's index in signs_index's ids is in its vertices' colour, three
   // bytes. Cut back into a mesh per face, they are signs like any other.
   const streetIds = root.getObjectByName("signs_index")?.userData?.ids ?? [];
-  const unpack = (batches) => {
+  const unpack = (batches, ids = streetIds) => {
     const out = [];
     for (const batch of batches) {
       batch.updateWorldMatrix(true, false);
@@ -262,7 +287,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         byFace.get(id).push(v);
       }
       for (const [id, list] of byFace) {
-        const name = streetIds[id];
+        const name = ids[id];
         if (!name) continue;
         const verts = [...new Set(list)];
         const remap = new Map(verts.map((v, k) => [v, k]));
@@ -300,6 +325,18 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     }
     return out;
   };
+  // The signs with a name of their own come the same way, in one batch of
+  // their own (signs_named: `names`, and each one's width and height as the
+  // builder gave them): before the street's, in the builder's order.
+  if (namedBatch) {
+    const { names, wh } = namedBatch.userData;
+    const order = new Map(names.map((name, k) => ["sign_" + name, k]));
+    for (const m of unpack([namedBatch], names).sort((a, b) => order.get(a.name) - order.get(b.name))) {
+      const k = order.get(m.name);
+      m.userData = { w: wh[k * 2], h: wh[k * 2 + 1] };
+      signMeshes.push(m);
+    }
+  }
   const unpacked = unpack(signBatches);
   signMeshes.push(...unpacked);
 
