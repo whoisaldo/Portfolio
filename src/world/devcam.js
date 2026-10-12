@@ -48,6 +48,7 @@ export async function attachDevcam(world) {
   const order = graph.loop.order;
   const path = [];
   const halves = [];
+  const raised = [];
   order.forEach((id, i) => {
     const next = order[(i + 1) % order.length];
     for (const step of route(id, next)) {
@@ -64,6 +65,7 @@ export async function attachDevcam(world) {
         if (last && last.distanceTo(v) < 0.2) continue;
         path.push(v);
         halves.push(side);
+        raised.push(!!step.edge.elevated);
       }
     }
   });
@@ -102,8 +104,12 @@ export async function attachDevcam(world) {
     const dIn = dirOut[(i - 1 + ring) % ring];
     const dOut = dirOut[i];
     if (dIn.dot(dOut) < 0.5) {
+      // Round a street corner close by the building, 0.9 m in from the two
+      // lines' crossing: the kerb's side of a corner is where the signal
+      // masts, boxes and bins stand.
+      const tuck = raised[i] || raised[(i + 1) % ring] ? 0 : 0.9;
       corners.push(i);
-      raw.push(path[i].clone().addScaledVector(rightOf(dIn), halves[i]).addScaledVector(rightOf(dOut), halves[(i + 1) % ring]));
+      raw.push(path[i].clone().addScaledVector(rightOf(dIn), halves[i] + tuck).addScaledVector(rightOf(dOut), halves[(i + 1) % ring] + tuck));
     } else raw.push(path[i].clone().addScaledVector(rightOf(dOut), halves[i]));
   }
   // On the inside of a turn the points either side of the corner would
