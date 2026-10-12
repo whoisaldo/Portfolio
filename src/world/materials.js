@@ -897,6 +897,22 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             col = mix(col, light * 0.08, step(door, 0.72) * step(hit.y, 2.6) * 0.5);
             col += light * seam * 1.1;
             col += accent * (0.6 + 2.2 * tlit) * step(abs(hit.y - 4.3), 0.28);
+            // Behind the desk, the house's wall: a lit panel, its mark on
+            // it in the tower's colour (a broken ring, three bars, a
+            // diamond or two rings, by the tower), a line of lettering under.
+            vec2 w = vec2(hit.x - W * 0.5, hit.y - 4.45);
+            if (abs(w.x) < 3.1 && abs(w.y) < 1.45) {
+              vec2 k = w - vec2(0.0, 0.25);
+              float which = mod(float(ti), 4.0);
+              float r = length(k);
+              float mark = which < 0.5 ? step(abs(r - 0.52), 0.11) * step(0.16, abs(k.x - k.y) * 0.7) + step(r, 0.16)
+                         : (which < 1.5 ? step(abs(k.x), 0.54) * step(abs(fract(k.x / 0.36 + 0.5) - 0.5), 0.3) * step(-0.6, k.y) * step(k.y, -0.1 + 0.35 * floor(k.x / 0.36 + 1.5))
+                         : (which < 2.5 ? step(abs(abs(k.x) + abs(k.y) - 0.5), 0.12) + step(abs(k.x) + abs(k.y), 0.16)
+                         : step(abs(length(k - vec2(0.24, 0.0)) - 0.42), 0.09) + step(abs(length(k + vec2(0.24, 0.0)) - 0.42), 0.09)));
+              float name = step(abs(w.y + 0.92), 0.07) * step(abs(w.x), 1.5) * step(0.22, fract(w.x * 3.6)) * step(0.15, hash12(vec2(floor(w.x * 3.6), float(ti))));
+              col = mix(light * 0.78, accent * 0.55 + light * 0.02, clamp(mark + name, 0.0, 1.0));
+              col *= 1.0 - 0.6 * step(3.02, abs(w.x)) - 0.6 * step(1.39, abs(w.y));
+            }
           } else if (tm == ty && d.y > 0.0) {
             col = light * (0.34 + 1.05 * panels(hit.xz));
           } else if (tm == ty) {
@@ -907,14 +923,55 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           } else {
             col = light * (0.26 + 0.12 * smoothstep(0.0, H, hit.y));
           }
-          // The desk, mid-hall: its top's lit edge over a dark front.
+          // What stands in the hall, from the back of it forward, each a
+          // flat shape at its own depth (so they slide past each other as
+          // the eye moves along the glass). Whoever is on the desk
+          // tonight, head and shoulders over its top.
+          float hs = hash12(vec2(seed, 7.0));
+          float tr = 5.3 / d.z;
+          if (tr < tm) {
+            vec3 q = p + d * tr;
+            float fx = q.x - W * 0.5 - 2.2 * (hs - 0.5);
+            col = mix(col, col * 0.05, max(step(abs(fx), 0.25) * step(q.y, 1.5), step(length(vec2(fx, q.y - 1.67)), 0.12)));
+          }
+          // The desk, mid-hall: stone, a strip of the tower's colour let
+          // into its front, light under its foot and along its top, and
+          // two screens stood on it.
           float tdk = 4.6 / d.z;
           if (tdk < tm) {
             vec3 q = p + d * tdk;
-            if (abs(q.x - W * 0.5) < 3.6 && q.y < 1.1) {
-              col = light * 0.03 + accent * 0.4 * step(abs(q.y - 0.55), 0.05) + light * 1.2 * step(1.02, q.y);
-              tm = tdk;
+            float dx = q.x - W * 0.5;
+            if (abs(dx) < 3.6 && q.y < 1.1) {
+              col = light * (0.03 + 0.02 * step(0.04, fract(dx / 1.2))) + accent * 0.4 * step(abs(q.y - 0.55), 0.05) + light * 1.2 * step(1.02, q.y) + light * 0.7 * step(q.y, 0.06);
+            } else if (abs(abs(dx - 0.4) - 1.5) < 0.3 && abs(q.y - 1.36) < 0.2) {
+              col = light * 0.015;
             }
+          }
+          // Somebody at the desk, and somebody crossing the hall now and
+          // then, against the light.
+          for (int i = 0; i < 2; i++) {
+            float zf = i == 0 ? 4.1 : 3.0 + 0.9 * hash12(vec2(seed, 2.0));
+            float tf = zf / d.z;
+            if (tf >= tm) continue;
+            vec3 q = p + d * tf;
+            float fx = q.x - (i == 0 ? W * 0.5 + 2.4 - 4.4 * step(0.5, hs) : mix(-2.0, W + 2.0, fract(uTime * 0.035 + hash12(vec2(seed, 5.0)))));
+            float body = step(abs(fx), 0.22 - 0.05 * smoothstep(1.05, 1.45, q.y)) * step(q.y, 1.48);
+            col = mix(col, col * 0.06, max(body, step(length(vec2(fx, q.y - 1.63)), 0.11)));
+          }
+          // Seating by the glass at one end: two sofas, a low table with
+          // a lamp between them, and somebody sat waiting.
+          float ts = 2.9 / d.z;
+          if (ts < tm) {
+            vec3 q = p + d * ts;
+            float sx = hs < 0.5 ? q.x - 2.0 : W - 2.0 - q.x;
+            float sofa = abs(mod(sx, 2.7) - 1.1);
+            if (sx > 0.0 && sx < 4.9 && q.y < 0.86) {
+              if (sofa < 1.1) col = light * (0.035 + 0.1 * step(abs(q.y - 0.44), 0.02) + 0.16 * step(0.83, q.y)) + accent * 0.05;
+              else if (q.y < 0.4) col = light * 0.07;
+            }
+            if (abs(sx - 2.45) < 0.09 && abs(q.y - 0.62) < 0.2) col = vec3(1.0, 0.8, 0.5) * (1.3 - 2.0 * abs(q.y - 0.62));
+            float fx = sx - 0.9 - 2.7 * step(0.5, fract(hs * 7.0));
+            col = mix(col, col * 0.06, max(step(abs(fx), 0.21) * step(0.3, q.y) * step(q.y, 0.98), step(length(vec2(fx, q.y - 1.12)), 0.11)));
           }
           // Columns, two metres in.
           float tc = 2.0 / d.z;
@@ -923,16 +980,24 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float k = mod(q.x - W / 6.0, W / 3.0);
             if (min(k, W / 3.0 - k) < 0.42) col = light * (0.1 + 0.08 * smoothstep(0.0, H, q.y));
           }
-          // Somebody crossing it now and then, against the light.
-          float zf = 3.0 + 3.0 * hash12(vec2(seed, 2.0));
-          float tf = zf / d.z;
-          if (tf < tm) {
-            vec3 q = p + d * tf;
-            float walk = fract(uTime * 0.035 + hash12(vec2(seed, 5.0)));
-            float fx = q.x - mix(-2.0, W + 2.0, walk);
-            float body = step(abs(fx), 0.22 - 0.05 * smoothstep(1.05, 1.45, q.y)) * step(q.y, 1.48);
-            float head = step(length(vec2(fx, q.y - 1.63)), 0.11);
-            col = mix(col, col * 0.06, max(body, head));
+          // A plant in its tub at each end, against the glass.
+          float tp = 1.4 / d.z;
+          if (tp < tm) {
+            vec3 q = p + d * tp;
+            vec2 g = vec2(min(abs(q.x - 1.3), abs(q.x - W + 1.3)), q.y);
+            if (g.x < 1.1 && g.y < 2.5) {
+              float leaf = 0.0;
+              for (int i = 0; i < 5; i++) {
+                float a = (float(i) - 2.0) * 0.36 + 0.1 * sin(float(i) * 5.0 + seed);
+                vec2 tip = vec2(sin(a), cos(a)) * (1.25 + 0.3 * cos(float(i) * 3.0 + seed));
+                vec2 pa = g - vec2(0.0, 0.55);
+                float along = clamp(dot(pa, tip) / dot(tip, tip), 0.0, 1.0);
+                leaf = max(leaf, step(length(pa - tip * along), 0.1 * sin(along * 3.1) + 0.012));
+              }
+              // (Both sides of the stem: the tub's own half is mirrored.)
+              col = mix(col, light * vec3(0.03, 0.1, 0.05), leaf);
+              if (g.x < 0.3 && g.y < 0.55) col = light * (0.04 + 0.14 * step(0.52, g.y));
+            }
           }
           // The glass: its mullions every 2 m and its transom, and at a
           // glancing angle a little of the street.
