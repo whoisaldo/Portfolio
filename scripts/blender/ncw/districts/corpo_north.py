@@ -1157,6 +1157,77 @@ def median():
         K.bollard_light(xe, -330.0, bed_y, "amber", h=0.8, pool=3.0)
 
 
+def bridge():
+    """A footbridge over the boulevard at its west end, from the west
+    block's front to the corner lot across the street, a little askew: a
+    glazed tube on a trussed deck ten metres up, people crossing in it
+    under a line of warm light, a line of cyan along each edge of its
+    deck and of amber under its belly, three adverts standing on its roof
+    turned up the boulevard. (West of the first tower: the braindance's car
+    is past it before its camera reads the row, and the fixed camera's
+    lines down the row from junction I end short of it. It stands over the
+    Experience and street shots' lenses, out of both frames.)"""
+    zn, zs = LOT_N + 0.5, -316.5
+    cn, cs, hw = 130.6, 134.1, 2.1
+    ya, yf, yr, yt = 10.6, 11.0, 14.2, 14.6
+
+    def at(t, u=0.0, y=0.0):
+        return (cn + (cs - cn) * t + u, y, zn + (zs - zn) * t)
+
+    def slab(key, u0, u1, y0, y1, col, t0=0.0, t1=1.0):
+        a0, a1, b0, b1 = at(t0, u0), at(t0, u1), at(t1, u0), at(t1, u1)
+        quad(key, (a0[0], y0, a0[2]), (b0[0], y0, b0[2]), (b0[0], y1, b0[2]), (a0[0], y1, a0[2]), col=col)
+        quad(key, (b1[0], y0, b1[2]), (a1[0], y0, a1[2]), (a1[0], y1, a1[2]), (b1[0], y1, b1[2]), col=col)
+        quad(key, (b0[0], y1, b0[2]), (b1[0], y1, b1[2]), (a1[0], y1, a1[2]), (a0[0], y1, a0[2]), col=col)
+        quad(key, (a0[0], y0, a0[2]), (a1[0], y0, a1[2]), (b1[0], y0, b1[2]), (b0[0], y0, b0[2]), col=col)
+
+    paint = (0.06, 0.07, 0.09, 1.0)
+    slab(k("steel"), -hw, hw, ya, yf, paint)
+    slab(k("steel"), -hw - 0.15, hw + 0.15, yr, yt, paint)
+    # Its glass, each side one pane's height, and the truss in it.
+    for u in (-hw, hw):
+        a, b = at(0.0, u), at(1.0, u)
+        quad(k("clearglass"), (a[0], yf, a[2]), (b[0], yf, b[2]), (b[0], yr, b[2]), (a[0], yr, a[2]), col=(0.55, 0.85, 0.95, 1.0))
+        n = 8
+        for j in range(n + 1):
+            px, _, pz = at(j / n, u)
+            box(k("steel"), px - 0.08, px + 0.08, yf, yr, pz - 0.08, pz + 0.08, scale=1.0, col=paint)
+            if j < n:
+                qx, _, qz = at((j + 1) / n, u)
+                pipe(k("steel", 1), (px, yf if j % 2 else yr, pz), (qx, yr if j % 2 else yf, qz), 0.045, segs=4, col=paint)
+        # A line of cyan along the deck's edge, a rail inside the glass.
+        su = math.copysign(1.0, u)
+        slab(k("glow"), u + su * 0.0, u + su * 0.06, ya + 0.1, ya + 0.24, GLOW["cyan"]) if u > 0 else slab(k("glow"), u - 0.06, u, ya + 0.1, ya + 0.24, GLOW["cyan"])
+        a, b = at(0.0, u - su * 0.12), at(1.0, u - su * 0.12)
+        pipe(k("metal", 1), (a[0], yf + 1.0, a[2]), (b[0], yf + 1.0, b[2]), 0.03, segs=5)
+    amber = tuple(c * 0.7 for c in GLOW["amber"][:3]) + (1.0,)
+    slab(k("glow"), -0.14, 0.14, yr - 0.05, yr - 0.01, amber, 0.03, 0.97)
+    slab(k("glow"), -0.2, 0.2, ya - 0.05, ya - 0.01, tuple(c * 0.5 for c in GLOW["amber"][:3]) + (1.0,), 0.05, 0.95)
+    # Where it lands: a dark collar on each wall, struts under its ends.
+    box(k("trim"), cn - hw - 0.4, cn + hw + 0.4, ya - 0.3, yt + 0.3, LOT_N + 0.1, zn + 0.1, scale=1.0, col=K.BLACK)
+    box(k("trim"), cs - hw - 0.4, cs + hw + 0.4, ya - 0.3, yt + 0.3, zs - 0.1, -316.0, scale=1.0, col=K.BLACK)
+    for u in (-hw + 0.3, hw - 0.3):
+        pipe(k("steel"), (cn + u, ya - 2.6, LOT_N + 0.1), at(0.12, u, ya), 0.07, segs=5, col=paint)
+        pipe(k("steel"), (cs + u, ya - 2.6, -316.0), at(0.88, u, ya), 0.07, segs=5, col=paint)
+    # People crossing.
+    yaw = math.atan2(cs - cn, zs - zn)
+    for t, u, pose, turn in ((0.14, -0.6, "idle", 0.0), (0.3, 0.7, "phone", math.pi), (0.46, -1.5, "lean", math.pi / 2), (0.58, 0.3, "talk", 0.0),
+                             (0.61, 0.5, "talk", math.pi), (0.8, -0.4, "idle", math.pi), (0.9, 1.4, "lean", -math.pi / 2)):
+        px, _, pz = at(t, u)
+        stand(px, pz, yaw + turn, pose, yf)
+    # Adverts on its roof, turned up the boulevard, their backs to the junction.
+    r = random.Random(7795)
+    east = yaw + math.pi / 2
+    for t, w in ((0.2, 6.0), (0.5, 7.4), (0.8, 6.0)):
+        px, _, pz = at(t, hw - 0.5)
+        K.screen(px, yt + 1.25, pz, w, 1.9, east, r, depth=0.18, back=True, pal=K.COLD)
+        for du in (-w / 2 + 0.5, w / 2 - 0.5):
+            box(k("metal", 1), px + math.cos(east) * du - 0.05, px + math.cos(east) * du + 0.05, yt, yt + 0.4, pz - math.sin(east) * du - 0.05, pz - math.sin(east) * du + 0.05, scale=0.5)
+    for t in (0.0, 1.0):
+        px, _, pz = at(t)
+        K.aviation(px, yt + 0.3, pz)
+
+
 def gantry(gx):
     """A lane gantry over the eastbound carriageway (mH2wmyeiIpA@182): a
     steel mast at the south kerb's edge, clear of the walkers' lines, a
@@ -1292,6 +1363,7 @@ room()
 server_wall()
 gaps()
 median()
+bridge()
 for _gx in GANTRY_X:
     gantry(_gx)
 gantry_paving(GANTRY_X[0])
