@@ -227,14 +227,23 @@ export function createNav({ x0, z0, tw, th, tiles: list, stats }) {
     /**
      * Move the circle at p (x, z, radius r, standing at height y) off every
      * column `bit` cannot stand on. `tol` is how far from y a column's floor
-     * may be; with `grow` it widens with the column's distance from the
-     * centre's own (a stair two columns ahead is two steps up). Returns
-     * true if it was touching; p.nx, p.nz is then the way it was pushed.
+     * may be. Returns 0 if it touched nothing, 1 if it was touching and is
+     * now clear (p.nx, p.nz is the way it was pushed), 2 if it could not be
+     * got clear (between two things closer together than it is wide).
+     *
+     * `feet` is how a walker is held. The map is drawn generously (a column
+     * counts as a wall if a wall touches it at all), which is right for a
+     * car and too much for a person: a stair 0.9 m wide between two rails
+     * leaves two columns in the map. So for feet a column in the way is its
+     * middle, not its whole square (a wall is then where it is to within an
+     * eighth of a metre either way), and the height a column's floor may
+     * be at widens with its distance from the feet's own column (a stair
+     * two columns ahead is two steps up).
      */
-    resolve(p, r, y, bit, tol = 0.5, grow = false) {
-      let touched = false;
+    resolve(p, r, y, bit, tol = 0.5, feet = false) {
+      let touched = 0;
       const rc = r * inv;
-      for (let pass = 0; pass < 6; pass++) {
+      for (let pass = 0; pass < 7; pass++) {
         const cx = (p.x - x0) * inv;
         const cz = (p.z - z0) * inv;
         const ci = Math.floor(cx);
@@ -246,13 +255,13 @@ export function createNav({ x0, z0, tw, th, tiles: list, stats }) {
         let wz = 0;
         for (let k = Math.floor(cz - rc); k <= k1; k++) {
           for (let i = Math.floor(cx - rc); i <= i1; i++) {
-            const qx = cx < i ? i : cx > i + 1 ? i + 1 : cx;
-            const qz = cz < k ? k : cz > k + 1 ? k + 1 : cz;
+            const qx = feet ? i + 0.5 : cx < i ? i : cx > i + 1 ? i + 1 : cx;
+            const qz = feet ? k + 0.5 : cz < k ? k : cz > k + 1 ? k + 1 : cz;
             const dx = cx - qx;
             const dz = cz - qz;
             const d2 = dx * dx + dz * dz;
             if (d2 >= rc * rc) continue;
-            const n = grow ? Math.max(1, Math.abs(i - ci), Math.abs(k - ck)) : 1;
+            const n = feet ? Math.max(1, Math.abs(i - ci), Math.abs(k - ck)) : 1;
             const h = floorAt(i, k, y, bit, tol * n);
             if (h === h) continue;
             if (d2 > 1e-10) {
@@ -275,12 +284,13 @@ export function createNav({ x0, z0, tw, th, tiles: list, stats }) {
             }
           }
         }
-        if (worst <= 1e-4) break;
+        if (worst <= 1e-4) return touched;
+        if (pass === 6) return 2;
         p.x += wx * worst * CELL;
         p.z += wz * worst * CELL;
         p.nx = wx;
         p.nz = wz;
-        touched = true;
+        touched = 1;
       }
       return touched;
     },
@@ -288,8 +298,9 @@ export function createNav({ x0, z0, tw, th, tiles: list, stats }) {
     air(x, y, z, margin = 0.25) {
       return airAt(col(x, x0), col(z, z0), y, margin);
     },
-    /** Whether a circle of radius r at (x, z, y) is clear of everything. */
-    fits(x, z, r, y, bit, tol = 0.5) {
+    /** Whether a circle of radius r at (x, z, y) is clear of everything
+     *  (`feet` as in `resolve`). */
+    fits(x, z, r, y, bit, tol = 0.5, feet = false) {
       const rc = r * inv;
       const cx = (x - x0) * inv;
       const cz = (z - z0) * inv;
@@ -297,8 +308,8 @@ export function createNav({ x0, z0, tw, th, tiles: list, stats }) {
       const k1 = Math.floor(cz + rc);
       for (let k = Math.floor(cz - rc); k <= k1; k++) {
         for (let i = Math.floor(cx - rc); i <= i1; i++) {
-          const qx = cx < i ? i : cx > i + 1 ? i + 1 : cx;
-          const qz = cz < k ? k : cz > k + 1 ? k + 1 : cz;
+          const qx = feet ? i + 0.5 : cx < i ? i : cx > i + 1 ? i + 1 : cx;
+          const qz = feet ? k + 0.5 : cz < k ? k : cz > k + 1 ? k + 1 : cz;
           if ((cx - qx) * (cx - qx) + (cz - qz) * (cz - qz) >= rc * rc) continue;
           const h = floorAt(i, k, y, bit, tol);
           if (h !== h) return false;

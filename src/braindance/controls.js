@@ -77,7 +77,7 @@ export function useControls(engineRef, on) {
           return;
         }
         // The transport is the recording's, and the recording is down.
-        if (key === " " || key === "q" || key === "Q" || key === "e" || key === "E" || key === "f" || key === "F" || key === "r" || key === "R") {
+        if (key === " " || key === "q" || key === "Q" || key === "e" || key === "E" || key === "f" || key === "F" || key === "r" || key === "R" || key === "ArrowLeft" || key === "ArrowRight") {
           handled();
           return;
         }
@@ -166,13 +166,19 @@ export function useControls(engineRef, on) {
       if (roam?.on && roam.key(event.code, false)) event.preventDefault();
     };
     const onBlur = () => engine()?.roam?.release();
+    // On foot a click on the city holds the mouse (pointer lock); the
+    // browser lets it go on Esc, and the store is told either way.
+    const onLock = () => set({ locked: Boolean(document.pointerLockElement) });
     document.addEventListener("keydown", onKey);
     document.addEventListener("keyup", onKeyUp);
+    document.addEventListener("pointerlockchange", onLock);
     window.addEventListener("blur", onBlur);
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("keyup", onKeyUp);
+      document.removeEventListener("pointerlockchange", onLock);
       window.removeEventListener("blur", onBlur);
+      if (document.pointerLockElement) document.exitPointerLock?.();
     };
   }, [engineRef, on]);
 }
@@ -191,12 +197,26 @@ export function pointerHandlers(engineRef) {
       const e = engineRef.current;
       // A press on a clue scans it; anywhere else it grabs the view.
       down = { x: event.clientX, y: event.clientY, scanning: Boolean(bd.hover) };
-      event.currentTarget.setPointerCapture?.(event.pointerId);
+      // On foot, a click that is not a scan holds the mouse for looking
+      // (Esc lets it go). Held, a click only scans.
+      if (bd.roam === "walk" && bd.mode !== "photo" && !document.pointerLockElement && !down.scanning) {
+        try {
+          const asked = event.currentTarget.requestPointerLock?.();
+          asked?.catch?.(() => {});
+        } catch {
+          // No lock here: a drag looks instead.
+        }
+      }
+      if (!document.pointerLockElement) event.currentTarget.setPointerCapture?.(event.pointerId);
       e?.press(true);
       if (!down.scanning) e?.hold(true);
     },
     onPointerMove(event) {
       const e = engineRef.current;
+      if (document.pointerLockElement) {
+        e?.look(event.movementX, event.movementY);
+        return;
+      }
       const [x, y] = toNdc(event);
       if (!down || !down.scanning) e?.pointer(x, y, true);
       if (!down || down.scanning) return;
@@ -208,7 +228,7 @@ export function pointerHandlers(engineRef) {
     },
     onPointerUp(event) {
       down = null;
-      event.currentTarget.releasePointerCapture?.(event.pointerId);
+      if (!document.pointerLockElement) event.currentTarget.releasePointerCapture?.(event.pointerId);
       engineRef.current?.press(false);
       engineRef.current?.hold(false);
     },

@@ -662,6 +662,20 @@ kbd {
 .bd-roam-side { margin-left: auto; display: flex; align-items: center; gap: 0.4rem; }
 .bd-roam-layers { display: flex; gap: 0.9rem; }
 .bd-roam .bd-roam-out { margin-left: 0.9rem; }
+/* On foot: the eye's mark while the mouse is held, where a scan lands. */
+.bd-look.is-walk { cursor: pointer; }
+.bd-look.is-walk.is-scan { cursor: crosshair; }
+.bd-cross {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border: 1px solid var(--bd-volt);
+  transform: rotate(45deg);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+}
 /* The radio and the ? sit just over the bar, which is shorter than the timeline. */
 .bd-hud.is-roam .bd-radio, .bd-hud.is-roam .bd-help-btn { bottom: 5.6rem; }
 .bd-hud.is-roam .bd-help { bottom: 8.1rem; }

@@ -73,8 +73,9 @@ export default function Hud({ engineRef }) {
   const roaming = state.roam !== "off";
   return (
     <>
-      <div className={`bd-look ${state.mode === "edit" ? "is-edit" : ""} ${state.hover ? "is-scan" : ""}`} {...handlers} aria-hidden="true" />
+      <div className={`bd-look ${state.mode === "edit" ? "is-edit" : ""} ${state.hover ? "is-scan" : ""} ${state.roam === "walk" ? "is-walk" : ""}`} {...handlers} aria-hidden="true" />
       <div className={`bd-hud ${state.hud ? "" : "is-hidden"} ${state.mode === "photo" ? "is-photo" : ""} ${roaming ? "is-roam" : ""}`}>
+        {state.locked && <span className="bd-cross" aria-hidden="true" />}
         <Markers engineRef={engineRef} />
         {!roaming && <TitleCard />}
         <Header />

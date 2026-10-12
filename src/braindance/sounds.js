@@ -242,7 +242,7 @@ export function createSounds(audio) {
     update(dt, { car, cam, fwd, playing, rate = 1, beaconAt: roof }) {
       live += ((playing ? 1 : 0) - live) * Math.min(1, dt * 10);
       setListener(cam, fwd);
-      place(panner, car.x, 0.6, car.z);
+      place(panner, car.x, (car.y ?? 0) + 0.6, car.z);
       const v = Math.abs(car.v) * rate;
       const accel = dt > 0 ? (v - lastV) / dt : 0;
       lastV = v;
@@ -256,7 +256,10 @@ export function createSounds(audio) {
       const load = Math.min(1, Math.max(0, 0.25 + accel * 0.08));
       engineTone.frequency.setTargetAtTime(380 + rpm * 0.18 + load * 900, t, 0.08);
       whineG.gain.setTargetAtTime((0.012 + Math.min(1, rpm / 5000) * 0.03) * live, t, 0.1);
-      tyreG.gain.setTargetAtTime(Math.min(0.12, v * 0.006) * live, t, 0.1);
+      // (Free roam's car can go sideways: the tyres say so.)
+      const scrub = Math.min(1, Math.abs(car.slide ?? 0) / 6);
+      tyreG.gain.setTargetAtTime(Math.min(0.2, v * 0.006 + scrub * 0.1) * live, t, 0.1);
+      tyreTone.frequency.setTargetAtTime(900 + scrub * 700, t, 0.1);
       carBus.gain.setTargetAtTime(0.9 * live, t, 0.05);
       // The rain: louder down in the street, a hush when paused.
       const street = 1 - Math.min(1, Math.max(0, (cam.y - 4) / 40));
@@ -317,6 +320,11 @@ export function createSounds(audio) {
     },
     cut() {
       burst(0.09, 0.025, 3000);
+    },
+    /** The car against something, 0..1 by how hard (free roam). */
+    thud(k) {
+      burst(0.16, 0.03 + 0.08 * k, 190);
+      blip(70, 0.12, "sine", 0.03 + 0.07 * k, 0.6);
     },
     tick() {
       blip(1600, 0.03, "square", 0.015);

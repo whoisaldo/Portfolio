@@ -3,9 +3,15 @@
 // The braindance plays a recorded drive. This is the same city with the
 // tape stopped and the keys handed over: the S4 at the foot of the avenue
 // (spawn_drive in the builder's anchors.json), to drive round the loop and
-// every street, and to get out of and walk. The engine
+// every street (vehicle.js, chase.js), and to get out of and walk
+// (walker.js), all of it on the map nav.js makes of the city. The engine
 // (src/braindance/engine.js) still owns the frame: each one it asks this
 // module where the car and the camera are, and draws.
+//
+// F gets out of the car (at a standstill, on the driver's side if there is
+// room there) and back into it from beside it. R is the way out of any
+// corner: the car set down on the nearest lane of the road graph, facing
+// along it, with the player in it.
 //
 // Its own chunk, fetched the first time free roam is asked for, with the
 // builder's exports (the anchors, the road graph, the districts) fetched
@@ -13,7 +19,10 @@
 import * as THREE from "three";
 import { bd, set } from "../store.js";
 import { clamp } from "../../world/shots.js";
-import { buildInWorker, gatherKit, solidBoxes } from "./nav.js";
+import { buildInWorker, gatherKit, solidBoxes, CAR, WALK } from "./nav.js";
+import { createVehicle } from "./vehicle.js";
+import { createChase } from "./chase.js";
+import { createWalker, BODY } from "./walker.js";
 
 // The builder's exports, beside the kit's GLBs. Asked for afresh each visit
 // (a conditional request: a rebuilt city never meets a stale map of itself).
@@ -22,7 +31,6 @@ const exported = (name) => fetch(`${import.meta.env?.BASE_URL || "/"}scenes/worl
   return r.json();
 });
 
-const DEG = Math.PI / 180;
 // The keys roam holds, by code (so W A S D are where they are on any
 // layout).
 const HELD = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "ShiftLeft", "ShiftRight"]);
@@ -102,55 +110,110 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   nav.stats.main = main;
 
   // ---- the player --------------------------------------------------------
-  // The S4: where its wheels stand, which way it points (0 faces +z, as the
-  // kit's yaw), its speed along its nose.
-  const car = { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, v: 0, steer: 0, ds: 0, brake: 0, reverse: 0, cut: true };
-  const place = () => {
-    car.x = spawn.at[0];
-    car.y = spawn.at[1];
-    car.z = spawn.at[2];
-    car.heading = spawn.yaw ?? Math.PI;
-    car.pitch = car.roll = car.v = car.steer = car.ds = 0;
-    car.cut = true;
-  };
-
-  // ---- the camera --------------------------------------------------------
-  // Behind and above the car, looking past its roof down the road. A drag
-  // swings it round the car and lets go back to behind.
-  const chase = { yaw: 0, pitch: 12 * DEG, yawGoal: 0, pitchGoal: 12 * DEG, radius: 7.2, held: false, idle: 0 };
-  const _at = new THREE.Vector3();
-  const chasePose = (dt, pose) => {
-    const a = 1 - Math.exp(-dt * 8);
-    chase.yaw += (chase.yawGoal - chase.yaw) * (dt > 0 ? a : 1);
-    chase.pitch += (chase.pitchGoal - chase.pitch) * (dt > 0 ? a : 1);
-    // Let go, and after a moment it comes back round behind the car.
-    chase.idle = chase.held ? 0 : chase.idle + dt;
-    if (!chase.held && chase.idle > 1.6 && bd.mode !== "photo") {
-      chase.yawGoal *= Math.exp(-dt * 2.2);
-      chase.pitchGoal += (12 * DEG - chase.pitchGoal) * (1 - Math.exp(-dt * 2.2));
-    }
-    const yaw = car.heading + Math.PI + chase.yaw;
-    _at.set(car.x, car.y + 1.05, car.z);
-    pose.position.set(
-      _at.x + Math.sin(yaw) * Math.cos(chase.pitch) * chase.radius,
-      _at.y + Math.sin(chase.pitch) * chase.radius,
-      _at.z + Math.cos(yaw) * Math.cos(chase.pitch) * chase.radius,
-    );
-    pose.position.y = Math.max(car.y + 0.4, pose.position.y);
-    pose.target.copy(_at);
-    pose.fov = 55;
-    pose.shift = 0;
-  };
-
-  let on = false;
+  // The S4 (vehicle.js): where its wheels stand, which way it points (0
+  // faces +z, as the kit's yaw), its speed along its nose.
+  const vehicle = createVehicle(nav);
+  const car = vehicle.car;
+  const chase = createChase(nav, { reduced });
+  const feet = createWalker(nav, { reduced });
+  const walker = feet.w;
+  const input = { throttle: 0, brake: 0, steer: 0, hand: false };
+  const parked = { throttle: 0, brake: 0, steer: 0, hand: true };
+  const stride = { ahead: 0, side: 0, run: false };
   const keys = new Set();
+  const held = (...codes) => codes.some((c) => keys.has(c));
+  let on = false;
+  // "drive" or "walk" (the store's `roam` while on).
+  let mode = "drive";
+
+  // Every lane of the road graph as places a car can be put down on: a
+  // point a metre, with the way the lane runs. R sets the car on the
+  // nearest (its own level first: on the deck that is the deck).
+  const lanes = [];
+  for (const edge of graph.edges) {
+    const pts = edge.points;
+    const northSouth = Math.abs(pts[pts.length - 1][0] - pts[0][0]) < 0.01;
+    for (const lane of edge.lanes) {
+      const ahead = lane.toward === edge.to ? 1 : -1;
+      for (let n = 0; n < pts.length; n++) {
+        const a = pts[Math.max(0, n - 1)];
+        const b = pts[Math.min(pts.length - 1, n + 1)];
+        lanes.push({
+          x: pts[n][0] + (northSouth ? lane.offset : 0),
+          y: pts[n][1],
+          z: pts[n][2] + (northSouth ? 0 : lane.offset),
+          heading: Math.atan2((b[0] - a[0]) * ahead, (b[2] - a[2]) * ahead),
+        });
+      }
+    }
+  }
+  const stands = (lane) => {
+    const fx = Math.sin(lane.heading);
+    const fz = Math.cos(lane.heading);
+    return vehicle.CIRCLES.every(([d, side, r]) => nav.fits(lane.x + fx * d - fz * side, lane.z + fz * d + fx * side, r + 0.1, lane.y, CAR, 0.6));
+  };
+  const nearestLane = (x, y, z) => {
+    let best = null;
+    let bestD = Infinity;
+    for (const lane of lanes) {
+      const dy = (lane.y - y) * 4;
+      const d = (lane.x - x) * (lane.x - x) + (lane.z - z) * (lane.z - z) + dy * dy;
+      if (d < bestD && stands(lane)) {
+        bestD = d;
+        best = lane;
+      }
+    }
+    return best;
+  };
+  // The glitch a jump lands with (a reset), for the engine's frame.
+  let jolt = 0;
+  const drive = () => {
+    mode = "drive";
+    chase.reset();
+    if (document.pointerLockElement) document.exitPointerLock?.();
+    set({ roam: "drive", locked: false });
+  };
+  // R: the car on the nearest lane to wherever the player is, and the
+  // player in it.
+  const reset = () => {
+    const from = mode === "walk" ? walker : car;
+    const lane = nearestLane(from.x, from.y, from.z);
+    if (!lane) return;
+    vehicle.place(lane.x, lane.z, lane.heading, lane.y);
+    drive();
+    jolt = reduced ? 0 : 0.7;
+  };
+  // F. Out: beside the driver's door (the left), else the other side, the
+  // tail, the nose, else the nearest clear ground. In: from within reach.
+  const REACH = 3.6;
+  const nearCar = () => Math.hypot(walker.x - car.x, walker.z - car.z) < REACH && Math.abs(walker.y - car.y) < 1.5;
+  const toggleCar = () => {
+    if (mode === "drive") {
+      if (Math.abs(car.v) > 2) return;
+      const fx = Math.sin(car.heading);
+      const fz = Math.cos(car.heading);
+      const spots = [[fz * 1.75, -fx * 1.75], [-fz * 1.75, fx * 1.75], [-fx * 3.2, -fz * 3.2], [fx * 3.2, fz * 3.2]].map(([dx, dz]) => ({ x: car.x + dx, z: car.z + dz }));
+      let spot = spots.find((s) => {
+        const h = nav.floor(s.x, s.z, car.y, WALK, 0.6);
+        return h === h && nav.fits(s.x, s.z, BODY + 0.05, h, WALK, 0.42);
+      });
+      spot ??= nav.nearest(car.x, car.z, car.y, WALK, BODY + 0.05, 8, 0.6);
+      if (!spot || !feet.place(spot.x, spot.z, car.heading, car.y)) return;
+      mode = "walk";
+      jolt = reduced ? 0 : 0.5;
+      set({ roam: "walk" });
+    } else if (nearCar()) {
+      drive();
+      jolt = reduced ? 0 : 0.5;
+    }
+  };
 
   // ---- the city, with no recording to time it ---------------------------------
   // The plaza's board flips through its entries on roam's own clock, corpo
   // row stands lit, and the garage's door goes up for whoever comes to it
   // and its tubes strike once they are inside.
   let clock = 0;
-  const bay = parts.city.anchors.get("anchor_garage_bay")?.position ?? new THREE.Vector3(462, 0, -215);
+  const bay = bayAt ?? new THREE.Vector3(462, 0, -215);
   const garage = { door: 0 };
   const cityFrame = (dt, spec, x, z) => {
     clock += dt;
@@ -164,24 +227,28 @@ export async function createRoam({ parts, world, reduced = false, city = { board
 
   return {
     car,
+    walker,
     nav,
     graph,
+    vehicle,
+    feet,
     get on() {
       return on;
     },
     /** Into the S4 at the foot of the avenue. */
     enter() {
       on = true;
-      place();
-      chase.yaw = chase.yawGoal = 0;
-      chase.pitch = chase.pitchGoal = 12 * DEG;
-      chase.radius = 7.2;
-      set({ roam: "drive", district: districtAt(car.x, car.z), prompt: "out" });
+      keys.clear();
+      vehicle.place(spawn.at[0], spawn.at[2], spawn.yaw ?? Math.PI, spawn.at[1]);
+      mode = "drive";
+      chase.reset();
+      set({ roam: "drive", district: districtAt(car.x, car.z), prompt: "" });
     },
     /** The car goes back to the recording. */
     leave() {
       on = false;
       keys.clear();
+      if (document.pointerLockElement) document.exitPointerLock?.();
       parts.car?.endFree();
       set({ roam: "off", district: "", prompt: "", locked: false });
     },
@@ -189,48 +256,99 @@ export async function createRoam({ parts, world, reduced = false, city = { board
      * One frame: step the player, put the S4 there, and write what the
      * engine draws with: the camera's `pose`, and into `spec` the car's
      * place, heading and speed (the scanner, the sound and the HUD read
-     * them) and how much of the wet road's mirror the camera sees.
+     * them), how much of the wet road's mirror the camera sees, the roll
+     * of a knock and the glitch of a reset.
      */
     frame(dt, spec, pose) {
       // Photo mode holds the moment.
-      const step = bd.mode === "photo" ? 0 : dt;
-      car.ds = 0;
+      const still = bd.mode === "photo";
+      const step = still ? 0 : dt;
+      const afoot = mode === "walk";
+      const ahead = (held("KeyW", "ArrowUp") ? 1 : 0) - (held("KeyS", "ArrowDown") ? 1 : 0);
+      const left = (held("KeyA", "ArrowLeft") ? 1 : 0) - (held("KeyD", "ArrowRight") ? 1 : 0);
+      if (afoot) {
+        // The car waits where it was left, brake on.
+        vehicle.step(step, parked);
+        stride.ahead = ahead;
+        stride.side = -left;
+        stride.run = held("ShiftLeft", "ShiftRight");
+        feet.step(step, stride);
+        feet.pose(pose);
+      } else {
+        input.throttle = ahead > 0 ? 1 : 0;
+        input.brake = ahead < 0 ? 1 : 0;
+        input.steer = left;
+        input.hand = keys.has("Space");
+        vehicle.step(step, input);
+        if (car.knock > 2.5) chase.knock(car.knock);
+        spec.roll = chase.frame(dt, car, pose, still);
+      }
       parts.car?.free(step, car);
       car.cut = false;
-      chasePose(dt, pose);
+      spec.afoot = afoot;
       spec.carPosition.set(car.x, car.y, car.z);
       spec.carHeading = car.heading;
       spec.car.v = car.v;
-      spec.mirror = 1 - clamp((pose.position.y - 6) / 22, 0, 1);
-      cityFrame(step, spec, car.x, car.z);
-      const label = districtAt(car.x, car.z);
+      const who = afoot ? walker : car;
+      spec.mirror = 1 - clamp((pose.position.y - who.y - 6) / 22, 0, 1);
+      spec.glitch = jolt > 0.02 ? jolt : 0;
+      jolt *= Math.exp(-dt * 7);
+      cityFrame(step, spec, who.x, who.z);
+      const label = districtAt(who.x, who.z);
       if (label !== bd.district) set({ district: label });
-      return step;
+      const prompt = afoot ? (nearCar() ? "in" : "") : Math.abs(car.v) <= 2 ? "out" : "";
+      if (prompt !== bd.prompt) set({ prompt });
     },
-    /** A key down or up, by its code. True if it was one of roam's. */
-    key(code, down) {
+    /**
+     * A key down or up, by its code. True if it was one of roam's: the
+     * keys it holds (see HELD), R (the car back on the nearest road) and F
+     * (out of the car, or into it).
+     */
+    key(code, down, repeat = false) {
+      if (code === "KeyR" || code === "KeyF") {
+        if (down && !repeat) (code === "KeyR" ? reset : toggleCar)();
+        return true;
+      }
       if (!HELD.has(code)) return false;
       if (down) keys.add(code);
       else keys.delete(code);
+      return true;
+    },
+    reset,
+    toggleCar,
+    /** The car put down at (x, z) facing `heading` (the playtest's routes
+     *  begin where it sets it). */
+    setDown(x, z, heading, y = 0) {
+      vehicle.place(x, z, heading, y);
+      drive();
+    },
+    /** The same on foot. False if there is no ground there. */
+    standAt(x, z, yaw, y = 0) {
+      if (!feet.place(x, z, yaw, y)) return false;
+      mode = "walk";
+      set({ roam: "walk" });
       return true;
     },
     /** Every key let go (the window lost the keyboard). */
     release() {
       keys.clear();
     },
-    /** A drag on the city: swing the camera round the car. */
+    /** A drag on the city: swing the camera round the car, or on foot
+     *  turn the head (the way the mouse goes). */
     drag(dx, dy) {
-      chase.yawGoal -= dx * 0.005;
-      chase.pitchGoal = clamp(chase.pitchGoal + dy * 0.004, 2 * DEG, 50 * DEG);
-      chase.idle = 0;
+      if (mode === "walk") feet.look(dx * 1.6, dy * 1.6);
+      else chase.drag(dx, dy);
     },
-    hold(held) {
-      chase.held = held;
+    /** The held mouse (pointer lock): the head, on foot. */
+    look(dx, dy) {
+      if (mode === "walk") feet.look(dx, dy);
+    },
+    hold(isHeld) {
+      chase.hold(isHeld);
     },
     zoom(delta) {
-      chase.radius = clamp(chase.radius * Math.exp(delta * 0.001), 4.5, 14);
+      chase.zoom(delta);
     },
-    reduced,
     dispose() {
       if (on) parts.car?.endFree();
       on = false;

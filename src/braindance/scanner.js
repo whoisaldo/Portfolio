@@ -11,7 +11,8 @@
 // In free roam (`spec.free`, src/braindance/roam) the recording is down and
 // its windows with it: whatever stands in the world is there to be found
 // from the car or on foot, the board's entries each while the board shows
-// it, the holocall once it has come in. Marks and the pointer then reach
+// it, the holocall once it has come in, the car's own parts once the player
+// is out of it and can walk round it. Marks and the pointer then reach
 // only as far as a thing's size carries (REACH), so a phone two streets off
 // is not marked through the walls between.
 import * as THREE from "three";
@@ -145,7 +146,8 @@ export function createScanner({ parts, recording, layers, holocall = null }) {
       const s = state.get(c.id);
       const [t0, t1] = c.place.at;
       const timed = t >= t0 && t <= t1;
-      s.active = !free ? timed : c.place.board !== undefined ? spec.board === c.place.board : c.place.box.holo ? timed : true;
+      // (The car's own parts only once the player has got out of it.)
+      s.active = !free ? timed : c.place.board !== undefined ? spec.board === c.place.board : c.place.box.holo ? timed : c.place.box.car ? Boolean(spec.afoot) : true;
       if (!s.active) continue;
       placeBox(c, s.box);
       if (s.box.isEmpty()) {

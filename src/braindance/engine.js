@@ -272,9 +272,15 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     // Free roam: the player's car and camera in place of the recording's.
     jolt *= Math.exp(-dt * 7);
     spec.free = free;
+    spec.roll = 0;
+    spec.afoot = false;
     if (free) {
+      // On foot with the mouse held, the scanner looks where the eye does;
+      // a card, the journal or photo mode needs the mouse back.
+      if (bd.locked && (bd.open || bd.journal || bd.help || mode === "photo")) document.exitPointerLock?.();
+      if (bd.locked) scanner.move(0, 0, true);
       roam.frame(dt, spec, shown);
-      spec.glitch = 0;
+      if (roam.car.knock > 2.5 && bd.mode !== "photo") sounds?.thud(clamp(roam.car.knock / 16, 0, 1));
     }
     spec.glitch = Math.max(spec.glitch, jolt > 0.01 ? jolt : 0);
     // Photo mode's lens and roll.
@@ -283,7 +289,6 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       spec.roll = (bd.photo.roll * Math.PI) / 180;
       layers.setFilter(bd.photo.filter);
     } else {
-      spec.roll = 0;
       layers.setFilter("off");
     }
     tag.setVisible(layers.layer === "thermal");
@@ -335,7 +340,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     if (sounds) {
       camera.getWorldDirection(_fwd);
       sounds.update(dt, {
-        car: { x: spec.carPosition.x, y: spec.carPosition.y, z: spec.carPosition.z, v: playing || free ? spec.car.v : 0 },
+        car: { x: spec.carPosition.x, y: spec.carPosition.y, z: spec.carPosition.z, v: playing || free ? spec.car.v : 0, slide: free ? roam.car.slide : 0 },
         cam: camera.position,
         fwd: _fwd,
         playing: playing || free,
@@ -469,6 +474,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     hold(on) {
       look.held = on;
       roam?.hold(on);
+    },
+    /** The held mouse's own movement (on foot in free roam). */
+    look(dx, dy) {
+      if (roam?.on) roam.look(dx, dy);
     },
     /** The pointer over the city, in normalised device coordinates. */
     pointer(x, y, inside = true) {
