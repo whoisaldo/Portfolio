@@ -289,7 +289,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           }
           #endif
           float up = clamp(n.y, 0.0, 1.0);
-          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.55 + 0.45 * up) + lampsAt(vWorld, n) * 5.0;
+          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spillAt(vWorld) * uSpillMul * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
           // What faces the sky catches the city's glow on the cloud (a wet
           // roof, uSky, more of it: seen from above a roof is a dark blue
           // surface, not a hole).

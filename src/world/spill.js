@@ -30,10 +30,13 @@ const CELL = 1.5;
 export const STREAK_BOUNDS = { x0: -24, z0: -740, x1: 24, z1: 60 };
 const SX = 0.4;
 const SZ = 1.0;
-// A lamp of power 1 peaks at about LAMP_GAIN / 12 in the spill map, a pool
+// A lamp of power 1 peaks at about LAMP_GAIN / 9 in the spill map, a pool
 // two or three metres round: lamps a few metres apart light a lane in
 // patches, dark between.
 const LAMP_GAIN = 1.4;
+/** The spill map holds up to this many times the light its gain was set for
+ *  (the hero's street at the first bake); the shaders' uSpillGain undoes it. */
+export const SPILL_RANGE = 3;
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -95,14 +98,14 @@ function autoGain(field, target, pct = 0.985) {
   return target / vals[Math.min(vals.length - 1, Math.floor(vals.length * pct))];
 }
 
-function encode(field, W, H, gain) {
+function encode(field, W, H, gain, height = null) {
   const data = new Uint8Array(W * H * 4);
   for (let i = 0; i < W * H; i++) {
     for (let ch = 0; ch < 3; ch++) {
       const v = Math.min(1, field[i * 3 + ch] * gain);
       data[i * 4 + ch] = Math.round(Math.sqrt(v) * 255);
     }
-    data[i * 4 + 3] = 255;
+    data[i * 4 + 3] = height && height[i * 3] > 1e-6 ? Math.min(255, Math.round((height[i * 3 + 1] / height[i * 3]) * 16)) : 255;
   }
   const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.UnsignedByteType);
   tex.magFilter = THREE.LinearFilter;
@@ -139,6 +142,9 @@ export function createBake() {
   // The small lamps' pools, kept apart from the signs' so they do not move
   // the gain the hero's street is lit at.
   const lamps = new Float32Array(W * H * 3);
+  // How high the light in each cell hangs: its weight, and weight times
+  // height (the third channel rides along unused, to share the blur).
+  const hung = new Float32Array(W * H * 3);
 
   const add = (sources) => {
     for (const { mesh, color, intensity } of sources) {
@@ -169,6 +175,9 @@ export function createBake() {
         pool[k] += color.r * e;
         pool[k + 1] += color.g * e;
         pool[k + 2] += color.b * e;
+        const wgt = (color.r + color.g + color.b) * e;
+        hung[k] += wgt;
+        hung[k + 1] += wgt * Math.max(cy, 0);
         // Mirrored for the hero's eye: only what stands on the avenue and
         // the canyon themselves, which is what that camera sees (the bake
         // has no walls in it: a lane's lamps behind the rows would streak
@@ -200,6 +209,9 @@ export function createBake() {
       lamps[k] += points[i + 3] * e;
       lamps[k + 1] += points[i + 4] * e;
       lamps[k + 2] += points[i + 5] * e;
+      const wgt = (points[i + 3] + points[i + 4] + points[i + 5]) * e * 4;
+      hung[k] += wgt;
+      hung[k + 1] += wgt * Math.max(points[i + 1], 0);
     }
   };
 
@@ -208,10 +220,26 @@ export function createBake() {
   // when a district arrives somewhere else.
   let gains = null;
   const finish = () => {
-    // The pool: a tight halo plus a wide wash.
+    // The pool: a tight halo in each sign's own colour, which is what
+    // lights the wall beside it and the pavement under it, plus a wide wash
+    // down the street. The wash is every sign's colour summed, which is
+    // lilac: the avenue keeps it (the plate's street is that colour), and
+    // away from the avenue it is cooled toward the night's own blue, so a
+    // lane between two pools is dark and navy, not evenly mauve.
+    // And nearest of all, a couple of metres round each: the light a walker
+    // sees land on the wall a sign hangs on.
+    const near = blur(pool.slice(), W, H, 1, 2);
     const tight = blur(pool.slice(), W, H, 2);
     const wide = blur(pool.slice(), W, H, 7);
-    for (let i = 0; i < tight.length; i++) tight[i] = tight[i] * 0.6 + wide[i] * 0.9;
+    for (let i = 0; i < tight.length; i += 3) {
+      const x = x0 + ((i / 3) % W + 0.5) * CELL;
+      const away = Math.min(1, Math.max(0, (Math.abs(x) - 22) / 20));
+      const l = (wide[i] * 0.3 + wide[i + 1] * 0.59 + wide[i + 2] * 0.11) * 0.7 * away;
+      const wash = 0.9 - 0.45 * away;
+      tight[i] = near[i] * 0.35 + tight[i] * 0.6 + (wide[i] * (1 - 0.7 * away) + l * 0.5) * wash;
+      tight[i + 1] = near[i + 1] * 0.35 + tight[i + 1] * 0.6 + (wide[i + 1] * (1 - 0.7 * away) + l * 0.9) * wash;
+      tight[i + 2] = near[i + 2] * 0.35 + tight[i + 2] * 0.6 + (wide[i + 2] * (1 - 0.7 * away) + l * 1.25) * wash;
+    }
 
     // The streaks: a hair across the street, a long way along it, more
     // toward the eye than away from it.
@@ -235,13 +263,52 @@ export function createBake() {
     boxBlur(run, tmp, SW, SH, 3, false);
 
     gains ??= { spill: autoGain(tight, 0.85), streaks: autoGain(tmp, 0.9, 0.995) };
-    // Each lamp a pool a few metres round, in the encoded map's own units.
-    const pools = blur(lamps.slice(), W, H, 1);
-    for (let i = 0; i < tight.length; i++) tight[i] += (pools[i] * LAMP_GAIN) / gains.spill;
+    // The gain is the avenue's, whose signs are the size of buildings. An
+    // eye in a lane has opened up to the lane: away from the avenue, what
+    // is dimmer than the avenue's street is lifted toward it (its colour
+    // kept), so a lamp over a back door lights the wall it is on.
+    const ref = 0.5 / gains.spill;
+    for (let i = 0; i < tight.length; i += 3) {
+      const m = Math.max(tight[i], tight[i + 1], tight[i + 2]);
+      if (m >= ref || m < 1e-7) continue;
+      const x = x0 + ((i / 3) % W + 0.5) * CELL;
+      const away = Math.min(1, Math.max(0, (Math.abs(x) - 22) / 20));
+      const lift = Math.min(5, (ref / m) ** (0.6 * away));
+      tight[i] *= lift;
+      tight[i + 1] *= lift;
+      tight[i + 2] *= lift;
+    }
+    // Each lamp a pool a few metres round, in the encoded map's own units,
+    // and no brighter than a lamp's pool is however many lamps the builder
+    // hung there (its colour kept): a lane is lit in patches, dark between,
+    // not from end to end.
+    const pools = blur(lamps.slice(), W, H, 1, 1);
+    for (let i = 0; i < tight.length; i += 3) {
+      const m = (Math.max(pools[i], pools[i + 1], pools[i + 2]) * LAMP_GAIN) / gains.spill;
+      if (m < 1e-6) continue;
+      const k = ((1.2 * (1 - Math.exp(-m / 1.2))) / m) * (LAMP_GAIN / gains.spill);
+      tight[i] += pools[i] * k;
+      tight[i + 1] += pools[i + 1] * k;
+      tight[i + 2] += pools[i + 2] * k;
+    }
     const bounds = new THREE.Vector4(x0, z0, 1 / (x1 - x0), 1 / (z1 - z0));
     const streakBounds = new THREE.Vector4(STREAK_BOUNDS.x0, STREAK_BOUNDS.z0,
       1 / (STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0), 1 / (STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0));
-    const spill = encode(tight, W, H, gains.spill);
+    // A cell brighter than its street's light is eased down toward the most
+    // the map holds, its channels together, so it keeps its colour: clipped,
+    // a pavement under six signs is lit white and no pool stands out of it.
+    // The avenue's ceiling is lower: its light is the hero's.
+    for (let i = 0; i < tight.length; i += 3) {
+      const m = Math.max(tight[i], tight[i + 1], tight[i + 2]) * gains.spill;
+      if (m <= 0.6) continue;
+      const x = x0 + ((i / 3) % W + 0.5) * CELL;
+      const top = 1.5 + (SPILL_RANGE - 1.5) * Math.min(1, Math.max(0, (Math.abs(x) - 22) / 20)) - 0.6;
+      const ease = (0.6 + top * (1 - Math.exp(-(m - 0.6) / top))) / m;
+      tight[i] *= ease;
+      tight[i + 1] *= ease;
+      tight[i + 2] *= ease;
+    }
+    const spill = encode(tight, W, H, gains.spill / SPILL_RANGE, blur(hung.slice(), W, H, 2, 2));
     const streaks = encode(tmp, SW, SH, gains.streaks);
     return {
       spill,

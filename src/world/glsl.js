@@ -7,14 +7,17 @@
 // At load, every emissive triangle in the city (each sign, strip, shopfront
 // and lamp) is splatted into a map over the ground plane, a soft pool of its
 // own colour around its feet (src/world/spill.js). Every surface samples that
-// map at its own position and falls off with height, which is how the plate
-// lights its street: pink under the pink signs, cyan under the cyan ones, and
-// dark above the third storey.
+// map at its own position, brightest level with what glows and falling off
+// with height, which is how the plate lights its street: pink under the pink
+// signs and on the wall beside them, cyan by the cyan ones, and dark above
+// the third storey.
 //
 // Distance does the rest: exponential fog toward a near-black navy, and a
 // glow along the horizon where a lit city scatters its light into wet air.
 // Emissive surfaces lose less to the fog than lit ones, because a sign 400 m
 // up the street still reads as a sign.
+
+import { SPILL_RANGE } from "./spill.js";
 
 /** How many of the kit's lamps (lamp_<name>) the city lights with. */
 export const LAMPS = 12;
@@ -27,7 +30,7 @@ export function createSharedUniforms(THREE) {
     uLevel: { value: 0 },
     uSpill: { value: null },
     uSpillBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
-    uSpillGain: { value: 1 },
+    uSpillGain: { value: SPILL_RANGE },
     // Night as the show paints it: deep navy in the air, the haze and the
     // lit city's glow navy to teal. Violet and pink are downtown's alone
     // (COMMON's downtown: the air up the avenue and round the hologram),
@@ -124,9 +127,14 @@ export const COMMON = /* glsl */ `
   vec3 spillAt(vec3 p) {
     vec2 uv = (p.xz - uSpillBounds.xy) * uSpillBounds.zw;
     if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
-    vec3 s = texture2D(uSpill, uv).rgb;
+    vec4 s = texture2D(uSpill, uv);
     float h = max(p.y, 0.0);
-    return s * s * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085)) + doorPool(p) + garageRoom(p);
+    // The map knows how high its light hangs (alpha, sixteenths of a
+    // metre): what is level with a sign or a lamp, the wall it is fixed to
+    // first, takes more of it than the ground under it or the floors over it.
+    float dh = h - s.a * 15.94;
+    float level = 0.7 + 1.5 * exp(-dh * dh * 0.22);
+    return s.rgb * s.rgb * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085)) * level + doorPool(p) + garageRoom(p);
   }
 
   // The kit's own lamps (lamp_<name>) on a surface facing n: a doorway's
