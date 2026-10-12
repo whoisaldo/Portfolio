@@ -32,28 +32,35 @@ def frontage(axis, lot, out, a0, a1, seed, people=1.6, skip=(), palms=True, wall
 
     yaw_out = math.atan2(out, 0.0) if axis == "x" else (0.0 if out > 0 else math.pi)
     clear = lambda a: not any(s0 <= a <= s1 for s0, s1 in skip)  # noqa: E731
-    # The kerb's edge: cubes in runs, a bin, a hydrant, a camera, a short lamp.
+    along_yaw = 0.0 if axis == "x" else math.pi / 2
+    taken = []
+    # The kerb's edge: cubes in runs, a bin, a hydrant, a camera, a standing
+    # advert turned to the walkers, a charging post, a short lamp.
     a = a0 + r.uniform(3.0, 6.0)
     while a < a1 - 3.0:
         if clear(a):
             pick = r.random()
             x, z = at(a, 3.72)
-            if pick < 0.34:
+            if pick < 0.26:
                 for k in range(r.randrange(2, 5)):
                     xx, zz = at(a + k * 1.5, 3.72)
                     if a + k * 1.5 < a1 - 1.0 and clear(a + k * 1.5):
                         P.place("bollard_cube", xx, G, zz, district=PL)
-            elif pick < 0.5:
+            elif pick < 0.37:
                 P.place("bin", x, G, z, district=PL)
-            elif pick < 0.62:
+            elif pick < 0.44:
                 P.place("hydrant", x, G, z, district=PL)
-            elif pick < 0.74:
+            elif pick < 0.54:
                 P.place("cctv", x, G, z, district=PL)
+            elif pick < 0.73:
+                P.place("lightbox", x, G, z, along_yaw, district=PL)
+            elif pick < 0.8:
+                P.place("charge_post", x, G, z, yaw_out + math.pi, district=PL)
             else:
                 P.place("lamp_short", x, G, z, district=PL)
                 lx, lz = at(a, 2.4)
                 light(PL, lx, 3.0, lz, "amber", 4.0)
-        a += r.uniform(7.0, 12.0)
+        a += r.uniform(5.5, 9.5)
     # Palms at the kerb, slender, lit from their planters (YRL74JmhVgk@30).
     a = a0 + r.uniform(9.0, 16.0)
     while palms and a < a1 - 6.0:
@@ -62,18 +69,40 @@ def frontage(axis, lot, out, a0, a1, seed, people=1.6, skip=(), palms=True, wall
             P.place("planter_palm", x, G, z, r.uniform(0, 6.28), sy=r.uniform(1.05, 1.25), sxz=0.55, district=PL)
             light(PL, *at(a, 2.6)[:1], 1.2, at(a, 2.6)[1], "amber", 3.5)
         a += r.uniform(20.0, 30.0)
-    # Against the wall: now and then a vending machine or a booth.
-    a = a0 + r.uniform(8.0, 16.0)
-    while wall and a < a1 - 4.0:
+    # Against the wall: a row of vending machines, a bench with someone on
+    # it, a shop's board; and now and then a lit grate in the paving.
+    a = a0 + r.uniform(6.0, 12.0)
+    while wall and a < a1 - 5.0:
+        if clear(a) and clear(a + 2.4):
+            pick = r.random()
+            if pick < 0.4:
+                n = r.randrange(2, 4)
+                for k in range(n):
+                    x, z = at(a + k * 1.08, 0.5)
+                    P.place("vending" if (k + n) % 2 else "vending_warm", x, G, z, yaw_out, district=PL)
+                taken.append((a - 1.2, a + n * 1.08 + 0.6))
+            elif pick < 0.66:
+                x, z = at(a, 0.36)
+                P.place("bench", x, G, z, yaw_out, district=PL)
+                if r.random() < 0.7:
+                    sx_, sz_ = at(a + r.choice((-0.45, 0.4)), 0.4)
+                    stand(sx_, sz_, yaw_out, "sit", y=G + 0.48)
+                taken.append((a - 1.8, a + 1.8))
+            elif pick < 0.86:
+                x, z = at(a, 0.5)
+                P.place("aframe", x, G, z, along_yaw, district=PL)
+                taken.append((a - 0.9, a + 0.9))
+        a += r.uniform(11.0, 19.0)
+    a = a0 + r.uniform(10.0, 25.0)
+    while a < a1 - 4.0:
         if clear(a):
-            x, z = at(a, 0.62)
-            if r.random() < 0.55:
-                P.place("vending", x, G, z, yaw_out, district=PL)
-        a += r.uniform(16.0, 28.0)
+            x, z = at(a, 2.2)
+            P.place("grate_glow", x, G, z, along_yaw + math.pi / 2, district=PL)
+        a += r.uniform(30.0, 45.0)
     # People: singles against the wall or at a window, pairs talking.
     a = a0 + r.uniform(2.0, 5.0)
     while people > 0 and a < a1 - 2.0:
-        if clear(a):
+        if clear(a) and not any(t0 <= a <= t1 for t0, t1 in taken):
             pick = r.random()
             x, z = at(a, 0.62)
             if pick < 0.5:

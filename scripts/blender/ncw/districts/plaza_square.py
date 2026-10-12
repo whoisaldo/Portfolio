@@ -42,16 +42,16 @@ for piece in rect_minus_disc(X0, X1, Z0, Z1, HX, HZ, RK - 0.02):
 STONE = ((0.27, 0.28, 0.31), (0.27, 0.28, 0.31), (0.33, 0.34, 0.37), (0.44, 0.45, 0.48), (0.13, 0.135, 0.15))
 
 
-def pave(x0, x1, z0, z1, r):
+def pave(x0, x1, z0, z1, r, depths=(2.4, 3.6), widths=(2.4, 4.8)):
     z = z1
-    while z > z0 + 0.5:
-        d = min(r.choice((3.6, 4.8, 6.0)), z - z0)
-        if z - d - z0 < 1.5:
+    while z > z0 + 0.3:
+        d = min(r.choice(depths), z - z0)
+        if z - d - z0 < min(depths) * 0.6:
             d = z - z0
         x = x0
-        while x < x1 - 0.5:
-            w = min(r.uniform(3.6, 8.4), x1 - x)
-            if x1 - (x + w) < 1.8:
+        while x < x1 - 0.3:
+            w = min(r.uniform(*widths), x1 - x)
+            if x1 - (x + w) < widths[0] * 0.6:
                 w = x1 - x
             t = r.choice(STONE)
             k = r.uniform(0.86, 1.14)
@@ -62,9 +62,42 @@ def pave(x0, x1, z0, z1, r):
         z -= d
 
 
-for rect in ((X0, STAIR[0], Z0, Z1), (STAIR[0], X1, TS[1], Z1), (STAIR[0], TX, STAIR[3], TS[1]), (STAIR[0], TX, TS[0], STAIR[2]),
-             (STAIR[0], X1, TN[1], TS[0]), (STAIR[0], TX, Z0, TN[1])):
-    pave(rect[0], rect[1], rect[2], rect[3], rs)
+def court(x0, x1, z0, z1, d=2.0, b=0.5):
+    """A carpet of stone laid on the diagonal in bands of three tones,
+    inside a dark border (mH2wmyeiIpA@182's striped paving)."""
+    for (a0, a1, c0, c1) in ((x0, x1, z0, z0 + b), (x0, x1, z1 - b, z1), (x0, x0 + b, z0 + b, z1 - b), (x1 - b, x1, z0 + b, z1 - b)):
+        up_poly((PL, "paint", 0), [(a0 + 0.02, c0 + 0.02), (a1 - 0.02, c0 + 0.02), (a1 - 0.02, c1 - 0.02), (a0 + 0.02, c1 - 0.02)], G, (0.09, 0.095, 0.11, 1.0))
+    inner = [(1, 0, x1 - b - 0.02), (-1, 0, -(x0 + b + 0.02)), (0, 1, z1 - b - 0.02), (0, -1, -(z0 + b + 0.02))]
+    tones = ((0.4, 0.41, 0.44), (0.25, 0.26, 0.29), (0.15, 0.16, 0.18))
+    h, g = d / 2, 0.035
+    for i in range(int((x1 - x0) / h) + 2):
+        for j in range(int((z1 - z0) / h) + 2):
+            if (i + j) % 2:
+                continue
+            cx, cz = x0 + i * h, z0 + j * h
+            piece = clip_planes([(cx - h + g, cz), (cx, cz - h + g), (cx + h - g, cz), (cx, cz + h - g)], inner)
+            if len(piece) >= 3:
+                t, k = tones[((i - j) // 2) % 3], rs.uniform(0.92, 1.08)
+                up_poly((PL, "paint", 0), piece, G, (t[0] * k, t[1] * k, t[2] * k, 1.0))
+
+
+# Small flags along the shops under the board, slabs round the hub, a
+# diagonal carpet on the open stone south of it, long narrow courses down
+# the plaza street's side, and the terraces' feet in their own bond.
+COURT = (55.0, 81.0, -212.4, -198.6)
+SX = STAIR[0]
+for rect, depths, widths in (((X0, SX, Z0, -255.6), (1.6,), (1.6, 3.2)),
+                             ((X0, SX, -255.6, COURT[2]), (2.4, 3.6), (2.4, 4.8)),
+                             ((X0, COURT[0], COURT[2], COURT[3]), (2.4,), (2.4, 3.6)),
+                             ((COURT[1], SX, COURT[2], COURT[3]), (2.4,), (1.3, 2.6)),
+                             ((X0, SX, COURT[3], Z1), (1.2,), (2.4, 4.2)),
+                             ((SX, X1, TS[1], Z1), (1.2,), (2.4, 4.2)),
+                             ((SX, TX, STAIR[3], TS[1]), (2.4,), (2.4, 4.2)),
+                             ((SX, TX, TS[0], STAIR[2]), (2.0, 3.0), (2.4, 4.2)),
+                             ((SX, X1, TN[1], TS[0]), (2.0,), (2.0, 4.0)),
+                             ((SX, TX, Z0, TN[1]), (2.4, 3.6), (2.4, 4.2))):
+    pave(*rect, rs, depths, widths)
+court(*COURT)
 
 # A yellow line of light in the stone along the plaza street's side
 # (YRL74JmhVgk@30). The hub in the square's middle, its ring and its spokes
@@ -120,6 +153,7 @@ for j, w in enumerate((7.5, 7.5, 7.5, 7.5)):
     shopfront(PL, 1, z, z + w, 8440 + j, awning=j % 2 == 1, xf=TX)
     z += w
 fascia_signs_z(TN[0] + 0.6, TN[1] - 0.6, TX, -1, random.Random(8445))
+shopfront(PL, 1, TS[0], STAIR[2], 8452, awning=False, xf=TX)
 frontage_x(PL, TX + 0.4, X1 - 0.4, TN[1], 8446, facing=1, awning=False)
 frontage_x(PL, TX + 0.4, X1 - 0.4, TS[0], 8447, facing=-1, awning=False)
 frontage_x(PL, TX + 0.4, X1 - 0.4, TS[1], 8448, facing=1, awning=True)
@@ -134,16 +168,16 @@ for x in (BX0 + 0.02, BX1 - 0.08):
 for x in (97.5, 100.0, 102.5):
     box((PL, "neon_white", 0), x - 0.12, x + 0.12, TY - 0.45, TY - 0.42, TN[1] + 1.0, TS[0] - 1.0, scale=1.0)
     light(PL, x, 3.6, (TN[1] + TS[0]) / 2, "white", 2.5)
-rail([(BX0 + 0.15, TN[1]), (BX0 + 0.15, TS[0])], TY + 0.02)
-rail([(BX1 - 0.15, TN[1]), (BX1 - 0.15, TS[0])], TY + 0.02)
+balustrade([(BX0 + 0.15, TN[1]), (BX0 + 0.15, TS[0])], TY + 0.02)
+balustrade([(BX1 - 0.15, TN[1]), (BX1 - 0.15, TS[0])], TY + 0.02)
 for z in (TN[1] + 1.2, TS[0] - 1.2):
     P.place("bollard_cube", X1 - 0.6, G, z, district=PL)
-# Rails round the terraces' edges, open where the stairs and the bridge land.
+# Glass balustrades round the terraces' edges, open where the stairs and the bridge land.
 e = 0.3
-rail([(TX + e, TN[0] + 0.4), (TX + e, TN[1] - e), (BX0 + 0.15, TN[1] - e)], TY + 0.02)
-rail([(BX1 - 0.15, TN[1] - e), (X1 - e, TN[1] - e), (X1 - e, TN[0] + 0.4)], TY + 0.02)
-rail([(TX + e, STAIR[2]), (TX + e, TS[0] + e), (BX0 + 0.15, TS[0] + e)], TY + 0.02)
-rail([(BX1 - 0.15, TS[0] + e), (X1 - e, TS[0] + e), (X1 - e, TS[1] - e), (TX + e, TS[1] - e), (TX + e, STAIR[3])], TY + 0.02)
+balustrade([(TX + e, TN[0] + 0.4), (TX + e, TN[1] - e), (BX0 + 0.15, TN[1] - e)], TY + 0.02)
+balustrade([(BX1 - 0.15, TN[1] - e), (X1 - e, TN[1] - e), (X1 - e, TN[0] + 0.4)], TY + 0.02)
+balustrade([(TX + e, STAIR[2]), (TX + e, TS[0] + e), (BX0 + 0.15, TS[0] + e)], TY + 0.02)
+balustrade([(BX1 - 0.15, TS[0] + e), (X1 - e, TS[0] + e), (X1 - e, TS[1] - e), (TX + e, TS[1] - e), (TX + e, STAIR[3])], TY + 0.02)
 # The stairs.
 stair_x(STAIR[0], STAIR[1], STAIR[2], STAIR[3], G, TY + 0.01)
 for z in (STAIR[2], STAIR[3]):
@@ -213,9 +247,11 @@ while x < 107.5:
 for px in (54.5, 62.5, 70.5, 105.0):
     P.place("planter_palm", px, G, -193.4, rs.uniform(0, 6.28), district=PL)
     light(PL, px, 1.0, -193.4, "amber", 3.0)
-for px in (58.5, 66.5):
-    P.place("bench", px, G, -193.6, math.pi, district=PL)
-P.place("pylon_hex", 74.5, G, -193.6, 0.0, district=PL)
+P.place("bench", 58.5, G, -193.6, math.pi, district=PL)
+P.place("charge_post", 59.8, G, -193.6, math.pi, district=PL)
+P.place("shelter", 66.5, G, -192.75, 0.0, district=PL)
+light(PL, 66.5, 2.2, -192.4, "white", 6.0)
+P.place("lightbox", 75.0, G, -193.4, math.pi / 2, district=PL)
 P.place("phone_booth", 50.3, G, -193.2, math.pi / 2, district=PL)
 P.place("food_box", 52.2, G, -198.6, math.pi / 2, district=PL)
 P.place("bin", 60.6, G, -193.4, district=PL)
@@ -240,15 +276,65 @@ P.place("bin", 52.0, G, -260.8, district=PL)
 P.place("bin", 91.0, G, -236.0, district=PL)
 
 # ---------------------------------------------------------------------------
+# The open stone: what breaks it up at eye level (Fn9gKhU_2_Q@74, @81).
+# Nothing here is over 2.6 m but the two palms, and the way from the plaza
+# street to the board (x 76..86) carries nothing tall: the braindance's low
+# camera looks up it at the koi and the board.
+# ---------------------------------------------------------------------------
+# On the carpet: two long adverts at eye level, a bench against each face.
+for bx_ in (60.0, 68.0):
+    P.place("ad_board", bx_, G, -205.5, 0.0, district=PL)
+    P.place("bench", bx_, G, -204.6, 0.0, district=PL)
+    P.place("bench", bx_, G, -206.4, math.pi, district=PL)
+    for z in (-204.0, -207.0):
+        light(PL, bx_, 1.6, z, "white", 4.0)
+P.place("charge_post", 61.25, G, -204.6, 0.0, district=PL)
+P.place("charge_post", 69.25, G, -206.4, math.pi, district=PL)
+for (px, pz, kind) in ((56.6, -211.2, "planter_palm"), (74.0, -200.0, "planter_palm"), (56.6, -199.8, "planter_tree"), (64.0, -211.2, "planter_tree")):
+    P.place(kind, px, G, pz, rs.uniform(0, 6.28), district=PL)
+    light(PL, px, 1.0, pz, "amber" if kind == "planter_palm" else "white", 3.0)
+shrub_bed(53.0, 54.4, -211.8, -206.6, rs, side="+x")
+shrub_bed(53.0, 54.4, -204.6, -199.4, rs, side="+x")
+# Drums of adverts where ways meet, carts with their queues, vending rows
+# in the lee of the stair's flanks.
+for (px, pz) in ((52.6, -214.6), (88.8, -223.0), (81.2, -253.4)):
+    P.place("ad_drum", px, G, pz, district=PL)
+for (px, pz, yaw) in ((58.0, -215.6, math.pi / 4), (79.0, -214.4, -math.pi / 4)):
+    P.place("food_cart", px, G, pz, yaw, district=PL)
+    light(PL, px + 1.2 * math.sin(yaw), 1.8, pz + 1.2 * math.cos(yaw), "amber", 5.0)
+    stand(px - 0.9 * math.sin(yaw), pz - 0.9 * math.cos(yaw), yaw, "vendor", y=G)
+    for o, side, pose in ((1.5, 0.0, "idle"), (2.3, 0.3, "phone"), (3.1, -0.2, "idle")):
+        stand(px + o * math.sin(yaw) + side * math.cos(yaw), pz + o * math.cos(yaw) - side * math.sin(yaw), yaw + math.pi, pose, y=G)
+for i, px in enumerate((88.2, 89.3, 90.4)):
+    P.place("vending" if i != 1 else "vending_warm", px, G, STAIR[3] + 0.5, 0.0, district=PL)
+    P.place("vending_warm" if i != 1 else "vending", px, G, STAIR[2] - 0.5, math.pi, district=PL)
+# Standing adverts down the west side, cameras, bins, lit grates that
+# breathe, boards outside the shops.
+for pz in (-238.5, -226.0, -216.0, -206.5):
+    P.place("lightbox", 49.6, G, pz, math.pi / 2, district=PL)
+for (px, pz) in ((82.4, -198.2), (51.2, -251.0), (87.6, -243.6)):
+    P.place("cctv", px, G, pz, district=PL)
+for (px, pz) in ((57.4, -205.5), (71.0, -205.5), (89.4, -241.5)):
+    P.place("bin", px, G, pz, district=PL)
+for i, (px, pz) in enumerate(((64.6, -201.0), (87.2, -228.6), (53.0, -246.6))):
+    P.place("grate_glow", px, G, pz, district=PL)
+    if i < 2:
+        empty(f"anchor_steam_street_plaza_{4 + i}", (px, G + 0.07, pz))
+for px in (57.0, 70.4, 85.0):
+    P.place("aframe", px, G, -260.0, math.pi / 2, district=PL)
+
+# ---------------------------------------------------------------------------
 # People who are not walking through.
 # ---------------------------------------------------------------------------
 SEAT = G + 0.48
 # On the benches of the garden, the west strip and the south strip.
 for (px, pz, yaw) in ((52.0, -255.3, math.pi / 2), (52.0, -221.4, math.pi / 2), (52.0, -210.6, math.pi / 2),
-                      (58.2, -193.6, math.pi), (66.9, -193.6, math.pi), (62.3, -258.2, 0.0), (76.4, -258.2, 0.0)):
+                      (58.2, -193.6, math.pi), (65.4, -193.0, 0.0), (66.3, -193.0, 0.0), (62.3, -258.2, 0.0), (76.4, -258.2, 0.0),
+                      (59.6, -204.6, 0.0), (60.4, -204.6, 0.0), (68.3, -204.6, 0.0), (59.7, -206.4, math.pi), (67.6, -206.4, math.pi),
+                      (68.4, -206.4, math.pi)):
     stand(px, pz, yaw, "sit", y=SEAT)
 # About the square.
-for (px, pz, yaw, pose) in ((67.0, -207.5, 1.0, "talk"), (68.1, -206.6, 1.0 + math.pi, "talk"), (82.6, -202.0, -1.8, "phone"),
+for (px, pz, yaw, pose) in ((64.3, -208.0, 0.85, "talk"), (65.2, -207.0, 0.85 + math.pi, "talk"), (82.6, -202.0, -1.8, "phone"),
                             (72.3, -200.4, 2.6, "idle"), (86.0, -202.5, 0.4, "talk"), (86.9, -201.5, 0.4 + math.pi, "talk"),
                             
                             (88.0, -249.0, 2.2, "talk"), (89.0, -249.8, 2.2 + math.pi, "talk"), (88.2, -250.6, 0.4, "talk"),
