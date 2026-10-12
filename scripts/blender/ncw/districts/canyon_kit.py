@@ -10,6 +10,7 @@ first frame: the street faces' windows, the shop glass, the signs that look
 down the avenue) and "canyon_b" streams in with the canyon's pack (the rest).
 """
 import math
+import random
 
 from ncw import kit as K
 from ncw.kit import *  # noqa: F401,F403
@@ -176,7 +177,7 @@ def shopfront(f, r, s0, s1, tint, glass=FA, key=CB, sign_rate=0.6, awning_rate=0
             n = door_bay - i
         shops.append(("shop", i, i + n))
         i += n
-    colours = palette or ["pink", "cyan", "red", "amber", "purple", "teal", "magenta"]
+    colours = palette or ["amber", "cyan", "red", "amber", "yellow", "teal", "pink"]
     doors = []
     for kind, b0, b1 in shops:
         a, b = s0 + b0 * bw, s0 + b1 * bw
@@ -462,7 +463,7 @@ def _cy_stall(k):
         for z in (-1.0, 0.64):
             box(k("metal"), x - 0.03, x + 0.03, 0.0, 2.35, z - 0.03, z + 0.03, scale=0.5)
     box(k("trim"), -1.5, 1.5, 2.35, 2.42, -1.15, 0.95, scale=1.0, col=(0.32, 0.07, 0.09, 1), bottom=True)
-    box(k("glow"), -1.3, 1.3, 2.0, 2.33, 0.9, 0.93, scale=0.5, col=GLOW["pink"])
+    box(k("glow"), -1.3, 1.3, 2.0, 2.33, 0.9, 0.93, scale=0.5, col=GLOW["yellow"])
     box(k("glow"), -0.25, 0.25, 2.2, 2.26, -0.2, 0.3, scale=0.5, col=GLOW["white"], bottom=True)
     cylinder(k("metal"), 0.7, 0.33, 1.0, 1.3, 0.2, segs=8)
 
@@ -560,6 +561,57 @@ def ngon(key, c, R, t, n=6, rot=0.0, plane="x", col=(1, 1, 1, 1), both=True):
             quad(key, q[1], q[0], q[3], q[2], col=col)
 
 
+def pool(key, x, y, z, rad, hue="amber", k=0.35, segs=14, squash=1.0):
+    """A lamp's light where it falls on a floor, painted (a court or a deck
+    takes little of the bake's pools): brightest under the lamp, gone into
+    the floor's own dark by its edge. `squash`: its length along z over its
+    width."""
+    b = batches[(key, "glow", 0)]
+    c = GLOW[hue]
+    centre, rim = (c[0] * k, c[1] * k, c[2] * k, 1.0), (c[0] * 0.004, c[1] * 0.004, c[2] * 0.004, 1.0)
+    for i in range(segs):
+        t0, t1 = i * math.tau / segs, (i + 1) * math.tau / segs
+        base = len(b.verts)
+        b.verts.extend(K.P(*q) for q in ((x, y, z), (x + rad * math.cos(t1), y, z + rad * squash * math.sin(t1)),
+                                         (x + rad * math.cos(t0), y, z + rad * squash * math.sin(t0))))
+        b.faces.append((base, base + 1, base + 2))
+        b.uvs.extend(((0.5, 0.5), (1, 0), (0, 0)))
+        b.cols.extend((centre, rim, rim))
+
+
+def tape(key, a, b, y=0.95, h=0.09):
+    """Barrier tape from a to b ((x, z) each), read from both sides."""
+    q = ((a[0], y, a[1]), (b[0], y, b[1]), (b[0], y + h, b[1]), (a[0], y + h, a[1]))
+    ln = math.hypot(b[0] - a[0], b[1] - a[1])
+    uv = ((0, 0), (ln * 2, 0), (ln * 2, 1), (0, 1))
+    quad((key, "hazard", 1), *q, uvs=uv)
+    quad((key, "hazard", 1), q[1], q[0], q[3], q[2], uvs=(uv[1], uv[0], uv[3], uv[2]))
+
+
+@P.proto("cy_palm", box=(0.5, 6.5, 0.5), reach=700)
+def _cy_palm(k):
+    """A tall thin palm, thirteen metres, in a ring of light at its foot
+    (Fn9gKhU_2_Q@77, YRL74JmhVgk@30: the forecourt's palms stand over its
+    signs): a slender trunk with a slow lean, a small crown high up."""
+    cylinder(k("trim"), 0.0, 0.0, 0.0, 0.5, 0.75, segs=10, col=(0.15, 0.155, 0.165, 1))
+    for i in range(10):
+        t0, t1 = i * math.tau / 10, (i + 1) * math.tau / 10
+        quad(k("glow"), (0.77 * math.cos(t1), 0.32, 0.77 * math.sin(t1)), (0.77 * math.cos(t0), 0.32, 0.77 * math.sin(t0)),
+             (0.77 * math.cos(t0), 0.38, 0.77 * math.sin(t0)), (0.77 * math.cos(t1), 0.38, 0.77 * math.sin(t1)), col=GLOW["amber"])
+    bark = (0.2, 0.165, 0.135, P.BARK)
+    trunk = ((0.0, 0.45, 0.0), (0.05, 2.5, 0.02), (0.2, 5.5, 0.06), (0.42, 8.6, 0.08), (0.6, 11.0, 0.06), (0.7, 12.6, 0.04))
+    P.tube(k("plant"), trunk, (0.17, 0.13, 0.115, 0.105, 0.1, 0.095), segs=5, col=bark)
+    top = (0.71, 12.75, 0.04)
+    rng = random.Random(23)
+    for n, pitch, bend, length, col, vee in ((6, (0.7, 1.1), (1.5, 1.9), (2.3, 2.7), (0.13, 0.33, 0.15), True),
+                                             (5, (0.1, 0.4), (1.3, 1.6), (2.5, 2.9), (0.11, 0.29, 0.13), True),
+                                             (4, (-0.4, -0.1), (0.9, 1.2), (2.0, 2.4), (0.2, 0.22, 0.09), False)):
+        turn = rng.uniform(0.0, math.tau)
+        for i in range(n):
+            yaw = turn + (i + rng.uniform(-0.22, 0.22)) * math.tau / n
+            P.frond(k("plant"), top, yaw, rng.uniform(*pitch), rng.uniform(*length), rng.uniform(*bend), 0.9, col, 3, vee)
+
+
 def paving(key, x0, x1, z0, z1, y, hue="amber", pitch=4.0, lines="x", power=5.0, every=4.5):
     """A floor's pattern, laid a hair over its paving: dark joints in a grid
     and, along every other joint one way (`lines`: "x" or "z"), a line of
@@ -626,7 +678,7 @@ def deck_front(key, f, s0, s1, y, r, tint):
             f.quad((key, "shop", 0), a + 0.12, a + bw - 0.12, y + 0.55, y + 2.9, 0.06, col=(r.uniform(0.5, 1.0), r.random(), 1.0, 1.0))
         f.box((key, "trim", 0), a - 0.1, a + 0.1, y, y + 3.5, 0.0, 0.16, col=B.TRIM[tint])
     f.box((key, "trim", 0), s1 - 0.1, s1 + 0.1, y, y + 3.5, 0.0, 0.16, col=B.TRIM[tint])
-    hue = r.choice(("pink", "amber", "cyan", "magenta"))
+    hue = r.choice(("yellow", "amber", "cyan", "white"))
     fbox((key, "trim", 0), f, s0 - 0.2, s1 + 0.2, y + 3.05, y + 3.2, 0.0, 1.8, col=B.TRIM[tint])
     f.box((key, "neon_" + hue, 0), s0, s1, y + 3.0, y + 3.05, 1.7, 1.78)
     sw, sh = ST_SIZES["pm"]
@@ -645,7 +697,7 @@ def totem(key, x, y, z, yaw, r, w=1.5, h=4.4):
     oriented_box((key, "neon_cyan", 0), x, y + 0.63, z, w + 0.32, 0.05, 0.52, yaw, scale=1.0)
     B.billboard(key, x + math.sin(yaw) * 0.17, y + 0.75 + h / 2, z + math.cos(yaw) * 0.17, w, h, yaw, r, frame=True, back=True, depth=0.28)
     for sgn in (-1.5, 1.5):
-        light(key, x + math.sin(yaw) * sgn, y + 1.5, z + math.cos(yaw) * sgn, r.choice(("cyan", "pink", "amber", "magenta")), 5.0)
+        light(key, x + math.sin(yaw) * sgn, y + 1.5, z + math.cos(yaw) * sgn, r.choice(("cyan", "yellow", "amber", "white")), 5.0)
 
 
 @P.proto("cy_bollard", box=(0.15, 0.55, 0.15), reach=260)
@@ -659,11 +711,10 @@ def _cy_bollard(k):
 @P.proto("cy_block", box=(1.0, 0.45, 0.35), reach=300)
 def _cy_block(k):
     """A concrete barricade block: a wide foot, a narrow top, a hazard band
-    and a red lamp on it (YRL74JmhVgk@30)."""
+    (YRL74JmhVgk@30)."""
     box(k("concrete"), -1.0, 1.0, 0.0, 0.3, -0.34, 0.34, scale=1.0)
     box(k("concrete"), -1.0, 1.0, 0.3, 0.9, -0.17, 0.17, scale=1.0)
     box(k("hazard"), -1.0, 1.0, 0.6, 0.72, -0.18, 0.18, scale=0.5)
-    box(k("glow"), -0.07, 0.07, 0.9, 0.98, -0.07, 0.07, scale=0.5, col=GLOW["red"])
 
 
 @P.proto("cy_table", box=(0.9, 0.5, 0.9), reach=220)
@@ -704,7 +755,7 @@ def _cy_string(k):
     for i in range(9):
         x, y, _ = at((i + 0.5) / 9)
         box(k("glow"), x - 0.018, x + 0.018, y - 0.1, y - 0.02, -0.03, 0.03, scale=0.5,
-            col=GLOW[("amber", "amber", "pink", "amber", "cyan")[i % 5]], bottom=True)
+            col=GLOW[("amber", "amber", "white", "amber", "cyan")[i % 5]], bottom=True)
 
 
 @P.proto("cy_gate", box=(0.15, 0.55, 0.6), reach=220)
@@ -755,7 +806,7 @@ def lane(key, x0, x1, z0, z1, r, along="z", tubes=True, people=True, name=None):
     n = 0
     while v < hi - 2.0:
         if n % 2 == 0 and tubes:
-            hue = r.choice(("green", "cyan", "cyan", "pink", "amber", "teal"))
+            hue = r.choice(("green", "cyan", "cyan", "white", "amber", "teal"))
             y = r.uniform(4.9, 6.0)
             tube(key, pt(v, wa + 0.3, y), pt(v, wb - 0.3, y), hue)
             for w in (wa + 1.2, (wa + wb) / 2, wb - 1.2):
@@ -852,7 +903,7 @@ def pylon(z, y_top, r, side, key=FA, back=CB):
         y += h + r.uniform(0.35, 0.9)
     box((key, "glow", 0), wx - 0.12, wx + 0.12, y_top, y_top + 0.3, z - 0.12, z + 0.12, scale=0.5, col=GLOW["red"])
     for dz in (-2.0, 2.0):
-        light(back, side * (WALK - 2.0), 6.0, z + dz, r.choice(("pink", "cyan", "amber")), 6.0)
+        light(back, side * (WALK - 2.0), 6.0, z + dz, r.choice(("white", "cyan", "amber")), 6.0)
     xa, xb = sorted((side * WALK, side * (WALK - reach)))
     return ((xa, G0, z - 0.8), (xb, y_top + 0.4, z + 0.8))
 
@@ -862,7 +913,7 @@ def link(side_x0, side_x1, z_lo, z_hi, y, r, key=CB):
     between them: a dark box, a row of small lit windows down each side
     over a line of light."""
     box((key, "board_frame", 0), side_x0, side_x1, y, y + 3.0, z_lo, z_hi, scale=2.0, bottom=True)
-    hue = r.choice(("cyan", "amber", "magenta", "white"))
+    hue = r.choice(("cyan", "amber", "yellow", "white"))
     lit = B.wall_col(0.95, 3, r.uniform(0.2, 0.9), B.TINTS["charcoal"])
     for x, nx in ((side_x0 - 0.02, -1), (side_x1 + 0.02, 1)):
         f = B.Face("+x" if nx > 0 else "-x", x, z_lo, z_hi)
@@ -1067,7 +1118,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
     line of light at the parapet's top (ARL_JWwKdDs@23)."""
     w, d = x1 - x0, z1 - z0
     if lines:
-        hue = r.choice(("cyan", "cyan", "amber", "pink", "teal", "magenta"))
+        hue = r.choice(("cyan", "cyan", "amber", "yellow", "teal", "white"))
         fs = B.faces_of(x0, x1, z0, z1)
         for name in lines:
             fs[name].quad((key, "neon_" + hue, 0), 0.0, fs[name].width, y + 0.84, y + 0.94, 0.04)
@@ -1151,7 +1202,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                 yaw = r.choice((0.0, math.pi / 2, math.pi, -math.pi / 2)) + r.uniform(-0.3, 0.3)
                 cy = y + 1.5 + bh / 2
                 advert(key, key, px, cy, pz, bw, bh, yaw, r)
-                board_back(key, px, cy, pz, bw, bh, yaw, r.choice(("cyan", "amber", "pink")))
+                board_back(key, px, cy, pz, bw, bh, yaw, r.choice(("cyan", "amber", "yellow")))
                 for sg in (-1, 1):
                     lx, lz = px + math.cos(yaw) * sg * bw * 0.3 - math.sin(yaw) * 0.2, pz - math.sin(yaw) * sg * bw * 0.3 - math.cos(yaw) * 0.2
                     box((key, "metal", 1), lx - 0.06, lx + 0.06, y, cy - bh / 2, lz - 0.06, lz + 0.06, scale=0.5)

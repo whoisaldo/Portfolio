@@ -67,12 +67,14 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     for z in (cz0 + 4.0, cz0 + 10.0, az + 14.0, az - 14.0, cz1 - 4.0):
         light(CB, 21.0, 1.0, z, "teal", 5.0)
     C.flat((CB, "trim", 1), 22.0, px0 - 0.6, az - 1.7, az + 1.7, COURT_Y + 0.016, (0.17, 0.02, 0.035, 1))
-    # Palms in planters in two rows, tall, lit from their feet; a bench by
-    # each, people on the benches.
+    # Palms in two rows, tall and thin, standing over the signs, lit from
+    # their feet; a bench by each, people on the benches. (Each a little
+    # its own height and turned its own way.)
     for row_z in (az - 10.5, az + 10.5):
         for x in (24.5, 31.5, 38.5):
-            P.place("planter_palm", x, COURT_Y, row_z, sy=1.35, sxz=1.15, district=CB)
-            light(CB, x, 1.5, row_z, "teal", 5.0)
+            P.place("cy_palm", x, COURT_Y, row_z, r.uniform(0, 6.28), sy=r.uniform(0.9, 1.12), district=CB)
+            C.pool(CB, x, COURT_Y + 0.008, row_z, 2.6, "amber", 0.3)
+            light(CB, x, 1.5, row_z, "amber", 5.0)
         for x in (28.0, 35.0):
             P.place("bench", x, COURT_Y, row_z, 0.0, district=CB)
             if r.random() < 0.8:
@@ -94,6 +96,39 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
         stand(16.0, kz, math.pi / 2, "idle", G0)
         stand(15.4, kz + 0.5, math.pi / 2, "phone", G0)
         light(CB, 16.2, 1.5, kz, "cyan", 5.0)
+        C.pool(CB, 15.6, G0 + 0.008, kz, 2.4, "cyan", 0.25)
+    # The court's own light on its floor: warm and wide under the hologram
+    # and before the doors, yellow along the lines, teal at the steps' head.
+    C.pool(CB, px0 - 7.5, COURT_Y + 0.008, az, 9.5, "amber", 0.42, segs=20, squash=1.15)
+    C.pool(CB, px0 - 2.2, COURT_Y + 0.009, az, 4.2, "white", 0.3)
+    for dz in (-7.0, 7.0):
+        for x in (23.5, 28.5, 33.5, 38.5):
+            C.pool(CB, x, COURT_Y + 0.008, az + dz, 2.3, "yellow", 0.3, segs=10)
+    for z in (cz0 + 4.0, cz0 + 10.0, az + 14.0, az - 14.0, cz1 - 4.0):
+        C.pool(CB, 21.2, COURT_Y + 0.008, z, 1.8, "teal", 0.25, segs=10)
+    # What a corporate court is closed with: a second line of barricade
+    # blocks across it between the palms, tape strung from post to post
+    # round the queue, kiosks in a cluster each side with people at them,
+    # lit advert stands along its edges (Fn9gKhU_2_Q@77, YRL74JmhVgk@30).
+    for bz in (az - 9.0, az - 6.6, az + 6.6, az + 9.0):
+        P.place("cy_block", 27.6 + (0.9 if abs(bz - az) > 8.0 else 0.0), COURT_Y, bz, math.pi / 2 + r.uniform(-0.2, 0.2), district=CB)
+    posts = [(px0 - 8.6, az - 2.2), (px0 - 5.0, az - 2.2), (px0 - 5.0, az + 2.2), (px0 - 8.6, az + 2.2), (px0 - 11.5, az + 3.4)]
+    for (xa, za), (xb, zb) in zip(posts, posts[1:]):
+        C.tape(CB, (xa, za), (xb, zb), y=COURT_Y + 0.95)
+    for xa, za in posts:
+        cylinder((CB, "metal", 1), xa, za, COURT_Y, COURT_Y + 1.1, 0.04, segs=5)
+        cylinder((CB, "metal", 1), xa, za, COURT_Y, COURT_Y + 0.05, 0.18, segs=7)
+    for sgn in (-1, 1):
+        for k_, (kx, kzo) in enumerate(((30.2, 5.2), (32.6, 6.0), (31.4, 3.9))):
+            P.place("cy_kiosk", kx, COURT_Y, az + sgn * (kzo + 8.6), -math.pi / 2 + sgn * (0.5 - k_ * 0.35), district=CB)
+        C.pool(CB, 30.2, COURT_Y + 0.008, az + sgn * 13.6, 3.0, "cyan", 0.28)
+        light(CB, 30.0, 1.6, az + sgn * 13.6, "cyan", 5.0)
+        for px_, pz_, yaw_, pose in ((29.0, 13.4, math.pi / 2, "phone"), (29.3, 14.6, math.pi / 2, "idle"), (31.4, 12.4, 0.0, "talk"), (31.4, 11.4, math.pi, "talk"),
+                                     (28.2, 15.6, 2.2, "smoke")):
+            if r.random() < 0.85:
+                stand(px_, az + sgn * pz_, yaw_ if sgn > 0 else -yaw_ + math.pi, pose, COURT_Y)
+        for lx in (23.2, 35.4, 40.0):
+            P.place("lightbox", lx, COURT_Y, az + sgn * 18.6, 0.0, district=CB)
     # The hologram over the doors, the forecourt's sign: a hexagon of cyan
     # light as tall as three floors standing off the podium on struts, a
     # faint field inside it and the court's own emblem (a ring round three
@@ -170,7 +205,7 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
         P.place("cy_gate", px0 - 4.6, COURT_Y, az + dz, math.pi / 2, district=CB)
     for dz in (-16.0, 16.0):
         B.billboard(CB, px0 - 0.45, COURT_Y + 5.6, az + dz, 2.8, 8.4, -math.pi / 2, r, frame=True, back=False, depth=0.3)
-        light(CB, px0 - 2.5, 2.0, az + dz, "pink", 5.0)
+        light(CB, px0 - 2.5, 2.0, az + dz, "cyan", 5.0)
     # Two guards at the doors, a queue at the turnstiles, people crossing
     # the court in twos, guards at the chicane.
     for dz in (-3.9, 3.9):
@@ -189,8 +224,8 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     walls((CB, "glass_dark", 1), cut_rect(ax, az, 31.7, 31.7, 5.0), 21.0, 22.1, (1, 1, 1, 1))
     walls((CB, "metal", 1), cut_rect(ax, az, 31.75, 31.75, 5.0), 22.1, 22.17, (1, 1, 1, 1))
     for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
-        P.place("planter_tree", ax + sx * 24.0, 21.0, az + sz * 29.0, district=CB)
-        P.place("planter_tree", ax + sx * 29.0, 21.0, az + sz * 12.0, district=CB)
+        P.place("planter_palm", ax + sx * 24.0, 21.0, az + sz * 29.0, district=CB)
+        P.place("planter_palm", ax + sx * 29.0, 21.0, az + sz * 12.0, sxz=0.9, district=CB)
         P.place("cy_deck_lamp", ax + sx * 30.6, 21.0, az + sz * 22.0, -sx * math.pi / 2, district=CB)
     for (tx, tz, yaw) in ((ax - 30.8, az + 14.0, math.pi / 2), (ax - 30.8, az + 15.1, math.pi / 2), (ax + 14.0, az + 30.8, math.pi), (ax - 14.0, az - 30.8, 0.0)):
         stand(tx, tz, yaw, "lean", 21.0)
@@ -264,6 +299,13 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
 RIB = (0.014, 0.01, 0.023, 1)
 GROOVE = (0.02, 0.017, 0.021, 1)
 HERO_FROM = 110.0       # the canyon's roofs hide the tower below this
+# Below that the tower is the show's slate blue (Fn9gKhU_2_Q@77): its ribs,
+# its shoulders, its podium; and its panels' joints are lines a shade
+# lighter round it every two floors, fainter where the hero's lens has it.
+RIB_LOW = (0.011, 0.016, 0.028, 1)
+SLATE = (0.05, 0.066, 0.105, 1)
+SHOULDER = (0.013, 0.018, 0.031, 1)
+JOINT, JOINT_HIGH = (0.022, 0.03, 0.05, 1), (0.019, 0.026, 0.044, 1)
 
 
 def _plan(y):
@@ -277,10 +319,11 @@ def _plan(y):
     return 22.0 - 8.0 * t, 4.0 - 1.0 * t
 
 
-def _shell(key, cx, cz, y0, y1, strips=11, wash=0.0, grow=0.0, col=None, plan=_plan):
+def _shell(key, cx, cz, y0, y1, strips=11, wash=0.0, grow=0.0, col=None, plan=_plan, rib_col=RIB, lit=False):
     """The monolith's skin between two heights: each of its four faces in
     vertical strips, rib and groove by turns (the middle one a groove), its
-    cut corners plain. `wash`: the forecourt's red light on it, low down."""
+    cut corners plain. `wash`: the forecourt's red light on it, low down.
+    `lit`: a band of one colour that is its own faint light (a joint)."""
     (h0, c0), (h1, c1) = plan(y0), plan(y1)
     a, b = cut_rect(cx, cz, h0 + grow, h0 + grow, c0), cut_rect(cx, cz, h1 + grow, h1 + grow, c1)
     for i in range(8):
@@ -289,9 +332,9 @@ def _shell(key, cx, cz, y0, y1, strips=11, wash=0.0, grow=0.0, col=None, plan=_p
         for k in range(n):
             t0, t1 = k / n, (k + 1) / n
             rib = col is None and i % 2 == 0 and k % 2 == 0
-            c = RIB if rib else (col or GROOVE)
+            c = rib_col if rib else (col or GROOVE)
             c = (c[0] + wash * (0.25 if rib else 0.5), c[1] + wash * (0.02 if rib else 0.06), c[2] + wash * (0.04 if rib else 0.09), 1)
-            quad((key, "glow" if rib else "trim", 0),
+            quad((key, "glow" if rib or lit else "trim", 0),
                  (a[i][0] + (a[j][0] - a[i][0]) * t0, y0, a[i][1] + (a[j][1] - a[i][1]) * t0),
                  (a[i][0] + (a[j][0] - a[i][0]) * t1, y0, a[i][1] + (a[j][1] - a[i][1]) * t1),
                  (b[i][0] + (b[j][0] - b[i][0]) * t1, y1, b[i][1] + (b[j][1] - b[i][1]) * t1),
@@ -315,25 +358,51 @@ def _line(key, mat, cx, cz, nx, nz, u0, u1, y0, y1, out=0.08, col=(1, 1, 1, 1)):
 
 
 def tower(ax, az):
-    # The podium: ribbed like the tower, two slits of warm light round it,
-    # a line of red at its roof's edge.
-    pod = lambda y: (32.0, 5.0)  # noqa: E731
-    _shell(CB, ax, az, SHOP_H, 21.0, strips=17, wash=0.12, plan=pod)
+    # The podium: slate blue, in three tiers, each oversailing the one under
+    # it by a metre with a line of light in its soffit; bands of amber and
+    # cyan windows round the lower two between slate spandrels, the third a
+    # plain kerb of slate with a line of cool light and a hair of red at its
+    # head (Fn9gKhU_2_Q@77).
     box((FA, "dark", 0), ax - 32, ax + 32, 0, SHOP_H, az - 32, az + 32, scale=4.0)
     outline = cut_rect(ax, az, 32.0, 32.0, 5.0)
-    poly((CB, "roof", 0), [(x, 21.0, z) for x, z in outline], [(x / 4, z / 4) for x, z in outline])
-    for y in (9.6, 15.4):
-        walls((CB, "glow", 0), cut_rect(ax, az, 32.06, 32.06, 5.0), y, y + 0.28, C.dim("amber", 0.45))
     band(CB, outline, SHOP_H - 0.62, SHOP_H - 0.54, "red", out=0.2)
-    band(CB, outline, 20.6, 21.0, "red", out=0.25)
+    tiers = ((SHOP_H, fl(2), 32.0), (fl(2), fl(4), 33.0), (fl(4), 21.35, 34.0))
+    for n, (y0, y1, half) in enumerate(tiers):
+        o = cut_rect(ax, az, half, half, 5.0)
+        if n < 2:
+            prism(CB, o, y0, y1, 4930 + n, col=B.wall_col(0.95, 5, 0.5, B.TINTS["navy"]), roof=False)
+            for ya, yb in ((y0, y0 + 0.8), (y1 - 0.7, y1)):
+                walls((CB, "trim", 0), cut_rect(ax, az, half + 0.05, half + 0.05, 5.0), ya, yb, SLATE)
+        else:
+            walls((CB, "trim", 0), o, y0, y1, SLATE)
+            walls((CB, "glow", 0), cut_rect(ax, az, half + 0.04, half + 0.04, 5.0), y0 + 1.2, y0 + 1.4, C.dim("white", 0.45))
+            walls((CB, "neon_red", 0), cut_rect(ax, az, half + 0.04, half + 0.04, 5.0), y1 - 0.28, y1 - 0.2, (1, 1, 1, 1))
+        if n:
+            # Its soffit over the tier below, a line of light round it.
+            inner = cut_rect(ax, az, half - 1.0, half - 1.0, 5.0)
+            a_, b_ = cut_rect(ax, az, half - 0.62, half - 0.62, 5.0), cut_rect(ax, az, half - 0.38, half - 0.38, 5.0)
+            hue = C.dim("white" if n == 1 else "yellow", 0.85)
+            for i in range(8):
+                j = (i + 1) % 8
+                for ra, rb, key_, col_, dy in ((inner, o, (CB, "trim", 0), B.DARK_TRIM, 0.0), (a_, b_, (CB, "glow", 0), hue, -0.015)):
+                    q = [(ra[i][0], y0 + dy, ra[i][1]), (ra[j][0], y0 + dy, ra[j][1]), (rb[j][0], y0 + dy, rb[j][1]), (rb[i][0], y0 + dy, rb[i][1])]
+                    quad(key_, *q, col=col_)
+                    quad(key_, q[1], q[0], q[3], q[2], col=col_)
+    outline = cut_rect(ax, az, 34.0, 34.0, 5.0)
+    poly((CB, "roof", 0), [(x, 21.0, z) for x, z in outline], [(x / 4, z / 4) for x, z in outline])
     # The shaft, leaning in, in storeys with a seam between them; the belt;
     # the head.
     cuts = (21.0, 45.0, 75.0, HERO_FROM, 150.0, 168.0, 191.0, 214.0)
-    for y0, y1, wash in zip(cuts, cuts[1:], (0.1, 0.045, 0.015, 0.0, 0.0, 0.0, 0.0)):
+    for y0, y1 in zip(cuts, cuts[1:]):
         key = FA if y0 >= HERO_FROM else CB
-        _shell(key, ax, az, y0, y1, wash=wash)
+        _shell(key, ax, az, y0, y1, rib_col=RIB if y0 >= HERO_FROM else RIB_LOW)
         if y0 not in (21.0, 168.0):
             _shell(key, ax, az, y0 - 0.25, y0 + 0.25, strips=1, grow=0.07, col=(0.012, 0.011, 0.014, 1))
+        if y0 != 150.0:
+            y = y0 + 6.8
+            while y < y1 - 3.0:
+                _shell(key, ax, az, y - 0.1, y + 0.1, strips=1, grow=0.05, col=JOINT_HIGH if y0 >= HERO_FROM else JOINT, lit=True)
+                y += 6.8
     for y in (150.0, 168.0):
         walls((FA, "neon_red", 0), cut_rect(ax, az, 22.1, 22.1, 4.0), y - 0.2, y + 0.2, (1, 1, 1, 1))
     # The channel of red light down the middle of each face, broken behind
@@ -355,15 +424,21 @@ def tower(ax, az):
     # The shoulders on the podium's roof: a buttress in two steps against
     # each face, a line of red under each step.
     for name, nx, nz in FACES:
-        for half, out, top in ((9.0, 3.6, 58.0), (6.0, 1.8, 86.0)):
+        # (Three steps, the highest just under where the hero's lens begins
+        # to see the tower: its shoulders, ax5YUmkWf_Y@39.)
+        for half, out, top in ((11.0, 4.6, 62.0), (8.0, 3.0, 88.0), (5.0, 1.6, 108.0)):
             d0, d1 = _plan(top)[0] - 0.6, 27.0 + out
             xs = sorted((ax + nx * d0 - nz * half, ax + nx * d1 + nz * half))
             zs = sorted((az + nz * d0 - nx * half, az + nz * d1 + nx * half))
-            box((CB, "glow", 0), xs[0], xs[1], 21.0, top, zs[0], zs[1], scale=2.0, col=(0.03, 0.012, 0.022, 1))
+            box((CB, "glow", 0), xs[0], xs[1], 21.0, top, zs[0], zs[1], scale=2.0, col=SHOULDER)
             f = B.Face({"s": "+z", "e": "+x", "n": "-z", "w": "-x"}[name], az + nz * d1 if nx == 0 else ax + nx * d1,
                        (ax if nx == 0 else az) - half, (ax if nx == 0 else az) + half)
             f.quad((CB, "neon_red", 0), 0.3, f.width - 0.3, top - 0.7, top - 0.5, 0.03)
             f.quad((CB, "trim", 0), f.width / 2 - 0.7, f.width / 2 + 0.7, 21.0, top - 1.2, 0.03, col=GROOVE)
+            y = 27.8
+            while y < top - 2.0:
+                f.quad((CB, "glow", 0), 0.0, f.width, y - 0.09, y + 0.09, 0.02, col=JOINT)
+                y += 6.8
     # The cap in two steps and the spire, a red lamp at its tip.
     for y0, y1, h in ((214.0, 219.0, 12.5), (219.0, 226.0, 9.0)):
         o = cut_rect(ax, az, h, h, 2.5)

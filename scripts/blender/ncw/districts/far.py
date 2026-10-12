@@ -226,7 +226,7 @@ def _podium(L, zn, zs, north, south):
             st.box((CB, "metal", 1), s + 0.17, s + 0.22, 0.45, SHOP_H - 0.5, 0.0, 0.05)
             st.box((CB, "metal", 1), s + 0.08, s + 0.28, 1.3, 1.62, 0.0, 0.1)
             st.box((CB, "glow", 0), s + 0.2, s + 0.24, 1.52, 1.56, 0.1, 0.105, col=GLOW[cr.choice(("green", "red", "amber"))])
-            hue = cr.choice(("amber", "white", "cyan", "pink"))
+            hue = cr.choice(("amber", "white", "cyan", "yellow"))
             st.box((CB, "glow", 0), s - 0.22, s + 0.02, 3.3, 3.42, 0.0, 0.16, col=GLOW[hue])
             light(CB, *st.p(st.at(s), 3.0, 0.9), hue, 3.5)
             if b % 2 == 1:
@@ -390,7 +390,7 @@ def _lookout(U, top, plaza):
     L = U["lot"]
     side, sd, n = L["side"], U["sd"], len(L["units"])
     r = random.Random(5100 + L["i"] * 7 + U["k"] + (0 if side > 0 else 90))
-    U["rail"] = r.choice(("cyan", "amber", "pink", "teal", "magenta"))
+    U["rail"] = r.choice(("cyan", "amber", "yellow", "teal", "white"))
     # (The slot is cut from the lower lot of the two, so it may be the
     # neighbour's: either way it stands against this slab's side wall.)
     if (U["k"] == 0 and L["south"] in ("gap", "alley")) or U["south"] == "notch":
@@ -570,7 +570,7 @@ def _dress_street(U):
         # face is the hero's, and stays dark against its band of sky).
         no = B.Face("-z", U["zn"], *U["x"])
         s = no.width - 0.5 if side > 0 else 0.5
-        C.strip(CB, no, s - 0.18, s + 0.18, ph + 1.0, h - 2.0, r.choice(("cyan", "magenta", "pink", "white")))
+        C.strip(CB, no, s - 0.18, s + 0.18, ph + 1.0, h - 2.0, r.choice(("cyan", "teal", "amber", "white")))
     # Signs: the dense belt over the shops, on the podium, and a looser one
     # up the slab's first floors; high on the slab a big blade or two, and
     # on some a screen canted toward the traffic coming up the avenue. None
@@ -850,7 +850,7 @@ for side in (-1, 1):
                 for dx in (-0.6, 0.7):
                     P.place("cy_stool", sx + dx, B.G0, sz + 1.5, district=CB)
                     stand(sx + dx, sz + 1.5, math.pi, "sit", B.G0 + 0.5)
-                light(CB, sx, 2.2, sz + 1.0, "pink", 5.0)
+                light(CB, sx, 2.2, sz + 1.0, "amber", 5.0)
     units = [U for L in row for U in L["units"]]
     for a, b in zip(units, units[1:]):
         gap = a["zn"] - b["zs"]
@@ -899,7 +899,7 @@ while lz > -450.0:
             P.place("cy_stool", 49.0, B.G0, lz + dz, district=CB)
             if lane_r.random() < 0.8:
                 stand(49.0, lz + dz, math.pi / 2, "sit", B.G0 + 0.5)
-        light(CB, 49.4, 2.2, lz, lane_r.choice(("pink", "amber")), 6.0)
+        light(CB, 49.4, 2.2, lz, lane_r.choice(("white", "amber")), 6.0)
     elif pick == 1:
         P.place("cy_table", 50.2, B.G0, lz, 0.0, district=CB)
         for i in range(3):
@@ -944,7 +944,7 @@ while ez > -262.0:
         P.place("cy_stool", 46.9, B.G0, ez - 2.35, district=CB)
         stand(46.9, ez - 2.35, -math.pi / 2, "sit", B.G0 + 0.5)
         stand(47.2, ez - 1.05, -math.pi / 2, lane_r.choice(("idle", "phone")), B.G0)
-        light(CB, 46.4, 2.2, ez - 1.75, lane_r.choice(("pink", "amber")), 6.0)
+        light(CB, 46.4, 2.2, ez - 1.75, lane_r.choice(("white", "amber")), 6.0)
     elif pick == 1:
         P.place("cy_table", 46.3, B.G0, ez - 1.75, 0.0, district=CB)
         for i in range(3):
