@@ -55,8 +55,14 @@ def lot(x0, x1, z0, z1, h, seed, sides, nb=None, style=None, roof=False, **kw):
     """A building on a lot. Its roof is dressed further down, by hand (the
     roofs are seen from the rooftop and from the air): the generator's own
     draw only where `roof` asks."""
-    return B.building(B.Lot(x0, x1, z0, z1, "+x", sides, nb or {}, D), h, random.Random(seed),
-                      style=dict(WATSON, **(style or {})), roof=roof, **kw)
+    # (A back onto a lane is this district's own, cold and dark: the
+    # generator draws it through K.back_ground while it builds here.)
+    kit_back, B.back_ground = B.back_ground, K.back_ground
+    try:
+        return B.building(B.Lot(x0, x1, z0, z1, "+x", sides, nb or {}, D), h, random.Random(seed),
+                          style=dict(WATSON, **(style or {})), roof=roof, **kw)
+    finally:
+        B.back_ground = kit_back
 
 
 F = SHOP_H + CELL_H  # a storey over the shops: heights are SHOP_H + n storeys
@@ -537,7 +543,7 @@ def back(name, plane, a0, a1, top, seed, tint="charcoal", clutter=True):
     n = {"+x": 1, "-x": -1, "+z": 1, "-z": -1}[name]
     f = B.Face(name, plane + n * 0.03, a0, a1)
     r = random.Random(seed)
-    B.back_ground(D, f, r, B.TRIM[T[tint]])
+    K.back_ground(D, f, r, B.TRIM[T[tint]])
     if clutter:
         B.clutter_back(D, f, r, 0.0, top)
     return f
@@ -568,10 +574,19 @@ K.duct(D, AFW, 3.0, 30.0, 4.9, rl)
 AFS = back("+z", -262.0, 402.0, WL, 30.0, 9502)
 K.duct(D, AFS, 1.0, 20.0, 5.0, rl)
 K.poster(D, AFS, 22.8, 2.3, 1.5, 2.1, rl)
+K.take(AFS, 21.9, 23.7)
 # The club's back door, open on its light, kegs and crates by it.
-K.lit_door(D, AFW, 22.0, "pink", power=4.0)
+K.lit_door(D, AFW, 22.0, "teal", power=4.0)
+K.take(AFW, 21.2, 23.6)
 K.kegs(D, 401.3, AFW.at(24.6), rl)
 K.crates(D, 401.2, AFW.at(19.4), rl)
+# Along the same wall: a cage of gas bottles, a lit window behind its blind,
+# a cat ladder to the roof.
+K.cage(D, AFW, 11.6, 15.2, rl)
+K.window(D, AFW, 16.4, 1.3, rl, lit=1.0, over="blind")
+K.ladder(D, AFW, 27.2, 2.5, 29.6, out=0.36)
+for a_, b_ in ((11.4, 15.4), (16.2, 17.9), (18.6, 20.2), (24.2, 25.5), (26.8, 27.6)):
+    K.take(AFW, a_, b_)
 back("-z", -250.0, 410.0, 416.0, 26.0, 9503, clutter=False)
 # MILITECH's service door on the yard: a shutter under hazard stripes, a
 # camera, a white flood.
@@ -580,8 +595,8 @@ MN.quad((D, "concrete", 0), 0.0, 12.0, 0.0, SHOP_H, 0.0, uvs=((0, 0), (4, 0), (4
 K.shutter(D, MN, 3.0, 9.0, h=3.6, lamp="white")
 MN.box((D, "hazard", 1), 2.8, 9.2, 3.95, 4.2, 0.0, 0.06)
 P.place("cctv", 409.3, G0, -250.8, district=D)
-lane_tubes([(400.0, -306.0), (400.0, -291.0), (400.0, -277.0), (400.0, -265.0)], 3.9, ("cyan", "green", "cyan", "white"))
-lane_tubes([(407.0, -260.0), (416.0, -260.0), (424.0, -260.0)], 3.9, ("cyan", "pink", "cyan"), along="x")
+lane_tubes([(400.0, -306.0), (400.0, -291.0), (400.0, -277.0), (400.0, -265.0)], 3.9, ("cyan", "cyan", "white", "cyan"))
+lane_tubes([(407.0, -260.0), (416.0, -260.0), (424.0, -260.0)], 3.9, ("cyan", "white", "cyan"), along="x")
 lane_cables(398.0, 402.0, (-311.0, -299.0, -288.5, -281.0, -270.0), 6.0, 10.0, rl)
 lane_cables(-262.0, -258.0, (405.0, 411.0, 419.5), 5.2, 7.4, rl, along="z")
 # A sign across each mouth: the alley's on the boulevard, the lane's on the
@@ -601,10 +616,12 @@ K.crates(D, 404.0, -251.4, rl)
 box((D, "concrete", 0), EL, 484.0, 4.1, 4.4, -316.0, -312.0, scale=2.0, bottom=True)
 lane_tubes([(458.0, -314.0), (468.0, -314.0), (478.0, -314.0)], 3.95, ("cyan", "cyan", "cyan"), power=3.4, along="x", half=1.1)
 PN = B.Face("+z", -316.0, EL, 484.0)       # the closing block's wall on it
-K.duct(D, PN, 2.0, 30.0, 3.3, rl)
+K.duct(D, PN, 2.0, 30.0, 3.62, rl)
 PS = B.Face("-z", -312.0, 454.0, 484.0)    # the clinic's
 K.poster(D, PS, 22.0, 2.2, 1.3, 1.8, rl)
-K.grille(D, PS, 4.0, 8.0, 0.4, 2.6)
+K.cage(D, PS, 4.0, 8.8, rl, out=0.8)
+K.take(PS, 21.2, 22.8)
+K.take(PS, 3.8, 9.0)
 box((D, "board_frame", 0), EL - 0.1, EL + 0.05, 4.4, 5.3, -315.9, -312.1, scale=1.0)
 K.board(D, EL - 0.12, 4.85, -314.0, "pm", -math.pi / 2, frame=0)
 K.steam("afterlife_lane_2", 472.0, G0, -314.0, D)
@@ -627,13 +644,18 @@ for (x_, z_) in ((488.6, -250.0), (489.0, -249.2), (488.5, -221.0), (478.0, -180
     P.place("drum", x_, G0, z_, district=D)
 P.place("dumpster", 488.8, G0, -236.0, -math.pi / 2, district=D)
 P.place("dumpster", 485.2, G0, -288.0, math.pi / 2, district=D)
-lane_tubes([(487.0, -306.0), (487.0, -290.0), (487.0, -274.0), (487.0, -262.0)], 4.2, ("green", "cyan", "white", "cyan"))
+lane_tubes([(487.0, -306.0), (487.0, -290.0), (487.0, -274.0), (487.0, -262.0)], 4.2, ("cyan", "cyan", "white", "cyan"))
 lane_cables(484.0, 490.0, (-310.0, -296.0, -283.0, -268.0), 6.0, 11.0, rl)
 lane_cables(476.0, 490.0, (-246.0, -231.0, -214.0, -196.0, -184.0), 6.5, 9.5, rl)
 # A flood on a pole in the yard, a second by the garage's back door.
-for (x_, z_, hue_) in ((483.0, -240.0, "amber"), (483.5, -207.0, "white"), (487.0, -322.0, "amber")):
+for (x_, z_, hue_) in ((483.0, -240.0, "white"), (483.5, -207.0, "white")):
     P.place("lamp_short", x_, G0, z_, district=D)
     light(D, x_, 3.6, z_, hue_, 5.0)
+# Drain covers down the middle of every lane.
+for (x_, z_, yaw_) in ((400.0, -310.0, 0.0), (400.0, -296.0, 0.0), (400.0, -271.0, 0.0), (410.0, -260.0, math.pi / 2), (421.0, -260.0, math.pi / 2),
+                       (461.0, -314.0, math.pi / 2), (479.0, -314.0, math.pi / 2), (487.0, -309.0, 0.0), (487.0, -296.5, 0.0), (487.0, -267.0, 0.0),
+                       (483.0, -232.0, 0.0), (483.0, -196.0, 0.0)):
+    P.place("drain", x_, G0, z_, yaw_, district=D)
 K.steam("afterlife_lane_3", 486.5, G0, -280.0, D)
 K.steam("afterlife_lane_4", 480.5, G0, -218.0, D)
 # The lane's end against the closing block: a gate's worth of clutter.
@@ -652,7 +674,7 @@ for name, plane, a0, a1, top, dens in (
         ("+z", -316.0, EL, 484.0, 28.4, 1.5), ("-z", -312.0, 454.0, 484.0, 11.4, 1.5),
         ("+x", 484.0 + 0.03, -300.0, -258.0, 34.0, 1.4), ("+x", 484.0, -312.0, -300.0, 11.4, 1.4), ("-x", 490.0, -316.0, -258.0, 18.0, 1.4),
         ("+x", 476.0 + 0.03, -258.0, -230.0, 22.0, 1.3), ("+x", 476.0 + 0.03, -200.0, -176.0, 7.0, 1.1), ("-x", 490.0, -258.0, -176.0, 11.0, 1.2)):
-    K.lane_wall(D, B.Face(name, plane, a0, a1), rl, top, dens)
+    K.lane_wall(D, B.Face(name, plane, a0, a1), rl, top, dens, bundle=(name, a1) != ("+z", 484.0))
 
 # ---------------------------------------------------------------------------
 # MILITECH's forecourt on the plaza street (mH2wmyeiIpA@182): a walled court
@@ -802,10 +824,10 @@ box((D, "glow", 1), 486.14, 486.2, G0 + 2.3, G0 + 2.4, -196.2, -195.8, scale=0.5
 for z_ in (-178.0,):
     for x_ in (476.0, 479.0, 482.0, 487.0, 490.0):
         cylinder((D, "metal", 1), x_, z_, G0, 2.6, 0.04, segs=5)
-    for (a_, b_) in ((476.0, 482.0), (487.0, 490.0)):
-        K.grille(D, B.Face("-z", z_, a_, b_), 0.0, b_ - a_, G0 + 0.1, 2.5, out=0.0, step=0.25)
-for (x_, z_, yaw_, hue_) in ((489.4, -244.0, -math.pi / 2, "white"), (476.6, -186.0, math.pi / 2, "amber"), (489.4, -212.0, -math.pi / 2, "amber"),
-                             (484.4, -296.0, math.pi / 2, "white"), (398.4, -256.0, math.pi / 2, "amber")):
+    for (x_, w_) in ((477.2, 2.4), (479.6, 2.4), (481.4, 1.2), (488.5, 3.0)):
+        P.place("fence_mesh", x_, G0, z_, 0.0, sxz=w_ / 2.4, district=D)
+for (x_, z_, yaw_, hue_) in ((489.4, -244.0, -math.pi / 2, "white"), (476.6, -186.0, math.pi / 2, "amber"), (489.4, -212.0, -math.pi / 2, "cyan"),
+                             (484.4, -296.0, math.pi / 2, "white"), (398.4, -256.0, math.pi / 2, "white")):
     K.arm_lamp(D, x_, z_, G0, yaw_, h=5.6, arm=2.6, hue=hue_, power=6.0)
 
 # ---------------------------------------------------------------------------

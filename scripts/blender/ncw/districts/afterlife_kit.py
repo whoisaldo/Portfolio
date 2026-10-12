@@ -412,7 +412,7 @@ def steam(name, x, y, z, D=None, grate=True):
     """A vent breathing steam into the street's light (the site draws a
     plume at every anchor_steam_*)."""
     if grate and D:
-        box((D, "metal", 1), x - 0.4, x + 0.4, y - 0.04, y + 0.02, z - 0.4, z + 0.4, scale=0.5)
+        P.place("grate_glow", x, y, z, district=D)
     empty(f"anchor_steam_{name}", (x, y + 0.1, z))
 
 
@@ -785,58 +785,191 @@ def post_light(D, x, z, y, hue="amber", h=0.7, power=6.0):
     pool(D, x, z, y, hue, r=2.6, k=0.1)
 
 
-def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None):
-    """What a back wall carries at a walker's height, between its doors: a
-    darker band along its foot, pipes on brackets, meter boxes with a lamp
-    each, a barred window lit from a kitchen or a store, a poster, crates,
-    and now and then a small sign turned to the lane (the passage's wall,
-    Zuzys9Ld_5M@87)."""
+# ---------------------------------------------------------------------------
+# The lanes (Zuzys9Ld_5M@87): one dark blue, a cold tube over each door and
+# dark between, real windows most of them dark, pipes in bundles, meters,
+# cages of mesh fencing, ladders, what a back street keeps.
+# ---------------------------------------------------------------------------
+LANE_WALL = (0.1, 0.115, 0.15, 1)       # poured concrete in the lane's blue
+LANE_FOOT = (0.048, 0.056, 0.078, 1)    # the darker band along its foot
+BLIND = (0.2, 0.2, 0.17, 1)
+PIPE_PAINT = [(0.15, 0.16, 0.18, 1), (0.2, 0.085, 0.04, 1), (0.06, 0.1, 0.13, 1), (0.24, 0.19, 0.05, 1), (0.1, 0.105, 0.115, 1)]
+BOTTLE = [(0.3, 0.07, 0.05, 1), (0.08, 0.12, 0.2, 1), (0.22, 0.2, 0.18, 1)]
+# The facade shader's openings in its cell (src/world/glsl.js, windowsT), by
+# window style: a small home's window, a small old one.
+WINDOW_CELLS = {6: ((0.3, 0.34), (0.7, 0.8)), 3: ((0.24, 0.3), (0.6, 0.7))}
+
+# Where a wall is already taken (a door, a shutter, a window), by its plane
+# and the stretch along it, so nothing is hung across a door.
+_TAKEN = {}
+
+
+def _wall(f):
+    return (f.name, round(f.plane, 1))
+
+
+def take(f, s0, s1):
+    a, b = sorted((f.at(s0), f.at(s1)))
+    _TAKEN.setdefault(_wall(f), []).append((a, b))
+
+
+def free(f, s0, s1, gap=0.25):
+    a, b = sorted((f.at(s0), f.at(s1)))
+    return all(b + gap < t0 or a - gap > t1 for t0, t1 in _TAKEN.get(_wall(f), ()))
+
+
+def back_ground(district, f, r, tcol):
+    """The ground floor of a back as these lanes have it (it takes the place
+    of buildings.back_ground for this district's lots): poured concrete with
+    a darker band along its foot, dark but for a cold tube over each back
+    door and its pool on the lane, a shutter for deliveries now and then,
+    and by a door what a back street keeps there."""
+    w = f.width
+    f.quad((district, "castconcrete", 0), 0.0, w, 1.0, SHOP_H, 0.0, col=LANE_WALL)
+    f.quad((district, "castconcrete", 0), 0.0, w, 0.0, 1.0, 0.0, col=LANE_FOOT)
+    s = r.uniform(1.5, 4.0)
+    while s < w - 1.5:
+        if r.random() < 0.22 and s + 3.6 < w - 0.5:
+            shutter(district, f, s, s + 3.2, h=3.0, lamp=None)
+            take(f, s - 0.1, s + 3.3)
+            s += r.uniform(7.0, 12.0)
+            continue
+        f.quad((district, "door", 0), s, s + 1.1, G0, 2.3, 0.03)
+        f.box((district, "metal", 1), s - 0.08, s + 1.18, 2.3, 2.4, 0.0, 0.12)
+        for e in (s - 0.08, s + 1.1):
+            f.box((district, "metal", 1), e, e + 0.08, G0, 2.3, 0.0, 0.1)
+        hue = "cyan" if r.random() < 0.75 else "white"
+        f.box((district, "neon_" + hue, 0), s - 0.25, s + 1.35, 2.62, 2.7, 0.06, 0.12)
+        f.box((district, "metal", 1), s - 0.3, s + 1.4, 2.7, 2.76, 0.0, 0.16)
+        light(district, *f.p(f.at(s + 0.55), 2.5, 0.9), hue, 3.5)
+        take(f, s - 0.3, s + 1.4)
+        pick = r.random()
+        if pick < 0.8 and s + 3.6 < w:
+            px_, _, pz_ = f.p(f.at(s + 2.4), G0, 0.75)
+            P.place(("dumpster", "bags", "rubbish", "pallets", "barrel", "crates")[int(pick / 0.8 * 6)], px_, G0, pz_, f.yaw, district=district)
+            take(f, s + 1.4, s + 3.4)
+        s += r.uniform(6.0, 13.0)
+
+
+def window(D, f, s, y, rng, lit=0.0, tint=1, style=6, over="bars", out=0.05):
+    """A real window in a wall, its left jamb s along the face and its sill
+    at y: one cell's opening of the kit's window shader (the facade
+    material: a reveal, the glass, a room behind it lit or dark) in a steel
+    frame on a sill, bars or a half-drawn blind over it. Returns its width."""
+    (u0, v0), (u1, v1) = WINDOW_CELLS[style]
+    w, h = (u1 - u0) * CELL_W, (v1 - v0) * CELL_H
+    m = 0.03
+    cu, cv = rng.randrange(40), rng.randrange(40)
+    ua, ub, va, vb = cu + u0 - m / CELL_W, cu + u1 + m / CELL_W, cv + v0 - m / CELL_H, cv + v1 + m / CELL_H
+    f.quad((D, "facade", 0), s - m, s + w + m, y - m, y + h + m, out, uvs=((ua, va), (ub, va), (ub, vb), (ua, vb)),
+           col=B.wall_col(lit, style, rng.uniform(0.2, 0.8), tint))
+    k = (D, "metal", 1)
+    for e in (s - 0.08, s + w):
+        f.box(k, e, e + 0.08, y - 0.08, y + h + 0.08, 0.0, out + 0.07)
+    f.box(k, s, s + w, y + h, y + h + 0.08, 0.0, out + 0.07)
+    f.box(k, s - 0.14, s + w + 0.14, y - 0.1, y, 0.0, out + 0.14)
+    if over == "bars":
+        grille(D, f, s, s + w, y, y + h, out=out + 0.05, step=0.18)
+    elif over == "blind":
+        drop = rng.uniform(0.35, 0.85) * h
+        n = max(3, int(drop / 0.11))
+        for i in range(n):
+            yy = y + h - (i + 1) * drop / n
+            f.quad((D, "trim", 1), s + 0.02, s + w - 0.02, yy, yy + drop / n * 0.7, out + 0.012, col=BLIND)
+    return w
+
+
+def pipe_bundle(D, f, s0, s1, y, rng, n=4):
+    """A bundle of painted pipes along a wall, thick and thin, on brackets,
+    one or two of them turning down to the ground."""
+    yy = y
+    for k in range(n):
+        rad = rng.choice((0.035, 0.05, 0.07, 0.1))
+        yy += rad
+        pipe((D, "steel", 1), f.p(f.at(s0), yy, 0.12 + rad), f.p(f.at(s1), yy, 0.12 + rad), rad, segs=5, col=rng.choice(PIPE_PAINT))
+        yy += rad + 0.04
+    s = s0 + 0.5
+    while s < s1:
+        f.box((D, "dark", 1), s - 0.03, s + 0.03, y - 0.06, yy + 0.04, 0.0, 0.34)
+        s += 2.3
+    for e in (s0 + rng.uniform(0.15, 0.6), s1 - rng.uniform(0.15, 0.6)):
+        if free(f, e - 0.1, e + 0.1, gap=0.1):
+            pipe((D, "steel", 1), f.p(f.at(e), G0, 0.18), f.p(f.at(e), y + 0.05, 0.18), 0.05, segs=5, col=rng.choice(PIPE_PAINT))
+
+
+def cage(D, f, s0, s1, rng, out=0.95):
+    """A cage of mesh fencing against a wall (the kit's panels, 2.4 m wide
+    and 2 m high, across its front and its two ends) and what is locked in
+    it: gas bottles, a barrel."""
+    n = max(1, round((s1 - s0) / 2.4))
+    step = (s1 - s0) / n
+    for i in range(n):
+        x, _, z = f.p(f.at(s0 + (i + 0.5) * step), G0, out)
+        P.place("fence_mesh", x, G0, z, f.yaw, sxz=step / 2.4, district=D)
+    for e in (s0, s1):
+        x, _, z = f.p(f.at(e), G0, out / 2)
+        P.place("fence_mesh", x, G0, z, f.yaw + math.pi / 2, sxz=out / 2.4, district=D)
+        x, _, z = f.p(f.at(e), G0, out)
+        cylinder((D, "metal", 1), x, z, G0, G0 + 2.05, 0.035, segs=5)
+    for k in range(rng.randrange(2, 5)):
+        x, _, z = f.p(f.at(s0 + 0.4 + k * 0.33), G0, 0.32)
+        cylinder((D, "steel", 1), x, z, G0, G0 + 1.25, 0.13, segs=7, col=rng.choice(BOTTLE))
+    if s1 - s0 > 3.0:
+        x, _, z = f.p(f.at(s1 - 0.6), G0, 0.45)
+        P.place("barrel", x, G0, z, district=D)
+
+
+def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None, bundle=True):
+    """What a back wall carries at a walker's height, between its doors
+    (the passage's wall, Zuzys9Ld_5M@87): a bundle of pipes on brackets,
+    real windows (most of them dark, barred or behind a blind), meter boxes
+    with a lamp each, a cage of mesh fencing, a cat ladder, bags and
+    pallets, louvres, shelving, a poster, and seldom a small sign turned to
+    the lane; conduits up it in threes."""
     s1 = f.width if s1 is None else s1
-    f.quad((D, "trim", 1), s0, s1, G0, 1.0, 0.045, col=BLACK)
-    if s1 - s0 > 6.0:
+    if bundle and s1 - s0 > 6.0:
         a = s0 + rng.uniform(0.3, 1.5)
-        pipes(D, f, a, min(s1 - 0.3, a + rng.uniform(6.0, 14.0)), rng.uniform(2.95, 3.25), rng, n=rng.randrange(1, 3))
-    s = s0 + rng.uniform(1.0, 3.0)
-    while s < s1 - 1.2:
-        roll = rng.random()
-        if roll < 0.3 * dens:
-            # A barred window, lit.
-            w = rng.uniform(1.0, 1.6)
-            hue = rng.choice(("amber", "amber", "white", "green", "pink"))
-            c = GLOW[hue]
-            k = 0.2 if hue == "white" else 0.4
-            f.quad((D, "glow", 0), s, s + w, 1.5, 2.5, 0.05, col=(c[0] * k, c[1] * k, c[2] * k, 1))
-            f.box((D, "metal", 1), s - 0.06, s + w + 0.06, 1.42, 1.5, 0.0, 0.12)
-            grille(D, f, s, s + w, 1.5, 2.5, out=0.07, step=0.2)
-            light(D, *f.p(f.at(s + w / 2), 1.8, 0.9), hue, 2.2)
-            s += w
-        elif roll < 0.48 * dens:
-            # A meter box, its lamp.
-            f.box((D, "metal", 1), s, s + 0.55, 1.2, 2.0, 0.04, 0.24)
-            f.box((D, "glow", 1), s + 0.42, s + 0.49, 1.86, 1.93, 0.24, 0.255, col=GLOW[rng.choice(("red", "green", "cyan"))])
-            pipe((D, "metal", 1), f.p(f.at(s + 0.27), 2.0, 0.14), f.p(f.at(s + 0.27), min(top - 0.5, rng.uniform(4.0, 7.0)), 0.14), 0.035, segs=4)
-            s += 0.55
-        elif roll < 0.62 * dens:
+        pipe_bundle(D, f, a, min(s1 - 0.3, a + rng.uniform(7.0, 16.0)), rng.uniform(3.02, 3.25), rng, n=rng.randrange(2, 5))
+    kinds = ["window"] * 30 + ["meters"] * 12 + ["cage"] * 9 + ["heap"] * 12 + ["ladder"] * 5 + ["poster"] * 4 + ["vent"] * 9 + ["rack"] * 7
+    if blades:
+        kinds += ["blade"] * 3
+    widths = {"window": 1.3, "meters": 1.4, "cage": 3.4, "heap": 1.8, "ladder": 0.7, "poster": 1.2, "vent": 1.2, "rack": 2.0, "blade": 0.3}
+    s = s0 + rng.uniform(0.8, 2.4)
+    while s < s1 - 1.6:
+        kind = rng.choice(kinds)
+        w = widths[kind]
+        if s + w > s1 - 0.3 or not free(f, s, s + w):
+            s += 0.7
+            continue
+        if kind == "window":
+            window(D, f, s, 1.3, rng, lit=1.0 if rng.random() < 0.4 else 0.0, style=rng.choice((6, 6, 3)),
+                   over=rng.choice(("bars", "bars", "blind", "blind", None)))
+        elif kind == "meters":
+            for k in range(rng.randrange(1, 4)):
+                a = s + k * 0.46
+                f.box((D, "metal", 1), a, a + 0.4, 1.25, 1.95, 0.04, 0.22)
+                f.box((D, "glow", 1), a + 0.29, a + 0.35, 1.82, 1.88, 0.22, 0.235, col=GLOW[rng.choice(("red", "green", "cyan"))])
+                pipe((D, "metal", 1), f.p(f.at(a + 0.2), 1.95, 0.12), f.p(f.at(a + 0.2), min(top - 0.5, rng.uniform(4.0, 7.0)), 0.12), 0.03, segs=4)
+        elif kind == "cage":
+            cage(D, f, s, s + w, rng)
+        elif kind == "heap":
+            p = f.p(f.at(s + w / 2), G0, 0.72)
+            P.place(rng.choice(("bags", "rubbish", "pallets", "barrel", "bags")), p[0], G0, p[2], f.yaw, district=D)
+        elif kind == "ladder":
+            ladder(D, f, s + 0.35, 2.5, min(top - 0.3, rng.uniform(9.0, 14.0)), out=0.36)
+        elif kind == "poster":
             poster(D, f, s + 0.6, 2.05, 1.0, 1.45, rng, out=0.05)
-            s += 1.2
-        elif roll < 0.76 * dens:
-            p = f.p(f.at(s + 0.5), 0.0, 0.55)
-            crates(D, p[0], p[2], rng)
-            s += 1.2
-        elif blades and roll < 0.86 * dens:
+        elif kind == "blade":
             p = f.p(f.at(s), 0.0, 0.0)
-            blade(D, p[0], p[2], rng.uniform(3.4, 5.6), rng.choice(("bs", "bx", "bs", "bm")), f.yaw + rng.uniform(-0.6, 0.6))
-        elif roll < 0.93 * dens:
+            blade(D, p[0], p[2], rng.uniform(3.9, 5.6), rng.choice(("bs", "bx", "bs")), f.yaw + rng.uniform(-0.6, 0.6))
+        elif kind == "vent":
             # A vent's louvres, a drip of rust under them.
-            w = rng.uniform(0.8, 1.3)
-            f.box((D, "metal", 1), s, s + w, 2.3, 3.0, 0.03, 0.12)
+            f.box((D, "metal", 1), s, s + w, 2.2, 2.9, 0.03, 0.12)
             for k in range(4):
-                f.box((D, "dark", 1), s + 0.06, s + w - 0.06, 2.38 + k * 0.15, 2.44 + k * 0.15, 0.12, 0.135)
-            f.quad((D, "trim", 1), s + w * 0.3, s + w * 0.5, 1.0, 2.3, 0.047, col=RUST_DARK)
-            s += w
+                f.box((D, "dark", 1), s + 0.06, s + w - 0.06, 2.28 + k * 0.15, 2.34 + k * 0.15, 0.12, 0.135)
+            f.quad((D, "trim", 1), s + w * 0.3, s + w * 0.5, 1.0, 2.2, 0.012, col=RUST_DARK)
         else:
             # A rack of shelves against the wall, boxes on it.
-            w = rng.uniform(1.4, 2.2)
             for e in (s, s + w):
                 f.box((D, "metal", 1), e - 0.03, e + 0.03, G0, 2.0, 0.05, 0.5)
             for k in range(3):
@@ -845,17 +978,14 @@ def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None):
                 if rng.random() < 0.8:
                     q = f.p(f.at(s + rng.uniform(0.3, w - 0.3)), 0.0, 0.28)
                     oriented_box((D, "trim", 1), q[0], yy + 0.22, q[2], rng.uniform(0.4, 0.7), 0.36, 0.38, f.yaw, scale=1.0, col=rng.choice([CARD, WOOD] + PLASTIC))
-            s += w
-        s += rng.uniform(1.2, 3.2) / dens
-    # Conduits up the wall in threes, and patches where it was made good.
+        take(f, s, s + w)
+        s += w + rng.uniform(0.8, 2.6) / dens
+    # Conduits up the wall in threes.
     s = s0 + rng.uniform(2.0, 5.0)
     while s < s1 - 1.0:
-        for k in range(rng.randrange(2, 4)):
-            pipe((D, "metal", 1), f.p(f.at(s + k * 0.11), G0, 0.09), f.p(f.at(s + k * 0.11), min(top - 0.4, rng.uniform(3.6, 6.5)), 0.09), 0.028, segs=3)
-        if rng.random() < 0.6:
-            a = s + rng.uniform(0.6, 2.0)
-            c = rng.uniform(0.11, 0.2)
-            f.quad((D, "trim", 1), a, a + rng.uniform(0.8, 1.8), rng.uniform(1.0, 1.6), rng.uniform(2.6, 3.6), 0.046, col=(c, c, c * 1.1, 1))
+        if free(f, s - 0.05, s + 0.4, gap=0.05):
+            for k in range(rng.randrange(2, 4)):
+                pipe((D, "metal", 1), f.p(f.at(s + k * 0.11), G0, 0.09), f.p(f.at(s + k * 0.11), min(top - 0.4, rng.uniform(3.6, 6.5)), 0.09), 0.028, segs=3)
         s += rng.uniform(4.0, 8.0) / dens
 
 
