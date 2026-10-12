@@ -2080,6 +2080,121 @@ def poles(points, yaw, can_every=3, r=None, drop=None):
 
 
 # ---------------------------------------------------------------------------
+# The power line: lattice pylons and the conductors between them
+# (JtqIas3bYhg@80: they stand behind the container yard).
+# ---------------------------------------------------------------------------
+PYLON_GREY = c(0.5, 0.5, 0.47)     # galvanised steel, pale enough to stand in the yard's light
+PYLON_RED, PYLON_WHITE = c(0.62, 0.08, 0.05), c(0.8, 0.8, 0.76)
+
+
+def strut(a, b, n, w=0.12, detail=0, col=PYLON_GREY):
+    """A lattice member from a to b: a flat bar lying in the face whose
+    outward normal (level) is n, seen from both sides."""
+    dx, dy, dz = b[0] - a[0], b[1] - a[1], b[2] - a[2]
+    wx, wy, wz = dy * n[2] - dz * n[1], dz * n[0] - dx * n[2], dx * n[1] - dy * n[0]
+    ln = math.sqrt(wx * wx + wy * wy + wz * wz) or 1.0
+    wx, wy, wz = wx / ln * w / 2, wy / ln * w / 2, wz / ln * w / 2
+    both(M("steel", detail), ((a[0] - wx, a[1] - wy, a[2] - wz), (a[0] + wx, a[1] + wy, a[2] + wz),
+                              (b[0] + wx, b[1] + wy, b[2] + wz), (b[0] - wx, b[1] - wy, b[2] - wz)), col)
+
+
+def pylon(x, z, h=38.0, base=4.2, arm=4.2, along_x=True, lit=6.0):
+    """A lattice pylon for a line running along x (or z): four legs drawn
+    in from a wide foot to a slim waist and on up, every panel crossed on
+    all four faces, galvanised below and banded red and white above as
+    the flying lanes want it, three pairs of cross-arms with their
+    insulator strings and a red lamp at each tip, a peak for the earth
+    wire, footings, and floods at its foot that stand it in sodium light.
+    Returns where its conductors hang: (the earth wire's point, [the six
+    strings' feet, low to high, -side then +side])."""
+    waist, wy_ = 2.0, h * 0.52
+    top = 1.2
+    levels = [GY, h * 0.13, h * 0.26, h * 0.39, wy_, h - 14.0, h - 9.0, h - 4.0, h]
+
+    def half(yy):
+        if yy <= wy_:
+            return base / 2 + (waist / 2 - base / 2) * (yy - GY) / (wy_ - GY)
+        return waist / 2 + (top / 2 - waist / 2) * (yy - wy_) / (h - wy_)
+
+    def corner(sx, sz, yy):
+        return (x + sx * half(yy), yy, z + sz * half(yy))
+
+    def paint(j):
+        return PYLON_GREY if j < 4 else (PYLON_RED if j % 2 == 0 else PYLON_WHITE)
+
+    for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+        for j in range(len(levels) - 1):
+            brace(corner(sx, sz, levels[j]), corner(sx, sz, levels[j + 1]), r=0.17 if j < 4 else 0.13, mat=MAT["steel"], col=paint(j))
+        fx, fz = x + sx * base / 2, z + sz * base / 2
+        box(M("concrete"), fx - 0.45, fx + 0.45, 0.0, GY + 0.45, fz - 0.45, fz + 0.45, scale=1.0, col=CONC)
+    faces = (((-1, -1), (1, -1), (0, 0, -1)), ((1, -1), (1, 1), (1, 0, 0)), ((1, 1), (-1, 1), (0, 0, 1)), ((-1, 1), (-1, -1), (-1, 0, 0)))
+    for j in range(len(levels) - 1):
+        ya, yb = levels[j], levels[j + 1]
+        for (a, b, n) in faces:
+            strut(corner(*a, ya), corner(*b, yb), n, w=0.2 if j < 4 else 0.16, detail=j % 2, col=paint(j))
+            strut(corner(*b, ya), corner(*a, yb), n, w=0.2 if j < 4 else 0.16, detail=j % 2, col=paint(j))
+            if j:
+                strut(corner(*a, ya), corner(*b, ya), n, w=0.18, col=paint(j))
+    # An anti-climbing guard round the legs, a warning board, the floods.
+    for (a, b, n) in faces:
+        strut(corner(*a, GY + 3.0), corner(*b, GY + 3.0), n, w=0.5, detail=1, col=c(0.07, 0.07, 0.08))
+    P.place("warn_board", x - base / 2 + 0.1, GY + 1.7, z - base / 2 - 0.05, 0.0, district=D)
+    if lit:
+        for sx, sz in ((-1, -1), (1, 1)):
+            fx, fz = x + sx * (base / 2 - 0.7), z + sz * (base / 2 - 0.7)
+            sodium(fx, 1.2, fz, lit, red=0.15)
+            box(k("neon_amber"), fx - 0.2, fx + 0.2, GY + 0.2, GY + 0.32, fz - 0.13, fz + 0.13, scale=0.5)
+        sodium(x, 1.2, z, lit, red=0.15)
+    # The cross-arms, each a triangle in plan with a raker over it, and the
+    # insulator strings hanging from their tips.
+    feet = []
+    ax, az = (0, 1) if along_x else (1, 0)   # the way the arms reach
+    for q, yy in enumerate((h - 14.0, h - 9.0, h - 4.0)):
+        hw = half(yy)
+        for sg in (-1, 1):
+            tip = (x + ax * sg * (hw + arm), yy, z + az * sg * (hw + arm))
+            for t in (-1, 1):
+                root = (x + ax * sg * hw + az * t * hw, yy, z + az * sg * hw + ax * t * hw)
+                brace(root, tip, r=0.1, mat=MAT["steel"], col=PYLON_WHITE)
+            brace((x + ax * sg * half(yy + 1.9), yy + 1.9, z + az * sg * half(yy + 1.9)), tip, r=0.07, mat=MAT["steel"], col=PYLON_WHITE, detail=1)
+            foot = (tip[0], yy - 1.7, tip[2])
+            cylinder(k("trim"), tip[0], tip[2], yy - 1.7, yy - 0.05, 0.13, segs=5, col=c(0.55, 0.47, 0.36), cap=False)
+            if q != 1:
+                box(k("glow"), tip[0] - 0.11, tip[0] + 0.11, yy + 0.08, yy + 0.3, tip[2] - 0.11, tip[2] + 0.11, scale=0.5, col=GLOW["red"])
+            feet.append(foot)
+    peak = (x, h + 1.6, z)
+    for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+        brace(corner(sx, sz, h), peak, r=0.07, mat=MAT["steel"], col=PYLON_RED, detail=1)
+    box(k("glow"), x - 0.16, x + 0.16, h + 1.6, h + 1.95, z - 0.16, z + 0.16, scale=0.5, col=GLOW["red"])
+    for sx, sz in ((-1, 1), (1, -1)):
+        px, py, pz = corner(sx, sz, wy_)
+        box(k("glow"), px - 0.12, px + 0.12, py, py + 0.26, pz - 0.12, pz + 0.12, scale=0.5, col=GLOW["red"])
+    collide(x - base / 2, x + base / 2, z - base / 2, z + base / 2, h)
+    return peak, feet
+
+
+def conductor(a, b, sag=2.0, steps=10, t=0.07, detail=1, col=c(0.42, 0.43, 0.44)):
+    """A line's conductor slung from a to b: bare aluminium, pale where
+    it crosses a lit yard."""
+    prev = None
+    for i in range(steps + 1):
+        q = i / steps
+        p = (a[0] + (b[0] - a[0]) * q, a[1] + (b[1] - a[1]) * q - sag * math.sin(math.pi * q), a[2] + (b[2] - a[2]) * q)
+        if prev is not None:
+            both(M("steel", detail), ((prev[0], prev[1] - t / 2, prev[2]), (p[0], p[1] - t / 2, p[2]), (p[0], p[1] + t / 2, p[2]), (prev[0], prev[1] + t / 2, prev[2])), col)
+        prev = p
+
+
+def span(a, b, sag=2.2, steps=10):
+    """The line between two pylons (each what pylon() returned): six
+    conductors string to string and the earth wire peak to peak."""
+    (pa, fa), (pb, fb) = a, b
+    conductor(pa, pb, sag=sag * 0.6, steps=steps, t=0.05, detail=0)
+    for i, (p, q) in enumerate(zip(fa, fb)):
+        conductor(p, q, sag=sag, steps=steps, detail=0 if i in (1, 4) else 1)
+
+
+# ---------------------------------------------------------------------------
 # Trucks: each firm's paint and every lamp a parked truck shows at night,
 # laid over the trailer and tractor instances where they stand, and a
 # tanker built in place.

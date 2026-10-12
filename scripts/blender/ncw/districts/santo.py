@@ -825,7 +825,7 @@ def street_shed():
     K.yard_wall(178.0, 44.8, 260.0, 44.8, r=r, face=-1)
     for z in (20.0, 36.0):
         strip(259.0, z, -PI / 2, power=6.0, cone=False)
-    scatter(r, 257.0, 259.6, 18.0, 42.0, 4, kinds=("dumpster", "crates", "tyres", "bags"))
+    scatter(r, 257.0, 259.6, 18.0, 36.4, 4, kinds=("dumpster", "crates", "tyres", "bags"))
 
 
 def container_yard():
@@ -1023,12 +1023,11 @@ def chevrons(f, y0, y1, col, n=2, wdt=0.9):
             K.band_quad(k("trim"), cx, cz, f.yaw, u0, yy, u1, yy, wdt * 0.6, col)
 
 
-def hall(f, door, pale):
-    """Block 06's street face: its number stencilled six metres tall over a
-    chevron bar, the crossed panel beside it, and between them the hall's
-    door standing open under a canopy: striped jambs and lintel, the
-    shutter part down, tube lights along the ceiling, racking at the back,
-    a truck nosing out, a forklift, pallets, and the shift inside."""
+def hall(f, door):
+    """The loading hall in the podium under the two blocks: its door
+    standing open under a canopy, striped jambs and lintel, the shutter
+    part down, tube lights along the ceiling, racking at the back, a truck
+    nosing out, a forklift, pallets, and the shift inside."""
     s0, s1, head = door
     cx, _, cz = f.p((f.a0 + f.a1) / 2, 0.0, 0.0)
     rx, rz = math.cos(f.yaw), -math.sin(f.yaw)
@@ -1038,20 +1037,6 @@ def hall(f, door, pale):
         return (px - cx) * rx + (pz - cz) * rz
 
     black = (0.02, 0.02, 0.022, 1.0)
-    # The number and its bar on one side, the crossed panel on the other.
-    nx_, _, nz_ = f.p(f.at(5.9), 0.0, 0.0)
-    K.digits("06", nx_, 12.0, nz_, 6.0, f.yaw, k("trim", 1), pale, out=0.06)
-    f.quad(k("hazard"), 1.2, 10.6, 7.9, 8.6, 0.05)
-    ua, ub = sorted((u_of(1.2), u_of(10.6)))
-    u = ua + 0.1
-    while u < ub - 0.6:
-        K.band_quad(k("trim", 1), cx, cz, f.yaw, u, 7.92, u + 0.5, 8.58, 0.2, black, out=0.08)
-        u += 0.8
-    ua, ub = sorted((u_of(21.6), u_of(31.0)))
-    for (p, q) in ((ua, ub), (ub, ua)):
-        K.band_quad(k("trim"), cx, cz, f.yaw, p, 8.0, q, 15.4, 0.9, pale)
-    for yy in (8.0, 15.4):
-        K.band_quad(k("trim"), cx, cz, f.yaw, ua, yy, ub, yy, 0.54, pale)
     # Jambs and lintel in yellow and black, the canopy and its tube.
     for sj in (s0 - 0.45, s1):
         f.box(k("hazard"), sj, sj + 0.45, 0.0, head, 0.0, 0.14)
@@ -1099,63 +1084,131 @@ def hall(f, door, pale):
     stand(x1 - 4.6, z0 + 2.4, PI * 0.8, "phone")
 
 
-def block_06():
-    """The numbered block that closes the garage street: olive panels
-    crossed with chevrons, a glass band, 06 lit from below."""
+def tower(x0, x1, z0, z1, y0, top, no, pale, seed, numbers=("-z", "-x", "+x")):
+    """One of the numbered blocks (Zq4zTcIM0yQ@174): olive sheet between
+    steel corner posts, two tiers each crossed with bands of pale paint,
+    a strip of windows under each tier, a dark head carrying the number in
+    light, floods round its foot. Returns its roof's height."""
+    r = R(seed)
+    fs = B.faces_of(x0, x1, z0, z1)
+    head = top - 4.8
+    ws = 1.8
+    mid = y0 + 0.9 + (head - y0 - 0.9) / 2
+    tiers = ((y0 + 0.9 + ws, mid), (mid + ws, head))
+    dark = (0.055, 0.06, 0.065, 1.0)
+    for name, f in fs.items():
+        w = f.width
+        f.quad(K.M("cladding"), 0.0, w, y0, y0 + 0.9, 0.0, col=K.shade(K.OLIVE, 0.6))
+        for (ta, tb) in tiers:
+            K.window_band(f, ta - ws, ta, r, style=5, lit=(0.55, 0.9), warmth=(0.3, 0.8), tint="concrete")
+            f.box(K.M("steel", 1), 0.0, w, ta - 0.08, ta + 0.08, 0.0, 0.16, col=K.shade(K.OLIVE, 0.5))
+            f.quad(K.M("cladding"), 0.0, w, ta, tb, 0.0, col=K.OLIVE)
+            chevrons(f, ta + 1.0, tb - 1.0, pale, n=1 if w < 18.0 else 2, wdt=1.25)
+            yy = ta + 3.6
+            while yy < tb - 1.0:
+                f.box(K.M("steel", 1), 0.3, w - 0.3, yy, yy + 0.1, 0.0, 0.06, col=K.shade(K.OLIVE, 0.6))
+                yy += 3.6
+        f.quad(K.M("steel"), 0.0, w, head, top, 0.0, col=dark)
+        f.box(k("metal"), -0.15, w + 0.15, top - 0.25, top + 0.55, 0.0, 0.25)
+        f.box(K.M("steel"), -0.1, w + 0.1, head - 0.15, head + 0.15, 0.0, 0.3, col=K.shade(K.OLIVE, 0.45))
+        for s_ in (0.0, w):
+            f.box(K.M("steel"), s_ - 0.4, s_ + 0.4, y0, head, 0.0, 0.26, col=K.shade(K.OLIVE, 0.5))
+        cx, _, cz = f.p(f.at(w / 2), 0.0, 0.0)
+        if name in numbers:
+            K.digits(no, cx, head + 2.35, cz, 3.2, f.yaw, k("glow"), K.shade(K.SODIUM, 0.85), out=0.07)
+        else:
+            K.digits(no, cx, head + 2.35, cz, 2.2, f.yaw, k("trim", 1), pale, out=0.06)
+        # Its floods on the podium, a wall lamp under the first strip.
+        s_ = 1.6
+        while s_ < w:
+            lx, _, lz = f.p(f.at(s_), 0.0, 1.1)
+            K.sodium(lx, y0 + 0.4, lz, 6.5, red=0.15)
+            fx, _, fz = f.p(f.at(s_), 0.0, 0.9)
+            box(k("neon_amber"), fx - 0.2, fx + 0.2, y0, y0 + 0.14, fz - 0.12, fz + 0.12, scale=0.5)
+            s_ += 3.4
+    # The roof: felt, a parapet's worth of coping (above), plant, lamps.
+    quad(k("roof"), (x0, top, z1), (x1, top, z1), (x1, top, z0), (x0, top, z0), uvs=((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
+    B.ROOFS.append((D, x0, x1, z0, z1, top))
+    for px, pz in ((x0 + 0.3, z0 + 0.3), (x1 - 0.3, z0 + 0.3), (x0 + 0.3, z1 - 0.3), (x1 - 0.3, z1 - 0.3)):
+        box(k("glow"), px - 0.14, px + 0.14, top + 0.55, top + 0.85, pz - 0.14, pz + 0.14, scale=0.5, col=GLOW["red"])
+    K.collide(x0, x1, z0, z1, top, y0=y0)
+    return top
+
+
+def towers():
+    """The two numbered blocks that close the garage street (Zq4zTcIM0yQ@174):
+    06 and 07, towers of olive sheet crossed with pale chevrons, side by
+    side on a podium glazed dark blue with the firm's name along its
+    fascia and the loading hall open in its street face."""
     r = R(8665)
-    X0, X1, Z0, Z1, H = 424.0, 456.0, 14.0, 44.0, 22.0
+    rr = R(8668)
+    X0, X1, Z0, Z1, PH = 424.0, 456.0, 14.0, 44.0, 8.4
     K.paved(424.0, 458.0, 12.0, 45.0)
     fs = B.faces_of(X0, X1, Z0, Z1)
-    pale = c_ = (0.72, 0.76, 0.24, 1.0)
+    pale = (0.72, 0.76, 0.24, 1.0)
+    navy = (0.07, 0.09, 0.13, 1.0)
     DOOR = (11.5, 20.5, 6.4)  # the hall door in the street face: from and to along it, and its head
     for name, f in fs.items():
         w = f.width
-        for a_, b_ in (((0.0, DOOR[0]), (DOOR[1], w)) if name == "-z" else ((0.0, w),)):
-            f.quad(K.M("concrete"), a_, b_, 0.0, 3.2, 0.0, col=K.CONC)
-            f.quad(K.M("cladding"), a_, b_, 3.2, 16.2, 0.0, col=K.OLIVE)
-            f.box(k("trim"), a_ - 0.1, b_ + 0.1, 3.1, 3.4, 0.0, 0.2, col=K.shade(K.OLIVE, 0.5))
-        if name == "-z":
-            f.quad(K.M("cladding"), DOOR[0], DOOR[1], DOOR[2], 16.2, 0.0, col=K.OLIVE)
-        # Flashings across the sheet, downpipes, a wall pack between them.
-        for yy in (7.6, 11.9):
-            f.box(K.M("steel", 1), 0.0, w, yy, yy + 0.12, 0.0, 0.07, col=K.shade(K.OLIVE, 0.55))
-        for sp in (w * 0.25 + 0.5, w * 0.75 - 0.5):
-            px, py, pz = f.p(f.at(sp), GY, 0.0)
-            P.place("pipe_v", px, py, pz, f.yaw, sy=H - GY, district=D)
+        for a_, b_ in (((0.0, DOOR[0] - 0.45), (DOOR[1] + 0.45, w)) if name == "-z" else ((0.0, w),)):
+            f.quad(K.M("concrete"), a_, b_, 0.0, 3.0, 0.0, col=K.CONC)
+            K.window_band(f, 3.0, 7.1, rr, s0=a_, s1=b_, style=5, lit=(0.6, 0.9), warmth=(0.05, 0.45), tint="concrete")
+            f.box(K.M("steel", 1), a_, b_, 2.94, 3.08, 0.0, 0.14, col=navy)
+        f.quad(K.M("steel"), 0.0, w, 7.1, PH, 0.0, col=navy)
+        f.box(k("metal"), -0.15, w + 0.15, PH - 0.12, PH + 0.5, 0.0, 0.25)
+        n = max(2, round(w / 8.0))
+        for i in range(n + 1):
+            s_ = w * i / n
+            if name == "-z" and DOOR[0] - 1.0 < s_ < DOOR[1] + 1.0:
+                continue
+            f.box(K.M("steel"), s_ - 0.25, s_ + 0.25, 0.0, PH, 0.0, 0.2, col=K.shade(navy, 1.6))
+        if name != "+z":
+            # The firm's name in light along the fascia.
+            for sp in ((5.6, w - 5.6) if name == "-z" else (w / 2,)):
+                cx, _, cz = f.p(f.at(sp), 0.0, 0.0)
+                K.digits("SOLFUCA", cx, 7.76, cz, 0.72, f.yaw, k("glow"), PALE, out=0.05, gap=0.3)
         if name in ("-x", "+x"):
             for sp in (5.0, 15.0, 25.0):
-                K.wall_lamp(f, sp, 5.4)
+                K.wall_lamp(f, sp, 2.5)
             lx, _, lz = f.p(f.at(w - 3.0), 0.0, 0.02)
-            K.ladder(lx, lz, GY + 2.4, H, f.yaw)
-        K.window_band(f, 16.2, 18.6, r, style=5, lit=(0.5, 0.8), warmth=(0.2, 0.6), tint="concrete")
-        f.quad(K.M("cladding"), 0.0, w, 18.6, H, 0.0, col=K.OLIVE)
-        f.box(k("metal"), -0.15, w + 0.15, H - 0.3, H + 0.5, 0.0, 0.25)
-        for s in (0.0, w / 2, w):
-            f.box(K.M("steel"), s - 0.3, s + 0.3, DOOR[2] if (name == "-z" and s == w / 2) else 0.0, H, 0.0, 0.22, col=K.shade(K.OLIVE, 0.6))
-        if name in ("-x", "+x"):
-            chevrons(f, 4.2, 15.4, pale, n=2)
-    # 06, six metres tall, on the three faces the streets see.
-    for name in ("-z", "-x", "+x"):
-        f = fs[name]
-        cx, _, cz = f.p(f.at(f.width * 0.28), 0.0, 0.0)
-        K.digits("06", cx, 20.3, cz, 2.7, f.yaw, k("glow"), K.shade(K.SODIUM, 0.9), out=0.06)
+            K.ladder(lx, lz, GY + 2.4, PH, f.yaw)
+            for sp in (w * 0.25 + 0.5, w * 0.75 - 0.5):
+                px, py, pz = f.p(f.at(sp), GY, 0.0)
+                P.place("pipe_v", px, py, pz, f.yaw, sy=PH - GY, district=D)
     f = fs["-z"]
-    K.dock(f, 8.0, r, no=6, sill=0.0, h=3.0, state="shut", eave=H)
-    K.dock(f, 24.0, r, no=7, sill=0.0, h=3.0, state="half", eave=H)
-    hall(f, DOOR, pale)
-    # Lit from its foot: floods in the ground on the street side and at
-    # the two flanks, so the chevrons stand in orange light.
+    f.quad(K.M("steel"), DOOR[0] - 0.45, DOOR[1] + 0.45, DOOR[2] + 0.7, 7.1, 0.0, col=navy)
+    K.dock(f, 5.6, r, no=6, sill=0.0, h=2.75, state="shut", eave=PH, lamp=False)
+    K.dock(f, 26.4, r, no=7, sill=0.0, h=2.75, state="half", eave=PH, lamp=False)
+    hall(f, DOOR)
+    # The podium's roof round the towers' feet, its parapet lamps.
+    quad(k("roof"), (X0, PH, Z1), (X1, PH, Z1), (X1, PH, Z0), (X0, PH, Z0), uvs=((0, 0), (8, 0), (8, 7.5), (0, 7.5)))
+    B.ROOFS.append((D, X0, X1, Z0, Z1, PH))
+    for x, z in ((X0 + 0.3, Z0 + 0.3), (X1 - 0.3, Z0 + 0.3), (X0 + 0.3, Z1 - 0.3), (X1 - 0.3, Z1 - 0.3)):
+        box(k("glow"), x - 0.14, x + 0.14, PH + 0.5, PH + 0.8, z - 0.14, z + 0.14, scale=0.5, col=GLOW["red"])
+    # 06 the taller, 07 beside it, a bridge and risers in the slot between.
+    t6 = tower(425.5, 439.0, 16.5, 41.5, PH, 47.0, "06", pale, 8669, numbers=("-z", "-x", "+z"))
+    t7 = tower(441.5, 454.5, 19.0, 40.0, PH, 39.0, "07", pale, 8670, numbers=("-z", "+x", "+z"))
+    box(K.M("steel"), 439.0, 441.5, 21.0, 24.2, 26.0, 32.0, scale=1.0, col=K.shade(K.OLIVE, 0.7), bottom=True)
+    for zf, nz in ((25.98, -1), (32.02, 1)):
+        K.quad_n(k("glow"), ((439.2, 22.0, zf), (441.3, 22.0, zf), (441.3, 23.3, zf), (439.2, 23.3, zf)), (0, 0, nz), K.shade(K.GLASS_COOL, 1.3))
+    for x, col in ((439.5, K.STEEL_BLUE), (440.3, K.RUST), (441.0, K.YELLOW)):
+        K.run([(x, PH, 36.0), (x, 38.0, 36.0)], r=0.16 if x < 441 else 0.1, col=col, detail=1, flanges=9.0)
+    # 06's roof: a mast, a tank, plant; 07's: the landing pad.
+    P.place("antenna", 428.0, t6, 38.6, 0.4, sy=1.7, district=D)
+    P.place("tank_roof", 435.2, t6, 21.0, 0.6, district=D)
+    K.ahu(431.0, 30.0, t6, along_x=False)
+    K.duct(431.0, 32.2, 431.0, 38.0, t6, w=0.8)
+    K.roof_lamp(434.6, 30.0, t6, power=5.0)
+    K.roof_lamp(428.6, 20.0, t6, power=5.0, hue="white")
+    K.av_pad(448.0, 29.5, t7, rad=5.2)
+    K.roof_lamp(444.0, 38.2, t7, power=4.0)
+    # Lit from its foot on the street side too, where the hall's light is.
     K.wash(X0, X1, Z0 - 1.4, Z0 - 1.4, level=1.0, step=3.5)
     K.wash(X0 - 1.4, X0 - 1.4, Z0, Z1, level=0.7)
     K.wash(X1 + 1.4, X1 + 1.4, Z0, Z1, level=0.7)
-    for x in (428.0, 436.0, 444.0, 452.0):
+    for x in (428.0, 433.0, 447.0, 452.0):
         box(k("neon_amber"), x - 0.4, x + 0.4, GY, GY + 0.16, Z0 - 1.5, Z0 - 1.2, scale=0.5)
-    K.flat_roof(X0, X1, Z0, Z1, H, r, wall=K.OLIVE, lights=0.5, breathe=1, keep=(439.0, 455.0, 20.0, 38.0))
-    K.av_pad(447.0, 29.0, H, rad=6.4)
-    P.place("antenna", 427.4, H, 41.0, 0.4, sy=1.4, district=D)
-    for x, z in ((X0 + 0.3, Z0 + 0.3), (X1 - 0.3, Z0 + 0.3), (X0 + 0.3, Z1 - 0.3), (X1 - 0.3, Z1 - 0.3)):
-        box(k("glow"), x - 0.14, x + 0.14, H + 0.8, H + 1.1, z - 0.14, z + 0.14, scale=0.5, col=GLOW["red"])
-    K.collide(X0, X1, Z0, Z1, H)
+    K.collide(X0, X1, Z0, Z1, PH)
     K.yard_wall(424.0, 44.8, 458.0, 44.8, r=r, face=-1)
     for x in (426.0, 434.8, 445.2, 454.0):
         cylinder(k("hazard", 1), x, 12.8, GY, GY + 1.1, 0.14, segs=8)
@@ -1319,6 +1372,29 @@ def lines(bus):
         K.cable(a, b, sag=0.5, steps=5)
 
 
+def power_line():
+    """Lattice pylons along the back of the south side, behind the fuel
+    station, the shed and the container yard (JtqIas3bYhg@80), their line
+    coming down to the substation's bus at its east end and into the
+    ground at a sealing end by the fuel station."""
+    Z = 40.2
+    p0 = K.pylon(127.0, Z, h=34.0, base=3.8, arm=3.8)
+    p1 = K.pylon(180.0, Z, h=38.0, base=2.8, arm=3.8)
+    p2 = K.pylon(258.0, Z, h=41.0, base=3.2, arm=3.8)
+    p3 = K.pylon(346.5, Z, h=40.0, base=3.6, arm=3.8)
+    K.span(p0, p1, sag=1.6)
+    K.span(p1, p2, sag=2.2)
+    K.span(p2, p3, sag=2.4)
+    # Down to the bus from the last one; into the ground from the first.
+    for i, foot in enumerate(p3[1]):
+        K.conductor(foot, (345.8 + i * 0.55, 9.25, 27.0), sag=1.2, steps=6, t=0.05)
+    for i, dz in enumerate((-0.5, 0.0, 0.5)):
+        pipe(k("dark", 1), (127.0 + 0.3 * (i - 1), GY, Z + dz), (127.0 + 0.3 * (i - 1), 20.0, Z + dz), 0.06, segs=5)
+        K.conductor(p0[1][i * 2 + 1], (127.0 + 0.3 * (i - 1), 20.0, Z + dz), sag=0.4, steps=4, t=0.05)
+    box(k("metal"), 126.0, 128.0, GY, GY + 1.9, Z + 0.9, Z + 1.7, scale=1.0)
+    box(k("glow"), 126.2, 126.32, GY + 1.5, GY + 1.6, Z + 0.88, Z + 0.9, scale=0.5, col=GLOW["green"])
+
+
 def frontage_light():
     """A little of the yards' light on the pavements along them, so a
     walker's way is dim, not black, between the street's own lamps."""
@@ -1452,10 +1528,11 @@ street_shed()
 container_yard()
 BUS = substation()
 workshop()
-block_06()
+towers()
 gasholder()
 east()
 lines(BUS)
+power_line()
 frontage_light()
 roofs()
 yards()
