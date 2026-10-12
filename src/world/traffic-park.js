@@ -71,7 +71,9 @@ export function wardrobe(seed) {
 // where the S4 swings out of it for the x 120 road, and both its bays where
 // the braindance's car stands; the deck's mouth on the x 120 road; the
 // garage's door; AFTERLIFE's door and its carpet; the works barriers that
-// stand out over the garage street's west kerb.
+// stand out over the garage street's west kerb; and the boulevard's north
+// kerb beside the braindance's chase, whose clues are low on that side of
+// the street.
 const CLEAR = [
   [-12, -5, -58, 20],
   [5, 12, -195, 20],
@@ -81,14 +83,18 @@ const CLEAR = [
   [440, 452, -230, -202],
   [430, 436, -286, -276],
   [430, 436, -141.5, -134],
+  [125, 320, -341, -334],
 ];
 
 // The ones asked for by place. Taxis at the kerb by the lobbies on the x 120
 // road's east side (the plaza's two canopies, and the pair further north);
 // the patrol car in the kerb lane short of junction F's stop line; the van
-// in the court behind the board; two cars at the pumps of Santo Domingo's
-// fuel station, under its canopy, lamps on; and on the garage street one
-// car left with its hazards going, where the flight in comes down past it.
+// in the court behind the board; the first two at the boulevard's north
+// kerb past the stretch the braindance's chase keeps clear; two cars at the
+// pumps of
+// Santo Domingo's fuel station, under its canopy, lamps on; and on the
+// garage street one car left with its hazards going, where the flight in
+// comes down past it.
 // (`off`: not on a street.)
 const NORTH = Math.PI;
 const PLACED = [
@@ -97,6 +103,8 @@ const PLACED = [
   { x: 126.55, z: -237.4, yaw: NORTH, kind: "sedan", tag: TAG.taxi, body: CAB },
   { x: 126.55, z: -243.9, yaw: NORTH, kind: "sedan", tag: TAG.taxi, body: CAB },
   { x: 126.55, z: -158.8, yaw: NORTH, kind: "sedan", tag: TAG.patrol, body: PATROL },
+  { x: 323, z: -337.55, yaw: -Math.PI / 2, kind: "wedge" },
+  { x: 329.4, z: -337.55, yaw: -Math.PI / 2, kind: "pickup" },
   { x: 50, z: -288, yaw: Math.PI / 2, kind: "van", off: true },
   { x: 136.1, z: 24.1, yaw: NORTH, kind: "hatch", off: true, lit: true },
   { x: 157.9, z: 23.7, yaw: 0, kind: "pickup", off: true, lit: true },

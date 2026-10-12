@@ -62,21 +62,29 @@ const STREETS = [
 // the south mouth, 0.6 m off the road: four right turns keep to the corners.
 const PREFER = { "0,-179": "S", "120,-179": "S" };
 
-// One light is not left to the draw. The braindance's recording runs the
+// Two lights are not left to the draw. The braindance's recording runs the
 // city's clock as its own (src/braindance/engine.js: second 102 of the
 // recording is second 102 here), and from 102 to 117 its chase camera rides
-// the boulevard's south kerb beside the S4, looking across the kerb lane at
-// Corpo Row's clues; a platoon in that lane then stands between the lens
-// and what the viewer is meant to find. The lights' cycle is 40 s, so that
-// is seconds 22 to 37 of every cycle. The platoon that turns onto the
-// boulevard comes up the x 120 road to junction E: its line there is given
-// a light of its own, green at GATE of each cycle, and that line is the
+// the boulevard's south kerb beside the S4 from x 125 to x 320, looking
+// across the street at Corpo Row's clues, which are low on its north side;
+// a car between then stands in front of what the viewer is meant to find.
+// The lights' cycle is 40 s, so that is seconds 22 to 37 of every cycle.
+// Each of the two platoons that use the boulevard reaches it round a
+// corner: the eastbound one up the x 120 road to junction E, the westbound
+// one up the garage street to junction I. Each of those two lines is given
+// a light of its own, green at a set second of the cycle, and is its
 // route's anchor, so its first car always leaves it at that second. With
-// the boulevard driven at 15 m/s the platoon's last car is past x 320
-// before second 22 and its first does not come round the corner again
-// until after 37 (tools/bdlane.mjs counts it). Changing the cycle, the
-// boulevard's speed or the platoon's size moves this: run the tool.
-const GATE = { key: "120,-330", heading: [0, -1], green: 33.6 };
+// the boulevard driven at 15 m/s both platoons are off the chase's stretch
+// before second 22 and neither is back on it until after 37
+// (tools/bdlane.mjs counts both lanes). Changing the cycle, the boulevard's
+// speed or the platoon's size moves this: run the tool. For the same
+// reason nothing is parked along the boulevard's north kerb beside the
+// chase (src/world/traffic-park.js keeps it clear): a parked car would
+// stand in the lens' way for all of it.
+const GATES = [
+  { key: "120,-330", heading: [0, -1], green: 34.9 },
+  { key: "440,-330", heading: [0, -1], green: 21 },
+];
 
 const CRUISE = 11.5;
 const TURN = 6.5;
@@ -154,7 +162,7 @@ function movement(a, b) {
 /** One way out for each way in at every junction: of all the pairings with
  *  nobody turning back, the one with the most of the junction's preferred
  *  movement. */
-function pairings(junctions, gate) {
+function pairings(junctions, gates) {
   for (const j of junctions.values()) {
     const want = PREFER[j.key] ?? "R";
     let best = null;
@@ -183,9 +191,10 @@ function pairings(junctions, gate) {
     j.ins.forEach((seg, i) => {
       seg.next = j.outs[best[i]];
       seg.move = movement(seg, seg.next);
-      // The lights: only where three or more streets meet, and the gate.
+      // The lights: only where three or more streets meet, and the gates.
       seg.lit = j.ins.length > 2 ? j : null;
-      if (gate && j.key === gate.key && seg.heading[0] === gate.heading[0] && seg.heading[1] === gate.heading[1]) {
+      const gate = gates.find((g) => j.key === g.key && seg.heading[0] === g.heading[0] && seg.heading[1] === g.heading[1]);
+      if (gate) {
         seg.lit = j;
         seg.gate = gate.green;
       }
@@ -356,7 +365,7 @@ function timetable(lanes, { cycle, need, phase }) {
     return { anchor, run, wasted };
   };
   // An anchor the platoon comes back to late in the green or on the red;
-  // the gate, where the route has it.
+  // its gate, where the route has one.
   let best = null;
   const forced = stops.findIndex((s) => s.gate);
   for (let a = 0; a < stops.length; a++) {
@@ -380,13 +389,13 @@ function timetable(lanes, { cycle, need, phase }) {
 }
 
 // The lights' phases are drawn from this. Any seed is as good a city as
-// another; this one was picked (of 6,000 tried, tools/phasesearch.mjs)
+// another; this one was picked (of 9,000 tried, tools/phasesearch.mjs)
 // because at second 12 of the clock, where every review render holds the
 // traffic, a platoon is in sight from the last metres before each corner of
 // the loop, where a driver faces a wall across the junction and only
 // passing cars can be in view; and because with it neither route's platoon
 // comes back to its anchor early enough to be held there a whole cycle.
-const PHASES = 1844;
+const PHASES = 1600;
 
 /**
  * The network's traffic: `perPlatoon` cars to a platoon, the lights on a
@@ -396,9 +405,9 @@ const PHASES = 1844;
  * lamps are lit (out.brake); and the rows of parking places along the
  * kerbs.
  */
-export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed = PHASES, gate = GATE } = {}) {
+export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed = PHASES, gates = GATES } = {}) {
   const { segs, junctions } = runs();
-  pairings(junctions, gate);
+  pairings(junctions, gates);
   const phases = new Map();
   const drawPhase = draws(seed);
   for (const key of [...junctions.keys()].sort()) phases.set(key, drawPhase() * cycle);
