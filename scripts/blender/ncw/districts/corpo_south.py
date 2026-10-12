@@ -154,7 +154,8 @@ def south_side():
         hue = ("cyan", "white", "amber")[j % 3]
         K.bollards(cx - 6.0, cx + 6.0, KERB_STRIP_S + 0.06, step=3.0, proto="bollard")
         if j % 2 == 0:
-            K.totem(x0 + 3.2, KERB_STRIP_S, math.pi, r, colour=hue, sizes=("bx", "bx"))
+            if j != 2:      # (the third lot's would stand 3 m before the lens of the lobby shot at (214, 2.2, -318))
+                K.totem(x0 + 3.2, KERB_STRIP_S, math.pi, r, colour=hue, sizes=("bx", "bx"))
             P.place("bench", x1 - 7.0, G0, z0 - 0.4, math.pi, district=CO)
             stand(x1 - 7.0, z0 - 0.4, math.pi, "sit", G0 + 0.45)
         else:
