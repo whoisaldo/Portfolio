@@ -123,3 +123,4 @@ from ncw.districts import mega_more  # noqa: E402,F401
 from ncw.districts import mega_rail  # noqa: E402,F401
 from ncw.districts import mega_well  # noqa: E402,F401
 from ncw.districts import mega_finish  # noqa: E402,F401
+from ncw.districts import mega_bulk  # noqa: E402,F401

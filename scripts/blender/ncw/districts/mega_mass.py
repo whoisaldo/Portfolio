@@ -48,9 +48,8 @@ for (x0, x1, y0, y1, z0, z1, seed) in ((-37.0, -26.0, 139.0, 158.0, -833.0, -811
     for yy in (y0, y1 - 0.9):
         f.quad((D, "trim", 0), 0.0, f.width, yy, yy + 0.9, 0.02, col=YEL)
 
-# The block's number on the second tier's face, in paint under floodlight:
-# dim, so from the avenue's far end it is part of the wall.
-numeral("H4", 0.0, 147.0, TIERS[1][3], 15.0, 0.0, lit=0.12)
+# The block's number on the front is mega_bulk's lit board, where the canyon
+# reads it and the hero does not.
 
 # The crown: a ring of light under the top tier's edge, plant behind it, and
 # masts with their beacons.
