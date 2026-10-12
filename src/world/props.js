@@ -107,7 +107,10 @@ class Baked extends THREE.InstancedMesh {
     this.cells = { ci: new Int32Array(0), reach: new Float32Array(0), start: new Int32Array(0), count: new Int32Array(0) };
     this.frustumCulled = false;
     this.matrixAutoUpdate = false;
-    this.visible = false;
+    // Shown, drawing nothing, until the first update: a renderer's compile
+    // passes over what is hidden, and its program must be made at warm-up
+    // (or when its district's pack lands), not the first time it is seen.
+    this.visible = true;
     if (MULTI_DRAW) {
       this.isBatchedMesh = true;
       this._multiDrawStarts = new Int32Array(0);
@@ -362,7 +365,8 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       im.name = `props_${k.name}_${material.name}`;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
-      im.visible = false;
+      // (Shown with no instances until the first update, as a Baked mesh is.)
+      im.visible = true;
       im.frustumCulled = false;
       im.matrixAutoUpdate = false;
       im.userData.hue = src.userData.hue;

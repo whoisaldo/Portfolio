@@ -975,7 +975,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         city.addPack(name, packScene, { beforeMerge: (part) => clearance?.add(part) });
         // Its materials are the core's, compiled at warm-up; this makes sure
         // of any variant its meshes need before one is drawn.
-        renderer.compile(city.root, camera);
+        // (perf: for the target the frames draw into and with the scene's
+        // own lights, as at warm-up; compiled for the screen, the programs
+        // made were not the ones the frames used, and the first look at a
+        // pack's props stopped a frame for 80 ms to make its own.)
+        const packTarget = renderer.getRenderTarget();
+        renderer.setRenderTarget(post.composer.inputBuffer);
+        renderer.compile(city.root, camera, scene);
+        renderer.setRenderTarget(packTarget);
         cover?.render(city.root);
         packsIn.push(name);
       } catch (err) {
