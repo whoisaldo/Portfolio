@@ -378,29 +378,46 @@ export const WINDOWS = /* glsl */ `
     vec3 rh = rp + rd * rtm;
     float shade;
     if (rtm == rtz) {
-      // The back wall, and against it a shelf, a picture, a lamp.
+      // The back wall: a shadow where it meets the ceiling, a skirting at
+      // its foot, and in it a door in its frame, or against it shelves
+      // with what is kept on them; a lamp.
       shade = 0.55 + 0.25 * rh.y / size.y;
       float thing = hash12(room + 2.9);
-      float shelf = step(abs(rh.y - size.y * (0.35 + 0.3 * thing)), size.y * 0.12) * step(abs(rh.x / size.x - fract(thing * 5.0)), 0.3);
-      shade *= 1.0 - 0.5 * shelf * step(0.4, thing);
+      vec2 b = rh.xy / size;
+      shade *= 1.0 - 0.3 * step(0.93, b.y) - 0.25 * step(b.y, 0.05);
+      if (thing < 0.4) {
+        float dx = abs(b.x - 0.25 - 0.5 * fract(thing * 9.0)) * size.x;
+        shade *= 1.0 - 0.45 * step(dx, 0.42) * step(b.y, 0.8);
+        shade *= 1.0 + 0.5 * step(abs(dx - 0.46), 0.04) * step(b.y, 0.83) + 0.5 * step(abs(b.y - 0.815), 0.015) * step(dx, 0.5);
+      } else if (thing < 0.78) {
+        vec2 sx = vec2(b.x - fract(thing * 5.0) * 0.5 - 0.05, b.y - 0.08) * size;
+        if (sx.x > 0.0 && sx.x < 0.45 * size.x && sx.y > 0.0 && sx.y < 0.7 * size.y) {
+          float item = step(0.35, hash12(floor(sx / vec2(0.14, 0.38)) + room));
+          shade *= mix(0.5 + 0.45 * item, 0.3, step(fract(sx.y / 0.38), 0.12));
+        }
+      }
       float lampSpot = exp(-dot(rh.xy - vec2(size.x * fract(thing * 3.0), size.y * 0.45), rh.xy - vec2(size.x * fract(thing * 3.0), size.y * 0.45)) * 3.0);
       shade += lampSpot * step(0.7, thing) * 1.4;
     } else if (rtm == rty) {
       // The ceiling round its lamp, or the floor.
       if (rd.y > 0.0) {
+        // (An office's is rows of panels, a home's one lamp.)
         vec2 c = vec2(rh.x - size.x * 0.5, rh.z - ROOM_D * 0.5);
-        shade = 0.7 + 1.6 * exp(-dot(c, c) * 1.2);
+        shade = office > 0.5 ? 0.6 + 1.1 * step(abs(fract(rh.z / 1.5) - 0.5), 0.22) : 0.7 + 1.6 * exp(-dot(c, c) * 1.2);
       } else {
         shade = 0.22;
       }
     } else {
       shade = 0.42 + 0.2 * rh.y / size.y;
     }
-    if (band > 0.5) shade = 0.85 + 0.3 * qy;
-    // Blinds and curtains hang at the glass and hide the room; a curtain
-    // glows with the light behind it.
-    float blind = step(0.74, hash12(room + 5.1)) * (1.0 - band);
-    float curtain = (1.0 - office) * step(0.7, hash12(room + 8.9));
+    if (band > 0.5) shade = mix(0.85 + 0.3 * qy, shade, 0.4);
+    // Blinds and curtains hang at the glass and hide the room: a blind as
+    // far down as it was left, a curtain drawn right across or back to the
+    // sides; a curtain glows with the light behind it.
+    float hb = hash12(room + 5.1);
+    float blind = step(0.64, hb) * (1.0 - band) * step(0.9 - fract(hb * 37.0), qy);
+    float hc = hash12(room + 8.9);
+    float curtain = (1.0 - office) * step(0.7, hc) * step(0.3 * step(0.5, fract(hc * 23.0)), abs(gx - 0.5));
     float interior = mix(shade, 0.4 + 0.6 * smoothstep(0.0, 1.0, qy), max(blind, curtain));
     float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(qy * size.y * 6.0)), blind);
     vec3 lightCol = mix(wc, wc * vec3(1.0, 0.55, 0.4), curtain * 0.6) * mix(1.0, 0.75 + 0.25 * sin(gx * size.x * 11.0), curtain);
