@@ -389,13 +389,16 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   const painted = (key, map, { tiled = true } = {}) => {
     if (made.has(key)) return made.get(key);
     const m = keep(new THREE.ShaderMaterial({
-      uniforms: { ...shared, uMap: { value: map }, uGain: { value: 1.05 } },
+      // (Where each elevation's picture has piers between its bays, as
+      // shares of a tile: measured from the pictures' lit columns.)
+      uniforms: { ...shared, uMap: { value: map }, uGain: { value: 1.05 }, uCuts: { value: new THREE.Vector3(...({ facade_t0: [0.36, 0.63, 2], facade_t1: [0.25, 0.5, 0.73], facade_t2: [0.33, 0.75, 2] }[key] ?? [0.33, 0.66, 2])) } },
       defines: tiled ? { TILED: "" } : {},
       vertexShader: VERT_WORLD,
       fragmentShader: /* glsl */ `
         ${COMMON}
         uniform sampler2D uMap;
         uniform float uGain;
+        uniform vec3 uCuts;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
@@ -424,6 +427,29 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // Lit rooms stay light and push past the bloom's threshold; the
           // concrete between them is lit by the street.
           float room = smoothstep(0.12, 0.45, lum);
+          #ifdef TILED
+          // The picture's own lit rooms are the same in every tile, and a
+          // megablock's face is five tiles wide: the same lamps bay after
+          // bay. So which of them are on is dealt over the wall itself. The
+          // picture's storeys are eighths of a tile (3 m) and its bays are
+          // cut where it has piers (uCuts, per picture): a storey is lit
+          // along a run of three tiles or mostly dark along it, a bay of it
+          // is on or off by that, an office's block of three storeys by two
+          // tiles is lit cyan where the flats are amber, and a room that is
+          // off keeps its dark glass.
+          float fx = fract(uv.x);
+          float bay = step(uCuts.x, fx) + step(uCuts.y, fx) + step(uCuts.z, fx);
+          float storey = floor(vUv.y * 8.0);
+          float run = floor((tile.x + floor(hash12(vec2(storey, 2.7)) * 3.0)) / 3.0);
+          float busy = hash12(vec2(storey * 1.3, run + 5.1));
+          float share = busy > 0.4 ? 0.92 : (busy > 0.15 ? 0.45 : 0.05);
+          float on = step(hash12(vec2(tile.x * 4.0 + bay, storey) + 1.7), share);
+          float office = step(0.72, hash12(vec2(floor(storey / 3.0), floor(tile.x / 2.0) + 9.4)));
+          vec3 shut = tex * 0.1 + vec3(0.004, 0.006, 0.01);
+          vec3 open = mix(tex, tex.bgr * vec3(0.9, 1.1, 1.05), office) * 1.22;
+          tex = mix(tex, mix(shut, open, on), room);
+          room *= on;
+          #endif
           float lit = 1.0;
           #ifndef TILED
           // The garage's walls are its room with the lights on: dark until

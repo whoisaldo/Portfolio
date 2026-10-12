@@ -323,6 +323,38 @@ export const WINDOWS = /* glsl */ `
     float busy = hash12(vec2(cell.y * 1.37, 2.1) + seed);
     float share = office > 0.5 ? mix(0.25, 1.6, step(0.55, busy)) : 0.45 + 1.1 * busy;
     float lit = step(hash12(room + seed + 0.5), params.x * 0.8 * share) * enabled;
+    // A building of the districts (it carries its wall's tint) is not lit
+    // room by room at one rate, which is an even speckle on a face seen
+    // whole: a floor is lit in runs of four to eight bays and dark between
+    // them, one floor in seven is dark right across, and here and there an
+    // office has a dozen bays of three floors lit through. On the same
+    // floors a bay in every six to nine is the stair's or the riser's and
+    // has no window, and one floor in five to seven is plant behind
+    // louvres: the grid is broken both ways without a period.
+    bool kit = tint >= 0.0;
+    float hold = 1.0;
+    float block = 0.0;
+    float blank = 0.0;
+    float plant = 0.0;
+    if (kit) {
+      float zoneW = 4.0 + floor(hash12(vec2(cell.y, 6.1) + seed) * 5.0);
+      float zone = floor((cell.x + hash12(vec2(cell.y, 7.3) + seed) * zoneW) / zoneW);
+      hold = hash12(vec2(zone, cell.y * 1.7) + seed + 3.3) > 0.5 ? 1.75 : 0.25;
+      if (busy < 0.14) hold = 0.06;
+      block = step(0.9, hash12(vec2(floor(cell.x / 12.0), floor(cell.y / 3.0)) + seed + 8.8));
+      if (block > 0.5) hold = 3.0;
+      // (Times 1.5, and its rooms a tenth brighter: the stair bays, the plant floors and the dark floors
+      // take a quarter of the windows, and the face is to give the street
+      // as much light as it did.)
+      lit = step(hash12(room + seed + 0.5), params.x * 0.8 * share * hold * 1.5) * enabled;
+      if (band < 0.5) {
+        float coreEvery = 6.0 + floor(hash12(seed + 3.3) * 4.0);
+        float plantEvery = 5.0 + floor(hash12(seed + 1.1) * 3.0);
+        blank = step(mod(cell.x + floor(hash12(seed + 4.4) * coreEvery), coreEvery), 0.5);
+        plant = step(mod(cell.y + floor(hash12(seed + 2.2) * plantEvery), plantEvery), 0.5);
+        opening *= (1.0 - blank) * (1.0 - plant);
+      }
+    }
     // A band building's floors are lit right across or not at all.
     if (band > 0.5) lit = step(0.5 - params.x * 0.35, busy) * step(hash12(room + seed + 0.5), 0.92) * enabled;
     // One room in a hundred and fifty changes its mind now and then.
@@ -337,6 +369,22 @@ export const WINDOWS = /* glsl */ `
     if (kind > 0.975) wc = vec3(1.0, 0.22, 0.6);
     else if (kind > 0.955) wc = vec3(0.16, 0.95, 0.85);
     else if (kind > 0.915) wc = vec3(0.32, 0.46, 1.0) * (0.65 + 0.35 * sin(uTime * (4.0 + 7.0 * hv) + hv * 40.0));
+    // A districts' building has one light, yellow or cyan by its warmth,
+    // and the other on a pair of floors in five and in an office's block:
+    // ordered bands, as the show paints a tower, where each room mixing its
+    // own white, tan, pink or teal was confetti. Rooms differ in level, not
+    // hue; one in a hundred is pink and one in fifty a television.
+    vec3 house = mix(cool, warm, params.z);
+    if (kit) {
+      vec3 yellow = vec3(1.0, 0.72, 0.36);
+      vec3 cyan = vec3(0.5, 0.88, 1.0);
+      bool warmHouse = params.z > 0.5;
+      bool other = hash12(vec2(floor(cell.y / 2.0), 4.2) + seed) > 0.8 || block > 0.5;
+      house = warmHouse ? yellow : cyan;
+      wc = (warmHouse != other ? yellow : cyan) * (0.85 + 0.3 * hash12(room + 1.9));
+      if (kind > 0.99) wc = vec3(1.0, 0.22, 0.6);
+      else if (kind > 0.97) wc = vec3(0.32, 0.46, 1.0) * (0.65 + 0.35 * sin(uTime * (4.0 + 7.0 * hv) + hv * 40.0));
+    }
     // Band floors in the city's two colours, amber and cyan, floor by floor.
     vec3 bandCol = mix(vec3(1.0, 0.66, 0.3), vec3(0.3, 0.86, 1.0), step(0.5, hash12(vec2(cell.y, 3.7) + seed)));
     if (band > 0.5) wc = bandCol;
@@ -425,6 +473,7 @@ export const WINDOWS = /* glsl */ `
     float stuff = step(qy, 0.62) * step(abs(gx - 0.25 - 0.5 * hash12(cell + 9.1)), 0.12) * step(0.86, hash12(cell + 4.4)) * (1.0 - curtain) * (1.0 - blind);
     float bright = (0.22 + 0.45 * hv * hv) * interior * blinds * (1.0 - 0.85 * stuff) * (1.0 + 0.2 * uLevel);
     if (band > 0.5) bright = 0.5 * interior;
+    if (kit) bright *= 1.1;
 
     vec3 spill = spillAt(world);
     vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25 + uHazeColor * 0.05 * (0.4 + qy) * (0.5 + hash12(cell + 1.9));
@@ -444,6 +493,25 @@ export const WINDOWS = /* glsl */ `
     win = mix(win, wall * 1.4, bar);
     vec3 detail = mix(wall, win, pane);
     detail = mix(detail, wall * revealShade, reveal * (1.0 - smoothstep(0.02, 0.06, px)));
+    if (kit) {
+      // The plant floor: a run of louvres between the bays' posts, a pipe
+      // along its foot. The stair's bay: a recess the height of the floor
+      // with a slot of wired glass, lit on one floor in three, and a
+      // downpipe beside it with its shadow.
+      float near = 1.0 - smoothstep(0.02, 0.07, px);
+      float slat = step(0.24, f.y) * step(f.y, 0.8) * step(0.06, f.x) * step(f.x, 0.94);
+      vec3 louvre = wall * mix(0.6, 0.25 + 0.9 * step(0.55, fract(f.y * 12.0)), near);
+      louvre = mix(louvre, wall * 1.5, step(abs(f.y - 0.14), 0.03) * near);
+      detail = mix(detail, mix(wall, louvre, slat), plant);
+      float recess = step(0.3, f.x) * step(f.x, 0.7);
+      float slot = step(abs(f.x - 0.5), 0.07) * step(0.2, f.y) * step(f.y, 0.85);
+      float stairLit = step(0.66, hash12(cell + seed + 6.6)) * enabled;
+      vec3 core = mix(wall, wall * 0.55, recess);
+      core = mix(core, mix(glass, house * 0.22, stairLit), slot * near);
+      core *= 1.0 - 0.5 * step(abs(f.x - 0.86), 0.025) * near;
+      core = mix(core, wall * 1.5, step(abs(f.x - 0.9), 0.012) * near);
+      detail = mix(detail, core, blank * (1.0 - plant));
+    }
     // A line of shadow under each floor's edge.
     detail *= mix(1.0, 0.55, step(f.y, 0.045));
 
@@ -453,11 +521,11 @@ export const WINDOWS = /* glsl */ `
     // is how a street of windows reads at a glance.
     float pxX = fwidth(uv.x);
     float pxY = fwidth(uv.y);
-    float floorLit = clamp(band > 0.5 ? step(0.5 - params.x * 0.35, busy) * 0.92 : params.x * 0.8 * share, 0.0, 1.0) * enabled;
-    vec3 floorLight = (band > 0.5 ? bandCol * 0.5 : mix(cool, warm, params.z) * 0.36) * floorLit;
+    float floorLit = clamp(band > 0.5 ? step(0.5 - params.x * 0.35, busy) * 0.92 : params.x * 0.8 * share * (kit ? (busy < 0.14 ? 0.08 : 1.25) : 1.0) * (1.0 - plant), 0.0, 1.0) * enabled;
+    vec3 floorLight = (band > 0.5 ? bandCol * 0.5 : house * 0.36) * floorLit;
     float row = smoothstep(m0.y - pxY, m0.y + pxY, f.y) * (1.0 - smoothstep(m1.y - pxY, m1.y + pxY, f.y));
     vec3 rowCol = mix(wall, mix(glass, floorLight, min(1.0, floorLit * 1.2)), row * (m1.x - m0.x));
-    vec3 avg = mix(wall, mix(glass, mix(cool, warm, params.z) * 0.33, params.x * 0.8 * enabled), paneArea);
+    vec3 avg = mix(wall, mix(glass, house * 0.33, params.x * 0.8 * enabled), paneArea);
     float farX = smoothstep(0.35, 0.9, pxX);
     float farY = smoothstep(0.35, 0.9, pxY);
     vec3 col = mix(mix(detail, rowCol, farX), avg, farY);
