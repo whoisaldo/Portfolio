@@ -227,7 +227,15 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         stone = max(stone, painted);
         // (The light on it eased toward a ceiling: a white line under six
         // signs is a painted line, not a tube.)
-        vec3 col = albedo * (vec3(0.13, 0.14, 0.18) + spill * 1.6 / (1.0 + 1.3 * max(spill.r, max(spill.g, spill.b))));
+        // A coloured bar (a crossing's yellow, the walk figure's green) is
+        // paint too: it keeps less of the dark's glow than a white line and
+        // takes the street's light part greyed, so teal light on yellow is a
+        // dull yellow and not an acid one that seems to shine.
+        float hue = max(vPaint.r, max(vPaint.g, vPaint.b)) - min(vPaint.r, min(vPaint.g, vPaint.b));
+        float coloured = smoothstep(0.25, 0.55, hue);
+        vec3 lit = spill * 1.6 / (1.0 + 1.3 * max(spill.r, max(spill.g, spill.b)));
+        lit = mix(lit, mix(vec3(dot(lit, vec3(0.3, 0.55, 0.15))), lit, 0.45) * 0.62, coloured);
+        vec3 col = albedo * (vec3(0.13, 0.14, 0.18) * mix(1.0, 0.45, coloured) + lit);
         #else
         albedo *= mix(1.0, 0.72, wet);
         vec3 col = albedo * 0.55 * (vec3(0.07) + spill * mix(1.0, 0.45, puddle) * (1.0 + 1.5 * aerial)) + albedo * cityGlow(-V, 0.0) * 0.12;
