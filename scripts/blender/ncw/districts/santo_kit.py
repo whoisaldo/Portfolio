@@ -1532,7 +1532,7 @@ def low_wall(x0, z0, x1, z1, h=0.9, lamps=3):
             sodium(px, h + 0.5, pz, 3.6)
 
 
-def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", "bin", "drum", "bags", "crates", "pallets", "cctv", "barrier", "lamp_short"),
+def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", "bin", "drum", "bags", "crates", "pallets", "cctv", "barrier", "lamp_short", "blocks", "barrel", "drum_pallet"),
           side=0.0):
     """What stands on the strip between the pavement and a yard's fence."""
     ln = math.hypot(x1 - x0, z1 - z0)
@@ -1549,6 +1549,60 @@ def verge(r, x0, z0, x1, z1, step=10.0, kinds=("hydrant", "bollard", "bollard", 
             P.place(kind, px + ux * 1.4, GY, pz + uz * 1.4, 0.0, district=D)
         if kind == "lamp_short":
             sodium(px, 3.6, pz, 4.0)
+
+
+def weeds(r, x0, z0, x1, z1, n):
+    """Weeds along a wall's or a fence's foot, in clumps of one to three."""
+    ln = math.hypot(x1 - x0, z1 - z0) or 1.0
+    ux, uz = (x1 - x0) / ln, (z1 - z0) / ln
+    for _ in range(n):
+        t = r.random() * ln
+        for _j in range(r.randrange(1, 4)):
+            a, c_ = t + r.uniform(-0.5, 0.5), r.uniform(-0.12, 0.12)
+            P.place("weed", x0 + ux * a - uz * c_, GY, z0 + uz * a + ux * c_, r.uniform(0, 6.28), sy=r.uniform(0.7, 1.7), sxz=r.uniform(0.8, 1.8), district=D)
+
+
+def mural(cx, cz, yaw, length, r, y0=0.1, y1=0.84, out=0.16, fill=0.6):
+    """Paint along a low wall or a row of barriers, facing yaw: blocks of
+    colour crossed with slanted bands, bars and stripes, bare concrete
+    between them. What a yard's wall gathers."""
+    pal = (OXIDE, YELLOW, STEEL_BLUE, TANK_WHITE, PALE_GREEN, c(0.08, 0.34, 0.36), c(0.42, 0.07, 0.24), c(0.03, 0.03, 0.035))
+    ym, hh = (y0 + y1) / 2, y1 - y0
+    u = -length / 2 + 0.4
+    while u < length / 2 - 1.6:
+        w = min(r.uniform(1.4, 4.2), length / 2 - u - 0.2)
+        if r.random() < fill:
+            a, b_, d_ = r.sample(pal, 3)
+            band_quad(k("trim", 1), cx, cz, yaw, u, ym, u + w, ym, hh, a, out=out)
+            kind = r.randrange(3)
+            if kind == 0:
+                band_quad(k("trim", 1), cx, cz, yaw, u + w * 0.2, y0 + 0.04, u + w * 0.45, y1 - 0.04, 0.26, b_, out=out + 0.012)
+                band_quad(k("trim", 1), cx, cz, yaw, u + w * 0.5, y0 + 0.04, u + w * 0.75, y1 - 0.04, 0.26, d_, out=out + 0.012)
+            elif kind == 1:
+                for j in range(3):
+                    uu = u + w * (0.2 + 0.25 * j)
+                    band_quad(k("trim", 1), cx, cz, yaw, uu, y0 + 0.08, uu, y1 - 0.08, 0.16, b_, out=out + 0.012)
+            else:
+                band_quad(k("trim", 1), cx, cz, yaw, u + w * 0.15, y0 + hh * 0.3, u + w * 0.85, y0 + hh * 0.3, hh * 0.22, b_, out=out + 0.012)
+                band_quad(k("trim", 1), cx, cz, yaw, u + w * 0.3, y0 + hh * 0.7, u + w * 0.7, y0 + hh * 0.7, hh * 0.2, d_, out=out + 0.012)
+        u += w + r.uniform(0.3, 2.5)
+
+
+def jersey(x0, z0, x1, z1, r, paint=0.6):
+    """A row of concrete barriers, three metres each on a wide foot, paint
+    on both faces of most of them."""
+    ln = math.hypot(x1 - x0, z1 - z0)
+    n = max(1, int(ln / 3.1))
+    yaw = math.atan2(-(z1 - z0), x1 - x0)
+    for i in range(n):
+        t = (i + 0.5) / n
+        cx, cz = x0 + (x1 - x0) * t, z0 + (z1 - z0) * t
+        oriented_box(M("concrete"), cx, GY + 0.12, cz, 3.0, 0.24, 0.62, yaw)
+        oriented_box(M("concrete"), cx, GY + 0.55, cz, 3.0, 0.62, 0.3, yaw)
+        if r.random() < paint:
+            for fy in (yaw, yaw + math.pi):
+                mural(cx, cz, fy, 3.0, r, y0=GY + 0.26, y1=GY + 0.84, out=0.155, fill=1.0)
+    collide(min(x0, x1) - 0.3, max(x0, x1) + 0.3, min(z0, z1) - 0.3, max(z0, z1) + 0.3, 1.0)
 
 
 def crane(cx, cz, yaw, h=11.0, jib=15.0, pitch=0.5, col=YELLOW):
@@ -1908,6 +1962,33 @@ def _reel(kk):
         a0, a1 = t * math.tau / 8, (t + 1) * math.tau / 8
         quad(kk("trim"), (0.5 * math.cos(a1), 0.9 + 0.5 * math.sin(a1), -0.47), (0.5 * math.cos(a0), 0.9 + 0.5 * math.sin(a0), -0.47),
              (0.5 * math.cos(a0), 0.9 + 0.5 * math.sin(a0), 0.47), (0.5 * math.cos(a1), 0.9 + 0.5 * math.sin(a1), 0.47), col=c(0.03, 0.03, 0.035))
+
+
+@P.proto("weed", box=(0.35, 0.25, 0.35), reach=110, detail=True)
+def _weed(kk):
+    """A clump of weeds at a wall's foot: a few dark blades."""
+    for i, (a, ln, h) in enumerate(((0.3, 0.3, 0.42), (1.5, 0.26, 0.3), (2.7, 0.34, 0.36), (3.9, 0.22, 0.5), (5.2, 0.3, 0.28))):
+        dx, dz = math.cos(a), math.sin(a)
+        col = c(0.035, 0.09, 0.03) if i % 2 else c(0.05, 0.13, 0.05)
+        b0, b1, tip = (-dz * 0.07, 0.0, dx * 0.07), (dz * 0.07, 0.0, -dx * 0.07), (dx * ln, h, dz * ln)
+        poly(kk("trim"), [b0, b1, tip], [(0, 0), (1, 0), (0.5, 1)], col)
+        poly(kk("trim"), [b1, b0, tip], [(0, 0), (1, 0), (0.5, 1)], col)
+
+
+@P.proto("blocks", box=(0.5, 0.35, 0.45), reach=200, detail=True)
+def _blocks(kk):
+    """Cinder blocks: a short stack, one askew on top, one fallen beside."""
+    key = kk(MAT["concrete"])
+    col = c(0.52, 0.52, 0.5)
+    for j in range(2):
+        for i in range(2):
+            for q in range(2):
+                if (i, j, q) == (1, 1, 1):
+                    continue
+                x, z = -0.42 + i * 0.42, -0.21 + q * 0.21
+                box(key, x, x + 0.4, j * 0.2, j * 0.2 + 0.19, z, z + 0.19, scale=0.5, col=shade(col, 0.85 + 0.15 * ((i + j + q) % 2)))
+    oriented_box(key, -0.16, 0.495, -0.1, 0.4, 0.19, 0.19, 0.5, col=col)
+    oriented_box(key, 0.62, 0.095, 0.3, 0.4, 0.19, 0.19, 1.1, col=shade(col, 0.9))
 
 
 @P.proto("tyres", box=(0.4, 0.5, 0.4), reach=220, detail=True)

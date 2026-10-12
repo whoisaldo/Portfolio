@@ -62,7 +62,7 @@ def truck(x, z, yaw, cab=None):
         P.place(cab, x + math.cos(yaw) * 6.9, GY, z - math.sin(yaw) * 6.9, yaw, district=D)
 
 
-def scatter(r, x0, x1, z0, z1, n, kinds=("drum_pallet", "drum_pallet", "pallets", "crates", "reel", "tyres", "drum", "barrel"), yaw=None):
+def scatter(r, x0, x1, z0, z1, n, kinds=("drum_pallet", "drum_pallet", "pallets", "crates", "reel", "tyres", "drum", "barrel", "blocks", "drum_pallet"), yaw=None):
     """Yard clutter set down in a patch, in twos and threes."""
     for _ in range(n):
         cx, cz = r.uniform(x0, x1), r.uniform(z0, z1)
@@ -147,7 +147,7 @@ def works():
     plat = out.get("+x", GY)
     for i in (0, 3, 4, 7):
         z = Z1 - (5.0 + (i + 0.5) * 6.25)
-        truck(X1 + 2.6 + 6.5, z, 0.0, {0: "tractor", 4: "tractor_red"}.get(i))
+        truck(X1 + 2.6 + 6.5, z, 0.0, {0: "tractor_red"}.get(i))
     for i in range(9):
         z = Z1 - (5.0 + i * 6.25)
         K.stripe(X1 + 2.8, X1 + 17.0, z - 0.06, z + 0.06, K.PAINT_WHITE)
@@ -228,7 +228,7 @@ def tank_farm():
     # bunds, cyan lamps on every landing (in K.tank).
     K.fence(304.8, -167.8, 425.8, -167.8)
     K.fence(425.8, -167.8, 425.8, -92.8)
-    K.verge(r, 426.9, -166.0, 426.9, -94.0, step=7.0)
+    K.verge(r, 426.9, -166.0, 426.9, -94.0, step=4.6)
     K.run([(453.6, 7.35, -101.55), (457.2, 7.35, -101.55), (457.2, 0.7, -101.55)], r=0.3, col=K.STEEL_BLUE)
     mast(309.0, -164.5, PI * 0.2)
     mast(422.6, -164.2, -PI * 0.25)
@@ -481,8 +481,8 @@ def plant():
     K.low_wall(312.8, -12.4, 388.0, -12.4)
     K.low_wall(425.8, -83.2, 425.8, -10.8)
     K.low_wall(424.0, -10.8, 425.8, -10.8, lamps=0)
-    K.verge(r, 314.0, -11.2, 386.0, -11.2, step=7.0)
-    K.verge(r, 426.9, -82.0, 426.9, -12.0, step=7.0)
+    K.verge(r, 314.0, -11.2, 386.0, -11.2, step=4.6)
+    K.verge(r, 426.9, -82.0, 426.9, -12.0, step=4.6)
     for x in (392.0, 404.0, 416.0):
         P.place("bench", x, GY, -10.3, 0.0, district=D)
     P.place("food_box", 398.4, GY, -10.3, 0.0, district=D)
@@ -504,7 +504,7 @@ def plant():
     K.wash(308.0, 338.0, -14.8, -14.8, level=0.95, step=3.5)
     K.wash(308.0, 338.0, -35.4, -35.4, level=0.5, red=0.3)
     K.wash(310.0, 334.0, -76.0, -56.0, level=0.55, step=6.0)
-    scatter(r, 384.0, 400.0, -46.0, -40.0, 4)
+    scatter(r, 384.0, 393.0, -46.0, -40.0, 3)
     scatter(r, 412.0, 424.0, -56.0, -40.0, 4)
     K.bridge(333.0, -13.8, 333.0, 13.8)
     K.run([(332.45, 7.2, -13.8), (332.45, 7.2, -15.4), (332.45, 0.4, -15.4)], r=0.3, col=K.STEEL_BLUE)
@@ -567,7 +567,7 @@ def depot():
     K.fence(176.2, -12.4, 204.0, -12.4)
     K.gate(204.4, -12.4, 213.6, -12.4, (0, -1), open_=True)
     K.fence(222.4, -12.4, 246.0, -12.4)
-    K.verge(r, 178.0, -11.2, 244.0, -11.2, step=7.0)
+    K.verge(r, 178.0, -11.2, 244.0, -11.2, step=4.6)
     mast(178.0, -14.6, PI * 0.75)
     mast(240.0, -14.6, -PI * 0.75)
     scatter(r, 228.0, 240.0, -32.0, -14.0, 4)
@@ -1067,7 +1067,7 @@ def block_06():
         box(k("glow"), x - 0.14, x + 0.14, H + 0.8, H + 1.1, z - 0.14, z + 0.14, scale=0.5, col=GLOW["red"])
     K.collide(X0, X1, Z0, Z1, H)
     K.yard_wall(424.0, 44.8, 458.0, 44.8, r=r, face=-1)
-    for x in (426.0, 440.0, 454.0):
+    for x in (426.0, 434.8, 445.2, 454.0):
         cylinder(k("hazard", 1), x, 12.8, GY, GY + 1.1, 0.14, segs=8)
     stand(441.6, 12.9, PI, "phone")
     stand(430.0, 13.0, PI * 0.9, "lean")
@@ -1158,7 +1158,7 @@ def east():
     K.fence(454.4, -126.6, 454.4, -113.6)
     K.gate(454.4, -113.2, 454.4, -106.8, (1, 0), open_=False)
     K.fence(454.4, -106.4, 454.4, -94.4)
-    K.verge(r, 453.2, -125.0, 453.2, -96.0, step=8.0, kinds=("hydrant", "bollard", "bin", "drum", "crates", "barrier"))
+    K.verge(r, 453.2, -125.0, 453.2, -96.0, step=5.0, kinds=("hydrant", "bollard", "bin", "drum", "crates", "barrier"))
     strip(455.2, -122.0, PI / 2, cone=False)
     strip(455.2, -99.0, PI / 2, cone=False)
     strip(487.4, -124.0, -PI * 0.25, cone=False)
@@ -1254,6 +1254,80 @@ def street_cones():
                     v += 30.0
 
 
+def yards():
+    """What the yards and kerbs keep: paint on the estate's cross, trucks
+    laid up beside it and backed on the plant's dock, drums on pallets in
+    rows, built containers, barriers and low walls with their paint, cinder
+    blocks, skips, weeds at every fence's and wall's foot, and more of the
+    shift at the docks and gates."""
+    r = R(8701)
+    # The cross: a keep-clear box, stop lines, edge lines down both roads.
+    K.hatch(296.4, 303.6, -91.6, -84.4)
+    for (a0, a1, b0, b1) in ((296.3, 303.7, -93.0, -92.6), (296.3, 303.7, -83.4, -83.0), (295.0, 295.4, -91.7, -84.3), (304.6, 305.0, -91.7, -84.3)):
+        K.stripe(a0, a1, b0, b1, K.PAINT_WHITE)
+    for x in (296.2, 303.68):
+        K.stripe(x, x + 0.12, -166.0, -93.4, K.PAINT_WHITE)
+        K.stripe(x, x + 0.12, -82.6, -14.0, K.PAINT_WHITE)
+    for z in (-91.8, -84.32):
+        K.stripe(178.0, 294.6, z, z + 0.12, K.PAINT_WHITE)
+        K.stripe(305.4, 424.0, z, z + 0.12, K.PAINT_WHITE)
+    K.hatch(400.0, 405.6, -114.0, -106.0)
+    # Trucks: one laid up on the works' apron, one on the road's edge by
+    # the rack, one backed on the boiler house, and their drivers.
+    truck(280.0, -95.6, 0.0, "tractor")
+    truck(330.0, -85.4, PI, "tractor_red")
+    truck(398.0, -49.3, -PI / 2, "tractor")
+    stand(291.4, -94.0, -PI / 2, "smoke")
+    stand(321.6, -87.7, 0.0, "phone")
+    stand(396.0, -40.6, PI / 2, "talk")
+    stand(397.2, -40.2, -PI / 2, "talk")
+    # Built containers at ground level in three yards.
+    K.container(293.8, -150.0, PI / 2, "blue")
+    K.container(350.0, -164.5, 0.0, "rust")
+    K.container(482.0, 16.6, PI, "green", ln=6.06)
+    # Drums on pallets in rows, skips, blocks, a forklift at work.
+    for i, z in enumerate((-138.0, -136.5, -135.0, -133.5)):
+        P.place("drum_pallet", 294.4, GY, z, (0.0, PI / 2, PI, 0.0)[i], district=D)
+    P.place("pallets", 294.4, GY, -131.6, 0.2, district=D)
+    P.place("blocks", 294.3, GY, -129.9, 1.0, district=D)
+    P.place("forklift", 279.0, GY, -150.0, 0.7, district=D)
+    P.place("pallets", 281.2, GY, -148.4, 0.7, district=D)
+    stand(280.6, -151.4, 0.7, "idle")
+    for x, z, kind, yaw in ((305.6, -94.9, "drum_pallet", 0.0), (305.6, -93.4, "drum_pallet", PI / 2), (306.9, -93.3, "barrel", 0.0), (306.8, -95.0, "blocks", 0.4),
+                            (294.2, -82.4, "dumpster", PI / 2), (294.3, -80.2, "pallets", 0.1), (292.6, -80.0, "blocks", 2.0),
+                            (426.6, 13.1, "drum_pallet", 0.0), (428.2, 13.2, "pallets", 0.3), (451.4, 13.2, "blocks", 0.2), (452.6, 13.0, "barrel", 0.0),
+                            (453.3, 13.4, "barrel", 0.0), (406.8, -118.6, "drum_pallet", 0.0), (408.3, -118.6, "drum_pallet", PI), (409.9, -118.5, "barrel", 0.0),
+                            (411.2, -118.4, "blocks", 0.9), (400.6, -10.2, "aframe", 0.2), (414.0, -10.3, "aframe", -0.2)):
+        P.place(kind, x, GY, z, yaw, district=D)
+    for x, z in ((453.0, 9.0), (453.0, -31.0)):
+        P.place("lightbox", x, GY, z, -PI / 2, district=D)
+    # Barriers with their paint along the tank farm's edge of the estate
+    # road; paint on the plant's low walls.
+    K.jersey(304.7, -130.0, 304.7, -102.0, r)
+    K.jersey(304.7, -160.0, 304.7, -138.0, r, paint=0.4)
+    K.mural(350.4, -12.4, 0.0, 74.0, r)
+    K.mural(425.8, -47.0, PI / 2, 70.0, r)
+    # Weeds at the feet of fences, walls and sheds.
+    for (x0, z0, x1, z1, n) in ((314.0, -12.1, 386.0, -12.1, 28), (426.1, -82.0, 426.1, -12.0, 26), (426.1, -166.0, 426.1, -94.0, 34),
+                                (178.0, -12.1, 244.0, -12.1, 24), (177.0, -167.5, 295.0, -167.5, 30), (305.0, -167.5, 425.0, -167.5, 30),
+                                (261.0, 12.1, 340.0, 12.1, 26), (343.0, 14.3, 386.0, 14.3, 14), (389.0, 12.2, 424.0, 12.2, 12), (459.0, 12.1, 489.0, 12.1, 10),
+                                (454.1, -126.0, 454.1, -95.0, 12), (110.0, 44.5, 178.0, 44.5, 16), (181.0, -78.3, 235.0, -78.3, 12),
+                                (181.0, -99.7, 263.0, -99.7, 14), (313.0, -98.7, 402.0, -98.7, 16), (308.0, -53.8, 336.0, -53.8, 8),
+                                (305.1, -130.0, 305.1, -102.0, 10), (425.4, -166.0, 425.4, -94.0, 20), (179.0, 44.5, 424.0, 44.5, 40)):
+        K.weeds(r, x0, z0, x1, z1, n)
+    # More of the shift: at the tank farm, on the estate road, by the
+    # depot's cabs, at the east yard's gate, by the gasholder.
+    stand(407.0, -140.6, PI / 2, "talk")
+    stand(408.2, -140.2, -PI / 2, "talk")
+    stand(303.0, -60.0, -PI / 2, "phone")
+    stand(297.2, -120.0, PI / 2, "idle")
+    stand(204.6, -18.6, PI / 2, "talk")
+    stand(205.8, -18.3, -PI / 2, "talk")
+    stand(455.4, -110.0, -PI / 2, "idle")
+    stand(465.0, 15.6, PI / 2, "talk")
+    stand(466.2, 15.2, -PI / 2, "talk")
+
+
 def roofs():
     """The sawtooth roofs, worked: walkways, ducts, air units, rooflights."""
     r = R(8691)
@@ -1279,4 +1353,5 @@ east()
 lines(BUS)
 frontage_light()
 roofs()
+yards()
 street_cones()
