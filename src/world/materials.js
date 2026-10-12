@@ -309,10 +309,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float up = clamp(n.y, 0.0, 1.0);
           // (A floor reads the baked light through the smooth filter: seen
           // from over it, the map's cells would show.)
+          // (And an upright face a walker can reach reads it as a wall does:
+          // spillWall, glsl.js.)
+          bool upright = abs(n.y) < 0.3 && vWorld.y < 7.0 && vProp < 0.5;
           #if defined(PAVING) || defined(KERB)
-          vec3 spill = n.y > 0.7 ? spillGround(vWorld) : spillAt(vWorld);
+          vec3 spill = n.y > 0.7 ? spillGround(vWorld) : (upright ? spillWall(vWorld) : spillAt(vWorld));
           #else
-          vec3 spill = spillAt(vWorld);
+          vec3 spill = upright ? spillWall(vWorld) : spillAt(vWorld);
           #endif
           vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spill * uSpillMul * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
           // What faces the sky catches the city's glow on the cloud (a wet
@@ -334,7 +337,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float dt = downtown(-V);
           vec3 hazeV = mix(uHazeColor, vec3(0.0137, 0.0103, 0.0723), dt);
           vec3 glowV = mix(uGlowColor, vec3(0.204, 0.129, 0.323), dt);
-          col += (hazeV * 1.5 + glowV * 0.45) * rim * 0.5 * uHaze * (1.0 - up);
+          // (Only what is some way off: on a wall beside the eye, seen along
+          // its length, it was an even navy wash that hid every lamp's pool.)
+          col += (hazeV * 1.5 + glowV * 0.45) * rim * 0.5 * uHaze * (1.0 - up) * smoothstep(12.0, 50.0, length(uCam - vWorld));
           // No roof is a hole: whatever it is made of, the rain on it holds
           // the lit cloud, a little from overhead and more at a glance.
           float top = up * smoothstep(2.5, 6.0, vWorld.y) * (1.0 - vProp);

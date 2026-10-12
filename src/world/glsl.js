@@ -137,6 +137,24 @@ export const COMMON = /* glsl */ `
     return s.rgb * s.rgb * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085)) * level + doorPool(p) + garageRoom(p);
   }
 
+  // The same light on a wall somebody stands beside. A wall takes more of
+  // it level with what throws it and less above and below than the ground
+  // rule gives, and what the map holds between two pools counts for less:
+  // so a tube or a caged lamp makes a pool on its own wall that falls off
+  // up it, down it and along it, and the wall between two lamps is dark.
+  vec3 spillWall(vec3 p) {
+    vec2 uv = (p.xz - uSpillBounds.xy) * uSpillBounds.zw;
+    if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return vec3(0.0);
+    vec4 s = texture2D(uSpill, uv);
+    float h = max(p.y, 0.0);
+    float dh = h - s.a * 15.94;
+    vec3 c = s.rgb * s.rgb;
+    c *= mix(0.6, 1.25, smoothstep(0.03, 0.2, max(c.r, max(c.g, c.b))));
+    // (And right at its own height, within a stride of it, the wall is
+    // lit hard: a tube a hand from a wall is the brightest thing on it.)
+    return c * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085)) * (0.5 + 2.2 * exp(-dh * dh * 0.3) + 3.0 * exp(-dh * dh * 1.3)) + doorPool(p) + garageRoom(p);
+  }
+
   // The kit's own lamps (lamp_<name>) on a surface facing n: a doorway's
   // light on the roof round it, bulbs over a roof, a sign's light on what
   // stands under it. Each reaches so far and no further.
