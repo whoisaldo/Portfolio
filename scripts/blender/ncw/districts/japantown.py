@@ -470,9 +470,9 @@ ESCAPE = (0.2, 0.22, 0.21, 1)
 def _fire_escape(district, f, s, y0, y1):
     """A fire escape that is seen at night: each landing on its plate with a
     rail, a mid rail and posts round it, the flight to the next with a
-    handrail, all in painted steel, and a lamp on the wall at every other
+    handrail, all painted steel (trim: no material of its own), a lamp on the wall at every other
     landing lighting it."""
-    k = (D, "steel", 1)
+    k = (D, "trim", 1)
     y, n = y0, 0
     while y < y1:
         f.box(k, s - 2.2, s + 2.2, y, y + 0.07, 0.0, 1.1, col=ESCAPE)
@@ -506,12 +506,21 @@ def kept(f, s0, s1):
     return any(abs(f.plane - pl) < 0.01 and a < hi and b > lo for pl, lo, hi in KEEP)
 
 
+def lens(f, hue, s0, s1, y0, y1, w0, w1):
+    """A lamp's lens under its hood: its front and its underside (a phone
+    draws these, so no more of it than is seen)."""
+    k = (D, "neon_" + hue, 0)
+    f.quad(k, s0, s1, y0, y1, w1)
+    a, b = f.at(s0), f.at(s1)
+    quad(k, f.p(b, y0, w1), f.p(a, y0, w1), f.p(a, y0, w0), f.p(b, y0, w0))
+
+
 def lane_door(f, sc, r):
     f.quad((D, "door", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.03)
     x, _, z = f.p(f.at(sc), G0, 0.0)
     J.put("jt_door", x, G0, z, f.yaw)
     hue = "amber" if r.random() < 0.8 else "white"
-    f.box((D, "neon_" + hue, 0), sc - 0.11, sc + 0.11, G0 + 2.4, G0 + 2.56, 0.06, 0.2)
+    lens(f, hue, sc - 0.11, sc + 0.11, G0 + 2.4, G0 + 2.56, 0.06, 0.2)
     if r.random() < 0.26:
         # A bar's back door: a tube over it.
         hue = r.choice(("cyan", "cyan", "pink", "green", "red"))
@@ -528,7 +537,8 @@ def lane_window(f, s0, r, kind):
         col = (r.uniform(0.0, 0.55), r.choice((0.2, 0.26, 0.32, 0.38, 0.6, 0.8, 0.95)), 1.0, 1.0)
         f.quad((D, "shop", 0), s0, s0 + ww, y0, y0 + wh, 0.02, uvs=((1.0, 0.9), (1.0 + ww, 0.9), (1.0 + ww, 0.9 + wh), (1.0, 0.9 + wh)), col=col)
     else:
-        f.quad((D, "glass_dark", 0), s0, s0 + ww, y0, y0 + wh, 0.02)
+        # (Unlit glass: the dark of the room, in the batch every tile has.)
+        f.quad((D, "glow", 0), s0, s0 + ww, y0, y0 + wh, 0.02, col=(0.0035, 0.005, 0.007, 1))
     x, _, z = f.p(f.at(s0 + ww / 2), y0, 0.0)
     J.put("jt_win" if r.random() < 0.6 else "jt_win_b", x, y0, z, f.yaw, wh, ww)
 
@@ -541,7 +551,7 @@ def lane_shutter(f, s0, sw, r):
         f.box(k, e, e + 0.09, G0, 2.9, 0.0, 0.1)
     f.box(k, s0, s0 + sw, G0, G0 + 0.09, 0.03, 0.09)
     mid = s0 + sw / 2
-    f.box((D, "neon_white", 0), mid - 0.2, mid + 0.2, 3.36, 3.46, 0.05, 0.18)
+    lens(f, "white", mid - 0.2, mid + 0.2, 3.36, 3.46, 0.05, 0.18)
     f.box(k, mid - 0.26, mid + 0.26, 3.46, 3.5, 0.0, 0.24)
     light(D, *f.p(f.at(mid), 3.3, 0.9), "white", 2.2)
 
@@ -584,7 +594,7 @@ def lane_face(rec, name, cap=None):
     w = f.width
     side = rec["sides"][name] == "open"
     f.quad((D, "plaster", 0), 0.0, w, 0.0, SHOP_H, 0.0, col=r.choice(LANE_WALLS))
-    f.box((D, "concrete", 1), 0.0, w, 0.0, 0.95, 0.0, 0.06, scale=3.0)
+    f.box((D, "trim", 1), 0.0, w, 0.0, 0.95, 0.0, 0.06, col=(0.2, 0.2, 0.21, 1))
     k = (D, "metal", 1)
     f.box(k, 0.15, w - 0.15, G0 + 3.05, G0 + 3.1, 0.02, 0.07)
     if r.random() < 0.6:
@@ -592,15 +602,25 @@ def lane_face(rec, name, cap=None):
         f.box(k, a, r.uniform(w * 0.6, w - 0.2), G0 + 3.22, G0 + 3.26, 0.02, 0.06)
     s = r.uniform(0.3, 0.9)
     doors, last_door, ladder = 0, -9.0, w > 4.5 and h < 23.0 and r.random() < 0.3
+    lamp = -3.0   # where the last fixture was: no wall goes eight metres without one
     while s < w - 0.7:
         room = w - 0.3 - s
+        if s - lamp > 7.0:
+            # A caged lamp on the conduit, over head height.
+            hue = "amber" if r.random() < 0.75 else "white"
+            lens(f, hue, s + 0.14, s + 0.36, G0 + 2.82, G0 + 2.98, 0.05, 0.2)
+            f.box(k, s + 0.08, s + 0.42, G0 + 2.98, G0 + 3.05, 0.0, 0.26)
+            light(D, *f.p(f.at(s + 0.25), 2.8, 0.9), hue, 3.0)
+            lamp = s
+            s += 0.6
+            continue
         # By a cross alley's mouths, and where a stall or a column stands:
         # only what lies within a hand of the wall.
         flat = kept(f, s - 0.2, s + 1.6) or (side and (s < 2.4 or s > w - 3.8))
         roll = r.random()
         if (roll < 0.15 or (doors == 0 and s > w * 0.35)) and room > 1.35 and s - last_door > 4.0:
             lane_door(f, s + 0.65, r)
-            doors, last_door = doors + 1, s
+            doors, last_door, lamp = doors + 1, s, s
             s += 1.3
         elif roll < 0.37 and room > 1.3:
             kind = r.choice([wk for wk in WINDOWS if wk[0] + 0.25 < room])
@@ -611,6 +631,7 @@ def lane_face(rec, name, cap=None):
         elif roll < 0.43 and room > 3.4 and not flat:
             sw = r.uniform(2.6, min(3.6, room - 0.3))
             lane_shutter(f, s + 0.15, sw, r)
+            lamp = s + sw / 2
             s += sw + 0.3
         elif roll < 0.53 and room > 1.0 and not flat:
             J.put("jt_ac", *f.p(f.at(s + 0.5), G0, 0.0), f.yaw, r.uniform(0.92, 1.12))
@@ -895,7 +916,7 @@ def roof_sign(x, z, top, yaw, r, span, tall_ok=True):
         B.billboard(D, c[0], c[1], c[2], sw, sh, yaw, r, back=False)
         bb = basis(yaw + math.pi)
         for v in (-sh * 0.32, 0.0, sh * 0.32):
-            obox((D, "steel", 1), pt(c, bb, 0.0, v, 0.44), bb, sw + 0.3, 0.12, 0.08, col=ESCAPE, tube=True)
+            obox((D, "trim", 1), pt(c, bb, 0.0, v, 0.44), bb, sw + 0.3, 0.12, 0.08, col=ESCAPE, tube=True)
         legs, sy = (-sw * 0.36, sw * 0.36), c[1] - sh / 2
     else:
         sw, sh = min(span * 0.8, 5.6), 2.0
@@ -1014,7 +1035,7 @@ def roof(rec, weights):
         # struts down to blocks, a lamp for whoever climbs it.
         syaw = out_yaw + r.choice((-1, 1)) * r.uniform(0.15, 0.7)
         roof_sign(X(w - 1.3), mid, top, syaw, r, d)
-        k = (D, "steel", 1)
+        k = (D, "trim", 1)
         for dz_ in (-min(1.6, d * 0.22), min(1.6, d * 0.22)):
             a_, b_ = (X(w - 1.5), top + 3.4, mid + dz_), (X(w - 4.4), top + 0.3, mid + dz_)
             q = (a_, b_, (b_[0], b_[1] + 0.1, b_[2]), (a_[0], a_[1] + 0.1, a_[2]))
@@ -1419,7 +1440,7 @@ def sign_bridge(z, r):
     xa, xb = -90.6, -69.4
     for x in (xa, xb):
         pylon(x, z, 11.5)
-    k = (D, "steel", 1)
+    k = (D, "trim", 1)
     for y in (8.2, 11.2):
         for zz in (z - 0.42, z + 0.42):
             box(k, xa, xb, y, y + 0.16, zz - 0.08, zz + 0.08, scale=1.0, col=ESCAPE, bottom=True)
@@ -1708,7 +1729,14 @@ for i, (xa, xb, n) in enumerate(CLOSE):
     h = storeys(n)
     tiers = B.building(lot, h, r, style=STYLE, signs=False, roof=False, tint=tint)
     f = B.faces_of(xa, xb, ZS, 42.0)["-z"]
-    J.lantern_row(f, 0.5, f.width - 0.5, 3.0, 0.6, 1.0)
+    # Each of the three fronts lit its own way.
+    if i == 0:
+        J.lantern_row(f, 0.5, f.width - 0.5, 3.15, 0.6, 1.5)
+    elif i == 1:
+        J.lantern_row(f, 0.8, f.width - 0.8, 2.85, 0.6, 2.8, sy=1.5, sxz=1.5)
+    else:
+        pa, pb = f.p(f.at(0.4), 0.0, 0.5), f.p(f.at(f.width - 0.4), 0.0, 0.5)
+        J.span("jt_festoon", (pa[0], pa[2]), (pb[0], pb[2]), 3.5, 0.35)
     signs_on(f, h, r, 1.2)
     by_wall(f, r)
     parapet(xa, xb, ZS, 42.0, h, B.TRIM[B.TINTS[tint]])
