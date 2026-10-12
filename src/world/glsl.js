@@ -240,7 +240,13 @@ export const COMMON = /* glsl */ `
   vec3 cityFog(vec3 col, vec3 p, float emissive) {
     vec3 d = p - uCam;
     float dist = length(d);
-    float santo = santoAt(p.xz) * exp(-max(p.y, 0.0) * 0.035) * uHaze;
+    // Santo Domingo's sodium air, as much of it as the look passes
+    // through (three points along it, each by how low it is): read at the
+    // far end alone, everything standing in the district was one orange
+    // sheet from the air, with the district's straight edge for its own.
+    vec3 m1 = mix(uCam, p, 0.33);
+    vec3 m2 = mix(uCam, p, 0.66);
+    float santo = (santoAt(p.xz) * exp(-max(p.y, 0.0) * 0.035) + santoAt(m2.xz) * exp(-max(m2.y, 0.0) * 0.035) + santoAt(m1.xz) * exp(-max(m1.y, 0.0) * 0.035)) * 0.3333 * uHaze;
     float f = 1.0 - exp(-dist * uFogDensity * mix(1.0, 0.45, emissive) * (1.0 + 0.8 * santo));
     float low = exp(-max(p.y, 0.0) * 0.01);
     vec3 fogCol = mix(uFogColor, hazeAt(d), uHaze * low * smoothstep(40.0, 360.0, dist));
@@ -342,6 +348,28 @@ export const WINDOWS = /* glsl */ `
     else if (style > 3.5 && style < 4.5) { m0 = vec2(0.04, 0.06); m1 = vec2(0.96, 0.97); lights = 2.0; office = 1.0; }
     else if (style > 4.5 && style < 5.5) { m0 = vec2(0.0, 0.3); m1 = vec2(1.0, 0.74); lights = 4.0; office = 1.0; band = 1.0; }
     else if (style > 5.5) { m0 = vec2(0.3, 0.34); m1 = vec2(0.7, 0.8); lights = 1.0; }
+    // A districts' building is not one module from its foot to its roof:
+    // it is stacked in zones of four to seven floors, each with its own
+    // cut of the same window (its sill lower or its head higher, wider or
+    // narrower in its bay, a light more or fewer), and the floor a zone
+    // starts on is a ledge.
+    float ledge = 0.0;
+    if (tint >= 0.0) {
+      vec2 zs = params.yz * 17.0;
+      float zoneH = 4.0 + floor(hash12(zs + 9.1) * 4.0);
+      float zf = (cell.y + floor(hash12(zs + 5.5) * zoneH)) / zoneH;
+      float zone = hash12(vec2(floor(zf), 12.7) + zs);
+      float cut = fract(zone * 7.0);
+      ledge = step(fract(zf) * zoneH, 0.5);
+      if (band < 0.5) {
+        m0.y = max(m0.y - 0.1 * step(0.5, zone), 0.08);
+        m1.y = min(m1.y + 0.08 * step(0.6, cut), 0.95);
+        float grow = (cut - 0.5) * 0.16 * step(0.01, m0.x);
+        m0.x = max(m0.x - grow, 0.03);
+        m1.x = min(m1.x + grow, 0.97);
+        lights = max(1.0, lights + floor(zone * 3.0) - 1.0);
+      }
+    }
     vec2 size = (m1 - m0) * vec2(3.2, 3.4);
     vec2 q = (f - m0) / (m1 - m0);
     float opening = step(0.0, q.x) * step(q.x, 1.0) * step(0.0, q.y) * step(q.y, 1.0);
@@ -493,11 +521,16 @@ export const WINDOWS = /* glsl */ `
     // Blinds and curtains hang at the glass and hide the room: a blind as
     // far down as it was left, a curtain drawn right across or back to the
     // sides; a curtain glows with the light behind it.
+    // (Nothing hangs in a window too far off to see into: its slats were
+    // a moire and its lit cloth a pale grey tile, daylit blinds on a night
+    // tower. From there a lit window is flat glass in the house's light.)
+    float flatK = smoothstep(0.03, 0.09, max(fwidth(uv.x), fwidth(uv.y)));
+    wc = mix(wc, (params.z > 0.5 ? vec3(1.0, 0.72, 0.36) : vec3(0.5, 0.88, 1.0)) * (0.85 + 0.3 * hash12(room + 1.9)), flatK * (1.0 - band));
     float hb = hash12(room + 5.1);
-    float blind = step(0.64, hb) * (1.0 - band) * step(0.9 - fract(hb * 37.0), qy);
+    float blind = step(0.64, hb) * (1.0 - band) * step(0.9 - fract(hb * 37.0), qy) * (1.0 - flatK);
     float hc = hash12(room + 8.9);
-    float curtain = (1.0 - office) * step(0.7, hc) * step(0.3 * step(0.5, fract(hc * 23.0)), abs(gx - 0.5));
-    float interior = mix(shade, 0.4 + 0.6 * smoothstep(0.0, 1.0, qy), max(blind, curtain));
+    float curtain = (1.0 - office) * step(0.7, hc) * step(0.3 * step(0.5, fract(hc * 23.0)), abs(gx - 0.5)) * (1.0 - flatK);
+    float interior = mix(mix(shade, 0.4 + 0.6 * smoothstep(0.0, 1.0, qy), max(blind, curtain)), 0.7, flatK);
     float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(qy * size.y * 6.0)), blind);
     vec3 lightCol = mix(wc, wc * vec3(1.0, 0.55, 0.4), curtain * 0.6) * mix(1.0, 0.75 + 0.25 * sin(gx * size.x * 11.0), curtain);
     // Somebody at the window now and then, against the light.
@@ -543,8 +576,11 @@ export const WINDOWS = /* glsl */ `
       core = mix(core, wall * 1.5, step(abs(f.x - 0.9), 0.012) * near);
       detail = mix(detail, core, blank * (1.0 - plant));
     }
-    // A line of shadow under each floor's edge.
+    // A line of shadow under each floor's edge, and a zone's first floor
+    // stands on a ledge: its lit top edge and the shadow it throws down.
     detail *= mix(1.0, 0.55, step(f.y, 0.045));
+    detail = mix(detail, wall * 2.2, ledge * step(abs(f.y - 0.09), 0.035) * (1.0 - smoothstep(0.02, 0.08, px)));
+    detail *= 1.0 - 0.45 * ledge * step(f.y, 0.055);
 
     // Far off, a cell is too small to draw: seen square on, its average; seen
     // along the street (the cells crushed across, not up), each floor's

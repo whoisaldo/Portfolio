@@ -385,7 +385,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
               vec3 lw = texture2D(uSpill, luv + lo).rgb + texture2D(uSpill, luv - lo).rgb + texture2D(uSpill, luv + vec2(lo.x, -lo.y)).rgb + texture2D(uSpill, luv - vec2(lo.x, -lo.y)).rgb;
               float here = dot(la * la, vec3(0.333));
               float round4 = dot(lw * lw, vec3(0.333)) / 16.0;
-              laneDim = mix(1.0, max(here - 0.8 * round4, 0.05 * here) / max(here, 1e-4) * 1.7, laneK);
+              // (And only where the wash is there to take out: a dim
+              // forecourt or a megablock's unlit base keeps what it has.)
+              laneDim = mix(1.0, max(here - 0.8 * round4, 0.05 * here) / max(here, 1e-4) * 1.7, laneK * smoothstep(0.1, 0.28, round4));
               spill *= laneDim;
             }
           }
@@ -586,7 +588,12 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         void main() {
           // The kit's buildings carry their wall colour in the alpha; the
           // old ones (alpha 1) keep the charcoal.
-          vec4 w = windowsT(vUv, vColor.rgb, vWorld, uWindows, vColor.a > 0.999 ? -1.0 : vColor.a);
+          // (A megablock's far tower, facade_end, carries no tint: it is
+          // charcoal, and lit as a districts' building is, in runs and dark
+          // floors with stair bays and plant floors, not room by room at
+          // one rate, which from the air was one random-lit window texture
+          // tiled over every tower.)
+          vec4 w = windowsT(vUv, vColor.rgb, vWorld, uWindows, vColor.a > 0.999 ? ${key === "facade_end" ? "0.0" : "-1.0"} : vColor.a);
           // Fog at uFogK of its density: the same curve from a point that
           // far nearer the lens along the same line.
           vec3 p = uCam + (vWorld - uCam) * uFogK;

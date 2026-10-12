@@ -76,6 +76,37 @@ const KINDS = {
         }
         tone *= 0.94 + 0.12 * fine * vnoise(q * 31.0);
       }
+      #ifdef RELIEF
+      // A wall of cast concrete as a megablock's base is built (and a
+      // ramp's wall, a yard's): storeys 3.4 m apart, each a joint with the
+      // lip of the pour over it and the damp that has run down from it; a
+      // pilaster every 6.8 m and its shadow; a tray of two pipes along the
+      // first storey's line on its brackets; a downpipe every 13.6 m with
+      // its shadow and a stain at its foot. Seen from across a street, where
+      // the boards and tie holes are too fine to read, this is what stops
+      // it being a flat dark plane.
+      if (a.y < 0.6 && px < 0.6) {
+        float far = 1.0 - smoothstep(0.25, 0.6, px);
+        float fy = q.y / 3.4;
+        float up = fract(fy) * 3.4;
+        float joint = hair(min(up, 3.4 - up), 0.035, px);
+        float lip = hair(abs(up - 0.1), 0.03, px);
+        float damp = smoothstep(1.1, 0.0, 3.4 - up) * (0.35 + 0.65 * vnoise(vec2(q.x * 0.8, floor(fy) * 3.1)));
+        float streak = smoothstep(0.55, 0.9, vnoise(vec2(q.x * 2.3, floor(fy) * 7.0 + 2.0))) * smoothstep(2.6, 0.2, 3.4 - up);
+        float bay = fract(q.x / 6.8) * 6.8;
+        float post = hair(abs(bay - 0.3), 0.3, px);
+        float shadow = hair(abs(bay - 0.72), 0.12, px);
+        float sb = q.y - 3.75;
+        float tray = hair(abs(sb), 0.19, px);
+        float pipes = hair(abs(abs(sb) - 0.09), 0.03, px);
+        float bracket = hair(abs(fract(q.x / 1.7) - 0.5) * 1.7, 0.025, px) * tray;
+        float down = (fract(q.x / 13.6 + 0.37) - 0.5) * 13.6;
+        float pipe = hair(abs(down), 0.06, px) * step(0.2, q.y);
+        float foot = smoothstep(0.9, 0.0, q.y) * smoothstep(0.7, 0.0, abs(down));
+        tone *= mix(1.0, (1.0 - 0.55 * joint) * (1.0 + 0.5 * lip) * (1.0 - 0.3 * damp) * (1.0 - 0.25 * streak) * (1.0 + 0.22 * post) * (1.0 - 0.4 * shadow)
+          * (1.0 - 0.5 * tray) * (1.0 + 1.6 * pipes) * (1.0 - 0.5 * bracket) * (1.0 - 0.45 * hair(abs(down - 0.17), 0.09, px)) * (1.0 + 0.9 * pipe) * (1.0 - 0.4 * foot), far);
+      }
+      #endif
       wear = tone * 0.88;
       return c * tone * mix(vec3(1.0), RUSTED, drip * 0.8);
     }
@@ -307,7 +338,10 @@ export function kindSource(kind) {
       }
     `;
   }
-  return /* glsl */ `${BASE}${PROP}${KINDS[kind]}
+  // (Only what is keyed concrete carries a megablock base's relief: trim
+  // is also every fascia, sill and bar, and a storey's joint is no line
+  // across those.)
+  return /* glsl */ `${kind === "concrete" ? "#define RELIEF\n" : ""}${BASE}${PROP}${KINDS[kind]}
     vec3 dress(vec3 c, vec3 p, vec3 n, float px, out float wear) {
       if (vProp > 0.5) return kindProp(c, p, wear);
       return ${CALL[kind]}(c, p, n, px, wear);
