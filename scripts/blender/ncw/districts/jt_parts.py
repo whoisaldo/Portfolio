@@ -396,16 +396,41 @@ def _jt_rail(k):
             quad(M, *q)
 
 
-def lamp_arm(x, y, z, yaw):
-    """A roof lamp: a tall post, a long arm (toward +z, turned yaw), a head
-    throwing its light straight down (D6ia1wjO7sg@220)."""
-    b = basis(yaw)
-    cylinder((D, "metal", 1), x, z, y, y + 5.6, 0.07, segs=5)
-    obox((D, "metal", 1), pt((x, y + 5.55, z), b, 0.0, 0.0, 1.3), b, 0.1, 0.1, 2.6, tube=False, bottom=True)
-    obox((D, "metal", 1), pt((x, y + 5.45, z), b, 0.0, 0.0, 2.1), b, 0.32, 0.1, 1.0, bottom=False)
-    c = pt((x, y + 5.39, z), b, 0.0, 0.0, 2.1)
-    q = [pt(c, b, u, 0.0, t) for u, t in ((-0.13, -0.45), (0.13, -0.45), (0.13, 0.45), (-0.13, 0.45))]
-    quad((D, "glow", 0), *q, col=(0.55, 0.95, 1.0, 1))
+@P.proto("jt_lamp_arm", box=(0.2, 2.5, 1.2), reach=460)
+def _jt_lamp_arm(k):
+    """A roof lamp: a post on a foot, a long arm (toward +z), a head whose
+    lens hangs under it throwing its light straight down
+    (D6ia1wjO7sg@220), and that light in the air under it."""
+    T = k("trim")
+    col = (0.075, 0.085, 0.095, 1)
+    box(T, -0.16, 0.16, 0.0, 0.08, -0.16, 0.16, scale=1.0, col=col)
+    cylinder(T, 0.0, 0.0, 0.08, 4.9, 0.07, segs=6, col=col, cap=False)
+    box(T, -0.05, 0.05, 4.8, 4.9, -0.07, 2.3, scale=1.0, col=col, bottom=True)
+    box(T, -0.17, 0.17, 4.7, 4.8, 1.5, 2.5, scale=1.0, col=col)
+    box(k("glow"), -0.13, 0.13, 4.65, 4.7, 1.58, 2.42, scale=1.0, col=(0.55, 0.95, 1.0, 1), bottom=True)
+    P.lamp_air(k, 4.65, 2.0, 4.4, (0.4, 0.85, 1.0))
+
+
+@P.proto("jt_chairs", box=(1.1, 0.45, 0.4), reach=200, detail=True)
+def _jt_chairs(k):
+    """Two folding chairs either side of an upturned crate, bottles on it
+    (the seats are at x -0.8 and 0.8, 0.46 up, turned to the crate)."""
+    T = k("trim")
+    box(T, -0.28, 0.28, 0.0, 0.42, -0.24, 0.24, scale=1.0, col=(0.2, 0.15, 0.06, 1))
+    for x, z, h, col in ((-0.1, 0.05, 0.26, (0.05, 0.2, 0.1, 1)), (0.08, -0.08, 0.22, (0.3, 0.16, 0.04, 1)), (0.14, 0.1, 0.12, (0.5, 0.5, 0.48, 1))):
+        box(T, x - 0.035, x + 0.035, 0.42, 0.42 + h, z - 0.035, z + 0.035, scale=1.0, col=col)
+    for sd in (-1, 1):
+        x = 0.8 * sd
+        box(T, x - 0.22, x + 0.22, 0.43, 0.46, -0.22, 0.22, scale=1.0, col=(0.3, 0.05, 0.05, 1) if sd < 0 else (0.06, 0.1, 0.24, 1), bottom=True)
+        xb = x + 0.22 * sd
+        for q in (((xb, 0.46, -0.22), (xb, 0.46, 0.22), (xb + 0.06 * sd, 0.95, 0.22), (xb + 0.06 * sd, 0.95, -0.22)),):
+            quad(T, *q, col=GREY)
+            quad(T, q[1], q[0], q[3], q[2], col=GREY)
+        for z in (-0.21, 0.21):
+            for xa_, xb_ in ((x - 0.2, x + 0.2), (x + 0.2, x - 0.2)):
+                q = ((xa_ - 0.015, 0.0, z), (xa_ + 0.015, 0.0, z), (xb_ + 0.015, 0.44, z), (xb_ - 0.015, 0.44, z))
+                quad(T, *q, col=GREY)
+                quad(T, q[1], q[0], q[3], q[2], col=GREY)
 
 
 def viewer(x, y, z, yaw):
@@ -696,3 +721,18 @@ def _jt_ladder(k):
             quad(T, q[1], q[0], q[3], q[2], col=GALV)
     for x, z in hoop[1:4]:
         box(T, x - 0.015, x + 0.015, 0.0, 3.0, z - 0.015, z + 0.015, scale=1.0, col=GALV)
+
+
+@P.proto("jt_hutdoor", box=(0.7, 1.2, 0.45), reach=340, detail=True)
+def _jt_hutdoor(k):
+    """A stair hut's door: its frame, the leaf swung out on one jamb, and
+    the caged lamp over it (the lit stair behind is the hut's own)."""
+    T = k("trim")
+    for x0, x1 in ((-0.54, -0.45), (0.45, 0.54)):
+        box(T, x0, x1, 0.0, 2.09, 0.0, 0.1, scale=1.0, col=FRAME)
+    box(T, -0.45, 0.45, 2.0, 2.09, 0.0, 0.1, scale=1.0, col=FRAME, bottom=True)
+    leaf = ((-0.45, 0.03, 0.05), (-0.82, 0.03, 0.8), (-0.82, 1.98, 0.8), (-0.45, 1.98, 0.05))
+    quad(T, *leaf, col=(0.16, 0.1, 0.05, 1))
+    quad(T, leaf[1], leaf[0], leaf[3], leaf[2], col=(0.06, 0.09, 0.085, 1))
+    box(T, -0.14, 0.14, 2.24, 2.28, 0.0, 0.2, scale=1.0, col=STEEL_D, bottom=True)
+    box(k("glow"), -0.1, 0.1, 2.13, 2.24, 0.03, 0.14, scale=1.0, col=GLOW["amber"], bottom=True)

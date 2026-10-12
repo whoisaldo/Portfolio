@@ -418,6 +418,38 @@ def _no_back(district, f, r, tcol):
         del batches[key]
 
 
+_kit_escape = B.fire_escape
+ESCAPE = (0.2, 0.22, 0.21, 1)
+
+
+def _fire_escape(district, f, s, y0, y1):
+    """A fire escape that is seen at night: each landing on its plate with a
+    rail, a mid rail and posts round it, the flight to the next with a
+    handrail, all in painted steel, and a lamp on the wall at every other
+    landing lighting it."""
+    k = (D, "steel", 1)
+    y, n = y0, 0
+    while y < y1:
+        f.box(k, s - 2.2, s + 2.2, y, y + 0.07, 0.0, 1.1, col=ESCAPE)
+        f.box(k, s - 2.2, s + 2.2, y + 1.0, y + 1.05, 1.05, 1.1, col=ESCAPE)
+        for q in [(s - 2.2, s + 2.2, y + 0.5, y + 0.55)] + [(e, e + 0.05, y + 0.07, y + 1.0) for e in (s - 2.2, s - 0.02, s + 2.15)]:
+            f.quad(k, q[0], q[1], q[2], q[3], 1.08, col=ESCAPE)
+            pa, pb = f.p(f.at(q[1]), q[2], 1.08), f.p(f.at(q[0]), q[2], 1.08)
+            quad(k, pa, pb, (pb[0], q[3], pb[2]), (pa[0], q[3], pa[2]), col=ESCAPE)
+        a0, a1 = f.at(s - 2.0), f.at(s + 1.6)
+        tread = (f.p(a0, y + 0.07, 0.95), f.p(a0, y + 0.07, 0.25), f.p(a1, y + CELL_H, 0.25), f.p(a1, y + CELL_H, 0.95))
+        quad(k, *tread, col=ESCAPE)
+        quad(k, tread[1], tread[0], tread[3], tread[2], col=ESCAPE)
+        hand = (f.p(a0, y + 0.95, 0.95), f.p(a1, y + CELL_H + 0.88, 0.95), f.p(a1, y + CELL_H + 0.94, 0.95), f.p(a0, y + 1.01, 0.95))
+        quad(k, *hand, col=ESCAPE)
+        quad(k, hand[1], hand[0], hand[3], hand[2], col=ESCAPE)
+        if n % 2 == 0:
+            f.box((D, "glow", 0), s + 1.9, s + 2.1, y + 2.1, y + 2.22, 0.02, 0.13, col=GLOW["amber"])
+            light(D, *f.p(f.at(s + 1.4), y + 1.2, 0.7), "amber", 3.5)
+        y += CELL_H
+        n += 1
+
+
 LANE_WALLS = ((0.16, 0.15, 0.13, 1), (0.11, 0.13, 0.15, 1), (0.15, 0.1, 0.085, 1), (0.09, 0.12, 0.115, 1), (0.13, 0.13, 0.14, 1), (0.17, 0.13, 0.1, 1),
               (0.08, 0.09, 0.12, 1))
 WINDOWS = ((0.8, 0.6, 1.95), (1.0, 1.1, 1.35), (1.0, 1.1, 1.35), (1.5, 1.0, 1.45), (0.7, 1.4, 1.2), (1.2, 0.8, 1.7))
@@ -625,40 +657,83 @@ def skylight(x, z, top, r, w=1.3, d=2.3):
     light(D, x, top + 0.5, z, c, 4.5)
 
 
-def hut(x, z, y, col, r, door=None):
-    """A stair hut, its door lit."""
-    box((D, "trim", 0), x - 1.0, x + 1.0, y, y + 2.3, z - 1.1, z + 1.1, scale=1.5, col=col)
-    box((D, "dark", 1), x - 1.1, x + 1.1, y + 2.3, y + 2.4, z - 1.2, z + 1.2, scale=1.0)
+HUTS = ((0.3, 0.29, 0.25, 1), (0.21, 0.24, 0.26, 1), (0.27, 0.2, 0.16, 1), (0.18, 0.23, 0.2, 1))
+DOOR_WARM = (0.36, 0.2, 0.075, 1)
+
+
+def hut(x, z, y, col, r, door=None, deck=False):
+    """A stair hut: rendered walls under a slab that oversails them, a
+    framed door standing open on the lit stair, a caged lamp over it and
+    its light on the roof before it."""
     side = door if door is not None else r.choice((-1, 1))
-    dx = x + side * 1.02
-    q = ((dx, y, z + 0.45), (dx, y, z - 0.45), (dx, y + 2.0, z - 0.45), (dx, y + 2.0, z + 0.45))
-    quad((D, "glow", 0), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=GLOW["amber"])
-    light(D, x + side * 1.8, y + 1.0, z, "amber", 4.5)
+    box((D, "plaster", 0), x - 1.0, x + 1.0, y, y + 2.3, z - 1.1, z + 1.1, scale=1.5, col=r.choice(HUTS))
+    box((D, "dark", 1), x - 1.2, x + 1.2, y + 2.3, y + 2.42, z - 1.3, z + 1.3, scale=1.0, bottom=True)
+    dx = x + side * 1.0
+    o = lambda t: dx + side * t  # noqa: E731 (t metres out of the door's wall)
+    q = ((o(0.02), y, z + 0.45), (o(0.02), y, z - 0.45), (o(0.02), y + 2.0, z - 0.45), (o(0.02), y + 2.0, z + 0.45))
+    quad((D, "glow", 0), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=DOOR_WARM)
+    J.put("jt_hutdoor", dx, y, z, HALF_PI * side)
+    light(D, o(1.2), y + 1.2, z, "amber", 5.5)
+    if deck:
+        J.pool(o(1.1), y + 0.05, z, 1.4, centre=(0.3, 0.17, 0.06, 1), rim=TERRACE_TEAL, segs=10)
     if r.random() < 0.3:
-        stand(x + side * 1.5, z + r.uniform(-0.8, 0.8), r.uniform(0, 6.28), r.choice(("smoke", "phone", "squat")), y)
+        stand(o(1.1), z + r.uniform(0.2, 0.8), r.uniform(0, 6.28), r.choice(("smoke", "phone", "squat")), y)
 
 
-def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
+TERRACE_TEAL = (0.01, 0.021, 0.026, 1)
+LUCY = {}
+
+
+def deck_wall(f, top, r):
+    """A taller neighbour's wall along a deck's side: pipes up it, an air
+    conditioner or two dripping onto the deck, bulbs strung along it, a
+    sign of bent tube where it is high enough."""
+    w = f.width
+    here = lambda s, o=0.0: f.p(f.at(s), top + 0.1, o)  # noqa: E731
+    J.put("jt_pipes", *here(r.uniform(6.2, 7.4)), f.yaw)
+    for s in (r.uniform(8.2, 9.6), r.uniform(11.5, 14.0))[:r.randrange(1, 3)]:
+        if s < w - 1.0:
+            J.put("jt_ac", *here(s), f.yaw, r.uniform(0.95, 1.1))
+    a, b = here(6.0, 0.35), here(w - 0.6, 0.35)
+    J.span("jt_festoon", (a[0], a[2]), (b[0], b[2]), top + 3.1, 0.45)
+    return w
+
+
+def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
     """Lucy's roof (D6ia1wjO7sg@220): a concrete deck inside rails of thick
     posts, a raised terrace at the back up two steps with a glass rail lit
-    along its top, planters on it, two lamps on long arms throwing cyan
-    pools straight down, a viewer at the rail over the street, a bench, the
-    stair hut, a heap of bags."""
+    along its top, planters, a tank, the stair hut and a mast on it; two
+    lamps on long arms throwing cyan pools straight down; a viewer and a
+    bench at the rail it looks out over (`front`), a blossom tree, chairs
+    round a crate, crates and bags. `lucy`: the one the named view stands
+    on, with everything."""
     w, d = x1 - x0, z1 - z0
     sgn = 1 if front == "+x" else -1
     xb = x0 if sgn > 0 else x1                      # the back edge
-    X = lambda u: xb + sgn * u                      # noqa: E731 (u metres from the back toward the street)
+    X = lambda u: xb + sgn * u                      # noqa: E731 (u metres from the back toward the outlook)
     y = top + 0.1
     # The deck itself is one teal shadow (the frame's own tone), which the
-    # lamps' pools are painted into.
+    # lamps' pools are painted into; its slabs' joints across it.
     quad((D, "glow", 0), (x0, y, z1), (x1, y, z1), (x1, y, z0), (x0, y, z0), col=J.DECK_TEAL)
+    tu = min(5.5, w * 0.36)
+    u = tu + 2.4
+    while u < w - 0.6:
+        xa, xc = sorted((X(u), X(u + 0.05)))
+        quad((D, "dark", 1), (xa, y + 0.012, z1 - 0.2), (xc, y + 0.012, z1 - 0.2), (xc, y + 0.012, z0 + 0.2), (xa, y + 0.012, z0 + 0.2))
+        u += 2.4
+    xa, xc = sorted((X(tu), X(w - 0.2)))
+    zz = z0 + 2.4
+    while zz < z1 - 0.6:
+        quad((D, "dark", 1), (xa, y + 0.012, zz + 0.05), (xc, y + 0.012, zz + 0.05), (xc, y + 0.012, zz), (xa, y + 0.012, zz))
+        zz += 2.4
     parapet(x0, x1, z0, z1, top, tcol, h=0.25, t=0.2)
     for a, b in (((x0 + 0.1, z0 + 0.1), (x1 - 0.1, z0 + 0.1)), ((x1 - 0.1, z0 + 0.1), (x1 - 0.1, z1 - 0.1)),
                  ((x1 - 0.1, z1 - 0.1), (x0 + 0.1, z1 - 0.1)), ((x0 + 0.1, z1 - 0.1), (x0 + 0.1, z0 + 0.1))):
         J.rail_run(a, b, top + 0.25)
-    tu = min(5.5, w * 0.36)
+    # The terrace: its top in the deck's light, its riser toward the deck.
     xa, xc = sorted((X(0.3), X(tu)))
     box((D, "concrete", 0), xa, xc, top, top + 0.9, z0 + 0.3, z1 - 0.3, scale=3.0)
+    quad((D, "glow", 0), (xa, top + 0.92, z1 - 0.3), (xc, top + 0.92, z1 - 0.3), (xc, top + 0.92, z0 + 0.3), (xa, top + 0.92, z0 + 0.3), col=TERRACE_TEAL)
     for i, hh in enumerate((0.6, 0.3)):
         sa, sb = sorted((X(tu + 0.35 * i), X(tu + 0.35 * (i + 1))))
         box((D, "concrete", 1), sa, sb, top, top + hh, z0 + 0.5, z0 + 1.9, scale=3.0)
@@ -666,35 +741,79 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol):
     ga, gb = (gx, top + 0.9, z0 + 2.1), (gx, top + 0.9, z1 - 0.4)
     quad((D, "glass_dark", 1), ga, gb, (gb[0], top + 1.9, gb[2]), (ga[0], top + 1.9, ga[2]))
     quad((D, "glass_dark", 1), gb, ga, (ga[0], top + 1.9, ga[2]), (gb[0], top + 1.9, gb[2]))
+    zz = z0 + 2.1
+    while zz < z1 - 0.39:
+        box((D, "metal", 1), gx - 0.04, gx + 0.04, top + 0.9, top + 1.95, zz - 0.04, zz + 0.04, scale=1.0)
+        zz += (z1 - 0.4 - z0 - 2.1) / max(1, round((z1 - z0 - 2.5) / 1.8))
     key, col = lit("cyan", gx)
     box(key, gx - 0.03, gx + 0.03, top + 1.9, top + 1.95, z0 + 2.1, z1 - 0.4, scale=1.0, col=col, bottom=True)
     for t in (0.3, 0.75):
         J.put("jt_planter", X(1.3), top + 0.9, z0 + d * t, r.uniform(0, 1.5))
-    hut(X(1.6), z1 - 1.7, top + 0.9, tcol, r, door=sgn)
+    hut(X(1.6), z1 - 1.7, top + 0.9, tcol, r, door=sgn, deck=True)
+    J.put("dish", X(1.3), top + 3.3, z1 - 1.3, HALF_PI * sgn + r.uniform(-0.8, 0.8))
+    if d > 6.5:
+        J.put("antenna", X(0.75), top + 0.9, z1 - 3.4, 0.0, r.uniform(1.2, 1.7))
+    if d >= 10.0:
+        J.put("tank_roof", X(2.2), top + 0.9, z0 + d * 0.52, r.uniform(0, 6.28), r.uniform(0.75, 0.95), 0.8)
     # The lamps: one by each side, their arms in over the deck.
-    for u, z, yaw, dz in ((tu + 1.6, z0 + 0.7, 0.0, 2.1), (w - 2.6, z1 - 0.7, math.pi, -2.1)):
+    lamps = []
+    for u, z, yaw, dz in ((tu + 1.6, z0 + 0.7, 0.0, 2.0), (w - 2.6, z1 - 0.7, math.pi, -2.0)):
         if u < w - 1.0 and d > 5.0:
-            J.lamp_arm(X(u), top + 0.1, z, yaw)
-            light(D, X(u), top + 5.0, z + dz, "cyan", 8.0)
-            J.pool(X(u), top + 0.17, z + dz, min(3.4, d * 0.42))
+            J.put("jt_lamp_arm", X(u), top + 0.1, z, yaw)
+            light(D, X(u), top + 4.6, z + dz, "cyan", 8.0)
+            J.pool(X(u), top + 0.17, z + dz, min(2.7, d * 0.4), centre=(0.17, 0.42, 0.48, 1))
+            lamps.append((X(u), z))
+    if len(lamps) == 2 and d > 6.5:
+        J.span("jt_cable", (X(0.75), z1 - 3.4), lamps[1], top + 5.0, 0.6)
+        # Bulbs strung from one lamp's post to the other's, over the deck.
+        J.span("jt_festoon", lamps[0], lamps[1], top + 4.5, 0.8)
+    if d >= 12.0 and w - tu > 12.0:
+        # A big deck keeps a cart and a second table, and what was left.
+        cz = z1 - 2.6
+        J.put("food_cart", X(tu + 5.4), top + 0.1, cz, math.pi)
+        stand(X(tu + 5.4) + r.uniform(-0.4, 0.4), cz + 0.95, math.pi, "vendor", top + 0.1)
+        stand(X(tu + 5.2), cz - 1.5, r.uniform(-0.3, 0.3), r.choice(("idle", "phone", "talk")), top + 0.1)
+        light(D, X(tu + 5.4), top + 1.6, cz - 1.0, "amber", 4.0)
+        stools(X(w - 4.4), z0 + 3.2, r.uniform(0, 6.28), r, top + 0.1)
+        J.put("rubbish", X(tu + 3.2), top + 0.1, z0 + 0.95, 0.0)
     zv = (z0 + z1) / 2 + r.uniform(-1.0, 1.0)
     J.viewer(X(w - 0.75), top + 0.1, zv, HALF_PI * sgn)
-    bench(X(w - 2.6), zv + r.choice((-1.6, 1.6)), -HALF_PI * sgn, r, top + 0.1)
+    side = r.choice((-1.6, 1.6))
+    bench(X(w - 2.6), zv + side, -HALF_PI * sgn, r, top + 0.1)
     J.put("bags", X(tu + 0.9), top + 0.1, z1 - 0.9, r.uniform(0, 6.28))
+    if d > 6.5:
+        J.put("crates", X(tu + 2.2), top + 0.1, z1 - 0.8, r.uniform(-0.2, 0.2))
+    # Chairs round a crate in the first lamp's pool.
+    if d > 6.0 and w - tu > 6.0:
+        cx, cz, cyaw = X(tu + 1.6), z0 + 2.9, r.uniform(-0.5, 0.5)
+        J.put("jt_chairs", cx, top + 0.1, cz, cyaw)
+        for sd in (-1, 1):
+            if lucy or r.random() < 0.55:
+                px, pz = loc(cx, cz, cyaw, 0.8 * sd, 0.0)
+                stand(px, pz, cyaw - HALF_PI * sd, "sit", top + 0.56)
+    # A blossom tree in its lit planter, out in the middle.
+    if d >= 9.0 and w - tu > 9.0 and (lucy or r.random() < 0.6):
+        J.put("planter_tree", X(tu + (w - tu) * 0.5), top + 0.1, (z0 + z1) / 2 - side * 0.9, r.uniform(0, 6.28))
+        light(D, X(tu + (w - tu) * 0.5), top + 2.5, (z0 + z1) / 2 - side * 0.9, "pink", 3.5)
     # Who is up here: somebody at the rail over the street, somebody sat on
     # the terrace's steps, two talking under a lamp.
-    if r.random() < 0.8:
+    if lucy or r.random() < 0.8:
         stand(X(w - 0.7), zv + r.choice((-1.1, 1.1)), HALF_PI * sgn + r.uniform(-0.3, 0.3), r.choice(("idle", "smoke", "phone")), top + 0.1)
     if r.random() < 0.5:
         stand(X(w - 0.75), z0 + 1.0, -HALF_PI * sgn, "lean", top + 0.1)
     if r.random() < 0.6:
         stand(X(tu + 0.2), z0 + 1.2, HALF_PI * sgn, "sit", top + 0.6)
-    if r.random() < 0.5 and d > 5.0:
-        stand(X(tu + 2.3), z0 + 2.4, 0.0, "talk", top + 0.1)
-        stand(X(tu + 2.3), z0 + 3.3, math.pi, "talk", top + 0.1)
+    if r.random() < 0.5 and d > 9.0:
+        stand(X(w - 3.2), z1 - 2.4, 0.0, "talk", top + 0.1)
+        stand(X(w - 3.2), z1 - 1.5, math.pi, "talk", top + 0.1)
     if d > 7.0:
         J.put("jt_planter", X(w - 1.2), top + 0.1, z0 + 1.2)
-        J.put("ac_roof", X(tu + 2.6), top + 0.1, z1 - 1.0)
+        J.put("ac_roof", X(tu + 3.4), top + 0.1, z1 - 1.0)
+    if lucy:
+        # The named view: from the terrace, over its glass rail and the
+        # deck, out past the rail to the skyline.
+        LUCY.update(eye=(round(X(tu + 1.0), 2), round(top + 0.1 + 1.72, 2), round(z1 - 3.0, 2)), terrace=(round(X(2.9), 2), round(top + 0.9 + 1.68, 2), round(z1 - 4.6, 2)),
+                    rail=(round(X(w - 1.4), 2), round(top + 0.1 + 1.7, 2), round(z0 + 3.4, 2)))
 
 
 def roof_sign(x, z, top, yaw, r, span, tall_ok=True):
@@ -744,9 +863,20 @@ def roof(rec, weights):
     kind = r.choice(kinds)
     if kind == "deck" and (d < 6.0 or w < 12.0):
         kind = "shack"
+    if rec is LUCY_LOT:
+        kind = "deck"
     rec["roof"] = kind
     if kind == "deck":
-        roof_deck(x0, x1, z0, z1, top, r, front, tcol)
+        # The outer row's decks look back over the low roofs to the canyon.
+        roof_deck(x0, x1, z0, z1, top, r, "+x" if rec["row"] == "C" else front, tcol, lucy=rec is LUCY_LOT)
+        # Where a neighbour stands over it, that wall is the deck's own.
+        for name, fw in (("-z", B.Face("+z", z0, x0, x1)), ("+z", B.Face("-z", z1, x0, x1))):
+            over = rec["lot"].neighbours.get(name, 0.0) - top
+            if over > 2.8 and w > 13.0:
+                deck_wall(fw, top, r)
+                if over > 5.2:
+                    cx, _, cz = fw.p(fw.at(w / 2 + 2.0 * sgn), 0.0, 0.14)
+                    J.tube_sign((cx, top + 3.4 + min(1.6, (over - 5.2) / 2), cz), fw.yaw, 3.6, 1.3, r.choice(("pink", "cyan", "amber", "green")), r, both=False)
         # The ledge under it, lit from below (ax5YUmkWf_Y@130).
         f = face(rec, front)
         if x1 <= -66.0 or front == "+x":
@@ -834,7 +964,7 @@ cuts_w = [(a, b, "open") for a, b in ALLEYS] + [(TORII[0], TORII[1], "street")]
 cuts_c = [(a, b, "open") for a, b in (ALLEYS[1], ALLEYS[3], ALLEYS[7])] + [(TORII[0], TORII[1], "street")]
 cuts_e = [(a, b, "open") for a, b in PASSAGES] + [(-190.0, -168.0, "street"), (-86.0, -74.0, "deck")]
 
-B.back_ground = _no_back
+B.back_ground, B.fire_escape = _no_back, _fire_escape
 build_row("E", ROW_E, "-x", "back", segments(-708.0, -10.0, cuts_e, "street", "street"), 811, W_NARROW,
           ((2, 3), (3, 4), (4, 3), (5, 2)), STYLE, quiet=True)
 build_row("A", ROW_A, "+x", "street", segments(ZN, ZS, cuts_w), 812, W_NARROW,
@@ -843,7 +973,7 @@ build_row("B", ROW_B, "+x", "back", segments(ZN, ZS, cuts_w), 813, (8.0, 9.6, 11
           ((3, 3), (4, 3), (5, 3), (6, 2)), STYLE_B, ground="blank")
 build_row("C", ROW_C, "-x", "back", segments(ZN, ZS, cuts_c), 814, (12.8, 16.0, 19.2, 22.4),
           ((5, 2), (6, 3), (7, 3), (8, 2), (9, 1)), STYLE_C, ground="blank")
-B.back_ground = _kit_back
+B.back_ground, B.fire_escape = _kit_back, _kit_escape
 
 # ---------------------------------------------------------------------------
 # The lanes: the east lane behind the shallow lots, the back lane, the
@@ -893,6 +1023,10 @@ for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.45, 26.0), (
         k += 1
         z += columns * lr.uniform(0.8, 1.2)
 
+# Lucy's roof: the outer row's tallest near the district's middle, which
+# looks over every roof between it and the canyon.
+LUCY_LOT = max((rc for rc in LOTS if rc["row"] == "C" and -560.0 < rc["lot"].z0 and rc["lot"].z1 < -380.0 and rc["lot"].z1 - rc["lot"].z0 >= 12.0),
+               key=lambda rc: (rc["h"], -abs((rc["lot"].z0 + rc["lot"].z1) / 2 + 470.0)))
 ROOFS_W = {"E": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden", 3)),
            "A": (("deck", 4), ("shack", 5), ("plant", 3), ("sign", 5), ("garden", 3)),
            "B": (("deck", 3), ("shack", 7), ("plant", 5), ("sign", 2), ("garden", 3)),
@@ -1305,6 +1439,7 @@ for (dist, mat, _), b in batches.items():
         cy = sum(v[2] for v in vs) / len(vs)
         if cx > -60.0 and cy > 7.5:
             _bad += 1
+print("japantown lucy:", LUCY)
 print("japantown decks:", [(rc["row"], round(rc["lot"].z0), round(rc["lot"].z1), rc["h"]) for rc in LOTS if rc.get("roof") == "deck" and rc["row"] in "AE"][:14])
 print(f"japantown: {len(LIGHTS.get(D, [])) // 5} lights, {len(STREET_SIGN_IDS)} sign ids so far in the city")
 print(f"japantown: {len(LOTS)} lots, {sum(1 for i in P.INSTANCES if i[7] == D)} props, {len(PEOPLE)} people so far in the city, bake sources east of x -60 over 7.5 m: {_bad}")
