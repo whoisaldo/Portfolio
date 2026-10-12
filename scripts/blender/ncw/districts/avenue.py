@@ -25,7 +25,7 @@ AVS = "avenue_s"
 _BACK = {"plane": None}
 BACKS = []     # (face, height, trim colour, lane) of every back on a lane
 ESCAPES = []   # (face name, plane, where along it) of the fire escapes on them
-_gen = (B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape)
+_gen = (B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape, B.balcony)
 
 
 def _on_back(f):
@@ -50,14 +50,20 @@ def _facade_wall(key, f, y0, y1, col, ov, s0=0.0, s1=None):
 def _fire_escape(district, f, s, y0, y1):
     if _on_back(f):
         ESCAPES.append((f.name, f.plane, f.at(s)))
+    ST.SIGNED.append((f.name, f.plane, f.at(s), (y0 + y1) / 2, 1.8, (y1 - y0) / 2))
     return _gen[3](district, f, s, y0, y1)
+
+
+def _balcony(district, f, s0, s1, y, tint, glass=False, out=1.15):
+    ST.SIGNED.append((f.name, f.plane, f.at((s0 + s1) / 2), y + 0.6, (s1 - s0) / 2, 0.9))
+    return _gen[4](district, f, s0, s1, y, tint, glass=glass, out=out)
 
 
 def back_is(name=None, plane=None, h=0.0, lane=""):
     _BACK.update(name=name, plane=plane, h=h, lane=lane)
 
 
-B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape = _back_ground, _clutter_back, _facade_wall, _fire_escape
+B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape, B.balcony = _back_ground, _clutter_back, _facade_wall, _fire_escape, _balcony
 # And the generator's signs are hung by avenue_street: the same signs, each
 # turned its own way instead of square to its wall.
 _face_signs = B.face_signs
@@ -148,6 +154,9 @@ for side, lots in LOTS.items():
 _st_name = B.st_name
 B.st_name = ST.NAME[0] = K.st_id
 ARM = [(12.0, 15.0), (27.0, 15.0), (42.0, 12.0), (54.0, 11.0), (65.0, 12.0), (77.0, 11.0)]
+# Off the hero's avenue a facade carries more over its shops: balconies,
+# condensers, downpipes, fire stairs, and half as many signs again.
+SIDE = dict(STYLE, balcony=0.32, ac=0.4, pipes=0.9, fire_escape=0.6, signs=3.0)
 ARM_H = {}
 for s in (-1, 1):
     rr = random.Random(2200 + s)
@@ -172,7 +181,7 @@ for s in (-1, 1):
         if j < len(ARM) - 1:
             nb["+z"] = hs[j + 1]
         back_is(backf, xb if s > 0 else xa, hs[j], "ae" if s > 0 else "aw")
-        B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AVS), hs[j], r, style=STYLE)
+        B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AVS), hs[j], r, style=SIDE)
         back_is()
 # The arm ends at Santo Domingo's yard: its wall and gate across the road's
 # end, the yard behind them, and the blocks behind the arm's lots
@@ -183,7 +192,7 @@ YD.build(AVS)
 # south side, out to the west street's end and to the x 120 road. (Its north
 # side is the avenue's first lots, and beyond the lanes Japantown's and the
 # plaza's.) Their backs are on a lane of their own.
-SOUTH = dict(STYLE, signs=1.8, roof_cap=6.0)
+SOUTH = dict(SIDE, signs=2.8, roof_cap=6.0)
 for s, lots in SOUTH_ROW.items():
     for j, (xa, xb, h) in enumerate(lots):
         r = random.Random(2400 + j * 7 + (3 if s > 0 else 0))
@@ -364,7 +373,7 @@ for _ in range(16):
         quad(k, (x1, yb - 0.03, z1_), (x0, ya - 0.03, z0_), (x0, ya + 0.03, z0_), (x1, yb + 0.03, z1_))
 
 # The generator is the kit's again, and what it drew for nobody is dropped.
-B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape = _gen
+B.back_ground, B.clutter_back, B.facade_wall, B.fire_escape, B.balcony = _gen
 B.face_signs = _face_signs
 for key in [k for k in batches if k[0] == "void"]:
     del batches[key]
@@ -411,3 +420,25 @@ for name, a, b, seed in (("cw", -66.0, -50.0, 9321), ("ce", 50.0, 108.0, 9322)):
 # What the pavements carry, the cables across the south street and the arm,
 # the lanes' gates, the corners' kiosks, and who stands about (avenue_street).
 ST.build(AV, AVS, (-WALK - DEPTH, -WALK - DEPTH - 6.0), (WALK + DEPTH, WALK + DEPTH + 8.0))
+
+# The west side's upper storeys, thin beside the east's: boards flat on the
+# wall and columns of condensers, clear of the named blades and Kiroshi's
+# screens. (Flat to the wall: the hero's lens, which looks along it, sees a
+# sliver of each; in the core all the same, with the rest of that wall's
+# signs, so the avenue's road holds one light whether or not the south pack
+# has arrived.)
+WEST_NAMED = [(-21.0, 8.35, 3.6, 4.6), (-136.0, 17.0, 4.0, 5.6), (-26.5, 4.2, 2.4, 0.6), (-16.5, 7.2, 0.7, 2.8), (-36.0, 8.0, 0.7, 2.4),
+              (-60.5, 6.2, 0.7, 1.2), (-104.0, 9.5, 0.7, 2.6), (-24.5, 5.4, 0.7, 1.8), (-48.5, 8.0, 0.7, 2.4), (-71.0, 11.0, 0.7, 3.2),
+              (-92.0, 12.0, 0.7, 2.5)]
+WEST_FACE = B.Face("+x", -WALK, -168.0, -10.0)
+WEST_LOTS = [(z - d, z, h) for (z, d, h) in LOTS[-1] if z <= -30 and z - d > -165]
+ST.upper(AV, WEST_FACE, WEST_LOTS, random.Random(7400), taken=WEST_NAMED, cap=11.5)
+ST.upper(AV, WEST_FACE, WEST_LOTS, random.Random(7401), taken=WEST_NAMED)
+# And the band over the shops on the south street's south side and down the
+# arm, which a walker looks square at.
+for sx in (-1, 1):
+    row = [(a, b, h) for (a, b, h) in SOUTH_ROW[sx]] + [(sx * WALK, sx * (WALK + DEPTH), ARM_H[sx][0])]
+    ST.upper(AVS, B.Face("-z", 12.0, sx * WALK, sx * 108.0 if sx > 0 else -66.0), [tuple(sorted(r[:2])) + (r[2],) for r in row],
+             random.Random(7410 + sx), cap=12.5)
+    ST.upper(AVS, B.Face("-x" if sx > 0 else "+x", sx * WALK, 12.0, 88.0), [(za, za + d, ARM_H[sx][j]) for j, (za, d) in enumerate(ARM)],
+             random.Random(7420 + sx), cap=12.5)

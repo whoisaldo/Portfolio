@@ -176,9 +176,9 @@ def yatai(district, f, s, rng, w=2.6, colour=None, people=True):
         stand(q[0], q[2], f.yaw + side * -math.pi / 2, rng.choice(("idle", "phone", "talk")), y=G0)
 
 
-def board(district, f, s, y, size, out=0.15, roll=0.0, frame=True):
+def board(district, f, s, y, size, out=0.15, roll=0.0, frame=True, scale=1.0):
     """A board flat on a wall (or hung a little off it, askew by `roll`)."""
-    w, h = ST_SIZES[size]
+    w, h = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale
     c = f.p(f.at(s), y, out + 0.015)
     tx, tz = (f.p(f.at(1.0), 0)[0] - f.p(f.at(0.0), 0)[0]), (f.p(f.at(1.0), 0)[2] - f.p(f.at(0.0), 0)[2])
     cr, sr = math.cos(roll), math.sin(roll)

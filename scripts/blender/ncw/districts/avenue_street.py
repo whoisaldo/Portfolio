@@ -31,6 +31,9 @@ G0 = B.G0
 # hero's lots, so their designs stay as they were; avenue.py switches it to
 # avenue_kit.st_id for the buildings the hero does not see.
 NAME = [st_name]
+# What hangs on a facade already, for `upper` to keep clear of: (face name,
+# plane, where along it, height, half width, half height).
+SIGNED = []
 
 
 def _turn_rng(f, s, y):
@@ -47,6 +50,7 @@ def face_signs(district, f, r, s0, s1, top, density=1.0, colours=None, blades=Tr
             n = r.randrange(3, 6)
             s = r.uniform(s0 + 0.8, s1 - 0.8)
             y = r.uniform(SHOP_H + 1.0, max(SHOP_H + 1.2, ceiling - n * 1.0))
+            SIGNED.append((f.name, f.plane, f.at(s), y + n * 0.5, 1.0, n * 0.55 + 0.6))
             t = _turn_rng(f, s, y)
             d = K.turned(f, t.choice((-1, 1)) * t.uniform(0.12, 0.55))
             p = f.p(f.at(s), y, 0.0)
@@ -63,6 +67,7 @@ def face_signs(district, f, r, s0, s1, top, density=1.0, colours=None, blades=Tr
             w, h = ST_SIZES[size]
             y = r.uniform(SHOP_H + 0.6 + h / 2, max(SHOP_H + 0.7 + h / 2, ceiling - h / 2))
             s = r.uniform(s0 + 0.6, s1 - 0.6)
+            SIGNED.append((f.name, f.plane, f.at(s), y, 0.5, h / 2))
             t = _turn_rng(f, s, y)
             ang = t.choice((-1, 1)) * t.uniform(0.1, 0.5) if t.random() < 0.85 else 0.0
             K.face_blade(district, f, s, y, size, ang, gap=t.uniform(0.2, 0.6), sid=NAME[0](size))
@@ -75,6 +80,7 @@ def face_signs(district, f, r, s0, s1, top, density=1.0, colours=None, blades=Tr
             s = r.uniform(s0 + w / 2 + 0.5, s1 - w / 2 - 0.5)
             out = r.uniform(0.12, 0.4)
             sid = NAME[0](size)
+            SIGNED.append((f.name, f.plane, f.at(s), y, w / 2 + 0.3, h / 2))
             t = _turn_rng(f, s, y)
             # Hung off the wall at one end: its face turned up or down the
             # street, the other end on the wall.
@@ -96,6 +102,51 @@ def face_signs(district, f, r, s0, s1, top, density=1.0, colours=None, blades=Tr
         if y > top - 1:
             continue
         f.box((district, "neon_" + r.choice(colours or PANEL_COLOURS), 0), s0 + 0.4, s1 - 0.4, y, y + 0.08, 0.26, 0.3)
+
+
+def upper(D, f, lots, rng, taken=(), cap=24.0):
+    """What a thin facade carries over its shops, flat to the wall (a lens
+    that looks along the wall sees a sliver of it): boards in frames, and
+    condensers one over another by a downpipe. `lots`: (a0, a1, height)
+    along the face; `taken`: (where along it, height, half width, half
+    height) of what hangs there already, with what face_signs hung and the
+    generator's own condensers."""
+    taken = list(taken) + [t[2:] for t in SIGNED if t[0] == f.name and abs(t[1] - f.plane) < 1e-6]
+    for (name, x, y, z, *_rest) in P.INSTANCES:
+        if name == "ac_wall" and abs((x if f.nx else z) - f.plane) < 0.01:
+            taken.append((z if f.nx else x, y + 0.3, 0.45, 0.35))
+
+    def free(a, y, hw, hh):
+        return all(abs(a - ta) > hw + thw + 0.3 or abs(y - ty) > hh + thh + 0.3 for ta, ty, thw, thh in taken)
+    for a0, a1, h in lots:
+        top = min(h - 1.2, cap)
+        floors = int((top - SHOP_H) / CELL_H)
+        bays = max(1, round((a1 - a0) / CELL_W))
+        for _ in range(max(2, round((a1 - a0) / 3.0))):
+            if rng.random() < 0.55:
+                size, scale = rng.choice((("pm", 1.3), ("ps", 1.5), ("bx", 1.6), ("bm", 1.2), ("bl", 1.0), ("pm", 1.0)))
+                hw, hh = ST_SIZES[size][0] * scale / 2, ST_SIZES[size][1] * scale / 2
+                if top - hh <= SHOP_H + 1.0 + hh:
+                    continue
+                for _try in range(8):
+                    a, y = rng.uniform(a0 + hw + 0.4, a1 - hw - 0.4), rng.uniform(SHOP_H + 1.0 + hh, top - hh)
+                    if free(a, y, hw, hh):
+                        K.board(D, f, s_of(f, a), y, size, out=0.12, scale=scale)
+                        taken.append((a, y, hw, hh))
+                        break
+            elif floors >= 2:
+                for _try in range(8):
+                    a = a0 + (rng.randrange(bays) + 0.5) * (a1 - a0) / bays + rng.uniform(-0.5, 0.5)
+                    n = rng.randrange(2, min(floors, 4) + 1)
+                    y0 = SHOP_H + rng.randrange(0, floors - n + 1) * CELL_H
+                    if free(a, y0 + n * CELL_H / 2, 0.7, n * CELL_H / 2):
+                        for k in range(n):
+                            px, py, pz = f.p(a, y0 + k * CELL_H + 0.05, 0.0)
+                            P.place("ac_wall", px, py, pz, f.yaw, district=D)
+                        px, _, pz = f.p(a + 0.56, SHOP_H, 0.0)
+                        P.place("pipe_v", px, SHOP_H, pz, f.yaw, sy=y0 + (n - 1) * CELL_H + 0.6 - SHOP_H, district=D)
+                        taken.append((a, y0 + n * CELL_H / 2, 0.7, n * CELL_H / 2))
+                        break
 
 
 def s_of(f, a):
