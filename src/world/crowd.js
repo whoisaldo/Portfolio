@@ -352,8 +352,12 @@ function fit(want, l, r) {
 }
 
 function layLanes(paves, rows, solid) {
-  const out = new Uint8Array(Math.max(1, rows) * LANE_W).fill(128);
+  // A texel a point along a file: how far to the side of its line it runs
+  // there (centimetres about 128), and how much room a walker has to move
+  // off it to either side before the kerb, the wall or something standing.
+  const out = new Uint8Array(Math.max(1, rows) * LANE_W * 4);
   const sums = new Float32Array(LANE_W + 1);
+  const free = new Float32Array(LANE_W * 2);
   for (const pave of paves) {
     const { from, dir, len } = pave.ref;
     const files = [...pave.files].sort((a, b) => a.u - b.u);
@@ -363,7 +367,6 @@ function layLanes(paves, rows, solid) {
     // so the bend starts early) and across it (by a body's half width),
     // noted at every point along the walk it reaches.
     const cells = new Array(LANE_W);
-    let any = false;
     for (const o of solid) {
       const rx = o.x - from[0];
       const rz = o.z - from[1];
@@ -379,12 +382,12 @@ function layLanes(paves, rows, solid) {
       const k0 = Math.max(0, Math.floor(((a - ha) / len) * LANE_W));
       const k1 = Math.min(LANE_W - 1, Math.ceil(((a + ha) / len) * LANE_W));
       for (let k = k0; k <= k1; k++) (cells[k] ??= []).push([u - hu, u + hu]);
-      any = true;
     }
-    if (!any) continue;
     const n = files.length;
     const at = new Float32Array(n * LANE_W);
     for (let k = 0; k < LANE_W; k++) {
+      free[k * 2] = lo;
+      free[k * 2 + 1] = hi;
       const blocks = cells[k];
       if (!blocks) continue;
       // Of the free stretches between what stands here, the one that moves
@@ -405,6 +408,8 @@ function layLanes(paves, rows, solid) {
           if (cost < least) {
             least = cost;
             best = x;
+            free[k * 2] = l;
+            free[k * 2 + 1] = r;
           }
         }
         if (j < blocks.length) l = Math.max(l, blocks[j][1]);
@@ -425,7 +430,13 @@ function layLanes(paves, rows, solid) {
           line[k] = (sums[k1 + 1] - sums[k0]) / (2 * reach + 1);
         }
       }
-      for (let k = 0; k < LANE_W; k++) out[files[i].row * LANE_W + k] = Math.round(128 + Math.min(1.27, Math.max(-1.27, line[k])) * 100);
+      for (let k = 0; k < LANE_W; k++) {
+        const o = (files[i].row * LANE_W + k) * 4;
+        const x = want[i] + line[k];
+        out[o] = Math.round(128 + Math.min(1.27, Math.max(-1.27, line[k])) * 100);
+        out[o + 1] = Math.round(Math.min(2.55, Math.max(0, x - free[k * 2])) * 100);
+        out[o + 2] = Math.round(Math.min(2.55, Math.max(0, free[k * 2 + 1] - x)) * 100);
+      }
     }
   }
   return out;
@@ -463,8 +474,11 @@ const HEAD = /* glsl */ `
   float rnd(float x) {
     return fract(sin(x * 91.17) * 43758.5453);
   }
-  float laneAt(float u, float row) {
-    return (texture2D(uLanes, vec2(u, row)).r * 255.0 - 128.0) * 0.01;
+  // A file at a point along it: how far to the side of its line it runs,
+  // and the room to move off it toward either side.
+  vec3 laneAt(float u, float row) {
+    vec3 l = texture2D(uLanes, vec2(u, row)).rgb * 2.55;
+    return vec3(l.r - 1.28, l.g, l.b);
   }
   // Where they stand, which way they look, how much of them a walk's end
   // or the lens leaves, how far they have walked, how far the eye is.
@@ -486,18 +500,22 @@ const HEAD = /* glsl */ `
       // Along the walk their file bends round what stands in it.
       float row = (-aBody.z - 0.5) / uLaneRows;
       float u = s / aPath.z;
-      float o0 = laneAt(u, row);
-      float o1 = laneAt(u + 0.6 / aPath.z, row);
+      vec3 lane = laneAt(u, row);
+      float o0 = lane.x;
+      float o1 = laneAt(u + 0.6 / aPath.z, row).x;
       vec2 across = vec2(aPath.y, -aPath.x);
       at += across * o0;
       // And round the eye: a few steps short of it everyone moves to the
-      // side they were already on, most those who were heading straight for
-      // it, and passes a metre clear: further off than an arm's length by the
-      // time the frame's edge cuts them.
+      // side of it they are on (or, heading straight for it, to the side
+      // with more room), as far as the pavement lets them, and passes a
+      // metre clear: further off than an arm's length by the time the
+      // frame's edge cuts them.
       rel = at - uCam.xz;
       float al = dot(rel, aPath.xy);
       float la = dot(rel, across);
-      float k = (la + (aLook.w - 0.5) * 0.3 < 0.0 ? -1.0 : 1.0) * ${f(CLEAR)} * among * max(1.0 - abs(la) / ${f(CLEAR_REACH)}, 0.0);
+      float sgn = la + clamp((lane.z - lane.y) * 0.5, -0.45, 0.45) + (aLook.w - 0.5) * 0.1 < 0.0 ? -1.0 : 1.0;
+      float m = sgn * la;
+      float k = sgn * among * min(m > 0.0 ? ${f(CLEAR)} * max(1.0 - m / ${f(CLEAR_REACH)}, 0.0) : ${f(CLEAR)} - m, sgn > 0.0 ? lane.z : lane.y);
       float b0 = 1.0 - smoothstep(1.4, 4.6, abs(al));
       float b1 = 1.0 - smoothstep(1.4, 4.6, abs(al + 0.6));
       at += across * k * b0;
@@ -1216,13 +1234,13 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     const solid = [...furniture];
     for (let i = 0; i < count; i++) if (data[i * STRIDE + 10] > -0.5) solid.push({ x: data[i * STRIDE], z: data[i * STRIDE + 1], cos: 1, sin: 0, hx: 0.2, hz: 0.2 });
     base.uLanes.value?.dispose();
-    const map = new THREE.DataTexture(layLanes(paves, rows, solid), LANE_W, Math.max(1, rows), THREE.RedFormat);
+    const map = new THREE.DataTexture(layLanes(paves, rows, solid), LANE_W, Math.max(1, rows), THREE.RGBAFormat);
     map.magFilter = map.minFilter = THREE.LinearFilter;
     map.needsUpdate = true;
     base.uLanes.value = map;
     base.uLaneRows.value = Math.max(1, rows);
   };
-  base.uLanes.value = new THREE.DataTexture(new Uint8Array([128]), 1, 1, THREE.RedFormat);
+  base.uLanes.value = new THREE.DataTexture(new Uint8Array([128, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
   base.uLanes.value.needsUpdate = true;
   preloadProps(phone ? "phone" : "high")
     .then((buffer) => {
