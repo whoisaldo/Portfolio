@@ -875,7 +875,7 @@ K.hut(D, 472.6, -251.5, 22.0, -math.pi / 2, T["plum"])
 # The garage's roof, north of where Contact stands on it: skylights over
 # the bay, a unit, tyres and crates by the parapet.
 K.slab(D, 460.0, 475.4, -229.4, -206.0, 8.0, "concrete", lift=0.1, scale=3.0)
-K.skylights(D, 461.0, 472.0, -226.0, -208.0, 8.0, ro, hue="white", along="x", n=3, lit=1.0, glazed=True)
+K.skylights(D, 461.0, 472.0, -226.0, -208.0, 8.0, ro, hue="white", along="x", n=3, lit=0.8, glazed=True)
 K.unit(D, 473.2, -227.4, 8.0, math.pi / 2, lamp="green")
 K.tyres(D, 457.5, -228.0, 3, y=8.0)
 K.crates(D, 459.4, -228.2, ro, n=3, y=8.0)

@@ -980,9 +980,42 @@ def skylights(D, x0, x1, z0, z1, y, rng, hue="amber", along="z", n=3, lit=0.75, 
                 q = (a0 + (a1 - a0) * k / m + 0.08, a0 + (a1 - a0) * (k + 1) / m - 0.08, b0, b1)
             on = rng.random() < lit
             key = (D, "skylight" if glazed else "glow", 0) if on else (D, "glass_dark", 0)
-            pts = ((q[0], y + 0.41, q[3]), (q[1], y + 0.41, q[3]), (q[1], y + 0.41, q[2]), (q[0], y + 0.41, q[2]))
             c = GLOW[hue] if on and not glazed else (1, 1, 1, 1)
-            quad(key, *pts, col=(c[0] * 0.55, c[1] * 0.55, c[2] * 0.55, 1) if on and not glazed else c)
+            col = (c[0] * 0.55, c[1] * 0.55, c[2] * 0.55, 1) if on and not glazed else c
+            ya, yb = y + 0.41, y + (0.71 if glazed else 0.41)
+            if glazed:
+                # Glazed lights are pitched: two panes to a ridge over each
+                # bay, a glazing bar over the slope at each end.
+                if along == "z":
+                    mx = (q[0] + q[1]) / 2
+                    quad(key, (q[0], ya, q[3]), (mx, yb, q[3]), (mx, yb, q[2]), (q[0], ya, q[2]), col=col)
+                    quad(key, (mx, yb, q[3]), (q[1], ya, q[3]), (q[1], ya, q[2]), (mx, yb, q[2]), col=col)
+                    for zb in (q[2] - 0.04, q[3] + 0.04):
+                        pipe((D, "metal", 1), (q[0] - 0.05, ya, zb), (mx, yb + 0.03, zb), 0.03, segs=4)
+                        pipe((D, "metal", 1), (mx, yb + 0.03, zb), (q[1] + 0.05, ya, zb), 0.03, segs=4)
+                else:
+                    mz = (q[2] + q[3]) / 2
+                    quad(key, (q[0], ya, q[3]), (q[1], ya, q[3]), (q[1], yb, mz), (q[0], yb, mz), col=col)
+                    quad(key, (q[0], yb, mz), (q[1], yb, mz), (q[1], ya, q[2]), (q[0], ya, q[2]), col=col)
+                    for xb in (q[0] - 0.04, q[1] + 0.04):
+                        pipe((D, "metal", 1), (xb, ya, q[2] - 0.05), (xb, yb + 0.03, mz), 0.03, segs=4)
+                        pipe((D, "metal", 1), (xb, yb + 0.03, mz), (xb, ya, q[3] + 0.05), 0.03, segs=4)
+            else:
+                quad(key, (q[0], ya, q[3]), (q[1], ya, q[3]), (q[1], ya, q[2]), (q[0], ya, q[2]), col=col)
+        if glazed:
+            # The ridge's cap and the gables.
+            if along == "z":
+                mx = (a0 + a1) / 2
+                box((D, "metal", 1), mx - 0.06, mx + 0.06, y + 0.7, y + 0.78, b0 - 0.05, b1 + 0.05, scale=1.0)
+                for zb in (b0 - 0.02, b1 + 0.02):
+                    poly((D, "metal", 1), [(a0, y + 0.4, zb), (mx, y + 0.72, zb), (a1, y + 0.4, zb)], [(0, 0), (0.5, 1), (1, 0)])
+                    poly((D, "metal", 1), [(a1, y + 0.4, zb), (mx, y + 0.72, zb), (a0, y + 0.4, zb)], [(0, 0), (0.5, 1), (1, 0)])
+            else:
+                mz = (b0 + b1) / 2
+                box((D, "metal", 1), a0 - 0.05, a1 + 0.05, y + 0.7, y + 0.78, mz - 0.06, mz + 0.06, scale=1.0)
+                for xb in (a0 - 0.02, a1 + 0.02):
+                    poly((D, "metal", 1), [(xb, y + 0.4, b0), (xb, y + 0.72, mz), (xb, y + 0.4, b1)], [(0, 0), (0.5, 1), (1, 0)])
+                    poly((D, "metal", 1), [(xb, y + 0.4, b1), (xb, y + 0.72, mz), (xb, y + 0.4, b0)], [(0, 0), (0.5, 1), (1, 0)])
         light(D, (a0 + a1) / 2, y + 0.6, (b0 + b1) / 2, hue, 5.0)
 
 
@@ -1460,7 +1493,7 @@ def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None, bundle=Tru
             s += 0.7
             continue
         if kind == "window":
-            window(D, f, s, 1.3, rng, lit=1.0 if rng.random() < 0.55 else 0.0, style=rng.choice((6, 6, 3)),
+            window(D, f, s, 1.3, rng, lit=1.0 if rng.random() < 0.85 else 0.0, style=rng.choice((6, 6, 3)),
                    over=rng.choice(("bars", "blind", "blind", "both")))
         elif kind == "meters":
             for k in range(rng.randrange(1, 4)):
