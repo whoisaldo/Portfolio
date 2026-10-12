@@ -170,9 +170,19 @@ def shopfront(f, r, s0, s1, tint, glass=FA, key=CB, sign_rate=0.6, awning_rate=0
             # The door to the floors above, set back in its lobby, a lamp over it.
             f.quad((key, "door", 0), a + 0.55, b - 0.55, G0, 2.45, -0.9)
             f.quad((key, "trim", 0), a + 0.2, b - 0.2, 2.45, SHOP_H, 0.0, col=B.DARK_TRIM)
-            f.box((key, "trim", 0), a + 0.2, b - 0.2, 2.44, 2.46, -0.9, 0.0, col=B.DARK_TRIM)
+            # Its lobby is a room, not a hole: a back wall round the door,
+            # a wall each side, a ceiling, the lamp's pool on its floor.
+            f.quad((key, "concrete", 0), a + 0.2, b - 0.2, G0, 2.45, -0.91)
+            for sa in (a + 0.2, b - 0.2):
+                p0, p1 = f.p(f.at(sa), G0, 0.0), f.p(f.at(sa), G0, -0.91)
+                q = (p0, p1, (p1[0], 2.45, p1[2]), (p0[0], 2.45, p0[2]))
+                uv = ((0, 0), (0.45, 0), (0.45, 1.15), (0, 1.15))
+                quad((key, "concrete", 0), *q, uvs=uv)
+                quad((key, "concrete", 0), q[1], q[0], q[3], q[2], uvs=(uv[1], uv[0], uv[3], uv[2]))
+            fbox((key, "trim", 0), f, a + 0.2, b - 0.2, 2.44, 2.46, -0.91, 0.0, col=B.DARK_TRIM)
             mid = (a + b) / 2
             f.box((key, "glow", 0), mid - 0.15, mid + 0.15, 2.38, 2.44, -0.6, -0.4, col=GLOW["white"])
+            light(key, *f.p(f.at(mid), 2.2, 0.3), "amber", 3.5)
             doors.append(mid)
             continue
         lit = (r.uniform(0.4, 1.0), r.random(), 1.0 if r.random() < 0.93 else 0.0, 1.0)
