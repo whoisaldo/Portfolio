@@ -1064,9 +1064,13 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       const tall = Math.min(b.h * 0.3, 16 + 34 * k1);
       const [mx, mz] = at(r0 * 0.18, -r0 * 0.12);
       box(BOX.block, mx, y + 1.6, mz, r0 * 0.34, 3.2, r0 * 0.3, turn, [k2, 0, 0]);
-      box(BOX.steel, mx, y + 3.2 + tall / 2, mz, 1.3, tall, 1.3, turn);
+      // (A lattice in two sections, a lamp at each one's top: a stick with
+      // one red dot was no mast.)
+      box(BOX.lattice, mx, y + 3.2 + tall * 0.3, mz, 2.8, tall * 0.6, 2.8, turn);
+      box(BOX.lattice, mx, y + 3.2 + tall * 0.8, mz, 1.6, tall * 0.4, 1.6, turn);
       box(BOX.steel, mx, y + 3.2 + tall * 0.55, mz, 5.4, 0.4, 0.4, turn);
       box(BOX.steel, mx, y + 3.2 + tall * 0.78, mz, 0.4, 0.4, 3.8, turn);
+      tips.push(mx, y + 3.2 + tall * 0.6 + 0.3, mz);
       tips.push(mx, y + 3.2 + tall + 0.5, mz);
     } else if (roll < 0.62) {
       // Aerials: a rack and four or five whips of different heights.
