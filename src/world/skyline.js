@@ -566,6 +566,15 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     for (const m of [].concat(o.material ?? [])) if (m.name === "billboard") ads = { uAds: m.uniforms.uAds, uHasAds: m.uniforms.uHasAds };
   });
   const r = rng(90210);
+  // A number of a lot's own from where it was dealt, by the hash the shader
+  // uses, in the GPU's precision: what is decided after the deal is decided
+  // from these, so no stream of draws is disturbed.
+  const f32 = Math.fround;
+  const at = (b) => f32(f32(f32(b.ox ?? b.x) * f32(0.013)) + f32(f32(b.oz ?? b.z) * f32(0.071)));
+  const hash11 = (n) => {
+    const v = f32(f32(Math.sin(f32(n))) * f32(43758.5453123));
+    return v - Math.floor(v);
+  };
   // Where each building stands, its footprint, its height, which way it
   // turns, and whether anything capped its height (a spire or a mast only
   // goes where nothing did). The draws from `r` are the boxes' own, in the
@@ -756,14 +765,17 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // Contact looks into.
   const holo = rng(4242);
   const columns = [];
-  for (const [cx, cz, reach, many] of [[-500, -190, 190, 7], [250, 540, 120, 1], [900, -480, 120, 1]]) {
+  // (And since: three east of the kit, three south, two south-west, each
+  // group outside the hero's cone, Corpo Row's frame and the quarter
+  // Contact looks into, and taller: up into the cloud.)
+  for (const [cx, cz, reach, many, taller] of [[-500, -190, 190, 7, 0], [250, 540, 120, 1, 0], [900, -480, 120, 1, 0], [1000, -430, 170, 3, 1], [230, 660, 170, 3, 1], [-430, 480, 160, 2, 1]]) {
     const from = lots.filter((b) => b.free && !b.gone && !b.screens && !underMoon(b) && Math.hypot(b.x - cx, b.z - cz) < reach);
     const stood = [];
     for (let tries = 0; tries < 60 && stood.length < many && from.length; tries++) {
       const b = from[Math.floor(holo() * from.length)];
       if (stood.some((o) => Math.hypot(o.x - b.x, o.z - b.z) < 64)) continue;
       stood.push(b);
-      columns.push(b.x, b.z, 26 + holo() * 14, 540 + holo() * 360, Math.floor(holo() * 5), holo());
+      columns.push(b.x, b.z, 26 + holo() * 14, 540 + holo() * 360 + taller * 260, taller ? 1 + Math.floor(holo() * 5) : Math.floor(holo() * 5), holo());
     }
   }
   const skyColumns = createSkyColumns(scene, shared, columns, { reduced, ads });
@@ -815,6 +827,70 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       kitOf.push(null);
       beaconOf.push(Math.floor(ring() * 3));
     }
+  }
+
+  // Outside what the page's lenses frame that layer is not a fence: one
+  // in four is left out (gaps), the rest stand anything from a hundred
+  // metres to four hundred and more, and one in twelve is a landmark, half
+  // as tall again, a quarter wider. Each keeps its draws, so within those
+  // frames every one is where and as it was: Contact's, the rooftop's
+  // (west-north-west from its lens) and the garage street's (south from
+  // its own); lens x, z and the bearings it frames, with a margin.
+  const FAR_AS_DEALT = [[CONTACT_LENS[0], CONTACT_LENS[1], FRAMED[0], FRAMED[1]], [476, -266, 169, 181], [476, -266, -181, -112], [437, -292, 41, 127]];
+  lots.forEach((b, i) => {
+    if (!b.far) return;
+    if (FAR_AS_DEALT.some(([lx, lz, a0, a1]) => {
+      const a = Math.atan2(b.z - lz, b.x - lx) * (180 / Math.PI);
+      return a > a0 && a < a1;
+    })) return;
+    const own = at(b);
+    if (hash11(own + 71.1) < 0.26) {
+      lots[i] = { ...b, gone: true };
+      return;
+    }
+    const out = Math.max(-940 - b.x, b.x - 1530, -1740 - b.z, b.z - 916);
+    const k = hash11(own + 73.3);
+    const landmark = hash11(own + 75.5) < 0.085;
+    let h = landmark ? 420 + 150 * k + out * 0.2 : 105 + 300 * k * k + out * 0.25;
+    let capped = false;
+    for (const [lx, ly, lz, a0, a1, elevation] of FAR_UNDER) {
+      const a = Math.atan2(b.z - lz, b.x - lx) * (180 / Math.PI);
+      const most = (ly + Math.hypot(b.x - lx, b.z - lz) * Math.tan(elevation * (Math.PI / 180))) * (0.56 + 0.44 * k);
+      if (a > a0 && a < a1 && h > most) {
+        h = most;
+        capped = true;
+      }
+    }
+    const grow = h / b.h;
+    const wider = landmark && !capped ? 1.25 : 1;
+    lots[i] = { ...b, h, w: b.w * wider, d: b.d * wider, landmark: landmark && !capped };
+    forms[i] = { ...forms[i], tiers: forms[i].tiers.map((t) => t * grow), roof: h };
+  });
+
+  // Landmarks nearer in, where a view east, south or south-west from the
+  // kit had none: megabuildings stepped back three times, their frames
+  // braced across every face, lit at each step. Each stands outside what
+  // Contact frames, outside the hero's cone and under no other lens's cap,
+  // and whatever was dealt onto its ground is left out. x, z, width,
+  // depth, height.
+  const LANDMARKS = [
+    [760, -250, 64, 58, 330],
+    [930, -170, 56, 60, 270],
+    [800, -520, 60, 60, 380],
+    [300, 330, 62, 66, 340],
+    [470, 520, 58, 58, 300],
+    [-330, 260, 66, 60, 360],
+  ];
+  for (const [x, z, w, d, h] of count < 2000 ? LANDMARKS.slice(0, 4) : LANDMARKS) {
+    lots.forEach((b, i) => {
+      if (b.gone || b.hero) return;
+      const [cs, sn] = [Math.abs(Math.cos(b.yaw)), Math.abs(Math.sin(b.yaw))];
+      if (Math.abs(b.x - x) < (w + b.w * cs + b.d * sn) / 2 + 5 && Math.abs(b.z - z) < (d + b.w * sn + b.d * cs) / 2 + 5) lots[i] = { ...b, gone: true };
+    });
+    lots.push({ x, z, w, d, h, yaw: 0, free: true, cone: false, hero: false, landmark: true });
+    forms.push({ tiers: [h * 0.09, h * 0.5, h * 0.26, h * 0.15], inset: [1, 0.86, 0.66, 0.44], offset: [0, 0, 0, 0], chamfer: 0.12, style: 4, parapet: 1.2, screen: 0, roof: h, spire: 0 });
+    kitOf.push(null);
+    beaconOf.push(lots.length % 3);
   }
 
   // ---- the first streets past the kit -----------------------------------------
@@ -1064,12 +1140,6 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // Contact frames a building keeps its form and what hangs on it, and is
   // lit by its kind only for an eye above the roofs (the shader's `lift`):
   // from the garage's roof it is as it was.
-  const f32 = Math.fround;
-  const at = (b) => f32(f32(f32(b.ox ?? b.x) * f32(0.013)) + f32(f32(b.oz ?? b.z) * f32(0.071)));
-  const hash11 = (n) => {
-    const v = f32(f32(Math.sin(f32(n))) * f32(43758.5453123));
-    return v - Math.floor(v);
-  };
   const KINDS = 8;
   const FEATURE = { none: 0, screen: 1, blade: 2, mark: 3, strips: 4 };
   const faces = lots.map(() => null);
@@ -1086,7 +1156,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   };
   const order = (seed, n) => Array.from({ length: n }, (_, k) => k).sort((p, q) => hash11(seed + p * 1.31) - hash11(seed + q * 1.31));
   lots.map((b, i) => i)
-    .filter((i) => lots[i].h >= 30 && !lots[i].gone && !lots[i].hero && !lots[i].far && !lots[i].screens)
+    .filter((i) => lots[i].h >= 30 && !lots[i].gone && !lots[i].screens)
     .sort((p, q) => gapOf(lots[p]) - gapOf(lots[q]) || p - q)
     .forEach((i) => {
       const b = lots[i];
@@ -1094,9 +1164,12 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       const gap = gapOf(b);
       const [close, around, wide] = [beside(b, 80), beside(b, 150), beside(b, 300)];
       const first = (list, ...taken) => taken.map((t) => list.find((k) => !t.includes(k))).find((k) => k !== undefined) ?? list[0];
-      const tower = b.h >= TOWER_FROM;
+      // (A megabuilding past the grid is dealt a kind and a band and
+      // nothing else: it keeps the dark glass it was drawn with, and its
+      // frame's braces.)
+      const tower = b.h >= TOWER_FROM && !b.far;
       const kind = first(tower ? order(own + 41.7, KINDS) : order(own + 41.7, 5).map((k) => [3, 0, 2, 6, 7][k]), around.map((o) => o.kind), close.map((o) => o.kind));
-      const held = framed(b);
+      const held = framed(b) || b.hero;
       // What it is known by. A screen needs a face wide enough to carry one
       // and a tower tall enough to hold it over the roofs in front.
       const s = forms[i];
@@ -1140,9 +1213,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // Its accent (its lines, its corners, the band under its roof):
         // amber, cyan, pale, pink, teal or yellow.
         accent: tone < 0.3 ? 1 : tone < 0.58 ? 0 : tone < 0.73 ? 2 : tone < 0.83 ? 4 : tone < 0.92 ? 3 : 5,
-        band: tower && !held && (kind === 5 || hash11(own + 53.3) < 0.45),
+        band: (tower && !held && (kind === 5 || hash11(own + 53.3) < 0.45)) || (b.far && (b.landmark || hash11(own + 53.3) < 0.55)) || b.landmark === true,
         strips: tower && !held && want === FEATURE.strips,
         worn: tower && !held,
+        braced: b.far || b.landmark === true,
       };
       lots[i] = { ...b, kind };
       if (!bucket.has(bucketOf(b))) bucket.set(bucketOf(b), []);
@@ -1174,7 +1248,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         for (const [j, h] of headBucket.get(bucketOf({ x: b.x + dx * 160, z: b.z + dz * 160 })) ?? []) if (Math.hypot(lots[j].x - b.x, lots[j].z - b.z) < 130) taken.push(h);
       }
     }
-    const head = order(at(b) + 61.3, 4).find((h) => !taken.includes(h)) ?? Math.floor(k3 * 4);
+    const head = b.landmark ? HEAD.mast : (order(at(b) + 61.3, 4).find((h) => !taken.includes(h)) ?? Math.floor(k3 * 4));
     if (!headBucket.has(key)) headBucket.set(key, []);
     headBucket.get(key).push([i, head]);
     lots[i] = { ...lots[i], crown: head };
@@ -1183,7 +1257,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     const at2 = (lx, lz) => [cx + Math.cos(b.yaw) * lx + Math.sin(b.yaw) * lz, cz - Math.sin(b.yaw) * lx + Math.cos(b.yaw) * lz];
     if (head === HEAD.mast) {
       // Three sections, each narrower, a lamp at each one's top.
-      const tall = Math.min(b.h * 0.34, 20 + 30 * k1);
+      const tall = b.landmark ? 46 + 24 * k1 : Math.min(b.h * 0.34, 20 + 30 * k1);
       const [mx, mz] = at2(r0 * 0.2 * (k2 - 0.5), r0 * 0.2 * (k3 - 0.5));
       let foot = y;
       for (const [share, width] of [[0.42, 3.4], [0.34, 2.3], [0.24, 1.3]]) {
@@ -1221,6 +1295,22 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       box(BOX.block, cx, y + high + 0.6, cz, fw * 0.98, 1.2, fd * 0.98, b.yaw, [k2, 1, 0]);
       tips.push(...at2(fw * 0.45, fd * 0.45).flatMap((v, k) => (k ? [y + high + 1.6, v] : [v])));
     }
+  });
+  // The landmarks past the grid carry a mast too, and a lamp at each of
+  // its sections and on the corners of their roofs.
+  lots.forEach((b, i) => {
+    if (!b.far || !b.landmark || b.gone) return;
+    const s = forms[i];
+    const [cx, cz] = topCentre(b, s);
+    const tall = 50 + 30 * hash11(at(b) + 63.1);
+    let foot = s.roof;
+    for (const [share, width] of [[0.42, 5.0], [0.34, 3.4], [0.24, 1.8]]) {
+      box(BOX.lattice, cx, foot + (tall * share) / 2, cz, width, tall * share, width, b.yaw);
+      foot += tall * share;
+      tips.push(cx, foot + 0.3, cz);
+    }
+    const t = topTier(s);
+    for (const [ex, ez] of [[-1, -1], [1, 1]]) tips.push(cx + ex * b.w * s.inset[t] * 0.45, s.roof + 1, cz + ez * b.d * s.inset[t] * 0.45);
   });
 
   // The dome's lamps, as GLSL the slabs share: a lamp every eleven and a
@@ -1408,21 +1498,6 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       // tube round its edge, a stack of characters' worth of strokes drawn
       // from a hash (lettering from across the city, without being any),
       // and now and then a tube that drops out. Far off, its glow.
-      // A character that is nobody's: the strokes a kanji is built of (three
-      // or four bars, a stem, the sides of a box, two sweeps at its foot),
-      // each there or not by the hash, in a cell 0..1.
-      float kanji(vec2 f, float h1, float h2) {
-        float w = 0.065;
-        float k = step(abs(f.y - 0.86), w) * step(abs(f.x - 0.5), 0.36) * step(0.3, h1);
-        k += step(abs(f.y - 0.63), w) * step(abs(f.x - 0.5), 0.26 + 0.1 * h2) * step(0.2, fract(h1 * 3.7));
-        k += step(abs(f.y - 0.4), w) * step(abs(f.x - 0.5), 0.2 + 0.16 * step(0.5, h2)) * step(0.35, fract(h2 * 5.3));
-        k += step(abs(f.y - 0.14), w) * step(abs(f.x - 0.5), 0.38) * step(0.5, fract(h1 * 7.1));
-        k += step(abs(f.x - 0.5), w) * step(abs(f.y - 0.5), 0.38) * step(0.4, fract(h2 * 2.3));
-        k += step(abs(abs(f.x - 0.5) - 0.3), w) * step(abs(f.y - 0.63), 0.25) * step(0.55, fract(h1 * 9.1));
-        float foot = step(0.05, f.y) * step(f.y, 0.38) * step(0.5, fract(h2 * 11.3));
-        k += foot * step(abs(abs(f.x - 0.5) - (0.38 - f.y) * 0.9), w * 1.3);
-        return min(k, 1.0);
-      }
       vec3 hangingSign(vec2 s, float cells, float seed, float t, vec3 c, float drawn) {
         float frame = 1.0 - step(0.09, s.x) * step(s.x, 0.91) * step(0.02, s.y) * step(s.y, 0.98);
         vec2 g = vec2(s.x, s.y * cells);
@@ -1588,8 +1663,8 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       // deal): how many of its runs are lit right across and how many half
       // lit (the rest are dark glass)...
       vec2 zoneMix(float k) {
-        return k < 0.5 ? vec2(0.42, 0.76) : k < 1.5 ? vec2(0.38, 0.6) : k < 2.5 ? vec2(0.45, 0.76) : k < 3.5 ? vec2(0.14, 0.82)
-          : k < 4.5 ? vec2(0.3, 0.52) : k < 5.5 ? vec2(0.14, 0.3) : k < 6.5 ? vec2(0.5, 0.62) : vec2(0.4, 0.7);
+        return k < 0.5 ? vec2(0.45, 0.82) : k < 1.5 ? vec2(0.4, 0.72) : k < 2.5 ? vec2(0.45, 0.8) : k < 3.5 ? vec2(0.16, 0.88)
+          : k < 4.5 ? vec2(0.34, 0.66) : k < 5.5 ? vec2(0.2, 0.46) : k < 6.5 ? vec2(0.5, 0.72) : vec2(0.42, 0.78);
       }
       // ...and a run's light: what a lit room's white is multiplied by, and
       // in a how warm the room is. Each kind has its own and, for one run
@@ -1735,7 +1810,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // again every seven to thirteen, each run lit right across, half lit
         // or dark, in the tower's own light. Where the longer runs begin is
         // a plant floor (or, on the kinds that wear them, a line of light).
-        float zoned = step(-0.5, vKind.x) * (1.0 - step(abs(vHero.x - 1.0), 0.1)) * (1.0 - held);
+        float zoned = step(-0.5, vKind.x) * (1.0 - held);
         // (What it wears is a dealt tower's, wherever the eye is.)
         float worn = step(-0.5, vKind.x) * step(vHero.x, 0.5) * (1.0 - step(511.5, vDress.x));
         float flags = vKind.w;
@@ -1745,8 +1820,11 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         float zoneStart = 0.0;
         if (zoned > 0.001) {
           float storey = floor(vCells.y);
-          float LA = 5.0 + floor(hash12(vec2(vForm.z, 1.3)) * 5.0);
-          float LB = 7.0 + floor(hash12(vec2(vForm.z, 2.9)) * 7.0);
+          // (A block's runs are two to four floors: ten floors of homes
+          // are not one zone.)
+          float low = step(1.5, vHero.x);
+          float LA = mix(5.0 + floor(hash12(vec2(vForm.z, 1.3)) * 5.0), 2.0 + floor(hash12(vec2(vForm.z, 1.3)) * 2.0), low);
+          float LB = mix(7.0 + floor(hash12(vec2(vForm.z, 2.9)) * 7.0), 3.0 + floor(hash12(vec2(vForm.z, 2.9)) * 2.0), low);
           float sa = storey + floor(hash12(vec2(vForm.z, 4.1)) * LA);
           float sb = storey + floor(hash12(vec2(vForm.z, 5.7)) * LB);
           vec2 zone = vec2(floor(sa / LA), floor(sb / LB));
@@ -1755,7 +1833,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           vec4 light = zoneLight(vKind.x, hash12(zone * vec2(5.3, 1.9) + vForm.z + 9.5));
           zoneTint = light.rgb;
           zoneStart = step(mod(sb, LB), 0.5);
-          params = mix(vParams, vec3(zh < share.x ? 1.25 : zh < share.y ? 0.38 + 0.3 * hash12(vec2(vForm.z, 6.6)) : 0.07, vParams.y, light.a), zoned);
+          params = mix(vParams, vec3(zh < share.x ? 1.25 : zh < share.y ? 0.45 + 0.3 * hash12(vec2(vForm.z, 6.6)) : mix(0.1, 0.22, low), vParams.y, light.a), zoned);
         }
         vec4 win = windowsT(vCells, params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y);
         // Lit glass in the zone's light, and brighter than a room is: an
@@ -1923,6 +2001,22 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             col = mix(col, solidWall * 2.2, mull * fine);
           }
         }
+        if (pattern > 6.5 && onWall > 0.5 && parapet < 0.5 && vWorld.y > 4.6) {
+          // A megabuilding's frame, outside its glass: a brace crossing
+          // every face in bays of thirty-eight metres, a deep ledge every
+          // thirty-six up, and a line of light on each ledge's lip.
+          vec2 g = vec2(vHero.y * vHero.z, vWorld.y) / 38.0;
+          float brace = min(abs(fract(g.x + g.y) - 0.5), abs(fract(g.x - g.y) - 0.5)) * 26.9;
+          float up = fract(vWorld.y / 36.0) * 36.0;
+          float px = max(fwidth(vWorld.y), 0.05);
+          float member = max(1.0 - smoothstep(1.5, 1.5 + px, brace), step(up, 2.4));
+          col = mix(col, wallTint(vDress.y) * (vec3(1.3) + spillAt(vWorld) * 3.2) + uHazeColor * 0.2 * uHaze * (1.0 - held), member);
+          win.a *= 1.0 - member;
+          faceLit *= 1.0 - member;
+          float lip = step(up, 0.45) * mix(1.0, 0.3, smoothstep(0.4, 1.6, px)) * (1.0 - held);
+          col = mix(col, accent * 1.6, lip);
+          faceLit = max(faceLit, lip);
+        }
         if (worn > 0.5 && onWall > 0.5 && parapet < 0.5 && vWorld.y > 4.6) {
           float pxY = fwidth(vCells.y);
           float fy = fract(vCells.y);
@@ -2061,7 +2155,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             // for one, under the same scanlines and inside a dark frame.
             if (held < 0.5 && uHasAds > 0.5) {
               float edge = 1.0 - step(0.02, s.x) * step(s.x, 0.98) * step(0.012, s.y) * step(s.y, 0.988);
-              col = mix(advert(s, 0.72 * vHero.z / (y1 - y0), vKind.z + floor(uTime * uMotion / 14.0 + fract(vForm.z) * 0.15)) * 1.5 * (0.84 + 0.16 * step(0.5, fract(s.y * 140.0))), vec3(0.01), edge);
+              col = mix(boardFace(s, 0.72 * vHero.z / (y1 - y0), vKind.z + floor(uTime * uMotion / 14.0 + fract(vForm.z) * 0.15), vForm.z) * 1.5 * (0.84 + 0.16 * step(0.5, fract(s.y * 140.0))), vec3(0.01), edge);
             }
             screen = 1.0;
           }
@@ -2102,7 +2196,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             if (held < 0.5 && uHasAds > 0.5) {
               vec2 st = mp / 2.24 + 0.5;
               float tube = step(0.465, max(abs(st.x - 0.5), abs(st.y - 0.5)));
-              col = mix(advert(st, 1.0, vKind.z + 8.0 * step(1.5, faceId)) * 1.35, mc * 1.8, tube);
+              col = mix(boardFace(st, 1.0, vKind.z + 8.0 * step(1.5, faceId), vForm.z + 7.0 + faceId) * 1.35, mc * 1.8, tube);
               k = 1.0;
             }
             sign = max(sign, k);
@@ -2134,10 +2228,13 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // what Contact frames, where a wall is as it was).
         float unlit = 1.0 - min(1.0, max(max(win.a, faceLit), max(max(crown, steps), max(max(sign, screen), max(screens, footLit)))));
         col += (uHazeColor * mix(0.5, 0.25, step(1.5, vHero.x)) + quarterLight(vDress.w, 0.0) * 0.012 * exp(-max(vWorld.y, 0.0) / 45.0)) * uHaze * onWall * fresh * (1.0 - held) * (1.0 - farOff) * unlit;
-        col = mix(col, col * 4.0, farOff * win.a * onWall * (1.0 - parapet));
+        col = mix(col, col * mix(4.0, 2.2, zoned), farOff * win.a * onWall * (1.0 - parapet));
         col = cityFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, max(roofLit, faceLit))))));
         col = sodiumBeyond(col, vWorld);
         col *= mix(1.0, mix(0.6 + 0.4 * win.a * onWall, 1.0, smoothstep(1900.0, 2350.0, length(vWorld - uCam))), farOff);
+        // For an eye above the roofs the air between is lit, as the sky
+        // behind is: what stands further off is paler, row behind row.
+        col += lift * vec3(0.003, 0.02, 0.07) * (1.0 - exp(-length(vWorld - uCam) / 1100.0)) * exp(-max(vWorld.y, 0.0) / 500.0) * uHaze;
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -2199,8 +2296,8 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     // (By its kind, as dealt: offices' mullions, nothing over a curtain
     // wall, piers and ledges on a slab and on homes, the lattice, the dark
     // face and its boards, plain floors of yellow, the strips.)
-    const pattern = dealt?.worn ? [6, 1, 2, 2, 5, 4, 1, 3][dealt.kind] : 0;
-    const dress = [hung + 64 * pattern + (framed(b) ? 512 : 0), b.hero ? -1 : (tint + 0.5) / 8, hash11(seed + 9.3), quarter];
+    const pattern = dealt?.braced ? 7 : dealt?.worn ? [6, 1, 2, 2, 5, 4, 1, 3][dealt.kind] : 0;
+    const dress = [hung + 64 * pattern + (framed(b) ? 512 : 0), b.hero ? -1 : (tint + 0.5) / 8, b.landmark ? 0.9 : hash11(seed + 9.3), quarter];
     // The show's towers are lit in bands, floor by floor, more than in
     // scattered rooms: most towers take the band or the ribbon, and some
     // blocks the small windows of homes.
@@ -2375,7 +2472,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             vec2 st = vec2(fract(vSignUv.x * 2.0), vSignUv.y);
             float tube = 1.0 - step(0.035, st.x) * step(st.x, 0.965) * step(0.07, st.y) * step(st.y, 0.93);
             float ni = abs(vLook.y - 3.0) < 0.5 ? 1.0 : abs(vLook.y - 5.0) < 0.5 ? 2.0 : vLook.y;
-            col = mix(advert(st, 1.4, floor(seed * 50.0) + floor(vSignUv.x * 2.0) * 3.0) * 1.4, neon(ni) * 2.2, tube) * (1.0 - 0.85 * cut);
+            col = mix(boardFace(st, 1.4, floor(seed * 50.0) + floor(vSignUv.x * 2.0) * 3.0, seed * 50.0 + floor(vSignUv.x * 2.0)) * 1.4, neon(ni) * 2.2, tube) * (1.0 - 0.85 * cut);
           }
           emissive = 1.0;
         } else if (vGlow > 2.5 && vGlow < 3.5) {
@@ -2764,6 +2861,17 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
         float px = max(max(fwidth(pg.x), fwidth(pg.z)), 0.05);
         vec3 glow = uHazeColor * (0.55 + 0.25 * uLevel) * exp(-h * 9.0) * uHaze;
         vec3 col = vec3(0.004, 0.004, 0.007) + glow + uHazeColor * 0.08 * exp(-h * 2.5);
+        // For an eye above the roofs the night is the show's: deep blue
+        // overhead, brighter and bluer down to the horizon, cyan in the
+        // last degrees and a trace of the city's sodium green on the line
+        // itself; and downtown's violet eases into it over a wide arc, not
+        // at an edge. (From the streets and the roofs the page looks from,
+        // the sky is as it was.)
+        float lift = smoothstep(40.0, 62.0, uCam.y);
+        vec2 toDown = normalize(vec2(-8.0, -640.0) - uCam.xz + 1e-4);
+        float arc = pow(max(dot(normalize(dir.xz + 1e-5), toDown), 0.0), 1.5);
+        vec3 air = vec3(0.0015, 0.005, 0.03) + vec3(0.003, 0.022, 0.1) * exp(-h * 4.5) + vec3(0.006, 0.07, 0.1) * exp(-h * 16.0) + vec3(0.02, 0.035, 0.008) * exp(-h * 34.0);
+        col += lift * uHaze * mix(air, vec3(air.b * 0.45, air.g * 0.3, air.b * 0.9) + vec3(0.03, 0.006, 0.05) * exp(-h * 5.0), arc * 0.7);
         // The city's light in the air, meeting the fog at the horizon: a
         // band over the roofs, brightest toward downtown.
         col += cityGlow(dir, h * 900.0) * (0.85 + 0.2 * uLevel);
@@ -2805,6 +2913,8 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           // dark. Past it the ground is the far city's from the first metre.
           vec3 ground = streets(pg, time, px, smoothstep(40.0, 62.0, uCam.y)) * mix(1.0, smoothstep(20.0, 60.0, tg), inKit(pg.xz));
           vec3 fogged = sodiumBeyond(cityFog(ground, pg, 0.0), pg);
+          // (And the far ground goes into that horizon, not into the dark.)
+          fogged += lift * vec3(0.004, 0.03, 0.09) * (1.0 - exp(-tg / 1300.0)) * uHaze;
           // The horizon's own band stays where the ground runs into it.
           col = mix(fogged, col, smoothstep(-0.004, 0.0, dir.y));
         }

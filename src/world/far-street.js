@@ -28,7 +28,7 @@ export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, bloc
 
 // How far each kind is drawn: past it, it is under a pixel (a slab, a deck
 // and its boards are always drawn).
-const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 1500];
+const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
@@ -186,7 +186,7 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 a = h < 0.25 ? vec3(1.0, 0.2, 0.3) : h < 0.5 ? vec3(0.16, 0.85, 1.0) : h < 0.7 ? vec3(1.0, 0.62, 0.2) : h < 0.85 ? vec3(1.0, 0.25, 0.7) : vec3(0.9, 0.95, 1.0);
           float blocks = step(0.5, hash12(floor(q * vec2(5.0, 3.0)) + h * 31.0));
           float edge = 1.0 - step(0.02, q.x) * step(q.x, 0.98) * step(0.04, q.y) * step(q.y, 0.96);
-          vec3 drawn = advert(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, vOwn.y + floor(h * 3.0)) * 1.4;
+          vec3 drawn = boardFace(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, vOwn.y + floor(h * 3.0), vOwn.x * 57.0) * 1.4;
           col = mix(vec3(0.012, 0.013, 0.017), mix(mix(a * mix(1.3, 0.5, blocks), drawn, uHasAds), vec3(0.01), edge), face);
           lit = face * (1.0 - edge);
         } else {
