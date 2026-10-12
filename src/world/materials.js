@@ -30,6 +30,7 @@
 import * as THREE from "three";
 import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
 import { GROUND, VNOISE } from "./ground.js";
+import { kindSource } from "./kinds.js";
 import { SHOP_ROOM } from "./interiors.js";
 import { MARKS } from "./marks.js";
 import { createWetFloor } from "./wet.js";
@@ -55,14 +56,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
-  // Everything that is not glass or light. `detail` weathers it as sheet
-  // metal; `wall` (with how much spray paint it takes) dresses its upright
+  // Everything that is not glass or light. `detail` is what it is made of
+  // (src/world/kinds.js: steel, plate, sheet, concrete...); `wall` (with how much spray paint it takes) dresses its upright
   // faces to a storey's height as a street does a wall (src/world/marks.js),
   // `door` gives those a door's rails and plates; `shutter` makes it a
   // roller shutter; `paving` and `kerb` lay it as a
   // pavement and its kerb (src/world/ground.js). All of that is near work:
   // it fades by the metres a pixel covers and is skipped past that.
-  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = false, tinted = false, sky = 1, wall = null, door = false, shutter = false, paving = false, kerb = false } = {}) => {
+  const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = null, tinted = false, sky = 1, wall = null, door = false, shutter = false, paving = false, kerb = false } = {}) => {
     if (made.has(key)) return made.get(key);
     const marks = wall !== null || shutter;
     const ground = paving || kerb;
@@ -130,23 +131,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         #ifdef TINTED
         varying vec4 vColor;
         #endif
-        #ifdef DETAIL
-        // Weathered plant in world space, no texture: sheet panels with
-        // their seams, rain grime run down the sides from every seam and
-        // edge, and a fine speckle, all faded where they would shimmer.
-        float weather(vec3 p, vec3 n) {
-          vec3 a = abs(n);
-          vec2 q = a.y > 0.6 ? p.xz : (a.x > a.z ? p.zy : p.xy);
-          vec2 cell = q / vec2(0.9, 0.6);
-          vec2 f = abs(fract(cell) - 0.5);
-          float aa = clamp(max(fwidth(cell.x), fwidth(cell.y)) * 2.0, 0.0, 1.0);
-          float seam = mix(smoothstep(0.47, 0.5, max(f.x, f.y)), 0.1, aa);
-          float grime = a.y > 0.6 ? 0.0 : vnoise(vec2(q.x * 7.0, q.y * 0.5)) * smoothstep(0.25, 0.0, fract(cell.y) - 0.1);
-          float speck = mix(vnoise(q * 23.0), 0.5, aa);
-          float panel = hash12(floor(cell) + 3.7);
-          return (0.8 + 0.3 * panel) * (1.0 - 0.45 * seam) * (1.0 - 0.35 * grime) * (0.85 + 0.3 * speck);
-        }
-        #endif
+        ${detail ? kindSource(detail) : ""}
         void main() {
           vec3 albedo = uColor;
           #ifdef TINTED
@@ -158,8 +143,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float px = max(fwidth(vWorld.x) + fwidth(vWorld.z), fwidth(vWorld.y));
           vec3 glowing = vec3(0.0);
           #ifdef DETAIL
-          float wear = weather(vWorld, n);
-          albedo *= wear;
+          float wear;
+          albedo = dress(albedo, vWorld, n, px, wear);
           #endif
           #if defined(WALL) || defined(SHUTTER)
           // An upright face a walker can reach: along it, up it, and the
@@ -1358,11 +1343,11 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "garage_wall_cyan": return maps[n] ? painted(n, maps[n], { tiled: false }) : forName("garage_wall");
       case "kerb": return surface("kerb", { color: "#4a4c52", ambient: 0.03, kerb: true });
       case "paint": return surface("paint", { color: "#b9b7ae", ambient: 0.05, spill: 1.3 });
-      case "metal": return surface("metal", { color: "#34373e", ambient: 0.04, detail: true });
-      case "dark": return surface("dark", { color: "#121318", ambient: 0.024, spill: 0.6, detail: true });
+      case "metal": return surface("metal", { color: "#34373e", ambient: 0.04, detail: "steel" });
+      case "dark": return surface("dark", { color: "#121318", ambient: 0.024, spill: 0.6, detail: "steel" });
       // Tar and gravel, weathered and wet: dark, but a surface the sky's glow
       // and the signs' light can be seen on from above, not a hole.
-      case "roof": return surface("roof", { color: "#2b2c32", ambient: 0.035, spill: 0.65, detail: true, sky: 9 });
+      case "roof": return surface("roof", { color: "#2b2c32", ambient: 0.035, spill: 0.65, detail: "sheet", sky: 9 });
       case "board_frame": return surface("board_frame", { color: "#1a1b1f", ambient: 0.03 });
       case "door": return surface("door", { color: "#2a2d33", ambient: 0.04, wall: 0.3, door: true });
       // A roller shutter, down: ribbed steel the street's light runs along.
@@ -1378,7 +1363,15 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       // A building's ledges, slabs, pilasters, fascias and parapets, and the
       // props' painted parts: their colour on their vertices.
       case "billboard": return billboard();
-      case "trim": return surface("trim", { color: "#ffffff", ambient: 0.05, spill: 1.0, detail: true, tinted: true, wall: 0.12 });
+      case "trim": return surface("trim", { color: "#ffffff", ambient: 0.05, spill: 1.0, detail: "trim", tinted: true, wall: 0.12 });
+      // What a thing is made of, for whatever is built of it (src/world/
+      // kinds.js). Each takes its paint from its vertices, as trim does.
+      case "corrugated": return surface(n, { color: "#ffffff", ambient: 0.05, detail: "corrugated", tinted: true, wall: 0.3 });
+      case "container": return surface(n, { color: "#ffffff", ambient: 0.05, detail: "container", tinted: true, wall: 0.1 });
+      case "tankplate": return surface(n, { color: "#ffffff", ambient: 0.05, detail: "tank", tinted: true });
+      case "steel": return surface(n, { color: "#ffffff", ambient: 0.05, detail: "steel", tinted: true });
+      case "castconcrete": return surface(n, { color: "#ffffff", ambient: 0.05, detail: "concrete", tinted: true, wall: 0.45 });
+      case "plaster": return surface(n, { color: "#ffffff", ambient: 0.05, detail: "plaster", tinted: true, wall: 0.3 });
       default: return null;
     }
   };
