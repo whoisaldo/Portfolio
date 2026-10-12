@@ -1341,9 +1341,45 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         void main() {
           vec2 uv = vUv;
           float seed = vColor.b * 97.0;
-          float period = 9.0 + 6.0 * fract(seed * 1.3);
-          float slot = floor((uTime + seed * 3.0) / period);
-          float local = fract((uTime + seed * 3.0) / period);
+          // The board's own frame, from how the world moves across it and
+          // not from which way its UVs happen to run: across it from the
+          // left as somebody in front of it sees it, and up it from its
+          // foot. (A builder's quad counts v down from the top, another's
+          // may count either the other way or have them turned: an advert
+          // sampled by the raw UVs hung head down on every board.)
+          vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
+          vec2 dux = dFdx(vUv), duy = dFdy(vUv);
+          float det = dux.x * duy.y - dux.y * duy.x;
+          vec3 pu = vec3(1.0, 0.0, 0.0);
+          vec3 pv = vec3(0.0, -1.0, 0.0);
+          if (abs(det) > 1e-12) {
+            pu = (dpx * duy.y - dpy * dux.y) / det;
+            pv = (dpy * dux.x - dpx * duy.x) / det;
+          }
+          vec3 nb = normalize(vNormalW);
+          // (A board lying flat has no up: its own u is its right.)
+          vec3 right = abs(nb.y) > 0.95 ? normalize(pu) : normalize(cross(vec3(0.0, 1.0, 0.0), nb));
+          vec3 upward = abs(nb.y) > 0.95 ? -normalize(pv) : vec3(0.0, 1.0, 0.0);
+          bool turned = abs(dot(pu, right)) < abs(dot(pv, right));
+          vec3 pa = turned ? pv : pu;
+          vec3 pb = turned ? pu : pv;
+          vec2 fu = fract(uv);
+          vec2 st = turned ? fu.yx : fu;
+          if (dot(pa, right) < 0.0) st.x = 1.0 - st.x;
+          if (dot(pb, upward) < 0.0) st.y = 1.0 - st.y;
+          vec2 size = vec2(length(pa), length(pb));
+          // Which board this is: where its left edge and its foot stand and
+          // the plane it hangs in, the same number all across it. Boards
+          // side by side or one over another are dealt adverts seven apart
+          // in the sixteen (three apart in the eight tall ones), so the same
+          // advert is not twice within six boards; all turn over on one
+          // twelve second round, each at its own moment in it, so that
+          // holds while they change.
+          vec3 foot = vec3(dot(vWorld, right) - st.x * size.x, dot(vWorld, upward) - st.y * size.y, dot(vWorld, nb));
+          float board = floor(foot.x / 4.0 + 0.412) * 7.0 + floor(foot.y / 4.0 + 0.412) * 5.0 + floor(foot.z / 4.0 + 0.412) * 3.0;
+          float turn = uTime / 12.0 + fract(seed * 0.618 + board * 0.37);
+          float slot = floor(turn);
+          float local = fract(turn);
           float h = hash12(vec2(slot, seed));
           vec3 a = pal(vColor.r * 8.0 + slot);
           vec3 b = pal(vColor.r * 8.0 + slot + 3.0 + floor(h * 3.0));
@@ -1360,35 +1396,23 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           col = mix(col, vec3(1.0, 0.97, 0.92), bars * 0.85);
           float px = max(fwidth(uv.x), fwidth(uv.y));
           if (uHasAds > 0.5) {
-            // A drawn advert in place of the shapes. The face's own shape
-            // comes from how the world moves across it, so the art covers
-            // it uncropped in one direction and never stretched: a wide
-            // face takes one of the eight wide adverts, a tall one of the
-            // four tall (kept on their sides along the atlas's foot).
-            vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
-            vec2 dux = dFdx(vUv), duy = dFdy(vUv);
-            float det = dux.x * duy.y - dux.y * duy.x;
-            float aspect = 1.5;
-            if (abs(det) > 1e-12) {
-              vec3 pu = (dpx * duy.y - dpy * dux.y) / det;
-              vec3 pv = (dpy * dux.x - dpx * duy.x) / det;
-              aspect = clamp(length(pu) / max(length(pv), 1e-5), 0.25, 5.0);
-            }
+            // A drawn advert in place of the shapes. The art covers the
+            // face uncropped in one direction and is never stretched: a
+            // wide face takes one of the sixteen wide adverts, a tall one
+            // of the eight tall (kept on their sides, head to the right,
+            // in two rows under the wide ones' four in a 2048 px atlas:
+            // scripts/pack-ads.mjs).
+            float aspect = clamp(size.x / max(size.y, 1e-5), 0.25, 5.0);
             bool tall = aspect < 0.85;
             float cell = tall ? 0.6667 : 1.5;
-            vec2 st = fract(uv);
             if (aspect > cell) st.y = 0.5 + (st.y - 0.5) * cell / aspect;
             else st.x = 0.5 + (st.x - 0.5) * aspect / cell;
             st = clamp(st, 0.01, 0.99);
-            // Sixteen wide adverts in four rows of 341 px, eight tall ones
-            // on their sides in two rows under them, in a 2048 px atlas
-            // (scripts/pack-ads.mjs). Which one is the board's own draw,
-            // so two boards side by side seldom show the same.
-            float pick = floor(fract(vColor.b * 7.31 + vColor.g * 3.7 + vColor.r * 1.3) * 16.0) + slot;
+            float pick = board + slot;
             float rowH = 341.0 / 2048.0;
             vec2 q;
             if (tall) {
-              float j = mod(pick, 8.0);
+              float j = mod(pick * 3.0, 8.0);
               q = vec2((mod(j, 4.0) + st.y) * 0.25, 1.0 - (1365.0 + (floor(j / 4.0) + st.x) * 341.0) / 2048.0);
             } else {
               float i = mod(pick, 16.0);
