@@ -2173,14 +2173,15 @@ def bay(axis, a, b, yf, stair=False):
 # At the turn's outer corner, under the board, over the west street.
 y = bay("x", XW + 0.6, XE - 0.6, DY)
 for x, dz, yaw, pose in ((-81.0, 1.45, 0.1, "phone"), (-80.4, 1.1, math.pi / 2, "talk"), (-79.5, 1.1, -math.pi / 2, "talk"),
-                         (-78.2, 1.45, math.pi, "lean"), (-77.0, 0.95, math.pi / 2, "idle")):
+                         (-78.2, 1.45, math.pi, "lean"), (-77.0, 1.1, math.pi / 2, "idle")):
     stand(x, ZS + dz, yaw, pose, y)
 # A vending machine against its east end and a bench that looks out over the
-# street (the walkway is too narrow for either).
+# street (the walkway is too narrow for either); whoever sits is 1.65 m from
+# the walk-through's line, as everyone in a lookout is.
 P.place("vending", XE - 1.05, y, ZS + 0.95, -math.pi / 2, district=DK)
-P.place("bench", -82.3, y, ZS + 0.85, 0.0, district=DK)
-stand(-82.7, ZS + 0.85, 0.0, "sit", y + 0.48)
-stand(-81.9, ZS + 0.85, 0.0, "sit", y + 0.48)
+P.place("bench", -82.3, y, ZS + 1.1, 0.0, district=DK)
+stand(-82.7, ZS + 1.1, 0.0, "sit", y + 0.48)
+stand(-81.9, ZS + 1.1, 0.0, "sit", y + 0.48)
 pool(XE - 1.9, y + 1.0, ZS + 0.95, "cyan", 1.6)
 # Over the lane behind the avenue's west row.
 y = bay("x", -49.4, -44.6, DY, stair=True)
@@ -2727,6 +2728,10 @@ for side in (-1, 1):                    # -1 the north strip (z -95..-86), +1 th
 # Steam off four of the road's own drains (the shoulder by the parapet): one
 # empty at each drain's mouth, which the site draws as a thin curl 1.6 m
 # high (`_drain_` in the name: src/world/steam.js). None near the avenue.
+# Their names sort after every other vent's on purpose: the site deals each
+# plume its puffs by the vent's place in the list of anchors, which is in
+# name order, so a vent named ahead of the avenue's manholes would re-deal
+# the steam the hero sees.
 for i, (x, z) in enumerate(((x_par - 0.36, -148.0), (x_par - 0.36, -118.0), (-51.0, z_par + 0.36), (54.0, z_par + 0.36))):
     y = RY(z) if x < XE else DY(x)
-    empty(f"anchor_steam_drain_deck_{i}", (x, y + 0.03, z))
+    empty(f"anchor_steam_zz_deck_drain_{i}", (x, y + 0.03, z))
