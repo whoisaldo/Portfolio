@@ -83,11 +83,12 @@ def hidden_top(occ, x0, x1, z0, z1, y0, want, plaza=False, step=2.0, pad=1.0, le
 # ---------------------------------------------------------------------------
 # Walls, roofs, edges.
 # ---------------------------------------------------------------------------
-def wall(key, f, y0, y1, col, ov, s0=0.0, s1=None):
+def wall(key, f, y0, y1, col, ov, s0=0.0, s1=None, out=0.0):
     """Window cells over a face in the canyon's module: half the avenue's
     bay (1.6 m), and for the ribbon and curtain-wall styles two ribbons to
     a storey, so a tower's face counts as many small windows as the show's
-    megablocks do and reads tall. Storeys stay on the floor lines."""
+    megablocks do and reads tall. Storeys stay on the floor lines. `out`:
+    how far proud of the face's plane (a tier, a bay)."""
     s1 = f.width if s1 is None else s1
     w = s1 - s0
     if w < 0.5 or y1 - y0 < 0.3:
@@ -95,14 +96,29 @@ def wall(key, f, y0, y1, col, ov, s0=0.0, s1=None):
     kv = 2 if round(col[1] * 8) in (2, 4, 5) else 1
     bays = max(1, round(w / CELL_W)) * 2
     v0, v1 = (ov + (y0 - SHOP_H) / CELL_H) * kv, (ov + (y1 - SHOP_H) / CELL_H) * kv
-    f.quad((key, "facade", 0), s0, s1, y0, y1, 0.0, ((0, v0), (bays, v0), (bays, v1), (0, v1)), col)
+    f.quad((key, "facade", 0), s0, s1, y0, y1, out, ((0, v0), (bays, v0), (bays, v1), (0, v1)), col)
 
 
-def balcony(key, f, s0, s1, y, col, out=1.0):
-    """A balcony at a floor line: a slab, a solid front and ends."""
-    fbox((key, "trim", 1), f, s0, s1, y - 0.14, y, 0.0, out, col)
+def under(key, f, s0, s1, w0, w1, y, col=(1, 1, 1, 1)):
+    """A level quad off a face, w0..w1 out from it, facing down: a soffit,
+    a line of light in one."""
     a, b = f.at(s0), f.at(s1)
-    pa, pb, wa, wb = f.p(a, y, out), f.p(b, y, out), f.p(a, y, 0.0), f.p(b, y, 0.0)
+    quad(key, f.p(a, y, w0), f.p(b, y, w0), f.p(b, y, w1), f.p(a, y, w1), col=col)
+
+
+def over(key, f, s0, s1, w0, w1, y, col=(1, 1, 1, 1)):
+    """The same, facing up: a ledge's top, a step's roof."""
+    a, b = f.at(s0), f.at(s1)
+    quad(key, f.p(a, y, w1), f.p(b, y, w1), f.p(b, y, w0), f.p(a, y, w0), col=col)
+
+
+def balcony(key, f, s0, s1, y, col, out=1.0, base=0.0):
+    """A balcony at a floor line: a slab, a solid front and ends (`base`:
+    the tier it stands on, proud of the face)."""
+    out += base
+    fbox((key, "trim", 1), f, s0, s1, y - 0.14, y, base, out, col)
+    a, b = f.at(s0), f.at(s1)
+    pa, pb, wa, wb = f.p(a, y, out), f.p(b, y, out), f.p(a, y, base), f.p(b, y, base)
     up = lambda q: (q[0], y + 1.0, q[2])  # noqa: E731
     quad((key, "trim", 1), pa, pb, up(pb), up(pa), col=col)
     quad((key, "trim", 1), wa, pa, up(pa), up(wa), col=col)
@@ -256,14 +272,15 @@ def board(f, s, y, size, r, key=CB):
     sign(st_name(size), cx, cy, cz, w, h, f.yaw, district=key, label=False)
 
 
-def screen(f, s, y, w, h, r, cant, key=CB, toward=1.0, back=True):
+def screen(f, s, y, w, h, r, cant, key=CB, toward=1.0, back=True, off=0.0):
     """A screen (an advert with no words, the site draws it) hung off the
     face on struts and turned `cant` radians from flat on the wall toward
-    looking along the street (`toward` +1: south or east)."""
+    looking along the street (`toward` +1: south or east). `off`: what it
+    hangs on stands this far proud of the face."""
     dx, dz = _along(f)
     dx, dz = dx * toward, dz * toward
     nx, nz = f.nx * math.cos(cant) + dx * math.sin(cant), f.nz * math.cos(cant) + dz * math.sin(cant)
-    out = 0.55 + (w / 2) * abs(math.sin(cant))
+    out = 0.55 + (w / 2) * abs(math.sin(cant)) + off
     cx, _, cz = f.p(f.at(s), y, out)
     yaw = math.atan2(nx, nz)
     B.billboard(key, cx, y, cz, w, h, yaw, r, frame=True, back=back, depth=0.3)

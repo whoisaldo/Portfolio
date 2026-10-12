@@ -2,6 +2,7 @@ from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials,
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts import canyon_kit as C
+from ncw.districts import canyon_mass as M
 from ncw.districts.canyon_kit import FA, CB, fl
 
 # ---------------------------------------------------------------------------
@@ -63,9 +64,12 @@ BACKS = {
 BRIDGES = ((-240.0, fl(9) - 1.6, True, None), (-338.0, fl(13) - 0.6, False, 9.0))
 MEGA_HALF = 3.5         # the first is the megastructure: seven metres deep, eight tall
 PYLON_Z = -232.0        # and the stack of adverts on a mast beside it, on the left
+# What crosses the avenue, for whatever is hung on its walls to keep clear
+# of: z, half its depth, its foot and its top.
+CROSS = ((-240.0, MEGA_HALF, fl(9) - 1.6, fl(9) + 6.4), (-338.0, 2.0, fl(13) - 0.6, fl(13) + 7.4))
 # What stands between the hero's lens and the canyon: the avenue's lots.
 AVENUE_MASSES = list(HERO_MASSES)
-HUES = ("cyan", "magenta", "amber", "pink", "teal")
+HUES = ("cyan", "yellow", "amber", "pink", "teal")
 
 
 def _x(side, u):
@@ -140,7 +144,9 @@ def _layout(side):
         L["units"] = []
         for k, (un, us, en, es) in enumerate(spans):
             style = r.choices((5, 2, 4, 0, 1, 6), weights=(4, 3, 1.5, 1.5, 1, 1))[0]
-            tint = B.TINTS[r.choices(("navy", "teal", "charcoal", "plum"), weights=(3, 3, 2, 1))[0]]
+            # (Near-black navy and teal: the plum wall is drawn and left out.)
+            wall = r.choices(("navy", "teal", "charcoal", "plum"), weights=(3, 3, 2, 1))[0]
+            tint = B.TINTS["navy" if wall == "plum" else wall]
             L["units"].append(dict(lot=L, k=k, zs=us, zn=un, south=es, north=en, h=L["h"], back=kinds[min(k, len(kinds) - 1)],
                                    style=style, tint=tint, lit=r.uniform(0.4, 0.8), warmth=r.uniform(0.15, 0.95), ov=r.randrange(0, 40),
                                    ki=r.choice((0.0, 2.0, 3.0))))
@@ -148,6 +154,9 @@ def _layout(side):
 
 
 ROWS = {side: _layout(side) for side in (-1, 1)}
+for _side, _lots in ROWS.items():
+    for _n, _U in enumerate(U for L in _lots for U in L["units"]):
+        _U["idx"] = _n
 # Every mass the hero's lens meets first: the avenue's, and the canyon's
 # podiums and street slabs. A crown is built only as high as these hide it.
 OCC = list(AVENUE_MASSES)
@@ -175,6 +184,9 @@ def _podium(L, zn, zs, north, south):
     tcol = B.TRIM[tint]
     col = B.wall_col(r.uniform(0.7, 0.95), r.choice((4, 2, 4)), r.uniform(0.2, 0.8), tint)
     back_col = B.wall_col(col[0] * 0.6, 6, col[2], tint)
+    # (Its windows are its own lot's: see canyon_mass.base_col.)
+    variant, col = M.base_col(L, col, tint)
+    canopy = False
     ov = r.randrange(0, 40)
     st, bk, so, no, xa, xb = _faces(side, 0.0, DEPTH, zn, zs)
     w = st.width
@@ -255,9 +267,21 @@ def _podium(L, zn, zs, north, south):
         for s in doors:
             if r.random() < 0.6:
                 _doorway(st, s, r)
-        if r.random() < 0.35:
+        canopy = r.random() < 0.35
+        if canopy:
             B.canopy(CB, st, 1.0, w - 1.0, 2.6, SHOP_H - 0.5, tint, r.choice(("white", "cyan", "amber")))
     C.wall(FA, st, SHOP_H, ph, col, ov)
+    # The base's cornice and what stands at the pavement, clear of the lot's
+    # column of type, the mast of adverts and the megastructure's piers.
+    notch = []
+    if L["i"] % 3 != 2:
+        zt = L["units"][0]["zs"] - 3.0
+        notch.append((zt - 1.0, zt + 0.8))
+    if side < 0:
+        notch.append((PYLON_Z - 1.0, PYLON_Z + 1.0))
+    notch += [(zc - half - 2.4, zc + half + 2.4) for zc, half, _, _ in CROSS[:1]]
+    notch = [tuple(sorted((C.s_of(st, min(max(a, zn), zs)), C.s_of(st, min(max(b, zn), zs))))) for a, b in notch if b > zn and a < zs]
+    M.base(L, st, variant, canopy, notch, L["arcade"])
     st.ledge((CB, "trim", 0), 0.0, w, SHOP_H - 0.05, 0.3, 0.35, tcol)
     st.ledge((CB, "trim", 0), 0.0, w, ph - 0.45, 0.45, 0.55, tcol)
     if r.random() < 0.6:
@@ -326,9 +350,10 @@ def _slab(U):
     back_col = B.wall_col(min(1.0, U["lit"] * 1.15), U["style"] if U["style"] in (2, 4, 5) else 6, U["warmth"], tint)
     st, bk, so, no, xa, xb = _faces(side, 0.0, sd, U["zn"], U["zs"])
     B.COLLISION.append(("box", xa, xb, ph, h, U["zn"], U["zs"], "canyon"))
-    C.wall(FA, st, ph, h, col, U["ov"])
-    C.wall(FA, so, ph, h, col, U["ov"])
-    C.wall(CB, no, ph, h, col, U["ov"])
+    U.update(sd=sd, col=col, back_col=back_col, st=st, bk=bk, so=so, no=no, x=(xa, xb))
+    # Its street face in zones of floors, with what stands proud of it.
+    M.plan(U, U["idx"], OCC, CROSS)
+    M.face(U)
     C.wall(CB, bk, ph, h, back_col, U["ov"])
     C.roof(CB, xa, xb, U["zn"], U["zs"], h)
     B.ROOFS.append((CB, xa, xb, U["zn"], U["zs"], h))
@@ -337,7 +362,6 @@ def _slab(U):
     C.parapet(FA, so, h, tcol)
     C.parapet(CB, no, h, tcol)
     C.parapet(CB, bk, h, tcol)
-    U.update(sd=sd, col=col, back_col=back_col, st=st, bk=bk, x=(xa, xb))
 
 
 LOOK_W = 3.6            # a lookout's deck, where it meets its terrace
@@ -507,7 +531,8 @@ def _dress_street(U):
     every = r.choice((3, 4, 5))
     y = ph + CELL_H * every
     while y < h - 3.0:
-        st.ledge((CB, "trim", 1), 0.0, w, y - 0.22, 0.22, 0.2, tcol)
+        if M.plain(U, y - 0.1):
+            st.ledge((CB, "trim", 1), 0.0, w, y - 0.22, 0.22, 0.2, tcol)
         y += CELL_H * every
     # (A second set of dice for what was added later, so the first set's
     # signs stay where the hero has them.)
@@ -517,13 +542,14 @@ def _dress_street(U):
         # A spandrel's lip at every floor: the face reads in storeys.
         y = ph + CELL_H
         while y < h - 1.0:
-            st.ledge((CB, "trim", 1), 0.0, w, y - 0.12, 0.12, 0.1, tcol, caps=False)
+            if M.plain(U, y - 0.06):
+                st.ledge((CB, "trim", 1), 0.0, w, y - 0.12, 0.12, 0.1, tcol, caps=False)
             y += CELL_H
     if r.random() < 0.4:
         bays = max(1, round(w / CELL_W))
         for b in range(0, bays + 1, 2):
             s = min(max(b * w / bays, 0.2), w - 0.2)
-            st.box((CB, "trim", 1), s - 0.16, s + 0.16, ph, h - 0.6, 0.0, 0.32, col=tcol)
+            st.box((CB, "trim", 1), s - 0.16, s + 0.16, ph, U["belt"] - 0.3, 0.0, 0.32, col=tcol)
     if r.random() < 0.4:
         C.strip(FA, st, 0.3, w - 0.3, h - 1.6, h - 1.15, r.choice(HUES))
     if U["north"] != "abut" and r.random() < 0.6:
@@ -537,8 +563,8 @@ def _dress_street(U):
     # on some a screen canted toward the traffic coming up the avenue. None
     # across another, nor across the lot's column of type, the figure's
     # slogan or a skybridge's landing.
-    taken = []
-    keep = [(bz, MEGA_HALF + 1.4 if enclosed else 3.2) for bz, _, enclosed, _ in BRIDGES]
+    taken = M.reserve(U, OCC, CROSS)
+    keep = [(bz, half + 1.4) for bz, half, _, _ in CROSS]
     if side < 0:
         keep.append((PYLON_Z, 2.6))
     if U["k"] == 0 and L["i"] % 3 != 2:
@@ -556,13 +582,13 @@ def _dress_street(U):
         sh = sw * r.uniform(1.2, 1.6)
         ss, sy = r.uniform(sw, w - sw), r.uniform(ph + sh / 2 + 2.0, max(ph + sh / 2 + 2.5, h * 0.62))
         if C._free(taken, (ss - sw / 2, ss + sw / 2, sy - sh / 2, sy + sh / 2)):
-            C.screen(st, ss, sy, sw, sh, r, 1.0, key=FA)
+            C.screen(st, ss, sy, sw, sh, r, 1.0, key=FA, off=M.off(U, ss - sw / 2, ss + sw / 2, sy - sh / 2, sy + sh / 2))
     C.street_signs(st, r, 0.5, w - 0.5, SHOP_H + 0.9, ph - 1.0, max(3, round(w / 4.0)), taken=taken)
-    C.street_signs(st, r, 0.5, w - 0.5, ph + 0.6, min(h - 6.0, ph + 16.0), max(2, round(w / 7.0)), taken=taken)
+    C.street_signs(st, r, 0.5, w - 0.5, ph + 0.6, min(h - 6.0, ph + 16.0, U["belt"] - 0.4), max(2, round(w / 7.0)), taken=taken)
     for _ in range(r.randrange(1, 3)):
         ss, sy = r.uniform(1.5, w - 1.5), r.uniform(ph + 14.0, h - 8.0)
         if C._free(taken, (ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.8)):
-            C.blade(st, ss, sy, "bl", r.choice((0.0, 0.3, -0.3)), FA, CB, CB)
+            C.blade(st, ss, sy, "bl", r.choice((0.0, 0.3, -0.3)), FA, CB, CB, out=0.95 + M.off(U, ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.6))
     # Over the signs: balconies in stacks up the face, floor on floor, clear
     # of every sign; condensers under windows on the lower floors; a
     # downpipe at each end of the face.
@@ -579,18 +605,20 @@ def _dress_street(U):
             if C._free(taken, (s0_ - 0.4, s1_ + 0.4, fl(k0) - 0.5, fl(k1) + 1.4), pad=0.6):
                 step = r2.choice((1, 1, 2))
                 for k in range(k0, k1 + 1, step):
-                    C.balcony(CB, st, s0_, s1_, fl(k), tcol)
+                    if M.plain(U, fl(k) + 0.5) or M.off(U, s0_, s1_, fl(k), fl(k) + 1.0) > 0:
+                        C.balcony(CB, st, s0_, s1_, fl(k), tcol, base=M.off(U, s0_, s1_, fl(k) - 0.1, fl(k) + 1.0))
     for k in range(int((ph - SHOP_H) / CELL_H), min(kb, int((ph - SHOP_H) / CELL_H) + 9)):
         for b in range(bays):
             if r2.random() < 0.13:
                 sa = (b + 0.5) * bw_ + r2.uniform(-0.5, 0.5)
                 if all(not (a0 - 0.6 < sa < a1 + 0.6 and c0 - 0.9 < fl(k) < c1 + 0.3) for a0, a1, c0, c1 in taken):
-                    ax_, _, az_ = st.p(st.at(sa), 0.0, 0.0)
+                    ax_, _, az_ = st.p(st.at(sa), 0.0, M.off(U, sa - 0.5, sa + 0.5, fl(k), fl(k) + 0.8))
                     P.place("ac_wall", ax_, fl(k) + 0.08, az_, st.yaw, district=CB)
     for sa in (0.22, w - 0.22):
         if r2.random() < 0.7:
             ax_, _, az_ = st.p(st.at(sa), 0.0, 0.0)
             P.place("pipe_v", ax_, ph, az_, st.yaw, sy=h - ph - 0.5, district=CB)
+    M.relief(U, taken)
 
 
 def _dress_back(U):
