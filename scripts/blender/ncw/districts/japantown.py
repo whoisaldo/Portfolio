@@ -285,6 +285,25 @@ def rng(rec, stage):
 
 
 # ---------------------------------------------------------------------------
+# Steam: one empty a source, its kind in its name (src/world/steam.js): a
+# manhole's cover in a lane (street), a pot on a stall's hob (stall), a
+# kitchen's vent in a lane's wall (lane), a roof's chillers (roof), a
+# deck's drain (drain).
+# ---------------------------------------------------------------------------
+STEAM = []
+VENTS = []
+
+
+def steam(x, z, y=0.2, kind=None):
+    kind = kind or ("stall" if 0.8 < y < 2.0 else "street")
+    if len(STEAM) < 34:
+        if kind == "street":
+            box((D, "metal", 1), x - 0.35, x + 0.35, G0, G0 + 0.05, z - 0.35, z + 0.35, scale=0.5)
+        empty(f"anchor_steam_{kind}_jt{len(STEAM)}", (x, y + 0.1, z))
+        STEAM.append((x, z))
+
+
+# ---------------------------------------------------------------------------
 # People (kit.stand): vendors behind every counter and their customers, the
 # ones on stools and benches, against the shopfronts out of the rain, at the
 # kerb, in the lanes, on the roofs. None on a walker's line: against a wall
@@ -1069,6 +1088,7 @@ def lane_face(rec, name, cap=None):
             s += 1.2
         elif roll < 0.66 and room > 0.9:
             J.put("jt_vent", *f.p(f.at(s + 0.42), G0, 0.0), f.yaw)
+            VENTS.append(f.p(f.at(s + 0.42), 2.2, 0.2))
             s += 0.85
         elif roll < 0.71 and room > 0.8 and not flat:
             J.put("jt_duct", *f.p(f.at(s + 0.35), G0, 0.0), f.yaw, min(1.0, (h - 1.2) / 5.85))
@@ -1713,6 +1733,8 @@ def roof(rec, weights):
             J.put("jt_ductrun", X(u0 + 1.4), top, other, 0.0 if sgn > 0 else math.pi, 1.0, 1.0)
             J.put("jt_ductrun", X(u0 + 5.4), top, other, 0.0 if sgn > 0 else math.pi, 1.0, 1.0)
         hut(X(w - 2.2), mid + r.uniform(-0.2, 0.2) * max(0.0, d - 3.4), top, tcol, r)
+        if rec["seed"] % 4 == 0:
+            VENTS.append((X(u0), top + 1.7, zz, "roof"))
         if d >= 5.6:
             tz = z0 + 1.75 if zz < mid else z1 - 1.75
             tank(w - 6.0, tz)
@@ -1930,12 +1952,14 @@ for rec in LOTS:
             flush_shops(face(rec, name), rec["r"], B.TRIM[rec["tint"]])
     if row != "A":
         lane_face(rec, rec["back"], cap=7.4 if row == "E" else None)
+    # (Where a screen will hang on the front, its signs keep under it.)
+    ad_ = row == "C" and rng(rec, "westad").random() < 0.36 and face(rec, rec["front"]).width > 12.0 and rec["tiers"][0][5] > storeys(5)
     if row in ("E", "A"):
-        shop_face(rec, rec["front"], "street")
+        shop_face(rec, rec["front"], "street", cap=storeys(2) + 0.3 if row == "A" and rec["lot"].z0 == DECK_TOWERS.get("axis") else None)
     elif row == "B":
         shop_face(rec, rec["front"], "alley")
     else:
-        shop_face(rec, rec["front"], "edge")
+        shop_face(rec, rec["front"], "edge", cap=storeys(2) + 0.3 if ad_ else None)
     if row == "A":
         shop_face(rec, rec["back"], "alley")
     for name in ("-z", "+z"):
@@ -1953,7 +1977,7 @@ for rec in LOTS:
         fo_ = B.Face(fw_.name, fw_.plane + 0.03 * (fw_.nx or fw_.nz), fw_.a0, fw_.a1)
         hw_ = rec["tiers"][0][5]
         banded(fo_, storeys(2), hw_, rw_, rec["tint"], ribs=rw_.random() < 0.7)
-        if rw_.random() < 0.36 and fw_.width > 12.0 and hw_ > storeys(5):
+        if ad_:
             bw_ = min(fw_.width - 4.0, 10.0)
             B.billboard(D, *fw_.p(fw_.at(fw_.width / 2), storeys(2) + 1.5 + bw_ * 0.28, 0.4), bw_, bw_ * 0.56, fw_.yaw, rw_, back=False, depth=0.3)
             light(D, *fw_.p(fw_.at(fw_.width / 2), 3.0, 2.5), rw_.choice(("pink", "cyan", "amber")), 5.0)
@@ -1987,16 +2011,6 @@ for a, b, _ in cuts_c:
     B.ground_rect(D, ROW_C[0], ROW_C[1], a, b)
 for a, b in PASSAGES:
     B.ground_rect(D, ROW_E[0], ROW_E[1], a, b)
-
-STEAM = []
-
-
-def steam(x, z, y=0.2):
-    if len(STEAM) < 10:
-        box((D, "metal", 1), x - 0.35, x + 0.35, G0, G0 + 0.05, z - 0.35, z + 0.35, scale=0.5)
-        empty(f"anchor_steam_street_jt{len(STEAM)}", (x, y + 0.1, z))
-        STEAM.append((x, z))
-
 
 def gate(x, z0, z1, yaw, r, h=4.7):
     """A frame over an alley's mouth: two posts, a beam, a board on it, a
@@ -2578,7 +2592,7 @@ while z < ZS - 6.0:
         x = NAKA[0] + 0.95 if west else NAKA[1] - 0.95
         stall(x, z, HALF_PI if west else -HALF_PI, nr)
         stools(x + (0.3 if west else -0.3), z + nr.choice((-2.3, 2.3)), nr.uniform(0, 6.28), nr)
-        if k % 6 == 2:
+        if k % 4 == 2:
             steam(x, z + 0.9, 1.1)
         k += 1
     z += nr.uniform(7.0, 11.0)
@@ -2752,7 +2766,12 @@ steam(-47.0, -520.0)
 steam(-47.0, -300.0)
 steam(-140.0, -350.0)
 steam(-140.0, -600.0)
-print("japantown east lane wall:", lane_east(), "things against it")
+for i, v in enumerate(VENTS):
+    if len(v) == 4:
+        steam(v[0], v[2], v[1], "roof")
+    elif i % 9 == 4:
+        steam(v[0], v[2], v[1], "lane")
+print("japantown east lane wall:", lane_east(), "things against it,", len(STEAM), "steam vents")
 
 # ---------------------------------------------------------------------------
 # The block that closes the west street's south end, across the south
