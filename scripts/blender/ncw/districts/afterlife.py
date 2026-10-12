@@ -200,34 +200,116 @@ def lit_soffit(x0, x1, z0, z1, y, k0, k1):
 
 for s0 in (15.5, 21.7):
     K.fbox(AF, (D, "trim", 0), s0, s0 + 0.8, 0.0, SHOP_H, -2.4, 0.14, col=DARK)
-for s0 in (15.4, 21.6):
-    K.fbox(AF, (D, "steel", 0), s0, s0 + 1.0, 0.0, 3.6, 0.14, 0.46, col=PORTAL)
-    for e in (s0 + 0.2, s0 + 0.72):
-        K.fbox(AF, (D, "neon_cyan", 0), e, e + 0.08, 0.4, 3.4, 0.46, 0.49)
-K.fbox(AF, (D, "steel", 0), 15.2, 22.8, 3.6, 4.3, 0.14, 0.56, col=PORTAL, bottom=True)
-K.fbox(AF, (D, "hazard", 1), 16.4, 21.6, 3.6, 3.7, 0.56, 0.575)
-for sa, sb in ((16.4, 17.15), (21.6, 20.85)):
-    pipe((D, "steel", 1), AF.p(AF.at(sa), 2.85, 0.3), AF.p(AF.at(sb), 3.6, 0.3), 0.07, segs=5, col=K.STEEL)
-for k in range(13):
-    sv = 15.52 + k * 0.58
-    K.fbox(AF, (D, "metal", 1), sv - 0.04, sv + 0.04, 4.08, 4.16, 0.56, 0.58)
-for s0, s1 in ((16.3, 16.33), (21.67, 21.7)):
-    for w0 in (-1.9, -1.0):
-        K.fbox(AF, (D, "neon_cyan", 0), s0, s1, 0.4, 3.3, w0, w0 + 0.07)
+# (The m6 review: "a flat cyan emissive rectangle under a flat lime tiled
+# ceiling", where the show's is a heavy recessed mechanical portal: a framed
+# lintel with brackets, light bars set into machinery, depth into a lit
+# inside, warm yellow-white over teal.) The portal: two stepped steel jambs
+# with inset panels, bolts and a ram up each; a deep lintel slotted three
+# times with a warm bar in its middle slot and two let into its underside;
+# chunky brackets in the opening's top corners; behind it four frames of
+# steel, each a step smaller, warm bars in the first two's edges and teal in
+# the last two's, down to the club's doors slid open; and through them a
+# corridor of teal ribbed walls under warm bars to a warm end where people
+# stand. (All of its light is glow, which the site does not bake: the
+# pavement's light stays as it was.)
+WARM = (1.0, 0.8, 0.5)
+
+
+def warm(k):
+    return (WARM[0] * k, WARM[1] * k, WARM[2] * k, 1.0)
+
+
+TEAL_L = GLOW["teal"]
+for s0, s1, inner in ((14.9, 16.4, 16.4), (21.6, 23.1, 21.6)):
+    K.fbox(AF, (D, "steel", 0), s0, s1, 0.0, 3.75, 0.14, 0.82, col=PORTAL)
+    AF.box((D, "dark", 1), s0 + 0.24, s1 - 0.24, 0.55, 3.25, 0.82, 0.85)
+    # The show's thin cyan down the jambs, either side of the panel.
+    for e in (s0 + 0.2, s1 - 0.28):
+        K.fbox(AF, (D, "neon_cyan", 0), e, e + 0.08, 0.4, 3.4, 0.82, 0.86)
+    for sv in (s0 + 0.42, s1 - 0.42):
+        for k in range(8):
+            AF.box((D, "metal", 1), sv - 0.035, sv + 0.035, 0.62 + k * 0.36, 0.69 + k * 0.36, 0.85, 0.89)
+    # The slot in its inner face, a warm bar in it.
+    d_ = 0.03 if inner == 16.4 else -0.03
+    AF.box((D, "glow", 0), min(inner, inner + d_), max(inner, inner + d_), 0.35, 3.45, 0.36, 0.6, col=warm(0.85))
+    # The ram.
+    sc_ = s0 + 0.75
+    pipe((D, "metal", 1), AF.p(AF.at(sc_ - 0.12), 0.6, 0.95), AF.p(AF.at(sc_ + 0.05), 2.3, 0.95), 0.1, segs=8, caps=True)
+    pipe((D, "steel", 1), AF.p(AF.at(sc_ + 0.05), 2.3, 0.95), AF.p(AF.at(sc_ + 0.14), 3.3, 0.95), 0.05, segs=6, col=(0.42, 0.44, 0.47, 1))
+    for yy in (0.6, 3.3):
+        AF.box((D, "steel", 1), sc_ - 0.24, sc_ + 0.24, yy - 0.12, yy + 0.12, 0.82, 1.0, col=PORTAL)
+# The lintel, slotted, a warm bar in its middle slot, two under it.
+K.fbox(AF, (D, "steel", 0), 14.7, 23.3, 3.75, 4.6, 0.14, 0.95, col=PORTAL, bottom=True)
+for yy in (3.97, 4.18, 4.39):
+    AF.quad((D, "trim", 1), 14.9, 23.1, yy, yy + 0.08, 0.952, col=K.BLACK)
+AF.box((D, "glow", 0), 15.3, 22.7, 4.19, 4.25, 0.952, 0.975, col=warm(0.9))
+for w0 in (0.3, 0.66):
+    AF.box((D, "glow", 0), 16.6, 21.4, 3.72, 3.75, w0, w0 + 0.08, col=warm(0.8))
+K.fbox(AF, (D, "hazard", 1), 15.2, 22.8, 3.75, 3.84, 0.95, 0.965)
+for k in range(14):
+    sv = 15.0 + k * 0.6
+    AF.box((D, "metal", 1), sv - 0.04, sv + 0.04, 4.5, 4.57, 0.95, 0.98)
+# Brackets in the opening's top corners, stepped, a bolt in each.
+for sa, sd in ((16.4, 1.0), (21.6, -1.0)):
+    for (u0, u1, y0_, y1_) in ((0.0, 0.85, 3.42, 3.75), (0.0, 0.45, 3.02, 3.42)):
+        AF.box((D, "steel", 0), min(sa + sd * u0, sa + sd * u1), max(sa + sd * u0, sa + sd * u1), y0_, y1_, 0.25, 0.82, col=PORTAL)
+    AF.box((D, "metal", 1), sa + sd * 0.25 - 0.06, sa + sd * 0.25 + 0.06, 3.5, 3.62, 0.82, 0.86)
+# The frames down the recess, each a step smaller.
+RINGS = [(-0.35, 16.6, 21.4, 3.3, "warm"), (-0.9, 16.95, 21.05, 3.18, "warm"), (-1.45, 17.35, 20.65, 3.06, "teal"), (-2.0, 17.8, 20.2, 2.95, "teal")]
+for w1, so0, so1, top, hue in RINGS:
+    w0 = w1 - 0.2
+    AF.box((D, "steel", 0), 16.3, so0, 0.0, 3.5, w0, w1, col=PORTAL)
+    AF.box((D, "steel", 0), so1, 21.7, 0.0, 3.5, w0, w1, col=PORTAL)
+    AF.box((D, "steel", 0), so0, so1, top, 3.5, w0, w1, col=PORTAL)
+    col_ = warm(0.7) if hue == "warm" else (TEAL_L[0] * 0.55, TEAL_L[1] * 0.55, TEAL_L[2] * 0.55, 1)
+    AF.box((D, "glow", 0), so0, so0 + 0.03, 0.3, top - 0.12, w0 + 0.05, w1 - 0.05, col=col_)
+    AF.box((D, "glow", 0), so1 - 0.03, so1, 0.3, top - 0.12, w0 + 0.05, w1 - 0.05, col=col_)
+    AF.box((D, "glow", 0), so0 + 0.12, so1 - 0.12, top - 0.03, top, w0 + 0.05, w1 - 0.05, col=col_)
+    AF.quad((D, "trim", 1), 16.3, so0, 1.2, 1.26, w1 + 0.003, col=K.BLACK)
+    AF.quad((D, "trim", 1), so1, 21.7, 1.2, 1.26, w1 + 0.003, col=K.BLACK)
+# Warm bars let into the recess's ceiling between the frames.
+for wa, wb in ((-0.33, -0.12), (-0.88, -0.6), (-1.43, -1.15)):
+    AF.box((D, "glow", 0), 16.6, 21.4, 3.47, 3.5, wa, wb, col=warm(0.55))
 K.fbox(AF, (D, "trim", 0), 16.3, 21.7, 3.5, SHOP_H, -2.4, 0.14, col=DARK, bottom=True)
 zs, zn = AF.at(16.5), AF.at(21.5)
-K.ceiling((D, "glow", 0), 425.8, 427.9, zn, zs, 3.49, col=yg(0.42))
 box((D, "neon_yellow", 0), 425.7, 428.0, 3.42, 3.5, zn - 0.08, zn, scale=1.0)
 box((D, "neon_yellow", 0), 425.7, 428.0, 3.42, 3.5, zs, zs + 0.08, scale=1.0)
 light(D, 427.0, 3.0, AF.at(DOOR_S), "yellow", 3.5)
 light(D, 427.0, 3.0, AF.at(DOOR_S - 1.4), "green", 2.5)
-K.ribs(D, AF, 16.3, 17.7, G0, 3.5, -2.4, step=0.35, strips=(2,))
-K.ribs(D, AF, 20.3, 21.7, G0, 3.5, -2.4, step=0.35, strips=(2,))
-AF.box((D, "metal", 1), 17.7, 20.3, G0, 2.9, -2.4, -2.3)
-K.lit_door(D, AF, 19.0, "teal", w=2.36, h=2.75, power=5.5, ajar=False, back=2.36)
+# The club's doors, slid open into their pockets, and the frame they run in.
+AF.box((D, "metal", 1), 17.7, 17.82, G0, 2.95, -2.4, -2.2)
+AF.box((D, "metal", 1), 20.18, 20.3, G0, 2.95, -2.4, -2.2)
 for a_, b_ in ((17.0, 17.86), (20.14, 21.0)):
     AF.box((D, "steel", 0), a_, b_, G0, 2.86, -2.27, -2.12, col=PORTAL)
-AF.box((D, "neon_teal", 0), 17.82, 20.18, 2.95, 3.05, -2.4, -2.32)
+# The corridor beyond (x 421 to 425.6; rooftop.py leaves the block's dark
+# ground floor open for it): teal walls ribbed in steel, brighter toward its
+# end, a dark floor, warm bars across its ceiling, a warm end wall.
+CZA, CZB = AF.at(20.18), AF.at(17.82)      # its north and south walls
+CXA, CXB = 421.0, 425.6
+quad((D, "trim", 0), (CXA, G0 + 0.002, CZB), (CXB, G0 + 0.002, CZB), (CXB, G0 + 0.002, CZA), (CXA, G0 + 0.002, CZA), col=(0.03, 0.04, 0.045, 1))
+quad((D, "trim", 0), (CXA, 2.95, CZA), (CXB, 2.95, CZA), (CXB, 2.95, CZB), (CXA, 2.95, CZB), col=(0.02, 0.022, 0.026, 1))
+
+
+def tl(k):
+    return (TEAL_L[0] * k, TEAL_L[1] * k, TEAL_L[2] * k, 1.0)
+
+
+for zw, sd in ((CZA, 1.0), (CZB, -1.0)):
+    zq = zw + sd * 0.002
+    pts = [(CXA, G0, zq), (CXB, G0, zq), (CXB, 2.95, zq), (CXA, 2.95, zq)]
+    cols = [tl(0.16), tl(0.06), tl(0.07), tl(0.2)]
+    K.vpoly((D, "glow", 0), pts if sd > 0 else pts[::-1], cols if sd > 0 else cols[::-1])
+    x_ = CXA + 0.35
+    while x_ < CXB - 0.2:
+        box((D, "steel", 1), x_ - 0.05, x_ + 0.05, G0, 2.95, min(zw, zw + sd * 0.12), max(zw, zw + sd * 0.12), scale=1.0, col=PORTAL)
+        x_ += 0.65
+for x_ in (421.6, 422.5, 423.4, 424.3, 425.2):
+    box((D, "glow", 0), x_ - 0.06, x_ + 0.06, 2.9, 2.95, CZB + 0.15, CZA - 0.15, scale=1.0, col=warm(0.75))
+quad((D, "glow", 0), (CXA + 0.002, G0, CZB), (CXA + 0.002, G0, CZA), (CXA + 0.002, 2.95, CZA), (CXA + 0.002, 2.95, CZB), col=warm(0.42))
+quad((D, "trim", 1), (CXA + 0.004, G0, CZB), (CXA + 0.004, G0, CZA), (CXA + 0.004, 0.75, CZA), (CXA + 0.004, 0.75, CZB), col=(0.06, 0.05, 0.04, 1))
+stand(421.8, AF.at(18.4), math.pi / 2 + 0.3, "talk", y=G0)
+stand(421.9, AF.at(19.6), -math.pi / 2 - 0.2 + math.pi, "idle", y=G0)
+light(D, 423.4, 0.5, AF.at(DOOR_S), "amber", 2.5)
 # A carpet from the door out across the pavement.
 ca, cb = AF.at(18.0), AF.at(20.0)
 quad((D, "trim", 1), (425.75, G0 + 0.009, ca), (429.3, G0 + 0.009, ca), (429.3, G0 + 0.009, cb), (425.75, G0 + 0.009, cb), col=K.ROPE)
@@ -265,7 +347,23 @@ for k in range(10):
     if not 14.0 < sv < 24.0:
         K.downlight(D, 430.0, AF.at(sv), SHOP_H - 0.01, "amber" if k % 3 else "white", power=1.6)
 # (Over the door's bay the soffit itself is lit, in the sign's yellow-green.)
+# (Coffered: deep steel beams across it, a warm bar down each coffer, the
+# lime between them as before, so the doorway floods as the show's does.)
 lit_soffit(428.3, 431.7, AF.at(22.6), AF.at(15.4), SHOP_H - 0.02, 0.45, 0.26)
+# (Its beams run along the street, so seen from up the street, as the
+# Garage section's shot is, they hide none of the light between them.)
+WB_ = (0.3, 1.12, 1.94, 2.76, 3.58)
+for w_ in WB_:
+    AF.box((D, "steel", 0), 15.4, 22.6, SHOP_H - 0.24, SHOP_H - 0.02, w_ - 0.06, w_ + 0.06, col=PORTAL)
+for sv in (15.45, 19.0, 22.55):
+    AF.box((D, "steel", 0), sv - 0.06, sv + 0.06, SHOP_H - 0.12, SHOP_H - 0.02, 0.3, 3.58, col=PORTAL)
+for k, (w0_, w1_) in enumerate(zip(WB_, WB_[1:])):
+    if k % 2 == 0:
+        # A warm white coffer, a lime one beside it.
+        quad((D, "glow", 0), (WL + w0_ + 0.06, SHOP_H - 0.026, AF.at(22.6)), (WL + w1_ - 0.06, SHOP_H - 0.026, AF.at(22.6)),
+             (WL + w1_ - 0.06, SHOP_H - 0.026, AF.at(15.4)), (WL + w0_ + 0.06, SHOP_H - 0.026, AF.at(15.4)), col=warm(0.4))
+    else:
+        AF.box((D, "glow", 0), 15.6, 22.4, SHOP_H - 0.05, SHOP_H - 0.025, (w0_ + w1_) / 2 - 0.05, (w0_ + w1_) / 2 + 0.05, col=warm(0.8))
 light(D, 430.0, 3.8, AF.at(DOOR_S), "yellow", 4.0)
 light(D, 430.0, 3.8, AF.at(DOOR_S + 2.2), "green", 3.0)
 # The name over the door, as the show hangs it: a slab of yellow-green

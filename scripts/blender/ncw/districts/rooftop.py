@@ -81,7 +81,10 @@ mass(RF, 402.0, 432.0, -300.0, -262.0, SHOP_H, 30.0, 7201, painted=1)
 # ground floor is set back under them behind the lot line (x 428), an
 # arcade the street's walkers pass through, where the club's door is
 # (districts/afterlife.py builds it).
-box((RF, "dark", 0), 402.0, 425.6, 0, SHOP_H, -300.0, -262.0, scale=2.0)
+# (Open behind the club's door, where afterlife.py builds the corridor in.)
+for (x0_, x1_, y0_, y1_, z0_, z1_) in ((402.0, 425.6, 0, SHOP_H, -300.0, -282.18), (402.0, 425.6, 0, SHOP_H, -279.82, -262.0),
+                                       (402.0, 421.0, 0, SHOP_H, -282.18, -279.82), (421.0, 425.6, 2.95, SHOP_H, -282.18, -279.82)):
+    box((RF, "dark", 0), x0_, x1_, y0_, y1_, z0_, z1_, scale=2.0)
 clutter(RF, -1, -300.0, -262.0, 30.0, 7220, xw=432.0)
 ac_units(RF, -1, -300.0, -262.0, SHOP_H + 1, 26.0, 7221, xw=432.0)
 # (Its fire escape is built with the street's, in open steel: districts/afterlife.py.)
