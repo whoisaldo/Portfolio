@@ -587,6 +587,71 @@ def lane_stuff(f, s, room, r, alley):
     return wd
 
 
+def deck_face(f, h, r, door_s=None):
+    """A wall beside the deck's gap (the deck's stair climbs along the south
+    one, half a metre off it, so nothing here stands further out than a
+    hand): render over both floors, framed windows on each with most of
+    them lit, pipes, meters, vents, a small unit, a conduit, a sign of bent
+    tube, and (`door_s`) a door under its lamp where the stair starts."""
+    w = f.width
+    f.quad((D, "plaster", 0), 0.0, w, 0.0, h, 0.0, col=r.choice(LANE_WALLS))
+    f.box((D, "trim", 1), 0.0, w, 0.0, 0.95, 0.0, 0.05, col=(0.2, 0.2, 0.21, 1))
+    f.box((D, "metal", 1), 0.15, w - 0.15, G0 + 3.05, G0 + 3.1, 0.02, 0.07)
+    end = w - 0.6
+    if door_s is not None:
+        lane_door(f, door_s, r)
+        end = door_s - 1.0
+    s = r.uniform(0.5, 1.0)
+    while s < end - 1.0:
+        roll = r.random()
+        if roll < 0.5 and end - s > 1.8:
+            kind = r.choice(WINDOWS[1:4])
+            lane_window(f, s + 0.12, r, kind)
+            s += kind[0] + 0.3
+        elif roll < 0.68:
+            J.put("jt_pipes", *f.p(f.at(s + 0.4), G0, 0.0), f.yaw)
+            s += 0.8
+        elif roll < 0.8 and end - s > 1.3:
+            J.put("jt_meters", *f.p(f.at(s + 0.6), G0, 0.0), f.yaw)
+            s += 1.2
+        elif roll < 0.9:
+            J.put("jt_vent", *f.p(f.at(s + 0.42), G0, 0.0), f.yaw)
+            s += 0.85
+        else:
+            J.put("jt_ac", *f.p(f.at(s + 0.45), G0, 0.0), f.yaw, 1.0, 0.75)
+            s += 0.9
+        s += r.uniform(0.3, 1.0)
+    # The floor over: a window a bay, under 7.5 m (see the module's note).
+    s = r.uniform(0.8, 1.6)
+    while s + 1.3 < w - 0.5:
+        if r.random() < 0.85:
+            lane_window(f, s, r, (1.2, 1.3, SHOP_H + 1.0))
+        s += r.uniform(2.6, 3.4)
+    cx, _, cz = f.p(f.at(min(w - 4.2, max(3.0, end - 2.6))), 0.0, 0.14)
+    J.tube_sign((cx, 4.15, cz), f.yaw, 2.8, 0.95, r.choice(("pink", "cyan", "amber", "green")), r, both=False)
+    light(D, *f.p(f.at(w / 2), 2.6, 0.9), "amber", 2.5)
+
+
+def deck_lot(rec):
+    """The two low lots either side of the deck's gap: the wall each turns
+    to it, and the wall its taller neighbour shows over its roof (the
+    deck's road passes level with these roofs)."""
+    lot, r = rec["lot"], rng(rec, "deck")
+    south = abs(lot.z0 + 74.0) < 0.01
+    name, far = ("-z", "+z") if south else ("+z", "-z")
+    f = face(rec, name)
+    # (A hair proud of the generator's own windowed side.)
+    deck_face(B.Face(name, f.plane + 0.03 * f.nz, f.a0, f.a1), rec["h"], r, door_s=15.35 if south else None)
+    x0, x1, z0, z1, _, top = rec["tiers"][-1]
+    over = lot.neighbours.get(far, 0.0) - top
+    if over > 2.8:
+        fw = B.Face("-z", z1, x0, x1) if far == "+z" else B.Face("+z", z0, x0, x1)
+        deck_wall(fw, top, r)
+        if over > 5.2:
+            cx, _, cz = fw.p(fw.at((x1 - x0) / 2), 0.0, 0.14)
+            J.tube_sign((cx, top + 3.6, cz), fw.yaw, 4.2, 1.4, r.choice(("pink", "cyan", "amber")), r, both=False)
+
+
 def lane_face(rec, name, cap=None):
     """A back on a lane or a side on a cross alley (see the note above)."""
     r, h = rng(rec, "lane" + name), rec["h"]
@@ -815,8 +880,8 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
         box((D, "concrete", 1), sa, sb, top, top + hh, z0 + 0.5, z0 + 1.9, scale=3.0)
     gx = X(tu - 0.12)
     ga, gb = (gx, top + 0.9, z0 + 2.1), (gx, top + 0.9, z1 - 0.4)
-    quad((D, "glass_dark", 1), ga, gb, (gb[0], top + 1.9, gb[2]), (ga[0], top + 1.9, ga[2]))
-    quad((D, "glass_dark", 1), gb, ga, (ga[0], top + 1.9, ga[2]), (gb[0], top + 1.9, gb[2]))
+    # (The kit's clear glass is double-sided: one pane.)
+    quad((D, "clearglass", 1), ga, gb, (gb[0], top + 1.9, gb[2]), (ga[0], top + 1.9, ga[2]), col=(0.75, 0.95, 1.0, 1))
     zz = z0 + 2.1
     while zz < z1 - 0.39:
         box((D, "metal", 1), gx - 0.04, gx + 0.04, top + 0.9, top + 1.95, zz - 0.04, zz + 0.04, scale=1.0)
@@ -949,6 +1014,8 @@ def roof(rec, weights):
         kind = "shack"
     if rec is LUCY_LOT:
         kind = "deck"
+    # (Beside the deck's gap, level with its road: a garden and a shack.)
+    kind = BY_DECK.get(id(rec), kind)
     rec["roof"] = kind
     if kind == "deck":
         # The outer row's decks look back over the low roofs to the canyon.
@@ -1215,6 +1282,8 @@ for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.45, 26.0), (
 # looks over every roof between it and the canyon.
 LUCY_LOT = max((rc for rc in LOTS if rc["row"] == "C" and -560.0 < rc["lot"].z0 and rc["lot"].z1 < -380.0 and rc["lot"].z1 - rc["lot"].z0 >= 12.0),
                key=lambda rc: (rc["h"], -abs((rc["lot"].z0 + rc["lot"].z1) / 2 + 470.0)))
+BY_DECK = {id(rc): ("garden" if abs(rc["lot"].z0 + 74.0) < 0.01 else "shack") for rc in LOTS
+           if rc["row"] == "E" and (abs(rc["lot"].z0 + 74.0) < 0.01 or abs(rc["lot"].z1 + 86.0) < 0.01)}
 ROOFS_W = {"E": (("deck", 4), ("shack", 4), ("plant", 2), ("sign", 4), ("garden", 3), ("laundry", 3), ("solar", 2)),
            "A": (("deck", 4), ("shack", 4), ("plant", 2), ("sign", 4), ("garden", 3), ("laundry", 3), ("solar", 2)),
            "B": (("deck", 3), ("shack", 5), ("plant", 4), ("sign", 2), ("garden", 3), ("laundry", 3), ("solar", 2), ("court", 2)),
@@ -1247,6 +1316,8 @@ for rec in LOTS:
         if rec["r"].random() < 0.6 and f.width > 8.0:
             J.board(f, f.width / 2, rec["h"] - 2.6, "pm", tilt=rec["r"].uniform(-0.25, 0.25), k=rec["r"].uniform(1.6, 2.2), out=0.3)
     roof(rec, ROOFS_W[row])
+    if id(rec) in BY_DECK:
+        deck_lot(rec)
 
 
 # ---------------------------------------------------------------------------
@@ -1305,7 +1376,7 @@ def clear_of(z, spans, pad=0.0):
 # What stands over the street (z): the gate, the sign bridge, the bridge
 # between the two sides, the sign tower, the lantern arch, the south arch.
 GATE_Z, SIGNS_Z, BRIDGE_Z, TOWER_Z, ARCH_Z, SOUTH_Z = -696.0, -444.0, -528.0, -352.0, -276.0, -30.0
-OVER = [(z - 4.0, z + 4.0) for z in (GATE_Z, SIGNS_Z, BRIDGE_Z, ARCH_Z, SOUTH_Z)]
+OVER = [(z - 4.0, z + 4.0) for z in (GATE_Z, SIGNS_Z, BRIDGE_Z, ARCH_Z, SOUTH_Z)] + [(-616.0, -604.0)]
 sr = random.Random(7100)
 z = -710.0
 while z < -8.0:
@@ -1617,8 +1688,7 @@ def market(z0, z1):
     for x_e, s in ((xa, 1), (xb, -1)):
         q = ((x_e, ye, z1), (xm - 0.4 * s, yr, z1), (xm - 0.4 * s, yr, z0), (x_e, ye, z0))
         up = q if s > 0 else (q[1], q[0], q[3], q[2])
-        quad((D, "glass_dark", 0), *up)
-        quad((D, "glass_dark", 0), up[1], up[0], up[3], up[2])
+        quad((D, "clearglass", 0), *up)
     box((D, "neon_amber", 0), xm - 0.4, xm + 0.4, yr - 0.05, yr + 0.03, z0, z1, scale=1.0, bottom=True)
     z = z0
     while z <= z1 + 0.01:
