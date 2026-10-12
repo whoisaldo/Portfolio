@@ -82,6 +82,7 @@ def south_side():
                  fronts={"-z": "glass", "-x": "glass", "+z": "dock", "+x": "dock"}, canopy=2.4, corners="cyan", edge="cyan",
                  lit=(0.6, 0.9))
     K.roof_plant(x0 + 4, x1 - 4, z0 + 4, z1 - 4, h, r, cap=3.0, tall=False)
+    K.roof_lights(x0 + 4, x1 - 4, z0 + 4, z1 - 4, h, "amber", step=6.5)
     K.screen(x0 + 9.0, 13.6, z0 - 0.38, 9.0, 5.0, math.pi, r, pal=K.COLD)
     # b: showrooms under a deep podium, a ribbon-windowed block set back on
     # it behind a terrace.
@@ -91,6 +92,7 @@ def south_side():
                  lit=(0.5, 0.85), warm=(0.4, 0.9), top_band="amber")
     terrace(x0 + 0.4, x1 - 0.4, z0 + 0.4, z0 + 4.6, K.BASE + K.STOREY, r)
     K.roof_plant(x0 + 4, x1 - 4, z0 + 7, z1 - 2, h, r, cap=4.0, tall=False)
+    K.roof_lights(x0 + 4, x1 - 4, z0 + 7, z1 - 2, h, "cyan", step=6.5)
     # c: a hall like the towers' own behind a colonnade, a glass shaft with
     # fins over it, stepped.
     x0, x1, h = S1[2]
@@ -98,6 +100,7 @@ def south_side():
                  fronts={"-z": "none", **DOCK}, fin_step=4.25, fin_faces=("-z",), edge="cyan", top_band="cyan", lit=(0.55, 0.9))
     colonnade(x0, x1, 226.0, z0, "cyan", r)
     K.roof_plant(x0 + 5, x1 - 5, z0 + 8, z1 - 2, h, r, cap=4.0, tall=False)
+    K.roof_lights(x0 + 5, x1 - 5, z0 + 8, z1 - 2, h, "amber", step=6.5)
     K.screen(x0 + 12.0, 19.0, z0 + 2.6 - 0.38, 11.0, 6.0, math.pi, r, pal=K.COLD)
     # d: long and low, showrooms to the street, a garden on its roof.
     x0, x1, h = S1[3]
@@ -105,6 +108,7 @@ def south_side():
                  fronts={"-z": "shop", **DOCK}, canopy=2.2, edge="cyan", colour="cyan", lit=(0.55, 0.9), warm=(0.1, 0.5))
     terrace(x0 + 0.4, x1 - 0.4, z0 + 0.4, z0 + 6.6, K.BASE + (h - K.BASE) * 0.55, r, trees=True)
     K.roof_plant(x0 + 6, x1 - 6, z0 + 9, z1 - 2, h, r, cap=3.0, tall=False)
+    K.roof_lights(x0 + 6, x1 - 6, z0 + 9, z1 - 2, h, "cyan", step=6.5)
     # e: stacked and shifted glass boxes, warm lit.
     x0, x1, h = S1[4]
     K.corp_block(x0, x1, z0, z1, h, 7806, skin="glass",
@@ -112,6 +116,7 @@ def south_side():
                  edge="amber", colour="amber", top_band="amber", lit=(0.55, 0.9), warm=(0.5, 1.0))
     colonnade(x0, x1, 302.0, z0, "amber", r)
     K.roof_plant(x0 + 6, x1 - 2, z0 + 6, z1 - 4, h, r, cap=4.0, tall=False)
+    K.roof_lights(x0 + 6, x1 - 2, z0 + 6, z1 - 4, h, "amber", step=6.5)
     K.screen(x0 + 21.0, 14.0, z0 + 2.0 - 0.38, 9.0, 5.0, math.pi, r, pal=K.COLD)
     # f: the tallest: a dark slab with a column of screens up its face, a
     # canopy over its door the width of the lot.
@@ -121,6 +126,7 @@ def south_side():
                  lit=(0.5, 0.8), warm=(0.3, 0.8))
     K.screen_stack(x0 + 8.0, z0 + 1.6 - 0.38, 10.5, 7.0, (5.0, 4.2, 5.6, 4.2), math.pi, r, pal=K.MEDIA)
     K.roof_plant(x0 + 5, x1 - 5, z0 + 7, z1 - 5, h, r, cap=3.5, tall=False)
+    K.roof_lights(x0 + 5, x1 - 5, z0 + 7, z1 - 5, h, "cyan", step=6.5)
     # g: the end lot, its east face finished: the Afterlife Block's lots
     # stand against it from x 380.
     x0, x1, h = S1[6]
@@ -133,7 +139,7 @@ def south_side():
         hue = ("cyan", "amber", "white")[j % 3]
         alley_gate(a, b, z0 - 0.0, hue, r)
         for zz in (-311.0, -303.0, -295.0):
-            K.neon_box(a + 0.3, b - 0.3, 6.0, 6.08, zz - 0.04, zz + 0.04, hue, 1)
+            K.hung_bar(a + 0.3, b - 0.3, 6.0, zz, hue)
             light(CO, (a + b) / 2, 5.2, zz, hue, 3.0)
         if b - a > 5:
             kiosked = j % 2 == 1
@@ -441,7 +447,7 @@ def campus():
         cx = (a + b) / 2
         hue = ("cyan", "white", "amber")[j % 3]
         for zz in range(-278, -228, 10):
-            K.neon_box(a + 0.2, b - 0.2, 5.4, 5.48, zz - 0.04, zz + 0.04, hue, 1)
+            K.hung_bar(a + 0.2, b - 0.2, 5.4, zz, hue, reach=0.2)
             light(CO, cx, 4.8, zz, hue, 3.0)
         P.place("planter_palm", cx, G0, MEWS_A[0] + 3.0, district=CO)
         P.place("planter_tree", cx, G0, MEWS_B[0] + 3.0, district=CO)
@@ -505,6 +511,8 @@ def plaza_side():
         tx0, tx1, tz0, tz1, _, top = tiers[-1]
         ROOF_TOPS[j] = (tx0, tx1, tz0, tz1, top)
         K.edge_line(tx0, tx1, tz0, tz1, top + 0.86, ("cyan", "amber")[j % 2], h=0.1)
+        # (Behind the roof board on the tallest, the plant keeps to the back.)
+        K.roof_plant(tx0 + 1.2, tx1 - 1.2, tz0 + 1.2, tz1 - (7.5 if j == 3 else 1.2), top, r, cap=6.0, density=0.8, lamps=False)
         for cxx, czz in ((tx0 + 0.3, tz0 + 0.3), (tx1 - 0.3, tz1 - 0.3)):
             K.aviation(cxx, top + 1.0, czz)
     # A screen on the corner lot's west face, to the x 120 road, and one on
@@ -525,7 +533,7 @@ def plaza_side():
         hue = ("amber", "cyan")[j % 2]
         alley_gate(a, b, PLAZA_LOT, hue, r, facing=1)
         for zz in (-197.0, -206.0, -215.0):
-            K.neon_box(a + 0.3, b - 0.3, 6.0, 6.08, zz - 0.04, zz + 0.04, hue, 1)
+            K.hung_bar(a + 0.3, b - 0.3, 6.0, zz, hue)
             light(CO, (a + b) / 2, 5.2, zz, hue, 3.0)
         stand(a + 0.8, -200.0 - j, math.pi / 2, "smoke" if j % 2 else "phone")
 

@@ -766,7 +766,7 @@ def room():
     box(k("trim"), tx - 12.6, tx + 12.6, gy - 0.25, gy, z0 + 0.12, z0 + 2.3, scale=2.0, col=K.PALE, bottom=True)
     K.rail(tx - 12.5, z0 + 2.28, tx + 6.0, z0 + 2.28, gy, "cyan")
     K.glow_box(tx - 12.5, tx + 12.5, gy - 0.3, gy - 0.25, z0 + 2.2, z0 + 2.3, "amber")
-    K.stairs_x(z0 + 2.3, z0 + 3.5, tx + 12.4, tx + 6.2, G0, gy, "cyan", K.PALE)
+    K.steps_x(z0 + 2.3, z0 + 3.5, tx + 12.4, tx + 6.2, G0, gy, "cyan")
     K.rail(tx + 6.2, z0 + 3.5, tx + 12.4, z0 + 3.5, gy - 2.0, "cyan", h=0.05)
     # The desk, a lit edge along its top, and somebody behind it.
     box(k("trim"), tx - 3.4, tx + 0.6, G0, G0 + 1.05, z0 + 3.0, z0 + 3.7, scale=1.0, col=K.BLACK)

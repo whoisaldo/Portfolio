@@ -140,7 +140,12 @@ def edge_line(x0, x1, z0, z1, y, colour, h=0.12, glow=True, out=0.05):
 
 
 def aviation(x, y, z, detail=1):
-    glow_box(x - 0.22, x + 0.22, y, y + 0.36, z - 0.22, z + 0.22, "red", detail)
+    """A warning lamp as a fixture: a dark stalk on a foot, the red lens on
+    it under a dark cap."""
+    box(k("trim", 1), x - 0.12, x + 0.12, y, y + 0.06, z - 0.12, z + 0.12, scale=1.0, col=BLACK)
+    box(k("trim", 1), x - 0.035, x + 0.035, y + 0.06, y + 0.42, z - 0.035, z + 0.035, scale=1.0, col=BLACK)
+    glow_box(x - 0.1, x + 0.1, y + 0.42, y + 0.6, z - 0.1, z + 0.1, "red", detail)
+    box(k("trim", 1), x - 0.12, x + 0.12, y + 0.6, y + 0.65, z - 0.12, z + 0.12, scale=1.0, col=BLACK)
 
 
 def mast(x, z, y0, h, lamps=2):
@@ -380,6 +385,28 @@ def steps_z(x0, x1, z_foot, z_top, y0, y1, colour="cyan", col=CONCRETE, tread=PA
         solid(x0 - 0.02, x1 + 0.02, yt_ - 0.04, yt_, na, nb_, tread)
         la, lb = sorted((zf - s * 0.035, zf - s * 0.005))
         neon_box(x0 + 0.25, x1 - 0.25, yt_ - 0.09, yt_ - 0.05, la, lb, colour, 1)
+
+
+def steps_x(z0, z1, x_foot, x_top, y0, y1, colour="cyan", col=CONCRETE, tread=PALE):
+    """A flight of steps climbing along x from x_foot (at y0) to x_top (at
+    y1), step by step: a riser of cast stone with a paler nosing and a line
+    of light under it, each step its own block on a dark string that
+    follows the pitch on its open side (z1)."""
+    n = max(2, round((y1 - y0) / 0.175))
+    d = (x_top - x_foot) / n
+    s_ = math.copysign(1.0, d)
+    for i in range(n):
+        xf = x_foot + d * i
+        yb, yt_ = y0 + (y1 - y0) * i / n, y0 + (y1 - y0) * (i + 1) / n
+        xa, xb = sorted((xf, xf + d))
+        solid(xa, xb, max(y0, yb - 0.35), yt_ - 0.04, z0, z1, col)
+        na, nb_ = sorted((xf - s_ * 0.03, xf + d))
+        solid(na, nb_, yt_ - 0.04, yt_, z0 - 0.02, z1 + 0.02, tread)
+        la, lb = sorted((xf - s_ * 0.035, xf - s_ * 0.005))
+        neon_box(la, lb, yt_ - 0.09, yt_ - 0.05, z0 + 0.25, z1 - 0.25, colour, 1)
+    # The string: a dark plate along the open side, under the steps.
+    quad(k("trim"), (x_foot, y0, z1 + 0.03), (x_top, y1 - 0.35, z1 + 0.03), (x_top, y1 + 0.05, z1 + 0.03), (x_foot, y0 + 0.4, z1 + 0.03), col=BLACK)
+    quad(k("trim"), (x_top, y1 - 0.35, z1 + 0.03), (x_foot, y0, z1 + 0.03), (x_foot, y0 + 0.4, z1 + 0.03), (x_top, y1 + 0.05, z1 + 0.03), col=BLACK)
 
 
 def stairs_x(z0, z1, x_foot, x_top, y0, y1, colour="cyan", col=CONCRETE):
@@ -722,6 +749,17 @@ def showrooms(f, r, tint, colour, lobby=False):
         elif roll < 0.8:
             f.box(k("neon_" + (colour if cool else "amber")), a + 0.5, b - 0.5, 3.36, 3.43, 0.0, 0.05)
         i += n
+
+
+def hung_bar(x0, x1, y, z, hue, reach=0.3, detail=1):
+    """A tube of light across a lane from wall to wall, hung: a bracket out
+    of each wall (`reach` metres off it) to the tube's end, and a wire from
+    each end up to the wall a metre over it."""
+    neon_box(x0, x1, y, y + 0.08, z - 0.04, z + 0.04, hue, detail)
+    for xe, s_ in ((x0, -1.0), (x1, 1.0)):
+        xa, xb = sorted((xe, xe + s_ * reach))
+        box(k("metal", 1), xa, xb, y - 0.03, y + 0.1, z - 0.06, z + 0.06, scale=0.5)
+        pipe(k("metal", 1), (xe, y + 0.08, z), (xe + s_ * reach, y + 1.0, z), 0.012, segs=3)
 
 
 WALL_ADS = [0]      # a running count, so no two wall posters show one advert
