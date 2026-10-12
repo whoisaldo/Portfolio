@@ -945,7 +945,8 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.ember}) { lit = vec3(1.0, 0.38, 0.08) * (1.6 + 2.4 * drag); glow = 1.0; }
 
     // Lit by the street they are in, never evenly. The city's bake gives
-    // the street's level where they stand; the crowd's own map gives the
+    // the street's level where they stand (a fill, so nobody is darker than
+    // the place they are in, whatever lights it); the crowd's own map gives the
     // signs and windows a few steps the way each face looks and a few steps
     // behind it, and what this side has over the other is the sign beside
     // them: it colours the side of them that faces it and leaves the other
@@ -961,7 +962,7 @@ const VERTEX = /* glsl */ `
     vec3 about = signsAt(world);
     float up = N.y;
     vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * (0.55 + 0.45 * up) * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.25 * (0.5 + 0.5 * up);
-    vec3 light = vec3(0.012, 0.012, 0.02) + (max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22) * upright + about * 0.1 + here * (0.05 + 0.16 * max(up, 0.0) + 0.22 * max(-up, 0.0)) + sky * 0.62 + lampsAt(world, N) * 1.2;
+    vec3 light = vec3(0.012, 0.012, 0.02) + (max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22) * upright + about * 0.1 + here * (0.13 + 0.16 * max(up, 0.0) + 0.22 * max(-up, 0.0)) + sky * 0.62 + lampsAt(world, N) * 1.2;
     vec3 V = normalize(uCam - world);
     float graze = 1.0 - max(dot(N, V), 0.0);
     vec3 past = signsAt(world - normalize(vec3(V.x, 0.0, V.z) + 1e-5) * 3.5);
@@ -1060,7 +1061,7 @@ const CARD_VERTEX = /* glsl */ `
     vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * 0.55 * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.12;
     vec3 toward = signsAt(mid + vec3(toEye.x, 0.0, toEye.y) * 3.0);
     vec3 behind = signsAt(mid - vec3(toEye.x, 0.0, toEye.y) * 3.0);
-    vLight = vec4(vec3(0.012, 0.012, 0.02) + max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22 + signsAt(mid) * 0.1 + spillAt(mid) * 0.09 + sky * 0.62, 6.2832 * ph);
+    vLight = vec4(vec3(0.012, 0.012, 0.02) + max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22 + signsAt(mid) * 0.1 + spillAt(mid) * 0.15 + sky * 0.62, 6.2832 * ph);
     vec3 away = mid - uCam;
     float dist = length(away);
     vec3 fog = mix(uFogColor, uHazeColor, uHaze * exp(-max(mid.y, 0.0) * 0.01) * smoothstep(40.0, 360.0, dist));
