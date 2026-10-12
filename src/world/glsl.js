@@ -201,6 +201,19 @@ export const COMMON = /* glsl */ `
   }
   const vec3 SODIUM = vec3(0.105, 0.05, 0.014);
 
+  // Where nobody is let near a wall with a can: Corpo Row (its towers, the
+  // boulevard at z -330 and both its frontages, and west of the Afterlife
+  // block the whole campus south of it, down to its lot line on the plaza
+  // street) and Corpo Plaza. Told by the plan's bounds alone, in world
+  // metres; 1 inside. A wall there takes a sticker or two and the rain's
+  // dirt, and no poster, bill, piece or tag (pass wallMarks and shutterAt a
+  // spray under 0).
+  float tidy(vec2 p) {
+    float row = step(124.0, p.x) * step(p.x, 446.0) * step(-420.0, p.y) * step(p.y, p.x < 384.0 ? -184.0 : -315.5);
+    float plaza = step(44.0, p.x) * step(p.x, 134.0) * step(-330.0, p.y) * step(p.y, -180.0);
+    return max(row, plaza);
+  }
+
   // The city's glow in the air along a direction, at a height: low over
   // the roofs, and strongest toward downtown.
   vec3 cityGlow(vec3 dir, float y) {

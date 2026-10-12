@@ -136,7 +136,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       fragmentShader: /* glsl */ `
         ${COMMON}
         ${detail || marks || ground ? VNOISE : ""}
-        ${ground ? GROUND : ""}
+        ${ground || marks ? GROUND : ""}
         ${marks ? MARKS : ""}
         uniform vec3 uColor;
         uniform sampler2D uMap;
@@ -321,7 +321,12 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // (Pools a stride or two across with an edge to them, the stone
             // damp and darker for a hand's width round each: not a smear.)
             float pool = vnoise(pr * 0.47 + 2.0) * 0.5 + vnoise(pr.yx * 1.3) * 0.32 + vnoise(pr * 3.7) * 0.18;
+            #ifdef LANE
+            // (A lane's pools are small: its water is in its drains.)
+            float brim = 0.68 + 0.02 * yard;
+            #else
             float brim = 0.68 - 0.06 * yard;
+            #endif
             // (Its shore is a hand wide, shallow water thinning over the
             // stone: a cut edge reads as a sticker laid on the flags.)
             // (Water finds a yard's drain and a lane's setts, the low places.)
@@ -356,12 +361,51 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           #else
           vec3 spill = upright ? spillWall(vWorld) : spillAt(vWorld);
           #endif
+          float laneDim = 1.0;
+          #if defined(WALL) || defined(SHUTTER) || defined(LANE)
+          // A lane off the street is dark, and lit where its tubes and its
+          // caged lamps are. The bake holds every sign within reach of it
+          // as well, an even wash end to end (the avenue's west lane reads
+          // 130 to 205 of 255 along its whole length): so a lane's floor
+          // and the walls a walker can reach take what the map holds here
+          // over what it holds all round (four taps, 6 m off), which is
+          // the pools, and next to nothing of the rest. Not where a street
+          // front or a square is meant to be evenly lit: a lane is what
+          // lies 5 to 40 m behind a street's kerb, outside the corporate
+          // ground and Santo Domingo's yards.
+          if (vProp < 0.5 && vWorld.y < 7.0) {
+            vec4 le;
+            vec4 ls = streetAt(vWorld.xz, le);
+            float behind = -max(ls.x, ls.y) - 0.3;
+            float laneK = smoothstep(5.0, 5.8, behind) * (1.0 - smoothstep(40.0, 55.0, behind)) * (1.0 - tidy(vWorld.xz)) * (1.0 - smoothstep(0.0, 0.25, santoAt(vWorld.xz)));
+            if (laneK > 0.01) {
+              vec2 luv = (vWorld.xz - uSpillBounds.xy) * uSpillBounds.zw;
+              vec2 lo = 4.5 * uSpillBounds.zw;
+              vec3 la = texture2D(uSpill, luv).rgb;
+              vec3 lw = texture2D(uSpill, luv + lo).rgb + texture2D(uSpill, luv - lo).rgb + texture2D(uSpill, luv + vec2(lo.x, -lo.y)).rgb + texture2D(uSpill, luv - vec2(lo.x, -lo.y)).rgb;
+              float here = dot(la * la, vec3(0.333));
+              float round4 = dot(lw * lw, vec3(0.333)) / 16.0;
+              laneDim = mix(1.0, max(here - 0.8 * round4, 0.05 * here) / max(here, 1e-4) * 1.7, laneK);
+              spill *= laneDim;
+            }
+          }
+          #endif
           vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spill * uSpillMul * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
           // What faces the sky catches the city's glow on the cloud (a wet
           // roof, uSky, more of it: seen from above a roof is a dark blue
           // surface, not a hole).
           vec3 skyLight = (uHazeColor * 0.22 + uGlowColor * 0.12) * uHaze;
-          light += skyLight * up * uSky;
+          // What lies flat on the deck's road (a tar seam, a sealed crack,
+          // a joint's steel, a drain: the builder's, between the parapet's
+          // road face and the barrier's on both runs) is on wet asphalt
+          // under the deck's masts, not a roof under the cloud: it takes no
+          // sky. With the cloud's light on it at a glance, as a roof has
+          // it, a 4 cm strip of tar drew as a saturated blue line across
+          // both lanes.
+          float onDeck = step(0.3, vWorld.y) * step(vWorld.y, 9.2) * (1.0 - vProp) * step(0.9, n.y)
+            * (step(-84.6, vWorld.z) * step(vWorld.z, -76.3) * step(-84.5, vWorld.x) * step(vWorld.x, 113.0)
+             + step(-83.7, vWorld.x) * step(vWorld.x, -75.4) * step(-221.0, vWorld.z) * step(vWorld.z, -84.6));
+          light += skyLight * up * uSky * (1.0 - onDeck);
           // Santo Domingo's sodium lamps light its air, and the air its
           // yards, its plant and its roofs, from every side: most where
           // the lamps are, little between them, so the orange falls off
@@ -381,7 +425,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           col += (hazeV * 1.5 + glowV * 0.45) * rim * 0.5 * uHaze * (1.0 - up) * smoothstep(12.0, 50.0, length(uCam - vWorld));
           // No roof is a hole: whatever it is made of, the rain on it holds
           // the lit cloud, a little from overhead and more at a glance.
-          float top = up * smoothstep(2.5, 6.0, vWorld.y) * (1.0 - vProp);
+          float top = up * smoothstep(2.5, 6.0, vWorld.y) * (1.0 - vProp) * (1.0 - onDeck);
           col += (skyLight * 4.0 + SODIUM * santo * 0.5) * top * (0.045 + 0.5 * rim);
           #ifdef DETAIL
           // Wet sheet metal: it gives back the lit sky at a glancing angle
@@ -400,7 +444,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float hl = pow(max(dot(R, d * inversesqrt(d2)), 0.0), 40.0);
             glint += uLampColors[i] * hl * (1.0 - d2 / r2);
           }
-          col += (skyR * F * 0.9 + glint * 0.9) * (0.35 + 0.65 * shine);
+          col += (skyR * F * 0.9 + glint * 0.9) * (0.35 + 0.65 * shine) * (1.0 - onDeck);
           #endif
           #if defined(PAVING) || defined(KERB)
           if (sheen + water > 0.0) {
@@ -411,14 +455,18 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float graze = pow(1.0 - clamp(V.y, 0.0, 1.0), 3.0);
             // (Under Santo Domingo's lamps the cloud over a yard is their
             // orange, and a pool there holds that, not the city's blue.)
-            vec3 back = tame(spillReflect(vWorld, Rw) * 0.14, 0.5);
+            vec3 back = tame(spillReflect(vWorld, Rw) * 0.14, 0.5) * laneDim;
             vec3 sky = mix((hazeV * 1.2 + glowV * 0.5) * 0.4, SODIUM * 0.9, 0.85 * santoAt(vWorld.xz)) * uHaze;
             vec3 give = back * sheen * (0.15 + 0.85 * graze);
             #ifdef PAVING
             // (A pool's face is never one flat tone: the rain keeps it moving.)
             // (And it holds the street's light before the cloud's: lit by
             // the cloud alone, a pool in a dark yard was a pale patch.)
-            if (water > 0.01) give = mix(give, (back * 1.4 + sky * mix(0.24, 0.55, santoAt(vWorld.xz))) * (0.25 + 0.75 * graze) * (0.9 + 0.2 * vnoise(vWorld.xz * 6.0 + uTime * 0.7)), water * water);
+            // (And whole only where a light stands over it: the wash
+            // between, given back evenly, was a milky sheen on a lane's
+            // floor, fog or frost and not wet stone.)
+            float bl = dot(back, vec3(0.3, 0.5, 0.2));
+            if (water > 0.01) give = mix(give, (back * (bl / (0.5 * bl + 0.07)) * 1.3 + sky * mix(0.1, 0.55, santoAt(vWorld.xz))) * (0.25 + 0.75 * graze) * (0.9 + 0.2 * vnoise(vWorld.xz * 6.0 + uTime * 0.7)), water * water);
             #endif
             col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
           }
@@ -1416,6 +1464,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uniform mat4 uReflectMatrix;
         uniform float uReflectOn;
         uniform float uReflectGain;
+        uniform float uMirrorY;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec4 vColor;
@@ -1438,7 +1487,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // road finds them), and without one the baked light along the
             // ray, as strong as glass gives a light back and not as a road
             // does.
-            float mk = uReflectOn * clamp(uReflectGain / 2.2, 0.0, 1.0);
+            // (The mirror is the ground's unless the eye is up on the deck.)
+            float mk = uReflectOn * clamp(uReflectGain / 2.2, 0.0, 1.0) * step(uMirrorY, 0.5);
             // (The baked light is a wash with no shapes in it: kept dark,
             // pushed toward its colour and drawn out along the look in
             // streaks, it is lights on dark glass and not a pale pane.)
