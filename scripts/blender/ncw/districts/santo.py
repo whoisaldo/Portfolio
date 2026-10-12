@@ -251,7 +251,7 @@ def tank_farm():
     out = K.shed(406.0, 422.0, -116.0, -104.0, 4.8, K.STEEL_BLUE, r, faces={
         "-x": dict(docks=dict(n=2, s0=1.5, s1=10.5, raised=False, canopy=False, open=(0,), first=21)),
         "+x": dict(band=(2.9, 4.0), style=3, lit=(0.6, 0.9))})
-    K.flat_roof(406.0, 422.0, -116.0, -104.0, 4.8, r, wall=K.STEEL_BLUE, lights=0.5, breathe=1)
+    K.roof_furnish(K.flat_roof(406.0, 422.0, -116.0, -104.0, 4.8, r, wall=K.STEEL_BLUE, lights=0.5, breathe=1), R(8622))
     # The rack along the yard's south edge, bridging the estate road twice.
     K.rack(308.0, -96.4, 420.0, -96.4)
     K.rack(340.0, -94.9, 340.0, -83.1, step=11.8, lamps=False, braced=False)
@@ -444,7 +444,7 @@ def plant():
     out = K.shed(386.0, 410.0, -76.0, -56.0, 13.6, K.SAND, r, faces={
         "+z": dict(band=(9.6, 11.8), style=3, lit=(0.55, 0.9), docks=dict(n=2, s0=3.0, s1=15.0, raised=False, canopy=False, half=(0,), first=31)),
         "+x": dict(band=(9.6, 11.8), style=3, lit=(0.4, 0.7)), "-z": dict(band=(9.6, 11.8), style=3), "-x": dict(dress=False)}, tint="rust")
-    K.flat_roof(386.0, 410.0, -76.0, -56.0, 13.6, r, wall=K.SAND, lights=0.35, breathe=1)
+    K.roof_furnish(K.flat_roof(386.0, 410.0, -76.0, -56.0, 13.6, r, wall=K.SAND, lights=0.35, breathe=1), R(8632))
     K.flue(389.6, -59.4, 13.6, 21.4, r=0.5, col=K.RUST)
     K.flue(392.6, -59.4, 13.6, 20.2, r=0.4, col=K.TANK_WHITE)
     K.stack(403.0, -49.0, 38.0, 2.3, 1.5, K.RUST, lit=7.0)
@@ -520,6 +520,7 @@ def plant():
     lot = B.Lot(388.0, 424.0, -36.0, -10.8, "+z", {"+z": "street", "+x": "open", "-x": "open", "-z": "back"}, {}, D)
     B.building(lot, 11.4, r, style=dict(STYLE, windows=(2, 5), lit=(0.55, 0.85), signs=1.2, fire_escape=0.0, awning=0.5, shop_sign=0.9),
                ground="shops", tint="concrete")
+    K.roof_lane(388.0, 424.0, -36.0, -10.8, 11.4, R(8633))
     stand(396.0, -9.4 - 0.9, 0.0, "smoke")
     stand(410.6, -10.2, 0.4, "talk")
     stand(411.6, -9.8 - 0.5, -2.2, "talk")
@@ -593,7 +594,7 @@ def depot():
         "+z": dict(band=(7.4, 8.6), style=5, lit=(0.35, 0.6), docks=dict(n=6, s0=5.0, s1=47.0, first=1, open=(1, 4), half=(3,))),
         "-z": dict(band=(6.2, 8.2), style=5, lit=(0.3, 0.55)), "-x": dict(band=(6.2, 8.2), style=5), "+x": dict(band=(6.2, 8.2), style=5, doors=False)},
         tint="teal")
-    K.flat_roof(180.0, 236.0, -78.0, -36.0, 9.4, r, wall=K.PALE_GREEN, lights=0.7, breathe=2)
+    K.roof_furnish(K.flat_roof(180.0, 236.0, -78.0, -36.0, 9.4, r, wall=K.PALE_GREEN, lights=0.7, breathe=2), R(8642))
     K.flue(229.6, -74.4, 9.4, 15.6, r=0.42, col=K.TANK_WHITE)
     plat = out.get("+z", GY)
     K.stair((237.0, GY, -44.0), (237.0, 6.0, -56.0), w=1.1, detail=0)
@@ -981,7 +982,7 @@ def workshop():
     out = K.shed(392.0, 420.0, 30.0, 44.4, 6.4, K.RUST_D, r, faces={
         "-z": dict(docks=dict(n=3, s0=2.0, s1=26.0, raised=False, canopy=False, first=1, open=(0, 2), half=(1,))),
         "+z": dict(hidden=True), "-x": dict(dress=False), "+x": dict(dress=False)}, plinth=0.6, tint="rust")
-    K.flat_roof(392.0, 420.0, 30.0, 44.4, 6.4, r, wall=K.RUST_D, lights=0.6, breathe=1)
+    K.roof_furnish(K.flat_roof(392.0, 420.0, 30.0, 44.4, 6.4, r, wall=K.RUST_D, lights=0.6, breathe=1), R(8667))
     K.flue(416.6, 41.0, 6.4, 12.0, r=0.38, col=K.RUST)
     K.wash(394.0, 418.0, 27.4, 29.0, level=0.9)
     K.fence(388.4, 12.5, 400.0, 12.5)
@@ -1259,7 +1260,7 @@ def east():
         "-x": dict(band=(5.2, 6.6), style=2, lit=(0.5, 0.8), office=(4.0, 24.0),
                    docks=dict(n=3, s0=28.0, s1=48.0, raised=False, canopy=False, first=5, open=(0,), half=(2,))),
         "-z": dict(band=(5.2, 6.6), style=6), "+z": dict(band=(5.2, 6.6), style=6), "+x": dict(dress=False)}, stripe_col=K.YELLOW)
-    K.flat_roof(456.0, 488.0, -92.0, -40.0, 7.4, r, wall=K.GREY, lights=0.75, breathe=1)
+    K.roof_furnish(K.flat_roof(456.0, 488.0, -92.0, -40.0, 7.4, r, wall=K.GREY, lights=0.75, breathe=1), R(8672), kinds={2: "ahu", 3: "tray", 4: "chiller"})
     K.flue(485.2, -43.6, 7.4, 11.6, r=0.36, col=K.RUST_D)
     K.wash(454.6, 454.6, -90.0, -42.0, level=0.6)
     fw = B.faces_of(456.0, 488.0, -92.0, -40.0)
@@ -1273,9 +1274,12 @@ def east():
     # The corner at H: a short row of shops under flats, the workers' bars
     # and counters, lit, where the loop turns.
     hs = [11.4, 8.0, 14.8, 11.4]
-    B.row(D, "-x", -36.0, 10.0, 34.0, 454.0, lambda i, a: hs[i % 4], lambda i: (12.8, 9.6, 12.8, 10.8)[i % 4], r,
-          style=dict(STYLE, signs=1.6, awning=0.6, shop_sign=0.8, lit=(0.45, 0.85), balcony=0.1, fire_escape=0.4, windows=(0, 1, 3, 6)),
-          ends=("open", "open"), back="back")
+    lots = B.row(D, "-x", -36.0, 10.0, 34.0, 454.0, lambda i, a: hs[i % 4], lambda i: (12.8, 9.6, 12.8, 10.8)[i % 4], r,
+                 style=dict(STYLE, signs=1.6, awning=0.6, shop_sign=0.8, lit=(0.45, 0.85), balcony=0.1, fire_escape=0.4, windows=(0, 1, 3, 6)),
+                 ends=("open", "open"), back="back")
+    rr = R(8673)
+    for lot, h, _tiers in lots:
+        K.roof_lane(lot.x0, lot.x1, lot.z0, lot.z1, h, rr)
     K.wash(452.6, 453.6, -34.0, 8.0, level=0.3, step=6.0)
     P.place("vending", 453.4, GY, -12.2, -PI / 2, district=D)
     P.place("vending_warm", 453.4, GY, 4.4, -PI / 2, district=D)
@@ -1435,7 +1439,7 @@ def roofs():
     K.saw_dress(180.0, 264.0, -160.0, -100.0, 8.6, 10, "-z", r, rise=2.6, walk=0.57, lamps=K.SODIUM)
     K.saw_dress(246.0, 290.0, -78.0, -11.2, 8.0, 7, "+x", r, rise=2.8, walk=0.4, lamps=K.SODIUM)
     K.saw_dress(182.0, 256.0, 16.0, 44.0, 8.0, 8, "+x", r, rise=3.0, walk=0.5, lamps=K.SODIUM)
-    K.saw_dress(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, rise=2.4, walk=0.62)
+    K.saw_dress(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, rise=2.4, walk=0.62, lit=False)
 
 
 roads()
