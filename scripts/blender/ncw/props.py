@@ -57,6 +57,10 @@ material("paper", "ff5a3c", emit=1.0)
 PAPER, BULB, FITTING = 1.0, 0.75, 0.5
 SHAPE = "__v"
 WOOD, BARK, BLOSSOM, FROND = 0.25, 0.5, 0.75, 1.0
+# A tree's wood on a round limb (`tube(..., smooth=True)`): its uv carries
+# the limb's own normal (x and z, halved about 0.5), so the site lights it
+# as a round thing and runs its bark unbroken across its facets.
+LIMB = 0.125
 # Which front a `face` or a `print` is, in its vertex colour's alpha (tenths).
 SIGNAL, PHONE, GRATE, RAIL, FOOD, MESH, BANNER, BOARD, POSTER, VENDING = (i / 10 for i in range(1, 11))
 # The kit's bare steel and its black, as `trim` colours (one draw a prototype).
@@ -115,23 +119,30 @@ def lathe(key, cx, cz, prof, segs=8, col=(1, 1, 1, 1), cap=True):
         poly(key, list(reversed(rings[-1])), [(0.5, 0.5)] * segs, col)
 
 
-def tube(key, pts, radii, segs=6, col=(1, 1, 1, 1), cap=False):
+def tube(key, pts, radii, segs=6, col=(1, 1, 1, 1), cap=False, smooth=False):
     """A bent, tapering limb through `pts`, `radii[i]` thick at each, its
-    far end closed if `cap`."""
+    far end closed if `cap`. `smooth`: its uv is its own normal (see LIMB),
+    for the `plant` material."""
     pts = [Vector(p) for p in pts]
     rings = []
+    out = []
     for i, p in enumerate(pts):
         w = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
         ref = Vector((1, 0, 0)) if abs(w.x) < 0.9 else Vector((0, 0, 1))
         u = w.cross(ref).normalized()
         v = w.cross(u).normalized()
-        rings.append([tuple(p + (u * math.cos(t) + v * math.sin(t)) * radii[i]) for t in (n * math.tau / segs for n in range(segs))])
+        dirs = [u * math.cos(t) + v * math.sin(t) for t in (n * math.tau / segs for n in range(segs))]
+        rings.append([tuple(p + d * radii[i]) for d in dirs])
+        out.append([(0.5 + 0.5 * d.x, 0.5 + 0.5 * d.z) for d in dirs])
     for n, (a, b) in enumerate(zip(rings, rings[1:])):
         for i in range(segs):
             j = (i + 1) % segs
-            quad(key, a[i], a[j], b[j], b[i], ((i / segs, n), ((i + 1) / segs, n), ((i + 1) / segs, n + 1), (i / segs, n + 1)), col)
+            uvs = ((i / segs, n), ((i + 1) / segs, n), ((i + 1) / segs, n + 1), (i / segs, n + 1))
+            if smooth:
+                uvs = (out[n][i], out[n][j], out[n + 1][j], out[n + 1][i])
+            quad(key, a[i], a[j], b[j], b[i], uvs, col)
     if cap:
-        poly(key, rings[-1], [(0.5, 0.5)] * segs, col)
+        poly(key, rings[-1], [(0.5 + 0.5 * w.x, 0.5 + 0.5 * w.z) if smooth else (0.5, 0.5)] * segs, col)
 
 
 def turned(key, prof, segs=8, col=(1, 0, 0, PAPER), cx=0.0, cz=0.0, ends=""):
@@ -375,17 +386,24 @@ def _planter_palm(k):
 
 @proto("planter_tree", box=(0.8, 1.5, 0.8))
 def _planter_tree(k):
-    """A blossom tree in a low stone planter (KvMY1uzSC1E@94): a dark trunk
-    that twists as it climbs, three limbs, and the blossom in pads at their
-    ends, tier over tier."""
+    """A blossom tree in a low stone planter (KvMY1uzSC1E@94): a dark round
+    trunk, flared at the root, that twists as it climbs, three limbs and
+    three boughs off them, and the blossom in pads at their ends, tier over
+    tier."""
     planter(k, 0.6, GLOW["white"], stone=(0.42, 0.4, 0.42, 1))
-    bark = (0.13, 0.09, 0.085, WOOD)
-    tube(k("plant"), ((0.0, 0.5, 0.0), (0.13, 1.05, 0.06), (-0.09, 1.65, 0.13), (0.1, 2.25, 0.0), (0.02, 2.8, -0.1)),
-         (0.21, 0.16, 0.135, 0.11, 0.08), segs=6, col=bark)
-    for limb in (((-0.09, 1.65, 0.13), (-0.42, 2.1, 0.36), (-0.6, 2.55, 0.5)),
-                 ((0.1, 2.25, 0.0), (0.45, 2.6, -0.22), (0.6, 3.0, -0.34)),
-                 ((0.02, 2.8, -0.1), (0.0, 3.3, -0.3), (-0.12, 3.7, -0.42))):
-        tube(k("plant"), limb, (0.085, 0.06, 0.04), segs=4, col=bark)
+    bark = (0.105, 0.078, 0.07, LIMB)
+    w = k("plant")
+    tube(w, ((0.0, 0.5, 0.0), (0.02, 0.64, 0.01), (0.1, 0.95, 0.05), (0.09, 1.32, 0.1), (-0.07, 1.68, 0.13), (-0.02, 2.0, 0.07),
+             (0.1, 2.28, 0.0), (0.06, 2.58, -0.06), (0.02, 2.84, -0.1)),
+         (0.3, 0.2, 0.165, 0.15, 0.14, 0.125, 0.11, 0.095, 0.08), segs=8, col=bark, smooth=True)
+    for limb in (((-0.07, 1.68, 0.13), (-0.27, 1.9, 0.25), (-0.45, 2.2, 0.38), (-0.6, 2.55, 0.5)),
+                 ((0.1, 2.28, 0.0), (0.3, 2.44, -0.12), (0.47, 2.7, -0.24), (0.6, 3.0, -0.34)),
+                 ((0.02, 2.84, -0.1), (0.04, 3.1, -0.2), (-0.03, 3.4, -0.32), (-0.12, 3.7, -0.42))):
+        tube(w, limb, (0.095, 0.078, 0.058, 0.04), segs=6, col=bark, smooth=True)
+    for bough in (((-0.02, 2.0, 0.07), (0.18, 2.2, 0.3), (0.4, 2.45, 0.48)),
+                  ((0.04, 3.1, -0.2), (-0.25, 3.2, -0.36), (-0.5, 3.28, -0.48)),
+                  ((-0.45, 2.2, 0.38), (-0.3, 2.7, 0.3), (-0.12, 3.15, 0.2))):
+        tube(w, bough, (0.06, 0.045, 0.03), segs=5, col=bark, smooth=True)
     pink, rose, pale = (0.8, 0.27, 0.46), (0.74, 0.17, 0.36), (0.82, 0.45, 0.58)
     for cx, cy, cz, r, col in ((-0.62, 2.62, 0.52, 0.8, pink), (0.62, 3.08, -0.36, 0.82, rose), (-0.12, 3.82, -0.44, 0.78, pale),
                                (-0.1, 3.2, 0.2, 0.7, rose), (0.42, 2.5, 0.5, 0.52, pale), (-0.52, 3.3, -0.5, 0.56, pink)):

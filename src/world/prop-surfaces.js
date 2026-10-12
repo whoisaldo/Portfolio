@@ -20,7 +20,9 @@
 // The builder (scripts/blender/ncw/props.py) names the material `plant`;
 // the vertex colour is the part's own colour and its alpha what it is: 1 a
 // frond (u across it, v from the crown to its tip), 0.75 a blossom pad (uv
-// from its middle out to its rim), 0.5 a palm's bark, 0.25 a tree's. A
+// from its middle out to its rim), 0.5 a palm's bark, 0.25 a tree's, 0.125
+// a tree's on a round limb (its uv is the limb's own normal, x and z halved
+// about 0.5: its light and its bark run smooth across its facets). A
 // `face` is a quad, uv 0 to 1 across and up it; its vertex colour is the
 // light it gives the street (the bake's) and says warm or cool, the alpha
 // which face, in tenths: 10 a vending machine's front (0.96 by 1.95 m), 9
@@ -68,6 +70,7 @@ export function createPropSurfaces(dressed) {
         attribute vec4 color;
         varying vec3 vWorld;
         varying vec3 vNormalW;
+        varying vec3 vRound;
         varying vec3 vLocal;
         varying vec2 vUv;
         varying vec4 vColor;
@@ -75,7 +78,11 @@ export function createPropSurfaces(dressed) {
           mat4 m = modelMatrix * instanceMatrix;
           vec4 w = m * vec4(position, 1.0);
           vWorld = w.xyz;
-          vNormalW = normalize(mat3(m) * normal);
+          // A round limb's normal is in its uv (glTF counts v down from 1);
+          // which way up it leans is its facet's.
+          vec2 h = vec2(uv.x, 1.0 - uv.y) * 2.0 - 1.0;
+          vRound = color.a < 0.19 ? vec3(h.x, sign(normal.y) * sqrt(max(1.0 - dot(h, h), 0.0)), h.y) : normal;
+          vNormalW = normalize(mat3(m) * vRound);
           vLocal = position;
           vUv = uv;
           vColor = color;
@@ -86,6 +93,7 @@ export function createPropSurfaces(dressed) {
         ${COMMON}
         varying vec3 vWorld;
         varying vec3 vNormalW;
+        varying vec3 vRound;
         varying vec3 vLocal;
         varying vec2 vUv;
         varying vec4 vColor;
@@ -94,6 +102,7 @@ export function createPropSurfaces(dressed) {
           vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
           vec3 albedo = vColor.rgb;
           float thin = 0.0;
+          float limb = step(vColor.a, 0.19);
           if (vColor.a > 0.9) {
             // A frond: widest a fifth of the way out, narrowing to its tip;
             // leaflets off the rib, raked toward the tip, each a blade that
@@ -130,10 +139,23 @@ export function createPropSurfaces(dressed) {
             float close = 1.0 - smoothstep(0.3, 0.8, fwidth(rings));
             float scar = 1.0 - smoothstep(0.0, 0.35, fract(rings));
             albedo *= mix(1.0, (1.0 - 0.45 * scar) * (0.8 + 0.4 * hash12(vec2(floor(rings), 1.7))), close);
-          } else {
+          } else if (limb < 0.5) {
             // A tree's: furrows running up it.
             float furrow = hash12(vec2(floor(vUv.x * 18.0), floor(vLocal.y * 1.3)));
             albedo *= mix(1.0, 0.6 + 0.7 * furrow, 1.0 - smoothstep(0.2, 0.6, fwidth(vUv.x * 18.0)));
+          } else {
+            // And on a round limb: plates of bark a whole number round it
+            // (no seam), wandering as they climb, cracked between and
+            // across; far off, its own average.
+            float around = atan(vRound.z, vRound.x);
+            float q = around * 1.4324 + 0.4 * sin(vLocal.y * 2.3 + 2.0 * sin(around)) + vLocal.y * 0.35;
+            float plate = abs(fract(q) - 0.5) * 2.0;
+            float which = mod(floor(q), 9.0);
+            float row = vLocal.y * 2.6 + 3.0 * hash12(vec2(which, 4.2));
+            float crack = smoothstep(0.0, 0.34, plate) * smoothstep(0.0, 0.1, abs(fract(row) - 0.5) * 2.0);
+            float tone = 0.75 + 0.5 * hash12(vec2(which, floor(row)));
+            float close = 1.0 - smoothstep(0.25, 0.7, fwidth(q) + fwidth(row));
+            albedo *= mix(0.84, (0.48 + 0.52 * crack) * tone, close);
           }
           vec3 n = normalize(vNormalW);
           if (!gl_FrontFacing) n = -n;
@@ -146,6 +168,21 @@ export function createPropSurfaces(dressed) {
           // to where it comes from (below and beside), not as a wash.
           float frondish = step(0.9, vColor.a);
           vec3 light = vec3(0.04) * (0.7 + 0.3 * up) + spillAt(vWorld) * mix(0.75 + 0.3 * thin, 0.3 + 0.35 * clamp(-up, 0.0, 1.0), frondish) + lamp;
+          if (limb > 0.5) {
+            // A round limb is lit from where the light is: each of the two
+            // lamps in its planter on the side turned to it, the street's
+            // light on the side it comes from, and a rim against the sky.
+            vec3 nl = normalize(vRound);
+            vec3 lamps = vec3(0.0);
+            for (int i = 0; i < 2; i++) {
+              vec3 d = (i == 0 ? vec3(0.34, 0.63, 0.36) : vec3(-0.36, 0.63, -0.3)) - vLocal;
+              float d2 = dot(d, d);
+              lamps += vec3(1.0, 0.76, 0.48) * clamp(dot(nl, d * inversesqrt(d2)) * 0.75 + 0.25, 0.0, 1.0) * 0.5 / (1.0 + d2 * 0.3);
+            }
+            vec3 side = spillAt(vWorld + vec3(n.x, 0.0, n.z) * 1.6);
+            float rim = pow(1.0 - abs(dot(n, normalize(uCam - vWorld))), 3.0);
+            light = vec3(0.03) * (0.7 + 0.3 * up) + spillAt(vWorld) * 0.25 + side * 0.7 + lamps + uHazeColor * 0.1 * rim * uHaze;
+          }
           light += (uHazeColor * 0.22 + uGlowColor * 0.12) * (max(up, 0.0) + 0.5 * thin) * uHaze * 1.5;
           vec3 col = cityFog(albedo * light, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);
