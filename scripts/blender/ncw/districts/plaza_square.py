@@ -347,8 +347,8 @@ for (px, pz, yaw, pose) in ((96.0, -232.9, math.pi, "idle"), (103.0, -227.2, 0.0
 wash(79.0, -257.0, 17.0, "blue", 0.5)
 wash(79.0, -250.0, 9.0, "white", 0.22)
 for (wx, wz, hue) in ((49.5, -205.0, "purple"), (49.5, -228.0, "pink"), (103.0, -205.0, "cyan"), (103.0, -228.0, "magenta")):
-    wash(wx, wz, 8.5, hue, 0.4)
-    light(PL, wx, 6.0, wz, hue, 3.0)
+    wash(wx, wz, 8.0, hue, 0.24)
+    light(PL, wx, 6.0, wz, hue, 2.0)
 rl = random.Random(8480)
 SHOP_HUES = ("amber", "amber", "white", "pink", "cyan", "amber", "yellow")
 x = X0 + 3.4

@@ -60,12 +60,12 @@ for i, (cx, cy, cz, w, h, yaw) in enumerate(SMALL_BOARDS, start=1):
     nx, nz = math.sin(yaw), math.cos(yaw)
     oriented_box((PL, "board_frame", 0), cx - nx * 0.3, cy, cz - nz * 0.3, w + 0.5, h + 0.5, 0.5, yaw, scale=1.0)
 # The block the board hangs on, north of the square, is a corporate house:
-# its faces to the square and to the x 120 road are a curtain wall behind
-# fins (plaza_corp.py), its backs to the canyon's lane and to the court are
-# the painted flats it was built as. The camera cranes past it on its way
-# from the hero to the board.
+# its faces to the square, to the x 120 road and to the court behind it are
+# a curtain wall behind fins (plaza_corp.py); its end to the canyon's lane
+# is the painted wall it was built with, as the lane's other backs are. The
+# camera cranes past it on its way from the hero to the board.
 BLOCK = (PX0, PX1, -284.0, -264.0, 44.0)
-mass(PL, BLOCK[0], BLOCK[1], BLOCK[2], BLOCK[3], SHOP_H, BLOCK[4], 5103, faces=("-x", "-z"), painted=0)
+mass(PL, BLOCK[0], BLOCK[1], BLOCK[2], BLOCK[3], SHOP_H, BLOCK[4], 5103, faces=("-x",), painted=0)
 box((PL, "dark", 0), BLOCK[0], BLOCK[1], 0, SHOP_H, BLOCK[2], BLOCK[3], scale=2.0)
 dress_roof(PL, BLOCK[0], BLOCK[1], BLOCK[2], BLOCK[3], BLOCK[4], 5103 + 41, cap=6.0)
 

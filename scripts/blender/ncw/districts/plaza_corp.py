@@ -43,6 +43,16 @@ fin_row(fs, HX1 + 0.3, fs.width - 0.4, POD, COPE, rk, lit="amber", every=3, k=0.
 fin_row(fs, HX0 + 0.2, HX1 - 0.2, POD, HY0 - 0.3, rk, step=(2.3, 3.4))
 fin_row(fs, HX0 + 0.2, HX1 - 0.2, HY1 + 0.3, COPE, rk, step=(2.3, 3.4), skip=ARMS)
 fin_row(fe, 0.5, fe.width - 0.5, POD, COPE, rk, lit="white", every=2, k=0.25)
+# Its back to the court (seen from the north and from the air): the same
+# glass with fewer floors lit, a plain band over the service floor, fins
+# further apart. (B5 stands against its east half up to 31.8 m.)
+fn = B.Face("-z", BZ0, BX0, BX1)
+for s0, s1, lit, warm in ((0.0, 22.0, 0.5, 0.3), (22.0, 41.0, 0.6, 0.55), (41.0, 60.0, 0.46, 0.15)):
+    fn.quad((PL, "corporate", 0), s0, s1, POD, BH, 0.0, col=(lit, warm, rk.random(), 1.0))
+fn.quad((PL, "trim", 0), 0.0, fn.width, SHOP_H, POD, 0.0, col=B.TRIM[0])
+fn.box((PL, "trim", 0), 0.0, fn.width, BH - 0.1, COPE, 0.0, 0.2, col=B.TRIM[0], scale=2.0)
+fin_row(fn, 0.6, 29.4, 32.4, COPE, rk, step=(3.0, 4.2), out=0.45)
+fin_row(fn, 30.6, fn.width - 0.6, 17.4, COPE, rk, step=(3.0, 4.2), out=0.45, lit="white", every=4, k=0.2)
 # Houses' names on the band: over the shops to the square, and to the road.
 wordmark("kiroshi_b", 56.6, 6.5, BZ1 + 0.32, 4.0, 2.7, 0.0)
 wordmark("nicola_b", 100.4, 6.5, BZ1 + 0.32, 4.4, 2.5, 0.0)
