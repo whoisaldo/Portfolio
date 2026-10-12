@@ -53,7 +53,7 @@ for mid in (-111.0, -79.0):
 # coming out of the doors to it with a bag.
 for z in (-111.0, -79.0):
     put(128.35, z, W_, "phone")
-    put(130.7, z + 0.9, W_ + 0.35, "carry", slide=(0.0, 0.4, -0.4))
+    put(130.95, z + 0.9, W_ + 0.35, "carry", slide=(0.0, 0.4, -0.4))
 # The patrol car's officer out at the kerb, talking to somebody.
 put(128.4, -157.0, S, "talk")
 put(128.4, -157.85, N, "talk")
