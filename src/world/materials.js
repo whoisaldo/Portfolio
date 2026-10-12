@@ -56,6 +56,23 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     return m;
   };
 
+  // The adverts' atlas: the billboards show it, and the posters on the
+  // walls are cut from it (src/world/marks.js).
+  let advertUniforms = null;
+  const adverts = () => {
+    if (advertUniforms) return advertUniforms;
+    const small = (maps.shops?.image?.width ?? 1024) <= 512;
+    const has = { value: 0 };
+    const ads = new THREE.TextureLoader().load(small ? "/scenes/world/ads-phone.webp" : "/scenes/world/ads.webp", () => {
+      has.value = 1;
+    });
+    ads.colorSpace = THREE.SRGBColorSpace;
+    ads.anisotropy = small ? 2 : 4;
+    textures.push(ads);
+    advertUniforms = { uAds: { value: ads }, uHasAds: has };
+    return advertUniforms;
+  };
+
   // Everything that is not glass or light. `detail` is what it is made of
   // (src/world/kinds.js: steel, plate, sheet, concrete...); `wall` (with how much spray paint it takes) dresses its upright
   // faces to a storey's height as a street does a wall (src/world/marks.js),
@@ -87,6 +104,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uGloss: { value: rough },
         uSky: { value: sky },
         uSpray: { value: wall ?? 0.4 },
+        ...(marks ? adverts() : {}),
       },
       vertexShader: /* glsl */ `
         ${tinted ? "attribute vec4 color; varying vec4 vColor;" : ""}
@@ -191,8 +209,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           if (vProp < 0.5 && abs(n.y) < 0.3) {
             // A roller shutter, and at its foot a line of the light left on
             // inside, warm or cold by the shutter.
+            // (A builder's shutter counts its own metres in its UVs: from
+            // its left edge, and down from 1 at its foot.)
             float leak;
-            albedo = shutterAt(albedo, q, id, px, uSpray, 0.15, leak);
+            float mq = abs(dFdx(q.x)) + abs(dFdy(q.x));
+            float mu = abs(dFdx(vUv.x)) + abs(dFdy(vUv.x));
+            bool own = mu > 0.8 * mq && mu < 1.25 * mq;
+            albedo = shutterAt(albedo, q, id, px, uSpray, own ? q.y - 1.0 + vUv.y : 0.15, own ? vec2(vUv.x, 1.0 - vUv.y) : vec2(-1.0), leak);
             glowing = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.9, 1.0), step(0.7, fract(id * 0.37))) * leak;
           }
           #endif
@@ -448,7 +471,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   const shop = () => {
     if (made.has("shop")) return made.get("shop");
     const m = keep(new THREE.ShaderMaterial({
-      uniforms: { ...shared },
+      uniforms: { ...shared, ...adverts() },
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
@@ -508,7 +531,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // Shut: a roller shutter (src/world/marks.js), the street's light
             // along its slats, and at its foot a line of the shop's own.
             float leak;
-            vec3 steel = shutterAt(vec3(0.1, 0.1, 0.115), vec2(along, vWorld.y), wall * 7.0 + floor(dot(vWorld, n) * 0.37 + 0.123), px, 0.4, vWorld.y - py, leak);
+            vec3 steel = shutterAt(vec3(0.1, 0.1, 0.115), vec2(along, vWorld.y), wall * 7.0 + floor(dot(vWorld, n) * 0.37 + 0.123), px, 0.4, vWorld.y - py, own > 0.5 ? vec2(vUv.x, py) : vec2(-1.0), leak);
             col = steel * (vec3(0.14) + spillAt(vWorld) * 1.15) + L * leak * 0.9;
           } else if (px > 0.6) {
             // Too far to see into: the light in its window.
@@ -1164,15 +1187,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   // until it lands a board shows the old drawn shapes.
   const billboard = () => {
     if (made.has("billboard")) return made.get("billboard");
-    const small = (maps.shops?.image?.width ?? 1024) <= 512;
-    const ads = new THREE.TextureLoader().load(small ? "/scenes/world/ads-phone.webp" : "/scenes/world/ads.webp", () => {
-      m.uniforms.uHasAds.value = 1;
-    });
-    ads.colorSpace = THREE.SRGBColorSpace;
-    ads.anisotropy = small ? 2 : 4;
-    textures.push(ads);
     const m = keep(new THREE.ShaderMaterial({
-      uniforms: { ...shared, uIntensity: { value: 1.6 }, uAds: { value: ads }, uHasAds: { value: 0 } },
+      uniforms: { ...shared, uIntensity: { value: 1.6 }, ...adverts() },
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
