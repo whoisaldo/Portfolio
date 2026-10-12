@@ -906,7 +906,7 @@ P.place("vending", -52.2, B.G0, WS - 0.45, math.pi, district=DK)
 P.place("vending_warm", -53.4, B.G0, WS - 0.45, math.pi, district=DK)
 P.place("dumpster", -63.6, B.G0, WN + 0.7, 0.0, district=DK)
 P.place("bags", -62.0, B.G0, WN + 0.6, district=DK)
-P.place("crates", -64.0, B.G0, WS - 0.7, 0.4, district=DK)
+P.place("crates", -61.2, B.G0, ZS - 0.9, 0.4, district=DK)
 P.place("bin", -57.5, B.G0, WS - 0.5, district=DK)
 P.place("bench", -55.5, B.G0, plan.DECK_Z + 0.3, 0.0, district=DK)
 for z in (ZN + 0.4, ZN + 2.9, ZS - 2.9, ZS - 0.4):
@@ -1751,14 +1751,16 @@ BAY = 1.8
 BAY_FLOOR = (0.1, 0.11, 0.12, 1.0)
 
 
-def bay(axis, a, b, yf):
+def bay(axis, a, b, yf, stair=False):
     """A lookout from a to b along the run ("x": off the deck's south edge,
-    "z": off the ramp's west edge). Returns its floor's height."""
+    "z": off the ramp's west edge). `stair`: its end at a is open beside
+    the deck's edge, where a stair comes up into it. Returns its floor's
+    height."""
     mid = (a + b) / 2
     y = yf(mid) + WALK_UP
     if axis == "x":
         x0, x1, z0, z1 = a, b, ZS, ZS + BAY
-        runs = (((x0, z1), (x1, z1)), ((x0, z0), (x0, z1)), ((x1, z0), (x1, z1)))
+        runs = (((x0, z1), (x1, z1)), ((x0, z0 + (1.0 if stair else 0.0)), (x0, z1)), ((x1, z0), (x1, z1)))
     else:
         x0, x1, z0, z1 = XW - BAY, XW, a, b
         runs = (((x0, z0), (x0, z1)), ((x0, z0), (x1, z0)), ((x0, z1), (x1, z1)))
@@ -1798,7 +1800,7 @@ for x, dz, yaw, pose in ((-83.0, 1.35, 0.0, "idle"), (-82.1, 1.3, 0.25, "phone")
                          (-78.0, 1.45, math.pi, "lean"), (-77.0, 1.3, -0.2, "smoke")):
     stand(x, ZS + dz, yaw, pose, y)
 # Over the lane behind the avenue's west row.
-y = bay("x", -49.4, -44.6, DY)
+y = bay("x", -49.4, -44.6, DY, stair=True)
 for x, dz, yaw, pose in ((-48.5, 1.45, math.pi, "lean"), (-47.2, 1.3, 0.1, "smoke"), (-45.6, 1.3, -0.15, "idle")):
     stand(x, ZS + dz, yaw, pose, y)
 # Along the ramp, over the west service lane, between the boards on its rail.
@@ -1808,3 +1810,130 @@ for zc, crew in ((-134.0, (("lean", 0.9, math.pi / 2), ("phone", -0.7, -math.pi 
     y = bay("z", zc - 1.6, zc + 1.6, RY)
     for pose, dz, yaw in crew:
         stand(XW - (1.5 if pose == "lean" else 1.25), zc + dz, yaw, pose, y)
+
+# ---------------------------------------------------------------------------
+# THE STAIR (Fn9gKhU_2_Q@97). From the west street's east pavement up to the
+# deck's walkway: in the metre between the deck's south edge and the wall of
+# Japantown's corner block, its foot at x -65.2 by the pavement, two flights
+# and a landing along the deck's face, its head in the lookout over the lane
+# (x -49.4), whose gate opens onto the walkway. Steel stringers and treads, a
+# handrail either side with a strip of light under it, every nosing lit.
+# ---------------------------------------------------------------------------
+ST_X0, ST_X1 = -65.2, -49.4
+ST_Z0, ST_Z1 = ZS + 0.05, ZS + 0.95
+ST_TOP = Y + WALK_UP
+ST_LAND = 1.2
+ST_RUN = (ST_X1 - ST_X0 - ST_LAND) / 2
+ST_RISE = (ST_TOP - B.G0) / 2
+STRIP = glowc("ffd8a0", 0.9)
+NOSING = glowc("ffb254", 0.7)
+for xa, ya in ((ST_X0, B.G0), (ST_X0 + ST_RUN + ST_LAND, B.G0 + ST_RISE)):
+    xb, yb = xa + ST_RUN, ya + ST_RISE
+    # The flight's plate (what a phone draws of the treads), its soffit, its
+    # two stringers.
+    face((DK, "steel", 0), [(xa, ya + 0.02, ST_Z0), (xb, yb + 0.02, ST_Z0), (xb, yb + 0.02, ST_Z1), (xa, ya + 0.02, ST_Z1)], (0, 1, 0), 1.0, BAY_FLOOR)
+    face((DK, "steel", 0), [(xa, ya - 0.2, ST_Z0), (xb, yb - 0.2, ST_Z0), (xb, yb - 0.2, ST_Z1), (xa, ya - 0.2, ST_Z1)], (0, -1, 0), 1.0, BAY_FLOOR)
+    for zc, outs in ((ST_Z0, (-1, 1)), (ST_Z1, (-1, 1))):
+        for o in outs:
+            face((DK, "steel", 0), [(xa, ya - 0.2, zc + o * 0.03), (xb, yb - 0.2, zc + o * 0.03), (xb, yb + 0.22, zc + o * 0.03), (xa, ya + 0.22, zc + o * 0.03)], (0, 0, o), 1.0, STEEL_LT)
+        # The handrail, its posts, and the strip of light under it: toward
+        # the stair, and on the open side toward the passage under the deck.
+        pipe((DK, "steel", 0), (xa, ya + 1.05, zc), (xb, yb + 1.05, zc), 0.03, segs=4, col=STEEL_LT)
+        for k in range(6):
+            px = xa + ST_RUN * k / 5
+            py = ya + ST_RISE * k / 5
+            box((DK, "steel", 1), px - 0.025, px + 0.025, py + 0.2, py + 1.05, zc - 0.025, zc + 0.025, scale=0.5, col=STEEL_LT)
+        for o in ((-1, 1) if zc == ST_Z0 else (-1,)):
+            face((DK, "glow", 0), [(xa, ya + 0.93, zc + o * 0.035), (xb, yb + 0.93, zc + o * 0.035), (xb, yb + 0.99, zc + o * 0.035), (xa, ya + 0.99, zc + o * 0.035)], (0, 0, o), 1.0, STRIP)
+    # Treads, each nosing a line of light.
+    n = 25
+    d, h = ST_RUN / n, ST_RISE / n
+    for i in range(n):
+        tx, ty = xa + i * d, ya + (i + 1) * h
+        box((DK, "steel", 1), tx, tx + d, ty - 0.04, ty, ST_Z0 + 0.03, ST_Z1 - 0.03, scale=0.5, col=BAY_FLOOR, bottom=True)
+        vface((DK, "glow", 1), "x", tx - 0.002, ST_Z0 + 0.06, ST_Z1 - 0.06, ty - 0.035, ty - 0.008, -1, col=NOSING)
+    # Posts under it, and its light on the paving and the wall.
+    for t in (0.45, 1.0):
+        px, py = xa + ST_RUN * t, ya + ST_RISE * t
+        if py > 1.0:
+            box((DK, "steel", 0), px - 0.06, px + 0.06, B.G0, py - 0.2, ST_Z1 - 0.16, ST_Z1 - 0.04, scale=0.5, col=STEEL_LT)
+    for t in (0.2, 0.7):
+        pool(xa + ST_RUN * t, ya + ST_RISE * t + 1.0, ZS + 0.5, "amber", 2.0)
+# The landing between the flights.
+lx0, ly = ST_X0 + ST_RUN, B.G0 + ST_RISE
+box((DK, "steel", 0), lx0, lx0 + ST_LAND, ly - 0.2, ly + 0.02, ST_Z0 - 0.03, ST_Z1 + 0.03, scale=0.5, col=BAY_FLOOR, bottom=True)
+for zc in (ST_Z0, ST_Z1):
+    pipe((DK, "steel", 0), (lx0, ly + 1.05, zc), (lx0 + ST_LAND, ly + 1.05, zc), 0.03, segs=4, col=STEEL_LT)
+vface((DK, "glow", 0), "z", ST_Z0 - 0.035, lx0, lx0 + ST_LAND, ly + 0.93, ly + 0.99, -1, col=STRIP)
+box((DK, "steel", 0), lx0 + ST_LAND / 2 - 0.06, lx0 + ST_LAND / 2 + 0.06, B.G0, ly - 0.2, ST_Z1 - 0.16, ST_Z1 - 0.04, scale=0.5, col=STEEL_LT)
+# Its foot: a post with a blade sign the street reads, a lamp over the first
+# step, the paving's edge painted yellow.
+box((DK, "steel", 0), ST_X0 - 0.3, ST_X0 - 0.2, B.G0, B.G0 + 4.3, ST_Z1 - 0.12, ST_Z1 - 0.02, scale=0.5, col=STEEL_LT)
+bw, bh = ST_SIZES["bs"]
+oriented_box((DK, "board_frame", 0), ST_X0 - 0.25, B.G0 + 3.2, ZS + 0.5, bw + 0.1, bh + 0.1, 0.1, math.pi / 2, scale=1.0)
+for fy in (math.pi / 2, -math.pi / 2):
+    sign(st_name("bs"), ST_X0 - 0.25 + math.sin(fy) * 0.06, B.G0 + 3.2, ZS + 0.5, bw, bh, fy, district=DK, label=False)
+box((DK, "glow", 0), ST_X0 - 0.2, ST_X0 + 0.5, B.G0 + 2.5, B.G0 + 2.56, ST_Z1 - 0.1, ST_Z1 - 0.02, scale=0.5, col=STRIP)
+face((DK, "paint", 1), [(ST_X0 - 0.9, B.G0 + PAINT, ZS), (ST_X0, B.G0 + PAINT, ZS), (ST_X0, B.G0 + PAINT, ZS + 1.0), (ST_X0 - 0.9, B.G0 + PAINT, ZS + 1.0)], (0, 1, 0), 1.0, YELLOW)
+pool(ST_X0 + 0.2, 2.4, ZS + 0.5, "white", 2.6)
+pool(ST_X1 - 1.0, ST_TOP + 1.0, ZS + 0.5, "amber", 2.0)
+B.COLLISION.append(("box", ST_X0, ST_X0 + 3.4, 0.0, 2.2, ST_Z0, ST_Z1, DK))
+
+# ---------------------------------------------------------------------------
+# THE HIGH LINE. A second line at another height behind the turn
+# (OifiVCnFKzM@28, Zq4zTcIM0yQ@166): a pipe bridge on two pylons standing on
+# the gore south of the turn, its truss over the board's top and out over
+# both service lanes on stays, an orange stripe along it, a main and two
+# pipes on its top that come down the pylons, a sign hung over each lane, a
+# red lamp on each pylon.
+# ---------------------------------------------------------------------------
+HL_Z = -71.8
+HL_Y0, HL_Y1 = 16.3, 17.2
+HL_X0, HL_X1 = -93.0, -67.0
+HL_ORANGE = (0.7, 0.24, 0.04, 1.0)
+PYL = (plan.DECK_X0 - 2.4, plan.DECK_X0 + 2.4)
+for px in PYL:
+    box((DK, "castconcrete", 0), px - 0.5, px + 0.5, B.G0, B.G0 + 0.9, HL_Z - 0.5, HL_Z + 0.5, scale=1.0, col=PIER_C)
+    for dx, dz in ((-0.25, -0.25), (0.25, -0.25), (0.25, 0.25), (-0.25, 0.25)):
+        box((DK, "steel", 0), px + dx - 0.06, px + dx + 0.06, B.G0 + 0.9, 20.0, HL_Z + dz - 0.06, HL_Z + dz + 0.06, scale=0.5, col=STEEL_LT)
+    y = 2.4
+    while y < 19.9:
+        box((DK, "steel", 1), px - 0.31, px + 0.31, y, y + 0.08, HL_Z - 0.31, HL_Z + 0.31, scale=0.5, col=STEEL_LT, bottom=True)
+        y += 2.2
+    box((DK, "glow", 0), px - 0.12, px + 0.12, 20.0, 20.25, HL_Z - 0.12, HL_Z + 0.12, scale=0.5, col=glowc("ff003c", 1.0))
+    for ex in (HL_X0 + 0.4, HL_X0 + 6.0) if px < plan.DECK_X0 else (HL_X1 - 0.4, HL_X1 - 6.0):
+        pipe((DK, "steel", 0), (px, 19.9, HL_Z), (ex, HL_Y1, HL_Z), 0.035, segs=4, col=STEEL_LT)
+    # The pipes come down the pylon's south face.
+    for dx, r_, col in ((-0.14, 0.09, GAS_C), (0.12, 0.05, PIPE_C)):
+        pipe((DK, "steel", 1), (px + dx, B.G0 + 0.9, HL_Z + 0.42), (px + dx, HL_Y1 + 0.12, HL_Z + 0.42), r_, segs=5, col=col)
+B.COLLISION.append(("box", PYL[0] - 0.5, PYL[0] + 0.5, 0.0, 20.0, HL_Z - 0.5, HL_Z + 0.5, DK))
+B.COLLISION.append(("box", PYL[1] - 0.5, PYL[1] + 0.5, 0.0, 20.0, HL_Z - 0.5, HL_Z + 0.5, DK))
+# The truss: chords, the orange stripe on both faces, posts and braces, a
+# line of light under it.
+for zc in (HL_Z - 0.3, HL_Z + 0.3):
+    box((DK, "steel", 0), HL_X0, HL_X1, HL_Y1 - 0.12, HL_Y1, zc - 0.06, zc + 0.06, scale=1.0, col=STEEL_LT, bottom=True)
+    box((DK, "steel", 0), HL_X0, HL_X1, HL_Y0, HL_Y0 + 0.34, zc - 0.07, zc + 0.07, scale=1.0, col=HL_ORANGE, bottom=True)
+    x = HL_X0
+    k = 0
+    while x < HL_X1 + 0.01:
+        box((DK, "steel", 1), x - 0.04, x + 0.04, HL_Y0 + 0.34, HL_Y1 - 0.12, zc - 0.04, zc + 0.04, scale=0.5, col=STEEL_LT)
+        if x + 2.0 < HL_X1 + 0.01:
+            a, b = (HL_Y0 + 0.34, HL_Y1 - 0.12) if k % 2 == 0 else (HL_Y1 - 0.12, HL_Y0 + 0.34)
+            pipe((DK, "steel", 1), (x, a, zc), (x + 2.0, b, zc), 0.025, segs=3, col=STEEL_LT)
+        x += 2.0
+        k += 1
+box((DK, "glow", 0), HL_X0, HL_X1, HL_Y0 - 0.04, HL_Y0, HL_Z - 0.04, HL_Z + 0.04, scale=1.0, col=glowc("ff8a1c", 0.8), bottom=True)
+for dz, r_, col in ((-0.16, 0.11, GAS_C), (0.1, 0.06, PIPE_C), (0.26, 0.06, PIPE_C)):
+    pipe((DK, "steel", 0), (HL_X0, HL_Y1 + 0.02 + r_, HL_Z + dz), (HL_X1, HL_Y1 + 0.02 + r_, HL_Z + dz), r_, segs=5, col=col)
+for ex in (HL_X0, HL_X1):
+    box((DK, "steel", 0), ex - 0.06, ex + 0.06, HL_Y0, HL_Y1, HL_Z - 0.36, HL_Z + 0.36, scale=0.5, col=STEEL_LT, bottom=True)
+    box((DK, "glow", 1), ex - 0.07, ex + 0.07, HL_Y1, HL_Y1 + 0.14, HL_Z - 0.07, HL_Z + 0.07, scale=0.5, col=glowc("ffb254", 1.0))
+# A sign over each service lane, hung under the truss clear of the board.
+for sx in (-88.4, -71.6):
+    w, h = ST_SIZES["pm"]
+    cy = HL_Y0 - 0.25 - h / 2
+    oriented_box((DK, "board_frame", 0), sx, cy, HL_Z, w + 0.14, h + 0.14, 0.18, 0.0, scale=1.0)
+    for f in (1, -1):
+        sign(st_name("pm"), sx, cy, HL_Z + f * 0.105, w, h, 0.0 if f > 0 else math.pi, district=DK, label=False)
+    for dx in (-w * 0.35, w * 0.35):
+        box((DK, "steel", 1), sx + dx - 0.025, sx + dx + 0.025, cy + h / 2, HL_Y0, HL_Z - 0.025, HL_Z + 0.025, scale=0.5, col=STEEL_LT)
