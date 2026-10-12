@@ -8,8 +8,9 @@
 // (src/braindance/engine.js) still owns the frame: each one it asks this
 // module where the car and the camera are, and draws.
 //
-// F gets out of the car (at a standstill, on the driver's side if there is
-// room there) and back into it from beside it. R is the way out of any
+// F gets out of the car (on the driver's side if there is room there; at
+// speed the car first brakes itself to a stand, and W or S calls that off)
+// and back into it from beside it. R is the way out of any
 // corner: the car set down on the nearest lane of the road graph, facing
 // along it, with the player in it.
 //
@@ -167,8 +168,11 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   };
   // The glitch a jump lands with (a reset), for the engine's frame.
   let jolt = 0;
+  // F at speed: the car is braking itself to a stand to let the player out.
+  let stopping = false;
   const drive = () => {
     mode = "drive";
+    stopping = false;
     chase.reset();
     if (document.pointerLockElement) document.exitPointerLock?.();
     set({ roam: "drive", locked: false });
@@ -189,7 +193,11 @@ export async function createRoam({ parts, world, reduced = false, city = { board
   const nearCar = () => Math.hypot(walker.x - car.x, walker.z - car.z) < REACH && Math.abs(walker.y - car.y) < 1.5;
   const toggleCar = () => {
     if (mode === "drive") {
-      if (Math.abs(car.v) > 2) return;
+      if (Math.abs(car.v) > 0.6) {
+        stopping = !stopping;
+        return;
+      }
+      stopping = false;
       const fx = Math.sin(car.heading);
       const fz = Math.cos(car.heading);
       const spots = [[fz * 1.75, -fx * 1.75], [-fz * 1.75, fx * 1.75], [-fx * 3.2, -fz * 3.2], [fx * 3.2, fz * 3.2]].map(([dx, dz]) => ({ x: car.x + dx, z: car.z + dz }));
@@ -275,11 +283,14 @@ export async function createRoam({ parts, world, reduced = false, city = { board
         feet.step(step, stride);
         feet.pose(pose);
       } else {
+        // Stopping to let the player out, unless he drives on.
+        if (stopping && ahead) stopping = false;
         input.throttle = ahead > 0 ? 1 : 0;
         input.brake = ahead < 0 ? 1 : 0;
         input.steer = left;
-        input.hand = keys.has("Space");
+        input.hand = stopping || keys.has("Space");
         vehicle.step(step, input);
+        if (stopping && Math.abs(car.v) <= 0.6) toggleCar();
         if (car.knock > 2.5) chase.knock(car.knock);
         spec.roll = chase.frame(dt, car, pose, still);
       }
@@ -296,7 +307,8 @@ export async function createRoam({ parts, world, reduced = false, city = { board
       cityFrame(step, spec, who.x, who.z);
       const label = districtAt(who.x, who.z);
       if (label !== bd.district) set({ district: label });
-      const prompt = afoot ? (nearCar() ? "in" : "") : Math.abs(car.v) <= 2 ? "out" : "";
+      // What F does here, for the HUD: never a key that does nothing unsaid.
+      const prompt = afoot ? (nearCar() ? "in" : "far") : stopping ? "stop" : "out";
       if (prompt !== bd.prompt) set({ prompt });
     },
     /**
