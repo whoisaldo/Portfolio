@@ -235,7 +235,7 @@ export const MARKS = /* glsl */ `
     return mix(paper, ink, clamp(shape + bars + rule, 0.0, 1.0));
   }
 
-  // A poster's print, one of the city's twelve adverts (the billboards'
+  // A poster's print, one of the city's twenty-four adverts (the first twelve) (the billboards'
   // atlas, scripts/pack-ads.mjs) stood upright with a paper margin and a
   // line of lettering under it. f across and up the sheet, art which,
   // grain the metres a pixel covers over the sheet's size.
@@ -245,13 +245,13 @@ export const MARKS = /* glsl */ `
       float bars = step(0.05, f.y) * step(f.y, 0.12) * step(0.08, f.x) * step(f.x, 0.6 + 0.3 * fract(art * 0.37)) * step(0.2, fract(f.x * 11.0)) * step(0.2, hash12(vec2(floor(f.x * 11.0), art)));
       return mix(vec3(0.78, 0.76, 0.7), vec3(0.06), bars);
     }
-    float rowH = 341.0 / 1024.0;
+    float rowH = 341.0 / 2048.0;
     if (art < 8.0) {
       vec2 uv = vec2((mod(art, 4.0) + 0.5 + (a.x - 0.5) * 0.444) * 0.25, 1.0 - (floor(art / 4.0) + 1.0 - a.y) * rowH);
-      return textureGrad(uAds, uv, vec2(grain.x * 0.126, 0.0), vec2(0.0, grain.y * 0.43)).rgb;
+      return textureGrad(uAds, uv, vec2(grain.x * 0.126, 0.0), vec2(0.0, grain.y * 0.215)).rgb;
     }
-    vec2 uv = vec2((art - 8.0 + a.y) * 0.25, (1.0 - a.x) * rowH);
-    return textureGrad(uAds, uv, vec2(grain.y * 0.32, 0.0), vec2(0.0, grain.x * 0.38)).rgb;
+    vec2 uv = vec2((art - 8.0 + a.y) * 0.25, 1.0 - (1365.0 + a.x * 341.0) / 2048.0);
+    return textureGrad(uAds, uv, vec2(grain.y * 0.32, 0.0), vec2(0.0, grain.x * 0.19)).rgb;
   }
 
   // What is on the wall at q (metres along it, metres up from the ground):

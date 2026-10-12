@@ -1259,7 +1259,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   // each board its own (its colour's palette, shape and seed), changing to
   // another every nine to fifteen seconds through a quick wipe. One draw for
   // every billboard in the city.
-  // The adverts: twelve drawn for the city (eight wide, four tall, one
+  // The adverts: twenty-four drawn for the city (sixteen wide, eight tall, one
   // atlas: public/scenes/world/ads.webp, a quarter the pixels on a phone,
   // told by the shop atlas's own size). It is fetched after the city is up;
   // until it lands a board shows the old drawn shapes.
@@ -1339,13 +1339,18 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             if (aspect > cell) st.y = 0.5 + (st.y - 0.5) * cell / aspect;
             else st.x = 0.5 + (st.x - 0.5) * aspect / cell;
             st = clamp(st, 0.01, 0.99);
-            float pick = floor(vColor.g * 8.0) + floor(vColor.r * 8.0) * 3.0 + slot;
-            float rowH = 341.0 / 1024.0;
+            // Sixteen wide adverts in four rows of 341 px, eight tall ones
+            // on their sides in two rows under them, in a 2048 px atlas
+            // (scripts/pack-ads.mjs). Which one is the board's own draw,
+            // so two boards side by side seldom show the same.
+            float pick = floor(fract(vColor.b * 7.31 + vColor.g * 3.7 + vColor.r * 1.3) * 16.0) + slot;
+            float rowH = 341.0 / 2048.0;
             vec2 q;
             if (tall) {
-              q = vec2((mod(pick, 4.0) + st.y) * 0.25, (1.0 - st.x) * rowH);
+              float j = mod(pick, 8.0);
+              q = vec2((mod(j, 4.0) + st.y) * 0.25, 1.0 - (1365.0 + (floor(j / 4.0) + st.x) * 341.0) / 2048.0);
             } else {
-              float i = mod(pick, 8.0);
+              float i = mod(pick, 16.0);
               q = vec2((mod(i, 4.0) + st.x) * 0.25, 1.0 - (floor(i / 4.0) + 1.0 - st.y) * rowH);
             }
             col = texture2D(uAds, q).rgb * 0.92;

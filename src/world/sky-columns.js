@@ -18,7 +18,7 @@ import { COMMON } from "./glsl.js";
 
 const TONES = ["#3fe4ff", "#3fe4ff", "#52ffd0", "#3fe4ff", "#4fb4ff"];
 
-// One of the city's twelve adverts (public/scenes/world/ads.webp, laid out
+// One of the city's twenty-four adverts (public/scenes/world/ads.webp, laid out
 // by scripts/pack-ads.mjs: eight wide ones in two rows of four, four tall
 // ones on their sides along the foot), as the kit's billboards sample it:
 // st is across and up the board, aspect its width over its height (a tall
@@ -33,9 +33,10 @@ export const ADVERT = /* glsl */ `
     if (aspect > cell) st.y = 0.5 + (st.y - 0.5) * cell / aspect;
     else st.x = 0.5 + (st.x - 0.5) * aspect / cell;
     st = clamp(st, 0.01, 0.99);
-    float rowH = 341.0 / 1024.0;
-    float i = mod(pick, 8.0);
-    vec2 q = tall ? vec2((mod(pick, 4.0) + st.y) * 0.25, (1.0 - st.x) * rowH) : vec2((mod(i, 4.0) + st.x) * 0.25, 1.0 - (floor(i / 4.0) + 1.0 - st.y) * rowH);
+    float rowH = 341.0 / 2048.0;
+    float i = mod(pick, 16.0);
+    float j = mod(pick, 8.0);
+    vec2 q = tall ? vec2((mod(j, 4.0) + st.y) * 0.25, 1.0 - (1365.0 + (floor(j / 4.0) + st.x) * 341.0) / 2048.0) : vec2((mod(i, 4.0) + st.x) * 0.25, 1.0 - (floor(i / 4.0) + 1.0 - st.y) * rowH);
     return texture2D(uAds, q).rgb;
   }
 `;

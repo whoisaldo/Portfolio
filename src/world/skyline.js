@@ -558,7 +558,7 @@ function topCentre(b, s) {
 
 export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduced = false } = {}) {
   // The city's adverts: the kit's billboards own the atlas (materials.js),
-  // and the far city's boards, screens and columns show the same twelve.
+  // and the far city's boards, screens and columns show the same set.
   // Until it has landed (or were the kit ever without a billboard) they
   // show what they drew before there was one.
   let ads = { uAds: { value: null }, uHasAds: { value: 0 } };
