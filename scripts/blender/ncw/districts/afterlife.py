@@ -160,28 +160,61 @@ AF.quad((D, "trim", 1), 5.8, 15.5, G0, 1.05, 0.012, col=K.BLACK)
 for sv in (7.6, 10.4, 13.2):
     K.poster(D, AF, sv, 2.35, 1.6, 2.2, rc)
     AF.box((D, "glow", 1), sv - 0.7, sv + 0.7, 3.55, 3.6, 0.0, 0.16, col=GLOW["white"])
-# The door's piers, a strip of cyan up each, and the recess between them:
-# its ceiling a lit panel, the doors at the back, one leaf open on the
-# green light inside.
+# The door (BnnbP7pCIvQ@24): a heavy portal of steel standing proud of the
+# piers, strips of cyan down its jambs, a hazard line under its beam,
+# struts in its corners and a row of bolts along it; the recess behind it
+# under a ceiling of the sign's yellow-green, ribbed walls with cyan let
+# into them, and at its back the club's steel doors slid open on the teal
+# light inside.
+YG = (0.56, 1.0, 0.07)                      # the sign's yellow-green
+PORTAL = (0.085, 0.09, 0.1, 1)
+FRAME = (0.2, 0.21, 0.235, 1)               # a sign's steel frame, light enough to read against its board
+
+
+def yg(k):
+    return (YG[0] * k, YG[1] * k, YG[2] * k, 1.0)
+
+
+def lit_soffit(x0, x1, z0, z1, y, k0, k1):
+    """A soffit lit in the sign's colour, k0 strong along x0 and k1 along x1,
+    under dark battens that cut it into panels."""
+    K.vpoly((D, "glow", 0), [(x0, y, z0), (x1, y, z0), (x1, y, z1), (x0, y, z1)], [yg(k0), yg(k1), yg(k1), yg(k0)])
+    n = max(2, round((z1 - z0) / 1.7))
+    for i in range(1, n):
+        z_ = z0 + (z1 - z0) * i / n
+        box((D, "dark", 1), x0, x1, y - 0.035, y + 0.005, z_ - 0.025, z_ + 0.025, scale=1.0, bottom=True)
+
+
 for s0 in (15.5, 21.7):
     K.fbox(AF, (D, "trim", 0), s0, s0 + 0.8, 0.0, SHOP_H, -2.4, 0.14, col=DARK)
-    K.fbox(AF, (D, "neon_cyan", 0), s0 + 0.36, s0 + 0.44, 0.4, 3.95, 0.14, 0.17)
+for s0 in (15.4, 21.6):
+    K.fbox(AF, (D, "steel", 0), s0, s0 + 1.0, 0.0, 3.6, 0.14, 0.46, col=PORTAL)
+    for e in (s0 + 0.2, s0 + 0.72):
+        K.fbox(AF, (D, "neon_cyan", 0), e, e + 0.08, 0.4, 3.4, 0.46, 0.49)
+K.fbox(AF, (D, "steel", 0), 15.2, 22.8, 3.6, 4.3, 0.14, 0.56, col=PORTAL, bottom=True)
+K.fbox(AF, (D, "hazard", 1), 16.4, 21.6, 3.6, 3.7, 0.56, 0.575)
+for sa, sb in ((16.4, 17.15), (21.6, 20.85)):
+    pipe((D, "steel", 1), AF.p(AF.at(sa), 2.85, 0.3), AF.p(AF.at(sb), 3.6, 0.3), 0.07, segs=5, col=K.STEEL)
+for k in range(13):
+    sv = 15.52 + k * 0.58
+    K.fbox(AF, (D, "metal", 1), sv - 0.04, sv + 0.04, 4.08, 4.16, 0.56, 0.58)
 for s0, s1 in ((16.3, 16.33), (21.67, 21.7)):
     for w0 in (-1.9, -1.0):
         K.fbox(AF, (D, "neon_cyan", 0), s0, s1, 0.4, 3.3, w0, w0 + 0.07)
 K.fbox(AF, (D, "trim", 0), 16.3, 21.7, 3.5, SHOP_H, -2.4, 0.14, col=DARK, bottom=True)
 zs, zn = AF.at(16.5), AF.at(21.5)
-K.ceiling((D, "glow", 0), 425.8, 427.9, zn, zs, 3.49, col=(1.0, 0.42, 0.68, 1.0))
-box((D, "neon_pink", 0), 425.7, 428.0, 3.42, 3.5, zn - 0.08, zn, scale=1.0)
-box((D, "neon_pink", 0), 425.7, 428.0, 3.42, 3.5, zs, zs + 0.08, scale=1.0)
-light(D, 427.0, 3.0, AF.at(DOOR_S), "pink", 5.0)
+K.ceiling((D, "glow", 0), 425.8, 427.9, zn, zs, 3.49, col=yg(0.42))
+box((D, "neon_yellow", 0), 425.7, 428.0, 3.42, 3.5, zn - 0.08, zn, scale=1.0)
+box((D, "neon_yellow", 0), 425.7, 428.0, 3.42, 3.5, zs, zs + 0.08, scale=1.0)
+light(D, 427.0, 3.0, AF.at(DOOR_S), "yellow", 3.5)
+light(D, 427.0, 3.0, AF.at(DOOR_S - 1.4), "green", 2.5)
 K.ribs(D, AF, 16.3, 17.7, G0, 3.5, -2.4, step=0.35, strips=(2,))
 K.ribs(D, AF, 20.3, 21.7, G0, 3.5, -2.4, step=0.35, strips=(2,))
 AF.box((D, "metal", 1), 17.7, 20.3, G0, 2.9, -2.4, -2.3)
-AF.quad((D, "door", 0), 17.82, 19.0, G0, 2.75, -2.28)
-AF.quad((D, "neon_green", 0), 19.0, 20.18, G0, 2.75, -2.28)
-AF.box((D, "neon_pink", 0), 17.82, 20.18, 2.95, 3.05, -2.4, -2.32)
-light(D, 427.2, 1.2, AF.at(19.6), "green", 4.0)
+K.lit_door(D, AF, 19.0, "teal", w=2.36, h=2.75, power=5.5, ajar=False, back=2.36)
+for a_, b_ in ((17.0, 17.86), (20.14, 21.0)):
+    AF.box((D, "steel", 0), a_, b_, G0, 2.86, -2.27, -2.12, col=PORTAL)
+AF.box((D, "neon_teal", 0), 17.82, 20.18, 2.95, 3.05, -2.4, -2.32)
 # A carpet from the door out across the pavement.
 ca, cb = AF.at(18.0), AF.at(20.0)
 quad((D, "trim", 1), (425.75, G0 + 0.009, ca), (429.3, G0 + 0.009, ca), (429.3, G0 + 0.009, cb), (425.75, G0 + 0.009, cb), col=K.ROPE)
@@ -214,13 +247,40 @@ for k in range(10):
     sv = 1.9 + 3.8 * k
     if not 14.0 < sv < 24.0:
         K.downlight(D, 430.0, AF.at(sv), SHOP_H - 0.01, "amber" if k % 3 else "white", power=1.6)
-for x_ in (429.3, 431.0):
-    K.tube(D, (x_, 4.42, AF.at(13.8)), (x_, 4.42, AF.at(24.2)), "pink", power=3.2)
-# The name over the door: a canopy's edge standing out from the wall, the
-# sign on its face, its underside lit.
-box((D, "board_frame", 0), WK, WK + 0.5, 4.72, 6.98, -286.0, -276.0, scale=1.0, bottom=True)
-sign("afterlife_b", WK + 0.52, 5.85, -281.0, 8.67, 2.0, math.pi / 2, preview="AFTERLIFE", district=D)
-box((D, "neon_pink", 0), WK + 0.06, WK + 0.44, 4.66, 4.72, -285.9, -276.1, scale=1.0)
+# (Over the door's bay the soffit itself is lit, in the sign's yellow-green.)
+lit_soffit(428.3, 431.7, AF.at(22.6), AF.at(15.4), SHOP_H - 0.02, 0.45, 0.26)
+light(D, 430.0, 3.8, AF.at(DOOR_S), "yellow", 4.0)
+light(D, 430.0, 3.8, AF.at(DOOR_S + 2.2), "green", 3.0)
+# The name over the door, as the show hangs it: a slab of yellow-green
+# light standing out over the kerb, lit underneath, and on its edge the
+# name in a steel frame strutted back to the wall and fed by two cables,
+# with an arrow at each end in the slab's own light, pointing down at the
+# door.
+CX0, CX1, CZ0, CZ1 = WK, WK + 1.5, -287.6, -274.4
+box((D, "steel", 0), CX0, CX1, 3.95, 4.72, CZ0, CZ1, scale=1.0, col=PORTAL, bottom=True)
+lit_soffit(CX0 + 0.12, CX1 - 0.12, CZ0 + 0.12, CZ1 - 0.12, 3.945, 0.28, 0.55)
+CF = B.Face("+x", CX1, CZ0, CZ1)           # its edge to the street; s runs north from its south end
+CF.quad((D, "glow", 0), 0.15, 13.05, 4.05, 4.62, 0.012, col=yg(0.8))
+for f_ in (B.Face("-z", CZ0, CX0, CX1), B.Face("+z", CZ1, CX0, CX1)):
+    f_.quad((D, "glow", 0), 0.12, 1.38, 4.05, 4.62, 0.012, col=yg(0.8))
+light(D, CX1 - 0.6, 3.5, -284.0, "yellow", 4.5)
+light(D, CX1 - 0.6, 3.5, -278.0, "green", 3.5)
+sign("afterlife_b", CX1 + 0.1, 5.85, -281.0, 8.67, 2.0, math.pi / 2, preview="AFTERLIFE", district=D)
+CF.box((D, "steel", 0), 2.16, 11.04, 4.8, 6.9, -0.02, 0.08, col=PORTAL)
+for (a_, b_, y0_, y1_) in ((2.1, 11.1, 6.88, 7.0), (2.1, 11.1, 4.72, 4.84), (2.1, 2.22, 4.84, 6.88), (10.98, 11.1, 4.84, 6.88)):
+    CF.box((D, "steel", 0), a_, b_, y0_, y1_, -0.04, 0.2, col=FRAME)
+for sv in (2.5, 5.2, 8.0, 10.7):
+    pipe((D, "steel", 1), CF.p(CF.at(sv), 6.94, 0.0), (WK + 0.02, 8.05, CF.at(sv)), 0.04, segs=4, col=FRAME)
+    pipe((D, "steel", 1), CF.p(CF.at(sv), 5.9, -0.04), (WK + 0.02, 5.9, CF.at(sv)), 0.03, segs=4, col=FRAME)
+for sv in (2.4, 10.8):
+    box((D, "dark", 1), WK, WK + 0.14, 8.9, 9.4, CF.at(sv) - 0.2, CF.at(sv) + 0.2, scale=1.0)
+    K.cable(D, (WK + 0.1, 8.95, CF.at(sv)), CF.p(CF.at(sv), 6.98, 0.05), 0.35, r=0.025, steps=5)
+for a_ in (0.1, 11.25):
+    m_ = a_ + 0.925
+    CF.box((D, "steel", 0), a_, a_ + 1.85, 4.72, 6.96, -0.04, 0.05, col=FRAME)
+    CF.quad((D, "glow", 0), a_ + 0.1, a_ + 1.75, 4.84, 6.84, 0.06, col=yg(0.7))
+    CF.quad((D, "trim", 1), m_ - 0.2, m_ + 0.2, 5.8, 6.55, 0.07, col=K.BLACK)
+    poly((D, "trim", 1), [CF.p(CF.at(sv), yy, 0.07) for sv, yy in ((m_ - 0.58, 5.8), (m_, 5.12), (m_ + 0.58, 5.8))], [(0, 0), (0.5, 1), (1, 0)], K.BLACK)
 # The queue, the doorman and a second on the door.
 QUEUE = [(23.3, "idle", 0.0), (24.3, "phone", 0.2), (25.4, "talk", 0.0), (26.2, "talk", math.pi), (27.4, "idle", -0.2),
          (28.5, "smoke", 0.4), (29.6, "phone", 0.0), (30.7, "talk", 0.0), (31.5, "talk", math.pi), (32.7, "idle", 0.1)]
@@ -372,7 +432,7 @@ for sv, yy, size, ang in ((3.0, 8.5, "bm", 0.35), (12.5, 7.4, "bs", -0.3), (16.0
 BAR = B.Face("+x", WL, -258.0, -250.0)     # s runs north; the door's bay is its north half
 K.awning(D, BAR, 0.3, 3.9, out=1.7, y=3.25, detail=0)
 K.lit_door(D, BAR, 6.0, "green", w=1.1, h=2.38, power=5.0, back=0.89)
-K.script(D, WL + 0.75, 6.75, -258.75, 6.2, 2.9, math.radians(135), "pink", 9302, lines=2, underline="white", r=0.06)
+K.word(D, WL + 0.75, 6.75, -258.75, 6.2, 2.9, math.radians(135), "pink", ["NEKO", "BAR"], underline="white", r=0.06, mark="glass")
 for p_ in ((WL, 7.6, -255.6), (WL - 2.6, 7.6, -258.0), (WL, 5.6, -255.6), (WL - 2.6, 5.6, -258.0)):
     pipe((D, "metal", 1), p_, (WL + 0.7 + (0.9 if p_[2] > -257 else -1.1), p_[1], -258.7 + (1.1 if p_[2] > -257 else -0.9)), 0.04, segs=4)
 box((D, "neon_pink", 0), WL, WL + 0.05, 7.62, 7.7, -257.8, -250.2, scale=1.0)
@@ -382,7 +442,7 @@ K.blade(D, 423.0, -258.0, 6.2, "bx", BL.yaw + 0.4)
 stand(WL - 0.55, BAR.at(5.2), math.pi / 2 + 0.3, "smoke", y=G0)
 stand(WL - 0.5, BAR.at(6.9), math.pi / 2 - 0.4, "talk", y=G0)
 # The corner house on the boulevard has its own, in two colours.
-K.script(D, WL + 0.45, 6.5, -316.45, 4.2, 1.9, math.radians(135), "amber", 9301, lines=1, underline="cyan")
+K.word(D, WL + 0.45, 6.5, -316.45, 4.2, 1.9, math.radians(135), "amber", "TAKO", underline="cyan")
 for p_ in ((WL, 7.3, -314.8), (WL - 1.4, 7.3, -316.0)):
     pipe((D, "metal", 1), p_, (WL + 0.4, 7.3, -316.4), 0.04, segs=4)
 
@@ -922,9 +982,40 @@ for (x_, z_, y_, size, ang) in (
 K.stack(D, WL, -313.0, 6.3, 4, math.pi / 2, out=1.2)
 K.stack(D, EL, -190.5, 5.0, 2, -math.pi / 2, out=1.1)
 K.stack(D, WK, -263.2, 7.2, 5, math.pi / 2 + 0.3, out=1.2)
-# Scripts: cyan over a bar under the rooftop's building, amber on the low
-# block by the garage, green on the boulevard's flats.
-K.script(D, EL - 0.2, 5.6, -293.6, 4.6, 1.5, -math.pi / 2, "cyan", 9303, lines=1, underline="pink")
-K.script(D, EL - 0.2, 5.75, -186.0, 4.2, 1.5, -math.pi / 2, "amber", 9304, lines=1, underline=None)
-K.script(D, 389.0, 6.4, -316.2, 5.0, 1.8, math.pi, "green", 9305, lines=1, underline="white")
-K.script(D, 419.0, 5.9, -189.8, 4.4, 1.6, 0.0, "pink", 9306, lines=1, underline="cyan")
+# Words in tube: cyan over a bar under the rooftop's building, amber on the
+# low block by the garage, green on the boulevard's flats, pink on the plaza
+# street.
+K.word(D, EL - 0.2, 5.6, -293.6, 4.6, 1.5, -math.pi / 2, "cyan", "SAKE", underline="pink", mark="bowl")
+K.word(D, EL - 0.2, 5.75, -186.0, 4.2, 1.5, -math.pi / 2, "amber", "24H", underline=None, mark="arrow")
+K.word(D, 389.0, 6.4, -316.2, 5.0, 1.8, math.pi, "green", "NOODLE", underline="white")
+K.word(D, 419.0, 5.9, -189.8, 4.4, 1.6, 0.0, "pink", "MOTEL", underline="cyan")
+
+# ---------------------------------------------------------------------------
+# The named signs on the roofs stand in steel, not on bare slabs: a frame
+# round each face, braces down to the roof, and the cable that feeds it.
+# (Nothing stands between either and the rooftop's cameras: the frames are
+# on the signs' own edges, the braces behind them.)
+# ---------------------------------------------------------------------------
+# AFTERLIFE's, facing the rooftop (rooftop.py: 13 by 3 at 38 m on a board
+# 14 by 3.6, on two posts).
+RS = B.Face("+x", 431.2, -288.0, -274.0)
+for (a_, b_, y0_, y1_) in ((0.0, 14.0, 39.64, 39.8), (0.0, 14.0, 36.2, 36.36), (0.0, 0.16, 36.36, 39.64), (13.84, 14.0, 36.36, 39.64)):
+    RS.box((D, "steel", 0), a_, b_, y0_, y1_, 0.0, 0.2, col=FRAME)
+for za, zb in ((-286.0, -276.0), (-276.0, -286.0)):
+    pipe((D, "steel", 1), (430.85, 30.3, za), (430.85, 36.0, zb), 0.05, segs=4, col=FRAME)
+for z_ in (-286.5, -281.0, -275.5):
+    pipe((D, "steel", 1), (430.6, 39.2, z_), (427.6, 30.1, z_), 0.06, segs=4, col=FRAME)
+pipe((D, "steel", 1), (429.1, 34.65, -286.5), (429.1, 34.65, -275.5), 0.045, segs=4, col=FRAME)
+box((D, "dark", 1), 430.62, 431.08, 31.6, 32.3, -276.32, -275.92, scale=1.0)
+for z_ in (-279.0, -283.5):
+    K.cable(D, (431.1, 36.2, z_), (431.05, 32.2, -276.1), 0.5, r=0.03, steps=6)
+# RIPPERDOC's (rooftop.py: 9 by 2.2 at 38.4 m, turned 38 degrees, both faces).
+ryaw_ = math.radians(38)
+ux_, uz_ = math.cos(ryaw_), -math.sin(ryaw_)
+nx_, nz_ = math.sin(ryaw_), math.cos(ryaw_)
+for (du, dv, w_, h_) in ((0.0, 1.17, 9.3, 0.14), (0.0, -1.17, 9.3, 0.14), (-4.58, 0.0, 0.14, 2.2), (4.58, 0.0, 0.14, 2.2)):
+    oriented_box((D, "steel", 0), 457.0 + du * ux_, 38.4 + dv, -283.0 + du * uz_, w_, h_, 0.16, ryaw_, scale=1.0, col=FRAME)
+for du in (-3.2, 3.2):
+    px_, pz_ = 457.0 + du * ux_, -283.0 + du * uz_
+    pipe((D, "steel", 1), (px_, 37.2, pz_), (px_ - nx_ * 1.2, 34.15, pz_ - nz_ * 1.2), 0.05, segs=4, col=FRAME)
+K.cable(D, (457.0 + 4.5 * ux_, 37.3, -283.0 + 4.5 * uz_), (457.4, 37.5, -288.0), 0.4, r=0.03, steps=5)

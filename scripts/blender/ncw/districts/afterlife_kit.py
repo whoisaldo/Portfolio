@@ -101,45 +101,75 @@ def stack(D, bx, bz, y, n, ang, out=0.9, sizes=("ps", "bx", "ps", "ps", "bx")):
     pipe((D, "metal", 1), (bx + dx * 0.12, y - 0.5, bz + dz * 0.12), (bx + dx * 0.12, top + 0.2, bz + dz * 0.12), 0.04, segs=4)
 
 
-def script(D, cx, cy, cz, w, h, yaw, colour, seed, lines=1, backing=True, underline="white", r=0.05):
-    """A neon sign in handwriting with no words in it: a cursive line of
-    loops, tall and short, bent from one tube, with a swash under it; on a
-    dark board (the pink script over the corner bar, Zq4zTcIM0yQ@40)."""
-    rr = random.Random(seed)
+# Capitals bent from one tube: each letter's strokes on a unit square
+# (and three marks: a cocktail glass, an arrow, a bowl with its steam).
+STROKES = {
+    "A": (((0, 0), (0.5, 1), (1, 0)), ((0.2, 0.4), (0.8, 0.4))),
+    "B": (((0, 0), (0, 1), (0.7, 1), (0.9, 0.85), (0.9, 0.65), (0.7, 0.5), (0, 0.5)), ((0.7, 0.5), (1, 0.35), (1, 0.15), (0.75, 0), (0, 0))),
+    "D": (((0, 0), (0, 1), (0.6, 1), (1, 0.7), (1, 0.3), (0.6, 0), (0, 0)),),
+    "E": (((1, 1), (0, 1), (0, 0), (1, 0)), ((0, 0.5), (0.75, 0.5))),
+    "H": (((0, 0), (0, 1)), ((1, 0), (1, 1)), ((0, 0.5), (1, 0.5))),
+    "K": (((0, 0), (0, 1)), ((1, 1), (0, 0.45), (1, 0))),
+    "L": (((0, 1), (0, 0), (1, 0)),),
+    "M": (((0, 0), (0, 1), (0.5, 0.4), (1, 1), (1, 0)),),
+    "N": (((0, 0), (0, 1), (1, 0), (1, 1)),),
+    "O": (((0.25, 0), (0, 0.25), (0, 0.75), (0.25, 1), (0.75, 1), (1, 0.75), (1, 0.25), (0.75, 0), (0.25, 0)),),
+    "R": (((0, 0), (0, 1), (0.75, 1), (1, 0.85), (1, 0.6), (0.75, 0.45), (0, 0.45)), ((0.45, 0.45), (1, 0))),
+    "S": (((1, 0.85), (0.75, 1), (0.25, 1), (0, 0.8), (0, 0.62), (0.25, 0.5), (0.75, 0.5), (1, 0.38), (1, 0.2), (0.75, 0), (0.25, 0), (0, 0.15)),),
+    "T": (((0, 1), (1, 1)), ((0.5, 1), (0.5, 0))),
+    "2": (((0, 0.8), (0.25, 1), (0.75, 1), (1, 0.8), (1, 0.6), (0, 0), (1, 0)),),
+    "4": (((0.75, 0), (0.75, 1), (0, 0.3), (1, 0.3)),),
+    "glass": (((0, 1), (1, 1), (0.5, 0.45), (0, 1)), ((0.5, 0.45), (0.5, 0)), ((0.2, 0), (0.8, 0)), ((0.72, 1.0), (1.0, 1.3))),
+    "arrow": (((0, 0.5), (1, 0.5)), ((0.6, 0.9), (1, 0.5), (0.6, 0.1))),
+    "bowl": (((0, 0.55), (1, 0.55), (0.8, 0.1), (0.2, 0.1), (0, 0.55)), ((0.3, 0.7), (0.4, 0.85), (0.3, 1.0)), ((0.6, 0.7), (0.7, 0.85), (0.6, 1.0))),
+}
+RAIL = (0.13, 0.135, 0.15, 1)
+
+
+def word(D, cx, cy, cz, w, h, yaw, colour, text, underline="white", r=0.05, mark=None):
+    """A word in neon tube, capitals with a slant, one or two lines (`text`
+    a string or a list), a swash under it in a second colour and, with
+    `mark`, a drawing in that colour after the first line; on an open
+    frame of steel rails and brackets back to the wall, not on a board (the
+    pink sign on the bar's corner, Zq4zTcIM0yQ@40)."""
+    rows = [text] if isinstance(text, str) else list(text)
     rx, rz = math.cos(yaw), -math.sin(yaw)
     nx, nz = _dir(yaw)
 
-    def at(u, v, t=0.09):
+    def at(u, v, t=0.14):
         return (cx + rx * u + nx * t, cy + v, cz + rz * u + nz * t)
 
-    if backing:
-        oriented_box((D, "board_frame", 0), cx - nx * 0.05, cy, cz - nz * 0.05, w + 0.5, h + 0.45, 0.14, yaw, scale=1.0)
-    lh = h / lines * (0.62 if underline else 0.8)
-    for li in range(lines):
-        vc = (h / 2 - (li + 0.5) * h / lines) + (0.08 * h if underline else 0.0)
-        span = w * (0.9 if li == 0 else 0.72)
-        n = max(3, round(span / (lh * 0.62)))
-        pts = []
-        steps = 8
-        for k in range(n):
-            tall = rr.random() < 0.4
-            amp = lh / 2 * (1.0 if tall else rr.uniform(0.45, 0.62))
-            for i in range(steps):
-                t = (k + i / steps)
-                ph = t * math.tau
-                u = -span / 2 + span * (t + 0.5) / n - 0.34 * (span / n) * math.sin(ph) * 1.9
-                v = vc - (lh / 2 - amp) - amp * math.cos(ph)
-                pts.append(at(u + 0.12 * (v - vc), v))
-        key = (D, "neon_" + colour, 0)
-        for p0, p1 in zip(pts, pts[1:]):
-            pipe(key, p0, p1, r, segs=3)
+    def strokes(name, u0, v0, lw, lh, key):
+        for st in STROKES[name]:
+            pts = [at(u0 + px * lw + 0.16 * py * lh, v0 + py * lh) for px, py in st]
+            for p0, p1 in zip(pts, pts[1:]):
+                pipe(key, p0, p1, r, segs=3)
+
+    band = h * (0.8 if underline else 1.0) / len(rows)
+    top = h / 2
+    for li, row in enumerate(rows):
+        n = len(row) + (1.3 if mark and li == 0 else 0.0)
+        lh = band * 0.74
+        lw = min(lh * 0.62, w * 0.94 / (n * 1.34))
+        u = -n * lw * 1.34 / 2 + lw * 0.17
+        v0 = top - (li + 1) * band + band * 0.13
+        for ch in row:
+            if ch != " ":
+                strokes(ch, u, v0, lw, lh, (D, "neon_" + colour, 0))
+            u += lw * 1.34
+        if mark and li == 0:
+            strokes(mark, u + lw * 0.3, v0, lw, lh, (D, "neon_" + (underline or colour), 0))
     if underline:
-        # The swash: a long shallow curve under the words, in a second colour.
-        key = (D, "neon_" + underline, 0)
-        v0 = -h / 2 + 0.12 * h
-        pts = [at(-w * 0.42 + w * 0.84 * i / 10, v0 + 0.07 * h * math.sin(i / 10 * math.pi)) for i in range(11)]
+        v0 = -h / 2 + 0.07 * h
+        pts = [at(-w * 0.42 + w * 0.84 * i / 8, v0 + 0.06 * h * math.sin(i / 8 * math.pi)) for i in range(9)]
         for p0, p1 in zip(pts, pts[1:]):
-            pipe(key, p0, p1, r * 0.9, segs=3)
+            pipe((D, "neon_" + underline, 0), p0, p1, r * 0.9, segs=3)
+    # The frame: two rails behind the tubes, a post at each end, brackets back.
+    for v in (-h * 0.3, h * 0.3):
+        pipe((D, "steel", 1), at(-w / 2, v, 0.05), at(w / 2, v, 0.05), 0.03, segs=4, col=RAIL)
+    for u in (-w / 2, w / 2):
+        pipe((D, "steel", 1), at(u, -h / 2, 0.05), at(u, h / 2, 0.05), 0.03, segs=4, col=RAIL)
+        pipe((D, "steel", 1), at(u * 0.8, h * 0.3, 0.05), at(u * 0.8, h * 0.3, -0.25), 0.03, segs=4, col=RAIL)
 
 
 def cross(D, cx, cy, cz, size, yaw, colour="green", box_=True):
