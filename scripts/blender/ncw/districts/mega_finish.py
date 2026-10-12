@@ -13,7 +13,7 @@ from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.mega_kit import *  # noqa: F401,F403
-from ncw.districts.mega_roofs import ok, prop, pad, flat_strokes
+from ncw.districts.mega_roofs import ok, prop, pad, flat_strokes, shack
 from ncw.districts.mega_mass import TIERS
 from ncw.districts.mega_wings import T1, T2, T1_TOP, ET1, ET2, ET1_TOP, ARM_TOP, AX0, AX1
 from ncw.districts.mega_base import W_TOP, E_TOP, COL_Z, W_COLS, E_COLS, KX, KZ
@@ -162,6 +162,13 @@ def roof_kit(x0, x1, z0, z1, top, seed, deck=None, hue="white", power=6.5, lamps
     for i in range(n):
         lx = x0 + 1.4 + (x1 - x0 - 2.8) * (i + 0.5) / n
         light(D, lx, top + 1.0, cz, hue, power)
+        # A lit skylight beside the walk: a kerb, the pane, its bars.
+        sz0, sz1 = (cz - 3.2, cz - 1.4) if side == "-z" else (cz + 1.4, cz + 3.2)
+        if deck is None and z1 - z0 > 12.0 and ok(lx - 1.3, lx + 1.3, sz0, sz1, top, top + 0.4):
+            tbox(lx - 1.3, lx + 1.3, top, top + 0.3, sz0, sz1, CONC)
+            hquad((D, "glow", 0), lx - 1.15, lx + 1.15, sz0 + 0.15, sz1 - 0.15, top + 0.31, col=dim(GLOW["amber" if i % 2 else "white"], 0.16))
+            for dx in (-0.4, 0.4):
+                hquad((D, "trim", 1), lx + dx - 0.03, lx + dx + 0.03, sz0 + 0.15, sz1 - 0.15, top + 0.32, col=BLACK)
         light(D, lx, top + 1.0, zm + (2.4 if side == "-z" else -2.4), hue, power * 0.8)
     if deck:
         pad(*deck[:2], top, half=deck[2], name="H")
@@ -171,6 +178,44 @@ def roof_kit(x0, x1, z0, z1, top, seed, deck=None, hue="white", power=6.5, lamps
 roof_kit(AX0 + 1.0, 80.0, -729.0, -701.0, ARM_TOP, 8821, deck=(72.0, -716.0, 4.5), hue="amber", side="+z")
 roof_kit(80.0, AX1 - 1.0, -731.0, -701.0, ARM_TOP, 8822, hue="white", side="+z")
 light(D, 90.0, ARM_TOP + 1.0, -737.0, "pink", 6.0)
+# Along its east parapet: tanks, painted units, a mast, a rail to the walk.
+for z in (-742.6, -739.2):
+    prop("tank_roof", AX1 - 2.2, z, ARM_TOP, 0.4, h=2.4, r=0.9)
+for (za, zb, h, col) in ((-735.6, -732.4, 1.9, PALE), (-730.6, -728.6, 1.4, TEAL_PAINT), (-726.8, -723.6, 1.7, CREAM)):
+    tbox(AX1 - 3.2, AX1 - 1.2, ARM_TOP, ARM_TOP + h, za, zb, col)
+    box((D, "dark", 1), AX1 - 3.3, AX1 - 1.1, ARM_TOP + h, ARM_TOP + h + 0.1, za - 0.1, zb + 0.1, scale=1.0)
+    for i in range(3):
+        rotated_quad((D, "trim", 1), AX1 - 3.212, ARM_TOP + h * 0.55, za + (zb - za) * (i + 0.5) / 3, (zb - za) / 3 - 0.14, h * 0.5, -math.pi / 2, col=BLACK)
+    rotated_quad((D, "glow", 1), AX1 - 3.212, ARM_TOP + h * 0.9, zb - 0.2, 0.12, 0.1, -math.pi / 2, col=GLOW["green"])
+prop("antenna", AX1 - 2.0, -721.4, ARM_TOP, h=3.2, r=0.3)
+prop("dish", AX1 - 2.2, -719.6, ARM_TOP, 4.2, h=0.9, r=0.5)
+steel_rail((AX1 - 4.4, -744.0), (AX1 - 4.4, -721.0), ARM_TOP, posts=3.0)
+for z in (-740.0, -730.0):
+    light(D, AX1 - 5.0, ARM_TOP + 1.0, z, "white", 6.0)
+# What the roof's north-east corner keeps: a shack with its light on, a row
+# of lit skylights over the market hall's back rooms, a string of bulbs.
+shack(96.0, -727.6, ARM_TOP, colour="amber", yaw=-math.pi / 2, r=random.Random(8841))
+shack(91.0, -744.0 + 2.4, ARM_TOP, w=3.0, colour="cyan", yaw=0.0, r=random.Random(8842))
+for i in range(4):
+    x = 87.0 + i * 3.0
+    tbox(x - 1.2, x + 1.2, ARM_TOP, ARM_TOP + 0.3, -731.6, -729.8, CONC)
+    hquad((D, "glow", 0), x - 1.05, x + 1.05, -731.45, -729.95, ARM_TOP + 0.31, col=dim(GLOW["amber" if i % 2 else "white"], 0.18))
+    hquad((D, "trim", 1), x - 0.03, x + 0.03, -731.45, -729.95, ARM_TOP + 0.32, col=BLACK)
+for i in range(9):
+    x = 86.0 + i * 1.5
+    y = ARM_TOP + 2.9 - 0.5 * math.sin(math.pi * i / 8)
+    box((D, "glow", 1), x - 0.07, x + 0.07, y - 0.07, y + 0.07, -725.07, -724.93, scale=0.5, col=dim(GLOW["amber"], 0.8), bottom=True)
+cable((86.0, ARM_TOP + 2.95, -725.0), (98.0, ARM_TOP + 2.95, -725.0), 0.5, r=0.012)
+for x in (86.0, 98.0):
+    box((D, "metal", 1), x - 0.04, x + 0.04, ARM_TOP, ARM_TOP + 3.0, -725.04, -724.96, scale=0.5)
+light(D, 92.0, ARM_TOP + 1.0, -726.0, "amber", 6.5)
+# Battens under the middle deck too, and their pools, modest: this is the
+# foot of the hero's vanishing point (the battens face the ground, which a
+# lens at street level 750 m off does not see).
+for x in (-12.4, -4.2, 4.2, 12.4):
+    for z in (-737.4, -741.0):
+        box((D, "glow", 0), x - 0.7, x + 0.7, floor_y(3) - 0.76, floor_y(3) - 0.7, z - 0.08, z + 0.08, scale=0.5, col=dim(GLOW["amber" if z > -740 else "white"], 0.7), bottom=True)
+    light(D, x, 8.0, -738.4, "amber", 3.4)
 light(D, 72.0, ARM_TOP + 1.0, -738.0, "white", 5.5)
 # The back blocks' tall roofs and the wings' tower roofs, from the air.
 for (x0, x1, z0, z1, top, seed, hue, deck) in ((74.0, 88.0, -654.0, -634.0, floor_y(21), 8823, "white", None), (68.0, 90.0, -692.0, -664.0, floor_y(13), 8824, "amber", None),

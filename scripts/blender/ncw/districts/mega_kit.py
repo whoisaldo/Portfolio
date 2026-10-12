@@ -378,10 +378,19 @@ def tarp(a, b, y0, y1, colour, sag=0.25):
 
 
 def cloth(p0, p1, p2, p3, colour):
-    """A dyed cloth on four points (a canopy, a tarp), both sides."""
+    """A dyed cloth on four points (a canopy, a tarp), both sides: in
+    stripes of the dye and its shade when it is wide enough to be an awning
+    (one flat colour read as a placeholder's box)."""
     dye = tuple(int(NEON[colour][i:i + 2], 16) / 255 for i in (0, 2, 4)) + (1.0,)
-    quad((D, "awning", 1), p0, p1, p2, p3, uvs=((0, 0), (1, 0), (1, 1), (0, 1)), col=dye)
-    quad((D, "awning", 1), p1, p0, p3, p2, uvs=((1, 0), (0, 0), (0, 1), (1, 1)), col=dye)
+    wide = math.dist(p0, p1)
+    n = 1 if wide < 1.6 else max(4, int(wide // 0.55))
+    lerp = lambda a, c, t: tuple(a[i] + (c[i] - a[i]) * t for i in range(3))  # noqa: E731
+    for i in range(n):
+        t0, t1 = i / n, (i + 1) / n
+        a, c, d_, e = lerp(p0, p1, t0), lerp(p0, p1, t1), lerp(p3, p2, t1), lerp(p3, p2, t0)
+        col = dye if i % 2 == 0 else dim(dye, 0.3)
+        quad((D, "awning", 1), a, c, d_, e, uvs=((t0, 0), (t1, 0), (t1, 1), (t0, 1)), col=col)
+        quad((D, "awning", 1), c, a, e, d_, uvs=((t1, 0), (t0, 0), (t0, 1), (t1, 1)), col=col)
 
 
 def blade(x, y, z, size, along="x", district=D, bracket=None):
