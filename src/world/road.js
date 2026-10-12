@@ -35,6 +35,18 @@ import { GROUND, VNOISE } from "./ground.js";
 // reflection is uReflectGain over this, the baked light's the rest.
 const MIRROR_FULL = 2.2;
 
+/** The wet ground's planar mirror as the roads read it, in one set of
+ *  holders (setReflection below and world-scene.js write them through
+ *  either road material), so whatever else lies flat on the ground and
+ *  gives the street back can read the same picture (materials.js, the
+ *  clear glass over the plaza's hub). */
+export const MIRROR_UNIFORMS = {
+  uReflect: { value: null },
+  uReflectMatrix: { value: new THREE.Matrix4() },
+  uReflectOn: { value: 0 },
+  uReflectGain: { value: MIRROR_FULL },
+};
+
 export function createRoadMaterial(shared, { maps, reflection, paint = false }) {
   const uniforms = {
     ...shared,
@@ -44,10 +56,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
     uHasMaps: { value: maps.asphalt ? 1 : 0 },
     // (world-scene.js still writes the old baked streaks' gain each frame.)
     uStreakGain: { value: reflection ? 0.1 : 1.1 },
-    uReflect: { value: null },
-    uReflectMatrix: { value: new THREE.Matrix4() },
-    uReflectOn: { value: 0 },
-    uReflectGain: { value: MIRROR_FULL },
+    ...MIRROR_UNIFORMS,
     uWet: { value: 1 },
   };
   const material = new THREE.ShaderMaterial({
@@ -221,7 +230,15 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // it holds is the signs of the street below, so there it is greyed
         // toward the deck's own sodium masts.)
         float lifted = smoothstep(0.15, 0.7, abs(vWorld.y));
-        spill = mix(spill, dot(spill, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.75, lifted * 0.8);
+        // (Corpo Plaza's terraces are painted slabs off the ground, with
+        // the board, the signs and the koi over them: wet stone in the
+        // street's own colours, never the deck's sodium grey.)
+        float terrace = 0.0;
+        #if PAINT == 1
+        terrace = lifted * step(44.0, p.x) * step(p.x, 134.0) * step(-330.0, p.y) * step(p.y, -180.0);
+        #endif
+        float sodium = lifted * 0.8 * (1.0 - terrace);
+        spill = mix(spill, dot(spill, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.75, sodium);
         #if PAINT == 1
         // Road paint over the same asphalt: worn through where the stones
         // stand proud and where the wheels run, pale, and lit by the whole
@@ -229,6 +246,8 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float worn = smoothstep(0.3, 0.75, vnoise(p * 2.3) * 0.55 + lng * 0.3 + 0.3 * track + (rough - 0.46) * 1.2);
         float painted = 0.85 * crack * (1.0 - 0.8 * worn * near);
         albedo = mix(albedo, vPaint, painted);
+        // (Wet, a pale slab goes dark.)
+        albedo *= mix(1.0, 0.55, terrace * wet);
         stone = max(stone, painted);
         // (The light on it eased toward a ceiling: a white line under six
         // signs is a painted line, not a tube.)
@@ -265,7 +284,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           rings = (ripple(p / 0.6, uTime) + ripple(p / 0.45 + 13.7, uTime * 1.13)) * puddle * smoothstep(28.0, 5.0, dist);
         }
         vec3 R = normalize(vec3(-V.x + rings.x * 0.03, V.y, -V.z + rings.y * 0.03));
-        float sheen = wet * mix(0.35, 1.0, stone) * crack * (0.8 + 0.3 * track + 0.1 * mended + 0.55 * seal + 0.4 * oil) * (1.0 + 3.1 * fore);
+        float sheen = wet * mix(0.35, 1.0, stone) * crack * (0.8 + 0.3 * track + 0.1 * mended + 0.55 * seal + 0.4 * oil) * (1.0 + 3.1 * fore) * (1.0 + 1.6 * terrace);
         // How wide the film scatters, as a facet's tilt in radians.
         float sigma = mix(mix(0.06, 0.035, max(track, mended)), 0.085, fore);
 
@@ -314,7 +333,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           // No mirror: the baked light along the ray (ground.js), a little
           // off its colour and capped, as a wet road gives a light back.
           baked = tame(spillReflect(vWorld, R) * 0.14, 0.5);
-          baked = mix(baked, dot(baked, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.8, lifted * 0.8);
+          baked = mix(baked, dot(baked, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.8, sodium) * (1.0 + 1.2 * terrace);
           // Standing water gives the same light back whole, where the film
           // gives a part of it.
           if (puddle > 0.01) sharp = mix(baked * 2.2, sharp, mk);

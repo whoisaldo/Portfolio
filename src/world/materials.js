@@ -33,6 +33,7 @@ import { GROUND, VNOISE } from "./ground.js";
 import { kindSource } from "./kinds.js";
 import { SHOP_ROOM } from "./interiors.js";
 import { dealTrades } from "./trades.js";
+import { MIRROR_UNIFORMS } from "./road.js";
 import { MARKS } from "./marks.js";
 import { createWetFloor } from "./wet.js";
 
@@ -1293,10 +1294,16 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   const clearGlass = () => {
     if (made.has("clearglass")) return made.get("clearglass");
     const m = keep(new THREE.ShaderMaterial({
-      uniforms: { ...shared },
+      uniforms: { ...shared, ...MIRROR_UNIFORMS },
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
+        ${VNOISE}
+        ${GROUND}
+        uniform sampler2D uReflect;
+        uniform mat4 uReflectMatrix;
+        uniform float uReflectOn;
+        uniform float uReflectGain;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec4 vColor;
@@ -1310,9 +1317,36 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 tint = mix(vec3(1.0), vColor.rgb, step(0.004, dot(vColor.rgb, vec3(1.0))));
           vec3 sky = mix(vec3(0.030, 0.050, 0.085), vec3(0.085, 0.060, 0.130), smoothstep(-0.1, 0.7, r.y));
           vec3 street = spillAt(vWorld + r * 5.0) * 0.5 + spillAt(vWorld) * 0.12;
+          float alpha = 0.30 + 0.62 * fres;
+          if (n.y > 0.9 && abs(vWorld.y) < 1.0) {
+            // A pane lying flat within a metre of the ground (the plaza's
+            // hub) is a mirror to anyone crossing beside it: the wet
+            // ground's own planar mirror where one is drawn (the signs, the
+            // board, the koi are in it, found by the ray's direction as the
+            // road finds them), and without one the baked light along the
+            // ray, as strong as glass gives a light back and not as a road
+            // does.
+            float mk = uReflectOn * clamp(uReflectGain / 2.2, 0.0, 1.0);
+            // (The baked light is a wash with no shapes in it: kept dark,
+            // pushed toward its colour and drawn out along the look in
+            // streaks, it is lights on dark glass and not a pale pane.)
+            vec3 baked = tame(spillReflect(vWorld, r) * 0.26, 1.0);
+            baked = max(mix(vec3(dot(baked, vec3(0.3, 0.55, 0.15))), baked, 1.6), 0.0);
+            vec2 rd = normalize(r.xz + 1e-5);
+            baked *= 0.35 + 1.3 * vnoise(vec2(dot(vWorld.xz, vec2(-rd.y, rd.x)) * 1.4, dot(vWorld.xz, rd) * 0.09));
+            vec3 seen = baked;
+            if (mk > 0.001) {
+              vec4 a = uReflectMatrix * vec4(r, 0.0);
+              seen = mix(baked, textureLod(uReflect, a.xy / a.w, 0.0).rgb * 1.7, mk);
+            }
+            fres = 0.2 + 0.8 * pow(1.0 - nv, 2.0);
+            street = seen;
+            sky *= 0.5;
+            alpha = 0.55 + 0.42 * fres;
+          }
           vec3 col = vec3(0.006, 0.022, 0.030) * tint + (sky + street) * fres * tint;
           col = cityFog(col, vWorld, 0.8);
-          gl_FragColor = vec4(col, 0.30 + 0.62 * fres);
+          gl_FragColor = vec4(col, alpha);
           ${OUT}
         }
       `,
