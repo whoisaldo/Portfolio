@@ -40,7 +40,7 @@
 import * as THREE from "three";
 import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON, WINDOWS } from "./glsl.js";
-import { createSkyColumns } from "./sky-columns.js";
+import { ADVERT, createSkyColumns } from "./sky-columns.js";
 import { BOX, createFarStreet } from "./far-street.js";
 
 // Rectangles (x0, z0, x1, z1) the far city stays out of: the kit's whole
@@ -557,6 +557,14 @@ function topCentre(b, s) {
 }
 
 export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduced = false } = {}) {
+  // The city's adverts: the kit's billboards own the atlas (materials.js),
+  // and the far city's boards, screens and columns show the same twelve.
+  // Until it has landed (or were the kit ever without a billboard) they
+  // show what they drew before there was one.
+  let ads = { uAds: { value: null }, uHasAds: { value: 0 } };
+  scene.traverse((o) => {
+    for (const m of [].concat(o.material ?? [])) if (m.name === "billboard") ads = { uAds: m.uniforms.uAds, uHasAds: m.uniforms.uHasAds };
+  });
   const r = rng(90210);
   // Where each building stands, its footprint, its height, which way it
   // turns, and whether anything capped its height (a spire or a mast only
@@ -740,18 +748,25 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   });
 
   // ---- the hologram columns ---------------------------------------------------
-  // Tall columns of light in the sky behind the skyline (sky-columns.js),
-  // one to every other sector of the compass (every fourth on a phone), each
-  // rising out of a lot in the middle distance, under the same rule as the
-  // screen towers: never where a framed sky is.
+  // Columns of adverts in the sky (sky-columns.js), the tallest things in
+  // it, two to four times a tower's height: a group of seven west of the
+  // kit, where every roof, deck and flying car of it sees them stand
+  // together, and one each to the south and the east. Each rises out of a
+  // lot nothing capped, so never up the hero's avenue nor in the quarter
+  // Contact looks into.
+  const holo = rng(4242);
   const columns = [];
-  for (let sector = 1; sector < SECTORS; sector += count < 2000 ? 4 : 2) {
-    const from = lots.filter((b) => b.free && !b.gone && !b.screens && !underMoon(b) && sectorOf(b) === sector && gapOf(b) > 180 && gapOf(b) < 620);
-    const b = from[Math.floor(edit() * from.length)];
-    const [width, height, tone, seed] = [14 + edit() * 22, 300 + edit() * 190, Math.floor(edit() * 5), edit()];
-    if (b) columns.push(b.x, b.z, width, height, tone, seed);
+  for (const [cx, cz, reach, many] of [[-500, -190, 190, 7], [250, 540, 120, 1], [900, -480, 120, 1]]) {
+    const from = lots.filter((b) => b.free && !b.gone && !b.screens && !underMoon(b) && Math.hypot(b.x - cx, b.z - cz) < reach);
+    const stood = [];
+    for (let tries = 0; tries < 60 && stood.length < many && from.length; tries++) {
+      const b = from[Math.floor(holo() * from.length)];
+      if (stood.some((o) => Math.hypot(o.x - b.x, o.z - b.z) < 64)) continue;
+      stood.push(b);
+      columns.push(b.x, b.z, 26 + holo() * 14, 540 + holo() * 360, Math.floor(holo() * 5), holo());
+    }
   }
-  const skyColumns = createSkyColumns(scene, shared, columns, { reduced });
+  const skyColumns = createSkyColumns(scene, shared, columns, { reduced, ads });
 
   // ---- the ring ---------------------------------------------------------------
   // Something stands on the horizon on every bearing. South-east the lots
@@ -1052,11 +1067,11 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         return kerbLamps(off.x, p.z, id.x, 0.0, px) * step(abs(off.x), 9.0 + px) + kerbLamps(off.y, p.x, id.y, 1.0, px) * step(abs(off.y), 9.0 + px);
       }
   `;
-  const farStreet = createFarStreet(scene, shared, boxes, { street: STREET });
+  const farStreet = createFarStreet(scene, shared, boxes, { street: STREET, ads });
 
   // ---- the buildings: blocks on a square plan, towers on a cut one ----------
   const material = new THREE.ShaderMaterial({
-    uniforms: { ...shared, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, ...ads, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       attribute vec2 aDir;
       attribute vec4 aPart;
@@ -1148,6 +1163,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     fragmentShader: /* glsl */ `
       ${COMMON}
       ${WINDOWS}
+      ${ADVERT}
       uniform float uMotion;
       varying vec3 vWorld;
       varying vec3 vNormalW;
@@ -1167,7 +1183,22 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       // tube round its edge, a stack of characters' worth of strokes drawn
       // from a hash (lettering from across the city, without being any),
       // and now and then a tube that drops out. Far off, its glow.
-      vec3 hangingSign(vec2 s, float cells, float seed, float t, vec3 c) {
+      // A character that is nobody's: the strokes a kanji is built of (three
+      // or four bars, a stem, the sides of a box, two sweeps at its foot),
+      // each there or not by the hash, in a cell 0..1.
+      float kanji(vec2 f, float h1, float h2) {
+        float w = 0.065;
+        float k = step(abs(f.y - 0.86), w) * step(abs(f.x - 0.5), 0.36) * step(0.3, h1);
+        k += step(abs(f.y - 0.63), w) * step(abs(f.x - 0.5), 0.26 + 0.1 * h2) * step(0.2, fract(h1 * 3.7));
+        k += step(abs(f.y - 0.4), w) * step(abs(f.x - 0.5), 0.2 + 0.16 * step(0.5, h2)) * step(0.35, fract(h2 * 5.3));
+        k += step(abs(f.y - 0.14), w) * step(abs(f.x - 0.5), 0.38) * step(0.5, fract(h1 * 7.1));
+        k += step(abs(f.x - 0.5), w) * step(abs(f.y - 0.5), 0.38) * step(0.4, fract(h2 * 2.3));
+        k += step(abs(abs(f.x - 0.5) - 0.3), w) * step(abs(f.y - 0.63), 0.25) * step(0.55, fract(h1 * 9.1));
+        float foot = step(0.05, f.y) * step(f.y, 0.38) * step(0.5, fract(h2 * 11.3));
+        k += foot * step(abs(abs(f.x - 0.5) - (0.38 - f.y) * 0.9), w * 1.3);
+        return min(k, 1.0);
+      }
+      vec3 hangingSign(vec2 s, float cells, float seed, float t, vec3 c, float drawn) {
         float frame = 1.0 - step(0.09, s.x) * step(s.x, 0.91) * step(0.02, s.y) * step(s.y, 0.98);
         vec2 g = vec2(s.x, s.y * cells);
         float cell = floor(g.y);
@@ -1180,6 +1211,8 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         k += step(abs(f.y - 0.82), w) * step(abs(f.x - 0.5), 0.3) * step(0.55, h1);
         k += step(abs(f.x - 0.25), w) * step(abs(f.y - 0.5), 0.3) * step(0.7, h2);
         k += step(abs(f.y - 0.18), w) * step(abs(f.x - 0.5), 0.3) * step(0.6, h2);
+        // Drawn as characters (all but what Contact frames, which is as it was).
+        k = mix(k, kanji(vec2((f.x - 0.14) / 0.72, 1.0 - (f.y - 0.06) / 0.88), h1, h2) * step(0.06, f.y) * step(f.y, 0.94), drawn);
         float px = max(fwidth(s.x), fwidth(g.y) * 0.3);
         float lit = mix(max(max(frame, min(k, 1.0) * step(0.14, s.x) * step(s.x, 0.86)), 0.26 * (1.0 - frame)), 0.36, smoothstep(0.12, 0.4, px));
         float cut = step(0.992, hash12(vec2(floor(t * 12.0), seed * 37.0)));
@@ -1255,13 +1288,14 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         k = mix(k, 0.6, smoothstep(0.06, 0.2, fwidth(uv.y) / ch));
         float on = step(h1, 0.9);
         float tear = step(0.99, hash12(vec2(floor(t * 5.0), seed + c)));
-        vec3 col = a * k * 1.9 * (1.0 - 0.6 * tear) * on + vec3(0.012, 0.014, 0.02);
+        vec3 drawn = advert(s, W * 0.76 / (ch * 0.9), floor(hk * 12.0)) * 1.55;
+        vec3 col = mix(a * k * 1.9, drawn, uHasAds) * (1.0 - 0.6 * tear) * on + vec3(0.012, 0.014, 0.02);
         return vec4(mix(vec3(0.008, 0.009, 0.013), col, inside), inside * on);
       }
       // A strip of boards side by side across a face: s is across and up
       // the strip (0..1), n how many times wider than tall it is. Each
-      // board a lightbox in one of the signs' colours with blocks of a
-      // darker one where its picture is, changing every so often.
+      // board one of the city's adverts, changing every so often (before
+      // they land, a lightbox in one of the signs' colours).
       vec3 boardStrip(vec2 s, float n, float seed, float t) {
         float count = max(1.0, floor(n / 1.5 + 0.5));
         float i = floor(s.x * count);
@@ -1270,7 +1304,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         vec3 a = h < 0.25 ? vec3(1.0, 0.2, 0.3) : h < 0.5 ? vec3(0.16, 0.85, 1.0) : h < 0.7 ? vec3(1.0, 0.62, 0.2) : h < 0.85 ? vec3(1.0, 0.25, 0.7) : vec3(0.9, 0.95, 1.0);
         float blocks = step(0.5, hash12(floor(q * vec2(5.0, 3.0)) + i + h * 31.0));
         float edge = 1.0 - step(0.03, q.x) * step(q.x, 0.97) * step(0.06, q.y) * step(q.y, 0.94);
-        return mix(a * mix(1.3, 0.5, blocks), vec3(0.01), edge);
+        // One of the city's adverts on each, once they have landed.
+        vec3 drawn = advert(q, n / count, floor(h * 8.0)) * 1.3;
+        return mix(mix(a * mix(1.3, 0.5, blocks), drawn, uHasAds), vec3(0.01), edge);
       }
       // A mark under a tower's roof, nobody's: a ring and its dot, a
       // hexagon with a bar, three bars, a diamond. p is in the mark's own
@@ -1432,6 +1468,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         col = mix(col, band, parapet);
         // A tower's face, by its kind (see the dress code).
         float dressCode = floor(vDress.x + 0.5);
+        // Within what Contact frames (512), drawn as it was.
+        float held = step(511.5, dressCode);
+        dressCode = mod(dressCode, 512.0);
         float pattern = floor(dressCode / 64.0);
         dressCode = mod(dressCode, 64.0);
         float faceLit = 0.0;
@@ -1557,7 +1596,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             if (um > u0 && um < u0 + sw && vWorld.y > y0 && vWorld.y < y1) {
               vec3 sc = neonOf(floor(hash12(vec2(fs * 91.0, 2.0)) * 4.0));
               if (hash12(vec2(fs * 91.0, 9.0)) > 0.7) sc = vec3(1.0, 0.86, 0.6);
-              col = hangingSign(vec2((um - u0) / sw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (sw * 1.1))), fs * 91.0, uTime * uMotion, sc);
+              col = hangingSign(vec2((um - u0) / sw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (sw * 1.1))), fs * 91.0, uTime * uMotion, sc, 1.0 - held);
               sign = 1.0;
             }
           } else if (fs > 0.72) {
@@ -1581,6 +1620,12 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           if (square > 0.5 && abs(mod(face, 4.0) - want) < 0.5 && vWorld.y > y0 && vWorld.y < y1 && vHero.y > 0.14 && vHero.y < 0.86) {
             vec2 s = vec2((vHero.y - 0.14) / 0.72, (vWorld.y - y0) / (y1 - y0));
             col = screenAd(s, floor(vForm.y), fract(vForm.z * 7.31), uTime * uMotion);
+            // One of the city's adverts, in place of the shape that stood
+            // for one, under the same scanlines and inside a dark frame.
+            if (held < 0.5 && uHasAds > 0.5) {
+              float edge = 1.0 - step(0.02, s.x) * step(s.x, 0.98) * step(0.012, s.y) * step(s.y, 0.988);
+              col = mix(advert(s, 0.72 * vHero.z / (y1 - y0), floor(vForm.y) + floor(uTime * uMotion / 11.0 + vForm.z)) * 1.5 * (0.84 + 0.16 * step(0.5, fract(s.y * 140.0))), vec3(0.01), edge);
+            }
             screen = 1.0;
           }
         }
@@ -1605,7 +1650,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             float y1 = min(mix(vTier.y, vTier.x, 0.9), y0 + 84.0);
             if (um > u0 && um < u0 + bw && vWorld.y > y0 && vWorld.y < y1) {
               vec3 bc = hc < 0.55 ? vec3(0.16, 0.9, 1.0) : hc < 0.75 ? vec3(1.0, 0.22, 0.72) : hc < 0.9 ? vec3(1.0, 0.58, 0.22) : vec3(0.9, 0.95, 1.0);
-              col = hangingSign(vec2((um - u0) / bw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (bw * 1.15))), vForm.z * 3.7, uTime * uMotion, bc);
+              col = hangingSign(vec2((um - u0) / bw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (bw * 1.15))), vForm.z * 3.7, uTime * uMotion, bc, 1.0 - held);
               sign = 1.0;
             }
           }
@@ -1615,6 +1660,14 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             vec3 mc = hc < 0.45 ? vec3(0.16, 0.9, 1.0) : hc < 0.65 ? vec3(0.9, 0.95, 1.0) : hc < 0.82 ? vec3(1.0, 0.12, 0.2) : vec3(1.0, 0.58, 0.22);
             float k = clamp(markShape(mp, mark), 0.0, 1.0);
             col = mix(vec3(0.008, 0.009, 0.012), mc * 2.2, k);
+            // A board bolted to the face with one of the city's adverts on
+            // it, a tube of light round it, in place of the mark.
+            if (held < 0.5 && uHasAds > 0.5) {
+              vec2 st = mp / 2.24 + 0.5;
+              float tube = step(0.465, max(abs(st.x - 0.5), abs(st.y - 0.5)));
+              col = mix(advert(st, 1.0, mark + floor(hs * 8.0)) * 1.35, mc * 1.8, tube);
+              k = 1.0;
+            }
             sign = max(sign, k);
           }
         }
@@ -1700,7 +1753,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     // (The lattice is the rarest: half of those dealt it are offices.)
     let pattern = tower && !b.hero && !b.far && !b.screens && !framed(b) ? 1 + Math.floor(hash11(own + 33.3) * 6) : 0;
     if (pattern === 5 && hash11(own + 37.7) < 0.5) pattern = 6;
-    const dress = [hung + 64 * pattern, b.hero ? -1 : (tint + 0.5) / 8, hash11(seed + 9.3), quarter];
+    const dress = [hung + 64 * pattern + (framed(b) ? 512 : 0), b.hero ? -1 : (tint + 0.5) / 8, hash11(seed + 9.3), quarter];
     // The show's towers are lit in bands, floor by floor, more than in
     // scattered rooms: most towers take the band or the ribbon, and some
     // blocks the small windows of homes.
@@ -1773,10 +1826,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   kitOf.forEach((k, i) => {
     if (!k || lots[i].gone) return;
     kitAt[k.kit].push(...k.at);
-    kitLook[k.kit].push(...k.look);
+    kitLook[k.kit].push(k.look[0], k.look[1], k.look[2], framed(lots[i]) ? 1 : 0);
   });
   const roofMat = new THREE.ShaderMaterial({
-    uniforms: { ...shared, uNeon: { value: SIGN_NEON.map((c) => new THREE.Color(c)) }, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, ...ads, uNeon: { value: SIGN_NEON.map((c) => new THREE.Color(c)) }, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       attribute float aGlow;
       attribute vec2 aSignUv;
@@ -1802,6 +1855,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      ${ADVERT}
       uniform vec3 uNeon[${SIGN_NEON.length}];
       uniform float uMotion;
       varying vec3 vWorld;
@@ -1862,6 +1916,14 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           // A rooftop sign, now and then dropping a tube out for a frame.
           float cut = step(0.993, hash12(vec2(floor(t * 12.0), seed * 91.0)));
           col = vec3(0.008, 0.008, 0.012) + neon(vLook.y) * 2.6 * glyphs(vSignUv, floor(seed * 50.0)) * (1.0 - 0.85 * cut);
+          // Two of the city's adverts side by side in a tube of the sign's
+          // colour (but within what Contact frames, where a sign is as it
+          // was).
+          if (vLook.w < 0.5 && uHasAds > 0.5) {
+            vec2 st = vec2(fract(vSignUv.x * 2.0), vSignUv.y);
+            float tube = 1.0 - step(0.035, st.x) * step(st.x, 0.965) * step(0.07, st.y) * step(st.y, 0.93);
+            col = mix(advert(st, 1.4, floor(seed * 50.0) + floor(vSignUv.x * 2.0) * 3.0) * 1.4, neon(vLook.y) * 2.2, tube) * (1.0 - 0.85 * cut);
+          }
           emissive = 1.0;
         } else if (vGlow > 2.5 && vGlow < 3.5) {
           // An aviation lamp on the plant or the mast, blinking.

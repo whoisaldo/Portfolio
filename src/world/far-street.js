@@ -19,6 +19,7 @@
 // floors in a truss, the boards that stand on it).
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
+import { ADVERT } from "./sky-columns.js";
 
 export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8 };
 
@@ -27,8 +28,9 @@ export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, bloc
 const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
- *  (streetLamps), so a slab is lit by the same lamps as the road beside it. */
-export function createFarStreet(scene, shared, boxes, { street }) {
+ *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
+ *  `ads` the advert atlas's uniforms, for the boards. */
+export function createFarStreet(scene, shared, boxes, { street, ads }) {
   const n = boxes.length / 12;
   const unit = new THREE.BoxGeometry(1, 1, 1);
   const geometry = new THREE.InstancedBufferGeometry();
@@ -43,7 +45,7 @@ export function createFarStreet(scene, shared, boxes, { street }) {
   geometry.instanceCount = 0;
   geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(160, 0, -330), 900);
   const material = new THREE.ShaderMaterial({
-    uniforms: { ...shared },
+    uniforms: { ...shared, ...ads },
     vertexShader: /* glsl */ `
       attribute vec4 aAt;
       attribute vec4 aSize;
@@ -68,6 +70,7 @@ export function createFarStreet(scene, shared, boxes, { street }) {
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      ${ADVERT}
       ${street}
       varying vec3 vWorld;
       varying vec3 vNormalW;
@@ -133,15 +136,17 @@ export function createFarStreet(scene, shared, boxes, { street }) {
           lit = pane * on * side * (1.0 - clamp(truss, 0.0, 1.0));
           col = mix(steel, glow * 0.75, lit);
         } else if (kind > 7.5) {
-          // A board: a lightbox both ways, its picture blocks of a darker
-          // colour, a dark frame, its edges steel.
+          // A board: one of the city's adverts both ways (before they
+          // land, a lightbox with blocks of a darker colour), a dark frame,
+          // its edges steel.
           float face = step(vSize.z * 0.5 - 0.01, abs(vLocal.z));
           vec2 q = vec2(vLocal.x / vSize.x + 0.5, vLocal.y / vSize.y + 0.5);
           float h = hash12(vec2(vOwn.x * 57.0, floor(uTime / (9.0 + 6.0 * vOwn.x) + vOwn.x * 9.0)));
           vec3 a = h < 0.25 ? vec3(1.0, 0.2, 0.3) : h < 0.5 ? vec3(0.16, 0.85, 1.0) : h < 0.7 ? vec3(1.0, 0.62, 0.2) : h < 0.85 ? vec3(1.0, 0.25, 0.7) : vec3(0.9, 0.95, 1.0);
           float blocks = step(0.5, hash12(floor(q * vec2(5.0, 3.0)) + h * 31.0));
           float edge = 1.0 - step(0.02, q.x) * step(q.x, 0.98) * step(0.04, q.y) * step(q.y, 0.96);
-          col = mix(vec3(0.012, 0.013, 0.017), mix(a * mix(1.3, 0.5, blocks), vec3(0.01), edge), face);
+          vec3 drawn = advert(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, floor(h * 8.0)) * 1.4;
+          col = mix(vec3(0.012, 0.013, 0.017), mix(mix(a * mix(1.3, 0.5, blocks), drawn, uHasAds), vec3(0.01), edge), face);
           lit = face * (1.0 - edge);
         } else {
           // A parked car: a body in one of a few paints, its glass, and at
