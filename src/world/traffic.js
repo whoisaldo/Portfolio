@@ -25,6 +25,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON } from "./glsl.js";
+import { VNOISE } from "./ground.js";
 import { createObject as createAv } from "./av-model.js";
 import { createObject as createBaseCar, KINDS as BASE_KINDS } from "./traffic-cars.js";
 import { createObject as createShowCar, KINDS as SHOW_KINDS } from "./traffic-cars-nc.js";
@@ -862,12 +863,18 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   lamps.layers.enable(reflectLayer);
   scene.add(lamps);
 
-  // What a car's lamps do to the wet road: a pool of white ahead of the
-  // nose, a shorter one of red behind the tail (more under the brakes), and
-  // under a few of them the glow of their own sill strips. One flat quad a
+  // What a car's lamps do to the wet road, and it is not much: a soft patch
+  // of white a couple of metres out from each headlamp, a shorter one of
+  // red behind the tail (a little more under the brakes), each far dimmer
+  // than the lamp that throws it and gone within a metre or two; and under
+  // a car whose sill strips are lit, a thin line of their colour along each
+  // sill. The road takes them as it takes the street's own light: dull on
+  // dry asphalt, less in standing water, and given back as a sheen where
+  // the road is damp and the eye looks along the light (the road's own
+  // field of damp, src/world/road.js, without its lanes). One flat quad a
   // car, laid along its own line (so it climbs the ramp with it), added to
-  // the road under it; a parked car has one only if it glows.
-  const POOLS_TO = 200;
+  // the road under it; a parked car has one only if it glows or is lit.
+  const POOLS_TO = 90;
   const poolMax = Math.max(1, moving + pathSlots.length + standingLit + slots.filter((x) => x.parked && x.glow).length);
   const poolGeo = new THREE.InstancedBufferGeometry();
   const flat = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
@@ -893,37 +900,62 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       varying vec2 vP;
       varying vec3 vTint;
       varying vec4 vMode;
-      varying float vFar;
+      varying vec3 vW;
+      varying vec3 vAxis;
       void main() {
         // Metres in the car's own frame: across it, and along it (ahead is
-        // plus), from 8 m behind its middle to 15 m ahead.
-        vP = position.xz * vec2(7.0, 23.0) + vec2(0.0, 3.5);
-        vec3 f = normalize(aFwd);
+        // plus), from three metres behind its tail to five ahead of its
+        // nose. (aFwd is the way it faces, as long as half its width.)
+        float hw = length(aFwd);
+        vP = vec2(position.x * (2.0 * hw + 3.0), position.z * (2.0 * aMode.w + 8.0) + 1.0);
+        vec3 f = aFwd / hw;
         vec3 r = normalize(vec3(f.z, 0.0, -f.x));
         vec3 w = aAt + r * vP.x + f * vP.y + vec3(0.0, 0.045, 0.0);
         vTint = aTint;
         vMode = aMode;
-        vFar = distance(w, uCam);
+        vW = w;
+        vAxis = vec3(f.x, f.z, hw);
         gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
       }
     `,
     fragmentShader: /* glsl */ `
+      ${COMMON}
+      ${VNOISE}
       varying vec2 vP;
       varying vec3 vTint;
       varying vec4 vMode;
-      varying float vFar;
+      varying vec3 vW;
+      varying vec3 vAxis;
       void main() {
         float ahead = vP.y - vMode.w;
         float behind = -vP.y - vMode.w;
-        // Two beams that run together a few metres out and thin away.
-        float beams = exp(-pow((abs(vP.x) - 0.55) / (0.5 + max(ahead, 0.0) * 0.2), 2.0));
-        float head = smoothstep(-0.2, 1.6, ahead) * exp(-max(ahead, 0.0) * 0.21) * beams;
-        float tail = smoothstep(-0.1, 0.7, behind) * exp(-max(behind, 0.0) * 0.6) * exp(-pow(vP.x / (1.0 + max(behind, 0.0) * 0.2), 2.0));
-        // Under it: brightest along its sills, out from under its edges.
-        vec2 e = vec2(abs(vP.x) - 0.8, abs(vP.y) - vMode.w + 0.5);
-        float under = exp(-pow(max(e.x, 0.0) / 0.55, 2.0)) * exp(-pow(max(e.y, 0.0) / 0.6, 2.0)) * (0.3 + 0.7 * smoothstep(-0.5, 0.0, max(e.x, e.y * 0.4)));
-        vec3 col = vec3(0.8, 0.88, 1.0) * head * vMode.x * 0.42 + vec3(1.0, 0.03, 0.05) * tail * vMode.y * 0.3 + vTint * under * vMode.z * 0.34;
-        gl_FragColor = vec4(col * (1.0 - smoothstep(90.0, ${POOLS_TO.toFixed(1)}, vFar)), 1.0);
+        float hw = vAxis.z;
+        // How wet the road is here, as the road has it.
+        vec2 pr = mat2(0.8, -0.6, 0.6, 0.8) * vW.xz;
+        float n1 = vnoise(pr * 0.07) * 0.7 + vnoise(pr.yx * 0.19 + 2.1) * 0.3;
+        float n2 = vnoise(pr.yx * 0.23 + 5.3) * 0.75 + vnoise(pr * 0.61 + 8.7) * 0.25;
+        float broad = n1 * 0.3 + n2 * 0.45 + 0.125;
+        float damp = smoothstep(0.3, 0.6, broad);
+        float puddle = smoothstep(0.615, 0.69, broad + 0.03);
+        vec3 toEye = uCam - vW;
+        float dist = length(toEye);
+        vec3 V = toEye / dist;
+        float fres = 0.3 + 0.7 * pow(1.0 - clamp(V.y, 0.0, 1.0), 3.0);
+        // Toward the eye along the car's line: +1 looking at its nose.
+        float along = dot(normalize(V.xz + 1e-5), vAxis.xy);
+        float matte = 0.5 * mix(1.0, 0.45, puddle);
+        float wet = mix(0.3, 1.0, damp) * fres;
+        float headLight = matte + 1.3 * wet * (0.35 + 0.65 * pow(max(along, 0.0), 2.0));
+        float tailLight = matte + 1.3 * wet * (0.35 + 0.65 * pow(max(-along, 0.0), 2.0));
+        // A patch out from each headlamp, running together as they thin.
+        float lampX = hw * 0.66;
+        float head = smoothstep(-0.3, 0.5, ahead) * exp(-max(ahead, 0.0) * 0.75) * exp(-pow((abs(vP.x) - lampX) / (0.42 + max(ahead, 0.0) * 0.25), 2.0));
+        float tail = smoothstep(-0.2, 0.3, behind) * exp(-max(behind, 0.0) * 1.3) * exp(-pow(vP.x / (hw * 0.85), 2.0));
+        // Under it: a line along each sill, between the wheels.
+        float sill = abs(vP.x) - hw;
+        float under = (exp(-pow((sill - 0.03) / 0.07, 2.0)) + 0.16 * exp(-pow(sill / 0.3, 2.0))) * (1.0 - smoothstep(vMode.w - 1.5, vMode.w - 0.9, abs(vP.y)));
+        vec3 col = vec3(0.8, 0.88, 1.0) * head * vMode.x * 0.2 * headLight + vec3(1.0, 0.03, 0.05) * tail * vMode.y * 0.15 * tailLight + vTint * under * vMode.z * 0.42 * (matte + wet);
+        gl_FragColor = vec4(col * (1.0 - smoothstep(${(POOLS_TO * 0.55).toFixed(1)}, ${POOLS_TO.toFixed(1)}, dist)), 1.0);
       }
     `,
     transparent: true,
@@ -1414,12 +1446,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         // Its light on the road: its lamps' if they are on (low on a car
         // that stands), its strips' if it has them lit.
         const on = x.lit ? (x.parked ? 0.45 : 1) * glow : 0;
-        fwd.set(0, 0, 1).applyQuaternion(q);
+        fwd.set(0, 0, 1).applyQuaternion(q).multiplyScalar(x.lamps.box.max.x);
         p.toArray(poolAt.array, pi * 3);
         fwd.toArray(poolFwd.array, pi * 3);
         x.neon.toArray(poolTint.array, pi * 3);
         poolMode.array[pi * 4] = on;
-        poolMode.array[pi * 4 + 1] = on * (1 + 1.2 * braking);
+        poolMode.array[pi * 4 + 1] = on * (1 + 0.6 * braking);
         poolMode.array[pi * 4 + 2] = x.glow ? glow : 0;
         poolMode.array[pi * 4 + 3] = x.lamps.box.max.z;
         pi++;
