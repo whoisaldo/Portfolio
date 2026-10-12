@@ -20,15 +20,15 @@ export const TRADES = ["store", "bar", "noodle", "arcade", "clinic", "boutique",
 // noodles, a liquor store a store). A hostel, a hotel, an exchange, OPEN:
 // no room of ours, so the pane under it is dealt like any other.
 const RULES = [
-  [2, /RAMEN|NOODLE|DUMPLING|BENTO|SUSHI|YAKITORI|麺|弁当|寿司|鮨|焼き鳥|焼肉|餃子|天ぷら|中華|夜食|喫茶/],
-  [0, /LIQUOR|24H|MARKET|PAWN|二十四時間|深夜営業|質/],
-  [3, /ARCADE|VR|GAME|BRAINDANCE|ゲーム|麻雀|雀荘/],
-  [4, /CLINIC|PHARMACY|IMPLANT|TATTOO|RIPPERDOC|薬|義体|義眼|整形|眼科|医者|整体|刺青/],
-  [5, /古着|美容/],
-  [6, /REPAIR|ELECTRONICS|CHROME|CYBERWARE|PARTS|修理|電気/],
-  [1, /BAR|SAKE|KARAOKE|酒|立ち飲み|カラオケ/],
+  [2, /RAMEN|NOODLE|DUMPLING|BENTO|SUSHI|YAKITORI|CURRY|SOBA|DONBURI|TAKOYAKI|KEBAB|DINER|HOT POT|STREET FOOD|TEA HOUSE|麺|弁当|寿司|鮨|焼き鳥|焼肉|餃子|天ぷら|中華|夜食|喫茶|蕎麦|そば|ラーメン|食堂|火鍋|屋台|丼|肉|魚|茶/],
+  [0, /LIQUOR|24H|MARKET|PAWN|BOOKS|LAUNDRY|二十四時間|深夜営業|質|古本|書店|本/],
+  [3, /ARCADE|VR|GAME|BRAINDANCE|PACHINKO|MAHJONG|ゲーム|麻雀|雀荘/],
+  [4, /CLINIC|PHARMACY|IMPLANT|TATTOO|RIPPERDOC|薬|義体|義眼|整形|眼科|医者|整体|刺青|診療/],
+  [5, /古着|美容|花屋|花|写真|床屋/],
+  [6, /REPAIR|ELECTRONICS|CHROME|CYBERWARE|PARTS|WORKS|PRINT|修理|電気|部品|パーツ|時計|鍵/],
+  [1, /BAR|SAKE|KARAOKE|IZAKAYA|DARTS|酒|立ち飲み|カラオケ/],
 ];
-const ICONS = { bowl: 2, fish: 2, glass: 1, sake: 1, cross: 4, pill: 4, eye: 4, dice: 3, gear: 6, chip: 6 };
+const ICONS = { bowl: 2, fish: 2, glass: 1, sake: 1, bottle: 1, cross: 4, pill: 4, eye: 4, dice: 3, gear: 6, chip: 6, wrench: 6, plug: 6, book: 0, leaf: 5 };
 
 /** The trade a sign's design names (an index into TRADES), or -1. */
 export function tradeOf(spec) {

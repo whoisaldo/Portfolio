@@ -25,6 +25,18 @@ import { clearSigns, postSign, tradeOf } from "./trades.js";
 const SIGN_SIZES = { bs: [0.8, 2.0], bm: [1.0, 3.2], bl: [1.2, 5.0], ps: [1.8, 0.8], pm: [2.8, 1.2], bx: [1.2, 1.2] };
 // Every design of each size: the entry's list, then this chunk's.
 const STREET_DESIGNS = Object.fromEntries(Object.entries(STREET_SIGNS).map(([k, list]) => [k, [...list, ...(MORE_STREET_SIGNS[k] ?? [])]]));
+// How many designs a size had when the builder's turn alone picked one: the
+// avenue's own signs (the hero's street) still take that turn among these.
+const OLD_COUNT = { bs: 20, bm: 22, bl: 16, ps: 16, pm: 16, bx: 28 };
+// What a design is to somebody reading the street: its icon, or its first
+// word (HOSTEL on a small panel and HOSTEL over 宿 on a big one are one
+// name; so are OPEN 24H and OPEN LATE, VR ROOMS and VR ARCADE).
+const nameOf = (d) => {
+  if (d.icon) return `icon:${d.icon}`;
+  const word = d.lines[0].toUpperCase().replace(/[^A-Z0-9 ]/g, " ").trim().split(/\s+/)[0];
+  return word ? word.replace(/(?<=.{4})S$/, "") : d.lines[0];
+};
+const STREET_NAMES = Object.fromEntries(Object.entries(STREET_DESIGNS).map(([k, list]) => [k, list.map(nameOf)]));
 import { COMMON } from "./glsl.js";
 
 const PX_PER_M = 46;
@@ -33,7 +45,7 @@ export const FONT = (weight, px) =>
   `${weight} ${px}px "Chakra Petch", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP", "Yu Gothic", "Meiryo", sans-serif`;
 
 /** The words for a sign id, or null for a face with nothing to say. */
-export function signSpec(id) {
+export function signSpec(id, pick = null) {
   const base = id.replace(/_b$/, "").replace(/_far$/, "");
   if (base.startsWith("tower_")) {
     const t = towers.find((x) => x.slug === base.slice(6));
@@ -44,7 +56,9 @@ export function signSpec(id) {
   if (street) {
     const list = STREET_DESIGNS[street[1]];
     if (!list) return null;
-    const i = Number(street[2]) % list.length;
+    // (pick: the design the dealer in createSigns chose for where the
+    // sign hangs; without one, the builder's turn.)
+    const i = pick ?? Number(street[2]) % (OLD_COUNT[street[1]] ?? list.length);
     return { key: `st_${street[1]}_${i}`, draw: "street", size: street[1], ppm: 96, ...list[i] };
   }
   const canyon = base.match(/^far_([lr])(\d+)$/);
@@ -243,6 +257,16 @@ const ICONS = {
   anchor(c, s) { c.moveTo(0.56 * s, 0.24 * s); c.arc(0.5 * s, 0.24 * s, 0.06 * s, 0, Math.PI * 2); c.moveTo(0.5 * s, 0.3 * s); c.lineTo(0.5 * s, 0.82 * s); c.moveTo(0.36 * s, 0.42 * s); c.lineTo(0.64 * s, 0.42 * s); c.moveTo(0.22 * s, 0.6 * s); c.quadraticCurveTo(0.26 * s, 0.84 * s, 0.5 * s, 0.82 * s); c.quadraticCurveTo(0.74 * s, 0.84 * s, 0.78 * s, 0.6 * s); },
   gem(c, s) { c.moveTo(0.3 * s, 0.26 * s); c.lineTo(0.7 * s, 0.26 * s); c.lineTo(0.86 * s, 0.44 * s); c.lineTo(0.5 * s, 0.84 * s); c.lineTo(0.14 * s, 0.44 * s); c.closePath(); c.moveTo(0.14 * s, 0.44 * s); c.lineTo(0.86 * s, 0.44 * s); for (const x of [0.3, 0.7]) { c.moveTo(x * s, 0.26 * s); c.lineTo((0.5 + (x - 0.5) * 0.5) * s, 0.44 * s); c.lineTo(0.5 * s, 0.84 * s); } },
   clock(c, s) { c.moveTo(0.82 * s, 0.5 * s); c.arc(0.5 * s, 0.5 * s, 0.32 * s, 0, Math.PI * 2); c.moveTo(0.5 * s, 0.28 * s); c.lineTo(0.5 * s, 0.5 * s); c.lineTo(0.66 * s, 0.58 * s); },
+  leaf(c, s) { c.moveTo(0.2 * s, 0.8 * s); c.quadraticCurveTo(0.2 * s, 0.3 * s, 0.8 * s, 0.2 * s); c.quadraticCurveTo(0.7 * s, 0.75 * s, 0.2 * s, 0.8 * s); c.lineTo(0.62 * s, 0.38 * s); },
+  drop(c, s) { c.moveTo(0.5 * s, 0.14 * s); c.bezierCurveTo(0.8 * s, 0.5 * s, 0.76 * s, 0.84 * s, 0.5 * s, 0.84 * s); c.bezierCurveTo(0.24 * s, 0.84 * s, 0.2 * s, 0.5 * s, 0.5 * s, 0.14 * s); },
+  bell(c, s) { c.moveTo(0.22 * s, 0.7 * s); c.lineTo(0.78 * s, 0.7 * s); c.quadraticCurveTo(0.68 * s, 0.6 * s, 0.68 * s, 0.44 * s); c.arc(0.5 * s, 0.44 * s, 0.18 * s, 0, Math.PI, true); c.quadraticCurveTo(0.32 * s, 0.6 * s, 0.22 * s, 0.7 * s); c.moveTo(0.56 * s, 0.78 * s); c.arc(0.5 * s, 0.78 * s, 0.06 * s, 0, Math.PI); c.moveTo(0.5 * s, 0.26 * s); c.lineTo(0.5 * s, 0.18 * s); },
+  wrench(c, s) { c.arc(0.68 * s, 0.32 * s, 0.16 * s, -Math.PI * 0.25 + 0.6, -Math.PI * 0.25 - 0.6 + Math.PI * 2); c.moveTo(0.57 * s, 0.43 * s); c.lineTo(0.22 * s, 0.78 * s); },
+  ticket(c, s) { roundRect(c, 0.16 * s, 0.32 * s, 0.68 * s, 0.36 * s, 0.05 * s); c.moveTo(0.62 * s, 0.34 * s); c.lineTo(0.62 * s, 0.66 * s); c.moveTo(0.42 * s, 0.5 * s); c.arc(0.36 * s, 0.5 * s, 0.06 * s, 0, Math.PI * 2); },
+  house(c, s) { c.moveTo(0.18 * s, 0.5 * s); c.lineTo(0.5 * s, 0.2 * s); c.lineTo(0.82 * s, 0.5 * s); c.moveTo(0.26 * s, 0.46 * s); c.lineTo(0.26 * s, 0.8 * s); c.lineTo(0.74 * s, 0.8 * s); c.lineTo(0.74 * s, 0.46 * s); c.moveTo(0.44 * s, 0.8 * s); c.lineTo(0.44 * s, 0.6 * s); c.lineTo(0.56 * s, 0.6 * s); c.lineTo(0.56 * s, 0.8 * s); },
+  bottle(c, s) { c.moveTo(0.44 * s, 0.14 * s); c.lineTo(0.56 * s, 0.14 * s); c.lineTo(0.56 * s, 0.32 * s); c.quadraticCurveTo(0.68 * s, 0.4 * s, 0.68 * s, 0.52 * s); c.lineTo(0.68 * s, 0.84 * s); c.lineTo(0.32 * s, 0.84 * s); c.lineTo(0.32 * s, 0.52 * s); c.quadraticCurveTo(0.32 * s, 0.4 * s, 0.44 * s, 0.32 * s); c.closePath(); c.moveTo(0.32 * s, 0.56 * s); c.lineTo(0.68 * s, 0.56 * s); c.moveTo(0.32 * s, 0.72 * s); c.lineTo(0.68 * s, 0.72 * s); },
+  paw(c, s) { c.ellipse(0.5 * s, 0.64 * s, 0.17 * s, 0.13 * s, 0, 0, Math.PI * 2); for (const [x, y] of [[0.28, 0.44], [0.42, 0.32], [0.58, 0.32], [0.72, 0.44]]) { c.moveTo((x + 0.06) * s, y * s); c.arc(x * s, y * s, 0.06 * s, 0, Math.PI * 2); } },
+  plug(c, s) { c.moveTo(0.38 * s, 0.14 * s); c.lineTo(0.38 * s, 0.32 * s); c.moveTo(0.62 * s, 0.14 * s); c.lineTo(0.62 * s, 0.32 * s); c.moveTo(0.28 * s, 0.32 * s); c.lineTo(0.72 * s, 0.32 * s); c.lineTo(0.72 * s, 0.48 * s); c.quadraticCurveTo(0.72 * s, 0.66 * s, 0.5 * s, 0.66 * s); c.quadraticCurveTo(0.28 * s, 0.66 * s, 0.28 * s, 0.48 * s); c.closePath(); c.moveTo(0.5 * s, 0.66 * s); c.lineTo(0.5 * s, 0.88 * s); },
+  book(c, s) { c.moveTo(0.5 * s, 0.28 * s); c.quadraticCurveTo(0.34 * s, 0.2 * s, 0.16 * s, 0.26 * s); c.lineTo(0.16 * s, 0.74 * s); c.quadraticCurveTo(0.34 * s, 0.68 * s, 0.5 * s, 0.76 * s); c.quadraticCurveTo(0.66 * s, 0.68 * s, 0.84 * s, 0.74 * s); c.lineTo(0.84 * s, 0.26 * s); c.quadraticCurveTo(0.66 * s, 0.2 * s, 0.5 * s, 0.28 * s); c.lineTo(0.5 * s, 0.76 * s); },
   signal(c, s) { c.moveTo(0.54 * s, 0.76 * s); c.arc(0.5 * s, 0.76 * s, 0.04 * s, 0, Math.PI * 2); for (const r of [0.17, 0.31, 0.45]) { c.moveTo((0.5 - r * Math.SQRT1_2) * s, (0.76 - r * Math.SQRT1_2) * s); c.arc(0.5 * s, 0.76 * s, r * s, -Math.PI * 0.75, -Math.PI * 0.25); } },
 };
 
@@ -324,6 +348,34 @@ function street(ctx, spec, w, h) {
       strokeTube(ctx, color, Math.max(2, s * 0.05), () => ICONS[spec.icon]?.(ctx, s));
     }
     ctx.restore();
+    return;
+  }
+  if (spec.style === "chunky") {
+    // The show's painted sign: fat letters in one colour inside a thick
+    // outline in another, lit, leaning on some. The outline runs the
+    // letters together into one shape, as it does on the street.
+    const fill = panel(spec.fill ?? color, 1.6);
+    const edge = spec.edge ?? color;
+    layout(ctx, spec, w, h, inset * 1.15, (text, x, y, px, weight) => {
+      const size = Math.floor(px * 0.8);
+      ctx.save();
+      ctx.translate(x, y);
+      if (spec.slant) ctx.transform(1, 0, -spec.slant, 1, 0, 0);
+      ctx.font = FONT(weight, size);
+      ctx.lineJoin = "round";
+      ctx.shadowColor = edge;
+      ctx.shadowBlur = size * 0.5;
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = size * 0.36;
+      ctx.strokeText(text, 0, 0);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = fill;
+      ctx.lineWidth = size * 0.09;
+      ctx.strokeText(text, 0, 0);
+      ctx.fillStyle = fill;
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    }, 700);
     return;
   }
   if (spec.style === "outline") {
@@ -487,15 +539,61 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   if (allStreet) {
     for (const [size, list] of Object.entries(STREET_DESIGNS)) {
       const [w, h] = SIGN_SIZES[size];
-      list.forEach((_, i) => cellFor(signSpec(`st_${size}_${i}`), w, h));
+      list.forEach((_, i) => cellFor(signSpec(`st_${size}_${i}`, i), w, h));
     }
   }
+  // Which design a standard street sign shows. The builder names them in
+  // turn (st_ps_0, st_ps_1...), a size at a time, and by that turn alone a
+  // street showed HOSTEL twice in one look and the same five icons down
+  // every lane. So the design is dealt here by where the face hangs: the
+  // builder's turn if nothing of that name (nameOf) hangs within 40 m, else
+  // the next design on that does not, else the one whose namesake is
+  // furthest off. The avenue and the canyon north of the hero's lens (all
+  // of it is in the page's first frame, and its signs' colours are in the
+  // light baked onto that street) keep the builder's turn among the
+  // designs they always had.
+  const turns = new Map();
+  const hung = new Map();
+  const dealStreet = (size, n, mesh) => {
+    mesh.updateWorldMatrix(true, false);
+    const pos = mesh.geometry.attributes.position;
+    const c = new THREE.Vector3();
+    const v = new THREE.Vector3();
+    for (let i = 0; i < pos.count; i++) c.add(v.fromBufferAttribute(pos, i));
+    c.multiplyScalar(1 / pos.count).applyMatrix4(mesh.matrixWorld);
+    const names = STREET_NAMES[size];
+    let pick = n % (OLD_COUNT[size] ?? names.length);
+    if (!(Math.abs(c.x) < 30 && c.z > -520 && c.z < 12)) {
+      let best = -1;
+      for (let k = 0; k < names.length; k++) {
+        const i = (n + k) % names.length;
+        let near = Infinity;
+        for (const h of hung.get(names[i]) ?? []) near = Math.min(near, Math.hypot(h.x - c.x, h.z - c.z));
+        if (near > best) {
+          best = near;
+          pick = i;
+        }
+        if (near >= 40) break;
+      }
+    }
+    if (!hung.has(names[pick])) hung.set(names[pick], []);
+    hung.get(names[pick]).push(c);
+    return pick;
+  };
+  const specOf = (mesh) => {
+    const id = mesh.name.replace(/^sign_/, "");
+    const base = id.replace(/_b$/, "").replace(/_far$/, "");
+    const street = base.match(/^st_([a-z]{2})_(\d+)$/);
+    if (!street || !STREET_NAMES[street[1]]) return signSpec(id);
+    if (!turns.has(base)) turns.set(base, dealStreet(street[1], Number(street[2]), mesh));
+    return signSpec(id, turns.get(base));
+  };
   for (const mesh of meshes) {
     const id = mesh.name.replace(/^sign_/, "");
     // A caller may reword a sign (the braindance puts Ali's work on a few of
     // the avenue's); the face, its colour and its light stay the kit's.
     const base = id.replace(/_b$/, "").replace(/_far$/, "");
-    const spec = overrides?.[base] ? { ...signSpec(id), ...overrides[base], key: `${base}_bd` } : signSpec(id);
+    const spec = overrides?.[base] ? { ...specOf(mesh), ...overrides[base], key: `${base}_bd` } : specOf(mesh);
     if (!spec) continue;
     const w = mesh.userData.w || 1;
     const h = mesh.userData.h || 1;
@@ -602,6 +700,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
         if (!o || !a || !b) continue;
         frames.push({
           name: mesh.name,
+          key: spec.key,
           corner: o,
           u: a.clone().sub(o),
           v: b.clone().sub(o),
@@ -685,7 +784,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     addFaces(more) {
       const list = [];
       for (const m of more) {
-        const spec = signSpec(m.name.replace(/^sign_/, ""));
+        const spec = specOf(m);
         if (spec && cells.has(spec.key) && cells.get(spec.key).x !== undefined) list.push({ mesh: m, spec });
       }
       if (!list.length) return null;

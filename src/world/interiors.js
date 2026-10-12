@@ -241,7 +241,7 @@ export const SHOP_ROOM = /* glsl */ `
     vec2 q = vec2(h.x, h.y - FLOOR_Y);
     vec3 col;
     if (face < 0.5) {
-      col = warm * timber * 0.5 * (1.0 - 0.25 * step(fract(q.x / 0.14), 0.1) * fine);
+      col = warm * timber * 0.8 * (1.0 - 0.25 * step(fract(q.x / 0.14), 0.1) * fine);
       vec2 g = vec2(q.x / 0.22, (q.y - 2.2) / 0.6);
       float hs = hash12(vec2(floor(g.x), seed * 7.0));
       float slip = step(0.0, g.y) * step(g.y, 1.0) * step(0.2, hs) * within(fract(g), vec2(0.1, 0.06), vec2(0.9, 0.94)) * step(W * 0.12, q.x) * step(q.x, W * 0.88);
@@ -249,7 +249,7 @@ export const SHOP_ROOM = /* glsl */ `
       col = mix(col, mix(vec3(0.8, 0.72, 0.55), hs > 0.8 ? vec3(0.7, 0.06, 0.04) : vec3(0.05), ink), slip);
       // The pass: tiles, pans hung in a row, the hood's edge, steam.
       float pass = within(q, vec2(W * 0.14, 1.08), vec2(W * 0.86, 2.0));
-      vec3 kitchen = vec3(1.0, 0.92, 0.7) * 1.25;
+      vec3 kitchen = vec3(1.0, 0.92, 0.7) * 1.5;
       kitchen *= 1.0 - 0.18 * fine * (step(fract(q.x / 0.15), 0.08) + step(fract(q.y / 0.15), 0.08));
       float pan = step(length(vec2((fract(q.x / 0.42) - 0.5) * 0.42, q.y - 1.72)), 0.13) * step(0.4, hash12(vec2(floor(q.x / 0.42), seed)));
       kitchen = mix(kitchen, vec3(0.05, 0.04, 0.035), pan);
@@ -258,12 +258,12 @@ export const SHOP_ROOM = /* glsl */ `
       kitchen = mix(kitchen, vec3(1.0, 0.97, 0.9) * 1.5, smoothstep(0.25, 0.7, steam) * 0.55);
       col = mix(col, kitchen, pass);
     } else if (face < 1.5) {
-      col = warm * 0.05 * (1.0 + step(fract(h.x / 0.6), 0.12));
+      col = warm * 0.1 * (1.0 + step(fract(h.x / 0.6), 0.12));
     } else if (face < 2.5) {
-      col = warm * vec3(0.4, 0.3, 0.25) * 0.12;
+      col = warm * vec3(0.4, 0.3, 0.25) * 0.24;
     } else {
       vec2 s = vec2(h.z, h.y - FLOOR_Y);
-      col = warm * timber * 0.4 * (1.0 - 0.25 * step(fract(s.x / 0.14), 0.1) * fine);
+      col = warm * timber * 0.7 * (1.0 - 0.25 * step(fract(s.x / 0.14), 0.1) * fine);
       vec2 g = vec2(s.x / 0.8, (s.y - 1.1) / 1.0);
       float card = step(0.0, g.y) * step(g.y, 1.0) * within(fract(g), vec2(0.15, 0.1), vec2(0.85, 0.9));
       col = mix(col, mix(vec3(0.75, 0.1, 0.05), vec3(0.95, 0.86, 0.66), step(length(fract(g) - vec2(0.5, 0.55)), 0.22)) * 0.55, card);
@@ -312,7 +312,7 @@ export const SHOP_ROOM = /* glsl */ `
       float cap = step(abs(l.x), 0.07) * step(abs(abs(l.y) - 0.23), 0.025);
       float cord = step(abs(l.x), 0.008) * step(0.23, l.y);
       col = mix(col, vec3(0.01), max(cap, cord));
-      col = mix(col, vec3(1.0, 0.2, 0.06) * (2.0 - 18.0 * dot(l, l)) * (0.85 + 0.15 * step(0.5, fract(l.y * 22.0)) * fine), body);
+      col = mix(col, vec3(1.0, 0.2, 0.06) * (2.5 - 18.0 * dot(l, l)) * (0.85 + 0.15 * step(0.5, fract(l.y * 22.0)) * fine), body);
     }
     // The curtain across the top of the window, a ring dyed on each width.
     t = 0.1 / d.z;
@@ -654,7 +654,7 @@ export const SHOP_ROOM = /* glsl */ `
   vec3 tradeLight(float kind) {
     if (kind < 0.5) return vec3(0.8, 0.93, 1.0) * 0.42;
     if (kind < 1.5) return vec3(1.0, 0.5, 0.25) * 0.2;
-    if (kind < 2.5) return vec3(1.0, 0.6, 0.3) * 0.4;
+    if (kind < 2.5) return vec3(1.0, 0.6, 0.3) * 0.5;
     if (kind < 3.5) return vec3(0.55, 0.3, 0.9) * 0.27;
     if (kind < 4.5) return vec3(0.75, 1.0, 0.9) * 0.5;
     if (kind < 5.5) return vec3(1.0, 0.8, 0.6) * 0.34;

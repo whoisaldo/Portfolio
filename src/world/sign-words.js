@@ -4,7 +4,9 @@
 // edited; signs.js hands the faces of each size out over both lists, so a
 // street repeats a word only every few dozen signs. Invented and generic
 // words only (what the shop sells, what it is), no brand; the icons are new
-// pictograms drawn in tube by signs.js.
+// pictograms drawn in tube by signs.js. `chunky` is the show's painted
+// kind: fat letters in one colour (fill) inside a thick outline in another
+// (edge), leaning on some (slant).
 export const MORE_STREET_SIGNS = {
   bs: [
     { lines: ["湯"], color: "#27dcf2", style: "backlit" },
@@ -17,6 +19,16 @@ export const MORE_STREET_SIGNS = {
     { lines: ["刺青"], color: "#a24bff", style: "tube" },
     { lines: ["VR"], color: "#27dcf2", style: "led", latin: true },
     { lines: ["麺"], color: "#ff6a2a", style: "backlit" },
+    // (Round 4: from here on only the dealer in signs.js hands these out,
+    // by where a sign hangs. The avenue's own keep the turns above.)
+    { lines: ["茶"], color: "#39ff9a", style: "tube" },
+    { lines: ["肉"], color: "#ff3a2a", style: "backlit" },
+    { lines: ["花"], color: "#ff3fd2", style: "outline" },
+    { lines: ["本"], color: "#eceae4", style: "backlit" },
+    { lines: ["鍵"], color: "#ffb254", style: "tube" },
+    { lines: ["魚"], color: "#27dcf2", style: "tube" },
+    { lines: ["星"], color: "#fcee0a", style: "chunky", fill: "#fcee0a", edge: "#ff2e88" },
+    { lines: ["祭"], color: "#ff2b2b", style: "chunky", fill: "#ffb254", edge: "#ff2b2b" },
   ],
   bm: [
     { lines: ["中華"], color: "#ff2b2b", style: "backlit" },
@@ -29,6 +41,14 @@ export const MORE_STREET_SIGNS = {
     { lines: ["古着"], color: "#a24bff", style: "backlit" },
     { lines: ["弁当"], color: "#ffd24a", style: "tube" },
     { lines: ["修理"], color: "#2f7bff", style: "outline" },
+    { lines: ["蕎麦"], color: "#eceae4", style: "tube" },
+    { lines: ["古本"], color: "#ffb254", style: "backlit" },
+    { lines: ["書店"], color: "#2f7bff", style: "tube" },
+    { lines: ["酒場"], color: "#ff2e88", style: "chunky", fill: "#fcee0a", edge: "#ff2e88" },
+    { lines: ["花屋"], color: "#ff3fd2", style: "tube" },
+    { lines: ["写真"], color: "#27dcf2", style: "outline" },
+    { lines: ["時計"], color: "#ffd24a", style: "backlit" },
+    { lines: ["床屋"], color: "#2ee6c8", style: "chunky", fill: "#eceae4", edge: "#2f7bff" },
   ],
   bl: [
     { lines: ["義眼クリニック"], color: "#27dcf2", style: "tube" },
@@ -39,6 +59,14 @@ export const MORE_STREET_SIGNS = {
     { lines: ["回転寿司"], color: "#ff3a2a", style: "backlit" },
     { lines: ["二十四時間"], color: "#39ff9a", style: "outline" },
     { lines: ["闇医者"], color: "#a24bff", style: "tube" },
+    { lines: ["焼きそば"], color: "#ff6a2a", style: "tube" },
+    { lines: ["ラーメン横丁"], color: "#ff2b2b", style: "chunky", fill: "#fcee0a", edge: "#ff2b2b" },
+    { lines: ["カプセルホテル"], color: "#27dcf2", style: "backlit" },
+    { lines: ["立ち食いそば"], color: "#ffd24a", style: "tube" },
+    { lines: ["大衆食堂"], color: "#ffb254", style: "chunky", fill: "#ffb254", edge: "#a24bff" },
+    { lines: ["電子部品"], color: "#2f7bff", style: "outline" },
+    { lines: ["中古パーツ"], color: "#39ff9a", style: "tube" },
+    { lines: ["夜間診療"], color: "#eceae4", style: "backlit" },
   ],
   ps: [
     { lines: ["NOODLES"], color: "#ff6a2a", style: "tube" },
@@ -49,6 +77,22 @@ export const MORE_STREET_SIGNS = {
     { lines: ["VR ROOMS"], color: "#27dcf2", style: "outline" },
     { lines: ["ARCADE"], color: "#fcee0a", style: "tube" },
     { lines: ["HOSTEL"], color: "#2ee6c8", style: "backlit" },
+    { lines: ["IZAKAYA"], color: "#ffb254", style: "tube" },
+    { lines: ["TEA HOUSE 茶"], color: "#39ff9a", style: "backlit" },
+    { lines: ["CURRY"], color: "#ff2b2b", style: "chunky", fill: "#fcee0a", edge: "#ff2b2b", slant: 0.2 },
+    { lines: ["PACHINKO"], color: "#a24bff", style: "chunky", fill: "#ff9ad5", edge: "#a24bff" },
+    { lines: ["CAPSULE INN"], color: "#27dcf2", style: "outline" },
+    { lines: ["KEBAB"], color: "#2ee6c8", style: "chunky", fill: "#ff9a2a", edge: "#2ee6c8", slant: 0.16 },
+    { lines: ["SOBA 蕎麦"], color: "#eceae4", style: "tube" },
+    { lines: ["MAHJONG"], color: "#2ee6c8", style: "led" },
+    { lines: ["BATHHOUSE"], color: "#2f7bff", style: "backlit" },
+    { lines: ["PRINT SHOP"], color: "#ffd24a", style: "outline" },
+    { lines: ["NIGHT CAFE"], color: "#ff3fd2", style: "tube" },
+    { lines: ["DONBURI 丼"], color: "#ff6a2a", style: "backlit" },
+    { lines: ["SCRAP & PARTS"], color: "#fcee0a", style: "led" },
+    { lines: ["LAUNDRY"], color: "#27dcf2", style: "tube" },
+    { lines: ["TAKOYAKI"], color: "#ff3a2a", style: "chunky", fill: "#ffd24a", edge: "#ff3a2a" },
+    { lines: ["DARTS & POOL"], color: "#ff2e88", style: "chunky", fill: "#39ff9a", edge: "#ff2e88", slant: 0.14 },
   ],
   pm: [
     { lines: ["PHARMACY", "薬"], color: "#39ff9a", style: "backlit" },
@@ -59,6 +103,16 @@ export const MORE_STREET_SIGNS = {
     { lines: ["LOVE HOTEL"], color: "#ff2e88", style: "outline" },
     { lines: ["DUMPLINGS 餃子"], color: "#ff6a2a", style: "backlit" },
     { lines: ["REPAIRS", "修理"], color: "#2f7bff", style: "led" },
+    { lines: ["GOLDEN CARP"], color: "#ff2e88", style: "chunky", fill: "#fcee0a", edge: "#ff2e88", slant: 0.18 },
+    { lines: ["NEON TIGER"], color: "#2f7bff", style: "chunky", fill: "#ff9a2a", edge: "#2f7bff" },
+    { lines: ["LUCKY CAT", "招き猫"], color: "#ff2b2b", style: "chunky", fill: "#fcee0a", edge: "#ff2b2b", slant: 0.14 },
+    { lines: ["MIDNIGHT DINER"], color: "#ff3fd2", style: "chunky", fill: "#27dcf2", edge: "#ff3fd2" },
+    { lines: ["HOT POT 火鍋"], color: "#ff3a2a", style: "backlit" },
+    { lines: ["CAPSULE HOTEL"], color: "#2ee6c8", style: "tube" },
+    { lines: ["BIKE WORKS"], color: "#ffd24a", style: "chunky", fill: "#eceae4", edge: "#ff6a2a", slant: 0.2 },
+    { lines: ["STREET FOOD", "屋台"], color: "#ffb254", style: "tube" },
+    { lines: ["SYNTH NOODLE"], color: "#a24bff", style: "chunky", fill: "#ff9ad5", edge: "#a24bff", slant: 0.16 },
+    { lines: ["USED BOOKS", "古本"], color: "#eceae4", style: "outline" },
   ],
   bx: [
     { icon: "pill", color: "#39ff9a", style: "icon", frame: "disc" },
@@ -77,5 +131,15 @@ export const MORE_STREET_SIGNS = {
     { icon: "gem", color: "#ff3fd2", style: "icon", frame: "lozenge" },
     { icon: "clock", color: "#fcee0a", style: "icon" },
     { icon: "signal", color: "#39ff9a", style: "icon", frame: "hex" },
+    { icon: "leaf", color: "#39ff9a", style: "icon", frame: "lozenge" },
+    { icon: "drop", color: "#27dcf2", style: "icon", frame: "hex" },
+    { icon: "bell", color: "#ffd24a", style: "icon", frame: "disc" },
+    { icon: "wrench", color: "#eceae4", style: "icon", frame: "cut" },
+    { icon: "ticket", color: "#ff3fd2", style: "icon" },
+    { icon: "house", color: "#ffb254", style: "icon", frame: "hex" },
+    { icon: "bottle", color: "#ff2b2b", style: "icon", frame: "disc" },
+    { icon: "paw", color: "#2ee6c8", style: "icon", frame: "lozenge" },
+    { icon: "plug", color: "#fcee0a", style: "icon", frame: "cut" },
+    { icon: "book", color: "#2f7bff", style: "icon" },
   ],
 };
