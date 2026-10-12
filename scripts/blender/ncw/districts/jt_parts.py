@@ -461,31 +461,124 @@ def _roof_cloth(T, x0, x1, z_front, z_back, y_front, y_back, top, under):
     quad(T, b, a, d, c, col=under)
 
 
-@P.proto("jt_stall", box=(1.2, 1.3, 0.8), reach=320)
+# Stalls (round 3: "one stall stamped everywhere"): four of them, each its
+# own roof, goods, board and light, the lamps over 2.3 m so that nobody at
+# the counter has a lamp for a head. The kit's paper lanterns that hang
+# from A's and B's eaves are set down with them (stall() in japantown.py),
+# so each is one of the kit's four shapes in its own colour.
+def _counter(T, top=WOOD_PALE, body=WOOD):
+    box(T, -1.2, 1.2, 0.0, 0.95, 0.3, 0.75, scale=1.0, col=body)
+    box(T, -1.26, 1.26, 0.95, 1.0, 0.2, 0.85, scale=1.0, col=top)
+
+
+@P.proto("jt_stall", box=(1.3, 1.6, 0.9), reach=320)
 def _jt_stall(k):
-    """A food stall: a counter under a red cloth roof, its lamp, a lantern
-    at each front corner, the cook's back board."""
+    """A: a food stall under a red cloth roof, a tube under its eave, trays
+    along the counter and a pot behind, the menu over the cook's head."""
     T = k("trim")
-    box(T, -1.2, 1.2, 0.0, 0.95, 0.3, 0.75, scale=1.0, col=WOOD)
-    box(T, -1.26, 1.26, 0.95, 1.0, 0.2, 0.85, scale=1.0, col=WOOD_PALE)
+    _counter(T)
     for x in (-1.16, 1.16):
-        for z in (-0.74, 0.76):
-            box(T, x - 0.04, x + 0.04, 0.0, 2.25, z - 0.04, z + 0.04, scale=1.0, col=WOOD)
-    box(T, -1.2, 1.2, 0.0, 1.95, -0.8, -0.74, scale=1.0, col=(0.11, 0.09, 0.08, 1))
+        for z, h in ((-0.74, 3.28), (0.76, 3.02)):
+            box(T, x - 0.04, x + 0.04, 0.0, h, z - 0.04, z + 0.04, scale=1.0, col=WOOD)
+    box(T, -1.2, 1.2, 0.0, 2.7, -0.8, -0.74, scale=1.0, col=(0.11, 0.09, 0.08, 1))
     box(T, -1.1, 1.1, 0.7, 0.76, -0.74, -0.3, scale=1.0, col=GREY)
-    _roof_cloth(T, -1.42, 1.42, 1.15, -0.95, 2.2, 2.62, RED, (0.62, 0.13, 0.1, 1))
-    box(T, -1.42, 1.42, 1.95, 2.2, 1.13, 1.16, scale=1.0, col=RED, bottom=True)
-    box(k("neon_amber"), -0.9, 0.9, 2.1, 2.16, 0.25, 0.33, scale=1.0, bottom=True)
-    for x in (-1.3, 1.3):
-        barrel(k("neon_amber"), x, 1.05, 1.5, 1.92, 0.15)
-    # What it sells, in trays along the counter; a pot on the hob behind;
-    # its menu, lit, on the back board.
-    for i, col in enumerate(((0.55, 0.2, 0.08, 1), (0.6, 0.5, 0.2, 1), (0.2, 0.4, 0.12, 1), (0.55, 0.5, 0.45, 1), (0.5, 0.1, 0.1, 1))):
-        x = -1.0 + i * 0.43
-        box(T, x, x + 0.34, 1.0, 1.05, 0.34, 0.66, scale=1.0, col=(0.07, 0.07, 0.08, 1))
-        box(T, x + 0.03, x + 0.31, 1.05, 1.09 + 0.03 * (i % 2), 0.37, 0.63, scale=1.0, col=col)
+    _roof_cloth(T, -1.42, 1.42, 1.15, -0.95, 3.0, 3.32, RED, (0.62, 0.13, 0.1, 1))
+    box(T, -1.42, 1.42, 2.76, 3.0, 1.13, 1.16, scale=1.0, col=RED, bottom=True)
+    box(k("glow", 1), -0.9, 0.9, 2.88, 2.93, 0.25, 0.33, scale=1.0, bottom=True, col=(1.0, 0.62, 0.26, 1))
+    for i, col in enumerate(((0.42, 0.16, 0.07, 1), (0.5, 0.42, 0.2, 1), (0.42, 0.38, 0.33, 1), (0.36, 0.08, 0.07, 1))):
+        x = -1.0 + i * 0.5
+        box(T, x, x + 0.4, 1.0, 1.04, 0.34, 0.66, scale=1.0, col=(0.05, 0.05, 0.055, 1))
+        box(T, x + 0.04, x + 0.36, 1.04, 1.06, 0.38, 0.62, scale=1.0, col=col)
     cylinder(T, 0.75, -0.5, 0.76, 1.1, 0.2, segs=6, col=(0.3, 0.3, 0.31, 1))
-    P.face(k, P.FOOD, 0.0, 1.5, -0.735, 1.5, 0.7, 0.0, GLOW["amber"])
+    P.face(k, P.FOOD, -0.36, 2.3, -0.735, 0.66, 0.6, 0.0, GLOW["amber"])
+    P.face(k, P.FOOD, 0.36, 2.3, -0.735, 0.66, 0.6, 0.0, GLOW["amber"])
+
+
+@P.proto("jt_stall_b", box=(1.5, 1.7, 0.9), reach=320)
+def _jt_stall_b(k):
+    """B: a wooden yatai under a board gable, indigo noren across its eave,
+    a charcoal grill glowing on the counter, paper slips of the menu pinned
+    along the cook's board."""
+    T = k("trim")
+    _counter(T, (0.26, 0.17, 0.1, 1), (0.13, 0.08, 0.05, 1))
+    for x in (-1.2, 1.2):
+        for z in (-0.74, 0.9):
+            box(T, x - 0.05, x + 0.05, 0.0, 2.98, z - 0.05, z + 0.05, scale=1.0, col=(0.13, 0.08, 0.05, 1))
+    box(T, -1.25, 1.25, 2.9, 2.98, 0.84, 0.96, scale=1.0, col=(0.13, 0.08, 0.05, 1))
+    roof, under = (0.09, 0.085, 0.08, 1), (0.16, 0.1, 0.06, 1)
+    for zf, yf in ((1.3, 2.98), (-1.05, 2.98)):
+        a, b, c, d = (-1.5, yf, zf), (1.5, yf, zf), (1.5, 3.4, 0.12), (-1.5, 3.4, 0.12)
+        if zf > 0:
+            quad(T, a, b, c, d, col=roof)
+            quad(T, b, a, d, c, col=under)
+        else:
+            quad(T, b, a, d, c, col=roof)
+            quad(T, a, b, c, d, col=under)
+    for x in (-0.83, 0.0, 0.83):
+        for yaw in (0.0, math.pi):
+            rotated_quad(k("print", 1), x, 2.66, 0.97, 0.78, 0.5, yaw, col=(0.06, 0.08, 0.22, P.BANNER), depth=0.004)
+    box(T, -0.95, 0.15, 1.0, 1.14, 0.36, 0.7, scale=1.0, col=(0.04, 0.04, 0.045, 1))
+    quad(k("glow"), (-0.9, 1.145, 0.66), (0.1, 1.145, 0.66), (0.1, 1.145, 0.4), (-0.9, 1.145, 0.4), col=(0.9, 0.32, 0.07, 1))
+    box(T, -1.2, 1.2, 0.0, 2.6, -0.8, -0.74, scale=1.0, col=(0.1, 0.07, 0.05, 1))
+    for i in range(7):
+        x = -1.0 + i * 0.33
+        quad(T, (x, 1.75 + 0.05 * (i % 3), -0.733), (x + 0.2, 1.75 + 0.05 * (i % 3), -0.733), (x + 0.2, 2.35, -0.733), (x, 2.35, -0.733), col=(0.6, 0.57, 0.48, 1))
+        quad(T, (x + 0.08, 1.9, -0.731), (x + 0.12, 1.9, -0.731), (x + 0.12, 2.28, -0.731), (x + 0.08, 2.28, -0.731), col=(0.05, 0.04, 0.03, 1))
+    box(T, 1.2, 1.62, 2.9, 2.94, 0.86, 0.94, scale=1.0, col=(0.13, 0.08, 0.05, 1))
+
+
+@P.proto("jt_stall_c", box=(1.5, 1.5, 1.0), reach=320)
+def _jt_stall_c(k):
+    """C: a stall of goods under a striped canvas on a steel frame, a string
+    of bare bulbs along its front, cartons and crates on its table, a price
+    board on a pole."""
+    T, G = k("trim"), k("glow")
+    box(T, -1.25, 1.25, 0.85, 0.9, -0.6, 0.75, scale=1.0, col=(0.16, 0.16, 0.17, 1))
+    for x in (-1.2, 1.2):
+        for z, h in ((-0.7, 3.05), (1.0, 2.82)):
+            box(T, x - 0.025, x + 0.025, 0.0, h, z - 0.025, z + 0.025, scale=1.0, col=GREY)
+    for i in range(6):
+        x0, x1 = -1.4 + i * 0.4667, -1.4 + (i + 1) * 0.4667
+        col = (0.08, 0.3, 0.2, 1) if i % 2 == 0 else (0.6, 0.58, 0.5, 1)
+        a, b, c, d = (x0, 2.82, 1.25), (x1, 2.82, 1.25), (x1, 3.08, -0.9), (x0, 3.08, -0.9)
+        quad(T, a, b, c, d, col=col)
+        quad(T, b, a, d, c, col=tuple(v * 0.55 for v in col[:3]) + (1,))
+        quad(T, (x0, 2.6, 1.25), (x1, 2.6, 1.25), (x1, 2.82, 1.25), (x0, 2.82, 1.25), col=col)
+    quad(T, (-1.35, 2.585, 1.27), (1.35, 2.585, 1.27), (1.35, 2.6, 1.27), (-1.35, 2.6, 1.27), col=(0.02, 0.02, 0.02, 1))
+    for i in range(7):
+        x = -1.2 + i * 0.4
+        quad(G, (x - 0.035, 2.46, 1.28), (x + 0.035, 2.46, 1.28), (x + 0.035, 2.55, 1.28), (x - 0.035, 2.55, 1.28), col=(1.0, 0.75, 0.42, 1))
+    for i, (x0, x1, z0, z1, h) in enumerate(((-1.15, -0.55, 0.1, 0.7, 0.32), (-0.5, 0.1, 0.1, 0.7, 0.26), (0.15, 0.7, 0.1, 0.7, 0.36), (0.75, 1.2, 0.15, 0.65, 0.3),
+                                              (-1.1, -0.5, -0.55, 0.0, 0.5))):
+        P.carton(k, x0, x1, 0.9, 0.9 + h, z0, z1, 0.13 + 0.17 * i, P.BOXED if i % 2 else P.TIMBER if i == 4 else P.BOXED)
+    box(T, 1.35, 1.39, 0.0, 2.2, 0.95, 0.99, scale=1.0, col=GREY)
+    rotated_quad(k("print", 1), 1.37, 2.0, 1.0, 0.5, 0.36, 0.0, col=(0.5, 0.5, 0.5, P.BOARD), depth=0.0)
+
+
+@P.proto("jt_stall_d", box=(1.2, 1.6, 0.8), reach=320)
+def _jt_stall_d(k):
+    """D: a steel kiosk, its service window lit from within, a lit box of
+    menus on its roof under a pink tube, a griddle at the window."""
+    T, G = k("trim"), k("glow")
+    body = (0.06, 0.18, 0.19, 1)
+    box(T, -1.15, 1.15, 0.0, 1.0, -0.75, 0.75, scale=1.0, col=body)
+    box(T, -1.15, -0.9, 1.0, 2.55, -0.75, 0.75, scale=1.0, col=body)
+    box(T, 0.9, 1.15, 1.0, 2.55, -0.75, 0.75, scale=1.0, col=body)
+    box(T, -0.9, 0.9, 2.1, 2.55, -0.75, 0.75, scale=1.0, col=body)
+    box(T, -0.9, 0.9, 1.0, 2.1, -0.75, -0.7, scale=1.0, col=body)
+    quad(G, (-0.9, 1.0, -0.69), (0.9, 1.0, -0.69), (0.9, 2.1, -0.69), (-0.9, 2.1, -0.69), col=(0.3, 0.2, 0.1, 1))
+    quad(G, (0.9, 2.098, 0.75), (-0.9, 2.098, 0.75), (-0.9, 2.098, -0.7), (0.9, 2.098, -0.7), col=(0.8, 0.75, 0.62, 1))
+    box(T, -1.2, 1.2, 0.97, 1.02, 0.75, 1.05, scale=1.0, col=GREY)
+    box(T, -0.6, 0.2, 1.02, 1.06, 0.78, 1.0, scale=1.0, col=(0.03, 0.03, 0.035, 1))
+    for i in range(4):
+        for j in range(2):
+            x, z = -0.52 + i * 0.19, 0.83 + j * 0.1
+            quad(G, (x, 1.062, z + 0.05), (x + 0.07, 1.062, z + 0.05), (x + 0.07, 1.062, z), (x, 1.062, z), col=(0.9, 0.48, 0.14, 1))
+    box(T, -1.3, 1.3, 2.55, 2.65, -0.85, 1.1, scale=1.0, col=(0.12, 0.12, 0.13, 1))
+    box(G, -1.3, 1.3, 2.58, 2.62, 1.1, 1.13, scale=1.0, col=(1.0, 0.25, 0.62, 1))
+    box(T, -0.85, 0.85, 2.65, 3.3, 0.3, 0.5, scale=1.0, col=(0.05, 0.05, 0.06, 1))
+    P.face(k, P.FOOD, -0.38, 2.97, 0.505, 0.66, 0.6, 0.0, GLOW["cyan"])
+    P.face(k, P.FOOD, 0.38, 2.97, 0.505, 0.66, 0.6, 0.0, (0.95, 0.9, 0.8, 1))
 
 
 @P.proto("jt_cart", box=(0.9, 1.2, 0.6), reach=320)
@@ -1227,13 +1320,105 @@ def _jt_bills(k):
 # The origin is on the wall's plane at the bracket's foot.
 # ---------------------------------------------------------------------------
 def _sconce(k, lens):
-    M = k("metal")
-    box(M, -0.05, 0.05, -0.12, 0.12, 0.0, 0.06, scale=0.5)
-    box(M, -0.14, 0.14, 0.12, 0.17, 0.0, 0.26, scale=0.5, bottom=True)
-    quad(k("glow"), (-0.11, 0.04, 0.22), (0.11, 0.04, 0.22), (0.11, 0.12, 0.22), (-0.11, 0.12, 0.22), col=lens)
-    quad(k("glow"), (-0.11, 0.04, 0.06), (0.11, 0.04, 0.06), (0.11, 0.04, 0.22), (-0.11, 0.04, 0.22), col=lens)
+    G = k("glow")    # (one material: the housing is glow at the dark of painted steel)
+    dark = (0.022, 0.024, 0.028, 1)
+    box(G, -0.05, 0.05, -0.12, 0.12, 0.0, 0.06, scale=0.5, col=dark)
+    box(G, -0.14, 0.14, 0.12, 0.17, 0.0, 0.26, scale=0.5, bottom=True, col=dark)
+    quad(G, (-0.11, 0.04, 0.22), (0.11, 0.04, 0.22), (0.11, 0.12, 0.22), (-0.11, 0.12, 0.22), col=lens)
+    quad(G, (-0.11, 0.04, 0.06), (0.11, 0.04, 0.06), (0.11, 0.04, 0.22), (-0.11, 0.04, 0.22), col=lens)
 
 
-for _nm, _col in (("jt_sconce", (0.95, 0.55, 0.22, 1)), ("jt_sconce_g", (0.35, 0.9, 0.5, 1)), ("jt_sconce_c", (0.35, 0.8, 0.95, 1)),
-                  ("jt_sconce_w", (0.62, 0.62, 0.56, 1))):
+for _nm, _col in (("jt_sconce", (0.95, 0.55, 0.22, 1)), ("jt_sconce_w", (0.55, 0.62, 0.6, 1))):
     P.proto(_nm, box=(0.15, 0.15, 0.13), reach=200)(lambda k, _c=_col: _sconce(k, _c))
+
+
+# ---------------------------------------------------------------------------
+# Japantown's own trees (round 3: the kit's one blossom tree on its lit
+# planter stood everywhere): a weeping cherry leaning out of a granite
+# planter, a red maple in a timber box, a young cherry in a tree pit behind
+# its guard. Bark on round limbs, blossom and leaves in pads (the `plant`
+# material), no light in any planter.
+# ---------------------------------------------------------------------------
+def _bark(w, pts, radii, segs=7):
+    P.tube(w, pts, radii, segs=segs, col=(0.09, 0.07, 0.062, P.LIMB), smooth=True)
+
+
+def _pbox(w, x0, x1, y0, y1, z0, z1, col):
+    """A box in the `plant` material, shaded smooth as a limb is (its uv
+    the face's normal): a planter is one mesh with its tree."""
+    c = (*col[:3], P.LIMB)
+    for a, b, cc, d, uv in (((x1, y0, z1), (x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (1.0, 0.5)), ((x0, y0, z0), (x0, y0, z1), (x0, y1, z1), (x0, y1, z0), (0.0, 0.5)),
+                            ((x0, y0, z1), (x1, y0, z1), (x1, y1, z1), (x0, y1, z1), (0.5, 1.0)), ((x1, y0, z0), (x0, y0, z0), (x0, y1, z0), (x1, y1, z0), (0.5, 0.0)),
+                            ((x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0), (0.5, 0.5))):
+        quad(w, a, b, cc, d, (uv,) * 4, c)
+
+
+def _granite(w, h=0.5, r=0.72):
+    _pbox(w, -r, r, 0.0, h, -r, r, (0.2, 0.2, 0.21, 1))
+    _pbox(w, -r - 0.05, r + 0.05, h, h + 0.07, -r - 0.05, r + 0.05, (0.3, 0.3, 0.31, 1))
+    quad(w, (-r + 0.08, h + 0.075, r - 0.08), (r - 0.08, h + 0.075, r - 0.08), (r - 0.08, h + 0.075, -r + 0.08), (-r + 0.08, h + 0.075, -r + 0.08), ((0.5, 0.5),) * 4,
+         (0.05, 0.04, 0.035, P.LIMB))
+
+
+@P.proto("jt_tree_a", box=(0.75, 2.0, 0.75), reach=480)
+def _jt_tree_a(k):
+    """A weeping cherry: its trunk leans and turns as it climbs out of a low
+    granite planter, four limbs reach out and droop, the blossom in nine
+    pads of three pinks hung low at their ends."""
+    w = k("plant")
+    _granite(w)
+    _bark(w, ((0.0, 0.5, 0.0), (0.06, 0.8, 0.04), (0.2, 1.15, 0.1), (0.26, 1.55, 0.06), (0.16, 1.95, -0.06), (0.22, 2.3, -0.14), (0.36, 2.62, -0.12)),
+          (0.24, 0.18, 0.15, 0.13, 0.115, 0.1, 0.08))
+    for limb in (((0.26, 1.55, 0.06), (0.0, 1.8, 0.4), (-0.4, 2.05, 0.7), (-0.8, 2.1, 0.9)),
+                 ((0.16, 1.95, -0.06), (0.5, 2.15, -0.35), (0.9, 2.35, -0.55), (1.2, 2.3, -0.6)),
+                 ((0.22, 2.3, -0.14), (-0.1, 2.6, -0.4), (-0.45, 2.8, -0.6), (-0.7, 2.75, -0.8)),
+                 ((0.36, 2.62, -0.12), (0.7, 2.85, 0.15), (1.0, 2.95, 0.45), (1.2, 2.85, 0.65))):
+        _bark(w, limb, (0.075, 0.06, 0.045, 0.03), segs=5)
+    pink, rose, pale = (0.82, 0.3, 0.5), (0.72, 0.16, 0.34), (0.85, 0.5, 0.62)
+    for cx, cy, cz, r, col in ((-0.75, 2.05, 0.85, 0.75, pink), (-0.3, 2.25, 0.55, 0.6, pale), (1.1, 2.25, -0.55, 0.78, rose), (0.6, 2.45, -0.4, 0.6, pink),
+                               (-0.65, 2.7, -0.75, 0.72, pale), (-0.2, 2.95, -0.35, 0.62, rose), (1.1, 2.8, 0.6, 0.72, pink), (0.55, 3.1, 0.2, 0.7, pale),
+                               (0.2, 3.25, -0.15, 0.55, pink)):
+        P.pad(w, cx, cy, cz, r, col, segs=6)
+
+
+@P.proto("jt_tree_b", box=(0.75, 2.1, 0.75), reach=480)
+def _jt_tree_b(k):
+    """A red maple in a box of dark timber: a straight trunk that forks
+    twice, the leaves in layered pads of crimson and rust, flat-topped as a
+    gardener keeps it."""
+    w = k("plant")
+    _pbox(w, -0.65, 0.65, 0.0, 0.62, -0.65, 0.65, (0.12, 0.075, 0.05, 1))
+    for y in (0.2, 0.42):
+        _pbox(w, -0.67, 0.67, y, y + 0.03, -0.67, 0.67, (0.06, 0.04, 0.03, 1))
+    quad(w, (-0.58, 0.625, 0.58), (0.58, 0.625, 0.58), (0.58, 0.625, -0.58), (-0.58, 0.625, -0.58), ((0.5, 0.5),) * 4, (0.05, 0.04, 0.035, P.LIMB))
+    _bark(w, ((0.0, 0.6, 0.0), (0.02, 1.1, 0.02), (0.0, 1.6, 0.05)), (0.15, 0.12, 0.1), segs=6)
+    for limb in (((0.0, 1.6, 0.05), (-0.35, 2.1, 0.2), (-0.7, 2.5, 0.35)), ((0.0, 1.6, 0.05), (0.4, 2.15, -0.1), (0.75, 2.6, -0.3)),
+                 ((0.0, 1.6, 0.05), (0.05, 2.3, -0.3), (0.0, 2.9, -0.5))):
+        _bark(w, limb, (0.08, 0.06, 0.035), segs=5)
+    crim, rust, deep = (0.62, 0.08, 0.06), (0.62, 0.22, 0.07), (0.42, 0.05, 0.05)
+    for cx, cy, cz, r, col in ((-0.7, 2.45, 0.35, 0.7, crim), (0.75, 2.55, -0.3, 0.72, rust), (0.0, 2.85, -0.5, 0.68, deep), (-0.1, 2.6, 0.45, 0.55, rust),
+                               (0.35, 3.0, 0.1, 0.62, crim), (-0.45, 2.95, -0.25, 0.55, crim)):
+        P.pad(w, cx, cy, cz, r, col, segs=6)
+
+
+@P.proto("jt_tree_c", box=(0.6, 1.8, 0.6), reach=420)
+def _jt_tree_c(k):
+    """A young cherry in a pit in the paving: a slender trunk, three limbs,
+    pale blossom thin on it, a dark grate round its foot and a steel guard
+    of four posts and a ring."""
+    w = k("plant")
+    quad(w, (-0.6, 0.012, 0.6), (0.6, 0.012, 0.6), (0.6, 0.012, -0.6), (-0.6, 0.012, -0.6), ((0.5, 0.5),) * 4, (0.035, 0.035, 0.04, P.LIMB))
+    # (Its guard is detail: a phone has the tree and its grate.)
+    T = k("trim", 1)
+    for x, z in ((-0.32, -0.32), (0.32, -0.32), (0.32, 0.32), (-0.32, 0.32)):
+        box(T, x - 0.018, x + 0.018, 0.0, 1.2, z - 0.018, z + 0.018, scale=1.0, col=(0.12, 0.12, 0.13, 1))
+    for y in (0.6, 1.17):
+        for a, b in (((-0.34, -0.34), (0.34, -0.34)), ((0.34, -0.34), (0.34, 0.34)), ((0.34, 0.34), (-0.34, 0.34)), ((-0.34, 0.34), (-0.34, -0.34))):
+            box(T, min(a[0], b[0]) - 0.015, max(a[0], b[0]) + 0.015, y, y + 0.03, min(a[1], b[1]) - 0.015, max(a[1], b[1]) + 0.015, scale=1.0, col=(0.12, 0.12, 0.13, 1))
+    _bark(w, ((0.0, 0.0, 0.0), (0.03, 0.8, 0.0), (-0.02, 1.6, 0.04), (0.04, 2.2, 0.0)), (0.09, 0.075, 0.06, 0.05), segs=6)
+    for limb in (((-0.02, 1.6, 0.04), (-0.4, 2.1, 0.3), (-0.6, 2.4, 0.45)), ((0.04, 2.2, 0.0), (0.4, 2.6, -0.2), (0.55, 2.9, -0.3)),
+                 ((0.04, 2.2, 0.0), (-0.1, 2.75, -0.35), (-0.15, 3.1, -0.4))):
+        _bark(w, limb, (0.045, 0.035, 0.02), segs=4)
+    pale, pink = (0.86, 0.6, 0.68), (0.8, 0.36, 0.52)
+    for cx, cy, cz, r, col in ((-0.6, 2.4, 0.45, 0.55, pale), (0.55, 2.85, -0.3, 0.58, pink), (-0.15, 3.1, -0.4, 0.5, pale), (0.05, 2.6, 0.2, 0.45, pink)):
+        P.pad(w, cx, cy, cz, r, col, segs=6)

@@ -317,17 +317,49 @@ def loc(x, z, yaw, lx, lz):
     return (x + lx * math.cos(yaw) + lz * math.sin(yaw), z - lx * math.sin(yaw) + lz * math.cos(yaw))
 
 
+STALL_N = [0]
+# Where the vendor stands, where the customers stand, and the kit's lanterns
+# a stall hangs (local x, z, y over the ground, scale), by kind.
+STALL = {"jt_stall": (-0.2, 1.42, ((-1.3, 1.32, 2.72, 0.95), (1.3, 1.32, 2.72, 0.95))),
+         "jt_stall_b": (-0.2, 1.45, ((1.6, 0.9, 2.5, 1.3),)),
+         "jt_stall_c": (-0.95, 1.4, ()),
+         "jt_stall_d": (-0.25, 1.45, ())}
+
+
 def stall(x, z, yaw, r, y=G0, cart=None):
     """A stall or a cart, its vendor behind the counter, one to three
-    customers at it, its lamp's pool."""
+    customers at it, its lamp's pool. Which of the four stalls it is comes
+    from where it stands, never the one set down before it (its own
+    stream: the lot's is drawn as it was)."""
     cart = r.random() < 0.35 if cart is None else cart
-    J.put("jt_cart" if cart else "jt_stall", x, y, z, yaw)
-    stand(*loc(x, z, yaw, r.uniform(-0.4, 0.4), -0.9 if cart else -0.2), yaw, "vendor", y)
+    if cart:
+        J.put("jt_cart", x, y, z, yaw)
+        back, front = -0.9, 1.05
+    else:
+        rv = random.Random(round(x * 10.0) * 7919 + round(z * 10.0))
+        STALL_N[0] = (STALL_N[0] + rv.choice((1, 1, 2, 3))) % 4
+        name = ("jt_stall", "jt_stall_b", "jt_stall_c", "jt_stall_d")[STALL_N[0]]
+        J.put(name, x, y, z, yaw)
+        back, front, hung = STALL[name]
+        for lx_, lz_, ly_, k_ in hung:
+            J.put("lantern", *loc(x, z, yaw, lx_, lz_)[:1], y + ly_, loc(x, z, yaw, lx_, lz_)[1], 0.0, k_, k_)
+    stand(*loc(x, z, yaw, r.uniform(-0.4, 0.4), back), yaw, "vendor", y)
     for i in range(r.randrange(1, 4)):
-        px, pz = loc(x, z, yaw, (-0.8, 0.05, 0.85)[i] + r.uniform(-0.12, 0.12), (1.05 if cart else 1.42) + r.uniform(0.0, 0.2))
+        px, pz = loc(x, z, yaw, (-0.8, 0.05, 0.85)[i] + r.uniform(-0.12, 0.12), front + r.uniform(0.0, 0.2))
         stand(px, pz, yaw + math.pi + r.uniform(-0.3, 0.3), r.choice(("idle", "idle", "phone", "talk", "smoke")), y)
     lx, lz = loc(x, z, yaw, 0.0, 1.0)
     light(D, lx, y + 1.5, lz, "amber", 3.2)
+
+
+TREE_N = [0]
+
+
+def tree(x, y, z, yaw, pit=True):
+    """One of Japantown's three trees, never the last one's kind; a pit's
+    young cherry only where it stands in paving (`pit`)."""
+    n = 3 if pit else 2
+    TREE_N[0] = (TREE_N[0] + 1 + (round(x * 3.0 + z * 7.0) % (n - 1))) % n
+    J.put(("jt_tree_a", "jt_tree_b", "jt_tree_c")[TREE_N[0]], x, y, z, yaw)
 
 
 def stools(x, z, yaw, r, y=G0):
@@ -764,12 +796,12 @@ def lane_door(f, sc, r):
         nx_, nz_ = f.nx, f.nz
         ex, ez = h0[0] + 0.92 * (math.cos(ang) * tx + math.sin(ang) * nx_), h0[2] + 0.92 * (math.cos(ang) * tz + math.sin(ang) * nz_)
         for a_, b_ in (((h0[0], h0[2]), (ex, ez)), ((ex, ez), (h0[0], h0[2]))):
-            quad((D, "trim", 0), (a_[0], G0 + 0.02, a_[1]), (b_[0], G0 + 0.02, b_[1]), (b_[0], G0 + 2.08, b_[1]), (a_[0], G0 + 2.08, a_[1]), col=paint)
+            quad((D, "trim", 1), (a_[0], G0 + 0.02, a_[1]), (b_[0], G0 + 0.02, b_[1]), (b_[0], G0 + 2.08, b_[1]), (a_[0], G0 + 2.08, a_[1]), col=paint)
         light(D, *f.p(f.at(sc), 0.3, 1.2), "amber", 2.4)
     else:
         f.quad((D, "trim", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.03, col=paint)
         if roll < 0.55:
-            f.quad((D, "glow", 0), sc - 0.17, sc + 0.17, G0 + 1.4, G0 + 1.82, 0.035, col=rd.choice(((0.1, 0.065, 0.03, 1), (0.045, 0.06, 0.07, 1), (0.09, 0.075, 0.045, 1))))
+            f.quad((D, "glow", 1), sc - 0.17, sc + 0.17, G0 + 1.4, G0 + 1.82, 0.035, col=rd.choice(((0.1, 0.065, 0.03, 1), (0.045, 0.06, 0.07, 1), (0.09, 0.075, 0.045, 1))))
     J.put("jt_door", x, G0, z, f.yaw)
     hue = "amber" if r.random() < 0.8 else "white"
     lens(f, hue, sc - 0.11, sc + 0.11, G0 + 2.4, G0 + 2.56, 0.06, 0.2)
@@ -1078,10 +1110,10 @@ def lane_more(f, w, fixtures, free, r):
     for a, b in zip(pts, pts[1:]):
         if b - a > 4.2:
             sc = (a + b) / 2
-            name = r.choice(("jt_sconce", "jt_sconce", "jt_sconce_g", "jt_sconce_w", "jt_sconce_c"))
+            name = r.choice(("jt_sconce", "jt_sconce", "jt_sconce", "jt_sconce_w", "jt_sconce_w"))
             J.put(name, *f.p(f.at(sc), G0 + 2.6, 0.0), f.yaw)
             if k % 2 == 0:
-                light(D, *f.p(f.at(sc), 2.5, 0.8), {"jt_sconce": "amber", "jt_sconce_g": "green", "jt_sconce_w": "white", "jt_sconce_c": "cyan"}[name], 2.2)
+                light(D, *f.p(f.at(sc), 2.5, 0.8), {"jt_sconce": "amber", "jt_sconce_w": "white"}[name], 2.2)
             k += 1
     run = []
     for s in free + [9e9]:
@@ -1483,7 +1515,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
                 stand(px, pz, cyaw - HALF_PI * sd, "sit", top + 0.56)
     # A blossom tree in its lit planter, out in the middle.
     if d >= 9.0 and w - tu > 9.0 and (lucy or r.random() < 0.6):
-        J.put("planter_tree", X(tu + (w - tu) * 0.5), top + 0.1, (z0 + z1) / 2 - side * 0.9, r.uniform(0, 6.28))
+        tree(X(tu + (w - tu) * 0.5), top + 0.1, (z0 + z1) / 2 - side * 0.9, r.uniform(0, 6.28), pit=False)
         light(D, X(tu + (w - tu) * 0.5), top + 2.5, (z0 + z1) / 2 - side * 0.9, "pink", 3.5)
     # Who is up here: somebody at the rail over the street, somebody sat on
     # the terrace's steps, two talking under a lamp.
@@ -1997,7 +2029,7 @@ for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.45, 26.0), (
         elif roll < 0.55:
             J.put("bin", x, G0, z - 1.6)
         elif roll < 0.7 and xa == EDGE[0]:
-            J.put("planter_tree", xa + 1.3, G0, z + 6.0, lr.uniform(0, 6.28))
+            tree(xa + 1.3, G0, z + 6.0, lr.uniform(0, 6.28))
         # Somebody against the strip's wall (a lane's walls stand their own).
         roll = lr.random()
         if xa == EDGE[0] and roll < 0.45:
@@ -2566,7 +2598,10 @@ def median():
             low = not clear_of(z, OVER, 2.0) or any(abs(z - u) < 3.2 for u in STRUNG)
             if k % 4 == 0:
                 # (A palm where nothing is slung over the street, a blossom tree under what is.)
-                J.put("planter_tree" if low else "planter_palm", -80.0, G0, z, mr.uniform(0, 6.28))
+                if low:
+                    tree(-80.0, G0, z, mr.uniform(0, 6.28), pit=False)
+                else:
+                    J.put("planter_palm", -80.0, G0, z, mr.uniform(0, 6.28))
                 light(D, -80.0, 1.0, z, "pink" if low else "green", 2.5)
             elif k % 4 == 2:
                 J.put("lamp_short", -80.0, G0, z)
@@ -2676,7 +2711,7 @@ while z < ZS - 6.0:
     z += nr.uniform(7.0, 11.0)
 for a, b in ALLEYS:
     zc = (a + b) / 2
-    J.put("planter_tree", -113.0, G0, zc, nr.uniform(0, 6.28))
+    tree(-113.0, G0, zc, nr.uniform(0, 6.28), pit=False)
     J.put("lamp_short", -111.2, G0, zc + 1.9)
     bench(-114.6, zc - 1.8, 0.0, nr)
     stand(-112.2, zc + 0.9, nr.uniform(0, 6.28), nr.choice(("idle", "phone", "smoke")), G0)
@@ -2781,7 +2816,7 @@ while x > EDGE[1] + 6.0:
         stall(x - 2.2, tb - 1.0 if south else ta + 1.0, math.pi if south else 0.0, tr)
         stools(x - 4.6, tb - 1.3 if south else ta + 1.3, tr.uniform(0, 6.28), tr)
         if k % 3 == 1:
-            J.put("planter_tree", x - 4.4, G0, tc + tr.uniform(-0.6, 0.6), tr.uniform(0, 6.28))
+            tree(x - 4.4, G0, tc + tr.uniform(-0.6, 0.6), tr.uniform(0, 6.28))
             light(D, x - 4.4, 3.0, tc, "pink", 3.0)
         if k % 4 == 2:
             steam(x - 2.2, (tb - 1.6 if south else ta + 1.6), 1.1)
@@ -3108,7 +3143,51 @@ def _merge_lights(dist=1.6):
 
 
 print("japantown: light pools merged:", _merge_lights())
-print("japantown: small trim to detail:", _small_to_detail("trim", 0.08), "triangles")
+print("japantown: small trim to detail:", _small_to_detail("trim", 0.1), "triangles")
+
+
+def _thin_to_detail(mat, wmax):
+    """A sign frame's returns (a face under wmax across) are detail too."""
+    import mathutils
+    src = batches.get((D, mat, 0))
+    if not src:
+        return 0
+    dst, keep_, moved = batches[(D, mat, 1)], Batch(), 0
+    for fc in src.faces:
+        v = [mathutils.Vector(src.verts[i]) for i in fc]
+        area = sum(((v[k] - v[0]).cross(v[k + 1] - v[0])).length / 2 for k in range(1, len(v) - 1))
+        edge = max((v[(k + 1) % len(v)] - v[k]).length for k in range(len(v)))
+        thin = area / max(edge, 1e-6) < wmax
+        tgt = dst if thin else keep_
+        base = len(tgt.verts)
+        tgt.verts.extend(src.verts[i] for i in fc)
+        tgt.uvs.extend(src.uvs[i] for i in fc)
+        tgt.cols.extend(src.cols[i] for i in fc)
+        tgt.faces.append(tuple(range(base, base + len(fc))))
+        moved += (len(fc) - 2) if thin else 0
+    batches[(D, mat, 0)] = keep_
+    return moved
+
+
+def _fold(src_key, dst_key):
+    """A batch of a few faces folded into a like one: every batch is a mesh
+    of its own in the pack, and on a phone a mesh's own entry costs more
+    than a few faces."""
+    a = batches.pop(src_key, None)
+    if not a or not a.faces:
+        return 0
+    b = batches[dst_key]
+    base = len(b.verts)
+    b.verts.extend(a.verts)
+    b.uvs.extend(a.uvs)
+    b.cols.extend(a.cols)
+    b.faces.extend(tuple(i + base for i in fc) for fc in a.faces)
+    return len(a.faces)
+
+
+print("japantown: thin frames to detail:", _thin_to_detail("board_frame", 0.08), "triangles; folded:",
+      [(k_[1], _fold(k_, v_)) for k_, v_ in (((D, "neon_purple", 0), (D, "neon_magenta", 0)), ((D, "neon_teal", 0), (D, "neon_cyan", 0)),
+                                           ((D, "metal", 0), (D, "metal", 1)), ((D, "clearglass", 0), (D, "clearglass", 1)))])
 if os.environ.get("JT_SMALL"):
     def _area(b, fc):
         import mathutils
@@ -3118,8 +3197,19 @@ if os.environ.get("JT_SMALL"):
         _b = batches.get((D, _m, 0))
         if not _b:
             continue
-        _ar = [(_area(_b, fc), len(fc) - 2) for fc in _b.faces]
-        print("japantown small", _m, sum(t for _, t in _ar), [(th, sum(t for a_, t in _ar if a_ < th)) for th in (0.01, 0.03, 0.06, 0.1, 0.2)])
+        import mathutils as _mu
+
+        def _thin(b, fc):
+            v = [_mu.Vector(b.verts[i]) for i in fc]
+            e = max((v[(k + 1) % len(v)] - v[k]).length for k in range(len(v)))
+            return _area(b, fc) / max(e, 1e-6)
+        _ar = [(_area(_b, fc), len(fc) - 2, _thin(_b, fc)) for fc in _b.faces]
+        print("japantown small", _m, sum(t for _, t, _ in _ar), [(th, sum(t for a_, t, _ in _ar if a_ < th)) for th in (0.01, 0.03, 0.06, 0.1, 0.2)],
+              "thin", [(th, sum(t for _, t, w_ in _ar if w_ < th)) for th in (0.03, 0.05, 0.08, 0.12)])
+    _lp = LIGHTS.get(D, [])
+    _pw = [_lp[i + 4] for i in range(0, len(_lp), 5)]
+    _ys = [_lp[i + 1] for i in range(0, len(_lp), 5)]
+    print("japantown lights by power", [(t, sum(1 for q in _pw if q < t * 10)) for t in (1.5, 2.0, 2.5, 3.0, 4.0)], "over 8 m", sum(1 for y in _ys if y > 80))
 if os.environ.get("JT_DUMP"):
     # (For whoever is working on the district: every lot, to a file.)
     import json
