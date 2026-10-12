@@ -68,11 +68,16 @@ def _most(occ, f, s0, s1, y0, y1, want):
     return 0.0
 
 
-def _around(f, pieces, cross, y0, y1, least=4.0):
+HIGH = 20.0     # a crossing whose foot is over this lands high on the walls (its ends are hidden from the hero)
+
+
+def _around(f, pieces, cross, y0, y1, least=4.0, high=True):
     """Stretches of a face (s0, s1) with the landings of what crosses the
-    avenue between y0 and y1 taken out of them."""
+    avenue between y0 and y1 taken out of them (`high`: of the crossings
+    that land high on the walls too; a tier or a riser runs on behind
+    those, so the hero's walls under them stay as they were)."""
     for zc, half, cy0, cy1 in cross:
-        if cy1 + 1.5 < y0 or cy0 - 1.5 > y1 or zc + half + 0.6 < f.a0 or zc - half - 0.6 > f.a1:
+        if (cy0 > HIGH and not high) or cy1 + 1.5 < y0 or cy0 - 1.5 > y1 or zc + half + 0.6 < f.a0 or zc - half - 0.6 > f.a1:
             continue
         a, b = sorted((C.s_of(f, min(max(zc - half - 0.6, f.a0), f.a1)), C.s_of(f, min(max(zc + half + 0.6, f.a0), f.a1))))
         nxt = []
@@ -125,7 +130,7 @@ def plan(U, idx, occ, cross):
     def stand(k0, k1, want, style, lit, wm, pieces=None, cut=None):
         y0, y1 = fl(k0), fl(k1)
         hue = r.choice(LIGHTS)
-        for s0, s1 in _around(st, pieces or [(sa, sb)], cross, y0, y1):
+        for s0, s1 in _around(st, pieces or [(sa, sb)], cross, y0, y1, high=False):
             out = _most(occ, st, s0, s1, y0, y1, want)
             if out >= 0.5:
                 proud.append(dict(s0=s0, s1=s1, y0=y0, y1=y1, out=out, c=min(out, 1.6) if cut is None else cut, style=style, lit=lit, warm=wm, hue=hue))
@@ -154,7 +159,7 @@ def plan(U, idx, occ, cross):
             zone(k + 3, k + 4, 0, 0, kind="svc")
             y = fl(k + 4)
             want = 1.5 if y < h * 0.5 else 1.0 if y < h * 0.72 else 0.5
-            for s0, s1 in _around(st, [(0.0, w)], cross, y - 1.0, y):
+            for s0, s1 in _around(st, [(0.0, w)], cross, y - 1.0, y, high=False):
                 out = _most(occ, st, s0, s1, y - 0.9, y, want)
                 if out >= 0.3:
                     feat.append(("slab", s0, s1, y, out))
@@ -388,7 +393,7 @@ def _spot(U, frac, wd, cross):
             continue
         if side > 0 and abs(zc + 261.0) < 4.5:
             continue
-        if any(abs(zc - z) < half + 1.4 + wd / 2 for z, half, _, _ in cross):
+        if any(abs(zc - z) < half + 1.4 + wd / 2 for z, half, foot, _ in cross if foot <= HIGH):
             continue
         s = C.s_of(st, zc)
         if all(s + wd / 2 + 0.6 < a or s - wd / 2 - 0.6 > b for a, b in U["spots"]):
