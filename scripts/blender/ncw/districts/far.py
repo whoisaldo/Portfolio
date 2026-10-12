@@ -469,9 +469,18 @@ def _lookout(U, top, plaza):
         cylinder((CB, "metal", 1), vx, (z0 + z1) / 2 + 1.7, top, top + 1.15, 0.06, segs=5)
         box((CB, "metal", 1), vx - 0.2, vx + 0.2, top + 1.15, top + 1.45, (z0 + z1) / 2 + 1.52, (z0 + z1) / 2 + 1.88, scale=0.5, bottom=True)
     for f in (B.Face("-z", z1, *wx), B.Face("+z", z0, *wx)):
-        f.quad((CB, "trim", 0), 0.0, f.width, top, top + 3.3, 0.03, col=B.DARK_TRIM)
-        f.box((CB, "metal", 1), 0.0, f.width, top + 3.05, top + 3.12, 0.0, 0.08)
-        f.box((CB, "neon_" + hue, 0), 0.3, f.width - 0.3, top + 3.2, top + 3.26, 0.03, 0.09)
+        # (A dado to the rail's height with a line of light along its
+        # head, and over it the towers' own windows at arm's length, a
+        # lamp on the wall every few metres: a dado to over head height
+        # was a black wall each side of the deck.)
+        f.quad((CB, "trim", 0), 0.0, f.width, top, top + 1.0, 0.03, col=B.TRIM[U["tint"]])
+        f.box((CB, "metal", 1), 0.0, f.width, top + 1.0, top + 1.07, 0.0, 0.08)
+        f.box((CB, "neon_" + hue, 0), 0.3, f.width - 0.3, top + 1.1, top + 1.16, 0.03, 0.09)
+        ls = 1.6
+        while ls < f.width - 1.0:
+            f.box((CB, "metal", 1), ls - 0.2, ls + 0.2, top + 2.5, top + 2.56, 0.0, 0.3)
+            f.box((CB, "glow", 0), ls - 0.14, ls + 0.14, top + 2.36, top + 2.5, 0.05, 0.26, col=GLOW["amber"])
+            ls += 3.4
         # One advert and a small board on each wall, by the terrace's end:
         # the end over the avenue is left open to the view.
         s_, k_ = 0.5, 0
