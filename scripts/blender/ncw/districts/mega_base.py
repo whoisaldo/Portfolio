@@ -87,12 +87,12 @@ for z in (-748.6, -752.6, -756.6, -760.6):
     tube_z(0.0, 3.93, z - 0.8, z + 0.8, "green", power=3.0, pools=False)
     box((D, "metal", 1), -0.16, 0.16, 3.93, CEIL, z - 0.9, z + 0.9, scale=0.5)
 for z in (-754.2, -757.6, -761.0):
-    light(D, 0.0, 3.9, z, "green", 6.0)
+    light(D, 0.0, 3.9, z, "green", 10.0)
 for z in (-751.0, -755.5, -760.0):
     cbox(PX0, PX1, CEIL - 0.3, CEIL, z - 0.2, z + 0.2, bottom=True, detail=1)
 for z in (-750.4, -758.4):
-    wall_lamp(PX0 + 0.02, 2.55, z, 1, 0, "amber", 3.0 if z < -752 else 2.0)
-    wall_lamp(PX1 - 0.02, 2.55, z + 2.0, -1, 0, "amber", 3.0 if z < -754 else 2.0)
+    wall_lamp(PX0 + 0.02, 2.55, z, 1, 0, "amber", 5.5 if z < -752 else 2.0)
+    wall_lamp(PX1 - 0.02, 2.55, z + 2.0, -1, 0, "amber", 5.5 if z < -754 else 2.0)
 P.place("bags", PX0 + 0.8, G0, -753.2, math.pi / 2)
 P.place("dumpster", PX0 + 0.75, G0, -760.4, math.pi / 2)
 P.place("drum", PX1 - 0.55, G0, -751.2)
@@ -161,8 +161,8 @@ stand(-7.9, -769.8, math.pi / 2, "lean", G0)
 stand(6.4, wz0 + 0.7, 0.0, "squat", G0)
 empty("anchor_steam_mega_0", (5.2, 0.2, -767.4))
 box((D, "metal", 1), 4.8, 5.6, G0, G0 + 0.05, -767.8, -767.0, scale=0.5)
-light(D, 0.0, 5.0, -773.0, "white", 3.5)
-light(D, -4.0, 5.0, -778.0, "purple", 2.5)
+light(D, 0.0, 5.0, -773.0, "white", 5.0)
+light(D, -4.0, 5.0, -778.0, "purple", 4.0)
 
 # ---------------------------------------------------------------------------
 # The NCART entrance, on the east.
