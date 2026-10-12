@@ -50,15 +50,20 @@ def west_block():
     # (No lines of light on its crown: it stands in the Experience shot's
     # lower left corner, under ARASAKA, and stays a dark mass there.)
     # (tiers end at 59.6 and 68.)
-    cols, rows = 3, 4
-    sw, sh, gx, gy = 7.0, 8.4, 0.6, 0.6
-    xa = (x0 + x1) / 2 - (cols * sw + (cols - 1) * gx) / 2
-    box(k("board_frame"), xa - 0.5, xa + cols * (sw + gx) - gx + 0.5, 9.6, 10.2 + rows * (sh + gy), LOT_N, LOT_N + 0.1, scale=2.0)
-    for j in range(rows):
-        for i in range(cols):
-            K.screen(xa + i * (sw + gx) + sw / 2, 10.5 + j * (sh + gy) + sh / 2, LOT_N + 0.42, sw, sh, 0.0, r, depth=0.3, pal=K.MEDIA)
-    for i in range(cols + 1):
-        x = xa - gx / 2 + i * (sw + gx)
+    # Nine screens of five sizes, no two showing the same advert at any
+    # moment (seven wide ones and two tall, changing together).
+    xa = (x0 + x1) / 2 - 11.1
+    box(k("board_frame"), xa - 0.5, xa + 22.7, 9.6, 46.5, LOT_N, LOT_N + 0.1, scale=2.0)
+    wide = tall = 0
+    for y0_, hh, row in ((10.5, 6.8, ((0.0, 10.8), (11.4, 10.8))), (17.9, 10.8, ((0.0, 7.0), (7.6, 14.6))),
+                         (29.3, 6.0, ((0.0, 7.0), (7.6, 7.0), (15.2, 7.0))), (35.9, 10.1, ((0.0, 14.6), (15.2, 7.0)))):
+        for dx, ww in row:
+            if ww / hh < 0.85:
+                pick, tall = tall, tall + 1
+            else:
+                pick, wide = wide, wide + 1
+            K.advert(xa + dx + ww / 2, y0_ + hh / 2, LOT_N + 0.42, ww, hh, 0.0, pick, seed=0.66, depth=0.3)
+    for x in (xa - 0.3, xa + 22.5):
         neon_box(x - 0.05, x + 0.05, 10.2, 46.2, LOT_N + 0.1, LOT_N + 0.16, "cyan", 1)
     K.roof_plant(x0 + 3, x1 - 3, T_BACK + 2, LOT_N - 3, 68.0, r, cap=4.0)
     K.mast((x0 + x1) / 2, (T_BACK + LOT_N) / 2, 68.0, 11.0)
