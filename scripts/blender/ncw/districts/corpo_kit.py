@@ -762,6 +762,29 @@ def hung_bar(x0, x1, y, z, hue, reach=0.3, detail=1):
         pipe(k("metal", 1), (xe, y + 0.08, z), (xe + s_ * reach, y + 1.0, z), 0.012, segs=3)
 
 
+def _wall_draws(f, r):
+    """The draws a podium wall made of its caller's dice and of the sign
+    designs' dice when every bay was one roll (vitrine, door, slot or sign),
+    made again and thrown away."""
+    w = f.width
+    n = max(1, round(w / 6.4))
+    bw = w / n
+    for i in range(n):
+        a, b = i * bw + 0.6, (i + 1) * bw - 0.6
+        if b - a < 2.0:
+            continue
+        roll = r.random()
+        if roll < 0.32 and b - a > 3.6:
+            r.uniform(0.6, 1.0)
+            r.uniform(0.88, 1.0)
+        elif roll < 0.58:
+            r.choice(("amber", "white", "cyan"))
+        elif roll >= 0.8:
+            size = r.choice(("ps", "bx", "pm"))
+            if b - a > ST_SIZES[size][0] + 0.4:
+                _names.choice(DESIGNS[size])
+
+
 WALL_ADS = [0]      # a running count, so no two wall posters show one advert
 
 
@@ -773,8 +796,11 @@ def wall_front(f, top, r, tint, colour, lead=None):
     light behind them over a run of pipes, or a slot of light and a small
     sign; a ledge under its top. `lead`: the bay at that end ("left" or
     "right" as seen from outside) is a vitrine, whatever else."""
-    # (Its own dice, from where the face stands: what it draws does not
-    # re-deal the windows of the block it is on.)
+    # (Its own dice, from where the face stands; and the draws the wall
+    # made before it was dressed bay by bay are made again from its
+    # caller's dice and the sign designs' dice, so everything built after
+    # it keeps the windows, lamps and signs it had.)
+    _wall_draws(f, r)
     r = random.Random(int(f.plane * 31.0 + f.a0 * 7.0 + f.a1 * 3.0) + len(f.name))
     w = f.width
     tcol = B.TRIM[tint]
@@ -822,7 +848,7 @@ def wall_front(f, top, r, tint, colour, lead=None):
             if abs(vx - mid) > 1.0 and a < vx - sw / 2 and vx + sw / 2 < b:
                 cx, cy, cz = f.p(f.at(vx), 3.0, 0.08)
                 f.box(k("board_frame"), vx - sw / 2 - 0.06, vx + sw / 2 + 0.06, 3.0 - sh / 2 - 0.06, 3.0 + sh / 2 + 0.06, 0.0, 0.07)
-                sign(st_id("ps"), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
+                sign(st_id("ps", r.choice(DESIGNS["ps"])), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
             light(CO, lx, 2.6, lz, hue, 3.0)
         elif kind == "poster":
             WALL_ADS[0] += 1
@@ -850,7 +876,7 @@ def wall_front(f, top, r, tint, colour, lead=None):
             if sx_ + sw / 2 < b:
                 cx, cy, cz = f.p(f.at(sx_), 2.4, 0.08)
                 f.box(k("board_frame"), sx_ - sw / 2 - 0.06, sx_ + sw / 2 + 0.06, 2.4 - sh / 2 - 0.06, 2.4 + sh / 2 + 0.06, 0.0, 0.07)
-                sign(st_id(size), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
+                sign(st_id(size, r.choice(DESIGNS[size])), cx, cy, cz, sw, sh, f.yaw, district=CO, label=False)
             light(CO, lx, 3.0, lz, colour, 3.0)
     f.ledge(k("trim", 1), 0.0, w, top - 0.5, 0.2, 0.12, tcol)
 
