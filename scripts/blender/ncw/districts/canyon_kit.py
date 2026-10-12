@@ -403,7 +403,31 @@ def _cy_stall(k):
     Its front toward +z; whoever serves stands at z -0.55."""
     wood = (0.13, 0.1, 0.09, 1)
     box(k("trim"), -1.3, 1.3, 0.0, 0.95, 0.05, 0.6, scale=1.0, col=wood)
-    box(k("glow"), -1.2, 1.2, 0.25, 0.72, 0.6, 0.62, scale=0.5, col=GLOW["amber"])
+    # Its front is the menu: a dim warm panel, a row of dishes pictured on
+    # it, a price under each.
+    c = GLOW["amber"]
+    quad(k("glow"), (-1.2, 0.2, 0.605), (1.2, 0.2, 0.605), (1.2, 0.78, 0.605), (-1.2, 0.78, 0.605), col=(c[0] * 0.13, c[1] * 0.13, c[2] * 0.13, 1))
+    for i, hue in enumerate(("red", "white", "green", "pink", "cyan")):
+        x = -1.06 + i * 0.45
+        g = GLOW[hue]
+        quad(k("glow"), (x, 0.42, 0.612), (x + 0.33, 0.42, 0.612), (x + 0.33, 0.7, 0.612), (x, 0.7, 0.612), col=(g[0] * 0.6, g[1] * 0.6, g[2] * 0.6, 1))
+        quad(k("glow"), (x + 0.04, 0.3, 0.612), (x + 0.26, 0.3, 0.612), (x + 0.26, 0.35, 0.612), (x + 0.04, 0.35, 0.612), col=GLOW["amber"])
+    # On the counter: bowls, a steamer, bottles; on the shelf behind, two
+    # rows of bottles; a red lantern under each corner of the canopy.
+    for x in (-0.9, -0.5, -0.1):
+        cylinder(k("trim"), x, 0.38, 1.0, 1.07, 0.11, segs=7, col=(0.5, 0.48, 0.44, 1))
+    cylinder(k("trim"), 0.2, 0.2, 1.0, 1.26, 0.19, segs=8, col=(0.3, 0.2, 0.11, 1))
+    for i in range(4):
+        g = GLOW[("green", "amber", "green", "cyan")[i]]
+        box(k("glow"), 1.0 + i * 0.09 - 0.025, 1.0 + i * 0.09 + 0.025, 1.0, 1.24, 0.12, 0.17, scale=0.5, col=(g[0] * 0.3, g[1] * 0.3, g[2] * 0.3, 1))
+    for row in (1.25, 1.58):
+        box(k("metal"), -1.2, 1.2, row - 0.03, row, -0.9, -0.72, scale=0.6, bottom=True)
+        for i in range(8):
+            g = GLOW[("amber", "green", "pink", "cyan", "amber", "white", "green", "red")[(i + int(row * 4)) % 8]]
+            x = -1.05 + i * 0.3
+            box(k("glow"), x - 0.035, x + 0.035, row, row + 0.22, -0.84, -0.78, scale=0.5, col=(g[0] * 0.3, g[1] * 0.3, g[2] * 0.3, 1))
+    for x in (-1.15, 1.15):
+        box(k("glow"), x - 0.09, x + 0.09, 2.02, 2.28, 0.6, 0.78, scale=0.5, col=GLOW["red"], bottom=True)
     box(k("metal"), -1.35, 1.35, 0.95, 1.0, 0.0, 0.68, scale=0.6)
     box(k("trim"), -1.3, 1.3, 0.0, 1.9, -1.05, -0.9, scale=1.0, col=wood)
     for x in (-1.3, 1.3):
@@ -1048,9 +1072,13 @@ def service_wall(f, r, key=CB):
 # ---------------------------------------------------------------------------
 # A roof from the air: plant, light and structure, nothing over `cap`.
 # ---------------------------------------------------------------------------
+PALE = (0.4, 0.41, 0.46, 1)      # a roof's walkway slabs and plinths, pale against its tar
+
+
 def _low_unit(key, px, pz, y, r, hw=0.8, hd=0.5):
     """A low condenser: a cabinet under a parapet's height, a dark grille
     on its top, a pilot lamp."""
+    flat((key, "trim", 0), px - hw - 0.3, px + hw + 0.3, pz - hd - 0.3, pz + hd + 0.3, y + 0.03, PALE)
     box((key, "metal", 0), px - hw, px + hw, y, y + 0.7, pz - hd, pz + hd, scale=0.8)
     flat((key, "dark", 1), px - hw + 0.12, px + hw - 0.12, pz - hd + 0.12, pz + hd - 0.12, y + 0.705)
     flat((key, "glow", 0), px + hw - 0.3, px + hw - 0.18, pz - hd + 0.02, pz - hd + 0.1, y + 0.71, GLOW[r.choice(("green", "amber", "red"))])
@@ -1059,12 +1087,12 @@ def _low_unit(key, px, pz, y, r, hw=0.8, hd=0.5):
 def roof_edge(key, x0, x1, z0, z1, y, hue, every=4.6):
     """Small lamps at intervals round a roof just inside its parapet: from
     the air every roof is drawn in dots of light."""
-    c = dim(hue, 0.9)
+    c = GLOW[hue]
     for xa, za, xb, zb in ((x0, z0, x1, z0), (x1, z0, x1, z1), (x1, z1, x0, z1), (x0, z1, x0, z0)):
         n = max(1, round(math.hypot(xb - xa, zb - za) / every))
         for i in range(n):
             px, pz = xa + (xb - xa) * (i + 0.5) / n, za + (zb - za) * (i + 0.5) / n
-            flat((key, "glow", 0), px - 0.13, px + 0.13, pz - 0.13, pz + 0.13, y + 0.07, c)
+            flat((key, "glow", 0), px - 0.2, px + 0.2, pz - 0.2, pz + 0.2, y + 0.07, c)
 
 
 def roof_low(key, x0, x1, z0, z1, y, r, pad=True):
@@ -1079,7 +1107,24 @@ def roof_low(key, x0, x1, z0, z1, y, r, pad=True):
     a0, a1, b0, b1 = (z0, z1, x0, x1) if lz else (x0, x1, z0, z1)
     bm, bw = (b0 + b1) / 2, (b1 - b0)
     rect = (lambda u0, u1, v0, v1: (v0, v1, u0, u1)) if lz else (lambda u0, u1, v0, v1: (u0, u1, v0, v1))
-    flat((key, "metal", 1), *rect(a0, a1, bm - 0.32, bm + 0.32), y + 0.03)
+    # A walkway of pale slabs down its length and across to each side, the
+    # roof's dark plane cut into plots; a low lamp where they cross, its
+    # pool on the roof.
+    flat((key, "trim", 0), *rect(a0, a1, bm - 0.45, bm + 0.45), y + 0.03, PALE)
+    edge = dim(r.choice(("amber", "teal", "cyan", "amber")), 0.4)
+    for off in (-0.5, 0.5):
+        flat((key, "glow", 0), *rect(a0 + 0.3, a1 - 0.3, bm + off - 0.04, bm + off + 0.04), y + 0.04, edge)
+    u, k = a0 + 4.3, 0
+    while u < a1 - 1.0:
+        flat((key, "trim", 0), *rect(u - 0.35, u + 0.35, b0, bm - 0.45), y + 0.03, PALE)
+        flat((key, "trim", 0), *rect(u - 0.35, u + 0.35, bm + 0.45, b1), y + 0.03, PALE)
+        if k % 2 == 0:
+            hue = r.choice(("amber", "amber", "cyan", "white"))
+            xa, xb, za, zb = rect(u - 0.12, u + 0.12, bm + 0.55, bm + 0.79)
+            box((key, "glow", 0), xa, xb, y, y + 0.5, za, zb, scale=0.5, col=GLOW[hue])
+            light(key, (xa + xb) / 2, y + 0.6, (za + zb) / 2, hue, 8.0)
+        u += 4.2
+        k += 1
     ring = None
     if pad and bw > 13.0 and a1 - a0 > 16.0:
         ring = ((a0 + a1) / 2, 4.6)
@@ -1143,6 +1188,15 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
         return
     nx, nz = max(1, int(w // 5.2)), max(1, int(d // 5.2))
     pw, pd = w / nx - 1.2, d / nz - 1.2
+    for i in range(1, nx):
+        flat((key, "trim", 0), x0 + i * w / nx - 0.35, x0 + i * w / nx + 0.35, z0, z1, y + 0.03, PALE)
+    for j in range(1, nz):
+        flat((key, "trim", 0), x0, x1, z0 + j * d / nz - 0.35, z0 + j * d / nz + 0.35, y + 0.032, PALE)
+        for i in range(1, nx, 2):
+            hue = r.choice(("amber", "amber", "cyan", "white"))
+            lx, lz = x0 + i * w / nx + 0.5, z0 + j * d / nz + 0.5
+            box((key, "glow", 0), lx - 0.12, lx + 0.12, y, y + 0.5, lz - 0.12, lz + 0.12, scale=0.5, col=GLOW[hue])
+            light(key, lx, y + 0.6, lz, hue, 8.0)
     for i in range(nx):
         for j in range(nz):
             px, pz = x0 + (i + 0.5) * w / nx, z0 + (j + 0.5) * d / nz

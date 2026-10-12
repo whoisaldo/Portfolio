@@ -190,9 +190,22 @@ def _podium(L, zn, zs, north, south):
         st2.quad((FA, "dark", 0), 0.0, w, 0.0, SHOP_H, -0.95)
         doors = C.shopfront(st2, r, 0.0, w, tint, glass=FA, key=CB, awning_rate=0.0)
         bays = max(2, round(w / (CELL_W * 2)))
+        cr = random.Random(5500 + L["i"] * 3 + (0 if side > 0 else 40) + int(-zn))
         for b in range(bays + 1):
             s = min(max(b * w / bays, 0.3), w - 0.3)
             st.box((CB, "trim", 0), s - 0.3, s + 0.3, 0.0, SHOP_H - 0.5, -0.6, 0.0, col=tcol)
+            # What a column collects: a dark plinth, a conduit up to a
+            # junction box with its pilot lamp, a lamp at head height with
+            # its pool on the pavement, and on every other a small sign.
+            st.box((CB, "trim", 0), s - 0.36, s + 0.36, 0.0, 0.45, -0.66, 0.06, col=B.DARK_TRIM)
+            st.box((CB, "metal", 1), s + 0.17, s + 0.22, 0.45, SHOP_H - 0.5, 0.0, 0.05)
+            st.box((CB, "metal", 1), s + 0.08, s + 0.28, 1.3, 1.62, 0.0, 0.1)
+            st.box((CB, "glow", 0), s + 0.2, s + 0.24, 1.52, 1.56, 0.1, 0.105, col=GLOW[cr.choice(("green", "red", "amber"))])
+            hue = cr.choice(("amber", "white", "cyan", "pink"))
+            st.box((CB, "glow", 0), s - 0.22, s + 0.02, 3.3, 3.42, 0.0, 0.16, col=GLOW[hue])
+            light(CB, *st.p(st.at(s), 3.0, 0.9), hue, 3.5)
+            if b % 2 == 1:
+                C.blade(st, s, 3.08, "bs", cr.choice((0.0, 0.25, -0.25)), out=0.5)
         st.box((CB, "trim", 0), 0.0, w, SHOP_H - 0.5, SHOP_H, -0.6, 0.0, col=tcol)
         ax0, ax1 = sorted((_x(side, 0.0), _x(side, deep)))
         box((CB, "trim", 0), ax0, ax1, SHOP_H - 0.12, SHOP_H - 0.06, zn, zs, scale=2.0, col=B.DARK_TRIM, bottom=True)
@@ -310,7 +323,7 @@ def _slab(U):
     sd = DEPTH if U["back"] == "flush" else L["sd"]
     tint, tcol = U["tint"], B.TRIM[U["tint"]]
     col = B.wall_col(U["lit"], U["style"], U["warmth"], tint)
-    back_col = B.wall_col(U["lit"] * 0.7, U["style"] if U["style"] in (2, 4, 5) else 6, U["warmth"], tint)
+    back_col = B.wall_col(min(1.0, U["lit"] * 1.15), U["style"] if U["style"] in (2, 4, 5) else 6, U["warmth"], tint)
     st, bk, so, no, xa, xb = _faces(side, 0.0, sd, U["zn"], U["zs"])
     B.COLLISION.append(("box", xa, xb, ph, h, U["zn"], U["zs"], "canyon"))
     C.wall(FA, st, ph, h, col, U["ov"])
@@ -966,7 +979,9 @@ for s in (-1, 1):
         if wall_ok:
             roll = pave_r.random()
             if roll < 0.3:
-                P.place(pave_r.choice(("vending", "vending_warm")), s * 13.55, B.G0, z, out, district=CB)
+                kind = pave_r.choice(("vending", "vending_warm"))
+                P.place(kind, s * 13.55, B.G0, z, out, district=CB)
+                light(CB, s * 12.7, 1.2, z, "amber" if kind == "vending_warm" else "cyan", 3.5)
                 if pave_r.random() < 0.6:
                     stand(s * 13.0, z + 1.1, out + pave_r.uniform(-0.6, 0.6), pave_r.choice(("phone", "idle", "smoke")), B.G0)
             elif roll < 0.55:
@@ -977,7 +992,10 @@ for s in (-1, 1):
             elif roll < 0.66:
                 P.place("phone_booth", s * 13.4, B.G0, z, out, district=CB)
             elif roll < 0.78:
-                P.place("food_box", s * 13.6, B.G0, z, out, district=CB)
+                # What a shop puts out at night: bags against the wall, a
+                # crate or a bin beside them.
+                P.place("bags", s * 13.5, B.G0, z, out, district=CB)
+                P.place(pave_r.choice(("crates", "bin", "bin")), s * 13.55, B.G0, z + pave_r.choice((-1.1, 1.1)), out, district=CB)
             elif roll < 0.9:
                 stand(s * 13.5, z, 0.0, "talk", B.G0)
                 stand(s * 13.5, z + 1.0, math.pi, "talk", B.G0)
@@ -995,7 +1013,12 @@ for s in (-1, 1):
                 P.place("lamp_short", s * 10.6, B.G0, zz, district=CB)
             elif roll < 0.85:
                 stand(s * 10.5, zz, out + math.pi, pave_r.choice(("squat", "smoke", "phone")), B.G0)
-        z -= pave_r.uniform(7.0, 11.0)
+            # A drain's grating in the pavement at the kerb.
+            gx = sorted((s * 10.12, s * 10.42))
+            C.flat((CB, "dark", 1), gx[0], gx[1], zz + 2.0, zz + 2.9, B.G0 + 0.012)
+            for k in range(4):
+                C.flat((CB, "metal", 1), gx[0] + 0.02, gx[1] - 0.02, zz + 2.08 + k * 0.2, zz + 2.13 + k * 0.2, B.G0 + 0.016)
+        z -= pave_r.uniform(5.5, 8.5)
 # Manholes up the canyon breathing steam into the signs' light.
 for i, (sx, sz) in enumerate(((-5.5, -262.0), (4.0, -386.0), (-3.0, -540.0))):
     cylinder((CB, "metal", 1), sx, sz, 0.0, 0.025, 0.42, segs=14)
