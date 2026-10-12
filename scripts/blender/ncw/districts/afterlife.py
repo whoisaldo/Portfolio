@@ -51,20 +51,24 @@ WATSON = dict(windows=(0, 1, 3, 6, 6), lit=(0.35, 0.8), warmth=(0.35, 1.0),
               shop_colours=["amber", "pink", "cyan", "green", "red", "white"])
 
 
+def own(fn, *args, **kw):
+    """Call one of the generator's functions with this district's parts in
+    the kit's place while it runs: a back onto a lane cold and dark
+    (K.back_ground), a fire escape in open steel (K.fire_stairs)."""
+    kit_parts = B.back_ground, B.fire_escape
+    B.back_ground, B.fire_escape = K.back_ground, K.fire_stairs
+    try:
+        return fn(*args, **kw)
+    finally:
+        B.back_ground, B.fire_escape = kit_parts
+
+
 def lot(x0, x1, z0, z1, h, seed, sides, nb=None, style=None, roof=False, **kw):
     """A building on a lot. Its roof is dressed further down, by hand (the
     roofs are seen from the rooftop and from the air): the generator's own
     draw only where `roof` asks."""
-    # (A back onto a lane is this district's own, cold and dark, and its
-    # fire escapes are open steel: the generator draws both through this
-    # district's kit while it builds here.)
-    kit_parts = B.back_ground, B.fire_escape
-    B.back_ground, B.fire_escape = K.back_ground, K.fire_stairs
-    try:
-        return B.building(B.Lot(x0, x1, z0, z1, "+x", sides, nb or {}, D), h, random.Random(seed),
-                          style=dict(WATSON, **(style or {})), roof=roof, **kw)
-    finally:
-        B.back_ground, B.fire_escape = kit_parts
+    return own(B.building, B.Lot(x0, x1, z0, z1, "+x", sides, nb or {}, D), h, random.Random(seed),
+               style=dict(WATSON, **(style or {})), roof=roof, **kw)
 
 
 F = SHOP_H + CELL_H  # a storey over the shops: heights are SHOP_H + n storeys
@@ -517,8 +521,33 @@ for z_ in (-314.2, -309.4, -305.6, -298.4, -288.0, -284.6, -278.6, -274.6, -244.
     ya = cr.uniform(10.4, 13.4)
     yb = min(cr.uniform(10.4, 13.4), 10.9 if -312.0 < z_ < -300.0 else 99.0)
     K.bundle(D, (west_wall(z_), ya, z_), (east_wall(z_), yb, z_ + cr.uniform(-1.6, 1.6)), cr.uniform(1.0, 2.0), cr.randrange(4, 7), cr)
-for z_ in (-197.2, -192.8):
+for z_ in (-197.2,):
     K.bundle(D, (WL, cr.uniform(10.5, 12.5), z_), (EL, 6.7, z_ + cr.uniform(-1.0, 1.0)), cr.uniform(0.6, 1.1), 4, cr)
+# A pipe gantry over the street's south end, where the tall blocks stop and
+# the tanks' district begins: two steel posts, a truss between them, three
+# painted pipes on it running out of the west block and down onto the low
+# roof east, a board and two lamps under it, a red lamp on each post.
+GZ_, GANTRY = -193.5, (0.16, 0.115, 0.05, 1)
+for x_ in (428.5, 451.55):
+    box((D, "steel", 0), x_ - 0.16, x_ + 0.16, G0, 10.9, GZ_ - 0.16, GZ_ + 0.16, scale=1.0, col=GANTRY)
+    box((D, "hazard", 1), x_ - 0.175, x_ + 0.175, G0, G0 + 1.1, GZ_ - 0.175, GZ_ + 0.175, scale=1.0)
+    box((D, "glow", 0), x_ - 0.09, x_ + 0.09, 10.9, 11.08, GZ_ - 0.09, GZ_ + 0.09, scale=0.5, col=GLOW["red"])
+for y_ in (9.3, 10.6):
+    box((D, "steel", 0), 428.34, 451.71, y_ - 0.09, y_ + 0.09, GZ_ - 0.11, GZ_ + 0.11, scale=1.0, col=GANTRY, bottom=True)
+for k in range(10):
+    xa_, xb_ = 428.66 + k * 2.289, 428.66 + (k + 1) * 2.289
+    pipe((D, "steel", 1), (xa_, 9.3, GZ_), (xb_, 10.6, GZ_) if k % 2 == 0 else (xb_, 9.3, GZ_), 0.05, segs=4, col=GANTRY)
+    if k % 2:
+        pipe((D, "steel", 1), (xa_, 10.6, GZ_), (xb_, 9.3, GZ_), 0.05, segs=4, col=GANTRY)
+for dz_, rad_, col_ in ((-0.42, 0.2, K.PIPE_PAINT[1]), (0.0, 0.13, K.PIPE_PAINT[3]), (0.4, 0.23, K.PIPE_PAINT[2])):
+    yy_ = 10.69 + rad_
+    pipe((D, "steel", 0), (WL, yy_, GZ_ + dz_), (455.0, yy_, GZ_ + dz_), rad_, segs=7, col=col_)
+    pipe((D, "steel", 0), (455.0, yy_, GZ_ + dz_), (455.0, 7.0, GZ_ + dz_), rad_, segs=7, col=col_)
+box((D, "hazard", 1), 437.0, 443.0, 8.72, 9.21, GZ_ - 0.05, GZ_ + 0.05, scale=1.0)
+for z_, yaw_ in ((GZ_ - 0.07, math.pi), (GZ_ + 0.07, 0.0)):
+    K.board(D, 440.0, 8.96, z_, "ps", yaw_, frame=0)
+for x_ in (435.0, 445.0):
+    K.downlight(D, x_, GZ_, 9.21, "amber", size=0.4, power=5.0)
 # The skybridge: a storey of ribbon windows between a floor slab and a roof,
 # lights under it, boards along its roof facing up and down the street.
 BX0, BX1, BZ0, BZ1, BY0, BY1 = WL, EL, -239.6, -236.2, storeys(2), storeys(3)
@@ -687,7 +716,7 @@ def back(name, plane, a0, a1, top, seed, tint="charcoal", clutter=True):
     r = random.Random(seed)
     K.back_ground(D, f, r, B.TRIM[T[tint]])
     if clutter:
-        B.clutter_back(D, f, r, 0.0, top)
+        own(B.clutter_back, D, f, r, 0.0, top)
     return f
 
 
@@ -826,7 +855,10 @@ for name, plane, a0, a1, top, dens in (
 FX0, FX1, FZ0, FZ1 = 380.0, 410.0, -222.0, -190.0
 B.ground_rect(D, FX0, FX1, FZ0, FZ1, mat="concrete")
 ML = B.Face("+z", FZ0 + 0.03, FX0, FX1)    # MILITECH's face on it: the lobby
-ML.quad((D, "lobby", 0), 4.0, 26.0, G0, SHOP_H - 0.7, 0.0, col=(0.2, 0.3, 1.0, 1.0))
+# (Offices behind its glass: a storey of the kit's windows, two to a bay,
+# over a plinth.)
+ML.quad((D, "facade", 0), 4.0, 26.0, 0.5, SHOP_H - 0.7, 0.0, uvs=((0, 7), (10, 7), (10, 8), (0, 8)), col=B.wall_col(1.0, 0, 0.3, T["navy"]))
+ML.quad((D, "trim", 0), 4.0, 26.0, 0.0, 0.5, 0.0, col=DARK)
 ML.quad((D, "trim", 0), 0.0, 30.0, SHOP_H - 0.7, SHOP_H, 0.0, col=DARK)
 for a_, b_ in ((0.0, 4.0), (26.0, 30.0)):
     ML.quad((D, "concrete", 0), a_, b_, 0.0, SHOP_H - 0.7, 0.0, uvs=((0, 0), (1.3, 0), (1.3, 1.3), (0, 1.3)))
@@ -872,9 +904,39 @@ P.place("cctv", 381.2, G0, FZ0 + 1.0, district=D)
 light(D, 395.0, 5.6, FZ1 - 0.6, "red", 3.0)
 light(D, 399.6, 1.6, FZ1 - 2.2, "white", 3.0)
 back("-x", 410.0, FZ0, FZ1, 26.0, 9508)
+K.lane_wall(D, B.Face("-x", 410.0 - 0.03, FZ0, FZ1), rl, 26.0, 1.3)
+K.duct(D, B.Face("-x", 410.0 - 0.03, FZ0, FZ1), 2.0, 30.0, 5.2, rl)
 stand(389.6, FZ1 - 1.0, 0.0, "idle", y=G0)
 stand(400.0, FZ1 - 4.4, -math.pi / 2, "lean", y=G0)
 stand(394.0, FZ0 + 1.6, 0.0, "idle", y=G0)
+# Down its west side, what a depot keeps: containers (one on another), a
+# third by them, pallets, barrels and crates, a forklift, mesh fencing along
+# the boundary; barriers inside the gate; and more people.
+for (z0_, y0_, col_) in ((-212.5, G0, K.RUST_DARK), (-212.0, G0 + 2.6, (0.05, 0.085, 0.13, 1)), (-205.4, G0, (0.04, 0.11, 0.1, 1))):
+    box((D, "container", 0), 380.5, 382.95, y0_, y0_ + 2.6, z0_, z0_ + 6.0, scale=1.0, col=col_)
+box((D, "glow", 1), 382.95, 382.98, G0 + 2.25, G0 + 2.35, -209.7, -209.3, scale=0.5, col=GLOW["amber"])
+for k in range(4):
+    P.place("fence_mesh", 380.3, G0, -220.6 + k * 2.4, math.pi / 2, district=D)
+for name, x_, z_ in (("pallets", 384.5, -210.6), ("barrel", 384.2, -208.9), ("barrel", 384.95, -208.6), ("pallets", 384.4, -200.2), ("barrier", 393.2, -196.4),
+                     ("barrier", 396.8, -199.6)):
+    P.place(name, x_, G0, z_, district=D)
+K.crates(D, 384.6, -203.4, rl)
+# The forklift, parked nose to the containers.
+fx_, fz_ = 386.6, -206.4
+box((D, "hazard", 0), fx_ - 0.55, fx_ + 0.55, G0 + 0.25, G0 + 1.05, fz_ - 0.9, fz_ + 0.8, scale=1.0)
+box((D, "dark", 1), fx_ - 0.5, fx_ + 0.5, G0 + 1.05, G0 + 1.3, fz_ + 0.1, fz_ + 0.75, scale=1.0)
+for dx_ in (-0.5, 0.5):
+    for dz_ in (-0.85, 0.72):
+        box((D, "steel", 1), fx_ + dx_ - 0.03, fx_ + dx_ + 0.03, G0 + 1.05, G0 + 2.15, fz_ + dz_ - 0.03, fz_ + dz_ + 0.03, scale=1.0, col=K.STEEL)
+    box((D, "steel", 1), fx_ + dx_ * 0.7 - 0.05, fx_ + dx_ * 0.7 + 0.05, G0 + 0.1, G0 + 2.9, fz_ - 1.05, fz_ - 0.95, scale=1.0, col=K.STEEL)
+    box((D, "steel", 1), fx_ + dx_ * 0.6 - 0.06, fx_ + dx_ * 0.6 + 0.06, G0 + 0.12, G0 + 0.17, fz_ - 2.1, fz_ - 1.0, scale=1.0, col=K.STEEL)
+    for dz_ in (-0.55, 0.5):
+        box((D, "dark", 1), fx_ + dx_ * 1.12 - 0.1, fx_ + dx_ * 1.12 + 0.1, G0, G0 + 0.5, fz_ + dz_ - 0.25, fz_ + dz_ + 0.25, scale=1.0)
+box((D, "metal", 1), fx_ - 0.56, fx_ + 0.56, G0 + 2.15, G0 + 2.2, fz_ - 0.9, fz_ + 0.78, scale=1.0)
+box((D, "glow", 1), fx_ - 0.1, fx_ + 0.1, G0 + 2.2, G0 + 2.32, fz_ - 0.1, fz_ + 0.1, scale=0.5, col=GLOW["amber"])
+for (x_, z_, yaw_, pose_) in ((392.2, -194.2, 0.0, "idle"), (397.8, -201.0, math.pi, "idle"), (385.8, -204.9, 0.0, "talk"), (385.8, -203.9, math.pi, "talk"),
+                              (409.2, -212.0, -math.pi / 2, "lean"), (397.4, FZ0 + 1.5, 0.3, "phone"), (388.2, -207.2, -math.pi / 2, "squat")):
+    stand(x_, z_, yaw_, pose_, y=G0)
 
 # ---------------------------------------------------------------------------
 # The people who stand about (the walkers on the pavements are the
@@ -968,6 +1030,10 @@ for z_ in (-178.0,):
         cylinder((D, "metal", 1), x_, z_, G0, 2.6, 0.04, segs=5)
     for (x_, w_) in ((477.2, 2.4), (479.6, 2.4), (481.4, 1.2), (488.5, 3.0)):
         P.place("fence_mesh", x_, G0, z_, 0.0, sxz=w_ / 2.4, district=D)
+    # A hoarding over the fence, an advert to the plaza street and another to the yard.
+    B.billboard(D, 479.0, 3.7, z_ + 0.2, 5.4, 2.4, 0.0, ro, depth=0.2)
+    for x_ in (477.0, 481.0):
+        box((D, "metal", 1), x_ - 0.06, x_ + 0.06, G0, 2.5, z_ + 0.04, z_ + 0.16, scale=0.5)
 for (x_, z_, yaw_, hue_) in ((489.4, -244.0, -math.pi / 2, "white"), (476.6, -186.0, math.pi / 2, "amber"), (489.4, -212.0, -math.pi / 2, "cyan"),
                              (484.4, -296.0, math.pi / 2, "white"), (398.4, -256.0, math.pi / 2, "white")):
     K.arm_lamp(D, x_, z_, G0, yaw_, h=5.6, arm=2.6, hue=hue_, power=6.0)
@@ -1030,3 +1096,71 @@ for du in (-3.2, 3.2):
     px_, pz_ = 457.0 + du * ux_, -283.0 + du * uz_
     pipe((D, "steel", 1), (px_, 37.2, pz_), (px_ - nx_ * 1.2, 34.15, pz_ - nz_ * 1.2), 0.05, segs=4, col=FRAME)
 K.cable(D, (457.0 + 4.5 * ux_, 37.3, -283.0 + 4.5 * uz_), (457.4, 37.5, -288.0), 0.4, r=0.03, steps=5)
+
+# ---------------------------------------------------------------------------
+# The camera roof's own, where neither About nor Stack looks (their lens at
+# (476, -266) sweeps from north-north-west round by west to south-south-west:
+# all of this is north-east and east of it, or behind it): a second stair
+# hut with a white lamp over its door, a rail on the north, east and south
+# parapets, and a low cool fill round the tanks so the deck, the units and
+# the tanks' legs can be seen.
+# ---------------------------------------------------------------------------
+K.hut(D, 481.2, -296.6, 34.0, -math.pi / 2, T["teal"], hue="white")
+K.rail(D, [(459.0, -299.8), (483.8, -299.8), (483.8, -258.2), (473.0, -258.2)], 35.1, h=0.9, thick=False)
+# (The tanks stand on a deck of pavers down the roof's east side, which
+# takes the light the wet tar does not.)
+K.slab(D, 474.2, 483.6, -299.6, -258.4, 34.0, "concrete", lift=0.06, scale=3.0)
+for (x_, z_, r_) in ((474.5, -292.0, 4.5), (480.0, -278.0, 4.5), (480.5, -264.0, 3.5), (469.5, -296.0, 3.5)):
+    K.pool(D, x_, z_, 34.0, "cyan", r=r_, k=0.045)
+    light(D, x_, 35.2, z_, "cyan", 5.0)
+for (x_, z_, hue_) in ((481.6, -288.0, "white"), (482.0, -271.5, "cyan"), (478.6, -261.0, "white")):
+    K.post_light(D, x_, z_, 34.06, hue_, h=0.9, power=6.0)
+
+# ---------------------------------------------------------------------------
+# MILITECH's tower (rooftop.py's masses, 30 by 28 to 46 m, a tier to 58 and
+# the plant room to 64): its floors lit in runs of their own (bright cool
+# offices, a dim curtain wall, a warm run under the top), ribs up every
+# face, a service band of louvres with red lamps along it; the plant room
+# louvred on three faces, its name framed in steel on the fourth, units, a
+# rail and two masts with red lamps on its roof.
+# ---------------------------------------------------------------------------
+MIL_RIB = (0.07, 0.078, 0.1, 1)
+MIL_TINT = T["navy"]
+# (first storey, last storey, how lit, window style, how warm)
+MIL_RUNS = ((0, 3, 0.85, 2, 0.15), (3, 5, 0.5, 4, 0.55), (5, 8, 0.9, 2, 0.3), (9, 11, 0.85, 2, 0.05), (11, 12.18, 0.8, 4, 0.75))
+for name, f in B.faces_of(380.0 - 0.02, 410.0 + 0.02, -250.0 - 0.02, -222.0 + 0.02).items():
+    for k0, k1, lit_, style_, warm_ in MIL_RUNS:
+        B.facade_wall((D, "facade", 0), f, SHOP_H + k0 * CELL_H, SHOP_H + k1 * CELL_H, B.wall_col(lit_, style_, warm_, MIL_TINT), 3)
+    bays = round(f.width / CELL_W)
+    for i in range(bays + 1):
+        sv = min(max(i * f.width / bays, 0.12), f.width - 0.12)
+        f.box((D, "trim", 0), sv - 0.12, sv + 0.12, SHOP_H, 46.3, 0.0, 0.45, col=MIL_RIB)
+    K.louvre(D, f, 0.3, f.width - 0.3, SHOP_H + 8 * CELL_H + 0.05, SHOP_H + 9 * CELL_H - 0.05, out=0.32)
+    for i in range(1, 5):
+        sv = i * f.width / 5
+        f.box((D, "glow", 0), sv - 0.1, sv + 0.1, SHOP_H + 9 * CELL_H - 0.05, SHOP_H + 9 * CELL_H + 0.1, 0.32, 0.38, col=GLOW["red"])
+for name, f in B.faces_of(383.0 - 0.02, 410.0 + 0.02, -247.0 - 0.02, -225.0 + 0.02).items():
+    B.facade_wall((D, "facade", 0), f, 46.0, 58.0, B.wall_col(0.9, 4, 0.4, MIL_TINT), 3)
+    bays = round(f.width / CELL_W)
+    for i in range(bays + 1):
+        sv = min(max(i * f.width / bays, 0.12), f.width - 0.12)
+        f.box((D, "trim", 0), sv - 0.12, sv + 0.12, 46.0, 58.3, 0.0, 0.45, col=MIL_RIB)
+# The plant room: louvres, corner ribs, a frame round the name.
+for name, f in B.faces_of(392.0, 410.0, -244.0, -228.0).items():
+    if name == "+x":
+        for (a_, b_, y0_, y1_) in ((1.6, 14.4, 62.44, 62.6), (1.6, 14.4, 59.4, 59.56), (1.6, 1.76, 59.56, 62.44), (14.24, 14.4, 59.56, 62.44)):
+            f.box((D, "steel", 0), a_, b_, y0_, y1_, 0.3, 0.5, col=FRAME)
+        continue
+    half = f.width / 2
+    for a_, b_ in ((0.8, half - 0.5), (half + 0.5, f.width - 0.8)):
+        K.louvre(D, f, a_, b_, 59.0, 62.9, out=0.14)
+    for sv in (0.2, half, f.width - 0.2):
+        f.box((D, "trim", 0), sv - 0.2, sv + 0.2, 58.0, 64.0, 0.0, 0.3, col=MIL_RIB)
+for (x_, z_, yaw_) in ((396.5, -240.5, 0.0), (402.0, -240.5, 0.0), (396.0, -232.0, math.pi / 2)):
+    K.unit(D, x_, z_, 64.3, yaw_, lamp="red" if x_ > 400 else "amber")
+K.rail(D, [(392.2, -243.8), (409.8, -243.8), (409.8, -228.2), (392.2, -228.2), (392.2, -243.8)], 64.3, h=0.9, thick=False)
+K.mast(D, 394.2, -230.2, 64.3, 9.0, dishes=2, lamp="red")
+K.mast(D, 406.5, -241.6, 64.3, 6.0, dishes=1, lamp="red")
+for (x_, z_, h_) in ((400.0, -229.4, 5.5), (408.6, -234.0, 4.0), (393.4, -242.6, 6.5)):
+    cylinder((D, "metal", 1), x_, z_, 64.3, 64.3 + h_, 0.04, segs=4)
+    box((D, "glow", 0), x_ - 0.07, x_ + 0.07, 64.3 + h_, 64.44 + h_, z_ - 0.07, z_ + 0.07, scale=0.5, col=GLOW["red"])
