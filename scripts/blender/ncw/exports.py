@@ -166,7 +166,10 @@ def anchors():
     import bpy
     out = []
     for o in sorted((o for o in bpy.data.objects if o.type == "EMPTY"), key=lambda o: o.name):
-        x, mz, y = o.matrix_world.translation
+        # An empty's own location: the kit parents none of them, and their
+        # matrix_world is still the identity at export (nearly every anchor
+        # was written at 0, 0, 0).
+        x, mz, y = o.location if o.parent is None else o.matrix_world.translation
         extras = {}
         for k in o.keys():
             if k in _PAYLOAD or k.startswith("_"):
