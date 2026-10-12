@@ -67,10 +67,11 @@ class Wall:
 CANVAS = (1.0, 0.88, 0.62)
 
 
-def dress_awnings():
+def dress_awnings(start=0):
+    """Every awning's frame (from the batch's face `start` on)."""
     b = K.batches[(PL, "awning", 1)]
     seen = set()
-    for face in list(b.faces):
+    for face in list(b.faces)[start:]:
         pts = [world(b.verts[i]) for i in face]
         ys = sorted(p[1] for p in pts)
         mid = (ys[0] + ys[-1]) / 2
@@ -214,9 +215,11 @@ def pilaster(wl, s, off):
             wl.box(STEEL, s - 0.02, s + 0.02, yy, yy + 0.04, off, off + 0.16)
 
 
-def dress_shops():
+def dress_shops(start=0):
+    """Every shop pane's frame, door or shutter (from the batch's face
+    `start` on: plaza_edges.py dresses the lane's, built last)."""
     b = K.batches[(PL, "shop", 0)]
-    for face in list(b.faces):
+    for face in list(b.faces)[start:]:
         if len(face) != 4:
             continue
         pts = [world(b.verts[i]) for i in face]

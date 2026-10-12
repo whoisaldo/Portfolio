@@ -17,6 +17,8 @@ from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.plaza_parts import *  # noqa: F401,F403
 from ncw.districts.plaza_corp import WX0, WX1, WZ0, WY
+from ncw.districts import plaza_fronts as PF
+import ncw.kit as K
 
 G = 0.15
 rq = random.Random(8800)
@@ -138,3 +140,39 @@ for along, line, out, a0, a1 in KERBS:
         a = a0 + (a1 - a0) * i / k
         x, z = (line, a) if along == "z" else (a, line)
         light(PL, x, 0.35, z, "teal", 2.2)
+
+# ---------------------------------------------------------------------------
+# And the lane between D and Santo (x 170 to 176, sd15) a street of its own:
+# along the podiums' backs, fronts built out a little over the back doors,
+# shops under their boards and awnings, screens, a dock now and then, with
+# the old wall between them; each front closed at its ends back to the wall.
+# (The kit's sides stay "open": made "street", every other face of these
+# podiums would be dealt again and D1's kit signs would run into D2's. Built
+# here, last of the plaza's signs, so no sign hung before it changes its id.)
+LANE = B.Face("+x", 170.35, -167.0, -11.0)
+LANE_BAYS = ((-10.4, -21.0, "shop", "yellow"), (-22.5, -30.5, "screens", "green"), (-32.0, -40.0, "shop", "amber"), (-42.0, -48.0, "dock", "yellow"),
+             (-50.0, -58.0, "shop", "teal"), (-61.5, -69.5, "screens", "teal"), (-71.0, -80.0, "shop", "green"), (-81.5, -89.5, "dock", "yellow"),
+             (-90.5, -98.0, "shop", "amber"), (-99.5, -107.5, "shop", "amber"), (-109.0, -117.0, "screens", "green"), (-118.5, -124.5, "shop", "teal"),
+             (-127.5, -135.5, "shop", "yellow"), (-137.0, -145.0, "shop", "teal"), (-146.5, -154.5, "screens", "amber"), (-156.0, -165.0, "shop", "green"))
+rl = random.Random(8870)
+SHOPS0, AWNINGS0 = len(K.batches[(PL, "shop", 0)].faces), len(K.batches[(PL, "awning", 1)].faces)
+for z_hi, z_lo, kind, hue in LANE_BAYS:
+    s0, s1 = -11.0 - z_hi, -11.0 - z_lo
+    front_bay(LANE, s0, s1, kind, rl, colour=hue)
+    for z in (z_hi, z_lo):
+        box((PL, "trim", 0), 170.0, 170.47, 0.0, 4.3, z - 0.1, z + 0.1, scale=2.0, col=B.DARK_TRIM)
+    box((PL, "trim", 0), 170.0, 170.47, 4.28, 4.34, z_lo, z_hi, scale=2.0, col=B.DARK_TRIM)
+# A blade at the lane's mouth, turned to the south street.
+blade_off(B.Face("+x", 170.0, -60.0, -10.0), 1.2, 4.6, "bm", 2.4, angle=0.4)
+# (What the back doors kept at them stands aside where a front now is.)
+P.INSTANCES[:] = [i for i in P.INSTANCES if not (i[0] in ("dumpster", "bags", "crates") and i[7] == PL and 170.4 < i[1] < 171.2
+                                                  and any(zl - 1.6 < i[3] < zh + 1.6 for zh, zl, _, _ in LANE_BAYS))]
+PF.dress_awnings(AWNINGS0)
+PF.dress_shops(SHOPS0)
+
+# In the lane between D and Santo: somebody at a shop window here and there,
+# a pair talking, one at the screens, one sat on a dock's step.
+for (x, z, yaw, pose) in ((171.05, -16.4, W_, "phone"), (171.0, -35.2, W_, "idle"), (171.1, -53.8, W_ + 0.3, "lean"), (171.05, -75.0, N, "talk"),
+                          (171.05, -75.85, S, "talk"), (171.0, -86.0, W_, "idle"), (171.05, -103.0, W_, "phone"), (171.0, -112.6, W_, "idle"),
+                          (171.05, -131.0, W_ - 0.3, "smoke"), (171.0, -150.0, W_, "idle"), (171.05, -160.4, W_, "phone")):
+    put(x, z, yaw, pose, slide=(0.0, 0.5, -0.5))
