@@ -155,6 +155,86 @@ def strip(key, f, s0, s1, y0, y1, hue, out=0.06):
 # frame, so the lit glass is in the core and the joinery in the pack.
 # ---------------------------------------------------------------------------
 REC, PIL = B.REC, B.PIL
+TRADES = ("glass", "counter", "glass", "machines", "cabinets")
+FRONTS = []     # every shop front built, in order: the next takes the next trade
+WOOD = (0.13, 0.1, 0.09, 1)
+
+
+def _front(trade, f, s0, s1, key):
+    """A built shop front in a bay 0.9 m deep behind the wall's plane: its
+    back wall, sides, ceiling with a lamp and floor, and its trade."""
+    r = random.Random(9100 + len(FRONTS) * 7)
+    d, top = 0.9, 3.3
+    a, b = f.at(s0), f.at(s1)
+    mid = (s0 + s1) / 2
+    hue = {"counter": "amber", "machines": "cyan", "cabinets": r.choice(("yellow", "cyan", "green"))}[trade]
+    f.quad((key, "glow", 0), s0, s1, G0, top, -d, col=dim(hue, 0.035))
+    quad((key, "trim", 0), f.p(a, G0, 0.0), f.p(a, G0, -d), f.p(a, top, -d), f.p(a, top, 0.0), col=B.DARK_TRIM)
+    quad((key, "trim", 0), f.p(b, G0, -d), f.p(b, G0, 0.0), f.p(b, top, 0.0), f.p(b, top, -d), col=B.DARK_TRIM)
+    under((key, "trim", 0), f, s0, s1, -d, 0.0, top, B.DARK_TRIM)
+    over((key, "trim", 0), f, s0, s1, -d, 0.0, G0 + 0.01, (0.05, 0.05, 0.055, 1))
+    under((key, "glow", 0), f, mid - 0.7, mid + 0.7, -0.6, -0.4, top - 0.015, dim("white" if trade != "counter" else "amber", 0.8))
+    light(key, *f.p(f.at(mid), 2.4, 0.7), hue, 4.0)
+    if trade == "counter":
+        # A counter on the lot line, bowls and a pot on it, a shelf of
+        # bottles and a lit menu on the wall behind, lanterns over it, the
+        # cook behind it, a stool or two on the pavement.
+        f.box((key, "trim", 0), s0 + 0.25, s1 - 0.25, G0, 1.0, -0.4, 0.06, col=WOOD)
+        f.box((key, "metal", 1), s0 + 0.2, s1 - 0.2, 1.0, 1.05, -0.45, 0.12)
+        n = max(2, int((s1 - s0) / 0.7))
+        for i in range(n):
+            s = s0 + 0.5 + (s1 - s0 - 1.0) * i / max(1, n - 1)
+            if i % 3 == 2:
+                f.box((key, "trim", 1), s - 0.16, s + 0.16, 1.05, 1.3, -0.3, -0.02, col=(0.3, 0.2, 0.11, 1))
+            else:
+                f.box((key, "trim", 1), s - 0.11, s + 0.11, 1.05, 1.12, -0.26, -0.04, col=(0.5, 0.48, 0.44, 1))
+        f.box((key, "metal", 1), s0 + 0.3, s1 - 0.3, 1.7, 1.74, -d, -d + 0.2)
+        for i in range(int((s1 - s0 - 0.8) / 0.22)):
+            s = s0 + 0.45 + i * 0.22
+            f.quad((key, "glow", 1), s - 0.035, s + 0.035, 1.74, 1.98, -d + 0.13, col=dim(("amber", "green", "yellow", "cyan", "amber", "white", "green", "red")[i % 8], 0.3))
+        sw, sh = ST_SIZES["ps"]
+        k = min(1.0, (s1 - s0 - 0.6) / sw)
+        cx, cy, cz = f.p(f.at(mid), 2.65, -d + 0.03)
+        sign(st_name("ps"), cx, cy, cz, sw * k, sh * k, f.yaw, district=key, label=False)
+        for s in (s0 + 0.5, s1 - 0.5):
+            x, _, z = f.p(f.at(s), 0.0, 0.1)
+            P.place("lantern", x, 2.75, z, district=key)
+        x, _, z = f.p(f.at(mid + r.uniform(-0.4, 0.4)), 0.0, -0.62)
+        stand(x, z, f.yaw, "vendor", G0)
+        for s in (mid - 0.7, mid + 0.6):
+            if r.random() < 0.7:
+                x, _, z = f.p(f.at(s), 0.0, 0.55)
+                P.place("cy_stool", x, G0, z, district=key)
+                if r.random() < 0.7:
+                    stand(x, z, f.yaw + math.pi, "sit", G0 + 0.5)
+    elif trade == "machines":
+        # A wall of machines, each its own front, a line of light over
+        # them; someone choosing.
+        n = max(2, int((s1 - s0 - 0.2) / 1.15))
+        for i in range(n):
+            s = s0 + (s1 - s0) * (i + 0.5) / n
+            x, _, z = f.p(f.at(s), 0.0, -0.46)
+            P.place(("vending", "vending_warm")[(i + len(FRONTS)) % 2], x, G0, z, f.yaw, district=key)
+        f.box((key, "neon_cyan", 0), s0 + 0.2, s1 - 0.2, 2.3, 2.36, -d + 0.02, -d + 0.08)
+        if r.random() < 0.6:
+            x, _, z = f.p(f.at(mid + 0.4), 0.0, 0.7)
+            stand(x, z, f.yaw + math.pi, r.choice(("idle", "phone")), G0)
+    else:
+        # A row of game cabinets: a dark case, a screen running its own
+        # colour, a lit marquee, a panel of buttons; tubes bent on the wall
+        # over them; someone playing.
+        n = max(2, int((s1 - s0 - 0.2) / 0.95))
+        for i in range(n):
+            s = s0 + (s1 - s0) * (i + 0.5) / n
+            c = ("cyan", "pink", "yellow", "green", "purple")[(i * 2 + len(FRONTS)) % 5]
+            f.box((key, "trim", 0), s - 0.36, s + 0.36, G0, 1.85, -0.78, -0.12, col=(0.03, 0.032, 0.045, 1))
+            f.quad((key, "glow", 0), s - 0.28, s + 0.28, 1.05, 1.55, -0.115, col=dim(c, 0.45))
+            f.quad((key, "glow", 0), s - 0.3, s + 0.3, 1.62, 1.8, -0.115, col=dim("white", 0.5))
+            f.box((key, "trim", 1), s - 0.34, s + 0.34, 0.86, 0.96, -0.12, 0.1, col=(0.08, 0.08, 0.1, 1))
+        for y, c in ((2.35, "pink"), (2.6, "cyan")):
+            f.box((key, "neon_" + c, 0), s0 + 0.3 + (0.5 if c == "cyan" else 0.0), s1 - 0.8, y, y + 0.05, -d + 0.02, -d + 0.07)
+        x, _, z = f.p(f.at(s0 + (s1 - s0) * 0.5 / n + 0.02), 0.0, 0.45)
+        stand(x, z, f.yaw + math.pi, "idle", G0)
 
 
 def shopfront(f, r, s0, s1, tint, glass=FA, key=CB, sign_rate=0.6, awning_rate=0.5, door=True, palette=None):
@@ -203,10 +283,19 @@ def shopfront(f, r, s0, s1, tint, glass=FA, key=CB, sign_rate=0.6, awning_rate=0
             doors.append(mid)
             continue
         lit = (r.uniform(0.4, 1.0), r.random(), 1.0 if r.random() < 0.93 else 0.0, 1.0)
-        f.quad((glass, "shop", 0), a + 0.2, b - 0.2, 0.55, 3.3, -REC, col=lit)
-        f.quad((key, "trim", 0), a + 0.2, b - 0.2, G0, 0.55, -REC + 0.01, col=B.DARK_TRIM)
-        f.quad((key, "trim", 0), a + 0.2, b - 0.2, 3.3, SHOP_H, 0.0, col=B.DARK_TRIM)
-        f.box((key, "trim", 0), a + 0.2, b - 0.2, 3.28, 3.3, -REC, 0.0, col=B.DARK_TRIM)
+        # Every other front is glass with the site's room behind it; the
+        # ones between are built: a counter that serves the pavement, a
+        # wall of machines, a row of cabinets. No two neighbours alike.
+        trade = TRADES[len(FRONTS) % len(TRADES)]
+        FRONTS.append(trade)
+        if trade != "glass" and b - a >= 2.6:
+            _front(trade, f, a + 0.2, b - 0.2, key)
+            f.quad((key, "trim", 0), a + 0.2, b - 0.2, 3.3, SHOP_H, 0.0, col=B.DARK_TRIM)
+        else:
+            f.quad((glass, "shop", 0), a + 0.2, b - 0.2, 0.55, 3.3, -REC, col=lit)
+            f.quad((key, "trim", 0), a + 0.2, b - 0.2, G0, 0.55, -REC + 0.01, col=B.DARK_TRIM)
+            f.quad((key, "trim", 0), a + 0.2, b - 0.2, 3.3, SHOP_H, 0.0, col=B.DARK_TRIM)
+            f.box((key, "trim", 0), a + 0.2, b - 0.2, 3.28, 3.3, -REC, 0.0, col=B.DARK_TRIM)
         colour = r.choice(colours)
         if r.random() < awning_rate:
             B.awning(key, f, a + 0.25, b - 0.25, colour)
@@ -318,6 +407,21 @@ def tall(sid, n, x, y0, h, z, wall_x, w=2.2, key=FA, back=CB, preview="夜"):
         if not (yc - hf / 2 - 0.3 < y < yc + hf / 2 + 0.3):
             box((back, "metal", 1), x - w / 2 - 0.1, x + w / 2 + 0.1, y - 0.04, y + 0.04, z - 0.19, z - 0.11, scale=0.5, bottom=True)
         y += h / max(2, round(h / 2.4))
+    # Over and under its word the column is full: light boxes one on
+    # another to both its ends, one dark here and there (an open frame with
+    # a sign only at its middle read as a sign that had lost its face).
+    pr = random.Random(8800 + n * 13)
+    for ya, yb in ((y0 + 0.15, yc - hf / 2 - 0.2), (yc + hf / 2 + 0.2, y0 + h - 0.15)):
+        m = int((yb - ya) / (w + 0.12))
+        for i in range(m):
+            py = ya + (yb - ya) * (i + 0.5) / m
+            ph_ = min(w, (yb - ya) / m - 0.12)
+            if pr.random() < 0.12:
+                box((back, "board_frame", 0), x - w / 2, x + w / 2, py - ph_ / 2, py + ph_ / 2, z - 0.2, z - 0.1, scale=1.0, bottom=True)
+                continue
+            sid_ = st_name("bx")
+            sign(sid_, x, py, z - 0.02, w, ph_, 0.0, district=key, label=False)
+            sign(sid_ + "_b", x, py, z - 0.28, w, ph_, math.pi, district=back, label=False)
     for yb in (y0 + 0.4, yc, y0 + h - 0.4):
         xa, xb = sorted((x + (w / 2 + 0.2) * (1 if wall_x > x else -1), wall_x))
         box((back, "metal", 1), xa, xb, yb - 0.05, yb + 0.05, z - 0.2, z - 0.1, scale=0.5, bottom=True)
@@ -743,7 +847,11 @@ def _cy_planter(k):
     """A long planter: a concrete trough, a hedge, a line of light under
     its lip on both sides."""
     box(k("concrete"), -1.5, 1.5, 0.0, 0.55, -0.35, 0.35, scale=1.0)
-    box(k("trim"), -1.42, 1.42, 0.55, 1.05, -0.28, 0.28, scale=1.0, col=(0.06, 0.16, 0.09, 1))
+    # (Clipped bushes, each its own height and green, dark: a single box of
+    # one green took the lamps' light as a bright slab.)
+    for x0, x1, top, g in ((-1.42, -0.62, 0.98, (0.025, 0.07, 0.04, 1)), (-0.66, 0.2, 1.12, (0.03, 0.085, 0.045, 1)), (0.16, 0.8, 0.94, (0.022, 0.06, 0.04, 1)),
+                           (0.76, 1.42, 1.06, (0.028, 0.078, 0.05, 1))):
+        box(k("trim"), x0, x1, 0.55, top, -0.28, 0.28, scale=1.0, col=g)
     fs = B.faces_of(-1.5, 1.5, -0.35, 0.35)
     for name in ("+z", "-z"):
         fs[name].quad(k("glow"), 0.1, 2.9, 0.38, 0.43, 0.006, col=GLOW["teal"])

@@ -1006,7 +1006,7 @@ ez, k = -192.5, 0
 while ez > -262.0:
     C.flat((CB, "trim", 1), 44.2, 47.86, ez - 0.08, ez + 0.08, B.G0 + 0.012, (0.02, 0.021, 0.026, 1))
     P.place("cy_bollard", 48.0, B.G0, ez - 1.75, district=CB)
-    light(CB, 47.4, 1.0, ez - 1.75, "teal", 5.0)
+    light(CB, 47.4, 1.0, ez - 1.75, "teal", 2.0)
     light(CB, 45.2, 3.0, ez, "amber", 5.0)
     pick = k % 5
     if pick in (0, 3):
@@ -1088,52 +1088,106 @@ for s in (-1, 1):
     if s > 0:
         shut.append((FORECOURT[0] - 1.0, FORECOURT[1] + 1.0))
     z = -200.0 - (4.0 if s > 0 else 0.0)
+    grates = 0
     while z > -700.0:
         wall_ok = not any(a < z < b for a, b in shut)
         kerb_ok = not (RAIL[0] - 5.0 < z < RAIL[1] + 5.0)
         if wall_ok:
             roll = pave_r.random()
-            if roll < 0.3:
+            if roll < 0.13:
                 kind = pave_r.choice(("vending", "vending_warm"))
                 P.place(kind, s * 13.55, B.G0, z, out, district=CB)
                 light(CB, s * 12.7, 1.2, z, "amber" if kind == "vending_warm" else "cyan", 3.5)
                 if pave_r.random() < 0.6:
                     stand(s * 13.0, z + 1.1, out + pave_r.uniform(-0.6, 0.6), pave_r.choice(("phone", "idle", "smoke")), B.G0)
-            elif roll < 0.55:
+            elif roll < 0.23:
                 P.place("bench", s * 13.6, B.G0, z, math.pi / 2, district=CB)
+                P.place("charge_post", s * 13.7, B.G0, z + 1.5, out, district=CB)
                 stand(s * 13.6, z - 0.4, out, "sit", B.G0 + 0.48)
                 if pave_r.random() < 0.5:
                     stand(s * 13.6, z + 0.5, out, "sit", B.G0 + 0.48)
-            elif roll < 0.66:
+                if pave_r.random() < 0.5:
+                    stand(s * 13.2, z + 1.6, out + math.pi, "phone", B.G0)
+            elif roll < 0.28:
                 P.place("phone_booth", s * 13.4, B.G0, z, out, district=CB)
-            elif roll < 0.78:
-                # What a shop puts out at night: bags against the wall, a
-                # crate or a bin beside them.
+            elif roll < 0.38:
+                # What a shop puts out at night: bags against the wall, and
+                # beside them a crate, a bin, pallets or a barrel.
                 P.place("bags", s * 13.5, B.G0, z, out, district=CB)
-                P.place(pave_r.choice(("crates", "bin", "bin")), s * 13.55, B.G0, z + pave_r.choice((-1.1, 1.1)), out, district=CB)
-            elif roll < 0.9:
+                P.place(pave_r.choice(("crates", "bin", "pallets", "barrel", "bin")), s * 13.5, B.G0, z + pave_r.choice((-1.2, 1.2)), out, district=CB)
+            elif roll < 0.46:
+                # A shop's board on the pavement, someone reading it.
+                P.place("aframe", s * 13.2, B.G0, z, pave_r.uniform(-0.4, 0.4), district=CB)
+                if pave_r.random() < 0.6:
+                    stand(s * 12.9, z + 1.0, math.pi, pave_r.choice(("idle", "phone")), B.G0)
+            elif roll < 0.54:
+                P.place("lightbox", s * 13.5, B.G0, z, pave_r.uniform(-0.2, 0.2), district=CB)
+            elif roll < 0.61:
+                # A food cart against the wall, its vendor behind it and a
+                # queue along the wall from its counter.
+                P.place("food_cart", s * 13.25, B.G0, z, 0.0, district=CB)
+                stand(s * 13.25, z - 0.85, 0.0, "vendor", B.G0)
+                for q in range(pave_r.randrange(2, 5)):
+                    stand(s * (13.3 + pave_r.uniform(-0.15, 0.15)), z + 1.5 + q * 0.75, math.pi, pave_r.choice(("idle", "phone", "idle")), B.G0)
+                light(CB, s * 12.8, 1.8, z + 0.8, "amber", 4.0)
+            elif roll < 0.76:
+                # A knot of people by the wall: five, six, seven of them
+                # turned in on one another, one or two a step outside it.
+                n = pave_r.randrange(4, 8)
+                for q in range(n):
+                    a = q * math.tau / n + pave_r.uniform(-0.3, 0.3)
+                    gx, gz = s * (13.15 + 0.5 * math.cos(a)), z + 1.25 * math.sin(a)
+                    stand(gx, gz, math.atan2(s * 13.15 - gx, z - gz), "talk" if q % 3 else pave_r.choice(("phone", "smoke", "idle")), B.G0)
+            elif roll < 0.86:
                 stand(s * 13.5, z, 0.0, "talk", B.G0)
                 stand(s * 13.5, z + 1.0, math.pi, "talk", B.G0)
-            else:
+            elif roll < 0.93:
                 stand(s * 13.7, z, out, pave_r.choice(("lean", "smoke", "phone")), B.G0)
         if kerb_ok:
             roll = pave_r.random()
             zz = z + pave_r.uniform(-3.0, 3.0)
-            if roll < 0.35:
+            if roll < 0.24:
                 for k in range(3):
                     P.place("bollard", s * 10.55, B.G0, zz + k * 1.6, district=CB)
-            elif roll < 0.5:
+            elif roll < 0.34:
                 P.place("hydrant", s * 10.6, B.G0, zz, district=CB)
-            elif roll < 0.7:
+            elif roll < 0.5:
                 P.place("lamp_short", s * 10.6, B.G0, zz, district=CB)
-            elif roll < 0.85:
-                stand(s * 10.5, zz, out + math.pi, pave_r.choice(("squat", "smoke", "phone")), B.G0)
+            elif roll < 0.64:
+                # A run of guard rail along the kerb, someone leaning on it.
+                for k in range(pave_r.randrange(2, 5)):
+                    P.place("railing", s * 10.3, B.G0, zz + k * 2.0, math.pi / 2, district=CB)
+                if pave_r.random() < 0.6:
+                    stand(s * 10.55, zz + 1.0, out + math.pi, "lean", B.G0)
+            elif roll < 0.72 and grates < 5:
+                # A grate with warm light under it, breathing steam.
+                P.place("grate_glow", s * 10.9, B.G0, zz, math.pi / 2, district=CB)
+                empty(f"anchor_steam_cy_grate_{'l' if s < 0 else 'r'}{grates}", (s * 10.9, 0.3, zz))
+                grates += 1
+            elif roll < 0.9:
+                # People at the kerb, waiting to cross: one, or three or four.
+                for q in range(pave_r.choice((1, 1, 3, 4))):
+                    stand(s * (10.45 + pave_r.uniform(-0.1, 0.25)), zz + q * 0.7 + pave_r.uniform(-0.15, 0.15), out + math.pi + pave_r.uniform(-0.3, 0.3),
+                          pave_r.choice(("idle", "smoke", "phone", "squat") if q == 0 else ("idle", "phone", "talk")), B.G0)
             # A drain's grating in the pavement at the kerb.
             gx = sorted((s * 10.12, s * 10.42))
             C.flat((CB, "dark", 1), gx[0], gx[1], zz + 2.0, zz + 2.9, B.G0 + 0.012)
             for k in range(4):
                 C.flat((CB, "metal", 1), gx[0] + 0.02, gx[1] - 0.02, zz + 2.08 + k * 0.2, zz + 2.13 + k * 0.2, B.G0 + 0.016)
-        z -= pave_r.uniform(5.5, 8.5)
+        # (Never at even intervals: a short step, or a long one.)
+        z -= pave_r.choice((pave_r.uniform(3.6, 5.5), pave_r.uniform(6.0, 10.5)))
+# Under each megastructure's piers, out of the rain: an advertising drum at
+# the kerb and a knot of people round it.
+for n, m in enumerate(MEGA):
+    zc = (m["zn"] + m["zs"]) / 2
+    for s in (-1, 1):
+        if m["feet"][0 if s < 0 else 1] > 8.0:
+            continue
+        P.place("ad_drum", s * 11.4, B.G0, zc + s * 1.5, district=CB)
+        for q in range(5 + n):
+            a = q * math.tau / (5 + n) + 0.4 * n
+            stand(s * 11.4 + 1.55 * math.cos(a), zc + s * 1.5 + 1.55 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)) + pave_r.uniform(-0.5, 0.5),
+                  pave_r.choice(("idle", "phone", "talk", "smoke")), B.G0)
 # Manholes up the canyon breathing steam into the signs' light.
 for i, (sx, sz) in enumerate(((-5.5, -262.0), (4.0, -386.0), (-3.0, -540.0))):
     cylinder((CB, "metal", 1), sx, sz, 0.0, 0.025, 0.42, segs=14)
