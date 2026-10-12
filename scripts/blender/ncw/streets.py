@@ -463,8 +463,61 @@ def furniture():
                     P.place("bin", p[0] + qx * (Z.lot - 0.8), PAVE_Y, p[1] + qz * (X.lot - 0.8))
 
 
+def _junction_paint():
+    """A yellow box on every junction off the avenue: its outline and a
+    diamond hatch, the road's "keep clear", worn as the lane paint is. The
+    avenue's own junctions stay as the hero has them."""
+    y, w, step, inset = 0.012, 0.16, 2.6, 0.9
+    r = w / 2 / math.sqrt(2.0)
+    for p, names in plan.junctions().items():
+        if abs(p[0]) < 1.0:
+            continue
+        x0, x1, z0, z1 = plan.junction_box(p, names)
+        a0, a1, b0, b1 = x0 + inset, x1 - inset, z0 + inset, z1 - inset
+        if a1 - a0 < 4.0 or b1 - b0 < 4.0:
+            continue
+        k = (_d(p[0], p[1]), "paint", 0)
+        _rect(k, a0, a1, b0, b0 + w, y, 1.0, YELLOW)
+        _rect(k, a0, a1, b1 - w, b1, y, 1.0, YELLOW)
+        _rect(k, a0, a0 + w, b0 + w, b1 - w, y, 1.0, YELLOW)
+        _rect(k, a1 - w, a1, b0 + w, b1 - w, y, 1.0, YELLOW)
+        # Lines x - z = c one way and x + z = c the other, cut to the box.
+        c = a0 - b1 + step
+        while c < a1 - b0:
+            xa, xb = max(a0, b0 + c), min(a1, b1 + c)
+            if xb - xa > 0.5:
+                _poly_up(k, ((xa - r, xa - c + r), (xb - r, xb - c + r), (xb + r, xb - c - r), (xa + r, xa - c - r)), y, 1.0, YELLOW)
+            c += step
+        c = a0 + b0 + step
+        while c < a1 + b1:
+            xa, xb = max(a0, c - b1), min(a1, c - b0)
+            if xb - xa > 0.5:
+                _poly_up(k, ((xa + r, c - xa + r), (xb + r, c - xb + r), (xb - r, c - xb - r), (xa - r, c - xa - r)), y, 1.0, YELLOW)
+            c += step
+
+
+def _garage_street_kerb():
+    """The garage street's west pavement by the tank fence (z -166..-94) is
+    the street's own, with no frontage to dress it: what a kerb in a works
+    quarter keeps."""
+    s = plan.BY_NAME["garage"]
+    kerb, back = -(s.half + 0.7), -(s.lot - 0.6)
+    for name, u, v, face in (("hydrant", kerb, -161.0, 1), ("signal_box", back, -154.0, 1), ("bin", kerb, -147.0, 1),
+                             ("barrier", kerb + 0.2, -139.0, 0), ("barrier", kerb + 0.2, -136.4, 0), ("drum", back, -133.0, 1),
+                             ("drum", back + 0.1, -132.1, 1), ("charge_post", kerb, -126.0, 1), ("pallets", back, -119.0, 1),
+                             ("grate_glow", (kerb + back) / 2, -113.0, 1), ("bench", back, -107.0, 1), ("bin", back, -104.6, 1),
+                             ("aframe", kerb - 0.3, -99.0, 1), ("barrel", back, -96.0, 1)):
+        x, z = _w(s, u, v)
+        P.place(name, x, PAVE_Y, z, _yaw(1, 0) if face else 0.0)
+    for v in (-151.0, -149.2, -122.0, -120.2, -118.4):
+        x, z = _w(s, kerb, v)
+        P.place("bollard", x, PAVE_Y, z)
+
+
 build()
 furniture()
+_junction_paint()
+_garage_street_kerb()
 
 
 # How busy each district's pavements are: people per 100 m of each walking

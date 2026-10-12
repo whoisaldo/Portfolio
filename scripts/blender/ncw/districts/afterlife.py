@@ -270,13 +270,15 @@ light(D, 430.0, 3.8, AF.at(DOOR_S + 2.2), "green", 3.0)
 # door.
 CX0, CX1, CZ0, CZ1 = WK, WK + 1.5, -287.6, -274.4
 box((D, "steel", 0), CX0, CX1, 3.95, 4.72, CZ0, CZ1, scale=1.0, col=PORTAL, bottom=True)
-lit_soffit(CX0 + 0.12, CX1 - 0.12, CZ0 + 0.12, CZ1 - 0.12, 3.945, 0.28, 0.55)
+# (Held low: the Garage section's own shot looks up at this slab from the
+# street, and at full strength it was the brightest thing in that frame.)
+lit_soffit(CX0 + 0.12, CX1 - 0.12, CZ0 + 0.12, CZ1 - 0.12, 3.945, 0.02, 0.045)
 CF = B.Face("+x", CX1, CZ0, CZ1)           # its edge to the street; s runs north from its south end
-CF.quad((D, "glow", 0), 0.15, 13.05, 4.05, 4.62, 0.012, col=yg(0.8))
+CF.quad((D, "glow", 0), 0.15, 13.05, 4.05, 4.62, 0.012, col=yg(0.13))
 for f_ in (B.Face("-z", CZ0, CX0, CX1), B.Face("+z", CZ1, CX0, CX1)):
-    f_.quad((D, "glow", 0), 0.12, 1.38, 4.05, 4.62, 0.012, col=yg(0.8))
-light(D, CX1 - 0.6, 3.5, -284.0, "yellow", 4.5)
-light(D, CX1 - 0.6, 3.5, -278.0, "green", 3.5)
+    f_.quad((D, "glow", 0), 0.12, 1.38, 4.05, 4.62, 0.012, col=yg(0.13))
+light(D, CX1 - 0.6, 3.5, -284.0, "yellow", 2.6)
+light(D, CX1 - 0.6, 3.5, -278.0, "green", 2.0)
 sign("afterlife_b", CX1 + 0.1, 5.85, -281.0, 8.67, 2.0, math.pi / 2, preview="AFTERLIFE", district=D)
 CF.box((D, "steel", 0), 2.16, 11.04, 4.8, 6.9, -0.02, 0.08, col=PORTAL)
 for (a_, b_, y0_, y1_) in ((2.1, 11.1, 6.88, 7.0), (2.1, 11.1, 4.72, 4.84), (2.1, 2.22, 4.84, 6.88), (10.98, 11.1, 4.84, 6.88)):
@@ -290,7 +292,7 @@ for sv in (2.4, 10.8):
 for a_ in (0.1, 11.25):
     m_ = a_ + 0.925
     CF.box((D, "steel", 0), a_, a_ + 1.85, 4.72, 6.96, -0.04, 0.05, col=FRAME)
-    CF.quad((D, "glow", 0), a_ + 0.1, a_ + 1.75, 4.84, 6.84, 0.06, col=yg(0.7))
+    CF.quad((D, "glow", 0), a_ + 0.1, a_ + 1.75, 4.84, 6.84, 0.06, col=yg(0.2))
     CF.quad((D, "trim", 1), m_ - 0.2, m_ + 0.2, 5.8, 6.55, 0.07, col=K.BLACK)
     poly((D, "trim", 1), [CF.p(CF.at(sv), yy, 0.07) for sv, yy in ((m_ - 0.58, 5.8), (m_, 5.12), (m_ + 0.58, 5.8))], [(0, 0), (0.5, 1), (1, 0)], K.BLACK)
 # The queue, the doorman and a second on the door.
