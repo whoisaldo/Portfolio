@@ -279,6 +279,58 @@ SB.ledge((D, "trim", 0), 0.0, 24.0, SHOP_H - 0.05, 0.3, 0.35, B.TRIM[B.TINTS["br
 K.awning(D, SB, 7.6, 12.6, out=1.5)
 K.awning(D, SB, 18.3, 23.6, out=1.5, col=K.RUST_DARK)
 
+# The garage's own front (Zq4zTcIM0yQ@41, the show's low workshop): an
+# orange band over the ground floor and along the coping, the kerb painted
+# to match, louvres, wall units, runs of pipe, hazard stripes up the bay's
+# jambs, BAY 01 in a steel frame hung from a rail on brackets with the
+# cable to its lamps, an awning over the office, and on the forecourt a
+# tool cart and oil drums clear of the car's way in.
+GF = B.Face("-x", EL, -230.0, -200.0)      # s runs south from its north end; the bay's door is s 12..18
+rg = random.Random(9214)
+OR = K.ORANGE
+GF.box((D, "steel", 0), 0.0, 30.0, SHOP_H + 0.02, SHOP_H + 0.5, 0.0, 0.13, col=OR)
+GF.box((D, "steel", 0), 0.0, 30.0, 8.5, 8.88, 0.0, 0.06, col=OR)
+for z0_, z1_ in ((-230.0, -220.5), (-209.5, -200.0)):
+    quad((D, "trim", 1), (EK, G0 + 0.006, z1_), (EK + 0.3, G0 + 0.006, z1_), (EK + 0.3, G0 + 0.006, z0_), (EK, G0 + 0.006, z0_), col=OR)
+for a_, b_ in ((11.38, 11.82), (18.18, 18.62)):
+    K.stripes(D, GF, a_, b_, 0.36, SHOP_H)
+K.louvre(D, GF, 7.9, 9.9, 1.3, 3.3)
+for a_ in (20.4, 23.0):
+    K.louvre(D, GF, a_, a_ + 2.0, 5.5, 6.7)
+for sv, yy in ((2.6, 5.45), (5.4, 5.45), (8.9, 5.6), (26.4, 5.5), (28.4, 5.5)):
+    ax_, _, az_ = GF.p(GF.at(sv), yy, 0.0)
+    P.place("ac_wall", ax_, yy, az_, GF.yaw, district=D)
+    GF.quad((D, "trim", 1), sv - 0.08, sv + 0.1, yy - 0.75, yy, 0.136 if yy - 0.75 < SHOP_H + 0.5 else 0.012, col=K.RUST_DARK)
+K.pipe_bundle(D, GF, 0.4, 10.4, 6.8, rg, n=3)
+K.pipe_bundle(D, GF, 19.7, 29.6, 6.95, rg, n=2)
+P.place("pipe_v", EL, 0.0, -200.35, GF.yaw, sy=8.9, district=D)
+# BAY 01's frame (the sign itself is the garage's, 4.4 by 1.1 at 6.25 m, a
+# hand's breadth off the wall): a board behind the letters, an orange
+# steel frame round them, a rail over it on two brackets with hangers down
+# to the frame, stays under it, and the cable out to the lamp either side.
+GF.box((D, "board_frame", 0), 12.66, 17.34, 5.56, 6.94, 0.03, 0.15)
+for (a_, b_, y0_, y1_) in ((12.6, 17.4, 6.88, 7.0), (12.6, 17.4, 5.5, 5.62), (12.6, 12.72, 5.62, 6.88), (17.28, 17.4, 5.62, 6.88)):
+    GF.box((D, "steel", 0), a_, b_, y0_, y1_, 0.03, 0.25, col=OR)
+pipe((D, "steel", 0), GF.p(GF.at(12.2), 7.32, 0.3), GF.p(GF.at(17.8), 7.32, 0.3), 0.045, segs=5, col=K.STEEL)
+for sv in (12.9, 17.1):
+    GF.box((D, "steel", 1), sv - 0.04, sv + 0.04, 7.26, 7.38, 0.0, 0.36, col=K.STEEL)
+    pipe((D, "steel", 1), GF.p(GF.at(sv), 7.3, 0.3), GF.p(GF.at(sv), 7.0, 0.16), 0.025, segs=4, col=K.STEEL)
+    pipe((D, "steel", 1), GF.p(GF.at(sv), 5.5, 0.2), GF.p(GF.at(sv), 5.14, 0.14), 0.025, segs=4, col=K.STEEL)
+K.cable(D, GF.p(GF.at(17.4), 5.62, 0.2), GF.p(GF.at(19.0), 5.5, 0.25), 0.22, r=0.02, steps=5)
+K.cable(D, GF.p(GF.at(12.6), 5.62, 0.2), GF.p(GF.at(11.0), 5.5, 0.25), 0.22, r=0.02, steps=5)
+K.awning(D, GF, 21.5, 28.7, col=K.RUST, out=1.5, y=3.25)
+# The forecourt: a tool cart by the office window, drums by the wall.
+tx_, tz_ = 451.15, -208.9
+box((D, "tool_red", 1), tx_ - 0.3, tx_ + 0.3, G0 + 0.14, G0 + 0.95, tz_ - 0.45, tz_ + 0.45, scale=1.0)
+box((D, "metal", 1), tx_ - 0.34, tx_ + 0.34, G0 + 0.95, G0 + 1.0, tz_ - 0.49, tz_ + 0.49, scale=1.0)
+for k in range(3):
+    box((D, "dark", 1), tx_ - 0.315, tx_ - 0.3, G0 + 0.32 + k * 0.2, G0 + 0.35 + k * 0.2, tz_ - 0.4, tz_ + 0.4, scale=1.0)
+for dz_ in (-0.36, 0.36):
+    cylinder((D, "dark", 1), tx_, tz_ + dz_, G0, G0 + 0.14, 0.07, segs=6)
+box((D, "trim", 1), tx_ - 0.2, tx_ + 0.15, G0 + 1.0, G0 + 1.2, tz_ - 0.3, tz_ + 0.1, scale=1.0, col=K.PLASTIC[0])
+for (x_, z_) in ((451.45, -221.3), (451.4, -220.5)):
+    P.place("drum", x_, G0, z_, district=D)
+
 # The garage's west block (garage.py lights its ground floor as one long
 # window): cut into shops by piers, a bulkhead and a fascia, doors, rust
 # awnings, a sign over each; a shutter at its south end, a wall at its north.
@@ -500,10 +552,29 @@ K.hut(D, 472.6, -251.5, 22.0, -math.pi / 2, T["plum"])
 # The garage's roof, north of where Contact stands on it: skylights over
 # the bay, a unit, tyres and crates by the parapet.
 K.slab(D, 460.0, 475.4, -229.4, -206.0, 8.0, "concrete", lift=0.1, scale=3.0)
-K.skylights(D, 461.0, 472.0, -226.0, -208.0, 8.0, ro, hue="white", along="x", n=3, lit=1.0)
+K.skylights(D, 461.0, 472.0, -226.0, -208.0, 8.0, ro, hue="white", along="x", n=3, lit=1.0, glazed=True)
 K.unit(D, 473.2, -227.4, 8.0, math.pi / 2, lamp="green")
 K.tyres(D, 457.5, -228.0, 3, y=8.0)
 K.crates(D, 459.4, -228.2, ro, n=3, y=8.0)
+# Between the skylights, the bay's extract: a duct along each gap with roof
+# fans on it, dropping into the roof at its west end, a second condenser, a
+# cable tray along the north parapet; and a rail along the roof's north and
+# east edges (none where the page flies up over the west parapet to
+# Contact, or on the south one, which Contact looks out over).
+for z_, fans_ in ((-220.0, (463.0, 467.5, 472.0)), (-214.0, (465.0, 470.0))):
+    box((D, "metal", 1), 461.0, 474.2, 8.1, 8.6, z_ - 0.35, z_ + 0.35, scale=1.0)
+    box((D, "metal", 1), 460.4, 461.0, 8.1, 8.75, z_ - 0.42, z_ + 0.42, scale=1.0)
+    for x_ in (463.9, 466.3, 468.7, 471.1, 473.5):
+        box((D, "dark", 1), x_ - 0.03, x_ + 0.03, 8.08, 8.63, z_ - 0.38, z_ + 0.38, scale=1.0)
+    for x_ in fans_:
+        K.roof_fan(D, x_, z_, 8.6)
+K.unit(D, 474.0, -209.0, 8.0, math.pi / 2, w=2.0, lamp="amber")
+box((D, "metal", 1), 453.0, 472.0, 8.3, 8.36, -229.55, -229.25, scale=1.0)
+for k in range(4):
+    pipe((D, "dark", 1), (453.0, 8.4 + 0.012 * k, -229.5 + 0.06 * k), (472.0, 8.4 + 0.012 * k, -229.5 + 0.06 * k), 0.022, segs=3)
+K.rail(D, [(452.15, -224.5), (452.15, -229.85), (475.85, -229.85)], 8.9, h=0.95)
+K.rail(D, [(475.85, -229.85), (475.85, -204.5)], 8.0, h=1.05)
+K.post_light(D, 474.8, -221.0, 8.0, "white", h=0.9, power=5.0)
 # The outer row.
 OUTER_ROOFS = ("plant", "terrace", "board", "sky", "plant", "sky")
 for (z0, z1, n), kind in zip(OUTER, OUTER_ROOFS):

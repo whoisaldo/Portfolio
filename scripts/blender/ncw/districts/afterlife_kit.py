@@ -705,9 +705,10 @@ def pad(D, cx, cz, y, rad=5.5, hue="cyan"):
     pool(D, cx, cz, y + 0.35, hue, r=rad * 0.9, k=0.045, lift=0.012)
 
 
-def skylights(D, x0, x1, z0, z1, y, rng, hue="amber", along="z", n=3, lit=0.75):
+def skylights(D, x0, x1, z0, z1, y, rng, hue="amber", along="z", n=3, lit=0.75, glazed=False):
     """Rows of skylights on a low roof: kerbed panes, most of them lit from
-    the room under them."""
+    the room under them. `glazed`: the lit panes in the kit's roof light
+    (glazing bars, each pane its own brightness, never past white)."""
     w, d = x1 - x0, z1 - z0
     for i in range(n):
         if along == "z":
@@ -724,10 +725,10 @@ def skylights(D, x0, x1, z0, z1, y, rng, hue="amber", along="z", n=3, lit=0.75):
             else:
                 q = (a0 + (a1 - a0) * k / m + 0.08, a0 + (a1 - a0) * (k + 1) / m - 0.08, b0, b1)
             on = rng.random() < lit
-            key = (D, "glow", 0) if on else (D, "glass_dark", 0)
+            key = (D, "skylight" if glazed else "glow", 0) if on else (D, "glass_dark", 0)
             pts = ((q[0], y + 0.41, q[3]), (q[1], y + 0.41, q[3]), (q[1], y + 0.41, q[2]), (q[0], y + 0.41, q[2]))
-            c = GLOW[hue] if on else (1, 1, 1, 1)
-            quad(key, *pts, col=(c[0] * 0.55, c[1] * 0.55, c[2] * 0.55, 1) if on else c)
+            c = GLOW[hue] if on and not glazed else (1, 1, 1, 1)
+            quad(key, *pts, col=(c[0] * 0.55, c[1] * 0.55, c[2] * 0.55, 1) if on and not glazed else c)
         light(D, (a0 + a1) / 2, y + 0.6, (b0 + b1) / 2, hue, 5.0)
 
 
@@ -783,6 +784,35 @@ def post_light(D, x, z, y, hue="amber", h=0.7, power=6.0):
     box((D, "neon_" + hue, 0), x - 0.07, x + 0.07, y + h, y + h + 0.14, z - 0.07, z + 0.07, scale=0.5)
     light(D, x, y + h, z, hue, power)
     pool(D, x, z, y, hue, r=2.6, k=0.1)
+
+
+def louvre(D, f, s0, s1, y0, y1, out=0.1):
+    """A bank of louvres in a steel frame on a wall."""
+    f.box((D, "metal", 1), s0, s1, y0, y1, 0.02, out)
+    y = y0 + 0.08
+    while y < y1 - 0.1:
+        f.box((D, "dark", 1), s0 + 0.06, s1 - 0.06, y, y + 0.06, out, out + 0.025)
+        y += 0.15
+
+
+def stripes(D, f, s0, s1, y0, y1, out=0.03, pitch=0.5):
+    """Hazard stripes up a strip of wall: yellow, with black bands across
+    it on the slant."""
+    f.box((D, "hazard", 1), s0, s1, y0, y1, 0.0, out)
+    a, b, rise = f.at(s0), f.at(s1), s1 - s0
+    y = y0 + 0.1
+    while y + rise + pitch * 0.5 < y1:
+        quad((D, "trim", 1), f.p(a, y, out + 0.006), f.p(b, y + rise, out + 0.006), f.p(b, y + rise + pitch * 0.5, out + 0.006),
+             f.p(a, y + pitch * 0.5, out + 0.006), col=BLACK)
+        y += pitch
+
+
+def roof_fan(D, x, z, y, r=0.45, h=0.55):
+    """A roof extract fan: its upstand, the drum and a cowl over it."""
+    box((D, "metal", 1), x - r - 0.1, x + r + 0.1, y, y + 0.18, z - r - 0.1, z + r + 0.1, scale=1.0)
+    cylinder((D, "metal", 1), x, z, y + 0.18, y + h, r, segs=10)
+    cylinder((D, "dark", 1), x, z, y + h, y + h + 0.1, r * 0.82, segs=10)
+    cylinder((D, "metal", 1), x, z, y + h + 0.1, y + h + 0.2, r * 1.18, segs=10)
 
 
 # ---------------------------------------------------------------------------
