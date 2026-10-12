@@ -179,11 +179,14 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float pm = min(pe.x, pe.y);
         float has = step(hash12(pi + 1.7), 0.36);
         float mended = has * smoothstep(-px, px, pm);
-        float n1 = vnoise(p * 0.07);
-        float n2 = vnoise(p * 0.23 + 5.3);
+        // (The noise is read on a turned grid, or its cells show as squares
+        // laid along the street.)
+        vec2 pr = mat2(0.8, -0.6, 0.6, 0.8) * p;
+        float n1 = vnoise(pr * 0.07) * 0.7 + vnoise(pr.yx * 0.19 + 2.1) * 0.3;
+        float n2 = vnoise(pr.yx * 0.23 + 5.3) * 0.75 + vnoise(pr * 0.61 + 8.7) * 0.25;
         float seal = has * (1.0 - smoothstep(0.02, 0.05 + px, abs(pm)));
         seal = max(seal, (1.0 - smoothstep(0.004, 0.011 + px * 0.25, abs(vnoise(p * 0.31 + 17.0) - 0.5))) * step(0.42, n2)) * near;
-        albedo *= mix(1.0, 0.7 + 0.25 * hash12(pi + 8.8), mended) * (1.0 - 0.65 * seal);
+        albedo *= mix(1.0, 0.86 + 0.12 * hash12(pi + 8.8), mended) * (1.0 - 0.65 * seal);
         // The wheel tracks, polished paler; oil down the middle of a lane
         // and in blots where cars stand; silt in the gutter.
         float mid = smoothstep(0.55, 0.0, lane) * grade * (1.0 - inJ);
@@ -201,11 +204,16 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // street has.
         float broad = n1 * 0.3 + n2 * 0.45 + lng * 0.25;
         float fore = smoothstep(-24.0, -4.0, p.y) * (1.0 - smoothstep(9.0, 12.0, abs(p.x))) * smoothstep(1.3, 0.7, uCam.y);
-        float field = broad + (0.46 - rough) * 1.2
-                    + gutter * (0.02 + 0.3 * lng) + track * (lng - 0.45) * 0.4 + inJ * 0.06 + mended * 0.03;
+        float field = broad + (0.46 - rough) * 0.5
+                    + gutter * (0.02 + 0.3 * lng) + track * (lng - 0.45) * 0.4 + inJ * 0.06;
         float aa = fwidth(field) * 0.75;
-        float puddle = smoothstep(0.63 - aa, 0.66 + aa, field) * uWet;
+        // Water thins out to damp at its edge: a soft shore, not a cut-out.
+        float puddle = smoothstep(0.615 - aa, 0.69 + aa, field) * uWet;
         float damp = smoothstep(0.3, 0.6, broad + 0.22 * gutter + 0.14 * fore + 0.1 * inJ - 0.08 * smoothstep(2.5, 7.0, kerbIn) * grade);
+        // From the air a wet street is a pale ribbon between dark roofs: the
+        // higher the eye, the more of the sky and of its own lights it gives
+        // back at a steep look.
+        float aerial = smoothstep(12.0, 45.0, uCam.y);
         float wet = uWet * mix(0.3, 1.0, damp);
 
         vec3 spill = spillAt(vWorld);
@@ -222,7 +230,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         vec3 col = albedo * (vec3(0.13, 0.14, 0.18) + spill * 1.6 / (1.0 + 1.3 * max(spill.r, max(spill.g, spill.b))));
         #else
         albedo *= mix(1.0, 0.72, wet);
-        vec3 col = albedo * 0.55 * (vec3(0.07) + spill * mix(1.0, 0.45, puddle)) + albedo * cityGlow(-V, 0.0) * 0.12;
+        vec3 col = albedo * 0.55 * (vec3(0.07) + spill * mix(1.0, 0.45, puddle) * (1.0 + 1.5 * aerial)) + albedo * cityGlow(-V, 0.0) * 0.12;
         #endif
         // A wet sheen: the aggregate catches the street's light, and here
         // and there a stone catches it hard. The glints go before a pixel
@@ -244,7 +252,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           rings = (ripple(p / 0.6, uTime) + ripple(p / 0.45 + 13.7, uTime * 1.13)) * puddle * smoothstep(28.0, 5.0, dist);
         }
         vec3 R = normalize(vec3(-V.x + rings.x * 0.03, V.y, -V.z + rings.y * 0.03));
-        float sheen = wet * mix(0.35, 1.0, stone) * crack * (0.8 + 0.3 * track + 0.25 * mended + 0.55 * seal + 0.4 * oil) * (1.0 + 3.1 * fore);
+        float sheen = wet * mix(0.35, 1.0, stone) * crack * (0.8 + 0.3 * track + 0.1 * mended + 0.55 * seal + 0.4 * oil) * (1.0 + 3.1 * fore);
         // How wide the film scatters, as a facet's tilt in radians.
         float sigma = mix(mix(0.06, 0.035, max(track, mended)), 0.085, fore);
 
@@ -292,31 +300,21 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           // drawn out toward the eye, as light is on a wet road.
           baked = spillReflect(vWorld, R);
           baked = max(mix(vec3(dot(baked, vec3(0.299, 0.587, 0.114))), baked, 1.8), 0.0) * 0.14;
+          // Standing water gives the same light back whole, where the film
+          // gives a part of it.
+          if (puddle > 0.01) sharp = mix(baked * 2.7, sharp, mk);
           vec2 rd = normalize(R.xz + 1e-5);
           baked *= 0.5 + vnoise(vec2(dot(p, vec2(-rd.y, rd.x)) * 1.3, dot(p, rd) * 0.06));
-          // And the street's lit face (ground.js): sharp in standing
-          // water; on the film each pixel looks a little higher or lower
-          // than its neighbour, by the film's roughness, which draws the
-          // same lights out into grainy streaks.
-          if (grade > 0.5) {
-            float far = (max(se.y, se.w) + 10.0) / max(abs(alongZ ? R.x : R.z), 0.05);
-            float fpx = px * (1.0 + far / dist);
-            if (puddle > 0.01) sharp = mix(frontageReflect(vWorld, R, sf, se, fpx) * 1.6 + baked * 0.8, sharp, mk);
-            if (puddle < 0.99) {
-              float tilt = (hash12(gl_FragCoord.xy) - 0.62) * 4.0 * sigma;
-              baked += frontageReflect(vWorld, normalize(vec3(R.x, max(R.y + tilt, 0.012), R.z)), sf, se, fpx) * mix(0.4, 0.7, fore);
-            }
-          }
         }
         // The sky: the lit cloud over the roofs, and the city's glow low on
         // it, brightest where the street runs toward downtown. The mirror
         // draws only what glows, never the sky, so this is its sky on
         // desktop too.
-        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (hazeAt(R) * 1.2 + glowAt(R) * 0.5) * uHaze * mix(0.28, 0.4, fore);
+        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (hazeAt(R) * 1.2 + glowAt(R) * 0.5) * uHaze * mix(0.28, 0.4, fore) * (1.0 + 2.5 * aerial);
         vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(0.3 * wet * mix(0.35, 1.0, stone) * crack, 1.0, puddle);
         // (On the hero's stretch the film is thick enough to hold its shine
         // at the lens's feet, as the plate's road does.)
-        refl *= mix(mix(fres, 0.6, 0.7 * fore), mix(0.16, 0.25, fore) + 0.75 * graze, puddle) * uWet;
+        refl *= mix(mix(max(fres, 0.5 * aerial), 0.6, 0.7 * fore), mix(0.16, 0.25, fore) + 0.75 * graze, puddle) * uWet;
         // Never brighter than the sign it is the reflection of.
         refl /= 1.0 + 0.35 * max(refl.r, max(refl.g, refl.b));
         col += refl;

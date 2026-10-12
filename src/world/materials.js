@@ -218,11 +218,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec4 sf = vec4(-99.0);
           if (vProp < 0.5 && n.y > 0.7 && px < 0.6) {
             vec2 p = vWorld.xz;
+            // (Noise on a turned grid: square to the street, its cells show.)
+            vec2 pr = mat2(0.8, -0.6, 0.6, 0.8) * p;
             sf = streetAt(p, se);
-            // Metres back from the kerb's edge; past the lot line it is a
-            // lane or a yard, poured, not paved.
+            // Metres back from the kerb's edge; past the lot line, or up off
+            // the street (a deck, a roof), it is a lane or a yard, poured,
+            // not paved.
             float back = -max(sf.x, sf.y) - 0.3;
-            float yard = smoothstep(4.9, 5.6, back);
+            float yard = max(smoothstep(4.9, 5.6, back), step(0.6, vWorld.y));
             float fine = 1.0 - smoothstep(0.012, 0.045, px);
             float mid = 1.0 - smoothstep(0.04, 0.14, px);
             // The paving: a strip of dark setts along the kerb, flags in
@@ -249,10 +252,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec2 pc = p / vec2(4.2, 3.3);
             float hp = hash12(floor(pc) + 13.0);
             vec2 pe = min(fract(pc) - 0.1 - 0.3 * vec2(fract(hp * 7.0), fract(hp * 13.0)), 0.9 - 0.3 * vec2(fract(hp * 17.0), fract(hp * 23.0)) - fract(pc)) * vec2(4.2, 3.3);
-            float tar = step(hp, 0.16) * smoothstep(-px, px, min(pe.x, pe.y)) * (1.0 - sett);
-            albedo = mix(albedo, vec3(0.03, 0.03, 0.034) * (0.8 + 0.4 * vnoise(p * 17.0)), tar);
-            float stain = smoothstep(0.55, 0.8, vnoise(p * 0.8 + 4.0) * 0.7 + vnoise(p * 3.1) * 0.3);
-            albedo *= 1.0 - 0.35 * stain;
+            float tar = step(hp, 0.08) * smoothstep(-px, px, min(pe.x, pe.y)) * (1.0 - sett);
+            albedo = mix(albedo, vec3(0.03, 0.03, 0.034) * (0.8 + 0.4 * vnoise(p * 17.0)), tar * 0.55);
+            float stain = smoothstep(0.5, 0.85, vnoise(pr * 0.8 + 4.0) * 0.6 + vnoise(pr.yx * 2.3) * 0.4);
+            albedo *= 1.0 - 0.22 * stain;
             vec2 gc = p / 0.22;
             float hg = hash12(floor(gc) + 5.0);
             float gum = step(0.9, hg) * (1.0 - smoothstep(0.045, 0.07, length(fract(gc) - 0.5 - (vec2(fract(hg * 31.0), fract(hg * 57.0)) - 0.5) * 0.6))) * fine;
@@ -264,13 +267,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec2 lf = mat2(cos(hl * 6.28), -sin(hl * 6.28), sin(hl * 6.28), cos(hl * 6.28)) * (fract(lc) - 0.5 - (vec2(fract(hl * 13.0), fract(hl * 29.0)) - 0.5) * 0.5);
             float scrap = step(0.9 - 0.25 * max(edge, yard * 0.6), hl) * step(abs(lf.x), 0.04 + 0.05 * fract(hl * 41.0)) * step(abs(lf.y), 0.03 + 0.03 * fract(hl * 53.0)) * fine;
             albedo = mix(albedo, mix(vec3(0.24, 0.23, 0.2), fract(hl * 67.0) < 0.5 ? vec3(0.3, 0.1, 0.12) : vec3(0.1, 0.22, 0.28), 0.5 * step(0.5, fract(hl * 79.0))), scrap);
-            // The wet: water standing in a sunk flag, along the kerb's back
-            // edge and in a yard's low places; damp everywhere else.
-            float lowFlag = step(hash12(floor(g) + 9.0), 0.09) * band * smoothstep(0.02, 0.06, jd);
-            float pool = vnoise(p * 0.45 + 2.0) * 0.6 + vnoise(p * 1.7) * 0.4;
-            water = max(lowFlag * smoothstep(0.35, 0.5, pool + 0.2), smoothstep(0.7 - 0.2 * yard, 0.74 - 0.2 * yard, pool + 0.12 * tar)) * (1.0 - scrap);
-            sheen = (0.15 + 0.4 * smoothstep(0.3, 0.7, pool) + 0.3 * tar) * (1.0 - 0.6 * joint);
-            albedo *= mix(1.0, 0.55, water);
+            // The wet: water standing in the low places, more of it in a
+            // yard or a lane than on laid flags, thinning to damp at its
+            // shore; damp everywhere else, evenly, as rain leaves it.
+            float pool = vnoise(pr * 0.31 + 2.0) * 0.55 + vnoise(pr.yx * 0.9) * 0.3 + vnoise(pr * 2.7) * 0.15;
+            water = smoothstep(0.61 - 0.13 * yard, 0.72 - 0.13 * yard, pool + 0.05 * tar) * (1.0 - scrap);
+            sheen = (0.34 + 0.2 * smoothstep(0.3, 0.7, pool) + 0.15 * tar) * (1.0 - 0.6 * joint);
+            albedo *= mix(1.0, 0.5, water) * (1.0 - 0.18 * smoothstep(0.45, 0.61 - 0.13 * yard, pool));
           }
           #endif
           #ifdef KERB
@@ -334,8 +337,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           #if defined(PAVING) || defined(KERB)
           if (sheen + water > 0.0) {
             // Wet stone gives the street back as the road does (road.js),
-            // with no mirror: the baked light along the ray on the damp, the
-            // street's lit face and the sky in standing water.
+            // with no mirror: the baked light along the ray on the damp,
+            // more of it and the sky in standing water.
             vec3 Rw = vec3(-V.x, V.y, -V.z);
             float graze = pow(1.0 - clamp(V.y, 0.0, 1.0), 3.0);
             vec3 back = spillReflect(vWorld, Rw);
@@ -343,11 +346,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec3 sky = (hazeV * 1.2 + glowV * 0.5) * uHaze * 0.4;
             vec3 give = back * sheen * (0.15 + 0.85 * graze);
             #ifdef PAVING
-            if (water > 0.01) {
-              float reachOut = (max(se.y, se.w) + 10.0) / max(abs(sf.x >= sf.y ? Rw.x : Rw.z), 0.05);
-              vec3 mirror = frontageReflect(vWorld, Rw, sf, se, px * (1.0 + reachOut / max(length(uCam - vWorld), 1.0))) * 0.9 + back * 0.8 + sky;
-              give = mix(give, mirror * (0.25 + 0.75 * graze), water);
-            }
+            if (water > 0.01) give = mix(give, (back * 2.4 + sky) * (0.25 + 0.75 * graze), water);
             #endif
             col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
           }
@@ -1343,7 +1342,9 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       case "lantern": return lantern();
       case "sidewalk": return surface("sidewalk", { color: "#6d6f74", map: maps.sidewalk, ambient: 0.035, spill: 1.1, paving: true });
       // A back wall down a lane takes more paint than a shopfront does.
-      case "concrete": return surface("concrete", { color: "#6a6c71", map: maps.concrete, ambient: 0.045, spill: 1.25, wall: 0.6 });
+      // And where it is a floor (a lane, a yard, a forecourt, a deck) it is
+      // poured, stained and wet, as the pavements' yards are.
+      case "concrete": return surface("concrete", { color: "#6a6c71", map: maps.concrete, ambient: 0.045, spill: 1.25, wall: 0.6, paving: true });
       case "garage_wall": return surface("garage_wall", { color: "#7c7e84", map: maps.concrete, ambient: 0.07, spill: 2.2 });
       case "garage_wall_back":
       case "garage_wall_magenta":
