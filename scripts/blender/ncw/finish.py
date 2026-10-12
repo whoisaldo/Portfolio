@@ -46,6 +46,20 @@ PACK_OF = {"japantown": "japantown", "deck": "deck", "mega": "mega",
            "plaza": "plaza", "corpo": "corpo", "rooftop": "afterlife", "afterlife": "afterlife",
            "avenue_s": "south", "santo": "santo", "canyon_b": "canyon"}
 
+# A prototype that only one district's pack sets down rides in that pack and
+# not in the core, which stays the size of what the hero needs (the kit's
+# own lamps, bins and the rest stand on every street and stay in the core).
+_PROTO_PACKS = {}
+for _name, *_rest, _district in _props.INSTANCES:
+    _PROTO_PACKS.setdefault(_name, set()).add({**PACK_OF, "canyon": "canyon"}.get(_district, "core"))
+
+
+def _proto_pack(name):
+    base = name[:-len(_props.NEAR)] if name.endswith(_props.NEAR) else name
+    packs = _PROTO_PACKS.get(base, {"core"})
+    return next(iter(packs)) if len(packs) == 1 else "core"
+
+
 for district, flat in LIGHTS.items():
     empty(f"anchor_lights_{district}", (0, 0, 0), props={"lights": flat, "pack": PACK_OF.get(district, "core")})
 
@@ -58,6 +72,7 @@ for (district, mat_name, detail), b in batches.items():
         obj = bpy.data.objects.new(f"proto_{name}_{mat_name}", mesh)
         obj["proto"] = name
         obj["detail"] = 1 if _props.PROTOS[name]["detail"] else 0
+        obj["pack"] = _proto_pack(name)
         link(obj)
         proto_tris += sum(len(p.vertices) - 2 for p in mesh.polygons)
         continue

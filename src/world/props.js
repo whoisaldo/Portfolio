@@ -118,9 +118,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     return cellAt.get(key);
   };
   const sets = [];
-  for (const k of kinds) {
+  const built = new Set();
+  // A prototype's instances and their draws, once its meshes are here (the
+  // core's at the start; a district's own arrive with its pack).
+  const build = (k) => {
     const meshes = parts.get(k.name);
-    if (!meshes?.length || !k.list.length) continue;
+    if (built.has(k.name) || !meshes?.length || !k.list.length) return [];
+    built.add(k.name);
+    const mine = [];
     // Sort by cell, and note each cell's run.
     const withCell = k.list.map((i) => {
       const o = i * 8;
@@ -161,26 +166,35 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       group.add(im);
       return im;
     };
-    sets.push({ name: k.name, reach: k.reach, matrices, runs, instanced: meshes.map(instance), n, sig: -1 });
+    mine.push({ name: k.name, reach: k.reach, matrices, runs, instanced: meshes.map(instance), n, sig: -1 });
     // Its ornament: the same instances, near by only.
     const near = kinds.find((o) => o.name === k.name + NEAR);
     const ornament = parts.get(k.name + NEAR);
-    if (near && ornament?.length) sets.push({ near: true, reach: near.reach, matrices, runs, instanced: ornament.map(instance), n, sig: -1 });
-  }
+    if (near && ornament?.length) mine.push({ near: true, reach: near.reach, matrices, runs, instanced: ornament.map(instance), n, sig: -1 });
+    sets.push(...mine);
+    return mine;
+  };
+  for (const k of kinds) build(k);
 
   // Whenever the camera has moved or turned enough: which cells the frustum
   // holds and how far each is, once for everyone; then each prototype's
   // instances in the cells it is drawn at (inside its reach), rebuilt only
   // if that set of cells changed since last time.
-  const cellVis = new Uint8Array(cellList.length);
-  const cellDist = new Float32Array(cellList.length);
+  let cellVis = new Uint8Array(cellList.length);
+  let cellDist = new Float32Array(cellList.length);
   let frames = 0;
+  let stale = false;
   const update = (camera) => {
     camera.updateMatrixWorld();
     camera.getWorldDirection(_dir);
     const moved = camera.position.distanceToSquared(_last) > 0.25 || _dir.dot(_lastDir) < 0.99985;
     frames++;
-    if (!moved && frames % 60 !== 0) return;
+    if (!moved && !stale && frames % 60 !== 0) return;
+    stale = false;
+    if (cellVis.length !== cellList.length) {
+      cellVis = new Uint8Array(cellList.length);
+      cellDist = new Float32Array(cellList.length);
+    }
     _last.copy(camera.position);
     _lastDir.copy(_dir);
     _vp.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
@@ -220,53 +234,75 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
 
   // The light the props give the street, for the bake (src/world/spill.js):
   // every emissive part at street level, in the world, as one mesh each.
-  const sources = [];
   const bakeMeshes = [];
-  for (const set of sets) {
-    if (set.near) continue;
-    for (const im of set.instanced) {
-      const name = im.material.name;
-      const face = own.light(name);
-      if (!/^(neon_|glow|lantern)/.test(name) && !face) continue;
-      const g = im.geometry;
-      const pos = g.attributes.position;
-      const index = g.index;
-      const triCount = (index ? index.count : pos.count) / 3;
-      const out = [];
-      let colour = new THREE.Color(im.userData.hue ? NEON[im.userData.hue] ?? "#ffffff" : name === "lantern" ? "#ff4a2a" : "#ffffff");
-      if ((name === "glow" || face) && g.attributes.color) {
-        const c = g.attributes.color;
-        let r = 0, gg = 0, b = 0;
-        for (let i = 0; i < c.count; i++) {
-          r += c.getX(i);
-          gg += c.getY(i);
-          b += c.getZ(i);
+  const sourcesOf = (list) => {
+    const sources = [];
+    for (const set of list) {
+      if (set.near) continue;
+      for (const im of set.instanced) {
+        const name = im.material.name;
+        const face = own.light(name);
+        if (!/^(neon_|glow|lantern)/.test(name) && !face) continue;
+        const g = im.geometry;
+        const pos = g.attributes.position;
+        const index = g.index;
+        const triCount = (index ? index.count : pos.count) / 3;
+        const out = [];
+        let colour = new THREE.Color(im.userData.hue ? NEON[im.userData.hue] ?? "#ffffff" : name === "lantern" ? "#ff4a2a" : "#ffffff");
+        if ((name === "glow" || face) && g.attributes.color) {
+          const c = g.attributes.color;
+          let r = 0, gg = 0, b = 0;
+          for (let i = 0; i < c.count; i++) {
+            r += c.getX(i);
+            gg += c.getY(i);
+            b += c.getZ(i);
+          }
+          colour = new THREE.Color(r / c.count, gg / c.count, b / c.count);
         }
-        colour = new THREE.Color(r / c.count, gg / c.count, b / c.count);
-      }
-      const v = new THREE.Vector3();
-      for (let j = 0; j < set.n; j++) {
-        _m.fromArray(set.matrices, j * 16);
-        if (set.matrices[j * 16 + 13] > 8) continue;
-        for (let t = 0; t < triCount * 3; t++) {
-          v.fromBufferAttribute(pos, index ? index.getX(t) : t).applyMatrix4(_m);
-          out.push(v.x, v.y, v.z);
+        const v = new THREE.Vector3();
+        for (let j = 0; j < set.n; j++) {
+          _m.fromArray(set.matrices, j * 16);
+          if (set.matrices[j * 16 + 13] > 8) continue;
+          for (let t = 0; t < triCount * 3; t++) {
+            v.fromBufferAttribute(pos, index ? index.getX(t) : t).applyMatrix4(_m);
+            out.push(v.x, v.y, v.z);
+          }
         }
+        if (!out.length) continue;
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
+        const mesh = new THREE.Mesh(geo);
+        mesh.matrixWorldAutoUpdate = false;
+        bakeMeshes.push(mesh);
+        sources.push({ mesh, color: colour, intensity: face || (name === "glow" ? 0.6 : 0.9) });
       }
-      if (!out.length) continue;
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
-      const mesh = new THREE.Mesh(geo);
-      mesh.matrixWorldAutoUpdate = false;
-      bakeMeshes.push(mesh);
-      sources.push({ mesh, color: colour, intensity: face || (name === "glow" ? 0.6 : 0.9) });
     }
-  }
+    return sources;
+  };
+  const sources = sourcesOf(sets);
 
   return {
     group,
     update,
     sources,
+    /**
+     * Prototypes that came with a district's pack (dressed as the core's
+     * were): their instances are drawn from now on. Returns the light they
+     * give the street, for the bake.
+     */
+    addProtos(meshes) {
+      const names = new Set();
+      for (const mesh of meshes) {
+        const name = mesh.userData.proto ?? mesh.name.replace(/^proto_/, "").replace(/_[a-z]+(_[a-z]+)?$/, "");
+        if (!parts.has(name)) parts.set(name, []);
+        parts.get(name).push(mesh);
+        names.add(name.endsWith(NEAR) ? name.slice(0, -NEAR.length) : name);
+      }
+      const added = [];
+      for (const k of kinds) if (names.has(k.name)) added.push(...build(k));
+      stale = true;
+      return sourcesOf(added);
+    },
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {
       return Object.fromEntries(sets.filter((st) => !st.near).map((st) => [st.name, `${st.instanced[0].count}/${st.n}`]));

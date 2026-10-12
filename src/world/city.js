@@ -226,14 +226,17 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // instanced where the props file puts them (src/world/props.js).
   // Meshopt's quantised positions carry their scale in the node, so each
   // prototype's node is baked into a plain geometry of its own first.
-  for (const mesh of protoMeshes) {
-    oldMaterials.add(mesh.material);
-    const pname = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
-    mesh.geometry = mergeMeshes([mesh], null);
-    mesh.userData.hue = pname.startsWith("neon_") ? pname.slice(5) : null;
-    mesh.material = pname.startsWith("neon_") ? neonAs(mesh, pname) : kit.forName(mesh.material.name) ?? mesh.material;
-    mesh.removeFromParent();
-  }
+  const dressProtos = (list) => {
+    for (const mesh of list) {
+      oldMaterials.add(mesh.material);
+      const pname = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
+      mesh.geometry = mergeMeshes([mesh], null);
+      mesh.userData.hue = pname.startsWith("neon_") ? pname.slice(5) : null;
+      mesh.material = pname.startsWith("neon_") ? neonAs(mesh, pname) : kit.forName(mesh.material.name) ?? mesh.material;
+      mesh.removeFromParent();
+    }
+  };
+  dressProtos(protoMeshes);
   const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER });
   sources.push(...props.sources);
   root.add(props.group);
@@ -475,12 +478,21 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       pack.updateMatrixWorld(true);
       const kitMeshes = [];
       const batches = [];
+      const packProtos = [];
       pack.traverse((o) => {
         if (!o.isMesh) return;
-        if (/^NCW_sign(\.\d+)?$/.test(o.material?.name ?? "") && o.geometry.attributes.color) batches.push(o);
+        if (o.name.startsWith("proto_")) packProtos.push(o);
+        else if (/^NCW_sign(\.\d+)?$/.test(o.material?.name ?? "") && o.geometry.attributes.color) batches.push(o);
         else kitMeshes.push(o);
       });
       const more = dress(kitMeshes);
+      // The prototypes only this district places came with it: its props
+      // are drawn from now on, and light its streets in the bake.
+      if (packProtos.length) {
+        dressProtos(packProtos);
+        protoMeshes.push(...packProtos);
+        more.push(...props.addProtos(packProtos));
+      }
       const faces = unpack(batches);
       const added = signs.addFaces(faces);
       if (added) {
@@ -500,6 +512,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       light.streaks.image.data.set(next.streaks.image.data);
       light.streaks.needsUpdate = true;
       next.dispose();
+      props.disposeBake();
       for (const f of faces) f.geometry.dispose();
       beforeMerge?.(pack);
       mergeInto(kitMeshes);
