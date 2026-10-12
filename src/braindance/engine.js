@@ -546,6 +546,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
           const { createRoam } = await import("./roam/roam.js");
           const made = await createRoam({
             parts,
+            world,
             reduced,
             city: recording.city,
             onProgress: (p) => job === roamJob && set({ roamLoading: p }),
