@@ -50,7 +50,7 @@ for (x0, x1, y0, y1, z0, z1, seed) in ((-37.0, -26.0, 139.0, 158.0, -833.0, -811
 
 # The block's number on the second tier's face, in paint under floodlight:
 # dim, so from the avenue's far end it is part of the wall.
-numeral("H4", 0.0, 147.0, TIERS[1][3], 15.0, 0.0, lit=0.2)
+numeral("H4", 0.0, 147.0, TIERS[1][3], 15.0, 0.0, lit=0.12)
 
 # The crown: a ring of light under the top tier's edge, plant behind it, and
 # masts with their beacons.
@@ -71,3 +71,28 @@ for (x0, x1, z0, z1, _, y1) in TIERS:
 # Bridges over the service lane, from the slab's back to the first tier.
 for (x, y, hue) in ((-30.0, floor_y(6), "cyan"), (-4.0, floor_y(11), "amber"), (22.0, floor_y(8), "pink"), (31.0, floor_y(17), "cyan")):
     bridge(x - 2.2, x + 2.2, TZ, MB_ZB, y, y + CELL_H, hue)
+
+# The tiers' backs and sides, which the far city and a flying car look at
+# and no lens south of the slab does: the number again, screens, blocks,
+# risers of light up the corners, ducts.
+_rb = random.Random(5041)
+t2x0, t2x1, t2z0, _, _, t2top = TIERS[0]
+numeral("H4", 0.0, 96.0, t2z0, 20.0, math.pi)
+for (cx, cy, w, h) in ((-26.0, 60.0, 14.0, 9.0), (25.0, 44.0, 12.0, 16.0), (22.0, 108.0, 16.0, 8.0)):
+    B.billboard(D, cx, cy, t2z0 - 0.5, w, h, math.pi, _rb, back=False)
+block(-36.0, -18.0, 104.0, 124.0, t2z0 - 7.0, t2z0, 5042, faces=("-z", "-x", "+x"), window=6)
+block(8.0, 30.0, 66.0, 84.0, t2z0 - 6.0, t2z0, 5043, faces=("-z", "-x", "+x"), window=0, tint=1)
+block(-30.0, -12.0, 30.0, 46.0, t2z0 - 6.5, t2z0, 5044, faces=("-z", "-x", "+x"), window=5, tint=6)
+for (x0, x1, z0, z1, y0, y1), hue in zip(TIERS, ("cyan", "pink", "amber")):
+    for x in (x0, x1):
+        s = -1 if x == x0 else 1
+        box((D, "neon_" + hue, 0), min(x, x + s * 0.12), max(x, x + s * 0.12), max(y0, 14.0), y1 - 2.0, z0 - 0.12, z0 + 0.3, scale=1.0)
+    for x in (x0 + 5.0, x1 - 6.0):
+        duct(x, x + 1.1, max(y0, floor_y(2)), y1 - 1.0, z0 - 0.8, z0)
+# Their side walls: a block and a screen each on the lowest, whose flanks no lens in the canyon reaches.
+for s in (-1, 1):
+    xw = s * 38.0
+    xa, xb = sorted((xw, xw + s * 6.5))
+    assert not hero_sees((xa, 60.0, -832.0), (xb, 112.0, -806.0)), s
+    block(xa, xb, 84.0 if s < 0 else 62.0, 106.0 if s < 0 else 80.0, -830.0, -810.0, 5045 + s, faces=("-x" if s < 0 else "+x", "+z", "-z"), window=6 if s < 0 else 0)
+    B.billboard(D, xw + s * 0.5, 40.0 if s < 0 else 104.0, -820.0, 14.0, 9.0, s * math.pi / 2, _rb, back=False)
