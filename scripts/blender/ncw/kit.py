@@ -222,6 +222,16 @@ material("hazard", "d1a51e", rough=0.6)
 # own colour on its vertices (its building's tint), lit by the street like
 # any surface, so every building's trim in a district is one draw.
 material("trim", "ffffff", rough=0.8)
+# Surfaces dressed as what they are made of (src/world/kinds.js draws each
+# in world space, no UVs needed), each piece's own colour on its vertices:
+# sheet cladding for sheds and depots, a container's ribbed side, a tank's
+# rolled plate in bands, painted steel for gantries, frames and canopies,
+# board-marked poured concrete for piers, decks and parapets, and render.
+for _kind, _rough in (("corrugated", 0.6), ("container", 0.6), ("tankplate", 0.55), ("steel", 0.5), ("castconcrete", 0.9), ("plaster", 0.85)):
+    material(_kind, "ffffff", rough=_rough)
+# A roof light: glazing with bars every 1.2 m and each pane its own
+# brightness, never past white (src/world/materials.js).
+material("skylight", "ffffff", emit=1.2)
 # A billboard with no words (src/world/materials.js draws its adverts):
 # each board's palette, shape and seed in its vertex colour.
 material("billboard", "ffffff", emit=1.5)
