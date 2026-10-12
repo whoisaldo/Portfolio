@@ -29,11 +29,11 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { ADVERT } from "./sky-columns.js";
 
-export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13 };
+export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13, screen: 14, pad: 15 };
 
 // How far each kind is drawn: past it, it is under a pixel (a slab, a deck
 // and its boards are always drawn).
-const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320];
+const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320, Infinity, Infinity];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
@@ -153,6 +153,75 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 steel = vec3(0.016, 0.017, 0.022) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * max(n.y, 0.0)) * uHaze * 0.5;
           lit = pane * on * side * (1.0 - clamp(truss, 0.0, 1.0));
           col = mix(steel, glow * 0.75, lit);
+        } else if (kind > 14.5) {
+          // A landing pad standing out round a tower, or on its roof: a
+          // dark deck, a painted ring and a cross in it, a ring of lamps, a
+          // line of light round its edge, and under it its beams and a
+          // service lamp at each quarter.
+          vec3 lampCol = vOwn.x < 0.6 ? vec3(0.2, 0.9, 1.0) : vec3(1.0, 0.66, 0.26);
+          float R = vSize.x * 0.5;
+          float d = length(vLocal.xz);
+          float a = atan(vLocal.z, vLocal.x);
+          if (n.y > 0.5) {
+            col = vec3(0.05, 0.052, 0.06) * (vec3(0.5) + sky * 6.0);
+            col = mix(col, vec3(0.34, 0.26, 0.03) * (vec3(0.5) + sky * 6.0), step(abs(d - R * 0.5), 0.3));
+            float ring = (1.0 - smoothstep(0.25, 0.25 + px, abs(d - R * 0.86))) * mix(step(0.4, fract(a * 20.0 / 6.2832)), 0.6, smoothstep(0.3, 1.2, px));
+            col = mix(col, lampCol * 1.6, ring);
+            col += lampCol * 0.12 * exp(-abs(d - R * 0.86) / 2.5);
+            lit = ring;
+          } else if (n.y < -0.5) {
+            float beams = step(abs(fract(vLocal.x / 6.0) - 0.5), 0.06) + step(abs(fract(vLocal.z / 6.0) - 0.5), 0.06);
+            col = vec3(0.012, 0.013, 0.017) * (1.0 + 1.5 * min(beams, 1.0)) + sky * 0.2;
+            float lamp = exp(-dot(abs(vLocal.xz) - vec2(R * 0.6), abs(vLocal.xz) - vec2(R * 0.6)) / 1.5);
+            col += vec3(1.0, 0.7, 0.4) * 1.2 * lamp;
+            lit = step(0.5, lamp);
+          } else {
+            float line = step(abs(vLocal.y), vSize.y * 0.22);
+            col = mix(vec3(0.014, 0.015, 0.02), lampCol * 1.5, line);
+            lit = line;
+          }
+        } else if (kind > 13.5) {
+          // A stack of screens: a column of the city's adverts, or a tall
+          // screen on a tower's face. Every face wide enough to carry one
+          // is rows of them (a wide one, or two tall ones side by side, no
+          // advert twice down a stack; on a screen most rows are a plain
+          // field of the stack's own cyan with lines of type), a dark line
+          // between rows, and down both edges a line of light, white at its
+          // core. Opaque: nothing shows through it.
+          vec3 tone = vOwn.y < 0.5 ? vec3(0.25, 0.9, 1.0) : vOwn.y < 1.5 ? vec3(0.3, 1.0, 0.82) : vOwn.y < 2.5 ? vec3(0.3, 0.7, 1.0) : vec3(1.0, 0.48, 0.85);
+          bool onX = abs(vLocal.x) > vSize.x * 0.5 - 0.01;
+          float faceW = onX ? vSize.z : vSize.x;
+          float u = onX ? 0.5 - sign(vLocal.x) * vLocal.z / vSize.z : 0.5 + sign(vLocal.z) * vLocal.x / vSize.x;
+          lit = 1.0;
+          if (abs(n.y) > 0.5 || faceW < 3.0) {
+            col = tone * 1.2;
+          } else {
+            float faceId = onX ? (vLocal.x > 0.0 ? 0.0 : 2.0) : (vLocal.z > 0.0 ? 1.0 : 3.0);
+            float rowH = faceW * 0.7;
+            float gy = (vLocal.y + vSize.y * 0.5) / rowH;
+            float row = floor(gy);
+            float seed = vOwn.x * 91.0 + faceId * 7.0;
+            float hr = hash12(vec2(row, seed));
+            float pair = step(0.5, hr);
+            float gx = pair > 0.5 ? u * 2.0 : u;
+            vec2 f = vec2(fract(gx), fract(gy));
+            float cellId = row * 2.0 + floor(gx) * pair;
+            float slot = floor(uTime / (11.0 + 9.0 * hr) + hr * 7.0);
+            float pick = mod(floor(vOwn.x * 24.0) + faceId * 3.0 + cellId * 7.0 + slot * 5.0, 24.0);
+            vec2 m = pair > 0.5 ? vec2(0.05, 0.035) : vec2(0.025, 0.035);
+            float inset = step(m.x, f.x) * step(f.x, 1.0 - m.x) * step(m.y, f.y) * step(f.y, 1.0 - m.y);
+            vec2 st = (f - m) / (1.0 - 2.0 * m);
+            vec3 drawn = advert(st, (pair > 0.5 ? 0.5 : 1.0) / 0.7, pick) * 1.5;
+            // A plain screen: the stack's own colour, a darker foot, lines of type.
+            float type = step(0.45, fract(st.y * 8.0)) * step(st.y, 0.42) * step(0.1, st.x) * step(st.x, 0.3 + 0.6 * hash12(vec2(floor(st.y * 8.0), seed + row)));
+            vec3 plain = mix(tone * 1.15, mix(tone * 0.5, vec3(0.9, 0.97, 1.0), 0.25), step(0.5, st.y)) * (1.0 - 0.55 * type);
+            float plainRow = step(hash12(vec2(row * 1.7, seed + 3.0)), mix(0.14, 0.72, step(0.5, vOwn.z)));
+            vec3 art = mix(mix(tone * (0.5 + 0.5 * st.y), drawn, uHasAds), plain, plainRow);
+            // Far off a row is its mean, not a shimmer.
+            art = mix(art, mix(tone * 0.9, vec3(0.6, 0.62, 0.7), 0.35 * (1.0 - plainRow)), smoothstep(0.25, 0.6, fwidth(gy)));
+            float edge = smoothstep(0.86, 0.95, abs(u - 0.5) * 2.0);
+            col = mix(art * inset + vec3(0.006, 0.008, 0.012), mix(tone, vec3(0.9, 0.97, 1.0), 0.55) * 1.9, edge);
+          }
         } else if (kind > 12.5) {
           // A vending machine: a dark case, its front a lit window of rows
           // of cans, a slot of white light under them.
@@ -225,7 +294,9 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
           vec3 a = h < 0.25 ? vec3(1.0, 0.2, 0.3) : h < 0.5 ? vec3(0.16, 0.85, 1.0) : h < 0.7 ? vec3(1.0, 0.62, 0.2) : h < 0.85 ? vec3(1.0, 0.25, 0.7) : vec3(0.9, 0.95, 1.0);
           float blocks = step(0.5, hash12(floor(q * vec2(5.0, 3.0)) + h * 31.0));
           float edge = 1.0 - step(0.02, q.x) * step(q.x, 0.98) * step(0.04, q.y) * step(q.y, 0.96);
-          vec3 drawn = boardFace(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, vOwn.y + floor(h * 3.0), vOwn.x * 57.0) * 1.4;
+          // (Its second number from 100 up: that advert and no other, so
+          // boards stood together can each be given their own.)
+          vec3 drawn = (vOwn.y > 99.5 ? advert(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, vOwn.y - 100.0) : boardFace(vec2(vLocal.z > 0.0 ? q.x : 1.0 - q.x, q.y), vSize.x / vSize.y, vOwn.y + floor(h * 3.0), vOwn.x * 57.0)) * 1.4;
           col = mix(vec3(0.012, 0.013, 0.017), mix(mix(a * mix(1.3, 0.5, blocks), drawn, uHasAds), vec3(0.01), edge), face);
           lit = face * (1.0 - edge);
           // A sign on a roof has one face (its third number: 1 the box's
@@ -251,7 +322,11 @@ export function createFarStreet(scene, shared, boxes, { street, ads, reduced = f
             col = mix(paint * (vec3(0.5) + sky * 5.0 * (0.3 + up) + light * 9.0), vec3(0.006, 0.008, 0.012) + sky * 0.5 + light * 0.25, glass);
           }
         }
-        col = sodiumBeyond(cityFog(col, vWorld, lit), vWorld);
+        vec3 fogged = cityFog(col, vWorld, lit);
+        // (A stack of screens is the brightest thing in the sky: it keeps
+        // most of its light through a kilometre of haze.)
+        if (kind > 13.5 && kind < 14.5) fogged = mix(col, fogged, 0.4);
+        col = sodiumBeyond(fogged, vWorld);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
