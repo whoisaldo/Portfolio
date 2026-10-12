@@ -55,11 +55,22 @@ export function signSpec(id) {
   return spec ? { key: base, ...spec } : null;
 }
 
-// A colour at a share of its light: every sign is shown at one gain
-// (uIntensity), so a lit panel is drawn at under half its colour to stay
-// under white there and keep the lettering on it.
+// A colour at a share of its light, and a lit panel's colour: every sign
+// is shown at one gain (GAIN, the material's uIntensity), and a panel in
+// a light colour (yellow, green, white, cyan) came out of it far over
+// white, a pale slab with the bloom over its lettering. So a panel is
+// drawn as bright as it can be and stay a colour: its own, scaled so that
+// after the gain its luminance is `level` (about 1 is where the bloom
+// starts). A dark colour (red, blue, magenta) is under that already and is
+// left whole.
+const GAIN = 2.3;
 function dim(hex, share) {
   return `#${new THREE.Color(hex).multiplyScalar(share).getHexString()}`;
+}
+function panel(hex, level) {
+  const c = new THREE.Color(hex);
+  const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  return `#${c.multiplyScalar(Math.min(1, level / (GAIN * Math.max(lum, 1e-3)))).getHexString()}`;
 }
 
 function lighten(hex, amount) {
@@ -187,14 +198,14 @@ function street(ctx, spec, w, h) {
   const color = spec.color;
   const inset = Math.min(w, h) * 0.12;
   if (spec.style === "backlit") {
-    // A lit box: a panel in its colour at a mid tone (so the gain leaves
-    // it a colour, not white), near-black letters, a thin dark frame.
+    // A lit box: a panel in its colour held where the gain leaves it a
+    // colour, not white (panel()), near-black letters, a thin dark frame.
     ctx.fillStyle = "#0a0808";
     ctx.fillRect(0, 0, w, h);
     const fr = Math.min(w, h) * 0.07;
     const g = ctx.createLinearGradient(0, fr, 0, h - fr);
-    g.addColorStop(0, dim(color, 0.42));
-    g.addColorStop(1, dim(color, 0.28));
+    g.addColorStop(0, panel(color, 1.1));
+    g.addColorStop(1, panel(color, 0.8));
     ctx.fillStyle = g;
     ctx.fillRect(fr, fr, w - fr * 2, h - fr * 2);
     const ink = dim(color, 0.012);
@@ -316,8 +327,8 @@ const DRAW = {
   },
   board(ctx, spec, w, h) {
     const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, dim(spec.color, 0.42));
-    g.addColorStop(1, dim(spec.color, 0.28));
+    g.addColorStop(0, panel(spec.color, 1.1));
+    g.addColorStop(1, panel(spec.color, 0.8));
     ctx.fillStyle = g;
     ctx.fillRect(w * 0.04, h * 0.04, w * 0.92, h * 0.92);
     ctx.textAlign = "center";
@@ -548,7 +559,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   const { geometry, sources, frames } = build(faces);
 
   const material = new THREE.ShaderMaterial({
-    uniforms: { ...shared, uAtlas: { value: texture }, uIntensity: { value: 2.3 } },
+    uniforms: { ...shared, uAtlas: { value: texture }, uIntensity: { value: GAIN } },
     vertexShader: /* glsl */ `
       attribute vec2 aSign;
       varying vec3 vWorld;
