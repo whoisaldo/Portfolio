@@ -306,6 +306,11 @@ const step = (t) => (t - Math.floor(t) < 0.5 ? 1 : 0);
 const twice = (beat, from) => ((beat > from && beat < from + 0.09) || (beat > from + 0.2 && beat < from + 0.29) ? 1 : 0);
 const SIDES = [-1, 1];
 const ROAD_NEAR = -40;
+// A car fades in and out over this many metres at the ends of its run. It
+// was an eighth of the run: 70 m of the avenue at each end, where a car was
+// a quarter drawn, its dark body gone into the dark road and its rims and
+// lamps left over.
+const FADE = 6;
 
 export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, streets = [], parkedMore = [], streetCars = 0, elevated = [], deckCars = 0 } = {}) {
   const avGeo = avGeometry();
@@ -952,7 +957,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       q.setFromUnitVectors(FRONT, fwd);
       const x = slots[i];
       x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
-      const edge = Math.min(1, Math.min(t, 1 - t) * 8);
+      const edge = Math.min(1, (Math.min(t, 1 - t) * L.len) / FADE);
       kinds[x.kind].fade.setX(x.index, edge);
       const head = x.lamps.head;
       const tail = x.lamps.tail;
@@ -975,7 +980,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       q.setFromEuler(euler.set(-Math.asin(fwd.y), Math.atan2(fwd.x, fwd.z), 0, "YXZ"));
       const x = slots[firstPath + i];
       x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
-      const edge = Math.min(1, Math.min(t, 1 - t) * 8);
+      const edge = Math.min(1, (Math.min(t, 1 - t) * P.len) / FADE);
       kinds[x.kind].fade.setX(x.index, edge);
       const head = x.lamps.head;
       const tail = x.lamps.tail;
@@ -998,10 +1003,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       q.setFromUnitVectors(FRONT, fwd);
       const x = slots[i];
       x.mesh.setMatrixAt(x.index, m.compose(p, q, one));
-      // Fade in and out at the ends of the loop, far off or at the kerb of
-      // the intersection, so nobody sees a car appear: the lamps by their
-      // brightness, the body by its dither.
-      const edge = Math.min(1, Math.min(t, 1 - t) * 8);
+      // Fade in and out over the last metres of the run, the lamps by their
+      // brightness and the body by its dither: everywhere else the car is
+      // whole.
+      const edge = Math.min(1, (Math.min(t, 1 - t) * span) / FADE);
       kinds[x.kind].fade.setX(x.index, edge);
       const head = x.lamps.head;
       const tail = x.lamps.tail;
