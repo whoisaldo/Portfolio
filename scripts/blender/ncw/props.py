@@ -22,6 +22,12 @@ draw (src/world/prop-surfaces.js): the vertex colour is the part's colour
 and its alpha says what it is (WOOD, BARK, BLOSSOM, FROND); a frond's UV runs
 u across it and v from the crown to its tip, a blossom pad's from its
 middle (0.5, 0.5) out to its rim.
+
+A prototype may have other shapes, `<name>__v1`, `<name>__v2` ..., which
+nobody places either: the site deals the instances of `<name>` among it and
+them from where each stands (src/world/prop-deal.js), and gives each a
+design of its own besides (a lantern's colour, a machine's front), so a
+district goes on placing the one name and the street is not one model.
 """
 import math
 import random
@@ -43,6 +49,13 @@ material("face", "8a94a4", emit=1.0)
 material("print", "6a6258", rough=0.9)
 # A lamp's light in the wet air under its head (lamp_air below).
 material("halo", "ffb254", emit=1.0)
+# A lantern (the site draws it lit from inside, each its own colour, some
+# dark). What a part of it is, in its vertex colour's alpha: the paper (its
+# red 1 where it is turned about its axis, 0 where it is a flat pane; u once
+# round or across it, v up it), a bulb, or a dark fitting of its own colour.
+material("paper", "ff5a3c", emit=1.0)
+PAPER, BULB, FITTING = 1.0, 0.75, 0.5
+SHAPE = "__v"
 WOOD, BARK, BLOSSOM, FROND = 0.25, 0.5, 0.75, 1.0
 # Which front a `face` or a `print` is, in its vertex colour's alpha (tenths).
 SIGNAL, PHONE, GRATE, RAIL, FOOD, MESH, BANNER, BOARD, POSTER, VENDING = (i / 10 for i in range(1, 11))
@@ -119,6 +132,22 @@ def tube(key, pts, radii, segs=6, col=(1, 1, 1, 1), cap=False):
             quad(key, a[i], a[j], b[j], b[i], ((i / segs, n), ((i + 1) / segs, n), ((i + 1) / segs, n + 1), (i / segs, n + 1)), col)
     if cap:
         poly(key, rings[-1], [(0.5, 0.5)] * segs, col)
+
+
+def turned(key, prof, segs=8, col=(1, 0, 0, PAPER), cx=0.0, cz=0.0, ends=""):
+    """A lantern's part, turned about a vertical axis: `prof` is (y, radius)
+    from the bottom up; u runs once round it and v from its foot to its top,
+    as the `paper` material reads them. `ends`: "t", "b" close them."""
+    y0, y1 = prof[0][0], prof[-1][0]
+    rings = [[((cx + r * math.cos(i * math.tau / segs), y, cz + r * math.sin(i * math.tau / segs)), (i / segs, (y - y0) / (y1 - y0)))
+              for i in range(segs + 1)] for y, r in prof]
+    for lo, hi in zip(rings, rings[1:]):
+        for i in range(segs):
+            quad(key, lo[i + 1][0], lo[i][0], hi[i][0], hi[i + 1][0], (lo[i + 1][1], lo[i][1], hi[i][1], hi[i + 1][1]), col)
+    if "t" in ends:
+        poly(key, [p for p, _ in reversed(rings[-1][:segs])], [(0.5, 1.0)] * segs, col)
+    if "b" in ends:
+        poly(key, [p for p, _ in rings[0][:segs]], [(0.5, 0.0)] * segs, col)
 
 
 def frond(key, base, yaw, pitch, length, bend, width, col, segs=4, vee=True):
@@ -403,10 +432,64 @@ def _pipe_v(k):
     cylinder(k("metal"), 0.0, 0.12, 0.0, 1.0, 0.06, segs=6, cap=False)
 
 
-@proto("lantern", box=(0.2, 0.3, 0.2), reach=320, detail=True)
+# A lantern hangs by its top; the origin is its middle. Four shapes under the
+# one name (the site deals them row by row, and their colours).
+LANTERN = {"box": (0.2, 0.3, 0.2), "reach": 320, "detail": True}
+HOOP, FRAME, CORD = (0.012, 0.01, 0.01, FITTING), (0.03, 0.017, 0.012, FITTING), (0.006, 0.006, 0.007, FITTING)
+
+
+def _tassel(key, y, drop=0.09):
+    """A lantern's tassel: two strips, crossed, hanging from y."""
+    for yaw in (0.0, math.pi / 2):
+        rotated_quad(key, 0.0, y - drop / 2, 0.0, 0.035, drop, yaw, col=(0.3, 0.06, 0.03, FITTING))
+
+
+@proto("lantern", **LANTERN)
 def _lantern(k):
-    cylinder(k("lantern"), 0.0, 0.0, -0.28, 0.28, 0.2, segs=8)
-    cylinder(k("dark"), 0.0, 0.0, 0.28, 0.33, 0.12, segs=8)
+    """A round paper lantern: a black hoop at its top and its foot, a
+    tassel under it."""
+    p = k("paper")
+    turned(p, ((-0.24, 0.1), (-0.18, 0.16), (-0.065, 0.2), (0.065, 0.2), (0.18, 0.16), (0.24, 0.1)))
+    turned(p, ((0.24, 0.105), (0.3, 0.09)), col=HOOP, ends="t")
+    turned(p, ((-0.28, 0.09), (-0.24, 0.105)), col=HOOP, ends="b")
+    _tassel(p, -0.28)
+
+
+@proto("lantern" + SHAPE + "1", **LANTERN)
+def _lantern_long(k):
+    """A long one: a cylinder of paper, barely bellied, capped at both
+    ends, a tassel under it."""
+    p = k("paper")
+    turned(p, ((-0.25, 0.115), (-0.2, 0.135), (0.2, 0.135), (0.25, 0.115)))
+    turned(p, ((0.25, 0.12), (0.31, 0.105)), col=HOOP, ends="t")
+    turned(p, ((-0.29, 0.105), (-0.25, 0.12)), col=HOOP, ends="b")
+    _tassel(p, -0.29)
+
+
+@proto("lantern" + SHAPE + "2", **LANTERN)
+def _lantern_box(k):
+    """A square one in a wooden frame: four panes of paper (the site draws
+    their lattice) between corner posts, under a top with a knob, on a foot."""
+    p = k("paper")
+    for yaw in (0.0, math.pi / 2, math.pi, -math.pi / 2):
+        rotated_quad(p, math.sin(yaw) * 0.125, 0.0, math.cos(yaw) * 0.125, 0.25, 0.46, yaw, col=(0, 0, 0, PAPER))
+    box(p, -0.155, 0.155, 0.23, 0.275, -0.155, 0.155, scale=1.0, col=FRAME)
+    box(p, -0.06, 0.06, 0.275, 0.31, -0.06, 0.06, scale=1.0, col=FRAME)
+    box(p, -0.155, 0.155, -0.275, -0.23, -0.155, 0.155, scale=1.0, col=FRAME, bottom=True)
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            box(p, sx * 0.136 - 0.017, sx * 0.136 + 0.017, -0.23, 0.23, sz * 0.136 - 0.017, sz * 0.136 + 0.017, scale=1.0, col=FRAME)
+
+
+@proto("lantern" + SHAPE + "3", **LANTERN)
+def _lantern_bulbs(k):
+    """A drop of three bulbs on a cord, each in its socket."""
+    p = k("paper")
+    for yaw in (0.0, math.pi / 2):
+        rotated_quad(p, 0.0, 0.04, 0.0, 0.014, 0.54, yaw, col=CORD)
+    for y, x, z in ((0.17, 0.035, 0.0), (-0.03, -0.03, 0.02), (-0.22, 0.012, -0.035)):
+        turned(p, ((y - 0.058, 0.014), (y - 0.04, 0.043), (y, 0.058), (y + 0.036, 0.045), (y + 0.052, 0.03)), segs=6, col=(1, 0, 0, BULB), cx=x, cz=z, ends="b")
+        turned(p, ((y + 0.05, 0.032), (y + 0.09, 0.03)), segs=5, col=CORD, cx=x, cz=z, ends="t")
 
 
 @proto("drum", box=(0.3, 0.45, 0.3), reach=260, detail=True)

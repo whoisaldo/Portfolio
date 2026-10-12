@@ -32,11 +32,25 @@
 // own plane through its head, turned here about the lamp's axis to face
 // the eye; its uv is metres across and metres below the head, its colour
 // the lamp's and the alpha a tenth of how many metres the light falls.
+//
+// A `paper` is a lantern: paper lit from inside, evenly, dimmer toward its
+// hoops and where it turns away from the eye, never past white. Which colour
+// it is, or that it is dark, is its deal (src/world/prop-deal.js), so a row
+// of them is red, the next orange, one in ten out. The alpha of its vertex
+// colour says what a part is: 1 the paper (red 1: turned about its axis, u
+// once round it, so its light is smooth across its facets; red 0: a flat
+// pane, drawn with a lattice; v runs up it), 0.75 a bulb, 0.5 a dark fitting
+// of its own colour (a hoop, a frame, a cord, a tassel).
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
+import { DARK } from "./prop-deal.js";
 import { LAMP_AIR } from "./shafts.js";
 
 const SHARED = [...COMMON.matchAll(/uniform \w+ (\w+)/g)].map((m) => m[1]);
+// A lantern's colours, linear: red, orange, white, green.
+const PAPER_HUES = [[1.0, 0.11, 0.04], [1.0, 0.31, 0.04], [1.0, 0.76, 0.5], [0.16, 0.92, 0.36]].map((c) => c.map((v) => v.toFixed(2)));
+const ONE = { key: 0, color: null, gain: 1 };
+const PAPER_LIGHTS = PAPER_HUES.map((c, key) => ({ key, color: new THREE.Color(...c.map(Number)), gain: 1 }));
 
 /**
  * `dressed`: the uniforms of any material the kit made (they hold the
@@ -477,22 +491,114 @@ export function createPropSurfaces(dressed) {
     side: THREE.DoubleSide,
   });
 
+  const paper = () => new THREE.ShaderMaterial({
+    uniforms: { ...shared },
+    vertexShader: /* glsl */ `
+      attribute vec4 color;
+      attribute float aDeal;
+      varying vec3 vWorld;
+      varying vec3 vNormalW;
+      varying vec2 vUv;
+      varying vec4 vColor;
+      varying float vDeal;
+      void main() {
+        mat4 m = modelMatrix * instanceMatrix;
+        vec4 w = m * vec4(position, 1.0);
+        vWorld = w.xyz;
+        // Turned paper's normal is turned from u: smooth across its facets.
+        float a = uv.x * 6.2832;
+        vec3 n = color.a > 0.6 && color.r > 0.5 ? vec3(cos(a), 0.0, sin(a)) : normal;
+        vNormalW = normalize(mat3(m) * n);
+        vUv = uv;
+        vColor = color;
+        vDeal = aDeal;
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      varying vec3 vWorld;
+      varying vec3 vNormalW;
+      varying vec2 vUv;
+      varying vec4 vColor;
+      varying float vDeal;
+      vec3 paperHue(float i) {
+        if (i < 0.5) return vec3(${PAPER_HUES[0].join(", ")});
+        if (i < 1.5) return vec3(${PAPER_HUES[1].join(", ")});
+        if (i < 2.5) return vec3(${PAPER_HUES[2].join(", ")});
+        return vec3(${PAPER_HUES[3].join(", ")});
+      }
+      void main() {
+        // glTF counts v down from 1.
+        vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
+        float which = floor(vDeal + 0.0005);
+        float dark = step(${DARK.toFixed(1)} - 0.5, which);
+        // One left dark still has its paper's colour.
+        vec3 hue = paperHue(mix(which, floor(fract(vDeal) * 2.99), dark));
+        vec3 n = normalize(vNormalW);
+        float facing = abs(dot(n, normalize(uCam - vWorld)));
+        vec3 street = vec3(0.045) + spillAt(vWorld) * 1.2;
+        vec3 col;
+        float lit = 1.0 - dark;
+        if (vColor.a > 0.9) {
+          float belly = sin(3.1416 * clamp(uv.y, 0.0, 1.0));
+          float glow = (0.6 + 0.4 * belly) * (0.74 + 0.26 * facing);
+          // Near by: the hoops under a turned lantern's paper, a pane's
+          // lattice.
+          float near = 1.0 - smoothstep(0.004, 0.02, fwidth(uv.y));
+          vec2 bar = abs(fract(uv * vec2(2.0, 3.0)) - 0.5);
+          float drawn = vColor.r > 0.5
+            ? 0.1 * (0.5 + 0.5 * cos(uv.y * 69.0))
+            : 0.8 * max(step(0.47, bar.x), step(0.475, bar.y));
+          glow *= 1.0 - drawn * near;
+          // The flame's place: a little hotter, a little paler.
+          vec3 hot = mix(hue, vec3(1.0, 0.86, 0.62), 0.3 * belly * facing);
+          // Dark, it is dull paper the street lights.
+          vec3 dull = mix(hue, vec3(0.5), 0.5) * 0.2 * min(street, vec3(1.0)) * (0.6 + 0.4 * facing);
+          col = mix(hot * glow * 1.12 * (1.0 + 0.2 * uBass), dull, dark);
+        } else if (vColor.a > 0.6) {
+          vec3 bulb = mix(hue, vec3(1.0, 0.92, 0.78), 0.12 + 0.38 * facing * facing) * 1.3;
+          col = mix(bulb, vec3(0.1, 0.1, 0.11) * min(street, vec3(1.0)) * 2.0, dark);
+        } else {
+          col = vColor.rgb * (street * 3.0 + hue * 0.45 * lit);
+          lit = 0.0;
+        }
+        col = cityFog(col, vWorld, lit);
+        gl_FragColor = vec4(col, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+    side: THREE.DoubleSide,
+  });
+
   // A print is a face that is no light: the same drawing, kept out of the
   // bake.
-  const makers = { plant, face, print: face, halo };
+  const makers = { plant, face, print: face, halo, paper };
+  // The ones that read each instance's deal (the attribute aDeal).
+  const DEALT = ["paper"];
   // How strongly a lit face of the props' own lights the street (the bake).
-  const LIGHT = { face: 0.33 };
+  const LIGHT = { face: 0.33, paper: 0.9 };
   const clean = (name) => name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
   return {
     forName(name) {
       const n = clean(name);
       if (!makers[n]) return null;
-      if (!made.has(n)) made.set(n, Object.assign(makers[n](), { name: n }));
+      if (!made.has(n)) made.set(n, Object.assign(makers[n](), { name: n, userData: { dealt: DEALT.includes(n) } }));
       return made.get(n);
     },
     /** The light a part of that material gives the street, or 0. */
     light(name) {
       return LIGHT[clean(name)] ?? 0;
+    },
+    /**
+     * And of an instance of it, by its deal: which light it is one of
+     * (`key`), its colour (linear; null for the part's own) and how much of
+     * the material's light it gives; null for none.
+     */
+    lightOf(name, deal) {
+      if (clean(name) !== "paper") return ONE;
+      return PAPER_LIGHTS[Math.floor(deal)] ?? null;
     },
     dispose() {
       for (const m of made.values()) m.dispose();

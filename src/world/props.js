@@ -22,13 +22,21 @@
 // its prototype stands, in the cells within its own short reach, so a
 // hydrant is whole at arm's length and four boxes at sixty metres, and a
 // phone, whose kit leaves the ornament out, never draws it.
+//
+// A prototype may have other shapes (<name>__v1, __v2 ...), which nobody
+// places either: the instances of <name> are dealt among it and them, and
+// each has a design of its own besides (a lantern's colour, a machine's
+// front), from where it stands (src/world/prop-deal.js). The props' own
+// materials read the design as an instanced attribute, aDeal.
 import * as THREE from "three";
 import { worldPropsUrl } from "../data/world-assets.js";
 import { NEON } from "./materials.js";
+import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
 
 const CELL = 48;
 const NEAR = "__near";
+const SHAPE = /^__v(\d+)$/;
 const cache = new Map();
 
 /** The tier's props file, fetched once. */
@@ -95,6 +103,24 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     if (!k) continue;
     k.list.push(i);
   }
+  // The deal: each instance's design, and its shape where its prototype has
+  // more than one (those instances move to the shape's own list).
+  const deals = new Float32Array(count);
+  for (const rule of RULES) {
+    const members = rule.protos.map((name) => kinds.find((k) => k.name === name)).filter((k) => k?.list.length);
+    if (!members.length) continue;
+    const list = members.flatMap((k) => k.list);
+    const [first] = members;
+    const shapes = kinds.map((k) => ({ k, v: k.name.startsWith(first.name) && SHAPE.exec(k.name.slice(first.name.length))?.[1] }))
+      .filter((s) => s.v).sort((a, b) => a.v - b.v).map((s) => s.k);
+    const dealt = deal(data, list, rule, shapes.length + 1);
+    list.forEach((i, j) => {
+      deals[i] = dealt.deal[j];
+    });
+    if (!shapes.length) continue;
+    first.list = [];
+    list.forEach((i, j) => (dealt.shape[j] ? shapes[dealt.shape[j] - 1] : first).list.push(i));
+  }
   const cellOf = (x, z) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
   const decoded = (i, out) => {
     const o = i * 8;
@@ -119,6 +145,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   };
   const sets = [];
   const built = new Set();
+  const owned = [];
   // A prototype's instances and their draws, once its meshes are here (the
   // core's at the start; a district's own arrive with its pack).
   const build = (k) => {
@@ -134,6 +161,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     withCell.sort((a, b) => (a.cell < b.cell ? -1 : a.cell > b.cell ? 1 : 0));
     const n = withCell.length;
     const matrices = new Float32Array(n * 16);
+    const dealt = Float32Array.from(withCell, ({ i }) => deals[i]);
     const runs = [];
     let run = null;
     const r = Math.max(...k.box) * 2 + 1;
@@ -151,8 +179,19 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       cellList[run.ci].expandByPoint(_p.set(x - r, y - r, z - r)).expandByPoint(_p.set(x + r, top, z + r));
     });
     const instance = (src) => {
-      const material = own.forName(src.material.name) ?? src.material;
-      const im = new THREE.InstancedMesh(src.geometry, material, n);
+      const mine = own.forName(src.material.name);
+      const material = mine ?? src.material;
+      let geometry = src.geometry;
+      if (mine?.userData.dealt) {
+        // Its own geometry over the prototype's attributes (two prototypes
+        // may share one), for the deal each instance carries.
+        geometry = new THREE.BufferGeometry();
+        geometry.index = src.geometry.index;
+        for (const [key, attribute] of Object.entries(src.geometry.attributes)) geometry.setAttribute(key, attribute);
+        geometry.setAttribute("aDeal", new THREE.InstancedBufferAttribute(new Float32Array(n), 1).setUsage(THREE.DynamicDrawUsage));
+        owned.push(geometry);
+      }
+      const im = new THREE.InstancedMesh(geometry, material, n);
       im.name = `props_${k.name}_${material.name}`;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
@@ -166,11 +205,12 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       group.add(im);
       return im;
     };
-    mine.push({ name: k.name, reach: k.reach, matrices, runs, instanced: meshes.map(instance), n, sig: -1 });
+    const set = (extra, instanced) => ({ ...extra, matrices, deals: dealt, runs, instanced, aDeal: instanced.map((im) => im.geometry.attributes.aDeal).filter(Boolean), n, sig: -1 });
+    mine.push(set({ name: k.name, reach: k.reach }, meshes.map(instance)));
     // Its ornament: the same instances, near by only.
     const near = kinds.find((o) => o.name === k.name + NEAR);
     const ornament = parts.get(k.name + NEAR);
-    if (near && ornament?.length) mine.push({ near: true, reach: near.reach, matrices, runs, instanced: ornament.map(instance), n, sig: -1 });
+    if (near && ornament?.length) mine.push(set({ near: true, reach: near.reach }, ornament.map(instance)));
     sets.push(...mine);
     return mine;
   };
@@ -215,9 +255,11 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       set.sig = sig;
       let c = 0;
       const dst = set.instanced[0].instanceMatrix.array;
+      const dealt = set.aDeal;
       for (const run of set.runs) {
         if (!cellVis[run.ci] || cellDist[run.ci] > reach) continue;
         dst.set(set.matrices.subarray(run.start * 16, run.end * 16), c * 16);
+        if (dealt.length) dealt[0].array.set(set.deals.subarray(run.start, run.end), c);
         c += run.end - run.start;
       }
       for (let m = 0; m < set.instanced.length; m++) {
@@ -229,12 +271,19 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         im.instanceMatrix.addUpdateRange(0, c * 16);
         im.instanceMatrix.needsUpdate = true;
       }
+      for (let m = 0; m < dealt.length; m++) {
+        if (m > 0) dealt[m].array.set(dealt[0].array.subarray(0, c));
+        dealt[m].clearUpdateRanges();
+        dealt[m].addUpdateRange(0, c);
+        dealt[m].needsUpdate = true;
+      }
     }
   };
 
   // The light the props give the street, for the bake (src/world/spill.js):
   // every emissive part at street level, in the world, as one mesh each.
   const bakeMeshes = [];
+  const PLAIN = { key: 0, color: null, gain: 1 };
   const sourcesOf = (list) => {
     const sources = [];
     for (const set of list) {
@@ -247,7 +296,6 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         const pos = g.attributes.position;
         const index = g.index;
         const triCount = (index ? index.count : pos.count) / 3;
-        const out = [];
         let colour = new THREE.Color(im.userData.hue ? NEON[im.userData.hue] ?? "#ffffff" : name === "lantern" ? "#ff4a2a" : "#ffffff");
         if ((name === "glow" || face) && g.attributes.color) {
           const c = g.attributes.color;
@@ -259,22 +307,30 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
           }
           colour = new THREE.Color(r / c.count, gg / c.count, b / c.count);
         }
+        // One mesh for each light the part gives: a lantern's is its own
+        // colour, and one left dark gives none.
+        const lights = new Map();
         const v = new THREE.Vector3();
         for (let j = 0; j < set.n; j++) {
           _m.fromArray(set.matrices, j * 16);
           if (set.matrices[j * 16 + 13] > 8) continue;
+          const light = face ? own.lightOf(name, set.deals[j]) : PLAIN;
+          if (!light) continue;
+          if (!lights.has(light.key)) lights.set(light.key, { ...light, out: [] });
+          const { out } = lights.get(light.key);
           for (let t = 0; t < triCount * 3; t++) {
             v.fromBufferAttribute(pos, index ? index.getX(t) : t).applyMatrix4(_m);
             out.push(v.x, v.y, v.z);
           }
         }
-        if (!out.length) continue;
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
-        const mesh = new THREE.Mesh(geo);
-        mesh.matrixWorldAutoUpdate = false;
-        bakeMeshes.push(mesh);
-        sources.push({ mesh, color: colour, intensity: face || (name === "glow" ? 0.6 : 0.9) });
+        for (const { out, color, gain } of lights.values()) {
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute("position", new THREE.Float32BufferAttribute(out, 3));
+          const mesh = new THREE.Mesh(geo);
+          mesh.matrixWorldAutoUpdate = false;
+          bakeMeshes.push(mesh);
+          sources.push({ mesh, color: color ?? colour, intensity: (face || (name === "glow" ? 0.6 : 0.9)) * gain });
+        }
       }
     }
     return sources;
@@ -314,6 +370,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     dispose() {
       for (const m of bakeMeshes) m.geometry.dispose();
       for (const set of sets) for (const im of set.instanced) im.dispose();
+      for (const geometry of owned) geometry.dispose();
       own.dispose();
       group.removeFromParent();
     },
