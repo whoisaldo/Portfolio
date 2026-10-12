@@ -52,7 +52,7 @@
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { preloadProps } from "./props.js";
-import { createStreetLight } from "./crowd-light.js";
+import { createStreetLight, PROP_LIGHTS } from "./crowd-light.js";
 import { figureGeometry, RIG, PART, TAG, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF, CANOPY } from "./crowd-people.js";
 
 const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
@@ -665,7 +665,9 @@ const BROLLY = 0.3;
 
 /** What stands on the ground in the props file (src/world/props.js packs
  *  it): x, z, the way it faces (as a cosine and a sine) and its half
- *  sizes; and the benches, each where it stands and the way it faces. */
+ *  sizes; the benches, each where it stands and the way it faces; and the
+ *  lamps (src/world/crowd-light.js says which things are one): x, y, z of
+ *  its light and its colour, six floats each. */
 function footprints(buffer) {
   const view = new DataView(buffer);
   const hl = view.getUint32(0, true);
@@ -673,9 +675,12 @@ function footprints(buffer) {
   const data = new Int16Array(buffer, 4 + hl, header.count * 8);
   const out = [];
   const benches = [];
+  const lamps = [];
   for (let i = 0; i < header.count; i++) {
     const o = i * 8;
     const box = header.protos[data[o]]?.box;
+    const lamp = PROP_LIGHTS[header.protos[data[o]]?.name];
+    if (lamp) lamps.push(data[o + 1] / 20, data[o + 2] / 50 + (lamp[4] * 2 * (box?.[1] ?? 1) * data[o + 5]) / 100, data[o + 3] / 20, lamp[0] * lamp[3], lamp[1] * lamp[3], lamp[2] * lamp[3]);
     if (header.protos[data[o]]?.name === "bench") benches.push({ x: data[o + 1] / 20, y: data[o + 2] / 50, z: data[o + 3] / 20, yaw: data[o + 4] / 10430.2 });
     // On a pavement, and more than a kerb high. Wider than a metre is
     // leaves overhead, not the tub they grow from.
@@ -684,7 +689,7 @@ function footprints(buffer) {
     const yaw = data[o + 4] / 10430.2;
     out.push({ x: data[o + 1] / 20, z: data[o + 3] / 20, cos: Math.cos(yaw), sin: Math.sin(yaw), hx: Math.min(box[0] * k, 1), hz: Math.min(box[2] * k, 0.55) });
   }
-  return { solid: out, benches };
+  return { solid: out, benches, lamps: new Float32Array(lamps) };
 }
 
 /** The files of one pavement at one point along it: as near where each
@@ -848,11 +853,54 @@ const HEAD = /* glsl */ `
   float rnd(float x) {
     return fract(sin(x * 91.17) * 43758.5453);
   }
-  // The light of the signs and windows round a point (src/world/crowd-light.js).
-  vec3 signsAt(vec3 p) {
-    vec3 s = texture2D(uSigns, (p.xz - uSpillBounds.xy) * uSpillBounds.zw).rgb;
+  // The light of the signs, windows and lamps round a point of the street
+  // (src/world/crowd-light.js: the left half of its map), and of what hangs
+  // higher (the right half), as much of it as is level with someone whose
+  // feet are at y.
+  vec3 signsAt(vec2 p) {
+    vec2 uv = (p - uSpillBounds.xy) * uSpillBounds.zw;
+    vec3 s = texture2D(uSigns, vec2(clamp(uv.x, 0.002, 0.998) * 0.5, uv.y)).rgb;
     return s * s;
   }
+  vec3 hungAt(vec2 p, float y) {
+    vec2 uv = (p - uSpillBounds.xy) * uSpillBounds.zw;
+    vec4 s = texture2D(uSigns, vec2(clamp(uv.x, 0.002, 0.998) * 0.5 + 0.5, uv.y));
+    float dh = (s.a * 255.0 - y - 2.0) / 7.0;
+    return s.rgb * s.rgb * exp(-dh * dh);
+  }
+  // The street's light round someone, read a few steps to each side of
+  // where they stand: what the brighter side has (key), what the side
+  // across from it has (dim), what there is where they are (about), and
+  // which way the brighter side is. A roof or a deck takes less of the
+  // street under it and what hangs level with it.
+  void streetAt(vec3 root, out vec3 key, out vec3 dim, out vec3 about, out vec2 dir) {
+    vec2 c = root.xz;
+    float low = mix(1.0, 0.35, smoothstep(10.0, 24.0, root.y));
+    vec3 e = signsAt(c + vec2(3.0, 0.0)) * low;
+    vec3 w = signsAt(c - vec2(3.0, 0.0)) * low;
+    vec3 s = signsAt(c + vec2(0.0, 3.0)) * low;
+    vec3 n = signsAt(c - vec2(0.0, 3.0)) * low;
+    about = signsAt(c) * low;
+    if (root.y > 3.0) {
+      e += hungAt(c + vec2(3.0, 0.0), root.y);
+      w += hungAt(c - vec2(3.0, 0.0), root.y);
+      s += hungAt(c + vec2(0.0, 3.0), root.y);
+      n += hungAt(c - vec2(0.0, 3.0), root.y);
+      about += hungAt(c, root.y);
+    }
+    // (A sign's own colour counts for as much as its luminance.)
+    const vec3 LUM = vec3(0.3, 0.5, 0.2);
+    vec2 g = vec2(dot(e - w, LUM) + max(e.r, max(e.g, e.b)) - max(w.r, max(w.g, w.b)), dot(s - n, LUM) + max(s.r, max(s.g, s.b)) - max(n.r, max(n.g, n.b)));
+    float gl = length(g);
+    dir = gl > 1e-5 ? g / gl : vec2(0.0, 1.0);
+    vec2 a = gl > 1e-5 ? abs(g) / (abs(g.x) + abs(g.y)) : vec2(0.5);
+    key = (g.x > 0.0 ? e : w) * a.x + (g.y > 0.0 ? s : n) * a.y;
+    dim = (g.x > 0.0 ? w : e) * a.x + (g.y > 0.0 ? n : s) * a.y;
+  }
+  // The night's own light on the side of someone that no sign reaches, cool
+  // and from the sky, and along their edge.
+  const vec3 FILL = vec3(0.03, 0.05, 0.1);
+  const vec3 EDGE = vec3(0.045, 0.08, 0.16);
   // What the street's light does to a person. Its level lights them (a
   // sign's own colour counts for as much as its luminance does: a blue or a
   // magenta tube lights a face, it does not black it out), easing off
@@ -1416,26 +1464,44 @@ const VERTEX = /* glsl */ `
     // the kit's lamps; and from behind them, as the eye sees them, a rim of
     // whatever is lit there.
     vec3 here = spillAt(world);
-    float upright = length(N.xz);
-    vec3 out2 = upright > 1e-3 ? vec3(N.x, 0.0, N.z) / upright : vec3(face.x, 0.0, face.y);
-    vec3 toward = signsAt(world + out2 * 3.0);
-    vec3 behind = signsAt(world - out2 * 3.0);
-    vec3 about = signsAt(world);
+    vec3 key;
+    vec3 dim;
+    vec3 about;
+    vec2 dir;
+    streetAt(root, key, dim, about, dir);
+    // The brighter side is a light a little over head height: it models a
+    // face, a shoulder, a fold. How much of a source it is says how much of
+    // the cool fill is the other side's alone.
+    float toward = dot(N, normalize(vec3(dir.x, 0.45, dir.y)));
+    float peak = max(key.r, max(key.g, key.b));
+    float source = smoothstep(0.02, 0.3, peak);
     float up = N.y;
     vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * (0.55 + 0.45 * up) * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.25 * (0.5 + 0.5 * up);
-    vec3 light = person(NIGHT * (0.8 + 0.2 * up) + (max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22) * upright + about * 0.1 + here * (0.13 + 0.16 * max(up, 0.0) + 0.22 * max(-up, 0.0)) + sky * 0.62 + lampsAt(world, N) * 1.2);
+    vec3 fill = FILL * mix(0.6, clamp(0.35 - toward * 0.65, 0.0, 1.0), source) * (0.65 + 0.35 * up);
+    vec3 light = person(NIGHT * (0.8 + 0.2 * up) + max(key - dim, 0.0) * 1.5 * clamp(toward * 0.85 + 0.15, 0.0, 1.0) + min(key, dim) * 0.22 * (0.6 + 0.8 * clamp(toward * 0.5 + 0.5, 0.0, 1.0)) + fill + about * 0.1 + here * (0.13 + 0.16 * max(up, 0.0) + 0.22 * max(-up, 0.0)) + sky * 0.62 + lampsAt(world, N) * 1.2);
     vec3 V = normalize(uCam - world);
     float graze = 1.0 - max(dot(N, V), 0.0);
-    vec3 past = signsAt(world - normalize(vec3(V.x, 0.0, V.z) + 1e-5) * 3.5);
     float ground = 0.72 + 0.28 * smoothstep(0.0, 0.5, tall);
-    // The sign behind them is a rim in its own colour along their edge, and
-    // the wet shine with it, together never more than a part of what they
-    // are themselves (more of it on what is glossy): someone in the dark in
-    // front of a cyan sign is a dark figure with a faint edge, not a cyan one.
     vec3 own = byNight(albedo, light) * light * ground;
-    vec3 rim = (past * 1.2 + here * 0.1 + sky * 0.5) * graze * graze * graze * upright * 0.4 + (toward + sky * 0.9) * graze * graze * gloss * 0.5;
-    rim *= min(1.0, (0.006 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(rim.r, max(rim.g, rim.b)), 1e-4));
-    vec3 col = (own + rim + NIGHT * 0.05 * (0.3 + graze * graze)) * shade;
+    // The street's colour is on them twice: as a wash over the side turned
+    // to it (person(), above) and as a rim in the sign's own colour along
+    // the edges turned to it, bright enough to draw them against the dark.
+    // The edges turned away have the night's blue, so that someone under no
+    // sign at all is a dark shape with a faint blue edge and never a hole.
+    // The wet shine goes with it on what is glossy.
+    float g3 = graze * graze * graze;
+    vec3 rim = key / max(peak, 1e-4) * source * 1.0 * g3 * smoothstep(-0.25, 0.35, toward) + EDGE * g3 * (0.45 + 0.55 * clamp(0.3 - toward, 0.0, 1.0)) * (0.6 + 0.4 * max(up, 0.0));
+    vec3 shine = (key * clamp(toward, 0.0, 1.0) + sky * 0.9) * graze * graze * gloss * 0.5;
+    #ifdef NEAR
+    shine *= min(1.0, (0.006 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(shine.r, max(shine.g, shine.b)), 1e-4));
+    #else
+    // Far off a figure is a few flat faces, most of them seen edge on: the
+    // rim would be all of them, so it stays a part of what they are.
+    rim = (rim + shine) * 0.6;
+    shine = vec3(0.0);
+    rim *= min(1.0, (0.012 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(rim.r, max(rim.g, rim.b)), 1e-4));
+    #endif
+    vec3 col = (own + rim + shine + NIGHT * 0.05 * (0.3 + graze * graze)) * shade;
     // The umbrella's own neon is on the cloth by its edge, and on the head
     // and shoulders under it.
     if (part == ${PART.canopy}) col += (0.2 + albedo) * tint * 0.3 * aux * aux * aux;
@@ -1529,9 +1595,14 @@ const CARD_VERTEX = /* glsl */ `
     // Lit as the figure's faces that look at the eye are.
     vec3 mid = root + vec3(0.0, h, 0.0);
     vec3 sky = (uHazeColor * 0.22 + uGlowColor * 0.12) * 0.55 * uHaze + vec3(0.5, 0.52, 0.75) * uFlash * 0.12;
-    vec3 toward = signsAt(mid + vec3(toEye.x, 0.0, toEye.y) * 3.0);
-    vec3 behind = signsAt(mid - vec3(toEye.x, 0.0, toEye.y) * 3.0);
-    vLight = vec4(person(NIGHT + max(toward - behind, 0.0) * 1.5 + min(toward, behind) * 0.22 + signsAt(mid) * 0.1 + spillAt(mid) * 0.15 + sky * 0.62), 6.2832 * ph);
+    vec3 key;
+    vec3 dim;
+    vec3 about;
+    vec2 dir;
+    streetAt(root, key, dim, about, dir);
+    float toward = dot(toEye, dir) * 0.9;
+    float source = smoothstep(0.02, 0.3, max(key.r, max(key.g, key.b)));
+    vLight = vec4(person(NIGHT + max(key - dim, 0.0) * 1.5 * clamp(toward * 0.85 + 0.15, 0.0, 1.0) + min(key, dim) * 0.22 + FILL * mix(0.6, clamp(0.35 - toward * 0.65, 0.0, 1.0), source) * 0.65 + about * 0.1 + spillAt(mid) * 0.15 + sky * 0.62), 6.2832 * ph);
     vec3 away = mid - uCam;
     float dist = length(away);
     vec3 fog = mix(uFogColor, uHazeColor, uHaze * exp(-max(mid.y, 0.0) * 0.01) * smoothstep(40.0, 360.0, dist));
@@ -1880,7 +1951,9 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   base.uLanes.value.needsUpdate = true;
   preloadProps(phone ? "phone" : "high")
     .then((buffer) => {
-      ({ solid: furniture, benches } = footprints(buffer));
+      let lamps;
+      ({ solid: furniture, benches, lamps } = footprints(buffer));
+      light.setLamps(lamps);
     })
     .catch(() => {})
     .then(() => {

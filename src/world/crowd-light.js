@@ -10,6 +10,17 @@
 // pavement. The crowd's shader reads it a few steps to either side of a
 // person: the difference is the sign beside them.
 //
+// It is two maps side by side in one texture. The left half is the street:
+// what is lit up to a few storeys, and the street furniture's own lamps. The
+// right half is everything lit above that (a roof's sign, a board over a
+// deck, a terrace's lamps) with the height it hangs at kept beside its
+// colour, so that it lights whoever stands on that roof or that deck and
+// not the pavement forty metres under it. The lamps are the props file's
+// (lamp posts, lanterns, wall packs, vending machines, strings of bulbs):
+// they are drawn instanced, a few of them at a time, and are in neither the
+// scene's meshes nor the kit's twelve lamps, so the crowd is told where each
+// one stands (crowd.js reads the file) and they are laid into the maps here.
+//
 // Baked on the CPU in idle moments, a few milliseconds at a time, and again
 // each time the city bakes its own (a district's pack arriving): that bake's
 // version is the signal.
@@ -19,15 +30,41 @@ import * as THREE from "three";
 // its size: a tube is thin and bright, a shop's window wide and soft.
 const SOURCES = { neon_all: 7, glow: 2.2, shop: 1, billboard: 0.6 };
 const CELL = 2;
-// Nothing higher than this lights the people under it.
+// Nothing higher than this lights the people under it: it is in the upper
+// map, with its height.
 const TOP = 14;
+// The street furniture that is a light, by its prototype's name: its colour,
+// how much of it reaches the ground at its foot (a well lit pavement is
+// about a third), and how far up the thing its light is (of its height).
+export const PROP_LIGHTS = {
+  lamp_sodium: [1.0, 0.55, 0.2, 0.3, 0.95],
+  lamp_short: [1.0, 0.8, 0.55, 0.26, 0.9],
+  lamp_plaza: [0.75, 0.9, 1.0, 0.34, 0.95],
+  lamp_strip: [0.6, 0.9, 1.0, 0.2, 0.8],
+  flood_mast: [0.9, 0.95, 1.0, 0.4, 0.95],
+  wall_pack: [1.0, 0.85, 0.6, 0.18, 0.5],
+  lightbox: [0.85, 0.9, 1.0, 0.16, 0.5],
+  vending: [0.3, 0.9, 1.0, 0.14, 0.6],
+  vending_warm: [1.0, 0.6, 0.3, 0.14, 0.6],
+  lantern: [1.0, 0.33, 0.16, 0.07, 0.5],
+  jt_festoon: [1.0, 0.75, 0.45, 0.12, 0.5],
+  jt_festoon_l: [1.0, 0.75, 0.45, 0.12, 0.5],
+  cy_string: [1.0, 0.75, 0.45, 0.12, 0.5],
+  jt_lamp_arm: [1.0, 0.8, 0.55, 0.28, 0.9],
+  cy_deck_lamp: [0.7, 0.9, 1.0, 0.28, 0.9],
+  grate_glow: [1.0, 0.5, 0.2, 0.06, 0.5],
+};
+// How far a lamp's light reaches along the ground, in cells, and how fast it
+// falls off.
+const REACH = 4;
+const SOFT = 2.2;
 
-function blur(src, dst, w, h, r, across) {
+function blur(src, dst, w, h, r, across, from = 0, to = 1) {
   const n = 2 * r + 1;
   const step = across ? 1 : w;
   const lines = across ? h : w;
   const len = across ? w : h;
-  for (let l = 0; l < lines; l++) {
+  for (let l = Math.round(lines * from); l < Math.round(lines * to); l++) {
     const start = across ? l * w : l;
     for (let ch = 0; ch < 3; ch++) {
       let sum = 0;
@@ -46,6 +83,8 @@ export function createStreetLight(scene, shared) {
   let seen = "";
   let pending = false;
   let over = false;
+  // The props' lamps: x, y, z, r, g, b each.
+  let lamps = new Float32Array(0);
 
   // The bake, in steps of a few milliseconds each, so that no frame waits
   // on it: the lit triangles a few thousand at a time, then the spreading,
@@ -55,6 +94,10 @@ export function createStreetLight(scene, shared) {
     const w = Math.round(1 / b.z / CELL);
     const h = Math.round(1 / b.w / CELL);
     const acc = new Float32Array(w * h * 3);
+    // Above the street: the light, and how high it hangs (its luminance
+    // times its height, and its luminance).
+    const upper = new Float32Array(w * h * 3);
+    const hung = new Float32Array(w * h * 3);
     const lit = [];
     scene.traverse((o) => {
       const g = o.geometry;
@@ -76,7 +119,7 @@ export function createStreetLight(scene, shared) {
         const i1 = (index ? index[t + 1] : t + 1) * 3;
         const i2 = (index ? index[t + 2] : t + 2) * 3;
         const y = (P[i0 + 1] + P[i1 + 1] + P[i2 + 1]) / 3 + e[13];
-        if (y > TOP || y < -1) continue;
+        if (y > 250 || y < -1) continue;
         const gx = Math.floor(((P[i0] + P[i1] + P[i2]) / 3 + e[12] - b.x) / CELL);
         const gz = Math.floor(((P[i0 + 2] + P[i1 + 2] + P[i2 + 2]) / 3 + e[14] - b.y) / CELL);
         if (gx < 0 || gz < 0 || gx >= w || gz >= h) continue;
@@ -87,13 +130,28 @@ export function createStreetLight(scene, shared) {
         const vy = P[i2 + 1] - P[i0 + 1];
         const vz = P[i2 + 2] - P[i0 + 2];
         const area = 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx);
-        // Less from higher up; a big panel is not brighter than a small one
-        // past a point.
-        const k = (power * Math.min(area, 3)) / (1 + (y * y) / 36) / 3;
         const at = (gz * w + gx) * 3;
         const c0 = (i0 / 3) * cs;
         const c1 = (i1 / 3) * cs;
         const c2 = (i2 / 3) * cs;
+        if (y > TOP) {
+          // Over the street: as much as the same sign gives the pavement
+          // from a storey up, to whoever is level with it.
+          const k = (power * Math.min(area, 3)) / 4.5;
+          const r = k * (C[c0] + C[c1] + C[c2]);
+          const g = k * (C[c0 + 1] + C[c1 + 1] + C[c2 + 1]);
+          const b2 = k * (C[c0 + 2] + C[c1 + 2] + C[c2 + 2]);
+          const l = r * 0.3 + g * 0.5 + b2 * 0.2;
+          upper[at] += r;
+          upper[at + 1] += g;
+          upper[at + 2] += b2;
+          hung[at] += l * y;
+          hung[at + 1] += l;
+          continue;
+        }
+        // Less from higher up; a big panel is not brighter than a small one
+        // past a point.
+        const k = (power * Math.min(area, 3)) / (1 + (y * y) / 36) / 3;
         acc[at] += k * (C[c0] + C[c1] + C[c2]);
         acc[at + 1] += k * (C[c0 + 1] + C[c1 + 1] + C[c2 + 1]);
         acc[at + 2] += k * (C[c0 + 2] + C[c1 + 2] + C[c2 + 2]);
@@ -103,11 +161,17 @@ export function createStreetLight(scene, shared) {
     // Spread about five metres: as far as a sign lights the pavement in
     // front of it.
     const tmp = new Float32Array(acc.length);
-    for (const r of [2, 1]) {
-      blur(acc, tmp, w, h, r, true);
-      yield;
-      blur(tmp, acc, w, h, r, false);
-      yield;
+    for (const map of [acc, upper, hung]) {
+      for (const r of [2, 1]) {
+        for (let q = 0; q < 4; q++) {
+          blur(map, tmp, w, h, r, true, q / 4, (q + 1) / 4);
+          yield;
+        }
+        for (let q = 0; q < 4; q++) {
+          blur(tmp, map, w, h, r, false, q / 4, (q + 1) / 4);
+          yield;
+        }
+      }
     }
     // Scaled so a well lit pavement is about a third, and kept as a square
     // root, as the city's own bake is.
@@ -121,15 +185,58 @@ export function createStreetLight(scene, shared) {
       }
     }
     const scale = cells ? 0.22 / (sum / cells) : 0;
-    const out = new Uint8Array(w * h * 4);
-    for (let i = 0, j = 0; i < acc.length; i += 3, j += 4) {
-      out[j] = Math.round(255 * Math.sqrt(Math.min(1, acc[i] * scale)));
-      out[j + 1] = Math.round(255 * Math.sqrt(Math.min(1, acc[i + 1] * scale)));
-      out[j + 2] = Math.round(255 * Math.sqrt(Math.min(1, acc[i + 2] * scale)));
-      out[j + 3] = 255;
+    yield;
+    for (const map of [acc, upper, hung]) {
+      for (let i = 0; i < map.length; i++) map[i] *= scale;
+      yield;
+    }
+    // The lamps, each a pool round its own foot: on the street's map if it
+    // stands in the street, on the upper one with its height if it is on a
+    // roof, a deck or a terrace.
+    for (let i = 0; i < lamps.length; i += 6) {
+      if (i % 6000 === 0 && i) yield;
+      const y = lamps[i + 1];
+      const fx = (lamps[i] - b.x) / CELL - 0.5;
+      const fz = (lamps[i + 2] - b.y) / CELL - 0.5;
+      const high = y > TOP;
+      const into = high ? upper : acc;
+      const l = lamps[i + 3] * 0.3 + lamps[i + 4] * 0.5 + lamps[i + 5] * 0.2;
+      for (let gz = Math.max(0, Math.ceil(fz - REACH)); gz <= Math.min(h - 1, fz + REACH); gz++) {
+        for (let gx = Math.max(0, Math.ceil(fx - REACH)); gx <= Math.min(w - 1, fx + REACH); gx++) {
+          const d2 = ((gx - fx) ** 2 + (gz - fz) ** 2) * CELL * CELL;
+          const k = 1 / (1 + d2 / (SOFT * SOFT)) ** 2;
+          if (k < 0.02) continue;
+          const at = (gz * w + gx) * 3;
+          into[at] += lamps[i + 3] * k;
+          into[at + 1] += lamps[i + 4] * k;
+          into[at + 2] += lamps[i + 5] * k;
+          if (high) {
+            hung[at] += l * k * y;
+            hung[at + 1] += l * k;
+          }
+        }
+      }
     }
     yield;
-    const map = new THREE.DataTexture(out, w, h, THREE.RGBAFormat);
+    const out = new Uint8Array(w * 2 * h * 4);
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col++) {
+        const i = (row * w + col) * 3;
+        const j = (row * w * 2 + col) * 4;
+        out[j] = Math.round(255 * Math.sqrt(Math.min(1, acc[i])));
+        out[j + 1] = Math.round(255 * Math.sqrt(Math.min(1, acc[i + 1])));
+        out[j + 2] = Math.round(255 * Math.sqrt(Math.min(1, acc[i + 2])));
+        out[j + 3] = 255;
+        const k = j + w * 4;
+        out[k] = Math.round(255 * Math.sqrt(Math.min(1, upper[i])));
+        out[k + 1] = Math.round(255 * Math.sqrt(Math.min(1, upper[i + 1])));
+        out[k + 2] = Math.round(255 * Math.sqrt(Math.min(1, upper[i + 2])));
+        // How high it hangs, in metres.
+        out[k + 3] = hung[i + 1] > 1e-6 ? Math.min(255, Math.round(hung[i] / hung[i + 1])) : 0;
+      }
+      if (row % 64 === 63) yield;
+    }
+    const map = new THREE.DataTexture(out, w * 2, h, THREE.RGBAFormat);
     map.magFilter = map.minFilter = THREE.LinearFilter;
     map.needsUpdate = true;
     uniform.value.dispose();
@@ -159,6 +266,12 @@ export function createStreetLight(scene, shared) {
     /** Whether a bake is under way. */
     get pending() {
       return pending;
+    },
+    /** Where the props' lamps are (x, y, z, r, g, b each): baked in from
+     *  the next bake on, which this asks for. */
+    setLamps(list) {
+      lamps = list;
+      seen = "";
     },
     /** Bake it again if the city has baked its own since. */
     check() {
