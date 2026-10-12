@@ -51,81 +51,137 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
         box((CB, "trim", 0), 21.6, px0 - 1.1, COURT_Y + 0.55, COURT_Y + 1.1, za + 0.08, zb - 0.08, scale=1.0, col=GREEN)
         zo = za - 0.02 if za == cz0 else zb
         box((CB, "neon_cyan", 0), 21.5, px0 - 1.0, COURT_Y + 0.4, COURT_Y + 0.45, zo, zo + 0.02, scale=1.0)
-    # Yellow lines of light in the paving, leading to the doors.
+    # The court's floor: joints in a grid, yellow lines of light leading to
+    # the doors and edging the paving, teal along the steps' top, a dark red
+    # runner up the middle to the doors; every line with its pools.
+    C.paving(CB, 20.2, px0, cz0 + 0.7, cz1 - 0.7, COURT_Y, hue="yellow", pitch=3.8, lines="x", power=0.0)
     for dz in (-7.0, 7.0):
-        _up(21.0, px0 - 0.5, az + dz - 0.06, az + dz + 0.06, COURT_Y + 0.012, "yellow")
-        for x in (24.0, 31.0, 38.0):
-            light(CB, x, 1.0, az + dz, "yellow", 2.5)
-    # Palms in planters in two rows, a bench by each, people on the benches.
+        _up(21.0, px0 - 0.5, az + dz - 0.07, az + dz + 0.07, COURT_Y + 0.022, "yellow")
+        for x in (22.5, 26.5, 30.5, 34.5, 38.5, 41.5):
+            light(CB, x, 1.0, az + dz, "yellow", 6.0)
+            if x < 40.0:
+                P.place("cy_bollard", x + 2.0, COURT_Y, az + dz + (0.5 if dz > 0 else -0.5), district=CB)
+    for z0_, z1_ in ((cz0 + 0.75, cz0 + 0.87), (cz1 - 0.87, cz1 - 0.75)):
+        _up(21.5, px0 - 1.0, z0_, z1_, COURT_Y + 0.022, "yellow")
+    _up(20.3, 20.42, cz0 + 0.8, cz1 - 0.8, COURT_Y + 0.022, "teal")
+    for z in (cz0 + 4.0, cz0 + 10.0, az + 14.0, az - 14.0, cz1 - 4.0):
+        light(CB, 21.0, 1.0, z, "teal", 5.0)
+    C.flat((CB, "trim", 1), 22.0, px0 - 0.6, az - 1.7, az + 1.7, COURT_Y + 0.016, (0.17, 0.02, 0.035, 1))
+    # Palms in planters in two rows, tall, lit from their feet; a bench by
+    # each, people on the benches.
     for row_z in (az - 10.5, az + 10.5):
         for x in (24.5, 31.5, 38.5):
-            P.place("planter_palm", x, COURT_Y, row_z, district=CB)
+            P.place("planter_palm", x, COURT_Y, row_z, sy=1.35, sxz=1.15, district=CB)
+            light(CB, x, 1.5, row_z, "teal", 5.0)
         for x in (28.0, 35.0):
             P.place("bench", x, COURT_Y, row_z, 0.0, district=CB)
             if r.random() < 0.8:
                 stand(x + r.uniform(-0.5, 0.5), row_z, 0.0 if row_z < az else math.pi, "sit", COURT_Y + 0.48)
-    # Cube bollards along the kerb side of the apron, two kiosks, a queue.
-    z = z_lo + 2.0
+    # Along the kerb side of the apron: barricade blocks in pairs and lit
+    # bollards between them; a chicane of blocks at the head of the steps.
+    z, k = z_lo + 2.0, 0
     while z < z_hi - 1.0:
-        P.place("bollard_cube", WALK + 0.9, G0, z, district=CB)
-        z += 2.4
+        if k % 5 < 2:
+            P.place("cy_block", WALK + 0.9, G0, z, math.pi / 2, district=CB)
+        else:
+            P.place("cy_bollard", WALK + 0.9, G0, z, district=CB)
+        z += 2.35
+        k += 1
+    for bz, bx in ((az - 5.6, 21.6), (az - 3.6, 23.4), (az + 3.6, 23.4), (az + 5.6, 21.6)):
+        P.place("cy_block", bx, COURT_Y, bz, math.pi / 2, district=CB)
     for kz in (z_lo + 9.0, z_hi - 9.0):
         P.place("cy_kiosk", 17.2, G0, kz, -math.pi / 2, district=CB)
         stand(16.0, kz, math.pi / 2, "idle", G0)
         stand(15.4, kz + 0.5, math.pi / 2, "phone", G0)
-        light(CB, 16.2, 1.5, kz, "cyan", 4.0)
-    # The hologram on its pole over the steps: a hexagon of cyan light and
-    # the lines of a notice inside it, read from the street and from the doors.
-    hxp, hyp, hzp, R = 22.6, 9.6, az, 2.7
-    cylinder((CB, "metal", 0), hxp, hzp, COURT_Y, hyp - R, 0.12, segs=8)
-    for rad, t in ((R, 0.2), (R * 0.62, 0.1)):
-        pts = [(hyp + rad * math.sin(a), hzp + rad * math.cos(a)) for a in (i * math.pi / 3 for i in range(6))]
-        inn = [(hyp + (rad - t) * math.sin(a), hzp + (rad - t) * math.cos(a)) for a in (i * math.pi / 3 for i in range(6))]
-        for i in range(6):
-            j = (i + 1) % 6
-            q = ((hxp, pts[i][0], pts[i][1]), (hxp, pts[j][0], pts[j][1]), (hxp, inn[j][0], inn[j][1]), (hxp, inn[i][0], inn[i][1]))
-            quad((CB, "neon_cyan", 0), *q)
-            quad((CB, "neon_cyan", 0), q[1], q[0], q[3], q[2])
-    for k, (w, dy) in enumerate(((1.6, 0.55), (2.2, 0.15), (1.9, -0.25), (1.2, -0.65))):
-        for sgn in (-1, 1):
-            q = ((hxp + 0.01 * sgn, hyp + dy, hzp - w / 2), (hxp + 0.01 * sgn, hyp + dy, hzp + w / 2),
-                 (hxp + 0.01 * sgn, hyp + dy + 0.16, hzp + w / 2), (hxp + 0.01 * sgn, hyp + dy + 0.16, hzp - w / 2))
-            quad((CB, "glow", 0), *(q if sgn > 0 else (q[1], q[0], q[3], q[2])), col=GLOW["white" if k == 1 else "cyan"])
-    light(CB, hxp - 1.5, 3.0, hzp, "cyan", 6.0)
-    # Three banners on poles along the apron, ARASAKA's red.
+        light(CB, 16.2, 1.5, kz, "cyan", 5.0)
+    # The hologram over the doors, the forecourt's sign: a hexagon of cyan
+    # light as tall as three floors standing off the podium on struts, a
+    # faint field inside it and the court's own emblem (a ring round three
+    # bars, the middle one tall), two lines of a notice under it. Read from
+    # the street, the steps and the court.
+    hxp, hyp, hzp, R = px0 - 1.3, 11.4, az, 5.4
+    C.ngon((CB, "neon_cyan", 0), (hxp, hyp, hzp), R, 0.36, 6, 0.0, "x", both=False)
+    C.ngon((CB, "glow", 0), (hxp, hyp, hzp), R - 0.6, 0.07, 6, 0.0, "x", C.dim("cyan", 0.8), both=False)
+    C.ngon((CB, "glow", 0), (hxp + 0.03, hyp, hzp), R - 0.36, 99.0, 6, 0.0, "x", C.dim("cyan", 0.05), both=False)
+    C.ngon((CB, "glow", 0), (hxp - 0.03, hyp + 0.5, hzp), 2.5, 0.3, 20, 0.0, "x", GLOW["white"], both=False)
+    for dz, bh in ((-0.95, 1.5), (0.0, 2.7), (0.95, 1.5)):
+        quad((CB, "neon_cyan", 0), (hxp - 0.03, hyp - 0.75, hzp + dz - 0.26), (hxp - 0.03, hyp - 0.75, hzp + dz + 0.26),
+             (hxp - 0.03, hyp - 0.75 + bh, hzp + dz + 0.26), (hxp - 0.03, hyp - 0.75 + bh, hzp + dz - 0.26))
+    for wd, dy in ((3.4, -2.75), (2.2, -3.25)):
+        quad((CB, "glow", 0), (hxp - 0.03, hyp + dy, hzp - wd / 2), (hxp - 0.03, hyp + dy, hzp + wd / 2),
+             (hxp - 0.03, hyp + dy + 0.2, hzp + wd / 2), (hxp - 0.03, hyp + dy + 0.2, hzp - wd / 2), col=C.dim("cyan", 0.8))
+    for dz in (-R * 0.8, R * 0.8):
+        box((CB, "metal", 1), hxp, px0, hyp - 0.08, hyp + 0.08, hzp + dz - 0.08, hzp + dz + 0.08, scale=0.5, bottom=True)
+    for lx, lz in ((px0 - 6.0, az - 4.0), (px0 - 6.0, az + 4.0), (px0 - 11.0, az), (px0 - 16.0, az - 3.0), (px0 - 16.0, az + 3.0)):
+        light(CB, lx, 2.0, lz, "cyan", 7.0)
+    # Totems on the apron where the banners stood, each a column of type in a
+    # dark frame under a red cap, read along the pavement; advert totems on
+    # the court.
+    sw, sh = ST_SIZES["bl"]
     for bz in (az - 14.0, az, az + 14.0):
-        cylinder((CB, "metal", 1), 18.3, bz, G0, 9.0, 0.06, segs=6)
-        for sgn in (-1, 1):
-            q = ((18.3 + 0.07 * sgn, 4.2, bz + 0.1), (18.3 + 0.07 * sgn, 4.2, bz + 0.9), (18.3 + 0.07 * sgn, 8.8, bz + 0.9), (18.3 + 0.07 * sgn, 8.8, bz + 0.1))
-            quad((CB, "neon_red", 0), *(q if sgn < 0 else (q[1], q[0], q[3], q[2])))
+        box((CB, "board_frame", 0), 18.3 - sw / 2 - 0.1, 18.3 + sw / 2 + 0.1, G0, 6.5, bz - 0.09, bz + 0.09, scale=1.0)
+        box((CB, "neon_red", 0), 18.3 - sw / 2 - 0.12, 18.3 + sw / 2 + 0.12, 6.5, 6.6, bz - 0.11, bz + 0.11, scale=1.0)
+        sign(st_name("bl"), 18.3, 3.7, bz + 0.1, sw, sh, 0.0, district=CB, label=False)
+        sign(st_name("bl"), 18.3, 3.7, bz - 0.1, sw, sh, math.pi, district=CB, label=False)
+        light(CB, 18.3, 1.5, bz + 1.5, "red", 4.0)
+        light(CB, 18.3, 1.5, bz - 1.5, "red", 4.0)
+    for tx, tz in ((26.0, cz0 + 3.6), (26.0, cz1 - 3.6), (36.5, cz0 + 3.6), (36.5, cz1 - 3.6)):
+        C.totem(CB, tx, COURT_Y, tz, -math.pi / 2, r)
     # ---- the lobby -----------------------------------------------------------
-    # The podium's west face: a wall of lit glass behind dark mullions, the
-    # doors in a frame of white light under a canopy, a line of red over it
-    # all, a tall screen either side.
+    # The podium's west face: a wall of lit rooms behind dark mullions, bay
+    # by bay, a line of red over it; in the middle the doors in a dark
+    # portal: four glazed leaves under a transom, a warm panel with the
+    # court's ring over them, red light up the portal's jambs, a canopy with
+    # small lamps under it, turnstiles before it; a tall screen either side.
     fw = B.Face("-x", px0, az - 27.0, az + 27.0)
-    fw.quad((CB, "shop", 0), 2.0, fw.width - 2.0, COURT_Y + 0.25, SHOP_H - 0.9, 0.06, col=(0.95, 0.08, 1.0, 1.0))
+    mid = fw.width / 2
     s = 2.0
     while s <= fw.width - 2.0:
         fw.box((CB, "board_frame", 0), s - 0.09, s + 0.09, COURT_Y, SHOP_H - 0.7, 0.0, 0.16)
+        if s + 3.125 <= fw.width - 2.0 + 0.01:
+            fw.quad((CB, "shop", 0), s + 0.09, s + 3.035, COURT_Y + 0.25, SHOP_H - 0.9, 0.06, col=(r.uniform(0.55, 0.9), r.random(), 1.0, 1.0))
         s += 3.125
-    mid = fw.width / 2
-    fw.box((CB, "board_frame", 0), mid - 2.6, mid + 2.6, COURT_Y, SHOP_H - 0.9, 0.0, 0.5)
-    fw.quad((CB, "glow", 0), mid - 2.2, mid + 2.2, COURT_Y + 0.05, SHOP_H - 1.3, 0.51, col=GLOW["white"])
-    fw.box((CB, "board_frame", 0), mid - 0.06, mid + 0.06, COURT_Y + 0.05, SHOP_H - 1.3, 0.5, 0.56)
-    x0c, x1c = px0 - 3.2, px0
-    box((CB, "board_frame", 0), x0c, x1c, SHOP_H - 0.9, SHOP_H - 0.65, az - 5.0, az + 5.0, scale=1.0, bottom=True)
-    box((CB, "glow", 0), x0c + 0.4, x1c - 0.4, SHOP_H - 0.93, SHOP_H - 0.9, az - 4.2, az + 4.2, scale=1.0, col=GLOW["white"], bottom=True)
-    fw.quad((CB, "neon_red", 0), 1.0, fw.width - 1.0, SHOP_H - 0.62, SHOP_H - 0.5, 0.2)
-    light(CB, px0 - 2.0, 3.0, az, "white", 7.0)
+    fw.quad((CB, "trim", 0), 2.0, fw.width - 2.0, COURT_Y, COURT_Y + 0.25, 0.06, col=B.DARK_TRIM)
+    top = SHOP_H - 0.9
+    for a_, b_ in ((mid - 3.1, mid - 2.5), (mid + 2.5, mid + 3.1)):
+        fw.box((CB, "board_frame", 0), a_, b_, COURT_Y, top, 0.0, 0.9)
+    fw.box((CB, "board_frame", 0), mid - 3.1, mid + 3.1, top - 0.3, top, 0.0, 0.9)
+    for sj, dj in ((mid - 2.5, 0.02), (mid + 2.5, -0.07)):
+        fw.box((CB, "neon_red", 0), sj + dj, sj + dj + 0.05, COURT_Y + 0.1, top - 0.35, 0.3, 0.36)
+    fw.quad((CB, "glass_dark", 0), mid - 2.5, mid + 2.5, COURT_Y, 2.95, 0.1)
+    fw.quad((CB, "glow", 0), mid - 2.5, mid + 2.5, 3.0, top - 0.3, 0.1, col=(0.5, 0.33, 0.17, 1))
+    for k in range(5):
+        sm = mid - 2.5 + k * 1.25
+        fw.box((CB, "board_frame", 0), sm - 0.05, sm + 0.05, COURT_Y, 2.95, 0.1, 0.18)
+        if k < 4:
+            fw.quad((CB, "glow", 0), sm + 0.12, sm + 1.13, COURT_Y + 0.12, 2.83, 0.11, col=(0.3, 0.22, 0.13, 1))
+            hs = sm + (1.0 if k % 2 == 0 else 0.17)
+            fw.box((CB, "metal", 1), hs, hs + 0.08, 1.5, 2.1, 0.12, 0.2)
+    fw.box((CB, "board_frame", 0), mid - 2.5, mid + 2.5, 2.92, 3.02, 0.1, 0.2)
+    lx_, ly_, lz_ = fw.p(fw.at(mid), (3.0 + top - 0.3) / 2, 0.12)
+    C.ngon((CB, "neon_red", 0), (lx_, ly_, lz_), 0.17, 0.05, 14, 0.0, "x", both=False)
+    x0c, x1c = px0 - 3.4, px0
+    box((CB, "board_frame", 0), x0c, x1c, top, top + 0.25, az - 5.0, az + 5.0, scale=1.0, bottom=True)
+    for dz in (-3.6, -1.2, 1.2, 3.6):
+        box((CB, "glow", 0), x0c + 1.5, x0c + 1.8, top - 0.03, top, az + dz - 0.15, az + dz + 0.15, scale=0.5, col=(0.8, 0.62, 0.4, 1), bottom=True)
+    light(CB, px0 - 2.0, 3.0, az - 2.0, "amber", 6.0)
+    light(CB, px0 - 2.0, 3.0, az + 2.0, "amber", 6.0)
+    for dz in (-3.2, -1.6, 0.0, 1.6, 3.2):
+        P.place("cy_gate", px0 - 4.6, COURT_Y, az + dz, math.pi / 2, district=CB)
     for dz in (-16.0, 16.0):
         B.billboard(CB, px0 - 0.45, COURT_Y + 5.6, az + dz, 2.8, 8.4, -math.pi / 2, r, frame=True, back=False, depth=0.3)
-    # Two guards at the doors, people crossing the court in twos.
-    for dz in (-3.2, 3.2):
+        light(CB, px0 - 2.5, 2.0, az + dz, "pink", 5.0)
+    # Two guards at the doors, a queue at the turnstiles, people crossing
+    # the court in twos, guards at the chicane.
+    for dz in (-3.9, 3.9):
         stand(px0 - 1.4, az + dz, -math.pi / 2, "idle", COURT_Y)
-    for gx, gz in ((27.0, az - 3.0), (34.0, az + 4.0), (33.0, az - 13.5)):
+    for qx in (px0 - 5.6, px0 - 6.5, px0 - 7.6):
+        stand(qx, az + 0.8, math.pi / 2, r.choice(("idle", "phone")), COURT_Y)
+    for gx, gz in ((27.0, az - 3.0), (34.0, az + 4.0), (33.0, az - 13.5), (29.0, az + 12.6)):
         stand(gx, gz, 0.0, "talk", COURT_Y if cz0 < gz < cz1 else G0)
         stand(gx, gz + 1.0, math.pi, "talk", COURT_Y if cz0 < gz + 1.0 < cz1 else G0)
-    stand(21.2, az + 4.0, -math.pi / 2, "phone", COURT_Y)
+    stand(21.2, az + 4.6, -math.pi / 2, "phone", COURT_Y)
+    stand(22.6, az - 4.6, -math.pi / 2, "idle", COURT_Y)
     stand(20.0, az - 9.0, -math.pi / 2, "sit", G0 + 0.45)
     stand(20.0, az - 8.2, -math.pi / 2, "sit", G0 + 0.45)
     # ---- the tower's shaft and terrace -----------------------------------

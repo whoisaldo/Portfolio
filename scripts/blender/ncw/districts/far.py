@@ -325,6 +325,93 @@ def _slab(U):
     U.update(sd=sd, col=col, back_col=back_col, st=st, bk=bk, x=(xa, xb))
 
 
+LOOK_W = 3.6            # a lookout's deck, where it meets its terrace
+LOOKOUTS = set()        # (side, the slot's z) of every slot a lookout fills
+
+
+def _lookout(U, top, plaza):
+    """A terrace is behind its slab and sees nothing of the canyon, so where
+    a slot of sky stands beside the slab a deck runs out through it at the
+    terrace's level, wall to wall, to a rail over the avenue: as far out as
+    the hero's lens does not see it. Returns (u0, z0, z1, +1 south or -1
+    north of the slab) or None."""
+    L = U["lot"]
+    side, sd, n = L["side"], U["sd"], len(L["units"])
+    r = random.Random(5100 + L["i"] * 7 + U["k"] + (0 if side > 0 else 90))
+    U["rail"] = r.choice(("cyan", "amber", "pink", "teal", "magenta"))
+    # (The slot is cut from the lower lot of the two, so it may be the
+    # neighbour's: either way it stands against this slab's side wall.)
+    if (U["k"] == 0 and L["south"] in ("gap", "alley")) or U["south"] == "notch":
+        z0, z1, sg = U["zs"], U["zs"] + GAP, 1
+    elif (U["k"] == n - 1 and L["north"] in ("gap", "alley")) or U["north"] == "notch":
+        z0, z1, sg = U["zn"] - GAP, U["zn"], -1
+    else:
+        return None
+    if (side, round((z0 + z1) / 2)) in LOOKOUTS:
+        return None
+    for u0 in (1.0, 2.0, 3.0):
+        xa, xb = sorted((_x(side, u0), _x(side, sd)))
+        lo, hi = (xa, top - 0.9, z0), (xb, top + 2.2, z1)
+        if C.hidden(OCC, lo, hi) and not (plaza and C.seen(C.PLAZA_EYES, C.PLAZA_OCC + OCC, lo, hi)):
+            break
+    else:
+        return None
+    hue, ki = U["rail"], U["ki"]
+    xa, xb = sorted((_x(side, u0), _x(side, sd + LOOK_W)))
+    box((CB, "trim", 0), xa, xb, top - 0.35, top, z0, z1, scale=2.0, col=B.DARK_TRIM, bottom=True)
+    B.ground_rect(CB, xa, xb, z0 + 0.1, z1 - 0.1, y=top + 0.03)
+    for u in (u0 + 0.6, sd - 0.6):
+        bx = _x(side, u)
+        box((CB, "board_frame", 0), bx - 0.15, bx + 0.15, top - 0.85, top - 0.35, z0, z1, scale=1.0, bottom=True)
+    # Across the strip of podium roof between the slot and the terrace's edge.
+    la, lb = (z0 - ki, z0) if sg > 0 else (z1, z1 + ki)
+    xc = sorted((_x(side, sd), _x(side, sd + LOOK_W)))
+    if ki > 0:
+        box((CB, "trim", 0), xc[0], xc[1], top - 0.35, top, la, lb, scale=2.0, col=B.DARK_TRIM, bottom=True)
+        B.ground_rect(CB, xc[0], xc[1], la, lb, y=top + 0.03)
+        C.rail(CB, B.Face("+x" if side > 0 else "-x", _x(side, sd + LOOK_W), la, lb), top, hue)
+    # Its rails: over the avenue, along the slot's far wall, across its end.
+    street = B.Face("-x" if side > 0 else "+x", _x(side, u0), z0, z1)
+    C.rail(CB, street, top, hue)
+    street.quad((CB, "neon_" + hue, 0), 0.15, GAP - 0.15, top - 0.27, top - 0.15, 0.02)
+    C.rail(CB, B.Face("+z", z1, xa, xb) if sg > 0 else B.Face("-z", z0, xa, xb), top, None)
+    C.rail(CB, B.Face("+x" if side > 0 else "-x", _x(side, sd + LOOK_W), z0, z1), top, hue)
+    # The slot's two walls beside it, close enough to touch: a dark dado, a
+    # conduit, wall lamps with their pools, a small board.
+    wx = sorted((_x(side, u0), _x(side, sd)))
+    for f in (B.Face("-z", z1, *wx), B.Face("+z", z0, *wx)):
+        f.quad((CB, "trim", 0), 0.0, f.width, top, top + 3.3, 0.03, col=B.DARK_TRIM)
+        f.box((CB, "metal", 1), 0.0, f.width, top + 3.05, top + 3.12, 0.0, 0.08)
+        f.box((CB, "neon_" + hue, 0), 0.3, f.width - 0.3, top + 3.2, top + 3.26, 0.03, 0.09)
+        # A row of adverts down each wall, a small board between two of them.
+        s_, k_ = 0.5, 0
+        while s_ + 2.2 < f.width:
+            pw = min(r.uniform(2.6, 3.8), f.width - s_ - 0.4)
+            if k_ == 1:
+                C.board(f, s_ + 0.9, top + 1.7, "bx", r)
+                pw = 1.8
+            else:
+                cx, cy, cz = f.p(f.at(s_ + pw / 2), top + 1.65, 0.12)
+                B.billboard(CB, cx, cy, cz, pw - 0.4, 2.0, f.yaw, r, frame=True, back=False, depth=0.1)
+            s_ += pw + 0.25
+            k_ += 1
+    # On it: lights strung down its length, a table, people at the rail.
+    zm = (z0 + z1) / 2
+    P.place("cy_string", (xa + xb) / 2, top + 3.0, zm, 0.0, sxz=(xb - xa) / 6.0, district=CB)
+    for u in (u0 + 2.0, (u0 + sd) / 2 + 1.0, sd + 1.5):
+        light(CB, _x(side, u), top + 2.0, zm, "amber", 8.0)
+    tx = _x(side, (u0 + sd) / 2 + 1.5)
+    P.place("cy_table", tx, top + 0.03, zm - 0.9, 0.0, district=CB)
+    for i in (0, 2):
+        a = i * math.tau / 3 + 0.5
+        stand(tx + 0.85 * math.cos(a), zm - 0.9 + 0.85 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)), "sit", top + 0.53)
+    stand(_x(side, u0 + 0.55), zm - 1.2, side * math.pi / 2, "lean", top + 0.03)
+    stand(_x(side, u0 + 0.6), zm + 0.9, -side * math.pi / 2, r.choice(("phone", "smoke", "idle")), top + 0.03)
+    LOOKOUTS.add((side, round(zm)))
+    print("CANYON lookout", side, L["i"], U["k"], "x", round(xa, 1), round(xb, 1), "z", z0, z1, "y", top)
+    return (u0, z0, z1, sg)
+
+
 def _back(U):
     """The mass behind the slab: a crown the hero's lens cannot see, or a
     terrace."""
@@ -343,9 +430,18 @@ def _back(U):
         top = C.hidden_top(OCC, xa, xb, zn, zs, h, h + U["back"], plaza=plaza) or h
     st, bk, so, no, xa, xb = _faces(side, sd, u1, zn, zs)
     B.COLLISION.append(("box", xa, xb, ph, top, zn, zs, "canyon"))
+    look = _lookout(U, top, plaza) if U["back"] == "low" else None
     for f in (bk, so, no):
         C.wall(CB, f, ph, top, U["back_col"] if f is bk else U["col"], U["ov"])
-        C.parapet(CB, f, top, tcol)
+        if U["back"] != "low":
+            C.parapet(CB, f, top, tcol)
+        elif look and f is (so if look[3] > 0 else no):
+            # The rail opens where the lookout's deck meets the terrace.
+            a, b = sorted((C.s_of(f, _x(side, sd)), C.s_of(f, _x(side, sd + LOOK_W))))
+            C.rail(CB, f, top, U["rail"], 0.0, a)
+            C.rail(CB, f, top, U["rail"], b, f.width)
+        else:
+            C.rail(CB, f, top, U["rail"])
     if top > h + 0.5:
         C.wall(CB, st, h, top, U["col"], U["ov"])
         C.parapet(CB, st, top, tcol)
@@ -383,7 +479,9 @@ def _dress_street(U):
     fins on some, a line of light under the roof on some, a seam of light up
     the corner that faces the hero, and its signs."""
     L = U["lot"]
-    side, r, ph, h, st = L["side"], L["r"], L["ph"], U["h"], U["st"]
+    side, ph, h, st = L["side"], L["ph"], U["h"], U["st"]
+    # (Its own dice, so the hero's signs stay put whatever else is built.)
+    r = random.Random(4900 + L["i"] * 31 + U["k"] * 7 + (0 if side > 0 else 1000))
     tcol = B.TRIM[U["tint"]]
     w = st.width
     every = r.choice((3, 4, 5))
@@ -470,8 +568,9 @@ def _dress_back(U):
         sb = U["bk"]
         if r.random() < 0.7:
             sw = r.uniform(6.0, 9.0)
-            sh = min(h - U["top"] - 4.0, sw * 0.7)
-            C.screen(sb, r.uniform(sw / 2 + 1.0, sb.width - sw / 2 - 1.0), U["top"] + 2.5 + sh / 2, sw, sh, r, 0.0, back=False)
+            sh = min(h - U["top"] - 9.0, sw * 0.7)
+            if sh > 1.8:
+                C.screen(sb, r.uniform(sw / 2 + 1.0, sb.width - sw / 2 - 1.0), U["top"] + 6.5 + sh / 2, sw, sh, r, 0.0, back=False)
         C.strip(CB, sb, 0.5, sb.width - 0.5, h - 1.6, h - 1.2, r.choice(HUES))
 
 
@@ -512,40 +611,76 @@ def _roofs(U):
         cap = C.hidden_top(OCC, bx0, bx1, bz0, bz1, t, t + 7.0, step=1.0, pad=0.2, least=1.0)
         C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz1 - 0.6, t, r, (cap - t) if cap else 0.0, ring)
         return
-    # A terrace: plant on its north half, a deck on its south: lamps on long
-    # arms throwing cyan pools, benches along the parapet, a tree, people.
-    mid = (bz0 + bz1) / 2
-    C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, mid - 0.5, t, r, 6.0, ring)
-    B.ground_rect(CB, bx0 + 0.3, bx1 - 0.3, mid, bz1 - 0.3, y=t + 0.03)
-    edge = bx1 - 0.75 if side > 0 else bx0 + 0.75
-    inward = -math.pi / 2 * side
-    for z in (mid + 2.0, bz1 - 2.0):
-        P.place("cy_deck_lamp", edge - side * 0.3, t, z, inward, district=CB)
-        light(CB, edge - side * 1.7, t + 3.0, z, "cyan", 5.0)
-    P.place("planter_tree", (bx0 + bx1) / 2, t, mid + 2.5, district=CB)
-    P.place("bench", edge - side * 0.3, t, (mid + bz1) / 2, math.pi / 2, district=CB)
-    stand(edge - side * 0.3, (mid + bz1) / 2 + r.uniform(-0.5, 0.5), inward, "sit", t + 0.48)
-    stand(edge, mid + 3.4, inward, "lean", t)
-    # A bar against the slab's wall under a line of light, someone serving,
-    # two on stools; trees at the deck's corners.
+    # A terrace: plant at its north end behind a row of planters, the rest a
+    # deck that is lived on: paving with lines of light in it, a bar's lit
+    # front on the slab's wall, tables with lamps and people at them, lights
+    # strung from the wall to posts at the rail, lamps on long arms,
+    # benches and trees along the rail, people looking out.
+    span = bz1 - bz0
+    dz0 = bz0 + (span * 0.3 if span > 15.0 else 0.4)
     wall_x = _x(side, U["sd"])
-    out = math.pi / 2 * side
-    sz = mid + 4.2
-    if bz1 - mid > 7.5 and abs(edge - wall_x) > 6.0:
-        P.place("cy_stall", wall_x + side * 1.25, t, sz, out, district=CB)
-        stand(wall_x + side * 0.7, sz, out, "vendor", t)
-        for dz in (-0.6, 0.7):
-            P.place("cy_stool", wall_x + side * 2.75, t, sz + dz, district=CB)
-            stand(wall_x + side * 2.75, sz + dz, out + math.pi, "sit", t + 0.5)
-        light(CB, wall_x + side * 2.5, t + 2.0, sz, "pink", 5.0)
-    C.tube(CB, (wall_x + side * 0.1, t + 3.2, bz1 - 1.5), (edge + side * 0.4, t + 3.2, bz1 - 1.5), "amber")
-    for z in (mid + 0.9, bz1 - 0.9):
+    edge = bx1 - 0.75 if side > 0 else bx0 + 0.75
+    inward, out = -math.pi / 2 * side, math.pi / 2 * side
+    if dz0 - bz0 > 4.0:
+        C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, dz0 - 1.0, t, r, 6.0, ())
+        x = bx0 + 2.2
+        while x < bx1 - 2.0:
+            P.place("cy_planter", x, t, dz0 - 0.3, 0.0, district=CB)
+            x += 3.4
+    B.ground_rect(CB, bx0 + 0.3, bx1 - 0.3, dz0, bz1 - 0.3, y=t + 0.03)
+    C.paving(CB, bx0 + 0.3, bx1 - 0.3, dz0, bz1 - 0.3, t + 0.03, hue=U.get("rail", "amber"), pitch=3.0, lines="x", power=0.0)
+    sb = U["bk"]
+    fs0, fs1 = sorted((C.s_of(sb, dz0 + 1.2), C.s_of(sb, bz1 - 1.2)))
+    if fs1 - fs0 > 5.0 and abs(edge - wall_x) > 6.0:
+        fs1 = min(fs1, fs0 + 15.6)
+        bar = C.deck_front(CB, sb, fs0, fs1, t, r, U["tint"])
+        zb0, zb1 = sorted((sb.at(fs0), sb.at(fs1)))
+        z = zb0 + 1.5
+        while z < zb1:
+            light(CB, wall_x + side * 2.2, t + 2.5, z, bar, 8.0)
+            z += 3.5
+    rail_x = bx1 - 0.36 if side > 0 else bx0 + 0.36
+    z, k = dz0 + 1.6, 0
+    while z < bz1 - 1.0:
+        P.place("cy_string", (wall_x + rail_x) / 2, t + 3.45, z, 0.0, sxz=abs(rail_x - wall_x) / 6.0, district=CB)
+        box((CB, "metal", 1), rail_x - 0.04, rail_x + 0.04, t, t + 3.5, z - 0.04, z + 0.04, scale=0.5)
+        for fr in (0.4, 0.75):
+            light(CB, wall_x + (edge - wall_x) * fr, t + 2.5, z, "amber", 7.0)
+        if k % 3 == 1:
+            P.place("cy_deck_lamp", edge - side * 0.3, t, z + 1.6, inward, district=CB)
+            light(CB, edge - side * 1.7, t + 3.0, z + 1.6, "cyan", 8.0)
+        z += 3.3
+        k += 1
+    xs_lo, xs_hi = sorted((wall_x + side * 4.4, edge - side * 2.4))
+    z = dz0 + 2.4
+    while z < bz1 - 2.0:
+        x = xs_lo + 0.2
+        while x <= xs_hi:
+            if r.random() < 0.62:
+                tx, tz = x + r.uniform(-0.4, 0.4), z + r.uniform(-0.35, 0.35)
+                P.place("cy_table", tx, t + 0.03, tz, 0.0, district=CB)
+                for i in range(3):
+                    if r.random() < 0.5:
+                        a = i * math.tau / 3 + 0.5
+                        stand(tx + 0.85 * math.cos(a), tz + 0.85 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)), "sit", t + 0.53)
+            x += 4.3
+        z += 4.1
+    for z in (dz0 + 0.9, bz1 - 0.9):
         P.place("planter_tree", wall_x + side * 1.0, t, z, district=CB)
-    if bz1 - mid > 9.0:
+    z, k = dz0 + 3.0, 0
+    while z < bz1 - 2.0:
+        if k % 2 == 0:
+            P.place("bench", edge - side * 0.35, t + 0.03, z, math.pi / 2, district=CB)
+            if r.random() < 0.7:
+                stand(edge - side * 0.35, z + r.uniform(-0.5, 0.5), inward, "sit", t + 0.51)
+        elif r.random() < 0.7:
+            stand(edge - side * 0.1, z, inward, r.choice(("lean", "lean", "smoke", "phone")), t + 0.03)
+        z += 4.6
+        k += 1
+    if bz1 - dz0 > 9.0:
         cx = (bx0 + bx1) / 2 + side * 2.0
-        stand(cx, bz1 - 3.0, 0.0, "talk", t)
-        stand(cx, bz1 - 2.0, math.pi, "talk", t)
-        stand(edge, bz1 - 1.2, inward, r.choice(("smoke", "phone", "lean")), t)
+        stand(cx, bz1 - 2.2, 0.0, "talk", t + 0.03)
+        stand(cx, bz1 - 1.2, math.pi, "talk", t + 0.03)
     print("CANYON terrace", side, L["i"], U["k"], round(bx0, 1), round(bx1, 1), round(bz0, 1), round(bz1, 1), round(t, 1), "slab", h)
 
 
@@ -619,7 +754,7 @@ for side in (-1, 1):
             B.billboard(CB, bx_, py + 1.6 + bw * 0.3, bz_, bw, bw * 0.6, -side * (math.pi / 2 - lr.uniform(0.15, 0.5)), lr, frame=True, back=True, depth=0.3)
             for dz in (-bw * 0.35, bw * 0.35):
                 box((CB, "metal", 1), bx_ - 0.07, bx_ + 0.07, py, py + 1.6, bz_ + dz - 0.07, bz_ + dz + 0.07, scale=0.5)
-        if lr.random() < 0.65:
+        if lr.random() < 0.65 and (side, round((a["zn"] + b["zs"]) / 2)) not in LOOKOUTS:
             lo = max(a["lot"]["ph"], b["lot"]["ph"], 19.0 if gap > 7.0 else 0.0)
             hi = min(a["h"], b["h"]) - 8.0
             if hi > lo + 4.0:
@@ -636,6 +771,35 @@ B.ground_rect(CB, 44.0, 52.0, -458.0, -284.0)
 B.ground_rect(CB, 44.0, 48.0, -463.0, -458.0)
 C.lane(CB, 44.0, 48.0, -283.0, -263.0, lane_r, tubes=True, name="cy_lane_e0")
 C.lane(CB, 44.0, 52.0, -455.0, -285.0, lane_r, tubes=True, name="cy_lane_e1")
+# It is eight metres wide, so its east edge is a service strip: a rack of
+# pipes on posts the lane's whole length, and under it, by turns, a stall
+# with its stools and its light, a table, a rank of condensers, a totem.
+C.pipe_rack(CB, 51.5, -455.0, -286.0, lane_r)
+lz, k = -292.0, 0
+while lz > -450.0:
+    pick = k % 4
+    if pick == 0:
+        P.place("cy_stall", 50.5, B.G0, lz, -math.pi / 2, district=CB)
+        stand(51.05, lz, -math.pi / 2, "vendor", B.G0)
+        for dz in (-0.6, 0.7):
+            P.place("cy_stool", 49.0, B.G0, lz + dz, district=CB)
+            if lane_r.random() < 0.8:
+                stand(49.0, lz + dz, math.pi / 2, "sit", B.G0 + 0.5)
+        light(CB, 49.4, 2.2, lz, lane_r.choice(("pink", "amber")), 6.0)
+    elif pick == 1:
+        P.place("cy_table", 50.2, B.G0, lz, 0.0, district=CB)
+        for i in range(3):
+            if lane_r.random() < 0.6:
+                a = i * math.tau / 3 + 0.5
+                stand(50.2 + 0.85 * math.cos(a), lz + 0.85 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)), "sit", B.G0 + 0.5)
+        light(CB, 50.2, 1.5, lz, "amber", 4.0)
+    elif pick == 2:
+        for i in range(lane_r.randrange(2, 5)):
+            P.place("cy_unit", 50.6, B.G0, lz + i * 2.0, math.pi / 2, district=CB)
+    else:
+        C.totem(CB, 50.6, B.G0, lz, -math.pi / 2 + lane_r.uniform(-0.3, 0.3), lane_r, w=1.3, h=3.4)
+    lz -= lane_r.uniform(8.5, 12.5)
+    k += 1
 # Its end: the tower's service gate in the podium's south wall, a shutter in
 # a frame of red light, hazard stripes, a barrier, a guard.
 box((CB, "door_panel", 0), 48.4, 51.6, B.G0, 3.6, -458.0, -457.85, scale=1.0)
@@ -647,14 +811,40 @@ light(CB, 50.0, 3.5, -456.6, "red", 5.0)
 P.place("barrier", 50.0, B.G0, -455.2, district=CB)
 P.place("cctv", 47.0, B.G0, -456.8, district=CB)
 stand(51.2, -456.4, math.pi, "idle", B.G0)
-# The square's west edge, under the canyon's wall: stalls along it, facing
-# the square, low enough to leave the wall and its boards in view.
-for sz in (-196.5, -217.0, -249.0):
-    P.place("cy_stall", 45.4, B.G0, sz, math.pi / 2, district=CB)
-    stand(44.85, sz, math.pi / 2, "vendor", B.G0)
-    P.place("cy_stool", 46.9, B.G0, sz - 0.6, district=CB)
-    stand(46.9, sz - 0.6, -math.pi / 2, "sit", B.G0 + 0.5)
-    stand(47.2, sz + 0.7, -math.pi / 2, lane_r.choice(("idle", "phone")), B.G0)
+# The square's west edge, under the canyon's wall and its canopy: a paved
+# walk with a line of teal light and lit bollards where it meets the square,
+# warm pools under the canopy, and along it stalls facing the square, tables,
+# planters, benches, totems: all low enough to leave the wall and its boards
+# in view.
+C.flat((CB, "glow", 0), 47.86, 47.96, -262.0, -191.0, B.G0 + 0.02, C.dim("teal", 0.55))
+ez, k = -192.5, 0
+while ez > -262.0:
+    C.flat((CB, "trim", 1), 44.2, 47.86, ez - 0.08, ez + 0.08, B.G0 + 0.012, (0.02, 0.021, 0.026, 1))
+    P.place("cy_bollard", 48.0, B.G0, ez - 1.75, district=CB)
+    light(CB, 47.4, 1.0, ez - 1.75, "teal", 5.0)
+    light(CB, 45.2, 3.0, ez, "amber", 5.0)
+    pick = k % 5
+    if pick in (0, 3):
+        P.place("cy_stall", 45.4, B.G0, ez - 1.75, math.pi / 2, district=CB)
+        stand(44.85, ez - 1.75, math.pi / 2, "vendor", B.G0)
+        P.place("cy_stool", 46.9, B.G0, ez - 2.35, district=CB)
+        stand(46.9, ez - 2.35, -math.pi / 2, "sit", B.G0 + 0.5)
+        stand(47.2, ez - 1.05, -math.pi / 2, lane_r.choice(("idle", "phone")), B.G0)
+        light(CB, 46.4, 2.2, ez - 1.75, lane_r.choice(("pink", "amber")), 6.0)
+    elif pick == 1:
+        P.place("cy_table", 46.3, B.G0, ez - 1.75, 0.0, district=CB)
+        for i in range(3):
+            if lane_r.random() < 0.65:
+                a = i * math.tau / 3 + 0.5
+                stand(46.3 + 0.85 * math.cos(a), ez - 1.75 + 0.85 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)), "sit", B.G0 + 0.5)
+    elif pick == 2:
+        P.place("cy_planter", 47.3, B.G0, ez - 1.75, math.pi / 2, district=CB)
+        P.place("bench", 46.5, B.G0, ez - 1.75, math.pi / 2, district=CB)
+        stand(46.5, ez - 1.75 + lane_r.uniform(-0.5, 0.5), -math.pi / 2, "sit", B.G0 + 0.48)
+    else:
+        C.totem(CB, 47.0, B.G0, ez - 1.75, math.pi / 2, lane_r, w=1.3, h=3.2)
+    ez -= 3.5
+    k += 1
 # The braindance's GPU clue sits at (44.4, 22, -240) on this wall: a server
 # rack's cooling plant bolted to it, lit warm from inside, clear of
 # everything else. A cabinet with louvres, its amber heart showing between
@@ -778,7 +968,7 @@ ax, az = ARASAKA
 # hero's band of sky frames is the shaft's, as before.
 prism(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H, 21.0, 4500, col=(0.55, 2 / 8.0, 0.45, 1))
 box((FA, "dark", 0), ax - 32, ax + 32, 0, SHOP_H, az - 32, az + 32, scale=4.0)
-band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H - 0.6, SHOP_H - 0.2, "white", out=0.2)
+band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), SHOP_H - 0.62, SHOP_H - 0.54, "red", out=0.2)
 band(FA, cut_rect(ax, az, 32.0, 32.0, 5.0), 20.2, 21.0, "red", out=0.25)
 prism(FA, cut_rect(ax, az, 26.0, 26.0, 5.0), 21.0, 110.0, 4501, col=(0.3, 0.5, 0.2, 1))
 band(FA, cut_rect(ax, az, 26.0, 26.0, 5.0), 108.0, 110.0, "red", out=0.3)
