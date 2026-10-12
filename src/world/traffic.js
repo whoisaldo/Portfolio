@@ -1467,8 +1467,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // The one the city hears is the viaduct's.
       if (rail && T === trains[0]) voices.train = T.mesh.position;
     }
+    // A model nothing is drawn of this frame is not a draw (and its buffers
+    // are not sent: an update of no length is taken to mean all of it).
     for (const L of avLevels) {
       L.mesh.count = L.n;
+      L.mesh.visible = L.n > 0;
+      if (!L.n) continue;
       L.mesh.instanceMatrix.clearUpdateRanges();
       L.mesh.instanceMatrix.addUpdateRange(0, L.n * 16);
       L.mesh.instanceMatrix.needsUpdate = true;
@@ -1477,6 +1481,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     for (const K of kinds) {
       for (const L of K.levels) {
         L.mesh.count = L.n;
+        L.mesh.visible = L.n > 0;
+        if (!L.n) continue;
         for (const a of L.attributes) {
           a.clearUpdateRanges();
           a.addUpdateRange(0, L.n * a.itemSize);
