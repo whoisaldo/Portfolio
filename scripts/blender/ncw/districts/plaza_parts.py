@@ -506,10 +506,12 @@ def planter(x0, x1, z0, z1, y=0.15, h=0.5, hedge=0.75, edge="cyan", r=None, side
             nbox(edge, x0 - 0.03, x0, y + 0.03, y + 0.08, z0 + 0.1, z1 - 0.1)
 
 
-def stair_x(x0, x1, z0, z1, y0, y1, colour="cyan", r=None):
+def stair_x(x0, x1, z0, z1, y0, y1, r=None):
     """Wide stairs climbing toward +x from (x0, y0) to (x1, y1), z0..z1 wide
-    (KvMY1uzSC1E@29): stone steps, short bars of light set in some risers,
-    solid flanks, a rail down each side and the middle."""
+    (KvMY1uzSC1E@29): dark stone steps, a short strip of light let into a
+    riser here and there (white, now and then amber), solid flanks, a rail
+    down each side and the middle."""
+    r = r or random.Random(8470)
     n = max(2, int(round((y1 - y0) / 0.16)))
     rise, run = (y1 - y0) / n, (x1 - x0) / n
     k = (PL, "concrete", 0)
@@ -517,20 +519,18 @@ def stair_x(x0, x1, z0, z1, y0, y1, colour="cyan", r=None):
         xa, xb, ya, yb = x0 + i * run, x0 + (i + 1) * run, y0 + i * rise, y0 + (i + 1) * rise
         quad(k, (xa, ya, z0), (xa, ya, z1), (xa, yb, z1), (xa, yb, z0),
              ((z0 / 1.5, ya / 1.5), (z1 / 1.5, ya / 1.5), (z1 / 1.5, yb / 1.5), (z0 / 1.5, yb / 1.5)))
-        # The tread: pale stone, two tones turn about, a line of light let
-        # into its nosing (from above the flight is stripes, not a slab).
-        tone = (0.5, 0.51, 0.54, 1.0) if i % 2 else (0.4, 0.41, 0.44, 1.0)
+        # The tread: dark stone, two tones turn about.
+        tone = (0.15, 0.155, 0.175, 1.0) if i % 2 else (0.11, 0.115, 0.13, 1.0)
         quad((PL, "trim", 0), (xa, yb, z1), (xb, yb, z1), (xb, yb, z0), (xa, yb, z0),
              ((xa / 1.5, -z1 / 1.5), (xb / 1.5, -z1 / 1.5), (xb / 1.5, -z0 / 1.5), (xa / 1.5, -z0 / 1.5)), tone)
-        for za, zb in ((z0 + 0.3, (z0 + z1) / 2 - 0.2), ((z0 + z1) / 2 + 0.2, z1 - 0.3)):
-            quad((PL, "glow", 0), (xa, yb + 0.006, zb), (xa + 0.045, yb + 0.006, zb), (xa + 0.045, yb + 0.006, za), (xa, yb + 0.006, za),
-                 col=dim(colour, 0.5 if i % 3 == 1 else 0.22))
-        # Light in the risers: short bars, staggered up the flight.
-        if i % 3 == 1:
-            z = z0 + 1.0 + (1.7 if (i // 3) % 2 else 0.0)
-            while z + 1.1 < z1 - 0.6:
-                box((PL, "neon_" + colour, 0), xa - 0.02, xa, ya + rise * 0.3, ya + rise * 0.7, z, z + 1.1, scale=1.0)
-                z += 3.4
+        # Light in the risers: one short strip on one riser in four, never
+        # two in line.
+        if i % 4 == 1:
+            z = z0 + r.uniform(0.8, 3.4)
+            while z + 1.2 < z1 - 0.5:
+                colour = "amber" if r.random() < 0.3 else "white"
+                box((PL, "neon_" + colour, 0), xa - 0.02, xa, ya + rise * 0.3, ya + rise * 0.7, z, z + 1.2, scale=1.0)
+                z += r.uniform(4.2, 6.8)
     # The flanks: a wall under the flight's line on each side.
     for z, wind in ((z0, -1), (z1, 1)):
         a, b, c = (x0, y0, z), (x1, y0, z), (x1, y1, z)
@@ -777,31 +777,53 @@ def _kiosk(k):
     box(k("glow"), 1.55, 1.58, 2.36, 2.46, -1.25, 1.6, scale=0.5, col=GLOW["cyan"])
 
 
+# Night foliage (YRL74JmhVgk@30): dark teal-green, near black where nothing
+# lights it, small leaves. The site's plant shader cuts a frond's quad into
+# leaflets, so the leaves here are short fronds in tufts (a blossom pad is
+# drawn as petals, pale ones among them: not for a hedge), and the colours
+# are dark enough that only a lamp's or a sign's light near by shows them.
+LEAF = ((0.016, 0.062, 0.05), (0.012, 0.048, 0.042), (0.022, 0.075, 0.056))
+HEART = (0.004, 0.014, 0.012, P.WOOD)
+
+
+def tuft(k, x, y, z, r, n=3, size=0.34, lean=0.9):
+    for i in range(n):
+        yaw = r.uniform(0.0, math.tau)
+        P.frond(k("plant"), (x, y, z), yaw, r.uniform(lean - 0.5, lean + 0.4), size * r.uniform(0.8, 1.25), r.uniform(0.5, 1.1), size * 0.62, r.choice(LEAF),
+                segs=2, vee=False)
+
+
 @P.proto("hedge_soft", box=(1.0, 0.4, 0.55), reach=320)
 def _hedge_soft(k):
     """Two metres of clipped hedge along x: a dark body with a rounded top,
-    and its leaves in soft pads over the top and down both sides."""
-    body = (0.018, 0.06, 0.03, P.WOOD)
+    small leaves in tufts over the top and standing out of both sides."""
     prof = ((-0.4, 0.0), (-0.44, 0.36), (-0.32, 0.58), (0.0, 0.66), (0.32, 0.58), (0.44, 0.36), (0.4, 0.0))
     for (z0, y0), (z1, y1) in zip(prof, prof[1:]):
-        quad(k("plant"), (1.0, y0, z0), (-1.0, y0, z0), (-1.0, y1, z1), (1.0, y1, z1), col=body)
-    poly(k("plant"), [(1.0, y, z) for z, y in prof], [(0.5, 0.5)] * len(prof), body)
-    poly(k("plant"), [(-1.0, y, z) for z, y in reversed(prof)], [(0.5, 0.5)] * len(prof), body)
-    greens = ((0.09, 0.3, 0.13), (0.06, 0.22, 0.1), (0.14, 0.36, 0.14))
-    for i, x in enumerate((-0.78, -0.27, 0.25, 0.76)):
-        P.pad(k("plant"), x, 0.5 + 0.04 * (i % 2), 0.07 * (1 if i % 2 else -1), 0.56, greens[i % 3])
-    for i, x in enumerate((-0.55, 0.0, 0.52)):
-        P.pad(k("plant"), x, 0.3, 0.3, 0.4, greens[(i + 1) % 3], segs=6)
-        P.pad(k("plant"), x + 0.2, 0.3, -0.3, 0.4, greens[(i + 2) % 3], segs=6)
+        quad(k("plant"), (1.0, y0, z0), (-1.0, y0, z0), (-1.0, y1, z1), (1.0, y1, z1), col=HEART)
+    poly(k("plant"), [(1.0, y, z) for z, y in prof], [(0.5, 0.5)] * len(prof), HEART)
+    poly(k("plant"), [(-1.0, y, z) for z, y in reversed(prof)], [(0.5, 0.5)] * len(prof), HEART)
+    r = random.Random(31)
+    for i in range(9):
+        x = -0.9 + i * 0.225 + r.uniform(-0.06, 0.06)
+        tuft(k, x, 0.6 + r.uniform(-0.03, 0.05), r.uniform(-0.2, 0.2), r, n=2, size=0.3, lean=1.0)
+    for i in range(6):
+        x = -0.84 + i * 0.336 + r.uniform(-0.08, 0.08)
+        for side in (-1, 1):
+            yaw = (0.0 if side > 0 else math.pi) + r.uniform(-0.7, 0.7)
+            P.frond(k("plant"), (x, r.uniform(0.3, 0.5), side * 0.4), yaw, r.uniform(0.2, 0.7), r.uniform(0.24, 0.34), 0.8, 0.2, r.choice(LEAF), segs=2, vee=False)
 
 
 @P.proto("shrub", box=(0.7, 0.5, 0.7), reach=260)
 def _shrub(k):
-    """A shrub: a dark heart and leaves in a cluster of pads, one in flower."""
-    P.lathe(k("plant"), 0.0, 0.0, ((0.0, 0.4), (0.3, 0.56), (0.56, 0.4), (0.76, 0.0)), segs=6, col=(0.018, 0.06, 0.03, P.WOOD))
-    for cx, cy, cz, r, col in ((0.0, 0.64, 0.0, 0.62, (0.09, 0.3, 0.13)), (-0.4, 0.42, 0.22, 0.5, (0.06, 0.22, 0.1)), (0.38, 0.45, -0.18, 0.52, (0.14, 0.36, 0.14)),
-                               (0.12, 0.5, 0.42, 0.42, (0.06, 0.22, 0.1)), (-0.14, 0.52, -0.42, 0.44, (0.09, 0.3, 0.13)), (0.3, 0.78, 0.2, 0.26, (0.8, 0.3, 0.5))):
-        P.pad(k("plant"), cx, cy, cz, r, col, segs=6)
+    """A shrub: a dark heart and small leaves in tufts, standing and arching
+    out of it."""
+    P.lathe(k("plant"), 0.0, 0.0, ((0.0, 0.34), (0.26, 0.48), (0.48, 0.34), (0.62, 0.0)), segs=6, col=HEART)
+    r = random.Random(37)
+    for i in range(7):
+        a = i * math.tau / 7 + r.uniform(-0.3, 0.3)
+        rr = r.uniform(0.12, 0.42)
+        tuft(k, rr * math.cos(a), 0.4 + r.uniform(-0.06, 0.1) - 0.2 * rr, rr * math.sin(a), r, n=2, size=0.4, lean=0.8)
+    tuft(k, 0.0, 0.52, 0.0, r, n=3, size=0.44, lean=1.2)
 
 
 @P.proto("ad_board", box=(1.9, 1.05, 0.12), reach=420)

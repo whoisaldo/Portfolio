@@ -53,22 +53,10 @@ def bar(key, p, q, top, w, h):
 
 
 # ---------------------------------------------------------------------------
-# Round it: a ring of radial paving (each stone two sectors long, the two
-# courses breaking joint), a line of light at its outer edge, spokes of
-# light out over the slabs to the square's edges.
+# Round it: a ring of radial paving (plaza_paving.py lays it), a dashed line
+# of light at its outer edge, spokes of light out over the slabs to the
+# square's edges.
 # ---------------------------------------------------------------------------
-STONE = ((0.27, 0.28, 0.31), (0.33, 0.34, 0.37), (0.44, 0.45, 0.48), (0.2, 0.21, 0.24))
-RM = (RK + RO) / 2
-for course, (r0, r1) in enumerate(((RK, RM), (RM, RO))):
-    tones = []
-    for _ in range(NSEG // 2):
-        t, k = rh.choice(STONE), rh.uniform(0.86, 1.14)
-        tones.append((t[0] * k, t[1] * k, t[2] * k, 1.0))
-    for i in range(NSEG):
-        first = (i + course) % 2 == 0
-        tone = tones[((i + course) // 2) % (NSEG // 2)]
-        a0, a1 = i * STEP + (0.03 / r0 if first else 0.0), (i + 1) * STEP - (0.0 if first else 0.03 / r0)
-        up_poly((PL, "paint", 0), [at(r0 + 0.02, a0), at(r0 + 0.02, a1), at(r1 - 0.02, a1), at(r1 - 0.02, a0)], G, tone)
 # (The line round it is the koi's amber, in dashes: every other stone.)
 for i in range(0, NSEG, 2):
     a0, a1 = i * STEP + 0.012, (i + 1) * STEP - 0.012
@@ -118,12 +106,6 @@ for i in range(NSEG):
 rim = disc_planes(HX, HZ, RK, NSEG)
 well = disc_planes(HX, HZ, RP, NSEG)
 up_poly((PL, "dark", 0), clip_planes([(HX - 17, CW[0]), (HX + 17, CW[0]), (HX + 17, CW[1]), (HX - 17, CW[1])], rim), G - 0.03)
-for k in range(5):
-    xa, xb = HX - 17.0 + k * 6.8, HX - 17.0 + (k + 1) * 6.8
-    t, kk = rh.choice(STONE), rh.uniform(0.86, 1.14)
-    piece = clip_planes([(xa + 0.03, CW[0] + KW), (xb - 0.03, CW[0] + KW), (xb - 0.03, CW[1] - KW), (xa + 0.03, CW[1] - KW)], rim)
-    if piece:
-        up_poly((PL, "paint", 0), piece, G, (t[0] * kk, t[1] * kk, t[2] * kk, 1.0))
 for (z0, z1, face) in ((CW[0], CW[0] + KW, CW[0] + KW), (CW[1] - KW, CW[1], CW[1] - KW)):
     up_poly((PL, "concrete", 0), clip_planes([(HX - 17, z0), (HX + 17, z0), (HX + 17, z1), (HX - 17, z1)], rim), KY, scale=1.5)
     half = math.sqrt(RK * RK - (face - HZ) ** 2)
@@ -209,7 +191,10 @@ for j, n in enumerate((8, 16, 24, 32)):
         a0, a1 = (i + 0.5 * (j % 2)) * math.tau / n, (i + 1 + 0.5 * (j % 2)) * math.tau / n
         g0 = 0.05 / max(r0, 1.0)
         edge = 1.4 if j == 3 else 1.0   # brighter by the shop windows
-        tone = dim("white", rh.uniform(0.55, 0.95) * edge) if rh.random() < 0.7 else dim("amber", rh.uniform(0.22, 0.34) * edge)
+        # (One warm pale stone, each slab a little its own: seen through the
+        # glass it is a lit floor, not a pane's colour.)
+        kk = rh.uniform(0.86, 1.12) * edge
+        tone = (0.3 * kk, 0.27 * kk, 0.225 * kk, 1.0)
         up_poly((PL, "glow", 0), [at(r0, a0 + g0), at(r0, a1 - g0), at(r1, a1 - g0), at(r1, a0 + g0)] if j else [at(0.0, 0.0), at(r1, a0 + g0), at(r1, a1 - g0)],
                 FLOOR, tone)
 for r, colour in ((6.0, "teal"), (11.2, "cyan")):

@@ -23,7 +23,7 @@ from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.plaza_parts import *  # noqa: F401,F403
-from ncw.districts.plaza_hub import HX, HZ, RK, RO, STAIR, at as hub_at
+from ncw.districts.plaza_hub import STAIR
 
 X0, X1, Z0, Z1 = 48.0, 108.0, -262.0, -190.0
 G = 0.15
@@ -34,70 +34,10 @@ TS = (-226.0, -200.0)  # the south terrace
 assert STAIR[1] == TX
 rs = random.Random(8400)
 
-# ---------------------------------------------------------------------------
-# Paving: slabs in courses, each its own tone, joints open to a dark bed.
-# ---------------------------------------------------------------------------
-for piece in rect_minus_disc(X0, X1, Z0, Z1, HX, HZ, RK - 0.02):
-    up_poly((PL, "dark", 0), piece, G - 0.03)
-STONE = ((0.27, 0.28, 0.31), (0.27, 0.28, 0.31), (0.33, 0.34, 0.37), (0.44, 0.45, 0.48), (0.13, 0.135, 0.15))
-
-
-def pave(x0, x1, z0, z1, r, depths=(2.4, 3.6), widths=(2.4, 4.8)):
-    z = z1
-    while z > z0 + 0.3:
-        d = min(r.choice(depths), z - z0)
-        if z - d - z0 < min(depths) * 0.6:
-            d = z - z0
-        x = x0
-        while x < x1 - 0.3:
-            w = min(r.uniform(*widths), x1 - x)
-            if x1 - (x + w) < widths[0] * 0.6:
-                w = x1 - x
-            t = r.choice(STONE)
-            k = r.uniform(0.86, 1.14)
-            # (Cut round the hub's ring of radial paving.)
-            for piece in rect_minus_disc(x + 0.03, x + w - 0.03, z - d + 0.03, z - 0.03, HX, HZ, RO):
-                up_poly((PL, "paint", 0), piece, G, (t[0] * k, t[1] * k, t[2] * k, 1.0))
-            x += w
-        z -= d
-
-
-def court(x0, x1, z0, z1, d=2.0, b=0.5):
-    """A carpet of stone laid on the diagonal in bands of three tones,
-    inside a dark border (mH2wmyeiIpA@182's striped paving)."""
-    for (a0, a1, c0, c1) in ((x0, x1, z0, z0 + b), (x0, x1, z1 - b, z1), (x0, x0 + b, z0 + b, z1 - b), (x1 - b, x1, z0 + b, z1 - b)):
-        up_poly((PL, "paint", 0), [(a0 + 0.02, c0 + 0.02), (a1 - 0.02, c0 + 0.02), (a1 - 0.02, c1 - 0.02), (a0 + 0.02, c1 - 0.02)], G, (0.09, 0.095, 0.11, 1.0))
-    inner = [(1, 0, x1 - b - 0.02), (-1, 0, -(x0 + b + 0.02)), (0, 1, z1 - b - 0.02), (0, -1, -(z0 + b + 0.02))]
-    tones = ((0.4, 0.41, 0.44), (0.25, 0.26, 0.29), (0.15, 0.16, 0.18))
-    h, g = d / 2, 0.035
-    for i in range(int((x1 - x0) / h) + 2):
-        for j in range(int((z1 - z0) / h) + 2):
-            if (i + j) % 2:
-                continue
-            cx, cz = x0 + i * h, z0 + j * h
-            piece = clip_planes([(cx - h + g, cz), (cx, cz - h + g), (cx + h - g, cz), (cx, cz + h - g)], inner)
-            if len(piece) >= 3:
-                t, k = tones[((i - j) // 2) % 3], rs.uniform(0.92, 1.08)
-                up_poly((PL, "paint", 0), piece, G, (t[0] * k, t[1] * k, t[2] * k, 1.0))
-
-
-# Small flags along the shops under the board, slabs round the hub, a
-# diagonal carpet on the open stone south of it, long narrow courses down
-# the plaza street's side, and the terraces' feet in their own bond.
+# The paving itself (slabs, the carpet, the terraces' floors) is laid last,
+# by plaza_paving.py, under the light of everything that stands here.
 COURT = (55.0, 81.0, -212.4, -198.6)
 SX = STAIR[0]
-for rect, depths, widths in (((X0, SX, Z0, -255.6), (1.6,), (1.6, 3.2)),
-                             ((X0, SX, -255.6, COURT[2]), (2.4, 3.6), (2.4, 4.8)),
-                             ((X0, COURT[0], COURT[2], COURT[3]), (2.4,), (2.4, 3.6)),
-                             ((COURT[1], SX, COURT[2], COURT[3]), (2.4,), (1.3, 2.6)),
-                             ((X0, SX, COURT[3], Z1), (1.2,), (2.4, 4.2)),
-                             ((SX, X1, TS[1], Z1), (1.2,), (2.4, 4.2)),
-                             ((SX, TX, STAIR[3], TS[1]), (2.4,), (2.4, 4.2)),
-                             ((SX, TX, TS[0], STAIR[2]), (2.0, 3.0), (2.4, 4.2)),
-                             ((SX, X1, TN[1], TS[0]), (2.0,), (2.0, 4.0)),
-                             ((SX, TX, Z0, TN[1]), (2.4, 3.6), (2.4, 4.2))):
-    pave(*rect, rs, depths, widths)
-court(*COURT)
 
 # A yellow line of light in the stone along the plaza street's side
 # (YRL74JmhVgk@30). The hub in the square's middle, its ring and its spokes
@@ -110,7 +50,7 @@ gline("yellow", 49.0, -191.5, 107.0, -191.5, G + 0.012, w=0.1)
 frontage_x(PL, X0 + 0.4, TX - 0.4, -264.0, 8401, facing=1, awning=False)
 fascia_signs_x(X0 + 0.6, TX - 0.6, -264.0, 1, random.Random(8402))
 box((PL, "metal", 0), X0 + 1.0, TX - 0.5, 4.62, 4.84, -264.0, -260.6, scale=1.0, bottom=True)
-nbox("cyan", X0 + 1.0, TX - 0.5, 4.66, 4.72, -260.6, -260.57)
+nbox("white", X0 + 1.0, TX - 0.5, 4.66, 4.72, -260.6, -260.57)
 x = X0 + 3.0
 while x < TX - 3.0:
     box((PL, "neon_white", 0), x - 0.35, x + 0.35, 4.58, 4.62, -261.5, -261.4, scale=0.5)
@@ -130,16 +70,18 @@ B.back_ground(PL, B.Face("-z", -284.03, 48.0, 78.0), random.Random(8408), B.TRIM
 # ---------------------------------------------------------------------------
 for k, (za, zb) in enumerate((TN, TS)):
     box((PL, "dark", 0), TX + 0.03, X1 - 0.03, 0.0, TY, za, zb, scale=2.0)
-    ground((PL, "sidewalk", 0), TX + 0.03, X1 - 0.03, za, zb, y=TY + 0.01, scale=2.0)
     B.COLLISION.append(("box", TX, X1, 0.0, TY, za, zb, PL))
-    # A stone coping round the top, a line of cyan under its lip.
+    # A stone coping round the top, a line of light under its lip on the
+    # square's side (cyan on the north terrace, amber on the south) and on
+    # the south one's side to the road (magenta).
     for (a0, a1, b0, b1) in ((TX - 0.25, X1 + 0.25, zb - 0.02, zb + 0.25), (TX - 0.25, X1 + 0.25, za - 0.25, za + 0.02),
                              (TX - 0.25, TX + 0.05, za, zb), (X1 - 0.05, X1 + 0.25, za, zb)):
         if k == 0 and b1 <= za + 0.03:
             continue  # the north terrace's north edge is the board's block
         box((PL, "concrete", 0), a0, a1, TY - 0.28, TY + 0.02, b0, b1, scale=1.5, bottom=True)
-    nbox("cyan", TX - 0.28, TX - 0.25, TY - 0.24, TY - 0.18, za + 0.1, zb - 0.1)
-    nbox("cyan", X1 + 0.25, X1 + 0.28, TY - 0.24, TY - 0.18, za + 0.1, zb - 0.1)
+    nbox("amber" if k else "cyan", TX - 0.28, TX - 0.25, TY - 0.24, TY - 0.18, za + 0.1, zb - 0.1)
+    if k:
+        nbox("magenta", X1 + 0.25, X1 + 0.28, TY - 0.24, TY - 0.18, za + 0.1, zb - 0.1)
     # Shops in the base, to the road.
     z = za
     for j, w in enumerate((7.5, 7.5, 7.5, 7.5) if k == 0 else (6.5, 6.5, 6.5, 6.5)):
@@ -163,56 +105,50 @@ fascia_signs_x(TX + 0.6, X1 - 0.6, TS[1], 1, random.Random(8451))
 # The bridge between them over the passage: a slab, its soffit lit.
 BX0, BX1 = 95.0, 105.0
 box((PL, "concrete", 0), BX0, BX1, TY - 0.42, TY + 0.02, TN[1] - 0.2, TS[0] + 0.2, scale=1.5, bottom=True)
-for x in (BX0 + 0.02, BX1 - 0.08):
-    nbox("cyan", x, x + 0.06, TY - 0.47, TY - 0.42, TN[1] + 0.3, TS[0] - 0.3)
+nbox("magenta", BX0 + 0.02, BX0 + 0.08, TY - 0.47, TY - 0.42, TN[1] + 0.3, TS[0] - 0.3)
 for x in (97.5, 100.0, 102.5):
     box((PL, "neon_white", 0), x - 0.12, x + 0.12, TY - 0.45, TY - 0.42, TN[1] + 1.0, TS[0] - 1.0, scale=1.0)
-    light(PL, x, 3.6, (TN[1] + TS[0]) / 2, "white", 2.5)
-balustrade([(BX0 + 0.15, TN[1]), (BX0 + 0.15, TS[0])], TY + 0.02)
-balustrade([(BX1 - 0.15, TN[1]), (BX1 - 0.15, TS[0])], TY + 0.02)
+    shine(x, 3.6, (TN[1] + TS[0]) / 2, "white", 2.5)
+balustrade([(BX0 + 0.15, TN[1]), (BX0 + 0.15, TS[0])], TY + 0.02, colour="magenta")
+balustrade([(BX1 - 0.15, TN[1]), (BX1 - 0.15, TS[0])], TY + 0.02, colour="magenta")
 for z in (TN[1] + 1.2, TS[0] - 1.2):
     P.place("bollard_cube", X1 - 0.6, G, z, district=PL)
 # Glass balustrades round the terraces' edges, open where the stairs and the bridge land.
 e = 0.3
 balustrade([(TX + e, TN[0] + 0.4), (TX + e, TN[1] - e), (BX0 + 0.15, TN[1] - e)], TY + 0.02)
 balustrade([(BX1 - 0.15, TN[1] - e), (X1 - e, TN[1] - e), (X1 - e, TN[0] + 0.4)], TY + 0.02)
-balustrade([(TX + e, STAIR[2]), (TX + e, TS[0] + e), (BX0 + 0.15, TS[0] + e)], TY + 0.02)
-balustrade([(BX1 - 0.15, TS[0] + e), (X1 - e, TS[0] + e), (X1 - e, TS[1] - e), (TX + e, TS[1] - e), (TX + e, STAIR[3])], TY + 0.02)
+balustrade([(TX + e, STAIR[2]), (TX + e, TS[0] + e), (BX0 + 0.15, TS[0] + e)], TY + 0.02, colour="white", k=0.7)
+balustrade([(BX1 - 0.15, TS[0] + e), (X1 - e, TS[0] + e), (X1 - e, TS[1] - e), (TX + e, TS[1] - e), (TX + e, STAIR[3])], TY + 0.02, colour="white", k=0.7)
 # The stairs.
 stair_x(STAIR[0], STAIR[1], STAIR[2], STAIR[3], G, TY + 0.01)
-for z in (STAIR[2], STAIR[3]):
-    light(PL, 86.0, 1.0, z + (0.8 if z == STAIR[3] else -0.8), "cyan", 3.0)
-    light(PL, 90.0, 2.0, z + (0.8 if z == STAIR[3] else -0.8), "cyan", 3.0)
-for z in (-217.5, -212.5, -207.5):
-    light(PL, 87.5, 2.4, z, "cyan", 2.0)
+for z in (STAIR[2] - 0.8, STAIR[3] + 0.8):
+    shine(84.6, 1.0, z, "white", 3.0)
 # What the terraces hold: a hedge line under the screens, beds and benches,
 # palms on the south one (the Work shot's frame passes over the north).
+n = 0
 for (za, zb) in (TN, TS):
     z = za + 1.4
     while z + 4.0 < zb - 1.0:
-        planter(105.2, 106.8, z, z + 4.2, y=TY, h=0.4, hedge=0.7, edge="cyan", r=rs, side="-x")
+        planter(105.2, 106.8, z, z + 4.2, y=TY, h=0.4, hedge=0.7, edge=(None, "amber", None)[n % 3], r=rs, side="-x")
         z += 5.6
-planter(96.5, 101.5, -262.2, -260.8, y=TY, h=0.4, hedge=0.6, edge="cyan", r=rs, side="+z")
-planter(100.0, 101.4, -252.0, -246.0, y=TY, h=0.4, hedge=0.6, edge="cyan", r=rs, side="+x")
-planter(100.0, 101.4, -243.0, -238.0, y=TY, h=0.4, hedge=0.6, edge="cyan", r=rs, side="+x")
+        n += 1
+planter(96.5, 101.5, -262.2, -260.8, y=TY, h=0.4, hedge=0.6, edge=None, r=rs, side="+z")
+planter(100.0, 101.4, -252.0, -246.0, y=TY, h=0.4, hedge=0.6, edge="amber", r=rs, side="+x")
+planter(100.0, 101.4, -243.0, -238.0, y=TY, h=0.4, hedge=0.6, edge=None, r=rs, side="+x")
 for (px, pz, yaw) in ((99.0, -249.0, -math.pi / 2), (99.0, -240.5, -math.pi / 2), (94.2, -256.0, -math.pi / 2), (94.2, -246.0, -math.pi / 2)):
     P.place("bench", px, TY, pz, yaw, district=PL)
 for (px, pz) in ((102.5, -221.5), (97.0, -203.0), (102.8, -210.5)):
     P.place("planter_palm", px, TY, pz, rs.uniform(0, 6.28), district=PL)
-    light(PL, px, TY + 1.0, pz, "amber", 2.5)
+    shine(px, TY + 1.0, pz, "amber", 2.5)
 for (px, pz, yaw) in ((99.0, -218.0, -math.pi / 2), (99.5, -206.5, math.pi), (95.0, -203.0, 0.0)):
     P.place("bench", px, TY, pz, yaw, district=PL)
 for (px, pz) in ((100.5, -236.0), (95.5, -224.0), (101.0, -201.8), (93.2, -235.2), (103.5, -216.0)):
     P.place("lamp_short", px, TY, pz, district=PL)
-    light(PL, px, TY + 3.0, pz, "amber", 8.0)
+    shine(px, TY + 3.0, pz, "amber", 8.0)
 P.place("kiosk", 102.0, TY, -256.5, -math.pi / 2, district=PL)
-# Their floors are lit from the rails' feet and the planters: soft pools.
-for (za, zb) in (TN, TS):
-    z = za + 3.0
-    while z < zb - 2.0:
-        for x in (95.5, 100.0, 104.0):
-            light(PL, x + rs.uniform(-0.8, 0.8), TY + 0.5, z + rs.uniform(-1.0, 1.0), rs.choice(("white", "white", "cyan")), 6.0)
-        z += 5.5
+# (Their floors are lit by their lamps, the kiosk and the screens over them:
+# pools, and dark between.)
+shine(100.2, TY + 1.6, -256.5, "amber", 5.0)
 # The square's two east screens (board_3, board_4), on masts off the
 # terraces' edge, an advert on the back of each for the road.
 for cz, masts in ((-205.0, (-209.0, -201.0)), (-228.0, (-234.6, -225.4))):
@@ -230,8 +166,8 @@ for cz, masts in ((-205.0, (-209.0, -201.0)), (-228.0, (-234.6, -225.4))):
 # ---------------------------------------------------------------------------
 # West strip, low under the GPU on the canyon's wall: hedges, benches,
 # cubes along the lane's edge.
-for (za, zb) in ((-258.0, -252.0), (-248.0, -242.0), (-224.0, -218.0), (-214.0, -208.0), (-204.5, -199.0)):
-    planter(49.4, 51.0, za, zb, r=rs, side="+x")
+for k, (za, zb) in enumerate(((-258.0, -252.0), (-248.0, -242.0), (-224.0, -218.0), (-214.0, -208.0), (-204.5, -199.0))):
+    planter(49.4, 51.0, za, zb, r=rs, side="+x", edge=("white", None, "amber", None, "white")[k])
     P.place("bench", 52.0, G, (za + zb) / 2, math.pi / 2, district=PL)
 z = -260.0
 while z < -191.0:
@@ -246,11 +182,11 @@ while x < 107.5:
     x += 2.5
 for px in (54.5, 62.5, 70.5, 105.0):
     P.place("planter_palm", px, G, -193.4, rs.uniform(0, 6.28), district=PL)
-    light(PL, px, 1.0, -193.4, "amber", 3.0)
+    shine(px, 1.0, -193.4, "amber", 3.0)
 P.place("bench", 58.5, G, -193.6, math.pi, district=PL)
 P.place("charge_post", 59.8, G, -193.6, math.pi, district=PL)
 P.place("shelter", 66.5, G, -192.75, 0.0, district=PL)
-light(PL, 66.5, 2.2, -192.4, "white", 6.0)
+shine(66.5, 2.2, -192.4, "white", 6.0)
 P.place("lightbox", 75.0, G, -193.4, math.pi / 2, district=PL)
 P.place("phone_booth", 50.3, G, -193.2, math.pi / 2, district=PL)
 P.place("food_box", 52.2, G, -198.6, math.pi / 2, district=PL)
@@ -265,7 +201,7 @@ for (px, pz, yaw) in ((90.6, -247.0, -math.pi / 2), (58.0, -199.0, math.pi), (54
                       (86.0, -257.6, 0.0), (100.5, -196.4, math.pi), (76.0, -208.0, math.pi)):
     P.place("lamp_plaza", px, G, pz, yaw, district=PL)
     # Its pool on the stone (the head is too small for the bake to find).
-    light(PL, px + 1.8 * math.sin(yaw), 3.0, pz + 1.8 * math.cos(yaw), "white", 8.0)
+    shine(px + 1.8 * math.sin(yaw), 3.0, pz + 1.8 * math.cos(yaw), "white", 8.0)
 P.place("cctv", 60.0, G, -258.6, district=PL)
 P.place("cctv", 90.4, G, -227.2, district=PL)
 for px in (62.0, 76.0):
@@ -287,21 +223,21 @@ for bx_ in (60.0, 68.0):
     P.place("bench", bx_, G, -204.6, 0.0, district=PL)
     P.place("bench", bx_, G, -206.4, math.pi, district=PL)
     for z in (-204.0, -207.0):
-        light(PL, bx_, 1.6, z, "white", 4.0)
+        shine(bx_, 1.6, z, "white", 4.0)
 P.place("charge_post", 61.25, G, -204.6, 0.0, district=PL)
 P.place("charge_post", 69.25, G, -206.4, math.pi, district=PL)
 for (px, pz, kind) in ((56.6, -211.2, "planter_palm"), (74.0, -200.0, "planter_palm"), (56.6, -199.8, "planter_tree"), (64.0, -211.2, "planter_tree")):
     P.place(kind, px, G, pz, rs.uniform(0, 6.28), district=PL)
-    light(PL, px, 1.0, pz, "amber" if kind == "planter_palm" else "white", 3.0)
-shrub_bed(53.0, 54.4, -211.8, -206.6, rs, side="+x")
-shrub_bed(53.0, 54.4, -204.6, -199.4, rs, side="+x")
+    shine(px, 1.0, pz, "amber" if kind == "planter_palm" else "white", 3.0)
+shrub_bed(53.0, 54.4, -211.8, -206.6, rs, side="+x", edge="amber")
+shrub_bed(53.0, 54.4, -204.6, -199.4, rs, side="+x", edge=None)
 # Drums of adverts where ways meet, carts with their queues, vending rows
 # in the lee of the stair's flanks.
 for (px, pz) in ((52.6, -214.6), (88.8, -223.0), (85.4, -247.6)):
     P.place("ad_drum", px, G, pz, district=PL)
 for (px, pz, yaw) in ((58.0, -215.6, math.pi / 4), (79.0, -214.4, -math.pi / 4)):
     P.place("food_cart", px, G, pz, yaw, district=PL)
-    light(PL, px + 1.2 * math.sin(yaw), 1.8, pz + 1.2 * math.cos(yaw), "amber", 5.0)
+    shine(px + 1.2 * math.sin(yaw), 1.8, pz + 1.2 * math.cos(yaw), "amber", 5.0)
     stand(px - 0.9 * math.sin(yaw), pz - 0.9 * math.cos(yaw), yaw, "vendor", y=G)
     for o, side, pose in ((1.5, 0.0, "idle"), (2.3, 0.3, "phone"), (3.1, -0.2, "idle")):
         stand(px + o * math.sin(yaw) + side * math.cos(yaw), pz + o * math.cos(yaw) - side * math.sin(yaw), yaw + math.pi, pose, y=G)
@@ -367,3 +303,38 @@ for (px, pz, yaw, pose) in ((96.0, -232.9, math.pi, "idle"), (103.0, -227.2, 0.0
                             (108.6, -211.0, -math.pi / 2, "idle"), (108.6, -210.0, -math.pi / 2, "idle"), (108.7, -203.0, math.pi / 2, "phone"),
                             (108.6, -278.0, math.pi / 2, "lean"), (108.7, -268.5, -math.pi / 2, "idle")):
     stand(px, pz, yaw, pose, y=G)
+
+# ---------------------------------------------------------------------------
+# The square's light on its own stone (plaza_paving.py lays the slabs under
+# it): the board's cold blue before it, the side boards' colours under them,
+# a warm pool before each shop window and each machine, and the koi's amber
+# low on the fronts that face the hub.
+# ---------------------------------------------------------------------------
+wash(79.0, -257.0, 17.0, "blue", 0.5)
+wash(79.0, -250.0, 9.0, "white", 0.22)
+for (wx, wz, hue) in ((49.5, -205.0, "purple"), (49.5, -228.0, "pink"), (103.0, -205.0, "cyan"), (103.0, -228.0, "magenta")):
+    wash(wx, wz, 8.5, hue, 0.4)
+    light(PL, wx, 6.0, wz, hue, 3.0)
+rl = random.Random(8480)
+SHOP_HUES = ("amber", "amber", "white", "pink", "cyan", "amber", "yellow")
+x = X0 + 3.4
+while x < TX - 2.0:
+    shine(x, 2.2, -262.2, rl.choice(SHOP_HUES), rl.uniform(4.0, 6.0))
+    x += rl.uniform(5.0, 7.0)
+for z in (-260.2, -252.6, -245.2, -237.8, -223.0):
+    shine(TX - 1.3, 2.2, z, rl.choice(SHOP_HUES), rl.uniform(4.0, 5.5))
+for x in (95.5, 101.5, 106.0):
+    shine(x, 2.2, TN[1] + 1.2, rl.choice(SHOP_HUES), 4.0)
+    shine(x + 1.5, 2.2, TS[0] - 1.2, rl.choice(SHOP_HUES), 4.0)
+    shine(x + 0.5, 2.2, TS[1] + 1.3, rl.choice(SHOP_HUES), 4.5)
+# The koi's wash on the fronts that face the hub.
+for x in (56.0, 64.0, 72.0, 80.0, 88.0):
+    light(PL, x, 3.4, -263.2, "amber", 3.0)
+for z in (-256.0, -248.0, -240.0):
+    light(PL, TX - 0.5, 3.4, z, "amber", 3.0)
+# Machines, drums, standing adverts and the kiosk light the stone they stand on.
+for (px, pz, hue, p) in ((88.2, STAIR[3] + 1.6, "white", 3.5), (90.4, STAIR[2] - 1.6, "amber", 3.5), (52.6, -214.6, "white", 4.0),
+                         (88.8, -223.0, "white", 4.0), (85.4, -247.6, "pink", 4.0), (57.8, -203.0, "amber", 4.5), (75.0, -193.4, "white", 3.5),
+                         (50.6, -238.5, "white", 3.0), (50.6, -226.0, "cyan", 3.0), (50.6, -216.0, "white", 3.0), (50.6, -206.5, "pink", 3.0),
+                         (50.4, -262.2, "white", 3.5), (51.4, -193.2, "white", 3.0)):
+    shine(px, 1.4, pz, hue, p)
