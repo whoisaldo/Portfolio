@@ -117,12 +117,15 @@ export const GROUND = /* glsl */ `
     float run = max(length(r.xz), 1e-3);
     vec2 dir = r.xz / run;
     float rise = max(r.y, 0.03) / run;
+    // (The heights are over the floor itself: a deck 8 m up gives back what
+    // hangs over the deck, not the signs of the street under it.)
+    float base = max(p.y, 0.0);
     vec3 sum = vec3(0.0);
     for (int i = 0; i < 3; i++) {
       float h = i == 0 ? 2.0 : (i == 1 ? 5.0 : 11.0);
       float reach = min(h / rise, 90.0);
       vec4 c = spillSmooth(p.xz + dir * reach);
-      float dh = h - c.a * 15.94;
+      float dh = base + h - c.a * 15.94;
       sum += c.rgb * c.rgb * exp(-dh * dh / (1.6 + 0.4 * h * h)) * exp(-reach / 55.0);
     }
     return sum * uSpillGain * 3.0;

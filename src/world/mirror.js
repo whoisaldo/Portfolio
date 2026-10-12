@@ -14,6 +14,25 @@
 // replaces, which smeared every reflection the length of the road.
 import * as THREE from "three";
 
+// The deck's level top (the builder's plan.py: the road at y 8.5 along
+// z -80 from the west turn to x 20, and the turn's plate) is the one wet
+// road that is not on the ground. While the eye is on it or just over it the
+// mirror is drawn in its plane and not the ground's: `deckShare` is 0 on
+// the ground, 1 on the deck, and passes through a half as the eye comes up
+// the ramp or off the bridge's east end. The world draws the ground's
+// mirror under a half and the deck's over it, and takes the mirror out of
+// the roads (they fall back on the baked light, as any road without a
+// mirror does) toward the half from both sides, so nothing pops.
+export const DECK_Y = 8.5;
+const smooth = (a, b, v) => {
+  const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+export function deckShare(p) {
+  const out = Math.hypot(Math.max(-86 - p.x, 0, p.x - 22), Math.max(-88 - p.z, 0, p.z + 72));
+  return (1 - smooth(0, 8, out)) * smooth(6, 7.2, p.y) * (1 - smooth(13, 16, p.y));
+}
+
 export function createMirror(renderer, { size = 1024, layers = [2], clipBias = 0.02 } = {}) {
   const W = size;
   const H = size / 2;
@@ -42,7 +61,9 @@ export function createMirror(renderer, { size = 1024, layers = [2], clipBias = 0
   const fwd = new THREE.Vector3();
   let horizonV = 0.5;
 
-  const render = (scene, camera) => {
+  // `y`: the height of the plane to mirror in (the ground's, or the deck's).
+  const render = (scene, camera, y = 0) => {
+    origin.y = y;
     camPos.setFromMatrixPosition(camera.matrixWorld);
     view.subVectors(origin, camPos);
     // Below the road there is nothing to reflect.
@@ -66,7 +87,7 @@ export function createMirror(renderer, { size = 1024, layers = [2], clipBias = 0
     fwd.y = 0;
     if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
     fwd.normalize().multiplyScalar(4000).add(camPos);
-    far.set(fwd.x, 0, fwd.z, 1).applyMatrix4(matrix);
+    far.set(fwd.x, y, fwd.z, 1).applyMatrix4(matrix);
     horizonV = far.y / far.w;
 
     plane.setFromNormalAndCoplanarPoint(normal, origin).applyMatrix4(cam.matrixWorldInverse);

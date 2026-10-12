@@ -45,6 +45,9 @@ export const MIRROR_UNIFORMS = {
   uReflectMatrix: { value: new THREE.Matrix4() },
   uReflectOn: { value: 0 },
   uReflectGain: { value: MIRROR_FULL },
+  // The height of the plane the mirror was drawn in: the ground's, or the
+  // deck's while the eye is on or over the deck (world-scene.js).
+  uMirrorY: { value: 0 },
 };
 
 export function createRoadMaterial(shared, { maps, reflection, paint = false }) {
@@ -93,6 +96,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
       uniform mat4 uReflectMatrix;
       uniform float uReflectOn;
       uniform float uReflectGain;
+      uniform float uMirrorY;
       uniform float uWet;
       varying vec3 vWorld;
       varying vec2 vUv;
@@ -135,7 +139,26 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float inJ = smoothstep(0.0, 1.5, min(sf.x, sf.y)) * grade;
         float kerbIn = mix(20.0, mix(max(max(sf.x, sf.y), 0.0), 20.0, inJ), grade);
         float lane = alongZ ? sf.z : sf.w;
-        float track = smoothstep(0.45, 0.15, abs(lane - 0.8)) * (1.0 - 0.6 * inJ) * grade;
+        // Metres across from the street's line, and whether this is a
+        // road with kerbs and lanes at all (asphalt in a yard is not).
+        float lat = alongZ ? se.x : se.z;
+        float framed = grade * step(-0.3, max(sf.x, sf.y));
+        if (grade < 0.5 && p.x > -84.5 && p.x < 113.0 && p.y > -221.0 && p.y < -75.5) {
+          // The deck is a road of its own two runs (the builder's deck.py:
+          // from the parapet's road face to the barrier's, a lane 1.75 m
+          // either side of the line), the ramp up the west street and the
+          // bridge along z -80, and a plate where they turn.
+          bool ramp = p.y < -84.6;
+          float in2 = ramp ? min(-75.4 - p.x, p.x + 83.7) : min(p.y + 84.6, -76.3 - p.y);
+          if (in2 > -0.3) {
+            framed = 1.0;
+            alongZ = ramp;
+            kerbIn = !ramp && p.x < -75.4 ? 20.0 : max(in2, 0.0);
+            lat = ramp ? p.x + 80.0 : p.y + 80.0;
+            lane = abs(abs(lat) - 1.75);
+          }
+        }
+        float track = smoothstep(0.45, 0.15, abs(lane - 0.8)) * (1.0 - 0.6 * inJ) * framed;
         float gutter = smoothstep(1.5, 0.25, kerbIn);
 
         // The aggregate, in world space, so the lane paint lies on the same
@@ -173,7 +196,11 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // is dark (linear luminance about 0.017 to 0.05, measured), so the
         // threshold sits at its darkest few percent.
         float lum = dot(albedo, vec3(0.299, 0.587, 0.114));
-        float crack = smoothstep(0.014, 0.024, lum);
+        float cracked = smoothstep(0.014, 0.024, lum);
+        // (What the wet gives back is thinned over them, not cut: cut to
+        // nothing at a hard threshold, the map's darkest stones were a
+        // black speckle through every bright reflection at the lens's feet.)
+        float crack = mix(0.5, 1.0, smoothstep(0.01, 0.032, lum));
         // The smooth tops of the stones, which hold the sheen.
         float stone = smoothstep(0.54, 0.38, rough);
 
@@ -201,7 +228,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         albedo *= mix(1.0, 0.86 + 0.12 * hash12(pi + 8.8), mended) * (1.0 - 0.65 * seal);
         // The wheel tracks, polished paler; oil down the middle of a lane
         // and in blots where cars stand; silt in the gutter.
-        float mid = smoothstep(0.55, 0.0, lane) * grade * (1.0 - inJ);
+        float mid = smoothstep(0.55, 0.0, lane) * framed * (1.0 - inJ);
         float lng = vnoise(p * (alongZ ? vec2(1.1, 0.14) : vec2(0.14, 1.1)) + 11.0);
         float oil = max(mid * smoothstep(0.35, 0.7, lng), smoothstep(0.62, 0.74, vnoise(p * 1.1 + 3.0)) * smoothstep(2.6, 1.8, kerbIn));
         albedo *= (1.0 + 0.3 * track * stone) * (1.0 - 0.45 * oil) * (1.0 - 0.3 * smoothstep(0.5, 0.1, kerbIn));
@@ -215,13 +242,45 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // or a walker crossing the same junction sees the road every other
         // street has.
         float broad = n1 * 0.3 + n2 * 0.45 + lng * 0.25;
-        float fore = smoothstep(-24.0, -4.0, p.y) * (1.0 - smoothstep(9.0, 12.0, abs(p.x))) * smoothstep(1.3, 0.7, uCam.y);
-        float field = broad + (0.46 - rough) * 0.5
-                    + gutter * (0.02 + 0.3 * lng) + track * (lng - 0.45) * 0.4 + inJ * 0.06;
-        float aa = fwidth(field) * 0.75;
-        // Water thins out to damp at its edge: a soft shore, not a cut-out.
-        float puddle = smoothstep(0.615 - aa, 0.69 + aa, field) * uWet;
-        float damp = smoothstep(0.3, 0.6, broad + 0.22 * gutter + 0.14 * fore + 0.1 * inJ - 0.08 * smoothstep(2.5, 7.0, kerbIn) * grade);
+        // (The hero's eye, and no other, is under a metre.)
+        float low = smoothstep(1.3, 0.7, uCam.y);
+        float fore = smoothstep(-24.0, -4.0, p.y) * (1.0 - smoothstep(9.0, 12.0, abs(p.x))) * low;
+        // Water lies where it would. Along the kerb, a ribbon in the gutter
+        // that widens and narrows down the street (the drains stand in
+        // it); in the wheel ruts, a pool a few metres long here and there;
+        // at a junction's corners, where the crossings' low edges meet the
+        // kerbs. Its shore is a few centimetres of shallow water and
+        // wanders a hand's width, so the near edge is sharp and the far
+        // one soft with the distance. Nothing by noise alone: pools dealt
+        // by a cloud's shape were blotches that followed no kerb, rut or
+        // drain.
+        float run = alongZ ? p.y : p.x;
+        float wob = (vnoise(p * 1.7 + 3.0) - 0.5) * 0.16 + (vnoise(p * 6.1) - 0.5) * 0.05;
+        float ribbon = 0.42 + 0.85 * smoothstep(0.4, 0.8, vnoise(vec2(run * 0.085, step(0.0, lat) * 7.3 + 1.0)));
+        float rut = 0.36 * smoothstep(0.56, 0.8, vnoise(vec2(run * 0.07 + floor(lat * 0.83) * 5.7, 9.0))) - 0.07;
+        float level = max(ribbon - kerbIn, rut * (1.0 - inJ) - abs(lane - 0.8));
+        if (grade > 0.5 && min(sf.x, sf.y) > 0.0) level = max(level, 1.3 + 0.9 * vnoise(p * 0.4) - length(vec2(sf.x, sf.y)));
+        level += wob;
+        float la = fwidth(level) * 0.75;
+        float puddle = smoothstep(-0.02 - la, 0.045 + la, level) * framed;
+        float damp = 0.72 - 0.1 * smoothstep(2.5, 7.0, kerbIn) * grade;
+        if (low > 0.001) {
+          // The page's first frame keeps the pools it has always had (it
+          // fades in from a painted plate), by the stones' map at its
+          // coarsest, which is its mean: read sharp, each stone at a
+          // pool's edge was in or out of the water on its own, a hard black
+          // speckle in the reflection (and read a few levels down, a
+          // litter of hand-sized blots).
+          float soft = rough;
+          if (uHasMaps > 0.5) soft = mix(textureLod(uRough, p / 2.5, 9.0).g, textureLod(uRough, mat2(0.8, -0.6, 0.6, 0.8) * p / 6.3 + 0.37, 9.0).g, other);
+          float field = broad + (0.46 - soft) * 0.5
+                      + gutter * (0.02 + 0.3 * lng) + track * (lng - 0.45) * 0.4 + inJ * 0.06;
+          float aa = fwidth(field) * 0.75;
+          // Water thins out to damp at its edge: a soft shore, not a cut-out.
+          puddle = mix(puddle, smoothstep(0.615 - aa, 0.69 + aa, field), low);
+          damp = mix(damp, smoothstep(0.3, 0.6, broad + 0.22 * gutter + 0.14 * fore + 0.1 * inJ - 0.08 * smoothstep(2.5, 7.0, kerbIn) * grade), low);
+        }
+        puddle *= uWet;
         // From the air a wet street is a pale ribbon between dark roofs: the
         // higher the eye, the more of the sky and of its own lights it gives
         // back at a steep look.
@@ -247,7 +306,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // stand proud and where the wheels run, pale, and lit by the whole
         // street's glow, so it reads as the line down the middle.
         float worn = smoothstep(0.3, 0.75, vnoise(p * 2.3) * 0.55 + lng * 0.3 + 0.3 * track + (rough - 0.46) * 1.2);
-        float painted = 0.85 * crack * (1.0 - 0.8 * worn * near);
+        float painted = 0.85 * cracked * (1.0 - 0.8 * worn * near);
         albedo = mix(albedo, vPaint, painted);
         // (Wet, a pale slab goes dark.)
         albedo *= mix(1.0, 0.55, terrace * wet);
@@ -301,9 +360,11 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         vec3 soft = vec3(0.0);
         #if MIRROR == 1
         mk = uReflectOn * clamp(uReflectGain / ${MIRROR_FULL.toFixed(1)}, 0.0, 1.0);
-        // The mirror is the ground's: a road off the ground (the deck, its
-        // ramp) would show the ground's picture, so it keeps the baked light.
-        mk *= 1.0 - smoothstep(0.15, 0.7, abs(vWorld.y));
+        // The mirror is one plane's, the ground's or the deck's level top:
+        // a road at another height (the ramp, the streets under the deck
+        // while the eye is on it) would show that plane's picture, so it
+        // keeps the baked light.
+        mk *= 1.0 - smoothstep(0.15, 0.7, abs(vWorld.y - uMirrorY));
         if (mk > 0.001) {
           // The mirror's picture is of the world as the road's plane throws
           // it back, so a direction's vanishing point in it is where that
@@ -343,11 +404,33 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         if (mk < 0.999) {
           // No mirror: the baked light along the ray (ground.js), a little
           // off its colour and capped, as a wet road gives a light back.
-          baked = tame(spillReflect(vWorld, R) * 0.17, 0.5);
-          baked = mix(baked, dot(baked, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.8, sodium) * (1.0 + 1.2 * terrace);
-          // Standing water gives the same light back whole, where the film
-          // gives a part of it.
-          if (puddle > 0.01) sharp = mix(baked * 2.2, sharp, mk);
+          // (Capped lower and left its colour: a far cluster of signs is
+          // drawn out toward the eye in three images, and pale, that was a
+          // smear of spilt paint across junction B.)
+          baked = tame(spillReflect(vWorld, R) * 0.17, 0.4);
+          baked = max(mix(vec3(dot(baked, vec3(0.299, 0.587, 0.114))), baked, 1.25), 0.0);
+          // (Up on the deck the ray is followed from the deck's own height,
+          // so this is what hangs over the deck and keeps more of its
+          // colour than the light the deck's top takes from below.)
+          if (sodium > 0.01) {
+            // (And the deck's own lit bands and masts, which the map holds
+            // as the light on the road a few metres on along the look: a
+            // wet deck is no matte black strip under its lamps.)
+            vec2 on = normalize(R.xz + 1e-5);
+            vec3 ahead = spillGround(vWorld + vec3(on.x, 0.0, on.y) * 5.0) + spillGround(vWorld + vec3(on.x, 0.0, on.y) * 14.0);
+            baked = max(baked, tame(ahead * 0.22, 0.5));
+          }
+          baked = mix(baked, dot(baked, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.8, sodium * 0.55) * (1.0 + 1.2 * terrace);
+          // Standing water gives the light back whole where a sign stands
+          // over it and next to nothing where none does: dark water with
+          // lights in it, the rain's rings catching them. (Given back as an
+          // even wash at twice the film's, a pool in a rut was a pale smear
+          // across the road and its paint.)
+          if (puddle > 0.01) {
+            float bl = dot(baked, vec3(0.3, 0.5, 0.2));
+            vec3 pool = baked * (bl / (0.5 * bl + 0.07)) * (1.3 + 3.0 * dot(rings, rings));
+            sharp = mix(pool, sharp, mk);
+          }
           // (Drawn out toward the eye only a little: more of it stood on
           // the road as a comb of upright bands.)
           vec2 rd = normalize(R.xz + 1e-5);
@@ -358,7 +441,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // draws only what glows, never the sky, so this is its sky on
         // desktop too.
         vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (hazeAt(R) * 1.2 + glowAt(R) * 0.5) * uHaze * mix(0.28, 0.4, fore) * (1.0 + 2.5 * aerial);
-        vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(0.3 * wet * mix(0.35, 1.0, stone) * crack, 1.0, puddle);
+        // (A pool with no mirror holds less of the cloud: lit by it alone
+        // it is milk, not water.)
+        vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(0.3 * wet * mix(0.35, 1.0, stone) * crack, mix(0.4 + 0.6 * aerial, 1.0, mk), puddle);
         // (On the hero's stretch the film is thick enough to hold its shine
         // at the lens's feet, as the plate's road does.)
         refl *= mix(mix(max(fres, 0.5 * aerial), 0.6, 0.7 * fore), mix(0.16, 0.25, fore) + 0.75 * graze, puddle) * uWet;

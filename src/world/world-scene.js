@@ -35,7 +35,7 @@ import { createCrowd } from "./crowd.js";
 import { createSteam } from "./steam.js";
 import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
 import { markLoaded } from "./progress.js";
-import { createMirror } from "./mirror.js";
+import { createMirror, deckShare, DECK_Y } from "./mirror.js";
 import { createPost } from "./post.js";
 import { createGlass } from "./glass.js";
 import { createSkyline } from "./skyline.js";
@@ -705,17 +705,22 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       // in src/data/world.js): over a flight away it fades into the baked
       // streaks, as the adaptive pass's shed does, and once it has gone it
       // is not drawn. How far either has taken it is k.
-      const k = mirror ? Math.max(1 - roadShown(), adapt.reflectK) : 1;
+      // (And it is the deck's own while the eye is up on the deck, going
+      // out and coming back in round the change of plane: mirror.js.)
+      const deck = mirror ? deckShare(camera.position) : 0;
+      const k = mirror ? 1 - (1 - Math.max(1 - roadShown(), adapt.reflectK)) * Math.abs(2 * deck - 1) : 1;
+      const mirrorY = deck > 0.5 ? DECK_Y : 0;
       if (city) {
         for (const r of city.roadMaterials) {
           r.uniforms.uReflectGain.value = REFLECT_GAIN * (1 - k);
           r.uniforms.uStreakGain.value = 0.1 + k;
+          r.uniforms.uMirrorY.value = mirrorY;
         }
       }
       if (mirror && city && env.wet && k < 1) {
         city.setOccluders(!!directed && (directed.occluders ?? 1) > 0);
         camera.updateMatrixWorld();
-        const drew = mirror.render(scene, camera);
+        const drew = mirror.render(scene, camera, mirrorY);
         for (const r of city.roadMaterials) r.setReflection(drew ? mirror.texture : null, mirror.matrix, mirror.horizonV);
       } else if (city) {
         for (const r of city.roadMaterials) r.setReflection(null);
