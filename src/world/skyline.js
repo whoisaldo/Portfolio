@@ -1739,7 +1739,21 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         vec2 away = max(max(vec2(170.0, -176.0) - p.xz, p.xz - vec2(490.0, 48.0)), 0.0);
         // (For an eye above the roofs: from the street it was never a sheet.)
         float k = exp(-length(away) / 130.0) * (1.0 - santoAt(p.xz)) * exp(-max(p.y, 0.0) * 0.035) * uHaze * smoothstep(40.0, 62.0, uCam.y);
-        return mix(col, SODIUM, k * 0.62 * smoothstep(20.0, 200.0, length(p - uCam)));
+        // (Half what it was: the district's own air is read along the look
+        // now and has no edge to hide, and over the low blocks beside it
+        // this was a brown murk.)
+        return mix(col, SODIUM, k * 0.3 * smoothstep(20.0, 200.0, length(p - uCam)));
+      }
+      // The city's fog on the far city, and for an eye above the roofs a
+      // thinner one (the low blocks keep their lights under it) that is the
+      // night's blue-teal toward downtown too: the haze's red is held to
+      // what the thing itself has, or three quarters of the haze's green.
+      // From the streets and the page's roofs it is the city's fog as it is.
+      vec3 airFog(vec3 col, vec3 p, float emissive) {
+        vec3 fogged = cityFog(col, p, emissive);
+        vec3 thin = mix(col, fogged, 0.72);
+        thin.r = min(thin.r, max(col.r, thin.g * 0.75));
+        return mix(fogged, thin, smoothstep(40.0, 62.0, uCam.y));
       }
   `;
   const STREET = /* glsl */ `
@@ -1789,7 +1803,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         return kerbLamps(off.x, p.z, id.x, 0.0, px) * step(abs(off.x), 9.0 + px) + kerbLamps(off.y, p.x, id.y, 1.0, px) * step(abs(off.y), 9.0 + px);
       }
   `;
-  const farStreet = createFarStreet(scene, shared, boxes, { street: STREET, ads, reduced });
+  const farStreet = createFarStreet(scene, shared, boxes, { street: STREET, ads });
 
   // ---- the buildings: blocks on a square plan, towers on a cut one ----------
   const material = new THREE.ShaderMaterial({
@@ -2666,7 +2680,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         float unlit = 1.0 - min(1.0, max(max(win.a, faceLit), max(max(crown, steps), max(max(sign, screen), max(screens, footLit)))));
         col += (uHazeColor * mix(0.5, 0.25, step(1.5, vHero.x)) + quarterLight(vDress.w, 0.0) * 0.012 * exp(-max(vWorld.y, 0.0) / 45.0)) * uHaze * onWall * fresh * (1.0 - held) * (1.0 - farOff) * unlit;
         col = mix(col, col * mix(4.0, 2.2, zoned), farOff * win.a * onWall * (1.0 - parapet));
-        col = cityFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, max(roofLit, faceLit))))));
+        col = airFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, max(roofLit, faceLit))))));
         col = sodiumBeyond(col, vWorld);
         col *= mix(1.0, mix(0.6 + 0.4 * win.a * onWall, 1.0, smoothstep(1900.0, 2350.0, length(vWorld - uCam))), farOff);
         // For an eye above the roofs the air between is lit, as the sky
@@ -3291,14 +3305,18 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
         // For an eye above the roofs the night is the show's: deep blue
         // overhead, brighter and bluer down to the horizon, cyan in the
         // last degrees and a trace of the city's sodium green on the line
-        // itself; and downtown's violet eases into it over a wide arc, not
-        // at an edge. (From the streets and the roofs the page looks from,
-        // the sky is as it was.)
+        // itself. (From the streets and the roofs the page looks from, the
+        // sky is as it was.)
         float lift = smoothstep(40.0, 62.0, uCam.y);
-        vec2 toDown = normalize(vec2(-8.0, -640.0) - uCam.xz + 1e-4);
-        float arc = pow(max(dot(normalize(dir.xz + 1e-5), toDown), 0.0), 1.5);
+        // (One sky: the violet was a wide arc toward downtown, half the
+        // sky from the air. It is a glow close round the hologram over the
+        // canyon now, some 170 m about it whatever the distance, so from a
+        // kilometre off it is a patch and not the sky's colour.)
+        vec3 toHolo = vec3(-10.0, 150.0, -600.0) - uCam;
+        float holoWide = atan(170.0, length(toHolo));
+        float nearHolo = 1.0 - smoothstep(0.5 * holoWide, 1.6 * holoWide, acos(clamp(dot(dir, normalize(toHolo)), -1.0, 1.0)));
         vec3 air = vec3(0.0015, 0.005, 0.03) + vec3(0.003, 0.022, 0.1) * exp(-h * 4.5) + vec3(0.006, 0.07, 0.1) * exp(-h * 16.0) + vec3(0.02, 0.035, 0.008) * exp(-h * 34.0);
-        col += lift * uHaze * mix(air, vec3(air.b * 0.45, air.g * 0.3, air.b * 0.9) + vec3(0.03, 0.006, 0.05) * exp(-h * 5.0), arc * 0.7);
+        col += lift * uHaze * mix(air, vec3(air.b * 0.45, air.g * 0.3, air.b * 0.9) + vec3(0.03, 0.006, 0.05) * exp(-h * 5.0), nearHolo * 0.6);
         // From a low roof looking east and south-east (the quarter Contact
         // looks into) the city's light stands low on the horizon behind the
         // megatowers, blue-teal and lighter than they are. Gone by eight
@@ -3308,7 +3326,10 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
         col += lowRoof * uHaze * (vec3(0.004, 0.03, 0.075) * exp(-h * 9.0) + vec3(0.006, 0.07, 0.1) * exp(-h * 22.0)) * (1.0 - smoothstep(0.08, 0.14, h));
         // The city's light in the air, meeting the fog at the horizon: a
         // band over the roofs, brightest toward downtown.
-        col += cityGlow(dir, h * 900.0) * (0.85 + 0.2 * uLevel);
+        // (From above the roofs, in the night's own blue-teal but round the
+        // hologram: cityGlow's is violet toward downtown.)
+        vec3 cg = cityGlow(dir, h * 900.0) * (0.85 + 0.2 * uLevel);
+        col += mix(cg, mix(vec3(0.2, 0.62, 1.0) * dot(cg, vec3(0.45, 0.45, 0.3)), cg, nearHolo), lift);
 
         if (dir.y > 0.0) {
           // A broken deck of cloud, lit from under by the city: the glow's
@@ -3322,7 +3343,13 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           float n = fbm(c + 0.9 * vec2(fbm(c * 0.5 + 5.2), fbm(c * 0.5 + 1.3)));
           float cover = smoothstep(0.42, 0.72, n);
           float near = 1.0 - smoothstep(2500.0, 12000.0, t);
-          vec3 under = (cityGlow(dir, 0.0) * 0.5 + uHazeColor * 0.25) * (0.3 + 0.9 * n);
+          vec3 cg0 = cityGlow(dir, 0.0);
+          cg0 = mix(cg0, mix(vec3(0.2, 0.62, 1.0) * dot(cg0, vec3(0.45, 0.45, 0.3)), cg0, nearHolo), lift);
+          vec3 under = (cg0 * 0.5 + uHazeColor * 0.25) * (0.3 + 0.9 * n);
+          // East, where none of the page's own lenses looks (between Corpo
+          // Row's frame and Contact's), the deck shows its shapes from the
+          // street too: lit from under, where it was one flat black-teal.
+          under += vec3(0.005, 0.016, 0.03) * (0.3 + 0.9 * n) * (1.0 - lift) * smoothstep(0.95, 0.995, dot(normalize(dir.xz + 1e-5), vec2(0.9816, -0.1908)));
           col = mix(col, col * 0.55, (1.0 - cover) * near) + under * cover * near * 0.8;
           // Lightning inside the cloud: the deck lit from within round the
           // strike, brightest where it is thickest.
@@ -3346,7 +3373,7 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           // ground is a gap between the kit's own pieces, and it stays
           // dark. Past it the ground is the far city's from the first metre.
           vec3 ground = streets(pg, time, px, smoothstep(40.0, 62.0, uCam.y)) * mix(1.0, smoothstep(20.0, 60.0, tg), inKit(pg.xz));
-          vec3 fogged = sodiumBeyond(cityFog(ground, pg, 0.0), pg);
+          vec3 fogged = sodiumBeyond(airFog(ground, pg, 0.0), pg);
           // (And the far ground goes into that horizon, not into the dark.)
           fogged += lift * vec3(0.004, 0.03, 0.09) * (1.0 - exp(-tg / 1300.0)) * uHaze;
           // The horizon's own band stays where the ground runs into it.

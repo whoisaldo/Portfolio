@@ -358,7 +358,7 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
             col = mix(paint * (vec3(0.5) + sky * 5.0 * (0.3 + up) + light * 9.0) + (sky * 0.9 + light * 0.4) * up, vec3(0.006, 0.008, 0.012) + sky * 0.5 + light * 0.25, glass);
           }
         }
-        vec3 fogged = cityFog(col, vWorld, lit);
+        vec3 fogged = airFog(col, vWorld, lit);
         // (A stack of screens is the brightest thing in the sky: it keeps
         // most of its light through a kilometre of haze.)
         if (kind > 13.5 && kind < 14.5) fogged = mix(col, fogged, 0.4);
