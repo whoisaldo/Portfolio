@@ -155,7 +155,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       im.frustumCulled = false;
       im.matrixAutoUpdate = false;
       im.userData.hue = src.userData.hue;
-      if (/^(neon_|glow|lantern)/.test(material.name)) im.layers.enable(reflectLayer);
+      if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) im.layers.enable(reflectLayer);
       group.add(im);
       return im;
     };
@@ -224,14 +224,15 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     if (set.near) continue;
     for (const im of set.instanced) {
       const name = im.material.name;
-      if (!/^(neon_|glow|lantern)/.test(name)) continue;
+      const face = own.light(name);
+      if (!/^(neon_|glow|lantern)/.test(name) && !face) continue;
       const g = im.geometry;
       const pos = g.attributes.position;
       const index = g.index;
       const triCount = (index ? index.count : pos.count) / 3;
       const out = [];
       let colour = new THREE.Color(im.userData.hue ? NEON[im.userData.hue] ?? "#ffffff" : name === "lantern" ? "#ff4a2a" : "#ffffff");
-      if (name === "glow" && g.attributes.color) {
+      if ((name === "glow" || face) && g.attributes.color) {
         const c = g.attributes.color;
         let r = 0, gg = 0, b = 0;
         for (let i = 0; i < c.count; i++) {
@@ -256,7 +257,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       const mesh = new THREE.Mesh(geo);
       mesh.matrixWorldAutoUpdate = false;
       bakeMeshes.push(mesh);
-      sources.push({ mesh, color: colour, intensity: name === "glow" ? 0.6 : 0.9 });
+      sources.push({ mesh, color: colour, intensity: face || (name === "glow" ? 0.6 : 0.9) });
     }
   }
 

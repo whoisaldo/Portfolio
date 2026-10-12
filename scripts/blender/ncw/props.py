@@ -36,7 +36,14 @@ NEAR = "__near"
 NEAR_REACH = 42.0
 
 material("plant", "24402c", rough=0.8)
+# And a front the site draws whole (a vending machine's): one quad, uv 0 to 1
+# across and up it, its vertex colour the light it gives the street.
+material("face", "8a94a4", emit=1.0)
+# And the same for what is printed, not lit (a lamp's banner).
+material("print", "6a6258", rough=0.9)
 WOOD, BARK, BLOSSOM, FROND = 0.25, 0.5, 0.75, 1.0
+# Which front a `face` or a `print` is, in its vertex colour's alpha.
+BANNER, VENDING = 0.75, 1.0
 
 
 def proto(name, box=(0.3, 0.5, 0.3), detail=False, reach=None):
@@ -91,8 +98,9 @@ def lathe(key, cx, cz, prof, segs=8, col=(1, 1, 1, 1), cap=True):
         poly(key, list(reversed(rings[-1])), [(0.5, 0.5)] * segs, col)
 
 
-def tube(key, pts, radii, segs=6, col=(1, 1, 1, 1)):
-    """A bent, tapering limb through `pts`, `radii[i]` thick at each."""
+def tube(key, pts, radii, segs=6, col=(1, 1, 1, 1), cap=False):
+    """A bent, tapering limb through `pts`, `radii[i]` thick at each, its
+    far end closed if `cap`."""
     pts = [Vector(p) for p in pts]
     rings = []
     for i, p in enumerate(pts):
@@ -105,6 +113,8 @@ def tube(key, pts, radii, segs=6, col=(1, 1, 1, 1)):
         for i in range(segs):
             j = (i + 1) % segs
             quad(key, a[i], a[j], b[j], b[i], ((i / segs, n), ((i + 1) / segs, n), ((i + 1) / segs, n + 1), (i / segs, n + 1)), col)
+    if cap:
+        poly(key, rings[-1], [(0.5, 0.5)] * segs, col)
 
 
 def frond(key, base, yaw, pitch, length, bend, width, col, segs=4, vee=True):
@@ -167,21 +177,44 @@ def planter(k, h, lamp, stone=(0.5, 0.5, 0.52, 1)):
 # ---------------------------------------------------------------------------
 @proto("lamp_sodium", box=(0.15, 3.5, 0.15))
 def _lamp_sodium(k):
-    """A street lamp: a pole, a long arm out over the road (toward +z), a
-    sodium head (Zq4zTcIM0yQ@107, JtqIas3bYhg@64)."""
-    cylinder(k("metal"), 0.0, 0.0, 0.0, 7.2, 0.09, segs=8)
-    cylinder(k("metal"), 0.0, 0.0, 0.0, 0.5, 0.16, segs=8)
-    box(k("metal"), -0.05, 0.05, 7.05, 7.17, 0.0, 2.1, scale=0.5)
-    box(k("metal"), -0.22, 0.22, 6.92, 7.12, 1.75, 2.45, scale=0.5)
-    box(k("neon_amber"), -0.18, 0.18, 6.88, 6.92, 1.8, 2.4, scale=0.5)
+    """A street lamp (Zq4zTcIM0yQ@107, JtqIas3bYhg@64): a cast base, a
+    tapering column, a swan neck out over the road (toward +z) to a sodium
+    head with its lens underneath; on the pavement side a bracket for a
+    banner."""
+    steel, cast, housing = (0.05, 0.054, 0.064, 1), (0.03, 0.032, 0.04, 1), (0.02, 0.021, 0.026, 1)
+    t = k("trim")
+    lathe(t, 0.0, 0.0, ((0.0, 0.16), (0.42, 0.16), (0.52, 0.1)), segs=6, col=cast, cap=False)
+    lathe(t, 0.0, 0.0, ((0.52, 0.095), (3.6, 0.082), (6.9, 0.066)), segs=6, col=steel, cap=False)
+    tube(t, ((0.0, 6.8, 0.0), (0.0, 7.18, 0.4), (0.0, 7.3, 1.1), (0.0, 7.22, 1.8)), (0.06, 0.055, 0.05, 0.045), segs=4, col=steel)
+    box(t, -0.21, 0.21, 7.05, 7.2, 1.72, 2.46, scale=0.5, col=housing)
+    # The lens, and its lit edge so the head reads from the side.
+    quad(k("neon_amber"), (-0.18, 7.02, 1.77), (0.18, 7.02, 1.77), (0.18, 7.02, 2.41), (-0.18, 7.02, 2.41))
+    for yaw, cx, cz, w in ((0.0, 0.0, 2.41, 0.36), (math.pi, 0.0, 1.77, 0.36), (math.pi / 2, 0.18, 2.09, 0.64), (-math.pi / 2, -0.18, 2.09, 0.64)):
+        rotated_quad(k("neon_amber"), cx, 7.035, cz, w, 0.03, yaw)
+    # The banner's bracket, and the banner (one lamp in two flies one).
+    box(t, -0.02, 0.02, 4.86, 4.9, -0.78, -0.06, scale=0.5, col=cast)
+    rotated_quad(k("print"), 0.0, 4.06, -0.42, 0.6, 1.6, math.pi / 2, col=(0.3, 0.3, 0.3, BANNER))
+    # Near by: the access door in the base, a junction box, the collar under
+    # the neck.
+    quad(k("trim", 1), (-0.07, 0.08, -0.165), (-0.07, 0.36, -0.165), (0.07, 0.36, -0.165), (0.07, 0.08, -0.165), col=steel)
+    box(k("trim", 1), -0.09, 0.09, 2.3, 2.62, -0.2, -0.085, scale=0.5, col=cast)
+    lathe(k("trim", 1), 0.0, 0.0, ((6.62, 0.085), (6.74, 0.085)), segs=6, col=cast, cap=False)
 
 
 @proto("lamp_short", box=(0.12, 2.0, 0.12), reach=380)
 def _lamp_short(k):
-    """A pavement lamp column, an orange glass head (KvMY1uzSC1E@94)."""
-    cylinder(k("metal"), 0.0, 0.0, 0.0, 3.6, 0.07, segs=8)
-    cylinder(k("neon_amber"), 0.0, 0.0, 3.6, 4.3, 0.13, segs=8)
-    cylinder(k("metal"), 0.0, 0.0, 4.3, 4.38, 0.16, segs=8)
+    """A pavement lamp column (KvMY1uzSC1E@94): a foot, a slim post, a
+    cradle, a tall lantern of orange glass under a hat."""
+    cast = (0.028, 0.03, 0.038, 1)
+    t = k("trim")
+    lathe(t, 0.0, 0.0, ((0.0, 0.125), (0.3, 0.125), (0.4, 0.07), (3.48, 0.058), (3.6, 0.15)), segs=6, col=cast, cap=False)
+    lathe(k("neon_amber"), 0.0, 0.0, ((3.6, 0.13), (4.3, 0.13)), segs=6, cap=False)
+    lathe(t, 0.0, 0.0, ((4.3, 0.2), (4.47, 0.04)), segs=6, col=cast)
+    # Near by: the lantern's glazing bars and the band round the post.
+    for i in range(6):
+        a = i * math.tau / 6
+        rotated_quad(k("trim", 1), 0.134 * math.cos(a), 3.95, 0.134 * math.sin(a), 0.022, 0.7, math.pi / 2 - a, col=cast)
+    lathe(k("trim", 1), 0.0, 0.0, ((1.1, 0.075), (1.2, 0.075)), segs=6, col=cast, cap=False)
 
 
 @proto("bollard", box=(0.12, 0.5, 0.12), reach=260)
@@ -203,19 +236,25 @@ def _bin(k):
     cylinder(k("dark"), 0.0, 0.0, 0.95, 1.02, 0.3, segs=10)
 
 
+def _vending_machine(k, light):
+    """A vending machine, its back to a wall and its front toward +z: the
+    cabinet with a hood over the header, and the front, which the site draws
+    whole and each machine its own (the window of cans, the header, the
+    screen and keypad, the coin slot, the tray)."""
+    body = (0.045, 0.048, 0.056, 1)
+    box(k("trim"), -0.48, 0.48, 0.0, 1.95, -0.4, 0.4, scale=1.0, col=body)
+    box(k("trim"), -0.5, 0.5, 1.9, 1.97, 0.4, 0.45, scale=1.0, col=body)
+    rotated_quad(k("face"), 0.0, 0.975, 0.406, 0.96, 1.95, 0.0, col=(*light, VENDING))
+
+
 @proto("vending", box=(0.5, 1.0, 0.4))
 def _vending(k):
-    """A vending machine against a wall, its lit face toward +z."""
-    box(k("metal"), -0.48, 0.48, 0.0, 1.95, -0.4, 0.4, scale=0.6)
-    box(k("glow"), -0.4, 0.4, 0.75, 1.82, 0.4, 0.42, scale=0.5, col=GLOW["cyan"])
-    box(k("glow"), -0.4, 0.4, 0.28, 0.5, 0.4, 0.42, scale=0.5, col=GLOW["white"])
+    _vending_machine(k, tuple((a + b) / 2 for a, b in zip(GLOW["cyan"][:3], GLOW["white"][:3])))
 
 
 @proto("vending_warm", box=(0.5, 1.0, 0.4))
 def _vending_warm(k):
-    box(k("metal"), -0.48, 0.48, 0.0, 1.95, -0.4, 0.4, scale=0.6)
-    box(k("glow"), -0.4, 0.4, 0.75, 1.82, 0.4, 0.42, scale=0.5, col=GLOW["amber"])
-    box(k("glow"), -0.4, 0.4, 0.28, 0.5, 0.4, 0.42, scale=0.5, col=GLOW["pink"])
+    _vending_machine(k, tuple((a + b) / 2 for a, b in zip(GLOW["amber"][:3], GLOW["pink"][:3])))
 
 
 @proto("food_box", box=(0.35, 0.6, 0.3), reach=300, detail=True)
@@ -334,13 +373,26 @@ def _drum(k):
 
 @proto("hydrant", box=(0.15, 0.4, 0.15), reach=200, detail=True)
 def _hydrant(k):
-    """A hydrant, red paint on iron, its cap and its two outlets."""
-    red = (0.42, 0.06, 0.05, 1)
-    cylinder(k("trim"), 0.0, 0.0, 0.0, 0.62, 0.12, segs=10, col=red)
-    cylinder(k("trim"), 0.0, 0.0, 0.62, 0.74, 0.1, segs=10, col=red)
-    cylinder(k("trim"), 0.0, 0.0, 0.74, 0.8, 0.05, segs=6, col=(0.2, 0.2, 0.22, 1))
-    for yaw in (0.0, math.pi):
-        oriented_box(k("trim"), math.sin(yaw) * 0.14, 0.42, math.cos(yaw) * 0.14, 0.1, 0.1, 0.12, yaw, scale=0.5, col=red)
+    """A hydrant: red paint on iron, a flanged barrel under a bonnet worn to
+    the metal, the nut on top, two hose outlets and the pumper's to the
+    front, each under its cap."""
+    red, worn, iron = (0.42, 0.06, 0.05, 1), (0.3, 0.17, 0.14, 1), (0.1, 0.1, 0.11, 1)
+    t = k("trim")
+    lathe(t, 0.0, 0.0, ((0.0, 0.15), (0.045, 0.15), (0.06, 0.1), (0.5, 0.1), (0.515, 0.135), (0.555, 0.135), (0.57, 0.1)), segs=7, col=red, cap=False)
+    lathe(t, 0.0, 0.0, ((0.57, 0.1), (0.66, 0.085), (0.71, 0.05)), segs=7, col=worn)
+    lathe(t, 0.0, 0.0, ((0.71, 0.032), (0.77, 0.032)), segs=5, col=iron)
+    for a, b, r in (((-0.09, 0.4, 0.0), (-0.165, 0.4, 0.0), 0.047), ((0.09, 0.4, 0.0), (0.165, 0.4, 0.0), 0.047), ((0.0, 0.34, 0.09), (0.0, 0.34, 0.17), 0.062)):
+        tube(t, (a, b), (r, r), segs=5, col=iron, cap=True)
+    # Near by: the bolts round its foot and the caps' chains.
+    for i in range(6):
+        a = (i + 0.5) * math.tau / 6
+        x, z = 0.125 * math.cos(a), 0.125 * math.sin(a)
+        quad(k("trim", 1), (x - 0.013, 0.049, z + 0.013), (x + 0.013, 0.049, z + 0.013), (x + 0.013, 0.049, z - 0.013), (x - 0.013, 0.049, z - 0.013), col=iron)
+    for s_ in (-1, 1):
+        a, m, b = (s_ * 0.16, 0.37, 0.0), (s_ * 0.135, 0.27, 0.05), (s_ * 0.085, 0.3, 0.07)
+        for p0, p1 in ((a, m), (m, b)):
+            for q0, q1 in ((p0, p1), (p1, p0)):
+                quad(k("trim", 1), (q0[0], q0[1] - 0.006, q0[2]), (q1[0], q1[1] - 0.006, q1[2]), (q1[0], q1[1] + 0.006, q1[2]), (q0[0], q0[1] + 0.006, q0[2]), col=iron)
 
 
 @proto("phone_booth", box=(0.5, 1.2, 0.5))
