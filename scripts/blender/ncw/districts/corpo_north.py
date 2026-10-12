@@ -249,7 +249,7 @@ def lane():
         y = 30.0
         while y < top1 - 4.0:
             K.aviation(tx, y, T_BACK - 0.9)
-            for sx in (-1, 1):
+            for sx in () if i in (1, 3, 6) else (-1, 1):       # (the faceted, leaning and round towers' backs carry none)
                 xa, xb = sorted((tx + sx * 3.2, tx + sx * 10.6))
                 box(k("dark", 1), xa, xb, y - 1.5, y + 1.5, T_BACK - 0.1, T_BACK, scale=1.0)
             y += 26.0
@@ -560,11 +560,12 @@ def room():
     tx = TOWER_X[0]
     z0, z1 = LOBBY_Z - 5.0, LOBBY_Z
     for sx in (-1, 1):
-        xa, xb = sorted((tx + sx * 12.6, tx + sx * 13.0))
+        # (Their inner faces stand inside the box the braindance reads, x +-12.5.)
+        xa, xb = sorted((tx + sx * 12.3, tx + sx * 13.0))
         solid(xa, xb, 0.0, 8.0, z0, z1, K.STONE)
         # A screen and a line of light on each side wall, facing in.
-        K.panel(tx + sx * 12.58, 5.6, z0 + 2.5, 3.6, 2.0, -sx * math.pi / 2, "cyan", 0.5)
-        K.glow_box(tx + sx * 12.58 - 0.02, tx + sx * 12.58 + 0.02, 0.4, 7.6, z1 - 0.5, z1 - 0.4, "white")
+        K.panel(tx + sx * 12.28, 5.6, z0 + 2.5, 3.6, 2.0, -sx * math.pi / 2, "cyan", 0.5)
+        K.glow_box(tx + sx * 12.28 - 0.02, tx + sx * 12.28 + 0.02, 0.4, 7.6, z1 - 0.5, z1 - 0.4, "white")
     # The ceiling: stone, a grid of light panels in it.
     quad(k("trim"), (tx - 12.6, 7.99, z0), (tx + 12.6, 7.99, z0), (tx + 12.6, 7.99, z1), (tx - 12.6, 7.99, z1), col=K.STEEL)
     for ix in range(6):
@@ -651,11 +652,11 @@ def server_wall():
     # Its ends: louvred cheeks just inside the tower's flanks, a red line
     # under every blade.
     for sx in (-1, 1):
-        xa, xb = sorted((tx + sx * 12.1, tx + sx * 12.3))
+        xa, xb = sorted((tx + sx * 11.3, tx + sx * 11.5))
         box(k("steel"), xa, xb, y0, y1, zb, T_FRONT - 0.06, scale=1.0, col=K.STEEL)
         yy = y0 + 0.9
         while yy < y1 - 0.5:
-            xc, xd = sorted((tx + sx * 12.3, tx + sx * 12.34))
+            xc, xd = sorted((tx + sx * 11.5, tx + sx * 11.54))
             K.glow_box(xc, xd, yy, yy + 0.07, zb + 0.3, T_FRONT - 0.4, "red", 1)
             yy += 1.3
     K.neon_box(x0 - 0.9, x1 + 0.9, y0, y0 + 0.1, T_FRONT - 0.12, T_FRONT - 0.06, "red")
@@ -727,8 +728,9 @@ def gaps():
     r = random.Random(7761)
     for j, gx in enumerate(GAP_X):
         side_doors(gx, r, ("cyan", "amber", "cyan", "white", "amber", "amber")[j], (None, -360.0, T_BACK + 0.2, T_BACK + 0.2, -366.0, -362.0)[j])
-        # Palms in planters either side of each gap's mouth.
-        for sx in (-4.4, 4.4):
+        # Palms in planters either side of each gap's mouth (not the three
+        # gaps beside the two lobbies the braindance reads down the row).
+        for sx in () if j < 3 else (-4.4, 4.4):
             P.place("planter_palm", gx + sx, G0, -345.4, district=CO)
 
     # 1: stairs up to a raised terrace with a glass rail, trees on it, a lit
@@ -1058,8 +1060,9 @@ def pavement_n():
             P.place("bench", gx - 2.6, G0, LOT_N - 0.55, 0.0, district=CO)
             if j % 2:
                 stand(gx - 2.6, LOT_N - 0.55, 0.0, "sit", G0 + 0.45)
-        P.place("bin", gx - 5.3, G0, LOT_N - 0.5, district=CO)
-        P.place("cctv", gx + 5.4, G0, KERB_STRIP_N, district=CO)
+        if j != 2:      # (the gap east of the server hall's tower: the braindance reads that tower's foot across its mouth)
+            P.place("bin", gx - 5.3, G0, LOT_N - 0.5, district=CO)
+            P.place("cctv", gx + 5.4, G0, KERB_STRIP_N, district=CO)
         if j != 3:
             K.ad_panel(gx + 3.6, KERB_STRIP_N, 0.0, r, pal=None if j % 2 else K.COLD)
 

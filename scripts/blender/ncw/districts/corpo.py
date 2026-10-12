@@ -2,6 +2,7 @@ from ncw.kit import *  # noqa: F401,F403 (the shared kit: primitives, materials,
 from ncw.kit import _mass_sides
 from ncw.districts.plaza import CROSS_Z0
 from ncw.districts import corpo_kit as K
+from ncw import props as PR
 
 # ---------------------------------------------------------------------------
 # CORPO ROW. One tower per role, in experience.js order, west to east along a
@@ -73,17 +74,34 @@ def parapet(key, cx, cz, h, n, y, height=1.1, t=0.35):
         box(key, cx + x0, cx + x1, y, y + height, cz + z0, cz + z1, scale=1.5)
 
 
-# Each tower's shape: how deep its corners are cut, where it steps back
-# (fractions of its height) and what stands on its crown: a screen of lit
-# blades, a mast, or both. Seven towers, no two alike.
+# ---------------------------------------------------------------------------
+# Seven towers, seven buildings. What holds for all of them: the 26 m plot,
+# the lobby and canopy at its foot, the height, where the shaft steps (so
+# the crown, the logo on it and the name sign stand where they stood), and
+# the braindance's reading of each as a box x +-12.5 round its centre whose
+# front is the plane z -347: nothing stands proud of that plane (fins and
+# screens are flush with it, the glass set back behind them).
+#   philips      steel fins on every face, slit windows between, two setbacks
+#   pinnatec     a faceted monolith, two broad chamfers to the west, a band
+#                of adverts up the one the boulevard sees
+#   pawtograder  a slab split by a lit slot down its front and back, over the
+#                open server hall
+#   aws          a battered obelisk in three stages, lit ledges, its name on
+#                a pylon standing off the wall
+#   top-choice   close concrete fins, warm slits, two lit sky floors, a
+#                blade of adverts out of its east flank
+#   defalco      a dark slab with two corners carved out as lit sky lobbies
+#   northeastern three stepped drums with ribs, a ring of screens, a lift
+#                core up its front carrying the name
+# ---------------------------------------------------------------------------
 TOWER_FORMS = {
-    "philips-zero-touch": dict(notch=1.8, steps=(0.58, 0.82), screen=True, mast=22.0),
-    "pinnatec-auto": dict(notch=2.4, steps=(0.66,), screen=False, mast=0.0),
-    "pawtograder": dict(notch=1.4, steps=(), screen=True, mast=0.0),
-    "aws-cloudformation": dict(notch=2.0, steps=(0.5, 0.74), screen=True, mast=30.0),
-    "top-choice-realty": dict(notch=1.6, steps=(), screen=False, mast=0.0),
-    "robert-defalco-realty": dict(notch=2.2, steps=(0.7,), screen=True, mast=0.0),
-    "northeastern": dict(notch=1.6, steps=(0.62, 0.84), screen=False, mast=18.0),
+    "philips-zero-touch": dict(kind="fins", notch=1.8, steps=(0.58, 0.82), screen=True, mast=22.0),
+    "pinnatec-auto": dict(kind="facet", notch=2.4, steps=(0.66,), screen=False, mast=0.0),
+    "pawtograder": dict(kind="slot", notch=1.4, steps=(), screen=True, mast=0.0),
+    "aws-cloudformation": dict(kind="taper", notch=2.0, steps=(0.5, 0.74), screen=True, mast=30.0),
+    "top-choice-realty": dict(kind="slits", notch=1.6, steps=(), screen=False, mast=0.0),
+    "robert-defalco-realty": dict(kind="carved", notch=2.2, steps=(0.7,), screen=True, mast=0.0),
+    "northeastern": dict(kind="drum", notch=1.6, steps=(0.62, 0.84), screen=False, mast=18.0),
 }
 INSET = 2.4
 # The braindance's "room" is the first tower's lower floors: its lobby glass
@@ -96,17 +114,132 @@ ROOM = {"philips-zero-touch": 5.0}
 # the racks in it), and its canopy does not reach past its front.
 HALL = {"pawtograder": (22.0, 4.2)}
 # Flat screens at mid height (mH2wmyeiIpA@143), clear of each tower's name
-# sign and its braindance box's reading: (face, metres along it from its
-# middle, height of its middle, width, height).
+# sign: (face, metres along it from its middle, height of its middle, width,
+# height). Those on a front lie flat on it.
 SCREENS = {
     "philips-zero-touch": (("+z", -5.0, 44.0, 10.0, 6.0), ("-x", 1.0, 62.0, 9.0, 5.6)),
-    "pinnatec-auto": (("+z", -4.0, 31.0, 9.0, 5.4), ("-x", -1.0, 52.0, 7.6, 10.0)),
-    "pawtograder": (("+z", -4.5, 62.0, 11.0, 6.4), ("+x", 1.0, 38.0, 9.0, 5.6)),
+    "pinnatec-auto": (("+z", -2.5, 31.0, 9.0, 5.4), ("-x", -1.0, 52.0, 7.6, 10.0)),
+    "pawtograder": (("+z", -7.5, 62.0, 9.0, 6.0), ("+x", 1.0, 38.0, 9.0, 5.6)),
     "aws-cloudformation": (("+z", -4.5, 50.0, 10.0, 6.0), ("-x", 0.0, 34.0, 8.0, 11.0)),
-    "top-choice-realty": (("+z", -5.0, 34.0, 9.0, 5.4), ("+x", -1.0, 58.0, 8.6, 5.2)),
+    "top-choice-realty": (("+z", -4.0, 51.0, 11.0, 6.6),),
     "robert-defalco-realty": (("+z", -4.0, 55.0, 10.0, 6.0), ("-x", 1.0, 30.0, 9.0, 5.6)),
-    "northeastern": (("+z", -5.0, 40.0, 10.0, 6.0), ("-x", 0.0, 64.0, 9.0, 5.6)),
+    "northeastern": (),
 }
+FLOOR0, FLOOR = 8.0, 3.8          # the curtain wall's floors (the corporate shader's)
+NAVY = (0.045, 0.055, 0.075, 1.0)
+CAST = (0.15, 0.145, 0.14, 1.0)
+
+
+def rect(cx, cz, h):
+    return [(cx - h, cz + h), (cx + h, cz + h), (cx + h, cz - h), (cx - h, cz - h)]
+
+
+def notched4(cx, cz, h, sw, se=None, ne=None, nw=None):
+    """A square plan with each corner cut back square by its own measure
+    (edges 10 and 11 are the south-west cut's walls, 4 and 5 the
+    north-east's). Every tower keeps its front corners cut back at least as
+    far as they were: the braindance's cameras look past them down the row."""
+    se = sw if se is None else se
+    ne = se if ne is None else ne
+    nw = sw if nw is None else nw
+    pts = [(-h + sw, h), (h - se, h), (h - se, h - se), (h, h - se), (h, -h + ne), (h - ne, -h + ne), (h - ne, -h), (-h + nw, -h),
+           (-h + nw, -h + nw), (-h, -h + nw), (-h, h - sw), (-h + sw, h - sw)]
+    return [(cx + x, cz + z) for x, z in pts]
+
+
+def chamfered(cx, cz, h, sw, se=None, ne=None, nw=None):
+    """A square plan, each corner cut at 45 degrees by its own measure."""
+    se = sw if se is None else se
+    ne = se if ne is None else ne
+    nw = sw if nw is None else nw
+    pts = [(-h + sw, h), (h - se, h), (h, h - se), (h, -h + ne), (h - ne, -h), (-h + nw, -h), (-h, -h + nw), (-h, h - sw)]
+    return [(cx + x, cz + z) for x, z in pts]
+
+
+def ngon(cx, cz, apothem, n=16):
+    """A regular plan with a flat face to the boulevard."""
+    rad = apothem / math.cos(math.pi / n)
+    return [(cx + rad * math.sin((i - 0.5) * 2 * math.pi / n), cz + rad * math.cos((i - 0.5) * 2 * math.pi / n)) for i in range(n)]
+
+
+def skin(p0, p1, y0, y1, r, seed, lit=(0.02, 0.1), hot=0.14, warm=(0.0, 0.45), force=None):
+    """Curtain wall from the outline p0 at y0 to p1 at y1 (the same count of
+    points: a battered wall if they differ), in panels about three floors
+    by 9 m, each with its own share of lit floors: most nearly dark, a few
+    bright, so the light on a face gathers in clusters. The corporate shader
+    draws floors and rooms from world position; a panel's colour is its lit
+    share, its warmth and the tower's seed. `force`: {edge: (lit, warm)}."""
+    nb = max(1, round((y1 - y0) / (FLOOR * 3)))
+    n = len(p0)
+    for i in range(n):
+        a0, b0, a1, b1 = p0[i], p0[(i + 1) % n], p1[i], p1[(i + 1) % n]
+        length = math.hypot(b0[0] - a0[0], b0[1] - a0[1])
+        m = max(1, round(length / 9.0))
+
+        def pt(f, g):
+            xa, za = a0[0] + (a1[0] - a0[0]) * g, a0[1] + (a1[1] - a0[1]) * g
+            xb, zb = b0[0] + (b1[0] - b0[0]) * g, b0[1] + (b1[1] - b0[1]) * g
+            return (xa + (xb - xa) * f, y0 + (y1 - y0) * g, za + (zb - za) * f)
+
+        for j in range(m):
+            for v in range(nb):
+                if force and i in force:
+                    c = (force[i][0], force[i][1], seed, 1.0)
+                else:
+                    c = (r.uniform(0.6, 0.95) if r.random() < hot else r.uniform(*lit), r.uniform(*warm), seed, 1.0)
+                quad((CO, "corporate", 0), pt(j / m, v / nb), pt((j + 1) / m, v / nb), pt((j + 1) / m, (v + 1) / nb), pt(j / m, (v + 1) / nb),
+                     ((0, 0), (length / m, 0), (length / m, (y1 - y0) / nb), (0, (y1 - y0) / nb)), c)
+
+
+def flat(outline, y, mat="roof", up=True):
+    """A convex outline as a roof (or, facing down, a soffit)."""
+    pts = [(x, y, z) for x, z in (outline if up else outline[::-1])]
+    poly((CO, mat, 0), pts, [(x / 4, z / 4) for x, _, z in pts])
+
+
+def ledge(outline, y, height=1.0):
+    """A low wall round a setback's edge."""
+    cx = sum(x for x, _ in outline) / len(outline)
+    cz = sum(z for _, z in outline) / len(outline)
+    inner = [(cx + (x - cx) * 0.972, cz + (z - cz) * 0.972) for x, z in outline]
+    walls((CO, "metal", 1), outline, y, y + height, (1, 1, 1, 1))
+    walls((CO, "metal", 1), inner[::-1], y, y + height, (1, 1, 1, 1))
+
+
+def fin_rows(tx, tz, h, out, y0, y1, step, wide, key, col, notch):
+    """Fins down all four faces of a square of half h whose corners are cut
+    back `notch`, proud of glass set `out` behind them."""
+    span = 2 * (h - notch) - wide
+    n = max(2, int(span // step))
+    for i in range(n + 1):
+        v = -span / 2 + span * i / n
+        for x0, x1, z0, z1 in ((tx + v - wide / 2, tx + v + wide / 2, tz + h - out, tz + h),
+                               (tx + v - wide / 2, tx + v + wide / 2, tz - h, tz - h + out),
+                               (tx + h - out, tx + h, tz + v - wide / 2, tz + v + wide / 2),
+                               (tx - h, tx - h + out, tz + v - wide / 2, tz + v + wide / 2)):
+            box(key, x0, x1, y0, y1, z0, z1, scale=2.0, col=col)
+
+
+def lit_quad(verts, faces, uvs, a, b, y0, y1, u, out=0.06):
+    """A vertical band of the tower's own light from a to b (x, z), facing
+    the left of that walk, into the crown mesh."""
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    d = math.hypot(dx, dz) or 1.0
+    nx, nz = -dz / d * out, dx / d * out
+    base = len(verts)
+    verts.extend(P(*q) for q in ((a[0] + nx, y0, a[1] + nz), (b[0] + nx, y0, b[1] + nz), (b[0] + nx, y1, b[1] + nz), (a[0] + nx, y1, a[1] + nz)))
+    faces.append((base, base + 1, base + 2, base + 3))
+    uvs.extend([(u, 0), (u, 0), (u, 1), (u, 1)])
+
+
+def advert(cx, cy, cz, w, h, yaw, pick, seed=0.31, depth=0.12):
+    """One of the city's adverts by number (eight wide, four tall), in a
+    frame. Boards sharing a seed change together, so a wall or a band of
+    them given different numbers never shows one advert twice."""
+    rotated_quad((CO, "billboard", 0), cx, cy, cz, w, h, yaw, col=(0.06, (pick % 8 + 0.5) / 8.0, seed, 1.0))
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    oriented_box((CO, "board_frame", 0), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.3, h + 0.3, depth, yaw, scale=1.0)
+
 
 for i, (slug, height) in enumerate(TOWERS):
     tx = CORPO_X0 + i * 38
@@ -116,7 +249,9 @@ for i, (slug, height) in enumerate(TOWERS):
     r = random.Random(seed)
     col = (r.uniform(0.5, 0.75), r.random(), r.random(), 1.0)
     form = TOWER_FORMS[slug]
+    kind = form["kind"]
     notch = form["notch"]
+    gseed = col[2]
     # The lobby: a lit glass box set back under a canopy, the core behind.
     # (One tower's is set deeper, behind a room open to the street: ROOM.)
     lz = tz + half - 1.6 - ROOM.get(slug, 0.0)
@@ -130,18 +265,198 @@ for i, (slug, height) in enumerate(TOWERS):
         # The open hall: the curtain wall round its back and its sides
         # behind it, a soffit over it; its own sides stand open.
         hz = tz + half - hall[1]
-        walls((CO, "corporate", 0), [(tx - half, hz), (tx + half, hz), (tx + half, tz - half), (tx - half, tz - half)], LOBBY_H, hall[0], col)
+        walls((CO, "corporate", 0), [(tx - half, hz), (tx + half, hz), (tx + half, tz - half), (tx - half, tz - half)], LOBBY_H, hall[0],
+              (0.12, col[1], gseed, 1.0))
         quad((CO, "dark", 0), (tx - half, hall[0], hz), (tx + half, hall[0], hz), (tx + half, hall[0], tz + half), (tx - half, hall[0], tz + half))
     # The shaft, in sections, each stepped back from the one under it.
     cuts = [hall[0] if hall else LOBBY_H] + [height * f for f in form["steps"]] + [height]
-    sections = []
-    for k in range(len(cuts) - 1):
-        h_k = half - INSET * k
-        curtain(tx, tz, h_k, notch, cuts[k], cuts[k + 1], col)
-        sections.append((h_k, cuts[k], cuts[k + 1]))
-        if k > 0:
-            parapet((CO, "metal", 1), tx, tz, half - INSET * (k - 1), notch, cuts[k], height=1.0)
+    sections = [(half - INSET * k, cuts[k], cuts[k + 1]) for k in range(len(cuts) - 1)]
     top_half = sections[-1][0]
+    # The accent, one mesh per tower the site lights in the organisation's
+    # own colour (u says what a piece is: 2 a line, 1 a blade of the crown's
+    # screen, 0.5 a band): each tower wears it its own way.
+    verts, faces, uvs = [], [], []
+
+    def ring(h_, y_, t=0.22):
+        lit_box(verts, faces, uvs, tx - h_ - 0.05, tx + h_ + 0.05, y_, y_ + t, tz - h_ - 0.05, tz + h_ + 0.05, 0.5)
+
+    half_at = lambda y: next(h_k for h_k, y0, y1 in sections if y0 <= y < y1)      # noqa: E731
+    # The name, as type, on a tall sign on the lowest section (below): a
+    # line of the tower's light up each of its edges, so it reads as a lit
+    # sign and not as a gap in the face.
+    sign_x = tx + half - notch - 1.6
+    sign_top = sections[0][2] - 4.0
+    sign_bottom = (hall[0] + 2.0) if hall else LOBBY_H + 4.0
+    for e in (-1.44, 1.44):
+        lit_box(verts, faces, uvs, sign_x + e - 0.07, sign_x + e + 0.07, sign_bottom, sign_top, tz + half - 0.02, tz + half + 0.07, 2.0)
+    if kind == "fins":
+        # Steel fins 1.75 m apart on every face, the glass 0.6 m behind them.
+        for k_, (h_k, y0, y1) in enumerate(sections):
+            g = notched4(tx, tz, h_k - 0.6, notch - 0.6)
+            skin(g, g, y0, y1, r, gseed, lit=(0.04, 0.16), hot=0.22, warm=(0.0, 0.3))
+            fin_rows(tx, tz, h_k, 0.6, y0, y1 + (0.9 if k_ < len(sections) - 1 else 0.0), 1.75, 0.34, (CO, "trim", 0), NAVY, notch)
+            notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
+            if k_:
+                ring(h_k, y0 + 1.0)
+    elif kind == "facet":
+        # Broad chamfers to the west, narrow to the east (the name stands on
+        # the front's east end).
+        for k_, (h_k, y0, y1) in enumerate(sections):
+            big = 5.5 - 1.5 * k_
+            plan = chamfered(tx, tz, h_k, big, 2.6 - 0.8 * k_)
+            skin(plan, plan, y0, y1, r, gseed, lit=(0.03, 0.12), hot=0.18, warm=(0.0, 0.25))
+            flat(plan, y1)
+            if k_:
+                ledge(chamfered(tx, tz, sections[k_ - 1][0], 5.5, 2.6), y0, 1.0)
+                ring(h_k, y0 + 1.0)
+            for a_, b_ in ((plan[7], plan[0]), (plan[5], plan[6])):
+                for e in (a_, b_):
+                    lit_box(verts, faces, uvs, e[0] - 0.1, e[0] + 0.1, y0 + (1.0 if k_ else 0.0), y1, e[1] - 0.1, e[1] + 0.1, 2.0)
+        # A band of adverts up the south-west chamfer, each a different one.
+        bx_, bz_ = tx - half + 2.75, tz + half - 2.75
+        y, count = 15.0, [0, 0]
+        for tall in (0, 1, 0, 0, 1, 0, 0, 1, 0, 0):
+            hh = 8.4 if tall else 3.7
+            if y + hh > sections[0][2] - 2.0:
+                break
+            advert(bx_ - 0.07, y + hh / 2, bz_ + 0.07, 5.6, hh, -math.pi / 4, count[tall], seed=0.42)
+            count[tall] += 1
+            y += hh + 0.45
+    elif kind == "slot":
+        # Two slabs and a slot 4 m wide between them down the front and the
+        # back, lit floors at the slot's back.
+        h_k, y0, y1 = sections[0]
+        sl, dp = 2.0, 2.6
+        a_ = h_k - 1.5
+        pts = [(-a_, h_k), (-sl, h_k), (-sl, h_k - dp), (sl, h_k - dp), (sl, h_k), (a_, h_k), (h_k, a_), (h_k, -a_), (a_, -h_k), (sl, -h_k),
+               (sl, -h_k + dp), (-sl, -h_k + dp), (-sl, -h_k), (-a_, -h_k), (-h_k, -a_), (-h_k, a_)]
+        plan = [(tx + x, tz + z) for x, z in pts]
+        skin(plan, plan, y0, y1, r, gseed, lit=(0.03, 0.14), hot=0.2, warm=(0.2, 0.7), force={2: (0.95, 0.9), 10: (0.95, 0.9)})
+        for pts in ([(-a_, h_k), (-sl, h_k), (-sl, -h_k), (-a_, -h_k), (-h_k, -a_), (-h_k, a_)],
+                    [(sl, h_k), (a_, h_k), (h_k, a_), (h_k, -a_), (a_, -h_k), (sl, -h_k)],
+                    [(-sl, h_k - dp), (sl, h_k - dp), (sl, -h_k + dp), (-sl, -h_k + dp)]):
+            flat([(tx + x, tz + z) for x, z in pts], y1)
+        for sz in (-1, 1):
+            for sx in (-1, 1):
+                fx, fz = tx + sx * (sl - 0.12), tz + sz * (h_k - dp + 0.12)
+                lit_box(verts, faces, uvs, fx - 0.12, fx + 0.12, y0 + 0.3, y1, fz - 0.12, fz + 0.12, 2.0)
+            # Bridges across the slot every seventh floor.
+            y = FLOOR0 + FLOOR * 9
+            while y < y1 - 8.0:
+                za, zb = sorted((tz + sz * (h_k - 0.5), tz + sz * (h_k - 1.4)))
+                box((CO, "dark", 0), tx - sl, tx + sl, y, y + 1.1, za, zb, scale=2.0, bottom=True)
+                y += FLOOR * 7
+    elif kind == "taper":
+        # Each stage leans in as it rises; a lit ledge at each setback.
+        for k_, (h_k, y0, y1) in enumerate(sections):
+            lean = (1.2, 1.4, 0.0)[k_]
+            p0, p1 = chamfered(tx, tz, h_k, 2.0), chamfered(tx, tz, h_k - lean, 2.0)
+            skin(p0, p1, y0, y1, r, gseed, lit=(0.04, 0.15), hot=0.22, warm=(0.3, 0.9))
+            flat(p1, y1)
+            if k_:
+                ledge(chamfered(tx, tz, sections[k_ - 1][0] - (1.2, 1.4)[k_ - 1], 2.0), y0, 1.0)
+                ring(sections[k_ - 1][0] - (1.2, 1.4)[k_ - 1], y0 + 0.2, 0.5)
+            if k_ == len(sections) - 1:
+                for e0, e1 in zip(p0[1::2], p1[1::2]):
+                    lit_box(verts, faces, uvs, e1[0] - 0.12, e1[0] + 0.12, y0 + 1.0, y1, e1[1] - 0.12, e1[1] + 0.12, 2.0)
+        half_at = lambda y: next(h_k - (1.2, 1.4, 0.0)[k_] * (y - y0) / (y1 - y0) for k_, (h_k, y0, y1) in enumerate(sections) if y0 <= y < y1)  # noqa: E731
+        # The pylon its name stands on, off the leaning wall.
+        box((CO, "trim", 0), sign_x - 1.55, sign_x + 1.55, LOBBY_H, sign_top + 1.5, tz + half - 1.5, tz + half + 0.02, scale=2.0, col=NAVY)
+    elif kind == "slits":
+        # Concrete fins 1.3 m apart, warm slits between; two sky floors where
+        # the fins stop and a whole floor is lit.
+        h_k, y0, y1 = sections[0]
+        belts = [FLOOR0 + FLOOR * 7, FLOOR0 + FLOOR * 15]
+        marks = [y0] + [v for b in belts for v in (b, b + FLOOR)] + [y1]
+        for j in range(len(marks) - 1):
+            ya, yb = marks[j], marks[j + 1]
+            g = notched4(tx, tz, h_k - 0.55, notch - 0.55)
+            if j % 2:
+                skin(g, g, ya, yb, r, gseed, force={e: (1.0, 0.95) for e in range(12)})
+                ring(h_k - 0.5, ya - 0.1, 0.16)
+                ring(h_k - 0.5, yb - 0.06, 0.16)
+            else:
+                skin(g, g, ya, yb, r, gseed, lit=(0.05, 0.18), hot=0.26, warm=(0.75, 1.0))
+                fin_rows(tx, tz, h_k, 0.55, ya, yb, 1.3, 0.42, (CO, "castconcrete", 0), CAST, notch)
+        notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
+        # A blade of adverts out of its east flank, a line of the tower's
+        # light up its outer edge.
+        bz_, bx0, bx1 = tz + 6.0, tx + h_k, tx + h_k + 3.6
+        box((CO, "board_frame", 0), bx0, bx1, 28.0, 63.4, bz_ - 0.22, bz_ + 0.22, scale=2.0)
+        for j in range(4):
+            for sz, yaw in ((1, 0.0), (-1, math.pi)):
+                rotated_quad((CO, "billboard", 0), (bx0 + bx1) / 2 + 0.1, 33.0 + j * 8.6, bz_ + sz * 0.24, 3.1, 8.0, yaw,
+                             col=(0.06, ((j + (sz < 0) * 2) % 4 + 0.5) / 8.0, 0.57, 1.0))
+        lit_box(verts, faces, uvs, bx1 - 0.02, bx1 + 0.1, 28.0, 63.4, bz_ - 0.26, bz_ + 0.26, 2.0)
+        for yy in (30.0, 46.0, 61.5):
+            box((CO, "metal", 1), bx0 - 0.3, bx0 + 0.5, yy, yy + 0.3, bz_ - 0.5, bz_ + 0.5, scale=1.0)
+    elif kind == "carved":
+        # A dark slab; two corners cut out three floors high as sky lobbies,
+        # lit warm inside, a line of light along their ledges.
+        h_k, y0, y1 = sections[0]
+        cs = 8.0
+        cut = {FLOOR0 + FLOOR * 7: ("sw", notched4(tx, tz, h_k, cs, notch, notch, notch), (10, 11)),
+               FLOOR0 + FLOOR * 12: ("ne", notched4(tx, tz, h_k, notch, notch, cs, notch), (4, 5))}
+        marks = sorted([y0, y1] + [v for b in cut for v in (b, b + FLOOR * 3)])
+        full = notched4(tx, tz, h_k, notch)
+        for ya, yb in zip(marks, marks[1:]):
+            if ya in cut:
+                name, plan, inner = cut[ya]
+                skin(plan, plan, ya, yb, r, gseed, lit=(0.03, 0.12), hot=0.18, warm=(0.5, 1.0), force={e: (1.0, 1.0) for e in inner})
+                sx, sz = (-1, 1) if name == "sw" else (1, -1)
+                xa, xb = sorted((tx + sx * h_k, tx + sx * (h_k - cs)))
+                za, zb = sorted((tz + sz * h_k, tz + sz * (h_k - cs)))
+                sq = [(xa, zb), (xb, zb), (xb, za), (xa, za)]
+                flat(sq, ya)
+                flat(sq, yb, "dark", up=False)
+                # Its ledge: a line of light along the two open edges, a rail.
+                ex, ez = tx + sx * (h_k - 0.12), tz + sz * (h_k - 0.12)
+                lit_box(verts, faces, uvs, xa, xb, ya - 0.3, ya, ez - 0.1, ez + 0.1, 0.5)
+                lit_box(verts, faces, uvs, ex - 0.1, ex + 0.1, ya - 0.3, ya, za, zb, 0.5)
+                box((CO, "metal", 1), xa, xb, ya + 1.0, ya + 1.08, ez - 0.05, ez + 0.05, scale=1.0)
+                box((CO, "metal", 1), ex - 0.05, ex + 0.05, ya + 1.0, ya + 1.08, za, zb, scale=1.0)
+                # Trees on its floor.
+                for dx_, dz_ in ((2.2, 2.4), (5.6, 2.2), (2.4, 5.6)):
+                    PR.place("planter_tree", tx + sx * (h_k - dx_), ya, tz + sz * (h_k - dz_), district=CO)
+            else:
+                skin(full, full, ya, yb, r, gseed, lit=(0.03, 0.12), hot=0.18, warm=(0.5, 1.0))
+        notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
+        ledge(full, y1, 1.0)
+        h_k, y0, y1 = sections[1]
+        plan = notched4(tx, tz, h_k, notch)
+        skin(plan, plan, y0, y1, r, gseed, lit=(0.03, 0.12), hot=0.2, warm=(0.5, 1.0))
+        notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
+        ring(h_k, y0 + 1.0)
+        for sx in (-1, 1):
+            fx = tx + sx * (half + 0.05)
+            lit_box(verts, faces, uvs, fx - 0.1, fx + 0.1, sections[0][1] + 1.0, sections[0][2], tz - 0.1, tz + 0.1, 2.0)
+    else:
+        # Three drums, a rib at every corner of each, a ring of light at
+        # the top of each.
+        aps = (13.0, 11.3, 9.6)
+        for k_, (h_k, y0, y1) in enumerate(sections):
+            plan = ngon(tx, tz, aps[k_])
+            skin(plan, plan, y0, y1, r, gseed, lit=(0.04, 0.16), hot=0.24, warm=(0.0, 0.5))
+            flat(plan, y1)
+            for j, (px, pz) in enumerate(plan):
+                th = (j - 0.5) * math.pi / 8
+                oriented_box((CO, "trim", 0), px - math.sin(th) * 0.3, (y0 + y1) / 2, pz - math.cos(th) * 0.3, 0.36, y1 - y0, 0.5, th, scale=2.0, col=NAVY)
+            for j in range(16):
+                lit_quad(verts, faces, uvs, plan[j], plan[(j + 1) % 16], y1 - 0.7, y1 - 0.4, 0.5)
+            if k_:
+                ledge(ngon(tx, tz, aps[k_ - 1]), y0, 1.0)
+        # A ring of screens round the lowest drum's front, five facets wide.
+        plan = ngon(tx, tz, aps[0] + 0.07)
+        for n_, j in enumerate((13, 14, 15, 0, 1, 2)):
+            a_, b_ = plan[j], plan[(j + 1) % 16]
+            th = j * math.pi / 8
+            if j != 2:
+                advert((a_[0] + b_[0]) / 2, 41.0, (a_[1] + b_[1]) / 2, 4.9, 5.2, th, n_, seed=0.77, depth=0.05)
+        # The lift core up its front, the name on its face.
+        cx_ = tx + half - notch - 1.6
+        box((CO, "trim", 0), cx_ - 1.6, cx_ + 1.6, LOBBY_H, sections[0][2] - 1.5, tz + 8.2, tz + half - 0.02, scale=2.0, col=NAVY)
+        flat([(cx_ - 1.6, tz + half), (cx_ + 1.6, tz + half), (cx_ + 1.6, tz + 8.2), (cx_ - 1.6, tz + 8.2)], sections[0][2] - 1.5)
+        half_at = lambda y: 13.0      # noqa: E731
     # The crown: a dark glass box, the logo on its faces to the boulevard
     # and to the rooftop, which sees the boulevard's face almost edge on.
     cw = top_half - 1.5
@@ -150,16 +465,8 @@ for i, (slug, height) in enumerate(TOWERS):
     empty("logo_" + slug, (tx, height + CROWN_H / 2, tz + cw + 0.06), props={"w": cw * 2 - 3.0, "h": CROWN_H - 3.0})
     empty("logo_" + slug + "_e", (tx + cw + 0.06, height + CROWN_H / 2, tz), yaw=math.pi / 2,
           props={"w": cw * 2 - 3.0, "h": CROWN_H - 3.0})
-    # The accent: a line of light up the inside corner of each notch, a thin
-    # ring at each setback, bands round the crown's top and foot, and on some
-    # a screen of blades over the roof, lit from its foot.
-    verts, faces, uvs = [], [], []
-    for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
-        for h_k, y0, y1 in sections:
-            fx, fz = tx + sx * (h_k - notch + 0.16), tz + sz * (h_k - notch + 0.16)
-            lit_box(verts, faces, uvs, fx - 0.16, fx + 0.16, max(y0, LOBBY_H + 1.0), y1, fz - 0.16, fz + 0.16, 2.0)
-    for h_k, y0, _ in sections[1:]:
-        lit_box(verts, faces, uvs, tx - h_k - 0.05, tx + h_k + 0.05, y0 + 1.0, y0 + 1.22, tz - h_k - 0.05, tz + h_k + 0.05, 0.5)
+    # Bands round the crown's top and foot, and on some a screen of blades
+    # over the roof, lit from its foot.
     lit_box(verts, faces, uvs, tx - cw - 0.08, tx + cw + 0.08, top - 0.55, top, tz - cw - 0.08, tz + cw + 0.08, 0.5)
     lit_box(verts, faces, uvs, tx - cw - 0.08, tx + cw + 0.08, height, height + 0.3, tz - cw - 0.08, tz + cw + 0.08, 0.5)
     if form["screen"]:
@@ -201,15 +508,13 @@ for i, (slug, height) in enumerate(TOWERS):
         box((CO, "neon_red", 1), tx + sx * cw - 0.2, tx + sx * cw + 0.2, top + 0.1, top + 0.45, tz + sz * cw - 0.2,
             tz + sz * cw + 0.2, scale=1.0)
     # The name, as type, on a tall sign on the lowest section.
-    sign_top = sections[0][2] - 4.0
-    sign_bottom = (hall[0] + 2.0) if hall else LOBBY_H + 4.0
-    sign("tower_" + slug, tx + half - notch - 1.6, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
+    sign("tower_" + slug, sign_x, (sign_top + sign_bottom) / 2, tz + half + 0.08, 2.6, sign_top - sign_bottom, 0.0,
          preview=slug.upper(), district=CO)
     empty("anchor_tower_" + slug, (tx, top + 1.8, tz), props={"height": top})
     # Its screens, each on the section of the shaft that stands at its height.
     rs_ = random.Random(seed + 700)
     for face, off, sy, sw, sh in SCREENS[slug]:
-        h_s = next(h_k for h_k, y0, y1 in sections if y0 <= sy < y1)
+        h_s = half_at(sy)
         if face == "+z":
             # (Flat on the glass: the braindance reads each tower as a box
             # that ends at its front, and a screen proud of it hides it.)
