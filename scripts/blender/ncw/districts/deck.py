@@ -984,44 +984,14 @@ for z in (-171.0, -160.0):
         sign(st_name("ps" if RY(z) - DEPTH < 2.0 else "pm"), xw + out * 0.115, y, z, w, h, yaw, district=DK, label=False)
 
 # ---------------------------------------------------------------------------
-# PEOPLE (the site draws them, kit.stand). On the walkway they stand by the
-# barrier, clear of the walker's line (z -75.55 on the deck, x -84.45 on the
-# ramp), turned to the view over the rail; under the deck they shelter from
-# the rain: at the stalls (above), at the machines, on the benches and the
-# footings, smoking by the skips.
+# PEOPLE (the site draws them, kit.stand). Nobody is placed on the walkways:
+# they are 1.2 m wide and the walk-through's line runs down their middle
+# (x -84.45 on the ramp, z -75.55 on the deck), so whoever stops on the deck
+# stands in a lookout hung outside the rail (the bays, below), 1.4 m or more
+# from that line; under the deck they shelter from the rain: at the stalls
+# (above), at the machines, on the benches and the footings, smoking by the
+# skips.
 # ---------------------------------------------------------------------------
-WALK_Z = z_bar + 0.26          # by the barrier on the deck's walkway
-WALK_X = x_bar - 0.26          # and on the ramp's
-
-
-def on_deck(x, pose, yaw=0.0):
-    stand(x, WALK_Z, yaw, pose, DY(x) + WALK_UP)
-
-
-def on_ramp(z, pose, yaw=-math.pi / 2):
-    stand(WALK_X, z, yaw, pose, RY(z) + WALK_UP)
-
-
-# Over the avenue, looking down it.
-on_deck(-6.8, "lean")
-on_deck(-5.9, "phone", 0.2)
-on_deck(4.2, "lean")
-on_deck(9.0, "talk", math.pi / 2)
-on_deck(9.9, "talk", -math.pi / 2)
-# Over the lanes behind the rows and on the way down.
-on_deck(-47.0, "smoke")
-on_deck(-28.5, "idle", 0.3)
-on_deck(47.5, "lean")
-on_deck(33.0, "phone", -0.2)
-on_deck(78.0, "idle")
-# At the turn's outer corner, under the board, and up the ramp.
-stand(XW + 0.5, ZS - 0.95, 2.4, "talk", Y + WALK_UP)
-stand(XW + 0.95, ZS - 0.45, -0.75, "talk", Y + WALK_UP)
-on_ramp(-103.0, "lean")
-on_ramp(-128.0, "phone", -1.8)
-on_ramp(-161.0, "idle")
-on_ramp(-162.0, "smoke", -1.3)
-
 # The passages either side of the avenue: on the benches and the bents'
 # footings, by the tree, at the pavement's edge out of the rain.
 for s in (-1, 1):
@@ -1768,3 +1738,73 @@ for k in range(5):
     if k < 4 and k != 2:        # the gate's panel stands open
         P.place("fence_mesh", 52.5, B.G0, zf + 1.15, math.pi / 2, district=DK)
 P.place("fence_mesh", 53.5, B.G0, ZN + 0.4 + 2 * 2.3 + 0.2, 0.35, district=DK)
+
+# ---------------------------------------------------------------------------
+# LOOKOUTS. Bays hung outside the walkway's rail on brackets, where there is
+# open air beside the deck (the west street at the turn and along the ramp,
+# the lane behind the avenue's west row): a steel floor, a rail on three
+# sides with a line of light under it, a yellow gate in the walkway's rail.
+# Whoever stops on the deck stands here, at the outer rail, 1.4 m or more
+# from the walk-through's line.
+# ---------------------------------------------------------------------------
+BAY = 1.8
+BAY_FLOOR = (0.1, 0.11, 0.12, 1.0)
+
+
+def bay(axis, a, b, yf):
+    """A lookout from a to b along the run ("x": off the deck's south edge,
+    "z": off the ramp's west edge). Returns its floor's height."""
+    mid = (a + b) / 2
+    y = yf(mid) + WALK_UP
+    if axis == "x":
+        x0, x1, z0, z1 = a, b, ZS, ZS + BAY
+        runs = (((x0, z1), (x1, z1)), ((x0, z0), (x0, z1)), ((x1, z0), (x1, z1)))
+    else:
+        x0, x1, z0, z1 = XW - BAY, XW, a, b
+        runs = (((x0, z0), (x0, z1)), ((x0, z0), (x1, z0)), ((x0, z1), (x1, z1)))
+    box((DK, "steel", 0), x0, x1, y - 0.14, y, z0, z1, scale=0.5, col=BAY_FLOOR, bottom=True)
+    for k, ((xa, za), (xb, zb)) in enumerate(runs):
+        for yy, t, det in ((y + 1.04, 0.07, 0), (y + 0.56, 0.035, 1), (y + 0.1, 0.035, 1)):
+            box((DK, "steel", det), min(xa, xb) - t / 2, max(xa, xb) + t / 2, yy, yy + t, min(za, zb) - t / 2, max(za, zb) + t / 2, scale=0.5, col=STEEL_LT, bottom=True)
+        m = max(1, round(math.hypot(xb - xa, zb - za) / 1.1))
+        for j in range(m + 1):
+            px, pz = xa + (xb - xa) * j / m, za + (zb - za) * j / m
+            box((DK, "steel", 1), px - 0.03, px + 0.03, y, y + 1.04, pz - 0.03, pz + 0.03, scale=0.5, col=STEEL_LT)
+        if k == 0:      # the line of light under the outer rail
+            box((DK, "glow", 0), min(xa, xb), max(xa, xb) + 0.02, y + 1.0, y + 1.035, min(za, zb), max(za, zb) + 0.02, scale=0.5, col=EDGE_TEAL, bottom=True)
+    for t in (0.15, 0.85):
+        v = a + (b - a) * t
+        if axis == "x":
+            pipe((DK, "steel", 0), (v, y - 0.14, z1 - 0.1), (v, y - 1.3, ZS + 0.02), 0.045, segs=4, col=STEEL_LT)
+            pipe((DK, "steel", 1), (v, y - 0.14, z0 + 0.9), (v, y - 0.72, ZS + 0.02), 0.03, segs=4, col=STEEL_LT)
+        else:
+            pipe((DK, "steel", 0), (x0 + 0.1, y - 0.14, v), (XW - 0.02, y - 1.3, v), 0.045, segs=4, col=STEEL_LT)
+            pipe((DK, "steel", 1), (x1 - 0.9, y - 0.14, v), (XW - 0.02, y - 0.72, v), 0.03, segs=4, col=STEEL_LT)
+    # The gate: a yellow leaf in the walkway's rail, both faces.
+    if axis == "x":
+        vface((DK, "hazard", 1), "z", ZS + 0.012, mid - 0.5, mid + 0.5, y, yf(mid) + RAIL_H - 0.04, 1)
+        vface((DK, "hazard", 1), "z", z_rail - 0.012, mid - 0.5, mid + 0.5, y, yf(mid) + RAIL_H - 0.04, -1)
+        pool(mid, y + 1.0, ZS + BAY / 2, "teal", 1.6)
+    else:
+        vface((DK, "hazard", 1), "x", XW - 0.012, mid - 0.5, mid + 0.5, y, yf(mid) + RAIL_H - 0.04, -1)
+        vface((DK, "hazard", 1), "x", x_rail + 0.012, mid - 0.5, mid + 0.5, y, yf(mid) + RAIL_H - 0.04, 1)
+        pool(XW - BAY / 2, y + 1.0, mid, "teal", 1.6)
+    return y
+
+
+# At the turn's outer corner, under the board, over the west street.
+y = bay("x", XW + 0.6, XE - 0.6, DY)
+for x, dz, yaw, pose in ((-83.0, 1.35, 0.0, "idle"), (-82.1, 1.3, 0.25, "phone"), (-80.4, 1.1, math.pi / 2, "talk"), (-79.5, 1.1, -math.pi / 2, "talk"),
+                         (-78.0, 1.45, math.pi, "lean"), (-77.0, 1.3, -0.2, "smoke")):
+    stand(x, ZS + dz, yaw, pose, y)
+# Over the lane behind the avenue's west row.
+y = bay("x", -49.4, -44.6, DY)
+for x, dz, yaw, pose in ((-48.5, 1.45, math.pi, "lean"), (-47.2, 1.3, 0.1, "smoke"), (-45.6, 1.3, -0.15, "idle")):
+    stand(x, ZS + dz, yaw, pose, y)
+# Along the ramp, over the west service lane, between the boards on its rail.
+for zc, crew in ((-134.0, (("lean", 0.9, math.pi / 2), ("phone", -0.7, -math.pi / 2 - 0.2))),
+                 (-117.5, (("talk", -0.45, 0.0), ("talk", 0.45, math.pi))),
+                 (-100.5, (("idle", 0.8, -math.pi / 2), ("smoke", -0.6, -math.pi / 2 + 0.3)))):
+    y = bay("z", zc - 1.6, zc + 1.6, RY)
+    for pose, dz, yaw in crew:
+        stand(XW - (1.5 if pose == "lean" else 1.25), zc + dz, yaw, pose, y)
