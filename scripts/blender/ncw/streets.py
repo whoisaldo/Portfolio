@@ -469,7 +469,7 @@ furniture()
 
 # How busy each district's pavements are: people per 100 m of each walking
 # line on a desktop (a phone takes about a third).
-CROWD = {"avenue": 9.0, "canyon": 7.0, "mega": 5.0, "japantown": 10.0, "deck": 1.0, "plaza": 4.5, "corpo": 4.0,
+CROWD = {"avenue": 9.0, "canyon": 7.0, "mega": 5.0, "japantown": 10.0, "deck": 1.0, "plaza": 7.0, "corpo": 4.0,
          "afterlife": 5.0, "santo": 1.6, "far": 1.0}
 
 
