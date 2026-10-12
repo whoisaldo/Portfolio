@@ -27,6 +27,10 @@
 // the intro hands over while the car is still rolling, it finishes parking
 // on the page's clock, then takes the road.
 //
+// In the braindance's free roam (src/braindance/roam) the car belongs to
+// the player: `free` puts it wherever the simulation has it, off the road's
+// line and up the ramp, with the same wheels, lamps, shadow and light.
+//
 // The car is the only thing in the city lit by three.js lights: the lights
 // the drift used and a night street to reflect (nightEnvironment), with the
 // sky light tinted by the city's own light where the car is (the same spill
@@ -195,6 +199,9 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   });
   scene.add(car);
   const shadow = createContactShadow(scene, car);
+  // The shadow's own group, the last thing it added: free roam (`free`)
+  // carries it up the ramp with the car.
+  const contact = scene.children[scene.children.length - 1];
   // The city is darker than the plate the drift was tuned over, and it has
   // real bloom: the beams, the pools and the smoke come down to match.
   const lamps = createLamps(car, { depthTest: true, lift: 0.5, layer, reverse: true, directional: true, glow: 0.55, near: [6, 16], beam: 0.028 });
@@ -313,6 +320,7 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // "road": on the road at u metres, v metres a second (negative backs up).
   // "drift": the intro has it, on the song clock.
   // "park": the intro let go while the car was still parking.
+  // "free": the braindance's free roam has it (see `free`).
   let mode = "road";
   let u = stops.curb;
   let v = 0;
@@ -403,11 +411,11 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   const finish = (now, dt) => {
     answer(dt);
     const k0 = 1 - Math.exp(-dt * 2);
-    stageLight += ((mode === "road" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
+    stageLight += ((mode === "road" || mode === "free" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
     key.intensity = 0.55 + 0.15 * stageLight;
     rimM.intensity = (0.55 + 0.95 * stageLight) * rims;
     rimC.intensity = (0.35 + 0.65 * stageLight) * rims;
-    const bay = mode === "road" ? smoothstep(stops.bay - 12, stops.bay - 4, u) : 0;
+    const bay = mode === "road" ? smoothstep(stops.bay - 12, stops.bay - 4, u) : mode === "free" ? 1 - smoothstep(4, 12, Math.hypot(car.position.x - bayAt.x, car.position.z - bayAt.z)) : 0;
     for (const l of bayLights.children) l.intensity = l.userData.nits * bay;
     car.updateMatrixWorld(true);
     shadow.update();
@@ -557,6 +565,56 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
       setLamps();
       if (!cut && Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
       finish(clock, Math.abs(dt));
+    },
+
+    /**
+     * One frame of the braindance's free roam (src/braindance/roam): the
+     * car where the player's simulation has it, at `x, y, z` (its wheels'
+     * contact height), turned to `heading` (0 faces +z), tipped by `pitch`
+     * and `roll` on a slope, moving at `speed` metres a second along its
+     * nose (negative backs up), its front wheels at `steer` radians, having
+     * rolled `ds` metres since the last frame. `brake` and `reverse` are the
+     * lamps, 0..1. `cut` is a jump (a spawn, a reset): no wheel spin across
+     * it and the light trails start again. Call `endFree` on the way out.
+     */
+    free(dt, { x, y = 0, z, heading, pitch = 0, roll = 0, speed = 0, steer: toSteer = 0, ds = 0, brake: toBrake = 0, reverse: toReverse = 0, cut = false }) {
+      clock += dt;
+      if (mode !== "free" || cut || !placed) drift.reset();
+      mode = "free";
+      placed = true;
+      car.visible = true;
+      const before = v;
+      v = speed;
+      accel = cut || dt <= 0 ? 0 : (v - before) / dt;
+      car.position.set(x, y, z);
+      // Heading first, then the slope in the car's own frame.
+      car.rotation.set(pitch, heading, roll, "YXZ");
+      steer = cut ? toSteer : steer + (toSteer - steer) * (1 - Math.exp(-dt * 14));
+      for (const st of rig.steers) st.rotation.y = steer;
+      if (!cut) for (const w of rig.wheels) w.rotation.x += ds / rig.radius;
+      brake += (toBrake - brake) * (1 - Math.exp(-dt * 12));
+      reverse += (toReverse - reverse) * (1 - Math.exp(-dt * 8));
+      setLamps();
+      if (!cut && Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
+      finish(clock, dt);
+      // The shadow and the headlamps' pool lie on the ground the car is on.
+      contact.position.y = y;
+      contact.rotation.set(pitch, heading, roll, "YXZ");
+      ground.mesh.position.y = y + 0.03;
+    },
+
+    /** Free roam is over: the car is the road's again (`directed`, `drive`). */
+    endFree() {
+      if (mode !== "free") return;
+      mode = "road";
+      placed = false;
+      v = 0;
+      accel = 0;
+      car.rotation.set(0, car.rotation.y, 0, "XYZ");
+      contact.rotation.set(0, car.rotation.y, 0, "XYZ");
+      contact.position.y = 0;
+      ground.mesh.position.y = 0.03;
+      drift.reset();
     },
 
     setRims(k) {

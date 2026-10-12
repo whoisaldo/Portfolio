@@ -5,6 +5,12 @@
 // own keys). The pointer on the city looks around while it plays and
 // orbits while the editor holds a moment; a click held on a clue scans it
 // (src/braindance/scanner.js owns that, and says so by claiming the press).
+//
+// G puts the recording down for free roam (src/braindance/roam) and takes
+// it up again. While roaming, the keys that move the recording move the
+// player instead: W A S D and the arrows, Space, Shift, F and R are roam's
+// (it is told of each by its code, down and up), and the rest (the layers,
+// the journal, photo mode, mute, the interface) stay as they are.
 import { useEffect } from "react";
 import { bd, set } from "./store";
 import { DURATION } from "./recording";
@@ -55,6 +61,26 @@ export function useControls(engineRef, on) {
           return;
         }
         if (key !== "Escape" && key !== "p" && key !== "P") return;
+      }
+      if (key === "g" || key === "G") {
+        handled();
+        if (!event.repeat && bd.mode !== "photo") {
+          // A button left in focus would take Space and Enter for itself.
+          document.activeElement?.blur?.();
+          e.setRoam();
+        }
+        return;
+      }
+      if (e.roam?.on) {
+        if (bd.mode !== "photo" && e.roam.key(event.code, true, event.repeat)) {
+          handled();
+          return;
+        }
+        // The transport is the recording's, and the recording is down.
+        if (key === " " || key === "q" || key === "Q" || key === "e" || key === "E" || key === "f" || key === "F" || key === "r" || key === "R") {
+          handled();
+          return;
+        }
       }
       switch (key) {
         case " ":
@@ -133,8 +159,21 @@ export function useControls(engineRef, on) {
           break;
       }
     };
+    // Roam's keys are held, so it hears them let go as well, and all of
+    // them at once when the window loses the keyboard.
+    const onKeyUp = (event) => {
+      const roam = engine()?.roam;
+      if (roam?.on && roam.key(event.code, false)) event.preventDefault();
+    };
+    const onBlur = () => engine()?.roam?.release();
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
   }, [engineRef, on]);
 }
 

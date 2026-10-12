@@ -13,7 +13,9 @@
 // `sound` and `heat` put a source into the audio and thermal layers: where
 // the rings run out from, or what glows. Times are seconds into the
 // recording, mostly from the recording's own marks, so a camera moved
-// there moves the windows with it.
+// there moves the windows with it. `board` marks a clue that is one entry
+// of the plaza's board: in free roam, with no recording to time it by, it
+// is there while the board shows that entry.
 import * as THREE from "three";
 import { bar, boardWindow, DURATION, HOLO_AT } from "./recording.js";
 import { towers as TOWERS } from "../data/world.js";
@@ -57,7 +59,7 @@ export function createPlaces(anchors, recording) {
   // ---- 2 The plaza: the board's schedule ----
   const board = around([79, 26, -263], [27, 18, 0.4], 0.8);
   featuredProjects.forEach((p, i) => {
-    P[p.slug] = { at: boardWindow(i), box: { world: board } };
+    P[p.slug] = { at: boardWindow(i), box: { world: board }, board: i };
   });
   P.radio = { at: [bar(11), bar(25)], box: { world: board }, sound: { world: [79, 26, -261], r: 40, k: 1 } };
   P.gpu = { at: [bar(11), bar(25)], box: { world: around([44.4, 22, -240], [0.6, 2.4, 3.2], 0.3) }, heat: { world: [44.4, 22, -240], r: 2.2, k: 1.1 } };

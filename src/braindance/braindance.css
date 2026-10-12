@@ -611,6 +611,61 @@ kbd {
 .bd-radio-title { font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
 .bd-radio-text .bd-dim { font-size: 0.78rem; }
 
+/* ---- free roam ---- */
+/* The way in, on the timeline's transport row, and the way back. */
+.bd-roam-in {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.9rem;
+  height: 2rem;
+  padding: 0 0.7rem;
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bd-volt);
+  border: 1px solid color-mix(in srgb, var(--bd-volt) 55%, transparent);
+  background: rgba(252, 238, 10, 0.06);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bd-roam-in kbd { color: var(--bd-volt); border-color: color-mix(in srgb, var(--bd-volt) 55%, transparent); }
+.bd-roam-in:hover { background: var(--bd-volt); color: #0a0a0c; }
+.bd-roam-in:hover kbd { color: #0a0a0c; border-color: #0a0a0c; }
+.bd-roam-in.is-loading { color: var(--bd-teal); border-color: color-mix(in srgb, var(--bd-teal) 55%, transparent); background: rgba(46, 230, 200, 0.06); }
+.bd-roam-in.is-loading kbd { color: var(--bd-teal); border-color: color-mix(in srgb, var(--bd-teal) 55%, transparent); }
+/* The bar that stands where the timeline stood. */
+.bd-roam { display: flex; align-items: center; gap: 1.6rem; padding: 0.7rem 0.9rem; }
+.bd-roam-read { display: flex; align-items: baseline; gap: 0.5rem; min-width: 8.2rem; }
+.bd-roam-speed {
+  font-family: "Chakra Petch", sans-serif;
+  font-weight: 700;
+  font-size: 2.4rem;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+  color: var(--bd-volt);
+}
+.bd-roam-unit, .bd-roam-foot {
+  font-family: "JetBrains Mono Variable", ui-monospace, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--bd-dim);
+}
+.bd-roam-foot { color: var(--bd-volt); font-size: 0.8rem; }
+.bd-roam-gear { margin-left: 0.5rem; padding: 0 0.3rem; color: #0a0a0c; background: var(--bd-red); opacity: 0; }
+.bd-roam-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 1.1rem; font-size: 0.88rem; color: rgba(236, 234, 228, 0.82); }
+.bd-roam-key { display: inline-flex; align-items: center; gap: 0.25rem; white-space: nowrap; }
+.bd-roam-key > span { margin-left: 0.25rem; }
+.bd-roam-side { margin-left: auto; display: flex; align-items: center; gap: 0.4rem; }
+.bd-roam-layers { display: flex; gap: 0.9rem; }
+.bd-roam .bd-roam-out { margin-left: 0.9rem; }
+/* The radio and the ? sit just over the bar, which is shorter than the timeline. */
+.bd-hud.is-roam .bd-radio, .bd-hud.is-roam .bd-help-btn { bottom: 5.6rem; }
+.bd-hud.is-roam .bd-help { bottom: 8.1rem; }
+
 /* ---- photo mode ---- */
 .bd-hud.is-photo .bd-header,
 .bd-hud.is-photo .bd-minimap,

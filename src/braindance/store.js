@@ -61,6 +61,17 @@ export const bd = {
   overdrive: false,
   // The song on the car's radio, or the city alone.
   radio: true,
+  // Free roam (src/braindance/roam): "off" (the recording), "drive" (in
+  // the S4) or "walk" (on foot). `roamLoading` is how far its first load
+  // has got, 0..1, or null when nothing is loading.
+  roam: "off",
+  roamLoading: null,
+  // The district the player is in (its label), and what F would do here
+  // ("in", "out" or "").
+  district: "",
+  prompt: "",
+  // On foot the mouse is held (pointer lock) while this is true.
+  locked: false,
 };
 
 const subs = new Set();
@@ -124,6 +135,11 @@ export function resetBd() {
     photo: { fov: 0, roll: 0, filter: "off", stamp: true },
     overdrive: false,
     radio: true,
+    roam: "off",
+    roamLoading: null,
+    district: "",
+    prompt: "",
+    locked: false,
   });
   notify();
 }

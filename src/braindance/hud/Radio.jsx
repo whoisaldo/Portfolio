@@ -40,7 +40,7 @@ export default function Radio({ engineRef }) {
         ))}
       </div>
       <div className="bd-radio-text">
-        <span className="bd-radio-kicker">{state.muted ? "Radio · muted (M)" : state.radio ? "Radio · R" : "Radio off · R"}</span>
+        <span className="bd-radio-kicker">{state.muted ? "Radio · muted (M)" : state.roam !== "off" ? (state.radio ? "Radio" : "Radio off") : state.radio ? "Radio · R" : "Radio off · R"}</span>
         <span className="bd-radio-title">I Really Want to Stay at Your House</span>
         <span className="bd-dim">Rosa Walton &amp; Hallie Coggins</span>
       </div>

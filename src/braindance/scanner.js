@@ -7,6 +7,13 @@
 // its marker. The pointer is a ray into the city: over a clue it says so,
 // and a click held on it for SCAN_SECONDS scans it. A marker is a button,
 // so the keyboard can scan as well (src/braindance/hud/Markers.jsx).
+//
+// In free roam (`spec.free`, src/braindance/roam) the recording is down and
+// its windows with it: whatever stands in the world is there to be found
+// from the car or on foot, the board's entries each while the board shows
+// it, the holocall once it has come in. Marks and the pointer then reach
+// only as far as a thing's size carries (REACH), so a phone two streets off
+// is not marked through the walls between.
 import * as THREE from "three";
 import { CLUES } from "../data/braindance";
 import { createPlaces, CAR_HEAT } from "./places";
@@ -15,7 +22,15 @@ import { bd, emit, set, toast } from "./store";
 import { markFound } from "./journal";
 import { SHOTS } from "../data/world";
 
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
 export const SCAN_SECONDS = 0.6;
+// In free roam a clue can be marked and scanned from this many times its
+// box's diagonal: at least REACH_MIN metres, at most REACH_MAX (a tower
+// from the boulevard under it, not from across the city).
+const REACH = 4;
+const REACH_MIN = 60;
+const REACH_MAX = 220;
 
 const byId = new Map(CLUES.map((c) => [c.id, c]));
 
@@ -110,6 +125,7 @@ export function createScanner({ parts, recording, layers, holocall = null }) {
     car.r.set(-Math.cos(spec.carHeading), 0, Math.sin(spec.carHeading));
     camera.updateMatrixWorld();
     const layer = bd.layer;
+    const free = Boolean(spec.free);
 
     heat.length = 0;
     sound.length = 0;
@@ -128,7 +144,8 @@ export function createScanner({ parts, recording, layers, holocall = null }) {
     for (const c of list) {
       const s = state.get(c.id);
       const [t0, t1] = c.place.at;
-      s.active = t >= t0 && t <= t1;
+      const timed = t >= t0 && t <= t1;
+      s.active = !free ? timed : c.place.board !== undefined ? spec.board === c.place.board : c.place.box.holo ? timed : true;
       if (!s.active) continue;
       placeBox(c, s.box);
       if (s.box.isEmpty()) {
@@ -145,13 +162,14 @@ export function createScanner({ parts, recording, layers, holocall = null }) {
         sound.push({ x: _sp.x, y: _sp.y, z: _sp.z, r: c.place.sound.r, k: c.place.sound.k });
       }
       if (c.layer !== layer) continue;
+      const dist = camera.position.distanceTo(s.centre);
+      if (free && !c.place.box.moon && s.box.distanceToPoint(camera.position) > clamp(s.box.getSize(_b).length() * REACH, REACH_MIN, REACH_MAX)) continue;
       // Where it is on the screen, for its marker.
       _sp.copy(s.centre).project(camera);
       const front = _sp.z < 1 && _sp.z > -1;
       s.screen.x = (_sp.x * 0.5 + 0.5) * 100;
       s.screen.y = (-_sp.y * 0.5 + 0.5) * 100;
       s.screen.on = front && Math.abs(_sp.x) < 1.05 && Math.abs(_sp.y) < 1.05;
-      const dist = camera.position.distanceTo(s.centre);
       if (s.screen.on) labels.push({ id: c.id, x: s.screen.x, y: s.screen.y, dist, found: bd.found.includes(c.id), secret: Boolean(c.secret) });
       lit.push({ c, s, dist });
     }
