@@ -68,6 +68,9 @@ const JACKETS = [
   [0.18, 0.21, 0.08], [0.6, 0.24, 0.04], [0.05, 0.08, 0.2], [0.56, 0.14, 0.3], [0.22, 0.22, 0.24], [0.38, 0.3, 0.2],
   [0.06, 0.22, 0.5], [0.3, 0.48, 0.08], [0.25, 0.03, 0.1], [0.62, 0.55, 0.4],
 ];
+// The jackets by family of colour: yellows and tans, reds and pinks, greens,
+// purple, whites, black and grey, blues.
+const HUES = [0, 1, 2, 3, 4, 5, 2, 0, 6, 1, 5, 0, 6, 2, 1, 4];
 const TROUSERS = [[0.03, 0.03, 0.035], [0.08, 0.1, 0.18], [0.16, 0.14, 0.12], [0.05, 0.12, 0.12], [0.24, 0.05, 0.06], [0.3, 0.3, 0.3], [0.12, 0.12, 0.05], [0.02, 0.02, 0.025]];
 const SKINS = [[0.52, 0.34, 0.24], [0.32, 0.2, 0.13], [0.66, 0.48, 0.37], [0.2, 0.13, 0.09], [0.6, 0.42, 0.3], [0.44, 0.27, 0.17]];
 const HAIRS = [[0.02, 0.018, 0.016], [0.05, 0.035, 0.03], [0.12, 0.07, 0.04], [0.7, 0.62, 0.44], [0.7, 0.16, 0.45], [0.1, 0.55, 0.6], [0.5, 0.08, 0.05], [0.6, 0.6, 0.62], [0.2, 0.6, 0.15], [0.35, 0.12, 0.55]];
@@ -77,7 +80,8 @@ const PAL = { jacket: 0, trousers: 16, skin: 24, hair: 30, bag: 40, rim: 46, siz
 
 // Walks: a start, a direction (unit, in the ground plane), a length, how
 // many people share it on a desktop and on a phone, the files they keep to
-// (metres to the side of the line: two abreast, or one), and which way they
+// (metres to the side of the line: two abreast and a body's width apart, or
+// one), and which way they
 // go. Everyone on a walk goes the same way at the same pace, so nobody walks
 // through anybody; the walk beside it goes the other way. Walks that share a
 // pavement say so, and how far to either side of the first of them a
@@ -85,9 +89,9 @@ const PAL = { jacket: 0, trousers: 16, skin: 24, hair: 30, bag: 40, rim: 46, siz
 // The avenue's pavements run the length the hero and the intro see, between
 // the lamps and hydrants by the kerb and the bins and benches by the shops.
 const WALKS = [
-  { from: [11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.27, 0.27], way: -1, pave: 1, span: [-0.92, 2.15] },
+  { from: [11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: -1, pave: 1, span: [-0.92, 2.15] },
   { from: [12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: 1, pave: 1 },
-  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.27, 0.27], way: 1, pave: 2, span: [-2.15, 0.92] },
+  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: 1, pave: 2, span: [-2.15, 0.92] },
   { from: [-12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: -1, pave: 2 },
   // The cross street's pavements, either side of the avenue.
   { from: [-88, -8.2], dir: [1, 0], len: 74, n: [2, 0] },
@@ -161,16 +165,21 @@ function populate({ phone, walks, standers, bare = false }) {
   const r = rng(1312);
   const people = [];
   const recent = [];
-  // A look nobody among the last few dozen shares: the jacket's colour and
-  // cut and the hair are what the eye matches first.
+  let before = { hue: -1, build: 0, hair: -1 };
+  // A look nobody among the last few dozen shares, and nothing like the one
+  // before (who is the one beside them, ahead of them in the file or at the
+  // same stall): the jacket's colour and cut, the hair and the build are
+  // what the eye matches first, so next to each other no two have a jacket
+  // of the same family of colours, the same cut with the same hair, hair of
+  // the same colour or the same build.
   const dress = ({ pose = null, umbrellaOdds = 0.38 } = {}) => {
     let style, garment, jacket, key;
-    for (let tries = 0; tries < 12; tries++) {
+    for (let tries = 0; tries < 16; tries++) {
       style = pick(r, HAIR_STYLES.map((x) => x.odds));
       garment = pick(r, [42, 22, 20, 16]);
       jacket = Math.floor(r() * JACKETS.length);
       key = `${jacket}|${garment}|${style}`;
-      if (!recent.includes(key) && !recent.slice(-4).some((k) => k.startsWith(`${jacket}|`))) break;
+      if (!recent.includes(key) && !recent.slice(-4).some((k) => k.startsWith(`${jacket}|`)) && !recent.slice(-3).some((k) => k.endsWith(`|${garment}|${style}`)) && HUES[jacket] !== before.hue) break;
     }
     recent.push(key);
     if (recent.length > 48) recent.shift();
@@ -198,12 +207,17 @@ function populate({ phone, walks, standers, bare = false }) {
     // The garment; a hat, a shaved head, lit eyes, bare arms under a vest,
     // pale shoes; and an umbrella's cloth (black, its rim's colour, pale).
     const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.08 ? 16 : 0) + (r() < 0.5 ? 32 : 0) + (r() < 0.25 ? 64 : 0) + 128 * pick(r, [50, 32, 18]);
+    // Slight to heavy, most of them between.
+    let build = 0.86 + 0.36 * r() ** 1.5;
+    if (Math.abs(build - before.build) < 0.07) build = build > 1.04 ? build - 0.12 : build + 0.12;
+    let hairColour = pick(r, HAIR_ODDS);
+    if (hairColour === before.hair) hairColour = (hairColour + 1 + Math.floor(r() * (HAIRS.length - 1))) % HAIRS.length;
+    before = { hue: HUES[jacket], build, hair: hairColour };
     return {
       height: (1.55 + 0.37 * (r() + r()) * 0.5) / RIG.height,
-      // Slight to heavy, most of them between.
-      build: 0.86 + 0.36 * r() ** 1.5,
+      build,
       look: [mask, flags, Math.floor(r() * RIMS.length) + 4 * Math.floor(r() * BAGS.length), r()],
-      wear: [jacket, Math.floor(r() * TROUSERS.length), Math.floor(r() * SKINS.length), pick(r, HAIR_ODDS)],
+      wear: [jacket, Math.floor(r() * TROUSERS.length), Math.floor(r() * SKINS.length), hairColour],
     };
   };
 
@@ -223,8 +237,8 @@ function populate({ phone, walks, standers, bare = false }) {
     const paired = a.dir[0] === b.dir[0] && a.dir[1] === b.dir[1] && Math.abs(across) > 0.8 && Math.abs(across) < 4.5;
     if (!paired) continue;
     const inward = Math.sign(across);
-    a.files = [inward * 0.2, inward * 0.74];
-    b.files = [inward * -0.3, inward * 0.24];
+    a.files = [inward * 0.16, inward * 0.8];
+    b.files = [inward * -0.36, inward * 0.28];
     a.way = r() < 0.5 ? -1 : 1;
     b.way = -a.way;
     // The kerb's line is 0.7 m in from the kerb and the shops' 1.7 m out
@@ -239,7 +253,7 @@ function populate({ phone, walks, standers, bare = false }) {
   for (const w of lines) {
     const n = w.n[phone ? 1 : 0];
     if (!n) continue;
-    const files = w.files ?? [-0.27, 0.27];
+    const files = w.files ?? [-0.33, 0.33];
     const way = w.way ?? (r() < 0.5 ? -1 : 1);
     const pace = way * (1.12 + r() * 0.42);
     // Alone, or two abreast and in step where the walk has room for it.
@@ -261,7 +275,10 @@ function populate({ phone, walks, standers, bare = false }) {
     });
     const slot = w.len / groups.length;
     groups.forEach((size, g) => {
-      const at = (g + 0.2 + 0.6 * r()) * slot;
+      // Somewhere in their own stretch of the walk, never within a body's
+      // length of the next one's.
+      const loose = Math.min(0.6, Math.max(0, 1 - 1.1 / slot));
+      const at = (g + (1 - loose) / 2 + loose * r()) * slot;
       const step = r();
       const one = Math.floor(r() * files.length);
       for (let k = 0; k < size; k++) {
@@ -376,8 +393,16 @@ function layLanes(paves, rows, solid) {
   for (const pave of paves) {
     const { from, dir, len } = pave.ref;
     const files = [...pave.files].sort((a, b) => a.u - b.u);
-    const want = files.map((x) => x.u);
+    const n = files.length;
     const [lo, hi] = pave.span;
+    // Where each file wants to run: its own line, moved over where the
+    // next file's is nearer than a body's width and the pavement has the
+    // room for it.
+    const own = files.map((x) => x.u);
+    const want = [...own];
+    const apart = n > 1 ? Math.min(GAP + 0.06, (hi - lo) / (n - 1)) : 0;
+    for (let i = 1; i < n; i++) want[i] = Math.max(want[i], want[i - 1] + apart);
+    for (let i = n - 1; i >= 0; i--) want[i] = Math.min(want[i], i < n - 1 ? want[i + 1] - apart : Math.max(hi, own[i]));
     // What stands on this pavement, in its own frame: along it (stretched,
     // so the bend starts early) and across it (by a body's half width),
     // noted at every point along the walk it reaches.
@@ -398,7 +423,6 @@ function layLanes(paves, rows, solid) {
       const k1 = Math.min(LANE_W - 1, Math.ceil(((a + ha) / len) * LANE_W));
       for (let k = k0; k <= k1; k++) (cells[k] ??= []).push([u - hu, u + hu]);
     }
-    const n = files.length;
     const at = new Float32Array(n * LANE_W);
     for (let k = 0; k < LANE_W; k++) {
       free[k * 2] = lo;
@@ -448,7 +472,7 @@ function layLanes(paves, rows, solid) {
       for (let k = 0; k < LANE_W; k++) {
         const o = (files[i].row * LANE_W + k) * 4;
         const x = want[i] + line[k];
-        out[o] = Math.round(128 + Math.min(1.27, Math.max(-1.27, line[k])) * 100);
+        out[o] = Math.round(128 + Math.min(1.27, Math.max(-1.27, x - own[i])) * 100);
         out[o + 1] = Math.round(Math.min(2.55, Math.max(0, x - free[k * 2])) * 100);
         out[o + 2] = Math.round(Math.min(2.55, Math.max(0, free[k * 2 + 1] - x)) * 100);
       }
