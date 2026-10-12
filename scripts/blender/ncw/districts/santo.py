@@ -800,7 +800,7 @@ def fuel():
     for ix in (134.0, 147.0, 160.0):
         box(K.M("concrete"), ix - 0.7, ix + 0.7, GY, GY + 0.2, 19.0, 29.0, scale=1.0, col=K.CONC)
         for z in (20.2, 27.8):
-            K.column(ix, z, GY, CY, t=0.42, mat=K.MAT["steel"], col=K.TANK_WHITE)
+            K.column(ix, z, GY, CY, t=0.42, mat=K.MAT["steel"], col=K.shade(K.TANK_WHITE, 0.6))
             cylinder(k("hazard", 1), ix, z + (1.6 if z > 24 else -1.6), GY, GY + 1.1, 0.14, segs=8)
         for z in (22.4, 25.6):
             P.place("pump", ix, GY + 0.2, z, 0.0, district=D)
@@ -815,8 +815,8 @@ def fuel():
                 K.quad_n(k("dark"), ((lx - 0.75, CY - 0.03, z - 0.4), (lx + 0.75, CY - 0.03, z - 0.4), (lx + 0.75, CY - 0.03, z + 0.4), (lx - 0.75, CY - 0.03, z + 0.4)), (0, -1, 0))
                 K.quad_n(k("glow"), ((lx - 0.6, CY - 0.04, z - 0.26), (lx + 0.6, CY - 0.04, z - 0.26), (lx + 0.6, CY - 0.04, z + 0.26), (lx - 0.6, CY - 0.04, z + 0.26)), (0, -1, 0),
                          (0.62, 0.62, 0.56, 1.0))
-                light(D, lx, 1.0, z, "white", 1.2)
-    K.wash(CX0 + 1.0, CX1 - 1.0, CZ0 + 1.0, CZ1 - 1.0, level=0.9, hue="white")
+                light(D, lx, 1.0, z, "white", 1.0)
+    K.wash(CX0 + 1.0, CX1 - 1.0, CZ0 + 1.0, CZ1 - 1.0, level=0.7, hue="white")
     K.collide(CX0, CX1, CZ0, CZ1, CY + 0.8, y0=CY)
     # The kiosk behind it: a shop the whole width, lit, a canopy over its
     # door.
@@ -976,10 +976,9 @@ def container_yard():
     K.quad_n(k("glow"), ((GX + 3.42, TOP - 3.6, tz + 2.6), (GX + 3.42, TOP - 3.6, tz + 4.4), (GX + 3.42, TOP - 2.2, tz + 4.4), (GX + 3.42, TOP - 2.2, tz + 2.6)), (1, 0, 0), glass)
     K.quad_n(k("glow"), ((GX + 1.2, TOP - 3.6, tz + 2.38), (GX + 3.2, TOP - 3.6, tz + 2.38), (GX + 3.2, TOP - 2.2, tz + 2.38), (GX + 1.2, TOP - 2.2, tz + 2.38)), (0, 0, -1), glass)
     K.quad_n(k("glow"), ((GX + 1.2, TOP - 3.6, tz + 4.62), (GX + 3.2, TOP - 3.6, tz + 4.62), (GX + 3.2, TOP - 2.2, tz + 4.62), (GX + 1.2, TOP - 2.2, tz + 4.62)), (0, 0, 1), glass)
-    for x_ in (GX + 1.0, GX + 3.38):
-        K.quad_n(k("trim", 1), ((x_ + (-0.012 if x_ < GX + 2 else 0.032), TOP - 4.0, tz + 2.4), (x_ + (-0.012 if x_ < GX + 2 else 0.032), TOP - 4.0, tz + 4.6),
-                                (x_ + (-0.012 if x_ < GX + 2 else 0.032), TOP - 3.8, tz + 4.6), (x_ + (-0.012 if x_ < GX + 2 else 0.032), TOP - 3.8, tz + 2.4)),
-                 (-1 if x_ < GX + 2 else 1, 0, 0), K.PAINT_WHITE)
+    for xq, nx_ in ((GX + 0.988, -1), (GX + 3.412, 1)):
+        # A white band along each side under the glass.
+        K.quad_n(k("trim", 1), ((xq, TOP - 4.0, tz + 2.4), (xq, TOP - 4.0, tz + 4.6), (xq, TOP - 3.8, tz + 4.6), (xq, TOP - 3.8, tz + 2.4)), (nx_, 0, 0), K.PAINT_WHITE)
     box(k("neon_white"), GX + 1.9, GX + 2.5, TOP - 4.3, TOP - 4.22, tz + 3.2, tz + 3.8, scale=0.5, bottom=True)
     # The load: a container in the spreader's grab, hung on four falls of
     # rope from the trolley's sheaves, guides at the spreader's corners.
@@ -1314,6 +1313,21 @@ def towers():
     K.roof_lamp(428.6, 20.0, t6, power=5.0, hue="white")
     K.av_pad(448.0, 29.5, t7, rad=5.2)
     K.roof_lamp(444.0, 38.2, t7, power=4.0)
+    # Round the pad: the stair's head with its door and lamp, an air unit
+    # and its duct along the north parapet, condensers and a cable tray
+    # along the south one, patches in the felt.
+    box(K.M("concrete"), 442.0, 444.6, t7, t7 + 2.6, 19.6, 22.4, scale=1.5, col=K.CONC)
+    box(k("metal", 1), 441.9, 444.7, t7 + 2.6, t7 + 2.74, 19.5, 22.5, scale=1.0, bottom=True)
+    K.quad_n(k("door_panel"), ((444.62, t7, 20.4), (444.62, t7, 21.5), (444.62, t7 + 2.1, 21.5), (444.62, t7 + 2.1, 20.4)), (1, 0, 0))
+    box(k("neon_amber"), 444.62, 444.74, t7 + 2.2, t7 + 2.32, 20.7, 21.2, scale=0.5, bottom=True)
+    K.sodium(445.6, t7 + 0.3, 21.0, 4.0, red=0.2)
+    K.ahu(451.6, 21.2, t7)
+    K.duct(445.4, 21.2, 449.8, 21.2, t7, w=0.7)
+    K.chiller(449.0, 37.6, t7)
+    K.tray(442.2, 39.3, 454.0, 39.3, t7)
+    K.roof_lamp(453.6, 36.0, t7, power=4.0, hue="white")
+    for (x0, x1, z0, z1, q) in ((445.0, 448.2, 22.6, 23.8, 2), (452.0, 454.0, 24.6, 28.0, 1), (442.0, 443.4, 30.0, 34.0, 3)):
+        K.roof_patch(x0, x1, z0, z1, t7, K.FELT[q])
     # Lit from its foot on the street side too, where the hall's light is.
     K.wash(X0, X1, Z0 - 1.4, Z0 - 1.4, level=1.0, step=3.5)
     K.wash(X0 - 1.4, X0 - 1.4, Z0, Z1, level=0.7)

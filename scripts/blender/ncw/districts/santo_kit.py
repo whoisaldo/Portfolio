@@ -2149,7 +2149,7 @@ def gate(x0, z0, x1, z1, inward, open_=True, booth=None, guard=True, lamp="cyan"
         box(M("concrete"), px - 0.35, px + 0.35, 0.0, 3.0, pz - 0.35, pz + 0.35, scale=1.5, col=CONC)
         box(k("hazard", 1), px - 0.37, px + 0.37, 0.4, 1.3, pz - 0.37, pz + 0.37, scale=1.0)
         box(k("glow"), px - 0.14, px + 0.14, 3.0, 3.25, pz - 0.14, pz + 0.14, scale=0.5, col=GLOW[lamp])
-        light(D, px, 3.0, pz, lamp, 2.0)
+        light(D, px, 3.0, pz, lamp, 1.0)
     ln = math.hypot(x1 - x0, z1 - z0)
     n = max(1, round(ln / 3.0))
     yaw = math.atan2(-(z1 - z0), x1 - x0)
