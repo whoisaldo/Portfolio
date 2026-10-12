@@ -348,6 +348,14 @@ def _jt_stall(k):
     box(k("neon_amber"), -0.9, 0.9, 2.1, 2.16, 0.25, 0.33, scale=1.0, bottom=True)
     for x in (-1.3, 1.3):
         barrel(k("neon_amber"), x, 1.05, 1.5, 1.92, 0.15)
+    # What it sells, in trays along the counter; a pot on the hob behind;
+    # its menu, lit, on the back board.
+    for i, col in enumerate(((0.55, 0.2, 0.08, 1), (0.6, 0.5, 0.2, 1), (0.2, 0.4, 0.12, 1), (0.55, 0.5, 0.45, 1), (0.5, 0.1, 0.1, 1))):
+        x = -1.0 + i * 0.43
+        box(T, x, x + 0.34, 1.0, 1.05, 0.34, 0.66, scale=1.0, col=(0.07, 0.07, 0.08, 1))
+        box(T, x + 0.03, x + 0.31, 1.05, 1.09 + 0.03 * (i % 2), 0.37, 0.63, scale=1.0, col=col)
+    cylinder(T, 0.75, -0.5, 0.76, 1.1, 0.2, segs=6, col=(0.3, 0.3, 0.31, 1))
+    P.face(k, P.FOOD, 0.0, 1.5, -0.735, 1.5, 0.7, 0.0, GLOW["amber"])
 
 
 @P.proto("jt_cart", box=(0.9, 1.2, 0.6), reach=320)
@@ -548,20 +556,15 @@ def _jt_pole(k):
 
 @P.proto("jt_nobori", box=(0.6, 1.5, 0.1), reach=220, detail=True)
 def _jt_nobori(k):
-    """Two banners on poles by a shop's door, their cloth lettered down its
-    length (the cloth runs along x)."""
+    """Two banners on poles by a shop's door: each cloth is the site's
+    printed banner, characters down its length, on both its sides (the
+    cloth runs along x)."""
     T = k("trim")
-    for x, col, ink in ((-0.62, (0.36, 0.05, 0.05, 1), (0.6, 0.55, 0.45, 1)), (0.08, (0.07, 0.09, 0.2, 1), (0.55, 0.52, 0.45, 1))):
+    for x, tone in ((-0.62, (0.5, 0.16, 0.14)), (0.08, (0.2, 0.26, 0.5))):
         box(T, x - 0.02, x + 0.02, 0.0, 3.05, -0.02, 0.02, scale=1.0, col=GREY)
         box(T, x, x + 0.56, 2.96, 2.99, -0.012, 0.012, scale=1.0, col=GREY, bottom=True)
-        for sd in (1, -1):
-            xa, xb = (x + 0.04, x + 0.54) if sd > 0 else (x + 0.54, x + 0.04)
-            quad(T, (xa, 0.95, 0.0), (xb, 0.95, 0.0), (xb, 2.95, 0.0), (xa, 2.95, 0.0), col=col)
-            for j in range(5):
-                y = 2.62 - j * 0.36
-                wj = (0.3, 0.2, 0.26, 0.16, 0.28)[j]
-                ma, mb = (x + 0.29 - wj / 2, x + 0.29 + wj / 2) if sd > 0 else (x + 0.29 + wj / 2, x + 0.29 - wj / 2)
-                quad(T, (ma, y - 0.1, 0.006 * sd), (mb, y - 0.1, 0.006 * sd), (mb, y + 0.1, 0.006 * sd), (ma, y + 0.1, 0.006 * sd), col=ink)
+        for yaw in (0.0, math.pi):
+            rotated_quad(k("print"), x + 0.29, 1.95, 0.0, 0.5, 2.0, yaw, col=(*tone, P.BANNER), depth=0.006)
 
 
 # ---------------------------------------------------------------------------

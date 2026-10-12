@@ -380,11 +380,28 @@ def shop_face(rec, name, level="street", cap=None):
         y += CELL_H * every
     if r.random() < 0.5:
         f.ledge((D, "trim", 1), 0.0, w, h - 0.55, 0.55, 0.35, tcol, caps=False)
+    # What lights the front under its fascia, each front its own: paper
+    # lanterns at their own height and spacing, a few big ones, a tube, a
+    # string of bulbs, a standing light box, or only its windows. (The lot's
+    # stream is drawn as it was; the choice is this face's own.)
     if r.random() < (0.8 if alley else 0.62 if level == "street" else 0.35):
         if r.random() < 0.7:
-            J.lantern_row(f, 0.5, w - 0.5, 3.0, 0.6, r.choice((1.2, 1.4, 1.7)))
-        else:
-            J.lantern_row(f, 0.7, w - 0.7, 2.85, 0.6, 2.2, sy=1.5, sxz=1.5)
+            r.choice((1.2, 1.4, 1.7))
+        rl = rng(rec, "lamps" + name)
+        roll = rl.random()
+        if roll < 0.46:
+            J.lantern_row(f, 0.5, w - 0.5, rl.uniform(2.75, 3.3), rl.uniform(0.5, 0.7), rl.choice((1.3, 1.6, 2.0, 2.4)))
+        elif roll < 0.58:
+            J.lantern_row(f, 0.7, w - 0.7, rl.uniform(2.7, 2.95), 0.6, rl.choice((2.4, 3.2)), sy=1.5, sxz=1.5)
+        elif roll < 0.72:
+            a = rl.uniform(0.4, w * 0.3)
+            strip(f, rl.choice(("white", "pink", "cyan", "amber", "green")), a, rl.uniform(w * 0.6, w - 0.4), 3.3, 3.38, rl.uniform(0.3, 0.5))
+        elif roll < 0.86:
+            pa, pb = f.p(f.at(0.4), 0.0, 0.5), f.p(f.at(w - 0.4), 0.0, 0.5)
+            J.span("jt_festoon", (pa[0], pa[2]), (pb[0], pb[2]), rl.uniform(3.3, 3.7), 0.35)
+        elif roll < 0.93 and not alley:
+            x, _, z = f.p(f.at(rl.uniform(0.9, w - 0.9)), G0, 0.3)
+            J.put("lightbox", x, G0, z, f.yaw)
     for _ in range(r.randrange(0, 3) if level != "edge" else r.randrange(0, 2)):
         if w > 3.4:
             s = r.uniform(0.4, w - 2.2)
@@ -416,6 +433,34 @@ def _no_back(district, f, r, tcol):
     LIGHTS.pop(VOID, None)
     for key in [k for k in batches if k[0] == VOID]:
         del batches[key]
+
+
+_kit_awning = B.awning
+
+
+def _awning(district, f, s0, s1, colour, out=1.6, y=3.55):
+    """A cloth awning with what holds it up: the sloped cloth and its
+    underside, a valance hanging from its front bar, cheeks at its ends,
+    the bar and two arms back to the wall, its hem lit."""
+    dye = tuple(int(NEON[colour][i:i + 2], 16) / 255 for i in (0, 2, 4)) + (1.0,)
+    a, b = f.at(s0), f.at(s1)
+    ti, to, drop = y + 0.45, y, 0.3
+    k = (district, "awning", 1)
+    p = (f.p(a, ti, 0.0), f.p(b, ti, 0.0), f.p(b, to, out), f.p(a, to, out))
+    quad(k, p[0], p[1], p[2], p[3], uvs=((0, 0), (1, 0), (1, 1), (0, 1)), col=dye)
+    quad(k, p[1], p[0], p[3], p[2], uvs=((1, 0), (0, 0), (0, 1), (1, 1)), col=dye)
+    f.quad(k, s0, s1, to - drop, to, out, uvs=((0, 0), (1, 0), (1, 0.2), (0, 0.2)), col=tuple(v * 0.8 for v in dye[:3]) + (1.0,))
+    for e, flip in ((a, False), (b, True)):
+        tri = [f.p(e, ti, 0.0), f.p(e, to, out), f.p(e, to - drop, out), f.p(e, ti - drop, 0.0)]
+        quad(k, *(tri if not flip else tri[::-1]), col=dye)
+    m = (district, "metal", 1)
+    f.box(m, s0 - 0.03, s1 + 0.03, to - 0.03, to + 0.03, out - 0.03, out + 0.03)
+    for e in (s0 + 0.12, s1 - 0.12):
+        pa, pb, pc = f.p(f.at(e), ti - 0.05, 0.0), f.p(f.at(e), to, out), f.p(f.at(e), y - 0.75, 0.0)
+        for q in ((pc, pb, (pb[0], pb[1] + 0.05, pb[2]), (pc[0], pc[1] + 0.05, pc[2])),):
+            quad(m, *q)
+            quad(m, q[1], q[0], q[3], q[2])
+    f.box((district, "neon_" + colour, 0), s0, s1, to - drop - 0.06, to - drop, out - 0.02, out + 0.02)
 
 
 _kit_escape = B.fire_escape
@@ -623,7 +668,7 @@ def flush_shops(f, r, tcol):
             f.quad((D, "shop", 0), a, b, 0.55, 3.3, 0.07, col=(r.uniform(0.4, 1.0), r.random(), 1.0 if r.random() < 0.92 else 0.0, 1.0))
             colour = r.choice(STYLE["shop_colours"])
             if r.random() < 0.5:
-                B.awning(D, f, a, b, colour)
+                _awning(D, f, a, b, colour)
             else:
                 strip(f, colour, a + 0.2, b - 0.2, 3.38, 3.46, 0.07)
         else:
@@ -1086,7 +1131,7 @@ cuts_w = [(a, b, "open") for a, b in ALLEYS] + [(TORII[0], TORII[1], "street")]
 cuts_c = [(a, b, "open") for a, b in (ALLEYS[1], ALLEYS[3], ALLEYS[7])] + [(TORII[0], TORII[1], "street")]
 cuts_e = [(a, b, "open") for a, b in PASSAGES] + [(-190.0, -168.0, "street"), (-86.0, -74.0, "deck")]
 
-B.back_ground, B.fire_escape = _no_back, _fire_escape
+B.back_ground, B.fire_escape, B.awning = _no_back, _fire_escape, _awning
 build_row("E", ROW_E, "-x", "back", segments(-708.0, -10.0, cuts_e, "street", "street"), 811, W_NARROW,
           ((2, 3), (3, 4), (4, 3), (5, 2)), STYLE, quiet=True)
 build_row("A", ROW_A, "+x", "street", segments(ZN, ZS, cuts_w), 812, W_NARROW,
@@ -1095,7 +1140,7 @@ build_row("B", ROW_B, "+x", "back", segments(ZN, ZS, cuts_w), 813, (8.0, 9.6, 11
           ((3, 3), (4, 3), (5, 3), (6, 2)), STYLE_B, ground="blank")
 build_row("C", ROW_C, "-x", "back", segments(ZN, ZS, cuts_c), 814, (12.8, 16.0, 19.2, 22.4),
           ((5, 2), (6, 3), (7, 3), (8, 2), (9, 1)), STYLE_C, ground="blank")
-B.back_ground, B.fire_escape = _kit_back, _kit_escape
+B.back_ground, B.fire_escape, B.awning = _kit_back, _kit_escape, _kit_awning
 
 # ---------------------------------------------------------------------------
 # The lanes: the east lane behind the shallow lots, the back lane, the
@@ -1236,6 +1281,10 @@ def clear_of(z, spans, pad=0.0):
     return not any(a - pad < z < b + pad for a, b in spans)
 
 
+# What stands over the street (z): the gate, the sign bridge, the bridge
+# between the two sides, the sign tower, the lantern arch, the south arch.
+GATE_Z, SIGNS_Z, BRIDGE_Z, TOWER_Z, ARCH_Z, SOUTH_Z = -696.0, -444.0, -528.0, -352.0, -276.0, -30.0
+OVER = [(z - 4.0, z + 4.0) for z in (GATE_Z, SIGNS_Z, BRIDGE_Z, ARCH_Z, SOUTH_Z)]
 sr = random.Random(7100)
 z = -710.0
 while z < -8.0:
@@ -1246,12 +1295,15 @@ while z < -8.0:
         continue
     kind = sr.choice(("jt_string", "jt_festoon", "jt_cable", "jt_cable", "jt_string", "jt_festoon", "jt_cable"))
     y = min(min(hw, he) - 0.6, sr.uniform(8.6, 12.5))
+    free = clear_of(z, OVER) and clear_of(zb, OVER)
     if kind == "jt_cable":
         zb = z + sr.uniform(-7.0, 7.0)
         if height_at("E", zb) is None:
             continue
-        J.span(kind, (XW, z), (XE, zb), min(hw, height_at("E", zb)) - sr.uniform(0.5, 2.5), sr.uniform(0.8, 1.6))
-    else:
+        yc, dc = min(hw, height_at("E", zb)) - sr.uniform(0.5, 2.5), sr.uniform(0.8, 1.6)
+        if free and clear_of(zb, OVER):
+            J.span(kind, (XW, z), (XE, zb), yc, dc)
+    elif free:
         J.span(kind, (XW, z), (XE, zb), y, 2.2 if kind == "jt_string" else 1.8)
         for x in (-86.0, -74.0):
             light(D, x, 0.3, z, "red" if kind == "jt_string" else "amber", 3.2)
@@ -1351,8 +1403,133 @@ def street_gate(z, r):
         light(D, x, 0.3, z, "red", 3.0)
 
 
-for gz in (-696.0, -444.0, -276.0, -26.0):
-    street_gate(gz, sr)
+STEELWORK = (0.075, 0.08, 0.09, 1)
+
+
+def pylon(x, z, h):
+    """A steel pylon on its block at the kerb's edge."""
+    box((D, "dark", 0), x - 0.32, x + 0.32, G0, 0.9, z - 0.32, z + 0.32, scale=1.0)
+    box((D, "trim", 0), x - 0.17, x + 0.17, 0.9, h, z - 0.17, z + 0.17, scale=1.0, col=STEELWORK)
+
+
+def sign_bridge(z, r):
+    """A gantry of adverts over the street: two pylons, a truss between
+    them, three boards hung on it facing up the street and three down it,
+    a tube along its lower chord, cables slung beside it."""
+    xa, xb = -90.6, -69.4
+    for x in (xa, xb):
+        pylon(x, z, 11.5)
+    k = (D, "steel", 1)
+    for y in (8.2, 11.2):
+        for zz in (z - 0.42, z + 0.42):
+            box(k, xa, xb, y, y + 0.16, zz - 0.08, zz + 0.08, scale=1.0, col=ESCAPE, bottom=True)
+    n = 8
+    for i in range(n):
+        x0_, x1_ = xa + (xb - xa) * i / n, xa + (xb - xa) * (i + 1) / n
+        ya, yb = (8.3, 11.2) if i % 2 == 0 else (11.2, 8.3)
+        for zz in (z - 0.42, z + 0.42):
+            q = ((x0_, ya, zz), (x1_, yb, zz), (x1_, yb + 0.12, zz), (x0_, ya + 0.12, zz))
+            quad(k, *q, col=ESCAPE)
+            quad(k, q[1], q[0], q[3], q[2], col=ESCAPE)
+    for cx in (-86.7, -80.0, -73.3):
+        for yaw, dz in ((0.0, 0.75), (math.pi, -0.75)):
+            B.billboard(D, cx, 9.75 + (0.5 if cx == -80.0 else 0.0), z + dz, 5.8, 2.6, yaw, r, back=False, depth=0.2)
+    box((D, "neon_cyan", 0), xa, xb, 8.08, 8.16, z - 0.04, z + 0.04, scale=1.0, bottom=True)
+    J.span("jt_cable", (xa, z + 1.3), (xb, z + 1.3), 8.0, 1.2)
+    J.span("jt_cable", (xa, z - 1.3), (xb, z - 1.9), 11.4, 0.9)
+    for x in (-87.0, -80.0, -73.0):
+        light(D, x, 0.3, z, r.choice(("cyan", "pink", "amber")), 3.6)
+
+
+def lantern_arch(z, r):
+    """A cable-hung arch of lanterns: two red masts, a cable between their
+    heads, three strings of lanterns under it each at its own sag, one
+    great lantern at the middle on its rod."""
+    xa, xb = -90.6, -69.4
+    for x in (xa, xb):
+        box((D, "dark", 0), x - 0.3, x + 0.3, G0, 0.9, z - 0.3, z + 0.3, scale=1.0)
+        cylinder((D, "trim", 0), x, z, 0.9, 12.4, 0.2, segs=8, col=TORII_RED)
+        box((D, "trim", 0), x - 0.5, x + 0.5, 12.4, 12.6, z - 0.5, z + 0.5, scale=1.0, col=(0.06, 0.05, 0.05, 1), bottom=True)
+        J.put("jt_lantern", x + (0.75 if x < -80 else -0.75), 10.4, z, 0.0, 2.6, 2.6)
+    J.span("jt_cable", (xa, z), (xb, z), 12.3, 1.5)
+    for y, drop, dz in ((12.0, 3.0, 0.0), (10.6, 1.9, 0.5), (9.4, 1.2, -0.5)):
+        J.span("jt_string", (xa, z + dz), (xb, z + dz), y, drop)
+    J.put("jt_lantern", -80.0, 7.2, z, 0.0, 4.6, 4.6)
+    box((D, "metal", 1), -80.03, -79.97, 8.4, 10.2, z - 0.03, z + 0.03, scale=1.0)
+    for x in (-88.0, -80.0, -72.0):
+        light(D, x, 0.3, z, "red", 3.6)
+
+
+def tube_arch(z, r):
+    """The south threshold: two pylons, a beam, and a board of bent tube
+    hung under it, read from both sides."""
+    xa, xb = -90.6, -69.4
+    for x in (xa, xb):
+        pylon(x, z, 10.6)
+    box((D, "trim", 0), xa - 0.6, xb + 0.6, 10.0, 10.4, z - 0.22, z + 0.22, scale=1.0, col=STEELWORK, bottom=True)
+    J.tube_sign((-80.0, 8.55, z), 0.0, 13.0, 2.3, "pink", r)
+    box((D, "neon_amber", 0), xa, xb, 10.4, 10.48, z - 0.04, z + 0.04, scale=1.0)
+    for x in (-87.0, -80.0, -73.0):
+        light(D, x, 0.3, z, "pink", 3.4)
+
+
+def sign_tower(x, z, r):
+    """The street's landmark, between the sign bridge and the arch: a mast
+    on the kerb taller than the roofs round it, blades up it turned every
+    way, a ring of lanterns over the pavement, a lit drum at its head and
+    a red lamp over that."""
+    box((D, "dark", 0), x - 0.36, x + 0.36, G0, 1.0, z - 0.36, z + 0.36, scale=1.0)
+    cylinder((D, "trim", 0), x, z, 1.0, 24.0, 0.22, segs=8, col=STEELWORK)
+    # Its spine, lit: two tubes up the mast, on the street's side and the wall's.
+    for dx in (-0.25, 0.25):
+        box((D, "neon_red", 0), x + dx - 0.03, x + dx + 0.03, 5.8, 23.6, z - 0.03, z + 0.03, scale=1.0)
+    for i in range(4):
+        yaw = 0.5 + i * 1.57
+        J.slab_sign((x + math.cos(yaw) * 1.12, 9.2 + i * 3.4, z - math.sin(yaw) * 1.12), basis(yaw), "bl", 1.25)
+        box((D, "metal", 1), x - 0.5, x + 0.5, 9.2 + i * 3.4 - 0.04, 9.2 + i * 3.4 + 0.04, z - 0.5, z + 0.5, scale=1.0)
+    for i in range(6):
+        a = i * math.tau / 6
+        J.put("jt_lantern", x + 0.95 * math.cos(a), 4.9, z + 0.95 * math.sin(a), 0.0, 1.7, 1.7)
+    box((D, "metal", 1), x - 1.0, x + 1.0, 5.4, 5.46, z - 0.03, z + 0.03, scale=1.0)
+    box((D, "metal", 1), x - 0.03, x + 0.03, 5.4, 5.46, z - 1.0, z + 1.0, scale=1.0)
+    J.put("ad_drum", x, 24.0, z, 0.0, 1.4, 2.0)
+    box((D, "glow", 0), x - 0.14, x + 0.14, 28.3, 28.7, z - 0.14, z + 0.14, scale=1.0, col=GLOW["red"])
+    for dz, hue in ((-1.6, "pink"), (1.6, "amber")):
+        light(D, x + 0.6, 2.0, z + dz, hue, 4.5)
+
+
+def skybridge(z, r):
+    """A bridge between the street's two sides at the third floor: a lit
+    glazed corridor on two piers, an advert along the side the traffic
+    comes at, two boards hung under the other, a tube under its floor,
+    cable bundles slung beside it."""
+    za, zb = z - 1.5, z + 1.5
+    shell = (0.07, 0.075, 0.085, 1)
+    for x in (-90.6, -69.4):
+        box((D, "trim", 0), x - 0.3, x + 0.3, G0, 9.3, z - 0.3, z + 0.3, scale=1.0, col=shell)
+    box((D, "trim", 0), XW, XE, 9.3, 9.6, za - 0.12, zb + 0.12, scale=1.0, col=shell, bottom=True)
+    box((D, "trim", 0), XW, XE, 12.4, 12.66, za - 0.25, zb + 0.25, scale=1.0, col=shell, bottom=True)
+    col = B.wall_col(0.96, 3, 0.85, B.TINTS["charcoal"])
+    for f in (B.Face("+z", zb, XW, XE), B.Face("-z", za, XW, XE)):
+        B.facade_wall((D, "facade", 0), f, 9.6, 12.4, col, 5.0 - (9.6 - SHOP_H) / CELL_H)
+    B.billboard(D, -80.0, 10.95, za - 0.28, 11.0, 2.3, math.pi, r, back=False, depth=0.2)
+    for x in (-86.0, -74.0):
+        J.slab_sign((x, 8.25, zb - 0.6), basis(0.0), "pm", 1.5)
+        box((D, "metal", 1), x - 0.04, x + 0.04, 9.15, 9.3, zb - 0.64, zb - 0.56, scale=1.0)
+    box((D, "neon_cyan", 0), XW + 3.6, XE - 3.6, 9.22, 9.3, z - 0.05, z + 0.05, scale=1.0, bottom=True)
+    for dz, y, drop in ((-2.1, 9.2, 1.0), (2.2, 12.2, 1.5), (2.5, 9.6, 0.7)):
+        J.span("jt_cable", (XW, z + dz), (XE, z + dz + r.uniform(-0.6, 0.6)), y, drop)
+    for x in (-87.0, -80.0, -73.0):
+        light(D, x, 0.3, z, "cyan", 3.6)
+
+
+gr = random.Random(7150)
+street_gate(GATE_Z, sr)
+sign_bridge(SIGNS_Z, gr)
+skybridge(BRIDGE_Z, gr)
+sign_tower(-90.55, TOWER_Z, gr)
+lantern_arch(ARCH_Z, gr)
+tube_arch(SOUTH_Z, gr)
 
 # The mouths of the cross alleys and the east passages: a frame and a board.
 for a, b in ALLEYS:
