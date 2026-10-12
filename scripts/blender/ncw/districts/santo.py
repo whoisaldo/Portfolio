@@ -541,7 +541,7 @@ def plant():
                ground="shops", tint="concrete")
     K.roof_lane(388.0, 424.0, -36.0, -10.8, 11.4, R(8633))
     stand(396.0, -9.4 - 0.9, 0.0, "smoke")
-    stand(410.6, -10.2, 0.4, "talk")
+    stand(410.6, -10.4, 0.4, "talk")
     stand(411.6, -9.8 - 0.5, -2.2, "talk")
     # Fences along both streets; the yard's lamps and floods.
     # Along both streets: a yard wall the street has got at (the kit's
@@ -593,11 +593,12 @@ def plant():
     stand(337.2, -24.0, PI / 2, "lean", 9.0)
     stand(392.6, -54.4, 0.0, "idle")
     # The huddle at the plant's corner, where the loop turns (Fn9gKhU_2_Q@28):
-    # six in a ring inside the low wall, one with her back to it.
+    # six in a ring on the verge between the low wall and the pavement,
+    # one with her back to the wall, none on the walkers' line.
     for i, pose in enumerate(("talk", "talk", "idle", "lean", "smoke", "phone")):
         a = (20 + 60 * i) * PI / 180
-        hx, hz = 426.9 + 0.95 * math.cos(a), -12.55 + 0.95 * math.sin(a)
-        stand(hx, hz, math.atan2(426.9 - hx, -12.55 - hz), pose)
+        hx, hz = 426.92 + 0.6 * math.cos(a), -13.9 + 0.95 * math.sin(a)
+        stand(hx, hz, math.atan2(426.92 - hx, -13.9 - hz), pose)
     # And four of the shift against the wall under the frame.
     stand(365.2, -11.85, 0.3, "lean")
     stand(366.5, -11.9, -0.2, "lean")
@@ -1592,7 +1593,7 @@ def yards():
                             (294.2, -82.4, "dumpster", PI / 2), (294.3, -80.2, "pallets", 0.1), (292.6, -80.0, "blocks", 2.0),
                             (426.6, 13.1, "drum_pallet", 0.0), (428.2, 13.2, "pallets", 0.3), (451.4, 13.2, "blocks", 0.2), (452.6, 13.0, "barrel", 0.0),
                             (453.3, 13.4, "barrel", 0.0), (406.8, -118.6, "drum_pallet", 0.0), (408.3, -118.6, "drum_pallet", PI), (409.9, -118.5, "barrel", 0.0),
-                            (411.2, -118.4, "blocks", 0.9), (400.6, -10.2, "aframe", 0.2), (414.0, -10.3, "aframe", -0.2)):
+                            (411.2, -118.4, "blocks", 0.9), (400.6, -10.42, "aframe", 0.2), (414.0, -10.42, "aframe", -0.2)):
         P.place(kind, x, GY, z, yaw, district=D)
     for x, z in ((453.0, 9.0), (453.0, -31.0)):
         P.place("lightbox", x, GY, z, -PI / 2, district=D)

@@ -326,6 +326,17 @@ def name_sign(text, cx, top, cz, yaw, h=2.0, col=SODIUM, lift=1.2):
     cy = top + lift + h * 0.75
     oriented_box(k("board_frame"), cx, cy, cz, wd, h * 1.5, 0.16, yaw)
     digits(text, cx, cy, cz, h, yaw, k("glow"), col, out=0.1)
+    if True:
+        # Seen from behind (a roof, a deck, a yard, the air): galvanised
+        # sheet on two channels, a lamp at each end lighting it.
+        bx_, bz_ = cx - nx * 0.085, cz - nz * 0.085
+        rotated_quad(M("steel"), bx_, cy, bz_, wd - 0.1, h * 1.5 - 0.1, yaw + math.pi, col=shade(GREY, 0.85))
+        for dy in (-h * 0.42, h * 0.42):
+            oriented_box(M("steel", 1), cx - nx * 0.13, cy + dy, cz - nz * 0.13, wd - 0.2, 0.16, 0.08, yaw, col=shade(GREY, 0.55))
+        for su in (-1, 1):
+            lx_, lz_ = cx + rx * su * (wd / 2 - 0.4) - nx * 0.3, cz + rz * su * (wd / 2 - 0.4) - nz * 0.3
+            box(k("glow", 1), lx_ - 0.1, lx_ + 0.1, cy + h * 0.75 + 0.02, cy + h * 0.75 + 0.14, lz_ - 0.1, lz_ + 0.1, scale=0.5, col=SODIUM)
+            sodium(lx_ - nx * 0.9, cy, lz_ - nz * 0.9, 1.6)
     n = max(1, round(wd / 4.0))
     for i in range(n + 1):
         du = -wd / 2 + wd * i / n
@@ -2145,12 +2156,19 @@ def gate(x0, z0, x1, z1, inward, open_=True, booth=None, guard=True, lamp="cyan"
     (x, z) direction into the yard."""
     ix, iz = inward
     along_x = abs(x1 - x0) >= abs(z1 - z0)
-    for (px, pz) in ((x0, z0), (x1, z1)):
-        box(M("concrete"), px - 0.35, px + 0.35, 0.0, 3.0, pz - 0.35, pz + 0.35, scale=1.5, col=CONC)
-        box(k("hazard", 1), px - 0.37, px + 0.37, 0.4, 1.3, pz - 0.37, pz + 0.37, scale=1.0)
-        box(k("glow"), px - 0.14, px + 0.14, 3.0, 3.25, pz - 0.14, pz + 0.14, scale=0.5, col=GLOW[lamp])
-        light(D, px, 3.0, pz, lamp, 1.0)
     ln = math.hypot(x1 - x0, z1 - z0)
+    for sg, (px, pz) in ((1, (x0, z0)), (-1, (x1, z1))):
+        # A pale pier in a pool at its own height glares like a lamp (the
+        # site lights an upright face hardest at its source's height): the
+        # pier is a dark steel post, its lamp on an arm over the way in.
+        ax_, az_ = (x1 - x0) / ln * sg, (z1 - z0) / ln * sg
+        box(M("steel"), px - 0.3, px + 0.3, 0.0, 3.0, pz - 0.3, pz + 0.3, scale=1.0, col=c(0.13, 0.135, 0.15))
+        box(M("steel"), px - 0.36, px + 0.36, 3.0, 3.08, pz - 0.36, pz + 0.36, scale=0.5, col=c(0.1, 0.1, 0.11), bottom=True)
+        box(k("hazard", 1), px - 0.32, px + 0.32, 0.4, 1.3, pz - 0.32, pz + 0.32, scale=1.0)
+        hx_, hz_ = px + ax_ * 0.95, pz + az_ * 0.95
+        box(k("metal", 1), min(px, hx_) - 0.05, max(px, hx_) + 0.05, 2.9, 3.0, min(pz, hz_) - 0.05, max(pz, hz_) + 0.05, scale=0.5)
+        box(k("glow"), hx_ - 0.12, hx_ + 0.12, 2.74, 2.9, hz_ - 0.12, hz_ + 0.12, scale=0.5, col=GLOW[lamp])
+        light(D, px + ax_ * 2.4, 3.0, pz + az_ * 2.4, lamp, 0.8)
     n = max(1, round(ln / 3.0))
     yaw = math.atan2(-(z1 - z0), x1 - x0)
     ux, uz = (x1 - x0) / ln, (z1 - z0) / ln
@@ -2175,15 +2193,22 @@ def gate(x0, z0, x1, z1, inward, open_=True, booth=None, guard=True, lamp="cyan"
     if booth:
         bx, bz, yaw_b = booth
         nx_, nz_ = math.sin(yaw_b), math.cos(yaw_b)
-        box(k("trim"), bx - 1.5, bx + 1.5, GY, GY + 2.7, bz - 1.5, bz + 1.5, scale=1.0, col=GREY)
+        box(k("trim"), bx - 1.5, bx + 1.5, GY, GY + 2.7, bz - 1.5, bz + 1.5, scale=1.0, col=shade(GREY, 0.36))
         box(k("metal"), bx - 1.8, bx + 1.8, GY + 2.7, GY + 2.85, bz - 1.8, bz + 1.8, scale=1.0, bottom=True)
-        rotated_quad(k("glow"), bx + nx_ * 1.52, GY + 1.75, bz + nz_ * 1.52, 2.2, 1.1, yaw_b, col=shade(GLASS_COOL, 1.3))
-        rotated_quad(k("glow"), bx + nz_ * 1.52, GY + 1.75, bz - nx_ * 1.52, 2.0, 1.1, yaw_b + math.pi / 2, col=shade(GLASS_COOL, 1.1))
-        rotated_quad(k("glow"), bx - nz_ * 1.52, GY + 1.75, bz + nx_ * 1.52, 2.0, 1.1, yaw_b - math.pi / 2, col=shade(GLASS_COOL, 1.1))
+        # Its windows: glass lit from inside behind frames, a blind part
+        # down over each, so the booth is a hut with a light in it, not a lamp.
+        for (yw, w_, sh_) in ((yaw_b, 2.2, 0.85), (yaw_b + math.pi / 2, 2.0, 0.7), (yaw_b - math.pi / 2, 2.0, 0.7)):
+            fx, fz = math.sin(yw), math.cos(yw)
+            gx, gz = bx + fx * 1.52, bz + fz * 1.52
+            rotated_quad(k("glow"), gx, GY + 1.75, gz, w_, 1.1, yw, col=shade(GLASS_COOL, sh_))
+            rotated_quad(k("dark", 1), gx, GY + 2.2, gz, w_, 0.2, yw, col=(1, 1, 1, 1), depth=0.01)
+            for du in (-w_ / 2, -w_ / 6, w_ / 6, w_ / 2):
+                rotated_quad(k("dark", 1), gx + math.cos(yw) * du, GY + 1.75, gz - math.sin(yw) * du, 0.07, 1.16, yw, depth=0.012)
+            rotated_quad(k("metal", 1), gx, GY + 1.17, gz, w_ + 0.12, 0.08, yw, depth=0.02)
         lx, lz = bx + nx_ * 1.62, bz + nz_ * 1.62
         hx, hz = (1.1, 0.05) if abs(nz_) > abs(nx_) else (0.05, 1.1)
         box(k("neon_white"), lx - hx, lx + hx, GY + 2.6, GY + 2.68, lz - hz, lz + hz, scale=0.5, bottom=True)
-        light(D, bx + nx_ * 2.4, 2.0, bz + nz_ * 2.4, "white", 3.5)
+        light(D, bx + nx_ * 3.4, 2.0, bz + nz_ * 3.4, "white", 2.0)
         collide(bx - 1.5, bx + 1.5, bz - 1.5, bz + 1.5, 2.85)
         if guard:
             stand(bx + nx_ * 2.1, bz + nz_ * 2.1, yaw_b, "idle", GY)
