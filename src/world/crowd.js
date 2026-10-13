@@ -57,6 +57,7 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { preloadProps } from "./props.js";
 import { createStreetLight, PROP_LIGHTS } from "./crowd-light.js";
+import { crossingsOf, createCrossers } from "./crowd-cross.js";
 import { figureGeometry, RIG, PART, TAG, STYLE, CARRIED, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF, CANOPY } from "./crowd-people.js";
 
 const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
@@ -328,7 +329,7 @@ const bits = (...tags) => tags.reduce((m, t) => m + 2 ** t, 0);
 // a seed) and their colours (jacket, trousers, skin, hair).
 const STRIDE = 20;
 /** Who is in the city: every walker of every walk, then everyone standing. */
-function populate({ phone, walks, standers, benches = [], rails = [], bare = false, ahead = [] }) {
+function populate({ phone, walks, standers, benches = [], rails = [], bare = false, ahead = [], crossings = [] }) {
   const people = [];
   // One of a list of [what, odds] pairs, of those `ok` lets through.
   const draw = (r, list, ok = null) => {
@@ -765,6 +766,25 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     people.push({ walk: [x, z, p.hot ? 0 : manner(p, name, d.look), p.turn ?? p.r()], path: [Math.sin(p.yaw), Math.cos(p.yaw), 1, p.head ?? 0], body: [d.height, d.build, p.pose, p.y], look: d.look, wear: d.wear });
   });
 
+  // Who crosses at the junctions' crossings (crowd-cross.js): on a desktop
+  // two or three at one end of each and one at the other, on a phone one,
+  // dressed as the corner is; they start out waiting. Their walking line is
+  // a lane row of its own after every walk's.
+  const standing = people.length;
+  const crossers = [];
+  for (const c of bare ? [] : crossings) {
+    const r = rng(hashAt(c.a[0] + c.b[0], c.a[1] + c.b[1], 21));
+    const first = r() < 0.5 ? 0 : 1;
+    const ends = phone ? [first] : r() < 0.5 ? [first, first, 1 - first] : [first, first, first, 1 - first];
+    const worn = [];
+    ends.forEach((end, k) => {
+      const at = end ? c.b : c.a;
+      const d = dress(r, worn, { pose: "idle", at, umbrellaOdds: 0.3, kid: k === 1 && r() < 0.15 });
+      const manner = (r() < 0.3 ? 1 : 0) + 6 * (r() < 0.3 ? 1 : 0) + 36 * Math.floor(r() * 3) + 144 * (r() < 0.5 ? 1 : 0);
+      crossers.push({ i: people.length, c, end, pace: 1.25 + 0.3 * r(), wait: 4 + 16 * r(), seed: r(), jitter: (k - (ends.length - 1) / 2) * 0.7 + (r() - 0.5) * 0.3, manner, turn: r(), step: r() });
+      people.push({ walk: [at[0], at[1], manner, 0], path: [0, 1, 1, 0], body: [d.height, d.build, 0, PAVE_Y], look: d.look, wear: d.wear });
+    });
+  }
   const data = new Float32Array(people.length * STRIDE);
   people.forEach((p, i) => {
     data.set(p.walk, i * STRIDE);
@@ -773,7 +793,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     data.set(p.look, i * STRIDE + 12);
     data.set(p.wear, i * STRIDE + 16);
   });
-  return { data, count: people.length, rows: rows.length, paves: [...paves.values()] };
+  return { data, count: people.length, rows: rows.length, paves: [...paves.values()], standing, crossers };
 }
 
 // ---- the lanes ---------------------------------------------------------------
@@ -1998,7 +2018,11 @@ const _planes = new Float64Array(24);
 const _vp = new THREE.Matrix4();
 const NAMES = ["aWalk", "aPath", "aBody", "aLook", "aWear"];
 
-export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks = [], standers = [], cover = null } = {}) {
+export function createCrowd(scene, shared, { phone = false, reduced = false, reflectLayer = 2, walks = [], standers = [], cover = null, traffic: given = null } = {}) {
+  // The traffic, for whoever crosses at a junction to ask when its arm can
+  // be walked (src/world/traffic.js, walk()); without it they wait at the
+  // kerb and never cross.
+  let traffic = given;
   const motion = reduced ? 0 : 1;
   // What is overhead: the scene's cover map if it was handed over, or else
   // the one the rain was given (its uniforms are found in the scene).
@@ -2060,7 +2084,8 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   // Everyone, and each draw's own list of them, packed again as it changes.
   // Nobody until the street furniture's file is in (it is the city's own,
   // fetched before any of this is made): who sits where waits on the benches.
-  let people = { data: new Float32Array(0), count: 0, rows: 0, paves: [] };
+  let people = { data: new Float32Array(0), count: 0, rows: 0, paves: [], standing: 0, crossers: [] };
+  let crossing = null;
   let drawn = [];
   let eye = null;
   const last = new Float32Array(18).fill(NaN);
@@ -2113,6 +2138,10 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     for (let k = 0; k < na; k++) sig = Math.imul(sig ^ a[k], 16777619) >>> 0;
     sig = Math.imul(sig ^ 65535, 16777619) >>> 0;
     for (let k = 0; k < nb; k++) sig = Math.imul(sig ^ b[k], 16777619) >>> 0;
+    d.a = a;
+    d.na = na;
+    d.b = b;
+    d.nb = nb;
     d.count = na;
     d.all = na + nb;
     d.mesh.visible = d.all > 0;
@@ -2125,6 +2154,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     d.buffer.addUpdateRange(0, d.all * STRIDE);
     d.buffer.needsUpdate = true;
   };
+  const touched = [];
   const refresh = () => {
     const t = shared.uTime.value * motion;
     const cam = shared.uCam.value;
@@ -2136,6 +2166,9 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     let same = last[16] === t && last[17] === lens;
     for (let k = 0; k < 16 && same; k++) same = last[k] === (e ? e[k] : k < 3 ? cam.getComponent(k) : 0);
     if (same) return;
+    // Whoever crosses moves on (waits, steps off, steps up, arrives).
+    touched.length = 0;
+    crossing?.step(t, traffic, people.data, STRIDE, (i) => touched.push(i));
     for (let k = 0; k < 16; k++) last[k] = e ? e[k] : k < 3 ? cam.getComponent(k) : 0;
     last[16] = t;
     last[17] = lens;
@@ -2205,6 +2238,19 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // The cards' list ends with everyone nearer: the mirror draws to its end.
     pack(drawn[3], cards, nc, rest, nr);
     pack(drawn[4], rest, nr, rest, 0);
+    // A crosser who changed is written into each draw's buffer where they
+    // are in it (a draw whose list did not change sends only that).
+    for (const i of touched) {
+      for (const d of drawn) {
+        let k = -1;
+        for (let n = 0; n < d.na && k < 0; n++) if (d.a[n] === i) k = n;
+        for (let n = 0; n < d.nb && k < 0; n++) if (d.b[n] === i) k = d.na + n;
+        if (k < 0) continue;
+        d.buffer.array.set(data.subarray(i * STRIDE, i * STRIDE + STRIDE), k * STRIDE);
+        d.buffer.addUpdateRange(k * STRIDE, STRIDE);
+        d.buffer.needsUpdate = true;
+      }
+    }
   };
   // The lanes: round everyone standing, and round the city's street
   // furniture once its file is in (it is the city's own, fetched before any
@@ -2216,13 +2262,27 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   const lay = () => {
     const { data, count, rows, paves } = people;
     const solid = [...furniture];
-    for (let i = 0; i < count; i++) if (data[i * STRIDE + 10] > -0.5) solid.push({ x: data[i * STRIDE], z: data[i * STRIDE + 1], cos: 1, sin: 0, hx: 0.2, hz: 0.2 });
+    for (let i = 0; i < Math.min(count, people.standing); i++) if (data[i * STRIDE + 10] > -0.5) solid.push({ x: data[i * STRIDE], z: data[i * STRIDE + 1], cos: 1, sin: 0, hx: 0.2, hz: 0.2 });
     base.uLanes.value?.dispose();
-    const map = new THREE.DataTexture(layLanes(paves, rows, solid), LANE_W, Math.max(1, rows), THREE.RGBAFormat);
+    const texels = layLanes(paves, rows + 1, solid);
+    for (let k = 0; k < LANE_W; k++) texels.set([128, 255, 255, 0], (rows * LANE_W + k) * 4);
+    const map = new THREE.DataTexture(texels, LANE_W, rows + 1, THREE.RGBAFormat);
     map.magFilter = map.minFilter = THREE.LinearFilter;
     map.needsUpdate = true;
     base.uLanes.value = map;
-    base.uLaneRows.value = Math.max(1, rows);
+    base.uLaneRows.value = rows + 1;
+  };
+  // The crossings, once the traffic is known: every junction's but the
+  // hero's own (its lens is in the mouth, and the avenue's walks cross the
+  // south street there already), and none over the deck's ramp in the west
+  // street's middle.
+  const crossingsNow = () => {
+    const streets = traffic?.cars?.().net?.streets;
+    return streets ? crossingsOf(streets, (jx, jz, arm, mid) => (jx === 0 && jz === 1) || (jx === -80 && mid[1] > -232 && mid[1] < -64)) : [];
+  };
+  const begin = () => {
+    crossing = people.crossers.length ? createCrossers(people.crossers, people.rows, PAVE_Y) : null;
+    crossing?.start(shared.uTime.value * motion, people.data, STRIDE);
   };
   base.uLanes.value = new THREE.DataTexture(new Uint8Array([128, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
   base.uLanes.value.needsUpdate = true;
@@ -2235,9 +2295,10 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     .catch(() => {})
     .then(() => {
       if (over) return;
-      people = populate({ phone, walks, standers, benches, rails });
+      people = populate({ phone, walks, standers, benches, rails, crossings: crossingsNow() });
       fill();
       lay();
+      begin();
     });
   fill();
   // world-scene.js draws the scene without telling the crowd: every draw of
@@ -2257,6 +2318,18 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     },
     /** Free roam: the car people step out of the way of, at (x, z), `side`
      *  metres to either flank from `along` metres off; no arguments, no car. */
+    /** The traffic, if it was not handed over when the crowd was made:
+     *  whoever waits at a crossing then crosses when it can be walked. */
+    setTraffic(t) {
+      const had = traffic;
+      traffic = t;
+      if (!had && t && people.count && !people.crossers.length) {
+        people = populate({ phone, walks, standers, benches, rails, crossings: crossingsNow() });
+        fill();
+        lay();
+        begin();
+      }
+    },
     avoid(x = 0, z = 0, side = 0, along = 0) {
       base.uAvoid.value.set(x, z, side, along);
     },
@@ -2281,11 +2354,12 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // rest of the network out, `bare` this module's own people too.
     api.debugStand = (list, { only = false, bare = false, ahead = [] } = {}) => {
       const t0 = performance.now();
-      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], benches: only || bare ? [] : benches, rails: only || bare ? [] : rails, bare, ahead });
+      people = populate({ phone, walks: only || bare ? [] : walks, standers: [...(only || bare ? [] : standers), ...list], benches: only || bare ? [] : benches, rails: only || bare ? [] : rails, bare, ahead, crossings: only || bare ? [] : crossingsNow() });
       const t1 = performance.now();
       lay();
       const t2 = performance.now();
       fill();
+      begin();
       // How long each took, in milliseconds: the people, the lanes, the buffers.
       return [t1 - t0, t2 - t1, performance.now() - t2];
     };
@@ -2306,7 +2380,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     // Everyone's floats, what stands on the pavements, the lanes' map and
     // the signs' light, for checking that nobody walks through anything and
     // what lights them.
-    api.debugState = () => ({ people, furniture, lanes: base.uLanes.value.image, signs: base.uSigns.value.image, signsMs: light.ms, signsWork: light.work, signsPending: light.pending, stride: STRIDE });
+    api.debugState = () => ({ crossers: crossing?.state() ?? [], people, furniture, lanes: base.uLanes.value.image, signs: base.uSigns.value.image, signsMs: light.ms, signsWork: light.work, signsPending: light.pending, stride: STRIDE });
   }
   return api;
 }
