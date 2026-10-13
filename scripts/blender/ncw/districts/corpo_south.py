@@ -225,11 +225,21 @@ def colonnade(x0, x1, tower_x, z, hue, r, depth=3.4, top=8.0):
         fg.box(k("trim"), a, b, 0.0, top - 0.6, 0.02, 0.3, col=K.FRAME)
         m = (a + b) / 2
         if side == 0:
-            # A showroom window: a lit room behind glass, a mullion, a sill.
-            fg.quad(k("shop"), m - 2.4, m + 2.4, 0.55, 3.3, 0.31, col=(r.uniform(0.7, 0.95), 0.92 if hue == "cyan" else 0.2, 1.0, 1.0))
-            for u in (m - 0.8, m + 0.8):
-                fg.box(k("trim", 1), u - 0.04, u + 0.04, 0.55, 3.3, 0.31, 0.36, col=K.BLACK)
-            fg.box(k("trim", 1), m - 2.5, m + 2.5, 0.45, 0.55, 0.3, 0.42, col=K.STEEL)
+            # A showroom window: three lit niches with a piece on a plinth in
+            # each, a dim lit back, the glass in front in its frame, a sill.
+            # (The shop shader's room seen along the pavement was a panel of
+            # orange dots.)
+            r.uniform(0.7, 0.95)
+            fg.quad(k("glow"), m - 2.4, m + 2.4, 0.55, 3.3, 0.32, col=(c[0] * 0.08 + 0.03, c[1] * 0.08 + 0.03, c[2] * 0.08 + 0.035, 1.0))
+            for n_, u in enumerate((m - 1.6, m, m + 1.6)):
+                fg.box(k("glow"), u - 0.55, u + 0.55, 0.95, 2.9, 0.33, 0.34, col=(0.32, 0.3, 0.27, 1.0) if n_ != 1 else (c[0] * 0.5, c[1] * 0.5, c[2] * 0.5, 1.0))
+                fg.box(k("trim"), u - 0.32, u + 0.32, 0.55, 1.15, 0.34, 0.9, col=K.STONE)
+                fg.box(k("trim", 1), u - 0.2 + 0.05 * n_, u + 0.2 - 0.05 * n_, 1.15, 1.6 + 0.25 * n_, 0.45, 0.8, col=(0.06, 0.06, 0.07, 1.0))
+            fg.quad(k("glass_dark"), m - 2.4, m + 2.4, 0.55, 3.3, 1.0)
+            for u in (m - 2.44, m - 0.8, m + 0.8, m + 2.36):
+                fg.box(k("trim", 1), u, u + 0.08, 0.55, 3.3, 0.95, 1.05, col=K.BLACK)
+            fg.box(k("trim", 1), m - 2.5, m + 2.5, 0.45, 0.55, 0.9, 1.1, col=K.STEEL)
+            fg.box(k("trim", 1), m - 2.5, m + 2.5, 3.3, 3.42, 0.9, 1.1, col=K.BLACK)
         else:
             # A lit kiosk window in the wing under a backlit advert, framed.
             # (The advert alone on the wing's dark wall was a poster on a

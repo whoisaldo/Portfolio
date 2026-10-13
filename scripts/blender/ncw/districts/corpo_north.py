@@ -1303,6 +1303,10 @@ def median():
             K.shrubs2(xa + 0.45, palm - 0.75, -330.0, top, r, spread=0.24, hmax=hmax)
             K.shrubs2(palm + 0.75, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax)
             if shown:
+                # A steel guard round the trunk's foot, its rim lit: a palm
+                # stands in a fitting, not out of bare soil.
+                cylinder(k("trim"), palm, -330.0, top, top + 0.32, 0.42, segs=10, col=K.STEEL, cap=False)
+                cylinder(k("glow", 1), palm, -330.0, top + 0.32, top + 0.35, 0.43, segs=10, col=GLOW["amber"], cap=False)
                 for sx in (-1, 1):
                     K.uplight(palm + sx * 1.0, -330.0 + sx * 0.25, top, -sx * math.pi / 2, "amber")
                 light(CO, palm, 2.2, -330.0, "amber", 4.5)
