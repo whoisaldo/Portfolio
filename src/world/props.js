@@ -122,6 +122,16 @@ class Baked extends THREE.InstancedMesh {
    *  cells in `rank`'s order (row by row across the map, so that cells in
    *  sight side by side are side by side in the index and go as one run). */
   write(rank) {
+    const steps = this.writeSteps(rank);
+    let r;
+    while (!(r = steps.next()).done);
+    r.value.apply();
+  }
+
+  /** (load) write, a few thousand vertices at a time, out of sight: yields
+   *  between pieces, and returns { geometry, apply }, what it wrote and the
+   *  apply() that puts it in the mesh. */
+  *writeSteps(rank) {
     const names = Object.keys(this.parts[0].src.geometry.attributes);
     let verts = 0;
     let indices = 0;
@@ -133,7 +143,9 @@ class Baked extends THREE.InstancedMesh {
       verts += set.n * g.attributes.position.count;
       indices += set.n * g.index.count;
     }
+    yield;
     items.sort((a, b) => rank[a.ci] - rank[b.ci] || a.set.reach - b.set.reach);
+    yield;
     const out = Object.fromEntries(names.map((name) => [name, new Float32Array(verts * this.parts[0].src.geometry.attributes[name].itemSize)]));
     const index = verts > 65535 ? new Uint32Array(indices) : new Uint16Array(indices);
     const ci = [];
@@ -142,7 +154,12 @@ class Baked extends THREE.InstancedMesh {
     const count = [];
     let v = 0;
     let i = 0;
+    let since = 0;
     for (const { ci: cell, set, g, j } of items) {
+      if (since > 8192) {
+        since = 0;
+        yield;
+      }
       if (ci[ci.length - 1] !== cell || reach[reach.length - 1] !== set.reach) {
         ci.push(cell);
         reach.push(set.reach);
@@ -190,17 +207,24 @@ class Baked extends THREE.InstancedMesh {
       v += n;
       i += src.length;
       count[count.length - 1] += src.length;
+      since += n;
     }
-    this.geometry.dispose();
     const geometry = new THREE.BufferGeometry();
     for (const name of names) geometry.setAttribute(name, new THREE.BufferAttribute(out[name], this.parts[0].src.geometry.attributes[name].itemSize));
     geometry.setIndex(new THREE.BufferAttribute(index, 1));
-    this.geometry = geometry;
-    this.cells = { ci: Int32Array.from(ci), reach: Float32Array.from(reach), start: Int32Array.from(start), count: Int32Array.from(count) };
-    if (MULTI_DRAW) {
-      this._multiDrawStarts = new Int32Array(ci.length);
-      this._multiDrawCounts = new Int32Array(ci.length);
-    }
+    const cells = { ci: Int32Array.from(ci), reach: Float32Array.from(reach), start: Int32Array.from(start), count: Int32Array.from(count) };
+    return {
+      geometry,
+      apply: () => {
+        this.geometry.dispose();
+        this.geometry = geometry;
+        this.cells = cells;
+        if (MULTI_DRAW) {
+          this._multiDrawStarts = new Int32Array(ci.length);
+          this._multiDrawCounts = new Int32Array(ci.length);
+        }
+      },
+    };
   }
 
   /** The cells in sight and in reach, as an instanced part has them: those
@@ -346,6 +370,9 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}`;
         if (!baked.has(key)) {
           const mesh = new Baked(material);
+          // (load: one a streamed district brings is hidden until its parts
+          // are written and put in: shown empty, a frame made its program.)
+          if (hold) mesh.visible = false;
           mesh.name = `props_small_${material.name}`;
           if (/^(neon_|glow|lantern)/.test(material.name) || own.light(material.name)) mesh.layers.enable(reflectLayer);
           group.add(mesh);
@@ -368,8 +395,10 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       im.name = `props_${k.name}_${material.name}`;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
-      // (Shown with no instances until the first update, as a Baked mesh is.)
-      im.visible = true;
+      // (Shown with no instances until the first update, as a Baked mesh is.
+      // load: one a streamed district holds is hidden until it is put in, so
+      // no frame draws it before its program and buffers are ready.)
+      im.visible = !hold;
       im.frustumCulled = false;
       im.matrixAutoUpdate = false;
       im.userData.hue = src.userData.hue;
@@ -399,14 +428,37 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // cells row by row across the map.
   const write = () => {
     if (!unwritten.size) return;
+    const rank = ranks();
+    for (const mesh of unwritten) mesh.write(rank);
+    unwritten.clear();
+  };
+  const ranks = () => {
     const rank = new Int32Array(cellList.length);
     const rows = [...cellAt].map(([key, ci]) => [ci, ...key.split(",").map(Number)]);
     rows.sort((a, b) => a[2] - b[2] || a[1] - b[1]).forEach(([ci], r) => {
       rank[ci] = r;
     });
-    for (const mesh of unwritten) mesh.write(rank);
-    unwritten.clear();
+    return rank;
   };
+  // (load: write, a piece at a time and out of sight: returns what each
+  // mesh will draw, and the apply() that puts it all in at once.)
+  function* writeSteps() {
+    const rank = ranks();
+    const done = [];
+    for (const mesh of unwritten) {
+      yield;
+      done.push({ mesh, ...(yield* mesh.writeSteps(rank)) });
+    }
+    return {
+      written: done.map(({ mesh, geometry }) => ({ object: mesh, geometry })),
+      apply() {
+        for (const { mesh, apply } of done) {
+          apply();
+          unwritten.delete(mesh);
+        }
+      },
+    };
+  }
   for (const k of kinds) build(k);
   write();
 
@@ -556,14 +608,27 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       }
       const added = [];
       for (const k of kinds) if (names.has(k.name)) added.push(...build(k, hold));
+      // (load: with `hold`, the small parts' meshes may be written out of
+      // sight first, `prepare()` a generator returning what will be drawn,
+      // each { object, geometry }: then commit() only puts them in.)
+      let written = null;
       const commit = () => {
-        if (hold) sets.push(...added);
-        write();
+        if (hold) {
+          sets.push(...added);
+          for (const set of added) for (const im of set.instanced) im.visible = true;
+        }
+        if (written) written.apply();
+        else write();
         stale = true;
       };
       if (!hold) commit();
       const sources = sourcesOf(added);
-      return hold ? { sources, commit } : sources;
+      const prepare = function* () {
+        written = yield* writeSteps();
+        const instanced = added.flatMap((set) => set.instanced).map((object) => ({ object, geometry: object.geometry, extra: [object.instanceMatrix] }));
+        return [...instanced, ...written.written];
+      };
+      return hold ? { sources, commit, prepare } : sources;
     },
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {

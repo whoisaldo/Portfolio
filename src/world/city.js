@@ -32,8 +32,7 @@ import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { appendPart, attributeKey, mergeMeshes, createCells, cutToCells, Tiled } from "./merge.js";
+import { appendMeshesSteps, attributeKey, mergeMeshes, mergeMeshesSteps, joinSteps, createCells, cutSteps, Tiled } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -48,6 +47,29 @@ const drain = (steps) => {
   while (!(r = steps.next()).done);
   return r.value;
 };
+// (load) A mesh as meshes of PIECE triangles or fewer, for work done a
+// piece at a time: each shares the mesh's attributes, has a stretch of its
+// index and stands where it does. One without an index is itself.
+const PIECE = 8192;
+function piecesOf(mesh) {
+  const index = mesh.geometry.index;
+  if (!index || index.count <= PIECE * 3) return [mesh];
+  const out = [];
+  for (let i = 0; i < index.count; i += PIECE * 3) {
+    const g = new THREE.BufferGeometry();
+    for (const [k, a] of Object.entries(mesh.geometry.attributes)) g.setAttribute(k, a);
+    g.setIndex(new THREE.BufferAttribute(index.array.subarray(i, Math.min(index.count, i + PIECE * 3)), 1));
+    const piece = new THREE.Mesh(g, mesh.material);
+    piece.name = mesh.name;
+    piece.matrixAutoUpdate = false;
+    piece.matrix.copy(mesh.matrixWorld);
+    piece.matrixWorld.copy(mesh.matrixWorld);
+    out.push(piece);
+  }
+  return out;
+}
+// (load) What a geometry's arrays come to, for the GPU.
+const bytesOf = (geometry) => Object.values(geometry.attributes).reduce((n, a) => n + a.array.byteLength, geometry.index?.array.byteLength ?? 0);
 // The cells the kit is drawn by, metres on a side, and the fewest triangles
 // a material needs before it is cut to them (see the merge below).
 const CELL = 48;
@@ -282,7 +304,9 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // face's index in signs_index's ids is in its vertices' colour, three
   // bytes. Cut back into a mesh per face, they are signs like any other.
   const streetIds = root.getObjectByName("signs_index")?.userData?.ids ?? [];
-  const unpack = (batches, ids = streetIds) => {
+  // (load: a generator, some faces a step, for a district's signs once the
+  // city is live; unpack runs it through.)
+  function* unpackSteps(batches, ids = streetIds) {
     const out = [];
     for (const batch of batches) {
       batch.updateWorldMatrix(true, false);
@@ -298,9 +322,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         if (!byFace.has(id)) byFace.set(id, []);
         byFace.get(id).push(v);
       }
+      let since = 0;
       for (const [id, list] of byFace) {
         const name = ids[id];
         if (!name) continue;
+        if (++since % 16 === 0) yield;
         const verts = [...new Set(list)];
         const remap = new Map(verts.map((v, k) => [v, k]));
         const face = new THREE.BufferGeometry();
@@ -336,7 +362,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       batch.geometry.dispose();
     }
     return out;
-  };
+  }
+  const unpack = (batches, ids = streetIds) => drain(unpackSteps(batches, ids));
   // The signs with a name of their own come the same way, in one batch of
   // their own (signs_named: `names`, and each one's width and height as the
   // builder gave them): before the street's, in the builder's order.
@@ -466,11 +493,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         // cells and their runs after the old ones, where all of the
         // material was merged and cut again, a district at a time, and all
         // of it sent to the GPU again.)
-        const part = mergeMeshes(list, root);
-        yield;
         const untiled = prev.mesh.runs.cell.length === 1 && prev.mesh.runs.cell[0] === -1;
-        const partRuns = untiled ? { cell: Int32Array.of(-1), start: Int32Array.of(0), count: Int32Array.of(part.index.count) } : cutToCells(part, cells, 0);
-        yield;
         const kit = { geometry: prev.whole, vertices: prev.vertices ?? prev.whole.attributes.position.count, indices: prev.indices ?? prev.whole.index.count, runs: prev.mesh.runs };
         // A material with work of its own on a geometry's first draw (the
         // shops' trades) is given a new one, as a merge made whole was.
@@ -478,17 +501,16 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         // materials.js `deal`), it is done here, out of sight, rather than
         // in the first frame that draws it.
         const fresh = list[0].material.onBeforeRender !== THREE.Material.prototype.onBeforeRender;
-        const append = appendPart(kit, part, partRuns, fresh);
-        made.push({ key, list, prev, append });
+        const append = yield* appendMeshesSteps(kit, list, root, cells, { untiled, fresh });
+        made.push({ key, list, prev, append, bytes: append.bytes });
         const deal = fresh ? list[0].material.userData.deal?.(append.geometry, prev.mesh) : null;
         if (deal) while (!deal.next().done) yield;
-        part.dispose();
         continue;
       }
-      let whole = mergeMeshes(list, root);
+      let whole = yield* mergeMeshesSteps(list, root);
       if (prev) {
         yield;
-        const both = mergeGeometries([prev.whole, whole], false);
+        const both = yield* joinSteps([prev.whole, whole]);
         whole.dispose();
         yield;
         both.computeBoundingSphere();
@@ -499,7 +521,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       // What blends is drawn whole, in the order it was built: its picture
       // depends on that order.
       const material = list[0].material;
-      const mesh = material.transparent ? new THREE.Mesh(whole, material) : new Tiled(whole, material, cells, cutToCells(whole, cells, CELL_MIN_TRIS));
+      const mesh = material.transparent ? new THREE.Mesh(whole, material) : new Tiled(whole, material, cells, yield* cutSteps(whole, cells, CELL_MIN_TRIS));
       mesh.name = `kit_${material.name}`;
       mesh.layers.mask = list[0].layers.mask;
       mesh.renderOrder = list[0].renderOrder;
@@ -511,11 +533,12 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         twin.matrixAutoUpdate = false;
         mesh.userData.twin = twin;
       }
-      made.push({ key, list, whole, mesh, prev });
+      made.push({ key, list, whole, mesh, prev, bytes: bytesOf(whole) });
     }
-    return () => {
+    const commit = () => {
       for (const { key, list, whole, mesh, prev, append } of made) {
         if (append) {
+          append.send();
           const twin = prev.mesh.userData.twin;
           if (append.grown) {
             prev.mesh.geometry = append.geometry;
@@ -539,6 +562,17 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         for (const part of list) part.removeFromParent();
       }
     };
+    // (load: what the commit will draw, each mesh with the geometry it will
+    // draw then, its twin's too, and the bytes the GPU is to be sent for
+    // it: a whole geometry's, or a part's added into room. `send` marks a
+    // part added into room to be sent.)
+    commit.drawn = made.flatMap(({ whole, mesh, prev, append, bytes }) => {
+      const object = append ? prev.mesh : mesh;
+      const geometry = append ? append.geometry : whole;
+      const twin = object.userData.twin;
+      return [{ object, geometry, bytes, send: append?.send }, ...(twin ? [{ object: twin, geometry, bytes: 0 }] : [])];
+    });
+    return commit;
   }
   const mergeInto = (meshes) => drain(mergeSteps(meshes))();
   mergeInto(meshes);
@@ -598,12 +632,20 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
      * (the clearance field) and then merged into the core's own, material
      * by material, tile by tile.
      */
-    async addPack(name, packScene, { beforeMerge = null, between = async () => {} } = {}) {
+    async addPack(name, packScene, { beforeMerge = null, between = async () => {}, ready = null } = {}) {
       // (load: in pieces, `between()` resolving when the page has a moment
       // between its frames: its parts made, its light baked and its kit
       // merged out of sight, then all of it put in the city in one go, so
       // the district appears in one frame as it did and no frame waits for
-      // its build.)
+      // its build. Every piece is a step of a few milliseconds at most, and
+      // before it goes in `ready(drawn)` is given what will then be drawn,
+      // each { object, geometry, bytes }, to make its programs and send its
+      // buffers to the GPU out of sight.)
+      const run = async (steps) => {
+        let r;
+        while (!(r = steps.next()).done) await between();
+        return r.value;
+      };
       const pack = packScene.clone(true);
       pack.name = `pack_${name}`;
       pack.updateMatrixWorld(true);
@@ -616,25 +658,28 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         else if (/^NCW_sign(\.\d+)?$/.test(o.material?.name ?? "") && o.geometry.attributes.color) batches.push(o);
         else kitMeshes.push(o);
       });
-      const more = dress(kitMeshes);
-      await between();
+      const more = [];
+      for (const mesh of kitMeshes) {
+        more.push(...dress([mesh]));
+        await between();
+      }
       // The prototypes only this district places came with it: its props
       // are drawn from now on, and light its streets in the bake.
       let heldProps = null;
       if (packProtos.length) {
-        dressProtos(packProtos);
+        for (const mesh of packProtos) {
+          dressProtos([mesh]);
+          await between();
+        }
         protoMeshes.push(...packProtos);
-        await between();
         heldProps = props.addProtos(packProtos, { hold: true });
         more.push(...heldProps.sources);
         await between();
       }
-      const faces = unpack(batches);
-      await between();
-      const heldSigns = signs.addFaces(faces, { hold: true });
+      const faces = await run(unpackSteps(batches));
+      const heldSigns = await run(signs.addFacesSteps(faces));
       if (heldSigns) more.push(...heldSigns.sources);
-      await between();
-      bake.add(more);
+      await run(bake.addSteps(more));
       pack.traverse((o) => {
         if (o.name.startsWith("anchor_lights_")) bake.addPoints(lampPoints(o.userData.lights));
       });
@@ -642,16 +687,23 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       const next = await bake.finishSliced(between);
       props.disposeBake();
       await between();
-      beforeMerge?.(pack);
-      await between();
-      const merging = mergeSteps(kitMeshes);
-      let step;
-      let t = performance.now();
-      while (!(step = merging.next()).done) {
-        if (performance.now() - t > 4) {
-          await between();
-          t = performance.now();
+      // The clearance field a few thousand triangles at a time: the same
+      // triangles as the meshes whole (each its highest point over the
+      // cells it covers), so the same field.
+      if (beforeMerge) {
+        for (const mesh of kitMeshes) {
+          for (const piece of piecesOf(mesh)) {
+            beforeMerge(piece);
+            await between();
+          }
         }
+      }
+      const commitKit = await run(mergeSteps(kitMeshes));
+      const drawnProps = heldProps ? await run(heldProps.prepare()) : [];
+      if (ready) {
+        const drawn = [...commitKit.drawn, ...drawnProps.map((d) => ({ ...d, bytes: bytesOf(d.geometry) + (d.extra ?? []).reduce((n, a) => n + a.array.byteLength, 0) }))];
+        if (heldSigns) drawn.push({ object: heldSigns.mesh, geometry: heldSigns.geometry, bytes: bytesOf(heldSigns.geometry) });
+        await ready(drawn);
       }
       // ---- the district, in one go ----
       heldProps?.commit();
@@ -670,10 +722,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       light.streaks.image.data.set(next.streaks.image.data);
       light.streaks.needsUpdate = true;
       next.dispose();
-      step.value();
+      commitKit();
       for (const f of faces) f.geometry.dispose();
       packsAdded.push(name);
       return name;
+    },
+    /** (load) The light bake's working arrays let go: every district is in. */
+    releaseBake() {
+      bake.release();
     },
     /** The walls' dark twins in the road's mirror: on for a driven camera. */
     setOccluders(on) {

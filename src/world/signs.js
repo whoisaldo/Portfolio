@@ -14,6 +14,7 @@
 // (`fx signs off`) hides the lot, flicker and all.
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { joinSteps } from "./merge.js";
 import { WORLD_SIGNS, CANYON_WORDS, STREET_SIGNS, towers } from "../data/world.js";
 import { MORE_STREET_SIGNS } from "./sign-words.js";
 import { clearSigns, postSign, tradeOf } from "./trades.js";
@@ -81,6 +82,13 @@ const blockHues = (x, z) => {
   return BLOCK_HUES[Math.floor((n - Math.floor(n)) * BLOCK_HUES.length)];
 };
 import { COMMON } from "./glsl.js";
+
+// A generator run to its end, and what it returned.
+const drain = (steps) => {
+  let r;
+  while (!(r = steps.next()).done);
+  return r.value;
+};
 
 const PX_PER_M = 46;
 const PAD = 6;
@@ -931,11 +939,15 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   // 1,0 and 0,1, the way it faces, and its cell), for the floors that trace
   // a sign's reflection (src/world/wet.js).
   let indexBase = 0;
-  const build = (faces) => {
+  // (load: a few faces a step, for a district's faces built once the city
+  // is live; build runs it straight through.)
+  function* buildSteps(faces) {
     const geos = [];
     const sources = [];
     const frames = [];
-    faces.forEach(({ mesh, spec }, k) => {
+    for (let k = 0; k < faces.length; k++) {
+      if (k % 8 === 7) yield;
+      const { mesh, spec } = faces[k];
       const index = indexBase + k;
       const cell = cells.get(spec.key);
       const g = new THREE.BufferGeometry();
@@ -1003,12 +1015,14 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       if (src.index) g.setIndex(src.index.clone());
       geos.push(g);
       sources.push({ mesh, color: turned(new THREE.Color(spec.color), spec.turn ?? 0), intensity: spec.draw === "board" ? 0.9 : 1.6 });
-    });
+    }
     indexBase += faces.length;
-    const geometry = mergeGeometries(geos, false);
+    yield;
+    const geometry = geos[0]?.index ? yield* joinSteps(geos) : mergeGeometries(geos, false);
     geos.forEach((g) => g.dispose());
     return { geometry, sources, frames };
-  };
+  }
+  const build = (faces) => drain(buildSteps(faces));
   const { geometry, sources, frames } = build(faces);
 
   const material = new THREE.ShaderMaterial({
@@ -1119,6 +1133,51 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       };
       if (hold) return { sources: built.sources, commit };
       return { mesh: commit(), sources: built.sources };
+    },
+    /** (load) addFaces with `hold`, a piece at a time, for a district built
+     *  once the city is live: yields between pieces, and returns null or
+     *  { sources, mesh, geometry, commit }: its light for the bake, the
+     *  mesh every district's faces are drawn in and the geometry it will
+     *  draw (joined out of sight, so the GPU can have it before it is
+     *  seen), and the commit that puts it in. */
+    *addFacesSteps(more) {
+      const list = [];
+      for (const [k, m] of more.entries()) {
+        // (Dealing a face its design looks over its neighbours: a few at a step.)
+        if (k % 4 === 3) yield;
+        const spec = specOf(m);
+        if (spec && cells.has(spec.key) && cells.get(spec.key).x !== undefined) list.push({ mesh: m, spec });
+      }
+      if (!list.length) return null;
+      const built = yield* buildSteps(list);
+      if (!streamed) {
+        const add = new THREE.Mesh(built.geometry, material);
+        add.name = "signs_more";
+        add.frustumCulled = false;
+        return {
+          sources: built.sources,
+          mesh: add,
+          geometry: built.geometry,
+          commit() {
+            extra.push(built.geometry);
+            streamed = add;
+            return add;
+          },
+        };
+      }
+      const joined = built.geometry.index ? yield* joinSteps([streamed.geometry, built.geometry]) : mergeGeometries([streamed.geometry, built.geometry], false);
+      built.geometry.dispose();
+      return {
+        sources: built.sources,
+        mesh: streamed,
+        geometry: joined,
+        commit() {
+          extra.splice(extra.indexOf(streamed.geometry), 1, joined);
+          streamed.geometry.dispose();
+          streamed.geometry = joined;
+          return streamed;
+        },
+      };
     },
     dispose() {
       geometry.dispose();

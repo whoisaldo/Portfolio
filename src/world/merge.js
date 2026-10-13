@@ -33,32 +33,9 @@ export function toFloat(geometry, names = null) {
   const out = new THREE.BufferGeometry();
   for (const [name, attr] of Object.entries(geometry.attributes)) {
     if (names && !names.includes(name)) continue;
-    const n = attr.count;
-    const size = attr.itemSize;
-    const arr = new Float32Array(n * size);
-    // The stored values in order (an interleaved one's from its stride),
-    // made what getX makes of them.
-    const data = attr.isInterleavedBufferAttribute ? attr.data : null;
-    const src = data ? data.array : attr.array;
-    const stride = data ? data.stride : size;
-    const at = data ? attr.offset : 0;
-    const unit = attr.normalized ? UNIT.get(src.constructor) : null;
-    if (attr.normalized && !unit) {
-      for (let i = 0; i < n; i++) {
-        for (let k = 0; k < size; k++) arr[i * size + k] = attr[GET[k]](i);
-      }
-    } else if (unit) {
-      for (let i = 0; i < n; i++) {
-        for (let k = 0; k < size; k++) arr[i * size + k] = unit(src[i * stride + at + k]);
-      }
-    } else if (!data && src.length >= n * size) {
-      arr.set(src.subarray(0, n * size));
-    } else {
-      for (let i = 0; i < n; i++) {
-        for (let k = 0; k < size; k++) arr[i * size + k] = src[i * stride + at + k];
-      }
-    }
-    out.setAttribute(name, new THREE.BufferAttribute(arr, size));
+    const arr = new Float32Array(attr.count * attr.itemSize);
+    copyOut(attr, arr, 0);
+    out.setAttribute(name, new THREE.BufferAttribute(arr, attr.itemSize));
   }
   const count = geometry.attributes.position.count;
   const index = geometry.index;
@@ -67,6 +44,34 @@ export function toFloat(geometry, names = null) {
   else for (let i = 0; i < idx.length; i++) idx[i] = i;
   out.setIndex(new THREE.BufferAttribute(idx, 1));
   return out;
+}
+
+// An attribute's values, as plain floats, written into `arr` from `base`
+// on: the stored values in order (an interleaved one's from its stride),
+// made what getX makes of them.
+function copyOut(attr, arr, base) {
+  const n = attr.count;
+  const size = attr.itemSize;
+  const data = attr.isInterleavedBufferAttribute ? attr.data : null;
+  const src = data ? data.array : attr.array;
+  const stride = data ? data.stride : size;
+  const at = data ? attr.offset : 0;
+  const unit = attr.normalized ? UNIT.get(src.constructor) : null;
+  if (attr.normalized && !unit) {
+    for (let i = 0; i < n; i++) {
+      for (let k = 0; k < size; k++) arr[base + i * size + k] = attr[GET[k]](i);
+    }
+  } else if (unit) {
+    for (let i = 0; i < n; i++) {
+      for (let k = 0; k < size; k++) arr[base + i * size + k] = unit(src[i * stride + at + k]);
+    }
+  } else if (!data && src.length >= n * size) {
+    arr.set(src.subarray(0, n * size), base);
+  } else {
+    for (let i = 0; i < n; i++) {
+      for (let k = 0; k < size; k++) arr[base + i * size + k] = src[i * stride + at + k];
+    }
+  }
 }
 
 const _m = new THREE.Matrix4();
@@ -91,22 +96,135 @@ export function mergeMeshes(meshes, into = null, names = null) {
   return merged;
 }
 
+// (load) Vertices a step, for the work below spread over a page's frames.
+const STEP = 16384;
+
 /**
- * (load) `part` (as mergeMeshes makes it, cut by cutToCells) added to the end
- * of `kit`, { geometry, vertices, indices, runs }: written into the room the
- * geometry's arrays have left over and sent to the GPU as that range alone,
- * or, with no room, a geometry of twice what is needed made with the old
- * and the new in it. Returns the kit as it will be: `grown` if it is a new
- * geometry, and the runs with the part's after the old ones. Nothing the
- * kit's mesh draws changes until its runs are set to these (a district's
- * whole build is put in at once). `fresh`: a new geometry even with room
- * (of the same size), for a material that works on each geometry it is
- * given the first time it draws it (the shops deal their panes' trades,
- * materials.js), as it did on a merge made whole again.
+ * (load) mergeMeshes a few thousand vertices at a time, for a district's
+ * build once the city is live: yields between pieces and returns the same
+ * geometry (the same values, types and order). Each mesh is copied out and
+ * moved as BufferGeometry.applyMatrix4 moves it (three's own code, run over
+ * a range of its vertices at a time), and the parts are joined as
+ * mergeGeometries joins them.
  */
-export function appendPart(kit, part, partRuns, fresh = false) {
-  const pv = part.attributes.position.count;
-  const pi = part.index.count;
+export function* mergeMeshesSteps(meshes, into = null, names = null) {
+  const inverse = into ? new THREE.Matrix4().copy(into.matrixWorld).invert() : null;
+  const parts = [];
+  for (const mesh of meshes) {
+    const g = toFloat(mesh.geometry, names);
+    yield;
+    const m = mesh.matrixWorld.clone();
+    if (inverse) m.premultiply(inverse);
+    yield* moveSteps(g, m);
+    parts.push(g);
+  }
+  let merged = parts[0];
+  if (parts.length > 1) {
+    merged = yield* joinSteps(parts);
+    parts.forEach((g) => g.dispose());
+  }
+  yield;
+  merged.computeBoundingSphere();
+  yield;
+  merged.computeBoundingBox();
+  return merged;
+}
+
+// BufferGeometry.applyMatrix4 on a plain geometry with no bounds yet (as
+// toFloat makes them), over STEP vertices at a time.
+function* moveSteps(geometry, matrix) {
+  const { position, normal, tangent } = geometry.attributes;
+  const normalMatrix = normal ? new THREE.Matrix3().getNormalMatrix(matrix) : null;
+  const n = position.count;
+  for (let i = 0; i < n; i += STEP) {
+    const end = Math.min(n, i + STEP);
+    const range = (attr) => new THREE.BufferAttribute(attr.array.subarray(i * attr.itemSize, end * attr.itemSize), attr.itemSize, attr.normalized);
+    range(position).applyMatrix4(matrix);
+    if (normal) range(normal).applyNormalMatrix(normalMatrix);
+    if (tangent) range(tangent).transformDirection(matrix);
+    yield;
+  }
+  // (What applyMatrix4 leaves set besides.)
+  for (const attr of [position, normal, tangent]) if (attr) attr.needsUpdate = true;
+  geometry._transformed = true;
+}
+
+/** (load) mergeGeometries(parts, false) for parts as toFloat and mergeMeshes
+ *  make them (indexed, plain arrays of one type an attribute, no morphs), a
+ *  piece at a time: the indices offset, their type picked at the end as
+ *  setIndex picks it, and the attributes joined in the first part's order. */
+export function* joinSteps(parts) {
+  const merged = new THREE.BufferGeometry();
+  let total = 0;
+  for (const g of parts) total += g.index.count;
+  const index = new Uint32Array(total);
+  let at = 0;
+  let offset = 0;
+  let big = false;
+  for (const g of parts) {
+    const src = g.index.array;
+    for (let i = 0; i < src.length; i += STEP * 4) {
+      const end = Math.min(src.length, i + STEP * 4);
+      for (let k = i; k < end; k++) {
+        const v = src[k] + offset;
+        index[at++] = v;
+        if (v >= 65535) big = true;
+      }
+      yield;
+    }
+    offset += g.attributes.position.count;
+  }
+  merged.setIndex(new THREE.BufferAttribute(big ? index : new Uint16Array(index), 1));
+  yield;
+  for (const name of Object.keys(parts[0].attributes)) {
+    const first = parts[0].attributes[name];
+    let length = 0;
+    for (const g of parts) length += g.attributes[name].count * first.itemSize;
+    const array = new first.array.constructor(length);
+    let o = 0;
+    for (const g of parts) {
+      const a = g.attributes[name];
+      array.set(a.array, o);
+      o += a.count * first.itemSize;
+      yield;
+    }
+    const attribute = new THREE.BufferAttribute(array, first.itemSize, first.normalized);
+    attribute.gpuType = first.gpuType;
+    merged.setAttribute(name, attribute);
+  }
+  return merged;
+}
+
+/**
+ * (load) `meshes` merged (in the space of `into`, as mergeMeshes merges
+ * them) and added to the end of `kit`, { geometry, vertices, indices, runs },
+ * their triangles cut to `cells` (as cutSteps cuts them; or, `untiled`, one
+ * run that belongs to no cell): written into the room the geometry's arrays
+ * have left over and sent to the GPU as that range alone, or, with no room,
+ * a geometry of twice what is needed made with the old and the new in it.
+ * Each mesh is copied out and moved straight into the kit's arrays, the
+ * same values as a merged copy of them would hold, but with no such copy
+ * made (a district's every material was three of them, its garbage
+ * collected in pauses of 50 to 80 ms). Returns the kit as it will be:
+ * `grown` if it is a new geometry, the runs with the meshes' after the old
+ * ones, and `bytes`, what the GPU is to be sent. Nothing the kit's mesh
+ * draws changes until its runs are set to these (a district's whole build
+ * is put in at once). `fresh`: a new geometry even with room (of the same
+ * size), for a material that works on each geometry it is given the first
+ * time it draws it (the shops deal their panes' trades, materials.js), as
+ * it did on a merge made whole again. With room, what changed is marked to
+ * be sent to the GPU only by the returned `send()`, so the caller can send
+ * it in a moment of its own and not in whatever frame comes next. A step
+ * at a time: yields between pieces.
+ */
+export function* appendMeshesSteps(kit, meshes, into, cells, { untiled = false, fresh = false } = {}) {
+  let pv = 0;
+  let pi = 0;
+  for (const mesh of meshes) {
+    const g = mesh.geometry;
+    pv += g.attributes.position.count;
+    pi += g.index ? g.index.count : g.attributes.position.count;
+  }
   const v0 = kit.vertices;
   const i0 = kit.indices;
   let geometry = kit.geometry;
@@ -120,39 +238,81 @@ export function appendPart(kit, part, partRuns, fresh = false) {
       const arr = new attr.array.constructor(vCap * attr.itemSize);
       arr.set(attr.array.subarray(0, v0 * attr.itemSize));
       grown.setAttribute(name, new THREE.BufferAttribute(arr, attr.itemSize, attr.normalized));
+      yield;
     }
     const idx = new Uint32Array(iCap);
     idx.set(geometry.index.array.subarray(0, i0));
+    yield;
     grown.setIndex(new THREE.BufferAttribute(idx, 1));
     grown.boundingBox = geometry.boundingBox?.clone() ?? null;
     geometry = grown;
   }
-  for (const [name, attr] of Object.entries(geometry.attributes)) {
-    const from = part.attributes[name];
-    attr.array.set(from.array.subarray(0, pv * attr.itemSize), v0 * attr.itemSize);
-    if (room) {
+  // Each mesh: its values copied out into the kit's arrays at the end of
+  // what is there, moved there as BufferGeometry.applyMatrix4 moves them,
+  // and its index after them.
+  const inverse = into ? new THREE.Matrix4().copy(into.matrixWorld).invert() : null;
+  const idx = geometry.index.array;
+  let v = v0;
+  let i = i0;
+  for (const mesh of meshes) {
+    const g = mesh.geometry;
+    const n = g.attributes.position.count;
+    for (const [name, attr] of Object.entries(geometry.attributes)) {
+      copyOut(g.attributes[name], attr.array, v * attr.itemSize);
+      yield;
+    }
+    const m = mesh.matrixWorld.clone();
+    if (inverse) m.premultiply(inverse);
+    const { position, normal, tangent } = geometry.attributes;
+    const normalMatrix = normal ? new THREE.Matrix3().getNormalMatrix(m) : null;
+    for (let k = 0; k < n; k += STEP) {
+      const end = Math.min(n, k + STEP);
+      const range = (attr) => new THREE.BufferAttribute(attr.array.subarray((v + k) * attr.itemSize, (v + end) * attr.itemSize), attr.itemSize, attr.normalized);
+      range(position).applyMatrix4(m);
+      if (normal) range(normal).applyNormalMatrix(normalMatrix);
+      if (tangent) range(tangent).transformDirection(m);
+      yield;
+    }
+    const index = g.index;
+    const count = index ? index.count : n;
+    for (let k = 0; k < count; k++) {
+      if (k % (STEP * 4) === STEP * 4 - 1) yield;
+      idx[i + k] = (index ? index.array[k] : k) + v;
+    }
+    v += n;
+    i += count;
+  }
+  // Cut to the cells as cutSteps cuts a merged copy: the same positions
+  // under the same triangles, so the same cells, order and runs (theirs
+  // from the start of this stretch of the index).
+  const view = { attributes: { position: geometry.attributes.position }, index: { array: idx.subarray(i0, i0 + pi), needsUpdate: false } };
+  const partRuns = untiled ? { cell: Int32Array.of(-1), start: Int32Array.of(0), count: Int32Array.of(pi) } : yield* cutSteps(view, cells, 0);
+  yield;
+  let sent = !room;
+  const send = () => {
+    if (sent) return;
+    sent = true;
+    for (const attr of Object.values(geometry.attributes)) {
       attr.addUpdateRange(v0 * attr.itemSize, pv * attr.itemSize);
       attr.needsUpdate = true;
     }
-  }
-  const idx = geometry.index.array;
-  const src = part.index.array;
-  for (let k = 0; k < pi; k++) idx[i0 + k] = src[k] + v0;
-  if (room) {
     geometry.index.addUpdateRange(i0, pi);
     geometry.index.needsUpdate = true;
-  }
+  };
   geometry.setDrawRange(0, i0 + pi);
-  part.computeBoundingBox();
-  if (geometry.boundingBox) geometry.boundingBox.union(part.boundingBox);
-  else geometry.boundingBox = part.boundingBox.clone();
+  const box = new THREE.Box3().setFromBufferAttribute(new THREE.BufferAttribute(geometry.attributes.position.array.subarray(v0 * 3, (v0 + pv) * 3), 3));
+  if (geometry.boundingBox) geometry.boundingBox.union(box);
+  else geometry.boundingBox = box;
   geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(new THREE.Sphere());
   const runs = {
     cell: Int32Array.from([...kit.runs.cell, ...partRuns.cell]),
     start: Int32Array.from([...kit.runs.start, ...Array.from(partRuns.start, (st) => st + i0)]),
     count: Int32Array.from([...kit.runs.count, ...partRuns.count]),
   };
-  return { geometry, grown: !room, vertices: v0 + pv, indices: i0 + pi, runs };
+  const bytes = room
+    ? Object.values(geometry.attributes).reduce((b, a) => b + pv * a.itemSize * a.array.BYTES_PER_ELEMENT, pi * 4)
+    : Object.values(geometry.attributes).reduce((b, a) => b + a.array.byteLength, geometry.index.array.byteLength);
+  return { geometry, grown: !room, vertices: v0 + pv, indices: i0 + pi, runs, send, bytes };
 }
 
 /** The attribute names a mesh carries, as a key. */
@@ -195,9 +355,10 @@ function look(cells, renderer, camera) {
  * `count[i]` its part of the index, and grows each cell's bounds by what is
  * now in it. A geometry of fewer than `min` triangles is left as it is, one
  * run that belongs to no cell (-1): culling so little saves less than
- * drawing it in pieces costs.
+ * drawing it in pieces costs. (load: a generator, a few thousand triangles
+ * a step, so a district's cut can be spread over the page's frames.)
  */
-export function cutToCells(geometry, cells, min = 0) {
+export function* cutSteps(geometry, cells, min = 0) {
   const pos = geometry.attributes.position.array;
   const index = geometry.index.array;
   const tris = index.length / 3;
@@ -206,6 +367,7 @@ export function cutToCells(geometry, cells, min = 0) {
   const runAt = new Map();
   const runs = [];
   for (let t = 0; t < tris; t++) {
+    if (t % 4096 === 4095) yield;
     const a = index[t * 3] * 3;
     const b = index[t * 3 + 1] * 3;
     const c = index[t * 3 + 2] * 3;
@@ -238,19 +400,22 @@ export function cutToCells(geometry, cells, min = 0) {
     at += run.count;
   });
   const sorted = new index.constructor(index.length);
+  yield;
   for (let t = 0; t < tris; t++) {
+    if (t % STEP === STEP - 1) yield;
     const run = runs[runOf[t]];
     sorted[run.at++] = index[t * 3];
     sorted[run.at++] = index[t * 3 + 1];
     sorted[run.at++] = index[t * 3 + 2];
   }
+  yield;
   index.set(sorted);
   geometry.index.needsUpdate = true;
   return { cell: Int32Array.from(rows, (run) => run.id), start, count: Int32Array.from(rows, (run) => run.count) };
 }
 
 /**
- * A mesh drawn a cell at a time: of its geometry (cut by cutToCells, or
+ * A mesh drawn a cell at a time: of its geometry (cut by cutSteps, or
  * sharing the `runs` of a mesh that was), only the cells the camera of each
  * render call holds, in one draw. Each run handed over is still a draw to
  * the graphics driver, so cells in sight that follow one another in the
