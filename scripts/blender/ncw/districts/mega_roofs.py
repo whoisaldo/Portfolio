@@ -29,34 +29,6 @@ def ok(x0, x1, z0, z1, y0, y1):
     return not seen
 
 
-def unit(x0, x1, z0, z1, top, h, mat="metal", lid=True):
-    """A piece of plant: a sheet-metal box, a dark lid."""
-    if not ok(x0, x1, z0, z1, top, top + h + 0.15):
-        return False
-    box((D, mat, 0), x0, x1, top, top + h, z0, z1, scale=1.0)
-    if lid:
-        box((D, "dark", 1), x0 - 0.1, x1 + 0.1, top + h, top + h + 0.12, z0 - 0.1, z1 + 0.1, scale=1.0)
-    return True
-
-
-def tower(x, z, top, r=1.6, h=3.0):
-    """A cooling tower: a drum on a skirt, its fan a dark disc."""
-    if not ok(x - r, x + r, z - r, z + r, top, top + h + 0.3):
-        return
-    cylinder((D, "metal", 0), x, z, top, top + h, r, segs=10)
-    cylinder((D, "dark", 1), x, z, top + h, top + h + 0.2, r * 0.8, segs=10)
-
-
-def hut(x, z, top, yaw_door=0.0, hue="amber", w=1.7, d=1.5, h=2.7):
-    """A stair hut, its door lit."""
-    if not ok(x - w, x + w, z - d, z + d, top, top + h + 0.15):
-        return
-    tbox(x - w, x + w, top, top + h, z - d, z + d, CONC, scale=1.5)
-    box((D, "dark", 1), x - w - 0.1, x + w + 0.1, top + h, top + h + 0.12, z - d - 0.1, z + d + 0.1, scale=1.0)
-    nx, nz = math.sin(yaw_door), math.cos(yaw_door)
-    rotated_quad((D, "glow", 0), x + nx * (w + 0.02), top + 1.0, z + nz * (d + 0.02), 0.9, 2.0, yaw_door, col=GLOW[hue])
-
-
 def prop(name, x, z, top, yaw=0.0, sy=1.0, h=1.0, r=0.8):
     if ok(x - r, x + r, z - r, z + r, top, top + h):
         P.place(name, x, top, z, yaw, sy=sy)
@@ -126,7 +98,7 @@ def shack(x, z, top, w=2.6, d=2.2, h=2.3, colour="amber", yaw=0.0, r=None):
     window, a cloth out over its door."""
     if not ok(x - w / 2 - 1.2, x + w / 2 + 1.2, z - d / 2 - 1.2, z + d / 2 + 1.2, top, top + h + 0.4):
         return
-    oriented_box((D, "trim", 0), x, top + h / 2, z, w, h, d, yaw, col=RUST if (r and r.random() < 0.5) else TEAL_PAINT)
+    oriented_box((D, "corrugated", 0), x, top + h / 2, z, w, h, d, yaw, col=dim(RUST, 1.4) if (r and r.random() < 0.5) else dim(TEAL_PAINT, 1.5))
     nx, nz = math.sin(yaw), math.cos(yaw)
     rotated_quad((D, "glow", 0), x + nx * (d / 2 + 0.02) + math.cos(yaw) * 0.5, top + 1.3, z + nz * (d / 2 + 0.02) - math.sin(yaw) * 0.5, 0.9, 0.8, yaw,
                  col=dim(GLOW[colour], 0.5))
@@ -138,15 +110,6 @@ def shack(x, z, top, w=2.6, d=2.2, h=2.3, colour="amber", yaw=0.0, r=None):
     stand(x + nx * (d / 2 + 0.9), z + nz * (d / 2 + 0.9), yaw, "sit" if (r and r.random() < 0.5) else "idle", top)
 
 
-def run_duct(pts, top, w=0.9, h=0.7):
-    """Ducting across a roof, along a line of (x, z) points (axis-aligned legs)."""
-    for (a, b) in zip(pts, pts[1:]):
-        x0, x1 = min(a[0], b[0]) - w / 2, max(a[0], b[0]) + w / 2
-        z0, z1 = min(a[1], b[1]) - w / 2, max(a[1], b[1]) + w / 2
-        if ok(x0, x1, z0, z1, top, top + h + 0.3):
-            box((D, "metal", 1), x0, x1, top + 0.3, top + 0.3 + h, z0, z1, scale=1.0, bottom=True)
-
-
 _r = random.Random(8501)
 (WX0, WX1, WT, _), (MX0, MX1, MT, _), (EX0_, EX1_, ET, _) = MB_SECTIONS
 wx0, wx1, wz0, wz1 = WELL
@@ -156,16 +119,18 @@ wx0, wx1, wz0, wz1 = WELL
 # ---------------------------------------------------------------------------
 pad(33.0, -776.0, ET, half=8.0)
 edge(EX0_, EX1_, MB_ZB, MB_ZF, ET, ("-z", "+x"), rim="amber")
-run_duct([(45.6, -787.0), (45.6, -752.0)], ET)
-run_duct([(20.6, -787.6), (44.0, -787.6)], ET, w=0.8, h=0.6)
-hut(27.0, -761.6, ET, yaw_door=math.pi / 2, hue="amber")
-tower(44.6, -757.0, ET, r=1.5, h=2.4)
-tower(44.6, -761.0, ET, r=1.5, h=2.4)
-for x in (20.4, 22.4, 24.4):
-    prop("ac_roof", x, -786.4, ET, h=1.0)
-prop("tank_roof", 29.0, -787.0, ET, 0.4, h=4.4, r=1.5)
-prop("dish", 43.4, -786.0, ET, 2.0, h=2.2)
-prop("antenna", 46.6, -788.6, ET, 0.3, sy=0.7, h=4.4, r=0.7)
+for z in (-785.0, -781.0, -777.0, -773.0, -769.0, -765.0, -761.0, -757.0, -753.0):
+    prop("roof_duct", 45.6, z, ET, math.pi / 2, h=1.1, r=0.6)
+for x in (23.0, 27.0, 31.0, 35.0, 39.0):
+    prop("roof_tray", x, -788.0, ET, 0.0, h=0.5, r=0.4)
+prop("roof_hut", 27.0, -761.6, ET, math.pi / 2, h=2.85, r=1.3)
+prop("roof_condenser", 43.6, -757.0, ET, -math.pi / 2, h=1.2, r=1.8)
+prop("roof_condenser", 43.6, -761.4, ET, -math.pi / 2, h=1.2, r=1.8)
+for x in (21.0, 23.0):
+    prop("roof_vent", x, -786.0, ET, h=1.0, r=0.4)
+prop("roof_tank", 29.0, -786.6, ET, 0.4, h=4.8, r=1.4)
+prop("roof_dish", 42.4, -785.6, ET, 2.0, h=2.0, r=0.9)
+prop("roof_mast", 46.6, -788.6, ET, 0.3, h=8.2, r=0.4)
 # A mast with a windsock's lamp by the pad, short enough to stay under the lens' line.
 if ok(42.6, 43.0, -766.2, -765.8, ET, ET + 2.2):
     cylinder((D, "metal", 1), 42.8, -766.0, ET, ET + 2.0, 0.05, segs=4, cap=False)
@@ -185,10 +150,10 @@ edge(MX0, MX1, MB_ZB, MB_ZF - MB_REC, MT, ("-z", "+x"), rim="pink")
 for x in (-15.0, -12.6, 12.6, 15.0):
     for z in (-778.0, -772.0, -766.0):
         prop("ac_roof", x, z, MT, h=1.0)
-unit(10.6, 16.4, -787.6, -784.6, MT, 1.6)
-unit(-11.6, -9.6, -788.6, -784.6, MT, 2.0)
-hut(-14.0, -786.6, MT, yaw_door=0.0, hue="amber", h=2.6)
-prop("dish", 10.0, -787.0, MT, 4.0, h=2.2)
+prop("roof_condenser", 13.5, -786.0, MT, 0.0, h=1.2, r=1.8)
+prop("roof_condenser", -10.6, -786.8, MT, math.pi / 2, h=1.2, r=1.8)
+prop("roof_hut", -14.0, -786.6, MT, 0.0, h=2.85, r=1.3)
+prop("roof_dish", 9.0, -787.6, MT, 4.0, h=2.0, r=0.9)
 for (x, z, yaw, pose) in ((-4.0, wz1 + 0.8, math.pi, "idle"), (3.2, wz1 + 0.8, math.pi, "phone"), (wx1 + 0.8, -772.0, -math.pi / 2, "idle"),
                           (wx0 - 0.8, -776.4, math.pi / 2, "smoke"), (0.6, wz0 - 0.8, 0.0, "idle")):
     stand(x, z, yaw, pose, MT)
@@ -198,18 +163,19 @@ for (x, z, yaw, pose) in ((-4.0, wz1 + 0.8, math.pi, "idle"), (3.2, wz1 + 0.8, m
 # sign turned to the north, where people have moved in.
 # ---------------------------------------------------------------------------
 edge(WX0, WX1, MB_ZB, MB_ZF, WT, ("-z", "-x"), rim="cyan")
-run_duct([(-46.0, -787.0), (-46.0, -756.0)], WT)
-run_duct([(-46.0, -776.0), (-40.6, -776.0)], WT, w=0.8, h=0.6)
+for z in (-785.0, -781.0, -777.0, -773.0, -769.0, -765.0, -761.0, -757.0):
+    prop("roof_duct", -46.0, z, WT, math.pi / 2, h=1.1, r=0.6)
+prop("roof_duct", -43.0, -776.0, WT, 0.0, h=1.1, r=0.6)
 for x in (-44.0, -38.4, -22.4):
-    prop("tank_roof", x, -786.8, WT, _r.uniform(0, 6.28), h=4.4, r=1.5)
-tower(-23.0, -779.6, WT, r=1.6, h=2.6)
-tower(-23.0, -775.4, WT, r=1.6, h=2.6)
-hut(-33.0, -787.4, WT, yaw_door=0.0, hue="amber", h=2.6)
-prop("dish", -28.4, -787.2, WT, 3.4, h=2.2)
-prop("dish", -20.6, -787.6, WT, 2.2, h=2.2)
+    prop("roof_tank", x, -786.6, WT, _r.choice((0.0, math.pi / 2, math.pi)), h=4.8, r=1.4)
+prop("roof_condenser", -23.0, -779.6, WT, math.pi / 2, h=1.2, r=1.8)
+prop("roof_condenser", -23.0, -775.0, WT, math.pi / 2, h=1.2, r=1.8)
+prop("roof_hut", -33.0, -787.2, WT, 0.0, h=2.85, r=1.3)
+prop("roof_dish", -28.4, -787.2, WT, 3.4, h=2.0, r=0.9)
+prop("roof_mast", -20.6, -787.8, WT, 2.2, h=8.2, r=0.4)
 for z in (-768.0, -765.4):
-    prop("ac_roof", -44.0, z, WT, h=1.0)
-    prop("ac_roof", -41.8, z, WT, h=1.0)
+    prop("roof_vent", -44.0, z, WT, h=1.0, r=0.4)
+    prop("roof_condenser", -41.0, z - 0.2, WT, 0.0, h=1.2, r=1.8)
 shack(-36.4, -764.6, WT, yaw=math.pi, r=_r)
 shack(-30.6, -765.2, WT, colour="pink", yaw=math.pi + 0.3, r=_r)
 shack(-25.6, -767.4, WT, colour="cyan", yaw=math.pi - 0.4, r=_r)

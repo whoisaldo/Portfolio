@@ -15,15 +15,16 @@ from ncw import buildings as B  # noqa: F401
 from ncw import props as P
 from ncw.districts.mega_kit import *  # noqa: F401,F403
 from ncw.districts.mega_roofs import ok, shack
-from ncw.districts.mega_wings import AX0, AX1, AZ0, AZ1, ARM_TOP, T1, T2, T1_TOP, PT, WX1
+from ncw.districts.mega_wings import AX0, AX1, AZ0, AZ1, ARM_TOP, T1, T2, T1_TOP, PT, WX1, ROOF_STRIPS
 
-PAINTS = (PALE, CREAM, BLUEGREY, TEAL_PAINT, dim(YEL_OLD, 0.8), dim(RUST, 0.9), (0.2, 0.22, 0.2, 1.0))
 HUES = ("pink", "cyan", "amber", "white", "teal")
 
 
 def surface(x0, x1, z0, z1, top, r):
-    """The roof's own ground: tar patches, seams, stains, puddles."""
-    y = top + 0.012
+    """The roof's own ground: poured and board-marked, then tar patches,
+    seams, stains and puddles on it."""
+    hquad((D, "castconcrete", 0), x0, x1, z0, z1, top + 0.01, col=(0.34, 0.33, 0.32, 1.0), scale=2.0)
+    y = top + 0.022
     for _ in range(int((x1 - x0) * (z1 - z0) / 60) + 2):
         w, d = r.uniform(1.5, 5.0), r.uniform(1.0, 4.0)
         cx, cz = r.uniform(x0 + w / 2, x1 - w / 2), r.uniform(z0 + d / 2, z1 - d / 2)
@@ -38,57 +39,53 @@ def surface(x0, x1, z0, z1, top, r):
         hquad((D, "roof_wet", 0), cx - w / 2, cx + w / 2, cz - d / 2, cz + d / 2, y + 0.006, scale=4.0)
 
 
-def ac_unit(x, z, top, r, guard):
-    w, d, h = r.uniform(1.4, 2.6), r.uniform(1.1, 1.8), r.uniform(1.0, 1.7)
-    if guard and not ok(x - w / 2, x + w / 2, z - d / 2, z + d / 2, top, top + h + 0.2):
+def kit(name, x, z, top, yaw, guard, w, d, h, sy=1.0):
+    """One of the kit's roof plant (props CATALOGUE, roof_*), turned by yaw,
+    its footprint w x d and height h for the hero's guard."""
+    if guard:
+        hw = max(w, d) / 2
+        if not ok(x - hw, x + hw, z - hw, z + hw, top, top + h * sy + 0.2):
+            return False
+    P.place(name, x, top, z, yaw, sy=sy)
+    return True
+
+
+STEAMS = []
+
+
+def steam(x, y, z):
+    STEAMS.append(1)
+    empty(f"anchor_steam_zz_roof_mega_{len(STEAMS)}", (x, y, z))
+
+
+def condensers(x, z, top, r, guard):
+    """Condensers on their frame, a duct off the back to the next, a tray
+    of cables, steam off one now and then."""
+    yaw = r.choice((0.0, math.pi, math.pi / 2, -math.pi / 2))
+    if not kit("roof_condenser", x, z, top, yaw, guard, 3.6, 1.0, 1.2):
         return
-    tbox(x - w / 2, x + w / 2, top, top + h, z - d / 2, z + d / 2, r.choice(PAINTS))
-    box((D, "dark", 1), x - w / 2 - 0.08, x + w / 2 + 0.08, top + h, top + h + 0.08, z - d / 2 - 0.08, z + d / 2 + 0.08, scale=1.0)
-    for i in range(int(w // 1.0)):
-        cylinder((D, "dark", 1), x - w / 2 + 0.5 + i * 1.0, z, top + h + 0.08, top + h + 0.14, 0.38, segs=8)
-    rotated_quad((D, "trim", 1), x, top + h * 0.45, z + d / 2 + 0.01, w - 0.3, h * 0.55, 0.0, col=BLACK)
-    if r.random() < 0.5:
-        rotated_quad((D, "glow", 1), x + w / 2 - 0.25, top + h * 0.85, z + d / 2 + 0.012, 0.1, 0.08, 0.0, col=GLOW[r.choice(("green", "red", "amber"))])
+    bx, bz = x - math.sin(yaw) * 1.0, z - math.cos(yaw) * 1.0
+    if r.random() < 0.6:
+        kit("roof_duct", bx, bz, top, yaw, guard, 4.0, 0.6, 1.1)
+    elif r.random() < 0.5:
+        kit("roof_tray", bx, bz, top, yaw, guard, 3.0, 0.3, 0.45)
+    if r.random() < 0.3:
+        steam(x, top + 1.3, z)
 
 
-def tank_stand(x, z, top, r, guard):
-    rr, h, legs = r.uniform(0.9, 1.5), r.uniform(1.8, 3.0), r.uniform(1.0, 2.2)
-    if guard and not ok(x - rr, x + rr, z - rr, z + rr, top, top + legs + h + 0.4):
-        return
-    for sx in (-1, 1):
-        for sz in (-1, 1):
-            box((D, "metal", 1), x + sx * rr * 0.7 - 0.06, x + sx * rr * 0.7 + 0.06, top, top + legs, z + sz * rr * 0.7 - 0.06, z + sz * rr * 0.7 + 0.06, scale=0.5)
-    tbox(x - rr, x + rr, top + legs - 0.12, top + legs, z - rr, z + rr, STEEL)
-    cylinder((D, "trim", 0), x, z, top + legs, top + legs + h, rr, segs=10, col=r.choice((PALE, CREAM, BLUEGREY, dim(RUST, 1.1))))
-    cylinder((D, "dark", 1), x, z, top + legs + h, top + legs + h + 0.25, rr * 0.9, segs=10)
-
-
-def plant_room(x, z, top, r, guard):
-    """A plant room: a big painted box with louvres, a door lit over it, a
-    duct out of its roof."""
-    w, d, h = r.uniform(2.6, 3.8), r.uniform(2.2, 3.2), r.uniform(2.2, 3.0)
-    if guard and not ok(x - w / 2, x + w / 2, z - d / 2, z + d / 2, top, top + h + 1.2):
-        return
-    col = r.choice(PAINTS)
-    tbox(x - w / 2, x + w / 2, top, top + h, z - d / 2, z + d / 2, col)
-    box((D, "dark", 1), x - w / 2 - 0.1, x + w / 2 + 0.1, top + h, top + h + 0.12, z - d / 2 - 0.1, z + d / 2 + 0.1, scale=1.0)
-    yaw = r.choice((0.0, math.pi))
-    zf = z + (d / 2 + 0.01) * (1 if yaw == 0.0 else -1)
-    rotated_quad((D, "door_panel", 0), x - w / 4, top + 1.05, zf, 0.9, 2.1, yaw)
-    rotated_quad((D, "glow", 0), x - w / 4, top + 2.25, zf, 0.5, 0.12, yaw, col=dim(GLOW[r.choice(("white", "amber", "green"))], 0.7))
-    for i in range(4):
-        rotated_quad((D, "trim", 1), x + w / 4, top + 0.6 + i * 0.45, zf, w / 3, 0.22, yaw, col=BLACK)
-    box((D, "metal", 1), x + w / 2 - 1.0, x + w / 2 - 0.3, top + h, top + h + 1.0, z - 0.35, z + 0.35, scale=1.0)
-    light(D, x - w / 4, top + 2.2, zf + (1.0 if yaw == 0.0 else -1.0), "white", 2.4)
+def tank(x, z, top, r, guard):
+    """A water tank on its stilts (the roof's signature), a vent or two by it."""
+    if kit("roof_tank", x, z, top, r.choice((0.0, math.pi / 2, math.pi, -math.pi / 2)), guard, 2.6, 2.6, 4.8):
+        for _ in range(r.randint(0, 2)):
+            kit("roof_vent", x + r.choice((-2.0, 2.0)), z + r.uniform(-1.2, 1.2), top, r.uniform(0, 6.0), guard, 0.7, 0.7, 1.0)
 
 
 def vents(x, z, top, r, guard):
     for i in range(r.randint(2, 4)):
-        vx, vz, h = x + r.uniform(-1.4, 1.4), z + r.uniform(-1.0, 1.0), r.uniform(0.6, 1.6)
-        if guard and not ok(vx - 0.3, vx + 0.3, vz - 0.3, vz + 0.3, top, top + h + 0.2):
-            continue
-        cylinder((D, "metal", 1), vx, vz, top, top + h, r.choice((0.12, 0.18, 0.25)), segs=6)
-        cylinder((D, "dark", 1), vx, vz, top + h, top + h + 0.08, 0.3, segs=6)
+        vx, vz = x + r.uniform(-1.6, 1.6), z + r.uniform(-1.2, 1.2)
+        kit("roof_vent", vx, vz, top, r.uniform(0, 6.0), guard, 0.7, 0.7, 1.0)
+    if r.random() < 0.25:
+        steam(x, top + 1.1, z)
 
 
 def washing(x, z, top, r, guard, along="x"):
@@ -136,7 +133,9 @@ def roof_full(x0, x1, z0, z1, top, seed, guard=False, keep=(), people=0.5, lamps
     surface(x0, x1, z0, z1, top, r)
     cell = 4.2
     nx, nz = max(1, int((x1 - x0) // cell)), max(1, int((z1 - z0) // cell))
-    kinds = ("ac", "ac", "tank", "vents", "wash", "sit", "ac", "vents", "shack", "fence", "pipes", "board", "plant", "plant", "tank")
+    kinds = ("ac", "ac", "tank", "vents", "wash", "sit", "ac", "vents", "shack", "fence", "pipes", "board", "plant", "dish", "tank", "mast",
+             "tray", "ac", "wash")
+    hut = False
     for i in range(nx):
         for j in range(nz):
             cx = x0 + (i + 0.5) * (x1 - x0) / nx + r.uniform(-1.0, 1.0)
@@ -144,14 +143,26 @@ def roof_full(x0, x1, z0, z1, top, seed, guard=False, keep=(), people=0.5, lamps
             if any(a - 1.3 < cx < b + 1.3 and c - 1.3 < cz < d + 1.3 for a, b, c, d in keep):
                 continue
             k = r.choice(kinds)
+            if not hut and nx * nz > 3:
+                hut = kit("roof_hut", cx, cz, top, r.choice((0.0, math.pi / 2, math.pi, -math.pi / 2)), guard, 2.6, 2.6, 2.85)
+                if hut:
+                    continue
             if k == "ac":
-                ac_unit(cx, cz, top, r, guard)
-                if r.random() < 0.5:
-                    ac_unit(cx + r.choice((-2.4, 2.4)), cz + r.uniform(-0.6, 0.6), top, r, guard)
+                condensers(cx, cz, top, r, guard)
             elif k == "tank":
-                tank_stand(cx, cz, top, r, guard)
+                tank(cx, cz, top, r, guard)
+            elif k == "dish":
+                kit("roof_dish", cx, cz, top, r.uniform(0, 6.28), guard, 1.8, 1.8, 2.0)
+                kit("roof_vent", cx + 1.8, cz + r.uniform(-1, 1), top, 0.0, guard, 0.7, 0.7, 1.0)
+            elif k == "mast":
+                kit("roof_mast", cx, cz, top, r.uniform(0, 6.28), guard, 0.8, 0.8, 8.2, sy=r.choice((0.8, 1.0, 1.3)))
+            elif k == "tray":
+                yaw = r.choice((0.0, math.pi / 2))
+                for dt in (-1.5, 1.5):
+                    kit("roof_tray", cx + math.cos(yaw) * dt, cz - math.sin(yaw) * dt, top, yaw, guard, 3.0, 0.3, 0.45)
             elif k == "plant":
-                plant_room(cx, cz, top, r, guard)
+                condensers(cx, cz - 0.9, top, r, guard)
+                condensers(cx, cz + 0.9, top, r, guard)
             elif k == "vents":
                 vents(cx, cz, top, r, guard)
             elif k == "wash":
@@ -213,7 +224,19 @@ for i in range(8):
 # (Clear: the pad, the walk down the middle, the skylights and shacks, and
 # the sweep's own point on this roof, mg13 at (84, -722).)
 roof_full(AX0 + 1.0, AX1 - 5.0, AZ0 + 2.0, AZ1 - 4.0, ARM_TOP, 5311, keep=((67.0, 77.0, -721.0, -711.0), (65.0, 103.0, -715.8, -714.2),
-          (85.0, 99.0, -732.0, -728.0), (78.5, 89.5, -727.5, -716.5), (89.0, 93.0, -744.0, -739.0), (94.0, 98.0, -730.0, -725.0)), people=0.8)
+          (85.0, 99.0, -732.0, -728.0), (82.0, 86.0, -724.0, -720.0), (89.0, 93.0, -744.0, -739.0), (94.0, 98.0, -730.0, -725.0)), people=0.8)
+# Round the point a viewer stands on (mg13, 84, -722): washing, a shack and a
+# tank over the walk, condensers steaming, people on crates, a mast.
+_ra = random.Random(5312)
+washing(87.6, -718.4, ARM_TOP, _ra, False, "x")
+shack(80.2, -710.4, ARM_TOP, colour="cyan", yaw=math.pi, r=_ra)
+kit("roof_tank", 87.0, -708.6, ARM_TOP, 0.0, False, 2.6, 2.6, 4.8)
+condensers(92.4, -719.6, ARM_TOP, _ra, False)
+steam(92.4, ARM_TOP + 1.3, -719.6)
+sitters(89.2, -724.8, ARM_TOP, _ra, False)
+kit("roof_mast", 78.4, -724.6, ARM_TOP, 0.4, False, 0.8, 0.8, 8.2, sy=1.2)
+kit("roof_vent", 79.6, -719.6, ARM_TOP, 0.0, False, 0.7, 0.7, 1.0)
+kit("roof_vent", 81.0, -726.4, ARM_TOP, 1.0, False, 0.7, 0.7, 1.0)
 RB = (72.0, -719.0, -math.pi / 2 + 0.22)
 rx, rz = math.cos(RB[2]), -math.sin(RB[2])
 bnx, bnz = math.sin(RB[2]), math.cos(RB[2])
@@ -241,6 +264,12 @@ for du in (-4.5, -1.5, 1.5, 4.5):
 # ---------------------------------------------------------------------------
 roof_full(T1[1] + 1.0, WX1 - 4.0, -786.0, -748.0, PT, 5321, people=0.8)
 roof_full(T1[0] + 1.0, T1[1] - 1.0, T2[3] + 1.0, T1[3] - 1.0, T1_TOP, 5322)
+# The wings' other roofs (mega_wings.roof_strip), but where those two are.
+for (x0, x1, z0, z1, top, seed) in ROOF_STRIPS:
+    if (top, seed) in ((PT, 8427), (T1_TOP, 8422)):
+        continue
+    if x1 - x0 > 4.0 and z1 - z0 > 4.0:
+        roof_full(x0 + 1.0, x1 - 1.0, z0 + 1.0, z1 - 1.0, top, 5330 + seed, people=0.6, lamps=top < 60.0)
 
 # ---------------------------------------------------------------------------
 # The back blocks east of the canyon (mega_east.py), from the flying lanes:
@@ -264,7 +293,7 @@ _rp = random.Random(5420)
 for (x0, x1, z0, z1, top, k, hue) in ((99.5, 108.0, -652.5, -647.0, floor_y(5), 2, "pink"), (111.5, 128.5, -591.0, -584.0, floor_y(6), 3, "cyan"),
                                       (52.5, 59.0, -675.0, -666.0, floor_y(7), 2, "amber"), (118.0, 127.0, -691.0, -684.0, floor_y(8), 2, "teal")):
     y1 = top + k * CELL_H
-    fs = shell(x0, x1, z0, z1, top, y1, B.wall_col(_rp.uniform(0.55, 0.85), _rp.choice((0, 5, 6)), _rp.uniform(0.4, 1.0), _rp.choice((1, 3, 5, 6))), 5430 + int(x0))
+    fs = shell(x0, x1, z0, z1, top, y1, B.wall_col(_rp.uniform(0.55, 0.85), _rp.choice((0, 3, 6)), _rp.uniform(0.5, 1.0), _rp.choice((4, 3, 5, 6))), 5430 + int(x0))
     parapet(x0, x1, z0, z1, y1, rim=hue)
     f = fs["+z"]
     angled_sign(*f.p(f.at(f.width / 2), y1 + 1.6, 0.4), "bl", 0.0, back=False)

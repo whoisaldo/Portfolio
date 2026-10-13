@@ -122,34 +122,30 @@ def roof_kit(x0, x1, z0, z1, top, seed, deck=None, hue="white", power=6.5, lamps
     r = random.Random(seed)
     za, zb = (z0 + 1.2, z0 + 3.4) if side == "-z" else (z1 - 3.4, z1 - 1.2)
     zm = (za + zb) / 2
-    x = x0 + 2.2
-    while x < x1 - 2.4:
-        kind = r.choice(("tank", "tower", "unit", "ac", "tank", "unit"))
+    x = x0 + 2.6
+    yaw = 0.0 if side == "-z" else math.pi
+    while x < x1 - 2.6:
+        kind = r.choice(("tank", "cond", "cond", "vents", "tank", "cond", "duct"))
         if kind == "tank":
-            prop("tank_roof", x, zm, top, r.uniform(0, 6), h=2.4, r=0.9)
-        elif kind == "tower":
-            if ok(x - 0.9, x + 1.7, zm - 1.3, zm + 1.3, top, top + 2.9):
-                cylinder((D, "trim", 0), x + 0.4, zm, top, top + 2.6, 1.2, segs=10, col=r.choice((PALE, CREAM, BLUEGREY)))
-                cylinder((D, "dark", 1), x + 0.4, zm, top + 2.6, top + 2.8, 0.95, segs=10)
-        elif kind == "unit":
-            w, h = r.uniform(1.4, 2.6), r.uniform(1.2, 2.0)
-            if ok(x - 0.2, x + w, za, zb, top, top + h + 0.15):
-                tbox(x - 0.2, x + w, top, top + h, za, zb, r.choice((PALE, CREAM, BLUEGREY, TEAL_PAINT, dim(YEL_OLD, 0.8))))
-                box((D, "dark", 1), x - 0.3, x + w + 0.1, top + h, top + h + 0.1, za - 0.1, zb + 0.1, scale=1.0)
-                zf, yaw = (zb + 0.012, 0.0) if side == "-z" else (za - 0.012, math.pi)
-                for i in range(3):
-                    rotated_quad((D, "trim", 1), x + 0.1 + (w - 0.2) * (i + 0.5) / 3, top + h * 0.55, zf, (w - 0.4) / 3 - 0.08, h * 0.5, yaw, col=BLACK)
-                rotated_quad((D, "glow", 1), x + w - 0.24, top + h * 0.9, zf, 0.12, 0.1, yaw, col=GLOW[r.choice(("green", "amber", "red"))])
-            x += w - 1.0
+            prop("roof_tank", x, zm, top, r.choice((0.0, math.pi / 2, math.pi)), h=4.8, r=1.4)
+            x += 1.0
+        elif kind == "cond":
+            prop("roof_condenser", x + 0.6, zm, top, yaw, h=1.2, r=1.9)
+            x += 1.6
+        elif kind == "duct":
+            prop("roof_duct", x + 0.8, zm - 0.6, top, 0.0, h=1.1, r=2.0)
+            prop("roof_tray", x + 0.8, zm + 0.9, top, 0.0, h=0.5, r=1.6)
+            x += 1.6
         else:
             for i in range(3):
-                prop("ac_roof", x + i * 1.0, zm, top, 0.0, h=0.6, r=0.5)
+                prop("roof_vent", x + i * 1.2, zm + r.uniform(-0.6, 0.6), top, r.uniform(0, 6), h=1.0, r=0.4)
             x += 1.4
-        x += r.uniform(3.2, 5.0)
+        x += r.uniform(3.0, 4.2)
     ze = z1 - 1.6 if side == "-z" else z0 + 1.6
-    prop("antenna", x1 - 1.6, ze, top, h=3.2, r=0.3)
-    prop("dish", x1 - 3.4, ze, top, r.uniform(0, 6), h=0.9, r=0.5)
-    prop("dish", x0 + 1.6, ze, top, r.uniform(0, 6), h=0.9, r=0.5)
+    prop("roof_mast", x1 - 1.6, ze, top, r.uniform(0, 6), sy=0.8, h=6.6, r=0.4)
+    prop("roof_dish", x1 - 3.8, ze, top, r.uniform(0, 6), h=2.0, r=0.9)
+    prop("roof_dish", x0 + 1.8, ze, top, r.uniform(0, 6), h=2.0, r=0.9)
+    prop("roof_hut", x0 + 2.0, (z0 + z1) / 2 + (2.6 if side == "-z" else -2.6), top, r.choice((0.0, math.pi)), h=2.85, r=1.3)
     cz = (z0 + z1) / 2
     n = max(2, int((x1 - x0) // 7.0))
     if ok(x0 + 1.0, x1 - 1.0, cz - 0.6, cz + 0.6, top, top + 0.7):

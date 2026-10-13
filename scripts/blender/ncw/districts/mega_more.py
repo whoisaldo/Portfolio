@@ -215,9 +215,28 @@ def skylights(x0, z0, nx, nz, y, hue="white", k=0.16, w=1.5, d=2.2, gap=0.9):
 
 
 def lit_deck(x0, x1, z0, z1, y, hue="amber", k=0.07):
-    """A roof deck somebody has laid: boards, a wash of light over them."""
-    hquad((D, "trim", 0), x0, x1, z0, z1, y + 0.04, col=(0.16, 0.11, 0.07, 1.0), scale=1.0)
-    hquad((D, "glow", 0), x0 + 0.3, x1 - 0.3, z0 + 0.3, z1 - 0.3, y + 0.05, col=dim(GLOW[hue], k))
+    """A roof deck somebody has laid: boards in two shades, a table and
+    stools, a pot plant, bulbs strung over it on two poles, the light of
+    them on the boards."""
+    r = random.Random(int(x0 * 7 + z0 * 3))
+    n = max(2, int((x1 - x0) / 0.32))
+    for i in range(n):
+        a, b = x0 + (x1 - x0) * i / n, x0 + (x1 - x0) * (i + 1) / n - 0.03
+        hquad((D, "trim", 1 if i % 2 else 0), a, b, z0, z1, y + 0.04, col=(0.2, 0.13, 0.08, 1.0) if i % 2 else (0.13, 0.085, 0.05, 1.0), scale=1.0)
+    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+    light(D, cx, y + 2.2, cz, hue, 3.4)
+    if not ok(x0, x1, z0, z1, y, y + 2.8):
+        return
+    tbox(cx - 0.6, cx + 0.6, y + 0.7, y + 0.76, cz - 0.4, cz + 0.4, dim(CREAM, 0.8))
+    tbox(cx - 0.06, cx + 0.06, y, y + 0.7, cz - 0.06, cz + 0.06, STEEL)
+    for dx in (-0.9, 0.9):
+        tbox(cx + dx - 0.2, cx + dx + 0.2, y, y + 0.45, cz - 0.2, cz + 0.2, r.choice((RED_PAINT, TEAL_PAINT, YEL_OLD)))
+        if r.random() < 0.7:
+            stand(cx + dx, cz, -math.copysign(math.pi / 2, dx), r.choice(("sit", "sit", "smoke")), y + 0.45)
+    for (px, pz) in ((x0 + 0.4, z0 + 0.4), (x1 - 0.5, z1 - 0.5)):
+        tbox(px - 0.25, px + 0.25, y, y + 0.5, pz - 0.25, pz + 0.25, dim(RUST, 0.8))
+        tbox(px - 0.35, px + 0.35, y + 0.5, y + 1.1, pz - 0.35, pz + 0.35, (0.08, 0.2, 0.07, 1.0), detail=1)
+    bulbs((x0 + 0.2, y + 2.6, z0 + 0.2), (x1 - 0.2, y + 2.6, z1 - 0.2), max(4, int(math.dist((x0, z0), (x1, z1)) / 0.9)), hue, k=0.9, sag=0.4)
 
 
 skylights(-89.0, -746.5, 5, 2, floor_y(17), "white", 0.14)
