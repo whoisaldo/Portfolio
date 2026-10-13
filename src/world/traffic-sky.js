@@ -32,14 +32,14 @@ export const LANES = [
   { a: [0, -428], b: [0, -528], half: 5.5, y: 56, lift: 5, v: 9, narrow: 1, n: 5, phone: 1, held: 1 },
   { a: [-80, -30], b: [-80, -700], half: 5, y: 43, lift: 5, v: 8.5, n: 7, phone: 1 },
   { a: [120, -20], b: [120, -310], half: 4.5, y: 32, lift: 5, v: 8, narrow: 1, n: 4, phone: 1 },
-  { a: [136, -330], b: [426, -330], half: 5, y: 30, lift: 5, v: 8.5, n: 6, phone: 1 },
+  { a: [136, -330], b: [426, -330], half: 5, y: 34, lift: 5, v: 8.5, n: 6, phone: 1 },
   { a: [420, 1], b: [-60, 1], half: 4, y: 30, lift: 5, v: 9, narrow: 1, n: 6, phone: 1 },
   { a: [-66, -720], b: [52, -720], half: 4, y: 34, lift: 4, v: 7, narrow: 1, n: 6, phone: 1 },
   { a: [20, -179], b: [420, -179], half: 4, y: 34, lift: 5, v: 9, narrow: 1, n: 5, phone: 0 },
   // Low across the deck, over its own road and its lamp masts.
   { a: [-66, -80], b: [104, -80], half: 2.2, y: 48, lift: 4, v: 7, n: 3, phone: 1 },
   // The streets again, between the towers: higher, slower to pass.
-  { a: [0, -320], b: [0, -580], half: 5.5, y: 80, lift: -6, v: 8.5, band: 0, n: 5, phone: 1, held: 1 },
+  { a: [0, -320], b: [0, -580], half: 5.5, y: 80, lift: -6, v: 8.5, band: 0, n: 8, phone: 1, held: 1 },
   { a: [130, -330], b: [430, -330], half: 5, y: 62, lift: 5, v: 8, n: 3, phone: 0 },
   { a: [-70, 1], b: [430, 1], half: 5, y: 48, lift: 5, v: 9, narrow: 1, n: 4, phone: 0 },
   { a: [-80, -10], b: [-80, -670], half: 6, y: 58, lift: 5, v: 8.5, n: 4, phone: 0 },
@@ -52,10 +52,10 @@ export const LANES = [
   // Japantown's low roofs, the garage's block.
   { c: [320, -260], r: [140, 70], y: 70, v: 28, n: 4, phone: 0 },
   { a: [130, -330], b: [430, -330], half: 5, y: 112, lift: 8, v: 9, n: 3, phone: 0 },
-  { c: [0, -650], r: [200, 60], y: 128, v: 40, n: 3, phone: 0 },
+  { c: [0, -650], r: [200, 60], y: 128, v: 40, n: 5, phone: 0 },
   { c: [100, -215], r: [70, 60], y: 78, v: 24, n: 3, phone: 0 },
-  { c: [-130, -375], r: [36, 360], y: 54, v: 22, n: 7, phone: 1 },
-  { c: [455, -200], r: [50, 120], y: 76, v: 24, n: 3, phone: 0 },
+  { c: [-130, -375], r: [36, 360], y: 72, v: 22, n: 7, phone: 1 },
+  { c: [455, -200], r: [50, 120], y: 82, v: 24, n: 3, phone: 0 },
   // Across the south: Santo Domingo's yards, the arm, the plaza's south.
   { c: [300, -85], r: [130, 66], y: 72, v: 28, narrow: 1, n: 4, phone: 1 },
   { c: [150, -60], r: [230, 56], y: 86, v: 34, n: 4, phone: 0 },
@@ -118,6 +118,17 @@ export const LANES = [
   // boulevard: a long loop above the corridors' traffic, east of the
   // hero's band of sky.
   { c: [470, -800], r: [90, 170], y: 196, v: 24, n: 5, phone: 2 },
+  // At a flying lens's own height round the megabuilding and the canyon's
+  // north end, where the review's aerial points stand (60 to 85 m up,
+  // looking down 20 to 30 degrees): across the city a block south of the
+  // megabuilding's face, either side of the canyon's walls (100 m and more
+  // over the avenue there), and lower along the megabuilding's street east
+  // of its towers, out to Corpo Row's back.
+  { a: [50, -615], b: [300, -615], half: 4.5, y: 66, lift: 4, v: 9, n: 5, phone: 1 },
+  { a: [-75, -615], b: [-230, -615], half: 4.5, y: 66, lift: 4, v: 9, n: 4, phone: 0 },
+  { a: [68, -731], b: [300, -731], half: 4.5, y: 52, lift: 4, v: 9, n: 5, phone: 1 },
+  // And close under Santo Domingo's aerial lens, over the yards' east end.
+  { a: [560, -60], b: [560, 130], half: 4.5, y: 68, lift: 4, v: 8, n: 3, phone: 0 },
 ];
 
 const TAU = Math.PI * 2;

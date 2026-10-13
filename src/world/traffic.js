@@ -2298,18 +2298,31 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // a desktop's lens, so a craft across the district still reads as
       // its lights and not as a speck; each kind's in its own colour and
       // size (a hauler's amber and big, a courier's warm and small).
+      // Looked down on from far off (a lens flying over the roofs, the
+      // craft 90 m and more away), a craft's lamps point along its way and
+      // not up at the lens: they grow less with distance, and its head lamps
+      // are bright only to a lens it is coming toward, its tail only to one
+      // it is going away from, so from over a district the sky beyond the
+      // near craft is lamps white, red or dim as each flies, and not a field
+      // of like white dots. Near, or from the street, level or under them,
+      // they are as they were.
       const K = CRAFT[c.kind];
       const [sx, sy, sz] = K.scale;
-      const g = s * Math.max(1, Math.min(5, Math.sqrt(far2) / 75) * wide);
+      const dist = Math.sqrt(far2) || 1;
+      const over = Math.min(1, Math.max(0, ((shared.uCam.value.y - p.y) / dist - 0.05) / 0.3)) * Math.min(1, Math.max(0, (dist - 90) / 110));
+      const toward = ((shared.uCam.value.x - p.x) * fwd.x + (shared.uCam.value.z - p.z) * fwd.z) / dist;
+      const g = s * Math.max(1, Math.min(5 - 3.5 * over, dist / 75) * wide);
+      const headK = 1 - over * (0.8 - 0.8 * Math.max(0, toward));
+      const tailK = 1 - over * (0.75 - 0.75 * Math.max(0, -toward));
       const nose = 2.6 * sz * s;
       const [hr, hg, hb] = K.head;
-      setLamp(li++, p.x + fwd.x * nose, p.y + 0.25 * sy * s, p.z + fwd.z * nose, 0.82 * hr, 0.82 * hg, 0.82 * hb, 1.2 * g * K.lamp);
-      setLamp(li++, p.x - fwd.x * nose, p.y + 0.4 * sy * s, p.z - fwd.z * nose, 1.0, 0.1, 0.25, 0.9 * g * K.lamp);
+      setLamp(li++, p.x + fwd.x * nose, p.y + 0.25 * sy * s, p.z + fwd.z * nose, 0.82 * hr * headK, 0.82 * hg * headK, 0.82 * hb * headK, 1.2 * g * K.lamp * Math.sqrt(headK));
+      setLamp(li++, p.x - fwd.x * nose, p.y + 0.4 * sy * s, p.z - fwd.z * nose, tailK, 0.1 * tailK, 0.25 * tailK, 0.9 * g * K.lamp * Math.sqrt(tailK));
       // Running lights, as an aircraft has: red on its left, green on its
       // right, at the hull's widest, and over it a white strobe (a
       // hauler's amber beacon, slower), each craft on its own beat.
       if (far2 < 380 * 380) {
-        const gn = s * Math.max(1, Math.min(3, Math.sqrt(far2) / 75) * wide);
+        const gn = s * Math.max(1, Math.min(3 - 1.6 * over, dist / 75) * wide);
         const wing = 1.7 * sx * s;
         const y = p.y + 0.45 * sy * s;
         setLamp(li++, p.x - fwd.z * wing, y, p.z + fwd.x * wing, 0.9, 0.05, 0.06, 0.45 * gn);
