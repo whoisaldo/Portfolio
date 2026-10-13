@@ -17,6 +17,7 @@ import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { worldModelUrl, worldPackUrl, worldShopsUrl } from "../data/world-assets.js";
 import { createProps, preloadProps } from "./props.js";
 import { bitmapTexture } from "./pictures.js";
+import { fetchUnpacked } from "./fetched.js";
 import { createMaterialKit, NEON } from "./materials.js";
 import { markBytes } from "./progress.js";
 import { createSigns } from "./signs.js";
@@ -95,9 +96,9 @@ export function preloadCity(tier) {
     // logos, which the city is built with (asked for here, with the rest,
     // and not once the rest is in, when the city waited 0.3 s on them).
     const pending = Promise.all([
-      new GLTFLoader()
-        .setMeshoptDecoder(MeshoptDecoder)
-        .loadAsync(worldModelUrl[tier], (e) => markBytes("city", e.loaded, e.total))
+      // (load: gzipped beside the plain file; src/world/fetched.js.)
+      fetchUnpacked(worldModelUrl[tier], (got, total) => markBytes("city", got, total))
+        .then((data) => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(data, ""))
         .then((gltf) => inflate(gltf.scene)),
       // (load: decoded as it lands, off the page's thread; src/world/pictures.js.)
       bitmapTexture(worldShopsUrl[tier], false),

@@ -40,6 +40,7 @@
 // kit's own materials: the props' own read each instance's frame.
 import * as THREE from "three";
 import { worldPropsUrl } from "../data/world-assets.js";
+import { fetchUnpacked } from "./fetched.js";
 import { NEON } from "./materials.js";
 import { RULES, deal } from "./prop-deal.js";
 import { createPropSurfaces } from "./prop-surfaces.js";
@@ -58,11 +59,8 @@ const cache = new Map();
 /** The tier's props file, fetched once. */
 export function preloadProps(tier) {
   if (!cache.has(tier)) {
-    const p = fetch(worldPropsUrl[tier])
-      .then((r) => {
-        if (!r.ok) throw new Error(`props ${r.status}`);
-        return r.arrayBuffer();
-      })
+    // (load: gzipped beside the plain file; src/world/fetched.js.)
+    const p = fetchUnpacked(worldPropsUrl[tier])
       .catch((err) => {
         cache.delete(tier);
         throw err;
