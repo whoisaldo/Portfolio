@@ -243,7 +243,9 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
           // a barrier (its second number: striped). Plastic and painted
           // steel in a few colours, a seam at every crate, lit by the street.
           float h = vOwn.x;
-          vec3 paint = h < 0.2 ? vec3(0.03, 0.1, 0.05) : h < 0.38 ? vec3(0.32, 0.2, 0.02) : h < 0.54 ? vec3(0.03, 0.08, 0.24) : h < 0.7 ? vec3(0.3, 0.07, 0.02) : h < 0.85 ? vec3(0.09, 0.09, 0.1) : vec3(0.13, 0.135, 0.14);
+          // (A cabinet is dark painted steel under fly-posters, not a pale
+          // grey box.)
+          vec3 paint = h < 0.2 ? vec3(0.03, 0.1, 0.05) : h < 0.38 ? vec3(0.32, 0.2, 0.02) : h < 0.54 ? vec3(0.03, 0.08, 0.24) : h < 0.7 ? vec3(0.3, 0.07, 0.02) : h < 0.85 ? vec3(0.06, 0.062, 0.07) : vec3(0.035, 0.05, 0.045);
           float v = vLocal.y / vSize.y + 0.5;
           float seam = step(abs(fract(v * max(1.0, floor(vSize.y / 0.4))) - 0.5), 0.08) * close;
           // (A cabinet's doors and a sticker on one: a pale box was a
@@ -254,6 +256,13 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
           float stripe = step(0.5, fract((vLocal.x + vLocal.y) * 2.4));
           vec3 c = mix(paint * (1.0 - 0.4 * seam), mix(vec3(0.5, 0.2, 0.02), vec3(0.4), stripe), step(0.5, vOwn.y));
           c = mix(c, mix(vec3(0.3, 0.06, 0.12), vec3(0.04, 0.2, 0.3), step(0.93, h)), sticker);
+          // Bills pasted over a cabinet's sides, each its own colour, torn
+          // at an edge.
+          vec2 bq = vec2(vLocal.x + vLocal.z, vLocal.y) / vec2(0.32, 0.42);
+          float bh = hash12(floor(bq) + h * 37.0);
+          float bill = side * step(0.85, h) * step(0.45, bh) * step(0.08, fract(bq.x)) * step(fract(bq.x), 0.92) * step(0.06, fract(bq.y)) * step(fract(bq.y), 0.9) * step(vLocal.y, vSize.y * 0.3) * close;
+          vec3 paper = bh < 0.6 ? vec3(0.5, 0.42, 0.3) : bh < 0.72 ? vec3(0.45, 0.06, 0.08) : bh < 0.85 ? vec3(0.06, 0.2, 0.4) : vec3(0.45, 0.35, 0.04);
+          c = mix(c, paper * (0.6 + 0.4 * step(0.5, fract(bq.y * 4.0 + bh * 7.0))), bill);
           col = c * (vec3(0.45) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0);
           // A cabinet's lamp: a green or amber point by its top.
           float led = side * step(0.85, h) * close * exp(-dot(vec2(vLocal.x + vLocal.z, vLocal.y - vSize.y * 0.38), vec2(vLocal.x + vLocal.z, vLocal.y - vSize.y * 0.38)) / 0.003);

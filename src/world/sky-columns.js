@@ -66,12 +66,18 @@ export const ADVERT = /* glsl */ `
   }
   // A word across a board: st across and up it, aspect its width over its
   // height, pick which.
+  // (Any of the words that fit, not only those exactly as long as the
+  // board has room for: with two of six letters, every wide crown in a
+  // view said ARCADE or the ramen alley. A shorter one stands in the
+  // middle.)
   float wordAcross(vec2 st, float aspect, float pick) {
     float n = clamp(floor(aspect * 1.3), 2.0, 6.0);
-    float w = (n < 2.5 ? 0.0 : n < 3.5 ? 4.0 : n < 4.5 ? 8.0 : n < 5.5 ? 12.0 : 14.0) + floor(fract(pick) * (n < 4.5 ? 4.0 : 2.0));
-    float gx = st.x * n;
+    float many = n < 2.5 ? 4.0 : n < 3.5 ? 8.0 : n < 4.5 ? 12.0 : n < 5.5 ? 14.0 : 16.0;
+    float w = floor(fract(pick) * many);
+    float len = wordLen(w);
+    float gx = st.x * n - (n - len) * 0.5;
     float side = min(aspect / n, 0.76);
-    return wordGlyph(w, floor(gx), vec2((fract(gx) - 0.5) * (aspect / n) / side + 0.5, (0.5 - st.y) / side + 0.5));
+    return wordGlyph(w, floor(gx), vec2((fract(gx) - 0.5) * (aspect / n) / side + 0.5, (0.5 - st.y) / side + 0.5)) * step(0.0, gx) * step(gx, len);
   }
   // A character that is nobody's: the strokes a kanji is built of (three
   // or four bars, a stem, the sides of a box, two sweeps at its foot),

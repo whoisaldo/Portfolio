@@ -2901,7 +2901,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           float lines = step(abs(vKind.x - 5.0), 0.1);
           // (Seen close, every tower is banded: every other run of floors
           // begins at a line of light, the rest at a plant floor.)
-          lines = max(lines, step(0.5, close) * step(0.5, zoneOdd));
+          // (And not every close tower: two in five. One neon kit, a line
+          // up a corner and two floor bands, was every mid tower's.)
+          lines = max(lines, step(0.5, close) * step(0.5, zoneOdd) * mix(1.0, step(hash12(vec2(vForm.z, 31.1)), 0.4), step(0.5, freeEye() * uFarFree)));
           if (zoneStart > 0.5 && lines > 0.5) {
             // A line of light round the tower where a run of floors begins.
             float k = mix(step(fy, 0.16), 0.16, smoothstep(0.35, 1.0, pxY));
@@ -2955,7 +2957,19 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // its top and its foot. Far off, the line of light it was.
         vec3 bandLook = bandCol * 1.8;
         float bandPx = fwidth(vWorld.y);
-        if (crown > 0.5 && lift > 0.001) {
+        // (Two bands in five are lettered; the rest a lit band between its
+        // tubes, or broken into lengths: a word on every crown was the same
+        // strip of lettering tower after tower.)
+        float wordBand = step(hash12(vec2(vForm.z, 23.3)), 0.4);
+        if (crown > 0.5 && lift > 0.001 && wordBand < 0.5) {
+          float by0 = vTier.x - mix(3.4, 4.2, worn);
+          float bys = (vWorld.y - by0) / (vTier.x - mix(2.1, 1.6, worn) - by0);
+          float tubes = step(bys, 0.14) + step(0.86, bys);
+          float lengths = step(0.5, hash12(vec2(vForm.z, 25.9))) * step(0.22, fract(faceU * (3.0 + floor(hash12(vec2(vForm.z, 27.1)) * 4.0))));
+          vec3 plain = mix(bandCol * mix(0.45, 1.5, lengths), bandCol * 1.8, min(tubes, 1.0));
+          bandLook = mix(bandLook, plain, lift * smoothstep(0.3, 0.08, bandPx / max(vTier.x - by0, 0.1)));
+        }
+        if (crown > 0.5 && lift > 0.001 && wordBand > 0.5) {
           float by0 = vTier.x - mix(3.4, 4.2, worn);
           vec2 bs = vec2(faceU, (vWorld.y - by0) / (vTier.x - mix(2.1, 1.6, worn) - by0));
           float bpx = bandPx / (vTier.x - mix(2.1, 1.6, worn) - by0);
@@ -3668,13 +3682,32 @@ ${STREET}
           return col + vec3(1.0, 0.6, 0.26) * 0.2 * exp(-dot(d, d) / 46.0) * (1.0 + 2.0 * box);
         }
         if (kind < 0.85) {
-          // A pocket park: grass, two paths crossing, a lamp at each end.
-          float path = max(step(a.x, 1.1), step(a.y, 1.1));
-          float ring = step(abs(length(c) - 3.4), 0.5);
-          vec3 col = mix(vec3(0.012, 0.04, 0.02) * (0.8 + 0.4 * hash12(floor(c / 1.7) + lot)), vec3(0.11, 0.105, 0.095), max(path, ring)) * gl;
-          float e = min(abs(a.x - 9.0) + a.y, abs(a.y - 9.0) + a.x);
+          // A pocket park: dark grass under trees, paved paths lit by a lamp
+          // every few metres, and a lit square in the middle round a pool.
+          // (Grass and a thin cross of path under two lamps was a green tile
+          // with an X on it from the air.)
+          vec2 g = c / 5.0;
+          vec2 tc = (fract(g) - 0.5) * 5.0 + (vec2(hash12(floor(g) + lot), hash12(floor(g) + lot + 3.7)) - 0.5) * 2.0;
+          float tree = step(0.35, hash12(floor(g) + lot * 1.3)) * (1.0 - smoothstep(1.6, 2.1, length(tc)));
+          // (A ring of path and one path in from a side, so no cross.)
+          float off = (hk - 0.5) * 8.0;
+          float path = max(step(abs(length(c) - 7.5), 0.9), step(abs(c.y - off), 0.9) * step(c.x, -6.8)) * step(max(a.x, a.y), 12.5);
+          float square = step(length(c), 4.0);
+          float pool = step(length(c), 2.0);
+          tree *= 1.0 - max(path, square);
+          tree = clamp(tree, 0.0, 1.0);
+          vec3 grass = vec3(0.008, 0.026, 0.014) * (0.7 + 0.6 * hash12(floor(c / 1.3) + lot));
+          vec3 col = grass * gl;
+          // Each tree a round crown, lit at its rim by the lamps.
+          col = mix(col, (vec3(0.012, 0.04, 0.022) * gl + vec3(0.02, 0.05, 0.03) * smoothstep(1.2, 2.0, length(tc))) * (0.7 + 0.5 * hash12(floor(g) + lot + 9.1)), tree);
+          col = mix(col, vec3(0.06, 0.058, 0.055) * gl, max(path, square) * (1.0 - pool));
           vec3 lampCol = hk < 0.7 ? vec3(1.0, 0.74, 0.44) : vec3(0.3, 0.95, 0.85);
-          return col + lampCol * (0.16 * exp(-e * e / 16.0) + 0.1 * exp(-dot(c, c) / 20.0));
+          col = mix(col, vec3(0.01, 0.03, 0.05) + lampCol * 0.08, pool);
+          // The lamps along the paths, each a pool on the paving.
+          float along = (abs(length(c) - 7.5) < 0.9 ? atan(c.y, c.x) * 7.5 : c.x) / 6.0;
+          float lamp = exp(-pow((fract(along) - 0.5) * 6.0, 2.0) / 1.2) * path;
+          col += lampCol * (0.22 * lamp + 0.18 * exp(-dot(c, c) / 18.0) + 0.6 * exp(-dot(c, c) / max(0.3, px * px)) * min(1.0, 0.3 / (px * px)) * step(0.5, hk));
+          return col;
         }
         // A slab going up: pale concrete, bars laid out on it, a cabin
         // with its light on, a hazard line round it.
