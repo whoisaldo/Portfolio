@@ -330,7 +330,33 @@ export const WINDOWS = /* glsl */ `
     return vec3(0.085, 0.085, 0.09);
   }
 
-  vec4 windowsT(vec2 uv, vec3 params, vec3 world, float enabled, float tint) {
+  // sys 1 is a districts' or a megablock's own tower (the kit's facade
+  // material); the far city calls windowsT, which is sys 0 and as it was.
+  vec4 windowsS(vec2 uv, vec3 params, vec3 world, float enabled, float tint, float sys) {
+    // A tower has one window scale: its builder's cells run from 0.7 to
+    // 4 m wide and 1.7 or 3.4 m tall, so a block of half cells stood on one
+    // of whole ones, two buildings glued together. Cells are taken in whole
+    // numbers to the nearest 3.2 by 3.4 m.
+    // And its own pattern: dealt by its style and warmth alone, every tower
+    // that shared them was lit window for window the same. The face's plane
+    // and the way it looks are in its seed.
+    vec2 bid = vec2(0.0);
+    if (sys > 0.5) {
+      vec3 qx = dFdx(world);
+      vec3 qy = dFdy(world);
+      vec2 ux = dFdx(uv);
+      vec2 uy = dFdy(uv);
+      float dt = ux.x * uy.y - ux.y * uy.x;
+      if (abs(dt) > 1e-10) {
+        float mu = length(qx * uy.y - qy * ux.y) / abs(dt);
+        float mv = length(qy * ux.x - qx * uy.x) / abs(dt);
+        float ku = mu < 2.4 ? 1.0 / max(1.0, floor(3.2 / mu + 0.5)) : (mu > 4.8 ? floor(mu / 3.2 + 0.5) : 1.0);
+        float kv = mv < 2.6 ? 1.0 / max(1.0, floor(3.4 / mv + 0.5)) : (mv > 5.1 ? floor(mv / 3.4 + 0.5) : 1.0);
+        uv *= vec2(ku, kv);
+      }
+      vec3 fq = normalize(cross(qx, qy) + 1e-7);
+      bid = vec2(hash12(vec2(floor(dot(world, fq) * 0.2 + 0.5), floor(fq.x * 1.5 + 1.5) + floor(fq.z * 1.5 + 1.5) * 3.0)), hash12(vec2(params.x * 41.0, 2.7))) * 53.0;
+    }
     vec2 cell = floor(uv);
     vec2 f = fract(uv);
     float style = floor(params.y * 8.0 + 0.5);
@@ -345,7 +371,7 @@ export const WINDOWS = /* glsl */ `
     if (style > 0.5 && style < 1.5) { m0 = vec2(0.32, 0.14); m1 = vec2(0.68, 0.9); lights = 1.0; }
     else if (style > 1.5 && style < 2.5) { m0 = vec2(0.0, 0.32); m1 = vec2(1.0, 0.78); lights = 3.0; office = 1.0; }
     else if (style > 2.5 && style < 3.5) { m0 = vec2(0.24, 0.3); m1 = vec2(0.6, 0.7); lights = 1.0; }
-    else if (style > 3.5 && style < 4.5) { m0 = vec2(0.04, 0.06); m1 = vec2(0.96, 0.97); lights = 2.0; office = 1.0; }
+    else if (style > 3.5 && style < 4.5) { m0 = vec2(0.04, 0.06); m1 = vec2(0.96, 0.97); lights = 2.0 + sys; office = 1.0; }
     else if (style > 4.5 && style < 5.5) { m0 = vec2(0.0, 0.3); m1 = vec2(1.0, 0.74); lights = 4.0; office = 1.0; band = 1.0; }
     else if (style > 5.5) { m0 = vec2(0.3, 0.34); m1 = vec2(0.7, 0.8); lights = 1.0; }
     // A districts' building is not one module from its foot to its roof:
@@ -355,7 +381,7 @@ export const WINDOWS = /* glsl */ `
     // starts on is a ledge.
     float ledge = 0.0;
     if (tint >= 0.0) {
-      vec2 zs = params.yz * 17.0;
+      vec2 zs = params.yz * 17.0 + bid;
       float zoneH = 4.0 + floor(hash12(zs + 9.1) * 4.0);
       float zf = (cell.y + floor(hash12(zs + 5.5) * zoneH)) / zoneH;
       float zone = hash12(vec2(floor(zf), 12.7) + zs);
@@ -376,8 +402,11 @@ export const WINDOWS = /* glsl */ `
     float paneArea = (m1.x - m0.x) * (m1.y - m0.y);
 
     // Rooms, and floors that differ in how many of theirs are lit.
-    vec2 seed = params.yz * 17.0;
+    vec2 seed = params.yz * 17.0 + bid;
     float span = 1.0 + floor(hash12(vec2(cell.y, 5.3) + seed) * 3.0);
+    // (An office floor of a districts' tower is open plan: a lit unit is
+    // three to six bays, not a pane, or a curtain wall is a mosaic.)
+    if (sys > 0.5 && office > 0.5) span = 3.0 + floor(hash12(vec2(cell.y, 5.9) + seed) * 4.0);
     vec2 room = vec2(floor(cell.x / span), cell.y);
     float busy = hash12(vec2(cell.y * 1.37, 2.1) + seed);
     float share = office > 0.5 ? mix(0.25, 1.6, step(0.55, busy)) : 0.45 + 1.1 * busy;
@@ -395,12 +424,17 @@ export const WINDOWS = /* glsl */ `
     float block = 0.0;
     float blank = 0.0;
     float plant = 0.0;
+    float runId = 0.0;
     if (kit) {
       float zoneW = 4.0 + floor(hash12(vec2(cell.y, 6.1) + seed) * 5.0);
       float zone = floor((cell.x + hash12(vec2(cell.y, 7.3) + seed) * zoneW) / zoneW);
+      runId = zone;
       hold = hash12(vec2(zone, cell.y * 1.7) + seed + 3.3) > 0.5 ? 1.75 : 0.25;
       if (busy < 0.14) hold = 0.06;
-      block = step(0.9, hash12(vec2(floor(cell.x / 12.0), floor(cell.y / 3.0)) + seed + 8.8));
+      // (Its edges stepped floor by floor on a districts' tower: square,
+      // a dozen bays by three floors lit through was a glyph on the face.)
+      float bx = cell.x + sys * floor(hash12(vec2(cell.y, 2.3) + seed) * 5.0);
+      block = step(0.9, hash12(vec2(floor(bx / 12.0), floor(cell.y / 3.0)) + seed + 8.8));
       if (block > 0.5) hold = 3.0;
       // (Times 1.5, and its rooms a tenth brighter: the stair bays, the plant floors and the dark floors
       // take a quarter of the windows, and the face is to give the street
@@ -415,7 +449,10 @@ export const WINDOWS = /* glsl */ `
       }
     }
     // A band building's floors are lit right across or not at all.
-    if (band > 0.5) lit = step(0.5 - params.x * 0.35, busy) * step(hash12(room + seed + 0.5), 0.92) * enabled;
+    // (A districts' tower's band floors are lit in its runs as its other
+    // floors are: floor after floor lit right across in two colours was a
+    // barcode from across the city.)
+    if (band > 0.5 && sys < 0.5) lit = step(0.5 - params.x * 0.35, busy) * step(hash12(room + seed + 0.5), 0.92) * enabled;
     // One room in a hundred and fifty changes its mind now and then.
     float blink = hash12(room * 1.73 + 3.1);
     if (blink > 0.993) lit *= step(0.42, fract(uTime * 0.045 + blink * 17.0));
@@ -438,15 +475,21 @@ export const WINDOWS = /* glsl */ `
       vec3 yellow = vec3(1.0, 0.72, 0.36);
       vec3 cyan = vec3(0.5, 0.88, 1.0);
       bool warmHouse = params.z > 0.5;
-      bool other = hash12(vec2(floor(cell.y / 2.0), 4.2) + seed) > 0.8 || block > 0.5;
+      // (On a districts' tower the other light is a tenant's run here and
+      // there, not a pair of floors in five: those were the same yellow
+      // and cyan bands on every tower.)
+      bool other = (sys > 0.5 ? hash12(vec2(runId, cell.y) + seed + 4.2) > 0.86 : hash12(vec2(floor(cell.y / 2.0), 4.2) + seed) > 0.8) || block > 0.5;
       house = warmHouse ? yellow : cyan;
       wc = (warmHouse != other ? yellow : cyan) * (0.85 + 0.3 * hash12(room + 1.9));
-      if (kind > 0.99) wc = vec3(1.0, 0.22, 0.6);
-      else if (kind > 0.97) wc = vec3(0.32, 0.46, 1.0) * (0.65 + 0.35 * sin(uTime * (4.0 + 7.0 * hv) + hv * 40.0));
+      // (A pink room or a television is a home's, not an office floor's.)
+      float homes = 1.0 - sys * office;
+      if (kind > 1.0 - 0.01 * homes) wc = vec3(1.0, 0.22, 0.6);
+      else if (kind > 1.0 - 0.03 * homes) wc = vec3(0.32, 0.46, 1.0) * (0.65 + 0.35 * sin(uTime * (4.0 + 7.0 * hv) + hv * 40.0));
     }
     // Band floors in the city's two colours, amber and cyan, floor by floor.
     vec3 bandCol = mix(vec3(1.0, 0.66, 0.3), vec3(0.3, 0.86, 1.0), step(0.5, hash12(vec2(cell.y, 3.7) + seed)));
-    if (band > 0.5) wc = bandCol;
+    if (band > 0.5 && sys < 0.5) wc = bandCol;
+    if (band > 0.5 && sys > 0.5) bandCol = house;
     // The eye's ray in the pane's own frame: x along the wall, y up, z in.
     vec3 dpx = dFdx(world);
     vec3 dpy = dFdy(world);
@@ -540,7 +583,9 @@ export const WINDOWS = /* glsl */ `
     if (kit) bright *= 1.1;
 
     vec3 spill = spillAt(world);
-    vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25 + uHazeColor * 0.05 * (0.4 + qy) * (0.5 + hash12(cell + 1.9));
+    // (Unlit glass of a districts' tower varies by its run, not pane by
+    // pane: a curtain wall's dark cells each their own tone were tiles.)
+    vec3 glass = vec3(0.01, 0.013, 0.02) + spill * 0.25 + uHazeColor * 0.05 * (0.4 + qy) * (0.5 + hash12(mix(cell, vec2(runId, cell.y), sys) + 1.9));
     vec3 wall = wallTint(tint) * (0.75 + 0.5 * hash12(cell * 0.31 + 0.7));
     wall = wall * (vec3(0.6) + spill * 3.2);
 
@@ -588,7 +633,7 @@ export const WINDOWS = /* glsl */ `
     // is how a street of windows reads at a glance.
     float pxX = fwidth(uv.x);
     float pxY = fwidth(uv.y);
-    float floorLit = clamp(band > 0.5 ? step(0.5 - params.x * 0.35, busy) * 0.92 : params.x * 0.8 * share * (kit ? (busy < 0.14 ? 0.08 : 1.25) : 1.0) * (1.0 - plant), 0.0, 1.0) * enabled;
+    float floorLit = clamp(band > 0.5 && sys < 0.5 ? step(0.5 - params.x * 0.35, busy) * 0.92 : params.x * 0.8 * share * (kit ? (busy < 0.14 ? 0.08 : 1.25) : 1.0) * (1.0 - plant), 0.0, 1.0) * enabled;
     vec3 floorLight = (band > 0.5 ? bandCol * 0.5 : house * 0.36) * floorLit;
     float row = smoothstep(m0.y - pxY, m0.y + pxY, f.y) * (1.0 - smoothstep(m1.y - pxY, m1.y + pxY, f.y));
     vec3 rowCol = mix(wall, mix(glass, floorLight, min(1.0, floorLit * 1.2)), row * (m1.x - m0.x));
@@ -598,6 +643,10 @@ export const WINDOWS = /* glsl */ `
     vec3 col = mix(mix(detail, rowCol, farX), avg, farY);
     float glow = mix(mix(pane * lit * (1.0 - bar), row * (m1.x - m0.x) * floorLit, farX), params.x * 0.8 * paneArea, farY);
     return vec4(col, glow);
+  }
+
+  vec4 windowsT(vec2 uv, vec3 params, vec3 world, float enabled, float tint) {
+    return windowsS(uv, params, world, enabled, tint, 0.0);
   }
 
   vec4 windows(vec2 uv, vec3 params, vec3 world, float enabled) {
