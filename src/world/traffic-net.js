@@ -402,6 +402,23 @@ function timetable(lanes, { cycle, need, phase }) {
 // a phone's.
 const PHASES = 21350;
 
+// The steam vents in the road: of the districts' anchor_steam_* empties,
+// the street kind (src/world/steam.js: not a stall's, a drain's, a lane's,
+// a roof's or a stack's) at the road's level, standing on a carriageway or
+// a parking bay. No car ever stands over one, waiting at a light or parked
+// (src/world/traffic-park.js keeps its places off them). `vents`: [name,
+// x, y, z] for every steam anchor; out: [x, z] of the road ones.
+const NOT_ROAD = ["_stall_", "_drain_", "_lane_", "_alley_", "_mews_", "_service_", "_roof_", "_stack_", "_plant_"];
+export function roadVents(vents) {
+  return vents
+    .filter(([name, x, y, z]) => y < 0.8 && !NOT_ROAD.some((t) => name.includes(t)) && STREETS.some((s) => {
+      const along = s.axis === "z" ? z : x;
+      const off = s.axis === "z" ? x - s.c : z - s.c;
+      return along >= s.a - 1 && along <= s.b + 1 && Math.abs(off) <= s.half + (s.bay || 0) + 0.6;
+    }))
+    .map(([, x, , z]) => [x, z]);
+}
+
 /**
  * The network's traffic: `perPlatoon` cars to a platoon, the lights on a
  * `cycle` of seconds. Returns the cars (each with its route, for the caller
@@ -410,7 +427,7 @@ const PHASES = 21350;
  * lamps are lit (out.brake); and the rows of parking places along the
  * kerbs.
  */
-export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed = PHASES, gates = GATES } = {}) {
+export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed = PHASES, gates = GATES, keep = [] } = {}) {
   const { segs, junctions } = runs();
   pairings(junctions, gates);
   const phases = new Map();
@@ -476,6 +493,54 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
   const wrap = (x, m) => ((x % m) + m) % m;
   const a = [0, 0];
   const b = [0, 0];
+  // Where a platoon waiting at a stop line would have one of its cars over
+  // a vent, that car and every one behind it wait a little further back
+  // (`backs`: for each such line, how much further back each car stands):
+  // the room opens over the last QUEUE metres of the way in and closes over
+  // the first QUEUE of the way out, and only where the platoon stops there
+  // (a platoon going through on the green keeps its spacing). With a back
+  // of at most 6 m eased over 12 no car comes nearer the one ahead than
+  // its gap.
+  const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+  for (const r of routes) {
+    r.backs = [];
+    for (const s of keep.length ? r.stops : []) {
+      const g = r.gap[Math.min(r.gap.length - 1, Math.floor(wrap(s.u, r.length) / 4))];
+      const back = new Float32Array(perPlatoon);
+      let extra = 0;
+      for (let k = 0; k < perPlatoon; k++) {
+        for (let tries = 0; tries < 16; tries++) {
+          const u = wrap(s.u - k * g - extra, r.length);
+          point(r, k % 2, wrap(u - 1.3, r.length), a);
+          point(r, k % 2, wrap(u + 1.3, r.length), b);
+          const cx = (a[0] + b[0]) / 2;
+          const cz = (a[1] + b[1]) / 2;
+          const d = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+          const fx = (b[0] - a[0]) / d;
+          const fz = (b[1] - a[1]) / d;
+          // (A pickup's half length, 2.8 m, and a plume's half width.)
+          if (!keep.some(([vx, vz]) => Math.abs((vx - cx) * fx + (vz - cz) * fz) < 3.6 && Math.abs((vz - cz) * fx - (vx - cx) * fz) < 1.6)) break;
+          extra += 0.5;
+        }
+        back[k] = extra;
+      }
+      if (extra > 0) r.backs.push({ u: s.u, back });
+    }
+  }
+  const QUEUE = 12;
+  /** How much further back than its place in the queue a car stands, its
+   *  platoon's first car `along` the route at step `j` of its table. */
+  const queueBack = (r, along, j, index) => {
+    for (const q of r.backs) {
+      const d = wrap(along - q.u + QUEUE, r.length) - QUEUE;
+      if (Math.abs(d) >= QUEUE) continue;
+      // (Stopped there: in the six seconds round this one the first car
+      // goes less than twice QUEUE.)
+      if (r.table[Math.min(r.table.length - 1, j + 12)] - r.table[Math.max(0, j - 12)] >= 2 * QUEUE) return 0;
+      return q.back[Math.min(index, q.back.length - 1)] * (1 - smooth(Math.abs(d) / QUEUE));
+    }
+    return 0;
+  };
   const place = (car, clock, out) => {
     const r = car.route;
     // (A route's table starts as its first car leaves its anchor's line, at
@@ -487,7 +552,7 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     const speed = (r.table[j + 1] - r.table[j]) / TICK;
     const later = (r.table[Math.min(r.table.length - 1, j + 2)] - r.table[Math.min(r.table.length - 2, j + 1)]) / TICK;
     const along = wrap(lead + (r.offset ?? 0), r.length);
-    const u = wrap(along - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(along / 4))], r.length);
+    const u = wrap(along - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(along / 4))] - queueBack(r, along, j, car.index), r.length);
     const lane = car.index % 2;
     point(r, lane, wrap(u - 1.3, r.length), a);
     point(r, lane, wrap(u + 1.3, r.length), b);
@@ -511,7 +576,7 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     const j = Math.min(r.table.length - 2, Math.floor(time));
     out.v = (r.table[j + 1] - r.table[j]) / TICK;
     out.lead = wrap(r.table[j] + (r.table[j + 1] - r.table[j]) * (time - j) + (r.offset ?? 0), r.length);
-    out.u = wrap(out.lead - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(out.lead / 4))], r.length);
+    out.u = wrap(out.lead - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(out.lead / 4))] - queueBack(r, out.lead, j, car.index), r.length);
     out.lane = car.index % 2;
     return out;
   };

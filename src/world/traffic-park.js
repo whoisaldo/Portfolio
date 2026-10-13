@@ -138,10 +138,11 @@ const PLACED = [
   // pavement's edge (tools/kerbspot.mjs).
   { x: -9.65, z: -601.5, yaw: 0.05, kind: "sedan", kerb: true, roll: -0.09, y: 0.08 },
   // The west street's bus, standing at its stop with its lamps and its
-  // inside lit, and the stop: a shelter on the pavement beside its back
-  // door (props-source.json has nothing standing at either place).
+  // inside lit, and the stop: a shelter on the pavement beside its front
+  // door, clear of the grate whose steam would rise through its roof
+  // (props-source.json has nothing standing at either place).
   { x: -88.5, z: -327, yaw: 0, kind: "bus", lit: true, body: "#c45a1c", accent: "#ffb254", glow: false },
-  { x: -92.1, z: -330.5, yaw: 0, kind: "stop", off: true, body: "#2b3038", accent: "#27dcf2", glow: true },
+  { x: -92.1, z: -327.5, yaw: 0, kind: "stop", off: true, body: "#2b3038", accent: "#27dcf2", glow: true },
 ];
 
 /**
@@ -152,7 +153,7 @@ const PLACED = [
  * BIKES), body, accent, tag, and where it has them: hazard, glow, lit,
  * `roll` (leant over, radians) and `y` (lifted, metres).
  */
-export function createStanding({ rows, full = true }) {
+export function createStanding({ rows, full = true, steam = [] }) {
   const out = [];
   const taken = (x, z, reach) => PLACED.some((c) => Math.hypot(c.x - x, c.z - z) < reach);
   rows.forEach((row, r) => {
@@ -169,7 +170,7 @@ export function createStanding({ rows, full = true }) {
         gap--;
         continue;
       }
-      if (CLEAR.some(([x0, x1, z0, z1]) => at.x > x0 && at.x < x1 && at.z > z0 && at.z < z1) || taken(at.x, at.z, 6.3) || HYDRANTS.some(([x, z]) => Math.hypot(at.x - x, at.z - z) < 5.3)) continue;
+      if (CLEAR.some(([x0, x1, z0, z1]) => at.x > x0 && at.x < x1 && at.z > z0 && at.z < z1) || taken(at.x, at.z, 6.3) || HYDRANTS.some(([x, z]) => Math.hypot(at.x - x, at.z - z) < 5.3) || steam.some(([x, z]) => Math.hypot(at.x - x, at.z - z) < 3)) continue;
       if (run === 0) {
         run = of(RUNS);
         gap = of(GAPS) - 1;

@@ -31,7 +31,7 @@ import { createObject as createBaseCar, KINDS as BASE_KINDS } from "./traffic-ca
 import { createObject as createShowCar, KINDS as SHOW_KINDS } from "./traffic-cars-nc.js";
 import { createObject as createNearBase, KINDS as NEAR_BASE } from "./traffic-cars-near.js";
 import { createObject as createNearShow, KINDS as NEAR_SHOW } from "./traffic-cars-near-nc.js";
-import { createNetwork } from "./traffic-net.js";
+import { createNetwork, roadVents } from "./traffic-net.js";
 import { createStanding, wardrobe, KINDS as CAR_KINDS, BIKES, FIXED, TAG } from "./traffic-park.js";
 import { creased, coarse, drum, joined } from "./traffic-lod.js";
 import { createCraft, craftAt, padAt, PAD_STANDING, CRAFT } from "./traffic-sky.js";
@@ -1321,7 +1321,16 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // full, the taxis, the patrol car); each its model, its paint and accent,
   // dealt in turn along its lane or its row so no two neighbours match and
   // the street is the same street every visit.
-  const net = createNetwork({ perPlatoon: full ? 5 : 2 });
+  // The steam vents in the road, read off the city's own anchors (they are
+  // in the scene by now): no car waits or parks over one.
+  const vents = [];
+  scene.traverse((o) => {
+    if (!o.name.startsWith("anchor_steam_")) return;
+    const at = o.getWorldPosition(new THREE.Vector3());
+    vents.push([o.name, at.x, at.y, at.z]);
+  });
+  const steam = roadVents(vents);
+  const net = createNetwork({ perPlatoon: full ? 5 : 2, keep: steam });
   // The lanes that leave the ground (the builder's "paths": the ramp, the
   // turn and the deck, each way, as points with their heights): cars on
   // each, riding the line by its length.
@@ -1355,7 +1364,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       return x;
     }),
     ...pathSlots,
-    ...createStanding({ rows: net.rows, full }).map((c) => ({ ...c, parked: c })),
+    ...createStanding({ rows: net.rows, full, steam }).map((c) => ({ ...c, parked: c })),
   ];
   // The few left open: the door's leaf swung out from its hinge at the
   // hatch's front pillar, the boot's lid up from its hinge under the
