@@ -2878,7 +2878,9 @@ for (xa, xb), za, zb, strings, columns in ((LANE, -706.0, -192.0, 0.45, 26.0), (
         elif roll < 0.55:
             J.put("bin", x, G0, z - 1.6)
         elif roll < 0.7 and xa == EDGE[0]:
-            tree(xa + 1.3, G0, z + 6.0, lr.uniform(0, 6.28))
+            yaw_ = lr.uniform(0, 6.28)
+            if not TORII[0] - 22.0 < z + 6.0 < TORII[1] + 22.0:
+                tree(xa + 1.3, G0, z + 6.0, yaw_)
         # Somebody against the strip's wall (a lane's walls stand their own).
         roll = lr.random()
         if xa == EDGE[0] and roll < 0.45:
@@ -3898,6 +3900,45 @@ B.billboard(D, bx, 9.6, tc, 9.0, 4.8, HALF_PI, tr)
 J.tube_sign((bx, 13.4, tc), HALF_PI, 6.4, 2.0, "red", tr)
 for z in (tc - 3.6, tc + 3.6):
     box((D, "metal", 0), bx - 0.5, bx - 0.2, G0, 14.4, z - 0.15, z + 0.15, scale=1.0)
+
+
+# ---------------------------------------------------------------------------
+# What closes the gate street (round 5: the m11 review saw its vanishing
+# point "black speckled with white dots under a thin white arc", the lane
+# ending in the far city's dark ground at street level, under the board):
+# a wall of six storeys along the edge strip's far side, x -170, well past
+# the street's line either way, shops lit along its foot, bands of windows
+# over them, its signs either side of the board on legs, which stands
+# before it; its back to the far city in windows too.
+# ---------------------------------------------------------------------------
+FAR_Z = (tc - 17.0, tc + 17.0)
+
+
+def far_wall(r):
+    z0, z1 = FAR_Z
+    x0, x1 = EDGE[0], EDGE[0] + 0.3
+    h = storeys(6)
+    tint = B.TINTS["plum"]
+    tcol = B.TRIM[tint]
+    box((D, "plaster", 0), x0, x1, 0.0, h, z0, z1, scale=1.0, col=LANE_WALLS[2])
+    fe = B.Face("+x", x1 + 0.02, z0, z1)
+    banded(fe, SHOP_H, h, r, tint)
+    flush_shops(fe, r, tcol)
+    J.lantern_row(fe, 0.8, fe.width - 0.8, 3.05, 0.62, 1.7)
+    for zz in (z0 + 3.0, tc - 7.0, tc + 7.0, z1 - 3.0):
+        light(D, x1 + 1.6, 0.3, zz, r.choice(("amber", "red", "pink")), 4.5)
+    for za_, zb_ in ((z0, tc - 5.4), (tc + 5.4, z1)):
+        signs_on(B.Face("+x", x1 + 0.02, za_, zb_), h, r, 1.15)
+    fb = B.Face("-x", x0 - 0.02, z0, z1)
+    banded(fb, 0.0, h, r, tint, ribs=False)
+    box((D, "trim", 0), x0 - 0.08, x1 + 0.08, h, h + 0.3, z0, z1, scale=1.0, col=tcol, bottom=True)
+    for zz in (z0 + 5.0, z1 - 5.0):
+        J.tube_sign((x1 + 0.3, h + 1.6, zz), HALF_PI, 5.2, 1.5, r.choice(("cyan", "pink", "amber")), r, both=False)
+        for dz in (-2.0, 2.0):
+            box((D, "metal", 0), x1 + 0.1, x1 + 0.22, h + 0.3, h + 0.9, zz + dz - 0.06, zz + dz + 0.06, scale=1.0)
+
+
+far_wall(random.Random(7460))
 
 # ---------------------------------------------------------------------------
 # The ramp's walls where the street sees them (the ramp and its paint are
