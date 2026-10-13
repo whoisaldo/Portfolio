@@ -1023,9 +1023,9 @@ export function createPropSurfaces(dressed) {
             albedo = mix(albedo, rustCol, rust);
             albedo = mix(albedo, vec3(0.028, 0.026, 0.026), chip * (1.0 - rust) * 0.85);
             albedo *= 1.0 - 0.4 * streak * mix(1.0, 0.5, plastic);
-            // A plastic's grime in patches and scuffs, so it reads as a
-            // solid thing, not a lit shell.
-            albedo *= 1.0 - plastic * (0.45 * smoothstep(0.45, 0.8, vn3(p * 0.7 + 5.0)) + 0.25 * smoothstep(0.6, 0.75, vn3(p * 4.0 + 2.0)) * fine);
+            // A plastic's grime in patches and in scuffs run down it by the
+            // rain, so it reads as a solid thing, not a lit shell.
+            albedo *= 1.0 - plastic * (0.45 * smoothstep(0.45, 0.8, vn3(p * 0.7 + 5.0)) + 0.25 * smoothstep(0.6, 0.75, vn3(p * vec3(4.0, 0.9, 4.0) + 2.0)) * fine);
             gloss = mix(0.9, 0.12, rust) * mix(1.0, 0.75, plastic);
             dent = mix(1.0, 0.3, plastic) * (kind > 8.5 && kind < 9.5 ? 1.4 : 1.0);
           } else if (kind > 6.5) {
