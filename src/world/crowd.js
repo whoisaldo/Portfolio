@@ -306,6 +306,15 @@ const STANDS = [
   [-4.42, -758.4, HALF_PI, "floor"], [-4.25, -763.0, 0, "lie"], [4.42, -757.5, -HALF_PI, "floor"], [4.2, -766.3, Math.PI, "lie"], [4.42, -764.2, -HALF_PI, "floor"],
 ];
 const HOT_PHONE = [11.4, -121.0];
+// Where the districts stood somebody in uniform (src/world/traffic.js stands
+// a patrol car at the plaza's east kerb, and plaza_edges.py its officer out
+// of it, talking to somebody; corpo_north.py a guard by the second tower's
+// booth; plaza_parts.py and plaza_edges.py two guards at each lobby). The
+// city's own patrol, in a uniform of its own: a dark slate jacket, collar
+// up, a peaked cap, reflective bands, a lit line at the hem and down the
+// sleeves, gloves. A lobby's guards in the house's: a charcoal suit and a
+// lit visor. (Whoever a builder moves off these points is anybody again.)
+const OFFICERS = [[128.4, -157.0, "patrol"], [197.0, -344.9, "patrol"], [131.38, -108.1, "guard"], [131.38, -115.0, "guard"], [131.38, -76.1, "guard"], [131.38, -83.0, "guard"]];
 
 // A number out of a place. Everything about a person is dealt from where
 // they stand (or where their walk starts), never from how many came before
@@ -660,6 +669,8 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     spots.push({ x: p.x + Math.sin(p.yaw) * 1.5, y: p.y, z: p.z + Math.cos(p.yaw) * 1.5, yaw: p.yaw + Math.PI, pose: CARRY });
   }
 
+  // Whoever stands where a district put somebody in uniform wears it.
+  for (const p of spots) for (const [x, z, kind] of OFFICERS) if (Math.abs(p.x - x) < 0.3 && Math.abs(p.z - z) < 0.3) p.officer = kind;
   // Nobody stands in a file of the same stance: of those stood alone with
   // nothing to do (at a window, at a corner), two a few steps apart have,
   // now and then, stopped to talk (they come together, a little under a
@@ -690,7 +701,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
       }
       return out;
     };
-    const alone = (p, i) => p.pose === IDLE && !p.hot && !round(p, i, 1.6).length;
+    const alone = (p, i) => p.pose === IDLE && !p.hot && !p.officer && !round(p, i, 1.6).length;
     const met = new Set();
     spots.forEach((p, i) => {
       if (met.has(i) || !alone(p, i)) return;
@@ -848,7 +859,11 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     let R = 0;
     const u = r();
     const alone = p.toward === undefined || name === "queue";
-    if (name === "idle" || name === "talk" || name === "queue") {
+    // (Somebody in uniform: a hand on the belt and a thumb in the vest.)
+    if (p.officer) {
+      L = 3;
+      R = name === "talk" ? 0 : 4;
+    } else if (name === "idle" || name === "talk" || name === "queue") {
       if (u < 0.17 && !left && !right) L = R = 2;
       else if (u < 0.42) [L, R] = [left ? 0 : 1, right ? 0 : 1];
       else if (u < 0.55 && !left) L = 3;
@@ -887,7 +902,23 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     const worn = near.sort((a, b) => b[0] - a[0]).map(([, w]) => w);
     // Of two close together at most one holds an umbrella up: two canopies
     // do not fit between two faces.
-    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) ? 0 : 0.05, at: [p.x, p.z], kid: !!p.kid });
+    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) || p.officer ? 0 : 0.05, at: [p.x, p.z], kid: !!p.kid });
+    if (p.officer === "patrol") {
+      // Midnight jacket, black trousers and shirt, black cap, cyan lines.
+      p.d.look[0] = bits(TAG.hair, TAG.brim, TAG.collar, TAG.trim, TAG.hivis);
+      p.d.look[1] = GARMENTS.jacket + 4 + FLAG.gloves;
+      p.d.look[2] = 0;
+      p.d.wear = [17, 0 + 8 * 1, p.d.wear[2], 0];
+      p.d.build = Math.max(p.d.build, 1.04);
+      p.d.height = Math.max(p.d.height, 1.8 / RIG.height);
+    } else if (p.officer === "guard") {
+      // Charcoal suit, white shirt, short dark hair, a lit visor.
+      p.d.look[0] = bits(TAG.hair, TAG.suit, TAG.visor);
+      p.d.look[1] = GARMENTS.jacket + 8;
+      p.d.look[2] = 0;
+      p.d.look[3] = 0.031;
+      p.d.wear = [16, 0 + 8 * 0, p.d.wear[2], 0];
+    }
     p.worn = worn[worn.length - 1];
     if (Math.floor(p.d.look[0] / 2 ** TAG.umbrella) % 2 === 1) sheltered.add(i);
   }
