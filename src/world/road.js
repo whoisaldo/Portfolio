@@ -263,6 +263,77 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         level += wob;
         float la = fwidth(level) * 0.75;
         float puddle = smoothstep(-0.02 - la, 0.045 + la, level) * framed;
+        // A road in use, at the foot of a driver's, a walker's or a fixed
+        // view's frame (not the hero's: its frame fades in from the plate
+        // and keeps the road it has always had). A cover over the services
+        // on a lane's line now and then, rubber laid down where somebody
+        // braked hard, cracks across the road that nobody has run tar into,
+        // and what a gutter holds: grit, a scrap of paper, a can, a weed in
+        // the joint at the kerb's foot. What lies on the road holds no water.
+        float eye = 1.0 - low;
+        float dry = 0.0;
+        #if PAINT == 0
+        if (eye > 0.01 && px < 0.3 && framed > 0.5) {
+          float fine6 = 1.0 - smoothstep(0.02, 0.06, px);
+          float mid6 = 1.0 - smoothstep(0.06, 0.22, px);
+          float laneNo = floor(lat / 3.5);
+          // The cover: 0.64 m of cast steel, a ring polished by the wheels,
+          // a grid of bosses inside, a dark gap round it.
+          float cc = floor(run / 26.0);
+          float hcov = hash12(vec2(cc, laneNo + 41.0));
+          float rc = length(vec2(run - (cc + 0.15 + 0.7 * fract(hcov * 7.0)) * 26.0, lane));
+          float cover = step(0.42, hcov) * (1.0 - inJ) * (1.0 - smoothstep(0.31, 0.32 + px, rc));
+          vec3 iron = vec3(0.04, 0.038, 0.036) * (0.7 + 1.1 * step(0.55, fract(run / 0.08)) * step(0.55, fract(lat / 0.08)) * fine6);
+          iron = mix(iron, vec3(0.13, 0.125, 0.115), step(0.25, rc));
+          iron *= 1.0 - 0.75 * (1.0 - smoothstep(0.004, 0.014 + px, abs(rc - 0.305)));
+          albedo = mix(albedo, iron, cover);
+          // Rubber: two dark lines a track apart, 5 to 14 m, darkest
+          // where the wheels locked, drifting a little as the car slewed.
+          float sc = floor(run / 37.0);
+          float hs = hash12(vec2(sc, laneNo + 17.0));
+          float st = (run - (sc + 0.1 + 0.5 * fract(hs * 11.0)) * 37.0) / (5.0 + 9.0 * fract(hs * 5.0));
+          float skid = step(0.45, hs) * step(0.0, st) * step(st, 1.0) * smoothstep(0.0, 0.2, st) * (1.0 - inJ)
+                     * (1.0 - smoothstep(0.06, 0.1 + px, abs(lane - 0.8 + 0.3 * st * st * (fract(hs * 3.0) - 0.5))))
+                     * (0.55 + 0.45 * vnoise(vec2(run * 3.0, lat * 2.0)));
+          albedo *= 1.0 - 0.62 * skid * mid6;
+          // A crack across the road every 12.5 m or so, wandering, over
+          // part of its width: open and dark, and in half of them the tar
+          // run in, a wider seam.
+          float tcr = floor(run / 12.5);
+          float ht = hash12(vec2(tcr, 3.0));
+          float wander = (vnoise(vec2(lat * 0.7, tcr * 3.1)) - 0.5) * 0.9 + (vnoise(vec2(lat * 5.0, tcr)) - 0.5) * 0.12;
+          float cd = abs(run - (tcr + 0.3 + 0.4 * ht) * 12.5 - wander);
+          float spanC = smoothstep(0.32, 0.45, vnoise(vec2(lat * 0.35 + 7.0, tcr * 1.7))) * (1.0 - cover);
+          float open = (1.0 - smoothstep(0.006, 0.014 + px * 0.4, cd)) * spanC * fine6;
+          float tarred = (1.0 - smoothstep(0.03, 0.05 + px * 0.4, cd)) * spanC * step(0.5, fract(ht * 7.0)) * mid6;
+          albedo *= (1.0 - 0.7 * open) * (1.0 - 0.4 * tarred);
+          // The gutter: grit and silt against the kerb, paler and browner
+          // than the tar, in drifts.
+          float gut = smoothstep(0.5, 0.05, kerbIn) * (1.0 - inJ);
+          albedo = mix(albedo, vec3(0.075, 0.066, 0.052) * (0.6 + 0.8 * vnoise(p * 9.0)), gut * 0.6 * smoothstep(0.25, 0.7, vnoise(vec2(run * 0.45, lat * 0.1 + 3.0))));
+          // What the wind and the rain leave there, a stride apart at most.
+          float lcell = floor(run / 0.8);
+          float hl = hash12(vec2(lcell, step(0.0, lat) + 61.0));
+          vec2 lq = vec2(run - (lcell + 0.5) * 0.8, kerbIn - 0.12 - 0.45 * fract(hl * 13.0));
+          float ang = hl * 6.28;
+          lq = mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * lq;
+          vec2 lsz = fract(hl * 7.0) < 0.6 ? vec2(0.09, 0.065) : vec2(0.06, 0.03);
+          float scrap = step(0.86, hl) * step(abs(lq.x), lsz.x) * step(abs(lq.y), lsz.y) * fine6 * (1.0 - inJ);
+          vec3 scrapCol = fract(hl * 7.0) < 0.6 ? mix(vec3(0.3, 0.29, 0.25), vec3(0.2, 0.14, 0.08), step(0.5, fract(hl * 29.0))) : (fract(hl * 31.0) < 0.5 ? vec3(0.35, 0.06, 0.06) : vec3(0.08, 0.16, 0.3));
+          albedo = mix(albedo, scrapCol, scrap);
+          // A weed in the joint at the kerb's foot: a tuft of blades, more
+          // of them in Santo Domingo's yards and none on corporate ground.
+          vec2 wq = vec2(run / 0.55, 0.0);
+          float hw = hash12(vec2(floor(wq.x), step(0.0, lat) + 71.0));
+          vec2 wd = vec2((fract(wq.x) - 0.5) * 0.55, kerbIn - 0.03);
+          float blades = 0.5 + 0.5 * sin(atan(wd.y, wd.x) * 9.0 + hw * 20.0);
+          float weed = step(1.0 - mix(0.16, 0.42, santoAt(p)) * (1.0 - tidy(p)), hw) * (1.0 - smoothstep(0.03 + 0.05 * blades * fract(hw * 3.0 + 0.4), 0.06 + 0.06 * blades, length(wd))) * fine6;
+          albedo = mix(albedo, vec3(0.035, 0.055, 0.02) * (0.7 + 0.6 * blades), weed);
+          dry = max(cover, max(scrap, weed));
+          stone = mix(stone, 1.0, cover);
+        }
+        #endif
+        puddle *= 1.0 - dry;
         float damp = 0.72 - 0.1 * smoothstep(2.5, 7.0, kerbIn) * grade;
         if (low > 0.001) {
           // The page's first frame keeps the pools it has always had (it
@@ -324,7 +395,20 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         vec3 col = albedo * (vec3(0.13, 0.14, 0.18) * mix(1.0, 0.45, coloured) + lit);
         #else
         albedo *= mix(1.0, 0.72, wet);
-        vec3 col = albedo * 0.55 * (vec3(0.07) + spill * mix(1.0, 0.45, puddle) * (1.0 + 1.5 * aerial)) + albedo * cityGlow(-V, 0.0) * 0.12;
+        // (Away from the hero's lens the asphalt takes the light it stands
+        // in at more than twice what it did, and a little of the night's:
+        // at 0.55 a lit street seen from a pavement or a driver's seat was a
+        // black floor under its lamps, every crack, cover and patch in it
+        // unseen. Still dark tar, and never as bright as the hero's water.)
+        // (And the old tar there is greyer than the patches let into it, and
+        // the light it takes a little greyed: the bake's cells of pink,
+        // green and blue side by side were a mottle of rainbow on the road.)
+        float take = mix(0.55, 1.05, eye);
+        albedo *= 1.0 + eye * (0.55 * (1.0 - mended) - 0.15 * seal);
+        vec3 lightIn = mix(spill, vec3(dot(spill, vec3(0.3, 0.5, 0.2))), 0.35 * eye);
+        vec3 col = albedo * take * (vec3(0.07 + 0.05 * eye) + lightIn * mix(1.0, 0.45, puddle) * (1.0 + 1.5 * aerial)) + albedo * cityGlow(-V, 0.0) * 0.12;
+        // Santo Domingo's sodium air on its own yards' tar, as on its walls.
+        col += albedo * SODIUM * santoAt(p) * uHaze * 2.4 * eye;
         #endif
         // A wet sheen: the aggregate catches the street's light, and here
         // and there a stone catches it hard. The glints go before a pixel
@@ -407,7 +491,10 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           // (Capped lower and left its colour: a far cluster of signs is
           // drawn out toward the eye in three images, and pale, that was a
           // smear of spilt paint across junction B.)
-          baked = tame(spillReflect(vWorld, R) * 0.17, 0.4);
+          // (Away from the hero's lens a third more of it, and let nearer
+          // its colour's full strength: a fixed view's road, which has no
+          // mirror, was a matte dark floor beside the drive frames' wet one.)
+          baked = tame(spillReflect(vWorld, R) * mix(0.17, 0.23, eye), mix(0.4, 0.55, eye));
           baked = max(mix(vec3(dot(baked, vec3(0.299, 0.587, 0.114))), baked, 1.25), 0.0);
           // (Up on the deck the ray is followed from the deck's own height,
           // so this is what hangs over the deck and keeps more of its
@@ -441,9 +528,14 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // draws only what glows, never the sky, so this is its sky on
         // desktop too.
         vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (hazeAt(R) * 1.2 + glowAt(R) * 0.5) * uHaze * mix(0.28, 0.4, fore) * (1.0 + 2.5 * aerial);
+        // (Under Santo Domingo's lamps the cloud is their orange, and the
+        // wet tar holds that, as its yards' pools do.)
+        sky = mix(sky, SODIUM * 0.9 * uHaze, 0.8 * santoAt(p) * eye);
         // (A pool with no mirror holds less of the cloud: lit by it alone
         // it is milk, not water.)
-        vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(0.3 * wet * mix(0.35, 1.0, stone) * crack, mix(0.4 + 0.6 * aerial, 1.0, mk), puddle);
+        // (Away from the hero's lens the film holds more of the cloud: a
+        // wet road with nothing lit over it is a dark blue sheen, not a hole.)
+        vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(mix(0.3, 0.5, eye) * wet * mix(0.35, 1.0, stone) * crack, mix(0.4 + 0.6 * aerial, 1.0, mk), puddle);
         // (On the hero's stretch the film is thick enough to hold its shine
         // at the lens's feet, as the plate's road does.)
         refl *= mix(mix(max(fres, 0.5 * aerial), 0.6, 0.7 * fore), mix(0.16, 0.25, fore) + 0.75 * graze, puddle) * uWet;
