@@ -215,10 +215,25 @@ export function createYield(traffic) {
       if (nearPlayer) {
         lookDown(m);
         looked = true;
+        // How far its line moves over in its next 6 m (to its left, +).
+        const drift = (lz[3] - m.z) * m.fx - (lx[3] - m.x) * m.fz;
         for (let n = 0; n < nThings; n++) {
           const t = things[n];
           const k = meets(t.x, t.y, t.z, t.r, m.hw);
-          if (k < 0) continue;
+          if (k < 0) {
+            // Moving over, with the player beside it on the side it moves
+            // to, or behind it there nearer than 0.6 s of his pace, or
+            // further back coming up faster: it waits for him to go by, as
+            // a driver looks in his mirror, and does not cut in across his
+            // nose.
+            if (Math.abs(drift) > 0.4 && Math.abs(t.y - m.y) < 2) {
+              const along = (t.x - m.x) * m.fx + (t.z - m.z) * m.fz;
+              const side = (t.z - m.z) * m.fx - (t.x - m.x) * m.fz;
+              const pace = t.vx * m.fx + t.vz * m.fz;
+              if (side * drift > 0 && Math.abs(side) < 4.5 && along < m.hl && (along > -m.hl - Math.max(3, 0.6 * pace) || (along > -m.hl - 10 && pace > m.v * 0.8 + 1))) allow = 0;
+            }
+            continue;
+          }
           // (A ghost stands until the player is well clear of it.)
           if (!m.solid && k <= 2) {
             allow = 0;
@@ -227,10 +242,11 @@ export function createYield(traffic) {
           // Beside it, not ahead: its line comes into the player from the
           // side, as a car moving over from the lane beside the ramp meets
           // the S4 coming down it. Keeping the S4's pace would carry it on
-          // into the S4's flank: it gives way, dropping back to go in
-          // behind (and stands for an S4 that stands).
+          // into the S4's flank, and dropping back while still moving over
+          // puts its nose across the S4's: it stands where it is, short of
+          // the S4's flank, until the S4 is by, and goes in behind it.
           const along = (t.x - m.x) * m.fx + (t.z - m.z) * m.fz;
-          if (along > -m.hl && along < m.hl + t.r) allow = Math.min(allow, Math.max(0, t.vx * m.fx + t.vz * m.fz - 3));
+          if (along > -m.hl && along < m.hl + t.r) allow = 0;
           else allow = cap(allow, m.fx, m.fz, k, t.vx, t.vz);
         }
       }
