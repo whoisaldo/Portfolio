@@ -636,6 +636,13 @@ export const WINDOWS = /* glsl */ `
       float homes = 1.0 - sys * office;
       if (kind > 1.0 - 0.01 * homes) wc = vec3(1.0, 0.22, 0.6);
       else if (kind > 1.0 - 0.03 * homes) wc = vec3(0.32, 0.46, 1.0) * (0.65 + 0.35 * sin(uTime * (4.0 + 7.0 * hv) + hv * 40.0));
+    } else if (sys < 0.5 && freeEye() * (1.0 - pageLens()) > 0.5) {
+      // (The far city's old path, for a free eye: the house's light and
+      // the other on a pair of floors in five, not each room its own
+      // white, pink, teal or flicker, which from the air was confetti
+      // over a landmark's face. The page's lenses keep theirs.)
+      bool other = hash12(vec2(floor(cell.y / 2.0), 4.2) + seed) > 0.8;
+      wc = ((params.z > 0.5) != other ? vec3(1.0, 0.72, 0.36) : vec3(0.5, 0.88, 1.0)) * (0.85 + 0.3 * hash12(room + 1.9));
     }
     // Band floors in the city's two colours, amber and cyan, floor by floor.
     vec3 bandCol = mix(vec3(1.0, 0.66, 0.3), vec3(0.3, 0.86, 1.0), step(0.5, hash12(vec2(cell.y, 3.7) + seed)));

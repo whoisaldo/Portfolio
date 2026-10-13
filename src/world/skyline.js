@@ -1986,8 +1986,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         vec3 d = p - uCam;
         float k = smoothstep(220.0, 1700.0, length(d)) * exp(-max(p.y, 0.0) * 0.001) * freeEye() * uFarFree * uHaze * (1.0 - santoAt(p.xz));
         vec3 veil = mix(vec3(0.022, 0.045, 0.09), hazeAt(d) * 1.6, downtown(d)) + uGlowColor * 0.08;
-        col = mix(col, dot(col, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.7, 0.95, 1.25), k * emissive * 0.6);
-        return mix(col, veil, k * mix(0.85, 0.5, emissive));
+        // (A lit strip keeps its line and most of its colour through it:
+        // tinted by the haze, not drowned in it.)
+        col = mix(col, dot(col, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.7, 0.95, 1.25), k * emissive * 0.35);
+        return mix(col, veil, k * mix(0.85, 0.3, emissive));
       }
       // The city's fog on the far city, and for an eye above the roofs a
       // thinner one (the low blocks keep their lights under it) that is the
@@ -2538,20 +2540,31 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // window, so its signs carry the light. Not the far layer, whose
         // big cells are what it is from two kilometres; not what Contact
         // frames; not at the page's own lenses.)
-        float districts = fresh * (1.0 - held) * (1.0 - step(5.5, vForm.x)) * freeEye() * uFarFree;
-        vec4 win = windowsS(vCells, params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts);
+        // (And lit in strips as the kit's towers are now, runs of five to
+        // fourteen bays lit nearly bay by bay, a third to two thirds of a
+        // face: a window in five was a dim dot grid from the air. The far
+        // layer too, on its own cells: bays of 4.5 m and floors of 4.8, so
+        // its strips are still lines two kilometres off.)
+        float districts = fresh * (1.0 - held) * freeEye() * uFarFree;
+        vec2 cells = vCells;
+        if (vForm.x > 5.5 && districts > 0.5) cells *= vec2(2.6 * (0.8 + 0.5 * vForm.z * 0.0731) * 3.2 / 4.5, 2.6 * (0.92 + 0.2 * vForm.z * 0.0317) * 3.4 / 4.8);
+        vec4 win = windowsK(cells, params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts, 1.0);
         // A tower seen close, from a street at the city's edge or a car in
         // the air, is not a navy face with a few window strips: the rooms
         // another run of its floors would have lit are lit as well (the same
         // windows, dealt again along the floor). Not one the page holds.
+        // (Lit in strips it has its rooms already.)
         float close = (1.0 - smoothstep(90.0, 220.0, length(vWorld - uCam))) * (1.0 - held) * step(vHero.x, 0.5);
-        if (close > 0.001) {
+        if (close > 0.001 && districts < 0.5) {
           vec4 more = windowsS(vCells + vec2(37.0, 0.0), params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts);
           win = mix(win, more, step(win.a + 0.01, more.a) * close);
         }
         // Lit glass in the zone's light, and brighter than a room is: an
-        // office floor left on.
-        win.rgb *= mix(vec3(1.0), zoneTint * 1.3, zoned * clamp(win.a * 2.2, 0.0, 1.0));
+        // office floor left on. (A tower lit in strips keeps its own two
+        // lights: yellow strips under a cyan zone's tint were green, and a
+        // pink zone's pink, a face of confetti.)
+        float strip = step(0.5, districts);
+        win.rgb *= mix(mix(vec3(1.0), zoneTint * 1.3, zoned * clamp(win.a * 2.2, 0.0, 1.0)), vec3(1.3), strip);
         // A roof is lit by the sky, as the kit's are: from above it is a
         // dark blue plane, not a hole.
         vec3 roofCol = vec3(0.012, 0.012, 0.016) + (uHazeColor * 0.3 + uGlowColor * 0.16) * uHaze * mix(0.35, 0.72, fresh) * max(n.y, 0.25);

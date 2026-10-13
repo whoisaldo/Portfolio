@@ -49,18 +49,30 @@ def megatower(x, z, w, h, colour, seed, kind):
       ziggurat  a block that steps back five times at the top, like a temple
     """
     r = random.Random(seed)
-    col = lambda: (r.uniform(0.55, 0.85), r.randrange(0, 5) / 8.0, r.uniform(0.2, 0.9), 1)  # noqa: E731
+    # A tier wholly under what the page's lenses see of it (the hero's and
+    # Corpo Row's: needle from 290 m, blade from 435, frame from 335, the
+    # ziggurat a slice from 150, the stack nothing) carries a wall tint in
+    # its colour's alpha, navy, charcoal or teal-black, so it is lit as the
+    # kit's towers are, in strips for a free eye; what they see keeps alpha
+    # 1 and its old windows. (The same draws either way.)
+    seen = {"needle": 290.0, "stack": 1e9, "blade": 435.0, "frame": 335.0}.get(kind, 150.0)
+    tint = ((seed // 17) % 3 + 0.5) / 8.0
+
+    def col(top=1e9):
+        c = (r.uniform(0.55, 0.85), r.randrange(0, 5) / 8.0, r.uniform(0.2, 0.9), 1)
+        return c[:3] + (tint,) if top <= seen else c
+
     hw = w / 2
     mast = None
     lamp = None
-    prism(SK, cut_rect(x, z, hw + 2.5, hw + 2.5, 2.0), SHOP_H, 24.0, seed, col=col())
+    prism(SK, cut_rect(x, z, hw + 2.5, hw + 2.5, 2.0), SHOP_H, 24.0, seed, col=col(24.0))
     band(SK, cut_rect(x, z, hw + 2.5, hw + 2.5, 2.0), 22.6, 24.0, colour, out=0.3)
     if kind == "needle":
         steps = ((24.0, 0.55, 1.0, 0.28), (0.55, 0.78, 0.78, 0.26), (0.78, 0.9, 0.6, 0.24), (0.9, 1.0, 0.44, 0.22))
         for i, (a, b, k, c) in enumerate(steps):
             y0 = a if a > 1 else h * a
             plan = cut_rect(x, z, hw * k, hw * k, hw * k * c)
-            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col(h * b))
             band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
         cylinder((SK, "metal", 0), x, z, h, h * 1.17, 1.6, segs=8)
         mast = (x, z, h * 1.17)
@@ -75,21 +87,21 @@ def megatower(x, z, w, h, colour, seed, kind):
         for i, (ox, oz, kx, kz, a, b) in enumerate(blocks):
             y0 = a if a > 1 else h * a
             plan = cut_rect(x + ox * w, z + oz * w, hw * kx, hw * kz)
-            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col(h * b))
             braces(plan, y0, h * b - (3.0 if i == len(blocks) - 1 else 0.0))
             if i == len(blocks) - 1:
                 band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
         lamp = (x + 0.04 * w, z + 0.1 * w, h)
     elif kind == "blade":
         lo = cut_rect(x, z, hw, hw * 0.55)
-        prism(SK, lo, 24.0, h * 0.8, seed + 1, col=col())
+        prism(SK, lo, 24.0, h * 0.8, seed + 1, col=col(h * 0.8))
         band(SK, lo, h * 0.8 - 2.6, h * 0.8 - 0.4, colour)
         # The raked top: its walls rise from 0.86 of the height at the west
         # end to the full height at the east, the roof one sloping plane.
         hx, hz = hw * 0.92, hw * 0.5
         y0 = h * 0.8
         top = lambda px: h * 0.86 + (px - (x - hx)) / (2 * hx) * h * 0.14  # noqa: E731
-        c2 = col()
+        c2 = col(h)
         ou, ov = r.uniform(0, 40), r.uniform(0, 40)
         corners = [(x - hx, z + hz), (x + hx, z + hz), (x + hx, z - hz), (x - hx, z - hz)]
         u = ou
@@ -115,7 +127,7 @@ def megatower(x, z, w, h, colour, seed, kind):
         for i, (a, b, k, c) in enumerate(steps):
             y0 = a if a > 1 else h * a
             plan = cut_rect(x, z, hw * k, hw * k, hw * k * c)
-            prism(SK, plan, y0, h * b, seed + i + 1, col=col())
+            prism(SK, plan, y0, h * b, seed + i + 1, col=col(h * b))
             band(SK, plan, h * b - 2.6, h * b - 0.4, colour)
         # The open crown: four posts, a lit ring at their heads, a cross of
         # beams, and the mast standing up through it.
@@ -130,7 +142,7 @@ def megatower(x, z, w, h, colour, seed, kind):
         mast = (x, z, h * 1.1)
     else:
         body = cut_rect(x, z, hw, hw)
-        prism(SK, body, 24.0, h * 0.7, seed + 1, col=col())
+        prism(SK, body, 24.0, h * 0.7, seed + 1, col=col(h * 0.7))
         # Where its steps begin, a landing deck stands out round it, its
         # edge the tower's light.
         deck = cut_rect(x, z, hw + 7.0, hw + 7.0, 5.0)
@@ -141,7 +153,7 @@ def megatower(x, z, w, h, colour, seed, kind):
             k = 1.0 - (i + 1) * 0.12
             plan = cut_rect(x, z, hw * k, hw * k)
             a, b = h * (0.7 + i * 0.06), h * (0.76 + i * 0.06)
-            prism(SK, plan, a, b, seed + i + 2, col=col())
+            prism(SK, plan, a, b, seed + i + 2, col=col(b))
             band(SK, plan, b - 1.6, b - 0.4, colour)
         lamp = (x, z, h)
     # The mast and its light, on the two that have one; a red lamp on the
