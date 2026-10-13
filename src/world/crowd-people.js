@@ -112,13 +112,16 @@ export const TAG = {
   hivis: 22,
   hardhat: 23,
 };
-/** What the closest figure has more of, dealt by a person's seed and not by
- *  a bit of their mask (crowd.js's vertex shader): three ways of wearing
- *  hair that has any length to it. */
-export const STYLE = { parted: 32, fringe: 33, swept: 34 };
+/** How hair with any length to it is worn, dealt by a person's seed and not
+ *  by a bit of their mask (crowd.js's vertex shader): parted, a fringe or
+ *  swept back (the closest figure's, standing off the head), or in locks
+ *  (both figures with a face): spiked up off the crown, hanging in bangs
+ *  over the brow and the ears, or a quiff swept up off the forehead. */
+export const STYLE = { parted: 32, fringe: 33, swept: 34, spiky: 35, bangs: 36, quiff: 37 };
+export const STYLE_COUNT = 6;
 /** And what a pose brings with it: the near half of a crate two people
  *  carry between them. */
-export const CARRIED = 35;
+export const CARRIED = 40;
 
 /** How an arm holds an umbrella up (the hand in front of the shoulder, so
  *  the shaft passes beside the head), a phone in front of the chest, a cup:
@@ -909,13 +912,15 @@ function nearFigure(close = false) {
       const hgt = 0.005;
       const white = [[-w, 0], [-0.5 * w, -hgt], [0.5 * w, -hgt], [w, 0.0008], [0.5 * w, hgt], [-0.5 * w, hgt]].map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0017));
       cap(white, onFace(ex, ey, 0.0019), { part: PART.sclera }, centre);
-      quad(onFace(ex - 0.0056, ey - 0.0054, 0.0027), onFace(ex + 0.0056, ey - 0.0054, 0.0027), onFace(ex + 0.0056, ey + 0.0054, 0.0027), onFace(ex - 0.0056, ey + 0.0054, 0.0027), { part: PART.eye }, centre);
-      const lid = [[-w * 1.1, 0.0002], [-0.5 * w, hgt], [0.5 * w, hgt], [w * 1.2, 0.001]];
-      loft([lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0031)), lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy + 0.0058, 0.0031))], { part: PART.line }, { open: true, ref: centre });
+      quad(onFace(ex - 0.0068, ey - 0.0058, 0.0027), onFace(ex + 0.0068, ey - 0.0058, 0.0027), onFace(ex + 0.0068, ey + 0.0058, 0.0027), onFace(ex - 0.0068, ey + 0.0058, 0.0027), { part: PART.eye }, centre);
+      // (The lid's line is the eye at four metres: heavy, and swept out past
+      // the outer corner.)
+      const lid = [[-w * 1.1, 0.0002], [-0.5 * w, hgt], [0.5 * w, hgt], [w * 1.25, 0.0005], [w * 1.55, 0.003]];
+      loft([lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0031)), lid.map(([dx, dy], k) => onFace(ex + s * dx, ey + dy + (k === 4 ? 0.003 : 0.0074), 0.0031))], { part: PART.line }, { open: true, ref: centre });
       // The brow, heavy enough to read from across a pavement, and the
       // shadow it throws over the eye: the two are what a face is at four
       // metres.
-      const brow = [[0.009, 1.6885, 0.0105], [0.03, 1.6945, 0.0095], [0.05, 1.688, 0.0065]];
+      const brow = [[0.009, 1.6885, 0.012], [0.03, 1.6955, 0.0112], [0.052, 1.6875, 0.0068]];
       loft([brow.map(([x, y]) => onFace(s * x, y, 0.0024)), brow.map(([x, y, t]) => onFace(s * x, y + t, 0.0024))], { part: PART.brow }, { open: true, ref: centre });
       const socket = [[0.011, 1.6895], [0.03, 1.6955], [0.0495, 1.689]];
       loft([socket.map(([x]) => onFace(s * x, 1.6685, 0.0011)), socket.map(([x, y]) => onFace(s * x, y, 0.0011))], { part: PART.socket }, { open: true, ref: centre });
@@ -1014,14 +1019,14 @@ function nearFigure(close = false) {
       const hgt = 0.0052;
       const white = [[-w, -0.0006], [-0.5 * w, -hgt * 0.85], [0.3 * w, -hgt], [w, 0.001], [0.45 * w, hgt], [-0.5 * w, hgt * 0.9]].map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0014));
       cap(white, onFace(ex, ey, 0.0022), { part: PART.sclera, smooth: 66 }, centre);
-      const iris = Array.from({ length: 8 }, (_, k) => onFace(ex + 0.0054 * Math.cos((k / 8) * TAU), ey + 0.0004 + 0.0054 * Math.sin((k / 8) * TAU), 0.0027));
+      const iris = Array.from({ length: 8 }, (_, k) => onFace(ex + 0.0064 * Math.cos((k / 8) * TAU), ey + 0.0004 + 0.0062 * Math.sin((k / 8) * TAU), 0.0027));
       cap(iris, onFace(ex, ey + 0.0004, 0.003), { part: PART.eye }, centre);
       quad(onFace(ex + 0.0012, ey + 0.0016, 0.0034), onFace(ex + 0.0028, ey + 0.0016, 0.0034), onFace(ex + 0.0028, ey + 0.0032, 0.0034), onFace(ex + 0.0012, ey + 0.0032, 0.0034), { part: PART.sclera }, centre);
-      const lid = [[-w * 1.1, -0.0004, 0.0016], [-0.5 * w, hgt * 0.95, 0.0022], [0.45 * w, hgt * 1.05, 0.0026], [w * 1.18, 0.0016, 0.002]];
+      const lid = [[-w * 1.1, -0.0004, 0.0024], [-0.5 * w, hgt * 0.95, 0.0034], [0.45 * w, hgt * 1.05, 0.0042], [w * 1.22, 0.0012, 0.0036], [w * 1.5, 0.0036, 0.0016]];
       loft([lid.map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0031)), lid.map(([dx, dy, t]) => onFace(ex + s * dx, ey + dy + t, 0.0031))], { part: PART.line }, { open: true, ref: centre });
       const under = [[-w * 0.9, -0.0022], [-0.3 * w, -hgt * 1.05], [0.4 * w, -hgt * 1.1], [w, -0.0006]];
       loft([under.map(([dx, dy]) => onFace(ex + s * dx, ey + dy - 0.0009, 0.0024)), under.map(([dx, dy]) => onFace(ex + s * dx, ey + dy, 0.0024))], { part: PART.socket }, { open: true, ref: centre });
-      const brow = [[0.01, 1.6885, 0.0042], [0.022, 1.6935, 0.0056], [0.037, 1.695, 0.0048], [0.0535, 1.6895, 0.0022]];
+      const brow = [[0.01, 1.6885, 0.0056], [0.022, 1.6935, 0.0072], [0.037, 1.695, 0.0064], [0.0535, 1.6895, 0.003]];
       loft([brow.map(([x, y]) => onFace(s * x, y, 0.0022)), brow.map(([x, y, t]) => onFace(s * x, y + t, 0.0022))], { part: PART.brow, smooth: 67 }, { open: true, ref: centre });
       quad(onFace(s * 0.0045, 1.6195, 0.0012), onFace(s * 0.011, 1.6205, 0.0012), onFace(s * 0.0105, 1.6238, 0.0012), onFace(s * 0.005, 1.6232, 0.0012), { part: PART.line }, centre);
       // An ear: its rim, the hollow inside it, and its back to the head.
@@ -1032,11 +1037,20 @@ function nearFigure(close = false) {
   }
   // Cyberware on some: a seam of light from the temple down the cheek to
   // the jaw, and a plate under the other eye.
+  // (And a line along the jaw, three studs up the other temple and a port
+  // at the side of the neck: lit, they read from across a street.)
   {
     const o = { part: PART.trim, tag: TAG.cyber };
     const seam = [[-0.06, 1.7], [-0.056, 1.655], [-0.046, 1.615], [-0.04, 1.578]];
-    loft([seam.map(([x, y]) => onFace(x - 0.0022, y, 0.002)), seam.map(([x, y]) => onFace(x + 0.0022, y, 0.002))], o, { open: true, ref: centre });
+    loft([seam.map(([x, y]) => onFace(x - 0.0032, y, 0.002)), seam.map(([x, y]) => onFace(x + 0.0032, y, 0.002))], o, { open: true, ref: centre });
     quad(onFace(0.022, 1.6455, 0.002), onFace(0.041, 1.6475, 0.002), onFace(0.041, 1.6525, 0.002), onFace(0.022, 1.6505, 0.002), o, centre);
+    const jaw = [[-0.04, 1.578], [-0.026, 1.556], [-0.008, 1.548]];
+    loft([jaw.map(([x, y]) => onFace(x, y - 0.0028, 0.002)), jaw.map(([x, y]) => onFace(x, y + 0.0028, 0.002))], o, { open: true, ref: centre });
+    for (const y of [1.676, 1.69, 1.704]) {
+      const c = skull(78, y, 0.0015);
+      quad([c[0], c[1] - 0.0035, c[2] - 0.0035, head, 0], [c[0], c[1] - 0.0035, c[2] + 0.0035, head, 0], [c[0], c[1] + 0.0035, c[2] + 0.0035, head, 0], [c[0], c[1] + 0.0035, c[2] - 0.0035, head, 0], o, [0, c[1], c[2]]);
+    }
+    quad([-0.0515, 1.49, -0.012, head, 0], [-0.0515, 1.49, 0.008, head, 0], [-0.0515, 1.505, 0.008, head, 0], [-0.0515, 1.505, -0.012, head, 0], o, [0, 1.5, 0]);
   }
   // A visor over the eyes, ear to ear.
   {
@@ -1109,6 +1123,64 @@ function nearFigure(close = false) {
       (fr) => hairlineAt(fr) + 0.003 * Math.exp(-(((Math.abs(fr) - 40) / 15) ** 2)),
       (fr, up) => 0.0105 + 0.021 * Math.exp(-((fr / 55) ** 2)) * hump(up * 1.25) + 0.004 * hump(up),
     );
+  }
+  // Hair in locks, on both figures with a face: each a clump of three
+  // faces from a root on the head out to a point, bent on its way, faceted
+  // so the street's light picks each one out. [angle round the head, height
+  // of the root, outward, up, forward (all in the head's frame), length,
+  // width at the root, and how far its point bends down].
+  {
+    const lock = (tag, [deg, y, wo, wu, wf, len, width, droop = 0]) => {
+      const a = (deg * Math.PI) / 180;
+      const root = skull(deg, y, 0.008);
+      const outward = [Math.sin(a), 0, Math.cos(a)];
+      let d = [outward[0] * wo, wu, outward[2] * wo + wf];
+      const l = Math.hypot(...d);
+      d = d.map((v) => v / l);
+      // Across the lock: square to it and to the head's outward, then square
+      // to both.
+      let u = [d[1] * outward[2] - d[2] * outward[1], d[2] * outward[0] - d[0] * outward[2], d[0] * outward[1] - d[1] * outward[0]];
+      const ul = Math.hypot(...u) || 1;
+      u = u.map((v) => v / ul);
+      const v = [d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]];
+      const at = (t, r) => {
+        const c = [root[0] + d[0] * len * t, root[1] + d[1] * len * t - droop * t * t, root[2] + d[2] * len * t];
+        // A flattened three-sided clump: wide across, thin out from the head.
+        return [0, 1, 2].map((k) => {
+          const q = ((k + 0.25) / 3) * Math.PI * 2;
+          const cu = Math.cos(q) * r;
+          const cv = Math.sin(q) * r * 0.55;
+          return [c[0] + u[0] * cu + v[0] * cv, c[1] + u[1] * cu + v[1] * cv, c[2] + u[2] * cu + v[2] * cv, head, 1];
+        });
+      };
+      const o = { part: PART.hair, tag };
+      const rings = [at(-0.15, width * 0.5), at(0.45, width * 0.36)];
+      loft(rings, o);
+      const tip = [root[0] + d[0] * len, root[1] + d[1] * len - droop, root[2] + d[2] * len, head, 1];
+      cap(rings[1], tip, o, [root[0], root[1], root[2]]);
+    };
+    const LOCKS = {
+      [STYLE.spiky]: [
+        [0, 1.752, 0.1, 0.7, 0.7, 0.075, 0.042, 0.01], [32, 1.746, 0.45, 0.6, 0.2, 0.075, 0.042], [-32, 1.746, 0.45, 0.6, 0.2, 0.072, 0.042],
+        [70, 1.734, 0.7, 0.35, -0.45, 0.075, 0.042, 0.01], [-70, 1.734, 0.7, 0.35, -0.45, 0.078, 0.042, 0.01], [110, 1.728, 0.55, 0.2, -0.75, 0.08, 0.044, 0.012],
+        [-110, 1.728, 0.55, 0.2, -0.75, 0.08, 0.044, 0.012], [150, 1.732, 0.3, 0.2, -0.95, 0.085, 0.046, 0.012], [-150, 1.732, 0.3, 0.2, -0.95, 0.085, 0.046, 0.012],
+        [180, 1.738, 0, 0.3, -1, 0.09, 0.048, 0.01], [165, 1.758, 0.1, 0.55, -0.8, 0.07, 0.04], [-165, 1.758, 0.1, 0.55, -0.8, 0.07, 0.04],
+        [16, 1.716, 0.3, -0.35, 0.85, 0.05, 0.032, 0.012], [-20, 1.716, 0.3, -0.35, 0.85, 0.055, 0.032, 0.014],
+      ],
+      [STYLE.bangs]: [
+        [-46, 1.735, 0.35, -0.55, 0.5, 0.05, 0.034, 0.008], [-26, 1.74, 0.25, -0.45, 0.6, 0.052, 0.034, 0.01], [-8, 1.742, 0.2, -0.45, 0.62, 0.05, 0.032, 0.01],
+        [10, 1.742, 0.2, -0.45, 0.62, 0.048, 0.032, 0.01], [28, 1.74, 0.25, -0.45, 0.6, 0.054, 0.034, 0.01], [47, 1.735, 0.35, -0.55, 0.5, 0.05, 0.034, 0.008],
+        [82, 1.712, 0.45, -0.9, 0.05, 0.08, 0.036], [-82, 1.712, 0.45, -0.9, 0.05, 0.08, 0.036], [108, 1.716, 0.4, -0.9, -0.15, 0.085, 0.036],
+        [-108, 1.716, 0.4, -0.9, -0.15, 0.085, 0.036], [150, 1.715, 0.3, -0.85, -0.35, 0.08, 0.04], [-150, 1.715, 0.3, -0.85, -0.35, 0.08, 0.04],
+        [180, 1.72, 0.2, -0.85, -0.4, 0.075, 0.042],
+      ],
+      [STYLE.quiff]: [
+        [0, 1.728, 0.2, 0.85, 0.5, 0.085, 0.05, 0.02], [-24, 1.73, 0.35, 0.8, 0.45, 0.075, 0.046, 0.018], [24, 1.73, 0.35, 0.8, 0.45, 0.075, 0.046, 0.018],
+        [0, 1.756, 0.1, 0.55, -0.6, 0.08, 0.05], [-30, 1.752, 0.3, 0.5, -0.65, 0.07, 0.044], [30, 1.752, 0.3, 0.5, -0.65, 0.07, 0.044],
+        [75, 1.722, 0.45, 0.25, -0.85, 0.055, 0.034], [-75, 1.722, 0.45, 0.25, -0.85, 0.055, 0.034],
+      ],
+    };
+    for (const [tag, list] of Object.entries(LOCKS)) for (const l of list) lock(+tag, l);
   }
   // Long hair: from behind the ears round the back, down to the shoulder
   // blades.

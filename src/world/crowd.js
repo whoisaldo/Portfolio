@@ -58,7 +58,7 @@ import { COMMON } from "./glsl.js";
 import { preloadProps } from "./props.js";
 import { createStreetLight, PROP_LIGHTS } from "./crowd-light.js";
 import { crossingsOf, createCrossers } from "./crowd-cross.js";
-import { figureGeometry, RIG, PART, TAG, STYLE, CARRIED, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF, CANOPY } from "./crowd-people.js";
+import { figureGeometry, RIG, PART, TAG, STYLE, STYLE_COUNT, CARRIED, HOLD, POSES, POSE_TABLE, PHONE_AT, EMBER_AT, RIM_HALF, CANOPY } from "./crowd-people.js";
 
 const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
 // The top of every pavement (the builder's PAVE_Y).
@@ -150,8 +150,8 @@ const STYLES = {
     canopy: [50, 22, 18, 10],
     umbrella: 1,
     trim: 0.2,
-    cyber: 0.13,
-    visor: 0.09,
+    cyber: 0.22,
+    visor: 0.11,
     paleShoes: 0.25,
     bare: 0.5,
     hivis: () => 0,
@@ -177,7 +177,7 @@ const STYLES = {
     canopy: [70, 14, 10, 6],
     umbrella: 1.2,
     trim: 0.05,
-    cyber: 0.2,
+    cyber: 0.24,
     visor: 0.12,
     paleShoes: 0.04,
     bare: 0,
@@ -203,7 +203,7 @@ const STYLES = {
     canopy: [70, 14, 10, 6],
     umbrella: 0.25,
     trim: 0.03,
-    cyber: 0.15,
+    cyber: 0.2,
     visor: 0.05,
     paleShoes: 0.03,
     bare: 0.3,
@@ -1368,7 +1368,7 @@ const VERTEX = /* glsl */ `
     if (tag > ${f(CARRIED - 0.5)}) worn = abs(aBody.z - ${f(POSES.indexOf("carry"))}) < 0.5;
     // An umbrella's edge is a line of light only on the few that have one.
     else if (int(aRig.y + 0.5) == ${PART.rim} && bit(aLook.y, 14.0) < 0.5) worn = false;
-    else if (tag > 31.5) worn = bit(aLook.x, ${f(TAG.hair)}) > 0.5 && bit(aLook.y, 2.0) + bit(aLook.y, 3.0) + bit(aLook.x, ${f(TAG.hardhat)}) < 0.5 && abs(floor(rnd(aLook.w * 17.1) * 3.0) + ${f(STYLE.parted)} - tag) < 0.5;
+    else if (tag > 31.5) worn = bit(aLook.x, ${f(TAG.hair)}) > 0.5 && bit(aLook.y, 2.0) + bit(aLook.y, 3.0) + bit(aLook.x, ${f(TAG.hardhat)}) < 0.5 && abs(floor(rnd(aLook.w * 17.1) * ${f(STYLE_COUNT)}) + ${f(STYLE.parted)} - tag) < 0.5;
     if (!worn) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       vColor = vec3(0.0);
@@ -1705,7 +1705,12 @@ const VERTEX = /* glsl */ `
     float glow = 0.0;
     // How much of a shine it has in the wet: cloth a little, a visor a lot.
     float gloss = 0.12;
-    if (part == ${PART.skin}) albedo = skin;
+    if (part == ${PART.skin}) {
+      albedo = skin;
+      // A face is lighter where it looks forward and goes darker round its
+      // sides, so it is modelled even under an even light.
+      if (seg > 1.5 && seg < 2.5) albedo *= 0.76 + 0.24 * smoothstep(-0.1, 0.85, normal.z / shade);
+    }
     else if (part == ${PART.hair}) albedo = hair;
     else if (part == ${PART.scalp}) {
       // Hair, a hat's dome, a shaved head's shadow; on the far figure, whose
@@ -1731,7 +1736,7 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.tie}) albedo = tint * 0.4 + 0.012;
     else if (part == ${PART.band}) { albedo = vec3(0.6, 0.62, 0.58); gloss = 1.1; }
     else if (part == ${PART.helmet}) { albedo = uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)]; gloss = 0.55; }
-    else if (part == ${PART.socket}) albedo = skin * 0.62;
+    else if (part == ${PART.socket}) albedo = skin * 0.5;
     else if (part == ${PART.trousers}) albedo = uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)];
     else if (part == ${PART.stitch}) albedo = uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)] * 0.5;
     else if (part == ${PART.shoe}) { albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.04, 0.04, 0.05); gloss = 0.16; }
@@ -1758,16 +1763,21 @@ const VERTEX = /* glsl */ `
       else if (kind > 1.5 && kind < 2.5) albedo = mix(cloth, other, smoothstep(0.55, 0.95, aux));
       else if (kind > 2.5) { albedo = vec3(0.035, 0.04, 0.05); gloss = 1.5; }
     }
-    else if (part == ${PART.sclera}) { albedo = vec3(0.4, 0.4, 0.38); gloss = 0.3; }
-    else if (part == ${PART.line}) albedo = skin * 0.16;
+    else if (part == ${PART.sclera}) { albedo = vec3(0.34, 0.34, 0.33); gloss = 0.3; }
+    else if (part == ${PART.line}) albedo = skin * 0.09;
     else if (part == ${PART.flap}) albedo = carried * 0.5 + 0.01;
     else if (part == ${PART.metal}) { albedo = vec3(0.13, 0.14, 0.16); gloss = 0.9; }
-    else if (part == ${PART.visor}) { albedo = vec3(0.012) + tint * 0.05; gloss = 1.6; }
+    else if (part == ${PART.visor}) {
+      albedo = vec3(0.012) + tint * 0.05;
+      gloss = 1.6;
+      // Half of them are lit: a band of the person's neon across the eyes.
+      if (rnd(seed * 19.7) > 0.5) { lit = edge * (0.55 + 0.25 * aux); glow = 1.0; }
+    }
     else if (part == ${PART.paper}) albedo = vec3(0.5);
-    else if (part == ${PART.brow}) albedo = hair * 0.7;
+    else if (part == ${PART.brow}) albedo = hair * 0.5 + 0.004;
     else if (part == ${PART.mouth}) albedo = skin * vec3(0.55, 0.35, 0.35);
     else if (part == ${PART.eye}) {
-      albedo = skin * 0.08;
+      albedo = vec3(0.01) + hair * 0.05;
       if (bit(flags, 4.0) > 0.5) { lit = tint * 1.3; glow = 1.0; }
     }
     else if (part == ${PART.rim}) { lit = edge * 1.8 * (1.0 + 0.2 * uBass); glow = 1.0; }
