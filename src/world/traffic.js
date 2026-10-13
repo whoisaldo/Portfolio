@@ -640,8 +640,27 @@ const NEAR = 1;
 // length from the lens is a wall across half the frame.
 const NEAR_MOVING = 2.4;
 
+// (load) The kinds' models and the AV's, made ahead while the city's core
+// is still on its way and the page has nothing else to do
+// (world-scene.js preloadWorld), a model a step: they are the same whenever
+// they are made. createTraffic takes each once and makes what is not there.
+const ahead = new Map();
+const kindModel = (kind) => (BIKES.includes(kind) ? bikeGeometry(kind) : FIXED.includes(kind) ? fixedGeometry(kind) : carGeometry(kind));
+export function* makeTrafficAhead() {
+  if (!ahead.has("av")) ahead.set("av", avGeometry());
+  for (const kind of [...CAR_KINDS, ...BIKES, ...FIXED]) {
+    yield;
+    if (!ahead.has(kind)) ahead.set(kind, kindModel(kind));
+  }
+}
+const madeAhead = (key, make) => {
+  const got = ahead.get(key);
+  ahead.delete(key);
+  return got ?? make();
+};
+
 export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0 } = {}) {
-  const avGeo = avGeometry();
+  const avGeo = madeAhead("av", avGeometry);
   const full = cars >= 4;
   if (full) prepareNearModels();
   // The street's cars: wet paint giving back the lit street and the glow
@@ -1438,7 +1457,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // program, so the van is the only other one. Each kind is two draws: its
   // own model for the ones close by, the coarser one for the rest.
   const kinds = [...CAR_KINDS, ...BIKES, ...FIXED].map((kind, k) => {
-    const built = BIKES.includes(kind) ? bikeGeometry(kind) : FIXED.includes(kind) ? fixedGeometry(kind) : carGeometry(kind);
+    const built = madeAhead(kind, () => kindModel(kind));
     const detail = DETAIL[kind];
     const uniforms = { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uWheel: { value: new THREE.Vector2(...detail.wheel) }, uCab: { value: new THREE.Vector4(...CABIN[kind].slice(0, 4)) }, uCab2: { value: new THREE.Vector4(...CABIN[kind].slice(4)) } };
     const material = new THREE.ShaderMaterial({ uniforms, ...carShader, defines: kind === "van" ? { VAN: "" } : kind === "bus" ? { BUS: "" } : {} });

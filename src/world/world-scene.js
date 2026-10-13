@@ -43,7 +43,7 @@ import { createSkyline } from "./skyline.js";
 import { createRain } from "./rain.js";
 import { createBolt } from "./bolt.js";
 import { createSoundscape } from "./soundscape.js";
-import { createTraffic } from "./traffic.js";
+import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
@@ -74,13 +74,22 @@ export async function preloadWorld(tier) {
   // coming, not on the city's own time.)
   step("car", preloadCar()).then(() => (carLanded = true), () => null);
   step("voxel", preloadVoxelMoon(tier)).catch(() => null);
+  // (load: and the traffic's models, a model a task while the files are
+  // still coming; what is not made by then is made with the traffic, as
+  // before. traffic.js makeTrafficAhead.)
+  const ahead = makeTrafficAhead();
+  let filesIn = false;
+  const more = () => {
+    if (!filesIn && !ahead.next().done) setTimeout(more, 0);
+  };
+  setTimeout(more, 0);
   await Promise.all([
     step("city", preloadCity(tier)),
     step("holo", preloadHolo()),
     step("moon", preloadMoon()),
     step("ads", preloadAds()),
     step("koi", preloadKoi()),
-  ]);
+  ]).finally(() => (filesIn = true));
 }
 
 const DEG = Math.PI / 180;
