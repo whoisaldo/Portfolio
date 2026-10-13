@@ -3307,6 +3307,14 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   // its cloud, the searchlights, and below the horizon the far city's
   // ground, where no tower stands on it.
   const skyGeo = new THREE.SphereGeometry(2200, 32, 16);
+  // How much of the round's blue the page's own Contact view keeps (its
+  // copy is over that sky): its lens, as wide as the page shoots it, tipped
+  // up at the garage's towers (16 degrees; 7.5 on a phone, at the portrait
+  // target). Not the close view of the moon through the same lens (24 up,
+  // 22 wide), nor a level look out from it.
+  const HOLD_SKY = "0.2";
+  const CONTACT_EYE = new THREE.Vector3(456, 10.4, -203);
+  const look = new THREE.Vector3();
   // The moon's disc (moon.js) is added onto whatever the dome draws behind
   // it, so the dome reads where it hangs and how big from the disc's own
   // uniforms and lights the sky round it, never under it.
@@ -3315,7 +3323,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     for (const m of [].concat(o.material ?? [])) if (m.name === "moon" && m.uniforms?.uCenter) moonAt = { uMoonC: m.uniforms.uCenter, uMoonR: m.uniforms.uRadius };
   });
   const sky = new THREE.Mesh(skyGeo, new THREE.ShaderMaterial({
-    uniforms: { ...shared, ...moonAt, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, ...moonAt, uHold: { value: 0 }, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -3330,6 +3338,10 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
       uniform float uMotion;
       uniform vec3 uMoonC;
       uniform float uMoonR;
+      // 1 for the page's own Contact view (see update): its headline and
+      // links are over this sky.
+      uniform float uHold;
+      const float HOLD_SKY = ${HOLD_SKY};
       varying vec3 vDir;
 
       float vnoise(vec2 p) {
@@ -3633,11 +3645,15 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           float x = max(th - rho, 0.0) / rho;
           moonGlow = vec3(0.34, 0.52, 1.0) * (0.05 * exp(-x * 1.6) + 0.032 * exp(-x * 0.42) + 0.012 * exp(-x * 0.14)) * moonOut;
         }
+        // (Behind the page's last words, all of it at a fraction: the same
+        // blue, less of it.)
+        float keep = mix(1.0, HOLD_SKY, uHold);
+        moonGlow *= keep;
         // And from a low roof looking into the quarter Contact looks into,
         // the night is the show's lit blue there too, lighter toward the
         // horizon (not from the street nor from the page's other roofs,
         // which look elsewhere).
-        col += moonOut * lowRoof * uHaze * (vec3(0.002, 0.009, 0.034) * exp(-h * 1.8) + vec3(0.002, 0.016, 0.03) * exp(-h * 6.0));
+        col += moonOut * lowRoof * keep * uHaze * (vec3(0.002, 0.009, 0.034) * exp(-h * 1.8) + vec3(0.002, 0.016, 0.03) * exp(-h * 6.0));
         col += moonGlow;
 
         if (dir.y > 0.0) {
@@ -3658,7 +3674,7 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           // (From the air and from Contact's roof the deck is blue, its
           // underside lit by the city below it, and where it passes near
           // the moon its edges catch the moon's light.)
-          float blue = max(lift, lowRoof) * moonOut;
+          float blue = max(lift, lowRoof * keep) * moonOut;
           under = mix(under, vec3(0.012, 0.042, 0.12) * (0.25 + 1.1 * n) + vec3(0.01, 0.03, 0.035) * n * n, blue * 0.8);
           // East, where none of the page's own lenses looks (between Corpo
           // Row's frame and Contact's), the deck shows its shapes from the
@@ -3721,6 +3737,10 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
     plan: { lots, forms, boxes, tips, midFrom },
     update(camera, pixelRatio = 1) {
       sky.position.copy(camera.position);
+      camera.getWorldDirection(look);
+      const pitch = Math.asin(Math.max(-1, Math.min(1, look.y))) * (180 / Math.PI);
+      const { smoothstep } = THREE.MathUtils;
+      sky.material.uniforms.uHold.value = (1 - smoothstep(camera.position.distanceTo(CONTACT_EYE), 4, 12)) * smoothstep(camera.fov ?? 0, 28, 34) * smoothstep(pitch, 3, 5.5) * (1 - smoothstep(pitch, 19, 22));
       beaconMat.uniforms.uPixel.value = pixelRatio;
       camera.updateMatrixWorld();
       frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
