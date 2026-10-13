@@ -239,6 +239,15 @@ export const COMMON = /* glsl */ `
     return glow * uHaze * exp(-max(y, 0.0) * 0.0045);
   }
 
+  // Which eyes the round's ground, air and colour are for: every eye but
+  // the two page shots whose frames are held as they were, the hero's lens
+  // (the only eye under a metre: it fades in from a painted plate) and the
+  // Garage section's backdrop while the garage's door stands open (the
+  // page's own words are over it). 1 for every other eye.
+  float freeEye() {
+    return smoothstep(0.7, 1.3, uCam.y) * (1.0 - smoothstep(0.0, 0.2, uDoorLight.w));
+  }
+
   // Distance: fog into near-black navy close to, and further off into the
   // glow of the lit city hanging in the wet air, so the end of a street is
   // brighter than its middle, as the plate has it. Santo Domingo's own air
@@ -258,13 +267,13 @@ export const COMMON = /* glsl */ `
     vec3 fogCol = mix(uFogColor, hazeAt(d), uHaze * low * smoothstep(40.0, 360.0, dist));
     fogCol = mix(fogCol, SODIUM, santo * 0.75 * smoothstep(20.0, 200.0, dist));
     if (dist > 120.0) fogCol += cityGlow(d, p.y) * smoothstep(120.0, 900.0, dist);
-    // Depth, for every eye but the hero's (the only one under a metre: its
-    // air is the page's grade, as it was). The wet air between the towers
+    // Depth, for every eye but the held ones (freeEye: the hero's air is the
+    // page's grade, as it was). The wet air between the towers
     // and down a long street holds the haze's blue, more the further and
     // the lower the look, so one layer of the city stands off the next and
     // a far block is bluer and paler than a near one; what glows keeps more
     // of itself. Not in Santo Domingo's sodium.
-    float deep = (1.0 - exp(-dist * 0.0032)) * exp(-max(p.y, 0.0) * 0.004) * smoothstep(0.7, 1.3, uCam.y) * uHaze * mix(1.0, 0.5, emissive) * (1.0 - santo);
+    float deep = (1.0 - exp(-dist * 0.0032)) * exp(-max(p.y, 0.0) * 0.004) * freeEye() * uHaze * mix(1.0, 0.5, emissive) * (1.0 - santo);
     col = mix(col, hazeAt(d) * 2.2 + uGlowColor * 0.18, deep * 0.42);
     return mix(col, fogCol, f);
   }

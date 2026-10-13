@@ -270,7 +270,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // braked hard, cracks across the road that nobody has run tar into,
         // and what a gutter holds: grit, a scrap of paper, a can, a weed in
         // the joint at the kerb's foot. What lies on the road holds no water.
-        float eye = 1.0 - low;
+        // (And not the Garage section's backdrop while its door is open:
+        // freeEye, glsl.js. 1 - low is the rest of it.)
+        float eye = freeEye();
         float dry = 0.0;
         #if PAINT == 0
         if (eye > 0.01 && px < 0.3 && framed > 0.5) {

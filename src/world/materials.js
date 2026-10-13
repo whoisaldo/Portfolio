@@ -411,7 +411,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // dim light than of a bright one: a forecourt, a passage or a lane
           // under signs that hang high was a black floor, and a plaza under
           // a dozen signs is no brighter than it was.)
-          if (n.y > 0.7) spill *= 1.0 + smoothstep(0.7, 1.3, uCam.y) / (1.0 + 3.0 * dot(spill, vec3(0.3, 0.5, 0.2)));
+          if (n.y > 0.7) spill *= 1.0 + freeEye() / (1.0 + 3.0 * dot(spill, vec3(0.3, 0.5, 0.2)));
           #endif
           // (Away from the hero's lens the signs' colour stays with them: a
           // dim wash of their light gives up some of its colour toward the
@@ -419,7 +419,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // own; what no sign reaches is lit by the night's blue-teal, not
           // grey. An even wash of pink and violet over a street, a road and
           // a lane read as a magenta haze and lanes washed purple-brown.)
-          float eyeK = smoothstep(0.7, 1.3, uCam.y);
+          float eyeK = freeEye();
           float sl = dot(spill, vec3(0.3, 0.5, 0.2));
           float mag = clamp((min(spill.r, spill.b) - spill.g) / max(sl, 1e-3), 0.0, 1.0);
           spill = mix(spill, vec3(sl) * vec3(0.8, 0.97, 1.2), eyeK * (1.0 - smoothstep(0.15, 0.8, sl)) * (0.3 + 0.4 * mag));
@@ -458,7 +458,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // (Less of it away from the hero's lens: there the air's own depth
           // is in the fog, and a body seen at a glance was a flat mid teal
           // where the show keeps it blue-black and lets its lights carry it.)
-          col += (hazeV * 1.5 + glowV * 0.45) * rim * 0.5 * uHaze * (1.0 - up) * smoothstep(12.0, 50.0, length(uCam - vWorld)) * mix(1.0, 0.45, smoothstep(0.7, 1.3, uCam.y));
+          col += (hazeV * 1.5 + glowV * 0.45) * rim * 0.5 * uHaze * (1.0 - up) * smoothstep(12.0, 50.0, length(uCam - vWorld)) * mix(1.0, 0.45, freeEye());
           // No roof is a hole: whatever it is made of, the rain on it holds
           // the lit cloud, a little from overhead and more at a glance.
           float top = up * smoothstep(2.5, 6.0, vWorld.y) * (1.0 - vProp) * (1.0 - onDeck);
@@ -497,7 +497,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // (Away from the hero's lens, the cloud's light on the wet film
             // too, more of it the more glancing the look: a wet floor with
             // nothing lit over it is a dark blue sheen, not a black one.)
-            give += sky * sheen * (0.12 + 0.6 * graze) * smoothstep(0.7, 1.3, uCam.y);
+            give += sky * sheen * (0.12 + 0.6 * graze) * freeEye();
             #ifdef PAVING
             // (A pool's face is never one flat tone: the rain keeps it moving.)
             // (And it holds the street's light before the cloud's: lit by
@@ -510,7 +510,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // given back as it was, the wash over a lit forecourt made every
             // pool a pale shape on the stone, a decal, a paper cutout, a
             // splash of paint. Water is dark, with the lights in it.)
-            float poolK = mix(1.0, smoothstep(0.06, 0.32, bl) * 1.5, smoothstep(0.7, 1.3, uCam.y));
+            float poolK = mix(1.0, smoothstep(0.06, 0.32, bl) * 1.5, freeEye());
             if (water > 0.01) give = mix(give, (back * (bl / (0.5 * bl + 0.07)) * 1.3 * poolK + sky * mix(0.1, 0.55, santoAt(vWorld.xz))) * (0.25 + 0.75 * graze) * (0.9 + 0.2 * vnoise(vWorld.xz * 6.0 + uTime * 0.7)), water * water);
             #endif
             col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
