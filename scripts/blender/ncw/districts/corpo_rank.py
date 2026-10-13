@@ -218,3 +218,42 @@ lantern(jx0, jx1, jz0, jz1, jy, "cyan", 16.0)
 screens_up(450.5, -386.0, 84.0, 11.0, (7.0, 12.0, 7.0), r, 0.76)
 K.advert(435.0 - 0.3, 100.0, -401.0, 12.0, 7.0, -math.pi / 2, 1, seed=0.76, depth=0.2)
 K.big_sign(451.0, 141.0, jz1 + 0.4, "bx", 4.8, 0.0, 7, depth=0.3)
+
+# M: the district's megatower, on the corner block over junction I (x 432..470,
+# z -384..-344, 74 m): the one tower that stands clear over the row and the
+# rank, closing the boulevard's vista, east of the Experience shot's frame
+# at rest and behind the braindance's fixed camera. Its stone podium is the
+# corner block; a broad shaft from 74 m to 182, two deep setbacks to 240 and
+# 280, a lantern of warm light behind black fins to 302 with a mast over it,
+# its name on a dark band high on its boulevard face. Its east face is the
+# district's edge.
+mx0, mx1, mz0, mz1 = 434.0, 468.0, -381.0, -347.0
+box(k("trim"), mx0 - 0.6, mx1 + 0.6, 74.0, 77.0, mz0 - 0.6, mz1 + 0.6, scale=2.0, col=(0.13, 0.125, 0.12, 1.0))
+for yy in (74.8, 76.2):
+    K.edge_line(mx0 - 0.6, mx1 + 0.6, mz0 - 0.6, mz1 + 0.6, yy, "amber", h=0.12, out=0.02)
+sx0, sx1, sz0, sz1, sy = stages(mx0, mx1, mz0, mz1, 77.0, (((0.0, 0.0, 0.0, 0.0), 182.0), ((5.0, 5.0, 5.0, 5.0), 240.0), ((4.5, 4.5, 4.5, 4.5), 280.0)), r, "amber", 0.58,
+                                belts=((F(19), F(20)), (F(36), F(37)), (F(52), F(53)), (F(64), F(65))), warm=(0.4, 0.85))
+for ax0, ax1, az0, az1, ay in ((mx0, mx1, mz0, mz1, 182.0), (mx0 + 5.0, mx1 - 5.0, mz0 + 5.0, mz1 - 5.0, 240.0)):
+    K.rail(ax0 + 0.2, az1 - 0.2, ax1 - 0.2, az1 - 0.2, ay, "amber", glow=True)
+    K.rail(ax0 + 0.2, az0 + 0.2, ax0 + 0.2, az1 - 0.2, ay, "amber", glow=True)
+    K.roof_plant(ax0 + 1.0, ax1 - 1.0, az0 + 0.8, az0 + 4.2, ay, r, cap=4.0, tall=False, lamps=False)
+# The lantern: warm light behind black fins every 1.5 m, a cap and a line of
+# light round it, aviation lamps at its corners, a mast.
+lx0, lx1, lz0, lz1, ly = sx0 + 1.0, sx1 - 1.0, sz0 + 1.0, sz1 - 1.0, sy
+c = GLOW["amber"]
+box(k("glow"), lx0 + 0.6, lx1 - 0.6, ly, ly + 20.0, lz0 + 0.6, lz1 - 0.6, scale=1.0, col=(c[0] * 0.55, c[1] * 0.55, c[2] * 0.55, 1.0))
+for name, f in B.faces_of(lx0, lx1, lz0, lz1).items():
+    K.fins(f, ly, ly + 20.0, 1.5, out=0.5, wide=0.32, detail=0 if name in ("+z", "-x") else 1)
+box(k("trim"), lx0 - 0.4, lx1 + 0.4, ly + 20.0, ly + 22.0, lz0 - 0.4, lz1 + 0.4, scale=2.0, col=K.BLACK)
+K.edge_line(lx0 - 0.4, lx1 + 0.4, lz0 - 0.4, lz1 + 0.4, ly + 21.2, "amber", h=0.35, out=0.08)
+K.edge_line(lx0, lx1, lz0, lz1, ly + 0.2, "amber", h=0.3, out=0.55)
+for cx, cz in ((lx0, lz0), (lx0, lz1), (lx1, lz0), (lx1, lz1)):
+    K.aviation(cx, ly + 22.0, cz, 0)
+K.mast((lx0 + lx1) / 2, (lz0 + lz1) / 2, ly + 22.0, 28.0, lamps=3)
+# Its name high on its boulevard face, on a dark band, in letters of light
+# (one of the city's own names, not a house of the row's).
+yb = 231.0
+box(k("trim"), mx0 + 7.0, mx1 - 7.0, yb - 2.9, yb + 2.9, mz1 - 5.0, mz1 - 4.5, scale=2.0, col=K.BLACK)
+K.letters("OMNIKAN", (mx0 + mx1) / 2, yb, mz1 - 4.5, 2.6, 0.0, (1.0, 0.86, 0.62, 1.0), depth=0.3)
+K.big_sign(mx0 - 0.4, 150.0, (mz0 + mz1) / 2, "bx", 4.6, -math.pi / 2, 5, depth=0.3)
+K.advert(mx0 + 12.0, 120.0, mz1 + 0.3, 13.0, 7.4, 0.0, 6, seed=0.66, depth=0.2)

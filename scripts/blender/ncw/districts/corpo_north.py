@@ -139,8 +139,7 @@ def east_blocks():
     box(k("board_frame"), 433.9, 450.1, 10.2, y + 0.2, LOT_N, LOT_N + 0.1, scale=2.0)
     for x in (434.2, 449.8):
         neon_box(x - 0.06, x + 0.06, 10.4, y, LOT_N + 0.1, LOT_N + 0.18, "cyan", 1)
-    K.roof_plant(x0 + 2, x1 - 2, BACK1 + 4, LOT_N - 4, 74.0, r, cap=4.5)
-    K.mast(x0 + 9.0, -364.0, 74.0, 9.0)
+    # (Its roof is the megatower's foot: corpo_rank.py.)
     # Its east face, a back seen from the air and from the garage street: a
     # service core proud of the wall with a line of light up it, louvres,
     # a screen high on it.
@@ -678,6 +677,11 @@ RAISED = {4: 1.05}        # the fifth tower's lobby and court stand this far up,
 STEP_TOP = LOT_N - 1.9    # where its steps reach the court
 
 
+# Each house's name over its lobby, as the row already carries it (its sign
+# and its crown's mark): no new names.
+HOUSE_WORDS = ("PHILIPS", "PINNATEC", "PAWTOGRADER", "aws", "TOP CHOICE", "DEFALCO", "NORTHEASTERN")
+
+
 def lobby(i):
     """A tower's lobby, as the street meets it: a dark portal at the tower's
     face (piers, a deep fascia with the house's mark raised on it in the
@@ -704,12 +708,18 @@ def lobby(i):
         solid(xa, xb, 0.0, 7.5, zf - 0.9, zf, K.FRAME)
     box(k("trim"), tx - 11.5, tx + 11.5, FASCIA, 7.5, zf - 0.9, zf - 0.3, scale=2.0, col=K.FRAME, bottom=True)
     box(k("glow"), tx - 11.4, tx + 11.4, FASCIA - 0.07, FASCIA, zf - 0.75, zf - 0.63, scale=1.0, col=bc)
-    # The mark, standing a quarter of a metre off the fascia, and a line of
-    # light running out from it either side.
+    # The house's mark and its name in big lit letters beside it, standing a
+    # quarter of a metre off the fascia (a small mark alone was no lobby
+    # sign: BnnbP7pCIvQ@43).
     my = (FASCIA + 7.5) / 2
-    K.mark3d(i, tx, my, zf - 0.3, 2.2, 0.0, bc, depth=0.26)
-    for sx in (-1, 1):
-        K.bar2d(tx, my, zf - 0.3, 0.0, (sx * 2.4, 0.0), (sx * 9.6, 0.0), 0.09, 0.06, K.brand(i, 0.6))
+    word = HOUSE_WORDS[i]
+    cap = 1.55
+    while 3.1 + K.word_width(word, cap) > 21.6:
+        cap -= 0.05
+    ww = K.word_width(word, cap)
+    x0 = tx - (3.1 + ww) / 2
+    K.mark3d(i, x0 + 1.1, my, zf - 0.3, 2.2, 0.0, bc, depth=0.26)
+    K.letters(word, x0 + 3.1 + ww / 2, my, zf - 0.3, cap, 0.0, bc, depth=0.26)
     # The vestibule's ceiling and floor.
     quad(k("trim"), (tx - 12.3, 7.49, zg), (tx + 12.3, 7.49, zg), (tx + 12.3, 7.49, LOBBY_Z), (tx - 12.3, 7.49, LOBBY_Z), col=K.BLACK)
     K.paving_band(tx - 12.3, tx + 12.3, zg, LOBBY_Z, K.STONE, y=g0 + 0.012)
@@ -812,9 +822,12 @@ def room():
     # fins: over the gallery right across, under it either side of the way
     # through.
     zf = T_FRONT - 0.05
-    box(k("trim"), tx - 2.7, tx + 2.7, 5.5, 7.49, zf - 0.45, zf - 0.3, scale=1.0, col=K.FRAME, bottom=True)
-    K.mark3d(0, tx, 6.5, zf - 0.3, 1.6, 0.0, K.brand(0), depth=0.24)
-    box(k("glow"), tx - 2.7, tx + 2.7, 5.43, 5.5, zf - 0.42, zf - 0.33, scale=1.0, col=K.brand(0))
+    ww = K.word_width(HOUSE_WORDS[0], 1.15)
+    pw = (2.3 + ww) / 2 + 0.6
+    box(k("trim"), tx - pw, tx + pw, 5.5, 7.49, zf - 0.45, zf - 0.3, scale=1.0, col=K.FRAME, bottom=True)
+    K.mark3d(0, tx - pw + 1.4, 6.5, zf - 0.3, 1.6, 0.0, K.brand(0), depth=0.24)
+    K.letters(HOUSE_WORDS[0], tx - pw + 2.9 + ww / 2, 6.5, zf - 0.3, 1.15, 0.0, K.brand(0), depth=0.22)
+    box(k("glow"), tx - pw, tx + pw, 5.43, 5.5, zf - 0.42, zf - 0.33, scale=1.0, col=K.brand(0))
     fg = B.Face("+z", z0 + 0.1, tx - 12.3, tx + 12.3)
     fg.box(k("trim"), 0.0, 24.6, 4.2, 7.95, 0.0, 0.1, col=K.FRAME)
     fg.box(k("glow"), 0.8, 23.8, 4.5, 4.6, 0.1, 0.12, col=K.brand(0, 0.5))

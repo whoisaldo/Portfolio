@@ -1413,6 +1413,64 @@ def mark3d(which, cx, cy, cz, size, yaw, col, depth=0.22, detail=0):
         ring(s * 0.42, s * 0.62)
 
 
+_WORDS = {}
+
+
+def _word(text):
+    """A word in the builder's font, its polygons in letter units (x along
+    it from its middle, y up, z out of the wall from -0.1 to 0.1) without
+    the faces against the wall, each flagged front or side, and its height
+    and width."""
+    if text not in _WORDS:
+        cu = bpy.data.curves.new("corpo_word", type="FONT")
+        cu.body = text
+        cu.extrude = 0.1
+        cu.resolution_u = 2
+        cu.offset = 0.022
+        cu.space_character = 1.08
+        cu.align_x = "CENTER"
+        ob = bpy.data.objects.new("corpo_word", cu)
+        bpy.context.scene.collection.objects.link(ob)
+        ev = ob.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        me = ev.to_mesh()
+        xs, ys = [v.co.x for v in me.vertices], [v.co.y for v in me.vertices]
+        polys = [(p.normal.z > 0.9, [tuple(me.vertices[i].co) for i in p.vertices]) for p in me.polygons if p.normal.z > -0.9]
+        _WORDS[text] = (min(ys), max(ys), max(xs) - min(xs), polys)
+        ev.to_mesh_clear()
+        bpy.data.objects.remove(ob)
+        bpy.data.curves.remove(cu)
+    return _WORDS[text]
+
+
+def word_width(text, cap):
+    y0, y1, w, _ = _word(text)
+    return w * cap / (y1 - y0)
+
+
+def letters(text, cx, cy, cz, cap, yaw, col, depth=0.2, side=FRAME, detail=0):
+    """A word in letters `cap` high standing `depth` off a wall at (cx, cz)
+    that faces along yaw, its middle at (cx, cy): their faces lit in col,
+    their sides dark (a phone's pack has the faces only). Big corporate
+    letters over a lobby or on a crown (BnnbP7pCIvQ@43, @128)."""
+    y0, y1, _, polys = _word(text)
+    s = cap / (y1 - y0)
+    d = depth / 0.2
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    rx, rz = nz, -nx
+    ym = (y0 + y1) / 2
+
+    def at(p):
+        u, v, t = p[0] * s, (p[1] - ym) * s, (p[2] + 0.1) * d
+        return (cx + rx * u + nx * t, cy + v, cz + rz * u + nz * t)
+
+    for front, pts in polys:
+        q = [at(p) for p in pts]
+        if front:
+            poly(k("glow", detail), q, [(0.0, 0.0)] * len(q), col)
+        else:
+            poly(k("trim", 1), q, [(0.0, 0.0)] * len(q), side)
+
+
 def door_portal(f, s, colour, which, half=2.6, top=5.6, out=0.34, wings=0.0):
     """A way in, built on a face s metres along it: a dark surround standing
     out of the wall to `top`, glass doors in it with the hall lit behind
