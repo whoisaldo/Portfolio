@@ -2086,7 +2086,11 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         vRoof = max(step(0.5, n.y), step(0.5, kind));
         // Window cells from world position, along whichever way the face runs.
         float along = dot(w.xz, vec2(n.z, -n.x));
-        vCells = vec2(along / 3.2, (w.y - 4.6) / 3.4);
+        // (Each fresh tower its own bays and floors, give or take: on the
+        // kit's own 3.2 by 3.4 m cells, one window grid was tiled up tower
+        // after tower. What Contact frames as it was keeps the kit's.)
+        float vary = step(0.0, aDress.y) * (1.0 - step(511.5, aDress.x));
+        vCells = vec2(along / (3.2 * mix(1.0, 0.8 + 0.5 * fract(aForm.w * 7.31), vary)), (w.y - 4.6) / (3.4 * mix(1.0, 0.92 + 0.2 * fract(aForm.w * 3.17), vary)));
         // A megabuilding a mile off is read in cells of several floors.
         if (aForm.y > 5.5) vCells /= 2.6;
         float seed = fract(aForm.w) * 100.0;
