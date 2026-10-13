@@ -133,7 +133,7 @@ const HAIR = {
 const STYLES = {
   // Japantown, the avenue and everywhere else: street fashion.
   street: {
-    garment: [[GARMENTS.jacket, 42], [GARMENTS.coat, 22], [GARMENTS.puffer, 20], [GARMENTS.vest, 16]],
+    garment: [[GARMENTS.jacket, 40], [GARMENTS.coat, 27], [GARMENTS.puffer, 19], [GARMENTS.vest, 14]],
     // (Black, charcoal, navy, midnight, grey, brown, burgundy and olive are
     // two in three of them; yellow, red, white, teal, purple, magenta, rust,
     // blue, moss and sand the rest.)
@@ -398,7 +398,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     const apart = (other) => Math.max(other, tone) > 1.8 * Math.min(other, tone);
     let mask = bits(...hair.mask);
     if (garment === GARMENTS.coat) mask += bits(TAG.skirt);
-    const collar = garment === GARMENTS.puffer ? 1 : garment === GARMENTS.coat ? 0.6 : garment === GARMENTS.jacket ? (style.suit ? 0.06 : 0.25) : 0;
+    const collar = garment === GARMENTS.puffer ? 1 : garment === GARMENTS.coat ? 0.6 : garment === GARMENTS.jacket ? (style.suit ? 0.06 : 0.36) : 0;
     if (r() < collar && cut !== "hood") mask += bits(TAG.collar);
     // A suit shows its shirt between the lapels; a jacket worn open (more
     // often over a hood: it is the hoodie's own) shows what is under it.
