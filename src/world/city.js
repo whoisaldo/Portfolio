@@ -90,7 +90,9 @@ function inflate(scene) {
 
 export function preloadCity(tier) {
   if (!cache.has(tier)) {
-    // The kit, and the rooms its shop windows look into.
+    // The kit, and the rooms its shop windows look into; and the towers'
+    // logos, which the city is built with (asked for here, with the rest,
+    // and not once the rest is in, when the city waited 0.3 s on them).
     const pending = Promise.all([
       new GLTFLoader()
         .setMeshoptDecoder(MeshoptDecoder)
@@ -98,6 +100,7 @@ export function preloadCity(tier) {
         .then((gltf) => inflate(gltf.scene)),
       new THREE.TextureLoader().loadAsync(worldShopsUrl[tier]),
       preloadProps(tier),
+      preloadLogos(),
     ])
       .then(([scene, shops, props]) => ({ scene, shops, props }))
       .catch((err) => {
