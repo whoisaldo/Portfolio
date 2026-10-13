@@ -107,8 +107,10 @@ function* boxSteps(src, dst, W, H, r, horizontal) {
   }
 }
 
-function* blurSteps(field, W, H, r, passes = 3) {
-  const tmp = new Float32Array(field.length);
+// (load: `tmp`, the passes' scratch, may be handed in: a bake that finishes
+// again for each district keeps its scratch, where every finish made some
+// 40 MB of arrays a moment's garbage, collected in a task of its own.)
+function* blurSteps(field, W, H, r, passes = 3, tmp = new Float32Array(field.length)) {
   for (let i = 0; i < passes; i++) {
     yield* boxSteps(field, tmp, W, H, r, true);
     yield* boxSteps(tmp, field, W, H, r, false);
@@ -186,8 +188,21 @@ export function createBake() {
   // How high the light in each cell hangs: its weight, and weight times
   // height (the third channel rides along unused, to share the blur).
   const hung = new Float32Array(W * H * 3);
+  // (load: the maps' working arrays, made at the first finish and kept for
+  // the next until release(): each is written whole before it is read, so
+  // a finish makes the same maps with them as with new ones.)
+  let scratch = null;
+  const copy = (key, from) => {
+    scratch[key] ??= new Float32Array(from.length);
+    scratch[key].set(from);
+    return scratch[key];
+  };
+  const room = (key, length) => (scratch[key] ??= new Float32Array(length));
 
-  const add = (sources) => {
+  // (load: a generator, some thousands of triangles a step, for a
+  // district's light added once the city is live; add runs it through.)
+  function* addSteps(sources) {
+    let since = 0;
     for (const { mesh, color, intensity } of sources) {
       const geo = mesh.geometry;
       const pos = geo.attributes.position;
@@ -196,6 +211,10 @@ export function createBake() {
       if (mesh.matrixWorldAutoUpdate !== false) mesh.updateWorldMatrix(true, false);
       const m = mesh.matrixWorld;
       for (let i = 0; i < count; i += 3) {
+        if (++since === 8192) {
+          since = 0;
+          yield;
+        }
         const ia = index ? index.getX(i) : i;
         const ib = index ? index.getX(i + 1) : i + 1;
         const ic = index ? index.getX(i + 2) : i + 2;
@@ -237,6 +256,10 @@ export function createBake() {
         }
       }
     }
+  }
+  const add = (sources) => {
+    const steps = addSteps(sources);
+    while (!steps.next().done);
   };
 
   /** points: a flat list, per lamp [x, y, z, r, g, b, power] (linear colour). */
@@ -269,9 +292,11 @@ export function createBake() {
     // lane between two pools is dark and navy, not evenly mauve.
     // And nearest of all, a couple of metres round each: the light a walker
     // sees land on the wall a sign hangs on.
-    const near = yield* blurSteps(pool.slice(), W, H, 1, 2);
-    const tight = yield* blurSteps(pool.slice(), W, H, 2);
-    const wide = yield* blurSteps(pool.slice(), W, H, 7);
+    scratch ??= {};
+    const tmpMap = room("tmpMap", pool.length);
+    const near = yield* blurSteps(copy("near", pool), W, H, 1, 2, tmpMap);
+    const tight = yield* blurSteps(copy("tight", pool), W, H, 2, 3, tmpMap);
+    const wide = yield* blurSteps(copy("wide", pool), W, H, 7, 3, tmpMap);
     yield* spans(tight.length, (i0, i1) => {
     for (let i = i0; i < i1; i += 3) {
       const x = x0 + ((i / 3) % W + 0.5) * CELL;
@@ -286,10 +311,10 @@ export function createBake() {
 
     // The streaks: a hair across the street, a long way along it, more
     // toward the eye than away from it.
-    const across = new Float32Array(streak.length);
+    const across = room("across", streak.length);
     yield* boxSteps(streak, across, SW, SH, 1, true);
     const decay = Math.exp(-SZ / 14);
-    const run = new Float32Array(streak.length);
+    const run = room("run", streak.length);
     for (let x = 0; x < SW; x++) {
       let r = 0, g = 0, b = 0;
       for (let y = 0; y < SH; y++) {
@@ -302,7 +327,7 @@ export function createBake() {
         run[k + 2] = b;
       }
     }
-    const tmp = new Float32Array(run.length);
+    const tmp = room("tmpStreak", run.length);
     yield* boxSteps(run, tmp, SW, SH, 3, false);
 
     gains ??= { spill: autoGain(tight, 0.85), streaks: autoGain(tmp, 0.9, 0.995) };
@@ -327,7 +352,7 @@ export function createBake() {
     // and no brighter than a lamp's pool is however many lamps the builder
     // hung there (its colour kept): a lane is lit in patches, dark between,
     // not from end to end.
-    const pools = yield* blurSteps(lamps.slice(), W, H, 1, 1);
+    const pools = yield* blurSteps(copy("pools", lamps), W, H, 1, 1, tmpMap);
     yield* spans(tight.length, (i0, i1) => {
     for (let i = i0; i < i1; i += 3) {
       const m = (Math.max(pools[i], pools[i + 1], pools[i + 2]) * LAMP_GAIN) / gains.spill;
@@ -357,7 +382,7 @@ export function createBake() {
       tight[i + 2] *= ease;
     }
     });
-    const height = yield* blurSteps(hung.slice(), W, H, 2, 2);
+    const height = yield* blurSteps(copy("height", hung), W, H, 2, 2, tmpMap);
     const spill = yield* encodeSteps(tight, W, H, gains.spill / SPILL_RANGE, height);
     const streaks = yield* encodeSteps(tmp, SW, SH, gains.streaks);
     return {
@@ -387,21 +412,22 @@ export function createBake() {
     while (!(r = steps.next()).done);
     return r.value;
   };
-  /** finish, `budget` milliseconds at a time: `between()` resolves when the
-   *  page has a moment between its frames. */
-  const finishSliced = async (between, budget = 4) => {
+  /** finish, a step at a time: `between()` resolves when the page has a
+   *  moment between its frames (at once while that moment lasts). */
+  const finishSliced = async (between) => {
     const steps = finishSteps();
-    let t = performance.now();
     for (;;) {
       const r = steps.next();
       if (r.done) return r.value;
-      if (performance.now() - t > budget) {
-        await between();
-        t = performance.now();
-      }
+      await between();
     }
   };
-  return { add, addPoints, finish, finishSliced };
+  /** (load) Let the working arrays go (the last district is in); a later
+   *  finish makes them again. */
+  const release = () => {
+    scratch = null;
+  };
+  return { add, addSteps, addPoints, finish, finishSliced, release };
 }
 
 /** The whole bake at once: sources: [{ mesh, color: THREE.Color (linear), intensity }]. */
