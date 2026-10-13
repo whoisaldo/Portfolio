@@ -1074,6 +1074,13 @@ const HEAD = /* glsl */ `
     if (uCoverScale.y < 0.5 || cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0) return 0.0;
     return step(root.y + 2.3, uCoverScale.x - texture2D(uCover, cuv).r * uCoverScale.y);
   }
+  // How high the highest thing over a spot is (the same map), or far under
+  // the ground where there is no map.
+  float heightAt(vec2 p) {
+    vec2 cuv = vec2((p.x - uCoverBox.x) * uCoverBox.z, (uCoverBox.y - p.y) * uCoverBox.w);
+    if (uCoverScale.y < 0.5 || cuv.x < 0.0 || cuv.x > 1.0 || cuv.y < 0.0 || cuv.y > 1.0) return -1e3;
+    return uCoverScale.x - texture2D(uCover, cuv).r * uCoverScale.y;
+  }
   // A file at a point along it: how far to the side of its line it runs,
   // and the room to move off it toward either side.
   vec3 laneAt(float u, float row) {
@@ -1156,6 +1163,23 @@ const HEAD = /* glsl */ `
       // And back from free roam's car.
       vec2 car = at - uAvoid.xy;
       at += car / (length(car) + 1e-4) * max(uAvoid.z - length(car), 0.0);
+    }
+    // Nobody free to choose stands looking at a blank wall a step off: idle,
+    // on a phone or smoking, they turn their back to it, unless what is in
+    // front of them is lit brighter than the street behind (a shop's
+    // window); and whoever leans on a wall has their back to it. (A wall is
+    // something standing far over them a step ahead and not over them, nor
+    // the same a step behind: an awning or a deck is over them too, and a
+    // wall they stand along is to both sides.)
+    if (!walking && (aBody.z < 0.5 || abs(aBody.z - 2.0) < 0.5 || abs(aBody.z - 4.0) < 0.5 || abs(aBody.z - 7.0) < 0.5)) {
+      float here = heightAt(at) + 1.5;
+      float ahead = max(heightAt(at + face * 0.7), heightAt(at + face * 1.1));
+      float behind = max(heightAt(at - face * 0.7), heightAt(at - face * 1.1));
+      bool wall = ahead > ground + 3.0 && ahead > here;
+      bool back = behind > ground + 3.0 && behind > here;
+      float shop = dot(signsAt(at + face * 1.5), vec3(0.3, 0.5, 0.2));
+      float street = dot(signsAt(at - face * 1.5), vec3(0.3, 0.5, 0.2));
+      if (wall && !back && (abs(aBody.z - 2.0) < 0.5 || shop < street * 1.3 + 0.002)) face = -face;
     }
     root = vec3(at.x, ground, at.y);
     eye = distance(uCam, vec3(root.x, clamp(uCam.y, root.y, root.y + 1.8 * aBody.x + brolly), root.z));
