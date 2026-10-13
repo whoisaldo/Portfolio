@@ -1011,10 +1011,13 @@ export const HALL = /* glsl */ `
 // pane's x (materials.js anchors x to the world: x 79 of the board's block
 // is its middle): a dark ceiling ruled by lines
 // of light, a polished floor that gives them back, a stone wall at the back
-// with the house's lit wall and mark, a screen of moving colour and the
-// lifts; columns and trees in the hall, people in it, and in a hall over
-// nine metres high a gallery across its back reached by an escalator, with
-// the reception desk under it.
+// with the house's lit onyx wall and name, a screen of moving colour and
+// the lifts; people in it; and standing in it, traced as solids and lit
+// from the ceiling, columns cased in stone with a slot of light, a lit
+// reception desk in each bay, planters each where it falls with shrubs and
+// in a high hall trees (flat crowns and a ring mark in every bay read as
+// stickers on the glass); in a hall over nine metres high a gallery
+// across its back reached by an escalator.
 export const PLAZA_ROOMS = /* glsl */ `
   float pzBody(vec2 q, float x0, float k) {
     float fx = q.x - x0;
@@ -1170,6 +1173,41 @@ export const PLAZA_ROOMS = /* glsl */ `
     return room;
   }
 
+  // Ray against an upright cylinder round (c.x, c.y) in the room's x, z:
+  // the near hit's distance along the ray, or 1e9.
+  float pzCyl(vec3 p, vec3 d, vec2 c, float r) {
+    vec2 o = p.xz - c;
+    float a = max(dot(d.xz, d.xz), 1e-6), b = dot(o, d.xz), cc = dot(o, o) - r * r;
+    float h = b * b - a * cc;
+    if (h < 0.0) return 1e9;
+    float t = (-b - sqrt(h)) / a;
+    return t > 0.0 ? t : 1e9;
+  }
+  // Ray against a box: the near hit's distance (1e9 for none) and the
+  // normal of the face it hits.
+  float pzBox(vec3 p, vec3 d, vec3 lo, vec3 hi, out vec3 nrm) {
+    vec3 dd = vec3(abs(d.x) < 1e-5 ? 1e-5 : d.x, abs(d.y) < 1e-5 ? 1e-5 : d.y, d.z);
+    vec3 t0 = (lo - p) / dd, t1 = (hi - p) / dd;
+    vec3 tn = min(t0, t1), tf = max(t0, t1);
+    float tN = max(max(tn.x, tn.y), tn.z), tF = min(min(tf.x, tf.y), tf.z);
+    nrm = vec3(0.0, 0.0, -1.0);
+    if (tN > tF || tN <= 0.0) return 1e9;
+    nrm = tN == tn.x ? vec3(-sign(dd.x), 0.0, 0.0) : (tN == tn.y ? vec3(0.0, -sign(dd.y), 0.0) : vec3(0.0, 0.0, -1.0));
+    return tN;
+  }
+  // Ray against an ellipsoid at c with radii r: distance and normal.
+  float pzBlob(vec3 p, vec3 d, vec3 c, vec3 r, out vec3 nrm) {
+    vec3 o = (p - c) / r, e = d / r;
+    float a = dot(e, e), b = dot(o, e), cc = dot(o, o) - 1.0;
+    float h = b * b - a * cc;
+    nrm = vec3(0.0, 1.0, 0.0);
+    if (h < 0.0) return 1e9;
+    float t = (-b - sqrt(h)) / a;
+    if (t <= 0.0) return 1e9;
+    nrm = normalize((o + e * t) / r);
+    return t;
+  }
+
   vec3 pzHall(vec3 p, vec3 d, float H, float seed, vec3 accent) {
     const float D = 11.0;
     vec3 L = vec3(1.0, 0.86, 0.68);
@@ -1185,21 +1223,22 @@ export const PLAZA_ROOMS = /* glsl */ `
       float fx = mod(h.x, 18.0);
       col = L * (0.065 + 0.035 * h.y / H) * (1.0 - 0.35 * pzFine(step(fract(h.x / 1.5), 0.02), 0.02, h.x / 1.5, 0.03));
       if (fx > 6.0 && fx < 12.0 && h.y > 0.8 && h.y < H - 1.2) {
-        // The house's wall: dark stone, lit round its edge, its mark and
-        // its name lit in it.
-        // (In a hall with a gallery, over the gallery.)
-        vec2 w = vec2(fx - 9.0, h.y - (H > 9.0 ? H - 2.6 : min(H * 0.5, 4.2)));
-        float r = length(w);
-        float mark = step(abs(r - 0.9), 0.12) + step(r, 0.28) + step(abs(w.y + 1.6), 0.1) * step(abs(w.x), 2.2) * step(0.25, fract(w.x * 1.6));
-        float rim = step(2.88, abs(fx - 9.0)) + step(h.y, 0.9) + step(H - 1.3, h.y);
-        col = L * (0.035 + 0.05 * smoothstep(H * 0.4, H - 1.2, h.y)) + accent * 0.6 * clamp(mark, 0.0, 1.0) + L * 0.3 * clamp(rim, 0.0, 1.0);
+        // The house's wall: dark onyx lit from behind, brighter at its
+        // head, a line of light along it and the house's name in a row of
+        // lit letters (no mark: a ring repeated in every bay read as a
+        // sticker on the glass).
+        float ny = H > 9.0 ? H - 2.6 : min(H * 0.5, 4.2);
+        float vein = 0.5 + 0.5 * sin(fx * 2.3 + h.y * 1.7 + sin(h.y * 4.1 + fx) * 1.3 + seed);
+        col = L * (0.03 + 0.05 * smoothstep(H * 0.3, H - 1.2, h.y)) * (0.7 + 0.6 * vein);
+        float letters = step(abs(h.y - ny), 0.22) * step(abs(fx - 9.0), 1.9) * step(0.3, fract((fx - 9.0) * 1.35 + 0.1));
+        col += accent * 0.55 * letters + L * 0.35 * step(abs(h.y - ny + 0.5), 0.025) * step(abs(fx - 9.0), 2.6);
+        col += L * 0.3 * (step(2.88, abs(fx - 9.0)) + step(h.y, 0.9) + step(H - 1.3, h.y));
       } else if (fx > 12.6 && fx < 16.0 && h.y > 1.4 && h.y < H - 1.4) {
-        // A wall of screens: tiles in a dark grid, what runs on them.
+        // A screen in a dark bezel, slow fields of colour moving on it.
         vec2 s = vec2((fx - 12.6) / 3.4, (h.y - 1.4) / (H - 2.8));
-        float k = 0.5 + 0.5 * sin(s.x * 6.0 + s.y * 3.0 + uTime * 0.4 + seed);
-        vec2 tile = fract(vec2(fx - 12.6, h.y - 1.4) / 0.85);
-        float seam = pzFine(step(0.05, min(tile.x, tile.y)), 0.9, (fx - 12.6) / 0.85, 0.06);
-        col = mix(accent, vec3(0.9, 0.3, 0.7), k) * (0.08 + 0.12 * step(0.5, fract(s.y * 3.0 + uTime * 0.05))) * seam;
+        float k = 0.5 + 0.5 * sin(s.x * 2.2 + s.y * 1.4 + uTime * 0.25 + seed);
+        float bezel = step(0.04, min(min(s.x, 1.0 - s.x), min(s.y, 1.0 - s.y)) * 3.4);
+        col = mix(accent * 0.7, vec3(0.25, 0.4, 0.75), k) * (0.07 + 0.05 * smoothstep(0.3, 0.9, s.y)) * bezel + L * 0.01;
       } else if (abs(fx - 17.0) < 0.75 || abs(fx - 0.9) < 0.75) {
         float lx = abs(fx - 17.0) < 0.75 ? fx - 17.0 : fx - 0.9;
         col = h.y < 2.3 ? L * 0.03 + L * 0.5 * step(0.68, abs(lx)) : col;
@@ -1217,7 +1256,7 @@ export const PLAZA_ROOMS = /* glsl */ `
       col = L * (0.025 + 0.2 * pzFine(step(f, 0.07), 0.09, m2.z / 1.6, 0.08)) * (1.0 - 0.4 * h.z / D);
     }
     // The gallery over the back of a tall hall, its glass rail lit, and
-    // the escalator up to it; the reception desk under it.
+    // the escalator up to it.
     if (tall > 0.5) {
       const float G = 7.4;
       float tg = d.y != 0.0 ? (G - p.y) / d.y : 1e9;
@@ -1240,39 +1279,84 @@ export const PLAZA_ROOMS = /* glsl */ `
         float ey = q.y - (ex + 0.5) * G / 6.5;
         if (ex > -0.5 && ex < 6.0 && abs(ey - 0.5) < 0.6) col = L * 0.04 + accent * 0.8 * step(0.55, abs(ey - 0.5)) + L * 0.6 * step(abs(ey - 1.0), 0.04);
       }
-      float td = 5.4 / d.z;
-      if (td < tm) {
-        vec3 q = p + d * td;
-        if (abs(mod(q.x, 18.0) - 9.0) < 3.2 && q.y < 1.1) col = L * (0.03 + 0.9 * step(1.04, q.y)) + accent * 0.5 * step(abs(q.y - 0.55), 0.05);
-      }
     }
-    // People across the hall, in twos and threes.
+    // People across the hall, in twos and threes, a little light on them
+    // from the ceiling.
     for (int i = 0; i < 2; i++) {
       float tt = (i == 0 ? 7.2 : 3.4) / d.z;
       if (tt >= tm) continue;
       vec3 q = p + d * tt;
       float c = floor(q.x / 3.0);
       float hp = hash12(vec2(c, seed + float(i) * 5.0));
-      if (hp > 0.5 && pzBody(q.xy, (c + 0.25 + 0.5 * fract(hp * 7.0)) * 3.0, 0.92 + 0.16 * fract(hp * 13.0)) > 0.5) col = L * 0.025;
+      float x0 = (c + 0.25 + 0.5 * fract(hp * 7.0)) * 3.0;
+      float k = 0.92 + 0.16 * fract(hp * 13.0);
+      if (hp > 0.5 && pzBody(q.xy, x0, k) > 0.5) {
+        vec3 coat = fract(hp * 31.0) < 0.35 ? vec3(0.05, 0.05, 0.06) : (fract(hp * 31.0) < 0.6 ? vec3(0.09, 0.07, 0.05) : (fract(hp * 31.0) < 0.8 ? vec3(0.03, 0.05, 0.08) : vec3(0.1, 0.1, 0.11)));
+        col = coat * (0.35 + 0.65 * smoothstep(0.4 * k, 1.5 * k, q.y)) + L * 0.012;
+        tm = tt;
+      }
     }
-    // Trees in the hall, in their planters, and its columns.
-    float tt = 2.4 / d.z;
-    if (tt < tm) {
-      vec3 q = p + d * tt;
-      float c = floor((q.x + 4.5) / 9.0);
-      vec2 g = vec2(q.x + 4.5 - (c + 0.5) * 9.0, q.y);
-      float cy = min(H - 1.4, 3.6);
-      vec2 e = (g - vec2(0.0, cy)) / vec2(1.3, 1.5);
-      float crown = step(length(e) + 0.12 * sin(atan(e.y, e.x) * 7.0 + c), 1.0);
-      if (crown > 0.5 && cy > 2.0) col = vec3(0.02, 0.06, 0.035) * (1.0 + 2.0 * step(0.6, fract(dot(g, vec2(3.1, 4.7))))) + L * 0.02;
-      if (abs(g.x) < 0.06 && g.y < cy) col = L * 0.03;
-      if (abs(g.x) < 0.7 && g.y < 0.7) col = L * (0.05 + 0.6 * step(0.66, g.y));
+    // What stands in the hall, solid: columns cased in pale stone with a
+    // slot of light up the face to the glass and a lamp at the foot; the
+    // reception desk in the middle of each bay, its front lit; planters
+    // here and there, each its own, with shrubs, and in a hall over 5 m a
+    // tree in some of them. Lit from the ceiling.
+    vec3 nrm;
+    float tb;
+    float ct = 3.0 / d.z;
+    float cc = floor((p.x + d.x * ct) / 9.0 + 0.5);
+    for (int i = -1; i <= 1; i++) {
+      float cx = (cc + float(i)) * 9.0;
+      float t = pzCyl(p, d, vec2(cx, 3.0), 0.36);
+      if (t < tm) {
+        vec3 q = p + d * t;
+        vec2 n2 = normalize(q.xz - vec2(cx, 3.0));
+        float face = max(-n2.y, 0.0);
+        col = vec3(0.62, 0.6, 0.56) * (0.05 + 0.12 * face + 0.06 * smoothstep(H - 2.0, H, q.y)) + L * 0.9 * step(0.985, face) + L * 0.5 * exp(-q.y / 0.7) * face;
+        tm = t;
+      }
     }
-    float tc = 1.4 / d.z;
-    if (tc < tm) {
-      vec3 q = p + d * tc;
-      float cx = abs(mod(q.x, 9.0) - 4.5);
-      if (cx < 0.35) col = L * (0.07 + 0.5 * exp(-q.y / 1.2) * (1.0 - cx / 0.35));
+    float bx = floor((p.x + d.x * (5.6 / d.z)) / 18.0) * 18.0 + 9.0;
+    tb = pzBox(p, d, vec3(bx - 2.5, 0.0, 5.2), vec3(bx + 2.5, 1.08, 6.0), nrm);
+    if (tb < tm) {
+      vec3 q = p + d * tb;
+      col = nrm.y > 0.5 ? L * 0.12 : L * (0.06 + 0.22 * smoothstep(0.1, 1.0, q.y) * (0.8 + 0.2 * sin(q.x * 5.0 + seed))) + accent * 0.5 * step(1.0, q.y);
+      tm = tb;
+    }
+    float pt = 2.2 / d.z;
+    float pc = floor((p.x + d.x * pt) / 4.5);
+    for (int i = 0; i <= 1; i++) {
+      float c = pc + float(i);
+      float hp = hash12(vec2(c, seed + 11.0));
+      if (hp < 0.35) continue;
+      float x0 = c * 4.5 + 1.2 + 2.1 * fract(hp * 7.0);
+      float z0 = 1.5 + 0.9 * fract(hp * 13.0);
+      float w = 0.5 + 0.3 * fract(hp * 17.0);
+      tb = pzBox(p, d, vec3(x0 - w, 0.0, z0 - 0.45), vec3(x0 + w, 0.55, z0 + 0.45), nrm);
+      if (tb < tm) {
+        col = nrm.y > 0.5 ? vec3(0.012, 0.01, 0.008) : vec3(0.3, 0.29, 0.27) * (0.08 + 0.1 * max(-nrm.z, 0.0)) + L * 0.3 * step(0.5, (p + d * tb).y);
+        tm = tb;
+      }
+      float tree = step(5.0, H) * step(0.6, fract(hp * 23.0));
+      for (int j = 0; j < 3; j++) {
+        if (j > 0 && tree < 0.5) break;
+        vec3 c3 = j == 0 ? vec3(x0, 0.75, z0) : vec3(x0 + (j == 1 ? -0.35 : 0.4), j == 1 ? 2.6 : 3.2, z0 + (j == 1 ? 0.1 : -0.15));
+        vec3 r3 = j == 0 ? vec3(w + 0.1, 0.42, 0.55) : vec3(1.0, 0.7, 0.85);
+        tb = pzBlob(p, d, c3, r3, nrm);
+        if (tb < tm) {
+          vec3 q = p + d * tb;
+          float fleck = step(0.62, hash12(floor(q.xy * 9.0 + q.z * 3.0)));
+          col = vec3(0.025, 0.07, 0.035) * (0.25 + 0.9 * max(nrm.y, 0.0) + 0.3 * max(-nrm.z, 0.0)) * (0.75 + 0.6 * fleck) + L * 0.008;
+          tm = tb;
+        }
+      }
+      if (tree > 0.5) {
+        float tt = pzCyl(p, d, vec2(x0, z0), 0.07);
+        if (tt < tm && (p + d * tt).y < 2.6) {
+          col = vec3(0.05, 0.035, 0.025) * 0.6;
+          tm = tt;
+        }
+      }
     }
     return col;
   }
