@@ -56,3 +56,25 @@ for s in (-1, 1):
         if _r.random() < 0.4:
             P.place(_r.choice(("rubbish", "bags", "rubbish", "crates")), s * _r.uniform(13.4, 13.8), G0, z + _r.uniform(-2.0, 2.0), _r.uniform(0, 3.0))
         z -= _r.uniform(7.0, 19.0)
+
+# ---------------------------------------------------------------------------
+# The court's wall over the market hall (the arm's west face, x 64, 11..25 m):
+# floors of balconies and units over the board, the block's number big and
+# lit at its top, pipes down it. And the west wing's shop frontage, which a
+# walker passes at arm's length: stickers, stencils, water, a hazard foot,
+# blades hung over the pavement above head height.
+# ---------------------------------------------------------------------------
+from ncw.districts.mega_face import dress  # noqa: E402
+from ncw.districts.mega_wings import AX0, ARM_TOP, WX0, WX1, PT  # noqa: E402
+from ncw.districts.mega_void import weather  # noqa: E402
+fCw = face("-x", AX0, ST_N, ST_S)
+dress(fCw, ARM_TOP, 4, 5651, [(9.0, 15.0)], people_rate=0.1, weights=(0.2, 0.5, 0.3))
+numeral("H4", AX0 - 0.1, ARM_TOP - 2.6, -712.0, 3.6, -math.pi / 2, lit=0.9, pad=0.8)
+for (s, rr, col) in ((1.2, 0.12, RUST), (1.55, 0.07, STEEL), (22.4, 0.1, TEAL_PAINT)):
+    x, _, z = fCw.p(fCw.at(s), 0.0, 0.2)
+    rpipe((x, PT if s < 5 else SHOP_H, z), (x, ARM_TOP - 0.4, z), rr, col=col)
+fWS = face("+z", ST_N, WX0, WX1)
+weather(fWS, 0.4, fWS.width - 0.4, G0, 4.4, 5652, posters=False)
+for s in (5.0, 13.5, 21.0, 30.5, 39.0):
+    x, _, z = fWS.p(fWS.at(s), 0.0, 0.0)
+    blade(x, 4.3, z + 0.9, _r.choice(("bs", "bm")), along="z")
