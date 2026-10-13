@@ -6,6 +6,7 @@ from ncw.districts import avenue_lanes as LN
 from ncw.districts import avenue_yard as YD
 from ncw.districts import avenue_roofs as RF
 from ncw.districts import avenue_street as ST
+from ncw.districts import avenue_upper as UP
 
 # The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
 # is streets.py's, from the plan.
@@ -420,10 +421,12 @@ for n, (f, h, tcol, lane) in enumerate(BACKS):
             dens=1.0 if lane in ("w", "e") else 0.7, vents=LANE_VENTS[lane])
 
 DECK_BAND = (-95.0, -65.0)
+NORTH_LANES = {}
 for name, mine, far, seed, aprons in (("w", -WALK - DEPTH, -WALK - DEPTH - 6.0, 9301, (0.9, 1.3)), ("e", WALK + DEPTH, WALK + DEPTH + 8.0, 9302, (0.9, 1.7))):
     lane = LN.Lane(AVS, name, "z", mine, far, -168.0, -10.0, seed, hues=LANE_HUES[name], skip=(DECK_BAND,), aprons=aprons)
     lane.vents = LANE_VENTS[name]
     lane.build(mouths=((-10.0, 1), (-168.0, -1)), rack=True)
+    NORTH_LANES[name] = lane
 # The two vents the lanes have always had (the site draws steam from each).
 for i, (x, z) in enumerate(((-WALK - DEPTH - 3.0, -52.0), (WALK + DEPTH + 4.0, -128.0))):
     box((AVS, "metal", 1), x - 0.4, x + 0.4, 0.0, 0.07, z - 0.4, z + 0.4, scale=0.5)
@@ -471,3 +474,20 @@ for sx in (-1, 1):
     # every one turned (down the arm, south of the phone hero's frame).
     ST.more_signs(AVS, f_row, row, random.Random(7430 + sx))
     ST.more_signs(AVS, f_arm, arm, random.Random(7440 + sx), clear=((12.0, 33.0),))
+
+# And over the shops of the arm and the south street's row, and up every
+# wall of the lanes, windows with depth, condensers and their stains,
+# conduit, washing (avenue_upper): each wall its own mix.
+_up = random.Random(7500)
+for sx in (-1, 1):
+    for j, (za, d) in enumerate(ARM):
+        UP.dress(AVS, B.Face("-x" if sx > 0 else "+x", sx * WALK, za, za + d), SHOP_H + CELL_H, ARM_H[sx][j] - 0.5, _up, rate=0.3, units=0.1)
+    for (xa, xb, h) in SOUTH_ROW[sx]:
+        UP.dress(AVS, B.Face("-z", 12.0, xa, xb), SHOP_H + CELL_H, south_front(h) - 0.5, _up, rate=0.3, units=0.1)
+for (f, h, tcol, lane) in BACKS:
+    UP.dress(AVS, f, SHOP_H, h - 0.5, _up, rate=0.18, units=0.14, washing=0.5)
+# The far wall of each north lane is Japantown's back (x -50) and the
+# plaza's (x 52): fixed to it over the lane, condensers, pipes, ducts,
+# trays, bills, boards, lamps, clear of the deck's band.
+UP.far_wall(AVS, B.Face("+x", -WALK - DEPTH - 6.0, -166.0, -12.0), -166.0, -12.0, random.Random(7510), skip=(DECK_BAND,), used=NORTH_LANES["w"].used)
+UP.far_wall(AVS, B.Face("-x", WALK + DEPTH + 8.0, -166.0, -12.0), -166.0, -12.0, random.Random(7511), skip=(DECK_BAND,), used=NORTH_LANES["e"].used)

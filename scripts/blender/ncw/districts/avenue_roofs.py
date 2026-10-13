@@ -355,7 +355,7 @@ def hut(R, x0, x1, z0, z1, tint):
     wz = (hz0 + hz1) / 2
     quad((D, "glow", 0), (hx1 + 0.02, top + 1.3, wz + 0.4), (hx1 + 0.02, top + 1.3, wz - 0.4), (hx1 + 0.02, top + 2.0, wz - 0.4), (hx1 + 0.02, top + 2.0, wz + 0.4),
          col=tuple(v * 0.35 for v in GLOW[rng.choice(("amber", "white", "cyan"))][:3]) + (1,))
-    if rng.random() < 0.5:
+    if rng.random() < 0.5 and lit_ok(cx, zf):
         K.st_face(D, K.st_id("ps"), (cx, top + h - 0.5, zf + side * 0.03), (side * 1.0, 0.0, 0.0), K.UP, 1.4, 0.62)
     return True
 
@@ -489,6 +489,10 @@ def framed_board(R, cx, cz, yaw, w):
     rx, rz = math.cos(yaw), -math.sin(yaw)
     nx, nz = math.sin(yaw), math.cos(yaw)
     r_ = w / 2 + 0.4
+    # (A board is baked into the street's light: none where a roof's lamp
+    # may not stand either, lit_ok.)
+    if not (lit_ok(cx - r_, cz) and lit_ok(cx + r_, cz) and lit_ok(cx, cz - r_) and lit_ok(cx, cz + r_)):
+        return False
     if not R.free(cx - r_, cx + r_, cz - r_, cz + r_) or not R.ok((cx - r_, top, cz - r_), (cx + r_, by + h / 2 + 0.5, cz + r_)):
         return False
     R.taken.append((cx - r_, cx + r_, cz - 1.6, cz + 1.6) if abs(rz) < 0.5 else (cx - 1.6, cx + 1.6, cz - r_, cz + r_))
@@ -716,7 +720,7 @@ def fill(D, x0, x1, z0, z1, top, rng, tint=None, face=None, ok=None, taken=(), s
                 sw_, sh_ = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale
                 scx, scz = (fx0 + fx1) / 2, (fz0 + fz1) / 2
                 r_ = sw_ / 2 + 0.3
-                if R.claim(scx - r_, scx + r_, scz - 1.2, scz + 1.2, 1.8 + sh_):
+                if lit_ok(scx - r_, scz) and lit_ok(scx + r_, scz) and R.claim(scx - r_, scx + r_, scz - 1.2, scz + 1.2, 1.8 + sh_):
                     sign_on_frame(D, scx, scz, top, (face or 0.0) + rng.uniform(-0.4, 0.4), size, scale)
                     done = True
             elif kind == "pent" and deep and style is not None and reach >= 4.0:

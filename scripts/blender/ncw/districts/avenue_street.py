@@ -454,6 +454,7 @@ def more_signs(D, f, lots, rng, cap=26.0, clear=()):
                     else:
                         K.face_blade(D, f, s_of(f, a), y, size, ang, gap=rng.uniform(0.3, 0.7), scale=scale)
                     taken.append((a, y, hw, hh))
+                    UPPER.append((f.name, f.plane, a, y, hw, hh))
                     break
 
 

@@ -347,6 +347,7 @@ class Lane:
         self.aprons = aprons
         self.vents = []
         self.n_vent = 0
+        self.used = []   # stretches of the far wall something stands against
 
     def pt(self, u, v, y=0.0):
         c = self.mine + self.dir * u
@@ -475,6 +476,7 @@ class Lane:
                     kind = "post"
                 last = kind
                 at = lambda u, dv=0.0: self.pt(W - u, v + dv)  # noqa: E731 (u metres off the far wall)
+                self.used.append((v - 2.2, v + 3.6))
                 if kind == "stall":
                     p = at(1.0)
                     sw = r.choice((2.4, 2.8, 3.2))
