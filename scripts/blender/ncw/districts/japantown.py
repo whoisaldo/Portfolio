@@ -2546,9 +2546,19 @@ def tall_faces(rec):
     """Window clusters on a tall lot's faces where its neighbours leave them
     bare (not a front the row dresses itself, nor the deck's towers)."""
     lot, h = rec["lot"], rec["h"]
-    if rec is LUCY_LOT or h < storeys(7) - 0.1 or lot.z0 in DECK_TOWERS.values():
+    if rec is LUCY_LOT:
+        # (Round 5: Lucy's faces over the low roofs, jt18's "dark block of
+        # window rows", carry the face kit too; their windows are hers.)
+        rk = rng(rec, "kit5")
+        x0, x1, z0, z1, _, top = rec["tiers"][0]
+        for name, f in B.faces_of(x0, x1, z0, z1).items():
+            if name != rec["front"]:
+                face_kit(f, max(storeys(3), lot.neighbours.get(name, 0.0) + 0.4), top, rk)
+        return
+    if h < storeys(7) - 0.1 or lot.z0 in DECK_TOWERS.values():
         return
     r = rng(rec, "clusters")
+    rk = rng(rec, "kit5")
     x0, x1, z0, z1, _, top = rec["tiers"][0]
     for name, f in B.faces_of(x0, x1, z0, z1).items():
         kind = rec["sides"].get(name, "back")
@@ -2565,6 +2575,55 @@ def tall_faces(rec):
             continue
         fo = B.Face(f.name, f.plane + 0.035 * (f.nx or f.nz), f.a0, f.a1)
         clusters(fo, lo, hi - 0.6, r, rec["tint"])
+        face_kit(f, lo, hi, rk)
+
+
+def mid_faces(rec):
+    """Round 5 (the m11 review, jt18 270/315: "a dark block with nothing on
+    it but rows of windows"): the faces of the five- and six-storey lots
+    that rise over the lanes and their neighbours, from the third storey
+    up, laid in clusters of windows of their own kinds and shares lit, with
+    units on their sills, a pipe down them and on one face in two a lit
+    band at a floor of its own (a stream of their own)."""
+    lot, h = rec["lot"], rec["h"]
+    if h < storeys(5) - 0.1 or h >= storeys(7) - 0.1 or rec is LUCY_LOT or lot.z0 in DECK_TOWERS.values() or id(rec) in DECK_LOW:
+        return
+    r = rng(rec, "mid5")
+    x0, x1, z0, z1, _, top = rec["tiers"][0]
+    hi = min(top, rec["tiers"][1][4]) if len(rec["tiers"]) > 1 else top
+    for name, f in B.faces_of(x0, x1, z0, z1).items():
+        if name == rec["front"]:
+            continue
+        kind = rec["sides"].get(name, "back")
+        lo = max(storeys(3), lot.neighbours.get(name, 0.0) + 0.4) if kind == "party" else storeys(3)
+        if hi - lo < CELL_H:
+            continue
+        fo = B.Face(f.name, f.plane + 0.035 * (f.nx or f.nz), f.a0, f.a1)
+        clusters(fo, lo, hi - 0.6, r, rec["tint"])
+        face_kit(f, lo, hi, r)
+
+
+def face_kit(f, lo, hi, r):
+    """What a face over the low roofs carries besides its windows: units
+    on the sills, a pipe down one edge, a lit band at a floor of its own on
+    one face in two, and on one in three a tall blade high up."""
+    w = f.width
+    bays = max(1, round(w / CELL_W))
+    fl = lo
+    while fl + CELL_H < hi:
+        for j in range(bays):
+            if r.random() < 0.22:
+                P.place("ac_wall", *f.p(f.at((j + 0.5) * w / bays + r.uniform(-0.5, 0.5)), fl + 0.05, 0.0), f.yaw, district=D)
+        fl += CELL_H
+    if w > 3.0:
+        P.place("pipe_v", *f.p(f.at(r.choice((0.3, w - 0.3))), lo - 3.0, 0.0), f.yaw, sy=hi - lo + 2.4, district=D)
+    west = (f.plane if f.nx else max(f.a0, f.a1)) < -61.0
+    if r.random() < 0.5 and west:
+        yb = lo + CELL_H * r.randrange(0, max(1, int((hi - lo) / CELL_H))) - 0.25
+        strip(f, r.choice(NEONS), 0.2, w - 0.2, yb, yb + 0.07, 0.2)
+    if r.random() < 0.34 and west and w > 3.0 and hi - lo > 7.0:
+        k = r.uniform(1.0, min(1.5, (hi - lo - 1.0) / 5.0))
+        J.blade(f, r.choice((0.5, w - 0.5)), hi - 0.6 - 2.5 * k, "bl", tilt=r.uniform(-0.3, 0.3), k=k, gap=0.35)
 
 
 def band(x0, x1, z0, z1, y, hue, h=0.14):
@@ -3043,6 +3102,7 @@ for rec in LOTS:
     else:
         roof(rec, ROOFS_W[row])
     tall_faces(rec)
+    mid_faces(rec)
     if rec["h"] > 24.0 and row in ("A", "E"):
         sky_word(rec)
     if id(rec) in DECK_LOW:
