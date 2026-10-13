@@ -852,9 +852,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         varying vec4 vColor;
         const float BASE = 8.0;
         const float STOREY = 3.8;
-        const float SILL = 0.95;
         const float CLEAR = 2.85;
-        const float MODULE = 1.5;
         const float DEEP = 9.0;
 
         // What the glass gives back: a night sky lit from under by the
@@ -876,7 +874,11 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float w = hash12(cell);
           vec2 cf = abs(fract(cg) - 0.5);
           float dotIn = (1.0 - smoothstep(0.1, 0.22, cf.x)) * (1.0 - smoothstep(0.14, 0.3, cf.y)) * 1.6;
-          float city = step(0.9, w) * (1.0 - smoothstep(0.02, 0.28, r.y)) * step(-0.25, r.y) * mix(1.0, dotIn, near);
+          // (Not where one cell of it spans many pixels: seen along a wall
+          // close to, the reflected look barely turns and each light was
+          // drawn out into a bright white dash, rows of them up the glass.)
+          float spread = max(fwidth(cg.x), fwidth(cg.y));
+          float city = step(0.9, w) * (1.0 - smoothstep(0.02, 0.28, r.y)) * step(-0.25, r.y) * mix(1.0, dotIn, near) * smoothstep(0.04, 0.16, spread);
           col += mix(vec3(1.0, 0.7, 0.42), vec3(0.6, 0.8, 1.0), step(0.95, w)) * city * 0.35;
           return col;
         }
@@ -902,6 +904,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float along = dot(rel, t.xz);
           float edge = max(halfW - abs(along), 0.0);
 
+          // Each tower its own wall, by its seed: a mullion every 1.5, 1.2
+          // or 1.8 m, its sill at 0.95 or 1.25 m, and on half of them a fin
+          // every third mullion. One curtain wall on every tower of the row,
+          // its floors in tan and grey tenants, was one texture of bricks.
+          float sysT = hash12(vec2(vColor.b * 97.0, 3.1));
+          float MODULE = sysT < 0.34 ? 1.5 : (sysT < 0.67 ? 1.2 : 1.8);
+          float SILL = fract(sysT * 7.0) < 0.5 ? 0.95 : 1.25;
+          float fins = step(0.5, fract(sysT * 13.0));
           float fy = (vWorld.y - BASE) / STOREY;
           float level = floor(fy);
           float inFloor = fract(fy) * STOREY;
@@ -914,18 +924,25 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // The tenant: floors in threes, give or take, one light each.
           float tenant = floor((level + floor(hash12(vec2(seed, 1.0)) * 3.0)) / 3.0);
           // The card being read keeps its tower's floors on.
-          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r + 0.25 * tlit * own);
+          // (A tower of the row is a dark monolith with its tenants' floors
+          // lit here and there, not lit evenly from its foot to its crown:
+          // seven in ten of the floors it had, drawn brighter.)
+          float rowK = mix(1.0, 0.7, own);
+          float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), vColor.r * rowK + 0.25 * tlit * own);
           float tone = hash12(vec2(tenant, seed + 3.7));
           vec3 L = vec3(0.74, 0.87, 1.0);
           if (tone > 1.0 - 0.5 * vColor.g) L = vec3(1.0, 0.76, 0.5);
           else if (tone > 0.7) L = vec3(0.96, 0.95, 0.88);
+          // (And a row tower has its house's light, warm white or cool, and
+          // a tenant in eight the other.)
+          if (own > 0.5) L = (vColor.g > 0.5) != (tone > 0.875) ? vec3(1.0, 0.84, 0.62) : vec3(0.74, 0.87, 1.0);
           // A block that is no tower of the row (the plaza's, the campus's)
           // has one light, the builder's warm or cool, and a tenant in eight
           // the other: floor by floor in three colours it was bands of
           // colour from across a square.
           if (own < 0.5) L = (vColor.g > 0.45) != (tone > 0.88) ? vec3(1.0, 0.76, 0.5) : vec3(0.74, 0.87, 1.0);
           // Some floors brighter than others: a late shift, the cleaners.
-          L *= 0.75 + 0.6 * hash12(vec2(tenant, seed + 9.1));
+          L *= (0.75 + 0.6 * hash12(vec2(tenant, seed + 9.1))) / (rowK * rowK);
 
           // Into the floor: x along the facade, y up from the floor, z in.
           vec3 V = normalize(vWorld - uCam);
@@ -964,19 +981,25 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           } else if (d.y > 0.0) {
             // The ceiling's grid of panels, faded to its average where it
             // would shimmer.
+            // (Square panels, not strips, and not much brighter than the
+            // ceiling round them: thin strips at five times the ceiling,
+            // seen from below along a wall, were rows of white dashes up
+            // the glass. Averaged sooner, too.)
             vec2 g = vec2(h.x / 1.5, h.z / 1.2);
             vec2 c = abs(fract(g) - 0.5);
-            float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
-            float panel = mix(step(c.x, 0.36) * step(c.y, 0.12), 0.17, aa);
+            float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 3.0, 0.0, 1.0);
+            float panel = mix(step(c.x, 0.36) * step(c.y, 0.3), 0.43, aa);
             float deep = 1.0 - 0.55 * smoothstep(0.0, DEEP, h.z);
-            room = L * (0.26 + 1.25 * panel) * deep;
+            room = L * (0.26 + 0.5 * panel) * deep;
           } else {
             // The floor: pools of light under the ceiling's panels, as the
             // floors of a lit office are seen from above.
             vec2 g = vec2(h.x / 1.5, h.z / 1.2);
             float pool = smoothstep(0.55, 0.05, length(fract(g) - 0.5));
             float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 1.5, 0.0, 1.0);
-            room = L * (0.16 + mix(0.36 * pool, 0.13, aa) + 0.04 * hash12(floor(h.xz)));
+            // (Carpet, dim: lit floors seen from over the row were beige
+            // blocks, a wall of bricks.)
+            room = L * (0.09 + mix(0.2 * pool, 0.07, aa) + 0.03 * hash12(floor(h.xz)));
           }
           room *= on;
           // Unlit floors are not black: exit signs, a screen left on.
@@ -1051,13 +1074,18 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float mhw = max(0.035, 0.55 * mw * MODULE);
           float thw = max(0.04, 0.55 * fw * STOREY);
           float mull = mix(step(min(mx, 1.0 - mx) * MODULE, mhw) * clamp(0.035 / mhw + 0.35, 0.0, 1.0), 0.05, smoothstep(mix(0.02, 0.1, near), mix(0.06, 0.28, near), mw));
+          // The fin: a deep blade on every third mullion, its face catching
+          // the street and the tower's colour, held to a pixel far off.
+          float fm = fract(module / 3.0) * 3.0;
+          float fin3 = fins * step(min(fm, 3.0 - fm) * MODULE, max(0.09, 0.8 * mw * MODULE)) * (1.0 - smoothstep(0.3, 0.9, mw));
           float trans = mix((step(abs(inFloor - SILL), thw) + step(STOREY - inFloor, thw)) * clamp(0.04 / thw + 0.35, 0.0, 1.0), 0.02, smoothstep(mix(0.01, 0.05, near), mix(0.03, 0.14, near), fw));
           float slab = mix(step(inFloor, SILL), SILL / STOREY, smoothstep(0.08, 0.3, fw));
           vec3 col = mix(glass, frameCol, clamp(mull + trans, 0.0, 1.0));
           col = mix(col, spandrel, slab);
+          col = mix(col, frameCol * 1.6 + street * 0.15, fin3);
 
           // Far off, a floor's average rather than a pattern that shimmers.
-          float litAvg = min(vColor.r + 0.25 * tlit * own, 1.0) * 0.76;
+          float litAvg = min(vColor.r * rowK + 0.25 * tlit * own, 1.0) * 0.76;
           vec3 avgRoom = L * litAvg * 0.6 + 0.004;
           vec3 avg = mix(avgRoom * 0.8 * (1.0 - F) + env * F + wash * 0.3, spandrel, SILL / STOREY);
           col = mix(col, avg, smoothstep(0.25, 0.6, fw));
