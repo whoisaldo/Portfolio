@@ -203,3 +203,15 @@ for (xa, xb, ya, yb) in ((b7x - b7w / 2 - 0.3, b7x + b7w / 2 + 0.3, b7y + b7h / 
                          (b7x + b7w / 2, b7x + b7w / 2 + 0.16, b7y - b7h / 2, b7y + b7h / 2)):
     box((PL, "glow", 0), xa, xb, ya, yb, b7z - 0.06, b7z + 0.02, col=dim("white", 0.3))
 box((PL, "glow", 0), b7x - b7w / 2, b7x + b7w / 2, b7y + b7h / 2 + 0.36, b7y + b7h / 2 + 0.52, b7z - 0.2, b7z - 0.12, col=dim("cyan", 0.3))
+
+# The block's crown: at each end of its roof, back from the square's edge,
+# a plant house in dark steel with a line of light round its head, a mast
+# on it with its red lamp, all under the Work shot's line to ARASAKA's name
+# (52.4 m at z -279), in the frame's corners and not under the name.
+for (xa, xb) in ((49.6, 60.0), (97.0, 106.4)):
+    za, zb = -283.4, -275.0
+    walls((PL, "trim", 0), [(xa, zb), (xb, zb), (xb, za), (xa, za)], BH, BH + 3.0, B.TRIM[0])
+    poly((PL, "roof", 0), [(xa, BH + 3.0, zb), (xb, BH + 3.0, zb), (xb, BH + 3.0, za), (xa, BH + 3.0, za)], ((0, 0), (1, 0), (1, 1), (0, 1)))
+    box((PL, "glow", 0), xa - 0.04, xb + 0.04, BH + 2.55, BH + 2.7, zb, zb + 0.04, col=dim("teal", 0.5))
+    corner_lamps(xa, xb, za, zb, BH + 3.0)
+    mast((xa + xb) / 2 + 1.5, (za + zb) / 2, BH + 3.0, 4.0)

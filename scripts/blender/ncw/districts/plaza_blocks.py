@@ -267,13 +267,16 @@ while z < -132.8:
     x = 80.6
     while x < 107.2:
         on_path = (-147.4 < z + 1.0 < -144.6) or (92.6 < x + 1.0 < 95.4)
-        kk = rg.uniform(0.84, 1.1) * (0.26 if on_path else 0.19)
-        lit_poly((PL, "glow", 0), [(x + 0.03, z + 0.03), (x + 1.97, z + 0.03), (x + 1.97, z + 1.97), (x + 0.03, z + 1.97)], RY + 0.02,
-                 (kk, kk * 0.98, kk * 0.92), pools=GARDEN_POOLS, dark=(0.2, 0.225, 0.29))
+        # (Dark granite, cool, a slab a little paler or darker than the
+        # next, the lamps' light on it: lit as bright as the amber lamps
+        # make it, a pale square grid of flags read as a board game.)
+        kk = rg.uniform(0.78, 1.12) * (0.15 if on_path else 0.11)
+        lit_poly((PL, "glow", 0), [(x + 0.02, z + 0.02), (x + 1.98, z + 0.02), (x + 1.98, z + 0.98), (x + 0.02, z + 0.98)], RY + 0.02,
+                 (kk * 0.86, kk * 0.92, kk), pools=GARDEN_POOLS, dark=(0.1, 0.115, 0.15))
+        lit_poly((PL, "glow", 0), [(x + 0.02, z + 1.02), (x + 1.98, z + 1.02), (x + 1.98, z + 1.98), (x + 0.02, z + 1.98)], RY + 0.02,
+                 (kk * 0.9 * rg.uniform(0.85, 1.1), kk * 0.95, kk * 1.02), pools=GARDEN_POOLS, dark=(0.1, 0.115, 0.15))
         x += 2.0
     z += 2.0
-for (a0, a1, b0, b1) in ((82.6, 105.4, -147.2, -147.12), (82.6, 105.4, -144.88, -144.8), (92.8, 92.88, -157.4, -134.6), (95.12, 95.2, -157.4, -134.6)):
-    box((PL, "glow", 0), a0, a1, RY + 0.03, RY + 0.07, b0, b1, scale=1.0, col=dim("amber", 0.5))
 for (px, pz, hue) in GARDEN_LAMPS:
     light(PL, px, RY + 2.6, pz, hue, 7.0)
 for (px, pz) in ((94.0, -155.0), (94.0, -137.0), (87.5, -139.5), (100.5, -152.5), (94.0, -163.5), (83.0, -160.0), (105.0, -136.0)):
@@ -299,7 +302,7 @@ for pz in (-147.3, -144.7):
     box((PL, "metal", 1), 97.6, 104.4, RY + 2.62, RY + 2.7, pz - 0.05, pz + 0.05, scale=0.5)
 for k in range(8):
     box((PL, "glow", 1), 98.0 + k * 0.85, 98.12 + k * 0.85, RY + 2.42, RY + 2.56, -146.06, -145.94, scale=0.5, col=GLOW["amber"])
-roof_screen(102.0, -163.0, 18.2, 10.0, 5.6, math.radians(135), 8317)
+roof_screen(102.0, -163.0, 18.2, 10.0, 5.6, math.radians(112), 8317)
 # The tower's podium roof and the slab's: plant, a skylight, lamps.
 parapet(52.0, 80.0, -168.0, -132.0, 14.8, tint=1)
 parapet(52.0, 108.0, -132.0, -95.0, 11.4, tint=1)
@@ -482,6 +485,12 @@ screen(108.45, 19.0, -330.0, 15.0, 8.4, math.pi / 2, random.Random(8355), back=F
 mark("delta", "+x", (78.0, 108.0, -344.0, -310.0), 33.0, 6.0, "teal")
 tower("C1", 54.0, 74.0, -338.0, -292.0, 0.15, 46.0, 8356, cut=2.0, accent="teal", crown="blades", lit=0.7, warm=0.3,
       marks=(("bars", "+z", 38.0, 6.0, "teal"),))
+# (Over C1's back half a house steps up to 63 m, as high as the Work
+# shot's line lets it stand there, under a halo, its mark to the square
+# and to the road: from the air the square's north side is no longer one
+# height of lid.)
+tower("C1 back", 57.0, 71.0, -336.5, -319.0, 46.0, 63.0, 8366, cut=1.8, accent="teal", crown="halo", lit=0.74, warm=0.35, plant=0,
+      marks=(("rings", "+z", 56.0, 7.0, "teal"), ("rings", "+x", 56.0, 6.0, "teal")))
 # (West of x 60 a lit wall is a streak down the hero's road, whatever stands
 # between: the bake asks nothing else of it. So the west ends of these
 # podiums, and of B1's on the plaza street, keep the painted walls and the
@@ -505,8 +514,8 @@ glass_podium(54.0, 106.0, -452.0, -402.0, 18.2, dict(ALL_OPEN), 8371, ("+x", "+z
 parapet(54.0, 106.0, -452.0, -402.0, 18.2, tint=1)
 T3 = tower("T3", 58.0, 82.0, -448.0, -408.0, 18.2, 104.0, 8372, steps=((72.0, 2.5), (88.0, 5.0), (98.0, 7.5)), cut=2.6, accent="white", crown="spire",
            spire=5.4, lit=0.82, warm=0.58, marks=(("rings", "+z", 80.0, 7.0, "white"), ("rings", "+x", 80.0, 7.0, "white")))
-tower("T4", 88.0, 104.0, -448.0, -410.0, 18.2, 89.6, 8373, cut=1.4, accent="green", crown="twin",
-      steps=((72.6, 2.5),), marks=(("gate", "+z", 62.0, 6.0, "green"), ("gate", "+x", 62.0, 6.0, "green")), lit=0.76, warm=0.55, plant=0)
+tower("T4", 88.0, 104.0, -448.0, -410.0, 18.2, 98.0, 8373, cut=1.4, accent="green", crown="twin",
+      steps=((72.6, 2.5), (88.2, 4.6)), marks=(("gate", "+z", 62.0, 6.0, "green"), ("gate", "+x", 62.0, 6.0, "green")), lit=0.76, warm=0.55, plant=0)
 for name, f in B.faces_of(88.0, 104.0, -448.0, -410.0).items():
     fin_row(f, 1.8, f.width - 1.8, 19.4, 57.0, rq, step=(2.4, 3.2), out=0.5, lit="green" if name in ("+x", "+z") else None, every=4, k=0.26)
 skylight(60.0, 100.0, -406.5, -403.0, 18.2, colour="cyan", k=0.26, pitch=0.8)

@@ -56,4 +56,8 @@ for i, (x, y, z, yaw, pitch, hue) in enumerate(((93.5, 70.2, -106.0, math.pi, 1.
     empty(f"anchor_searchlight_plaza_{i}", (x, y + 1.25, z), props={"yaw": yaw, "pitch": pitch, "length": 180.0, "color": NEON[hue]})
     checked(x - 0.5, x + 0.5, z - 0.5, z + 0.5, y + 1.25, f"searchlight {i}")
 
+# B1's corner park: its plant along the edge over the plaza street, tanks
+# by its east parapet.
+cooling(87.0, -164.0, 18.2, n=2, r=1.4, h=2.6, along="x", hue="white")
+tanks(106.5, -152.0, 18.2, n=2, r=0.85, h=2.4, along="z", warm=0.3)
 roof_decks(skip=((80.0, 108.0, -168.0, -132.0),), low=((48.0, 108.0, -284.0, -264.0),))
