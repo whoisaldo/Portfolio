@@ -18,6 +18,7 @@ first hides all of them from that eye (`behind`, checked), stepping up the
 avenue so its north vista closes in layers.
 """
 import math
+import random
 
 from ncw.kit import *  # noqa: F401,F403
 from ncw import kit as K
@@ -136,6 +137,7 @@ def megastructure(zn, zs, y0, y1, r, occ, south=FA, key=CB, step=1.5, feet=(5.0,
     ym = (y0 + y1) / 2
     zc = (zn + zs) / 2
     tiers = [((x0, y0, zn), (x1, ym, zs)), ((x0, ym, zn + step), (x1, y1 + 0.25, zs - step))]
+    boxes_row = []
     box((south, "trim", 0), x0, x1, y0, ym, zn, zs, scale=2.0, col=HULL, bottom=True)
     box((south, "trim", 0), x0, x1, ym, y1, zn + step, zs - step, scale=2.0, col=HULL)
     # (s along the face from its left as the street sees it, width, height, the height of its middle over y0, True: hung on the upper tier)
@@ -187,6 +189,28 @@ def megastructure(zn, zs, y0, y1, r, occ, south=FA, key=CB, step=1.5, feet=(5.0,
             if not any(abs(s - s_) < (bw + bw_) / 2 + 0.3 for s_, bw_, _, up_ in brands if up_):
                 cx, _, cz = up.p(up.at(s), yc, 0.5)
                 C.advert(k2, key, cx, yc, cz, bw, bh, up.yaw, r)
+        # A row of small lit boxes standing on the step in front of the
+        # upper tier, each its own size, clear of its screens (x4ztgjvfU60@22):
+        # not on the first one's south face, which is the hero's.
+        if not (name == "+z" and front is None):
+            rr = random.Random(int(-zn * 10) + (1 if name == "-z" else 0))
+            clear = [(s_ - bw_ / 2 - 0.4, s_ + bw_ / 2 + 0.4) for s_, bw_, _ in extra]
+            s = rr.uniform(0.8, 2.0)
+            while s < w - 2.0:
+                size = rr.choice(("ps", "ps", "bx", "pm", "ps", "bx"))
+                sw, sh = ST_SIZES[size]
+                if s + sw > w - 0.8:
+                    break
+                if any(a < s + sw and b > s for a, b in clear):
+                    s += 1.0
+                    continue
+                yc = ym + 0.3 + sh / 2
+                d = step * 0.6
+                up.box((key, "board_frame", 0), s - 0.06, s + sw + 0.06, ym + 0.02, yc + sh / 2 + 0.06, d - 0.12, d)
+                cx, _, cz = up.p(up.at(s + sw / 2), yc, d + 0.015)
+                sign(C.own_name(size), cx, yc, cz, sw, sh, up.yaw, district=key, label=False)
+                boxes_row.append(M.box_of(up, s, s + sw, ym, yc + sh / 2 + 0.1, d - 0.15, d + 0.05))
+                s += sw + rr.choice((0.25, 0.4, 0.4, 0.9, 1.6))
         for s, bw, dy, upper in brands:
             f = up if upper else lo
             bh = bw * 1.2 / 2.8
@@ -208,7 +232,7 @@ def megastructure(zn, zs, y0, y1, r, occ, south=FA, key=CB, step=1.5, feet=(5.0,
     while x < tray[1]:
         box((key, "metal", 1), x - 0.04, x + 0.04, y0 - 0.42, y0, zc - 0.7, zc + 0.5, scale=0.5, bottom=True)
         x += 4.4
-    boxes = [((x0, y0 - 0.45, zn - 1.0), (x1, y1 + 0.3, zs + 1.0))]
+    boxes = [((x0, y0 - 0.45, zn - 1.0), (x1, y1 + 0.3, zs + 1.0))] + boxes_row
     for x, drop, kind in drops:
         box((key, "metal", 1), x - 0.04, x + 0.04, y0 - drop + 0.9, y0, zc - 0.04, zc + 0.04, scale=0.5)
         if kind == "signal":

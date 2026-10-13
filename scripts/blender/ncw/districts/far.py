@@ -219,6 +219,21 @@ def _dice(build, f, r):
         del batches[key]
 
 
+def _ghost(build):
+    """Run a builder for its dice and its signs' turns alone, into a district
+    that is thrown away: the lot's draws, and the builder's turn that every
+    sign built after it takes (its design's start), run on as they did."""
+    n_inst, n_ids, n_people = len(P.INSTANCES), len(STREET_SIGN_IDS), len(PEOPLE)
+    build()
+    del P.INSTANCES[n_inst:], STREET_SIGN_IDS[n_ids:], PEOPLE[n_people:]
+    LIGHTS.pop(VOID, None)
+    for key in [k for k in batches if k[0] == VOID]:
+        del batches[key]
+
+
+END_Z = -470.0          # past the forecourt the canyon's walls take the show's mix of signs
+
+
 def _lane_r(L, f):
     return random.Random(7100 + L["i"] * 19 + (0 if L["side"] > 0 else 400) + int(abs(f.plane) * 3 + abs(f.a0)))
 
@@ -711,19 +726,39 @@ def _dress_street(U):
         if C._free(taken, (ss - sw / 2, ss + sw / 2, sy - sh / 2, sy + sh / 2)):
             C.screen(st, ss, sy, sw, sh, r, 1.0, key=FA, off=M.off(U, ss - sw / 2, ss + sw / 2, sy - sh / 2, sy + sh / 2))
     deep = U["zs"] < -300.0
-    C.street_signs(st, r, 0.5, w - 0.5, SHOP_H + 0.9, ph - 1.0, max(3, round(w / 4.0)), taken=taken)
-    C.street_signs(st, r, 0.5, w - 0.5, ph + 0.6, min(h - 6.0, ph + 16.0, U["belt"] - 0.4), max(2, round(w / 7.0)), taken=taken)
-    for _ in range(r.randrange(1, 3)):
-        ss, sy = r.uniform(1.5, w - 1.5), r.uniform(ph + 14.0, h - 8.0)
-        if C._free(taken, (ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.8)):
-            o = M.off(U, ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.6)
-            cant = r.choice((0.0, 0.3, -0.3))
-            # (High on a deep tower a board of words on a bracket where the
-            # hero's picture allows one, not another blade of type.)
-            if deep and M.clear(OCC, *M.box_of(st, ss - 0.2, ss + 0.2, sy - 0.8, sy + 0.8, 0.0, o + 3.4)):
-                C.blade(st, ss, sy, "pm", 0.0, FA, CB, CB, out=o + 1.85)
-            else:
-                C.blade(st, ss, sy, "bl", cant, FA, CB, CB, out=0.95 + o)
+    end = U["zs"] <= END_Z
+    if not end:
+        C.street_signs(st, r, 0.5, w - 0.5, SHOP_H + 0.9, ph - 1.0, max(3, round(w / 4.0)), taken=taken)
+
+    def upper(front, key, tk):
+        C.street_signs(st, r, 0.5, w - 0.5, ph + 0.6, min(h - 6.0, ph + 16.0, U["belt"] - 0.4), max(2, round(w / 7.0)),
+                       hero=front == FA, key=key, taken=tk)
+        for _ in range(r.randrange(1, 3)):
+            ss, sy = r.uniform(1.5, w - 1.5), r.uniform(ph + 14.0, h - 8.0)
+            if C._free(tk, (ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.8)):
+                o = M.off(U, ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.6)
+                cant = r.choice((0.0, 0.3, -0.3))
+                # (High on a deep tower a board of words on a bracket where the
+                # hero's picture allows one, not another blade of type.)
+                if deep and M.clear(OCC, *M.box_of(st, ss - 0.2, ss + 0.2, sy - 0.8, sy + 0.8, 0.0, o + 3.4)):
+                    C.blade(st, ss, sy, "pm", 0.0, front, key, key, out=o + 1.85)
+                else:
+                    C.blade(st, ss, sy, "bl", cant, front, key, key, out=0.95 + o)
+
+    if end:
+        # (Past the forecourt, where the canyon closes on the megablock: the
+        # show's mix over the shops, not a blade of type at every height.
+        # What hung here before is dealt into the void first, so the lot's
+        # draws and every later sign's turn run on as they did.)
+        tk = list(taken)
+        _ghost(lambda: C.street_signs(st, r, 0.5, w - 0.5, SHOP_H + 0.9, ph - 1.0, max(3, round(w / 4.0)), hero=False, key=VOID, taken=tk))
+        _ghost(lambda: upper(VOID, VOID, tk))
+        C.street_mix(st, random.Random(9650 + U["idx"] * 11), 0.5, w - 0.5, SHOP_H + 0.9, ph - 1.0, max(3, round(w / 5.0)), taken, shop=True)
+        rm = random.Random(9600 + U["idx"] * 7)
+        C.street_mix(st, rm, 0.5, w - 0.5, ph + 0.6, min(h - 6.0, ph + 16.0, U["belt"] - 0.4), max(2, round(w / 8.0)), taken)
+        C.street_mix(st, rm, 0.5, w - 0.5, ph + 14.0, h - 8.0, 1, taken)
+    else:
+        upper(FA, CB, taken)
     # Over the signs: balconies in stacks up the face, floor on floor, clear
     # of every sign; condensers under windows on the lower floors; a
     # downpipe at each end of the face.
@@ -1441,6 +1476,22 @@ for m in MEGA:
                 rad = 0.55 if n > 2 else 0.42
                 stand(x + rad * math.cos(a) * (0.6 if abs(x) > 12.0 else 1.0), zc + dz + rad * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)),
                       under_r.choice(("talk", "talk", "idle", "phone", "smoke")), B.G0)
+# Past the forecourt, a pole at the kerb on each side carries a stack of
+# adverts up and down the avenue (its own dice), clear of what stands at
+# the kerb there and of what the hero frames.
+pole_r = random.Random(4835)
+for s_, z_ in ((-1, -536.0), (1, -578.0)):
+    px = s_ * 10.5
+    for _ in range(8):
+        if not any(q[0] != "pipe_v" and abs(q[1] - px) < 1.4 and abs(q[3] - z_) < 2.6 and q[2] < 3.0 for q in P.INSTANCES) and \
+                not any(abs(q[0] - px) < 1.0 and abs(q[2] - z_) < 1.6 for q in PEOPLE):
+            break
+        z_ -= 2.5
+    lo, hi = C.pole_stack(px, z_, 19.5, pole_r)
+    if C.covers(AVENUE_MASSES, lo, hi):
+        raise RuntimeError(f"the pole of adverts at z {z_} stands across something the hero frames")
+    print("CANYON pole stack", s_, z_)
+
 # Manholes up the canyon breathing steam into the signs' light.
 for sx, sz in ((-5.5, -262.0), (4.0, -386.0), (-3.0, -540.0), (5.2, -322.0), (3.5, -655.0)):
     cylinder((CB, "metal", 1), sx, sz, 0.0, 0.025, 0.42, segs=14)

@@ -378,10 +378,10 @@ def _along(f):
     return (0.0, 1.0) if f.nx != 0 else (1.0, 0.0)
 
 
-def blade(f, s, y, size, cant=0.0, front=CB, back=CB, key=CB, out=None, bracket=True):
+def blade(f, s, y, size, cant=0.0, front=CB, back=CB, key=CB, out=None, bracket=True, own=False):
     """A standard sign as a blade s metres along the face at height y, its
     front turned `cant` radians toward the street. `front` and `back` key
-    its two painted faces."""
+    its two painted faces. `own`: named in the canyon's own run."""
     w, h = ST_SIZES[size]
     out = (0.35 + w / 2) if out is None else out
     cx, _, cz = f.p(f.at(s), y, out)
@@ -389,21 +389,21 @@ def blade(f, s, y, size, cant=0.0, front=CB, back=CB, key=CB, out=None, bracket=
     dx, dz = dx * math.cos(cant) + f.nx * math.sin(cant), dz * math.cos(cant) + f.nz * math.sin(cant)
     yaw = math.atan2(dx, dz)
     oriented_box((key, "board_frame", 0), cx, y, cz, w + 0.12, h + 0.14, 0.16, yaw, scale=1.0)
-    sid = st_name(size)
+    sid = own_name(size) if own else st_name(size)
     sign(sid, cx + dx * 0.09, y, cz + dz * 0.09, w, h, yaw, district=front, label=False)
     sign(sid + "_b", cx - dx * 0.09, y, cz - dz * 0.09, w, h, yaw + math.pi, district=back, label=False)
     if bracket:
         f.box((key, "metal", 1), s - 0.04, s + 0.04, y + h / 2 + 0.07, y + h / 2 + 0.14, 0.0, out)
 
 
-def stack(f, s, y, n, r, cant=0.0, front=CB, back=CB, key=CB, out=0.95):
+def stack(f, s, y, n, r, cant=0.0, front=CB, back=CB, key=CB, out=0.95, own=False):
     """A column of small boards one over another on a post off the wall, the
     show's stack of red and orange boards (ARL_JWwKdDs@21)."""
     yy = y
     for _ in range(n):
         size = r.choice(("ps", "ps", "bx", "pm"))
         h = ST_SIZES[size][1]
-        blade(f, s, yy + h / 2, size, cant, front, back, key, out=out + (ST_SIZES[size][0] - 1.2) / 2, bracket=False)
+        blade(f, s, yy + h / 2, size, cant, front, back, key, out=out + (ST_SIZES[size][0] - 1.2) / 2, bracket=False, own=own)
         yy += h + 0.22
     f.box((key, "metal", 1), s - 0.06, s + 0.06, y - 0.5, yy, 0.0, 0.14)
     for yb in (y - 0.3, yy - 0.2):
@@ -579,6 +579,88 @@ def street_signs(f, r, s0, s1, y_lo, y_hi, n, hero=True, key=CB, taken=None):
                 y = r.uniform(y_lo + h / 2, y_hi - h / 2)
                 if _free(taken, (s - w / 2, s + w / 2, y - h / 2, y + h / 2)):
                     board(f, s, y, size, r, key)
+                    break
+
+
+def light_strip(f, s, y, sw, hh, hue, r, key=CB, out=0.45):
+    """A tall strip of light on a wall (x4ztgjvfU60@22's cyan holo up a
+    tower's face): a dark frame, the lit face, darker lines across it."""
+    f.box((key, "board_frame", 0), s - sw / 2 - 0.12, s + sw / 2 + 0.12, y - 0.15, y + hh + 0.15, 0.1, out)
+    f.quad((key, "glow", 0), s - sw / 2, s + sw / 2, y, y + hh, out + 0.01, col=dim(hue, 0.45 if hue == "white" else 0.8))
+    yy = y + r.uniform(0.6, 1.4)
+    while yy < y + hh - 0.4:
+        f.quad((key, "glow", 0), s - sw / 2, s + sw / 2, yy, yy + 0.09, out + 0.015, col=dim(hue, 0.3))
+        yy += r.choice((0.9, 1.3, 1.3, 2.2))
+
+
+def street_mix(f, r, s0, s1, y_lo, y_hi, n, taken, front=FA, key=CB, shop=False):
+    """What a wall deep in the canyon carries over its shops' belt, as the
+    show's canyon does (x4ztgjvfU60@22, mH2wmyeiIpA@143), not a blade of
+    type at every height: big lit boards of words flat on the wall, a tall
+    strip of light, a row of small boxes side by side, a column of boards,
+    now and then a blade; each its own size, fewer than a shop's belt, so
+    the wall reads between them. The faces that look up the avenue are
+    keyed `front`; what lies flat on the wall is edge on to the hero.
+    `shop`: over the shops themselves, where blades of every size and rows
+    of small boxes are the most of it."""
+    cut = (0.18, 0.26, 0.5, 0.6) if shop else (0.32, 0.48, 0.64, 0.8)
+    for _ in range(n):
+        for _try in range(5):
+            roll = r.random()
+            if roll < cut[0]:
+                k = r.choice((1.5, 1.9, 2.3))
+                w, h = 2.8 * k, 1.2 * k
+                if s1 - s0 < w + 1.5:
+                    continue
+                s = r.uniform(s0 + w / 2 + 0.5, s1 - w / 2 - 0.5)
+                y = r.uniform(y_lo + h / 2, max(y_lo + h / 2 + 0.1, y_hi - h / 2))
+                rect = (s - w / 2 - 0.2, s + w / 2 + 0.2, y - h / 2 - 0.2, y + h / 2 + 0.2)
+                if _free(taken, rect):
+                    out = r.uniform(0.15, 0.35)
+                    f.box((key, "board_frame", 0), s - w / 2 - 0.1, s + w / 2 + 0.1, y - h / 2 - 0.1, y + h / 2 + 0.1, 0.0, out)
+                    cx, cy, cz = f.p(f.at(s), y, out + 0.015)
+                    sign(own_name("pm"), cx, cy, cz, w, h, f.yaw, district=key, label=False)
+                    break
+            elif roll < cut[1]:
+                hh, sw = r.uniform(7.0, 14.0), r.choice((0.8, 1.1, 1.4))
+                hh = min(hh, y_hi - y_lo)
+                s = r.uniform(s0 + 1.0, s1 - 1.0)
+                y = r.uniform(y_lo, max(y_lo + 0.1, y_hi - hh))
+                rect = (s - sw / 2 - 0.3, s + sw / 2 + 0.3, y - 0.3, y + hh + 0.3)
+                if _free(taken, rect):
+                    light_strip(f, s, y, sw, hh, r.choice(("cyan", "cyan", "white", "teal", "pink", "amber")), r, key)
+                    break
+            elif roll < cut[2]:
+                sizes = [r.choice(("ps", "ps", "bx", "pm")) for _ in range(r.randint(2, 4))]
+                ws = [ST_SIZES[z][0] for z in sizes]
+                span = sum(ws) + 0.3 * (len(ws) - 1)
+                if s1 - s0 < span + 1.0:
+                    continue
+                s = r.uniform(s0 + 0.5, s1 - 0.5 - span)
+                y = r.uniform(y_lo + 0.8, max(y_lo + 0.9, y_hi - 0.8))
+                rect = (s - 0.2, s + span + 0.2, y - 0.8, y + 0.8)
+                if _free(taken, rect):
+                    for z, wz in zip(sizes, ws):
+                        hz = ST_SIZES[z][1]
+                        f.box((key, "board_frame", 0), s - 0.06, s + wz + 0.06, y - hz / 2 - 0.06, y + hz / 2 + 0.06, 0.0, 0.2)
+                        cx, cy, cz = f.p(f.at(s + wz / 2), y + r.uniform(-0.15, 0.15), 0.215)
+                        sign(own_name(z), cx, cy, cz, wz, hz, f.yaw, district=key, label=False)
+                        s += wz + 0.3
+                    break
+            elif roll < cut[3]:
+                s = r.uniform(s0 + 1.0, s1 - 1.0)
+                k = r.randrange(3, 5)
+                y = r.uniform(y_lo, max(y_lo + 0.5, y_hi - k * 1.3))
+                if _free(taken, (s - 0.5, s + 0.5, y - 0.5, y + k * 1.45)):
+                    stack(f, s, y, k, r, r.choice((0.0, 0.3, -0.3)), front, key, key, own=True)
+                    break
+            else:
+                s = r.uniform(s0 + 1.0, s1 - 1.0)
+                size = r.choice(("pm", "bm", "bs", "pm", "bl") if shop else ("pm", "pm", "bl", "bm"))
+                h = ST_SIZES[size][1]
+                y = r.uniform(y_lo + h / 2, max(y_lo + h / 2 + 0.2, y_hi - h / 2))
+                if _free(taken, (s - 0.5, s + 0.5, y - h / 2, y + h / 2 + 0.2)):
+                    blade(f, s, y, size, r.choice((0.0, 0.25, -0.25)), front, key, key, own=True)
                     break
 
 
@@ -1063,6 +1145,33 @@ def pylon(z, y_top, r, side, key=FA, back=CB):
         light(back, side * (WALK - 2.0), 6.0, z + dz, r.choice(("white", "cyan", "amber")), 6.0)
     xa, xb = sorted((side * WALK, side * (WALK - reach)))
     return ((xa, G0, z - 0.8), (xb, y_top + 0.4, z + 0.8))
+
+
+def pole_stack(x, z, y_top, r, key=FA, back=CB):
+    """A free-standing pole at the kerb with a stack of adverts on it, each
+    its own size and a little off the pole, read up and down the avenue
+    (x4ztgjvfU60@22, mH2wmyeiIpA@143): their fronts look south (`key`),
+    their backs north. Returns its box."""
+    cylinder((back, "metal", 0), x, z, G0, y_top, 0.22, segs=8)
+    cylinder((back, "metal", 0), x, z, G0, G0 + 1.1, 0.34, segs=8)
+    y, side, lo, hi = 6.4, r.choice((-1, 1)), x, x
+    while y < y_top - 2.0:
+        w, h = r.choice((2.6, 3.2, 3.8, 4.6)), r.choice((1.6, 2.0, 2.6, 3.2))
+        h = min(h, y_top - y - 0.3)
+        if h < 1.2:
+            break
+        cx = x + side * r.uniform(0.2, 0.5) * (w / 2)
+        advert(key, back, cx, y + h / 2, z + 0.2, w, h, r.uniform(-0.08, 0.08), r, depth=0.3)
+        advert(back, back, cx, y + h / 2, z - 0.2, w, h, math.pi + r.uniform(-0.08, 0.08), r, depth=0.05)
+        for yy in (y + 0.25, y + h - 0.35):
+            box((back, "metal", 1), min(cx - w / 2 + 0.2, x), max(cx + w / 2 - 0.2, x), yy, yy + 0.1, z - 0.06, z + 0.06, scale=0.5, bottom=True)
+        lo, hi = min(lo, cx - w / 2 - 0.2), max(hi, cx + w / 2 + 0.2)
+        y += h + r.uniform(0.3, 0.8)
+        side = -side
+    box((key, "glow", 0), x - 0.12, x + 0.12, y_top, y_top + 0.3, z - 0.12, z + 0.12, scale=0.5, col=GLOW["red"])
+    light(back, x, 5.0, z + 1.5, r.choice(("white", "cyan")), 5.0)
+    B.COLLISION.append(("box", x - 0.4, x + 0.4, G0, y_top, z - 0.4, z + 0.4, "canyon"))
+    return ((lo, G0, z - 0.5), (hi, y_top + 0.4, z + 0.5))
 
 
 def link(side_x0, side_x1, z_lo, z_hi, y, r, key=CB):
