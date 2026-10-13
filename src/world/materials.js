@@ -646,7 +646,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   // the panes have been dealt (src/world/trades.js, the first time a shop
   // mesh is drawn), which of the eight trades the pane is and how wide.
   const dealt = new WeakSet();
-  const trades = { panes: 0, signed: 0 };
+  const trades = { panes: 0, signed: 0, alley: 0 };
   const shop = () => {
     if (made.has("shop")) return made.get("shop");
     const m = keep(new THREE.ShaderMaterial({
@@ -712,6 +712,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float paneW = (code - floor(code / 32.0) * 32.0) * 0.25;
           float roomW = mix(3.2, mix(3.4 + 1.9 * floor(fract(shop * 7.3) * 3.0), max(paneW / max(1.0, ceil(paneW / 5.6)), 2.4), dealt), own);
           float cell = floor(ax / roomW);
+          // (A pane 6 m and longer is that many shops after its first room,
+          // each the next trade but two: one trade cut into rooms along a
+          // long front was one storefront printed down the street.)
+          if (dealt > 0.5 && paneW > 5.9 && cell > 0.5) kind = mod(kind + cell * 3.0, 7.0);
           float seed = hash12(vec2(cell + 0.5, shop * 61.0 + 0.5));
           float power = (0.45 + 0.55 * vColor.r) * (0.6 + 0.4 * fract(seed * 3.3));
           vec3 L = tint(vColor.g);
@@ -796,6 +800,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // The glass: at a glancing angle it gives back the street.
           float fres = pow(max(1.0 - facing, 0.0), 4.0);
           col = col * (1.0 - 0.55 * fres) + street * (0.03 + 0.4 * fres);
+          // And it is glass: what is lit across the way along the look it
+          // throws back, and over that a band of the cloud, so a pane is a
+          // pane in front of its room and not a picture of one.
+          vec3 Rg = reflect(V, n);
+          vec3 across = spillAt(vWorld + Rg * 7.0);
+          vec3 cloud = (uHazeColor * 1.2 + uGlowColor * 0.5) * uHaze * smoothstep(-0.05, 0.35, Rg.y);
+          col += (across / (1.0 + dot(across, vec3(0.3, 0.5, 0.2))) * 0.1 + cloud * 0.3) * (0.2 + 0.8 * fres);
           col = cityFog(col, vWorld, 0.8);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}
@@ -812,6 +823,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       const got = dealTrades(geometry, object);
       trades.panes += got.panes;
       trades.signed += got.signed;
+      trades.alley += got.alley ?? 0;
     };
     m.name = "shop";
     made.set("shop", m);
@@ -1497,6 +1509,24 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           float cut = step(0.993, hash12(vec2(t, floor(vWorld.x * 0.3 + vWorld.z * 0.2)))) * uFlicker;
           float breathe = 1.0 + 0.45 * uBass + 0.15 * uLevel;
           vec3 col = vColor.rgb * uIntensity * breathe * (1.0 - 0.8 * cut);
+          // A lit doorway in Santo Domingo's works (an upright glow at a
+          // walker's height there) is a room, and each its own: sodium from
+          // a lamp over it, a cold tube, a red working light, or a white
+          // one over a counter, falling off from the ceiling to the floor.
+          // One card of light behind every door and truck window was the
+          // same picture over and over.
+          vec3 nn = normalize(vNormalW);
+          float works = step(abs(nn.y), 0.3) * step(vWorld.y, 4.5) * smoothstep(0.3, 0.6, santoAt(vWorld.xz));
+          if (works > 0.5) {
+            vec3 tt = vec3(nn.z, 0.0, -nn.x);
+            float along = dot(vWorld, tt);
+            float hv = hash12(vec2(floor(dot(vWorld, nn) * 0.5 + 0.5), floor(along / 3.5)) + 17.0);
+            float lum = dot(vColor.rgb, vec3(0.3, 0.5, 0.2));
+            vec3 tone = hv < 0.25 ? vec3(1.0, 0.6, 0.26) : (hv < 0.5 ? vec3(0.6, 0.86, 1.0) : (hv < 0.75 ? vec3(1.0, 0.3, 0.18) : vec3(0.95, 0.93, 0.85)));
+            float fall = hv < 0.75 ? 0.35 + 0.75 * smoothstep(0.2, 3.0, vWorld.y) : 0.25 + 0.9 * step(1.05, vWorld.y);
+            float tubeL = step(0.25, hv) * step(hv, 0.5) * step(abs(vWorld.y - 2.6), 0.05) * step(0.3, fract(along / 1.25));
+            col = tone * lum * uIntensity * breathe * (fall + 1.5 * tubeL) * (1.0 - 0.8 * cut) * (0.75 + 0.5 * fract(hv * 7.0));
+          }
           col = cityFog(col, vWorld, 1.0);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}

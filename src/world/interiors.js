@@ -381,12 +381,15 @@ export const SHOP_ROOM = /* glsl */ `
     vec3 amb = vec3(0.32, 0.14, 0.62);
     vec2 q = vec2(h.x, h.y - FLOOR_Y);
     vec3 col;
+    // (The room holds its screens' and its tubes' light, walls, ceiling
+    // and carpet, and the cabinets stand dark against it: at a fifteenth
+    // of it the room was a black void with lines of neon floating in it.)
     if (face < 0.5) {
-      col = amb * 0.07;
+      col = amb * (0.22 + 0.16 * smoothstep(0.5, 2.6, q.y));
       vec2 f = vec2(fract(q.x / 0.8) * 0.8, q.y);
       float hs = hash12(vec2(floor(q.x / 0.8), seed * 71.0));
       float cab = within(f, vec2(0.06, 0.0), vec2(0.74, 1.85)) * step(0.15, q.x) * step(q.x, W - 0.15);
-      vec3 c = amb * 0.03;
+      vec3 c = amb * 0.05;
       c = mix(c, screenOf(hs, (f - vec2(0.14, 1.0)) / vec2(0.52, 0.5)) * 1.5, within(f, vec2(0.14, 1.0), vec2(0.66, 1.5)) * step(0.12, hs));
       c = mix(c, neonOf(hs * 11.0) * 1.3, within(f, vec2(0.1, 1.6), vec2(0.7, 1.8)));
       c += neonOf(hs * 5.0) * 0.5 * within(f, vec2(0.12, 0.82), vec2(0.68, 0.92));
@@ -394,17 +397,17 @@ export const SHOP_ROOM = /* glsl */ `
       float zz = abs(q.y - 2.35 - 0.14 * (abs(fract(q.x / 0.7) - 0.5) * 4.0 - 1.0));
       col += acc * 1.8 * (1.0 - smoothstep(0.02, 0.04, zz));
     } else if (face < 1.5) {
-      col = amb * 0.03 + vec3(1.0, 0.15, 0.7) * 2.2 * step(abs(h.x - W * 0.28), 0.035) + vec3(0.1, 0.85, 1.0) * 2.2 * step(abs(h.x - W * 0.72), 0.035);
+      col = amb * 0.16 + vec3(1.0, 0.15, 0.7) * (2.2 * step(abs(h.x - W * 0.28), 0.035) + 0.12 * exp(-abs(h.x - W * 0.28) * 2.0)) + vec3(0.1, 0.85, 1.0) * (2.2 * step(abs(h.x - W * 0.72), 0.035) + 0.12 * exp(-abs(h.x - W * 0.72) * 2.0));
     } else if (face < 2.5) {
       // Carpet, holding the screens' light and flecked.
-      col = amb * 0.1 + neonOf(hash12(vec2(floor(h.x / 0.8), seed * 71.0)) * 7.0) * 0.2 * exp(-(D - h.z) * 0.7);
+      col = amb * 0.2 + neonOf(hash12(vec2(floor(h.x / 0.8), seed * 71.0)) * 7.0) * 0.2 * exp(-(D - h.z) * 0.7);
       col += vec3(0.9, 0.3, 0.9) * 0.1 * step(0.93, hash12(floor(h.xz / 0.12))) * fine;
     } else {
       vec2 s = vec2(h.z, h.y - FLOOR_Y);
       vec2 f = vec2(fract(s.x), s.y);
       float hs = hash12(vec2(floor(s.x) + 9.0 * step(d.x, 0.0), seed * 37.0));
       float there = step(0.5, s.x);
-      col = mix(amb * 0.05, amb * 0.02, within(f, vec2(0.08, 0.0), vec2(0.92, 1.85)));
+      col = mix(amb * 0.24, amb * 0.05, within(f, vec2(0.08, 0.0), vec2(0.92, 1.85)));
       col = mix(col, screenOf(hs, (f - vec2(0.18, 1.0)) / vec2(0.64, 0.5)), there * within(f, vec2(0.18, 1.0), vec2(0.82, 1.5)));
       col = mix(col, neonOf(hs * 11.0) * 1.2, there * within(f, vec2(0.12, 1.6), vec2(0.88, 1.8)));
     }
@@ -451,8 +454,11 @@ export const SHOP_ROOM = /* glsl */ `
       float item = step(0.08, fract(g.x)) * step(fract(g.y), 0.72) * step(0.1, fract(g.y));
       col = mix(col, mix(lit * 0.25, box * lit * 0.8, mix(0.55, item, fine)), shelves);
       vec2 c = abs(q - vec2(W * 0.2, 1.95));
-      float cross = max(step(c.x, 0.3) * step(c.y, 0.1), step(c.x, 0.1) * step(c.y, 0.3));
-      col += green * 0.35 * exp(-dot(c, c) * 3.0);
+      // (In two rooms of a clinic in five: a long front cut into rooms
+      // each with its lit cross was one white cross printed along it.)
+      float one = step(fract(seed * 17.0), 0.4);
+      float cross = max(step(c.x, 0.3) * step(c.y, 0.1), step(c.x, 0.1) * step(c.y, 0.3)) * one;
+      col += green * 0.35 * exp(-dot(c, c) * 3.0) * one;
       col = mix(col, green * 2.4, cross);
     } else if (face < 1.5) {
       vec2 f = abs(fract(h.xz / 1.2) - 0.5);
@@ -580,16 +586,25 @@ export const SHOP_ROOM = /* glsl */ `
     w = p + d * t;
     if (t < tm) {
       if (w.y < FLOOR_Y + 0.5 && w.x > W * 0.1 && w.x < W * 0.9) col = lit * 0.5;
+      // (A figure is shaped as a mannequin is: shoulders, a waist, hips,
+      // legs apart, arms hung clear of the body, a neck and a small head,
+      // its form rounded and lit from the spot over it. A block with a disc
+      // on it read as a placeholder.)
       for (int i = 0; i < 2; i++) {
         float x0 = W * (i == 0 ? 0.26 + 0.1 * fract(seed * 19.0) : 0.66 + 0.1 * fract(seed * 23.0));
         vec2 m = vec2(w.x - x0, w.y - FLOOR_Y - 0.5);
-        float body = step(abs(m.x), 0.2 - 0.05 * smoothstep(1.0, 1.4, m.y)) * step(0.0, m.y) * step(m.y, 1.45);
-        float head = step(length(vec2(m.x, m.y - 1.6)), 0.105);
-        if (body + head > 0.5) {
+        float hw = m.y > 1.3 ? 0.18 - (m.y - 1.3) * 0.9 : (m.y > 1.0 ? mix(0.125, 0.18, (m.y - 1.0) / 0.3) : (m.y > 0.8 ? mix(0.16, 0.125, (m.y - 0.8) / 0.2) : 0.15 - 0.06 * smoothstep(0.75, 0.0, m.y)));
+        float torso = step(abs(m.x), hw) * step(0.0, m.y) * step(m.y, 1.42) * (m.y < 0.76 ? step(0.022, abs(m.x)) : 1.0);
+        float arm = step(abs(abs(m.x) - 0.215 + 0.04 * smoothstep(1.35, 0.85, m.y)), 0.028) * step(0.84, m.y) * step(m.y, 1.34);
+        float neck = step(abs(m.x), 0.032) * step(1.4, m.y) * step(m.y, 1.52);
+        float head = step(length(vec2(m.x, (m.y - 1.61) * 0.82)), 0.085);
+        if (torso + arm + neck + head > 0.5) {
           float hs = fract(seed * (31.0 + float(i) * 17.0));
-          vec3 dress = m.y > 1.38 ? vec3(0.8, 0.78, 0.74) : (m.y > 0.78 ? clothOf(hs * 7.0) : clothOf(hs * 3.0 + 0.4));
-          dress *= m.y < 0.74 ? step(0.025, abs(m.x)) : 1.0;
-          col = dress * lit * (0.75 + 0.5 * m.y / 1.6);
+          vec3 form = fract(hs * 11.0) < 0.5 ? vec3(0.78, 0.76, 0.72) : vec3(0.06, 0.06, 0.065);
+          vec3 dress = m.y > 0.78 ? clothOf(hs * 7.0) : clothOf(hs * 3.0 + 0.4);
+          dress = mix(dress, form, max(max(neck, head), arm * step(0.5, fract(hs * 5.0))));
+          float shapeK = torso > 0.5 ? sqrt(max(1.0 - pow(m.x / max(hw, 0.01), 2.0), 0.0)) : 0.8;
+          col = dress * lit * (0.45 + 0.45 * shapeK) * (0.7 + 0.6 * smoothstep(0.0, 1.7, m.y));
         }
       }
     }
@@ -638,7 +653,9 @@ export const SHOP_ROOM = /* glsl */ `
       col = lit * vec3(0.42, 0.42, 0.4) * 0.4 * (1.0 - 0.25 * step(min(blk.x, blk.y), 0.06) * fine);
       col = mix(col, vec3(0.02) + lit * 0.12 * step(abs(fract(s.y / 0.24) - 0.5), 0.08), step(D - 1.5, s.x) * step(s.x, D - 0.75) * step(s.y, 1.44));
     }
-    col *= 0.22 + 1.9 * pool;
+    // (A third of its light reaches the far corners: at a fifth, a
+    // workshop seen from the pavement was a dark front.)
+    col *= 0.34 + 1.8 * pool;
     float t = (D - 0.7) / d.z;
     vec3 w = p + d * t;
     vec2 c = vec2(w.x, w.y - FLOOR_Y);
@@ -727,7 +744,7 @@ export const SHOP_ROOM = /* glsl */ `
     if (kind < 0.5) return vec3(0.8, 0.93, 1.0) * 0.42;
     if (kind < 1.5) return vec3(1.0, 0.5, 0.25) * 0.2;
     if (kind < 2.5) return vec3(1.0, 0.6, 0.3) * 0.5;
-    if (kind < 3.5) return vec3(0.55, 0.3, 0.9) * 0.27;
+    if (kind < 3.5) return vec3(0.55, 0.3, 0.9) * 0.36;
     if (kind < 4.5) return vec3(0.7, 1.0, 0.86) * 0.36;
     if (kind < 5.5) return vec3(1.0, 0.8, 0.6) * 0.34;
     if (kind < 6.5) return vec3(0.95, 0.85, 0.5) * 0.21;
