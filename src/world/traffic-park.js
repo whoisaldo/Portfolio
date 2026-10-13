@@ -143,6 +143,14 @@ const PLACED = [
   // (props-source.json has nothing standing at either place).
   { x: -88.5, z: -327, yaw: 0, kind: "bus", lit: true, body: "#c45a1c", accent: "#ffb254", glow: false },
   { x: -92.1, z: -327.5, yaw: 0, kind: "stop", off: true, body: "#2b3038", accent: "#27dcf2", glow: true },
+  // A van broken down in the deck's yard under the descent, along x and
+  // facing east, its hazards going: the yard is dressed round it (the
+  // deck's LED barriers, jack, work lamp, beacon and the mechanic at its
+  // front). A quarter metre south of the yard's own mark (z -81.2), which
+  // put its north flank through the collar of the pier at (56, -83); the
+  // jack is then under its south flank. Last in the list, so nothing
+  // before it is dealt differently.
+  { x: 57.6, z: -80.95, yaw: Math.PI / 2, kind: "van", off: true, hazard: true },
 ];
 
 /**
