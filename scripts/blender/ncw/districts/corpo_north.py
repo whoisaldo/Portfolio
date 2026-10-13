@@ -622,7 +622,7 @@ def forecourts():
                 xa, xb = sorted((tx + sx * 6.9, tx + sx * 13.0))
                 K.planter(xa, xb, STEP_TOP, LOT_N - 0.1, y=0.0, h=py + 0.12, hedge=0, lit=hue)
                 quad(k("trim"), (xa + 0.18, py + 0.124, LOT_N - 0.28), (xb - 0.18, py + 0.124, LOT_N - 0.28), (xb - 0.18, py + 0.124, STEP_TOP + 0.18), (xa + 0.18, py + 0.124, STEP_TOP + 0.18), col=K.SOIL)
-                K.shrubs(xa + 0.4, xb - 0.3, (STEP_TOP + LOT_N) / 2 - 0.05, py + 0.12, random.Random(int(tx) + sx), spread=0.5, hmax=0.75)
+                K.shrubs2(xa + 0.4, xb - 0.3, (STEP_TOP + LOT_N) / 2 - 0.05, py + 0.12, random.Random(int(tx) + sx), spread=0.5, hmax=0.75)
                 ca, cb = sorted((tx + sx * 6.5, tx + sx * 6.9))
                 solid(ca, cb, 0.0, py + 0.5, STEP_TOP - 0.3, LOT_N - 0.1, K.STONE)
                 pipe(k("metal", 1), (tx + sx * 6.3, py + 0.95, STEP_TOP - 0.2), (tx + sx * 6.3, G0 + 0.95, LOT_N - 0.2), 0.03, segs=5)
@@ -1156,7 +1156,12 @@ def gaps():
         rx, rz = math.cos(yaw), -math.sin(yaw)
         for du in (-sw / 2 + 0.7, sw / 2 - 0.7):
             box(k("metal"), cx + rx * du - 0.1, cx + rx * du + 0.1, G0, 4.3, cz + rz * du - 0.25, cz + rz * du - 0.05, scale=1.0)
-    K.planter(gx - 5.6, gx + 5.6, -355.6, -354.4, lit="cyan")
+    # Two low beds of shrubs with a way between them (a hedge right across,
+    # chest high, showed only the heads of the people behind it).
+    rp = random.Random(7799)
+    for xa, xb in ((gx - 5.6, gx - 1.2), (gx + 1.2, gx + 5.6)):
+        K.planter(xa, xb, -355.6, -354.4, h=0.4, hedge=0.0, lit="cyan")
+        K.shrubs2(xa + 0.4, xb - 0.2, -355.0, G0 + 0.4, rp, spread=0.15, hmax=0.65)
     for j in range(5):
         zz = -357.4 - j * 1.6
         K.light_strip_ground(gx - 5.4, gx + 5.4, zz - 0.03, zz + 0.03, "white" if j % 2 else "cyan")
@@ -1208,6 +1213,7 @@ PALM0, PALM_STEP = 172.5, 13.0      # the median's first palm, and the step betw
 # braindance's car camera, beside the median, reads the third tower's foot
 # ahead of it (x 198.5) and the row behind it (x 276.5 to 315.5).
 NO_PALM = ((193.0, 247.0), (270.0, 316.0))
+MEDIAN_BOARD = 394.0       # a giant board on a low wall in the median's break between the palms at 386 and 402
 PALMS_E = (322.0, 338.0, 354.0, 370.0, 386.0, 402.0, 416.0)
 
 
@@ -1279,7 +1285,7 @@ def median():
         # a little lower west of x 316 so the car camera's rays pass over.)
         hmax = 0.42 if palm is None else 0.6 if xa > 316.0 else 0.42
         if palm is None:
-            K.shrubs(xa + 0.45, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax if kind == "shrub" else 0.34,
+            K.shrubs2(xa + 0.45, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax if kind == "shrub" else 0.34,
                      palette=K.GREENS if kind == "shrub" else K.FLOWERS)
         else:
             # (Its own planter sunk under the bed's soil, the trunk rising
@@ -1294,16 +1300,18 @@ def median():
             shown = not any(a_ < palm < b_ for a_, b_ in NO_PALM)
             if shown:
                 P.place("planter_palm", palm, -0.3 if palm in PALMS_E else top - 0.7 * sy - 0.03, -330.0, 0.7 * palm, sy=sy, sxz=sxz, district=CO)
-            K.shrubs(xa + 0.45, palm - 0.75, -330.0, top, r, spread=0.24, hmax=hmax)
-            K.shrubs(palm + 0.75, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax)
+            K.shrubs2(xa + 0.45, palm - 0.75, -330.0, top, r, spread=0.24, hmax=hmax)
+            K.shrubs2(palm + 0.75, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax)
             if shown:
                 for sx in (-1, 1):
                     K.uplight(palm + sx * 1.0, -330.0 + sx * 0.25, top, -sx * math.pi / 2, "amber")
                 light(CO, palm, 2.2, -330.0, "amber", 4.5)
-        # The break after it: a hooded light in its middle.
+        # The break after it: a hooded light in its middle (but where the
+        # giant board stands).
         if n_ + 1 < len(beds):
             gx_ = (xb + beds[n_ + 1][0]) / 2
-            K.bollard_light(gx_, -330.0, bed_y, "amber", pool=3.0)
+            if abs(gx_ - MEDIAN_BOARD) > 1.0:
+                K.bollard_light(gx_, -330.0, bed_y, "amber", pool=3.0)
     for xe in (x0 + 0.7, x1 - 0.7):
         K.bollard_light(xe, -330.0, bed_y, "amber", h=0.8, pool=3.0)
     # East of x 316, where palms stand, tall lamps with a head over each
@@ -1312,6 +1320,22 @@ def median():
         for yaw in (0.0, math.pi):
             P.place("lamp_sodium", lx, bed_y, -330.0 + (0.12 if yaw == 0.0 else -0.12), yaw, district=CO)
     K.holo_sign(362.0, -330.0, math.pi / 2, rk, "cyan", y=7.2, size=3.0, n=K.EYE, base=bed_y)
+    # A giant board on a low wall in the break between the last palms, an
+    # advert to each carriageway in a frame lined with light (BnnbP7pCIvQ@30),
+    # east of where the braindance's car camera ever looks across.
+    bx = MEDIAN_BOARD
+    box(k("castconcrete"), bx - 2.6, bx + 2.6, bed_y, bed_y + 1.0, -330.3, -329.7, scale=1.5, col=conc)
+    box(k("castconcrete", 1), bx - 2.65, bx + 2.65, bed_y + 0.94, bed_y + 1.0, -330.35, -329.65, scale=1.5, col=(0.26, 0.26, 0.27, 1.0))
+    yb = bed_y + 1.0 + 1.4
+    box(k("trim"), bx - 2.55, bx + 2.55, bed_y + 1.0, yb + 1.4, -330.12, -329.88, scale=1.0, col=K.BLACK)
+    for yaw, zf in ((0.0, -329.86), (math.pi, -330.14)):
+        K.advert(bx, yb, zf, 4.8, 2.6, yaw, 2 if yaw == 0.0 else 5, seed=0.53, depth=0.02)
+    for zf in (-329.86, -330.16):
+        for x0_, x1_, y0_, y1_ in ((bx - 2.55, bx + 2.55, yb + 1.33, yb + 1.4), (bx - 2.55, bx + 2.55, yb - 1.4, yb - 1.33),
+                                   (bx - 2.55, bx - 2.48, yb - 1.4, yb + 1.4), (bx + 2.48, bx + 2.55, yb - 1.4, yb + 1.4)):
+            box(k("glow"), x0_, x1_, y0_, y1_, zf, zf + 0.02, scale=1.0, col=GLOW["pink"])
+    for zz in (-331.6, -328.4):
+        light(CO, bx, 1.5, zz, "pink", 5.0)
 
 
 def bed_garden(xa, xb, z0, z1, y, kind, rk, conc, rim):
@@ -1326,7 +1350,9 @@ def bed_garden(xa, xb, z0, z1, y, kind, rk, conc, rim):
         x = xa + rk.uniform(0.6, 1.4)
         while x < xb - 0.6:
             g = rk.uniform(0.05, 0.11)
-            K.bush(x, -330.0 + rk.uniform(-0.2, 0.2), top, rk.uniform(0.22, 0.38), rk.uniform(0.18, 0.4), (g, g, g * 1.05, 1.0), rk)
+            # (Tufts of grass in the gravel, on the stones' dice: grey
+            # boulders of a few facets read as rocks dumped on a median.)
+            K.bush2(x, -330.0 + rk.uniform(-0.2, 0.2), top, rk.uniform(0.22, 0.38), rk.uniform(0.18, 0.4), (g * 0.55, g * 1.05, g * 0.35, 1.0), rk)
             if rk.random() < 0.5:
                 K.glow_box(x + 0.5, x + 0.62, top, top + 0.03, -330.06, -329.94, "amber", 1)
             x += rk.uniform(1.2, 2.4)
@@ -1342,8 +1368,8 @@ def bed_garden(xa, xb, z0, z1, y, kind, rk, conc, rim):
         for yaw, zf in ((0.0, -329.76), (math.pi, -330.24)):
             K.bb(cx, top + 0.29, zf, w, 0.4, yaw, K.board_col(rk, K.MEDIA))
         K.glow_box(cx - w / 2, cx + w / 2, top + 0.55, top + 0.59, -330.2, -329.8, "white", 1)
-        K.shrubs(xa + 0.4, cx - w / 2 - 0.3, -330.0, top, rk, spread=0.2, hmax=0.36)
-        K.shrubs(cx + w / 2 + 0.3, xb - 0.3, -330.0, top, rk, spread=0.2, hmax=0.36)
+        K.shrubs2(xa + 0.4, cx - w / 2 - 0.3, -330.0, top, rk, spread=0.2, hmax=0.36)
+        K.shrubs2(cx + w / 2 + 0.3, xb - 0.3, -330.0, top, rk, spread=0.2, hmax=0.36)
 
 
 def bridge():

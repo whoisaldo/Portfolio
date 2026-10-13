@@ -1558,6 +1558,70 @@ def bush(x, z, y, rad, h, col, r, detail=0):
 
 
 FLOWERS = ((0.05, 0.1, 0.04, 1), (0.2, 0.05, 0.09, 1), (0.03, 0.08, 0.05, 1), (0.17, 0.14, 0.11, 1), (0.04, 0.09, 0.03, 1))
+CLUMP = 0.625        # props.py: a clump of leaf on crossed cards, cut by the site's plant shader
+
+
+def leaf_cards(cx, cy, cz, w, h, col, yaw, detail=0):
+    """A clump of leaf w across and h high round (cx, cy, cz): two upright
+    cards crossed and one lying nearly flat through it, on the props'
+    `plant` material, which cuts it into florets fullest at its middle
+    and ragged at its rim (props.clump, with its own width and height)."""
+    col = (*col[:3], CLUMP)
+    key = (CO, "plant", detail)
+    for a in (yaw, yaw + math.pi / 2):
+        c, s_ = math.cos(a) * w / 2, math.sin(a) * w / 2
+        quad(key, (cx - c, cy - h / 2, cz + s_), (cx + c, cy - h / 2, cz - s_), (cx + c, cy + h / 2, cz - s_), (cx - c, cy + h / 2, cz + s_), col=col)
+    c, s_ = math.cos(yaw + 0.8) * w / 2, math.sin(yaw + 0.8) * w / 2
+    t = h * 0.12
+    quad(key, (cx - c, cy - t, cz + s_), (cx - s_, cy, cz - c), (cx + c, cy + t, cz - s_), (cx + s_, cy, cz + c), col=col)
+
+
+def bush2(x, z, y, rad, h, col, r, detail=0):
+    """bush() as a living shrub: the same dice thrown in the same order (so
+    whatever is dealt after a bed is unchanged, and the shrub stands where
+    and as high as the old one did), drawn as clumps of leaf on crossed
+    cards instead of faceted lumps."""
+    clumps = 1 if rad < 0.3 or not detail else r.choice((1, 2, 2))
+    for c_ in range(clumps):
+        cx_ = x + (r.uniform(-0.5, 0.5) * rad if c_ else 0.0)
+        cz_ = z + (r.uniform(-0.5, 0.5) * rad if c_ else 0.0)
+        rr = rad * (1.0 if not c_ else r.uniform(0.55, 0.8))
+        hh = h * (1.0 if not c_ else r.uniform(0.6, 0.85))
+        n = 7 if detail else 6
+        a0 = r.uniform(0.0, math.tau)
+        for j in range(n):
+            r.uniform(-0.18, 0.18)
+            r.uniform(0.8, 1.2)
+            r.uniform(0.6, 0.95)
+            r.uniform(0.55, 0.78)
+        for q in range(3):
+            r.uniform(0.9, 1.08)
+        tint = col
+        if r.random() < 0.12:
+            tint = r.choice(((0.2, 0.05, 0.09, 1), (0.16, 0.14, 0.12, 1), (0.18, 0.1, 0.03, 1)))
+        g = 1.9
+        leaf = (min(tint[0] * g, 1.0), min(tint[1] * g, 1.0), min(tint[2] * g, 1.0), 1.0)
+        w = max(rr * 2.3, hh * 1.1)
+        leaf_cards(cx_, y + hh * 0.52, cz_, w, hh * 1.08, leaf, a0, 0)
+        if detail and rr > 0.32:
+            leaf_cards(cx_ + rr * 0.45 * math.cos(a0), y + hh * 0.36, cz_ + rr * 0.45 * math.sin(a0), w * 0.6, hh * 0.72, leaf, a0 + 1.1, 1)
+
+
+def shrubs2(xa, xb, zc, y, r, spread=0.3, hmax=0.55, palette=GREENS):
+    """shrubs() drawn with bush2: the same dice, living shrubs."""
+    x = xa
+    n_bush = 0
+    while x < xb - 0.4:
+        for _ in range(r.randrange(2, 5)):
+            if x > xb - 0.4:
+                break
+            rad = r.uniform(0.24, 0.5)
+            h = r.uniform(hmax * 0.4, hmax)
+            cz = zc + r.uniform(-spread, spread)
+            n_bush += 1
+            bush2(x, cz, y, rad, h, r.choice(palette), r, detail=n_bush % 2)
+            x += rad * r.uniform(1.1, 1.8)
+        x += r.uniform(0.4, 1.2)
 
 
 def shrubs(xa, xb, zc, y, r, spread=0.3, hmax=0.55, palette=GREENS):
