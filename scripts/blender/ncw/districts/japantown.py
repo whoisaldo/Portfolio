@@ -1643,6 +1643,34 @@ def stair_head(x, z, y, side, wall):
     J.put("jt_hutdoor", c0[0], y + SILL, z, HALF_PI * side)
 
 
+def hut_dress(x, z, y, side):
+    """What a deck's stair hut carries (round 5: "a flat beige box with one
+    door and one lamp"), on dice of its own: a dark plinth and grime under
+    its slab, a unit on one side wall dripping, a pipe down a corner, the
+    meters by the door, a bill or two, a vent and a small tank or an aerial
+    on its roof, a box sign by the door."""
+    rh = random.Random(round(x * 17.0 + z * 31.0))
+    gr = (0.035, 0.033, 0.03, 1)
+    for zz, sgn_ in ((z - 1.1, -1), (z + 1.1, 1)):
+        f = B.Face("+z" if sgn_ > 0 else "-z", zz, x - 1.0, x + 1.0)
+        f.quad((D, "trim", 1), 0.0, 2.0, y, y + 0.22, 0.012, col=gr)
+        f.quad((D, "trim", 1), 0.15, 1.85, y + 2.45, y + 2.68, 0.012, col=(0.06, 0.055, 0.05, 1))
+        if (sgn_ > 0) == (rh.random() < 0.5):
+            P.place("jt_ac", *f.p(f.at(rh.uniform(0.5, 1.5)), y + 0.9, 0.0), f.yaw, district=D)
+        else:
+            J.put("jt_bill", *f.p(f.at(rh.uniform(0.4, 1.4)), y + 1.1, 0.02), f.yaw, 1.0, 1.0)
+    back = B.Face("-x" if side > 0 else "+x", x - side * 1.0, z - 1.1, z + 1.1)
+    back.quad((D, "trim", 1), 0.0, 2.2, y, y + 0.22, 0.012, col=gr)
+    P.place("pipe_v", *back.p(back.at(0.25), y, 0.0), back.yaw, sy=2.7, district=D)
+    if rh.random() < 0.6:
+        J.put("jt_vent", *back.p(back.at(1.4), y + 1.2, 0.0), back.yaw)
+    dw = B.Face("+x" if side > 0 else "-x", x + side * 1.0, z - 1.1, z + 1.1)
+    J.put("jt_meters", *dw.p(dw.at(0.15), y + SILL, 0.0), dw.yaw)
+    J.board(dw, 1.88, y + 1.75, "bx", k=0.38, out=0.06)
+    J.put("roof_vent", x - side * 0.4, y + 2.82, z + rh.uniform(-0.6, 0.6), rh.uniform(0, 6.28))
+    J.put("jt_tank_r" if rh.random() < 0.5 else "antenna", x + side * 0.2, y + 2.82, z + rh.choice((-0.6, 0.6)), rh.uniform(0, 6.28), 0.55)
+
+
 def hut(x, z, y, col, r, door=None, deck=False):
     """A stair hut: rendered walls under a slab that oversails them, a
     framed door standing open on the lit stair, a caged lamp over it and
@@ -1655,6 +1683,7 @@ def hut(x, z, y, col, r, door=None, deck=False):
     o = lambda t: dx + side * t  # noqa: E731 (t metres out of the door's wall)
     if deck:
         stair_head(x, z, y, side, wall)
+        hut_dress(x, z, y, side)
     else:
         box((D, "plaster", 0), x - 1.0, x + 1.0, y, y + 2.3, z - 1.1, z + 1.1, scale=1.5, col=wall)
         box((D, "dark", 1), x - 1.2, x + 1.2, y + 2.3, y + 2.42, z - 1.3, z + 1.3, scale=1.0, bottom=True)
@@ -1763,6 +1792,20 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
                 c = (c[0] * 1.5 + 0.02, c[1] * 1.15 + 0.008, c[2] * 0.8, 1)
             xa, xc = sorted((X(ua + 0.035), X(ub - 0.035)))
             quad((D, "glow", 1), (xa, y + 0.012, zb - 0.035), (xc, y + 0.012, zb - 0.035), (xc, y + 0.012, za + 0.035), (xa, y + 0.012, za + 0.035), col=c)
+            # (Round 5, dice of their own: "large flat two-tone squares with no
+            # joints, stains or drains": each slab a pair of 1.2 m flags or
+            # four, its joints dark, one in four with a stain spread on it.)
+            rj = random.Random(round(ua * 11.0 + za * 5.0 + x0 * 7.0) + 1)
+            jc = tuple(v * 0.35 for v in c[:3]) + (1,)
+            mx, mz = (xa + xc) / 2, (za + zb) / 2
+            if zb - za > 1.6:
+                quad((D, "glow", 1), (xa, y + 0.014, mz + 0.016), (xc, y + 0.014, mz + 0.016), (xc, y + 0.014, mz - 0.016), (xa, y + 0.014, mz - 0.016), col=jc)
+            if xc - xa > 1.6 and rj.random() < 0.6:
+                quad((D, "glow", 1), (mx - 0.016, y + 0.014, zb - 0.035), (mx + 0.016, y + 0.014, zb - 0.035), (mx + 0.016, y + 0.014, za + 0.035), (mx - 0.016, y + 0.014, za + 0.035), col=jc)
+            if rj.random() < 0.25:
+                sx_, sz_, sr_ = rj.uniform(xa + 0.4, xc - 0.4), rj.uniform(za + 0.4, zb - 0.4), rj.uniform(0.3, 0.6)
+                pts_ = [(sx_ + math.cos(a_) * sr_ * rj.uniform(0.6, 1.2), y + 0.016, sz_ + math.sin(a_) * sr_ * rj.uniform(0.6, 1.2)) for a_ in (-i_ * 1.2566 for i_ in range(5))]
+                poly((D, "glow", 1), pts_, [(0, 0)] * 5, tuple(v * 0.55 for v in c[:3]) + (1,))
             # (Round 4: a crack across one slab in four, a grimy corner on another.)
             if rp.random() < 0.25:
                 ca, cb = (xa + (xc - xa) * rp.uniform(0.1, 0.4), za + 0.1), (xa + (xc - xa) * rp.uniform(0.6, 0.9), zb - 0.1)
@@ -1799,15 +1842,17 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
     for i, hh in enumerate((0.6, 0.3)):
         sa, sb = sorted((X(tu + 0.35 * i), X(tu + 0.35 * (i + 1))))
         box((D, "concrete", 1), sa, sb, top, top + hh, z1 - 2.75, z1 - 0.65, scale=3.0)
-    # (The kit's clear glass is double-sided: one pane.)
-    quad((D, "clearglass", 1), ga, gb, (gb[0], top + 1.9, gb[2]), (ga[0], top + 1.9, ga[2]), col=(0.75, 0.95, 1.0, 1))
-    zz, zr = z0 + 2.1, gb[2]
-    while zz < zr + 0.01:
-        box((D, "metal", 1), gx - 0.04, gx + 0.04, top + 0.9, top + 1.95, zz - 0.04, zz + 0.04, scale=1.0)
-        zz += max(0.6, (zr - z0 - 2.1) / max(1, round((zr - z0 - 2.1) / 1.8)))
-    key, col = lit("cyan", gx)
+    # (Round 5: the glass read as a near-black slab from the deck, and its
+    # lit top as "a floating laser line" at eye height: a steel rail of
+    # posts and two rails along the terrace's edge instead, and the light a
+    # thin line along the terrace's lip, under the knee.)
+    zr = gb[2]
     if zr - z0 - 2.1 > 0.5:
-        box(key, gx - 0.03, gx + 0.03, top + 1.9, top + 1.95, z0 + 2.1, zr, scale=1.0, col=col, bottom=True)
+        n_ = max(1, round((zr - z0 - 2.1) / 3.0))
+        for i_ in range(n_):
+            J.put("jt_rail", gx, top + 0.9, z0 + 2.1 + (zr - z0 - 2.1) * (i_ + 0.5) / n_, -HALF_PI, 0.62, (zr - z0 - 2.1) / (2.0 * n_))
+        la, lb = sorted((X(tu), X(tu + 0.025)))
+        box((D, "glow", 0), la, lb, top + 0.8, top + 0.825, z0 + 2.1, zr, scale=1.0, col=tuple(v * 0.35 for v in GLOW["cyan"][:3]) + (1,), bottom=True)
     for t in (0.3, 0.75):
         J.put("jt_planter", X(1.3), top + 0.9, z0 + d * t, r.uniform(0, 1.5))
     hut(X(1.6), z1 - 1.7, top + 0.9, tcol, r, door=sgn, deck=True)
@@ -1914,6 +1959,33 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
     if lucy or rs.random() < 0.3:
         empty(f"anchor_steam_drain_jt{len(DRAINS)}", (X(w - 1.3), top + 0.14, z0 + 0.7))
         DRAINS.append(top)
+    # (Round 5, dice of their own: "props are sparse and scattered": more to
+    # sit on and more growing, and bulbs strung from the hut's roof to a
+    # pole at the outlook's corner.)
+    rk = random.Random(round(x0 * 29.0 + z0 * 13.0) + 77)
+    more = ["jt_chairs", "jt_plants", "bench", "jt_planter", "jt_stools", "jt_plants", "jt_chairs", "jt_planter", "jt_plants", "bench"]
+    n_more, done, tries = min(len(more), int((w - tu) * d / 16)), 0, 0
+    while done < n_more and tries < 50 and w - tu > 5.0 and d > 5.0:
+        tries += 1
+        px, pz = X(rk.uniform(tu + 1.0, w - 1.6)), rk.uniform(z0 + 1.3, z1 - 1.3)
+        if any(math.hypot(px - tx, pz - tz) < tr_ + 1.1 for tx, tz, tr_ in taken):
+            continue
+        name, yaw = more[done], rk.uniform(0, 6.28)
+        if name == "bench":
+            bench(px, pz, yaw, rk, top + 0.1)
+        elif name == "jt_stools":
+            stools(px, pz, yaw, rk, top + 0.1)
+        else:
+            J.put(name, px, top + 0.1, pz, yaw)
+            if name == "jt_chairs" and rk.random() < 0.6:
+                qx, qz = loc(px, pz, yaw, 0.8, 0.0)
+                stand(qx, qz, yaw - HALF_PI, "sit", top + 0.56)
+        taken.append((px, pz, 1.3))
+        done += 1
+    if d > 6.5 and w - tu > 7.0:
+        pz_ = z0 + 0.55
+        J.put("jt_pole", X(w - 0.55), top + 0.1, pz_)
+        J.span("jt_festoon", (X(1.6), z1 - 1.7), (X(w - 0.55), pz_), top + 3.6, 0.9)
     if lucy:
         # The named view: from the terrace, over its glass rail and the
         # deck, out past the rail to the skyline.
