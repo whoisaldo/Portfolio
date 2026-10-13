@@ -284,6 +284,18 @@ for i, (slug, height) in enumerate(TOWERS):
          ((0, 0), (1, 0), (1, 1), (0, 1)), (r.random(), r.random(), 1.0, 1.0))
     hall = HALL.get(slug)
     box((CO, "metal", 0), tx - half, tx + half, LOBBY_H - 0.5, LOBBY_H, tz + half - 1.6, tz + half + (0.0 if hall else 3.0), scale=1.0)
+    if not hall:
+        # Its soffit coffered: dark ribs, a panel of light in each bay, flush.
+        ys = LOBBY_H - 0.51
+        za, zb = tz + half - 1.5, tz + half + 2.9
+        for j in range(11):
+            xr = tx - half + 0.4 + j * (2 * half - 0.8) / 10
+            box((CO, "trim", 1), xr - 0.06, xr + 0.06, ys - 0.004, ys, za, zb, scale=1.0, col=K.BLACK)
+        for j in range(10):
+            xc = tx - half + 0.4 + (j + 0.5) * (2 * half - 0.8) / 10
+            for zc in (za + 1.1, zb - 1.1):
+                quad((CO, "glow", 0), (xc - 0.8, ys - 0.006, zc - 0.45), (xc + 0.8, ys - 0.006, zc - 0.45), (xc + 0.8, ys - 0.006, zc + 0.45),
+                     (xc - 0.8, ys - 0.006, zc + 0.45), col=(0.3, 0.29, 0.27, 1.0))
     if hall:
         # The open hall: the curtain wall round its back and its sides
         # behind it, a soffit over it; its own sides stand open.

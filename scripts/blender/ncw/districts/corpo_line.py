@@ -302,3 +302,41 @@ def line():
 
 
 line()
+
+
+def life():
+    """More people on the boulevard's pavements, off the walkers' lines
+    (against the lot lines: the south side's from x 140 to 376, the north
+    side's east of the braindance's views, x 280 to 450), in ones, twos and
+    threes, and a second blade sign off each south front, higher and
+    turned the other way."""
+    rl = random.Random(9311)
+    poses = ("idle", "phone", "smoke", "lean", "phone", "idle")
+    x = 141.0
+    while x < 375.0:
+        if all(abs(x - p) > 3.5 for p in PIERS):
+            n = rl.choice((1, 1, 2, 2, 3))
+            if n == 1:
+                pose = rl.choice(poses)
+                stand(x, FACADE - (0.42 if pose == "lean" else 0.62), math.pi + rl.uniform(-0.6, 0.6), pose)
+            else:
+                K.talk(x, FACADE - 0.7, rl.uniform(0.0, math.tau), n)
+        x += rl.uniform(9.0, 16.0)
+    x = 281.0
+    while x < 449.0:
+        if not (288.0 < x < 290.0):
+            n = rl.choice((1, 2, 2, 3))
+            if n == 1:
+                stand(x, -343.45, rl.uniform(-0.6, 0.6), rl.choice(poses[:3]))
+            else:
+                K.talk(x, -343.4, rl.uniform(0.0, math.tau), n)
+        x += rl.uniform(10.0, 17.0)
+    # A second blade off each south front, higher, turned the other way.
+    from ncw.districts.corpo_south import S1, LOT_S
+    for j, (x0, x1, h) in enumerate(S1[:6]):
+        bx = x0 + 1.0
+        K.st_blade(bx, 9.6 + (j % 2) * 1.6, LOT_S - 1.1, ("bl", "bm")[j % 2], math.radians(90 - (16 if j % 2 else -20)), bracket=(bx, LOT_S),
+                   n=K.DESIGNS[("bl", "bm")[j % 2]][(j * 3 + 1) % len(K.DESIGNS[("bl", "bm")[j % 2]])])
+
+
+life()

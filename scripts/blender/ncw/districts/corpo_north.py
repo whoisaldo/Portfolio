@@ -786,7 +786,7 @@ def room():
         xa, xb = sorted((tx + sx * 12.3, tx + sx * 13.0))
         solid(xa, xb, 0.0, 8.0, z0, z1, K.STONE)
         # A screen and a line of light on each side wall, facing in.
-        K.panel(tx + sx * 12.28, 5.6, z0 + 2.5, 3.6, 2.0, -sx * math.pi / 2, "cyan", 0.5)
+        K.advert(tx + sx * 12.24, 5.6, z0 + 2.5, 3.6, 2.0, -sx * math.pi / 2, 3 + (sx > 0), seed=0.27, depth=0.06)
         box(k("glow"), tx + sx * 12.28 - 0.02, tx + sx * 12.28 + 0.02, 0.4, 7.6, z1 - 0.5, z1 - 0.4, scale=1.0, col=K.brand(0))
     # The ceiling: stone, a grid of light panels in it.
     quad(k("trim"), (tx - 12.6, 7.99, z0), (tx + 12.6, 7.99, z0), (tx + 12.6, 7.99, z1), (tx - 12.6, 7.99, z1), col=K.STEEL)
@@ -809,19 +809,22 @@ def room():
     fg.box(k("glow"), 0.8, 23.8, 4.5, 4.6, 0.1, 0.12, col=K.brand(0, 0.5))
     for j in range(12):
         fg.box(k("glow"), 1.24 + j * 2.0, 1.36 + j * 2.0, 4.9, 7.5, 0.1, 0.12, col=K.brand(0, 0.8))
-    for a, b in ((0.5, 7.9), (16.7, 24.1)):
+    for a, b in ((0.5, 7.9), (14.6, 18.1)):
         K.fin_screen(fg, a, b, 0.0, 3.95, step=1.05)
     # The floor: polished stone, darker than the forecourt's, a light line
     # across its front.
     K.paving_band(tx - 12.6, tx + 12.6, z0, z1, K.STONE)
     K.light_strip_ground(tx - 12.4, tx + 12.4, z1 - 0.12, z1 - 0.04, "cyan")
-    # The gallery: a slab across the back, a glass rail, a stair up to it.
+    # The gallery: a slab across the back to the stair, a glass rail, the
+    # stair rising along the back wall to its east end (beside the
+    # gallery's edge, not across it).
     gy = 4.2
-    box(k("trim"), tx - 12.6, tx + 12.6, gy - 0.25, gy, z0 + 0.12, z0 + 2.3, scale=2.0, col=K.PALE, bottom=True)
+    box(k("trim"), tx - 12.6, tx + 6.3, gy - 0.25, gy, z0 + 0.12, z0 + 2.3, scale=2.0, col=K.PALE, bottom=True)
     K.rail(tx - 12.5, z0 + 2.28, tx + 6.0, z0 + 2.28, gy, "cyan")
-    K.glow_box(tx - 12.5, tx + 12.5, gy - 0.3, gy - 0.25, z0 + 2.2, z0 + 2.3, "amber")
-    K.steps_x(z0 + 2.3, z0 + 3.5, tx + 12.4, tx + 6.2, G0, gy, "cyan")
-    K.rail(tx + 6.2, z0 + 3.5, tx + 12.4, z0 + 3.5, gy - 2.0, "cyan", h=0.05)
+    K.rail(tx + 6.2, z0 + 1.45, tx + 6.2, z0 + 2.28, gy, "cyan")
+    K.glow_box(tx - 12.5, tx + 6.3, gy - 0.3, gy - 0.25, z0 + 2.2, z0 + 2.3, "amber")
+    K.steps_x(z0 + 0.15, z0 + 1.35, tx + 12.4, tx + 6.3, G0, gy, "cyan")
+    K.rail(tx + 6.3, z0 + 1.42, tx + 12.4, z0 + 1.42, gy - 2.0, "cyan", h=0.05)
     # The desk, a lit edge along its top, and somebody behind it.
     box(k("trim"), tx - 3.4, tx + 0.6, G0, G0 + 1.05, z0 + 3.0, z0 + 3.7, scale=1.0, col=K.BLACK)
     K.glow_box(tx - 3.4, tx + 0.6, G0 + 1.05, G0 + 1.09, z0 + 3.62, z0 + 3.7, "cyan")
@@ -838,11 +841,11 @@ def room():
     stand(tx - 3.0, z1 - 0.5, 0.0, "idle")
     stand(tx + 3.0, z1 - 0.6, 0.0, "idle")
     # People on the gallery (the clue's voices, five metres up) and under it.
-    K.talk(tx - 6.0, z0 + 1.3, 0.3, 3, y=gy)
-    K.talk(tx + 1.0, z0 + 1.2, 1.1, 2, y=gy)
-    stand(tx - 2.2, z0 + 1.95, 0.0, "lean", gy)
-    stand(tx + 3.4, z0 + 1.9, 0.0, "phone", gy)
-    stand(tx - 10.0, z0 + 1.9, 0.0, "lean", gy)
+    K.talk(tx - 6.6, z0 + 1.1, 0.3, 3, y=gy)
+    K.talk(tx + 0.4, z0 + 1.5, 1.1, 2, y=gy)
+    stand(tx - 1.5, z0 + 1.95, 0.2, "lean", gy)
+    stand(tx + 4.9, z0 + 0.8, -0.9, "phone", gy)
+    stand(tx - 11.2, z0 + 1.7, 0.4, "lean", gy)
     K.talk(tx + 2.6, z0 + 3.6, 0.8, 2)
     stand(tx + 8.6, z0 + 1.2, math.radians(-30), "phone")
     stand(tx - 6.4, z0 + 4.2, math.radians(160), "idle")
@@ -1227,7 +1230,10 @@ def median():
     kinds = []
     for n_, (xa, xb, palm) in enumerate(beds):
         stood = palm is not None and not any(a_ < palm < b_ for a_, b_ in NO_PALM)
-        kinds.append("shrub" if stood else ("flower", "stone", "plinth", "shrub")[(n_ + rk.randrange(2)) % 4])
+        kind = "shrub" if stood else ("flower", "stone", "plinth", "shrub")[(n_ + rk.randrange(2)) % 4]
+        # (A plinth only where the braindance's car camera does not look
+        # back along the median at the third tower.)
+        kinds.append("stone" if kind == "plinth" and 172.0 < xa < 316.0 else kind)
     for n_, (xa, xb, palm) in enumerate(beds):
         kind = kinds[n_]
         if kind in ("stone", "plinth"):
@@ -1236,7 +1242,7 @@ def median():
                 gx_ = (xb + beds[n_ + 1][0]) / 2
                 K.bollard_light(gx_, -330.0, bed_y, "amber", pool=3.0)
             continue
-        top = bed_y + (0.3 if palm is None else 0.58 if palm in PALMS_E else 0.46) + (0.12 if kind == "flower" else 0.0)
+        top = bed_y + (0.3 if palm is None else 0.58 if palm in PALMS_E else 0.46)
         box(k("castconcrete"), xa, xb, bed_y, top, z0 + 0.06, z1 - 0.06, scale=1.5, col=conc)
         box(k("castconcrete", 1), xa - 0.04, xb + 0.04, top - 0.07, top, z0 + 0.02, z1 - 0.02, scale=1.5, col=(0.26, 0.26, 0.27, 1.0))
         for za, zb in ((z0 + 0.03, z0 + 0.06), (z1 - 0.06, z1 - 0.03)):
@@ -1245,7 +1251,9 @@ def median():
              col=K.SOIL)
         # (West of x 316 nothing in a bed stands much over a metre: the
         # braindance's car camera reads the towers across it.)
-        hmax = 0.42 if palm is None else 0.6 if xa > 316.0 else 0.5
+        # (The shrubs are clumps now, broader than the old single lumps:
+        # a little lower west of x 316 so the car camera's rays pass over.)
+        hmax = 0.42 if palm is None else 0.6 if xa > 316.0 else 0.42
         if palm is None:
             K.shrubs(xa + 0.45, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax if kind == "shrub" else 0.34,
                      palette=K.GREENS if kind == "shrub" else K.FLOWERS)
@@ -1306,10 +1314,10 @@ def bed_garden(xa, xb, z0, z1, y, kind, rk, conc, rim):
             box(k("glow"), xa + 0.25, xb - 0.25, top - 0.1, top - 0.05, za, zb, scale=1.0, col=rim)
         cx = (xa + xb) / 2
         w = min(3.2, xb - xa - 2.0)
-        box(k("trim"), cx - w / 2 - 0.12, cx + w / 2 + 0.12, top, top + 0.7, -330.22, -329.78, scale=1.0, col=K.BLACK)
+        box(k("trim"), cx - w / 2 - 0.12, cx + w / 2 + 0.12, top, top + 0.55, -330.22, -329.78, scale=1.0, col=K.BLACK)
         for yaw, zf in ((0.0, -329.76), (math.pi, -330.24)):
-            K.bb(cx, top + 0.37, zf, w, 0.5, yaw, K.board_col(rk, K.MEDIA))
-        K.glow_box(cx - w / 2, cx + w / 2, top + 0.7, top + 0.74, -330.2, -329.8, "white", 1)
+            K.bb(cx, top + 0.29, zf, w, 0.4, yaw, K.board_col(rk, K.MEDIA))
+        K.glow_box(cx - w / 2, cx + w / 2, top + 0.55, top + 0.59, -330.2, -329.8, "white", 1)
         K.shrubs(xa + 0.4, cx - w / 2 - 0.3, -330.0, top, rk, spread=0.2, hmax=0.36)
         K.shrubs(cx + w / 2 + 0.3, xb - 0.3, -330.0, top, rk, spread=0.2, hmax=0.36)
 
