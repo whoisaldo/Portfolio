@@ -130,3 +130,4 @@ from ncw.districts import mega_life  # noqa: E402,F401
 from ncw.districts import mega_court  # noqa: E402,F401
 from ncw.districts import mega_fix  # noqa: E402,F401
 from ncw.districts import mega_mono  # noqa: E402,F401
+from ncw.districts import mega_shaft  # noqa: E402,F401

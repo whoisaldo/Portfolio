@@ -18,7 +18,7 @@ import ncw.kit as K
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.mega_kit import *  # noqa: F401,F403
-from ncw.districts.mega_homes import homes_floor, homes_face, well_bays
+from ncw.districts.mega_homes import homes_floor, homes_face, well_bays, lit_window
 
 
 def hero_hidden(x0, x1, y0, y1, z):
@@ -330,11 +330,10 @@ for f, s0, s1, k0, k1, out in PODS:
     fbox(f, FACE_T, s0, s1, y0, y1, 0.0, out, col=CONC, bottom=True)
     for yy in (y0, y1 - 0.35):
         f.quad((D, "trim", 0), s0, s1, yy, yy + 0.35, out + 0.02, col=YEL)
-    for kk in range(k0, k1 + 1):
+    pa = face(f.name, f.plane + (f.nz or f.nx) * out, f.a0, f.a1)
+    for kk in range(k0 + 1, k1 + 1):
         for t in (0.3, 0.7):
-            ss = s0 + (s1 - s0) * t
-            pa = face(f.name, f.plane + (f.nz or f.nx) * out, f.a0, f.a1)
-            well_window(pa, ss, floor_y(kk) - 0.2, _rw.choice(("pink", "amber", "magenta", "white")), _rw.uniform(0.3, 0.55), w=0.9)
+            lit_window(pa, s0 + (s1 - s0) * t, floor_y(kk) + 0.45, 1.7, 1.55, 0.03, _rw, hue=_rw.choice(("amber", "white", "amber", "pink")))
     P.place("ac_wall", *f.p(f.at(s1 - 0.8), y1 - 1.2, out), f.yaw)
 
 
@@ -349,13 +348,40 @@ def railing(f, a0, a1, y, out, h=1.05):
         fbox(f, (D, "metal", 1), sp - 0.03, sp + 0.03, y, y + h, out - 0.08, out - 0.02)
 
 
+def underside(f, s0, s1, yb, w0, w1, r, sky=0.0, detail=1):
+    """A deck's underside as the court sees it looking up: here and there a
+    panel of the warm light its lamps throw (Fn9gKhU_2_Q@21's orange
+    decks), the dark concrete between, a small white fitting now and then;
+    near the mouth the sky's lilac takes over (`sky` 0..1)."""
+    y = yb - 0.05
+    n = max(1, int((s1 - s0) // 1.9))
+    for i in range(n):
+        a, b = s0 + (s1 - s0) * i / n + 0.12, s0 + (s1 - s0) * (i + 1) / n - 0.12
+        if i % 3 == 1 and sky < 0.5:
+            pc, pd = f.p(f.at((a + b) / 2 - 0.4), y, (w0 + w1) / 2 - 0.06), f.p(f.at((a + b) / 2 + 0.4), y, (w0 + w1) / 2 + 0.06)
+            hquad((D, "glow", detail), min(pc[0], pd[0]), max(pc[0], pd[0]), min(pc[2], pd[2]), max(pc[2], pd[2]), y, up=False, col=dim(GLOW["white"], 0.55))
+            continue
+        if r.random() < 0.45 * (1.0 - sky):
+            continue
+        # A panel the width of the bay, from the wall to short of the edge.
+        pa, pb = f.p(f.at(a), y, w0 + 0.1), f.p(f.at(b), y, w0 + 0.1 + (w1 - w0 - 0.2) * r.uniform(0.55, 0.9))
+        x0, x1, z0, z1 = min(pa[0], pb[0]), max(pa[0], pb[0]), min(pa[2], pb[2]), max(pa[2], pb[2])
+        warm = dim(r.choice((GLOW["amber"], ORANGE, ORANGE)), r.uniform(0.045, 0.1))
+        cool = dim(LILAC, r.uniform(0.2, 0.35) + 0.4 * sky)
+        col = tuple(warm[c] * (1.0 - sky) + cool[c] * sky for c in range(3)) + (1.0,)
+        hquad((D, "glow", detail), x0, x1, z0, z1, y, up=False, col=col)
+
+
 RINGED = {}
+RING_OUT = {}
 _rb = random.Random(8342)
+_ru = random.Random(8343)
+K_SKY = KTOP - 9                                # from here up the sky's light, not the lamps', is on the decks
 for k in range(1, KTOP + 1):
     y = floor_y(k)
     for f in (wN, wS, wW, wE):
         # The court is open to the third floor but for a walkway on two sides.
-        if (k == 1 and f not in (wN, wW)) or (k > 2 and _rw.random() < 0.12):
+        if (k == 1 and f not in (wN, wW)) or (k > 2 and _rw.random() < 0.12) or k >= KTOP - 1:
             RINGED[(f.name, k)] = False
             continue
         RINGED[(f.name, k)] = True
@@ -363,21 +389,32 @@ for k in range(1, KTOP + 1):
             continue
         ends = 0.0 if f in (wN, wS) else RING
         out = _rw.choice((1.4, 1.5, 1.5, 1.8, 2.3, 3.0))
+        RING_OUT[(f.name, k)] = out
         fbox(f, FACE_T, ends, f.width - ends, y - 0.22, y, 0.0, out, col=CONC, bottom=True)
         if _rw.random() < 0.42:
             fbox(f, FACE_T, ends, f.width - ends, y, y + 1.0, out - 0.13, out, col=PALE if k % 5 else YEL)
             f.quad((D, "metal", 1), ends, f.width - ends, y + 1.0, y + 1.12, out - 0.06)
+            # Its precast panels' joints, and the rust run down from each.
+            sp = ends + 1.25
+            while sp < f.width - ends - 0.6:
+                f.quad((D, "trim", 1), sp - 0.025, sp + 0.025, y + 0.04, y + 0.98, out + 0.012, col=BLACK)
+                if _ru.random() < 0.3:
+                    f.quad((D, "trim", 1), sp + 0.06, sp + 0.2, y + 0.1, y + 0.9, out + 0.01, col=dim(RUST, 0.55))
+                sp += 1.25
         else:
             railing(f, ends, f.width - ends, y, out)
             fbox(f, FACE_T, ends, f.width - ends, y, y + 0.12, out - 0.1, out, col=YEL_OLD)
-        # Yellow dashes along the edge, and under it the light that comes
-        # down the shaft from the sky, stronger floor by floor.
+        # Yellow dashes along the edge; under it the lamps' warm light, and
+        # near the mouth the sky's.
         n = int((f.width - 2 * ends) // 2.2)
         for i in range(n):
             sp = ends + (f.width - 2 * ends) * (i + 0.5) / n
             f.quad((D, "glow", 1), sp - 0.3, sp + 0.3, y - 0.16, y - 0.06, out + 0.012, col=AMBER_DOT)
-        up = 0.05 + 0.5 * (k / KTOP) ** 2
-        fbox(f, (D, "glow", 1), ends, f.width - ends, y - 0.27, y - 0.22, out - 0.34, out - 0.04, col=dim(LILAC, up), bottom=True)
+        sky = max(0.0, min(1.0, (k - K_SKY + 1) / 8.0))
+        underside(f, ends, f.width - ends, y - 0.22, 0.0, out, _ru, sky=sky, detail=0 if k <= 3 else 1)
+        if sky > 0.0:
+            # The galleries near the mouth catch its light along their tops.
+            f.quad((D, "glow", 1), ends, f.width - ends, y + 0.86, y + 0.98, out + 0.016, col=dim(LILAC, 0.15 + 0.6 * sky))
         # Somebody at the rail now and then, more of them low down.
         if _rw.random() < (0.6 if k < 9 else 0.25):
             sp = _rw.uniform(ends + 1.0, f.width - ends - 1.0)
@@ -386,11 +423,13 @@ for k in range(1, KTOP + 1):
             stand(px, pz, f.yaw + (math.pi if pose == "lean" else 0.0), pose, y)
     # The tenants' windows, units, cages and doors behind the walkways.
     for f in (wW, wN, wS, wE):
-        if any(pf is f and pk0 - 1 <= k <= pk1 + 1 for pf, _, _, pk0, pk1, _ in PODS):
+        if any(pf is f and pk0 - 1 <= k <= pk1 + 1 for pf, _, _, pk0, pk1, _ in PODS) or k > KTOP - 3:
             continue
         well_bays(f, y, _rb, ring=RINGED.get((f.name, k), False))
 # Bridges across it at several heights, some over the others' line.
-for k, axis, at in ((3, "x", -768.0), (6, "z", -5.0), (8, "x", -781.0), (15, "z", 6.0), (17, "x", -766.5), (20, "z", -8.0), (23, "x", -777.0)):
+# (Four: seven of them crossing the mouth were a tangle of grey beams
+# between the court and the sky.)
+for k, axis, at in ((3, "x", -768.0), (6, "z", -5.0), (8, "x", -781.0), (17, "x", -766.5)):
     y = floor_y(k)
     if axis == "x":
         tbox(wx0 + RING - 0.1, wx1 - RING + 0.1, y - 0.3, y, at - 0.8, at + 0.8, CONC, bottom=True)
@@ -401,7 +440,7 @@ for k, axis, at in ((3, "x", -768.0), (6, "z", -5.0), (8, "x", -781.0), (15, "z"
             x = wx0 + RING + 1.0 + i * (wx1 - wx0 - 2 * RING - 2.0) / 8
             for dz, yaw in ((-0.812, math.pi), (0.812, 0.0)):
                 rotated_quad((D, "glow", 1), x, y + 0.5, at + dz, 0.6, 0.1, yaw, col=dim(GLOW["yellow"], 0.7))
-            hquad((D, "glow", 1), x - 0.3, x + 0.3, at - 0.08, at + 0.08, y - 0.31, up=False, col=dim(GLOW["yellow"], 0.7))
+        underside(face("+z", at - 0.8, wx0 + RING, wx1 - RING), 0.0, wx1 - wx0 - 2 * RING, y - 0.3, 0.0, 1.6, _ru)
     else:
         tbox(at - 0.8, at + 0.8, y - 0.3, y, wz0 + RING - 0.1, wz1 - RING + 0.1, CONC, bottom=True)
         for dx in (-0.8, 0.68):
@@ -411,7 +450,7 @@ for k, axis, at in ((3, "x", -768.0), (6, "z", -5.0), (8, "x", -781.0), (15, "z"
             z = wz0 + RING + 1.0 + i * (wz1 - wz0 - 2 * RING - 2.0) / 7
             for dx, yaw in ((-0.812, -math.pi / 2), (0.812, math.pi / 2)):
                 rotated_quad((D, "glow", 1), at + dx, y + 0.5, z, 0.6, 0.1, yaw, col=dim(GLOW["yellow"], 0.7))
-            hquad((D, "glow", 1), at - 0.08, at + 0.08, z - 0.3, z + 0.3, y - 0.31, up=False, col=dim(GLOW["yellow"], 0.7))
+        underside(face("+x", at - 0.8, wz0 + RING, wz1 - RING), 0.0, wz1 - wz0 - 2 * RING, y - 0.3, 0.0, 1.6, _ru)
 # The block's own rail line across the shaft at the twelfth floor (the
 # freight spur to the plant on the back): two plate girders, a deck, sleepers
 # and rails, a portal at each end with its lamps, the wire, a maintenance car
@@ -423,9 +462,15 @@ for dz in (-1.7, 1.7):
     while x < wx1 - 0.5:
         tbox(x - 0.06, x + 0.06, RY - 1.5, RY + 0.2, RZ + dz + (0.18 if dz > 0 else -0.24), RZ + dz + (0.24 if dz > 0 else -0.18), STEEL, detail=1)
         x += 1.6
-    for i in range(int((wx1 - wx0) // 1.4)):
-        rotated_quad((D, "glow", 1), wx0 + 0.7 + i * 1.4, RY - 0.8, RZ + dz + (0.25 if dz > 0 else -0.25), 0.5, 0.09, 0.0 if dz > 0 else math.pi, col=dim(GLOW["red"], 0.6))
+    # Its running lights: a yellow dash every metre along the girder's foot
+    # and its top, the line the eye follows across the shaft (Fn9gKhU_2_Q@21).
+    for yy in (RY - 1.5, RY + 0.12):
+        for i in range(int((wx1 - wx0) // 0.95)):
+            rotated_quad((D, "glow", 0), wx0 + 0.5 + i * 0.95, yy, RZ + dz + (0.25 if dz > 0 else -0.25), 0.55, 0.1, 0.0 if dz > 0 else math.pi, col=dim(GLOW["yellow"], 0.95))
+    for i in range(int((wx1 - wx0) // 0.95)):
+        hquad((D, "glow", 0), wx0 + 0.25 + i * 0.95, wx0 + 0.75 + i * 0.95, RZ + dz - 0.1, RZ + dz + 0.1, RY - 1.62, up=False, col=dim(GLOW["yellow"], 0.95))
 tbox(wx0, wx1, RY - 0.35, RY, RZ - 1.55, RZ + 1.55, dim(CONC, 0.7), bottom=True)
+underside(face("+z", RZ - 1.52, wx0, wx1), 0.0, wx1 - wx0, RY - 0.35, 0.0, 3.04, _ru)
 x = wx0 + 0.4
 while x < wx1:
     hquad((D, "trim", 1), x - 0.12, x + 0.12, RZ - 1.1, RZ + 1.1, RY + 0.02, col=dim(RUST, 0.7))
@@ -497,7 +542,21 @@ for f in (wN, wS, wW, wE):
         fbox(f, (D, "metal", 1), sp - 0.5, sp + 0.5, WTOP - 1.6, WTOP - 1.2, 0.0, 0.9, bottom=True)
         fbox(f, (D, "glow", 0), sp - 0.4, sp + 0.4, WTOP - 1.66, WTOP - 1.6, 0.1, 0.8, col=dim(LILAC, 0.9), bottom=True)
 GL = WTOP + 1.3
-hquad((D, "glow", 0), wx0 - 0.3, wx1 + 0.3, wz0 - 0.3, wz1 + 0.3, GL, up=False, col=LILAC)
+hquad((D, "glow", 0), wx0 - 0.3, wx1 + 0.3, wz0 - 0.3, wz1 + 0.3, GL, up=False, col=(0.9, 0.82, 1.0, 1.0))
+# The heart of it blown out white, so looked up at from anywhere in the
+# court the mouth is the brightest thing there is (Fn9gKhU_2_Q@21), and the
+# top two floors of the walls round it washed in that light: glazed bands
+# lit from the sky, their mullions dark, fading floor by floor downward.
+hquad((D, "glow", 0), wx0 + 1.6, wx1 - 1.6, wz0 + 1.4, wz1 - 1.4, GL - 0.12, up=False, col=GLOW["white"])
+hquad((D, "glow", 0), wx0 + 4.5, wx1 - 4.5, wz0 + 4.0, wz1 - 4.0, GL - 0.24, up=False, col=(1.0, 1.0, 1.0, 1.0))
+for f in (wN, wS, wW, wE):
+    for j, (y0, y1, kk) in enumerate(((WTOP - 4.6, WTOP - 1.9, 0.75), (WTOP - 8.0, WTOP - 5.3, 0.42), (WTOP - 11.4, WTOP - 8.7, 0.2))):
+        f.quad((D, "glow", 0), 0.6, f.width - 0.6, y0, y1, 0.04, col=dim(LILAC, kk))
+        sp = 0.6
+        while sp < f.width - 0.6:
+            f.quad((D, "trim", 0), sp - 0.05, sp + 0.05, y0, y1, 0.06, col=BLACK)
+            sp += 1.6
+        f.quad((D, "trim", 0), 0.6, f.width - 0.6, (y0 + y1) / 2 - 0.04, (y0 + y1) / 2 + 0.04, 0.06, col=BLACK)
 for (x, z, hue, pw) in ((-5.0, -770.0, "pink", 5.0), (5.0, -778.0, "amber", 5.0), (0.0, -774.0, "purple", 8.5), (5.5, -769.5, "white", 6.0),
                         (-5.5, -779.0, "purple", 7.0), (0.0, -779.5, "white", 6.5), (-6.5, -774.5, "white", 6.0), (6.5, -773.5, "purple", 6.5),
                         (-3.0, -766.0, "white", 5.5), (3.5, -781.0, "purple", 5.5)):

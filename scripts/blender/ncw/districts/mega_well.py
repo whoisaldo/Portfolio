@@ -140,7 +140,6 @@ for i in range(9):
     x = wx0 + 2.2 + i * 1.7
     for z, yaw in ((-775.31, math.pi), (-773.89, 0.0)):
         rotated_quad((D, "glow", 1), x, CY - 0.15, z, 0.7, 0.1, yaw, col=dim(GLOW["yellow"], 0.75))
-    hquad((D, "glow", 1), x - 0.35, x + 0.35, -774.68, -774.52, CY - 0.31, up=False, col=dim(GLOW["yellow"], 0.75))
 stand(-3.0, -774.6, 0.0, "lean", CY)
 stand(2.4, -774.6, math.pi, "phone", CY)
 bundle((wx0 + 1.6, CY - 0.35, -774.6), (wx1 - 0.2, 5.4, -765.0), sag=0.9, n=2)
