@@ -404,8 +404,12 @@ export const WINDOWS = /* glsl */ `
         float kv = mv < 2.6 ? 1.0 / max(1.0, floor(3.4 / mv + 0.5)) : (mv > 5.1 ? floor(mv / 3.4 + 0.5) : 1.0);
         uv *= vec2(ku, kv);
       }
-      vec3 fq = normalize(cross(qx, qy) + 1e-7);
-      bid = vec2(hash12(vec2(floor(dot(world, fq) * 0.2 + 0.5), floor(fq.x * 1.5 + 1.5) + floor(fq.z * 1.5 + 1.5) * 3.0)), hash12(vec2(params.x * 41.0, 2.7))) * 53.0;
+      // (The way the face looks, snapped to a few steps: from the screen's
+      // derivatives alone it shook pixel to pixel on a face far off, its
+      // plane fell either side of a 5 m step, and a lit run of one
+      // pattern and a dark run of the other made a band of white glitter.)
+      vec3 fq = normalize(floor(normalize(cross(qx, qy) + 1e-7) * 4.0 + 0.5) + 1e-6);
+      bid =vec2(hash12(vec2(floor(dot(world, fq) * 0.2 + 0.5), floor(fq.x * 1.5 + 1.5) + floor(fq.z * 1.5 + 1.5) * 3.0)), hash12(vec2(params.x * 41.0, 2.7))) * 53.0;
     }
     vec2 cell = floor(uv);
     vec2 f = fract(uv);
