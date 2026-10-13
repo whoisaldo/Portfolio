@@ -1351,9 +1351,20 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   }
   const onDeck = deckCars * 4;
   const pathSlots = [];
+  // Seen from the street the deck's parapet hides a car's lamps and its
+  // dark roof is lost against the dark city behind: so every third car up
+  // there is a van, whose roof and marker lamps stand over the parapet, and
+  // the one after it a taxi with its sign lit.
+  const VAN = CAR_KINDS.indexOf("van");
+  const SEDAN_DECK = CAR_KINDS.indexOf("sedan");
   paths.forEach((P, k) => {
     const dress = wardrobe(613 + k * 29);
-    for (let j = 0; j < onDeck; j++) pathSlots.push({ ...dress(), tag: TAG.none, path: { P, phase: (j + DECK_STARTS[k % 2]) / onDeck } });
+    for (let j = 0; j < onDeck; j++) {
+      const x = { ...dress(), tag: TAG.none, path: { P, phase: (j + DECK_STARTS[k % 2]) / onDeck } };
+      if (j % 3 === k % 3) x.kind = VAN;
+      else if (j % 3 === (k + 1) % 3) Object.assign(x, { kind: SEDAN_DECK, tag: TAG.taxi, body: "#c79a12" });
+      pathSlots.push(x);
+    }
   });
   // A route's cars follow one another round it, so each route deals its own.
   const dressers = net.routes.map((r, k) => wardrobe(101 + k * 53));
@@ -1475,7 +1486,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // Lamps: two per aerial vehicle, four per car with its lamps on, four a
   // hazard car, two a patrol car's bar, three per drone, and the police
   // AV's light bar.
-  const lampCount = flying * 5 + (moving + pathSlots.length + standingLit + hazards) * 4 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0) + 12;
+  const lampCount = flying * 5 + (moving + pathSlots.length + standingLit + hazards) * 5 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0) + 12;
   const quad = new THREE.PlaneGeometry(1, 1);
   const lampGeo = new THREE.InstancedBufferGeometry();
   lampGeo.index = quad.index;
@@ -2343,6 +2354,18 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         setLamp(li++, tmp.x, tmp.y, tmp.z, 0.85 * white, 0.92 * white, 1.0 * white, 0.9);
         tmp.set(sd * tail[0], tail[1], tail[2]).applyQuaternion(q).add(p);
         setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * red, 0.03 * red, 0.06 * red, 0.6);
+      }
+      // A van that is driving has marker lamps at its roof's corners, amber
+      // ahead and red behind, as a working van has: up there they show over
+      // a parapet or a queue of cars.
+      if (x.kind === VAN && !x.parked) {
+        const box = x.lamps.box;
+        for (const sd of SIDES) {
+          tmp.set(sd * box.max.x * 0.82, box.max.y - 0.04, box.max.z - 0.35).applyQuaternion(q).add(p);
+          setLamp(li++, tmp.x, tmp.y, tmp.z, 1.0 * glow, 0.55 * glow, 0.12 * glow, 0.5);
+          tmp.set(sd * box.max.x * 0.82, box.max.y - 0.04, box.min.z + 0.2).applyQuaternion(q).add(p);
+          setLamp(li++, tmp.x, tmp.y, tmp.z, 0.9 * glow, 0.04 * glow, 0.05 * glow, 0.45);
+        }
       }
       if (x.tag === TAG.patrol) {
         // The bar's two ends, red and blue, trading places (steady under

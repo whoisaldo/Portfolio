@@ -391,16 +391,19 @@ function timetable(lanes, { cycle, need, phase }) {
 }
 
 // The lights' phases are drawn from this. Any seed is as good a city as
-// another; this one was picked (of 40,000 tried, tools/r3net.mjs) for
+// another; this one was picked (of 40,000 tried, tools/r4net.mjs) for
 // second 12 of the clock, where every review render holds the traffic: at
-// that second ten of the twelve junctions have a car turning in them or
-// crossing (all but the hero's own, whose lens lies in its mouth, and the
-// garage street's gated one), every driver's frame round the loop holds two
-// cars or more, neither route's platoon comes back to its anchor early
-// enough to be held there a whole cycle, the braindance's lane is clear
-// from 102 to 117, and nothing ever touches, on a desktop's network and on
-// a phone's.
-const PHASES = 21350;
+// that second a platoon comes down the avenue's middle toward the hero's
+// junction (ahead of the driver's frames from 24 m on, where the reviews
+// found only the kerbs' cars), the boulevard, the west road and
+// Japantown's corner carry cars, junction I has its queue, eight of the
+// twelve junctions have a car turning in them or crossing (not the hero's
+// own, whose lens lies in its mouth), every driver's frame round the loop
+// holds two cars or more, neither route's platoon comes back to its anchor
+// early enough to be held there a whole cycle, the braindance's lane is
+// clear from 102 to 117, and nothing ever touches, on a desktop's network
+// and on a phone's.
+const PHASES = 16468;
 
 // The steam vents in the road: of the districts' anchor_steam_* empties,
 // the street kind (src/world/steam.js: not a stall's, a drain's, a lane's,
