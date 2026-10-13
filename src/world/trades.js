@@ -49,7 +49,8 @@ export function clearSigns() {
 
 /**
  * Deal a shop mesh's panes their trades, into its colour's alpha. Returns
- * { panes, signed } (how many panes, how many took their trade from a sign).
+ * { panes, signed, alley } (how many panes, how many took their trade from a
+ * sign, how many face another shop's glass under 8 m across).
  */
 export function dealTrades(geometry, object) {
   const pos = geometry.attributes.position;
@@ -132,6 +133,18 @@ export function dealTrades(geometry, object) {
     if (!walls.has(key)) walls.set(key, []);
     walls.get(key).push(pane);
   }
+  // A pane in an alley: another shop's glass faces it under 8 m across.
+  // There an arcade's, a bar's or a shut unit's dark room is a black hole
+  // with a few lines of neon in it a stride from the eye, so they come up
+  // there a third as often (a sign over the door still names its trade).
+  const all = [...panes.values()];
+  for (const a of all) {
+    a.alley = all.some((b) => {
+      if (a.nx * b.nx + a.nz * b.nz > -0.9) return false;
+      const across = -b.plane - a.plane;
+      return across > 1 && across < 8 && Math.max(a.a0, -b.a1) < Math.min(a.a1, -b.a0);
+    });
+  }
   // The rest in turn along each wall, three on at a time through the eight
   // (so the order is not the list's), stepping past whatever either
   // neighbour is.
@@ -147,7 +160,8 @@ export function dealTrades(geometry, object) {
         turn = (turn + 3) % 8;
         // (Half the turns that come up shut are passed on: one dark unit
         // in sixteen, not in eight.)
-        if (!before.includes(turn) && turn !== after && !(turn === 7 && i % 2 === 0)) break;
+        const dim = pane.alley && (turn === 1 || turn === 3 || turn === 7) && (i + tries) % 3 !== 0;
+        if (!before.includes(turn) && turn !== after && !(turn === 7 && i % 2 === 0) && !dim) break;
       }
       pane.trade = turn;
     });
@@ -158,5 +172,5 @@ export function dealTrades(geometry, object) {
     for (const i of pane.verts) col.setW(i, byte / 255);
   }
   col.needsUpdate = true;
-  return { panes: panes.size, signed };
+  return { panes: panes.size, signed, alley: all.filter((a) => a.alley).length };
 }
