@@ -1005,6 +1005,13 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // haze): south down the west street, and west along the south street.
   // Neither is in any of the page's frames. x, z, width, height, tone, seed.
   for (const column of [[-82, 190, 28, 640, 1, 0.23], [-440, 2, 26, 600, 2, 0.58]]) columns.push(...column);
+  // And two north, where the landmark towers' views and the air over Corpo
+  // Row's back had none: one north-west, left of the needle seen from over
+  // the canyon's end, one north-east, its top clear over the skyline from
+  // the air north of the boulevard. Each is behind the avenue's walls from
+  // the hero's lens (25 and 28 degrees off its line, where its band of sky
+  // is 16 and 20 wide).
+  for (const column of [[-700, -1500, 30, 780, 3, 0.41], [700, -1300, 28, 640, 0, 0.67]]) columns.push(...column);
   // Whatever was dealt onto a megatower's ground, or stands where a column
   // does (a column is a solid stack of screens now, and nothing crosses
   // it), is left out: marked here, while every pass below still takes its

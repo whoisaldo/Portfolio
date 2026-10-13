@@ -184,7 +184,13 @@ export function createSkyColumns(scene, shared, columns, { reduced = false, ads,
         if (across > 1.0) {
           float past = (across - 1.0) * 0.5;
           vec3 halo = vTone.rgb * (0.16 * exp(-past * 9.0) + 0.5 * exp(-past * 3.0) * exp(-up * vSize.y / 70.0)) * (1.0 - smoothstep(0.7, 1.0, up));
-          halo *= lift * smoothstep(0.0, 0.004, up) * uHaze * exp(-length(vWorld - uCam) * uFogDensity * 0.3);
+          // And all the way up it, a soft light in the wet air round it,
+          // widest and whitest close to its faces; from the streets too,
+          // fainter, but for the two the page's roofs frame (as they were).
+          vec3 air = mix(vTone.rgb, vec3(0.8, 0.92, 1.0), 0.25) * (0.22 * exp(-past * 6.0) + 0.07 * exp(-past * 1.8)) * (1.0 - smoothstep(0.62, 0.86, up));
+          float street = (1.0 - lift) * (1.0 - step(1.5, vTone.a));
+          halo = halo * lift + air * (lift + 0.6 * street);
+          halo *= smoothstep(0.0, 0.004, up) * uHaze * exp(-length(vWorld - uCam) * uFogDensity * 0.3);
           gl_FragColor = vec4(halo, 0.0);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
