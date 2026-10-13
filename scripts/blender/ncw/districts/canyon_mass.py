@@ -487,7 +487,16 @@ def relief(U, taken):
             for e in (s - 1.44, s + 1.3):
                 st.quad((CB, "glow", 0), e, e + 0.14, y0, y1 + 1.0, out + 0.03, col=C.dim("cyan", 0.55))
             yc = y0 + (y1 - y0) * r.uniform(0.25, 0.8)
-            st.quad((CB, "glow", 0), s - 1.0, s + 1.0, yc, yc + 2.3, out + 0.04, col=C.dim("amber", 0.75))
+            # (The car: a lit cab behind its glass, a light in its ceiling,
+            # its doors' line, someone riding it, its frame.)
+            st.quad((CB, "glow", 0), s - 1.0, s + 1.0, yc, yc + 2.3, out + 0.04, col=C.dim("amber", 0.32))
+            st.quad((CB, "glow", 0), s - 0.9, s + 0.9, yc + 2.08, yc + 2.18, out + 0.05, col=C.dim("white", 0.8))
+            st.quad((CB, "trim", 0), s - 0.03, s + 0.03, yc + 0.1, yc + 2.05, out + 0.05, col=B.DARK_TRIM)
+            st.quad((CB, "trim", 0), s + 0.25, s + 0.62, yc + 0.1, yc + 1.68, out + 0.055, col=(0.03, 0.025, 0.03, 1))
+            st.quad((CB, "trim", 0), s + 0.33, s + 0.54, yc + 1.68, yc + 1.93, out + 0.055, col=(0.03, 0.025, 0.03, 1))
+            for a0, a1, b0, b1 in ((s - 1.08, s + 1.08, yc - 0.1, yc + 0.05), (s - 1.08, s + 1.08, yc + 2.25, yc + 2.4),
+                                   (s - 1.08, s - 0.96, yc, yc + 2.3), (s + 0.96, s + 1.08, yc, yc + 2.3)):
+                st.quad((CB, "trim", 0), a0, a1, b0, b1, out + 0.06, col=B.DARK_TRIM)
             st.box((CB, "glow", 0), s - 0.15, s + 0.15, y1 + 1.2, y1 + 1.5, out * 0.5 - 0.15, out * 0.5 + 0.15, col=GLOW["red"])
         elif kind == "riser":
             _, s, y0, y1 = ft

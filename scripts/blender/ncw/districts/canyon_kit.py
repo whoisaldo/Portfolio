@@ -179,6 +179,16 @@ FRONTS = []     # every shop front built, in order: the next takes the next trad
 WOOD = (0.13, 0.1, 0.09, 1)
 
 
+def _board_no(f, cx, cy, cz, w, h):
+    """Which advert the site deals a board flat on a face (materials.js:
+    the 4 m cell of its corner in the face's own frame, seven, five and
+    three apart), before its turn."""
+    rx, rz = f.nz, -f.nx
+    fx = cx * rx + cz * rz - w / 2
+    fz = cx * f.nx + cz * f.nz
+    return math.floor(fx / 4 + 0.412) * 7 + math.floor((cy - h / 2) / 4 + 0.412) * 5 + math.floor(fz / 4 + 0.412) * 3
+
+
 def _front(trade, f, s0, s1, key):
     """A built shop front in a bay 0.9 m deep behind the wall's plane: its
     back wall, sides, ceiling with a lamp and floor, and its trade."""
@@ -208,15 +218,26 @@ def _front(trade, f, s0, s1, key):
         stand(x, z, f.yaw + math.pi, r.choice(("idle", "phone")), G0)
         # Bills pasted on the shutter either side of the hatch, one over
         # another here and there, and stickers by its frame.
+        # (The site deals a board its advert by the 4 m cell its corner is
+        # in, so bills side by side showed one picture three times: each
+        # bill here is put where no other on this shutter has its cell,
+        # low or high, or left out.)
         pr = random.Random(9150 + len(FRONTS) * 3)
+        used = set()
         for e0, e1 in ((s0 + 0.2, hs - 0.9), (hs + 0.9, s1 - 0.2)):
             sp = e0
             while sp + 0.6 < e1:
                 pw, ph_ = pr.uniform(0.5, 0.75), pr.uniform(0.7, 1.0)
                 py = pr.uniform(1.0, 2.6 - ph_ / 2)
-                cx, _, cz = f.p(f.at(sp + pw / 2), py, -0.035 + pr.uniform(0.0, 0.01))
-                rotated_quad((key, "billboard", 0), cx, py, cz, pw, ph_, f.yaw,
-                             col=(pr.randrange(8) / 8.0 + 0.01, pr.randrange(8) / 8.0 + 0.01, pr.random(), 1.0))
+                cz_ = -0.035 + pr.uniform(0.0, 0.01)
+                col = (pr.randrange(8) / 8.0 + 0.01, pr.randrange(8) / 8.0 + 0.01, pr.random(), 1.0)
+                for y_, h_ in ((py, ph_), (2.39 + 0.3, 0.6), (1.0 + 0.4, 0.8)):
+                    cx, _, cz = f.p(f.at(sp + pw / 2), y_, cz_)
+                    k_ = _board_no(f, cx, y_, cz, pw, h_) % 8
+                    if k_ not in used:
+                        used.add(k_)
+                        rotated_quad((key, "billboard", 0), cx, y_, cz, pw, h_, f.yaw, col=col)
+                        break
                 sp += pw + pr.uniform(0.05, 0.6)
         for i in range(5):
             sx_, sy_ = hs + 0.7 + pr.uniform(-0.05, 0.12), 1.0 + pr.uniform(0.0, 1.0)
@@ -294,6 +315,46 @@ def _front(trade, f, s0, s1, key):
         stand(x, z, f.yaw + math.pi, "idle", G0)
 
 
+def _window(f, s0, s1, key, colours):
+    """What a shop's glass carries, seen along the pavement where the glass
+    is a dark mirror (its own dice, by where it stands): its frame in
+    lights of a metre or so, a transom, a neon in the window, a small lit
+    board in its corner."""
+    r = random.Random(int(abs(f.plane) * 31 + abs(f.at(s0)) * 7))
+    w = s1 - s0
+    n = max(1, round(w / 1.3))
+    for i in range(1, n):
+        e = s0 + w * i / n
+        f.box((key, "trim", 1), e - 0.035, e + 0.035, 0.55, 3.28, -REC, -REC + 0.06, col=B.DARK_TRIM)
+    ty = r.choice((2.45, 2.6))
+    f.box((key, "trim", 1), s0, s1, ty - 0.03, ty + 0.03, -REC, -REC + 0.06, col=B.DARK_TRIM)
+    m = "neon_" + r.choice(colours)
+    cx, cy = s0 + w * r.uniform(0.3, 0.7), r.uniform(1.65, 1.95)
+    kind = r.choice(("ring", "bars", "cup", "frame"))
+    z0, z1 = -REC + 0.03, -REC + 0.07
+    if kind == "ring":
+        for i in range(10):
+            a0, a1 = i * math.tau / 10, (i + 1) * math.tau / 10
+            xa, ya, xb, yb = cx + 0.24 * math.cos(a0), cy + 0.24 * math.sin(a0), cx + 0.24 * math.cos(a1), cy + 0.24 * math.sin(a1)
+            f.box((key, m, 0), min(xa, xb) - 0.02, max(xa, xb) + 0.02, min(ya, yb) - 0.02, max(ya, yb) + 0.02, z0, z1)
+    elif kind == "bars":
+        for k in range(3):
+            f.box((key, m, 0), cx - 0.45 + k * 0.32, cx - 0.21 + k * 0.32, cy - 0.12 + 0.08 * (k % 2), cy - 0.08 + 0.08 * (k % 2), z0, z1)
+        f.box((key, m, 0), cx - 0.45, cx + 0.43, cy + 0.12, cy + 0.16, z0, z1)
+    elif kind == "cup":
+        f.box((key, m, 0), cx - 0.22, cx - 0.18, cy - 0.2, cy + 0.2, z0, z1)
+        f.box((key, m, 0), cx + 0.18, cx + 0.22, cy - 0.2, cy + 0.2, z0, z1)
+        f.box((key, m, 0), cx - 0.22, cx + 0.22, cy - 0.24, cy - 0.2, z0, z1)
+        f.box((key, m, 0), cx + 0.22, cx + 0.36, cy - 0.02, cy + 0.02, z0, z1)
+    else:
+        for x0, x1, y0, y1 in ((-0.4, 0.4, -0.18, -0.15), (-0.4, 0.4, 0.15, 0.18), (-0.4, -0.37, -0.18, 0.18), (0.37, 0.4, -0.18, 0.18)):
+            f.box((key, m, 0), cx + x0, cx + x1, cy + y0, cy + y1, z0, z1)
+    if w > 1.6:
+        bs = s0 + 0.45 if cx > s0 + w / 2 else s1 - 0.45
+        px, py, pz = f.p(f.at(bs), 1.15, -REC + 0.045)
+        sign(own_name("bx"), px, py, pz, 0.55, 0.55, f.yaw, district=key, label=False)
+
+
 def shopfront(f, r, s0, s1, tint, glass=FA, key=CB, sign_rate=0.6, awning_rate=0.5, door=True, palette=None):
     w = s1 - s0
     if w < 2.4:
@@ -353,6 +414,7 @@ def shopfront(f, r, s0, s1, tint, glass=FA, key=CB, sign_rate=0.6, awning_rate=0
             f.quad((key, "trim", 0), a + 0.2, b - 0.2, G0, 0.55, -REC + 0.01, col=B.DARK_TRIM)
             f.quad((key, "trim", 0), a + 0.2, b - 0.2, 3.3, SHOP_H, 0.0, col=B.DARK_TRIM)
             f.box((key, "trim", 0), a + 0.2, b - 0.2, 3.28, 3.3, -REC, 0.0, col=B.DARK_TRIM)
+            _window(f, a + 0.2, b - 0.2, key, colours)
         colour = r.choice(colours)
         if r.random() < awning_rate:
             B.awning(key, f, a + 0.25, b - 0.25, colour)
@@ -735,12 +797,19 @@ def _cy_kiosk(k):
     (Fn9gKhU_2_Q@77)."""
     box(k("dark"), -0.9, 0.9, 0.0, 2.3, -0.5, 0.5, scale=1.0)
     c = GLOW["cyan"]
-    quad(k("glow"), (-0.78, 0.9, 0.505), (0.78, 0.9, 0.505), (0.78, 2.0, 0.505), (-0.78, 2.0, 0.505), col=(c[0] * 0.14, c[1] * 0.14, c[2] * 0.14, 1))
-    # What its screen shows: a heading, lines of a notice, a row of keys.
-    for x0, x1, y0, y1, hue in ((-0.66, 0.3, 1.78, 1.9, "white"), (-0.66, 0.62, 1.56, 1.62, "cyan"), (-0.66, 0.44, 1.44, 1.5, "cyan"),
-                                (-0.66, 0.56, 1.32, 1.38, "cyan"), (-0.66, -0.36, 1.0, 1.18, "amber"), (-0.26, 0.04, 1.0, 1.18, "cyan"),
-                                (0.14, 0.44, 1.0, 1.18, "cyan")):
-        quad(k("glow"), (x0, y0, 0.512), (x1, y0, 0.512), (x1, y1, 0.512), (x0, y1, 0.512), col=GLOW[hue])
+    quad(k("glow"), (-0.78, 0.9, 0.505), (0.78, 0.9, 0.505), (0.78, 2.0, 0.505), (-0.78, 2.0, 0.505), col=(c[0] * 0.07, c[1] * 0.07, c[2] * 0.07, 1))
+    # What its screen shows, big enough to read across a court: a white
+    # heading bar, a picture (a red disc on amber), lines of a notice, a
+    # row of three keys, a code of squares in its corner.
+    for x0, x1, y0, y1, col in ((-0.7, 0.7, 1.8, 1.94, GLOW["white"]), (-0.7, 0.05, 1.2, 1.72, dim("amber", 0.7)),
+                                (0.15, 0.7, 1.62, 1.7, GLOW["cyan"]), (0.15, 0.62, 1.48, 1.55, GLOW["cyan"]), (0.15, 0.7, 1.34, 1.41, GLOW["cyan"]),
+                                (0.15, 0.5, 1.2, 1.27, GLOW["cyan"]), (-0.7, -0.3, 0.96, 1.12, GLOW["amber"]), (-0.22, 0.18, 0.96, 1.12, GLOW["cyan"]),
+                                (0.26, 0.66, 0.96, 1.12, dim("red", 0.9))):
+        quad(k("glow"), (x0, y0, 0.512), (x1, y0, 0.512), (x1, y1, 0.512), (x0, y1, 0.512), col=col)
+    for i in range(12):
+        a0, a1 = i * math.tau / 12, (i + 1) * math.tau / 12
+        quad(k("glow"), (-0.325, 1.46, 0.518), (-0.325 + 0.17 * math.cos(a0), 1.46 + 0.17 * math.sin(a0), 0.518),
+             (-0.325 + 0.17 * math.cos(a1), 1.46 + 0.17 * math.sin(a1), 0.518), (-0.325, 1.46, 0.518), col=dim("red", 0.9))
     box(k("glow"), -0.92, 0.92, 2.3, 2.36, -0.52, 0.52, scale=0.5, col=GLOW["cyan"])
 
 
@@ -816,13 +885,14 @@ def ngon(key, c, R, t, n=6, rot=0.0, plane="x", col=(1, 1, 1, 1), both=True):
             quad(key, q[1], q[0], q[3], q[2], col=col)
 
 
-def tape(key, a, b, y=0.95, h=0.09):
-    """Barrier tape from a to b ((x, z) each), read from both sides."""
+def tape(key, a, b, y=0.95, h=0.09, mat="hazard", col=(1, 1, 1, 1)):
+    """Barrier tape (or a queue's belt, `mat` and `col`) from a to b ((x, z)
+    each), read from both sides."""
     q = ((a[0], y, a[1]), (b[0], y, b[1]), (b[0], y + h, b[1]), (a[0], y + h, a[1]))
     ln = math.hypot(b[0] - a[0], b[1] - a[1])
     uv = ((0, 0), (ln * 2, 0), (ln * 2, 1), (0, 1))
-    quad((key, "hazard", 1), *q, uvs=uv)
-    quad((key, "hazard", 1), q[1], q[0], q[3], q[2], uvs=(uv[1], uv[0], uv[3], uv[2]))
+    quad((key, mat, 1), *q, uvs=uv, col=col)
+    quad((key, mat, 1), q[1], q[0], q[3], q[2], uvs=(uv[1], uv[0], uv[3], uv[2]), col=col)
 
 
 @P.proto("cy_palm", box=(0.5, 6.5, 0.5), reach=700)

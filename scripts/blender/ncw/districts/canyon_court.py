@@ -66,7 +66,29 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     _up(20.3, 20.42, cz0 + 0.8, cz1 - 0.8, COURT_Y + 0.022, "teal")
     for z in (cz0 + 4.0, cz0 + 10.0, az + 14.0, az - 14.0, cz1 - 4.0):
         light(CB, 21.0, 1.0, z, "teal", 2.0)
-    C.flat((CB, "trim", 1), 22.0, px0 - 0.6, az - 1.7, az + 1.7, COURT_Y + 0.016, (0.17, 0.02, 0.035, 1))
+    # The runner: a woven red, its pile in bands a shade apart, a border of
+    # dark red with a line of gold either side, the emblem in a paler red
+    # every few metres, its nap lit at the doors' end.
+    ry = COURT_Y + 0.016
+    C.flat((CB, "trim", 0), 22.0, px0 - 0.6, az - 1.7, az + 1.7, ry, (0.09, 0.012, 0.02, 1))
+    C.flat((CB, "trim", 0), 22.0, px0 - 0.6, az - 1.38, az + 1.38, ry + 0.003, (0.17, 0.02, 0.035, 1))
+    xb_ = 22.0
+    while xb_ < px0 - 0.9:
+        C.flat((CB, "trim", 1), xb_, xb_ + 0.3, az - 1.38, az + 1.38, ry + 0.005, (0.2, 0.026, 0.04, 1))
+        xb_ += 0.62
+    for dz in (-1.5, 1.5):
+        C.flat((CB, "trim", 0), 22.0, px0 - 0.6, az + dz - 0.035, az + dz + 0.035, ry + 0.006, (0.42, 0.3, 0.09, 1))
+    for ex in (25.8, 29.8, 33.8, 37.8):
+        for i in range(12):
+            a0, a1 = i * math.tau / 12, (i + 1) * math.tau / 12
+            p0 = (ex + 0.62 * math.cos(a0), az + 0.62 * math.sin(a0))
+            p1 = (ex + 0.62 * math.cos(a1), az + 0.62 * math.sin(a1))
+            q0 = (ex + 0.5 * math.cos(a0), az + 0.5 * math.sin(a0))
+            q1 = (ex + 0.5 * math.cos(a1), az + 0.5 * math.sin(a1))
+            quad((CB, "trim", 1), (q0[0], ry + 0.008, q0[1]), (q1[0], ry + 0.008, q1[1]), (p1[0], ry + 0.008, p1[1]), (p0[0], ry + 0.008, p0[1]),
+                 col=(0.3, 0.05, 0.06, 1))
+        for u, hh in ((-0.2, 0.18), (0.0, 0.3), (0.2, 0.18)):
+            C.flat((CB, "trim", 1), ex - hh, ex + hh, az + u - 0.05, az + u + 0.05, ry + 0.008, (0.3, 0.05, 0.06, 1))
     # Palms in two rows, tall and thin, standing over the signs, lit from
     # their feet; a bench by each, people on the benches. (Each a little
     # its own height and turned its own way.)
@@ -107,10 +129,13 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     for bz in (az - 9.0, az - 6.6, az + 6.6, az + 9.0):
         P.place("cy_block", 27.6 + (0.9 if abs(bz - az) > 8.0 else 0.0), COURT_Y, bz, math.pi / 2 + r.uniform(-0.2, 0.2), district=CB)
     posts = [(px0 - 8.6, az - 2.2), (px0 - 5.0, az - 2.2), (px0 - 5.0, az + 2.2), (px0 - 8.6, az + 2.2), (px0 - 11.5, az + 3.4)]
+    # (A queue's belt on stanchions, dark red: a bright tape under the
+    # court's lamps read as a streak of light hung at head height.)
     for (xa, za), (xb, zb) in zip(posts, posts[1:]):
-        C.tape(CB, (xa, za), (xb, zb), y=COURT_Y + 0.95)
+        C.tape(CB, (xa, za), (xb, zb), y=COURT_Y + 0.86, h=0.07, mat="trim", col=(0.16, 0.02, 0.03, 1))
     for xa, za in posts:
-        cylinder((CB, "metal", 1), xa, za, COURT_Y, COURT_Y + 1.1, 0.04, segs=5)
+        cylinder((CB, "metal", 0), xa, za, COURT_Y, COURT_Y + 0.98, 0.045, segs=6)
+        cylinder((CB, "trim", 0), xa, za, COURT_Y + 0.98, COURT_Y + 1.04, 0.07, segs=6, col=(0.02, 0.02, 0.025, 1))
         cylinder((CB, "metal", 1), xa, za, COURT_Y, COURT_Y + 0.05, 0.18, segs=7)
     # (The court runs from cz0 to cz1, further north of the doors' line
     # than south of it: the cluster stands on its north side, where there
@@ -331,7 +356,20 @@ def _corporate(ax, az, z_lo, z_hi, px0, cz0, cz1, r):
     box((CB, "trim", 0), bx0, bx1, G0, G0 + 2.5, bz0, bz1, scale=1.0, col=(0.03, 0.035, 0.05, 1))
     box((CB, "trim", 0), bx0 - 0.15, bx1 + 0.15, G0 + 2.5, G0 + 2.7, bz0 - 0.15, bz1 + 0.15, scale=1.0, col=(0.05, 0.055, 0.07, 1))
     f = B.Face("-x", bx0, bz0, bz1)
-    f.quad((CB, "glow", 0), 0.25, f.width - 0.25, G0 + 1.1, G0 + 2.1, 0.02, col=C.dim("cyan", 0.35))
+    # Its window: lit glass in a frame, a guard at a desk behind it, two
+    # screens' glow, a red and white band under it.
+    f.quad((CB, "glow", 0), 0.25, f.width - 0.25, G0 + 1.1, G0 + 2.1, 0.02, col=C.dim("cyan", 0.16))
+    for a0, a1, b0, b1 in ((0.2, f.width - 0.2, G0 + 1.02, G0 + 1.1), (0.2, f.width - 0.2, G0 + 2.1, G0 + 2.18),
+                           (0.2, 0.28, G0 + 1.02, G0 + 2.18), (f.width - 0.28, f.width - 0.2, G0 + 1.02, G0 + 2.18),
+                           (f.width / 2 - 0.03, f.width / 2 + 0.03, G0 + 1.1, G0 + 2.1)):
+        f.quad((CB, "trim", 0), a0, a1, b0, b1, 0.04, col=(0.02, 0.02, 0.025, 1))
+    f.quad((CB, "trim", 0), 0.55, 0.95, G0 + 1.1, G0 + 1.62, 0.03, col=(0.015, 0.015, 0.02, 1))
+    f.quad((CB, "trim", 0), 0.64, 0.86, G0 + 1.62, G0 + 1.86, 0.03, col=(0.015, 0.015, 0.02, 1))
+    f.quad((CB, "glow", 0), 1.3, 1.62, G0 + 1.15, G0 + 1.38, 0.03, col=C.dim("white", 0.7))
+    f.quad((CB, "glow", 0), 1.7, 1.95, G0 + 1.15, G0 + 1.35, 0.03, col=C.dim("amber", 0.7))
+    for i in range(8):
+        f.quad((CB, "trim", 0), 0.2 + i * (f.width - 0.4) / 8, 0.2 + (i + 1) * (f.width - 0.4) / 8, G0 + 0.82, G0 + 0.94, 0.03,
+               col=(0.5, 0.05, 0.06, 1) if i % 2 == 0 else (0.6, 0.6, 0.6, 1))
     B.Face("-x", bx0, bz0, bz1).quad((CB, "neon_red", 0), 0.1, f.width - 0.1, G0 + 2.52, G0 + 2.6, 0.17)
     light(CB, bx0 - 0.8, 2.2, (bz0 + bz1) / 2, "white", 3.5)
     stand(bx0 - 0.6, bz0 - 0.5, -math.pi / 2, "idle", G0)

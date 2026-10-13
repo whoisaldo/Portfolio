@@ -506,6 +506,7 @@ def _lookout(U, top, plaza):
         # at her elbow its head read as a slab in her hand.)
         cylinder((CB, "metal", 1), vx, (z0 + z1) / 2 + 2.05, top, top + 1.15, 0.06, segs=5)
         box((CB, "metal", 1), vx - 0.2, vx + 0.2, top + 1.15, top + 1.45, (z0 + z1) / 2 + 1.87, (z0 + z1) / 2 + 2.23, scale=0.5, bottom=True)
+    rl = random.Random(9760 + L["i"] * 5 + U["k"] + (0 if side > 0 else 60))
     for f in (B.Face("-z", z1, *wx), B.Face("+z", z0, *wx)):
         # (A dado to the rail's height with a line of light along its
         # head, and over it the towers' own windows at arm's length, a
@@ -521,19 +522,22 @@ def _lookout(U, top, plaza):
             ls += 3.4
         # One advert and a small board on each wall, by the terrace's end:
         # the end over the avenue is left open to the view.
-        s_, k_ = 0.5, 0
+        s_, k_, used = 0.5, 0, []
         while s_ + 2.2 < f.width:
             pw = min(r.uniform(2.6, 3.8), f.width - s_ - 0.4)
             inner = abs(f.at(s_ + pw / 2)) > WALK + sd * 0.55
             if k_ == 1:
                 if inner:
                     C.board(f, s_ + 0.9, top + 1.7, "bx", r)
+                    used.append((s_ + 0.2, s_ + 1.6))
                 pw = 1.8
             elif inner:
                 cx, cy, cz = f.p(f.at(s_ + pw / 2), top + 1.65, 0.12)
                 B.billboard(CB, cx, cy, cz, pw - 0.4, 2.0, f.yaw, r, frame=True, back=False, depth=0.1)
+                used.append((s_, s_ + pw))
             s_ += pw + 0.25
             k_ += 1
+        _deck_wall(f, top, rl, B.TRIM[U["tint"]], used)
     # Over the dado and the lamps, the walls are the towers' own sides:
     # air conditioners in runs, a balcony here and there, a conduit (as
     # high as the hero's lens does not see them; their own dice).
@@ -569,6 +573,54 @@ def _lookout(U, top, plaza):
     LOOKOUTS.add((side, round(zm)))
     print("CANYON lookout", side, L["i"], U["k"], "x", round(xa, 1), round(xb, 1), "z", z0, z1, "y", top)
     return (u0, z0, z1, sg)
+
+
+def _deck_wall(f, top, r, tcol, used):
+    """A lookout's side wall at arm's length over its dado, where the
+    tower's glass read as a flat wall: cladding in panels with their
+    joints, a door into the tower with its sign and lamp, a run of pipe
+    and a conduit, a vent's grille, a unit on a bracket, a lit menu by the
+    door. Only where the hero's lens does not see it."""
+    w = f.width
+    if w < 4.0:
+        return
+    ok = lambda s0, s1, y0, y1, d: C.hidden(OCC, *REL._rect(f, s0, s1, y0, y1, d))
+    clad = [s_ for s_ in [k * 1.2 for k in range(int(w / 1.2))] if ok(s_, s_ + 1.2, top + 1.16, top + 3.6, 0.1)]
+    dark = (tcol[0] * 0.55, tcol[1] * 0.55, tcol[2] * 0.55, 1)
+    for s_ in clad:
+        f.quad((CB, "trim", 0), s_, s_ + 1.2, top + 1.16, top + 3.6, 0.025, col=dark)
+        f.quad((CB, "trim", 1), s_ + 1.17, s_ + 1.2, top + 1.16, top + 3.6, 0.03, col=B.DARK_TRIM)
+    f.quad((CB, "trim", 1), min(clad, default=0.0), max(clad, default=0.0) + 1.2, top + 2.38, top + 2.41, 0.03, col=B.DARK_TRIM)
+    if not clad:
+        return
+    lo_, hi_ = min(clad), max(clad) + 1.2
+    free = lambda a, b: all(b < u0 - 0.15 or a > u1 + 0.15 for u0, u1 in used)
+    ds = next((s_ for s_ in [lo_ + 0.4 + k * 0.5 for k in range(40)] if s_ + 2.1 < hi_ and free(s_, s_ + 2.1)), None)
+    if ds is not None:
+        f.quad((CB, "door", 0), ds, ds + 1.0, top, top + 2.2, 0.035)
+        f.box((CB, "trim", 0), ds - 0.08, ds + 1.08, top + 2.2, top + 2.3, 0.0, 0.12, col=B.DARK_TRIM)
+        f.box((CB, "glow", 0), ds + 0.3, ds + 0.7, top + 2.36, top + 2.52, 0.03, 0.08, col=C.dim("green", 0.8))
+        ms = ds + 1.35
+        f.box((CB, "board_frame", 0), ms - 0.04, ms + 0.64, top + 1.15, top + 2.05, 0.0, 0.08)
+        f.quad((CB, "glow", 0), ms, ms + 0.6, top + 1.2, top + 2.0, 0.085, col=C.dim(r.choice(("amber", "white", "cyan")), 0.55))
+        for k in range(4):
+            f.quad((CB, "trim", 1), ms + 0.06, ms + 0.4 + 0.1 * (k % 2), top + 1.82 - k * 0.16, top + 1.86 - k * 0.16, 0.09, col=(0.05, 0.04, 0.03, 1))
+    y = top + r.uniform(3.0, 3.3)
+    f.box((CB, "metal", 1), lo_, hi_, y, y + 0.12, 0.05, 0.17)
+    f.box((CB, "metal", 1), lo_, hi_, y + 0.2, y + 0.28, 0.06, 0.14)
+    cs = r.uniform(lo_ + 0.6, hi_ - 0.6)
+    f.box((CB, "metal", 1), cs - 0.05, cs + 0.05, top + 1.16, y + 0.28, 0.02, 0.1)
+    f.box((CB, "trim", 1), cs - 0.15, cs + 0.15, top + 1.5, top + 1.85, 0.02, 0.16, col=(0.2, 0.2, 0.22, 1))
+    ds = -99.0 if ds is None else ds
+    vs = r.uniform(lo_ + 0.4, hi_ - 1.0)
+    if free(vs, vs + 0.6) and not ds - 0.7 < vs < ds + 2.2 and abs(vs - cs) > 0.8:
+        f.box((CB, "trim", 0), vs, vs + 0.6, top + 2.55, top + 2.95, 0.0, 0.05, col=(0.04, 0.045, 0.05, 1))
+        for k in range(4):
+            f.quad((CB, "trim", 1), vs + 0.05, vs + 0.55, top + 2.6 + k * 0.09, top + 2.63 + k * 0.09, 0.055, col=(0.12, 0.12, 0.13, 1))
+    us = r.uniform(lo_ + 0.6, hi_ - 0.6)
+    if free(us - 0.5, us + 0.5) and not ds - 0.6 < us < ds + 2.6 and abs(us - vs) > 1.0 and abs(us - cs) > 0.7:
+        x_, _, z_ = f.p(f.at(us), 0.0, 0.0)
+        P.place("ac_wall", x_, top + 2.5, z_, f.yaw, district=CB)
 
 
 def _back(U):
