@@ -42,7 +42,7 @@ import { mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON, WINDOWS } from "./glsl.js";
 import { ADVERT, createSkyColumns } from "./sky-columns.js";
 import { BOX, createFarStreet } from "./far-street.js";
-import { createSkyWords } from "./sky-words.js";
+import { createSkyWords, LOGOS } from "./sky-words.js";
 import { LANES } from "./traffic-sky.js";
 
 // Rectangles (x0, z0, x1, z1) the far city stays out of: the kit's whole
@@ -1712,6 +1712,84 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     if (forms[i].style === 2) crowned.add(i);
     headOn(lots[i], i, mid);
   }
+  // ---- the landmark towers, dressed as the show's megabuildings ---------------
+  // The five towers the kit stands north of the megabuilding (skyline.py)
+  // were office towers from the air: a stepped shaft and a spire, a slab, a
+  // frame. Their outlines over the avenue are the hero's skyline, and its
+  // lens sees each only above a line (the needle above 295 m, the blade
+  // above 440, the frame above 340, Corpo Row's lens the frame above 388,
+  // the stack not at all), so below those lines each is given what the
+  // show's are built of: blocks of lit floors standing out of a face on
+  // angled struts, lit bands at its steps, tubes of neon up its corners, a
+  // crown of masts with red lamps on the one nobody's frame holds, and its
+  // name, big enough to read a kilometre off. Nothing drawn: all boxes.
+  {
+    const tube = (x, y, z, sx, sy, sz, hue, turn = 0) => box(BOX.tube, x, y, z, sx, sy, sz, turn, [hue, 2.2, 0]);
+    const name = (x, y, z, w, h, id, down, turn = 0) => box(BOX.logo, x, y, z, w, h, 1.2, turn, [id, LOGOS[id].length, down ? 1 : 0]);
+    const strut = (ax, ay, az, bx, by, bz, t = 1.8) => {
+      const [dx, dy, dz] = [bx - ax, by - ay, bz - az];
+      box(BOX.strut, (ax + bx) / 2, (ay + by) / 2, (az + bz) / 2, t, Math.hypot(dx, dy, dz), t, Math.atan2(dx, dz), [0, 0, Math.atan2(Math.hypot(dx, dz), dy)]);
+    };
+    // A block of lit floors out of a face (its windows on its +z and -z
+    // sides), a strut under each end of its outer edge back to the wall.
+    const cantilever = (x, y, z, sx, sy, sz, seed, struts) => {
+      box(BOX.deck, x, y, z, sx, sy, sz, 0, [seed, 0, 0]);
+      for (const [ax, ay, az, bx, bz] of struts) strut(ax, ay, az, bx, y - sy / 2 - 0.5, bz, 2.2);
+    };
+    // The needle (-150, -900): south face z -875 (to 181 m), east face x -125;
+    // its second tier (181..257) x -130.5, z -880.5.
+    cantilever(-116.5, 210, -893, 28, 28, 22, 0.17, [[-125, 150, -885, -104, -885], [-125, 150, -901, -104, -901]]);
+    cantilever(-160, 246, -869.5, 18, 20, 22, 0.53, [[-166, 200, -880.5, -166, -861], [-154, 200, -880.5, -154, -861]]);
+    name(-148, 134, -874.2, 13, 88, 0, true);
+    name(-139, 220, -879.7, 10.5, 68, 0, true);
+    name(-160, 259.5, -859.5, 26, 6, 0, false);
+    for (const y of [96, 128, 160]) {
+      tube(-150, y, -874.6, 34, 0.7, 0.4, 0);
+      tube(-124.6, y, -900, 0.4, 0.7, 34, 0);
+    }
+    // (From over the canyon's end the megabuilding hides the needle below
+    // 260 m: its third tier, 257..297, is lit in bands up to the hero's line.)
+    for (const y of [265, 276, 287]) {
+      tube(-150, y, -884.6, 30, 0.8, 0.4, y === 276 ? 1 : 0);
+      tube(-134.6, y, -900, 0.4, 0.8, 30, y === 276 ? 1 : 0);
+    }
+    tube(-128.3, 102.5, -878.3, 1.2, 157, 0.4, 0, Math.PI / 4);
+    tube(-171.7, 102.5, -878.3, 1.2, 157, 0.4, 4, -Math.PI / 4);
+    // The stack (-300, -1150): four blocks, each over to its own side; the
+    // second's east face x -271.2, the third's south face z -1126.6.
+    cantilever(-256.2, 239, -1158, 30, 28, 24, 0.29, [[-271.2, 190, -1150, -244, -1150], [-271.2, 190, -1166, -244, -1166]]);
+    cantilever(-300, 311, -1114.6, 30, 22, 24, 0.71, [[-312, 272, -1126.6, -312, -1104], [-288, 272, -1126.6, -288, -1104]]);
+    name(-305, 225, -1125.8, 14, 80, 1, true);
+    name(-300, 326.5, -1103.4, 30, 9, 1, false);
+    for (const [y, x0, x1, z0, z1, hue] of [[176.4, -330, -270, -1180, -1120, 1], [268.8, -319.2, -271.2, -1178.2, -1126.6, 0], [352.8, -319.2, -280.8, -1166.2, -1126.6, 1]]) {
+      tube((x0 + x1) / 2, y - 0.6, z1 + 0.25, x1 - x0, 1.0, 0.4, hue);
+      tube(x1 + 0.25, y - 0.6, (z0 + z1) / 2, 0.4, 1.0, z1 - z0, hue);
+    }
+    // Its crown: four lattice masts of their own heights on the last block
+    // (x -310.8..-284.4, z -1157.8..-1130.2, roof 420), a red lamp on each.
+    for (const [x, z, h] of [[-307, -1154, 58], [-288, -1153, 40], [-306, -1134, 30], [-289, -1135, 24]]) {
+      box(BOX.lattice, x, 420 + h / 2, z, 3, h, 3, 0.3);
+      tips.push(x, 420 + h + 1.5, z);
+    }
+    box(BOX.steel, -297.6, 421.5, -1144, 22, 3, 22, 0, [0.4, 0, 0]);
+    // The blade (-190, -1400): its raked head from 384 m, south face z -1386.
+    cantilever(-184, 404, -1374, 36, 24, 24, 0.83, [[-202, 350, -1384.6, -202, -1363], [-166, 350, -1384.6, -166, -1363]]);
+    name(-184, 422, -1362.8, 50, 12, 2, false);
+    for (const x of [-216.5, -163.5]) tube(x, 204, -1384.4, 1.0, 360, 0.4, 3);
+    tips.push(-202, 417, -1362, -166, 417, -1362);
+    // The frame (120, -1400): south face z -1370, east face x 150, to 312 m.
+    cantilever(164, 283, -1392, 28, 26, 24, 0.41, [[150, 232, -1384, 176, -1384], [150, 232, -1400, 176, -1400]]);
+    name(110, 230, -1369.2, 18, 140, 3, true);
+    tube(147.2, 168, -1372.8, 1.2, 276, 0.4, 0, Math.PI / 4);
+    tube(92.8, 168, -1372.8, 1.2, 276, 0.4, 3, -Math.PI / 4);
+    tips.push(176, 297, -1392);
+    // The ziggurat (330, -1000): south face z -977, under the slice of it
+    // the hero's lens sees (160 m and up).
+    name(322, 104, -976.2, 13, 88, 4, true);
+    tube(353.2, 88, -976.8, 0.8, 120, 0.4, 2);
+    tube(306.8, 88, -976.8, 0.8, 120, 0.4, 2);
+  }
+
   // The columns: each a solid stack of screens on its own ground, 0.72 of
   // its height (the rest is its beam, sky-columns.js).
   // (A column the rooftop's lens frames, west-north-west from the

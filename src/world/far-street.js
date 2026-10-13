@@ -31,11 +31,13 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { ADVERT } from "./sky-columns.js";
 
-export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13, screen: 14, pad: 15, awning: 16, sign: 17, clutter: 18 };
+// (And on the landmark towers and the far faces: a tube of neon, a
+// landmark's name, and a strut leaning out of a wall at an angle.)
+export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13, screen: 14, pad: 15, awning: 16, sign: 17, clutter: 18, tube: 19, logo: 20, strut: 21 };
 
 // How far each kind is drawn: past it, it is under a pixel (a slab, a deck
 // and its boards are always drawn).
-const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320, Infinity, Infinity, 420, 420, 220];
+const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320, Infinity, Infinity, 420, 420, 220, Infinity, Infinity, 1800];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
@@ -74,9 +76,18 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
         // the roofs: the stack of a column one of the page's roofs frames,
         // which from there is the hologram it was, sky-columns.js.)
         if (aOwn.w > 0.5) l *= smoothstep(40.0, 62.0, uCam.y);
+        vec3 nl = normal;
+        // (A strut leans: its third own number tips its length from the
+        // vertical toward its own +z, before it is turned.)
+        if (aSize.w > 20.5 && aSize.w < 21.5) {
+          float cp = cos(aOwn.z);
+          float sp = sin(aOwn.z);
+          l = vec3(l.x, l.y * cp - l.z * sp, l.y * sp + l.z * cp);
+          nl = vec3(nl.x, nl.y * cp - nl.z * sp, nl.y * sp + nl.z * cp);
+        }
         vec3 w = vec3(aAt.x + cs * l.x + sn * l.z, aAt.y + l.y, aAt.z - sn * l.x + cs * l.z);
         vWorld = w;
-        vNormalW = vec3(cs * normal.x + sn * normal.z, normal.y, -sn * normal.x + cs * normal.z);
+        vNormalW = vec3(cs * nl.x + sn * nl.z, nl.y, -sn * nl.x + cs * nl.z);
         vLocal = position * aSize.xyz;
         vSize = aSize;
         vOwn = aOwn;
@@ -87,6 +98,8 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
       ${COMMON}
       ${ADVERT}
       ${street}
+      uniform sampler2D uLogos;
+      uniform float uHasLogos;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       varying vec3 vLocal;
@@ -152,6 +165,59 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
           vec3 steel = vec3(0.016, 0.017, 0.022) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * max(n.y, 0.0)) * uHaze * 0.5;
           lit = pane * on * side * (1.0 - clamp(truss, 0.0, 1.0));
           col = mix(steel, glow * 0.75, lit);
+          // Its belly lit, as the show's skybridges are from under: a line
+          // of light down each edge and a lamp in every bay between.
+          if (n.y < -0.5) {
+            vec2 e = vSize.xz * 0.5 - abs(vLocal.xz);
+            float line = step(min(e.x, e.y), 0.7);
+            vec2 bay = abs(fract(vLocal.xz / 6.0) - 0.5) * 6.0;
+            float lamp = exp(-dot(bay, bay) / 0.9);
+            vec3 under = mix(vec3(0.3, 0.85, 1.0), vec3(1.0, 0.72, 0.42), step(0.55, fract(vOwn.x * 7.3)));
+            col = steel * 0.6 + under * (1.4 * line + 0.9 * lamp) + under * 0.05;
+            lit = max(line, step(0.5, lamp));
+          }
+        } else if (kind > 20.5) {
+          // A strut out of a wall: dark steel, its top catching the glow, a
+          // line of light down its length.
+          col = vec3(0.013, 0.014, 0.019) + (uHazeColor * 0.35 + uGlowColor * 0.2) * (0.25 + 0.75 * max(n.y, 0.0)) * uHaze * 0.6;
+          float run = step(abs(vLocal.x), vSize.x * 0.12) * step(0.0, vLocal.z) * step(vSize.z * 0.5 - 0.01, vLocal.z);
+          col = mix(col, vec3(0.3, 0.8, 1.0) * 0.8, run);
+          lit = run;
+        } else if (kind > 19.5) {
+          // A landmark's name: its emblem and then its letters, across the
+          // board or down it (third own number 1), lit in the tower's colour
+          // on a dark sheet, white at the core of each stroke, a line of
+          // light round the edge. Far off, the sign's light, not a shimmer.
+          float face = step(vSize.z * 0.5 - 0.01, abs(vLocal.z));
+          vec2 q = vec2(vLocal.x / vSize.x + 0.5, vLocal.y / vSize.y + 0.5);
+          if (vLocal.z < 0.0) q.x = 1.0 - q.x;
+          float id = vOwn.x;
+          float cells = vOwn.y + 1.0;
+          vec3 tone = id < 0.5 ? vec3(0.25, 0.95, 1.0) : id < 1.5 ? vec3(1.0, 0.25, 0.62) : id < 2.5 ? vec3(0.74, 0.4, 1.0) : id < 3.5 ? vec3(0.35, 0.62, 1.0) : vec3(1.0, 0.7, 0.22);
+          bool down = vOwn.z > 0.5;
+          float g = down ? (1.0 - q.y) * cells : q.x * cells;
+          float cell = floor(g);
+          vec2 f = down ? vec2(q.x, fract(g)) : vec2(fract(g), 1.0 - q.y);
+          float cw = down ? vSize.x : vSize.x / cells;
+          float ch = down ? vSize.y / cells : vSize.y;
+          vec2 fs = f;
+          if (cw > ch) fs.x = 0.5 + (f.x - 0.5) * cw / ch;
+          else fs.y = 0.5 + (f.y - 0.5) * ch / cw;
+          fs = (fs - 0.5) / 0.86 + 0.5;
+          float inside = step(0.0, fs.x) * step(fs.x, 1.0) * step(0.0, fs.y) * step(fs.y, 1.0);
+          float k = texture2D(uLogos, vec2((cell + clamp(fs.x, 0.0, 1.0)) / 8.0, (id + clamp(fs.y, 0.0, 1.0)) / 8.0)).r * inside * uHasLogos;
+          vec2 e = min(q, 1.0 - q) * vSize.xy;
+          float rim = step(min(e.x, e.y), 0.6);
+          vec3 art = mix(vec3(0.006, 0.008, 0.014) + tone * 0.04, mix(tone * 2.0, vec3(1.0), 0.35 * k), k) + tone * 1.3 * rim;
+          art = mix(art, tone * 0.75, smoothstep(0.35, 0.9, fwidth(g)));
+          col = mix(vec3(0.012, 0.013, 0.017), art, face);
+          lit = face * max(k, rim);
+        } else if (kind > 18.5) {
+          // A tube of neon: its colour, white at the core.
+          float hue = vOwn.x;
+          vec3 tone = hue < 0.5 ? vec3(0.2, 0.9, 1.0) : hue < 1.5 ? vec3(1.0, 0.2, 0.7) : hue < 2.5 ? vec3(1.0, 0.85, 0.25) : hue < 3.5 ? vec3(0.7, 0.35, 1.0) : hue < 4.5 ? vec3(0.3, 1.0, 0.75) : vec3(1.0, 0.18, 0.12);
+          col = mix(tone, vec3(1.0), 0.25) * vOwn.y;
+          lit = 1.0;
         } else if (kind > 17.5) {
           // What stands along a kerb: a bin, a stack of crates, a cabinet,
           // a barrier (its second number: striped). Plastic and painted
