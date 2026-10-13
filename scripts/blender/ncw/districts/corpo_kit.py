@@ -1748,6 +1748,86 @@ def upper_dress(f, y0, y1, density=1.0, hue="amber", keep=()):
         f.box(k("neon_" + hue, 1), s - 0.18, s + 0.18, yy + 0.1, yy + 2.3, 0.18, 0.2)
 
 
+def back_floors(f, y0, y1, rv, lit=0.45, pitch=2.6, keep=(), ac=0.25):
+    """A back wall's floors from y0 to y1 as a building lived in: a window
+    every `pitch` metres on every floor (3.6 m), frosted, lit warm or cool
+    (`lit` of them) or dark in a dark frame, now and then a blind half down,
+    an air conditioner under some, a lit slip of a sign on one floor in
+    four. (A few windows to a wall left most of it a black plane.)"""
+    w = f.width
+    free = lambda s0, s1: all(s1 < ka or s0 > kb for ka, kb in keep)      # noqa: E731
+    warm, cool, deep = (0.34, 0.22, 0.1, 1.0), (0.17, 0.22, 0.27, 1.0), (0.012, 0.014, 0.02, 1.0)
+    n = max(1, int((w - 1.2) // pitch))
+    off = (w - n * pitch) / 2
+    y = y0
+    while y + 1.7 < y1:
+        floor_lit = lit * rv.uniform(0.4, 1.6)
+        for j in range(n):
+            s = off + j * pitch + pitch / 2 - 0.55
+            if not free(s - 0.1, s + 1.2):
+                continue
+            f.quad(k("trim", 1), s - 0.08, s + 1.18, y + 0.92, y + 2.42, 0.015, col=BLACK)
+            if rv.random() < floor_lit:
+                c = warm if rv.random() < 0.65 else cool
+                g = rv.uniform(0.6, 1.3)
+                f.quad(k("glow", 1), s, s + 1.1, y + 1.0, y + 2.34, 0.03, col=(c[0] * g, c[1] * g, c[2] * g, 1.0))
+                if rv.random() < 0.3:
+                    f.quad(k("trim", 1), s, s + 1.1, y + 1.6 + rv.uniform(0.0, 0.6), y + 2.34, 0.04, col=(0.05, 0.045, 0.04, 1.0))
+            else:
+                f.quad(k("trim", 1), s, s + 1.1, y + 1.0, y + 2.34, 0.03, col=deep)
+            if rv.random() < ac:
+                px, _, pz = f.p(f.at(s + 0.55), 0.0, 0.0)
+                P.place("ac_wall", px, y + 0.15, pz, f.yaw, district=CO)
+        if rv.random() < 0.25 and w > 6.0:
+            s = rv.uniform(0.5, w - 1.0)
+            if free(s - 0.3, s + 0.3):
+                hue = rv.choice(("amber", "cyan", "pink", "white"))
+                f.box(k("trim", 1), s - 0.22, s + 0.22, y + 0.6, y + 2.8, 0.0, 0.16, col=BLACK)
+                f.box(k("neon_" + hue, 1), s - 0.16, s + 0.16, y + 0.7, y + 2.7, 0.16, 0.18)
+        y += STOREY
+
+
+def foot_fill(f, rv, keep=(), y1=3.3):
+    """A wall's foot between its doors, as a lane's wall is: meter boxes in
+    a bank with their conduit up the wall, a fuse box with its lamp, pipes
+    from the ground, a row of crates or bins, a strip of old bills."""
+    w = f.width
+    free = lambda s0, s1: all(s1 < ka or s0 > kb for ka, kb in keep)      # noqa: E731
+    s = rv.uniform(0.6, 2.0)
+    while s < w - 1.4:
+        roll = rv.random()
+        if roll < 0.3 and free(s, s + 1.6):
+            for m in range(rv.randrange(2, 4)):
+                a = s + m * 0.5
+                f.box(k("metal", 1), a, a + 0.42, 1.1, 1.75, 0.0, 0.2)
+                f.box(k("glow", 1), a + 0.12, a + 0.3, 1.5, 1.6, 0.2, 0.21, col=GLOW[rv.choice(("green", "amber", "white"))])
+            f.box(k("metal", 1), s + 0.1, s + 0.2, 1.75, y1, 0.04, 0.12)
+            s += 1.6
+        elif roll < 0.5 and free(s, s + 0.8):
+            for m in range(rv.randrange(1, 4)):
+                px, _, pz = f.p(f.at(s + m * 0.24), 0.0, 0.0)
+                P.place("pipe_v", px, G0, pz, f.yaw, sy=y1 + rv.uniform(0.5, 3.0), district=CO)
+            s += 0.8
+        elif roll < 0.7 and free(s, s + 2.2):
+            # Old bills pasted up in a strip, a lamp over them.
+            f.quad(k("trim", 1), s, s + 2.2, 0.9, 2.3, 0.012, col=(0.09, 0.08, 0.07, 1.0))
+            for m in range(3):
+                c = rv.choice(((0.3, 0.12, 0.1, 1.0), (0.12, 0.18, 0.24, 1.0), (0.26, 0.24, 0.16, 1.0), (0.1, 0.2, 0.12, 1.0)))
+                a = s + 0.1 + m * 0.7 + rv.uniform(-0.05, 0.05)
+                f.quad(k("glow", 1), a, a + 0.6, 1.0 + rv.uniform(0.0, 0.2), 1.9 + rv.uniform(0.0, 0.3), 0.02, col=(c[0] * 0.5, c[1] * 0.5, c[2] * 0.5, 1.0))
+            s += 2.2
+        elif roll < 0.85 and free(s, s + 1.4):
+            px, _, pz = f.p(f.at(s + 0.6), 0.0, 0.45)
+            P.place(rv.choice(("crates", "bin", "bags", "drum", "pallets")), px, G0, pz, f.yaw + rv.uniform(-0.3, 0.3), district=CO)
+            s += 1.4
+        else:
+            if free(s, s + 0.8):
+                f.box(k("trim", 1), s, s + 0.7, 1.3, 2.2, 0.0, 0.22, col=STEEL)
+                f.box(k("glow", 1), s + 0.3, s + 0.4, 2.25, 2.35, 0.1, 0.2, col=GLOW["red"])
+            s += 0.8
+        s += rv.uniform(0.8, 2.4)
+
+
 def holo_sign(x, z, yaw, r, hue="cyan", y=7.4, size=3.4, n=None, base=G0):
     """A sign on a pole drawn in light, a hexagon with a pictogram in it
     (the hexagonal sign over the forecourt in YRL74JmhVgk@30, without its

@@ -154,6 +154,29 @@ def pier(px):
         box(k("trim", 1), px - 1.37, px + 1.37, G0 + yy, G0 + yy + 0.25, z0 - 0.17, z1 + 0.17, scale=1.0, col=K.YELLOW)
     K.st_board(px, 4.2, z0 - 0.02, "bx", math.pi)
     K.glow_box(px - 0.5, px + 0.5, 5.3, 5.38, z0 - 0.3, z0 - 0.02, "amber", 1)
+    # The column cast in lifts, a dark joint every 2.4 m; steel cladding
+    # to head height with its bolts' line; on each side to the boulevard's
+    # traffic a lit panel of the line's map, a lamp over it; a cable tray up
+    # its back. (A bare tan column at the kerb read as a placeholder.)
+    for yy in [G0 + 1.5 + 2.4 * n for n in range(1, 6)]:
+        box(k("trim", 1), px - 1.215, px + 1.215, yy, yy + 0.05, z0 - 0.015, z1 + 0.015, scale=1.0, col=(0.08, 0.08, 0.085, 1.0))
+    box(k("trim"), px - 1.26, px + 1.26, G0 + 1.5, G0 + 2.6, z0 - 0.06, z1 + 0.06, scale=1.0, col=K.STEEL)
+    box(k("metal", 1), px - 1.27, px + 1.27, G0 + 2.5, G0 + 2.54, z0 - 0.07, z1 + 0.07, scale=1.0)
+    for sx in (-1, 1):
+        xf = px + sx * 1.2
+        xa, xb = sorted((xf, xf + sx * 0.12))
+        box(k("trim"), xa, xb, 3.0, 5.6, PIER_Z - 0.75, PIER_Z + 0.75, scale=1.0, col=K.BLACK)
+        xa, xb = sorted((xf + sx * 0.12, xf + sx * 0.14))
+        box(k("glow"), xa, xb, 3.15, 5.45, PIER_Z - 0.62, PIER_Z + 0.62, scale=1.0, col=(0.16, 0.2, 0.24, 1.0))
+        for n in range(4):
+            yy = 3.5 + n * 0.5
+            xa, xb = sorted((xf + sx * 0.14, xf + sx * 0.15))
+            box(k("glow", 1), xa, xb, yy, yy + 0.06, PIER_Z - 0.5, PIER_Z + 0.5 - 0.2 * n, scale=1.0, col=GLOW[("amber", "cyan", "white", "pink")[n]])
+        xa, xb = sorted((xf, xf + sx * 0.4))
+        box(k("metal", 1), xa, xb, 5.75, 5.85, PIER_Z - 0.3, PIER_Z + 0.3, scale=1.0)
+        xa, xb = sorted((xf + sx * 0.3, xf + sx * 0.4))
+        box(k("glow", 1), xa, xb, 5.7, 5.75, PIER_Z - 0.25, PIER_Z + 0.25, scale=1.0, col=GLOW["white"])
+    box(k("steel", 1), px - 0.3, px + 0.3, G0 + 2.6, PIER_TOP, z1, z1 + 0.18, scale=1.0, col=K.STEEL)
 
 
 def portal_frame(px):

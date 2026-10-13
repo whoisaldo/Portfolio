@@ -634,4 +634,8 @@ from ncw.districts import corpo_rank  # noqa: E402,F401
 # street, and its two stations (corpo_line.py).
 from ncw.districts import corpo_line  # noqa: E402,F401
 
+# Last, on dice of its own: the backs, flanks and walls filled, the gaps'
+# planting broken up, the guideway's piers dressed (corpo_fill.py).
+from ncw.districts import corpo_fill  # noqa: E402,F401
+
 K.ad_report()

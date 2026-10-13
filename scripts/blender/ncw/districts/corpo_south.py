@@ -231,9 +231,16 @@ def colonnade(x0, x1, tower_x, z, hue, r, depth=3.4, top=8.0):
                 fg.box(k("trim", 1), u - 0.04, u + 0.04, 0.55, 3.3, 0.31, 0.36, col=K.BLACK)
             fg.box(k("trim", 1), m - 2.5, m + 2.5, 0.45, 0.55, 0.3, 0.42, col=K.STEEL)
         else:
-            # A backlit advert in the wing, framed.
-            ax, ay, az = fg.p(fg.at(m), 2.2, 0.42)
-            K.advert(ax, ay, az, 4.4, 2.6, fg.yaw, int(x0) // 9, seed=0.27 + 0.05 * (int(x0) % 7), depth=0.1)
+            # A lit kiosk window in the wing under a backlit advert, framed.
+            # (The advert alone on the wing's dark wall was a poster on a
+            # black plane.)
+            fg.quad(k("shop"), m - 2.0, m + 2.0, 0.55, 2.6, 0.31, col=(0.85, 0.92 if hue == "cyan" else 0.2, 1.0, 1.0))
+            for u in (m - 0.7, m + 0.7):
+                fg.box(k("trim", 1), u - 0.04, u + 0.04, 0.55, 2.6, 0.31, 0.36, col=K.BLACK)
+            fg.box(k("trim", 1), m - 2.1, m + 2.1, 0.45, 0.55, 0.3, 0.42, col=K.STEEL)
+            ax, ay, az = fg.p(fg.at(m), 4.85, 0.42)
+            K.advert(ax, ay, az, 4.4, 2.1, fg.yaw, int(x0) // 9, seed=0.27 + 0.05 * (int(x0) % 7), depth=0.1)
+            fg.box(k("glow", 1), m - 2.3, m + 2.3, 6.0, 6.06, 0.3, 0.36, col=c)
         fg.box(k("glow", 1), m - 2.5, m + 2.5, 3.7, 3.76, 0.3, 0.36, col=c)
         for u in (a + 0.5, b - 0.5):
             fg.box(k("glow"), u - 0.04, u + 0.04, 0.5, top - 1.3, 0.3, 0.33, col=(c[0] * 0.7, c[1] * 0.7, c[2] * 0.7, 1.0))
