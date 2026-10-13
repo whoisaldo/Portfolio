@@ -501,10 +501,20 @@ def pipes(D, f, s0, s1, y, rng, n=2):
     pipe((D, "metal", 1), f.p(f.at(s), y, 0.16), f.p(f.at(s), y + rng.uniform(3.0, 8.0), 0.16), 0.06, segs=5)
 
 
-def lit_door(D, f, s, hue, w=1.1, h=2.25, power=3.5, ajar=True, back=0.0):
+def lit_door(D, f, s, hue, w=1.1, h=2.25, power=3.5, ajar=True, back=0.0, stair=False):
     """A door standing open on a lit room, its light on the ground outside
     (the green door on the dark street, UKgCVtdSfE0@38). `back`: how far
-    behind the face's plane its frame stands (a door in a lobby)."""
+    behind the face's plane its frame stands (a door in a lobby). `stair`:
+    the room is a stair going up, its treads and rail dark against the
+    light (lit flat, a door on a stair read as "a glowing orange rectangle
+    with no graphic", the m8 review)."""
+    if stair:
+        for i in range(7):
+            u0 = s - w / 2 + i * w / 7.0
+            f.quad((D, "trim", 1), u0, s + w / 2, G0 + 0.18 + i * 0.3, G0 + 0.24 + i * 0.3, -back + 0.073, col=BLACK)
+            f.quad((D, "trim", 1), u0, u0 + 0.05, G0, G0 + 0.24 + i * 0.3, -back + 0.073, col=BLACK)
+        pipe((D, "metal", 1), f.p(f.at(s - w / 2 + 0.1), 1.0, -back + 0.08), f.p(f.at(s + w / 2 - 0.05), 2.95, -back + 0.08), 0.02, segs=3)
+        f.quad((D, "trim", 1), s + w / 2 - 0.42, s + w / 2 - 0.12, 1.5, 1.72, -back + 0.074, col=(0.3, 0.3, 0.28, 1))
     f.box((D, "metal", 1), s - w / 2 - 0.08, s + w / 2 + 0.08, G0, h + 0.1, -back, -back + 0.06)
     c = GLOW[hue]
     # The room: brightest at the lamp over the lintel inside, a darker floor.
@@ -520,6 +530,37 @@ def lit_door(D, f, s, hue, w=1.1, h=2.25, power=3.5, ajar=True, back=0.0):
         for q in (((a[0], G0, a[2]), b, (b[0], h, b[2]), (a[0], h, a[2])), (b, (a[0], G0, a[2]), (a[0], h, a[2]), (b[0], h, b[2]))):
             quad((D, "door", 0), *q)
     light(D, *f.p(f.at(s), 1.2, 1.2 - back), hue, power)
+
+
+def shop_glass(D, f, s0, s1, y0, y1, rng, out=0.07, sign_=True, blind=False, posters=1):
+    """What makes a pane of shop glass a shop's window: mullions and a
+    transom in steel, a lit sign hung inside the glass, posters and a
+    price card stuck on it, now and then a blind half down."""
+    n = max(1, round((s1 - s0) / 1.9))
+    for i in range(1, n):
+        e = s0 + (s1 - s0) * i / n
+        f.box((D, "metal", 1), e - 0.035, e + 0.035, y0, y1, 0.0, out + 0.04)
+    ty = y1 - 0.62
+    f.box((D, "metal", 1), s0, s1, ty - 0.035, ty + 0.035, 0.0, out + 0.04)
+    if blind:
+        drop = rng.uniform(0.25, 0.45)
+        for i in range(5):
+            yy = ty - (i + 1) * drop / 5
+            f.quad((D, "trim", 1), s0 + 0.04, s1 - 0.04, yy, yy + drop / 5 * 0.7, out + 0.01, col=BLIND)
+    if sign_:
+        m = s0 + (s1 - s0) * rng.uniform(0.3, 0.7)
+        sw = min(1.4, (s1 - s0) * 0.45)
+        f.box((D, "board_frame", 0), m - sw / 2 - 0.05, m + sw / 2 + 0.05, ty - 0.62, ty - 0.08, out - 0.02, out)
+        sign(sid("ps"), *f.p(f.at(m), ty - 0.35, out + 0.012), sw, sw * 0.44, f.yaw, district=D, label=False)
+        for e in (m - sw / 3, m + sw / 3):
+            pipe((D, "dark", 1), f.p(f.at(e), ty - 0.08, out - 0.01), f.p(f.at(e), ty, out - 0.01), 0.008, segs=3)
+    for k in range(posters):
+        pw = rng.uniform(0.35, 0.6)
+        ps = rng.uniform(s0 + 0.15, s1 - 0.15 - pw)
+        f.quad((D, "billboard", 0), ps, ps + pw, y0 + 0.15, y0 + 0.15 + pw * 1.4, out + 0.008,
+               col=(rng.randrange(8) / 8 + 0.01, rng.randrange(8) / 8 + 0.01, rng.random(), 1.0))
+    cs = rng.uniform(s0 + 0.2, s1 - 0.5)
+    f.quad((D, "trim", 1), cs, cs + 0.26, y0 + 0.9, y0 + 1.2, out + 0.009, col=(0.42, 0.4, 0.33, 1))
 
 
 def shutter(D, f, s0, s1, h=3.0, lamp="white"):

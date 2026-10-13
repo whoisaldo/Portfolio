@@ -472,10 +472,18 @@ for dz_, hue_ in ((-1.6, "yellow"), (0.0, "green"), (1.6, "yellow")):
 light(D, 428.4, 2.4, AF.at(25.5), "white", 2.5)
 light(D, 428.4, 2.4, AF.at(30.5), "amber", 2.0)
 # The queue, the doorman and a second on the door.
-QUEUE = [(23.3, "idle", 0.0), (24.3, "phone", 0.2), (25.4, "talk", 0.0), (26.2, "talk", math.pi), (27.4, "idle", -0.2),
-         (28.5, "smoke", 0.4), (29.6, "phone", 0.0), (30.7, "talk", 0.0), (31.5, "talk", math.pi), (32.7, "idle", 0.1)]
-for sv, pose, turn in QUEUE:
-    qx, _, qz = AF.p(AF.at(sv), 0.0, -0.6)
+# (The m8 review: "mannequin-stiff ... identical standing poses": not a
+# file now; pairs and threes turned to each other, one half out of the
+# line on a phone, one crouched, one leaning on the rope's post, a smoker
+# turned away, each a little in or out of the line.)
+# (As many as before, and as deep in the arcade: those added are placed at
+# the end of this file, so everyone placed after the queue keeps the look
+# the site dealt them.)
+QUEUE = [(23.3, "queue", 0.0, -0.6), (24.3, "phone", 0.9, -0.5), (25.3, "talk", 0.5, -0.8), (26.1, "talk", math.pi + 0.4, -0.5),
+         (27.4, "smoke", 1.6, -0.55), (28.5, "squat", 0.3, -0.7), (29.6, "queue", -0.3, -0.6), (30.7, "talk", 0.2, -0.85),
+         (31.5, "talk", math.pi - 0.3, -0.5), (32.7, "phone", 2.6, -0.65)]
+for sv, pose, turn, out_ in QUEUE:
+    qx, _, qz = AF.p(AF.at(sv), 0.0, out_)
     stand(qx, qz, turn, pose, y=G0)
 for sv in (26.9, 30.1):
     qx, _, qz = AF.p(AF.at(sv), 0.0, -1.12)
@@ -511,7 +519,16 @@ RB.box((D, "neon_white", 0), 13.4, 21.8, 3.72, 4.0, 0.0, 0.06)
 cx_, _, cz_ = RB.p(RB.at(17.6), 0.0, 1.0)
 K.cross(D, cx_, 6.2, cz_, 1.4, 0.0, "green")
 pipe((D, "metal", 1), (EL, 7.0, cz_), (cx_ - 0.4, 7.0, cz_), 0.04, segs=4)
-K.board(D, *RB.p(RB.at(20.6), 5.3, 0.1), "ps", RB.yaw)
+K.board(D, *RB.p(RB.at(24.4), 5.3, 0.1), "ps", RB.yaw)
+# (The m8 review: RIPPERDOC "more a placeholder than a shop sign".) Its
+# name over the clinic's door, the roof sign's own artwork on a lit fascia
+# in a steel frame, a tube of red under it and two lamps over it.
+RB.box((D, "board_frame", 0), 14.95, 20.25, 4.12, 5.62, 0.0, 0.16)
+sign("ripperdoc_b", *RB.p(RB.at(17.6), 4.87, 0.172), 5.1, 1.25, RB.yaw, preview="+ RIPPERDOC", district=D)
+RB.box((D, "neon_red", 0), 15.1, 20.1, 4.06, 4.12, 0.1, 0.18)
+for sv in (15.6, 19.6):
+    RB.box((D, "metal", 1), sv - 0.04, sv + 0.04, 5.62, 5.95, 0.0, 0.5)
+    RB.box((D, "neon_white", 0), sv - 0.12, sv + 0.12, 5.8, 5.88, 0.4, 0.62)
 K.dress(D, RB, 34.0, rr, dict(ST, ledge_every=0, balcony=0.0, ac=0.3, cornice=1.0), RB_TINT, escape=31.5)
 K.pipe_bundle(D, RB, 23.0, 41.4, 5.05, rr, n=3)
 # AFTERLIFE's block has its own fire escape in the same steel, north of the
@@ -556,6 +573,33 @@ for sv, yy in ((2.6, 5.45), (5.4, 5.45), (8.9, 5.6), (26.4, 5.5), (28.4, 5.5)):
     ax_, _, az_ = GF.p(GF.at(sv), yy, 0.0)
     P.place("ac_wall", ax_, yy, az_, GF.yaw, district=D)
     GF.quad((D, "trim", 1), sv - 0.08, sv + 0.1, yy - 0.75, yy, 0.136 if yy - 0.75 < SHOP_H + 0.5 else 0.012, col=K.RUST_DARK)
+# (The m8 review: "the concrete wall is clean grey with no grime, stains,
+# posters or tags".) Its foot dark with splash, rain run down from the
+# steel band in streaks, rust from the jambs' bolts, two posters pasted
+# beside the door and a tag sprayed over one of them.
+rgg = random.Random(9216)
+for a_, b_ in ((0.0, 11.38), (18.62, 30.0)):
+    GF.quad((D, "trim", 1), a_, b_, 0.0, 0.42, 0.008, col=(0.025, 0.024, 0.022, 1))
+    sv = a_ + rgg.uniform(0.3, 0.9)
+    while sv < b_ - 0.4:
+        if not (7.8 < sv < 10.0):
+            w_ = rgg.uniform(0.12, 0.45)
+            y0_ = rgg.uniform(1.2, 3.2)
+            GF.quad((D, "trim", 1), sv, sv + w_, y0_, SHOP_H, 0.009, col=rgg.choice(((0.05, 0.05, 0.048, 1), (0.07, 0.045, 0.03, 1), (0.04, 0.045, 0.04, 1))))
+        sv += rgg.uniform(0.6, 1.8)
+for sv in (11.6, 18.4):
+    GF.quad((D, "trim", 1), sv - 0.08, sv + 0.08, 1.4, 3.9, 0.012, col=K.RUST_DARK)
+with own_ids(95710):
+    K.poster(D, GF, 20.0, 1.75, 0.9, 1.3, rgg, out=0.02)
+    K.poster(D, GF, 6.0, 1.75, 0.9, 1.3, rgg, out=0.02)
+# The tag: strokes of spray across the right-hand poster and the wall by it.
+for (u0, v0, u1, v1, w_) in ((19.3, 1.2, 19.9, 2.3, 0.07), (19.9, 2.3, 20.3, 1.3, 0.06), (20.3, 1.3, 20.9, 2.1, 0.07), (20.6, 1.15, 21.6, 1.35, 0.05),
+                             (21.0, 1.6, 21.3, 2.4, 0.06)):
+    du, dv = u1 - u0, v1 - v0
+    ln = math.hypot(du, dv)
+    nu, nv = -dv / ln * w_, du / ln * w_
+    K.vpoly((D, "trim", 1), [GF.p(GF.at(u_), v_, 0.04) for u_, v_ in ((u0 - nu, v0 - nv), (u1 - nu, v1 - nv), (u1 + nu, v1 + nv), (u0 + nu, v0 + nv))],
+            [(0.05, 0.36, 0.42, 1)] * 4)
 K.pipe_bundle(D, GF, 0.4, 10.4, 6.8, rg, n=3)
 K.pipe_bundle(D, GF, 19.7, 29.6, 6.95, rg, n=2)
 P.place("pipe_v", EL, 0.0, -200.35, GF.yaw, sy=8.9, district=D)
@@ -616,6 +660,7 @@ for (x_, z_) in ((451.45, -221.3), (451.4, -220.5)):
 # window): cut into shops by piers, a bulkhead and a fascia, doors, rust
 # awnings, a sign over each; a shutter at its south end, a wall at its north.
 WB = B.Face("+x", WL, -250.0, -190.0)      # s runs north from the plaza street's corner
+BAR_G = B.Face("+x", WL, -258.0, -250.0)   # the bar's front (built further down), for its glass
 rw = random.Random(9212)
 PIERS = [4.0 + 6.5 * k for k in range(9)]
 for sv in PIERS:
@@ -646,7 +691,7 @@ for k, (a_, b_) in enumerate(zip(PIERS, PIERS[1:])):
     a_, b_ = a_ + 0.25, b_ - 0.25
     if k == 2:
         WB.quad((D, "concrete", 0), a_, b_, 0.62, 3.3, 0.06, uvs=((0, 0), (2.0, 0), (2.0, 1.0), (0, 1.0)))
-        K.lit_door(D, WB, a_ + 1.6, "amber", w=1.1, h=2.3, power=3.0)
+        K.lit_door(D, WB, a_ + 1.6, "amber", w=1.1, h=2.3, power=3.0, stair=True)
         WB.box((D, "board_frame", 0), a_ + 3.0, b_ - 0.6, 1.3, 2.6, 0.06, 0.16)
         WB.quad((D, "billboard", 0), a_ + 3.08, b_ - 0.68, 1.38, 2.52, 0.172, col=(0.385, 0.635, 0.4, 1.0))
         continue
@@ -667,6 +712,18 @@ for k, (a_, b_) in enumerate(zip(PIERS, PIERS[1:])):
         WB.box((D, "metal", 1), a_, b_, 1.6, 1.66, 0.06, 0.1)
 K.shutter(D, WB, 0.5, 3.4, h=3.2, lamp="white")
 K.poster(D, WB, 58.0, 2.3, 1.5, 2.1, rw)
+# (The m8 review's "large flat mint-green wall panel with a white plus" and
+# "flat orange wall panel" on the walk: the glass of each bay as a shop's
+# window now, mullions, a transom, a lit sign hung inside, posters and a
+# card on the glass, a blind half down in one; the door on the stair shows
+# its treads.)
+rwg = random.Random(9215)
+with own_ids(95700):
+    for k, (a_, b_) in enumerate(zip(PIERS, PIERS[1:])):
+        if k in (0, 1, 4, 6, 7):
+            K.shop_glass(D, WB, a_ + 0.25, b_ - 0.25, 0.62, 3.3, rwg, blind=k in (4, 6), posters=0 if k == 7 else 2)
+    # The bar's glass, and the clinic's under RIPPERDOC.
+    K.shop_glass(D, BAR_G, 0.3, 3.9, 0.6, 3.25, rwg, blind=True, posters=1)
 # Its face to the plaza street: shops, an awning.
 PF = B.Face("+z", -190.0, 410.0, WL)
 B.shopfront(D, PF, rw, 0.0, 18.0, B.TINTS["charcoal"], 0.7, 0.0, door=True, palette=WATSON["shop_colours"])
@@ -1835,3 +1892,17 @@ def _unseen(x, z):
 
 
 K.roof_light(D, 457.8, 483.6, -299.6, -258.4, 34.0, lift=0.1, inside=_unseen)
+
+
+# ---------------------------------------------------------------------------
+# People added in round 4, last, so everyone placed before keeps the look
+# the site dealt them: at the machines in AFTERLIFE's flank and in the
+# court, and a third talking with a pair in the queue.
+# ---------------------------------------------------------------------------
+for sv, out_, turn, pose_ in ((3.8, 0.35, -math.pi / 2, "idle"), (5.2, 0.55, -math.pi / 2 + 0.4, "phone")):
+    vx, _, vz = AF.p(AF.at(sv), 0.0, out_)
+    stand(vx, vz, turn, pose_, y=G0)
+stand(407.9, SF.at(10.4), math.pi / 2, "idle")
+stand(407.6, SF.at(12.3), math.pi / 2 - 0.5, "phone")
+qx, _, qz = AF.p(AF.at(26.6), 0.0, -0.9)
+stand(qx, qz, -1.9, "talk", y=G0)

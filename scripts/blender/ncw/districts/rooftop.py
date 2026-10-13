@@ -61,6 +61,10 @@ for i, (cx, cz, h) in enumerate(((466.0, -272.0, 1.6), (461.5, -268.5, 1.1))):
 RIPPER = (457.0, RH + 4.4, -283.0, math.radians(38))
 rx_, ry_, rz_, ryaw = RIPPER
 sign("ripperdoc", rx_, ry_, rz_, 9.0, 2.2, ryaw, double=True, preview="+ RIPPERDOC", district=RF)
+# A tube of red round its face, both sides (the m8 review: "a plain black
+# box with white text", a placeholder more than a clinic's sign).
+for (du, dv, w_, h_) in ((0.0, 1.2, 9.3, 0.07), (0.0, -1.2, 9.3, 0.07), (-4.65, 0.0, 0.07, 2.47), (4.65, 0.0, 0.07, 2.47)):
+    oriented_box((RF, "neon_red", 0), rx_ + du * math.cos(ryaw), ry_ + dv, rz_ - du * math.sin(ryaw), w_, h_, 0.09, ryaw, scale=1.0)
 for du in (-3.2, 3.2):
     oriented_box((RF, "metal", 1), rx_ + du * math.cos(ryaw), RH + 1.6, rz_ - du * math.sin(ryaw),
                  0.16, 3.2, 0.16, ryaw, scale=0.5)
