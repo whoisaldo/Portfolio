@@ -101,7 +101,15 @@ export const GROUND = /* glsl */ `
     vec4 s = spillSmooth(p.xz);
     float h = max(p.y, 0.0);
     float dh = h - s.a * 15.94;
-    return s.rgb * s.rgb * uSpillGain * (0.25 + 0.75 * exp(-h * 0.085)) * (0.7 + 1.5 * exp(-dh * dh * 0.22)) + doorPool(p) + garageRoom(p);
+    // (A floor well off the ground, a terrace or a roof deck, under light
+    // the map says hangs as high as it can say, 16 m and over: that is its
+    // own lamps', level with it, not the street's under it. Taken as the
+    // street's, a lit terrace 40 m up was a black floor.)
+    // (Not on corporate ground, where the towers' crowns over the low
+    // roofs say the same.)
+    float own = smoothstep(12.0, 16.0, h) * (1.0 - smoothstep(50.0, 60.0, h)) * smoothstep(14.8, 15.8, s.a * 15.94) * (1.0 - tidy(p.xz));
+    float fall = mix((0.25 + 0.75 * exp(-h * 0.085)) * (0.7 + 1.5 * exp(-dh * dh * 0.22)), 1.4, own);
+    return s.rgb * s.rgb * uSpillGain * fall + doorPool(p) + garageRoom(p);
   }
 
   // What a wet floor at p gives back along r (up and away from the eye)

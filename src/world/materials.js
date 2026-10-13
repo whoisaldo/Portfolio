@@ -315,6 +315,17 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec2 lf = mat2(cos(hl * 6.28), -sin(hl * 6.28), sin(hl * 6.28), cos(hl * 6.28)) * (fract(lc) - 0.5 - (vec2(fract(hl * 13.0), fract(hl * 29.0)) - 0.5) * 0.5);
             float scrap = step(0.9 - 0.25 * max(edge, yard * 0.6), hl) * step(abs(lf.x), 0.04 + 0.05 * fract(hl * 41.0)) * step(abs(lf.y), 0.03 + 0.03 * fract(hl * 53.0)) * fine;
             albedo = mix(albedo, mix(vec3(0.24, 0.23, 0.2), fract(hl * 67.0) < 0.5 ? vec3(0.3, 0.1, 0.12) : vec3(0.1, 0.22, 0.28), 0.5 * step(0.5, fract(hl * 79.0))), scrap);
+            // A weed in the joint at a wall's foot and the kerb's edge, and
+            // in a yard's joints: a tuft of blades, more of them in Santo
+            // Domingo and none on corporate ground.
+            vec2 wc = p / 0.45;
+            float hw = hash12(floor(wc) + 83.0);
+            vec2 wd = (fract(wc) - 0.5 - (vec2(fract(hw * 13.0), fract(hw * 29.0)) - 0.5) * 0.5) * 0.45;
+            float blades = 0.5 + 0.5 * sin(atan(wd.y, wd.x) * 9.0 + hw * 20.0);
+            float verge = max(smoothstep(0.35, 0.05, min(back, wallD)), yard * 0.3);
+            float weed = step(1.0 - mix(0.22, 0.5, santoAt(p)) * verge * (1.0 - tidy(p)), hw) * (1.0 - smoothstep(0.03 + 0.05 * blades * fract(hw * 3.0 + 0.4), 0.06 + 0.07 * blades, length(wd))) * fine;
+            albedo = mix(albedo, vec3(0.035, 0.055, 0.02) * (0.7 + 0.6 * blades), weed);
+            scrap = max(scrap, weed);
             // The wet: water standing in the low places, more of it in a
             // yard or a lane than on laid flags, thinning to damp at its
             // shore; damp everywhere else, evenly, as rain leaves it.
@@ -387,10 +398,20 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
               float round4 = dot(lw * lw, vec3(0.333)) / 16.0;
               // (And only where the wash is there to take out: a dim
               // forecourt or a megablock's unlit base keeps what it has.)
-              laneDim = mix(1.0, max(here - 0.8 * round4, 0.05 * here) / max(here, 1e-4) * 1.7, laneK * smoothstep(0.1, 0.28, round4));
+              // (Between its pools a lane keeps a third of the wash, not a
+              // twentieth: taken to its pools alone, a lane, a megablock's
+              // passage and a back street's shopfronts were black holes.)
+              laneDim = mix(1.0, max(here - 0.6 * round4, 0.35 * here) / max(here, 1e-4) * 1.5, laneK * smoothstep(0.1, 0.28, round4));
               spill *= laneDim;
             }
           }
+          #endif
+          #ifdef PAVING
+          // (A floor seen from anywhere but the hero's lens takes more of a
+          // dim light than of a bright one: a forecourt, a passage or a lane
+          // under signs that hang high was a black floor, and a plaza under
+          // a dozen signs is no brighter than it was.)
+          if (n.y > 0.7) spill *= 1.0 + smoothstep(0.7, 1.3, uCam.y) / (1.0 + 3.0 * dot(spill, vec3(0.3, 0.5, 0.2)));
           #endif
           vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spill * uSpillMul * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
           // What faces the sky catches the city's glow on the cloud (a wet
@@ -460,6 +481,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec3 back = tame(spillReflect(vWorld, Rw) * 0.14, 0.5) * laneDim;
             vec3 sky = mix((hazeV * 1.2 + glowV * 0.5) * 0.4, SODIUM * 0.9, 0.85 * santoAt(vWorld.xz)) * uHaze;
             vec3 give = back * sheen * (0.15 + 0.85 * graze);
+            // (Away from the hero's lens, the cloud's light on the wet film
+            // too, more of it the more glancing the look: a wet floor with
+            // nothing lit over it is a dark blue sheen, not a black one.)
+            give += sky * sheen * (0.12 + 0.6 * graze) * smoothstep(0.7, 1.3, uCam.y);
             #ifdef PAVING
             // (A pool's face is never one flat tone: the rain keeps it moving.)
             // (And it holds the street's light before the cloud's: lit by
@@ -468,7 +493,12 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // between, given back evenly, was a milky sheen on a lane's
             // floor, fog or frost and not wet stone.)
             float bl = dot(back, vec3(0.3, 0.5, 0.2));
-            if (water > 0.01) give = mix(give, (back * (bl / (0.5 * bl + 0.07)) * 1.3 + sky * mix(0.1, 0.55, santoAt(vWorld.xz))) * (0.25 + 0.75 * graze) * (0.9 + 0.2 * vnoise(vWorld.xz * 6.0 + uTime * 0.7)), water * water);
+            // (And away from the hero's lens, nothing of a dim wash at all:
+            // given back as it was, the wash over a lit forecourt made every
+            // pool a pale shape on the stone, a decal, a paper cutout, a
+            // splash of paint. Water is dark, with the lights in it.)
+            float poolK = mix(1.0, smoothstep(0.06, 0.32, bl) * 1.5, smoothstep(0.7, 1.3, uCam.y));
+            if (water > 0.01) give = mix(give, (back * (bl / (0.5 * bl + 0.07)) * 1.3 * poolK + sky * mix(0.1, 0.55, santoAt(vWorld.xz))) * (0.25 + 0.75 * graze) * (0.9 + 0.2 * vnoise(vWorld.xz * 6.0 + uTime * 0.7)), water * water);
             #endif
             col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
           }
