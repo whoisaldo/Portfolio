@@ -5112,6 +5112,534 @@
    "district": "deck"
   },
   {
+   "name": "anchor_steam_zz_drain_mega_1",
+   "kind": "anchor",
+   "at": [
+    0.6,
+    0.18,
+    -755.8
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_1",
+   "kind": "anchor",
+   "at": [
+    20.42,
+    84.1,
+    -782.69
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_10",
+   "kind": "anchor",
+   "at": [
+    96.86,
+    26.3,
+    -706.63
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_11",
+   "kind": "anchor",
+   "at": [
+    92.4,
+    26.3,
+    -719.6
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_12",
+   "kind": "anchor",
+   "at": [
+    -82.11,
+    196.3,
+    -769.42
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_13",
+   "kind": "anchor",
+   "at": [
+    -68.29,
+    196.3,
+    -750.53
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_14",
+   "kind": "anchor",
+   "at": [
+    -74.97,
+    60.1,
+    -783.23
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_15",
+   "kind": "anchor",
+   "at": [
+    -66.24,
+    60.3,
+    -781.87
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_16",
+   "kind": "anchor",
+   "at": [
+    -89.13,
+    60.3,
+    -759.84
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_17",
+   "kind": "anchor",
+   "at": [
+    -60.65,
+    60.3,
+    -755.7
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_18",
+   "kind": "anchor",
+   "at": [
+    54.27,
+    12.7,
+    -783.05
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_19",
+   "kind": "anchor",
+   "at": [
+    52.94,
+    12.5,
+    -777.68
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_2",
+   "kind": "anchor",
+   "at": [
+    26.88,
+    84.3,
+    -787.45
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_20",
+   "kind": "anchor",
+   "at": [
+    54.13,
+    12.5,
+    -757.23
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_21",
+   "kind": "anchor",
+   "at": [
+    70.51,
+    172.5,
+    -760.41
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_22",
+   "kind": "anchor",
+   "at": [
+    79.66,
+    172.3,
+    -779.33
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_23",
+   "kind": "anchor",
+   "at": [
+    78.81,
+    172.5,
+    -760.95
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_24",
+   "kind": "anchor",
+   "at": [
+    83.56,
+    53.3,
+    -754.88
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_25",
+   "kind": "anchor",
+   "at": [
+    96.31,
+    53.5,
+    -762.27
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_26",
+   "kind": "anchor",
+   "at": [
+    54.82,
+    39.9,
+    -690.64
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_27",
+   "kind": "anchor",
+   "at": [
+    59.57,
+    39.7,
+    -690.85
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_28",
+   "kind": "anchor",
+   "at": [
+    71.53,
+    46.5,
+    -685.29
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_29",
+   "kind": "anchor",
+   "at": [
+    72.48,
+    46.7,
+    -667.24
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_3",
+   "kind": "anchor",
+   "at": [
+    67.7,
+    26.3,
+    -724.02
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_30",
+   "kind": "anchor",
+   "at": [
+    76.03,
+    46.7,
+    -665.92
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_31",
+   "kind": "anchor",
+   "at": [
+    81.12,
+    46.7,
+    -687.94
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_32",
+   "kind": "anchor",
+   "at": [
+    99.16,
+    29.7,
+    -685.04
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_33",
+   "kind": "anchor",
+   "at": [
+    98.99,
+    29.7,
+    -670.8
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_34",
+   "kind": "anchor",
+   "at": [
+    99.56,
+    29.7,
+    -663.42
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_35",
+   "kind": "anchor",
+   "at": [
+    103.54,
+    29.7,
+    -663.17
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_36",
+   "kind": "anchor",
+   "at": [
+    107.75,
+    29.5,
+    -688.65
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_37",
+   "kind": "anchor",
+   "at": [
+    111.52,
+    29.7,
+    -663.87
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_38",
+   "kind": "anchor",
+   "at": [
+    117.04,
+    29.7,
+    -663.08
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_39",
+   "kind": "anchor",
+   "at": [
+    125.3,
+    29.7,
+    -685.36
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_4",
+   "kind": "anchor",
+   "at": [
+    76.55,
+    26.3,
+    -730.77
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_40",
+   "kind": "anchor",
+   "at": [
+    125.02,
+    29.7,
+    -663.32
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_41",
+   "kind": "anchor",
+   "at": [
+    54.92,
+    26.3,
+    -668.54
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_42",
+   "kind": "anchor",
+   "at": [
+    120.61,
+    19.5,
+    -647.37
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_43",
+   "kind": "anchor",
+   "at": [
+    113.11,
+    22.9,
+    -578.09
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_44",
+   "kind": "anchor",
+   "at": [
+    112.64,
+    22.7,
+    -565.63
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_45",
+   "kind": "anchor",
+   "at": [
+    118.28,
+    22.9,
+    -569.68
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_46",
+   "kind": "anchor",
+   "at": [
+    118.28,
+    22.9,
+    -567.88
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_47",
+   "kind": "anchor",
+   "at": [
+    116.97,
+    22.9,
+    -564.29
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_5",
+   "kind": "anchor",
+   "at": [
+    83.5,
+    26.3,
+    -732.89
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_6",
+   "kind": "anchor",
+   "at": [
+    93.48,
+    26.3,
+    -710.8
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_7",
+   "kind": "anchor",
+   "at": [
+    93.48,
+    26.3,
+    -709.0
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_8",
+   "kind": "anchor",
+   "at": [
+    92.43,
+    26.3,
+    -706.67
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_mega_9",
+   "kind": "anchor",
+   "at": [
+    97.13,
+    26.3,
+    -735.93
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
    "name": "anchor_steam_zz_roof_plaza_0",
    "kind": "anchor",
    "at": [
@@ -5187,6 +5715,17 @@
    ],
    "yaw": 0.0,
    "district": "santo"
+  },
+  {
+   "name": "anchor_steam_zz_stall_mega_1",
+   "kind": "anchor",
+   "at": [
+    1.8,
+    1.4,
+    -783.5
+   ],
+   "yaw": 0.0,
+   "district": "mega"
   },
   {
    "name": "anchor_steam_zz_street_santo_3",
