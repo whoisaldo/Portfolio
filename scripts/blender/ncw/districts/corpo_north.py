@@ -192,9 +192,26 @@ def back_row():
             f.box(k("dark", 1), 2.0, f.width - 2.0, yy, yy + 2.2, 0.0, 0.08)
         f.box(k("neon_amber", 1), 2.0, f.width - 2.0, 14.6, 14.7, 0.0, 0.06)
     K.parapet(268.0, 298.0, BACK0, BACK1, 15.6, col=K.STONE, edge="amber")
-    for i in range(4):
-        for j in range(3):
-            K.cooler(273.5 + i * 6.4, BACK0 + 7.0 + j * 9.5, 15.6, r=1.9, h=3.6)
+    # Its plant: the cooling tower the steam leaves, two banded tanks on
+    # stilts, condensers in two rows backed by ducts, vents, trays of cable,
+    # a dish, a mast and a stair hut.
+    y = 15.6
+    K.cooler(286.3, BACK0 + 16.5, y, r=1.9, h=3.6)
+    for tx_, tz_, yaw in ((273.0, BACK0 + 6.0, 0.0), (292.5, BACK1 - 7.5, math.pi)):
+        P.place("roof_tank", tx_, y, tz_, yaw, district=CO)
+    for row, zr in enumerate((BACK0 + 13.0, BACK0 + 22.5)):
+        for cx_ in (272.4, 276.4, 280.4):
+            P.place("roof_condenser", cx_, y, zr, 0.0 if row else math.pi, district=CO)
+        for dx_ in (272.4, 276.4, 280.4):
+            P.place("roof_duct", dx_, y, zr + (-1.0 if row else 1.0), 0.0, district=CO)
+    for vx, vz in ((285.0, BACK0 + 4.5), (290.5, BACK0 + 9.0), (295.5, BACK0 + 12.5), (283.5, BACK0 + 27.0), (290.0, BACK0 + 25.5),
+                   (271.5, BACK0 + 28.5), (295.0, BACK0 + 20.0)):
+        P.place("roof_vent", vx, y, vz, district=CO)
+    for tx_ in (283.0, 286.0, 289.0):
+        P.place("roof_tray", tx_, y, BACK0 + 20.0, 0.0, district=CO)
+    P.place("roof_dish", 295.8, y, BACK0 + 4.0, 2.4, district=CO)
+    P.place("roof_mast", 270.2, y, BACK1 - 2.6, 0.4, district=CO)
+    P.place("roof_hut", 278.0, y, BACK1 - 3.4, 0.0, district=CO)
     K.duct_run([(271.0, 16.3, BACK0 + 3.0), (296.0, 16.3, BACK0 + 3.0)], r=0.4)
     K.duct_run([(271.0, 16.3, BACK1 - 3.2), (296.0, 16.3, BACK1 - 3.2)], r=0.4)
     K.steam("plant", 286.3, 19.3, BACK0 + 16.5, roof=True)
@@ -290,6 +307,14 @@ def lane():
         K.lane_dress(B.Face("+z", BACK1, x0, x1), r, 0.8, high=(60.0, 58.0, 40.0, 0.0, 30.0, 60.0, 42.0)[j])
         K.lane_dress(B.Face("-x", x0, BACK0, BACK1), r, 0.8)
         K.lane_dress(B.Face("+x", x1, BACK0, BACK1), r, 0.8)
+    # Over the doors, both walls of the lane carry fire escapes, air
+    # conditioners, downpipes, cable, lit windows and slips of signs, under
+    # the track (and the halt's platforms) on the towers' side.
+    for i, tx in enumerate(TOWER_X):
+        K.upper_dress(B.Face("-z", T_BACK - 0.02, tx - 13.0, tx + 13.0), 5.6, 16.4, 0.8, ACCENTS[i] if ACCENTS[i] in ("cyan", "amber", "red", "green") else "amber",
+                      keep=((10.4, 15.6),))
+    for j, (x0, x1) in enumerate(rows):
+        K.upper_dress(B.Face("+z", BACK1, x0, x1), 5.6, (24.0, 24.0, 17.0, 14.0, 24.0, 24.0, 24.0)[j], 0.9, ("amber", "cyan", "pink")[j % 3])
     K.lane_dress(B.Face("+x", WEST_X, BACK0, T_BACK - 1.0), r, 0.8)
     K.lane_dress(B.Face("-x", EAST_X, BACK0, BACK1), r, 0.8)
     for name, (vx, vz) in (("lane_w", (207.5, TRACK_Z + 3.4)), ("lane_e", (333.0, TRACK_Z - 3.2))):
@@ -962,6 +987,18 @@ def gaps():
         # gaps beside the two lobbies the braindance reads down the row).
         for sx in () if j < 3 else (-4.4, 4.4):
             P.place("planter_palm", gx + sx, G0, -345.4, district=CO)
+        # Bulkhead lamps down both flanks, washing them and the way through.
+        for sx in (-1, 1):
+            xw = gx + sx * 5.94
+            for zz, hue in ((-353.5, "amber"), (-361.0, ("cyan", "white", "amber")[j % 3])):
+                xa, xb = sorted((xw, xw - sx * 0.2))
+                K.neon_box(xa, xb, 3.3, 3.46, zz - 0.2, zz + 0.2, hue, 1)
+                light(CO, xw - sx * 0.9, 3.0, zz, hue, 4.0)
+        if j >= 3:
+            # Somebody on a break in the way through, and a pair talking.
+            stand(gx - 4.6, -357.0, math.pi / 2, "smoke")
+            stand(gx + 4.8, -363.5, -math.pi / 2, "phone")
+            K.talk(gx + 1.5, -355.0, 0.4 * j, 2)
 
     # 1: stairs up to a raised terrace with a glass rail, trees on it, a lit
     # lounge across its back (KvMY1uzSC1E@29, @43).
@@ -1182,8 +1219,24 @@ def median():
     # always looked past them, 16 m apart.
     for c in PALMS_E:
         beds.append((c - 5.2, min(c + 5.2, x1 - 1.6), c))
+    # Not one module down its length: by turns a shrub bed, a bed in flower,
+    # a stone garden of boulders in gravel with lights in it, and a low
+    # plinth carrying an advert to each carriageway (all under a metre west
+    # of x 316), each its own height.
+    rk = random.Random(7792)
+    kinds = []
     for n_, (xa, xb, palm) in enumerate(beds):
-        top = bed_y + (0.3 if palm is None else 0.58 if palm in PALMS_E else 0.46)
+        stood = palm is not None and not any(a_ < palm < b_ for a_, b_ in NO_PALM)
+        kinds.append("shrub" if stood else ("flower", "stone", "plinth", "shrub")[(n_ + rk.randrange(2)) % 4])
+    for n_, (xa, xb, palm) in enumerate(beds):
+        kind = kinds[n_]
+        if kind in ("stone", "plinth"):
+            bed_garden(xa, xb, z0, z1, bed_y, kind, rk, conc, rim)
+            if n_ + 1 < len(beds):
+                gx_ = (xb + beds[n_ + 1][0]) / 2
+                K.bollard_light(gx_, -330.0, bed_y, "amber", pool=3.0)
+            continue
+        top = bed_y + (0.3 if palm is None else 0.58 if palm in PALMS_E else 0.46) + (0.12 if kind == "flower" else 0.0)
         box(k("castconcrete"), xa, xb, bed_y, top, z0 + 0.06, z1 - 0.06, scale=1.5, col=conc)
         box(k("castconcrete", 1), xa - 0.04, xb + 0.04, top - 0.07, top, z0 + 0.02, z1 - 0.02, scale=1.5, col=(0.26, 0.26, 0.27, 1.0))
         for za, zb in ((z0 + 0.03, z0 + 0.06), (z1 - 0.06, z1 - 0.03)):
@@ -1194,7 +1247,8 @@ def median():
         # braindance's car camera reads the towers across it.)
         hmax = 0.42 if palm is None else 0.6 if xa > 316.0 else 0.5
         if palm is None:
-            K.shrubs(xa + 0.45, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax)
+            K.shrubs(xa + 0.45, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax if kind == "shrub" else 0.34,
+                     palette=K.GREENS if kind == "shrub" else K.FLOWERS)
         else:
             # (Its own planter sunk under the bed's soil, the trunk rising
             # out of it.)
@@ -1220,6 +1274,44 @@ def median():
             K.bollard_light(gx_, -330.0, bed_y, "amber", pool=3.0)
     for xe in (x0 + 0.7, x1 - 0.7):
         K.bollard_light(xe, -330.0, bed_y, "amber", h=0.8, pool=3.0)
+    # East of x 316, where palms stand, tall lamps with a head over each
+    # carriageway at the breaks, and a hexagon of light on a pole.
+    for lx in (346.0, 378.0, 409.0):
+        for yaw in (0.0, math.pi):
+            P.place("lamp_sodium", lx, bed_y, -330.0 + (0.12 if yaw == 0.0 else -0.12), yaw, district=CO)
+    K.holo_sign(362.0, -330.0, math.pi / 2, rk, "cyan", y=7.2, size=3.0, n=K.EYE, base=bed_y)
+
+
+def bed_garden(xa, xb, z0, z1, y, kind, rk, conc, rim):
+    """A median bed that is not planting: a stone garden (boulders in
+    gravel, lights let into it) or a low plinth with an advert to each
+    carriageway, lit from under its lip."""
+    if kind == "stone":
+        top = y + 0.22
+        box(k("castconcrete"), xa, xb, y, top, z0 + 0.06, z1 - 0.06, scale=1.5, col=conc)
+        quad(k("trim"), (xa + 0.08, top + 0.004, z1 - 0.12), (xb - 0.08, top + 0.004, z1 - 0.12), (xb - 0.08, top + 0.004, z0 + 0.12),
+             (xa + 0.08, top + 0.004, z0 + 0.12), col=(0.07, 0.07, 0.075, 1.0))
+        x = xa + rk.uniform(0.6, 1.4)
+        while x < xb - 0.6:
+            g = rk.uniform(0.05, 0.11)
+            K.bush(x, -330.0 + rk.uniform(-0.2, 0.2), top, rk.uniform(0.22, 0.38), rk.uniform(0.18, 0.4), (g, g, g * 1.05, 1.0), rk)
+            if rk.random() < 0.5:
+                K.glow_box(x + 0.5, x + 0.62, top, top + 0.03, -330.06, -329.94, "amber", 1)
+            x += rk.uniform(1.2, 2.4)
+        light(CO, (xa + xb) / 2, 0.8, -330.0, "amber", 3.0)
+    else:
+        top = y + 0.12
+        box(k("castconcrete"), xa, xb, y, top, z0 + 0.06, z1 - 0.06, scale=1.5, col=conc)
+        for za, zb in ((z0 + 0.03, z0 + 0.06), (z1 - 0.06, z1 - 0.03)):
+            box(k("glow"), xa + 0.25, xb - 0.25, top - 0.1, top - 0.05, za, zb, scale=1.0, col=rim)
+        cx = (xa + xb) / 2
+        w = min(3.2, xb - xa - 2.0)
+        box(k("trim"), cx - w / 2 - 0.12, cx + w / 2 + 0.12, top, top + 0.7, -330.22, -329.78, scale=1.0, col=K.BLACK)
+        for yaw, zf in ((0.0, -329.76), (math.pi, -330.24)):
+            K.bb(cx, top + 0.37, zf, w, 0.5, yaw, K.board_col(rk, K.MEDIA))
+        K.glow_box(cx - w / 2, cx + w / 2, top + 0.7, top + 0.74, -330.2, -329.8, "white", 1)
+        K.shrubs(xa + 0.4, cx - w / 2 - 0.3, -330.0, top, rk, spread=0.2, hmax=0.36)
+        K.shrubs(cx + w / 2 + 0.3, xb - 0.3, -330.0, top, rk, spread=0.2, hmax=0.36)
 
 
 def bridge():

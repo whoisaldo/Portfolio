@@ -757,15 +757,35 @@ def showrooms(f, r, tint, colour, lobby=False):
         i += n
 
 
+def hung_tube(p0, p1, y, hue, reach=0.45, detail=1, power=0.0):
+    """A tube of light across a lane from the wall at p0 to the wall at p1
+    (x, z), hung: an arm out of each wall to the tube's end, a cable from
+    wall to wall a metre over it and two hangers down to the tube."""
+    (xa, za), (xb, zb) = p0, p1
+    L = math.hypot(xb - xa, zb - za)
+    ux, uz = (xb - xa) / L, (zb - za) / L
+    e0 = (xa + ux * reach, za + uz * reach)
+    e1 = (xb - ux * reach, zb - uz * reach)
+    lo = (min(e0[0], e1[0]) - (0.04 if abs(uz) > 0.5 else 0.0), max(e0[0], e1[0]) + (0.04 if abs(uz) > 0.5 else 0.0))
+    lz = (min(e0[1], e1[1]) - (0.04 if abs(ux) > 0.5 else 0.0), max(e0[1], e1[1]) + (0.04 if abs(ux) > 0.5 else 0.0))
+    neon_box(lo[0], lo[1], y, y + 0.08, lz[0], lz[1], hue, detail)
+    for (wx, wz), (ex, ez) in (((xa, za), e0), ((xb, zb), e1)):
+        # The arm, a plate on the wall, the hanger up to the cable.
+        pipe(k("metal", detail), (wx, y + 0.04, wz), (ex, y + 0.04, ez), 0.07, segs=4)
+        box(k("metal", detail), ex - 0.11, ex + 0.11, y - 0.06, y + 0.16, ez - 0.11, ez + 0.11, scale=0.5)
+        box(k("metal", 1), wx - 0.12, wx + 0.12, y + 0.85, y + 1.15, wz - 0.12, wz + 0.12, scale=0.5)
+        hx, hz = ex + ux * 0.6 * (1 if (ex, ez) == e0 else -1), ez + uz * 0.6 * (1 if (ex, ez) == e0 else -1)
+        pipe(k("metal", 1), (hx, y + 0.08, hz), (hx, y + 0.92, hz), 0.012, segs=3)
+    pipe(k("metal", detail), (xa, y + 1.0, za), ((xa + xb) / 2, y + 0.9, (za + zb) / 2), 0.035, segs=4)
+    pipe(k("metal", detail), ((xa + xb) / 2, y + 0.9, (za + zb) / 2), (xb, y + 1.0, zb), 0.035, segs=4)
+    if power:
+        light(CO, (xa + xb) / 2, y - 0.8, (za + zb) / 2, hue, power)
+
+
 def hung_bar(x0, x1, y, z, hue, reach=0.3, detail=1):
-    """A tube of light across a lane from wall to wall, hung: a bracket out
-    of each wall (`reach` metres off it) to the tube's end, and a wire from
-    each end up to the wall a metre over it."""
-    neon_box(x0, x1, y, y + 0.08, z - 0.04, z + 0.04, hue, detail)
-    for xe, s_ in ((x0, -1.0), (x1, 1.0)):
-        xa, xb = sorted((xe, xe + s_ * reach))
-        box(k("metal", 1), xa, xb, y - 0.03, y + 0.1, z - 0.06, z + 0.06, scale=0.5)
-        pipe(k("metal", 1), (xe, y + 0.08, z), (xe + s_ * reach, y + 1.0, z), 0.012, segs=3)
+    """A tube of light across a lane from wall to wall (x0 to x1 along x
+    at z), hung on arms and a cable (hung_tube)."""
+    hung_tube((x0 - reach, z), (x1 + reach, z), y, hue, reach=reach + 0.1, detail=detail)
 
 
 def _wall_draws(f, r):
@@ -991,9 +1011,12 @@ def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, ti
 
 
 def roof_plant(x0, x1, z0, z1, y, r, cap=5.0, density=1.0, lamps=True, tall=True):
-    """What a corporate roof holds: packaged plant in rows, cooling drums,
-    ducts between them, a stair hut with its door lit, dishes, a lamp on
-    every corner; nothing over `cap`."""
+    """What a corporate roof holds, from the kit's roof plant: a stair hut
+    with its door lit, condensers backed by a duct, a banded water tank on
+    stilts where the roof may rise that high, units on frames, a dish, a
+    lattice mast, turbine vents scattered between and trays of cable from
+    one to the next; nothing over `cap`. (It throws the dice it always
+    threw, so what is dealt after it is unchanged.)"""
     w, d = x1 - x0, z1 - z0
     if w < 6 or d < 6:
         return
@@ -1001,36 +1024,55 @@ def roof_plant(x0, x1, z0, z1, y, r, cap=5.0, density=1.0, lamps=True, tall=True
     plots = [(x0 + 1.4 + (i + 0.5) * (w - 2.8) / nx, z0 + 1.4 + (j + 0.5) * (d - 2.8) / nz, (w - 2.8) / nx, (d - 2.8) / nz)
              for i in range(nx) for j in range(nz)]
     r.shuffle(plots)
+    rv = random.Random(int(x0 * 7 + z0 * 13 + y * 3))
     used = []
     for n_, (px, pz, pw, pd) in enumerate(plots[:max(2, int(len(plots) * 0.7 * density))]):
         roll = r.random()
         if n_ == 0 and cap >= 2.6:
-            hw, hd, hh = min(1.8, pw * 0.35), min(1.5, pd * 0.35), min(2.7, cap - 0.2)
-            solid(px - hw, px + hw, y, y + hh, pz - hd, pz + hd, STONE)
             side = r.choice((-1, 1))
-            dz = pz + side * (hd + 0.02)
-            q = ((px - 0.45, y, dz), (px + 0.45, y, dz), (px + 0.45, y + 2.0, dz), (px - 0.45, y + 2.0, dz))
-            quad(k("glow"), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=GLOW["amber"])
+            if cap >= 3.05 and min(pw, pd) >= 3.0:
+                P.place("roof_hut", px, y, pz, 0.0 if side > 0 else math.pi, district=CO)
+            else:
+                hw, hd, hh = min(1.8, pw * 0.35), min(1.5, pd * 0.35), min(2.7, cap - 0.2)
+                solid(px - hw, px + hw, y, y + hh, pz - hd, pz + hd, STONE)
+                dz = pz + side * (hd + 0.02)
+                q = ((px - 0.45, y, dz), (px + 0.45, y, dz), (px + 0.45, y + 2.0, dz), (px - 0.45, y + 2.0, dz))
+                quad(k("glow"), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=GLOW["amber"])
         elif roll < 0.4 and cap >= 2.4:
-            chiller(px - pw * 0.36, px + pw * 0.36, pz - pd * 0.28, pz + pd * 0.28, y, h=min(2.2, cap - 0.3))
+            if pw >= 4.2 and pd >= 2.4:
+                P.place("roof_condenser", px, y, pz + 0.2, 0.0, district=CO)
+                P.place("roof_duct", px, y, pz - 0.75, 0.0, sxz=min(1.0, (pw - 0.4) / 4.0), district=CO)
+            else:
+                chiller(px - pw * 0.36, px + pw * 0.36, pz - pd * 0.28, pz + pd * 0.28, y, h=min(2.2, cap - 0.3))
             used.append((px, pz))
         elif roll < 0.62 and cap >= 3.0 and min(pw, pd) > 4.0:
-            rr = min(1.5, min(pw, pd) * 0.3)
-            cooler(px - rr * 1.1, pz, y, r=rr, h=min(2.6, cap - 0.3))
-            if pw > rr * 4.6:
-                cooler(px + rr * 1.1, pz, y, r=rr, h=min(2.6, cap - 0.3))
+            if cap >= 5.0:
+                P.place("roof_tank", px, y, pz, rv.choice((0.0, math.pi / 2, math.pi)), district=CO)
+            else:
+                P.place("roof_condenser", px, y, pz - 0.8, 0.0, district=CO)
+                P.place("roof_condenser", px, y, pz + 0.9, math.pi, district=CO)
             used.append((px, pz))
         elif roll < 0.78:
             for m in range(r.randrange(2, 4)):
                 ax = px - pw * 0.3 + m * 1.7
                 if ax + 0.7 < px + pw / 2:
                     P.place("ac_roof", ax, y, pz, 0.0, district=CO)
+            P.place("roof_vent", px + pw * 0.3, y, pz + pd * 0.25, district=CO)
         elif roll < 0.9 and cap >= 2.2:
-            P.place("dish", px, y, pz, r.uniform(0, 6.28), district=CO)
+            P.place("roof_dish", px, y, pz, r.uniform(0, 6.28), district=CO)
         elif tall and cap >= 5.0:
-            P.place("antenna", px, y, pz, r.uniform(0, 3.14), sy=min(cap, 4.5 + r.random() * 2.5) / 6.0, district=CO)
+            yaw, hh = r.uniform(0, 3.14), min(cap, 4.5 + r.random() * 2.5)
+            P.place("roof_mast", px, y, pz, yaw, sy=hh / 8.2, district=CO)
+        # Turbine vents between, a stride clear of what stands there.
+        for _ in range(rv.randrange(1, 3)):
+            vx, vz = px + rv.uniform(-0.45, 0.45) * pw, pz + rv.choice((-1, 1)) * pd * 0.42
+            P.place("roof_vent", vx, y, vz, district=CO)
     for a, b in zip(used, used[1:]):
         duct_run([(a[0], y + 0.5, a[1]), (b[0], y + 0.5, a[1]), (b[0], y + 0.5, b[1])], r=0.28)
+        # A tray of cable beside it.
+        n_t = int(abs(b[0] - a[0]) // 3.0)
+        for t_ in range(n_t):
+            P.place("roof_tray", a[0] + (b[0] - a[0]) * (t_ + 0.5) / n_t, y, a[1] + 0.9, 0.0, district=CO)
     # Rooflights on a plot nothing stands on, and lamps along the walkway.
     spare = plots[max(2, int(len(plots) * 0.7 * density)):]
     for px, pz, pw, pd in spare[:2]:
@@ -1092,14 +1134,15 @@ def steam(name, x, y, z, roof=False):
 
 def tubes_over(a, b, z0, z1, y, hue, step=9.0, along="z", power=3.0):
     """Tubes of light slung across a lane (a, b its two walls) every `step`
-    metres from z0 to z1 (or along x, swapped)."""
+    metres from z0 to z1 (or along x, swapped), hung on arms and a cable
+    over the posters on its walls."""
     v = z0
     while v <= z1 + 1e-6:
         if along == "z":
-            neon_box(a + 0.2, b - 0.2, y, y + 0.08, v - 0.04, v + 0.04, hue, 1)
+            hung_tube((a, v), (b, v), y, hue)
             light(CO, (a + b) / 2, y - 0.8, v, hue, power)
         else:
-            neon_box(v - 0.04, v + 0.04, y, y + 0.08, a + 0.2, b - 0.2, hue, 1)
+            hung_tube((v, a), (v, b), y, hue)
             light(CO, v, y - 0.8, (a + b) / 2, hue, power)
         v += step
 
@@ -1420,27 +1463,44 @@ GREENS = ((0.016, 0.055, 0.028, 1), (0.024, 0.07, 0.028, 1), (0.016, 0.046, 0.03
 
 
 def bush(x, z, y, rad, h, col, r, detail=0):
-    """A shrub with no two sides alike: five points round its foot, each at
-    its own reach, five round its shoulder, a top off its centre; dark at
-    the foot, lighter where it catches the light."""
-    n = 5
-    a0 = r.uniform(0.0, math.tau)
-    foot, mid = [], []
-    for j in range(n):
-        a = a0 + j * math.tau / n + r.uniform(-0.25, 0.25)
-        rf, rm = rad * r.uniform(0.75, 1.3), rad * r.uniform(0.45, 0.9)
-        foot.append((x + math.cos(a) * rf, y, z + math.sin(a) * rf))
-        mid.append((x + math.cos(a + 0.3) * rm, y + h * r.uniform(0.5, 0.82), z + math.sin(a + 0.3) * rm))
-    top = (x + r.uniform(-0.3, 0.3) * rad, y + h * r.uniform(0.92, 1.12), z + r.uniform(-0.3, 0.3) * rad)
-    dark = tuple(c * 0.7 for c in col[:3]) + (1,)
-    lit = tuple(c * 1.45 for c in col[:3]) + (1,)
-    for j in range(n):
-        a, b, c_, d = foot[j], foot[(j + 1) % n], mid[(j + 1) % n], mid[j]
-        quad(k("trim", detail), b, a, d, c_, col=dark if j % 2 else col)
-        poly(k("trim", detail), [c_, d, top], [(0, 0), (1, 0), (0.5, 1)], lit if j % 2 else col)
+    """A shrub: two or three rounded clumps leaning together, each seven
+    points round its foot and seven round its shoulder at their own reach
+    and a crown of three, dark at the foot, lighter where it catches the
+    light, a flowering one now and then. (One clump of five sides was a
+    faceted lump.)"""
+    # (A phone draws only the bushes with detail 0: one clump of six.)
+    clumps = 1 if rad < 0.3 or not detail else r.choice((1, 2, 2))
+    for c_ in range(clumps):
+        cx_ = x + (r.uniform(-0.5, 0.5) * rad if c_ else 0.0)
+        cz_ = z + (r.uniform(-0.5, 0.5) * rad if c_ else 0.0)
+        rr = rad * (1.0 if not c_ else r.uniform(0.55, 0.8))
+        hh = h * (1.0 if not c_ else r.uniform(0.6, 0.85))
+        n = 7 if detail else 6
+        a0 = r.uniform(0.0, math.tau)
+        foot, mid = [], []
+        for j in range(n):
+            a = a0 + j * math.tau / n + r.uniform(-0.18, 0.18)
+            rf, rm = rr * r.uniform(0.8, 1.2), rr * r.uniform(0.6, 0.95)
+            foot.append((cx_ + math.cos(a) * rf, y, cz_ + math.sin(a) * rf))
+            mid.append((cx_ + math.cos(a + 0.22) * rm, y + hh * r.uniform(0.55, 0.78), cz_ + math.sin(a + 0.22) * rm))
+        crown = [(cx_ + math.cos(a0 + q * 2.1) * rr * 0.32, y + hh * r.uniform(0.9, 1.08), cz_ + math.sin(a0 + q * 2.1) * rr * 0.32) for q in range(3)]
+        tint = col
+        if r.random() < 0.12:
+            tint = r.choice(((0.2, 0.05, 0.09, 1), (0.16, 0.14, 0.12, 1), (0.18, 0.1, 0.03, 1)))
+        dark = tuple(c * 0.6 for c in tint[:3]) + (1,)
+        lit = tuple(c * 1.6 for c in tint[:3]) + (1,)
+        for j in range(n):
+            a, b, c2, d = foot[j], foot[(j + 1) % n], mid[(j + 1) % n], mid[j]
+            quad(k("trim", detail), b, a, d, c2, col=dark if j % 2 else tint)
+            q = crown[(j * 3) // n]
+            poly(k("trim", detail), [c2, d, q], [(0, 0), (1, 0), (0.5, 1)], lit if j % 2 else tint)
+        poly(k("trim", detail), crown[::-1], [(0, 0), (1, 0), (0.5, 1)], lit)
 
 
-def shrubs(xa, xb, zc, y, r, spread=0.3, hmax=0.55):
+FLOWERS = ((0.05, 0.1, 0.04, 1), (0.2, 0.05, 0.09, 1), (0.03, 0.08, 0.05, 1), (0.17, 0.14, 0.11, 1), (0.04, 0.09, 0.03, 1))
+
+
+def shrubs(xa, xb, zc, y, r, spread=0.3, hmax=0.55, palette=GREENS):
     """Planting along a strip: shrubs in clumps of two to four, each its
     own irregular shape and size and one of four dark greens, leaning into
     one another, gaps between."""
@@ -1454,7 +1514,7 @@ def shrubs(xa, xb, zc, y, r, spread=0.3, hmax=0.55):
             h = r.uniform(hmax * 0.4, hmax)
             cz = zc + r.uniform(-spread, spread)
             n_bush += 1
-            bush(x, cz, y, rad, h, r.choice(GREENS), r, detail=n_bush % 2)      # (a phone draws every other one)
+            bush(x, cz, y, rad, h, r.choice(palette), r, detail=n_bush % 2)      # (a phone draws every other one)
             x += rad * r.uniform(1.1, 1.8)
         x += r.uniform(0.4, 1.2)
 
@@ -1519,8 +1579,10 @@ def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white"), top=9.0, high
             light(CO, lx, 1.4, lz, "cyan", 4.0)
         elif roll < 0.42:
             pw, ph = r.choice(((1.3, 1.9), (1.3, 1.9), (2.4, 1.5)))
-            cx, cy, cz = f.p(f.at(s), 2.3, 0.09)
-            f.box(k("board_frame"), s - pw / 2 - 0.07, s + pw / 2 + 0.07, 2.3 - ph / 2 - 0.07, 2.3 + ph / 2 + 0.07, 0.0, 0.08)
+            # (On standoffs, a hand off the wall: a lamp's bar over a door
+            # passes behind it, not through it.)
+            cx, cy, cz = f.p(f.at(s), 2.3, 0.21)
+            f.box(k("board_frame"), s - pw / 2 - 0.07, s + pw / 2 + 0.07, 2.3 - ph / 2 - 0.07, 2.3 + ph / 2 + 0.07, 0.12, 0.2)
             bb(cx, cy, cz, pw, ph, f.yaw, board_col(r, None))
             light(CO, lx, 2.0, lz, r.choice(hues), 3.0)
         elif roll < 0.64:
@@ -1540,6 +1602,86 @@ def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white"), top=9.0, high
     services(f, r, top, density)
     if high > top + 6.0:
         risers(f, r, top + 1.0, high)
+
+
+def upper_dress(f, y0, y1, density=1.0, hue="amber", keep=()):
+    """A back wall above its doors, so it is a back and not a plane: a fire
+    escape of landings and stairs with a lit door on its landings, air
+    conditioners in stacks with their drain pipes, downpipes, a bundle of
+    cable along it, small frosted windows lit here and there, a slip of a
+    lit sign. Its own dice (the wall's place), so nothing dealt after it
+    changes. `keep`: spans along the wall left clear."""
+    w = f.width
+    if w < 4.0 or y1 - y0 < 3.0:
+        return
+    a_, b_ = f.p(f.at(0.0), 0.0, 0.0), f.p(f.at(w), 0.0, 0.0)
+    rv = random.Random(int(a_[0] * 31 + a_[2] * 17 + b_[0] * 7 + y0 * 3))
+    free = lambda s0, s1: all(s1 < ka or s0 > kb for ka, kb in keep)      # noqa: E731
+    steel, warm = STEEL, (0.34, 0.21, 0.09, 1.0)
+    # The fire escape.
+    if w >= 9.0 and y1 - y0 >= 6.0:
+        s = rv.uniform(1.0, w - 5.0)
+        if free(s - 0.3, s + 3.6):
+            ly = y0 + 0.4
+            n = 0
+            while ly < y1 - 1.2:
+                f.box(k("steel", 1), s, s + 3.3, ly - 0.08, ly, 0.0, 1.15, col=steel)
+                f.box(k("steel", 1), s, s + 3.3, ly + 0.98, ly + 1.04, 1.1, 1.16, col=steel)
+                for d in (s + 0.03, s + 3.27):
+                    f.box(k("steel", 1), d - 0.025, d + 0.025, ly, ly + 1.0, 1.11, 1.16, col=steel)
+                if n % 2 == 0 or rv.random() < 0.4:
+                    f.quad(k("glow", 1), s + 0.5, s + 1.4, ly, ly + 2.05, 0.02, col=warm)
+                    f.box(k("trim", 1), s + 0.42, s + 1.48, ly + 2.05, ly + 2.15, 0.0, 0.08, col=BLACK)
+                    lx, _, lz = f.p(f.at(s + 0.95), 0.0, 0.8)
+                    light(CO, lx, ly + 2.0, lz, "amber", 2.5)
+                # The flight down to the landing under it, a stringer and treads.
+                if n:
+                    p0, p1 = f.p(f.at(s + 1.75), ly - 3.8 + 0.0, 0.65), f.p(f.at(s + 3.2), ly, 0.65)
+                    pipe(k("steel", 1), (p0[0], ly - 3.8, p0[2]), (p1[0], ly, p1[2]), 0.05, segs=4, col=steel)
+                    for t_ in range(1, 6):
+                        g = t_ / 6.0
+                        f.box(k("steel", 1), s + 1.75 + 1.45 * g - 0.09, s + 1.75 + 1.45 * g + 0.09, ly - 3.8 + 3.8 * g - 0.03, ly - 3.8 + 3.8 * g,
+                              0.25, 1.05, col=steel)
+                ly += STOREY
+                n += 1
+            keep = tuple(keep) + ((s - 0.3, s + 3.6),)
+    # Air conditioners in stacks, their drain pipes down the wall.
+    s = rv.uniform(0.8, 3.0)
+    while s < w - 1.0:
+        if free(s - 0.5, s + 0.5) and rv.random() < 0.6 * density:
+            n = rv.randrange(1, 4)
+            yb = y0 + rv.uniform(0.3, 2.5)
+            for m in range(n):
+                yy = yb + m * rv.choice((1.9, 3.8))
+                if yy + 0.6 > y1:
+                    break
+                px, _, pz = f.p(f.at(s), 0.0, 0.0)
+                P.place("ac_wall", px, yy, pz, f.yaw, district=CO)
+            dx, _, dz = f.p(f.at(s + 0.5), 0.0, 0.0)
+            P.place("pipe_v", dx, G0, dz, f.yaw, sy=yb, district=CO)
+        s += rv.uniform(2.2, 5.0) / density
+    # Downpipes, a cable bundle along under the top.
+    for s in (rv.uniform(0.4, 1.2), w - rv.uniform(0.4, 1.2)):
+        if free(s - 0.2, s + 0.2):
+            px, _, pz = f.p(f.at(s), 0.0, 0.0)
+            P.place("pipe_v", px, G0, pz, f.yaw, sy=y1 - G0, district=CO)
+    yc = y1 - 0.9
+    f.box(k("metal", 1), 0.3, w - 0.3, yc, yc + 0.06, 0.06, 0.12)
+    f.box(k("metal", 1), 0.3, w - 0.3, yc + 0.12, yc + 0.16, 0.08, 0.12)
+    # Frosted windows lit, a few to a wall.
+    for _ in range(max(1, int(w / 7.0 * density))):
+        s = rv.uniform(0.6, w - 1.6)
+        yy = y0 + rv.randrange(0, max(1, int((y1 - y0 - 1.6) / STOREY) + 1)) * STOREY + 1.0
+        if free(s, s + 1.0) and yy + 1.2 < y1:
+            c = rv.choice(((0.3, 0.23, 0.14, 1.0), (0.18, 0.22, 0.26, 1.0), (0.28, 0.18, 0.09, 1.0)))
+            f.quad(k("glow", 1), s, s + 0.9, yy, yy + 1.1, 0.02, col=c)
+            f.box(k("trim", 1), s - 0.06, s + 0.96, yy - 0.08, yy, 0.0, 0.1, col=BLACK)
+    # A slip of a lit sign high on it, by the escape.
+    s = rv.uniform(1.0, w - 1.5)
+    if free(s - 0.3, s + 0.3) and y1 - y0 > 5.0:
+        yy = y0 + rv.uniform(1.0, min(5.0, y1 - y0 - 2.6))
+        f.box(k("trim", 1), s - 0.25, s + 0.25, yy, yy + 2.4, 0.0, 0.18, col=BLACK)
+        f.box(k("neon_" + hue, 1), s - 0.18, s + 0.18, yy + 0.1, yy + 2.3, 0.18, 0.2)
 
 
 def holo_sign(x, z, yaw, r, hue="cyan", y=7.4, size=3.4, n=None, base=G0):

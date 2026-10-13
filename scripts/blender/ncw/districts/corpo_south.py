@@ -367,11 +367,20 @@ def campus():
         while xr < x1 - 2.0:
             P.place("railing", xr + 1.0, y, z1 - 1.3, 0.0, district=CO)
             xr += 2.0
-        P.place("tank_roof", x1 - 3.4, y, zs + 2.2, district=CO)
+        P.place("roof_tank", x1 - 3.4, y, zs + 2.4, math.pi * (i % 2), district=CO)
         for dx in (2.6, 4.0):
             P.place("antenna", x0 + dx, y, zs + 1.2, 0.5 * i + dx, sy=0.5, district=CO)
         P.place("ac_roof", x0 + 6.0, y, zs + 1.4, district=CO)
         P.place("ac_roof", x0 + 7.6, y, zs + 1.4, district=CO)
+        # Plant against the upper block's wall: condensers backed by a duct,
+        # vents, a tray of cable along to the tank.
+        if i != 3:
+            P.place("roof_condenser", x0 + 11.5, y, zs + 1.25, 0.0, district=CO)
+            P.place("roof_duct", x0 + 11.5, y, zs + 0.45, 0.0, district=CO)
+        for vx in (x0 + 15.5, x1 - 8.0):
+            P.place("roof_vent", vx, y, zs + 1.4, district=CO)
+        for t_ in range(int((x1 - 5.0 - (x0 + 14.0)) // 3.0)):
+            P.place("roof_tray", x0 + 15.5 + t_ * 3.0, y, zs + 0.4, 0.0, district=CO)
         if i == 0:
             # A garden: hedged beds, trees, benches, a lit path.
             K.paving_band(x0 + 1.5, x1 - 1.5, a, b, K.PALE, y=y + 0.012)
@@ -414,8 +423,12 @@ def campus():
                     K.chiller(x0 + 4.0 + ix * 7.2, x0 + 9.0 + ix * 7.2, a + 2.0 + iz * 7.0, a + 5.2 + iz * 7.0, y, h=2.2)
             K.duct_run([(x0 + 3.0, y + 0.6, a + 6.1), (x1 - 3.0, y + 0.6, a + 6.1)], r=0.35)
             K.duct_run([(x1 - 3.0, y + 0.6, a + 6.1), (x1 - 3.0, y + 0.6, b - 1.5)], r=0.35)
-            for ix in range(3):
-                K.cooler(x0 + 7.0 + ix * 9.0, b - 5.0, y, r=1.8, h=2.6)
+            K.cooler(x0 + 16.0, b - 5.0, y, r=1.8, h=2.6)
+            for cx_, yaw in ((x0 + 6.0, 0.0), (x0 + 6.0, math.pi), (x0 + 26.0, 0.0), (x0 + 26.0, math.pi)):
+                P.place("roof_condenser", cx_, y, b - 5.0 + (0.6 if yaw else -0.6), yaw, district=CO)
+            for vx, vz in ((x0 + 11.0, b - 2.6), (x0 + 21.0, b - 7.5), (x0 + 30.0, b - 2.4), (x0 + 3.0, a + 11.0)):
+                P.place("roof_vent", vx, y, vz, district=CO)
+            P.place("roof_hut", x1 - 3.5, y, a + 10.0, -math.pi / 2, district=CO)
             K.rail(x0 + 2.0, a + 13.6, x1 - 2.0, a + 13.6, y, "amber", glow=True)
             K.steam("campus", x0 + 16.0, y + 2.8, b - 5.0, roof=True)
             stand(x0 + 12.0, a + 14.4, 0.0, "idle", y)
@@ -598,8 +611,25 @@ def lanes():
             K.lane_dress(B.Face("-x", x0, MEWS_B[1], PLAZA_LOT), r, 0.8)
         if j < len(S3) - 1:
             K.lane_dress(B.Face("+x", x1, MEWS_B[1], PLAZA_LOT), r, 0.8)
-    K.tubes_over(MEWS_A[0], MEWS_A[1], X0 + 6.0, X1 - 4.0, 5.6, "cyan", step=13.0, along="x", power=4.5)
-    K.tubes_over(MEWS_B[0], MEWS_B[1], X0 + 9.0, X1 - 4.0, 5.6, "amber", step=13.0, along="x", power=4.5)
+    K.tubes_over(MEWS_A[0], MEWS_A[1], X0 + 6.0, X1 - 4.0, 6.4, "cyan", step=13.0, along="x", power=4.5)
+    K.tubes_over(MEWS_B[0], MEWS_B[1], X0 + 9.0, X1 - 4.0, 6.4, "amber", step=13.0, along="x", power=4.5)
+    # Over their doors the backs carry fire escapes, air conditioners,
+    # downpipes, cable, lit frosted windows and slips of signs.
+    bars = ((4.2, 5.8), (12.2, 13.8), (20.2, 21.8), (5.0, 8.2))
+    for j, (x0, x1, h) in enumerate(S1):
+        K.upper_dress(B.Face("+z", S1_BACK, x0, x1), 5.6, min(h - 2.0, 22.0), hue=("cyan", "amber", "pink")[j % 3])
+        if j > 0:
+            K.upper_dress(B.Face("-x", x0, LOT_S, S1_BACK), 6.6, min(h - 2.0, 20.0), 0.8, "amber", keep=bars)
+        if j < len(S1) - 1:
+            K.upper_dress(B.Face("+x", x1, LOT_S, S1_BACK), 6.6, min(h - 2.0, 20.0), 0.8, "cyan", keep=bars)
+    for j, (x0, x1) in enumerate(CAMPUS_LOTS):
+        K.upper_dress(B.Face("-z", CAMPUS[0], x0, x1), 5.2, 11.0, 0.8, "amber")
+        if j > 0:
+            K.upper_dress(B.Face("-x", x0, CAMPUS[0], CAMPUS[1]), 5.4, 11.0, 0.8, "cyan")
+        if j < len(CAMPUS_LOTS) - 1:
+            K.upper_dress(B.Face("+x", x1, CAMPUS[0], CAMPUS[1]), 5.4, 11.0, 0.8, "amber")
+    for j, (x0, x1, h) in enumerate(S3):
+        K.upper_dress(B.Face("-z", MEWS_B[1], x0, x1), 6.4, h - 3.0, 1.0, ("amber", "cyan")[j % 2])
 
 
 south_side()
