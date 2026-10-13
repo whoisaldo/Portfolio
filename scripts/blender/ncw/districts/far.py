@@ -805,7 +805,7 @@ def _dress_street(U):
         # face is the hero's, and stays dark against its band of sky).
         no = B.Face("-z", U["zn"], *U["x"])
         s = no.width - 0.5 if side > 0 else 0.5
-        C.strip(CB, no, s - 0.18, s + 0.18, ph + 1.0, h - 2.0, r.choice(("cyan", "teal", "amber", "purple")))
+        C.seam(CB, no, s, ph + 1.0, h - 2.0, r.choice(("cyan", "teal", "amber", "purple")))
     # Signs: the dense belt over the shops, on the podium, and a looser one
     # up the slab's first floors; high on the slab a big blade or two, and
     # on some a screen canted toward the traffic coming up the avenue. None
@@ -942,7 +942,7 @@ def _dress_back(U):
             y += CELL_H * 4
         for s in (0.25, w - 0.25):
             if r.random() < 0.5:
-                C.strip(CB, f, s - 0.15, s + 0.15, lo + 1.0, hi - 1.5, r.choice(HUES + ("blue",)))
+                C.seam(CB, f, s, lo + 1.0, hi - 1.5, r.choice(HUES + ("blue",)))
         for _ in range(r.randrange(1, 4)):
             C.blade(f, r.uniform(1.5, w - 1.5), r.uniform(lo + 4.0, max(lo + 5.0, hi - 6.0)), "bl", r.choice((0.0, 0.3, -0.3)))
     if U["back"] == "low" and h - U["top"] > 10.0:

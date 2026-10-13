@@ -153,6 +153,18 @@ def strip(key, f, s0, s1, y0, y1, hue, out=0.06):
     f.quad((key, "neon_" + hue, 0), s0, s1, y0, y1, out)
 
 
+def seam(key, f, s, y0, y1, hue, out=0.06):
+    """A seam of light up a corner: a tube a storey long, a dark bracket
+    between each and the next (one bar the height of a tower read as a
+    blank sign)."""
+    y = y0
+    while y < y1 - 0.8:
+        yb = min(y + CELL_H - 0.35, y1)
+        f.quad((key, "neon_" + hue, 0), s - 0.09, s + 0.09, y, yb, out)
+        f.box((key, "trim", 1), s - 0.16, s + 0.16, yb + 0.05, yb + 0.3, 0.0, out + 0.06, col=(0.05, 0.05, 0.06, 1))
+        y += CELL_H
+
+
 # ---------------------------------------------------------------------------
 # The ground floor: buildings.shopfront with its glass keyed apart from its
 # frame, so the lit glass is in the core and the joinery in the pack.
@@ -221,8 +233,8 @@ def graffiti(f, s0, s1, y0, y1, r, key=CB, out=0.0):
     w = s1 - s0
     if w < 1.2 or y1 - y0 < 0.4:
         return
-    n = max(2, min(5, int(w / 0.55)))
-    lw = min(0.62, w / (n * 0.82 + 0.3))
+    n = max(3, min(6, int(w / 0.45)))
+    lw = min(0.5, w / (n * 0.82 + 0.3))
     lh = min(y1 - y0, lw * r.uniform(1.15, 1.45))
     fill, line = r.sample(SPRAY[:6], 2)
     line = r.choice((line, SPRAY[7], SPRAY[6]))
@@ -230,10 +242,21 @@ def graffiti(f, s0, s1, y0, y1, r, key=CB, out=0.0):
     base = (y0 + y1) / 2
     for i in range(n):
         cy = base + 0.08 * math.sin(i * 1.7 + r.random())
-        rw, rh = lw * r.uniform(0.44, 0.52), lh * r.uniform(0.44, 0.52)
-        _blob(k, f, s, cy, rw + 0.05, rh + 0.05, out, line)
-        _blob(k, f, s, cy, rw, rh, out + 0.004, fill)
-        _blob(k, f, s - rw * 0.35, cy + rh * 0.4, rw * 0.22, rh * 0.12, out + 0.008, SPRAY[6], n=8)
+        # (A letter, not a disc: a tall rounded body, some with a counter,
+        # some with a bar or a notch cut in the outline's colour, a shadow
+        # dropped behind it.)
+        rw, rh = lw * r.uniform(0.34, 0.44), lh * r.uniform(0.44, 0.54)
+        _blob(k, f, s + 0.05, cy - 0.05, rw + 0.06, rh + 0.06, out - 0.002, SPRAY[7], n=16)
+        _blob(k, f, s, cy, rw + 0.045, rh + 0.045, out, line, n=16)
+        _blob(k, f, s, cy, rw, rh, out + 0.004, fill, n=16)
+        g = r.random()
+        if g < 0.4:
+            _blob(k, f, s, cy + rh * 0.1, rw * 0.32, rh * 0.28, out + 0.006, line, n=10)
+        elif g < 0.7:
+            f.quad(k, s - rw * 0.75, s + rw * 0.75, cy - 0.025, cy + 0.025, out + 0.006, col=line)
+        else:
+            f.quad(k, s - 0.025, s + 0.025, cy - rh * 0.8, cy + rh * 0.1, out + 0.006, col=line)
+        _blob(k, f, s - rw * 0.45, cy + rh * 0.55, rw * 0.18, rh * 0.1, out + 0.008, SPRAY[6], n=8)
         if r.random() < 0.45:
             dw = r.uniform(0.025, 0.04)
             ds = s + r.uniform(-rw * 0.5, rw * 0.5)
@@ -303,7 +326,7 @@ def _front(trade, f, s0, s1, key):
         # hatch (its own dice).
         gr = random.Random(9170 + len(FRONTS) * 5)
         for e0, e1 in ((s0 + 0.15, hs - 0.75), (hs + 0.75, s1 - 0.15)):
-            if e1 - e0 > 1.2 and gr.random() < 0.8:
+            if e1 - e0 > 1.2:
                 graffiti(f, e0, e1, 0.95, 1.85, gr, key, out=-0.052)
         return
     f.quad((key, "glow", 0), s0, s1, G0, top, -d, col=dim(hue, 0.035))
