@@ -254,7 +254,7 @@ def spheres_dress(cx, zs, rad):
         K.run([(cx - 0.9, top + 0.45, cz), (cx - 0.9, top + 0.45, zo), (cx - 0.9, 0.75, zo)], r=0.15, col=K.TANK_WHITE, segs=8, flanges=99.0)
         K.run([(cx - 0.5, top, cz + 0.5), (cx - 0.5, top + 2.6, cz + 0.5)], r=0.13, col=K.TANK_WHITE, segs=8, flanges=99.0, detail=1)
         cylinder(K.M("steel", 1), cx - 0.5, cz + 0.5, top + 2.6, top + 2.75, 0.24, segs=8, col=K.STEEL)
-        for yaw in (PI / 2, -PI / 2):
+        for yaw in (PI / 2 - 0.6, -PI / 2 - 0.6):
             K.shell_text(cx, cz, rad + 0.03, cy + 1.7, f"S{i + 1}", 2.4, yaw, red)
         P.place("warn_board", cx + 3.2, GY + 1.55, cz + 5.6, PI / 2, district=D)
         box(k("metal"), cx + 3.17, cx + 3.23, GY, GY + 1.2, cz + 5.57, cz + 5.63, scale=0.5)
@@ -1557,7 +1557,7 @@ def east():
         "-x": dict(band=(4.9, 6.0), style=6, lit=(0.4, 0.7), office=(34.0, 46.0),
                    docks=dict(n=4, s0=4.0, s1=30.0, raised=False, canopy=False, first=1, open=(2,), half=(0,))),
         "+z": dict(band=(4.9, 6.0), style=6), "-z": dict(dress=False), "+x": dict(dress=False)}, stripe_col=K.OXIDE)
-    K.sawtooth(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, wall=K.CREAM, rise=2.4, lit=0.85, power=2.4)
+    K.sawtooth(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, wall=K.CREAM, rise=2.4, lit=0.85, power=2.4, mullions=0)
     K.wash(453.2, 453.2, -172.0, -130.0, level=0.6)
     fe = B.faces_of(454.5, 488.0, -175.5, -127.0)
     K.blade(fe["-x"], 47.6, 3.4, "bm")
@@ -1597,6 +1597,18 @@ def east():
         "-z": dict(band=(5.2, 6.6), style=6), "+z": dict(band=(5.2, 6.6), style=6), "+x": dict(dress=False)}, stripe_col=K.YELLOW)
     K.roof_furnish(K.flat_roof(456.0, 488.0, -92.0, -40.0, 7.4, r, wall=K.GREY, lights=0.75, breathe=1), R(8672), kinds={2: "ahu", 3: "tray", 4: "chiller"})
     K.flue(485.2, -43.6, 7.4, 11.6, r=0.36, col=K.RUST_D)
+    # Its north bays, what the roof's own eye sees first (sd21): an air
+    # unit and its duct, a bank of condensers by a tray, vents, a hatch,
+    # lamps throwing pools across the felt (all under 11 m: Contact).
+    P.place("rp_ahu", 479.0, 7.4, -74.6, 0.0, district=D)
+    K.seg_run("rp_duct", 481.6, -74.6, 485.6, -74.6, 7.4)
+    for x in (469.6, 472.0, 474.4):
+        P.place("rp_cond", x, 7.4, -83.4, 0.0, district=D)
+    K.seg_run("rp_tray", 462.0, -82.0, 482.0, -82.0, 7.4)
+    for (x, z, name) in ((466.0, -83.2, "rp_vents"), (478.6, -84.0, "rp_vents"), (486.0, -76.0, "rp_hatch"), (461.0, -74.2, "rp_vents")):
+        P.place(name, x, 7.4, z, 0.6, district=D)
+    for (x, z, hue) in ((468.0, -73.6, "amber"), (482.0, -85.6, "white"), (461.6, -86.0, "amber"), (485.2, -88.6, "amber")):
+        K.roof_lamp(x, z, 7.4, hue=hue)
     K.wash(454.6, 454.6, -90.0, -42.0, level=0.6)
     fw = B.faces_of(456.0, 488.0, -92.0, -40.0)
     K.blade(fw["-x"], 1.0, 3.2, "bl", scale=0.85)
@@ -1875,6 +1887,15 @@ def dress():
         arrow(x, z, yaw)
     mast(294.8, -79.6, PI * 0.75, level=0.7)
     K.sodium(299.0, 1.0, -89.5, 4.5)
+    # In the cross itself: a forklift crossing with its load behind its
+    # banksman, a pallet of crates waiting, cones round a pothole.
+    forklift(303.6, -91.4, PI, load="pallets")
+    stand(302.4, -85.2, PI * 0.8, "idle")
+    P.place("pallets", 296.9, GY, -91.6, 0.3, district=D)
+    P.place("crates", 296.9, GY + 0.75, -91.6, 0.5, district=D)
+    for (cx, cz) in ((296.6, -85.0), (297.8, -84.6), (296.9, -86.2)):
+        P.place("cone", cx, GY, cz, cx, district=D)
+    box(k("dark", 1), 297.0, 297.9, GY + 0.004, GY + 0.01, -85.9, -85.2, scale=1.0)
     stand(299.0, -103.0, PI, "idle")
     stand(310.0, -95.6, 0.4, "phone")
     # --- The depot's forecourt (x 176..242, z -36..-10): loads staged at
@@ -1944,7 +1965,7 @@ def crowd():
     for (x, z, yaw, pose) in ((427.0, -160.6, PI / 2, "talk"), (427.6, -160.0, -PI / 2, "talk"), (426.9, -146.2, PI / 2, "smoke"), (426.8, -131.0, PI / 2, "lean"),
                               (427.0, -117.4, PI / 2, "phone"), (427.0, -104.6, PI / 2, "talk"), (427.6, -104.0, -PI / 2 - 0.4, "talk"),
                               (427.1, -72.4, PI / 2, "talk"), (427.7, -71.8, -PI / 2, "talk"), (426.9, -63.6, PI / 2, "squat"), (426.8, -49.8, PI / 2, "lean"),
-                              (427.0, -40.8, PI / 2, "smoke"), (427.1, -26.2, PI / 2, "phone"),
+                              (427.0, -40.8, PI / 2, "smoke"), (427.6, -25.6, PI / 2, "phone"),
                               (452.9, -168.6, -PI / 2, "talk"), (453.3, -167.9, PI / 2 + 0.4, "talk"), (452.9, -136.4, -PI / 2, "smoke"), (453.0, -129.0, -PI / 2, "lean"),
                               (452.9, -101.2, -PI / 2, "talk"), (453.4, -100.4, PI / 2, "talk"), (453.0, -62.6, -PI / 2, "lean"), (452.9, -49.0, -PI / 2, "talk"),
                               (453.4, -48.3, PI / 2, "talk"), (453.1, -44.0, -PI / 2, "phone"), (452.9, -15.6, -PI / 2, "idle"), (453.2, 1.8, -PI / 2, "smoke")):
@@ -1965,33 +1986,50 @@ def crowd():
         stand(x, z, yaw, pose)
 
 
-def saw_plant(x0, x1, z0, z1, y, n, rise, r, skip=None):
-    """A sawtooth roof's plant (its ridges along x, its lights facing -z):
-    ducts lying up the slopes by the valleys, vents in groups on the
-    slopes, air units on small decks level with the ridges. `skip` a span
-    of x the walkway keeps clear."""
-    d = (z1 - z0) / n
+def saw_plant(x0, x1, z0, z1, y, n, rise, r, skip=None, glaze="-z"):
+    """A sawtooth roof's plant: ducts lying up the slopes by the valleys,
+    vents in groups on the slopes, air units on small decks level with the
+    ridges. `glaze` "-z" (ridges along x, lights facing north) or "+x"
+    (ridges along z, lights facing east); `skip` a span along the ridges
+    the walkway keeps clear."""
+    if glaze == "-z":
+        u0, u1, d = x0, x1, (z1 - z0) / n
+
+        def W(u, v):
+            return u, z0 + v
+    else:
+        u0, u1, d = z0, z1, (x1 - x0) / n
+
+        def W(u, v):
+            return x1 - v, u
+    yaw = 0.0 if glaze == "-z" else PI / 2
     for i in range(n):
-        za = z0 + i * d
+        va = i * d
         if i % 2 == 1:
             # A duct by the valley, its stands on the slope 1.4 m up it.
-            zc = za + d - 1.4
+            vc = va + d - 1.4
             yc = y + rise * 1.4 / d - 0.2
-            a, b = x0 + 3.0, (skip[0] - 1.0) if skip else x1 - 3.0
-            if b - a > 8.0:
-                K.seg_run("rp_duct", a, zc, b, zc, yc)
-        for j in range(max(1, int((x1 - x0) / 26.0))):
-            vx = x0 + (x1 - x0) * (j + 0.5) / max(1, int((x1 - x0) / 26.0)) + r.uniform(-4.0, 4.0)
-            if skip and skip[0] - 2.0 < vx < skip[1] + 2.0:
+            a, b = u0 + 3.0, (skip[0] - 1.0) if skip else u1 - 3.0
+            if b - a > 5.0:
+                (xa, za), (xb, zb) = W(a, vc), W(b, vc)
+                K.seg_run("rp_duct", xa, za, xb, zb, yc)
+        m = max(1, int((u1 - u0) / 26.0))
+        for j in range(m):
+            uv = u0 + (u1 - u0) * (j + 0.5) / m + r.uniform(-4.0, 4.0)
+            if skip and skip[0] - 2.0 < uv < skip[1] + 2.0:
                 continue
-            P.place("rp_vents", vx, y + rise * (1 - 2.2 / d) - 0.1, za + 2.2, r.uniform(0, 6.28), district=D)
+            vx, vz = W(uv, va + 2.2)
+            P.place("rp_vents", vx, y + rise * (1 - 2.2 / d) - 0.1, vz, r.uniform(0, 6.28), district=D)
     # Air units on decks over the slopes, level with the ridges.
-    for (ax, ai) in ((x0 + (x1 - x0) * 0.25, 2), (x0 + (x1 - x0) * 0.85, n - 3)):
-        za = z0 + ai * d
-        K.deck(ax - 2.4, ax + 2.4, za + 0.4, za + 3.0, y + rise)
-        for (px, pz) in ((ax - 2.2, za + 0.6), (ax + 2.2, za + 0.6), (ax - 2.2, za + 2.8), (ax + 2.2, za + 2.8)):
+    for (au, ai) in ((u0 + (u1 - u0) * 0.25, 2), (u0 + (u1 - u0) * 0.85, n - 3)):
+        va = ai * d
+        (xa, za), (xb, zb) = W(au - 2.4, va + 0.4), W(au + 2.4, va + 3.0)
+        K.deck(min(xa, xb), max(xa, xb), min(za, zb), max(za, zb), y + rise)
+        for (pu, pv) in ((au - 2.2, va + 0.6), (au + 2.2, va + 0.6), (au - 2.2, va + 2.8), (au + 2.2, va + 2.8)):
+            px, pz = W(pu, pv)
             K.column(px, pz, y, y + rise, t=0.12, detail=1)
-        P.place("rp_ahu", ax, y + rise + 0.08, za + 1.7, 0.0, district=D)
+        cx_, cz_ = W(au, va + 1.7)
+        P.place("rp_ahu", cx_, y + rise + 0.08, cz_, yaw, district=D)
 
 
 def roofs():
@@ -2044,6 +2082,8 @@ _step(power_line)
 _step(frontage_light)
 _step(roofs)
 _step(saw_plant, 180.0, 264.0, -160.0, -100.0, 8.6, 10, 2.6, R(8712), (226.0, 230.0))
+_step(saw_plant, 246.0, 290.0, -78.0, -11.2, 8.0, 7, 2.8, R(8713), (-53.3, -49.3), "+x")
+_step(saw_plant, 182.0, 256.0, 16.0, 44.0, 8.0, 8, 3.0, R(8714), (28.0, 32.0), "+x")
 _step(yards)
 _step(dress)
 _step(crowd)

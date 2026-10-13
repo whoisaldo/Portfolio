@@ -924,7 +924,7 @@ def rack(x0, z0, x1, z1, levels=(5.4, 6.9), width=3.0, pipes=PIPE_SET, step=6.0,
 # ---------------------------------------------------------------------------
 # Sheds.
 # ---------------------------------------------------------------------------
-def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tint="concrete", vents=True, power=0.36):
+def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tint="concrete", vents=True, power=0.36, mullions=1):
     """A sawtooth roof over a rectangle: n teeth, each a vertical light
     facing `glaze` ("-z" is north) and a slope falling away behind it. Lit
     lights glow (some bays dark) and pool on the slope in front of them."""
@@ -949,6 +949,18 @@ def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tin
         col = B.wall_col(frac, 4, wq, tint_i)
         pts = (W(u0, y + 0.25, a), W(u1, y + 0.25, a), W(u1, y + rise - 0.12, a), W(u0, y + rise - 0.12, a))
         quad_n(k("facade"), pts, gn, col, uvs=((0, vo), (bays, vo), (bays, vo + 1), (0, vo + 1)))
+        # Its glazing bars: a mullion at every bay, a transom across.
+        def bar(ua, ub, ya, yb):
+            q = [W(uu, yy, a) for uu, yy in ((ua, ya), (ub, ya), (ub, yb), (ua, yb))]
+            q = [(px + gn[0] * 0.03, py, pz + gn[2] * 0.03) for px, py, pz in q]
+            e1 = [q[1][j] - q[0][j] for j in range(3)]
+            e2 = [q[2][j] - q[0][j] for j in range(3)]
+            nx_, nz_ = e1[1] * e2[2] - e1[2] * e2[1], e1[0] * e2[1] - e1[1] * e2[0]
+            quad_n(k("dark", mullions), q if nx_ * gn[0] + nz_ * gn[2] > 0 else q[::-1], gn)
+        for bi in range(1, bays):
+            ub = u0 + (u1 - u0) * bi / bays
+            bar(ub - 0.06, ub + 0.06, y + 0.25, y + rise - 0.12)
+        bar(u0, u1, y + rise * 0.52 - 0.04, y + rise * 0.52 + 0.04)
         if on:
             pa, pb = W(u0 + 1.0, y, a - 1.9), W(u1 - 1.0, y, a - 1.9)
             wash(min(pa[0], pb[0]), max(pa[0], pb[0]), min(pa[2], pb[2]), max(pa[2], pb[2]), level=power, hue="amber", r=r, y=y)
@@ -3093,13 +3105,34 @@ def _vent_turb(kk):
 
 @P.proto("drum_pallet", box=(0.65, 0.9, 0.65), reach=260, detail=True)
 def _drum_pallet(kk):
-    """Drums two high on a pallet, a tarp over a corner (x4ztgjvfU60@38)."""
-    box(kk("trim"), -0.65, 0.65, 0.0, 0.14, -0.65, 0.65, scale=1.0, col=WOOD)
-    for (x, z, col) in ((-0.31, -0.31, RUST), (0.31, -0.31, RUST_D), (-0.31, 0.31, RUST), (0.31, 0.31, c(0.1, 0.16, 0.24))):
-        cylinder(kk("trim"), x, z, 0.14, 1.02, 0.29, segs=8, col=col)
-    for (x, z, col) in ((-0.31, 0.31, RUST_D), (0.31, -0.31, RUST)):
-        cylinder(kk("trim"), x, z, 1.04, 1.92, 0.29, segs=8, col=col)
-    box(kk("trim"), -0.66, 0.02, 1.02, 1.08, -0.66, 0.02, scale=1.0, col=c(0.1, 0.13, 0.12))
+    """Drums two high on a pallet (x4ztgjvfU60@38, ARL_JWwKdDs@39): round
+    drums in mixed paint, two rolling hoops and a rim on each, the lids'
+    bungs, a strap round the lower four, a tarp slipped over one corner."""
+    t = kk("trim")
+    box(t, -0.65, 0.65, 0.0, 0.03, -0.65, 0.65, scale=1.0, col=shade(WOOD, 0.8))
+    for x in (-0.6, 0.0, 0.6):
+        box(t, x - 0.05, x + 0.05, 0.03, 0.11, -0.65, 0.65, scale=1.0, col=shade(WOOD, 0.7))
+    box(t, -0.65, 0.65, 0.11, 0.14, -0.65, 0.65, scale=1.0, col=WOOD)
+    blue, red = c(0.08, 0.16, 0.3), c(0.42, 0.06, 0.05)
+
+    def drum(x, z, y, col):
+        cylinder(t, x, z, y, y + 0.88, 0.285, segs=12, col=col)
+        for hy in (y + 0.29, y + 0.59):
+            cylinder(t, x, z, hy, hy + 0.04, 0.3, segs=12, col=shade(col, 0.55), cap=False)
+        cylinder(t, x, z, y + 0.86, y + 0.9, 0.3, segs=12, col=shade(col, 0.7), cap=False)
+        cylinder(t, x + 0.12, z - 0.08, y + 0.88, y + 0.92, 0.04, segs=5, col=shade(col, 0.4))
+    for (x, z, col) in ((-0.31, -0.31, RUST), (0.31, -0.31, blue), (-0.31, 0.31, red), (0.31, 0.31, RUST_D)):
+        drum(x, z, 0.14, col)
+    for (x, z, col) in ((-0.31, 0.31, blue), (0.31, -0.31, RUST)):
+        drum(x, z, 1.04, col)
+    for z0, z1, x0, x1 in ((-0.62, -0.6, -0.62, 0.62), (0.6, 0.62, -0.62, 0.62)):
+        box(t, x0, x1, 0.62, 0.68, z0, z1, scale=1.0, col=c(0.05, 0.05, 0.05))
+    for x0, x1 in ((-0.62, -0.6), (0.6, 0.62)):
+        box(t, x0, x1, 0.62, 0.68, -0.62, 0.62, scale=1.0, col=c(0.05, 0.05, 0.05))
+    tarp = c(0.08, 0.14, 0.12)
+    quad(t, (-0.64, 1.06, 0.02), (0.02, 1.06, 0.02), (0.02, 1.06, -0.64), (-0.64, 1.06, -0.64), col=tarp)
+    quad(t, (-0.64, 1.06, -0.66), (0.02, 1.06, -0.66), (0.02, 0.62, -0.66), (-0.64, 0.5, -0.66), col=shade(tarp, 0.8))
+    quad(t, (-0.66, 1.06, 0.02), (-0.66, 1.06, -0.64), (-0.66, 0.45, -0.64), (-0.66, 0.45, 0.02), col=shade(tarp, 0.8))
 
 
 def _wheel(key, x, z0, z1, r=0.52):
