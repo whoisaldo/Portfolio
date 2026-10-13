@@ -1329,6 +1329,18 @@ def a_tree():
     return f"deck_tree_{next(tree_deal)}"
 
 
+@P.proto("deck_cone", box=(0.2, 0.38, 0.2), reach=200)
+def _deck_cone(k):
+    """A traffic cone: a square foot, a turned body in orange with two
+    white bands round it."""
+    t = k("trim")
+    box(t, -0.19, 0.19, 0.0, 0.04, -0.19, 0.19, scale=0.5, col=(0.03, 0.03, 0.032, 1))
+    orange, white = (0.55, 0.12, 0.02, 1), (0.6, 0.6, 0.58, 1)
+    for y0, y1, r0, r1, c in ((0.04, 0.3, 0.15, 0.105, orange), (0.3, 0.38, 0.105, 0.09, white), (0.38, 0.5, 0.09, 0.066, orange),
+                              (0.5, 0.56, 0.066, 0.055, white), (0.56, 0.72, 0.055, 0.025, orange)):
+        P.lathe(t, 0.0, 0.0, ((y0, r0), (y1, r1)), segs=10, col=c, cap=y1 > 0.7)
+
+
 GAPS = ((-66.0, -50.0), (-44.0, -14.0), (14.0, 44.0), (52.0, ABUT_X))
 for xa, xb in GAPS:
     B.ground_rect(DK, xa, xb, ZN - 1.0, ZS + 1.0)
@@ -1515,8 +1527,16 @@ P.place("lamp_short", plan.DECK_X0 - 2.6, B.G0, -94.0, district=DK)
 P.place("food_box", plan.DECK_X0 - 3.6, B.G0, -121.5, -math.pi / 2, district=DK)
 P.place("phone_booth", plan.DECK_X0 + 3.4, B.G0, -127.5, math.pi / 2, district=DK)    # open to the east service lane, not side on to it
 P.place("cctv", PIER[0] + 2.3, B.G0, PIER[1] - 2.3, district=DK)
-for yaw in (0.0, math.pi / 2, math.pi, -math.pi / 2):
-    P.place("warning_tri", PIER[0] + math.sin(yaw) * 1.3, 2.4, PIER[1] + math.cos(yaw) * 1.3, yaw, district=DK)
+# (Round 4: the warning triangles hung on the pier over its collar read as
+# cones on a ledge. Cones on the paving round its footing now, inside the
+# yellow box, each a turned cone with its reflective bands.)
+def road_cone(x, z, yaw=0.0):
+    P.place("deck_cone", x, B.G0, z, yaw, district=DK)
+    B.COLLISION.append(("box", x - 0.2, x + 0.2, 0.0, 0.75, z - 0.2, z + 0.2, DK))
+
+
+for dx, dz in ((2.25, 0.3), (2.25, -0.5), (-2.25, 0.6), (0.4, -2.25), (-0.7, 2.25)):
+    road_cone(PIER[0] + dx, PIER[1] + dz, dx + dz)
 for (x, z) in ((PIER[0] - 2.6, ZS - 0.8), (PIER[0] + 2.4, ZS - 1.0), (PIER[0] - 3.4, ZN + 1.4)):
     P.place("drum", x, B.G0, z, district=DK)
 P.place("barrier", PIER[0], B.G0, ZS - 0.5, 0.0, district=DK)
@@ -1839,80 +1859,28 @@ for x in BENTS_X + (ABUT_X, XE + 0.6):
     joint("x", x, z_par + 0.07, z_lane_s - 0.07, road_top)
 for z in BENTS_Z + (EMB_Z, ZN - 0.6):
     joint("z", z, x_lane_w + 0.07, x_par - 0.07, RY)
-
-# Repairs, as a road wears them: a cut-out's outline sealed with tar (an
-# uneven ring inside its lane, the fill the road's own asphalt) and cracks
-# sealed along the lanes. No slab of another colour lies on the road.
-patch_rng = random.Random(8600)
-ARROWS_X = {1: (-68.0, -24.0, 8.0, 44.0, 76.0), -1: (88.0, 52.0, 14.0, -22.0, -62.0)}
-ARROWS_Z = {-1: (-203.0, -170.0, -135.0, -100.0), 1: (-112.0, -150.0, -188.0)}
-
+# (Round 4.) Between them the deck's slabs, their joints across the road
+# every five metres, sealed, the lane paint run over them: one seam across
+# the carriageway read as a line drawn on it, a rhythm of them as a deck.
+SLAB_C = (0.03, 0.03, 0.032, 1.0)
+for axis, a, b, joints, u0, u1, hf in (("x", XE + 2.0, MOUTH_X - 3.0, BENTS_X + (ABUT_X, XE + 0.6), z_par + 0.07, z_lane_s - 0.07, road_top),
+                                       ("z", FOOT + 5.0, ZN - 2.0, BENTS_Z + (EMB_Z, ZN - 0.6), x_lane_w + 0.07, x_par - 0.07, RY)):
+    v = a
+    while v < b:
+        if all(abs(v - j) > 1.2 for j in joints):
+            face((DK, "trim", 1), [_w(axis, v - 0.012, u0, hf(v - 0.012) + 0.006), _w(axis, v + 0.012, u0, hf(v + 0.012) + 0.006),
+                                   _w(axis, v + 0.012, u1, hf(v + 0.012) + 0.006), _w(axis, v - 0.012, u1, hf(v - 0.012) + 0.006)], (0, 1, 0), 1.0, SLAB_C)
+        v += 5.0
 
 def patch(axis, v, u, length, width, mat, hf):
     pts = [(v - length / 2, u - width / 2), (v + length / 2, u - width / 2), (v + length / 2, u + width / 2), (v - length / 2, u + width / 2)]
     face((DK, mat, 0), [_w(axis, pv, pu, hf(pv) + 0.007) for pv, pu in pts], (0, 1, 0), 1.0)
 
 
-TAR = (0.02, 0.02, 0.021, 1.0)      # dark grey on the wet asphalt (the kit's `dark` is blue-black steel: it read as a drawn line)
-
-
-def tar(axis, pts, w, hf, closed=False, broken=0.0):
-    """Tar along the points (v, u) on the road: each length its own width,
-    some of them gone."""
-    m = len(pts)
-    for k in range(m if closed else m - 1):
-        (v0, u0), (v1, u1) = pts[k], pts[(k + 1) % m]
-        if patch_rng.random() < broken:
-            continue
-        dv, du = v1 - v0, u1 - u0
-        ln = math.hypot(dv, du) or 1.0
-        wa, wb = (w * patch_rng.uniform(0.35, 1.0) / 2 for _ in range(2))
-        nv, nu = -du / ln, dv / ln
-        q = ((v0 + nv * wa, u0 + nu * wa), (v1 + nv * wb, u1 + nu * wb), (v1 - nv * wb, u1 - nu * wb), (v0 - nv * wa, u0 - nu * wa))
-        face((DK, "trim", 1), [_w(axis, pv, pu, hf(pv) + 0.007) for pv, pu in q], (0, 1, 0), 1.0, TAR)
-
-
-def repair(axis, v, u, length, width, hf):
-    n = 9
-    pts = []
-    for k in range(n):
-        a = 2 * math.pi * k / n + patch_rng.uniform(-0.25, 0.25)
-        rr = patch_rng.uniform(0.6, 1.0)
-        pts.append((v + math.cos(a) * length / 2 * rr, u + math.sin(a) * width / 2 * rr))
-    tar(axis, pts, 0.07, hf, closed=True, broken=0.15)
-
-
-def crack(axis, v, u, length, hf):
-    """A sealed crack: it wanders, thins, breaks off and takes up again."""
-    n = max(5, int(length / 0.4))
-    pts, uu = [], u
-    for k in range(n + 1):
-        pts.append((v + length * k / n + patch_rng.uniform(-0.08, 0.08), uu))
-        uu = min(u + 0.4, max(u - 0.4, uu + patch_rng.uniform(-0.13, 0.13)))
-    tar(axis, pts, 0.045, hf, broken=0.25)
-    if patch_rng.random() < 0.5:        # a branch off it
-        k = patch_rng.randrange(1, n)
-        e = (pts[k][0] + patch_rng.uniform(0.2, 0.5), pts[k][1] + patch_rng.choice((-1, 1)) * patch_rng.uniform(0.2, 0.4))
-        tar(axis, [pts[k], e, (e[0] + patch_rng.uniform(0.15, 0.4), e[1] + patch_rng.uniform(-0.15, 0.15))], 0.035, hf)
-
-
-def worn(axis, vs, centre, arrows, hf):
-    for i, v in enumerate(vs):
-        lane = patch_rng.choice((-1, 1))
-        v += patch_rng.uniform(-1.5, 1.5)
-        if any(abs(v - a) < 4.5 for a in arrows[lane]):
-            lane = -lane
-            if any(abs(v - a) < 4.5 for a in arrows[lane]):
-                continue
-        u = centre + lane * patch_rng.uniform(1.45, 2.0)
-        if i % 3 == 0:
-            repair(axis, v, u, patch_rng.uniform(1.6, 3.0), patch_rng.uniform(1.0, 1.7), hf)
-        else:
-            crack(axis, v - 1.5, u, patch_rng.uniform(2.5, 5.0), hf)
-
-
-worn("x", (-66.0, -49.0, -37.5, -30.0, -15.0, -4.0, 19.0, 27.0, 36.5, 48.0, 59.0, 64.5, 70.5, 82.0, 97.0), plan.DECK_Z, ARROWS_X, road_top)
-worn("z", (-208.0, -194.0, -181.0, -160.0, -144.0, -124.0, -106.0, -92.0), plan.DECK_X0, ARROWS_Z, RY)
+# (Round 4: drawn in matte tar on the wet road, the sealed cracks read as
+# black stickers and the patches' outlines as rings floating on it; the
+# deck's wear is its slab joints (above) and the road's own (src/world/
+# road.js: its cracks, covers and rubber).)
 
 # Drains on the shoulder by the parapet, conduit and junction boxes along
 # the parapet's face.
