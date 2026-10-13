@@ -343,6 +343,7 @@ class Lane:
         self.rng = random.Random(seed)
         self.pal = HUES[hues]
         self.skip = skip
+        self.far_cap = None   # how high a thing may hang from the far wall at v
         self.dens = dens
         self.aprons = aprons
         self.vents = []
@@ -466,8 +467,41 @@ class Lane:
                         ribbon(D, self.pt(0.0, v + o, y0 + r.uniform(0, 2.5)), self.pt(W, v + o + r.uniform(-2, 2), y1 + r.uniform(0, 2.5)),
                                r.uniform(0.3, 1.1))
                 else:
-                    K.laundry(D, self.pt(0.0, v, r.uniform(7.0, 9.5)), self.pt(W, v + r.uniform(-1.0, 1.0), r.uniform(7.0, 9.5)), r)
+                    ya, yb = r.uniform(7.0, 9.5), r.uniform(7.0, 9.5)
+                    yb = min(yb, self.far_cap(v)) if self.far_cap else yb
+                    K.laundry(D, self.pt(0.0, v, ya), self.pt(W, v + r.uniform(-1.0, 1.0), yb), r)
             v += r.uniform(*spacing) / self.dens
+
+    def high(self, rng, top=16.0, spacing=(4.5, 8.5), far_cap=None):
+        """Higher up, over the lane's light: bundles of cable sagging wall to
+        wall, washing between the windows, a pipe bridge now and then, a
+        sign on two wires; the lane seen through them from below."""
+        D, W = self.D, self.width
+        v = self.a + rng.uniform(2.0, 5.0)
+        while v < self.b - 2.0:
+            if self.free(v, 1.0):
+                kind = rng.choices(("cables", "washing", "pipe", "board"), weights=(3.0, 1.6, 0.8, 0.8))[0]
+                y0, y1 = rng.uniform(9.0, top), rng.uniform(9.0, top)
+                if far_cap is not None:
+                    y1 = min(y1, far_cap(v))
+                    if y1 < 7.0:
+                        v += 2.0
+                        continue
+                pa, pb = self.pt(0.0, v, y0), self.pt(W, v + rng.uniform(-2.0, 2.0), y1)
+                if kind == "cables":
+                    K.bundle(D, pa, pb, rng.uniform(0.6, 1.6), rng.randrange(3, 7), rng, spread=0.25)
+                elif kind == "washing":
+                    K.laundry(D, pa, pb, rng, sag=0.5)
+                elif kind == "pipe":
+                    y = min(y0, y1)
+                    pipe((D, "steel", 0), self.pt(0.0, v, y), self.pt(W, v, y), rng.uniform(0.12, 0.22), segs=6,
+                         col=rng.choice(((0.22, 0.22, 0.24, 1), (0.3, 0.2, 0.06, 1), (0.12, 0.2, 0.2, 1))))
+                    for u in (0.0, W):
+                        pipe((D, "metal", 1), self.pt(u, v, y - 0.4), self.pt(u, v, y + 0.1), 0.04, segs=3)
+                else:
+                    ribbon(D, pa, pb, 0.3)
+                    K.hanging_board(D, pa, pb, min(y0, y1) - rng.uniform(1.0, 1.6), rng.choice(("pm", "bm", "ps")), rng)
+            v += rng.uniform(*spacing)
 
     def far_side(self, spacing=(5.5, 9.0), stalls=True):
         """Along the far wall: a food stall on its own slab, vending, a lamp

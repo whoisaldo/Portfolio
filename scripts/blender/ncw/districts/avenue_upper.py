@@ -155,6 +155,25 @@ def dress(D, f, y0, y1, rng, rate=0.3, units=0.08, conduit=True, washing=0.35):
             K.laundry(D, pa, pb, rng, sag=0.25)
 
 
+# How high the other districts' backs across the north lanes stand (their
+# builders' lots, z0, z1, top; the deck's band between): nothing is fixed to
+# them, or slung from them, above their tops.
+FAR_TOPS = {
+    "w": ((-168.0, -162.4, 18.2), (-162.4, -152.8, 11.4), (-152.8, -146.4, 8.0), (-146.4, -140.8, 18.2), (-140.8, -132.8, 14.8),
+          (-132.8, -123.2, 18.2), (-123.2, -116.8, 14.8), (-116.8, -108.8, 8.0), (-108.8, -97.6, 31.8), (-97.6, -86.0, 8.0),
+          (-74.0, -67.6, 8.0), (-67.6, -59.6, 25.0), (-59.6, -51.6, 18.2), (-51.6, -45.2, 8.0), (-45.2, -38.0, 14.8),
+          (-38.0, -30.0, 11.4), (-30.0, -24.4, 8.0), (-24.4, -14.8, 18.2), (-14.8, -10.0, 14.8)),
+    "e": ((-168.0, -132.0, 14.8), (-132.0, -95.0, 11.4), (-65.0, -10.0, 11.4)),
+}
+
+
+def far_top(side, z, reach=0.0):
+    """The lowest top of the far wall within `reach` of z (8 m where none
+    is known)."""
+    tops = [h for (z0, z1, h) in FAR_TOPS[side] if z0 - reach < z < z1 + reach]
+    return min(tops) if tops else 8.0
+
+
 def far_wall(D, f, a0, a1, rng, skip=(), used=()):
     """Up the wall across a lane that is another district's back (its own
     windows its own): what is fixed to it over the lane's stalls and
@@ -178,16 +197,18 @@ def far_wall(D, f, a0, a1, rng, skip=(), used=()):
             kind = "units"
         last = kind
         step = rng.uniform(3.0, 6.0)
+        cap = far_top("w" if f.nx > 0 else "e", a, 2.0) - 0.6
         if kind == "units":
             n = rng.randrange(2, 4)
             y0 = rng.uniform(4.0, 6.5)
             for k in range(n):
-                unit_stain(D, f, s + rng.uniform(-0.2, 0.2), y0 + k * CELL_H, rng)
+                if y0 + k * CELL_H + 1.0 < cap:
+                    unit_stain(D, f, s + rng.uniform(-0.2, 0.2), y0 + k * CELL_H, rng)
             px, _, pz = f.p(f.at(s + 0.6), 0.0, 0.0)
-            P.place("pipe_v", px, G0_, pz, f.yaw, sy=y0 + (n - 1) * CELL_H + 0.5, district=D)
+            P.place("pipe_v", px, G0_, pz, f.yaw, sy=min(cap, y0 + (n - 1) * CELL_H + 0.5), district=D)
         elif kind == "pipe":
             px, _, pz = f.p(a, 0.0, 0.0)
-            P.place("pipe_v", px, G0_, pz, f.yaw, sy=rng.uniform(9.0, 13.0), district=D)
+            P.place("pipe_v", px, G0_, pz, f.yaw, sy=min(cap, rng.uniform(9.0, 13.0)), district=D)
         elif kind == "duct":
             ln = rng.uniform(3.0, 6.0)
             K.duct(D, f, s, min(hi - 0.5, s + ln), rng.uniform(4.2, 6.0), rng)
@@ -231,3 +252,104 @@ def far_wall(D, f, a0, a1, rng, skip=(), used=()):
 
 
 G0_ = 0.15
+
+
+def lane_upper(D, f, y0, y1, rng, every=(6.0, 11.0), skip=()):
+    """A lane wall over its first floor, where the lane's own signs stop:
+    every several metres a column of the show's lane signs, turned (a stack
+    of small boards, a tall blade, a big vertical sign flat on the wall), or
+    condensers one over another with their pipe, or a caged lamp over a
+    run of conduit (ax5YUmkWf_Y@111, Zuzys9Ld_5M@87). `skip`: stretches
+    (world, along the face) left alone."""
+    if y1 - y0 < 4.0:
+        return
+    taken = _taken(f)
+    s = rng.uniform(1.0, 4.0)
+    while s < f.width - 1.5:
+        a = f.at(s)
+        if any(k0 - 1.5 < a < k1 + 1.5 for k0, k1 in skip):
+            s += 2.0
+            continue
+        kind = rng.choices(("stack", "blade", "vsign", "units", "lamp"), weights=(2.0, 2.0, 1.4, 2.0, 1.0))[0]
+        ang = rng.choice((-1, 1)) * rng.uniform(0.2, 0.7)
+        if kind == "stack" and y1 - y0 > 6.0:
+            n = rng.randrange(4, 7)
+            y = rng.uniform(y0, max(y0, y1 - n * 1.05 - 1.0))
+            if all(abs(a - ta) > 1.2 + thw or not (y - 0.5 < ty + thh and y + n * 1.05 > ty - thh) for ta, ty, thw, thh in taken):
+                K.stack(D, f, s, y, n, ang, out=rng.uniform(0.7, 1.1))
+                taken.append((a, y + n * 0.5, 1.2, n * 0.55))
+        elif kind == "blade":
+            size = rng.choice(("bl", "bm", "bl"))
+            sc = rng.uniform(1.0, 1.5)
+            hh = ST_SIZES[size][1] * sc
+            if y1 - y0 > hh + 1.0:
+                y = rng.uniform(y0 + hh / 2, y1 - hh / 2 - 0.5)
+                if all(abs(a - ta) > 1.0 + thw or abs(y - ty) > hh / 2 + thh for ta, ty, thw, thh in taken):
+                    K.face_blade(D, f, s, y, size, ang, gap=rng.uniform(0.3, 0.8), scale=sc)
+                    taken.append((a, y, 1.0, hh / 2))
+        elif kind == "vsign":
+            k = rng.choice((1.6, 2.0, 2.4))
+            sw, sh = 1.2 * k, 5.0 * k
+            if y1 - y0 > sh + 1.0 and sw / 2 + 0.5 < s < f.width - sw / 2 - 0.5:
+                y = rng.uniform(y0, y1 - sh - 0.5)
+                if all(abs(a - ta) > sw / 2 + thw + 0.2 or abs(y + sh / 2 - ty) > sh / 2 + thh + 0.2 for ta, ty, thw, thh in taken):
+                    K.board(D, f, s, y + sh / 2, "bl", out=0.2, scale=k)
+                    f.box((D, "neon_" + rng.choice(("cyan", "pink", "amber", "green", "magenta")), 0), s - sw / 2 - 0.16, s + sw / 2 + 0.16, y - 0.18, y - 0.1, 0.05, 0.22)
+                    taken.append((a, y + sh / 2, sw / 2 + 0.2, sh / 2 + 0.2))
+        elif kind == "units":
+            n = rng.randrange(2, 5)
+            y = rng.uniform(y0, max(y0, y1 - n * CELL_H))
+            for k in range(n):
+                if y + k * CELL_H < y1 - 0.8:
+                    unit_stain(D, f, s + rng.uniform(-0.3, 0.3), y + k * CELL_H, rng)
+            px, _, pz = f.p(f.at(s + 0.62), 0.0, 0.0)
+            P.place("pipe_v", px, y, pz, f.yaw, sy=min(y1, y + n * CELL_H) - y, district=D)
+        else:
+            y = rng.uniform(y0, y1 - 1.0)
+            K.wall_lamp(D, f, s, y, rng.choice(("amber", "white", "cyan", "green")), power=3.0)
+            pipe((D, "metal", 1), f.p(a, y0 - 1.0, 0.06), f.p(a, y - 0.3, 0.06), 0.03, segs=4)
+        s += rng.uniform(*every)
+
+
+def lane_band(D, f, rng, y0=2.35, y1=2.95, skip=(), every=(1.6, 3.2)):
+    """The band of a lane wall over its doors and under its first lights,
+    where a walker's eye runs along it: bills pasted in runs, a small lit
+    sign, a grilled vent with its stain, a junction box and its lamp, a
+    sprayed tag, every couple of metres (Zuzys9Ld_5M@87)."""
+    s = rng.uniform(0.6, 2.0)
+    while s < f.width - 1.0:
+        a = f.at(s)
+        if any(k0 - 1.0 < a < k1 + 1.0 for k0, k1 in skip):
+            s += 1.5
+            continue
+        kind = rng.choices(("bills", "sign", "vent", "box", "tag"), weights=(2.5, 1.6, 1.0, 1.0, 1.2))[0]
+        if kind == "bills":
+            n = rng.randrange(2, 5)
+            x = s
+            for _ in range(n):
+                w, h = rng.choice(((0.5, 0.7), (0.6, 0.85), (0.42, 0.6), (0.9, 0.6)))
+                c = f.p(f.at(x + w / 2), rng.uniform(y0, y1) + h / 2 - 0.2, 0.035 + rng.uniform(0.0, 0.01))
+                col = (rng.randrange(8) / 8.0 + 0.01, rng.randrange(8) / 8.0 + 0.01, rng.random(), 1.0)
+                rotated_quad((D, "billboard", 1), c[0], c[1], c[2], w, h, f.yaw, col=col)
+                x += w + rng.uniform(-0.05, 0.1)
+            s = x
+        elif kind == "sign":
+            size = rng.choice(("ps", "bx", "ps"))
+            K.board(D, f, s + 0.6, rng.uniform(y0 + 0.4, y1 + 0.3), size, out=rng.uniform(0.06, 0.12), roll=rng.uniform(-0.05, 0.05))
+            s += 1.4
+        elif kind == "vent":
+            y = rng.uniform(y0, y1)
+            f.box((D, "metal", 1), s - 0.35, s + 0.35, y, y + 0.5, 0.0, 0.06)
+            K.grille(D, f, s - 0.3, s + 0.3, y + 0.05, y + 0.45, out=0.065)
+            f.quad((D, "trim", 1), s - 0.25, s + 0.25, y - 1.2, y, 0.004, col=STAIN)
+        elif kind == "box":
+            y = rng.uniform(y0, y1)
+            f.box((D, "steel", 1), s - 0.25, s + 0.25, y, y + 0.55, 0.0, 0.18, col=(0.26, 0.27, 0.25, 1))
+            f.box((D, "glow", 0), s - 0.04, s + 0.04, y + 0.42, y + 0.48, 0.18, 0.19, col=GLOW[rng.choice(("green", "red", "amber"))])
+            pipe((D, "metal", 1), f.p(a, y + 0.55, 0.06), f.p(a, y + 1.6, 0.06), 0.03, segs=4)
+        else:
+            w = rng.uniform(1.0, 2.2)
+            col = tuple(v * rng.uniform(0.35, 0.6) for v in rng.choice(CURTAIN)) + (1,)
+            f.quad((D, "trim", 1), s, s + w, rng.uniform(1.0, 1.3), rng.uniform(2.0, 2.4), 0.005, col=col)
+            s += w
+        s += rng.uniform(*every)

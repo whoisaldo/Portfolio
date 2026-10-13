@@ -7,6 +7,7 @@ from ncw.districts import avenue_yard as YD
 from ncw.districts import avenue_roofs as RF
 from ncw.districts import avenue_street as ST
 from ncw.districts import avenue_upper as UP
+from ncw.districts import avenue_mass as M
 
 # The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
 # is streets.py's, from the plan.
@@ -259,6 +260,16 @@ for s, lots in SOUTH_ROW.items():
                                              setback=h > TOWER_MIN))
         back_is()
 
+# Bridges between the towers: across the arm between its fourth lots, over
+# its east lane from its last lot to the megablock, over the south row's
+# back lane from its tallest tower to the megablock, over the west lane to
+# the west slab (avenue_mass).
+_brng = random.Random(8850)
+with K.own_names():
+    M.bridge(AVS, (-WALK, 70.0), (WALK, 70.0), M.storeys(4), _brng, w=3.4, hue="pink")
+    M.bridge(AVS, (WALK + DEPTH, 82.0), (58.0, 82.0), M.storeys(9), _brng, w=3.0, hue="cyan")
+    M.bridge(AVS, (76.0, 42.0), (76.0, 55.0), M.storeys(10), _brng, w=3.2, hue="amber")
+    M.bridge(AVS, (-WALK - DEPTH, 51.0), (-51.0, 51.0), M.storeys(8), _brng, w=2.8, hue="green", sign=False)
 B.st_name = ST.NAME[0] = _st_name
 B.roof_dress = _roof_dress
 with K.names_from(78200):
@@ -452,11 +463,14 @@ for n, (f, h, tcol, lane) in enumerate(BACKS):
 
 DECK_BAND = (-95.0, -65.0)
 NORTH_LANES = {}
+LANES = []
 for name, mine, far, seed, aprons in (("w", -WALK - DEPTH, -WALK - DEPTH - 6.0, 9301, (0.9, 1.3)), ("e", WALK + DEPTH, WALK + DEPTH + 8.0, 9302, (0.9, 1.7))):
     lane = LN.Lane(AVS, name, "z", mine, far, -168.0, -10.0, seed, hues=LANE_HUES[name], skip=(DECK_BAND,), aprons=aprons)
     lane.vents = LANE_VENTS[name]
+    lane.far_cap = lambda v, side=name: UP.far_top(side, v, 1.5) - 0.5
     with K.names_from(78500 + seed % 100):
         lane.build(mouths=((-10.0, 1), (-168.0, -1)), rack=True)
+    LANES.append(lane)
     NORTH_LANES[name] = lane
 # The two vents the lanes have always had (the site draws steam from each).
 for i, (x, z) in enumerate(((-WALK - DEPTH - 3.0, -52.0), (WALK + DEPTH + 4.0, -128.0))):
@@ -468,11 +482,13 @@ for name, mine, far, seed in (("aw", -44.0, -50.0, 9311), ("ae", 44.0, 50.0, 931
     lane.vents = LANE_VENTS[name]
     with K.names_from(78500 + seed % 100):
         lane.build(mouths=((88.0, 1),), most_steam=1)
+    LANES.append(lane)
 for name, a, b, seed in (("cw", -66.0, -50.0, 9321), ("ce", 50.0, 108.0, 9322)):
     lane = LN.Lane(AVS, name, "x", 42.0, 48.0, a, b, seed, hues=LANE_HUES[name], dens=0.75, aprons=(0.9, 1.3))
     lane.vents = LANE_VENTS[name]
     with K.names_from(78500 + seed % 100):
         lane.build(most_steam=1)
+    LANES.append(lane)
 
 # What the pavements carry, the cables across the south street and the arm,
 # the lanes' gates, the corners' kiosks, and who stands about (avenue_street).
@@ -528,6 +544,25 @@ for sx in (-1, 1):
         UP.dress(AVS, B.Face("-z", 12.0, xa, xb), SHOP_H + CELL_H, SOUTH_TIERS[sx][j][0][5] - 0.5, _up, rate=0.3, units=0.1)
 for (f, h, tcol, lane) in BACKS:
     UP.dress(AVS, f, SHOP_H, h - 0.5, _up, rate=0.18, units=0.14, washing=0.5)
+# And over the lanes, from where their own signs stop: columns of signs,
+# condensers, lamps up every back (avenue_upper.lane_upper), and slung from
+# wall to wall higher than the lanes' own light, cables, washing, pipes,
+# signs on wires (avenue_lanes.Lane.high). (Their own streams, after
+# everything else, so nothing above moves.)
+with K.own_names():
+    _lu = random.Random(7560)
+    for (f, h, tcol, lane) in BACKS:
+        UP.lane_upper(AVS, f, SHOP_H + 1.0, min(h - 1.0, 24.0), _lu, skip=(DECK_BAND,) if lane in ("w", "e") else ())
+        UP.lane_band(AVS, f, _lu, skip=(DECK_BAND,) if lane in ("w", "e") else ())
+    for side, plane, nm in (("w", -WALK - DEPTH - 6.0, "+x"), ("e", WALK + DEPTH + 8.0, "-x")):
+        UP.lane_band(AVS, B.Face(nm, plane, -166.0, -12.0), _lu, y0=2.6, y1=3.2, skip=(DECK_BAND,) + tuple(NORTH_LANES[side].used))
+        for (z0, z1, top) in UP.FAR_TOPS[side]:
+            if top - 1.0 >= 10.0 and z1 - z0 > 4.0:
+                UP.lane_upper(AVS, B.Face(nm, plane, max(z0, -166.0) + 0.5, min(z1, -12.0) - 0.5), 6.0, min(top - 1.0, 17.0), _lu, every=(6.0, 11.0), skip=(DECK_BAND,))
+    for lane in LANES:
+        far = {"w": "w", "e": "e"}.get(lane.name)
+        lane.high(random.Random(7570 + len(lane.name) * 7 + ord(lane.name[-1])), top=14.0 if far else 12.0,
+                  far_cap=(lambda v, side=far: UP.far_top(side, v, 1.5) - 0.5) if far else None)
 # The arm's corner lots over the south street's shops: their walls to the
 # street dressed as the row's are (a walker looks square at them).
 for sx in (-1, 1):
