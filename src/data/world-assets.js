@@ -8,7 +8,7 @@ export const worldModelUrl = {
 // look at, nearest first.
 export const worldPackUrl = {
   high: {
-    south: "/scenes/world/world-high-south.glb?v=6e0a991cc81a",
+    south: "/scenes/world/world-high-south.glb?v=0230a0458c2e",
     canyon: "/scenes/world/world-high-canyon.glb?v=d86afd86af44",
     plaza: "/scenes/world/world-high-plaza.glb?v=fa1856c6b7c9",
     deck: "/scenes/world/world-high-deck.glb?v=23dd85d83217",
@@ -19,7 +19,7 @@ export const worldPackUrl = {
     mega: "/scenes/world/world-high-mega.glb?v=b682c6769ba4",
   },
   phone: {
-    south: "/scenes/world/world-phone-south.glb?v=48fac9d35ef6",
+    south: "/scenes/world/world-phone-south.glb?v=274153f30f8f",
     canyon: "/scenes/world/world-phone-canyon.glb?v=6e67f3294ae5",
     plaza: "/scenes/world/world-phone-plaza.glb?v=66d0813ca2cc",
     deck: "/scenes/world/world-phone-deck.glb?v=6b69571df052",
@@ -60,6 +60,6 @@ export const worldShopsUrl = {
   phone: "/scenes/world/shops-phone.webp?v=27d6f90aadb2",
 };
 export const worldPropsUrl = {
-  high: "/scenes/world/props-high.bin?v=f15346c813a0",
+  high: "/scenes/world/props-high.bin?v=cfacab4926da",
   phone: "/scenes/world/props-phone.bin?v=d6ce5e963910",
 };
