@@ -14,7 +14,7 @@ from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.plaza_parts import *  # noqa: F401,F403
-from ncw.districts.plaza_hub import RP, RK, KY, NSEG, STEP, at, LOBES, STAIR
+from ncw.districts.plaza_hub import RP, RK, KY, NSEG, STEP, at, LOBES, OUTER, STAIR
 from ncw.districts.plaza_square import G, TY, TX, TN, TS
 
 re_ = random.Random(8700)
@@ -41,6 +41,23 @@ for i in range(NSEG):
         sq = [(x - 0.1, z - 0.1), (x + 0.1, z - 0.1), (x + 0.1, z + 0.1), (x - 0.1, z + 0.1)]
         if any(len(clip_planes(sq, lobe)) == 4 for lobe in LOBES):
             box((PL, "glow", 1), x - 0.09, x + 0.09, KY + 0.005, KY + 0.022, z - 0.09, z + 0.09, scale=0.5, col=dim("amber", 0.55))
+
+# Its outer face and lip faced in the same dark stone, a line of amber let
+# in low along it every other stone (the concrete face, lit by the warm
+# pools at its foot, was the salmon slab at a walker's feet).
+for i in range(NSEG):
+    a0, a1 = i * STEP, (i + 1) * STEP
+    for outer in OUTER:
+        s = seg_clip(at(RK + 0.045, a1), at(RK + 0.045, a0), outer)
+        if s:
+            vwall((PL, "trim", 0), s[0], s[1], G - 0.02, KY + 0.012, GRANITE)
+            if i % 2 == 0:
+                s2 = seg_clip(at(RK + 0.06, a1 - 0.002), at(RK + 0.06, a0 + 0.002), outer)
+                if s2:
+                    vwall((PL, "glow", 1), s2[0], s2[1], G + 0.07, G + 0.1, dim("amber", 0.4))
+        piece = clip_planes([at(RK - 0.035, a0), at(RK - 0.035, a1), at(RK + 0.05, a1), at(RK + 0.05, a0)], outer)
+        if piece:
+            up_poly((PL, "trim", 0), piece, KY + 0.012, GRANITE)
 
 # ---------------------------------------------------------------------------
 # The terrace stair (STAIR, plaza_parts.stair_x): timber seats laid on every
