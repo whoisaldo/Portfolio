@@ -299,10 +299,11 @@ def tower_blade(cx, cy, cz, w, h, along, seed, hue="cyan"):
     checked(cx - w, cx + w, cz - w, cz + w, cy + h / 2 + 0.8, "tower blade")
 
 
-# D1: a blade out of its shaft's second step over the junction, and a board
+# D1: a blade out of its shaft's second step over the junction (at its
+# north end: at its south end it was a third of plaza-aerial), and a board
 # on its face to the square (plaza-aerial's near-blank face; the square's
 # east sky).
-tower_blade(152.6 - 0.75 - 2.1, 84.0, -139.4, 4.2, 21.0, -math.pi / 2, 9201, hue="yellow")
+tower_blade(152.6 - 0.75 - 1.8, 84.0, -158.6, 3.6, 21.0, -math.pi / 2, 9201, hue="yellow")
 tower_board(159.5, 50.0, -164.0, 8.0, 26.0, math.pi, 9202, hue="teal", off=1.2)
 # B1's tower, over its corner block's park. (D2's and D3's faces to the
 # road stay as they were: the hero's wet road sees them down the deck.)
@@ -318,3 +319,46 @@ tower_board(102.0, 49.6, -335.0, 5.0, 12.0, math.pi / 2, 9209, hue="teal", off=1
 # Columns of type up two faces to the road (the site paints the words).
 big_sign("bm", 4.5, 135.2, 14.8 + 1.4 + 7.2, -149.0, -math.pi / 2, double=False)
 big_sign("bl", 4.0, 104.9, 30.0 + 10.0, -386.0, math.pi / 2, double=False)
+
+
+# ---------------------------------------------------------------------------
+# The square's four side screens (board_1..4: the site shows the Work
+# entries on them, mostly dark UI) read from the terraces and the air as
+# black panels: each is now a lit fixture, a bezel of light round its
+# screen, a status ticker under it, red lamps at its top corners, and on
+# the two on masts floodlights on arms over it and braces back to the masts.
+# (The two on the canyon's back wall, west of x 60, carry only glow: a lamp
+# there runs down the hero's road. board_5..7 are the Work shot's: as built.)
+# ---------------------------------------------------------------------------
+SIDE_BOARDS = ((44.6, 12.0, -205.0, 9.0, 6.0, math.radians(90)), (44.6, 12.0, -228.0, 9.0, 6.0, math.radians(90)),
+               (109.4, 12.0, -205.0, 9.0, 6.0, math.radians(-90)), (109.4, 12.0, -228.0, 9.0, 6.0, math.radians(-90)))
+for i, hue in ((1, "cyan"), (2, "amber"), (3, "teal"), (4, "yellow")):
+    cx, cy, cz, w, h, yaw = SIDE_BOARDS[i - 1]
+    pl = Plane(cx, cy, cz, yaw)
+    e = 0.13
+    for (u0, u1, v0, v1) in ((-w / 2 - e, w / 2 + e, h / 2, h / 2 + e), (-w / 2 - e, w / 2 + e, -h / 2 - e, -h / 2),
+                             (-w / 2 - e, -w / 2, -h / 2, h / 2), (w / 2, w / 2 + e, -h / 2, h / 2)):
+        pl.rect((PL, "glow", 0), u0, u1, v0, v1, dim(hue, 0.8), d=0.02)
+    # (The ticker: a bar of light under the frame, its status lamps.)
+    pl.rect((PL, "glow", 0), -w / 2, w / 2, -h / 2 - 0.62, -h / 2 - 0.36, dim("white", 0.55), d=0.04)
+    for u, lamp in ((-w / 2 + 0.25, "green"), (-w / 2 + 0.55, "green"), (w / 2 - 0.3, "amber")):
+        px, py, pz = pl.at(u, -h / 2 - 0.49, 0.08)
+        box((PL, "glow", 1), px - 0.06, px + 0.06, py - 0.06, py + 0.06, pz - 0.06, pz + 0.06, scale=0.5, col=GLOW[lamp])
+    bx0, by0, bz0 = pl.at(-w / 2, -h / 2 - 0.7, 0.03)
+    bx1, by1, bz1 = pl.at(w / 2, -h / 2 - 0.3, -0.3)
+    box((PL, "board_frame", 0), min(bx0, bx1), max(bx0, bx1), by0, by1, min(bz0, bz1), max(bz0, bz1), scale=1.0)
+    for u in (-w / 2 - 0.1, w / 2 + 0.1):
+        lx, ly, lz = pl.at(u, h / 2 + 0.3, -0.1)
+        box((PL, "glow", 1), lx - 0.12, lx + 0.12, ly, ly + 0.24, lz - 0.12, lz + 0.12, scale=0.5, col=GLOW["red"])
+    if cx < 60.0:
+        continue
+    for u in (-w * 0.33, 0.0, w * 0.33):
+        ax, ay, az = pl.at(u, h / 2 + 0.35, -0.2)
+        hx, _, hz = pl.at(u, h / 2 + 0.35, 1.1)
+        box((PL, "metal", 1), min(ax, hx) - 0.05, max(ax, hx) + 0.05, ay - 0.05, ay + 0.05, min(az, hz) - 0.05, max(az, hz) + 0.05, scale=0.5)
+        box((PL, "neon_white", 0), hx - 0.2, hx + 0.2, ay - 0.14, ay - 0.04, hz - 0.2, hz + 0.2, scale=0.5)
+        light(PL, hx, ay - 1.5, hz, "white", 3.0)
+    for mz in (cz - 4.0, cz + 4.0):
+        for (ya, yb) in ((9.3, 12.2), (14.7, 12.2)):
+            pipe((PL, "metal", 1), (107.65, ya, mz), (109.45, yb, mz + (1.6 if mz < cz else -1.6)), 0.05, segs=4)
+

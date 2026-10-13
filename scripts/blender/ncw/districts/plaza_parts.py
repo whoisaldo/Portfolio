@@ -1201,6 +1201,24 @@ LEAF = ((0.03, 0.115, 0.07), (0.022, 0.09, 0.062), (0.045, 0.14, 0.075), (0.06, 
 HEART = (0.006, 0.022, 0.016, P.WOOD)
 
 
+def leaf_pad(key, cx, cy, cz, r, col, segs=7):
+    """A pad of leaves: P.pad's shallow dome, drawn as a frond's middle (its
+    uv across held at the rib, so the shader cuts no comb from it and lights
+    it as leaf). P.pad's own tag is blossom, whose clusters the site tints
+    pale one in six: on a dark green shrub, white flecks like confetti."""
+    col = (*col[:3], P.FROND)
+
+    def ring(f, y):
+        return [(cx + r * f * math.cos(t), cy + y, cz + r * f * math.sin(t))
+                for t in ((i + 0.5 * (f < 1)) * math.tau / segs for i in range(segs))]
+    mid, rim = ring(0.55, 0.2 * r), ring(1.0, -0.06 * r)
+    top = (cx, cy + 0.3 * r, cz)
+    for i in range(segs):
+        j = (i + 1) % segs
+        poly(key, [top, mid[i], mid[j]], [(0.5, 0.62), (0.5, 0.5), (0.5, 0.5)], col)
+        poly(key, [mid[i], rim[j], mid[j]], [(0.5, 0.5), (0.5, 0.3), (0.5, 0.5)], col)
+
+
 def tuft(k, x, y, z, r, n=3, size=0.34, lean=0.9):
     for i in range(n):
         yaw = r.uniform(0.0, math.tau)
@@ -1221,7 +1239,7 @@ def _hedge_soft(k):
     # (Its top is leaf in small pads, close set: clipped, not ferny.)
     for i in range(10):
         x = -0.9 + i * 0.2 + r.uniform(-0.04, 0.04)
-        P.pad(k("plant"), x, 0.56 + r.uniform(-0.02, 0.04), r.uniform(-0.16, 0.16), r.uniform(0.24, 0.3), r.choice(CROWN), segs=5)
+        leaf_pad(k("plant"), x, 0.56 + r.uniform(-0.02, 0.04), r.uniform(-0.16, 0.16), r.uniform(0.24, 0.3), r.choice(CROWN), segs=5)
     for i in range(6):
         x = -0.84 + i * 0.336 + r.uniform(-0.08, 0.08)
         for side in (-1, 1):
@@ -1240,8 +1258,8 @@ def _shrub(k):
     for i in range(6):
         a = i * math.tau / 6 + r.uniform(-0.3, 0.3)
         rr = r.uniform(0.2, 0.34)
-        P.pad(k("plant"), rr * math.cos(a), 0.3 + r.uniform(-0.05, 0.1), rr * math.sin(a), r.uniform(0.26, 0.34), r.choice(CROWN), segs=5)
-    P.pad(k("plant"), 0.0, 0.5, 0.0, 0.34, CROWN[2], segs=6)
+        leaf_pad(k("plant"), rr * math.cos(a), 0.3 + r.uniform(-0.05, 0.1), rr * math.sin(a), r.uniform(0.26, 0.34), r.choice(CROWN), segs=5)
+    leaf_pad(k("plant"), 0.0, 0.5, 0.0, 0.34, CROWN[2], segs=6)
     for i in range(5):
         a = i * math.tau / 5 + r.uniform(-0.4, 0.4)
         tuft(k, 0.3 * math.cos(a), 0.34, 0.3 * math.sin(a), r, n=1, size=0.22, lean=0.9)
@@ -1299,7 +1317,13 @@ def _tree_round(k):
                                                (3.86, 0.0, 1, 0.5))):
         for i in range(n):
             a = (i + 0.5 * (tier % 2)) * math.tau / n + r.uniform(-0.2, 0.2)
-            P.pad(w, ring_r * math.cos(a), y + r.uniform(-0.1, 0.1), ring_r * math.sin(a), pr * r.uniform(0.88, 1.12), r.choice(CROWN), segs=6)
+            leaf_pad(w, ring_r * math.cos(a), y + r.uniform(-0.1, 0.1), ring_r * math.sin(a), pr * r.uniform(0.88, 1.12), r.choice(CROWN), segs=6)
+    # (Sprays of leaf out of the crown's flanks and top, so its edge is
+    # broken and not a ball.)
+    for i in range(22):
+        a, yy = i * 2.39996 + r.uniform(-0.2, 0.2), r.uniform(2.3, 3.8)
+        rr = 1.5 * math.sqrt(max(0.05, 1.0 - ((yy - 2.95) / 1.05) ** 2))
+        tuft(k, rr * math.cos(a), yy, rr * math.sin(a), r, n=2, size=0.42, lean=0.5 + 0.6 * (yy - 2.3))
     for x, z in ((0.42, 0.3), (-0.36, -0.4)):
         box(k("glow"), x - 0.07, x + 0.07, 0.0, 0.07, z - 0.07, z + 0.07, scale=0.5, col=(0.75, 1.0, 0.82, 1.0))
 

@@ -31,10 +31,31 @@ for (cx, cz, w, yaw, y, hue) in ((60.6, -205.5, 5.0, 0.0, G, "white"), (69.4, -2
 # terrace palm. (Bands of light, nothing solid: the posts and trunks are
 # the kit's.)
 # ---------------------------------------------------------------------------
-for (cx, cz, y0, y1, r, hue, hue2) in ((54.6, -210.0, G + 1.3, G + 2.9, 0.2, "cyan", "white"), (76.0, -208.0, G + 1.3, G + 2.9, 0.2, "magenta", "white"),
-                                      (90.6, -247.0, G + 1.3, G + 2.9, 0.2, "amber", "white"), (56.6, -211.2, G + 1.6, G + 3.2, 0.36, "teal", "yellow"),
-                                      (74.0, -200.0, G + 1.6, G + 3.2, 0.36, "green", "white"), (102.8, -210.5, TY + 1.6, TY + 3.2, 0.36, "cyan", "white")):
-    holo_wrap(cx, cz, y0, y1, r, hue, hue2)
+# (A sleeve sits close on what it wraps: round a post 4 cm off it, round a
+# palm on its trunk, which leans as the kit's palm leans, turned with it.)
+PALM_TRUNK = ((0.0, 0.62, 0.0, 0.2), (0.04, 1.5, 0.02, 0.15), (0.14, 3.1, 0.05, 0.13), (0.27, 4.8, 0.06, 0.12), (0.36, 6.2, 0.04, 0.115))
+
+
+def palm_sleeve(cx, cz, y0, y1, hue, hue2):
+    name, px, py, pz, yaw, sy, sxz, d = next(i for i in P.INSTANCES if i[0] == "planter_palm" and abs(i[1] - cx) < 0.05 and abs(i[3] - cz) < 0.05)
+    n = max(2, int((y1 - y0) / 0.4))
+    for i in range(n + 1):
+        h = (y0 + (y1 - y0) * i / n - py) / sy
+        a, b = next((a, b) for a, b in zip(PALM_TRUNK, PALM_TRUNK[1:]) if a[1] <= h <= b[1])
+        t = (h - a[1]) / (b[1] - a[1])
+        lx, lz, rr = (a[0] + (b[0] - a[0]) * t) * sxz, (a[2] + (b[2] - a[2]) * t) * sxz, (a[3] + (b[3] - a[3]) * t) * sxz
+        wx, wz = px + lx * math.cos(yaw) + lz * math.sin(yaw), pz - lx * math.sin(yaw) + lz * math.cos(yaw)
+        y = py + h * sy
+        walls((PL, "glow", 0), ngon(wx, wz, rr + 0.03, 8), y - 0.02, y + 0.02, dim(hue if i % 2 == 0 else hue2, 0.75))
+    shine(px, y0, pz + 0.6, hue if hue in TINT else "white", 3.0)
+
+
+for (cx, cz, y0, y1, hue, hue2) in ((54.6, -210.0, G + 1.3, G + 2.9, "cyan", "white"), (76.0, -208.0, G + 1.3, G + 2.9, "magenta", "white"),
+                                   (90.6, -247.0, G + 1.3, G + 2.9, "amber", "white")):
+    holo_wrap(cx, cz, y0, y1, 0.11, hue, hue2)
+for (cx, cz, y0, y1, hue, hue2) in ((56.6, -211.2, G + 1.6, G + 3.2, "teal", "yellow"), (74.0, -200.0, G + 1.6, G + 3.2, "green", "white"),
+                                   (102.8, -210.5, TY + 1.6, TY + 3.2, "cyan", "white")):
+    palm_sleeve(cx, cz, y0, y1, hue, hue2)
 
 # ---------------------------------------------------------------------------
 # One large octagonal sign, where the square meets the junction: on a steel
