@@ -181,10 +181,18 @@ ARM_H = {}
 for s in (-1, 1):
     rr = random.Random(2200 + s)
     ARM_H[s] = [rr.choice((14.0, 18.0, 21.0, 24.0, 28.0, 31.0)) for _ in ARM]
+# And among them slabs of twelve to seventeen storeys, set back over their
+# fronts, so the arm's skyline is jagged from the air (none under the
+# south air view's eye at x 20, z 60, 75 m up).
+ARM_TALL = {(-1, 2): 55.6, (-1, 4): 45.4, (1, 1): 48.8, (1, 4): 38.6, (1, 5): 62.4}
+for (s, j), h in ARM_TALL.items():
+    ARM_H[s][j] = h
+ARM_TIERS = {-1: [], 1: []}
 # The south street's south side, out to the west street's end and to the
 # x 120 road's: (x0, x1, height) west and east of the arm's corner lots.
-SOUTH_ROW = {-1: [(-66.0, -55.0, 45.4), (-55.0, -44.0, 28.4)],
-             1: [(44.0, 56.0, 23.6), (56.0, 68.8, 38.6), (68.8, 84.8, 52.2), (84.8, 97.6, 31.8), (97.6, 108.0, 42.0)]}
+SOUTH_ROW = {-1: [(-66.0, -55.0, 82.0), (-55.0, -44.0, 28.4)],
+             1: [(44.0, 56.0, 23.6), (56.0, 68.8, 38.6), (68.8, 84.8, 96.0), (84.8, 97.6, 31.8), (97.6, 108.0, 69.0)]}
+SOUTH_TIERS = {-1: [], 1: []}
 # The street's skyline: the row's taller lots are a front of six to ten
 # storeys with a tower set back behind it (none beside the arm's corner
 # lots, and none under the roofs' fixed view at x 52, 64 m up).
@@ -213,12 +221,15 @@ for s in (-1, 1):
         if j < len(ARM) - 1:
             nb["+z"] = hs[j + 1]
         back_is(backf, xb if s > 0 else xa, hs[j], "ae" if s > 0 else "aw")
-        B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AVS), hs[j], r, style=SIDE)
+        with K.names_from(78000 + j * 2 + (s > 0)):
+            ARM_TIERS[s].append(B.building(B.Lot(xa, xb, za, za + d, front, sides, nb, AVS), hs[j], r, style=SIDE,
+                                           setback=True if (s, j) in ARM_TALL and hs[j] > 40 else None))
         back_is()
 # The arm ends at Santo Domingo's yard: its wall and gate across the road's
 # end, the yard behind them, and the blocks behind the arm's lots
 # (avenue_yard).
-YD.build(AVS)
+with K.names_from(78100):
+    YD.build(AVS)
 
 # The south street's frontages either side of the arm's corner lots: its
 # south side, out to the west street's end and to the x 120 road. (Its north
@@ -243,13 +254,15 @@ for s, lots in SOUTH_ROW.items():
         else:
             sides["+x"] = "open"
         back_is("+z", 42.0, h, "ce" if s > 0 else "cw")
-        B.building(B.Lot(xa, xb, 12.0, 42.0, "-z", sides, nb, AVS), h, r, style=dict(SOUTH, setback_in=(5.0, 7.0)),
-                   setback=h > TOWER_MIN)
+        with K.names_from(78020 + j * 2 + (s > 0)):
+            SOUTH_TIERS[s].append(B.building(B.Lot(xa, xb, 12.0, 42.0, "-z", sides, nb, AVS), h, r, style=dict(SOUTH, setback_in=(5.0, 7.0)),
+                                             setback=h > TOWER_MIN))
         back_is()
 
 B.st_name = ST.NAME[0] = _st_name
 B.roof_dress = _roof_dress
-RF.dress_queue(AVS)
+with K.names_from(78200):
+    RF.dress_queue(AVS)
 
 # Blade signs down both sides: the plate's vertical Japanese signs. The ids
 # are keys into WORLD_SIGNS in src/data/world.js, which holds their words.
@@ -418,7 +431,8 @@ LIGHTS.pop("void", None)
 B.ROOFS[:] = [t for t in B.ROOFS if t[0] != "void"]
 
 # The backs of the avenue's lots, above their street fronts' roofs.
-RF.rear(AVS, AV_LOTS, WALK, DEPTH, STYLE)
+with K.names_from(78300):
+    RF.rear(AVS, AV_LOTS, WALK, DEPTH, STYLE)
 
 # ---------------------------------------------------------------------------
 # The lanes. Behind each row of the avenue a service lane runs from the
@@ -432,15 +446,17 @@ LANE_HUES = {"w": "green", "e": "blue", "aw": "warm", "ae": "green", "cw": "blue
 LANE_VENTS = {k: [] for k in LANE_HUES}
 for n, (f, h, tcol, lane) in enumerate(BACKS):
     esc = [a for (name, plane, a) in ESCAPES if name == f.name and abs(plane - f.plane) < 1e-6 and f.a0 <= a <= f.a1]
-    LN.wall(AVS, f, random.Random(5100 + n * 17), h, tcol, escapes=esc, hues=LANE_HUES[lane],
-            dens=1.0 if lane in ("w", "e") else 0.7, vents=LANE_VENTS[lane])
+    with K.names_from(78400 + n):
+        LN.wall(AVS, f, random.Random(5100 + n * 17), h, tcol, escapes=esc, hues=LANE_HUES[lane],
+                dens=1.0 if lane in ("w", "e") else 0.7, vents=LANE_VENTS[lane])
 
 DECK_BAND = (-95.0, -65.0)
 NORTH_LANES = {}
 for name, mine, far, seed, aprons in (("w", -WALK - DEPTH, -WALK - DEPTH - 6.0, 9301, (0.9, 1.3)), ("e", WALK + DEPTH, WALK + DEPTH + 8.0, 9302, (0.9, 1.7))):
     lane = LN.Lane(AVS, name, "z", mine, far, -168.0, -10.0, seed, hues=LANE_HUES[name], skip=(DECK_BAND,), aprons=aprons)
     lane.vents = LANE_VENTS[name]
-    lane.build(mouths=((-10.0, 1), (-168.0, -1)), rack=True)
+    with K.names_from(78500 + seed % 100):
+        lane.build(mouths=((-10.0, 1), (-168.0, -1)), rack=True)
     NORTH_LANES[name] = lane
 # The two vents the lanes have always had (the site draws steam from each).
 for i, (x, z) in enumerate(((-WALK - DEPTH - 3.0, -52.0), (WALK + DEPTH + 4.0, -128.0))):
@@ -450,15 +466,24 @@ for i, (x, z) in enumerate(((-WALK - DEPTH - 3.0, -52.0), (WALK + DEPTH + 4.0, -
 for name, mine, far, seed in (("aw", -44.0, -50.0, 9311), ("ae", 44.0, 50.0, 9312)):
     lane = LN.Lane(AVS, name, "z", mine, far, 42.0, 88.0, seed, hues=LANE_HUES[name], dens=0.75, aprons=(0.9, 1.3))
     lane.vents = LANE_VENTS[name]
-    lane.build(mouths=((88.0, 1),), most_steam=1)
+    with K.names_from(78500 + seed % 100):
+        lane.build(mouths=((88.0, 1),), most_steam=1)
 for name, a, b, seed in (("cw", -66.0, -50.0, 9321), ("ce", 50.0, 108.0, 9322)):
     lane = LN.Lane(AVS, name, "x", 42.0, 48.0, a, b, seed, hues=LANE_HUES[name], dens=0.75, aprons=(0.9, 1.3))
     lane.vents = LANE_VENTS[name]
-    lane.build(most_steam=1)
+    with K.names_from(78500 + seed % 100):
+        lane.build(most_steam=1)
 
 # What the pavements carry, the cables across the south street and the arm,
 # the lanes' gates, the corners' kiosks, and who stands about (avenue_street).
+# (Its signs, and every sign hung on the south street's and the arm's walls
+# from here on, take their designs from streams of their own: what they
+# hang over the arm's first shops decides, through the trades the site
+# deals along that wall, the room of the hero's corner shop on the same
+# wall, which must not change when anything upstream of here does.)
+_names = K.use_names(random.Random(77210))
 ST.build(AV, AVS, (-WALK - DEPTH, -WALK - DEPTH - 6.0), (WALK + DEPTH, WALK + DEPTH + 8.0))
+K.use_names(random.Random(77220))
 
 # The west side's upper storeys, thin beside the east's: boards flat on the
 # wall and columns of condensers, clear of the named blades and Kiroshi's
@@ -478,9 +503,11 @@ K.use_names(_names)
 # And the band over the shops on the south street's south side and down the
 # arm, which a walker looks square at.
 for sx in (-1, 1):
-    row = [(a, b, south_front(h)) for (a, b, h) in SOUTH_ROW[sx]] + [(sx * WALK, sx * (WALK + DEPTH), ARM_H[sx][0])]
+    # (Each lot to its street front's top: a towered lot's tower is set
+    # back behind it.)
+    row = [(a, b, SOUTH_TIERS[sx][j][0][5]) for j, (a, b, h) in enumerate(SOUTH_ROW[sx])] + [(sx * WALK, sx * (WALK + DEPTH), ARM_TIERS[sx][0][0][5])]
     row = [tuple(sorted(r[:2])) + (r[2],) for r in row]
-    arm = [(za, za + d, ARM_H[sx][j]) for j, (za, d) in enumerate(ARM)]
+    arm = [(za, za + d, ARM_TIERS[sx][j][0][5]) for j, (za, d) in enumerate(ARM)]
     f_row = B.Face("-z", 12.0, sx * WALK, sx * 108.0 if sx > 0 else -66.0)
     f_arm = B.Face("-x" if sx > 0 else "+x", sx * WALK, 12.0, 88.0)
     ST.upper(AVS, f_row, row, random.Random(7410 + sx), cap=12.5)
@@ -496,11 +523,15 @@ for sx in (-1, 1):
 _up = random.Random(7500)
 for sx in (-1, 1):
     for j, (za, d) in enumerate(ARM):
-        UP.dress(AVS, B.Face("-x" if sx > 0 else "+x", sx * WALK, za, za + d), SHOP_H + CELL_H, ARM_H[sx][j] - 0.5, _up, rate=0.3, units=0.1)
-    for (xa, xb, h) in SOUTH_ROW[sx]:
-        UP.dress(AVS, B.Face("-z", 12.0, xa, xb), SHOP_H + CELL_H, south_front(h) - 0.5, _up, rate=0.3, units=0.1)
+        UP.dress(AVS, B.Face("-x" if sx > 0 else "+x", sx * WALK, za, za + d), SHOP_H + CELL_H, ARM_TIERS[sx][j][0][5] - 0.5, _up, rate=0.3, units=0.1)
+    for j, (xa, xb, h) in enumerate(SOUTH_ROW[sx]):
+        UP.dress(AVS, B.Face("-z", 12.0, xa, xb), SHOP_H + CELL_H, SOUTH_TIERS[sx][j][0][5] - 0.5, _up, rate=0.3, units=0.1)
 for (f, h, tcol, lane) in BACKS:
     UP.dress(AVS, f, SHOP_H, h - 0.5, _up, rate=0.18, units=0.14, washing=0.5)
+# The arm's corner lots over the south street's shops: their walls to the
+# street dressed as the row's are (a walker looks square at them).
+for sx in (-1, 1):
+    UP.dress(AVS, B.Face("-z", 12.0, sx * WALK, sx * (WALK + DEPTH)), SHOP_H + CELL_H, ARM_TIERS[sx][0][0][5] - 0.5, random.Random(7530 + sx), rate=0.32, units=0.12)
 # The far wall of each north lane is Japantown's back (x -50) and the
 # plaza's (x 52): fixed to it over the lane, condensers, pipes, ducts,
 # trays, bills, boards, lamps, clear of the deck's band.
@@ -508,5 +539,7 @@ UP.far_wall(AVS, B.Face("+x", -WALK - DEPTH - 6.0, -166.0, -12.0), -166.0, -12.0
 UP.far_wall(AVS, B.Face("-x", WALK + DEPTH + 8.0, -166.0, -12.0), -166.0, -12.0, random.Random(7511), skip=(DECK_BAND,), used=NORTH_LANES["e"].used)
 # The show's street paint and furniture on the arm and the south street, and
 # people on their pavements (avenue_street.markings).
+K.use_names(random.Random(77230))
 ST.markings(AVS, random.Random(7620))
+K.use_names(_names)
 P.place = _place

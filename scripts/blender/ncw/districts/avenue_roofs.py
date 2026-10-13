@@ -146,9 +146,14 @@ def rear(D, lots, walk, depth, style, seed=6100):
             if hidden((fx - 0.3, h, fz - 0.3), (fx + 0.3, h + 3.4, fz + 0.3)):
                 box((D, "metal", 1), fx - 0.05, fx + 0.05, h, h + 3.2, fz - 0.05, fz + 0.05, scale=0.5)
                 box((D, "glow", 0), fx - 0.25, fx + 0.25, h + 3.2, h + 3.3, fz - 0.25, fz + 0.25, scale=0.5, col=GLOW[hue])
-        add = CELL_H * rng.choice((0, 2, 3, 3, 4, 5, 6))
+        # As high as the hero's lens allows, some of them by half again the
+        # street front's height: from the air the rows step and jag.
+        add = CELL_H * rng.choice((0, 3, 4, 6, 8, 10, 13))
         if z1 - z0 < 8.0:
             add = min(add, CELL_H * 3)
+        # (Under the roof air view's eye, x 30, z -60, 40 m up.)
+        if x0 - 4.0 < 30.0 < x1 + 4.0 and z0 - 4.0 < -60.0 < z1 + 4.0:
+            add = min(add, CELL_H * int(max(0.0, 34.0 - h) / CELL_H))
         while add > 0 and not hidden((x0 - 0.6, h, z0 - 0.3), (x1 + 0.6, h + add + 1.4, z1 + 0.3)):
             add -= CELL_H
         taken, _ = kit_taken(AV_KEY, xa, xb, z0, z1, h)
@@ -161,6 +166,23 @@ def rear(D, lots, walk, depth, style, seed=6100):
             dress(D, x0, x1, z0, z1, top, rng, tint=B.TINTS[tint], lane_yaw=lane_yaw, parapet=True, style=style)
             if h + add > 40 and hidden((back - s * 1.5 - 0.3, top, z0), (back - s * 1.5 + 0.3, top + 7.5, z0 + 1.2)):
                 P.place("antenna", back - s * 1.5, top, z0 + 1.0, 0.0, sy=1.1, district=D)
+            # Its top drawn in light on two or three sides now and then, each
+            # its own colour (not every roof ringed in one).
+            er = random.Random(seed + n * 29 + 2)
+            if add >= CELL_H * 3 and er.random() < 0.6:
+                col = tuple(v * 0.8 for v in GLOW[er.choice(("cyan", "pink", "amber", "magenta", "teal", "green", "red"))][:3]) + (1,)
+                glow_edge(D, x0, x1, z0, z1, top, col, er.sample(("+x", "-x", "+z", "-z"), er.randrange(2, 4)), hidden)
+            # And a big vertical sign up its face to the lane, over the
+            # lane's own walls.
+            if add >= CELL_H * 5 and z1 - z0 >= 9.0 and er.random() < 0.7:
+                lf = B.Face("+x" if s > 0 else "-x", back, z0, z1)
+                k_ = er.choice((2.0, 2.5))
+                sh = 5.0 * k_
+                yb = er.uniform(h + 1.0, max(h + 1.0, top - sh - 1.5))
+                sa = er.uniform(1.2 * k_ / 2 + 1.0, lf.width - 1.2 * k_ / 2 - 1.0)
+                if yb + sh < top - 1.0:
+                    with K.own_names():
+                        K.board(D, lf, sa, yb + sh / 2, "bl", out=0.35, scale=k_)
             # The lot's own roof in front of it, round the kit's plant.
             fa, fb = sorted((s * walk, front))
             fill(D, fa, fb, z0, z1, h, rng, tint=lot_tint, face=-lane_yaw, ok=hidden, taken=[t for t in taken if t[0] < fb and t[1] > fa], deep=False, low=True)
@@ -178,6 +200,8 @@ def rear(D, lots, walk, depth, style, seed=6100):
 # with its catwalk and lamps. No line of light round the parapet.
 # ---------------------------------------------------------------------------
 PAVERS = ((0.4, 0.39, 0.37, 1), (0.36, 0.37, 0.39, 1), (0.42, 0.39, 0.33, 1), (0.38, 0.36, 0.4, 1))
+SKIN = ((0.13, 0.13, 0.14, 1), (0.16, 0.15, 0.14, 1), (0.11, 0.12, 0.13, 1), (0.15, 0.14, 0.16, 1), (0.18, 0.17, 0.15, 1), (0.12, 0.13, 0.12, 1))
+EDGE = ("cyan", "pink", "amber", "magenta", "teal", "green", "red", "purple", "white")
 FELT = ((0.05, 0.052, 0.058, 1), (0.1, 0.105, 0.1, 1), (0.08, 0.07, 0.06, 1), (0.13, 0.12, 0.1, 1), (0.06, 0.075, 0.085, 1), (0.11, 0.09, 0.08, 1))
 GALV = (0.42, 0.43, 0.44, 1)
 PAINTED = ((0.2, 0.21, 0.23, 1), (0.42, 0.17, 0.08, 1), (0.12, 0.24, 0.27, 1), (0.5, 0.36, 0.07, 1), (0.34, 0.34, 0.31, 1), (0.16, 0.26, 0.14, 1))
@@ -571,6 +595,101 @@ def low_plant(R, x0, x1, z0, z1):
     return True
 
 
+# The kit's roof plant (props.py, round 3 of the props): banks of condensers
+# backed by their ducts, tanks on stilts, stair huts, masts, dishes, turbine
+# vents. Instanced, so a roof full of it costs the pack nothing.
+def kit_ac(R, x0, x1, z0, z1, along_x, outer_low):
+    """Condenser banks end to end along a strip, their backs to the strip's
+    outer edge, a duct behind them."""
+    D, top = R.D, R.top
+    L = (x1 - x0) if along_x else (z1 - z0)
+    n = int((L - 0.2) // 3.8)
+    if n < 1 or min(x1 - x0, z1 - z0) < 2.0 or not R.claim(x0, x1, z0, z1, 1.4):
+        return False
+    yaw = (0.0 if outer_low else math.pi) if along_x else (math.pi / 2 if outer_low else -math.pi / 2)
+    v_out = ((z0 if outer_low else z1) if along_x else (x0 if outer_low else x1))
+    sgn = 1.0 if outer_low else -1.0
+    for k in range(n):
+        u = (x0 if along_x else z0) + 2.0 + k * 3.8
+        v, dv = v_out + sgn * 1.45, v_out + sgn * 0.42
+        P.place("roof_condenser", *((u, top, v) if along_x else (v, top, u)), yaw, district=D)
+        P.place("roof_duct", *((u, top, dv) if along_x else (dv, top, u)), 0.0 if along_x else math.pi / 2, district=D)
+    return True
+
+
+def kit_tank(R, x0, x1, z0, z1):
+    D, top, rng = R.D, R.top, R.rng
+    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+    if min(x1 - x0, z1 - z0) < 3.0 or not R.claim(cx - 1.5, cx + 1.5, cz - 1.5, cz + 1.5, 5.0):
+        return False
+    P.place("roof_tank", cx, top, cz, rng.choice((0.0, math.pi / 2, math.pi, -math.pi / 2)), district=D)
+    lit(D, cx, top + 1.0, cz, "amber", 7.0)
+    return True
+
+
+def kit_hut(R, x0, x1, z0, z1):
+    D, top, rng = R.D, R.top, R.rng
+    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+    if min(x1 - x0, z1 - z0) < 2.8 or not R.claim(cx - 1.4, cx + 1.4, cz - 1.4, cz + 1.4, 3.0):
+        return False
+    yaw = rng.choice((0.0, math.pi / 2, math.pi, -math.pi / 2))
+    P.place("roof_hut", cx, top, cz, yaw, district=D)
+    lit(D, cx + math.sin(yaw) * 1.8, top + 1.0, cz + math.cos(yaw) * 1.8, rng.choice(("amber", "white", "cyan")), 5.0)
+    return True
+
+
+def kit_mast(R, x0, x1, z0, z1):
+    D, top, rng = R.D, R.top, R.rng
+    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+    sy = rng.uniform(0.9, 1.7)
+    if not R.claim(cx - 0.8, cx + 0.8, cz - 0.8, cz + 0.8, 8.2 * sy + 0.3):
+        return False
+    P.place("roof_mast", cx, top, cz, rng.uniform(0, 3.1), sy=sy, district=D)
+    if rng.random() < 0.6 and R.claim(cx + 0.9, cx + 2.7, cz - 0.9, cz + 0.9, 2.1):
+        P.place("roof_dish", cx + 1.8, top, cz, rng.uniform(0, 6.28), district=D)
+    return True
+
+
+def kit_dishes(R, x0, x1, z0, z1):
+    D, top, rng = R.D, R.top, R.rng
+    if min(x1 - x0, z1 - z0) < 1.9 or not R.claim(x0, x1, z0, z1, 2.1):
+        return False
+    along_x = x1 - x0 >= z1 - z0
+    L = (x1 - x0) if along_x else (z1 - z0)
+    n = max(1, min(3, int(L // 2.1)))
+    for k in range(n):
+        u = (x0 if along_x else z0) + (k + 0.5) * L / n
+        v = ((z0 + z1) / 2) if along_x else ((x0 + x1) / 2)
+        P.place("roof_dish", *((u, top, v) if along_x else (v, top, u)), rng.uniform(0, 6.28), district=D)
+    return True
+
+
+def kit_vents(R, x0, x1, z0, z1):
+    """Turbine vents scattered, a flue among them breathing now and then."""
+    D, top, rng = R.D, R.top, R.rng
+    if not R.claim(x0, x1, z0, z1, 1.0):
+        return False
+    for _ in range(rng.randrange(2, 5)):
+        P.place("roof_vent", rng.uniform(x0 + 0.4, max(x0 + 0.4, x1 - 0.4)), top, rng.uniform(z0 + 0.4, max(z0 + 0.4, z1 - 0.4)), rng.uniform(0, 6.28), district=D)
+    if ROOF_STEAM[0] < 14 and rng.random() < 0.3:
+        ROOF_STEAM[0] += 1
+        x, z = (x0 + x1) / 2, (z0 + z1) / 2
+        P.place("roof_vent", x, top, z, 0.0, district=D)
+        empty(f"anchor_steam_zz_roof_av{ROOF_STEAM[0]}", (x, top + 1.05, z))
+    return True
+
+
+def glow_edge(D, x0, x1, z0, z1, top, col, sides, ok):
+    """A line of light along some of a roof's edges, outside its parapet's
+    foot (glow: the bake carries none of it to the streets)."""
+    for name, f in B.faces_of(x0, x1, z0, z1).items():
+        if name not in sides:
+            continue
+        lo, hi = f.p(f.at(0.0), top - 0.35, 0.0), f.p(f.at(f.width), top - 0.22, 0.09)
+        if ok((min(lo[0], hi[0]), lo[1], min(lo[2], hi[2])), (max(lo[0], hi[0]), hi[1], max(lo[2], hi[2]))):
+            f.box((D, "glow", 0), 0.0, f.width, top - 0.35, top - 0.22, 0.0, 0.09, col=col)
+
+
 def fill(D, x0, x1, z0, z1, top, rng, tint=None, face=None, ok=None, taken=(), style=None, deep=True, low=False):
     """Dress a roof end to end (see the note above). `tint`: its building's
     tint (an index into buildings.TRIM); `face`: the yaw a board or sign on
@@ -598,6 +717,20 @@ def fill(D, x0, x1, z0, z1, top, rng, tint=None, face=None, ok=None, taken=(), s
     def rect(u0, u1, v0, v1):
         return (u0, u1, v0, v1) if along_x else (v0, v1, u0, u1)
 
+    # The roof's own skin over its slab, a grey a lamp's pool shows on from
+    # the air (concrete pavers, gravel, newer felt), and a line of light let
+    # into it along two or three of its edges, each roof its own colour, on
+    # most of them (drawn on the roof, under the parapet: no eye in the
+    # street sees it). Its own stream, so the roof's plant is as it was.
+    er = random.Random(int(x0 * 7.3 + z0 * 13.1 + top * 3.7) & 0xFFFFFF)
+    flat(D, x0 + 0.3, x1 - 0.3, z0 + 0.3, z1 - 0.3, top + 0.012, "castconcrete", er.choice(SKIN))
+    if er.random() < 0.7:
+        col = tuple(v * er.uniform(0.45, 0.8) for v in GLOW[er.choice(EDGE)][:3]) + (1,)
+        for name in er.sample(("x0", "x1", "z0", "z1"), er.randrange(2, 4)):
+            a, b, c, e = {"x0": (x0 + 0.38, x0 + 0.5, z0 + 0.38, z1 - 0.38), "x1": (x1 - 0.5, x1 - 0.38, z0 + 0.38, z1 - 0.38),
+                          "z0": (x0 + 0.38, x1 - 0.38, z0 + 0.38, z0 + 0.5), "z1": (x0 + 0.38, x1 - 0.38, z1 - 0.5, z1 - 0.38)}[name]
+            if ok((a, top, c), (b, top + 0.05, e)):
+                flat(D, a, b, c, e, top + 0.03, "glow", col)
     # The felt, patched: two or three sheets in other tones.
     for _ in range(rng.randrange(1, 4)):
         pu0 = rng.uniform(L0, L1 - 2.0)
@@ -693,18 +826,19 @@ def fill(D, x0, x1, z0, z1, top, rng, tint=None, face=None, ok=None, taken=(), s
             va, vb = (outer, outer + reach) if outer == v0 else (outer - reach, outer)
             fx0, fx1, fz0, fz1 = rect(u, u + ln, va, vb)
             done = False
+            kit = rng.random() < 0.65
             if kind == "ac":
-                done = ac_bank(R, fx0, fx1, fz0, fz1)
+                done = (kit and kit_ac(R, fx0, fx1, fz0, fz1, along_x, outer == v0)) or ac_bank(R, fx0, fx1, fz0, fz1)
             elif kind == "tank":
-                done = tank_stilts(R, fx0, fx1, fz0, fz1)
+                done = (kit and kit_tank(R, fx0, fx1, fz0, fz1)) or tank_stilts(R, fx0, fx1, fz0, fz1)
             elif kind == "cool":
                 done = cooling(R, fx0, fx1, fz0, fz1)
             elif kind == "flues":
-                done = flues(R, fx0, fx1, fz0, fz1)
+                done = (kit and kit_vents(R, fx0, fx1, fz0, fz1)) or flues(R, fx0, fx1, fz0, fz1)
             elif kind == "mast":
-                done = mast(R, fx0, fx1, fz0, fz1)
+                done = (kit and kit_mast(R, fx0, fx1, fz0, fz1)) or mast(R, fx0, fx1, fz0, fz1)
             elif kind == "dishes":
-                done = dishes(R, fx0, fx1, fz0, fz1)
+                done = (kit and kit_dishes(R, fx0, fx1, fz0, fz1)) or dishes(R, fx0, fx1, fz0, fz1)
             elif kind == "skylights":
                 done = roof_lights(R, fx0, fx1, fz0, fz1)
             elif kind == "solar":
@@ -714,7 +848,7 @@ def fill(D, x0, x1, z0, z1, top, rng, tint=None, face=None, ok=None, taken=(), s
             elif kind == "garden":
                 done = garden(R, fx0, fx1, fz0, fz1)
             elif kind == "hut":
-                done = hut(R, fx0, fx1, fz0, fz1, tint)
+                done = (kit and kit_hut(R, fx0, fx1, fz0, fz1)) or hut(R, fx0, fx1, fz0, fz1, tint)
             elif kind == "sign" and deep:
                 size, scale = rng.choice((("pm", 2.2), ("pm", 2.8), ("ps", 3.0), ("bl", 1.5), ("bm", 2.0)))
                 sw_, sh_ = ST_SIZES[size][0] * scale, ST_SIZES[size][1] * scale

@@ -42,6 +42,49 @@ def st_id(size):
     return f"st_{size}_{_names.randrange(1009)}"
 
 
+# A sign's design is dealt by the site where it hangs, once per name: a
+# second face of the same name shows the first one's design. A name drawn
+# from the streams above can be one the street's own count (kit.st_name)
+# gave a sign in the hero's frame, and whichever of the two the site deals
+# first decides both. What is added from round 6 on takes a name of its own,
+# past every count, so it can never decide a sign it does not hang beside.
+_OWN = [5000]
+
+
+def own_id(size):
+    _OWN[0] += 1
+    return f"st_{size}_{_OWN[0]}"
+
+
+class names_from:
+    """With this, the signs hung take their designs' names from a stream of
+    their own (seeded `seed`), so how many signs were hung before them does
+    not move them."""
+
+    def __init__(self, seed):
+        self.stream = random.Random(seed)
+
+    def __enter__(self):
+        self.old = use_names(self.stream)
+        return self
+
+    def __exit__(self, *exc):
+        use_names(self.old)
+
+
+class own_names:
+    """With this, every sign the kit's helpers hang takes its own name."""
+
+    def __enter__(self):
+        global st_id
+        self.old, st_id = st_id, own_id
+        return self
+
+    def __exit__(self, *exc):
+        global st_id
+        st_id = self.old
+
+
 # The designs of each size that are a place to eat or drink (their places in
 # the site's lists, src/data/world.js STREET_SIGNS then sign-words.js): what
 # a stall's or a counter's board says.

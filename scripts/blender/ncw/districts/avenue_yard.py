@@ -17,6 +17,7 @@ from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts import avenue_kit as K
+from ncw.districts import avenue_mass as M
 
 G0 = B.G0
 WALL_Z = 92.0
@@ -453,9 +454,10 @@ def gate_frame(D):
 
 def build(D):
     rng = random.Random(4417)
-    # Behind the arm's lots and the south street's row, to the yard's wall.
-    blocks(D, X0, -50.0, 48.0, WALL_Z, random.Random(4421), step=15.0, heights=(8.5, 22.0), tall=0.4)
-    blocks(D, 50.0, X1, 48.0, WALL_Z, random.Random(4422), tall=0.35)
+    # Behind the arm's lots and the south street's row, to the yard's wall:
+    # a megablock east, two slabs west (avenue_mass).
+    with K.own_names():
+        M.build(D)
     # The pavement across the arm's end, the alleys either side of it to the
     # lanes, and the yard's own ground: wet, under floods.
     B.ground_rect(D, -50.0, 50.0, 88.0, WALL_Z)
