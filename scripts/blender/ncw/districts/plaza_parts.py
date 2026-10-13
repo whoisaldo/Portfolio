@@ -484,18 +484,22 @@ def blade_off(f, s, y, size, k, out=None, angle=0.0):
     return h
 
 
-def fascia_signs_x(x0, x1, zf, facing, r, rate=0.75, y=3.95, house=0.6):
+def fascia_signs_x(x0, x1, zf, facing, r, rate=0.75, y=3.95, house=0.6, skip=None):
     """A board on the fascia over each shop of a row along x (`house`: the
-    share of them that are corporate designs)."""
+    share of them that are corporate designs). `skip`: (xa, xb) where no
+    board hangs (a doorway), its boards' ids taken all the same, so every
+    sign of the plaza's after it keeps the id, and so the words, it had."""
     f = 1 if facing > 0 else -1
     x = x0 + 1.2
     while x < x1 - 2.0:
         size = r.choice(("ps", "pm", "ps"))
         w, h = ST_SIZES[size]
         if r.random() < rate and x + w < x1 - 0.6:
-            box((PL, "board_frame", 0), x - 0.06, x + w + 0.06, y - h / 2 - 0.06, y + h / 2 + 0.06, *sorted((zf + f * 0.14, zf + f * 0.2)), scale=1.0)
             r.random()   # (the draw that once chose between two lists of names: the boards stand where they stood)
-            sign(house_name(size, x + w / 2, zf), x + w / 2, y, zf + f * 0.215, w, h, 0.0 if f > 0 else math.pi, district=PL, label=False)
+            sid = house_name(size, x + w / 2, zf)
+            if not (skip and x + w > skip[0] and x < skip[1]):
+                box((PL, "board_frame", 0), x - 0.06, x + w + 0.06, y - h / 2 - 0.06, y + h / 2 + 0.06, *sorted((zf + f * 0.14, zf + f * 0.2)), scale=1.0)
+                sign(sid, x + w / 2, y, zf + f * 0.215, w, h, 0.0 if f > 0 else math.pi, district=PL, label=False)
         x += w + r.uniform(2.2, 4.6)
 
 

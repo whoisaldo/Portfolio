@@ -50,10 +50,9 @@ gline("yellow", 49.0, -191.5, 107.0, -191.5, G + 0.012, w=0.1)
 # (The house's own way in stands between the board's legs, x 69.4..88.6:
 # plaza_corp.py. The shops and their canopy keep to either side of it.)
 WAY_IN = (69.4, 88.6)
-rs_f = random.Random(8402)
 for xa, xb in ((X0 + 0.4, WAY_IN[0]), (WAY_IN[1], TX - 0.4)):
     frontage_x(PL, xa, xb, -264.0, 8401 if xa < 60 else 8409, facing=1, awning=False)
-    fascia_signs_x(xa + 0.2, xb - 0.2, -264.0, 1, rs_f)
+fascia_signs_x(X0 + 0.6, TX - 0.6, -264.0, 1, random.Random(8402), skip=(WAY_IN[0] - 0.3, WAY_IN[1] + 0.3))
 for xa, xb in ((X0 + 1.0, WAY_IN[0]), (WAY_IN[1], TX - 0.5)):
     box((PL, "metal", 0), xa, xb, 4.62, 4.84, -264.0, -260.6, scale=1.0, bottom=True)
     nbox("white", xa, xb, 4.66, 4.72, -260.6, -260.57)

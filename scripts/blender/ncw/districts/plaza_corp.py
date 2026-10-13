@@ -71,7 +71,10 @@ fin_row(fn, 30.6, fn.width - 0.6, 17.4, COPE, rk, step=(3.0, 4.2), out=0.45, lit
 # along the band read as one strip.)
 wordmark("kiroshi_b", 56.6, 6.45, BZ1 + 0.32, 5.6, 2.9, 0.0)
 wordmark("nicola_b", 100.6, 6.45, BZ1 + 0.32, 5.2, 2.8, 0.0)
-big_sign("bl", 1.0, 66.5, 7.6, BZ1 + 0.95, math.pi / 2)
+# (The blade takes an id of its own, and the board it replaced its id, so
+# the plaza's signs after them keep the words they had.)
+house_name("pm")
+big_sign("bl", 1.0, 66.5, 7.6, BZ1 + 0.95, math.pi / 2, n=709001)
 for y in (5.4, 9.8):
     box((PL, "metal", 1), 66.45, 66.55, y, y + 0.1, BZ1, BZ1 + 0.4, scale=0.5)
 big_sign("pm", 2.2, 92.2, 6.45, BZ1 + 0.34, 0.0, double=False)
