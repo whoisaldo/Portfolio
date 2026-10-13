@@ -852,6 +852,21 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         return seen;
       }
       #endif
+      // The far side of the street as a pane or a panel gives it back:
+      // where the reflected ray meets a frontage about 14 m off, a row of
+      // lit signs and windows with dark between them (1 lit, 0 dark),
+      // sliding over the car as it moves, as a reflection does.
+      float frontage(vec3 p, vec3 R) {
+        float h = length(R.xz);
+        if (h < 0.05) return 0.0;
+        vec2 d = R.xz / h;
+        vec3 q = p + R * (14.0 / h);
+        vec2 c = vec2(dot(q.xz, vec2(-d.y, d.x)) / 2.4, (q.y - 0.4) / 1.7);
+        vec2 f = abs(fract(c) - 0.5);
+        vec2 aa = fwidth(c) + 0.02;
+        float block = (1.0 - smoothstep(0.38 - aa.x, 0.38 + aa.x, f.x)) * (1.0 - smoothstep(0.3 - aa.y, 0.3 + aa.y, f.y));
+        return block * step(0.45, hash12(floor(c) + 17.0)) * smoothstep(0.0, 1.0, q.y) * (1.0 - smoothstep(10.0, 16.0, q.y));
+      }
       void main() {
         float vFade = vState.x;
         float vBrake = vState.y;
@@ -877,7 +892,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vec3 below = uHazeColor * 0.35 + uGlowColor * 0.6 + spill * 0.8;
         vec3 above = uHazeColor * 0.3 * exp(-max(R.y, 0.0) * 4.0) + vec3(0.004, 0.004, 0.008);
         float signs = smoothstep(-0.04, 0.06, R.y) * (1.0 - smoothstep(0.2, 0.5, R.y)) * (0.55 + 0.45 * sin(atan(R.z, R.x) * 9.0 + R.y * 6.0));
-        vec3 env = mix(below, above, step(0.0, R.y)) + vec3(1.0, 0.4, 0.75) * band * 0.2 + (toward * 1.5 + uHazeColor * 0.45) * signs;
+        float fronts = frontage(vWorld, R) * (1.0 - smoothstep(25.0, 60.0, length(vWorld - uCam)));
+        signs *= 0.55 + 1.2 * fronts;
+        vec3 env =mix(below, above, step(0.0, R.y)) + vec3(1.0, 0.4, 0.75) * band * 0.2 + (toward * 1.5 + uHazeColor * 0.45) * signs;
         int k = int(vKind + 0.5);
         // Its lamps go out with it where it fades.
         float lit = vLook.a * vFade;
@@ -974,15 +991,19 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         }
         else if (k == 1) col = vec3(0.011, 0.012, 0.014) + (spill * 0.07 + side * 0.1) * ao + env * (0.03 + 0.3 * F);
         else if (k == 2) {
-          // Glass: a dark cabin behind it, and over that the street given
-          // back: the signs' colour from the side it faces low in the
-          // pane, the sky's glow deepening toward its top edge, and two
-          // bars of light across it, as wet glass has. Nobody is drawn
-          // inside: a head at this size is a black blob.
+          // Glass: dark tinted glass, wet, and most of what is seen in it
+          // is what it gives back: the wet road and the kerb's light low in
+          // it, the row of signs across the street in a band just over the
+          // horizon, the haze and the dark sky above. Behind it a dark
+          // cabin. Nobody is drawn inside on the far models: a head at
+          // this size is a black blob.
           float gy = clamp((vLocal.y - uSeam.w) / max(uBoxMax.y - uSeam.w, 0.2), 0.0, 1.0);
-          vec3 cabin = (vec3(0.012, 0.016, 0.026) + min(spill, vec3(1.0)) * 0.03 + vLook.rgb * 0.02 * lit) * (0.5 + 0.5 * gy);
+          vec3 cabin = (vec3(0.006, 0.008, 0.013) + min(spill, vec3(1.0)) * 0.012 + vLook.rgb * 0.015 * lit) * (0.5 + 0.5 * gy);
           vec3 given = mix(min(side, vec3(1.2)) * 0.6 + uGlowColor * 0.25, uHazeColor * 0.9 + uGlowColor * 0.4 + min(toward, vec3(1.0)) * 0.25, gy);
           float bars = smoothstep(0.86, 0.97, sin((vLocal.z * 0.9 + vLocal.x * 0.9 + vLocal.y * 1.6) * 3.0));
+          vec3 mirror = mix(uHazeColor * 0.05 + uGlowColor * 0.06 + min(spill, vec3(1.5)) * 0.2, uHazeColor * 0.32 * exp(-max(R.y, 0.0) * 3.0) + vec3(0.002, 0.003, 0.006), smoothstep(-0.06, 0.04, R.y));
+          mirror += vec3(1.0, 0.4, 0.75) * band * 0.12 + (min(toward, vec3(1.5)) * 1.5 + uHazeColor * 0.35) * signs;
+          float gives = 0.1 + 0.9 * F;
           #ifdef BUS
           // A bus at its stop is a lit room: the ceiling's light over rows
           // of seat backs, a head over some of them, and at the wheel its
@@ -995,17 +1016,20 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           float rider = step(0.45, who) * max(step(length(vec2(cu, (vLocal.y - 1.84) / 1.15)), 0.105), step(abs(cu), 0.2) * step(vLocal.y, 1.72));
           vec3 room = vec3(1.0, 0.9, 0.72) * (0.5 + 0.4 * smoothstep(1.3, 2.25, vLocal.y));
           room = mix(room, vec3(0.1, 0.085, 0.07), max(seat * 0.8, rider));
-          col = room * mix(0.9, 1.6, far) * lit * (1.0 - 0.5 * F) + cabin * (1.0 - lit) + min(env, vec3(1.6)) * (0.04 + 0.6 * F);
+          col = room * mix(0.9, 1.6, far) * lit * (1.0 - 0.5 * F) + cabin * (1.0 - lit) + mirror * gives;
           glow = 0.6 * lit;
           #elif defined(NEAR)
-          // Close to, the pane is seen through: the cabin and whoever is in
-          // it (anyone with the lamps on has a driver), under what the wet
-          // glass gives back.
-          vec3 beyond = min(spillAt(vWorld + V * 7.0), vec3(1.2)) * 0.4 + uHazeColor * 0.2 + uGlowColor * 0.1;
-          vec3 through = seeCabin(vLocal, normalize(vViewL), min(spill + side * 0.6, vec3(1.3)), beyond, vLook.rgb, max(step(1.5, vState.w), vLook.a), fract(vBody.r * 97.0 + vBody.g * 31.0 + vBody.b * 57.0 + vLook.r * 13.0));
-          col = through * (1.0 - F) * 0.8 + min(env, vec3(1.6)) * (0.03 + 0.97 * F) + given * 0.05 + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.06;
+          // Close to, the pane is seen through, darkly: the tint passes a
+          // third of the light each way, so the cabin shows only where the
+          // street's light falls into it (a driver under a lamp, the dash's
+          // glow on a face) and the far side's panes, through two layers
+          // of tint, are a dim smear of what is beyond, never a lit screen
+          // for the seats to stand black against.
+          vec3 beyond = (min(spillAt(vWorld + V * 7.0), vec3(1.2)) * 0.4 + uHazeColor * 0.2 + uGlowColor * 0.1) * 0.22;
+          vec3 through = seeCabin(vLocal, normalize(vViewL), min(spill * 0.8 + side * 0.3, vec3(1.1)), beyond, vLook.rgb, max(step(1.5, vState.w), vLook.a), fract(vBody.r * 97.0 + vBody.g * 31.0 + vBody.b * 57.0 + vLook.r * 13.0));
+          col = through * (1.0 - F) * 0.36 + mirror * gives + given * 0.025 + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.05;
           #else
-          col = cabin * (1.0 - F) + min(env, vec3(1.6)) * (0.05 + 0.95 * F) + given * (0.15 + 0.12 * gy) + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.13;
+          col = cabin * (1.0 - F) + mirror * gives + given * (0.04 + 0.04 * gy) + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.07;
           #endif
         }
         // A light bar is a lamp unit at each end and a thin running strip
