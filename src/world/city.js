@@ -472,7 +472,16 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         const partRuns = untiled ? { cell: Int32Array.of(-1), start: Int32Array.of(0), count: Int32Array.of(part.index.count) } : cutToCells(part, cells, 0);
         yield;
         const kit = { geometry: prev.whole, vertices: prev.vertices ?? prev.whole.attributes.position.count, indices: prev.indices ?? prev.whole.index.count, runs: prev.mesh.runs };
-        made.push({ key, list, prev, append: appendPart(kit, part, partRuns) });
+        // A material with work of its own on a geometry's first draw (the
+        // shops' trades) is given a new one, as a merge made whole was.
+        // Where the material can do that work a step at a time (the shops:
+        // materials.js `deal`), it is done here, out of sight, rather than
+        // in the first frame that draws it.
+        const fresh = list[0].material.onBeforeRender !== THREE.Material.prototype.onBeforeRender;
+        const append = appendPart(kit, part, partRuns, fresh);
+        made.push({ key, list, prev, append });
+        const deal = fresh ? list[0].material.userData.deal?.(append.geometry, prev.mesh) : null;
+        if (deal) while (!deal.next().done) yield;
         part.dispose();
         continue;
       }

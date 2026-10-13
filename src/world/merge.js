@@ -99,18 +99,22 @@ export function mergeMeshes(meshes, into = null, names = null) {
  * and the new in it. Returns the kit as it will be: `grown` if it is a new
  * geometry, and the runs with the part's after the old ones. Nothing the
  * kit's mesh draws changes until its runs are set to these (a district's
- * whole build is put in at once).
+ * whole build is put in at once). `fresh`: a new geometry even with room
+ * (of the same size), for a material that works on each geometry it is
+ * given the first time it draws it (the shops deal their panes' trades,
+ * materials.js), as it did on a merge made whole again.
  */
-export function appendPart(kit, part, partRuns) {
+export function appendPart(kit, part, partRuns, fresh = false) {
   const pv = part.attributes.position.count;
   const pi = part.index.count;
   const v0 = kit.vertices;
   const i0 = kit.indices;
   let geometry = kit.geometry;
-  const room = geometry.attributes.position.count - v0 >= pv && geometry.index.count - i0 >= pi;
+  const fits = geometry.attributes.position.count - v0 >= pv && geometry.index.count - i0 >= pi;
+  const room = fits && !fresh;
   if (!room) {
-    const vCap = Math.ceil((v0 + pv) * 2);
-    const iCap = Math.ceil((i0 + pi) * 2);
+    const vCap = fits ? geometry.attributes.position.count : Math.ceil((v0 + pv) * 2);
+    const iCap = fits ? geometry.index.count : Math.ceil((i0 + pi) * 2);
     const grown = new THREE.BufferGeometry();
     for (const [name, attr] of Object.entries(geometry.attributes)) {
       const arr = new attr.array.constructor(vCap * attr.itemSize);
