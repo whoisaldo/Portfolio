@@ -86,7 +86,7 @@ LID_COOL = c(0.36, 0.41, 0.47)
 PAINT_YELLOW = (0.86, 0.66, 0.10, 1.0)
 PAINT_WHITE = (0.78, 0.76, 0.70, 1.0)
 
-_counts = {"steam": 0, "lamp": 0}
+_counts = {"steam": 0, "lamp": 0, "zz": 0}
 
 
 # ---------------------------------------------------------------------------
@@ -204,12 +204,18 @@ def collide(x0, x1, z0, z1, y1, y0=0.0):
     B.COLLISION.append(("box", x0, x1, y0, y1, z0, z1, D))
 
 
-def steam(x, y, z, kind="roof", lit=5.0, red=0.5):
+def steam(x, y, z, kind="roof", lit=5.0, red=0.5, zz=False):
     """A vent that breathes (src/world/steam.js reads the name). Steam is
     lit by the map under it, so each vent has its own pool: the plume
-    glows sodium orange (mH2wmyeiIpA@60's lit smoke)."""
-    empty(f"anchor_steam_{kind}_santo_{_counts['steam']}", (x, y, z))
-    _counts["steam"] += 1
+    glows sodium orange (mH2wmyeiIpA@60's lit smoke). `zz`: a vent added
+    after the page's plumes were timed (they are timed by name order), so
+    its name sorts after every other and its own count leaves theirs."""
+    if zz:
+        empty(f"anchor_steam_zz_{kind}_santo_{_counts['zz']}", (x, y, z))
+        _counts["zz"] += 1
+    else:
+        empty(f"anchor_steam_{kind}_santo_{_counts['steam']}", (x, y, z))
+        _counts["steam"] += 1
     if lit:
         sodium(x, y, z, lit, red=red)
 
@@ -1475,6 +1481,13 @@ def roof_lane(x0, x1, z0, z1, y, r, lights=0.8):
     for i, a_ in enumerate((length * 0.12, length * 0.45, length * 0.62)):
         px, pz = L(a_, min(span - 3.2, 4.0))
         P.place(("rp_cond", "rp_vents", "rp_hatch")[i], px, y, pz, along + (math.pi / 2 if i == 0 else 0.0), district=D)
+    # The kit's water tank on its stilts mid-roof, a mast at the far end.
+    if span >= 9.0:
+        px, pz = L(length * 0.3, span * 0.5)
+        P.place("roof_tank", px, y, pz, along, district=D)
+    if length >= 20.0 and span >= 9.0:
+        px, pz = L(length * 0.95, span * 0.45)
+        P.place("roof_mast", px, y, pz, along, district=D)
 
 
 def av_pad(cx, cz, y, rad=6.0):
@@ -1513,21 +1526,51 @@ def dock(f, s, r, no=None, w=3.2, h=3.8, sill=1.25, state="shut", lamp=True, eav
         f.quad(k("door_panel"), a, b_, y0, y0 + h, 0.04)
     else:
         up = 0.45 if state == "half" else 0.86
-        # The shed inside, lit: a warm depth with the racking's shadows.
-        f.quad(k("glow"), a, b_, y0, y0 + h * up, 0.03, col=shade(GLASS_WARM, r.uniform(0.42, 0.6)))
         top = y0 + h * up
-        for e in (a + 0.45, b_ - 0.55):
-            f.quad(k("dark", 1), e, e + 0.1, y0, top, 0.045)
-        ys = y0 + 0.05
-        while ys < top - 0.5:
-            f.quad(k("dark", 1), a + 0.3, b_ - 0.3, ys, ys + 0.07, 0.045)
-            sa = a + 0.6
-            while sa < b_ - 1.2:
-                bw_ = r.uniform(0.45, 0.95)
-                if r.random() < 0.7:
-                    f.quad(k("dark", 1), sa, sa + bw_, ys + 0.07, min(top, ys + 0.07 + r.uniform(0.35, 0.8)), 0.045)
-                sa += bw_ + r.uniform(0.08, 0.3)
-            ys += 1.15
+        kd = k("dark", 1)
+        # The shed inside, lit, one of four ways: racking under a warm
+        # light; a forklift parked by a pallet stack under sodium; somebody
+        # by a roll cage under a cold tube; a cold store's strip curtain.
+        layout = r.randrange(4)
+        glow = (shade(GLASS_WARM, r.uniform(0.42, 0.6)), shade(SODIUM, r.uniform(0.3, 0.4)), shade(GLASS_COOL, r.uniform(0.75, 0.95)),
+                shade(c(0.36, 0.5, 0.56), r.uniform(0.7, 0.9)))[layout]
+        f.quad(k("glow"), a, b_, y0, top, 0.03, col=glow)
+        if layout == 0:
+            for e in (a + 0.45, b_ - 0.55):
+                f.quad(kd, e, e + 0.1, y0, top, 0.045)
+            ys = y0 + 0.05
+            while ys < top - 0.5:
+                f.quad(kd, a + 0.3, b_ - 0.3, ys, ys + 0.07, 0.045)
+                sa = a + 0.6
+                while sa < b_ - 1.2:
+                    bw_ = r.uniform(0.45, 0.95)
+                    if r.random() < 0.7:
+                        f.quad(kd, sa, sa + bw_, ys + 0.07, min(top, ys + 0.07 + r.uniform(0.35, 0.8)), 0.045)
+                    sa += bw_ + r.uniform(0.08, 0.3)
+                ys += 1.15
+        elif layout == 1:
+            fa = a + r.uniform(0.3, 0.8)
+            f.quad(kd, fa, fa + 1.3, y0, y0 + min(1.1, top - y0), 0.045)
+            f.quad(kd, fa + 1.3, fa + 1.4, y0, min(top, y0 + 2.1), 0.045)
+            f.quad(kd, fa + 0.1, fa + 0.9, y0 + 1.1, min(top, y0 + 1.95), 0.04)
+            f.quad(kd, b_ - 1.3, b_ - 0.2, y0, y0 + min(r.uniform(0.9, 1.5), top - y0), 0.045)
+        elif layout == 2:
+            px_ = r.uniform(a + 0.6, b_ - 1.6)
+            if top - y0 > 1.8:
+                f.quad(kd, px_, px_ + 0.42, y0, y0 + 1.45, 0.045)
+                f.quad(kd, px_ + 0.11, px_ + 0.31, y0 + 1.47, y0 + 1.72, 0.045)
+            ca = px_ + 0.8
+            for e in (ca, ca + 0.95):
+                f.quad(kd, e, e + 0.05, y0, min(top, y0 + 1.7), 0.045)
+            for yy in (y0 + 0.15, y0 + 0.85, y0 + 1.6):
+                if yy < top:
+                    f.quad(kd, ca, ca + 1.0, yy, yy + 0.04, 0.045)
+        else:
+            sa = a + 0.12
+            while sa < b_ - 0.1:
+                f.quad(kd, sa, sa + 0.035, y0, top, 0.045)
+                sa += r.uniform(0.22, 0.34)
+            f.quad(kd, a + 0.5, a + 1.7, y0, y0 + min(1.0, top - y0), 0.04)
         f.quad(k("door_panel"), a, b_, y0 + h * up, y0 + h, 0.05)
         lx, ly, lz = f.p(f.at(s), y0, 1.6)
         sodium(lx, ly, lz, 5.0)
@@ -2531,16 +2574,27 @@ def cab_dress(x, z, yaw, firm, lit=False, y=GY, beacon=False):
         g.end(kg, 1, 3.145, sg * 1.12, sg * 1.22, 0.62, 0.84, SODIUM)
         g.end(kg, -1, -3.01, sg * 0.3, sg * 0.5, 0.92, 1.04, GLOW["red"])
     if lit:
-        # Somebody is in it: the cab's lamp behind the glass, the lamps' pool ahead.
-        g.end(k("glow"), 1, 3.024, -1.02, 1.02, 2.04, 2.9, shade(GLASS_WARM, 0.36))
-        for sg in (1, -1):
-            g.side(k("glow"), sg, 1.94, 2.82, 2.04, 2.86, shade(GLASS_WARM, 0.3), out=1.243)
-            # A seat's back and headrest against the light, the wheel's rim.
-            g.end(k("dark", 1), 1, 3.038, sg * 0.34, sg * 0.82, 2.04, 2.5, (1, 1, 1, 1))
-            g.end(k("dark", 1), 1, 3.038, sg * 0.46, sg * 0.7, 2.5, 2.72, (1, 1, 1, 1))
-            g.side(k("dark", 1), sg, 2.0, 2.4, 2.04, 2.62, (1, 1, 1, 1), out=1.255)
-        g.end(k("dark", 1), 1, 3.038, -1.02, 1.02, 2.04, 2.16, (1, 1, 1, 1))
-        g.end(k("dark", 1), 1, 3.038, -0.04, 0.04, 2.04, 2.9, (1, 1, 1, 1))
+        # Somebody is in it, behind dark glass (the instance's own), one of
+        # four ways: a driver's head and shoulders against a dim warm cab;
+        # only the dashboard's glow and a phone; a dim cold cab; a single
+        # lamp in its roof. Then the lamps' pool ahead.
+        layout = int(abs(x * 7.3 + z * 3.1)) % 4
+        kd = k("dark", 1)
+        if layout == 0:
+            g.end(k("glow"), 1, 3.024, -1.02, 1.02, 2.04, 2.9, shade(GLASS_WARM, 0.16))
+            g.end(kd, 1, 3.038, 0.3, 0.9, 2.04, 2.42, (1, 1, 1, 1))
+            g.end(kd, 1, 3.038, 0.48, 0.72, 2.42, 2.7, (1, 1, 1, 1))
+            g.end(kd, 1, 3.038, -1.02, 1.02, 2.04, 2.14, (1, 1, 1, 1))
+        elif layout == 1:
+            g.end(k("glow"), 1, 3.03, -0.95, 0.95, 2.04, 2.1, shade(SODIUM, 0.55))
+            g.end(k("glow"), 1, 3.03, 0.42, 0.56, 2.3, 2.42, shade(GLASS_COOL, 1.6))
+        elif layout == 2:
+            g.end(k("glow"), 1, 3.024, -1.02, 1.02, 2.04, 2.9, shade(GLASS_COOL, 0.3))
+            for sg in (1, -1):
+                g.side(k("glow"), sg, 1.94, 2.82, 2.04, 2.86, shade(GLASS_COOL, 0.22), out=1.243)
+        else:
+            g.end(k("glow"), 1, 3.03, -0.2, 0.2, 2.78, 2.88, shade(GLASS_WARM, 1.2))
+            g.end(k("glow"), 1, 3.024, -0.7, 0.7, 2.5, 2.88, shade(GLASS_WARM, 0.1))
         g.lamp(6.4, 0.6, 0.0, "white", 5.0)
         g.lamp(10.6, 0.6, 0.0, "white", 2.6)
     if beacon:
