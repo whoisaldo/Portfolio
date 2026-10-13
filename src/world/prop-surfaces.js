@@ -947,7 +947,9 @@ export function createPropSurfaces(dressed) {
         vec3 paintOf(float kind, float v) {
           if (kind > 9.5) return v < 1.0 ? vec3(0.045, 0.14, 0.07) : v < 2.0 ? vec3(0.03, 0.07, 0.17) : v < 3.0 ? vec3(0.12, 0.12, 0.115) : vec3(0.16, 0.04, 0.03);
           if (kind > 8.5) return v < 1.0 ? vec3(0.025, 0.06, 0.2) : v < 2.0 ? vec3(0.26, 0.035, 0.02) : v < 3.0 ? vec3(0.022, 0.022, 0.025) : vec3(0.34, 0.17, 0.018);
-          return v < 1.0 ? vec3(0.02, 0.08, 0.26) : v < 2.0 ? vec3(0.42, 0.42, 0.4) : v < 3.0 ? vec3(0.5, 0.12, 0.012) : vec3(0.035, 0.17, 0.06);
+          // (A barrel's white is an old one's dull off-white: as white as a
+          // sign's face, a lamp beside it made it a glowing blob.)
+          return v < 1.0 ? vec3(0.02, 0.08, 0.26) : v < 2.0 ? vec3(0.21, 0.205, 0.185) : v < 3.0 ? vec3(0.5, 0.12, 0.012) : vec3(0.035, 0.17, 0.06);
         }
         // A stencil or a label, uv 0 to 1 across and up it, on a thing of
         // seed s: hazard stripes, a printed plate of marks, a stencilled
@@ -1021,6 +1023,9 @@ export function createPropSurfaces(dressed) {
             albedo = mix(albedo, rustCol, rust);
             albedo = mix(albedo, vec3(0.028, 0.026, 0.026), chip * (1.0 - rust) * 0.85);
             albedo *= 1.0 - 0.4 * streak * mix(1.0, 0.5, plastic);
+            // A plastic's grime in patches and scuffs, so it reads as a
+            // solid thing, not a lit shell.
+            albedo *= 1.0 - plastic * (0.45 * smoothstep(0.45, 0.8, vn3(p * 0.7 + 5.0)) + 0.25 * smoothstep(0.6, 0.75, vn3(p * 4.0 + 2.0)) * fine);
             gloss = mix(0.9, 0.12, rust) * mix(1.0, 0.75, plastic);
             dent = mix(1.0, 0.3, plastic) * (kind > 8.5 && kind < 9.5 ? 1.4 : 1.0);
           } else if (kind > 6.5) {
