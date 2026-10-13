@@ -1189,7 +1189,12 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float aa = clamp(max(fwidth(g.x), fwidth(g.y)) * 3.0, 0.0, 1.0);
             float panel = mix(step(c.x, 0.36) * step(c.y, 0.3), 0.43, aa);
             float deep = 1.0 - 0.55 * smoothstep(0.0, DEEP, h.z);
-            room = L * (0.26 + 0.5 * panel) * deep;
+            // (Looked up at from under a block that is no tower of the row,
+            // away from the hero's lens, its ceilings are dimmer: at full
+            // light every lit floor's panels were a pale lattice up the
+            // glass, an office in the day.)
+            float under = freeEye() * (1.0 - own) * smoothstep(0.25, 0.6, d.y);
+            room = L * (0.26 + 0.5 * panel) * deep * (1.0 - 0.6 * under);
           } else {
             // The floor: pools of light under the ceiling's panels, as the
             // floors of a lit office are seen from above.
