@@ -799,9 +799,17 @@ function nearFigure(close = false) {
       const thumb = rod([[ax - sx * 0.004, 0.884, 0.034], [ax - sx * 0.007, 0.852, 0.058], [ax - sx * 0.01, 0.822, 0.07], [ax - sx * 0.013, 0.798, 0.075]], [0.013, 0.0115, 0.0098, 0.008], fore, { part: PART.skin, smooth: 36 });
       cap(thumb[3], [ax - sx * 0.014, 0.788, 0.077, fore, 0], { part: PART.skin, smooth: 36 }, [ax, 0.84, 0.06]);
     } else {
-      const hand = [slab(0.92, ax, 0, 0.02, 0.026, fore), slab(0.885, ax, 0.004, 0.015, 0.036, fore), slab(0.84, ax, 0.009, 0.0165, 0.043, fore), slab(0.8, ax - sx * 0.002, 0.013, 0.015, 0.041, fore), slab(0.765, ax - sx * 0.008, 0.019, 0.0125, 0.037, fore), slab(0.738, ax - sx * 0.018, 0.024, 0.009, 0.03, fore)];
-      loft(hand, { part: PART.skin, smooth: 6 });
-      cap(hand[5], [ax - sx * 0.021, 0.73, 0.025, fore, 0], { part: PART.skin, smooth: 6 }, [ax, 0.8, 0.01]);
+      // Further off the same hand in fewer pieces: the palm to the
+      // knuckles, then the fingers apart, each a bent rod of two joints, so
+      // a hand on a counter or at the side is a hand and not a mitten.
+      const palm = [slab(0.92, ax, 0, 0.02, 0.026, fore), slab(0.885, ax, 0.004, 0.015, 0.036, fore), slab(0.845, ax, 0.009, 0.0155, 0.043, fore)];
+      loft(palm, { part: PART.skin, smooth: 6 });
+      cap(palm[2], [ax, 0.838, 0.009, fore, 0, 0.7], { part: PART.skin, smooth: 6 }, [ax, 0.9, 0.009]);
+      [0.07, 0.08, 0.074, 0.058].forEach((len, k) => {
+        const z = 0.009 + (1.5 - k) * 0.0205;
+        const finger = rod([[ax, 0.848, z], [ax - sx * 0.004, 0.848 - len * 0.55, z + 0.002], [ax - sx * 0.017, 0.848 - len, z + 0.005]], [0.0094, 0.0082, 0.0064].map((v) => v * (k === 3 ? 0.86 : 1)), fore, { part: PART.skin, smooth: 61 + k });
+        cap(finger[2], [ax - sx * 0.02, 0.842 - len, z + 0.005, fore, 0], { part: PART.skin, smooth: 61 + k }, [ax, 0.8, z]);
+      });
       const thumb = rod([[ax - sx * 0.004, 0.878, 0.034], [ax - sx * 0.008, 0.838, 0.064], [ax - sx * 0.012, 0.802, 0.075]], [0.0125, 0.011, 0.0085], fore, { part: PART.skin, smooth: 36 });
       cap(thumb[2], [ax - sx * 0.013, 0.79, 0.079, fore, 0], { part: PART.skin, smooth: 36 }, [ax, 0.84, 0.06]);
     }
@@ -1136,14 +1144,19 @@ function nearFigure(close = false) {
     loft(rings, o);
     cap(rings[2], [c[0], c[1] + 0.044, c[2], head, 0], o, c);
   }
-  // A cap's brim.
+  // A cap's brim: curved across, its sides bent down, tipped down a little
+  // toward its rounded front, a lip along its edge and its underside in
+  // shade.
   {
-    const o = { part: PART.brim, tag: TAG.brim };
-    const top = [[-0.062, 1.727, 0.078, head, 0], [0.062, 1.727, 0.078, head, 0], [0.048, 1.716, 0.178, head, 0], [-0.048, 1.716, 0.178, head, 0]];
-    const under = top.map(([x, y, z, s, a]) => [x, y - 0.008, z, s, a, 0.5]);
-    quad(...top, o, [0, 1.6, 0.12]);
-    quad(...under, o, [0, 1.8, 0.12]);
-    quad(top[3], top[2], under[2], under[3], o, [0, 1.72, 0.1]);
+    const U = [-1, -0.6, -0.2, 0.2, 0.6, 1];
+    const row = (z, w, y, shade = 1) => U.map((u) => [u * w, y - 0.016 * u * u, z, head, 0, shade]);
+    const top = [row(0.07, 0.07, 1.73), row(0.122, 0.067, 1.726), row(0.158, 0.056, 1.72), row(0.168, 0.03, 1.718)];
+    const under = top.map((r) => r.map(([x, y, z, s, a]) => [x, y - 0.007, z, s, a, 0.42]));
+    loft(top, { part: PART.brim, tag: TAG.brim, smooth: 76 }, { open: true, ref: [0, 1.6, 0.12] });
+    loft(under, { part: PART.brim, tag: TAG.brim, smooth: 77 }, { open: true, ref: [0, 1.85, 0.12] });
+    for (let k = 1; k < 3; k++) loft([[top[k][0], top[k + 1][0]], [under[k][0], under[k + 1][0]]], { part: PART.brim, tag: TAG.brim }, { open: true, ref: [0, 1.72, 0.08] });
+    for (let k = 1; k < 3; k++) loft([[top[k][5], top[k + 1][5]], [under[k][5], under[k + 1][5]]], { part: PART.brim, tag: TAG.brim }, { open: true, ref: [0, 1.72, 0.08] });
+    loft([top[3], under[3]], { part: PART.brim, tag: TAG.brim }, { open: true, ref: [0, 1.72, 0.08] });
   }
   // A hard hat: a shell standing off the head, a brim all round it, longer
   // at the front.

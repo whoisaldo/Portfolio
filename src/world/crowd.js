@@ -148,6 +148,10 @@ const STYLES = {
     paleShoes: 0.25,
     bare: 0.5,
     hivis: () => 0,
+    old: 0.09,
+    gloves: 0.12,
+    arm: 0.07,
+    long: 0.45,
   },
   // Corpo Plaza and Corpo Row: suits and long coats in dark tones, a white
   // shirt, and a tie, an umbrella's rim or a bag for the one bright thing.
@@ -171,6 +175,10 @@ const STYLES = {
     paleShoes: 0.04,
     bare: 0,
     hivis: () => 0,
+    old: 0.07,
+    gloves: 0.16,
+    arm: 0.03,
+    long: 0.6,
   },
   // Santo Domingo: work clothes, hi-vis vests with their bands, hard hats.
   santo: {
@@ -193,8 +201,33 @@ const STYLES = {
     paleShoes: 0.03,
     bare: 0.3,
     hivis: (jacket) => (jacket === 18 || jacket === 19 ? 1 : 0),
+    old: 0.06,
+    gloves: 0.34,
+    arm: 0.09,
+    long: 0.3,
   },
 };
+// A child (only ever beside a grown-up) and somebody old: what of the place's
+// own lists is theirs instead. A child in a bright jacket or a puffer, a pack
+// or nothing; somebody old in a coat or a jacket of a quiet colour, grey hair
+// or none, a bag in the hand.
+const KID = {
+  garment: [[GARMENTS.jacket, 45], [GARMENTS.puffer, 55]],
+  jacket: () => [[0, 3], [1, 3], [2, 2], [3, 2], [7, 2], [9, 3], [12, 3], [13, 2], [4, 1], [5, 1]],
+  hair: [["short", 30], ["long", 26], ["bun", 14], ["cap", 14], ["hood", 16]],
+  hairColour: [[0, 40], [1, 25], [2, 20], [3, 15]],
+  bag: [[0, 55], [2, 45]],
+};
+const OLD = {
+  garment: [[GARMENTS.coat, 46], [GARMENTS.jacket, 40], [GARMENTS.puffer, 14]],
+  hair: [["short", 38], ["buzz", 18], ["cap", 18], ["bun", 14], ["hood", 6], ["long", 6]],
+  hairColour: [[7, 58], [3, 18], [0, 12], [1, 12]],
+  bag: [[0, 40], [1, 15], [3, 45]],
+};
+const QUIET = [5, 6, 8, 10, 11, 14, 15, 16, 17];
+// A person's flags past the garment's, the hat's and the umbrella's: gloves,
+// one arm a machine, a coat to the calf, a child, somebody old.
+const FLAG = { gloves: 512, arm: 1024, long: 2048, kid: 4096, old: 8192 };
 // Where each is worn, 0 to 1 at a point of the plan, easing over a dozen
 // metres at its edges so the places leak into each other: Corpo Plaza and
 // the boulevard's two pavements and forecourts; Santo Domingo east of the
@@ -316,17 +349,21 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
   // family or, greys and blacks together, well apart from it in lightness;
   // dyed hair is not the jacket's colour either. `r` is the person's own
   // draw, out of where they are.
-  const dress = (r, near, { pose = null, umbrellaOdds = 0.38, at = [0, 0] } = {}) => {
+  // A child (`kid`) is dressed as one; somebody old (where `aged` allows it:
+  // never on a quick walk) as the place dresses, quieter.
+  const dress = (r, near, { pose = null, umbrellaOdds = 0.38, at = [0, 0], kid = false, aged = true } = {}) => {
     const where = r();
     const corpo = corpoAt(at[0], at[1]) * 0.86;
     const santo = santoAt(at[0], at[1]) * 0.86;
-    const style = STYLES[where < corpo ? "corpo" : where < corpo + santo ? "santo" : "street"];
+    const place = STYLES[where < corpo ? "corpo" : where < corpo + santo ? "santo" : "street"];
+    const old = !kid && aged && r() < place.old;
+    const style = kid ? { ...place, ...KID } : old ? { ...place, ...OLD } : place;
     const before = near[near.length - 1] ?? { hue: -1, build: 0, hair: -1 };
     let cut, garment, jacket;
     for (let tries = 0; tries < 16; tries++) {
       cut = draw(r, style.hair);
       garment = draw(r, style.garment);
-      jacket = draw(r, style.jacket(garment));
+      jacket = draw(r, style.jacket(garment), old ? (i) => QUIET.includes(i) : null);
       const hue = FAMILY.jacket[jacket];
       const same = (n) => n.garment === garment && n.cut === cut;
       if (!near.some((n) => n.jacket === jacket && same(n)) && !near.slice(-4).some((n) => n.jacket === jacket) && !near.slice(-3).some(same) && (hue === NEUTRAL || hue !== before.hue)) break;
@@ -346,40 +383,53 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     if (r() < collar && cut !== "hood") mask += bits(TAG.collar);
     // A suit shows its shirt between the lapels; a jacket worn open (more
     // often over a hood: it is the hoodie's own) shows what is under it.
-    const suit = garment !== GARMENTS.puffer && r() < style.suit;
+    const suit = !kid && garment !== GARMENTS.puffer && r() < style.suit;
     const open = !suit && r() < (style.open[garment] ?? 0) + (cut === "hood" && garment !== GARMENTS.puffer ? 0.25 : 0);
     if (suit) mask += bits(TAG.suit);
     if (open) mask += bits(TAG.open);
     if (suit && r() < style.tie) mask += bits(TAG.tie);
-    if (garment !== GARMENTS.puffer && garment !== GARMENTS.coat && style.hivis(jacket)) mask += bits(TAG.hivis);
+    if (!kid && garment !== GARMENTS.puffer && garment !== GARMENTS.coat && style.hivis(jacket)) mask += bits(TAG.hivis);
     const shirt = draw(r, style.shirt, (i) => (FAMILY.shirt[i] === NEUTRAL || FAMILY.shirt[i] !== hue) && apart(light(SHIRTS[i])));
     const trousers = draw(r, style.trousers, (i) => (FAMILY.trousers[i] !== NEUTRAL ? FAMILY.trousers[i] !== hue : hue !== NEUTRAL || suit || open || apart(light(TROUSERS[i]))));
     const bag = pose === "vendor" || pose === "carry" ? 0 : draw(r, style.bag, (k) => !(k === 2 && (pose === "lean" || pose === "sit" || pose === "floor" || pose === "lie")) && !(k === 3 && (low || pose === "rail" || pose === "lean")));
     if (bag) mask += bits([TAG.hipbag, TAG.backpack, TAG.tote][bag - 1]);
     const bagColour = draw(r, style.bagColour, (i) => FAMILY.bag[i] === NEUTRAL || FAMILY.bag[i] !== hue);
     const free = pose === null || pose === "idle" || pose === "talk";
-    const umbrella = free && cut !== "hardhat" && r() < umbrellaOdds * style.umbrella;
+    const umbrella = !kid && free && cut !== "hardhat" && r() < umbrellaOdds * style.umbrella * (old ? 1.4 : 1);
     if (umbrella) mask += bits(TAG.umbrella);
-    if (pose === "phone" || (pose === null && !umbrella && r() < 0.12)) mask += bits(TAG.phone);
+    if (pose === "phone" || (pose === null && !kid && !umbrella && r() < (old ? 0.04 : 0.12))) mask += bits(TAG.phone);
     if (pose === "smoke") mask += bits(TAG.smoke);
-    if (r() < style.trim) mask += bits(TAG.trim);
+    if (!old && r() < (kid ? 0.3 : style.trim)) mask += bits(TAG.trim);
     // Cyberware down a cheek on some, a visor on a few, and a cup in the
     // free hand of some of those with nothing to do with it.
-    if (r() < style.cyber) mask += bits(TAG.cyber);
-    if (r() < style.visor) mask += bits(TAG.visor);
-    if (bag !== 3 && r() < (pose === null ? 0.06 : pose === "idle" || pose === "talk" || pose === "sit" ? 0.22 : 0)) mask += bits(TAG.cup);
+    if (!kid && r() < style.cyber * (old ? 0.5 : 1)) mask += bits(TAG.cyber);
+    if (!kid && r() < style.visor * (old ? 0.2 : 1)) mask += bits(TAG.visor);
+    if (!kid && bag !== 3 && r() < (pose === null ? 0.06 : pose === "idle" || pose === "talk" || pose === "sit" ? 0.22 : 0)) mask += bits(TAG.cup);
     // The garment; a hat, a shaved head, lit eyes, bare arms under a vest
     // (never with a hood: that is a hoodie's, and it has sleeves), pale
-    // shoes; and an umbrella's cloth (black, its rim's colour, pale).
-    const flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (r() < 0.08 ? 16 : 0) + (cut !== "hood" && r() < style.bare ? 32 : 0) + (r() < style.paleShoes ? 64 : 0) + 128 * pick(r, style.canopy);
-    // Slight to heavy, most of them between.
-    let build = 0.86 + 0.36 * r() ** 1.5;
-    if (Math.abs(build - before.build) < 0.07) build = build > 1.04 ? build - 0.12 : build + 0.12;
+    // shoes; and an umbrella's cloth (black, its rim's colour, pale). Then
+    // gloves; an arm that is a machine (bared more often than not: whoever
+    // has one shows it); a coat that goes on past the knee to the calf; and
+    // whether they are a child or old.
+    let flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (!kid && r() < 0.08 ? 16 : 0) + (cut !== "hood" && !kid && !old && r() < style.bare ? 32 : 0) + (r() < style.paleShoes ? 64 : 0) + 128 * pick(r, style.canopy);
+    if (!kid && pose !== "vendor" && r() < style.gloves * (old ? 2 : 1)) flags += FLAG.gloves;
+    if (!kid && r() < style.arm * (old ? 0.4 : 1)) {
+      flags += FLAG.arm;
+      if (garment === GARMENTS.vest && cut !== "hood" && !(flags & 32)) flags += 32;
+    }
+    if (garment === GARMENTS.coat && r() < style.long * (old ? 1.2 : 1)) flags += FLAG.long;
+    if (kid) flags += FLAG.kid;
+    if (old) flags += FLAG.old;
+    // Slight to heavy, most of them between, and one in nine heavy; a child
+    // slight, somebody old a little broad.
+    let build = kid ? 0.8 + 0.12 * r() : old ? 0.92 + 0.3 * r() : r() < 0.11 ? 1.22 + 0.15 * r() : 0.84 + 0.4 * r() ** 1.5;
+    if (!kid && Math.abs(build - before.build) < 0.07) build = build > 1.04 ? build - 0.12 : build + 0.12;
     const hairColour = draw(r, style.hairColour, (i) => i !== before.hair && (FAMILY.hair[i] === NEUTRAL || FAMILY.hair[i] !== hue));
     worn.build = build;
     worn.hair = hairColour;
+    const tall = (r() + r()) * 0.5;
     return {
-      height: (1.55 + 0.37 * (r() + r()) * 0.5) / RIG.height,
+      height: (kid ? 1.02 + 0.42 * tall : old ? 1.5 + 0.26 * tall : 1.55 + 0.37 * tall) / RIG.height,
       build,
       look: [mask, flags, Math.floor(r() * RIMS.length) + 4 * bagColour, r()],
       wear: [jacket, trousers + 8 * shirt, Math.floor(r() * SKINS.length), hairColour],
@@ -441,18 +491,21 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
       return rows.length - 1;
     });
     const slot = w.len / groups.length;
+    // Somewhere in their own stretch of the walk, never within a body's
+    // length of the next one's.
+    const loose = Math.min(0.6, Math.max(0, 1 - 1.1 / slot));
     groups.forEach((size, g) => {
-      // Somewhere in their own stretch of the walk, never within a body's
-      // length of the next one's.
-      const loose = Math.min(0.6, Math.max(0, 1 - 1.1 / slot));
       const at = (g + (1 - loose) / 2 + loose * r()) * slot;
       const step = r();
       const one = Math.floor(r() * files.length);
+      const where = [w.from[0] + w.dir[0] * at, w.from[1] + w.dir[1] * at];
+      // The second of two is a child, now and then, where children are.
+      const kid = size > 1 && r() < 0.16 * (1 - 0.75 * Math.max(corpoAt(...where), santoAt(...where)));
       for (let k = 0; k < size; k++) {
         const f = size > 1 ? k : one;
         const off = files[f] + (r() - 0.5) * 0.1;
         // To the side of a line: +x of one that runs along +z.
-        const d = dress(r, pave.worn, { umbrellaOdds: k ? 0.3 : 0.38, at: [w.from[0] + w.dir[0] * at, w.from[1] + w.dir[1] * at] });
+        const d = dress(r, pave.worn, { umbrellaOdds: k ? 0.3 : 0.38, at: where, kid: kid && k === 1, aged: Math.abs(pace) < 1.36 });
         people.push({
           walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, k ? step + 0.5 : step],
           path: [w.dir[0], w.dir[1], w.len, at + k * 0.12],
@@ -623,6 +676,14 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     }
     p.turn = mate.turn === undefined ? p.r() : mate.turn + 0.5;
   });
+  // Of two standing together with nothing to do, now and then one is a
+  // child (never both, never on their own, never in a queue).
+  spots.forEach((p) => {
+    if (p.hot || p.mate === undefined || (p.pose !== FREE[0] && p.pose !== FREE[1])) return;
+    const mate = spots[p.mate];
+    if (mate.kid || mate.hot || !FREE.includes(mate.pose)) return;
+    if (p.r() < 0.13 * (1 - 0.75 * Math.max(corpoAt(p.x, p.z), santoAt(p.x, p.z)))) p.kid = true;
+  });
 
   // How each stands in their pose: what a hand with nothing to do does
   // (hangs, is in a pocket, folded with the other, on a hip, at a bag's
@@ -645,7 +706,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
       else if (u < 0.42) [L, R] = [left ? 0 : 1, right ? 0 : 1];
       else if (u < 0.55 && !left) L = 3;
       else if (u < 0.65 && !right) R = 4;
-      else if (u < 0.74 && !right && name !== "talk" && alone) {
+      else if (u < 0.74 && !right && name !== "talk" && alone && !p.kid) {
         R = 5;
         if (!has(TAG.phone)) look[0] += bits(TAG.phone);
       } else if (u < 0.86 && !left) L = 1;
@@ -679,7 +740,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     const worn = near.sort((a, b) => b[0] - a[0]).map(([, w]) => w);
     // Of two close together at most one holds an umbrella up: two canopies
     // do not fit between two faces.
-    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) ? 0 : 0.2, at: [p.x, p.z] });
+    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) ? 0 : 0.2, at: [p.x, p.z], kid: !!p.kid });
     p.worn = worn[worn.length - 1];
     if (Math.floor(p.d.look[0] / 2 ** TAG.umbrella) % 2 === 1) sheltered.add(i);
   }
@@ -928,6 +989,11 @@ const HEAD = /* glsl */ `
   }
   float rnd(float x) {
     return fract(sin(x * 91.17) * 43758.5453);
+  }
+  // How long a step is, over the figure's: longer at a quicker pace, and
+  // each their own, somebody old's short.
+  float strideOf(float pace, float seed, float old) {
+    return (0.85 + 0.15 * abs(pace) / 1.3) * (0.92 + 0.16 * rnd(seed * 21.3)) * (1.0 - 0.14 * old);
   }
   // The light of the signs, windows and lamps round a point of the street
   // (src/world/crowd-light.js: the left half of its map), and of what hangs
@@ -1183,7 +1249,11 @@ const VERTEX = /* glsl */ `
     // figure's ways of wearing hair are dealt by the person's seed, to
     // whoever has hair with any length to it and nothing over it.)
     float tag = aRig.z;
-    bool worn = tag < 0.5 || bit(aLook.x, tag) > 0.5;
+    float side = position.x < 0.0 ? -1.0 : 1.0;
+    // One arm a machine (which one is the person's own): that side's upper
+    // arm, forearm and hand, and the sleeve's stripe is its seam of light.
+    bool machine = bit(aLook.y, 10.0) > 0.5 && side * (rnd(aLook.w * 23.7) - 0.5) > 0.0 && aRig.x > 2.5 && aRig.x < 4.5;
+    bool worn = tag < 0.5 || bit(aLook.x, tag) > 0.5 || (machine && abs(tag - ${f(TAG.trim)}) < 0.5);
     if (tag > ${f(CARRIED - 0.5)}) worn = abs(aBody.z - ${f(POSES.indexOf("carry"))}) < 0.5;
     else if (tag > 31.5) worn = bit(aLook.x, ${f(TAG.hair)}) > 0.5 && bit(aLook.y, 2.0) + bit(aLook.y, 3.0) + bit(aLook.x, ${f(TAG.hardhat)}) < 0.5 && abs(floor(rnd(aLook.w * 17.1) * 3.0) + ${f(STYLE.parted)} - tag) < 0.5;
     if (!worn) {
@@ -1199,7 +1269,9 @@ const VERTEX = /* glsl */ `
     float h = aBody.x;
     float seed = aLook.w;
     bool walking = aBody.z < -0.5;
-    float side = position.x < 0.0 ? -1.0 : 1.0;
+    // A child; somebody old.
+    float kid = bit(aLook.y, 12.0);
+    float old = bit(aLook.y, 13.0);
     float umbrella = bit(aLook.x, ${f(TAG.umbrella)});
     float phoneUp = bit(aLook.x, ${f(TAG.phone)});
 
@@ -1253,12 +1325,13 @@ const VERTEX = /* glsl */ `
     if (walking) {
       // A longer step at a quicker pace; the step's phase is how far they
       // have gone, so a planted foot stays planted.
-      float reach = 0.85 + 0.15 * abs(pace) / 1.3;
+      float reach = strideOf(pace, seed, old);
       float q = STRIDE * 0.25 * reach;
       float ph = gone / (STRIDE * reach * h) + aWalk.w;
       float c = cos(6.2832 * ph);
-      // Lowest with both feet down, highest over the standing leg.
-      drop = mix(0.048, 0.012, 0.5 - 0.5 * cos(12.5664 * ph));
+      // Lowest with both feet down, highest over the standing leg; some
+      // bob more than others, a child most.
+      drop = mix(0.048, 0.012, 0.5 - 0.5 * cos(12.5664 * ph)) * (0.75 + 0.6 * rnd(seed * 31.7) + 0.3 * kid);
       vec3 fall = footfall(fract(ph + (side > 0.0 ? 0.5 : 0.0)), q);
       vec2 T = vec2(fall.x, fall.y - (HIP_Y - drop));
       float d = min(length(T), THIGH + SHIN - 0.004);
@@ -1267,16 +1340,30 @@ const VERTEX = /* glsl */ `
       ankle = fall.z + knee - hip;
       // Arms against the legs, shoulders against the hips, the head held
       // to the way they go.
-      float amp = 0.34 + 0.26 * rnd(seed * 3.1);
+      // Each their own walk: how far the arms swing (somebody old hardly,
+      // a child freely), how much the hips go side to side and the weight
+      // over each foot, how far forward they carry themselves (somebody old
+      // stooped, the head out ahead).
+      float amp = (0.34 + 0.26 * rnd(seed * 3.1)) * (1.0 - 0.5 * old + 0.25 * kid);
+      float sway = 0.6 + 1.2 * rnd(seed * 37.1);
       sp = side * amp * c + 0.04;
-      el = 0.22 + 0.32 * (0.5 + 0.5 * side * c);
+      el = 0.22 + 0.32 * (0.5 + 0.5 * side * c) + 0.25 * old;
       sr = 0.035;
       inw = 0.12;
       twist = -0.09 * c;
-      hips = 0.05 * c;
+      hips = 0.05 * c * sway;
+      shift = 0.012 * c * sway;
       gaze = 0.075 * c;
-      pitch = 0.04 + 0.05 * rnd(seed * 5.7);
-      nod = 0.03;
+      pitch = 0.04 + 0.05 * rnd(seed * 5.7) + 0.16 * old - 0.03 * kid;
+      nod = 0.03 + 0.12 * old;
+      // Some walk with their hands in their pockets.
+      if (rnd(seed * 29.3) > 0.86 && kid < 0.5) {
+        vec4 pocket = armAt(1.0, side);
+        sp = pocket.x + 0.03 * side * c;
+        sr = pocket.y;
+        el = pocket.z;
+        inw = pocket.w;
+      }
       // Now and then a look at a window they pass.
       gaze += 0.5 * smoothstep(0.55, 0.9, sin(t * 0.17 + seed * 50.0)) * (rnd(seed * 9.1) > 0.5 ? 1.0 : -1.0);
       if (side < 0.0 && bit(aLook.x, ${f(TAG.tote)}) > 0.5) {
@@ -1367,6 +1454,13 @@ const VERTEX = /* glsl */ `
         el += 0.03 * sin(tt * 3.0);
         nod += 0.03 * sin(tt * 0.6);
       }
+      // Somebody old stands a little bowed, knees soft.
+      if (old > 0.5 && A.x < 0.05) {
+        pitch += 0.13;
+        nod += 0.08;
+        hip += 0.05;
+        knee += 0.1;
+      }
       ankle = knee - hip - lean + heel;
       // Lying down, a straight leg's foot points up, not along the ground.
       if (lean > 1.0 && knee < 0.5) ankle += 1.3;
@@ -1411,22 +1505,30 @@ const VERTEX = /* glsl */ `
       p.z *= wide;
     } else if (seg > 2.5) {
       float ax = side * ${f(RIG.shoulderX)};
-      if (garment > 1.5 && garment < 2.5 && part == ${PART.sleeve}) p.xz += normalize(p.xz - vec2(ax, 0.0) + 1e-5) * 0.014 * aux;
-      p.x = shoulderX + (p.x - ax) * wide;
-      p.z *= wide;
+      if (garment > 1.5 && garment < 2.5 && part == ${PART.sleeve} && !machine) p.xz += normalize(p.xz - vec2(ax, 0.0) + 1e-5) * 0.014 * aux;
+      // A machine's arm is slimmer than one in a sleeve.
+      float slim = machine ? 0.84 : 1.0;
+      p.x = shoulderX + (p.x - ax) * wide * slim;
+      p.z *= wide * slim;
     } else if (seg > 1.5) {
       if ((part == ${PART.scalp} || (tag > 31.5 && tag < ${f(CARRIED - 0.5)})) && bit(aLook.x, ${f(TAG.hardhat)}) < 0.5) p = vec3(0.0, 1.68, -0.01) + (p - vec3(0.0, 1.68, -0.01)) * (1.0 + 0.16 * aux * rnd(seed * 7.3) * rnd(seed * 2.9));
-      // A head is not much smaller on a short person, nor wider on a broad.
-      p = vec3(0.0, ${f(RIG.headY)}, 0.0) + (p - vec3(0.0, ${f(RIG.headY)}, 0.0)) * 1.07 * pow(h, -0.55);
+      // A head is not much smaller on a short person, nor wider on a broad;
+      // a grown-up's is an eighth of them or a little over, a child's a
+      // sixth.
+      p = vec3(0.0, ${f(RIG.headY)}, 0.0) + (p - vec3(0.0, ${f(RIG.headY)}, 0.0)) * (pow(h, -0.35) + 1.1 * max(0.86 - h, 0.0));
       p.xz *= mix(1.0, wide, 0.3);
     } else if ((tag < ${f(TAG.umbrella - 0.5)} || tag > ${f(TAG.umbrella + 0.5)}) && tag < ${f(CARRIED - 0.5)}) {
       if (garment > 1.5 && garment < 2.5 && part == ${PART.jacket}) p.xz += normalize(p.xz + 1e-5) * 0.024 * aux;
       p.x *= wide * (1.0 + 0.1 * frame * (smoothstep(1.1, 1.35, p.y) - 1.0 + smoothstep(0.95, 1.15, p.y)));
       p.z *= mix(1.0, wide, 0.85);
-      // A paunch on some, under the jacket's front.
-      p.z += max(p.z, 0.0) * 9.0 * max(rnd(seed * 13.7) - 0.62, 0.0) * 0.2 * smoothstep(0.86, 1.02, p.y) * (1.0 - smoothstep(1.12, 1.34, p.y));
-      // A coat's skirt goes with the leg under it.
-      if (part == ${PART.coat}) p.z += aux * 0.3 * sin(hip);
+      // A paunch on some, under the jacket's front, and on everyone heavy.
+      p.z += max(p.z, 0.0) * 9.0 * min(max(rnd(seed * 13.7) - 0.62, 0.0) * 0.2 + max(wide - 1.12, 0.0) * 0.22, 0.08) * smoothstep(0.86, 1.02, p.y) * (1.0 - smoothstep(1.12, 1.34, p.y));
+      // A coat's skirt goes with the leg under it; a long one on past the
+      // knee to the calf, wider at the hem, and further with the leg.
+      float calf = part == ${PART.coat} ? bit(aLook.y, 11.0) : 0.0;
+      p.y = 0.93 - (0.93 - p.y) * (1.0 + 0.5 * calf);
+      p.xz *= 1.0 + 0.08 * aux * calf;
+      if (part == ${PART.coat}) p.z += aux * (0.3 + 0.14 * calf) * sin(hip);
     }
 
     // Each segment about its joint, from the far end in.
@@ -1487,7 +1589,7 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.scalp}) {
       // Hair, a hat's dome, a shaved head's shadow; on the far figure, whose
       // head is one piece, a hood too, or nothing.
-      albedo = bit(flags, 2.0) > 0.5 ? carried : bit(flags, 3.0) > 0.5 ? mix(skin, hair, 0.72) : hair;
+      albedo = bit(flags, 2.0) > 0.5 ? carried * 0.78 : bit(flags, 3.0) > 0.5 ? mix(skin, hair, 0.72) : hair;
       #ifndef NEAR
       if (bit(aLook.x, ${f(TAG.hardhat)}) > 0.5) albedo = uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)];
       else if (bit(aLook.x, ${f(TAG.hair)}) < 0.5) albedo = bit(aLook.x, ${f(TAG.hood)}) > 0.5 ? shirt : mix(skin, hair, 0.72);
@@ -1514,7 +1616,8 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.shoe}) { albedo = bit(flags, 6.0) > 0.5 ? vec3(0.42, 0.42, 0.4) : vec3(0.04, 0.04, 0.05); gloss = 0.16; }
     // A sole and laces of the other tone: pale under a dark shoe, dark under a pale one.
     else if (part == ${PART.sole}) albedo = bit(flags, 6.0) > 0.5 ? vec3(0.05, 0.05, 0.06) : vec3(0.3, 0.3, 0.28);
-    else if (part == ${PART.bag} || part == ${PART.brim}) albedo = carried;
+    else if (part == ${PART.bag}) albedo = carried;
+    else if (part == ${PART.brim}) albedo = carried * 0.78;
     else if (part == ${PART.tote}) albedo = uPal[${PAL.bag} + int(mod(floor(aLook.z / 4.0) + 3.0, 6.0) + 0.5)];
     else if (part == ${PART.dark}) { albedo = vec3(0.015); gloss = 0.5; }
     else if (part == ${PART.crate}) albedo = vec3(0.3, 0.21, 0.11);
@@ -1540,6 +1643,28 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.trim}) { lit = tint * 1.25; glow = 1.0; }
     else if (part == ${PART.phone}) { lit = vec3(0.6, 0.85, 1.0) * 2.2 * aux; glow = 1.0; }
     else if (part == ${PART.ember}) { lit = vec3(1.0, 0.38, 0.08) * (1.6 + 2.4 * drag); glow = 1.0; }
+    // Gloves on some: the hands are dark leather.
+    if (part == ${PART.skin} && seg > 3.5 && seg < 4.5 && bit(flags, 9.0) > 0.5) {
+      albedo = vec3(0.022, 0.02, 0.024) + carried * 0.05;
+      gloss = 0.5;
+    }
+    // A machine's arm: bright steel from the shoulder to the fingers, rings
+    // of light at the elbow and the wrist, and its seam (the stripe) down the
+    // outside.
+    if (machine) {
+      // (The far figure's arm is three rings: its elbow is half of it.)
+      bool joint = part == ${PART.cuff};
+      #ifdef NEAR
+      joint = joint || (part == ${PART.sleeve} && abs(position.y - ${f(RIG.elbowY)}) < 0.012);
+      #endif
+      if (joint) {
+        lit = tint * 1.4;
+        glow = 1.0;
+      } else if (part == ${PART.sleeve} || part == ${PART.skin} || part == ${PART.shirt} || part == ${PART.seam} || part == ${PART.stitch}) {
+        albedo = vec3(0.24, 0.25, 0.28);
+        gloss = 1.6;
+      }
+    }
 
     // Lit by the street they are in, never evenly. The city's bake gives
     // the street's level where they stand (a fill, so nobody is darker than
@@ -1664,7 +1789,7 @@ const CARD_VERTEX = /* glsl */ `
     place(root, face, fade, gone, eye);
     float h = aBody.x;
     float pose = aBody.z;
-    float reach = 0.85 + 0.15 * abs(aWalk.z) / 1.3;
+    float reach = strideOf(aWalk.z, aLook.w, bit(aLook.y, 13.0));
     float ph = pose < -0.5 ? gone / (STRIDE * reach * h) + aWalk.w : 0.0;
     // Sitting or squatting they are shorter, and a seat's top is not the
     // ground.
@@ -1709,7 +1834,7 @@ const CARD_VERTEX = /* glsl */ `
     // The top of the head, and all of it from behind: hair, a hat, a hood.
     vec3 top = bit(mask, ${f(TAG.hardhat)}) > 0.5 ? uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)] : bit(mask, ${f(TAG.hood)}) > 0.5 ? uPal[${PAL.shirt} + int(floor(aWear.y / 8.0) + 0.5)] : bit(flags, 2.0) > 0.5 ? uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)] : uPal[${PAL.hair} + int(aWear.w + 0.5)];
     vJacket = vec4(jacket, bit(mask, ${f(TAG.umbrella)}) * (pose < -0.5 ? 1.0 : 1.0 - coveredAt(root)));
-    vLegs = vec4(uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)], bit(mask, ${f(TAG.skirt)}));
+    vLegs = vec4(uPal[${PAL.trousers} + int(mod(aWear.y, 8.0) + 0.5)], bit(mask, ${f(TAG.skirt)}) * (1.0 + bit(flags, 11.0)));
     vSkin = vec4(skin, abs(facing));
     vHair = vec4(top, uPass.y * eye / h);
     vTint = vec4(uPal[${PAL.rim} + int(mod(aLook.z, 4.0) + 0.5)], bit(mask, ${f(TAG.trim)}) + 2.0 * bit(mask, ${f(TAG.phone)}) + 4.0 * step(facing, 0.0));
@@ -1756,7 +1881,7 @@ const CARD_FRAGMENT = /* glsl */ `
     float reach = 0.3 * (1.0 - front) * sin(vLight.a);
     float dHead = length((p - vec2(0.0, 1.645)) / vec2(0.8, 1.0)) - 0.112;
     float dBody = limb(p, vec2(0.0, 1.36), vec2(0.0, 1.0), 0.215 * w, 0.17 * w);
-    float dCoat = vLegs.a > 0.5 ? limb(p, vec2(0.0, 1.0), vec2(0.0, 0.58), 0.18 * w, 0.215 * w) : 1e3;
+    float dCoat = vLegs.a > 0.5 ? limb(p, vec2(0.0, 1.0), vec2(0.0, vLegs.a > 1.5 ? 0.37 : 0.58), 0.18 * w, (vLegs.a > 1.5 ? 0.23 : 0.215) * w) : 1e3;
     float dLegs = min(limb(p, vec2(-gap, 0.95), vec2(reach - gap, 0.06), 0.085, 0.05), limb(p, vec2(gap, 0.95), vec2(gap - reach, 0.06), 0.085, 0.05));
     float d = min(min(dHead, dBody), min(dCoat, dLegs));
     // An umbrella: a shallow dome, its rim never under a pixel and a half.
