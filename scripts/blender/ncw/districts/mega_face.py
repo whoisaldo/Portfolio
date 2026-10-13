@@ -35,6 +35,10 @@ def hero_hidden(x0, x1, y0, y1, z):
 
 FACE_T = (D, "trim", 0)
 BANDS = (24.0, 43.0, 62.0, 79.0)             # the core's own decks
+# And above them, round every tall face of the block, its wings and its
+# shoulders (mega_mono): the same decks every six floors, so the whole
+# reads as one structure in strata. dress() keeps its floors off them.
+STRATA = BANDS + tuple(floor_y(k) - 0.8 for k in (29, 35, 41, 47, 53))
 fW = face("+z", MB_ZF, -48.0, -18.0)
 fM = face("+z", MB_ZF - MB_REC, -18.0, 18.0)
 fE = face("+z", MB_ZF, 18.0, 48.0)
@@ -160,7 +164,7 @@ def dress(f, top, start, seed, blocked, pods=(), slot=False, people_rate=0.2, we
     while floor_y(k) + 1.4 < top:
         y = floor_y(k)
         k += 1
-        if any(abs(y - b) < 1.6 for b in BANDS):
+        if any(abs(y - b) < 1.6 for b in STRATA):
             continue
         here = list(blocked) + [(p[0] - 0.3, p[1] + 0.3) for p in pods if p[2] - 1.2 < y < p[3] + 0.2]
         t = r.random()
