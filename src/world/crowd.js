@@ -462,6 +462,53 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     a.pave = b.pave = 100 + i;
     a.span = [inward * -0.42, across + inward * 1.35].sort((p, q) => p - q);
   }
+  // A pavement with more people stood on it than walking it has walkers
+  // added (the builder's count is a least): about as many walking as stood
+  // there, a third of them on a phone (which keeps half the standers), and
+  // never more than a file can carry at a body's length apart and then some.
+  {
+    const CELL = 8;
+    const grid = new Map();
+    const add = (x, y, z) => {
+      if (Math.abs(y - PAVE_Y) > 0.6) return;
+      const k = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+      (grid.get(k) ?? grid.set(k, []).get(k)).push(x, z);
+    };
+    if (!bare) for (const [x, z] of STANDS) add(x, PAVE_Y, z);
+    for (const list of [ahead, standers]) for (let i = 0; i + 4 < list.length; i += 5) add(list[i], list[i + 1], list[i + 2]);
+    for (let i = first; i + 1 < lines.length; i += 2) {
+      const a = lines[i];
+      const b = lines[i + 1];
+      if (a.pave !== b.pave || !a.span) continue;
+      const [lo, hi] = a.span;
+      let stood = 0;
+      const seen = new Set();
+      for (let v = 0; v <= a.len + CELL; v += CELL / 2) {
+        for (let u = lo - 1; u <= hi + 1 + CELL / 2; u += CELL / 2) {
+          const x = a.from[0] + a.dir[0] * v + a.dir[1] * u;
+          const z = a.from[1] + a.dir[1] * v - a.dir[0] * u;
+          const k = `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+          if (seen.has(k)) continue;
+          seen.add(k);
+          const c = grid.get(k) ?? [];
+          for (let j = 0; j < c.length; j += 2) {
+            const rx = c[j] - a.from[0];
+            const rz = c[j + 1] - a.from[1];
+            const along = rx * a.dir[0] + rz * a.dir[1];
+            const across = rx * a.dir[1] - rz * a.dir[0];
+            if (along >= 0 && along <= a.len && across >= lo - 0.8 && across <= hi + 0.8) stood++;
+          }
+        }
+      }
+      const want = phone ? Math.ceil(stood * 0.33) : Math.ceil(stood * 1.05);
+      for (const w of [a, b]) {
+        const k = phone ? 1 : 0;
+        const most = Math.floor(w.len / (phone ? 7 : 3.4));
+        w.n = [...w.n];
+        w.n[k] = Math.max(w.n[k], Math.min(most, Math.ceil(want / 2)));
+      }
+    }
+  }
   // The pavements: the walks that share one, in order, and each file's
   // place across it, measured from the first walk's line.
   const paves = new Map();
