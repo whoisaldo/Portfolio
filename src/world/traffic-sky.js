@@ -27,19 +27,19 @@ export const LANES = [
   { c: [620, 120], r: [200, 70], y: 172, v: 30, s: 2.6, n: 2, phone: 1 },
   // The streets, low: the strip of sky a driver has ahead. The canyon's is
   // the highest of them: bridges cross it up to 49 m.
-  { a: [0, -362], b: [0, -528], half: 5.5, y: 56, lift: 5, v: 9, n: 3, phone: 1 },
+  { a: [0, -362], b: [0, -528], half: 5.5, y: 56, lift: 5, v: 9, narrow: 1, n: 6, phone: 1 },
   { a: [-80, -30], b: [-80, -700], half: 5, y: 43, lift: 5, v: 8.5, n: 7, phone: 1 },
-  { a: [120, -20], b: [120, -310], half: 4.5, y: 32, lift: 5, v: 8, n: 4, phone: 1 },
+  { a: [120, -20], b: [120, -310], half: 4.5, y: 32, lift: 5, v: 8, narrow: 1, n: 4, phone: 1 },
   { a: [136, -330], b: [426, -330], half: 5, y: 30, lift: 5, v: 8.5, n: 6, phone: 1 },
-  { a: [420, 1], b: [-60, 1], half: 4, y: 30, lift: 5, v: 9, n: 6, phone: 1 },
-  { a: [-66, -720], b: [52, -720], half: 4, y: 34, lift: 4, v: 7, n: 4, phone: 1 },
-  { a: [20, -179], b: [420, -179], half: 4, y: 34, lift: 5, v: 9, n: 5, phone: 0 },
+  { a: [420, 1], b: [-60, 1], half: 4, y: 30, lift: 5, v: 9, narrow: 1, n: 6, phone: 1 },
+  { a: [-66, -720], b: [52, -720], half: 4, y: 34, lift: 4, v: 7, narrow: 1, n: 6, phone: 1 },
+  { a: [20, -179], b: [420, -179], half: 4, y: 34, lift: 5, v: 9, narrow: 1, n: 5, phone: 0 },
   // Low across the deck, over its own road and its lamp masts.
   { a: [-66, -80], b: [104, -80], half: 2.2, y: 48, lift: 4, v: 7, n: 3, phone: 1 },
   // The streets again, between the towers: higher, slower to pass.
-  { a: [0, -320], b: [0, -580], half: 5.5, y: 80, lift: -6, v: 8.5, n: 3, phone: 1 },
+  { a: [0, -320], b: [0, -580], half: 5.5, y: 80, lift: -6, v: 8.5, band: 0, n: 5, phone: 1 },
   { a: [130, -330], b: [430, -330], half: 5, y: 62, lift: 5, v: 8, n: 3, phone: 0 },
-  { a: [-70, 1], b: [430, 1], half: 5, y: 48, lift: 5, v: 9, n: 4, phone: 0 },
+  { a: [-70, 1], b: [430, 1], half: 5, y: 48, lift: 5, v: 9, narrow: 1, n: 4, phone: 0 },
   { a: [-80, -10], b: [-80, -670], half: 6, y: 58, lift: 5, v: 8.5, n: 4, phone: 0 },
   { a: [120, -5], b: [120, -325], half: 5, y: 70, lift: 5, v: 7.5, n: 3, phone: 0 },
   { a: [440, -5], b: [440, -325], half: 5, y: 50, lift: 4, v: 7.5, n: 5, phone: 1 },
@@ -55,54 +55,104 @@ export const LANES = [
   { c: [-130, -375], r: [36, 360], y: 54, v: 22, n: 7, phone: 1 },
   { c: [455, -200], r: [50, 120], y: 76, v: 24, n: 3, phone: 0 },
   // Across the south: Santo Domingo's yards, the arm, the plaza's south.
-  { c: [300, -85], r: [130, 66], y: 72, v: 28, n: 4, phone: 1 },
+  { c: [300, -85], r: [130, 66], y: 72, v: 28, narrow: 1, n: 4, phone: 1 },
   { c: [150, -60], r: [230, 56], y: 86, v: 34, n: 4, phone: 0 },
-  { c: [40, 30], r: [150, 50], y: 60, v: 26, n: 3, phone: 0 },
+  { c: [40, 30], r: [150, 50], y: 60, v: 26, narrow: 1, n: 3, phone: 0 },
   // Over the plaza's square, round its hub.
-  { c: [79, -228], r: [30, 26], y: 48, v: 12, n: 2, phone: 0 },
+  { c: [79, -228], r: [30, 26], y: 48, v: 12, narrow: 1, n: 2, phone: 0 },
   // And low over the south arm, which no other lane reaches.
   { a: [0, 10], b: [0, 82], half: 5.5, y: 38, lift: 4, v: 5, n: 2, phone: 0 },
   // Out among the far city's towers, at the height a flying lens is: the
   // corridors between them where nothing stands as high as the lane
   // (tools/corridors.mjs), south, west, north and east of the kit, so a
   // view from the air has traffic at its own height whichever way it looks.
-  { a: [10, 276], b: [412, 276], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 1 },
-  { a: [10, 260], b: [296, 260], half: 4.5, y: 64, lift: 4, v: 9, n: 6, phone: 0 },
+  { a: [10, 276], b: [412, 276], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 1 },
+  { a: [10, 260], b: [296, 260], half: 4.5, y: 64, lift: 4, v: 9, n: 4, phone: 0 },
   { a: [-60, 306], b: [-60, 634], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
   { a: [360, 250], b: [360, 514], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
   { a: [-470, 332], b: [-136, 332], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
   { a: [-212, 76], b: [-212, 528], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 1 },
   { a: [512, 208], b: [512, 518], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [-244, 70], b: [-244, -386], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 1 },
+  { a: [-244, 70], b: [-244, -386], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 3 },
   { a: [-356, -350], b: [-356, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
   { a: [-444, -142], b: [-444, -562], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
   { a: [-556, -284], b: [-272, -284], half: 4.5, y: 64, lift: 4, v: 9, n: 3, phone: 0 },
-  { a: [-176, 172], b: [-176, -800], half: 4, y: 70, lift: 4, v: 10, n: 24, phone: 3 },
-  { a: [-470, -936], b: [-50, -936], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
+  { a: [-176, 172], b: [-176, -800], half: 4, y: 70, lift: 4, v: 10, n: 11, phone: 3 },
+  { a: [-470, -936], b: [-50, -936], half: 4.5, y: 86, lift: 4, v: 10, narrow: 1, n: 4, phone: 0 },
   { a: [-646, -856], b: [-330, -856], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
   { a: [172, -758], b: [172, -1068], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [364, -714], b: [364, -1082], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
+  { a: [364, -714], b: [364, -950], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 1 },
   { a: [640, -672], b: [640, -1040], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
-  { a: [110, -720], b: [584, -720], half: 4.5, y: 86, lift: 4, v: 10, n: 16, phone: 2 },
-  { a: [-288, -712], b: [-30, -712], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
-  { a: [-190, 46], b: [470, 46], half: 4.5, y: 72, lift: 4, v: 10, n: 18, phone: 3 },
-  { a: [528, -476], b: [528, -222], half: 4.5, y: 80, lift: 4, v: 10, n: 12, phone: 2 },
-  { a: [828, -120], b: [828, 300], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 0 },
+  { a: [110, -720], b: [584, -720], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 2 },
+  { a: [-288, -712], b: [-30, -712], half: 4.5, y: 86, lift: 4, v: 10, narrow: 1, n: 6, phone: 1 },
+  { a: [-190, 46], b: [470, 46], half: 4.5, y: 72, lift: 4, v: 10, n: 7, phone: 2 },
+  { a: [528, -476], b: [528, -222], half: 4.5, y: 80, lift: 4, v: 10, n: 7, phone: 3 },
+  { a: [828, -120], b: [828, 300], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 3 },
   { a: [600, 60], b: [1000, 60], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 1 },
-  { a: [570, 152], b: [1000, 152], half: 4.5, y: 64, lift: 4, v: 10, n: 8, phone: 0 },
+  { a: [570, 152], b: [1000, 152], half: 4.5, y: 64, lift: 4, v: 10, n: 8, phone: 3 },
   { a: [444, -528], b: [444, -852], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 0 },
-  { a: [632, -302], b: [632, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 1 },
+  { a: [632, -302], b: [632, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 3 },
   { a: [828, -380], b: [828, -130], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [120, -426], b: [120, -872], half: 4.5, y: 64, lift: 4, v: 9, n: 4, phone: 0 },
+  { a: [120, -426], b: [120, -872], half: 4.5, y: 64, lift: 4, v: 9, narrow: 1, n: 4, phone: 0 },
   // Two that the review's own aerial stills look straight down: south from
   // over Santo Domingo, north from over Corpo Row's back.
-  { a: [228, 166], b: [228, 380], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
+  { a: [228, 166], b: [228, 380], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 1 },
   { a: [276, -480], b: [276, -696], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
   // Behind the megabuilding, between its tiers' backs and the towers north.
   { a: [-46, -868], b: [112, -868], half: 4.5, y: 86, lift: 4, v: 9, n: 3, phone: 0 },
+  // Low over three streets, close enough over a walker's head to be a
+  // craft and not a speck: the south street east of the hero's frame,
+  // Japantown's west road over its bridges and arches, the garage street.
+  { a: [24, 1], b: [400, 1], half: 3.5, y: 20, lift: 3, v: 7, narrow: 1, band: 2.5, n: 4, phone: 0 },
+  { a: [-80, -290], b: [-80, -560], half: 3.5, y: 23, lift: 3, v: 7, narrow: 1, band: 2.5, n: 3, phone: 0 },
+  { a: [440, -20], b: [440, -310], half: 3.5, y: 23, lift: 3, v: 7, narrow: 1, band: 2.5, n: 3, phone: 0 },
 ];
 
 const TAU = Math.PI * 2;
+
+// What flies them. The Sable runabout as it is modelled
+// (src/world/av-model.js), and three more built on it, each stretched as its
+// work has it: a courier, small and quick, warm lamps and a short orange
+// streak; a hauler, broad, tall and long, amber lamps and a beacon, too
+// heavy to leave a streak; a liner, long and low, a row of lit windows down
+// its flanks. `scale` is across, up and along; `head` its lamps' colour,
+// `thrust` its fans', its belly's and its streak's, `streak` how long that
+// is, `lamp` how big its lamps are; `mix` how often each kind is dealt to a
+// street's lane, a loop and an outer corridor.
+export const CRAFT = [
+  { name: "runabout", scale: [1, 1, 1], head: [0.75, 0.9, 1.0], thrust: [0.3, 0.75, 1.0], streak: 1, lamp: 1, mix: [6, 5, 4] },
+  { name: "courier", scale: [0.84, 0.8, 0.82], head: [1.0, 0.8, 0.5], thrust: [1.0, 0.45, 0.12], streak: 0.6, lamp: 0.75, mix: [3, 2, 1] },
+  { name: "hauler", scale: [1.35, 1.45, 1.85], head: [1.0, 0.72, 0.32], thrust: [1.0, 0.32, 0.08], streak: 0, lamp: 1.3, mix: [0, 1, 3] },
+  { name: "liner", scale: [1.2, 1.12, 2.3], head: [0.9, 0.95, 1.0], thrust: [0.8, 0.3, 1.0], streak: 0.4, lamp: 1.1, mix: [1, 2, 2] },
+];
+// What each kind is painted (linear colour): the runabouts dark, as the
+// street's cars mostly are, a few pale or in a colour; couriers in yellow,
+// orange or white; haulers in work grey, orange or olive; liners pale or
+// deep blue.
+export const LIVERY = [
+  [[0.05, 0.055, 0.065], [0.016, 0.016, 0.02], [0.2, 0.025, 0.035], [0.025, 0.045, 0.13], [0.34, 0.35, 0.37], [0.025, 0.17, 0.17]],
+  [[0.5, 0.35, 0.035], [0.45, 0.14, 0.02], [0.34, 0.34, 0.33]],
+  [[0.17, 0.18, 0.19], [0.46, 0.17, 0.03], [0.13, 0.15, 0.06]],
+  [[0.36, 0.37, 0.39], [0.2, 0.21, 0.24], [0.035, 0.07, 0.2]],
+];
+// A lane's craft fly at a few heights LEVEL metres apart (its `band`, 6 m
+// over a street, 10 on a loop, 12 out along the corridors; less where the
+// hero's lens sees the lane pass under the hologram's figure), each height at
+// its own speed and a loop's every other height the other way round, so
+// that no two on one height ever meet and no lane is a rank.
+export const LEVEL = 2.5;
+const bandOf = (L) => L.band ?? (L.c ? 10 : L.y < 60 ? 6 : 12);
+/** How many heights a lane's craft fly at. */
+export const levelsOf = (L) => Math.floor(bandOf(L) / LEVEL) + 1;
+/** Which of the mix columns a lane deals from: a street's, a loop's, an
+ *  outer corridor's. */
+const sortOf = (L) => (L.c ? 1 : L.y < 60 ? 0 : 2);
+/** How often a lane is dealt each kind: a `narrow` lane, which passes a
+ *  wall or a tower closely somewhere on its round, carries none of the big
+ *  ones. */
+const weightsOn = (L) => CRAFT.map((K) => (L.narrow && Math.max(K.scale[0], K.scale[2]) > 1.05 ? 0 : K.mix[sortOf(L)]));
+/** The biggest kind a lane may carry, as a scale on the runabout's span. */
+export const widestOn = (L) => Math.max(...CRAFT.filter((K, i) => weightsOn(L)[i] > 0).map((K) => Math.max(K.scale[0], K.scale[2]))) * (L.s ?? 1);
 
 /** How far round a lane is, in metres. */
 export function lapOf(L) {
@@ -116,7 +166,7 @@ export function lapOf(L) {
  * fall it flies with. Into out: x, y, z, the way it faces (fx, fz), and
  * how far it banks.
  */
-export function skyAt(L, u, way, k, out) {
+export function skyAt(L, u, way, k, out, level = 0) {
   u -= Math.floor(u);
   if (L.c) {
     const a = u * TAU * way;
@@ -129,6 +179,7 @@ export function skyAt(L, u, way, k, out) {
     out.fx = dx / d;
     out.fz = dz / d;
     out.bank = -way * 0.16;
+    out.y += level * LEVEL;
     return out;
   }
   // Out along the right of the line, round, back along its other side,
@@ -174,33 +225,51 @@ export function skyAt(L, u, way, k, out) {
   out.fx = ux * c + uz * sn;
   out.fz = uz * c - ux * sn;
   out.bank = 0;
+  out.y += level * LEVEL;
   return out;
 }
 
 // Where each craft starts on its lane is drawn from this, so the same second
 // of the clock is the same sky on every load. Any seed is as good a sky as
-// another; this one was picked (tools/skysearch.mjs) for the second every
-// review render holds, 12: it leaves the fewest of the drivers' frames and
-// the air views with fewer than two craft in them.
-const SKY = 1603;
+// another; this one was picked (tools/skyseed.mjs) for the second every
+// review render holds, 12: on a phone's narrow frame every one of the sky
+// review's five aerial stills holds two or more craft, and a desktop's as
+// many as before.
+const SKY = 2532;
 
-/** The craft: each lane's own number of them (`full`: a desktop's), spread
- *  evenly round it, each with which way it goes round and its own number. */
+/** The craft: each lane's own number of them (`full`: a desktop's), dealt
+ *  among its heights, spread unevenly round it (a height's craft a share of
+ *  its round apart, give or take), each with which way it goes round, its
+ *  own number, its height, its speed, its kind and its paint. */
 export function createCraft(full, seed = SKY) {
   let s = seed;
   const draw = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
   const craft = [];
   LANES.forEach((L, k) => {
     const n = full ? L.n : L.phone;
-    const turn = draw();
-    for (let j = 0; j < n; j++) craft.push({ L, way: k % 2 ? -1 : 1, u: (j + 0.4 * draw()) / n + turn, lap: lapOf(L), k: craft.length });
+    const levels = Math.min(levelsOf(L), Math.max(1, n));
+    const weights = weightsOn(L);
+    const total = weights.reduce((a, b) => a + b, 0);
+    for (let level = 0; level < levels; level++) {
+      const on = Math.floor(n / levels) + (level < n % levels ? 1 : 0);
+      const turn = draw();
+      const v = L.v * (0.78 + 0.44 * ((level * 0.618 + k * 0.37) % 1));
+      const way = (k % 2 ? -1 : 1) * (L.c && level % 2 ? -1 : 1);
+      for (let j = 0; j < on; j++) {
+        let pick = draw() * total;
+        let kind = 0;
+        while (kind < CRAFT.length - 1 && pick >= weights[kind]) pick -= weights[kind++];
+        const paints = LIVERY[kind];
+        craft.push({ L, way, u: (j + 0.7 * draw()) / on + turn, lap: lapOf(L), k: craft.length, level, v, kind, paint: paints[Math.floor(draw() * paints.length)] });
+      }
+    }
   });
   return craft;
 }
 
 /** Where a craft is at second `clock` (see skyAt). */
 export function craftAt(c, clock, out) {
-  return skyAt(c.L, c.u + (clock * c.L.v) / c.lap, c.way, c.k, out);
+  return skyAt(c.L, c.u + (clock * c.v) / c.lap, c.way, c.k, out, c.level);
 }
 
 // One stands on the pad on ARASAKA's annex (x, y, z, the way it faces).

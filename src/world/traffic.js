@@ -34,7 +34,7 @@ import { createObject as createNearShow, KINDS as NEAR_SHOW } from "./traffic-ca
 import { createNetwork } from "./traffic-net.js";
 import { createStanding, wardrobe, KINDS as CAR_KINDS, BIKES, FIXED, TAG } from "./traffic-park.js";
 import { creased, coarse, drum, joined } from "./traffic-lod.js";
-import { createCraft, craftAt, padAt, PAD_STANDING } from "./traffic-sky.js";
+import { createCraft, craftAt, padAt, PAD_STANDING, CRAFT } from "./traffic-sky.js";
 
 const createCarModel = (kind) => (BASE_KINDS.includes(kind) ? createBaseCar(kind) : SHOW_KINDS.includes(kind) ? createShowCar(kind) : null);
 const createNearModel = (kind) => (NEAR_BASE.includes(kind) ? createNearBase(kind) : NEAR_SHOW.includes(kind) ? createNearShow(kind) : null);
@@ -1160,18 +1160,34 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // The AVs: gunmetal and tinted glass giving back the lit city under them
   // and the haze over it, most at a glancing angle; their lamps, thrusters
   // and sill strips bright enough for the bloom to find.
+  // Each craft has its own kind, paint and fans' colour (aLivery: paint
+  // and kind; aGlow: fans' colour and its strobe's phase); a drone, which
+  // has neither, keeps the old dark hull and cyan fans.
   const avMat = new THREE.ShaderMaterial({
     uniforms: { ...shared },
     vertexShader: /* glsl */ `
       attribute float aKind;
+      attribute vec4 aLivery;
+      attribute vec4 aGlow;
       varying vec3 vWorld;
       varying vec3 vNormalW;
+      varying vec3 vNormalL;
+      varying vec3 vLocal;
       varying float vKind;
+      varying vec4 vLivery;
+      varying vec4 vGlow;
       void main() {
         vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.0);
         vWorld = w.xyz;
-        vNormalW = normalize(mat3(modelMatrix * instanceMatrix) * normal);
+        // (A craft is stretched along its own axes: its normals by the
+        // inverse of that.)
+        mat3 M = mat3(modelMatrix * instanceMatrix);
+        vNormalW = normalize(M * (normal / vec3(dot(M[0], M[0]), dot(M[1], M[1]), dot(M[2], M[2]))));
+        vNormalL = normal;
+        vLocal = position;
         vKind = aKind;
+        vLivery = aLivery;
+        vGlow = aGlow;
         gl_Position = projectionMatrix * viewMatrix * w;
       }
     `,
@@ -1179,7 +1195,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       ${COMMON}
       varying vec3 vWorld;
       varying vec3 vNormalW;
+      varying vec3 vNormalL;
+      varying vec3 vLocal;
       varying float vKind;
+      varying vec4 vLivery;
+      varying vec4 vGlow;
       void main() {
         vec3 n = normalize(vNormalW);
         vec3 V = normalize(vWorld - uCam);
@@ -1192,16 +1212,44 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vec3 above = uHazeColor * 0.3 * exp(-max(R.y, 0.0) * 4.0) + vec3(0.004, 0.004, 0.008);
         vec3 env = mix(below, above, step(0.0, R.y)) + vec3(1.0, 0.35, 0.75) * band * 0.35;
         int k = int(vKind + 0.5);
+        int kind = int(vLivery.w + 0.5);
+        vec3 nl = normalize(vNormalL);
+        vec3 fans = dot(vGlow.rgb, vec3(1.0)) > 0.01 ? vGlow.rgb : vec3(0.35, 0.85, 1.0);
+        vec3 spill = spillAt(vWorld);
         vec3 col;
         float glow = 1.0;
-        if (k == 0) { col = vec3(0.014, 0.015, 0.019) + env * (0.18 + 0.82 * F); glow = 0.0; }
+        if (k == 0) {
+          // Its paint, lit by the haze over it and the street's light under
+          // it, under the city given back.
+          vec3 paint = max(vLivery.rgb, vec3(0.014, 0.015, 0.019));
+          col = paint * (vec3(0.04) + uHazeColor * 0.45 * max(n.y, 0.0) + uGlowColor * 0.2 + spill * 0.3) + env * (0.14 + 0.82 * F);
+          glow = 0.0;
+          // A liner's flanks: a row of lit windows between thin frames.
+          if (kind == 3 && abs(nl.x) > 0.55 && vLocal.y > 0.6 && vLocal.y < 0.86 && vLocal.z > -1.7 && vLocal.z < 1.0) {
+            float frame = step(0.12, abs(fract(vLocal.z * 2.6) - 0.5) * 2.0);
+            col = mix(col, vec3(1.0, 0.86, 0.62) * 1.6, frame);
+            glow = frame;
+          }
+        }
         else if (k == 1) { col = vec3(0.006, 0.006, 0.008) + env * F * 0.35; glow = 0.0; }
         else if (k == 2) { col = vec3(0.003, 0.005, 0.009) + env * (0.08 + 0.92 * F); glow = 0.0; }
-        else if (k == 3) col = vec3(0.92, 0.95, 1.0) * 7.0;
+        else if (k == 3) col = (kind == 1 ? vec3(1.0, 0.8, 0.5) : kind == 2 ? vec3(1.0, 0.72, 0.32) : vec3(0.92, 0.95, 1.0)) * 7.0;
         else if (k == 4) col = vec3(1.0, 0.1, 0.24) * 5.5;
-        else if (k == 5) col = vec3(0.35, 0.85, 1.0) * 2.6 * (0.85 + 0.15 * sin(uTime * 40.0 + vWorld.x));
-        else col = vec3(1.0, 0.18, 0.53) * 4.0;
-        if (glow < 0.5) col += spillAt(vWorld) * 0.5 * max(-n.y, 0.0);
+        else if (k == 5) col = fans * 2.6 * (0.85 + 0.15 * sin(uTime * 40.0 + vWorld.x));
+        else col = (kind == 0 ? vec3(1.0, 0.18, 0.53) : fans) * 4.0;
+        if (glow < 0.5) {
+          col += spill * 0.5 * max(-n.y, 0.0);
+          // Its belly lit, as a craft's is for the pads it sets down on:
+          // two thin strips of its fans' colour down its length and a
+          // faint wash between them, so that from under a tower a craft
+          // going over is a lit shape and not a black one.
+          float belly = smoothstep(0.35, 0.8, -nl.y) * step(0.5, dot(vGlow.rgb, vec3(1.0)));
+          float aa = fwidth(vLocal.x) + 0.01;
+          float strips = 1.0 - smoothstep(0.035, 0.035 + aa, abs(abs(vLocal.x) - 0.42));
+          strips *= step(-1.9, vLocal.z) * step(vLocal.z, 1.5);
+          col += fans * belly * (0.06 + 1.6 * strips);
+          glow = max(glow, belly * strips);
+        }
         col = cityFog(col, vWorld, glow);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
@@ -1210,6 +1258,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     `,
   });
   avMat.name = "avs";
+  avMat.defaultAttributeValues = { ...avMat.defaultAttributeValues, aLivery: [0, 0, 0, 0], aGlow: [0, 0, 0, 0] };
   // The craft: each lane's own number of them (src/world/traffic-sky.js),
   // spread evenly round it from a seeded draw, so the same second of the
   // clock is the same sky on every load; then the police AV, the one
@@ -1228,7 +1277,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     mesh.layers.enable(reflectLayer);
     mesh.count = 0;
     scene.add(mesh);
-    return { mesh, n: 0 };
+    const livery = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, flying) * 4), 4).setUsage(THREE.DynamicDrawUsage);
+    const glow = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, flying) * 4), 4).setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute("aLivery", livery);
+    geometry.setAttribute("aGlow", glow);
+    return { mesh, n: 0, livery, glow };
   });
   const avMesh = avLevels[0].mesh;
 
@@ -1406,7 +1459,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // Lamps: two per aerial vehicle, four per car with its lamps on, four a
   // hazard car, two a patrol car's bar, three per drone, and the police
   // AV's light bar.
-  const lampCount = flying * 2 + (moving + pathSlots.length + standingLit + hazards) * 4 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0) + 12;
+  const lampCount = flying * 5 + (moving + pathSlots.length + standingLit + hazards) * 4 + patrols * 2 + rounds.length * 3 + (police ? 2 : 0) + 12;
   const quad = new THREE.PlaneGeometry(1, 1);
   const lampGeo = new THREE.InstancedBufferGeometry();
   lampGeo.index = quad.index;
@@ -1988,11 +2041,20 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     ball.center.y = -p.y;
     return view.intersectsSphere(ball);
   };
-  /** One more flying car this frame, at p turned q. */
-  const body = (s) => {
+  /** One more flying car this frame, at p turned q: a lane's craft `c` in
+   *  its own kind's shape, paint and fans, or (none given) a runabout in
+   *  gunmetal, as the police's, the pads' and the drones' are. */
+  const GUNMETAL = [0.05, 0.055, 0.065];
+  const body = (s, c = null) => {
     if (far2 > AV_BODIES_TO * AV_BODIES_TO) return;
-    const L = avLevels[far2 < AV_DETAIL_TO * AV_DETAIL_TO * s * s ? 0 : 1];
-    m.compose(p, q, scale.setScalar(s)).toArray(L.mesh.instanceMatrix.array, L.n++ * 16);
+    const K = CRAFT[c ? c.kind : 0];
+    const reach = s * Math.max(K.scale[0], K.scale[2]);
+    const L = avLevels[far2 < AV_DETAIL_TO * AV_DETAIL_TO * reach * reach ? 0 : 1];
+    const j = L.n++;
+    m.compose(p, q, scale.set(K.scale[0] * s, K.scale[1] * s, K.scale[2] * s)).toArray(L.mesh.instanceMatrix.array, j * 16);
+    const paint = c ? c.paint : GUNMETAL;
+    L.livery.setXYZW(j, paint[0], paint[1], paint[2], c ? c.kind : 0);
+    L.glow.setXYZW(j, K.thrust[0], K.thrust[1], K.thrust[2], c ? (c.k * 0.618) % 1 : 0);
   };
   /** Where a car is at second `at` of the clock, into p and q; and into
    *  `now` how much of it is drawn and whether it is braking. */
@@ -2061,20 +2123,41 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // Banked into its loop and a touch nose-down, as a thing flying does;
       // level along a street.
       q.multiply(tilt.setFromEuler(euler.set(0.05, 0, sky.bank)));
-      body(s);
+      body(s, c);
       // Its lamps grow with distance past 75 m, to five times at 375 m on
       // a desktop's lens, so a craft across the district still reads as
-      // its lights and not as a speck.
+      // its lights and not as a speck; each kind's in its own colour and
+      // size (a hauler's amber and big, a courier's warm and small).
+      const K = CRAFT[c.kind];
+      const [sx, sy, sz] = K.scale;
       const g = s * Math.max(1, Math.min(5, Math.sqrt(far2) / 75) * wide);
-      setLamp(li++, p.x + fwd.x * 2.6 * s, p.y + 0.25 * s, p.z + fwd.z * 2.6 * s, 0.75, 0.9, 1.0, 1.2 * g);
-      setLamp(li++, p.x - fwd.x * 2.6 * s, p.y + 0.4 * s, p.z - fwd.z * 2.6 * s, 1.0, 0.1, 0.25, 0.9 * g);
-      // The streak of its thrusters' light behind it: longer the faster it
-      // flies, and as wide as its lamps are grown.
-      const len = Math.min(30, Math.max(10, L.v * 1.2)) * s;
-      trailFrom.setXYZ(ti, p.x - fwd.x * 2.7 * s, p.y + 0.3 * s, p.z - fwd.z * 2.7 * s);
-      trailBack.setXYZ(ti, -fwd.x * len, 0, -fwd.z * len);
-      trailTone.setXYZW(ti, 0.3, 0.75, 1.0, 0.55 * g);
-      ti++;
+      const nose = 2.6 * sz * s;
+      const [hr, hg, hb] = K.head;
+      setLamp(li++, p.x + fwd.x * nose, p.y + 0.25 * sy * s, p.z + fwd.z * nose, 0.82 * hr, 0.82 * hg, 0.82 * hb, 1.2 * g * K.lamp);
+      setLamp(li++, p.x - fwd.x * nose, p.y + 0.4 * sy * s, p.z - fwd.z * nose, 1.0, 0.1, 0.25, 0.9 * g * K.lamp);
+      // Running lights, as an aircraft has: red on its left, green on its
+      // right, at the hull's widest, and over it a white strobe (a
+      // hauler's amber beacon, slower), each craft on its own beat.
+      if (far2 < 380 * 380) {
+        const gn = s * Math.max(1, Math.min(3, Math.sqrt(far2) / 75) * wide);
+        const wing = 1.7 * sx * s;
+        const y = p.y + 0.45 * sy * s;
+        setLamp(li++, p.x - fwd.z * wing, y, p.z + fwd.x * wing, 0.9, 0.05, 0.06, 0.45 * gn);
+        setLamp(li++, p.x + fwd.z * wing, y, p.z - fwd.x * wing, 0.05, 0.9, 0.3, 0.45 * gn);
+        const beat = (clock + c.k * 0.618) % (c.kind === 2 ? 1 : 1.3);
+        const on = reduced ? 0.3 : c.kind === 2 ? (beat < 0.45 ? 1 : 0) : beat < 0.08 ? 1 : 0;
+        if (on > 0) setLamp(li++, p.x, p.y + 1.15 * sy * s, p.z, on, on * (c.kind === 2 ? 0.55 : 1), on * (c.kind === 2 ? 0.12 : 1), 0.7 * gn);
+      }
+      // The streak of its fans' light behind it: longer the faster it
+      // flies, as wide as its lamps are grown, in its fans' colour; a
+      // hauler leaves none.
+      if (K.streak > 0) {
+        const len = Math.min(30, Math.max(10, c.v * 1.2)) * s * K.streak;
+        trailFrom.setXYZ(ti, p.x - fwd.x * (nose + 0.1), p.y + 0.3 * sy * s, p.z - fwd.z * (nose + 0.1));
+        trailBack.setXYZ(ti, -fwd.x * len, 0, -fwd.z * len);
+        trailTone.setXYZW(ti, K.thrust[0], K.thrust[1], K.thrust[2], 0.55 * g);
+        ti++;
+      }
     }
     // The one on its pad, lamps low.
     p.set(PAD_STANDING[0], PAD_STANDING[1], PAD_STANDING[2]);
@@ -2288,6 +2371,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       L.mesh.instanceMatrix.clearUpdateRanges();
       L.mesh.instanceMatrix.addUpdateRange(0, L.n * 16);
       L.mesh.instanceMatrix.needsUpdate = true;
+      for (const a of [L.livery, L.glow]) {
+        a.clearUpdateRanges();
+        a.addUpdateRange(0, L.n * 4);
+        a.needsUpdate = true;
+      }
     }
     droneMesh.instanceMatrix.needsUpdate = true;
     for (const K of kinds) {
@@ -2346,7 +2434,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     flying() {
       return craft.map((c) => {
         craftAt(c, clock, sky);
-        return { x: sky.x, y: sky.y, z: sky.z };
+        return { x: sky.x, y: sky.y, z: sky.z, kind: CRAFT[c.kind].name, level: c.level };
       });
     },
     /** Free roam (src/braindance/roam/yield.js): the cars themselves, for
