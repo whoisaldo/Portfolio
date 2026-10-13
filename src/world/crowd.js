@@ -65,17 +65,17 @@ const RIMS = ["#27dcf2", "#ff2e88", "#eceae4", "#fcee0a"];
 const PAVE_Y = 0.15;
 
 // What they wear, in the show's street colours (linear): jackets in yellow,
-// red, teal, purple, white, black, olive, orange, navy, pink, grey, tan,
-// blue, lime, burgundy and cream, then a suit's charcoal and midnight and a
+// red, teal, purple, white, black, olive, rust, navy, magenta, grey, brown,
+// blue, moss, burgundy and sand, then a suit's charcoal and midnight and a
 // site vest's two hi-vis colours; trousers darker; what is under the jacket
 // (white, black, grey, pale blue, red, yellow, teal, pink); skin; hair
 // (black, browns, bleached, pink, cyan, red, silver, green, violet); bags
 // and hats; hard hats.
 const JACKETS = [
-  [0.62, 0.48, 0.06], [0.46, 0.05, 0.05], [0.04, 0.3, 0.32], [0.22, 0.09, 0.36], [0.56, 0.56, 0.54], [0.06, 0.062, 0.076],
-  [0.18, 0.21, 0.08], [0.6, 0.24, 0.04], [0.05, 0.08, 0.2], [0.56, 0.14, 0.3], [0.22, 0.22, 0.24], [0.38, 0.3, 0.2],
-  [0.06, 0.22, 0.5], [0.27, 0.42, 0.09], [0.25, 0.03, 0.1], [0.62, 0.55, 0.4],
-  [0.11, 0.113, 0.13], [0.042, 0.056, 0.115], [0.66, 0.74, 0.06], [0.78, 0.27, 0.03],
+  [0.6, 0.46, 0.06], [0.42, 0.045, 0.045], [0.035, 0.24, 0.26], [0.18, 0.07, 0.3], [0.5, 0.5, 0.48], [0.045, 0.047, 0.058],
+  [0.13, 0.15, 0.06], [0.44, 0.17, 0.04], [0.04, 0.065, 0.16], [0.42, 0.08, 0.2], [0.17, 0.17, 0.19], [0.2, 0.12, 0.07],
+  [0.045, 0.14, 0.34], [0.16, 0.24, 0.07], [0.2, 0.025, 0.07], [0.46, 0.41, 0.3],
+  [0.09, 0.092, 0.105], [0.035, 0.046, 0.095], [0.66, 0.74, 0.06], [0.78, 0.27, 0.03],
 ];
 const TROUSERS = [[0.052, 0.053, 0.066], [0.08, 0.1, 0.18], [0.16, 0.14, 0.12], [0.05, 0.12, 0.12], [0.24, 0.05, 0.06], [0.3, 0.3, 0.3], [0.12, 0.12, 0.05], [0.04, 0.041, 0.052]];
 const SHIRTS = [[0.58, 0.58, 0.56], [0.05, 0.05, 0.062], [0.24, 0.24, 0.26], [0.3, 0.42, 0.6], [0.5, 0.07, 0.07], [0.62, 0.5, 0.08], [0.05, 0.32, 0.34], [0.58, 0.2, 0.36]];
@@ -131,8 +131,11 @@ const STYLES = {
   // Japantown, the avenue and everywhere else: street fashion.
   street: {
     garment: [[GARMENTS.jacket, 42], [GARMENTS.coat, 22], [GARMENTS.puffer, 20], [GARMENTS.vest, 16]],
-    jacket: () => Array.from({ length: 16 }, (_, i) => [i, 1]),
-    trousers: [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [7, 1]],
+    // (Black, charcoal, navy, midnight, grey, brown, burgundy and olive are
+    // two in three of them; yellow, red, white, teal, purple, magenta, rust,
+    // blue, moss and sand the rest.)
+    jacket: () => [[5, 15], [16, 10], [8, 8], [17, 6], [10, 6], [11, 6], [14, 6], [6, 5], [0, 4], [1, 4], [4, 3], [2, 3], [3, 3], [9, 2], [7, 2], [12, 2], [13, 1], [15, 2]],
+    trousers: [[0, 20], [1, 16], [2, 9], [3, 5], [4, 3], [5, 7], [6, 6], [7, 14]],
     shirt: [[0, 22], [1, 20], [2, 12], [3, 8], [4, 10], [5, 10], [6, 9], [7, 9]],
     hair: [["short", 20], ["long", 20], ["mohawk", 8], ["bun", 10], ["buzz", 9], ["cap", 12], ["hood", 14], ["capLong", 7]],
     hairColour: [[0, 30], [1, 14], [2, 12], [3, 10], [4, 8], [5, 7], [6, 6], [7, 5], [8, 4], [9, 4]],
@@ -1742,6 +1745,14 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.trim}) { lit = tint * 1.25; glow = 1.0; }
     else if (part == ${PART.phone}) { lit = vec3(0.6, 0.85, 1.0) * 2.2 * aux; glow = 1.0; }
     else if (part == ${PART.ember}) { lit = vec3(1.0, 0.38, 0.08) * (1.6 + 2.4 * drag); glow = 1.0; }
+    // A jacket of leather on some of those in black, brown, burgundy or red
+    // (never a suit), a puffer's nylon: they shine in the wet where cloth
+    // only takes the light.
+    if (part == ${PART.jacket} || part == ${PART.coat} || part == ${PART.lapel} || (part == ${PART.sleeve} && garment < 2.5)) {
+      int j = int(aWear.x + 0.5);
+      bool hide = (j == 5 || j == 11 || j == 14 || j == 1) && bit(aLook.x, ${f(TAG.suit)}) < 0.5 && rnd(seed * 41.3) > 0.4;
+      gloss = garment > 1.5 && garment < 2.5 ? 0.42 : hide ? 0.62 : gloss;
+    }
     // Gloves on some: the hands are dark leather.
     if (part == ${PART.skin} && seg > 3.5 && seg < 4.5 && bit(flags, 9.0) > 0.5) {
       albedo = vec3(0.022, 0.02, 0.024) + carried * 0.05;
