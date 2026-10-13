@@ -22,7 +22,7 @@ import { createMaterialKit, NEON } from "./materials.js";
 import { markBytes } from "./progress.js";
 import { createSigns } from "./signs.js";
 import { createBake } from "./spill.js";
-import { createRoadMaterial } from "./road.js";
+import { createRoadMaterial, MIRROR_UNIFORMS } from "./road.js";
 import { createRoad } from "./road-path.js";
 import { dressHolo, preloadHolo } from "./holo.js";
 import { dressMoon, preloadMoon } from "./moon.js";
@@ -464,11 +464,24 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // them and keep that picture: the twins are shown only to a camera that
   // is driven (a drive, a walk, the braindance), see setOccluders.
   const OCCLUDES = new Set(["trim", "concrete", "castconcrete", "plaster", "corrugated", "container", "tankplate", "dark", "glass_dark", "door", "door_panel", "board_frame"]);
+  // A twin's face lying flat within 0.3 m over the plane the mirror is drawn
+  // in (a bed under wet paving, a slab under a raised road, a kerb's cap)
+  // hides nothing standing behind it, but in the mirror it is a black lid
+  // over everything above it: its corners go just under the plane, where
+  // the mirror's near plane cuts them. Walls are drawn as they stand.
   const occluder = quality.reflection > 0
     ? new THREE.ShaderMaterial({
       name: "occluder",
       side: THREE.DoubleSide,
-      vertexShader: "void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      uniforms: { uMirrorY: MIRROR_UNIFORMS.uMirrorY },
+      vertexShader: /* glsl */ `
+        uniform float uMirrorY;
+        void main() {
+          vec4 w = modelMatrix * vec4(position, 1.0);
+          vec3 n = mat3(modelMatrix) * normal;
+          if (abs(n.y) > 0.9 * length(n) && w.y > uMirrorY - 0.05 && w.y < uMirrorY + 0.3) w.y = uMirrorY - 0.1;
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }`,
       fragmentShader: "void main() { gl_FragColor = vec4(0.004, 0.006, 0.011, 1.0); }",
     })
     : null;
