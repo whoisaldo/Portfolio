@@ -563,7 +563,7 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     const speed = (r.table[j + 1] - r.table[j]) / TICK;
     const later = (r.table[Math.min(r.table.length - 1, j + 2)] - r.table[Math.min(r.table.length - 2, j + 1)]) / TICK;
     const along = wrap(lead + (r.offset ?? 0), r.length);
-    const u = wrap(along - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(along / 4))] - queueBack(r, along, j, car.index), r.length);
+    const u = wrap(along - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(along / 4))] - queueBack(r, along, car.index), r.length);
     const lane = car.index % 2;
     point(r, lane, wrap(u - 1.3, r.length), a);
     point(r, lane, wrap(u + 1.3, r.length), b);
@@ -587,7 +587,7 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     const j = Math.min(r.table.length - 2, Math.floor(time));
     out.v = (r.table[j + 1] - r.table[j]) / TICK;
     out.lead = wrap(r.table[j] + (r.table[j + 1] - r.table[j]) * (time - j) + (r.offset ?? 0), r.length);
-    out.u = wrap(out.lead - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(out.lead / 4))] - queueBack(r, out.lead, j, car.index), r.length);
+    out.u = wrap(out.lead - car.index * r.gap[Math.min(r.gap.length - 1, Math.floor(out.lead / 4))] - queueBack(r, out.lead, car.index), r.length);
     out.lane = car.index % 2;
     return out;
   };
