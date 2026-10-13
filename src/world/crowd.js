@@ -2589,6 +2589,11 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       eye = camera;
       refresh();
     },
+    /** (load) The people's light, if a bake of it is under way, finished now
+     *  (crowd-light.js, finish). */
+    lightNow() {
+      light.finish();
+    },
     /** Free roam: the car people step out of the way of, at (x, z), `side`
      *  metres to either flank from `along` metres off; no arguments, no car. */
     /** The traffic, if it was not handed over when the crowd was made:

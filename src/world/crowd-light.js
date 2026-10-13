@@ -258,7 +258,10 @@ export function createStreetLight(scene, shared) {
   // time; a district's re-bake waits for idle moments as before.)
   let baked = false;
   const soon = (step) => setTimeout(step, 0);
+  // (load: the bake under way, which `finish` can run out at once.)
+  let current = null;
   const run = (steps) => {
+    if (steps !== current) return;
     const t0 = performance.now();
     let done = false;
     while (!over && !done && performance.now() - t0 < 3) done = steps.next().done;
@@ -297,7 +300,20 @@ export function createStreetLight(scene, shared) {
       pending = true;
       api.ms = 0;
       api.work = 0;
-      (baked ? later : soon)(() => run(bake()));
+      const steps = (current = bake());
+      (baked ? later : soon)(() => run(steps));
+    },
+    /** (load) The bake under way, run out now: the city's first frame,
+     *  which waits for the people's light, asks for it once everything
+     *  else that frame needs is ready, where its steps would come a task
+     *  at a time between everyone else's (half a second on a phone). */
+    finish() {
+      if (!pending || !current) return;
+      const t0 = performance.now();
+      while (!over && !current.next().done);
+      api.work += performance.now() - t0;
+      pending = false;
+      baked = true;
     },
     dispose() {
       over = true;
