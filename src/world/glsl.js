@@ -766,6 +766,11 @@ export const WINDOWS = /* glsl */ `
     float pxX = fwidth(uv.x);
     float pxY = fwidth(uv.y);
     float floorLit = clamp(band > 0.5 && sys < 0.5 ? step(0.5 - params.x * 0.35, busy) * 0.92 : params.x * 0.8 * share * (kit ? (busy < 0.14 ? 0.08 : 1.25) : 1.0) * (1.0 - plant), 0.0, 1.0) * enabled * (1.0 - 0.55 * fe);
+    // (Away from the held lenses a floor seen along the street keeps its
+    // runs, lit and dark, four to eight bays each: one even band of the
+    // floor's average light, floor over floor, was a smeared picture of a
+    // tower's face from a car on the avenue.)
+    if (kit && fe > 0.5) floorLit *= min(hold, 1.6) * (0.75 + 0.5 * hash12(vec2(runId, cell.y) + seed + 5.7));
     vec3 floorLight = (band > 0.5 ? bandCol * 0.5 : house * 0.36) * floorLit;
     float row = smoothstep(m0.y - pxY, m0.y + pxY, f.y) * (1.0 - smoothstep(m1.y - pxY, m1.y + pxY, f.y));
     vec3 rowCol = mix(wall, mix(glass, floorLight, min(1.0, floorLit * 1.2)), row * (m1.x - m0.x));
