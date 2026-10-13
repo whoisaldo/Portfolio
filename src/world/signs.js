@@ -625,12 +625,20 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   // turn (st_ps_0, st_ps_1...), a size at a time, and by that turn alone a
   // street showed HOSTEL twice in one look and the same five icons down
   // every lane. So the design is dealt here by where the face hangs: the
-  // builder's turn if nothing of that name (nameOf) hangs within 40 m, else
+  // builder's turn if nothing of that name (nameOf) hangs within REACH, else
   // the next design on that does not, else the one whose namesake is
   // furthest off; and of those, one in the two hues its block keeps to
   // (blockHues). The avenue and its canyon are dealt as every street is
   // (until round 5 they kept the builder's turn for the page's first frame,
   // which left one purple crescent in a ring in nine of a reviewer's views).
+  // (A small panel and a middle one are the same shape, 2.25 and 2.33 to
+  // one: each may take the other's designs, so a street of them is dealt
+  // from 58 and not 32 or 26. A namesake across the street, facing it,
+  // counts as nearer: both are in every look down the street. And a sign
+  // that must share its name with one close by is shown in the block's
+  // other hue.)
+  const REACH = 55;
+  const POOL = { ps: ["ps", "pm"], pm: ["pm", "ps"] };
   const turns = new Map();
   const hung = new Map();
   const dealStreet = (size, n, mesh) => {
@@ -640,45 +648,70 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     const v = new THREE.Vector3();
     for (let i = 0; i < pos.count; i++) c.add(v.fromBufferAttribute(pos, i));
     c.multiplyScalar(1 / pos.count).applyMatrix4(mesh.matrixWorld);
-    const names = STREET_NAMES[size];
-    const hues = STREET_HUES[size];
-    const designs = STREET_DESIGNS[size];
+    const nor = mesh.geometry.attributes.normal;
+    const nw = nor ? new THREE.Vector3().fromBufferAttribute(nor, 0).transformDirection(mesh.matrixWorld) : new THREE.Vector3();
+    c.nx = nw.x;
+    c.nz = nw.z;
     const pair = blockHues(c.x, c.z);
     // Where the walk through the designs starts is the face's own (its
     // turn and its place: the builder's turn alone runs 0 to 27, the
     // pictograms). A square face is a named shop's sign or a pictogram
     // turn about up its column and along its wall, so a stack of them is
     // boards, blades and discs between the tiles.
+    const pool = (POOL[size] ?? [size]).flatMap((z) => STREET_DESIGNS[z].map((_, i) => [z, i]));
     const r = Math.abs(Math.sin(n * 12.9898 + Math.round(c.x) * 78.233 + Math.round(c.z) * 37.719) * 43758.5453);
-    const start = Math.floor((r - Math.floor(r)) * names.length);
+    const start = Math.floor((r - Math.floor(r)) * STREET_NAMES[size].length);
     const named = (Math.round(c.y / 1.3) + Math.round(c.x / 3) + Math.round(c.z / 3)) % 2 === 0;
-    // The first design on from there (of the face's kind) with no namesake
-    // within 40 m; failing that the best of those with none inside 25 m,
-    // then of any kind.
-    const tiers = [{ d: -1, i: start }, { d: -1, i: start }];
-    for (let k = 0; k < names.length; k++) {
-      const i = (start + k) % names.length;
+    const nearOf = (name) => {
       let near = Infinity;
-      for (const h of hung.get(names[i]) ?? []) near = Math.min(near, Math.hypot(h.x - c.x, h.z - c.z));
-      const tier = size === "bx" && !designs[i].icon !== named ? 1 : 0;
-      if (near > tiers[tier].d) tiers[tier] = { d: near, i };
-      if (tier === 0 && near >= 40) break;
+      let at = null;
+      for (const h of hung.get(name) ?? []) {
+        const d = Math.hypot(h.x - c.x, h.z - c.z) * (h.nx * c.nx + h.nz * c.nz < -0.5 ? 0.7 : 1);
+        if (d < near) {
+          near = d;
+          at = h;
+        }
+      }
+      return [near, at];
+    };
+    // The first design on from there (of the face's kind) with no namesake
+    // within REACH; failing that whichever of either kind has its namesake
+    // furthest off.
+    const tiers = [{ d: -1, k: start }, { d: -1, k: start }];
+    for (let j = 0; j < pool.length; j++) {
+      const k = (start + j) % pool.length;
+      const [z, i] = pool[k];
+      const [near] = nearOf(STREET_NAMES[z][i]);
+      const tier = size === "bx" && !STREET_DESIGNS[z][i].icon !== named ? 1 : 0;
+      if (near > tiers[tier].d) tiers[tier] = { d: near, k };
+      if (tier === 0 && near >= REACH) break;
     }
-    const pick = (tiers.find((t) => t.d >= 25) ?? tiers.reduce((a, t) => (t.d > a.d ? t : a))).i;
+    const best = tiers.find((t) => t.d >= REACH) ?? tiers.reduce((a, t) => (t.d > a.d ? t : a));
+    const [pz, pick] = pool[best.k];
+    const name = STREET_NAMES[pz][pick];
     // And it is shown in one of its block's two hues: its own if that is
     // one of them (or it is white), else turned to the nearer of the two.
     // Choosing only among the designs of those hues left a third of each
     // size to deal, and the avenue hangs up to 72 of one size inside 40 m.
-    const [family, angle] = hues[pick];
+    const [family, angle] = STREET_HUES[pz][pick];
     let turn = 0;
+    let shown = family;
     if (pair && family >= 0 && !pair.includes(family)) {
       const da = ((HUE_AT[pair[0]] - angle + 540) % 360) - 180;
       const db = ((HUE_AT[pair[1]] - angle + 540) % 360) - 180;
       turn = (Math.abs(da) < Math.abs(db) ? da : db) / 360;
+      shown = Math.abs(da) < Math.abs(db) ? pair[0] : pair[1];
     }
-    if (!hung.has(names[pick])) hung.set(names[pick], []);
-    hung.get(names[pick]).push(c);
-    return [pick, turn];
+    const [near, twin] = nearOf(name);
+    if (near < 40 && twin && family >= 0 && twin.shown === shown) {
+      const other = pair ? (pair[0] === shown ? pair[1] : pair[0]) : (shown + 2) % 6;
+      turn = (((HUE_AT[other] - angle + 540) % 360) - 180) / 360;
+      shown = other;
+    }
+    c.shown = shown;
+    if (!hung.has(name)) hung.set(name, []);
+    hung.get(name).push(c);
+    return [pz, pick, turn];
   };
   const specOf = (mesh) => {
     const id = mesh.name.replace(/^sign_/, "");
@@ -686,8 +719,8 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     const street = base.match(/^st_([a-z]{2})_(\d+)$/);
     if (!street || !STREET_NAMES[street[1]]) return signSpec(id);
     if (!turns.has(base)) turns.set(base, dealStreet(street[1], Number(street[2]), mesh));
-    const [pick, turn] = turns.get(base);
-    return { ...signSpec(id, pick), turn };
+    const [pz, pick, turn] = turns.get(base);
+    return { ...signSpec(`st_${pz}_${street[2]}`, pick), turn };
   };
   for (const mesh of meshes) {
     const id = mesh.name.replace(/^sign_/, "");
