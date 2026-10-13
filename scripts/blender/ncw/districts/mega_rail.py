@@ -96,7 +96,7 @@ def gantry(x, hue="red"):
     box(k, x - 0.05, x + 0.05, WIRE + 0.2, WIRE + 0.28, RAIL_Z - 1.1, RAIL_Z + 0.05, scale=0.5)
 
 
-GANTRIES = (-88.0, -76.0, -62.0, -48.0, -30.0, -13.6, 13.6, 30.0, 48.0, 62.0, 76.0, 88.0)
+GANTRIES = (-88.0, -76.0, -62.0, -48.0, -30.0, -13.6, 13.6, 30.0, 48.0, 62.0, 76.0, 84.0)
 for gx in GANTRIES:
     gantry(gx, None if abs(gx) < 14.0 else "green" if abs(gx) == 62.0 else "red")
 for xa, xb in zip(GANTRIES, GANTRIES[1:]):
@@ -157,8 +157,15 @@ _x, _k = -15.6, 0
 while _x < 15.6:
     box(KF, _x, min(_x + 0.6, 15.6), UNDER + 0.22, UNDER + 0.52, FZ, FZ + 0.012, scale=1.0, col=dim(YEL, 0.42) if _k % 2 else BLACK)
     _x, _k = _x + 0.6, _k + 1
-strokes(KF, "NCART", -7.6, (UNDER + TOP) / 2 + 0.05, FZ + 0.015, 0.95, 0.0, (0.3, 0.3, 0.3, 1.0), weight=0.15)
-strokes(KF, "H4 >", 8.4, (UNDER + TOP) / 2 + 0.05, FZ + 0.015, 0.95, 0.0, dim(YEL, 0.5), weight=0.15)
+# The line's name and the way to the block in channel letters lit from
+# within, on stand-offs 0.8 m off the facing (clear of the stiffeners by
+# more than the depth buffer needs at the hero's 620 m), a carrier rail
+# over each word.
+LY, LH, LZ = (UNDER + TOP) / 2 + 0.1, 1.45, FZ + 0.8
+for (word, cx, col) in (("NCART", -7.4, dim(GLOW["yellow"], 0.42)), ("H4 >", 8.0, dim(GLOW["amber"], 0.42))):
+    strokes((FA, "glow", 0), word, cx, LY, LZ, LH, 0.0, col, weight=0.16, gap=0.3, out=0.0)
+    ww = len(word) * 4 * LH / 6 + (len(word) - 1) * 0.3 * LH
+    box(KF, cx - ww / 2 - 0.2, cx + ww / 2 + 0.2, LY + LH / 2 + 0.25, LY + LH / 2 + 0.33, FZ + 0.26, LZ - 0.05, scale=1.0, col=STEEL)
 for x in (-12.5, -10.0, -5.0, 0.0, 5.0, 10.0, 12.5):
     for z, hue in ((RAIL_Z + 2.0, "white"), (RAIL_Z - 2.2, "green")):
         box((D, "glow", 0), x - 0.7, x + 0.7, UNDER - 0.14, UNDER - 0.08, z - 0.05, z + 0.05, scale=0.5, col=dim(GLOW[hue], 0.85), bottom=True)

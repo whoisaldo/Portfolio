@@ -260,7 +260,21 @@ for f in (face("+z", HZ1, HX0, HX1), face("-z", HZ0, HX0, HX1), face("-x", HX0, 
     for i in range(nb):
         rr = random.Random(int(f.plane * 7) + i * 31)
         a, b = f.width * i / nb, f.width * (i + 1) / nb
-        f.quad((D, "glow", 0), a, b, PLAT + 0.7, HTOP - 1.5, 0.05, col=dim(rr.choice((PANE, PANE, (1.0, 0.8, 0.55, 1.0), (0.8, 0.6, 1.0, 1.0))), rr.uniform(0.025, 0.09)))
+        # In lights of 1.1 by 1.4 m, each its own: clear onto the lit hall,
+        # frosted, dirty, one dark where it was boarded, the odd one warm;
+        # a glazing bar between each.
+        hue = rr.choice((PANE, PANE, (1.0, 0.8, 0.55, 1.0), (0.8, 0.6, 1.0, 1.0)))
+        nu, nv = max(1, round((b - a) / 1.1)), max(1, round((HTOP - 1.5 - PLAT - 0.7) / 1.4))
+        for u in range(nu):
+            for v in range(nv):
+                ua, ub = a + (b - a) * u / nu + 0.04, a + (b - a) * (u + 1) / nu - 0.04
+                va, vb = PLAT + 0.7 + (HTOP - 2.2 - PLAT) * v / nv + 0.04, PLAT + 0.7 + (HTOP - 2.2 - PLAT) * (v + 1) / nv - 0.04
+                t = rr.random()
+                if t < 0.06:
+                    f.quad((D, "trim", 0), ua, ub, va, vb, 0.05, col=dim(CREAM, 0.5))
+                else:
+                    k = rr.uniform(0.02, 0.05) if t < 0.5 else rr.uniform(0.06, 0.14) if t < 0.9 else rr.uniform(0.18, 0.3)
+                    f.quad((D, "glow", 0), ua, ub, va, vb, 0.05, col=dim(hue if t < 0.95 else (1.0, 0.75, 0.45, 1.0), k))
         if rr.random() < 0.3:
             f.quad((D, "billboard", 0), a + 0.6, b - 0.6, PLAT + 3.4, PLAT + 5.2, 0.055, uvs=((0, 0), (1, 0), (1, 1), (0, 1)), col=(rr.randrange(8) / 8.0 + 0.01, rr.randrange(8) / 8.0 + 0.01, rr.random(), 1.0))
     f.quad((D, "glow", 0), 0.0, f.width, PLAT + 0.7, PLAT + 2.6, 0.06, col=dim(PANE, 0.13))
