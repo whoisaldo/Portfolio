@@ -500,14 +500,25 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
   // a vent, that car and every one behind it wait a little further back
   // (`backs`: for each such line, how much further back each car stands):
   // the room opens over the last QUEUE metres of the way in and closes over
-  // the first QUEUE of the way out, and only where the platoon stops there
-  // (a platoon going through on the green keeps its spacing). With a back
-  // of at most 6 m eased over 12 no car comes nearer the one ahead than
-  // its gap.
+  // the first QUEUE of the way out, and only at a line the platoon stops at
+  // in its lap (a platoon going through on the green keeps its spacing).
+  // How far back a car stands is a smooth function of where its own place
+  // in the timetable has the first car, so the car ahead, a moment further
+  // on in that place, is never eased back more than the ground it has made
+  // up: with a back of at most 8 m eased over 12 (the ease's steepest is
+  // 1.5 / 12) no car comes nearer the one ahead than its gap. (It was
+  // switched on and off by whether the first car had stopped in the six
+  // seconds round each car's own moment, so of two cars a moment apart the
+  // one ahead could be put back its whole back onto the one behind: two
+  // bodies in one, the length of a queue south of the hero's junction.)
   const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+  const stands = (r, u) => {
+    for (let j = 1; j < r.table.length; j++) if (r.table[j] - r.table[j - 1] < 0.01 && Math.abs(wrap(r.table[j] + (r.offset ?? 0) - u + 1, r.length) - 1) < 1) return true;
+    return false;
+  };
   for (const r of routes) {
     r.backs = [];
-    for (const s of keep.length ? r.stops : []) {
+    for (const s of keep.length ? r.stops.filter((s) => stands(r, s.u)) : []) {
       const g = r.gap[Math.min(r.gap.length - 1, Math.floor(wrap(s.u, r.length) / 4))];
       const back = new Float32Array(perPlatoon);
       let extra = 0;
@@ -532,14 +543,11 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
   }
   const QUEUE = 12;
   /** How much further back than its place in the queue a car stands, its
-   *  platoon's first car `along` the route at step `j` of its table. */
-  const queueBack = (r, along, j, index) => {
+   *  platoon's first car `along` the route. */
+  const queueBack = (r, along, index) => {
     for (const q of r.backs) {
       const d = wrap(along - q.u + QUEUE, r.length) - QUEUE;
       if (Math.abs(d) >= QUEUE) continue;
-      // (Stopped there: in the six seconds round this one the first car
-      // goes less than twice QUEUE.)
-      if (r.table[Math.min(r.table.length - 1, j + 12)] - r.table[Math.max(0, j - 12)] >= 2 * QUEUE) return 0;
       return q.back[Math.min(index, q.back.length - 1)] * (1 - smooth(Math.abs(d) / QUEUE));
     }
     return 0;
