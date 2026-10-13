@@ -221,7 +221,7 @@ def bridge(D, a, b, y, rng, w=3.2, h=3.4, hue="cyan", sign=True):
     box((D, "trim", 0), x0, x1, y, y + 0.45, z0, z1, scale=1.0, col=frame)
     box((D, "trim", 0), x0, x1, y + h - 0.4, y + h, z0, z1, scale=1.0, col=frame)
     L = (x1 - x0) if along_x else (z1 - z0)
-    room = tuple(v * rng.uniform(0.3, 0.45) for v in rng.choice(((1.0, 0.7, 0.45), (0.7, 0.85, 1.0), (0.9, 0.95, 1.0)))) + (1,)
+    room = tuple(v * rng.uniform(0.12, 0.18) for v in rng.choice(((1.0, 0.62, 0.35), (0.55, 0.75, 1.0), (1.0, 0.5, 0.75)))) + (1,)
     for side in (0, 1):
         if along_x:
             z = z0 - 0.01 if side == 0 else z1 + 0.01
@@ -230,11 +230,12 @@ def bridge(D, a, b, y, rng, w=3.2, h=3.4, hue="cyan", sign=True):
             x = x0 - 0.01 if side == 0 else x1 + 0.01
             f = B.Face("-x" if side == 0 else "+x", x, z0, z1)
         f.quad((D, "glow", 0), 0.0, L, y + 0.45, y + h - 0.4, 0.0, col=room)
-        # Mullions every 1.6 m, a rail inside, the neon under its edge.
+        # Mullions every 1.2 m, a transom, the neon under its edge.
         s = 0.0
         while s <= L:
-            f.box((D, "trim", 1), s - 0.06, s + 0.06, y + 0.45, y + h - 0.4, 0.0, 0.06, col=frame)
-            s += 1.6
+            f.box((D, "trim", 0), s - 0.08, s + 0.08, y + 0.45, y + h - 0.4, 0.0, 0.07, col=frame)
+            s += 1.2
+        f.box((D, "trim", 0), 0.0, L, y + h - 1.15, y + h - 1.05, 0.0, 0.07, col=frame)
         f.box((D, "neon_" + hue, 0), 0.0, L, y + 0.02, y + 0.12, 0.0, 0.08)
         if sign and L > 8.0:
             K.board(D, f, L / 2 + rng.uniform(-L * 0.2, L * 0.2), y + h + 0.9, rng.choice(("pm", "ps")), out=0.1, scale=1.4)

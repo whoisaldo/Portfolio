@@ -57,6 +57,7 @@ def panels(D, x0, x1, z0, z1, top):
 
 
 QUEUE = []      # roofs the generator built for the south pack, dressed here instead
+EXTRA = []      # what else stands on those roofs (x0, x1, z0, z1): letters
 PENT = dict(windows=(0, 1, 3, 6), lit=(0.45, 0.9), warmth=(0.3, 1.0), tints=("charcoal", "navy", "teal", "plum", "brown"))
 
 
@@ -82,7 +83,7 @@ def dress_queue(D, seed=6400):
         # (All of them behind the hero's lenses: kit.hero_sees, which looks
         # every way, is not asked.)
         dress(D, x0, x1, z0, z1, top, random.Random(rng.randrange(1 << 30)), tint=tint, lane_yaw=face, parapet=parapet,
-              check=False, style=PENT, deep=cap >= 4.5)
+              check=False, style=PENT, deep=cap >= 4.5, taken=[t for t in EXTRA if t[0] < x1 and t[1] > x0 and t[2] < z1 and t[3] > z0])
 
 
 def inland(x, z):

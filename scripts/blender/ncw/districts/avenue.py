@@ -8,6 +8,7 @@ from ncw.districts import avenue_roofs as RF
 from ncw.districts import avenue_street as ST
 from ncw.districts import avenue_upper as UP
 from ncw.districts import avenue_mass as M
+from ncw.districts import avenue_signs as SG
 
 # The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
 # is streets.py's, from the plan.
@@ -270,6 +271,10 @@ with K.own_names():
     M.bridge(AVS, (WALK + DEPTH, 82.0), (58.0, 82.0), M.storeys(9), _brng, w=3.0, hue="cyan")
     M.bridge(AVS, (76.0, 42.0), (76.0, 55.0), M.storeys(10), _brng, w=3.2, hue="amber")
     M.bridge(AVS, (-WALK - DEPTH, 51.0), (-51.0, 51.0), M.storeys(8), _brng, w=2.8, hue="green", sign=False)
+    # Letters on the arm's two tallest roofs, turned to the arm (the roof's
+    # plant keeps off them, RF.EXTRA).
+    for (s_, j_, word, yaw, h_, hue) in ((-1, 2, "SUSHI", math.pi / 2, 2.6, "pink"), (1, 5, "CLUB", -math.pi / 2, 2.4, "cyan")):
+        RF.EXTRA.append(M._word_spot(AVS, word, ARM_TIERS[s_][j_][-1], yaw, h_, hue, _brng))
 B.st_name = ST.NAME[0] = _st_name
 B.roof_dress = _roof_dress
 with K.names_from(78200):
@@ -572,6 +577,24 @@ for sx in (-1, 1):
 # trays, bills, boards, lamps, clear of the deck's band.
 UP.far_wall(AVS, B.Face("+x", -WALK - DEPTH - 6.0, -166.0, -12.0), -166.0, -12.0, random.Random(7510), skip=(DECK_BAND,), used=NORTH_LANES["w"].used)
 UP.far_wall(AVS, B.Face("-x", WALK + DEPTH + 8.0, -166.0, -12.0), -166.0, -12.0, random.Random(7511), skip=(DECK_BAND,), used=NORTH_LANES["e"].used)
+# The big kinds of sign the show hangs besides blades and boxes
+# (avenue_signs): multi-storey verticals flat on the arm's and the south
+# row's upper floors, drums of adverts round the arm's corners at the yard,
+# screens swung out over the arm's pavements.
+with K.own_names():
+    _bs = random.Random(7580)
+    for sx in (-1, 1):
+        f_arm = B.Face("-x" if sx > 0 else "+x", sx * WALK, 12.0, 88.0)
+        SG.big_verticals(AVS, f_arm, [(za, za + d, ARM_TIERS[sx][j][0][5]) for j, (za, d) in enumerate(ARM)], _bs, clear=((12.0, 33.0),))
+        f_row = B.Face("-z", 12.0, sx * WALK, sx * 108.0 if sx > 0 else -66.0)
+        spans = [(a, b, SOUTH_TIERS[sx][j][0][5]) for j, (a, b, h) in enumerate(SOUTH_ROW[sx])] + [(sx * WALK, sx * (WALK + DEPTH), ARM_TIERS[sx][0][0][5])]
+        SG.big_verticals(AVS, f_row, spans, _bs, rate=0.6)
+        if ARM_TIERS[sx][5][0][5] > 17.0:
+            SG.corner_drum(AVS, sx * (WALK - 1.3), 89.3, min(10.5, ARM_TIERS[sx][5][0][5] - 6.0), _bs, (sx * WALK, 88.0))
+        # (Each faces up the arm and across it, its back end a hand off
+        # the wall.)
+        for z_ in (50.5, 74.0):
+            SG.swung_screen(AVS, sx * (WALK - 2.75), z_, 8.5, 5.6, 3.4, math.pi + sx * 0.55, _bs, (sx * WALK, z_ + 0.8))
 # The show's street paint and furniture on the arm and the south street, and
 # people on their pavements (avenue_street.markings).
 K.use_names(random.Random(77230))
