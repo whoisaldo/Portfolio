@@ -382,7 +382,9 @@ export const WINDOWS = /* glsl */ `
 
   // sys 1 is a districts' or a megablock's own tower (the kit's facade
   // material); the far city calls windowsT, which is sys 0 and as it was.
-  vec4 windowsS(vec2 uv, vec3 params, vec3 world, float enabled, float tint, float sys) {
+  // strips 1 (the kit's facades only, windowsK) lights a free eye's tower
+  // in strips: see below. The far city's windowsS calls keep strips 0.
+  vec4 windowsK(vec2 uv, vec3 params, vec3 world, float enabled, float tint, float sys, float strips) {
     // A tower has one window scale: its builder's cells run from 0.7 to
     // 4 m wide and 1.7 or 3.4 m tall, so a block of half cells stood on one
     // of whole ones, two buildings glued together. Cells are taken in whole
@@ -438,6 +440,8 @@ export const WINDOWS = /* glsl */ `
     // page lenses: freeEye, COMMON, and the rooftop's and the contact
     // section's lenses, whose frames are those towers' lit windows.)
     float fe = sys * freeEye() * (1.0 - pageLens());
+    // (Strips: the kit's own towers, for the same eyes.)
+    float sk = step(0.5, fe * strips);
     float zIdx = 0.0;
     // (The Megabuilding's blocks are flats, not offices: a dwelling face
     // where the plan's district is the Megabuilding, not a blue curtain
@@ -469,6 +473,35 @@ export const WINDOWS = /* glsl */ `
         lights = max(1.0, lights + floor(zone * 3.0) - 1.0);
       }
     }
+    // (Strips, away from the held lenses: as the show paints the canyon's
+    // towers, rows of lit window strips all the way up, a run of five to
+    // fourteen bays lit nearly through in one long band of glass and the
+    // wall dark between strips. How many of a tower's runs are strips is
+    // its own (two in five to three in four, more on a busier tower), a
+    // floor is dark right across (one in seven), sparse, or lit from end
+    // to end by how busy it is, and a dark run keeps one room in
+    // twenty-five. Lit room by room
+    // at one in five, a tower was a dark face with a window here and
+    // there.)
+    float stripOn = 0.0;
+    if (sk > 0.5 && tint >= 0.0) {
+      vec2 sd = params.yz * 17.0 + bid;
+      float sb = hash12(vec2(cell.y * 1.37, 2.1) + sd);
+      float zw = 5.0 + floor(hash12(vec2(cell.y, 6.1) + sd) * 10.0);
+      float zn = floor((cell.x + hash12(vec2(cell.y, 7.3) + sd) * zw) / zw);
+      float stripK = mix(0.42, 0.72, hash12(sd + 7.7)) * (0.75 + 0.5 * clamp(params.x, 0.0, 1.0));
+      float floorK = smoothstep(0.12, 0.16, sb) * (0.45 + 1.1 * sb);
+      float sx = cell.x + floor(hash12(vec2(cell.y, 2.3) + sd) * 5.0);
+      float sblock = step(0.9, hash12(vec2(floor(sx / 12.0), floor(cell.y / 3.0)) + sd + 8.8));
+      stripOn = max(step(hash12(vec2(zn, cell.y * 1.7) + sd + 3.3), stripK * floorK), sblock);
+      if (stripOn > 0.5 && band < 0.5) {
+        m0.x = 0.05;
+        m1.x = 0.95;
+        lights = max(lights, 3.0);
+        m0.y = min(m0.y, 0.3);
+        m1.y = max(m1.y, 0.76);
+      }
+    }
     vec2 size = (m1 - m0) * vec2(3.2, 3.4);
     vec2 q = (f - m0) / (m1 - m0);
     float opening = step(0.0, q.x) * step(q.x, 1.0) * step(0.0, q.y) * step(q.y, 1.0);
@@ -498,8 +531,12 @@ export const WINDOWS = /* glsl */ `
     float blank = 0.0;
     float plant = 0.0;
     float runId = 0.0;
+    float fill = 0.0;
+    vec3 runCol = vec3(0.0);
     if (kit) {
       float zoneW = 4.0 + floor(hash12(vec2(cell.y, 6.1) + seed) * 5.0);
+      // (A strip is a run of five to fourteen bays: see stripOn.)
+      if (sk > 0.5) zoneW = 5.0 + floor(hash12(vec2(cell.y, 6.1) + seed) * 10.0);
       float zone = floor((cell.x + hash12(vec2(cell.y, 7.3) + seed) * zoneW) / zoneW);
       runId = zone;
       hold = hash12(vec2(zone, cell.y * 1.7) + seed + 3.3) > 0.5 ? 1.75 : 0.25;
@@ -518,6 +555,12 @@ export const WINDOWS = /* glsl */ `
       // take a quarter of the windows, and the face is to give the street
       // as much light as it did.)
       lit = step(hash12(room + seed + 0.5), params.x * 0.8 * share * min(hold, mix(3.0, 1.4, fe)) * mix(1.5, 0.45, fe)) * enabled;
+      // (Bay by bay along a strip, not room by room: a dark room of three
+      // bays broke a strip in two.)
+      if (sk > 0.5) {
+        fill = mix(0.04, 0.9, stripOn);
+        lit = step(hash12(cell * 1.13 + seed + 0.5), fill) * enabled;
+      }
       if (band < 0.5) {
         float coreEvery = 6.0 + floor(hash12(seed + 3.3) * 4.0);
         float plantEvery = 5.0 + floor(hash12(seed + 1.1) * 3.0);
@@ -556,9 +599,12 @@ export const WINDOWS = /* glsl */ `
       // (On a districts' tower the other light is a tenant's run here and
       // there, not a pair of floors in five: those were the same yellow
       // and cyan bands on every tower.)
-      bool other = (sys > 0.5 ? hash12(vec2(runId, cell.y) + seed + 4.2) > 0.86 : hash12(vec2(floor(cell.y / 2.0), 4.2) + seed) > 0.8) || block > 0.5;
+      // (A tower lit in strips mixes its two lights by its own share, a
+      // strip in seven to a strip in two the other colour.)
+      bool other = (sys > 0.5 ? hash12(vec2(runId, cell.y) + seed + 4.2) > mix(0.86, mix(0.86, 0.5, hash12(seed + 9.9)), sk) : hash12(vec2(floor(cell.y / 2.0), 4.2) + seed) > 0.8) || block > 0.5;
       house = warmHouse ? yellow : cyan;
-      wc = (warmHouse != other ? yellow : cyan) * (0.85 + 0.3 * hash12(room + 1.9));
+      runCol = warmHouse != other ? yellow : cyan;
+      wc = runCol * (0.85 + 0.3 * hash12(room + 1.9));
       // (A pink room or a television is a home's, not an office floor's.)
       float homes = 1.0 - sys * office;
       if (kind > 1.0 - 0.01 * homes) wc = vec3(1.0, 0.22, 0.6);
@@ -789,15 +835,24 @@ export const WINDOWS = /* glsl */ `
     // floor's average light, floor over floor, was a smeared picture of a
     // tower's face from a car on the avenue.)
     if (kit && fe > 0.5) floorLit *= min(hold, 1.6) * (0.75 + 0.5 * hash12(vec2(runId, cell.y) + seed + 5.7));
-    vec3 floorLight = (band > 0.5 ? bandCol * 0.5 : house * 0.36) * floorLit;
+    // (A strip seen along the street is its run's light, in its colour.)
+    if (sk > 0.5) floorLit = fill * (1.0 - plant) * enabled * (0.85 + 0.3 * hash12(vec2(runId, cell.y) + seed + 5.7));
+    vec3 floorLight = (band > 0.5 && sk < 0.5 ? bandCol * 0.5 : mix(house, runCol, sk) * 0.36) * floorLit;
     float row = smoothstep(m0.y - pxY, m0.y + pxY, f.y) * (1.0 - smoothstep(m1.y - pxY, m1.y + pxY, f.y));
     vec3 rowCol = mix(wall, mix(glass, floorLight, min(1.0, floorLit * 1.2)), row * (m1.x - m0.x));
     vec3 avg = mix(wall, mix(glass, house * 0.33, params.x * 0.8 * enabled * (1.0 - 0.55 * fe)), paneArea);
+    // (And from far off a strip is still its run's light: the strips read
+    // as strips from across the city, not as an even grey.)
+    if (sk > 0.5) avg = mix(wall, mix(glass, runCol * 0.33, fill * (1.0 - plant) * enabled), paneArea * (1.0 - blank));
     float farX = smoothstep(0.35, 0.9, pxX);
     float farY = smoothstep(0.35, 0.9, pxY);
     vec3 col = mix(mix(detail, rowCol, farX), avg, farY);
-    float glow = mix(mix(pane * lit * (1.0 - bar), row * (m1.x - m0.x) * floorLit, farX), params.x * 0.8 * paneArea, farY);
+    float glow = mix(mix(pane * lit * (1.0 - bar), row * (m1.x - m0.x) * floorLit, farX), mix(params.x * 0.8, fill * (1.0 - plant), sk) * paneArea, farY);
     return vec4(col, glow);
+  }
+
+  vec4 windowsS(vec2 uv, vec3 params, vec3 world, float enabled, float tint, float sys) {
+    return windowsK(uv, params, world, enabled, tint, sys, 0.0);
   }
 
   vec4 windowsT(vec2 uv, vec3 params, vec3 world, float enabled, float tint) {

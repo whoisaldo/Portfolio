@@ -643,7 +643,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // floors with stair bays and plant floors, not room by room at
           // one rate, which from the air was one random-lit window texture
           // tiled over every tower.)
-          vec4 w = windowsS(vUv, vColor.rgb, vWorld, uWindows, vColor.a > 0.999 ? ${key === "facade_end" ? "0.0" : "-1.0"} : vColor.a, vColor.a > 0.999 && ${key === "facade_end" ? "false" : "true"} ? 0.0 : 1.0);
+          vec4 w = windowsK(vUv, vColor.rgb, vWorld, uWindows, vColor.a > 0.999 ? ${key === "facade_end" ? "0.0" : "-1.0"} : vColor.a, vColor.a > 0.999 && ${key === "facade_end" ? "false" : "true"} ? 0.0 : 1.0, 1.0);
           // Fog at uFogK of its density: the same curve from a point that
           // far nearer the lens along the same line.
           vec3 p = uCam + (vWorld - uCam) * uFogK;
