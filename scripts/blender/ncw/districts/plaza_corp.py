@@ -67,13 +67,17 @@ fn.box((PL, "trim", 0), 0.0, fn.width, BH - 0.1, COPE, 0.0, 0.2, col=B.TRIM[0], 
 fin_row(fn, 0.6, 29.4, 32.4, COPE, rk, step=(3.0, 4.2), out=0.45)
 fin_row(fn, 30.6, fn.width - 0.6, 17.4, COPE, rk, step=(3.0, 4.2), out=0.45, lit="white", every=4, k=0.2)
 # Houses' names on the band: over the shops to the square, and to the road.
-wordmark("kiroshi_b", 56.6, 6.5, BZ1 + 0.32, 4.0, 2.7, 0.0)
-wordmark("nicola_b", 100.4, 6.5, BZ1 + 0.32, 4.4, 2.5, 0.0)
-for x, size, k in ((66.5, "pm", 1.7), (91.0, "pm", 1.7)):
-    big_sign(size, k, x, 6.5, BZ1 + 0.34, 0.0, double=False)
+# (Each its own size and way of hanging: four labels of one size in a row
+# along the band read as one strip.)
+wordmark("kiroshi_b", 56.6, 6.45, BZ1 + 0.32, 5.6, 2.9, 0.0)
+wordmark("nicola_b", 100.6, 6.45, BZ1 + 0.32, 5.2, 2.8, 0.0)
+big_sign("bl", 1.0, 66.5, 7.6, BZ1 + 0.95, math.pi / 2)
+for y in (5.4, 9.8):
+    box((PL, "metal", 1), 66.45, 66.55, y, y + 0.1, BZ1, BZ1 + 0.4, scale=0.5)
+big_sign("pm", 2.2, 92.2, 6.45, BZ1 + 0.34, 0.0, double=False)
 wordmark("arasaka_b", BX1 + 0.32, 6.5, -274.0, 8.4, 1.8, math.pi / 2)
-for x in (56.6, 66.5, 91.0, 100.4):
-    light(PL, x, 6.0, BZ1 + 1.2, "white", 2.0)
+for x in (56.6, 66.5, 92.2, 100.6):
+    light(PL, x, 6.0, BZ1 + 1.2, "white", 2.4)
 
 # The way in, between the board's legs: a plinth of stone, four glass doors
 # in a steel frame under a lit header, a canopy hung from the face on tie
