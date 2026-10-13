@@ -237,6 +237,21 @@ sitters(89.2, -724.8, ARM_TOP, _ra, False)
 kit("roof_mast", 78.4, -724.6, ARM_TOP, 0.4, False, 0.8, 0.8, 8.2, sy=1.2)
 kit("roof_vent", 79.6, -719.6, ARM_TOP, 0.0, False, 0.7, 0.7, 1.0)
 kit("roof_vent", 81.0, -726.4, ARM_TOP, 1.0, False, 0.7, 0.7, 1.0)
+# Bulbs strung between them on poles, and their light on the roof.
+for (a, b, hue) in (((78.6, ARM_TOP + 2.7, -727.0), (90.4, ARM_TOP + 2.7, -727.4), "amber"), ((79.0, ARM_TOP + 2.8, -713.2), (92.0, ARM_TOP + 2.6, -717.0), "white"),
+                    ((90.6, ARM_TOP + 2.7, -712.0), (97.0, ARM_TOP + 2.7, -722.6), "pink")):
+    cable(a, b, 0.45, steps=6, r=0.012)
+    n = int(math.dist(a, b) / 0.9)
+    for i in range(1, n):
+        t = i / n
+        px, pz = a[0] + (b[0] - a[0]) * t, a[2] + (b[2] - a[2]) * t
+        py = a[1] + (b[1] - a[1]) * t - 0.45 * math.sin(math.pi * t) - 0.1
+        box((D, "glow", 1), px - 0.07, px + 0.07, py - 0.07, py + 0.07, pz - 0.07, pz + 0.07, scale=0.5, col=dim(GLOW[hue], 0.9), bottom=True)
+    for q in (a, b):
+        box((D, "metal", 1), q[0] - 0.04, q[0] + 0.04, ARM_TOP, q[1], q[2] - 0.04, q[2] + 0.04, scale=0.5)
+for (x, z, hue, pw) in ((80.0, -716.0, "amber", 4.6), (88.0, -712.0, "white", 4.2), (78.0, -728.0, "pink", 4.2), (92.0, -726.0, "amber", 4.4),
+                        (74.0, -706.0, "white", 4.0)):
+    light(D, x, ARM_TOP + 2.6, z, hue, pw)
 RB = (72.0, -719.0, -math.pi / 2 + 0.22)
 rx, rz = math.cos(RB[2]), -math.sin(RB[2])
 bnx, bnz = math.sin(RB[2]), math.cos(RB[2])
