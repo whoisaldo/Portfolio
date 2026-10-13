@@ -937,7 +937,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         if (k == 6 && flank > 0.5 && wr < 0.7) k = 7;
         #endif
         if (k == 0) {
-          vec3 body = vBody * (1.5 - 0.7 * vBody) + vec3(0.012);
+          // (A black car's paint is not a hole: its floor is lifted enough
+          // for its shape to read under a street lamp.)
+          vec3 body = vBody * (1.5 - 0.7 * vBody) + vec3(0.026);
           // The patrol car: black, the doors white between the sills and
           // the waist, a band of blue along them. A livery of its own: no
           // force's name on it, no crest.
@@ -989,18 +991,23 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           float dirt = clamp(max(spray, runs) * flank + max(-nl.y, 0.0) * 0.6, 0.0, 1.0) * (0.35 + 0.65 * seedB);
           body = mix(body, vec3(0.045, 0.04, 0.036), dirt * 0.6);
           vec3 light = vec3(0.06) + side * (0.55 + 0.35 * sky) + spill * 0.3 + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.5 + uGlowColor * 0.3) * (0.25 + 0.75 * sky) * uHaze;
+          // Where the street throws no light a car is still lit by the
+          // cloud's glow over the city and still shines, so it reads as a
+          // body and not as three grey wheels in the dark.
+          float unlit = 1.0 - smoothstep(0.05, 0.35, dot(side + spill, vec3(0.333)));
+          light += (uHazeColor * 0.6 + uGlowColor * 0.25 + vec3(0.03)) * unlit;
           col = body * light * ao * turn;
           // Wet paint: what it gives back, the sky's glow and the signs' on
           // everything that faces up, the signs' own colour in a soft band
           // along the flank under the shoulder with a line of light on the
           // crease, and a rim where it turns away from the eye, so that a
           // dark car on a dark road still has its outline.
-          col += env * (0.1 + 0.9 * F) * 0.8 * (0.55 + 0.45 * ao) * (1.0 - 0.65 * dirt);
+          col += env * (0.1 + 0.08 * unlit + 0.9 * F) * 0.8 * (0.55 + 0.45 * ao) * (1.0 - 0.65 * dirt);
           col += (uHazeColor * 0.55 + uGlowColor * 0.3 + spill * 0.35) * sky * sky * 0.22;
           float sheen = exp(-pow((vLocal.y - mix(uSeam.z, uSeam.w, 0.74)) / 0.1, 2.0)) * flank * (1.0 - clad);
           col += (min(toward, vec3(1.4)) * 0.8 + min(side, vec3(1.4)) * 0.5 + uHazeColor * 0.3) * sheen * 0.2;
           col += (uHazeColor * 0.6 + side * 0.9) * smoothstep(0.004, 0.02, crease) * (1.0 - smoothstep(0.02, 0.05, crease)) * flank * 0.1 * drawn;
-          col += (uHazeColor * 0.9 + side * 0.7) * pow(1.0 - ndv, 4.0) * 0.2;
+          col += (uHazeColor * 0.9 + side * 0.7) * pow(1.0 - ndv, 4.0) * (0.2 + 0.15 * unlit);
           col += vec3(0.5, 0.52, 0.56) * (0.03 + side * 0.4) * handle * step(-0.004, hd.y);
           // A strip of bright trim along the waist, under the glass.
           float waist = (1.0 - smoothstep(0.011, 0.011 + aa, abs(vLocal.y - uSeam.w + 0.014))) * flank * step(uBoxMin.z + 0.55, vLocal.z) * step(vLocal.z, uBoxMax.z - 0.85) * drawn;
@@ -1080,7 +1087,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           // The close-up rim is modelled: bright alloy, darker the deeper
           // into the wheel it is dished.
           float dish = smoothstep(uBoxMax.x - 0.2, uBoxMax.x - 0.03, abs(vLocal.x));
-          col = vec3(0.36, 0.38, 0.42) * (0.04 + side * 0.9 + spill * 0.35) * (0.3 + 0.7 * dish) + env * (0.1 + 0.45 * F) * (0.35 + 0.65 * dish);
+          col = vec3(0.28, 0.3, 0.33) * (0.04 + side * 0.9 + spill * 0.35) * (0.3 + 0.7 * dish) + env * (0.1 + 0.45 * F) * (0.35 + 0.65 * dish) * (0.45 + 0.55 * smoothstep(0.05, 0.35, dot(side + spill, vec3(0.333))));
         }
         else if (k == 10) {
           // Bright metal; in a lamp's pocket, the reflector behind it, lit
@@ -1101,7 +1108,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           metal = max(metal, smoothstep(0.55, 0.61, wr));
           metal = max(metal, 1.0 - smoothstep(0.13, 0.17, wr));
           metal *= 1.0 - smoothstep(0.68, 0.73, wr);
-          vec3 alloy = vec3(0.36, 0.38, 0.42) * (0.045 + side * 0.9 + spill * 0.35) + env * (0.12 + 0.4 * F);
+          vec3 alloy = vec3(0.36, 0.38, 0.42) * (0.045 + side * 0.9 + spill * 0.35) + env * (0.12 + 0.4 * F) * (0.45 + 0.55 * smoothstep(0.05, 0.35, dot(side + spill, vec3(0.333))));
           col = mix(vec3(0.008) + side * 0.02, alloy, metal * flank);
         }
         #endif
