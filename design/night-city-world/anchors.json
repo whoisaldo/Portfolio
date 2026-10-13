@@ -5035,6 +5035,83 @@
    "district": "deck"
   },
   {
+   "name": "anchor_steam_zz_deck_drain_4",
+   "kind": "anchor",
+   "at": [
+    -75.76,
+    2.34,
+    -172.0
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_zz_deck_drain_5",
+   "kind": "anchor",
+   "at": [
+    -75.76,
+    7.87,
+    -104.0
+   ],
+   "yaw": 0.0,
+   "district": "japantown"
+  },
+  {
+   "name": "anchor_steam_zz_deck_drain_6",
+   "kind": "anchor",
+   "at": [
+    -62.0,
+    8.53,
+    -84.24
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
+   "name": "anchor_steam_zz_deck_drain_7",
+   "kind": "anchor",
+   "at": [
+    72.0,
+    3.3,
+    -84.24
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
+   "name": "anchor_steam_zz_deck_drain_8",
+   "kind": "anchor",
+   "at": [
+    88.0,
+    1.31,
+    -84.24
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
+   "name": "anchor_steam_zz_deck_joint_0",
+   "kind": "anchor",
+   "at": [
+    -60.0,
+    8.53,
+    -84.1
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
+   "name": "anchor_steam_zz_deck_joint_1",
+   "kind": "anchor",
+   "at": [
+    56.0,
+    5.54,
+    -84.1
+   ],
+   "yaw": 0.0,
+   "district": "deck"
+  },
+  {
    "name": "anchor_steam_zz_roof_santo_0",
    "kind": "anchor",
    "at": [
