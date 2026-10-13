@@ -54,6 +54,9 @@ import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
 import { boards as BOARDS, towers as TOWERS, SHOTS } from "../data/world.js";
 
+// (load: the S4's model is in; see preloadWorld.)
+let carLanded = false;
+
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
   // Each marked as it lands, for the door's list (src/world/progress.js).
@@ -61,16 +64,22 @@ export async function preloadWorld(tier) {
   // The voxel moon is the one piece the city can do without: a missing
   // Earth picture leaves the intro on its painted moon, not the site on its
   // poster.
+  // (load: the S4's model and Earth's picture are asked for with the rest
+  // and marked as they land, but not waited for here: the city's build
+  // starts on its core and waits for the car where the car is made, in
+  // createWorldScene, and the moon for its picture in createVoxelMoon. On a
+  // phone the S4's 2 MB land 0.7 s after the core, and the core is built in
+  // that time. A car that fails fails the build there, as it failed this.
+  // With the tier, the moon's shapes are worked out while the core is still
+  // coming, not on the city's own time.)
+  step("car", preloadCar()).then(() => (carLanded = true), () => null);
+  step("voxel", preloadVoxelMoon(tier)).catch(() => null);
   await Promise.all([
     step("city", preloadCity(tier)),
     step("holo", preloadHolo()),
     step("moon", preloadMoon()),
     step("ads", preloadAds()),
     step("koi", preloadKoi()),
-    step("car", preloadCar()),
-    // (load: with the tier, so the moon's shapes are worked out while the
-    // core is still coming, not on the city's own time.)
-    step("voxel", preloadVoxelMoon(tier)).catch(() => null),
   ]);
 }
 
@@ -156,7 +165,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let shelterBox = null;
 
   let clearance = null;
-  const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
+  const setUp = (c) => {
     city = c;
     clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => o.isInstancedMesh || /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
@@ -195,6 +204,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       elevated: c.anchors.get("anchor_traffic")?.extras?.paths ?? [],
       deckCars: tier === "phone" ? 1 : 2,
     });
+    // (load: the S4's model, if it is not in yet; see preloadWorld. When it
+    // is, the city goes on being made in the same breath, as it did.)
+    return carLanded ? withCar(c) : preloadCar().then(() => withCar(c));
+  };
+  const withCar = (c) => {
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
     crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER, walks: c.anchors.get("anchor_crowd")?.extras?.walks ?? [], standers: c.anchors.get("anchor_people")?.extras?.stand ?? [], cover, traffic });
@@ -216,7 +230,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (m) post.setMoon(m.scene, m.camera);
       return c;
     });
-  });
+  };
+  const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then(setUp);
 
   // The lens: its field of view, and a vertical shift (see makePose). The
   // shift moves the frustum, not the camera, so a level camera keeps its
