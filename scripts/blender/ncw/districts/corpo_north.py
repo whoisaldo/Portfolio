@@ -1140,20 +1140,26 @@ def gaps():
 MEDIAN = (146.0, 422.0, -330.6, -329.4)
 GANTRY_X = (283.0,)
 PALM0, PALM_STEP = 172.5, 13.0      # the median's first palm, and the step between them
+# Where no palm stands: before the third tower's doors, and where the
+# braindance's car camera, beside the median, reads the third tower's foot
+# ahead of it (x 198.5) and the row behind it (x 276.5 to 315.5).
+NO_PALM = ((193.0, 247.0), (270.0, 316.0))
+PALMS_E = (322.0, 338.0, 354.0, 370.0, 386.0, 402.0, 416.0)
 
 
 def median():
     """The boulevard's middle: on a low kerbed strip, raised beds of cast
-    concrete 10.4 m long, 13 m apart, with a dim line of warm light let in
-    under each one's rim, planted with shrubs of every shape, grass among
-    them; in each bed's middle a tall slender palm, two spike lights in the
+    concrete 10.4 m long, 13 m apart (16 m east of x 316), with a dim line
+    of warm light let in under each one's rim, planted with shrubs of every
+    shape; in a bed's middle a tall slender palm, two spike lights in the
     bed turned up into its fronds; a paved break between beds, a low
     hooded light standing in it. (The braindance's car rides z -328 with
     its camera a metre up beside it, reading the first and third towers'
     fronts across the median from x 120 to 320, ahead and then back over
     its shoulder: west of x 316 a bed's planting stands under about a
     metre and a palm is all trunk below the rays, and none stands before
-    those two towers' doors.)"""
+    those two towers' doors, nor where its camera reads the third tower
+    past the median, NO_PALM.)"""
     x0, x1, z0, z1 = MEDIAN
     r = random.Random(7790)
     box(k("kerb"), x0, x1, 0.0, 0.2, z0, z1, scale=1.0)
@@ -1168,12 +1174,16 @@ def median():
     # third towers' doors (x 133..167, 209..243) and under the gantry.
     beds = [(x0 + 1.6, PALM0 - PALM_STEP - 5.2 - 2.6, None)]
     c = PALM0 - PALM_STEP
-    while c - 5.2 < x1 - 1.6:
+    while c + 5.2 < 316.0:
         palm = c if c >= PALM0 and not (205.0 < c < 247.0) and abs(c - GANTRY_X[0]) > 6.0 else None
-        beds.append((c - 5.2, min(c + 5.2, x1 - 1.6), palm))
+        beds.append((c - 5.2, c + 5.2, palm))
         c += PALM_STEP
+    # East of x 316 the palms stand where the braindance's camera has
+    # always looked past them, 16 m apart.
+    for c in PALMS_E:
+        beds.append((c - 5.2, min(c + 5.2, x1 - 1.6), c))
     for n_, (xa, xb, palm) in enumerate(beds):
-        top = bed_y + (0.3 if palm is None else 0.46)
+        top = bed_y + (0.3 if palm is None else 0.58 if palm in PALMS_E else 0.46)
         box(k("castconcrete"), xa, xb, bed_y, top, z0 + 0.06, z1 - 0.06, scale=1.5, col=conc)
         box(k("castconcrete", 1), xa - 0.04, xb + 0.04, top - 0.07, top, z0 + 0.02, z1 - 0.02, scale=1.5, col=(0.26, 0.26, 0.27, 1.0))
         for za, zb in ((z0 + 0.03, z0 + 0.06), (z1 - 0.06, z1 - 0.03)):
@@ -1182,19 +1192,28 @@ def median():
              col=K.SOIL)
         # (West of x 316 nothing in a bed stands much over a metre: the
         # braindance's car camera reads the towers across it.)
-        hmax = 0.42 if palm is None else 0.8 if xa > 316.0 else 0.5
+        hmax = 0.42 if palm is None else 0.6 if xa > 316.0 else 0.5
         if palm is None:
             K.shrubs(xa + 0.45, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax)
         else:
             # (Its own planter sunk under the bed's soil, the trunk rising
             # out of it.)
-            sy = r.uniform(1.6, 1.8)
-            P.place("planter_palm", palm, top - 0.7 * sy - 0.03, -330.0, 0.7 * palm, sy=sy, sxz=0.66, district=CO)
+            sy, sxz = r.uniform(1.6, 1.8), 0.66
+            if palm in PALMS_E:
+                # (As the palms stood here before, the bed a little higher
+                # to take its planter under the soil.)
+                sy, sxz = 1.5, 0.62
+            # (A bed in NO_PALM is planted as if its palm stood: the same
+            # shrubs, a gap in the middle.)
+            shown = not any(a_ < palm < b_ for a_, b_ in NO_PALM)
+            if shown:
+                P.place("planter_palm", palm, -0.3 if palm in PALMS_E else top - 0.7 * sy - 0.03, -330.0, 0.7 * palm, sy=sy, sxz=sxz, district=CO)
             K.shrubs(xa + 0.45, palm - 0.75, -330.0, top, r, spread=0.24, hmax=hmax)
             K.shrubs(palm + 0.75, xb - 0.3, -330.0, top, r, spread=0.24, hmax=hmax)
-            for sx in (-1, 1):
-                K.uplight(palm + sx * 1.0, -330.0 + sx * 0.25, top, -sx * math.pi / 2, "amber")
-            light(CO, palm, 2.2, -330.0, "amber", 4.5)
+            if shown:
+                for sx in (-1, 1):
+                    K.uplight(palm + sx * 1.0, -330.0 + sx * 0.25, top, -sx * math.pi / 2, "amber")
+                light(CO, palm, 2.2, -330.0, "amber", 4.5)
         # The break after it: a hooded light in its middle.
         if n_ + 1 < len(beds):
             gx_ = (xb + beds[n_ + 1][0]) / 2
