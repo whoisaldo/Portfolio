@@ -256,10 +256,10 @@ const santoAt = (x, z) => Math.max(within(x, 442, 1e4), within(x, 300, 1e4, 30) 
 // The avenue's pavements run the length the hero and the intro see, between
 // the lamps and hydrants by the kerb and the bins and benches by the shops.
 const WALKS = [
-  { from: [11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: -1, pave: 1, span: [-0.92, 2.15], mouth: 1 },
-  { from: [12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: 1, pave: 1, mouth: 1 },
-  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: 1, pave: 2, span: [-2.15, 0.92], mouth: -1 },
-  { from: [-12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: -1, pave: 2, mouth: -1 },
+  { from: [11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: -1, pave: 1, span: [-0.92, 2.15], mouth: 1, lit: true },
+  { from: [12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: 1, pave: 1, mouth: 1, lit: true },
+  { from: [-11.5, -168], dir: [0, 1], len: 224, n: [46, 12], files: [-0.33, 0.33], way: 1, pave: 2, span: [-2.15, 0.92], mouth: -1, lit: true },
+  { from: [-12.35, -168], dir: [0, 1], len: 224, n: [30, 8], files: [0], way: -1, pave: 2, mouth: -1, lit: true },
   // The cross street's pavements, either side of the avenue.
   { from: [-88, -8.2], dir: [1, 0], len: 74, n: [2, 0] },
   { from: [16, 9.8], dir: [1, 0], len: 72, n: [2, 0] },
@@ -306,6 +306,13 @@ const STANDS = [
   [-4.42, -758.4, HALF_PI, "floor"], [-4.25, -763.0, 0, "lie"], [4.42, -757.5, -HALF_PI, "floor"], [4.2, -766.3, Math.PI, "lie"], [4.42, -764.2, -HALF_PI, "floor"],
 ];
 const HOT_PHONE = [11.4, -121.0];
+// The hero's frame (the avenue's own four walks and this module's people
+// stood on it) is the street the page's first shot crossfades into from its
+// painted plate, umbrellas lit round their edges doubled in the road: there
+// they are two in three of what they were (a walker in four, the second of
+// two in five, somebody standing in seven), every one with its edge lit in a
+// neon colour, never white.
+const HERO_UMBRELLA = [0.26, 0.2, 0.14];
 // Where the districts stood somebody in uniform (src/world/traffic.js stands
 // a patrol car at the plaza's east kerb, and plaza_edges.py its officer out
 // of it, talking to somebody; corpo_north.py a guard by the second tower's
@@ -370,7 +377,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
   // draw, out of where they are.
   // A child (`kid`) is dressed as one; somebody old (where `aged` allows it:
   // never on a quick walk) as the place dresses, quieter.
-  const dress = (r, near, { pose = null, umbrellaOdds = 0.1, at = [0, 0], kid = false, aged = true } = {}) => {
+  const dress = (r, near, { pose = null, umbrellaOdds = 0.1, led = 0.12, at = [0, 0], kid = false, aged = true } = {}) => {
     const where = r();
     const corpo = corpoAt(at[0], at[1]) * 0.86;
     const santo = santoAt(at[0], at[1]) * 0.86;
@@ -434,7 +441,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     let flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (!kid && r() < 0.08 ? 16 : 0) + (cut !== "hood" && !kid && !old && r() < style.bare ? 32 : 0) + (r() < style.paleShoes ? 64 : 0) + 128 * pick(r, style.canopy);
     // The umbrella's colour, and on one in eight a lit line round its edge
     // (never white).
-    if (umbrella) flags += FLAG.cloth * Math.floor(r() * CANOPIES.length) + (r() < 0.12 ? FLAG.led : 0);
+    if (umbrella) flags += FLAG.cloth * Math.floor(r() * CANOPIES.length) + (r() < led ? FLAG.led : 0);
     if (!kid && pose !== "vendor" && r() < style.gloves * (old ? 2 : 1)) flags += FLAG.gloves;
     if (!kid && r() < style.arm * (old ? 0.4 : 1)) {
       flags += FLAG.arm;
@@ -581,7 +588,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
         const f = size > 1 ? k : one;
         const off = files[f] + (r() - 0.5) * 0.1;
         // To the side of a line: +x of one that runs along +z.
-        const d = dress(r, pave.worn, { umbrellaOdds: k ? 0.07 : 0.1, at: where, kid: kid && k === 1, aged: Math.abs(pace) < 1.36 });
+        const d = dress(r, pave.worn, { umbrellaOdds: w.lit ? HERO_UMBRELLA[k ? 1 : 0] : k ? 0.07 : 0.1, led: w.lit ? 1 : 0.12, at: where, kid: kid && k === 1, aged: Math.abs(pace) < 1.36 });
         people.push({
           walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, (k ? step + 0.5 : step) + drift],
           path: [w.dir[0], w.dir[1], w.len, at + k * 0.3],
@@ -600,7 +607,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
   // pose), and somebody on some of the benches nobody was sat on.
   const spots = [];
   STANDS.forEach(([x, z, yaw, pose], i) => {
-    if (!bare && (!phone || i % 2 === 0)) spots.push({ x, y: PAVE_Y, z, yaw, pose: POSES.indexOf(pose) });
+    if (!bare && (!phone || i % 2 === 0)) spots.push({ x, y: PAVE_Y, z, yaw, pose: POSES.indexOf(pose), lit: true });
   });
   // The hot phone: looking down the street toward the hero, the phone a
   // forearm ahead of them at the clue's point.
@@ -902,7 +909,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     const worn = near.sort((a, b) => b[0] - a[0]).map(([, w]) => w);
     // Of two close together at most one holds an umbrella up: two canopies
     // do not fit between two faces.
-    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) || p.officer ? 0 : 0.05, at: [p.x, p.z], kid: !!p.kid });
+    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) || p.officer ? 0 : p.lit ? HERO_UMBRELLA[2] : 0.05, led: p.lit ? 1 : 0.12, at: [p.x, p.z], kid: !!p.kid });
     if (p.officer === "patrol") {
       // Midnight jacket, black trousers and shirt, black cap, cyan lines.
       p.d.look[0] = bits(TAG.hair, TAG.brim, TAG.collar, TAG.trim, TAG.hivis);
@@ -1920,7 +1927,7 @@ const VERTEX = /* glsl */ `
       albedo = vec3(0.01) + hair * 0.05;
       if (bit(flags, 4.0) > 0.5) { lit = tint * 1.3; glow = 1.0; }
     }
-    else if (part == ${PART.rim}) { lit = edge * 1.8 * (1.0 + 0.2 * uBass); glow = 1.0; }
+    else if (part == ${PART.rim}) { lit = edge * 3.2 * (1.0 + 0.2 * uBass); glow = 1.0; }
     else if (part == ${PART.trim}) { lit = tint * 1.25; glow = 1.0; }
     else if (part == ${PART.phone}) { lit = vec3(0.6, 0.85, 1.0) * 2.2 * aux; glow = 1.0; }
     else if (part == ${PART.ember}) { lit = vec3(1.0, 0.38, 0.08) * (1.6 + 2.4 * drag); glow = 1.0; }
@@ -2008,8 +2015,8 @@ const VERTEX = /* glsl */ `
     #endif
     vec3 col = (own + rim + shine + NIGHT * 0.05 * (0.3 + graze * graze)) * shade;
     // A lit edge is on the cloth by it, and on the head and shoulders under it.
-    if (part == ${PART.canopy}) col += (0.2 + albedo) * edge * 0.2 * aux * aux * aux * led;
-    else if (umbrella > 0.5) col += albedo * edge * 0.15 * smoothstep(1.25, 1.7, tall) * led;
+    if (part == ${PART.canopy}) col += (0.2 + albedo) * edge * 0.3 * aux * aux * aux * led;
+    else if (umbrella > 0.5) col += albedo * edge * 0.2 * smoothstep(1.25, 1.7, tall) * led;
     // A phone held up lights the face over it.
     if (phoneUp > 0.5 && seg > 1.5 && seg < 2.5) col += albedo * vec3(0.3, 0.45, 0.55) * max(n.z * 0.8 - n.y * 0.6, 0.0);
     // Nothing that is not lit from inside reaches the bloom.
@@ -2198,7 +2205,7 @@ const CARD_FRAGMENT = /* glsl */ `
     if (canopy <= 0.0) albedo = vCloth.rgb;
     vec3 col = byNight(albedo, vLight.rgb) * vLight.rgb;
     float glow = 1.0;
-    if (rim <= 0.0) col = vTint.rgb * 1.8 * (1.0 + 0.2 * uBass);
+    if (rim <= 0.0) col = vTint.rgb * 3.2 * (1.0 + 0.2 * uBass);
     else if (mod(lit, 2.0) > 0.5 && dBody <= 0.0 && abs(p.y - 0.93) < max(0.007, 0.5 * px)) col = vTint.rgb * 1.25;
     else if (mod(floor(lit / 2.0), 2.0) > 0.5 && length(p - vec2(0.07, 1.27)) < max(0.045, 0.8 * px)) col = vec3(0.6, 0.85, 1.0) * 2.2;
     else glow = 0.0;
