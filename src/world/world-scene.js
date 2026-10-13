@@ -155,7 +155,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let crowd = null;
   let steam = null;
   let moon = null;
-  let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
+  // (load: the voxel moon on its way; `moon` once it is ready to draw.)
+  let moonMade = null;
+  let mirror =quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality, { extra: effects });
   // The page's panes of smoked glass, frosted in the post chain.
   const glass = createGlass(post.glass);
@@ -216,18 +218,17 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     steam?.setLights(c.roofLights);
     resize();
     plazaKoi = createPlazaKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
-    return Promise.all([
-      createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }),
-      car.ready,
-      createVoxelMoon(renderer, shared, { tier }).catch((err) => {
-        if (import.meta.env.DEV) console.warn("[world] no voxel moon; the intro keeps its painted one", err);
-        return null;
-      }),
-    ]).then(([k, , m]) => {
+    const koiMade = createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
+    // (load: the voxel moon is made alongside, as it was, but the city's
+    // first frame does not wait for it: only the intro shows it, and warm
+    // finishes it after that frame, before the city is ready.)
+    moonMade = createVoxelMoon(renderer, shared, { tier }).catch((err) => {
+      if (import.meta.env.DEV) console.warn("[world] no voxel moon; the intro keeps its painted one", err);
+      return null;
+    });
+    return Promise.all([koiMade, car.ready]).then(([k]) => {
       koi = k;
       fitKoi();
-      moon = m;
-      if (m) post.setMoon(m.scene, m.camera);
       return c;
     });
   };
@@ -931,6 +932,70 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   canvas.addEventListener("webglcontextlost", onContextLost);
 
   // ---- warm-up -------------------------------------------------------------------
+  // (load) Every program `root` draws with compiled for `into`, and while
+  // the GPU's process builds them, what the first frame did after it: each
+  // program's uniforms read as it is done (a round trip each) and every
+  // picture the materials hold uploaded (the big ones decoded there and
+  // then). compileAsync asked after every program still building every
+  // 10 ms, a round trip each, 0.25 s of the page's time on a desktop, and
+  // the first frame then took 0.3 s more. Here only the next program in the
+  // order they were made is asked after. A picture still on its way (the
+  // adverts' atlas is asked for as the kit is made) is waited for, and so
+  // is anything `ready()` says is not, up to PICTURES_MS, so the first
+  // frame never shows a wall without its picture or a person unlit.
+  const PICTURES_MS = 4000;
+  const prepare = (root, into, ready = () => true) => {
+    const before = renderer.info.programs.length;
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(into);
+    const materials = renderer.compile(root, camera, scene);
+    renderer.setRenderTarget(prev);
+    const programs = renderer.info.programs.slice(before);
+    const pictures = new Set();
+    const add = (v) => {
+      if (Array.isArray(v)) v.forEach(add);
+      else if (v?.isTexture && !v.isRenderTargetTexture) pictures.add(v);
+    };
+    for (const m of materials) {
+      for (const k of Object.keys(m)) add(m[k]);
+      for (const u of Object.values(m.uniforms ?? {})) add(u?.value);
+    }
+    const t0 = performance.now();
+    let next = 0;
+    return new Promise((resolve) => {
+      const tick = () => {
+        if (disposed) return resolve();
+        while (next < programs.length && (programs[next].program === undefined || programs[next].isReady())) {
+          if (programs[next].program !== undefined) programs[next].getUniforms();
+          next++;
+        }
+        const t = performance.now();
+        for (const p of pictures) {
+          if (performance.now() - t > 8) break;
+          if (!p.image || p.version === 0) continue;
+          renderer.initTexture(p);
+          pictures.delete(p);
+        }
+        const late = performance.now() - t0 > PICTURES_MS;
+        if (late) pictures.clear();
+        if (next < programs.length || pictures.size || !(late || ready())) setTimeout(tick, 4);
+        else resolve();
+      };
+      tick();
+    });
+  };
+
+  // (load) Whether the people's light is baked: until it is, their shader's
+  // map of it (uSigns) is a single texel.
+  const crowdLit = () => {
+    let lit = true;
+    crowd?.mesh.traverse((o) => {
+      const map = o.material?.uniforms?.uSigns?.value;
+      if (map && !(map.image?.width > 1)) lit = false;
+    });
+    return lit;
+  };
+
   // Build the city, compile every material before anyone is looking, and
   // draw one frame of the hero while the canvas is still invisible, so the
   // first frame that counts has nothing left to set up.
@@ -943,19 +1008,23 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     posed = true;
     // Compiled for the target they draw into (the composer's linear buffer),
     // or the programs made here are not the ones the frames use.
-    const target = renderer.getRenderTarget();
-    renderer.setRenderTarget(post.composer.inputBuffer);
-    if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
-    else renderer.compile(scene, camera);
-    renderer.setRenderTarget(target);
-    if (moon) await moon.compile(post.composer.inputBuffer);
+    // (load: the crowd learns the camera it is seen through from its first
+    // draw, and the warm-up's first draw was the moon's, before the hero's:
+    // told now, so the hero's frame sorts and culls its people as it did.
+    // That also asks for the people's light (crowd-light.js), baked a few
+    // milliseconds at a time in idle moments: it is waited for, so the
+    // first frame does not show them unlit and then lit, as it did.)
+    crowd?.update(camera);
+    await prepare(scene, post.composer.inputBuffer, crowdLit);
     if (disposed) return;
-    // Two real frames, under the door or the poster where nobody sees them,
-    // with nothing culled: the moon's reveal over the street, then the hero.
-    // Compiling is not everything a first frame does (buffers and textures
-    // upload on first draw, and the drift's camera sees buildings the
-    // hero's does not), and the first frame anyone sees, the reveal or the
-    // page, should not stutter.
+    // Two real frames of the hero, under the door or the poster where
+    // nobody sees them, with nothing culled. Compiling is not everything a
+    // first frame does (buffers upload on first draw, and the drift's
+    // camera sees buildings the hero's does not), and the first frame
+    // anyone sees, the reveal or the page, should not stutter. A draw also
+    // tells the city things for the next one (the traffic's lamps learn the
+    // lens, a shop's panes are dealt their trades): the first frame here was
+    // the moon's over the street, and is now the hero's.
     const culled = [];
     scene.traverse((o) => {
       if (o.frustumCulled) {
@@ -963,17 +1032,34 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         o.frustumCulled = false;
       }
     });
-    if (moon) {
-      moon.update(29.2, { width, height, pixelRatio: renderer.getPixelRatio(), over: true });
-      draw(0, "over");
-    }
+    draw(0);
     draw(0);
     for (const o of culled) o.frustumCulled = true;
     running = null;
     check();
     streamPacks();
     buildSearchlights();
+    // (load) The voxel moon, after the city's first frame, a little at a
+    // time between the page's frames: its programs, and hidden frames of
+    // the strike and of the reveal over the street, where the warm-up drew
+    // them before that first frame (voxel-moon.js, prepare). The city is
+    // ready (WorldMount: this resolving) only once the moon is, so the
+    // door's last tick and an intro that can open on the moon come
+    // together, as they did.
+    const m = await moonMade;
+    if (!m || disposed) return;
+    post.setMoon(m.scene, m.camera);
+    await m.prepare(post.composer.inputBuffer, { width, height, pixelRatio: renderer.getPixelRatio() }, between);
+    if (!disposed) moon = m;
   };
+
+  // (load) A moment between the page's frames for a few milliseconds of
+  // work: an idle callback, or the next one within a frame or two.
+  const between = () => new Promise((resolve) => {
+    if (!window.requestIdleCallback) return setTimeout(resolve, 16);
+    const ask = () => window.requestIdleCallback((d) => (d.timeRemaining() > 2 || d.didTimeout ? resolve() : ask()), { timeout: 24 });
+    ask();
+  });
 
   // ---- the districts behind the core ------------------------------------------
   // Once the hero can be drawn, the rest of the city: each pack fetched in
@@ -1177,8 +1263,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       crowd?.dispose();
       steam?.dispose();
       searchlights?.dispose();
-      moon?.dispose();
     }).catch(() => {});
+    // (load: the moon may still be on its way: it goes when it comes.)
+    moonMade?.then((m) => m?.dispose());
     mirror?.dispose();
     mirror = null;
     glass.dispose();

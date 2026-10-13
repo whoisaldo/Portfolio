@@ -2124,34 +2124,78 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
       renderer.render(shadowScene, sunCamera);
       renderer.setRenderTarget(prev);
     },
-    /** Compile every material, for the target it draws into (`target`, the
-     *  composer's buffer; the shadow map for the depth ones). */
-    async compile(target = null) {
+    /**
+     * Everything the intro's moon needs before its first frame, a few
+     * milliseconds at a time: `between()` resolves when the page has a
+     * moment between its own frames (the city is live by now). Every
+     * material compiled for the target it draws into (`target`, the
+     * composer's buffer; the shadow map for the depth ones), each program
+     * read once the GPU has built it, and then hidden frames into the
+     * target nobody is looking at: a compiled program is not a drawn one,
+     * the strike's flash and debris draw for the first time on the track's
+     * onset, and a GPU that builds its pipelines at first draw stalled the
+     * whole intro there for most of a second. One frame of the strike and
+     * one of the reveal over the street (`view`: the screen's width,
+     * height and pixel ratio), each drawn a part at a time, as the city's
+     * warm-up drew them; the moon is left posed on the reveal, as it left it.
+     */
+    async prepare(target, view, between) {
+      const prev = renderer.getRenderTarget();
+      const SLICE = 3;
+      let t = performance.now();
+      const pace = async () => {
+        if (performance.now() - t < SLICE) return;
+        await between();
+        t = performance.now();
+      };
       shot(T.still, 16 / 9);
       backdrop.visible = true;
       flash.visible = true;
-      const prev = renderer.getRenderTarget();
-      const build = async (sceneToCompile, cameraToCompile, into) => {
-        renderer.setRenderTarget(into);
-        if (renderer.compileAsync) await renderer.compileAsync(sceneToCompile, cameraToCompile);
-        else renderer.compile(sceneToCompile, cameraToCompile);
-      };
-      await build(scene, camera, target);
-      await build(shadowScene, sunCamera, shadowTarget);
+      const before = renderer.info.programs.length;
+      await between();
+      t = performance.now();
+      for (const p of parts) {
+        renderer.setRenderTarget(target);
+        renderer.compile(p.mesh, camera, scene);
+        if (p.twin) {
+          renderer.setRenderTarget(shadowTarget);
+          renderer.compile(p.twin, sunCamera, shadowScene);
+        }
+        renderer.setRenderTarget(prev);
+        await pace();
+      }
       backdrop.visible = false;
       flash.visible = false;
-      // A compiled program is not a drawn one: the strike's flash and
-      // debris draw for the first time on the track's onset, and a GPU that
-      // builds its pipelines at first draw stalled the whole intro there
-      // for most of a second. One hidden frame of the strike, now, into the
-      // target nobody is looking at yet.
-      if (target) {
-        this.update(T.strike + 0.12, { width: target.width, height: target.height, pixelRatio: 1, over: false });
-        this.renderShadows();
-        renderer.setRenderTarget(target);
-        renderer.render(scene, camera);
+      // (A program let go meanwhile, a district's, has no answer to give.)
+      const gone = (program) => program.program === undefined;
+      for (const program of renderer.info.programs.slice(before)) {
+        while (!gone(program) && !program.isReady()) {
+          await between();
+          t = performance.now();
+        }
+        if (gone(program)) continue;
+        program.getUniforms();
+        await pace();
       }
-      renderer.setRenderTarget(prev);
+      // Drawn a part at a time: the rest hidden for each, as they were.
+      const frame = async () => {
+        const shown = parts.map((p) => p.mesh.visible);
+        for (let i = 0; i < parts.length; i++) {
+          if (!shown[i]) continue;
+          parts.forEach((p, k) => (p.mesh.visible = k === i));
+          renderer.setRenderTarget(target);
+          renderer.render(scene, camera);
+          renderer.setRenderTarget(prev);
+          parts.forEach((p, k) => (p.mesh.visible = shown[k]));
+          await pace();
+        }
+      };
+      this.update(T.strike + 0.12, { width: target.width, height: target.height, pixelRatio: 1, over: false });
+      this.renderShadows();
+      await pace();
+      await frame();
+      this.update(29.2, { ...view, over: true });
+      await frame();
     },
     get counts() {
       return counts;
