@@ -711,6 +711,15 @@ def vendor(district, x, z, yaw, rng, y=None):
     nx, nz = s_, c
     body = rng.choice(((0.22, 0.04, 0.04, 1), (0.04, 0.08, 0.2, 1), (0.2, 0.2, 0.21, 1), (0.04, 0.14, 0.12, 1), (0.22, 0.16, 0.03, 1)))
     hue = rng.choice(("cyan", "white", "pink", "amber", "green", "red"))
+    if district != "avenue":
+        # Off the hero's street, the kit's machine (props.py: shelves behind
+        # glass, a wall of drinks, capsules, each its own front), its back
+        # to the wall; the draws made as they were.
+        for _ in range(18):
+            rng.choice((0, 1, 2, 3, 4, 5, 6))
+        P.place("vending_warm" if hue in ("pink", "amber", "red") else "vending", x + nx * 0.42, y, z + nz * 0.42, yaw, district=district)
+        light(district, x + nx * 1.62, 1.2, z + nz * 1.62, hue if hue != "red" else "pink", 3.2)
+        return
     d = 0.72
     cx, cz = x + nx * d / 2, z + nz * d / 2
     oriented_box((district, "trim", 0), cx, y + 0.98, cz, 1.0, 1.96, d, yaw, scale=1.0, col=body)

@@ -452,6 +452,142 @@ def gate_frame(D):
         light(D, x, 2.0, z, "white" if x > 0 else "amber", 7.0)
 
 
+def _lw(x, z, yaw, u, v):
+    """A truck's local point (u to its right, v forward) in the world."""
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    return x + u * c + v * s_, z - u * s_ + v * c
+
+
+def truck(D, x, z, yaw, rng, paint=None):
+    """A box truck, its cab forward to yaw: a cab over the front axle in
+    the firm's paint, its glass, lamps and mirrors, a box body on the
+    chassis with an advert down each side, its rear doors, six wheels, a
+    beacon on the cab."""
+    paint = paint or rng.choice(((0.5, 0.36, 0.06, 1), (0.42, 0.06, 0.05, 1), (0.5, 0.5, 0.48, 1), (0.06, 0.18, 0.3, 1)))
+    nx, nz = math.sin(yaw), math.cos(yaw)
+
+    def ob(key, u, y, v, w, h, d, col=(1, 1, 1, 1)):
+        px, pz = _lw(x, z, yaw, u, v)
+        oriented_box(key, px, y, pz, w, h, d, yaw, scale=0.5, col=col)
+
+    def face(key, u, y, v, w, h, turn, col):
+        px, pz = _lw(x, z, yaw, u, v)
+        rotated_quad(key, px, y, pz, w, h, yaw + turn, col=col)
+    ob((D, "trim", 0), 0.0, 0.75, -0.2, 2.1, 0.35, 8.6, col=(0.04, 0.04, 0.045, 1))
+    # The cab.
+    ob((D, "trim", 0), 0.0, 2.15, 3.3, 2.45, 2.3, 2.2, col=paint)
+    ob((D, "trim", 1), 0.0, 3.35, 3.2, 2.3, 0.12, 2.0, col=tuple(v * 0.6 for v in paint[:3]) + (1,))
+    face((D, "glass_dark", 0), 0.0, 2.65, 4.42, 2.2, 0.95, 0.0, (1, 1, 1, 1))
+    for su in (-1, 1):
+        face((D, "glass_dark", 0), su * 1.235, 2.7, 3.6, 1.1, 0.8, su * math.pi / 2, (1, 1, 1, 1))
+        face((D, "glow", 0), su * 0.9, 1.35, 4.43, 0.42, 0.22, 0.0, GLOW["white"])
+        face((D, "glow", 0), su * 1.15, 1.35, 4.43, 0.14, 0.18, 0.0, GLOW["amber"])
+        ob((D, "metal", 1), su * 1.42, 2.6, 4.1, 0.08, 0.5, 0.08)
+        face((D, "glow", 0), su * 0.95, 1.5, -4.52, 0.3, 0.2, math.pi, GLOW["red"])
+    ob((D, "metal", 1), 0.0, 1.05, 4.48, 2.3, 0.3, 0.12)
+    ob((D, "dark", 0), 0.0, 3.5, 3.0, 0.3, 0.12, 0.3)
+    px, pz = _lw(x, z, yaw, 0.0, 3.0)
+    box((D, "glow", 0), px - 0.12, px + 0.12, 3.56, 3.74, pz - 0.12, pz + 0.12, scale=0.5, col=GLOW["amber"])
+    # The box body, its adverts, its rear doors.
+    body = rng.choice(((0.42, 0.42, 0.4, 1), (0.3, 0.32, 0.34, 1), (0.36, 0.33, 0.28, 1)))
+    ob((D, "trim", 0), 0.0, 2.85, -1.25, 2.5, 3.4, 6.3, col=body)
+    for su in (-1, 1):
+        col = (rng.randrange(8) / 8.0 + 0.01, rng.randrange(8) / 8.0 + 0.01, rng.random(), 1.0)
+        face((D, "billboard", 0), su * 1.265, 2.95, -1.25, 5.6, 2.6, su * math.pi / 2, col)
+    face((D, "trim", 1), 0.0, 2.85, -4.415, 2.4, 3.3, math.pi, tuple(v * 0.7 for v in body[:3]) + (1,))
+    face((D, "dark", 1), 0.0, 2.85, -4.43, 0.04, 3.2, math.pi, (1, 1, 1, 1))
+    # Six wheels.
+    for v in (3.2, -2.3, -3.5):
+        for su in (-1, 1):
+            a = _lw(x, z, yaw, su * 0.95, v)
+            b = _lw(x, z, yaw, su * 1.25, v)
+            pipe((D, "dark", 0), (a[0], 0.5, a[1]), (b[0], 0.5, b[1]), 0.5, segs=10, caps=True)
+    light(D, x + nx * 6.0, 1.0, z + nz * 6.0, "white", 6.0)
+    B.COLLISION.append(("box", min(_lw(x, z, yaw, -1.3, -4.5)[0], _lw(x, z, yaw, 1.3, 4.5)[0]), max(_lw(x, z, yaw, -1.3, -4.5)[0], _lw(x, z, yaw, 1.3, 4.5)[0]),
+                        0.0, 4.6, min(_lw(x, z, yaw, -1.3, -4.5)[1], _lw(x, z, yaw, 1.3, 4.5)[1]), max(_lw(x, z, yaw, -1.3, -4.5)[1], _lw(x, z, yaw, 1.3, 4.5)[1]), D))
+
+
+def shed_bay(D, rng, x0=2.0, x1=10.0, z=108.0, h=5.7, depth=7.0):
+    """The shed's door up on its bay: the opening framed, the room lit
+    behind it, racks of boxes down its sides, a forklift's mast, lamps
+    under its roof, someone at work."""
+    zb = z + depth
+    dark = (0.05, 0.05, 0.055, 1)
+    # The room's walls, floor and ceiling (seen through the door), lit.
+    box((D, "concrete", 0), x0, x1, 0.0, 0.02, z, zb, scale=1.5)
+    quad((D, "trim", 0), (x0 + 0.05, 0.0, zb), (x1 - 0.05, 0.0, zb), (x1 - 0.05, h + 0.6, zb), (x0 + 0.05, h + 0.6, zb), col=(0.32, 0.28, 0.22, 1))
+    quad((D, "glow", 0), (x0 + 1.0, 2.2, zb - 0.02), (x1 - 1.0, 2.2, zb - 0.02), (x1 - 1.0, 4.6, zb - 0.02), (x0 + 1.0, 4.6, zb - 0.02), col=(0.22, 0.17, 0.1, 1))
+    for xx, sgn in ((x0 + 0.02, 1), (x1 - 0.02, -1)):
+        pts = [(xx, 0.0, z), (xx, 0.0, zb), (xx, h + 0.6, zb), (xx, h + 0.6, z)]
+        quad((D, "trim", 0), *(pts if sgn > 0 else [pts[1], pts[0], pts[3], pts[2]]), col=(0.26, 0.24, 0.2, 1))
+    quad((D, "trim", 0), (x0, h + 0.6, z), (x1, h + 0.6, z), (x1, h + 0.6, zb), (x0, h + 0.6, zb), col=dark)
+    for zz in (z + 1.5, z + 3.8, z + 6.0):
+        box((D, "glow", 0), x0 + 1.5, x1 - 1.5, h + 0.45, h + 0.55, zz - 0.08, zz + 0.08, scale=0.5, col=GLOW["white"])
+    # Racks of boxes down both sides.
+    for xa in (x0 + 0.2, x1 - 1.4):
+        for k in range(3):
+            y = 0.1 + k * 1.7
+            box((D, "metal", 1), xa, xa + 1.2, y, y + 0.08, z + 0.8, zb - 0.6, scale=0.5)
+            zz = z + 1.0
+            while zz < zb - 1.2:
+                ln = rng.uniform(0.6, 1.2)
+                box((D, "trim", 0), xa + 0.05, xa + 1.15, y + 0.08, y + rng.uniform(0.7, 1.4), zz, zz + ln, scale=1.0, col=rng.choice(K.CARDBOARD + K.PLASTIC[:2]))
+                zz += ln + rng.uniform(0.1, 0.4)
+        for zz in (z + 0.8, zb - 0.6):
+            box((D, "metal", 1), xa, xa + 0.08, 0.0, 5.2, zz - 0.04, zz + 0.04, scale=0.5)
+    # A forklift at the door, its forks raised with a pallet on them.
+    fx, fz = x0 + 1.7, z + 2.6
+    box((D, "trim", 0), fx - 0.6, fx + 0.6, 0.2, 1.5, fz, fz + 2.0, scale=1.0, col=(0.55, 0.42, 0.05, 1))
+    for xx in (fx - 0.55, fx + 0.55):
+        box((D, "metal", 0), xx - 0.05, xx + 0.05, 1.5, 2.6, fz + 0.1, fz + 0.2, scale=0.5)
+        box((D, "metal", 0), xx - 0.05, xx + 0.05, 0.0, 2.8, fz - 0.05, fz + 0.05, scale=0.5)
+    box((D, "metal", 0), fx - 0.6, fx + 0.6, 2.5, 2.6, fz + 0.1, fz + 1.9, scale=0.5)
+    P.place("pallets", fx, 0.9, fz - 0.6, 0.0, district=D)
+    stand(fx - 1.6, z + 3.4, math.pi, "work", y=0.0)
+    light(D, (x0 + x1) / 2, 1.0, z - 1.5, "amber", 7.0)
+    light(D, (x0 + x1) / 2, 1.0, z - 4.0, "white", 5.0)
+
+
+def truss_relief(D, xa, xb, y0, y1, z0, z1):
+    """The gate's truss as built steel: flanges proud along both chords, a
+    bolted plate at every post, rust run down from the joints, a line of
+    lamps under the bottom chord."""
+    rust = (0.2, 0.08, 0.03, 1)
+    for y in (y0, y1 - 0.4):
+        for yy in (y - 0.05, y + 0.37):
+            box((D, "steel", 1), xa, xb, yy, yy + 0.08, z0 - 0.12, z1 + 0.12, scale=1.0, col=CRANE)
+    n = 6
+    for k in range(n + 1):
+        x = xa + k * (xb - xa) / n
+        for y in (y0, y1 - 0.4):
+            box((D, "steel", 1), x - 0.28, x + 0.28, y - 0.1, y + 0.5, z0 - 0.15, z0 - 0.12, scale=0.5, col=tuple(v * 0.8 for v in CRANE[:3]) + (1,))
+            for dx in (-0.18, 0.18):
+                for dy in (0.0, 0.3):
+                    box((D, "metal", 1), x + dx - 0.03, x + dx + 0.03, y + dy - 0.03, y + dy + 0.03, z0 - 0.18, z0 - 0.15, scale=0.5)
+        quad((D, "trim", 1), (x + 0.1, y0 - 1.6, z0 - 0.16), (x - 0.1, y0 - 1.6, z0 - 0.16), (x - 0.06, y0 - 0.05, z0 - 0.16), (x + 0.06, y0 - 0.05, z0 - 0.16), col=rust)
+    x = xa + 0.6
+    while x < xb - 0.4:
+        box((D, "dark", 1), x - 0.16, x + 0.16, y0 - 0.2, y0 - 0.05, (z0 + z1) / 2 - 0.12, (z0 + z1) / 2 + 0.12, scale=0.5)
+        box((D, "glow", 0), x - 0.12, x + 0.12, y0 - 0.22, y0 - 0.2, (z0 + z1) / 2 - 0.08, (z0 + z1) / 2 + 0.08, scale=0.5, col=GLOW["white"])
+        x += 1.2
+
+
+def yard_fill(D, rng):
+    """What the gate looks through to: a truck backed to the shed's bay,
+    containers and crates west of the yard road, a lamp mast at its side,
+    pallets and drums about, people at work."""
+    truck(D, 7.4, 103.0, math.pi, rng)
+    containers(D, -6.4, 99.0, "z", 2, 1, rng, high=(2, 3))
+    containers(D, -3.6, 101.0, "z", 1, 1, rng, high=(1, 2))
+    for (x, z, yaw) in ((0.4, 97.2, 0.3), (1.3, 97.6, 1.4), (0.8, 98.6, 0.9), (-0.2, 112.0, 0.2), (19.0, 104.0, 1.2)):
+        P.place(rng.choice(("pallets", "crates", "crates")), x, 0.0, z, yaw, district=D)
+    for (x, z) in ((1.2, 106.0), (1.7, 106.6), (19.4, 98.2)):
+        P.place("drum", x, 0.0, z, district=D)
+    flood_mast(D, 1.0, 103.5, 11.0, hue="white", power=7.0, toward=(0.6, 0.8))
+    stand(10.6, 99.0, 0.4, "carry", y=0.0)
+    stand(1.4, 99.4, -1.2, "smoke", y=0.0)
+
+
 def build(D):
     rng = random.Random(4417)
     # Behind the arm's lots and the south street's row, to the yard's wall:
@@ -530,6 +666,7 @@ def build(D):
     box((D, "metal", 0), GATE[0] - 0.55, GATE[1] + 0.55, 7.2, 8.6, 91.95, 92.55, scale=1.0)
     box((D, "neon_amber", 0), GATE[0] + 0.6, GATE[1] - 0.6, 7.08, 7.18, 91.9, 92.0, scale=1.0)
     gate_frame(D)
+    truss_relief(D, GATE[0] + 0.45, GATE[1] - 0.45, 13.0, 15.6, 91.95, 92.55)
     # The shut leaf (see leaf()).
     leaf(D, grng)
     # The open leaf, behind the wall east of the gate.
@@ -578,12 +715,17 @@ def build(D):
     # The road through the gate to the shed, its door up and lit, a bay of
     # boxes inside; lines on the road.
     sh = B.SHOP_H + B.CELL_H * 2
-    mass(D, 0.0, 20.0, 108.0, 119.0, 0.0, sh, 4431, col=B.wall_col(0.5, 2, 0.8, B.TINTS["rust"]))
+    scol = mass(D, 0.0, 20.0, 108.0, 119.0, 0.0, sh, 4431, col=B.wall_col(0.5, 2, 0.8, B.TINTS["rust"]), faces=("+x", "-x", "+z"))
+    # Its front in three parts round the bay's opening (the bay is shed_bay).
+    for (a0, a1, b0, b1) in ((0.0, 10.0, 0.0, sh), (18.0, 20.0, 0.0, sh), (10.0, 18.0, 6.3, sh)):
+        quad((D, "facade", 0), (20.0 - a0, b0, 108.0), (20.0 - a1, b0, 108.0), (20.0 - a1, b1, 108.0), (20.0 - a0, b1, 108.0),
+             ((a0 / B.CELL_W, (b0 - B.SHOP_H) / B.CELL_H), (a1 / B.CELL_W, (b0 - B.SHOP_H) / B.CELL_H), (a1 / B.CELL_W, (b1 - B.SHOP_H) / B.CELL_H), (a0 / B.CELL_W, (b1 - B.SHOP_H) / B.CELL_H)), scol)
+    shed_bay(D, random.Random(4490))
     B.COLLISION.append(("box", 0.0, 20.0, 0.0, sh, 108.0, 119.0, D))
     B.roof_dress(D, 0.0, 20.0, 108.0, 119.0, sh, random.Random(4431), cap=5.0, tint=B.TINTS["rust"])
     f = B.Face("-z", 108.0, 0.0, 20.0)
-    f.box((D, "trim", 0), 9.6, 18.4, 0.0, 6.3, 0.0, 0.12, col=B.DARK_TRIM)
-    f.quad((D, "lobby", 0), 10.0, 18.0, 0.02, 5.7, 0.13, col=(0.3, 0.7, 1, 1))
+    for (a0, a1, b0, b1) in ((9.6, 10.0, 0.0, 6.3), (18.0, 18.4, 0.0, 6.3), (10.0, 18.0, 5.7, 6.3)):
+        f.box((D, "trim", 0), a0, a1, b0, b1, 0.0, 0.12, col=B.DARK_TRIM)
     f.box((D, "door_panel", 0), 10.0, 18.0, 5.7, 6.2, 0.1, 0.5)
     f.box((D, "neon_amber", 0), 10.0, 18.0, 6.35, 6.45, 0.1, 0.16)
     K.board(D, f, 5.0, 3.6, "pm", out=0.15)
@@ -631,6 +773,7 @@ def build(D):
         x, z = rng.uniform(X0 + 3, X1 - 3), rng.uniform(94.0, 118.0)
         if (0.0 < x < 20.0 and z > 106.0) or abs(x - 6.0) < 5.0 or 24.0 < x < 104.0 or -45.0 < x < -6.0 or 10.5 < x < 19.5:
             continue
-        P.place(rng.choice(("drum", "drum", "crates", "barrier")), x, 0.0, z, rng.uniform(0, 3.1), district=D)
+        P.place(rng.choice(("drum", "drum", "crates", "pallets")), x, 0.0, z, rng.uniform(0, 3.1), district=D)
     for (x, z, yaw, pose) in ((-9.5, 99.5, 1.0, "smoke"), (21.0, 96.0, -1.6, "phone"), (67.5, 100.0, 1.57, "idle"), (-30.0, 104.5, 0.0, "idle")):
         stand(x, z, yaw, pose)
+    yard_fill(D, random.Random(4495))
