@@ -240,6 +240,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // while the people are placed and the koi made; warm compiles what is
     // added after this and waits for all of it.)
     early = compileFor([scene], post.composer.inputBuffer);
+    early.programs.push(...glassPrograms());
     const koiMade = createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
     // (load: the voxel moon is made alongside, as it was, but the city's
     // first frame does not wait for it: only the intro shows it, and warm
@@ -884,6 +885,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       return;
     }
     raf = requestAnimationFrame(frame);
+    // (load: one piece of work that waits on the GPU's process, before this
+    // frame's draws; see `ask`.)
+    if (!adapt.sampling) asks.shift()?.run();
     const dt = last ? clamp((now - last) / 1000, 0, 1 / 20) : 0;
     if (last) {
       times[timeIndex % times.length] = now - last;
@@ -974,6 +978,24 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     for (const root of roots) for (const m of renderer.compile(root, camera, scene)) materials.add(m);
     renderer.setRenderTarget(prev);
     return { kids: scene.children.length, materials, programs: renderer.info.programs.slice(before) };
+  };
+  // (load) The glass's frost (post.js GlassEffect: a Kawase blur and a
+  // copy, at a quarter of the frame) runs only while one of the page's
+  // panes is on screen, so its two programs were made by the first frame
+  // with a pane in it, after the door: 25 to 45 ms. Made with the city's,
+  // for the targets they draw into, and waited for with them.
+  const glassPrograms = () => {
+    const pass = post.glass?.blurPass;
+    if (!pass) return [];
+    const before = renderer.info.programs.length;
+    const target = renderer.getRenderTarget();
+    renderer.setRenderTarget(pass.renderTargetA);
+    for (const m of [pass.blurMaterial, pass.copyMaterial]) {
+      pass.fullscreenMaterial = m;
+      renderer.compile(pass.scene, pass.camera);
+    }
+    renderer.setRenderTarget(target);
+    return renderer.info.programs.slice(before);
   };
   const prepare = (into, ready = () => true) => {
     // What was added to the scene since the early compile (the koi), or all
@@ -1085,9 +1107,46 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     const m = await moonMade;
     if (!m || disposed) return;
     post.setMoon(m.scene, m.camera);
-    await m.prepare(post.composer.inputBuffer, { width, height, pixelRatio: renderer.getPixelRatio() }, between);
+    await m.prepare(post.composer.inputBuffer, { width, height, pixelRatio: renderer.getPixelRatio() }, moonSlot);
     if (!disposed) moon = m;
   };
+
+  // (load) Work that waits on the GPU's process: a question it must answer
+  // before the page goes on (a program's uniforms, once it is built), or a
+  // buffer or picture big enough to wait for room on the way. One piece is
+  // run at the start of a frame, before that frame's draws, while the GPU's
+  // process has the last frame behind it; in a moment between frames it
+  // first waited for the GPU's process to take the whole of the frame just
+  // drawn, 5 to 12 ms on a desktop. A page drawing nothing runs it after a
+  // quarter of a second; none runs while the adaptive pass is timing.
+  const asks = [];
+  const ask = (job) => new Promise((resolve, reject) => {
+    const entry = {
+      run() {
+        if (entry.done) return;
+        entry.done = true;
+        clearTimeout(late);
+        try {
+          resolve(job());
+        } catch (err) {
+          reject(err);
+        }
+      },
+      done: false,
+    };
+    let late = 0;
+    const overdue = () => {
+      if (adapt.sampling) {
+        late = setTimeout(overdue, 250);
+        return;
+      }
+      const i = asks.indexOf(entry);
+      if (i >= 0) asks.splice(i, 1);
+      entry.run();
+    };
+    late = setTimeout(overdue, 250);
+    asks.push(entry);
+  });
 
   // (load) Work spread over the page's frames: each frame gives up to
   // WORK_MS of it, run just after that frame is drawn (the frame's own work
@@ -1096,26 +1155,52 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // lasts, else just after the next frame; a page drawing nothing (the tab
   // hidden, a cover up) has no frames to follow, and waits a sixth of a
   // second instead.
-  const WORK_MS = tier === "phone" ? 7 : 5;
+  // (While the adaptive pass is timing the page's frames, none of it: what
+  // it times is the city's own frame, and a frame with a share of work in
+  // it misses a fast display's refresh where the city's alone does not, so
+  // the pass shed pixels a visitor's machine had to spare.)
+  const WORK_MS = tier === "phone" ? 6 : 4;
   let workFrom = -Infinity;
-  const between = () => {
-    if (performance.now() - workFrom < WORK_MS) return Promise.resolve();
+  // (`untimed`: the voxel moon's, which the intro may wait for, runs on.)
+  // One piece of work is let go a frame, so two at once (a district and the
+  // moon) do not take a share each: the moon's first, then in the order
+  // they asked.
+  const waiting = [];
+  let slotArmed = false;
+  const arm = () => {
+    slotArmed = true;
+    let next = 0;
+    let late = 0;
+    const go = () => {
+      cancelAnimationFrame(next);
+      clearTimeout(late);
+      const moonFirst = waiting.findIndex((w) => w.untimed);
+      const i = moonFirst >= 0 ? moonFirst : adapt.sampling ? -1 : 0;
+      if (i < 0) {
+        next = requestAnimationFrame(go);
+        late = setTimeout(go, 160);
+        return;
+      }
+      const [w] = waiting.splice(i, 1);
+      setTimeout(() => {
+        slotArmed = false;
+        workFrom = performance.now();
+        w.resolve();
+        if (waiting.length && !slotArmed) arm();
+      }, 0);
+    };
+    next = requestAnimationFrame(go);
+    late = setTimeout(go, 160);
+  };
+  const slot = (untimed) => {
+    if (!(adapt.sampling && !untimed) && performance.now() - workFrom < WORK_MS) return Promise.resolve();
     return new Promise((resolve) => {
-      let asked = true;
-      const go = () => {
-        if (!asked) return;
-        asked = false;
-        cancelAnimationFrame(next);
-        clearTimeout(late);
-        setTimeout(() => {
-          workFrom = performance.now();
-          resolve();
-        }, 0);
-      };
-      const next = requestAnimationFrame(go);
-      const late = setTimeout(go, 160);
+      waiting.push({ resolve, untimed });
+      if (!slotArmed) arm();
     });
   };
+  const between = () => slot(false);
+  const moonSlot = () => slot(true);
 
   // ---- the districts behind the core ------------------------------------------
   // Once the hero can be drawn, the rest of the city: each pack fetched in
@@ -1136,19 +1221,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         await idle();
         if (disposed || !city) return;
         // (load: built a few milliseconds at a time between the page's frames,
-        // and put in the city in one go; city.js, addPack.)
-        await city.addPack(name, packScene, { beforeMerge: (part) => clearance?.add(part), between });
+        // and put in the city in one go, once what it draws is ready to be
+        // drawn; city.js, addPack, and readyToDraw below.)
+        await city.addPack(name, packScene, { beforeMerge: (part) => clearance?.add(part), between, ready: readyToDraw });
         if (disposed) return;
-        // Its materials are the core's, compiled at warm-up; this makes sure
-        // of any variant its meshes need before one is drawn.
-        // (perf: for the target the frames draw into and with the scene's
-        // own lights, as at warm-up; compiled for the screen, the programs
-        // made were not the ones the frames used, and the first look at a
-        // pack's props stopped a frame for 80 ms to make its own.)
-        const packTarget = renderer.getRenderTarget();
-        renderer.setRenderTarget(post.composer.inputBuffer);
-        renderer.compile(city.root, camera, scene);
-        renderer.setRenderTarget(packTarget);
         // (load: the rain's cover a moment later, in a moment of its own.)
         await between();
         if (disposed) return;
@@ -1157,6 +1233,189 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       } catch (err) {
         if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
       }
+    }
+    city?.releaseBake();
+    warmKit?.dispose();
+    warmKit = null;
+  };
+
+  // (load) What a district will draw, made ready out of sight before it is
+  // put in, a little between each of the page's frames: `drawn` is each
+  // { object, geometry, bytes, send? } (city.js addPack). Its programs,
+  // made as warm-up makes them (for the composer's buffer, with the
+  // scene's lights; each object with the geometry it will have), waited
+  // for in the order they were made and each first used once built; the
+  // pictures its materials hold; and its buffers, sent to the GPU by
+  // drawing nothing with them (a mesh of no triangles that shares their
+  // attributes and index, through one small program into a 1 px target),
+  // a few megabytes a moment. The first frame that draws the district
+  // then has nothing to make or send but its share of the light maps. A
+  // material whose version moved meanwhile (something set needsUpdate)
+  // is made again before it goes in.
+  // (Its programs were made as the first frame that drew it made them, and
+  // the frames drawn meanwhile went on: one that met a program still being
+  // built waited for it, 40 to 60 ms, and one that met a new buffer sent
+  // it, 2 to 7 MB, 20 to 60 ms.)
+  const WARM_BYTES = tier === "phone" ? 1.5e6 : 3e6;
+  let warmKit = null;
+  const makeWarmKit = () => {
+    const target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+    const warmScene = new THREE.Scene();
+    const material = new THREE.ShaderMaterial({
+      vertexShader: "void main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); }",
+      fragmentShader: "void main() { gl_FragColor = vec4(0.0); }",
+    });
+    const proxies = [];
+    // Its one program, made now (for the target it draws into) and waited
+    // for with the district's first programs.
+    const first = new THREE.Mesh(new THREE.BufferGeometry(), material);
+    first.frustumCulled = false;
+    first.matrixAutoUpdate = false;
+    first.visible = false;
+    warmScene.add(first);
+    proxies.push(first);
+    const before = renderer.info.programs.length;
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(target);
+    renderer.compile(warmScene, camera);
+    renderer.setRenderTarget(prev);
+    return {
+      programs: renderer.info.programs.slice(before),
+      // The buffers of `list` (each { geometry, extra: [attributes] }) to
+      // the GPU in one call.
+      send(list) {
+        while (proxies.length < list.length) {
+          const proxy = new THREE.Mesh(new THREE.BufferGeometry(), material);
+          proxy.frustumCulled = false;
+          proxy.matrixAutoUpdate = false;
+          warmScene.add(proxy);
+          proxies.push(proxy);
+        }
+        proxies.forEach((proxy, i) => {
+          const g = proxy.geometry;
+          for (const k of Object.keys(g.attributes)) g.deleteAttribute(k);
+          g.setIndex(null);
+          proxy.visible = i < list.length;
+          if (!proxy.visible) return;
+          const { geometry: from, extra = [] } = list[i];
+          for (const [k, a] of Object.entries(from.attributes)) g.setAttribute(k, a);
+          // (An instanced mesh's matrices ride along under names of their own.)
+          extra.forEach((a, k) => g.setAttribute(`extra${k}`, a));
+          g.setIndex(from.index);
+          g.setDrawRange(0, 0);
+        });
+        const prev = renderer.getRenderTarget();
+        renderer.setRenderTarget(target);
+        renderer.render(warmScene, camera);
+        renderer.setRenderTarget(prev);
+        for (const proxy of proxies) {
+          const g = proxy.geometry;
+          for (const k of Object.keys(g.attributes)) g.deleteAttribute(k);
+          g.setIndex(null);
+        }
+      },
+      dispose() {
+        target.dispose();
+        material.dispose();
+        for (const proxy of proxies) proxy.geometry.dispose();
+      },
+    };
+  };
+  // compile() over a list, each object with the geometry it will draw.
+  class Listed extends THREE.Object3D {
+    constructor(drawn) {
+      super();
+      this.drawn = drawn;
+    }
+    traverse(fn) {
+      for (const { object, geometry } of this.drawn) {
+        const was = object.geometry;
+        object.geometry = geometry;
+        fn(object);
+        object.geometry = was;
+      }
+    }
+    traverseVisible() {}
+  }
+  const readyToDraw = async (drawn) => {
+    const programs = warmKit ? [] : (warmKit = makeWarmKit()).programs;
+    const versions = new Map();
+    // A few objects at a time: a new program is its shaders' text put
+    // together and handed over, a few milliseconds each.
+    const compileSome = async (list) => {
+      const made = [];
+      for (const d of list) {
+        await between();
+        if (disposed) return made;
+        const before = renderer.info.programs.length;
+        const target = renderer.getRenderTarget();
+        renderer.setRenderTarget(post.composer.inputBuffer);
+        for (const m of renderer.compile(new Listed([d]), camera, scene)) versions.set(m, m.version);
+        renderer.setRenderTarget(target);
+        made.push(...renderer.info.programs.slice(before));
+      }
+      return made;
+    };
+    programs.push(...(await compileSome(drawn)));
+    // And the rain's cover, which draws the kit from above in its own
+    // material (cover.js), as it will once the district is in.
+    await between();
+    if (disposed) return;
+    programs.push(...(cover?.compile(drawn) ?? []));
+    for (let round = 0; round < 3 && !disposed; round++) {
+      // Each program once it is built, first used before a frame.
+      for (const program of programs) {
+        while (!program.isReady()) {
+          await between();
+          if (disposed) return;
+        }
+        await ask(() => {
+          program.getUniforms();
+          program.getAttributes();
+        });
+        if (disposed) return;
+      }
+      const pictures = new Set();
+      const add = (v) => {
+        if (Array.isArray(v)) v.forEach(add);
+        else if (v?.isTexture && !v.isRenderTargetTexture && v.image && v.version > 0) pictures.add(v);
+      };
+      for (const m of versions.keys()) {
+        for (const k of Object.keys(m)) add(m[k]);
+        for (const u of Object.values(m.uniforms ?? {})) add(u?.value);
+      }
+      for (const p of pictures) {
+        if (renderer.properties.get(p).__version === p.version) continue;
+        await ask(() => renderer.initTexture(p));
+        if (disposed) return;
+      }
+      if (round === 0) {
+        const geometries = [...new Map(drawn.filter((d) => d.bytes > 0).map((d) => [d.extra?.length ? d.object : d.geometry, d])).values()];
+        let batch = [];
+        let bytes = 0;
+        for (let i = 0; i <= geometries.length; i++) {
+          const d = geometries[i];
+          if (batch.length && (!d || bytes + d.bytes > WARM_BYTES)) {
+            const list = batch;
+            await ask(() => {
+              for (const b of list) b.send?.();
+              warmKit.send(list);
+            });
+            if (disposed) return;
+            batch = [];
+            bytes = 0;
+          }
+          if (d) {
+            batch.push(d);
+            bytes += d.bytes;
+          }
+        }
+      }
+      // Anything set needsUpdate meanwhile is made again.
+      const moved = drawn.filter(({ object }) => [].concat(object.material).some((m) => versions.get(m) !== m.version));
+      if (!moved.length) return;
+      programs.length = 0;
+      programs.push(...(await compileSome(moved)));
     }
   };
 

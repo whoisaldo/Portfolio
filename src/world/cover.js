@@ -61,6 +61,26 @@ export function createCover(renderer, { x0, z0, x1, z1 }, { size = 2048 } = {}) 
       for (const o of hidden) o.visible = true;
       hidden.length = 0;
     },
+    /** (load) The programs drawing these from above makes, made now, for
+     *  what a streamed district will add (each { object, geometry }, the
+     *  geometry it will have): the kit's meshes among them are drawn here
+     *  in this pass's own material, which a kind of mesh the city did not
+     *  have yet makes a program of its own for. Returns the new programs. */
+    compile(drawn) {
+      const before = renderer.info.programs.length;
+      const prev = renderer.getRenderTarget();
+      renderer.setRenderTarget(target);
+      for (const { object, geometry } of drawn) {
+        if (!object.name.startsWith("kit_")) continue;
+        const was = [object.geometry, object.material];
+        object.geometry = geometry;
+        object.material = stage.overrideMaterial;
+        renderer.compile(object, camera, stage);
+        [object.geometry, object.material] = was;
+      }
+      renderer.setRenderTarget(prev);
+      return renderer.info.programs.slice(before);
+    },
     dispose() {
       target.dispose();
       depth.dispose();
