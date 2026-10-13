@@ -221,8 +221,8 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   maps.shops.needsUpdate = true;
 
   const kit = createMaterialKit(shared, { maps, reduced });
-  const road = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0 });
-  const paint = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0, paint: true });
+  const road = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0, reduced });
+  const paint = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0, paint: true, reduced });
 
   // Swap materials; note what glows (for the light bake) and what the wet
   // road should mirror. The core's meshes now, a streamed pack's later.

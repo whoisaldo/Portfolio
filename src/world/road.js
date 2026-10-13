@@ -50,7 +50,7 @@ export const MIRROR_UNIFORMS = {
   uMirrorY: { value: 0 },
 };
 
-export function createRoadMaterial(shared, { maps, reflection, paint = false }) {
+export function createRoadMaterial(shared, { maps, reflection, paint = false, reduced = false }) {
   const uniforms = {
     ...shared,
     uMap: { value: maps.asphalt || null },
@@ -61,6 +61,9 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
     uStreakGain: { value: reflection ? 0.1 : 1.1 },
     ...MIRROR_UNIFORMS,
     uWet: { value: 1 },
+    // The koi's reflection on the square holds where plaza-koi.js holds the
+    // fish with reduced motion (its second 12).
+    uKoiTime: { value: reduced ? 12 : -1 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms,
@@ -98,6 +101,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
       uniform float uReflectGain;
       uniform float uMirrorY;
       uniform float uWet;
+      uniform float uKoiTime;
       varying vec3 vWorld;
       varying vec2 vUv;
       #if PAINT == 1
@@ -163,7 +167,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           float rad = i == 0 ? 11.0 : 13.0;
           float fy = i == 0 ? 30.0 : 14.5;
           float ph = i == 0 ? 1.178 : -1.178;
-          float a = uTime / 64.0 * 6.2831853 + ph;
+          float a = (uKoiTime < 0.0 ? uTime : uKoiTime) / 64.0 * 6.2831853 + ph;
           vec3 C = vec3(70.0 + rad * cos(a), fy + 0.9 * sin(a * 2.0 + ph), -234.0 - rad * sin(a));
           vec3 D = vec3(-sin(a), 0.0, -cos(a));
           vec3 w0 = P - C;
