@@ -44,33 +44,51 @@ const _c = new THREE.Vector3();
 const _ab = new THREE.Vector3();
 const _ac = new THREE.Vector3();
 
+// A running box sum across (or down) the map, its three channels side by
+// side. Down the map every column's sums run at once, a row at a time, so
+// the map is read in the order it lies in memory; each sum takes the same
+// values in the same order as one sum a column and channel would, so the
+// result is the same to the bit.
 function boxBlur(src, dst, W, H, r, horizontal) {
   const n = 2 * r + 1;
   if (horizontal) {
     for (let y = 0; y < H; y++) {
-      for (let ch = 0; ch < 3; ch++) {
-        let sum = 0;
-        const row = y * W;
-        for (let x = -r; x <= r; x++) sum += src[(row + Math.min(W - 1, Math.max(0, x))) * 3 + ch];
-        for (let x = 0; x < W; x++) {
-          dst[(row + x) * 3 + ch] = sum / n;
-          const out = Math.max(0, x - r);
-          const inn = Math.min(W - 1, x + r + 1);
-          sum += src[(row + inn) * 3 + ch] - src[(row + out) * 3 + ch];
-        }
+      const row = y * W * 3;
+      let s0 = 0;
+      let s1 = 0;
+      let s2 = 0;
+      for (let x = -r; x <= r; x++) {
+        const k = row + Math.min(W - 1, Math.max(0, x)) * 3;
+        s0 += src[k];
+        s1 += src[k + 1];
+        s2 += src[k + 2];
+      }
+      for (let x = 0; x < W; x++) {
+        const d = row + x * 3;
+        dst[d] = s0 / n;
+        dst[d + 1] = s1 / n;
+        dst[d + 2] = s2 / n;
+        const out = row + (x - r > 0 ? x - r : 0) * 3;
+        const inn = row + (x + r + 1 < W ? x + r + 1 : W - 1) * 3;
+        s0 += src[inn] - src[out];
+        s1 += src[inn + 1] - src[out + 1];
+        s2 += src[inn + 2] - src[out + 2];
       }
     }
   } else {
-    for (let x = 0; x < W; x++) {
-      for (let ch = 0; ch < 3; ch++) {
-        let sum = 0;
-        for (let y = -r; y <= r; y++) sum += src[(Math.min(H - 1, Math.max(0, y)) * W + x) * 3 + ch];
-        for (let y = 0; y < H; y++) {
-          dst[(y * W + x) * 3 + ch] = sum / n;
-          const out = Math.max(0, y - r);
-          const inn = Math.min(H - 1, y + r + 1);
-          sum += src[(inn * W + x) * 3 + ch] - src[(out * W + x) * 3 + ch];
-        }
+    const line = W * 3;
+    const sum = new Float64Array(line);
+    for (let y = -r; y <= r; y++) {
+      const row = Math.min(H - 1, Math.max(0, y)) * line;
+      for (let k = 0; k < line; k++) sum[k] += src[row + k];
+    }
+    for (let y = 0; y < H; y++) {
+      const d = y * line;
+      const out = (y - r > 0 ? y - r : 0) * line;
+      const inn = (y + r + 1 < H ? y + r + 1 : H - 1) * line;
+      for (let k = 0; k < line; k++) {
+        dst[d + k] = sum[k] / n;
+        sum[k] += src[inn + k] - src[out + k];
       }
     }
   }
@@ -88,14 +106,17 @@ function blur(field, W, H, r, passes = 3) {
 /** A gain that puts the brightest few percent of lit cells near full scale,
  *  whatever the city's total light came to. */
 function autoGain(field, target, pct = 0.985) {
-  const vals = [];
+  // (In a typed array, whose sort is by number: the field's values are
+  // float32, so they are held exactly.)
+  const vals = new Float32Array(field.length / 3);
+  let n = 0;
   for (let i = 0; i < field.length; i += 3) {
     const v = Math.max(field[i], field[i + 1], field[i + 2]);
-    if (v > 1e-5) vals.push(v);
+    if (v > 1e-5) vals[n++] = v;
   }
-  if (!vals.length) return 1;
-  vals.sort((a, b) => a - b);
-  return target / vals[Math.min(vals.length - 1, Math.floor(vals.length * pct))];
+  if (!n) return 1;
+  const sorted = vals.subarray(0, n).sort();
+  return target / sorted[Math.min(n - 1, Math.floor(n * pct))];
 }
 
 function encode(field, W, H, gain, height = null) {
