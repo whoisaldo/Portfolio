@@ -188,7 +188,7 @@ def _quiet_billboard(district, cx, cy, cz, w, h, yaw, r, frame=True, back=True, 
 # row's stream runs as it did. A lot a named view stands on keeps its height.
 STEP = {"E": 0.17, "A": 0.17, "B": 0.1}
 HIGH_Z = -591.0
-TOWERS = {"A": 13, "E": 12}
+TOWERS = {"A": 13, "E": 12, "C": 13}
 KEEP_LOW = {"A": (-711.0, -598.0, -540.0), "E": (-606.5, -42.0), "B": (-80.0,)}
 
 
@@ -227,7 +227,7 @@ def build_row(tag, xs, front, back, segs, seed, widths, floors, style, quiet=Fal
             if rb.random() < STEP.get(tag, 0.0) and not any(a <= zk <= b for zk in KEEP_LOW.get(tag, ())):
                 hs[j] += CELL_H * rb.choice((3, 3, 4, 5))
             if tag in TOWERS and a <= HIGH_Z <= b:
-                hs[j] = storeys(TOWERS[tag])
+                hs[j] = storeys(fit_hero(xs, a, b, TOWERS[tag], 9) if tag == "C" else TOWERS[tag])
             if tag == "A" and a <= plan.DECK_Z <= b:
                 hs[j] = max(hs[j], storeys(fit_hero(xs, a, b, 9, 4)))
                 DECK_TOWERS["axis"] = a
@@ -1719,7 +1719,7 @@ def sky_word(rec):
         for y in (13.2, 20.0, 26.8):
             box((D, "metal", 1), min(xf, c[0]), max(xf, c[0]), y - 0.06, y + 0.06, zf - 0.06, zf + 0.06, scale=1.0)
         light(D, c[0], 8.0, zf, hue, 5.0)
-    if rec.get("roof") in ("sign", "deck"):
+    if rec.get("roof") in ("sign", "deck", "crown"):
         return
     kana = rw.random() < 0.6
     n = max(2, min(5 if kana else 7, int((d - 0.8) / (2.2 * (1.12 if kana else 0.9)))))
@@ -1765,7 +1765,7 @@ def roof_more(rec):
     kind = rec.get("roof")
     x0, x1, z0, z1, _, top = rec["tiers"][-1]
     w, d = x1 - x0, z1 - z0
-    if kind in ("deck", "court", "pad", None) or w * d < 50.0 or min(w, d) < 5.0:
+    if kind in ("deck", "court", "pad", "crown", None) or w * d < 50.0 or min(w, d) < 5.0:
         return
     r = rng(rec, "more")
     if not _ON_ROOF:
@@ -2054,6 +2054,437 @@ def roof(rec, weights):
 
 
 # ---------------------------------------------------------------------------
+# What stands over the low roofs (the m8 review: "generic flat-topped
+# rectangular towers with the same uniform window grid, no crown, setback,
+# antenna or roof equipment"; KvMY1uzSC1E@190, ax5YUmkWf_Y@131): a lot of
+# seven storeys or more whose roof is not a deck, a sign or a court is
+# crowned, by its own dice, with a stepped crown (one to three set-back
+# storeys of windows under a lit band, a plant room over them), a raked
+# crown of dark glass with its high edge lit, a fin off its corner with its
+# name down it, or plant only; the kit's roof plant on what is left of the
+# roof, a mast with a red lamp at a corner; a screen at mid height on the
+# tallest; and every tall lot's faces over its neighbours in clusters of
+# lit and dark windows. Nothing the hero's lens sees is touched.
+# ---------------------------------------------------------------------------
+CROWNS = []     # (row, z0, kind, its top)
+ZZ_VENTS = []   # the crowns' own vents, named to sort after the old ones (the page's plumes keep their deal)
+
+
+def crowned(rec):
+    """Whether a lot is crowned rather than given one of roof()'s kinds (the
+    kind roof() would deal it is read from its own stream, not drawn)."""
+    if rec is LUCY_LOT or id(rec) in BY_DECK or rec["h"] < storeys(7) - 0.1:
+        return False
+    x0, x1, z0, z1, _, top = rec["tiers"][-1]
+    if hero_sees((x0, 0.0, z0), (x1, top + 1.0, z1)):
+        return False
+    if rec["row"] in TOWERS and rec["lot"].z0 <= HIGH_Z <= rec["lot"].z1:
+        return True
+    kind = rng(rec, "roof").choice([k for k, wt in ROOFS_W[rec["row"]] for _ in range(wt)])
+    if kind in ("deck", "sign", "court"):
+        return False
+    return kind in ("plant", "solar") or rng(rec, "crown4").random() < 0.5
+
+
+def clear_top(x0, x1, z0, z1, y, least):
+    """The highest top up to y a mass on (x0..x1, z0..z1) may have unseen by
+    the hero's lens, or None under `least`."""
+    while y >= least:
+        if not hero_sees((x0, 0.0, z0), (x1, y, z1)):
+            return y
+        y -= 0.5
+    return None
+
+
+def clusters(f, y0, y1, r, tint):
+    """Windows over a face from y0 to y1 in clusters: bands of one to three
+    storeys, each cut into one to three runs at the bays, each run its own
+    kind of window and its own share lit, from dark floors to whole lit
+    ones (f a hair proud of the wall)."""
+    w = f.width
+    bays = max(1, round(w / CELL_W))
+    bw = w / bays
+    yy = y0
+    while yy < y1 - 0.5:
+        yb = min(y1, yy + r.choice((1, 1, 2, 3)) * CELL_H)
+        cuts = sorted(r.sample(range(1, bays), min(bays - 1, r.choice((0, 1, 1, 2))))) if bays > 1 else []
+        kind = r.choice(WIN_KINDS)
+        for a, b in zip([0] + cuts, cuts + [bays]):
+            roll = r.random()
+            share = r.uniform(0.02, 0.1) if roll < 0.32 else (r.uniform(0.3, 0.6) if roll < 0.7 else r.uniform(0.85, 1.0))
+            B.facade_wall((D, "facade", 0), f, yy, yb, B.wall_col(share, kind if r.random() < 0.75 else r.choice(WIN_KINDS), r.uniform(0.3, 1.0), tint),
+                          float(r.randrange(40)), a * bw, b * bw)
+        yy = yb
+
+
+def tall_faces(rec):
+    """Window clusters on a tall lot's faces where its neighbours leave them
+    bare (not a front the row dresses itself, nor the deck's towers)."""
+    lot, h = rec["lot"], rec["h"]
+    if rec is LUCY_LOT or h < storeys(7) - 0.1 or lot.z0 in DECK_TOWERS.values():
+        return
+    r = rng(rec, "clusters")
+    x0, x1, z0, z1, _, top = rec["tiers"][0]
+    for name, f in B.faces_of(x0, x1, z0, z1).items():
+        kind = rec["sides"].get(name, "back")
+        if name == rec["front"]:
+            if rec["row"] == "C":
+                continue
+            lo = storeys(4)
+        elif kind == "party":
+            lo = max(storeys(3), lot.neighbours.get(name, 0.0) + 0.4)
+        else:
+            lo = storeys(3)
+        hi = min(top, rec["tiers"][1][4]) if len(rec["tiers"]) > 1 else top
+        if hi - lo < CELL_H:
+            continue
+        fo = B.Face(f.name, f.plane + 0.035 * (f.nx or f.nz), f.a0, f.a1)
+        clusters(fo, lo, hi - 0.6, r, rec["tint"])
+
+
+def band(x0, x1, z0, z1, y, hue, h=0.14):
+    """A lit band round a mass (the glow, so the bake leaves it alone)."""
+    walls((D, "glow", 0), [(x0 - 0.05, z1 + 0.05), (x1 + 0.05, z1 + 0.05), (x1 + 0.05, z0 - 0.05), (x0 - 0.05, z0 - 0.05)], y, y + h, GLOW[hue])
+
+
+def beacon(x, y, z):
+    """A red lamp on a short post (for what flies)."""
+    box((D, "metal", 1), x - 0.04, x + 0.04, y, y + 0.9, z - 0.04, z + 0.04, scale=0.5)
+    box((D, "glow", 0), x - 0.14, x + 0.14, y + 0.9, y + 1.12, z - 0.14, z + 0.14, scale=1.0, col=GLOW["red"])
+
+
+def tier(x0, x1, z0, z1, y0, y1, r, tint, hue, plain=False):
+    """A set-back storey or three on a roof: windows on its four faces (or
+    a plant room's louvred wall), a cornice, a lit band under it, its roof."""
+    tcol = B.TRIM[tint]
+    col = B.wall_col(r.uniform(0.35, 0.95), r.choice(WIN_KINDS), r.uniform(0.3, 1.0), tint)
+    ov = float(r.randrange(40))
+    for f in B.faces_of(x0, x1, z0, z1).values():
+        if plain:
+            f.quad((D, "trim", 0), 0.0, f.width, y0, y1, 0.0, col=tcol)
+            for yy in (y0 + 0.6, y0 + 1.0, y0 + 1.4):
+                f.box((D, "trim", 1), 0.4, f.width - 0.4, yy, yy + 0.08, 0.0, 0.06, col=(0.03, 0.032, 0.036, 1))
+        else:
+            B.facade_wall((D, "facade", 0), f, y0, y1, col, ov)
+        f.ledge((D, "trim", 1), 0.0, f.width, y1 - 0.4, 0.4, 0.2, tcol)
+    band(x0, x1, z0, z1, y1 - 0.85, hue, 0.3)
+    if not plain:
+        # Its corners outlined in the same light, up from the roof.
+        for cx_, cz_ in ((x0, z0), (x1, z0), (x1, z1), (x0, z1)):
+            box((D, "glow", 0), cx_ - 0.09, cx_ + 0.09, y0 + 0.3, y1 - 0.85, cz_ - 0.09, cz_ + 0.09, scale=1.0, col=GLOW[hue])
+    quad((D, "roof", 0), (x0, y1, z1), (x1, y1, z1), (x1, y1, z0), (x0, y1, z0), ((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
+    B.COLLISION.append(("box", x0, x1, y0, y1, z0, z1, D))
+
+
+FOOT = {"roof_hut": (2.6, 2.5), "roof_tank": (2.6, 2.6), "roof_condenser": (3.6, 1.0), "roof_duct": (4.0, 0.6), "roof_vent": (0.7, 0.7),
+        "roof_dish": (1.8, 1.8), "roof_tray": (3.0, 0.3)}
+
+
+def plant_on(x0, x1, z0, z1, top, r, taken, n_vents=4, tank=True, hut=True, mast=None):
+    """The kit's roof plant on a roof (the catalogue's dressed roof): the
+    stair hut, a tank, condensers backed by a duct, vents, a dish (unless a
+    mast is to stand there), trays between. taken: rectangles (x0, x1, z0,
+    z1) already used, and what is set down is added to it."""
+    def fits(x, z, hw, hd):
+        return (x0 + hw < x < x1 - hw and z0 + hd < z < z1 - hd
+                and not any(x + hw > a0 and x - hw < a1 and z + hd > b0 and z - hd < b1 for a0, a1, b0, b1 in taken))
+
+    def half(name, yaw):
+        w_, d_ = FOOT[name]
+        return (w_ / 2 + 0.15, d_ / 2 + 0.15) if abs(math.sin(yaw)) < 0.5 else (d_ / 2 + 0.15, w_ / 2 + 0.15)
+
+    def place(name, tries=24):
+        for _ in range(tries):
+            yaw = r.choice((0.0, HALF_PI, math.pi, -HALF_PI))
+            hw, hd = half(name, yaw)
+            if x1 - x0 < 2 * hw + 0.1 or z1 - z0 < 2 * hd + 0.1:
+                continue
+            x, z = r.uniform(x0 + hw, x1 - hw), r.uniform(z0 + hd, z1 - hd)
+            if fits(x, z, hw, hd):
+                J.put(name, x, top, z, yaw)
+                taken.append((x - hw, x + hw, z - hd, z + hd))
+                return x, z, yaw
+        return None
+    if hut:
+        place("roof_hut")
+    if tank:
+        place("roof_tank")
+    for k in range(2 if (x1 - x0) * (z1 - z0) > 160.0 else 1):
+        c = place("roof_condenser")
+        if c:
+            x, z, yaw = c
+            # Its duct behind it (a condenser's back is its -z, turned by its yaw).
+            bx, bz = x - math.sin(yaw) * 0.88, z - math.cos(yaw) * 0.88
+            hw, hd = half("roof_duct", yaw)
+            if fits(bx, bz, hw, hd - 0.15):
+                J.put("roof_duct", bx, top, bz, yaw)
+                taken.append((bx - hw, bx + hw, bz - hd, bz + hd))
+            if k == 0 and r.random() < 0.5:
+                ZZ_VENTS.append((x, top + 1.3, z))
+    for _ in range(n_vents):
+        place("roof_vent", tries=8)
+    if mast is None:
+        place("roof_dish")
+    if (x1 - x0) * (z1 - z0) > 90.0:
+        place("roof_tray", tries=8)
+
+
+def mast_at(x, z, top, h):
+    """The kit's lattice mast (red lamp on its tip), as tall as the hero's
+    lens allows, or a beacon on a post where it allows nothing."""
+    for sy in (h / 8.2, h * 0.75 / 8.2, h * 0.5 / 8.2):
+        if sy >= 0.45 and not hero_sees((x - 0.4, 0.0, z - 0.4), (x + 0.4, top + 8.2 * sy + 0.3, z + 0.4)):
+            J.put("roof_mast", x, top, z, 0.0, sy)
+            return top + 8.2 * sy
+    if not hero_sees((x - 0.2, 0.0, z - 0.2), (x + 0.2, top + 1.2, z + 0.2)):
+        beacon(x, top, z)
+    return top
+
+
+def screen_mid(rec, f, r, y0, y1):
+    """A screen at mid height on a tall face, on brackets, lamps over it."""
+    w = f.width
+    sw = min(w - 2.0, 9.6)
+    sh = min(y1 - y0, sw * r.choice((0.56, 0.75, 1.4)))
+    if sw < 4.0 or sh < 3.0:
+        return
+    cy = y0 + (y1 - y0) * r.uniform(0.35, 0.6)
+    cy = max(y0 + sh / 2, min(y1 - sh / 2, cy))
+    cx, _, cz = f.p(f.at(w / 2), cy, 0.45)
+    x, y, z = B.billboard(D, cx, cy, cz, sw, sh, f.yaw, r, back=False, depth=0.32)
+    b = basis(f.yaw)
+    for du in (-sw * 0.33, 0.0, sw * 0.33):
+        obox((D, "metal", 1), pt((x, y + sh / 2 + 0.35, z), b, du, 0.0, 0.25), b, 0.06, 0.06, 0.9)
+        obox((D, "glow", 0), pt((x, y + sh / 2 + 0.36, z), b, du, 0.0, 0.7), b, 0.42, 0.07, 0.2, col=(0.9, 0.85, 0.7, 1))
+    obox((D, "trim", 1), pt((x, y - sh / 2 - 0.2, z), b, 0.0, 0.0, 0.2), b, sw + 0.4, 0.1, 0.6, col=ESCAPE)
+
+
+def crown(rec):
+    """A crowned roof (see above)."""
+    x0, x1, z0, z1, _, top = rec["tiers"][-1]
+    w, d = x1 - x0, z1 - z0
+    r = rng(rec, "crown4")
+    tint, tcol = rec["tint"], B.TRIM[rec["tint"]]
+    B.ROOFS.append((D, x0, x1, z0, z1, top))
+    rec["roof"] = "crown"
+    parapet(x0, x1, z0, z1, top, tcol)
+    # (A plant roof would have put a vent in VENTS here: one stands in its
+    # place, so every later vent keeps its name.)
+    if rng(rec, "roof").choice([k for k, wt in ROOFS_W[rec["row"]] for _ in range(wt)]) == "plant" and rec["seed"] % 4 == 0:
+        VENTS.append(((x0 + x1) / 2, top + 1.7, z0 + 1.4, "roof"))
+    tower = rec["h"] > storeys(11)
+    hue = r.choice(("cyan", "pink", "amber", "magenta", "white", "red", "green", "cyan"))
+    kind = r.choice(("step", "step", "rake") if tower else ("step", "step", "rake", "rake", "fin", "plant"))
+    if min(w, d) < 7.0 and kind in ("step", "rake"):
+        kind = "fin" if d > 6.0 else "plant"
+    taken = []
+    peak = top
+    if kind == "step":
+        i1 = max(1.5, min(3.2, min(w, d) * 0.17))
+        ax0, ax1, az0, az1 = x0 + i1, x1 - i1, z0 + i1, z1 - i1
+        n1 = r.choice((2, 3)) if tower else r.choice((1, 2, 2))
+        y1 = clear_top(ax0, ax1, az0, az1, top + n1 * CELL_H, top + CELL_H)
+        if y1 is None:
+            kind = "plant"
+        else:
+            y1 = top + CELL_H * max(1, int((y1 - top) / CELL_H + 0.01))
+            tier(ax0, ax1, az0, az1, top, y1, r, tint, hue)
+            peak = y1
+            # The terrace round it: condensers and vents.
+            plant_on(x0 + 0.35, x1 - 0.35, z0 + 0.35, z1 - 0.35, top, r, [(ax0 - 0.1, ax1 + 0.1, az0 - 0.1, az1 + 0.1)],
+                     n_vents=3, tank=False, hut=False, mast=True)
+            i2 = max(1.2, min(2.6, min(ax1 - ax0, az1 - az0) * 0.2))
+            bx0, bx1, bz0, bz1 = ax0 + i2, ax1 - i2, az0 + i2, az1 - i2
+            y2 = clear_top(bx0, bx1, bz0, bz1, y1 + 2.6, y1 + 2.0)
+            top2 = y1
+            two = bx1 - bx0 > 3.0 and bz1 - bz0 > 3.0 and y2 is not None
+            # The mast at a corner of the top, kept clear of its plant.
+            ux0, ux1, uz0, uz1 = (bx0, bx1, bz0, bz1) if two else (ax0, ax1, az0, az1)
+            mx, mz = r.choice((ux0 + 0.7, ux1 - 0.7)), r.choice((uz0 + 0.7, uz1 - 0.7))
+            spot = [(mx - 0.6, mx + 0.6, mz - 0.6, mz + 0.6)]
+            if two:
+                tier(bx0, bx1, bz0, bz1, y1, y2, r, tint, r.choice(("red", hue)), plain=True)
+                top2, peak = y2, y2
+                plant_on(ax0 + 0.2, ax1 - 0.2, az0 + 0.2, az1 - 0.2, y1, r, [(bx0 - 0.1, bx1 + 0.1, bz0 - 0.1, bz1 + 0.1)],
+                         n_vents=2, tank=False, hut=False, mast=True)
+                plant_on(bx0, bx1, bz0, bz1, y2, r, spot, n_vents=1, tank=(bx1 - bx0) * (bz1 - bz0) > 20.0, hut=False, mast=True)
+            else:
+                plant_on(ax0, ax1, az0, az1, y1, r, spot, n_vents=2, tank=True, hut=False, mast=True)
+            peak = max(peak, mast_at(mx, mz, top2, r.uniform(7.0, 12.0) if tower else r.uniform(4.5, 8.0)))
+    elif kind == "rake":
+        # Rising away from the side most see (the street or the alley; the
+        # outer row's toward Lucy's roof and the street to the east), or
+        # along the row now and then.
+        along_x = r.random() < 0.65
+        if along_x:
+            face_dir = (1 if rec["front"] == "+x" else -1) if rec["row"] != "C" else 1
+        else:
+            face_dir = r.choice((1, -1))
+        g = 0.7
+        ax0, ax1, az0, az1 = x0 + g, x1 - g, z0 + g, z1 - g
+        span = (ax1 - ax0) if along_x else (az1 - az0)
+        rise = max(3.5, min(11.0 if tower else 7.5, span * 0.5))
+        hi = clear_top(ax0, ax1, az0, az1, top + rise, top + 3.0)
+        if hi is None:
+            kind = "plant"
+        else:
+            lo_y, hi_y = top + 1.1, hi
+            if along_x:
+                lo_x, hi_x = (ax1, ax0) if face_dir > 0 else (ax0, ax1)
+                P0, P1 = (lo_x, lo_y, az0), (lo_x, lo_y, az1)
+                Q0, Q1 = (hi_x, hi_y, az0), (hi_x, hi_y, az1)
+            else:
+                lo_z, hi_z = (az1, az0) if face_dir > 0 else (az0, az1)
+                P0, P1 = (ax0, lo_y, lo_z), (ax1, lo_y, lo_z)
+                Q0, Q1 = (ax0, hi_y, hi_z), (ax1, hi_y, hi_z)
+            # The raked face, its glass out toward face_dir.
+            pts = (P0, P1, Q1, Q0)
+            nrm = ((P1[1] - P0[1]) * (Q0[2] - P0[2]) - (P1[2] - P0[2]) * (Q0[1] - P0[1]),
+                   (P1[2] - P0[2]) * (Q0[0] - P0[0]) - (P1[0] - P0[0]) * (Q0[2] - P0[2]),
+                   (P1[0] - P0[0]) * (Q0[1] - P0[1]) - (P1[1] - P0[1]) * (Q0[0] - P0[0]))
+            if nrm[1] < 0:
+                pts = (P1, P0, Q0, Q1)
+            quad((D, "glass_dark", 0), *pts, col=(1, 1, 1, 1))
+            # Mullions down the slope, and its edges lit.
+            L = math.hypot(P1[0] - P0[0], P1[2] - P0[2])
+            n = max(2, int(L / 1.8))
+            for i in range(1, n):
+                t = i / n
+                a = (P0[0] + (P1[0] - P0[0]) * t, P0[1] + 0.03, P0[2] + (P1[2] - P0[2]) * t)
+                b_ = (Q0[0] + (Q1[0] - Q0[0]) * t, Q0[1] + 0.03, Q0[2] + (Q1[2] - Q0[2]) * t)
+                pipe((D, "trim", 1), a, b_, 0.05, segs=4, col=(0.05, 0.055, 0.06, 1))
+            for a, b_ in ((Q0, Q1), (P0, Q0), (P1, Q1)):
+                pipe((D, "glow", 0), (a[0], a[1] + 0.06, a[2]), (b_[0], b_[1] + 0.06, b_[2]), 0.07, segs=4, col=GLOW[hue])
+            # Its two ends (trapezoids, both ways) and its high back, windows in it.
+            for pa, qa in ((P0, Q0), (P1, Q1)):
+                foot_hi, foot_lo = (qa[0], top, qa[2]), (pa[0], top, pa[2])
+                poly((D, "trim", 0), [foot_lo, foot_hi, qa, pa], [(0, 0), (1, 0), (1, 1), (0, 1)], tcol)
+                poly((D, "trim", 0), [foot_hi, foot_lo, pa, qa], [(0, 0), (1, 0), (1, 1), (0, 1)], tcol)
+            if along_x:
+                fb = B.Face("-x" if face_dir > 0 else "+x", Q0[0], az0, az1)
+                fl = B.Face("+x" if face_dir > 0 else "-x", P0[0], az0, az1)
+            else:
+                fb = B.Face("-z" if face_dir > 0 else "+z", Q0[2], ax0, ax1)
+                fl = B.Face("+z" if face_dir > 0 else "-z", P0[2], ax0, ax1)
+            B.facade_wall((D, "facade", 0), fb, top, hi_y, B.wall_col(r.uniform(0.3, 0.8), r.choice(WIN_KINDS), r.uniform(0.3, 1.0), tint), float(r.randrange(40)))
+            fl.quad((D, "trim", 0), 0.0, fl.width, top, lo_y, 0.0, col=tcol)
+            B.COLLISION.append(("box", ax0, ax1, top, hi_y, az0, az1, D))
+            peak = hi_y
+            # A mast at an end of the high edge.
+            mx, mz = (Q0[0], Q0[2]) if r.random() < 0.5 else (Q1[0], Q1[2])
+            if along_x:
+                mx, mz = mx - face_dir * 0.4, mz + (0.7 if mz < (z0 + z1) / 2 else -0.7)
+            else:
+                mx, mz = mx + (0.7 if mx < (x0 + x1) / 2 else -0.7), mz - face_dir * 0.4
+            peak = max(peak, mast_at(mx, mz, top, (hi_y - top) + (r.uniform(4.0, 8.0) if tower else r.uniform(2.5, 5.0))))
+            band(x0, x1, z0, z1, top - 0.3, hue, 0.1)
+    if kind == "fin":
+        # A fin off the street corner over the roof, its name down it.
+        sgn = 1 if rec["front"] == "+x" else -1
+        xf = x1 if sgn > 0 else x0
+        zf = z1 - 1.0 if r.random() < 0.5 else z0 + 1.0
+        fh = r.uniform(7.0, 11.0)
+        ftop = clear_top(xf - 2.0, xf + 2.0, zf - 0.3, zf + 0.3, top + fh * 0.45, top + 1.5)
+        if ftop is None:
+            kind = "plant"
+        else:
+            fy0 = max(storeys(3), ftop - fh)
+            c = (xf + sgn * 1.2, (fy0 + ftop) / 2, zf)
+            obox((D, "board_frame", 0), c, basis(0.0), 0.32, ftop - fy0, 2.4)
+            text = J.F.pick(J.F.KANA, c, max(2, min(5, int((ftop - fy0 - 1.0) / 2.0))), (1, 0))
+            for yaw in (0.0, math.pi):
+                b = basis(yaw - HALF_PI)
+                J.letters(pt(c, b, 0.0, 0.0, 0.18), b, text, min(1.8, (ftop - fy0 - 1.0) / (len(text) * 1.14)), hue, depth=0.14, vertical=True)
+            for y in (fy0 + 0.6, (fy0 + ftop) / 2, ftop - 0.6):
+                box((D, "metal", 1), min(xf, c[0]), max(xf, c[0]), y - 0.05, y + 0.05, zf - 0.05, zf + 0.05, scale=1.0)
+            beacon(c[0], ftop, zf)
+            light(D, c[0] + sgn * 1.0, fy0 + 1.0, zf, hue, 4.5)
+            peak = ftop + 1.1
+            taken.append((xf - 2.6, xf + 2.6, zf - 1.4, zf + 1.4))
+    if kind in ("fin", "plant"):
+        cx = x1 - 1.0 if rec["front"] == "-x" else x0 + 1.0
+        cz = z1 - 1.0 if r.random() < 0.5 else z0 + 1.0
+        taken.append((cx - 0.7, cx + 0.7, cz - 0.7, cz + 0.7))
+        plant_on(x0 + 0.4, x1 - 0.4, z0 + 0.4, z1 - 0.4, top, r, taken, n_vents=r.randrange(3, 6), mast=True)
+        peak = max(peak, mast_at(cx, cz, top, r.uniform(4.0, 8.0)))
+        band(x0, x1, z0, z1, top + 0.55, hue, 0.08)
+    # Over the roof, lit from its own plant.
+    light(D, (x0 + x1) / 2, top + 1.5, (z0 + z1) / 2, r.choice(("amber", "cyan", "white")), 4.0)
+    CROWNS.append((rec["row"], round(z0, 1), kind, round(peak, 1)))
+    # A screen at mid height on the tallest, on the face most see.
+    if rec["h"] >= storeys(10):
+        lot = rec["lot"]
+        if rec["row"] == "C":
+            name = "+z" if (lot.z0 + lot.z1) / 2 < LUCY_LOT["lot"].z0 else "-z"
+            if rec["sides"].get(name) == "party" and lot.neighbours.get(name, 0.0) > rec["h"] * 0.6:
+                name = "+x"
+        else:
+            name = rec["front"]
+        f = face(rec, name)
+        lo = max(storeys(4), lot.neighbours.get(name, 0.0) + 1.0) if rec["sides"].get(name) == "party" else storeys(4)
+        screen_mid(rec, f, r, lo, rec["tiers"][0][5] - 2.0)
+
+
+def west_bridge(z, r):
+    """A bridge from the outer row's tower to the west row's, over row B's
+    roofs and both alleys, at the height of the high bridge's boards (the
+    show's frame of Lucy's roof has a bridge of screens across its view): a
+    lit corridor in a deep truss, a row of five screens along its south face
+    toward Lucy's roof, a board of words along its north, lit from under,
+    red lamps for what flies."""
+    def tower(row):
+        return next((rc for rc in LOTS if rc["row"] == row and rc["lot"].z0 <= z - 2.6 and z + 2.6 <= rc["lot"].z1), None)
+    c, a = tower("C"), tower("A")
+    if c is None or a is None:
+        return None
+    xa, xb = ROW_C[1], ROW_A[0]
+    under = max([rc["h"] for rc in LOTS if rc["row"] == "B" and rc["lot"].z0 < z + 2.6 and rc["lot"].z1 > z - 2.6] + [0.0])
+    y0 = max(under + 3.2, 35.0)
+    y1 = y0 + 3.4
+    if y1 + 6.0 > min(c["h"], a["h"]) or hero_sees((xa, 0.0, z - 2.6), (xb, y1 + 4.6, z + 2.6)):
+        return None
+    half = 2.0
+    truss(xa, xb, z, y0, y1, half, 8, col=STEELWORK)
+    col = B.wall_col(0.95, 1, 0.5, B.TINTS["navy"])
+    for f in (B.Face("+z", z + half - 0.25, xa, xb), B.Face("-z", z - half + 0.25, xa, xb)):
+        B.facade_wall((D, "facade", 0), f, y0 + 0.2, y1 - 0.2, col, 3.0 - (y0 + 0.2 - SHOP_H) / CELL_H)
+    box((D, "trim", 0), xa, xb, y1, y1 + 0.3, z - half - 0.3, z + half + 0.3, scale=1.0, col=(0.05, 0.053, 0.06, 1), bottom=True)
+    # The screens, edge to edge in one frame along the south face.
+    n, sh = 5, 3.9
+    sw = (xb - xa - 1.6) / n
+    zz = z + half + 0.32
+    cy = (y0 + y1) / 2 + 0.25
+    for i in range(n):
+        B.billboard(D, xa + 0.8 + sw * (i + 0.5), cy, zz, sw - 0.3, sh, 0.0, r, back=False, depth=0.26, frame=False)
+    box((D, "board_frame", 0), xa + 0.6, xb - 0.6, cy - sh / 2, cy + sh / 2, zz - 0.3, zz - 0.04, scale=1.0)
+    box((D, "board_frame", 0), xa + 0.6, xb - 0.6, cy - sh / 2 - 0.25, cy - sh / 2 - 0.05, zz - 0.3, zz + 0.12, scale=1.0)
+    box((D, "board_frame", 0), xa + 0.6, xb - 0.6, cy + sh / 2 + 0.05, cy + sh / 2 + 0.25, zz - 0.3, zz + 0.12, scale=1.0)
+    for i in range(n + 1):
+        x = xa + 0.8 + sw * i
+        box((D, "board_frame", 0), x - 0.15, x + 0.15, cy - sh / 2 - 0.25, cy + sh / 2 + 0.25, zz - 0.3, zz + 0.12, scale=1.0)
+    for x in (xa + 4.0, (xa + xb) / 2, xb - 4.0):
+        box((D, "glow", 0), x - 1.6, x + 1.6, cy + sh / 2 + 0.3, cy + sh / 2 + 0.38, zz + 0.1, zz + 0.5, scale=1.0, col=(0.9, 0.85, 0.7, 1), bottom=True)
+    # And a second row standing on its top chord, words among them.
+    panel_row(xa + 0.6, xb - 0.6, y1 + 0.5, 3.8, z + half + 0.2, 0.0, r, ("ad", "word", "ad", "ad"), "cyan")
+    # The words along the north face.
+    b = basis(math.pi)
+    cc = ((xa + xb) / 2, (y0 + y1) / 2, z - half - 0.3)
+    obox((D, "board_frame", 0), cc, b, xb - xa - 3.0, 2.6, 0.22)
+    text = J.F.pick(J.F.KANA, cc, 6, (1, 1))
+    J.letters(pt(cc, b, 0.0, 0.0, 0.16), b, text, min(1.9, (xb - xa - 5.0) / (len(text) * 1.12)), r.choice(("cyan", "amber", "green")), depth=0.14)
+    # Under it: a lit strip down its floor, red lamps, a tube along each chord.
+    box((D, "glow", 0), xa + 1.0, xb - 1.0, y0 - 0.34, y0 - 0.28, z - 0.4, z + 0.4, scale=1.0, col=(0.62, 0.5, 0.36, 1), bottom=True)
+    for zz_, hue in ((z + half + 0.14, "magenta"), (z - half - 0.14, "cyan")):
+        box((D, "glow", 0), xa + 0.5, xb - 0.5, y0 - 0.32, y0 - 0.22, zz_ - 0.04, zz_ + 0.04, scale=1.0, col=GLOW[hue], bottom=True)
+    for x in (xa + 6.0, (xa + xb) / 2, xb - 6.0):
+        box((D, "glow", 0), x - 0.12, x + 0.12, y0 - 0.45, y0 - 0.32, z - 0.12, z + 0.12, scale=1.0, col=GLOW["red"], bottom=True)
+    for dz, drop in ((-2.7, 2.4), (2.8, 3.2)):
+        J.span("jt_cable", (xa, z + dz), (xb, z + dz), y0 - 0.5, drop)
+    B.COLLISION.append(("box", xa, xb, y0 - 0.3, y1 + 0.3, z - half, z + half, D))
+    return (round(y0, 1), round(y1, 1), round(under, 1))
+
+
+# ---------------------------------------------------------------------------
 # The rows.
 # ---------------------------------------------------------------------------
 W_NARROW = (5.6, 6.4, 7.2, 8.0, 9.6, 11.2)
@@ -2177,7 +2608,11 @@ for rec in LOTS:
         f = face(rec, rec["back"])
         if rec["r"].random() < 0.6 and f.width > 8.0:
             J.board(f, f.width / 2, rec["h"] - 2.6, "pm", tilt=rec["r"].uniform(-0.25, 0.25), k=rec["r"].uniform(1.6, 2.2), out=0.3)
-    roof(rec, ROOFS_W[row])
+    if crowned(rec):
+        crown(rec)
+    else:
+        roof(rec, ROOFS_W[row])
+    tall_faces(rec)
     if rec["h"] > 24.0 and row in ("A", "E"):
         sky_word(rec)
     if id(rec) in DECK_LOW:
@@ -2739,6 +3174,9 @@ skybridge(BRIDGE_Z, gr)
 sign_tower(-90.55, TOWER_Z, gr)
 hr = random.Random(7160)
 high_bridge(HIGH_Z, hr)
+print("japantown west bridge:", west_bridge(HIGH_Z, random.Random(7170)), "crowns:", len(CROWNS), sorted({k for _, _, k, _ in CROWNS}),
+      "highest:", max([c[3] for c in CROWNS] + [0.0]))
+print("japantown crowns:", CROWNS)
 pipe_bridge(PIPES_Z, hr)
 lantern_arch(ARCH_Z, gr)
 tube_arch(SOUTH_Z, gr)
@@ -3209,7 +3647,9 @@ for i, v in enumerate(VENTS):
         steam(v[0], v[2], v[1], "roof")
     elif i % 9 == 4:
         steam(v[0], v[2], v[1], "lane")
-print("japantown east lane wall:", lane_east(), "things against it,", len(STEAM), "steam vents")
+for i, (x, y, z) in enumerate(ZZ_VENTS):
+    empty(f"anchor_steam_zzjt_roof_{i}", (x, y + 0.1, z))
+print("japantown east lane wall:", lane_east(), "things against it,", len(STEAM), "steam vents,", len(ZZ_VENTS), "on the crowns")
 
 # ---------------------------------------------------------------------------
 # The block that closes the west street's south end, across the south
