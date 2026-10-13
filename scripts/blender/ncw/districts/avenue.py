@@ -9,6 +9,7 @@ from ncw.districts import avenue_street as ST
 from ncw.districts import avenue_upper as UP
 from ncw.districts import avenue_mass as M
 from ncw.districts import avenue_signs as SG
+from ncw.districts import avenue_life as LF
 
 # The street itself (asphalt, paint, crossings, kerbs, pavements, drains)
 # is streets.py's, from the plan.
@@ -600,4 +601,11 @@ with K.own_names():
 K.use_names(random.Random(77230))
 ST.markings(AVS, random.Random(7620))
 K.use_names(_names)
+# People at something on the arm and the south street: food carts and
+# their queues, a patrol stopping somebody, a scooter fixed at the kerb, a
+# delivery, knots of people, somebody on a step (avenue_life).
+_np = len(PEOPLE)
+with K.own_names():
+    LF.build(AVS, random.Random(7640))
+print("avenue life:", len(PEOPLE) - _np, "people,", sum(1 for i in P.INSTANCES if i[0] == "food_cart" and i[7] == AVS), "carts, patrol at", LF.PATROL)
 P.place = _place
