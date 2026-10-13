@@ -52,7 +52,7 @@ const KINDS = {
   stall: { puffs: 9, life: 3.8, rise: 2.6, size: [0.35, 1.6], wind: [0.1, -0.06], density: 1.0, tall: 1.3, lift: 1.3, hide: 0.4 },
   drain: { puffs: 6, life: 3.6, rise: 1.6, size: [0.22, 0.9], wind: [0.25, -0.15], density: 0.65, tall: 1.3, lift: 1, hide: 0.4 },
   lane: { puffs: 7, life: 3.4, rise: 1.9, size: [0.26, 1.1], wind: [0.16, -0.1], density: 0.75, tall: 1.4, lift: 1, hide: 0.4 },
-  roof: { puffs: 10, life: 6.5, rise: 5.0, size: [0.5, 3.2], wind: [-0.8, 0.3], density: 0.62, tall: 1.0, lift: 1, hide: 0.4 },
+  roof: { puffs: 10, life: 6.5, rise: 5.0, size: [0.5, 3.2], wind: [-0.8, 0.3], density: 0.72, tall: 1.0, lift: 1, hide: 0.4 },
   stack: { puffs: 14, life: 9.0, rise: 11.0, size: [1.0, 6.5], wind: [-1.2, 0.45], density: 0.85, tall: 1.0, lift: 5.0, hide: 0.22 },
 };
 // A bank of the works' smog: four slow puffs, flatter than tall, lying low.
@@ -276,7 +276,6 @@ export function createSteam(scene, shared, anchors, { reduced = false } = {}) {
       }
       void main() {
         vec2 q = vUv - 0.5;
-        float r = length(q) * 2.0;
         // Billows that rise into wisps: the noise is finer across than up,
         // so it runs in strands, and bent by a slower noise so the strands
         // curl; a finer set rolls over the first.
@@ -291,8 +290,12 @@ export function createSteam(scene, shared, anchors, { reduced = false } = {}) {
         // A soft body with no edge and no flat core: thickest at its middle
         // and falling away from there; it is torn from the first (only what
         // its billows hold is there) and more as it ages, into strands.
-        float body = max(exp(-r * r * 3.2) - 0.04, 0.0);
-        float eaten = mix(0.25, 0.52, vAge);
+        // (Its outline is pushed about by the billows, so it is never a
+        // disc, and it is a little taller than wide; the card's own edge
+        // never shows.)
+        float r = length((q + bendBy * 0.3) * vec2(1.0, 0.8)) * 2.0 + (n - 0.5) * 0.8;
+        float body = max(exp(-r * r * 3.2) - 0.04, 0.0) * (1.0 - smoothstep(0.65, 1.0, length(q) * 2.0));
+        float eaten = mix(0.25, 0.6, vAge);
         float torn = smoothstep(eaten, eaten + 0.3, n + (strand - 0.5) * 0.3) * mix(0.55, 1.0, strand * strand);
         // A puff is thin leaving the vent and thickest a fifth of the way
         // through its life, so a plume has no bright foot, and below the
