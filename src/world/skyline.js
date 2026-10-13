@@ -892,13 +892,18 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // its own); lens x, z and the bearings it frames, with a margin.
   // (Contact's far skyline is no longer held: there the layer stands under
   // capEl. The garage street's wedge is what its lens sees down the street.)
-  const FAR_AS_DEALT = [[476, -266, 169, 181], [476, -266, -181, -112], [437, -292, 66, 102]];
+  // (The garage street's lens sees the far layer only in the slot between
+  // its walls at the street's end, 79 to 98 degrees: a tenth of a per cent
+  // of its frame. Wider, the wedge held the whole south of the far ring as
+  // a fence of one height.)
+  const FAR_AS_DEALT = [[476, -266, 169, 181], [476, -266, -181, -112], [437, -292, 78, 100]];
+  const farAsDealt = (b) => FAR_AS_DEALT.some(([lx, lz, a0, a1]) => {
+    const a = Math.atan2(b.z - lz, b.x - lx) * (180 / Math.PI);
+    return a > a0 && a < a1;
+  });
   lots.forEach((b, i) => {
     if (!b.far) return;
-    if (FAR_AS_DEALT.some(([lx, lz, a0, a1]) => {
-      const a = Math.atan2(b.z - lz, b.x - lx) * (180 / Math.PI);
-      return a > a0 && a < a1;
-    })) return;
+    if (farAsDealt(b)) return;
     const own = at(b);
     if (hash11(own + 71.1) < 0.26) {
       lots[i] = { ...b, gone: true };
@@ -927,6 +932,13 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     if (h > most) {
       h = most;
       capped = true;
+    }
+    // (And never a fence of one height: two in five stand a third to three
+    // fifths of what they may, the rest most of it, so the ring's roofline
+    // breaks two to three times over. Only ever lower than the caps.)
+    if (!landmark) {
+      const vary = hash11(own + 79.9);
+      h *= vary < 0.4 ? 0.32 + 0.68 * vary : 0.8 + 0.2 * ((vary - 0.4) / 0.6);
     }
     const grow = h / b.h;
     const wider = landmark && !capped ? 1.25 : 1;
@@ -1788,6 +1800,94 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     name(322, 104, -976.2, 13, 88, 4, true);
     tube(353.2, 88, -976.8, 0.8, 120, 0.4, 2);
     tube(306.8, 88, -976.8, 0.8, 120, 0.4, 2);
+  }
+
+  // ---- the far ring: more city, not a backdrop -------------------------------
+  // What the show's far city has even a mile off: skybridges between its
+  // towers, lit from under; an elevated railway on pylons; up its faces
+  // tubes of cyan, magenta and yellow and small lit boards. Each far tower
+  // outside the page's frames that hold (the rooftop's, and the slot at the
+  // garage street's end) wears a tube or two and a board or two on the face it turns
+  // to the kit, and a neighbour within a block or so is joined to it by a
+  // bridge, under the lower roof and clear of every flying lane.
+  {
+    // The heights flying lanes take near a point: [lowest belly, highest top].
+    const lanesAt = (x, z, reach) => {
+      let [lo, hi] = [Infinity, -Infinity];
+      for (const l of LANES) {
+        let off;
+        if (l.a) {
+          const [ax, az, bx, bz] = [l.a[0], l.a[1], l.b[0] - l.a[0], l.b[1] - l.a[1]];
+          const t = Math.min(1, Math.max(0, ((x - ax) * bx + (z - az) * bz) / (bx * bx + bz * bz)));
+          off = Math.hypot(x - ax - bx * t, z - az - bz * t) - l.half;
+        } else off = Math.abs(Math.hypot((x - l.c[0]) / l.r[0], (z - l.c[1]) / l.r[1]) - 1) * Math.min(l.r[0], l.r[1]);
+        if (off < reach + 6) {
+          lo = Math.min(lo, l.y + Math.min(l.lift ?? 0, 0) - 6);
+          hi = Math.max(hi, l.y + Math.max(l.lift ?? 0, 0) + 20);
+        }
+      }
+      return [lo, hi];
+    };
+    const far = [];
+    lots.forEach((b, i) => {
+      if (b.far && !b.gone && !farAsDealt(b)) far.push(i);
+    });
+    let turnAd = 0;
+    for (const i of far) {
+      const [b, f] = [lots[i], forms[i]];
+      const own = at(b);
+      const face = faceToward(b, 160, -330);
+      const tier = f.tiers[1] > 0 ? 1 : 0;
+      const base = tier ? f.tiers[0] : 0;
+      const shaft = f.tiers[tier];
+      for (let k = 0; k < 1 + Math.floor(hash11(own + 81.3) * 2); k++) {
+        const u = (k ? -1 : 1) * (0.22 + 0.2 * hash11(own + 83.1 + k));
+        const at1 = onFace(b, f, face, tier, u, 0.3);
+        const [from, to] = [0.08 + 0.3 * hash11(own + 85.7 + k), 0.6 + 0.38 * hash11(own + 87.9 + k)];
+        box(BOX.tube, at1.x, base + shaft * (from + to) / 2, at1.z, 3.2, shaft * (to - from), 0.4, at1.turn, [Math.floor(hash11(own + 89.3 + k) * 3), 3.0, 0]);
+      }
+      for (let k = 0; k < 1 + Math.floor(hash11(own + 91.1) * 2); k++) {
+        const at2 = onFace(b, f, (face + k * 3) % 4, tier, (hash11(own + 93.7 + k) - 0.5) * 0.5, 0.5);
+        const tall = hash11(own + 95.3 + k) < 0.5;
+        const [bw, bh] = tall ? [Math.min(13, at2.wide * 0.32), 22] : [Math.min(24, at2.wide * 0.5), 12];
+        box(BOX.board, at2.x, base + shaft * (0.3 + 0.55 * hash11(own + 97.1 + k)), at2.z, bw, bh, 0.8, at2.turn, [hash11(own + 99.9 + k), 100 + ((turnAd++ * 7 + 5) % 24), 0]);
+      }
+    }
+    // Bridges: between far towers 50 to 120 m apart, both over 150 m, one
+    // pair in two, at a height under the lower roof (two floors of lit
+    // rooms in a truss, lit from under).
+    for (let p = 0; p < far.length; p++) {
+      for (let q = p + 1; q < far.length; q++) {
+        const [a, c] = [lots[far[p]], lots[far[q]]];
+        const [dx, dz] = [c.x - a.x, c.z - a.z];
+        const dist = Math.hypot(dx, dz);
+        if (dist < 50 || dist > 120 || a.h < 150 || c.h < 150) continue;
+        const k = hash11(at(a) * 1.7 + at(c) * 0.31);
+        if (k < 0.5) continue;
+        const length = dist - 0.25 * (a.w + a.d) - 0.25 * (c.w + c.d) + 6;
+        if (length < 10) continue;
+        const [mx, mz] = [(a.x + c.x) / 2, (a.z + c.z) / 2];
+        const y = Math.min(a.h, c.h) * (0.38 + 0.4 * ((k - 0.5) * 2));
+        const [lo, hi] = lanesAt(mx, mz, length / 2);
+        if (y + 6 > lo && y - 6 < hi) continue;
+        box(BOX.deck, mx, y, mz, length, 7.6, 10, Math.atan2(-dz, dx), [k, 0, 0]);
+      }
+    }
+    // Two elevated railways across the far city on pylons, lit from under,
+    // south-east of the kit and north-east of Corpo Row, low (46 and 52 m),
+    // under every flying lane they cross and outside the page's frames.
+    for (const [x0, z0, x1, z1, y] of [[760, -40, 1400, 260, 46], [520, -700, 1120, -900, 52]]) {
+      const len = Math.hypot(x1 - x0, z1 - z0);
+      const turn = Math.atan2(-(z1 - z0), x1 - x0);
+      const n = Math.floor(len / 40);
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n;
+        const [x, z] = [x0 + (x1 - x0) * t, z0 + (z1 - z0) * t];
+        box(BOX.steel, x, y, z, len / n + 0.2, 3.2, 7, turn, [0.3, 0, 0]);
+        box(BOX.tube, x, y - 1.75, z, len / n + 0.2, 0.3, 0.6, turn, [k % 7 === 3 ? 2 : 0, 2.0, 0]);
+        if (k % 2 === 0) box(BOX.steel, x, (y - 1.6) / 2, z, 2.6, y - 1.6, 2.6, turn, [0.1, 0, 0]);
+      }
+    }
   }
 
   // The columns: each a solid stack of screens on its own ground, 0.72 of
@@ -3092,7 +3192,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   lots.forEach((b, i) => {
     // Outside what Contact frames every tower has its lamp, not only the
     // tallest, and it is a lamp to be seen across the city (groups 5 to 7).
-    const all = b.h >= TOWER_FROM && !b.hero && (!framed(b) || b.mid);
+    const all = b.h >= TOWER_FROM && !b.hero && (!framed(b) || b.mid || (b.far && !farAsDealt(b)));
     if ((beaconOf[i] < 0 && !all) || b.gone) return;
     const s = forms[i];
     const [cx, cz] = topCentre(b, s);
