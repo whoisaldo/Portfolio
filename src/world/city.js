@@ -16,6 +16,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { worldModelUrl, worldPackUrl, worldShopsUrl } from "../data/world-assets.js";
 import { createProps, preloadProps } from "./props.js";
+import { bitmapTexture } from "./pictures.js";
 import { createMaterialKit, NEON } from "./materials.js";
 import { markBytes } from "./progress.js";
 import { createSigns } from "./signs.js";
@@ -98,7 +99,8 @@ export function preloadCity(tier) {
         .setMeshoptDecoder(MeshoptDecoder)
         .loadAsync(worldModelUrl[tier], (e) => markBytes("city", e.loaded, e.total))
         .then((gltf) => inflate(gltf.scene)),
-      new THREE.TextureLoader().loadAsync(worldShopsUrl[tier]),
+      // (load: decoded as it lands, off the page's thread; src/world/pictures.js.)
+      bitmapTexture(worldShopsUrl[tier], false),
       preloadProps(tier),
       preloadLogos(),
     ])
