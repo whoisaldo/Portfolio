@@ -73,6 +73,21 @@ B.face_signs = ST.face_signs
 # kit's dressing drawn for nobody, its draws made as they were).
 _roof_dress = B.roof_dress
 B.roof_dress = RF.kit_roof(_roof_dress, AVS)
+# The kit's drum, barrel and skip are plain shapes in one colour: in the
+# south pack each is built here instead, in worn painted steel (avenue_kit).
+_place = P.place
+_prop_rng = random.Random(7600)
+
+
+def _place_av(name, x, y, z, yaw=0.0, sy=1.0, sxz=1.0, district=None):
+    if district == AVS and name in ("drum", "barrel"):
+        return K.steel_drum(AVS, x, y, z, _prop_rng)
+    if district == AVS and name == "dumpster":
+        return K.skip_bin(AVS, x, y, z, yaw, _prop_rng)
+    return _place(name, x, y, z, yaw, sy, sxz, district)
+
+
+P.place = _place_av
 
 
 # The lots, north of the intersection: (z_start, depth along the street,
@@ -491,3 +506,7 @@ for (f, h, tcol, lane) in BACKS:
 # trays, bills, boards, lamps, clear of the deck's band.
 UP.far_wall(AVS, B.Face("+x", -WALK - DEPTH - 6.0, -166.0, -12.0), -166.0, -12.0, random.Random(7510), skip=(DECK_BAND,), used=NORTH_LANES["w"].used)
 UP.far_wall(AVS, B.Face("-x", WALK + DEPTH + 8.0, -166.0, -12.0), -166.0, -12.0, random.Random(7511), skip=(DECK_BAND,), used=NORTH_LANES["e"].used)
+# The show's street paint and furniture on the arm and the south street, and
+# people on their pavements (avenue_street.markings).
+ST.markings(AVS, random.Random(7620))
+P.place = _place

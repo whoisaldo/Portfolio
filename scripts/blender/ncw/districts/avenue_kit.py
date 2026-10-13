@@ -340,24 +340,152 @@ def gas_bottles(district, x, z, rng):
 
 
 def scooter(district, x, z, yaw, rng):
-    """A parked scooter: two wheels, a body, a seat, a lamp."""
+    """A parked scooter: round wheels on their axles, a footboard between
+    them, the leg shield raked up to the bars, the cowl and its seat, the
+    bars with their mirrors, a lamp at the front and a red one behind."""
     c, s_ = math.cos(yaw), math.sin(yaw)
 
-    def at(u, v):  # u along the scooter (front +), v across
-        return (x + s_ * u + c * v, z + c * u - s_ * v)
-    body = rng.choice(PLASTIC + [(0.3, 0.3, 0.32, 1)])
-    for u in (-0.62, 0.62):
-        px, pz = at(u, 0.0)
-        oriented_box((district, "dark", 1), px, G0 + 0.24, pz, 0.1, 0.48, 0.48, yaw + math.pi / 2, scale=0.5)
+    def at(u, v, y):  # u along the scooter (front +), v across
+        return (x + s_ * u + c * v, y, z + c * u - s_ * v)
+    body = rng.choice(PLASTIC + [(0.3, 0.3, 0.32, 1), (0.42, 0.4, 0.36, 1)])
+    for u in (-0.58, 0.6):
+        pipe((district, "dark", 1), at(u, -0.06, G0 + 0.21), at(u, 0.06, G0 + 0.21), 0.21, segs=8, caps=True)
+        pipe((district, "metal", 1), at(u, -0.08, G0 + 0.21), at(u, 0.08, G0 + 0.21), 0.07, segs=5, caps=True)
+    fx, _, fz = at(0.0, 0.0, 0.0)
+    oriented_box((district, "trim", 1), fx, G0 + 0.27, fz, 0.3, 0.08, 0.6, yaw, scale=1.0, col=(0.06, 0.06, 0.07, 1))
+    # The leg shield: a slab raked from the footboard's front up to the bars.
+    a0, a1 = at(0.32, -0.17, G0 + 0.3), at(0.32, 0.17, G0 + 0.3)
+    b0, b1 = at(0.5, -0.17, G0 + 0.98), at(0.5, 0.17, G0 + 0.98)
+    for pts in ((a0, a1, b1, b0), (a1, a0, b0, b1)):
+        quad((district, "trim", 1), *pts, col=body)
+    # The cowl over the back wheel and the seat on it.
+    rx, _, rz = at(-0.42, 0.0, 0.0)
+    oriented_box((district, "trim", 1), rx, G0 + 0.52, rz, 0.32, 0.36, 0.62, yaw, scale=1.0, col=body)
+    sx, _, sz = at(-0.3, 0.0, 0.0)
+    oriented_box((district, "dark", 1), sx, G0 + 0.76, sz, 0.28, 0.1, 0.62, yaw, scale=1.0)
+    # The bars, the mirrors, the lamps.
+    pipe((district, "metal", 1), at(0.42, 0.0, G0 + 0.3), at(0.5, 0.0, G0 + 1.08), 0.025, segs=4)
+    pipe((district, "metal", 1), at(0.5, -0.32, G0 + 1.08), at(0.5, 0.32, G0 + 1.08), 0.018, segs=4)
+    for v in (-0.26, 0.26):
+        pipe((district, "metal", 1), at(0.5, v, G0 + 1.08), at(0.46, v * 1.15, G0 + 1.3), 0.008, segs=3)
+        mx, my, mz = at(0.46, v * 1.15, G0 + 1.33)
+        oriented_box((district, "dark", 1), mx, my, mz, 0.08, 0.06, 0.02, yaw, scale=0.5)
+    lx, ly, lz = at(0.56, 0.0, G0 + 1.0)
+    oriented_box((district, "glow", 0), lx, ly, lz, 0.12, 0.08, 0.03, yaw, scale=0.5, col=GLOW["white"])
+    tx, ty, tz = at(-0.74, 0.0, G0 + 0.62)
+    oriented_box((district, "glow", 0), tx, ty, tz, 0.1, 0.05, 0.02, yaw, scale=0.5, col=tuple(v * 0.6 for v in GLOW["red"][:3]) + (1,))
+
+
+DRUMS = ((0.05, 0.12, 0.26, 1), (0.36, 0.06, 0.04, 1), (0.48, 0.2, 0.04, 1), (0.07, 0.2, 0.1, 1), (0.5, 0.38, 0.05, 1), (0.05, 0.05, 0.055, 1), (0.3, 0.3, 0.3, 1))
+
+
+def steel_drum(district, x, y, z, rng, r=0.29, h=0.88):
+    """A steel drum in worn paint: two rolling hoops, its lid with a bung,
+    now and then a label, dirt up its foot."""
+    col = rng.choice(DRUMS)
+    cylinder((district, "steel", 0), x, z, y, y + h, r, segs=10, col=col)
+    for yy in (y + h * 0.33, y + h * 0.66):
+        cylinder((district, "steel", 1), x, z, yy - 0.025, yy + 0.025, r + 0.015, segs=10, cap=False, col=col)
+    cylinder((district, "steel", 1), x, z, y + h, y + h + 0.02, r - 0.03, segs=10, col=tuple(v * 0.8 for v in col[:3]) + (1,))
+    cylinder((district, "dark", 1), x + r * 0.45, z, y + h + 0.02, y + h + 0.04, 0.035, segs=5)
+    cylinder((district, "trim", 1), x, z, y, y + 0.12, r + 0.004, segs=10, cap=False, col=(0.04, 0.035, 0.03, 1))
+    if rng.random() < 0.5:
+        a = rng.uniform(0, math.tau)
+        lx, lz = x + math.cos(a) * (r + 0.008), z + math.sin(a) * (r + 0.008)
+        rotated_quad((district, "trim", 1), lx, y + h * 0.5, lz, 0.26, 0.2, math.atan2(math.cos(a), math.sin(a)), col=rng.choice(((0.6, 0.6, 0.55, 1), (0.6, 0.5, 0.1, 1), (0.55, 0.55, 0.5, 1))))
+
+
+def skip_bin(district, x, y, z, yaw, rng):
+    """A wheeled steel bin as the kit's dumpster stands (1.8 m by 1.1, its
+    front to yaw): the body in worn paint, its lid in two halves (one up
+    now and then), pockets for the forks, a stencilled band, wheels."""
+    col = rng.choice(((0.07, 0.2, 0.1, 1), (0.05, 0.12, 0.24, 1), (0.25, 0.26, 0.26, 1), (0.4, 0.18, 0.04, 1), (0.3, 0.05, 0.04, 1)))
+    c, s_ = math.cos(yaw), math.sin(yaw)
+
+    def at(u, v):  # u across (right), v toward the front
+        return (x + c * u + s_ * v, z - s_ * u + c * v)
     bx, bz = at(0.0, 0.0)
-    oriented_box((district, "trim", 1), bx, G0 + 0.5, bz, 0.34, 0.32, 1.1, yaw, scale=1.0, col=body)
-    sx, sz = at(-0.2, 0.0)
-    oriented_box((district, "dark", 1), sx, G0 + 0.72, sz, 0.3, 0.1, 0.6, yaw, scale=1.0)
-    hx, hz = at(0.55, 0.0)
-    oriented_box((district, "trim", 1), hx, G0 + 0.75, hz, 0.25, 0.7, 0.16, yaw, scale=1.0, col=body)
-    oriented_box((district, "metal", 1), hx, G0 + 1.12, hz, 0.6, 0.04, 0.04, yaw, scale=0.5)
-    lx, lz = at(0.64, 0.0)
-    oriented_box((district, "glow", 0), lx, G0 + 0.95, lz, 0.12, 0.08, 0.04, yaw, scale=0.5, col=GLOW["white"])
+    oriented_box((district, "steel", 0), bx, y + 0.71, bz, 1.8, 1.0, 1.1, yaw, scale=1.0, col=col)
+    for u in (-0.92, 0.92):
+        px, pz = at(u * 0.98, 0.0)
+        oriented_box((district, "steel", 1), px, y + 0.95, pz, 0.08, 0.16, 0.7, yaw, scale=0.5, col=tuple(v * 0.7 for v in col[:3]) + (1,))
+    sx, sz = at(0.0, 0.552)
+    rotated_quad((district, "trim", 1), sx, y + 0.95, sz, 1.4, 0.12, yaw, col=(0.55, 0.55, 0.5, 1))
+    for u in (-0.45, 0.45):
+        lx, lz = at(u, 0.0)
+        if u > 0 and rng.random() < 0.35:
+            # Thrown back against the wall behind, upright.
+            hx, hz = at(u, -0.62)
+            oriented_box((district, "steel", 1), hx, y + 1.65, hz, 0.88, 0.9, 0.05, yaw, scale=1.0, col=(0.05, 0.05, 0.055, 1))
+        else:
+            oriented_box((district, "steel", 1), lx, y + 1.24, lz, 0.88, 0.05, 1.16, yaw, scale=1.0, col=(0.05, 0.05, 0.055, 1))
+    for u in (-0.7, 0.7):
+        for v in (-0.4, 0.4):
+            wx, wz = at(u, v)
+            cylinder((district, "dark", 1), wx, wz, y, y + 0.21, 0.1, segs=6)
+
+
+def road_word(district, word, x, z, up, h=4.2, w=1.05, y=0.014, col=(0.62, 0.62, 0.58, 1), rng=None):
+    """A word painted on the road for the driver coming up to it, letters
+    side by side across the lane, each `h` long along the way and `w` wide,
+    worn where tyres run (strokes broken)."""
+    ux, uz = up
+    rx, rz = -uz, ux      # the driver's right when facing up
+    cw, ch = w / 3.0, h / 5.0
+    n = len(word)
+    gap = w * 0.4
+    left = -(n * w + (n - 1) * gap) / 2
+    for i, ch_ in enumerate(word):
+        ox = left + i * (w + gap)
+        for (a0, b0, a1, b1) in GLYPHS.get(ch_, ()):
+            # A long stroke broken by wear where the tyres run.
+            pieces = [(b0, b1)]
+            if rng is not None and b1 - b0 >= 2 and rng.random() < 0.6:
+                m = b0 + (b1 - b0) * rng.uniform(0.35, 0.65)
+                g = rng.uniform(0.05, 0.25)
+                pieces = [(b0, m - g / 2), (m + g / 2, b1)]
+            for c0, c1 in pieces:
+                pts = []
+                for (aa, bb) in ((a0, c0), (a1, c0), (a1, c1), (a0, c1)):
+                    u, v = ox + aa * cw, bb * ch - h / 2
+                    pts.append((x + rx * u + ux * v, y, z + rz * u + uz * v))
+                quad((district, "paint", 0), *pts, col=col)
+                quad((district, "paint", 0), *reversed(pts), col=col)
+
+
+# Block letters three cells wide and five long: strokes (x0, y0, x1, y1).
+GLYPHS = {
+    "S": ((0, 4, 3, 5), (0, 2, 1, 5), (0, 2, 3, 3), (2, 0, 3, 3), (0, 0, 3, 1)),
+    "L": ((0, 0, 1, 5), (1, 0, 3, 1)),
+    "O": ((0, 0, 1, 5), (2, 0, 3, 5), (1, 0, 2, 1), (1, 4, 2, 5)),
+    "W": ((0, 0, 1, 5), (2, 0, 3, 5), (1, 0, 2, 2)),
+    "T": ((0, 4, 3, 5), (1, 0, 2, 4)),
+    "P": ((0, 0, 1, 5), (1, 4, 3, 5), (2, 2, 3, 4), (1, 2, 2, 3)),
+    "B": ((0, 0, 1, 5), (1, 4, 3, 5), (1, 2, 3, 3), (1, 0, 3, 1), (2, 1, 2.6, 2), (2, 3, 2.6, 4)),
+    "U": ((0, 0, 1, 5), (2, 0, 3, 5), (1, 0, 2, 1)),
+}
+
+
+def kerb_paint(district, axis, c, a0, a1, toward, rng, y_top=G0, col=(0.52, 0.4, 0.06, 1)):
+    """A kerb painted yellow, worn: its face toward the road (`toward`, +1
+    or -1 along the axis across it) and a strip of its top, in lengths of
+    one to three metres with the paint gone between some. `axis` "z": a
+    kerb running along z at x = c; "x": along x at z = c."""
+    a = a0
+    while a < a1:
+        b = min(a1, a + rng.uniform(1.0, 3.0))
+        k = tuple(v * rng.uniform(0.75, 1.05) for v in col[:3]) + (1,)
+        f = c + toward * 0.004
+        if axis == "z":
+            pts = [(f, 0.0, a), (f, 0.0, b), (f, y_top, b), (f, y_top, a)]
+            top = [(c, y_top + 0.003, a), (c, y_top + 0.003, b), (c - toward * 0.22, y_top + 0.003, b), (c - toward * 0.22, y_top + 0.003, a)]
+        else:
+            pts = [(a, 0.0, f), (b, 0.0, f), (b, y_top, f), (a, y_top, f)]
+            top = [(a, y_top + 0.003, c), (b, y_top + 0.003, c), (b, y_top + 0.003, c - toward * 0.22), (a, y_top + 0.003, c - toward * 0.22)]
+        for q in (pts, top):
+            quad((district, "paint", 0), *q, col=k)
+            quad((district, "paint", 0), *reversed(q), col=k)
+        a = b + (rng.uniform(0.15, 0.8) if rng.random() < 0.4 else 0.02)
 
 
 def stool(district, x, z, col):

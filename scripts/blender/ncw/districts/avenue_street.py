@@ -642,3 +642,55 @@ def corner_b(D, fw):
     for (x, z, hue, power) in ((12.6, -169.2, "pink", 7.0), (13.8, -171.4, "amber", 7.0), (11.2, -170.8, "white", 6.0),
                                (12.8, -164.5, "cyan", 5.0), (-12.8, -164.5, "pink", 5.0)):
         light(D, x, 2.5, z, hue, power)
+
+
+def markings(D, rng):
+    """What the show paints and stands along its streets (Fn9gKhU_2_Q@70,
+    XMaaEjT0LhU@65, KvMY1uzSC1E@95), on the arm and the south street out of
+    the hero's frames: words in the road for the driver coming up to them,
+    kerbs painted yellow and worn, guard rails along the kerb where people
+    cross to the stalls, two more kiosks, and people standing about the
+    pavements in twos and threes."""
+    white = (0.62, 0.62, 0.58, 1)
+    # Words in the road. The arm, south of the phone hero's frame (z 30):
+    # SLOW for the driver going north, BUS by the east kerb going south.
+    K.road_word(D, "SLOW", -5.0, 42.0, (0.0, -1.0), rng=rng, col=white)
+    K.road_word(D, "BUS", 5.2, 70.0, (0.0, 1.0), rng=rng, col=(0.6, 0.45, 0.07, 1))
+    # The south street, either side of the junction, past the hero's frames.
+    K.road_word(D, "STOP", 27.0, 4.6, (-1.0, 0.0), rng=rng, col=white)
+    K.road_word(D, "STOP", -27.0, -2.6, (1.0, 0.0), rng=rng, col=white)
+    K.road_word(D, "SLOW", 70.0, -2.6, (1.0, 0.0), rng=rng, col=white)
+    # Yellow kerbs, worn.
+    for sx in (-1, 1):
+        K.kerb_paint(D, "z", sx * ROAD_HALF, 36.0, 86.0, -sx, rng)
+    for (a, b) in ((-62.0, -22.0), (22.0, 104.0)):
+        K.kerb_paint(D, "x", -6.0, a, b, 1, rng)
+        K.kerb_paint(D, "x", 8.0, a, b, -1, rng)
+    # Guard rails along the arm's kerbs by the crossings to the stalls.
+    for sx in (-1, 1):
+        for (z0, z1) in ((40.0, 48.0), (64.0, 70.0)):
+            z = z0 + 1.0
+            while z < z1:
+                P.place("railing", sx * (ROAD_HALF + 0.3), G0, z, math.pi / 2, district=D)
+                z += 2.0
+    # Two more kiosks, on the arm and the south street's east pavement.
+    K.kiosk(D, -12.3, 62.6, math.pi / 2, rng)
+    K.kiosk(D, 86.0, 10.4, math.pi, rng)
+    stand(-11.0, 63.4, -math.pi / 2, "phone", y=G0)
+    stand(85.2, 9.0, 0.3, "idle", y=G0)
+    # People on the south street's and the arm's pavements, by the kerb.
+    poses = ("idle", "phone", "talk", "smoke", "idle", "talk", "lean", "squat")
+    spots = [(sx * (ROAD_HALF + 0.55), z, sx) for sx in (-1, 1) for z in range(37, 86, 7)]
+    spots += [(x, -6.55, -1) for x in list(range(-60, -20, 8)) + list(range(22, 104, 8))]
+    spots += [(x, 8.55, 1) for x in list(range(-60, -20, 9)) + list(range(24, 104, 9))]
+    for (x, z, side) in spots:
+        if rng.random() < 0.3:
+            continue
+        x += rng.uniform(-1.5, 1.5) if abs(z) < 12 else 0.0
+        z += 0.0 if abs(z) < 12 else rng.uniform(-1.5, 1.5)
+        n = rng.choice((1, 2, 2, 3))
+        for k in range(n):
+            dx, dz = (0.0, k * 0.75) if abs(z) > 12 else (k * 0.75, 0.0)
+            face = rng.uniform(0, math.tau) if n == 1 else (math.atan2(-dx, -dz) if k else math.atan2(dx + 0.01, dz + 0.01))
+            pose = rng.choice(poses) if n == 1 else rng.choice(("talk", "talk", "smoke", "phone", "idle"))
+            stand(x + dx, z + dz, face, pose, y=G0)

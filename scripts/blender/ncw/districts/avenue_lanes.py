@@ -381,6 +381,20 @@ class Lane:
         self.rect((D, "sidewalk", 0), 0.0, a0, self.a, self.b, 0.0, G0)
         self.rect((D, "sidewalk", 0), W - a1, W, self.a, self.b, 0.0, G0)
         mid = (a0 + W - a1) / 2
+        # The aprons are not clean paving: grime in patches along them,
+        # darkest where the wall's foot and the kerb are.
+        for (u0, u1) in ((0.0, a0), (W - a1, W)):
+            v = self.a + self.rng.uniform(0.0, 1.5)
+            while v < self.b - 0.5:
+                ln = self.rng.uniform(0.6, 2.4)
+                cut = self.rng.uniform(0.35, 0.95) * (u1 - u0)
+                ua, ub = (u0, u0 + cut) if self.rng.random() < 0.5 else (u1 - cut, u1)
+                p, q = self.pt(ua, v), self.pt(ub, min(self.b, v + ln))
+                xa, xb = sorted((p[0], q[0]))
+                za, zb = sorted((p[2], q[2]))
+                g = self.rng.uniform(0.012, 0.03)
+                quad((D, "trim", 1), (xa, G0 + 0.004, zb), (xb, G0 + 0.004, zb), (xb, G0 + 0.004, za), (xa, G0 + 0.004, za), col=(g, g, g * 1.1, 1))
+                v += ln + self.rng.uniform(0.2, 2.0)
         # Drain grates down the centre line.
         v = self.a + 3.0
         while v < self.b - 2.0:
