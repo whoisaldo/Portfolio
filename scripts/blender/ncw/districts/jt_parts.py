@@ -768,103 +768,161 @@ LEAF_Y = (0.2, 0.33, 0.1, 1)
 
 
 # ---------------------------------------------------------------------------
-# Foliage in masses (round 4: the m8 review saw the leaf pads as "flat red
-# square tiles", "floating discs" and "a lumpy green blob with white
-# dots"): a clump is an icosphere broken by its own dice, flattened under,
-# lighter on top and darker beneath face by face, in the `plant` material's
-# blossom; a blossom clump's uv runs out to its rim round its sides, so the
-# site breaks its edges into clusters with sky between; a leaf clump's uv
-# stands still in one cell the site neither breaks nor flecks white.
+# Foliage (round 5: the m11 review saw the masses of round 4 as "pink
+# faceted lumps", "crumpled flat pink planes", "orange balls on a stick" and
+# "smooth green balls"): a tree's or a shrub's leaves and blossom are dozens
+# of small clusters, each the kit's P.clump (crossed cards the site cuts
+# into florets, lit through), set round the ends of its twigs with sky
+# between them, lighter over the top and darker under.
 # ---------------------------------------------------------------------------
-_ICO = []
+def _norm(v):
+    ln = math.sqrt(sum(c * c for c in v)) or 1.0
+    return tuple(c / ln for c in v)
 
 
-def _ico():
-    if _ICO:
-        return _ICO
-    t_ = (1 + 5 ** 0.5) / 2
-    vs = [(-1, t_, 0), (1, t_, 0), (-1, -t_, 0), (1, -t_, 0), (0, -1, t_), (0, 1, t_), (0, -1, -t_), (0, 1, -t_), (t_, 0, -1), (t_, 0, 1), (-t_, 0, -1), (-t_, 0, 1)]
-    vs = [tuple(c / math.sqrt(sum(x * x for x in v)) for c in v) for v in vs]
-    fs = [(0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11), (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6), (7, 1, 8),
-          (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9), (4, 9, 5), (2, 4, 11), (6, 2, 10), (8, 6, 7), (9, 8, 1)]
-    mid = {}
-
-    def m(a, b):
-        key = (min(a, b), max(a, b))
-        if key not in mid:
-            q = [(vs[a][i] + vs[b][i]) / 2 for i in range(3)]
-            ln = math.sqrt(sum(c * c for c in q))
-            vs.append(tuple(c / ln for c in q))
-            mid[key] = len(vs) - 1
-        return mid[key]
-    out = []
-    for a, b, c in fs:
-        ab, bc, ca = m(a, b), m(b, c), m(c, a)
-        out += [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)]
-    _ICO.extend((vs, out))
-    return _ICO
+def _shaded(col, shade):
+    return tuple(min(1.0, c * shade) for c in col[:3])
 
 
-LEAF_UV = (0.5625, 0.5625)    # a cell of the blossom's grid that is whole and never flecked (either way up)
-
-
-def clump(w, cx, cy, cz, rx, ry, rz, col, seed, lacy=True, droop=0.0, flat=0.55):
-    """One mass of leaves or blossom (see above): radii rx, ry, rz; `droop`
-    pulls its underside down (a weeping limb's), `flat` squashes it under."""
-    vs, fs = _ico()
+def leaves(w, cx, cy, cz, rx, ry, rz, cols, seed, n, r, floor=None, ceil=None):
+    """A mass of foliage, n clusters r across over an ellipsoid rx, ry, rz
+    about (cx, cy, cz), most of them near its skin; none under `floor` nor
+    over `ceil` (a clipped top)."""
     rr = random.Random(seed)
-    jit = [1.0 + rr.uniform(-0.2, 0.2) for _ in vs]
-    pts, uvs = [], []
-    for v, j in zip(vs, jit):
-        y = v[1] * (flat if v[1] < 0 else 1.0)
-        if v[1] < 0:
-            y -= droop * (1.0 - abs(v[0]) * 0.5) * (-v[1])
-        pts.append((cx + v[0] * rx * j, cy + y * ry * j, cz + v[2] * rz * j))
-        if lacy:
-            k_ = 0.42 * rr.uniform(0.8, 1.05)
-            uvs.append((0.5 + v[0] * k_, 0.5 + v[2] * k_))
-        else:
-            uvs.append(LEAF_UV)
-    # (Each corner the colour of its vertex, so the light runs smooth across
-    # the facets: lighter up top, darker under, each vertex its own.)
-    cols = []
-    for v in vs:
-        shade = (0.55 + 0.6 * max(0.0, v[1]) + 0.15 * min(0.0, v[1])) * rr.uniform(0.8, 1.15)
-        cols.append((min(1.0, col[0] * shade), min(1.0, col[1] * shade), min(1.0, col[2] * shade), P.BLOSSOM))
-    b_ = K.batches[w]
-    for a, b, c in fs:
-        base = len(b_.verts)
-        b_.verts.extend(K.P(*pts[i]) for i in (a, b, c))
-        b_.faces.append((base, base + 1, base + 2))
-        b_.uvs.extend((uvs[a], uvs[b], uvs[c]))
-        b_.cols.extend((cols[a], cols[b], cols[c]))
+    for _ in range(n):
+        u = rr.uniform(-1.0, 1.0)
+        a = rr.uniform(0.0, math.tau)
+        s_ = math.sqrt(1.0 - u * u)
+        d = rr.uniform(0.6, 1.0)
+        x, y, z = s_ * math.cos(a) * d, u * d * (0.6 if u < 0 else 1.0), s_ * math.sin(a) * d
+        rad = r * rr.uniform(0.75, 1.2)
+        py = cy + y * ry
+        if floor is not None:
+            py = max(py, floor + rad * 0.85)
+        if ceil is not None:
+            py = min(py, ceil - rad * 0.85)
+        shade = (0.72 + 0.4 * (y + 1.0) / 2.0) * rr.uniform(0.88, 1.1)
+        P.clump(w, cx + x * rx, py, cz + z * rz, rad, _shaded(cols[rr.randrange(len(cols))], shade),
+                yaw=rr.uniform(0.0, math.pi), tilt=rr.uniform(0.1, 0.45))
+
+
+def _twist(w, rr, h, lean, r0, base_y=0.0, n=7, segs=7, wave=0.14):
+    """A trunk that leans and turns as it climbs from base_y, h tall, r0
+    thick, flared at its foot: its points and radii."""
+    a, ph = rr.uniform(0.0, math.tau), rr.uniform(0.0, math.tau)
+    pts, radii = [], []
+    for i in range(n + 1):
+        t = i / n
+        pts.append((lean * t * t * math.sin(a) + wave * t * math.sin(ph + t * 5.0), base_y + h * t,
+                    lean * t * t * math.cos(a) + wave * t * math.cos(ph + t * 4.2)))
+        radii.append(r0 * (1.5 if i == 0 else 1.0 - 0.36 * t))
+    _bark(w, pts, radii, segs)
+    return pts, radii
+
+
+def _grow(w, rr, p0, d, length, r0, depth, tips, segs=5, spread=0.75, rise=0.1, low=None):
+    """A limb from p0 along d, wandering as it goes, that forks `depth`
+    more times, one fork off its end and the rest off its last third; the
+    ends of its twigs go in `tips`. None dips under `low`."""
+    n = 3
+    pts, radii, cur = [p0], [r0], d
+    for i in range(1, n + 1):
+        cur = _norm((cur[0] + rr.uniform(-0.3, 0.3), cur[1] + rr.uniform(-0.12, 0.2) + rise, cur[2] + rr.uniform(-0.3, 0.3)))
+        q = pts[-1]
+        nxt = (q[0] + cur[0] * length / n, q[1] + cur[1] * length / n, q[2] + cur[2] * length / n)
+        if low is not None and nxt[1] < low:
+            nxt = (nxt[0], low + 0.05 * i, nxt[2])
+        pts.append(nxt)
+        radii.append(max(0.014, r0 * (1.0 - 0.42 * i / n)))
+    _bark(w, pts, radii, segs)
+    if depth == 0:
+        tips.append((pts[-1], pts[-2]))
+        return
+    kids = 2 if depth == 1 else rr.choice((2, 3, 3))
+    a0 = rr.uniform(0.0, math.tau)
+    for j in range(kids):
+        a = a0 + j * math.tau / kids + rr.uniform(-0.5, 0.5)
+        nd = _norm((cur[0] + math.sin(a) * spread, cur[1] + 0.1, cur[2] + math.cos(a) * spread))
+        _grow(w, rr, pts[-1] if j == 0 else pts[2], nd, length * rr.uniform(0.58, 0.74), radii[-1] if j == 0 else radii[2] * 0.85,
+              depth - 1, tips, max(3, segs - 1), spread, rise, low)
+
+
+def _blossom(w, rr, tips, cols, per=4, r=(0.26, 0.44), reach=0.48, hang=0.12, floor=None):
+    """Clusters round each twig's end: one on it, the rest about it, a
+    little under it (blossom hangs), lighter the higher it is."""
+    top = max(t[0][1] for t in tips)
+    bot = min(t[0][1] for t in tips)
+    for tip, prev in tips:
+        d = _norm((tip[0] - prev[0], tip[1] - prev[1], tip[2] - prev[2]))
+        for j in range(per):
+            if j == 0:
+                c = (tip[0] + d[0] * 0.12, tip[1] + d[1] * 0.12, tip[2] + d[2] * 0.12)
+            else:
+                c = (tip[0] + rr.uniform(-reach, reach), tip[1] + rr.uniform(-reach * 0.6, reach * 0.4) - hang, tip[2] + rr.uniform(-reach, reach))
+            rad = rr.uniform(*r)
+            cy = c[1] if floor is None else max(c[1], floor + rad * 0.85)
+            shade = (0.8 + 0.3 * (c[1] - bot) / max(0.1, top - bot)) * rr.uniform(0.88, 1.1)
+            P.clump(w, c[0], cy, c[2], rad, _shaded(cols[rr.randrange(len(cols))], shade), yaw=rr.uniform(0.0, math.pi), tilt=rr.uniform(0.1, 0.5))
+
+
+def _petals(w, rr, n, r0, r1, y, cols):
+    """Fallen blossom: flat clusters on the soil or the paving round a tree."""
+    for _ in range(n):
+        a, d = rr.uniform(0.0, math.tau), rr.uniform(r0, r1)
+        x, z, s_ = math.cos(a) * d, math.sin(a) * d, rr.uniform(0.12, 0.26)
+        yaw = rr.uniform(0.0, math.pi)
+        c_, sn = math.cos(yaw) * s_, math.sin(yaw) * s_
+        quad(w, (x - c_, y, z + sn), (x + sn, y, z + c_), (x + c_, y, z - sn), (x - sn, y, z - c_), ((0, 0), (1, 0), (1, 1), (0, 1)),
+             (*_shaded(cols[rr.randrange(len(cols))], 0.7), P.CLUMP))
+
+
+LEAVES = (LEAF, LEAF_D, LEAF_Y, LEAF_D)
+STONE = (0.12, 0.115, 0.11, 1)
+COPING = (0.24, 0.235, 0.22, 1)
+GRIME = (0.045, 0.043, 0.04, 1)
+
+
+def _cast(T, h, r, c=0.06):
+    """A cast-stone planter r across each way and h high: a darker foot, a
+    joint down each face, grime run down from its coping, the coping
+    proud of it, soil inside."""
+    box(T, -r, r, 0.0, h, -r, r, scale=1.0, col=STONE)
+    box(T, -r - 0.012, r + 0.012, 0.0, 0.07, -r - 0.012, r + 0.012, scale=1.0, col=GRIME)
+    box(T, -r - c, r + c, h, h + 0.08, -r - c, r + c, scale=1.0, col=COPING, bottom=True)
+    quad(T, (-r + 0.03, h + 0.083, r - 0.03), (r - 0.03, h + 0.083, r - 0.03), (r - 0.03, h + 0.083, -r + 0.03), (-r + 0.03, h + 0.083, -r + 0.03), col=(0.03, 0.022, 0.017, 1))
+    for yaw in (0.0, math.pi / 2, math.pi, -math.pi / 2):
+        sn, cs = math.sin(yaw), math.cos(yaw)
+        o = r + 0.004
+
+        def at(u, y, _s=sn, _c=cs, _o=o):
+            return (_s * _o + _c * u, y, _c * _o - _s * u)
+        quad(T, at(-0.012, 0.07), at(0.012, 0.07), at(0.012, h), at(-0.012, h), col=GRIME)
+        for u0, u1, y0 in ((-r * 0.8, -r * 0.45, h * 0.35), (r * 0.25, r * 0.5, h * 0.55)):
+            quad(T, at(u0, y0), at(u1, y0 + 0.05), at(u1, h), at(u0, h), col=(0.08, 0.077, 0.072, 1))
 
 
 @P.proto("jt_planter", box=(0.6, 0.5, 0.6), reach=300, detail=True)
 def _jt_planter(k):
-    """A square planter of cast stone, a shrub in it: a mound of leaves and
-    three sprays over it (the kit's leaf pads)."""
+    """A square planter of cast stone (see _cast), a shrub in it: a mound of
+    small leafy clusters, sprays out of it."""
     T, L = k("trim"), k("plant")
-    box(T, -0.58, 0.58, 0.0, 0.5, -0.58, 0.58, scale=1.0, col=(0.14, 0.145, 0.155, 1))
-    box(T, -0.64, 0.64, 0.5, 0.58, -0.64, 0.64, scale=1.0, col=(0.27, 0.27, 0.28, 1), bottom=True)
-    for i, (cx, cy, cz, r_, col) in enumerate(((0.0, 0.78, 0.0, 0.5, LEAF_D), (0.26, 0.92, -0.18, 0.36, LEAF), (-0.27, 0.96, 0.17, 0.34, LEAF_D),
-                                               (0.2, 0.86, 0.3, 0.3, LEAF_Y), (-0.22, 0.84, -0.28, 0.3, LEAF), (0.03, 1.2, 0.04, 0.3, LEAF_Y))):
-        clump(L, cx, cy, cz, r_ * 1.05, r_ * 0.82, r_, col, 4100 + i, lacy=False)
-    for i in range(7):
-        P.frond(L, (0.0, 0.85, 0.0), i * 0.9 + 0.3, 0.9 + 0.12 * (i % 3), 0.62, 0.8, 0.09, (LEAF, LEAF_Y)[i % 2], segs=2, vee=False)
+    _cast(T, 0.5, 0.58)
+    leaves(L, 0.0, 0.92, 0.0, 0.55, 0.36, 0.55, LEAVES, 4101, 18, 0.21, floor=0.6)
+    for i in range(6):
+        P.frond(L, (0.0, 0.8, 0.0), i * 1.05 + 0.3, 0.9 + 0.12 * (i % 3), 0.62, 0.8, 0.09, (LEAF, LEAF_Y)[i % 2], segs=2, vee=False)
 
 
-@P.proto("jt_hedge", box=(1.3, 0.5, 0.45), reach=300, detail=True)
+@P.proto("jt_hedge", box=(0.46, 0.5, 1.34), reach=300, detail=True)
 def _jt_hedge(k):
     """A clipped hedge in a long box of dark timber on the reservation, its
-    length along z: a run of leaf masses shorn flat on top, a few sprays out
-    of it."""
+    length along z: small leafy clusters shorn flat on top, a few sprays
+    out of it."""
     T, L = k("trim"), k("plant")
     box(T, -0.42, 0.42, 0.0, 0.42, -1.3, 1.3, scale=1.0, col=(0.11, 0.07, 0.045, 1))
+    for y in (0.13, 0.27):
+        box(T, -0.425, 0.425, y, y + 0.02, -1.305, 1.305, scale=1.0, col=(0.035, 0.024, 0.016, 1))
     box(T, -0.46, 0.46, 0.42, 0.48, -1.34, 1.34, scale=1.0, col=(0.06, 0.04, 0.03, 1), bottom=True)
-    for i in range(7):
-        z = -1.05 + i * 0.35
-        clump(L, (i % 2 - 0.5) * 0.08, 0.72, z, 0.36, 0.3, 0.3, (LEAF, LEAF_D, LEAF_Y, LEAF)[i % 4], 4600 + i, lacy=False, flat=0.4)
+    leaves(L, 0.0, 0.7, 0.0, 0.4, 0.3, 1.25, LEAVES, 4601, 26, 0.19, floor=0.45, ceil=1.0)
     for i in range(4):
         P.frond(L, (0.0, 0.85, -0.9 + i * 0.6), i * 1.9 + 0.4, 1.0, 0.45, 0.6, 0.08, LEAF_Y, segs=2, vee=False)
 
@@ -872,11 +930,11 @@ def _jt_hedge(k):
 @P.proto("jt_planter_b", box=(0.55, 0.45, 0.55), reach=300, detail=True)
 def _jt_planter_b(k):
     """A round bowl of cast stone with tall grass in it: blades sprayed out
-    from its middle, a low mass of leaves round their feet."""
+    from its middle, small leafy clusters round their feet."""
     T, L = k("trim"), k("plant")
     P.lathe(T, 0.0, 0.0, ((0.0, 0.42), (0.36, 0.55), (0.44, 0.58)), segs=10, col=(0.2, 0.2, 0.21, 1), cap=False)
     _wetless_disc(T, 0.4, 0.5, (0.04, 0.032, 0.026, 1), 0.0, 0.0, 10)
-    clump(L, 0.0, 0.55, 0.0, 0.42, 0.22, 0.42, LEAF_D, 4700, lacy=False, flat=0.4)
+    leaves(L, 0.0, 0.55, 0.0, 0.4, 0.14, 0.4, LEAVES, 4701, 9, 0.17, floor=0.42)
     for i in range(11):
         P.frond(L, (0.0, 0.5, 0.0), i * 0.571 + 0.2, 1.25 - 0.15 * (i % 3), 0.9 + 0.2 * (i % 2), 0.7, 0.07, (LEAF, LEAF_Y)[i % 2], segs=3, vee=False)
 
@@ -919,9 +977,8 @@ def _jt_plants(k):
     for x, z, r_, h, col in ((-0.32, 0.0, 0.16, 0.3, (0.07, 0.035, 0.025, 1)), (0.18, 0.06, 0.2, 0.38, (0.025, 0.04, 0.06, 1)), (-0.04, -0.22, 0.12, 0.22, (0.05, 0.05, 0.045, 1))):
         P.lathe(T, x, z, ((0.0, r_ * 0.72), (h * 0.8, r_), (h, r_ * 0.9)), segs=6, col=col, cap=False)
         _wetless_disc(T, h - 0.025, r_ * 0.86, (0.025, 0.018, 0.013, 1), x, z, 6)
-    for i, (cx, cy, cz, r_, col) in enumerate(((-0.32, 0.4, 0.0, 0.2, LEAF), (-0.36, 0.52, 0.04, 0.13, LEAF_Y), (0.18, 0.52, 0.06, 0.22, LEAF_D),
-                                               (0.21, 0.72, 0.02, 0.17, LEAF), (0.14, 0.88, 0.08, 0.12, LEAF_D))):
-        clump(L, cx, cy, cz, r_, r_ * 0.85, r_, col, 4200 + i, lacy=False)
+    for i, (cx, cy, cz, rx, ry) in enumerate(((-0.32, 0.42, 0.0, 0.18, 0.12), (0.18, 0.62, 0.06, 0.22, 0.26))):
+        leaves(L, cx, cy, cz, rx, ry, rx, LEAVES, 4201 + i, 6 + 4 * i, 0.12, floor=0.28)
     for i in range(5):
         P.frond(L, (-0.04, 0.22, -0.22), i * 1.26 + 0.3, 1.25 - 0.12 * (i % 2), 0.5, 0.9, 0.09, LEAF, segs=2, vee=False)
 
@@ -1507,68 +1564,78 @@ def _granite(w, h=0.5, r=0.72):
          (0.05, 0.04, 0.035, P.LIMB))
 
 
+PINKS = ((0.82, 0.3, 0.5), (0.72, 0.17, 0.35), (0.86, 0.52, 0.64), (0.78, 0.24, 0.44))
+PALES = ((0.88, 0.62, 0.7), (0.82, 0.38, 0.54), (0.9, 0.7, 0.76))
+MAPLE = ((0.6, 0.07, 0.07), (0.44, 0.04, 0.06), (0.56, 0.15, 0.06), (0.66, 0.26, 0.06), (0.5, 0.06, 0.1))
+
+
 @P.proto("jt_tree_a", box=(0.75, 2.0, 0.75), reach=480)
 def _jt_tree_a(k):
-    """A weeping cherry: its trunk leans and turns as it climbs out of a low
-    granite planter, four limbs reach out and droop, the blossom in nine
-    pads of three pinks hung low at their ends."""
+    """A cherry in blossom in a low granite planter (KvMY1uzSC1E@94): its
+    trunk leans and turns as it climbs, forks into three limbs that fork
+    twice again, and the blossom is seventy small clusters round the
+    twigs' ends with sky between; fallen petals on the soil."""
     w = k("plant")
     _granite(w)
-    _bark(w, ((0.0, 0.5, 0.0), (0.06, 0.8, 0.04), (0.2, 1.15, 0.1), (0.26, 1.55, 0.06), (0.16, 1.95, -0.06), (0.22, 2.3, -0.14), (0.36, 2.62, -0.12)),
-          (0.24, 0.18, 0.15, 0.13, 0.115, 0.1, 0.08))
-    for limb in (((0.26, 1.55, 0.06), (0.0, 1.8, 0.4), (-0.4, 2.05, 0.7), (-0.8, 2.1, 0.9)),
-                 ((0.16, 1.95, -0.06), (0.5, 2.15, -0.35), (0.9, 2.35, -0.55), (1.2, 2.3, -0.6)),
-                 ((0.22, 2.3, -0.14), (-0.1, 2.6, -0.4), (-0.45, 2.8, -0.6), (-0.7, 2.75, -0.8)),
-                 ((0.36, 2.62, -0.12), (0.7, 2.85, 0.15), (1.0, 2.95, 0.45), (1.2, 2.85, 0.65))):
-        _bark(w, limb, (0.075, 0.06, 0.045, 0.03), segs=5)
-    pink, rose, pale = (0.82, 0.3, 0.5), (0.72, 0.16, 0.34), (0.85, 0.5, 0.62)
-    # Masses hung from each limb's end, weeping, and the crown over them.
-    for i, (cx, cy, cz, r, col, dr) in enumerate(((-0.8, 2.0, 0.9, 0.62, pink, 0.5), (-0.35, 2.2, 0.6, 0.5, pale, 0.3), (1.15, 2.2, -0.58, 0.62, rose, 0.55),
-                                                  (0.65, 2.42, -0.38, 0.5, pink, 0.3), (-0.7, 2.62, -0.8, 0.6, pale, 0.5), (-0.25, 2.88, -0.4, 0.52, rose, 0.2),
-                                                  (1.15, 2.74, 0.62, 0.6, pink, 0.5), (0.55, 3.05, 0.2, 0.62, pale, 0.15), (0.15, 3.28, -0.15, 0.55, pink, 0.0),
-                                                  (-0.3, 3.0, 0.35, 0.5, rose, 0.1), (0.85, 2.0, 0.05, 0.42, pale, 0.6), (-0.05, 2.45, -0.95, 0.45, pink, 0.5))):
-        clump(w, cx, cy, cz, r, r * 0.8, r, col, 4300 + i, lacy=True, droop=dr)
+    rr = random.Random(5101)
+    pts, radii = _twist(w, rr, 1.75, 0.42, 0.17, base_y=0.5, n=6, segs=7, wave=0.17)
+    tips = []
+    for a, ln, up in ((0.3, 1.25, 0.55), (2.4, 1.35, 0.42), (4.3, 1.15, 0.7)):
+        _grow(w, rr, pts[-1], _norm((math.sin(a), up, math.cos(a))), ln, radii[-1] * 0.9, 2, tips, segs=5, spread=0.7, rise=0.06)
+    _grow(w, rr, pts[4], _norm((math.sin(1.4), 0.3, math.cos(1.4))), 1.0, radii[4] * 0.7, 1, tips, segs=5, spread=0.8, rise=0.06)
+    _blossom(w, rr, tips, PINKS, per=4)
+    _petals(w, rr, 9, 0.1, 0.6, 0.58, PINKS)
+    _petals(w, rr, 7, 0.95, 1.9, 0.012, PINKS)
 
 
-@P.proto("jt_tree_b", box=(0.75, 2.1, 0.75), reach=480)
+@P.proto("jt_tree_b", box=(0.45, 2.1, 0.45), reach=480)
 def _jt_tree_b(k):
-    """A red maple in a box of dark timber: a straight trunk that forks
-    twice, the leaves in layered pads of crimson and rust, flat-topped as a
-    gardener keeps it."""
+    """A street maple on the reservation, in a box of dark timber slats:
+    a trunk clear to four and a half metres (its crown is over the lanes),
+    three limbs climbing out of its head and forking twice, the leaves in
+    tiers of small crimson and rust clusters, flat-bottomed as a gardener
+    keeps it over the traffic."""
     w = k("plant")
-    _pbox(w, -0.65, 0.65, 0.0, 0.62, -0.65, 0.65, (0.12, 0.075, 0.05, 1))
-    for y in (0.2, 0.42):
-        _pbox(w, -0.67, 0.67, y, y + 0.03, -0.67, 0.67, (0.06, 0.04, 0.03, 1))
-    quad(w, (-0.58, 0.625, 0.58), (0.58, 0.625, 0.58), (0.58, 0.625, -0.58), (-0.58, 0.625, -0.58), ((0.5, 0.5),) * 4, (0.05, 0.04, 0.035, P.LIMB))
-    _bark(w, ((0.0, 0.6, 0.0), (0.02, 1.1, 0.02), (0.0, 1.6, 0.05)), (0.15, 0.12, 0.1), segs=6)
-    for limb in (((0.0, 1.6, 0.05), (-0.35, 2.1, 0.2), (-0.7, 2.5, 0.35)), ((0.0, 1.6, 0.05), (0.4, 2.15, -0.1), (0.75, 2.6, -0.3)),
-                 ((0.0, 1.6, 0.05), (0.05, 2.3, -0.3), (0.0, 2.9, -0.5))):
-        _bark(w, limb, (0.08, 0.06, 0.035), segs=5)
-    crim, rust, deep = (0.62, 0.08, 0.06), (0.62, 0.22, 0.07), (0.42, 0.05, 0.05)
-    for i, (cx, cy, cz, r, col) in enumerate(((-0.72, 2.42, 0.35, 0.55, crim), (0.75, 2.52, -0.3, 0.58, rust), (0.0, 2.8, -0.52, 0.55, deep), (-0.1, 2.55, 0.5, 0.48, rust),
-                                              (0.35, 3.0, 0.12, 0.55, crim), (-0.45, 2.95, -0.25, 0.5, crim), (0.55, 2.35, 0.45, 0.45, deep), (-0.55, 2.3, -0.5, 0.45, rust),
-                                              (0.05, 3.25, -0.1, 0.48, rust), (0.9, 2.85, 0.15, 0.4, crim), (-0.85, 2.8, 0.05, 0.42, deep))):
-        clump(w, cx, cy, cz, r * 1.05, r * 0.72, r, col, 4400 + i, lacy=False)
+    _pbox(w, -0.4, 0.4, 0.0, 0.62, -0.4, 0.4, (0.12, 0.075, 0.05, 1))
+    for y in (0.14, 0.28, 0.42):
+        _pbox(w, -0.412, 0.412, y, y + 0.022, -0.412, 0.412, (0.04, 0.028, 0.02, 1))
+    for x, z in ((-0.4, -0.4), (0.4, -0.4), (0.4, 0.4), (-0.4, 0.4)):
+        _pbox(w, x - 0.045, x + 0.045, 0.0, 0.66, z - 0.045, z + 0.045, (0.07, 0.05, 0.035, 1))
+    quad(w, (-0.35, 0.625, 0.35), (0.35, 0.625, 0.35), (0.35, 0.625, -0.35), (-0.35, 0.625, -0.35), ((0.5, 0.5),) * 4, (0.05, 0.04, 0.035, P.LIMB))
+    rr = random.Random(5202)
+    pts, radii = _twist(w, rr, 3.95, 0.22, 0.135, base_y=0.62, n=6, segs=7, wave=0.07)
+    tips = []
+    for a in (0.4, 2.5, 4.5):
+        _grow(w, rr, pts[-1], _norm((math.sin(a), 0.85, math.cos(a))), 1.45, radii[-1] * 0.9, 2, tips, segs=5, spread=0.75, rise=0.12, low=4.75)
+    _blossom(w, rr, tips, MAPLE, per=3, r=(0.26, 0.42), reach=0.5, hang=0.0, floor=4.7)
+    for y, rad, n in ((5.15, 1.75, 11), (5.9, 1.45, 9), (6.65, 0.95, 6)):
+        a0 = rr.uniform(0.0, math.tau)
+        for i in range(n):
+            a = a0 + i * math.tau / n + rr.uniform(-0.2, 0.2)
+            d = rad * rr.uniform(0.7, 1.0)
+            rc = rr.uniform(0.3, 0.42)
+            P.clump(w, math.sin(a) * d, max(y + rr.uniform(-0.15, 0.15), 4.7 + rc * 0.85), math.cos(a) * d, rc,
+                    _shaded(MAPLE[rr.randrange(len(MAPLE))], 0.8 + 0.12 * (y - 5.0)), yaw=rr.uniform(0.0, math.pi), tilt=rr.uniform(0.02, 0.12))
 
 
 @P.proto("jt_tree_c", box=(0.6, 1.8, 0.6), reach=420)
 def _jt_tree_c(k):
-    """A young cherry in a pit in the paving: a slender trunk, three limbs,
-    pale blossom thin on it, a dark grate round its foot and a steel guard
-    of four posts and a ring."""
+    """A young cherry in a pit in the paving: a slender trunk with a kink
+    in it, four limbs that fork once, pale blossom in small clusters round
+    their ends, a dark grate round its foot in a low iron ring, petals on
+    the paving."""
     w = k("plant")
     quad(w, (-0.6, 0.012, 0.6), (0.6, 0.012, 0.6), (0.6, 0.012, -0.6), (-0.6, 0.012, -0.6), ((0.5, 0.5),) * 4, (0.035, 0.035, 0.04, P.LIMB))
-    # (A low iron ring round its pit, the grate's frame: no stakes.)
     for a, b in (((-0.5, -0.5), (0.5, -0.5)), ((0.5, -0.5), (0.5, 0.5)), ((0.5, 0.5), (-0.5, 0.5)), ((-0.5, 0.5), (-0.5, -0.5))):
         _pbox(w, min(a[0], b[0]) - 0.02, max(a[0], b[0]) + 0.02, 0.0, 0.32, min(a[1], b[1]) - 0.02, max(a[1], b[1]) + 0.02, (0.1, 0.1, 0.11, 1))
-    _bark(w, ((0.0, 0.0, 0.0), (0.04, 0.7, 0.02), (-0.02, 1.4, 0.05), (0.05, 1.95, 0.0), (0.02, 2.4, -0.04)), (0.13, 0.11, 0.09, 0.075, 0.06), segs=7)
-    for limb in (((-0.02, 1.4, 0.05), (-0.42, 1.9, 0.32), (-0.68, 2.2, 0.5)), ((0.05, 1.95, 0.0), (0.42, 2.35, -0.22), (0.62, 2.65, -0.34)),
-                 ((0.02, 2.4, -0.04), (-0.12, 2.8, -0.36), (-0.2, 3.1, -0.45)), ((0.05, 1.95, 0.0), (0.3, 2.3, 0.35), (0.45, 2.6, 0.55))):
-        _bark(w, limb, (0.055, 0.042, 0.026), segs=5)
-    pale, pink = (0.86, 0.6, 0.68), (0.8, 0.36, 0.52)
-    for i, (cx, cy, cz, r, col) in enumerate(((-0.62, 2.3, 0.48, 0.48, pale), (0.6, 2.72, -0.32, 0.5, pink), (-0.18, 3.1, -0.42, 0.46, pale), (0.05, 2.62, 0.18, 0.44, pink),
-                                              (0.45, 2.55, 0.55, 0.42, pale), (-0.4, 2.75, -0.05, 0.42, pink), (0.2, 3.2, 0.05, 0.4, pale), (0.7, 2.3, 0.05, 0.36, pink))):
-        clump(w, cx, cy, cz, r, r * 0.78, r, col, 4500 + i, lacy=True, droop=0.15)
+    rr = random.Random(5303)
+    pts, radii = _twist(w, rr, 2.25, 0.25, 0.1, base_y=0.0, n=5, segs=6, wave=0.1)
+    tips = []
+    for a, ln, up in ((0.8, 1.05, 0.7), (2.9, 1.0, 0.6), (4.9, 0.95, 0.8)):
+        _grow(w, rr, pts[-1], _norm((math.sin(a), up, math.cos(a))), ln, radii[-1] * 0.9, 1, tips, segs=5, spread=0.7, rise=0.08)
+    _grow(w, rr, pts[3], _norm((math.sin(2.0), 0.4, math.cos(2.0))), 0.85, radii[3] * 0.7, 1, tips, segs=4, spread=0.8, rise=0.08)
+    _blossom(w, rr, tips, PALES, per=4, r=(0.24, 0.38), reach=0.4)
+    _petals(w, rr, 6, 0.65, 1.5, 0.016, PALES)
 
 
 @P.proto("jt_lanefloor", box=(1.2, 0.02, 0.6), reach=120, detail=True)

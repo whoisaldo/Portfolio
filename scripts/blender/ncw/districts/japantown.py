@@ -365,14 +365,19 @@ def stall(x, z, yaw, r, y=G0, cart=None):
 
 
 TREE_N = [0]
+MEDIAN_TALL = []   # (z) the reservation's trees and palms, whose crowns are over the lanes
 
 
-def tree(x, y, z, yaw, pit=True):
-    """One of Japantown's three trees, never the last one's kind; a pit's
-    young cherry only where it stands in paving (`pit`)."""
-    n = 3 if pit else 2
-    TREE_N[0] = (TREE_N[0] + 1 + (round(x * 3.0 + z * 7.0) % (n - 1))) % n
-    J.put(("jt_tree_a", "jt_tree_b", "jt_tree_c")[TREE_N[0]], x, y, z, yaw)
+def tree(x, y, z, yaw, pit=True, kinds=None, sxz=1.0):
+    """One of Japantown's trees, never the last one's kind: a cherry in a
+    planter, or a young cherry in a pit where it stands in paving (`pit`);
+    `kinds` names them (the reservation's maple, whose crown clears the
+    lanes). Each is turned and sized a little by where it stands."""
+    kinds = kinds or (("jt_tree_a", "jt_tree_c") if pit else ("jt_tree_a",))
+    n = len(kinds)
+    TREE_N[0] = (TREE_N[0] + 1 + (round(x * 3.0 + z * 7.0) % max(1, n - 1))) % n
+    h = (math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1.0
+    J.put(kinds[TREE_N[0]], x, y, z, yaw, 0.92 + 0.16 * h, sxz * (0.9 + 0.2 * h))
 
 
 def stools(x, z, yaw, r, y=G0):
@@ -1817,7 +1822,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
                 stand(px, pz, cyaw - HALF_PI * sd, "sit", top + 0.56)
     # A blossom tree in its lit planter, out in the middle.
     if d >= 9.0 and w - tu > 9.0 and (lucy or r.random() < 0.6):
-        tree(X(tu + (w - tu) * 0.5), top + 0.1, (z0 + z1) / 2 - side * 0.9, r.uniform(0, 6.28), pit=False)
+        tree(X(tu + (w - tu) * 0.5), top + 0.1, (z0 + z1) / 2 - side * 0.9, r.uniform(0, 6.28), pit=False, sxz=0.75)
         light(D, X(tu + (w - tu) * 0.5), top + 2.5, (z0 + z1) / 2 - side * 0.9, "pink", 3.5)
     # Who is up here: somebody at the rail over the street, somebody sat on
     # the terrace's steps, two talking under a lamp.
@@ -3553,6 +3558,12 @@ MEDIAN = (-688.0, -240.0)
 TURNS = [(z - 4.5, z + 4.5) for z in (-610.0, -505.0, -402.0, -300.0)]
 
 
+def _square(yaw):
+    """A turn to the nearest quarter (a square planter on the reservation
+    stands square to it, its corners kept off the lanes)."""
+    return round(yaw / HALF_PI) * HALF_PI
+
+
 def median():
     mr = random.Random(7170)
     z, runs = MEDIAN[0], []
@@ -3566,15 +3577,18 @@ def median():
              uvs=((0, 0), (0.55, 0), (0.55, (b - a) / 2), (0, (b - a) / 2)))
         for e, dz in ((a, 1.0), (b, -1.0)):
             # (Round 4: the noses differ, a pair of posts, three blocks, or a barrier.)
+            # (Round 5, the drive agent's note: the S4 in the inner lane at
+            # full speed scraped the noses; nothing on the reservation
+            # reaches nearer than 0.3 m to its west kerb's edge, x -80.5.)
             nose = mr.choice(("posts", "posts", "cubes", "barrier"))
             if nose == "posts":
-                for x in (-80.45, -79.55):
+                for x in (-80.3, -79.6):
                     J.put("bollard", x, G0, e + dz * 0.5)
             elif nose == "cubes":
-                for x in (-80.5, -80.0, -79.5):
-                    J.put("bollard_cube", x, G0, e + dz * 0.45)
+                for x in (-80.3, -80.0, -79.7):
+                    J.put("bollard_cube", x, G0, e + dz * 0.45, 0.0, 1.0, 0.6)
             else:
-                J.put("barrier", -80.0, G0, e + dz * 0.45, 0.0)
+                J.put("barrier", -80.0, G0, e + dz * 1.1, HALF_PI)
             # The nose's beacon: a banded post, an amber lamp on it.
             for i in range(4):
                 cylinder((D, "trim", 1), -80.0, e + dz * 1.3, G0 + i * 0.28, G0 + (i + 1) * 0.28, 0.09, segs=6, col=(0.4, 0.3, 0.04, 1) if i % 2 else (0.02, 0.02, 0.024, 1), cap=i == 3)
@@ -3587,38 +3601,43 @@ def median():
         z, prev, lamp_z = a + 4.5, None, a
         while z < b - 3.5:
             low = not clear_of(z, OVER, 2.0) or any(abs(z - u) < 3.2 for u in STRUNG)
-            pool = ["tree", "tree", "lamp", "planter", "hedge", "grass", "lightbox", "drum"] + ([] if low else ["palm", "palm"])
+            # (Round 5: a tree's crown is over the lanes from 4.7 m up, so it
+            # stands only where no string or cable crosses within 2.2 m.)
+            under = not clear_of(z, OVER, 2.0) or any(abs(z - u) < 2.2 for u in STRUNG)
+            pool = ["lamp", "planter", "hedge", "grass", "lightbox", "drum"] + ([] if under else ["tree", "tree"]) + ([] if low else ["palm", "palm"])
             kind = "lamp" if z - lamp_z > 18.0 else mr.choice([q for q in pool if q != prev])
             if kind in ("hedge",) and z + 1.6 > b - 2.0:
                 kind = "planter"
             if kind == "tree":
-                tree(-80.0, G0, z, mr.uniform(0, 6.28), pit=False)
+                tree(-80.0, G0, z, _square(mr.uniform(0, 6.28)), pit=False, kinds=("jt_tree_b",))
+                MEDIAN_TALL.append(z)
                 light(D, -80.0, 1.0, z, "pink", 2.5)
             elif kind == "palm":
-                J.put("planter_palm", -80.0, G0, z, mr.uniform(0, 6.28))
+                J.put("planter_palm", -80.0, G0, z, _square(mr.uniform(0, 6.28)), 1.0, 0.62)
+                MEDIAN_TALL.append(z)
                 light(D, -80.0, 1.0, z, "green", 2.5)
             elif kind == "lamp":
                 J.put("lamp_short", -80.0, G0, z)
                 light(D, -80.0, 3.0, z, "amber", 4.0)
                 lamp_z = z
             elif kind == "planter":
-                J.put("jt_planter", -80.0, G0, z, mr.uniform(0, 1.5))
+                J.put("jt_planter", -80.0, G0, z, _square(mr.uniform(0, 1.5)), 1.0, 0.82)
             elif kind == "grass":
-                J.put("jt_planter_b", -80.0, G0, z, mr.uniform(0, 6.28))
+                J.put("jt_planter_b", -80.0, G0, z, _square(mr.uniform(0, 6.28)), 1.0, 0.9)
             elif kind == "hedge":
                 J.put("jt_hedge", -80.0, G0, z + 0.6, mr.choice((0.0, math.pi)))
                 z += 1.2
             elif kind == "lightbox":
                 J.put("lightbox", -80.0, G0, z, 0.0)
             else:
-                J.put("ad_drum", -80.0, G0, z, mr.uniform(0, 6.28))
+                J.put("ad_drum", -80.0, G0, z, _square(mr.uniform(0, 6.28)), 1.0, 0.66)
             prev = kind
             step = mr.uniform(4.5, 7.5)
             rails = mr.choice((0, 1, 2, 2))
             for j in range(rails):
                 dz = 2.0 + j * 2.0
                 if z + dz + 1.0 < min(b - 2.0, z + step - 1.0):
-                    J.put("railing", -80.0, G0, z + dz, HALF_PI)
+                    J.put("jt_rail", -80.0, G0, z + dz, HALF_PI)
             z += step
 
 
@@ -3718,7 +3737,7 @@ while z < ZS - 6.0:
     z += nr.uniform(7.0, 11.0)
 for a, b in ALLEYS:
     zc = (a + b) / 2
-    tree(-113.0, G0, zc, nr.uniform(0, 6.28), pit=False)
+    tree(-113.0, G0, zc, nr.uniform(0, 6.28), pit=False, sxz=0.85)
     J.put("lamp_short", -111.2, G0, zc + 1.9)
     bench(-114.6, zc - 1.8, 0.0, nr)
     stand(-112.2, zc + 0.9, nr.uniform(0, 6.28), nr.choice(("idle", "phone", "smoke")), G0)
