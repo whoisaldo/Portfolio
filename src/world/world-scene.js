@@ -1035,9 +1035,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // told now, so the hero's frame sorts and culls its people as it did.)
     crowd?.update(camera);
     // (load: and the people's light, whose first bake that asks for and
-    // which now runs a step a task, crowd-light.js: waited for, so the first
-    // frame's people are lit the same on every load.)
-    await prepare(post.composer.inputBuffer, crowdLit);
+    // which runs a step a task, crowd-light.js: waited for, so the first
+    // frame's people are lit the same on every load, and once the programs
+    // and pictures are in, run out at once, crowd.js lightNow, rather than
+    // a step a task between everyone else's.)
+    await prepare(post.composer.inputBuffer, () => {
+      crowd?.lightNow?.();
+      return crowdLit();
+    });
     if (disposed) return;
     // Two real frames of the hero, under the door or the poster where
     // nobody sees them, with nothing culled. Compiling is not everything a
