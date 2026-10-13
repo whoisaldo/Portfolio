@@ -70,7 +70,9 @@ const PAVE_Y = 0.15;
 // site vest's two hi-vis colours; trousers darker; what is under the jacket
 // (white, black, grey, pale blue, red, yellow, teal, pink); skin; hair
 // (black, browns, bleached, pink, cyan, red, silver, green, violet); bags
-// and hats; hard hats.
+// and hats; hard hats; an umbrella's cloth (black, navy, wine, bottle
+// green, plum, deep teal, mustard, slate). The street wears dark things
+// with one colour on some of them: the bright jackets are the few.
 const JACKETS = [
   [0.6, 0.46, 0.06], [0.42, 0.045, 0.045], [0.035, 0.24, 0.26], [0.18, 0.07, 0.3], [0.5, 0.5, 0.48], [0.045, 0.047, 0.058],
   [0.13, 0.15, 0.06], [0.44, 0.17, 0.04], [0.04, 0.065, 0.16], [0.42, 0.08, 0.2], [0.17, 0.17, 0.19], [0.2, 0.12, 0.07],
@@ -83,7 +85,8 @@ const SKINS = [[0.5, 0.31, 0.21], [0.32, 0.2, 0.13], [0.6, 0.4, 0.29], [0.2, 0.1
 const HAIRS = [[0.035, 0.031, 0.03], [0.05, 0.035, 0.03], [0.12, 0.07, 0.04], [0.7, 0.62, 0.44], [0.7, 0.16, 0.45], [0.1, 0.55, 0.6], [0.5, 0.08, 0.05], [0.6, 0.6, 0.62], [0.2, 0.6, 0.15], [0.35, 0.12, 0.55]];
 const BAGS = [[0.03, 0.03, 0.035], [0.3, 0.2, 0.1], [0.45, 0.05, 0.06], [0.6, 0.6, 0.58], [0.6, 0.55, 0.05], [0.06, 0.1, 0.25]];
 const HELMETS = [[0.7, 0.58, 0.05], [0.6, 0.6, 0.58], [0.78, 0.3, 0.04]];
-const PAL = { jacket: 0, trousers: 20, skin: 28, hair: 34, bag: 44, rim: 50, shirt: 54, helmet: 62, size: 65 };
+const CANOPIES = [[0.018, 0.018, 0.022], [0.025, 0.04, 0.1], [0.16, 0.02, 0.04], [0.025, 0.09, 0.05], [0.12, 0.04, 0.16], [0.02, 0.12, 0.13], [0.36, 0.26, 0.05], [0.1, 0.11, 0.13]];
+const PAL = { jacket: 0, trousers: 20, skin: 28, hair: 34, bag: 44, rim: 50, shirt: 54, helmet: 62, canopy: 65, size: 73 };
 
 // A colour's family: what the eye calls it from across a street. A look is
 // never all one family: the trousers, what is under the jacket and dyed hair
@@ -125,8 +128,8 @@ const HAIR = {
 // jacket's colour (by garment where it matters), the trousers', the shirt's,
 // the hair and its colour, the bag (none, a satchel, a pack, a carried bag)
 // and its colour; then how often a jacket is worn open, a suit's shirt and
-// lapels show, there is a tie, an umbrella's cloth is black, its colour or
-// pale, and the rest.
+// lapels show, there is a tie, an umbrella's cloth is one colour, two in
+// turns gore by gore, banded at its edge or clear, and the rest.
 const STYLES = {
   // Japantown, the avenue and everywhere else: street fashion.
   street: {
@@ -144,7 +147,7 @@ const STYLES = {
     open: { [GARMENTS.jacket]: 0.62, [GARMENTS.coat]: 0.35, [GARMENTS.puffer]: 0, [GARMENTS.vest]: 0.5 },
     suit: 0,
     tie: 0,
-    canopy: [50, 32, 18],
+    canopy: [50, 22, 18, 10],
     umbrella: 1,
     trim: 0.2,
     cyber: 0.13,
@@ -171,7 +174,7 @@ const STYLES = {
     open: {},
     suit: 0.92,
     tie: 0.55,
-    canopy: [72, 10, 18],
+    canopy: [70, 14, 10, 6],
     umbrella: 1.2,
     trim: 0.05,
     cyber: 0.2,
@@ -197,7 +200,7 @@ const STYLES = {
     open: { [GARMENTS.jacket]: 0.45, [GARMENTS.vest]: 0.7 },
     suit: 0,
     tie: 0,
-    canopy: [70, 10, 20],
+    canopy: [70, 14, 10, 6],
     umbrella: 0.25,
     trim: 0.03,
     cyber: 0.15,
@@ -231,7 +234,9 @@ const OLD = {
 const QUIET = [5, 6, 8, 10, 11, 14, 15, 16, 17];
 // A person's flags past the garment's, the hat's and the umbrella's: gloves,
 // one arm a machine, a coat to the calf, a child, somebody old.
-const FLAG = { gloves: 512, arm: 1024, long: 2048, kid: 4096, old: 8192 };
+// And an umbrella's: a lit edge, and its cloth's colour (eight of them, from
+// the next bit up).
+const FLAG = { gloves: 512, arm: 1024, long: 2048, kid: 4096, old: 8192, led: 16384, cloth: 32768 };
 // Where each is worn, 0 to 1 at a point of the plan, easing over a dozen
 // metres at its edges so the places leak into each other: Corpo Plaza and
 // the boulevard's two pavements and forecourts; Santo Domingo east of the
@@ -355,7 +360,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
   // draw, out of where they are.
   // A child (`kid`) is dressed as one; somebody old (where `aged` allows it:
   // never on a quick walk) as the place dresses, quieter.
-  const dress = (r, near, { pose = null, umbrellaOdds = 0.38, at = [0, 0], kid = false, aged = true } = {}) => {
+  const dress = (r, near, { pose = null, umbrellaOdds = 0.1, at = [0, 0], kid = false, aged = true } = {}) => {
     const where = r();
     const corpo = corpoAt(at[0], at[1]) * 0.86;
     const santo = santoAt(at[0], at[1]) * 0.86;
@@ -411,11 +416,15 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     if (!kid && bag !== 3 && r() < (pose === null ? 0.06 : pose === "idle" || pose === "talk" || pose === "sit" ? 0.22 : 0)) mask += bits(TAG.cup);
     // The garment; a hat, a shaved head, lit eyes, bare arms under a vest
     // (never with a hood: that is a hoodie's, and it has sleeves), pale
-    // shoes; and an umbrella's cloth (black, its rim's colour, pale). Then
+    // shoes; and an umbrella's cloth (one colour, two in turns, banded, clear).
+    // Then
     // gloves; an arm that is a machine (bared more often than not: whoever
     // has one shows it); a coat that goes on past the knee to the calf; and
     // whether they are a child or old.
     let flags = garment + (hair.hat ? 4 : 0) + (hair.buzz ? 8 : 0) + (!kid && r() < 0.08 ? 16 : 0) + (cut !== "hood" && !kid && !old && r() < style.bare ? 32 : 0) + (r() < style.paleShoes ? 64 : 0) + 128 * pick(r, style.canopy);
+    // The umbrella's colour, and on one in eight a lit line round its edge
+    // (never white).
+    if (umbrella) flags += FLAG.cloth * Math.floor(r() * CANOPIES.length) + (r() < 0.12 ? FLAG.led : 0);
     if (!kid && pose !== "vendor" && r() < style.gloves * (old ? 2 : 1)) flags += FLAG.gloves;
     if (!kid && r() < style.arm * (old ? 0.4 : 1)) {
       flags += FLAG.arm;
@@ -562,7 +571,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
         const f = size > 1 ? k : one;
         const off = files[f] + (r() - 0.5) * 0.1;
         // To the side of a line: +x of one that runs along +z.
-        const d = dress(r, pave.worn, { umbrellaOdds: k ? 0.3 : 0.38, at: where, kid: kid && k === 1, aged: Math.abs(pace) < 1.36 });
+        const d = dress(r, pave.worn, { umbrellaOdds: k ? 0.07 : 0.1, at: where, kid: kid && k === 1, aged: Math.abs(pace) < 1.36 });
         people.push({
           walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, (k ? step + 0.5 : step) + drift],
           path: [w.dir[0], w.dir[1], w.len, at + k * 0.3],
@@ -797,7 +806,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     const worn = near.sort((a, b) => b[0] - a[0]).map(([, w]) => w);
     // Of two close together at most one holds an umbrella up: two canopies
     // do not fit between two faces.
-    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) ? 0 : 0.2, at: [p.x, p.z], kid: !!p.kid });
+    p.d = dress(rng(p.key), worn, { pose: name, umbrellaOdds: sheltered.has(p.mate) ? 0 : 0.05, at: [p.x, p.z], kid: !!p.kid });
     p.worn = worn[worn.length - 1];
     if (Math.floor(p.d.look[0] / 2 ** TAG.umbrella) % 2 === 1) sheltered.add(i);
   }
@@ -829,7 +838,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     const worn = [];
     ends.forEach((end, k) => {
       const at = end ? c.b : c.a;
-      const d = dress(r, worn, { pose: "idle", at, umbrellaOdds: 0.3, kid: k === 1 && r() < 0.15 });
+      const d = dress(r, worn, { pose: "idle", at, umbrellaOdds: 0.08, kid: k === 1 && r() < 0.15 });
       const manner = (r() < 0.3 ? 1 : 0) + 6 * (r() < 0.3 ? 1 : 0) + 36 * Math.floor(r() * 3) + 144 * (r() < 0.5 ? 1 : 0);
       crossers.push({ i: people.length, c, end, pace: 1.25 + 0.3 * r(), wait: 4 + 16 * r(), seed: r(), jitter: (k - (ends.length - 1) / 2) * 0.7 + (r() - 0.5) * 0.3, manner, turn: r(), step: r() });
       people.push({ walk: [at[0], at[1], manner, 0], path: [0, 1, 1, 0], body: [d.height, d.build, 0, PAVE_Y], look: d.look, wear: d.wear });
@@ -1357,6 +1366,8 @@ const VERTEX = /* glsl */ `
     bool machine = bit(aLook.y, 10.0) > 0.5 && side * (rnd(aLook.w * 23.7) - 0.5) > 0.0 && aRig.x > 2.5 && aRig.x < 4.5;
     bool worn = tag < 0.5 || bit(aLook.x, tag) > 0.5 || (machine && abs(tag - ${f(TAG.trim)}) < 0.5);
     if (tag > ${f(CARRIED - 0.5)}) worn = abs(aBody.z - ${f(POSES.indexOf("carry"))}) < 0.5;
+    // An umbrella's edge is a line of light only on the few that have one.
+    else if (int(aRig.y + 0.5) == ${PART.rim} && bit(aLook.y, 14.0) < 0.5) worn = false;
     else if (tag > 31.5) worn = bit(aLook.x, ${f(TAG.hair)}) > 0.5 && bit(aLook.y, 2.0) + bit(aLook.y, 3.0) + bit(aLook.x, ${f(TAG.hardhat)}) < 0.5 && abs(floor(rnd(aLook.w * 17.1) * 3.0) + ${f(STYLE.parted)} - tag) < 0.5;
     if (!worn) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
@@ -1678,6 +1689,9 @@ const VERTEX = /* glsl */ `
     vec3 skin = uPal[${PAL.skin} + int(aWear.z + 0.5)];
     vec3 hair = uPal[${PAL.hair} + int(aWear.w + 0.5)];
     vec3 tint = uPal[${PAL.rim} + int(mod(aLook.z, 4.0) + 0.5)];
+    // An umbrella's lit edge is one of the neon colours, never the white.
+    float led = bit(aLook.y, 14.0);
+    vec3 edge = abs(mod(aLook.z, 4.0) - 2.0) < 0.5 ? uPal[${PAL.rim}] : tint;
     vec3 carried = uPal[${PAL.bag} + int(floor(aLook.z / 4.0) + 0.5)];
     // What is under the jacket: a shirt, or the hoodie whose hood is up.
     vec3 shirt = uPal[${PAL.shirt} + int(floor(aWear.y / 8.0) + 0.5)];
@@ -1724,10 +1738,20 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.dark}) { albedo = vec3(0.015); gloss = 0.5; }
     else if (part == ${PART.crate}) albedo = vec3(0.3, 0.21, 0.11);
     else if (part == ${PART.canopy}) {
-      // Black cloth, the colour of its rim, or pale.
+      // Its cloth: one colour; two in turns, gore by gore (a gore's normal
+      // leans toward its own middle, so its edge says which it is too); a
+      // band of another colour at the edge; or clear, which at night is
+      // dark and all shine.
       float kind = mod(floor(flags / 128.0), 4.0);
-      albedo = kind < 0.5 ? vec3(0.024, 0.024, 0.03) : kind < 1.5 ? tint * 0.24 + 0.012 : vec3(0.4, 0.4, 0.43);
+      float k = mod(floor(flags / 32768.0), 8.0);
+      vec3 cloth = uPal[${PAL.canopy} + int(k + 0.5)];
+      vec3 other = uPal[${PAL.canopy} + int(mod(k + 4.0, 8.0) + 0.5)];
+      float gore = floor(mod(atan(normal.z, normal.x) / 0.7854 + 8.0, 8.0));
+      albedo = cloth;
       gloss = 0.7;
+      if (kind > 0.5 && kind < 1.5) albedo = mod(gore, 2.0) > 0.5 ? cloth : other;
+      else if (kind > 1.5 && kind < 2.5) albedo = mix(cloth, other, smoothstep(0.55, 0.95, aux));
+      else if (kind > 2.5) { albedo = vec3(0.035, 0.04, 0.05); gloss = 1.5; }
     }
     else if (part == ${PART.sclera}) { albedo = vec3(0.4, 0.4, 0.38); gloss = 0.3; }
     else if (part == ${PART.line}) albedo = skin * 0.16;
@@ -1741,7 +1765,7 @@ const VERTEX = /* glsl */ `
       albedo = skin * 0.08;
       if (bit(flags, 4.0) > 0.5) { lit = tint * 1.3; glow = 1.0; }
     }
-    else if (part == ${PART.rim}) { lit = tint * 3.2 * (1.0 + 0.2 * uBass); glow = 1.0; }
+    else if (part == ${PART.rim}) { lit = edge * 1.8 * (1.0 + 0.2 * uBass); glow = 1.0; }
     else if (part == ${PART.trim}) { lit = tint * 1.25; glow = 1.0; }
     else if (part == ${PART.phone}) { lit = vec3(0.6, 0.85, 1.0) * 2.2 * aux; glow = 1.0; }
     else if (part == ${PART.ember}) { lit = vec3(1.0, 0.38, 0.08) * (1.6 + 2.4 * drag); glow = 1.0; }
@@ -1825,10 +1849,9 @@ const VERTEX = /* glsl */ `
     rim *= min(1.0, (0.012 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(rim.r, max(rim.g, rim.b)), 1e-4));
     #endif
     vec3 col = (own + rim + shine + NIGHT * 0.05 * (0.3 + graze * graze)) * shade;
-    // The umbrella's own neon is on the cloth by its edge, and on the head
-    // and shoulders under it.
-    if (part == ${PART.canopy}) col += (0.2 + albedo) * tint * 0.3 * aux * aux * aux;
-    else if (umbrella > 0.5) col += albedo * tint * 0.2 * smoothstep(1.25, 1.7, tall);
+    // A lit edge is on the cloth by it, and on the head and shoulders under it.
+    if (part == ${PART.canopy}) col += (0.2 + albedo) * edge * 0.2 * aux * aux * aux * led;
+    else if (umbrella > 0.5) col += albedo * edge * 0.15 * smoothstep(1.25, 1.7, tall) * led;
     // A phone held up lights the face over it.
     if (phoneUp > 0.5 && seg > 1.5 && seg < 2.5) col += albedo * vec3(0.3, 0.45, 0.55) * max(n.z * 0.8 - n.y * 0.6, 0.0);
     // Nothing that is not lit from inside reaches the bloom.
@@ -1888,6 +1911,8 @@ const CARD_VERTEX = /* glsl */ `
   varying vec4 vSkin;
   varying vec4 vHair;
   varying vec4 vTint;
+  // An umbrella's cloth, and whether its edge is lit.
+  varying vec4 vCloth;
   ${HEAD}
 
   void main() {
@@ -1948,6 +1973,9 @@ const CARD_VERTEX = /* glsl */ `
     vSkin = vec4(skin, abs(facing));
     vHair = vec4(top, uPass.y * eye / h);
     vTint = vec4(uPal[${PAL.rim} + int(mod(aLook.z, 4.0) + 0.5)], bit(mask, ${f(TAG.trim)}) + 2.0 * bit(mask, ${f(TAG.phone)}) + 4.0 * step(facing, 0.0));
+    float kind = mod(floor(flags / 128.0), 4.0);
+    vCloth = vec4(kind > 2.5 ? vec3(0.035, 0.04, 0.05) : uPal[${PAL.canopy} + int(mod(floor(flags / 32768.0), 8.0) + 0.5)], bit(flags, 14.0));
+    if (vCloth.a > 0.5 && abs(mod(aLook.z, 4.0) - 2.0) < 0.5) vTint.rgb = uPal[${PAL.rim}];
     // The card keeps the pixels the far figure has given up; in the mirror
     // it has them all.
     float trade = uPass.x > 0.5 ? 1.0 : smoothstep(uLod.z - uLod.w, uLod.z + uLod.w, eye);
@@ -1966,6 +1994,7 @@ const CARD_FRAGMENT = /* glsl */ `
   varying vec4 vSkin;
   varying vec4 vHair;
   varying vec4 vTint;
+  varying vec4 vCloth;
   float hash12(vec2 p) {
     vec3 p3 = fract(vec3(p.xyx) * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);
@@ -2000,7 +2029,7 @@ const CARD_FRAGMENT = /* glsl */ `
     if (vJacket.a > 0.5) {
       vec2 q = (p - vec2(${f(CANOPY.x)}, ${f(CANOPY.edge)})) / vec2(${f(CANOPY.radius)}, 0.2);
       canopy = max(length(q) - 1.0, -q.y);
-      rim = max(abs(p.y - ${f(CANOPY.edge)}) - max(${f(RIM_HALF)}, 0.75 * px), abs(p.x - ${f(CANOPY.x)}) - ${f(CANOPY.radius)});
+      if (vCloth.a > 0.5) rim = max(abs(p.y - ${f(CANOPY.edge)}) - max(${f(RIM_HALF)}, 0.75 * px), abs(p.x - ${f(CANOPY.x)}) - ${f(CANOPY.radius)});
     }
     if (min(d, min(canopy, rim)) > 0.0) discard;
     float lit = vTint.a;
@@ -2008,10 +2037,10 @@ const CARD_FRAGMENT = /* glsl */ `
     if (p.y < 0.1) albedo = vec3(0.03);
     if (dBody <= 0.0 || dCoat <= 0.0) albedo = vJacket.rgb;
     if (dHead <= 0.0) albedo = lit > 3.5 || p.y > 1.7 ? vHair.rgb : vSkin.rgb;
-    if (canopy <= 0.0) albedo = vec3(0.05, 0.05, 0.07) + vTint.rgb * 0.1;
+    if (canopy <= 0.0) albedo = vCloth.rgb;
     vec3 col = byNight(albedo, vLight.rgb) * vLight.rgb;
     float glow = 1.0;
-    if (rim <= 0.0) col = vTint.rgb * 3.2 * (1.0 + 0.2 * uBass);
+    if (rim <= 0.0) col = vTint.rgb * 1.8 * (1.0 + 0.2 * uBass);
     else if (mod(lit, 2.0) > 0.5 && dBody <= 0.0 && abs(p.y - 0.93) < max(0.007, 0.5 * px)) col = vTint.rgb * 1.25;
     else if (mod(floor(lit / 2.0), 2.0) > 0.5 && length(p - vec2(0.07, 1.27)) < max(0.045, 0.8 * px)) col = vec3(0.6, 0.85, 1.0) * 2.2;
     else glow = 0.0;
@@ -2102,7 +2131,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   };
   const light = createStreetLight(scene, shared);
   const palette = new Float32Array(PAL.size * 3);
-  [JACKETS, TROUSERS, SKINS, HAIRS, BAGS, RIMS.map((c) => new THREE.Color(c).toArray()), SHIRTS, HELMETS].flat().forEach((c, i) => palette.set(c, i * 3));
+  [JACKETS, TROUSERS, SKINS, HAIRS, BAGS, RIMS.map((c) => new THREE.Color(c).toArray()), SHIRTS, HELMETS, CANOPIES].flat().forEach((c, i) => palette.set(c, i * 3));
   // Where the figures trade places, through a 50 degree lens: the face for
   // the far figure where a person is about seventy pixels tall on a desktop,
   // the far figure for the card where they are under twenty; sooner on a
