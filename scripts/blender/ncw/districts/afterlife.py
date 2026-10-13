@@ -1217,7 +1217,7 @@ for (name, plane, a0, a1, sv, hue) in (("+x", 398.0, -300.0, -258.0, 22.0, "ambe
 for (x_, z_, yaw_, pose_) in ((401.1, -307.5, -math.pi / 2, "smoke"), (398.9, -289.5, math.pi / 2, "phone"), (401.0, -269.8, -math.pi / 2 - 0.3, "lean"),
                               (489.0, -299.5, -math.pi / 2, "smoke"), (485.2, -279.0, math.pi / 2 + 0.4, "squat"), (488.6, -269.2, -math.pi / 2 - 0.5, "talk"),
                               (487.6, -270.3, math.pi / 2 - 0.9, "talk"), (462.0, -312.7, math.pi, "lean"), (476.5, -315.2, 0.2, "phone")):
-    stand(x_, z_, yaw_, pose_)
+    stand(x_, z_, yaw_, pose_, y=G0)
 
 # ---------------------------------------------------------------------------
 # MILITECH's forecourt on the plaza street (mH2wmyeiIpA@182): a walled court
@@ -1908,7 +1908,7 @@ K.roof_light(D, 457.8, 483.6, -299.6, -258.4, 34.0, lift=0.1, inside=_unseen)
 for sv, out_, turn, pose_ in ((3.8, 0.35, -math.pi / 2, "idle"), (5.2, 0.55, -math.pi / 2 + 0.4, "phone")):
     vx, _, vz = AF.p(AF.at(sv), 0.0, out_)
     stand(vx, vz, turn, pose_, y=G0)
-stand(407.9, SF.at(10.4), math.pi / 2, "idle")
-stand(407.6, SF.at(12.3), math.pi / 2 - 0.5, "phone")
+stand(407.9, SF.at(10.4), math.pi / 2, "idle", y=G0)
+stand(407.6, SF.at(12.3), math.pi / 2 - 0.5, "phone", y=G0)
 qx, _, qz = AF.p(AF.at(26.6), 0.0, -0.9)
 stand(qx, qz, -1.9, "talk", y=G0)
