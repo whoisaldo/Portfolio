@@ -744,6 +744,15 @@ export const WINDOWS = /* glsl */ `
         }
       }
     }
+    // (Away from the held lenses, the rain has run down from each sill: a
+    // few dark streaks under every window, each its own length.)
+    if (kit && fe > 0.5 && px < 0.06 && f.y < m0.y && f.x > m0.x && f.x < m1.x && blank < 0.5 && plant < 0.5) {
+      float sx = floor(f.x * 3.2 / 0.11);
+      float hs = hash12(vec2(sx, cell.x * 3.1 + cell.y * 7.7) + seed);
+      float len = (0.15 + 0.55 * fract(hs * 13.0)) / 3.4;
+      float run = step(0.55, hs) * smoothstep(m0.y - len, m0.y, f.y) * (1.0 - smoothstep(0.02, 0.06, px));
+      detail *= 1.0 - 0.45 * run;
+    }
     // A line of shadow under each floor's edge, and a zone's first floor
     // stands on a ledge: its lit top edge and the shadow it throws down.
     detail *= mix(1.0, 0.55, step(f.y, 0.045));

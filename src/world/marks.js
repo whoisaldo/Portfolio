@@ -297,6 +297,25 @@ export const MARKS = /* glsl */ `
       float n = 2.0 + floor(fract(h * 37.0) * 1.99);
       vec2 size = vec2(0.62, 0.88);
       vec2 o = vec2(cx * 5.8 + 0.2 + (5.4 - n * 0.56 - 0.1) * fract(h * 23.0), 0.85 + 0.45 * fract(h * 29.0));
+      // Under them, what was pasted there before: an older row, a hand
+      // lower and further along, faded and mostly torn away, so the paper
+      // is layered and not one clean row on a bare wall.
+      if (fract(h * 41.0) < 0.65) {
+        vec2 o2 = o + vec2(0.27 + 0.2 * fract(h * 43.0), -0.22);
+        float i2 = floor((q.x - o2.x) / 0.56);
+        if (i2 >= 0.0 && i2 < n + 1.0) {
+          vec2 c2 = q - o2 - vec2(i2 * 0.56 + 0.31, 0.44);
+          vec2 f2 = c2 / size + 0.5;
+          if (f2.x > 0.0 && f2.x < 1.0 && f2.y > 0.0 && f2.y < 1.0) {
+            float rag2 = vnoise(q * 6.0 + h * 70.0 + i2 * 3.1) * 0.7 + vnoise(q * 17.0) * 0.3;
+            float edge2 = min(min(f2.x, 1.0 - f2.x) * size.x, min(f2.y, 1.0 - f2.y) * size.y);
+            float left2 = smoothstep(0.45, 0.5, rag2) * smoothstep(0.0, 0.02, edge2);
+            float art2 = floor(mod(cx * 3.0 + i2 + id * 11.0 + 13.0, 24.0));
+            vec3 old = uHasAds > 0.5 ? poster(f2, art2, vec2(px) / size) : bill(f2, h * 7.0 + i2);
+            m = mix(m, vec4(mix(vec3(0.62, 0.6, 0.55), old * 0.75, 0.55), 1.0), left2 * far);
+          }
+        }
+      }
       float slot = floor((q.x - o.x) / 0.56);
       for (int j = 0; j < 2; j++) {
         float i = slot - 1.0 + float(j);
@@ -422,7 +441,10 @@ export const MARKS = /* glsl */ `
     float way = dFdx(q.x) * dFdx(loc.x) + dFdy(q.x) * dFdy(loc.x) < 0.0 ? -1.0 : 1.0;
     float hb = hash12(vec2(floor(loc.x / 3.2) + floor((q.x - way * loc.x) * 2.0 + 0.37), id + 31.0));
     if (loc.x >= 0.0 && hb < 0.34 && px < 0.15 && spray >= 0.0) {
-      float k = floor(fract(hb * 13.0) * 4.0) * 2.0;
+      // (Any of the eight pieces, the figures too, away from the hero's
+      // lens: the four lettered ones alone were the same pink row of
+      // lumps on shutters both sides of a street.)
+      float k = freeEye() > 0.5 ? floor(fract(hb * 13.0) * 8.0) : floor(fract(hb * 13.0) * 4.0) * 2.0;
       vec2 size = pieceSize(k);
       float scale = 2.9 / size.x;
       vec2 g = vec2(bx - 0.15, loc.y - 0.5 - 0.6 * fract(hb * 29.0)) / scale;
