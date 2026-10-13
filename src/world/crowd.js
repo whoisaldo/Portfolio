@@ -492,12 +492,18 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     });
     const slot = w.len / groups.length;
     // Somewhere in their own stretch of the walk, never within a body's
-    // length of the next one's.
+    // length of the next one's. And each one (or two) keeps their own time
+    // along it, a little ahead of the walk's pace and then a little behind,
+    // by as much as the room to the next stretch allows (`drift`, in steps
+    // of 0.15 m over 0.3, a pair's together: shader and refresh() read it
+    // out of the step's whole part).
     const loose = Math.min(0.6, Math.max(0, 1 - 1.1 / slot));
+    const most = Math.max(0, Math.min(8, Math.floor(((slot * (1 - loose) - 0.9) / 2 - 0.3) / 0.15)));
     groups.forEach((size, g) => {
       const at = (g + (1 - loose) / 2 + loose * r()) * slot;
       const step = r();
       const one = Math.floor(r() * files.length);
+      const drift = 2 * Math.floor(r() * (most + 1));
       const where = [w.from[0] + w.dir[0] * at, w.from[1] + w.dir[1] * at];
       // The second of two is a child, now and then, where children are.
       const kid = size > 1 && r() < 0.16 * (1 - 0.75 * Math.max(corpoAt(...where), santoAt(...where)));
@@ -507,8 +513,8 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
         // To the side of a line: +x of one that runs along +z.
         const d = dress(r, pave.worn, { umbrellaOdds: k ? 0.3 : 0.38, at: where, kid: kid && k === 1, aged: Math.abs(pace) < 1.36 });
         people.push({
-          walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, k ? step + 0.5 : step],
-          path: [w.dir[0], w.dir[1], w.len, at + k * 0.12],
+          walk: [w.from[0] + w.dir[1] * off, w.from[1] - w.dir[0] * off, pace, (k ? step + 0.5 : step) + drift],
+          path: [w.dir[0], w.dir[1], w.len, at + k * 0.3],
           // (The ground under a walker is the pavement's top; where their
           // walk crosses the mouth it says which side the crossing is.)
           body: [d.height, d.build, -(lanes[f] + 1), w.mouth ? (w.mouth > 0 ? -1 : -2) : PAVE_Y],
@@ -1080,7 +1086,9 @@ const HEAD = /* glsl */ `
     float t = uTime * uMotion;
     bool walking = aBody.z < -0.5;
     float way = aWalk.z < 0.0 ? -1.0 : 1.0;
-    gone = walking ? abs(aWalk.z) * t + 0.3 * sin(t * 0.21 + aLook.w * 40.0) : 0.0;
+    // (A little ahead of the walk's pace and then behind, by their own drift
+    // and in their own time: a pair's the same.)
+    gone = walking ? abs(aWalk.z) * t + (0.3 + 0.15 * floor(aWalk.w * 0.5)) * sin(t * 0.21 + fract(aWalk.w * 2.0) * 6.2832) : 0.0;
     // (Someone standing keeps other things where a walker keeps a pace, a
     // step and a place along the walk.)
     float s = walking ? mod(aPath.w + way * gone, aPath.z) : 0.0;
@@ -2134,7 +2142,8 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
       if (data[o + 10] < -0.5) {
         const pace = data[o + 2];
         const len = data[o + 6];
-        const gone = Math.abs(pace) * t + 0.3 * Math.sin(t * 0.21 + data[o + 15] * 40);
+        const w = data[o + 3];
+        const gone = Math.abs(pace) * t + (0.3 + 0.15 * Math.floor(w / 2)) * Math.sin(t * 0.21 + ((w * 2) % 1) * 6.2832);
         let s = (data[o + 7] + Math.sign(pace) * gone) % len;
         if (s < 0) s += len;
         if (Math.min(s, len - s) < 0.03) continue;
