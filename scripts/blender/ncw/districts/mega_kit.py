@@ -43,6 +43,32 @@ TEAL_PAINT = (0.06, 0.26, 0.26, 1.0)
 
 FLOOR0 = SHOP_H                             # the first floor line; then every CELL_H
 
+# Inside `with phone_off():` everything the megabuilding adds goes to the
+# desktop's detail only (what a flying car sees of the faces nobody walks
+# under): the phone keeps the walls and drops their dressing.
+import contextlib  # noqa: E402
+import ncw.kit as _K  # noqa: E402
+_POLY = _K.poly
+_PHONE_OFF = [False]
+
+
+def _poly(key, pts, uvs, col=(1, 1, 1, 1)):
+    if _PHONE_OFF[0] and key[0] == D and key[2] == 0:
+        key = (key[0], key[1], 1)
+    _POLY(key, pts, uvs, col)
+
+
+_K.poly = _poly
+
+
+@contextlib.contextmanager
+def phone_off():
+    _PHONE_OFF[0] = True
+    try:
+        yield
+    finally:
+        _PHONE_OFF[0] = False
+
 
 ADVERTS = set()
 

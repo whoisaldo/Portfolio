@@ -19,7 +19,7 @@ from ncw.districts.mega_kit import *  # noqa: F401,F403
 # The paint a tenant finds: pale render, cream, blue-grey, teal, rust, old
 # yellow, bare concrete, a dull pink, a dull green.
 PAINT = (PALE, CREAM, BLUEGREY, TEAL_PAINT, RUST, YEL_OLD, CONC, (0.34, 0.12, 0.17, 1.0), (0.12, 0.2, 0.11, 1.0), CONC, CREAM)
-LITS = ("amber", "amber", "amber", "white", "white", "pink", "cyan", "teal", "magenta", "amber")
+LITS = ("amber", "amber", "amber", "white", "white", "amber", "white", "amber", "pink", "cyan", "amber", "white")
 DYES = ("pink", "cyan", "amber", "white", "teal", "red", "purple", "green")
 
 
@@ -38,12 +38,12 @@ def _ok(f, s0, s1, y0, y1, out, guard):
     return guard(a, b, y0, y1, f.plane + f.nz * out)
 
 
-def lit_window(f, s, y0, w, h, out, r, k=None, hue=None):
+def lit_window(f, s, y0, w, h, out, r, k=None, hue=None, detail=0):
     """A lit window: its glass in one light, a dark frame round it, and now
     and then a curtain drawn half across or a blind."""
     hue = hue or r.choice(LITS)
     k = k if k is not None else r.uniform(0.22, 0.6)
-    f.quad((D, "glow", 0), s - w / 2, s + w / 2, y0, y0 + h, out, col=dim(GLOW[hue], k))
+    f.quad((D, "glow", detail), s - w / 2, s + w / 2, y0, y0 + h, out, col=dim(GLOW[hue], k))
     t = r.random()
     if t < 0.25:
         # A curtain across part of it.
@@ -149,6 +149,10 @@ def homes_floor(f, y, used, r, guard=None, rate=1.0, walk=False):
                 lit_window(f, s + r.uniform(-0.5, 0.5), y + r.uniform(0.8, 1.2), r.choice((0.9, 1.2, 1.6, 2.4)), r.choice((1.2, 1.5, 1.8)), 0.05, r)
         elif t < 0.5:
             pole(f, s, y, r)
+        elif t < 0.72 and _ok(f, s - 0.8, s + 0.8, y, y + 3.0, 0.1, guard):
+            # A small window lit warm, the commonest thing on the face.
+            lit_window(f, s + r.uniform(-0.6, 0.6), y + r.uniform(0.9, 1.3), r.choice((0.8, 1.0, 1.2)), r.choice((1.0, 1.3)), 0.05, r,
+                       hue=r.choice(("amber", "amber", "white", "amber")), k=r.uniform(0.25, 0.5), detail=1)
 
 
 def stair_core(f, s, y0, y1, r, guard=None, w=2.6):

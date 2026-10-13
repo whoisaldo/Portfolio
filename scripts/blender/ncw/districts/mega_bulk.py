@@ -117,6 +117,7 @@ def lower(f, y0, y1):
         k += 1
 
 
+E_FLANK = (75.0, floor_y(46))                # the east stack's west face (mega_stack) and its first step's top
 SHOULDERS = (
     # x0, x1, top, seed, inner face, inner from (the neighbour's top)
     (-50.0, -38.0, floor_y(46), 5110, "+x", 132.0),
@@ -132,8 +133,12 @@ for (x0, x1, top, seed, inner, ifrom) in SHOULDERS:
     lower(fS, SHOP_H, 96.0)
     lower(fN, SHOP_H, top)
     outer = fs["-x" if inner == "+x" else "+x"]
-    upper(outer, 120.0, top, seed + 2)
-    lower(outer, SHOP_H, 120.0)
+    if x1 == E_FLANK[0]:
+        # The east stack (mega_stack) stands against this face up to its first step.
+        upper(outer, E_FLANK[1], top, seed + 2)
+    else:
+        upper(outer, 120.0, top, seed + 2)
+        lower(outer, SHOP_H, 120.0)
     edge(x0, x1, SZ0, SZ1, top, ("+z", "-z", "+x", "-x"), rim=("amber", "cyan", "pink", "amber")[seed % 4])
     roof_kit(x0 + 1.0, x1 - 1.0, SZ0 + 1.0, SZ1 - 1.0, top, seed + 3, hue="amber", power=5.0)
 
@@ -148,19 +153,18 @@ for (x0, x1, y0, y1, z0, z1, seed, faces, win) in (
         (49.0, 62.0, floor_y(33), floor_y(38), SZ1, SZ1 + 6.0, 5154, ("+z", "-x", "+x"), 0),
         (60.0, 73.0, floor_y(45), floor_y(49), SZ1, SZ1 + 6.5, 5155, ("+z", "-x", "+x"), 6),
         (39.0, 45.0, floor_y(36), floor_y(40), SZ1, SZ1 + 4.5, 5156, ("+z", "-x", "+x"), 5),
-        (75.0, 81.0, floor_y(36), floor_y(42), -838.0, -816.0, 5157, ("+x", "+z", "-z"), 0),
         (55.0, 70.0, floor_y(28), floor_y(33), SZ0 - 6.0, SZ0, 5158, ("-z", "-x", "+x"), 6),
         (-64.0, -54.0, floor_y(24), floor_y(30), SZ0 - 5.0, SZ0, 5159, ("-z", "-x", "+x"), 5)):
     assert not hero_sees((x0, y0, min(z0, z1)), (x1, y1 + 1.0, max(z0, z1))), seed
     block(x0, x1, y0, y1, z0, z1, seed, faces=faces, window=3 if win == 5 else win, tint=(4, 3, 6)[seed % 3])
 riser(fsW["+z"], 14.6, floor_y(29), floor_y(52), "magenta")
 riser(fsE["+z"], 7.0, floor_y(29), floor_y(52), "cyan")
-riser(fsE["+x"], 30.0, floor_y(12), floor_y(52), "pink")
+riser(fsE["+x"], 30.0, E_FLANK[1] + 2.0, floor_y(52), "pink")
 riser(fsE["-z"], 21.0, floor_y(8), floor_y(50), "amber")
 riser(fsW["-z"], 5.0, floor_y(8), floor_y(50), "cyan")
 _rb = random.Random(5160)
 for (cx, cy, cz, w, h, yaw) in ((-59.0, 112.0, SZ1 + 0.5, 12.0, 18.0, 0.0), (68.0, 104.0, SZ1 + 0.5, 10.0, 16.0, 0.0),
-                                (75.5, 150.0, -828.0, 16.0, 9.0, math.pi / 2), (60.0, 120.0, SZ0 - 0.5, 18.0, 10.0, math.pi)):
+                                (60.0, 120.0, SZ0 - 0.5, 18.0, 10.0, math.pi)):
     B.billboard(D, cx, cy, cz, w, h, yaw, _rb, back=False)
 for (mx, mz, top, h) in ((-66.0, -847.0, floor_y(53), 20.0), (73.0, -847.0, floor_y(53), 18.0), (-40.0, -848.0, floor_y(46), 9.0)):
     assert not hero_sees((mx - 0.5, top, mz - 0.5), (mx + 0.5, top + h + 1.5, mz + 0.5)), (mx, h)

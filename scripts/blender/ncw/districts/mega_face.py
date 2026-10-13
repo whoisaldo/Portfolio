@@ -56,11 +56,22 @@ def segments(f, blocked, inset=0.3):
     return out
 
 
+def _back(g, s0, s1, y0, y1, col):
+    """A quad on face g's plane facing back towards the wall."""
+    a, b = g.p(g.at(s0), y0, 0.0), g.p(g.at(s1), y0, 0.0)
+    quad(FACE_T, (b[0], y0, b[2]), (a[0], y0, a[2]), (a[0], y1, a[2]), (b[0], y1, b[2]), col=col)
+
+
 def walkway(f, y, segs, out=1.35, dots=AMBER_DOT, col=CONC, people_rate=0.0, r=None):
     """A walkway deck along a face at a floor line: slab, parapet, lights."""
     for s0, s1 in segs:
         fbox(f, FACE_T, s0, s1, y - 0.26, y, 0.0, out, col=col, bottom=True)
-        fbox(f, FACE_T, s0, s1, y, y + 1.0, out - 0.16, out, col=col)
+        # The parapet: its face, its top and its back (its ends are never seen).
+        f.quad(FACE_T, s0, s1, y, y + 1.0, out, col=col)
+        pa, pb = f.p(f.at(s0), y + 1.0, out - 0.16), f.p(f.at(s1), y + 1.0, out)
+        hquad(FACE_T, min(pa[0], pb[0]), max(pa[0], pb[0]), min(pa[2], pb[2]), max(pa[2], pb[2]), y + 1.0, col=col)
+        g = face(f.name, f.plane + (f.nz or f.nx) * (out - 0.16), f.a0, f.a1)
+        _back(g, s0, s1, y, y + 1.0, col)
         f.quad((D, "trim", 1), s0, s1, y + 0.86, y + 1.0, out + 0.012, col=YEL_OLD)
         if dots:
             n = max(1, int((s1 - s0) // 3.2))
@@ -90,7 +101,9 @@ def balconies(f, y, blocked, r, rate=0.5, cols=(CONC, CONC, STEEL, BLACK), homes
         if homes and r.random() < 0.5:
             # An open balcony: its slab, a steel rail, a lit room behind.
             fbox(f, FACE_T, s - w, s + w, y - 0.16, y + 0.06, 0.0, 1.1, col=r.choice(cols), bottom=True)
-            fbox(f, (D, "metal", 0), s - w, s + w, y + 0.98, y + 1.04, 1.02, 1.1)
+            f.quad((D, "metal", 0), s - w, s + w, y + 0.98, y + 1.04, 1.1)
+            pa, pb = f.p(f.at(s - w), y + 1.04, 1.02), f.p(f.at(s + w), y + 1.04, 1.1)
+            hquad((D, "metal", 0), min(pa[0], pb[0]), max(pa[0], pb[0]), min(pa[2], pb[2]), max(pa[2], pb[2]), y + 1.04)
             for i in range(6):
                 sb = s - w + 2 * w * i / 5
                 f.quad((D, "metal", 1), sb - 0.025, sb + 0.025, y + 0.06, y + 0.98, 1.09)
@@ -120,7 +133,7 @@ def plain(f, y, blocked, r, rate=0.35):
         P.place("ac_wall", ax, ay, az, f.yaw)
         used.append((s - 0.5, s + 0.5))
     for s0, s1 in segments(f, blocked):
-        f.ledge((D, "trim", 1), s0, s1, y - 0.2, 0.2, 0.22, CONC)
+        f.ledge((D, "trim", 1), s0, s1, y - 0.2, 0.2, 0.22, CONC, caps=False)
     return used
 
 
@@ -345,7 +358,7 @@ def railing(f, a0, a1, y, out, h=1.05):
     n = max(1, int((a1 - a0) // 1.3))
     for i in range(n + 1):
         sp = a0 + (a1 - a0) * i / n
-        fbox(f, (D, "metal", 1), sp - 0.03, sp + 0.03, y, y + h, out - 0.08, out - 0.02)
+        f.quad((D, "metal", 1), sp - 0.03, sp + 0.03, y, y + h, out - 0.02)
 
 
 def underside(f, s0, s1, yb, w0, w1, r, sky=0.0, detail=1):

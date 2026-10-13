@@ -13,7 +13,7 @@ from ncw import buildings as B
 from ncw.districts.mega_kit import *  # noqa: F401,F403
 from ncw.districts.mega_face import dress, STRATA
 from ncw.districts.mega_wings import T2, T2_TOP, ET2, ET2_TOP, T1_TOP, ET1_TOP, f2, g2
-from ncw.districts.mega_bulk import SHOULDERS, SZ0, SZ1, riser
+from ncw.districts.mega_bulk import SHOULDERS, SZ0, SZ1, E_FLANK, riser
 
 FACE_T = (D, "trim", 0)
 
@@ -91,4 +91,4 @@ for (x0, x1, z0, z1, top, f) in JOINS:
 for (x0, x1, top, seed, inner, ifrom) in SHOULDERS:
     for g in B.faces_of(x0, x1, SZ0, SZ1).values():
         if g.name != inner:
-            girdle(g, top)
+            girdle(g, top, lo=E_FLANK[1] + 2.0 if (g.name == "+x" and x1 == E_FLANK[0]) else 96.0)
