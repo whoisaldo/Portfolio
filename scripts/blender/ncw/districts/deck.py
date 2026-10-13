@@ -214,9 +214,9 @@ Z_BREAKS = (EMB_Z, ZN)
 # (Round 4: the show's overpass is dark, heavy and grimy, and the street's
 # light on it is strong: at 0.29 the walls read near white, cream and salmon
 # under the signs' wash, and bloomed. Sooted concrete is under a tenth.)
-CONC = (0.082, 0.082, 0.086, 1.0)     # the girder's and the walls' concrete: sooted, weathered, a shade under the parapets'
-PARAPET_C = (0.115, 0.113, 0.11, 1.0) # the parapets', a little paler: newer pours
-PIER_C = (0.092, 0.09, 0.088, 1.0)    # the piers', buttresses' and cap beams' concrete
+CONC = (0.06, 0.06, 0.063, 1.0)       # the girder's and the walls' concrete: sooted, weathered, a shade under the parapets'
+PARAPET_C = (0.085, 0.084, 0.082, 1.0) # the parapets', a little paler: newer pours
+PIER_C = (0.07, 0.069, 0.067, 1.0)    # the piers', buttresses' and cap beams' concrete
 CAP_C = (0.05, 0.05, 0.055, 1.0)        # cap beams: in the soffit's shadow
 STAIN_C = (0.026, 0.025, 0.023, 1.0)  # where water has run down it for years
 SOFFIT_C = (0.13, 0.13, 0.14, 1.0)    # the underside over the passages: sooted concrete, light enough to take the street's light (a lamp panel never hangs in black)
@@ -2057,12 +2057,12 @@ for xw, o in ((XW + 0.15, -1), (XE - 0.15, 1)):
         pipe((DK, "steel", 1), (xw + o * 0.08, PLINTH_H + 0.05, z), (xw + o * 0.08, top + 0.05, z), 0.06, segs=5, col=PIPE_C)
         pipe((DK, "steel", 1), (xw + o * 0.08, PLINTH_H + 0.1, z), (xw + o * 0.34, PLINTH_H + 0.02, z), 0.06, segs=5, col=PIPE_C)
         stain("z", z + 0.5, xw, o, PLINTH_H, top - 0.1, w=0.5)
-    pipe((DK, "steel", 0), (xw + o * 0.2, PLINTH_H + 0.09, -178.0), (xw + o * 0.2, PLINTH_H + 0.09, EMB_Z - 0.2), 0.08, segs=6, col=GAS_C)
+    pipe((DK, "steel", 0), (xw + o * 0.2, PLINTH_H + 0.09, -178.0), (xw + o * 0.2, PLINTH_H + 0.09, EMB_Z - 0.2), 0.08, segs=6, col=(0.2, 0.07, 0.018, 1.0))     # (round 4: at GAS_C, in the street's light, it glowed like a tube)
     pipe((DK, "steel", 1), (xw + o * 0.05, 1.05, -169.0), (xw + o * 0.05, 1.05, EMB_Z - 0.2), 0.03, segs=4, col=PIPE_C)
     for z in (-167.0, -159.2, -154.6):
         box((DK, "steel", 1), *sorted((xw, xw + o * 0.12)), 0.9, 1.25, z - 0.17, z + 0.17, scale=0.5, col=PIPE_C)
     for z in (-174.0, -167.5, -157.5):      # the main's flanges
-        box((DK, "steel", 1), *sorted((xw + o * 0.1, xw + o * 0.3)), PLINTH_H - 0.01, PLINTH_H + 0.19, z - 0.04, z + 0.04, scale=0.5, col=GAS_C)
+        box((DK, "steel", 1), *sorted((xw + o * 0.1, xw + o * 0.3)), PLINTH_H - 0.01, PLINTH_H + 0.19, z - 0.04, z + 0.04, scale=0.5, col=(0.2, 0.07, 0.018, 1.0))
 
 # THE GIRDER OVER THE AVENUE. The span the hero sees is held (its dark south
 # face, its flat underside, the teal strip, the white lights, the sora
