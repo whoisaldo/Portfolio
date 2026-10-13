@@ -108,14 +108,19 @@ for z, dz in ((CW[0] + KW / 2, 0.06), (CW[1] - KW / 2, -0.06)):
     half = math.sqrt((RK - KW) ** 2 - (z - HZ) ** 2)
     box((PL, "glow", 0), HX - half + 0.3, HX + half - 0.3, KY, KY + 0.03, min(z + dz, z + dz * 2.5), max(z + dz, z + dz * 2.5), scale=1.0,
         col=dim("amber", 0.4))
-for pts, face in (([(55.6, -231.9), (56.4, -232.05)], math.pi), ([(59.4, -231.9), (60.2, -232.1), (61.0, -231.85)], math.pi),
-                  ([(82.6, -228.1), (83.4, -227.95)], 0.0), ([(62.8, -228.05), (63.6, -228.2), (64.4, -228.0)], 0.0)):
-    for i, (x, z) in enumerate(pts):
-        if i < 2:
-            ox, oz = pts[1 - i]
-            stand(x, z, math.atan2(ox - x, oz - z) + ro.uniform(-0.2, 0.2), "talk", y=G)
-        else:
-            stand(x, z, face + ro.uniform(-0.4, 0.4), ro.choice(("idle", "phone", "lean")), y=G)
+# (In knots, each its own way: three round one, a pair leaning on the rail
+# with their backs to the hub, one alone at the glass, two walking off; a
+# row of people at a rail all facing out was a queue of statues.)
+stand(55.4, -231.7, 0.4, "talk", y=G)
+stand(56.3, -231.2, -2.4, "talk", y=G)
+stand(56.4, -232.2, -1.2, "phone", y=G)
+stand(60.6, -232.25, 0.15, "lean", y=G)
+stand(61.5, -232.2, -0.2, "lean", y=G)
+stand(64.0, -228.1, math.pi - 0.5, "idle", y=G)
+stand(68.2, -228.9, 1.9, "carry", y=G)
+stand(68.9, -229.5, 1.6, "idle", y=G)
+stand(82.2, -228.0, -2.0, "talk", y=G)
+stand(83.0, -228.6, 1.3, "talk", y=G)
 stand(74.6, -231.3, 1.5, "phone", y=G)
 
 # ---------------------------------------------------------------------------

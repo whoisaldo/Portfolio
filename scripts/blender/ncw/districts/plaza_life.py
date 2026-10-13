@@ -53,9 +53,8 @@ def palm_sleeve(cx, cz, y0, y1, hue, hue2):
 for (cx, cz, y0, y1, hue, hue2) in ((54.6, -210.0, G + 1.3, G + 2.9, "cyan", "white"), (76.0, -208.0, G + 1.3, G + 2.9, "magenta", "white"),
                                    (90.6, -247.0, G + 1.3, G + 2.9, "amber", "white")):
     holo_wrap(cx, cz, y0, y1, 0.11, hue, hue2)
-for (cx, cz, y0, y1, hue, hue2) in ((56.6, -211.2, G + 1.6, G + 3.2, "teal", "yellow"), (74.0, -200.0, G + 1.6, G + 3.2, "green", "white"),
-                                   (102.8, -210.5, TY + 1.6, TY + 3.2, "cyan", "white")):
-    palm_sleeve(cx, cz, y0, y1, hue, hue2)
+# (The palms are left plain, as the show's are: lit rings round their
+# trunks made props of them. palm_sleeve stays for a post.)
 
 # ---------------------------------------------------------------------------
 # One large octagonal sign, where the square meets the junction: on a steel
