@@ -24,8 +24,8 @@ COL_F = (0.46, 2 / 8.0, 0.5, 1.0)            # the slab's own wall, fewer window
 for k, (x0, x1, z0, z1, y0, y1) in enumerate(TIERS):
     mass(FA, x0, x1, z0, z1, max(y0, SEEN), y1, 5011 + k, faces=("+z",), col=COL_F, mat="facade_end", roof=False)
     if y0 < SEEN:
-        mass(D, x0, x1, z0, z1, y0, SEEN, 5011 + k, faces=("+z",), col=B.wall_col(0.46, 2, 0.5, 5), roof=False)
-    mass(D, x0, x1, z0, z1, y0, y1, 5021 + k, faces=("-x", "+x", "-z"), col=B.wall_col(0.5, 2, 0.5, 5), roof=True)
+        mass(D, x0, x1, z0, z1, y0, SEEN, 5011 + k, faces=("+z",), col=B.wall_col(0.5, 6, 0.75, 5), roof=False)
+    mass(D, x0, x1, z0, z1, y0, y1, 5021 + k, faces=("-x", "+x", "-z"), col=B.wall_col(0.55, 0, 0.75, 5), roof=True)
     B.ROOFS.append((D, x0, x1, z0, z1, y1))
     B.COLLISION.append(("box", x0, x1, y0, y1, z0, z1, D))
     HERO_MASSES.append(((x0, y0, z0), (x1, y1, z1)))
@@ -80,8 +80,8 @@ numeral("H4", 0.0, 96.0, t2z0, 20.0, math.pi)
 for (cx, cy, w, h) in ((-26.0, 60.0, 14.0, 9.0), (25.0, 44.0, 12.0, 16.0), (22.0, 108.0, 16.0, 8.0)):
     B.billboard(D, cx, cy, t2z0 - 0.5, w, h, math.pi, _rb, back=False)
 block(-36.0, -18.0, 104.0, 124.0, t2z0 - 7.0, t2z0, 5042, faces=("-z", "-x", "+x"), window=6)
-block(8.0, 30.0, 66.0, 84.0, t2z0 - 6.0, t2z0, 5043, faces=("-z", "-x", "+x"), window=0, tint=1)
-block(-30.0, -12.0, 30.0, 46.0, t2z0 - 6.5, t2z0, 5044, faces=("-z", "-x", "+x"), window=5, tint=6)
+block(8.0, 30.0, 66.0, 84.0, t2z0 - 6.0, t2z0, 5043, faces=("-z", "-x", "+x"), window=0, tint=4)
+block(-30.0, -12.0, 30.0, 46.0, t2z0 - 6.5, t2z0, 5044, faces=("-z", "-x", "+x"), window=3, tint=6)
 for (x0, x1, z0, z1, y0, y1), hue in zip(TIERS, ("cyan", "pink", "amber")):
     for x in (x0, x1):
         s = -1 if x == x0 else 1

@@ -22,8 +22,15 @@ PT = floor_y(3)                         # 11.4: the podiums' roof
 PAL = ["pink", "amber", "cyan", "red", "teal", "magenta", "purple"]
 
 
+ROOF_STRIPS = []
+
+
 def roof_strip(x0, x1, z0, z1, top, seed, cap=3.0, sign_rate=0.0):
-    B.roof_dress(D, x0, x1, z0, z1, top, random.Random(seed), cap=cap, parapet=False, sign_rate=sign_rate, tint=5)
+    """A roof the wings leave to be filled: mega_top fills each with people's
+    plant, tanks, shacks and washing (roof_full); one with signs keeps the
+    generator's board on legs."""
+    ROOF_STRIPS.append((x0, x1, z0, z1, top, seed))
+    B.ROOFS.append((D, x0, x1, z0, z1, top))
 
 
 def mast(x, z, y0, h, hue="red"):
@@ -68,14 +75,14 @@ B.billboard(D, BOARD_W[0], BOARD_W[1], T1[3] + 0.4, BOARD_W[2], BOARD_W[3], 0.0,
 sign_column(-92.6, T1[3] + 0.8, (15.6, 21.4, 27.0, 31.4, 36.6), ("bl", "bl", "bm", "bl", "bx"), [math.pi / 2 + a for a in (-0.3, 0.25, -0.2, 0.3, -0.1)])
 sign_column(-58.6, T1[3] + 0.8, (16.2, 21.0, 26.8), ("bm", "bl", "bl"), [-math.pi / 2 + a for a in (0.3, -0.2, 0.25)])
 T2 = (-86.0, -64.0, -780.0, -748.0)
-f2 = shell(*T2, T1_TOP, T2_TOP, B.wall_col(0.7, 5, 0.6, 1), 8420)
+f2 = shell(*T2, T1_TOP, T2_TOP, B.wall_col(0.62, 6, 0.85, 4), 8420)
 assert hero_hidden(T2[0], T2[1], T1_TOP, T2_TOP + 3.0, T2[3])
 # Its faces: the block's number, floodlit, over the street; cantilevered
 # blocks with their yellow edges; floors of decks and units between.
 numeral("H4", (T2[0] + T2[1]) / 2, 103.0, T2[3], 10.0, 0.0, pad=1.4)
 block(T2[0] + 2.0, T2[1] - 1.0, floor_y(19), floor_y(24), T2[3], T2[3] + 6.0, 8470, window=6)
-block(T2[0] - 6.0, T2[0], floor_y(26), floor_y(31), T2[2] + 4.0, T2[3] - 8.0, 8471, faces=("-x", "+z", "-z"), window=0, tint=1)
-block(T2[1], T2[1] + 6.5, floor_y(22), floor_y(28), T2[2] + 6.0, T2[3] - 3.0, 8472, faces=("+x", "+z", "-z"), window=5, tint=6)
+block(T2[0] - 6.0, T2[0], floor_y(26), floor_y(31), T2[2] + 4.0, T2[3] - 8.0, 8471, faces=("-x", "+z", "-z"), window=0, tint=4)
+block(T2[1], T2[1] + 6.5, floor_y(22), floor_y(28), T2[2] + 6.0, T2[3] - 3.0, 8472, faces=("+x", "+z", "-z"), window=3, tint=6)
 dress(f2["+z"], floor_y(27), 25, 8473, [])
 dress(f2["-x"], floor_y(25), 18, 8474, [], weights=(0.3, 0.3, 0.4))
 dress(f2["+x"], floor_y(21), 18, 8475, [], weights=(0.3, 0.3, 0.4))
@@ -144,11 +151,11 @@ dress(g1["-x"], ET1_TOP, 4, 8442, [], weights=(0.3, 0.3, 0.4))
 dress(g1["+x"], ET1_TOP, 4, 8443, [], weights=(0.25, 0.35, 0.4))
 dress(g1["-z"], ET1_TOP, 4, 8444, [], people_rate=0.05, weights=(0.2, 0.3, 0.5))
 ET2 = (62.0, 92.0, -782.0, -758.0)
-g2 = shell(*ET2, ET1_TOP, ET2_TOP, B.wall_col(0.7, 5, 0.7, 2), 8445)
+g2 = shell(*ET2, ET1_TOP, ET2_TOP, B.wall_col(0.62, 0, 0.8, 5), 8445)
 assert hero_hidden(ET2[0], ET2[1], ET1_TOP, ET2_TOP + 3.0, ET2[3])
-block(ET2[0] + 1.0, ET2[0] + 15.0, floor_y(18), floor_y(23), ET2[3], ET2[3] + 6.5, 8480, window=0, tint=1)
+block(ET2[0] + 1.0, ET2[0] + 15.0, floor_y(18), floor_y(23), ET2[3], ET2[3] + 6.5, 8480, window=0, tint=4)
 block(ET2[1] - 11.0, ET2[1] + 5.0, floor_y(24), floor_y(28), ET2[3] - 2.0, ET2[3] + 5.0, 8481, window=6)
-block(ET2[0] - 6.0, ET2[0], floor_y(23), floor_y(28), ET2[2] + 3.0, ET2[3] - 5.0, 8482, faces=("-x", "+z", "-z"), window=5, tint=6)
+block(ET2[0] - 6.0, ET2[0], floor_y(23), floor_y(28), ET2[2] + 3.0, ET2[3] - 5.0, 8482, faces=("-x", "+z", "-z"), window=3, tint=6)
 numeral("H4", ET2[1], 86.0, (ET2[2] + ET2[3]) / 2, 9.0, math.pi / 2, pad=1.4)
 dress(g2["+z"], floor_y(18), 16, 8483, [])
 dress(g2["+x"], floor_y(21), 16, 8484, [], weights=(0.3, 0.3, 0.4))

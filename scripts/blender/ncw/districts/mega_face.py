@@ -18,6 +18,7 @@ import ncw.kit as K
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.mega_kit import *  # noqa: F401,F403
+from ncw.districts.mega_homes import homes_floor, homes_face
 
 
 def hero_hidden(x0, x1, y0, y1, z):
@@ -72,37 +73,51 @@ def walkway(f, y, segs, out=1.35, dots=AMBER_DOT, col=CONC, people_rate=0.0, r=N
                 s += r.uniform(2.5, 6.0)
 
 
-def balconies(f, y, blocked, r, rate=0.5, cols=(CONC, CONC, STEEL, BLACK)):
+def balconies(f, y, blocked, r, rate=0.5, cols=(CONC, CONC, STEEL, BLACK), homes=True):
     bays = max(1, round(f.width / CELL_W))
     bw = f.width / bays
+    used = []
     for b in range(bays):
         s = (b + 0.5) * bw
         if any(b0 - 1.3 < s < b1 + 1.3 for b0, b1 in blocked) or r.random() > rate:
             continue
         w = r.choice((1.2, 1.3, 1.45))
-        fbox(f, FACE_T, s - w, s + w, y - 0.16, y + 0.95, 0.0, 1.1, col=r.choice(cols), bottom=True)
+        used.append((s - w, s + w))
+        if homes and r.random() < 0.5:
+            # An open balcony: its slab, a steel rail, a lit room behind.
+            fbox(f, FACE_T, s - w, s + w, y - 0.16, y + 0.06, 0.0, 1.1, col=r.choice(cols), bottom=True)
+            fbox(f, (D, "metal", 0), s - w, s + w, y + 0.98, y + 1.04, 1.02, 1.1)
+            for i in range(6):
+                sb = s - w + 2 * w * i / 5
+                f.quad((D, "metal", 1), sb - 0.025, sb + 0.025, y + 0.06, y + 0.98, 1.09)
+        else:
+            fbox(f, FACE_T, s - w, s + w, y - 0.16, y + 0.95, 0.0, 1.1, col=r.choice(cols), bottom=True)
         roll = r.random()
         if roll < 0.3:
             ax, ay, az = f.p(f.at(s + r.uniform(-0.5, 0.5)), y + 1.3, 0.0)
             P.place("ac_wall", ax, ay, az, f.yaw)
-        elif roll < 0.42:
+        elif roll < (0.62 if homes else 0.42):
             # Washing on a line over the rail.
             pa, pb = f.p(f.at(s - w + 0.2), y + 1.9, 1.05), f.p(f.at(s + w - 0.2), y + 1.9, 1.05)
             cloth((pa[0], y + 1.15, pa[2]), (pb[0], y + 1.15, pb[2]), (pb[0], y + 1.9, pb[2]), (pa[0], y + 1.9, pa[2]),
                   r.choice(("pink", "cyan", "amber", "white", "teal")))
+    return used
 
 
 def plain(f, y, blocked, r, rate=0.35):
     bays = max(1, round(f.width / CELL_W))
     bw = f.width / bays
+    used = []
     for b in range(bays):
         s = (b + 0.5) * bw + r.uniform(-0.6, 0.6)
         if any(b0 - 0.6 < s < b1 + 0.6 for b0, b1 in blocked) or r.random() > rate:
             continue
         ax, ay, az = f.p(f.at(s), y + 0.05, 0.0)
         P.place("ac_wall", ax, ay, az, f.yaw)
+        used.append((s - 0.5, s + 0.5))
     for s0, s1 in segments(f, blocked):
         f.ledge((D, "trim", 1), s0, s1, y - 0.2, 0.2, 0.22, CONC)
+    return used
 
 
 def pod(f, s0, s1, k0, k1, out, seed, tint=5, window=0, lit=0.75):
@@ -130,11 +145,17 @@ def big(f, s0, s1, k0, k1, out, seed, **kw):
     return (s0, s1, y0 - 0.9, y1 + 0.4)
 
 
-def dress(f, top, start, seed, blocked, pods=(), slot=False, people_rate=0.2, weights=(0.3, 0.35, 0.35)):
+def dress(f, top, start, seed, blocked, pods=(), slot=False, people_rate=0.2, weights=(0.3, 0.35, 0.35), guard=None, homes=True):
     """Floor by floor up a face: a walkway, balconies, or a plain floor of
-    units. `blocked`: stretches kept clear the whole height (the signs, the
-    ducts). `pods`: (s0, s1, y0, y1) kept clear over their own floors."""
+    units, and over each (but in the hero's slot) what its tenants have
+    added (mega_homes). `blocked`: stretches kept clear the whole height
+    (the signs, the ducts). `pods`: (s0, s1, y0, y1) kept clear over their
+    own floors. `guard`: see mega_homes."""
     r = random.Random(seed)
+    homes = homes and not slot
+    rh = random.Random(seed * 31 + 7)
+    if homes:
+        blocked = list(blocked) + homes_face(f, floor_y(start), top - 0.5, rh, list(blocked), guard)
     k = start
     while floor_y(k) + 1.4 < top:
         y = floor_y(k)
@@ -145,10 +166,16 @@ def dress(f, top, start, seed, blocked, pods=(), slot=False, people_rate=0.2, we
         t = r.random()
         if t < weights[0]:
             walkway(f, y, segments(f, here), dots=dim(GLOW["amber"], 0.28) if slot else AMBER_DOT, r=r, people_rate=people_rate)
+            if homes and floor_y(k) + 1.4 < top:
+                homes_floor(f, y, here, rh, guard, walk=True)
         elif t < weights[0] + weights[1]:
-            balconies(f, y, here, r)
+            used = balconies(f, y, here, r, homes=homes)
+            if homes and floor_y(k) + 1.4 < top:
+                homes_floor(f, y, here + used, rh, guard)
         else:
-            plain(f, y, here, r)
+            used = plain(f, y, here, r)
+            if homes and floor_y(k) + 1.4 < top:
+                homes_floor(f, y, here + used, rh, guard, rate=1.3)
 
 
 def face_duct(f, s, y0, y1, w=0.9, out=0.7):
@@ -177,16 +204,16 @@ def sign_gaps(f):
 # West section (top 95).
 _blocked = sign_gaps(fW) + [face_duct(fW, 13.6, floor_y(3), 92.0), face_duct(fW, 29.2, floor_y(2), 90.0, w=0.7)]
 _pods = [big(fW, 2.6, 12.6, 8, 12, 6.5, 8301, window=0), big(fW, 20.4, 28.0, 14, 19, 5.0, 8302, window=6, tint=6),
-         big(fW, 1.0, 12.5, 20, 24, 6.0, 8303, window=5, tint=1)]
-dress(fW, 95.0, 3, 8311, _blocked, _pods)
+         big(fW, 1.0, 12.5, 20, 24, 6.0, 8303, window=3, tint=4)]
+dress(fW, 95.0, 3, 8311, _blocked, _pods, guard=hero_hidden)
 # Middle section (top 89): in the hero's slot, so decks and dark balconies only.
 _blocked = sign_gaps(fM) + [face_duct(fM, 1.0, floor_y(4), 86.0, w=0.8, out=0.6), face_duct(fM, 35.0, floor_y(4), 86.0, w=0.8, out=0.6)]
 dress(fM, 89.0, 4, 8312, _blocked, (), slot=True, people_rate=0.15, weights=(0.34, 0.3, 0.36))
 # East section (top 83).
 _blocked = sign_gaps(fE) + [face_duct(fE, 1.3, floor_y(5), 80.0, w=0.7), face_duct(fE, 11.4, floor_y(5), 81.0), face_duct(fE, 28.9, floor_y(5), 78.0)]
-_pods = [big(fE, 2.2, 10.6, 9, 13, 6.0, 8304, window=6, tint=5), big(fE, 17.4, 28.0, 14, 18, 6.5, 8305, window=0, tint=1),
-         pod(fE, 4.0, 10.4, 19, 20, 2.2, 8306, window=5, tint=6)]
-dress(fE, 83.0, 5, 8313, _blocked, _pods)
+_pods = [big(fE, 2.2, 10.6, 9, 13, 6.0, 8304, window=6, tint=5), big(fE, 17.4, 28.0, 14, 18, 6.5, 8305, window=0, tint=4),
+         pod(fE, 4.0, 10.4, 19, 20, 2.2, 8306, window=3, tint=6)]
+dress(fE, 83.0, 5, 8313, _blocked, _pods, guard=hero_hidden)
 
 # Columns of signs off the block's two outer corners, and a tall billboard on
 # each outer section, where the canyon's own blocks hide them from the hero.

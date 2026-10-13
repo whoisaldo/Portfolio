@@ -62,7 +62,7 @@ from ncw.districts.mega_roofs import edge  # noqa: E402
 from ncw.districts.mega_finish import roof_kit  # noqa: E402
 
 SZ0, SZ1 = -850.0, -803.0                    # the shoulders' depth (the far city's line is z -855)
-STYLES = ((0.62, 0, 0.8, 5), (0.5, 5, 0.6, 1), (0.7, 6, 0.9, 5), (0.45, 2, 0.5, 6), (0.66, 0, 0.55, 2), (0.55, 6, 0.75, 4))
+STYLES = ((0.62, 0, 0.8, 5), (0.55, 3, 0.75, 4), (0.7, 6, 0.9, 5), (0.5, 1, 0.7, 6), (0.62, 0, 0.6, 3), (0.55, 6, 0.75, 4))
 
 
 def bands(f, y0, y1, seed, n=3):
@@ -152,7 +152,7 @@ for (x0, x1, y0, y1, z0, z1, seed, faces, win) in (
         (55.0, 70.0, floor_y(28), floor_y(33), SZ0 - 6.0, SZ0, 5158, ("-z", "-x", "+x"), 6),
         (-64.0, -54.0, floor_y(24), floor_y(30), SZ0 - 5.0, SZ0, 5159, ("-z", "-x", "+x"), 5)):
     assert not hero_sees((x0, y0, min(z0, z1)), (x1, y1 + 1.0, max(z0, z1))), seed
-    block(x0, x1, y0, y1, z0, z1, seed, faces=faces, window=win, tint=(seed % 3) * 2 + 1)
+    block(x0, x1, y0, y1, z0, z1, seed, faces=faces, window=3 if win == 5 else win, tint=(4, 3, 6)[seed % 3])
 riser(fsW["+z"], 14.6, floor_y(29), floor_y(52), "magenta")
 riser(fsE["+z"], 7.0, floor_y(29), floor_y(52), "cyan")
 riser(fsE["+x"], 30.0, floor_y(12), floor_y(52), "pink")
@@ -243,7 +243,7 @@ for (x0, x1, y0, y1, z0, z1, seed, faces, win) in (
         (ET2[1] - 12.0, ET2[1] - 2.0, floor_y(40), floor_y(44), ET2[3], ET2[3] + 6.0, 5715, ("+z", "-x", "+x"), 0),
         (ET2[1], ET2[1] + 5.5, floor_y(34), floor_y(39), ET2[2] + 4.0, ET2[3] - 4.0, 5716, ("+x", "+z", "-z"), 5)):
     assert not hero_sees((x0, y0, min(z0, z1)), (x1, y1 + 1.0, max(z0, z1))), seed
-    block(x0, x1, y0, y1, z0, z1, seed, faces=faces, window=win, tint=(seed % 3) * 2 + 1)
+    block(x0, x1, y0, y1, z0, z1, seed, faces=faces, window=3 if win == 5 else win, tint=(4, 3, 6)[seed % 3])
 riser(f2["+z"], 3.0, floor_y(28), T2_TOP - 2.0, "cyan")
 riser(f2["-x"], 20.0, floor_y(20), T2_TOP - 2.0, "magenta")
 riser(g2["+z"], 26.5, floor_y(20), ET2_TOP - 2.0, "pink")

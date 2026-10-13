@@ -47,8 +47,8 @@ def block(x0, x1, z0, z1, top, seed, tint=None, window=None, crown=None, dressed
     lamps, skips), two faces dressed in decks and balconies, the others in
     ledges and units, a crown on some, a roof that is used."""
     r = random.Random(seed)
-    tint = r.choice((5, 0, 1, 2, 3, 5)) if tint is None else tint
-    window = r.choice((0, 6, 3, 1, 0, 5)) if window is None else window
+    tint = r.choice((5, 0, 4, 6, 3, 5)) if tint is None else tint
+    window = r.choice((0, 6, 3, 1, 0, 6)) if window is None else window
     col = B.wall_col(r.uniform(0.5, 0.85), window, r.uniform(0.4, 1.0), tint)
     fs = shell(x0, x1, z0, z1, 0.0, top, col, seed,
                spans={"+z": [(x0, x1, SHOP_H)], "-z": [(x0, x1, SHOP_H)], "+x": [(z0, z1, SHOP_H)], "-x": [(z0, z1, SHOP_H)]})
@@ -61,7 +61,7 @@ def block(x0, x1, z0, z1, top, seed, tint=None, window=None, crown=None, dressed
     parapet(x0, x1, z0, z1, top, rim=rim, col=B.TRIM[tint])
     if crown:
         cx0, cx1, cz0, cz1, ctop = crown
-        shell(cx0, cx1, cz0, cz1, top, ctop, B.wall_col(r.uniform(0.6, 0.9), r.choice((5, 5, 2, 0)), r.uniform(0.3, 0.9), tint), seed + 3)
+        shell(cx0, cx1, cz0, cz1, top, ctop, B.wall_col(r.uniform(0.6, 0.9), r.choice((6, 3, 1, 0)), r.uniform(0.5, 0.95), tint), seed + 3)
         parapet(cx0, cx1, cz0, cz1, ctop, rim=r.choice(("cyan", "pink", "amber", "magenta")), col=B.TRIM[tint])
         B.roof_dress(D, cx0, cx1, cz0, cz1, ctop, random.Random(seed + 5), cap=cap, parapet=False, sign_rate=sign_rate, tint=tint)
         for (a0, a1, b0, b1) in ((x0, x1, cz1, z1), (x0, x1, z0, cz0), (x0, cx0, cz0, cz1), (cx1, x1, cz0, cz1)):
@@ -80,13 +80,13 @@ def block(x0, x1, z0, z1, top, seed, tint=None, window=None, crown=None, dressed
 # ---------------------------------------------------------------------------
 b1 = block(68.0, 90.0, -692.0, -664.0, floor_y(13), 8611, tint=5, window=6, dressed=("-z", "-x", "+z"), rim="cyan",
            board=(79.0, -678.0, floor_y(13), 13.0, 6.0, math.radians(200), 8612))
-b2 = block(96.0, 128.0, -692.0, -660.0, floor_y(8), 8613, tint=1, window=5, crown=(102.0, 122.0, -686.0, -666.0, floor_y(15)), dressed=("-z", "-x"), rim="amber")
+b2 = block(96.0, 128.0, -692.0, -660.0, floor_y(8), 8613, tint=4, window=3, crown=(102.0, 122.0, -686.0, -666.0, floor_y(15)), dressed=("-z", "-x"), rim="amber")
 b3 = block(52.0, 64.0, -676.0, -640.0, floor_y(7), 8614, tint=3, window=0, dressed=("-x", "+x"), rim="pink",
            board=(58.0, -658.0, floor_y(7), 9.0, 5.0, math.radians(-70), 8615))
 b4 = block(70.0, 92.0, -658.0, -630.0, floor_y(18), 8616, tint=0, window=0, crown=(74.0, 88.0, -654.0, -634.0, floor_y(21)), dressed=("+z", "-x", "+x"), rim="magenta")
 b5 = block(98.0, 128.0, -654.0, -630.0, floor_y(5), 8617, tint=6, window=3, dressed=("+z", "-x"), rim="amber",
            board=(113.0, -642.0, floor_y(5), 16.0, 7.0, math.radians(160), 8618))
-b6 = block(52.0, 76.0, -594.0, -564.0, floor_y(11), 8619, tint=2, window=6, dressed=("-z", "+x", "-x"), rim="cyan",
+b6 = block(52.0, 76.0, -594.0, -564.0, floor_y(11), 8619, tint=6, window=6, dressed=("-z", "+x", "-x"), rim="cyan",
            board=(64.0, -579.0, floor_y(11), 12.0, 5.6, math.radians(35), 8620))
 b7 = block(82.0, 104.0, -590.0, -564.0, floor_y(16), 8621, tint=5, window=0, crown=(86.0, 100.0, -586.0, -568.0, floor_y(20)), dressed=("-z", "-x", "+x"), rim="pink")
 b8 = block(110.0, 130.0, -590.0, -562.0, floor_y(6), 8622, tint=4, window=1, dressed=("-z", "-x"), rim="amber",
