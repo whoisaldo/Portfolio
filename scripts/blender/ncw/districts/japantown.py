@@ -320,6 +320,7 @@ def loc(x, z, yaw, lx, lz):
 
 
 STALL_N = [0]
+STALL_POTS = []   # (x, z) a stall's pot or grill that its own dice left without steam
 # Where the vendor stands, where the customers stand, and the kit's lanterns
 # a stall hangs (local x, z, y over the ground, scale), by kind.
 STALL = {"jt_stall": (-0.2, 1.42, ((-1.3, 1.32, 2.72, 0.95), (1.3, 1.32, 2.72, 0.95))),
@@ -351,6 +352,8 @@ def stall(x, z, yaw, r, y=G0, cart=None):
         if pot and rv.random() < 0.6:
             px_, pz_ = loc(x, z, yaw, pot[0], pot[1])
             steam(px_, pz_, y + pot[2] - 0.1, "stall")
+        elif pot and y < 1.0:
+            STALL_POTS.append(loc(x, z, yaw, pot[0], pot[1]))
         if rv.random() < 0.35:
             sd_ = rv.choice((-1, 1))
             for k2, lz2 in ((0, 1.75), (1, 2.6)):
@@ -4201,6 +4204,83 @@ for i, v in enumerate(VENTS):
 for i, (x, y, z) in enumerate(ZZ_VENTS):
     empty(f"anchor_steam_zzjt_roof_{i}", (x, y + 0.1, z))
 print("japantown east lane wall:", lane_east(), "things against it,", len(STEAM), "steam vents,", len(ZZ_VENTS), "on the crowns")
+
+# ---------------------------------------------------------------------------
+# Round 5: the west street's south end, between the deck and the junction
+# (the m11 review, jt07: "broad, empty, wet asphalt with almost no markings
+# ... no manholes"): its paint (left-turn arrows in the two lanes into the
+# T, a stop bar, a bay for motorbikes at each kerb), tar seams and patches,
+# iron covers, three of them breathing; and steam besides at the stalls,
+# lane vents and air conditioners the street and the lanes see, named to
+# sort after every vent the page's plumes are dealt from.
+# ---------------------------------------------------------------------------
+ZZZ = []
+
+
+def zsteam(x, z, y, kind):
+    if len(ZZZ) < 56:
+        empty(f"anchor_steam_zzzjt_{kind}_{len(ZZZ)}", (x, y + 0.1, z))
+        ZZZ.append((x, z))
+
+
+def _flat(key, pts, y, col):
+    poly(key, [(px, y, pz) for px, pz in pts], [(0, 0)] * len(pts), col)
+
+
+def south_road():
+    k = (D, "paint", 0)
+    white, yellow, tar = (0.62, 0.6, 0.55, 1), (0.7, 0.52, 0.08, 1), (0.012, 0.012, 0.014, 1)
+    y = 0.014
+    # The stop bar across the two lanes going south, before the T's box.
+    _flat(k, ((-89.6, -9.4), (-80.2, -9.4), (-80.2, -8.9), (-89.6, -8.9)), y, white)
+    # Left-turn arrows (toward +x, the south street runs east) in both lanes.
+    for xc in (-85.8, -82.0):
+        for zc in (-16.0, -40.0):
+            _flat(k, ((xc - 0.09, zc - 2.6), (xc + 0.09, zc - 2.6), (xc + 0.09, zc + 0.4), (xc - 0.09, zc + 0.4)), y, white)
+            _flat(k, ((xc - 0.09, zc + 0.4), (xc + 0.09, zc + 0.22), (xc + 0.75, zc + 0.85), (xc + 0.62, zc + 1.0)), y, white)
+            _flat(k, ((xc + 0.5, zc + 1.35), (xc + 1.05, zc + 0.55), (xc + 0.95, zc + 1.45)), y, white)
+    # A bay for motorbikes at each kerb: its outline, the bikes in it at a slant.
+    br = random.Random(7710)
+    for x0_, x1_, zs, yaw0 in ((-89.95, -88.75, (-27.0, -13.0), 0.3), (-71.25, -70.05, (-46.0, -32.0), -0.3)):
+        za_, zb_ = zs
+        xl = x1_ if x0_ < -80.0 else x0_
+        for q in (((x0_, za_), (x1_, za_), (x1_, za_ + 0.12), (x0_, za_ + 0.12)), ((x0_, zb_ - 0.12), (x1_, zb_ - 0.12), (x1_, zb_), (x0_, zb_)),
+                  ((xl - 0.06, za_), (xl + 0.06, za_), (xl + 0.06, zb_), (xl - 0.06, zb_))):
+            _flat(k, q, y, white)
+        z = za_ + 0.9
+        while z < zb_ - 0.8:
+            if br.random() < 0.8:
+                J.put(br.choice(("jt_scooter", "jt_scooter", "jt_bike")), (x0_ + x1_) / 2, 0.0, z, yaw0 + br.uniform(-0.08, 0.08))
+            z += br.uniform(0.75, 1.1)
+    # Tar: a seam down the outer lane, patches where it was dug up, covers.
+    _flat(k, ((-87.7, -57.0), (-87.55, -57.0), (-87.1, -12.0), (-87.25, -12.0)), y - 0.002, tar)
+    for x, z, w_, d_ in ((-84.0, -51.0, 2.2, 1.4), (-75.5, -27.0, 1.6, 3.0), (-78.4, -45.0, 1.1, 0.9), (-87.0, -24.5, 1.4, 1.0)):
+        _flat(k, ((x - w_ / 2, z - d_ / 2), (x + w_ / 2, z - d_ / 2 + 0.1), (x + w_ / 2 - 0.1, z + d_ / 2), (x - w_ / 2 + 0.08, z + d_ / 2 - 0.05)), y - 0.003, tar)
+    for x, z, breath in ((-84.2, -50.6, True), (-75.6, -26.4, True), (-77.0, -15.5, False), (-86.6, -33.0, True)):
+        cylinder((D, "metal", 0), x, z, 0.0, 0.035, 0.42, segs=10, col=(0.05, 0.05, 0.055, 1), cap=True)
+        if breath:
+            zsteam(x, z, 0.04, "street")
+
+
+def steam_more():
+    """Steam the street and the lanes see (named after every vent the page's
+    plumes are dealt from: those keep their deal)."""
+    sr_ = random.Random(7720)
+    for x, z in STALL_POTS[::2]:
+        zsteam(x, z, 1.05, "stall")
+    for (x, z) in ((-47.4, -436.0), (-46.6, -402.0), (-139.6, -548.0), (-140.4, -492.0), (-102.0, -567.6), (-113.0, -486.0), (-113.4, -400.0),
+                   (-47.0, -610.0), (-140.0, -650.0), (-140.0, -300.0)):
+        zsteam(x + sr_.uniform(-0.2, 0.2), z, 0.04, "street")
+    acs = [i for i in P.INSTANCES if i[0] == "jt_ac" and i[7] == D]
+    for i in acs[::12]:
+        zsteam(i[1] + math.sin(i[4]) * 0.35, i[3] + math.cos(i[4]) * 0.35, i[2] + 1.2, "lane")
+
+
+south_road()
+steam_more()
+print("japantown round 5 steam:", len(ZZZ), "vents after the dealt ones")
+
+
 
 # ---------------------------------------------------------------------------
 # The block that closes the west street's south end, across the south
