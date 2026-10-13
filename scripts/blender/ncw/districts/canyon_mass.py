@@ -256,7 +256,7 @@ def face(U):
                 if s1 - s0 > 0.05:
                     f.quad((key, "trim", 0), s0, s1, y0, y1, 0.0, col=SVC)
             else:
-                C.wall(key, f, y0, y1, col, ov, s0, s1)
+                C.wall(key, f, y0, y1, col, ov, s0, s1, mod=U.get("mod"))
         fill(so, FA, 0.0, so.width)
         fill(no, CB, 0.0, no.width)
         s = 0.0
@@ -266,7 +266,7 @@ def face(U):
         fill(st, FA, s, st.width)
     for p in U["proud"]:
         col = B.wall_col(p["lit"], p["style"], p["warm"], tint)
-        C.wall(FA, st, p["y0"], p["y1"], col, ov + 3, p["s0"] + p["c"], p["s1"] - p["c"], out=p["out"])
+        C.wall(FA, st, p["y0"], p["y1"], col, ov + 3, p["s0"] + p["c"], p["s1"] - p["c"], out=p["out"], mod=U.get("mod"))
     # What is cut into the face: the back of each hole and the side of it
     # that looks down the avenue are the hero's (so no hole is ever open).
     south_first = st.right > st.left

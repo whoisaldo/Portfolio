@@ -15,16 +15,19 @@ from ncw import buildings as B
 from ncw import props as P
 from ncw.districts import canyon_kit as C
 from ncw.districts import canyon_mass as M
-from ncw.districts.canyon_kit import CB, fl
+from ncw.districts.canyon_kit import CB, fl, dim
 
 POT = (0.03, 0.06, 0.035, 1)
 
 
-@P.proto("cy_balc", box=(1.3, 0.6, 0.5), reach=380, detail=True)
-def _cy_balc(k):
+def _balc(k, hue):
     """A balcony 2.6 m wide off a wall (its back at z 0, out toward +z): a
     slab with its edge, a rail of bars, a pot with a plant, a stool, a lamp
-    over the door."""
+    over the door, and the room behind it lit through its door and window
+    (a balcony seen from a crossing or a flying car is a lit one)."""
+    for x0, x1, y0, y1, kk in ((-1.05, -0.2, 0.02, 2.15, 0.42), (0.05, 1.15, 0.95, 2.1, 0.32)):
+        quad(k("glow"), (x0, y0, 0.012), (x1, y0, 0.012), (x1, y1, 0.012), (x0, y1, 0.012), col=dim(hue, kk))
+    quad(k("glow"), (-1.25, -0.17, 0.96), (1.25, -0.17, 0.96), (1.25, -0.13, 0.96), (-1.25, -0.13, 0.96), col=dim(hue, 0.5))
     box(k("trim"), -1.3, 1.3, -0.16, 0.0, 0.0, 0.95, scale=1.0, col=(0.05, 0.055, 0.07, 1), bottom=True)
     box(k("metal"), -1.3, 1.3, 0.98, 1.03, 0.9, 0.95, scale=0.5)
     for x0, x1, z0, z1 in ((-1.3, -1.26, 0.0, 0.95), (1.26, 1.3, 0.0, 0.95)):
@@ -37,7 +40,23 @@ def _cy_balc(k):
     box(k("trim"), 0.5, 1.0, 0.4, 0.95, 0.12, 0.55, scale=1.0, col=POT)
     cylinder(k("metal"), -0.6, 0.45, 0.0, 0.45, 0.03, segs=4, cap=False)
     cylinder(k("trim"), -0.6, 0.45, 0.45, 0.5, 0.17, segs=7, col=(0.2, 0.06, 0.05, 1))
-    box(k("glow"), -0.08, 0.08, 2.35, 2.45, 0.02, 0.1, scale=0.5, col=GLOW["amber"])
+    box(k("glow"), -0.08, 0.08, 2.35, 2.45, 0.02, 0.1, scale=0.5, col=GLOW[hue])
+
+
+@P.proto("cy_balc", box=(1.3, 0.6, 0.5), reach=380, detail=True)
+def _cy_balc(k):
+    _balc(k, "amber")
+
+
+@P.proto("cy_balc_c", box=(1.3, 0.6, 0.5), reach=380, detail=True)
+def _cy_balc_c(k):
+    _balc(k, "cyan")
+
+
+def balc(x, y, z, yaw, key=CB):
+    """A balcony, its room's light warm or (one in three, by where it is)
+    cool."""
+    P.place("cy_balc_c" if int(abs(x) * 7.0 + abs(z) * 3.0 + y) % 3 == 0 else "cy_balc", x, y, z, yaw, district=key)
 
 
 @P.proto("cy_acpair", box=(0.5, 0.8, 0.35), reach=300, detail=True)
@@ -109,7 +128,7 @@ def street(U, taken, rows, r):
                 if base == 0.0 and M._free(taken, rect, pad=0.2):
                     taken.append(rect)
                     x, _, z = st.p(st.at(s), 0.0, 0.0)
-                    P.place("cy_balc", x, y, z, st.yaw, district=CB)
+                    balc(x, y, z, st.yaw)
                     n += 1
             elif roll < 0.44:
                 rect = (s - 0.55, s + 0.55, y - 1.5, y + 1.5)
@@ -155,7 +174,7 @@ def side(f, y0, y1, r, key=CB):
             roll = r.random()
             x, _, z = f.p(f.at(s), 0.0, 0.0)
             if roll < 0.12 and s < w - 1.5:
-                P.place("cy_balc", x, y, z, f.yaw, district=key)
+                balc(x, y, z, f.yaw, key)
                 n += 1
                 s += 3.2
                 continue
@@ -206,7 +225,7 @@ def tops(f, y0, y1, r, ok, tcol, key=CB):
         for y in floors:
             if r.random() < 0.72 and ok(*_rect(f, s - 1.35, s + 1.35, y - 0.2, y + 2.5, 1.0)):
                 x, _, z = f.p(f.at(s), 0.0, 0.0)
-                P.place("cy_balc", x, y, z, f.yaw, district=key)
+                balc(x, y, z, f.yaw, key)
                 n += 1
         taken = (s - 1.6, s + 1.6)
     else:
@@ -272,5 +291,132 @@ def tops(f, y0, y1, r, ok, tcol, key=CB):
             f.box((key, "board_frame", 0), s - bw / 2 - 0.1, s + bw / 2 + 0.1, y - bh / 2 - 0.1, y + bh / 2 + 0.1, 0.0, 0.45)
             cx, cy, cz = f.p(f.at(s), y, 0.47)
             sign(C.own_name("pm"), cx, cy, cz, bw, bh, f.yaw, district=key, label=False)
+            n += 1
+    return n
+
+
+def _cut(runs, gaps):
+    """Runs (a, b) along a face with spans (g0, g1) taken out of them."""
+    for g0, g1 in gaps:
+        nxt = []
+        for a, b in runs:
+            if g1 <= a or g0 >= b:
+                nxt.append((a, b))
+                continue
+            if g0 - a > 0.8:
+                nxt.append((a, g0))
+            if b - g1 > 0.8:
+                nxt.append((g1, b))
+        runs = nxt
+    return runs
+
+
+def lines(f, y0, y1, r, ok, hues, key=CB, out=0.07, skip=(), s0=0.25, s1=None):
+    """Lines of neon along a face's floor edges (x4ztgjvfU60@22: a tower's
+    floors drawn in light): every few floors between y0 and y1, a run now
+    and then broken, mostly the building's own hue. `skip`: rectangles
+    (s0, s1, y0, y1) to keep clear (its signs)."""
+    s1 = f.width - 0.25 if s1 is None else s1
+    if s1 - s0 < 4.0 or y1 - y0 < CELL_H * 2:
+        return 0
+    every = r.choice((2, 3, 3, 4))
+    k = int((y0 - SHOP_H) / CELL_H) + 1 + r.randrange(every)
+    n = 0
+    while fl(k) < y1 - 1.0:
+        y = fl(k)
+        if r.random() < 0.85:
+            hue = hues[0] if r.random() < 0.75 else r.choice(hues)
+            runs = [(s0, s1)]
+            if r.random() < 0.35 and s1 - s0 > 10.0:
+                g, gw = r.uniform(s0 + (s1 - s0) * 0.25, s0 + (s1 - s0) * 0.75), r.uniform(1.5, 4.0)
+                runs = [(s0, g - gw / 2), (g + gw / 2, s1)]
+            runs = _cut(runs, [(a - 0.2, b + 0.2) for a, b, c, d in skip if c - 0.3 < y + 0.12 and d + 0.3 > y])
+            for a, b in runs:
+                if b - a > 1.0 and ok(*_rect(f, a, b, y, y + 0.14, out + 0.02)):
+                    f.quad((key, "neon_" + hue, 0), a, b, y + 0.02, y + 0.12, out)
+                    n += 1
+        k += every
+    return n
+
+
+def vsign(f, s, yb, hue, key=CB, k=2.0, out=0.1):
+    """A big vertical sign flat on a face: a blade's design at k times its
+    size in a frame, its long edges lit. Returns the rectangle it takes."""
+    sw, sh = 1.2 * k, 5.0 * k
+    f.box((key, "board_frame", 0), s - sw / 2 - 0.15, s + sw / 2 + 0.15, yb - 0.15, yb + sh + 0.15, out, out + 0.3)
+    cx, cy, cz = f.p(f.at(s), yb + sh / 2, out + 0.32)
+    sign(C.own_name("bl"), cx, cy, cz, sw, sh, f.yaw, district=key, label=False)
+    for e in (-1, 1):
+        f.quad((key, "neon_" + hue, 0), s + e * (sw / 2 + 0.06) - 0.06, s + e * (sw / 2 + 0.06) + 0.06, yb - 0.1, yb + sh + 0.1, out + 0.33)
+    return (s - sw / 2 - 0.3, s + sw / 2 + 0.3, yb - 0.3, yb + sh + 0.3)
+
+
+def upper(f, y0, y1, r, ok, hues, key=CB, taken=None, sign_rate=0.75):
+    """The upper floors of a face as the show's canyon has them lit
+    (x4ztgjvfU60@22, ARL_JWwKdDs@22): a big vertical sign high on it, lines
+    of neon along its floor edges round it. `taken`: rectangles already
+    used on the face (kept clear, and the sign's added)."""
+    taken = [] if taken is None else taken
+    w = f.width
+    n = 0
+    if w >= 8.0 and y1 - y0 >= 16.0 and r.random() < sign_rate:
+        kk = r.choice((2.0, 2.0, 2.5))
+        sw, sh = 1.2 * kk, 5.0 * kk
+        for _ in range(6):
+            s = r.choice((r.uniform(sw / 2 + 0.8, w * 0.3), r.uniform(w * 0.7, w - sw / 2 - 0.8)))
+            yb = r.uniform(max(y0 + 2.0, y1 - sh - 10.0), y1 - sh - 1.5)
+            rect = (s - sw / 2 - 0.3, s + sw / 2 + 0.3, yb - 0.3, yb + sh + 0.3)
+            if ok(*_rect(f, rect[0], rect[1], rect[2], rect[3], 0.5)) and C._free(taken, rect):
+                vsign(f, s, yb, r.choice(hues), key, kk)
+                n += 1
+                break
+    return n + lines(f, y0, y1, r, ok, hues, key, skip=taken)
+
+
+def street_lights(U, taken, rows, r):
+    """A street face's upper floors lit: a big vertical sign flat on it and
+    lines of neon along its floor edges, both edge on to the hero's lens,
+    where the face is one plane, under its neighbours' roofs and clear of
+    its signs, its tiers and its cuts."""
+    L = U["lot"]
+    st, ph, h = U["st"], L["ph"], U["h"]
+    w = st.width
+    top = min(_safe_top(U, rows), h - 3.0)
+    n = 0
+    if w >= 10.0 and top - ph - 14.0 >= 12.0 and r.random() < 0.65:
+        sw, sh = 2.4, 10.0
+        for _ in range(6):
+            s = r.uniform(sw / 2 + 1.6, w - sw / 2 - 1.6)
+            yb = r.uniform(ph + 14.0, top - sh)
+            rect = (s - sw / 2 - 0.3, s + sw / 2 + 0.3, yb - 0.3, yb + sh + 0.3)
+            base = _spot(U, *rect)
+            if base is not None and M._free(taken, rect, pad=0.2):
+                vsign(st, s, yb, r.choice(U["hues"]), CB, 2.0, out=base + 0.1)
+                n += 1
+                break
+    # (On the lot line's face and on the fronts of the tiers standing out of
+    # it, each at its own depth; a megaslab's edge carries its own.)
+    every = r.choice((2, 2, 3, 4))
+    k = int((ph + CELL_H * 2 - SHOP_H) / CELL_H) + r.randrange(every)
+    while fl(k) < top:
+        y = fl(k)
+        svc = any(z["kind"] == "svc" and z["y0"] - 0.1 < y + 0.14 and z["y1"] + 0.1 > y for z in U["zones"])
+        if not svc and r.random() < 0.85:
+            hue = U["hues"][0] if r.random() < 0.75 else r.choice(U["hues"])
+            hit = lambda q: q["y0"] - 0.3 < y + 0.14 and q["y1"] + 0.3 > y
+            signs = [(a - 0.2, b + 0.2) for a, b, c, d in taken if c - 0.3 < y + 0.14 and d + 0.3 > y]
+            spans = [(a, b, 0.0) for a, b in _cut([(0.3, w - 0.3)], [(q["s0"] - 0.2, q["s1"] + 0.2) for q in U["proud"] + U["holes"] if hit(q)] + signs)]
+            for q in U["proud"]:
+                if q["y0"] + 0.3 < y and q["y1"] - 0.3 > y + 0.14:
+                    spans += [(a, b, q["out"]) for a, b in _cut([(q["s0"] + q["c"] + 0.2, q["s1"] - q["c"] - 0.2)], signs)]
+            for a, b, o in spans:
+                if b - a > 1.0:
+                    st.quad((CB, "neon_" + hue, 0), a, b, y + 0.02, y + 0.12, o + 0.07)
+                    n += 1
+        k += every
+    for ft in U["feat"]:
+        if ft[0] == "slab" and ft[3] < top + 4.0 and r.random() < 0.8:
+            _, a, b, y, o = ft
+            st.quad((CB, "neon_" + r.choice(U["hues"]), 0), a + 0.3, b - 0.3, y - 0.52, y - 0.42, o + 0.02)
             n += 1
     return n

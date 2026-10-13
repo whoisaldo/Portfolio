@@ -84,18 +84,21 @@ def hidden_top(occ, x0, x1, z0, z1, y0, want, plaza=False, step=2.0, pad=1.0, le
 # ---------------------------------------------------------------------------
 # Walls, roofs, edges.
 # ---------------------------------------------------------------------------
-def wall(key, f, y0, y1, col, ov, s0=0.0, s1=None, out=0.0):
+def wall(key, f, y0, y1, col, ov, s0=0.0, s1=None, out=0.0, mod=None):
     """Window cells over a face in the canyon's module: half the avenue's
     bay (1.6 m), and for the ribbon and curtain-wall styles two ribbons to
     a storey, so a tower's face counts as many small windows as the show's
     megablocks do and reads tall. Storeys stay on the floor lines. `out`:
-    how far proud of the face's plane (a tier, a bay)."""
+    how far proud of the face's plane (a tier, a bay). `mod`: a building's
+    own module (cells to a bay, and ribbons to a storey or None for its
+    style's), so two neighbours' windows are never the same grid."""
     s1 = f.width if s1 is None else s1
     w = s1 - s0
     if w < 0.5 or y1 - y0 < 0.3:
         return
-    kv = 2 if round(col[1] * 8) in (2, 4, 5) else 1
-    bays = max(1, round(w / CELL_W)) * 2
+    kb, kr = mod or (2, None)
+    kv = kr or (2 if round(col[1] * 8) in (2, 4, 5) else 1)
+    bays = max(1, round(w / CELL_W)) * kb
     v0, v1 = (ov + (y0 - SHOP_H) / CELL_H) * kv, (ov + (y1 - SHOP_H) / CELL_H) * kv
     f.quad((key, "facade", 0), s0, s1, y0, y1, out, ((0, v0), (bays, v0), (bays, v1), (0, v1)), col)
 

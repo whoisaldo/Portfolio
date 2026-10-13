@@ -184,9 +184,18 @@ def _layout(side):
 
 
 ROWS = {side: _layout(side) for side in (-1, 1)}
+# Each building's own window module (cells to a bay, ribbons to a storey or
+# its style's own): along a row and across the avenue no two neighbours
+# share one (the facades across the avenue read as one module repeated).
+MODS = ((2, None), (1, 1), (3, None), (2, 3), (1, None), (3, 1))
+# And its own colours of neon along its floors and round its signs.
+NEONS = ("cyan", "amber", "pink", "teal", "yellow", "blue", "magenta", "green")
 for _side, _lots in ROWS.items():
     for _n, _U in enumerate(U for L in _lots for U in L["units"]):
         _U["idx"] = _n
+        _U["mod"] = MODS[(_n + (3 if _side > 0 else 0)) % len(MODS)]
+        _h = (_n * 3 + (5 if _side > 0 else 0)) % len(NEONS)
+        _U["hues"] = (NEONS[_h], NEONS[(_h + 3) % len(NEONS)], NEONS[(_h + 5) % len(NEONS)])
 # Every mass the hero's lens meets first: the avenue's, and the canyon's
 # podiums and street slabs. A crown is built only as high as these hide it.
 OCC = list(AVENUE_MASSES)
@@ -428,7 +437,7 @@ def _slab(U):
     # Its street face in zones of floors, with what stands proud of it.
     M.plan(U, U["idx"], OCC, CROSS)
     M.face(U)
-    C.wall(CB, bk, ph, h, back_col, U["ov"])
+    C.wall(CB, bk, ph, h, back_col, U["ov"], mod=U["mod"])
     C.roof(CB, xa, xb, U["zn"], U["zs"], h)
     B.ROOFS.append((CB, xa, xb, U["zn"], U["zs"], h))
     # The parapet the hero's roofline ends in, as it always has.
@@ -692,10 +701,10 @@ def _back(U):
     # (Each its own windows, so two neighbours' tops are never one stripe.)
     top_col = B.wall_col(min(0.7, U["lit"] + 0.05), U["house"], U["warmth"], U["tint"])
     for f in (bk, so, no):
-        C.wall(CB, f, ph, h if over else top, U["back_col"] if f is bk else U["side_col"], U["ov"])
+        C.wall(CB, f, ph, h if over else top, U["back_col"] if f is bk else U["side_col"], U["ov"], mod=U["mod"])
         if over:
             f.quad((CB, "trim", 0), 0.0, f.width, h, h + CELL_H, 0.0, col=M.SVC)
-            C.wall(CB, f, h + CELL_H, top, top_col, U["ov"])
+            C.wall(CB, f, h + CELL_H, top, top_col, U["ov"], mod=U["mod"])
         if U["back"] != "low":
             C.parapet(CB, f, top, tcol)
         elif look and f is (so if look[3] > 0 else no):
@@ -706,12 +715,18 @@ def _back(U):
         else:
             C.rail(CB, f, top, U["rail"])
     if top > h + 0.5:
-        C.wall(CB, st, h, top, top_col if over else U["side_col"], U["ov"])
+        C.wall(CB, st, h, top, top_col if over else U["side_col"], U["ov"], mod=U["mod"])
         C.parapet(CB, st, top, tcol)
     C.roof(CB, xa, xb, zn, zs, top)
     B.ROOFS.append((CB, xa, xb, zn, zs, top))
     OCC.append(((xa, 0.0, zn), (xb, top, zs)))
     U.update(top=top, bx=(xa, xb), bz=(zn, zs), bbk=bk)
+    # Its sides over the slots: lines of neon along floor edges, where the
+    # hero's lens does not see them (its own dice). Its back is
+    # _dress_back's.
+    rl = random.Random(9950 + U["idx"] * 19)
+    for f in (so, no):
+        REL.lines(f, ph + CELL_H * 2, (h if over else top) - 0.5, rl, lambda lo, hi: C.hidden(OCC, lo, hi, plaza=plaza), U["hues"])
     if over:
         # (Its own dice: ledges, balconies, units, a strip of light or a
         # board on what rises over the slab, where the hero cannot see.)
@@ -731,7 +746,7 @@ def _back(U):
         return
     hue = r.choice(HUES + ("red",))
     for f in B.faces_of(cx0, cx1, cz0, cz1).values():
-        C.wall(CB, f, top, ctop, B.wall_col(min(0.75, U["lit"] + 0.15), U["house"], U["warmth"], U["tint"]), U["ov"])
+        C.wall(CB, f, top, ctop, B.wall_col(min(0.75, U["lit"] + 0.15), U["house"], U["warmth"], U["tint"]), U["ov"], mod=U["mod"])
         C.strip(CB, f, 0.0, f.width, ctop - 1.3, ctop - 0.9, hue, out=0.08)
         # Bracing across it, bay by bay (ARL_JWwKdDs@22).
         nb = max(1, round(f.width / 9.0))
@@ -886,6 +901,8 @@ def _dress_street(U):
     M.relief(U, taken)
     # (And what stands out of it between its signs, on its own dice.)
     REL.street(U, taken, ROWS[side], random.Random(9500 + U["idx"] * 13))
+    print("CANYON street lights", side, L["i"], U["k"], round(U["zn"]), round(U["zs"]), U["recipe"], "top", round(REL._safe_top(U, ROWS[side]), 1),
+          REL.street_lights(U, taken, ROWS[side], random.Random(9990 + U["idx"] * 29)))
 
 
 def _dress_back(U):
@@ -901,10 +918,13 @@ def _dress_back(U):
     else:
         f, lo, hi = U["bbk"], ph, U["top"]
     w = f.width
+    used = []
     if not quiet and hi - lo > 14.0 and w > 12.0 and r.random() < 0.6:
         sw = r.uniform(5.0, 8.0)
         sh = min(hi - lo - 6.0, sw * r.uniform(1.4, 2.2))
-        C.screen(f, r.uniform(sw / 2 + 1.0, w - sw / 2 - 1.0), hi - 3.0 - sh / 2, sw, sh, r, 0.0, back=False)
+        ss_ = r.uniform(sw / 2 + 1.0, w - sw / 2 - 1.0)
+        C.screen(f, ss_, hi - 3.0 - sh / 2, sw, sh, r, 0.0, back=False)
+        used.append((ss_ - sw / 2 - 0.3, ss_ + sw / 2 + 0.3, hi - 3.3 - sh, hi - 2.7))
     if not quiet:
         # Units, pipes and a fire escape up the first floors over the podium,
         # a ledge every few floors.
@@ -927,6 +947,17 @@ def _dress_back(U):
             if sh > 1.8:
                 C.screen(sb, r.uniform(sw / 2 + 1.0, sb.width - sw / 2 - 1.0), U["top"] + 6.5 + sh / 2, sw, sh, r, 0.0, back=False)
         C.strip(CB, sb, 0.5, sb.width - 0.5, h - 1.6, h - 1.2, r.choice(HUES))
+    # Its upper floors lit as the show's canyon has them: a big vertical sign
+    # and lines of neon along the floor edges (never on the square's wall:
+    # the plaza's boards and the clue). Its own dice.
+    if quiet:
+        return
+    plaza = side > 0 and L["i"] <= 4
+    ok = lambda lo_, hi_: C.hidden(OCC, lo_, hi_, plaza=plaza)
+    rl = random.Random(9970 + U["idx"] * 23)
+    REL.upper(f, lo + CELL_H * 2, hi - 0.5, rl, ok, U["hues"], taken=used)
+    if U["back"] == "low" and h - U["top"] > 8.0:
+        REL.lines(U["bk"], U["top"] + 3.5, h - 1.8, rl, ok, U["hues"])
 
 
 def _roofs(U):
