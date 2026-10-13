@@ -18,7 +18,7 @@ import ncw.kit as K
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.mega_kit import *  # noqa: F401,F403
-from ncw.districts.mega_homes import homes_floor, homes_face
+from ncw.districts.mega_homes import homes_floor, homes_face, well_bays
 
 
 def hero_hidden(x0, x1, y0, y1, z):
@@ -345,12 +345,16 @@ def railing(f, a0, a1, y, out, h=1.05):
         fbox(f, (D, "metal", 1), sp - 0.03, sp + 0.03, y, y + h, out - 0.08, out - 0.02)
 
 
+RINGED = {}
+_rb = random.Random(8342)
 for k in range(1, KTOP + 1):
     y = floor_y(k)
     for f in (wN, wS, wW, wE):
         # The court is open to the third floor but for a walkway on two sides.
-        if (k == 1 and f is not wN) or (k == 2 and f not in (wN, wE)) or (k > 2 and _rw.random() < 0.18):
+        if (k == 1 and f not in (wN, wW)) or (k > 2 and _rw.random() < 0.12):
+            RINGED[(f.name, k)] = False
             continue
+        RINGED[(f.name, k)] = True
         if any(pf is f and pk0 - 1 <= k <= pk1 + 1 for pf, _, _, pk0, pk1, _ in PODS):
             continue
         ends = 0.0 if f in (wN, wS) else RING
@@ -376,13 +380,11 @@ for k in range(1, KTOP + 1):
             px, _, pz = f.p(f.at(sp), y, out - 0.55)
             pose = _rw.choice(("idle", "phone", "smoke", "lean", "idle"))
             stand(px, pz, f.yaw + (math.pi if pose == "lean" else 0.0), pose, y)
-    # Lit windows the colour the show gives them, behind the walkways.
+    # The tenants' windows, units, cages and doors behind the walkways.
     for f in (wW, wN, wS, wE):
-        for _ in range(4):
-            if _rw.random() < 0.55:
-                bays = max(1, round(f.width / CELL_W))
-                sp = (_rw.randrange(bays) + 0.5) * f.width / bays
-                well_window(f, sp, y, _rw.choice(("pink", "pink", "magenta", "purple", "amber", "white")), _rw.uniform(0.25, 0.55))
+        if any(pf is f and pk0 - 1 <= k <= pk1 + 1 for pf, _, _, pk0, pk1, _ in PODS):
+            continue
+        well_bays(f, y, _rb, ring=RINGED.get((f.name, k), False))
 # Bridges across it at several heights, some over the others' line.
 for k, axis, at in ((3, "x", -768.0), (6, "z", -5.0), (8, "x", -781.0), (15, "z", 6.0), (17, "x", -766.5), (20, "z", -8.0), (23, "x", -777.0)):
     y = floor_y(k)

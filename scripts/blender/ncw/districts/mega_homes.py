@@ -214,3 +214,42 @@ def homes_face(f, y0, y1, r, blocked, guard=None, core=True):
                 break
     taken += drains(f, y0, y1, r, list(blocked) + taken)
     return taken
+
+
+def well_bays(f, y, r, ring=False):
+    """A floor of the light well's wall, bay by bay, as the tenants have it:
+    windows of every size lit every colour or dark behind a frame, cages,
+    units, a door onto the walkway, a flat repainted, a vent."""
+    bays = max(1, round(f.width / CELL_W))
+    bw = f.width / bays
+    for b in range(bays):
+        s = (b + 0.5) * bw + r.uniform(-0.35, 0.35)
+        if s < 1.0 or s > f.width - 1.0:
+            continue
+        if r.random() < 0.22:
+            # A flat repainted: its bay in render of its own colour.
+            f.quad((D, "plaster", 0), s - bw / 2 + 0.1, s + bw / 2 - 0.1, y + 0.05, y + CELL_H - 0.3, 0.012,
+                   col=tuple(min(1.0, c * 1.6) for c in r.choice(PAINT)[:3]) + (1.0,))
+        t = r.random()
+        if t < 0.42:
+            lit_window(f, s, y + r.uniform(0.75, 1.1), r.choice((0.9, 1.2, 1.5, 1.9, 2.3)), r.choice((1.1, 1.4, 1.7)), 0.03, r)
+        elif t < 0.56:
+            w, h = r.choice((1.0, 1.4, 1.8)), r.choice((1.2, 1.5))
+            f.quad((D, "glass_dark", 0), s - w / 2, s + w / 2, y + 0.9, y + 0.9 + h, 0.025)
+            f.quad((D, "trim", 1), s - w / 2 - 0.08, s + w / 2 + 0.08, y + 0.8, y + 0.9, 0.03, col=CONC)
+            if r.random() < 0.5:
+                P.place("ac_wall", *_xyz(f, s + w / 2 + 0.6, y + 1.2, 0.0), f.yaw)
+        elif t < 0.66:
+            lit_window(f, s, y + 0.75, 1.6, 1.6, 0.03, r, k=r.uniform(0.18, 0.35))
+            cage(f, s, y, r)
+        elif t < 0.76:
+            P.place("ac_wall", *_xyz(f, s, y + r.choice((0.6, 1.9)), 0.0), f.yaw)
+            rpipe(_xyz(f, s + 0.45, y + 0.2, 0.06), _xyz(f, s + 0.45, y + 2.6, 0.06), 0.035, col=STEEL)
+        elif t < 0.86 and ring:
+            # A door onto the walkway, its transom lit.
+            f.quad((D, "door_panel", 0), s - 0.45, s + 0.45, y + 0.02, y + 2.1, 0.025)
+            f.quad((D, "glow", 0), s - 0.45, s + 0.45, y + 2.15, y + 2.45, 0.025, col=dim(GLOW[r.choice(("amber", "white", "pink"))], 0.4))
+        elif t < 0.92:
+            # A vent grille and its stain.
+            f.quad((D, "trim", 1), s - 0.3, s + 0.3, y + 2.3, y + 2.7, 0.02, col=BLACK)
+            f.quad((D, "trim", 1), s - 0.25, s + 0.25, y + 1.2, y + 2.3, 0.015, col=dim(RUST, 0.5))
