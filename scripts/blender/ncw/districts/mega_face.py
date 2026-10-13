@@ -155,7 +155,7 @@ def dress(f, top, start, seed, blocked, pods=(), slot=False, people_rate=0.2, we
     homes = homes and not slot
     rh = random.Random(seed * 31 + 7)
     if homes:
-        blocked = list(blocked) + homes_face(f, floor_y(start), top - 0.5, rh, list(blocked), guard)
+        blocked = list(blocked) + homes_face(f, floor_y(start), top - 0.5, rh, list(blocked) + [(p[0], p[1]) for p in pods], guard)
     k = start
     while floor_y(k) + 1.4 < top:
         y = floor_y(k)

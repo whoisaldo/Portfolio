@@ -18,11 +18,12 @@ for step in (1, 2, 3, 5, 6, 8, 10, 11):
     for _ in range(n):
         x = _r.uniform(SX0 + 0.4, SX1 - 0.4)
         z = SFOOT + (TZ - SFOOT) * (step + 0.5) / 12
-        y = G0 + (TY - G0) * step / 12
+        # (The tread under that z is the step's own top, one riser up.)
+        y = G0 + (TY - G0) * (step + 1) / 12
         if _r.random() < 0.55:
             stand(x, z, _r.uniform(-0.4, 0.4), "sit", y)
         else:
-            stand(x, z, math.pi if _r.random() < 0.6 else 0.0, _r.choice(("idle", "phone")), y + (TY - G0) / 24)
+            stand(x, z, math.pi if _r.random() < 0.6 else 0.0, _r.choice(("idle", "phone")), y)
 for (x, dz) in ((30.4, -1.0), (31.2, -1.6), (34.6, -1.3), (35.5, -0.8), (36.6, -1.9), (33.0, -2.4)):
     stand(x, SFOOT + dz, _r.uniform(0, math.tau), _r.choice(("idle", "talk", "phone", "smoke")), G0)
 talkers(32.1, SFOOT - 3.0, G0, n=3, turn=0.9)
@@ -33,29 +34,29 @@ for (x, z) in ((27.0, FP + 1.2), (28.4, FP + 2.1), (31.5, FP + 2.9), (37.6, FP +
 # knots of two and three at uneven gaps, one sat on the kerb, one squatting,
 # one leaning on a pier's leg, and the litter of a pavement at night.
 for s in (-1, 1):
-    z = -566.0 + _r.uniform(0.0, 6.0)
+    # Groups, not a file: two to four people round one spot, some at the
+    # kerb and some against the wall at once, the gaps between groups
+    # uneven (the walkers keep x 11..13.2).
+    z = -566.0 - _r.uniform(2.0, 10.0)
     while z > -704.0:
-        if abs(z - RAIL_Z) < 4.0:
+        if abs(z - RAIL_Z) < 5.0:
             z -= 6.0
             continue
-        # (Off the walkers' lines and the walk camera's, x 11..13.2: at the
-        # kerb's edge or against the lot line.)
-        x = s * _r.uniform(13.45, 13.7)
-        kind = _r.random()
-        if kind < 0.35:
-            talkers(s * 13.45, z, G0, n=_r.choice((2, 3)), r=0.34, turn=_r.uniform(0, math.tau))
-        elif kind < 0.55:
-            stand(s * 10.75, z, s * -math.pi / 2 + _r.uniform(-0.3, 0.3), "sit", G0 + 0.15)
-        elif kind < 0.7:
-            stand(s * 13.75, z, s * -math.pi / 2, "lean", G0)
-        elif kind < 0.85:
-            stand(x, z, _r.uniform(0, math.tau), "squat", G0)
-            P.place("bags", s * 13.75, G0, z + 0.6, _r.uniform(0, 3.0))
-        else:
-            stand(x, z, _r.uniform(0, math.tau), _r.choice(("phone", "smoke")), G0)
-        if _r.random() < 0.4:
-            P.place(_r.choice(("rubbish", "bags", "rubbish", "crates")), s * _r.uniform(13.4, 13.8), G0, z + _r.uniform(-2.0, 2.0), _r.uniform(0, 3.0))
-        z -= _r.uniform(7.0, 19.0)
+        n = _r.choice((2, 2, 3, 3, 4))
+        for i in range(n):
+            zi = z + _r.uniform(-1.6, 1.6)
+            kind = _r.random()
+            if kind < 0.3:
+                stand(s * _r.uniform(10.5, 10.85), zi, s * -math.pi / 2 + _r.uniform(-0.6, 0.6), "sit", G0 + 0.15)
+            elif kind < 0.45:
+                stand(s * _r.uniform(13.55, 13.8), zi, s * -math.pi / 2 + _r.uniform(-0.3, 0.3), "lean", G0)
+            elif kind < 0.6:
+                stand(s * _r.uniform(13.3, 13.8), zi, _r.uniform(0, math.tau), "squat", G0)
+            else:
+                stand(s * _r.uniform(13.3, 13.85), zi, _r.uniform(0, math.tau), _r.choice(("phone", "smoke", "talk", "idle")), G0)
+        if _r.random() < 0.5:
+            P.place(_r.choice(("rubbish", "bags", "rubbish", "crates")), s * _r.uniform(13.4, 13.8), G0, z + _r.uniform(-3.0, 3.0), _r.uniform(0, 3.0))
+        z -= _r.choice((9.0, 14.0, 22.0, 30.0)) + _r.uniform(-2.0, 2.0)
 
 # ---------------------------------------------------------------------------
 # The court's wall over the market hall (the arm's west face, x 64, 11..25 m):
@@ -68,7 +69,7 @@ from ncw.districts.mega_face import dress  # noqa: E402
 from ncw.districts.mega_wings import AX0, ARM_TOP, WX0, WX1, PT  # noqa: E402
 from ncw.districts.mega_void import weather  # noqa: E402
 fCw = face("-x", AX0, ST_N, ST_S)
-dress(fCw, ARM_TOP, 4, 5651, [(9.0, 15.0)], people_rate=0.1, weights=(0.2, 0.5, 0.3))
+dress(fCw, ARM_TOP, 4, 5651, [(9.0, 15.0)], [(15.6, 24.4, 19.4, 25.4)], people_rate=0.1, weights=(0.2, 0.5, 0.3))
 numeral("H4", AX0 - 0.1, ARM_TOP - 2.6, -712.0, 3.6, -math.pi / 2, lit=0.9, pad=0.8)
 for (s, rr, col) in ((1.2, 0.12, RUST), (1.55, 0.07, STEEL), (22.4, 0.1, TEAL_PAINT)):
     x, _, z = fCw.p(fCw.at(s), 0.0, 0.2)
