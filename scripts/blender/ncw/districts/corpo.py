@@ -513,6 +513,27 @@ for i, (slug, height) in enumerate(TOWERS):
                                        (tx + cw - 0.7, tx + cw, tz + v - 0.12, tz + v + 0.12),
                                        (tx - cw, tx - cw + 0.7, tz + v - 0.12, tz + v + 0.12)):
                 lit_box(verts, faces, uvs, bx0, bx1, top, top + 7.0, bz0, bz1, 1.0)
+        # Inside the blades, a wall of the house's light rising from the
+        # roof, so the crown glows behind them (BnnbP7pCIvQ@235).
+        ci = cw - 1.1
+        for bx0, bx1, bz0, bz1 in ((tx - ci, tx + ci, tz + ci - 0.1, tz + ci), (tx - ci, tx + ci, tz - ci, tz - ci + 0.1),
+                                   (tx + ci - 0.1, tx + ci, tz - ci, tz + ci), (tx - ci, tx - ci + 0.1, tz - ci, tz + ci)):
+            lit_box(verts, faces, uvs, bx0, bx1, top, top + 5.5, bz0, bz1, 1.0)
+    else:
+        # A stepped head: a smaller box of the crown's glass on the crown,
+        # lines of the house's light round its foot and its top.
+        c2 = cw * (0.62 if kind != "facet" else 0.55)
+        box((CO, "crown_glass", 0), tx - c2, tx + c2, top, top + 4.2, tz - c2, tz + c2 * 0.6, scale=2.0)
+        lit_box(verts, faces, uvs, tx - c2 - 0.06, tx + c2 + 0.06, top + 3.9, top + 4.2, tz - c2 - 0.06, tz + c2 * 0.6 + 0.06, 0.5)
+        lit_box(verts, faces, uvs, tx - c2 - 0.06, tx + c2 + 0.06, top, top + 0.22, tz - c2 - 0.06, tz + c2 * 0.6 + 0.06, 0.5)
+    # A frame of the house's light round each logo, a hand clear of it.
+    lw, lh = (cw * 2 - 3.0) / 2 + 0.55, (CROWN_H - 3.0) / 2 + 0.55
+    ly = height + CROWN_H / 2
+    fz = tz + cw
+    for x0_, x1_, y0_, y1_ in ((tx - lw - 0.16, tx + lw + 0.16, ly + lh, ly + lh + 0.16), (tx - lw - 0.16, tx + lw + 0.16, ly - lh - 0.16, ly - lh),
+                               (tx - lw - 0.16, tx - lw, ly - lh, ly + lh), (tx + lw, tx + lw + 0.16, ly - lh, ly + lh)):
+        lit_box(verts, faces, uvs, x0_, x1_, y0_, y1_, fz, fz + 0.07, 0.5)
+        lit_box(verts, faces, uvs, tx + cw, tx + cw + 0.07, y0_, y1_, tz - (x1_ - tx), tz - (x0_ - tx), 0.5)
     crown = bpy.data.meshes.new(PREFIX + "crown_" + slug)
     crown.from_pydata(verts, [], faces)
     layer = crown.uv_layers.new(name="UVMap")
