@@ -588,8 +588,10 @@ def stair_x(x0, x1, z0, z1, y0, y1, r=None):
         xa, xb, ya, yb = x0 + i * run, x0 + (i + 1) * run, y0 + i * rise, y0 + (i + 1) * rise
         quad(k, (xa, ya, z0), (xa, ya, z1), (xa, yb, z1), (xa, yb, z0),
              ((z0 / 1.5, ya / 1.5), (z1 / 1.5, ya / 1.5), (z1 / 1.5, yb / 1.5), (z0 / 1.5, yb / 1.5)))
-        # The tread: dark stone, two tones turn about.
-        tone = (0.15, 0.155, 0.175, 1.0) if i % 2 else (0.11, 0.115, 0.13, 1.0)
+        # The tread: stone in two tones turn about, every seventh a pale one,
+        # so from the air the flight reads as four flights and not as one
+        # dark grating.
+        tone = (0.33, 0.33, 0.35, 1.0) if i % 7 == 6 else (0.22, 0.22, 0.24, 1.0) if i % 2 else (0.18, 0.18, 0.2, 1.0)
         quad((PL, "trim", 0), (xa, yb, z1), (xb, yb, z1), (xb, yb, z0), (xa, yb, z0),
              ((xa / 1.5, -z1 / 1.5), (xb / 1.5, -z1 / 1.5), (xb / 1.5, -z0 / 1.5), (xa / 1.5, -z0 / 1.5)), tone)
         # Light in the risers: one short strip on one riser in four, never

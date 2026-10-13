@@ -107,11 +107,16 @@ for (px, pz, yaw) in ((96.0, -243.4, 0.0), (96.4, -240.2, math.pi), (97.9, -241.
 for cx, cz, n in ((62.6, -209.4, 4), (72.4, -203.4, 3), (78.2, -210.4, 5), (66.2, -199.4, 2), (80.6, -199.6, 3), (56.2, -207.9, 3),
                   (52.2, -234.4, 2), (54.8, -249.6, 2), (83.4, -253.0, 3), (90.3, -235.7, 2), (56.4, -221.6, 2), (84.8, -258.2, 4)):
     knot(cx, cz, n)
-cluster([(53.6, -259.4), (54.5, -259.2), (55.3, -259.5)], math.pi)
-cluster([(66.4, -259.3), (67.3, -259.1), (68.1, -259.4), (69.0, -258.9)], math.pi)
+# (At the shop windows under the board: never a row along the glass. A pair
+# talking, one at the window, one turned back to the square, one walking off.)
+cluster([(53.6, -259.6), (54.4, -259.0)], math.pi)
+stand(55.6, -258.1, 0.4, "phone", y=G)
+cluster([(66.4, -259.5), (67.2, -258.9)], math.pi)
+stand(68.6, -259.8, math.pi + 0.3, "idle", y=G)
+stand(69.6, -257.6, -2.6, "carry", y=G)
 stand(74.6, -259.2, math.pi, "phone", y=G)
-cluster([(82.6, -259.2), (83.5, -259.4)], math.pi)
-cluster([(88.4, -259.3), (89.2, -259.0), (90.0, -259.4)], math.pi)
+stand(88.6, -260.0, math.pi - 0.2, "idle", y=G)
+stand(89.8, -257.9, -1.2, "phone", y=G)
 cluster([(100.4, -233.2), (101.2, -233.3)], 0.0)
 cluster([(94.2, -226.7), (95.0, -226.6)], math.pi)
 # Before the long adverts: somebody reading each.
