@@ -216,7 +216,8 @@ PARAPET_C = (0.38, 0.375, 0.365, 1.0) # the parapets', paler: newer pours
 PIER_C = (0.30, 0.295, 0.29, 1.0)      # the piers', buttresses' and cap beams' concrete
 CAP_C = (0.11, 0.11, 0.12, 1.0)         # cap beams: in the soffit's shadow
 STAIN_C = (0.15, 0.14, 0.125, 1.0)    # where water has run down it for years
-SOFFIT_C = (0.055, 0.055, 0.062, 1.0)    # the underside: dark, sooted concrete
+SOFFIT_C = (0.13, 0.13, 0.14, 1.0)    # the underside: sooted concrete, light enough to take the street's light (a lamp panel never hangs in black)
+RIB_C_HERO = (0.075, 0.075, 0.083, 1.0)
 STEEL_LT = (0.3, 0.32, 0.34, 1.0)       # galvanised sections
 STEEL_SHEET = (0.07, 0.08, 0.09, 1.0)   # a board's back sheet
 RAIL_C = (0.2, 0.215, 0.23, 1.0)        # rails, gantries: grey paint over galvanising
@@ -479,6 +480,62 @@ for lx in range(-40, 41, 8):
     box((AV, "neon_white", 1), lx - 0.8, lx + 0.8, 7.1, 7.16, plan.DECK_Z - 0.3, plan.DECK_Z + 0.3, scale=1.0)
 sign("sora", -6.0, 9.2, ZS + 0.27, 6.4, 1.3, 0.0, preview="空き未来へ")
 box((AV, "board_frame", 0), -9.4, -2.6, 8.4, 10.0, ZS + 0.02, ZS + 0.22, scale=1.0)
+
+# The span as a girder, not a slab (round 5, the avenue's builder), all of
+# it inside the outline the hero has always seen: a flange along the face's
+# foot and its head standing a hand proud, stiffeners down the web between
+# them every 2.4 m, in teal paint; a conduit along the web
+# with its boxes; what has run down it. Under it, shallow ribs across the
+# soffit set back from its edge (the hero sees the soffit edge on), and a
+# housing over each of its white lamps so none hangs from nothing.
+GIRDER_TEAL = (0.035, 0.085, 0.085, 1.0)
+g_rng = random.Random(8710)
+for gy0, gy1 in ((Y - DEPTH, Y - DEPTH + 0.16), (Y - 0.17, Y)):
+    box((AV, "trim", 0), -HERO, HERO, gy0, gy1, ZS, ZS + 0.12, scale=0.5, col=GIRDER_TEAL)
+gx = -HERO + 1.2
+while gx < HERO - 0.5:
+    box((AV, "trim", 0), gx - 0.07, gx + 0.07, Y - DEPTH + 0.16, Y - 0.17, ZS, ZS + 0.07, scale=0.5, col=GIRDER_TEAL)
+    gx += 2.4
+pipe((AV, "metal", 1), (-HERO + 0.4, Y - DEPTH + 0.42, ZS + 0.13), (HERO - 0.4, Y - DEPTH + 0.42, ZS + 0.13), 0.045, segs=5)
+gx = -HERO + 3.0
+while gx < HERO - 1.0:
+    box((AV, "trim", 1), gx - 0.16, gx + 0.16, Y - DEPTH + 0.3, Y - DEPTH + 0.56, ZS + 0.07, ZS + 0.2, scale=0.5, col=PIPE_C)
+    gx += g_rng.uniform(5.0, 7.5)
+for _ in range(14):
+    sx = g_rng.uniform(-HERO + 0.5, HERO - 0.5)
+    sw = g_rng.uniform(0.12, 0.35)
+    quad((AV, "trim", 1), (sx, Y - DEPTH + g_rng.uniform(0.2, 0.6), ZS + 0.005), (sx + sw, Y - DEPTH + g_rng.uniform(0.2, 0.6), ZS + 0.005),
+         (sx + sw, Y - 0.2, ZS + 0.005), (sx, Y - 0.2, ZS + 0.005), col=(0.018, 0.02, 0.02, 1.0))
+gx = -HERO + 2.0
+while gx < HERO - 1.0:
+    for pts, out in (([(gx - 0.18, Y - DEPTH - 0.12, ZS - 1.5), (gx + 0.18, Y - DEPTH - 0.12, ZS - 1.5), (gx + 0.18, Y - DEPTH - 0.12, ZN + 1.5), (gx - 0.18, Y - DEPTH - 0.12, ZN + 1.5)], (0, -1, 0)),
+                     ([(gx - 0.18, Y - DEPTH - 0.12, ZS - 1.5), (gx - 0.18, Y - DEPTH, ZS - 1.5), (gx - 0.18, Y - DEPTH, ZN + 1.5), (gx - 0.18, Y - DEPTH - 0.12, ZN + 1.5)], (-1, 0, 0)),
+                     ([(gx + 0.18, Y - DEPTH - 0.12, ZS - 1.5), (gx + 0.18, Y - DEPTH, ZS - 1.5), (gx + 0.18, Y - DEPTH, ZN + 1.5), (gx + 0.18, Y - DEPTH - 0.12, ZN + 1.5)], (1, 0, 0))):
+        face((AV, "trim", 1), pts, out, 2.0, RIB_C_HERO)
+    gx += 4.0
+for lx in range(-16, 17, 8):
+    box((AV, "dark", 1), lx - 0.9, lx + 0.9, 7.16, Y - DEPTH, plan.DECK_Z - 0.36, plan.DECK_Z + 0.36, scale=1.0, bottom=True)
+
+# Off the hero's span, where only a lane, a roof or the street under it sees
+# it, the girder is the show's heavy beam (Fn9gKhU_2_Q@39): a downstand a
+# metre deeper along both faces to the lanes' far side, cast concrete with a
+# yellow and black band along its foot and a marker lamp every bay.
+for a, b in ((-44.0, -HERO - 0.6), (HERO + 0.6, 44.0)):
+    for zf, o in ((ZS, 1), (ZN, -1)):
+        za, zb = sorted((zf, zf - o * 0.35))
+        box((DK, "castconcrete", 0), a, b, Y - DEPTH - 1.1, Y - DEPTH + 0.02, za, zb, scale=2.0, col=CONC, bottom=True)
+        x = a
+        k = 0
+        while x < b - 1e-6:
+            xb = min(b, x + 0.45)
+            zz = zf + o * 0.006
+            face((DK, "steel", 1), [(x, Y - DEPTH - 1.1, zz), (xb, Y - DEPTH - 1.1, zz), (xb, Y - DEPTH - 0.88, zz), (x, Y - DEPTH - 0.88, zz)], (0, 0, o), 1.0,
+                 (0.55, 0.4, 0.05, 1.0) if k % 2 == 0 else (0.035, 0.035, 0.04, 1.0))
+            x, k = xb, k + 1
+        x = a + 1.25
+        while x < b - 0.5:
+            box((DK, "glow", 0), x - 0.08, x + 0.08, Y - DEPTH - 0.7, Y - DEPTH - 0.58, zf + o * 0.006 - 0.03, zf + o * 0.006 + 0.03, scale=0.5, col=MARKER)
+            x += 2.5
 
 # ---------------------------------------------------------------------------
 # THE EDGE, as a street beside it reads it (Zq4zTcIM0yQ@107, BnnbP7pCIvQ@33,
