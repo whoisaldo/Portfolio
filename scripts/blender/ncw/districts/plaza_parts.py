@@ -37,6 +37,17 @@ def work_cap(z, margin=5.0):
 # ---------------------------------------------------------------------------
 # Light.
 # ---------------------------------------------------------------------------
+# What the hero's wet road mirrors of the plaza, past the avenue's east row
+# (through its ground floors, the deck's mouth and the south street): the
+# lane side south of the plaza street and the south street's east corner.
+# Lamps, lit floors and roof plant there stay as the hero has them.
+MIRROR_ZONES = ((44.0, 64.0, -170.0, 20.0), (130.0, 172.0, -60.0, 20.0))
+
+
+def in_mirror(x0, x1, z0, z1):
+    return any(x0 < b and x1 > a and z0 < d and z1 > c for a, b, c, d in MIRROR_ZONES)
+
+
 def gline(colour, x0, z0, x1, z1, y, w=0.08, step=3.2, detail=0):
     """A line of light set flush in the paving from (x0, z0) to (x1, z1)."""
     length = math.hypot(x1 - x0, z1 - z0)
@@ -630,7 +641,23 @@ def glass_shaft(x0, x1, z0, z1, y0, y1, seed, cut=2.0, lit=None, warm=None, roof
     col = (r.uniform(0.5, 0.8) if lit is None else lit, r.random() if warm is None else warm, r.random(), 1.0)
     cx, cz, hx, hz = (x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (z1 - z0) / 2
     outline = cut_rect(cx, cz, hx, hz, cut)
-    walls((PL, "corporate", 0), outline, y0, y1, col)
+    # (Its floors in bands of two to eight, each band as lit as its tenants
+    # keep it, one in six nearly dark: from the air one lit fraction up a
+    # whole shaft was an even scatter of windows on a dark face. The bands
+    # break on the shader's floor lines, 8 m and every 3.8 m above. A shaft
+    # in the hero's mirror keeps one.)
+    rb = random.Random(seed * 31 + 7)
+    y = y0
+    if in_mirror(x0, x1, z0, z1):
+        walls((PL, "corporate", 0), outline, y0, y1, col)
+        y = y1
+    while y < y1 - 0.01:
+        yb = 8.0 + 3.8 * round((y + 3.8 * rb.choice((2, 3, 3, 4, 5, 6, 8)) - 8.0) / 3.8)
+        if yb <= y + 1.0 or y1 - yb < 5.7:
+            yb = y1
+        k = 0.3 if rb.random() < 0.17 else rb.uniform(0.75, 1.3)
+        walls((PL, "corporate", 0), outline, y, yb, (min(1.0, col[0] * k), col[1], col[2], 1.0))
+        y = yb
     if roof:
         poly((PL, "roof", 0), [(x, y1, z) for x, z in outline], [(x / 4, z / 4) for x, z in outline])
     B.COLLISION.append(("box", x0, x1, y0, y1, z0, z1, PL))
@@ -727,7 +754,9 @@ def parapet(x0, x1, z0, z1, y, tint=1, h=1.0, t=0.3, line=None, lamps=True):
         walls((PL, "glow", 0), [(x0 - 0.04, z1 + 0.04), (x1 + 0.04, z1 + 0.04), (x1 + 0.04, z0 - 0.04), (x0 - 0.04, z0 - 0.04)],
               y + h - 0.12, y + h - 0.02, dim(line, 0.8))
     if lamps:
-        edge_lights(x0, x1, z0, z1, y + h, step=5.0)
+        # (Every ninth metre; a parapet in the hero's mirror keeps them every
+        # fifth.)
+        edge_lights(x0, x1, z0, z1, y + h, step=5.0 if in_mirror(x0, x1, z0, z1) else 9.0)
     B.ROOFS.append((PL, x0, x1, z0, z1, y))
 
 

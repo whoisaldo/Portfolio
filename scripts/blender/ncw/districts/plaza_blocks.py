@@ -118,7 +118,7 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
                 corner_lamps(secs[-1][0] + (cut if glass else 0), secs[-1][1] - (cut if glass else 0), secs[-1][2] + (cut if glass else 0),
                              secs[-1][3] - (cut if glass else 0), y0 + 0.1)
             B.ROOFS.append((PL, secs[-1][0], secs[-1][1], secs[-1][2], secs[-1][3], y0))
-            edge_lights(secs[-1][0], secs[-1][1], secs[-1][2], secs[-1][3], y0 + 0.8, step=6.0, hues=("white", accent), pools=False)
+            edge_lights(secs[-1][0], secs[-1][1], secs[-1][2], secs[-1][3], y0 + 0.8, step=10.0, hues=("white", "white", accent), pools=False)
         secs.append((sx0, sx1, sz0, sz1, y0, y1))
     tx0, tx1, tz0, tz1 = secs[-1][:4]
     cx, cz, w, d = (tx0 + tx1) / 2, (tz0 + tz1) / 2, tx1 - tx0, tz1 - tz0
@@ -128,7 +128,10 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
             lit_band(tx0, tx1, tz0, tz1, top - 0.5, top + 0.1, accent, cut=cut, k=0.8)
         else:
             walls((PL, "trim", 0), cut_rect(cx, cz, w / 2 + 0.08, d / 2 + 0.08, cut), top - 0.2, top + 0.7, B.TRIM[1])
-        edge_lights(tx0, tx1, tz0, tz1, top + 0.7, step=5.0, hues=("white", accent, "white"))
+        if in_mirror(tx0, tx1, tz0, tz1) or (tx0 < 60.0 and top < 59.0):
+            edge_lights(tx0, tx1, tz0, tz1, top + 0.7, step=5.0, hues=("white", accent, "white"))
+        else:
+            edge_lights(tx0, tx1, tz0, tz1, top + 0.7, step=9.0, hues=("white", "white", accent))
         B.ROOFS.append((PL, tx0, tx1, tz0, tz1, top))
     else:
         parapet(tx0, tx1, tz0, tz1, top, tint=B.TINTS[tint] if isinstance(tint, str) else 1, line=accent if edge and crown != "pad" else None)
@@ -202,9 +205,9 @@ def roof_screen(cx, cz, y, w, h, yaw, seed):
 # ---------------------------------------------------------------------------
 B.ground_rect(PL, 52.0, 108.0, -168.0, -95.0)
 glass_podium(52.0, 80.0, -168.0, -132.0, 14.8, {"-z": "street", "-x": "back", "+x": "party", "+z": "party"}, 8311, ("-z",),
-             nb={"+x": 18.2, "+z": 11.4}, lit=0.8, warm=0.2, fin="teal", band="teal", trim=2, style=OFFICE, skip={"-z": [(20.0, 28.0)]})
+             nb={"+x": 18.2, "+z": 11.4}, lit=0.8, warm=0.2, fin="teal", trim=2, style=OFFICE, skip={"-z": [(20.0, 28.0)]})
 glass_podium(80.0, 108.0, -168.0, -132.0, 18.2, {"+x": "street", "-z": "street", "-x": "party", "+z": "party"}, 8312, ("+x", "-z"),
-             nb={"-x": 14.8, "+z": 11.4}, window=4, tint="teal", lit=0.86, warm=0.6, fin="yellow", band="yellow", signs=False,
+             nb={"-x": 14.8, "+z": 11.4}, window=4, tint="teal", lit=0.86, warm=0.6, fin="yellow", signs=False,
              every=4, trim=2)
 glass_podium(52.0, 108.0, -132.0, -95.0, 11.4, {"+x": "street", "+z": "street", "-x": "back", "-z": "party"}, 8313, ("+x",),
              nb={"-z": 14.8}, tint="navy", lit=0.8, warm=0.5, fin="white", trim=1, style=OFFICE)
@@ -315,7 +318,7 @@ roof_screen(84.0, -97.6, 11.4, 12.0, 5.0, math.radians(-15), 8320)
 # ---------------------------------------------------------------------------
 B.ground_rect(PL, 52.0, 108.0, -65.0, -10.0)
 podium(52.0, 108.0, -65.0, -10.0, 11.4, {"+z": "street", "+x": "street", "-z": "street", "-x": "back"}, 8321, style=HOTEL, tint="plum")
-parapet(52.0, 108.0, -65.0, -10.0, 11.4, tint=3, line="pink")
+parapet(52.0, 108.0, -65.0, -10.0, 11.4, tint=3)
 B2H = tower("B2 hotel", 56.0, 106.0, -34.0, -13.0, 11.4, 45.4, 8322, kind="wall", style=HOTEL, window=0, tint="plum", accent="pink",
             crown="band", plant=0)
 pool(60.0, 72.0, -29.5, -24.0, 45.4, colour="cyan")
@@ -342,7 +345,7 @@ for px in (76.5, 85.5):
 # ---------------------------------------------------------------------------
 B.ground_rect(PL, 132.0, 170.0, -168.0, -10.0)
 glass_podium(132.0, 170.0, -168.0, -126.0, 14.8, {"-x": "street", "-z": "street", "+x": "open", "+z": "party"}, 8331, ("-x", "-z"),
-             nb={"+z": 11.4}, tint="concrete", window=2, lit=0.84, warm=0.55, fin="yellow", band="yellow", trim=5)
+             nb={"+z": 11.4}, tint="concrete", window=2, lit=0.84, warm=0.55, fin="yellow", trim=5)
 # (D1 is one finned glass house in three: a wing 35 m high to the road with
 # a landing pad on it, which the aerial looks over into the square; and
 # behind it the shaft that stands over the square's east side: 118 m in
@@ -433,7 +436,7 @@ checked(142.5, 159.5, -87.5, -70.5, 112.4, "D3 mast")
 screen(135.6, 36.0, -79.0, 13.0, 28.0, -math.pi / 2, random.Random(8337), back=False, depth=0.5)
 for z in (-86.2, -71.8):
     box((PL, "glow", 0), 135.72, 136.0, 21.5, 50.5, z - 0.12, z + 0.12, scale=1.0, col=dim("green", 0.7))
-parapet(132.0, 170.0, -126.0, -60.0, 11.4, tint=1, line="green")
+parapet(132.0, 170.0, -126.0, -60.0, 11.4, tint=1)
 garden(132.6, 136.6, -124.0, -99.0, 11.4, random.Random(8342), palms=0, trees=2, colour="amber", lamps=1)
 skylight(133.0, 136.0, -72.0, -63.0, 11.4, colour="white", k=0.26, pitch=0.7)
 skylight(133.0, 136.0, -95.0, -86.0, 11.4, colour="white", k=0.26, pitch=0.7)
@@ -454,7 +457,7 @@ roof_screen(137.0, -14.5, 11.4, 8.0, 4.6, math.radians(-45), 8341)
 B.ground_rect(PL, 52.0, 108.0, -456.0, -284.0)
 B.ground_rect(PL, 108.0, 170.0, -456.0, -420.0)
 glass_podium(78.0, 108.0, -310.0, -284.0, 31.8, {"+x": "street", "+z": "party", "-z": "party", "-x": "back"}, 8351, ("+x",),
-             nb={"+z": 44.0, "-z": 42.0}, window=4, tint="navy", lit=0.8, warm=0.6, fin="teal", band="teal", trim=1)
+             nb={"+z": 44.0, "-z": 42.0}, window=4, tint="navy", lit=0.8, warm=0.6, fin="teal", trim=1)
 parapet(78.0, 108.0, -310.0, -284.0, 31.8, tint=1)
 roof_works(79.0, 107.0, -309.2, -300.0, 31.8, 8352, cap=3.2)
 roof_works(79.0, 107.0, -294.6, -284.8, 31.8, 8357, lamp="amber", cap=3.2)
