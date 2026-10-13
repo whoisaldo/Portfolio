@@ -98,10 +98,25 @@ def shack(x, z, top, w=2.6, d=2.2, h=2.3, colour="amber", yaw=0.0, r=None):
     window, a cloth out over its door."""
     if not ok(x - w / 2 - 1.2, x + w / 2 + 1.2, z - d / 2 - 1.2, z + d / 2 + 1.2, top, top + h + 0.4):
         return
-    oriented_box((D, "corrugated", 0), x, top + h / 2, z, w, h, d, yaw, col=dim(RUST, 1.4) if (r and r.random() < 0.5) else dim(TEAL_PAINT, 1.5))
+    paint = dim(RUST, 1.4) if (r and r.random() < 0.5) else dim(TEAL_PAINT, 1.5)
+    oriented_box((D, "corrugated", 0), x, top + h / 2, z, w, h, d, yaw, col=paint)
     nx, nz = math.sin(yaw), math.cos(yaw)
-    rotated_quad((D, "glow", 0), x + nx * (d / 2 + 0.02) + math.cos(yaw) * 0.5, top + 1.3, z + nz * (d / 2 + 0.02) - math.sin(yaw) * 0.5, 0.9, 0.8, yaw,
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    rotated_quad((D, "glow", 0), x + nx * (d / 2 + 0.02) + rx * 0.5, top + 1.3, z + nz * (d / 2 + 0.02) + rz * 0.5, 0.9, 0.8, yaw,
                  col=dim(GLOW[colour], 0.5))
+    # Its frame: dark corner posts, a sheet roof over-sailing it, a board
+    # door, a second window lit on its side, rust run down from the roof.
+    for su in (-1, 1):
+        for sd in (-1, 1):
+            px, pz = x + rx * su * (w / 2 + 0.03) + nx * sd * (d / 2 + 0.03), z + rz * su * (w / 2 + 0.03) + nz * sd * (d / 2 + 0.03)
+            box((D, "trim", 1), px - 0.06, px + 0.06, top, top + h, pz - 0.06, pz + 0.06, scale=0.5, col=BLACK)
+    oriented_box((D, "corrugated", 0), x + nx * 0.2, top + h + 0.06, z + nz * 0.2, w + 0.5, 0.12, d + 0.7, yaw, col=dim(RUST, 1.1))
+    rotated_quad((D, "door_panel", 0), x + nx * (d / 2 + 0.025) - rx * 0.6, top + 0.95, z + nz * (d / 2 + 0.025) - rz * 0.6, 0.8, 1.9, yaw)
+    side = yaw + math.pi / 2
+    rotated_quad((D, "glow", 1), x + rx * (w / 2 + 0.02), top + 1.35, z + rz * (w / 2 + 0.02), 0.6, 0.55, side, col=dim(GLOW["amber"], 0.45))
+    for su in (-0.8, 0.1, 0.9):
+        rotated_quad((D, "trim", 1), x + nx * (d / 2 + 0.03) + rx * su * w / 2, top + h - 0.5, z + nz * (d / 2 + 0.03) + rz * su * w / 2, 0.16, 0.9, yaw,
+                     col=dim(RUST, 0.6))
     a = (x + math.cos(yaw) * -w / 2, z - math.sin(yaw) * -w / 2)
     b = (x + math.cos(yaw) * w / 2, z - math.sin(yaw) * w / 2)
     cloth((a[0] + nx * d / 2, top + h, a[1] + nz * d / 2), (b[0] + nx * d / 2, top + h, b[1] + nz * d / 2),

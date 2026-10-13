@@ -127,7 +127,7 @@ def bulbs(a, b, n, hue="amber", k=0.8, sag=0.5, posts=True, guard=False):
         t = i / n
         px, pz = a[0] + (b[0] - a[0]) * t, a[2] + (b[2] - a[2]) * t
         py = a[1] + (b[1] - a[1]) * t - sag * math.sin(math.pi * t) - 0.1
-        box((D, "glow", 1), px - 0.07, px + 0.07, py - 0.07, py + 0.07, pz - 0.07, pz + 0.07, scale=0.5, col=dim(GLOW[hue], k), bottom=True)
+        box((D, "glow", 1), px - 0.035, px + 0.035, py - 0.05, py + 0.03, pz - 0.035, pz + 0.035, scale=0.5, col=dim(GLOW[hue], k * 0.8), bottom=True)
     if posts:
         for p in (a, b):
             box((D, "metal", 1), p[0] - 0.04, p[0] + 0.04, p[1] - 2.4, p[1], p[2] - 0.04, p[2] + 0.04, scale=0.5)

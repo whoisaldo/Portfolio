@@ -654,3 +654,44 @@ def stall(x, z, yaw, colour="red", hue="amber", lanterns=4, vendor=True, custome
     for i in range(customers):
         px, pz = at(-hw + 0.7 + i * (w - 1.4) / max(1, customers - 1 or 1), 1.0 + r.uniform(0.0, 0.4))
         stand(px, pz, yaw + math.pi + r.uniform(-0.3, 0.3), r.choice(("idle", "phone", "idle")), G0)
+
+
+# ---------------------------------------------------------------------------
+# Neon on a board: a sign of the block's own, its word in tube.
+# ---------------------------------------------------------------------------
+def neon_board(f, s0, s1, y0, y1, out, text, hue, sub=None, sub_hue="white"):
+    """A sign board standing `out` off a face: a dark board, a tube round its
+    edge in `hue`, its word in the same tube, and under it a line of small
+    type in another colour when `sub` is given."""
+    fbox(f, (D, "board_frame", 0), s0, s1, y0, y1, out - 0.16, out, bottom=True)
+    g = face(f.name, f.plane + (f.nz or f.nx) * out, f.a0, f.a1)
+    col = GLOW[hue]
+    t = 0.07
+    for a, b, c, d in ((s0, s1, y1 - t, y1), (s0, s1, y0, y0 + t), (s0, s0 + t, y0, y1), (s1 - t, s1, y0, y1)):
+        g.quad((D, "glow", 0), a, b, c, d, 0.015, col=col)
+    h = (y1 - y0) * (0.5 if sub else 0.62)
+    cy = y0 + (y1 - y0) * (0.6 if sub else 0.5)
+    cx, _, cz = g.p(g.at((s0 + s1) / 2), 0.0, 0.0)
+    width = len(text) * h * 0.67 + (len(text) - 1) * 0.3 * h
+    if width > (s1 - s0) * 0.9:
+        h *= (s1 - s0) * 0.9 / width
+    strokes((D, "glow", 0), text, cx, cy, cz, h, f.yaw, col, weight=0.15, out=0.02)
+    if sub:
+        strokes((D, "glow", 0), sub, cx, y0 + (y1 - y0) * 0.2, cz, (y1 - y0) * 0.16, f.yaw, dim(GLOW[sub_hue], 0.8), weight=0.16, out=0.02)
+
+
+def vboard(f, s, y0, text, hue, w=1.25, out=0.6):
+    """A tall sign up a wall, one letter under another, on two brackets."""
+    h = w * 0.82
+    step = h * 1.25
+    y1 = y0 + step * len(text) + 0.3
+    for yy in (y0 + 0.4, y1 - 0.4):
+        fbox(f, (D, "metal", 1), s - 0.05, s + 0.05, yy - 0.05, yy + 0.05, 0.0, out - 0.16)
+    fbox(f, (D, "board_frame", 0), s - w / 2, s + w / 2, y0, y1, out - 0.16, out, bottom=True)
+    g = face(f.name, f.plane + (f.nz or f.nx) * out, f.a0, f.a1)
+    t = 0.07
+    for a, b, c, d in ((s - w / 2, s + w / 2, y1 - t, y1), (s - w / 2, s + w / 2, y0, y0 + t), (s - w / 2, s - w / 2 + t, y0, y1), (s + w / 2 - t, s + w / 2, y0, y1)):
+        g.quad((D, "glow", 0), a, b, c, d, 0.015, col=GLOW[hue])
+    cx, _, cz = g.p(g.at(s), 0.0, 0.0)
+    strokes_v((D, "glow", 0), text, cx, (y0 + y1) / 2, cz, h, f.yaw, GLOW[hue], weight=0.15, gap=0.25)
+    return y1

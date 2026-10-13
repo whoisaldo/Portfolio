@@ -224,7 +224,7 @@ for i in range(8):
 # (Clear: the pad, the walk down the middle, the skylights and shacks, and
 # the sweep's own point on this roof, mg13 at (84, -722).)
 roof_full(AX0 + 1.0, AX1 - 5.0, AZ0 + 2.0, AZ1 - 4.0, ARM_TOP, 5311, keep=((67.0, 77.0, -721.0, -711.0), (65.0, 103.0, -715.8, -714.2),
-          (85.0, 99.0, -732.0, -728.0), (82.0, 86.0, -724.0, -720.0), (89.0, 93.0, -744.0, -739.0), (94.0, 98.0, -730.0, -725.0)), people=0.8)
+          (85.0, 99.0, -732.0, -728.0), (79.5, 88.5, -726.5, -717.5), (89.0, 93.0, -744.0, -739.0), (94.0, 98.0, -730.0, -725.0)), people=0.8)
 # Round the point a viewer stands on (mg13, 84, -722): washing, a shack and a
 # tank over the walk, condensers steaming, people on crates, a mast.
 _ra = random.Random(5312)
@@ -246,7 +246,7 @@ for (a, b, hue) in (((78.6, ARM_TOP + 2.7, -727.0), (90.4, ARM_TOP + 2.7, -727.4
         t = i / n
         px, pz = a[0] + (b[0] - a[0]) * t, a[2] + (b[2] - a[2]) * t
         py = a[1] + (b[1] - a[1]) * t - 0.45 * math.sin(math.pi * t) - 0.1
-        box((D, "glow", 1), px - 0.07, px + 0.07, py - 0.07, py + 0.07, pz - 0.07, pz + 0.07, scale=0.5, col=dim(GLOW[hue], 0.9), bottom=True)
+        box((D, "glow", 1), px - 0.035, px + 0.035, py - 0.05, py + 0.03, pz - 0.035, pz + 0.035, scale=0.5, col=dim(GLOW[hue], 0.75), bottom=True)
     for q in (a, b):
         box((D, "metal", 1), q[0] - 0.04, q[0] + 0.04, ARM_TOP, q[1], q[2] - 0.04, q[2] + 0.04, scale=0.5)
 for (x, z, hue, pw) in ((80.0, -716.0, "amber", 4.6), (88.0, -712.0, "white", 4.2), (78.0, -728.0, "pink", 4.2), (92.0, -726.0, "amber", 4.4),
