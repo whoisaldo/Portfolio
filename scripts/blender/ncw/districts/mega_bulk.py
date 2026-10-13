@@ -224,3 +224,31 @@ for (px, y0, y1, rr, col) in ((-14.6, 4.0, 86.0, 0.16, RUST), (-13.9, 4.0, 86.0,
     while y < y1:
         box(KF, px - rr - 0.05, px + rr + 0.05, y, y + 0.1, MZ, MZ + 0.3 + rr, scale=1.0, col=STEEL)
         y += 4.5
+
+# ---------------------------------------------------------------------------
+# The wings' towers above what they were (mega_wings: T2 now to 195 m, ET2
+# to 171 m): their upper faces in floors of walkways, balconies and units,
+# blocks hung off them, a riser of light, a screen each, so from the air
+# they are not bands of the same window.
+# ---------------------------------------------------------------------------
+from ncw.districts.mega_wings import T2, T2_TOP, ET2, ET2_TOP, f2, g2  # noqa: E402
+for f, y0, top, seed in ((f2["+z"], floor_y(28), T2_TOP, 5701), (f2["-x"], floor_y(26), T2_TOP, 5702), (f2["+x"], floor_y(22), T2_TOP, 5703),
+                         (g2["+z"], floor_y(19), ET2_TOP, 5704), (g2["+x"], floor_y(22), ET2_TOP, 5705), (g2["-x"], floor_y(24), ET2_TOP, 5706)):
+    upper(f, y0, top, seed, rate=0.03)
+for (x0, x1, y0, y1, z0, z1, seed, faces, win) in (
+        (-84.0, -74.0, floor_y(36), floor_y(41), T2[3], T2[3] + 5.5, 5711, ("+z", "-x", "+x"), 6),
+        (-80.0, -68.0, floor_y(47), floor_y(51), T2[3], T2[3] + 4.5, 5712, ("+z", "-x", "+x"), 0),
+        (T2[0] - 5.0, T2[0], floor_y(40), floor_y(45), T2[2] + 6.0, T2[3] - 6.0, 5713, ("-x", "+z", "-z"), 5),
+        (ET2[0] + 3.0, ET2[0] + 14.0, floor_y(31), floor_y(35), ET2[3], ET2[3] + 5.0, 5714, ("+z", "-x", "+x"), 6),
+        (ET2[1] - 12.0, ET2[1] - 2.0, floor_y(40), floor_y(44), ET2[3], ET2[3] + 6.0, 5715, ("+z", "-x", "+x"), 0),
+        (ET2[1], ET2[1] + 5.5, floor_y(34), floor_y(39), ET2[2] + 4.0, ET2[3] - 4.0, 5716, ("+x", "+z", "-z"), 5)):
+    assert not hero_sees((x0, y0, min(z0, z1)), (x1, y1 + 1.0, max(z0, z1))), seed
+    block(x0, x1, y0, y1, z0, z1, seed, faces=faces, window=win, tint=(seed % 3) * 2 + 1)
+riser(f2["+z"], 3.0, floor_y(28), T2_TOP - 2.0, "cyan")
+riser(f2["-x"], 20.0, floor_y(20), T2_TOP - 2.0, "magenta")
+riser(g2["+z"], 26.5, floor_y(20), ET2_TOP - 2.0, "pink")
+riser(g2["+x"], 4.0, floor_y(16), ET2_TOP - 2.0, "amber")
+_rw2 = random.Random(5720)
+for (cx, cy, cz, w, h, yaw) in ((-75.0, 160.0, T2[3] + 0.5, 12.0, 14.0, 0.0), (T2[0] - 0.5, 128.0, -764.0, 14.0, 9.0, -math.pi / 2),
+                                (ET2[1] + 0.5, 128.0, -770.0, 12.0, 16.0, math.pi / 2), (70.0, 140.0, ET2[3] + 0.5, 10.0, 8.0, 0.0)):
+    B.billboard(D, cx, cy, cz, w, h, yaw, _rw2, back=False)
