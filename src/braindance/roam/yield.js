@@ -257,9 +257,16 @@ export function createYield(traffic) {
           lookDown(m);
           looked = true;
         }
-        // (Not the one beside or behind it: only what its nose is coming to.)
+        // (Not the one beside or behind it: only what its nose is coming to.
+        // At its first look, its own middle, the other counts only when it
+        // is ahead of this one's middle and this one is behind its middle:
+        // a follower whose line runs into a car already that near, as two
+        // late cars come into one lane out of a junction, keeps behind it
+        // and does not drive on through it. Of two cars only one can be
+        // behind the other, so they never stand waiting for each other.)
         const k = meets(o.x, o.y, o.z, 0.9, m.hw);
-        if (k < 1) continue;
+        if (k < 0) continue;
+        if (k === 0 && ((o.x - m.x) * m.fx + (o.z - m.z) * m.fz <= 0 || (m.x - o.x) * o.fx + (m.z - o.z) * o.fz >= 0)) continue;
         const speed = o.v * Math.min(1, o.rate);
         allow = cap(allow, m.fx, m.fz, k, o.fx * speed, o.fz * speed);
       }
