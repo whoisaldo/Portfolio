@@ -65,7 +65,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     if (advertUniforms) return advertUniforms;
     const small = (maps.shops?.image?.width ?? 1024) <= 512;
     const has = { value: 0 };
-    const ads = new THREE.TextureLoader().load(small ? "/scenes/world/ads-phone.webp" : "/scenes/world/ads.webp", () => {
+    // (load: decoded as it lands, off the page's thread, turned over as
+    // TextureLoader's picture was drawn.)
+    const ads = new THREE.Texture();
+    ads.flipY = false;
+    new THREE.ImageBitmapLoader().setOptions({ imageOrientation: "flipY", premultiplyAlpha: "none" }).load(small ? "/scenes/world/ads-phone.webp" : "/scenes/world/ads.webp", (image) => {
+      ads.image = image;
+      ads.needsUpdate = true;
       has.value = 1;
     });
     ads.colorSpace = THREE.SRGBColorSpace;

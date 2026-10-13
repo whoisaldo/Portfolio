@@ -9,12 +9,13 @@
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { worldHoloUrl } from "../data/world-assets.js";
+import { bitmapTexture } from "./pictures.js";
 
 let pending = null;
 
 export function preloadHolo() {
   if (!pending) {
-    pending = new THREE.TextureLoader().loadAsync(worldHoloUrl).catch((err) => {
+    pending = bitmapTexture(worldHoloUrl, false).catch((err) => {
       pending = null;
       throw err;
     });

@@ -30,9 +30,15 @@ const WORK = [73, 13, -204];
 const HERO = [0.6, 0.6, 10];
 
 export function createPlazaKoi(scene, shared, { reduced = false, reflectLayer = 2 } = {}) {
-  const loader = new THREE.TextureLoader();
+  const loader = new THREE.ImageBitmapLoader().setOptions({ imageOrientation: "flipY", premultiplyAlpha: "none" });
   const maps = ["/scenes/world/koi-amber-side.webp", "/scenes/world/koi-amber-top.webp"].map((url) => {
-    const map = loader.load(url, () => fish.forEach((f) => (f.mesh.visible = maps.every((m) => m.image))));
+    const map = new THREE.Texture();
+    map.flipY = false;
+    loader.load(url, (image) => {
+      map.image = image;
+      map.needsUpdate = true;
+      fish.forEach((f) => (f.mesh.visible = maps.every((m) => m.image)));
+    });
     map.colorSpace = THREE.SRGBColorSpace;
     return map;
   });
