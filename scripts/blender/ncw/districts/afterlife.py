@@ -426,13 +426,24 @@ for a_ in (0.1, 11.25):
 # (Each a can with its lit face set back a hand's breadth inside its returns:
 # from the street in front the whole name shows; along the wall, as the
 # Garage section's shot looks up the street, the returns hide most of it.)
-LIT, RETURN, INSIDE = yg(0.3), yg(0.02), yg(0.03)
+# (The m8 review: "flat painted plastic, evenly bright, no halo, no spill",
+# where the show's face is pale yellow, rimmed in green, and blooms: the
+# face is lit past the bloom's threshold now, a band of green runs just
+# inside every edge, the inner returns glow green, and the light it throws
+# is baked from panes hidden behind it, facing the wall.)
+LIT, RETURN, INSIDE, RIM = (0.48, 0.5, 0.24, 1.0), yg(0.02), (0.04, 0.3, 0.05, 1.0), (0.07, 0.42, 0.06, 1.0)
 LY0, LH = 7.46, 3.0
 NAME = K.block_word("AFTERLIFE", 0.5, LY0, LH, 1.2, 0.22)
 NAME += [[(0.95, 7.04), (12.92, 7.04), (12.99, 7.36), (1.02, 7.36)],      # the bar
          [(-1.1, 6.72), (0.95, 7.04), (1.02, 7.36), (0.5, 7.36)],         # its point
          [(0.5, 7.36), (0.86, 7.36), (0.86, LY0), (0.5, LY0)]]            # the A's foot on it
 K.plates(D, CF, NAME, 0.04, 0.42, LIT, RETURN, INSIDE, recess=0.16)
+K.rim(D, CF, NAME, 0.42 - 0.16 + 0.004, RIM)
+# (Two small panes: four of twice the size lit the whole street's road and
+# put the Garage section's shot 4% over.)
+for k, sv in enumerate((4.1, 9.1)):
+    a_, b_ = CF.at(sv - 0.8), CF.at(sv + 0.8)
+    quad((D, "neon_yellow" if k % 2 == 0 else "neon_green", 0), (CX1 - 0.2, 8.2, b_), (CX1 - 0.2, 8.2, a_), (CX1 - 0.2, 9.4, a_), (CX1 - 0.2, 9.4, b_))
 for y_ in (8.02, 9.82):
     CF.box((D, "steel", 0), 0.3, 13.0, y_, y_ + 0.1, -0.05, 0.04, col=FRAME)
 for sv in (0.7, 4.6, 8.6, 12.5):

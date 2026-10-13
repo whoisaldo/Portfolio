@@ -237,6 +237,17 @@ def _outline(pieces):
     return out
 
 
+def rim(D, f, pieces, w, colour, width=0.07, detail=0):
+    """A band of light just inside the edge of the shape the pieces make,
+    on the plane `w` off the face (a channel letter's coloured rim)."""
+    for a, b in _outline(pieces):
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        ln = math.hypot(dx, dy)
+        nx, ny = -dy / ln * width, dx / ln * width
+        pts = [a, b, (b[0] + nx, b[1] + ny), (a[0] + nx, a[1] + ny)]
+        vpoly((D, "glow", detail), [f.p(f.at(s_), y_, w) for s_, y_ in pts], [colour] * 4)
+
+
 def plates(D, f, pieces, w0, w1, face, side, inner=None, recess=0.0, detail=0):
     """Letters cut from plate, standing off a face from w0 to w1: `pieces`
     their outlines as (s, y), each anticlockwise as read, pieces that touch
