@@ -27,7 +27,7 @@ export const LANES = [
   { c: [620, 120], r: [200, 70], y: 172, v: 30, s: 2.6, n: 2, phone: 1 },
   // The streets, low: the strip of sky a driver has ahead. The canyon's is
   // the highest of them: bridges cross it up to 49 m.
-  { a: [0, -362], b: [0, -528], half: 5.5, y: 56, lift: 5, v: 9, narrow: 1, n: 6, phone: 1 },
+  { a: [0, -428], b: [0, -528], half: 5.5, y: 56, lift: 5, v: 9, narrow: 1, n: 5, phone: 1 },
   { a: [-80, -30], b: [-80, -700], half: 5, y: 43, lift: 5, v: 8.5, n: 7, phone: 1 },
   { a: [120, -20], b: [120, -310], half: 4.5, y: 32, lift: 5, v: 8, narrow: 1, n: 4, phone: 1 },
   { a: [136, -330], b: [426, -330], half: 5, y: 30, lift: 5, v: 8.5, n: 6, phone: 1 },
@@ -99,7 +99,7 @@ export const LANES = [
   { a: [228, 166], b: [228, 380], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 1 },
   { a: [276, -480], b: [276, -696], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
   // Behind the megabuilding, between its tiers' backs and the towers north.
-  { a: [-46, -868], b: [112, -868], half: 4.5, y: 86, lift: 4, v: 9, n: 3, phone: 0 },
+  { a: [-46, -868], b: [112, -868], half: 4.5, y: 86, lift: 4, v: 9, narrow: 1, n: 3, phone: 0 },
   // Low over three streets, close enough over a walker's head to be a
   // craft and not a speck: the south street east of the hero's frame,
   // Japantown's west road over its bridges and arches, the garage street.
@@ -275,17 +275,20 @@ export function craftAt(c, clock, out) {
 // One stands on the pad on ARASAKA's annex (x, y, z, the way it faces).
 export const PAD_STANDING = [120, 14.85, -485, 0.7];
 // One more keeps the megabuilding's east roof pad: it stands there half a
-// minute, lifts off, flies a round out over the megabuilding street's east
-// end and the station, comes back and settles. It never goes north of
+// minute, lifts off, flies a small round over its own roof (east of it the
+// megabuilding's own mass now stands to 171 m, west of it the avenue looks
+// at the H4 past it), comes back and settles. It never goes north of
 // z -800, where the megabuilding's tiers stand behind its slab up to 132 m.
-export const PAD_FLIGHT = { at: [33, 83.52, -776, 2.4], rest: 30, climb: 8, rise: 26, round: [71, -746], lap: 32 };
+// (`phase`: at second 12 it is up on its round, out of the frame of the
+// mega review's rooftop camera, which it stood at the edge of.)
+export const PAD_FLIGHT = { at: [33, 83.52, -776, 2.4], rest: 30, climb: 8, rise: 26, round: [38, -770], lap: 32, phase: 36 };
 
 /** Where the pad's craft is at second `t` of the clock: x, y, z, the way it
  *  faces (an angle, 0 toward +z), how far it banks, and how lit it is. */
 export function padAt(t, out) {
   const P = PAD_FLIGHT;
   const whole = P.rest + 2 * P.climb + P.lap;
-  t = ((t % whole) + whole) % whole;
+  t = (((t + P.phase) % whole) + whole) % whole;
   const smoother = (u) => u * u * u * (u * (u * 6 - 15) + 10);
   const [px, py, pz, yaw] = P.at;
   const R = Math.hypot(P.round[0] - px, P.round[1] - pz);
