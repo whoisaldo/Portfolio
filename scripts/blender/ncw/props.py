@@ -72,6 +72,24 @@ CARTON, BAG = 0.95, 0.85
 BOXED, TIMBER, SODDEN, SHEET, INSIDE = 0.0, 0.25, 0.5, 0.75, 1.0
 # The kit's bare steel and its black, as `trim` colours (one draw a prototype).
 STEEL, BLACK, CAST = (0.034, 0.038, 0.048, 1), (0.0045, 0.005, 0.0065, 1), (0.02, 0.022, 0.028, 1)
+# Steel and plastic that have been out in the rain for years: a material
+# the site draws (src/world/prop-surfaces.js), its paint chipped and rusting
+# from the foot up, streaked under its rims, dented, dirtier toward the
+# ground, and each one painted one of a few colours from where it stands.
+# What a part is, in its vertex colour's alpha (tenths): painted steel in a
+# skip's colours (PAINT), a drum's (DRUM) or a plastic barrel's (PLASTIC,
+# the last two turned about the prototype's own upright axis), bare rust,
+# rubber, a lid's dark plastic, a stencil or a label (LABEL, uv 0 to 1
+# across and up it), galvanised steel (GALV, and turned: GALV_ROUND). Its
+# red is how light the part is in its colour (1 the body, less a rim or a
+# rib in shadow), its green how worn.
+material("worn", "5a5e64", rough=0.55)
+GALV_ROUND, GALV, LABEL, LID, RUBBER, RUST, PLASTIC, DRUM, PAINT = (i / 10 for i in range(2, 11))
+
+
+def worn(kind, shade=1.0, wear=0.5):
+    """A `worn` part's vertex colour: what it is, how light, how worn."""
+    return (shade, wear, 0.0, kind)
 
 
 def proto(name, box=(0.3, 0.5, 0.3), detail=False, reach=None):
@@ -181,6 +199,21 @@ def turned(key, prof, segs=8, col=(1, 0, 0, PAPER), cx=0.0, cz=0.0, ends=""):
         poly(key, [p for p, _ in reversed(rings[-1][:segs])], [(0.5, 1.0)] * segs, col)
     if "b" in ends:
         poly(key, [p for p, _ in rings[0][:segs]], [(0.5, 0.0)] * segs, col)
+
+
+def spun(key, prof, segs=12, col=(1, 1, 1, 1), cx=0.0, cz=0.0, arc=(0.0, 1.0), top=False):
+    """A turned part for `worn`: `prof` (y, radius) from the bottom up, only
+    the share `arc` of the way round (a label wrapped on a drum), u across
+    that and v up it, 0 to 1; `top` closes it."""
+    y0, y1 = prof[0][0], prof[-1][0]
+    n = max(2, round(segs * (arc[1] - arc[0])))
+    rings = [[((cx + r * math.cos(t), y, cz + r * math.sin(t)), (i / n, (y - y0) / max(y1 - y0, 1e-6)))
+              for i, t in enumerate(math.tau * (arc[0] + (arc[1] - arc[0]) * i / n) for i in range(n + 1))] for y, r in prof]
+    for lo, hi in zip(rings, rings[1:]):
+        for i in range(n):
+            quad(key, lo[i + 1][0], lo[i][0], hi[i][0], hi[i + 1][0], (lo[i + 1][1], lo[i][1], hi[i][1], hi[i + 1][1]), col)
+    if top:
+        poly(key, [p for p, _ in reversed(rings[-1][:n])], [(0.5, 0.5)] * n, col)
 
 
 def frond(key, base, yaw, pitch, length, bend, width, col, segs=4, vee=True):
@@ -558,11 +591,16 @@ def _lantern_bulbs(k):
 
 @proto("drum", box=(0.3, 0.45, 0.3), reach=260, detail=True)
 def _drum(k):
-    """An oil drum, rusted, with its two hoops."""
-    rust = (0.36, 0.14, 0.07, 1)
-    lathe(k("trim"), 0.0, 0.0, ((0.0, 0.285), (0.88, 0.285)), segs=8, col=rust)
-    for y in (0.28, 0.58):
-        lathe(k("trim"), 0.0, 0.0, ((y, 0.3), (y + 0.04, 0.3)), segs=8, col=(0.25, 0.1, 0.05, 1), cap=False)
+    """An oil drum in its paint (blue, red, black or ochre, by where it
+    stands), its two rolling hoops and its chimes standing proud, its lid
+    sunk inside the top chime with two bungs, a label half way round it;
+    rusting from the foot and the chimes up, dented (the site draws it)."""
+    w = k("worn")
+    spun(w, ((0.0, 0.268), (0.025, 0.285), (0.275, 0.285), (0.288, 0.297), (0.302, 0.285), (0.578, 0.285),
+             (0.591, 0.297), (0.605, 0.285), (0.855, 0.285), (0.88, 0.27), (0.872, 0.255)), segs=12, col=worn(DRUM, 1.0, 0.6), top=True)
+    spun(w, ((0.33, 0.2878), (0.55, 0.2878)), segs=12, col=worn(LABEL), arc=(0.08, 0.36))
+    for x, z, r in ((0.15, 0.06, 0.03), (-0.13, -0.1, 0.022)):
+        cylinder(k("worn", 1), x, z, 0.87, 0.89, r, segs=6, col=worn(GALV, 0.7, 0.8))
 
 
 @proto("hydrant", box=(0.15, 0.4, 0.15), reach=200, detail=True)
@@ -651,13 +689,60 @@ def _pole_utility(k):
 
 @proto("dumpster", box=(0.9, 0.6, 0.55), reach=300, detail=True)
 def _dumpster(k):
-    """A skip against a back wall: painted steel, its lid, its wheels."""
-    col = (0.06, 0.16, 0.1, 1)
-    box(k("trim"), -0.9, 0.9, 0.18, 1.2, -0.55, 0.55, scale=1.0, col=col)
-    box(k("trim"), -0.95, 0.95, 1.2, 1.28, -0.6, 0.6, scale=1.0, col=(0.05, 0.12, 0.08, 1))
-    for x in (-0.7, 0.7):
-        for z in (-0.4, 0.4):
-            cylinder(k("trim"), x, z, 0.0, 0.18, 0.09, segs=6, col=BLACK)
+    """A wheeled skip against a back wall, front to +z: a steel body
+    narrower at its foot in its paint (green, blue, grey or maroon, by
+    where it stands), ribbed front and back, a lip round its top, pockets
+    for a lorry's forks on its ends, two lids of dark plastic hinged at the
+    back (the right one left open a hand), on four castors, a stencilled
+    plate on its front; chipped, rusting from the foot up, streaked and
+    dented (the site draws it)."""
+    w = k("worn")
+    body, rim, wheel, galv, rust = worn(PAINT, 1.0, 0.5), worn(PAINT, 0.78, 0.7), worn(RUBBER), worn(GALV, 0.7, 0.8), worn(RUST)
+    y0, y1 = 0.18, 1.2
+    T = [(-0.9, y1, 0.55), (0.9, y1, 0.55), (0.9, y1, -0.55), (-0.9, y1, -0.55)]
+    B = [(-0.8, y0, 0.45), (0.8, y0, 0.45), (0.8, y0, -0.45), (-0.8, y0, -0.45)]
+    for a, b in ((0, 1), (1, 2), (2, 3), (3, 0)):
+        quad(w, B[a], B[b], T[b], T[a], col=body)
+    quad(w, B[3], B[2], B[1], B[0], col=rim)
+    for x0, x1, z0, z1 in ((-0.95, 0.95, 0.55, 0.6), (-0.95, 0.95, -0.6, -0.55), (0.9, 0.95, -0.55, 0.55), (-0.95, -0.9, -0.55, 0.55)):
+        box(w, x0, x1, y1 - 0.08, y1, z0, z1, col=rim)
+
+    def face_z(y, s_):
+        return s_ * (0.45 + 0.1 * (y - y0) / (y1 - y0))
+
+    # Ribs up the front and the back, on the slope of the face.
+    for s_, xs in ((1, (-0.58, 0.58)), (-1, (-0.45, 0.0, 0.45))):
+        for x in xs:
+            a, b = 0.22, y1 - 0.1
+            za, zb = face_z(a, s_), face_z(b, s_)
+            oa, ob = za + s_ * 0.045, zb + s_ * 0.045
+            quad(w, (x - 0.035, a, oa), (x + 0.035, a, oa), (x + 0.035, b, ob), (x - 0.035, b, ob), col=rim)
+            quad(w, (x + 0.035, a, za), (x + 0.035, b, zb), (x + 0.035, b, ob), (x + 0.035, a, oa), col=rim)
+            quad(w, (x - 0.035, b, zb), (x - 0.035, a, za), (x - 0.035, a, oa), (x - 0.035, b, ob), col=rim)
+    # The fork pockets on its ends.
+    for sx in (-1, 1):
+        for z0 in (-0.4, 0.14):
+            box(w, (0.84 if sx > 0 else -0.94), (0.94 if sx > 0 else -0.84), 0.6, 0.82, z0, z0 + 0.26, col=rim)
+    # Its lids: hinged at the back, the right one open a hand.
+    for x0, x1, a in ((-0.93, -0.01, 0.0), (0.01, 0.93, 0.09)):
+        L, h = 1.2, 0.045
+        bz, by = -0.6, y1 + 0.005
+        fz, fy = bz + L * math.cos(a), by + L * math.sin(a)
+        lid = worn(LID, 1.0, 0.4)
+        quad(w, (x0, by + h, bz), (x0, fy + h, fz), (x1, fy + h, fz), (x1, by + h, bz), col=lid)
+        quad(w, (x0, fy, fz), (x1, fy, fz), (x1, fy + h, fz), (x0, fy + h, fz), col=lid)
+        quad(w, (x0, by, bz), (x0, fy, fz), (x0, fy + h, fz), (x0, by + h, bz), col=lid)
+        quad(w, (x1, fy, fz), (x1, by, bz), (x1, by + h, bz), (x1, fy + h, fz), col=lid)
+        for x in (x0 + 0.18, x1 - 0.18):
+            box(w, x - 0.05, x + 0.05, y1 - 0.06, y1 + 0.04, -0.66, -0.58, col=rust)
+    # The castors and their forks.
+    for x in (-0.66, 0.66):
+        for z in (-0.32, 0.32):
+            pipe(w, (x - 0.035, 0.085, z), (x + 0.035, 0.085, z), 0.085, segs=8, col=wheel, caps=True)
+            box(w, x - 0.06, x + 0.06, 0.1, y0, z - 0.06, z + 0.06, col=galv)
+    # The stencilled plate on its front.
+    ya, yb = 0.5, 0.86
+    quad(w, (-0.4, ya, face_z(ya, 1) + 0.004), (0.4, ya, face_z(ya, 1) + 0.004), (0.4, yb, face_z(yb, 1) + 0.004), (-0.4, yb, face_z(yb, 1) + 0.004), col=worn(LABEL))
 
 
 @proto("bags", box=(0.7, 0.35, 0.5), reach=220, detail=True)
@@ -773,8 +858,16 @@ def _pallets(k):
 
 @proto("barrel", box=(0.31, 0.45, 0.31), reach=260, detail=True)
 def _barrel(k):
-    """A plastic barrel, blue, bulged at the middle."""
-    lathe(k("trim"), 0.0, 0.0, ((0.0, 0.26), (0.3, 0.31), (0.62, 0.31), (0.9, 0.27)), segs=7, col=(0.03, 0.09, 0.22, 1))
+    """A plastic barrel (blue, white, orange or green, by where it stands),
+    bulged at the middle with two moulded rings, its top dished inside a
+    raised rim with its bungs, a label on its side; scuffed and grimed from
+    the foot up (the site draws it)."""
+    w = k("worn")
+    spun(w, ((0.0, 0.25), (0.03, 0.275), (0.2, 0.3), (0.215, 0.312), (0.245, 0.312), (0.26, 0.3), (0.62, 0.3),
+             (0.635, 0.312), (0.665, 0.312), (0.68, 0.3), (0.86, 0.28), (0.9, 0.262), (0.885, 0.242)), segs=10, col=worn(PLASTIC, 1.0, 0.5), top=True)
+    spun(w, ((0.33, 0.3025), (0.55, 0.3025)), segs=10, col=worn(LABEL), arc=(0.58, 0.82))
+    for x, z, r in ((0.13, 0.08, 0.04), (-0.12, -0.11, 0.03)):
+        cylinder(k("worn", 1), x, z, 0.88, 0.905, r, segs=6, col=worn(PLASTIC, 0.8, 0.3))
 
 
 @proto("rubbish", box=(0.9, 0.3, 0.7), reach=220, detail=True)

@@ -52,8 +52,17 @@
 // once round it, so its light is smooth across its facets; red 0: a flat
 // pane, drawn with a lattice; v runs up it), 0.75 a bulb, 0.5 a dark fitting
 // of its own colour (a hoop, a frame, a cord, a tassel).
+//
+// A `worn` part is steel or plastic years out in the rain (a skip, a drum,
+// a barrel, a roof's plant): its kind in its vertex colour's alpha, in
+// tenths (props.py: 10 a skip's paint, 9 a drum's, 8 a plastic barrel's,
+// 7 bare rust, 6 rubber, 5 a lid's plastic, 4 a stencil or a label, 3
+// galvanised steel, 2 the same turned), its red how light it is and its
+// green how worn. Its paint, its wear, its stencil and its dents are its
+// own, from where it stands; it rusts from the foot up and is streaked down
+// from its rims, and it is wet.
 import * as THREE from "three";
-import { COMMON } from "./glsl.js";
+import { COMMON, LAMPS } from "./glsl.js";
 import { DARK } from "./prop-deal.js";
 import { LAMP_AIR } from "./shafts.js";
 
@@ -882,9 +891,215 @@ export function createPropSurfaces(dressed) {
     side: THREE.DoubleSide,
   });
 
+  // Worn steel and plastic: a skip, a drum, a barrel, a roof's plant. The
+  // part's kind is its vertex colour's alpha (props.py `worn`), its red how
+  // light it is and its green how worn; the paint is one of a few colours
+  // from where the thing stands (a hash of its instance's origin), and so
+  // are how worn it is, its stencil and its dents.
+  const worn = () => {
+    const m = new THREE.ShaderMaterial({
+      uniforms: { ...shared },
+      vertexShader: /* glsl */ `
+        attribute vec4 color;
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec3 vLocal;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        varying vec3 vSeed;
+        void main() {
+          mat4 m = modelMatrix * instanceMatrix;
+          vec4 w = m * vec4(position, 1.0);
+          vWorld = w.xyz;
+          // A part turned about the thing's upright axis is lit round, its
+          // facets' horizontal turned to the axis's own at each corner.
+          vec3 nl = normal;
+          float kind = floor(color.a * 10.0 + 0.5);
+          if ((kind == 9.0 || kind == 8.0 || kind == 4.0 || kind == 2.0) && dot(position.xz, position.xz) > 1e-4 && length(normal.xz) > 0.2
+              && dot(normalize(normal.xz), normalize(position.xz)) > 0.9) {
+            vec2 rad = normalize(position.xz) * length(normal.xz);
+            nl = vec3(rad.x, normal.y, rad.y);
+          }
+          vNormalW = normalize(mat3(m) * nl);
+          vLocal = position;
+          vUv = uv;
+          vColor = color;
+          vec3 o = (m * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+          vSeed = fract(sin(vec3(dot(o, vec3(12.9898, 78.233, 37.719)), dot(o, vec3(39.346, 11.135, 83.155)), dot(o, vec3(73.156, 52.235, 9.151)))) * 43758.5453);
+          gl_Position = projectionMatrix * viewMatrix * w;
+        }
+      `,
+      fragmentShader: /* glsl */ `
+        ${COMMON}
+        varying vec3 vWorld;
+        varying vec3 vNormalW;
+        varying vec3 vLocal;
+        varying vec2 vUv;
+        varying vec4 vColor;
+        varying vec3 vSeed;
+        float vn3(vec3 p) {
+          vec3 i = floor(p), f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(hash13(i), hash13(i + vec3(1.0, 0.0, 0.0)), f.x), mix(hash13(i + vec3(0.0, 1.0, 0.0)), hash13(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+                     mix(mix(hash13(i + vec3(0.0, 0.0, 1.0)), hash13(i + vec3(1.0, 0.0, 1.0)), f.x), mix(hash13(i + vec3(0.0, 1.0, 1.0)), hash13(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+        }
+        // The paints, linear: a skip's, a drum's and a plastic barrel's.
+        vec3 paintOf(float kind, float v) {
+          if (kind > 9.5) return v < 1.0 ? vec3(0.045, 0.14, 0.07) : v < 2.0 ? vec3(0.03, 0.07, 0.17) : v < 3.0 ? vec3(0.12, 0.12, 0.115) : vec3(0.16, 0.04, 0.03);
+          if (kind > 8.5) return v < 1.0 ? vec3(0.025, 0.06, 0.2) : v < 2.0 ? vec3(0.26, 0.035, 0.02) : v < 3.0 ? vec3(0.022, 0.022, 0.025) : vec3(0.34, 0.17, 0.018);
+          return v < 1.0 ? vec3(0.02, 0.08, 0.26) : v < 2.0 ? vec3(0.42, 0.42, 0.4) : v < 3.0 ? vec3(0.5, 0.12, 0.012) : vec3(0.035, 0.17, 0.06);
+        }
+        // A stencil or a label, uv 0 to 1 across and up it, on a thing of
+        // seed s: hazard stripes, a printed plate of marks, a stencilled
+        // code, or a diamond; how much of it is there (0 lets the paint
+        // under it show) in a, its colour in the return.
+        vec3 label(vec2 uv, float s, float px, out float a) {
+          float t = floor(s * 4.0);
+          vec2 e = min(uv, 1.0 - uv);
+          float frame = step(0.06, min(e.x, e.y * 2.0));
+          a = 1.0;
+          if (t < 1.0) {
+            float band = step(0.5, fract((uv.x * 2.4 + uv.y) * 2.5));
+            return mix(vec3(0.018), vec3(0.42, 0.27, 0.015), band * frame);
+          }
+          if (t < 2.0) {
+            // A white plate: a block of marks and lines of them, no words.
+            vec2 g = vec2(uv.x * 14.0, uv.y * 7.0);
+            float row = floor(g.y);
+            float len = 0.35 + 0.6 * hash12(vec2(row, s * 31.0));
+            float ink = step(0.25, fract(g.y)) * step(fract(g.y), 0.7) * step(uv.x, len) * step(0.18, uv.x) * step(0.15, uv.y) * step(uv.y, 0.85);
+            float logo = step(0.05, uv.x) * step(uv.x, 0.15) * step(0.3, uv.y) * step(uv.y, 0.75);
+            ink = max(ink * step(0.3, hash12(floor(g) + s * 17.0)), logo);
+            ink *= 1.0 - smoothstep(0.3, 1.0, px * 14.0);
+            return mix(vec3(0.5, 0.5, 0.47), vec3(0.03, 0.035, 0.05), max(ink, 1.0 - step(0.03, min(e.x, e.y))));
+          }
+          if (t < 3.0) {
+            // Stencilled blocks of a code, sprayed: nothing between them.
+            vec2 g = vec2(uv.x * 5.0, uv.y * 1.0);
+            vec2 c = fract(g);
+            float h = hash12(vec2(floor(g.x), s * 13.0));
+            float bar = step(0.15, c.x) * step(c.x, 0.85) * step(0.2, uv.y) * step(uv.y, 0.8);
+            float gap = step(0.5, h) * step(0.42, c.y) * step(c.y, 0.58) + step(h, 0.5) * step(0.4, c.x) * step(c.x, 0.6) * step(0.45, uv.y) * step(uv.y, 0.8);
+            a = bar * (1.0 - gap) * step(floor(g.x), 3.5);
+            return vec3(0.42, 0.42, 0.4);
+          }
+          // A diamond, red over white, a bar across it.
+          vec2 q = abs(uv - 0.5) * vec2(2.0, 2.0);
+          float d = q.x * 0.6 + q.y;
+          a = step(d, 0.95);
+          vec3 c = mix(vec3(0.3, 0.03, 0.02), vec3(0.42, 0.42, 0.4), step(uv.y, 0.5));
+          return mix(c, vec3(0.02), step(abs(uv.y - 0.5), 0.07) * step(q.x, 0.4) + step(0.82, d));
+        }
+        void main() {
+          float kind = floor(vColor.a * 10.0 + 0.5);
+          vec3 n = normalize(vNormalW);
+          if (!gl_FrontFacing) n = -n;
+          vec3 p = vLocal * 6.0 + vSeed * 40.0;
+          float px = length(fwidth(vLocal)) * 6.0;
+          // Finer marks fade into their average as they go under a pixel.
+          float fine = 1.0 - smoothstep(0.4, 1.2, px);
+          float wear = clamp(vColor.g * (0.55 + 0.9 * vSeed.y), 0.0, 1.0);
+          float foot = 1.0 - smoothstep(0.04, 0.5, vLocal.y);
+          vec3 albedo;
+          float gloss = 0.5;
+          float dent = 0.0;
+          if (kind > 7.5) {
+            // Paint (or a plastic's own colour): chipped to the steel,
+            // rusting from the foot and where it is worn, streaked down
+            // from its rims; a plastic scuffed and grimed, never rusting.
+            albedo = paintOf(kind, floor(vSeed.x * 4.0)) * vColor.r;
+            float plastic = step(kind, 8.5);
+            float field = vn3(p * 0.45) * 0.6 + vn3(p * 1.6) * 0.4;
+            // (Rust takes the foot first and creeps up; above it, only a
+            // patch here and there where the paint has gone.)
+            float edge = 0.79 - 0.36 * foot * wear - 0.06 * wear;
+            float rust = (1.0 - plastic) * smoothstep(edge, edge + 0.05, field);
+            float chip = (1.0 - plastic) * step(0.91 - 0.05 * wear, vn3(p * 9.0)) * fine;
+            float streak = smoothstep(0.55, 0.85, vn3(vec3((vLocal.x + vLocal.z) * 16.0, vLocal.y * 1.4, vSeed.z * 9.0))) * (0.4 + 0.6 * wear);
+            vec3 rustCol = vec3(0.12, 0.048, 0.022) * (0.55 + 0.7 * vn3(p * 3.1));
+            albedo *= 0.85 + 0.3 * vn3(p * 2.2);
+            albedo = mix(albedo, rustCol, rust);
+            albedo = mix(albedo, vec3(0.028, 0.026, 0.026), chip * (1.0 - rust) * 0.85);
+            albedo *= 1.0 - 0.4 * streak * mix(1.0, 0.5, plastic);
+            gloss = mix(0.9, 0.12, rust) * mix(1.0, 0.75, plastic);
+            dent = mix(1.0, 0.3, plastic) * (kind > 8.5 && kind < 9.5 ? 1.4 : 1.0);
+          } else if (kind > 6.5) {
+            albedo = vec3(0.15, 0.055, 0.022) * (0.5 + 0.8 * vn3(p * 2.7)) * vColor.r;
+            gloss = 0.08;
+          } else if (kind > 5.5) {
+            albedo = vec3(0.013, 0.013, 0.014) * (0.8 + 0.4 * vn3(p * 3.0));
+            gloss = 0.25;
+          } else if (kind > 4.5) {
+            // A lid's dark plastic, dusty, some of it green or blue.
+            float v = floor(vSeed.z * 5.0);
+            albedo = (v < 1.0 ? vec3(0.02, 0.05, 0.03) : v < 2.0 ? vec3(0.02, 0.03, 0.06) : vec3(0.022, 0.022, 0.024)) * (0.8 + 0.5 * vn3(p * 1.7)) * vColor.r;
+            gloss = 0.45;
+          } else if (kind > 3.5) {
+            float a;
+            albedo = label(vUv, vSeed.z, px, a);
+            // Worn off in places, as a stencil is.
+            a *= step(0.25 + 0.3 * wear, vn3(p * 2.4) * 0.7 + 0.3);
+            if (a < 0.5) discard;
+            albedo *= 0.75 + 0.3 * vn3(p * 3.0);
+            gloss = 0.4;
+          } else {
+            // Galvanised steel: dull, mottled, white where it has bloomed.
+            albedo = vec3(0.09, 0.095, 0.1) * vColor.r * (0.7 + 0.5 * vn3(p * 1.9));
+            albedo = mix(albedo, vec3(0.2, 0.2, 0.19), smoothstep(0.72, 0.9, vn3(p * 3.3)) * 0.5 * fine);
+            albedo = mix(albedo, vec3(0.14, 0.05, 0.02), smoothstep(0.75, 0.9, vn3(p * 0.8 + 3.0)) * wear);
+            gloss = 0.5;
+            dent = 0.3;
+          }
+          // Grime up from the ground.
+          albedo *= 0.5 + 0.5 * smoothstep(0.0, 0.45, vLocal.y);
+          // Dents: the surface pushed about, so the light breaks across it.
+          if (dent > 0.0) {
+            float h = (vn3(vLocal * 3.2 + vSeed * 20.0) + 0.5 * vn3(vLocal * 7.0 + vSeed * 9.0)) * dent * 0.012 * fine;
+            vec3 dx = dFdx(vWorld), dy = dFdy(vWorld);
+            vec3 r1 = cross(dy, n), r2 = cross(n, dx);
+            float det = dot(dx, r1);
+            vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
+            n = normalize(abs(det) * n - grad);
+          }
+          float up = clamp(n.y, 0.0, 1.0);
+          bool upright = abs(n.y) < 0.3 && vWorld.y < 7.0;
+          vec3 spill = upright ? spillWall(vWorld) : spillAt(vWorld);
+          vec3 light = vec3(0.05) * (0.6 + 0.4 * up) + spill * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
+          light += (uHazeColor * 0.22 + uGlowColor * 0.12) * uHaze * up * 1.5;
+          light += SODIUM * santoAt(vWorld.xz) * uHaze * (0.5 + 0.5 * up) * exp(-max(vWorld.y, 0.0) * 0.02);
+          vec3 col = albedo * light;
+          // Wet: the lit sky at a glance and a glint of every lamp near it,
+          // broken where it is rust.
+          vec3 V = normalize(uCam - vWorld);
+          vec3 R = reflect(-V, n);
+          float F = 0.04 + 0.96 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
+          vec3 skyR = (hazeAt(R) * 1.4 + glowAt(R) * 0.6) * smoothstep(-0.15, 0.35, R.y) * uHaze;
+          vec3 glint = vec3(0.0);
+          for (int i = 0; i < ${LAMPS}; i++) {
+            vec3 d = uLamps[i].xyz - vWorld;
+            float d2 = dot(d, d);
+            float r2 = uLamps[i].w * uLamps[i].w * 4.0;
+            if (d2 > r2) continue;
+            glint += uLampColors[i] * pow(max(dot(R, d * inversesqrt(d2)), 0.0), 40.0) * (1.0 - d2 / r2);
+          }
+          col += (skyR * F + glint + spill * 0.25 * pow(max(-R.y, 0.0), 6.0)) * 0.9 * gloss;
+          // A dark shape holds a little of the haze behind it at its edges.
+          float rim = pow(1.0 - abs(dot(V, n)), 3.0);
+          col += (hazeAt(-V) * 1.5 + glowAt(-V) * 0.45) * rim * 0.5 * uHaze * (1.0 - up) * smoothstep(12.0, 50.0, length(uCam - vWorld));
+          col = cityFog(col, vWorld, 0.0);
+          gl_FragColor = vec4(col, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }
+      `,
+      side: THREE.DoubleSide,
+    });
+    return m;
+  };
+
   // A print is a face that is no light: the same drawing, kept out of the
   // bake.
-  const makers = { plant, face, print: face, halo, paper };
+  const makers = { plant, face, print: face, halo, paper, worn };
   // The ones that read each instance's deal (the attribute aDeal).
   const DEALT = ["paper", "face"];
   // How strongly a lit face of the props' own lights the street (the bake).
