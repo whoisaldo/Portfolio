@@ -1256,7 +1256,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // the frames drawn meanwhile went on: one that met a program still being
   // built waited for it, 40 to 60 ms, and one that met a new buffer sent
   // it, 2 to 7 MB, 20 to 60 ms.)
-  const WARM_BYTES = tier === "phone" ? 1.5e6 : 3e6;
+  const WARM_BYTES = tier === "phone" ? 0.75e6 : 1.5e6;
+  const PIECE = tier === "phone" ? 2 ** 19 : 2 ** 20;
   let warmKit = null;
   const makeWarmKit = () => {
     const target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
@@ -1266,9 +1267,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       fragmentShader: "void main() { gl_FragColor = vec4(0.0); }",
     });
     const proxies = [];
+    // Every proxy draws with one small position of its own, and carries what
+    // it sends under names of its own: three's program key counts whether a
+    // geometry has a position and a normal, so the one program serves all.
+    const spot = new THREE.BufferAttribute(new Float32Array(3), 3);
+    const proxyGeometry = () => new THREE.BufferGeometry().setAttribute("position", spot);
     // Its one program, made now (for the target it draws into) and waited
     // for with the district's first programs.
-    const first = new THREE.Mesh(new THREE.BufferGeometry(), material);
+    const first = new THREE.Mesh(proxyGeometry(), material);
     first.frustumCulled = false;
     first.matrixAutoUpdate = false;
     first.visible = false;
@@ -1282,37 +1288,73 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     return {
       programs: renderer.info.programs.slice(before),
       // The buffers of `list` (each { geometry, extra: [attributes] }) to
-      // the GPU in one call.
+      // the GPU in one call. A buffer over PIECE bytes is made its size
+      // there and empty, and its contents are returned as pieces, each a
+      // function that sends one (into a buffer nothing draws yet).
       send(list) {
+        const pieces = [];
+        const gl = renderer.getContext();
+        const bufferData = gl.bufferData;
+        const bufferSubData = gl.bufferSubData;
+        const bound = (target) => gl.getParameter(target === gl.ELEMENT_ARRAY_BUFFER ? gl.ELEMENT_ARRAY_BUFFER_BINDING : gl.ARRAY_BUFFER_BINDING);
+        const later = (target, buffer, at, data, from, length) => {
+          const size = data.BYTES_PER_ELEMENT;
+          for (let k = 0; k < length; k += PIECE / size) {
+            const n = Math.min(PIECE / size, length - k);
+            pieces.push(() => {
+              // An index's binding is a vertex array's: none is bound while
+              // it is sent, and the one that was is bound again after.
+              const array = target === gl.ELEMENT_ARRAY_BUFFER ? gl.getParameter(gl.VERTEX_ARRAY_BINDING) : null;
+              if (target === gl.ELEMENT_ARRAY_BUFFER) gl.bindVertexArray(null);
+              const was = bound(target);
+              gl.bindBuffer(target, buffer);
+              bufferSubData.call(gl, target, at + k * size, data, from + k, n);
+              gl.bindBuffer(target, was);
+              if (target === gl.ELEMENT_ARRAY_BUFFER) gl.bindVertexArray(array);
+            });
+          }
+        };
+        gl.bufferData = function (target, data, usage, ...rest) {
+          if (!ArrayBuffer.isView(data) || data.byteLength <= PIECE) return bufferData.call(gl, target, data, usage, ...rest);
+          bufferData.call(gl, target, data.byteLength, usage);
+          later(target, bound(target), 0, data, 0, data.length);
+        };
+        gl.bufferSubData = function (target, at, data, from = 0, length = 0, ...rest) {
+          const n = length || data.length - from;
+          if (!ArrayBuffer.isView(data) || n * data.BYTES_PER_ELEMENT <= PIECE) return bufferSubData.call(gl, target, at, data, from, length, ...rest);
+          later(target, bound(target), at, data, from, n);
+        };
         while (proxies.length < list.length) {
-          const proxy = new THREE.Mesh(new THREE.BufferGeometry(), material);
+          const proxy = new THREE.Mesh(proxyGeometry(), material);
           proxy.frustumCulled = false;
           proxy.matrixAutoUpdate = false;
           warmScene.add(proxy);
           proxies.push(proxy);
         }
         proxies.forEach((proxy, i) => {
-          const g = proxy.geometry;
-          for (const k of Object.keys(g.attributes)) g.deleteAttribute(k);
-          g.setIndex(null);
           proxy.visible = i < list.length;
           if (!proxy.visible) return;
+          const g = proxy.geometry;
           const { geometry: from, extra = [] } = list[i];
-          for (const [k, a] of Object.entries(from.attributes)) g.setAttribute(k, a);
-          // (An instanced mesh's matrices ride along under names of their own.)
-          extra.forEach((a, k) => g.setAttribute(`extra${k}`, a));
+          [...Object.values(from.attributes), ...extra].forEach((a, k) => g.setAttribute(`sent${k}`, a));
           g.setIndex(from.index);
           g.setDrawRange(0, 0);
         });
         const prev = renderer.getRenderTarget();
         renderer.setRenderTarget(target);
-        renderer.render(warmScene, camera);
+        try {
+          renderer.render(warmScene, camera);
+        } finally {
+          gl.bufferData = bufferData;
+          gl.bufferSubData = bufferSubData;
+        }
         renderer.setRenderTarget(prev);
         for (const proxy of proxies) {
           const g = proxy.geometry;
-          for (const k of Object.keys(g.attributes)) g.deleteAttribute(k);
+          for (const k of Object.keys(g.attributes)) if (k !== "position") g.deleteAttribute(k);
           g.setIndex(null);
         }
+        return pieces;
       },
       dispose() {
         target.dispose();
@@ -1397,11 +1439,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           const d = geometries[i];
           if (batch.length && (!d || bytes + d.bytes > WARM_BYTES)) {
             const list = batch;
-            await ask(() => {
+            const pieces = await ask(() => {
               for (const b of list) b.send?.();
-              warmKit.send(list);
+              return warmKit.send(list);
             });
             if (disposed) return;
+            for (const piece of pieces) {
+              await ask(piece);
+              if (disposed) return;
+            }
             batch = [];
             bytes = 0;
           }
