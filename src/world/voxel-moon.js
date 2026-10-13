@@ -118,15 +118,43 @@ const STRIKE = new THREE.Vector3(5.0, 0, -8.0);
 
 let pending = null;
 
-/** The Earth picture. Loaded with the rest of the world (preloadWorld). */
-export function preloadVoxelMoon() {
+/** The Earth picture. Loaded with the rest of the world (preloadWorld);
+ *  with a `tier`, the moon's shapes are then worked out too (shapesOf). */
+export function preloadVoxelMoon(tier = null) {
   if (!pending) {
     pending = new THREE.ImageLoader().loadAsync(worldEarthUrl).catch((err) => {
       pending = null;
       throw err;
     });
   }
+  if (tier && !shapes.has(tier)) {
+    // (Should this fail, createVoxelMoon works them out itself, as it did.)
+    shapes.set(tier, pending.then((image) => shapesOf(tier, image)).catch(() => null));
+  }
   return pending;
+}
+
+// The moon's shapes, which need no renderer: the ground and its island of
+// columns, the two figures in voxels, Earth in voxels from its picture.
+// Worked out as soon as the picture is in, while the city's core is still
+// on its way, so the moon is not built on the city's own time; the same
+// calls in the same order, the generator then handed on where it was, so
+// the moon is the same to the bit. In three pieces, as the builder took
+// them, so none holds the page for long. Taken once (a moon made again
+// after a lost context works them out afresh).
+const shapes = new Map();
+async function shapesOf(tier, image) {
+  const cfg = TIER[tier] ?? TIER.high;
+  const rand = rng(20260928);
+  const terrain = makeTerrain(rand);
+  const island = buildIsland(cfg, terrain, rand);
+  await breathe();
+  const voxels = [];
+  sculpt(david(), [SEATS[0][0], 0, 0], cfg.fig, voxels);
+  sculpt(lucy(), [SEATS[1][0], 0, SEATS[1][1]], cfg.fig, voxels, LUCY_SCALE);
+  await breathe();
+  const earth = buildEarth(image, cfg.earth + 0.35);
+  return { rand, terrain, island, voxels, earth };
 }
 
 // ---- small maths --------------------------------------------------------------
@@ -1530,8 +1558,9 @@ const breathe = () => new Promise((resolve) => setTimeout(resolve, 0));
 export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) {
   const cfg = TIER[tier] ?? TIER.high;
   const image = await preloadVoxelMoon();
-  const rand = rng(20260928);
-  const terrain = makeTerrain(rand);
+  const made = (await shapes.get(tier)) ?? (await shapesOf(tier, image));
+  shapes.delete(tier);
+  const { rand, terrain } = made;
   const strike = STRIKE.clone();
   strike.x *= cfg.wide;
   strike.y = Math.round(terrain(strike.x, strike.z).h / cfg.vox) * cfg.vox;
@@ -1698,7 +1727,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   };
 
   // ---- the island --------------------------------------------------------------------
-  const island = buildIsland(cfg, terrain, rand);
+  const { island } = made;
   const groundExtra = {
     uBuild: { value: new THREE.Vector3(T.ground, 0, 0) },
     uIsland: { value: new THREE.Vector3(ISLAND.x, ISLAND.z, cfg.island) },
@@ -1714,9 +1743,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   await breathe();
 
   // ---- the figures ---------------------------------------------------------------------
-  const voxels = [];
-  sculpt(david(), [SEATS[0][0], 0, 0], cfg.fig, voxels);
-  sculpt(lucy(), [SEATS[1][0], 0, SEATS[1][1]], cfg.fig, voxels, LUCY_SCALE);
+  const { voxels } = made;
   const figPos = new Float32Array(voxels.length * 3);
   const figColor = new Float32Array(voxels.length * 3);
   const figInfo = new Float32Array(voxels.length * 4);
@@ -1743,7 +1770,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   await breathe();
 
   // ---- Earth -----------------------------------------------------------------------------
-  const earth = buildEarth(image, cfg.earth + 0.35);
+  const { earth } = made;
   const wave = new THREE.Vector3(0, 0.34, 2);
   const beats = new THREE.Vector3(...BEATS);
   const earthExtra = {

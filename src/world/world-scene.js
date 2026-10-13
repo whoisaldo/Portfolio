@@ -68,7 +68,9 @@ export async function preloadWorld(tier) {
     step("ads", preloadAds()),
     step("koi", preloadKoi()),
     step("car", preloadCar()),
-    step("voxel", preloadVoxelMoon()).catch(() => null),
+    // (load: with the tier, so the moon's shapes are worked out while the
+    // core is still coming, not on the city's own time.)
+    step("voxel", preloadVoxelMoon(tier)).catch(() => null),
   ]);
 }
 
