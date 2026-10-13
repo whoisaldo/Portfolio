@@ -1394,34 +1394,12 @@
    "district": "afterlife"
   },
   {
-   "name": "anchor_steam_avroof_1",
-   "kind": "anchor",
-   "at": [
-    27.24,
-    21.17,
-    63.31
-   ],
-   "yaw": 0.0,
-   "district": "avenue"
-  },
-  {
-   "name": "anchor_steam_avroof_2",
-   "kind": "anchor",
-   "at": [
-    38.12,
-    27.35,
-    86.56
-   ],
-   "yaw": 0.0,
-   "district": "avenue"
-  },
-  {
    "name": "anchor_steam_avroof_3",
    "kind": "anchor",
    "at": [
-    -63.05,
-    27.49,
-    54.95
+    22.66,
+    20.03,
+    13.93
    ],
    "yaw": 0.0,
    "district": "avenue"
@@ -1430,9 +1408,9 @@
    "name": "anchor_steam_avroof_4",
    "kind": "anchor",
    "at": [
-    62.05,
-    24.05,
-    51.46
+    38.79,
+    32.93,
+    43.07
    ],
    "yaw": 0.0,
    "district": "avenue"
@@ -1441,31 +1419,9 @@
    "name": "anchor_steam_avroof_5",
    "kind": "anchor",
    "at": [
-    64.94,
-    23.41,
-    51.2
-   ],
-   "yaw": 0.0,
-   "district": "avenue"
-  },
-  {
-   "name": "anchor_steam_avroof_6",
-   "kind": "anchor",
-   "at": [
-    -24.87,
-    40.4,
-    -119.24
-   ],
-   "yaw": 0.0,
-   "district": "avenue"
-  },
-  {
-   "name": "anchor_steam_avroof_7",
-   "kind": "anchor",
-   "at": [
-    29.17,
-    24.19,
-    -31.45
+    23.89,
+    41.93,
+    75.44
    ],
    "yaw": 0.0,
    "district": "avenue"
@@ -5101,6 +5057,127 @@
    "district": "mega"
   },
   {
+   "name": "anchor_steam_zz_roof_av1",
+   "kind": "anchor",
+   "at": [
+    -37.03,
+    56.65,
+    43.6
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av10",
+   "kind": "anchor",
+   "at": [
+    35.88,
+    19.05,
+    -21.4
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av11",
+   "kind": "anchor",
+   "at": [
+    22.37,
+    20.05,
+    -62.6
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av12",
+   "kind": "anchor",
+   "at": [
+    36.35,
+    20.05,
+    -62.6
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av13",
+   "kind": "anchor",
+   "at": [
+    27.87,
+    30.45,
+    -96.4
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av14",
+   "kind": "anchor",
+   "at": [
+    16.65,
+    34.05,
+    -121.4
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av2",
+   "kind": "anchor",
+   "at": [
+    -37.98,
+    15.05,
+    63.4
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av6",
+   "kind": "anchor",
+   "at": [
+    -53.4,
+    29.45,
+    22.57
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av7",
+   "kind": "anchor",
+   "at": [
+    96.0,
+    32.85,
+    17.8
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av8",
+   "kind": "anchor",
+   "at": [
+    -35.47,
+    31.45,
+    -95.4
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_roof_av9",
+   "kind": "anchor",
+   "at": [
+    -15.57,
+    28.05,
+    -95.4
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
    "name": "anchor_steam_zz_roof_cy0",
    "kind": "anchor",
    "at": [
@@ -5643,9 +5720,9 @@
    "name": "anchor_steam_zz_roof_plaza_0",
    "kind": "anchor",
    "at": [
-    100.6,
-    46.7,
-    -109.5
+    74.1,
+    71.5,
+    -114.0
    ],
    "yaw": 0.0,
    "district": "plaza"
@@ -5654,9 +5731,9 @@
    "name": "anchor_steam_zz_roof_plaza_1",
    "kind": "anchor",
    "at": [
-    71.5,
-    46.7,
-    -17.4
+    98.8,
+    43.3,
+    -315.5
    ],
    "yaw": 0.0,
    "district": "plaza"
@@ -5665,20 +5742,9 @@
    "name": "anchor_steam_zz_roof_plaza_2",
    "kind": "anchor",
    "at": [
-    62.8,
-    64.3,
-    -329.0
-   ],
-   "yaw": 0.0,
-   "district": "plaza"
-  },
-  {
-   "name": "anchor_steam_zz_roof_plaza_3",
-   "kind": "anchor",
-   "at": [
-    157.9,
-    53.3,
-    -449.2
+    120.5,
+    46.7,
+    -449.4
    ],
    "yaw": 0.0,
    "district": "plaza"
@@ -5715,6 +5781,83 @@
    ],
    "yaw": 0.0,
    "district": "santo"
+  },
+  {
+   "name": "anchor_steam_zz_stall_avc1000_106",
+   "kind": "anchor",
+   "at": [
+    100.0,
+    1.3,
+    10.95
+   ],
+   "yaw": 0.0,
+   "district": "far"
+  },
+  {
+   "name": "anchor_steam_zz_stall_avc126_530",
+   "kind": "anchor",
+   "at": [
+    12.95,
+    1.3,
+    53.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_stall_avc126_610",
+   "kind": "anchor",
+   "at": [
+    -12.95,
+    1.3,
+    61.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_stall_avc126_810",
+   "kind": "anchor",
+   "at": [
+    -12.95,
+    1.3,
+    81.0
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_stall_avc255_106",
+   "kind": "anchor",
+   "at": [
+    25.5,
+    1.3,
+    10.95
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_stall_avc655_106",
+   "kind": "anchor",
+   "at": [
+    -65.5,
+    1.3,
+    10.95
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_zz_stall_avc665_106",
+   "kind": "anchor",
+   "at": [
+    66.5,
+    1.3,
+    10.95
+   ],
+   "yaw": 0.0,
+   "district": "far"
   },
   {
    "name": "anchor_steam_zz_stall_mega_1",
