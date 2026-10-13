@@ -172,3 +172,96 @@ def side(f, y0, y1, r, key=CB):
         f.box((key, "trim", 1), s - 0.18, s + 0.18, y, y + 0.4, 0.0, 0.2, col=(0.1, 0.1, 0.12, 1))
         y += r.uniform(5.0, 9.0)
     return n
+
+
+def _rect(f, s0, s1, y0, y1, out):
+    """The box a thing s0..s1 along a face, y0..y1 up it, `out` proud of it
+    fills (lo, hi)."""
+    a, b = f.p(f.at(s0), y0, 0.0), f.p(f.at(s1), y1, out)
+    return tuple(min(a[i], b[i]) for i in range(3)), tuple(max(a[i], b[i]) for i in range(3))
+
+
+def tops(f, y0, y1, r, ok, tcol, key=CB):
+    """A tower's top over its slab as a flying car, a crossing or the
+    neighbour's roof sees it (ax5YUmkWf_Y@131, x4ztgjvfU60@22): ledges at
+    their own spacing, so no one window module runs up the whole face; a
+    column of balconies; a cluster of air conditioners round a conduit;
+    and on some a tall strip of light or a big lit board. `ok(lo, hi)`:
+    whether a box may stand there (out of the hero's lens)."""
+    w = f.width
+    if w < 5.0 or y1 - y0 < 6.0:
+        return 0
+    n = 0
+    y = y0 + CELL_H * r.choice((2, 3))
+    while y < y1 - 2.5:
+        if ok(*_rect(f, 0.0, w, y - 0.3, y + 0.05, 0.45)):
+            f.ledge((key, "trim", 0), 0.0, w, y - 0.3, 0.3, 0.4, tcol)
+            n += 1
+        y += CELL_H * r.choice((2, 3, 3, 4, 5))
+    k0 = int((y0 - SHOP_H) / CELL_H) + 1
+    floors = [fl(k) for k in range(k0, 200) if fl(k) < y1 - 3.0]
+    # A column of balconies, one a floor here and there gone.
+    if w >= 7.0 and floors:
+        s = r.uniform(1.8, w - 1.8)
+        for y in floors:
+            if r.random() < 0.72 and ok(*_rect(f, s - 1.35, s + 1.35, y - 0.2, y + 2.5, 1.0)):
+                x, _, z = f.p(f.at(s), 0.0, 0.0)
+                P.place("cy_balc", x, y, z, f.yaw, district=key)
+                n += 1
+        taken = (s - 1.6, s + 1.6)
+    else:
+        taken = (-9.0, -9.0)
+    # Air conditioners in a cluster a few floors deep round a conduit.
+    if floors:
+        c = r.uniform(1.2, w - 1.2)
+        for _ in range(4):
+            if not taken[0] - 1.5 < c < taken[1] + 1.5:
+                break
+            c = r.uniform(1.2, w - 1.2)
+        k = r.randrange(len(floors))
+        for y in floors[k:k + r.randint(2, 4)]:
+            for dc in (-1.2, 0.0, 1.2):
+                s = c + dc
+                if 0.6 < s < w - 0.6 and not taken[0] < s < taken[1] and r.random() < 0.8 and ok(*_rect(f, s - 0.5, s + 0.5, y, y + 1.5, 0.7)):
+                    x, _, z = f.p(f.at(s), 0.0, 0.0)
+                    P.place("cy_acpair", x, y + 0.15, z, f.yaw, district=key)
+                    n += 1
+        s = min(w - 0.4, c + 1.9)
+        if ok(*_rect(f, s - 0.2, s + 0.2, y0, y1 - 1.0, 0.3)):
+            x, _, z = f.p(f.at(s), 0.0, 0.0)
+            P.place("pipe_v", x, y0 + 0.2, z, f.yaw, sy=y1 - y0 - 1.4, district=key)
+    # A tall strip of light up the face, or a big lit board near its top.
+    roll = r.random()
+    big = w >= 12.0 and y1 - y0 >= 18.0
+    strip = None
+    if (roll < 0.4 or big) and y1 - y0 > 14.0:
+        s = r.choice((r.uniform(0.9, 2.2), r.uniform(w - 2.2, w - 0.9)))
+        hh = min(y1 - y0 - 3.0, r.uniform(12.0, 26.0))
+        ya = y1 - 1.5 - hh
+        if ok(*_rect(f, s - 0.7, s + 0.7, ya - 0.2, ya + hh + 0.2, 0.8)):
+            hue = r.choice(("cyan", "cyan", "white", "teal", "blue", "pink"))
+            strip = s
+            f.box((key, "board_frame", 0), s - 0.62, s + 0.62, ya - 0.15, ya + hh + 0.15, 0.25, 0.55)
+            f.quad((key, "glow", 0), s - 0.5, s + 0.5, ya, ya + hh, 0.56, col=C.dim(hue, 0.45 if hue == "white" else 0.8))
+            yy = ya + 1.1
+            while yy < ya + hh - 0.4:
+                f.quad((key, "glow", 0), s - 0.5, s + 0.5, yy, yy + 0.09, 0.565, col=C.dim(hue, 0.3))
+                yy += r.choice((0.9, 1.3, 1.3, 2.2))
+            n += 1
+    if (0.4 <= roll < 0.75 or big) and w >= 8.0:
+        bw = min(w - 2.0, r.choice((5.6, 6.5, 7.5)))
+        bh = bw * 1.2 / 2.8
+        s = r.uniform(1.0 + bw / 2, w - 1.0 - bw / 2)
+        for _ in range(6):
+            if strip is None or abs(s - strip) > bw / 2 + 1.0:
+                break
+            s = r.uniform(1.0 + bw / 2, w - 1.0 - bw / 2)
+        y = y1 - 1.6 - bh / 2
+        if strip is not None and abs(s - strip) <= bw / 2 + 1.0:
+            y = -99.0
+        if y - bh / 2 > y0 + 1.0 and ok(*_rect(f, s - bw / 2 - 0.1, s + bw / 2 + 0.1, y - bh / 2 - 0.1, y + bh / 2 + 0.1, 0.6)):
+            f.box((key, "board_frame", 0), s - bw / 2 - 0.1, s + bw / 2 + 0.1, y - bh / 2 - 0.1, y + bh / 2 + 0.1, 0.0, 0.45)
+            cx, cy, cz = f.p(f.at(s), y, 0.47)
+            sign(C.own_name("pm"), cx, cy, cz, bw, bh, f.yaw, district=key, label=False)
+            n += 1
+    return n

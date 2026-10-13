@@ -410,6 +410,18 @@ def stack(f, s, y, n, r, cant=0.0, front=CB, back=CB, key=CB, out=0.95):
         f.box((key, "metal", 1), s - 0.04, s + 0.04, yb, yb + 0.08, 0.0, out)
 
 
+OWN_COUNT = {}
+
+
+def own_name(size):
+    """A standard sign's name in a run of its own (st_pm_9000 on): the
+    site deals its design by its place as any other, and the builder's
+    turns that the signs built after it take are left as they were."""
+    n = OWN_COUNT.get(size, 0)
+    OWN_COUNT[size] = n + 1
+    return f"st_{size}_{9000 + n}"
+
+
 def board(f, s, y, size, r, key=CB):
     """A standard sign flat on the wall."""
     w, h = ST_SIZES[size]
