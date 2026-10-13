@@ -218,7 +218,8 @@ box((D, "neon_red", 0), GX0 - 0.3, GX1 + 0.3, 5.12, 5.32, WZ, WZ + 0.08, scale=1
 PA0, PA1, PY0, PY1 = 26.0, 41.0, 5.55, 7.85
 box((D, "neon_red", 0), NX0 + 0.6, PA0 - 0.9, 6.64, 6.76, WZ, WZ + 0.06, scale=1.0)
 box((D, "neon_red", 0), PA1 + 0.9, NX1 - 0.6, 6.64, 6.76, WZ, WZ + 0.06, scale=1.0)
-lozenge("NCART", (PA0 + PA1) / 2, (PY0 + PY1) / 2, WZ, PA1 - PA0, PY1 - PY0, 0.0, th=1.25)
+lozenge("NCART", (PA0 + PA1) / 2, (PY0 + PY1) / 2 + 0.12, WZ, PA1 - PA0, PY1 - PY0, 0.0, th=1.1)
+strokes((D, "glow", 0), "METRO RAIL  LINE 4 NORTH", (PA0 + PA1) / 2, PY0 + 0.32, WZ + 0.12, 0.26, 0.0, dim(GLOW["white"], 0.8), weight=0.16, gap=0.28)
 # A warning plate and the lamps on the wall.
 tbox(38.0, 39.1, 3.0, 4.3, WZ, WZ + 0.03, YEL)
 poly((D, "trim", 1), [(38.2, 3.5, WZ + 0.04), (38.9, 3.5, WZ + 0.04), (38.55, 4.15, WZ + 0.04)], [(0, 0), (1, 0), (0.5, 1)], BLACK)
@@ -371,7 +372,12 @@ box((D, "neon_amber", 0), ST_X - 1.8, ST_X + 1.8, 2.5, 2.56, ST_Z - 0.1, ST_Z - 
 for i in range(5):
     P.place("lantern", ST_X - 1.8 + i * 0.9, 2.35, ST_Z + 0.95)
 for i in range(4):
-    cylinder((D, "metal", 1), ST_X - 1.5 + i * 1.0, ST_Z + 1.0, G0, G0 + 0.62, 0.17, segs=6)
+    sx, sz = ST_X - 1.5 + i * 1.0, ST_Z + 1.0
+    cylinder((D, "trim", 0), sx, sz, G0 + 0.56, G0 + 0.62, 0.18, segs=8, col=RED_PAINT)
+    for a in (0.4, 2.5, 4.6):
+        lx, lz = sx + math.cos(a) * 0.12, sz + math.sin(a) * 0.12
+        box((D, "metal", 1), lx - 0.015, lx + 0.015, G0, G0 + 0.56, lz - 0.015, lz + 0.015, scale=0.5)
+    cylinder((D, "metal", 1), sx, sz, G0 + 0.2, G0 + 0.22, 0.13, segs=8, cap=False)
 stand(ST_X - 0.4, ST_Z - 0.95, 0.0, "vendor", G0)
 stand(ST_X - 1.5, ST_Z + 1.0, math.pi, "sit", G0 + 0.62)
 stand(ST_X + 0.5, ST_Z + 1.0, math.pi, "sit", G0 + 0.62)

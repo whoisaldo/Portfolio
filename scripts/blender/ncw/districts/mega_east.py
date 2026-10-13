@@ -241,18 +241,30 @@ for z in (PZ0 - 0.25, PZ1 + 0.25):
     box((D, "neon_amber", 0), HX0 - 0.1, HX0, PLAT + 0.4, PY1, z - 0.08, z + 0.08, scale=1.0)
 tbox(HX0 - 0.12, HX0, PY1, PY1 + 0.45, PZ0 - 0.4, PZ1 + 0.4, YEL)
 # The name, big, over the portal; a red strip under it.
-box((D, "board_frame", 0), HX0 - 0.3, HX0, PY1 + 0.7, PY1 + 4.9, RAIL_Z - 10.5, RAIL_Z + 10.5, scale=1.0)
-lozenge("NCART", HX0 - 0.3, PY1 + 2.8, RAIL_Z, 19.0, 3.4, -math.pi / 2, th=2.1)
-box((D, "neon_red", 0), HX0 - 0.36, HX0 - 0.3, PY1 + 0.76, PY1 + 0.9, RAIL_Z - 10.2, RAIL_Z + 10.2, scale=1.0)
+# (Inside the hall's west face end to end, the line's own words under it.)
+box((D, "board_frame", 0), HX0 - 0.3, HX0, PY1 + 0.6, PY1 + 5.0, RAIL_Z - 8.6, RAIL_Z + 8.6, scale=1.0)
+lozenge("NCART", HX0 - 0.3, PY1 + 3.2, RAIL_Z, 15.6, 2.9, -math.pi / 2, th=1.8)
+strokes((D, "glow", 0), "METRO RAIL  LINE 4 NORTH", HX0 - 0.36, PY1 + 1.25, RAIL_Z, 0.5, -math.pi / 2, dim(GLOW["white"], 0.75), weight=0.16, gap=0.28)
+box((D, "neon_red", 0), HX0 - 0.36, HX0 - 0.3, PY1 + 0.66, PY1 + 0.8, RAIL_Z - 8.3, RAIL_Z + 8.3, scale=1.0)
 for (z, yaw) in ((HZ1 + 0.02, 0.0), (HZ0 - 0.02, math.pi)):
-    lozenge("NCART", 111.0, 10.6, z, 22.0, 4.6, yaw, th=2.5)
+    lozenge("NCART", 111.0, 11.1, z, 21.0, 4.0, yaw, th=2.2)
+    strokes((D, "glow", 0), "METRO RAIL  LINE 4 NORTH", 111.0, 8.35, z + (0.06 if yaw == 0.0 else -0.06), 0.62, yaw, dim(GLOW["white"], 0.75), weight=0.16, gap=0.28)
     rotated_quad((D, "neon_red", 0), 111.0, 7.4, z, 30.0, 0.14, yaw)
 # The hall over the platforms is glass, not flats: tall panes lit from the
 # platforms behind them between steel fins, a transom, a deep fascia.
 PANE = (0.72, 0.9, 1.0, 1.0)
 for f in (face("+z", HZ1, HX0, HX1), face("-z", HZ0, HX0, HX1), face("-x", HX0, HZ0, PZ0), face("-x", HX0, PZ1, HZ1)):
-    f.quad((D, "glow", 0), 0.0, f.width, PLAT + 0.7, HTOP - 1.5, 0.05, col=dim(PANE, 0.06))
+    # Each bay's glass its own: some dim, some warm with the hall's lamps, a
+    # screen or a timetable hung inside here and there.
+    nb = max(1, round(f.width / 3.4))
+    for i in range(nb):
+        rr = random.Random(int(f.plane * 7) + i * 31)
+        a, b = f.width * i / nb, f.width * (i + 1) / nb
+        f.quad((D, "glow", 0), a, b, PLAT + 0.7, HTOP - 1.5, 0.05, col=dim(rr.choice((PANE, PANE, (1.0, 0.8, 0.55, 1.0), (0.8, 0.6, 1.0, 1.0))), rr.uniform(0.025, 0.09)))
+        if rr.random() < 0.3:
+            f.quad((D, "billboard", 0), a + 0.6, b - 0.6, PLAT + 3.4, PLAT + 5.2, 0.055, uvs=((0, 0), (1, 0), (1, 1), (0, 1)), col=(rr.randrange(8) / 8.0 + 0.01, rr.randrange(8) / 8.0 + 0.01, rr.random(), 1.0))
     f.quad((D, "glow", 0), 0.0, f.width, PLAT + 0.7, PLAT + 2.6, 0.06, col=dim(PANE, 0.13))
+    f.quad((D, "trim", 1), 0.0, f.width, PLAT + 8.2, PLAT + 8.4, 0.08, col=BLUEGREY)
     fbox(f, (D, "trim", 0), 0.0, f.width, HTOP - 1.5, HTOP, 0.0, 0.4, col=BLUEGREY, bottom=True)
     fbox(f, (D, "trim", 0), 0.0, f.width, PLAT, PLAT + 0.7, 0.0, 0.3, col=BLUEGREY, bottom=True)
     f.quad((D, "trim", 1), 0.0, f.width, PLAT + 5.6, PLAT + 5.85, 0.08, col=BLUEGREY)
