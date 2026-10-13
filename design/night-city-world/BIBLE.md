@@ -380,9 +380,15 @@ a gantry over it carrying a red LED strip and lit boxes), BnnbP7pCIvQ@29
 [Massket, layout only] (logos at tower tops, boards at mid height, palms,
 bollards), KvMY1uzSC1E@43 (raised plaza edges).
 
-- **Buildings**: the seven towers and their lobbies stay; the boulevard
-  gets its median (palms, lamps), a gantry of lit boxes, lobby forecourts;
-  the south side keeps its street and gains the blocks behind it to z -160.
+- **Buildings**: the seven towers and their lobbies stay where they stood,
+  each now in its own facade; behind them a second rank of nine taller
+  towers lit floor on floor, and the district's megatower on the corner
+  block over junction I (`corpo_rank.py`); the boulevard has its planted
+  median, and a concrete guideway twenty metres up along its south kerb
+  carries the row's train (`corpo_line.py`); the south side keeps its
+  street of podium blocks with lobbies and showrooms, and gains a mews and
+  a campus of low blocks behind them to the plaza street (`corpo_south.py`);
+  the backs, flanks and lanes are dressed as lived in (`corpo_fill.py`).
 
 ### The Afterlife Block
 
@@ -426,11 +432,12 @@ glowing city), KvMY1uzSC1E@189 and @208 (the moon high, white, over a dark
 roof), JtqIas3bYhg@72 (a V of towers, red beacons, a lattice mast),
 x4ztgjvfU60@1 (searchlights), Zq4zTcIM0yQ@182 (hologram columns).
 
-- `skyline.js` keeps doing the far city. It is moved out to the kit's new
-  footprint (its keep-out rectangles), gains a few screen towers (a column
-  of stacked screens on a slim tower) and hologram columns, and must hold
-  from every point on the loop, from rooftops and from AV height: no
-  building of it closer than the kit's last lot line.
+- `src/world/skyline.js` draws the far city past the kit's footprint (its
+  keep-out rectangles), so no building of it stands closer than the kit's
+  last lot line. It flies no AVs of its own: the kit's flying cars have
+  lanes out among its towers (`src/world/traffic-sky.js`), and its towers
+  keep out of them. The landmark towers a kilometre off are the builder's
+  (`districts/skyline.py`), and the moon's disc is `districts/sky.py`'s.
 
 ## The kit
 
@@ -457,6 +464,11 @@ a plan of lots and a few set pieces:
   bundles, warning triangles, drums, containers, utility poles.
 - **set pieces**: corpo row's towers, ARASAKA, the board and its housing,
   the rooftop, AFTERLIFE's block, the garage, the megabuilding, the deck.
+- **edges**: where walkable ground would end at nothing, each district
+  closes it with what it would have at its back: fences, gates, barriers
+  (`districts/edges.py`).
+- **packing**: `finish.py` keys each district's bulk to the core GLB or to
+  its own pack (`PACK_OF`); `exports.py` writes the JSON beside the GLBs.
 
 ## Budgets
 
@@ -467,72 +479,68 @@ tiers' budgets are 16.7 ms and 22 ms. Nothing may be turned down: the
 rebuild pays for itself with merging per tile, instancing, culling, LODs
 nobody sees switch and streaming.
 
-Per district, static kit triangles (high / phone), instanced props, and its
-share of the GLB bytes (high / phone):
+The byte budgets (`scripts/optimize-world.mjs` and `npm run check:world`
+fail over them): the core GLB 2.6 MB on high and 1.2 MB on a phone, each
+district's pack 2.2 MB and 1.0 MB, Japantown's 2.6 MB and 1.2 MB, no
+texture over 1024 px. As built:
 
-| district | tris | props | bytes |
-| --- | --- | --- | --- |
-| Kabuki Avenue | 70k / 40k | 2,500 | 0.65 / 0.30 MB |
-| The Canyon | 70k / 36k | 1,500 | 0.55 / 0.26 MB |
-| The Megabuilding | 45k / 24k | 800 | 0.35 / 0.16 MB |
-| Japantown | 55k / 28k | 2,000 | 0.45 / 0.20 MB |
-| The Deck | 10k / 7k | 300 | 0.08 / 0.04 MB |
-| Corpo Plaza | 45k / 24k | 1,200 | 0.35 / 0.16 MB |
-| Corpo Row (towers included) | 50k / 28k | 1,000 | 0.40 / 0.18 MB |
-| The Afterlife Block (garage included) | 40k / 24k | 800 | 0.35 / 0.16 MB |
-| Santo Domingo | 45k / 22k | 1,200 | 0.35 / 0.16 MB |
-| shared textures (road, paving, concrete, shops, garage walls) | | | 1.1 / 0.4 MB |
-| **total** | **430k / 233k** | **11,300** | **4.6 / 2.0 MB** |
-
-Per frame, all passes, at any held shot, flight or point on the loop:
-
-| | high | phone |
+| GLB | high | phone |
 | --- | --- | --- |
-| draw calls | 280 | 230 |
-| triangles | 1.1M | 500k |
-| GPU p50 (devbox1, headless, contended) | 10 ms | 6 ms |
-| CPU p50 | 3 ms | 4 ms |
-| texture memory (GPU) | 96 MB | 48 MB |
+| core (`world-<tier>.glb`) | 2.47 MB | 0.99 MB |
+| south (Kabuki Avenue behind the hero) | 1.88 MB | 0.76 MB |
+| canyon | 1.59 MB | 0.90 MB |
+| plaza | 1.45 MB | 0.93 MB |
+| deck | 1.14 MB | 0.49 MB |
+| corpo | 2.18 MB | 0.97 MB |
+| afterlife | 1.40 MB | 0.49 MB |
+| santo | 2.03 MB | 0.96 MB |
+| japantown | 2.50 MB | 1.16 MB |
+| mega | 2.09 MB | 0.94 MB |
+| **packs in all** | **16.27 MB** | **7.59 MB** |
 
-How a district stays inside: its kit is merged per material per 128 m
-tile, so frustum culling drops what is off screen; props are one instanced
-draw per prototype over the city, culled per instance on the CPU and
-repacked only when the visible set changes; small props are not drawn past
-300 m (180 m on a phone), where they are under two pixels; facade detail
-(balconies, ledges, AC) is tagged detail and the phone's GLB drops it where
-the window shader carries the read.
+Every held shot, flight, loop point and free roam lap measured on the
+rebuilt city is inside the tiers' frame budgets (README, "Verification").
+
+How a district stays inside: its kit is merged per material and cut into
+ground cells, so frustum culling drops what is off screen; props are
+instanced per part over the city, culled by cell to the frustum and each
+prototype's own reach, and repacked only when the visible set changes,
+while the parts with few vertices across the whole city are baked into one
+mesh per material and drawn in one call each; facade detail (balconies,
+ledges, AC) is tagged detail and the phone's GLB drops it where the window
+shader carries the read.
 
 ## How it loads
 
 - **First paint** stays the poster, as now; nothing here touches the entry
   chunk.
-- **City live** needs what the hero sees: the core pack (Kabuki Avenue, the
-  Canyon, the Megabuilding, the landmarks, the far city's code) no larger
-  than today's whole GLB (2.48 MB high, 1.11 MB phone), so city live is no
-  later than today's.
-- **Behind it**: the other districts in packs (Japantown and the Deck;
-  Corpo Plaza and Corpo Row; the Afterlife Block and Santo Domingo), fetched
-  after the first frame, each built into the scene over a few idle frames
-  so no long task lands on a scroll. A flight to a district whose pack has
-  not landed waits on it (the glitch covers the wait) rather than flying
-  into nothing; on a fast connection they are in before the reader leaves
-  the hero.
-- The light bake (`spill.js`) re-runs per pack over its own tiles; the
-  clearance field (`clearance.js`) and the far city's keep-out learn the new
-  footprint.
+- **City live** needs what the hero sees: the core GLB (what the hero's
+  lens sees of Kabuki Avenue, the Canyon and the Megabuilding, the
+  landmarks, and every named piece, anchor and prop prototype), 2.47 MB on
+  high and 0.99 MB on a phone, no larger than the city's whole GLB before
+  the rebuild (2.48 MB and 1.11 MB).
+- **Behind it**: nine packs, one per district (`south`, `canyon`, `plaza`,
+  `deck`, `corpo`, `afterlife`, `santo`, `japantown`, `mega`), all fetched
+  once the hero can be drawn and built in one at a time in that order, each
+  while the page is idle and put in the city in one go, so no long task
+  lands on a scroll. A flight to a district whose pack has not landed sees
+  the far city's blocks there.
+- Each pack's light is baked as it is built in, and the clearance field
+  (`clearance.js`) learns its parts.
 
 ## Exports for later
 
-Unused by the page for now, written by the builder next to the GLBs and
-documented in the README:
+Unused by the page, read by the braindance's free roam, written by the
+builder next to the GLBs and documented in the README:
 
-- `road-graph.json`: nodes (junctions, with position) and edges (each a
-  polyline at 1 m, its lanes with their side and direction, its pavements,
-  its speed), the loop as a list of edges, the S4's road.
-- `collision.json`: axis-aligned and oriented boxes for every building
-  mass, wall, column, prop and kerb a car or a walker must not pass through,
-  per tile.
-- `districts.json`: each district's bounds and its tiles.
+- `road-graph.json`: 17 nodes (junctions and ends, with position) and 23
+  edges (each a polyline at 1 m, its lanes with their side and direction,
+  its pavements, its speed), the loop as the list of nodes it visits, the
+  deck's heights.
+- `collision.json`: about 12,700 axis-aligned boxes for every building mass
+  and every prop standing on the ground; free roam builds the rest (the
+  deck, stairs, parapets, rails, kerbs) from the kit's own triangles.
+- `districts.json`: each district's bounds and label, and the streets.
 - named anchors: `spawn_drive`, `spawn_walk`, a `poi_<name>` at every
   landmark and braindance place, and the existing `cam_*` and `anchor_*`.
 
