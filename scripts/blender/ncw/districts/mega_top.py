@@ -141,7 +141,7 @@ def roof_full(x0, x1, z0, z1, top, seed, guard=False, keep=(), people=0.5, lamps
         for j in range(nz):
             cx = x0 + (i + 0.5) * (x1 - x0) / nx + r.uniform(-1.0, 1.0)
             cz = z0 + (j + 0.5) * (z1 - z0) / nz + r.uniform(-1.0, 1.0)
-            if any(a - 2.5 < cx < b + 2.5 and c - 2.5 < cz < d + 2.5 for a, b, c, d in keep):
+            if any(a - 1.3 < cx < b + 1.3 and c - 1.3 < cz < d + 1.3 for a, b, c, d in keep):
                 continue
             k = r.choice(kinds)
             if k == "ac":
@@ -210,7 +210,10 @@ for i in range(8):
 # The arm's roof over the market hall (25 m): its open middle filled, and
 # the board on it standing on a frame of its own.
 # ---------------------------------------------------------------------------
-roof_full(AX0 + 1.0, AX1 - 5.0, AZ0 + 2.0, AZ1 - 4.0, ARM_TOP, 5311, keep=((66.0, 78.0, -722.0, -710.0), (65.0, 103.0, -717.0, -713.0), (84.0, 100.0, -733.0, -723.0)), people=0.8)
+# (Clear: the pad, the walk down the middle, the skylights and shacks, and
+# the sweep's own point on this roof, mg13 at (84, -722).)
+roof_full(AX0 + 1.0, AX1 - 5.0, AZ0 + 2.0, AZ1 - 4.0, ARM_TOP, 5311, keep=((67.0, 77.0, -721.0, -711.0), (65.0, 103.0, -715.8, -714.2),
+          (85.0, 99.0, -732.0, -728.0), (82.0, 86.0, -724.5, -719.5), (89.0, 93.0, -744.0, -739.0), (94.0, 98.0, -730.0, -725.0)), people=0.8)
 RB = (72.0, -719.0, -math.pi / 2 + 0.22)
 rx, rz = math.cos(RB[2]), -math.sin(RB[2])
 bnx, bnz = math.sin(RB[2]), math.cos(RB[2])
@@ -269,3 +272,4 @@ for (x0, x1, z0, z1, top, k, hue) in ((99.5, 108.0, -652.5, -647.0, floor_y(5), 
         g = fs[name]
         g.ledge((D, "trim", 1), 0.2, g.width - 0.2, top + CELL_H - 0.2, 0.2, 0.25, CONC)
     roof_full(x0 + 0.6, x1 - 0.6, z0 + 0.6, z1 - 0.6, y1, 5440 + int(x0), lamps=False)
+
