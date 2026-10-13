@@ -68,46 +68,50 @@ export const LANES = [
   // corridors between them where nothing stands as high as the lane
   // (tools/corridors.mjs), south, west, north and east of the kit, so a
   // view from the air has traffic at its own height whichever way it looks.
-  { a: [10, 276], b: [412, 276], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 1 },
-  { a: [10, 260], b: [296, 260], half: 4.5, y: 64, lift: 4, v: 9, n: 4, phone: 0 },
-  { a: [-60, 306], b: [-60, 634], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
-  { a: [360, 250], b: [360, 514], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [-470, 332], b: [-136, 332], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
-  { a: [-212, 76], b: [-212, 528], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 1 },
-  { a: [512, 208], b: [512, 518], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [-244, 70], b: [-244, -386], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 3 },
-  { a: [-356, -350], b: [-356, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [-444, -142], b: [-444, -562], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
-  { a: [-556, -284], b: [-272, -284], half: 4.5, y: 64, lift: 4, v: 9, n: 3, phone: 0 },
-  { a: [-176, 172], b: [-176, -800], half: 4, y: 70, lift: 4, v: 10, n: 11, phone: 3 },
-  { a: [-470, -936], b: [-50, -936], half: 4.5, y: 86, lift: 4, v: 10, narrow: 1, n: 4, phone: 0 },
-  { a: [-646, -856], b: [-330, -856], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [172, -758], b: [172, -1068], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [364, -714], b: [364, -950], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 1 },
-  { a: [640, -672], b: [640, -1040], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 0 },
-  { a: [110, -720], b: [584, -720], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 2 },
-  { a: [-288, -712], b: [-30, -712], half: 4.5, y: 86, lift: 4, v: 10, narrow: 1, n: 6, phone: 1 },
-  { a: [-190, 46], b: [470, 46], half: 4.5, y: 72, lift: 4, v: 10, n: 7, phone: 2 },
-  { a: [528, -476], b: [528, -222], half: 4.5, y: 80, lift: 4, v: 10, n: 7, phone: 3 },
-  { a: [828, -120], b: [828, 300], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 3 },
-  { a: [600, 60], b: [1000, 60], half: 4.5, y: 86, lift: 4, v: 10, n: 8, phone: 1 },
-  { a: [570, 152], b: [1000, 152], half: 4.5, y: 64, lift: 4, v: 10, n: 8, phone: 3 },
-  { a: [444, -528], b: [444, -852], half: 4.5, y: 86, lift: 4, v: 10, n: 5, phone: 0 },
-  { a: [632, -302], b: [632, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 3 },
-  { a: [828, -380], b: [828, -130], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 0 },
-  { a: [120, -426], b: [120, -872], half: 4.5, y: 64, lift: 4, v: 9, narrow: 1, n: 4, phone: 0 },
+  // (A few craft to a corridor, each corridor flown at one height, the low
+  // tier's craft smaller and one high corridor in three's bigger: fifty
+  // craft of one size spread evenly over every height read from the air as
+  // fireflies, not as traffic in lanes.)
+  { a: [10, 276], b: [412, 276], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 1, band: 0, s: 1.3 },
+  { a: [10, 260], b: [296, 260], half: 4.5, y: 64, lift: 4, v: 9, n: 2, phone: 0, band: 0, s: 0.85 },
+  { a: [-60, 306], b: [-60, 634], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 0, band: 0 },
+  { a: [360, 250], b: [360, 514], half: 4.5, y: 86, lift: 4, v: 10, n: 1, phone: 0, band: 0, s: 1.3 },
+  { a: [-470, 332], b: [-136, 332], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 0, band: 0 },
+  { a: [-212, 76], b: [-212, 528], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 1, band: 0 },
+  { a: [512, 208], b: [512, 518], half: 4.5, y: 86, lift: 4, v: 10, n: 1, phone: 0, band: 0, s: 1.3 },
+  { a: [-244, 70], b: [-244, -386], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 2, band: 0 },
+  { a: [-356, -350], b: [-356, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 1, phone: 0, band: 0 },
+  { a: [-444, -142], b: [-444, -562], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 0, band: 0, s: 1.3 },
+  { a: [-556, -284], b: [-272, -284], half: 4.5, y: 64, lift: 4, v: 9, n: 1, phone: 0, band: 0, s: 0.85 },
+  { a: [-176, 172], b: [-176, -800], half: 4, y: 70, lift: 4, v: 10, n: 4, phone: 3, band: 0 },
+  { a: [-470, -936], b: [-50, -936], half: 4.5, y: 86, lift: 4, v: 10, narrow: 1, n: 2, phone: 0, band: 0 },
+  { a: [-646, -856], b: [-330, -856], half: 4.5, y: 86, lift: 4, v: 10, n: 1, phone: 0, band: 0 },
+  { a: [172, -758], b: [172, -1068], half: 4.5, y: 86, lift: 4, v: 10, n: 1, phone: 0, band: 0 },
+  { a: [364, -714], b: [364, -950], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 1, band: 0, s: 1.3 },
+  { a: [640, -672], b: [640, -1040], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 0, band: 0 },
+  { a: [110, -720], b: [584, -720], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 2, band: 0 },
+  { a: [-288, -712], b: [-30, -712], half: 4.5, y: 86, lift: 4, v: 10, narrow: 1, n: 2, phone: 1, band: 0 },
+  { a: [-190, 46], b: [470, 46], half: 4.5, y: 72, lift: 4, v: 10, n: 3, phone: 2, band: 0 },
+  { a: [528, -476], b: [528, -222], half: 4.5, y: 80, lift: 4, v: 10, n: 3, phone: 3, band: 0 },
+  { a: [828, -120], b: [828, 300], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 3, band: 0, s: 1.3 },
+  { a: [600, 60], b: [1000, 60], half: 4.5, y: 86, lift: 4, v: 10, n: 3, phone: 1, band: 0 },
+  { a: [570, 152], b: [1000, 152], half: 4.5, y: 64, lift: 4, v: 10, n: 3, phone: 3, band: 0, s: 0.85 },
+  { a: [444, -528], b: [444, -852], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 0, band: 0, s: 1.3 },
+  { a: [632, -302], b: [632, -612], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 2, band: 0 },
+  { a: [828, -380], b: [828, -130], half: 4.5, y: 86, lift: 4, v: 10, n: 1, phone: 0, band: 0 },
+  { a: [120, -426], b: [120, -872], half: 4.5, y: 64, lift: 4, v: 9, narrow: 1, n: 2, phone: 0, band: 0, s: 0.85 },
   // Two that the review's own aerial stills look straight down: south from
   // over Santo Domingo, north from over Corpo Row's back.
-  { a: [228, 166], b: [228, 380], half: 4.5, y: 86, lift: 4, v: 10, n: 4, phone: 1 },
-  { a: [276, -480], b: [276, -696], half: 4.5, y: 86, lift: 4, v: 10, n: 6, phone: 1 },
+  { a: [228, 166], b: [228, 380], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 1, band: 0 },
+  { a: [276, -480], b: [276, -696], half: 4.5, y: 86, lift: 4, v: 10, n: 2, phone: 1, band: 0 },
   // Behind the megabuilding, between its tiers' backs and the towers north.
-  { a: [-46, -868], b: [112, -868], half: 4.5, y: 86, lift: 4, v: 9, narrow: 1, n: 3, phone: 0 },
+  { a: [-46, -868], b: [112, -868], half: 4.5, y: 86, lift: 4, v: 9, narrow: 1, n: 1, phone: 0, band: 0, s: 1.3 },
   // Low over three streets, close enough over a walker's head to be a
   // craft and not a speck: the south street east of the hero's frame,
   // Japantown's west road over its bridges and arches, the garage street.
-  { a: [24, 1], b: [400, 1], half: 3.5, y: 20, lift: 3, v: 7, narrow: 1, band: 2.5, n: 4, phone: 0 },
-  { a: [-80, -290], b: [-80, -560], half: 3.5, y: 23, lift: 3, v: 7, narrow: 1, band: 2.5, n: 3, phone: 0 },
-  { a: [440, -20], b: [440, -310], half: 3.5, y: 23, lift: 3, v: 7, narrow: 1, band: 2.5, n: 3, phone: 0 },
+  { a: [24, 1], b: [400, 1], half: 3.5, y: 20, lift: 3, v: 7, narrow: 1, band: 2.5, n: 2, phone: 0, s: 0.85 },
+  { a: [-80, -290], b: [-80, -560], half: 3.5, y: 23, lift: 3, v: 7, narrow: 1, band: 2.5, n: 1, phone: 0, s: 0.85 },
+  { a: [440, -20], b: [440, -310], half: 3.5, y: 23, lift: 3, v: 7, narrow: 1, band: 2.5, n: 1, phone: 0, s: 0.85 },
   // High round the landmark towers, for the air over the canyon's end: a
   // loop between the needle, the stack and the frame tower, five hundred
   // metres up under the cloud, which from the hero's lens is over the top
@@ -141,19 +145,20 @@ const TAU = Math.PI * 2;
 // its flanks. `scale` is across, up and along; `head` its lamps' colour,
 // `thrust` its fans', its belly's and its streak's, `streak` how long that
 // is, `lamp` how big its lamps are; `mix` how often each kind is dealt to a
-// street's lane, a loop and an outer corridor.
+// street's lane, a loop and an outer corridor. (A streak is short now, a
+// trace of the fans' light: long, a craft dragged a flame like a rocket's.)
 // Two more since: an interceptor, low and broad, teal fans and a long
 // green-white streak; a van, boxy and tall, in taxi yellow or work paint,
 // yellow fans. Every kind's lamps are a quarter bigger than they were, so a
 // near craft is its glow and not only its body; `held` lanes deal from the
 // first four kinds alone, as they did.
 export const CRAFT = [
-  { name: "runabout", scale: [1, 1, 1], head: [0.75, 0.9, 1.0], thrust: [0.3, 0.75, 1.0], streak: 1, lamp: 1.25, mix: [5, 4, 3] },
-  { name: "courier", scale: [0.84, 0.8, 0.82], head: [1.0, 0.8, 0.5], thrust: [1.0, 0.45, 0.12], streak: 0.6, lamp: 0.95, mix: [3, 2, 1] },
+  { name: "runabout", scale: [1, 1, 1], head: [0.75, 0.9, 1.0], thrust: [0.3, 0.75, 1.0], streak: 0.4, lamp: 1.25, mix: [5, 4, 3] },
+  { name: "courier", scale: [0.84, 0.8, 0.82], head: [1.0, 0.8, 0.5], thrust: [1.0, 0.45, 0.12], streak: 0.3, lamp: 0.95, mix: [3, 2, 1] },
   { name: "hauler", scale: [1.35, 1.45, 1.85], head: [1.0, 0.72, 0.32], thrust: [1.0, 0.32, 0.08], streak: 0, lamp: 1.6, mix: [0, 1, 3] },
-  { name: "liner", scale: [1.2, 1.12, 2.3], head: [0.9, 0.95, 1.0], thrust: [0.8, 0.3, 1.0], streak: 0.4, lamp: 1.4, mix: [1, 2, 2] },
-  { name: "interceptor", scale: [1.05, 0.74, 1.02], head: [0.8, 1.0, 0.95], thrust: [0.15, 1.0, 0.72], streak: 1.2, lamp: 1.3, mix: [2, 2, 2] },
-  { name: "van", scale: [1.02, 1.34, 1.04], head: [1.0, 0.88, 0.62], thrust: [1.0, 0.82, 0.22], streak: 0.5, lamp: 1.2, mix: [2, 2, 2] },
+  { name: "liner", scale: [1.2, 1.12, 2.3], head: [0.9, 0.95, 1.0], thrust: [0.8, 0.3, 1.0], streak: 0.25, lamp: 1.4, mix: [1, 2, 2] },
+  { name: "interceptor", scale: [1.05, 0.74, 1.02], head: [0.8, 1.0, 0.95], thrust: [0.15, 1.0, 0.72], streak: 0.45, lamp: 1.3, mix: [2, 2, 2] },
+  { name: "van", scale: [1.02, 1.34, 1.04], head: [1.0, 0.88, 0.62], thrust: [1.0, 0.82, 0.22], streak: 0.25, lamp: 1.2, mix: [2, 2, 2] },
 ];
 // What each kind is painted (linear colour): the runabouts dark, as the
 // street's cars mostly are, a few pale or in a colour; couriers in yellow,
