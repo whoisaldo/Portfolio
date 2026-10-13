@@ -108,9 +108,11 @@ lift_core(fsC["+x"], 6.0, CY0, CT, _r, w=2.6, hue="amber")
 riser(fsA["+z"], 26.5, floor_y(6), AT - 2.0, "magenta")
 riser(fsB["+x"], 3.0, BY0 + 2.0, BT - 2.0, "cyan")
 riser(fsC["+z"], 2.0, CY0 + 2.0, CT - 2.0, "pink")
-for (cx, cy, cz, w, h, yaw) in ((A1 + 0.5, 96.0, -812.0, 12.0, 16.0, math.pi / 2), (98.0, 120.0, AZ1 + 0.5, 12.0, 8.0, 0.0),
-                                (B1 + 0.5, BY0 + 18.0, -836.0, 10.0, 14.0, math.pi / 2)):
-    B.billboard(D, cx, cy, cz, w, h, yaw, _r, back=False)
+# Its signs are the block's own neon (no dealt boards: a board added here
+# re-deals every board after it, the canyon's in the hero's frame among them).
+vboard(fsA["+x"], 12.0, 88.0, "HOTEL", "pink", w=2.6, out=2.6)
+neon_board(fsA["+z"], 18.0, 29.0, 118.0, 123.0, 2.6, "KARAOKE", "magenta", sub="24 H  -  42F", sub_hue="cyan")
+vboard(fsB["+x"], 30.0, BY0 + 10.0, "BAR", "amber", w=2.4, out=2.6)
 
 # ---------------------------------------------------------------------------
 # Bridges to the east wing's tower over the lane, at two heights under its top.
