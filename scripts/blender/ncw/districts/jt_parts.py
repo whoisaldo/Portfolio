@@ -767,6 +767,79 @@ LEAF_D = (0.045, 0.19, 0.095, 1)
 LEAF_Y = (0.2, 0.33, 0.1, 1)
 
 
+# ---------------------------------------------------------------------------
+# Foliage in masses (round 4: the m8 review saw the leaf pads as "flat red
+# square tiles", "floating discs" and "a lumpy green blob with white
+# dots"): a clump is an icosphere broken by its own dice, flattened under,
+# lighter on top and darker beneath face by face, in the `plant` material's
+# blossom; a blossom clump's uv runs out to its rim round its sides, so the
+# site breaks its edges into clusters with sky between; a leaf clump's uv
+# stands still in one cell the site neither breaks nor flecks white.
+# ---------------------------------------------------------------------------
+_ICO = []
+
+
+def _ico():
+    if _ICO:
+        return _ICO
+    t_ = (1 + 5 ** 0.5) / 2
+    vs = [(-1, t_, 0), (1, t_, 0), (-1, -t_, 0), (1, -t_, 0), (0, -1, t_), (0, 1, t_), (0, -1, -t_), (0, 1, -t_), (t_, 0, -1), (t_, 0, 1), (-t_, 0, -1), (-t_, 0, 1)]
+    vs = [tuple(c / math.sqrt(sum(x * x for x in v)) for c in v) for v in vs]
+    fs = [(0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11), (1, 5, 9), (5, 11, 4), (11, 10, 2), (10, 7, 6), (7, 1, 8),
+          (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9), (4, 9, 5), (2, 4, 11), (6, 2, 10), (8, 6, 7), (9, 8, 1)]
+    mid = {}
+
+    def m(a, b):
+        key = (min(a, b), max(a, b))
+        if key not in mid:
+            q = [(vs[a][i] + vs[b][i]) / 2 for i in range(3)]
+            ln = math.sqrt(sum(c * c for c in q))
+            vs.append(tuple(c / ln for c in q))
+            mid[key] = len(vs) - 1
+        return mid[key]
+    out = []
+    for a, b, c in fs:
+        ab, bc, ca = m(a, b), m(b, c), m(c, a)
+        out += [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)]
+    _ICO.extend((vs, out))
+    return _ICO
+
+
+LEAF_UV = (0.5625, 0.5625)    # a cell of the blossom's grid that is whole and never flecked (either way up)
+
+
+def clump(w, cx, cy, cz, rx, ry, rz, col, seed, lacy=True, droop=0.0, flat=0.55):
+    """One mass of leaves or blossom (see above): radii rx, ry, rz; `droop`
+    pulls its underside down (a weeping limb's), `flat` squashes it under."""
+    vs, fs = _ico()
+    rr = random.Random(seed)
+    jit = [1.0 + rr.uniform(-0.2, 0.2) for _ in vs]
+    pts, uvs = [], []
+    for v, j in zip(vs, jit):
+        y = v[1] * (flat if v[1] < 0 else 1.0)
+        if v[1] < 0:
+            y -= droop * (1.0 - abs(v[0]) * 0.5) * (-v[1])
+        pts.append((cx + v[0] * rx * j, cy + y * ry * j, cz + v[2] * rz * j))
+        if lacy:
+            k_ = 0.42 * rr.uniform(0.8, 1.05)
+            uvs.append((0.5 + v[0] * k_, 0.5 + v[2] * k_))
+        else:
+            uvs.append(LEAF_UV)
+    # (Each corner the colour of its vertex, so the light runs smooth across
+    # the facets: lighter up top, darker under, each vertex its own.)
+    cols = []
+    for v in vs:
+        shade = (0.55 + 0.6 * max(0.0, v[1]) + 0.15 * min(0.0, v[1])) * rr.uniform(0.8, 1.15)
+        cols.append((min(1.0, col[0] * shade), min(1.0, col[1] * shade), min(1.0, col[2] * shade), P.BLOSSOM))
+    b_ = K.batches[w]
+    for a, b, c in fs:
+        base = len(b_.verts)
+        b_.verts.extend(K.P(*pts[i]) for i in (a, b, c))
+        b_.faces.append((base, base + 1, base + 2))
+        b_.uvs.extend((uvs[a], uvs[b], uvs[c]))
+        b_.cols.extend((cols[a], cols[b], cols[c]))
+
+
 @P.proto("jt_planter", box=(0.6, 0.5, 0.6), reach=300, detail=True)
 def _jt_planter(k):
     """A square planter of cast stone, a shrub in it: a mound of leaves and
@@ -774,8 +847,38 @@ def _jt_planter(k):
     T, L = k("trim"), k("plant")
     box(T, -0.58, 0.58, 0.0, 0.5, -0.58, 0.58, scale=1.0, col=(0.14, 0.145, 0.155, 1))
     box(T, -0.64, 0.64, 0.5, 0.58, -0.64, 0.64, scale=1.0, col=(0.27, 0.27, 0.28, 1), bottom=True)
-    for cx, cy, cz, r_, col in ((0.0, 0.66, 0.0, 0.66, LEAF_D), (0.22, 0.9, -0.14, 0.44, LEAF), (-0.24, 1.02, 0.18, 0.38, LEAF_D), (0.04, 1.24, 0.06, 0.3, LEAF_Y)):
-        P.pad(L, cx, cy, cz, r_, col)
+    for i, (cx, cy, cz, r_, col) in enumerate(((0.0, 0.78, 0.0, 0.5, LEAF_D), (0.26, 0.92, -0.18, 0.36, LEAF), (-0.27, 0.96, 0.17, 0.34, LEAF_D),
+                                               (0.2, 0.86, 0.3, 0.3, LEAF_Y), (-0.22, 0.84, -0.28, 0.3, LEAF), (0.03, 1.2, 0.04, 0.3, LEAF_Y))):
+        clump(L, cx, cy, cz, r_ * 1.05, r_ * 0.82, r_, col, 4100 + i, lacy=False)
+    for i in range(7):
+        P.frond(L, (0.0, 0.85, 0.0), i * 0.9 + 0.3, 0.9 + 0.12 * (i % 3), 0.62, 0.8, 0.09, (LEAF, LEAF_Y)[i % 2], segs=2, vee=False)
+
+
+@P.proto("jt_hedge", box=(1.3, 0.5, 0.45), reach=300, detail=True)
+def _jt_hedge(k):
+    """A clipped hedge in a long box of dark timber on the reservation, its
+    length along z: a run of leaf masses shorn flat on top, a few sprays out
+    of it."""
+    T, L = k("trim"), k("plant")
+    box(T, -0.42, 0.42, 0.0, 0.42, -1.3, 1.3, scale=1.0, col=(0.11, 0.07, 0.045, 1))
+    box(T, -0.46, 0.46, 0.42, 0.48, -1.34, 1.34, scale=1.0, col=(0.06, 0.04, 0.03, 1), bottom=True)
+    for i in range(7):
+        z = -1.05 + i * 0.35
+        clump(L, (i % 2 - 0.5) * 0.08, 0.72, z, 0.36, 0.3, 0.3, (LEAF, LEAF_D, LEAF_Y, LEAF)[i % 4], 4600 + i, lacy=False, flat=0.4)
+    for i in range(4):
+        P.frond(L, (0.0, 0.85, -0.9 + i * 0.6), i * 1.9 + 0.4, 1.0, 0.45, 0.6, 0.08, LEAF_Y, segs=2, vee=False)
+
+
+@P.proto("jt_planter_b", box=(0.55, 0.45, 0.55), reach=300, detail=True)
+def _jt_planter_b(k):
+    """A round bowl of cast stone with tall grass in it: blades sprayed out
+    from its middle, a low mass of leaves round their feet."""
+    T, L = k("trim"), k("plant")
+    P.lathe(T, 0.0, 0.0, ((0.0, 0.42), (0.36, 0.55), (0.44, 0.58)), segs=10, col=(0.2, 0.2, 0.21, 1), cap=False)
+    _wetless_disc(T, 0.4, 0.5, (0.04, 0.032, 0.026, 1), 0.0, 0.0, 10)
+    clump(L, 0.0, 0.55, 0.0, 0.42, 0.22, 0.42, LEAF_D, 4700, lacy=False, flat=0.4)
+    for i in range(11):
+        P.frond(L, (0.0, 0.5, 0.0), i * 0.571 + 0.2, 1.25 - 0.15 * (i % 3), 0.9 + 0.2 * (i % 2), 0.7, 0.07, (LEAF, LEAF_Y)[i % 2], segs=3, vee=False)
 
 
 @P.proto("jt_laundry", box=(2.0, 1.1, 0.1), reach=260, detail=True)
@@ -816,11 +919,9 @@ def _jt_plants(k):
     for x, z, r_, h, col in ((-0.32, 0.0, 0.16, 0.3, (0.07, 0.035, 0.025, 1)), (0.18, 0.06, 0.2, 0.38, (0.025, 0.04, 0.06, 1)), (-0.04, -0.22, 0.12, 0.22, (0.05, 0.05, 0.045, 1))):
         P.lathe(T, x, z, ((0.0, r_ * 0.72), (h * 0.8, r_), (h, r_ * 0.9)), segs=6, col=col, cap=False)
         _wetless_disc(T, h - 0.025, r_ * 0.86, (0.025, 0.018, 0.013, 1), x, z, 6)
-    P.pad(L, -0.32, 0.36, 0.0, 0.27, LEAF)
-    P.pad(L, -0.36, 0.5, 0.04, 0.17, LEAF_Y)
-    P.pad(L, 0.18, 0.46, 0.06, 0.31, LEAF_D)
-    P.pad(L, 0.21, 0.7, 0.02, 0.23, LEAF)
-    P.pad(L, 0.14, 0.9, 0.08, 0.15, LEAF_D)
+    for i, (cx, cy, cz, r_, col) in enumerate(((-0.32, 0.4, 0.0, 0.2, LEAF), (-0.36, 0.52, 0.04, 0.13, LEAF_Y), (0.18, 0.52, 0.06, 0.22, LEAF_D),
+                                               (0.21, 0.72, 0.02, 0.17, LEAF), (0.14, 0.88, 0.08, 0.12, LEAF_D))):
+        clump(L, cx, cy, cz, r_, r_ * 0.85, r_, col, 4200 + i, lacy=False)
     for i in range(5):
         P.frond(L, (-0.04, 0.22, -0.22), i * 1.26 + 0.3, 1.25 - 0.12 * (i % 2), 0.5, 0.9, 0.09, LEAF, segs=2, vee=False)
 
@@ -1421,10 +1522,12 @@ def _jt_tree_a(k):
                  ((0.36, 2.62, -0.12), (0.7, 2.85, 0.15), (1.0, 2.95, 0.45), (1.2, 2.85, 0.65))):
         _bark(w, limb, (0.075, 0.06, 0.045, 0.03), segs=5)
     pink, rose, pale = (0.82, 0.3, 0.5), (0.72, 0.16, 0.34), (0.85, 0.5, 0.62)
-    for cx, cy, cz, r, col in ((-0.75, 2.05, 0.85, 0.75, pink), (-0.3, 2.25, 0.55, 0.6, pale), (1.1, 2.25, -0.55, 0.78, rose), (0.6, 2.45, -0.4, 0.6, pink),
-                               (-0.65, 2.7, -0.75, 0.72, pale), (-0.2, 2.95, -0.35, 0.62, rose), (1.1, 2.8, 0.6, 0.72, pink), (0.55, 3.1, 0.2, 0.7, pale),
-                               (0.2, 3.25, -0.15, 0.55, pink)):
-        P.pad(w, cx, cy, cz, r, col, segs=6)
+    # Masses hung from each limb's end, weeping, and the crown over them.
+    for i, (cx, cy, cz, r, col, dr) in enumerate(((-0.8, 2.0, 0.9, 0.62, pink, 0.5), (-0.35, 2.2, 0.6, 0.5, pale, 0.3), (1.15, 2.2, -0.58, 0.62, rose, 0.55),
+                                                  (0.65, 2.42, -0.38, 0.5, pink, 0.3), (-0.7, 2.62, -0.8, 0.6, pale, 0.5), (-0.25, 2.88, -0.4, 0.52, rose, 0.2),
+                                                  (1.15, 2.74, 0.62, 0.6, pink, 0.5), (0.55, 3.05, 0.2, 0.62, pale, 0.15), (0.15, 3.28, -0.15, 0.55, pink, 0.0),
+                                                  (-0.3, 3.0, 0.35, 0.5, rose, 0.1), (0.85, 2.0, 0.05, 0.42, pale, 0.6), (-0.05, 2.45, -0.95, 0.45, pink, 0.5))):
+        clump(w, cx, cy, cz, r, r * 0.8, r, col, 4300 + i, lacy=True, droop=dr)
 
 
 @P.proto("jt_tree_b", box=(0.75, 2.1, 0.75), reach=480)
@@ -1442,9 +1545,10 @@ def _jt_tree_b(k):
                  ((0.0, 1.6, 0.05), (0.05, 2.3, -0.3), (0.0, 2.9, -0.5))):
         _bark(w, limb, (0.08, 0.06, 0.035), segs=5)
     crim, rust, deep = (0.62, 0.08, 0.06), (0.62, 0.22, 0.07), (0.42, 0.05, 0.05)
-    for cx, cy, cz, r, col in ((-0.7, 2.45, 0.35, 0.7, crim), (0.75, 2.55, -0.3, 0.72, rust), (0.0, 2.85, -0.5, 0.68, deep), (-0.1, 2.6, 0.45, 0.55, rust),
-                               (0.35, 3.0, 0.1, 0.62, crim), (-0.45, 2.95, -0.25, 0.55, crim)):
-        P.pad(w, cx, cy, cz, r, col, segs=6)
+    for i, (cx, cy, cz, r, col) in enumerate(((-0.72, 2.42, 0.35, 0.55, crim), (0.75, 2.52, -0.3, 0.58, rust), (0.0, 2.8, -0.52, 0.55, deep), (-0.1, 2.55, 0.5, 0.48, rust),
+                                              (0.35, 3.0, 0.12, 0.55, crim), (-0.45, 2.95, -0.25, 0.5, crim), (0.55, 2.35, 0.45, 0.45, deep), (-0.55, 2.3, -0.5, 0.45, rust),
+                                              (0.05, 3.25, -0.1, 0.48, rust), (0.9, 2.85, 0.15, 0.4, crim), (-0.85, 2.8, 0.05, 0.42, deep))):
+        clump(w, cx, cy, cz, r * 1.05, r * 0.72, r, col, 4400 + i, lacy=False)
 
 
 @P.proto("jt_tree_c", box=(0.6, 1.8, 0.6), reach=420)
@@ -1454,18 +1558,17 @@ def _jt_tree_c(k):
     of four posts and a ring."""
     w = k("plant")
     quad(w, (-0.6, 0.012, 0.6), (0.6, 0.012, 0.6), (0.6, 0.012, -0.6), (-0.6, 0.012, -0.6), ((0.5, 0.5),) * 4, (0.035, 0.035, 0.04, P.LIMB))
-    # (Its guard in the tree's own material: four posts and a ring.)
-    for x, z in ((-0.32, -0.32), (0.32, -0.32), (0.32, 0.32), (-0.32, 0.32)):
-        _pbox(w, x - 0.018, x + 0.018, 0.0, 1.2, z - 0.018, z + 0.018, (0.12, 0.12, 0.13, 1))
-    for a, b in (((-0.34, -0.34), (0.34, -0.34)), ((0.34, -0.34), (0.34, 0.34)), ((0.34, 0.34), (-0.34, 0.34)), ((-0.34, 0.34), (-0.34, -0.34))):
-        _pbox(w, min(a[0], b[0]) - 0.015, max(a[0], b[0]) + 0.015, 1.17, 1.2, min(a[1], b[1]) - 0.015, max(a[1], b[1]) + 0.015, (0.12, 0.12, 0.13, 1))
-    _bark(w, ((0.0, 0.0, 0.0), (0.03, 0.8, 0.0), (-0.02, 1.6, 0.04), (0.04, 2.2, 0.0)), (0.09, 0.075, 0.06, 0.05), segs=6)
-    for limb in (((-0.02, 1.6, 0.04), (-0.4, 2.1, 0.3), (-0.6, 2.4, 0.45)), ((0.04, 2.2, 0.0), (0.4, 2.6, -0.2), (0.55, 2.9, -0.3)),
-                 ((0.04, 2.2, 0.0), (-0.1, 2.75, -0.35), (-0.15, 3.1, -0.4))):
-        _bark(w, limb, (0.045, 0.035, 0.02), segs=4)
+    # (A low iron ring round its pit, the grate's frame: no stakes.)
+    for a, b in (((-0.5, -0.5), (0.5, -0.5)), ((0.5, -0.5), (0.5, 0.5)), ((0.5, 0.5), (-0.5, 0.5)), ((-0.5, 0.5), (-0.5, -0.5))):
+        _pbox(w, min(a[0], b[0]) - 0.02, max(a[0], b[0]) + 0.02, 0.0, 0.32, min(a[1], b[1]) - 0.02, max(a[1], b[1]) + 0.02, (0.1, 0.1, 0.11, 1))
+    _bark(w, ((0.0, 0.0, 0.0), (0.04, 0.7, 0.02), (-0.02, 1.4, 0.05), (0.05, 1.95, 0.0), (0.02, 2.4, -0.04)), (0.13, 0.11, 0.09, 0.075, 0.06), segs=7)
+    for limb in (((-0.02, 1.4, 0.05), (-0.42, 1.9, 0.32), (-0.68, 2.2, 0.5)), ((0.05, 1.95, 0.0), (0.42, 2.35, -0.22), (0.62, 2.65, -0.34)),
+                 ((0.02, 2.4, -0.04), (-0.12, 2.8, -0.36), (-0.2, 3.1, -0.45)), ((0.05, 1.95, 0.0), (0.3, 2.3, 0.35), (0.45, 2.6, 0.55))):
+        _bark(w, limb, (0.055, 0.042, 0.026), segs=5)
     pale, pink = (0.86, 0.6, 0.68), (0.8, 0.36, 0.52)
-    for cx, cy, cz, r, col in ((-0.6, 2.4, 0.45, 0.55, pale), (0.55, 2.85, -0.3, 0.58, pink), (-0.15, 3.1, -0.4, 0.5, pale), (0.05, 2.6, 0.2, 0.45, pink)):
-        P.pad(w, cx, cy, cz, r, col, segs=6)
+    for i, (cx, cy, cz, r, col) in enumerate(((-0.62, 2.3, 0.48, 0.48, pale), (0.6, 2.72, -0.32, 0.5, pink), (-0.18, 3.1, -0.42, 0.46, pale), (0.05, 2.62, 0.18, 0.44, pink),
+                                              (0.45, 2.55, 0.55, 0.42, pale), (-0.4, 2.75, -0.05, 0.42, pink), (0.2, 3.2, 0.05, 0.4, pale), (0.7, 2.3, 0.05, 0.36, pink))):
+        clump(w, cx, cy, cz, r, r * 0.78, r, col, 4500 + i, lacy=True, droop=0.15)
 
 
 @P.proto("jt_lanefloor", box=(1.2, 0.02, 0.6), reach=120, detail=True)

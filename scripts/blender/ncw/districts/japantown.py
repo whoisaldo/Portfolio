@@ -1206,6 +1206,19 @@ def lane_more(f, w, fixtures, free, r):
         run.append(s)
 
 
+def wbox(f, key, s0, s1, y0, y1, out, col):
+    """A small box on a wall as the lane sees it: its front, top, underside
+    and ends (none against the wall)."""
+    a, b = f.at(s0), f.at(s1)
+    A0, A1, B0, B1 = f.p(a, y0, 0.0), f.p(a, y0, out), f.p(b, y0, out), f.p(b, y0, 0.0)
+    up = lambda q: (q[0], y1, q[2])  # noqa: E731
+    quad(key, A1, B1, up(B1), up(A1), col=col)
+    quad(key, up(A1), up(B1), up(B0), up(A0), col=col)
+    quad(key, A0, B0, B1, A1, col=col)
+    quad(key, A0, A1, up(A1), up(A0), col=col)
+    quad(key, B1, B0, up(B0), up(B1), col=col)
+
+
 def lane_high(f, w, r, high, h, base=G0, s0=0.0):
     """Over head height on a lane's wall (the m8 review: "flat blue walls
     with a single door or meter box"), on its own stream: every metre and a
@@ -1246,7 +1259,7 @@ def lane_high(f, w, r, high, h, base=G0, s0=0.0):
         elif roll < 0.66:
             # A junction box, its cables down into the conduit.
             jy = base + r.uniform(2.45, 2.55)
-            f.box((D, "trim", 1), s, s + 0.36, jy, jy + 0.48, 0.0, 0.15, col=r.choice(((0.22, 0.23, 0.22, 1), (0.3, 0.27, 0.2, 1), (0.12, 0.13, 0.15, 1))))
+            wbox(f, (D, "trim", 1), s, s + 0.36, jy, jy + 0.48, 0.15, r.choice(((0.22, 0.23, 0.22, 1), (0.3, 0.27, 0.2, 1), (0.12, 0.13, 0.15, 1))))
             for ds in (0.08, 0.2, 0.3):
                 f.quad((D, "trim", 1), s + ds - 0.012, s + ds + 0.012, jy + 0.48, base + 4.15, 0.06, col=(0.02, 0.02, 0.025, 1))
             used = 0.4
@@ -1257,9 +1270,9 @@ def lane_high(f, w, r, high, h, base=G0, s0=0.0):
             run = min(room - 0.2, r.uniform(1.6, 3.6))
             py = base + r.uniform(2.7, 2.85)
             col = r.choice(((0.2, 0.21, 0.22, 1), (0.17, 0.075, 0.04, 1), (0.1, 0.11, 0.1, 1)))
-            pipe((D, "trim", 1), f.p(f.at(s), py, 0.12), f.p(f.at(s + run), py, 0.12), 0.055, segs=5, col=col)
+            pipe((D, "trim", 1), f.p(f.at(s), py, 0.12), f.p(f.at(s + run), py, 0.12), 0.055, segs=4, col=col)
             for ss in (s + 0.2, s + run - 0.2):
-                f.box((D, "trim", 1), ss - 0.025, ss + 0.025, py - 0.07, py + 0.07, 0.0, 0.18, col=(0.03, 0.034, 0.042, 1))
+                f.quad((D, "trim", 1), ss - 0.025, ss + 0.025, py - 0.07, py + 0.07, 0.17, col=(0.03, 0.034, 0.042, 1))
             used = run
         else:
             x, _, z = f.p(f.at(s + 0.5), base, 0.0)
@@ -1274,7 +1287,7 @@ def lane_high(f, w, r, high, h, base=G0, s0=0.0):
                 b = min(w - 0.2, a + r.uniform(4.0, 8.0))
                 pa, pb = f.p(f.at(a), y, out), f.p(f.at(b), y, out)
                 J.span("jt_cable", (pa[0], pa[2]), (pb[0], pb[2]), y, r.uniform(0.18, 0.35))
-                f.box((D, "trim", 1), a - 0.02, a + 0.02, y - 0.04, y + 0.04, 0.0, out + 0.03, col=(0.03, 0.034, 0.042, 1))
+                f.quad((D, "trim", 1), a - 0.02, a + 0.02, y - 0.04, y + 0.04, out + 0.02, col=(0.03, 0.034, 0.042, 1))
                 a = b
 
 
@@ -1316,7 +1329,7 @@ def lane_mid(f, w, r, mid):
         if roll < 0.22:
             J.board(f, sc, G0 + 2.15, "bx", k=0.4, out=0.08)
         elif roll < 0.45:
-            f.box((D, "trim", 1), sc - 0.17, sc + 0.17, G0 + 1.85, G0 + 2.3, 0.0, 0.13, col=r.choice(((0.2, 0.21, 0.2, 1), (0.28, 0.25, 0.18, 1), (0.1, 0.11, 0.13, 1))))
+            wbox(f, (D, "trim", 1), sc - 0.17, sc + 0.17, G0 + 1.85, G0 + 2.3, 0.13, r.choice(((0.2, 0.21, 0.2, 1), (0.28, 0.25, 0.18, 1), (0.1, 0.11, 0.13, 1))))
             f.quad((D, "trim", 1), sc - 0.012, sc + 0.012, G0 + 2.3, G0 + 2.95, 0.05, col=(0.02, 0.02, 0.025, 1))
         elif roll < 0.62:
             for j, col in enumerate(r.sample(((0.5, 0.1, 0.08, 1), (0.08, 0.3, 0.32, 1), (0.55, 0.45, 0.1, 1), (0.42, 0.42, 0.4, 1), (0.3, 0.1, 0.35, 1)), 4)):
@@ -1324,7 +1337,9 @@ def lane_mid(f, w, r, mid):
                 yy = G0 + 1.75 + 0.05 * (j % 2)
                 f.quad((D, "trim", 1), ss, ss + 0.1, yy, yy + 0.08, 0.02, col=col)
         if L > 1.4 and r.random() < 0.55:
-            f.box((D, "trim", 1), a, b, G0 + 2.36, G0 + 2.44, 0.0, 0.06, col=(0.17, 0.17, 0.17, 1))
+            f.quad((D, "trim", 1), a, b, G0 + 2.36, G0 + 2.44, 0.06, col=(0.17, 0.17, 0.17, 1))
+            a_, b_ = f.at(a), f.at(b)
+            quad((D, "trim", 1), f.p(a_, G0 + 2.44, 0.06), f.p(b_, G0 + 2.44, 0.06), f.p(b_, G0 + 2.44, 0.0), f.p(a_, G0 + 2.44, 0.0), col=(0.2, 0.2, 0.2, 1))
 
 
 def lane_face(rec, name, cap=None):
@@ -1697,7 +1712,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
         za = z0 + 0.2
         while za < z1 - 0.3:
             zb = min(za + 2.4, z1 - 0.2)
-            t = rs.uniform(0.8, 1.45)
+            t = rs.uniform(0.7, 1.6)
             c = (J.DECK_TEAL[0] * t * rs.uniform(0.85, 1.25), J.DECK_TEAL[1] * t, J.DECK_TEAL[2] * t * rs.uniform(0.9, 1.1), 1)
             # (Round 3, its own dice: a slab relaid in new concrete, a patch
             # of tar where one cracked, one stained by a leak.)
@@ -1711,9 +1726,25 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
                 c = (c[0] * 1.5 + 0.02, c[1] * 1.15 + 0.008, c[2] * 0.8, 1)
             xa, xc = sorted((X(ua + 0.035), X(ub - 0.035)))
             quad((D, "glow", 1), (xa, y + 0.012, zb - 0.035), (xc, y + 0.012, zb - 0.035), (xc, y + 0.012, za + 0.035), (xa, y + 0.012, za + 0.035), col=c)
+            # (Round 4: a crack across one slab in four, a grimy corner on another.)
+            if rp.random() < 0.25:
+                ca, cb = (xa + (xc - xa) * rp.uniform(0.1, 0.4), za + 0.1), (xa + (xc - xa) * rp.uniform(0.6, 0.9), zb - 0.1)
+                quad((D, "glow", 1), (ca[0] - 0.02, y + 0.016, ca[1]), (ca[0] + 0.02, y + 0.016, ca[1]), (cb[0] + 0.02, y + 0.016, cb[1]), (cb[0] - 0.02, y + 0.016, cb[1]),
+                     col=(0.004, 0.006, 0.007, 1))
+            elif rp.random() < 0.2:
+                gc = tuple(v * 0.45 for v in c[:3]) + (1,)
+                poly((D, "glow", 1), [(xa + 0.035, y + 0.016, za + 0.55), (xa + 0.55, y + 0.016, za + 0.035), (xa + 0.035, y + 0.016, za + 0.035)], [(0, 0)] * 3, gc)
             za = zb
         ua = ub
     parapet(x0, x1, z0, z1, top, tcol, h=0.25, t=0.2)
+    # (Round 4: its edge lit, the m8 review's "rim or edge light on the roof
+    # decks": a strip along the parapet's inner foot, its light on the deck.)
+    rim_hue = rs.choice(("cyan", "magenta", "pink", "amber"))
+    for (ax, az), (bx, bz) in (((x0 + 0.21, z1 - 0.21), (x1 - 0.21, z1 - 0.21)), ((x1 - 0.21, z0 + 0.21), (x0 + 0.21, z0 + 0.21)),
+                               ((x0 + 0.21, z0 + 0.21), (x0 + 0.21, z1 - 0.21)), ((x1 - 0.21, z1 - 0.21), (x1 - 0.21, z0 + 0.21))):
+        quad((D, "glow", 0), (ax, y + 0.03, az), (bx, y + 0.03, bz), (bx, y + 0.09, bz), (ax, y + 0.09, az), col=GLOW[rim_hue])
+        quad((D, "glow", 0), (bx, y + 0.03, bz), (ax, y + 0.03, az), (ax, y + 0.09, az), (bx, y + 0.09, bz), col=GLOW[rim_hue])
+    light(D, X(w - 0.8), top + 0.6, (z0 + z1) / 2, rim_hue, 4.0)
     for a, b in (((x0 + 0.1, z0 + 0.1), (x1 - 0.1, z0 + 0.1)), ((x1 - 0.1, z0 + 0.1), (x1 - 0.1, z1 - 0.1)),
                  ((x1 - 0.1, z1 - 0.1), (x0 + 0.1, z1 - 0.1)), ((x0 + 0.1, z1 - 0.1), (x0 + 0.1, z0 + 0.1))):
         J.rail_run(a, b, top + 0.25)
@@ -1775,7 +1806,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
     bench(X(w - 2.6), zv + side, -HALF_PI * sgn, r, top + 0.1)
     J.put("bags", X(tu + 0.9), top + 0.1, z1 - 0.9, r.uniform(0, 6.28))
     if d > 6.5:
-        J.put("crates", X(tu + 2.2), top + 0.1, z1 - 0.8, r.uniform(-0.2, 0.2))
+        J.put("drum", X(tu + 2.2), top + 0.1, z1 - 0.8, r.uniform(-0.2, 0.2))
     # Chairs round a crate in the first lamp's pool.
     if d > 6.0 and w - tu > 6.0:
         cx, cz, cyaw = X(tu + 1.6), z0 + 2.9, r.uniform(-0.5, 0.5)
@@ -1820,7 +1851,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
         J.put("drain", X(w - 1.3), top + 0.1, zz_, 0.0)
     if w - tu > 11.0:
         J.put("jt_ductrun", X(w - 7.4), top + 0.1, z0 + 0.75, 0.0 if sgn > 0 else math.pi, 0.7, 1.0)
-    kit = ["jt_chairs", "jt_deckbits", "crates", "jt_planter", "jt_deckbits", "bench", "bags", "jt_deckbits", "barrel", "jt_chairs", "jt_deckbits", "crates",
+    kit = ["jt_chairs", "jt_deckbits", "drum", "jt_planter", "jt_deckbits", "bench", "bags", "jt_deckbits", "barrel", "jt_chairs", "jt_deckbits", "dumpster",
            "jt_plants", "pallets", "jt_cooler", "drum", "jt_deckbits", "jt_plants", "rubbish", "jt_stools"]
     n_kit, done, tries = min(len(kit), int((w - tu) * d / 17)), 0, 0
     while done < n_kit and tries < 60 and w - tu > 5.0 and d > 5.0:
@@ -3409,33 +3440,61 @@ def median():
         quad((D, "sidewalk", 0), (-80.55, G0 + 0.004, b - 0.25), (-79.45, G0 + 0.004, b - 0.25), (-79.45, G0 + 0.004, a + 0.25), (-80.55, G0 + 0.004, a + 0.25),
              uvs=((0, 0), (0.55, 0), (0.55, (b - a) / 2), (0, (b - a) / 2)))
         for e, dz in ((a, 1.0), (b, -1.0)):
-            for x in (-80.45, -79.55):
-                J.put("bollard", x, G0, e + dz * 0.5)
+            # (Round 4: the noses differ, a pair of posts, three blocks, or a barrier.)
+            nose = mr.choice(("posts", "posts", "cubes", "barrier"))
+            if nose == "posts":
+                for x in (-80.45, -79.55):
+                    J.put("bollard", x, G0, e + dz * 0.5)
+            elif nose == "cubes":
+                for x in (-80.5, -80.0, -79.5):
+                    J.put("bollard_cube", x, G0, e + dz * 0.45)
+            else:
+                J.put("barrier", -80.0, G0, e + dz * 0.45, 0.0)
             # The nose's beacon: a banded post, an amber lamp on it.
             for i in range(4):
                 cylinder((D, "trim", 1), -80.0, e + dz * 1.3, G0 + i * 0.28, G0 + (i + 1) * 0.28, 0.09, segs=6, col=(0.4, 0.3, 0.04, 1) if i % 2 else (0.02, 0.02, 0.024, 1), cap=i == 3)
             cylinder((D, "glow", 0), -80.0, e + dz * 1.3, G0 + 1.12, G0 + 1.26, 0.07, segs=6, col=(0.8, 0.42, 0.08, 1))
             light(D, -80.0, 1.3, e + dz * 1.3, "amber", 2.0)
-        z, k = a + 4.5, 0
+        # (Round 4: the m8 review saw "the same median planters, sakura and
+        # bollard pairs every few frames": what stands on it is dealt, never
+        # the same twice running, a lamp at least every 20 m, at its own
+        # spacing, the guard rail between some and not others.)
+        z, prev, lamp_z = a + 4.5, None, a
         while z < b - 3.5:
             low = not clear_of(z, OVER, 2.0) or any(abs(z - u) < 3.2 for u in STRUNG)
-            if k % 4 == 0:
-                # (A palm where nothing is slung over the street, a blossom tree under what is.)
-                if low:
-                    tree(-80.0, G0, z, mr.uniform(0, 6.28), pit=False)
-                else:
-                    J.put("planter_palm", -80.0, G0, z, mr.uniform(0, 6.28))
-                light(D, -80.0, 1.0, z, "pink" if low else "green", 2.5)
-            elif k % 4 == 2:
+            pool = ["tree", "tree", "lamp", "planter", "hedge", "grass", "lightbox", "drum"] + ([] if low else ["palm", "palm"])
+            kind = "lamp" if z - lamp_z > 18.0 else mr.choice([q for q in pool if q != prev])
+            if kind in ("hedge",) and z + 1.6 > b - 2.0:
+                kind = "planter"
+            if kind == "tree":
+                tree(-80.0, G0, z, mr.uniform(0, 6.28), pit=False)
+                light(D, -80.0, 1.0, z, "pink", 2.5)
+            elif kind == "palm":
+                J.put("planter_palm", -80.0, G0, z, mr.uniform(0, 6.28))
+                light(D, -80.0, 1.0, z, "green", 2.5)
+            elif kind == "lamp":
                 J.put("lamp_short", -80.0, G0, z)
                 light(D, -80.0, 3.0, z, "amber", 4.0)
-            else:
+                lamp_z = z
+            elif kind == "planter":
                 J.put("jt_planter", -80.0, G0, z, mr.uniform(0, 1.5))
-            for dz in (2.0, 4.0):
-                if z + dz + 1.0 < b - 2.0:
+            elif kind == "grass":
+                J.put("jt_planter_b", -80.0, G0, z, mr.uniform(0, 6.28))
+            elif kind == "hedge":
+                J.put("jt_hedge", -80.0, G0, z + 0.6, mr.choice((0.0, math.pi)))
+                z += 1.2
+            elif kind == "lightbox":
+                J.put("lightbox", -80.0, G0, z, 0.0)
+            else:
+                J.put("ad_drum", -80.0, G0, z, mr.uniform(0, 6.28))
+            prev = kind
+            step = mr.uniform(4.5, 7.5)
+            rails = mr.choice((0, 1, 2, 2))
+            for j in range(rails):
+                dz = 2.0 + j * 2.0
+                if z + dz + 1.0 < min(b - 2.0, z + step - 1.0):
                     J.put("railing", -80.0, G0, z + dz, HALF_PI)
-            z += 6.0
-            k += 1
+            z += step
 
 
 def kerb_kit():
