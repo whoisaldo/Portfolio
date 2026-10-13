@@ -431,13 +431,18 @@ export const SHOP_ROOM = /* glsl */ `
   // lit cross, shelves of small boxes behind a white counter with a green
   // band and somebody in a white coat at it, a chair tipped back under a
   // ring lamp, an eye chart.
-  vec3 roomClinic(vec3 p, vec3 d, float W, float seed, float fine) {
+  // (v: which of three such rooms, away from the hero's lens. 0 the green
+  // pharmacy; 1 a tattoo parlour, lit red and magenta, the flash pinned up
+  // in rows on its back wall where the shelves would be and no cross; 2 an
+  // implant clinic, cold blue-white, a ring light over the chair in place
+  // of the cross. One green cross on glass up a whole street was one shop.)
+  vec3 roomClinic(vec3 p, vec3 d, float W, float seed, float fine, float v) {
     float D = 3.8 + 1.0 * fract(seed * 3.1);
     vec3 h;
     float face;
     float tm = boxHit(p, d, W, D, h, face);
-    vec3 lit = vec3(0.78, 1.0, 0.92);
-    vec3 green = vec3(0.12, 1.0, 0.45);
+    vec3 lit = v < 0.5 ? vec3(0.78, 1.0, 0.92) : (v < 1.5 ? vec3(1.0, 0.55, 0.62) : vec3(0.7, 0.86, 1.0));
+    vec3 green = v < 0.5 ? vec3(0.12, 1.0, 0.45) : (v < 1.5 ? vec3(1.0, 0.16, 0.5) : vec3(0.3, 0.75, 1.0));
     vec2 q = vec2(h.x, h.y - FLOOR_Y);
     vec3 col;
     if (face < 0.5) {
@@ -448,6 +453,20 @@ export const SHOP_ROOM = /* glsl */ `
       col = lit * mix(vec3(0.3, 0.52, 0.42) * 0.55, vec3(0.42), step(1.05, q.y)) * (1.0 - 0.25 * step(0.47, max(tile.x, tile.y)) * fine);
       col = mix(col, green * 0.5, step(abs(q.y - 1.05), 0.03));
       float shelves = within(q, vec2(W * 0.4, 1.0), vec2(W - 0.25, 2.3));
+      if (v > 0.5 && v < 1.5) {
+        // The flash: sheets pinned in rows, each a design in black ink and
+        // a colour, on a dark plum wall.
+        col = lit * vec3(0.16, 0.05, 0.09) * (1.0 - 0.2 * step(0.47, max(fract(q.x / 0.6), fract(q.y / 0.6))) * fine);
+        vec2 sg = vec2((q.x - W * 0.08) / 0.34, (q.y - 1.0) / 0.42);
+        vec2 sf = fract(sg);
+        float hs = hash12(floor(sg) + seed * 17.0);
+        float sheet = within(q, vec2(W * 0.08, 1.0), vec2(W - 0.2, 2.35)) * step(0.08, sf.x) * step(sf.x, 0.92) * step(0.06, sf.y) * step(sf.y, 0.94) * step(0.15, hs);
+        vec2 sc = (sf - 0.5) * vec2(0.34, 0.42);
+        float ink = hs < 0.4 ? step(abs(length(sc) - 0.09), 0.018) : (hs < 0.7 ? step(abs(sc.x) + abs(sc.y), 0.11) * step(0.06, abs(sc.x) + abs(sc.y)) : step(abs(sc.x), 0.02) + step(abs(sc.y + 0.02 * sin(sc.x * 60.0)), 0.02) * step(abs(sc.x), 0.12));
+        vec3 sheetCol = mix(vec3(0.9, 0.86, 0.76), mix(neonOf(hs * 9.0) * 0.7, vec3(0.04), step(0.5, fract(hs * 7.0))), clamp(ink, 0.0, 1.0) * fine);
+        col = mix(col, sheetCol * lit * 0.7, sheet);
+        shelves = 0.0;
+      }
       vec2 g = vec2(q.x / 0.1, (q.y - 1.0) / 0.26);
       float hb = hash12(vec2(floor(g.x / 2.0), floor(g.y)) + seed * 13.0);
       vec3 box = hb < 0.5 ? vec3(0.95) : (hb < 0.72 ? vec3(0.55, 0.95, 0.75) : (hb < 0.9 ? vec3(0.55, 0.8, 1.0) : vec3(1.0, 0.45, 0.4)));
@@ -456,16 +475,26 @@ export const SHOP_ROOM = /* glsl */ `
       vec2 c = abs(q - vec2(W * 0.2, 1.95));
       // (In two rooms of a clinic in five: a long front cut into rooms
       // each with its lit cross was one white cross printed along it.)
-      float one = step(fract(seed * 17.0), 0.4);
+      float one = step(fract(seed * 17.0), 0.4) * step(v, 0.5);
       float cross = max(step(c.x, 0.3) * step(c.y, 0.1), step(c.x, 0.1) * step(c.y, 0.3)) * one;
       col += green * 0.35 * exp(-dot(c, c) * 3.0) * one;
       col = mix(col, green * 2.4, cross);
+      // (The parlour's tube on its wall: a heart; the implant clinic's
+      // ring of light.)
+      vec2 hq = q - vec2(W * 0.2, 1.9);
+      float lobes = (1.0 - smoothstep(0.012, 0.03, abs(length(vec2(abs(hq.x) - 0.11, hq.y - 0.05)) - 0.11))) * step(0.05, hq.y);
+      float vee = (1.0 - smoothstep(0.012, 0.03, abs(abs(hq.x) - 0.22 * (hq.y + 0.24) / 0.29))) * step(-0.24, hq.y) * step(hq.y, 0.05);
+      float heart = max(lobes, vee);
+      if (v > 0.5 && v < 1.5) col += green * 1.6 * clamp(heart, 0.0, 1.0);
+      if (v > 1.5) col += green * 1.5 * (1.0 - smoothstep(0.015, 0.035, abs(length(hq) - 0.26)));
     } else if (face < 1.5) {
       vec2 f = abs(fract(h.xz / 1.2) - 0.5);
       col = lit * (0.12 + 1.5 * mix(0.3, step(f.x, 0.36) * step(f.y, 0.36), fine));
     } else if (face < 2.5) {
       vec2 tile = abs(fract(h.xz / 0.45) - 0.5);
       col = lit * 0.2 * (1.0 - 0.3 * step(0.48, max(tile.x, tile.y)) * fine);
+      // (The parlour's floor is black and white squares.)
+      if (v > 0.5 && v < 1.5) col = lit * mix(0.03, 0.3, mod(floor(h.x / 0.45) + floor(h.z / 0.45), 2.0));
     } else {
       // A side wall: the dado again, and over it a glass cabinet of boxes
       // on the one side, the eye chart and a row of hooks on the other.
@@ -525,8 +554,8 @@ export const SHOP_ROOM = /* glsl */ `
     t = 0.02 / d.z;
     w = p + d * t;
     vec2 k = vec2((fract(w.x / 1.5) - 0.5) * 1.5, w.y - 1.25);
-    float film = step(abs(k.y), 0.3);
-    float cut = max(step(abs(k.x), 0.2) * step(abs(k.y), 0.07), step(abs(k.x), 0.07) * step(abs(k.y), 0.2));
+    float film = step(abs(k.y), 0.3) * step(v, 1.5);
+    float cut = max(step(abs(k.x), 0.2) * step(abs(k.y), 0.07), step(abs(k.x), 0.07) * step(abs(k.y), 0.2)) * step(v, 0.5);
     col = mix(col, mix(green * vec3(0.5, 0.3, 0.4) * 0.3 + col * 0.25, lit * 0.55, cut), film);
     return col;
   }
@@ -535,12 +564,17 @@ export const SHOP_ROOM = /* glsl */ `
   // the back wall, lit, one piece hung in it; a rail down each side with a
   // shelf of folded things over it; a table of them; two dressed figures
   // on a plinth in the window.
-  vec3 roomBoutique(vec3 p, vec3 d, float W, float seed, float fine) {
+  // (v: 0 as above; 1 shoes and bags, lit cubbies up the back wall and
+  // pedestals in the window, no figures; 2 a second-hand clothes shop, its
+  // back wall one long rail of hanging things under a warmer, dimmer
+  // light, one figure in the window. The two dressed figures in every
+  // clothes shop's window recurred down a whole street.)
+  vec3 roomBoutique(vec3 p, vec3 d, float W, float seed, float fine, float v) {
     float D = 4.2 + 1.3 * fract(seed * 3.1);
     vec3 h;
     float face;
     float tm = boxHit(p, d, W, D, h, face);
-    vec3 lit = vec3(1.0, 0.9, 0.78);
+    vec3 lit = vec3(1.0, 0.9, 0.78) * (v > 1.5 ? 0.75 : 1.0);
     float tone = fract(seed * 29.0);
     vec3 paint = tone < 0.25 ? vec3(0.04, 0.3, 0.33) : (tone < 0.5 ? vec3(0.55, 0.17, 0.08) : (tone < 0.75 ? vec3(0.5, 0.36, 0.07) : vec3(0.33, 0.07, 0.27)));
     vec2 q = vec2(h.x, h.y - FLOOR_Y);
@@ -553,6 +587,23 @@ export const SHOP_ROOM = /* glsl */ `
       col = mix(col, lit * vec3(1.0, 0.95, 0.88) * 0.95, arch);
       float piece = step(abs(a.x), 0.26 + 0.1 * smoothstep(1.6, 0.7, a.y)) * step(0.7, a.y) * step(a.y, 1.6);
       col = mix(col, clothOf(seed * 7.0) * lit, piece);
+      if (v > 0.5 && v < 1.5) {
+        // Cubbies, each lit from its top, a shoe or a bag in most.
+        vec2 cg = vec2((q.x - 0.2) / 0.5, (q.y - 0.5) / 0.4);
+        vec2 cf = fract(cg);
+        float hc = hash12(floor(cg) + seed * 23.0);
+        float inside = within(q, vec2(0.2, 0.5), vec2(W - 0.2, 2.5));
+        vec3 cub = mix(lit * paint * 0.2, lit * vec3(0.95, 0.9, 0.82) * (0.45 + 0.5 * cf.y), step(0.06, cf.x) * step(cf.x, 0.94) * step(0.08, cf.y) * step(cf.y, 0.92));
+        float shoe = step(0.3, hc) * (hc < 0.65 ? within(cf, vec2(0.2, 0.1), vec2(0.8, 0.32)) * step(cf.x - 0.2, 0.3 + cf.y) : within(cf, vec2(0.28, 0.1), vec2(0.72, 0.55)) + step(abs(length((cf - vec2(0.5, 0.55)) * vec2(1.0, 1.3)) - 0.13), 0.025) * step(0.55, cf.y));
+        cub = mix(cub, clothOf(hc * 5.0) * lit * 0.7, clamp(shoe, 0.0, 1.0) * fine);
+        col = mix(col, cub, inside);
+      } else if (v > 1.5) {
+        // One long rail across the back wall, hung full.
+        float hr = hash12(vec2(floor(q.x / 0.09), seed * 41.0));
+        float hang = step(0.9 + 0.5 * fract(hr * 7.0), q.y) * step(q.y, 1.95) * step(0.1, hr) * step(0.15, fract(q.x / 0.09));
+        col = mix(col, clothOf(hr * 3.0) * lit * (0.5 + 0.3 * q.y / 2.0), hang);
+        col = mix(col, vec3(0.6, 0.58, 0.52) * lit, step(abs(q.y - 1.97), 0.015));
+      }
     } else if (face < 1.5) {
       vec2 f = vec2((fract(h.x / 1.4) - 0.5) * 1.4, (fract(h.z / 0.8) - 0.5) * 0.8);
       col = lit * (0.07 + mix(0.12, 3.0 * step(length(f), 0.07), fine));
@@ -577,7 +628,7 @@ export const SHOP_ROOM = /* glsl */ `
     float top = step(abs(c.y - 0.74), 0.04);
     float leg = step(abs(abs(c.x) - W * 0.18), 0.03) * step(c.y, 0.74);
     float stack = step(0.78, c.y) * step(c.y, 0.98) * step(0.12, fract(c.x / 0.36));
-    if (t < tm && abs(c.x) < W * 0.2 && max(top, max(leg, stack)) > 0.5) {
+    if (v < 0.5 && t < tm && abs(c.x) < W * 0.2 && max(top, max(leg, stack)) > 0.5) {
       col = mix(lit * vec3(0.5, 0.36, 0.22) * 0.5, clothOf(hash12(vec2(floor(c.x / 0.36), floor(c.y / 0.05)) + seed) * 3.0) * lit * 0.85, stack);
       tm = t;
     }
@@ -590,7 +641,17 @@ export const SHOP_ROOM = /* glsl */ `
       // legs apart, arms hung clear of the body, a neck and a small head,
       // its form rounded and lit from the spot over it. A block with a disc
       // on it read as a placeholder.)
+      // (Shoes and bags stand on pedestals.)
+      if (v > 0.5 && v < 1.5) {
+        float px0 = fract(w.x / (W / 3.0)) * (W / 3.0) - W / 6.0;
+        float ped = step(abs(px0), 0.22) * step(w.y, FLOOR_Y + 0.5 + 0.45 * fract(floor(w.x / (W / 3.0)) * 0.37 + seed));
+        float top = FLOOR_Y + 0.5 + 0.45 * fract(floor(w.x / (W / 3.0)) * 0.37 + seed);
+        float bag = step(abs(px0), 0.15) * step(top, w.y) * step(w.y, top + 0.24);
+        if (ped > 0.5) col = lit * vec3(0.85, 0.82, 0.76) * 0.55;
+        if (bag > 0.5) col = clothOf(fract(seed * 13.0 + floor(w.x / (W / 3.0)) * 0.31) * 7.0) * lit * 0.75;
+      }
       for (int i = 0; i < 2; i++) {
+        if (v > 0.5 && (v < 1.5 || i == 1)) continue;
         float x0 = W * (i == 0 ? 0.26 + 0.1 * fract(seed * 19.0) : 0.66 + 0.1 * fract(seed * 23.0));
         vec2 m = vec2(w.x - x0, w.y - FLOOR_Y - 0.5);
         float hw = m.y > 1.3 ? 0.18 - (m.y - 1.3) * 0.9 : (m.y > 1.0 ? mix(0.125, 0.18, (m.y - 1.0) / 0.3) : (m.y > 0.8 ? mix(0.16, 0.125, (m.y - 0.8) / 0.2) : 0.15 - 0.06 * smoothstep(0.75, 0.0, m.y)));
@@ -762,8 +823,11 @@ export const SHOP_ROOM = /* glsl */ `
     if (kind < 1.5) return roomBar(p, d, roomW, seed, fine, acc);
     if (kind < 2.5) return roomNoodle(p, d, roomW, seed, fine, acc);
     if (kind < 3.5) return roomArcade(p, d, roomW, seed, fine, acc);
-    if (kind < 4.5) return roomClinic(p, d, roomW, seed, fine);
-    if (kind < 5.5) return roomBoutique(p, d, roomW, seed, fine);
+    // (Which of a clinic's or a clothes shop's three rooms: by the shop,
+    // away from the hero's lens.)
+    float v = floor(fract(shop * 7.31 + 0.13) * 3.0) * step(0.5, freeEye());
+    if (kind < 4.5) return roomClinic(p, d, roomW, seed, fine, v);
+    if (kind < 5.5) return roomBoutique(p, d, roomW, seed, fine, v);
     if (kind < 6.5) return roomWorkshop(p, d, roomW, seed, fine);
     return roomDark(p, d, roomW, seed, fine, street);
   }
