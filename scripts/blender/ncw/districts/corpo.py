@@ -604,4 +604,8 @@ from ncw.districts import corpo_north  # noqa: E402,F401
 # The second rank: towers on the back row's blocks (corpo_rank.py).
 from ncw.districts import corpo_rank  # noqa: E402,F401
 
+# The boulevard line: a guideway along the south kerb, overhead from the
+# street, and its two stations (corpo_line.py).
+from ncw.districts import corpo_line  # noqa: E402,F401
+
 K.ad_report()

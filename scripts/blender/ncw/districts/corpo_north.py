@@ -322,7 +322,7 @@ def track():
         for s_ in (-1, 1):
             # The underside's lines of light, the fascia's stripe and cyan.
             za, zb = sorted((z + s_ * (hw - 0.55), z + s_ * (hw - 0.8)))
-            box(k("glow"), xa + 0.6, xb - 0.6, top - 2.13, top - 2.1, za, zb, scale=1.0, col=belly)
+            box(k("glow"), xa + 0.6, xb - 0.6, top - 2.13, top - 2.1, za, zb, scale=1.0, col=belly, bottom=True)
             za, zb = sorted((z + s_ * hw, z + s_ * (hw + 0.03)))
             box(k("trim"), xa, xb, top - 0.8, top - 0.45, za, zb, scale=1.0, col=K.YELLOW)
             K.neon_box(xa, xb, top - 1.98, top - 1.86, za, zb, "cyan")
@@ -343,7 +343,7 @@ def track():
         box(k("castconcrete", 1), x - 0.22, x + 0.22, top - 2.55, top - 2.1, z - hw + 0.1, z + hw - 0.1, scale=2.0, col=keel, bottom=True)
         if not hx0 - 2.0 < x < hx1 + 2.0 and int(round((x - WEST_X - 2.0) / 4.75)) % 2:
             box(k("trim", 1), x - 0.5, x + 0.5, top - 2.82, top - 2.6, z - 0.3, z + 0.3, scale=1.0, col=K.BLACK)
-            box(k("glow"), x - 0.42, x + 0.42, top - 2.85, top - 2.82, z - 0.22, z + 0.22, scale=1.0, col=GLOW["white"])
+            box(k("glow"), x - 0.42, x + 0.42, top - 2.85, top - 2.82, z - 0.22, z + 0.22, scale=1.0, col=GLOW["white"], bottom=True)
         x += 4.75
     # The rails, on sleepers.
     for s_ in (-1, 1):
