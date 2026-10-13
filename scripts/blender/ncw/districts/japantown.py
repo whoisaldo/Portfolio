@@ -3734,6 +3734,91 @@ def kerb_kit():
 median()
 kerb_kit()
 
+
+# ---------------------------------------------------------------------------
+# Round 5 (Zq4zTcIM0yQ@45; the m11 review: "the overhead layer across the
+# main street is a single dark beam"): more over both streets, on streams of
+# their own. Gantries of signs over the west street on pylons at the kerbs,
+# heavy bundles of five to seven cables slung between its fronts, and over
+# the gate street cables at two and three a span and a beam of signs from
+# wall to wall; none over the reservation's tall trees and palms.
+# ---------------------------------------------------------------------------
+def gantry(z, r, hue):
+    """A truss of signs over the street on two pylons at the kerbs: a row of
+    the street's signs and lettered boards facing each way along it, a tube
+    on its lower chord, cables slung beside it."""
+    xa, xb = -90.6, -69.4
+    for x in (xa, xb):
+        pylon(x, z, 9.4)
+    truss(xa, xb, z, 7.7, 9.0, 0.45, 6)
+    for yaw, dz in ((0.0, 0.5), (math.pi, -0.5)):
+        panel_row(xa + 1.0, xb - 1.0, 9.2, 1.5, z + dz, yaw, r, r.choice((("word", "slab", "word"), ("slab", "word", "slab"), ("slab", "slab", "word", "slab"))), hue)
+    box((D, "neon_" + hue, 0), xa, xb, 7.48, 7.54, z - 0.03, z + 0.03, scale=1.0, bottom=True)
+    for dz, y, sag in ((1.4, 8.5, 1.0), (-1.5, 8.9, 0.8)):
+        J.span("jt_cable", (xa, z + dz), (xb, z + dz + r.uniform(-0.6, 0.6)), y, sag)
+    for x in (-86.0, -74.0):
+        light(D, x, 0.3, z, hue, 3.4)
+
+
+def overhead_more():
+    orr = random.Random(7330)
+    tall = MEDIAN_TALL
+    made = []
+    for z0_ in (-597.0, -566.0, -486.0, -400.0):
+        for dz in (0.0, 3.0, -3.0, 6.0, -6.0):
+            z = z0_ + dz
+            if clear_of(z, OVER, 6.0) and all(abs(z - t) > 3.2 for t in tall):
+                gantry(z, orr, orr.choice(("cyan", "pink", "amber", "green", "magenta")))
+                OVER.append((z - 4.0, z + 4.0))
+                made.append(z)
+                break
+    n = 0
+    for z_from, z_to in ((-704.0, -238.0), (-58.0, -10.0)):
+        z = z_from
+        while z < z_to:
+            z += orr.uniform(9.0, 16.0)
+            zb = z + orr.uniform(-3.0, 3.0)
+            hw, he = height_at("A", z), height_at("E", zb)
+            if hw is None or he is None or not (clear_of(z, OVER, 3.0) and clear_of(zb, OVER, 3.0)):
+                continue
+            if any(abs((z + zb) / 2 - q) < 1.3 for q in STRUNG) or any(abs((z + zb) / 2 - t) < 2.8 for t in tall):
+                continue
+            y = min(min(hw, he) - 0.8, orr.uniform(7.4, 9.6))
+            if y < 6.6:
+                continue
+            d0 = orr.uniform(0.6, 1.2)
+            for j in range(orr.randrange(5, 8)):
+                J.span("jt_cable", (XW, z + orr.uniform(-0.4, 0.4)), (XE, zb + orr.uniform(-0.4, 0.4)), y + orr.uniform(-0.35, 0.35), d0 + orr.uniform(-0.25, 0.35))
+            STRUNG.append((z + zb) / 2)
+            n += 1
+    # The gate street: cables across it, and a beam of signs from wall to wall.
+    ta_, tb_ = TORII
+    x, m = XW - 7.0, 0
+    while x > EDGE[1] + 3.0:
+        y = orr.uniform(7.0, 9.4)
+        for j in range(orr.randrange(2, 4)):
+            J.span("jt_cable", (x + orr.uniform(-0.3, 0.3), ta_), (x + orr.uniform(-1.6, 1.6), tb_), y + orr.uniform(-0.3, 0.3), orr.uniform(0.6, 1.3))
+        m += 1
+        x -= orr.uniform(4.5, 8.5)
+    beams = 0
+    for xg in (-149.0, -153.0, -104.0):
+        hn, hs = height_at("C" if xg < -140 else "A", ta_ - 1.0), height_at("C" if xg < -140 else "A", tb_ + 1.0)
+        if hn is None or hs is None or min(hn, hs) < 10.2 or beams:
+            continue
+        box((D, "trim", 0), xg - 0.16, xg + 0.16, 8.7, 9.15, ta_, tb_, scale=1.0, col=STEELWORK, bottom=True)
+        box((D, "trim", 1), xg - 0.22, xg + 0.22, 8.62, 8.7, ta_, tb_, scale=1.0, col=ESCAPE, bottom=True)
+        for zz in (ta_ + 2.3, (ta_ + tb_) / 2, tb_ - 2.3):
+            for yaw in (HALF_PI, -HALF_PI):
+                J.slab_sign((xg + math.sin(yaw) * 0.12, 7.9, zz), basis(yaw), "ps", 1.05, both=False, depth=0.1, need=0.0)
+            box((D, "metal", 1), xg - 0.015, xg + 0.015, 8.25, 8.7, zz - 0.6, zz - 0.57, scale=0.5)
+            box((D, "metal", 1), xg - 0.015, xg + 0.015, 8.25, 8.7, zz + 0.57, zz + 0.6, scale=0.5)
+        box((D, "neon_" + orr.choice(("cyan", "amber", "pink")), 0), xg - 0.03, xg + 0.03, 8.56, 8.62, ta_ + 0.3, tb_ - 0.3, scale=1.0, bottom=True)
+        beams += 1
+    print("japantown overhead more: gantries", made, "bundles", n, "gate street spans", m, "beams", beams)
+
+
+overhead_more()
+
 # ---------------------------------------------------------------------------
 # The lantern alley: strings every few metres, stalls and stools, cables,
 # a blossom tree where each cross alley meets it; its covered stretch.
