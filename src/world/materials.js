@@ -413,7 +413,17 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // a dozen signs is no brighter than it was.)
           if (n.y > 0.7) spill *= 1.0 + smoothstep(0.7, 1.3, uCam.y) / (1.0 + 3.0 * dot(spill, vec3(0.3, 0.5, 0.2)));
           #endif
-          vec3 light = vec3(uAmbient) * (0.6 + 0.4 * up) + spill * uSpillMul * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
+          // (Away from the hero's lens the signs' colour stays with them: a
+          // dim wash of their light gives up some of its colour toward the
+          // night's blue, a magenta one most, and a bright pool keeps its
+          // own; what no sign reaches is lit by the night's blue-teal, not
+          // grey. An even wash of pink and violet over a street, a road and
+          // a lane read as a magenta haze and lanes washed purple-brown.)
+          float eyeK = smoothstep(0.7, 1.3, uCam.y);
+          float sl = dot(spill, vec3(0.3, 0.5, 0.2));
+          float mag = clamp((min(spill.r, spill.b) - spill.g) / max(sl, 1e-3), 0.0, 1.0);
+          spill = mix(spill, vec3(sl) * vec3(0.8, 0.97, 1.2), eyeK * (1.0 - smoothstep(0.15, 0.8, sl)) * (0.3 + 0.4 * mag));
+          vec3 light = vec3(uAmbient) * mix(vec3(1.0), vec3(0.7, 0.95, 1.35), eyeK) * (0.6 + 0.4 * up) + spill * uSpillMul * (0.9 + 0.1 * up) + lampsAt(vWorld, n) * 5.0;
           // What faces the sky catches the city's glow on the cloud (a wet
           // roof, uSky, more of it: seen from above a roof is a dark blue
           // surface, not a hole).
@@ -445,7 +455,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 glowV = mix(uGlowColor, vec3(0.204, 0.129, 0.323), dt);
           // (Only what is some way off: on a wall beside the eye, seen along
           // its length, it was an even navy wash that hid every lamp's pool.)
-          col += (hazeV * 1.5 + glowV * 0.45) * rim * 0.5 * uHaze * (1.0 - up) * smoothstep(12.0, 50.0, length(uCam - vWorld));
+          // (Less of it away from the hero's lens: there the air's own depth
+          // is in the fog, and a body seen at a glance was a flat mid teal
+          // where the show keeps it blue-black and lets its lights carry it.)
+          col += (hazeV * 1.5 + glowV * 0.45) * rim * 0.5 * uHaze * (1.0 - up) * smoothstep(12.0, 50.0, length(uCam - vWorld)) * mix(1.0, 0.45, smoothstep(0.7, 1.3, uCam.y));
           // No roof is a hole: whatever it is made of, the rain on it holds
           // the lit cloud, a little from overhead and more at a glance.
           float top = up * smoothstep(2.5, 6.0, vWorld.y) * (1.0 - vProp) * (1.0 - onDeck);

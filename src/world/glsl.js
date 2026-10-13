@@ -178,11 +178,18 @@ export const COMMON = /* glsl */ `
   // everywhere else the night is navy and teal. How much of downtown a look
   // along dir takes in from where the eye stands: the whole canyon from the
   // avenue itself, a halo round the hologram from anywhere else.
+  // (The avenue is its own 12 m either side of the line, and the halo is a
+  // few degrees round the hologram: counted out to 70 m and as wide as a
+  // ninth power, every look north from Afterlife and down a Japantown lane
+  // was a violet wash, a magenta haze over the road and lanes in purple.)
+  float downtownK(float t) {
+    float t3 = t * t * t;
+    float t9 = t3 * t3 * t3;
+    return mix(t9 * t9 * t9 * 0.45, t3, 1.0 - smoothstep(12.0, 30.0, abs(uCam.x)));
+  }
   float downtown(vec3 dir) {
     vec2 to = vec2(-8.0, -640.0) - uCam.xz;
-    float t = max(dot(normalize(dir.xz + 1e-5), to * inversesqrt(dot(to, to) + 1.0)), 0.0);
-    float t3 = t * t * t;
-    return mix(t3 * t3 * t3 * 0.7, t3, 1.0 - smoothstep(14.0, 70.0, abs(uCam.x)));
+    return downtownK(max(dot(normalize(dir.xz + 1e-5), to * inversesqrt(dot(to, to) + 1.0)), 0.0));
   }
   // The haze and the glow along a look: the night's own, downtown's toward it.
   vec3 hazeAt(vec3 dir) {
@@ -219,9 +226,8 @@ export const COMMON = /* glsl */ `
   vec3 cityGlow(vec3 dir, float y) {
     vec2 to = vec2(-8.0, -640.0) - uCam.xz;
     float t1 = max(dot(normalize(dir.xz + 1e-5), to * inversesqrt(dot(to, to) + 1.0)), 0.0);
-    float street = 1.0 - smoothstep(14.0, 70.0, abs(uCam.x));
-    float t3 = t1 * t1 * t1;
-    float toward = mix(t3 * t3 * t3 * 0.7, t3, street);
+    float street = 1.0 - smoothstep(12.0, 30.0, abs(uCam.x));
+    float toward = downtownK(t1);
     // Right up the avenue, low on the horizon, downtown burns: a hot core,
     // warmer and whiter, that pulls the eye to the vanishing point.
     float hot = pow(t1, 90.0) * exp(-max(y, 0.0) * 0.1) * (0.3 + 0.7 * street);
@@ -252,6 +258,14 @@ export const COMMON = /* glsl */ `
     vec3 fogCol = mix(uFogColor, hazeAt(d), uHaze * low * smoothstep(40.0, 360.0, dist));
     fogCol = mix(fogCol, SODIUM, santo * 0.75 * smoothstep(20.0, 200.0, dist));
     if (dist > 120.0) fogCol += cityGlow(d, p.y) * smoothstep(120.0, 900.0, dist);
+    // Depth, for every eye but the hero's (the only one under a metre: its
+    // air is the page's grade, as it was). The wet air between the towers
+    // and down a long street holds the haze's blue, more the further and
+    // the lower the look, so one layer of the city stands off the next and
+    // a far block is bluer and paler than a near one; what glows keeps more
+    // of itself. Not in Santo Domingo's sodium.
+    float deep = (1.0 - exp(-dist * 0.0032)) * exp(-max(p.y, 0.0) * 0.004) * smoothstep(0.7, 1.3, uCam.y) * uHaze * mix(1.0, 0.5, emissive) * (1.0 - santo);
+    col = mix(col, hazeAt(d) * 2.2 + uGlowColor * 0.18, deep * 0.42);
     return mix(col, fogCol, f);
   }
 `;

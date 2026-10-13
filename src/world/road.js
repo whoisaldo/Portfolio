@@ -405,7 +405,11 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // green and blue side by side were a mottle of rainbow on the road.)
         float take = mix(0.55, 1.05, eye);
         albedo *= 1.0 + eye * (0.55 * (1.0 - mended) - 0.15 * seal);
-        vec3 lightIn = mix(spill, vec3(dot(spill, vec3(0.3, 0.5, 0.2))), 0.35 * eye);
+        // (A dim magenta wash most of all, toward the night's blue: the signs'
+        // pink and violet spread evenly over a road read as a haze on it.)
+        float sl = dot(spill, vec3(0.3, 0.5, 0.2));
+        float mag = clamp((min(spill.r, spill.b) - spill.g) / max(sl, 1e-3), 0.0, 1.0);
+        vec3 lightIn = mix(spill, vec3(sl) * mix(vec3(1.0), vec3(0.85, 0.97, 1.15), mag), eye * (0.35 + 0.4 * mag * (1.0 - smoothstep(0.2, 0.9, sl))));
         vec3 col = albedo * take * (vec3(0.07 + 0.05 * eye) + lightIn * mix(1.0, 0.45, puddle) * (1.0 + 1.5 * aerial)) + albedo * cityGlow(-V, 0.0) * 0.12;
         // Santo Domingo's sodium air on its own yards' tar, as on its walls.
         col += albedo * SODIUM * santoAt(p) * uHaze * 2.4 * eye;
