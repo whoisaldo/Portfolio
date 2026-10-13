@@ -124,7 +124,7 @@ for xs, soffit, hue in ((W_COLS, W_TOP - 0.7, "amber"), (E_COLS, E_TOP - 0.8, "a
 # ---------------------------------------------------------------------------
 # Roofs.
 # ---------------------------------------------------------------------------
-def roof_kit(x0, x1, z0, z1, top, seed, deck=None, hue="white", power=6.5, lamps=True, side="-z"):
+def roof_kit(x0, x1, z0, z1, top, seed, deck=None, hue="white", power=6.5, lamps=True, side="-z", hut_east=False):
     """Plant on a bare roof along one side (painted, so the roof's light
     shows it: sheet metal is black up here), a painted walk down its middle
     with low lamps, a mast and dishes, and pools of light. `deck`: (cx, cz,
@@ -155,7 +155,7 @@ def roof_kit(x0, x1, z0, z1, top, seed, deck=None, hue="white", power=6.5, lamps
     prop("roof_mast", x1 - 1.6, ze, top, r.uniform(0, 6), sy=0.8, h=6.6, r=0.4)
     prop("roof_dish", x1 - 3.8, ze, top, r.uniform(0, 6), h=2.0, r=0.9)
     prop("roof_dish", x0 + 1.8, ze, top, r.uniform(0, 6), h=2.0, r=0.9)
-    prop("roof_hut", x0 + 2.0, (z0 + z1) / 2 + (2.6 if side == "-z" else -2.6), top, r.choice((0.0, math.pi)), h=2.85, r=1.3)
+    prop("roof_hut", (x1 - 2.0) if hut_east else (x0 + 2.0), (z0 + z1) / 2 + (2.6 if side == "-z" else -2.6), top, r.choice((0.0, math.pi)), h=2.85, r=1.3)
     cz = (z0 + z1) / 2
     n = max(2, int((x1 - x0) // 7.0))
     if ok(x0 + 1.0, x1 - 1.0, cz - 0.6, cz + 0.6, top, top + 0.7):
@@ -182,7 +182,7 @@ def roof_kit(x0, x1, z0, z1, top, seed, deck=None, hue="white", power=6.5, lamps
 
 # The arm over the market hall (its roof was bare south of the board).
 roof_kit(AX0 + 1.0, 80.0, -729.0, -701.0, ARM_TOP, 8821, deck=(72.0, -716.0, 4.5), hue="amber", side="+z")
-roof_kit(80.0, AX1 - 1.0, -731.0, -701.0, ARM_TOP, 8822, hue="white", side="+z")
+roof_kit(80.0, AX1 - 1.0, -731.0, -701.0, ARM_TOP, 8822, hue="white", side="+z", hut_east=True)     # (its hut 4 m from mg13 filled two views)
 light(D, 90.0, ARM_TOP + 1.0, -737.0, "pink", 6.0)
 # Along its east parapet: tanks, painted units, a mast, a rail to the walk.
 for z in (-742.6, -739.2):
