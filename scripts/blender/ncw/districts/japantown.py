@@ -3473,6 +3473,47 @@ def pipe_bridge(z, r, y0=11.4):
         light(D, x, 0.3, z, "pink", 3.4)
 
 
+# ---------------------------------------------------------------------------
+# The two junctions' edges (the m8 review: "wide-torii's empty yellow box
+# junction", "wide-south-end's empty dark apron beyond the crosswalk"): no
+# lane or crossing is touched (the traffic and the crowd are shipped), so
+# what stands is on the pavements, by the walls or on the kerb's edge; the
+# shops' and signs' light falls in pools over the junctions themselves.
+# ---------------------------------------------------------------------------
+def junctions():
+    jr = random.Random(7700)
+    # The south street's pavement before the closing block (z 8..12): its
+    # walkers start east of x -75, so west of that a kiosk, a food cart and
+    # its cook, an advert drum, people at them, a guard rail and posts on
+    # the kerb's edge, a lit board on the wall.
+    J.put("jt_stall_d", -91.4, G0, 10.55, math.pi)
+    stand(-91.4, 11.15, math.pi, "vendor", G0)
+    light(D, -91.4, 2.4, 9.4, "amber", 3.5)
+    J.put("food_cart", -86.6, G0, 9.55, math.pi)
+    stand(-86.6, 10.75, math.pi, "vendor", G0)
+    for x, z, yaw, pose in ((-85.2, 8.95, 0.3, "queue"), (-88.0, 8.9, -0.2, "phone"), (-90.0, 9.0, 0.1, "talk"), (-89.4, 9.05, 2.9, "talk")):
+        stand(x, z, yaw, pose, G0)
+    J.put("ad_drum", -79.6, G0, 9.6, jr.uniform(0, 6.28))
+    J.put("lightbox", -77.0, G0, 11.55, math.pi)
+    J.put("jt_bike", -83.4, G0, 8.55, HALF_PI + 0.1)
+    J.put("jt_bike", -82.6, G0, 8.55, HALF_PI - 0.06)
+    for x in (-93.2, -92.0, -81.4, -80.6):
+        J.put("bollard", x, G0, 8.4)
+    J.put("barrier", -76.2, G0, 8.45, 0.0)
+    J.put("warning_tri", -74.9, G0, 8.6, 0.4)
+    for x, z, hue, pw in ((-90.0, 6.0, "amber", 5.5), (-84.0, 4.0, "pink", 6.5), (-78.5, 5.5, "cyan", 5.0), (-72.0, 3.0, "magenta", 5.0), (-80.0, -3.0, "red", 4.5)):
+        light(D, x, 0.3, z, hue, pw)
+    # The plaza street's T (z -179): its light over the box from the signs at
+    # its corners and the gate over the way, people waiting at the corners'
+    # walls, a lit board by the north corner's wall.
+    for x, z, hue, pw in ((-72.5, -186.0, "pink", 5.5), (-72.5, -172.0, "cyan", 5.5), (-68.0, -179.0, "red", 5.0), (-88.0, -179.0, "amber", 4.5), (-60.0, -179.0, "magenta", 4.5)):
+        light(D, x, 0.3, z, hue, pw)
+    for x, z, yaw, pose in ((-66.45, -191.6, -HALF_PI, "smoke"), (-66.45, -192.4, -HALF_PI, "phone"), (-66.45, -166.2, -HALF_PI, "lean"), (-62.0, -168.4, math.pi, "idle")):
+        stand(x, z, yaw, pose, G0)
+    return True
+
+
+
 gr = random.Random(7150)
 street_gate(GATE_Z, sr)
 sign_bridge(SIGNS_Z, gr)
@@ -3483,6 +3524,7 @@ high_bridge(HIGH_Z, hr)
 print("japantown west bridge:", west_bridge(HIGH_Z, random.Random(7170)), "crowns:", len(CROWNS), sorted({k for _, _, k, _ in CROWNS}),
       "highest:", max([c[3] for c in CROWNS] + [0.0]))
 print("japantown crowns:", CROWNS)
+print("japantown junctions:", junctions())
 print("japantown channel signs:", len(CHANNEL), sum(1 for c in CHANNEL if c[2] == "corner"), "at corners")
 pipe_bridge(PIPES_Z, hr)
 lantern_arch(ARCH_Z, gr)

@@ -1335,7 +1335,7 @@ def _jt_run(k):
 
 
 def _wheel(T, z, r_, col):
-    ring = [(z + r_ * math.cos(i * math.tau / 8), r_ + r_ * math.sin(i * math.tau / 8)) for i in range(8)]
+    ring = [(z + r_ * math.cos(i * math.tau / 18), r_ + r_ * math.sin(i * math.tau / 18)) for i in range(18)]
     for (za, ya), (zb, yb) in zip(ring, ring[1:] + ring[:1]):
         q = ((-0.022, ya, za), (-0.022, yb, zb), (0.022, yb, zb), (0.022, ya, za))
         quad(T, *q, col=col)
