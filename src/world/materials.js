@@ -997,11 +997,11 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float floorOn = max(belt, step(hash12(vec2(lv, seedR + 4.2)), floorP * (0.6 + 1.4 * shareR)));
             floorOn *= step(0.22, hash12(vec2(zoneR, lv + seedR * 1.3)));
             float grp = floor(md / runW);
-            float winOn = step(hash12(vec2(grp, lv + seedR * 1.7)), pWin * (0.3 + 1.2 * shareR));
+            float winOn = step(hash12(vec2(grp, lv + seedR * 1.7)), pWin * (0.4 + 1.5 * shareR));
             float onR = max(winOn, floorOn);
             float tone = hash12(vec2(mix(grp, zoneR + 500.0, floorOn), lv + seedR * 2.9));
             vec3 LR = tone < mix(warmP, 1.0, belt * vColor.g) ? vec3(1.0, 0.74, 0.46) : vec3(0.78, 0.88, 1.0);
-            LR *= 0.9 + 0.9 * hash12(vec2(tone * 17.0, lv));
+            LR *= 1.0 + 1.0 * hash12(vec2(tone * 17.0, lv));
 
             vec3 V = normalize(vWorld - uCam);
             float dist = length(vWorld - uCam);
@@ -1089,8 +1089,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             col = mix(col, spand, slab);
             col = mix(col, frameCol * 1.5 + street * 0.12, fin3);
             // Far off, a floor's average rather than a pattern that shimmers.
-            float litAvgR = min(pWin * (0.3 + 1.2 * shareR) + floorP * (0.6 + 1.4 * shareR) * 0.78 + belt * 0.78, 1.0);
-            vec3 avgRoom = mix(vec3(0.78, 0.88, 1.0), vec3(1.0, 0.74, 0.46), warmP) * 1.35 * litAvgR * 0.3 + 0.003;
+            float litAvgR = min(pWin * (0.4 + 1.5 * shareR) + floorP * (0.6 + 1.4 * shareR) * 0.78 + belt * 0.78, 1.0);
+            vec3 avgRoom = mix(vec3(0.78, 0.88, 1.0), vec3(1.0, 0.74, 0.46), warmP) * 1.5 * litAvgR * 0.3 + 0.003;
             vec3 avg = mix(avgRoom * (1.0 - F) + env * F + wash * 0.3, spand, SILLR / STOREY);
             col = mix(col, avg, smoothstep(0.25, 0.6, fw));
             col += sCol * sB * strip;
