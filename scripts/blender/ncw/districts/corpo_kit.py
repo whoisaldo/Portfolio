@@ -1581,8 +1581,11 @@ def lane_dress(f, r, density=1.0, hues=("cyan", "amber", "white"), top=9.0, high
             pw, ph = r.choice(((1.3, 1.9), (1.3, 1.9), (2.4, 1.5)))
             # (On standoffs, a hand off the wall: a lamp's bar over a door
             # passes behind it, not through it.)
-            cx, cy, cz = f.p(f.at(s), 2.3, 0.21)
-            f.box(k("board_frame"), s - pw / 2 - 0.07, s + pw / 2 + 0.07, 2.3 - ph / 2 - 0.07, 2.3 + ph / 2 + 0.07, 0.12, 0.2)
+            # (Its foot over the line of light a door's lamp carries at
+            # 2.6 m, buildings.back_ground's.)
+            py = 2.92 + ph / 2
+            cx, cy, cz = f.p(f.at(s), py, 0.21)
+            f.box(k("board_frame"), s - pw / 2 - 0.07, s + pw / 2 + 0.07, py - ph / 2 - 0.07, py + ph / 2 + 0.07, 0.12, 0.2)
             bb(cx, cy, cz, pw, ph, f.yaw, board_col(r, None))
             light(CO, lx, 2.0, lz, r.choice(hues), 3.0)
         elif roll < 0.64:
@@ -1619,10 +1622,10 @@ def upper_dress(f, y0, y1, density=1.0, hue="amber", keep=()):
     free = lambda s0, s1: all(s1 < ka or s0 > kb for ka, kb in keep)      # noqa: E731
     steel, warm = STEEL, (0.34, 0.21, 0.09, 1.0)
     # The fire escape.
-    if w >= 9.0 and y1 - y0 >= 6.0:
+    if w >= 9.0 and y1 - max(y0, 5.2) >= 6.0:
         s = rv.uniform(1.0, w - 5.0)
         if free(s - 0.3, s + 3.6):
-            ly = y0 + 0.4
+            ly = max(y0, 5.2) + 0.4
             n = 0
             while ly < y1 - 1.2:
                 f.box(k("steel", 1), s, s + 3.3, ly - 0.08, ly, 0.0, 1.15, col=steel)
@@ -1650,7 +1653,7 @@ def upper_dress(f, y0, y1, density=1.0, hue="amber", keep=()):
     while s < w - 1.0:
         if free(s - 0.5, s + 0.5) and rv.random() < 0.6 * density:
             n = rv.randrange(1, 4)
-            yb = y0 + rv.uniform(0.3, 2.5)
+            yb = max(y0, 5.0) + rv.uniform(0.0, 1.8)      # (over a lane's posters and lamps)
             for m in range(n):
                 yy = yb + m * rv.choice((1.9, 3.8))
                 if yy + 0.6 > y1:
@@ -1658,10 +1661,11 @@ def upper_dress(f, y0, y1, density=1.0, hue="amber", keep=()):
                 px, _, pz = f.p(f.at(s), 0.0, 0.0)
                 P.place("ac_wall", px, yy, pz, f.yaw, district=CO)
             dx, _, dz = f.p(f.at(s + 0.5), 0.0, 0.0)
-            P.place("pipe_v", dx, G0, dz, f.yaw, sy=yb, district=CO)
+            if yb > 5.3:
+                P.place("pipe_v", dx, 5.0, dz, f.yaw, sy=yb - 5.0, district=CO)
         s += rv.uniform(2.2, 5.0) / density
     # Downpipes, a cable bundle along under the top.
-    for s in (rv.uniform(0.4, 1.2), w - rv.uniform(0.4, 1.2)):
+    for s in (rv.uniform(0.18, 0.3), w - rv.uniform(0.18, 0.3)):
         if free(s - 0.2, s + 0.2):
             px, _, pz = f.p(f.at(s), 0.0, 0.0)
             P.place("pipe_v", px, G0, pz, f.yaw, sy=y1 - G0, district=CO)
@@ -1678,8 +1682,8 @@ def upper_dress(f, y0, y1, density=1.0, hue="amber", keep=()):
             f.box(k("trim", 1), s - 0.06, s + 0.96, yy - 0.08, yy, 0.0, 0.1, col=BLACK)
     # A slip of a lit sign high on it, by the escape.
     s = rv.uniform(1.0, w - 1.5)
-    if free(s - 0.3, s + 0.3) and y1 - y0 > 5.0:
-        yy = y0 + rv.uniform(1.0, min(5.0, y1 - y0 - 2.6))
+    if free(s - 0.3, s + 0.3) and y1 - max(y0, 5.0) > 2.8:
+        yy = max(y0, 5.0) + rv.uniform(0.0, max(0.1, min(4.0, y1 - max(y0, 5.0) - 2.6)))
         f.box(k("trim", 1), s - 0.25, s + 0.25, yy, yy + 2.4, 0.0, 0.18, col=BLACK)
         f.box(k("neon_" + hue, 1), s - 0.18, s + 0.18, yy + 0.1, yy + 2.3, 0.18, 0.2)
 

@@ -617,19 +617,23 @@ def lanes():
     # downpipes, cable, lit frosted windows and slips of signs.
     bars = ((4.2, 5.8), (12.2, 13.8), (20.2, 21.8), (5.0, 8.2))
     for j, (x0, x1, h) in enumerate(S1):
-        K.upper_dress(B.Face("+z", S1_BACK, x0, x1), 5.6, min(h - 2.0, 22.0), hue=("cyan", "amber", "pink")[j % 3])
+        K.upper_dress(B.Face("+z", S1_BACK, x0, x1), 3.4, min(h - 2.0, 22.0), 1.4, hue=("cyan", "amber", "pink")[j % 3])
         if j > 0:
             K.upper_dress(B.Face("-x", x0, LOT_S, S1_BACK), 6.6, min(h - 2.0, 20.0), 0.8, "amber", keep=bars)
         if j < len(S1) - 1:
             K.upper_dress(B.Face("+x", x1, LOT_S, S1_BACK), 6.6, min(h - 2.0, 20.0), 0.8, "cyan", keep=bars)
     for j, (x0, x1) in enumerate(CAMPUS_LOTS):
-        K.upper_dress(B.Face("-z", CAMPUS[0], x0, x1), 5.2, 11.0, 0.8, "amber")
+        K.upper_dress(B.Face("-z", CAMPUS[0], x0, x1), 3.4, 11.0, 1.2, "amber")
         if j > 0:
-            K.upper_dress(B.Face("-x", x0, CAMPUS[0], CAMPUS[1]), 5.4, 11.0, 0.8, "cyan")
+            K.upper_dress(B.Face("-x", x0, CAMPUS[0], CAMPUS[1]), 3.4, 11.0, 1.2, "cyan")
         if j < len(CAMPUS_LOTS) - 1:
-            K.upper_dress(B.Face("+x", x1, CAMPUS[0], CAMPUS[1]), 5.4, 11.0, 0.8, "amber")
+            K.upper_dress(B.Face("+x", x1, CAMPUS[0], CAMPUS[1]), 3.4, 11.0, 1.2, "amber")
     for j, (x0, x1, h) in enumerate(S3):
-        K.upper_dress(B.Face("-z", MEWS_B[1], x0, x1), 6.4, h - 3.0, 1.0, ("amber", "cyan")[j % 2])
+        K.upper_dress(B.Face("-z", MEWS_B[1], x0, x1), 3.4, h - 3.0, 1.3, ("amber", "cyan")[j % 2])
+    # The first mews' south wall (the campus's backs) dressed at its foot
+    # too, on its own dice.
+    for j, (x0, x1) in enumerate(CAMPUS_LOTS):
+        K.lane_dress(B.Face("-z", CAMPUS[0], x0, x1), random.Random(7890 + j), 1.1, hues=("amber", "cyan", "white"))
 
 
 south_side()

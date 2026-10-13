@@ -311,10 +311,10 @@ def lane():
     # conditioners, downpipes, cable, lit windows and slips of signs, under
     # the track (and the halt's platforms) on the towers' side.
     for i, tx in enumerate(TOWER_X):
-        K.upper_dress(B.Face("-z", T_BACK - 0.02, tx - 13.0, tx + 13.0), 5.6, 16.4, 0.8, ACCENTS[i] if ACCENTS[i] in ("cyan", "amber", "red", "green") else "amber",
+        K.upper_dress(B.Face("-z", T_BACK - 0.02, tx - 13.0, tx + 13.0), 3.4, 16.4, 1.2, ACCENTS[i] if ACCENTS[i] in ("cyan", "amber", "red", "green") else "amber",
                       keep=((10.4, 15.6),))
     for j, (x0, x1) in enumerate(rows):
-        K.upper_dress(B.Face("+z", BACK1, x0, x1), 5.6, (24.0, 24.0, 17.0, 14.0, 24.0, 24.0, 24.0)[j], 0.9, ("amber", "cyan", "pink")[j % 3])
+        K.upper_dress(B.Face("+z", BACK1, x0, x1), 3.4, (24.0, 24.0, 17.0, 14.0, 24.0, 24.0, 24.0)[j], 1.4, ("amber", "cyan", "pink")[j % 3])
     K.lane_dress(B.Face("+x", WEST_X, BACK0, T_BACK - 1.0), r, 0.8)
     K.lane_dress(B.Face("-x", EAST_X, BACK0, BACK1), r, 0.8)
     for name, (vx, vz) in (("lane_w", (207.5, TRACK_Z + 3.4)), ("lane_e", (333.0, TRACK_Z - 3.2))):
