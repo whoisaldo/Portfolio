@@ -3982,7 +3982,7 @@ ${colGlow.join("\n")}
           low = tint * (band * 0.8 + exp(-hh * 25.0) * 0.6) * uHaze * free;
           // (The night's cold blue gives way to it there, so the low sky
           // changes colour and does not only grow paler.)
-          col = mix(col, col * vec3(0.7, 0.78, 0.62), band * 0.55 * free) + low;
+          col = mix(col, col * vec3(0.7, 0.78, 0.62), band * band * 0.55 * free) + low;
         }
         // The moon lights the wet air round it, blue and white: bright at
         // its limb and lifting the sky for a few of its widths about it.
@@ -4035,7 +4035,9 @@ ${colGlow.join("\n")}
           under += vec3(0.005, 0.016, 0.03) * (0.3 + 0.9 * n) * (1.0 - lift) * smoothstep(0.95, 0.995, dot(normalize(dir.xz + 1e-5), vec2(0.9816, -0.1908)));
           col = mix(col, col * 0.55, (1.0 - cover) * near) + under * cover * near * 0.8;
           col += moonGlow * cover * (1.0 + 2.5 * n) * near;
-          col += low * cover * (0.6 + 1.2 * n) * near * 2.0;
+          // (Only the low deck, over the skyline: across the whole deck it
+          // turned the night violet.)
+          col += low * cover * (0.6 + 1.2 * n) * near * 0.8 * exp(-h * 5.0);
           // Lightning inside the cloud: the deck lit from within round the
           // strike, brightest where it is thickest.
           float strike = exp(-length(p.xz - uFlashAt) / 420.0);
