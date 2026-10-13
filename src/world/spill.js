@@ -19,420 +19,131 @@
 // Both are 8-bit, square-root encoded (the shaders square them back), which
 // keeps the soft tails of the falloff without a float texture.
 import * as THREE from "three";
+import { createBakeCore, MAP, LIGHT_BOUNDS, STREAK_BOUNDS } from "./spill-core.js";
 
-// Over the whole kit: Japantown's outer lots to Santo Domingo's east edge,
-// the megabuilding's north side to the depot at the avenue's south end.
-export const LIGHT_BOUNDS = { x0: -176, z0: -880, x1: 580, z1: 125 };
-export const CELL = 1.5;
-// The streaks get a finer grid of their own, over the avenue only: 0.4 m
-// across the street so every sign's reflection stays its own streak, a metre
-// along it.
-export const STREAK_BOUNDS = { x0: -24, z0: -740, x1: 24, z1: 60 };
-const SX = 0.4;
-const SZ = 1.0;
-// A lamp of power 1 peaks at about LAMP_GAIN / 9 in the spill map, a pool
-// two or three metres round: lamps a few metres apart light a lane in
-// patches, dark between.
-const LAMP_GAIN = 1.4;
-/** The spill map holds up to this many times the light its gain was set for
- *  (the hero's street at the first bake); the shaders' uSpillGain undoes it. */
-export const SPILL_RANGE = 3;
+// (load: the bake itself is spill-core.js's, which a worker can run; this
+// is its three.js side: sources from meshes, maps as textures.)
+export { LIGHT_BOUNDS, CELL, STREAK_BOUNDS, SPILL_RANGE } from "./spill-core.js";
 
-const _a = new THREE.Vector3();
-const _b = new THREE.Vector3();
-const _c = new THREE.Vector3();
-const _ab = new THREE.Vector3();
-const _ac = new THREE.Vector3();
-
-// A running box sum across (or down) the map, its three channels side by
-// side. Down the map every column's sums run at once, a row at a time, so
-// the map is read in the order it lies in memory; each sum takes the same
-// values in the same order as one sum a column and channel would, so the
-// result is the same to the bit.
-// (load: rows y0 to y1 of it, so a district's bake once the city is live
-// can be spread over the page's frames; `sum` carries the downward sums
-// from one range to the next. boxBlur runs all rows at once, as before.)
-function boxRows(src, dst, W, H, r, horizontal, y0, y1, sum) {
-  const n = 2 * r + 1;
-  if (horizontal) {
-    for (let y = y0; y < y1; y++) {
-      const row = y * W * 3;
-      let s0 = 0;
-      let s1 = 0;
-      let s2 = 0;
-      for (let x = -r; x <= r; x++) {
-        const k = row + Math.min(W - 1, Math.max(0, x)) * 3;
-        s0 += src[k];
-        s1 += src[k + 1];
-        s2 += src[k + 2];
-      }
-      for (let x = 0; x < W; x++) {
-        const d = row + x * 3;
-        dst[d] = s0 / n;
-        dst[d + 1] = s1 / n;
-        dst[d + 2] = s2 / n;
-        const out = row + (x - r > 0 ? x - r : 0) * 3;
-        const inn = row + (x + r + 1 < W ? x + r + 1 : W - 1) * 3;
-        s0 += src[inn] - src[out];
-        s1 += src[inn + 1] - src[out + 1];
-        s2 += src[inn + 2] - src[out + 2];
-      }
-    }
-  } else {
-    const line = W * 3;
-    if (y0 === 0) {
-      for (let y = -r; y <= r; y++) {
-        const row = Math.min(H - 1, Math.max(0, y)) * line;
-        for (let k = 0; k < line; k++) sum[k] += src[row + k];
-      }
-    }
-    for (let y = y0; y < y1; y++) {
-      const d = y * line;
-      const out = (y - r > 0 ? y - r : 0) * line;
-      const inn = (y + r + 1 < H ? y + r + 1 : H - 1) * line;
-      for (let k = 0; k < line; k++) {
-        dst[d + k] = sum[k] / n;
-        sum[k] += src[inn + k] - src[out + k];
-      }
-    }
-  }
+/** A source ({ mesh, color: THREE.Color (linear), intensity }) as the bake
+ *  takes it: its positions as stored, its index, its world matrix. */
+function raw({ mesh, color, intensity }) {
+  if (mesh.matrixWorldAutoUpdate !== false) mesh.updateWorldMatrix(true, false);
+  const geo = mesh.geometry;
+  const pos = geo.attributes.position;
+  const data = pos.isInterleavedBufferAttribute ? pos.data : null;
+  return {
+    array: data ? data.array : pos.array,
+    stride: data ? data.stride : pos.itemSize,
+    offset: data ? pos.offset : 0,
+    normalized: pos.normalized,
+    index: geo.index ? geo.index.array : null,
+    count: geo.index ? geo.index.count : pos.count,
+    e: mesh.matrixWorld.elements,
+    r: color.r,
+    g: color.g,
+    b: color.b,
+    intensity,
+  };
 }
 
-const ROWS = 48;
-function* boxSteps(src, dst, W, H, r, horizontal) {
-  const sum = horizontal ? null : new Float64Array(W * 3);
-  for (let y = 0; y < H; y += ROWS) {
-    boxRows(src, dst, W, H, r, horizontal, y, Math.min(H, y + ROWS), sum);
-    yield;
-  }
-}
-
-// (load: `tmp`, the passes' scratch, may be handed in: a bake that finishes
-// again for each district keeps its scratch, where every finish made some
-// 40 MB of arrays a moment's garbage, collected in a task of its own.)
-function* blurSteps(field, W, H, r, passes = 3, tmp = new Float32Array(field.length)) {
-  for (let i = 0; i < passes; i++) {
-    yield* boxSteps(field, tmp, W, H, r, true);
-    yield* boxSteps(tmp, field, W, H, r, false);
-  }
-  return field;
-}
-
-/** A gain that puts the brightest few percent of lit cells near full scale,
- *  whatever the city's total light came to. */
-function autoGain(field, target, pct = 0.985) {
-  // (In a typed array, whose sort is by number: the field's values are
-  // float32, so they are held exactly.)
-  const vals = new Float32Array(field.length / 3);
-  let n = 0;
-  for (let i = 0; i < field.length; i += 3) {
-    const v = Math.max(field[i], field[i + 1], field[i + 2]);
-    if (v > 1e-5) vals[n++] = v;
-  }
-  if (!n) return 1;
-  const sorted = vals.subarray(0, n).sort();
-  return target / sorted[Math.min(n - 1, Math.floor(n * pct))];
-}
-
-function encodeCells(field, data, gain, height, i0, i1) {
-  for (let i = i0; i < i1; i++) {
-    for (let ch = 0; ch < 3; ch++) {
-      const v = Math.min(1, field[i * 3 + ch] * gain);
-      data[i * 4 + ch] = Math.round(Math.sqrt(v) * 255);
-    }
-    data[i * 4 + 3] = height && height[i * 3] > 1e-6 ? Math.min(255, Math.round((height[i * 3 + 1] / height[i * 3]) * 16)) : 255;
-  }
-}
-
-function* encodeSteps(field, W, H, gain, height = null) {
-  const data = new Uint8Array(W * H * 4);
-  for (let i = 0; i < W * H; i += W * ROWS) {
-    encodeCells(field, data, gain, height, i, Math.min(W * H, i + W * ROWS));
-    yield;
-  }
+// (`made` false: a texture not to be sent to the GPU until it is filled.)
+function texture(data, W, H, made = true) {
   const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.UnsignedByteType);
   tex.magFilter = THREE.LinearFilter;
   tex.minFilter = THREE.LinearFilter;
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.colorSpace = THREE.NoColorSpace;
-  tex.needsUpdate = true;
+  if (made) tex.needsUpdate = true;
   return tex;
 }
 
-/**
- * sources: [{ mesh, color: THREE.Color (linear), intensity }]
- * Returns { spill, streaks, bounds: Vector4 for the shaders, dispose }.
- */
-// Above and behind the hero's lens: from its own half a metre every
-// reflection would land within a few metres of it, and these are for a
-// phone that has shed its mirror, where streaks running the length of the
-// avenue read better than exact ones piled up at the kerb.
-const EYE = { x: 0.6, y: 2.3, z: 18 };
+/** The maps as textures: { spill, streaks, bounds, streakBounds: Vector4
+ *  for the shaders, dispose }. */
+function maps({ spill, streaks }, made = true) {
+  const { x0, z0, x1, z1 } = LIGHT_BOUNDS;
+  const a = texture(spill, MAP.W, MAP.H, made);
+  const b = texture(streaks, MAP.SW, MAP.SH, made);
+  return {
+    spill: a,
+    streaks: b,
+    bounds: new THREE.Vector4(x0, z0, 1 / (x1 - x0), 1 / (z1 - z0)),
+    streakBounds: new THREE.Vector4(STREAK_BOUNDS.x0, STREAK_BOUNDS.z0, 1 / (STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0), 1 / (STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0)),
+    dispose() {
+      a.dispose();
+      b.dispose();
+    },
+  };
+}
 
 /**
  * The bake, in pieces: `add(sources)` as each part of the city arrives (the
  * core, then each streamed pack), `finish()` for the maps of everything
  * added so far (new textures each time; the caller disposes the old).
+ * sources: [{ mesh, color: THREE.Color (linear), intensity }].
  */
 export function createBake() {
-  const { x0, z0, x1, z1 } = LIGHT_BOUNDS;
-  const W = Math.ceil((x1 - x0) / CELL);
-  const H = Math.ceil((z1 - z0) / CELL);
-  const pool = new Float32Array(W * H * 3);
-  const SW = Math.ceil((STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0) / SX);
-  const SH = Math.ceil((STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0) / SZ);
-  const streak = new Float32Array(SW * SH * 3);
-  // The small lamps' pools, kept apart from the signs' so they do not move
-  // the gain the hero's street is lit at.
-  const lamps = new Float32Array(W * H * 3);
-  // How high the light in each cell hangs: its weight, and weight times
-  // height (the third channel rides along unused, to share the blur).
-  const hung = new Float32Array(W * H * 3);
-  // (load: the maps' working arrays, made at the first finish and kept for
-  // the next until release(): each is written whole before it is read, so
-  // a finish makes the same maps with them as with new ones.)
-  let scratch = null;
-  const copy = (key, from) => {
-    scratch[key] ??= new Float32Array(from.length);
-    scratch[key].set(from);
-    return scratch[key];
-  };
-  const room = (key, length) => (scratch[key] ??= new Float32Array(length));
-
-  // (load: a generator, some thousands of triangles a step, for a
-  // district's light added once the city is live; add runs it through.)
-  function* addSteps(sources) {
-    let since = 0;
-    for (const { mesh, color, intensity } of sources) {
-      const geo = mesh.geometry;
-      const pos = geo.attributes.position;
-      const index = geo.index;
-      const count = index ? index.count : pos.count;
-      if (mesh.matrixWorldAutoUpdate !== false) mesh.updateWorldMatrix(true, false);
-      const m = mesh.matrixWorld;
-      for (let i = 0; i < count; i += 3) {
-        if (++since === 8192) {
-          since = 0;
-          yield;
-        }
-        const ia = index ? index.getX(i) : i;
-        const ib = index ? index.getX(i + 1) : i + 1;
-        const ic = index ? index.getX(i + 2) : i + 2;
-        _a.fromBufferAttribute(pos, ia).applyMatrix4(m);
-        _b.fromBufferAttribute(pos, ib).applyMatrix4(m);
-        _c.fromBufferAttribute(pos, ic).applyMatrix4(m);
-        const area = _ab.subVectors(_b, _a).cross(_ac.subVectors(_c, _a)).length() * 0.5;
-        if (area < 1e-4) continue;
-        const cx = (_a.x + _b.x + _c.x) / 3;
-        const cy = (_a.y + _b.y + _c.y) / 3;
-        const cz = (_a.z + _b.z + _c.z) / 3;
-        const gx = Math.floor((cx - x0) / CELL);
-        const gz = Math.floor((cz - z0) / CELL);
-        if (gx < 0 || gz < 0 || gx >= W || gz >= H) continue;
-        // Big boards do not light a street in proportion to their area.
-        const e = intensity * Math.min(area, 6) * (cy > 30 ? 0.35 : 1);
-        const k = (gz * W + gx) * 3;
-        pool[k] += color.r * e;
-        pool[k + 1] += color.g * e;
-        pool[k + 2] += color.b * e;
-        const wgt = (color.r + color.g + color.b) * e;
-        hung[k] += wgt;
-        hung[k + 1] += wgt * Math.max(cy, 0);
-        // Mirrored for the hero's eye: only what stands on the avenue and
-        // the canyon themselves, which is what that camera sees (the bake
-        // has no walls in it: a lane's lamps behind the rows would streak
-        // the road they cannot shine on).
-        if (cy > 1.0 && cy < 60 && Math.abs(cx) < 20 && cz < 0) {
-          const t = EYE.y / (EYE.y + cy);
-          const rx = Math.floor((EYE.x + (cx - EYE.x) * t - STREAK_BOUNDS.x0) / SX);
-          const rz = Math.floor((EYE.z + (cz - EYE.z) * t - STREAK_BOUNDS.z0) / SZ);
-          if (rx >= 0 && rz >= 0 && rx < SW && rz < SH) {
-            const r = (rz * SW + rx) * 3;
-            const s = e * Math.min(1, cy / 5);
-            streak[r] += color.r * s;
-            streak[r + 1] += color.g * s;
-            streak[r + 2] += color.b * s;
-          }
-        }
+  const core = createBakeCore();
+  return {
+    add: (sources) => core.add(sources.map(raw)),
+    /** (load) add, a generator: some thousands of triangles a step. */
+    addSteps: (sources) => core.addSteps(sources.map(raw)),
+    addPoints: core.addPoints,
+    finish: () => maps(core.finish()),
+    /** finish, a step at a time: `between()` resolves when the page has a
+     *  moment between its frames (at once while that moment lasts). */
+    finishSliced: async (between) => maps(await core.finishSliced(between)),
+    release: core.release,
+    /**
+     * (load) add and addPoints (each of `points` a flat list, as addPoints
+     * takes) and finish, on a worker, off the page's thread: returns the
+     * maps at once, as textures the size they will be, empty and not yet
+     * to be sent to the GPU (the warm-up waits for a picture that is not),
+     * and `ready`, which fills them and resolves when the worker is done
+     * (the bake then goes on from what the worker added, for the
+     * districts).
+     * Where there is no worker, or it fails, the bake is made here, as
+     * before. The sources are copied to the worker as this is called.
+     */
+    finishElsewhere(sources, points) {
+      const light = maps({ spill: new Uint8Array(MAP.W * MAP.H * 4), streaks: new Uint8Array(MAP.SW * MAP.SH * 4) }, false);
+      const fill = ({ spill, streaks }) => {
+        light.spill.image.data.set(spill);
+        light.spill.needsUpdate = true;
+        light.streaks.image.data.set(streaks);
+        light.streaks.needsUpdate = true;
+      };
+      const here = () => {
+        core.add(list);
+        for (const p of points) core.addPoints(p);
+        fill(core.finish());
+      };
+      const list = sources.map(raw);
+      let worker = null;
+      try {
+        worker = new Worker(new URL("./spill-worker.js", import.meta.url), { type: "module" });
+      } catch {
+        worker = null;
       }
-    }
-  }
-  const add = (sources) => {
-    const steps = addSteps(sources);
-    while (!steps.next().done);
-  };
-
-  /** points: a flat list, per lamp [x, y, z, r, g, b, power] (linear colour). */
-  const addPoints = (points) => {
-    for (let i = 0; i < points.length; i += 7) {
-      const gx = Math.floor((points[i] - x0) / CELL);
-      const gz = Math.floor((points[i + 2] - z0) / CELL);
-      if (gx < 0 || gz < 0 || gx >= W || gz >= H) continue;
-      const k = (gz * W + gx) * 3;
-      const e = points[i + 6];
-      lamps[k] += points[i + 3] * e;
-      lamps[k + 1] += points[i + 4] * e;
-      lamps[k + 2] += points[i + 5] * e;
-      const wgt = (points[i + 3] + points[i + 4] + points[i + 5]) * e * 4;
-      hung[k] += wgt;
-      hung[k + 1] += wgt * Math.max(points[i + 1], 0);
-    }
-  };
-
-  // The gains are set by the first finish (the core: the hero's street) and
-  // kept, so the street the reader is looking at does not change its light
-  // when a district arrives somewhere else.
-  let gains = null;
-  function* finishSteps() {
-    // The pool: a tight halo in each sign's own colour, which is what
-    // lights the wall beside it and the pavement under it, plus a wide wash
-    // down the street. The wash is every sign's colour summed, which is
-    // lilac: the avenue keeps it (the plate's street is that colour), and
-    // away from the avenue it is cooled toward the night's own blue, so a
-    // lane between two pools is dark and navy, not evenly mauve.
-    // And nearest of all, a couple of metres round each: the light a walker
-    // sees land on the wall a sign hangs on.
-    scratch ??= {};
-    const tmpMap = room("tmpMap", pool.length);
-    const near = yield* blurSteps(copy("near", pool), W, H, 1, 2, tmpMap);
-    const tight = yield* blurSteps(copy("tight", pool), W, H, 2, 3, tmpMap);
-    const wide = yield* blurSteps(copy("wide", pool), W, H, 7, 3, tmpMap);
-    yield* spans(tight.length, (i0, i1) => {
-    for (let i = i0; i < i1; i += 3) {
-      const x = x0 + ((i / 3) % W + 0.5) * CELL;
-      const away = Math.min(1, Math.max(0, (Math.abs(x) - 22) / 20));
-      const l = (wide[i] * 0.3 + wide[i + 1] * 0.59 + wide[i + 2] * 0.11) * 0.7 * away;
-      const wash = 0.9 - 0.45 * away;
-      tight[i] = near[i] * 0.35 + tight[i] * 0.6 + (wide[i] * (1 - 0.7 * away) + l * 0.5) * wash;
-      tight[i + 1] = near[i + 1] * 0.35 + tight[i + 1] * 0.6 + (wide[i + 1] * (1 - 0.7 * away) + l * 0.9) * wash;
-      tight[i + 2] = near[i + 2] * 0.35 + tight[i + 2] * 0.6 + (wide[i + 2] * (1 - 0.7 * away) + l * 1.25) * wash;
-    }
-    });
-
-    // The streaks: a hair across the street, a long way along it, more
-    // toward the eye than away from it.
-    const across = room("across", streak.length);
-    yield* boxSteps(streak, across, SW, SH, 1, true);
-    const decay = Math.exp(-SZ / 14);
-    const run = room("run", streak.length);
-    for (let x = 0; x < SW; x++) {
-      let r = 0, g = 0, b = 0;
-      for (let y = 0; y < SH; y++) {
-        const k = (y * SW + x) * 3;
-        r = across[k] + r * decay;
-        g = across[k + 1] + g * decay;
-        b = across[k + 2] + b * decay;
-        run[k] = r;
-        run[k + 1] = g;
-        run[k + 2] = b;
+      if (!worker) {
+        here();
+        light.ready = Promise.resolve(light);
+        return light;
       }
-    }
-    const tmp = room("tmpStreak", run.length);
-    yield* boxSteps(run, tmp, SW, SH, 3, false);
-
-    gains ??= { spill: autoGain(tight, 0.85), streaks: autoGain(tmp, 0.9, 0.995) };
-    // The gain is the avenue's, whose signs are the size of buildings. An
-    // eye in a lane has opened up to the lane: away from the avenue, what
-    // is dimmer than the avenue's street is lifted toward it (its colour
-    // kept), so a lamp over a back door lights the wall it is on.
-    const ref = 0.5 / gains.spill;
-    yield* spans(tight.length, (i0, i1) => {
-    for (let i = i0; i < i1; i += 3) {
-      const m = Math.max(tight[i], tight[i + 1], tight[i + 2]);
-      if (m >= ref || m < 1e-7) continue;
-      const x = x0 + ((i / 3) % W + 0.5) * CELL;
-      const away = Math.min(1, Math.max(0, (Math.abs(x) - 22) / 20));
-      const lift = Math.min(5, (ref / m) ** (0.6 * away));
-      tight[i] *= lift;
-      tight[i + 1] *= lift;
-      tight[i + 2] *= lift;
-    }
-    });
-    // Each lamp a pool a few metres round, in the encoded map's own units,
-    // and no brighter than a lamp's pool is however many lamps the builder
-    // hung there (its colour kept): a lane is lit in patches, dark between,
-    // not from end to end.
-    const pools = yield* blurSteps(copy("pools", lamps), W, H, 1, 1, tmpMap);
-    yield* spans(tight.length, (i0, i1) => {
-    for (let i = i0; i < i1; i += 3) {
-      const m = (Math.max(pools[i], pools[i + 1], pools[i + 2]) * LAMP_GAIN) / gains.spill;
-      if (m < 1e-6) continue;
-      const k = ((1.2 * (1 - Math.exp(-m / 1.2))) / m) * (LAMP_GAIN / gains.spill);
-      tight[i] += pools[i] * k;
-      tight[i + 1] += pools[i + 1] * k;
-      tight[i + 2] += pools[i + 2] * k;
-    }
-    });
-    const bounds = new THREE.Vector4(x0, z0, 1 / (x1 - x0), 1 / (z1 - z0));
-    const streakBounds = new THREE.Vector4(STREAK_BOUNDS.x0, STREAK_BOUNDS.z0,
-      1 / (STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0), 1 / (STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0));
-    // A cell brighter than its street's light is eased down toward the most
-    // the map holds, its channels together, so it keeps its colour: clipped,
-    // a pavement under six signs is lit white and no pool stands out of it.
-    // The avenue's ceiling is lower: its light is the hero's.
-    yield* spans(tight.length, (i0, i1) => {
-    for (let i = i0; i < i1; i += 3) {
-      const m = Math.max(tight[i], tight[i + 1], tight[i + 2]) * gains.spill;
-      if (m <= 0.6) continue;
-      const x = x0 + ((i / 3) % W + 0.5) * CELL;
-      const top = 1.5 + (SPILL_RANGE - 1.5) * Math.min(1, Math.max(0, (Math.abs(x) - 22) / 20)) - 0.6;
-      const ease = (0.6 + top * (1 - Math.exp(-(m - 0.6) / top))) / m;
-      tight[i] *= ease;
-      tight[i + 1] *= ease;
-      tight[i + 2] *= ease;
-    }
-    });
-    const height = yield* blurSteps(copy("height", hung), W, H, 2, 2, tmpMap);
-    const spill = yield* encodeSteps(tight, W, H, gains.spill / SPILL_RANGE, height);
-    const streaks = yield* encodeSteps(tmp, SW, SH, gains.streaks);
-    return {
-      spill,
-      streaks,
-      bounds,
-      streakBounds,
-      dispose() {
-        spill.dispose();
-        streaks.dispose();
-      },
-    };
-  }
-  // (load: the map's work in pieces of ROWS rows, so a district's bake once
-  // the city is live can be spread over the page's frames; finish runs them
-  // straight through, as before, and both make the same maps to the bit.)
-  function* spans(length, fn) {
-    const span = 3 * W * ROWS;
-    for (let i = 0; i < length; i += span) {
-      fn(i, Math.min(length, i + span));
-      yield;
-    }
-  }
-  const finish = () => {
-    const steps = finishSteps();
-    let r;
-    while (!(r = steps.next()).done);
-    return r.value;
+      light.ready = new Promise((resolve) => {
+        const done = (made) => {
+          worker.terminate();
+          if (made) {
+            core.adopt(made.state);
+            fill(made.maps);
+          } else here();
+          resolve(light);
+        };
+        worker.onmessage = ({ data }) => done(data);
+        worker.onerror = () => done(null);
+        worker.postMessage({ sources: list, points });
+      });
+      return light;
+    },
   };
-  /** finish, a step at a time: `between()` resolves when the page has a
-   *  moment between its frames (at once while that moment lasts). */
-  const finishSliced = async (between) => {
-    const steps = finishSteps();
-    for (;;) {
-      const r = steps.next();
-      if (r.done) return r.value;
-      await between();
-    }
-  };
-  /** (load) Let the working arrays go (the last district is in); a later
-   *  finish makes them again. */
-  const release = () => {
-    scratch = null;
-  };
-  return { add, addSteps, addPoints, finish, finishSliced, release };
-}
-
-/** The whole bake at once: sources: [{ mesh, color: THREE.Color (linear), intensity }]. */
-export function bakeLight(sources) {
-  const bake = createBake();
-  bake.add(sources);
-  return bake.finish();
 }

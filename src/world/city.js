@@ -432,10 +432,14 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   // The light: every emissive triangle, pooled on the ground. A streamed
   // pack adds its own and the maps are rebaked into the same textures (the
   // car reads the spill's pixels, src/world/car.js).
+  // (load: worked out on a worker while the rest of the city is built, 0.1
+  // to 0.15 s of the page's thread on the way to the city's first frame;
+  // `light.ready` resolves once its maps are in, and the bake goes on from
+  // it for the districts. The same maps to the bit; spill.js.)
   const bake = createBake();
-  bake.add(sources);
-  for (const [n, a] of anchors) if (n.startsWith("anchor_lights_")) bake.addPoints(lampPoints(a.extras?.lights));
-  const light = bake.finish();
+  const points = [];
+  for (const [n, a] of anchors) if (n.startsWith("anchor_lights_")) points.push(lampPoints(a.extras?.lights));
+  const light = bake.finishElsewhere(sources, points);
   props.disposeBake();
   shared.uSpill.value = light.spill;
   shared.uSpillBounds.value.copy(light.bounds);

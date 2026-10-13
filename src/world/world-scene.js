@@ -178,8 +178,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let shelterBox = null;
 
   let clearance = null;
+  let lightIn = false;
   const setUp = (c) => {
     city = c;
+    c.light.ready.then(() => {
+      lightIn = true;
+      if (running !== null) check();
+    });
     clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => o.isInstancedMesh || /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
     const keepOut = [...c.anchors].filter(([n]) => n.startsWith("anchor_mega_")).map(([, a]) => {
@@ -249,7 +254,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       if (import.meta.env.DEV) console.warn("[world] no voxel moon; the intro keeps its painted one", err);
       return null;
     });
-    return Promise.all([koiMade, car.ready]).then(([k]) => {
+    // (load: and the city's light, baked on a worker meanwhile; city.js.)
+    return Promise.all([koiMade, car.ready, c.light.ready]).then(([k]) => {
       koi = k;
       fitKoi();
       return c;
@@ -932,7 +938,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // the intro's mode all land there.
   let running = null;
   const check = () => {
-    const next = !stage.paused && stage.mode !== "cinematic" && Boolean(city);
+    // (load: not before the city's light is in: city.js bakes it on a
+    // worker while the rest is built.)
+    const next = !stage.paused && stage.mode !== "cinematic" && Boolean(city) && lightIn;
     if (next === running) return;
     running = next;
     soundscape.setActive(running);
