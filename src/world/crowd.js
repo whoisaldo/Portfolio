@@ -433,16 +433,16 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     if (garment === GARMENTS.coat && r() < style.long * (old ? 1.2 : 1)) flags += FLAG.long;
     if (kid) flags += FLAG.kid;
     if (old) flags += FLAG.old;
-    // Slight to heavy, most of them between, and one in nine heavy; a child
+    // Slight to heavy, most of them slight to middling, one in twelve heavy; a child
     // slight, somebody old a little broad.
-    let build = kid ? 0.8 + 0.12 * r() : old ? 0.92 + 0.3 * r() : r() < 0.11 ? 1.22 + 0.15 * r() : 0.84 + 0.4 * r() ** 1.5;
+    let build = kid ? 0.8 + 0.12 * r() : old ? 0.92 + 0.28 * r() : r() < 0.08 ? 1.18 + 0.14 * r() : 0.8 + 0.34 * r() ** 1.6;
     if (!kid && Math.abs(build - before.build) < 0.07) build = build > 1.04 ? build - 0.12 : build + 0.12;
     const hairColour = draw(r, style.hairColour, (i) => i !== before.hair && (FAMILY.hair[i] === NEUTRAL || FAMILY.hair[i] !== hue));
     worn.build = build;
     worn.hair = hairColour;
     const tall = (r() + r()) * 0.5;
     return {
-      height: (kid ? 1.02 + 0.42 * tall : old ? 1.5 + 0.26 * tall : 1.55 + 0.37 * tall) / RIG.height,
+      height: (kid ? 1.02 + 0.42 * tall : old ? 1.52 + 0.26 * tall : 1.6 + 0.38 * tall) / RIG.height,
       build,
       look: [mask, flags, Math.floor(r() * RIMS.length) + 4 * bagColour, r()],
       wear: [jacket, trousers + 8 * shirt, Math.floor(r() * SKINS.length), hairColour],
@@ -1607,20 +1607,24 @@ const VERTEX = /* glsl */ `
     float px = uPass.y * eye / h;
     // Broad in the shoulder or broad in the hip, a little, by the person.
     float frame = rnd(seed * 11.3) * 2.0 - 1.0;
-    float shoulderX = side * ${f(RIG.shoulderX)} * (1.0 + (wide - 1.0) * 0.9) * (1.0 + 0.1 * frame);
+    // (Square in the shoulder: a grown-up's are a little wider than built.)
+    float shoulderX = side * ${f(RIG.shoulderX)} * (1.0 + (wide - 1.0) * 0.9) * (1.0 + 0.1 * frame) * (1.0 + 0.05 * (1.0 - kid));
     float elbowX = shoulderX + side * ${f(RIG.elbowX - RIG.shoulderX)} * wide;
     if (part == ${PART.rim}) p.y += aux * max(0.75 * px - ${f(RIM_HALF)}, 0.0);
     else if (part == ${PART.phone}) p = ${v3(PHONE_AT)} + (p - ${v3(PHONE_AT)}) * clamp(1.3 * px / 0.036, 1.0, 5.0);
     else if (part == ${PART.ember}) p = ${v3(EMBER_AT)} + (p - ${v3(EMBER_AT)}) * clamp(px / 0.006, 1.0, 6.0);
+    // Long and lean, as the street's people are: legs and arms slimmer than
+    // built, the head smaller, the body narrow at the waist and square at
+    // the shoulders.
     if (seg > 4.5) {
       float ax = side * ${f(RIG.hipX)};
-      p.x = ax + (p.x - ax) * wide;
-      p.z *= wide;
+      p.x = ax + (p.x - ax) * wide * 0.9;
+      p.z *= wide * 0.9;
     } else if (seg > 2.5) {
       float ax = side * ${f(RIG.shoulderX)};
       if (garment > 1.5 && garment < 2.5 && part == ${PART.sleeve} && !machine) p.xz += normalize(p.xz - vec2(ax, 0.0) + 1e-5) * 0.014 * aux;
       // A machine's arm is slimmer than one in a sleeve.
-      float slim = machine ? 0.84 : 1.0;
+      float slim = machine ? 0.8 : 0.93;
       p.x = shoulderX + (p.x - ax) * wide * slim;
       p.z *= wide * slim;
     } else if (seg > 1.5) {
@@ -1628,12 +1632,13 @@ const VERTEX = /* glsl */ `
       // A head is not much smaller on a short person, nor wider on a broad;
       // a grown-up's is an eighth of them or a little over, a child's a
       // sixth.
-      p = vec3(0.0, ${f(RIG.headY)}, 0.0) + (p - vec3(0.0, ${f(RIG.headY)}, 0.0)) * (pow(h, -0.35) + 1.1 * max(0.86 - h, 0.0));
+      p = vec3(0.0, ${f(RIG.headY)}, 0.0) + (p - vec3(0.0, ${f(RIG.headY)}, 0.0)) * (pow(h, -0.35) * (0.92 + 0.08 * kid) + 1.1 * max(0.86 - h, 0.0));
       p.xz *= mix(1.0, wide, 0.3);
     } else if ((tag < ${f(TAG.umbrella - 0.5)} || tag > ${f(TAG.umbrella + 0.5)}) && tag < ${f(CARRIED - 0.5)}) {
       if (garment > 1.5 && garment < 2.5 && part == ${PART.jacket}) p.xz += normalize(p.xz + 1e-5) * 0.024 * aux;
       p.x *= wide * (1.0 + 0.1 * frame * (smoothstep(1.1, 1.35, p.y) - 1.0 + smoothstep(0.95, 1.15, p.y)));
-      p.z *= mix(1.0, wide, 0.85);
+      if (kid < 0.5) p.x *= 1.0 + 0.05 * smoothstep(1.25, 1.4, p.y) + 0.1 * smoothstep(1.4, 1.44, p.y) * (1.0 - smoothstep(1.455, 1.475, p.y)) - 0.075 * exp(-pow((p.y - 1.06) / 0.08, 2.0));
+      p.z *= mix(1.0, wide, 0.85) * 0.93;
       // A paunch on some, under the jacket's front, and on everyone heavy.
       p.z += max(p.z, 0.0) * 9.0 * min(max(rnd(seed * 13.7) - 0.62, 0.0) * 0.2 + max(wide - 1.12, 0.0) * 0.22, 0.08) * smoothstep(0.86, 1.02, p.y) * (1.0 - smoothstep(1.12, 1.34, p.y));
       // A coat's skirt goes with the leg under it; a long one on past the
