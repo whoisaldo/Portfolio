@@ -86,3 +86,89 @@ fb = face("-x", 70.0 - 0.02, -646.0, -630.0)
 for k in (1, 2, 3):
     well_bays(fb, floor_y(k), _r, ring=False)
 fposter(face("-x", 70.0, -640.0, -632.0), 3.0, 2.2, 1.2, 1.7, _r)
+
+# ---------------------------------------------------------------------------
+# Grime: what a night leaves on the ground everywhere a walker goes here,
+# the forecourt, the street's pavements, the court, the avenue's pavements
+# under the viaduct: stains dark and pale, trodden paper and card, cans,
+# puddles that hold the signs; cables slung low between the columns.
+# Clear of the walkers' and the walk camera's lines and of every fixed eye.
+# ---------------------------------------------------------------------------
+LINES_Z = (-729.0, -730.6, -731.4, -711.0, -709.4, -708.6)
+EYES = ((0.3, -742.8), (3.0, -700.0), (2.0, -720.0), (-45.0, -721.0), (36.5, -712.15), (-30.6, -741.4), (-4.6, -777.0), (3.0, -660.0),
+        (33.5, -744.0), (30.0, -718.0), (-30.0, -730.0), (-44.0, -738.0), (0.6, -746.5), (14.0, -726.5), (-14.0, -727.0), (6.0, -712.0))
+
+
+def clear_at(x, z, avenue=False):
+    if any(abs(z - lz) < 0.9 for lz in LINES_Z) and -100.0 < x < 70.0 and -735.0 < z < -705.0:
+        return False
+    if avenue and 10.9 < abs(x) < 13.3:
+        return False
+    return all(math.hypot(x - ex, z - ez) > 1.4 for ex, ez in EYES)
+
+
+def grime(x0, x1, z0, z1, seed, k=1.0, avenue=False):
+    r = random.Random(seed)
+    area = (x1 - x0) * (z1 - z0) * k
+    y = G0 + 0.011
+    for _ in range(int(area / 7)):
+        x, z = r.uniform(x0, x1), r.uniform(z0, z1)
+        if not clear_at(x, z, avenue):
+            continue
+        w, d, a = r.uniform(0.4, 1.8), r.uniform(0.3, 1.2), r.uniform(0, math.pi)
+        ca, sa = math.cos(a), math.sin(a)
+        pts = [(x + ca * u - sa * v, y, z + sa * u + ca * v) for u, v in ((-w / 2, d / 2), (w / 2, d / 2), (w / 2, -d / 2), (-w / 2, -d / 2))]
+        quad((D, "trim", 1), *pts, col=r.choice(((0.035, 0.035, 0.04, 1.0), (0.05, 0.045, 0.04, 1.0), (0.12, 0.12, 0.12, 1.0), (0.09, 0.07, 0.05, 1.0))))
+    for _ in range(int(area / 9)):
+        x, z = r.uniform(x0, x1), r.uniform(z0, z1)
+        if not clear_at(x, z, avenue):
+            continue
+        w, d, a = r.uniform(0.15, 0.4), r.uniform(0.1, 0.3), r.uniform(0, math.pi)
+        ca, sa = math.cos(a), math.sin(a)
+        pts = [(x + ca * u - sa * v, y + 0.004, z + sa * u + ca * v) for u, v in ((-w / 2, d / 2), (w / 2, d / 2), (w / 2, -d / 2), (-w / 2, -d / 2))]
+        quad((D, "trim", 1), *pts, col=r.choice(((0.5, 0.48, 0.42, 1.0), (0.42, 0.4, 0.36, 1.0), (0.5, 0.2, 0.25, 1.0), (0.2, 0.35, 0.45, 1.0))))
+    for _ in range(int(area / 45)):
+        x, z = r.uniform(x0 + 0.5, x1 - 0.5), r.uniform(z0 + 0.5, z1 - 0.5)
+        if not clear_at(x, z, avenue):
+            continue
+        w, d = r.uniform(0.5, 1.0), r.uniform(0.4, 0.8)
+        tbox(x - w / 2, x + w / 2, G0, G0 + 0.025, z - d / 2, z + d / 2, dim(CREAM, r.uniform(0.4, 0.7)), detail=1)
+    for _ in range(int(area / 30)):
+        x, z = r.uniform(x0, x1), r.uniform(z0, z1)
+        if not clear_at(x, z, avenue):
+            continue
+        tbox(x - 0.035, x + 0.035, G0, G0 + 0.12, z - 0.035, z + 0.035, r.choice((dim(RED_PAINT, 1.4), (0.5, 0.5, 0.52, 1.0), dim(TEAL_PAINT, 1.8))), detail=1)
+    for _ in range(int(area / 55)):
+        x, z = r.uniform(x0 + 1.0, x1 - 1.0), r.uniform(z0 + 1.0, z1 - 1.0)
+        if not clear_at(x, z, avenue):
+            continue
+        w, d = r.uniform(0.9, 2.6), r.uniform(0.6, 1.6)
+        hquad((D, "roof_wet", 0), x - w / 2, x + w / 2, z - d / 2, z + d / 2, G0 + 0.016, scale=4.0)
+
+
+grime(-47.5, 47.5, -744.6, -732.3, 9201)                            # the forecourt
+grime(-90.0, 63.0, -732.0, -728.6, 9202, k=0.8)                     # the street's north pavement
+grime(-90.0, 63.0, -711.4, -708.0, 9203, k=0.8)                     # and its south
+grime(-12.6, 12.6, -785.6, -763.4, 9204, k=0.9)                     # the court
+for sx in (-1, 1):
+    a, b = sorted((sx * 10.4, sx * 14.0))
+    grime(a, b, -707.0, -566.0, 9205 + sx, k=0.9, avenue=True)     # the avenue's pavements
+# Cables slung between the forecourt's columns and the deck's edge, low.
+_rc = random.Random(9210)
+from ncw.districts.mega_base import W_COLS, M_COLS, E_COLS, COL_Z, M_TOP, W_TOP, E_TOP  # noqa: E402
+cols = list(W_COLS) + list(M_COLS) + list(E_COLS)
+for xa, xb in zip(cols, cols[1:]):
+    if _rc.random() < 0.7:
+        ya, yb = _rc.uniform(3.3, 4.2), _rc.uniform(3.3, 4.2)
+        cable((xa, ya, COL_Z), (xb, yb, COL_Z + _rc.uniform(-0.6, 0.6)), _rc.uniform(0.5, 1.1), r=0.02)
+    if _rc.random() < 0.5:
+        cable((xa, _rc.uniform(3.0, 3.8), COL_Z), ((xa + xb) / 2, _rc.uniform(5.0, 6.5), -744.6), _rc.uniform(0.3, 0.8), r=0.015)
+# A cable run along the ground from a junction box on a column to the wall.
+for x in (-31.0, 28.3):
+    tbox(x - 0.3, x + 0.3, 0.9, 1.6, COL_Z - 0.9, COL_Z - 0.66, dim(BLUEGREY, 1.2), detail=1)
+    rpipe((x, G0 + 0.04, COL_Z - 0.9), (x + 0.4, G0 + 0.04, -744.4), 0.035, col=BLACK)
+# The NCART wall a walker passes (WZ, x 22..44): bills between the posters.
+from ncw.districts.mega_base import WZ  # noqa: E402
+fo = face("+z", WZ, 22.0, 45.0)
+for s in (0.8, 3.2, 7.6, 12.2, 16.4, 20.6):
+    bill(fo, s, _rc.uniform(1.5, 2.1), _rc.uniform(0.5, 0.8), _rc.uniform(0.7, 1.0), _rc, out=0.04)
