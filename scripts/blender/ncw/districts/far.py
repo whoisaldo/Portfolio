@@ -903,6 +903,13 @@ def _dress_street(U):
     REL.street(U, taken, ROWS[side], random.Random(9500 + U["idx"] * 13))
     print("CANYON street lights", side, L["i"], U["k"], round(U["zn"]), round(U["zs"]), U["recipe"], "top", round(REL._safe_top(U, ROWS[side]), 1),
           REL.street_lights(U, taken, ROWS[side], random.Random(9990 + U["idx"] * 29)))
+    # Its sides over the slots and alleys the same, where the hero's lens
+    # does not see them.
+    rs_ = random.Random(9930 + U["idx"] * 31)
+    plaza = side > 0 and L["i"] <= 4
+    for f_, end_ in ((U["so"], U["south"]), (U["no"], U["north"])):
+        if end_ != "abut":
+            REL.lines(f_, ph + CELL_H * 2, h - 1.0, rs_, lambda lo, hi: C.hidden(OCC, lo, hi, plaza=plaza), U["hues"])
 
 
 def _dress_back(U):

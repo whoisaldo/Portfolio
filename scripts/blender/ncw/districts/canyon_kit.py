@@ -1571,7 +1571,7 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
     line of light at the parapet's top (ARL_JWwKdDs@23)."""
     w, d = x1 - x0, z1 - z0
     if lines:
-        hue = r.choice(("cyan", "cyan", "amber", "yellow", "teal", "white"))
+        hue = r.choice(("cyan", "cyan", "amber", "yellow", "teal", "blue"))
         fs = B.faces_of(x0, x1, z0, z1)
         for name in lines:
             fs[name].quad((key, "neon_" + hue, 0), 0.0, fs[name].width, y + 0.84, y + 0.94, 0.04)
