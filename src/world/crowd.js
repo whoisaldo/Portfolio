@@ -1845,6 +1845,9 @@ const VERTEX = /* glsl */ `
     float graze = 1.0 - max(dot(N, V), 0.0);
     float ground = 0.72 + 0.28 * smoothstep(0.0, 0.5, tall);
     vec3 own = byNight(albedo, light) * light * ground;
+    // Where there is a sign to one side the other side is in its shadow, a
+    // soft edge between: a face, an arm, a fold are modelled by it.
+    own *= mix(1.0, mix(part == ${PART.skin} ? 0.6 : 0.72, 1.0, smoothstep(-0.25, 0.3, toward)), source);
     // The street's colour is on them twice: as a wash over the side turned
     // to it (person(), above) and as a rim in the sign's own colour along
     // the edges turned to it, bright enough to draw them against the dark.
