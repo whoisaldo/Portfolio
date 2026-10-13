@@ -3772,6 +3772,57 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
         return vec3(0.6, 0.68, 0.9) * sum * 0.075 * uHaze * mix(1.0, 2.0, lift);
       }
 
+      // Past the far ring the city goes on over the horizon (for a free eye;
+      // the camera's far plane is 2.4 km): two rows of towers painted on
+      // the dome, 2.9 and 3.6 km off, each 50 to 90 m wide, most of them
+      // 90 to 400 m tall and taller toward the far ring's own clusters, a
+      // step at the top of some, floors lit in strips through the haze and
+      // a red lamp on the tall ones. Where the ring ended there was a pale
+      // band of empty air. t is the tangent of the look's elevation.
+      vec3 beyondRow(vec3 col, float az, float t, float pxT, float D, float k) {
+        float c = uCam.y;
+        if (t < -c / D) return col;
+        float gx = az * D / 70.0 + k * 31.0;
+        float bin = floor(gx);
+        float fx = fract(gx);
+        float h1 = hash12(vec2(bin, k * 7.1 + 1.3));
+        if (h1 < 0.15) return col;
+        // The clusters: E, SE, S, SW, W, NE of the kit, seen from here.
+        float cl = 0.0;
+        for (int i = 0; i < 6; i++) {
+          vec2 at = i == 0 ? vec2(3200.0, -400.0) : i == 1 ? vec2(2600.0, 2200.0) : i == 2 ? vec2(300.0, 3000.0) : i == 3 ? vec2(-2400.0, 2000.0) : i == 4 ? vec2(-2900.0, -700.0) : vec2(2600.0, -3200.0);
+          vec2 to = at - uCam.xz;
+          float da = abs(mod(az - atan(to.y, to.x) + 3.14159, 6.28318) - 3.14159);
+          cl += exp(-da * da / 0.022);
+        }
+        float h2 = hash12(vec2(bin, k * 7.1 + 4.9));
+        float H = (90.0 + 310.0 * h1 * h1) * (1.0 + 0.9 * min(cl, 1.2));
+        float m = 0.06 + 0.16 * h2;
+        if (fx < m || fx > 1.0 - m) return col;
+        // A step at the top of half of them: the middle stands higher.
+        float stepUp = step(0.5, h2) * step(abs(fx - 0.5), 0.2) * H * (0.08 + 0.14 * fract(h2 * 9.3));
+        float top = H + stepUp;
+        float y = c + t * D;
+        float pxm = max(pxT * D, 0.5);
+        float inside = 1.0 - smoothstep(top - pxm, top + pxm, y);
+        if (inside <= 0.0) return col;
+        // The body: darker than the air behind it, as hazed as its distance.
+        vec3 body = mix(col, vec3(0.01, 0.02, 0.045) + uHazeColor * 0.25 * uHaze, mix(0.64, 0.5, k));
+        // Floors of 5 m lit in runs of about 18 m, two in five.
+        float fy = y / 5.0;
+        float along = fx * 70.0;
+        float run = floor(along / 18.0 + hash12(vec2(bin, floor(fy))) * 3.0);
+        float on = step(hash12(vec2(run + bin * 13.0, floor(fy) + k * 3.0)), 0.42) * step(0.3, fract(fy)) * step(fract(fy), 0.75);
+        float rowPx = pxT * D / 5.0;
+        on = mix(on, 0.42 * 0.45, smoothstep(0.35, 0.9, rowPx));
+        vec3 light = (fract(h2 * 5.7) < 0.5 ? vec3(1.0, 0.72, 0.36) : vec3(0.5, 0.88, 1.0)) * mix(0.55, 0.36, k);
+        body += light * on * step(y, H - 3.0);
+        // A red lamp on the tall ones.
+        vec2 lamp = vec2((fx - 0.5) * 70.0, y - top - 1.5);
+        body += vec3(1.0, 0.06, 0.04) * 1.6 * step(220.0, H) * exp(-dot(lamp, lamp) / max(6.0, pxm * pxm * 2.0));
+        return mix(col, body, inside);
+      }
+
       void main() {
         vec3 dir = normalize(vDir);
         float h = max(dir.y, 0.0);
@@ -3782,6 +3833,8 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
         float tg = max(uCam.y, 0.0) / max(-dir.y, 1e-4);
         vec3 pg = uCam + dir * tg;
         float px = max(max(fwidth(pg.x), fwidth(pg.z)), 0.05);
+        float tanEl = dir.y / max(length(dir.xz), 1e-4);
+        float pxT = fwidth(tanEl);
         vec3 glow = uHazeColor * (0.55 + 0.25 * uLevel) * exp(-h * 9.0) * uHaze;
         vec3 col = vec3(0.004, 0.004, 0.007) + glow + uHazeColor * 0.08 * exp(-h * 2.5);
         // For an eye above the roofs the night is the show's: deep blue
@@ -3899,6 +3952,14 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           fogged += lift * vec3(0.004, 0.03, 0.09) * (1.0 - exp(-tg / 1300.0)) * uHaze;
           // The horizon's own band stays where the ground runs into it.
           col = mix(fogged, col, smoothstep(-0.004, 0.0, dir.y));
+        }
+        // (The city past the horizon, for a free eye: see beyondRow.)
+        float free = freeEye() * uFarFree;
+        if (free > 0.001 && dir.y < 0.12 && dir.y > -0.1) {
+          float az = atan(dir.z, dir.x);
+          vec3 b = beyondRow(col, az, tanEl, pxT, 3600.0, 1.0);
+          b = beyondRow(b, az, tanEl, pxT, 2900.0, 0.0);
+          col = mix(col, b, free);
         }
         col += searchlights(dir, time);
         gl_FragColor = vec4(col, 1.0);
