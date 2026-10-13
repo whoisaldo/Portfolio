@@ -91,6 +91,66 @@ export function mergeMeshes(meshes, into = null, names = null) {
   return merged;
 }
 
+/**
+ * (load) `part` (as mergeMeshes makes it, cut by cutToCells) added to the end
+ * of `kit`, { geometry, vertices, indices, runs }: written into the room the
+ * geometry's arrays have left over and sent to the GPU as that range alone,
+ * or, with no room, a geometry of twice what is needed made with the old
+ * and the new in it. Returns the kit as it will be: `grown` if it is a new
+ * geometry, and the runs with the part's after the old ones. Nothing the
+ * kit's mesh draws changes until its runs are set to these (a district's
+ * whole build is put in at once).
+ */
+export function appendPart(kit, part, partRuns) {
+  const pv = part.attributes.position.count;
+  const pi = part.index.count;
+  const v0 = kit.vertices;
+  const i0 = kit.indices;
+  let geometry = kit.geometry;
+  const room = geometry.attributes.position.count - v0 >= pv && geometry.index.count - i0 >= pi;
+  if (!room) {
+    const vCap = Math.ceil((v0 + pv) * 2);
+    const iCap = Math.ceil((i0 + pi) * 2);
+    const grown = new THREE.BufferGeometry();
+    for (const [name, attr] of Object.entries(geometry.attributes)) {
+      const arr = new attr.array.constructor(vCap * attr.itemSize);
+      arr.set(attr.array.subarray(0, v0 * attr.itemSize));
+      grown.setAttribute(name, new THREE.BufferAttribute(arr, attr.itemSize, attr.normalized));
+    }
+    const idx = new Uint32Array(iCap);
+    idx.set(geometry.index.array.subarray(0, i0));
+    grown.setIndex(new THREE.BufferAttribute(idx, 1));
+    grown.boundingBox = geometry.boundingBox?.clone() ?? null;
+    geometry = grown;
+  }
+  for (const [name, attr] of Object.entries(geometry.attributes)) {
+    const from = part.attributes[name];
+    attr.array.set(from.array.subarray(0, pv * attr.itemSize), v0 * attr.itemSize);
+    if (room) {
+      attr.addUpdateRange(v0 * attr.itemSize, pv * attr.itemSize);
+      attr.needsUpdate = true;
+    }
+  }
+  const idx = geometry.index.array;
+  const src = part.index.array;
+  for (let k = 0; k < pi; k++) idx[i0 + k] = src[k] + v0;
+  if (room) {
+    geometry.index.addUpdateRange(i0, pi);
+    geometry.index.needsUpdate = true;
+  }
+  geometry.setDrawRange(0, i0 + pi);
+  part.computeBoundingBox();
+  if (geometry.boundingBox) geometry.boundingBox.union(part.boundingBox);
+  else geometry.boundingBox = part.boundingBox.clone();
+  geometry.boundingSphere = geometry.boundingBox.getBoundingSphere(new THREE.Sphere());
+  const runs = {
+    cell: Int32Array.from([...kit.runs.cell, ...partRuns.cell]),
+    start: Int32Array.from([...kit.runs.start, ...Array.from(partRuns.start, (st) => st + i0)]),
+    count: Int32Array.from([...kit.runs.count, ...partRuns.count]),
+  };
+  return { geometry, grown: !room, vertices: v0 + pv, indices: i0 + pi, runs };
+}
+
 /** The attribute names a mesh carries, as a key. */
 export const attributeKey = (geometry) => Object.keys(geometry.attributes).sort().join(",");
 
@@ -199,14 +259,21 @@ export class Tiled extends THREE.Mesh {
   constructor(geometry, material, cells, runs) {
     super(geometry, material);
     this.cells = cells;
-    this.runs = runs;
     this.frustumCulled = false;
     if (MULTI_DRAW) {
       this.isBatchedMesh = true;
-      this._multiDrawStarts = new Int32Array(runs.cell.length);
-      this._multiDrawCounts = new Int32Array(runs.cell.length);
       this._multiDrawCount = 0;
       this._matricesTexture = this._indirectTexture = this._colorsTexture = null;
+    }
+    this.setRuns(runs);
+  }
+
+  /** (load: its runs anew, when a district's are added after them.) */
+  setRuns(runs) {
+    this.runs = runs;
+    if (MULTI_DRAW && !(this._multiDrawStarts?.length >= runs.cell.length)) {
+      this._multiDrawStarts = new Int32Array(runs.cell.length);
+      this._multiDrawCounts = new Int32Array(runs.cell.length);
     }
   }
 

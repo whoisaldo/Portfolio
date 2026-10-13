@@ -206,6 +206,11 @@ class Baked extends THREE.InstancedMesh {
   /** The cells in sight and in reach, as an instanced part has them: those
    *  that follow one another in the index go as one run. */
   show(cellVis, cellDist) {
+    // (load: one a streamed district brought, not yet written, draws nothing.)
+    if (!this.geometry.index) {
+      this.visible = false;
+      return;
+    }
     const { ci, reach, start, count } = this.cells;
     const bytes = this.geometry.index.array.BYTES_PER_ELEMENT;
     let n = 0;
@@ -304,7 +309,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const unwritten = new Set();
   // A prototype's instances and their draws, once its meshes are here (the
   // core's at the start; a district's own arrive with its pack).
-  const build = (k) => {
+  const build = (k, hold = false) => {
     const meshes = parts.get(k.name);
     if (built.has(k.name) || !meshes?.length || !k.list.length) return [];
     built.add(k.name);
@@ -387,7 +392,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     const near = kinds.find((o) => o.name === k.name + NEAR);
     const ornament = parts.get(k.name + NEAR);
     if (near && ornament?.length) mine.push(set({ near: true, reach: near.reach }, ornament.map(instance)));
-    sets.push(...mine);
+    if (!hold) sets.push(...mine);
     return mine;
   };
   // The small parts' meshes that have gained a part, written again, their
@@ -537,7 +542,11 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
      * were): their instances are drawn from now on. Returns the light they
      * give the street, for the bake.
      */
-    addProtos(meshes) {
+    /** (load: with `hold`, the new sets are made but not drawn, and their
+     *  light worked out, until the returned `commit()`: a district built a
+     *  piece at a time appears in one frame. Returns { sources, commit }
+     *  then, else the sources.) */
+    addProtos(meshes, { hold = false } = {}) {
       const names = new Set();
       for (const mesh of meshes) {
         const name = mesh.userData.proto ?? mesh.name.replace(/^proto_/, "").replace(/_[a-z]+(_[a-z]+)?$/, "");
@@ -546,10 +555,15 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         names.add(name.endsWith(NEAR) ? name.slice(0, -NEAR.length) : name);
       }
       const added = [];
-      for (const k of kinds) if (names.has(k.name)) added.push(...build(k));
-      write();
-      stale = true;
-      return sourcesOf(added);
+      for (const k of kinds) if (names.has(k.name)) added.push(...build(k, hold));
+      const commit = () => {
+        if (hold) sets.push(...added);
+        write();
+        stale = true;
+      };
+      if (!hold) commit();
+      const sources = sourcesOf(added);
+      return hold ? { sources, commit } : sources;
     },
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {

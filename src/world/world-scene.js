@@ -1075,13 +1075,33 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!disposed) moon = m;
   };
 
-  // (load) A moment between the page's frames for a few milliseconds of
-  // work: an idle callback, or the next one within a frame or two.
-  const between = () => new Promise((resolve) => {
-    if (!window.requestIdleCallback) return setTimeout(resolve, 16);
-    const ask = () => window.requestIdleCallback((d) => (d.timeRemaining() > 2 || d.didTimeout ? resolve() : ask()), { timeout: 24 });
-    ask();
-  });
+  // (load) Work spread over the page's frames: each frame gives up to
+  // WORK_MS of it, run just after that frame is drawn (the frame's own work
+  // is a few milliseconds, so the frame and its share stay inside the
+  // tier's budget). `between()` resolves at once while this frame's share
+  // lasts, else just after the next frame; a page drawing nothing (the tab
+  // hidden, a cover up) has no frames to follow, and waits a sixth of a
+  // second instead.
+  const WORK_MS = tier === "phone" ? 7 : 5;
+  let workFrom = -Infinity;
+  const between = () => {
+    if (performance.now() - workFrom < WORK_MS) return Promise.resolve();
+    return new Promise((resolve) => {
+      let asked = true;
+      const go = () => {
+        if (!asked) return;
+        asked = false;
+        cancelAnimationFrame(next);
+        clearTimeout(late);
+        setTimeout(() => {
+          workFrom = performance.now();
+          resolve();
+        }, 0);
+      };
+      const next = requestAnimationFrame(go);
+      const late = setTimeout(go, 160);
+    });
+  };
 
   // ---- the districts behind the core ------------------------------------------
   // Once the hero can be drawn, the rest of the city: each pack fetched in
@@ -1101,7 +1121,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (disposed) return;
         await idle();
         if (disposed || !city) return;
-        city.addPack(name, packScene, { beforeMerge: (part) => clearance?.add(part) });
+        // (load: built a few milliseconds at a time between the page's frames,
+        // and put in the city in one go; city.js, addPack.)
+        await city.addPack(name, packScene, { beforeMerge: (part) => clearance?.add(part), between });
+        if (disposed) return;
         // Its materials are the core's, compiled at warm-up; this makes sure
         // of any variant its meshes need before one is drawn.
         // (perf: for the target the frames draw into and with the scene's
@@ -1112,6 +1135,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         renderer.setRenderTarget(post.composer.inputBuffer);
         renderer.compile(city.root, camera, scene);
         renderer.setRenderTarget(packTarget);
+        // (load: the rain's cover a moment later, in a moment of its own.)
+        await between();
+        if (disposed) return;
         cover?.render(city.root);
         packsIn.push(name);
       } catch (err) {

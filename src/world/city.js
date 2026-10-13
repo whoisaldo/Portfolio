@@ -33,7 +33,7 @@ import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { attributeKey, mergeMeshes, createCells, cutToCells, Tiled } from "./merge.js";
+import { appendPart, attributeKey, mergeMeshes, createCells, cutToCells, Tiled } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -42,6 +42,12 @@ export const REFLECT_LAYER = 2;
 export const MIRROR_LAYER = 3;
 
 const cache = new Map();
+// A generator run to its end, and what it returned.
+const drain = (steps) => {
+  let r;
+  while (!(r = steps.next()).done);
+  return r.value;
+};
 // The cells the kit is drawn by, metres on a side, and the fewest triangles
 // a material needs before it is cut to them (see the merge below).
 const CELL = 48;
@@ -439,7 +445,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   occluders.name = "occluders";
   occluders.visible = false;
   root.add(occluders);
-  const mergeInto = (meshes) => {
+  // (load: worked out a material at a time, out of sight, and put in the
+  // city by the returned commit in one go: a streamed district's merge is
+  // spread over the page's frames, addPack. mergeInto does it at once.)
+  function* mergeSteps(meshes) {
     root.updateMatrixWorld(true);
     const groups = new Map();
     for (const mesh of meshes) {
@@ -447,18 +456,36 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(mesh);
     }
+    const made = [];
     for (const [key, list] of groups) {
-      let whole = mergeMeshes(list, root);
+      yield;
       const prev = merged.get(key);
+      if (prev?.mesh.runs) {
+        // (load: a district's part of a material the city already draws in
+        // tiles is added to the end of it, its own triangles cut to the
+        // cells and their runs after the old ones, where all of the
+        // material was merged and cut again, a district at a time, and all
+        // of it sent to the GPU again.)
+        const part = mergeMeshes(list, root);
+        yield;
+        const untiled = prev.mesh.runs.cell.length === 1 && prev.mesh.runs.cell[0] === -1;
+        const partRuns = untiled ? { cell: Int32Array.of(-1), start: Int32Array.of(0), count: Int32Array.of(part.index.count) } : cutToCells(part, cells, 0);
+        yield;
+        const kit = { geometry: prev.whole, vertices: prev.vertices ?? prev.whole.attributes.position.count, indices: prev.indices ?? prev.whole.index.count, runs: prev.mesh.runs };
+        made.push({ key, list, prev, append: appendPart(kit, part, partRuns) });
+        part.dispose();
+        continue;
+      }
+      let whole = mergeMeshes(list, root);
       if (prev) {
+        yield;
         const both = mergeGeometries([prev.whole, whole], false);
         whole.dispose();
-        prev.mesh.removeFromParent();
-        prev.mesh.userData.twin?.removeFromParent();
-        prev.whole.dispose();
+        yield;
         both.computeBoundingSphere();
         both.computeBoundingBox();
         whole = both;
+        yield;
       }
       // What blends is drawn whole, in the order it was built: its picture
       // depends on that order.
@@ -468,19 +495,43 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       mesh.layers.mask = list[0].layers.mask;
       mesh.renderOrder = list[0].renderOrder;
       mesh.matrixAutoUpdate = false;
-      root.add(mesh);
       if (occluder && OCCLUDES.has(material.name) && !mesh.layers.isEnabled(REFLECT_LAYER)) {
         const twin = mesh.runs ? new Tiled(whole, occluder, cells, mesh.runs) : new THREE.Mesh(whole, occluder);
         twin.name = `occ_${material.name}`;
         twin.layers.set(MIRROR_LAYER);
         twin.matrixAutoUpdate = false;
-        occluders.add(twin);
         mesh.userData.twin = twin;
       }
-      merged.set(key, { whole, mesh });
-      for (const mesh of list) mesh.removeFromParent();
+      made.push({ key, list, whole, mesh, prev });
     }
-  };
+    return () => {
+      for (const { key, list, whole, mesh, prev, append } of made) {
+        if (append) {
+          const twin = prev.mesh.userData.twin;
+          if (append.grown) {
+            prev.mesh.geometry = append.geometry;
+            if (twin) twin.geometry = append.geometry;
+            prev.whole.dispose();
+          }
+          prev.mesh.setRuns(append.runs);
+          twin?.setRuns(append.runs);
+          merged.set(key, { whole: append.geometry, mesh: prev.mesh, vertices: append.vertices, indices: append.indices });
+          for (const part of list) part.removeFromParent();
+          continue;
+        }
+        if (prev) {
+          prev.mesh.removeFromParent();
+          prev.mesh.userData.twin?.removeFromParent();
+          prev.whole.dispose();
+        }
+        root.add(mesh);
+        if (mesh.userData.twin) occluders.add(mesh.userData.twin);
+        merged.set(key, { whole, mesh });
+        for (const part of list) part.removeFromParent();
+      }
+    };
+  }
+  const mergeInto = (meshes) => drain(mergeSteps(meshes))();
   mergeInto(meshes);
 
   // Placeholders for the named pieces the other modules dress.
@@ -538,7 +589,12 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
      * (the clearance field) and then merged into the core's own, material
      * by material, tile by tile.
      */
-    addPack(name, packScene, { beforeMerge = null } = {}) {
+    async addPack(name, packScene, { beforeMerge = null, between = async () => {} } = {}) {
+      // (load: in pieces, `between()` resolving when the page has a moment
+      // between its frames: its parts made, its light baked and its kit
+      // merged out of sight, then all of it put in the city in one go, so
+      // the district appears in one frame as it did and no frame waits for
+      // its build.)
       const pack = packScene.clone(true);
       pack.name = `pack_${name}`;
       pack.updateMatrixWorld(true);
@@ -552,39 +608,61 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         else kitMeshes.push(o);
       });
       const more = dress(kitMeshes);
+      await between();
       // The prototypes only this district places came with it: its props
       // are drawn from now on, and light its streets in the bake.
+      let heldProps = null;
       if (packProtos.length) {
         dressProtos(packProtos);
         protoMeshes.push(...packProtos);
-        more.push(...props.addProtos(packProtos));
+        await between();
+        heldProps = props.addProtos(packProtos, { hold: true });
+        more.push(...heldProps.sources);
+        await between();
       }
       const faces = unpack(batches);
-      const added = signs.addFaces(faces);
-      if (added) {
-        // (Every pack's faces after the first join the first's mesh.)
-        if (!packSigns.includes(added.mesh)) {
-          added.mesh.layers.enable(REFLECT_LAYER);
-          added.mesh.visible = signs.mesh.visible;
-          root.add(added.mesh);
-          packSigns.push(added.mesh);
-        }
-        more.push(...added.sources);
-      }
+      await between();
+      const heldSigns = signs.addFaces(faces, { hold: true });
+      if (heldSigns) more.push(...heldSigns.sources);
+      await between();
       bake.add(more);
       pack.traverse((o) => {
         if (o.name.startsWith("anchor_lights_")) bake.addPoints(lampPoints(o.userData.lights));
       });
-      const next = bake.finish();
+      await between();
+      const next = await bake.finishSliced(between);
+      props.disposeBake();
+      await between();
+      beforeMerge?.(pack);
+      await between();
+      const merging = mergeSteps(kitMeshes);
+      let step;
+      let t = performance.now();
+      while (!(step = merging.next()).done) {
+        if (performance.now() - t > 4) {
+          await between();
+          t = performance.now();
+        }
+      }
+      // ---- the district, in one go ----
+      heldProps?.commit();
+      if (heldSigns) {
+        const mesh = heldSigns.commit();
+        // (Every pack's faces after the first join the first's mesh.)
+        if (!packSigns.includes(mesh)) {
+          mesh.layers.enable(REFLECT_LAYER);
+          mesh.visible = signs.mesh.visible;
+          root.add(mesh);
+          packSigns.push(mesh);
+        }
+      }
       light.spill.image.data.set(next.spill.image.data);
       light.spill.needsUpdate = true;
       light.streaks.image.data.set(next.streaks.image.data);
       light.streaks.needsUpdate = true;
       next.dispose();
-      props.disposeBake();
+      step.value();
       for (const f of faces) f.geometry.dispose();
-      beforeMerge?.(pack);
-      mergeInto(kitMeshes);
       packsAdded.push(name);
       return name;
     },

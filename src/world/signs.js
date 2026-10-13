@@ -939,7 +939,7 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
      *  the one mesh every district's faces are in, and their light for the
      *  bake. Faces whose design has no cell (a word-sign the core did not
      *  carry) are left out. */
-    addFaces(more) {
+    addFaces(more, { hold = false } = {}) {
       const list = [];
       for (const m of more) {
         const spec = specOf(m);
@@ -947,20 +947,27 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       }
       if (!list.length) return null;
       const built = build(list);
-      const joined = streamed && mergeGeometries([streamed.geometry, built.geometry], false);
-      if (joined) {
-        extra.splice(extra.indexOf(streamed.geometry), 1, joined);
-        streamed.geometry.dispose();
-        built.geometry.dispose();
-        streamed.geometry = joined;
-        return { mesh: streamed, sources: built.sources };
-      }
-      const add = new THREE.Mesh(built.geometry, material);
-      add.name = "signs_more";
-      add.frustumCulled = false;
-      extra.push(built.geometry);
-      streamed = add;
-      return { mesh: add, sources: built.sources };
+      // (load: with `hold`, the faces are put in the mesh by the returned
+      // `commit()`, which returns the mesh: a district built a piece at a
+      // time appears in one frame.)
+      const commit = () => {
+        const joined = streamed && mergeGeometries([streamed.geometry, built.geometry], false);
+        if (joined) {
+          extra.splice(extra.indexOf(streamed.geometry), 1, joined);
+          streamed.geometry.dispose();
+          built.geometry.dispose();
+          streamed.geometry = joined;
+          return streamed;
+        }
+        const add = new THREE.Mesh(built.geometry, material);
+        add.name = "signs_more";
+        add.frustumCulled = false;
+        extra.push(built.geometry);
+        streamed = add;
+        return add;
+      };
+      if (hold) return { sources: built.sources, commit };
+      return { mesh: commit(), sources: built.sources };
     },
     dispose() {
       geometry.dispose();
