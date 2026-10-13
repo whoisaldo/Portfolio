@@ -645,7 +645,13 @@ export const WINDOWS = /* glsl */ `
     // (Nothing hangs in a window too far off to see into: its slats were
     // a moire and its lit cloth a pale grey tile, daylit blinds on a night
     // tower. From there a lit window is flat glass in the house's light.)
-    float flatK = smoothstep(0.03, 0.09, max(fwidth(uv.x), fwidth(uv.y)));
+    // (Away from the held lenses, by the cell's height on the screen:
+    // seen along the street a cell is crushed across but not up, and by
+    // its width every near window there was flat pale glass, a picture
+    // stretched over the wall.)
+    float pxU = fwidth(uv.x);
+    float pxV = fwidth(uv.y);
+    float flatK = smoothstep(0.03, 0.09, mix(max(pxU, pxV), max(pxV, pxU * 0.25), fe));
     wc = mix(wc, (params.z > 0.5 ? vec3(1.0, 0.72, 0.36) : vec3(0.5, 0.88, 1.0)) * (0.85 + 0.3 * hash12(room + 1.9)), flatK * (1.0 - band));
     float hb = hash12(room + 5.1);
     float blind = step(0.64, hb) * (1.0 - band) * step(0.9 - fract(hb * 37.0), qy) * (1.0 - flatK);
@@ -653,7 +659,7 @@ export const WINDOWS = /* glsl */ `
     float curtain = (1.0 - office) * step(0.7, hc) * step(0.3 * step(0.5, fract(hc * 23.0)), abs(gx - 0.5)) * (1.0 - flatK);
     float interior = mix(mix(shade, 0.4 + 0.6 * smoothstep(0.0, 1.0, qy), max(blind, curtain)), 0.7, flatK);
     float blinds = mix(1.0, 0.55 + 0.45 * step(0.5, fract(qy * size.y * 6.0)), blind);
-    vec3 lightCol = mix(wc, wc * vec3(1.0, 0.55, 0.4), curtain * 0.6) * mix(1.0, 0.75 + 0.25 * sin(gx * size.x * 11.0), curtain);
+    vec3 lightCol = mix(wc, wc * vec3(1.0, 0.55, 0.4), curtain * 0.6) * mix(1.0, 0.75 + 0.25 * sin(gx * size.x * 11.0) * mix(1.0, 1.0 - smoothstep(0.04, 0.1, pxU), fe), curtain);
     // Somebody at the window now and then, against the light.
     float stuff = step(qy, 0.62) * step(abs(gx - 0.25 - 0.5 * hash12(cell + 9.1)), 0.12) * step(0.86, hash12(cell + 4.4)) * (1.0 - curtain) * (1.0 - blind);
     float bright = (0.22 + 0.45 * hv * hv) * interior * blinds * (1.0 - 0.85 * stuff) * (1.0 + 0.2 * uLevel);
@@ -673,7 +679,12 @@ export const WINDOWS = /* glsl */ `
     if (fe > 0.0) spill = mix(spill, fw, fe);
     // (Unlit glass of a districts' tower varies by its run, not pane by
     // pane: a curtain wall's dark cells each their own tone were tiles.)
-    vec3 glass = vec3(0.01, 0.013, 0.02) * (1.0 - 0.35 * fe) + spill * 0.25 + uHazeColor * 0.05 * (1.0 - 0.6 * fe) * (0.4 + qy) * (0.5 + hash12(mix(cell, vec2(runId, cell.y), sys) + 1.9));
+    // (Away from the held lenses glass does not scatter a sign's light as
+    // a wall does: it takes less of it, and seen along the street more of
+    // the night's haze, as glass does at a glancing look. A pane by a sign
+    // took a quarter of its wash and was a pale card from the street.)
+    float graze = pow(1.0 - min(rd.z, 1.0), 4.0) * fe;
+    vec3 glass = vec3(0.01, 0.013, 0.02) * (1.0 - 0.35 * fe) + spill * mix(0.25, 0.1, fe) + uHazeColor * 0.05 * (1.0 - 0.6 * fe) * (0.4 + qy) * (0.5 + hash12(mix(cell, vec2(runId, cell.y), sys) + 1.9)) + uHazeColor * 0.16 * graze;
     vec3 wall = wallTint(tint) * (0.75 + 0.5 * hash12(cell * 0.31 + 0.7));
     // (A sign's light on the wall is the sign's colour: the wall's tint is
     // for what the night lights, greyed under the signs, or a teal wall
@@ -687,12 +698,15 @@ export const WINDOWS = /* glsl */ `
     float barX = min(mx, 1.0 - mx) * size.x / lights;
     float barY = min(gy, 1.0 - gy) * size.y;
     float transom = office > 0.5 ? 1.0 : abs(gy - 0.78) * size.y;
-    float bar = (1.0 - step(0.045, min(barX, min(barY, transom)))) * (1.0 - smoothstep(0.02, 0.05, px));
+    // (Away from the held lenses the upright bars go by the cell's width on
+    // the screen and the sill, head and transom by its height: along the
+    // street the sills and heads are still there to see.)
+    float bar = max((1.0 - step(0.045, barX)) * (1.0 - smoothstep(0.02, 0.05, mix(px, pxU, fe))), (1.0 - step(0.045, min(barY, transom))) * (1.0 - smoothstep(0.02, 0.05, mix(px, pxV, fe))));
 
     vec3 win = mix(glass, lightCol * bright, lit);
     win = mix(win, wall * 1.4, bar);
     vec3 detail = mix(wall, win, pane);
-    detail = mix(detail, wall * revealShade, reveal * (1.0 - smoothstep(0.02, 0.06, px)));
+    detail = mix(detail, wall * revealShade, reveal * (1.0 - smoothstep(0.02, 0.06, mix(px, pxV, fe))));
     if (kit) {
       // The plant floor: a run of louvres between the bays' posts, a pipe
       // along its foot. The stair's bay: a recess the height of the floor
