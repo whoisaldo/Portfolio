@@ -5,6 +5,7 @@ from ncw.districts import canyon_kit as C
 from ncw.districts import canyon_mass as M
 from ncw.districts import canyon_cross
 from ncw.districts import canyon_lane as LW
+from ncw.districts import canyon_sky as SK
 from ncw import kit as K
 from ncw.districts.canyon_kit import FA, CB, fl
 
@@ -603,6 +604,8 @@ def _back(U):
     mtop = C.hidden_top(OCC, mx - 0.5, mx + 0.5, mz - 0.5, mz + 0.5, ctop, ctop + 16.5, plaza=plaza, pad=0.3, least=6.0)
     if mtop:
         P.place("cy_mast", mx, ctop, mz, r.uniform(0, 1.5), sy=(mtop - ctop) / 16.3, district=CB)
+    # (Its own dice, so the lot's run on as they did.)
+    SK.crown_step(U, side, OCC, plaza, random.Random(9300 + U["idx"] * 11))
 
 
 def _dress_street(U):
@@ -781,6 +784,16 @@ def _roofs(U):
         # its parapet's height.) In the middle of the back strip of a long
         # roof, the largest thing the lenses allow: a crane, a penthouse,
         # tanks, a skylight.
+        # On the back of a long enough roof, a block of storeys stepped back
+        # from the street as high as the lenses allow (canyon_sky).
+        if u0 == 8.0:
+            sx = sorted((_x(side, 8.6), _x(side, U["sd"] - 1.0)))
+            sb = SK.setback(U, sx[0], sx[1], zn + 1.5, zs - 1.5, h, OCC, plaza_, side, random.Random(9100 + U["idx"] * 7))
+            if sb:
+                for za, zb in ((zn, sb[0] - 0.6), (sb[1] + 0.6, zs)):
+                    if zb - za > 3.0:
+                        C.roof_plant(CB, xa, xb, za, zb, h, r, (top - h) if top else 0.0, lines)
+                continue
         if u0 == 8.0 and zs - zn > 26.0:
             zm = (zn + zs) / 2
             C.roof_big(CB, xa, xb, zm - 8.0, zm + 8.0, h, rb, OCC, plaza_, col=U["back_col"])
@@ -822,6 +835,8 @@ def _roofs(U):
         else:
             C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz1 - 0.6, t, r, (cap - t) if cap else 0.0, ring)
         C.roof_edge(CB, bx0 + 0.7, bx1 - 0.7, bz0 + 0.7, bz1 - 0.7, t, edge_hue)
+        if cap and cap > t + 1.2:
+            SK.beacons(CB, bx0, bx1, bz0, bz1, t + 0.95)
         # A mast at its far corner where the lenses allow one.
         mx, mz = (bx1 - 1.6 if side > 0 else bx0 + 1.6), bz0 + 1.6
         plaza = side > 0 and L["i"] <= 4
