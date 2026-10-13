@@ -220,12 +220,14 @@ def tops(f, y0, y1, r, ok, tcol, key=CB, hues=None):
     k0 = int((y0 - SHOP_H) / CELL_H) + 1
     floors = [fl(k) for k in range(k0, 200) if fl(k) < y1 - 3.0]
     # A column of balconies, one a floor here and there gone.
+    column = []
     if w >= 7.0 and floors:
         s = r.uniform(1.8, w - 1.8)
         for y in floors:
             if r.random() < 0.72 and ok(*_rect(f, s - 1.35, s + 1.35, y - 0.2, y + 2.5, 1.0)):
                 x, _, z = f.p(f.at(s), 0.0, 0.0)
                 balc(x, y, z, f.yaw, key)
+                column.append((y, P.INSTANCES[-1]))
                 n += 1
         taken = (s - 1.6, s + 1.6)
     else:
@@ -294,6 +296,12 @@ def tops(f, y0, y1, r, ok, tcol, key=CB, hues=None):
             cx, cy, cz = f.p(f.at(s), y, 0.47)
             sign(C.own_name("pm"), cx, cy, cz, bw, bh, f.yaw, district=key, label=False)
             used.append((s - bw / 2 - 0.1, s + bw / 2 + 0.1, y - bh / 2 - 0.1, y + bh / 2 + 0.1))
+            # (No balcony of the column stands in front of the board: its
+            # rail's bars were over the board's name.)
+            if taken[0] < s + bw / 2 + 0.1 and taken[1] > s - bw / 2 - 0.1:
+                for yc, inst in column:
+                    if yc - 0.2 < y + bh / 2 + 0.1 and yc + 2.5 > y - bh / 2 - 0.1:
+                        P.INSTANCES.remove(inst)
             n += 1
     # And lines of neon along its floor edges between them.
     if hues:
