@@ -39,6 +39,9 @@ const OUT = "public/scenes/world";
 // the packs that stream in behind it have their own.
 const BUDGET = { high: 2.6e6, phone: 1.2e6 };
 const PACK_BUDGET = { high: 2.2e6, phone: 1.0e6 };
+// Japantown is the densest district (its street, lanes, roofs and outer
+// row), so its pack may carry more.
+const PACK_BUDGET_OF = { japantown: { high: 2.6e6, phone: 1.2e6 } };
 // One pack per district (scripts/blender/ncw/finish.py, PACK_OF), in the
 // order the page streams them: nearest the shots the reader meets first.
 const PACK_ORDER = ["core", "south", "canyon", "plaza", "deck", "corpo", "afterlife", "santo", "japantown", "mega"];
@@ -277,7 +280,7 @@ for (const [tier, opts] of Object.entries(TIERS)) for (const pack of PACKS) {
   }
   console.log(`${path.split("/").pop()}: ${(size / 1e6).toFixed(2)} MB, ${root.listMeshes().length} meshes, ` +
     `${triangles.toLocaleString()} triangles, ${root.listTextures().length} textures`);
-  const budget = pack === "core" ? BUDGET[tier] : PACK_BUDGET[tier];
+  const budget = pack === "core" ? BUDGET[tier] : (PACK_BUDGET_OF[pack] ?? PACK_BUDGET)[tier];
   if (size > budget) {
     throw new Error(`${path.split("/").pop()} is ${(size / 1e6).toFixed(2)} MB, over its ${budget / 1e6} MB budget`);
   }

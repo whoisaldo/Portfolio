@@ -28,6 +28,8 @@ import sharp from "sharp";
 
 const BUDGET = { high: 2.6e6, phone: 1.2e6 };
 const PACK_BUDGET = { high: 2.2e6, phone: 1.0e6 };
+// As scripts/optimize-world.mjs: Japantown's pack may carry more.
+const PACK_BUDGET_OF = { japantown: { high: 2.6e6, phone: 1.2e6 } };
 const MAX_TEXTURE = 1024;
 
 const vite = await createServer({ server: { middlewareMode: true }, appType: "custom", logLevel: "error" });
@@ -75,7 +77,8 @@ for (const tier of ["high", "phone"]) {
   for (const pack of Object.keys(data.assets.worldPackUrl[tier])) {
     const p = `public/scenes/world/world-${tier}-${pack}.glb`;
     const b = statSync(p).size;
-    assert.ok(b <= PACK_BUDGET[tier], `${p} is ${(b / 1e6).toFixed(2)} MB, over its ${PACK_BUDGET[tier] / 1e6} MB budget.`);
+    const cap = (PACK_BUDGET_OF[pack] ?? PACK_BUDGET)[tier];
+    assert.ok(b <= cap, `${p} is ${(b / 1e6).toFixed(2)} MB, over its ${cap / 1e6} MB budget.`);
     assert.ok(data.assets.worldPackUrl[tier][pack].startsWith(`/scenes/world/world-${tier}-${pack}.glb`), `world-assets.js does not point at ${p}.`);
   }
   const path = `public/scenes/world/world-${tier}.glb`;
