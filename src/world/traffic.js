@@ -1435,7 +1435,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     const c = Math.cos(x.parked.yaw);
     const sn = Math.sin(x.parked.yaw);
     const at = { x: x.parked.x + c * lx + sn * lz, y: ly, z: x.parked.z - sn * lx + c * lz, yaw: x.parked.yaw - (door ? 1.05 : 0) + (bonnet ? Math.PI : 0), tilt: door ? 0 : 1.15 };
-    slots.push({ kind: ALL_KINDS.indexOf(door ? "leaf" : "lid"), body: x.body, accent: x.accent, tag: TAG.none, glow: false, parked: at });
+    slots.push({ kind: ALL_KINDS.indexOf(door ? "leaf" : "lid"), body: x.body, accent: x.accent, tag: TAG.none, glow: false, parked: at, lidOf: x });
   }
   const UPRIGHT = new THREE.Vector3(0, 1, 0);
   const ALONG = new THREE.Vector3(0, 0, 1);
@@ -1750,6 +1750,75 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   pools.frustumCulled = false;
   pools.renderOrder = 6;
   scene.add(pools);
+
+  // What a car stands on: the road under it is in its shadow, darkest
+  // between its wheels and at each tyre's foot and soft for a hand's width
+  // past its sills and bumpers, so a car sits on the wet road and does not
+  // hover over it. One flat quad a car drawn in the street within SHADE_TO
+  // (the same quad as the pools, laid along its line), multiplied into
+  // what is under it, the road's mirror with it.
+  const SHADE_TO = 110;
+  const shadeMax = Math.max(1, slots.length);
+  const shadeGeo = new THREE.InstancedBufferGeometry();
+  shadeGeo.index = flat.index;
+  shadeGeo.setAttribute("position", flat.attributes.position);
+  const shadeAt = new THREE.InstancedBufferAttribute(new Float32Array(shadeMax * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  const shadeFwd = new THREE.InstancedBufferAttribute(new Float32Array(shadeMax * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  shadeGeo.setAttribute("aAt", shadeAt);
+  shadeGeo.setAttribute("aFwd", shadeFwd);
+  shadeGeo.instanceCount = 0;
+  const shadeMat = new THREE.ShaderMaterial({
+    uniforms: { ...shared },
+    vertexShader: /* glsl */ `
+      attribute vec4 aAt;
+      attribute vec4 aFwd;
+      uniform vec3 uCam;
+      varying vec2 vP;
+      varying vec3 vSize;
+      void main() {
+        // aAt: where it stands, and how much of it is there; aFwd: the way
+        // it faces (as long as half its width), and half its length.
+        float hw = length(aFwd.xyz);
+        vec3 f = aFwd.xyz / hw;
+        vec3 r = normalize(vec3(f.z, 0.0, -f.x));
+        vP = vec2(position.x * (2.0 * hw + 1.6), position.z * (2.0 * aFwd.w + 1.6));
+        vec3 w = aAt.xyz + r * vP.x + f * vP.y + vec3(0.0, 0.035, 0.0);
+        float dist = length(uCam - w);
+        vSize = vec3(hw, aFwd.w, aAt.w * (1.0 - smoothstep(${(SHADE_TO * 0.6).toFixed(1)}, ${SHADE_TO.toFixed(1)}, dist)));
+        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying vec2 vP;
+      varying vec3 vSize;
+      void main() {
+        // How far outside its footprint (a little inside its sills and
+        // bumpers), and its four tyres' feet.
+        vec2 e = abs(vP) - vSize.xy + vec2(0.12, 0.3);
+        float out_ = length(max(e, 0.0)) + min(max(e.x, e.y), 0.0);
+        float under = 1.0 - smoothstep(-0.5, 0.5, out_);
+        vec2 t = abs(vP) - vec2(vSize.x - 0.24, vSize.y * 0.66);
+        float tyre = exp(-dot(t, t) / 0.09);
+        float dark = clamp(0.5 * under + 0.4 * tyre * under + 0.18 * (1.0 - smoothstep(-0.2, 0.8, out_)), 0.0, 0.82) * vSize.z;
+        gl_FragColor = vec4(vec3(1.0 - dark), 1.0);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.ZeroFactor,
+    blendDst: THREE.SrcColorFactor,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  shadeMat.name = "shades";
+  const shades = new THREE.Mesh(shadeGeo, shadeMat);
+  shades.name = "shades";
+  shades.frustumCulled = false;
+  shades.renderOrder = 5;
+  scene.add(shades);
 
   // The trains. One model (trainGeometry) on two lines. On the viaduct at
   // the avenue's far end (anchor_rail), six cars: out of the portal in
@@ -2199,7 +2268,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
 
   const update = (dt, on) => {
     startNear?.();
-    droneMesh.visible = lamps.visible = pools.visible = trails.visible = on;
+    droneMesh.visible = lamps.visible = pools.visible = shades.visible = trails.visible = on;
     for (const l of avLevels) l.mesh.visible = on;
     for (const k of kinds) for (const l of k.levels) l.mesh.visible = on;
     voices.on = on;
@@ -2371,6 +2440,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     for (const K of kinds) for (const L of K.levels) L.n = 0;
     nearN = 0;
     let pi = 0;
+    let si = 0;
     for (const x of slots) {
       locate(x, clock);
       const { shown, braking } = now;
@@ -2380,6 +2450,16 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         ball.center.copy(p);
         ball.radius = 18;
         if (!view.intersectsSphere(ball)) continue;
+      }
+      if (off < SHADE_TO * SHADE_TO && shown > 0 && !x.lidOf) {
+        // Its shadow on the road, laid along its line (a car on the ramp
+        // pitched on it: its line's flat heading, as near as it matters).
+        fwd.set(0, 0, 1).applyQuaternion(q);
+        fwd.y = 0;
+        fwd.normalize().multiplyScalar(x.lamps.box.max.x);
+        shadeAt.setXYZW(si, p.x, p.y, p.z, shown);
+        shadeFwd.setXYZW(si, fwd.x, 0, fwd.z, x.lamps.box.max.z);
+        si++;
       }
       if (off < NEAR_TO * NEAR_TO && kinds[x.kind].near && nearN < nearby.length) {
         const c = nearby[nearN++];
@@ -2509,6 +2589,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       a.addUpdateRange(0, pi * a.itemSize);
       a.needsUpdate = true;
     }
+    shadeGeo.instanceCount = si;
+    for (const a of [shadeAt, shadeFwd]) {
+      a.clearUpdateRanges();
+      a.addUpdateRange(0, si * a.itemSize);
+      a.needsUpdate = true;
+    }
     lampGeo.instanceCount = li;
     posAttr.needsUpdate = true;
     colAttr.needsUpdate = true;
@@ -2582,7 +2668,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       scene.remove(trails);
       trailGeo.dispose();
       trailMat.dispose();
-      scene.remove(pools);
+      scene.remove(pools, shades);
+      shadeGeo.dispose();
+      shadeMat.dispose();
       flat.dispose();
       poolGeo.dispose();
       poolMat.dispose();
