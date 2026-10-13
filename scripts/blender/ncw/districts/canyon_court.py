@@ -379,29 +379,30 @@ def _corporate(ax, az, z_lo, z_hi, px0, cz0, cz1, r):
 
 
 # ---------------------------------------------------------------------------
-# The tower: the show's monolith (ax5YUmkWf_Y@39, ARL_JWwKdDs@1). No windows
-# to count floors by: dark faces in vertical ribs and grooves that lean in
-# as they rise, a channel of red light down the middle of each, stepped
-# shoulders on the podium's roof, a vertical belt where the name stands
-# (exactly where the hero's band of sky and the Work shot have it), a
-# tapering head with a plain ring of red light on each face, a stepped cap
-# and a spire. What the hero's lens sees of it (from the roofs' line up) is
-# in the core; the rest streams in with the canyon's pack.
+# The tower: the show's monolith (ax5YUmkWf_Y@39, ARL_JWwKdDs@1). Pale
+# panels whole storeys tall that lean in as they rise, etched with dark
+# lines that run up and jog across them; a seam round it every thirty
+# metres; narrow lit windows in a column or two of some sections; a spine
+# up the middle of each face with a channel of red light; stepped
+# shoulders on the podium's roof, their faces windowed, the emblem on the
+# one over the forecourt; a vertical belt where the name stands (exactly
+# where the hero's band of sky and the Work shot have it); a tapering head
+# with the emblem on each face; and a crown of fins round a lantern, red
+# lamps on their tips, and a spire. What the hero's lens sees of it (from
+# the roofs' line up) is in the core; the rest streams in with the
+# canyon's pack.
 # ---------------------------------------------------------------------------
-# The show's tower is pale concrete, grooved (ax5YUmkWf_Y@40): at night its
-# ribs carry the city's light as a faint pale light of their own, brightest
-# low down over the lit forecourt, and its grooves stay dark.
+# The show's tower is pale concrete, grooved (ax5YUmkWf_Y@40): at night it
+# carries the city's light as a faint pale light of its own, brightest low
+# down over the lit forecourt, and its grooves stay dark.
 RIB = (0.05, 0.053, 0.068, 1)
 GROOVE = (0.016, 0.017, 0.022, 1)
 SPINE, SPINE_HIGH = (0.12, 0.13, 0.16, 1), (0.075, 0.08, 0.1, 1)
 HERO_FROM = 110.0       # the canyon's roofs hide the tower below this
-# Below that the tower is the show's slate blue (Fn9gKhU_2_Q@77): its ribs,
-# its shoulders, its podium; and its panels' joints are lines a shade
-# lighter round it every two floors, fainter where the hero's lens has it.
-RIB_LOW = (0.085, 0.094, 0.118, 1)
+# Below that the tower is the show's slate blue (Fn9gKhU_2_Q@77): its
+# shoulders, its podium.
 SLATE = (0.05, 0.066, 0.105, 1)
 SHOULDER = (0.07, 0.078, 0.098, 1)
-JOINT, JOINT_HIGH = (0.03, 0.034, 0.045, 1), (0.026, 0.028, 0.037, 1)
 
 
 def _plan(y):
@@ -472,6 +473,133 @@ def _disc(key, cx, cz, nx, nz, yc, r0, r1, out, col, n=32):
         quad(key, *q, col=col)
 
 
+def _flat(cx, cz, nx, nz, H, u, y):
+    """A point on an upright plane H metres out from the tower's middle,
+    facing (nx, nz), u metres right of the middle seen from outside."""
+    return (cx + nx * H + nz * u, y, cz + nz * H - nx * u)
+
+
+def _vdisc(key, cx, cz, nx, nz, H, yc, r0, r1, col, n=32):
+    """A ring (or a disc) on an upright plane H metres out from the middle."""
+    for i in range(n):
+        a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
+        quad(key, *[_flat(cx, cz, nx, nz, H, rad * math.cos(a), yc + rad * math.sin(a)) for rad, a in ((r1, a0), (r1, a1), (r0, a1), (r0, a0))],
+             col=col)
+
+
+# The skin of the show's monolith (ax5YUmkWf_Y@40): pale panels, whole
+# storeys tall, etched with dark lines that run up the face and jog across
+# it like a circuit's traces; a seam round it every thirty metres or so; and
+# in some sections, between two of the lines, a column of narrow lit windows,
+# a few floors of them lit, the rest dark panel.
+PANEL, PANEL_LOW = (0.046, 0.049, 0.063, 1), (0.078, 0.086, 0.108, 1)
+CORNER, CORNER_LOW = (0.033, 0.035, 0.046, 1), (0.056, 0.062, 0.079, 1)
+ETCH, ETCH_LOW = (0.014, 0.015, 0.02, 1), (0.02, 0.022, 0.03, 1)
+WIN_COOL, WIN_WARM = (0.3, 0.36, 0.44, 1), (0.46, 0.34, 0.18, 1)
+
+
+def _fu(y, f):
+    """u (metres right of a main face's middle) at a fraction f of its half
+    width between its cut corners, at height y."""
+    h, c = _plan(y)
+    return f * (h - c)
+
+
+def _fq(key, mat, cx, cz, nx, nz, pts, out, col):
+    """A quad on a main face from four (fraction, metres, height) points."""
+    quad((key, mat, 0), *[_on(cx, cz, nx, nz, _fu(y, f) + du, y, out) for f, du, y in pts], col=col)
+
+
+def _fill(key, cx, cz, y0, y1, face, corner):
+    """The skin's panels between two heights: the four faces one colour,
+    the cut corners another."""
+    (h0, c0), (h1, c1) = _plan(y0), _plan(y1)
+    a, b = cut_rect(cx, cz, h0, h0, c0), cut_rect(cx, cz, h1, h1, c1)
+    for i in range(8):
+        j = (i + 1) % 8
+        quad((key, "glow", 0), (a[i][0], y0, a[i][1]), (a[j][0], y0, a[j][1]), (b[j][0], y1, b[j][1]), (b[i][0], y1, b[i][1]),
+             col=face if i % 2 == 0 else corner)
+
+
+def _etch(key, cx, cz, nx, nz, y0, y1, r, col, zones, w=0.34, out=0.05):
+    """Etched lines up a face between two heights, clear of the spine and of
+    the window zones: some run straight, some jog across at a height, some
+    start or stop at a short tick."""
+    taken = [(-0.16, 0.16)] + [(a - 0.03, b + 0.03) for a, b in zones]
+    free = lambda f: all(not (a <= f <= b) for a, b in taken)
+    lines = []
+    for f0, f1 in zones:
+        lines += [f0, f1]
+    for _ in range(r.randint(3, 5)):
+        for _try in range(12):
+            f = r.choice((-1, 1)) * r.uniform(0.22, 0.95)
+            if free(f) and all(abs(f - g) > 0.09 for g in lines):
+                lines.append(f)
+                break
+    for f in lines:
+        ya, yb = y0 + 0.4, y1 - 0.4
+        bounded = any(abs(f - a) < 1e-6 or abs(f - b) < 1e-6 for a, b in zones)
+        if not bounded and r.random() < 0.3:
+            ya = r.uniform(y0 + 3.0, y0 + (y1 - y0) * 0.5)
+            g = f + r.choice((-1, 1)) * r.uniform(0.04, 0.08)
+            _fq(key, "glow", cx, cz, nx, nz, ((min(f, g), -w / 2, ya - w / 2), (max(f, g), w / 2, ya - w / 2),
+                                              (max(f, g), w / 2, ya + w / 2), (min(f, g), -w / 2, ya + w / 2)), out, col)
+        jog = None if bounded else (r.uniform(ya + 3.0, yb - 3.0) if yb - ya > 8.0 and r.random() < 0.55 else None)
+        g = f
+        if jog is not None:
+            g = f + r.choice((-1, 1)) * r.uniform(0.05, 0.12)
+            if not free(g) or abs(g) > 0.97 or any(abs(g - h_) < 0.06 for h_ in lines if h_ != f):
+                g, jog = f, None
+        if jog is None:
+            _fq(key, "glow", cx, cz, nx, nz, ((f, -w / 2, ya), (f, w / 2, ya), (f, w / 2, yb), (f, -w / 2, yb)), out, col)
+            continue
+        _fq(key, "glow", cx, cz, nx, nz, ((f, -w / 2, ya), (f, w / 2, ya), (f, w / 2, jog), (f, -w / 2, jog)), out, col)
+        _fq(key, "glow", cx, cz, nx, nz, ((min(f, g), -w / 2, jog - w / 2), (max(f, g), w / 2, jog - w / 2),
+                                          (max(f, g), w / 2, jog + w / 2), (min(f, g), -w / 2, jog + w / 2)), out, col)
+        _fq(key, "glow", cx, cz, nx, nz, ((g, -w / 2, jog), (g, w / 2, jog), (g, w / 2, yb), (g, -w / 2, yb)), out, col)
+
+
+def _zones(r, n, lo=0.22):
+    """Where on a face its window columns stand: n spans of its width, each
+    between two etched lines, clear of the spine (and of the shoulders,
+    inside `lo`) and of each other."""
+    out = []
+    for _ in range(n * 6):
+        if len(out) == n:
+            break
+        wd = r.uniform(0.2, min(0.34, 0.9 - lo))
+        a = r.uniform(lo, 0.94 - wd)
+        if r.random() < 0.5:
+            a = -a - wd
+        if all(a + wd < c - 0.12 or a > d + 0.12 for c, d in out):
+            out.append((a, a + wd))
+    return out
+
+
+def _windows(key, cx, cz, nx, nz, y0, y1, zones, r, busy=0.55, out=0.06, k=1.0):
+    """Narrow lit windows in a face's zones, storey by storey: on a storey
+    that is in use, lit in runs; the rest is panel."""
+    y = y0 + 1.2
+    while y + 2.6 < y1 - 0.6:
+        used = r.random() < busy
+        for fa, fb in zones:
+            ym = y + 1.2
+            wm = (_fu(ym, fb) - _fu(ym, fa))
+            n = max(2, int(wm / 1.45))
+            run = False
+            for i in range(n):
+                f = fa + (fb - fa) * (i + 0.5) / n
+                lit = used and r.random() < (0.78 if run else 0.42)
+                run = lit
+                if not lit:
+                    continue
+                c = WIN_WARM if r.random() < 0.3 else WIN_COOL
+                m = k * r.uniform(0.55, 1.0)
+                _fq(key, "glow", cx, cz, nx, nz, ((f, -0.27, y), (f, 0.27, y), (f, 0.27, y + 2.1), (f, -0.27, y + 2.1)), out,
+                    (c[0] * m, c[1] * m, c[2] * m, 1))
+        y += 3.4
+
+
 def tower(ax, az):
     # The podium: slate blue, in three tiers, each oversailing the one under
     # it by a metre with a line of light in its soffit; bands of amber and
@@ -508,16 +636,28 @@ def tower(ax, az):
     # The shaft, leaning in, in storeys with a seam between them; the belt;
     # the head.
     cuts = (21.0, 45.0, 75.0, HERO_FROM, 150.0, 168.0, 191.0, 214.0)
+    r = random.Random(4700)
     for y0, y1 in zip(cuts, cuts[1:]):
-        key = FA if y0 >= HERO_FROM else CB
-        _shell(key, ax, az, y0, y1, rib_col=RIB if y0 >= HERO_FROM else RIB_LOW)
+        high = y0 >= HERO_FROM
+        key = FA if high else CB
+        _fill(key, ax, az, y0, y1, PANEL if high else PANEL_LOW, CORNER if high else CORNER_LOW)
         if y0 not in (21.0, 168.0):
             _shell(key, ax, az, y0 - 0.25, y0 + 0.25, strips=1, grow=0.07, col=(0.012, 0.011, 0.014, 1))
-        if y0 != 150.0:
-            y = y0 + 6.8
-            while y < y1 - 3.0:
-                _shell(key, ax, az, y - 0.1, y + 0.1, strips=1, grow=0.05, col=JOINT_HIGH if y0 >= HERO_FROM else JOINT, lit=True)
-                y += 6.8
+        if y0 == 150.0:
+            continue
+        # (The shoulders stand against the faces' middles up to 108: what
+        # is etched or lit there stays out of them. On the head the emblem
+        # takes the middle; there the lines keep to the edges.)
+        lo = 0.56 if y1 <= 75.0 else (0.44 if y1 <= HERO_FROM else 0.22)
+        for name, nx, nz in FACES:
+            hero_face = name in ("s", "w")
+            if y0 == 191.0:
+                _etch(key, ax, az, nx, nz, y0, y1, r, ETCH, [(-0.98, -0.74), (0.74, 0.98)])
+                continue
+            zones = _zones(r, 1 if (high or y1 - y0 < 26.0) else 2, lo)
+            _etch(key, ax, az, nx, nz, y0, y1, r, ETCH if high else ETCH_LOW, zones)
+            _windows(key if (hero_face or not high) else CB, ax, az, nx, nz, y0, y1, zones, r,
+                     busy=0.42 if high else 0.6, k=0.85 if high else 1.0)
     for y in (150.0, 168.0):
         walls((FA, "neon_red", 0), cut_rect(ax, az, 22.1, 22.1, 4.0), y - 0.2, y + 0.2, (1, 1, 1, 1))
     # The spine up the middle of each face: a pale band standing proud of
@@ -544,6 +684,7 @@ def tower(ax, az):
             _line(key, "neon_red", ax, az, nx, nz, u - 0.38, u + 0.38, yc - hh, yc + hh, out=1.04)
     # The shoulders on the podium's roof: a buttress in two steps against
     # each face, a line of red under each step.
+    rs = random.Random(4760)
     for name, nx, nz in FACES:
         # (Three steps, the highest just under where the hero's lens begins
         # to see the tower: its shoulders, ax5YUmkWf_Y@39.)
@@ -556,14 +697,65 @@ def tower(ax, az):
                        (ax if nx == 0 else az) - half, (ax if nx == 0 else az) + half)
             f.quad((CB, "neon_red", 0), 0.3, f.width - 0.3, top - 0.7, top - 0.5, 0.03)
             f.quad((CB, "trim", 0), f.width / 2 - 0.7, f.width / 2 + 0.7, 21.0, top - 1.2, 0.03, col=GROOVE)
-            y = 27.8
-            while y < top - 2.0:
-                f.quad((CB, "glow", 0), 0.0, f.width, y - 0.09, y + 0.09, 0.02, col=JOINT)
-                y += 6.8
-    # The cap in two steps and the spire, a red lamp at its tip.
+            # (Its face is the tower's own skin: etched lines down it, and
+            # either side of the groove narrow windows, lit storey by
+            # storey in runs; on the west the emblem over the forecourt.)
+            crest = name == "w" and half == 11.0
+            for o in (half - 0.9, -(half - 0.9), 1.5, -1.5):
+                f.quad((CB, "glow", 0), f.width / 2 + o - 0.17, f.width / 2 + o + 0.17, 21.6, top - 1.2, 0.04, col=ETCH_LOW)
+            y = 22.6
+            while y + 2.4 < top - 1.4:
+                used = rs.random() < 0.62
+                run = False
+                o = 2.4
+                while o < half - 1.6:
+                    for sg in (-1, 1):
+                        lit = used and rs.random() < (0.75 if run else 0.45)
+                        run = lit
+                        if not lit or (crest and o < 7.2 and 30.0 < y + 1.0 < 46.0):
+                            continue
+                        c = WIN_WARM if rs.random() < 0.35 else WIN_COOL
+                        m = rs.uniform(0.6, 1.0)
+                        f.quad((CB, "glow", 0), f.width / 2 + sg * o - 0.3, f.width / 2 + sg * o + 0.3, y, y + 2.1, 0.05,
+                               col=(c[0] * m, c[1] * m, c[2] * m, 1))
+                    o += 1.5
+                y += 3.4
+            if crest:
+                H = d1 + 0.04
+                _vdisc((CB, "trim", 0), ax, az, nx, nz, H, 38.0, 0.0, 6.0, GROOVE)
+                _vdisc((CB, "glow", 0), ax, az, nx, nz, H + 0.02, 38.0, 5.6, 6.3, SPINE)
+                _vdisc((CB, "neon_red", 0), ax, az, nx, nz, H + 0.04, 38.0, 4.0, 4.8, (1, 1, 1, 1))
+                for u, hh in ((-1.65, 1.7), (0.0, 2.9), (1.65, 1.7)):
+                    quad((CB, "neon_red", 0), *[_flat(ax, az, nx, nz, H + 0.04, uu, yy) for uu, yy in
+                                                 ((u - 0.3, 38.0 - hh), (u + 0.3, 38.0 - hh), (u + 0.3, 38.0 + hh), (u - 0.3, 38.0 + hh))])
+                light(CB, ax + nx * (H + 3.0), 31.0, az + nz * (H + 3.0), "red", 10.0)
+    # The crown, over the top of the hero's and the Work shot's frames (the
+    # rooftop shot has it far off): two fins at each face's edges rise from
+    # the head past its roof, a red lamp on each, round the cap; the cap's
+    # upper step a lantern of pale light between dark bands.
+    for name, nx, nz in FACES:
+        for sg in (-1, 1):
+            u = sg * 9.6
+            pa = (ax + nx * 13.6 + nz * (u - 0.45), az + nz * 13.6 - nx * (u - 0.45))
+            pb = (ax + nx * 17.6 + nz * (u + 0.45), az + nz * 17.6 - nx * (u + 0.45))
+            x0, x1 = sorted((pa[0], pb[0]))
+            z0, z1 = sorted((pa[1], pb[1]))
+            box((FA, "glow", 0), x0, x1, 196.0, 233.0, z0, z1, scale=2.0, col=SPINE_HIGH)
+            ex, ez = ax + nx * 17.63 + nz * u, az + nz * 17.63 - nx * u
+            ox, oz = nz * 0.1, -nx * 0.1
+            quad((FA, "neon_red", 0), (ex - ox, 199.0, ez - oz), (ex + ox, 199.0, ez + oz), (ex + ox, 232.0, ez + oz), (ex - ox, 232.0, ez - oz))
+            quad((FA, "neon_red", 0), (ex + ox, 199.0, ez + oz), (ex - ox, 199.0, ez - oz), (ex - ox, 232.0, ez - oz), (ex + ox, 232.0, ez + oz))
+            box((FA, "neon_red", 0), (x0 + x1) / 2 - 0.3, (x0 + x1) / 2 + 0.3, 233.0, 233.6, (z0 + z1) / 2 - 0.3, (z0 + z1) / 2 + 0.3, scale=1.0)
+    hb, cb = _plan(196.5)
+    walls((FA, "glow", 0), cut_rect(ax, az, hb + 0.06, hb + 0.06, cb), 196.3, 196.7, C.dim("white", 0.5))
     for y0, y1, h in ((214.0, 219.0, 12.5), (219.0, 226.0, 9.0)):
         o = cut_rect(ax, az, h, h, 2.5)
-        walls((FA, "glow", 0), o, y0, y1, RIB)
+        if y0 == 219.0:
+            walls((FA, "glow", 0), o, y0, y0 + 1.2, CORNER)
+            walls((FA, "glow", 0), o, y0 + 1.2, y1 - 1.0, (0.3, 0.32, 0.36, 1))
+            walls((FA, "glow", 0), o, y1 - 1.0, y1, CORNER)
+        else:
+            walls((FA, "glow", 0), o, y0, y1, PANEL)
         poly((FA, "roof", 0), [(x, y1, z) for x, z in o], [(x / 4, z / 4) for x, z in o])
         walls((FA, "neon_red", 0), cut_rect(ax, az, h + 0.08, h + 0.08, 2.5), y1 - 0.5, y1 - 0.2, (1, 1, 1, 1))
     o = cut_rect(ax, az, *_plan(214.0))
