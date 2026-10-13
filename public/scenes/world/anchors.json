@@ -1361,6 +1361,83 @@
    "district": "afterlife"
   },
   {
+   "name": "anchor_steam_avroof_1",
+   "kind": "anchor",
+   "at": [
+    27.24,
+    21.17,
+    63.31
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_avroof_2",
+   "kind": "anchor",
+   "at": [
+    38.12,
+    27.35,
+    86.56
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_avroof_3",
+   "kind": "anchor",
+   "at": [
+    -63.05,
+    27.49,
+    54.95
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_avroof_4",
+   "kind": "anchor",
+   "at": [
+    62.05,
+    24.05,
+    51.46
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_avroof_5",
+   "kind": "anchor",
+   "at": [
+    64.94,
+    23.41,
+    51.2
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_avroof_6",
+   "kind": "anchor",
+   "at": [
+    -24.87,
+    40.4,
+    -119.24
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
+   "name": "anchor_steam_avroof_7",
+   "kind": "anchor",
+   "at": [
+    29.17,
+    24.19,
+    -31.45
+   ],
+   "yaw": 0.0,
+   "district": "avenue"
+  },
+  {
    "name": "anchor_steam_corpo_lane_e",
    "kind": "anchor",
    "at": [
@@ -1650,9 +1727,9 @@
    "name": "anchor_steam_lane_ae1",
    "kind": "anchor",
    "at": [
-    49.1,
+    45.5,
     0.2,
-    45.96
+    82.86
    ],
    "yaw": 0.0,
    "district": "avenue"
@@ -1661,7 +1738,7 @@
    "name": "anchor_steam_lane_ce1",
    "kind": "anchor",
    "at": [
-    64.24,
+    82.61,
     0.2,
     43.1
    ],
@@ -1883,7 +1960,7 @@
    "at": [
     45.1,
     0.2,
-    -103.0
+    -134.88
    ],
    "yaw": 0.0,
    "district": "avenue"
@@ -1892,9 +1969,9 @@
    "name": "anchor_steam_lane_e3",
    "kind": "anchor",
    "at": [
-    51.1,
+    45.1,
     0.2,
-    -22.46
+    -103.0
    ],
    "yaw": 0.0,
    "district": "avenue"
@@ -1903,9 +1980,9 @@
    "name": "anchor_steam_lane_e4",
    "kind": "anchor",
    "at": [
-    45.1,
+    51.1,
     0.2,
-    -134.88
+    -148.67
    ],
    "yaw": 0.0,
    "district": "avenue"
@@ -2044,17 +2121,6 @@
   },
   {
    "name": "anchor_steam_lane_w1",
-   "kind": "anchor",
-   "at": [
-    -49.1,
-    0.2,
-    -146.28
-   ],
-   "yaw": 0.0,
-   "district": "avenue"
-  },
-  {
-   "name": "anchor_steam_lane_w2",
    "kind": "anchor",
    "at": [
     -45.5,
