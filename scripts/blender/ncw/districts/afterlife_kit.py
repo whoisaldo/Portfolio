@@ -1353,53 +1353,13 @@ def bay(D, f, s, r, kind):
 
 
 def dumpster(D, x, z, yaw, rng, col=None):
-    """A wheeled bin for a lane, modelled: a tapered steel body in its paint
-    with ribs and side pockets, its lids (one up), corner posts, wheels, a
-    stencilled band and grime at its foot."""
-    rx, rz = math.cos(yaw), -math.sin(yaw)
-    nx, nz = math.sin(yaw), math.cos(yaw)
-    col = col or rng.choice(((0.05, 0.16, 0.08, 1), (0.04, 0.09, 0.16, 1), (0.2, 0.08, 0.03, 1), (0.14, 0.14, 0.13, 1)))
-    dk = (col[0] * 0.55, col[1] * 0.55, col[2] * 0.55, 1)
-    w, d, h, y0 = 1.8, 1.1, 1.2, G0 + 0.16
-
-    def at(u, v, y):
-        return (x + rx * u + nx * v, y, z + rz * u + nz * v)
-
-    # The body, narrower at its foot: four sides and a floor.
-    t = 0.1
-    top = [at(-w / 2, d / 2, y0 + h), at(w / 2, d / 2, y0 + h), at(w / 2, -d / 2, y0 + h), at(-w / 2, -d / 2, y0 + h)]
-    bot = [at(-w / 2 + t, d / 2 - t, y0), at(w / 2 - t, d / 2 - t, y0), at(w / 2 - t, -d / 2 + t, y0), at(-w / 2 + t, -d / 2 + t, y0)]
-    for i in range(4):
-        j = (i + 1) % 4
-        quad((D, "steel", 0), bot[i], bot[j], top[j], top[i], col=col)
-        quad((D, "steel", 0), bot[j], bot[i], top[i], top[j], col=col)
-    quad((D, "steel", 0), bot[3], bot[2], bot[1], bot[0], col=dk)
-    # Its rim, ribs down the front, pockets on the ends, a stencilled band.
-    for (u0, u1, v0, v1) in ((-w / 2 - 0.04, w / 2 + 0.04, d / 2 - 0.02, d / 2 + 0.05), (-w / 2 - 0.04, w / 2 + 0.04, -d / 2 - 0.05, -d / 2 + 0.02)):
-        p = at((u0 + u1) / 2, (v0 + v1) / 2, 0.0)
-        oriented_box((D, "steel", 1), p[0], y0 + h - 0.05, p[2], u1 - u0, 0.1, v1 - v0, yaw, scale=1.0, col=dk)
-    for k in range(4):
-        u = -w / 2 + 0.3 + k * (w - 0.6) / 3
-        p = at(u, d / 2 - 0.04, 0.0)
-        oriented_box((D, "steel", 1), p[0], y0 + h / 2, p[2], 0.07, h * 0.9, 0.07, yaw, scale=1.0, col=dk)
-    for sd in (-1, 1):
-        p = at(sd * (w / 2 + 0.02), 0.0, 0.0)
-        oriented_box((D, "steel", 1), p[0], y0 + h * 0.62, p[2], 0.1, 0.22, 0.7, yaw, scale=1.0, col=dk)
-    band = at(0.0, d / 2 + 0.003, 0.0)
-    rotated_quad((D, "trim", 1), band[0], y0 + h * 0.58, band[2], w * 0.55, 0.16, yaw, col=(0.5, 0.48, 0.42, 1))
-    rotated_quad((D, "trim", 1), band[0] + nx * 0.002, y0 + 0.14, band[2] + nz * 0.002, w - 0.25, 0.22, yaw, col=(0.02, 0.022, 0.02, 1))
-    # Lids: one shut, one propped up.
-    l0 = [at(-w / 2, d / 2 + 0.06, y0 + h + 0.04), at(0.0, d / 2 + 0.06, y0 + h + 0.04), at(0.0, -d / 2, y0 + h + 0.12), at(-w / 2, -d / 2, y0 + h + 0.12)]
-    quad((D, "steel", 0), *l0, col=(0.03, 0.035, 0.035, 1))
-    up = rng.uniform(0.3, 0.9)
-    l1 = [at(0.02, -d / 2, y0 + h + 0.12), at(w / 2, -d / 2, y0 + h + 0.12), at(w / 2, -d / 2 + d * math.cos(up), y0 + h + 0.12 + d * math.sin(up)),
-          at(0.02, -d / 2 + d * math.cos(up), y0 + h + 0.12 + d * math.sin(up))]
-    quad((D, "steel", 0), *l1, col=(0.03, 0.035, 0.035, 1))
-    quad((D, "steel", 0), l1[1], l1[0], l1[3], l1[2], col=(0.03, 0.035, 0.035, 1))
-    for su in (-1, 1):
-        for sv in (-1, 1):
-            p = at(su * (w / 2 - 0.2), sv * (d / 2 - 0.2), 0.0)
-            cylinder((D, "dark", 1), p[0], p[2], G0, y0, 0.08, segs=6)
+    """A wheeled skip in a lane: the kit's (ribbed, worn, painted by where
+    it stands). Mine read as "a plain orange box with a flat blue lid", the
+    m8 review. (`rng` still deals a paint, so what follows keeps its draw.)"""
+    if col is None:
+        rng.choice(((0.05, 0.16, 0.08, 1), (0.04, 0.09, 0.16, 1), (0.2, 0.08, 0.03, 1), (0.14, 0.14, 0.13, 1)))
+    rng.uniform(0.3, 0.9)
+    P.place("dumpster", x, G0, z, yaw, district=D)
 
 
 def window(D, f, s, y, rng, lit=0.0, tint=1, style=6, over="bars", out=0.05):
@@ -1470,7 +1430,7 @@ def cage(D, f, s0, s1, rng, out=0.95):
         P.place("barrel", x, G0, z, district=D)
 
 
-def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None, bundle=True):
+def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None, bundle=True, windows=1.0):
     """What a back wall carries at a walker's height, between its doors
     (the passage's wall, Zuzys9Ld_5M@87): a bundle of pipes on brackets,
     real windows (most of them dark, barred or behind a blind), meter boxes
@@ -1481,7 +1441,7 @@ def lane_wall(D, f, rng, top, dens=1.0, blades=True, s0=0.0, s1=None, bundle=Tru
     if bundle and s1 - s0 > 6.0:
         a = s0 + rng.uniform(0.3, 1.5)
         pipe_bundle(D, f, a, min(s1 - 0.3, a + rng.uniform(7.0, 16.0)), rng.uniform(3.02, 3.25), rng, n=rng.randrange(2, 5))
-    kinds = ["window"] * 30 + ["meters"] * 12 + ["cage"] * 9 + ["heap"] * 12 + ["ladder"] * 5 + ["poster"] * 4 + ["vent"] * 9 + ["rack"] * 7
+    kinds = ["window"] * int(30 * windows) + ["meters"] * 12 + ["cage"] * 9 + ["heap"] * 16 + ["ladder"] * 5 + ["poster"] * 6 + ["vent"] * 9 + ["rack"] * 7
     if blades:
         kinds += ["blade"] * 3
     widths = {"window": 1.3, "meters": 1.4, "cage": 3.4, "heap": 1.8, "ladder": 0.7, "poster": 1.2, "vent": 1.2, "rack": 2.0, "blade": 0.3}
@@ -1577,10 +1537,81 @@ def y_screen(top):
 
 
 def lane_floor(D, x0, x1, z0, z1):
-    """A lane's floor: poured concrete, dark, so the tubes' pools are the
-    light in it."""
+    """A lane's floor: the kit's poured yard concrete (bays each their own
+    tone, tarred joints, cracks, slot drains, water standing in the low
+    places, oil), dark between the tubes' pools. (Cast in one tone it was
+    "a clean, uniform grey-blue slab", the m8 review.)"""
     pts = ((x0, G0, z1), (x1, G0, z1), (x1, G0, z0), (x0, G0, z0))
-    quad((D, "castconcrete", 0), *pts, col=LANE_FLOOR)
+    quad((D, "concrete", 0), *pts, uvs=tuple((q[0] * 0.5, -q[2] * 0.5) for q in pts))
+
+
+PANEL_PAINT = [(0.16, 0.05, 0.04, 1), (0.19, 0.14, 0.05, 1), (0.05, 0.11, 0.08, 1), (0.06, 0.08, 0.13, 1), (0.12, 0.12, 0.13, 1),
+               (0.2, 0.085, 0.03, 1), (0.09, 0.05, 0.1, 1)]
+LANE_HUES = ("white", "cyan", "amber", "cyan", "pink", "white", "green", "cyan")
+
+
+def lane_dress(D, f, rng, top, s0=0.0, s1=None, step=5.0, k0=0):
+    """Something lit down a lane's wall every few metres, so no stretch of it
+    is dark to a walker who turns to it (the m8 review: "every pano
+    direction should have at least one lit source"): dealt in turn a caged
+    lamp, a strip of tube up the wall, a lit plate by a door's place, a lit
+    box over a meter; and between them panels of cladding (ribbed sheet or
+    paint, each its own colour, the m8 review's "vary the wall panels") and
+    now and then an air conditioner up the wall. Runs before lane_wall, which
+    keeps off what this takes."""
+    s1 = f.width if s1 is None else s1
+    s = s0 + rng.uniform(0.8, step * 0.7)
+    k = k0
+    last_panel = s0
+    while s < s1 - 0.8:
+        if not free(f, s - 0.35, s + 0.35, gap=0.05):
+            s += 0.7
+            continue
+        hue = LANE_HUES[k % len(LANE_HUES)]
+        kind = k % 4
+        if kind == 0:
+            wall_lamp(D, f, s, 2.7, hue, power=1.4)
+        elif kind == 1:
+            f.box((D, "metal", 1), s - 0.06, s + 0.06, 0.9, 2.95, 0.0, 0.08)
+            f.box((D, "neon_" + hue, 0), s - 0.025, s + 0.025, 1.0, 2.85, 0.08, 0.11)
+            light(D, *f.p(f.at(s), 0.35, 0.6), hue, 1.2)
+        elif kind == 2:
+            # A small lit sign by a door's place (the site's own art: a
+            # glyph, a number, a mark), a hood of tube over it.
+            f.box((D, "board_frame", 0), s - 0.33, s + 0.33, 1.83, 2.45, 0.0, 0.06)
+            sign(sid("bx"), *f.p(f.at(s), 2.14, 0.075), 0.56, 0.56, f.yaw, district=D, label=False)
+            f.box((D, "neon_" + hue, 0), s - 0.3, s + 0.3, 2.5, 2.55, 0.02, 0.1)
+            light(D, *f.p(f.at(s), 0.35, 0.7), hue, 1.0)
+        else:
+            f.box((D, "metal", 1), s - 0.3, s + 0.3, 1.3, 2.1, 0.0, 0.24)
+            f.box((D, "glow", 0), s - 0.24, s + 0.24, 2.12, 2.18, 0.04, 0.2, col=GLOW[hue])
+            f.box((D, "glow", 1), s + 0.12, s + 0.2, 1.9, 1.96, 0.24, 0.25, col=GLOW["red" if k % 3 else "green"])
+            light(D, *f.p(f.at(s), 0.35, 0.6), hue, 0.9)
+        take(f, s - 0.35, s + 0.35)
+        # Cladding on the stretch behind, where it is wide enough.
+        if s - last_panel > 2.6 and rng.random() < 0.7:
+            a = last_panel + rng.uniform(0.3, 0.8)
+            b = min(s - 0.5, a + rng.uniform(1.6, 3.4))
+            if b - a > 1.2:
+                y0 = rng.choice((0.0, 0.0, DADO))
+                y1 = min(top - 0.2, rng.uniform(2.2, 3.0))
+                col = rng.choice(PANEL_PAINT)
+                if rng.random() < 0.45:
+                    # (Ribbed sheet takes the lane's light far more than paint:
+                    # at the paint's own colour it stood as a lit slab.)
+                    f.quad((D, "container", 0), a, b, y0, y1, 0.015, uvs=((0, 0), (b - a, 0), (b - a, y1 - y0), (0, y1 - y0)),
+                           col=tuple(c * 0.4 for c in col[:3]) + (1.0,))
+                else:
+                    f.quad((D, "trim", 1), a, b, y0, y1, 0.012, col=col)
+                    for e in (a, b):
+                        f.box((D, "metal", 1), e - 0.03, e + 0.03, y0, y1, 0.0, 0.03)
+                    f.quad((D, "trim", 1), a + (b - a) * 0.2, a + (b - a) * 0.35, y0 + 0.1, y1 - 0.4, 0.016, col=STAIN[k % len(STAIN)])
+        if k % 5 == 2 and top > 5.0:
+            px_, py_, pz_ = f.p(f.at(s + 1.2), 3.25, 0.0)
+            P.place("ac_wall", px_, py_, pz_, f.yaw, district=D)
+        last_panel = s + 0.4
+        k += 1
+        s += step * rng.uniform(0.8, 1.15)
 
 
 def stoop(D, f, s0, s1, steps=2, out=0.34, rise=0.18):

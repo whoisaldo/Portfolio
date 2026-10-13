@@ -989,7 +989,9 @@ MN.quad((D, "concrete", 0), 0.0, 12.0, 0.0, SHOP_H, 0.0, uvs=((0, 0), (4, 0), (4
 K.shutter(D, MN, 3.0, 9.0, h=3.6, lamp="white")
 MN.box((D, "hazard", 1), 2.8, 9.2, 3.95, 4.2, 0.0, 0.06)
 P.place("cctv", 409.3, G0, -250.8, district=D)
-lane_tubes([(400.0, -306.0), (400.0, -291.0), (400.0, -277.0), (400.0, -265.0)], 3.9, ("cyan", "cyan", "white", "cyan"))
+# (A tube every nine metres, hard pools with dark between: Zuzys9Ld_5M@88.)
+lane_tubes([(400.0, -311.0), (400.0, -302.0), (400.0, -293.0), (400.0, -284.0), (400.0, -275.0), (400.0, -266.0)], 3.9,
+           ("cyan", "white", "cyan", "amber", "white", "cyan"))
 lane_tubes([(407.0, -260.0), (416.0, -260.0), (424.0, -260.0)], 3.9, ("cyan", "white", "cyan"), along="x")
 lane_cables(398.0, 402.0, (-311.0, -299.0, -288.5, -281.0, -270.0), 6.0, 10.0, rl)
 lane_cables(-262.0, -258.0, (405.0, 411.0, 419.5), 5.2, 7.4, rl, along="z")
@@ -1006,7 +1008,7 @@ K.crates(D, 404.0, -251.4, rl)
 # East: the passage under its low ceiling, three tubes of cyan, a duct with
 # its lamps down one wall, a poster and grilles on the other.
 box((D, "castconcrete", 0), EL, 484.0, 4.1, 4.4, -316.0, -312.0, scale=2.0, bottom=True, col=K.LANE_WALL)
-lane_tubes([(458.0, -314.0), (468.0, -314.0), (478.0, -314.0)], 3.95, ("cyan", "cyan", "cyan"), power=3.4, along="x", half=1.1)
+lane_tubes([(457.0, -314.0), (466.0, -314.0), (475.0, -314.0)], 3.95, ("white", "cyan", "amber"), power=3.4, along="x", half=1.1)
 PN = B.Face("+z", -316.0, EL, 484.0)       # the closing block's wall on it
 K.duct(D, PN, 2.0, 30.0, 3.62, rl)
 PS = B.Face("-z", -312.0, 454.0, 484.0)    # the clinic's
@@ -1035,7 +1037,8 @@ for (x_, z_) in ((488.6, -250.0), (489.0, -249.2), (488.5, -221.0), (478.0, -180
     P.place("drum", x_, G0, z_, district=D)
 K.dumpster(D, 488.8, -236.0, -math.pi / 2, rl)
 K.dumpster(D, 485.2, -288.0, math.pi / 2, rl)
-lane_tubes([(487.0, -306.0), (487.0, -290.0), (487.0, -274.0), (487.0, -262.0)], 4.2, ("cyan", "cyan", "white", "cyan"))
+lane_tubes([(487.0, -310.0), (487.0, -301.0), (487.0, -292.0), (487.0, -283.0), (487.0, -274.0), (487.0, -265.0)], 4.2,
+           ("white", "cyan", "pink", "cyan", "white", "amber"))
 lane_cables(484.0, 490.0, (-310.0, -296.0, -283.0, -268.0), 6.0, 11.0, rl)
 lane_cables(476.0, 490.0, (-246.0, -231.0, -214.0, -196.0, -184.0), 6.5, 9.5, rl)
 # A flood on a pole in the yard, a second by the garage's back door.
@@ -1060,14 +1063,41 @@ B.billboard(D, 470.0, 22.5, -300.32, 13.0, 7.0, math.pi, random.Random(9217), ba
 
 # What the lanes' walls carry at a walker's height: both sides of every
 # lane, the kept blocks' and the new ones'.
-for name, plane, a0, a1, top, dens in (
+LANE_FACES = (
         ("-x", 402.0 - 0.03, -300.0, -262.0, 30.0, 1.5), ("+x", 398.0, -300.0, -258.0, 14.8, 1.5),
         ("+x", 398.0, -316.0, -300.0, 25.0, 1.5), ("-x", 402.0, -316.0, -300.0, 14.8, 1.5),
         ("+z", -262.0 + 0.03, 402.0, WL, 30.0, 1.5), ("-z", -258.0, 416.0, WL, 8.0, 1.1), ("-x", 416.0, -258.0, -250.0, 8.0, 1.0),
         ("+z", -316.0, EL, 484.0, 28.4, 1.5), ("-z", -312.0, 454.0, 484.0, 11.4, 1.5),
         ("+x", 484.0 + 0.03, -300.0, -258.0, 34.0, 1.4), ("+x", 484.0, -312.0, -300.0, 11.4, 1.4), ("-x", 490.0, -316.0, -258.0, 18.0, 1.4),
-        ("+x", 476.0 + 0.03, -258.0, -230.0, 22.0, 1.3), ("+x", 476.0 + 0.03, -200.0, -176.0, 7.0, 1.1), ("-x", 490.0, -258.0, -176.0, 11.0, 1.2)):
-    K.lane_wall(D, B.Face(name, plane, a0, a1), rl, top, dens, bundle=(name, a1) != ("+z", 484.0))
+        ("+x", 476.0 + 0.03, -258.0, -230.0, 22.0, 1.3), ("+x", 476.0 + 0.03, -200.0, -176.0, 7.0, 1.1), ("-x", 490.0, -258.0, -176.0, 11.0, 1.2))
+# First something lit every five metres down both walls of every lane, and
+# cladding between (afterlife_kit.lane_dress); then what lane_wall hangs.
+rd = random.Random(9640)
+LF = [B.Face(name, plane, a0, a1) for (name, plane, a0, a1, top, dens) in LANE_FACES]
+with own_ids(9641):
+    for i, (f_, (name, plane, a0, a1, top, dens)) in enumerate(zip(LF, LANE_FACES)):
+        # (Closer where the lane is narrow: the alley and the passage are four
+        # metres across, and a walker turned to either wall sees four of it.)
+        narrow = (name in ("-x", "+x") and plane < 410.0) or (plane in (-316.0, -312.0) and a0 >= EL)
+        K.lane_dress(D, f_, rd, top, step=3.8 if narrow else 4.6, k0=i * 3)
+# (Its blades draw their designs from a stream of their own, and the
+# street's stream moves on by the two it gave them before, so every sign
+# built after the lanes keeps the design it had.)
+with own_ids(9642):
+    for f_, (name, plane, a0, a1, top, dens) in zip(LF, LANE_FACES):
+        # (The passage's two walls are two metres from whoever walks it: few
+        # windows there, or one window behind its blind filled every view.)
+        K.lane_wall(D, f_, rl, top, dens, bundle=(name, a1) != ("+z", 484.0), windows=0.2 if plane in (-316.0, -312.0) and a0 >= EL else 1.0)
+for _ in range(2):
+    K.sid("bs")
+
+# More of the lanes' own people (the m8 review: "two to four per lane"): a
+# smoker at a door, someone on a phone, a pair talking, one crouched by a
+# heap, one leaning in the passage.
+for (x_, z_, yaw_, pose_) in ((401.1, -307.5, -math.pi / 2, "smoke"), (398.9, -289.5, math.pi / 2, "phone"), (401.0, -269.8, -math.pi / 2 - 0.3, "lean"),
+                              (489.0, -299.5, -math.pi / 2, "smoke"), (485.2, -279.0, math.pi / 2 + 0.4, "squat"), (488.6, -269.2, -math.pi / 2 - 0.5, "talk"),
+                              (487.6, -270.3, math.pi / 2 - 0.9, "talk"), (462.0, -312.7, math.pi, "lean"), (476.5, -315.2, 0.2, "phone")):
+    stand(x_, z_, yaw_, pose_)
 
 # ---------------------------------------------------------------------------
 # MILITECH's forecourt on the plaza street (mH2wmyeiIpA@182): a walled court
