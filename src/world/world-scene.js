@@ -157,6 +157,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let moon = null;
   // (load: the voxel moon on its way; `moon` once it is ready to draw.)
   let moonMade = null;
+  // (load: what compileFor asked the GPU for as the city was finished.)
+  let early = null;
   let mirror =quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality, { extra: effects });
   // The page's panes of smoked glass, frosted in the post chain.
@@ -218,6 +220,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     steam?.setLights(c.roofLights);
     resize();
     plazaKoi = createPlazaKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
+    // (load: the GPU's process starts building the city's programs now,
+    // while the people are placed and the koi made; warm compiles what is
+    // added after this and waits for all of it.)
+    early = compileFor([scene], post.composer.inputBuffer);
     const koiMade = createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
     // (load: the voxel moon is made alongside, as it was, but the city's
     // first frame does not wait for it: only the intro shows it, and warm
@@ -943,13 +949,22 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // adverts' atlas is asked for as the kit is made) is waited for, up to
   // PICTURES_MS, so the first frame never shows a wall without it.
   const PICTURES_MS = 4000;
-  const prepare = (root, into) => {
+  const compileFor = (roots, into) => {
     const before = renderer.info.programs.length;
     const prev = renderer.getRenderTarget();
     renderer.setRenderTarget(into);
-    const materials = renderer.compile(root, camera, scene);
+    const materials = new Set();
+    for (const root of roots) for (const m of renderer.compile(root, camera, scene)) materials.add(m);
     renderer.setRenderTarget(prev);
-    const programs = renderer.info.programs.slice(before);
+    return { kids: scene.children.length, materials, programs: renderer.info.programs.slice(before) };
+  };
+  const prepare = (into) => {
+    // What was added to the scene since the early compile (the koi), or all
+    // of it.
+    const late = compileFor(early ? scene.children.slice(early.kids) : [scene], into);
+    const materials = new Set([...(early?.materials ?? []), ...late.materials]);
+    const programs = [...(early?.programs ?? []), ...late.programs];
+    early = null;
     const pictures = new Set();
     const add = (v) => {
       if (Array.isArray(v)) v.forEach(add);
@@ -999,7 +1014,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // draw, and the warm-up's first draw was the moon's, before the hero's:
     // told now, so the hero's frame sorts and culls its people as it did.)
     crowd?.update(camera);
-    await prepare(scene, post.composer.inputBuffer);
+    await prepare(post.composer.inputBuffer);
     if (disposed) return;
     // Two real frames of the hero, under the door or the poster where
     // nobody sees them, with nothing culled. Compiling is not everything a
