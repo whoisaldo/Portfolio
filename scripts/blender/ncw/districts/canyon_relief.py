@@ -338,9 +338,28 @@ def lines(f, y0, y1, r, ok, hues, key=CB, out=0.07, skip=(), s0=0.25, s1=None):
                 runs = [(s0, g - gw / 2), (g + gw / 2, s1)]
             runs = _cut(runs, [(a - 0.2, b + 0.2) for a, b, c, d in skip if c - 0.3 < y + 0.12 and d + 0.3 > y])
             for a, b in runs:
-                if b - a > 1.0 and ok(*_rect(f, a, b, y, y + 0.14, out + 0.02)):
+                if b - a <= 1.0:
+                    continue
+                if ok(*_rect(f, a, b, y, y + 0.14, out + 0.02)):
                     f.quad((key, "neon_" + hue, 0), a, b, y + 0.02, y + 0.12, out)
                     n += 1
+                    continue
+                # (Where the hero's lens sees one end of it, the part it
+                # does not see, in lengths of 3 m or so joined up.)
+                m = max(1, round((b - a) / 3.0))
+                cuts = [a + (b - a) * i / m for i in range(m + 1)]
+                good = [ok(*_rect(f, c0, c1, y, y + 0.14, out + 0.02)) for c0, c1 in zip(cuts, cuts[1:])]
+                i = 0
+                while i < m:
+                    if not good[i]:
+                        i += 1
+                        continue
+                    j = i
+                    while j + 1 < m and good[j + 1]:
+                        j += 1
+                    f.quad((key, "neon_" + hue, 0), cuts[i], cuts[j + 1], y + 0.02, y + 0.12, out)
+                    n += 1
+                    i = j + 1
         k += every
     return n
 
