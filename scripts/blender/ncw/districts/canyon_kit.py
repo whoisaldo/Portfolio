@@ -1608,7 +1608,19 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
             if cap >= 4.4 and pw > 3.4:
                 kinds += ["board", "board"]
             kind = r.choice(kinds)
-            if kind == "tower":
+            if kind in ("duct", "stack") and cap >= 4.4 and pw > 3.4 and int(abs(px) * 5.0 + abs(pz) * 11.0) % 3 == 0:
+                # (A third of these where a board may stand is a lit board on
+                # struts, on dice of its own.)
+                rr = random.Random(int(abs(px) * 1000 + abs(pz) * 37))
+                bw, bh = min(pw, 4.8), 2.4
+                yaw = rr.choice((0.0, math.pi / 2, math.pi, -math.pi / 2)) + rr.uniform(-0.3, 0.3)
+                cy = y + 1.5 + bh / 2
+                advert(key, key, px, cy, pz, bw, bh, yaw, rr)
+                board_back(key, px, cy, pz, bw, bh, yaw, rr.choice(("cyan", "amber", "yellow", "pink")))
+                for sg in (-1, 1):
+                    lx, lz = px + math.cos(yaw) * sg * bw * 0.3 - math.sin(yaw) * 0.2, pz - math.sin(yaw) * sg * bw * 0.3 - math.cos(yaw) * 0.2
+                    box((key, "metal", 1), lx - 0.06, lx + 0.06, y, cy - bh / 2, lz - 0.06, lz + 0.06, scale=0.5)
+            elif kind == "tower":
                 hw, hd, hh = min(1.8, pw / 2), min(1.8, pd / 2), min(cap - 0.4, r.uniform(2.2, 3.2))
                 box((key, "metal", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.0)
                 box((key, "trim", 0), px - hw - 0.08, px + hw + 0.08, y + hh, y + hh + 0.1, pz - hd - 0.08, pz + hd + 0.08, scale=1.0, col=LID)
@@ -1671,10 +1683,18 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                     cylinder((key, "dark", 1), px + sx, pz, y + 1.3, y + 1.42, 0.3, segs=7)
             elif kind == "tank":
                 yaw = r.uniform(0, 6.28)
+                # (Each lit: a band of neon round its drum and a lamp at its
+                # foot, the colour by where it stands.)
+                th = ("cyan", "amber", "pink", "teal", "yellow")[int(abs(px) * 3.0 + abs(pz) * 7.0) % 5]
                 if cap >= 5.0 and min(pw, pd) >= 2.8:
                     P.place("roof_tank", px, y, pz, yaw, district=key)
+                    cylinder((key, "neon_" + th, 0), px, pz, y + 2.6, y + 2.68, 1.16, segs=12, cap=False)
                 else:
-                    P.place("cy_tank", px, y, pz, yaw, sxz=min(1.0, min(pw, pd) / 3.2), district=key)
+                    sxz = min(1.0, min(pw, pd) / 3.2)
+                    P.place("cy_tank", px, y, pz, yaw, sxz=sxz, district=key)
+                    cylinder((key, "neon_" + th, 0), px, pz, y + 2.3, y + 2.38, 1.48 * sxz + 0.03, segs=12, cap=False)
+                box((key, "glow", 0), px + 1.6, px + 1.85, y, y + 0.3, pz - 0.12, pz + 0.12, scale=0.5, col=GLOW["white"])
+                light(key, px + 1.7, y + 0.6, pz, th, 6.0)
             elif kind == "antenna":
                 P.place("roof_mast", px, y, pz, r.uniform(0, 3.14), sy=min(1.4, (cap - 0.4) / 8.2), district=key)
             elif kind == "dish":

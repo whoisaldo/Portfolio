@@ -731,7 +731,7 @@ def _back(U):
         # (Its own dice: ledges, balconies, units, a strip of light or a
         # board on what rises over the slab, where the hero cannot see.)
         ok = lambda lo, hi: C.hidden(OCC, lo, hi, plaza=plaza)
-        got = [REL.tops(f, h + CELL_H if f is not st else h + 0.5, top, random.Random(9900 + U["idx"] * 17 + i), ok, tcol)
+        got = [REL.tops(f, h + CELL_H if f is not st else h + 0.5, top, random.Random(9900 + U["idx"] * 17 + i), ok, tcol, hues=U["hues"])
                for i, f in enumerate((bk, so, no, st))]
         print("CANYON tops", side, L["i"], U["k"], "faces bk so no st", got)
     if top < h + 8.0:

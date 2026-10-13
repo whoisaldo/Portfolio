@@ -200,7 +200,7 @@ def _rect(f, s0, s1, y0, y1, out):
     return tuple(min(a[i], b[i]) for i in range(3)), tuple(max(a[i], b[i]) for i in range(3))
 
 
-def tops(f, y0, y1, r, ok, tcol, key=CB):
+def tops(f, y0, y1, r, ok, tcol, key=CB, hues=None):
     """A tower's top over its slab as a flying car, a crossing or the
     neighbour's roof sees it (ax5YUmkWf_Y@131, x4ztgjvfU60@22): ledges at
     their own spacing, so no one window module runs up the whole face; a
@@ -230,6 +230,7 @@ def tops(f, y0, y1, r, ok, tcol, key=CB):
         taken = (s - 1.6, s + 1.6)
     else:
         taken = (-9.0, -9.0)
+    used = [(taken[0], taken[1], y0, y1)]
     # Air conditioners in a cluster a few floors deep round a conduit.
     if floors:
         c = r.uniform(1.2, w - 1.2)
@@ -263,6 +264,7 @@ def tops(f, y0, y1, r, ok, tcol, key=CB):
         if hh >= sh + 1.5 and ok(*_rect(f, s - 1.45, s + 1.45, ya - 0.2, ya + hh + 0.2, 0.8)):
             hue = r.choice(("cyan", "cyan", "amber", "teal", "blue", "pink"))
             strip = s
+            used.append((s - 1.45, s + 1.45, ya - 0.2, ya + hh + 0.2))
             yb = ya + hh - sh
             f.box((key, "board_frame", 0), s - sw / 2 - 0.15, s + sw / 2 + 0.15, yb - 0.15, ya + hh + 0.15, 0.25, 0.55)
             cx, cy, cz = f.p(f.at(s), yb + sh / 2, 0.57)
@@ -291,7 +293,11 @@ def tops(f, y0, y1, r, ok, tcol, key=CB):
             f.box((key, "board_frame", 0), s - bw / 2 - 0.1, s + bw / 2 + 0.1, y - bh / 2 - 0.1, y + bh / 2 + 0.1, 0.0, 0.45)
             cx, cy, cz = f.p(f.at(s), y, 0.47)
             sign(C.own_name("pm"), cx, cy, cz, bw, bh, f.yaw, district=key, label=False)
+            used.append((s - bw / 2 - 0.1, s + bw / 2 + 0.1, y - bh / 2 - 0.1, y + bh / 2 + 0.1))
             n += 1
+    # And lines of neon along its floor edges between them.
+    if hues:
+        n += lines(f, y0 + CELL_H, y1 - 0.5, r, ok, hues, key, out=0.47, skip=used)
     return n
 
 
