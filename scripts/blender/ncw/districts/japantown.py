@@ -2294,6 +2294,85 @@ CROWNS = []     # (row, z0, kind, its top)
 ZZ_VENTS = []   # the crowns' own vents, named to sort after the old ones (the page's plumes keep their deal)
 
 
+CHANNEL = []    # (row, z0, kind, word)
+
+
+def channel_plan(rec):
+    """Whether a street front of three storeys or more carries a sign the
+    size of the building (the m8 review: "few building-scale channel-letter
+    signs ... almost no signage above the second or third floor"), and
+    where its band starts (the front's own signs keep under it)."""
+    if rec["row"] not in ("A", "E") or rec["h"] < storeys(3) - 0.1 or rec["lot"].z0 == DECK_TOWERS.get("axis"):
+        return None
+    rc = rng(rec, "chan4")
+    if rc.random() > 0.5:
+        return None
+    lot = rec["lot"]
+    corner = any(rec["sides"].get(n) in ("open", "street") for n in ("-z", "+z")) and rc.random() < 0.8
+    if hero_sees((lot.x0, 0.0, lot.z0), (lot.x1, rec["h"] + 1.0, lot.z1)):
+        return None
+    if corner:
+        return ("corner", storeys(2) + 0.2, rc)
+    return ("run", rec["h"] - 2.9, rc)
+
+
+def channel_sign(rec, plan):
+    """A word in channel letters along a front's top floor on a raceway, lit
+    and washing the wall; or at a corner a fin turned off the front toward
+    the street it turns into, its name down both faces."""
+    kind, y0, r = plan
+    f = face(rec, rec["front"])
+    w, h = f.width, rec["h"]
+    hue = r.choice(("red", "pink", "amber", "cyan", "white", "green", "magenta", "amber"))
+    if kind == "run":
+        kana = r.random() < 0.45
+        cwk = 1.12 if kana else 0.9
+        n = max(2, min(4 if kana else 6, int((w - 1.2) / (1.65 * cwk))))
+        c0 = f.p(f.at(w / 2), y0 + 1.0, 0.36)
+        text = J.F.pick(J.F.KANA if kana else J.F.LATIN, c0, n, (2, 1))
+        lh = min(2.4, (w - 1.2) / (len(text) * cwk), h - y0 - 0.4)
+        if lh < 0.85:
+            return
+        c = f.p(f.at(w / 2), y0 + 0.2 + lh / 2, 0.36)
+        wd, _ = J.letters(c, basis(f.yaw), text, lh, hue, depth=0.22)
+        yc = y0 + 0.2 + lh / 2
+        f.box((D, "board_frame", 0), w / 2 - wd / 2 - 0.35, w / 2 + wd / 2 + 0.35, yc - 0.13, yc + 0.13, 0.04, 0.24)
+        for du in (-wd * 0.35, wd * 0.35):
+            f.box((D, "metal", 1), w / 2 + du - 0.04, w / 2 + du + 0.04, yc - lh / 2 - 0.15, yc + lh / 2, 0.02, 0.06)
+        light(D, *f.p(f.at(w / 2), yc - 0.6, 1.0), hue, 6.0)
+        CHANNEL.append((rec["row"], round(rec["lot"].z0, 1), "run", text))
+        return
+    # The corner fin: at the end of the front by the open side.
+    lot = rec["lot"]
+    end = "-z" if rec["sides"].get("-z") in ("open", "street") else "+z"
+    s = 0.3 if (f.at(0.3) - (lot.z0 if end == "-z" else lot.z1)) ** 2 < (f.at(w - 0.3) - (lot.z0 if end == "-z" else lot.z1)) ** 2 else w - 0.3
+    turn = (0.75 if end == "+z" else -0.75) * (1 if f.nx > 0 else -1)
+    y1 = min(h - 0.5, y0 + r.uniform(6.5, 9.5))
+    if y1 - y0 < 4.5:
+        return
+    fw = r.uniform(1.6, 2.1)
+    phi = f.yaw + turn
+    px, _, pz = f.p(f.at(s), 0.0, 0.0)
+    out = 0.4 + fw / 2
+    c = (px + math.sin(phi) * out, (y0 + y1) / 2, pz + math.cos(phi) * out)
+    b = basis(phi + HALF_PI)
+    obox((D, "board_frame", 0), c, b, fw, y1 - y0, 0.32)
+    text = J.F.pick(J.F.KANA, c, max(2, min(5, int((y1 - y0 - 0.8) / 1.7))), (1, 0))
+    lh = min(fw * 0.62, (y1 - y0 - 0.8) / (len(text) * 1.14))
+    for yaw in (0.0, math.pi):
+        bb = basis(phi + HALF_PI + yaw)
+        J.letters(pt(c, bb, 0.0, 0.0, 0.19), bb, text, lh, hue, depth=0.14, vertical=True)
+    for y in (y0 + 0.6, (y0 + y1) / 2, y1 - 0.6):
+        a = (px, y, pz)
+        e = (px + math.sin(phi) * 0.45, y, pz + math.cos(phi) * 0.45)
+        pipe((D, "metal", 1), a, e, 0.05, segs=4)
+    for sd in (-1, 1):
+        q = pt(c, b, sd * (fw / 2 + 0.02), 0.0, 0.0)
+        box((D, "glow", 0), q[0] - 0.03, q[0] + 0.03, y0 + 0.1, y1 - 0.1, q[2] - 0.03, q[2] + 0.03, scale=1.0, col=GLOW[hue])
+    light(D, c[0], y0 + 1.0, c[2], hue, 5.0)
+    CHANNEL.append((rec["row"], round(rec["lot"].z0, 1), "corner", text))
+
+
 def crowned(rec):
     """Whether a lot is crowned rather than given one of roof()'s kinds (the
     kind roof() would deal it is read from its own stream, not drawn)."""
@@ -2800,8 +2879,11 @@ for rec in LOTS:
         lane_face(rec, rec["back"], cap=7.4 if row == "E" else None)
     # (Where a screen will hang on the front, its signs keep under it.)
     ad_ = row == "C" and rng(rec, "westad").random() < 0.36 and face(rec, rec["front"]).width > 12.0 and rec["tiers"][0][5] > storeys(5)
+    chan_ = channel_plan(rec)
     if row in ("E", "A"):
-        shop_face(rec, rec["front"], "street", cap=storeys(2) + 0.3 if row == "A" and rec["lot"].z0 == DECK_TOWERS.get("axis") else None)
+        shop_face(rec, rec["front"], "street", cap=storeys(2) + 0.3 if row == "A" and rec["lot"].z0 == DECK_TOWERS.get("axis") else (chan_[1] - 0.5 if chan_ else None))
+        if chan_:
+            channel_sign(rec, chan_)
     elif row == "B":
         shop_face(rec, rec["front"], "alley")
     else:
@@ -3401,6 +3483,7 @@ high_bridge(HIGH_Z, hr)
 print("japantown west bridge:", west_bridge(HIGH_Z, random.Random(7170)), "crowns:", len(CROWNS), sorted({k for _, _, k, _ in CROWNS}),
       "highest:", max([c[3] for c in CROWNS] + [0.0]))
 print("japantown crowns:", CROWNS)
+print("japantown channel signs:", len(CHANNEL), sum(1 for c in CHANNEL if c[2] == "corner"), "at corners")
 pipe_bridge(PIPES_Z, hr)
 lantern_arch(ARCH_Z, gr)
 tube_arch(SOUTH_Z, gr)
