@@ -537,7 +537,7 @@ def _lookout(U, top, plaza):
                 used.append((s_, s_ + pw))
             s_ += pw + 0.25
             k_ += 1
-        _deck_wall(f, top, rl, B.TRIM[U["tint"]], used)
+        _deck_wall(f, top, rl, used)
     # Over the dado and the lamps, the walls are the towers' own sides:
     # air conditioners in runs, a balcony here and there, a conduit (as
     # high as the hero's lens does not see them; their own dice).
@@ -575,7 +575,7 @@ def _lookout(U, top, plaza):
     return (u0, z0, z1, sg)
 
 
-def _deck_wall(f, top, r, tcol, used):
+def _deck_wall(f, top, r, used):
     """A lookout's side wall at arm's length over its dado, where the
     tower's glass read as a flat wall: cladding in panels with their
     joints, a door into the tower with its sign and lamp, a run of pipe
@@ -585,13 +585,18 @@ def _deck_wall(f, top, r, tcol, used):
     if w < 4.0:
         return
     ok = lambda s0, s1, y0, y1, d: C.hidden(OCC, *REL._rect(f, s0, s1, y0, y1, d))
+    # (A wainscot to just over head height: over it the tower's own lit
+    # windows, a wall of cladding to the eye's top was a black wall.)
     clad = [s_ for s_ in [k * 1.2 for k in range(int(w / 1.2))] if ok(s_, s_ + 1.2, top + 1.16, top + 3.6, 0.1)]
-    dark = (tcol[0] * 0.55, tcol[1] * 0.55, tcol[2] * 0.55, 1)
-    lite = (tcol[0] * 0.8, tcol[1] * 0.8, tcol[2] * 0.8, 1)
+    # (Pale panels in the deck's lamplight, one in three darker: the bake
+    # lights floors, not walls, and in trim the wall read as black at arm's
+    # length; so the panels carry the lamps' light themselves, faintly.)
     for k, s_ in enumerate(clad):
-        f.quad((CB, "trim", 0), s_, s_ + 1.2, top + 1.16, top + 3.6, 0.025, col=lite if (k + int(s_ / 3.6)) % 3 == 0 else dark)
-        f.quad((CB, "trim", 1), s_ + 1.17, s_ + 1.2, top + 1.16, top + 3.6, 0.03, col=B.DARK_TRIM)
-    f.quad((CB, "trim", 1), min(clad, default=0.0), max(clad, default=0.0) + 1.2, top + 2.38, top + 2.41, 0.03, col=B.DARK_TRIM)
+        pale = (k + int(s_ / 3.6)) % 3 != 0
+        f.quad((CB, "glow" if pale else "trim", 0), s_, s_ + 1.2, top + 1.16, top + 2.45, 0.025,
+               col=(0.055, 0.05, 0.045, 1) if pale else (0.08, 0.085, 0.09, 1))
+        f.quad((CB, "trim", 1), s_ + 1.17, s_ + 1.2, top + 1.16, top + 2.45, 0.03, col=B.DARK_TRIM)
+    f.box((CB, "trim", 1), min(clad, default=0.0), max(clad, default=0.0) + 1.2, top + 2.45, top + 2.52, 0.0, 0.06, col=B.DARK_TRIM)
     if not clad:
         return
     lo_, hi_ = min(clad), max(clad) + 1.2
@@ -631,7 +636,7 @@ def _deck_wall(f, top, r, tcol, used):
     while ps + 0.7 < hi_:
         pw, ph_ = r.uniform(0.55, 0.8), r.uniform(0.75, 1.0)
         py = top + r.uniform(1.75, 2.0)
-        if free(ps, ps + pw) and not ds - 0.2 < ps + pw and ps < ds + 2.3:
+        if free(ps, ps + pw) and not (ds - 0.2 < ps + pw and ps < ds + 2.3):
             cx, cy, cz = f.p(f.at(ps + pw / 2), py, 0.035)
             k_ = C._board_no(f, cx, cy, cz, pw, ph_) % 8
             if k_ not in cells:
