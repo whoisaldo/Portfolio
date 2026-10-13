@@ -87,13 +87,8 @@ def free(x, z):
     return x > 48.7 and -260.2 < z < -191.9
 
 
-for i in (1, 4, 6, 9, 11, 14):
-    a = (i + 0.5) * math.tau / 16
-    r1 = RO + 0.5
-    while r1 < 46.0 and free(*at(r1 + 0.5, a)):
-        r1 += 0.5
-    if r1 > RO + 2.5:
-        gline("white", *at(RO + 0.5, a), *at(r1, a), G + 0.012, w=0.07)
+# (No spokes of white light out over the slabs: from the air they were
+# stray strips across the water.)
 
 # ---------------------------------------------------------------------------
 # The kerb round each half of the well.
@@ -157,7 +152,9 @@ for i in range(NSEG):
 # ---------------------------------------------------------------------------
 rim = disc_planes(HX, HZ, RK, NSEG)
 well = disc_planes(HX, HZ, RP, NSEG)
-up_poly((PL, "dark", 0), clip_planes([(HX - 17, CW[0]), (HX + 17, CW[0]), (HX + 17, CW[1]), (HX - 17, CW[1])], rim), G - 0.03)
+# (Its deck under the slabs lies under the ground's plane, as the square's
+# bed does, out of the road's mirror: plaza_paving.py.)
+up_poly((PL, "dark", 0), clip_planes([(HX - 17, CW[0]), (HX + 17, CW[0]), (HX + 17, CW[1]), (HX - 17, CW[1])], rim), -0.06)
 for (z0, z1, face) in ((CW[0], CW[0] + KW, CW[0] + KW), (CW[1] - KW, CW[1], CW[1] - KW)):
     up_poly((PL, "concrete", 0), clip_planes([(HX - 17, z0), (HX + 17, z0), (HX + 17, z1), (HX - 17, z1)], rim), KY, scale=1.5)
     half = math.sqrt(RK * RK - (face - HZ) ** 2)
@@ -429,7 +426,6 @@ for dx, dz in ((-5.0, -3.0), (5.0, -3.0), (-9.0, 3.0), (0.0, 3.0), (9.0, 3.0), (
 # The koi's light (they turn overhead, orange and gold): pools on the ring's
 # paving, on the kerb, on the glazing's bars, and the same warm wash over
 # the whole of the hub and a little way out.
-wash(HX, HZ, 30.0, "orange", 0.5)
 for i in range(12):
     a = (i + 0.5) * math.tau / 12
     x, z = at(RK + 2.0, a)

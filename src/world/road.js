@@ -119,6 +119,68 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         return d / max(r, 1e-3) * ring;
       }
 
+      #if PAINT == 1
+      // What hangs over Corpo Plaza's square, as its wet stone gives it
+      // back where no mirror is drawn (from the air): the board's lit frame
+      // and its screen, the four side screens and the two over the shops,
+      // and the two koi turning over the hub (plaza-koi.js: the same lap
+      // from the same clock). Light along the ray R from P.
+      float pzRect(vec2 q, vec2 h, float w) {
+        vec2 e = abs(q) - h;
+        return 1.0 - smoothstep(-w, w, max(e.x, e.y));
+      }
+      vec3 pzOverhead(vec3 P, vec3 R) {
+        vec3 o = vec3(0.0);
+        if (R.y < 0.02) return o;
+        // The board on its housing (z -263), its frame lit in the entry's
+        // colour (the Work shot's yellow), the screen dark with its art.
+        if (R.z < -0.02) {
+          float t = (-263.0 - P.z) / R.z;
+          vec3 H = P + R * t;
+          vec2 q = H.xy - vec2(79.0, 26.0);
+          float w = 0.25 + t * 0.035;
+          float frame = pzRect(q, vec2(14.3, 9.8), w) - pzRect(q, vec2(13.5, 9.0), w);
+          o += vec3(1.0, 0.86, 0.12) * 1.1 * max(frame, 0.0) + vec3(0.07, 0.09, 0.14) * pzRect(q, vec2(13.5, 9.0), w);
+          // The steel housing round it, floodlit cold, faint.
+          o += vec3(0.04, 0.045, 0.06) * (pzRect(q, vec2(24.0, 12.4), w * 2.0) - pzRect(q, vec2(14.3, 9.8), w));
+          // The two boards over the shops (z -260.5 is near enough).
+          vec2 a = H.xy - vec2(60.0, 19.0), b = H.xy - vec2(98.0, 19.0);
+          o += vec3(0.16, 0.2, 0.3) * (pzRect(a, vec2(4.0, 2.65), w) + pzRect(b, vec2(4.0, 2.65), w));
+        }
+        // The side screens on the lane's backs (x 44.6) and on the
+        // terraces' masts (x 109.4), at 12 m.
+        float sx = R.x < -0.02 ? 44.6 : (R.x > 0.02 ? 109.4 : 0.0);
+        if (sx != 0.0) {
+          float t = (sx - P.x) / R.x;
+          vec3 H = P + R * t;
+          float w = 0.25 + t * 0.035;
+          o += vec3(0.22, 0.26, 0.36) * (pzRect(vec2(H.z + 205.0, H.y - 12.0), vec2(4.5, 3.0), w) + pzRect(vec2(H.z + 228.0, H.y - 12.0), vec2(4.5, 3.0), w));
+        }
+        // The koi: each a glowing body along its heading, thickest a third
+        // of the way back, the tail thin.
+        for (int i = 0; i < 2; i++) {
+          float L = i == 0 ? 36.0 : 26.0;
+          float rad = i == 0 ? 11.0 : 13.0;
+          float fy = i == 0 ? 30.0 : 14.5;
+          float ph = i == 0 ? 1.178 : -1.178;
+          float a = uTime / 64.0 * 6.2831853 + ph;
+          vec3 C = vec3(70.0 + rad * cos(a), fy + 0.9 * sin(a * 2.0 + ph), -234.0 - rad * sin(a));
+          vec3 D = vec3(-sin(a), 0.0, -cos(a));
+          vec3 w0 = P - C;
+          float b = dot(R, D), d = dot(R, w0), e = dot(D, w0);
+          float s = (b * e - d) / max(1.0 - b * b, 1e-4);
+          float u = clamp(e + s * b, -0.5 * L, 0.5 * L);
+          s = max(dot(C + D * u - P, R), 0.0);
+          float dd = length(P + R * s - C - D * u);
+          float k = u / (0.5 * L);
+          float r = L * 0.085 * (1.0 - smoothstep(-0.2, -0.95, k) * 0.75) * (1.0 - smoothstep(0.55, 1.0, k) * 0.6) + s * 0.012;
+          vec3 hue = i == 0 ? vec3(1.0, 0.4, 0.07) : vec3(1.0, 0.6, 0.16);
+          o += hue * 1.6 * exp(-dd * dd / (r * r));
+        }
+        return o;
+      }
+      #endif
+
       void main() {
         vec2 p = vWorld.xz;
         vec3 toEye = uCam - vWorld;
@@ -372,11 +434,15 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // the board, the signs and the koi over them: wet stone in the
         // street's own colours, never the deck's sodium grey.)
         float terrace = 0.0;
+        // (Corpo Plaza's square at its foot and its two terraces over it:
+        // the same dark stone under the same sheet of water.)
+        float square = 0.0;
         #if PAINT == 1
         // (And the square's own stone at its foot, from the board's block
         // to the plaza street and the lane to the terraces, the causeway
         // with it: the same wet stone, not dry paving beside a wet road.)
-        float square = step(47.5, p.x) * step(p.x, 108.5) * step(-264.5, p.y) * step(p.y, -189.5) * (1.0 - step(0.6, abs(vWorld.y)));
+        square = step(47.5, p.x) * step(p.x, 108.5) * step(-264.5, p.y) * step(p.y, -189.5) * (1.0 - step(0.6, abs(vWorld.y)));
+        float decks = lifted * step(91.5, p.x) * step(p.x, 108.5) * step(-264.5, p.y) * step(p.y, -199.5);
         terrace = max(lifted, square) * step(44.0, p.x) * step(p.x, 134.0) * step(-330.0, p.y) * step(p.y, -180.0);
         // (Its stone holds a film all over and water standing in the low
         // places between the slabs: pools in a broad, wandering pattern.)
@@ -384,6 +450,12 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float pools = vnoise(p * 0.16 + 4.0) * 0.65 + vnoise(p * 0.55) * 0.35;
         float pa = fwidth(pools) * 0.75;
         puddle = max(puddle, square * uWet * smoothstep(0.5 - pa, 0.6 + pa, pools));
+        // (Round 7: the whole square under a sheet of water, a near mirror
+        // broken only by its joints: water in half of it, each pool giving
+        // back the lit haze, was a litter of pale lilac blotches from the
+        // air.)
+        square = max(square, decks);
+        puddle = mix(puddle, uWet * (0.86 + 0.14 * smoothstep(0.3, 0.7, pools)), square);
         #endif
         float sodium = lifted * 0.8 * (1.0 - terrace);
         spill = mix(spill, dot(spill, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.75, sodium);
@@ -393,9 +465,16 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // street's glow, so it reads as the line down the middle.
         float worn = smoothstep(0.3, 0.75, vnoise(p * 2.3) * 0.55 + lng * 0.3 + 0.3 * track + (rough - 0.46) * 1.2);
         float painted = 0.85 * cracked * (1.0 - 0.8 * worn * near);
+        // (The square's slabs and its terraces' are stone, not paint on
+        // tar: no tar through them, which from a terrace read as grime
+        // stains and holes.)
+        painted = mix(painted, 1.0, square);
         albedo = mix(albedo, vPaint, painted);
         // (Wet, a pale slab goes dark.)
         albedo *= mix(1.0, 0.55, terrace * wet);
+        // (Darker still on the square: polished dark stone under water,
+        // its slabs' own light the lamps' pools in their colours.)
+        albedo *= mix(1.0, 0.62, square);
         stone = max(stone, painted);
         // (The light on it eased toward a ceiling: a white line under six
         // signs is a painted line, not a tube.)
@@ -406,6 +485,10 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         float hue = max(vPaint.r, max(vPaint.g, vPaint.b)) - min(vPaint.r, min(vPaint.g, vPaint.b));
         float coloured = smoothstep(0.25, 0.55, hue);
         vec3 lit = spill * 1.6 / (1.0 + 1.3 * max(spill.r, max(spill.g, spill.b)));
+        // (The bake lifts every cell away from the avenue toward one
+        // brightness, a lilac wash over the whole square: there the stone
+        // takes a little of it, greyed, and the pools its slabs hold.)
+        lit = mix(lit, vec3(dot(lit, vec3(0.3, 0.5, 0.2))) * vec3(1.0, 0.92, 0.84) * 0.42, square);
         lit = mix(lit, mix(vec3(dot(lit, vec3(0.3, 0.55, 0.15))), lit, 0.45) * 0.62, coloured);
         vec3 col = albedo * (vec3(0.13, 0.14, 0.18) * mix(1.0, 0.45, coloured) + lit);
         #else
@@ -456,7 +539,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         vec3 R = normalize(vec3(-V.x + rings.x * 0.03, V.y, -V.z + rings.y * 0.03));
         float sheen = wet * mix(0.35, 1.0, stone) * crack * (0.8 + 0.3 * track + 0.1 * mended + 0.55 * seal + 0.4 * oil) * (1.0 + 3.1 * fore) * (1.0 + 1.6 * terrace);
         // How wide the film scatters, as a facet's tilt in radians.
-        float sigma = mix(mix(0.06, 0.035, max(track, mended * 0.4)), 0.085, fore);
+        float sigma = mix(mix(mix(0.06, 0.035, max(track, mended * 0.4)), 0.085, fore), 0.022, square);
 
         float mk = 0.0;
         vec3 sharp = vec3(0.0);
@@ -527,6 +610,13 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
             baked = max(baked, tame(ahead * 0.34, 0.5));
           }
           baked = mix(baked, dot(baked, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.8, sodium * 0.55) * (1.0 + 1.2 * terrace);
+          // (On the square the baked light along the ray is the bake's own
+          // lilac lift of the square itself: under its sheet of water it was
+          // a pale slab from the air. There the water gives back what hangs
+          // over it instead: pzOverhead, below.)
+          // (Only at a steep look: low along the water it is the shops and
+          // signs round the square, where no mirror is drawn.)
+          baked *= mix(1.0, 0.2, square * smoothstep(0.12, 0.4, R.y));
           // Standing water gives the light back whole where a sign stands
           // over it and next to nothing where none does: dark water with
           // lights in it, the rain's rings catching them. (Given back as an
@@ -546,7 +636,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // it, brightest where the street runs toward downtown. The mirror
         // draws only what glows, never the sky, so this is its sky on
         // desktop too.
-        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (hazeAt(R) * 1.2 + glowAt(R) * 0.5) * uHaze * mix(0.28, 0.4, fore) * (1.0 + 2.5 * aerial);
+        vec3 sky = cityGlow(R, 0.0) * exp(-max(R.y, 0.0) * 28.0) * 0.6 + (hazeAt(R) * 1.2 + glowAt(R) * 0.5) * uHaze * mix(0.28, 0.4, fore) * mix(1.0 + 2.5 * aerial, 0.3, square);
         // (Under Santo Domingo's lamps the cloud is their orange, and the
         // wet tar holds that, as its yards' pools do.)
         sky = mix(sky, SODIUM * 0.9 * uHaze, 0.8 * santoAt(p) * eye);
@@ -557,7 +647,12 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         vec3 refl = mix(mix(baked, soft, mk) * sheen, sharp, puddle) + sky * mix(mix(0.3, 0.5, eye) * wet * mix(0.35, 1.0, stone) * crack, mix(0.4 + 0.6 * aerial, 1.0, mk), puddle);
         // (On the hero's stretch the film is thick enough to hold its shine
         // at the lens's feet, as the plate's road does.)
-        refl *= mix(mix(max(fres, 0.5 * aerial), 0.6, 0.7 * fore), mix(0.16, 0.25, fore) + 0.75 * graze, puddle) * uWet;
+        refl *= mix(mix(max(fres, 0.5 * aerial), 0.6, 0.7 * fore), mix(mix(0.16, 0.25, fore), 0.42, square) + 0.75 * graze, puddle) * uWet;
+        #if PAINT == 1
+        // (Over the square, from the air where no mirror is drawn: the
+        // board, its screens and the koi in the water.)
+        if (square > 0.5 && mk < 0.999) refl += pzOverhead(vWorld, R) * (1.0 - mk) * puddle * (0.45 + 0.55 * graze);
+        #endif
         // Never brighter than the sign it is the reflection of.
         refl /= 1.0 + 0.35 * max(refl.r, max(refl.g, refl.b));
         col += refl;

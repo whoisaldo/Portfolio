@@ -159,7 +159,7 @@ def lit_at(x, z, pools=None, base=(0.2, 0.225, 0.29)):
     return (r / m, g / m, b / m)
 
 
-def lit_slab(key, x0, x1, z0, z1, y, tone, cut=None, cell=2.0):
+def lit_slab(key, x0, x1, z0, z1, y, tone, cut=None, cell=2.0, pools=None, dark=(0.2, 0.225, 0.29)):
     """A slab of stone lying flat, cut into cells so the light on it runs
     smoothly over it (the joints are between slabs, not cells). `cut`:
     (cx, cz, r), a round hole it is laid round."""
@@ -170,7 +170,7 @@ def lit_slab(key, x0, x1, z0, z1, y, tone, cut=None, cell=2.0):
             za, zb = z0 + (z1 - z0) * j / nz, z0 + (z1 - z0) * (j + 1) / nz
             pieces = rect_minus_disc(xa, xb, za, zb, *cut) if cut else [[(xa, za), (xb, za), (xb, zb), (xa, zb)]]
             for pts in pieces:
-                lit_poly(key, pts, y, tone)
+                lit_poly(key, pts, y, tone, pools, dark)
 
 
 def lit_poly(key, pts2, y, tone, pools=None, dark=(0.2, 0.225, 0.29)):

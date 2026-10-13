@@ -22,12 +22,26 @@ from ncw import props as P
 from ncw.districts.plaza_square import X0, X1, Z0, Z1, G, TY, TX, TN, TS, COURT, SX
 
 rs = random.Random(8900)
-STONE = ((0.27, 0.28, 0.31), (0.27, 0.28, 0.31), (0.33, 0.34, 0.37), (0.44, 0.45, 0.48), (0.13, 0.135, 0.15))
-PALE = ((0.3, 0.3, 0.32), (0.36, 0.36, 0.38), (0.42, 0.42, 0.45), (0.22, 0.22, 0.24))
+# (Round 7: dark polished stone, its tones close, under water: from the air
+# the square was a pale slab in a dark city, lit evenly lilac.)
+STONE = ((0.24, 0.245, 0.27), (0.24, 0.245, 0.27), (0.28, 0.285, 0.31), (0.33, 0.335, 0.36), (0.16, 0.165, 0.18))
+PALE = ((0.26, 0.26, 0.28), (0.3, 0.3, 0.32), (0.34, 0.34, 0.36), (0.2, 0.2, 0.22))
 KEY = (PL, "paint", 0)
+# The light on the stone: each pool tight and warm (a lamp's, a kiosk's, a
+# shop window's), and the night's own dark between them. Pools of a
+# screen's or a sign's hue were soft coloured stains on it from the air.
+WARM = (1.0, 0.72, 0.42)
+SQ_POOLS = [(x, z, reach * 0.55, tuple(c[i] * 0.35 + WARM[i] * 0.65 for i in range(3)), min(1.0, k * 0.95))
+            for (x, z, reach, c, k) in POOLS if c != TINT["red"]]
+DARK = (0.085, 0.095, 0.12)
 
+# The bed the slabs lie on, seen in their joints: under the ground's own
+# plane, so the road's mirror (which draws each dark wall as an occluder
+# for a driven camera, src/world/city.js) clips it and does not take it for
+# a black lid over the whole square: at 3 cm under the slabs it hid every
+# sign, the board and the koi from the water.
 for piece in rect_minus_disc(X0, X1, Z0, Z1, HX, HZ, RK - 0.02):
-    up_poly((PL, "dark", 0), piece, G - 0.03)
+    up_poly((PL, "dark", 0), piece, -0.06)
 
 
 def pave(x0, x1, z0, z1, depths=(2.4, 3.6), widths=(2.4, 4.8), y=G, tones=STONE, cut=(HX, HZ, RO)):
@@ -42,7 +56,7 @@ def pave(x0, x1, z0, z1, depths=(2.4, 3.6), widths=(2.4, 4.8), y=G, tones=STONE,
             if x1 - (x + w) < widths[0] * 0.6:
                 w = x1 - x
             t, k = rs.choice(tones), rs.uniform(0.86, 1.14)
-            lit_slab(KEY, x + 0.03, x + w - 0.03, z - d + 0.03, z - 0.03, y, (t[0] * k, t[1] * k, t[2] * k), cut=cut)
+            lit_slab(KEY, x + 0.03, x + w - 0.03, z - d + 0.03, z - 0.03, y, (t[0] * k, t[1] * k, t[2] * k), cut=cut, pools=SQ_POOLS, dark=DARK)
             x += w
         z -= d
 
@@ -51,9 +65,9 @@ def court(x0, x1, z0, z1, d=2.0, b=0.5):
     """A carpet of stone laid on the diagonal in bands of three tones,
     inside a dark border (mH2wmyeiIpA@182's striped paving)."""
     for (a0, a1, c0, c1) in ((x0, x1, z0, z0 + b), (x0, x1, z1 - b, z1), (x0, x0 + b, z0 + b, z1 - b), (x1 - b, x1, z0 + b, z1 - b)):
-        lit_slab(KEY, a0 + 0.02, a1 - 0.02, c0 + 0.02, c1 - 0.02, G, (0.16, 0.165, 0.19))
+        lit_slab(KEY, a0 + 0.02, a1 - 0.02, c0 + 0.02, c1 - 0.02, G, (0.12, 0.125, 0.14), pools=SQ_POOLS, dark=DARK)
     inner = [(1, 0, x1 - b - 0.02), (-1, 0, -(x0 + b + 0.02)), (0, 1, z1 - b - 0.02), (0, -1, -(z0 + b + 0.02))]
-    tones = ((0.42, 0.43, 0.46), (0.27, 0.28, 0.31), (0.16, 0.17, 0.19))
+    tones = ((0.34, 0.345, 0.37), (0.24, 0.245, 0.27), (0.15, 0.155, 0.17))
     h, g = d / 2, 0.035
     for i in range(int((x1 - x0) / h) + 2):
         for j in range(int((z1 - z0) / h) + 2):
@@ -63,7 +77,7 @@ def court(x0, x1, z0, z1, d=2.0, b=0.5):
             piece = clip_planes([(cx - h + g, cz), (cx, cz - h + g), (cx + h - g, cz), (cx, cz + h - g)], inner)
             if len(piece) >= 3:
                 t, k = tones[((i - j) // 2) % 3], rs.uniform(0.92, 1.08)
-                lit_poly(KEY, piece, G, (t[0] * k, t[1] * k, t[2] * k))
+                lit_poly(KEY, piece, G, (t[0] * k, t[1] * k, t[2] * k), SQ_POOLS, DARK)
 
 
 for rect, depths, widths in (((X0, SX, Z0, -255.6), (1.6,), (1.6, 3.2)),
@@ -91,7 +105,7 @@ for course, (r0, r1) in enumerate(((RK, RM), (RM, RO))):
         first = (i + course) % 2 == 0
         tone = tones[((i + course) // 2) % (NSEG // 2)]
         a0, a1 = i * STEP + (0.03 / r0 if first else 0.0), (i + 1) * STEP - (0.0 if first else 0.03 / r0)
-        lit_poly(KEY, [at(r0 + 0.02, a0), at(r0 + 0.02, a1), at(r1 - 0.02, a1), at(r1 - 0.02, a0)], G, tone)
+        lit_poly(KEY, [at(r0 + 0.02, a0), at(r0 + 0.02, a1), at(r1 - 0.02, a1), at(r1 - 0.02, a0)], G, tone, SQ_POOLS, DARK)
 
 # The beds' lawn (plaza_hub.py built their kerbs, hedges and trees): turf in
 # small pieces, each under the light that reaches it.
@@ -115,7 +129,7 @@ for k in range(5):
         piece = clip_planes([(xa + (0.03 if j == 0 else 0.0), CW[0] + KW), (xb - (0.03 if j == 3 else 0.0), CW[0] + KW),
                              (xb - (0.03 if j == 3 else 0.0), CW[1] - KW), (xa + (0.03 if j == 0 else 0.0), CW[1] - KW)], rim)
         if len(piece) >= 3:
-            lit_poly(KEY, piece, G, (t[0] * kk, t[1] * kk, t[2] * kk))
+            lit_poly(KEY, piece, G, (t[0] * kk, t[1] * kk, t[2] * kk), SQ_POOLS, DARK)
 
 # The terraces' floors: pale flags in courses across them.
 for (za, zb) in (TN, TS):
