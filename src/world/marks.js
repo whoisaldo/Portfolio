@@ -310,7 +310,9 @@ export const MARKS = /* glsl */ `
         float rag = vnoise(q * 8.0 + hp * 50.0);
         float corner = length((f - step(0.5, vec2(fract(hp * 3.0), fract(hp * 5.0)))) * size);
         float whole = smoothstep(0.0, 0.03, min(edge - 0.07 * smoothstep(0.45, 0.8, rag), corner - step(fract(hp * 11.0), 0.4) * (0.12 + 0.3 * fract(hp * 17.0)) * (0.6 + 0.8 * rag)));
-        float art = floor(mod(cx * 7.0 + i * 5.0 + id * 11.0, 24.0));
+        // (In turn along the wall, three apart a cell: seven apart a cell
+        // and five a slot, a cell's third came back two cells on, 12 m.)
+        float art = floor(mod(cx * 3.0 + i + id * 11.0, 24.0));
         vec3 c3 = uHasAds > 0.5 ? poster(f, art, vec2(px) / size) : bill(f, hp);
         c3 = mix(vec3(0.74, 0.72, 0.66), c3 * (0.72 + 0.28 * vnoise(q * 23.0)), smoothstep(0.35, 0.8, whole));
         m = mix(m, vec4(c3, 1.0), smoothstep(0.0, 0.35, whole) * far);

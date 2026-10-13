@@ -33,6 +33,7 @@ import { GROUND, VNOISE } from "./ground.js";
 import { kindSource } from "./kinds.js";
 import { SHOP_ROOM, HALL } from "./interiors.js";
 import { dealTrades } from "./trades.js";
+import { dealAdverts } from "./adverts.js";
 import { MIRROR_UNIFORMS } from "./road.js";
 import { MARKS } from "./marks.js";
 import { createWetFloor } from "./wet.js";
@@ -1971,6 +1972,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 foot = vec3(dot(vWorld, right) - st.x * size.x, dot(vWorld, upward) - st.y * size.y, dot(vWorld, nb));
           float board = floor(foot.x / 4.0 + 0.412) * 7.0 + floor(foot.y / 4.0 + 0.412) * 5.0 + floor(foot.z / 4.0 + 0.412) * 3.0;
           float turn = uTime / 12.0 + fract(seed * 0.618 + board * 0.37);
+          // (Away from the hero's lens, a face dealt its advert (src/world/
+          // adverts.js: none the same within reach of it, by its size) turns
+          // over with the rest of the city within a few seconds of them, so
+          // two neighbours never show one advert.)
+          float art = floor(vColor.a * 31.875 + 0.5) - 1.0;
+          bool dealtAd = art < 15.5 && freeEye() > 0.5;
+          if (dealtAd) turn = uTime / 12.0 + 0.3 * fract(seed * 0.618 + board * 0.37);
           float slot = floor(turn);
           float local = fract(turn);
           float h = hash12(vec2(slot, seed));
@@ -2005,10 +2013,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float rowH = 341.0 / 2048.0;
             vec2 q;
             if (tall) {
-              float j = mod(pick * 3.0, 8.0);
+              float j = dealtAd ? mod(art + slot * 3.0, 8.0) : mod(pick * 3.0, 8.0);
               q = vec2((mod(j, 4.0) + st.y) * 0.25, 1.0 - (1365.0 + (floor(j / 4.0) + st.x) * 341.0) / 2048.0);
             } else {
-              float i = mod(pick, 16.0);
+              float i = dealtAd ? mod(art + slot * 5.0, 16.0) : mod(pick, 16.0);
               q = vec2((mod(i, 4.0) + st.x) * 0.25, 1.0 - (floor(i / 4.0) + 1.0 - st.y) * rowH);
             }
             col = texture2D(uAds, q).rgb * 0.92;
@@ -2028,6 +2036,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         }
       `,
     }));
+    // (Its faces are dealt their adverts the first time a mesh is drawn.)
+    const boards = new WeakSet();
+    m.onBeforeRender = (_renderer, _scene, _camera, geometry, object) => {
+      if (boards.has(geometry)) return;
+      boards.add(geometry);
+      if (!object.isInstancedMesh) dealAdverts(geometry, object);
+    };
     m.name = "billboard";
     made.set("billboard", m);
     return m;
