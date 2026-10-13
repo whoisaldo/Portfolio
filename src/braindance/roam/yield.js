@@ -225,12 +225,13 @@ export function createYield(traffic) {
             // to, or behind it there nearer than 0.6 s of his pace, or
             // further back coming up faster: it waits for him to go by, as
             // a driver looks in his mirror, and does not cut in across his
-            // nose.
+            // nose. (Only while he is moving: one standing behind it, as in
+            // a queue behind a car turning, is waiting for it to go.)
             if (Math.abs(drift) > 0.4 && Math.abs(t.y - m.y) < 2) {
               const along = (t.x - m.x) * m.fx + (t.z - m.z) * m.fz;
               const side = (t.z - m.z) * m.fx - (t.x - m.x) * m.fz;
               const pace = t.vx * m.fx + t.vz * m.fz;
-              if (side * drift > 0 && Math.abs(side) < 4.5 && along < m.hl && (along > -m.hl - Math.max(3, 0.6 * pace) || (along > -m.hl - 10 && pace > m.v * 0.8 + 1))) allow = 0;
+              if (pace > 1 && side * drift > 0 && Math.abs(side) < 4.5 && along < m.hl && (along > -m.hl - Math.max(3, 0.6 * pace) || (along > -m.hl - 10 && pace > m.v * 0.8 + 1))) allow = 0;
             }
             continue;
           }
