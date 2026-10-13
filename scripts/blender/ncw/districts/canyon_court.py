@@ -289,18 +289,20 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
 # and a spire. What the hero's lens sees of it (from the roofs' line up) is
 # in the core; the rest streams in with the canyon's pack.
 # ---------------------------------------------------------------------------
-# (So high over the street no light reaches it: its ribs carry the sky's
-# violet as a faint light of their own, and its grooves stay black.)
-RIB = (0.014, 0.01, 0.023, 1)
-GROOVE = (0.02, 0.017, 0.021, 1)
+# The show's tower is pale concrete, grooved (ax5YUmkWf_Y@40): at night its
+# ribs carry the city's light as a faint pale light of their own, brightest
+# low down over the lit forecourt, and its grooves stay dark.
+RIB = (0.05, 0.053, 0.068, 1)
+GROOVE = (0.016, 0.017, 0.022, 1)
+SPINE, SPINE_HIGH = (0.12, 0.13, 0.16, 1), (0.075, 0.08, 0.1, 1)
 HERO_FROM = 110.0       # the canyon's roofs hide the tower below this
 # Below that the tower is the show's slate blue (Fn9gKhU_2_Q@77): its ribs,
 # its shoulders, its podium; and its panels' joints are lines a shade
 # lighter round it every two floors, fainter where the hero's lens has it.
-RIB_LOW = (0.011, 0.016, 0.028, 1)
+RIB_LOW = (0.085, 0.094, 0.118, 1)
 SLATE = (0.05, 0.066, 0.105, 1)
-SHOULDER = (0.013, 0.018, 0.031, 1)
-JOINT, JOINT_HIGH = (0.022, 0.03, 0.05, 1), (0.019, 0.026, 0.044, 1)
+SHOULDER = (0.07, 0.078, 0.098, 1)
+JOINT, JOINT_HIGH = (0.03, 0.034, 0.045, 1), (0.026, 0.028, 0.037, 1)
 
 
 def _plan(y):
@@ -352,6 +354,25 @@ def _line(key, mat, cx, cz, nx, nz, u0, u1, y0, y1, out=0.08, col=(1, 1, 1, 1)):
          _on(cx, cz, nx, nz, u0, y1, out), col=col)
 
 
+def _spine(key, cx, cz, nx, nz, y0, y1, col, half=1.8, out=0.95):
+    """A band standing proud up the middle of a face, following its lean:
+    its front and its two sides."""
+    _line(key, "glow", cx, cz, nx, nz, -half, half, y0, y1, out=out, col=col)
+    side = (col[0] * 0.55, col[1] * 0.55, col[2] * 0.55, 1)
+    for u, sg in ((-half, -1), (half, 1)):
+        a, b = _on(cx, cz, nx, nz, u, y0, 0.0), _on(cx, cz, nx, nz, u, y1, 0.0)
+        c, d = _on(cx, cz, nx, nz, u, y1, out), _on(cx, cz, nx, nz, u, y0, out)
+        quad((key, "glow", 0), *((a, d, c, b) if sg < 0 else (d, a, b, c)), col=side)
+
+
+def _disc(key, cx, cz, nx, nz, yc, r0, r1, out, col, n=32):
+    """A ring (or, from r0 0, a disc) flat on a face of the head."""
+    for i in range(n):
+        a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
+        q = [_on(cx, cz, nx, nz, rad * math.cos(a), yc + rad * math.sin(a), out) for rad, a in ((r1, a0), (r1, a1), (r0, a1), (r0, a0))]
+        quad(key, *q, col=col)
+
+
 def tower(ax, az):
     # The podium: slate blue, in three tiers, each oversailing the one under
     # it by a metre with a line of light in its soffit; bands of amber and
@@ -365,7 +386,7 @@ def tower(ax, az):
     for n, (y0, y1, half) in enumerate(tiers):
         o = cut_rect(ax, az, half, half, 5.0)
         if n < 2:
-            prism(CB, o, y0, y1, 4930 + n, col=B.wall_col(0.95, 5, 0.5, B.TINTS["navy"]), roof=False)
+            prism(CB, o, y0, y1, 4930 + n, col=B.wall_col(0.8, 2, 0.5, B.TINTS["navy"]), roof=False)
             for ya, yb in ((y0, y0 + 0.8), (y1 - 0.7, y1)):
                 walls((CB, "trim", 0), cut_rect(ax, az, half + 0.05, half + 0.05, 5.0), ya, yb, SLATE)
         else:
@@ -400,22 +421,28 @@ def tower(ax, az):
                 y += 6.8
     for y in (150.0, 168.0):
         walls((FA, "neon_red", 0), cut_rect(ax, az, 22.1, 22.1, 4.0), y - 0.2, y + 0.2, (1, 1, 1, 1))
-    # The channel of red light down the middle of each face, broken behind
-    # the name; the ring on each face of the head.
+    # The spine up the middle of each face: a pale band standing proud of
+    # it from the podium to the head, a channel of red light down its
+    # middle, broken behind the name (which it carries); the emblem built
+    # into each face of the head.
     for name, nx, nz in FACES:
         key = FA if name in ("s", "w") else CB
-        for y0, y1 in ((23.0, HERO_FROM), (HERO_FROM, 148.5), (148.5, 170.0), (170.0, 197.0)):
+        for y0, y1 in ((21.0, HERO_FROM), (HERO_FROM, 148.5), (148.5, 170.0), (170.0, 212.0)):
             if name == "s" and y0 == 148.5:
                 continue
-            _line(key if y0 >= HERO_FROM else CB, "neon_red", ax, az, nx, nz, -0.22, 0.22, y0, y1)
+            k_ = key if y0 >= HERO_FROM else CB
+            _spine(k_, ax, az, nx, nz, y0, y1, SPINE_HIGH if y0 >= HERO_FROM else SPINE)
+            _line(k_, "neon_red", ax, az, nx, nz, -0.22, 0.22, max(y0, 23.0), min(y1, 197.0), out=0.98)
         # (High on the head, over the top of the hero's frame on a desk and
         # on a phone: a ring cut by the frame's edge would be a red arc in
-        # its band of sky.)
-        yc, R, t, n = 204.7, 6.2, 1.0, 32
-        for i in range(n):
-            a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
-            q = [_on(ax, az, nx, nz, rad * math.cos(a), yc + rad * math.sin(a), 0.3) for rad, a in ((R, a0), (R, a1), (R - t, a1), (R - t, a0))]
-            quad((key, "neon_red", 0), *q)
+        # its band of sky.) A dark disc set into a pale rim on the spine,
+        # the ring round three bars of light, the middle one tall.
+        yc = 204.7
+        _disc((key, "trim", 0), ax, az, nx, nz, yc, 0.0, 7.6, 1.0, GROOVE)
+        _disc((key, "glow", 0), ax, az, nx, nz, yc, 7.0, 7.9, 1.02, SPINE_HIGH)
+        _disc((key, "neon_red", 0), ax, az, nx, nz, yc, 5.2, 6.2, 1.04, (1, 1, 1, 1))
+        for u, hh in ((-2.1, 2.2), (0.0, 3.8), (2.1, 2.2)):
+            _line(key, "neon_red", ax, az, nx, nz, u - 0.38, u + 0.38, yc - hh, yc + hh, out=1.04)
     # The shoulders on the podium's roof: a buttress in two steps against
     # each face, a line of red under each step.
     for name, nx, nz in FACES:
