@@ -1925,7 +1925,12 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float hub = step(48.0, vWorld.x) * step(vWorld.x, 108.0) * step(-262.0, vWorld.z) * step(vWorld.z, -190.0);
             street *= 1.0 + 0.5 * hub;
             street += hub * cityGlow(r, 0.0) * 0.6 * (1.0 - smoothstep(0.0, 0.35, r.y));
-            alpha = mix(alpha, 0.3 + 0.62 * fres, hub);
+            // (At a walker's eye, looking across it, it stays clear enough
+            // for the lit hall under it to show and gives back the city
+            // rather than a navy sky: near opaque there, it was a flat dark
+            // blue sheet.)
+            alpha = mix(alpha, 0.24 + 0.46 * fres, hub);
+            sky *= 1.0 - 0.6 * hub;
           }
           vec3 col = vec3(0.006, 0.022, 0.030) * tint + (sky + street) * fres * tint;
           col = cityFog(col, vWorld, 0.8);

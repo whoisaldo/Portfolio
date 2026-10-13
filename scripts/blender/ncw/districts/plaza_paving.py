@@ -25,7 +25,7 @@ rs = random.Random(8900)
 # (Round 7: dark polished stone, its tones close, under water: from the air
 # the square was a pale slab in a dark city, lit evenly lilac.)
 STONE = ((0.24, 0.245, 0.27), (0.24, 0.245, 0.27), (0.28, 0.285, 0.31), (0.33, 0.335, 0.36), (0.16, 0.165, 0.18))
-PALE = ((0.26, 0.26, 0.28), (0.3, 0.3, 0.32), (0.34, 0.34, 0.36), (0.2, 0.2, 0.22))
+PALE = ((0.2, 0.2, 0.22), (0.24, 0.24, 0.26), (0.28, 0.28, 0.3), (0.16, 0.16, 0.18))
 KEY = (PL, "paint", 0)
 # The light on the stone: each pool tight and warm (a lamp's, a kiosk's, a
 # shop window's), and the night's own dark between them. Pools of a
@@ -44,7 +44,7 @@ for piece in rect_minus_disc(X0, X1, Z0, Z1, HX, HZ, RK - 0.02):
     up_poly((PL, "dark", 0), piece, -0.06)
 
 
-def pave(x0, x1, z0, z1, depths=(2.4, 3.6), widths=(2.4, 4.8), y=G, tones=STONE, cut=(HX, HZ, RO)):
+def pave(x0, x1, z0, z1, depths=(2.4, 3.6), widths=(2.4, 4.8), y=G, tones=STONE, cut=(HX, HZ, RO), pools=None):
     z = z1
     while z > z0 + 0.3:
         d = min(rs.choice(depths), z - z0)
@@ -56,7 +56,7 @@ def pave(x0, x1, z0, z1, depths=(2.4, 3.6), widths=(2.4, 4.8), y=G, tones=STONE,
             if x1 - (x + w) < widths[0] * 0.6:
                 w = x1 - x
             t, k = rs.choice(tones), rs.uniform(0.86, 1.14)
-            lit_slab(KEY, x + 0.03, x + w - 0.03, z - d + 0.03, z - 0.03, y, (t[0] * k, t[1] * k, t[2] * k), cut=cut, pools=SQ_POOLS, dark=DARK)
+            lit_slab(KEY, x + 0.03, x + w - 0.03, z - d + 0.03, z - 0.03, y, (t[0] * k, t[1] * k, t[2] * k), cut=cut, pools=pools or SQ_POOLS, dark=DARK)
             x += w
         z -= d
 
@@ -132,5 +132,8 @@ for k in range(5):
             lit_poly(KEY, piece, G, (t[0] * kk, t[1] * kk, t[2] * kk), SQ_POOLS, DARK)
 
 # The terraces' floors: pale flags in courses across them.
+# (Their lamps stand closer over them than over the square: dimmer pools,
+# or the terrace's floor at a walker's feet was a field of pale gold tiles.)
+DECK_POOLS = [(x, z, reach * 0.85, c, k * 0.6) for (x, z, reach, c, k) in SQ_POOLS]
 for (za, zb) in (TN, TS):
-    pave(TX + 0.08, X1 - 0.08, za + 0.08, zb - 0.08, (2.0,), (1.6, 3.2), y=TY + 0.012, tones=PALE, cut=None)
+    pave(TX + 0.08, X1 - 0.08, za + 0.08, zb - 0.08, (1.0, 2.0), (1.0, 2.0), y=TY + 0.012, tones=PALE, cut=None, pools=DECK_POOLS)

@@ -87,6 +87,9 @@ from ncw.districts import plaza_edges  # noqa: E402,F401
 # towers' boards, from a flying car's height.)
 from ncw.districts import plaza_open  # noqa: E402,F401
 from ncw.districts import plaza_sky  # noqa: E402,F401
+# (Round 7: the square at a walker's eye, the court lane; its signs take the
+# last of the plaza's own ids.)
+from ncw.districts import plaza_eye  # noqa: E402,F401
 # (Last: the square's slabs, lit by everything set down above.)
 from ncw.districts import plaza_paving  # noqa: E402,F401
 # (And the kit's sign counters as the plaza has always left them, for the

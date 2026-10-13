@@ -1294,7 +1294,7 @@ def _hedge_soft(k):
     # (Its top is leaf in small pads, close set: clipped, not ferny.)
     for i in range(10):
         x = -0.9 + i * 0.2 + r.uniform(-0.04, 0.04)
-        leaf_pad(k("plant"), x, 0.56 + r.uniform(-0.02, 0.04), r.uniform(-0.16, 0.16), r.uniform(0.24, 0.3), r.choice(CROWN), segs=5)
+        leaf_pad(k("plant"), x, 0.56 + r.uniform(-0.02, 0.04), r.uniform(-0.16, 0.16), r.uniform(0.24, 0.3), r.choice(CROWN), segs=8)
     for i in range(6):
         x = -0.84 + i * 0.336 + r.uniform(-0.08, 0.08)
         for side in (-1, 1):
@@ -1313,8 +1313,14 @@ def _shrub(k):
     for i in range(6):
         a = i * math.tau / 6 + r.uniform(-0.3, 0.3)
         rr = r.uniform(0.2, 0.34)
-        leaf_pad(k("plant"), rr * math.cos(a), 0.3 + r.uniform(-0.05, 0.1), rr * math.sin(a), r.uniform(0.26, 0.34), r.choice(CROWN), segs=5)
-    leaf_pad(k("plant"), 0.0, 0.5, 0.0, 0.34, CROWN[2], segs=6)
+        leaf_pad(k("plant"), rr * math.cos(a), 0.3 + r.uniform(-0.05, 0.1), rr * math.sin(a), r.uniform(0.26, 0.34), r.choice(CROWN), segs=8)
+    leaf_pad(k("plant"), 0.0, 0.5, 0.0, 0.34, CROWN[2], segs=9)
+    # (More pads, smaller, over the first: at arm's length six big facets
+    # were a cut stone, not a bush.)
+    for i in range(7):
+        a = i * math.tau / 7 + 0.4 + r.uniform(-0.3, 0.3)
+        rr = r.uniform(0.32, 0.46)
+        leaf_pad(k("plant"), rr * math.cos(a), 0.18 + r.uniform(0.0, 0.2), rr * math.sin(a), r.uniform(0.16, 0.22), r.choice(CROWN), segs=7)
     for i in range(5):
         a = i * math.tau / 5 + r.uniform(-0.4, 0.4)
         tuft(k, 0.3 * math.cos(a), 0.34, 0.3 * math.sin(a), r, n=1, size=0.22, lean=0.9)
@@ -1366,19 +1372,26 @@ def _tree_round(k):
     for limb in (((0.03, 1.7, 0.03), (0.3, 2.05, 0.2), (0.55, 2.5, 0.35)), ((0.0, 2.1, 0.0), (-0.3, 2.4, 0.1), (-0.6, 2.8, 0.15)),
                  ((0.0, 2.1, 0.0), (0.05, 2.5, -0.3), (0.1, 3.0, -0.5))):
         P.tube(w, limb, (0.075, 0.055, 0.035), segs=5, col=bark, smooth=True)
-    P.lathe(w, 0.0, 0.0, ((2.15, 0.25), (2.4, 0.8), (2.9, 1.02), (3.4, 0.8), (3.75, 0.3)), segs=7, col=HEART)
+    # (Round 7: the crown in three spreading layers with dark air between
+    # them, wider than it is tall (PzkEqhVByw4@86, KvMY1uzSC1E@43): a ball
+    # of pads read from the air as a toy tree.)
+    P.lathe(w, 0.0, 0.0, ((2.2, 0.2), (2.45, 0.6), (2.9, 0.72), (3.4, 0.5), (3.75, 0.2)), segs=7, col=HEART)
     r = random.Random(53)
-    for tier, (y, ring_r, n, pr) in enumerate(((2.2, 0.7, 7, 0.5), (2.55, 1.0, 9, 0.52), (2.95, 1.05, 9, 0.52), (3.35, 0.8, 7, 0.5), (3.68, 0.4, 4, 0.46),
-                                               (3.86, 0.0, 1, 0.5))):
-        for i in range(n):
-            a = (i + 0.5 * (tier % 2)) * math.tau / n + r.uniform(-0.2, 0.2)
-            leaf_pad(w, ring_r * math.cos(a), y + r.uniform(-0.1, 0.1), ring_r * math.sin(a), pr * r.uniform(0.88, 1.12), r.choice(CROWN), segs=6)
-    # (Sprays of leaf out of the crown's flanks and top, so its edge is
-    # broken and not a ball.)
-    for i in range(22):
-        a, yy = i * 2.39996 + r.uniform(-0.2, 0.2), r.uniform(2.3, 3.8)
-        rr = 1.5 * math.sqrt(max(0.05, 1.0 - ((yy - 2.95) / 1.05) ** 2))
-        tuft(k, rr * math.cos(a), yy, rr * math.sin(a), r, n=2, size=0.42, lean=0.5 + 0.6 * (yy - 2.3))
+    for layer, (y, rings) in enumerate(((2.3, ((1.75, 13, 0.42), (1.05, 8, 0.44), (0.35, 3, 0.4))),
+                                        (2.95, ((1.35, 10, 0.4), (0.65, 5, 0.42))),
+                                        (3.5, ((0.8, 7, 0.36), (0.0, 1, 0.42))))):
+        for ring_r, n, pr in rings:
+            for i in range(n):
+                a = (i + 0.5 * (layer % 2)) * math.tau / n + r.uniform(-0.25, 0.25)
+                rr = ring_r * r.uniform(0.88, 1.08)
+                leaf_pad(w, rr * math.cos(a), y + r.uniform(-0.08, 0.08) - 0.06 * ring_r, rr * math.sin(a), pr * r.uniform(0.85, 1.15), r.choice(CROWN), segs=7)
+    # (Sprays of leaf out of each layer's rim, drooping a little, so its
+    # edge is broken and not a disc.)
+    for i in range(30):
+        layer = i % 3
+        y, rim = ((2.3, 2.0), (2.95, 1.6), (3.5, 1.0))[layer]
+        a = i * 2.39996 + r.uniform(-0.2, 0.2)
+        tuft(k, rim * math.cos(a), y + r.uniform(-0.05, 0.1), rim * math.sin(a), r, n=2, size=0.4, lean=1.1 + 0.2 * layer)
     for x, z in ((0.42, 0.3), (-0.36, -0.4)):
         box(k("glow"), x - 0.07, x + 0.07, 0.0, 0.07, z - 0.07, z + 0.07, scale=0.5, col=(0.75, 1.0, 0.82, 1.0))
 
