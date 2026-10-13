@@ -552,9 +552,11 @@ def skylight(x0, x1, z0, z1, y, rise=1.6, colour="white", nx=4, nz=3):
             a, b, c, d = (xa, hgt(xa, zb), zb), (xb, hgt(xb, zb), zb), (xb, hgt(xb, za), za), (xa, hgt(xa, za), za)
             tris = ((a, b, c), (a, c, d)) if (i + j) % 2 == 0 else ((a, b, d), (b, c, d))
             for t in tris:
-                # Each pane its own: most dim (a dark floor under it), some lit.
-                g = rr.choice((0.2, 0.25, 0.3, 0.35, 0.5, 0.7, 1.0))
-                m = rr.uniform(0.3, 0.8)
+                # Each pane its own: most dark glass over a dim floor, a few
+                # lit, all in the roof's own colour. (Most of them lit pale
+                # was a glowing beige grid from every flyer over the row.)
+                g = rr.choice((0.03, 0.04, 0.05, 0.06, 0.08, 0.12, 0.3, 0.55))
+                m = rr.uniform(0.75, 1.0)
                 top_ = max(base[:3]) or 1.0
                 col = tuple((base[n] / top_ * m + (1 - m)) * g for n in range(3)) + (1,)
                 poly(k("skylight"), list(t), [(0, 0), (1, 0), (0.5, 1)], col)

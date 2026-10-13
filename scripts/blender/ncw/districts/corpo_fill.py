@@ -125,3 +125,18 @@ def _south_people():
 
 _south_people()
 
+
+# The campus podiums' parapets, seen across their roofs: a glass rail on
+# top lit along its edge, so from a roof the edge is a terrace's and not a
+# plain dark slab.
+def _campus_edges():
+    from ncw.districts.corpo_south import CAMPUS, CAMPUS_LOTS
+    z0, z1 = CAMPUS
+    for j, (x0, x1) in enumerate(CAMPUS_LOTS):
+        hue = ("amber", "cyan")[j % 2]
+        for (xa, za), (xb, zb) in (((x0 + 0.15, z0 + 0.15), (x1 - 0.15, z0 + 0.15)), ((x0 + 0.15, z1 - 0.15), (x1 - 0.15, z1 - 0.15)),
+                                   ((x0 + 0.15, z0 + 0.15), (x0 + 0.15, z1 - 0.15)), ((x1 - 0.15, z0 + 0.15), (x1 - 0.15, z1 - 0.15))):
+            K.rail(xa, za, xb, zb, 12.7, hue, h=0.55, glow=True)
+
+
+_campus_edges()
