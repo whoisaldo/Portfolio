@@ -4,6 +4,8 @@ from ncw.districts.plaza import CROSS_Z0
 from ncw.districts import corpo_kit as K
 from ncw import props as PR
 
+_np = len(PEOPLE)  # Corpo Row's people are the ones set down from here on
+
 # ---------------------------------------------------------------------------
 # CORPO ROW. One tower per role, in experience.js order, west to east along a
 # wide boulevard: a glass tower over a lit double-height lobby, stepped back
@@ -641,5 +643,9 @@ from ncw.districts import corpo_line  # noqa: E402,F401
 # Last, on dice of its own: the backs, flanks and walls filled, the gaps'
 # planting broken up, the guideway's piers dressed (corpo_fill.py).
 from ncw.districts import corpo_fill  # noqa: E402,F401
+
+# Corpo Row's people set down at 0 stand on its pavement, which is at G0
+# wherever they are (none of them is on the road).
+PEOPLE[_np:] = [(x, K.G0, z, yaw, pose) if y == 0 else (x, y, z, yaw, pose) for (x, y, z, yaw, pose) in PEOPLE[_np:]]
 
 K.ad_report()

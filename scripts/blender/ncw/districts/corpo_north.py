@@ -634,9 +634,9 @@ def forecourts():
                 P.place("bench", tx + sx, py, -346.7, 0.0, district=CO)
             stand(tx - 8.0, -346.7, 0.0, "sit", py + 0.45)
             stand(tx + 8.4, -346.7, 0.0, "sit", py + 0.45)
-            K.talk(tx - 4.6, -346.6, 0.2, y=RAISED[i])
-            stand(tx + 2.4, LOT_N - 1.0, 0.0, "phone", G0 + (py - G0) * 0.5 - G0)
-            stand(tx - 1.6, STEP_TOP - 0.5, math.radians(20), "idle", RAISED[i])
+            K.talk(tx - 4.6, -346.6, 0.2, y=py)
+            stand(tx + 2.4, LOT_N - 1.15, 0.0, "phone", G0 + (py - G0) * 4 / 6)
+            stand(tx - 1.6, STEP_TOP - 0.5, math.radians(20), "idle", py)
             K.ad_panel(tx - 9.0, KERB_STRIP_N, 0.0, r, pal=K.COLD)
         elif i == 5:
             # Barriers and a booth: a checked way in, hazard stripes.
@@ -751,8 +751,8 @@ def lobby(i):
     zt = zg + min(1.5, LOBBY_DEPTH[i] * 0.45)
     for sx in ((-2.4, -0.8, 0.8, 2.4), (-1.6, 0.0, 1.6), (-3.2, -1.6, 0.0, 1.6, 3.2))[i % 3]:
         gate(tx + sx, zt, hue, g0)
-    stand(tx - 4.2, zt + 0.3, 0.0, "idle", base)
-    stand(tx + 4.3, zt + 0.2, 0.0, "idle", base)
+    stand(tx - 4.2, zt + 0.3, 0.0, "idle", g0)
+    stand(tx + 4.3, zt + 0.2, 0.0, "idle", g0)
     # A desk one side, its top edge lit, somebody behind it; seats the
     # other, somebody waiting; a tree in a tub at each end.
     side = 1 if i % 2 else -1
@@ -760,21 +760,21 @@ def lobby(i):
     solid(dx - 1.7, dx + 1.7, g0, g0 + 1.05, zg + 1.2, zg + 1.85, K.BLACK)
     box(k("glow"), dx - 1.7, dx + 1.7, g0 + 1.05, g0 + 1.09, zg + 1.77, zg + 1.85, scale=1.0, col=bc)
     box(k("glow", 1), dx - 1.5, dx + 1.5, g0 + 0.08, g0 + 0.12, zg + 1.85, zg + 1.87, scale=1.0, col=K.brand(i, 0.6))
-    stand(dx + 0.3, zg + 0.9, 0.0, "vendor", base)
+    stand(dx + 0.3, zg + 0.9, 0.0, "vendor", g0)
     for bx in (tx - side * 6.4, tx - side * 9.0):
         P.place("bench", bx, g0, zg + 1.25, 0.0, district=CO)
     stand(tx - side * 6.4, zg + 1.25, 0.0, "sit", g0 + 0.45)
-    stand(tx - side * 3.9, zt + 1.0, math.radians(-150 * side), "phone", base)
+    stand(tx - side * 3.9, zt + 1.0, math.radians(-150 * side), "phone", g0)
     for sx in (-10.6, 10.6):
         P.place("planter_tree", tx + sx, g0, min(zg + LOBBY_DEPTH[i] - 1.4, zf - 2.0), sy=0.95 - base * 0.15, sxz=0.8, district=CO)
     # The day's end at the doors: people through the gates on their way
     # out, three talking by the way in, one on a phone, one waiting by the
     # trees. (All of them inside the tower's face, z -347.)
-    K.talk(tx + side * 4.8, zf - 1.0, 0.3 * i, 3, y=base)
-    stand(tx - side * 1.4, zf - 0.7, math.radians(10 * i), "idle", base)
-    stand(tx - side * 0.6, zf - 1.5, math.radians(-12 * i), "idle", base)
-    stand(tx + side * 1.6, zf - 1.2, math.radians(160 + 7 * i), "phone", base)
-    stand(tx - side * 8.8, zf - 0.8, math.radians(30), "idle", base)
+    K.talk(tx + side * 4.8, zf - 1.0, 0.3 * i, 3, y=g0)
+    stand(tx - side * 1.4, zf - 0.7, math.radians(10 * i), "idle", g0)
+    stand(tx - side * 0.6, zf - 1.5, math.radians(-12 * i), "idle", g0)
+    stand(tx + side * 1.6, zf - 1.2, math.radians(160 + 7 * i), "phone", g0)
+    stand(tx - side * 8.8, zf - 0.8, math.radians(30), "idle", g0)
 
 
 def jersey(x, z, w=1.9):
