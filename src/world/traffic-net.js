@@ -76,13 +76,16 @@ const PREFER = { "0,-179": "S", "120,-179": "S" };
 // route's anchor, so its first car always leaves it at that second. With
 // the boulevard driven at 15 m/s both platoons are off the chase's stretch
 // before second 22 and neither is back on it until after 37
-// (tools/bdlane.mjs counts both lanes). Changing the cycle, the boulevard's
+// (tools/bdlane.mjs counts both lanes); E's green is as early as lets the
+// eastbound platoon onto the stretch just after 37, so at second 12 it is
+// well along the boulevard, ahead of the driver's frames on its east half.
+// Changing the cycle, the boulevard's
 // speed or the platoon's size moves this: run the tool. For the same
 // reason nothing is parked along the boulevard's north kerb beside the
 // chase (src/world/traffic-park.js keeps it clear): a parked car would
 // stand in the lens' way for all of it.
 const GATES = [
-  { key: "120,-330", heading: [0, -1], green: 34.9 },
+  { key: "120,-330", heading: [0, -1], green: 33.4 },
   { key: "440,-330", heading: [0, -1], green: 21 },
 ];
 
@@ -391,19 +394,21 @@ function timetable(lanes, { cycle, need, phase }) {
 }
 
 // The lights' phases are drawn from this. Any seed is as good a city as
-// another; this one was picked (of 40,000 tried, tools/r4net.mjs) for
+// another; this one was picked (of 40,000 tried, tools/r5net.mjs) for
 // second 12 of the clock, where every review render holds the traffic: at
 // that second a platoon comes down the avenue's middle toward the hero's
 // junction (ahead of the driver's frames from 24 m on, where the reviews
 // found only the kerbs' cars), the boulevard, the west road and
-// Japantown's corner carry cars, junction I has its queue, eight of the
-// twelve junctions have a car turning in them or crossing (not the hero's
-// own, whose lens lies in its mouth), every driver's frame round the loop
-// holds two cars or more, neither route's platoon comes back to its anchor
-// early enough to be held there a whole cycle, the braindance's lane is
-// clear from 102 to 117, and nothing ever touches, on a desktop's network
-// and on a phone's.
-const PHASES = 16468;
+// Japantown's corner carry cars, junction I has its queue, junction F (the
+// plaza's, on the x 120 road) has cars waiting at its lines both ways,
+// seven of the twelve junctions have a car turning in them or crossing
+// (not the hero's own, whose lens lies in its mouth), no car on a
+// desktop's network is over a steam vent, every driver's frame round the
+// loop holds two cars or more, neither route's platoon comes back to its
+// anchor early enough to be held there a whole cycle, the braindance's
+// lane is clear from 102 to 117, and nothing ever touches, on a desktop's
+// network and on a phone's.
+const PHASES = 37736;
 
 // The steam vents in the road: of the districts' anchor_steam_* empties,
 // the street kind (src/world/steam.js: not a stall's, a drain's, a lane's,
