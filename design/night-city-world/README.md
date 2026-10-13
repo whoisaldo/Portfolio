@@ -8,8 +8,10 @@ and ends parked in the garage; the intro's drift happens in this city too.
 The plate (`public/scenes/night-city/neon-*.webp`) survives as the poster the
 city fades in over, and as the whole of the fallback.
 
-It is a Blender kit (the hero avenue and every set piece a shot looks at)
-plus a procedural far city, drawn by vanilla three.js with one pmndrs
+It is a Blender kit built as a place (a street network at true scale with a
+closed loop through ten districts, every side a driver, a walker, a roof or
+a flying car can see built; `BIBLE.md` says what each district is) plus a
+procedural far city, drawn by vanilla three.js with one pmndrs
 `postprocessing` pass. `/recruiters` mounts none of it.
 
 ## Source and assets
@@ -21,22 +23,40 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   The builder creates only its own scene and its own `NCW_` datablocks, never
   touches `Ali_S4_Final` or `Night_City_Garage`, writes the scene alone to the
   `.blend` with `bpy.data.libraries.write`, and exports `world-source.glb`
-  (git-ignored) next to it.
+  (git-ignored) next to it. The builder's modules are in
+  `scripts/blender/ncw/`: the network as data (`plan.py`), the streets built
+  from it (`streets.py`, `road.py`), the building generator
+  (`buildings.py`), instanced props (`props.py`), the shared primitives and
+  materials (`kit.py`), the exports (`exports.py`), the packing into core and
+  packs (`finish.py`), and one module per district in `districts/` with its
+  helpers beside it (`avenue*.py`, `far.py` and `canyon_*.py` for the Canyon,
+  `deck.py`, `japantown.py` and `jt_*.py`, `plaza*.py`, `corpo*.py`,
+  `afterlife*.py` with `rooftop.py` and `garage.py`, `santo*.py`, `mega*.py`,
+  `skyline.py` and `sky.py`, and `edges.py`, which closes the city's edges).
 - `npm run world:assets` (`scripts/optimize-world.mjs`, glTF Transform: prune,
   dedup of accessors, meshes and textures, weld, WebP textures, Meshopt; and
   first every map and vertex attribute no shader reads taken off: roughness
   and normal maps but the road's, UVs and vertex colours on plain paint and
   neon, colours where only UVs are read)
-  writes `public/scenes/world/world-high.glb` (2.54 MB, 1024 px textures) and
-  `world-phone.glb` (1.16 MB, 512 px textures, every prop the builder tagged
-  as detail dropped), `moon.webp`, `holo.webp`, the two screens'
+  writes `public/scenes/world/world-high.glb`, the core (2.47 MB, 1024 px
+  textures: what the hero needs and every named piece, anchor and prototype)
+  and `world-phone.glb` (0.99 MB, 512 px textures, every prop the builder
+  tagged as detail dropped), served gzipped; a pack per district behind it,
+  `world-<tier>-<pack>.glb` for `south` (what the hero cannot see of Kabuki
+  Avenue), `canyon`, `plaza`, `deck`, `corpo`, `afterlife`, `santo`,
+  `japantown` and `mega` (16.27 MB in all on high, the largest Japantown's
+  2.50 MB and Corpo Row's 2.18 MB; 7.59 MB on a phone); `props-high.bin` and
+  `props-phone.bin` (where every instanced prop stands, gzipped to 0.20 and
+  0.04 MB); `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
   `shops-phone.webp`, corpo row's `logos.webp`, `earth.webp` (the portrait
   intro plate's own Earth, cropped square round its disc, which the voxel
   moon samples a voxel at a time), and `src/data/world-assets.js` with
   content hashes (and the logos' rectangles).
-  Budgets: 3.5 MB and 1.5 MB.
+  Budgets: the core 2.6 MB and 1.2 MB, each pack 2.2 MB and 1.0 MB
+  (Japantown's 2.6 MB and 1.2 MB), no texture over 1024 px; the script and
+  `npm run check:world` both fail over them.
 - The kit, in the site's frame (+x right, +y up, +z toward the hero lens,
   metres, the drift's own frame): the avenue (the Kiroshi and Nicola screens,
   blade signs and the clutter of standard signs every facade collects, the
@@ -77,7 +97,9 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   `experience.js` over a lit lobby (a double-height hall traced behind the
   glass: a ceiling of light panels the polished floor holds again, the lift
   core with the tower's colour across it, a desk, columns, now and then
-  somebody crossing), each its own shape: a square plan with
+  somebody crossing), each its own shape and in its own facade, with a
+  second rank of nine taller towers behind them and the district's
+  megatower over junction I (`corpo_rank.py`): a square plan with
   its corners cut back, stepped back once or twice, a line of light up the
   inside of each cut and a thin ring at each setback, a ribbed glass crown
   (`crown_glass`) with bands at its foot and top, on some a screen of blades
@@ -101,7 +123,8 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   parapet, bollards, tyres, a skip and two more sodium lamps; both walls of
   the street hung with signs, air conditioners and a fire escape, cables
   across it and a string of lights at its corner), and the moon
-  disc. About 49,000 triangles.
+  disc. The core is 60,654 triangles on high and 36,368 on a phone
+  (`npm run check:world`); the rest of every district streams in its pack.
 - Light high over the street (the rooftop signs, the huts' doorways) is
   `NCW_glow_<colour>`: the neon shader, but left out of the light the site
   bakes onto the ground and into the road (`src/world/city.js` bakes
@@ -130,20 +153,25 @@ plus a procedural far city, drawn by vanilla three.js with one pmndrs
   runtime: type, never a logo. The street's standard signs (`sign_st_<size>_<n>`,
   six sizes, a few hundred faces) share a few dozen designs painted once per
   size (`STREET_SIGNS`): neon tube on a dark board, lit boxes with dark
-  letters, bulb marquees, pictograms.
+  letters, bulb marquees, pictograms. In the GLB each street sign's id rides
+  as three numbers on a mesh of points (its number's low 16 bits, its size
+  and side, its number's high 16 bits), not as a name per face.
 
 ## The AV
 
 The traffic's aerial vehicle (`src/world/av-model.js`) is an original
-design built with the `codex-3d` skill (GPT-6.1 Sol, max reasoning) and
-revised once after review: the first build's ducts read as car tyres and its
+design, revised once after review: the first build's ducts read as car tyres and its
 canopy as a bubble, at 8,850 triangles; the kept revision has thin-walled
 fan shrouds tilted 10 degrees outboard, a lower fighter canopy and a shoulder
 crease, at 2,424. Its brief: a low wedge coupe with no wheels, four vectored
 thruster pods at the corners, seven named materials (hull, trim, glass,
 lamp_head, lamp_tail, glow_thruster, glow_accent), 5.2 by 3.6 m, no text,
 no logos, no brand cues. `src/world/traffic.js` merges it by those names
-into one instanced draw.
+into one instanced draw. The flying cars keep to lanes in
+`src/world/traffic-sky.js`: out and back along a street in the strip of
+sky between its roofs, or a banked loop over a district, each lane's height
+set from the kit's roofs seen from above so nothing comes within five
+metres of a craft's belly. The far city flies none of its own.
 
 ## The cars
 
@@ -183,8 +211,12 @@ under reduced motion).
 
 ## The train
 
-The viaduct's train (`trainGeometry` in `traffic.js`, about 700
-triangles, one draw) is six cars with a gap and rubber bellows between
+One train model (`trainGeometry` in `traffic.js`, about 700 triangles,
+one draw) runs on two lines: six cars on the viaduct at the avenue's far
+end (`anchor_rail`), out of a portal in Japantown and into the station, and
+two cars at a time on Corpo Row's elevated track, standing half a minute in
+the halt behind the towers. A train is only drawn between its line's
+portals. The viaduct's train is six cars with a gap and rubber bellows between
 each, a rounded roof over straight sides on two bogies a car, and the end
 cars drawn out into a sloped nose with a dark windscreen. Its shader puts a
 lit carriage behind every window (pillars, the ceiling's light strip along
@@ -365,6 +397,18 @@ replaced one box with the cars painted on.
   `WorldMount.jsx` renders the poster, the canvas and the scrim, builds the
   city after first paint (or while the door is up) and crossfades on its
   first frame.
+- The city goes live on the core alone. Once the hero can be drawn the
+  district packs are all fetched and built in one at a time in the order
+  `src/data/world-assets.js` lists them (south first, behind the hero, then
+  what the page's sections look at), each while the page is idle and put in
+  the city in one go (`addPack` in `city.js`), so its work never lands on a
+  scroll. A flight into a district before its pack is in sees the far
+  city's blocks there.
+- Props (`src/world/props.js`): each prototype's parts are instanced in the
+  kit's own materials, culled by cell to the frustum and each prototype's
+  reach. A part with few vertices across the whole city is not instanced:
+  its instances are baked as plain triangles, with every other small part in
+  the same material, into one mesh drawn in one call per material.
 - The hero is a low lens in the avenue: an eye 0.6 m over the wet road,
   level, looking straight up it with a 50 degree lens and a lens shift that
   puts the horizon 44% from the top (a phone stands further back with its
@@ -588,6 +632,27 @@ replaced one box with the cars painted on.
   with the viewfinder's corners, the name as the hero sets it and readouts
   that are all true (where, the lens, when, the site), and saves a PNG at
   the screen's own pixels.
+- Drive and walk (`src/braindance/roam/`, its own chunk, fetched with the
+  builder's exports the first time free roam is asked for; desktop only):
+  in the braindance, G or the timeline's "Free roam" button puts the player
+  in the S4 at `spawn_drive`. W A S D or the arrows drive, Space brakes, R
+  sets the car down on the nearest lane of the road graph, F gets out (on
+  the driver's side if there is room; at speed the car first brakes to a
+  stand) and back in, G returns to the recording at the same second.
+  `vehicle.js` is an arcade car on the bicycle model; `chase.js` is the
+  camera behind it, pulled in short of any wall, roof or deck between; on
+  foot (`walker.js`) an eye 1.65 m over a 0.3 m circle, Shift to run. The
+  ground under both is a map made in a worker (`nav-build.js`,
+  `nav-worker.js`, asked through `nav.js`) by rasterising every triangle of
+  the merged kit and every box in `collision.json` into quarter-metre
+  columns, then flooding from the start over floors a step apart (0.4 m on
+  foot): a kerb and a stair's tread are steps, a ledge is a wall, and there
+  is no falling. Moving cars brake for the S4 and the walker and make the
+  time up after, and every car near the player is solid (`yield.js`);
+  people step clear. The city's edges are closed by fences, gates and
+  barriers (`districts/edges.py`). The bar shows the whole city's minimap
+  with the player and the S4 and the speed in km/h, with footsteps under
+  sound.
 - Lightning is seen (`src/world/bolt.js`): each strike draws a new bolt out
   of the cloud deck where the cloud lit, a jagged channel with a few forks,
   white in a violet glow, for the flash's own pulses only and behind
@@ -613,7 +678,11 @@ replaced one box with the cars painted on.
   a 2048 sign atlas at half the pixels a metre).
   The mirror is smeared down the road, never across it, so streaks keep hard
   sides; baked streaks lie faintly under it and are the whole reflection
-  once a slow device has shed it.
+  once a slow device has shed it. The walls' twins in the mirror hide what
+  stands behind them, but skip any face lying flat within 0.3 m over the
+  mirror's plane (a bed under wet paving, a slab under a raised road, a
+  kerb's cap), which would otherwise be a black lid over the reflections
+  (`city.js`).
   The first two seconds on screen are timed and a p95 over budget sheds
   pixels, then the reflection, then half the rain. No GPU, reduced motion,
   `fx world off` or a WebGL failure mean no city at all; a lost context shows
@@ -626,9 +695,10 @@ replaced one box with the cars painted on.
 
 The builder (`scripts/blender/ncw/exports.py`) writes five JSON files next
 to the GLBs, in `public/scenes/world/` with a copy in this folder. The page
-reads none of them yet: they are for a drive, a walk and a richer
-braindance. All are in world metres, +x east, +y up, +z south (toward the
-hero's lens); north is -z.
+reads none of them; the braindance's free roam (`roam.js`) fetches
+`anchors.json`, `districts.json`, `road-graph.json` and `collision.json`
+the first time it is asked for. All are in world metres, +x east, +y up,
++z south (toward the hero's lens); north is -z.
 
 - `road-graph.json`: the street network.
   - `nodes`: 17 junctions and ends, each `{ id, x, z, kind }`.
@@ -651,17 +721,19 @@ hero's lens); north is -z.
     the garage street to H (440, 1), west along the south street to A.
     `deck` gives the elevated part: its height (8.5 m), where the ramp's
     foot is (z -220) and where the descent reaches grade (x 110).
-- `collision.json`: `boxes`, about 8,900 axis-aligned boxes
+- `collision.json`: `frame` and `boxes`, about 12,700 axis-aligned boxes
   `{ min, max, district, kind }` a car or a walker must not pass through.
   `kind` is `building` (every building mass the generator placed) or a
   prop's name (each prop standing on the ground, its box turned to its yaw
-  and grown to the axes). Props on roofs and walls are left out. A consumer
-  that wants walkers to brush through small things can filter by `kind`
-  (`weed`, `bags`, `rubbish`).
+  and grown to the axes). Props on roofs and walls are left out. Free roam
+  lets a walker brush through soft or flat things by `kind` (`weed`,
+  `bags`, `rubbish` and the like; `nav.js`), and builds what the districts
+  make by hand (the deck, stairs, parapets, rails, kerbs) from the kit's
+  own triangles.
 - `districts.json`: `districts`, each `{ name, label, bounds: { x0, z0, x1,
   z1 } }`, and `streets`, each `{ name, axis, c, from, to, half, walk,
   lanes, bay, loop }` (`axis` z runs north-south at x = `c`).
-- `anchors.json`: `anchors`, about 340 named places `{ name, kind, at, yaw,
+- `anchors.json`: `anchors`, about 650 named places `{ name, kind, at, yaw,
   district }` with `extras` where the kit set any. Kinds: `cam` (the page's
   shots), `car` (where the S4 stops), `anchor` (steam sources, lamps'
   lights, the towers, the garage, the crowd's and traffic's payloads),
@@ -682,8 +754,22 @@ corners 0.9 m toward the building. The same module's `drive` pose rides
 
 ## Verification
 
-- `npm run check:world` decodes both GLBs and checks the shots, the anchors,
-  the towers, the boards, the road, the garage preset and the budgets.
+- `npm run check:world` decodes the core GLBs and every pack and checks the
+  shots, the anchors, the towers, the boards, the road, the garage preset
+  and the budgets; on this build: 7 shots, 7 towers, 8 boards, the road 837
+  points, the core 2.47 MB, 234 meshes and 60,654 triangles on high, 0.99
+  MB, 170 meshes and 36,368 triangles on a phone.
+- The rebuilt city, measured 2026-10-12 on production builds of main and
+  this branch in real Chrome windows on devbox1, the machine's load logged
+  on every run: on high all twelve page shots and flights that show the
+  city, all sixteen loop points driven and walked and four air views are
+  inside 16.7 ms (8.1 to 16.1 ms running free); on the phone tier all 48
+  rows are inside 22 ms (97 to 100% of frames inside one refresh). In free
+  roam a driven lap of 3,146 m ran at 94 fps, and walks through nine
+  districts at a mean frame of 5.8 to 11.0 ms. First paint and the door
+  are no later than main's. The fallbacks (software GL, no WebGL, reduced
+  motion, a lost context, live again in 2.56 s) all work. The measurements
+  below this one are from before the rebuild.
   `npm run check:drift` holds the drift's path to the original: 1,083
   samples identical for the first 3.8 seconds, and the parking curve joining
   at the same position, heading and speed.
@@ -737,5 +823,8 @@ corners 0.9 m toward the building. The same module's `drive` pose rides
   - Shots: before and after contact sheets of every section and model, and
     the harness that made them, are kept out of the repo on devbox1
     (`~/Library/Caches/ncw/polish/`).
+- `/recruiters` mounts none of the city: on a build of this branch both CSS
+  files are byte for byte main's, and every JS file and `index.html` are
+  main's once chunk names are normalized.
 - Review files (`*-viewport.png`, `*-review.png`, `*-cycles*.png`,
   `world-source.glb`, `mcp.log`) stay local and are git-ignored.
