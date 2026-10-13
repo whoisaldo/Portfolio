@@ -251,14 +251,23 @@ export function createStreetLight(scene, shared) {
   // tenth of a second of work, three milliseconds at a time: a couple of
   // seconds on a page that never rests).
   const later = globalThis.requestIdleCallback ? (step) => globalThis.requestIdleCallback(step, { timeout: 60 }) : (step) => setTimeout(step, 16);
+  // (load: the first bake, the one the city's first frame shows, goes a
+  // step a task rather than a step an idle moment: a page building the
+  // city has almost none, and the people were drawn unlit for a second or
+  // more after the city went live, then lit. Still three milliseconds at a
+  // time; a district's re-bake waits for idle moments as before.)
+  let baked = false;
+  const soon = (step) => setTimeout(step, 0);
   const run = (steps) => {
     const t0 = performance.now();
     let done = false;
     while (!over && !done && performance.now() - t0 < 3) done = steps.next().done;
     api.ms = Math.max(api.ms, performance.now() - t0);
     api.work += performance.now() - t0;
-    if (done || over) pending = false;
-    else later(() => run(steps));
+    if (done || over) {
+      pending = false;
+      baked = true;
+    } else (baked ? later : soon)(() => run(steps));
   };
 
   const api = {
@@ -288,7 +297,7 @@ export function createStreetLight(scene, shared) {
       pending = true;
       api.ms = 0;
       api.work = 0;
-      later(() => run(bake()));
+      (baked ? later : soon)(() => run(bake()));
     },
     dispose() {
       over = true;
