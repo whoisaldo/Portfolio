@@ -686,9 +686,23 @@ def _jt_stall_d(k):
     for sx in (1.156, -1.156):
         for y in (0.32, 0.42, 0.52, 0.62):
             quad(T, (sx, y, 0.45 if sx > 0 else 0.2), (sx, y, 0.2 if sx > 0 else 0.45), (sx, y + 0.05, 0.2 if sx > 0 else 0.45), (sx, y + 0.05, 0.45 if sx > 0 else 0.2), col=(0.02, 0.025, 0.03, 1))
-    cylinder(T, 0.8, -0.98, 0.0, 0.9, 0.18, segs=8, col=(0.1, 0.22, 0.4, 1))
-    cylinder(T, 0.8, -0.98, 0.9, 1.0, 0.07, segs=6, col=GREY)
+    # (Round 5: the gas bottle at its back corner, a blue cylinder with its
+    # valve on top, read from the alley as "a purple sleeve and hand"
+    # reaching out of the kiosk: cartons stacked there instead.)
+    P.carton(k, 0.35, 0.95, 0.0, 0.42, -1.2, -0.78, 0.37)
+    P.carton(k, 0.45, 0.9, 0.42, 0.74, -1.15, -0.8, 0.81)
     box(G, 1.16, 1.24, 1.55, 2.05, -0.35, 0.35, scale=1.0, col=(0.95, 0.35, 0.2, 1))
+    # (And "flat colour panels with no edge wear or depth": steel angles
+    # down its corners and round its window, a kick plate along its foot.)
+    angle, kick = (0.025, 0.03, 0.035, 1), (0.03, 0.06, 0.065, 1)
+    for x, z in ((-1.15, -0.75), (1.15, -0.75), (-1.15, 0.75), (1.15, 0.75)):
+        box(T, x - 0.04, x + 0.04, 0.0, 2.55, z - 0.04, z + 0.04, scale=1.0, col=angle)
+    box(T, -1.17, 1.17, 0.0, 0.18, 0.75, 0.78, scale=1.0, col=kick)
+    for sx in (-1.17, 1.17):
+        box(T, sx - 0.015, sx + 0.015, 0.0, 0.18, -0.75, 0.75, scale=1.0, col=kick)
+    for x0_, x1_, y0_, y1_ in ((-0.94, -0.88, 1.0, 2.1), (0.88, 0.94, 1.0, 2.1), (-0.94, 0.94, 2.1, 2.16)):
+        box(T, x0_, x1_, y0_, y1_, 0.75, 0.8, scale=1.0, col=angle)
+
 
 
 @P.proto("jt_cart", box=(0.9, 1.2, 0.6), reach=320)
