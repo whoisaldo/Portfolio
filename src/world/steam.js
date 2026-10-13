@@ -17,8 +17,9 @@
 // Each keeps a stream of puffs going: one leaves the vent, rises, spreads,
 // leans with the wind and thins out to nothing, and the next is already
 // coming. A puff is a card turned to the camera with a billow drawn on it:
-// a round body with lobes of noise at its rim that roll as it rises, shaded
-// as a dome bent by its own lobes, so the side toward what lights it is lit
+// a soft body with no edge and no solid core, torn into rising strands that
+// curl and roll as it rises and tear further as it ages, shaded as a dome
+// bent by its own lobes, so the side toward what lights it is lit
 // and the far side is not, and with the light behind it its thin edges glow
 // (steam throws light forward). It is lit by whatever light is where it is,
 // worked out once a puff at its middle: the street's (the spill map every
@@ -51,7 +52,7 @@ const KINDS = {
   stall: { puffs: 9, life: 3.8, rise: 2.6, size: [0.35, 1.6], wind: [0.1, -0.06], density: 1.0, tall: 1.3, lift: 1.3, hide: 0.4 },
   drain: { puffs: 6, life: 3.6, rise: 1.6, size: [0.22, 0.9], wind: [0.25, -0.15], density: 0.65, tall: 1.3, lift: 1, hide: 0.4 },
   lane: { puffs: 7, life: 3.4, rise: 1.9, size: [0.26, 1.1], wind: [0.16, -0.1], density: 0.75, tall: 1.4, lift: 1, hide: 0.4 },
-  roof: { puffs: 10, life: 6.5, rise: 5.0, size: [0.5, 3.2], wind: [-0.8, 0.3], density: 0.5, tall: 1.0, lift: 1, hide: 0.4 },
+  roof: { puffs: 10, life: 6.5, rise: 5.0, size: [0.5, 3.2], wind: [-0.8, 0.3], density: 0.62, tall: 1.0, lift: 1, hide: 0.4 },
   stack: { puffs: 14, life: 9.0, rise: 11.0, size: [1.0, 6.5], wind: [-1.2, 0.45], density: 0.85, tall: 1.0, lift: 5.0, hide: 0.22 },
 };
 // A bank of the works' smog: four slow puffs, flatter than tall, lying low.
@@ -168,6 +169,7 @@ export function createSteam(scene, shared, anchors, { reduced = false } = {}) {
       varying float vAge;
       varying float vDensity;
       varying float vHigh;
+      varying float vRise;
       varying vec3 vAmbient;
       varying vec3 vLight;
       varying vec3 vLightDir;
@@ -235,10 +237,12 @@ export function createSteam(scene, shared, anchors, { reduced = false } = {}) {
         vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
         vec3 upv = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
         vec3 world = centre + right * p.x + upv * p.y;
-        // From a few metres it thins away: a plume by the lens is a plume,
-        // not a sheet over the frame. Far off it goes into the fog.
+        // Within a few metres it thins away: a plume by the lens is a few
+        // wisps, not a sheet over the frame. Far off it goes into the fog.
         float fog = cityFog(vec3(1.0), centre, 0.0).g - cityFog(vec3(0.0), centre, 0.0).g;
-        vDensity = aLook.x * smoothstep(1.4, 5.0, distance(world, uCam)) * sqrt(fog);
+        vDensity = aLook.x * smoothstep(2.0, 8.0, distance(world, uCam)) * sqrt(fog);
+        // (A bank of smog has no mouth.)
+        vRise = aShape.x > 8.0 ? 9.0 : world.y - aVent.y;
         // A bank of smog thins out where it meets the ground.
         vHigh = aShape.x > 8.0 ? smoothstep(0.0, 4.0, world.y) : 1.0;
         // The billows are the vent's, not the puff's: one pattern on the
@@ -259,6 +263,7 @@ export function createSteam(scene, shared, anchors, { reduced = false } = {}) {
       varying float vAge;
       varying float vDensity;
       varying float vHigh;
+      varying float vRise;
       varying vec3 vAmbient;
       varying vec3 vLight;
       varying vec3 vLightDir;
@@ -272,17 +277,30 @@ export function createSteam(scene, shared, anchors, { reduced = false } = {}) {
       void main() {
         vec2 q = vUv - 0.5;
         float r = length(q) * 2.0;
-        // Billows: round lobes of noise, a second finer set rolling over the
-        // first.
-        float n1 = vnoise(vAt);
-        float n = n1 * 0.62 + vnoise(vAt * 2.17 + n1 * 1.2) * 0.38;
-        // A soft round body with a lobed rim; as it ages it tears into
-        // what its billows leave.
-        float body = 1.0 - smoothstep(0.0, 1.0, r + (n - 0.5) * 0.6);
-        float eaten = mix(0.05, 0.45, vAge);
-        float thick = smoothstep(0.0, 0.5, body) * smoothstep(eaten, eaten + 0.4, n);
-        float density = thick * smoothstep(0.0, 0.12, vAge) * pow(1.0 - vAge, 1.4) * vDensity * vHigh;
+        // Billows that rise into wisps: the noise is finer across than up,
+        // so it runs in strands, and bent by a slower noise so the strands
+        // curl; a finer set rolls over the first.
+        vec2 s = vAt * vec2(1.5, 0.8);
+        vec2 bendBy = vec2(vnoise(s * 0.6 + 3.1), vnoise(s * 0.6 + 7.7)) - 0.5;
+        s += bendBy * 1.6;
+        float n1 = vnoise(s);
+        float n = n1 * 0.55 + vnoise(s * 2.13 + n1 * 1.3) * 0.3 + vnoise(s * 4.7) * 0.15;
+        // The strands: the ridges of the fine set, where the vapour is
+        // thickest.
+        float strand = 1.0 - abs(2.0 * vnoise(s * 1.9 + n * 2.0) - 1.0);
+        // A soft body with no edge and no flat core: thickest at its middle
+        // and falling away from there; it is torn from the first (only what
+        // its billows hold is there) and more as it ages, into strands.
+        float body = max(exp(-r * r * 3.2) - 0.04, 0.0);
+        float eaten = mix(0.25, 0.52, vAge);
+        float torn = smoothstep(eaten, eaten + 0.3, n + (strand - 0.5) * 0.3) * mix(0.55, 1.0, strand * strand);
+        // A puff is thin leaving the vent and thickest a fifth of the way
+        // through its life, so a plume has no bright foot, and below the
+        // vent's mouth there is none; and no puff is ever solid.
+        float life = smoothstep(0.0, 0.18, vAge) * pow(1.0 - vAge, 1.15);
+        float density = min(2.6 * body * torn * life * smoothstep(-0.2, 0.5, vRise), 0.7) * vDensity * vHigh;
         if (density < 0.003) discard;
+        float thick = smoothstep(0.1, 0.6, body * torn);
         // A dome bent by its lobes, in the camera's terms (the card faces
         // it, upright, so its u and v are the screen's x and y).
         vec2 bend = vec2(dFdx(n) / max(dFdx(vAt.x), 1e-5), dFdy(n) / max(dFdy(vAt.y), 1e-5));
