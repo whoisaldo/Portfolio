@@ -754,8 +754,8 @@ corners 0.9 m toward the building. The same module's `drive` pose rides
 
 ## Verification
 
-- `npm run check:world` decodes the core GLBs and every pack and checks the
-  shots, the anchors, the towers, the boards, the road, the garage preset
+- `npm run check:world` decodes both core GLBs, holds every pack to its
+  budget, and checks the shots, the anchors, the towers, the boards, the road, the garage preset
   and the budgets; on this build: 7 shots, 7 towers, 8 boards, the road 837
   points, the core 2.47 MB, 234 meshes and 60,654 triangles on high, 0.99
   MB, 170 meshes and 36,368 triangles on a phone.
