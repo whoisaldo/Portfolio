@@ -1114,6 +1114,43 @@ def roof_windows(x0, x1, z0, z1, y, n=3, colour="white", dim=0.22):
     m = max(c[:3]) or 1.0
     col = (0.25 + 0.6 * c[0] / m, 0.25 + 0.6 * c[1] / m, 0.25 + 0.6 * c[2] / m, 1.0)     # (the skylight material: bars and panes, tinted)
     along_x = x1 - x0 >= z1 - z0
+    # Not one rooflight on every roof: by the plot, a north-light roof of
+    # dark slopes with a slot of light under each ridge, a plant room with
+    # its louvres lit and a door, a bank of solar panels round a hatch, or
+    # the strips. (One glowing grid repeated across the roofs was a tile.)
+    kind = int(_hash12(round(x0 * 3.0), round(z0 * 3.0)) * 4.0)
+    if kind == 1:
+        nt = max(2, int((x1 - x0 if along_x else z1 - z0) // 2.2))
+        for i in range(nt):
+            if along_x:
+                a, b = x0 + (x1 - x0) * i / nt, x0 + (x1 - x0) * (i + 1) / nt
+                poly(k("trim"), [(a, y, z1), (b, y + 1.1, z1), (b, y + 1.1, z0), (a, y, z0)], [(0, 0)] * 4, STEEL)
+                quad(k("glow"), (b, y, z1), (b, y, z0), (b, y + 1.0, z0), (b, y + 1.0, z1), col=(c[0] * 0.35, c[1] * 0.35, c[2] * 0.35, 1.0))
+            else:
+                a, b = z0 + (z1 - z0) * i / nt, z0 + (z1 - z0) * (i + 1) / nt
+                poly(k("trim"), [(x0, y, a), (x1, y, a), (x1, y + 1.1, b), (x0, y + 1.1, b)], [(0, 0)] * 4, STEEL)
+                quad(k("glow"), (x0, y, b), (x1, y, b), (x1, y + 1.0, b), (x0, y + 1.0, b), col=(c[0] * 0.35, c[1] * 0.35, c[2] * 0.35, 1.0))
+        light(CO, (x0 + x1) / 2, y + 1.5, (z0 + z1) / 2, colour, 2.5)
+        return
+    if kind == 2:
+        solid(x0, x1, y, y + 2.6, z0, z1, CONCRETE)
+        for f in B.faces_of(x0, x1, z0, z1).values():
+            if f.width > 2.0:
+                f.box(k("glow"), 0.5, min(f.width - 0.5, 2.5), 1.2, 2.2, 0.0, 0.02, col=(c[0] * 0.25, c[1] * 0.25, c[2] * 0.25, 1.0))
+                for j in range(5):
+                    f.box(k("metal", 1), 0.45, min(f.width - 0.45, 2.55), 1.25 + j * 0.2, 1.33 + j * 0.2, 0.02, 0.1)
+        solid(x0 - 0.1, x1 + 0.1, y + 2.6, y + 2.8, z0 - 0.1, z1 + 0.1, STEEL)
+        light(CO, (x0 + x1) / 2, y + 2.4, z1 + 0.8, colour, 2.5)
+        return
+    if kind == 3:
+        hx, hz = (x0 + x1) / 2, (z0 + z1) / 2
+        solid(hx - 0.7, hx + 0.7, y, y + 0.5, hz - 0.7, hz + 0.7, BLACK)
+        quad(k("skylight"), (hx - 0.55, y + 0.51, hz + 0.55), (hx + 0.55, y + 0.51, hz + 0.55), (hx + 0.55, y + 0.51, hz - 0.55), (hx - 0.55, y + 0.51, hz - 0.55), col=col)
+        for xa, xb in ((x0, hx - 1.0), (hx + 1.0, x1)):
+            if xb - xa > 1.0:
+                poly(k("trim"), [(xa, y + 0.3, z1), (xb, y + 0.3, z1), (xb, y + 0.9, z0), (xa, y + 0.9, z0)], [(0, 0)] * 4, (0.02, 0.035, 0.07, 1.0))
+        light(CO, hx, y + 1.0, hz, colour, 2.0)
+        return
     for i in range(n):
         if along_x:
             a = z0 + (z1 - z0) * (i + 0.2) / n
@@ -1873,12 +1910,13 @@ def foot_fill(f, rv, keep=(), y1=3.3):
                 P.place("pipe_v", px, G0, pz, f.yaw, sy=y1 + rv.uniform(0.5, 3.0), district=CO)
             s += 0.8
         elif roll < 0.7 and free(s, s + 2.2):
-            # Old bills pasted up in a strip, a lamp over them.
+            # Bills pasted up in a strip over an old one's paper: the
+            # city's posters, each its own.
             f.quad(k("trim", 1), s, s + 2.2, 0.9, 2.3, 0.012, col=(0.09, 0.08, 0.07, 1.0))
             for m in range(3):
-                c = rv.choice(((0.3, 0.12, 0.1, 1.0), (0.12, 0.18, 0.24, 1.0), (0.26, 0.24, 0.16, 1.0), (0.1, 0.2, 0.12, 1.0)))
-                a = s + 0.1 + m * 0.7 + rv.uniform(-0.05, 0.05)
-                f.quad(k("glow", 1), a, a + 0.6, 1.0 + rv.uniform(0.0, 0.2), 1.9 + rv.uniform(0.0, 0.3), 0.02, col=(c[0] * 0.5, c[1] * 0.5, c[2] * 0.5, 1.0))
+                a = s + 0.42 + m * 0.7 + rv.uniform(-0.05, 0.05)
+                cx, cy, cz = f.p(f.at(a), 1.5 + rv.uniform(-0.1, 0.15), 0.02)
+                bb(cx, cy, cz, 0.62, 0.9, f.yaw, board_col(rv, None), detail=1)
             s += 2.2
         elif roll < 0.85 and free(s, s + 1.4):
             px, _, pz = f.p(f.at(s + 0.6), 0.0, 0.45)

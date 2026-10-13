@@ -91,3 +91,37 @@ for j, gx in enumerate(GAP_X):
         rv = random.Random(9480 + j * 2 + (f.nx > 0))
         K.back_floors(f, 3.4, 8.0, rv, lit=0.55, pitch=3.0, keep=door_spans(f, 0.8), ac=0.15)
 
+
+# More people on the south pavement against the fronts, from the second
+# tower east (the line's people, corpo_line.life, thrown again on its own
+# dice to find where they stand), one between each two of them: in ones and
+# twos, at the shutters and the shop windows, off the walkers' lines.
+def _south_people():
+    from ncw.districts.corpo_line import PIERS, FACADE
+    rl = random.Random(9311)
+    xs = []
+    x = 141.0
+    while x < 375.0:
+        if all(abs(x - p) > 3.5 for p in PIERS):
+            n = rl.choice((1, 1, 2, 2, 3))
+            if n == 1:
+                rl.choice(("idle", "phone", "smoke", "lean", "phone", "idle"))
+                rl.uniform(-0.6, 0.6)
+            else:
+                rl.uniform(0.0, 6.28)
+            xs.append(x)
+        x += rl.uniform(9.0, 16.0)
+    rp = random.Random(9501)
+    for a, b in zip(xs, xs[1:]):
+        m = (a + b) / 2 + rp.uniform(-1.0, 1.0)
+        if b - a < 7.0 or m < 180.0 or any(abs(m - p) < 3.5 for p in PIERS):
+            continue
+        if rp.random() < 0.55:
+            pose = rp.choice(("idle", "phone", "lean", "smoke", "idle"))
+            stand(m, FACADE - (0.42 if pose == "lean" else 0.62), math.pi + rp.uniform(-0.7, 0.7), pose)
+        else:
+            K.talk(m, FACADE - 0.72, rp.choice((1.57, -1.57)) + rp.uniform(-0.3, 0.3), 2)
+
+
+_south_people()
+

@@ -294,8 +294,12 @@ for i, (slug, height) in enumerate(TOWERS):
         for j in range(10):
             xc = tx - half + 0.4 + (j + 0.5) * (2 * half - 0.8) / 10
             for zc in (za + 1.1, zb - 1.1):
-                quad((CO, "glow", 0), (xc - 0.8, ys - 0.006, zc - 0.45), (xc + 0.8, ys - 0.006, zc - 0.45), (xc + 0.8, ys - 0.006, zc + 0.45),
-                     (xc - 0.8, ys - 0.006, zc + 0.45), col=(0.3, 0.29, 0.27, 1.0))
+                # (Lit panels with a dark frame round each, a little of the
+                # house's light in them: dim beige cards read as paper.)
+                box((CO, "trim", 1), xc - 0.88, xc + 0.88, ys - 0.012, ys - 0.004, zc - 0.53, zc + 0.53, scale=1.0, col=K.BLACK, bottom=True)
+                ac = K.brand(i, 0.25)
+                quad((CO, "glow", 0), (xc - 0.78, ys - 0.016, zc - 0.43), (xc + 0.78, ys - 0.016, zc - 0.43), (xc + 0.78, ys - 0.016, zc + 0.43),
+                     (xc - 0.78, ys - 0.016, zc + 0.43), col=(0.58 + ac[0], 0.62 + ac[1], 0.68 + ac[2], 1.0))
     if hall:
         # The open hall: the curtain wall round its back and its sides
         # behind it, a soffit over it; its own sides stand open.
