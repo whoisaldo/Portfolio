@@ -808,8 +808,23 @@ def lane_door(f, sc, r):
         tx, tz = f.p(f.at(hs + sgn), G0, 0.0)[0] - f.p(f.at(hs), G0, 0.0)[0], f.p(f.at(hs + sgn), G0, 0.0)[2] - f.p(f.at(hs), G0, 0.0)[2]
         nx_, nz_ = f.nx, f.nz
         ex, ez = h0[0] + 0.92 * (math.cos(ang) * tx + math.sin(ang) * nx_), h0[2] + 0.92 * (math.cos(ang) * tz + math.sin(ang) * nz_)
-        for a_, b_ in (((h0[0], h0[2]), (ex, ez)), ((ex, ez), (h0[0], h0[2]))):
-            quad((D, "trim", 1), (a_[0], G0 + 0.02, a_[1]), (b_[0], G0 + 0.02, b_[1]), (b_[0], G0 + 2.08, b_[1]), (a_[0], G0 + 2.08, a_[1]), col=paint)
+        # (The leaf, both faces: a kick plate, its paint scuffed dark up to
+        # hand height, a wired pane lit from the room, a handle: the m8
+        # review saw a bare one end on as "a large flat beige box".)
+        if paint[0] > 0.29:
+            paint = (0.17, 0.16, 0.14, 1)    # (never the pale one, a big flat panel at the eye)
+        dark = tuple(v * 0.45 for v in paint[:3]) + (1,)
+        for a_, b_, off in (((h0[0], h0[2]), (ex, ez), 0.012), ((ex, ez), (h0[0], h0[2]), 0.012)):
+            ln = math.hypot(b_[0] - a_[0], b_[1] - a_[1])
+            ux, uz = (b_[0] - a_[0]) / ln, (b_[1] - a_[1]) / ln
+            ox, oz = uz * off, -ux * off
+            P_ = lambda t_, y_: (a_[0] + ux * t_ + ox, y_, a_[1] + uz * t_ + oz)  # noqa: E731
+            quad((D, "trim", 1), P_(0.0, G0 + 0.02), P_(ln, G0 + 0.02), P_(ln, G0 + 2.08), P_(0.0, G0 + 2.08), col=paint)
+            quad((D, "trim", 1), P_(0.04, G0 + 0.04), P_(ln - 0.04, G0 + 0.04), P_(ln - 0.04, G0 + 0.3), P_(0.04, G0 + 0.3), col=(0.16, 0.16, 0.16, 1))
+            quad((D, "trim", 1), P_(0.06, G0 + 0.3), P_(ln - 0.06, G0 + 0.3), P_(ln - 0.06, G0 + 1.05), P_(0.06, G0 + 1.05), col=dark)
+            quad((D, "glow", 1), P_(ln * 0.3, G0 + 1.32), P_(ln * 0.7, G0 + 1.32), P_(ln * 0.7, G0 + 1.78), P_(ln * 0.3, G0 + 1.78), col=(0.07, 0.05, 0.03, 1))
+        hx, hz = h0[0] + 0.8 * (ex - h0[0]), h0[2] + 0.8 * (ez - h0[2])
+        box((D, "metal", 1), hx - 0.03, hx + 0.03, G0 + 0.98, G0 + 1.1, hz - 0.03, hz + 0.03, scale=1.0)
         light(D, *f.p(f.at(sc), 0.3, 1.2), "amber", 2.4)
     else:
         f.quad((D, "trim", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.03, col=paint)
@@ -1191,6 +1206,127 @@ def lane_more(f, w, fixtures, free, r):
         run.append(s)
 
 
+def lane_high(f, w, r, high, h, base=G0, s0=0.0):
+    """Over head height on a lane's wall (the m8 review: "flat blue walls
+    with a single door or meter box"), on its own stream: every metre and a
+    half to three something between 2.9 and 4.4 m, a small window lit or
+    dark in its frame, an air conditioner dripping down the wall, a blade, a
+    junction box with its cables down to the conduit, a lit box sign, a run
+    of pipe, a pair of bills pasted high; and two cables slung along the
+    wall from hooks. `high`: what already reaches up there (s0, s1)."""
+    s = s0 + r.uniform(0.3, 1.2)
+    while s < w - 1.0:
+        if any(a - 0.35 < s < b + 0.35 for a, b in high):
+            s += 0.5
+            continue
+        nxt = min([a for a, _ in high if a > s] + [w - 0.8])
+        room = nxt - s
+        if room < 0.8:
+            s = nxt
+            continue
+        roll = r.random()
+        if roll < 0.24 and room > 1.1:
+            ww, wh = r.choice(((0.6, 0.5), (0.8, 0.6), (0.9, 0.45), (0.5, 0.8), (1.1, 0.55)))
+            ww, wh = min(ww, room - 0.3), min(wh, 0.42)
+            y = base + 2.56
+            if r.random() < 0.72:
+                f.quad((D, "shop", 0), s, s + ww, y, y + wh, 0.02, uvs=((1.0, 0.9), (1.0 + ww, 0.9), (1.0 + ww, 0.9 + wh), (1.0, 0.9 + wh)),
+                       col=(r.uniform(0.0, 0.5), r.choice((0.2, 0.32, 0.6, 0.8, 0.95)), 1.0, 1.0))
+            else:
+                f.quad((D, "glow", 0), s, s + ww, y, y + wh, 0.02, col=(0.006, 0.008, 0.011, 1))
+            x, _, z = f.p(f.at(s + ww / 2), y, 0.0)
+            J.put("jt_win" if r.random() < 0.5 else "jt_win_b", x, y, z, f.yaw, wh, ww)
+            used = ww
+        elif roll < 0.4 and room > 1.0:
+            J.put("jt_ac", *f.p(f.at(s + 0.45), base, 0.0), f.yaw, r.uniform(0.9, 1.1))
+            used = 0.9
+        elif roll < 0.53:
+            J.blade(f, s + 0.1, base + r.uniform(3.2, 3.5), r.choice(("bs", "bs", "bm")), tilt=r.uniform(-0.35, 0.35), k=r.uniform(0.7, 0.85))
+            used = 0.5
+        elif roll < 0.66:
+            # A junction box, its cables down into the conduit.
+            jy = base + r.uniform(2.45, 2.55)
+            f.box((D, "trim", 1), s, s + 0.36, jy, jy + 0.48, 0.0, 0.15, col=r.choice(((0.22, 0.23, 0.22, 1), (0.3, 0.27, 0.2, 1), (0.12, 0.13, 0.15, 1))))
+            for ds in (0.08, 0.2, 0.3):
+                f.quad((D, "trim", 1), s + ds - 0.012, s + ds + 0.012, jy + 0.48, base + 4.15, 0.06, col=(0.02, 0.02, 0.025, 1))
+            used = 0.4
+        elif roll < 0.76 and room > 1.0:
+            J.board(f, s + 0.45, base + 2.95, r.choice(("bs", "bx")), k=0.6, out=0.1)
+            used = 0.9
+        elif roll < 0.88 and room > 1.6:
+            run = min(room - 0.2, r.uniform(1.6, 3.6))
+            py = base + r.uniform(2.7, 2.85)
+            col = r.choice(((0.2, 0.21, 0.22, 1), (0.17, 0.075, 0.04, 1), (0.1, 0.11, 0.1, 1)))
+            pipe((D, "trim", 1), f.p(f.at(s), py, 0.12), f.p(f.at(s + run), py, 0.12), 0.055, segs=5, col=col)
+            for ss in (s + 0.2, s + run - 0.2):
+                f.box((D, "trim", 1), ss - 0.025, ss + 0.025, py - 0.07, py + 0.07, 0.0, 0.18, col=(0.03, 0.034, 0.042, 1))
+            used = run
+        else:
+            x, _, z = f.p(f.at(s + 0.5), base, 0.0)
+            J.put("jt_bills" if room > 1.6 else "jt_bill", x + 0.0, base + r.uniform(1.95, 2.1), z, f.yaw)
+            used = 1.0 if room > 1.6 else 0.5
+        s += used + r.uniform(0.6, 1.6)
+    # Two cables along the wall from hooks, sagging between them.
+    for y, out in ((base + 4.15, 0.22), (base + 4.42, 0.3)):
+        if r.random() < 0.75:
+            a = s0 + r.uniform(0.2, 1.5)
+            while a < w - 2.5:
+                b = min(w - 0.2, a + r.uniform(4.0, 8.0))
+                pa, pb = f.p(f.at(a), y, out), f.p(f.at(b), y, out)
+                J.span("jt_cable", (pa[0], pa[2]), (pb[0], pb[2]), y, r.uniform(0.18, 0.35))
+                f.box((D, "trim", 1), a - 0.02, a + 0.02, y - 0.04, y + 0.04, 0.0, out + 0.03, col=(0.03, 0.034, 0.042, 1))
+                a = b
+
+
+def lane_mid(f, w, r, mid):
+    """Between knee and head height on a lane's wall, on its own stream (the
+    m8 review: "blank flat blue walls ... almost no pipes, units or
+    lights"): every free stretch pasted, a fly-poster's run where there is
+    room for one and another half over it, single bills where there is not,
+    over them now a small sign, a fuse box, a strip of stickers, and a run
+    of trunking along the wall at head height."""
+    occ = sorted((a, b) for a, b in mid)
+    gaps, at = [], 0.9
+    for a, b in occ:
+        if a > at:
+            gaps.append((at, min(a, w - 0.9)))
+        at = max(at, b)
+    if at < w - 0.9:
+        gaps.append((at, w - 0.9))
+    for a, b in gaps:
+        a, b = a + 0.12, b - 0.12
+        L = b - a
+        if L < 0.7:
+            continue
+        if L >= 2.45:
+            x, _, z = f.p(f.at(a + 0.98), G0, 0.0)
+            y = G0 + r.uniform(0.95, 1.15)
+            J.put("jt_bills", x, y, z, f.yaw)
+            if L >= 3.6 and r.random() < 0.7:
+                x, _, z = f.p(f.at(a + 2.0), G0, 0.012)
+                J.put("jt_bills", x, y + r.uniform(0.35, 0.55), z, f.yaw)
+            elif r.random() < 0.6:
+                x, _, z = f.p(f.at(a + r.uniform(0.6, L - 0.6)), G0, 0.012)
+                J.put("jt_bill", x, y + r.uniform(0.4, 0.6), z, f.yaw)
+        else:
+            x, _, z = f.p(f.at((a + b) / 2), G0, 0.0)
+            J.put("jt_bill", x, G0 + r.uniform(1.0, 1.35), z, f.yaw)
+        roll = r.random()
+        sc = a + r.uniform(0.25, max(0.3, L - 0.45))
+        if roll < 0.22:
+            J.board(f, sc, G0 + 2.15, "bx", k=0.4, out=0.08)
+        elif roll < 0.45:
+            f.box((D, "trim", 1), sc - 0.17, sc + 0.17, G0 + 1.85, G0 + 2.3, 0.0, 0.13, col=r.choice(((0.2, 0.21, 0.2, 1), (0.28, 0.25, 0.18, 1), (0.1, 0.11, 0.13, 1))))
+            f.quad((D, "trim", 1), sc - 0.012, sc + 0.012, G0 + 2.3, G0 + 2.95, 0.05, col=(0.02, 0.02, 0.025, 1))
+        elif roll < 0.62:
+            for j, col in enumerate(r.sample(((0.5, 0.1, 0.08, 1), (0.08, 0.3, 0.32, 1), (0.55, 0.45, 0.1, 1), (0.42, 0.42, 0.4, 1), (0.3, 0.1, 0.35, 1)), 4)):
+                ss = sc + j * 0.13
+                yy = G0 + 1.75 + 0.05 * (j % 2)
+                f.quad((D, "trim", 1), ss, ss + 0.1, yy, yy + 0.08, 0.02, col=col)
+        if L > 1.4 and r.random() < 0.55:
+            f.box((D, "trim", 1), a, b, G0 + 2.36, G0 + 2.44, 0.0, 0.06, col=(0.17, 0.17, 0.17, 1))
+
+
 def lane_face(rec, name, cap=None):
     """A back on a lane or a side on a cross alley (see the note above)."""
     r, h = rng(rec, "lane" + name), rec["h"]
@@ -1217,6 +1353,8 @@ def lane_face(rec, name, cap=None):
         P.place("pipe_v", *f.p(f.at(w - 0.3), G0, 0.0), f.yaw, sy=h - G0, district=D)
     breaks = []
     fixtures, free = [], []
+    high = []      # (s0, s1) of what reaches over head height (lane_high keeps off it)
+    mid = []       # and what fills the wall between knee and head height (lane_mid)
     while s < w - 0.7:
         room = w - 0.3 - s
         if s - lamp > 7.0:
@@ -1225,6 +1363,7 @@ def lane_face(rec, name, cap=None):
             J.put("jt_sconce" if hue == "amber" else "jt_sconce_w", *f.p(f.at(s + 0.25), G0 + 2.82, 0.0), f.yaw)
             light(D, *f.p(f.at(s + 0.25), 2.8, 0.9), hue, 3.0)
             fixtures.append(s + 0.25)
+            high.append((s, s + 0.5))
             lamp = s
             s += 0.6
             continue
@@ -1235,37 +1374,50 @@ def lane_face(rec, name, cap=None):
         if (roll < 0.15 or (doors == 0 and s > w * 0.35)) and room > 1.35 and s - last_door > 4.0:
             lane_door(f, s + 0.65, r)
             fixtures.append(s + 0.65)
+            high.append((s - 0.1, s + 1.4))
+            mid.append((s - 0.1, s + 1.4))
             doors, last_door, lamp = doors + 1, s, s
             s += 1.3
         elif roll < 0.33 and room > 1.3:
             kind = r.choice([wk for wk in WINDOWS if wk[0] + 0.25 < room])
             lane_window(f, s + 0.12, r, kind)
+            if kind[1] + kind[2] > 2.3:
+                high.append((s, s + kind[0] + 0.25))
+            mid.append((s, s + kind[0] + 0.25))
             if not flat and r.random() < 0.25:
                 lane_stuff(f, s, kind[0], r, False)
             s += kind[0] + 0.25
         elif roll < 0.38 and room > 3.4 and not flat:
             sw = r.uniform(2.6, min(3.6, room - 0.3))
             lane_shutter(f, s + 0.15, sw, r)
+            high.append((s, s + sw + 0.3))
+            mid.append((s, s + sw + 0.3))
             fixtures.append(s + 0.15 + sw / 2)
             breaks.append((s - 0.1, s + sw + 0.4))
             lamp = s + sw / 2
             s += sw + 0.3
         elif roll < 0.5 and room > 1.0 and not flat:
             J.put("jt_ac", *f.p(f.at(s + 0.5), G0, 0.0), f.yaw, r.uniform(0.92, 1.12))
+            high.append((s, s + 1.0))
             s += 1.0
         elif roll < 0.6 and room > 1.2:
             J.put("jt_meters", *f.p(f.at(s + 0.6), G0, 0.0), f.yaw)
+            mid.append((s, s + 1.2))
             s += 1.2
         elif roll < 0.66 and room > 0.9:
             J.put("jt_vent", *f.p(f.at(s + 0.42), G0, 0.0), f.yaw)
+            high.append((s, s + 0.85))
+            mid.append((s, s + 0.85))
             VENTS.append(f.p(f.at(s + 0.42), 2.2, 0.2))
             s += 0.85
         elif roll < 0.71 and room > 0.8 and not flat:
             J.put("jt_duct", *f.p(f.at(s + 0.35), G0, 0.0), f.yaw, min(1.0, (h - 1.2) / 5.85))
             breaks.append((s - 0.1, s + 0.8))
+            high.append((s - 0.1, s + 0.8))
             s += 0.7
         elif roll < 0.84 and room > 0.9:
             J.put("jt_pipes", *f.p(f.at(s + 0.4), G0, 0.0), f.yaw)
+            high.append((s, s + 0.8))
             s += 0.8
         elif roll < 0.88 and ladder and room > 1.0 and not flat:
             n = math.ceil((h + 1.0 - 2.7) / 3.0)
@@ -1274,6 +1426,8 @@ def lane_face(rec, name, cap=None):
                 J.put("jt_ladder", *f.p(f.at(s + 0.45), 2.7 + i * 3.0 * sy, 0.0), f.yaw, sy)
             ladder = False
             breaks.append((s - 0.1, s + 1.0))
+            high.append((s - 0.1, s + 1.0))
+            mid.append((s - 0.1, s + 1.0))
             s += 0.9
         elif not flat and room > 0.9:
             s += lane_stuff(f, s, room, r, side)
@@ -1283,6 +1437,9 @@ def lane_face(rec, name, cap=None):
         s += r.uniform(0.2, 0.9) * 0.55
     services(f, 0.3, w - 0.3, breaks, rx)
     lane_more(f, w, fixtures, free, rng(rec, "more" + name))
+    high += [(-1.0, 1.1), (w - 0.8, w + 1.0)]
+    lane_high(f, w, rng(rec, "high" + name), high, h)
+    lane_mid(f, w, rng(rec, "mid" + name), mid + [(-1.0, 0.9), (w - 0.9, w + 1.0)])
     if r.random() < 0.5 and w > 4.0:
         a = r.uniform(0.5, w - 3.0)
         strip(f, r.choice(NEONS), a, a + r.uniform(1.6, 2.6), SHOP_H + 0.25, SHOP_H + 0.33, 0.08)
@@ -1470,12 +1627,48 @@ def deck_wall(f, top, r):
     sign of bent tube where it is high enough."""
     w = f.width
     here = lambda s, o=0.0: f.p(f.at(s), top + 0.1, o)  # noqa: E731
-    J.put("jt_pipes", *here(r.uniform(6.2, 7.4)), f.yaw)
+    sp = r.uniform(6.2, 7.4)
+    J.put("jt_pipes", *here(sp), f.yaw)
+    taken_ = [(sp - 0.4, sp + 0.4)]
     for s in (r.uniform(8.2, 9.6), r.uniform(11.5, 14.0))[:r.randrange(1, 3)]:
         if s < w - 1.0:
             J.put("jt_ac", *here(s), f.yaw, r.uniform(0.95, 1.1))
+            taken_.append((s - 0.6, s + 0.6))
     a, b = here(6.0, 0.35), here(w - 0.6, 0.35)
     J.span("jt_festoon", (a[0], a[2]), (b[0], b[2]), top + 3.1, 0.45)
+    # (Round 4, its own stream: the m8 review's "plain tan wall filling the
+    # frame" from deck A.) At eye level, bills and small windows; over head
+    # height what a lane's wall carries (lane_high), clear of the pipes, the
+    # units and a tube sign's place in the middle.
+    rw = random.Random(round(f.plane * 10) * 7919 + round(f.a0 * 10))
+    high = [(-1.0, 0.8), (w - 0.8, w + 1.0), (w / 2 - 4.0, w / 2 + 4.0)]
+    high += taken_
+    s = rw.uniform(0.4, 1.2)
+    while s < w - 1.2:
+        if any(a_ - 0.3 < s < b_ + 0.3 for a_, b_ in high[3:]):
+            s += 0.5
+            continue
+        roll = rw.random()
+        if roll < 0.4:
+            x, _, z = f.p(f.at(s + 0.98), top, 0.0)
+            J.put("jt_bills", x, top + rw.uniform(0.95, 1.2), z, f.yaw)
+            s += 2.3
+        elif roll < 0.65:
+            ww, wh = rw.choice(((0.9, 0.9), (1.2, 0.8), (0.7, 1.1)))
+            y = top + 1.25
+            f.quad((D, "shop", 0), s, s + ww, y, y + wh, 0.02, uvs=((1.0, 0.9), (1.0 + ww, 0.9), (1.0 + ww, 0.9 + wh), (1.0, 0.9 + wh)),
+                   col=(rw.uniform(0.0, 0.5), rw.choice((0.2, 0.32, 0.6, 0.8)), 1.0, 1.0))
+            x, _, z = f.p(f.at(s + ww / 2), y, 0.0)
+            J.put("jt_win" if rw.random() < 0.5 else "jt_win_b", x, y, z, f.yaw, wh, ww)
+            s += ww + 0.6
+        elif roll < 0.8:
+            x, _, z = f.p(f.at(s + 0.3), top, 0.0)
+            J.put("jt_bill", x, top + rw.uniform(1.1, 1.5), z, f.yaw)
+            s += 0.9
+        else:
+            s += rw.uniform(0.4, 1.0)
+        s += rw.uniform(0.3, 1.0)
+    lane_high(f, w, rw, high, top + 6.0, base=top)
     return w
 
 

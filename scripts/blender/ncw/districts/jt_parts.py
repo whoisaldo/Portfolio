@@ -471,6 +471,30 @@ def _counter(T, top=WOOD_PALE, body=WOOD):
     box(T, -1.26, 1.26, 0.95, 1.0, 0.2, 0.85, scale=1.0, col=top)
 
 
+def _pasted(k, T, cx, cz, yaw, w, y0, y1, seed):
+    """A side of a stall or a kiosk as it is in a lane (the m8 review's
+    "untextured green stall wall"): bills pasted over older paper, one torn,
+    a strip of stickers, a dark seam, rust run down from the top. (cx, cz):
+    the face's middle on its plane; yaw: its outward normal."""
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    def at(u, y, t=0.0):
+        return (cx + c * u + s_ * t, y, cz - s_ * u + c * t)
+    h = y1 - y0
+    quad(T, at(-w * 0.42, y0 + h * 0.36, 0.004), at(w * 0.3, y0 + h * 0.34, 0.004), at(w * 0.28, y0 + h * 0.86, 0.004), at(-w * 0.4, y0 + h * 0.88, 0.004), col=PAPER_OLD)
+    n = 2 if w > 1.2 else 1
+    bw = min(0.58, w * 0.8 / n)
+    for i in range(n):
+        u = (i - (n - 1) / 2) * (bw + 0.06) - w * 0.05
+        bx, _, bz = at(u, 0.0, 0.012)
+        rotated_quad(k("print"), bx, y0 + h * 0.62, bz, bw, bw * 1.35, yaw, col=((seed * 0.37 + i * 0.29) % 1.0, 0.5, 0.5, P.BOARD))
+    quad(T, at(w * 0.32, y0 + h * 0.4, 0.016), at(w * 0.46, y0 + h * 0.4, 0.016), at(w * 0.46, y0 + h * 0.55, 0.016), at(w * 0.32, y0 + h * 0.5, 0.016), col=PAPER_TORN)
+    for j, col in enumerate(((0.5, 0.1, 0.08, 1), (0.08, 0.3, 0.32, 1), (0.55, 0.45, 0.1, 1), (0.4, 0.4, 0.38, 1))):
+        u = -w * 0.4 + j * 0.13
+        quad(T, at(u, y0 + h * 0.2, 0.01), at(u + 0.1, y0 + h * 0.2, 0.01), at(u + 0.1, y0 + h * 0.2 + 0.08, 0.01), at(u, y0 + h * 0.2 + 0.08, 0.01), col=col)
+    quad(T, at(-w * 0.5, y0 + h * 0.3, 0.006), at(w * 0.5, y0 + h * 0.3, 0.006), at(w * 0.5, y0 + h * 0.3 + 0.03, 0.006), at(-w * 0.5, y0 + h * 0.3 + 0.03, 0.006), col=(0.02, 0.02, 0.022, 1))
+    quad(T, at(w * 0.36, y1 - h * 0.45, 0.003), at(w * 0.44, y1 - h * 0.45, 0.003), at(w * 0.46, y1, 0.003), at(w * 0.34, y1, 0.003), col=RUSTY)
+
+
 @P.proto("jt_stall", box=(1.3, 1.6, 0.9), reach=320)
 def _jt_stall(k):
     """A: a food stall under a red cloth roof, a tube under its eave, trays
@@ -491,6 +515,7 @@ def _jt_stall(k):
     cylinder(T, 0.75, -0.5, 0.76, 1.1, 0.2, segs=6, col=(0.3, 0.3, 0.31, 1))
     P.face(k, P.FOOD, -0.36, 2.3, -0.735, 0.66, 0.6, 0.0, GLOW["amber"])
     P.face(k, P.FOOD, 0.36, 2.3, -0.735, 0.66, 0.6, 0.0, GLOW["amber"])
+    _pasted(k, T, 0.0, -0.8, math.pi, 2.4, 0.0, 2.7, 0.21)
 
 
 @P.proto("jt_stall_b", box=(1.5, 1.7, 0.9), reach=320)
@@ -519,6 +544,7 @@ def _jt_stall_b(k):
     box(T, -0.95, 0.15, 1.0, 1.14, 0.36, 0.7, scale=1.0, col=(0.04, 0.04, 0.045, 1))
     quad(k("glow"), (-0.9, 1.145, 0.66), (0.1, 1.145, 0.66), (0.1, 1.145, 0.4), (-0.9, 1.145, 0.4), col=(0.9, 0.32, 0.07, 1))
     box(T, -1.2, 1.2, 0.0, 2.6, -0.8, -0.74, scale=1.0, col=(0.1, 0.07, 0.05, 1))
+    _pasted(k, T, 0.0, -0.8, math.pi, 2.4, 0.0, 2.6, 0.53)
     for i in range(7):
         x = -1.0 + i * 0.33
         quad(T, (x, 1.75 + 0.05 * (i % 3), -0.733), (x + 0.2, 1.75 + 0.05 * (i % 3), -0.733), (x + 0.2, 2.35, -0.733), (x, 2.35, -0.733), col=(0.6, 0.57, 0.48, 1))
@@ -576,6 +602,21 @@ def _jt_stall_d(k):
     box(T, -0.85, 0.85, 2.65, 3.3, 0.3, 0.5, scale=1.0, col=(0.05, 0.05, 0.06, 1))
     P.face(k, P.FOOD, -0.38, 2.97, 0.505, 0.66, 0.6, 0.0, GLOW["cyan"])
     P.face(k, P.FOOD, 0.38, 2.97, 0.505, 0.66, 0.6, 0.0, (0.95, 0.9, 0.8, 1))
+    # (Its sides and back as a lane sees them: pasted, seamed, a louvre, a
+    # gas bottle chained at the back, a lit box sign on one side.)
+    _pasted(k, T, 1.15, 0.0, math.pi / 2, 1.5, 0.0, 2.55, 0.71)
+    _pasted(k, T, -1.15, 0.0, -math.pi / 2, 1.5, 0.0, 2.55, 0.17)
+    _pasted(k, T, 0.0, -0.75, math.pi, 2.3, 0.0, 2.55, 0.43)
+    _pasted(k, T, 0.0, 0.75, 0.0, 2.2, 0.0, 0.95, 0.88)
+    for sx, sd in ((-1.025, 0.31), (1.025, 0.67)):
+        rotated_quad(k("print"), sx, 1.72, 0.758, 0.2, 1.05, 0.0, col=(sd, 0.5, 0.5, P.BOARD))
+        quad(T, (sx - 0.1, 2.3, 0.756), (sx + 0.1, 2.3, 0.756), (sx + 0.1, 2.42, 0.756), (sx - 0.1, 2.42, 0.756), col=(0.5, 0.45, 0.12, 1))
+    for sx in (1.156, -1.156):
+        for y in (0.32, 0.42, 0.52, 0.62):
+            quad(T, (sx, y, 0.45 if sx > 0 else 0.2), (sx, y, 0.2 if sx > 0 else 0.45), (sx, y + 0.05, 0.2 if sx > 0 else 0.45), (sx, y + 0.05, 0.45 if sx > 0 else 0.2), col=(0.02, 0.025, 0.03, 1))
+    cylinder(T, 0.8, -0.98, 0.0, 0.9, 0.18, segs=8, col=(0.1, 0.22, 0.4, 1))
+    cylinder(T, 0.8, -0.98, 0.9, 1.0, 0.07, segs=6, col=GREY)
+    box(G, 1.16, 1.24, 1.55, 2.05, -0.35, 0.35, scale=1.0, col=(0.95, 0.35, 0.2, 1))
 
 
 @P.proto("jt_cart", box=(0.9, 1.2, 0.6), reach=320)
@@ -978,6 +1019,10 @@ def _jt_duct(k):
     box(T, -0.27, 0.27, 5.6, 5.85, 0.08, 0.62, scale=1.0, col=(0.13, 0.135, 0.14, 1), bottom=True)
     for y in (3.4, 4.7):
         box(T, -0.23, 0.23, y, y + 0.06, 0.0, 0.58, scale=1.0, col=STEEL_D, bottom=True)
+    # (Its elbow from under, which a lane's eye sees: a grille, not a black slab.)
+    poly(T, [(-0.19, 2.295, 0.02), (0.19, 2.295, 0.02), (0.19, 2.295, 0.53), (-0.19, 2.295, 0.53)], [(0, 0)] * 4, (0.26, 0.27, 0.28, 1))
+    for z in (0.12, 0.24, 0.36, 0.48):
+        poly(T, [(-0.17, 2.29, z), (0.17, 2.29, z), (0.17, 2.29, z + 0.04), (-0.17, 2.29, z + 0.04)], [(0, 0)] * 4, (0.03, 0.03, 0.035, 1))
     quad(T, (-0.22, 1.5, 0.025), (0.26, 1.5, 0.025), (0.2, 2.3, 0.025), (-0.2, 2.3, 0.025), col=(0.07, 0.06, 0.05, 1))
 
 
