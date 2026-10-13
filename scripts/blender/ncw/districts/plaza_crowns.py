@@ -35,7 +35,9 @@ def cantilever(f, s0, s1, y0, y1, out, seed, accent="teal", lit=0.92, warm=0.3, 
     slab and a dark floor slab, panels of light in its soffit and a line of
     light round its foot, a steel post at each outer corner."""
     r = random.Random(seed)
-    f.box((PL, "corporate", 0), s0, s1, y0, y1, 0.0, out, col=(lit, warm, r.random(), 1.0))
+    pa, pb = f.p(f.at(s0), y0, 0.0), f.p(f.at(s1), y1, out)
+    f.box((PL, "corporate", 0), s0, s1, y0, y1, 0.0, out,
+          col=glass_col(lit, warm, r.random(), at=(min(pa[0], pb[0]), max(pa[0], pb[0]), min(pa[2], pb[2]), max(pa[2], pb[2]))))
     f.box((PL, "trim", 0), s0 - 0.2, s1 + 0.2, y1 - 0.05, y1 + 0.4, 0.0, out + 0.2, col=B.TRIM[tint], scale=2.0)
     fbox(f, (PL, "trim", 0), s0 - 0.2, s1 + 0.2, y0 - 0.4, y0 + 0.05, 0.0, out + 0.2, col=B.TRIM[tint], scale=2.0, bottom=True)
     n = max(1, int((s1 - s0) / 3.2))
@@ -71,7 +73,7 @@ def reclad(x0, x1, z0, z1, y0, y1, seed, faces=("+x", "-x", "+z", "-z"), lit=0.7
             n = max(1, int((b - a) / 17.0))
             for i in range(n):
                 f.quad((PL, "corporate", 0), a + (b - a) * i / n, a + (b - a) * (i + 1) / n, y0, y1, out,
-                       col=(min(1.0, lit * r.uniform(0.86, 1.14)), warm, r.random(), 1.0))
+                       col=glass_col(min(1.0, lit * r.uniform(0.86, 1.14)), warm, r.random(), at=(x0, x1, z0, z1) if not lane_face(*f.p(f.at(a), 0, 0)[::2], *f.p(f.at(b), 0, 0)[::2]) else (44.0, 64.0, -170.0, 20.0)))
             f.box((PL, "trim", 0), a, b, y1 - 0.45, y1 + 0.05, 0.0, out + 0.22, col=B.TRIM[tint], scale=2.0)
             f.box((PL, "trim", 0), a, b, y0 - 0.05, y0 + 0.4, 0.0, out + 0.22, col=B.TRIM[tint], scale=2.0)
             if fin is not False and b - a > 3.0:

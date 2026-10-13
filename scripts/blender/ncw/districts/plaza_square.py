@@ -47,20 +47,28 @@ gline("yellow", 49.0, -191.5, 107.0, -191.5, G + 0.012, w=0.1)
 # ---------------------------------------------------------------------------
 # Under the board: shops in the block's ground floor behind a canopy.
 # ---------------------------------------------------------------------------
-frontage_x(PL, X0 + 0.4, TX - 0.4, -264.0, 8401, facing=1, awning=False)
-fascia_signs_x(X0 + 0.6, TX - 0.6, -264.0, 1, random.Random(8402))
-box((PL, "metal", 0), X0 + 1.0, TX - 0.5, 4.62, 4.84, -264.0, -260.6, scale=1.0, bottom=True)
-nbox("white", X0 + 1.0, TX - 0.5, 4.66, 4.72, -260.6, -260.57)
+# (The house's own way in stands between the board's legs, x 69.4..88.6:
+# plaza_corp.py. The shops and their canopy keep to either side of it.)
+WAY_IN = (69.4, 88.6)
+rs_f = random.Random(8402)
+for xa, xb in ((X0 + 0.4, WAY_IN[0]), (WAY_IN[1], TX - 0.4)):
+    frontage_x(PL, xa, xb, -264.0, 8401 if xa < 60 else 8409, facing=1, awning=False)
+    fascia_signs_x(xa + 0.2, xb - 0.2, -264.0, 1, rs_f)
+for xa, xb in ((X0 + 1.0, WAY_IN[0]), (WAY_IN[1], TX - 0.5)):
+    box((PL, "metal", 0), xa, xb, 4.62, 4.84, -264.0, -260.6, scale=1.0, bottom=True)
+    nbox("white", xa, xb, 4.66, 4.72, -260.6, -260.57)
 x = X0 + 3.0
 while x < TX - 3.0:
-    box((PL, "neon_white", 0), x - 0.35, x + 0.35, 4.58, 4.62, -261.5, -261.4, scale=0.5)
+    if not WAY_IN[0] - 0.4 < x < WAY_IN[1] + 0.4:
+        box((PL, "neon_white", 0), x - 0.35, x + 0.35, 4.58, 4.62, -261.5, -261.4, scale=0.5)
     x += 6.6
 # (Its soffit is not a bare plane: beams across it, and between them panels
 # of light, warm and white turn about.)
 x, k = X0 + 2.6, 0
 while x < TX - 2.2:
-    box((PL, "board_frame", 0), x - 1.71, x - 1.59, 4.48, 4.62, -263.9, -260.7, scale=1.0, bottom=True)
-    box((PL, "glow", 0), x - 0.75, x + 0.75, 4.585, 4.62, -263.0, -261.9, scale=1.0, col=dim("amber" if k % 3 == 0 else "white", 0.5), bottom=True)
+    if not WAY_IN[0] - 1.8 < x < WAY_IN[1] + 1.8:
+        box((PL, "board_frame", 0), x - 1.71, x - 1.59, 4.48, 4.62, -263.9, -260.7, scale=1.0, bottom=True)
+        box((PL, "glow", 0), x - 0.75, x + 0.75, 4.585, 4.62, -263.0, -261.9, scale=1.0, col=dim("amber" if k % 3 == 0 else "white", 0.5), bottom=True)
     x += 3.3
     k += 1
 # The block's face to the x 120 road, and its back corner to the lane.

@@ -31,7 +31,7 @@ import * as THREE from "three";
 import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
 import { GROUND, VNOISE } from "./ground.js";
 import { kindSource } from "./kinds.js";
-import { SHOP_ROOM, HALL } from "./interiors.js";
+import { SHOP_ROOM, HALL, PLAZA_ROOMS } from "./interiors.js";
 import { dealSteps, dealTrades } from "./trades.js";
 import { dealAdvertSteps, dealAdverts } from "./adverts.js";
 import { MIRROR_UNIFORMS } from "./road.js";
@@ -899,6 +899,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         const float STOREY = 3.8;
         const float CLEAR = 2.85;
         const float DEEP = 9.0;
+        ${PLAZA_ROOMS}
 
         // What the glass gives back: a night sky lit from under by the
         // city, the haze on the horizon, and round it the city across the
@@ -1112,6 +1113,84 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float lit = clamp(onR * (1.0 - slab) + strip * 3.0, 0.0, 1.0);
             col = mix(col, hazeAt(vWorld - uCam) * 1.8 + uGlowColor * 0.1, smoothstep(130.0, 430.0, dist) * 0.5 * freeEye() * (1.0 - 0.4 * lit));
             col = cityFog(col, vWorld, lit * 0.5);
+            gl_FragColor = vec4(col, 1.0);
+            ${OUT}
+            return;
+          }
+
+          if (vColor.a < 0.995) {
+            // The plaza's own glass (its builder's alphas 0.96 to 0.99, the
+            // rooms in interiors.js PLAZA_ROOMS): mode 1 a hall, its floor
+            // and ceiling in the colour's red and green (sixteenths of 16 m);
+            // 2 a tower's office floors from 8 m up, 3 its floors over a
+            // hall, from 13.8 m. A flat face of it (a soffit, a lid) is slab.
+            float mode = floor((vColor.a - 0.95) * 100.0 + 0.5);
+            vec3 V = normalize(vWorld - uCam);
+            float dist = length(vWorld - uCam);
+            float nearP = 1.0 - smoothstep(90.0, 150.0, dist);
+            vec3 street = spillGround(vWorld);
+            if (abs(vNormalW.y) > 0.7) {
+              gl_FragColor = vec4(cityFog(vec3(0.01, 0.011, 0.015) + street * 0.2, vWorld, 0.0), 1.0);
+              ${OUT}
+              return;
+            }
+            float sysP = hash12(vec2(vColor.b * 97.0, 3.1));
+            float seedP = vColor.b * 97.0 + (floor(n.x * 1.5 + 1.5) * 3.0 + floor(n.z * 1.5 + 1.5)) * 13.0;
+            // (Along the wall from the world, not from a tower of the row: a
+            // hall's 18 m bay is centred on x 79, the board's middle.)
+            float uP = dot(vWorld.xz, t.xz) + 1010.0;
+            vec3 dP = vec3(dot(V, t), V.y, max(-dot(V, n), 1e-3));
+            vec3 room, avgRoom;
+            float litP = 1.0, slabP = 0.0, transP, fwP;
+            float MODP = mode < 1.5 ? 1.8 : (sysP < 0.34 ? 1.5 : (sysP < 0.67 ? 1.2 : 1.8));
+            float modP = uP / MODP;
+            float paneP = floor(modP);
+            float inPaneP = fract(modP);
+            if (mode < 1.5) {
+              float y0 = vColor.r * 16.0;
+              float H = vColor.g * 16.0 - y0;
+              float hk = hash12(vec2(seedP, 5.5));
+              vec3 accentP = hk < 0.4 ? vec3(0.1, 0.85, 0.8) : (hk < 0.7 ? vec3(1.0, 0.62, 0.22) : vec3(0.62, 0.45, 1.0));
+              float ry = clamp(vWorld.y - y0, 0.0, H);
+              room = pzHall(vec3(uP, ry, 0.0), dP, H, seedP, accentP);
+              avgRoom = vec3(1.0, 0.86, 0.68) * 0.2;
+              // Tall panes, a transom every 4.6 m.
+              float fy = ry / 4.6;
+              float inF = fract(fy) * 4.6;
+              fwP = fwidth(fy);
+              float thw = max(0.04, 0.55 * fwP * 4.6);
+              transP = mix((step(inF, thw) + step(4.6 - inF, thw)) * clamp(0.04 / thw + 0.35, 0.0, 1.0), 0.02, smoothstep(mix(0.01, 0.05, nearP), mix(0.03, 0.14, nearP), fwP));
+            } else {
+              float fy = (vWorld.y - (mode > 2.5 ? 13.8 : BASE)) / STOREY;
+              float level = floor(fy);
+              float inF = fract(fy) * STOREY;
+              float SILLP = fract(sysP * 7.0) < 0.5 ? 0.95 : 1.25;
+              room = pzOffice(vec3(uP, clamp(inF - SILLP, 0.0, CLEAR), 0.0), dP, level, seedP, vColor.r, vColor.g, nearP, paneP, inPaneP, litP);
+              avgRoom = mix(vec3(0.72, 0.85, 1.0), vec3(1.0, 0.8, 0.55), vColor.g) * vColor.r * 0.16 + 0.003;
+              fwP = fwidth(fy);
+              float thw = max(0.04, 0.55 * fwP * STOREY);
+              transP = mix((step(abs(inF - SILLP), thw) + step(STOREY - inF, thw)) * clamp(0.04 / thw + 0.35, 0.0, 1.0), 0.02, smoothstep(mix(0.01, 0.05, nearP), mix(0.03, 0.14, nearP), fwP));
+              slabP = mix(step(inF, SILLP), SILLP / STOREY, smoothstep(0.08, 0.3, fwP));
+            }
+            // The glass, tinted, each pane at its own slight angle; its
+            // mullions and transoms, and the spandrel at each slab.
+            float rowP = floor(vWorld.y / 3.8);
+            vec2 jit = vec2(hash12(vec2(paneP, rowP + seedP)), hash12(vec2(rowP, paneP + seedP * 2.0))) - 0.5;
+            vec3 nj = normalize(n + t * jit.x * 0.06 + vec3(0.0, jit.y * 0.04, 0.0));
+            vec3 R = reflect(V, nj);
+            float F = 0.08 + 0.6 * pow(1.0 - abs(dot(V, nj)), 5.0);
+            vec3 env = skyIn(R, nearP);
+            vec3 glass = room * vec3(0.74, 0.85, 0.9) * (1.0 - F) + env * F + vec3(0.002, 0.003, 0.006);
+            vec3 frameCol = vec3(0.016, 0.017, 0.022) + env * 0.35 + street * 0.3;
+            vec3 spandrel = vec3(0.012, 0.013, 0.018) + env * (0.15 + 0.6 * F) + street * 0.2;
+            float mw = fwidth(modP);
+            float mhw = max(0.035, 0.55 * mw * MODP);
+            float mull = mix(step(min(inPaneP, 1.0 - inPaneP) * MODP, mhw) * clamp(0.035 / mhw + 0.35, 0.0, 1.0), 0.05, smoothstep(mix(0.02, 0.1, nearP), mix(0.06, 0.28, nearP), mw));
+            vec3 col = mix(glass, frameCol, clamp(mull + transP, 0.0, 1.0));
+            col = mix(col, spandrel, slabP);
+            vec3 avg = mix(avgRoom * (1.0 - F) + env * F, spandrel, mode < 1.5 ? 0.0 : 0.28);
+            col = mix(col, avg, smoothstep(0.25, 0.6, fwP));
+            col = cityFog(col, vWorld, litP * (1.0 - slabP) * 0.6);
             gl_FragColor = vec4(col, 1.0);
             ${OUT}
             return;

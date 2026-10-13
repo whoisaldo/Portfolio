@@ -990,3 +990,290 @@ export const HALL = /* glsl */ `
     return col;
   }
 `;
+
+// The plaza's own glass (materials.js corporate(), the vertex alphas 0.96 to
+// 0.99 its builder gives it: scripts/blender/ncw/districts/plaza_parts.py
+// glass_col). Two rooms, traced as the others are, in metres from the pane
+// (x along the wall, y up from the floor, z in), with d the eye's ray in
+// the same frame. Needs glsl.js's COMMON above it.
+//
+// pzOffice: a floor of offices as the square sees it, mostly from below.
+// Each tenant (two to four floors) has its own light (warm, white or cool),
+// its own ceiling (lines of light, square fittings, downlights or pendants
+// on a dark ceiling: never a pale slab), its own blinds (none, rollers
+// each at its own drop, slats, or verticals drawn part way), and its
+// furniture against the light: plants at the glass, desks with their
+// screens, who sits at them, screens between the rows, somebody standing,
+// cabinets and doors and a lit meeting room along the core. A floor that is
+// off keeps an exit lamp and a desk lamp or two.
+//
+// pzHall: a lobby, one or more storeys high, laid out in 18 m from the
+// pane's x (materials.js anchors x to the world: x 79 of the board's block
+// is its middle): a dark ceiling ruled by lines
+// of light, a polished floor that gives them back, a stone wall at the back
+// with the house's lit wall and mark, a screen of moving colour and the
+// lifts; columns and trees in the hall, people in it, and in a hall over
+// nine metres high a gallery across its back reached by an escalator, with
+// the reception desk under it.
+export const PLAZA_ROOMS = /* glsl */ `
+  float pzBody(vec2 q, float x0, float k) {
+    float fx = q.x - x0;
+    return max(step(abs(fx), (0.21 - 0.05 * smoothstep(1.05 * k, 1.45 * k, q.y)) * k) * step(q.y, 1.48 * k) * step(0.0, q.y),
+               step(length(vec2(fx, q.y - 1.63 * k)), 0.11 * k));
+  }
+  // A fine pattern's own value, or its average once it is finer than a
+  // pixel or two (w: its feature's size along that axis).
+  float pzFine(float on, float avg, float g, float w) {
+    return mix(on, avg, smoothstep(0.35, 1.1, fwidth(g) / w));
+  }
+
+  vec3 pzOffice(vec3 p, vec3 d, float level, float seed, float share, float warmth, float near, float pane, float inPane, out float lit) {
+    const float CL = 2.85;
+    float span = 2.0 + floor(hash12(vec2(seed, 2.0)) * 3.0);
+    float tenant = floor((level + floor(hash12(vec2(seed, 1.0)) * 4.0)) / span);
+    float tenantOn = step(hash12(vec2(tenant, seed + 0.5)), share);
+    float tone = hash12(vec2(tenant, seed + 3.7));
+    vec3 L = tone < warmth * 0.8 ? vec3(1.0, 0.74, 0.47) : (tone < warmth * 0.8 + 0.32 ? vec3(1.0, 0.93, 0.8) : vec3(0.72, 0.85, 1.0));
+    L *= 0.7 + 0.6 * hash12(vec2(tenant, seed + 9.1));
+    float style = floor(hash12(vec2(tenant, seed + 6.1)) * 4.0);
+    float blinds = floor(hash12(vec2(tenant, seed + 8.3)) * 4.0);
+    float deep = 6.5 + 3.0 * hash12(vec2(tenant, seed + 4.4));
+    float ty = d.y > 0.0 ? (CL - p.y) / d.y : -p.y / min(d.y, -1e-4);
+    float tz = deep / d.z;
+    float tm = min(ty, tz);
+    vec3 h = p + d * tm;
+    float on = tenantOn * step(0.2, hash12(vec2(floor(h.x / 9.0), level + seed * 1.3)));
+    vec3 room;
+    if (tz <= ty) {
+      // The core: plaster in the floor's light under a cove; in its bays
+      // a door, a meeting room lit behind glass, a picture, low cabinets.
+      float bk = hash12(vec2(floor(h.x / 3.2), level * 3.1 + seed));
+      float bx = fract(h.x / 3.2) * 3.2 - 1.6;
+      room = L * (0.1 + 0.05 * h.y / CL);
+      if (bk < 0.2) room = mix(room, L * 0.03, step(abs(bx), 0.5) * step(h.y, 2.15));
+      else if (bk < 0.4) room = mix(room, L * (0.34 - 0.26 * step(abs(bx + 0.3), 0.8) * step(abs(h.y - 0.74), 0.05)), step(abs(bx), 1.4) * step(0.05, h.y) * step(h.y, 2.4));
+      else if (bk < 0.52) room = mix(room, mix(vec3(0.5, 0.2, 0.15), vec3(0.15, 0.3, 0.45), fract(bk * 17.0)) * 0.4 * L, step(abs(bx), 0.6) * step(abs(h.y - 1.55), 0.42));
+      else if (bk < 0.72) room = mix(room, L * (0.035 + 0.25 * step(1.12, h.y)), step(abs(bx), 1.5) * step(h.y, 1.18));
+      room += L * 0.3 * step(CL - 0.1, h.y);
+    } else if (d.y > 0.0) {
+      // The ceiling, dark, its fittings bright: the light is in them.
+      vec2 q = h.xz;
+      float lamp;
+      if (style < 0.5) {
+        float f = abs(fract(q.y / 1.8) - 0.5) * 1.8;
+        lamp = 2.6 * pzFine(step(f, 0.07) * step(fract(q.x / 3.0), 0.8), 0.062, q.y, 0.14) + 0.12 * smoothstep(0.5, 0.0, f);
+      } else if (style < 1.5) {
+        vec2 f = abs(fract(q / vec2(2.4, 1.8)) - 0.5) * vec2(2.4, 1.8);
+        lamp = 2.1 * pzFine(step(f.x, 0.3) * step(f.y, 0.3), 0.083, q.y, 0.6) + 0.1 * smoothstep(0.9, 0.0, length(f));
+      } else if (style < 2.5) {
+        float r = length(fract(q / 1.5) - 0.5) * 1.5;
+        lamp = 7.0 * pzFine(smoothstep(0.12, 0.08, r), 0.017, q.y, 0.22) + 0.16 * smoothstep(0.6, 0.0, r);
+      } else {
+        // Timber, warm, lit by the pendants under it.
+        float r = length((fract(vec2(q.x / 2.0, (q.y - 1.8) / 2.6)) - 0.5) * vec2(2.0, 2.6));
+        lamp = 0.03 + 0.2 * smoothstep(1.0, 0.0, r) + 0.03 * step(0.5, fract(q.x / 0.3));
+      }
+      room = L * (0.035 + 0.05 * (1.0 - h.z / deep) + lamp);
+    } else {
+      // Carpet, and the light's pools on it.
+      vec2 g = h.xz / vec2(2.4, 1.8);
+      room = L * (0.04 + pzFine(0.07 * smoothstep(0.5, 0.0, length(fract(g) - 0.5)), 0.025, g.y, 0.4));
+    }
+    vec3 lamps = vec3(0.0);
+    // Pendants over the desks: discs lit from beneath, on their cords.
+    if (style > 2.5 && d.y > 0.0 && p.y < CL - 0.75) {
+      float tp = (CL - 0.75 - p.y) / d.y;
+      if (tp < tm) {
+        vec3 q = p + d * tp;
+        vec2 f = (fract(vec2(q.x / 2.0, (q.z - 1.8) / 2.6)) - 0.5) * vec2(2.0, 2.6);
+        float disc = step(length(f), 0.28) * step(q.z, deep - 1.0);
+        room = mix(room, L * (2.4 - 1.6 * smoothstep(0.18, 0.28, length(f))), disc);
+      }
+    }
+    // Who stands about, the screens between the rows, who sits, the desks
+    // and their screens, the plants at the glass: furthest first.
+    float t = 4.7 / d.z;
+    if (t < tm) {
+      vec3 q = p + d * t;
+      float c = floor(q.x / 7.0);
+      float hw = hash12(vec2(c, level + seed * 7.7));
+      if (hw > 0.55 && pzBody(q.xy, (c + 0.2 + 0.6 * fract(hw * 5.0)) * 7.0, 1.0) > 0.5) room = L * 0.025;
+    }
+    t = 3.6 / d.z;
+    if (t < tm) {
+      vec3 q = p + d * t;
+      if (q.y < 1.32 && fract(q.x / 8.0) > 0.18) room = q.y > 1.26 ? L * 0.02 : mix(room, L * 0.22, 0.7);
+    }
+    t = 2.9 / d.z;
+    if (t < tm) {
+      vec3 q = p + d * t;
+      float c = floor(q.x / 1.6);
+      float sx = q.x - (c + 0.5) * 1.6;
+      float hs = hash12(vec2(c, level + seed * 2.3));
+      if (hs > 0.5 && (step(abs(sx), 0.22) * step(0.7, q.y) * step(q.y, 1.08) + step(length(vec2(sx, q.y - 1.22)), 0.11)) > 0.5) room = L * 0.02;
+    }
+    t = 2.2 / d.z;
+    if (t < tm) {
+      vec3 q = p + d * t;
+      float c = floor(q.x / 1.6);
+      float sx = q.x - (c + 0.5) * 1.6;
+      float hd = hash12(vec2(c, level + seed * 2.1));
+      if (hd > 0.15 && abs(sx) < 0.72 && q.y < 0.76) room = q.y > 0.72 ? L * 0.3 : L * 0.025;
+      else if (hd > 0.3 && abs(sx) < 0.27 && q.y > 0.8 && q.y < 1.14) room = fract(hd * 9.0) < 0.2 ? vec3(0.45, 0.72, 1.0) * 0.6 : L * 0.02;
+    }
+    t = 0.9 / d.z;
+    if (t < tm) {
+      vec3 q = p + d * t;
+      float c = floor(q.x / 6.0);
+      float hp = hash12(vec2(c, level + seed * 4.9));
+      vec2 g = vec2(q.x - (c + 0.3 + 0.4 * fract(hp * 3.0)) * 6.0, q.y);
+      if (hp > 0.5) {
+        float leaf = 0.0;
+        for (int i = 0; i < 5; i++) {
+          float a = (float(i) - 2.0) * 0.38 + 0.15 * sin(float(i) * 5.0 + hp * 20.0);
+          vec2 tip = vec2(sin(a), cos(a)) * (1.0 + 0.3 * cos(float(i) * 3.0 + hp * 9.0));
+          vec2 pa = g - vec2(0.0, 0.45);
+          float k = clamp(dot(pa, tip) / dot(tip, tip), 0.0, 1.0);
+          leaf = max(leaf, step(length(pa - tip * k), 0.1 * sin(k * 3.1) + 0.015));
+        }
+        if (leaf > 0.5) room = L * vec3(0.02, 0.05, 0.03);
+        if (abs(g.x) < 0.24 && g.y < 0.45) room = L * 0.05;
+      }
+    }
+    room *= on;
+    // A floor that is off: an exit lamp on the core, a desk lamp left on.
+    if (on < 0.5) {
+      room += vec3(0.003, 0.004, 0.007);
+      if (tz <= ty) room += vec3(0.1, 0.9, 0.35) * 0.5 * step(abs(fract(h.x / 23.0) - 0.5) * 23.0, 0.22) * step(abs(h.y - 2.45), 0.09);
+      float tl = 2.2 / d.z;
+      if (tl < tm) {
+        vec3 q = p + d * tl;
+        float c = floor(q.x / 1.6);
+        float hl = hash12(vec2(c, level + seed * 6.7));
+        if (hl > 0.9) room += vec3(1.0, 0.7, 0.4) * (0.5 * step(length(vec2(q.x - (c + 0.7) * 1.6, q.y - 1.0)), 0.09) + 0.08 * smoothstep(0.7, 0.0, length(vec2(q.x - (c + 0.7) * 1.6, (q.y - 0.75) * 2.0))));
+      }
+    }
+    // The blinds, at the glass: rollers each at its own drop, slats down to
+    // one line along the floor, or verticals drawn part way across.
+    float bp = hash12(vec2(pane, level + seed * 3.3));
+    vec3 cloth = (on > 0.5 ? L * 0.3 : vec3(0.011, 0.012, 0.015)) * mix(vec3(1.0), vec3(1.0, 0.9, 0.75), step(0.5, fract(tone * 7.0)));
+    if (blinds > 0.5 && blinds < 1.5 && bp > 0.3) {
+      float drop = CL * (0.92 - 0.8 * fract(bp * 7.0));
+      if (p.y > drop) room = cloth * (1.0 - 0.6 * step(p.y, drop + 0.05));
+    } else if (blinds > 1.5 && blinds < 2.5) {
+      float drop = CL * (0.55 + 0.4 * hash12(vec2(floor(pane / 4.0), level + seed)));
+      if (p.y > drop) room = cloth * (0.7 + 0.3 * pzFine(step(0.5, fract(p.y * 14.0)), 0.5, p.y * 14.0, 0.5));
+    } else if (blinds > 2.5 && bp > 0.45 && inPane < fract(bp * 11.0)) {
+      room = cloth * (0.75 + 0.25 * pzFine(step(0.5, fract(p.x / 0.09)), 0.5, p.x / 0.09, 0.5));
+    }
+    lit = on;
+    return room;
+  }
+
+  vec3 pzHall(vec3 p, vec3 d, float H, float seed, vec3 accent) {
+    const float D = 11.0;
+    vec3 L = vec3(1.0, 0.86, 0.68);
+    float ty = d.y > 0.0 ? (H - p.y) / d.y : -p.y / min(d.y, -1e-4);
+    float tz = D / d.z;
+    float tm = min(ty, tz);
+    vec3 h = p + d * tm;
+    float tall = step(9.0, H);
+    vec3 col;
+    if (tz <= ty) {
+      // Stone in panels, lit at its foot and its head, and along it every
+      // 18 m the house's wall, a screen and the lifts.
+      float fx = mod(h.x, 18.0);
+      col = L * (0.065 + 0.035 * h.y / H) * (1.0 - 0.35 * pzFine(step(fract(h.x / 1.5), 0.02), 0.02, h.x / 1.5, 0.03));
+      if (fx > 6.0 && fx < 12.0 && h.y > 0.8 && h.y < H - 1.2) {
+        // The house's wall: dark stone, lit round its edge, its mark and
+        // its name lit in it.
+        // (In a hall with a gallery, over the gallery.)
+        vec2 w = vec2(fx - 9.0, h.y - (H > 9.0 ? H - 2.6 : min(H * 0.5, 4.2)));
+        float r = length(w);
+        float mark = step(abs(r - 0.9), 0.12) + step(r, 0.28) + step(abs(w.y + 1.6), 0.1) * step(abs(w.x), 2.2) * step(0.25, fract(w.x * 1.6));
+        float rim = step(2.88, abs(fx - 9.0)) + step(h.y, 0.9) + step(H - 1.3, h.y);
+        col = L * (0.035 + 0.05 * smoothstep(H * 0.4, H - 1.2, h.y)) + accent * 0.6 * clamp(mark, 0.0, 1.0) + L * 0.3 * clamp(rim, 0.0, 1.0);
+      } else if (fx > 12.6 && fx < 16.0 && h.y > 1.4 && h.y < H - 1.4) {
+        // A wall of screens: tiles in a dark grid, what runs on them.
+        vec2 s = vec2((fx - 12.6) / 3.4, (h.y - 1.4) / (H - 2.8));
+        float k = 0.5 + 0.5 * sin(s.x * 6.0 + s.y * 3.0 + uTime * 0.4 + seed);
+        vec2 tile = fract(vec2(fx - 12.6, h.y - 1.4) / 0.85);
+        float seam = pzFine(step(0.05, min(tile.x, tile.y)), 0.9, (fx - 12.6) / 0.85, 0.06);
+        col = mix(accent, vec3(0.9, 0.3, 0.7), k) * (0.08 + 0.12 * step(0.5, fract(s.y * 3.0 + uTime * 0.05))) * seam;
+      } else if (abs(fx - 17.0) < 0.75 || abs(fx - 0.9) < 0.75) {
+        float lx = abs(fx - 17.0) < 0.75 ? fx - 17.0 : fx - 0.9;
+        col = h.y < 2.3 ? L * 0.03 + L * 0.5 * step(0.68, abs(lx)) : col;
+        col += accent * 0.8 * step(abs(lx), 0.1) * step(abs(h.y - 2.55), 0.06);
+      }
+      col += L * 0.35 * step(h.y, 0.08) + L * 0.4 * step(H - 0.14, h.y);
+    } else if (d.y > 0.0) {
+      // The ceiling, dark, ruled by lines of light across the hall.
+      float f = abs(fract(h.z / 1.6) - 0.5) * 1.6;
+      col = L * (0.03 + 1.8 * pzFine(step(f, 0.05), 0.0625, h.z / 1.6, 0.06) + 0.06 * smoothstep(0.6, 0.0, f));
+    } else {
+      // The floor, polished: the lines again, softer.
+      vec3 m2 = h + vec3(d.x, -d.y, d.z) * (H / max(-d.y, 1e-3));
+      float f = abs(fract(m2.z / 1.6) - 0.5) * 1.6;
+      col = L * (0.025 + 0.2 * pzFine(step(f, 0.07), 0.09, m2.z / 1.6, 0.08)) * (1.0 - 0.4 * h.z / D);
+    }
+    // The gallery over the back of a tall hall, its glass rail lit, and
+    // the escalator up to it; the reception desk under it.
+    if (tall > 0.5) {
+      const float G = 7.4;
+      float tg = d.y != 0.0 ? (G - p.y) / d.y : 1e9;
+      if (tg > 0.0 && tg < tm) {
+        vec3 q = p + d * tg;
+        if (q.z > 6.0) col = d.y > 0.0 ? L * (0.05 + 1.5 * step(length(fract(q.xz / 2.0) - 0.5), 0.07)) : L * 0.09;
+      }
+      float tr = 6.0 / d.z;
+      if (tr < tm) {
+        vec3 q = p + d * tr;
+        if (q.y > G - 0.3 && q.y < G + 1.1) col = q.y < G ? L * 0.05 + accent * 0.4 * step(G - 0.1, q.y) : mix(col, accent * 0.15 + L * 0.06, 0.5) + accent * 0.6 * step(G + 1.04, q.y);
+        float c = floor(q.x / 4.0);
+        float hg = hash12(vec2(c, seed + 3.0));
+        if (hg > 0.45 && pzBody(vec2(q.x, q.y - G), (c + 0.5) * 4.0 + (hg - 0.7) * 2.0, 1.0) > 0.5) col = L * 0.03;
+      }
+      float te = 4.6 / d.z;
+      if (te < tm) {
+        vec3 q = p + d * te;
+        float ex = mod(q.x, 18.0) - 1.6;
+        float ey = q.y - (ex + 0.5) * G / 6.5;
+        if (ex > -0.5 && ex < 6.0 && abs(ey - 0.5) < 0.6) col = L * 0.04 + accent * 0.8 * step(0.55, abs(ey - 0.5)) + L * 0.6 * step(abs(ey - 1.0), 0.04);
+      }
+      float td = 5.4 / d.z;
+      if (td < tm) {
+        vec3 q = p + d * td;
+        if (abs(mod(q.x, 18.0) - 9.0) < 3.2 && q.y < 1.1) col = L * (0.03 + 0.9 * step(1.04, q.y)) + accent * 0.5 * step(abs(q.y - 0.55), 0.05);
+      }
+    }
+    // People across the hall, in twos and threes.
+    for (int i = 0; i < 2; i++) {
+      float tt = (i == 0 ? 7.2 : 3.4) / d.z;
+      if (tt >= tm) continue;
+      vec3 q = p + d * tt;
+      float c = floor(q.x / 3.0);
+      float hp = hash12(vec2(c, seed + float(i) * 5.0));
+      if (hp > 0.5 && pzBody(q.xy, (c + 0.25 + 0.5 * fract(hp * 7.0)) * 3.0, 0.92 + 0.16 * fract(hp * 13.0)) > 0.5) col = L * 0.025;
+    }
+    // Trees in the hall, in their planters, and its columns.
+    float tt = 2.4 / d.z;
+    if (tt < tm) {
+      vec3 q = p + d * tt;
+      float c = floor((q.x + 4.5) / 9.0);
+      vec2 g = vec2(q.x + 4.5 - (c + 0.5) * 9.0, q.y);
+      float cy = min(H - 1.4, 3.6);
+      vec2 e = (g - vec2(0.0, cy)) / vec2(1.3, 1.5);
+      float crown = step(length(e) + 0.12 * sin(atan(e.y, e.x) * 7.0 + c), 1.0);
+      if (crown > 0.5 && cy > 2.0) col = vec3(0.02, 0.06, 0.035) * (1.0 + 2.0 * step(0.6, fract(dot(g, vec2(3.1, 4.7))))) + L * 0.02;
+      if (abs(g.x) < 0.06 && g.y < cy) col = L * 0.03;
+      if (abs(g.x) < 0.7 && g.y < 0.7) col = L * (0.05 + 0.6 * step(0.66, g.y));
+    }
+    float tc = 1.4 / d.z;
+    if (tc < tm) {
+      vec3 q = p + d * tc;
+      float cx = abs(mod(q.x, 9.0) - 4.5);
+      if (cx < 0.35) col = L * (0.07 + 0.5 * exp(-q.y / 1.2) * (1.0 - cx / 0.35));
+    }
+    return col;
+  }
+`;

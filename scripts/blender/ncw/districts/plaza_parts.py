@@ -48,6 +48,53 @@ def in_mirror(x0, x1, z0, z1):
     return any(x0 < b and x1 > a and z0 < d and z1 > c for a, b, c, d in MIRROR_ZONES)
 
 
+# The plaza's own glass on the site's corporate shader (src/world/materials.js
+# and interiors.js PLAZA_ROOMS): its alpha says how the room behind it is
+# drawn. 1 a hall (lit is its floor's height, warm its ceiling's, both over
+# 16 m), 2 a tower's office floors from 8 m up, 3 office floors over a hall,
+# from 13.8 m. Glass the hero's wet road sees (MIRROR_ZONES) keeps the
+# city's own (alpha 1) as it was.
+GLASS_ALPHA = {1: 0.96, 2: 0.97, 3: 0.98}
+
+
+def glass_col(lit, warm, seed, mode=2, at=None):
+    if at is not None and in_mirror(*at):
+        return (lit, warm, seed, 1.0)
+    return (lit, warm, seed, GLASS_ALPHA[mode])
+
+
+def hall_col(y0, y1, seed, at=None):
+    """A hall's glass: its floor at y0, its ceiling at y1."""
+    return glass_col(y0 / 16.0, y1 / 16.0, seed, mode=1, at=at)
+
+
+CY_TERRACE = (33.5, -352.0)   # the canyon's terrace view's lens (x, z)
+
+
+def lane_face(xa, za, xb, zb):
+    """A face of the plaza's glass the canyon looks at across the lane (its
+    terrace's view, cy-terrace, is held as it was): turned west, by x 62,
+    or in the north quarter's west half turned to that view's lens."""
+    n = math.hypot(xb - xa, zb - za)
+    if n <= 0:
+        return False
+    nx, nz = -(zb - za) / n, (xb - xa) / n
+    mx, mz = (xa + xb) / 2, (za + zb) / 2
+    if nx < -0.3 and min(xa, xb) < 62.0:
+        return True
+    return mx < 76.0 and mz < -340.0 and nx * (CY_TERRACE[0] - mx) + nz * (CY_TERRACE[1] - mz) > 0
+
+
+def glass_walls(outline, y0, y1, col):
+    """walls() of the plaza's office glass (col's alpha from glass_col), but
+    a face toward the lane (lane_face) in the city's own glass."""
+    for (xa, za), (xb, zb) in zip(outline, outline[1:] + outline[:1]):
+        c = (col[0], col[1], col[2], 1.0) if lane_face(xa, za, xb, zb) else col
+        length = math.hypot(xb - xa, zb - za)
+        quad((PL, "corporate", 0), (xa, y0, za), (xb, y0, zb), (xb, y1, zb), (xa, y1, za),
+             ((0, 0), (length, 0), (length, y1 - y0), (0, y1 - y0)), c)
+
+
 def gline(colour, x0, z0, x1, z1, y, w=0.08, step=3.2, detail=0):
     """A line of light set flush in the paving from (x0, z0) to (x1, z1)."""
     length = math.hypot(x1 - x0, z1 - z0)
@@ -658,7 +705,7 @@ def glass_shaft(x0, x1, z0, z1, y0, y1, seed, cut=2.0, lit=None, warm=None, roof
         if yb <= y + 1.0 or y1 - yb < 5.7:
             yb = y1
         k = 0.3 if rb.random() < 0.17 else rb.uniform(0.75, 1.3)
-        walls((PL, "corporate", 0), outline, y, yb, (min(1.0, col[0] * k), col[1], col[2], 1.0))
+        glass_walls(outline, y, yb, glass_col(min(1.0, col[0] * k), col[1], col[2]))
         y = yb
     if roof:
         poly((PL, "roof", 0), [(x, y1, z) for x, z in outline], [(x / 4, z / 4) for x, z in outline])
@@ -1402,7 +1449,8 @@ def lobby_front(f, s0, s1, r, accent="cyan", guards=True):
     under a canopy with a line of the tower's colour, cubes on the pavement
     before it, and security either side."""
     key = (PL, "corporate", 0)
-    col = (0.95, 0.35, r.random(), 1.0)
+    pa, pb = f.p(f.at(s0), 0.0, 0.0), f.p(f.at(s1), 0.0, 0.0)
+    col = hall_col(0.42, 4.2, r.random(), at=(min(pa[0], pb[0]), max(pa[0], pb[0]), min(pa[2], pb[2]), max(pa[2], pb[2])))
     f.quad(key, s0, s1, 0.42, 4.2, 0.04, col=col)
     n = max(2, int(round((s1 - s0) / 3.2)))
     for i in range(n + 1):
@@ -1437,3 +1485,32 @@ def lobby_front(f, s0, s1, r, accent="cyan", guards=True):
 
 
 G_LOBBY = 0.15
+
+
+# ---------------------------------------------------------------------------
+# A house's name in tubes of light, a stroke font of the letters it needs
+# (x right, y up, a letter one high; its width first).
+# ---------------------------------------------------------------------------
+_O = [(0.25, 0.0), (0.61, 0.0), (0.86, 0.25), (0.86, 0.75), (0.61, 1.0), (0.25, 1.0), (0.0, 0.75), (0.0, 0.25)]
+FONT = {
+    "K": (0.76, [((0, 0), (0, 1)), ((0, 0.42), (0.74, 1)), ((0.25, 0.61), (0.78, 0))]),
+    "A": (0.86, [((0, 0), (0.43, 1)), ((0.43, 1), (0.86, 0)), ((0.18, 0.38), (0.68, 0.38))]),
+    "I": (0.12, [((0.06, 0), (0.06, 1))]),
+    "Z": (0.78, [((0, 1), (0.78, 1)), ((0.78, 1), (0, 0)), ((0, 0), (0.78, 0))]),
+    "O": (0.86, list(zip(_O, _O[1:] + _O[:1]))),
+    "R": (0.76, [((0, 0), (0, 1)), ((0, 1), (0.55, 1)), ((0.55, 1), (0.76, 0.85)), ((0.76, 0.85), (0.76, 0.65)), ((0.76, 0.65), (0.55, 0.5)),
+                 ((0.55, 0.5), (0, 0.5)), ((0.3, 0.5), (0.78, 0))]),
+}
+
+
+def tube_word(word, cx, y0, z, h, key, r=0.07, gap=0.3):
+    """`word` in tubes of light (FONT), h high, centred on x cx, standing on
+    y0 in the plane z, read from the +z side. Returns its width."""
+    total = sum(FONT[c][0] * h for c in word) + gap * h * (len(word) - 1)
+    x = cx - total / 2
+    for c in word:
+        w, strokes = FONT[c]
+        for (ax, ay), (bx, by) in strokes:
+            pipe(key, (x + ax * h, y0 + ay * h, z), (x + bx * h, y0 + by * h, z), r, segs=5)
+        x += (w + gap) * h
+    return total

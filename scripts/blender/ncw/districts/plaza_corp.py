@@ -25,30 +25,43 @@ COPE = BH + 0.5
 # ---------------------------------------------------------------------------
 fs = B.Face("+z", BZ1, BX0, BX1)
 fe = B.Face("+x", BX1, BZ0, BZ1)
-for xa, xb, lit, warm in ((48.0, 61.0, 0.84, 0.25), (61.0, 79.0, 0.72, 0.62), (79.0, 97.0, 0.78, 0.12), (97.0, 108.0, 0.88, 0.5)):
-    fs.quad((PL, "corporate", 0), xa - BX0, xb - BX0, POD, BH, 0.0, col=(lit, warm, rk.random(), 1.0))
+# Over the podium band, the house's hall: one double-height storey along
+# both faces, lit, up to the housing's foot (HALL_Y); over it the house's
+# office floors (the plaza's glass: plaza_parts.glass_col). Between the
+# board's legs (DOOR) the way in: a hall from the square's floor up to the
+# housing, with its doors, a canopy and the house's name.
+HALL_Y = 13.8
+DOOR = (70.6, 87.4)
+hall_seed = rk.random()
+for xa, xb in ((48.0, DOOR[0]), (DOOR[1], 108.0)):
+    fs.quad((PL, "corporate", 0), xa - BX0, xb - BX0, POD, HALL_Y, 0.0, col=hall_col(POD, HALL_Y, hall_seed))
+fs.quad((PL, "corporate", 0), DOOR[0] - BX0, DOOR[1] - BX0, 0.42, HALL_Y, 0.05, col=hall_col(0.42, HALL_Y, hall_seed))
+fe.quad((PL, "corporate", 0), 0.0, fe.width, POD, HALL_Y, 0.0, col=hall_col(POD, HALL_Y, rk.random()))
+for xa, xb, lit, warm in ((48.0, 61.0, 0.84, 0.25), (61.0, 79.0, 0.58, 0.62), (79.0, 97.0, 0.6, 0.12), (97.0, 108.0, 0.88, 0.5)):
+    fs.quad((PL, "corporate", 0), xa - BX0, xb - BX0, HALL_Y, BH, 0.0, col=glass_col(lit, warm, rk.random(), mode=3))
 for s0, s1, lit, warm in ((0.0, 9.0, 0.8, 0.5), (9.0, 20.0, 0.74, 0.2)):
-    fe.quad((PL, "corporate", 0), s0, s1, POD, BH, 0.0, col=(lit, warm, rk.random(), 1.0))
-for f in (fs, fe):
-    # The podium band over the shops, a line of light along its head; the
-    # coping at the roof's edge.
-    f.box((PL, "trim", 0), 0.0, f.width, SHOP_H + 0.26, POD, 0.0, 0.3, col=B.TRIM[1], scale=2.0)
-    f.box((PL, "glow", 0), 0.3, f.width - 0.3, POD - 0.16, POD - 0.08, 0.3, 0.33, col=dim("white", 0.45))
+    fe.quad((PL, "corporate", 0), s0, s1, HALL_Y, BH, 0.0, col=glass_col(lit, warm, rk.random(), mode=3))
+for f, cuts in ((fs, ((0.0, DOOR[0] - 0.8 - BX0), (DOOR[1] + 0.8 - BX0, fs.width))), (fe, ((0.0, fe.width),))):
+    # The podium band over the shops, a line of light along its head (cut
+    # at the way in); a slab edge at the hall's ceiling; the coping.
+    for a, b in cuts:
+        f.box((PL, "trim", 0), a, b, SHOP_H + 0.26, POD, 0.0, 0.3, col=B.TRIM[1], scale=2.0)
+        f.box((PL, "glow", 0), a + 0.3, b - 0.3, POD - 0.16, POD - 0.08, 0.3, 0.33, col=dim("white", 0.45))
+    f.box((PL, "trim", 0), 0.0, f.width, HALL_Y - 0.05, HALL_Y + 0.25, 0.0, 0.12, col=B.TRIM[0], scale=2.0)
     f.box((PL, "trim", 0), 0.0, f.width, BH - 0.1, COPE, 0.0, 0.2, col=B.TRIM[0], scale=2.0)
 HX0, HX1 = BOARD[0] - BOARD[3] / 2 - 10.5 - BX0, BOARD[0] + BOARD[3] / 2 + 10.5 - BX0   # the housing, along the face
 HY0, HY1 = BOARD[1] - BOARD[4] / 2 - 3.2, BOARD[1] + BOARD[4] / 2 + 3.6
 ARMS = [(x - BX0 - 0.5, x - BX0 + 0.5) for x in (BOARD[0] - 19.5, BOARD[0] - 7.0, BOARD[0] + 7.0, BOARD[0] + 19.5)]
 fin_row(fs, 0.4, HX0 - 0.3, POD, COPE, rk, lit="white", every=3, k=0.22)
 fin_row(fs, HX1 + 0.3, fs.width - 0.4, POD, COPE, rk, lit="amber", every=3, k=0.22)
-fin_row(fs, HX0 + 0.2, HX1 - 0.2, POD, HY0 - 0.3, rk, step=(2.3, 3.4))
 fin_row(fs, HX0 + 0.2, HX1 - 0.2, HY1 + 0.3, COPE, rk, step=(2.3, 3.4), skip=ARMS)
-fin_row(fe, 0.5, fe.width - 0.5, POD, COPE, rk, lit="white", every=2, k=0.25)
+fin_row(fe, 0.5, fe.width - 0.5, HALL_Y + 0.25, COPE, rk, lit="white", every=2, k=0.25)
 # Its back to the court (seen from the north and from the air): the same
 # glass with fewer floors lit, a plain band over the service floor, fins
 # further apart. (B5 stands against its east half up to 31.8 m.)
 fn = B.Face("-z", BZ0, BX0, BX1)
 for s0, s1, lit, warm in ((0.0, 22.0, 0.5, 0.3), (22.0, 41.0, 0.6, 0.55), (41.0, 60.0, 0.46, 0.15)):
-    fn.quad((PL, "corporate", 0), s0, s1, POD, BH, 0.0, col=(lit, warm, rk.random(), 1.0))
+    fn.quad((PL, "corporate", 0), s0, s1, POD, BH, 0.0, col=glass_col(lit, warm, rk.random()))
 fn.quad((PL, "trim", 0), 0.0, fn.width, SHOP_H, POD, 0.0, col=B.TRIM[0])
 fn.box((PL, "trim", 0), 0.0, fn.width, BH - 0.1, COPE, 0.0, 0.2, col=B.TRIM[0], scale=2.0)
 fin_row(fn, 0.6, 29.4, 32.4, COPE, rk, step=(3.0, 4.2), out=0.45)
@@ -61,6 +74,46 @@ for x, size, k in ((66.5, "pm", 1.7), (91.0, "pm", 1.7)):
 wordmark("arasaka_b", BX1 + 0.32, 6.5, -274.0, 8.4, 1.8, math.pi / 2)
 for x in (56.6, 66.5, 91.0, 100.4):
     light(PL, x, 6.0, BZ1 + 1.2, "white", 2.0)
+
+# The way in, between the board's legs: a plinth of stone, four glass doors
+# in a steel frame under a lit header, a canopy hung from the face on tie
+# rods, lit beneath, a line of the house's teal along its edge, and on it
+# the house's name in white tubes (KAIZORA, the tower's own house: an
+# invented name). Its hall's light on the square before it; guards.
+DX0, DX1 = DOOR
+box((PL, "trim", 0), DX0 + 0.1, DX1 - 0.1, 0.15, 0.42, BZ1, BZ1 + 0.9, col=B.TRIM[0], scale=2.0)
+for k in range(5):
+    x = 75.4 + k * 1.8
+    box((PL, "board_frame", 0), x - 0.07, x + 0.07, 0.42, 3.05, BZ1 + 0.05, BZ1 + 0.24, scale=1.0)
+box((PL, "board_frame", 0), 75.3, 82.8, 3.0, 3.3, BZ1 + 0.05, BZ1 + 0.26, scale=1.0)
+box((PL, "glow", 0), 75.5, 82.6, 3.08, 3.2, BZ1 + 0.26, BZ1 + 0.29, col=dim("white", 1.1))
+for k in range(4):
+    x = 76.3 + k * 1.8
+    for d in (-0.22, 0.22):
+        box((PL, "metal", 1), x + d - 0.025, x + d + 0.025, 0.95, 1.75, BZ1 + 0.24, BZ1 + 0.3, scale=0.5)
+CY, CZ = 6.55, BZ1 + 4.4
+box((PL, "board_frame", 0), DX0 + 0.6, DX1 - 0.6, CY, CY + 0.3, BZ1 + 0.05, CZ, scale=1.0, bottom=True)
+x = DX0 + 1.5
+while x < DX1 - 1.0:
+    box((PL, "glow", 0), x - 0.55, x + 0.55, CY - 0.02, CY, BZ1 + 1.0, CZ - 0.6, col=dim("white", 0.6), bottom=True)
+    x += 2.0
+nbox("teal", DX0 + 0.6, DX1 - 0.6, CY + 0.06, CY + 0.2, CZ, CZ + 0.04)
+for x in (DX0 + 1.2, DX1 - 1.2):
+    pipe((PL, "metal", 0), (x, CY + 0.3, CZ - 0.3), (x, 10.6, BZ1 + 0.06), 0.05, segs=5)
+# (The name stands on a steel rail over the canopy, high enough for the
+# Work shot's frame, its foot at 8.4 m: on the canopy it was cut by it.)
+NY, NZ = 8.4, BZ1 + 0.7
+box((PL, "metal", 0), DX0 + 3.0, DX1 - 3.0, NY - 0.1, NY - 0.02, NZ - 0.15, NZ + 0.15, scale=1.0)
+for x in (DX0 + 3.2, 79.0, DX1 - 3.2):
+    box((PL, "metal", 1), x - 0.04, x + 0.04, CY + 0.3, NY - 0.1, NZ - 0.04, NZ + 0.04, scale=0.5)
+tube_word("KAIZORA", 79.0, NY, NZ, 1.05, (PL, "neon_white", 0), r=0.045)
+for x in (75.0, 79.0, 83.0):
+    shine(x, 3.2, BZ1 + 2.6, "white", 7.0, reach=6.0)
+shine(79.0, 6.0, BZ1 + 5.2, "teal", 3.0, reach=5.0)
+for (px, yaw) in ((74.2, 0.0), (83.9, 0.0)):
+    stand(px, BZ1 + 1.6, yaw, "idle", y=0.15)
+stand(78.2, BZ1 + 2.6, math.pi, "carry", y=0.15)
+stand(80.6, BZ1 + 3.3, 0.3, "phone", y=0.15)
 
 # ---------------------------------------------------------------------------
 # The walkway over the x 120 road (Fn9gKhU_2_Q@74, @81): from B1's corner
@@ -139,3 +192,14 @@ for s in (4.0, 10.0, 16.0, 22.0, 28.0, 33.0):
     light(PL, 45.4, 4.0, z, "amber", 4.0)
 big_sign("pm", 1.9, 44.5, 6.6, -248.0, math.pi / 2, double=False)
 big_sign("ps", 1.9, 44.5, 6.6, -253.5, math.pi / 2, double=False, frame=True)
+
+# The small board over the housing (board_7, plaza.py) in a lit bezel and
+# under a line of light, so it reads as a lit screen however dark the
+# entry it shows.
+b7x, b7y, b7z, b7w, b7h = 79.0, 41.0, -262.6, 12.0, 4.0
+for (xa, xb, ya, yb) in ((b7x - b7w / 2 - 0.3, b7x + b7w / 2 + 0.3, b7y + b7h / 2, b7y + b7h / 2 + 0.16),
+                         (b7x - b7w / 2 - 0.3, b7x + b7w / 2 + 0.3, b7y - b7h / 2 - 0.16, b7y - b7h / 2),
+                         (b7x - b7w / 2 - 0.16, b7x - b7w / 2, b7y - b7h / 2, b7y + b7h / 2),
+                         (b7x + b7w / 2, b7x + b7w / 2 + 0.16, b7y - b7h / 2, b7y + b7h / 2)):
+    box((PL, "glow", 0), xa, xb, ya, yb, b7z - 0.06, b7z + 0.02, col=dim("white", 0.3))
+box((PL, "glow", 0), b7x - b7w / 2, b7x + b7w / 2, b7y + b7h / 2 + 0.36, b7y + b7h / 2 + 0.52, b7z - 0.2, b7z - 0.12, col=dim("cyan", 0.3))
