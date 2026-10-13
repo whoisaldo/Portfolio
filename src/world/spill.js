@@ -49,10 +49,13 @@ const _ac = new THREE.Vector3();
 // the map is read in the order it lies in memory; each sum takes the same
 // values in the same order as one sum a column and channel would, so the
 // result is the same to the bit.
-function boxBlur(src, dst, W, H, r, horizontal) {
+// (load: rows y0 to y1 of it, so a district's bake once the city is live
+// can be spread over the page's frames; `sum` carries the downward sums
+// from one range to the next. boxBlur runs all rows at once, as before.)
+function boxRows(src, dst, W, H, r, horizontal, y0, y1, sum) {
   const n = 2 * r + 1;
   if (horizontal) {
-    for (let y = 0; y < H; y++) {
+    for (let y = y0; y < y1; y++) {
       const row = y * W * 3;
       let s0 = 0;
       let s1 = 0;
@@ -77,12 +80,13 @@ function boxBlur(src, dst, W, H, r, horizontal) {
     }
   } else {
     const line = W * 3;
-    const sum = new Float64Array(line);
-    for (let y = -r; y <= r; y++) {
-      const row = Math.min(H - 1, Math.max(0, y)) * line;
-      for (let k = 0; k < line; k++) sum[k] += src[row + k];
+    if (y0 === 0) {
+      for (let y = -r; y <= r; y++) {
+        const row = Math.min(H - 1, Math.max(0, y)) * line;
+        for (let k = 0; k < line; k++) sum[k] += src[row + k];
+      }
     }
-    for (let y = 0; y < H; y++) {
+    for (let y = y0; y < y1; y++) {
       const d = y * line;
       const out = (y - r > 0 ? y - r : 0) * line;
       const inn = (y + r + 1 < H ? y + r + 1 : H - 1) * line;
@@ -94,11 +98,20 @@ function boxBlur(src, dst, W, H, r, horizontal) {
   }
 }
 
-function blur(field, W, H, r, passes = 3) {
+const ROWS = 48;
+function* boxSteps(src, dst, W, H, r, horizontal) {
+  const sum = horizontal ? null : new Float64Array(W * 3);
+  for (let y = 0; y < H; y += ROWS) {
+    boxRows(src, dst, W, H, r, horizontal, y, Math.min(H, y + ROWS), sum);
+    yield;
+  }
+}
+
+function* blurSteps(field, W, H, r, passes = 3) {
   const tmp = new Float32Array(field.length);
   for (let i = 0; i < passes; i++) {
-    boxBlur(field, tmp, W, H, r, true);
-    boxBlur(tmp, field, W, H, r, false);
+    yield* boxSteps(field, tmp, W, H, r, true);
+    yield* boxSteps(tmp, field, W, H, r, false);
   }
   return field;
 }
@@ -119,14 +132,21 @@ function autoGain(field, target, pct = 0.985) {
   return target / sorted[Math.min(n - 1, Math.floor(n * pct))];
 }
 
-function encode(field, W, H, gain, height = null) {
-  const data = new Uint8Array(W * H * 4);
-  for (let i = 0; i < W * H; i++) {
+function encodeCells(field, data, gain, height, i0, i1) {
+  for (let i = i0; i < i1; i++) {
     for (let ch = 0; ch < 3; ch++) {
       const v = Math.min(1, field[i * 3 + ch] * gain);
       data[i * 4 + ch] = Math.round(Math.sqrt(v) * 255);
     }
     data[i * 4 + 3] = height && height[i * 3] > 1e-6 ? Math.min(255, Math.round((height[i * 3 + 1] / height[i * 3]) * 16)) : 255;
+  }
+}
+
+function* encodeSteps(field, W, H, gain, height = null) {
+  const data = new Uint8Array(W * H * 4);
+  for (let i = 0; i < W * H; i += W * ROWS) {
+    encodeCells(field, data, gain, height, i, Math.min(W * H, i + W * ROWS));
+    yield;
   }
   const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.UnsignedByteType);
   tex.magFilter = THREE.LinearFilter;
@@ -240,7 +260,7 @@ export function createBake() {
   // kept, so the street the reader is looking at does not change its light
   // when a district arrives somewhere else.
   let gains = null;
-  const finish = () => {
+  function* finishSteps() {
     // The pool: a tight halo in each sign's own colour, which is what
     // lights the wall beside it and the pavement under it, plus a wide wash
     // down the street. The wash is every sign's colour summed, which is
@@ -249,10 +269,11 @@ export function createBake() {
     // lane between two pools is dark and navy, not evenly mauve.
     // And nearest of all, a couple of metres round each: the light a walker
     // sees land on the wall a sign hangs on.
-    const near = blur(pool.slice(), W, H, 1, 2);
-    const tight = blur(pool.slice(), W, H, 2);
-    const wide = blur(pool.slice(), W, H, 7);
-    for (let i = 0; i < tight.length; i += 3) {
+    const near = yield* blurSteps(pool.slice(), W, H, 1, 2);
+    const tight = yield* blurSteps(pool.slice(), W, H, 2);
+    const wide = yield* blurSteps(pool.slice(), W, H, 7);
+    yield* spans(tight.length, (i0, i1) => {
+    for (let i = i0; i < i1; i += 3) {
       const x = x0 + ((i / 3) % W + 0.5) * CELL;
       const away = Math.min(1, Math.max(0, (Math.abs(x) - 22) / 20));
       const l = (wide[i] * 0.3 + wide[i + 1] * 0.59 + wide[i + 2] * 0.11) * 0.7 * away;
@@ -261,11 +282,12 @@ export function createBake() {
       tight[i + 1] = near[i + 1] * 0.35 + tight[i + 1] * 0.6 + (wide[i + 1] * (1 - 0.7 * away) + l * 0.9) * wash;
       tight[i + 2] = near[i + 2] * 0.35 + tight[i + 2] * 0.6 + (wide[i + 2] * (1 - 0.7 * away) + l * 1.25) * wash;
     }
+    });
 
     // The streaks: a hair across the street, a long way along it, more
     // toward the eye than away from it.
     const across = new Float32Array(streak.length);
-    boxBlur(streak, across, SW, SH, 1, true);
+    yield* boxSteps(streak, across, SW, SH, 1, true);
     const decay = Math.exp(-SZ / 14);
     const run = new Float32Array(streak.length);
     for (let x = 0; x < SW; x++) {
@@ -281,7 +303,7 @@ export function createBake() {
       }
     }
     const tmp = new Float32Array(run.length);
-    boxBlur(run, tmp, SW, SH, 3, false);
+    yield* boxSteps(run, tmp, SW, SH, 3, false);
 
     gains ??= { spill: autoGain(tight, 0.85), streaks: autoGain(tmp, 0.9, 0.995) };
     // The gain is the avenue's, whose signs are the size of buildings. An
@@ -289,7 +311,8 @@ export function createBake() {
     // is dimmer than the avenue's street is lifted toward it (its colour
     // kept), so a lamp over a back door lights the wall it is on.
     const ref = 0.5 / gains.spill;
-    for (let i = 0; i < tight.length; i += 3) {
+    yield* spans(tight.length, (i0, i1) => {
+    for (let i = i0; i < i1; i += 3) {
       const m = Math.max(tight[i], tight[i + 1], tight[i + 2]);
       if (m >= ref || m < 1e-7) continue;
       const x = x0 + ((i / 3) % W + 0.5) * CELL;
@@ -299,12 +322,14 @@ export function createBake() {
       tight[i + 1] *= lift;
       tight[i + 2] *= lift;
     }
+    });
     // Each lamp a pool a few metres round, in the encoded map's own units,
     // and no brighter than a lamp's pool is however many lamps the builder
     // hung there (its colour kept): a lane is lit in patches, dark between,
     // not from end to end.
-    const pools = blur(lamps.slice(), W, H, 1, 1);
-    for (let i = 0; i < tight.length; i += 3) {
+    const pools = yield* blurSteps(lamps.slice(), W, H, 1, 1);
+    yield* spans(tight.length, (i0, i1) => {
+    for (let i = i0; i < i1; i += 3) {
       const m = (Math.max(pools[i], pools[i + 1], pools[i + 2]) * LAMP_GAIN) / gains.spill;
       if (m < 1e-6) continue;
       const k = ((1.2 * (1 - Math.exp(-m / 1.2))) / m) * (LAMP_GAIN / gains.spill);
@@ -312,6 +337,7 @@ export function createBake() {
       tight[i + 1] += pools[i + 1] * k;
       tight[i + 2] += pools[i + 2] * k;
     }
+    });
     const bounds = new THREE.Vector4(x0, z0, 1 / (x1 - x0), 1 / (z1 - z0));
     const streakBounds = new THREE.Vector4(STREAK_BOUNDS.x0, STREAK_BOUNDS.z0,
       1 / (STREAK_BOUNDS.x1 - STREAK_BOUNDS.x0), 1 / (STREAK_BOUNDS.z1 - STREAK_BOUNDS.z0));
@@ -319,7 +345,8 @@ export function createBake() {
     // the map holds, its channels together, so it keeps its colour: clipped,
     // a pavement under six signs is lit white and no pool stands out of it.
     // The avenue's ceiling is lower: its light is the hero's.
-    for (let i = 0; i < tight.length; i += 3) {
+    yield* spans(tight.length, (i0, i1) => {
+    for (let i = i0; i < i1; i += 3) {
       const m = Math.max(tight[i], tight[i + 1], tight[i + 2]) * gains.spill;
       if (m <= 0.6) continue;
       const x = x0 + ((i / 3) % W + 0.5) * CELL;
@@ -329,8 +356,10 @@ export function createBake() {
       tight[i + 1] *= ease;
       tight[i + 2] *= ease;
     }
-    const spill = encode(tight, W, H, gains.spill / SPILL_RANGE, blur(hung.slice(), W, H, 2, 2));
-    const streaks = encode(tmp, SW, SH, gains.streaks);
+    });
+    const height = yield* blurSteps(hung.slice(), W, H, 2, 2);
+    const spill = yield* encodeSteps(tight, W, H, gains.spill / SPILL_RANGE, height);
+    const streaks = yield* encodeSteps(tmp, SW, SH, gains.streaks);
     return {
       spill,
       streaks,
@@ -341,8 +370,38 @@ export function createBake() {
         streaks.dispose();
       },
     };
+  }
+  // (load: the map's work in pieces of ROWS rows, so a district's bake once
+  // the city is live can be spread over the page's frames; finish runs them
+  // straight through, as before, and both make the same maps to the bit.)
+  function* spans(length, fn) {
+    const span = 3 * W * ROWS;
+    for (let i = 0; i < length; i += span) {
+      fn(i, Math.min(length, i + span));
+      yield;
+    }
+  }
+  const finish = () => {
+    const steps = finishSteps();
+    let r;
+    while (!(r = steps.next()).done);
+    return r.value;
   };
-  return { add, addPoints, finish };
+  /** finish, `budget` milliseconds at a time: `between()` resolves when the
+   *  page has a moment between its frames. */
+  const finishSliced = async (between, budget = 4) => {
+    const steps = finishSteps();
+    let t = performance.now();
+    for (;;) {
+      const r = steps.next();
+      if (r.done) return r.value;
+      if (performance.now() - t > budget) {
+        await between();
+        t = performance.now();
+      }
+    }
+  };
+  return { add, addPoints, finish, finishSliced };
 }
 
 /** The whole bake at once: sources: [{ mesh, color: THREE.Color (linear), intensity }]. */
