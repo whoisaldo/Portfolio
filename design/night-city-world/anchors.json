@@ -5698,9 +5698,9 @@
    "name": "anchor_steam_zz_roof_plaza_2",
    "kind": "anchor",
    "at": [
-    69.8,
-    47.3,
-    -297.5
+    62.8,
+    64.3,
+    -329.0
    ],
    "yaw": 0.0,
    "district": "plaza"
@@ -5709,9 +5709,9 @@
    "name": "anchor_steam_zz_roof_plaza_3",
    "kind": "anchor",
    "at": [
-    116.7,
-    46.7,
-    -431.2
+    157.9,
+    53.3,
+    -449.2
    ],
    "yaw": 0.0,
    "district": "plaza"
