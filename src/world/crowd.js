@@ -1029,7 +1029,8 @@ const HEAD = /* glsl */ `
     float among = smoothstep(-1.2, -0.4, uCam.y - ground) * (1.0 - smoothstep(2.6, 3.4, uCam.y - ground));
     float brolly = ${f(BROLLY)} * bit(aLook.x, ${f(TAG.umbrella)});
     vec2 rel = at - uCam.xz;
-    float ends = 1.0;
+    // (Someone standing is at no walk's end: whole however far off.)
+    float ends = 1e3;
     if (walking) {
       // Along the walk their file bends round what stands in it.
       float row = (-aBody.z - 0.5) / uLaneRows;
