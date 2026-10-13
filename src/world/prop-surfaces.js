@@ -1044,7 +1044,7 @@ export function createPropSurfaces(dressed) {
             gloss = 0.4;
           } else {
             // Galvanised steel: dull, mottled, white where it has bloomed.
-            albedo = vec3(0.09, 0.095, 0.1) * vColor.r * (0.7 + 0.5 * vn3(p * 1.9));
+            albedo = vec3(0.15, 0.155, 0.16) * vColor.r * (0.7 + 0.5 * vn3(p * 1.9));
             albedo = mix(albedo, vec3(0.2, 0.2, 0.19), smoothstep(0.72, 0.9, vn3(p * 3.3)) * 0.5 * fine);
             albedo = mix(albedo, vec3(0.14, 0.05, 0.02), smoothstep(0.75, 0.9, vn3(p * 0.8 + 3.0)) * wear);
             gloss = 0.5;
@@ -1083,8 +1083,11 @@ export function createPropSurfaces(dressed) {
             glint += uLampColors[i] * pow(max(dot(R, d * inversesqrt(d2)), 0.0), 40.0) * (1.0 - d2 / r2);
           }
           col += (skyR * F + glint + spill * 0.25 * pow(max(-R.y, 0.0), 6.0)) * 0.9 * gloss;
-          // A dark shape holds a little of the haze behind it at its edges.
+          // A dark shape holds a little of the haze behind it at its edges,
+          // and the rain on what faces the sky holds the lit cloud, as a
+          // roof's does: seen from over it, it is not a hole in the roof.
           float rim = pow(1.0 - abs(dot(V, n)), 3.0);
+          col += (uHazeColor * 0.22 + uGlowColor * 0.12) * uHaze * 4.0 * up * (0.045 + 0.5 * rim) * gloss * 2.0;
           col += (hazeAt(-V) * 1.5 + glowAt(-V) * 0.45) * rim * 0.5 * uHaze * (1.0 - up) * smoothstep(12.0, 50.0, length(uCam - vWorld));
           col = cityFog(col, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);

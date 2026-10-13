@@ -899,3 +899,147 @@ def _food_cart(k):
         for x in (-0.94, 0.94):
             box(k("trim"), x - 0.025, x + 0.025, 1.05, 2.1, s_ * 0.54 - 0.025, s_ * 0.54 + 0.025, scale=0.5, col=STEEL)
 
+
+
+# ---------------------------------------------------------------------------
+# Roof plant: what stands on a city's roofs (agents/props/CATALOGUE.md). Each
+# stands on the roof's deck at y 0, front to +z; scale with sxz, stretch the
+# mast with sy. Galvanised and painted steel in the `worn` material (its
+# wear and its dents are each one's own), lamps in `glow`.
+# ---------------------------------------------------------------------------
+@proto("roof_condenser", box=(1.8, 0.6, 0.5))
+def _roof_condenser(k):
+    """A bank of three condensers on a steel frame, 3.6 m long: louvred
+    fronts, a fan under a guard on each top, their pipes down at the back,
+    a status lamp lit on each front."""
+    w = k("worn")
+    galv, dark = worn(GALV, 1.0, 0.45), worn(RUBBER)
+    for z in (-0.4, 0.4):
+        box(w, -1.8, 1.8, 0.0, 0.12, z - 0.06, z + 0.06, col=worn(GALV, 0.7, 0.8))
+    for x in (-1.2, 0.0, 1.2):
+        box(w, x - 0.56, x + 0.56, 0.12, 1.12, -0.47, 0.47, col=galv)
+        for i in range(5):
+            y = 0.26 + i * 0.16
+            quad(w, (x - 0.46, y, 0.474), (x + 0.46, y, 0.474), (x + 0.46, y + 0.07, 0.474), (x - 0.46, y + 0.07, 0.474), col=dark)
+        cylinder(w, x, 0.0, 1.12, 1.17, 0.43, segs=10, col=dark)
+        cylinder(k("worn", 1), x, 0.0, 1.17, 1.2, 0.08, segs=6, col=worn(GALV, 0.5))
+        box(k("glow"), x + 0.36, x + 0.44, 1.0, 1.05, 0.47, 0.49, scale=0.5, col=GLOW["green" if x < 1 else "amber"])
+        pipe(k("worn", 1), (x + 0.3, 0.5, -0.47), (x + 0.3, 0.5, -0.62), 0.035, segs=5, col=worn(RUST))
+        pipe(k("worn", 1), (x + 0.3, 0.5, -0.62), (x + 0.3, 0.0, -0.62), 0.035, segs=5, col=worn(RUST))
+
+
+@proto("roof_duct", box=(2.0, 0.6, 0.35))
+def _roof_duct(k):
+    """A square duct on stands, 4 m along x, its collars a metre apart,
+    turning down into the roof at its +x end."""
+    w = k("worn")
+    galv = worn(GALV, 0.95, 0.6)
+    box(w, -2.0, 1.6, 0.6, 1.1, -0.3, 0.3, col=galv)
+    box(w, 1.5, 2.0, 0.0, 1.1, -0.3, 0.3, col=galv)
+    for x in (-1.9, -1.0, 0.0, 1.0):
+        box(w, x - 0.04, x + 0.04, 0.57, 1.13, -0.33, 0.33, col=worn(GALV, 0.75, 0.7))
+    for x in (-1.5, 0.6):
+        for z in (-0.25, 0.25):
+            box(w, x - 0.04, x + 0.04, 0.0, 0.6, z - 0.04, z + 0.04, col=worn(GALV, 0.6, 0.9))
+
+
+@proto("roof_vent", box=(0.35, 0.5, 0.35), reach=420, detail=True)
+def _roof_vent(k):
+    """A turbine vent: a stub on a flashing plate under a ribbed ball."""
+    w = k("worn")
+    box(w, -0.35, 0.35, 0.0, 0.04, -0.35, 0.35, col=worn(GALV, 0.7, 0.8))
+    spun(w, ((0.04, 0.17), (0.5, 0.17), (0.52, 0.22)), segs=10, col=worn(GALV_ROUND, 0.9, 0.6))
+    spun(w, ((0.52, 0.22), (0.62, 0.3), (0.78, 0.31), (0.92, 0.24), (0.98, 0.1), (1.0, 0.0)), segs=12, col=worn(GALV_ROUND, 1.0, 0.5))
+
+
+@proto("roof_mast", box=(0.4, 4.0, 0.4), reach=900)
+def _roof_mast(k):
+    """A lattice mast 8 m high (stretch with sy): three legs braced every
+    metre, two panel antennas and a small dish on it, a red lamp on top."""
+    w = k("worn")
+    galv = worn(GALV, 0.9, 0.6)
+    legs = [(0.32 * math.cos(a), 0.32 * math.sin(a)) for a in (math.pi / 2, math.pi / 2 + math.tau / 3, math.pi / 2 - math.tau / 3)]
+    for x, z in legs:
+        box(w, x - 0.03, x + 0.03, 0.0, 8.0, z - 0.03, z + 0.03, col=galv)
+    for i in range(8):
+        y = i * 1.0
+        for (ax, az), (bx, bz) in zip(legs, legs[1:] + legs[:1]):
+            for s_ in (0, 1):
+                y0, y1 = (y, y + 1.0) if s_ == 0 else (y + 1.0, y)
+                quad(w, (ax, y0 - 0.02, az), (bx, y1 - 0.02, bz), (bx, y1 + 0.02, bz), (ax, y0 + 0.02, az), col=worn(GALV, 0.7, 0.6))
+    for a, y in ((0.4, 6.4), (2.6, 5.6)):
+        oriented_box(w, math.sin(a) * 0.42, y, math.cos(a) * 0.42, 0.26, 1.2, 0.08, a, col=worn(GALV, 1.0, 0.2))
+    dish(w, (0.0, 4.6, 0.55), (0.1, 0.0, 1.0), 0.32, depth=0.12, segs=10, col=worn(GALV, 1.0, 0.3))
+    box(k("glow"), -0.07, 0.07, 8.0, 8.16, -0.07, 0.07, scale=0.5, col=GLOW["red"])
+
+
+@proto("roof_dish", box=(0.9, 1.2, 0.9), reach=600, detail=True)
+def _roof_dish(k):
+    """A satellite dish 1.8 m across on a ballasted frame, looking up to +z."""
+    w = k("worn")
+    for x in (-0.7, 0.7):
+        box(w, x - 0.05, x + 0.05, 0.0, 0.1, -0.75, 0.75, col=worn(GALV, 0.6, 0.9))
+    for z in (-0.7, 0.7):
+        box(w, -0.75, 0.75, 0.1, 0.18, z - 0.05, z + 0.05, col=worn(GALV, 0.6, 0.9))
+        box(w, -0.5, -0.1, 0.18, 0.35, z - 0.2, z + 0.2, col=worn(GALV, 0.45, 0.9))
+    box(w, -0.05, 0.05, 0.18, 1.2, -0.05, 0.05, col=worn(GALV, 0.8, 0.6))
+    dish(w, (0.0, 1.45, 0.2), (0.0, 0.55, 0.85), 0.9, depth=0.3, segs=14, col=worn(GALV, 1.0, 0.35))
+    pipe(w, (0.0, 1.45, 0.2), (0.0, 1.85, 0.85), 0.025, segs=4, col=worn(GALV, 0.7))
+
+
+@proto("roof_tank", box=(1.3, 2.4, 1.3), reach=900)
+def _roof_tank(k):
+    """A water tank on stilts: a banded steel drum 2.2 m across on four
+    braced legs, a conical lid with its hatch, a caged ladder up its +z side
+    and its pipe down to the roof; rust running down from its bands."""
+    w = k("worn")
+    leg = worn(GALV, 0.75, 0.8)
+    for lx, lz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+        box(w, lx * 0.8 - 0.07, lx * 0.8 + 0.07, 0.0, 2.0, lz * 0.8 - 0.07, lz * 0.8 + 0.07, col=leg)
+    for (ax, az), (bx, bz) in (((-0.8, -0.8), (0.8, -0.8)), ((0.8, -0.8), (0.8, 0.8)), ((0.8, 0.8), (-0.8, 0.8)), ((-0.8, 0.8), (-0.8, -0.8))):
+        quad(w, (ax, 0.3, az), (bx, 1.8, bz), (bx, 1.86, bz), (ax, 0.36, az), col=leg)
+        quad(w, (ax, 1.95, az), (bx, 1.95, bz), (bx, 2.03, bz), (ax, 2.03, az), col=leg)
+    spun(w, ((2.0, 1.04), (2.05, 1.1), (2.75, 1.1), (2.78, 1.13), (2.84, 1.1), (3.55, 1.1), (3.58, 1.13), (3.64, 1.1), (4.35, 1.1),
+             (4.4, 1.13), (4.7, 0.5), (4.76, 0.12)), segs=12, col=worn(GALV_ROUND, 0.95, 0.75), top=True)
+    box(w, -0.25, 0.25, 4.5, 4.66, 0.3, 0.75, col=worn(GALV, 0.7, 0.6))
+    pipe(w, (0.4, 2.0, -0.3), (0.4, 0.0, -0.3), 0.07, segs=6, col=worn(RUST))
+    for x in (-0.22, 0.22):
+        box(w, x - 0.025, x + 0.025, 0.0, 4.6, 1.18, 1.23, col=worn(GALV, 0.8, 0.6))
+    for i in range(14):
+        y = 0.3 + i * 0.3
+        box(k("worn", 1), -0.22, 0.22, y, y + 0.03, 1.19, 1.22, col=worn(GALV, 0.8, 0.6))
+    for i in range(5):
+        y = 2.4 + i * 0.5
+        quad(k("worn", 1), (-0.32, y, 1.22), (-0.32, y, 1.6), (0.32, y, 1.6), (0.32, y, 1.22), col=worn(GALV, 0.7, 0.6))
+
+
+@proto("roof_tray", box=(1.5, 0.25, 0.15), reach=420, detail=True)
+def _roof_tray(k):
+    """A cable tray 3 m along x on low stands, three cables in it."""
+    w = k("worn")
+    galv = worn(GALV, 0.85, 0.6)
+    quad(w, (-1.5, 0.35, 0.14), (1.5, 0.35, 0.14), (1.5, 0.35, -0.14), (-1.5, 0.35, -0.14), col=galv)
+    for z in (-0.14, 0.14):
+        quad(w, (-1.5, 0.35, z), (1.5, 0.35, z), (1.5, 0.45, z), (-1.5, 0.45, z), col=galv)
+    for x in (-1.3, 0.0, 1.3):
+        box(w, x - 0.03, x + 0.03, 0.0, 0.35, -0.15, 0.15, col=worn(GALV, 0.6, 0.8))
+    for z, r in ((-0.07, 0.035), (0.0, 0.03), (0.07, 0.04)):
+        pipe(w, (-1.5, 0.36 + r, z), (1.5, 0.36 + r, z), r, segs=5, col=worn(RUBBER))
+
+
+@proto("roof_hut", box=(1.3, 1.4, 1.2))
+def _roof_hut(k):
+    """A stair hut, 2.6 m by 2.4 and 2.8 high: concrete under an
+    overhanging slab, a steel door to +z in its frame with a lamp over it, a
+    louvred vent on its side and a plate by the door."""
+    box(k("trim"), -1.3, 1.3, 0.0, 2.7, -1.2, 1.2, scale=1.0, col=(0.11, 0.11, 0.115, 1))
+    box(k("trim"), -1.42, 1.42, 2.7, 2.84, -1.32, 1.32, scale=1.0, col=(0.06, 0.06, 0.065, 1))
+    w = k("worn")
+    box(w, -0.55, 0.55, 0.0, 2.15, 1.2, 1.25, col=worn(GALV, 0.6, 0.7))
+    box(w, -0.47, 0.47, 0.02, 2.08, 1.25, 1.28, col=worn(PAINT, 0.9, 0.8))
+    box(w, 0.32, 0.4, 0.95, 1.05, 1.28, 1.33, col=worn(GALV, 0.8))
+    rotated_quad(w, 1.0, 1.75, 1.205, 0.32, 0.22, 0.0, col=worn(LABEL))
+    for i in range(6):
+        y = 1.2 + i * 0.12
+        quad(w, (1.302, y, 0.5), (1.302, y, -0.5), (1.302, y + 0.06, -0.5), (1.302, y + 0.06, 0.5), col=worn(RUBBER))
+    box(k("glow"), -0.18, 0.18, 2.3, 2.4, 1.2, 1.32, scale=0.5, col=GLOW["white"])
