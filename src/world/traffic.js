@@ -294,10 +294,12 @@ const ROOF_SIGN = 9;
 // (src/world/traffic-cars-near.js, traffic-cars-near-nc.js: the same six
 // cars with round wheels on spoked rims, lipped arches, smooth panels with
 // cut shut lines, lamp pockets with reflectors, framed glass, mirrors,
-// wipers, a grille, plates), the nearest dozen of them at most; and behind
-// its glass the shader draws its cabin and whoever drives it.
-const NEAR_TO = 16;
-const NEAR_MOST = 12;
+// wipers, a grille, plates), the nearest eighteen of them at most; and
+// behind its glass the shader draws its cabin and whoever drives it. (Out to
+// 26 m: the street's own views see cars from 8 to 25 m off, and the mid
+// model at that range read as a toy beside the S4.)
+const NEAR_TO = 26;
+const NEAR_MOST = 18;
 // Past this far a car is drawn as its coarser self (src/world/traffic-lod.js).
 const DETAIL_TO = 42;
 // Where the first car on each of the deck's two paths starts, as a share of
@@ -856,6 +858,12 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // where the reflected ray meets a frontage about 14 m off, a row of
       // lit signs and windows with dark between them (1 lit, 0 dark),
       // sliding over the car as it moves, as a reflection does.
+      float vnoise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x), mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+      }
       float frontage(vec3 p, vec3 R) {
         float h = length(R.xz);
         if (h < 0.05) return 0.0;
@@ -971,6 +979,15 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           // A flank is not one flat tone: the paint turns under toward the
           // sill and stands up to the street's light toward the shoulder.
           float turn = mix(1.0, 0.5 + 0.65 * smoothstep(uSeam.z, uSeam.w + 0.12, vLocal.y), flank);
+          // A city car is not clean: the lower flank is dulled by the
+          // road's spray, mottled, worst behind each wheel, with a few runs
+          // down from the waist; how much is the car's own.
+          float seedB = fract(vBody.r * 71.0 + vBody.g * 23.0 + vBody.b * 41.0 + vLook.g * 7.0);
+          float spray = (1.0 - smoothstep(uSeam.z - 0.05, uSeam.z + 0.5, vLocal.y)) * (0.5 + 0.5 * vnoise(vec2(vLocal.z * 2.6, vLocal.y * 7.0) + seedB * 40.0));
+          spray *= 0.7 + 0.5 * smoothstep(0.1, 0.9, (abs(vLocal.z) - uWheel.x) * -sign(vLocal.z) + 0.6);
+          float runs = smoothstep(0.78, 0.98, vnoise(vec2(vLocal.z * 16.0 + seedB * 9.0, vLocal.y * 1.2))) * step(vLocal.y, uSeam.w) * 0.6;
+          float dirt = clamp(max(spray, runs) * flank + max(-nl.y, 0.0) * 0.6, 0.0, 1.0) * (0.35 + 0.65 * seedB);
+          body = mix(body, vec3(0.045, 0.04, 0.036), dirt * 0.6);
           vec3 light = vec3(0.06) + side * (0.55 + 0.35 * sky) + spill * 0.3 + lampsAt(vWorld, n) * 1.5 + (uHazeColor * 0.5 + uGlowColor * 0.3) * (0.25 + 0.75 * sky) * uHaze;
           col = body * light * ao * turn;
           // Wet paint: what it gives back, the sky's glow and the signs' on
@@ -978,7 +995,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           // along the flank under the shoulder with a line of light on the
           // crease, and a rim where it turns away from the eye, so that a
           // dark car on a dark road still has its outline.
-          col += env * (0.1 + 0.9 * F) * 0.8 * (0.55 + 0.45 * ao);
+          col += env * (0.1 + 0.9 * F) * 0.8 * (0.55 + 0.45 * ao) * (1.0 - 0.65 * dirt);
           col += (uHazeColor * 0.55 + uGlowColor * 0.3 + spill * 0.35) * sky * sky * 0.22;
           float sheen = exp(-pow((vLocal.y - mix(uSeam.z, uSeam.w, 0.74)) / 0.1, 2.0)) * flank * (1.0 - clad);
           col += (min(toward, vec3(1.4)) * 0.8 + min(side, vec3(1.4)) * 0.5 + uHazeColor * 0.3) * sheen * 0.2;
@@ -2239,7 +2256,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         setLamp(li++, tmp.x, tmp.y, tmp.z, 0.08 * glow, 0.2 * glow, glow * (1 - 0.7 * flip), 1.1);
       }
     }
-    // The nearest dozen as their close-up models; any more as they were.
+    // The nearest eighteen as their close-up models; any more as they were.
     const close = nearN > NEAR_MOST ? nearby.slice(0, nearN).sort((a, b) => a.off - b.off) : nearby;
     for (let i = 0; i < nearN; i++) put(close[i].x, close[i].shown, close[i].braking, i < NEAR_MOST ? 2 : 0, close[i].p, close[i].q);
     voices.train = null;
