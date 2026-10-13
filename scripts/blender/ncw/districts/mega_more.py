@@ -207,11 +207,22 @@ for i, (x0, x1, z0, z1, top) in enumerate(ROOFS):
 # stair or a hall), and a lit deck where people sit out.
 # ---------------------------------------------------------------------------
 def skylights(x0, z0, nx, nz, y, hue="white", k=0.16, w=1.5, d=2.2, gap=0.9):
+    """Roof lights in rows: a kerb each, its glass in two panes by a bar
+    and each pane its own (one dark, one dim, one bright), never one white
+    sheet."""
+    r = random.Random(int(x0 * 13 + z0))
     for i in range(nx):
         for j in range(nz):
             xa, za = x0 + i * (w + gap), z0 + j * (d + gap)
             box((D, "metal", 1), xa - 0.1, xa + w + 0.1, y, y + 0.3, za - 0.1, za + d + 0.1, scale=1.0)
-            hquad((D, "glow", 0), xa, xa + w, za, za + d, y + 0.31, col=dim(GLOW[hue], k))
+            for (a, b) in ((za, za + d / 2 - 0.04), (za + d / 2 + 0.04, za + d)):
+                t = r.random()
+                if t < 0.2:
+                    hquad((D, "trim", 0), xa, xa + w, a, b, y + 0.31, col=(0.05, 0.06, 0.07, 1.0))
+                else:
+                    hquad((D, "glow", 0), xa, xa + w, a, b, y + 0.31, col=dim(GLOW[r.choice((hue, hue, "amber"))], k * (0.35 if t < 0.6 else 0.7)))
+            for dx in (w / 3, 2 * w / 3):
+                hquad((D, "trim", 1), xa + dx - 0.03, xa + dx + 0.03, za, za + d, y + 0.32, col=BLACK)
 
 
 def lit_deck(x0, x1, z0, z1, y, hue="amber", k=0.07):
