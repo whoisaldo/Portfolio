@@ -311,6 +311,34 @@ const ICONS = {
   plug(c, s) { c.moveTo(0.38 * s, 0.14 * s); c.lineTo(0.38 * s, 0.32 * s); c.moveTo(0.62 * s, 0.14 * s); c.lineTo(0.62 * s, 0.32 * s); c.moveTo(0.28 * s, 0.32 * s); c.lineTo(0.72 * s, 0.32 * s); c.lineTo(0.72 * s, 0.48 * s); c.quadraticCurveTo(0.72 * s, 0.66 * s, 0.5 * s, 0.66 * s); c.quadraticCurveTo(0.28 * s, 0.66 * s, 0.28 * s, 0.48 * s); c.closePath(); c.moveTo(0.5 * s, 0.66 * s); c.lineTo(0.5 * s, 0.88 * s); },
   book(c, s) { c.moveTo(0.5 * s, 0.28 * s); c.quadraticCurveTo(0.34 * s, 0.2 * s, 0.16 * s, 0.26 * s); c.lineTo(0.16 * s, 0.74 * s); c.quadraticCurveTo(0.34 * s, 0.68 * s, 0.5 * s, 0.76 * s); c.quadraticCurveTo(0.66 * s, 0.68 * s, 0.84 * s, 0.74 * s); c.lineTo(0.84 * s, 0.26 * s); c.quadraticCurveTo(0.66 * s, 0.2 * s, 0.5 * s, 0.28 * s); c.lineTo(0.5 * s, 0.76 * s); },
   signal(c, s) { c.moveTo(0.54 * s, 0.76 * s); c.arc(0.5 * s, 0.76 * s, 0.04 * s, 0, Math.PI * 2); for (const r of [0.17, 0.31, 0.45]) { c.moveTo((0.5 - r * Math.SQRT1_2) * s, (0.76 - r * Math.SQRT1_2) * s); c.arc(0.5 * s, 0.76 * s, r * s, -Math.PI * 0.75, -Math.PI * 0.25); } },
+  // (Round 8: more pictograms, so a column of square signs is not the same
+  // half dozen down every street.)
+  skull(c, s) { c.moveTo(0.316 * s, 0.644 * s); c.arc(0.5 * s, 0.46 * s, 0.26 * s, Math.PI * 0.75, Math.PI * 2.25); c.lineTo(0.62 * s, 0.78 * s); c.lineTo(0.38 * s, 0.78 * s); c.closePath(); for (const x of [0.4, 0.6]) { c.moveTo((x + 0.06) * s, 0.46 * s); c.arc(x * s, 0.46 * s, 0.06 * s, 0, Math.PI * 2); } for (const x of [0.46, 0.54]) { c.moveTo(x * s, 0.7 * s); c.lineTo(x * s, 0.78 * s); } },
+  bike(c, s) { for (const x of [0.28, 0.72]) { c.moveTo((x + 0.15) * s, 0.62 * s); c.arc(x * s, 0.62 * s, 0.15 * s, 0, Math.PI * 2); } c.moveTo(0.28 * s, 0.62 * s); c.lineTo(0.44 * s, 0.42 * s); c.lineTo(0.6 * s, 0.62 * s); c.closePath(); c.moveTo(0.44 * s, 0.42 * s); c.lineTo(0.66 * s, 0.42 * s); c.moveTo(0.72 * s, 0.62 * s); c.lineTo(0.64 * s, 0.34 * s); c.lineTo(0.74 * s, 0.3 * s); c.moveTo(0.36 * s, 0.34 * s); c.lineTo(0.5 * s, 0.34 * s); },
+  phone(c, s) { roundRect(c, 0.32 * s, 0.14 * s, 0.36 * s, 0.72 * s, 0.05 * s); c.moveTo(0.44 * s, 0.22 * s); c.lineTo(0.56 * s, 0.22 * s); c.moveTo(0.53 * s, 0.76 * s); c.arc(0.5 * s, 0.76 * s, 0.03 * s, 0, Math.PI * 2); },
+  camera(c, s) { roundRect(c, 0.16 * s, 0.32 * s, 0.68 * s, 0.46 * s, 0.06 * s); c.moveTo(0.36 * s, 0.32 * s); c.lineTo(0.42 * s, 0.22 * s); c.lineTo(0.58 * s, 0.22 * s); c.lineTo(0.64 * s, 0.32 * s); c.moveTo(0.64 * s, 0.55 * s); c.arc(0.5 * s, 0.55 * s, 0.14 * s, 0, Math.PI * 2); },
+  headphones(c, s) { c.moveTo(0.22 * s, 0.56 * s); c.arc(0.5 * s, 0.56 * s, 0.28 * s, Math.PI, Math.PI * 2); roundRect(c, 0.14 * s, 0.52 * s, 0.13 * s, 0.26 * s, 0.04 * s); roundRect(c, 0.73 * s, 0.52 * s, 0.13 * s, 0.26 * s, 0.04 * s); },
+  controller(c, s) { roundRect(c, 0.14 * s, 0.36 * s, 0.72 * s, 0.32 * s, 0.14 * s); c.moveTo(0.26 * s, 0.52 * s); c.lineTo(0.38 * s, 0.52 * s); c.moveTo(0.32 * s, 0.46 * s); c.lineTo(0.32 * s, 0.58 * s); for (const [x, y] of [[0.66, 0.47], [0.74, 0.55]]) { c.moveTo((x + 0.03) * s, y * s); c.arc(x * s, y * s, 0.03 * s, 0, Math.PI * 2); } },
+  shirt(c, s) { c.moveTo(0.36 * s, 0.2 * s); c.lineTo(0.18 * s, 0.32 * s); c.lineTo(0.26 * s, 0.46 * s); c.lineTo(0.34 * s, 0.42 * s); c.lineTo(0.34 * s, 0.82 * s); c.lineTo(0.66 * s, 0.82 * s); c.lineTo(0.66 * s, 0.42 * s); c.lineTo(0.74 * s, 0.46 * s); c.lineTo(0.82 * s, 0.32 * s); c.lineTo(0.64 * s, 0.2 * s); c.quadraticCurveTo(0.5 * s, 0.32 * s, 0.36 * s, 0.2 * s); },
+  scissors(c, s) { for (const x of [0.3, 0.7]) { c.moveTo((x + 0.08) * s, 0.72 * s); c.arc(x * s, 0.72 * s, 0.08 * s, 0, Math.PI * 2); } c.moveTo(0.35 * s, 0.65 * s); c.lineTo(0.68 * s, 0.16 * s); c.moveTo(0.65 * s, 0.65 * s); c.lineTo(0.32 * s, 0.16 * s); },
+  syringe(c, s) { c.moveTo(0.3 * s, 0.7 * s); c.lineTo(0.62 * s, 0.38 * s); c.lineTo(0.7 * s, 0.46 * s); c.lineTo(0.38 * s, 0.78 * s); c.closePath(); c.moveTo(0.66 * s, 0.42 * s); c.lineTo(0.8 * s, 0.28 * s); c.moveTo(0.74 * s, 0.22 * s); c.lineTo(0.86 * s, 0.34 * s); c.moveTo(0.34 * s, 0.74 * s); c.lineTo(0.18 * s, 0.9 * s); for (const t of [0.46, 0.54]) { c.moveTo(t * s, (1.0 - t) * s); c.lineTo((t + 0.06) * s, (1.06 - t) * s); } },
+  beer(c, s) { c.moveTo(0.26 * s, 0.3 * s); c.lineTo(0.3 * s, 0.82 * s); c.lineTo(0.6 * s, 0.82 * s); c.lineTo(0.64 * s, 0.3 * s); c.closePath(); c.moveTo(0.63 * s, 0.42 * s); c.quadraticCurveTo(0.86 * s, 0.44 * s, 0.62 * s, 0.68 * s); c.moveTo(0.24 * s, 0.3 * s); c.quadraticCurveTo(0.3 * s, 0.16 * s, 0.4 * s, 0.24 * s); c.quadraticCurveTo(0.5 * s, 0.14 * s, 0.58 * s, 0.24 * s); c.quadraticCurveTo(0.68 * s, 0.18 * s, 0.66 * s, 0.3 * s); },
+  pizza(c, s) { c.moveTo(0.2 * s, 0.24 * s); c.quadraticCurveTo(0.5 * s, 0.12 * s, 0.8 * s, 0.24 * s); c.lineTo(0.5 * s, 0.86 * s); c.closePath(); for (const [x, y] of [[0.4, 0.34], [0.58, 0.38], [0.49, 0.56]]) { c.moveTo((x + 0.045) * s, y * s); c.arc(x * s, y * s, 0.045 * s, 0, Math.PI * 2); } },
+  battery(c, s) { roundRect(c, 0.18 * s, 0.32 * s, 0.58 * s, 0.36 * s, 0.04 * s); c.moveTo(0.76 * s, 0.43 * s); c.lineTo(0.83 * s, 0.43 * s); c.lineTo(0.83 * s, 0.57 * s); c.lineTo(0.76 * s, 0.57 * s); for (const x of [0.3, 0.41, 0.52]) { c.moveTo(x * s, 0.41 * s); c.lineTo(x * s, 0.59 * s); } },
+  crown(c, s) { c.moveTo(0.2 * s, 0.72 * s); c.lineTo(0.16 * s, 0.3 * s); c.lineTo(0.36 * s, 0.5 * s); c.lineTo(0.5 * s, 0.24 * s); c.lineTo(0.64 * s, 0.5 * s); c.lineTo(0.84 * s, 0.3 * s); c.lineTo(0.8 * s, 0.72 * s); c.closePath(); c.moveTo(0.2 * s, 0.81 * s); c.lineTo(0.8 * s, 0.81 * s); },
+  lips(c, s) { c.moveTo(0.14 * s, 0.5 * s); c.quadraticCurveTo(0.3 * s, 0.3 * s, 0.5 * s, 0.4 * s); c.quadraticCurveTo(0.7 * s, 0.3 * s, 0.86 * s, 0.5 * s); c.quadraticCurveTo(0.5 * s, 0.86 * s, 0.14 * s, 0.5 * s); c.moveTo(0.14 * s, 0.5 * s); c.quadraticCurveTo(0.5 * s, 0.58 * s, 0.86 * s, 0.5 * s); },
+  smile(c, s) { c.moveTo(0.82 * s, 0.5 * s); c.arc(0.5 * s, 0.5 * s, 0.32 * s, 0, Math.PI * 2); for (const x of [0.4, 0.6]) { c.moveTo(x * s, 0.38 * s); c.lineTo(x * s, 0.46 * s); } c.moveTo(0.34 * s, 0.58 * s); c.quadraticCurveTo(0.5 * s, 0.74 * s, 0.66 * s, 0.58 * s); },
+  planet(c, s) { c.moveTo(0.72 * s, 0.5 * s); c.arc(0.5 * s, 0.5 * s, 0.22 * s, 0, Math.PI * 2); c.moveTo((0.5 + 0.38 * Math.cos(-0.4)) * s, (0.5 + 0.38 * Math.sin(-0.4)) * s); c.ellipse(0.5 * s, 0.5 * s, 0.38 * s, 0.1 * s, -0.4, 0, Math.PI * 2); },
+  spiral(c, s) { c.moveTo(0.5 * s, 0.5 * s); for (let i = 1; i <= 64; i++) { const a = i * 0.34; const r = (0.34 * i) / 64; c.lineTo((0.5 + r * Math.cos(a)) * s, (0.5 + r * Math.sin(a)) * s); } },
+  torii(c, s) { for (const x of [0.32, 0.68]) { c.moveTo(x * s, 0.28 * s); c.lineTo(x * s, 0.84 * s); } c.moveTo(0.14 * s, 0.2 * s); c.quadraticCurveTo(0.5 * s, 0.3 * s, 0.86 * s, 0.2 * s); c.moveTo(0.22 * s, 0.38 * s); c.lineTo(0.78 * s, 0.38 * s); },
+  lantern(c, s) { c.moveTo(0.74 * s, 0.52 * s); c.ellipse(0.5 * s, 0.52 * s, 0.24 * s, 0.28 * s, 0, 0, Math.PI * 2); for (const y of [0.38, 0.66]) { c.moveTo(0.29 * s, y * s); c.lineTo(0.71 * s, y * s); } for (const y of [0.24, 0.8]) { c.moveTo(0.4 * s, y * s); c.lineTo(0.6 * s, y * s); } c.moveTo(0.5 * s, 0.8 * s); c.lineTo(0.5 * s, 0.9 * s); },
+  fuji(c, s) { c.moveTo(0.12 * s, 0.78 * s); c.lineTo(0.4 * s, 0.3 * s); c.lineTo(0.6 * s, 0.3 * s); c.lineTo(0.88 * s, 0.78 * s); c.closePath(); c.moveTo(0.4 * s, 0.3 * s); c.lineTo(0.34 * s, 0.42 * s); c.lineTo(0.42 * s, 0.4 * s); c.lineTo(0.5 * s, 0.46 * s); c.lineTo(0.58 * s, 0.4 * s); c.lineTo(0.66 * s, 0.42 * s); c.lineTo(0.6 * s, 0.3 * s); c.moveTo(0.82 * s, 0.2 * s); c.arc(0.76 * s, 0.2 * s, 0.06 * s, 0, Math.PI * 2); },
+  tooth(c, s) { c.moveTo(0.3 * s, 0.24 * s); c.quadraticCurveTo(0.4 * s, 0.16 * s, 0.5 * s, 0.24 * s); c.quadraticCurveTo(0.6 * s, 0.16 * s, 0.7 * s, 0.24 * s); c.quadraticCurveTo(0.8 * s, 0.4 * s, 0.66 * s, 0.56 * s); c.lineTo(0.62 * s, 0.82 * s); c.lineTo(0.54 * s, 0.82 * s); c.lineTo(0.5 * s, 0.62 * s); c.lineTo(0.46 * s, 0.82 * s); c.lineTo(0.38 * s, 0.82 * s); c.lineTo(0.34 * s, 0.56 * s); c.quadraticCurveTo(0.2 * s, 0.4 * s, 0.3 * s, 0.24 * s); },
+  glasses(c, s) { for (const x of [0.31, 0.69]) { c.moveTo((x + 0.13) * s, 0.52 * s); c.arc(x * s, 0.52 * s, 0.13 * s, 0, Math.PI * 2); } c.moveTo(0.44 * s, 0.5 * s); c.quadraticCurveTo(0.5 * s, 0.44 * s, 0.56 * s, 0.5 * s); c.moveTo(0.18 * s, 0.5 * s); c.lineTo(0.12 * s, 0.42 * s); c.moveTo(0.82 * s, 0.5 * s); c.lineTo(0.88 * s, 0.42 * s); },
+  padlock(c, s) { roundRect(c, 0.26 * s, 0.46 * s, 0.48 * s, 0.38 * s, 0.05 * s); c.moveTo(0.36 * s, 0.46 * s); c.lineTo(0.36 * s, 0.34 * s); c.arc(0.5 * s, 0.34 * s, 0.14 * s, Math.PI, Math.PI * 2); c.lineTo(0.64 * s, 0.46 * s); c.moveTo(0.53 * s, 0.6 * s); c.arc(0.5 * s, 0.6 * s, 0.03 * s, 0, Math.PI * 2); c.moveTo(0.5 * s, 0.63 * s); c.lineTo(0.5 * s, 0.72 * s); },
+  target(c, s) { for (const r of [0.32, 0.18, 0.04]) { c.moveTo((0.5 + r) * s, 0.5 * s); c.arc(0.5 * s, 0.5 * s, r * s, 0, Math.PI * 2); } for (const [a, b, d, e] of [[0.5, 0.1, 0.5, 0.24], [0.5, 0.76, 0.5, 0.9], [0.1, 0.5, 0.24, 0.5], [0.76, 0.5, 0.9, 0.5]]) { c.moveTo(a * s, b * s); c.lineTo(d * s, e * s); } },
+  rabbit(c, s) { c.moveTo(0.7 * s, 0.62 * s); c.arc(0.5 * s, 0.62 * s, 0.2 * s, 0, Math.PI * 2); c.moveTo(0.42 * s, 0.44 * s); c.quadraticCurveTo(0.3 * s, 0.1 * s, 0.44 * s, 0.14 * s); c.quadraticCurveTo(0.5 * s, 0.28 * s, 0.47 * s, 0.43 * s); c.moveTo(0.58 * s, 0.44 * s); c.quadraticCurveTo(0.7 * s, 0.1 * s, 0.56 * s, 0.14 * s); c.quadraticCurveTo(0.5 * s, 0.28 * s, 0.53 * s, 0.43 * s); for (const x of [0.42, 0.58]) { c.moveTo((x + 0.02) * s, 0.6 * s); c.arc(x * s, 0.6 * s, 0.02 * s, 0, Math.PI * 2); } },
+  bag(c, s) { c.moveTo(0.22 * s, 0.36 * s); c.lineTo(0.78 * s, 0.36 * s); c.lineTo(0.82 * s, 0.84 * s); c.lineTo(0.18 * s, 0.84 * s); c.closePath(); c.moveTo(0.38 * s, 0.36 * s); c.quadraticCurveTo(0.38 * s, 0.16 * s, 0.5 * s, 0.16 * s); c.quadraticCurveTo(0.62 * s, 0.16 * s, 0.62 * s, 0.36 * s); },
 };
 
 function street(ctx, spec, w, h) {
@@ -426,6 +454,66 @@ function street(ctx, spec, w, h) {
       }
       ctx.restore();
     });
+    return;
+  }
+  if (spec.style === "brand") {
+    // An invented brand's board, as the show hangs them over its streets:
+    // its mark in a disc at one end, its name beside it in big letters,
+    // what it sells under that. A lit box with the name and the mark in
+    // dark ink (lit: "box"), or a dark board with a lit disc, the name in
+    // white tube and the line under it in the brand's colour.
+    const box = spec.lit === "box";
+    if (box) lightbox(ctx, w * 0.02, h * 0.05, w * 0.96, h * 0.9, color, seedOf(spec));
+    const m = h * 0.76;
+    const mx = h * 0.12;
+    const my = (h - m) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(mx + m / 2, my + m / 2, m * 0.48, 0, Math.PI * 2);
+    ctx.closePath();
+    if (box) {
+      ctx.fillStyle = "#0a0808";
+      ctx.fill();
+    } else {
+      ctx.clip();
+      lightbox(ctx, mx, my, m, m, color, seedOf(spec) + 3);
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.translate(mx + m * 0.14, my + m * 0.14);
+    ctx.scale(0.72, 0.72);
+    if (box) strokeTube(ctx, color, Math.max(2, m * 0.06), () => ICONS[spec.mark]?.(ctx, m));
+    else {
+      ctx.strokeStyle = dim(color, 0.012);
+      ctx.lineWidth = Math.max(2, m * 0.075);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ICONS[spec.mark]?.(ctx, m);
+      ctx.stroke();
+    }
+    ctx.restore();
+    const tx = mx + m + h * 0.12;
+    const tw = w - tx - h * 0.1;
+    const [name, sub] = spec.lines;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const cx = tx + tw / 2;
+    const ny = sub ? h * 0.4 : h * 0.5;
+    const px = fitFont(ctx, name, tw, h * (sub ? 0.44 : 0.6), 800);
+    const ink = dim(color, 0.012);
+    if (box) {
+      ctx.font = FONT(800, px);
+      ctx.fillStyle = ink;
+      ctx.fillText(name, cx, ny);
+    } else tube(ctx, name, cx, ny, px, spec.second ?? "#eceae4", 800);
+    if (sub) {
+      const sp = fitFont(ctx, sub, tw * 0.86, h * 0.19, 700);
+      if (box) {
+        ctx.font = FONT(700, sp);
+        ctx.fillText(sub, cx, h * 0.75);
+      } else tube(ctx, sub, cx, h * 0.75, sp, color, 700);
+    }
     return;
   }
   if (spec.style === "chunky") {
@@ -641,6 +729,32 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
   const POOL = { ps: ["ps", "pm"], pm: ["pm", "ps"] };
   const turns = new Map();
   const hung = new Map();
+  // (Round 8: a column of square signs, one over another on one face of a
+  // wall, is dealt as a column. Each takes the designs in its own order (a
+  // start and a stride of its own through them) and none twice, and has
+  // its own colours: one of its block's two hues, with the other or a hue
+  // of its own on every second or third sign. Dealt one at a time from
+  // the same few dozen designs, every column of a street came out the same
+  // bolt, wifi, dice, key, heart and cup in the same colours.)
+  const columns = new Map();
+  const STRIDES = [7, 11, 13, 17, 19, 23, 29, 31];
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  const columnOf = (c) => {
+    const gx = Math.round(c.x * 2);
+    const gz = Math.round(c.z * 2);
+    const key = `${gx},${gz},${Math.round(c.nx * 2)},${Math.round(c.nz * 2)}`;
+    if (!columns.has(key)) {
+      const h = (a) => {
+        const r = Math.abs(Math.sin(a + gx * 12.9898 + gz * 78.233) * 43758.5453);
+        return r - Math.floor(r);
+      };
+      columns.set(key, { used: new Set(), k: 0, h: [h(1.3), h(7.1), h(3.7), h(5.9), h(9.2), h(2.4)] });
+    }
+    return columns.get(key);
+  };
+  // (Round 8: designs added this round (`since: 8`) are not dealt on the
+  // avenue's first 128 m, the page's first frame, which keeps its signs.)
+  const dealt = [];
   const dealStreet = (size, n, mesh) => {
     mesh.updateWorldMatrix(true, false);
     const pos = mesh.geometry.attributes.position;
@@ -658,10 +772,25 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     // pictograms). A square face is a named shop's sign or a pictogram
     // turn about up its column and along its wall, so a stack of them is
     // boards, blades and discs between the tiles.
-    const pool = (POOL[size] ?? [size]).flatMap((z) => STREET_DESIGNS[z].map((_, i) => [z, i]));
+    const held = !pair;
+    // (A brand's board is a big one's: not on a small panel over a shop.)
+    const pool = (POOL[size] ?? [size]).flatMap((z) => STREET_DESIGNS[z].map((_, i) => [z, i])).filter(([z, i]) => (!held || !STREET_DESIGNS[z][i].since) && (size !== "ps" || STREET_DESIGNS[z][i].style !== "brand"));
     const r = Math.abs(Math.sin(n * 12.9898 + Math.round(c.x) * 78.233 + Math.round(c.z) * 37.719) * 43758.5453);
-    const start = Math.floor((r - Math.floor(r)) * STREET_NAMES[size].length);
-    const named = (Math.round(c.y / 1.3) + Math.round(c.x / 3) + Math.round(c.z / 3)) % 2 === 0;
+    const start0 = Math.floor((r - Math.floor(r)) * (held ? STREET_DESIGNS[size].filter((d) => !d.since).length : STREET_NAMES[size].length));
+    let named = (Math.round(c.y / 1.3) + Math.round(c.x / 3) + Math.round(c.z / 3)) % 2 === 0;
+    const col = size === "bx" && !held ? columnOf(c) : null;
+    let start = start0;
+    let stride = 1;
+    if (col) {
+      stride = STRIDES[Math.floor(col.h[1] * STRIDES.length)];
+      while (gcd(stride, pool.length) !== 1) stride += 2;
+      start = (Math.floor(col.h[0] * pool.length) + col.k * stride) % pool.length;
+      named = (col.k + Math.floor(col.h[2] * 3)) % (col.h[3] < 0.5 ? 2 : 3) === 0;
+    }
+    // (A big board, the canyon's over its street, is one of the invented
+    // brands if one is free; a shop's own board is a brand only when
+    // nothing else is.)
+    const big = size === "pm" && (mesh.userData.w ?? 0) > 3.6;
     const nearOf = (name) => {
       let near = Infinity;
       let at = null;
@@ -679,10 +808,11 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     // furthest off.
     const tiers = [{ d: -1, k: start }, { d: -1, k: start }];
     for (let j = 0; j < pool.length; j++) {
-      const k = (start + j) % pool.length;
+      const k = (start + j * stride) % pool.length;
       const [z, i] = pool[k];
+      if (col?.used.has(STREET_NAMES[z][i])) continue;
       const [near] = nearOf(STREET_NAMES[z][i]);
-      const tier = size === "bx" && !STREET_DESIGNS[z][i].icon !== named ? 1 : 0;
+      const tier = (size === "bx" && !STREET_DESIGNS[z][i].icon !== named) || big !== (STREET_DESIGNS[z][i].style === "brand") ? 1 : 0;
       if (near > tiers[tier].d) tiers[tier] = { d: near, k };
       if (tier === 0 && near >= REACH) break;
     }
@@ -702,15 +832,34 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
       turn = (Math.abs(da) < Math.abs(db) ? da : db) / 360;
       shown = Math.abs(da) < Math.abs(db) ? pair[0] : pair[1];
     }
+    // (A column's sign is in the column's colours: its main hue, and on
+    // every second or third sign its other, which is the block's other
+    // hue or, on one column in three, a hue of the column's own.)
+    let alt = -1;
+    if (col && family >= 0) {
+      const main = pair[col.h[2] < 0.5 ? 0 : 1];
+      alt = col.h[4] > 0.66 ? [5, 0, 2, 4][Math.floor(col.h[5] * 4)] : pair[col.h[2] < 0.5 ? 1 : 0];
+      if (alt === main) alt = pair[col.h[2] < 0.5 ? 1 : 0];
+      const every = col.h[3] < 0.5 ? 2 : 3;
+      const hue = col.k % every === Math.floor(col.h[5] * every) ? alt : main;
+      if (hue === alt) alt = main;
+      turn = (((HUE_AT[hue] - angle + 540) % 360) - 180) / 360;
+      shown = hue;
+    }
     const [near, twin] = nearOf(name);
     if (near < 40 && twin && family >= 0 && twin.shown === shown) {
-      const other = pair ? (pair[0] === shown ? pair[1] : pair[0]) : (shown + 2) % 6;
+      const other = alt >= 0 ? alt : pair ? (pair[0] === shown ? pair[1] : pair[0]) : (shown + 2) % 6;
       turn = (((HUE_AT[other] - angle + 540) % 360) - 180) / 360;
       shown = other;
     }
     c.shown = shown;
     if (!hung.has(name)) hung.set(name, []);
     hung.get(name).push(c);
+    if (col) {
+      col.used.add(name);
+      col.k++;
+    }
+    dealt.push({ size, name, x: c.x, y: c.y, z: c.z, nx: c.nx, nz: c.nz, w: mesh.userData.w ?? 0, turn, shown });
     return [pz, pick, turn];
   };
   const specOf = (mesh) => {
@@ -935,6 +1084,8 @@ export function createSigns(meshes, shared, { maxAnisotropy = 4, reduced = false
     texture,
     sources,
     frames,
+    // (What dealStreet dealt, every standard face of every pack: for checks.)
+    dealt,
     /** More faces on the same atlas and material (a streamed district's):
      *  the one mesh every district's faces are in, and their light for the
      *  bake. Faces whose design has no cell (a word-sign the core did not

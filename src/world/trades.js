@@ -28,7 +28,7 @@ const RULES = [
   [6, /REPAIR|ELECTRONICS|CHROME|CYBERWARE|PARTS|WORKS|PRINT|修理|電気|部品|パーツ|時計|鍵/],
   [1, /BAR|SAKE|KARAOKE|IZAKAYA|DARTS|酒|立ち飲み|カラオケ/],
 ];
-const ICONS = { bowl: 2, fish: 2, glass: 1, sake: 1, bottle: 1, cross: 4, pill: 4, eye: 4, dice: 3, gear: 6, chip: 6, wrench: 6, plug: 6, book: 0, leaf: 5 };
+const ICONS = { bowl: 2, fish: 2, glass: 1, sake: 1, bottle: 1, cross: 4, pill: 4, eye: 4, dice: 3, gear: 6, chip: 6, wrench: 6, plug: 6, book: 0, leaf: 5, beer: 1, pizza: 2, lantern: 2, syringe: 4, tooth: 4, glasses: 4, controller: 3, headphones: 3, shirt: 5, bag: 5, scissors: 5, battery: 6, phone: 6, camera: 6, bike: 6, padlock: 6 };
 
 /** The trade a sign's design names (an index into TRADES), or -1. */
 export function tradeOf(spec) {
