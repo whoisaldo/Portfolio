@@ -1658,16 +1658,17 @@ for k, z in enumerate((-142.0, -126.0, -109.0, -92.0)):
 # on the shoulder. All of it `glow`, paint or steel near the avenue; nothing
 # over the hero's span stands higher than the rail.
 # ---------------------------------------------------------------------------
-EDGE_AMBER = glowc("ffb254", 0.8)
+EDGE_AMBER = glowc("ffb254", 1.0)
 EDGE_TEAL = glowc("2ee6c8", 0.5)
 # A line of light let into the parapet's cap and the rail's top: from above
-# the deck is drawn by its two edges; from below neither shows.
-xs("glow", 0, x_par, MOUTH_X, ZN + 0.15, ZN + 0.25, 0.0, up(DY, PAR_H + 0.082), sides="t", scale=1.0, col=EDGE_AMBER)
-zs("glow", 0, FOOT, ZN, XE - 0.25, XE - 0.15, 0.0, up(RY, PAR_H + 0.082), sides="t", scale=1.0, col=EDGE_AMBER)
+# the deck is drawn by its two edges; from below neither shows. (Round 4:
+# wider and brighter, so the air reads the deck between the roofs.)
+xs("glow", 0, x_par, MOUTH_X, ZN + 0.12, ZN + 0.28, 0.0, up(DY, PAR_H + 0.082), sides="t", scale=1.0, col=EDGE_AMBER)
+zs("glow", 0, FOOT, ZN, XE - 0.28, XE - 0.12, 0.0, up(RY, PAR_H + 0.082), sides="t", scale=1.0, col=EDGE_AMBER)
 for xa, xb in runs(x_rail, MOUTH_X, GATES_X):
-    xs("glow", 0, xa, xb, ZS - 0.062, ZS - 0.018, 0.0, up(DY, RAIL_H + 0.012), sides="t", scale=1.0, col=EDGE_TEAL)
+    xs("glow", 0, xa, xb, ZS - 0.072, ZS - 0.008, 0.0, up(DY, RAIL_H + 0.012), sides="t", scale=1.0, col=EDGE_TEAL)
 for za, zb in runs(FOOT, ZS, GATES_Z):
-    zs("glow", 0, za, zb, XW + 0.018, XW + 0.062, 0.0, up(RY, RAIL_H + 0.012), sides="t", scale=1.0, col=EDGE_TEAL)
+    zs("glow", 0, za, zb, XW + 0.008, XW + 0.072, 0.0, up(RY, RAIL_H + 0.012), sides="t", scale=1.0, col=EDGE_TEAL)
 
 # Studs: amber between the centre lines every four metres, white along the
 # edge lines every eight.
@@ -1913,29 +1914,8 @@ for f in (-1, 1):
     signal(bx + f * 0.24, bb + 5.4, plan.DECK_Z - f * 1.75, yaw_of("x", f), True)
     signal(bx + f * 0.24, bb + 5.4, plan.DECK_Z + f * 1.75, yaw_of("x", f), False)
 
-# Chevrons round the outside of the turn, on posts over the barrier: lit
-# arrows on dark boards, pointing the way round, for a driver coming up the
-# ramp (they face north) and for one coming along the deck (they face east).
-for k in range(4):
-    c = -82.4 + k * 1.4
-    # Facing north, on the south barrier, pointing east.
-    zc = z_lane_s + BAR / 2
-    oriented_box((DK, "board_frame", 0), c, Y + 2.5, zc, 1.1, 0.8, 0.08, math.pi, scale=1.0)
-    for px in (c - 0.4, c + 0.4):
-        box((DK, "metal", 1), px - 0.03, px + 0.03, Y + 0.45, Y + 2.1, zc - 0.03, zc + 0.03, scale=0.5)
-    for j in (0, 1):
-        x0 = c - 0.42 + j * 0.4
-        for yb, yt in ((Y + 2.22, Y + 2.5), (Y + 2.78, Y + 2.5)):
-            face((DK, "glow", 0), [(x0, yb, zc - 0.05), (x0 + 0.2, yb, zc - 0.05), (x0 + 0.46, yt, zc - 0.05), (x0 + 0.26, yt, zc - 0.05)], (0, 0, -1), 1.0, CHEV)
-    # Facing east, on the west barrier, pointing north.
-    xc = x_lane_w - BAR / 2
-    oriented_box((DK, "board_frame", 0), xc, Y + 2.5, c + 0.2, 1.1, 0.8, 0.08, math.pi / 2, scale=1.0)
-    for pz in (c - 0.2, c + 0.6):
-        box((DK, "metal", 1), xc - 0.03, xc + 0.03, Y + 0.45, Y + 2.1, pz - 0.03, pz + 0.03, scale=0.5)
-    for j in (0, 1):
-        z0 = c + 0.2 + 0.42 - j * 0.4
-        for yb, yt in ((Y + 2.22, Y + 2.5), (Y + 2.78, Y + 2.5)):
-            face((DK, "glow", 0), [(xc + 0.05, yb, z0), (xc + 0.05, yb, z0 - 0.2), (xc + 0.05, yt, z0 - 0.46), (xc + 0.05, yt, z0 - 0.26)], (1, 0, 0), 1.0, CHEV)
+# The chevrons round the outside of the turn stand on its curved barrier
+# (round 4, at the end).
 
 # Roadworks on the north shoulder over the lane behind the west row: a
 # hatch open in the shoulder, barriers and cones along the lane's edge, a
@@ -2456,7 +2436,7 @@ def US(z):
 # Services: under the cap beams' feet, on hangers from every rib.
 SV = 1.15
 zv = [EMB_Z + 1.0 + 4.0 * k for k in range(16)] + [ZN - 0.6]
-for dx, r_, col, det in ((-1.55, 0.1, GAS_C, 0), (-1.25, 0.05, PIPE_C, 1), (-1.02, 0.05, PIPE_C, 1)):
+for dx, r_, col, det in ((-1.55, 0.1, (0.15, 0.052, 0.014, 1.0), 0), (-1.25, 0.05, PIPE_C, 1), (-1.02, 0.05, PIPE_C, 1)):     # (the main's orange in the dark: at the walls' it glowed like a tube in the street's light)
     for za, zb in zip(zv, zv[1:]):
         pipe((DK, "steel", det), (X0 + dx, US(za) - SV, za), (X0 + dx, US(zb) - SV, zb), r_, segs=6 if det == 0 else 4, col=col)
 for za, zb in zip(zv, zv[1:]):          # the tray: a floor, two lips, the cables in it
@@ -2911,19 +2891,67 @@ def rust_run(axis, v, plane, d, y1, length, w=0.12):
                                    _w(axis, v + w * 0.5, plane + d * 0.008, y1), _w(axis, v - w * 0.5, plane + d * 0.008, y1)], outv(axis, d), 2.0, RUST_C)
 
 
+# THE GIRDER OFF THE HERO'S SPAN, as the show's (Zq4zTcIM0yQ@108, @167,
+# OifiVCnFKzM@29): a box girder deep enough to read from a street and from
+# the air. Where it stands over the west street, the lanes, the plaza's yard
+# and the island under the ramp (not over the avenue, whose span is the
+# hero's; the passages' downstand is the avenue builder's), an edge beam
+# 0.8 m deeper along both faces inside its outline, a drip along its foot,
+# a lamp let into its underside every five metres; and along every face but
+# the one the hero sees, a yellow band painted under the slab's lip.
+DOWN = 0.8
+DOWN_X = ((XW, -44.0), (44.0, 56.0))        # under the deck (x), both faces
+DOWN_Z = (-130.0, ZN)                        # under the ramp's girder (z), both faces, its south end at the plate
+
+
+def _down_x(x):
+    return any(a <= x <= b for a, b in DOWN_X)
+
+
+for a, b in DOWN_X:
+    low = lambda x: DY(x) - DEPTH - DOWN    # noqa: E731
+    for zf, o in ((ZS, 1), (ZN, -1)):
+        xa = max(a, XE) if o < 0 else a
+        xs("concrete", 0, xa, b, *sorted((zf, zf - o * 0.35)), low, under(DY), sides="bAB", caps="01", scale=2.0)
+        xs("steel", 1, xa, b, *sorted((zf, zf + o * 0.04)), low, up(low, 0.05), sides="tbAB", caps="01", scale=0.5, col=HOUSING)
+        x = xa + 2.5
+        while x < b - 1.0:
+            box((DK, "glow", 0), x - 0.12, x + 0.12, low(x) - 0.012, low(x), *sorted((zf - o * 0.2, zf - o * 0.12)), scale=0.5, col=MARKER)
+            x += 5.0
+lowr = lambda z: RY(z) - DEPTH - DOWN    # noqa: E731
+for xf, o in ((XW, -1), (XE, 1)):
+    zb = ZS if o < 0 else ZN
+    zs("concrete", 0, DOWN_Z[0], zb, *sorted((xf, xf - o * 0.35)), lowr, under(RY), sides="bAB", caps="01", scale=2.0)
+    zs("steel", 1, DOWN_Z[0], zb, *sorted((xf, xf + o * 0.04)), lowr, up(lowr, 0.05), sides="tbAB", caps="01", scale=0.5, col=HOUSING)
+    z = DOWN_Z[0] + 2.5
+    while z < zb - 1.0:
+        if all(abs(z - bz) > 1.0 for bz in BENTS_Z):
+            box((DK, "glow", 0), *sorted((xf - o * 0.2, xf - o * 0.12)), lowr(z) - 0.012, lowr(z), z - 0.12, z + 0.12, scale=0.5, col=MARKER)
+        z += 5.0
+# The band under the lip.
+for axis, a, b, plane, out, yf in (("z", FOOT + 1.0, ZS - 0.3, XW, (-1, 0, 0), RY), ("z", FOOT + 1.0, ZN, XE, (1, 0, 0), RY),
+                                    ("x", XW, STAIR_GAP[0], ZS, (0, 0, 1), DY), ("x", STAIR_GAP[1], -HERO - 0.1, ZS, (0, 0, 1), DY),
+                                    ("x", HERO + 0.1, MOUTH_X - 0.6, ZS, (0, 0, 1), DY), ("x", XE, MOUTH_X - 0.6, ZN, (0, 0, -1), DY)):
+    chipped(axis, a, b, plane, out, yf, -LIP_D - 0.36, -LIP_D - 0.05, mat="trim", col=STRIPE_PAINT)
+
+
 def _girder_lo(x):
-    """The girder's foot on the deck's faces: the downstand's over the lanes
-    either side of the avenue, the ground along the east embankment."""
+    """The girder's foot on the deck's faces: the downstands', the ground
+    along the east embankment."""
     if x >= ABUT_X:
         return 0.0
     if 18.1 <= abs(x) <= 44.0:
         return DY(x) - DEPTH - 1.1
+    if _down_x(x):
+        return DY(x) - DEPTH - DOWN
     return max(0.0, DY(x) - DEPTH)
 
 
 def _ramp_lo(z):
     if z < EMB_Z:
         return max(PLINTH_H, RY(z) - DEPTH) if z > WALL_Z else PLINTH_H
+    if z >= DOWN_Z[0]:
+        return RY(z) - DEPTH - DOWN
     return RY(z) - DEPTH
 
 
@@ -3000,3 +3028,89 @@ for bz in BENTS_Z:
     lo_ = min(US(bz - 0.75), US(bz + 0.75)) - 0.9
     for s in (-1, 1):
         weather("x", XW + 0.6, XE - 0.6, bz + s * 0.75, s, lambda x: lo_, lambda x: lo_ + 0.88, base=CAP_C, patches=False, density=1.4)
+
+# THE TURN AS A SWEEP (Fn9gKhU_2_Q@75). The lanes, the walkway and the
+# square barrier stay where they are; on the plate's shoulder, outside the
+# lanes' painted edge, a second barrier sweeps round the corner on a 6 m
+# radius from the ramp's barrier to the deck's, an amber line of light along
+# its top and the lit strip at its foot as every barrier has; the corner
+# behind it is a gore hatched in yellow. Its chevrons all point the way the
+# outer lane turns (up the ramp and round to the east), each board square
+# to the sweep.
+TR = 6.0
+TC = (x_lane_w + TR, z_lane_s - TR)          # the sweep's centre; its road face at TR
+ARC_N = 18
+
+
+def _arc(r, phi):
+    return (TC[0] + r * math.cos(phi), TC[1] + r * math.sin(phi))
+
+
+def _arc_band(key, r0, r1, y0, y1, col, n=ARC_N, top=True, faces=(True, True)):
+    """A band round the sweep from r0 to r1, y0 up to y1: its inner and outer
+    faces and its top."""
+    for i in range(n):
+        p0, p1 = math.pi / 2 + (i / n) * math.pi / 2, math.pi / 2 + ((i + 1) / n) * math.pi / 2
+        pm = (p0 + p1) / 2
+        (ax, az), (bx, bz) = _arc(r0, p0), _arc(r0, p1)
+        (cx_, cz_), (dx_, dz_) = _arc(r1, p0), _arc(r1, p1)
+        if faces[0]:
+            face(key, [(ax, y0, az), (bx, y0, bz), (bx, y1, bz), (ax, y1, az)], (-math.cos(pm), 0, -math.sin(pm)), 2.0, col)
+        if faces[1]:
+            face(key, [(cx_, y0, cz_), (dx_, y0, dz_), (dx_, y1, dz_), (cx_, y1, cz_)], (math.cos(pm), 0, math.sin(pm)), 2.0, col)
+        if top:
+            face(key, [(ax, y1, az), (bx, y1, bz), (dx_, y1, dz_), (cx_, y1, cz_)], (0, 1, 0), 2.0, col)
+
+
+_arc_band((DK, "castconcrete", 0), TR, TR + BAR, Y, Y + 0.45, CONC)
+_arc_band((DK, "metal", 1), TR + 0.03, TR + BAR - 0.03, Y + 0.72, Y + 0.8, (1, 1, 1, 1), top=True)
+_arc_band((DK, "glow", 0), TR + 0.05, TR + BAR - 0.05, Y + 0.45, Y + 0.46, glowc("ffb254", 0.6), faces=(False, False))
+_arc_band((DK, "glow", 0), TR - 0.07, TR, Y + 0.02, Y + 0.09, KERB_GLOW, faces=(False, True), top=True)
+chip_paint = STRIPE_PAINT
+for i in range(ARC_N):              # its yellow along the road face, chipped
+    if chip_rng.random() < 0.85:
+        p0, p1 = math.pi / 2 + (i / ARC_N) * math.pi / 2, math.pi / 2 + ((i + 1) / ARC_N) * math.pi / 2 - 0.01
+        (ax, az), (bx, bz) = _arc(TR - 0.006, p0), _arc(TR - 0.006, p1)
+        y1 = Y + 0.36 - (0.08 if chip_rng.random() < 0.3 else 0.0)
+        face((DK, "trim", 0), [(ax, Y + 0.2, az), (bx, Y + 0.2, bz), (bx, y1, bz), (ax, y1, az)], (-math.cos(p0), 0, -math.sin(p0)), 1.0, chip_paint)
+for i in range(0, ARC_N + 1, 3):     # the rail's posts
+    p = math.pi / 2 + (i / ARC_N) * math.pi / 2
+    px, pz = _arc(TR + BAR / 2, p)
+    box((DK, "metal", 1), px - 0.04, px + 0.04, Y + 0.44, Y + 0.73, pz - 0.04, pz + 0.04, scale=0.5)
+# What a car must not pass: the sweep in short lengths (axis-aligned boxes,
+# each a chord's span, so none reaches into the lane further than the
+# barrier's face does by more than a few centimetres).
+for i in range(36):
+    p0, p1 = math.pi / 2 + (i / 36) * math.pi / 2, math.pi / 2 + ((i + 1) / 36) * math.pi / 2
+    pts = [_arc(r, p) for r in (TR + 0.04, TR + BAR) for p in (p0, p1)]
+    B.COLLISION.append(("box", min(q[0] for q in pts), max(q[0] for q in pts), Y - 0.1, Y + 0.8, min(q[1] for q in pts), max(q[1] for q in pts), DK))
+# The gore behind it: yellow hatching, a stripe every 15 degrees from the
+# sweep out to the square barrier.
+for k in range(1, 6):
+    p = math.pi / 2 + k * (math.pi / 2) / 6
+    ux, uz = math.cos(p), math.sin(p)
+    r_end = min(-TR / ux if ux < 0 else 99.0, TR / uz if uz > 0 else 99.0) - 0.2
+    r0 = TR + BAR + 0.2
+    if r_end - r0 < 0.3:
+        continue
+    tx, tz = -uz, ux
+    (ax, az), (bx, bz) = _arc(r0, p), _arc(r_end, p)
+    face((DK, "paint", 0), [(ax - tx * 0.17, Y + PAINT, az - tz * 0.17), (ax + tx * 0.17, Y + PAINT, az + tz * 0.17),
+                            (bx + tx * 0.17, Y + PAINT, bz + tz * 0.17), (bx - tx * 0.17, Y + PAINT, bz - tz * 0.17)], (0, 1, 0), 1.0, YELLOW)
+# Its chevrons: five boards on posts on the sweep, each facing its centre,
+# two arrows on each pointing along the outer lane's way round.
+for k in range(5):
+    p = math.pi / 2 + (k + 0.5) * (math.pi / 2) / 5
+    nx, nz = -math.cos(p), -math.sin(p)          # the board looks at the centre
+    tx, tz = math.sin(p), -math.cos(p)           # the outer lane's way round here
+    bx, bz = _arc(TR + BAR / 2, p)
+    oriented_box((DK, "board_frame", 0), bx, Y + 2.5, bz, 1.1, 0.8, 0.08, math.atan2(nx, nz), scale=1.0)
+    for s in (-0.4, 0.4):
+        px, pz = bx + tx * s, bz + tz * s
+        box((DK, "metal", 1), px - 0.03, px + 0.03, Y + 0.45, Y + 2.1, pz - 0.03, pz + 0.03, scale=0.5)
+    fx, fz = bx + nx * 0.05, bz + nz * 0.05
+    for j in (0, 1):
+        u0 = -0.42 + j * 0.4
+        for vb, vt in ((-0.28, 0.0), (0.28, 0.0)):
+            face((DK, "glow", 0), [(fx + tx * u0, Y + 2.5 + vb, fz + tz * u0), (fx + tx * (u0 + 0.2), Y + 2.5 + vb, fz + tz * (u0 + 0.2)),
+                                   (fx + tx * (u0 + 0.46), Y + 2.5 + vt, fz + tz * (u0 + 0.46)), (fx + tx * (u0 + 0.26), Y + 2.5 + vt, fz + tz * (u0 + 0.26))], (nx, 0, nz), 1.0, CHEV)
