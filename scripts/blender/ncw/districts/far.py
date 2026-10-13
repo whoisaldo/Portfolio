@@ -550,7 +550,7 @@ def _lookout(U, top, plaza):
     DECK.lookout(side, u0, sd, z0, z1, top, _x, random.Random(9850 + L["i"] * 3 + U["k"] + (0 if side > 0 else 40)), (u0 + sd) / 2 + 1.5)
     # (At a balcony's rail over the avenue she leans on it and looks out.)
     pose = r.choice(("phone", "smoke", "idle"))
-    stand(_x(side, u0 + 0.6), zm + 0.9, -side * math.pi / 2, "rail" if u0 < 0 else pose, top + 0.03)
+    stand(_x(side, u0 + 0.6), zm + (1.4 if u0 < 0 else 0.9), -side * math.pi / 2, "rail" if u0 < 0 else pose, top + 0.03)
     LOOKOUTS.add((side, round(zm)))
     print("CANYON lookout", side, L["i"], U["k"], "x", round(xa, 1), round(xb, 1), "z", z0, z1, "y", top)
     return (u0, z0, z1, sg)
