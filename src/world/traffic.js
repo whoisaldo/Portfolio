@@ -29,15 +29,13 @@ import { VNOISE } from "./ground.js";
 import { createObject as createAv } from "./av-model.js";
 import { createObject as createBaseCar, KINDS as BASE_KINDS } from "./traffic-cars.js";
 import { createObject as createShowCar, KINDS as SHOW_KINDS } from "./traffic-cars-nc.js";
-import { createObject as createNearBase, KINDS as NEAR_BASE } from "./traffic-cars-near.js";
-import { createObject as createNearShow, KINDS as NEAR_SHOW } from "./traffic-cars-near-nc.js";
+import { nearBody, NEAR_KINDS } from "./traffic-near-build.js";
 import { createNetwork, roadVents } from "./traffic-net.js";
 import { createStanding, wardrobe, KINDS as CAR_KINDS, BIKES, FIXED, TAG } from "./traffic-park.js";
 import { creased, coarse, drum, joined } from "./traffic-lod.js";
 import { createCraft, craftAt, padAt, PAD_STANDING, CRAFT } from "./traffic-sky.js";
 
 const createCarModel = (kind) => (BASE_KINDS.includes(kind) ? createBaseCar(kind) : SHOW_KINDS.includes(kind) ? createShowCar(kind) : null);
-const createNearModel = (kind) => (NEAR_BASE.includes(kind) ? createNearBase(kind) : NEAR_SHOW.includes(kind) ? createNearShow(kind) : null);
 
 // The AV's surfaces, by the model's material names (src/world/av-model.js),
 // as the kind its shader reads.
@@ -475,27 +473,46 @@ function roofUnits(y) {
   return [tagged(1.18, 0.05, 0.34, 0, y + 0.025, -0.25, ROOF_BAR), tagged(1.1, 0.09, 0.26, 0, y + 0.095, -0.25, ROOF_BAR), tagged(0.62, 0.17, 0.2, 0, y + 0.085, -0.2, ROOF_SIGN)];
 }
 
-/** A car's close-up model as one geometry, with the model's own normals
- *  (smooth over its panels, hard at its creases and cuts). */
-function nearGeometry(kind, roofY) {
-  const model = createNearModel(kind);
-  model.updateMatrixWorld(true);
-  const parts = [];
-  model.traverse((o) => {
-    if (!o.isMesh) return;
-    const k = CAR_PARTS[o.material?.name];
-    if (k === undefined) return;
-    const g = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
-    for (const name of Object.keys(g.attributes)) if (name !== "position" && name !== "normal") g.deleteAttribute(name);
-    if (g.attributes.normal === undefined) g.computeVertexNormals();
-    g.applyMatrix4(o.matrixWorld);
-    g.setAttribute("aKind", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(k), 1));
-    parts.push(g);
-  });
-  if (kind === "sedan") parts.push(...roofUnits(roofY));
-  const geometry = joined(parts);
-  model.traverse((o) => o.isMesh && o.geometry.dispose());
-  return geometry;
+/** A car's close-up model as one geometry (traffic-near-build.js), the
+ *  body made ahead on a worker if there is one (prepareNearModels), with
+ *  a sedan's roof units. */
+function nearGeometry(kind, roofY, body = nearBody(kind, CAR_PARTS)) {
+  return kind === "sedan" ? joined([body, ...roofUnits(roofY)]) : body;
+}
+
+// (load) The close-up models' bodies, asked of a worker as the traffic is
+// made, so that none of their tenth of a second or two a kind is the
+// page's: each a promise of its geometry, or of null (no worker, or it
+// failed: made on the page as before). Each is taken once.
+const nearMade = new Map();
+function prepareNearModels() {
+  if (nearMade.size || typeof Worker === "undefined") return;
+  let worker;
+  try {
+    worker = new Worker(new URL("./traffic-near-worker.js", import.meta.url), { type: "module" });
+  } catch {
+    return;
+  }
+  const kinds = CAR_KINDS.filter((kind) => NEAR_KINDS.includes(kind));
+  const settle = new Map();
+  for (const kind of kinds) nearMade.set(kind, new Promise((resolve) => settle.set(kind, resolve)));
+  const done = () => {
+    for (const resolve of settle.values()) resolve(null);
+    settle.clear();
+    worker.terminate();
+  };
+  worker.onmessage = ({ data: { kind, attributes } }) => {
+    let geometry = null;
+    if (attributes) {
+      geometry = new THREE.BufferGeometry();
+      for (const [name, [array, size]] of Object.entries(attributes)) geometry.setAttribute(name, new THREE.BufferAttribute(array, size));
+    }
+    settle.get(kind)?.(geometry);
+    settle.delete(kind);
+    if (!settle.size) done();
+  };
+  worker.onerror = done;
+  for (const kind of kinds) worker.postMessage({ kind, parts: CAR_PARTS });
 }
 
 /** A car of one kind as one geometry (as avGeometry builds the AV's), shaded
@@ -626,6 +643,7 @@ const NEAR_MOVING = 2.4;
 export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0 } = {}) {
   const avGeo = avGeometry();
   const full = cars >= 4;
+  if (full) prepareNearModels();
   // The street's cars: wet paint giving back the lit street and the glow
   // over it, dark tinted glass, lit light bars on the ones that are driving,
   // their accents in their own neon, and a dithered fade (per car, aFade)
@@ -1458,13 +1476,19 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   let startNear = null;
   if (full) {
     let next = 0;
-    const build = () => {
+    const build = async () => {
       if (alive === false || next >= kinds.length) return;
       const K = kinds[next++];
       if (CAR_KINDS.includes(K.kind) === false) return void setTimeout(build, 0);
+      // (load: its body from the worker, if it was asked for; null, made
+      // here.)
+      const made = nearMade.get(K.kind);
+      nearMade.delete(K.kind);
+      const body = made ? await made : null;
+      if (alive === false) return void body?.dispose();
       K.nearMaterial = new THREE.ShaderMaterial({ uniforms: K.uniforms, ...carShader, defines: { NEAR: "" } });
       K.nearMaterial.name = "traffic_near";
-      K.near = K.level(nearGeometry(K.kind, K.built.roofY), `traffic_${K.kind}_near`, K.nearMaterial, NEAR_MOST);
+      K.near = K.level(nearGeometry(K.kind, K.built.roofY, body ?? undefined), `traffic_${K.kind}_near`, K.nearMaterial, NEAR_MOST);
       K.levels.push(K.near);
       setTimeout(build, 0);
     };
