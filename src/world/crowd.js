@@ -321,7 +321,7 @@ const HERO_UMBRELLA = [0.26, 0.2, 0.14];
 // up, a peaked cap, reflective bands, a lit line at the hem and down the
 // sleeves, gloves. A lobby's guards in the house's: a charcoal suit and a
 // lit visor. (Whoever a builder moves off these points is anybody again.)
-const OFFICERS = [[128.4, -157.0, "patrol"], [197.0, -344.9, "patrol"], [131.38, -108.1, "guard"], [131.38, -115.0, "guard"], [131.38, -76.1, "guard"], [131.38, -83.0, "guard"]];
+const OFFICERS = [[128.4, -157.0, "patrol"], [197.0, -344.9, "patrol"], [131.38, -108.1, "guard"], [131.38, -115.0, "guard"], [131.38, -76.1, "guard"], [131.38, -83.0, "guard"], [30.95, 9.9, "patrol"], [30.0, 9.75, "patrol"], [-11.6, 50.45, "patrol"], [-11.45, 49.5, "patrol"]];
 
 // A number out of a place. Everything about a person is dealt from where
 // they stand (or where their walk starts), never from how many came before
