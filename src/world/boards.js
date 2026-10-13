@@ -116,8 +116,10 @@ export function createBoards(meshes, shared, { reduced = false, reflectLayer = 2
     const fromName = Number(mesh.name.split("_")[1]);
     const index = mesh.userData.board ?? (Number.isFinite(fromName) ? fromName : 0);
     // The big board is the brightest thing in its shot: the key art is
-    // mostly dark UI, so it runs hot.
-    const material = makeMaterial(index === 0 ? 2.8 : 1.05);
+    // mostly dark UI, so it runs hot. The four side screens round the square
+    // (1 to 4) are seen from across it and from the air, where at 1.05 they
+    // read as dark rectangles.
+    const material = makeMaterial(index === 0 ? 2.8 : index >= 1 && index <= 4 ? 2.0 : 1.05);
     mesh.material = material;
     // Only the big board is worth a place in the wet road's mirror.
     if (index === 0) mesh.layers.enable(reflectLayer);
