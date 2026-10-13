@@ -1045,6 +1045,13 @@ def skylights(D, x0, x1, z0, z1, y, rng, hue="amber", along="z", n=3, lit=0.75, 
                     for zb in (q[2] - 0.04, q[3] + 0.04):
                         pipe((D, "metal", 1), (q[0] - 0.05, ya, zb), (mx, yb + 0.03, zb), 0.03, segs=4)
                         pipe((D, "metal", 1), (mx, yb + 0.03, zb), (q[1] + 0.05, ya, zb), 0.03, segs=4)
+                    # (Bars up both slopes every half metre or so: the m8
+                    # review's "uniform cream slabs with no frames or bars".)
+                    nb = max(1, round((q[3] - q[2]) / 0.55))
+                    for j in range(1, nb):
+                        zb = q[2] + (q[3] - q[2]) * j / nb
+                        pipe((D, "metal", 1), (q[0], ya + 0.012, zb), (mx, yb + 0.012, zb), 0.016, segs=3)
+                        pipe((D, "metal", 1), (mx, yb + 0.012, zb), (q[1], ya + 0.012, zb), 0.016, segs=3)
                 else:
                     mz = (q[2] + q[3]) / 2
                     quad(key, (q[0], ya, q[3]), (q[1], ya, q[3]), (q[1], yb, mz), (q[0], yb, mz), col=col)
@@ -1052,6 +1059,11 @@ def skylights(D, x0, x1, z0, z1, y, rng, hue="amber", along="z", n=3, lit=0.75, 
                     for xb in (q[0] - 0.04, q[1] + 0.04):
                         pipe((D, "metal", 1), (xb, ya, q[2] - 0.05), (xb, yb + 0.03, mz), 0.03, segs=4)
                         pipe((D, "metal", 1), (xb, yb + 0.03, mz), (xb, ya, q[3] + 0.05), 0.03, segs=4)
+                    nb = max(1, round((q[1] - q[0]) / 0.55))
+                    for j in range(1, nb):
+                        xb = q[0] + (q[1] - q[0]) * j / nb
+                        pipe((D, "metal", 1), (xb, ya + 0.012, q[2]), (xb, yb + 0.012, mz), 0.016, segs=3)
+                        pipe((D, "metal", 1), (xb, yb + 0.012, mz), (xb, ya + 0.012, q[3]), 0.016, segs=3)
             else:
                 quad(key, (q[0], ya, q[3]), (q[1], ya, q[3]), (q[1], ya, q[2]), (q[0], ya, q[2]), col=col)
         if glazed:
