@@ -652,14 +652,17 @@ def markings(D, rng):
     cross to the stalls, two more kiosks, and people standing about the
     pavements in twos and threes."""
     white = (0.62, 0.62, 0.58, 1)
-    # Words in the road. The arm, south of the phone hero's frame (z 30):
-    # SLOW for the driver going north, BUS by the east kerb going south.
-    K.road_word(D, "SLOW", -5.0, 42.0, (0.0, -1.0), rng=rng, col=white)
-    K.road_word(D, "BUS", 5.2, 70.0, (0.0, 1.0), rng=rng, col=(0.6, 0.45, 0.07, 1))
-    # The south street, either side of the junction, past the hero's frames.
-    K.road_word(D, "STOP", 27.0, 4.6, (-1.0, 0.0), rng=rng, col=white)
-    K.road_word(D, "STOP", -27.0, -2.6, (1.0, 0.0), rng=rng, col=white)
-    K.road_word(D, "SLOW", 70.0, -2.6, (1.0, 0.0), rng=rng, col=white)
+    # Words in the road, each in the lane of the driver it is written for
+    # (traffic keeps to the right). The arm, south of the phone hero's frame
+    # (z 30): SLOW for the driver going north up its east half, BUS by the
+    # west kerb going south.
+    K.road_word(D, "SLOW", 5.0, 42.0, (0.0, -1.0), rng=rng, col=white)
+    K.road_word(D, "BUS", -5.2, 70.0, (0.0, 1.0), rng=rng, col=(0.6, 0.45, 0.07, 1))
+    # The south street, either side of the junction, past the hero's frames:
+    # STOP for the driver coming up to it, SLOW further out going west.
+    K.road_word(D, "STOP", 27.0, -2.6, (-1.0, 0.0), rng=rng, col=white)
+    K.road_word(D, "STOP", -27.0, 4.6, (1.0, 0.0), rng=rng, col=white)
+    K.road_word(D, "SLOW", 70.0, -2.6, (-1.0, 0.0), rng=rng, col=white)
     # Yellow kerbs, worn.
     for sx in (-1, 1):
         K.kerb_paint(D, "z", sx * ROAD_HALF, 36.0, 86.0, -sx, rng)
