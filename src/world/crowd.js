@@ -2121,7 +2121,23 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   // The draws: the closest figure, the figure with a face, the far figure,
   // the card, and what is on the ground under whoever is not yet a card.
   const flat = new THREE.PlaneGeometry(1, 1);
-  const shapes = [figureGeometry(false, true), figureGeometry(false), figureGeometry(true), flat, flat];
+  // (load: the closest figure is a few dozen milliseconds to build and
+  // nobody is that near the hero's lens, so the figure with a face stands in
+  // for it until the city's first frame is drawn and the page is idle.)
+  const near = figureGeometry(false);
+  const shapes = [near, near, figureGeometry(true), flat, flat];
+  let closeMade = 0;
+  const makeClose = () => {
+    if (over || closeMade > 1) return;
+    closeMade = 2;
+    const g = figureGeometry(false, true);
+    shapes[0] = g;
+    const d = drawn[0];
+    if (!d) return;
+    d.geometry.index = g.index;
+    for (const name of ["position", "normal", "aRig"]) d.geometry.setAttribute(name, g.attributes[name]);
+    d.triangles = g.index.count / 3;
+  };
   const materials = [material("crowd_close", VERTEX, FRAGMENT, { NEAR: "", CLOSE: "" }), material("crowd", VERTEX, FRAGMENT, { NEAR: "" }), material("crowd_far", VERTEX, FRAGMENT), material("crowd_card", CARD_VERTEX, CARD_FRAGMENT), material("crowd_ground", GROUND_VERTEX, GROUND_FRAGMENT)];
   Object.assign(materials[4], { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const group = new THREE.Group();
@@ -2203,6 +2219,11 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
   };
   const touched = [];
   const refresh = () => {
+    if (!closeMade && eye) {
+      closeMade = 1;
+      if (typeof requestIdleCallback === "function") requestIdleCallback(makeClose, { timeout: 1500 });
+      else setTimeout(makeClose, 300);
+    }
     const t = shared.uTime.value * motion;
     const cam = shared.uCam.value;
     light.check();
