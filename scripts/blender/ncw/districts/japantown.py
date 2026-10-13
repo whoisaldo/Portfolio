@@ -2119,7 +2119,7 @@ def roof_more(rec):
                 if zb - za > 2.0:
                     pad(ex - 0.5, ex + 0.5, za, zb, top, r.choice(PAVERS), 1)
             break
-    want, done, tries = min(len(ROOF_KIT), int(w * d / 38.0)), 0, 0
+    want, done, tries = min(len(ROOF_KIT), int(w * d / 24.0)), 0, 0
     while done < want and tries < 50:
         tries += 1
         name, rad = ROOF_KIT[(done + rec["seed"]) % len(ROOF_KIT)]
@@ -2141,6 +2141,19 @@ def roof_more(rec):
             J.put(name, px, top + (0.05 if name == "jt_cooler" else 0.0), pz, yaw)
         taken.append((px, pz, rad))
         done += 1
+    # (Round 5, a stream of its own: "flat navy roof slabs with a few
+    # boxes": the roof's membrane patched and seamed in tar and newer
+    # sheet, and the kit's roof plant on what is still free: a tank, a
+    # condenser on its duct, turbine vents, a dish or a cable tray.)
+    rq = rng(rec, "plant5")
+    for _ in range(rq.randrange(2, 5)):
+        pw, pd = rq.uniform(1.2, min(4.5, w * 0.5)), rq.uniform(1.0, min(3.5, d * 0.5))
+        px, pz = rq.uniform(x0 + 0.5 + pw / 2, x1 - 0.5 - pw / 2), rq.uniform(z0 + 0.5 + pd / 2, z1 - 0.5 - pd / 2)
+        col = rq.choice(((0.03, 0.03, 0.034, 1), (0.1, 0.105, 0.11, 1), (0.06, 0.058, 0.055, 1), (0.13, 0.125, 0.115, 1)))
+        quad((D, "trim", 1), (px - pw / 2, top + 0.03, pz + pd / 2), (px + pw / 2, top + 0.03, pz + pd / 2), (px + pw / 2, top + 0.03, pz - pd / 2), (px - pw / 2, top + 0.03, pz - pd / 2), col=col)
+    if w * d >= 70.0 and kind in ("shack", "plant", "solar", "laundry", "sign", "garden"):
+        rects = [(tx - tr_, tx + tr_, tz - tr_, tz + tr_) for tx, tz, tr_ in taken]
+        plant_on(x0 + 0.5, x1 - 0.5, z0 + 0.5, z1 - 0.5, top, rq, rects, n_vents=rq.randrange(2, 5), tank=not any(i[0] in ("jt_tank", "jt_tank_r", "tank_roof", "roof_tank") for i in here), hut=False, mast=None)
 
 
 def av_pad(rec):
