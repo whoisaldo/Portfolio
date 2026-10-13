@@ -108,7 +108,7 @@ for z, dz in ((CW[0] + KW / 2, 0.06), (CW[1] - KW / 2, -0.06)):
     half = math.sqrt((RK - KW) ** 2 - (z - HZ) ** 2)
     box((PL, "glow", 0), HX - half + 0.3, HX + half - 0.3, KY, KY + 0.03, min(z + dz, z + dz * 2.5), max(z + dz, z + dz * 2.5), scale=1.0,
         col=dim("amber", 0.4))
-for pts, face in (([(55.6, -231.9), (56.4, -232.05)], math.pi), ([(69.8, -231.95), (70.7, -232.1), (71.5, -231.8)], math.pi),
+for pts, face in (([(55.6, -231.9), (56.4, -232.05)], math.pi), ([(59.4, -231.9), (60.2, -232.1), (61.0, -231.85)], math.pi),
                   ([(82.6, -228.1), (83.4, -227.95)], 0.0), ([(62.8, -228.05), (63.6, -228.2), (64.4, -228.0)], 0.0)):
     for i, (x, z) in enumerate(pts):
         if i < 2:
@@ -191,3 +191,18 @@ for sx, size, kk in ((24.0, "bm", 1.55), (47.0, "bm", 1.55)):
     big_sign(size, kk, px_, SHOP_H + 0.6 + ST_SIZES[size][1] * kk / 2, pz_, math.pi / 2)
     for yy in (SHOP_H + 0.9, SHOP_H + ST_SIZES[size][1] * kk):
         F2.box((PL, "metal", 1), sx - 0.05, sx + 0.05, yy, yy + 0.1, 0.03, 0.2)
+
+# ---------------------------------------------------------------------------
+# B1's pavement on the x 120 road (z -95..-168), seen down the road from the
+# deck's mouth: people at its shop windows, clear of the walkers' line
+# (x 109.4) and the walk camera's (x 110.5) by a metre.
+# ---------------------------------------------------------------------------
+for pts, face in (([(108.4, -103.6), (108.45, -104.5)], -math.pi / 2), ([(108.4, -118.2), (108.35, -119.0), (108.45, -119.9)], -math.pi / 2),
+                  ([(108.4, -137.4), (108.45, -138.3)], -math.pi / 2)):
+    for i, (x, z) in enumerate(pts):
+        if i < 2:
+            ox, oz = pts[1 - i]
+            stand(x, z, math.atan2(ox - x, oz - z) + ro.uniform(-0.2, 0.2), "talk", y=G)
+        else:
+            stand(x, z, face + ro.uniform(-0.4, 0.4), ro.choice(("idle", "phone")), y=G)
+stand(108.5, -126.8, -math.pi / 2 + 0.3, "phone", y=G)
