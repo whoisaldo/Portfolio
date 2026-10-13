@@ -1467,6 +1467,14 @@ const VERTEX = /* glsl */ `
     return vec3(z, y, mix(-0.62, 0.26, e));
   }
 
+  // How somebody wears hair with any length to it: three in ten in one of
+  // the three ways only the closest figure has (further off, the hair's cap
+  // alone), the rest in one of the three in locks.
+  float styleOf(float seed) {
+    float u = rnd(seed * 17.1);
+    return min(u < 0.3 ? floor(u / 0.1) : 3.0 + floor((u - 0.3) / 0.7 * 3.0), ${f(STYLE_COUNT - 1)});
+  }
+
   void main() {
     // What this person does not wear folds away to nothing. (The closest
     // figure's ways of wearing hair are dealt by the person's seed, to
@@ -1480,7 +1488,7 @@ const VERTEX = /* glsl */ `
     if (tag > ${f(CARRIED - 0.5)}) worn = abs(aBody.z - ${f(POSES.indexOf("carry"))}) < 0.5;
     // An umbrella's edge is a line of light only on the few that have one.
     else if (int(aRig.y + 0.5) == ${PART.rim} && bit(aLook.y, 14.0) < 0.5) worn = false;
-    else if (tag > 31.5) worn = bit(aLook.x, ${f(TAG.hair)}) > 0.5 && bit(aLook.y, 2.0) + bit(aLook.y, 3.0) + bit(aLook.x, ${f(TAG.hardhat)}) < 0.5 && abs(floor(rnd(aLook.w * 17.1) * ${f(STYLE_COUNT)}) + ${f(STYLE.parted)} - tag) < 0.5;
+    else if (tag > 31.5) worn = bit(aLook.x, ${f(TAG.hair)}) > 0.5 && bit(aLook.y, 2.0) + bit(aLook.y, 3.0) + bit(aLook.x, ${f(TAG.hardhat)}) < 0.5 && abs(styleOf(aLook.w) + ${f(STYLE.parted)} - tag) < 0.5;
     if (!worn) {
       gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
       vColor = vec3(0.0);
