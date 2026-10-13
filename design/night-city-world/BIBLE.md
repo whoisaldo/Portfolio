@@ -335,6 +335,12 @@ pools, steps up to a terrace with glass rails, planters).
   under awnings along the pavement; a covered market hall; some roofs are
   decks with lamps and rails (Lucy's). The ramp up to the deck rises in the
   street's middle between parapets from z -220.
+- **Street**: gantries of signs on pylons at the kerbs and bundles of
+  cables between the fronts over the west street; the gate street ends at a
+  lit wall of six storeys with shops along its foot, so it looks at a facade
+  and not at dark ground. The roof decks are dressed and every stair hut
+  carries its own kit; the cherries fork into limbs of small blossom
+  clusters; the tall faces carry clusters of windows and a pipe down an edge.
 
 ### The Deck
 
@@ -486,7 +492,7 @@ texture over 1024 px. As built:
 
 | GLB | high | phone |
 | --- | --- | --- |
-| core (`world-<tier>.glb`) | 2.47 MB | 0.99 MB |
+| core (`world-<tier>.glb`) | 2.49 MB | 1.00 MB |
 | south (Kabuki Avenue behind the hero) | 1.88 MB | 0.76 MB |
 | canyon | 1.59 MB | 0.90 MB |
 | plaza | 1.45 MB | 0.93 MB |
@@ -494,9 +500,9 @@ texture over 1024 px. As built:
 | corpo | 2.18 MB | 0.97 MB |
 | afterlife | 1.40 MB | 0.49 MB |
 | santo | 2.03 MB | 0.96 MB |
-| japantown | 2.50 MB | 1.16 MB |
+| japantown | 2.56 MB | 1.16 MB |
 | mega | 2.09 MB | 0.94 MB |
-| **packs in all** | **16.27 MB** | **7.59 MB** |
+| **packs in all** | **16.33 MB** | **7.59 MB** |
 
 Every held shot, flight, loop point and free roam lap measured on the
 rebuilt city is inside the tiers' frame budgets (README, "Verification").
@@ -516,8 +522,8 @@ shader carries the read.
   chunk.
 - **City live** needs what the hero sees: the core GLB (what the hero's
   lens sees of Kabuki Avenue, the Canyon and the Megabuilding, the
-  landmarks, and every named piece, anchor and prop prototype), 2.47 MB on
-  high and 0.99 MB on a phone, no larger than the city's whole GLB before
+  landmarks, and every named piece, anchor and prop prototype), 2.49 MB on
+  high and 1.00 MB on a phone, no larger than the city's whole GLB before
   the rebuild (2.48 MB and 1.11 MB).
 - **Behind it**: nine packs, one per district (`south`, `canyon`, `plaza`,
   `deck`, `corpo`, `afterlife`, `santo`, `japantown`, `mega`), all fetched
