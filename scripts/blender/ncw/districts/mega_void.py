@@ -137,3 +137,34 @@ weather(face("-x", PX1 - 0.02, MB_ZF - 18.0, MB_ZF), 0.0, 18.0, G0, 3.9, 5532, b
 for k, px in enumerate((66.0, 80.0)):
     weather_box(px - 1.24, px + 1.24, RAIL_Z - 2.24, RAIL_Z + 2.24, 1.0, 6.0, 5541 + k)
 weather_box(50.56, 53.44, RAIL_Z - 2.24, RAIL_Z + 2.24, 1.0, 6.0, 5543)
+
+# ---------------------------------------------------------------------------
+# The lane east of the canyon (x 44..52) and the back blocks' walls a walker
+# meets: what the lane collects, cables and blades over it, green tube light
+# on its walls, the walls weathered.
+# ---------------------------------------------------------------------------
+from ncw.districts.mega_finish import lane_wall  # noqa: E402
+_rl = random.Random(5560)
+z = -706.0
+while z > -564.0:
+    if abs(z - RAIL_Z) > 4.0:
+        for _ in range(_rl.choice((1, 2, 2, 3))):
+            side = _rl.choice((44.7, 51.3))
+            P.place(_rl.choice(("bags", "rubbish", "crates", "rubbish", "drum", "pallets", "bags")), side + _rl.uniform(-0.2, 0.2), G0, z + _rl.uniform(-2.0, 2.0), _rl.uniform(0, 3.0))
+        if _rl.random() < 0.5:
+            w, d = _rl.uniform(1.2, 2.6), _rl.uniform(0.8, 2.4)
+            cx = _rl.uniform(45.5, 50.5)
+            hquad((D, "roof_wet", 0), cx - w / 2, cx + w / 2, z - d / 2, z + d / 2, G0 + 0.012, scale=4.0)
+        if _rl.random() < 0.45:
+            y = _rl.uniform(5.5, 12.0)
+            cable((44.1, y, z), (51.9, y + _rl.uniform(-1.0, 1.0), z + _rl.uniform(-3.0, 3.0)), _rl.uniform(0.4, 1.2), r=0.018)
+        if _rl.random() < 0.25:
+            blade(_rl.choice((44.9, 51.1)), _rl.uniform(3.6, 5.2), z, _rl.choice(("bs", "bm")), along="x")
+    z -= _rl.uniform(5.0, 9.0)
+for z in (-700.0, -684.0, -668.0, -650.0, -632.0, -590.0, -572.0):
+    tube_z(51.86, 3.4, z - 0.7, z + 0.7, "green" if int(z) % 3 else "white", power=4.2)
+for (f, s0, s1, seed) in ((face("-x", 52.0, -676.0, -640.0), 0.5, 35.5, 5561), (face("+x", 44.0, -706.0, -562.0), 1.0, 143.0, 5562),
+                          (face("-z", -594.0 - 0.01, 52.0, 76.0), 0.5, 23.5, 5564),
+                          (face("+x", 76.0, -594.0, -564.0), 0.5, 29.5, 5565), (face("-x", 82.0, -590.0, -564.0), 0.5, 25.5, 5566)):
+    weather(f, s0, s1, G0, 5.5, seed)
+lane_wall(face("-x", 52.0, -676.0, -640.0), 5567, lamp_every=11.0)
