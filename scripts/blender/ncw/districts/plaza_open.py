@@ -141,35 +141,26 @@ F2.quad((PL, "trim", 0), s0, s1, SHOP_H + 0.45, 11.3, 0.03, col=WALL)
 for y0 in (SHOP_H + 0.45, 8.0, 11.3 - 0.12):
     F2.box((PL, "trim", 0), s0, s1, y0 - 0.06, y0 + 0.06, 0.03, 0.14, col=(0.24, 0.2, 0.19, 1.0), scale=2.0)
 rb2 = random.Random(9350)
+# (Its windows are the plaza's glass, rooms with depth behind them, in deep
+# reveals: small lit squares on a flat wall read as a painted wall.)
 for floor, (fy, top) in enumerate(((SHOP_H + 0.45, 8.0), (8.0, 11.3))):
-    s = s0 + 0.9
-    while s + 1.6 < s1 - 0.5:
-        w, h = 1.6, 1.75
-        wy = fy + 0.85
-        F2.box((PL, "trim", 0), s - 0.08, s + w + 0.08, wy - 0.08, wy + h + 0.08, 0.03, 0.09, col=(0.08, 0.07, 0.07, 1.0), scale=1.0)
+    s = s0 + 0.7
+    while s + 2.4 < s1 - 0.4:
+        w = 2.4 if rb2.random() < 0.6 else 3.4
+        if s + w > s1 - 0.4:
+            w = s1 - 0.4 - s
+        wy, wt = fy + 0.55, top - 0.4
         k = rb2.random()
-        if k < 0.2:
-            col = (0.02, 0.022, 0.03, 1.0)
-        else:
-            warm = rb2.random() < 0.7
-            kk = rb2.uniform(0.45, 1.0)
-            col = (0.62 * kk, 0.38 * kk, 0.18 * kk, 1.0) if warm else (0.3 * kk, 0.36 * kk, 0.46 * kk, 1.0)
-        F2.quad((PL, "glow", 0), s, s + w, wy, wy + h, 0.1, col=col)
-        style = rb2.random()
-        if k >= 0.2 and style < 0.35:
-            # Blinds: slats across, half drawn.
-            drop = rb2.uniform(0.3, 1.0) * h
-            yy = wy + h - 0.1
-            while yy > wy + h - drop:
-                F2.quad((PL, "glow", 0), s, s + w, yy - 0.05, yy, 0.105, col=tuple(c * 0.45 for c in col[:3]) + (1.0,))
-                yy -= 0.12
-        elif k >= 0.2 and style < 0.65:
-            # Curtains drawn to the sides.
-            cw = rb2.uniform(0.25, 0.5)
-            ccol = tuple(c * 0.35 for c in col[:3]) + (1.0,)
-            F2.quad((PL, "glow", 0), s, s + cw, wy, wy + h, 0.105, col=ccol)
-            F2.quad((PL, "glow", 0), s + w - cw * rb2.uniform(0.6, 1.2), s + w, wy, wy + h, 0.105, col=ccol)
-        F2.box((PL, "trim", 0), s - 0.1, s + w + 0.1, wy - 0.12, wy - 0.04, 0.03, 0.22, col=(0.3, 0.28, 0.26, 1.0), scale=1.0)
+        lit = 0.0 if k < 0.18 else rb2.uniform(0.55, 1.0)
+        F2.quad((PL, "corporate", 0), s, s + w, wy, wt, 0.05, col=glass_col(lit, 0.75 if rb2.random() < 0.7 else 0.2, rb2.random()))
+        # The reveal: jambs, head and sill standing 0.3 out of the wall.
+        for a, b in ((s - 0.12, s), (s + w, s + w + 0.12)):
+            F2.box((PL, "trim", 0), a, b, wy - 0.1, wt + 0.1, 0.03, 0.33, col=(0.12, 0.07, 0.07, 1.0), scale=1.0)
+        F2.box((PL, "trim", 0), s - 0.12, s + w + 0.12, wt, wt + 0.12, 0.03, 0.33, col=(0.12, 0.07, 0.07, 1.0), scale=1.0)
+        F2.box((PL, "trim", 0), s - 0.2, s + w + 0.2, wy - 0.14, wy, 0.03, 0.4, col=(0.3, 0.28, 0.26, 1.0), scale=1.0)
+        if lit > 0.0 and rb2.random() < 0.4:
+            # A mullion and a transom in the wider ones, a vent over some.
+            F2.box((PL, "metal", 0), s + w / 2 - 0.04, s + w / 2 + 0.04, wy, wt, 0.05, 0.12, scale=0.5)
         if floor == 1 and rb2.random() < 0.45:
             # A balcony: a slab, a rail of bars, a plant or a chair on it.
             F2.box((PL, "concrete", 0), s - 0.35, s + w + 0.35, fy - 0.02, fy + 0.14, 0.03, 0.95, scale=1.5)
@@ -179,10 +170,10 @@ for floor, (fy, top) in enumerate(((SHOP_H + 0.45, 8.0), (8.0, 11.3))):
                 F2.box((PL, "metal", 1), sb - 0.012, sb + 0.012, fy + 0.14, fy + 1.0, 0.9, 0.93, scale=0.5)
             px_, _, pz_ = F2.p(F2.at(s + rb2.uniform(0.2, w - 0.2)), 0.0, 0.5)
             P.place("shrub", px_, fy + 0.14, pz_, rb2.uniform(0, 6.28), sy=1.3, district=PL)
-        elif rb2.random() < 0.3:
-            px_, _, pz_ = F2.p(F2.at(s + w / 2), 0.0, 0.03)
-            P.place("ac_wall", px_, wy - 0.6, pz_, 0.0, district=PL)
-        s += w + rb2.uniform(1.3, 1.9)
+        elif rb2.random() < 0.35:
+            px_, _, pz_ = F2.p(F2.at(s + w + 0.45), 0.0, 0.03)
+            P.place("ac_wall", px_, wy + 0.3, pz_, 0.0, district=PL)
+        s += w + rb2.uniform(0.8, 1.2)
 px_, _, pz_ = F2.p(F2.at(34.6), 0.0, 0.03)
 P.place("pipe_v", px_, SHOP_H, pz_, 0.0, sy=1.6, district=PL)
 for sx, size, kk in ((24.0, "bm", 1.55), (47.0, "bm", 1.55)):
