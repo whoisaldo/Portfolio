@@ -1187,9 +1187,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
             glow = 0.25 * lit * back;
           }
         }
-        // A door left open, or a boot: where it was is the dark of the
-        // cabin under its own small light.
-        if ((tag == 3 && vLocal.x > uBoxMax.x - 0.3 && vLocal.z < uSeam.x && vLocal.z > uDoor.x && vLocal.y > uSeam.z && vLocal.y < uBoxMax.y - 0.1) || (tag == 4 && vLocal.z < uBoxMin.z + 0.54 && vLocal.z > uBoxMin.z + 0.06 && nl.y > 0.5)) {
+        // A door left open, or a boot (or a van's bonnet): where it was is
+        // the dark of the cabin, or the engine's bay, under its own small light.
+        if ((tag == 3 && vLocal.x > uBoxMax.x - 0.3 && vLocal.z < uSeam.x && vLocal.z > uDoor.x && vLocal.y > uSeam.z && vLocal.y < uBoxMax.y - 0.1) || (tag == 4 && vLocal.z < uBoxMin.z + 0.54 && vLocal.z > uBoxMin.z + 0.06 && nl.y > 0.5) || (tag == 5 && vLocal.z > uBoxMax.z - 0.36 && vLocal.z < uBoxMax.z - 0.03 && nl.y > 0.5)) {
           col = vec3(0.05, 0.04, 0.03) * (0.5 + smoothstep(uSeam.z, uBoxMax.y, vLocal.y));
           glow = 0.0;
         }
@@ -1424,15 +1424,17 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // The few left open: the door's leaf swung out from its hinge at the
   // hatch's front pillar, the boot's lid up from its hinge under the
   // sedan's back glass, each in its car's paint (the shader darkens the
-  // opening it left).
+  // opening it left). (And the broken-down van's bonnet, traffic-park.js:
+  // the same lid turned round, up from its hinge at the windscreen's foot.)
   const ALL_KINDS = [...CAR_KINDS, ...BIKES, ...FIXED];
   for (const x of slots.slice()) {
-    if (x.parked === undefined || (x.tag !== TAG.door && x.tag !== TAG.boot)) continue;
+    if (x.parked === undefined || (x.tag !== TAG.door && x.tag !== TAG.boot && x.tag !== TAG.bonnet)) continue;
     const door = x.tag === TAG.door;
-    const [lx, ly, lz] = door ? [0.86, 0, 0.86] : [0, 0.885, -1.89];
+    const bonnet = x.tag === TAG.bonnet;
+    const [lx, ly, lz] = door ? [0.86, 0, 0.86] : bonnet ? [0, 1.4, 2.3] : [0, 0.885, -1.89];
     const c = Math.cos(x.parked.yaw);
     const sn = Math.sin(x.parked.yaw);
-    const at = { x: x.parked.x + c * lx + sn * lz, y: ly, z: x.parked.z - sn * lx + c * lz, yaw: x.parked.yaw - (door ? 1.05 : 0), tilt: door ? 0 : 1.15 };
+    const at = { x: x.parked.x + c * lx + sn * lz, y: ly, z: x.parked.z - sn * lx + c * lz, yaw: x.parked.yaw - (door ? 1.05 : 0) + (bonnet ? Math.PI : 0), tilt: door ? 0 : 1.15 };
     slots.push({ kind: ALL_KINDS.indexOf(door ? "leaf" : "lid"), body: x.body, accent: x.accent, tag: TAG.none, glow: false, parked: at });
   }
   const UPRIGHT = new THREE.Vector3(0, 1, 0);

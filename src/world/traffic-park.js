@@ -38,8 +38,9 @@ export const FIXED = ["bus", "stop", "leaf", "lid"];
 export const PAINT = ["#2b3038", "#b0281e", "#9aa0a8", "#1d4c9c", "#15161a", "#14807a", "#d8d2c4", "#7a1420", "#4a2f8c", "#c9ced4", "#c45a1c", "#1a3566", "#3d7a3a", "#5d636b", "#8a1d52", "#0f5a56"];
 export const ACCENT = ["#27dcf2", "#ff2e88", "#ffb254", "#a24bff", "#39ff9a", "#ff3fd2"];
 // What a car is besides its model (the sedan carries both roof units).
-// (And the two a car is left open by: its driver's door, its boot.)
-export const TAG = { none: 0, patrol: 1, taxi: 2, door: 3, boot: 4 };
+// (And the three a car is left open by: its driver's door, its boot, a
+// van's bonnet.)
+export const TAG = { none: 0, patrol: 1, taxi: 2, door: 3, boot: 4, bonnet: 5 };
 const CAB = "#c79a12";
 const PATROL = "#0a0a0c";
 
@@ -144,13 +145,13 @@ const PLACED = [
   { x: -88.5, z: -327, yaw: 0, kind: "bus", lit: true, body: "#c45a1c", accent: "#ffb254", glow: false },
   { x: -92.1, z: -327.5, yaw: 0, kind: "stop", off: true, body: "#2b3038", accent: "#27dcf2", glow: true },
   // A van broken down in the deck's yard under the descent, along x and
-  // facing east, its hazards going: the yard is dressed round it (the
+  // facing east, its hazards going and its bonnet up: the yard is dressed round it (the
   // deck's LED barriers, jack, work lamp, beacon and the mechanic at its
   // front). A quarter metre south of the yard's own mark (z -81.2), which
   // put its north flank through the collar of the pier at (56, -83); the
   // jack is then under its south flank. Last in the list, so nothing
   // before it is dealt differently.
-  { x: 57.6, z: -80.95, yaw: Math.PI / 2, kind: "van", off: true, hazard: true },
+  { x: 57.6, z: -80.95, yaw: Math.PI / 2, kind: "van", off: true, hazard: true, tag: TAG.bonnet },
 ];
 
 /**
