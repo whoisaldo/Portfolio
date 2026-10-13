@@ -212,8 +212,12 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec3 fit = wallFittings(q, id, px);
             albedo = mix(albedo, vec3(0.2, 0.09, 0.04) * 0.5, fit.z * 0.7);
             albedo = mix(albedo, vec3(0.15, 0.16, 0.18), fit.x * 0.8) * fit.y;
+            // (Not on a door's leaf: a piece sprayed across the wall ran on
+            // over the door as if the door were painted into it.)
+            #ifndef DOOR
             vec4 mk = wallMarks(q, id, px, tidy(vWorld.xz) > 0.5 ? -1.0 : uSpray);
             albedo = mix(albedo, mk.rgb * 0.5 * (1.0 - 0.4 * low), mk.a * (1.0 - fit.x));
+            #endif
           } else if (vProp < 0.5 && n.y > 0.7 && vWorld.y < 0.4 && px < 0.06) {
             // Flat on the pavement, in yellow: a tactile strip's studs, and
             // the paint worn off it and off a painted kerb.
