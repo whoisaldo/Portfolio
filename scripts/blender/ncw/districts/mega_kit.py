@@ -44,6 +44,32 @@ TEAL_PAINT = (0.06, 0.26, 0.26, 1.0)
 FLOOR0 = SHOP_H                             # the first floor line; then every CELL_H
 
 
+ADVERTS = set()
+
+
+def advert_free(x, y, z, nx, nz):
+    """Whether a drawn advert whose left foot is at (x, y, z) on a wall
+    facing (nx, nz) shows its own picture: the site deals adverts by the
+    4 m cell the foot stands in along, up and out of the wall
+    (src/world/materials.js, billboard), so two in one cell are one advert
+    twice. The first to claim a cell has it."""
+    rx, rz = nz, -nx
+    cell = (math.floor((x * rx + z * rz) / 4.0 + 0.412), math.floor(y / 4.0 + 0.412), math.floor((x * nx + z * nz) / 4.0 + 0.412), round(nx, 2), round(nz, 2))
+    if cell in ADVERTS:
+        return False
+    ADVERTS.add(cell)
+    return True
+
+
+def bill(f, s, y, w, h, r, out=0.03):
+    """A paper bill pasted on a wall: faded paper, a block of print, a
+    torn corner's darker paper under it (unlit)."""
+    paper = r.choice(((0.55, 0.52, 0.45, 1.0), (0.5, 0.2, 0.3, 1.0), (0.18, 0.4, 0.45, 1.0), (0.6, 0.45, 0.15, 1.0), (0.45, 0.45, 0.48, 1.0)))
+    f.quad((D, "trim", 1), s - w / 2, s + w / 2, y - h / 2, y + h / 2, out, col=paper)
+    f.quad((D, "trim", 1), s - w / 2 + 0.08, s + w / 2 - 0.08, y + h / 2 - 0.35, y + h / 2 - 0.12, out + 0.004, col=dim(paper, 0.25))
+    f.quad((D, "trim", 1), s - w / 2 + 0.08, s + w * 0.1, y - h / 2 + 0.12, y - h / 2 + 0.22, out + 0.004, col=dim(paper, 0.35))
+
+
 def floor_y(k):
     """The floor line of storey k (1 is the first over the shops)."""
     return FLOOR0 + (k - 1) * CELL_H

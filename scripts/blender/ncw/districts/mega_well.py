@@ -25,8 +25,13 @@ _r = random.Random(8701)
 
 
 def poster(x, y, z, w, h, yaw, r=_r):
-    """A lit advert in a frame on a wall (the site draws it)."""
+    """A lit advert in a frame on a wall (the site draws it); a paper bill
+    where that advert already shows within its cell."""
     nx, nz = math.sin(yaw), math.cos(yaw)
+    if not advert_free(x - nz * w / 2, y - h / 2, z + nx * w / 2, nx, nz):
+        name, plane, along = (("+z" if nz > 0 else "-z"), z, x) if abs(nz) > 0.5 else (("+x" if nx > 0 else "-x"), x, z)
+        bill(face(name, plane, along - w / 2, along + w / 2), w / 2, y, w, h, r, out=0.07)
+        return
     oriented_box((D, "board_frame", 0), x + nx * 0.03, y, z + nz * 0.03, w + 0.14, h + 0.14, 0.06, yaw, scale=1.0)
     col = (r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0)
     rotated_quad((D, "billboard", 0), x + nx * 0.07, y, z + nz * 0.07, w, h, yaw, col=col)

@@ -22,6 +22,12 @@ UNIT = ((0, 0), (1, 0), (1, 1), (0, 1))
 
 
 def fposter(f, s, y, w, h, r):
+    """A drawn advert in a frame, or, where the wall already shows that
+    advert within its cell (advert_free), a paper bill."""
+    x0, _, z0 = f.p(f.at(s - w / 2), 0.0, 0.062)
+    if not advert_free(x0, y - h / 2, z0, f.nx, f.nz):
+        bill(f, s, y, w, h, r)
+        return
     f.box((D, "board_frame", 0), s - w / 2 - 0.06, s + w / 2 + 0.06, y - h / 2 - 0.06, y + h / 2 + 0.06, 0.0, 0.05)
     f.quad((D, "billboard", 0), s - w / 2, s + w / 2, y - h / 2, y + h / 2, 0.062, uvs=UNIT, col=(r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0))
 
