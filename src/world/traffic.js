@@ -1777,6 +1777,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // no anchor of its own yet, so its numbers are here. `wire`: how high
   // over the rail each line's contact wire hangs.
   const CORPO_TRACK = { z: -378.5, y: 19, x0: 133, x1: 432, halt: 246, wire: 4.7 };
+  // And its boulevard line (scripts/blender/ncw/districts/corpo_line.py:
+  // LINE_Z, LINE_Y, the west station's open east face, the east station's
+  // end wall and its middle): the guideway along the boulevard's south kerb.
+  const CORPO_LINE = { z: -320.3, y: 20.5, x0: 167, x1: 366, halt: 355, wire: 4.7 };
   const VIADUCT_WIRE = 5.5;
   const trainShader = {
     vertexShader: /* glsl */ `
@@ -2018,6 +2022,31 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         if (t < 14) run.x = from + (line.halt - from) * (1 - (1 - t / 14) ** 2);
         else if (t < 44) run.x = line.halt;
         else run.x = line.halt + (to - line.halt) * ((t - 44) / 24) ** 2;
+        return run;
+      });
+    }
+  }
+  {
+    // The boulevard line: out of the west station's east face (where the
+    // builder's own train stands) gathering speed, along the guideway over
+    // the boulevard's south kerb and slowing into the east station (18 s),
+    // standing there lit (30 s), then on into the station's end wall (8 s);
+    // two trains, 46 s apart, so the station has a train in it two thirds
+    // of the time and the guideway one going along it every 46 s. At second
+    // 12 one is over the boulevard's middle (x 252) and the other is going
+    // into the end wall.
+    const line = CORPO_LINE;
+    const L = 2 * CAR;
+    for (const start of [3, 49]) {
+      addTrain(2, line, "#0d8c9e", (clock) => {
+        const t = wrapTo(clock - start, 92);
+        if (t >= 56) return null;
+        run.dir = 1;
+        const from = line.x0 - L / 2;
+        const to = line.x1 + L / 2;
+        if (t < 18) run.x = from + (line.halt - from) * smoother(t / 18);
+        else if (t < 48) run.x = line.halt;
+        else run.x = line.halt + (to - line.halt) * ((t - 48) / 8) ** 2;
         return run;
       });
     }
