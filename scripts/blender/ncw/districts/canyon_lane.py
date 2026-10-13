@@ -10,6 +10,7 @@ seven metres without a lamp. The fixtures are the canyon's own prototypes
 (a prototype another district also sets down would ride in the core).
 """
 import math
+import random
 
 from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
@@ -184,7 +185,9 @@ def lens(f, hue, s0, s1, y0, y1, w0, w1):
 
 
 def door(f, sc, r):
-    f.quad((CB, "door", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.03)
+    # (Its leaf steel, not the wall's: a piece sprayed on the wall ran on
+    # across a door in the same plane.)
+    f.quad((CB, "metal", 0), sc - 0.475, sc + 0.475, G0, G0 + 2.1, 0.03)
     put("cy_door", f, sc)
     hue = "amber" if r.random() < 0.75 else "white"
     lens(f, hue, sc - 0.11, sc + 0.11, G0 + 2.4, G0 + 2.56, 0.06, 0.2)
@@ -220,6 +223,10 @@ def shutter(f, s0, sw):
     lens(f, "white", mid - 0.2, mid + 0.2, 3.36, 3.46, 0.05, 0.18)
     f.box(k, mid - 0.26, mid + 0.26, 3.46, 3.5, 0.0, 0.24)
     light(CB, *f.p(f.at(mid), 3.3, 0.9), "white", 2.4)
+    # A piece sprayed across it (its own dice).
+    gr = random.Random(int(abs(f.at(s0)) * 13 + abs(f.plane) * 7))
+    if gr.random() < 0.85:
+        C.graffiti(f, s0 + 0.2, s0 + sw - 0.2, 0.7, 1.7, gr, CB, out=0.04)
 
 
 def wall(f, r, top=SHOP_H, ends=0.0, upper=None):

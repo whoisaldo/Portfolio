@@ -1586,9 +1586,11 @@ for n, m in enumerate(MEGA):
         if m["feet"][0 if s < 0 else 1] > 8.0:
             continue
         P.place("ad_drum", s * 11.4, B.G0, zc + s * 1.5, district=CB)
+        # (On its shop side and its ends, the kerb side kept for walkers: one
+        # stood between a walker's eye and the drum looked to stand in it.)
         for q in range(5 + n):
-            a = q * math.tau / (5 + n) + 0.4 * n
-            stand(s * 11.4 + 1.55 * math.cos(a), zc + s * 1.5 + 1.55 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)) + pave_r.uniform(-0.5, 0.5),
+            a = (0.0 if s > 0 else math.pi) + (-1.65 + 3.3 * q / (4 + n))
+            stand(s * 11.4 + 1.6 * math.cos(a), zc + s * 1.5 + 1.6 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)) + pave_r.uniform(-0.5, 0.5),
                   pave_r.choice(("idle", "phone", "talk", "smoke")), B.G0)
 # Under every crossing, out of the rain, more people: knots by the walls
 # and at the kerbs on both pavements (their own dice).

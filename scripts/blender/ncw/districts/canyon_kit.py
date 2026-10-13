@@ -192,6 +192,60 @@ def _board_no(f, cx, cy, cz, w, h):
     return math.floor(fx / 4 + 0.412) * 7 + math.floor((cy - h / 2) / 4 + 0.412) * 5 + math.floor(fz / 4 + 0.412) * 3
 
 
+# Spray paint: a piece of bubble letters with an outline, a highlight and
+# drips, and tags in a stroke, on a shutter or a back wall (a black shutter
+# with one poster on it filled a walker's eye).
+SPRAY = ((0.9, 0.12, 0.45, 1), (0.08, 0.75, 0.85, 1), (0.95, 0.72, 0.08, 1), (0.48, 0.2, 0.9, 1), (0.2, 0.85, 0.4, 1),
+         (0.95, 0.32, 0.08, 1), (0.85, 0.85, 0.82, 1), (0.05, 0.05, 0.06, 1))
+
+
+def _blob(key, f, cs, cy, rw, rh, out, col, n=12):
+    """An ellipse flat on a face, s cs, height cy, out from its plane."""
+    pts = [f.p(f.at(cs + rw * math.cos(t)), cy + rh * math.sin(t), out) for t in (i * math.tau / n for i in range(n))]
+    poly(key, pts, [(0.5 + 0.5 * math.cos(i * math.tau / n), 0.5 + 0.5 * math.sin(i * math.tau / n)) for i in range(n)], col)
+
+
+def _stroke(key, f, pts, wd, out, col):
+    """A line of spray through points (s, y) on a face."""
+    for (sa, ya), (sb, yb) in zip(pts, pts[1:]):
+        dl = math.hypot(sb - sa, yb - ya) or 1.0
+        ns, ny = -(yb - ya) / dl * wd / 2, (sb - sa) / dl * wd / 2
+        quad(key, f.p(f.at(sa - ns), ya - ny, out), f.p(f.at(sb - ns), yb - ny, out), f.p(f.at(sb + ns), yb + ny, out), f.p(f.at(sa + ns), ya + ny, out),
+             col=col)
+
+
+def graffiti(f, s0, s1, y0, y1, r, key=CB, out=0.0):
+    """A piece across a stretch of a face (s0..s1, y0..y1) and a tag or two
+    beside it, `out` from its plane."""
+    k = (key, "trim", 1)
+    w = s1 - s0
+    if w < 1.2 or y1 - y0 < 0.4:
+        return
+    n = max(2, min(5, int(w / 0.55)))
+    lw = min(0.62, w / (n * 0.82 + 0.3))
+    lh = min(y1 - y0, lw * r.uniform(1.15, 1.45))
+    fill, line = r.sample(SPRAY[:6], 2)
+    line = r.choice((line, SPRAY[7], SPRAY[6]))
+    s = s0 + (w - n * lw * 0.82) / 2 + lw * 0.41
+    base = (y0 + y1) / 2
+    for i in range(n):
+        cy = base + 0.08 * math.sin(i * 1.7 + r.random())
+        rw, rh = lw * r.uniform(0.44, 0.52), lh * r.uniform(0.44, 0.52)
+        _blob(k, f, s, cy, rw + 0.05, rh + 0.05, out, line)
+        _blob(k, f, s, cy, rw, rh, out + 0.004, fill)
+        _blob(k, f, s - rw * 0.35, cy + rh * 0.4, rw * 0.22, rh * 0.12, out + 0.008, SPRAY[6], n=8)
+        if r.random() < 0.45:
+            dw = r.uniform(0.025, 0.04)
+            ds = s + r.uniform(-rw * 0.5, rw * 0.5)
+            f.quad(k, ds - dw / 2, ds + dw / 2, max(0.05, cy - rh - r.uniform(0.08, 0.35)), cy - rh * 0.8, out + 0.002, col=fill)
+        s += lw * 0.82
+    if r.random() < 0.7:
+        ts = r.uniform(s0, max(s0, s1 - 0.9))
+        ty = min(y1 + 0.35, 2.6) if r.random() < 0.5 else max(0.3, y0 - 0.25)
+        pts = [(ts + i * 0.13, ty + r.uniform(-0.1, 0.12)) for i in range(6)]
+        _stroke(k, f, pts, 0.035, out + 0.002, r.choice(SPRAY))
+
+
 def _front(trade, f, s0, s1, key):
     """A built shop front in a bay 0.9 m deep behind the wall's plane: its
     back wall, sides, ceiling with a lamp and floor, and its trade."""
@@ -245,6 +299,12 @@ def _front(trade, f, s0, s1, key):
         for i in range(5):
             sx_, sy_ = hs + 0.7 + pr.uniform(-0.05, 0.12), 1.0 + pr.uniform(0.0, 1.0)
             f.quad((key, "trim", 1), sx_, sx_ + 0.09, sy_, sy_ + 0.07, -0.025, col=pr.choice(((0.6, 0.1, 0.12, 1), (0.9, 0.8, 0.1, 1), (0.1, 0.5, 0.6, 1), (0.8, 0.8, 0.8, 1))))
+        # Under the bills, spray paint on the shutter either side of the
+        # hatch (its own dice).
+        gr = random.Random(9170 + len(FRONTS) * 5)
+        for e0, e1 in ((s0 + 0.15, hs - 0.75), (hs + 0.75, s1 - 0.15)):
+            if e1 - e0 > 1.2 and gr.random() < 0.8:
+                graffiti(f, e0, e1, 0.95, 1.85, gr, key, out=-0.052)
         return
     f.quad((key, "glow", 0), s0, s1, G0, top, -d, col=dim(hue, 0.035))
     quad((key, "trim", 0), f.p(a, G0, 0.0), f.p(a, G0, -d), f.p(a, top, -d), f.p(a, top, 0.0), col=B.DARK_TRIM)
