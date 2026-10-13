@@ -690,7 +690,7 @@ def street_mix(f, r, s0, s1, y_lo, y_hi, n, taken, front=FA, key=CB, shop=False)
                 y = r.uniform(y_lo, max(y_lo + 0.1, y_hi - hh))
                 rect = (s - sw / 2 - 0.3, s + sw / 2 + 0.3, y - 0.3, y + hh + 0.3)
                 if _free(taken, rect):
-                    light_strip(f, s, y, sw, hh, r.choice(("cyan", "cyan", "white", "teal", "pink", "amber")), r, key)
+                    light_strip(f, s, y, sw, hh, r.choice(("cyan", "cyan", "blue", "teal", "pink", "amber")), r, key)
                     break
             elif roll < cut[2]:
                 sizes = [r.choice(("ps", "ps", "bx", "pm")) for _ in range(r.randint(2, 4))]
@@ -1385,6 +1385,21 @@ def _cy_crane(k):
     box(T, -0.2, 0.2, 7.1, 7.5, 8.8, 9.2, scale=1.0, col=steel, bottom=True)
     for x, y, z in ((0.0, 14.6, 0.0), (0.0, 12.85, 12.9), (0.0, 12.95, -4.9)):
         box(k("glow"), x - 0.14, x + 0.14, y, y + 0.28, z - 0.14, z + 0.14, scale=0.5, col=GLOW["red"], bottom=True)
+    # (Not a bare lattice: the driver's cab lit, work lamps under the jib,
+    # and a builder's banner hung on the mast, lit, its lines of type.)
+    for sx in (-1, 1):
+        quad(k("glow"), (sx * 0.71, 12.25, 0.6 * sx), (sx * 0.71, 12.25, -0.6 * sx), (sx * 0.71, 12.75, -0.6 * sx), (sx * 0.71, 12.75, 0.6 * sx),
+             col=dim("amber", 0.5))
+    quad(k("glow"), (-0.55, 12.25, 0.91), (0.55, 12.25, 0.91), (0.55, 12.75, 0.91), (-0.55, 12.75, 0.91), col=dim("amber", 0.5))
+    for z in (2.5, 5.5, 8.5, 11.5):
+        box(k("glow"), -0.12, 0.12, 12.12, 12.3, z - 0.12, z + 0.12, scale=0.5, col=GLOW["white"], bottom=True)
+    box(T, -0.56, -0.52, 2.6, 10.4, -0.85, 0.85, scale=1.0, col=(0.04, 0.04, 0.045, 1))
+    quad(k("glow"), (-0.57, 2.75, -0.75), (-0.57, 2.75, 0.75), (-0.57, 10.25, 0.75), (-0.57, 10.25, -0.75), col=dim("cyan", 0.6))
+    y = 3.3
+    for i in range(9):
+        w_ = (0.45, 0.6, 0.35, 0.6, 0.5, 0.25, 0.6, 0.4, 0.55)[i]
+        quad(k("glow"), (-0.58, y, -0.6), (-0.58, y, w_), (-0.58, y + 0.32, w_), (-0.58, y + 0.32, -0.6), col=dim("cyan", 0.2))
+        y += 0.75
 
 
 @P.proto("cy_tank", box=(1.5, 1.8, 1.5), reach=900)

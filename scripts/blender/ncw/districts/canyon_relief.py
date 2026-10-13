@@ -230,22 +230,31 @@ def tops(f, y0, y1, r, ok, tcol, key=CB):
         if ok(*_rect(f, s - 0.2, s + 0.2, y0, y1 - 1.0, 0.3)):
             x, _, z = f.p(f.at(s), 0.0, 0.0)
             P.place("pipe_v", x, y0 + 0.2, z, f.yaw, sy=y1 - y0 - 1.4, district=key)
-    # A tall strip of light up the face, or a big lit board near its top.
+    # A big vertical sign near the top (a blade's design at twice its size,
+    # its edges lit) over a strip of coloured light down the face, or a big
+    # lit board. (A plain pale strip read as a blank sign.)
     roll = r.random()
     big = w >= 12.0 and y1 - y0 >= 18.0
     strip = None
     if (roll < 0.4 or big) and y1 - y0 > 14.0:
-        s = r.choice((r.uniform(0.9, 2.2), r.uniform(w - 2.2, w - 0.9)))
+        sw, sh = 2.4, 10.0
+        s = r.choice((r.uniform(1.7, 2.6), r.uniform(w - 2.6, w - 1.7)))
         hh = min(y1 - y0 - 3.0, r.uniform(12.0, 26.0))
         ya = y1 - 1.5 - hh
-        if ok(*_rect(f, s - 0.7, s + 0.7, ya - 0.2, ya + hh + 0.2, 0.8)):
-            hue = r.choice(("cyan", "cyan", "white", "teal", "blue", "pink"))
+        if hh >= sh + 1.5 and ok(*_rect(f, s - 1.45, s + 1.45, ya - 0.2, ya + hh + 0.2, 0.8)):
+            hue = r.choice(("cyan", "cyan", "amber", "teal", "blue", "pink"))
             strip = s
-            f.box((key, "board_frame", 0), s - 0.62, s + 0.62, ya - 0.15, ya + hh + 0.15, 0.25, 0.55)
-            f.quad((key, "glow", 0), s - 0.5, s + 0.5, ya, ya + hh, 0.56, col=C.dim(hue, 0.45 if hue == "white" else 0.8))
+            yb = ya + hh - sh
+            f.box((key, "board_frame", 0), s - sw / 2 - 0.15, s + sw / 2 + 0.15, yb - 0.15, ya + hh + 0.15, 0.25, 0.55)
+            cx, cy, cz = f.p(f.at(s), yb + sh / 2, 0.57)
+            sign(C.own_name("bl"), cx, cy, cz, sw, sh, f.yaw, district=key, label=False)
+            for e in (-1, 1):
+                f.quad((key, "neon_" + hue, 0), s + e * (sw / 2 + 0.06) - 0.06, s + e * (sw / 2 + 0.06) + 0.06, yb - 0.1, ya + hh + 0.1, 0.58)
+            f.box((key, "board_frame", 0), s - 0.62, s + 0.62, ya - 0.15, yb - 0.15, 0.25, 0.55)
+            f.quad((key, "glow", 0), s - 0.5, s + 0.5, ya, yb - 0.4, 0.56, col=C.dim(hue, 0.7))
             yy = ya + 1.1
-            while yy < ya + hh - 0.4:
-                f.quad((key, "glow", 0), s - 0.5, s + 0.5, yy, yy + 0.09, 0.565, col=C.dim(hue, 0.3))
+            while yy < yb - 0.8:
+                f.quad((key, "glow", 0), s - 0.5, s + 0.5, yy, yy + 0.09, 0.565, col=C.dim(hue, 0.25))
                 yy += r.choice((0.9, 1.3, 1.3, 2.2))
             n += 1
     if (0.4 <= roll < 0.75 or big) and w >= 8.0:

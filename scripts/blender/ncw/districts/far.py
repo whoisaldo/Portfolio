@@ -588,14 +588,30 @@ def _deck_wall(f, top, r, used):
     # (A wainscot to just over head height: over it the tower's own lit
     # windows, a wall of cladding to the eye's top was a black wall.)
     clad = [s_ for s_ in [k * 1.2 for k in range(int(w / 1.2))] if ok(s_, s_ + 1.2, top + 1.16, top + 3.6, 0.1)]
-    # (Pale panels in the deck's lamplight, one in three darker: the bake
-    # lights floors, not walls, and in trim the wall read as black at arm's
-    # length; so the panels carry the lamps' light themselves, faintly.)
+    # (Cast concrete in bays, one in three darker, stained where the rain
+    # runs down from the pipes and rust from their brackets, a conduit along
+    # it with its boxes: pale panels lit by themselves read as the brightest
+    # and emptiest wall in the district. Its own dice, so the rest of the
+    # wall is dealt as it was.)
+    rs = random.Random(int(abs(f.at(0.0)) * 31 + top * 7 + w * 3))
     for k, s_ in enumerate(clad):
-        pale = (k + int(s_ / 3.6)) % 3 != 0
-        f.quad((CB, "glow" if pale else "trim", 0), s_, s_ + 1.2, top + 1.16, top + 2.45, 0.025,
-               col=(0.055, 0.05, 0.045, 1) if pale else (0.08, 0.085, 0.09, 1))
+        dark = (k + int(s_ / 3.6)) % 3 == 0
+        f.quad((CB, "castconcrete", 0), s_, s_ + 1.2, top + 1.16, top + 2.45, 0.025,
+               col=(0.48, 0.48, 0.52, 1) if dark else (0.8, 0.78, 0.76, 1))
         f.quad((CB, "trim", 1), s_ + 1.17, s_ + 1.2, top + 1.16, top + 2.45, 0.03, col=B.DARK_TRIM)
+        for _ in range(rs.choice((0, 1, 1, 2))):
+            a_ = rs.uniform(s_ + 0.05, s_ + 0.95)
+            sw_ = rs.uniform(0.08, 0.3)
+            ya_ = rs.uniform(top + 1.2, top + 1.9)
+            col_ = rs.choice(((0.03, 0.03, 0.035, 1), (0.04, 0.038, 0.04, 1), (0.13, 0.06, 0.03, 1)))
+            f.quad((CB, "trim", 1), a_, min(a_ + sw_, s_ + 1.15), ya_, top + 2.45, 0.028, col=col_)
+    if clad:
+        ca_, cb_ = min(clad) + 0.1, max(clad) + 1.1
+        f.box((CB, "metal", 1), ca_, cb_, top + 2.3, top + 2.36, 0.03, 0.09)
+        cs_ = ca_ + rs.uniform(0.3, 1.5)
+        while cs_ < cb_ - 0.3:
+            f.box((CB, "trim", 1), cs_ - 0.12, cs_ + 0.12, top + 2.2, top + 2.44, 0.03, 0.13, col=(0.11, 0.115, 0.12, 1))
+            cs_ += rs.uniform(2.5, 4.5)
     f.box((CB, "trim", 1), min(clad, default=0.0), max(clad, default=0.0) + 1.2, top + 2.45, top + 2.52, 0.0, 0.06, col=B.DARK_TRIM)
     if not clad:
         return
@@ -774,7 +790,7 @@ def _dress_street(U):
         # face is the hero's, and stays dark against its band of sky).
         no = B.Face("-z", U["zn"], *U["x"])
         s = no.width - 0.5 if side > 0 else 0.5
-        C.strip(CB, no, s - 0.18, s + 0.18, ph + 1.0, h - 2.0, r.choice(("cyan", "teal", "amber", "white")))
+        C.strip(CB, no, s - 0.18, s + 0.18, ph + 1.0, h - 2.0, r.choice(("cyan", "teal", "amber", "purple")))
     # Signs: the dense belt over the shops, on the podium, and a looser one
     # up the slab's first floors; high on the slab a big blade or two, and
     # on some a screen canted toward the traffic coming up the avenue. None
@@ -899,7 +915,7 @@ def _dress_back(U):
             y += CELL_H * 4
         for s in (0.25, w - 0.25):
             if r.random() < 0.5:
-                C.strip(CB, f, s - 0.15, s + 0.15, lo + 1.0, hi - 1.5, r.choice(HUES + ("white",)))
+                C.strip(CB, f, s - 0.15, s + 0.15, lo + 1.0, hi - 1.5, r.choice(HUES + ("blue",)))
         for _ in range(r.randrange(1, 4)):
             C.blade(f, r.uniform(1.5, w - 1.5), r.uniform(lo + 4.0, max(lo + 5.0, hi - 6.0)), "bl", r.choice((0.0, 0.3, -0.3)))
     if U["back"] == "low" and h - U["top"] > 10.0:
