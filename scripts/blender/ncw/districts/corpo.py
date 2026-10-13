@@ -177,18 +177,20 @@ BELTS = {
     "robert-defalco-realty": ((F(22), F(23)),),
     "northeastern": ((F(16), F(17)), (F(27), F(28))),
 }
-# How each tower is lit (its curtain wall's share of lit floors, how many
-# runs of floors are lit nearly through, and how warm its light is): no two
-# towers alike, from a dark monolith with a few cool floors on to a slab lit
-# warm in long runs.
+# How each tower is lit (its curtain wall's share of lit windows, how many
+# runs of floors have more of them, how warm its light is, and which of the
+# corporate shader's glass systems it is: lines of light under every slab,
+# warm and sparse, the house's colour every third floor, a dark monolith,
+# ribbon windows, a grid of cool points, warm-white lines every fourth
+# floor): no two towers alike.
 LIGHT = {
-    "philips-zero-touch": dict(lit=(0.32, 0.6), hot=0.5, warm=(0.0, 0.18), bright=(0.9, 1.0)),
-    "pinnatec-auto": dict(lit=(0.3, 0.6), hot=0.46, warm=(0.05, 0.3), bright=(0.9, 1.0)),
-    "pawtograder": dict(lit=(0.34, 0.66), hot=0.5, warm=(0.85, 1.0)),
-    "aws-cloudformation": dict(lit=(0.22, 0.52), hot=0.4, warm=(0.25, 0.5), bright=(0.9, 1.0)),
-    "top-choice-realty": dict(lit=(0.36, 0.66), hot=0.5, warm=(0.8, 1.0)),
-    "robert-defalco-realty": dict(lit=(0.06, 0.24), hot=0.16, warm=(0.35, 0.6)),
-    "northeastern": dict(lit=(0.2, 0.45), hot=0.32, warm=(0.0, 0.25)),
+    "philips-zero-touch": dict(lit=(0.32, 0.6), hot=0.5, warm=(0.0, 0.18), bright=(0.9, 1.0), sys=0),
+    "pinnatec-auto": dict(lit=(0.3, 0.6), hot=0.46, warm=(0.05, 0.3), bright=(0.9, 1.0), sys=2),
+    "pawtograder": dict(lit=(0.34, 0.66), hot=0.5, warm=(0.85, 1.0), sys=1),
+    "aws-cloudformation": dict(lit=(0.22, 0.52), hot=0.4, warm=(0.25, 0.5), bright=(0.9, 1.0), sys=6),
+    "top-choice-realty": dict(lit=(0.36, 0.66), hot=0.5, warm=(0.8, 1.0), sys=4),
+    "robert-defalco-realty": dict(lit=(0.06, 0.24), hot=0.16, warm=(0.35, 0.6), sys=3),
+    "northeastern": dict(lit=(0.2, 0.45), hot=0.32, warm=(0.0, 0.25), sys=5),
 }
 # What each tower carries between its lobby's screens and its crown, on the
 # faces the boulevard and the Experience shot see (south and west) and a
@@ -287,7 +289,7 @@ for i, (slug, height) in enumerate(TOWERS):
         # behind it, a soffit over it; its own sides stand open.
         hz = tz + half - hall[1]
         walls((CO, "corporate", 0), [(tx - half, hz), (tx + half, hz), (tx + half, tz - half), (tx - half, tz - half)], LOBBY_H, hall[0],
-              (0.12, col[1], gseed, 1.0))
+              (0.12, col[1], gseed, K.sys_alpha(LIGHT[slug]["sys"])))
         quad((CO, "dark", 0), (tx - half, hall[0], hz), (tx + half, hall[0], hz), (tx + half, hall[0], tz + half), (tx - half, hall[0], tz + half))
     # The shaft, in sections, each stepped back from the one under it.
     cuts = [hall[0] if hall else LOBBY_H] + [height * f for f in form["steps"]] + [height]
@@ -319,6 +321,10 @@ for i, (slug, height) in enumerate(TOWERS):
             notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
             if k_:
                 ring(h_k, y0 + 1.0)
+            # A line of its light up the inside corner of every notch.
+            c_ = h_k - notch
+            for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+                lit_box(verts, faces, uvs, tx + sx * c_ - 0.12, tx + sx * c_ + 0.12, y0 + (1.0 if k_ else 0.5), y1, tz + sz * c_ - 0.12, tz + sz * c_ + 0.12, 2.0)
     elif kind == "facet":
         # Broad chamfers to the west, narrow to the east (the name stands on
         # the front's east end).
@@ -393,13 +399,17 @@ for i, (slug, height) in enumerate(TOWERS):
             ya, yb = marks[j], marks[j + 1]
             g = notched4(tx, tz, h_k - 0.55, notch - 0.55)
             if j % 2:
-                skin(g, g, ya, yb, r, gseed, force={e: (1.0, 0.95) for e in range(12)})
+                skin(g, g, ya, yb, r, gseed, force={e: (1.0, 0.95) for e in range(12)}, sys=LIGHT[slug]["sys"])
                 ring(h_k - 0.5, ya - 0.1, 0.16)
                 ring(h_k - 0.5, yb - 0.06, 0.16)
             else:
                 skin(g, g, ya, yb, r, gseed, **LIGHT[slug])
                 fin_rows(tx, tz, h_k, 0.55, ya, yb, 1.3, 0.42, (CO, "castconcrete", 0), CAST, notch)
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
+        # A line of its light up the inside corner of every notch.
+        c_ = h_k - notch
+        for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+            lit_box(verts, faces, uvs, tx + sx * c_ - 0.12, tx + sx * c_ + 0.12, y0 + 0.5, y1, tz + sz * c_ - 0.12, tz + sz * c_ + 0.12, 2.0)
         # A blade of adverts out of its east flank, a line of the tower's
         # light up its outer edge.
         bz_, bx0, bx1 = tz + 6.0, tx + h_k, tx + h_k + 3.6
@@ -463,6 +473,10 @@ for i, (slug, height) in enumerate(TOWERS):
                 oriented_box((CO, "trim", 0), px - math.sin(th) * 0.3, (y0 + y1) / 2, pz - math.cos(th) * 0.3, 0.36, y1 - y0, 0.5, th, scale=2.0, col=NAVY)
             for j in range(16):
                 lit_quad(verts, faces, uvs, plan[j], plan[(j + 1) % 16], y1 - 0.7, y1 - 0.4, 0.5)
+            # Its light up the four diagonal ribs.
+            for j in (2, 6, 10, 14):
+                px, pz = plan[j]
+                lit_box(verts, faces, uvs, px - 0.1, px + 0.1, y0 + 1.0, y1 - 0.7, pz - 0.1, pz + 0.1, 2.0)
             if k_:
                 ledge(ngon(tx, tz, aps[k_ - 1]), y0, 1.0)
         # A ring of screens round the lowest drum's front, five facets wide.

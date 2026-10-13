@@ -87,7 +87,7 @@ def south_side():
     # b: showrooms under a deep podium, a ribbon-windowed block set back on
     # it behind a terrace.
     x0, x1, h = S1[1]
-    K.corp_block(x0, x1, z0, z1, h, 7803, skin="windows", tint="navy", style=5, base=K.BASE + K.STOREY,
+    K.corp_block(x0, x1, z0, z1, h, 7803, skin="glass+", sys=4, tint="navy", style=5, base=K.BASE + K.STOREY,
                  tiers=((1.0, (2.5, 2.5, 5.0, 0.0)),), fronts={"-z": "shop", **DOCK}, canopy=2.2, edge="amber", colour="white",
                  lit=(0.5, 0.85), warm=(0.4, 0.9), top_band="amber")
     terrace(x0 + 0.4, x1 - 0.4, z0 + 0.4, z0 + 4.6, K.BASE + K.STOREY, r)
@@ -105,7 +105,7 @@ def south_side():
     # d: long and low, showrooms to the street, a garden on its roof.
     x0, x1, h = S1[3]
     K.corp_block(x0, x1, z0, z1, h, 7805, skin="windows", tint="teal", style=4, tiers=((0.55, 0.0), (1.0, (4.0, 4.0, 7.0, 0.0))),
-                 fronts={"-z": "shop", **DOCK}, canopy=2.2, edge="cyan", colour="cyan", lit=(0.55, 0.9), warm=(0.1, 0.5))
+                 fronts={"-z": "shop", **DOCK}, canopy=2.2, edge="cyan", colour="cyan", lit=(0.2, 0.42), warm=(0.1, 0.5))
     terrace(x0 + 0.4, x1 - 0.4, z0 + 0.4, z0 + 6.6, K.BASE + (h - K.BASE) * 0.55, r, trees=True)
     K.roof_plant(x0 + 6, x1 - 6, z0 + 9, z1 - 2, h, r, cap=3.0, tall=False)
     K.roof_lights(x0 + 6, x1 - 6, z0 + 9, z1 - 2, h, "cyan", step=6.5)
@@ -121,7 +121,7 @@ def south_side():
     # f: the tallest: a dark slab with a column of screens up its face, a
     # canopy over its door the width of the lot.
     x0, x1, h = S1[5]
-    K.corp_block(x0, x1, z0, z1, h, 7807, skin="windows", tint="charcoal", style=5, tiers=((0.86, (0.0, 0.0, 1.6, 0.0)), (1.0, (3.0, 3.0, 4.6, 3.0))),
+    K.corp_block(x0, x1, z0, z1, h, 7807, skin="glass+", sys=5, tint="charcoal", style=5, tiers=((0.86, (0.0, 0.0, 1.6, 0.0)), (1.0, (3.0, 3.0, 4.6, 3.0))),
                  fronts={"-z": "glass", **DOCK}, canopy=3.2, corners="cyan", edge="cyan", colour="cyan", top_band="amber",
                  lit=(0.5, 0.8), warm=(0.3, 0.8))
     K.screen_stack(x0 + 8.0, z0 + 1.6 - 0.38, 10.5, 7.0, (5.0, 4.2, 5.6, 4.2), math.pi, r, pal=K.MEDIA)
@@ -132,7 +132,7 @@ def south_side():
     x0, x1, h = S1[6]
     K.corp_block(x0, x1, z0, z1, h, 7808, skin="windows", tint="navy", style=2, tiers=((1.0, 0.0),),
                  fronts={"-z": "glass", "-x": "dock", "+z": "dock", "+x": "blank"}, canopy=2.0, edge="amber", colour="amber",
-                 lit=(0.5, 0.8), warm=(0.5, 1.0))
+                 lit=(0.2, 0.42), warm=(0.5, 1.0))
     # The alleys: a portal across each mouth, tubes of light down it, a
     # palm just inside, and in every other one a kiosk.
     for j, (a, b) in enumerate(S1_ALLEYS):

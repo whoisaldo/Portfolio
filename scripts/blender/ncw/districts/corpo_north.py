@@ -44,7 +44,7 @@ def west_block():
     # The main slab: a lobby on the boulevard, a wall of screens over it to
     # 46 m (dark above: the Experience shot's lower left corner), a glass
     # crown set back, a mast.
-    K.corp_block(x0, x1, T_BACK - 1.0, LOT_N, 68.0, 7702, skin="windows", tint="navy", style=5,
+    K.corp_block(x0, x1, T_BACK - 1.0, LOT_N, 68.0, 7702, skin="glass+", sys=4, tint="navy", style=5,
                  tiers=((0.86, 0.0), (1.0, 2.5)), fronts={"+z": "glass", "+x": "dock", "-x": "none"}, canopy=2.6,
                  edge=None, lit=(0.3, 0.5), warm=(0.3, 0.7))
     # (No lines of light on its crown: it stands in the Experience shot's
@@ -77,7 +77,7 @@ def west_block():
     # The back wing: lower, the track runs into it.
     K.corp_block(x0, x1, BACK0, T_BACK - 1.0, 40.0, 7703, skin="windows", tint="concrete", style=2,
                  tiers=((0.7, 0.0), (1.0, (0.0, 3.0, 0.0, 3.0))), fronts={"+x": "dock", "-z": "blank", "-x": "none", "+z": "none"},
-                 edge="amber", lit=(0.4, 0.7), warm=(0.4, 0.9))
+                 edge="amber", lit=(0.18, 0.36), warm=(0.4, 0.9))
     K.roof_plant(x0 + 1, 119.5, BACK0 + 1, -401.0, 40.0, r, cap=5.0)
     K.pad((x0 + x1) / 2, -389.0, 40.0, r=8.0, colour="amber")
     portal(x1, 1)
@@ -128,7 +128,7 @@ def east_blocks():
     # in it. Along z -344 east of x 452 the Afterlife Block's block stands
     # against it.
     x0, x1 = EAST_X, 469.7     # (its east face is the district's edge at x 470: a pilaster stands proud of it)
-    K.corp_block(x0, x1, BACK1, LOT_N, 74.0, 7713, skin="windows", tint="charcoal", style=5,
+    K.corp_block(x0, x1, BACK1, LOT_N, 74.0, 7713, skin="glass+", sys=5, tint="charcoal", style=5,
                  tiers=((0.8, 0.0), (1.0, (0.0, 0.0, 3.0, 3.0))), fronts={"-x": "dock", "+x": "blank", "+z": "none", "-z": "none"},
                  corners="cyan", edge="cyan", top_band="amber", lit=(0.45, 0.75), warm=(0.2, 0.6))
     f = B.Face("+z", LOT_N, x0, 452.0)
@@ -182,7 +182,7 @@ def back_row():
     K.screen_stack(207.0, BACK1 - 3.0 + 0.42, 56.0, 12.0, (7.0, 5.0, 6.0), 0.0, r)
     K.roof_plant(214.0, 222.0, BACK0 + 5, BACK1 - 5, 84.0, r, cap=3.5)
     # 3: the block the halt opens into.
-    K.corp_block(232.0, 262.0, BACK0, BACK1, 44.0, 7725, skin="windows", tint="teal", style=4, tiers=((1.0, 0.0),),
+    K.corp_block(232.0, 262.0, BACK0, BACK1, 44.0, 7725, skin="glass+", sys=1, tint="teal", style=4, tiers=((1.0, 0.0),),
                  edge="amber", top_band="cyan", lit=(0.55, 0.85), warm=(0.1, 0.5), **D)
     # 4: the plant building, low: cooling drums in rows on its roof, steam.
     K.podium_walls(268.0, 298.0, BACK0, BACK1, 15.6, {"-z": "blank", "+z": "dock", "-x": "dock", "+x": "dock"}, r, 5, "amber", 0.0, K.CONCRETE)
@@ -205,7 +205,7 @@ def back_row():
                  edge="amber", top_band="amber", colour="amber", lit=(0.5, 0.85), warm=(0.4, 0.9), **D)
     K.screen(322.0, 44.0, BACK1 + 0.4, 13.0, 7.0, 0.0, r)
     # 6: the tallest, a dark slab with fins and a crown of light.
-    K.corp_block(344.0, 378.0, BACK0, BACK1, 90.0, 7727, skin="windows", tint="navy", style=5, tiers=((0.8, 0.0), (1.0, 2.6)),
+    K.corp_block(344.0, 378.0, BACK0, BACK1, 90.0, 7727, skin="glass+", sys=2, tint="navy", style=5, tiers=((0.8, 0.0), (1.0, 2.6)),
                  fin_step=5.6, fin_faces=("+z", "-z", "+x", "-x"), corners="amber", edge="amber", top_band="cyan",
                  lit=(0.5, 0.8), warm=(0.5, 1.0), **D)
     K.screen_stack(361.0, BACK1 - 2.6 + 0.42, 74.0, 16.0, (6.0, 6.0), 0.0, r)
@@ -213,7 +213,7 @@ def back_row():
     K.corp_block(384.0, 408.0, BACK0, BACK1, 62.0, 7728, skin="glass", tiers=((0.8, 0.0), (1.0, 2.4)), corners="cyan",
                  edge="cyan", fronts={"+z": "dock", "-z": "blank", "-x": "dock", "+x": "none"})
     K.corp_block(408.0, 428.0, BACK0, BACK1, 46.0, 7729, skin="windows", tint="concrete", style=2, tiers=((1.0, 0.0),),
-                 fronts={"+z": "dock", "-z": "blank", "+x": "dock", "-x": "none"}, edge="amber", lit=(0.45, 0.75), warm=(0.5, 1.0))
+                 fronts={"+z": "dock", "-z": "blank", "+x": "dock", "-x": "none"}, edge="amber", lit=(0.18, 0.36), warm=(0.5, 1.0))
     K.roof_plant(409.0, 427.0, BACK0 + 1, BACK1 - 1, 46.0, r, cap=5.0)
     # The alleys between them: a tube of light over each, bins.
     for x in (135.0, 185.0, 229.0, 265.0, 301.0, 341.0, 381.0, 430.0):

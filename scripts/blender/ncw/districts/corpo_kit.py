@@ -83,9 +83,15 @@ def roof_quad(x0, x1, z0, z1, y, mat="roof"):
          ((0, 0), ((x1 - x0) / 4, 0), ((x1 - x0) / 4, (z1 - z0) / 4), (0, (z1 - z0) / 4)))
 
 
-def glass_col(r, lit=(0.5, 0.86), warm=(0.0, 0.45)):
-    """A curtain wall's own numbers: lit fraction, warmth, seed."""
-    return (r.uniform(*lit), r.uniform(*warm), r.random(), 1.0)
+def sys_alpha(sys):
+    """The corporate shader's alpha for one of Corpo Row's nine glass
+    systems (1.0 is the city's other curtain walls)."""
+    return 1.0 if sys is None else 0.05 + 0.1 * sys
+
+
+def glass_col(r, lit=(0.5, 0.86), warm=(0.0, 0.45), sys=None):
+    """A curtain wall's own numbers: lit fraction, warmth, seed, system."""
+    return (r.uniform(*lit), r.uniform(*warm), r.random(), sys_alpha(sys))
 
 
 def glass(x0, x1, z0, z1, y0, y1, col, faces="all", roof=True):
@@ -919,7 +925,7 @@ def storey_line(y):
 
 def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, tiers=((1.0, 0.0),), fronts=None,
                fin_step=0.0, fin_faces=("+z",), corners=None, edge="cyan", cap=6.0, podium=STONE, canopy=0.0,
-               colour="cyan", lit=(0.5, 0.86), warm=(0.0, 0.45), style=5, top_band=None, terrace_rail=True, crown=True):
+               colour="cyan", lit=(0.5, 0.86), warm=(0.0, 0.45), style=5, top_band=None, terrace_rail=True, crown=True, sys=None):
     """A corporate block: a stone podium to `base` with its fronts (see
     front()), a shaft in `tiers` ((fraction of the height it ends at, inset
     on every side from the podium), ...), glass or windows, optional fins
@@ -929,7 +935,7 @@ def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, ti
     fronts = fronts or {}
     tnum = B.TINTS[tint]
     podium_walls(x0, x1, z0, z1, base, fronts, r, tnum, colour, canopy, podium)
-    gcol = glass_col(r, lit, warm)
+    gcol = glass_col(r, lit, warm, 7 + seed % 2 if sys is None else sys)
     wcol = B.wall_col(r.uniform(*lit), style, r.uniform(*warm), tnum)
     y = base
     prev = (x0, x1, z0, z1)
@@ -941,6 +947,11 @@ def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, ti
         last = ti == len(tiers) - 1
         if skin == "glass":
             glass(a0, a1, b0, b1, y, y1, gcol, roof=False)
+        elif skin == "glass+":
+            # (A block that was on the window shader: glass now, its dice
+            # thrown as they were so what is dealt after it is unchanged.)
+            glass(a0, a1, b0, b1, y, y1, gcol, roof=False)
+            r.randrange(0, 40)
         else:
             windows(a0, a1, b0, b1, y, y1, r, style=style, tint=tint, roof=False, col=wcol)
         # The roof under this tier (the terrace its inset leaves; the
@@ -1195,7 +1206,7 @@ def advert(cx, cy, cz, w, h, yaw, pick, seed=0.31, depth=0.12):
     oriented_box(k("board_frame"), cx - nx * (depth / 2 + 0.02), cy, cz - nz * (depth / 2 + 0.02), w + 0.3, h + 0.3, depth, yaw, scale=1.0)
 
 
-def skin(p0, p1, y0, y1, r, seed, lit=(0.25, 0.55), hot=0.38, warm=(0.7, 1.0), force=None, belts=(), bright=(0.75, 1.0), detail=0):
+def skin(p0, p1, y0, y1, r, seed, lit=(0.25, 0.55), hot=0.38, warm=(0.7, 1.0), force=None, belts=(), bright=(0.75, 1.0), detail=0, sys=7):
     """Curtain wall from the outline p0 at y0 to p1 at y1 (the same count of
     points: a battered wall if they differ), in panels about three floors
     by 9 m. The corporate shader draws floors and rooms from world position;
@@ -1204,7 +1215,11 @@ def skin(p0, p1, y0, y1, r, seed, lit=(0.25, 0.55), hot=0.38, warm=(0.7, 1.0), f
     its own (`hot` of them nearly all lit, the rest somewhere in `lit`) and
     each panel in it a little more or less, so a face is lit in runs of
     floors, not in spots. `belts`: (ya, yb) bands lit from end to end, a sky
-    lobby's floors. `force`: {edge: (lit, warm)} for a whole edge."""
+    lobby's floors. `force`: {edge: (lit, warm)} for a whole edge. `sys`:
+    which of the row's glass systems the shader draws (corporate(): a
+    share over 0.985 is a floor lit end to end, so a panel's own share
+    stops at 0.9 and a forced edge lit 0.95 or more is lit through)."""
+    a = sys_alpha(sys)
     spans, y = [], y0
     for ba, bb_ in sorted(belts):
         ba, bb_ = max(ba, y0), min(bb_, y1)
@@ -1240,11 +1255,11 @@ def skin(p0, p1, y0, y1, r, seed, lit=(0.25, 0.55), hot=0.38, warm=(0.7, 1.0), f
             base = r.uniform(*bright) if r.random() < hot else r.uniform(*lit)
             for j in range(m):
                 if force and i in force:
-                    c = (force[i][0], force[i][1], seed, 1.0)
+                    c = (1.0 if force[i][0] >= 0.95 else force[i][0], force[i][1], seed, a)
                 elif belt:
-                    c = (1.0, max(warm[1], 0.9), seed, 1.0)
+                    c = (1.0, max(warm[1], 0.9), seed, a)
                 else:
-                    c = (min(1.0, max(0.02, base + r.uniform(-0.12, 0.12))), r.uniform(*warm), seed, 1.0)
+                    c = (min(0.9, max(0.02, base + r.uniform(-0.12, 0.12))), r.uniform(*warm), seed, a)
                 quad(k("corporate", detail), pt(j / m, ya), pt((j + 1) / m, ya), pt((j + 1) / m, yb), pt(j / m, yb),
                      ((0, 0), (length / m, 0), (length / m, yb - ya), (0, yb - ya)), c)
 

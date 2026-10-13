@@ -22,7 +22,7 @@ def shaft(x0, x1, z0, z1, y0, y1, r, seed, hue=None, lit=(0.3, 0.6), hot=0.42, w
     """One stage of a tower: curtain wall on all four faces lit in runs of
     floors, a roof, fins down its south face, a line of light under its
     parapet and up its south corners."""
-    K.skin(K.rect(x0, x1, z0, z1), K.rect(x0, x1, z0, z1), y0, y1, r, seed, lit=lit, hot=hot, warm=warm, belts=belts)
+    K.skin(K.rect(x0, x1, z0, z1), K.rect(x0, x1, z0, z1), y0, y1, r, seed, lit=lit, hot=hot, warm=warm, belts=belts, sys=7 + int(seed * 1000) % 2)
     K.roof_quad(x0, x1, z0, z1, y1)
     B.ROOFS.append((CO, x0, x1, z0, z1, y1))
     B.COLLISION.append(("box", x0, x1, y0, y1, z0, z1, CO))
@@ -95,7 +95,7 @@ def drum(cx, cz, ap, y0, y1, r, seed, hue, belts=(), ribs=True):
     ring of light at its head."""
     rad = ap / math.cos(math.pi / 16)
     plan = [(cx + rad * math.sin((i - 0.5) * math.tau / 16), cz + rad * math.cos((i - 0.5) * math.tau / 16)) for i in range(16)]
-    K.skin(plan, plan, y0, y1, r, seed, lit=(0.45, 0.75), hot=0.5, warm=(0.5, 0.95), belts=belts)
+    K.skin(plan, plan, y0, y1, r, seed, lit=(0.45, 0.75), hot=0.5, warm=(0.5, 0.95), belts=belts, sys=8)
     pts = [(x, y1, z) for x, z in plan]
     poly(k("roof"), pts, [(x / 4, z / 4) for x, _, z in pts])
     B.COLLISION.append(("box", cx - ap, cx + ap, y0, y1, cz - ap, cz + ap, CO))
