@@ -587,8 +587,9 @@ def _deck_wall(f, top, r, tcol, used):
     ok = lambda s0, s1, y0, y1, d: C.hidden(OCC, *REL._rect(f, s0, s1, y0, y1, d))
     clad = [s_ for s_ in [k * 1.2 for k in range(int(w / 1.2))] if ok(s_, s_ + 1.2, top + 1.16, top + 3.6, 0.1)]
     dark = (tcol[0] * 0.55, tcol[1] * 0.55, tcol[2] * 0.55, 1)
-    for s_ in clad:
-        f.quad((CB, "trim", 0), s_, s_ + 1.2, top + 1.16, top + 3.6, 0.025, col=dark)
+    lite = (tcol[0] * 0.8, tcol[1] * 0.8, tcol[2] * 0.8, 1)
+    for k, s_ in enumerate(clad):
+        f.quad((CB, "trim", 0), s_, s_ + 1.2, top + 1.16, top + 3.6, 0.025, col=lite if (k + int(s_ / 3.6)) % 3 == 0 else dark)
         f.quad((CB, "trim", 1), s_ + 1.17, s_ + 1.2, top + 1.16, top + 3.6, 0.03, col=B.DARK_TRIM)
     f.quad((CB, "trim", 1), min(clad, default=0.0), max(clad, default=0.0) + 1.2, top + 2.38, top + 2.41, 0.03, col=B.DARK_TRIM)
     if not clad:
@@ -621,6 +622,27 @@ def _deck_wall(f, top, r, tcol, used):
     if free(us - 0.5, us + 0.5) and not ds - 0.6 < us < ds + 2.6 and abs(us - vs) > 1.0 and abs(us - cs) > 0.7:
         x_, _, z_ = f.p(f.at(us), 0.0, 0.0)
         P.place("ac_wall", x_, top + 2.5, z_, f.yaw, district=CB)
+        used.append((us - 0.5, us + 0.5))
+    used += [(ds, ds + 2.1), (cs - 0.2, cs + 0.2)]
+    # Bills pasted at eye height, each in a cell of its own as the site
+    # deals adverts, and a neon on the cladding over them.
+    cells = set()
+    ps = lo_ + r.uniform(0.2, 0.8)
+    while ps + 0.7 < hi_:
+        pw, ph_ = r.uniform(0.55, 0.8), r.uniform(0.75, 1.0)
+        py = top + r.uniform(1.75, 2.0)
+        if free(ps, ps + pw) and not ds - 0.2 < ps + pw and ps < ds + 2.3:
+            cx, cy, cz = f.p(f.at(ps + pw / 2), py, 0.035)
+            k_ = C._board_no(f, cx, cy, cz, pw, ph_) % 8
+            if k_ not in cells:
+                cells.add(k_)
+                rotated_quad((CB, "billboard", 0), cx, cy, cz, pw, ph_, f.yaw,
+                             col=(r.randrange(8) / 8.0 + 0.01, r.randrange(8) / 8.0 + 0.01, r.random(), 1.0))
+        ps += pw + r.uniform(0.3, 1.4)
+    ns = r.uniform(lo_ + 0.6, hi_ - 1.6)
+    m = "neon_" + r.choice(("pink", "cyan", "amber", "teal", "red"))
+    for x0, x1, y0, y1 in ((0.0, 1.0, 0.0, 0.05), (0.0, 1.0, 0.3, 0.35), (0.0, 0.05, 0.0, 0.35), (0.95, 1.0, 0.0, 0.35), (0.2, 0.75, 0.15, 0.2)):
+        f.box((CB, m, 0), ns + x0, ns + x1, top + 2.62 + y0, top + 2.62 + y1, 0.03, 0.07)
 
 
 def _back(U):

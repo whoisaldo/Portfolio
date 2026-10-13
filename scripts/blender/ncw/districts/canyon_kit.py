@@ -1602,6 +1602,11 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                 if STEAM.setdefault("towers", 0) % 3 == 0:
                     steam("roof", px, y + hh + 0.3, pz, most=9)
                 STEAM["towers"] += 1
+            elif kind == "hut" and cap >= 3.0 and min(pw, pd) >= 2.8:
+                # (The kit's stair hut, its lit door to one side or the other.)
+                side = r.choice((-1, 1))
+                P.place("roof_hut", px, y, pz, 0.0 if side > 0 else math.pi, district=key)
+                light(key, px, y + 1.5, pz + side * 2.4, "amber", 4.0)
             elif kind == "hut":
                 hw, hd, hh = min(1.5, pw * 0.4), min(1.3, pd * 0.4), min(2.6, cap - 0.2)
                 box((key, "trim", 0), px - hw, px + hw, y, y + hh, pz - hd, pz + hd, scale=1.5, col=B.TRIM[5])
@@ -1611,6 +1616,19 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                 q = ((px - 0.45, y, dz), (px + 0.45, y, dz), (px + 0.45, y + 2.0, dz), (px - 0.45, y + 2.0, dz))
                 quad((key, "glow", 0), *(q if side > 0 else (q[1], q[0], q[3], q[2])), col=dim("amber", 0.7))
                 light(key, px, y + 1.5, pz + side * (hd + 1.2), "amber", 4.0)
+            elif kind == "units" and pw >= 3.8 and pd >= 2.2:
+                # (The kit's condensers backed by a run of duct, a breath of
+                # steam off one in four.)
+                P.place("roof_condenser", px, y, pz + 0.3, 0.0, district=key)
+                if pw >= 4.2:
+                    # (A duct of the canyon's own behind them: the kit's would
+                    # carry a part of its prototype into the core.)
+                    box((key, "trim", 1), px - 1.9, px + 1.9, y + 0.35, y + 0.95, pz - 1.05, pz - 0.45, scale=1.0, col=PALE, bottom=True)
+                    for lx in (px - 1.6, px + 1.6):
+                        box((key, "metal", 1), lx - 0.06, lx + 0.06, y, y + 0.35, pz - 1.0, pz - 0.5, scale=0.5)
+                if STEAM.setdefault("cond", 0) % 4 == 0:
+                    empty(f"anchor_steam_zz_roof_cy{STEAM['cond']}", (px - 1.1, y + 1.25, pz + 0.3))
+                STEAM["cond"] += 1
             elif kind == "units":
                 n = max(1, min(4, int(pw // 2.0)))
                 for m in range(n):
@@ -1626,16 +1644,23 @@ def roof_plant(key, x0, x1, z0, z1, y, r, cap, lines=()):
                 for k in range(4):
                     xa = px - hw + k * (2 * hw / 4) + 0.12
                     flat((key, "glow", 0), xa, xa + 2 * hw / 4 - 0.24, pz - hd, pz + hd, y + 0.31, dim(hue, 0.5))
+            elif kind == "stack" and cap >= 1.2 and pw > 2.0:
+                for sx in (-0.7, 0.7):
+                    P.place("roof_vent", px + sx, y, pz + sx * 0.4, 0.0, district=key)
             elif kind == "stack":
                 for sx in (-0.5, 0.5) if pw > 2.6 else (0.0,):
                     cylinder((key, "metal", 1), px + sx, pz, y, y + 1.3, 0.2, segs=7)
                     cylinder((key, "dark", 1), px + sx, pz, y + 1.3, y + 1.42, 0.3, segs=7)
             elif kind == "tank":
-                P.place("cy_tank", px, y, pz, r.uniform(0, 6.28), sxz=min(1.0, min(pw, pd) / 3.2), district=key)
+                yaw = r.uniform(0, 6.28)
+                if cap >= 5.0 and min(pw, pd) >= 2.8:
+                    P.place("roof_tank", px, y, pz, yaw, district=key)
+                else:
+                    P.place("cy_tank", px, y, pz, yaw, sxz=min(1.0, min(pw, pd) / 3.2), district=key)
             elif kind == "antenna":
-                P.place("antenna", px, y, pz, r.uniform(0, 3.14), district=key)
+                P.place("roof_mast", px, y, pz, r.uniform(0, 3.14), sy=min(1.4, (cap - 0.4) / 8.2), district=key)
             elif kind == "dish":
-                P.place("dish", px, y, pz, r.uniform(0, 6.28), district=key)
+                P.place("roof_dish", px, y, pz, r.uniform(0, 6.28), district=key)
             elif kind == "board":
                 bw, bh = min(pw, 4.8), 2.4
                 yaw = r.choice((0.0, math.pi / 2, math.pi, -math.pi / 2)) + r.uniform(-0.3, 0.3)

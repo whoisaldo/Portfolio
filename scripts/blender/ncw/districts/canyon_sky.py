@@ -8,11 +8,13 @@ their corners, masts in clusters, and boards on frames on the roofs turned
 to the traffic over the avenue.
 """
 import math
+import random
 
 from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts import canyon_kit as C
+from ncw.districts import canyon_relief as REL
 from ncw.districts.canyon_kit import CB
 
 RED = GLOW["red"]
@@ -63,6 +65,11 @@ def setback(U, x0, x1, zn, zs, y, occ, plaza, side, r):
     _block(CB, x0, x1, z0, z1, y, top, B.wall_col(min(0.7, U["lit"] + 0.1), U["house"], U["warmth"], U["tint"]), U["ov"] + 7,
            B.TRIM[U["tint"]], hue, r)
     occ.append(((x0, 0.0, z0), (x1, top, z1)))
+    # Its walls as a top's are (ledges, units, a strip or a board; their
+    # own dice), where the lenses do not see them.
+    ok = lambda lo, hi: C.hidden(occ, lo, hi, plaza=plaza)
+    for i, f in enumerate(B.faces_of(x0, x1, z0, z1).values()):
+        REL.tops(f, y + 1.2, top - 0.4, random.Random(int(abs(z0) * 10) + i), ok, B.TRIM[U["tint"]])
     # On its roof: plant as high as the lenses allow, and a mast or a
     # board turned to the avenue's air.
     cap = C.hidden_top(occ, x0, x1, z0, z1, top, top + 6.0, plaza=plaza, step=1.0, pad=0.2, least=1.0)
