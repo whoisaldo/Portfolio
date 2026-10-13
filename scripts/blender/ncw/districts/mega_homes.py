@@ -21,11 +21,6 @@ from ncw.districts.mega_kit import *  # noqa: F401,F403
 PAINT = (PALE, CREAM, BLUEGREY, TEAL_PAINT, RUST, YEL_OLD, CONC, (0.34, 0.12, 0.17, 1.0), (0.12, 0.2, 0.11, 1.0), CONC, CREAM)
 LITS = ("amber", "amber", "amber", "white", "white", "pink", "cyan", "teal", "magenta", "amber")
 DYES = ("pink", "cyan", "amber", "white", "teal", "red", "purple", "green")
-COUNT = {}
-
-
-def _n(k):
-    COUNT[k] = COUNT.get(k, 0) + 1
 
 
 def _xyz(f, s, y, w):
@@ -60,7 +55,6 @@ def lit_window(f, s, y0, w, h, out, r, k=None, hue=None):
         # A blind half down.
         f.quad((D, "trim", 1), s - w / 2, s + w / 2, y0 + h * r.uniform(0.45, 0.75), y0 + h, out + 0.01, col=dim(CREAM, 0.6))
     f.quad((D, "trim", 1), s - w / 2 - 0.08, s + w / 2 + 0.08, y0 - 0.1, y0, out + 0.012, col=BLACK)
-    _n("window")
 
 
 def room_out(f, s0, s1, y, floors, r, guard):
@@ -87,7 +81,6 @@ def room_out(f, s0, s1, y, floors, r, guard):
             g.quad((D, "trim", 0), (s0 + s1) / 2 - w / 2, (s0 + s1) / 2 + w / 2, yy, yy + 1.25, 0.02, col=BLACK)
     # A drip of rust under it, and its brackets.
     g.quad((D, "trim", 1), s0 + 0.1, s1 - 0.1, y0, y0 + 0.18, 0.015, col=dim(RUST, 0.8))
-    _n("room")
     if r.random() < 0.35:
         P.place("ac_wall", *_xyz(f, s1 + 0.55, y0 + 0.6, 0.0), f.yaw)
     return True
@@ -104,7 +97,6 @@ def cage(f, s, y, r):
     for i in range(n + 1):
         sb = s - w / 2 + w * i / n
         f.quad((D, "trim", 1), sb - 0.025, sb + 0.025, y0, y1, 0.45, col=STEEL)
-    _n("cage")
 
 
 def pole(f, s, y, r):
@@ -113,7 +105,6 @@ def pole(f, s, y, r):
     yy = y + 2.2
     pipe((D, "metal", 1), _xyz(f, s, yy, 0.0), _xyz(f, s, yy, out), 0.02, segs=3)
     n = r.randint(2, 3)
-    _n("pole")
     for i in range(n):
         w0, w1 = 0.15 + (out - 0.2) * i / n, 0.15 + (out - 0.2) * (i + 0.8) / n
         drop = r.uniform(0.5, 0.95)
@@ -128,8 +119,6 @@ def homes_floor(f, y, used, r, guard=None, rate=1.0, walk=False):
     bays = max(1, round(f.width / CELL_W))
     bw = f.width / bays
     skip = set()
-    _n("floor")
-    COUNT["bays"] = COUNT.get("bays", 0) + bays
     for b in range(bays):
         if b in skip:
             continue
@@ -153,7 +142,6 @@ def homes_floor(f, y, used, r, guard=None, rate=1.0, walk=False):
             room_out(f, s - bw / 2 + 0.3, s + bw / 2 - 0.3, y, 2, r, guard)
         elif t < 0.27:
             P.place("ac_wall", *_xyz(f, s + r.uniform(-0.7, 0.7), y + r.choice((0.5, 2.6)), 0.0), f.yaw)
-            _n("ac")
         elif t < 0.33:
             cage(f, s, y, r)
         elif t < 0.45:
@@ -177,7 +165,6 @@ def stair_core(f, s, y0, y1, r, guard=None, w=2.6):
         if r.random() < 0.88:
             g.quad((D, "glow", 0), s - 0.45, s + 0.45, y, y + 1.5, 0.02, col=dim(GLOW[hue], r.uniform(0.3, 0.5)))
         y += CELL_H
-    _n("core")
     return (s - w / 2 - 0.3, s + w / 2 + 0.3)
 
 
@@ -196,7 +183,6 @@ def drains(f, y0, y1, r, blocked, n=None):
         rr = r.choice((0.09, 0.12, 0.16))
         rpipe(_xyz(f, s, y0, rr + 0.05), _xyz(f, s, y1, rr + 0.05), rr, col=r.choice((RUST, STEEL, CONC, TEAL_PAINT)), segs=5, detail=1)
         out.append((s - rr - 0.3, s + rr + 0.3))
-        _n("drain")
     return out
 
 
