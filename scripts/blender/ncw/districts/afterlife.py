@@ -1723,4 +1723,14 @@ for (x0_, x1_, z0_, z1_, y_) in (
     K.roof_light(D, x0_, x1_, z0_, z1_, y_)
 for (z0, z1, n) in OUTER:
     K.roof_light(D, 490.3, 507.7, z0 + 0.3, z1 - 0.3, storeys(n))
-K.roof_light(D, 457.8, 483.6, -299.6, -258.4, 34.0, lift=0.1, inside=lambda x, z: x > 474.2 or (z < -270.6 and x > 477.0 - 0.577 * (-266.0 - z) + 0.9))
+
+
+def _unseen(x, z):
+    """Where neither About nor Stack sees the camera roof's deck: east of the
+    pavers' edge, north-east of About's right-hand line, or within nine
+    metres of the lens (under both frames' feet)."""
+    dx, dz = x - 476.0, z + 266.0
+    return x > 474.2 or (z < -270.6 and x > 477.0 - 0.577 * (-266.0 - z) + 0.9) or dx * dx + dz * dz < 81.0
+
+
+K.roof_light(D, 457.8, 483.6, -299.6, -258.4, 34.0, lift=0.1, inside=_unseen)
