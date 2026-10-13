@@ -21,7 +21,7 @@ MB_X0, MB_X1, MB_ZB, MB_ZF = -48.0, 48.0, -790.0, -745.0
 MB_REC = 4.0                                # the middle section's face stands this far back
 MB_SECTIONS = ((-48.0, -18.0, 95.0, 0.0), (-18.0, 18.0, 89.0, MB_REC), (18.0, 48.0, 83.0, 0.0))
 MB_SIGNS = ((-30.0, "magenta"), (-9.0, "cyan"), (14.0, "pink"), (33.0, "amber"))
-WELL = (-9.0, 9.0, -783.0, -763.0)          # the light well: x0, x1, z0, z1
+WELL = (-13.0, 13.0, -786.0, -763.0)        # the light well: x0, x1, z0, z1
 PASSAGE = (-5.0, 5.0)                       # the passage from the face to the well: x0, x1
 # The megabuilding street (plan.py): its lot lines and its pavement's end.
 ST_N, ST_S, ST_END = -732.0, -708.0, 64.0
