@@ -99,8 +99,8 @@ for (mx, mz) in ((107.3, -219.4), (107.3, -205.2)):
         y = TY + 1.12 + j * 0.17
         box((PL, "glow", 1), mx - 0.09, mx - 0.08, y, y + 0.05, mz - 0.3, mz + 0.3 - 0.1 * (j % 3), scale=0.5, col=dim("white", 0.5))
     shine(mx - 0.8, TY + 1.0, mz, "amber", 3.0)
-for (px, pz, yaw, pose) in ((96.4, -211.2, math.pi / 2, "talk"), (97.2, -211.0, -math.pi / 2, "talk"), (102.2, -208.4, math.pi, "phone"),
-                            (104.6, -212.6, -math.pi / 2 + 0.4, "idle"), (102.0, -213.6, 0.3, "lean")):
+for (px, pz, yaw, pose) in ((102.4, -214.4, math.pi / 2, "talk"), (103.2, -214.2, -math.pi / 2, "talk"), (102.2, -208.4, math.pi, "phone"),
+                            (104.6, -211.4, -math.pi / 2 + 0.4, "idle")):
     stand(px, pz, yaw, pose, y=TY + 0.02)
 
 # ---------------------------------------------------------------------------

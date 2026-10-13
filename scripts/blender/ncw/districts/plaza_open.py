@@ -32,9 +32,11 @@ def table(cx, cz, y, seats, hues, lamp="amber", who=2, r=1.45, top=2.65):
     for i in range(seats):
         a = a0 + i * math.tau / seats + ro.uniform(-0.2, 0.2)
         px, pz = cx + 0.78 * math.sin(a), cz + 0.78 * math.cos(a)
-        oriented_box((PL, "trim", 0), px, y + 0.22, pz, 0.42, 0.44, 0.42, a, scale=0.5, col=(0.12, 0.12, 0.13, 1.0))
+        # (Dark: under the parasol's lamp a chair of mid grey was a plain
+        # white block beside the screen at a walker's eye.)
+        oriented_box((PL, "trim", 0), px, y + 0.22, pz, 0.42, 0.44, 0.42, a, scale=0.5, col=(0.04, 0.04, 0.045, 1.0))
         bx_, bz_ = px + 0.2 * math.sin(a), pz + 0.2 * math.cos(a)
-        oriented_box((PL, "trim", 0), bx_, y + 0.66, bz_, 0.42, 0.44, 0.05, a, scale=0.5, col=(0.12, 0.12, 0.13, 1.0))
+        oriented_box((PL, "trim", 0), bx_, y + 0.66, bz_, 0.42, 0.44, 0.05, a, scale=0.5, col=(0.04, 0.04, 0.045, 1.0))
         if taken < who:
             stand(px, pz, a + math.pi, "sit", y=y + SEAT)
             taken += 1
