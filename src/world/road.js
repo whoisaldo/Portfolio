@@ -279,12 +279,15 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           float fine6 = 1.0 - smoothstep(0.02, 0.06, px);
           float mid6 = 1.0 - smoothstep(0.06, 0.22, px);
           float laneNo = floor(lat / 3.5);
+          // (Covers, rubber and cracks across are a street's, on the ground:
+          // not mid-lane on the deck's road 8.5 m up.)
+          float onGround = 1.0 - step(0.5, vWorld.y);
           // The cover: 0.64 m of cast steel, a ring polished by the wheels,
           // a grid of bosses inside, a dark gap round it.
           float cc = floor(run / 26.0);
           float hcov = hash12(vec2(cc, laneNo + 41.0));
           float rc = length(vec2(run - (cc + 0.15 + 0.7 * fract(hcov * 7.0)) * 26.0, lane));
-          float cover = step(0.42, hcov) * (1.0 - inJ) * (1.0 - smoothstep(0.31, 0.32 + px, rc));
+          float cover = step(0.42, hcov) * (1.0 - inJ) * (1.0 - smoothstep(0.31, 0.32 + px, rc)) * onGround;
           vec3 iron = vec3(0.04, 0.038, 0.036) * (0.7 + 1.1 * step(0.55, fract(run / 0.08)) * step(0.55, fract(lat / 0.08)) * fine6);
           iron = mix(iron, vec3(0.13, 0.125, 0.115), step(0.25, rc));
           iron *= 1.0 - 0.75 * (1.0 - smoothstep(0.004, 0.014 + px, abs(rc - 0.305)));
@@ -294,7 +297,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           float sc = floor(run / 37.0);
           float hs = hash12(vec2(sc, laneNo + 17.0));
           float st = (run - (sc + 0.1 + 0.5 * fract(hs * 11.0)) * 37.0) / (5.0 + 9.0 * fract(hs * 5.0));
-          float skid = step(0.45, hs) * step(0.0, st) * step(st, 1.0) * smoothstep(0.0, 0.2, st) * (1.0 - inJ)
+          float skid = step(0.45, hs) * step(0.0, st) * step(st, 1.0) * smoothstep(0.0, 0.2, st) * (1.0 - inJ) * onGround
                      * (1.0 - smoothstep(0.06, 0.1 + px, abs(lane - 0.8 + 0.3 * st * st * (fract(hs * 3.0) - 0.5))))
                      * (0.55 + 0.45 * vnoise(vec2(run * 3.0, lat * 2.0)));
           albedo *= 1.0 - 0.62 * skid * mid6;
@@ -305,7 +308,7 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
           float ht = hash12(vec2(tcr, 3.0));
           float wander = (vnoise(vec2(lat * 0.7, tcr * 3.1)) - 0.5) * 0.9 + (vnoise(vec2(lat * 5.0, tcr)) - 0.5) * 0.12;
           float cd = abs(run - (tcr + 0.3 + 0.4 * ht) * 12.5 - wander);
-          float spanC = smoothstep(0.32, 0.45, vnoise(vec2(lat * 0.35 + 7.0, tcr * 1.7))) * (1.0 - cover);
+          float spanC = smoothstep(0.32, 0.45, vnoise(vec2(lat * 0.35 + 7.0, tcr * 1.7))) * (1.0 - cover) * onGround;
           float open = (1.0 - smoothstep(0.006, 0.014 + px * 0.4, cd)) * spanC * fine6;
           float tarred = (1.0 - smoothstep(0.03, 0.05 + px * 0.4, cd)) * spanC * step(0.5, fract(ht * 7.0)) * mid6;
           albedo *= (1.0 - 0.7 * open) * (1.0 - 0.4 * tarred);
