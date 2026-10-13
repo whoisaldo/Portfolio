@@ -1331,7 +1331,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // nothing drawn on the body that the model has cut into it). They are
   // built one a turn once the city is up, so the city is not kept waiting
   // for them; until a kind's is there, its cars are drawn as they were.
+  // (Begun by the first update, the city's first frame: begun here, they
+  // were built while the warm-up waited on its shaders, before that frame.)
   let alive = true;
+  let startNear = null;
   if (full) {
     let next = 0;
     const build = () => {
@@ -1344,7 +1347,10 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       K.levels.push(K.near);
       setTimeout(build, 0);
     };
-    setTimeout(build, 0);
+    startNear = () => {
+      startNear = null;
+      setTimeout(build, 0);
+    };
   }
   // The cars close enough for it this frame, to be sorted if there are more
   // than a dozen.
@@ -1988,6 +1994,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const voices = { on: true, avs: Array.from({ length: avs }, () => new THREE.Vector3()), police: police ? new THREE.Vector3() : null, train: null };
 
   const update = (dt, on) => {
+    startNear?.();
     droneMesh.visible = lamps.visible = pools.visible = trails.visible = on;
     for (const l of avLevels) l.mesh.visible = on;
     for (const k of kinds) for (const l of k.levels) l.mesh.visible = on;
