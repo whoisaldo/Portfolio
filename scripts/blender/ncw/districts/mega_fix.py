@@ -172,3 +172,16 @@ from ncw.districts.mega_base import WZ  # noqa: E402
 fo = face("+z", WZ, 22.0, 45.0)
 for s in (0.8, 3.2, 7.6, 12.2, 16.4, 20.6):
     bill(fo, s, _rc.uniform(1.5, 2.1), _rc.uniform(0.5, 0.8), _rc.uniform(0.7, 1.0), _rc, out=0.04)
+
+# The wings' bare walls to the forecourt (x -48 and 48, z -745..-732), which
+# a driver turning along the street has at his shoulder: weathered, bills
+# and posters, a stencil, something at their feet.
+for (fw_, seed) in ((face("+x", -48.0 + 0.02, MB_ZF, ST_N), 9221), (face("-x", 48.0 - 0.02, MB_ZF, ST_N), 9222)):
+    weather(fw_, 0.3, fw_.width - 0.3, G0, 4.3, seed)
+    rr = random.Random(seed)
+    for s in (2.0, 6.5, 10.5):
+        x, _, z = fw_.p(fw_.at(s), 0.0, 0.55)
+        if clear_at(x, z):
+            P.place(rr.choice(("bags", "crates", "rubbish", "drum")), x, G0, z, fw_.yaw + rr.uniform(-0.5, 0.5))
+    x, _, z = fw_.p(fw_.at(8.4), 0.0, 0.5)
+    stand(x, z, fw_.yaw, rr.choice(("lean", "smoke", "phone")), G0)

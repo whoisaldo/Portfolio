@@ -65,6 +65,10 @@ def lane_wall(f, seed, lamp_every=13.0, foot=0.4):
         elif kind == "box":
             f.box((D, "trim", 1), s - 0.3, s + 0.3, 1.2, 2.05, 0.0, 0.18, col=r.choice((STEEL, BLUEGREY, RUST)))
             f.quad((D, "glow", 1), s + 0.14, s + 0.2, 1.84, 1.9, 0.19, col=GLOW[r.choice(("green", "red", "amber"))])
+            # Its door's seam and hinge side, a hazard plate, grime up from its foot.
+            f.quad((D, "trim", 1), s - 0.012, s + 0.012, 1.25, 2.0, 0.185, col=BLACK)
+            f.quad((D, "trim", 1), s - 0.24, s - 0.06, 1.62, 1.78, 0.185, col=YEL)
+            f.quad((D, "trim", 1), s - 0.3, s + 0.3, 1.2, 1.45, 0.183, col=(0.05, 0.05, 0.05, 1.0))
             rpipe((x, 2.05, z), (x, 3.3, z), 0.02, col=STEEL)
         else:
             f.box((D, "metal", 1), s - 0.5, s + 0.5, 2.3, 2.95, 0.0, 0.1)
