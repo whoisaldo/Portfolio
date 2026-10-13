@@ -1252,11 +1252,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // { object, geometry, bytes, send? } (city.js addPack). Its programs,
   // made as warm-up makes them (for the composer's buffer, with the
   // scene's lights; each object with the geometry it will have), waited
-  // for in the order they were made and each first used once built; the
-  // pictures its materials hold; and its buffers, sent to the GPU by
-  // drawing nothing with them (a mesh of no triangles that shares their
-  // attributes and index, through one small program into a 1 px target),
-  // a few megabytes a moment. The first frame that draws the district
+  // for in the order they were made and each first used once built, before
+  // a frame (`ask`); the pictures its materials hold; and its buffers, sent
+  // to the GPU by drawing nothing with them (a mesh of no triangles that
+  // shares their attributes and index, through one small program into a
+  // 1 px target), WARM_BYTES before a frame and a bigger one a PIECE a
+  // frame (makeWarmKit). The first frame that draws the district
   // then has nothing to make or send but its share of the light maps. A
   // material whose version moved meanwhile (something set needsUpdate)
   // is made again before it goes in.
