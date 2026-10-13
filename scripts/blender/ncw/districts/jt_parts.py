@@ -92,6 +92,7 @@ SAME = ((("ps", 15), ("pm", 9), ("bs", 11)), (("ps", 13), ("pm", 11), ("bs", 18)
         (("bm", 4), ("pm", 6)), (("ps", 12), ("bs", 6), ("bm", 13), ("bl", 13)), (("ps", 5), ("bm", 20)), (("ps", 4), ("bs", 17)))
 _WORD = {m: g[0] for g in SAME for m in g}
 _HUNG = {}
+UID = [40000]
 LATIN_R = 70.0
 
 
@@ -110,7 +111,16 @@ def design(size, c, need=None):
     if bd < need * need:
         return None
     _HUNG.setdefault(_WORD.get((size, best), (size, best)), []).append((c[0], c[1], c[2]))
-    return f"st_{size}_{best}"
+    # (Round 5: the site keeps one deal per id (signs.js `turns`), so while
+    # this named a sign st_<size>_<design> every sign of one design showed
+    # one face, the first one's, in one colour: Japantown hung some 130
+    # names over its 2,900 signs, the same hexagon, eye and vertical board
+    # in every view. Each sign is its own id now, from a number no other
+    # district's builder reaches, and the site deals it a face from the
+    # whole list of its size by where it hangs. `best` still decides
+    # whether a panel is hung at all.)
+    UID[0] += 1
+    return f"st_{size}_{UID[0]}"
 
 
 def sign_face(col, c, b, w, h, t):
@@ -156,13 +166,52 @@ def blade(f, s, y, size, tilt=0.0, k=1.0, roll=0.0, gap=0.3):
     placed = slab_sign(c, basis(phi - math.pi / 2, roll), size, k)
     if not placed[0]:
         return 0.0, 0.0
-    for dy in ((h / 2 + 0.1,) if h < 5.5 else (h / 2 + 0.1, -h / 2 - 0.1)):
-        # (A strap, its two faces: the arm is read from along the street.)
-        t = 0.1 if w * h > 3.0 else 0.07
-        a0, a1 = (px, y + dy, pz), (px + dx * reach, y + dy, pz + dz * reach)
-        for q in ((a0, a1, (a1[0], a1[1] + t, a1[2]), (a0[0], a0[1] + t, a0[2])), (a1, a0, (a0[0], a0[1] + t, a0[2]), (a1[0], a1[1] + t, a1[2]))):
-            quad((D, "metal", 1), *q)
+    mount(px, pz, dx, dz, y, w, h, gap, roll)
     return w, h
+
+
+def _strap(a0, a1, t, key=(D, "metal", 1)):
+    """A flat bar from a0 to a1, t deep, both its faces (read from along
+    the street)."""
+    for q in ((a0, a1, (a1[0], a1[1] + t, a1[2]), (a0[0], a0[1] + t, a0[2])), (a1, a0, (a0[0], a0[1] + t, a0[2]), (a1[0], a1[1] + t, a1[2]))):
+        quad(key, *q)
+
+
+def mount(px, pz, dx, dz, y, w, h, gap, roll=0.0):
+    """How a blade hangs off its wall (round 5: every blade had the same two
+    straps): by where it hangs, two straps; a bracket over it, braced back
+    to the wall, the sign on two short hangers; a steel frame round it on
+    its straps; or two cables from its top corners up to the wall and one
+    strap at its foot. About the cost of the two straps each."""
+    kind = int(_hash(px, pz, y) * 4.0) if not roll else 0
+    t = 0.1 if w * h > 3.0 else 0.07
+    reach = gap + w / 2
+
+    def at(u, yy):
+        return (px + dx * u, yy, pz + dz * u)
+    top, foot = y + h / 2, y - h / 2
+    if kind == 1:
+        yb = top + 0.24
+        _strap(at(0.0, yb), at(gap + w + 0.1, yb), 0.08)
+        _strap(at(0.0, yb - 0.75), at(reach * 0.7, yb), 0.05)
+        for u in (gap + w * 0.15, gap + w * 0.85):
+            quad((D, "metal", 1), at(u - 0.015, top), at(u + 0.015, top), at(u + 0.015, yb), at(u - 0.015, yb))
+            quad((D, "metal", 1), at(u + 0.015, top), at(u - 0.015, top), at(u - 0.015, yb), at(u + 0.015, yb))
+        if h >= 5.5:
+            _strap(at(0.0, foot - 0.1), at(reach, foot - 0.1), t)
+        return
+    if kind == 3 and h < 5.5:
+        for u in (gap + 0.08, gap + w - 0.08):
+            p, q = at(u, top), at(0.0, top + 1.1 + 0.3 * (u > reach))
+            quad((D, "metal", 1), p, q, (q[0], q[1] + 0.025, q[2]), (p[0], p[1] + 0.025, p[2]))
+            quad((D, "metal", 1), q, p, (p[0], p[1] + 0.025, p[2]), (q[0], q[1] + 0.025, q[2]))
+        _strap(at(0.0, foot - 0.1), at(reach, foot - 0.1), t)
+        return
+    if kind == 2 and w * h <= 3.0:
+        c = at(reach, y)
+        obox((D, "board_frame", 1), c, basis(math.atan2(dx, dz) - math.pi / 2, roll), w + 0.1, h + 0.1, 0.2, rim=True)
+    for dy in ((h / 2 + 0.1,) if h < 5.5 else (h / 2 + 0.1, -h / 2 - 0.1)):
+        _strap(at(0.0, y + dy), at(reach, y + dy), t)
 
 
 def board(f, s, y, size, tilt=0.0, k=1.0, roll=0.0, out=0.2, pitch=0.0):
@@ -312,7 +361,30 @@ def puddle(x, y, z, r, rs):
 # Placing: rows along a face, spans between two points.
 # ---------------------------------------------------------------------------
 def put(name, x, y, z, yaw=0.0, sy=1.0, sxz=1.0):
+    if name == "jt_bills":
+        return bills(x, y, z, yaw)
     P.place(name, x, y, z, yaw, sy, sxz, district=D)
+
+
+def _hash(*v):
+    h = math.sin(sum(c * k for c, k in zip(v, (12.9898, 78.233, 37.719, 4.581))) + 0.5) * 43758.5453
+    return h - math.floor(h)
+
+
+def bills(x, y, z, yaw):
+    """A fly-poster's run (round 5: one jt_bills printed the same bill
+    three times, "the same set of three triangle posters" in every lane):
+    three or four bills side by side, each its own instance and so its own
+    print, each a little off the line and its own size, every other one
+    pasted half a centimetre over its neighbour."""
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    n = 3 + (_hash(x, z) > 0.55)
+    for i in range(n):
+        h = _hash(x + i * 1.7, z, y)
+        u = -0.68 + i * 0.66 + (h - 0.5) * 0.06
+        sc = 0.86 + 0.18 * h
+        out = 0.005 * (i % 2)
+        P.place("jt_bill", x + c * u + s_ * out, y + (h - 0.5) * 0.12, z - s_ * u + c * out, yaw, sc, sc, district=D)
 
 
 def lantern_row(f, s0, s1, y, out, step, name="lantern", sy=1.0, sxz=1.0):

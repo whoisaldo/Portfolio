@@ -458,8 +458,11 @@ def signs_on(f, h, r, density=1.0, small=False, big=True, cap=None):
         hi, big = min(hi, cap), False
     band = hi - lo
     s = r.uniform(0.6, 1.6)
+    used = []
     while s < w - 0.6:
         kind = r.random()
+        hx, _, hz = f.p(f.at(s), 0.0, 0.0)
+        hk = J._hash(hx, hz, lo)
         lean = r.uniform(-0.14, 0.14) if r.random() < 0.3 else 0.0
         if kind < 0.5:
             y = lo + r.uniform(0.0, 0.5)
@@ -469,7 +472,11 @@ def signs_on(f, h, r, density=1.0, small=False, big=True, cap=None):
                     break
                 size = r.choice(sizes)
                 bh = ST_SIZES[size][1]
-                J.blade(f, s, y + bh / 2, size, tilt=r.choice((-1, 1)) * r.uniform(0.1, 0.6), roll=lean)
+                # (Round 5: blades of one size were all one size; each is
+                # its own now, a quarter smaller at most, its foot kept.)
+                kb = 0.74 + 0.26 * J._hash(hx, hz, y)
+                J.blade(f, s, y + bh * kb / 2, size, tilt=r.choice((-1, 1)) * r.uniform(0.1, 0.6), roll=lean, k=kb)
+                used.append(s)
                 y += bh + r.uniform(0.3, 1.6)
                 if r.random() < 0.5:
                     break
@@ -478,11 +485,18 @@ def signs_on(f, h, r, density=1.0, small=False, big=True, cap=None):
             bw, bh = ST_SIZES[size]
             if bw + 0.6 < w and band > bh + 0.2:
                 sc = min(max(s, bw / 2 + 0.3), w - bw / 2 - 0.3)
-                J.board(f, sc, r.uniform(lo + bh / 2, hi - bh / 2), size, tilt=r.uniform(-0.3, 0.3), roll=lean,
+                yc = r.uniform(lo + bh / 2, hi - bh / 2)
+                # (And a board is its own size, up to a third larger where it fits.)
+                kb = min(0.82 + 0.5 * hk, (w - 0.6) / bw, (band - 0.2) / bh)
+                sc = min(max(sc, bw * kb / 2 + 0.3), w - bw * kb / 2 - 0.3)
+                yc = min(max(yc, lo + bh * kb / 2), hi - bh * kb / 2)
+                J.board(f, sc, yc, size, tilt=r.uniform(-0.3, 0.3), roll=lean, k=kb,
                         pitch=-r.uniform(0.05, 0.22) if r.random() < 0.4 else 0.0)
+                used.append(sc)
         else:
             n = min(5, int(band / 1.0))
             if n >= 2:
+                used.append(s)
                 px, _, pz = f.p(f.at(s), 0.0, 1.15)
                 for j in range(n):
                     size = r.choice(("ps", "ps", "bx"))
@@ -494,6 +508,21 @@ def signs_on(f, h, r, density=1.0, small=False, big=True, cap=None):
                     quad((D, "metal", 1), *q)
                     quad((D, "metal", 1), q[1], q[0], q[3], q[2])
         s += r.uniform(1.9, 3.3) / density
+    # (Round 5: between the lit signs, a printed board or two pasted up on
+    # the wall, unlit, each its own print: the shop's bill, a hand-painted
+    # price list, a faded advert.)
+    if band > 2.6:
+        for j in range(2):
+            sb = 0.9 + (w - 1.8) * J._hash(f.at(0.0), f.plane, j + lo)
+            if w < 2.4 or any(abs(sb - u) < 1.4 for u in used):
+                continue
+            kb = 1.6 + 0.8 * J._hash(sb, j, lo)
+            yb = lo + 0.2 + (band - 1.0 - 0.9 * kb) * J._hash(j, sb, hi)
+            if yb + 0.9 * kb > hi:
+                continue
+            bx_, _, bz_ = f.p(f.at(sb), yb, 0.02)
+            J.put("jt_bill", bx_, yb, bz_, f.yaw, kb * (0.9 + 0.3 * J._hash(sb, hi)), kb)
+            used.append(sb)
     if big and h >= storeys(4) and r.random() < 0.5:
         k = r.uniform(1.3, min(2.1, (h - 3.2) / 5.0))
         bh = 5.0 * k
