@@ -128,3 +128,34 @@ fb = face("-z", -692.0, 68.0, 90.0)
 vboard(fb, 13.0, 27.0, "HOTEL", "pink", w=1.5, out=1.9)
 for (s, y) in ((4.0, 28.6), (8.0, 32.0), (17.5, 28.6), (19.5, 35.4), (6.0, 38.8), (16.0, 42.2)):
     lit_window(fb, s, y + 0.9, 1.3, 1.3, 0.07, _r, hue=_r.choice(("amber", "white", "amber")))
+
+# ---------------------------------------------------------------------------
+# The back of the board on the arm's roof (mega_wings RB), which the roof's
+# people look at: its steel frame, lamps along its top for the fitters, a
+# bar's name lit on a plate.
+# ---------------------------------------------------------------------------
+from ncw.districts.mega_wings import RB, ARM_TOP  # noqa: E402
+bnx, bnz = math.sin(RB[2]), math.cos(RB[2])
+brx, brz = math.cos(RB[2]), -math.sin(RB[2])
+BY = ARM_TOP + 2.4 + 3.2
+
+
+def _bp(du, back):
+    return RB[0] + brx * du - bnx * back, RB[1] + brz * du - bnz * back
+
+
+for y in (BY - 2.9, BY, BY + 2.9):
+    cx, cz = _bp(0.0, 0.42)
+    oriented_box((D, "metal", 0), cx, y, cz, 13.0, 0.16, 0.16, RB[2], scale=0.5)
+for du in (-6.3, -3.15, 0.0, 3.15, 6.3):
+    cx, cz = _bp(du, 0.42)
+    oriented_box((D, "metal", 0), cx, BY, cz, 0.16, 6.4, 0.16, RB[2], scale=0.5)
+for du in (-4.7, 0.0, 4.7):
+    cx, cz = _bp(du, 0.55)
+    box((D, "glow", 0), cx - 0.18, cx + 0.18, BY + 3.0, BY + 3.15, cz - 0.18, cz + 0.18, scale=0.5, col=dim(GLOW["white"], 0.8), bottom=True)
+cx, cz = _bp(-2.2, 0.62)
+oriented_box((D, "board_frame", 0), cx, BY - 1.2, cz, 3.2, 1.2, 0.08, RB[2], scale=1.0)
+strokes((D, "glow", 0), "BAR 3F", cx - bnx * 0.05, BY - 1.2, cz - bnz * 0.05, 0.7, RB[2] + math.pi, GLOW["magenta"], weight=0.16, gap=0.28)
+for du in (-3.5, 3.5):
+    lx, lz = _bp(du, 2.5)
+    light(D, lx, ARM_TOP + 2.6, lz, "white", 3.6)

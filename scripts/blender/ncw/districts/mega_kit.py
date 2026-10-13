@@ -695,3 +695,20 @@ def vboard(f, s, y0, text, hue, w=1.25, out=0.6):
     cx, _, cz = g.p(g.at(s), 0.0, 0.0)
     strokes_v((D, "glow", 0), text, cx, (y0 + y1) / 2, cz, h, f.yaw, GLOW[hue], weight=0.15, gap=0.25)
     return y1
+
+
+def blob(key, x, y, z, rx, rz, a, col, r, n=7, scale=2.0):
+    """An irregular patch lying flat (a stain, a puddle): n points round an
+    ellipse at angle a, each at its own radius, facing up."""
+    ca, sa = math.cos(a), math.sin(a)
+    pts = []
+    for i in range(n):
+        t = math.tau * (i + r.uniform(-0.3, 0.3)) / n
+        k = r.uniform(0.55, 1.0)
+        u, v = math.cos(t) * rx * k, math.sin(t) * rz * k
+        pts.append((x + ca * u - sa * v, y, z + sa * u + ca * v))
+    # Wound to face up.
+    if (pts[1][2] - pts[0][2]) * (pts[2][0] - pts[0][0]) - (pts[1][0] - pts[0][0]) * (pts[2][2] - pts[0][2]) < 0:
+        pts.reverse()
+    s = 1.0 / scale
+    poly(key, pts, [(p[0] * s, -p[2] * s) for p in pts], col)

@@ -118,6 +118,15 @@ tbox(-11.0, 11.0, UNDER + 0.5, UNDER + 0.66, ZN - 0.34, ZN, BLACK, bottom=True)
 # lamps over the lanes, blades hung off the deck's edges on brackets.
 span(44.0, 90.0)
 span(-66.0, -44.0)
+# The north fascia from the canyon's back to the station, which the station's
+# yard looks up at: a row of small lamps along its face, a worn hazard band
+# at its foot, the line's number lit by the hall's door.
+fn = face("-z", ZN - 0.1, 44.0, 90.0)
+for i in range(18):
+    fn.quad((D, "glow", 1), i * 2.5 + 1.0, i * 2.5 + 1.3, UNDER + 1.3, UNDER + 1.45, 0.02, col=dim(GLOW["amber"], 0.8))
+for i in range(int(fn.width // 0.6)):
+    fn.quad((D, "trim", 1), i * 0.6, i * 0.6 + 0.3, UNDER + 0.2, UNDER + 0.45, 0.015, col=dim(YEL, 0.5))
+neon_board(fn, 3.0, 11.0, UNDER + 0.6, TOP - 0.35, 0.3, "LINE 4", "cyan", sub="< < <  NCART", sub_hue="amber")
 for x, dz in ((46.5, 0.0), (50.0, -0.9), (91.0, 0.0)):
     under_lamp(min(x, 89.2), dz, "amber", 3.4)
 for (x, s, size) in ((57.0, 1, "bm"), (70.5, 1, "bl"), (84.0, 1, "bm"), (62.5, -1, "bl"), (77.0, -1, "bm")):

@@ -29,7 +29,7 @@ _r = random.Random(9101)
 for z in (-750.6, -754.6, -758.6, -762.0):
     tube_z(0.9, 3.93, z - 0.7, z + 0.7, "green", pools=False)
     box((D, "metal", 1), 0.76, 1.04, 3.93, CEIL, z - 0.8, z + 0.8, scale=0.5)
-for (z, hue, pw) in ((-750.4, "green", 5.0), (-753.6, "amber", 4.0), (-757.0, "green", 5.5), (-760.4, "amber", 4.0), (-763.2, "green", 5.0)):
+for (z, hue, pw) in ((-752.0, "green", 4.4), (-753.6, "amber", 4.0), (-757.0, "green", 5.5), (-760.4, "amber", 4.0), (-763.2, "green", 5.0)):
     light(D, 0.4, 3.6, z, hue, pw)
 # Under the gallery over the mouth (z -745..-741, its underside at 4.1).
 for (x, rr, col) in ((-3.6, 0.11, RUST), (-3.3, 0.06, STEEL), (2.8, 0.09, TEAL_PAINT), (3.1, 0.05, CONC)):
@@ -45,10 +45,13 @@ for (x, z, w, d) in ((-3.9, -752.6, 1.0, 0.7), (3.6, -756.8, 0.9, 1.2), (-3.6, -
 for (name, x, z, yaw) in (("bags", PX0 + 0.6, -753.8, 0.3), ("drum", PX1 - 0.5, -752.6, 0.0), ("pallets", PX1 - 0.7, -760.6, 1.5),
                           ("bags", PX1 - 0.6, -747.6, 2.0), ("crates", PX0 + 0.6, -758.0, 1.5)):
     P.place(name, x, G0, z, yaw)
-hquad((D, "roof_wet", 0), -0.9, 1.7, -757.6, -755.2, G0 + 0.014, scale=4.0)
-hquad((D, "roof_wet", 0), -1.6, 0.6, -762.4, -760.8, G0 + 0.014, scale=4.0)
-empty("anchor_steam_zz_drain_mega_1", (0.6, G0 + 0.03, -755.8))
-cylinder((D, "metal", 1), 0.6, -755.8, G0, G0 + 0.02, 0.32, segs=10)
+blob((D, "roof_wet", 0), 0.4, G0 + 0.014, -756.4, 1.5, 1.1, 0.3, (1, 1, 1, 1), _r, n=9, scale=4.0)
+blob((D, "roof_wet", 0), -0.5, G0 + 0.014, -761.6, 1.2, 0.8, 2.0, (1, 1, 1, 1), _r, n=8, scale=4.0)
+blob((D, "roof_wet", 0), 2.6, G0 + 0.014, -749.8, 0.9, 0.6, 1.0, (1, 1, 1, 1), _r, n=7, scale=4.0)
+# (The drain's breath against the east wall well inside: at the middle of the
+# floor near the mouth, lit green, it was a smudge across the lens.)
+empty("anchor_steam_zz_drain_mega_1", (3.4, G0 + 0.03, -761.2))
+cylinder((D, "metal", 1), 3.4, -761.2, G0, G0 + 0.02, 0.32, segs=10)
 stand(PX1 - 0.55, -756.4, -math.pi / 2, "sit", G0 + 0.02)
 
 # ---------------------------------------------------------------------------
@@ -116,9 +119,7 @@ def grime(x0, x1, z0, z1, seed, k=1.0, avenue=False):
         if not clear_at(x, z, avenue):
             continue
         w, d, a = r.uniform(0.4, 1.8), r.uniform(0.3, 1.2), r.uniform(0, math.pi)
-        ca, sa = math.cos(a), math.sin(a)
-        pts = [(x + ca * u - sa * v, y, z + sa * u + ca * v) for u, v in ((-w / 2, d / 2), (w / 2, d / 2), (w / 2, -d / 2), (-w / 2, -d / 2))]
-        quad((D, "trim", 1), *pts, col=r.choice(((0.035, 0.035, 0.04, 1.0), (0.05, 0.045, 0.04, 1.0), (0.12, 0.12, 0.12, 1.0), (0.09, 0.07, 0.05, 1.0))))
+        blob((D, "trim", 1), x, y, z, w / 2, d / 2, a, r.choice(((0.07, 0.065, 0.06, 1.0), (0.09, 0.08, 0.06, 1.0), (0.14, 0.13, 0.12, 1.0), (0.11, 0.08, 0.05, 1.0))), r)
     for _ in range(int(area / 9)):
         x, z = r.uniform(x0, x1), r.uniform(z0, z1)
         if not clear_at(x, z, avenue):
@@ -143,10 +144,11 @@ def grime(x0, x1, z0, z1, seed, k=1.0, avenue=False):
         if not clear_at(x, z, avenue):
             continue
         w, d = r.uniform(0.9, 2.6), r.uniform(0.6, 1.6)
-        hquad((D, "roof_wet", 0), x - w / 2, x + w / 2, z - d / 2, z + d / 2, G0 + 0.016, scale=4.0)
+        blob((D, "roof_wet", 0), x, G0 + 0.016, z, w / 2, d / 2, r.uniform(0, math.pi), (1, 1, 1, 1), r, n=8, scale=4.0)
 
 
 grime(-47.5, 47.5, -744.6, -732.3, 9201)                            # the forecourt
+grime(PX0 + 0.3, PX1 - 0.3, -762.5, -746.5, 9209, k=2.2)              # the passage's floor
 grime(-90.0, 63.0, -732.0, -728.6, 9202, k=0.8)                     # the street's north pavement
 grime(-90.0, 63.0, -711.4, -708.0, 9203, k=0.8)                     # and its south
 grime(-12.6, 12.6, -785.6, -763.4, 9204, k=0.9)                     # the court

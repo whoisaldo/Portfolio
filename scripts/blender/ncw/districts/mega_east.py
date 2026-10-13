@@ -17,6 +17,7 @@ from ncw.kit import *  # noqa: F401,F403
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts.mega_kit import *  # noqa: F401,F403
+from ncw.districts.mega_homes import lit_window
 from ncw.districts.mega_face import dress, sign_column, hero_hidden
 from ncw.districts.mega_roofs import flat_strokes
 from ncw.districts.mega_wings import mast
@@ -83,7 +84,7 @@ b1 = block(68.0, 90.0, -692.0, -664.0, floor_y(13), 8611, tint=5, window=6, dres
 b2 = block(96.0, 128.0, -692.0, -660.0, floor_y(8), 8613, tint=4, window=3, crown=(102.0, 122.0, -686.0, -666.0, floor_y(15)), dressed=("-z", "-x"), rim="amber")
 b3 = block(52.0, 64.0, -676.0, -640.0, floor_y(7), 8614, tint=3, window=0, dressed=("-x", "+x"), rim="pink",
            board=(58.0, -658.0, floor_y(7), 9.0, 5.0, math.radians(-70), 8615))
-b4 = block(70.0, 92.0, -658.0, -630.0, floor_y(18), 8616, tint=0, window=0, crown=(74.0, 88.0, -654.0, -634.0, floor_y(21)), dressed=("+z", "-x", "+x"), rim="magenta")
+b4 = block(70.0, 92.0, -658.0, -630.0, floor_y(18), 8616, tint=4, window=0, crown=(74.0, 88.0, -654.0, -634.0, floor_y(21)), dressed=("+z", "-x", "+x"), rim="magenta")
 b5 = block(98.0, 128.0, -654.0, -630.0, floor_y(5), 8617, tint=6, window=3, dressed=("+z", "-x"), rim="amber",
            board=(113.0, -642.0, floor_y(5), 16.0, 7.0, math.radians(160), 8618))
 b6 = block(52.0, 76.0, -594.0, -564.0, floor_y(11), 8619, tint=6, window=6, dressed=("-z", "+x", "-x"), rim="cyan",
@@ -390,3 +391,11 @@ for (x, z, yaw) in ((47.0, -620.0, 0.0), (106.4, -640.0, math.pi / 2)):
     P.place("lamp_short", x, G0, z)
 P.place("bollard", 45.2, G0, ST_S + 0.6)
 P.place("bollard", 50.8, G0, ST_S + 0.6)
+
+# b4's west face over the station's yard, which the yard looks along: a
+# clinic's sign up its corner and its windows lit low down.
+_fb4 = face("-x", 70.0, -658.0, -630.0)
+vboard(_fb4, 24.6, 5.4, "CLINIC", "cyan", w=1.4, out=1.9)
+_rb4 = random.Random(8690)
+for (s_, y_) in ((21.0, floor_y(2)), (17.5, floor_y(2)), (22.4, floor_y(3)), (19.0, floor_y(4)), (14.0, floor_y(3))):
+    lit_window(_fb4, s_, y_ + 0.9, 1.3, 1.3, 0.07, _rb4, hue=_rb4.choice(("amber", "white", "amber", "pink")))

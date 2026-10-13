@@ -11,19 +11,28 @@ from ncw.districts.mega_base import SX0, SX1, SFOOT, TZ, TY, FP
 _r = random.Random(5601)
 POSES = ("idle", "phone", "talk", "smoke", "idle", "lean", "squat")
 
-# The stair: people sat on its steps in ones and twos, others going up and
-# down it, a knot at its foot, more on the terrace by the gates.
-for step in (1, 2, 3, 5, 6, 8, 10, 11):
-    n = _r.choice((1, 1, 2))
-    for _ in range(n):
-        x = _r.uniform(SX0 + 0.4, SX1 - 0.4)
-        z = SFOOT + (TZ - SFOOT) * (step + 0.5) / 12
-        # (The tread under that z is the step's own top, one riser up.)
-        y = G0 + (TY - G0) * (step + 1) / 12
-        if _r.random() < 0.55:
-            stand(x, z, _r.uniform(-0.4, 0.4), "sit", y)
-        else:
-            stand(x, z, math.pi if _r.random() < 0.6 else 0.0, _r.choice(("idle", "phone")), y)
+# The stair: people in knots, not a row to a step: two talking by the left
+# rail low down, three sat close together half way up, one climbing, one on
+# a phone by the right rail, a pair at the top; the rest of each tread clear.
+def _on(step, x, pose, yaw):
+    z = SFOOT + (TZ - SFOOT) * (step + 0.5) / 12 + _r.uniform(-0.12, 0.12)
+    # (The tread under that z is the step's own top, one riser up.)
+    y = G0 + (TY - G0) * (step + 1) / 12
+    stand(x, z, yaw, pose, y)
+
+
+W = SX1 - SX0
+_on(1, SX0 + 0.5, "talk", 1.2)
+_on(1, SX0 + 1.15, "talk", -1.9)
+_on(3, SX1 - 0.6, "sit", -0.3)
+_on(5, SX0 + W * 0.36, "sit", 0.2)
+_on(5, SX0 + W * 0.36 + 0.62, "sit", -0.15)
+_on(6, SX0 + W * 0.36 + 0.3, "sit", 0.1)
+_on(7, SX0 + W * 0.62, "idle", math.pi + 0.2)
+_on(8, SX1 - 0.45, "phone", -math.pi / 2)
+_on(10, SX0 + 0.8, "sit", 0.5)
+_on(11, SX0 + W * 0.55, "talk", 0.9)
+_on(11, SX0 + W * 0.55 + 0.7, "talk", -2.3)
 for (x, dz) in ((30.4, -1.0), (31.2, -1.6), (34.6, -1.3), (35.5, -0.8), (36.6, -1.9), (33.0, -2.4)):
     stand(x, SFOOT + dz, _r.uniform(0, math.tau), _r.choice(("idle", "talk", "phone", "smoke")), G0)
 talkers(32.1, SFOOT - 3.0, G0, n=3, turn=0.9)
@@ -79,3 +88,56 @@ weather(fWS, 0.4, fWS.width - 0.4, G0, 4.4, 5652, posters=False)
 for s in (5.0, 13.5, 21.0, 30.5, 39.0):
     x, _, z = fWS.p(fWS.at(s), 0.0, 0.0)
     blade(x, 4.3, z + 0.9, _r.choice(("bs", "bm")), along="z")
+
+# ---------------------------------------------------------------------------
+# The street's north pavement, which the walk follows from the avenue to the
+# west wing (z -729.8), and the forecourt beside it: knots of people against
+# the frontage and at the kerb every few metres, more round the forecourt's
+# columns outside the hero's slot (x -15..16), each clear of whoever and
+# whatever already stands there.
+# ---------------------------------------------------------------------------
+import ncw.kit as _K  # noqa: E402
+from ncw import buildings as B  # noqa: E402
+
+_rl = random.Random(5650)
+
+
+def _free(x, z, rad=0.75):
+    if any(abs(p[0] - x) < rad and abs(p[2] - z) < rad for p in _K.PEOPLE):
+        return False
+    if any(c[0] == "box" and c[1] - 0.35 < x < c[2] + 0.35 and c[5] - 0.35 < z < c[6] + 0.35 and c[3] < G0 + 1.6 for c in B.COLLISION):
+        return False
+    return not any(abs(i[1] - x) < rad + 0.5 and abs(i[3] - z) < rad + 0.5 and i[2] < G0 + 3.0 for i in P.INSTANCES)
+
+
+def _knot(x, z, n, back_yaw, y=G0):
+    placed = 0
+    for i in range(n):
+        xi, zi = x + _rl.uniform(-0.9, 0.9), z + _rl.uniform(-0.25, 0.25)
+        if not _free(xi, zi):
+            continue
+        pose = _rl.choice(("talk", "idle", "phone", "lean", "smoke", "talk"))
+        yaw = back_yaw + (math.pi if pose == "lean" else 0.0) + _rl.uniform(-0.7, 0.7)
+        stand(xi, zi, yaw, pose, y)
+        placed += 1
+    return placed
+
+
+x = 26.0
+while x > -92.0:
+    if not (28.5 < x < 38.5):                                   # the NCART stair's foot has its own
+        # Against the frontage (facing the street, +z), or at the kerb
+        # (facing the frontage, or sat on it facing the road).
+        if _rl.random() < 0.7:
+            _knot(x, -731.55, _rl.choice((1, 2, 2, 3)), 0.0)
+        if _rl.random() < 0.35:
+            zk = -728.35
+            if _free(x + 2.0, zk):
+                if _rl.random() < 0.5:
+                    stand(x + 2.0, zk, 0.0 + _rl.uniform(-0.4, 0.4), "sit", G0 + 0.15)
+                else:
+                    stand(x + 2.0, zk, math.pi + _rl.uniform(-0.5, 0.5), _rl.choice(("idle", "phone", "smoke")), G0)
+    x -= _rl.uniform(5.0, 9.0)
+for (cx, cz) in ((-19.0, -737.5), (-24.5, -741.8), (-31.0, -736.6), (-38.5, -740.2), (-44.0, -735.4),
+                 (19.5, -738.0), (24.0, -742.2), (41.0, -737.4), (45.5, -741.0)):
+    _knot(cx, cz, _rl.choice((2, 3, 3, 4)), _rl.uniform(0, math.tau))
