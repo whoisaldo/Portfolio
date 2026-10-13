@@ -411,9 +411,11 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     // often over a hood: it is the hoodie's own) shows what is under it.
     const suit = !kid && garment !== GARMENTS.puffer && r() < style.suit;
     const open = !suit && r() < (style.open[garment] ?? 0) + (cut === "hood" && garment !== GARMENTS.puffer ? 0.25 : 0);
-    if (suit) mask += bits(TAG.suit);
-    if (open) mask += bits(TAG.open);
-    if (suit && r() < style.tie) mask += bits(TAG.tie);
+    // (A coat is worn closed: nothing under it shows through its front.)
+    const closed = garment === GARMENTS.coat;
+    if (suit && !closed) mask += bits(TAG.suit);
+    if (open && !closed) mask += bits(TAG.open);
+    if (suit && r() < style.tie && !closed) mask += bits(TAG.tie);
     if (!kid && garment !== GARMENTS.puffer && garment !== GARMENTS.coat && style.hivis(jacket)) mask += bits(TAG.hivis);
     const shirt = draw(r, style.shirt, (i) => (FAMILY.shirt[i] === NEUTRAL || FAMILY.shirt[i] !== hue) && apart(light(SHIRTS[i])));
     const trousers = draw(r, style.trousers, (i) => (FAMILY.trousers[i] !== NEUTRAL ? FAMILY.trousers[i] !== hue : hue !== NEUTRAL || suit || open || apart(light(TROUSERS[i]))));
@@ -1765,8 +1767,11 @@ const VERTEX = /* glsl */ `
     // the shoulders.
     if (seg > 4.5) {
       float ax = side * ${f(RIG.hipX)};
-      p.x = ax + (p.x - ax) * wide * 0.9;
-      p.z *= wide * 0.9;
+      // Under a coat's skirt a trouser leg is slimmer than built, so a
+      // stride does not push it out through the cloth.
+      float under = garment > 0.5 && garment < 1.5 && part == ${PART.trousers} ? 1.0 - 0.35 * step(0.93 - 0.4 * (1.0 + 0.5 * bit(aLook.y, 11.0)), p.y) : 1.0;
+      p.x = ax + (p.x - ax) * wide * 0.9 * under;
+      p.z *= wide * 0.9 * under;
     } else if (seg > 2.5) {
       float ax = side * ${f(RIG.shoulderX)};
       if (garment > 1.5 && garment < 2.5 && part == ${PART.sleeve} && !machine) p.xz += normalize(p.xz - vec2(ax, 0.0) + 1e-5) * 0.014 * aux;
