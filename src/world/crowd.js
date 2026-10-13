@@ -1528,29 +1528,36 @@ const VERTEX = /* glsl */ `
       if (stance > 0.5 && stance < 2.5) {
         // On one leg: the other knee eases, its heel lifts, and the weight
         // comes back toward the middle and goes out again, slowly.
+        // (Enough of it to see from across a street.)
         float to = stance < 1.5 ? -1.0 : 1.0;
         float much = 0.8 + 0.2 * sin(tt * 0.19);
-        shift = 0.034 * to * much;
-        tilt = 0.05 * to * much;
+        shift = 0.046 * to * much;
+        tilt = 0.075 * to * much;
         if (side * to < 0.0) {
-          hip += 0.17 * much;
-          knee += 0.36 * much;
-          heel = 0.14 * much;
+          hip += 0.22 * much;
+          knee += 0.46 * much;
+          heel = 0.18 * much;
         }
-      } else if (stance > 2.5) splay = 0.055;
+      } else if (stance > 2.5) splay = 0.07;
       if (D.x > 0.5 && D.x < 1.5) {
         // Talking by turns (the two of a pair are half a turn apart): whose
         // turn it is talks with a hand, or both; the other listens with
         // theirs at rest, and nods now and then.
+        // The hand is low and open, the forearm out from the elbow, and it
+        // moves with what is said; the talker leans in and the head goes
+        // with it; the listener's weight is back, the head tipped, a nod.
         float say = smoothstep(0.1, 0.5, sin(t * 0.3 + aWalk.w * 6.2832));
         float mine = say * (side > 0.0 ? step(idle, 4.5) : step(0.55, rnd(seed * 4.3)) * step(idle, 2.5) * (1.0 - bit(aLook.x, ${f(TAG.tote)})));
         if (umbrella > 0.5 && side > 0.0) mine = 0.0;
-        sp = mix(sp, (side > 0.0 ? 0.38 : 0.26) + 0.12 * sin(tt * 1.3 + side), mine);
-        sr = mix(sr, 0.14, mine);
-        el = mix(el, (side > 0.0 ? 1.5 : 1.3) + 0.32 * sin(tt * 2.1 + side * 1.3) * (0.5 + 0.5 * sin(tt * 0.37)), mine);
-        inw = mix(inw, 0.27, mine);
-        nod += 0.06 * sin(tt * 1.7) * say + 0.07 * (1.0 - say) * smoothstep(0.55, 1.0, sin(tt * 0.83));
-        pitch += 0.035 * say;
+        float beat = sin(tt * 2.1 + side * 1.3) * (0.5 + 0.5 * sin(tt * 0.37));
+        sp = mix(sp, (side > 0.0 ? 0.3 : 0.2) + 0.1 * sin(tt * 1.3 + side), mine);
+        sr = mix(sr, 0.2, mine);
+        el = mix(el, (side > 0.0 ? 1.2 : 1.05) + 0.28 * beat, mine);
+        inw = mix(inw, 0.55 + 0.15 * beat, mine);
+        nod += 0.05 * sin(tt * 1.7) * say + 0.08 * (1.0 - say) * smoothstep(0.55, 1.0, sin(tt * 0.83));
+        pitch += 0.05 * say - 0.03 * (1.0 - say);
+        gaze += 0.08 * sin(tt * 0.9) * say;
+        tilt += 0.04 * (1.0 - say) * (rnd(seed * 8.3) - 0.5);
       } else if (D.x > 1.5 && D.x < 2.5) {
         float cyc = fract(tt / 9.0);
         drag = smoothstep(0.0, 0.1, cyc) - smoothstep(0.28, 0.4, cyc);
@@ -1560,9 +1567,22 @@ const VERTEX = /* glsl */ `
           inw = mix(inw, 0.55, drag);
         }
       } else if (D.x > 2.5 && D.x < 3.5) {
-        el += 0.2 * sin(tt * 1.6 + side);
-        sp += 0.1 * sin(tt * 1.1 + side * 2.0);
-        twist = 0.15 * sin(tt * 0.4);
+        // At work over a counter: one hand at the job (round and round, a
+        // turn, a toss), the other steadying it; every few seconds a look
+        // up and a hand out over the counter with what was made.
+        float cyc = fract(tt / 11.0);
+        float serve = smoothstep(0.72, 0.78, cyc) - smoothstep(0.88, 0.95, cyc);
+        if (side > 0.0) {
+          sp += 0.12 * sin(tt * 2.4) + 0.55 * serve;
+          el += 0.22 * cos(tt * 2.4) - 0.7 * serve;
+          inw += 0.15 * sin(tt * 2.4) - 0.2 * serve;
+        } else {
+          el += 0.06 * sin(tt * 0.7);
+          sp += 0.04 * sin(tt * 0.9);
+        }
+        nod -= 0.2 * serve;
+        pitch -= 0.06 * serve;
+        twist = 0.12 * sin(tt * 0.4) - 0.1 * serve;
       } else if (D.x > 3.5) {
         el += 0.03 * sin(tt * 3.0);
         nod += 0.03 * sin(tt * 0.6);
