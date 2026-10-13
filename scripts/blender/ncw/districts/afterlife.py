@@ -142,7 +142,10 @@ B.ground_rect(D, 476.0, 490.0, -258.0, -176.0, mat="concrete")       # the yard 
 # far city. Low by the garage's roof, where Contact looks out over it.
 # (The last is a shed of one tall storey: from the garage's roof Contact's
 # frame passes just over it.)
-OUTER = [(-316.0, -292.0, 4), (-292.0, -272.0, 2), (-272.0, -248.0, 6), (-248.0, -226.0, 2), (-226.0, -204.0, 4), (-204.0, -176.0, 0.18)]
+# (Taller at the north end, five and eight storeys, where the plaza street
+# looked east over the low strip at open sky: the m8 review. Out of
+# Contact's frame, which starts ten degrees south of them.)
+OUTER = [(-316.0, -292.0, 4), (-292.0, -272.0, 2), (-272.0, -248.0, 6), (-248.0, -226.0, 5), (-226.0, -204.0, 8), (-204.0, -176.0, 0.18)]
 for i, (z0, z1, n) in enumerate(OUTER):
     nb = {}
     if i > 0:
@@ -855,10 +858,53 @@ for (x_, z_) in ((405.0, -279.0), (406.8, -279.0), (421.5, -297.5)):
 # of two lit storeys and a billboard that faces down the boulevard; its
 # lower half a landing pad.
 K.parapet(D, EL, 484.0, -344.0, -316.0, storeys(7), T["charcoal"], line="cyan", rim="white")
-B.building(B.Lot(461.0, 481.0, -340.0, -321.0, "-x", {k: "open" for k in ("+x", "-x", "+z", "-z")}, {}, D), storeys(9),
-           random.Random(9402), style=dict(WATSON, roof_cap=5.0, balcony=0.0, lit=(0.75, 0.95), windows=(5,)), base=storeys(7), signs=False,
-           tint="charcoal", crown_band="cyan", roof=True)
+# (The m8 review: "a plain mid-rise lower than its neighbours under open
+# black sky".) A megablock's face: over its seven storeys two tiers of
+# flats, each set back from the one under it, a terrace on each setback,
+# balconies and units up them, lit signs, and a crown with a mast, taller
+# than corpo row's corner block beside it. Neither About nor Stack sees it
+# (it stands north of About's right-hand edge by ten degrees).
+MEGA = dict(WATSON, windows=(0, 1, 3, 6, 6, 5), lit=(0.55, 0.85), balcony=0.4, balcony_glass=0.2, ac=0.6, signs=0.7, roof_cap=5.0)
+TA = (457.0, 484.0, -342.0, -318.0)
+TB = (461.0, 482.0, -340.0, -320.0)
+OPEN = {k: "open" for k in ("+x", "-x", "+z", "-z")}
+# (Their signs are named from this district's own stream, not the city's
+# count, so every sign built after them, here and in the districts built
+# after this one, keeps the name and the design it had.)
+_st_name, B.st_name = B.st_name, K.sid
+with own_ids(95601):
+    B.building(B.Lot(*TA, "-x", OPEN, {}, D), storeys(14), random.Random(9402), style=MEGA, base=storeys(7), signs=True, tint="charcoal",
+               crown_band="cyan", roof=False)
+    B.building(B.Lot(*TB, "-x", OPEN, {}, D), storeys(20), random.Random(9403), style=dict(MEGA, windows=(3, 6, 5, 0)), base=storeys(14), signs=True,
+               tint="navy", crown_band="amber", roof=False)
+B.st_name = _st_name
 K.roof_board(D, 455.6, -330.0, storeys(7), 12.0, 5.4, -math.pi / 2, ro)
+K.parapet(D, TA[0], TA[1], TA[2], TA[3], storeys(14), T["charcoal"], line="amber", rim="white")
+K.parapet(D, TB[0], TB[1], TB[2], TB[3], storeys(20), T["navy"], line="cyan", rim="amber")
+rm = random.Random(9404)
+# The terrace on the first setback, down its west side over the boulevard.
+K.terrace(D, 457.4, 460.6, -339.6, -320.4, storeys(14), rm, hue="cyan")
+stand(458.3, -325.4, -math.pi / 2 + 0.3, "rail", y=storeys(14) + 0.17)
+stand(459.4, -333.8, -math.pi / 2 - 0.2, "smoke", y=storeys(14) + 0.17)
+# Its signs: a stack up the first tier's north-west corner, a long blade off
+# its south-west corner, a board on the second tier's face to the boulevard,
+# strips of pink and cyan up both tiers' corners.
+with own_ids(95600):
+    K.stack(D, TA[0], TA[2] + 1.2, storeys(7) + 3.0, 5, -math.pi / 2 - 0.35)
+    K.blade(D, TA[0], TA[3] - 1.0, storeys(10), "bl", -math.pi / 2 + 0.3)
+    K.blade(D, TB[0], TB[3] - 1.0, storeys(16), "bl", -math.pi / 2 + 0.3)
+    # (A sign, not a billboard: the site deals billboards' adverts largest
+    # first by who hangs near, and a board this size here changed the advert
+    # on corpo row's tower in About's upper right.)
+    box((D, "board_frame", 0), TB[0] - 0.3, TB[0], storeys(17) - 1.4, storeys(17) + 3.4, -335.3, -324.7, scale=1.0)
+    sign(K.sid("pm"), TB[0] - 0.32, storeys(17) + 1.0, -330.0, 10.2, 4.4, -math.pi / 2, district=D, label=False)
+for (x_, z0_, y0_, y1_, hue_) in ((TA[0], TA[2], storeys(7), storeys(14), "pink"), (TA[0], TA[3], storeys(7), storeys(14), "cyan"),
+                                  (TB[0], TB[2], storeys(14), storeys(20), "cyan"), (TB[0], TB[3], storeys(14), storeys(20), "pink")):
+    box((D, "neon_" + hue_, 0), x_ - 0.1, x_ - 0.02, y0_ + 0.4, y1_ - 0.6, z0_ + (0.1 if z0_ < -330 else -0.18), z0_ + (0.18 if z0_ < -330 else -0.1), scale=1.0)
+# The crown: a plant room, a mast with its red lamps.
+box((D, "castconcrete", 0), 468.0, 478.0, storeys(20), storeys(20) + 4.2, -335.0, -325.0, scale=2.0, col=K.LANE_WALL)
+box((D, "neon_amber", 0), 467.9, 478.1, storeys(20) + 3.7, storeys(20) + 3.85, -335.1, -324.9, scale=1.0)
+K.mast(D, 473.0, -330.0, storeys(20) + 4.2, 14.0, dishes=3)
 K.parapet(D, 484.0, 508.0, -344.0, -316.0, storeys(5), T["navy"], line="amber", rim="amber")
 K.pad(D, 497.0, -331.0, storeys(5), rad=7.0)
 K.hut(D, 487.0, -319.5, storeys(5), math.pi / 2, T["navy"])
@@ -1393,6 +1439,17 @@ for sv, out_, yaw_, pose_ in ((3.4, 0.55, 0.0, "talk"), (4.3, 0.55, math.pi, "ta
                               (17.6, 0.5, -math.pi / 2 + 0.5, "phone"), (23.4, 0.45, -math.pi / 2, "squat"), (26.9, 0.5, math.pi / 2, "idle")):
     stand(EL - out_, CB.at(sv), yaw_, pose_, y=G0)
 
+# Across the boulevard (the m8 review: "nothing crosses the boulevard";
+# Zq4zTcIM0yQ@44): bundles of cable slung from the flats on its south side
+# to corpo row's glass opposite, a junction box hung on one, and a string of
+# bulbs between them.
+rc = random.Random(9650)
+for (xa, ya, xb, yb, sag, n) in ((385.5, 13.4, 388.5, 15.6, 1.7, 5), (394.0, 11.6, 391.2, 12.8, 1.2, 4), (421.0, 12.2, 424.6, 14.2, 1.5, 5)):
+    K.bundle(D, (xa, ya, -316.15), (xb, yb, -343.85), sag, n, rc, spread=0.28)
+    box((D, "metal", 1), xa - 0.35, xa + 0.35, ya - 0.12, ya + 0.14, -316.4, -316.0, scale=0.5)
+    box((D, "metal", 1), xb - 0.35, xb + 0.35, yb - 0.12, yb + 0.14, -344.0, -343.6, scale=0.5)
+K.bulbs(D, (408.0, 10.2, -316.1), (410.5, 11.0, -343.9), sag=1.4, n=22, hue="amber")
+
 # The yard behind the garage: a lean-to on posts with tubes under it and a
 # bench of tools, a container, a fence across the yard's south end, floods.
 YC = (477.0, 483.4, -226.0, -212.0)        # the lean-to, against the garage's back wall
@@ -1620,7 +1677,9 @@ R.fill(D, 402.8, 431.4, -299.2, -262.8, 30.0, rf, keep=[(420.6, 428.4, -292.5, -
        hues=("pink", "amber", "cyan"), hmax=lambda x, z: (x - 402.0) * 0.0967)
 # East: the closing block (round its crown, behind its board), its lower
 # half round the pad, the roof south of the rooftop's.
-R.ring(D, (452.3, 483.7, -343.7, -316.3), (461.0, 481.0, -340.0, -321.0), storeys(7), rf, keep=[(454.0, 458.6, -336.8, -323.2)], hues=("cyan", "amber"), cell=4.0)
+R.ring(D, (452.3, 483.7, -343.7, -316.3), TA, storeys(7), rf, keep=[(454.0, 458.6, -336.8, -323.2)], hues=("cyan", "amber"), cell=4.0)
+R.ring(D, (457.3, 483.7, -341.7, -318.3), TB, storeys(14), rf, keep=[(457.3, 461.0, -341.7, -318.3)], hues=("amber", "white"), cell=3.4)
+R.fill(D, 461.3, 481.7, -339.7, -320.3, storeys(20), rf, keep=[(467.6, 478.4, -335.4, -324.6)], hues=("white", "cyan"), cell=4.0)
 R.fill(D, 484.3, 507.7, -343.7, -316.3, storeys(5), rf, keep=[(489.3, 504.7, -338.7, -323.3), (485.0, 489.2, -321.4, -317.6)], hues=("amber", "cyan"), cell=4.0)
 R.fill(D, 452.3, 475.7, -257.7, -230.3, 22.0, rf, keep=[(454.2, 468.8, -255.8, -239.7), (470.3, 473.7, -236.2, -232.8), (470.6, 474.6, -253.3, -249.7)],
        hues=("teal", "amber", "white"), hmax=3.2)
@@ -1749,7 +1808,8 @@ for (x0_, x1_, z0_, z1_, y_) in (
         (380.3, 397.7, -315.7, -300.3, storeys(6)), (402.3, 427.7, -315.7, -300.3, storeys(3)), (380.3, 397.7, -299.7, -276.3, storeys(5)),
         (380.3, 397.7, -275.7, -250.3, storeys(3)), (410.3, 427.7, -249.7, -190.3, 26.0), (402.6, 431.4, -299.4, -262.6, 30.0),
         (452.3, 483.7, -343.7, -316.3, storeys(7)), (484.3, 507.7, -343.7, -316.3, storeys(5)), (454.3, 483.7, -311.7, -300.3, storeys(2)),
-        (452.3, 475.7, -257.7, -230.3, 22.0), (392.0, 409.7, -246.7, -244.3, 58.0), (392.0, 409.7, -227.7, -225.3, 58.0)):
+        (452.3, 475.7, -257.7, -230.3, 22.0), (392.0, 409.7, -246.7, -244.3, 58.0), (392.0, 409.7, -227.7, -225.3, 58.0),
+        (457.3, 483.7, -341.7, -318.3, storeys(14)), (461.3, 481.7, -339.7, -320.3, storeys(20))):
     K.roof_light(D, x0_, x1_, z0_, z1_, y_)
 for (z0, z1, n) in OUTER:
     K.roof_light(D, 490.3, 507.7, z0 + 0.3, z1 - 0.3, storeys(n))
