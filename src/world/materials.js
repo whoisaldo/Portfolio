@@ -54,7 +54,11 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   const made = new Map();
   const all = [];
   const textures = [];
+  // (Every kit material takes the far city's haze past 700 m in cityFog,
+  // glsl.js: uFarKit.)
+  const farKit = { value: 1 };
   const keep = (m) => {
+    if (m.uniforms) m.uniforms.uFarKit = farKit;
     all.push(m);
     return m;
   };

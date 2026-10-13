@@ -78,6 +78,9 @@ export const COMMON = /* glsl */ `
   uniform float uHaze;
   uniform vec3 uCam;
   uniform vec3 uGlowColor;
+  // 1 on the kit's own materials (materials.js), unset (0) elsewhere: the
+  // far city's materials lay farHaze over cityFog themselves.
+  uniform float uFarKit;
   uniform float uFlash;
   uniform vec2 uFlashAt;
   uniform float uTubeClock;
@@ -255,6 +258,17 @@ export const COMMON = /* glsl */ `
     vec3 b = uCam - vec3(456.0, 10.4, -203.0);
     return 1.0 - smoothstep(2.0, 6.0, sqrt(min(dot(a, a), dot(b, b))));
   }
+  // 0 at any of the page's six shots' eyes and 1 a few metres off (the far
+  // city's uFarFree, skyline.js PAGE_EYES, in the shader).
+  float pageFree() {
+    vec3 a = uCam - vec3(0.6, 0.6, 10.0);
+    vec3 b = uCam - vec3(73.0, 13.0, -204.0);
+    vec3 c = uCam - vec3(120.0, 30.0, -230.0);
+    vec3 d = uCam - vec3(476.0, 37.4, -266.0);
+    vec3 e = uCam - vec3(437.0, 2.2, -292.0);
+    vec3 g = uCam - vec3(456.0, 10.4, -203.0);
+    return smoothstep(2.0, 6.0, sqrt(min(min(min(dot(a, a), dot(b, b)), min(dot(c, c), dot(d, d))), min(dot(e, e), dot(g, g)))));
+  }
 
   // Distance: fog into near-black navy close to, and further off into the
   // glow of the lit city hanging in the wet air, so the end of a street is
@@ -288,7 +302,18 @@ export const COMMON = /* glsl */ `
     float deep = (1.0 - exp(-dd * dd)) * exp(-max(p.y, 0.0) * 0.003) * freeEye() * uHaze * mix(1.0, 0.75, emissive) * (1.0 - santo);
     vec3 hz = hazeAt(d);
     vec3 veil = mix(vec3(0.022, 0.045, 0.09), hz * 1.6, downtown(d)) + uGlowColor * 0.08;
-    return mix(mix(col, fogCol, f), veil, deep * 0.62);
+    vec3 c = mix(mix(col, fogCol, f), veil, deep * 0.62);
+    // And past the districts the far city's own thickening air (skyline.js
+    // farHaze, in step with it) on the kit's own things past 700 m, the
+    // landmark megatowers: by two kilometres a tower is mostly the veil's
+    // blue with its lights in it, greyed toward its cold. They stood as
+    // dark and as coloured as a block across the street.
+    float kf = smoothstep(220.0, 1700.0, dist) * smoothstep(600.0, 800.0, dist) * exp(-max(p.y, 0.0) * 0.001) * freeEye() * pageFree() * uHaze * (1.0 - santoAt(p.xz)) * uFarKit;
+    if (kf > 0.0) {
+      c = mix(c, dot(c, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.7, 0.95, 1.25), kf * emissive * 0.6);
+      c = mix(c, veil, kf * mix(0.85, 0.5, emissive));
+    }
+    return c;
   }
 `;
 
