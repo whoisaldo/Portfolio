@@ -218,8 +218,20 @@ export function createYield(traffic) {
         for (let n = 0; n < nThings; n++) {
           const t = things[n];
           const k = meets(t.x, t.y, t.z, t.r, m.hw);
+          if (k < 0) continue;
           // (A ghost stands until the player is well clear of it.)
-          if (k >= 0) allow = !m.solid && k <= 2 ? 0 : cap(allow, m.fx, m.fz, k, t.vx, t.vz);
+          if (!m.solid && k <= 2) {
+            allow = 0;
+            continue;
+          }
+          // Beside it, not ahead: its line comes into the player from the
+          // side, as a car moving over from the lane beside the ramp meets
+          // the S4 coming down it. Keeping the S4's pace would carry it on
+          // into the S4's flank: it gives way, dropping back to go in
+          // behind (and stands for an S4 that stands).
+          const along = (t.x - m.x) * m.fx + (t.z - m.z) * m.fz;
+          if (along > -m.hl && along < m.hl + t.r) allow = Math.min(allow, Math.max(0, t.vx * m.fx + t.vz * m.fz - 3));
+          else allow = cap(allow, m.fx, m.fz, k, t.vx, t.vz);
         }
       }
       for (const o of others) {
