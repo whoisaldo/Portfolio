@@ -3543,6 +3543,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   // its cloud, the searchlights, and below the horizon the far city's
   // ground, where no tower stands on it.
   const skyGeo = new THREE.SphereGeometry(2200, 32, 16);
+  // Which way the advert columns stand from the eye, for the low glow.
+  const colGlow = [];
+  for (let c = 0; c < columns.length; c += 6) colGlow.push(`          ad += pow(max(dot(dxz, normalize(vec2(${g1(columns[c])}, ${g1(columns[c + 1])}) - uCam.xz + 1e-3)), 0.0), 24.0);`);
   // How much of the round's blue the page's own Contact view keeps (its
   // copy is over that sky): its lens, as wide as the page shoots it, tipped
   // up at the garage's towers (16 degrees; 7.5 on a phone, at the portrait
@@ -3818,7 +3821,11 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           // lenses the sky holds the beams it had.)
           if (broad > 0.5 && lift > 0.001) sum += beam(base + vec3(14.0, 0.0, 9.0), normalize(vec3(sin(turn * 0.8 + 2.3) * (0.5 - lean * 0.6), 1.0, cos(turn * 0.8 + 2.3) * (0.5 - lean * 0.6))), dir, broad) * gain * 0.8 * lift;
         }
-        return vec3(0.6, 0.68, 0.9) * sum * 0.075 * uHaze * mix(1.0, 2.0, lift);
+        // (For a free eye the beams are the city's cyan and two thirds as
+        // strong: broad and grey-blue they read as a flat pale haze over
+        // the sky, pooled with the columns' light.)
+        float free = freeEye() * uFarFree;
+        return mix(vec3(0.6, 0.68, 0.9), vec3(0.28, 0.72, 0.95) * 0.66, free) * sum * 0.075 * uHaze * mix(1.0, 2.0, lift);
       }
 
       // Past the far ring the city goes on over the horizon (for a free eye;
@@ -3923,6 +3930,27 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
         float core = pow(max(dot(normalize(dir.xz + 1e-5), toCore * inversesqrt(dot(toCore, toCore) + 1.0)), 0.0), 3.0);
         vec3 over = vec3(0.003, 0.026, 0.085) * exp(-h * 2.6) + vec3(0.004, 0.05, 0.07) * exp(-h * 7.0) + mix(vec3(0.0, 0.02, 0.03), vec3(0.08, 0.11, 0.016), core) * exp(-h * 9.0);
         col += lift * uHaze * over * (1.0 - nearHolo * 0.5);
+        // For a free eye the city's own light stands low over the skyline
+        // on every bearing, the lowest tenth or so of the sky: toward the
+        // advert columns teal, yellow-green on the line itself, and
+        // magenta everywhere else; the clouds over it are lit from under in
+        // the same light (below). The low sky was the same cold blue as
+        // overhead. Not at the page's lenses.
+        float free = freeEye() * uFarFree;
+        vec3 low = vec3(0.0);
+        if (free > 0.001 && dir.y > -0.02 && dir.y < 0.45) {
+          vec2 dxz = normalize(dir.xz + 1e-5);
+          float ad = 0.0;
+${colGlow.join("\n")}
+          ad = min(ad, 1.0);
+          float hh = max(dir.y, 0.0);
+          vec3 tint = mix(vec3(0.15, 0.02, 0.125), mix(vec3(0.018, 0.13, 0.12), vec3(0.12, 0.16, 0.02), exp(-hh * 30.0)), ad);
+          float band = exp(-hh * 6.5);
+          low = tint * (band * 0.8 + exp(-hh * 25.0) * 0.6) * uHaze * free;
+          // (The night's cold blue gives way to it there, so the low sky
+          // changes colour and does not only grow paler.)
+          col = mix(col, col * vec3(0.7, 0.78, 0.62), band * 0.55 * free) + low;
+        }
         // The moon lights the wet air round it, blue and white: bright at
         // its limb and lifting the sky for a few of its widths about it.
         // Nothing changes over the disc itself, which is added onto this.
@@ -3974,6 +4002,7 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           under += vec3(0.005, 0.016, 0.03) * (0.3 + 0.9 * n) * (1.0 - lift) * smoothstep(0.95, 0.995, dot(normalize(dir.xz + 1e-5), vec2(0.9816, -0.1908)));
           col = mix(col, col * 0.55, (1.0 - cover) * near) + under * cover * near * 0.8;
           col += moonGlow * cover * (1.0 + 2.5 * n) * near;
+          col += low * cover * (0.6 + 1.2 * n) * near * 2.0;
           // Lightning inside the cloud: the deck lit from within round the
           // strike, brightest where it is thickest.
           float strike = exp(-length(p.xz - uFlashAt) / 420.0);
@@ -4003,7 +4032,6 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           col = mix(fogged, col, smoothstep(-0.004, 0.0, dir.y));
         }
         // (The city past the horizon, for a free eye: see beyondRow.)
-        float free = freeEye() * uFarFree;
         if (free > 0.001 && dir.y < 0.12 && dir.y > -0.1) {
           float az = atan(dir.z, dir.x);
           vec3 b = beyondRow(col, az, tanEl, pxT, 3600.0, 1.0);

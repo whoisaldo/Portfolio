@@ -171,6 +171,7 @@ export function createSkyColumns(scene, shared, columns, { reduced = false, ads,
       ${COMMON}
       ${ADVERT}
       uniform float uMotion;
+      uniform float uFarFree;
       varying vec2 vUv;
       varying vec3 vWorld;
       varying vec4 vTone;
@@ -182,14 +183,19 @@ export function createSkyColumns(scene, shared, columns, { reduced = false, ads,
         // (Their halo, their white edges and their lit foot are for an eye
         // above the roofs: from the page's own roofs a column is as it was.)
         float lift = smoothstep(40.0, 62.0, uCam.y);
+        // (For a free eye its light is the column's cyan and no more of it
+        // than the air holds: white mixed in, a group of them summed to a
+        // flat pale grey over the sky. The page's lenses keep theirs.)
+        float free = freeEye() * uFarFree;
+        vec3 tone = mix(vTone.rgb, vTone.rgb * vec3(0.55, 0.95, 1.05), free);
         // Outside the column: its halo, widest in the haze at its foot.
         if (across > 1.0) {
           float past = (across - 1.0) * 0.5;
-          vec3 halo = vTone.rgb * (0.16 * exp(-past * 9.0) + 0.5 * exp(-past * 3.0) * exp(-up * vSize.y / 70.0)) * (1.0 - smoothstep(0.7, 1.0, up));
+          vec3 halo = tone * (0.16 * exp(-past * 9.0) + mix(0.5, 0.3, free) * exp(-past * 3.0) * exp(-up * vSize.y / 70.0)) * (1.0 - smoothstep(0.7, 1.0, up));
           // And all the way up it, a soft light in the wet air round it,
           // widest and whitest close to its faces; from the streets too,
           // fainter, but for the two the page's roofs frame (as they were).
-          vec3 air = mix(vTone.rgb, vec3(0.8, 0.92, 1.0), 0.25) * (0.22 * exp(-past * 6.0) + 0.07 * exp(-past * 1.8)) * (1.0 - smoothstep(0.62, 0.86, up));
+          vec3 air = mix(mix(vTone.rgb, vec3(0.8, 0.92, 1.0), 0.25), tone, free) * (mix(0.22, 0.12, free) * exp(-past * 6.0) + mix(0.07, 0.025, free) * exp(-past * 1.8)) * (1.0 - smoothstep(0.62, 0.86, up));
           float street = (1.0 - lift) * (1.0 - step(1.5, vTone.a));
           halo = halo * lift + air * (lift + 0.6 * street);
           halo *= smoothstep(0.0, 0.004, up) * uHaze * exp(-length(vWorld - uCam) * uFogDensity * 0.3);
@@ -209,9 +215,11 @@ export function createSkyColumns(scene, shared, columns, { reduced = false, ads,
         float edge = smoothstep(0.7, 0.98, across);
         float over = clamp((up - STACK) / (1.0 - STACK), 0.0, 1.0);
         float beam = 1.0 - inStack;
-        vec3 rim = mix(vTone.rgb, vec3(0.82, 0.93, 1.0), 0.5) * 1.6;
+        vec3 rim = mix(vTone.rgb, vec3(0.82, 0.93, 1.0), mix(0.5, 0.2, free)) * 1.6;
         vec3 col = rim * edge * 0.5 * inStack;
-        col += (vTone.rgb * (body * 0.34 + smoothstep(0.3, 0.0, across) * 0.3) + rim * edge * 0.3) * pow(1.0 - over, 1.7) * beam;
+        // (Its beam over the stack, for a free eye, two thirds as strong and
+        // gone sooner: a cyan shaft and not a grey one.)
+        col += (tone * (body * 0.34 + smoothstep(0.3, 0.0, across) * 0.3) + rim * edge * 0.3) * pow(1.0 - over, mix(1.7, 2.4, free)) * beam * mix(1.0, 0.66, free);
         // A column one of the page's roofs frames is, from under the roofs'
         // height, the hologram it was there (no solid stack stands for that
         // eye: far-street.js): light, not paint, rows of two tall adverts
@@ -248,7 +256,7 @@ export function createSkyColumns(scene, shared, columns, { reduced = false, ads,
           col = mix(col, was, asWas);
         }
         // And the haze at its foot is lit by it.
-        col += vTone.rgb * 0.45 * exp(-up * vSize.y / 55.0) * lift;
+        col += tone * mix(0.45, 0.3, free) * exp(-up * vSize.y / 55.0) * lift;
         float breath = 0.88 + 0.12 * sin(t * 0.5 + seed * 40.0);
         col *= smoothstep(0.0, 0.02, up) * breath * uHaze;
         // Light in the air fades into the haze; it does not turn into it.
