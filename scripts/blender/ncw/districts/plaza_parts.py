@@ -54,7 +54,7 @@ def in_mirror(x0, x1, z0, z1):
 # 16 m), 2 a tower's office floors from 8 m up, 3 office floors over a hall,
 # from 13.8 m. Glass the hero's wet road sees (MIRROR_ZONES) keeps the
 # city's own (alpha 1) as it was.
-GLASS_ALPHA = {1: 0.96, 2: 0.97, 3: 0.98}
+GLASS_ALPHA = {1: 0.96, 2: 0.97, 3: 0.98, 4: 0.99}
 
 
 def glass_col(lit, warm, seed, mode=2, at=None):
@@ -686,10 +686,12 @@ def stair_x(x0, x1, z0, z1, y0, y1, r=None):
 # ---------------------------------------------------------------------------
 # Towers.
 # ---------------------------------------------------------------------------
-def glass_shaft(x0, x1, z0, z1, y0, y1, seed, cut=2.0, lit=None, warm=None, roof=True):
+def glass_shaft(x0, x1, z0, z1, y0, y1, seed, cut=2.0, lit=None, warm=None, roof=True, pale=False):
     """A glass curtain wall on a plan with its corners cut back: the site's
     corporate shader draws its floors, mullions and lit rooms from world
-    position; the colour is its lit fraction, its warmth and a seed."""
+    position; the colour is its lit fraction, its warmth and a seed.
+    `pale`: a pale tower's silvered glass, fins lit up its mullions (the
+    shader's mode 4)."""
     r = random.Random(seed)
     col = (r.uniform(0.5, 0.8) if lit is None else lit, r.random() if warm is None else warm, r.random(), 1.0)
     cx, cz, hx, hz = (x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (z1 - z0) / 2
@@ -709,7 +711,7 @@ def glass_shaft(x0, x1, z0, z1, y0, y1, seed, cut=2.0, lit=None, warm=None, roof
         if yb <= y + 1.0 or y1 - yb < 5.7:
             yb = y1
         k = 0.3 if rb.random() < 0.17 else rb.uniform(0.75, 1.3)
-        glass_walls(outline, y, yb, glass_col(min(1.0, col[0] * k), col[1], col[2]))
+        glass_walls(outline, y, yb, glass_col(min(1.0, col[0] * k), col[1], col[2], mode=4 if pale else 2))
         y = yb
     if roof:
         poly((PL, "roof", 0), [(x, y1, z) for x, z in outline], [(x / 4, z / 4) for x, z in outline])
@@ -726,14 +728,14 @@ def fins(x0, x1, z0, z1, y0, y1, colour, cut=2.0, k=0.55):
         box((PL, "glow", 0), fx - 0.14, fx + 0.14, y0, y1, fz - 0.14, fz + 0.14, scale=1.0, col=col)
 
 
-def fin_row(f, s0, s1, y0, y1, r, step=(2.1, 2.9), out=0.55, w=0.26, tint=1, lit=None, every=3, k=0.3, skip=()):
+def fin_row(f, s0, s1, y0, y1, r, step=(2.1, 2.9), out=0.55, w=0.26, tint=1, lit=None, every=3, k=0.3, skip=(), col=None):
     """Vertical fins standing out of a face `f` (a buildings.Face) between
     s0 and s1 along it, from y0 to y1; one in `every` carries a line of
     light up its edge. `skip`: (s0, s1) stretches left bare."""
     s, i = s0 + r.uniform(0.2, 0.9), 0
     while s < s1 - 0.2:
         if not any(a <= s <= b for a, b in skip):
-            f.box((PL, "trim", 0), s - w / 2, s + w / 2, y0, y1, 0.0, out, col=B.TRIM[tint], scale=2.0)
+            f.box((PL, "trim", 0), s - w / 2, s + w / 2, y0, y1, 0.0, out, col=col or B.TRIM[tint], scale=2.0)
             if lit and i % every == 0:
                 f.box((PL, "glow", 0), s - 0.035, s + 0.035, y0 + 0.2, y1 - 0.2, out, out + 0.03, col=dim(lit, k))
         s += r.uniform(*step)

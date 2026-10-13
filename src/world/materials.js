@@ -1135,7 +1135,8 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             // rooms in interiors.js PLAZA_ROOMS): mode 1 a hall, its floor
             // and ceiling in the colour's red and green (sixteenths of 16 m);
             // 2 a tower's office floors from 8 m up, 3 its floors over a
-            // hall, from 13.8 m. A flat face of it (a soffit, a lid) is slab.
+            // hall, from 13.8 m; 4 a pale tower's office floors from 8 m up
+            // (round 7). A flat face of it (a soffit, a lid) is slab.
             float mode = floor((vColor.a - 0.95) * 100.0 + 0.5);
             vec3 V = normalize(vWorld - uCam);
             float dist = length(vWorld - uCam);
@@ -1173,7 +1174,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
               float thw = max(0.04, 0.55 * fwP * 4.6);
               transP = mix((step(inF, thw) + step(4.6 - inF, thw)) * clamp(0.04 / thw + 0.35, 0.0, 1.0), 0.02, smoothstep(mix(0.01, 0.05, nearP), mix(0.03, 0.14, nearP), fwP));
             } else {
-              float fy = (vWorld.y - (mode > 2.5 ? 13.8 : BASE)) / STOREY;
+              float fy = (vWorld.y - (mode > 2.5 && mode < 3.5 ? 13.8 : BASE)) / STOREY;
               float level = floor(fy);
               float inF = fract(fy) * STOREY;
               float SILLP = fract(sysP * 7.0) < 0.5 ? 0.95 : 1.25;
@@ -1198,9 +1199,29 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float mw = fwidth(modP);
             float mhw = max(0.035, 0.55 * mw * MODP);
             float mull = mix(step(min(inPaneP, 1.0 - inPaneP) * MODP, mhw) * clamp(0.035 / mhw + 0.35, 0.0, 1.0), 0.05, smoothstep(mix(0.02, 0.1, nearP), mix(0.06, 0.28, nearP), mw));
+            float finL = 0.0;
+            vec3 paleAvg = vec3(0.0);
+            if (mode > 3.5) {
+              // A pale tower (KvMY1uzSC1E@29, @43): silvered glass giving the
+              // city's glow back pale, its offices cool, mullions of pale
+              // metal, spandrels of pale blue-grey, and up every third
+              // mullion a fin lit along its edge, so from across the city
+              // it is a pale shaft ruled in light, not a dark box of lit
+              // windows.
+              vec3 sheen = vec3(0.07, 0.088, 0.12) * (0.7 + 0.6 * smoothstep(-0.3, 0.6, R.y)) + env * 0.55;
+              glass = room * vec3(0.72, 0.86, 0.96) * (1.0 - F) * 0.8 + sheen * (0.6 + 0.4 * F);
+              frameCol = vec3(0.24, 0.27, 0.32) + env * 0.4 + street * 0.25;
+              spandrel = vec3(0.12, 0.14, 0.18) + env * (0.3 + 0.5 * F) + street * 0.2;
+              float lw = 0.09 / MODP;
+              finL = step(mod(paneP, 3.0), 0.5) * clamp((lw - inPaneP) / max(mw, 1e-4) + 0.5, 0.0, 1.0);
+              finL = mix(finL, lw / 3.0, smoothstep(0.5, 2.0, mw / lw));
+              paleAvg = sheen * 0.8 + frameCol * 0.12 + avgRoom * 0.5 + vec3(0.7, 0.88, 1.0) * 0.85 * lw / 3.0;
+            }
             vec3 col = mix(glass, frameCol, clamp(mull + transP, 0.0, 1.0));
             col = mix(col, spandrel, slabP);
+            col += vec3(0.7, 0.88, 1.0) * 0.85 * finL;
             vec3 avg = mix(avgRoom * (1.0 - F) + env * F, spandrel, mode < 1.5 ? 0.0 : 0.28);
+            if (mode > 3.5) avg = mix(avg, paleAvg, 0.75);
             col = mix(col, avg, smoothstep(0.25, 0.6, fwP));
             col = cityFog(col, vWorld, litP * (1.0 - slabP) * 0.6);
             gl_FragColor = vec4(col, 1.0);

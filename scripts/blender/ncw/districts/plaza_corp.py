@@ -182,7 +182,9 @@ GPU = (13.0, 23.0)        # along the face: z -235..-245
 SIDE = (0.0, 11.6)        # z -222..-233.6
 # (The fins start over the canopy; under 27.5 m they leave the GPU and the
 # board alone.)
-fin_row(fw, 0.5, fw.width - 0.5, 28.0, TOP, rk, step=(2.2, 3.0), out=0.5, lit="cyan", every=4, k=0.3)
+# (The top field's fins lit white and few: lit cyan every fourth they were
+# a cyan line grid over the square's west side from the air.)
+fin_row(fw, 0.5, fw.width - 0.5, 28.0, TOP, rk, step=(2.2, 3.0), out=0.5, lit="white", every=7, k=0.22)
 fin_row(fw, 0.5, fw.width - 0.5, 8.6, 17.6, rk, step=(2.2, 3.0), out=0.5, skip=(SIDE, GPU))
 fin_row(fw, 23.6, fw.width - 0.5, 18.6, 27.4, rk, step=(2.2, 3.0), out=0.5, lit="amber", every=3, k=0.3)
 fin_row(fw, 0.5, 12.4, 18.6, 27.4, rk, step=(2.2, 3.0), out=0.5)

@@ -229,8 +229,11 @@ def cooling(cx, cz, y, n=2, r=1.7, h=3.4, along="x", hue="white"):
             sh = 0.55 + 0.45 * math.cos((a0 + a1) / 2 - 0.9)
             quad((PL, "glow", 0), (x + r * math.cos(a1), y + 0.5, z + r * math.sin(a1)), (x + r * math.cos(a0), y + 0.5, z + r * math.sin(a0)),
                  (x + r * 0.86 * math.cos(a0), y + h, z + r * 0.86 * math.sin(a0)), (x + r * 0.86 * math.cos(a1), y + h, z + r * 0.86 * math.sin(a1)),
-                 col=lit_steel(0.45 + 0.75 * sh))
-        ring((PL, "glow", 0), x, z, r * 0.62, r * 0.88, y + h, n=10, col=(*[c * 0.3 for c in FLOOD[hue]], 1.0))
+                 col=lit_steel((0.16 + 0.34 * sh) * (0.55 if s % 2 else 1.0)))
+        # (Ribbed and dark, lit at the rim: drums lit evenly pale were plain
+        # white cylinders from the air.)
+        cylinder((PL, "steel", 1), x, z, y + h * 0.5, y + h * 0.56, r * 0.93 + 0.04, segs=10, col=STEEL_D, cap=False)
+        ring((PL, "glow", 0), x, z, r * 0.62, r * 0.88, y + h, n=10, col=(*[c * 0.15 for c in FLOOD[hue]], 1.0))
         up_poly((PL, "dark", 0), [(x + r * 0.62 * math.cos(s * math.tau / 10), z + r * 0.62 * math.sin(s * math.tau / 10)) for s in range(10)], y + h - 0.35)
     ex, ez = (cx + n * (r + 0.25), cz) if along == "x" else (cx, cz + n * (r + 0.25))
     box((PL, "glow", 1), ex - 0.14, ex + 0.14, y + h, y + h + 0.3, ez - 0.14, ez + 0.14, scale=0.5, col=GLOW["red"])
@@ -246,9 +249,10 @@ def tanks(cx, cz, y, n=3, r=1.3, h=3.6, along="x", warm=0.0):
             a0, a1 = s * math.tau / 8, (s + 1) * math.tau / 8
             sh = 0.5 + 0.5 * math.cos((a0 + a1) / 2 - 0.9)
             quad((PL, "glow", 0), (x + r * math.cos(a1), y, z + r * math.sin(a1)), (x + r * math.cos(a0), y, z + r * math.sin(a0)),
-                 (x + r * math.cos(a0), y + h, z + r * math.sin(a0)), (x + r * math.cos(a1), y + h, z + r * math.sin(a1)), col=lit_steel(0.4 + 0.8 * sh, warm))
+                 (x + r * math.cos(a0), y + h, z + r * math.sin(a0)), (x + r * math.cos(a1), y + h, z + r * math.sin(a1)),
+                 col=lit_steel((0.15 + 0.32 * sh) * (0.7 if s % 2 else 1.0), warm))
             up_tri((PL, "glow", 0), (x + r * math.cos(a0), y + h, z + r * math.sin(a0)), (x, y + h + r * 0.4, z), (x + r * math.cos(a1), y + h, z + r * math.sin(a1)),
-                   lit_steel(1.5, warm))
+                   lit_steel(0.42, warm))
         cylinder((PL, "steel", 1), x, z, y + h * 0.55, y + h * 0.62, r + 0.04, segs=8, col=STEEL_D, cap=False)
     a = (n - 1) / 2 * (2 * r + 0.4) + r
     p0, p1 = ((cx - a, y + 0.3, cz + r + 0.25), (cx + a, y + 0.3, cz + r + 0.25)) if along == "x" else ((cx + r + 0.25, y + 0.3, cz - a), (cx + r + 0.25, y + 0.3, cz + a))
@@ -258,8 +262,10 @@ def tanks(cx, cz, y, n=3, r=1.3, h=3.6, along="x", warm=0.0):
 def plant_house(x0, x1, z0, z1, y, h=3.0, hue="amber", warm=0.0):
     """A plant house: louvred walls in lit steel, lines of light through the
     louvres, a pale roof with a hatch, a lit door and its light on an apron."""
-    box((PL, "glow", 0), x0, x1, y, y + h, z0, z1, scale=1.0, col=lit_steel(0.62, warm))
-    up_poly((PL, "glow", 0), [(x0 + 0.1, z0 + 0.1), (x1 - 0.1, z0 + 0.1), (x1 - 0.1, z1 - 0.1), (x0 + 0.1, z1 - 0.1)], y + h + 0.02, lit_steel(1.25, warm))
+    # (Dark steel, its louvres' light the lines below: walls lit pale all
+    # over were white boxes from the air.)
+    box((PL, "glow", 0), x0, x1, y, y + h, z0, z1, scale=1.0, col=lit_steel(0.24, warm))
+    up_poly((PL, "glow", 0), [(x0 + 0.1, z0 + 0.1), (x1 - 0.1, z0 + 0.1), (x1 - 0.1, z1 - 0.1), (x0 + 0.1, z1 - 0.1)], y + h + 0.02, lit_steel(0.34, warm))
     box((PL, "steel", 0), x0 - 0.12, x1 + 0.12, y + h, y + h + 0.12, z0 - 0.12, z1 + 0.12, scale=1.0, col=STEEL_D)
     for yy in (y + h * 0.45, y + h * 0.62, y + h * 0.79):
         walls((PL, "glow", 1), [(x0 - 0.02, z1 + 0.02), (x1 + 0.02, z1 + 0.02), (x1 + 0.02, z0 - 0.02), (x0 - 0.02, z0 - 0.02)], yy, yy + 0.07, dim(hue, 0.5))

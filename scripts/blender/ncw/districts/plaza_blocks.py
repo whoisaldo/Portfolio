@@ -82,7 +82,7 @@ def mark(kind, face, sec, y, size, colour, back=True):
 
 
 def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0, accent="cyan", crown="band",
-          marks=(), style=OFFICE, window=None, tint=None, lit=None, warm=None, plant=2, edge=False, spire=6.0):
+          marks=(), style=OFFICE, window=None, tint=None, lit=None, warm=None, plant=2, edge=False, spire=6.0, pale=False):
     """A shaft on a podium (or the ground): glass, or the kit's walls.
     `steps`: ((height, inset), ...) where it steps in. `marks`: (emblem,
     face, height, size, colour). `edge`: lines of light up its corners and
@@ -101,7 +101,7 @@ def tower(what, x0, x1, z0, z1, base, top, seed, kind="glass", steps=(), cut=2.0
         sx0, sx1, sz0, sz1 = x0 + i, x1 - i, z0 + i, z1 - i
         y0, y1 = levels[k], levels[k + 1]
         if glass:
-            glass_shaft(sx0, sx1, sz0, sz1, y0, y1, seed + k, cut=cut, lit=lit, warm=warm)
+            glass_shaft(sx0, sx1, sz0, sz1, y0, y1, seed + k, cut=cut, lit=lit, warm=warm, pale=pale)
             if edge:
                 fins(sx0, sx1, sz0, sz1, max(y0, 1.0), y1, accent, cut=cut)
         else:
@@ -360,14 +360,18 @@ glass_podium(132.0, 170.0, -168.0, -126.0, 14.8, {"-x": "street", "-z": "street"
 # 135 m; over that its top would stand in that shot's sky. The hero's lens
 # does not reach this footprint at any height.)
 tower("D1 wing", 136.0, 151.0, -164.0, -130.0, 14.8, 35.2, 8332, cut=1.6, accent="yellow", crown="pad", lit=0.74, warm=0.55, plant=0)
+# (Round 7: D1's shaft, D3 and T4 are the district's pale glass towers,
+# KvMY1uzSC1E@29, @43: silvered glass, cool offices, pale fins lit up
+# their edges, over the dark boxes round the square.)
+PALE_FIN = (0.3, 0.32, 0.37, 1.0)
 D1T = tower("D1 shaft", 151.0, 168.0, -164.0, -136.0, 14.8, 118.2, 8387, steps=((68.8, 1.6), (99.2, 3.4)), cut=1.6, accent="yellow", crown="none",
-            lit=0.8, warm=0.3, plant=0)
+            lit=0.8, warm=0.15, plant=0, pale=True)
 rf = random.Random(8388)
 for i, (a0, a1, b0, b1, ya, yb) in enumerate(((151.0, 168.0, -164.0, -136.0, 16.0, 68.3), (152.6, 166.4, -162.4, -137.6, 70.0, 98.7),
                                               (154.4, 164.6, -160.6, -139.4, 100.4, 107.4))):
     for name, f in B.faces_of(a0, a1, b0, b1).items():
-        hue = None if name == "+x" else "white" if name == "+z" else ("yellow" if i == 1 else "teal")
-        kw = dict(step=(2.0, 2.6), out=0.6 - 0.06 * i, lit=hue, every=4 if i == 0 else 3, k=0.24)
+        hue = None if name == "+x" else "white" if name == "+z" else ("white" if i == 1 else "cyan")
+        kw = dict(step=(2.0, 2.6), out=0.6 - 0.06 * i, lit=hue, every=4 if i == 0 else 3, k=0.3, col=PALE_FIN)
         if i == 0 and name == "-x":
             # (Over the wing's roof; the hung box's field is left clear.)
             fin_row(f, 2.0, f.width - 2.0, 36.0, 52.9, rf, **kw)
@@ -430,10 +434,19 @@ for z, size, k in ((-92.0, "pm", 2.0), (-66.5, "ps", 2.6)):
 # corner is the one the Stack's pan finds first, from 84 m: the top step
 # stands 6.5 m in from it.)
 D3 = tower("D3", 136.0, 166.0, -94.0, -64.0, 11.4, 102.8, 8336, steps=((60.0, 3.0), (80.0, 6.5)), cut=3.0, accent="green", crown="halo",
-           lit=0.74, warm=0.15, edge=True, marks=(("rings", "-x", 70.0, 8.0, "green"), ("rings", "-z", 70.0, 8.0, "green"),
+           lit=0.74, warm=0.1, edge=True, pale=True, marks=(("rings", "-x", 70.0, 8.0, "green"), ("rings", "-z", 70.0, 8.0, "green"),
                                      ("rings", "+z", 70.0, 8.0, "green"), ("rings", "-x", 92.0, 6.0, "yellow"), ("rings", "-z", 92.0, 6.0, "yellow")))
 mast(151.0, -79.0, 102.8, 9.0)
 checked(142.5, 159.5, -87.5, -70.5, 112.4, "D3 mast")
+# Its pale fins, up the faces the square and the deck's road see (the west
+# face's screen field left clear).
+rd3 = random.Random(8402)
+for (a0, a1, b0, b1, ya, yb) in ((136.0, 166.0, -94.0, -64.0, 13.0, 59.6), (139.0, 163.0, -91.0, -67.0, 60.6, 79.6), (142.5, 159.5, -87.5, -70.5, 80.6, 102.2)):
+    for name, f in B.faces_of(a0, a1, b0, b1).items():
+        if name == "+x":
+            continue
+        skip = ((3.5, 26.5),) if name == "-x" and ya < 50.0 else ()
+        fin_row(f, 3.4, f.width - 3.4, ya, yb, rd3, step=(2.2, 2.8), out=0.45, lit="white", every=3, k=0.3, skip=skip, col=PALE_FIN)
 # The screen that closes the deck's vista: ten floors of advert on the
 # tower's west face, on the road's axis.
 screen(135.6, 36.0, -79.0, 13.0, 28.0, -math.pi / 2, random.Random(8337), back=False, depth=0.5)
@@ -515,9 +528,11 @@ parapet(54.0, 106.0, -452.0, -402.0, 18.2, tint=1)
 T3 = tower("T3", 58.0, 82.0, -448.0, -408.0, 18.2, 104.0, 8372, steps=((72.0, 2.5), (88.0, 5.0), (98.0, 7.5)), cut=2.6, accent="white", crown="spire",
            spire=5.4, lit=0.82, warm=0.58, marks=(("rings", "+z", 80.0, 7.0, "white"), ("rings", "+x", 80.0, 7.0, "white")))
 tower("T4", 88.0, 104.0, -448.0, -410.0, 18.2, 98.0, 8373, cut=1.4, accent="green", crown="twin",
-      steps=((72.6, 2.5), (88.2, 4.6)), marks=(("gate", "+z", 62.0, 6.0, "green"), ("gate", "+x", 62.0, 6.0, "green")), lit=0.76, warm=0.55, plant=0)
+      steps=((72.6, 2.5), (88.2, 4.6)), marks=(("gate", "+z", 62.0, 6.0, "green"), ("gate", "+x", 62.0, 6.0, "green")), lit=0.76, warm=0.2, plant=0,
+      pale=True)
 for name, f in B.faces_of(88.0, 104.0, -448.0, -410.0).items():
-    fin_row(f, 1.8, f.width - 1.8, 19.4, 57.0, rq, step=(2.4, 3.2), out=0.5, lit="green" if name in ("+x", "+z") else None, every=4, k=0.26)
+    fin_row(f, 1.8, f.width - 1.8, 19.4, 57.0, rq, step=(2.4, 3.2), out=0.5, lit="white" if name in ("+x", "+z") else None, every=3, k=0.3,
+            col=(0.3, 0.32, 0.37, 1.0))
 skylight(60.0, 100.0, -406.5, -403.0, 18.2, colour="cyan", k=0.26, pitch=0.8)
 garden(82.6, 87.4, -446.0, -410.0, 18.2, random.Random(8374), palms=0, trees=3, colour="green", lamps=1)
 # North of corpo row's first towers: two blocks, low enough to stay under
