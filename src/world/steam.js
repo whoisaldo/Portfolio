@@ -95,7 +95,7 @@ function smogBanks(vents) {
   }
   const banks = [];
   for (const c of cells.values()) {
-    const n = 1 + Math.floor(c.n / 4);
+    const n = 1 + Math.floor(c.n / 6);
     for (let j = 0; j < n; j++) {
       const a = dice(1000 + c.cx, c.cz, j) * Math.PI * 2;
       const r = j ? 8 + 10 * dice(c.cx, 1000 + c.cz, j) : 0;
@@ -272,8 +272,10 @@ export function createSteam(scene, shared, anchors, { reduced = false } = {}) {
         vSmog = aForm.z;
         // (A bank of haze has no mouth.)
         vRise = aForm.z > 0.5 ? 9.0 : world.y - aVent.y;
-        // A bank of haze thins out where it meets the ground.
-        vHigh = aForm.z > 0.5 ? smoothstep(0.0, 6.0, world.y) : 1.0;
+        // A bank of haze thins out where it meets the ground, and seen from
+        // over it it is a thin veil on the yards, not a cloud.
+        float down = clamp((uCam.y - centre.y) / max(distance(uCam, centre), 1.0), 0.0, 1.0);
+        vHigh = aForm.z > 0.5 ? smoothstep(0.0, 6.0, world.y) * mix(1.0, 0.35, smoothstep(0.15, 0.6, down)) : 1.0;
         // The billows are the vent's, not the puff's: one pattern on the
         // plane facing the eye through the vent, rising slower than the
         // steam, so the puffs of a plume run together into one body.
