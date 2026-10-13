@@ -2321,9 +2321,9 @@
    "name": "anchor_steam_roof_cy1",
    "kind": "anchor",
    "at": [
-    -26.7,
-    54.69,
-    -191.88
+    -25.7,
+    60.48,
+    -244.0
    ],
    "yaw": 0.0,
    "district": "canyon"
@@ -2332,9 +2332,9 @@
    "name": "anchor_steam_roof_cy2",
    "kind": "anchor",
    "at": [
-    -19.75,
-    63.02,
-    -255.9
+    -24.7,
+    62.98,
+    -255.95
    ],
    "yaw": 0.0,
    "district": "canyon"
@@ -2343,9 +2343,9 @@
    "name": "anchor_steam_roof_cy3",
    "kind": "anchor",
    "at": [
-    -19.75,
-    68.73,
-    -308.0
+    -25.8,
+    76.55,
+    -300.86
    ],
    "yaw": 0.0,
    "district": "canyon"
