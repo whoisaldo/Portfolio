@@ -744,7 +744,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vec3 street = spillAt(vWorld);
           // The trade's own light, a little toward the tint the builder
           // gave the shop: what the pane is from too far to see in.
-          vec3 away = tradeLight(kind) * mix(vec3(1.0), L, 0.25) * 0.8;
+          vec3 away = tradeLightV(kind, shop) * mix(vec3(1.0), L, 0.25) * 0.8;
 
           vec3 col;
           if (vColor.b < 0.5) {

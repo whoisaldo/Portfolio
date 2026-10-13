@@ -812,6 +812,15 @@ export const SHOP_ROOM = /* glsl */ `
     return vec3(0.03, 0.04, 0.05);
   }
 
+  // The same with the room's variant (shopRoom's v): a tattoo parlour's
+  // red, an implant clinic's blue, a second-hand shop's dimmer light.
+  vec3 tradeLightV(float kind, float shop) {
+    float v = floor(fract(shop * 7.31 + 0.13) * 3.0) * step(0.5, freeEye());
+    if (kind > 3.5 && kind < 4.5 && v > 0.5) return v < 1.5 ? vec3(1.0, 0.42, 0.58) * 0.3 : vec3(0.62, 0.8, 1.0) * 0.36;
+    if (kind > 4.5 && kind < 5.5 && v > 1.5) return tradeLight(kind) * 0.75;
+    return tradeLight(kind);
+  }
+
   // The room behind the glass at p (metres from the room's left wall, up
   // from the sill, 0 in) along d: its colour as it is lit. kind is the
   // trade, shop and seed the shop's and this room's own numbers, street the
