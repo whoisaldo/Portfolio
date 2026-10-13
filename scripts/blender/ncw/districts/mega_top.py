@@ -213,7 +213,7 @@ for i in range(8):
 # (Clear: the pad, the walk down the middle, the skylights and shacks, and
 # the sweep's own point on this roof, mg13 at (84, -722).)
 roof_full(AX0 + 1.0, AX1 - 5.0, AZ0 + 2.0, AZ1 - 4.0, ARM_TOP, 5311, keep=((67.0, 77.0, -721.0, -711.0), (65.0, 103.0, -715.8, -714.2),
-          (85.0, 99.0, -732.0, -728.0), (82.0, 86.0, -724.5, -719.5), (89.0, 93.0, -744.0, -739.0), (94.0, 98.0, -730.0, -725.0)), people=0.8)
+          (85.0, 99.0, -732.0, -728.0), (78.5, 89.5, -727.5, -716.5), (89.0, 93.0, -744.0, -739.0), (94.0, 98.0, -730.0, -725.0)), people=0.8)
 RB = (72.0, -719.0, -math.pi / 2 + 0.22)
 rx, rz = math.cos(RB[2]), -math.sin(RB[2])
 bnx, bnz = math.sin(RB[2]), math.cos(RB[2])
