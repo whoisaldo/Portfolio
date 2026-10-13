@@ -32,8 +32,8 @@ import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js"
 import { GROUND, VNOISE } from "./ground.js";
 import { kindSource } from "./kinds.js";
 import { SHOP_ROOM, HALL } from "./interiors.js";
-import { dealTrades } from "./trades.js";
-import { dealAdverts } from "./adverts.js";
+import { dealSteps, dealTrades } from "./trades.js";
+import { dealAdvertSteps, dealAdverts } from "./adverts.js";
 import { MIRROR_UNIFORMS } from "./road.js";
 import { MARKS } from "./marks.js";
 import { createWetFloor } from "./wet.js";
@@ -844,6 +844,19 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       trades.panes += got.panes;
       trades.signed += got.signed;
       trades.alley += got.alley ?? 0;
+    };
+    // (load) The same, a step at a time, for a geometry the city deals out
+    // of sight before it is first drawn (a streamed district's, city.js):
+    // null if it has been dealt.
+    m.userData.deal = (geometry, object) => {
+      if (dealt.has(geometry)) return null;
+      dealt.add(geometry);
+      return (function* () {
+        const got = yield* dealSteps(geometry, object);
+        trades.panes += got.panes;
+        trades.signed += got.signed;
+        trades.alley += got.alley ?? 0;
+      })();
     };
     m.name = "shop";
     made.set("shop", m);
@@ -2042,6 +2055,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
       if (boards.has(geometry)) return;
       boards.add(geometry);
       if (!object.isInstancedMesh) dealAdverts(geometry, object);
+    };
+    // (load) The same, a step at a time, for a geometry the city deals out
+    // of sight before it is first drawn (a streamed district's, city.js):
+    // null if it has been dealt.
+    m.userData.deal = (geometry, object) => {
+      if (boards.has(geometry)) return null;
+      boards.add(geometry);
+      return dealAdvertSteps(geometry, object);
     };
     m.name = "billboard";
     made.set("billboard", m);

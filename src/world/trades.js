@@ -53,6 +53,19 @@ export function clearSigns() {
  * sign, how many face another shop's glass under 8 m across).
  */
 export function dealTrades(geometry, object) {
+  const steps = dealSteps(geometry, object);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+}
+
+/**
+ * (load) dealTrades a few thousand vertices or a few dozen panes a step:
+ * the same panes dealt the same trades, for a geometry the city deals out
+ * of sight a little a frame (city.js, the shop material's `deal`). Its
+ * value at the end is what dealTrades returns.
+ */
+export function* dealSteps(geometry, object) {
   const pos = geometry.attributes.position;
   const nor = geometry.attributes.normal;
   const col = geometry.attributes.color;
@@ -64,6 +77,7 @@ export function dealTrades(geometry, object) {
   const v = new THREE.Vector3();
   const nm = new THREE.Matrix3().getNormalMatrix(object.matrixWorld);
   for (let i = 0; i < n; i++) {
+    if (i % 4096 === 4095) yield;
     v.fromBufferAttribute(pos, i).applyMatrix4(object.matrixWorld);
     P.set([v.x, v.y, v.z], i * 3);
     v.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize();
@@ -81,6 +95,7 @@ export function dealTrades(geometry, object) {
   };
   const spots = new Map();
   for (let i = 0; i < n; i++) {
+    if (i % 4096 === 4095) yield;
     const key = `${Math.round(P[i * 3] * 100)},${Math.round(P[i * 3 + 1] * 100)},${Math.round(P[i * 3 + 2] * 100)},${Math.round(N[i * 3] * 2)},${Math.round(N[i * 3 + 2] * 2)}`;
     if (spots.has(key)) join(i, spots.get(key));
     else spots.set(key, i);
@@ -88,12 +103,15 @@ export function dealTrades(geometry, object) {
   const index = geometry.index;
   const tris = index ? index.count / 3 : n / 3;
   for (let k = 0; k < tris; k++) {
+    if (k % 8192 === 8191) yield;
     const a = index ? index.getX(k * 3) : k * 3;
     join(a, index ? index.getX(k * 3 + 1) : k * 3 + 1);
     join(a, index ? index.getX(k * 3 + 2) : k * 3 + 2);
   }
   const panes = new Map();
+  yield;
   for (let i = 0; i < n; i++) {
+    if (i % 8192 === 8191) yield;
     const nx = N[i * 3];
     const nz = N[i * 3 + 2];
     if (Math.abs(N[i * 3 + 1]) > 0.5) continue;
@@ -112,7 +130,9 @@ export function dealTrades(geometry, object) {
   // on its wall or hung out from it, up to a storey above the glass.
   let signed = 0;
   const walls = new Map();
+  let paneN = 0;
   for (const pane of panes.values()) {
+    if (++paneN % 48 === 0) yield;
     const half = (pane.a1 - pane.a0) / 2;
     const mid = (pane.a0 + pane.a1) / 2;
     let best = 1e9;
@@ -138,7 +158,9 @@ export function dealTrades(geometry, object) {
   // with a few lines of neon in it a stride from the eye, so they come up
   // there a third as often (a sign over the door still names its trade).
   const all = [...panes.values()];
+  let alleyN = 0;
   for (const a of all) {
+    if (++alleyN % 48 === 0) yield;
     a.alley = all.some((b) => {
       if (a.nx * b.nx + a.nz * b.nz > -0.9) return false;
       const across = -b.plane - a.plane;
@@ -149,6 +171,7 @@ export function dealTrades(geometry, object) {
   // (so the order is not the list's), stepping past whatever either
   // neighbour is.
   for (const [key, list] of walls) {
+    yield;
     list.sort((a, b) => a.a0 - b.a0);
     let turn = 0;
     for (const c of key) turn = (turn * 31 + c.charCodeAt(0)) % 8;
@@ -166,7 +189,9 @@ export function dealTrades(geometry, object) {
       pane.trade = turn;
     });
   }
+  paneN = 0;
   for (const pane of panes.values()) {
+    if (++paneN % 512 === 0) yield;
     const width = Math.min(31, Math.max(1, Math.round((pane.a1 - pane.a0) * 4)));
     const byte = Math.min(254, pane.trade * 32 + width);
     for (const i of pane.verts) col.setW(i, byte / 255);

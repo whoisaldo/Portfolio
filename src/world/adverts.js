@@ -19,6 +19,19 @@ const STEP = { 16: 5, 8: 3 };
 
 /** Deal a billboard mesh's faces their adverts, into its colour's alpha. Returns how many faces. */
 export function dealAdverts(geometry, object) {
+  const steps = dealAdvertSteps(geometry, object);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+}
+
+/**
+ * (load) dealAdverts a few thousand vertices or a few faces a step: the
+ * same faces dealt the same adverts, for a geometry the city deals out of
+ * sight a little a frame (city.js, the billboard material's `deal`). Its
+ * value at the end is what dealAdverts returns.
+ */
+export function* dealAdvertSteps(geometry, object) {
   const pos = geometry.attributes.position;
   const nor = geometry.attributes.normal;
   const col = geometry.attributes.color;
@@ -30,6 +43,7 @@ export function dealAdverts(geometry, object) {
   const v = new THREE.Vector3();
   const nm = new THREE.Matrix3().getNormalMatrix(object.matrixWorld);
   for (let i = 0; i < n; i++) {
+    if (i % 4096 === 4095) yield;
     v.fromBufferAttribute(pos, i).applyMatrix4(object.matrixWorld);
     P.set([v.x, v.y, v.z], i * 3);
     v.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize();
@@ -47,6 +61,7 @@ export function dealAdverts(geometry, object) {
   };
   const spots = new Map();
   for (let i = 0; i < n; i++) {
+    if (i % 4096 === 4095) yield;
     const key = `${Math.round(P[i * 3] * 100)},${Math.round(P[i * 3 + 1] * 100)},${Math.round(P[i * 3 + 2] * 100)},${Math.round(N[i * 3] * 2)},${Math.round(N[i * 3 + 1] * 2)},${Math.round(N[i * 3 + 2] * 2)}`;
     if (spots.has(key)) join(i, spots.get(key));
     else spots.set(key, i);
@@ -54,18 +69,23 @@ export function dealAdverts(geometry, object) {
   const index = geometry.index;
   const tris = index ? index.count / 3 : n / 3;
   for (let k = 0; k < tris; k++) {
+    if (k % 8192 === 8191) yield;
     const a = index ? index.getX(k * 3) : k * 3;
     join(a, index ? index.getX(k * 3 + 1) : k * 3 + 1);
     join(a, index ? index.getX(k * 3 + 2) : k * 3 + 2);
   }
   const faces = new Map();
+  yield;
   for (let i = 0; i < n; i++) {
+    if (i % 8192 === 8191) yield;
     const root = find(i);
     if (!faces.has(root)) faces.set(root, []);
     faces.get(root).push(i);
   }
   const boards = [];
+  let faceN = 0;
   for (const verts of faces.values()) {
+    if (++faceN % 256 === 0) yield;
     let cx = 0, cy = 0, cz = 0, nx = 0, ny = 0, nz = 0;
     for (const i of verts) {
       cx += P[i * 3]; cy += P[i * 3 + 1]; cz += P[i * 3 + 2];
@@ -100,7 +120,9 @@ export function dealAdverts(geometry, object) {
   // The largest first: a tower's board takes its pick before the posters.
   boards.sort((a, b) => b.area - a.area || a.x - b.x || a.z - b.z);
   const hung = [];
+  yield;
   for (const b of boards) {
+    if (hung.length % 8 === 7) yield;
     const step = STEP[b.pool];
     let best = b.start;
     let bestNear = -1;
