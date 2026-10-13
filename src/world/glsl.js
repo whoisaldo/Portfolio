@@ -308,8 +308,10 @@ export const COMMON = /* glsl */ `
     // landmark megatowers: by two kilometres a tower is mostly the veil's
     // blue with its lights in it, greyed toward its cold. They stood as
     // dark and as coloured as a block across the street.
-    float kf = smoothstep(220.0, 1700.0, dist) * smoothstep(600.0, 800.0, dist) * exp(-max(p.y, 0.0) * 0.001) * freeEye() * pageFree() * uHaze * (1.0 - santoAt(p.xz)) * uFarKit;
-    if (kf > 0.0) {
+    // (Only past 600 m and on the kit's own: every other material in the
+    // city runs this function too.)
+    if (uFarKit > 0.5 && dist > 600.0) {
+      float kf = smoothstep(220.0, 1700.0, dist) * smoothstep(600.0, 800.0, dist) * exp(-max(p.y, 0.0) * 0.001) * freeEye() * pageFree() * uHaze * (1.0 - santoAt(p.xz));
       c = mix(c, dot(c, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.7, 0.95, 1.25), kf * emissive * 0.6);
       c = mix(c, veil, kf * mix(0.85, 0.5, emissive));
     }
