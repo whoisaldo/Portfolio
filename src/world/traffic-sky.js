@@ -19,15 +19,17 @@
 export const LANES = [
   // The loops round the hero's sky first (a phone keeps these): over the
   // canyon's mouth and over its far end, above the canyon's roofs.
-  { c: [0, -420], r: [60, 36], y: 195, v: 20, n: 3, phone: 2 },
-  { c: [-30, -600], r: [120, 40], y: 124, v: 30, n: 3, phone: 1 },
+  // (`held`: what flies over the canyon is dealt as it was, the four first
+  // kinds alone, so the hero's sky holds; see createCraft.)
+  { c: [0, -420], r: [60, 36], y: 195, v: 20, n: 3, phone: 2, held: 1 },
+  { c: [-30, -600], r: [120, 40], y: 124, v: 30, n: 3, phone: 1, held: 1 },
   // Across the moon, seen from the garage's roof: a heavier craft, slower,
   // so that 300 m off it crosses the disc as a silhouette with its lamps
   // lit and not as a speck.
   { c: [620, 120], r: [200, 70], y: 172, v: 30, s: 2.6, n: 2, phone: 1 },
   // The streets, low: the strip of sky a driver has ahead. The canyon's is
   // the highest of them: bridges cross it up to 49 m.
-  { a: [0, -428], b: [0, -528], half: 5.5, y: 56, lift: 5, v: 9, narrow: 1, n: 5, phone: 1 },
+  { a: [0, -428], b: [0, -528], half: 5.5, y: 56, lift: 5, v: 9, narrow: 1, n: 5, phone: 1, held: 1 },
   { a: [-80, -30], b: [-80, -700], half: 5, y: 43, lift: 5, v: 8.5, n: 7, phone: 1 },
   { a: [120, -20], b: [120, -310], half: 4.5, y: 32, lift: 5, v: 8, narrow: 1, n: 4, phone: 1 },
   { a: [136, -330], b: [426, -330], half: 5, y: 30, lift: 5, v: 8.5, n: 6, phone: 1 },
@@ -37,7 +39,7 @@ export const LANES = [
   // Low across the deck, over its own road and its lamp masts.
   { a: [-66, -80], b: [104, -80], half: 2.2, y: 48, lift: 4, v: 7, n: 3, phone: 1 },
   // The streets again, between the towers: higher, slower to pass.
-  { a: [0, -320], b: [0, -580], half: 5.5, y: 80, lift: -6, v: 8.5, band: 0, n: 5, phone: 1 },
+  { a: [0, -320], b: [0, -580], half: 5.5, y: 80, lift: -6, v: 8.5, band: 0, n: 5, phone: 1, held: 1 },
   { a: [130, -330], b: [430, -330], half: 5, y: 62, lift: 5, v: 8, n: 3, phone: 0 },
   { a: [-70, 1], b: [430, 1], half: 5, y: 48, lift: 5, v: 9, narrow: 1, n: 4, phone: 0 },
   { a: [-80, -10], b: [-80, -670], half: 6, y: 58, lift: 5, v: 8.5, n: 4, phone: 0 },
@@ -106,6 +108,16 @@ export const LANES = [
   { a: [24, 1], b: [400, 1], half: 3.5, y: 20, lift: 3, v: 7, narrow: 1, band: 2.5, n: 4, phone: 0 },
   { a: [-80, -290], b: [-80, -560], half: 3.5, y: 23, lift: 3, v: 7, narrow: 1, band: 2.5, n: 3, phone: 0 },
   { a: [440, -20], b: [440, -310], half: 3.5, y: 23, lift: 3, v: 7, narrow: 1, band: 2.5, n: 3, phone: 0 },
+  // High round the landmark towers, for the air over the canyon's end: a
+  // loop between the needle, the stack and the frame tower, five hundred
+  // metres up under the cloud, which from the hero's lens is over the top
+  // of its frame (21.5 degrees up there) and from over the megabuilding is
+  // the top of the sky.
+  { c: [-110, -1120], r: [120, 60], y: 500, v: 26, s: 1.6, n: 5, phone: 2 },
+  // And over the towers north-east of Corpo Row, for the air north of the
+  // boulevard: a long loop above the corridors' traffic, east of the
+  // hero's band of sky.
+  { c: [470, -800], r: [90, 170], y: 196, v: 24, n: 5, phone: 2 },
 ];
 
 const TAU = Math.PI * 2;
@@ -119,11 +131,18 @@ const TAU = Math.PI * 2;
 // `thrust` its fans', its belly's and its streak's, `streak` how long that
 // is, `lamp` how big its lamps are; `mix` how often each kind is dealt to a
 // street's lane, a loop and an outer corridor.
+// Two more since: an interceptor, low and broad, teal fans and a long
+// green-white streak; a van, boxy and tall, in taxi yellow or work paint,
+// yellow fans. Every kind's lamps are a quarter bigger than they were, so a
+// near craft is its glow and not only its body; `held` lanes deal from the
+// first four kinds alone, as they did.
 export const CRAFT = [
-  { name: "runabout", scale: [1, 1, 1], head: [0.75, 0.9, 1.0], thrust: [0.3, 0.75, 1.0], streak: 1, lamp: 1, mix: [6, 5, 4] },
-  { name: "courier", scale: [0.84, 0.8, 0.82], head: [1.0, 0.8, 0.5], thrust: [1.0, 0.45, 0.12], streak: 0.6, lamp: 0.75, mix: [3, 2, 1] },
-  { name: "hauler", scale: [1.35, 1.45, 1.85], head: [1.0, 0.72, 0.32], thrust: [1.0, 0.32, 0.08], streak: 0, lamp: 1.3, mix: [0, 1, 3] },
-  { name: "liner", scale: [1.2, 1.12, 2.3], head: [0.9, 0.95, 1.0], thrust: [0.8, 0.3, 1.0], streak: 0.4, lamp: 1.1, mix: [1, 2, 2] },
+  { name: "runabout", scale: [1, 1, 1], head: [0.75, 0.9, 1.0], thrust: [0.3, 0.75, 1.0], streak: 1, lamp: 1.25, mix: [5, 4, 3] },
+  { name: "courier", scale: [0.84, 0.8, 0.82], head: [1.0, 0.8, 0.5], thrust: [1.0, 0.45, 0.12], streak: 0.6, lamp: 0.95, mix: [3, 2, 1] },
+  { name: "hauler", scale: [1.35, 1.45, 1.85], head: [1.0, 0.72, 0.32], thrust: [1.0, 0.32, 0.08], streak: 0, lamp: 1.6, mix: [0, 1, 3] },
+  { name: "liner", scale: [1.2, 1.12, 2.3], head: [0.9, 0.95, 1.0], thrust: [0.8, 0.3, 1.0], streak: 0.4, lamp: 1.4, mix: [1, 2, 2] },
+  { name: "interceptor", scale: [1.05, 0.74, 1.02], head: [0.8, 1.0, 0.95], thrust: [0.15, 1.0, 0.72], streak: 1.2, lamp: 1.3, mix: [2, 2, 2] },
+  { name: "van", scale: [1.02, 1.34, 1.04], head: [1.0, 0.88, 0.62], thrust: [1.0, 0.82, 0.22], streak: 0.5, lamp: 1.2, mix: [2, 2, 2] },
 ];
 // What each kind is painted (linear colour): the runabouts dark, as the
 // street's cars mostly are, a few pale or in a colour; couriers in yellow,
@@ -134,6 +153,8 @@ export const LIVERY = [
   [[0.5, 0.35, 0.035], [0.45, 0.14, 0.02], [0.34, 0.34, 0.33]],
   [[0.17, 0.18, 0.19], [0.46, 0.17, 0.03], [0.13, 0.15, 0.06]],
   [[0.36, 0.37, 0.39], [0.2, 0.21, 0.24], [0.035, 0.07, 0.2]],
+  [[0.018, 0.1, 0.1], [0.3, 0.31, 0.33], [0.012, 0.012, 0.016], [0.17, 0.02, 0.07]],
+  [[0.5, 0.37, 0.03], [0.17, 0.022, 0.02], [0.2, 0.21, 0.23], [0.02, 0.06, 0.16]],
 ];
 // A lane's craft fly at a few heights LEVEL metres apart (its `band`, 6 m
 // over a street, 10 on a loop, 12 out along the corridors; less where the
@@ -150,7 +171,7 @@ const sortOf = (L) => (L.c ? 1 : L.y < 60 ? 0 : 2);
 /** How often a lane is dealt each kind: a `narrow` lane, which passes a
  *  wall or a tower closely somewhere on its round, carries none of the big
  *  ones. */
-const weightsOn = (L) => CRAFT.map((K) => (L.narrow && Math.max(K.scale[0], K.scale[2]) > 1.05 ? 0 : K.mix[sortOf(L)]));
+const weightsOn = (L) => CRAFT.map((K, i) => (L.narrow && Math.max(K.scale[0], K.scale[2]) > 1.05) || (L.held && i > 3) ? 0 : K.mix[sortOf(L)]);
 /** The biggest kind a lane may carry, as a scale on the runabout's span. */
 export const widestOn = (L) => Math.max(...CRAFT.filter((K, i) => weightsOn(L)[i] > 0).map((K) => Math.max(K.scale[0], K.scale[2]))) * (L.s ?? 1);
 
@@ -246,6 +267,7 @@ export function createCraft(full, seed = SKY) {
   const draw = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
   const craft = [];
   LANES.forEach((L, k) => {
+    const used = new Set();
     const n = full ? L.n : L.phone;
     const levels = Math.min(levelsOf(L), Math.max(1, n));
     const weights = weightsOn(L);
@@ -259,6 +281,16 @@ export function createCraft(full, seed = SKY) {
         let pick = draw() * total;
         let kind = 0;
         while (kind < CRAFT.length - 1 && pick >= weights[kind]) pick -= weights[kind++];
+        // No two of a lane's craft one kind while another kind it may carry
+        // is still unused on it (then round again): on a lane's few
+        // heights, two of a kind drew level side by side, the same craft
+        // twice.
+        if (!L.held) {
+          const kinds = weights.map((wt, i) => (wt > 0 ? i : -1)).filter((i) => i >= 0);
+          if (used.size >= kinds.length) used.clear();
+          for (let tries = 0; used.has(kind) && used.size < kinds.length && tries < CRAFT.length; tries++) kind = kinds[(kinds.indexOf(kind) + 1) % kinds.length];
+          used.add(kind);
+        }
         const paints = LIVERY[kind];
         craft.push({ L, way, u: (j + 0.7 * draw()) / on + turn, lap: lapOf(L), k: craft.length, level, v, kind, paint: paints[Math.floor(draw() * paints.length)] });
       }
