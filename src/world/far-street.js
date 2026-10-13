@@ -33,11 +33,13 @@ import { ADVERT } from "./sky-columns.js";
 
 // (And on the landmark towers and the far faces: a tube of neon, a
 // landmark's name, and a strut leaning out of a wall at an angle.)
-export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13, screen: 14, pad: 15, awning: 16, sign: 17, clutter: 18, tube: 19, logo: 20, strut: 21 };
+// (And a far tower's crown: its steps, a block cantilevered out of a face,
+// drawn as a penthouse is but as far as the far city is.)
+export const BOX = { slab: 0, post: 1, head: 2, car: 3, cabin: 4, steel: 5, block: 6, deck: 7, board: 8, av: 9, lattice: 10, person: 11, umbrella: 12, vending: 13, screen: 14, pad: 15, awning: 16, sign: 17, clutter: 18, tube: 19, logo: 20, strut: 21, crown: 22 };
 
 // How far each kind is drawn: past it, it is under a pixel (a slab, a deck
 // and its boards are always drawn).
-const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320, Infinity, Infinity, 420, 420, 220, Infinity, Infinity, 1800];
+const REACH = [Infinity, 320, 320, 320, 320, 900, 1500, Infinity, Infinity, 1500, 2400, 220, 220, 320, Infinity, Infinity, 420, 420, 220, Infinity, Infinity, 1800, Infinity];
 
 /** `boxes` is the flat list; `street` the dome's GLSL for the lamps' pools
  *  (streetLamps), so a slab is lit by the same lamps as the road beside it;
@@ -107,7 +109,8 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
       varying vec4 vOwn;
       void main() {
         vec3 n = normalize(vNormalW);
-        float kind = vSize.w;
+        // (A crown is a penthouse's wall at a far tower's scale.)
+        float kind = vSize.w > 21.5 ? 6.0 : vSize.w;
         float px = max(max(fwidth(vWorld.x), fwidth(vWorld.z)), 0.05);
         float close = 1.0 - smoothstep(0.08, 0.4, px);
         // What falls on it: the kerb's lamps, the kit's own spill, the sky.
@@ -152,6 +155,18 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
           vec3 lc = vOwn.x < 0.4 ? vec3(1.0, 0.62, 0.3) : vOwn.x < 0.75 ? vec3(0.2, 0.85, 1.0) : vec3(1.0, 0.88, 0.72);
           col = mix(col, lc * 1.5, line);
           lit = line;
+          // A far tower's crown has floors, lit in strips as its tower's
+          // are: runs of a few bays in its own light.
+          if (vSize.w > 21.5 && abs(n.y) < 0.5) {
+            bool onX = abs(vLocal.x) > vSize.x * 0.5 - 0.01;
+            vec2 cl = vec2((onX ? vLocal.z : vLocal.x) / 4.5, (vLocal.y + vSize.y * 0.5) / 4.8);
+            vec2 fc = fract(cl);
+            float run = floor((cl.x + hash12(vec2(floor(cl.y), vOwn.x * 31.0)) * 6.0) / 6.0);
+            float on = step(hash12(vec2(run, floor(cl.y)) + vOwn.x * 17.0), 0.55) * step(0.25, fc.y) * step(fc.y, 0.75) * step(0.05, fc.x) * step(fc.x, 0.95);
+            on = mix(on, 0.3, smoothstep(0.3, 0.9, fwidth(cl.y)));
+            col = mix(col, (vOwn.x < 0.5 ? vec3(1.0, 0.72, 0.36) : vec3(0.5, 0.88, 1.0)) * 0.9, on);
+            lit = max(lit, on);
+          }
         } else if (kind > 6.5 && kind < 7.5) {
           // A megastructure's deck: two floors of windows lit bay by bay
           // behind a truss, a dark roof and a dark belly.

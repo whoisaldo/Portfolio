@@ -904,6 +904,11 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     const a = Math.atan2(b.z - lz, b.x - lx) * (180 / Math.PI);
     return a > a0 && a < a1;
   });
+  // The far ring's own downtowns: east, south-east, south, south-west,
+  // west and north-east of the kit, each a few hundred metres across, where
+  // its towers stand up to twice as tall (x, z, how much taller).
+  const FAR_CLUSTERS = [[1750, -350, 1.0], [1450, 1150, 0.9], [250, 1180, 0.8], [-1150, 950, 1.0], [-1180, -500, 0.8], [1500, -1750, 0.9]];
+  const farCluster = (x, z) => FAR_CLUSTERS.reduce((s, [cx, cz, k]) => s + k * Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (330 * 330)), 0);
   lots.forEach((b, i) => {
     if (!b.far) return;
     if (farAsDealt(b)) return;
@@ -916,10 +921,19 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     const k = hash11(own + 73.3);
     const landmark = hash11(own + 75.5) < 0.085;
     let h = landmark ? 420 + 150 * k + out * 0.2 : 105 + 300 * k * k + out * 0.25;
+    // (The ring rises toward a few clusters of taller towers, downtowns of
+    // its own, so from the air it recedes as a city and not a wall of one
+    // height. Under every cap as before.)
+    const cluster = farCluster(b.x, b.z);
+    h = Math.min(h * (1 + cluster), 640);
     let capped = false;
+    // (The lowest any lens's cap allows here, kept for what stands on the
+    // roof: a crown and its mast stay under it.)
+    let cap = Infinity;
     for (const [lx, ly, lz, a0, a1, elevation] of FAR_UNDER.slice(2)) {
       const a = Math.atan2(b.z - lz, b.x - lx) * (180 / Math.PI);
       const most = (ly + Math.hypot(b.x - lx, b.z - lz) * Math.tan(elevation * (Math.PI / 180))) * (0.56 + 0.44 * k);
+      if (a > a0 && a < a1) cap = Math.min(cap, most / (0.56 + 0.44 * k));
       if (a > a0 && a < a1 && h > most) {
         h = most;
         capped = true;
@@ -932,20 +946,23 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       capped = true;
     }
     const most = capAt(b.x, b.z, Math.hypot(b.w, b.d)) * (0.62 + 0.38 * k);
+    cap = Math.min(cap, capAt(b.x, b.z, Math.hypot(b.w, b.d) * 1.25));
     if (h > most) {
       h = most;
       capped = true;
     }
     // (And never a fence of one height: two in five stand a third to three
     // fifths of what they may, the rest most of it, so the ring's roofline
-    // breaks two to three times over. Only ever lower than the caps.)
+    // breaks two to three times over. Only ever lower than the caps. In a
+    // cluster fewer stand low.)
     if (!landmark) {
       const vary = hash11(own + 79.9);
-      h *= vary < 0.4 ? 0.32 + 0.68 * vary : 0.8 + 0.2 * ((vary - 0.4) / 0.6);
+      const low = vary < 0.4 ? 0.32 + 0.68 * vary : 0.8 + 0.2 * ((vary - 0.4) / 0.6);
+      h *= low + (1 - low) * Math.min(1, cluster / 0.6) * 0.7;
     }
     const grow = h / b.h;
     const wider = landmark && !capped ? 1.25 : 1;
-    lots[i] = { ...b, h, w: b.w * wider, d: b.d * wider, landmark: landmark && !capped };
+    lots[i] = { ...b, h, w: b.w * wider, d: b.d * wider, landmark: landmark && !capped, cap };
     forms[i] = { ...forms[i], tiers: forms[i].tiers.map((t) => t * grow), roof: h };
   });
 
@@ -1836,6 +1853,65 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       if (b.far && !b.gone && !farAsDealt(b)) far.push(i);
     });
     let turnAd = 0;
+    // A far tower's crown (two in three, where its roof has room under
+    // every lens's cap and every flying lane): its top stepped in once or
+    // twice, each step lit floor by floor with a tube of light round it, a
+    // lattice mast with its red lamp on most, and on a tall one a block
+    // cantilevered out of one face near its top, lit from under. The
+    // ring's roofs were flat tops against the sky.
+    const crowned = new Set();
+    const crown = (i) => {
+      const [b, f] = [lots[i], forms[i]];
+      const own = at(b);
+      if (f.spire > 0 || hash11(own + 131.1) < 0.33) return;
+      const c = (k) => hash11(own + 133.7 + k * 3.1);
+      const t = topTier(f);
+      const [cx, cz] = topCentre(b, f);
+      const [hw, hd] = [(b.w * f.inset[t]) / 2, (b.d * f.inset[t]) / 2];
+      const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
+      let y = f.roof + f.parapet;
+      let left = Math.min(b.cap ?? Infinity, lanesAt(cx, cz, Math.max(hw, hd))[0] - 4) - y;
+      if (left < 10 || hw < 8 || hd < 8) return;
+      crowned.add(i);
+      let [sw, sd] = [hw * 2, hd * 2];
+      for (let s = 0; s < (c(0) < 0.5 ? 2 : 1); s++) {
+        sw *= 0.58 + 0.12 * c(1 + s);
+        sd *= 0.58 + 0.12 * c(3 + s);
+        const sh = Math.min(left - 2, 9 + 16 * c(5 + s));
+        if (sh < 5) break;
+        box(BOX.crown, cx, y + sh / 2, cz, sw, sh, sd, b.yaw, [c(7 + s), 1, 0]);
+        box(BOX.tube, cx, y + sh - 1.4, cz, sw + 0.6, 1.0, sd + 0.6, b.yaw, [Math.floor(c(9 + s) * 3), 2.4, 0]);
+        y += sh;
+        left -= sh;
+      }
+      if (left > 16 && c(11) < 0.75) {
+        const mh = Math.min(left - 2, 18 + 40 * c(12));
+        box(BOX.lattice, cx, y + mh / 2, cz, 2.6, mh, 2.6, b.yaw);
+        tips.push(cx, y + mh + 0.8, cz);
+      }
+      if (f.roof > 200 && c(13) < 0.45) {
+        const cy = f.roof * (0.6 + 0.2 * c(14));
+        let [acc, ti] = [0, 0];
+        for (let q = 0; q < 4; q++) {
+          if (f.tiers[q] > 0.01 && cy >= acc) ti = q;
+          acc += f.tiers[q];
+        }
+        const off = ti === 0 ? [0, 0] : ti === 1 ? f.offset.slice(0, 2) : f.offset.slice(2, 4);
+        const [fw, fd] = [b.w * f.inset[ti], b.d * f.inset[ti]];
+        const alongX = c(15) < 0.5;
+        const sgn = c(16) < 0.5 ? -1 : 1;
+        const [ch, out] = [12 + 12 * c(17), 9 + 5 * c(18)];
+        const lx = off[0] * b.w + (alongX ? sgn * (fw / 2 + out / 2 - 2) : 0);
+        const lz = off[1] * b.d + (alongX ? 0 : sgn * (fd / 2 + out / 2 - 2));
+        const [x, z] = [b.x + cs * lx + sn * lz, b.z - sn * lx + cs * lz];
+        const [sx, sz] = alongX ? [out + 4, fd * 0.55] : [fw * 0.55, out + 4];
+        const [lo, hi] = lanesAt(x, z, Math.max(sx, sz) / 2);
+        if (cy + ch / 2 < lo - 2 || cy - ch / 2 > hi + 2) {
+          box(BOX.crown, x, cy, z, sx, ch, sz, b.yaw, [c(19), 1, 0]);
+          box(BOX.tube, x, cy - ch / 2 - 0.35, z, sx - 0.6, 0.5, sz - 0.6, b.yaw, [Math.floor(c(20) * 3), 2.6, 0]);
+        }
+      }
+    };
     for (const i of far) {
       const [b, f] = [lots[i], forms[i]];
       const own = at(b);
@@ -1855,6 +1931,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         const [bw, bh] = tall ? [Math.min(13, at2.wide * 0.32), 22] : [Math.min(24, at2.wide * 0.5), 12];
         box(BOX.board, at2.x, base + shaft * (0.3 + 0.55 * hash11(own + 97.1 + k)), at2.z, bw, bh, 0.8, at2.turn, [hash11(own + 99.9 + k), 100 + ((turnAd++ * 7 + 5) % 24), 0]);
       }
+      crown(i);
     }
     // Roofs seen from above: a tower raised or stood since the roof kits
     // were dealt (the ring's, the south-east's, the far layer's) had a bare
@@ -1864,7 +1941,7 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
     // only there, unless it may carry a head), under every flying lane, and
     // not on what a page's frame holds.
     lots.forEach((b, i) => {
-      if (b.gone || b.hero || b.cone || kitOf[i] || b.h < TOWER_FROM || b.screens) return;
+      if (b.gone || b.hero || b.cone || kitOf[i] || b.h < TOWER_FROM || b.screens || crowned.has(i)) return;
       if (b.far ? farAsDealt(b) : (framed(b) && !b.mid) || (downGarageStreet(b.x, b.z) && !b.mid)) return;
       const f = forms[i];
       const t = topTier(f);
@@ -2001,6 +2078,11 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
       // as dark and as coloured as a near one.
       vec3 airFog(vec3 col, vec3 p, float emissive) {
         vec3 fogged = cityFog(col, p, emissive);
+        // (For a free eye a light keeps half of itself through the air: a
+        // kilometre and a half off the fog took five sixths of a lit strip,
+        // and the far city's windows were faint dots in a grey wall. The
+        // refs' far towers carry crisp strips, tinted by the haze.)
+        fogged = mix(fogged, mix(col, fogged, 0.5), clamp(emissive, 0.0, 1.0) * freeEye() * uFarFree);
         vec3 thin = mix(col, fogged, 0.72);
         thin.r = min(thin.r, max(col.r, thin.g * 0.75));
         vec4 v = depthVeil(p, emissive);
@@ -2548,7 +2630,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         float districts = fresh * (1.0 - held) * freeEye() * uFarFree;
         vec2 cells = vCells;
         if (vForm.x > 5.5 && districts > 0.5) cells *= vec2(2.6 * (0.8 + 0.5 * vForm.z * 0.0731) * 3.2 / 4.5, 2.6 * (0.92 + 0.2 * vForm.z * 0.0317) * 3.4 / 4.8);
-        vec4 win = windowsK(cells, params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts, 1.0);
+        // (As busy as the kit's busiest: more of its runs lit through.)
+        vec3 winParams = districts > 0.5 ? vec3(max(params.x, 0.85), params.yz) : params;
+        vec4 win = windowsK(cells, winParams, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts, 1.0);
         // A tower seen close, from a street at the city's edge or a car in
         // the air, is not a navy face with a few window strips: the rooms
         // another run of its floors would have lit are lit as well (the same
@@ -2564,7 +2648,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // lights: yellow strips under a cyan zone's tint were green, and a
         // pink zone's pink, a face of confetti.)
         float strip = step(0.5, districts);
-        win.rgb *= mix(mix(vec3(1.0), zoneTint * 1.3, zoned * clamp(win.a * 2.2, 0.0, 1.0)), vec3(1.3), strip);
+        // (And brighter the further off, so a strip a kilometre away is
+        // still a line of light and not a dim dash.)
+        win.rgb *= mix(mix(vec3(1.0), zoneTint * 1.3, zoned * clamp(win.a * 2.2, 0.0, 1.0)), vec3(1.3 + 0.6 * smoothstep(300.0, 1300.0, length(vWorld - uCam))), strip);
         // A roof is lit by the sky, as the kit's are: from above it is a
         // dark blue plane, not a hole.
         vec3 roofCol = vec3(0.012, 0.012, 0.016) + (uHazeColor * 0.3 + uGlowColor * 0.16) * uHaze * mix(0.35, 0.72, fresh) * max(n.y, 0.25);
@@ -2978,6 +3064,40 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             sign = max(sign, k);
           }
         }
+        // For a free eye every face of a dealt or a far tower carries its
+        // own: a vertical sign (seven faces in ten) and a lit panel (one in
+        // two) on the other half of the face, each its own colour, words and
+        // advert. Seen from anywhere but the face that looks at the kit, a
+        // ring tower was a dark prism with its windows and nothing else.
+        if (strip > 0.5 && onWall > 0.5 && parapet < 0.5 && vHero.x < 0.5 && vKind.x > -0.5 && sign < 0.5 && screen < 0.5 && vWorld.y > 12.0 && vHero.z > 14.0) {
+          float quadrant = (atan(n.z, n.x) + 3.14159) / 1.5708;
+          float faceId = mod(vHero.w, 4.0);
+          float fs = vForm.z * 7.3 + faceId * 1.7 + floor(vHero.w / 4.0) * 5.1;
+          float W = vHero.z;
+          float um = faceU * W;
+          float bw = clamp(W * 0.08, 3.0, 6.5);
+          float u0 = (0.08 + 0.34 * hash12(vec2(fs, 1.3))) * (W - bw);
+          bool right = hash12(vec2(fs, 2.9)) < 0.5;
+          if (right) u0 = W - bw - u0;
+          float y0 = mix(vTier.y, vTier.x, 0.12 + 0.3 * hash12(vec2(fs, 4.1))) + 3.0;
+          float y1 = min(y0 + bw * (5.0 + 6.0 * hash12(vec2(fs, 5.3))), vTier.x - 4.0);
+          if (step(abs(quadrant - floor(quadrant + 0.5)), 0.3) > 0.5) {
+            if (hash12(vec2(fs, 6.7)) < 0.7 && y1 - y0 > bw * 2.0 && um > u0 && um < u0 + bw && vWorld.y > y0 && vWorld.y < y1) {
+              col = hangingSign(vec2((um - u0) / bw, 1.0 - (vWorld.y - y0) / (y1 - y0)), max(1.0, floor((y1 - y0) / (bw * 1.15))), fs * 3.1, uTime * uMotion, signCol(hash12(vec2(fs, 8.9))), 1.0, (y1 - y0) / bw);
+              sign = 1.0;
+            }
+            float pw = min(W * 0.3, 26.0);
+            float ph = pw * (0.38 + 0.25 * hash12(vec2(fs, 9.7)));
+            float pu = (right ? 0.3 : 0.7) * W - pw * 0.5;
+            float py = mix(vTier.y, vTier.x, 0.46 + 0.3 * hash12(vec2(fs, 11.3)));
+            vec2 st = vec2((um - pu) / pw, (vWorld.y - py) / ph);
+            if (hash12(vec2(fs, 12.1)) < 0.5 && py + ph < vTier.x - 3.0 && st.x > 0.0 && st.x < 1.0 && st.y > 0.0 && st.y < 1.0) {
+              float rim = 1.0 - step(0.03, st.x) * step(st.x, 0.97) * step(0.05, st.y) * step(st.y, 0.95);
+              col = mix(boardFace(st, pw / ph, floor(hash12(vec2(fs, 13.9)) * 48.0), fs) * 1.35, signCol(hash12(vec2(fs, 14.7))) * 1.6, rim);
+              sign = 1.0;
+            }
+          }
+        }
         // A screen tower: its shaft a column of screens on every face
         // between lit corners, its cap dark between two lines of the same
         // light.
@@ -3320,12 +3440,13 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   beaconGeo.setAttribute("aGroup", new THREE.Float32BufferAttribute(groups, 1));
   beaconGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(300, 120, -400), 2400);
   const beaconMat = new THREE.ShaderMaterial({
-    uniforms: { ...shared, uPixel: { value: 1 }, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, uPixel: { value: 1 }, uMotion: { value: reduced ? 0 : 1 }, uFarFree: farFree },
     vertexShader: /* glsl */ `
       attribute float aGroup;
       uniform float uTime;
       uniform float uPixel;
       uniform float uMotion;
+      uniform float uFarFree;
       varying float vOn;
       varying vec3 vWorld;
       void main() {
@@ -3338,18 +3459,23 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // A tip's lamp never goes right out: it swells and falls.
         blink = mix(blink, 0.45 + 0.55 * blink, tip);
         vOn = blink;
-        gl_PointSize = mix(clamp(2600.0 / -mv.z, 2.5, 6.0), clamp(4200.0 / -mv.z, 3.4, 9.0), tip) * uPixel;
+        // (Away from the page's lenses a tip's lamp is a lamp across the
+        // whole far city: a kilometre or two off it was under a pixel and
+        // greyed out by the air, and the ring's crowns had none to see.)
+        float far = uFarFree * tip;
+        gl_PointSize = mix(mix(clamp(2600.0 / -mv.z, 2.5, 6.0), clamp(4200.0 / -mv.z, 3.4, 9.0), tip), clamp(5600.0 / -mv.z, 4.6, 10.0), far) * uPixel;
       }
     `,
     fragmentShader: /* glsl */ `
       ${COMMON}
+      uniform float uFarFree;
       varying float vOn;
       varying vec3 vWorld;
       void main() {
         float d = length(gl_PointCoord - 0.5) * 2.0;
-        vec3 lamp = vec3(1.0, 0.06, 0.04) * 3.5;
+        vec3 lamp = vec3(1.0, 0.06, 0.04) * 3.5 * (1.0 + 0.4 * uFarFree);
         vec3 col = lamp * vOn * exp(-d * d * 4.0);
-        col *= exp(-length(vWorld - uCam) * uFogDensity * 0.35);
+        col *= exp(-length(vWorld - uCam) * uFogDensity * mix(0.35, 0.16, uFarFree));
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
