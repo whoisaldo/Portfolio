@@ -20,6 +20,7 @@
 export const MARKS = /* glsl */ `
   uniform sampler2D uAds;
   uniform float uHasAds;
+  uniform sampler2D uPosters;
 
   vec3 sprayOf(float k) {
     k = fract(k) * 7.0;
@@ -266,6 +267,17 @@ export const MARKS = /* glsl */ `
       return mix(vec3(0.78, 0.76, 0.7), vec3(0.06), bars);
     }
     float rowH = 341.0 / 2048.0;
+    // (24 to 31 the drawn brands' wide ones, 32 to 35 their tall:
+    // adverts.js posterTexture, a 2048 by 1024 atlas, 341 / 1024 a row.)
+    if (art > 31.5) {
+      vec2 uv = vec2((art - 32.0 + a.y) * 0.25, 1.0 - (682.0 + a.x * 341.0) / 1024.0);
+      return textureGrad(uPosters, uv, vec2(grain.y * 0.32, 0.0), vec2(0.0, grain.x * 0.38)).rgb;
+    }
+    if (art > 23.5) {
+      float k = art - 24.0;
+      vec2 uv = vec2((mod(k, 4.0) + 0.5 + (a.x - 0.5) * 0.444) * 0.25, 1.0 - (floor(k / 4.0) + 1.0 - a.y) * (341.0 / 1024.0));
+      return textureGrad(uPosters, uv, vec2(grain.x * 0.126, 0.0), vec2(0.0, grain.y * 0.43)).rgb;
+    }
     if (art < 16.0) {
       vec2 uv = vec2((mod(art, 4.0) + 0.5 + (a.x - 0.5) * 0.444) * 0.25, 1.0 - (floor(art / 4.0) + 1.0 - a.y) * rowH);
       return textureGrad(uAds, uv, vec2(grain.x * 0.126, 0.0), vec2(0.0, grain.y * 0.215)).rgb;
@@ -292,6 +304,10 @@ export const MARKS = /* glsl */ `
     // smaller bills pasted over their heads or their feet.
     float cx = floor(q.x / 5.8);
     float h = hash12(vec2(cx, id + 3.0));
+    // (Away from the hero's lens the prints are dealt from thirty-six, the
+    // drawn brands' twelve as well: from twenty-four, the yellow cat came
+    // round on every other wall of a street.)
+    float prints = freeEye() > 0.5 ? 36.0 : 24.0;
     bool clean = spray < 0.0;
     if (h < 0.5 && !clean) {
       float n = 2.0 + floor(fract(h * 37.0) * 1.99);
@@ -310,7 +326,7 @@ export const MARKS = /* glsl */ `
             float rag2 = vnoise(q * 6.0 + h * 70.0 + i2 * 3.1) * 0.7 + vnoise(q * 17.0) * 0.3;
             float edge2 = min(min(f2.x, 1.0 - f2.x) * size.x, min(f2.y, 1.0 - f2.y) * size.y);
             float left2 = smoothstep(0.45, 0.5, rag2) * smoothstep(0.0, 0.02, edge2);
-            float art2 = floor(mod(cx * 3.0 + i2 + id * 11.0 + 13.0, 24.0));
+            float art2 = floor(mod(cx * 3.0 + i2 + id * 11.0 + 13.0, prints));
             vec3 old = uHasAds > 0.5 ? poster(f2, art2, vec2(px) / size) : bill(f2, h * 7.0 + i2);
             m = mix(m, vec4(mix(vec3(0.62, 0.6, 0.55), old * 0.75, 0.55), 1.0), left2 * far);
           }
@@ -331,7 +347,7 @@ export const MARKS = /* glsl */ `
         float whole = smoothstep(0.0, 0.03, min(edge - 0.07 * smoothstep(0.45, 0.8, rag), corner - step(fract(hp * 11.0), 0.4) * (0.12 + 0.3 * fract(hp * 17.0)) * (0.6 + 0.8 * rag)));
         // (In turn along the wall, three apart a cell: seven apart a cell
         // and five a slot, a cell's third came back two cells on, 12 m.)
-        float art = floor(mod(cx * 3.0 + i + id * 11.0, 24.0));
+        float art = floor(mod(cx * 3.0 + i + id * 11.0, prints));
         vec3 c3 = uHasAds > 0.5 ? poster(f, art, vec2(px) / size) : bill(f, hp);
         c3 = mix(vec3(0.74, 0.72, 0.66), c3 * (0.72 + 0.28 * vnoise(q * 23.0)), smoothstep(0.35, 0.8, whole));
         m = mix(m, vec4(c3, 1.0), smoothstep(0.0, 0.35, whole) * far);

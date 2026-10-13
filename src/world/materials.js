@@ -33,7 +33,7 @@ import { GROUND, VNOISE } from "./ground.js";
 import { kindSource } from "./kinds.js";
 import { SHOP_ROOM, HALL, PLAZA_ROOMS } from "./interiors.js";
 import { dealSteps, dealTrades } from "./trades.js";
-import { dealAdvertSteps, dealAdverts } from "./adverts.js";
+import { clearAdverts, dealAdvertSteps, dealAdverts, posterTexture } from "./adverts.js";
 import { MIRROR_UNIFORMS } from "./road.js";
 import { MARKS } from "./marks.js";
 import { createWetFloor } from "./wet.js";
@@ -82,7 +82,11 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     ads.colorSpace = THREE.SRGBColorSpace;
     ads.anisotropy = small ? 2 : 4;
     textures.push(ads);
-    advertUniforms = { uAds: { value: ads }, uHasAds: has };
+    // (And the twelve drawn here for the invented brands: adverts.js.)
+    const posters = posterTexture(small);
+    textures.push(posters);
+    clearAdverts();
+    advertUniforms = { uAds: { value: ads }, uHasAds: has, uPosters: { value: posters } };
     return advertUniforms;
   };
 
@@ -2012,6 +2016,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uniform float uIntensity;
         uniform sampler2D uAds;
         uniform float uHasAds;
+        uniform sampler2D uPosters;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
@@ -2081,7 +2086,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // over with the rest of the city within a few seconds of them, so
           // two neighbours never show one advert.)
           float art = floor(vColor.a * 31.875 + 0.5) - 1.0;
-          bool dealtAd = art < 15.5 && freeEye() > 0.5;
+          bool dealtAd = art < 23.5 && freeEye() > 0.5;
           if (dealtAd) turn = uTime / 12.0 + 0.3 * fract(seed * 0.618 + board * 0.37);
           float slot = floor(turn);
           float local = fract(turn);
@@ -2116,14 +2121,22 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float pick = board + slot;
             float rowH = 341.0 / 2048.0;
             vec2 q;
+            // (A dealt face's pool is twenty-four wide or twelve tall: the
+            // city's sixteen and eight, then the drawn brands' eight and
+            // four, adverts.js posterTexture, 341 / 1024 a row.)
+            bool drawn = false;
             if (tall) {
-              float j = dealtAd ? mod(art + slot * 3.0, 8.0) : mod(pick * 3.0, 8.0);
-              q = vec2((mod(j, 4.0) + st.y) * 0.25, 1.0 - (1365.0 + (floor(j / 4.0) + st.x) * 341.0) / 2048.0);
+              float j = dealtAd ? mod(art + slot * 5.0, 12.0) : mod(pick * 3.0, 8.0);
+              drawn = j > 7.5;
+              q = drawn ? vec2((j - 8.0 + st.y) * 0.25, 1.0 - (682.0 + st.x * 341.0) / 1024.0)
+                        : vec2((mod(j, 4.0) + st.y) * 0.25, 1.0 - (1365.0 + (floor(j / 4.0) + st.x) * 341.0) / 2048.0);
             } else {
-              float i = dealtAd ? mod(art + slot * 5.0, 16.0) : mod(pick, 16.0);
-              q = vec2((mod(i, 4.0) + st.x) * 0.25, 1.0 - (floor(i / 4.0) + 1.0 - st.y) * rowH);
+              float i = dealtAd ? mod(art + slot * 5.0, 24.0) : mod(pick, 16.0);
+              drawn = i > 15.5;
+              q = drawn ? vec2((mod(i - 16.0, 4.0) + st.x) * 0.25, 1.0 - (floor((i - 16.0) / 4.0) + 1.0 - st.y) * (341.0 / 1024.0))
+                        : vec2((mod(i, 4.0) + st.x) * 0.25, 1.0 - (floor(i / 4.0) + 1.0 - st.y) * rowH);
             }
-            col = texture2D(uAds, q).rgb * 0.92;
+            col = (drawn ? texture2D(uPosters, q).rgb : texture2D(uAds, q).rgb) * 0.92;
           } else {
             // Far off, the drawn shapes' average: no pattern to shimmer.
             col = mix(col, mix(a, b, 0.5) * 0.55, smoothstep(0.06, 0.2, px));

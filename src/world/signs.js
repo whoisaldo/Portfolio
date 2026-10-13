@@ -273,7 +273,7 @@ function layout(ctx, spec, w, h, inset, paint, weight = 700) {
   });
 }
 
-const ICONS = {
+export const ICONS = {
   glass(c, s) { c.moveTo(0.2 * s, 0.22 * s); c.lineTo(0.8 * s, 0.22 * s); c.lineTo(0.5 * s, 0.56 * s); c.closePath(); c.moveTo(0.5 * s, 0.56 * s); c.lineTo(0.5 * s, 0.8 * s); c.moveTo(0.34 * s, 0.8 * s); c.lineTo(0.66 * s, 0.8 * s); c.moveTo(0.62 * s, 0.3 * s); c.arc(0.58 * s, 0.3 * s, 0.04 * s, 0, Math.PI * 2); },
   bowl(c, s) { c.moveTo(0.18 * s, 0.5 * s); c.lineTo(0.82 * s, 0.5 * s); c.arc(0.5 * s, 0.5 * s, 0.32 * s, 0, Math.PI); c.moveTo(0.62 * s, 0.44 * s); c.lineTo(0.86 * s, 0.14 * s); c.moveTo(0.56 * s, 0.44 * s); c.lineTo(0.76 * s, 0.12 * s); for (const x of [0.34, 0.46]) { c.moveTo(x * s, 0.42 * s); c.bezierCurveTo((x - 0.05) * s, 0.32 * s, (x + 0.05) * s, 0.26 * s, x * s, 0.16 * s); } },
   fish(c, s) { c.ellipse(0.45 * s, 0.5 * s, 0.26 * s, 0.15 * s, 0, 0, Math.PI * 2); c.moveTo(0.7 * s, 0.5 * s); c.lineTo(0.88 * s, 0.34 * s); c.lineTo(0.88 * s, 0.66 * s); c.closePath(); c.moveTo(0.32 * s, 0.47 * s); c.arc(0.3 * s, 0.47 * s, 0.02 * s, 0, Math.PI * 2); },
