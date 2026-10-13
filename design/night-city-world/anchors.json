@@ -518,9 +518,9 @@
    "name": "anchor_lamp_santo_30",
    "kind": "anchor",
    "at": [
-    155.0,
-    7.05,
-    -4.6
+    197.0,
+    6.41,
+    -14.85
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -529,9 +529,9 @@
    "name": "anchor_lamp_santo_31",
    "kind": "anchor",
    "at": [
-    185.0,
-    7.05,
-    -4.6
+    221.0,
+    6.41,
+    -14.85
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -540,9 +540,9 @@
    "name": "anchor_lamp_santo_32",
    "kind": "anchor",
    "at": [
-    215.0,
-    7.05,
-    -4.6
+    363.45,
+    6.41,
+    -33.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -551,7 +551,7 @@
    "name": "anchor_lamp_santo_33",
    "kind": "anchor",
    "at": [
-    245.0,
+    155.0,
     7.05,
     -4.6
    ],
@@ -562,7 +562,7 @@
    "name": "anchor_lamp_santo_34",
    "kind": "anchor",
    "at": [
-    275.0,
+    185.0,
     7.05,
     -4.6
    ],
@@ -573,7 +573,7 @@
    "name": "anchor_lamp_santo_35",
    "kind": "anchor",
    "at": [
-    305.0,
+    215.0,
     7.05,
     -4.6
    ],
@@ -584,7 +584,7 @@
    "name": "anchor_lamp_santo_36",
    "kind": "anchor",
    "at": [
-    335.0,
+    245.0,
     7.05,
     -4.6
    ],
@@ -595,7 +595,7 @@
    "name": "anchor_lamp_santo_37",
    "kind": "anchor",
    "at": [
-    365.0,
+    275.0,
     7.05,
     -4.6
    ],
@@ -606,7 +606,7 @@
    "name": "anchor_lamp_santo_38",
    "kind": "anchor",
    "at": [
-    395.0,
+    305.0,
     7.05,
     -4.6
    ],
@@ -617,9 +617,9 @@
    "name": "anchor_lamp_santo_39",
    "kind": "anchor",
    "at": [
-    140.0,
+    335.0,
     7.05,
-    6.6
+    -4.6
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -639,9 +639,9 @@
    "name": "anchor_lamp_santo_40",
    "kind": "anchor",
    "at": [
-    170.0,
+    365.0,
     7.05,
-    6.6
+    -4.6
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -650,9 +650,9 @@
    "name": "anchor_lamp_santo_41",
    "kind": "anchor",
    "at": [
-    200.0,
+    395.0,
     7.05,
-    6.6
+    -4.6
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -661,7 +661,7 @@
    "name": "anchor_lamp_santo_42",
    "kind": "anchor",
    "at": [
-    230.0,
+    140.0,
     7.05,
     6.6
    ],
@@ -672,7 +672,7 @@
    "name": "anchor_lamp_santo_43",
    "kind": "anchor",
    "at": [
-    260.0,
+    170.0,
     7.05,
     6.6
    ],
@@ -683,7 +683,7 @@
    "name": "anchor_lamp_santo_44",
    "kind": "anchor",
    "at": [
-    290.0,
+    200.0,
     7.05,
     6.6
    ],
@@ -694,7 +694,7 @@
    "name": "anchor_lamp_santo_45",
    "kind": "anchor",
    "at": [
-    320.0,
+    230.0,
     7.05,
     6.6
    ],
@@ -705,7 +705,7 @@
    "name": "anchor_lamp_santo_46",
    "kind": "anchor",
    "at": [
-    350.0,
+    260.0,
     7.05,
     6.6
    ],
@@ -716,7 +716,7 @@
    "name": "anchor_lamp_santo_47",
    "kind": "anchor",
    "at": [
-    380.0,
+    290.0,
     7.05,
     6.6
    ],
@@ -727,7 +727,7 @@
    "name": "anchor_lamp_santo_48",
    "kind": "anchor",
    "at": [
-    410.0,
+    320.0,
     7.05,
     6.6
    ],
@@ -738,9 +738,9 @@
    "name": "anchor_lamp_santo_49",
    "kind": "anchor",
    "at": [
-    433.4,
+    350.0,
     7.05,
-    -145.0
+    6.6
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -760,9 +760,9 @@
    "name": "anchor_lamp_santo_50",
    "kind": "anchor",
    "at": [
-    433.4,
+    380.0,
     7.05,
-    -115.0
+    6.6
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -771,9 +771,9 @@
    "name": "anchor_lamp_santo_51",
    "kind": "anchor",
    "at": [
-    433.4,
+    410.0,
     7.05,
-    -85.0
+    6.6
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -784,7 +784,7 @@
    "at": [
     433.4,
     7.05,
-    -55.0
+    -145.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -795,7 +795,7 @@
    "at": [
     433.4,
     7.05,
-    -25.0
+    -115.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -804,9 +804,9 @@
    "name": "anchor_lamp_santo_54",
    "kind": "anchor",
    "at": [
-    446.6,
+    433.4,
     7.05,
-    -160.0
+    -85.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -815,9 +815,9 @@
    "name": "anchor_lamp_santo_55",
    "kind": "anchor",
    "at": [
-    446.6,
+    433.4,
     7.05,
-    -130.0
+    -55.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -826,9 +826,9 @@
    "name": "anchor_lamp_santo_56",
    "kind": "anchor",
    "at": [
-    446.6,
+    433.4,
     7.05,
-    -100.0
+    -25.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -839,7 +839,7 @@
    "at": [
     446.6,
     7.05,
-    -70.0
+    -160.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -850,7 +850,18 @@
    "at": [
     446.6,
     7.05,
-    -40.0
+    -130.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_lamp_santo_59",
+   "kind": "anchor",
+   "at": [
+    446.6,
+    7.05,
+    -100.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -862,6 +873,28 @@
     216.0,
     6.41,
     -84.85
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_lamp_santo_60",
+   "kind": "anchor",
+   "at": [
+    446.6,
+    7.05,
+    -70.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_lamp_santo_61",
+   "kind": "anchor",
+   "at": [
+    446.6,
+    7.05,
+    -40.0
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2554,7 +2587,7 @@
    "at": [
     187.5,
     13.6,
-    -95.13
+    -96.47
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2563,9 +2596,9 @@
    "name": "anchor_steam_roof_santo_1",
    "kind": "anchor",
    "at": [
-    195.0,
+    187.5,
     13.6,
-    -97.97
+    -98.1
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2576,7 +2609,7 @@
    "at": [
     414.0,
     6.8,
-    -108.67
+    -109.78
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2653,7 +2686,7 @@
    "at": [
     402.0,
     15.6,
-    -60.69
+    -70.45
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2893,9 +2926,9 @@
    "name": "anchor_steam_roof_santo_50",
    "kind": "anchor",
    "at": [
-    212.0,
+    220.0,
     11.4,
-    -49.48
+    -58.39
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2906,7 +2939,7 @@
    "at": [
     212.0,
     11.4,
-    -46.64
+    -63.52
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2915,9 +2948,9 @@
    "name": "anchor_steam_roof_santo_53",
    "kind": "anchor",
    "at": [
-    401.33,
+    410.67,
     8.4,
-    34.52
+    36.55
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -2937,9 +2970,9 @@
    "name": "anchor_steam_roof_santo_56",
    "kind": "anchor",
    "at": [
-    466.87,
+    480.1,
     9.4,
-    -66.0
+    -74.67
    ],
    "yaw": 0.0,
    "district": "santo"
@@ -5000,6 +5033,50 @@
    ],
    "yaw": 0.0,
    "district": "deck"
+  },
+  {
+   "name": "anchor_steam_zz_roof_santo_0",
+   "kind": "anchor",
+   "at": [
+    354.0,
+    6.1,
+    -47.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_zz_roof_santo_1",
+   "kind": "anchor",
+   "at": [
+    371.0,
+    11.6,
+    -64.6
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_zz_roof_santo_2",
+   "kind": "anchor",
+   "at": [
+    378.6,
+    6.1,
+    -50.0
+   ],
+   "yaw": 0.0,
+   "district": "santo"
+  },
+  {
+   "name": "anchor_steam_zz_street_santo_3",
+   "kind": "anchor",
+   "at": [
+    302.2,
+    0.35,
+    -78.4
+   ],
+   "yaw": 0.0,
+   "district": "santo"
   },
   {
    "name": "anchor_tower_aws-cloudformation",
