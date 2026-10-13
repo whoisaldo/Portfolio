@@ -373,7 +373,17 @@ export function createRoadMaterial(shared, { maps, reflection, paint = false }) 
         // street's own colours, never the deck's sodium grey.)
         float terrace = 0.0;
         #if PAINT == 1
-        terrace = lifted * step(44.0, p.x) * step(p.x, 134.0) * step(-330.0, p.y) * step(p.y, -180.0);
+        // (And the square's own stone at its foot, from the board's block
+        // to the plaza street and the lane to the terraces, the causeway
+        // with it: the same wet stone, not dry paving beside a wet road.)
+        float square = step(47.5, p.x) * step(p.x, 108.5) * step(-264.5, p.y) * step(p.y, -189.5) * (1.0 - step(0.6, abs(vWorld.y)));
+        terrace = max(lifted, square) * step(44.0, p.x) * step(p.x, 134.0) * step(-330.0, p.y) * step(p.y, -180.0);
+        // (Its stone holds a film all over and water standing in the low
+        // places between the slabs: pools in a broad, wandering pattern.)
+        wet = max(wet, square * uWet * 0.9);
+        float pools = vnoise(p * 0.16 + 4.0) * 0.65 + vnoise(p * 0.55) * 0.35;
+        float pa = fwidth(pools) * 0.75;
+        puddle = max(puddle, square * uWet * smoothstep(0.5 - pa, 0.6 + pa, pools));
         #endif
         float sodium = lifted * 0.8 * (1.0 - terrace);
         spill = mix(spill, dot(spill, vec3(0.3, 0.5, 0.2)) * vec3(1.0, 0.8, 0.58) * 0.75, sodium);

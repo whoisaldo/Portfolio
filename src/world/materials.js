@@ -1885,6 +1885,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             street = seen;
             sky *= 0.5;
             alpha = 0.55 + 0.42 * fres;
+            // (The square's hub: brighter glass, the city's glow low in it,
+            // and thinner where it is looked down into, so the lit hall under
+            // it reads through it: a navy sheet over a black lattice was no
+            // skylight.)
+            float hub = step(48.0, vWorld.x) * step(vWorld.x, 108.0) * step(-262.0, vWorld.z) * step(vWorld.z, -190.0);
+            street *= 1.0 + 0.5 * hub;
+            street += hub * cityGlow(r, 0.0) * 0.6 * (1.0 - smoothstep(0.0, 0.35, r.y));
+            alpha = mix(alpha, 0.3 + 0.62 * fres, hub);
           }
           vec3 col = vec3(0.006, 0.022, 0.030) * tint + (sky + street) * fres * tint;
           col = cityFog(col, vWorld, 0.8);
