@@ -211,12 +211,19 @@ X_BREAKS = (-HERO, HERO, plan.DECK_TOP_X1, ABUT_X, MOUTH_X, MOUTH_X + 0.6)
 Z_BREAKS = (EMB_Z, ZN)
 
 
-CONC = (0.29, 0.29, 0.3, 1.0)         # the girder's and the walls' concrete: weathered, a shade under the parapets'
-PARAPET_C = (0.38, 0.375, 0.365, 1.0) # the parapets', paler: newer pours
-PIER_C = (0.30, 0.295, 0.29, 1.0)      # the piers', buttresses' and cap beams' concrete
-CAP_C = (0.11, 0.11, 0.12, 1.0)         # cap beams: in the soffit's shadow
-STAIN_C = (0.15, 0.14, 0.125, 1.0)    # where water has run down it for years
-SOFFIT_C = (0.13, 0.13, 0.14, 1.0)    # the underside: sooted concrete, light enough to take the street's light (a lamp panel never hangs in black)
+# (Round 4: the show's overpass is dark, heavy and grimy, and the street's
+# light on it is strong: at 0.29 the walls read near white, cream and salmon
+# under the signs' wash, and bloomed. Sooted concrete is under a tenth.)
+CONC = (0.082, 0.082, 0.086, 1.0)     # the girder's and the walls' concrete: sooted, weathered, a shade under the parapets'
+PARAPET_C = (0.115, 0.113, 0.11, 1.0) # the parapets', a little paler: newer pours
+PIER_C = (0.092, 0.09, 0.088, 1.0)    # the piers', buttresses' and cap beams' concrete
+CAP_C = (0.05, 0.05, 0.055, 1.0)        # cap beams: in the soffit's shadow
+STAIN_C = (0.026, 0.025, 0.023, 1.0)  # where water has run down it for years
+SOFFIT_C = (0.13, 0.13, 0.14, 1.0)    # the underside over the passages: sooted concrete, light enough to take the street's light (a lamp panel never hangs in black)
+SOFFIT_DK = (0.03, 0.03, 0.034, 1.0)  # the underside everywhere else (the ramp's, over the lanes and the plaza's yard): black with soot
+RUST_C = (0.085, 0.032, 0.012, 1.0)   # rust run down from steel fixed to concrete
+LIME_C = (0.15, 0.15, 0.14, 1.0)      # lime leached out of a joint, a pale run
+STEEL_DK = (0.032, 0.034, 0.038, 1.0) # galvanising gone dark under a road: hangers, trays, girders (lit from under by the whole street's light)
 RIB_C_HERO = (0.075, 0.075, 0.083, 1.0)
 STEEL_LT = (0.3, 0.32, 0.34, 1.0)       # galvanised sections
 STEEL_SHEET = (0.07, 0.08, 0.09, 1.0)   # a board's back sheet
@@ -314,8 +321,8 @@ WALL_Z = -186.0                       # the ramp's road is a girder's depth over
 xs("concrete", 0, XW, ABUT_X, ZS - 0.3, ZS, under(DY), DY, sides="B", scale=3.0, hero=True)
 xs("concrete", 0, XE, ABUT_X, ZN, ZN + 0.3, under(DY), DY, sides="A", scale=3.0)
 xs("concrete", 0, -HERO, HERO, ZN, ZS, under(DY), DY, sides="b", scale=3.0, hero=True)
-for a, b in ((XW, -HERO), (HERO, ABUT_X)):       # either side of the hero's span the soffit is dark, sooted concrete
-    xs("concrete", 0, a, b, ZN, ZS, under(DY), DY, sides="b", scale=3.0, col=SOFFIT_C)
+for a, b, c in ((XW, -44.0, SOFFIT_DK), (-44.0, -HERO, SOFFIT_C), (HERO, 44.0, SOFFIT_C), (44.0, ABUT_X, SOFFIT_DK)):       # either side of the hero's span the soffit is dark, sooted concrete; over the passages light enough to hold their lamp panels
+    xs("concrete", 0, a, b, ZN, ZS, under(DY), DY, sides="b", scale=3.0, col=c)
 # The east abutment under the girder's end, and the embankment beyond it
 # between retaining walls, down to grade at the mouth.
 face((DK, "castconcrete", 0), [(ABUT_X, 0.0, ZN), (ABUT_X, 0.0, ZS), (ABUT_X, DY(ABUT_X) - DEPTH, ZS), (ABUT_X, DY(ABUT_X) - DEPTH, ZN)], (-1, 0, 0), 3.0, CONC)
@@ -331,7 +338,7 @@ zs("concrete", 0, FOOT, EMB_Z, XE - 0.15, XE, under(RY), RY, sides="Bb", scale=3
 zs("concrete", 0, EMB_Z, ZN, XE - 0.15, XE, under(RY), RY, sides="B", scale=3.0)
 zs("concrete", 0, WALL_Z, EMB_Z, XW + 0.15, XE - 0.15, 0.0, under(RY), sides="AB", scale=3.0)
 face((DK, "castconcrete", 0), [(XW + 0.15, 0.0, EMB_Z), (XE - 0.15, 0.0, EMB_Z), (XE - 0.15, RY(EMB_Z) - DEPTH, EMB_Z), (XW + 0.15, RY(EMB_Z) - DEPTH, EMB_Z)], (0, 0, 1), 3.0, CONC)
-zs("concrete", 0, EMB_Z, ZN, XW, XE, under(RY), RY, sides="b", scale=3.0, col=SOFFIT_C)
+zs("concrete", 0, EMB_Z, ZN, XW, XE, under(RY), RY, sides="b", scale=3.0, col=SOFFIT_DK)
 # The walls' base course from the ramp's nose to the abutment: a plinth that
 # stands proud of everything over it; and buttresses up the retaining walls
 # every five metres (JtqIas3bYhg@64's ribbed wall), battered: out past the
@@ -549,6 +556,7 @@ for a, b in ((-44.0, -HERO - 0.6), (HERO + 0.6, 44.0)):
 # ---------------------------------------------------------------------------
 band_rng = random.Random(8500)
 chip_rng = random.Random(8620)
+rust_rng = random.Random(8800)      # round 4: weathering (its own stream, so nothing dealt before it moves)
 LIP, LIP_D = 0.12, 0.24          # the slab edge: how far proud, how deep
 BAY_L = 2.5                      # a parapet's length, a corbel to a corbel
 LAMP_ON = glowc("ff9a2a", 0.5)   # held under white: a lamp is an orange lens, not a blob
@@ -660,9 +668,14 @@ def chipped(axis, a, b, plane, out, yf, lo, hi, detail=0, mat="hazard", col=(1, 
         v = v1 + chip_rng.uniform(0.02, 0.25)
 
 
+STRIPE_PAINT = (0.4, 0.27, 0.025, 1.0)
+
+
 def stripe(axis, a, b, plane, out, yf):
-    """The yellow stripe along a girder's foot (Fn9gKhU_2_Q@74), chipped."""
-    chipped(axis, a, b, plane, out, lambda v: yf(v) - DEPTH, 0.0, 0.16)
+    """The yellow stripe along a girder's foot (Fn9gKhU_2_Q@74), chipped.
+    (Round 4: painted, not the kit's hazard, which the street's light on the
+    ramp's faces drove into a bloom smeared along the girder.)"""
+    chipped(axis, a, b, plane, out, lambda v: yf(v) - DEPTH, 0.0, 0.16, mat="trim", col=STRIPE_PAINT)
 
 
 STAIR_GAP = (-65.6, -44.4)      # the stair and its lookout hang off the south face here: no lip
@@ -884,10 +897,24 @@ def rib_x(x, y, deep=0.3, hw=0.2):
 
 
 def rib_z(z, y, deep=0.5, hw=0.25):
-    for pts, out in (([(XW + 0.3, y - deep, z - hw), (XE - 0.3, y - deep, z - hw), (XE - 0.3, y - deep, z + hw), (XW + 0.3, y - deep, z + hw)], (0, -1, 0)),
-                     ([(XW + 0.3, y - deep, z - hw), (XE - 0.3, y - deep, z - hw), (XE - 0.3, y + 0.1, z - hw), (XW + 0.3, y + 0.1, z - hw)], (0, 0, -1)),
-                     ([(XW + 0.3, y - deep, z + hw), (XE - 0.3, y - deep, z + hw), (XE - 0.3, y + 0.1, z + hw), (XW + 0.3, y + 0.1, z + hw)], (0, 0, 1))):
-        face((DK, "castconcrete", 0), pts, out, 2.0, RIB_C)
+    """Under the ramp a cross-girder (round 4: the concrete ribs read as a
+    striped ceiling): a steel I across the soffit, its web, a bottom flange
+    wider than it, stiffeners down the web, rust where the flange's edge
+    has wept."""
+    web = 0.07
+    for s in (-1, 1):
+        face((DK, "steel", 0), [(XW + 0.3, y - deep, z + s * web), (XE - 0.3, y - deep, z + s * web), (XE - 0.3, y + 0.1, z + s * web), (XW + 0.3, y + 0.1, z + s * web)], (0, 0, s), 1.0, STEEL_DK)
+    box((DK, "steel", 0), XW + 0.25, XE - 0.25, y - deep - 0.05, y - deep, z - hw, z + hw, scale=0.5, col=STEEL_DK, bottom=True)
+    sx = XW + 0.9
+    while sx < XE - 0.6:
+        for s in (-1, 1):
+            box((DK, "steel", 1), sx - 0.012, sx + 0.012, y - deep, y + 0.05, *sorted((z + s * web, z + s * (hw - 0.03))), scale=0.5, col=STEEL_DK)
+        sx += 1.25
+    for s in (-1, 1):
+        for _ in range(2):
+            rx = rust_rng.uniform(XW + 1.0, XE - 1.5)
+            rw = rust_rng.uniform(0.3, 1.1)
+            face((DK, "steel", 1), [(rx, y - deep - 0.051, z + s * (hw + 0.002)), (rx + rw, y - deep - 0.051, z + s * (hw + 0.002)), (rx + rw, y - deep + 0.001, z + s * (hw + 0.002)), (rx, y - deep + 0.001, z + s * (hw + 0.002))], (0, 0, s), 1.0, RUST_C)
 
 
 def soffit_x(x, y, cz, hue, power=2.2):
@@ -1479,17 +1506,20 @@ while z < ZN - 2.0:
     z += 7.0
     i += 1
 BAND_HUES = ("amber", "yellow", "amber", "red")
+# (Round 4: set at 2 m, level with the walls, they lit the ramp's walls
+# near white; the band they stood for is gone. Now a little light at the
+# walls' feet on the service lanes.)
 z, i = WALL_Z + 3.0, 0
 while z < ZS:
-    pool(XW - 0.7, 2.0, z, BAND_HUES[i % 4], 1.8)
+    pool(XW - 0.9, 0.3, z, BAND_HUES[i % 4], 0.9)
     if z < ZN:
-        pool(XE + 0.7, 2.0, z + 3.5, BAND_HUES[(i + 2) % 4], 1.8)
+        pool(XE + 0.9, 0.3, z + 3.5, BAND_HUES[(i + 2) % 4], 0.9)
     z += 7.0
     i += 1
 # Where the deck crosses the west street's east side and the two lanes.
 for x in (-72.5, -68.0, -47.0, 48.0):
-    pool(x, 2.0, ZN - 0.7, "amber", 1.8)
-    pool(x, 2.0, ZS + 0.7, "yellow", 1.8)
+    pool(x, 0.5, ZN - 0.7, "amber", 1.4)
+    pool(x, 0.5, ZS + 0.7, "yellow", 1.4)
 
 # ---------------------------------------------------------------------------
 # OVER THE ROAD. Two more gantries on the level, either side of the avenue
@@ -2111,14 +2141,17 @@ def wall_lamp(x, y, wz, f):
 def camera_mast(x, z):
     """A camera mast (Fn9gKhU_2_Q@74): a post, a ring of light, a cross
     arm with three cameras, a cabinet at its foot."""
-    cylinder((DK, "steel", 0), x, z, B.G0, B.G0 + 4.5, 0.075, segs=6, cap=False, col=STEEL_LT)
+    # (Under the ramp its head stays under the soffit: at 4.5 m it stood
+    # through the ramp's underside at the island's north end.)
+    top = min(B.G0 + 4.5, (US(z) - 0.25) if XW < x < XE and EMB_Z < z < ZN else 99.0)
+    cylinder((DK, "steel", 0), x, z, B.G0, top, 0.075, segs=6, cap=False, col=STEEL_LT)
     box((DK, "steel", 0), x - 0.2, x + 0.2, B.G0, B.G0 + 1.0, z - 0.14, z + 0.14, scale=0.5, col=PIPE_C)
     cylinder((DK, "glow", 0), x, z, B.G0 + 2.7, B.G0 + 2.8, 0.13, segs=6, cap=False, col=glowc("27dcf2", 0.9))
-    box((DK, "steel", 0), x - 0.7, x + 0.7, B.G0 + 4.3, B.G0 + 4.36, z - 0.03, z + 0.03, scale=0.5, col=STEEL_LT)
+    box((DK, "steel", 0), x - 0.7, x + 0.7, top - 0.2, top - 0.14, z - 0.03, z + 0.03, scale=0.5, col=STEEL_LT)
     for dx, yaw in ((-0.7, -2.2), (0.7, 2.0), (0.0, 0.3)):
         cx, cz = x + dx + math.sin(yaw) * 0.16, z + math.cos(yaw) * 0.16
-        oriented_box((DK, "steel", 0), cx, B.G0 + 4.2, cz, 0.15, 0.15, 0.42, yaw, scale=0.5, col=PIPE_C)
-        oriented_box((DK, "glow", 1), cx + math.sin(yaw) * 0.215, B.G0 + 4.2, cz + math.cos(yaw) * 0.215, 0.05, 0.05, 0.02, yaw, scale=0.5, col=glowc("ff003c", 1.0))
+        oriented_box((DK, "steel", 0), cx, top - 0.3, cz, 0.15, 0.15, 0.42, yaw, scale=0.5, col=PIPE_C)
+        oriented_box((DK, "glow", 1), cx + math.sin(yaw) * 0.215, top - 0.3, cz + math.cos(yaw) * 0.215, 0.05, 0.05, 0.02, yaw, scale=0.5, col=glowc("ff003c", 1.0))
     light(DK, x, 2.7, z, "cyan", 1.6)
     B.COLLISION.append(("box", x - 0.2, x + 0.2, 0.0, 4.5, z - 0.2, z + 0.2, DK))
 
@@ -2427,7 +2460,7 @@ for dx, r_, col, det in ((-1.55, 0.1, GAS_C, 0), (-1.25, 0.05, PIPE_C, 1), (-1.0
     for za, zb in zip(zv, zv[1:]):
         pipe((DK, "steel", det), (X0 + dx, US(za) - SV, za), (X0 + dx, US(zb) - SV, zb), r_, segs=6 if det == 0 else 4, col=col)
 for za, zb in zip(zv, zv[1:]):          # the tray: a floor, two lips, the cables in it
-    for dx, w, h, col in ((1.4, 0.22, 0.02, STEEL_LT), (1.19, 0.015, 0.07, STEEL_LT), (1.61, 0.015, 0.07, STEEL_LT)):
+    for dx, w, h, col in ((1.4, 0.22, 0.02, STEEL_DK), (1.19, 0.015, 0.07, STEEL_DK), (1.61, 0.015, 0.07, STEEL_DK)):
         ya, yb = US(za) - SV, US(zb) - SV
         face((DK, "steel", 1), [(X0 + dx - w, ya, za), (X0 + dx + w, ya, za), (X0 + dx + w, yb, zb), (X0 + dx - w, yb, zb)], (0, -1, 0), 1.0, col)
         if h > 0.03:
@@ -2439,8 +2472,8 @@ while z < ZN - 1.0:                     # hangers at the ribs
     if all(abs(z - bz) > 1.4 for bz in BENTS_Z):
         y = US(z)
         for dx in (-1.72, -0.88, 1.16, 1.64):
-            box((DK, "steel", 1), X0 + dx - 0.015, X0 + dx + 0.015, y - SV - 0.04, y - 0.5, z - 0.015, z + 0.015, scale=0.5, col=STEEL_LT)
-        box((DK, "steel", 1), X0 - 1.74, X0 - 0.86, y - SV - 0.14, y - SV - 0.1, z - 0.03, z + 0.03, scale=0.5, col=STEEL_LT, bottom=True)
+            box((DK, "steel", 1), X0 + dx - 0.015, X0 + dx + 0.015, y - SV - 0.04, y - 0.5, z - 0.015, z + 0.015, scale=0.5, col=STEEL_DK)
+        box((DK, "steel", 1), X0 - 1.74, X0 - 0.86, y - SV - 0.14, y - SV - 0.1, z - 0.03, z + 0.03, scale=0.5, col=STEEL_DK, bottom=True)
     z += 4.0
 # What has run down the cap beams.
 for bz in BENTS_Z:
@@ -2462,7 +2495,7 @@ def hung_z(z, sizes=("pm", "pm"), ids=None):
         for f in (1, -1):
             sign(st_name(size), xc, cy, z + f * 0.105, w, h, 0.0 if f > 0 else math.pi, district=DK, label=False)
         for dx in (-w * 0.35, w * 0.35):
-            box((DK, "steel", 1), xc + dx - 0.025, xc + dx + 0.025, cy + h / 2, US(z), z - 0.025, z + 0.025, scale=0.5, col=STEEL_LT)
+            box((DK, "steel", 1), xc + dx - 0.025, xc + dx + 0.025, cy + h / 2, US(z), z - 0.025, z + 0.025, scale=0.5, col=STEEL_DK)
 
 
 hung_z(-126.0)
@@ -2816,3 +2849,154 @@ for side in (-1, 1):                    # -1 the north strip (z -95..-86), +1 th
 for i, (x, z) in enumerate(((x_par - 0.36, -148.0), (x_par - 0.36, -118.0), (-51.0, z_par + 0.36), (54.0, z_par + 0.36))):
     y = RY(z) if x < XE else DY(x)
     empty(f"anchor_steam_zz_deck_drain_{i}", (x, y + 0.03, z))
+
+# ---------------------------------------------------------------------------
+# ROUND 4. THE STRUCTURE AS THE SHOW HAS IT (Fn9gKhU_2_Q@74, JtqIas3bYhg@64,
+# Zq4zTcIM0yQ@107): dark, heavy, grimy concrete in the street's shadow, the
+# only light on it its own fittings, the yellow band and the barrier's
+# strips. Every face a street, a lane or the air sees carries its years:
+# grime run down from its head, a pale run of lime out of a joint now and
+# then, rust under what is fixed to it, pours patched in a paler or darker
+# mix with the cut round them, and at a wall's foot the tide of what the
+# street splashes up. Not on the face the hero sees (x -17.5..17.5, south).
+# ---------------------------------------------------------------------------
+GRIME_C = (0.045, 0.042, 0.038, 1.0)
+TIDE_C = (0.042, 0.042, 0.04, 1.0)
+
+
+def weather(axis, a, b, plane, d, lo, hi, base=CONC, foot=False, density=1.0, patches=True):
+    """Years on a face of concrete from a to b (v along it), lo(v)..hi(v) its
+    foot and head, `plane` its plane, d the way it looks."""
+    out = outv(axis, d)
+
+    def at(v, k, y):
+        return _w(axis, v, plane + d * k, y)
+    v = a + rust_rng.uniform(0.1, 0.8)
+    while v < b - 0.2:
+        y0, y1 = lo(v), hi(v)
+        if y1 - y0 > 0.35:
+            r = rust_rng.random()
+            col = LIME_C if r < 0.07 else STAIN_C if r < 0.7 else GRIME_C
+            hw = rust_rng.uniform(0.04, 0.3) * (0.5 if col is LIME_C else 1.0)
+            yb = y1 - (y1 - y0) * rust_rng.uniform(0.3, 1.0)
+            face((DK, "castconcrete", 1), [at(v - hw * 0.35, 0.006, yb), at(v + hw * 0.35, 0.006, yb), at(v + hw, 0.006, y1 - 0.01), at(v - hw, 0.006, y1 - 0.01)], out, 2.0, col)
+        v += rust_rng.uniform(0.45, 2.0) / density
+    if patches:
+        v = a + rust_rng.uniform(1.0, 5.0)
+        while v < b - 1.2:
+            w = rust_rng.uniform(0.8, 2.4)
+            y0, y1 = max(lo(v), lo(v + w)), min(hi(v), hi(v + w))
+            if y1 - y0 > 0.9 and v + w < b:
+                ph = rust_rng.uniform(0.45, min(1.7, (y1 - y0) * 0.8))
+                pb = y0 + rust_rng.uniform(0.05, y1 - y0 - ph - 0.05)
+                f = rust_rng.choice((0.7, 0.78, 1.3, 1.45))
+                face((DK, "castconcrete", 0), [at(v, 0.004, pb), at(v + w, 0.004, pb), at(v + w, 0.004, pb + ph), at(v, 0.004, pb + ph)], out, 2.0,
+                     (base[0] * f, base[1] * f, base[2] * f, 1.0))
+                for s0, s1, t0, t1 in ((v - 0.02, v + w + 0.02, pb - 0.02, pb), (v - 0.02, v + w + 0.02, pb + ph, pb + ph + 0.02),
+                                       (v - 0.02, v, pb, pb + ph), (v + w, v + w + 0.02, pb, pb + ph)):
+                    face((DK, "dark", 1), [at(s0, 0.007, t0), at(s1, 0.007, t0), at(s1, 0.007, t1), at(s0, 0.007, t1)], out, 1.0)
+            v += w + rust_rng.uniform(4.0, 11.0)
+    if foot:
+        v = a
+        while v < b - 0.1:
+            v1 = min(b, v + rust_rng.uniform(0.9, 1.7))
+            t0, t1 = lo(v) + rust_rng.uniform(0.25, 0.7), lo(v1) + rust_rng.uniform(0.25, 0.7)
+            face((DK, "castconcrete", 0), [at(v, 0.003, lo(v)), at(v1, 0.003, lo(v1)), at(v1, 0.003, t1), at(v, 0.003, t0)], out, 2.0, TIDE_C)
+            v = v1
+
+
+def rust_run(axis, v, plane, d, y1, length, w=0.12):
+    """Rust run down a face from a fixing at y1."""
+    face((DK, "castconcrete", 1), [_w(axis, v - w * 0.3, plane + d * 0.008, y1 - length), _w(axis, v + w * 0.3, plane + d * 0.008, y1 - length),
+                                   _w(axis, v + w * 0.5, plane + d * 0.008, y1), _w(axis, v - w * 0.5, plane + d * 0.008, y1)], outv(axis, d), 2.0, RUST_C)
+
+
+def _girder_lo(x):
+    """The girder's foot on the deck's faces: the downstand's over the lanes
+    either side of the avenue, the ground along the east embankment."""
+    if x >= ABUT_X:
+        return 0.0
+    if 18.1 <= abs(x) <= 44.0:
+        return DY(x) - DEPTH - 1.1
+    return max(0.0, DY(x) - DEPTH)
+
+
+def _ramp_lo(z):
+    if z < EMB_Z:
+        return max(PLINTH_H, RY(z) - DEPTH) if z > WALL_Z else PLINTH_H
+    return RY(z) - DEPTH
+
+
+# The ramp's retaining walls, from the plinth to the fascia over them.
+for xw, d in ((XW + 0.15, -1), (XE - 0.15, 1)):
+    weather("z", WALL_Z + 0.4, EMB_Z - 0.1, xw, d, lambda z: PLINTH_H, lambda z: RY(z) - DEPTH - 0.02, foot=True)
+# The fascias: under the lip along the ramp and the deck, and over it up the
+# parapet's and the upstand's outer face, less of it.
+for plane, d in ((XW, -1), (XE, 1)):
+    weather("z", FOOT + 3.0, (ZS if d < 0 else ZN) - 0.6, plane, d, _ramp_lo, lambda z: RY(z) - LIP_D)
+    weather("z", FOOT + 3.0, (ZS if d < 0 else ZN) - 0.6, plane, d, lambda z: RY(z) + 0.04, lambda z: RY(z) + (UPS_H if d < 0 else PAR_H) - 0.02, base=PARAPET_C, density=0.5, patches=False)
+for a, b in ((XW + 0.6, STAIR_GAP[0]), (STAIR_GAP[1], -HERO - 1.0), (HERO + 1.0, MOUTH_X - 0.6)):
+    weather("x", a, b, ZS, 1, _girder_lo, lambda x: DY(x) - LIP_D, foot=a > 0)
+    weather("x", a, b, ZS, 1, lambda x: DY(x) + 0.04, lambda x: DY(x) + UPS_H - 0.02, base=PARAPET_C, density=0.5, patches=False)
+weather("x", XE + 0.6, MOUTH_X - 0.6, ZN, -1, _girder_lo, lambda x: DY(x) - LIP_D)
+weather("x", XE + 0.6, MOUTH_X - 0.6, ZN, -1, lambda x: DY(x) + 0.04, lambda x: DY(x) + PAR_H - 0.02, base=PARAPET_C, density=0.5, patches=False)
+# Rust from the strip lamps' housings, one in three.
+for plane, d, a, b in ((XW, -1, FOOT, ZS), (XE, 1, FOOT, ZN)):
+    z = a + BAY_L * 0.5
+    while z < b - 0.3:
+        if RY(z) - 0.8 > 0.6 and rust_rng.random() < 0.35:
+            rust_run("z", z + rust_rng.uniform(-0.1, 0.1), plane, d, RY(z) - 0.88, rust_rng.uniform(0.3, 0.9))
+        z += BAY_L
+
+# The upper wall (dk02 090): weep holes in a row along each retaining wall,
+# each with what it has let out under it; the bridge's number plate every
+# bay of buttresses; a cable in clips along the wall's head.
+PLATE_C = (0.2, 0.2, 0.19, 1.0)
+for xw, d in ((XW + 0.15, -1), (XE - 0.15, 1)):
+    z = WALL_Z + 1.6
+    while z < EMB_Z - 0.6:
+        if min(abs(z - bz) for bz in BUTTRESS) > 0.6 and RY(z) - DEPTH > 1.6:
+            yh = PLINTH_H + 0.75
+            face((DK, "dark", 0), [(xw + d * 0.006, yh, z - 0.05), (xw + d * 0.006, yh, z + 0.05), (xw + d * 0.006, yh + 0.1, z + 0.05), (xw + d * 0.006, yh + 0.1, z - 0.05)], (d, 0, 0), 1.0)
+            if rust_rng.random() < 0.5:
+                rust_run("z", z, xw, d, yh, rust_rng.uniform(0.2, 0.6), w=0.16)
+            else:
+                face((DK, "castconcrete", 1), [(xw + d * 0.008, yh - 0.45, z - 0.03), (xw + d * 0.008, yh - 0.45, z + 0.03), (xw + d * 0.008, yh, z + 0.07), (xw + d * 0.008, yh, z - 0.07)], (d, 0, 0), 2.0, LIME_C)
+        z += 2.5
+    for zc, num in ((-182.5, 3), (-167.5, 4), (-152.5, 5)):
+        if RY(zc) - DEPTH > 2.2:
+            yp = RY(zc) - DEPTH - 0.55
+            box((DK, "trim", 1), *sorted((xw, xw + d * 0.02)), yp - 0.17, yp + 0.17, zc - 0.28, zc + 0.28, scale=0.5, col=PLATE_C)
+            for k in range(num):
+                box((DK, "trim", 1), *sorted((xw + d * 0.02, xw + d * 0.024)), yp - 0.08, yp + 0.08, zc - 0.2 + k * 0.1, zc - 0.15 + k * 0.1, scale=0.5, col=INK)
+            for zb in (zc - 0.24, zc + 0.24):
+                rust_run("z", zb, xw, d, yp - 0.17, 0.25, w=0.05)
+
+# UNDER THE RAMP: two steel stringers along it just inside its faces, the
+# cross-girders framing into them, each stringer seated on the bents' cap
+# beams on a bearing (a plate, a shoe, bolts), rust down the caps under them.
+STRINGERS = (XW + 1.0, XE - 1.0)
+zcut = [EMB_Z + 0.2] + [c for bz in BENTS_Z for c in (bz - 0.75, bz + 0.75)] + [ZN - 0.3]
+for xc in STRINGERS:
+    for za, zb in zip(zcut[0::2], zcut[1::2]):
+        zs("steel", 0, za, zb, xc - 0.06, xc + 0.06, up(US, -0.62), US, sides="AB", scale=1.0, col=STEEL_DK)
+        zs("steel", 0, za, zb, xc - 0.22, xc + 0.22, up(US, -0.68), up(US, -0.62), sides="tbAB", caps="01", scale=0.5, col=STEEL_DK)
+        z = za + 0.6
+        while z < zb - 0.3:
+            for s in (-1, 1):
+                box((DK, "steel", 1), *sorted((xc + s * 0.06, xc + s * 0.2)), US(z) - 0.62, US(z), z - 0.012, z + 0.012, scale=0.5, col=STEEL_DK)
+            z += 1.6
+    for bz in BENTS_Z:
+        for s in (-1, 1):
+            zf = bz + s * 0.75
+            yb = US(zf) - 0.68
+            box((DK, "steel", 0), xc - 0.32, xc + 0.32, yb - 0.1, yb, *sorted((zf, zf + s * 0.32)), scale=0.5, col=(0.035, 0.036, 0.04, 1.0), bottom=True)
+            box((DK, "steel", 1), xc - 0.26, xc + 0.26, yb - 0.16, yb - 0.1, *sorted((zf, zf + s * 0.26)), scale=0.5, col=STEEL_DK, bottom=True)
+            for bx in (-0.2, 0.2):
+                box((DK, "steel", 1), xc + bx - 0.02, xc + bx + 0.02, yb, yb + 0.05, zf + s * 0.2 - 0.02, zf + s * 0.2 + 0.02, scale=0.5, col=(0.12, 0.11, 0.1, 1.0))
+            rust_run("x", xc + rust_rng.uniform(-0.1, 0.1), zf, s, yb - 0.16, rust_rng.uniform(0.4, 0.9), w=0.24)
+# The caps' and the piers' faces under the ramp: grime from their heads.
+for bz in BENTS_Z:
+    lo_ = min(US(bz - 0.75), US(bz + 0.75)) - 0.9
+    for s in (-1, 1):
+        weather("x", XW + 0.6, XE - 0.6, bz + s * 0.75, s, lambda x: lo_, lambda x: lo_ + 0.88, base=CAP_C, patches=False, density=1.4)
