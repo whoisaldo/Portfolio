@@ -38,15 +38,15 @@ procedural far city, drawn by vanilla three.js with one pmndrs
   first every map and vertex attribute no shader reads taken off: roughness
   and normal maps but the road's, UVs and vertex colours on plain paint and
   neon, colours where only UVs are read)
-  writes `public/scenes/world/world-high.glb`, the core (2.47 MB, 1024 px
+  writes `public/scenes/world/world-high.glb`, the core (2.49 MB, 1024 px
   textures: what the hero needs and every named piece, anchor and prototype)
-  and `world-phone.glb` (0.99 MB, 512 px textures, every prop the builder
+  and `world-phone.glb` (1.00 MB, 512 px textures, every prop the builder
   tagged as detail dropped), served gzipped; a pack per district behind it,
   `world-<tier>-<pack>.glb` for `south` (what the hero cannot see of Kabuki
   Avenue), `canyon`, `plaza`, `deck`, `corpo`, `afterlife`, `santo`,
-  `japantown` and `mega` (16.27 MB in all on high, the largest Japantown's
-  2.50 MB and Corpo Row's 2.18 MB; 7.59 MB on a phone); `props-high.bin` and
-  `props-phone.bin` (where every instanced prop stands, gzipped to 0.20 and
+  `japantown` and `mega` (16.33 MB in all on high, the largest Japantown's
+  2.56 MB and Corpo Row's 2.18 MB; 7.59 MB on a phone); `props-high.bin` and
+  `props-phone.bin` (where every instanced prop stands, gzipped to 0.23 and
   0.04 MB); `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
   `koi-cyan.webp`, the shop interiors' `shops-high.webp` and
@@ -123,7 +123,7 @@ procedural far city, drawn by vanilla three.js with one pmndrs
   parapet, bollards, tyres, a skip and two more sodium lamps; both walls of
   the street hung with signs, air conditioners and a fire escape, cables
   across it and a string of lights at its corner), and the moon
-  disc. The core is 60,654 triangles on high and 36,368 on a phone
+  disc. The core is 60,667 triangles on high and 36,368 on a phone
   (`npm run check:world`); the rest of every district streams in its pack.
 - Light high over the street (the rooftop signs, the huts' doorways) is
   `NCW_glow_<colour>`: the neon shader, but left out of the light the site
@@ -733,7 +733,7 @@ the first time it is asked for. All are in world metres, +x east, +y up,
 - `districts.json`: `districts`, each `{ name, label, bounds: { x0, z0, x1,
   z1 } }`, and `streets`, each `{ name, axis, c, from, to, half, walk,
   lanes, bay, loop }` (`axis` z runs north-south at x = `c`).
-- `anchors.json`: `anchors`, about 650 named places `{ name, kind, at, yaw,
+- `anchors.json`: `anchors`, about 750 named places `{ name, kind, at, yaw,
   district }` with `extras` where the kit set any. Kinds: `cam` (the page's
   shots), `car` (where the S4 stops), `anchor` (steam sources, lamps'
   lights, the towers, the garage, the crowd's and traffic's payloads),
@@ -757,7 +757,7 @@ corners 0.9 m toward the building. The same module's `drive` pose rides
 - `npm run check:world` decodes both core GLBs, holds every pack to its
   budget, and checks the shots, the anchors, the towers, the boards, the road, the garage preset
   and the budgets; on this build: 7 shots, 7 towers, 8 boards, the road 837
-  points, the core 2.47 MB, 234 meshes and 60,654 triangles on high, 0.99
+  points, the core 2.49 MB, 236 meshes and 60,667 triangles on high, 1.00
   MB, 170 meshes and 36,368 triangles on a phone.
 - The rebuilt city, measured 2026-10-12 on production builds of main and
   this branch in real Chrome windows on devbox1, the machine's load logged
