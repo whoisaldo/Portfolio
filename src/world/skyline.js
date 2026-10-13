@@ -1853,6 +1853,41 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         box(BOX.board, at2.x, base + shaft * (0.3 + 0.55 * hash11(own + 97.1 + k)), at2.z, bw, bh, 0.8, at2.turn, [hash11(own + 99.9 + k), 100 + ((turnAd++ * 7 + 5) % 24), 0]);
       }
     }
+    // Roofs seen from above: a tower raised or stood since the roof kits
+    // were dealt (the ring's, the south-east's, the far layer's) had a bare
+    // flat roof from the air. Each now carries a plant room, vents, a tank,
+    // an aerial with a red lamp, a pad on a big one and lamps at its
+    // corners; under Contact's cap where it frames them (vents and lamps
+    // only there, unless it may carry a head), under every flying lane, and
+    // not on what a page's frame holds.
+    lots.forEach((b, i) => {
+      if (b.gone || b.hero || b.cone || kitOf[i] || b.h < TOWER_FROM || b.screens) return;
+      if (b.far ? farAsDealt(b) : (framed(b) && !b.mid) || (downGarageStreet(b.x, b.z) && !b.mid)) return;
+      const f = forms[i];
+      const t = topTier(f);
+      const [cx, cz] = topCentre(b, f);
+      const [hw, hd] = [(b.w * f.inset[t]) / 2, (b.d * f.inset[t]) / 2];
+      if (hw < 5 || hd < 5) return;
+      const y = f.roof;
+      const own = at(b);
+      const r = (k) => hash11(own + 101.7 + k * 3.3);
+      const low = lanesAt(cx, cz, Math.max(hw, hd))[0];
+      const room = framed(b) && !b.free ? 1.5 : 20;
+      const most = Math.min(room, low - y - 4);
+      const [cs, sn] = [Math.cos(b.yaw), Math.sin(b.yaw)];
+      const put = (kind, lx, lz, sx, sy, sz, o = [0, 0, 0]) => {
+        if (sy <= most) box(kind, cx + cs * lx + sn * lz, y + sy / 2, cz - sn * lx + cs * lz, sx, sy, sz, b.yaw, o);
+        return sy <= most;
+      };
+      const pad = hw > 14 && hd > 14 && r(14) < 0.3;
+      put(BOX.block, (pad ? -0.55 : r(0) - 0.5) * hw, (pad ? -0.55 : r(1) - 0.5) * hd, Math.min(12, hw * 0.6), 3.4, Math.min(9, hd * 0.5), [r(2), r(3) < 0.5 ? 1 : 0, 0]);
+      if (!b.far) for (let k = 0; k < 3; k++) put(BOX.steel, (r(4 + k) - 0.5) * hw * 1.4, (r(7 + k) - 0.5) * hd * 1.4, 1.6, 1.3, 1.6, [0.2, 0, 0]);
+      put(BOX.steel, hw * 0.55 * (r(10) < 0.5 ? -1 : 1), hd * 0.55 * (r(11) < 0.5 ? 1 : -1), 4, 5, 4, [0.6, 0, 0]);
+      const aerial = 8 + r(13) * 10;
+      if (r(12) < 0.6 && put(BOX.lattice, -hw * 0.6, hd * 0.6, 1.4, aerial, 1.4)) tips.push(cx + cs * -hw * 0.6 + sn * hd * 0.6, y + aerial + 0.6, cz - sn * -hw * 0.6 + cs * hd * 0.6);
+      if (pad) put(BOX.pad, hw * 0.3, hd * 0.3, Math.min(hw, hd) * 1.0, 0.6, Math.min(hw, hd) * 1.0, [r(15), 0, 0]);
+      for (const [sx, sz] of [[-1, -1], [1, 1]]) put(BOX.tube, sx * (hw - 1.2), sz * (hd - 1.2), 0.6, 0.6, 0.6, [r(16) < 0.7 ? 2 : 0, 1.6, 0]);
+    });
     // Bridges: between far towers 50 to 120 m apart, both over 150 m, one
     // pair in two, at a height under the lower roof (two floors of lit
     // rooms in a truss, lit from under).
@@ -2750,6 +2785,17 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         col = mix(col, stepCol * 1.15, steps);
         // And each lit step lights its own terrace the same way.
         col += stepCol * 0.4 * exp(-max(inFromEdge, 0.0) / 3.5) * step(abs(style - 4.0), 0.1) * step(0.5, vCrown.y) * (1.0 - vTier.z) * fresh * vRoof * step(0.5, n.y);
+        // A setback's terrace from the air: a dark wet deck with a line of
+        // lamps along its edge, where the sky's light made it a pale ring
+        // round the shaft, an unlit cornice.
+        float terrace = (1.0 - vTier.z) * fresh * vRoof * step(0.5, n.y) * lift * (1.0 - held);
+        if (terrace > 0.001) {
+          float alongEdge = abs(vPlan.x) * vPlan.w > abs(vPlan.y) * vPlan.z ? vPlan.y : vPlan.x;
+          float lamp = exp(-(inFromEdge - 1.2) * (inFromEdge - 1.2) / 0.35) * (0.35 + 0.65 * step(abs(fract(alongEdge / 5.0) - 0.5), 0.14));
+          vec3 lampCol = fract(vForm.z * 3.1) < 0.6 ? vec3(1.0, 0.7, 0.42) : vec3(0.3, 0.9, 1.0);
+          col = mix(col, vec3(0.007, 0.008, 0.011) + col * 0.3, terrace * 0.8) + lampCol * lamp * 0.9 * terrace;
+          roofLit = max(roofLit, lamp * terrace);
+        }
         // Contact's towers wear their blade on the faces its lens sees: on
         // all four, from the air every one of them had the same strip up
         // every corner.
@@ -2868,7 +2914,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             if (held < 0.5 && uHasAds > 0.5) {
               vec2 st = mp / 2.24 + 0.5;
               float tube = step(0.465, max(abs(st.x - 0.5), abs(st.y - 0.5)));
-              col = mix(boardFace(vec2(1.0 - st.x, st.y), 1.0, vKind.z + 8.0 * step(1.5, faceId), vForm.z + 7.0 + faceId) * 1.35, mc * 1.8, tube);
+              col = mix(boardFace(vec2(1.0 - st.x, st.y), 1.0, vKind.z + 5.0 * faceId, vForm.z + 7.0 + faceId) * 1.35, mc * 1.8, tube);
               k = 1.0;
             }
             sign = max(sign, k);

@@ -223,12 +223,22 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
           // a barrier (its second number: striped). Plastic and painted
           // steel in a few colours, a seam at every crate, lit by the street.
           float h = vOwn.x;
-          vec3 paint = h < 0.2 ? vec3(0.03, 0.1, 0.05) : h < 0.38 ? vec3(0.32, 0.2, 0.02) : h < 0.54 ? vec3(0.03, 0.08, 0.24) : h < 0.7 ? vec3(0.3, 0.07, 0.02) : h < 0.85 ? vec3(0.09, 0.09, 0.1) : vec3(0.28, 0.28, 0.26);
+          vec3 paint = h < 0.2 ? vec3(0.03, 0.1, 0.05) : h < 0.38 ? vec3(0.32, 0.2, 0.02) : h < 0.54 ? vec3(0.03, 0.08, 0.24) : h < 0.7 ? vec3(0.3, 0.07, 0.02) : h < 0.85 ? vec3(0.09, 0.09, 0.1) : vec3(0.13, 0.135, 0.14);
           float v = vLocal.y / vSize.y + 0.5;
           float seam = step(abs(fract(v * max(1.0, floor(vSize.y / 0.4))) - 0.5), 0.08) * close;
+          // (A cabinet's doors and a sticker on one: a pale box was a
+          // placeholder.)
+          float side = step(abs(n.y), 0.5);
+          seam = max(seam, side * close * step(abs(fract((vLocal.x + vLocal.z) / max(vSize.x * 0.5, 0.3)) - 0.5), 0.04));
+          float sticker = side * step(0.85, h) * step(abs(vLocal.y - vSize.y * 0.15), 0.12) * step(abs(vLocal.x + vLocal.z), 0.14);
           float stripe = step(0.5, fract((vLocal.x + vLocal.y) * 2.4));
           vec3 c = mix(paint * (1.0 - 0.4 * seam), mix(vec3(0.5, 0.2, 0.02), vec3(0.4), stripe), step(0.5, vOwn.y));
+          c = mix(c, mix(vec3(0.3, 0.06, 0.12), vec3(0.04, 0.2, 0.3), step(0.93, h)), sticker);
           col = c * (vec3(0.45) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0);
+          // A cabinet's lamp: a green or amber point by its top.
+          float led = side * step(0.85, h) * close * exp(-dot(vec2(vLocal.x + vLocal.z, vLocal.y - vSize.y * 0.38), vec2(vLocal.x + vLocal.z, vLocal.y - vSize.y * 0.38)) / 0.003);
+          col += mix(vec3(0.2, 1.0, 0.35), vec3(1.0, 0.6, 0.15), step(0.93, h)) * led * 1.5;
+          lit = led;
         } else if (kind > 16.5) {
           // A sign at head height: a lightbox standing out from a wall, or
           // a board stood on the pavement, a word on both its faces (one in
@@ -359,11 +369,19 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
           float v = vLocal.y / vSize.y + 0.5;
           float ax = abs(vLocal.x);
           if ((v > 0.87 && ax > 0.12) || (v > 0.82 && v <= 0.87 && ax > 0.07) || (v < 0.47 && ax < 0.035)) discard;
-          vec3 jacket = vOwn.x < 0.34 ? vec3(0.022, 0.023, 0.028) : vOwn.x < 0.5 ? vec3(0.07, 0.072, 0.08) : vOwn.x < 0.62 ? vec3(0.11, 0.02, 0.025) : vOwn.x < 0.76 ? vec3(0.018, 0.04, 0.1) : vOwn.x < 0.88 ? vec3(0.12, 0.085, 0.02) : vec3(0.02, 0.08, 0.07);
-          vec3 body = v > 0.87 ? vec3(0.075, 0.055, 0.045) : v > 0.47 ? jacket : vec3(0.016, 0.017, 0.022);
+          vec3 jacket = vOwn.x < 0.3 ? vec3(0.045, 0.047, 0.056) : vOwn.x < 0.46 ? vec3(0.16, 0.165, 0.18) : vOwn.x < 0.6 ? vec3(0.24, 0.035, 0.05) : vOwn.x < 0.74 ? vec3(0.03, 0.08, 0.22) : vOwn.x < 0.86 ? vec3(0.26, 0.18, 0.03) : vec3(0.03, 0.17, 0.15);
+          vec3 body = v > 0.87 ? vec3(0.12, 0.085, 0.065) : v > 0.47 ? jacket : vec3(0.03, 0.032, 0.04);
           // (Lit by the shops they walk past as much as by the lamps: at
-          // half that, nobody on the far pavements could be made out.)
-          col = body * (vec3(1.1, 1.0, 0.9) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 9.0);
+          // half that, nobody on the far pavements could be made out. And
+          // the street's light round their edges, so a figure stands off
+          // the dark pavement behind it.)
+          col = body * (vec3(1.4, 1.3, 1.2) + sky * 5.0 * (0.3 + max(n.y, 0.0)) + light * 11.0);
+          float edge = step(vSize.x * 0.5 - 0.035, abs(vLocal.x)) + step(vSize.z * 0.5 - 0.035, abs(vLocal.z));
+          col += (sky * 1.6 + light * 2.5 + vec3(0.02, 0.03, 0.05)) * min(edge, 1.0) * step(0.47, v);
+          // One in four looks at a phone: its glow at the hands and face.
+          float phone = step(0.75, fract(vOwn.x * 9.7)) * exp(-pow((v - 0.7) / 0.05, 2.0)) * step(abs(vLocal.x), 0.08);
+          col += vec3(0.5, 0.75, 1.0) * phone * 1.2;
+          lit = phone;
         } else if (kind > 9.5) {
           // A lattice mast's section, or a truss round a roof: legs at its
           // corners, a ring at every panel, a cross in each, and between
@@ -410,6 +428,15 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
           if (kind < 3.5) {
             float ends = step(vSize.x * 0.5 - 0.02, abs(vLocal.x)) * step(abs(abs(vLocal.z) - vSize.z * 0.32), 0.2) * step(abs(vLocal.y - 0.08), 0.1);
             col = paint * (vec3(0.5) + sky * 5.0 * (0.3 + up) + light * 9.0);
+            // Its wheels in their arches down each side, a chrome line at
+            // the waist, the edges of its bonnet catching the light.
+            float flank = step(vSize.z * 0.5 - 0.02, abs(vLocal.z));
+            float ax = abs(abs(vLocal.x) - vSize.x * 0.3);
+            float wheel = flank * step(length(vec2(ax, vLocal.y + vSize.y * 0.5)), 0.36) * close;
+            float waist = flank * step(abs(vLocal.y - vSize.y * 0.3), 0.025) * close;
+            float rim = step(vSize.y * 0.5 - 0.04, vLocal.y) * step(min(vSize.x * 0.5 - abs(vLocal.x), vSize.z * 0.5 - abs(vLocal.z)), 0.06);
+            col = mix(col, vec3(0.004, 0.004, 0.005), wheel);
+            col += (sky * 1.2 + light * 1.8 + vec3(0.02)) * (waist + rim) * (1.0 - wheel);
             // Wet steel gives the sky and the lamps back off its bonnet and
             // boot, and one car in three stands with its sidelights on, so
             // a kerb of them reads as cars and not as dark bricks.
@@ -421,6 +448,8 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
             col *= 1.0 - 0.5 * step(abs(n.y), 0.5) * step(vLocal.y, -vSize.y * 0.5 + 0.12);
           } else {
             float glass = step(abs(n.y), 0.5) * step(-vSize.y * 0.5 + 0.06, vLocal.y) * step(vLocal.y, vSize.y * 0.5 - 0.05);
+            // (Its pillars between the windows.)
+            glass *= 1.0 - step(abs(fract(vLocal.x / max(vSize.x * 0.5, 0.4) + 0.5) - 0.5), 0.07) * step(vSize.z * 0.5 - 0.02, abs(vLocal.z));
             col = mix(paint * (vec3(0.5) + sky * 5.0 * (0.3 + up) + light * 9.0) + (sky * 0.9 + light * 0.4) * up, vec3(0.006, 0.008, 0.012) + sky * 0.5 + light * 0.25, glass);
           }
         }

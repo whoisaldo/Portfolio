@@ -108,7 +108,9 @@ export const ADVERT = /* glsl */ `
   // burn out.
   vec3 boardFace(vec2 st, float aspect, float pick, float seed) {
     float kind = hash12(vec2(seed, 61.7));
-    if (kind < 0.7 || uHasWords < 0.5) return advert(st, aspect, pick);
+    // (Each board turned on by its own seed across all of them: dealt from
+    // eight, one advert stood on tower after tower in a view from the air.)
+    if (kind < 0.7 || uHasWords < 0.5) return advert(st, aspect, pick + floor(hash12(vec2(seed, 71.3)) * 16.0));
     float hc = hash12(vec2(seed, 63.9));
     vec3 a = hc < 0.26 ? vec3(0.1, 0.85, 1.0) : hc < 0.48 ? vec3(1.0, 0.72, 0.16) : hc < 0.66 ? vec3(1.0, 0.16, 0.5) : hc < 0.8 ? vec3(1.0, 0.2, 0.14) : hc < 0.9 ? vec3(0.3, 1.0, 0.6) : vec3(1.0, 0.92, 0.3);
     vec3 b = hc < 0.5 ? vec3(0.02, 0.03, 0.1) : vec3(0.07, 0.015, 0.05);
