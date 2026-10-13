@@ -786,12 +786,49 @@ for z in POSTS_Z:
 # ---------------------------------------------------------------------------
 
 
+COLUMN_N = [0]
+PIER_TONE = (1.0, 0.82, 1.18, 0.9, 1.08)
+
+
 def column(cx, cz, top, r=0.55, foot=0.95):
-    box((DK, "castconcrete", 0), cx - foot, cx + foot, 0.0, 0.6, cz - foot, cz + foot, scale=1.5, col=PIER_C)
-    cylinder((DK, "castconcrete", 0), cx, cz, 0.6, top, r, segs=8, cap=False, col=PIER_C)
-    cylinder((DK, "hazard", 0), cx, cz, 0.6, 1.5, r + 0.02, segs=8, cap=False)
-    for y in (0.82, 1.18):
-        cylinder((DK, "dark", 1), cx, cz, y, y + 0.16, r + 0.03, segs=8, cap=False)
+    """A column on its footing. (Round 4: every pier was the same striped
+    cylinder: now each its own pour's tone and one of four guards at its
+    foot, a banded collar, a chevron tape, a steel jacket or a painted
+    skirt, and what has run down it.)"""
+    v = COLUMN_N[0]
+    COLUMN_N[0] += 1
+    f = PIER_TONE[v % len(PIER_TONE)]
+    tone = (PIER_C[0] * f, PIER_C[1] * f, PIER_C[2] * f, 1.0)
+    box((DK, "castconcrete", 0), cx - foot, cx + foot, 0.0, 0.6, cz - foot, cz + foot, scale=1.5, col=tone)
+    cylinder((DK, "castconcrete", 0), cx, cz, 0.6, top, r, segs=12, cap=False, col=tone)
+    kind = v % 4
+    if kind == 0:           # the banded collar
+        cylinder((DK, "hazard", 0), cx, cz, 0.6, 1.5, r + 0.02, segs=12, cap=False)
+        for y in (0.82, 1.18):
+            cylinder((DK, "dark", 1), cx, cz, y, y + 0.16, r + 0.03, segs=12, cap=False)
+    elif kind == 1:         # chevron tape: yellow and black in turn round it, and a band of red reflectors over it
+        for i in range(12):
+            a0, a1 = i * math.tau / 12, (i + 1) * math.tau / 12
+            pts = [(cx + (r + 0.02) * math.cos(a), y, cz + (r + 0.02) * math.sin(a)) for a, y in ((a0, 0.6), (a1, 0.6), (a1, 1.05), (a0, 1.05))]
+            face((DK, "hazard" if i % 2 == 0 else "dark", 0), pts, (math.cos((a0 + a1) / 2), 0, math.sin((a0 + a1) / 2)), 1.0)
+        cylinder((DK, "glow", 1), cx, cz, 1.22, 1.27, r + 0.015, segs=12, cap=False, col=REFLECT)
+    elif kind == 2:         # a steel jacket, bolted, two rings of rust under its bolts
+        cylinder((DK, "steel", 0), cx, cz, 0.6, 2.3, r + 0.035, segs=12, cap=False, col=STEEL_DK)
+        for y in (0.75, 2.15):
+            cylinder((DK, "steel", 1), cx, cz, y, y + 0.06, r + 0.05, segs=12, cap=False, col=(0.05, 0.05, 0.055, 1.0))
+        cylinder((DK, "hazard", 1), cx, cz, 0.6, 0.72, r + 0.045, segs=12, cap=False)
+    else:                   # a painted skirt to head height, a yellow line round its top
+        cylinder((DK, "trim", 0), cx, cz, 0.6, 2.4, r + 0.012, segs=12, cap=False, col=(0.03, 0.06, 0.07, 1.0))
+        cylinder((DK, "trim", 0), cx, cz, 2.4, 2.48, r + 0.016, segs=12, cap=False, col=STRIPE_PAINT)
+    for k_ in range(2 + v % 3):     # grime and rust down its faces from the cap
+        a = rust_rng.uniform(0, math.tau)
+        hw = rust_rng.uniform(0.06, 0.16)
+        yb = top - rust_rng.uniform(0.8, max(1.0, top - 2.6))
+        ca, sa = math.cos(a), math.sin(a)
+        tx, tz = -sa, ca
+        ox, oz = cx + (r + 0.008) * ca, cz + (r + 0.008) * sa
+        face((DK, "castconcrete", 1), [(ox - tx * hw * 0.4, yb, oz - tz * hw * 0.4), (ox + tx * hw * 0.4, yb, oz + tz * hw * 0.4), (ox + tx * hw, top, oz + tz * hw), (ox - tx * hw, top, oz - tz * hw)],
+             (ca, 0, sa), 2.0, RUST_C if k_ == 0 and v % 2 else STAIN_C)
     # The deck's drain down it, on the side away from the avenue, to a shoe
     # on the footing.
     px = cx + (r + 0.07) * (1 if cx > 0 else -1) * (1 if abs(cx) < 70 else -1 if cx > plan.DECK_X0 else 1)
@@ -841,10 +878,10 @@ for z in BENTS_Z:
 # The turn's pier: an eight-sided column, cap beams both ways.
 PIER = (plan.DECK_X0, plan.DECK_Z)
 box((DK, "castconcrete", 0), PIER[0] - 2.0, PIER[0] + 2.0, 0.0, 0.75, PIER[1] - 2.0, PIER[1] + 2.0, scale=1.5, col=PIER_C)
-cylinder((DK, "castconcrete", 0), PIER[0], PIER[1], 0.75, plan.DECK_UNDER - 1.1, 1.25, segs=8, cap=False, col=PIER_C)
-cylinder((DK, "hazard", 0), PIER[0], PIER[1], 0.75, 2.1, 1.27, segs=8, cap=False)
+cylinder((DK, "castconcrete", 0), PIER[0], PIER[1], 0.75, plan.DECK_UNDER - 1.1, 1.25, segs=16, cap=False, col=PIER_C)
+cylinder((DK, "hazard", 0), PIER[0], PIER[1], 0.75, 2.1, 1.27, segs=16, cap=False)
 for y in (1.05, 1.6):
-    cylinder((DK, "dark", 1), PIER[0], PIER[1], y, y + 0.25, 1.28, segs=8, cap=False)
+    cylinder((DK, "dark", 1), PIER[0], PIER[1], y, y + 0.25, 1.28, segs=16, cap=False)
 box((DK, "castconcrete", 0), XW + 0.5, XE - 0.5, plan.DECK_UNDER - 1.1, plan.DECK_UNDER, PIER[1] - 1.0, PIER[1] + 1.0, scale=2.0, bottom=True, col=CAP_C)
 box((DK, "castconcrete", 0), PIER[0] - 1.0, PIER[0] + 1.0, plan.DECK_UNDER - 1.1, plan.DECK_UNDER, ZN + 0.5, ZS - 0.5, scale=2.0, bottom=True, col=CAP_C)
 # The plate's cap beams were a dark block from the street: a yellow stripe
@@ -1229,6 +1266,69 @@ B.billboard(DK, plan.DECK_X0, Y + 4.7, ZS + 0.42, 9.0, 4.2, 0.0, board_rng, dept
 # girder and the turn, an island in the west street's middle with a gore
 # south of it; either side of the east embankment, a narrow passage.
 # ---------------------------------------------------------------------------
+# ROUND 4. Trees of the deck's own (the kit's blossom tree, the same pink in
+# every planter, was the one tree a reviewer saw five times): three kinds,
+# each in its own planter. A street maple, low and spreading, in a round
+# planter; a tall narrow one in a square planter; a weeping one in a long
+# trough. Dark greens, olive and teal under the signs' light, no blossom.
+def _crown(w, pads, col_set, rng):
+    for cx, cy, cz, r in pads:
+        P.pad(w, cx, cy, cz, r, rng.choice(col_set), segs=9)
+
+
+@P.proto("deck_tree_0", box=(1.0, 1.6, 1.0), reach=320)
+def _deck_tree_0(k):
+    rng = random.Random(1)
+    P.lathe(k("trim"), 0.0, 0.0, ((0.0, 0.62), (0.5, 0.66), (0.56, 0.7), (0.62, 0.7)), segs=12, col=(0.13, 0.13, 0.14, 1), cap=True)
+    P.lathe(k("glow"), 0.0, 0.0, ((0.44, 0.665), (0.48, 0.665)), segs=12, col=glowc("ffb254", 0.35), cap=False)
+    bark = (0.08, 0.065, 0.055, P.LIMB)
+    w = k("plant")
+    P.tube(w, ((0.0, 0.55, 0.0), (0.05, 1.0, 0.03), (0.02, 1.5, -0.04), (-0.06, 1.9, 0.0)), (0.12, 0.1, 0.085, 0.07), segs=8, col=bark, smooth=True)
+    for limb in (((-0.06, 1.9, 0.0), (-0.45, 2.2, 0.2), (-0.8, 2.35, 0.3)), ((-0.06, 1.9, 0.0), (0.4, 2.25, -0.15), (0.75, 2.4, -0.3)),
+                 ((0.02, 1.5, -0.04), (0.3, 1.9, 0.35), (0.5, 2.2, 0.6))):
+        P.tube(w, limb, (0.06, 0.045, 0.03), segs=6, col=bark, smooth=True)
+    greens = ((0.035, 0.1, 0.04), (0.05, 0.13, 0.045), (0.03, 0.085, 0.05))
+    _crown(w, ((-0.8, 2.45, 0.3, 0.62), (0.75, 2.5, -0.3, 0.66), (0.5, 2.3, 0.62, 0.55), (0.0, 2.75, 0.0, 0.8), (-0.3, 2.55, -0.5, 0.58),
+               (0.3, 2.95, 0.25, 0.55), (-0.45, 2.85, 0.3, 0.5)), greens, rng)
+
+
+@P.proto("deck_tree_1", box=(0.8, 2.2, 0.8), reach=320)
+def _deck_tree_1(k):
+    rng = random.Random(2)
+    P.planter(k, 0.55, GLOW["teal"], stone=(0.2, 0.2, 0.22, 1))
+    bark = (0.06, 0.055, 0.05, P.LIMB)
+    w = k("plant")
+    P.tube(w, ((0.0, 0.5, 0.0), (0.03, 1.4, 0.02), (0.0, 2.4, 0.0), (0.02, 3.6, 0.01)), (0.1, 0.085, 0.07, 0.05), segs=8, col=bark, smooth=True)
+    olive = ((0.07, 0.11, 0.035), (0.06, 0.1, 0.04), (0.08, 0.12, 0.05))
+    _crown(w, tuple((0.18 * math.sin(i * 2.1), 1.6 + i * 0.36, 0.18 * math.cos(i * 2.1), 0.5 - 0.035 * i) for i in range(7)), olive, rng)
+
+
+@P.proto("deck_tree_2", box=(1.2, 1.4, 0.6), reach=320)
+def _deck_tree_2(k):
+    rng = random.Random(3)
+    box(k("trim"), -1.1, 1.1, 0.0, 0.48, -0.45, 0.45, scale=1.0, col=(0.1, 0.1, 0.11, 1))
+    box(k("trim"), -1.14, 1.14, 0.48, 0.55, -0.49, 0.49, scale=1.0, col=(0.2, 0.19, 0.18, 1))
+    quad(k("trim"), (-1.02, 0.56, 0.38), (1.02, 0.56, 0.38), (1.02, 0.56, -0.38), (-1.02, 0.56, -0.38), col=(0.06, 0.05, 0.04, 1))
+    for yaw in (0.0, math.pi):
+        rotated_quad(k("glow"), 0.0, 0.42, math.cos(yaw) * 0.455, 2.0, 0.03, yaw, col=glowc("2ee6c8", 0.35))
+    bark = (0.07, 0.06, 0.06, P.LIMB)
+    w = k("plant")
+    teal = ((0.03, 0.11, 0.09), (0.04, 0.13, 0.1), (0.025, 0.09, 0.07))
+    for tx, h in ((-0.55, 2.3), (0.5, 2.0)):
+        P.tube(w, ((tx, 0.5, 0.0), (tx + 0.1, 1.3, 0.05), (tx - 0.05, h, 0.0)), (0.08, 0.06, 0.045), segs=7, col=bark, smooth=True)
+        _crown(w, ((tx - 0.05, h + 0.1, 0.0, 0.6), (tx + 0.35, h - 0.15, 0.2, 0.45), (tx - 0.4, h - 0.2, -0.15, 0.45)), teal, rng)
+        for a in range(6):
+            yaw = a * math.tau / 6 + 0.3
+            P.frond(w, (tx - 0.05, h + 0.05, 0.0), yaw, 0.2, 1.0, 1.4, 0.18, rng.choice(teal), segs=4)
+
+
+tree_deal = iter((2, 0, 1, 0, 2, 1, 1, 0, 2, 0, 1, 2))
+
+
+def a_tree():
+    return f"deck_tree_{next(tree_deal)}"
+
+
 GAPS = ((-66.0, -50.0), (-44.0, -14.0), (14.0, 44.0), (52.0, ABUT_X))
 for xa, xb in GAPS:
     B.ground_rect(DK, xa, xb, ZN - 1.0, ZS + 1.0)
@@ -1340,7 +1440,7 @@ for s in (-1, 1):
     stall(s * 28.0, WS - 0.05, -1, "amber" if s < 0 else "cyan", 8550 + s)
     for z in (ZN + 0.4, ZN + 2.9, ZS - 2.9, ZS - 0.4):
         P.place("bollard", s * 14.5, B.G0, z, district=DK)
-    P.place("planter_tree", s * 21.0, B.G0, plan.DECK_Z, district=DK)
+    P.place(a_tree(), s * 21.0, B.G0, plan.DECK_Z, district=DK)
     P.place("bench", s * 23.0, B.G0, plan.DECK_Z, s * math.pi / 2, district=DK)
     P.place("bench", s * 34.0, B.G0, plan.DECK_Z + 0.4, -s * math.pi / 2, district=DK)
     P.place("bin", s * 17.6, B.G0, ZS - 0.6, district=DK)
@@ -1408,8 +1508,8 @@ stall(plan.DECK_X0, BENTS_Z[2] + 0.2, 1, "cyan", 8582)
 P.place("bench", plan.DECK_X0, B.G0, -125.5, 0.0, district=DK)
 P.place("bench", plan.DECK_X0 - 1.7, B.G0, -105.2, math.pi / 2, district=DK)
 P.place("bench", plan.DECK_X0 + 1.5, B.G0, -91.0, -math.pi / 2, district=DK)
-P.place("planter_tree", plan.DECK_X0 - 0.2, B.G0, -105.2, district=DK)
-P.place("planter_tree", plan.DECK_X0, B.G0, -91.0, district=DK)
+P.place(a_tree(), plan.DECK_X0 - 0.2, B.G0, -105.2, district=DK)
+P.place(a_tree(), plan.DECK_X0, B.G0, -91.0, district=DK)
 P.place("lamp_short", plan.DECK_X0 + 2.6, B.G0, -111.0, district=DK)
 P.place("lamp_short", plan.DECK_X0 - 2.6, B.G0, -94.0, district=DK)
 P.place("food_box", plan.DECK_X0 - 3.6, B.G0, -121.5, -math.pi / 2, district=DK)
@@ -2165,8 +2265,15 @@ for s in (-1, 1):
     # Down the middle: planters of shrubs, the camera mast, a standing
     # advert toward the lane; a charging post by the bench; pallets and a
     # barrel by the shutters, a heap against the wall by the skip.
-    P.place("deck_shrub", s * 32.8, B.G0, plan.DECK_Z - 0.6, district=DK)
-    P.place("deck_shrub", s * 37.0, B.G0, plan.DECK_Z, district=DK)
+    # (Round 4: the two passages had the same planters by the same steam:
+    # the west one has a weeping tree in a trough and a planter, the east
+    # its shrubs.)
+    if s < 0:
+        P.place("deck_tree_2", s * 32.8, B.G0, plan.DECK_Z - 0.6, math.pi / 2, district=DK)
+        P.place("deck_tree_0", s * 37.6, B.G0, plan.DECK_Z + 0.3, district=DK)
+    else:
+        P.place("deck_shrub", s * 32.8, B.G0, plan.DECK_Z - 0.6, district=DK)
+        P.place("deck_shrub", s * 37.0, B.G0, plan.DECK_Z, district=DK)
     camera_mast(s * 25.3, plan.DECK_Z - 0.9)
     P.place("lightbox", s * 40.6, B.G0, plan.DECK_Z, math.pi / 2, district=DK)
     P.place("charge_post", s * 35.4, B.G0, plan.DECK_Z + 0.4, -s * math.pi / 2, district=DK)
@@ -2503,32 +2610,102 @@ def ad_panel(x, z, yaw, w=3.4, h=1.7):
     B.COLLISION.append(("box", x - hx, x + hx, 0.0, cy + h / 2, z - hz, z + hz, DK))
 
 
-@P.proto("deck_bike", box=(0.32, 0.55, 0.95), reach=240)
-def _deck_bike(k):
-    """A parked motorbike, its front toward +z: two wheels, the engine and
-    frame, a tank, a seat and a tail with its lamp, forks, bars, a headlamp."""
+def _wheel(t, zc, r, w, black, iron, spokes=5):
+    """A wheel at (0, r, zc), its axle along x: a round tyre (its tread and
+    both walls, sixteen sides), a rim set into it, a hub and cast spokes."""
+    n = 16
+    ang = [i * math.tau / n for i in range(n)]
+    ring = lambda rr, x: [(x, r + rr * math.sin(a), zc + rr * math.cos(a)) for a in ang]    # noqa: E731
+    o0, o1 = ring(r, -w), ring(r, w)
+    for i in range(n):
+        j = (i + 1) % n
+        a_ = (ang[i] + ang[j]) / 2
+        face(t, [o0[i], o0[j], o1[j], o1[i]], (0, math.sin(a_), math.cos(a_)), 1.0, black)
+    ri = r * 0.72
+    for sx in (-1, 1):
+        oo, ii = ring(r, sx * w), ring(ri, sx * w * 0.8)
+        for i in range(n):
+            j = (i + 1) % n
+            face(t, [oo[i], oo[j], ii[j], ii[i]], (sx, 0, 0), 1.0, black)
+        rr, hb = ring(ri, sx * w * 0.8), ring(ri * 0.82, sx * w * 0.6)
+        for i in range(n):
+            j = (i + 1) % n
+            face(t, [rr[i], rr[j], hb[j], hb[i]], (sx, 0, 0), 1.0, iron)
+        face(t, ring(r * 0.16, sx * w * 0.9), (sx, 0, 0), 1.0, iron)
+        for k_ in range(spokes):
+            a_ = k_ * math.tau / spokes + 0.3
+            c_, s__ = math.cos(a_), math.sin(a_)
+            px, pz = -s__ * 0.018, c_ * 0.018
+            face(t, [(sx * w * 0.5, r + r * 0.15 * s__ + pz, zc + r * 0.15 * c_ - px), (sx * w * 0.5, r + ri * 0.82 * s__ + pz, zc + ri * 0.82 * c_ - px),
+                     (sx * w * 0.5, r + ri * 0.82 * s__ - pz, zc + ri * 0.82 * c_ + px), (sx * w * 0.5, r + r * 0.15 * s__ - pz, zc + r * 0.15 * c_ + px)], (sx, 0, 0), 1.0, iron)
+
+
+BIKE_PAINT = ((0.02, 0.2, 0.22, 1), (0.3, 0.02, 0.03, 1), (0.03, 0.03, 0.035, 1), (0.42, 0.3, 0.03, 1))
+
+
+def _deck_bike_n(k, paint):
+    """A parked motorbike, its front toward +z (round 4: round wheels, a
+    shaped tank, seat and tail, a real frame): two wheels, the engine and
+    its fins, the exhaust, the tank, the seat and the tail with its lamp,
+    the forks, bars and mirrors, the headlamp in its cowl, a stand."""
     t = k("trim")
-    black, iron, paint = (0.006, 0.006, 0.008, 1), (0.05, 0.053, 0.06, 1), (0.02, 0.2, 0.22, 1)
-    for zc in (0.7, -0.68):
-        ring = [(0.31 + 0.31 * math.sin(a), zc + 0.31 * math.cos(a)) for a in (i * math.tau / 8 for i in range(8))]
-        for i in range(8):
-            (ya, za), (yb, zb) = ring[i], ring[(i + 1) % 8]
-            face(t, [(-0.06, ya, za), (0.06, ya, za), (0.06, yb, zb), (-0.06, yb, zb)], (0, (ya + yb) / 2 - 0.31, (za + zb) / 2 - zc), 1.0, black)
-        for sx in (-1, 1):
-            face(t, [(sx * 0.06, y, z) for y, z in ring], (sx, 0, 0), 1.0, black)
-            face(t, [(sx * 0.065, 0.31 + 0.13 * math.sin(a), zc + 0.13 * math.cos(a)) for a in (i * math.tau / 6 for i in range(6))], (sx, 0, 0), 1.0, iron)
-    box(t, -0.13, 0.13, 0.28, 0.62, -0.36, 0.36, scale=0.5, col=iron, bottom=True)
-    box(t, -0.15, 0.15, 0.62, 0.8, -0.02, 0.42, scale=0.5, col=paint)
-    box(t, -0.12, 0.12, 0.62, 0.73, -0.62, -0.02, scale=0.5, col=black)
-    box(t, -0.1, 0.1, 0.6, 0.76, -0.9, -0.62, scale=0.5, col=paint, bottom=True)
-    quad(k("glow"), (0.07, 0.64, -0.905), (-0.07, 0.64, -0.905), (-0.07, 0.72, -0.905), (0.07, 0.72, -0.905), col=glowc("ff1a2a", 0.3))
-    for sx in (-0.07, 0.07):
-        P.tube(t, ((sx, 0.31, 0.7), (sx, 0.96, 0.4)), (0.028, 0.024), segs=4, col=iron)
-    box(t, -0.3, 0.3, 0.95, 0.99, 0.37, 0.41, scale=0.5, col=black, bottom=True)
-    box(t, -0.09, 0.09, 0.76, 0.92, 0.44, 0.56, scale=0.5, col=iron, bottom=True)
-    quad(k("glow"), (-0.07, 0.78, 0.565), (0.07, 0.78, 0.565), (0.07, 0.9, 0.565), (-0.07, 0.9, 0.565), col=glowc("ffd8a0", 0.12))
-    P.tube(t, ((0.16, 0.36, 0.1), (0.17, 0.34, -0.5), (0.18, 0.42, -0.85)), (0.035, 0.035, 0.045), segs=4, col=(0.11, 0.115, 0.13, 1), cap=True)
+    black, iron, chrome = (0.006, 0.006, 0.008, 1), (0.05, 0.053, 0.06, 1), (0.22, 0.23, 0.25, 1)
+    _wheel(t, 0.7, 0.31, 0.06, black, iron)
+    _wheel(t, -0.68, 0.31, 0.07, black, iron)
+    P.tube(t, ((0.0, 0.36, -0.62), (0.0, 0.5, -0.2), (0.0, 0.78, 0.3), (0.0, 0.92, 0.42)), (0.03, 0.035, 0.035, 0.035), segs=6, col=iron)      # the frame's spine
+    P.tube(t, ((0.0, 0.31, -0.68), (0.0, 0.42, -0.3), (0.0, 0.34, 0.0)), (0.025, 0.03, 0.03), segs=5, col=iron)                                 # the swingarm
+    box(t, -0.12, 0.12, 0.26, 0.56, -0.24, 0.24, scale=0.5, col=iron, bottom=True)                                                            # the engine
+    for y in (0.34, 0.4, 0.46, 0.52):
+        box(t, -0.135, 0.135, y, y + 0.025, -0.2, 0.2, scale=0.5, col=chrome)
+    P.tube(t, ((0.1, 0.3, 0.2), (0.16, 0.24, -0.1), (0.17, 0.3, -0.55), (0.19, 0.38, -0.86)), (0.03, 0.035, 0.04, 0.045), segs=6, col=chrome, cap=True)
+    P.tube(t, ((0.0, 0.66, -0.04), (0.0, 0.74, 0.12), (0.0, 0.76, 0.3), (0.0, 0.7, 0.42)), (0.1, 0.15, 0.15, 0.09), segs=8, col=paint, cap=True)  # the tank
+    P.tube(t, ((0.0, 0.7, -0.62), (0.0, 0.72, -0.4), (0.0, 0.72, -0.1)), (0.08, 0.12, 0.11), segs=7, col=black, cap=True)                    # the seat
+    P.tube(t, ((0.0, 0.66, -0.92), (0.0, 0.7, -0.75), (0.0, 0.69, -0.6)), (0.04, 0.08, 0.09), segs=6, col=paint)                              # the tail
+    quad(k("glow"), (0.05, 0.64, -0.935), (-0.05, 0.64, -0.935), (-0.05, 0.7, -0.935), (0.05, 0.7, -0.935), col=glowc("ff1a2a", 0.3))
+    for sx in (-0.075, 0.075):
+        P.tube(t, ((sx, 0.31, 0.7), (sx, 0.7, 0.54), (sx, 0.98, 0.42)), (0.022, 0.024, 0.026), segs=6, col=chrome)                           # the forks
+    P.tube(t, ((-0.34, 1.02, 0.36), (-0.16, 1.0, 0.42), (0.16, 1.0, 0.42), (0.34, 1.02, 0.36)), (0.014, 0.016, 0.016, 0.014), segs=5, col=iron)  # the bars
+    for sx in (-0.26, 0.26):
+        P.tube(t, ((sx, 1.0, 0.4), (sx * 1.1, 1.18, 0.34)), (0.008, 0.008), segs=3, col=iron)
+        box(t, sx * 1.1 - 0.05, sx * 1.1 + 0.05, 1.17, 1.22, 0.32, 0.34, scale=0.5, col=chrome)
+    P.tube(t, ((0.0, 0.84, 0.47), (0.0, 0.86, 0.55), (0.0, 0.86, 0.58)), (0.08, 0.075, 0.06), segs=8, col=paint, cap=True)                   # the cowl
+    quad(k("glow"), (-0.05, 0.81, 0.585), (0.05, 0.81, 0.585), (0.05, 0.91, 0.585), (-0.05, 0.91, 0.585), col=glowc("ffd8a0", 0.12))
     P.tube(t, ((-0.1, 0.3, -0.1), (-0.28, 0.02, -0.16)), (0.014, 0.014), segs=3, col=iron)       # the stand
+
+
+def _deck_scooter_n(k, paint):
+    """A moped, its front toward +z: small round wheels, a step-through body
+    (the apron, the footboard, the rounded rear over the engine), its seat,
+    the bars and the lamp in the apron's head."""
+    t = k("trim")
+    black, iron = (0.006, 0.006, 0.008, 1), (0.05, 0.053, 0.06, 1)
+    _wheel(t, 0.56, 0.22, 0.05, black, iron, spokes=4)
+    _wheel(t, -0.5, 0.22, 0.055, black, iron, spokes=4)
+    P.tube(t, ((0.0, 0.42, -0.85), (0.0, 0.5, -0.6), (0.0, 0.54, -0.3), (0.0, 0.46, -0.12)), (0.09, 0.17, 0.17, 0.12), segs=8, col=paint, cap=True)   # the rear
+    box(t, -0.16, 0.16, 0.24, 0.3, -0.18, 0.36, scale=0.5, col=(0.04, 0.042, 0.048, 1), bottom=True)                                              # the footboard
+    P.tube(t, ((0.0, 0.26, 0.36), (0.0, 0.6, 0.44), (0.0, 0.92, 0.47)), (0.15, 0.13, 0.1), segs=8, col=paint, cap=True)                           # the apron
+    P.tube(t, ((0.0, 0.62, -0.62), (0.0, 0.66, -0.4), (0.0, 0.64, -0.18)), (0.07, 0.11, 0.1), segs=7, col=black, cap=True)                      # the seat
+    for sx in (-0.06, 0.06):
+        P.tube(t, ((sx, 0.22, 0.56), (sx, 0.6, 0.5)), (0.018, 0.02), segs=5, col=iron)
+    P.tube(t, ((-0.3, 0.98, 0.44), (0.0, 0.97, 0.47), (0.3, 0.98, 0.44)), (0.014, 0.02, 0.014), segs=5, col=iron)
+    quad(k("glow"), (-0.06, 0.86, 0.58), (0.06, 0.86, 0.58), (0.06, 0.94, 0.58), (-0.06, 0.94, 0.58), col=glowc("ffd8a0", 0.12))
+    quad(k("glow"), (0.05, 0.46, -0.9), (-0.05, 0.46, -0.9), (-0.05, 0.52, -0.9), (0.05, 0.52, -0.9), col=glowc("ff1a2a", 0.3))
+    P.tube(t, ((-0.1, 0.24, -0.1), (-0.24, 0.02, -0.14)), (0.012, 0.012), segs=3, col=iron)
+
+
+# Four kinds (each a draw where it shows): motorbikes in teal and black,
+# mopeds in red and ochre.
+for _i, _c in enumerate(BIKE_PAINT[0::2]):
+    P.proto(f"deck_bike_{_i}", box=(0.32, 0.6, 0.95), reach=240)(lambda k, _c=_c: _deck_bike_n(k, _c))
+for _i, _c in enumerate(BIKE_PAINT[1::2]):
+    P.proto(f"deck_scoot_{_i}", box=(0.3, 0.5, 0.9), reach=240)(lambda k, _c=_c: _deck_scooter_n(k, _c))
+bike_deal = random.Random(8830)
+
+
+def a_bike():
+    """One of the parked two-wheelers, dealt: a motorbike or a moped, in one
+    of two paints each."""
+    return f"deck_{'bike' if bike_deal.random() < 0.55 else 'scoot'}_{bike_deal.randrange(2)}"
 
 
 def bike_bay(x, z0, n, yaw, pitch=0.9):
@@ -2536,7 +2713,7 @@ def bike_bay(x, z0, n, yaw, pitch=0.9):
     painted on the paving."""
     z1 = z0 + (n - 1) * pitch
     for k in range(n):
-        P.place("deck_bike", x + (0.12 if k % 2 else 0.0), B.G0, z0 + k * pitch, yaw + (0.08 if k % 3 == 1 else -0.05 if k % 3 == 2 else 0.0), district=DK)
+        P.place(a_bike(), x + (0.12 if k % 2 else 0.0), B.G0, z0 + k * pitch, yaw + (0.08 if k % 3 == 1 else -0.05 if k % 3 == 2 else 0.0), district=DK)
     yy = B.G0 + PAINT
     for za, zb in ((z0 - 0.55, z0 - 0.47), (z1 + 0.47, z1 + 0.55)):
         face((DK, "paint", 1), [(x - 1.15, yy, za), (x + 1.15, yy, za), (x + 1.15, yy, zb), (x - 1.15, yy, zb)], (0, 1, 0), 1.0, YELLOW)
@@ -2798,7 +2975,7 @@ for side in (-1, 1):                    # -1 the north strip (z -95..-86), +1 th
     B.ground_rect(DK, 52.0, MOUTH_X, *sorted((Z(0.0), Z(9.0))))
     face_shops = math.pi if side < 0 else 0.0
     for x in (62.0, 74.0, 86.0, 98.0):
-        P.place("planter_tree" if (x // 12) % 2 == 0 else "planter_palm", x, B.G0, Z(2.0), district=DK)
+        P.place(a_tree() if (x // 12) % 2 == 0 else "planter_palm", x, B.G0, Z(2.0), district=DK)
         light(DK, x, 1.2, Z(2.0), "pink" if side < 0 else "teal", 1.6)
     for x in (68.0, 80.0, 92.0):
         P.place("bench", x, B.G0, Z(1.6), face_shops, district=DK)
@@ -2810,7 +2987,7 @@ for side in (-1, 1):                    # -1 the north strip (z -95..-86), +1 th
     P.place("deck_shrub", 65.5, B.G0, Z(4.6), district=DK)
     P.place("lightbox", 59.5, B.G0, Z(3.0), math.pi / 2, district=DK)
     for k in range(4):
-        P.place("deck_bike", 54.2 + k * 0.9, B.G0, Z(1.5) + (0.1 if k % 2 else 0.0), face_shops + (0.07 if k % 2 else -0.04), district=DK)
+        P.place(a_bike(), 54.2 + k * 0.9, B.G0, Z(1.5) + (0.1 if k % 2 else 0.0), face_shops + (0.07 if k % 2 else -0.04), district=DK)
     for k in range(6):
         P.place("bollard", MOUTH_X - 0.6, B.G0, Z(0.8 + k * 1.5), district=DK)
         P.place("bollard", 52.6, B.G0, Z(0.8 + k * 1.5), district=DK)
