@@ -1739,7 +1739,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
     parapet(x0, x1, z0, z1, top, tcol, h=0.25, t=0.2)
     # (Round 4: its edge lit, the m8 review's "rim or edge light on the roof
     # decks": a strip along the parapet's inner foot, its light on the deck.)
-    rim_hue = rs.choice(("cyan", "magenta", "pink", "amber"))
+    rim_hue = random.Random(round(x0 * 31 + z0 * 17) + 4099).choice(("cyan", "magenta", "pink", "amber"))   # (not the deck's own stream)
     for (ax, az), (bx, bz) in (((x0 + 0.21, z1 - 0.21), (x1 - 0.21, z1 - 0.21)), ((x1 - 0.21, z0 + 0.21), (x0 + 0.21, z0 + 0.21)),
                                ((x0 + 0.21, z0 + 0.21), (x0 + 0.21, z1 - 0.21)), ((x1 - 0.21, z1 - 0.21), (x1 - 0.21, z0 + 0.21))):
         quad((D, "glow", 0), (ax, y + 0.03, az), (bx, y + 0.03, bz), (bx, y + 0.09, bz), (ax, y + 0.09, az), col=GLOW[rim_hue])
@@ -1851,7 +1851,7 @@ def roof_deck(x0, x1, z0, z1, top, r, front, tcol, lucy=False):
         J.put("drain", X(w - 1.3), top + 0.1, zz_, 0.0)
     if w - tu > 11.0:
         J.put("jt_ductrun", X(w - 7.4), top + 0.1, z0 + 0.75, 0.0 if sgn > 0 else math.pi, 0.7, 1.0)
-    kit = ["jt_chairs", "jt_deckbits", "drum", "jt_planter", "jt_deckbits", "bench", "bags", "jt_deckbits", "barrel", "jt_chairs", "jt_deckbits", "dumpster",
+    kit = ["jt_chairs", "jt_deckbits", "drum", "jt_planter", "jt_deckbits", "bench", "bags", "jt_deckbits", "barrel", "jt_chairs", "jt_deckbits", "barrel",
            "jt_plants", "pallets", "jt_cooler", "drum", "jt_deckbits", "jt_plants", "rubbish", "jt_stools"]
     n_kit, done, tries = min(len(kit), int((w - tu) * d / 17)), 0, 0
     while done < n_kit and tries < 60 and w - tu > 5.0 and d > 5.0:
