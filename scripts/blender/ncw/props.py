@@ -57,6 +57,8 @@ material("paper", "ff5a3c", emit=1.0)
 PAPER, BULB, FITTING = 1.0, 0.75, 0.5
 SHAPE = "__v"
 WOOD, BARK, BLOSSOM, FROND = 0.25, 0.5, 0.75, 1.0
+# A clump of blossom on crossed cards (`clump`): its uv 0 to 1 across each.
+CLUMP = 0.625
 # A tree's wood on a round limb (`tube(..., smooth=True)`): its uv carries
 # the limb's own normal (x and z, halved about 0.5), so the site lights it
 # as a round thing and runs its bark unbroken across its facets.
@@ -256,6 +258,22 @@ def pad(key, cx, cy, cz, r, col, segs=7):
         poly(key, [top[0], mid[i][0], mid[j][0]], [top[1], mid[i][1], mid[j][1]], col)
         poly(key, [mid[i][0], rim[j][0], mid[j][0]], [mid[i][1], rim[j][1], mid[j][1]], col)
         poly(key, [mid[i][0], rim[i][0], rim[j][0]], [mid[i][1], rim[i][1], rim[j][1]], col)
+
+
+def clump(key, cx, cy, cz, r, col, yaw=0.0, tilt=0.25):
+    """A clump of blossom with depth from every side: two upright cards
+    crossed at its middle and one lying nearly flat through it, each r
+    across its middle; the site cuts florets out of them, fullest at the
+    middle and ragged at the rim."""
+    col = (*col[:3], CLUMP)
+    for a in (yaw, yaw + math.pi / 2):
+        c, s_ = math.cos(a) * r, math.sin(a) * r
+        h = r * 0.85
+        quad(key, (cx - c, cy - h, cz + s_), (cx + c, cy - h, cz - s_), (cx + c, cy + h, cz - s_), (cx - c, cy + h, cz + s_), col=col)
+    c, s_ = math.cos(yaw + 0.8) * r, math.sin(yaw + 0.8) * r
+    t = math.sin(tilt) * r
+    quad(key, (cx - c, cy - t, cz + s_), (cx - s_, cy, cz - c), (cx + c, cy + t, cz - s_), (cx + s_, cy, cz + c),
+         uvs=((0, 0), (1, 0), (1, 1), (0, 1)), col=col)
 
 
 def planter(k, h, lamp, stone=(0.5, 0.5, 0.52, 1)):
@@ -483,10 +501,19 @@ def _planter_tree(k):
                   ((0.04, 3.1, -0.2), (-0.25, 3.2, -0.36), (-0.5, 3.28, -0.48)),
                   ((-0.45, 2.2, 0.38), (-0.3, 2.7, 0.3), (-0.12, 3.15, 0.2))):
         tube(w, bough, (0.06, 0.045, 0.03), segs=5, col=bark, smooth=True)
+    # The blossom in clumps round the ends of the limbs and boughs, three a
+    # tip, so the crown is a broken cloud with sky through it and depth from
+    # any side, never a stack of plates.
     pink, rose, pale = (0.8, 0.27, 0.46), (0.74, 0.17, 0.36), (0.82, 0.45, 0.58)
+    rng = random.Random(7)
     for cx, cy, cz, r, col in ((-0.62, 2.62, 0.52, 0.8, pink), (0.62, 3.08, -0.36, 0.82, rose), (-0.12, 3.82, -0.44, 0.78, pale),
                                (-0.1, 3.2, 0.2, 0.7, rose), (0.42, 2.5, 0.5, 0.52, pale), (-0.52, 3.3, -0.5, 0.56, pink)):
-        pad(k("plant"), cx, cy, cz, r, col)
+        for j in range(3):
+            a = rng.uniform(0.0, math.tau)
+            off = r * (0.15 + 0.4 * j / 2)
+            shade = rng.uniform(0.85, 1.12)
+            clump(k("plant"), cx + math.cos(a) * off, cy + rng.uniform(-0.18, 0.22) * r, cz + math.sin(a) * off,
+                  r * rng.uniform(0.5, 0.66), tuple(min(1.0, v * shade) for v in col), yaw=rng.uniform(0.0, math.pi))
 
 
 @proto("bench", box=(1.0, 0.25, 0.3), reach=220)

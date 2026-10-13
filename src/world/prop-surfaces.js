@@ -141,7 +141,7 @@ export function createPropSurfaces(dressed) {
             // green is kept low and cool, and the light does the rest.
             albedo = mix(vec3(dot(albedo, vec3(0.3, 0.6, 0.1))), albedo, 0.6) * vec3(0.5, 0.6, 0.66);
             thin = 0.7;
-          } else if (vColor.a > 0.6) {
+          } else if (vColor.a > 0.7) {
             // Blossom: whole at the pad's middle, clusters with sky between
             // them toward its rim.
             float r = length(uv - 0.5) * 2.0;
@@ -152,6 +152,29 @@ export function createPropSurfaces(dressed) {
             if (r > 1.0 || d > (1.15 - r) * (1.25 + 1.1 * h)) discard;
             albedo *= 0.65 + 0.6 * h;
             albedo = mix(albedo, vec3(1.0, 0.86, 0.9), step(0.84, fract(h * 13.7)) * 0.55);
+            thin = 0.9;
+          } else if (vColor.a > 0.6) {
+            // A clump of blossom on crossed cards: florets on two offset
+            // grids, fullest and largest at its middle, fewer and smaller
+            // toward a ragged rim, each its own shade, the inside of the
+            // clump in its own shadow and its top and rim catching the
+            // light; far off, the clump's ragged outline alone.
+            float r = length(uv - 0.5) * 2.0;
+            vec2 g = uv * 9.0;
+            vec2 g2 = g + 0.5;
+            float h = hash12(floor(g) + 5.7);
+            float h2 = hash12(floor(g2) + 9.1);
+            float d = length(fract(g) - 0.5 - (vec2(h, fract(h * 7.3)) - 0.5) * 0.5) * 2.0;
+            float d2 = length(fract(g2) - 0.5 - (vec2(h2, fract(h2 * 5.1)) - 0.5) * 0.5) * 2.0;
+            float fill = 1.0 - r * r;
+            float a1 = d / max(fill * 1.25 * (0.7 + 0.5 * h), 1e-3);
+            float a2 = d2 / max(fill * (0.6 + 0.5 * h2) * step(0.3, h2), 1e-3);
+            float which = a1 < a2 ? h : h2;
+            float cut = min(a1, a2);
+            cut = mix(cut, r * 1.2 + (h - 0.5) * 0.35, smoothstep(0.5, 1.2, fwidth(g.x) + fwidth(g.y)));
+            if (r > 1.0 || cut > 1.0) discard;
+            albedo *= (0.62 + 0.5 * which) * mix(0.55, 1.08, smoothstep(0.0, 1.0, uv.y * 0.55 + r * 0.6));
+            albedo = mix(albedo, vec3(1.0, 0.86, 0.9), step(0.86, fract(which * 13.7)) * 0.5);
             thin = 0.9;
           } else if (vColor.a > 0.4) {
             // A palm's bark: a scar round the trunk where each old frond
