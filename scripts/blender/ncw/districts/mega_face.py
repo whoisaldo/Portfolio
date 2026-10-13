@@ -166,7 +166,7 @@ def dress(f, top, start, seed, blocked, pods=(), slot=False, people_rate=0.2, we
         k += 1
         if any(abs(y - b) < 1.6 for b in STRATA):
             continue
-        here = list(blocked) + [(p[0] - 0.3, p[1] + 0.3) for p in pods if p[2] - 1.2 < y < p[3] + 0.2]
+        here = list(blocked) + [(p[0] - 0.3, p[1] + 0.3) for p in pods if p[2] - CELL_H - 1.2 < y < p[3] + 0.2]
         t = r.random()
         if t < weights[0]:
             walkway(f, y, segments(f, here), dots=dim(GLOW["amber"], 0.28) if slot else AMBER_DOT, r=r, people_rate=people_rate)

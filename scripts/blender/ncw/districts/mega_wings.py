@@ -236,7 +236,7 @@ for dz in (-4.6, 4.6):
     strokes((D, "trim", 1), ">" if dz < 0 else "<", AX0 - 0.31, HALL_H + 0.72, -720.0 + dz, 0.5, -math.pi / 2, YEL, weight=0.18)
 B.billboard(D, AX0 - 0.45, 15.2, -720.0, 13.0, 7.6, -math.pi / 2, random.Random(8465), back=False)
 strokes((D, "trim", 1), "H4", AX0, 22.4, -729.6, 2.0, -math.pi / 2, YEL_OLD, weight=0.15, out=0.03)
-sign_column(AX0 - 0.8, -710.6, (11.4, 16.0, 20.6), ("bm", "bl", "bm"), [a for a in (0.25, math.pi - 0.2, 0.15)])
+sign_column(AX0 - 0.8, -710.6, (11.4, 16.0), ("bm", "bl"), [a for a in (0.25, math.pi - 0.2)])
 # Its roof: a parapet lit along its top, plant, a board turned to the street.
 parapet(AX0, AX1, AZ0, AZ1, ARM_TOP, rim="pink")
 RB = (72.0, -719.0, -math.pi / 2 + 0.22)
