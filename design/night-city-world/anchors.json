@@ -5123,6 +5123,61 @@
    "district": "mega"
   },
   {
+   "name": "anchor_steam_zz_roof_cy0",
+   "kind": "anchor",
+   "at": [
+    -26.9,
+    76.25,
+    -390.62
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_zz_roof_cy12",
+   "kind": "anchor",
+   "at": [
+    -32.35,
+    19.45,
+    -249.2
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_zz_roof_cy16",
+   "kind": "anchor",
+   "at": [
+    30.15,
+    19.45,
+    -219.2
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
+   "name": "anchor_steam_zz_roof_cy4",
+   "kind": "anchor",
+   "at": [
+    -25.8,
+    59.25,
+    -692.33
+   ],
+   "yaw": 0.0,
+   "district": "mega"
+  },
+  {
+   "name": "anchor_steam_zz_roof_cy8",
+   "kind": "anchor",
+   "at": [
+    23.6,
+    57.25,
+    -457.45
+   ],
+   "yaw": 0.0,
+   "district": "canyon"
+  },
+  {
    "name": "anchor_steam_zz_roof_mega_1",
    "kind": "anchor",
    "at": [
