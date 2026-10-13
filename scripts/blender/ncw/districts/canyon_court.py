@@ -13,6 +13,7 @@ import math
 import random
 
 from ncw.kit import *  # noqa: F401,F403
+from ncw import kit as K
 from ncw import buildings as B
 from ncw import props as P
 from ncw.districts import canyon_kit as C
@@ -430,17 +431,18 @@ def _corporate(ax, az, z_lo, z_hi, px0, cz0, cz1, r):
 # the roofs' line up) is in the core; the rest streams in with the
 # canyon's pack.
 # ---------------------------------------------------------------------------
-# The show's tower is pale concrete, grooved (ax5YUmkWf_Y@40): at night it
-# carries the city's light as a faint pale light of its own, brightest low
-# down over the lit forecourt, and its grooves stay dark.
+# At night the show's tower is a dark silhouette (ARL_JWwKdDs@2): a
+# near-black navy body whose etched lines carry a faint cool light, red trim
+# lines round it, the emblem glowing at the crown and floodlight washing up
+# its base from the podium's roof. (Pale, it read as a grey slab.)
 RIB = (0.05, 0.053, 0.068, 1)
-GROOVE = (0.016, 0.017, 0.022, 1)
-SPINE, SPINE_HIGH = (0.12, 0.13, 0.16, 1), (0.075, 0.08, 0.1, 1)
+GROOVE = (0.004, 0.0045, 0.007, 1)
+SPINE, SPINE_HIGH = (0.0095, 0.0115, 0.022, 1), (0.0085, 0.01, 0.02, 1)
 HERO_FROM = 110.0       # the canyon's roofs hide the tower below this
 # Below that the tower is the show's slate blue (Fn9gKhU_2_Q@77): its
 # shoulders, its podium.
 SLATE = (0.05, 0.066, 0.105, 1)
-SHOULDER = (0.07, 0.078, 0.098, 1)
+SHOULDER = (0.006, 0.0075, 0.015, 1)
 
 
 def _plan(y):
@@ -525,14 +527,64 @@ def _vdisc(key, cx, cz, nx, nz, H, yc, r0, r1, col, n=32):
              col=col)
 
 
-# The skin of the show's monolith (ax5YUmkWf_Y@40): pale panels, whole
-# storeys tall, etched with dark lines that run up the face and jog across
-# it like a circuit's traces; a seam round it every thirty metres or so; and
-# in some sections, between two of the lines, a column of narrow lit windows,
-# a few floors of them lit, the rest dark panel.
-PANEL, PANEL_LOW = (0.046, 0.049, 0.063, 1), (0.078, 0.086, 0.108, 1)
-CORNER, CORNER_LOW = (0.033, 0.035, 0.046, 1), (0.056, 0.062, 0.079, 1)
-ETCH, ETCH_LOW = (0.014, 0.015, 0.02, 1), (0.02, 0.022, 0.03, 1)
+def _vquad(key, pts, cols):
+    """A quad with its own colour at each corner (light that fades)."""
+    b = K.batches[key]
+    base = len(b.verts)
+    b.verts.extend(K.P(*p) for p in pts)
+    b.faces.append(tuple(range(base, base + 4)))
+    b.uvs.extend(((0, 0), (1, 0), (1, 1), (0, 1)))
+    b.cols.extend(cols)
+
+
+def _mix(a, b, t):
+    return tuple(a[i] + (b[i] - a[i]) * t for i in range(3)) + (1,)
+
+
+def _wash(key, at, u, y0, h, w0, w1, col, base, n=6):
+    """A floodlight's light up a face from its foot: brightest at the foot,
+    fading into the face's own `base` over h metres as it widens from w0 to
+    w1, its sides soft. `at(u, y)`: a point on the face."""
+    for k in range(n):
+        ta, tb = k / n, (k + 1) / n
+        ya, yb = y0 + h * ta, y0 + h * tb
+        wa, wb = w0 + (w1 - w0) * ta, w0 + (w1 - w0) * tb
+        ca, cb = _mix(base, col, (1 - ta) ** 2), _mix(base, col, (1 - tb) ** 2)
+        for s0, s1, e0, e1 in ((-0.5, -1 / 6, 0, 1), (-1 / 6, 1 / 6, 1, 1), (1 / 6, 0.5, 1, 0)):
+            _vquad(key, (at(u + s0 * wa, ya), at(u + s1 * wa, ya), at(u + s1 * wb, yb), at(u + s0 * wb, yb)),
+                   (ca if e0 else base, ca if e1 else base, cb if e1 else base, cb if e0 else base))
+
+
+def _halo(key, pt, r0, r1, col, base, n=32):
+    """A ring of light round an emblem, fading from `col` at r0 to the
+    face's `base` at r1. `pt(u, v)`: a point on its plane, v up from the
+    emblem's middle."""
+    for i in range(n):
+        a0, a1 = i * math.tau / n, (i + 1) * math.tau / n
+        _vquad(key, (pt(r1 * math.cos(a0), r1 * math.sin(a0)), pt(r1 * math.cos(a1), r1 * math.sin(a1)),
+                     pt(r0 * math.cos(a1), r0 * math.sin(a1)), pt(r0 * math.cos(a0), r0 * math.sin(a0))), (base, base, col, col))
+
+
+def _flood(key, x, y, z, nx, nz):
+    """A floodlight on a roof at a wall's foot, its lens up the wall."""
+    box((key, "metal", 1), x - 0.35, x + 0.35, y, y + 0.35, z - 0.35, z + 0.35, scale=1.0)
+    box((key, "glow", 0), x - 0.28, x + 0.28, y + 0.35, y + 0.4, z - 0.28, z + 0.28, scale=1.0, col=GLOW["white"])
+
+
+EMBLEM_RIM = (0.3, 0.025, 0.035, 1)
+HALO = (0.075, 0.006, 0.011, 1)
+
+
+# The skin of the show's monolith (ax5YUmkWf_Y@40): panels whole storeys
+# tall, etched with lines that run up the face and jog across it like a
+# circuit's traces; a seam round it every thirty metres or so; and in some
+# sections, between two of the lines, a column of narrow lit windows, a few
+# floors of them lit, the rest dark panel. At night the panels are near
+# black and the etched lines a faint cool light.
+PANEL, PANEL_LOW = (0.0045, 0.0055, 0.012, 1), (0.005, 0.006, 0.0125, 1)
+CORNER, CORNER_LOW = (0.003, 0.0036, 0.008, 1), (0.0034, 0.004, 0.0085, 1)
+ETCH, ETCH_LOW = (0.022, 0.034, 0.062, 1), (0.026, 0.04, 0.07, 1)
+WASH = (0.11, 0.105, 0.1, 1)    # the floodlights' light at their feet
 WIN_COOL, WIN_WARM = (0.3, 0.36, 0.44, 1), (0.46, 0.34, 0.18, 1)
 
 
@@ -681,6 +733,10 @@ def tower(ax, az):
         _fill(key, ax, az, y0, y1, PANEL if high else PANEL_LOW, CORNER if high else CORNER_LOW)
         if y0 not in (21.0, 168.0):
             _shell(key, ax, az, y0 - 0.25, y0 + 0.25, strips=1, grow=0.07, col=(0.012, 0.011, 0.014, 1))
+        if not high and y0 > 21.0:
+            # (A red trim line in the seams the hero's lens does not see.)
+            h_, c_ = _plan(y0)
+            walls((CB, "neon_red", 0), cut_rect(ax, az, h_ + 0.1, h_ + 0.1, c_), y0 - 0.07, y0 + 0.07, (1, 1, 1, 1))
         if y0 == 150.0:
             continue
         # (The shoulders stand against the faces' middles up to 108: what
@@ -716,7 +772,8 @@ def tower(ax, az):
         # the ring round three bars of light, the middle one tall.
         yc = 204.7
         _disc((key, "trim", 0), ax, az, nx, nz, yc, 0.0, 7.6, 1.0, GROOVE)
-        _disc((key, "glow", 0), ax, az, nx, nz, yc, 7.0, 7.9, 1.02, SPINE_HIGH)
+        _disc((key, "glow", 0), ax, az, nx, nz, yc, 7.0, 7.9, 1.02, EMBLEM_RIM)
+        _halo((key, "glow", 0), lambda u, v: _on(ax, az, nx, nz, u, yc + v, 1.0), 7.9, 12.5, HALO, PANEL)
         _disc((key, "neon_red", 0), ax, az, nx, nz, yc, 5.2, 6.2, 1.04, (1, 1, 1, 1))
         for u, hh in ((-2.1, 2.2), (0.0, 3.8), (2.1, 2.2)):
             _line(key, "neon_red", ax, az, nx, nz, u - 0.38, u + 0.38, yc - hh, yc + hh, out=1.04)
@@ -761,12 +818,26 @@ def tower(ax, az):
             if crest:
                 H = d1 + 0.04
                 _vdisc((CB, "trim", 0), ax, az, nx, nz, H, 38.0, 0.0, 6.0, GROOVE)
-                _vdisc((CB, "glow", 0), ax, az, nx, nz, H + 0.02, 38.0, 5.6, 6.3, SPINE)
+                _vdisc((CB, "glow", 0), ax, az, nx, nz, H + 0.02, 38.0, 5.6, 6.3, EMBLEM_RIM)
+                _halo((CB, "glow", 0), lambda u, v: _flat(ax, az, nx, nz, H - 0.015, u, 38.0 + v), 6.3, 9.8, HALO, SHOULDER)
                 _vdisc((CB, "neon_red", 0), ax, az, nx, nz, H + 0.04, 38.0, 4.0, 4.8, (1, 1, 1, 1))
                 for u, hh in ((-1.65, 1.7), (0.0, 2.9), (1.65, 1.7)):
                     quad((CB, "neon_red", 0), *[_flat(ax, az, nx, nz, H + 0.04, uu, yy) for uu, yy in
                                                  ((u - 0.3, 38.0 - hh), (u + 0.3, 38.0 - hh), (u + 0.3, 38.0 + hh), (u - 0.3, 38.0 + hh))])
                 light(CB, ax + nx * (H + 3.0), 31.0, az + nz * (H + 3.0), "red", 10.0)
+    # Floodlights on the podium's roof wash up the shaft's faces either side
+    # of the shoulders, and up the shoulders' faces (ARL_JWwKdDs@2: the base
+    # is lit, the body over it dark).
+    for name, nx, nz in FACES:
+        for u in (-16.5, 16.5):
+            _wash((CB, "glow", 0), lambda u_, y_: _on(ax, az, nx, nz, u_, y_, 0.035), u, 21.0, 30.0, 1.4, 6.5, WASH, PANEL_LOW)
+            x, _, z = _on(ax, az, nx, nz, u, 21.0, 1.2)
+            _flood(CB, x, 21.0, z, nx, nz)
+        d1 = 27.0 + 4.6
+        for u in (-7.8, 7.8):
+            _wash((CB, "glow", 0), lambda u_, y_: _flat(ax, az, nx, nz, d1 + 0.025, u_, y_), u, 21.0, 18.0, 1.0, 4.0, WASH, SHOULDER)
+            x, _, z = _flat(ax, az, nx, nz, d1 + 1.0, u, 21.0)
+            _flood(CB, x, 21.0, z, nx, nz)
     # The crown, over the top of the hero's and the Work shot's frames (the
     # rooftop shot has it far off): two fins at each face's edges rise from
     # the head past its roof, a red lamp on each, round the cap; the cap's
