@@ -570,7 +570,10 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
   // And its signs' words, which ride with the adverts into every material
   // that draws a board.
   const words = createSkyWords();
-  ads = { ...ads, ...words.uniforms };
+  // (1 for a free eye, 0 at the page's own lenses: what the far city's air
+  // does past the districts' veil is for the eyes that roam.)
+  const farFree = { value: 1 };
+  ads = { ...ads, ...words.uniforms, uFarFree: farFree };
   const r = rng(90210);
   // A number of a lot's own from where it was dealt, by the hash the shader
   // uses, in the GPU's precision: what is decided after the deal is decided
@@ -1964,16 +1967,43 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         // this was a brown murk.)
         return mix(col, SODIUM, k * 0.3 * smoothstep(20.0, 200.0, length(p - uCam)));
       }
+      uniform float uFarFree;
+      // The districts' depth veil (glsl.js, cityFog: laid on after the fog,
+      // for every free eye): its colour, and how much of it a point takes.
+      // Keep in step with cityFog.
+      vec4 depthVeil(vec3 p, float emissive) {
+        vec3 d = p - uCam;
+        float dd = length(d) * (1.0 / 360.0);
+        float w = (1.0 - exp(-dd * dd)) * exp(-max(p.y, 0.0) * 0.003) * freeEye() * uHaze * mix(1.0, 0.75, emissive) * (1.0 - santoAt(p.xz)) * 0.62;
+        return vec4(mix(vec3(0.022, 0.045, 0.09), hazeAt(d) * 1.6, downtown(d)) + uGlowColor * 0.08, w);
+      }
+      // Past the districts the same air goes on thickening: by two
+      // kilometres a block is mostly the veil's blue with its lights in it,
+      // and a light that far is greyed toward the veil's own cold. Lower
+      // air is thicker. (For a free eye only: the page's lenses keep their
+      // frames.)
+      vec3 farHaze(vec3 col, vec3 p, float emissive) {
+        vec3 d = p - uCam;
+        float k = smoothstep(220.0, 1700.0, length(d)) * exp(-max(p.y, 0.0) * 0.001) * freeEye() * uFarFree * uHaze * (1.0 - santoAt(p.xz));
+        vec3 veil = mix(vec3(0.022, 0.045, 0.09), hazeAt(d) * 1.6, downtown(d)) + uGlowColor * 0.08;
+        col = mix(col, dot(col, vec3(0.2126, 0.7152, 0.0722)) * vec3(0.7, 0.95, 1.25), k * emissive * 0.6);
+        return mix(col, veil, k * mix(0.85, 0.5, emissive));
+      }
       // The city's fog on the far city, and for an eye above the roofs a
       // thinner one (the low blocks keep their lights under it) that is the
       // night's blue-teal toward downtown too: the haze's red is held to
       // what the thing itself has, or three quarters of the haze's green.
       // From the streets and the page's roofs it is the city's fog as it is.
+      // The districts' veil is in it whole for every free eye: thinned with
+      // the fog from the air it was a quarter short, so a far block stood
+      // as dark and as coloured as a near one.
       vec3 airFog(vec3 col, vec3 p, float emissive) {
         vec3 fogged = cityFog(col, p, emissive);
         vec3 thin = mix(col, fogged, 0.72);
         thin.r = min(thin.r, max(col.r, thin.g * 0.75));
-        return mix(fogged, thin, smoothstep(40.0, 62.0, uCam.y));
+        vec4 v = depthVeil(p, emissive);
+        thin = mix(thin, v.rgb, 0.28 * v.w / max(1.0 - 0.72 * v.w, 0.05) * uFarFree);
+        return farHaze(mix(fogged, thin, smoothstep(40.0, 62.0, uCam.y)), p, emissive);
       }
   `;
   const STREET = /* glsl */ `
@@ -2951,9 +2981,15 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         float unlit = 1.0 - min(1.0, max(max(win.a, faceLit), max(max(crown, steps), max(max(sign, screen), max(screens, footLit)))));
         col += (uHazeColor * mix(0.5, 0.25, step(1.5, vHero.x)) + quarterLight(vDress.w, 0.0) * 0.012 * exp(-max(vWorld.y, 0.0) / 45.0)) * uHaze * onWall * fresh * (1.0 - held) * (1.0 - farOff) * unlit;
         col = mix(col, col * mix(4.0, 2.2, zoned), farOff * win.a * onWall * (1.0 - parapet));
+        // (For a free eye the far layer's dark is under the air and not
+        // over it: dimmed after the fog it was darker than the veil, so the
+        // furthest blocks stood off the sky as hard as the nearest.)
+        float farDim = mix(1.0, mix(0.6 + 0.4 * win.a * onWall, 1.0, smoothstep(1900.0, 2350.0, length(vWorld - uCam))), farOff);
+        float under = freeEye() * uFarFree;
+        col *= mix(1.0, farDim, under);
         col = airFog(col, vWorld, max(max(max(win.a * 0.8 * onWall * (1.0 - parapet), max(crown, steps)), max(blade, sign)), max(max(screen, glassCrown * 0.6), max(screens, max(footLit, max(roofLit, faceLit))))));
         col = sodiumBeyond(col, vWorld);
-        col *= mix(1.0, mix(0.6 + 0.4 * win.a * onWall, 1.0, smoothstep(1900.0, 2350.0, length(vWorld - uCam))), farOff);
+        col *= mix(farDim, 1.0, under);
         // For an eye above the roofs the air between is lit, as the sky
         // behind is: what stands further off is paler, row behind row.
         col += lift * vec3(0.003, 0.02, 0.07) * (1.0 - exp(-length(vWorld - uCam) / 1100.0)) * exp(-max(vWorld.y, 0.0) / 500.0) * uHaze;
@@ -3128,6 +3164,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     fragmentShader: /* glsl */ `
       ${COMMON}
       ${ADVERT}
+      ${BEYOND}
       uniform vec3 uNeon[${SIGN_NEON.length}];
       uniform float uMotion;
       varying vec3 vWorld;
@@ -3209,7 +3246,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           col = mix(col, vec3(0.5, 0.66, 1.0) * 0.55, step(0.55, seed));
           emissive = step(0.55, seed) * 0.6;
         }
-        col = cityFog(col, vWorld, emissive);
+        col = farHaze(cityFog(col, vWorld, emissive), vWorld, emissive);
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -3314,6 +3351,9 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   // 22 wide), nor a level look out from it.
   const HOLD_SKY = "0.2";
   const CONTACT_EYE = new THREE.Vector3(456, 10.4, -203);
+  // The page's own lenses (hero, plaza, Corpo Row, the rooftop and its pan,
+  // the garage street, Contact and its moon): their frames hold.
+  const PAGE_EYES = [[0.6, 0.6, 10], [73, 13, -204], [120, 30, -230], [476, 37.4, -266], [437, 2.2, -292], [456, 10.4, -203]].map((e) => new THREE.Vector3(...e));
   const look = new THREE.Vector3();
   // The moon's disc (moon.js) is added onto whatever the dome draws behind
   // it, so the dome reads where it hangs and how big from the disc's own
@@ -3323,7 +3363,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     for (const m of [].concat(o.material ?? [])) if (m.name === "moon" && m.uniforms?.uCenter) moonAt = { uMoonC: m.uniforms.uCenter, uMoonR: m.uniforms.uRadius };
   });
   const sky = new THREE.Mesh(skyGeo, new THREE.ShaderMaterial({
-    uniforms: { ...shared, ...moonAt, uHold: { value: 0 }, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, ...moonAt, uHold: { value: 0 }, uFarFree: farFree, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -3741,6 +3781,7 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
       const pitch = Math.asin(Math.max(-1, Math.min(1, look.y))) * (180 / Math.PI);
       const { smoothstep } = THREE.MathUtils;
       sky.material.uniforms.uHold.value = (1 - smoothstep(camera.position.distanceTo(CONTACT_EYE), 4, 12)) * smoothstep(camera.fov ?? 0, 28, 34) * smoothstep(pitch, 3, 5.5) * (1 - smoothstep(pitch, 19, 22));
+      farFree.value = Math.min(...PAGE_EYES.map((e) => smoothstep(camera.position.distanceTo(e), 2, 6)));
       beaconMat.uniforms.uPixel.value = pixelRatio;
       camera.updateMatrixWorld();
       frustum.setFromProjectionMatrix(viewProjection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
