@@ -116,7 +116,7 @@ def _roof(key, x0, x1, za, zb, y1, r, plant):
 
 
 def megastructure(zn, zs, y0, y1, r, occ, south=FA, key=CB, step=1.5, feet=(5.0, 5.0), tray=(-13.0, 13.0), drops=(), hang=None,
-                  plant=0.5, body=None, hung=(), front=None, looks=((2, 0.55, 0.2), (6, 0.6, 0.75)), ends=(0.0, 0.0)):
+                  plant=0.5, body=None, hung=(), front=None, looks=((2, 0.55, 0.2), (6, 0.6, 0.75)), ends=(0.0, 0.0), extra=()):
     """From wall to wall between zn and zs, its foot at y0 and its top at
     y1. `south` keys what the hero's lens sees of it (its hull and its south
     face); `key` the rest. `feet`: how low the west and east piers come.
@@ -129,7 +129,9 @@ def megastructure(zn, zs, y0, y1, r, occ, south=FA, key=CB, step=1.5, feet=(5.0,
     (None: it is the one the hero sees). `looks`: (style, lit, warmth) of
     its lower and upper tiers' windows. `ends`: how high the west and east
     walls stand, if lower than its top (its ends over them get windows).
-    Returns the boxes it fills, for the lens checks, and its tiers."""
+    `extra`: (s, w, h) screens on its upper tier's faces, clear of its
+    brand boards. Returns the boxes it fills, for the lens checks, and its
+    tiers."""
     x0, x1 = -WALK, WALK
     ym = (y0 + y1) / 2
     zc = (zn + zs) / 2
@@ -179,6 +181,12 @@ def megastructure(zn, zs, y0, y1, r, occ, south=FA, key=CB, step=1.5, feet=(5.0,
             C.advert(k2, key, cx, yc, cz, bw, bh, lo.yaw, r)
             for ds in (-bw * 0.3, bw * 0.3):
                 lo.box((key, "metal", 1), s + ds - 0.06, s + ds + 0.06, max(yc - bh / 2, y0 + 0.2), min(yc + bh / 2, ym - 0.2), 0.0, 0.76)
+        for s, bw, bh in extra:
+            yc = (ym + 0.45 + y1) / 2
+            bh = min(bh, y1 - ym - 1.0)
+            if not any(abs(s - s_) < (bw + bw_) / 2 + 0.3 for s_, bw_, _, up_ in brands if up_):
+                cx, _, cz = up.p(up.at(s), yc, 0.5)
+                C.advert(k2, key, cx, yc, cz, bw, bh, up.yaw, r)
         for s, bw, dy, upper in brands:
             f = up if upper else lo
             bh = bw * 1.2 / 2.8

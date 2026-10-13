@@ -7,6 +7,7 @@ from ncw.districts import canyon_cross
 from ncw.districts import canyon_lane as LW
 from ncw.districts import canyon_sky as SK
 from ncw.districts import canyon_relief as REL
+from ncw.districts import canyon_deck as DECK
 from ncw import kit as K
 from ncw.districts.canyon_kit import FA, CB, fl
 
@@ -82,9 +83,9 @@ MEGA = (dict(zn=-243.5, zs=-234.5, y0=fl(9) - 1.6, y1=46.0, step=1.5, south=FA, 
              drops=((-3.2, 1.9, "signal"), (3.2, 1.9, "signal"), (0.0, 1.1, "white")),
              body=(-256.0, fl(9) - 1.6 + 6.2, 46.0), hung=((-7.6, 5.6, 3.2), (0.4, 6.4, 3.2), (8.0, 5.0, 3.2))),
         dict(zn=-277.0, zs=-262.5, y0=40.0, y1=50.4, step=1.5, south=CB, feet=(36.0, 37.5), tray=(-13.0, 13.0), plant=0.4,
-             looks=((6, 0.6, 0.2), (2, 0.5, 0.8))),
+             looks=((6, 0.6, 0.2), (2, 0.5, 0.8)), extra=((4.6, 6.4, 3.6), (24.0, 5.6, 3.6))),
         dict(zn=-410.0, zs=-398.0, y0=57.8, y1=64.6, step=1.2, south=CB, feet=(53.0, 53.0), tray=(-13.0, 13.0), plant=0.4,
-             looks=((2, 0.5, 0.25), (6, 0.55, 0.8)), ends=(0.0, 62.0)))
+             looks=((2, 0.5, 0.25), (6, 0.55, 0.8)), ends=(0.0, 62.0), extra=((14.0, 7.2, 2.6),)))
 PYLON_Z = -230.5        # the stack of adverts on a mast beside the first, on the left
 # What crosses the avenue, for whatever is hung on its walls to keep clear
 # of: z, half its depth, its piers' foot and its top.
@@ -546,6 +547,7 @@ def _lookout(U, top, plaza):
         a = i * math.tau / 3 + 0.5
         stand(tx + 0.85 * math.cos(a), zm - 0.9 + 0.85 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)), "sit", top + 0.53)
     stand(_x(side, u0 + 0.55), zm - 1.2, side * math.pi / 2, "lean", top + 0.03)
+    DECK.lookout(side, u0, sd, z0, z1, top, _x, random.Random(9850 + L["i"] * 3 + U["k"] + (0 if side > 0 else 40)), (u0 + sd) / 2 + 1.5)
     # (At a balcony's rail over the avenue she leans on it and looks out.)
     pose = r.choice(("phone", "smoke", "idle"))
     stand(_x(side, u0 + 0.6), zm + 0.9, -side * math.pi / 2, "rail" if u0 < 0 else pose, top + 0.03)
@@ -701,12 +703,20 @@ def _dress_street(U):
         ss, sy = r.uniform(sw, w - sw), r.uniform(ph + sh / 2 + 2.0, max(ph + sh / 2 + 2.5, h * 0.62))
         if C._free(taken, (ss - sw / 2, ss + sw / 2, sy - sh / 2, sy + sh / 2)):
             C.screen(st, ss, sy, sw, sh, r, 1.0, key=FA, off=M.off(U, ss - sw / 2, ss + sw / 2, sy - sh / 2, sy + sh / 2))
+    deep = U["zs"] < -300.0
     C.street_signs(st, r, 0.5, w - 0.5, SHOP_H + 0.9, ph - 1.0, max(3, round(w / 4.0)), taken=taken)
     C.street_signs(st, r, 0.5, w - 0.5, ph + 0.6, min(h - 6.0, ph + 16.0, U["belt"] - 0.4), max(2, round(w / 7.0)), taken=taken)
     for _ in range(r.randrange(1, 3)):
         ss, sy = r.uniform(1.5, w - 1.5), r.uniform(ph + 14.0, h - 8.0)
         if C._free(taken, (ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.8)):
-            C.blade(st, ss, sy, "bl", r.choice((0.0, 0.3, -0.3)), FA, CB, CB, out=0.95 + M.off(U, ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.6))
+            o = M.off(U, ss - 0.6, ss + 0.6, sy - 2.6, sy + 2.6)
+            cant = r.choice((0.0, 0.3, -0.3))
+            # (High on a deep tower a board of words on a bracket where the
+            # hero's picture allows one, not another blade of type.)
+            if deep and M.clear(OCC, *M.box_of(st, ss - 0.2, ss + 0.2, sy - 0.8, sy + 0.8, 0.0, o + 3.4)):
+                C.blade(st, ss, sy, "pm", 0.0, FA, CB, CB, out=o + 1.85)
+            else:
+                C.blade(st, ss, sy, "bl", cant, FA, CB, CB, out=0.95 + o)
     # Over the signs: balconies in stacks up the face, floor on floor, clear
     # of every sign; condensers under windows on the lower floors; a
     # downpipe at each end of the face.
@@ -915,6 +925,12 @@ def _roofs(U):
         z += 3.3
         k += 1
     xs_lo, xs_hi = sorted((wall_x + side * 4.4, edge - side * 2.4))
+    cols = []
+    x = xs_lo + 0.2
+    while x <= xs_hi:
+        cols.append(x)
+        x += 4.3
+    DECK.terrace(sb, dz0, bz1, t, wall_x, edge, side, cols, random.Random(9800 + U["idx"] * 19))
     z = dz0 + 2.4
     while z < bz1 - 2.0:
         x = xs_lo + 0.2
@@ -1399,6 +1415,25 @@ for n, m in enumerate(MEGA):
             a = q * math.tau / (5 + n) + 0.4 * n
             stand(s * 11.4 + 1.55 * math.cos(a), zc + s * 1.5 + 1.55 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)) + pave_r.uniform(-0.5, 0.5),
                   pave_r.choice(("idle", "phone", "talk", "smoke")), B.G0)
+# Under every crossing, out of the rain, more people: knots by the walls
+# and at the kerbs on both pavements (their own dice).
+under_r = random.Random(4860)
+_low = [(q[1], q[3]) for q in P.INSTANCES if q[2] < 3.0 and -720.0 < q[3] < -180.0 and abs(q[1]) < 15.0 and q[0] not in ("pipe_v", "drain", "grate_glow")]
+for m in MEGA:
+    zc = (m["zn"] + m["zs"]) / 2
+    for s in (-1, 1):
+        for x, dz in ((s * 13.15, -2.8), (s * 13.15, 3.1), (s * 10.45, 0.4)):
+            n = under_r.choice((3, 4, 5))
+            if abs(x) < 11.0:
+                n = 2
+            if any(abs(px - x) < 1.3 and abs(pz - zc - dz) < 1.6 for px, pz in _low):
+                continue
+            a0 = under_r.uniform(0, math.tau)
+            for q in range(n):
+                a = a0 + q * math.tau / n
+                rad = 0.55 if n > 2 else 0.42
+                stand(x + rad * math.cos(a) * (0.6 if abs(x) > 12.0 else 1.0), zc + dz + rad * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)),
+                      under_r.choice(("talk", "talk", "idle", "phone", "smoke")), B.G0)
 # Manholes up the canyon breathing steam into the signs' light.
 for sx, sz in ((-5.5, -262.0), (4.0, -386.0), (-3.0, -540.0), (5.2, -322.0), (3.5, -655.0)):
     cylinder((CB, "metal", 1), sx, sz, 0.0, 0.025, 0.42, segs=14)
