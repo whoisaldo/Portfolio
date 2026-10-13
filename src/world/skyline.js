@@ -2532,14 +2532,21 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
           float dark = mix(mix(0.1, 0.22, low), 0.34, (1.0 - smoothstep(90.0, 220.0, length(vWorld - uCam))) * step(vHero.x, 0.5));
           params = mix(vParams, vec3(zh < share.x ? 1.25 : zh < share.y ? 0.45 + 0.3 * hash12(vec2(vForm.z, 6.6)) : dark, vParams.y, light.a), zoned);
         }
-        vec4 win = windowsT(vCells, params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y);
+        // (For a free eye a dressed tower or block is lit as the districts'
+        // towers now are: a near-black mass with its rooms lit here and
+        // there in runs, a third of its runs dark, each zone its own cut of
+        // window, so its signs carry the light. Not the far layer, whose
+        // big cells are what it is from two kilometres; not what Contact
+        // frames; not at the page's own lenses.)
+        float districts = fresh * (1.0 - held) * (1.0 - step(5.5, vForm.x)) * freeEye() * uFarFree;
+        vec4 win = windowsS(vCells, params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts);
         // A tower seen close, from a street at the city's edge or a car in
         // the air, is not a navy face with a few window strips: the rooms
         // another run of its floors would have lit are lit as well (the same
         // windows, dealt again along the floor). Not one the page holds.
         float close = (1.0 - smoothstep(90.0, 220.0, length(vWorld - uCam))) * (1.0 - held) * step(vHero.x, 0.5);
         if (close > 0.001) {
-          vec4 more = windowsT(vCells + vec2(37.0, 0.0), params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y);
+          vec4 more = windowsS(vCells + vec2(37.0, 0.0), params, vWorld, step(0.0, vCells.y) * (1.0 - parapet), vDress.y, districts);
           win = mix(win, more, step(win.a + 0.01, more.a) * close);
         }
         // Lit glass in the zone's light, and brighter than a room is: an
@@ -2711,7 +2718,11 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
             // A lattice of teal light over dark glass: a line every second
             // bay and every third floor, and far off its sheen.
             float lines = clamp(step(fract(vCells.x / 2.0), 0.045) + step(fract(vCells.y / 3.0), 0.04), 0.0, 1.0);
-            float k = mix(lines, 0.085, smoothstep(0.08, 0.25, pxc));
+            // (For a free eye it is lit in runs of seven floors, one run in
+            // three, as the districts' towers are: one grid of light from
+            // foot to roof was the whole tower.)
+            float run = mix(1.0, step(hash12(vec2(floor((storey + floor(hash12(vec2(vForm.z, 8.1)) * 7.0)) / 7.0), vForm.z + 4.4)), 0.36), districts);
+            float k = mix(lines, 0.085, smoothstep(0.08, 0.25, pxc)) * run;
             col = mix(col * 0.8, vec3(0.1, 0.9, 0.78) * 0.8, k);
             faceLit = k * 0.7;
           } else {
@@ -2979,7 +2990,7 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
         // it: a tower's body is navy against the sky, not black (but within
         // what Contact frames, where a wall is as it was).
         float unlit = 1.0 - min(1.0, max(max(win.a, faceLit), max(max(crown, steps), max(max(sign, screen), max(screens, footLit)))));
-        col += (uHazeColor * mix(0.5, 0.25, step(1.5, vHero.x)) + quarterLight(vDress.w, 0.0) * 0.012 * exp(-max(vWorld.y, 0.0) / 45.0)) * uHaze * onWall * fresh * (1.0 - held) * (1.0 - farOff) * unlit;
+        col += (uHazeColor * mix(0.5, 0.25, step(1.5, vHero.x)) + quarterLight(vDress.w, 0.0) * 0.012 * exp(-max(vWorld.y, 0.0) / 45.0)) * uHaze * onWall * fresh * (1.0 - held) * (1.0 - farOff) * unlit * mix(1.0, 0.4, districts);
         col = mix(col, col * mix(4.0, 2.2, zoned), farOff * win.a * onWall * (1.0 - parapet));
         // (For a free eye the far layer's dark is under the air and not
         // over it: dimmed after the fog it was darker than the veil, so the
