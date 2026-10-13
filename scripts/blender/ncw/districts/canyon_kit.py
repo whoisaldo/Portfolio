@@ -206,6 +206,21 @@ def _front(trade, f, s0, s1, key):
         light(key, *f.p(f.at(hs), 1.6, 0.8), "amber", 3.0)
         x, _, z = f.p(f.at(hs + 0.1), 0.0, 0.62)
         stand(x, z, f.yaw + math.pi, r.choice(("idle", "phone")), G0)
+        # Bills pasted on the shutter either side of the hatch, one over
+        # another here and there, and stickers by its frame.
+        pr = random.Random(9150 + len(FRONTS) * 3)
+        for e0, e1 in ((s0 + 0.2, hs - 0.9), (hs + 0.9, s1 - 0.2)):
+            sp = e0
+            while sp + 0.6 < e1:
+                pw, ph_ = pr.uniform(0.5, 0.75), pr.uniform(0.7, 1.0)
+                py = pr.uniform(1.0, 2.6 - ph_ / 2)
+                cx, _, cz = f.p(f.at(sp + pw / 2), py, -0.035 + pr.uniform(0.0, 0.01))
+                rotated_quad((key, "billboard", 0), cx, py, cz, pw, ph_, f.yaw,
+                             col=(pr.randrange(8) / 8.0 + 0.01, pr.randrange(8) / 8.0 + 0.01, pr.random(), 1.0))
+                sp += pw + pr.uniform(0.05, 0.6)
+        for i in range(5):
+            sx_, sy_ = hs + 0.7 + pr.uniform(-0.05, 0.12), 1.0 + pr.uniform(0.0, 1.0)
+            f.quad((key, "trim", 1), sx_, sx_ + 0.09, sy_, sy_ + 0.07, -0.025, col=pr.choice(((0.6, 0.1, 0.12, 1), (0.9, 0.8, 0.1, 1), (0.1, 0.5, 0.6, 1), (0.8, 0.8, 0.8, 1))))
         return
     f.quad((key, "glow", 0), s0, s1, G0, top, -d, col=dim(hue, 0.035))
     quad((key, "trim", 0), f.p(a, G0, 0.0), f.p(a, G0, -d), f.p(a, top, -d), f.p(a, top, 0.0), col=B.DARK_TRIM)

@@ -6,6 +6,7 @@ from ncw.districts import canyon_mass as M
 from ncw.districts import canyon_cross
 from ncw.districts import canyon_lane as LW
 from ncw.districts import canyon_sky as SK
+from ncw.districts import canyon_relief as REL
 from ncw import kit as K
 from ncw.districts.canyon_kit import FA, CB, fl
 
@@ -170,9 +171,11 @@ def _layout(side):
         L["units"] = []
         for k, (un, us, en, es) in enumerate(spans):
             style = r.choices((5, 2, 4, 0, 1, 6), weights=(4, 3, 1.5, 1.5, 1, 1))[0]
-            # (Near-black navy and teal: the plum wall is drawn and left out.)
+            # (Near-black navy and teal: the plum wall is drawn and left out,
+            # and every other teal one is navy, so the bodies are blue-black
+            # and the windows and signs carry the light.)
             wall = r.choices(("navy", "teal", "charcoal", "plum"), weights=(3, 3, 2, 1))[0]
-            tint = B.TINTS["navy" if wall == "plum" else wall]
+            tint = B.TINTS["navy" if wall == "plum" or (wall == "teal" and (i + k) % 2 == 0) else wall]
             L["units"].append(dict(lot=L, k=k, zs=us, zn=un, south=es, north=en, h=L["h"], back=kinds[min(k, len(kinds) - 1)],
                                    style=style, tint=tint, lit=r.uniform(0.4, 0.8), warmth=r.uniform(0.15, 0.95), ov=r.randrange(0, 40),
                                    ki=r.choice((0.0, 2.0, 3.0))))
@@ -483,8 +486,10 @@ def _lookout(U, top, plaza):
         for zz, name in ((z0, "-z"), (z1, "+z")):
             C.rail(CB, B.Face(name, zz, *sorted((_x(side, u0), _x(side, 0.0)))), top, hue)
         vx = _x(side, u0 + 0.5)
-        cylinder((CB, "metal", 1), vx, (z0 + z1) / 2 + 1.7, top, top + 1.15, 0.06, segs=5)
-        box((CB, "metal", 1), vx - 0.2, vx + 0.2, top + 1.15, top + 1.45, (z0 + z1) / 2 + 1.52, (z0 + z1) / 2 + 1.88, scale=0.5, bottom=True)
+        # (In the deck's corner, a stride from whoever leans on the rail:
+        # at her elbow its head read as a slab in her hand.)
+        cylinder((CB, "metal", 1), vx, (z0 + z1) / 2 + 2.05, top, top + 1.15, 0.06, segs=5)
+        box((CB, "metal", 1), vx - 0.2, vx + 0.2, top + 1.15, top + 1.45, (z0 + z1) / 2 + 1.87, (z0 + z1) / 2 + 2.23, scale=0.5, bottom=True)
     for f in (B.Face("-z", z1, *wx), B.Face("+z", z0, *wx)):
         # (A dado to the rail's height with a line of light along its
         # head, and over it the towers' own windows at arm's length, a
@@ -513,6 +518,23 @@ def _lookout(U, top, plaza):
                 B.billboard(CB, cx, cy, cz, pw - 0.4, 2.0, f.yaw, r, frame=True, back=False, depth=0.1)
             s_ += pw + 0.25
             k_ += 1
+    # Over the dado and the lamps, the walls are the towers' own sides:
+    # air conditioners in runs, a balcony here and there, a conduit (as
+    # high as the hero's lens does not see them; their own dice).
+    rr = random.Random(9700 + L["i"] * 5 + U["k"] + (0 if side > 0 else 60))
+    ix = sorted((_x(side, max(u0, 0.0) + 2.5), _x(side, sd - 0.5)))
+    for f in (B.Face("-z", z1, *ix), B.Face("+z", z0, *ix)):
+        y1 = top + 20.0
+        while y1 > top + 6.0:
+            zz = f.plane
+            lo, hi = (ix[0], top + 2.7, min(zz, zz + f.nz * 1.4)), (ix[1], y1, max(zz, zz + f.nz * 1.4))
+            if C.hidden(OCC, lo, hi):
+                break
+            y1 -= 3.4
+        else:
+            print("CANYON lookout walls seen", side, L["i"], U["k"], f.name)
+            continue
+        print("CANYON lookout walls", side, L["i"], U["k"], f.name, "to", round(y1, 1), REL.side(f, top + 2.7, y1, rr))
     # On it: lights strung down its length, a table, people at the rail.
     zm = (z0 + z1) / 2
     P.place("cy_string", (xa + xb) / 2, top + 3.0, zm, 0.0, sxz=(xb - xa) / 6.0, district=CB)
@@ -715,6 +737,8 @@ def _dress_street(U):
             ax_, _, az_ = st.p(st.at(sa), 0.0, 0.0)
             P.place("pipe_v", ax_, ph, az_, st.yaw, sy=h - ph - 0.5, district=CB)
     M.relief(U, taken)
+    # (And what stands out of it between its signs, on its own dice.)
+    REL.street(U, taken, ROWS[side], random.Random(9500 + U["idx"] * 13))
 
 
 def _dress_back(U):
