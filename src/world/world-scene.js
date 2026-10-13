@@ -220,6 +220,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     steam?.setLights(c.roofLights);
     resize();
     plazaKoi = createPlazaKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
+    // (load: the post chain's own programs first, while the GPU has nothing
+    // else to build: an empty frame through it, the city's pass held back,
+    // onto the canvas nobody sees yet. The first real frame built them, and
+    // waited for them behind the city's.)
+    post.view("only");
+    post.render(0);
+    post.view(null);
     // (load: the GPU's process starts building the city's programs now,
     // while the people are placed and the koi made; warm compiles what is
     // added after this and waits for all of it.)
