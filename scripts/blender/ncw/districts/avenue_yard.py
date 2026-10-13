@@ -619,9 +619,11 @@ def build(D):
     while x < X1 - 4.0:
         box((D, "glow", 0), x - 0.25, x + 0.25, 3.4, 3.55, EDGE_Z - 0.28, EDGE_Z - 0.02, scale=0.5, col=GLOW[rng.choice(("amber", "amber", "red"))])
         x += 9.0
-    wash(D, X0 + 2, -8.0, WALL_Z + 2, EDGE_Z - 1, ("amber", "amber", "white"), 6.0, rng)
-    wash(D, -8.0, 20.0, WALL_Z + 1, 106.0, ("white", "amber"), 6.0, rng, step=5.0)
-    wash(D, 20.0, X1 - 2, WALL_Z + 2, EDGE_Z - 1, ("white", "white", "cyan", "amber"), 6.5, rng)
+    # One hue to a wash: mixed pools every few metres lit the stacks through
+    # the spill map as a rainbow from the air.
+    wash(D, X0 + 2, -8.0, WALL_Z + 2, EDGE_Z - 1, ("amber",), 6.0, rng)
+    wash(D, -8.0, 20.0, WALL_Z + 1, 106.0, ("white",), 6.0, rng, step=5.0)
+    wash(D, 20.0, X1 - 2, WALL_Z + 2, EDGE_Z - 1, ("amber",), 6.5, rng)
     # Drums and pallets about, and a few hands.
     for _ in range(14):
         x, z = rng.uniform(X0 + 3, X1 - 3), rng.uniform(94.0, 118.0)
