@@ -339,6 +339,7 @@ const STRIDE = 20;
 /** Who is in the city: every walker of every walk, then everyone standing. */
 function populate({ phone, walks, standers, benches = [], rails = [], bare = false, ahead = [], crossings = [] }) {
   const people = [];
+  const FREE_TALK = POSES.indexOf("talk");
   // One of a list of [what, odds] pairs, of those `ok` lets through.
   const draw = (r, list, ok = null) => {
     const fit = ok ? list.filter(([v]) => ok(v)) : list;
@@ -659,10 +660,66 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     spots.push({ x: p.x + Math.sin(p.yaw) * 1.5, y: p.y, z: p.z + Math.cos(p.yaw) * 1.5, yaw: p.yaw + Math.PI, pose: CARRY });
   }
 
+  // Nobody stands in a file of the same stance: of those stood alone with
+  // nothing to do (at a window, at a corner), two a few steps apart have,
+  // now and then, stopped to talk (they come together, a little under a
+  // metre apart, face to face), and of the rest one in five is on a phone
+  // and one in twelve smoking, each turned a little their own way.
+  {
+    const IDLE = POSES.indexOf("idle");
+    const G = 3.2;
+    const grid = new Map();
+    const at = (x, z) => `${Math.floor(x / G)},${Math.floor(z / G)}`;
+    spots.forEach((p, i) => {
+      const k = at(p.x, p.z);
+      (grid.get(k) ?? grid.set(k, []).get(k)).push(i);
+    });
+    // Everyone else within `d` of p on its level: [index, distance].
+    const round = (p, i, d) => {
+      const out = [];
+      const cx = Math.floor(p.x / G);
+      const cz = Math.floor(p.z / G);
+      for (let ix = cx - 1; ix <= cx + 1; ix++) {
+        for (let iz = cz - 1; iz <= cz + 1; iz++) {
+          for (const j of grid.get(`${ix},${iz}`) ?? []) {
+            const q = spots[j];
+            const e = Math.hypot(q.x - p.x, q.z - p.z);
+            if (j !== i && e < d && Math.abs(q.y - p.y) < 0.3) out.push([j, e]);
+          }
+        }
+      }
+      return out;
+    };
+    const alone = (p, i) => p.pose === IDLE && !p.hot && !round(p, i, 1.6).length;
+    const met = new Set();
+    spots.forEach((p, i) => {
+      if (met.has(i) || !alone(p, i)) return;
+      const r = rng(hashAt(p.x, p.z, 31));
+      const u = r();
+      const other = u < 0.45 ? round(p, i, G).filter(([j, e]) => e >= 1.6 && !met.has(j) && alone(spots[j], j)).sort((a, b) => a[1] - b[1])[0] : null;
+      if (other) {
+        const q = spots[other[0]];
+        const dx = (q.x - p.x) / other[1];
+        const dz = (q.z - p.z) / other[1];
+        const mx = (p.x + q.x) / 2;
+        const mz = (p.z + q.z) / 2;
+        const half = 0.42 + 0.06 * r();
+        Object.assign(p, { x: mx - dx * half, z: mz - dz * half, yaw: Math.atan2(dx, dz) + (r() - 0.5) * 0.3, pose: FREE_TALK });
+        Object.assign(q, { x: mx + dx * half, z: mz + dz * half, yaw: Math.atan2(-dx, -dz) + (r() - 0.5) * 0.3, pose: FREE_TALK });
+        met.add(i).add(other[0]);
+      } else if (u > 0.55) {
+        const v = r();
+        p.yaw += (r() - 0.5) * 0.5;
+        if (v < 0.42) p.pose = POSES.indexOf("phone");
+        else if (v < 0.6) p.pose = POSES.indexOf("smoke");
+      }
+    });
+  }
+
   // Two within 1.6 m of each other are together: whoever is free to turns to
   // the other (to the middle of the others, of three or more), two idlers
   // fall to talking, and whoever is sat or against a wall turns their head.
-  const FREE = [POSES.indexOf("idle"), POSES.indexOf("talk"), POSES.indexOf("smoke")];
+  const FREE = [POSES.indexOf("idle"), FREE_TALK, POSES.indexOf("smoke")];
   const NEAR = 1.6;
   const cells = new Map();
   const cellOf = (p) => `${Math.floor(p.x / NEAR)},${Math.floor(p.z / NEAR)}`;
@@ -704,6 +761,30 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     if (behind[i].length >= 2 || behind[i].some((j) => behind[j].length >= 2)) p.queue = true;
   });
   for (const p of spots) if (p.queue) p.pose = QUEUE;
+  // And each in a queue waits their own way: turned a little this way or
+  // that, one in four with their head down over a phone, and now and then
+  // two of them talking, half turned to each other. (Nothing that follows
+  // turns them.)
+  spots.forEach((p, i) => {
+    if (!p.queue || p.hot || p.fixed) return;
+    p.fixed = true;
+    p.yaw += (p.r() - 0.5) * 0.6;
+    const u = p.r();
+    if (u < 0.25) p.pose = POSES.indexOf("phone");
+    else if (u < 0.5) {
+      const j = behind[i].find((k) => spots[k].queue && !spots[k].fixed);
+      if (j === undefined) return;
+      const q = spots[j];
+      const face = (a, b) => Math.atan2(b.x - a.x, b.z - a.z);
+      const half = (a, b) => a.yaw + 0.65 * Math.atan2(Math.sin(face(a, b) - a.yaw), Math.cos(face(a, b) - a.yaw));
+      p.yaw = half(p, q);
+      q.yaw = half(q, p);
+      p.pose = q.pose = FREE_TALK;
+      q.fixed = true;
+      p.turn = p.r();
+      q.turn = p.turn + 0.5;
+    }
+  });
   spots.forEach((p, i) => {
     let sx = 0;
     let sz = 0;
@@ -730,7 +811,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     if (n) p.toward = Math.atan2(sx / n - p.x, sz / n - p.z);
   });
   spots.forEach((p, i) => {
-    if (p.toward === undefined || p.hot) return;
+    if (p.toward === undefined || p.hot || p.fixed) return;
     const mate = spots[p.mate];
     if (FREE.includes(p.pose)) {
       p.yaw = p.toward + (p.r() - 0.5) * 0.3;
