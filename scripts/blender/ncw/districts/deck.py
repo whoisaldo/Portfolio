@@ -443,8 +443,8 @@ xs("sidewalk", 0, MOUTH_X, KERB_X, z_rail, ZS, 0.0, CROSS_Y + 0.004, sides="t", 
 # posts, open between them, with a metre left out at each lookout's gate.
 UPS_H, UPS_T = 0.5, 0.16
 GATE = 0.55                                  # half a gate's opening
-GATES_X = (plan.DECK_X0, -47.0)              # the lookouts off the deck's south edge
-GATES_Z = (-134.0, -117.5, -100.5)           # and off the ramp's west edge
+GATES_X = (plan.DECK_X0, -47.0, 51.5, 80.2)   # the lookouts off the deck's south edge (round 4: two more, over the east lane and the landing)
+GATES_Z = (-146.5, -134.0, -117.5, -100.5)   # and off the ramp's west edge
 
 
 def runs(a, b, gaps):
@@ -472,7 +472,7 @@ def rail(axis, a, b, plane, d, yf, gaps=()):
 
 xs("metal", 0, -HERO, HERO, z_rail, ZS, DY, up(DY, RAIL_H), sides="tAB", scale=0.8, hero=True)
 rail("x", XW, -HERO, ZS, 1, DY, GATES_X)
-rail("x", HERO, MOUTH_X, ZS, 1, DY)
+rail("x", HERO, MOUTH_X, ZS, 1, DY, GATES_X)
 rail("z", FOOT, ZS, XW, -1, RY, GATES_Z)
 for s in (-1, 1):       # the panel's ends, where the open rail takes over (behind the rows: the hero sees neither)
     box((DK, "steel", 0), s * HERO - 0.07, s * HERO + 0.07, Y, Y + RAIL_H + 0.12, z_rail - 0.04, ZS, scale=0.5, col=RAIL_C)
@@ -2200,7 +2200,7 @@ P.place("fence_mesh", 53.5, B.G0, ZN + 0.4 + 2 * 2.3 + 0.2, 0.35, district=DK)
 # from the walk-through's line.
 # ---------------------------------------------------------------------------
 BAY = 1.8
-BAY_FLOOR = (0.1, 0.11, 0.12, 1.0)
+BAY_FLOOR = (0.17, 0.175, 0.18, 1.0)   # galvanised grating (round 4: at 0.1 a walker could not see what the people in it stood on)
 
 
 def bay(axis, a, b, yf, stair=False):
@@ -2226,6 +2226,9 @@ def bay(axis, a, b, yf, stair=False):
             box((DK, "steel", 1), px - 0.03, px + 0.03, y, y + 1.04, pz - 0.03, pz + 0.03, scale=0.5, col=STEEL_LT)
         if k == 0:      # the line of light under the outer rail
             box((DK, "glow", 0), min(xa, xb), max(xa, xb) + 0.02, y + 1.0, y + 1.035, min(za, zb), max(za, zb) + 0.02, scale=0.5, col=EDGE_TEAL, bottom=True)
+        # A toe board in yellow along the floor's edge (round 4): the floor
+        # reads from the walkway.
+        box((DK, "trim", 0), min(xa, xb) - 0.02, max(xa, xb) + 0.02, y, y + 0.14, min(za, zb) - 0.02, max(za, zb) + 0.02, scale=0.5, col=STRIPE_PAINT)
     for t in (0.15, 0.85):
         v = a + (b - a) * t
         if axis == "x":
@@ -3114,3 +3117,82 @@ for k in range(5):
         for vb, vt in ((-0.28, 0.0), (0.28, 0.0)):
             face((DK, "glow", 0), [(fx + tx * u0, Y + 2.5 + vb, fz + tz * u0), (fx + tx * (u0 + 0.2), Y + 2.5 + vb, fz + tz * (u0 + 0.2)),
                                    (fx + tx * (u0 + 0.46), Y + 2.5 + vt, fz + tz * (u0 + 0.46)), (fx + tx * (u0 + 0.26), Y + 2.5 + vt, fz + tz * (u0 + 0.26))], (nx, 0, nz), 1.0, CHEV)
+
+# ---------------------------------------------------------------------------
+# ROUND 4. LIFE ON THE DECK (Fn9gKhU_2_Q@98: the raised level is crowded).
+# Nobody stands on a walkway (1.24 m wide: nothing on it is a metre from the
+# walk-through's line), so the deck's people are where a walker passes them:
+# in the lookouts hung off its rail (two more over the east lane and the
+# landing, one more on the ramp), on the stair, at the stair's foot and at
+# the ramp's foot, every one more than a metre from the line.
+# ---------------------------------------------------------------------------
+life_rng = random.Random(8820)
+# More in the lookouts there were.
+for x, dz, yaw, pose in ((-83.6, 1.4, 0.4, "rail"), (-76.3, 1.4, -0.3, "rail"), (-80.9, 1.45, math.pi + 0.2, "smoke")):
+    stand(x, ZS + dz, yaw, pose, DY(x) + WALK_UP)
+for x, dz, yaw, pose in ((-46.6, 1.45, 0.2, "rail"), (-48.9, 1.15, math.pi / 2, "phone")):
+    stand(x, ZS + dz, yaw, pose, DY(-47.0) + WALK_UP)
+for zc, crew in ((-134.0, (("rail", 0.1, -math.pi / 2),)), (-117.5, (("rail", 1.1, -math.pi / 2), ("idle", -1.1, -math.pi / 2 + 0.4))),
+                 (-100.5, (("rail", 0.0, -math.pi / 2), ("phone", 1.2, math.pi)))):
+    for pose, dz, yaw in crew:
+        stand(XW - 1.4, zc + dz, yaw, pose, RY(zc) + WALK_UP)
+# The new lookouts.
+y = bay("x", 49.0, 54.0, DY)
+for x, dz, yaw, pose in ((49.6, 1.4, 0.3, "rail"), (50.6, 1.2, math.pi / 2, "talk"), (51.4, 1.2, -math.pi / 2, "talk"), (52.9, 1.45, 0.0, "rail"), (53.5, 1.1, math.pi - 0.4, "smoke")):
+    stand(x, ZS + dz, yaw, pose, y)
+y = bay("x", 78.0, 82.4, DY)
+for x, dz, yaw, pose in ((78.7, 1.45, -0.2, "rail"), (79.9, 1.15, math.pi, "phone"), (81.6, 1.4, 0.25, "rail")):
+    stand(x, ZS + dz, yaw, pose, y)
+y = bay("z", -148.1, -144.9, RY)
+for z, yaw, pose in ((-147.4, -math.pi / 2, "rail"), (-146.0, -math.pi / 2 - 0.3, "rail"), (-145.4, math.pi, "idle")):
+    stand(XW - 1.35, z, yaw, pose, y)
+# On the stair: more on their way up and down, two stopped on the landing.
+for x, yaw, pose in ((ST_X0 + 3.6, math.pi / 2, "carry"), (ST_X0 + 4.4, math.pi / 2, "idle"), (ST_X0 + ST_RUN - 1.2, -math.pi / 2, "phone"),
+                     (ST_X0 + ST_RUN + ST_LAND + 3.4, math.pi / 2, "idle"), (ST_X0 + ST_RUN + ST_LAND + 5.0, -math.pi / 2, "talk"), (ST_X1 - 1.6, math.pi / 2, "idle")):
+    on_stair(x, yaw, pose)
+stand(ST_X0 + ST_RUN + 0.2, ZS + 0.45, math.pi, "rail", B.G0 + ST_RISE + 0.02)
+# At the stair's foot, under the deck's edge: a knot waiting and talking.
+for x, z, yaw, pose in ((-65.6, -76.2, math.pi / 2, "idle"), (-64.4, -76.6, -math.pi / 2, "talk"), (-63.6, -76.5, math.pi / 2 + 0.4, "talk"),
+                        (-64.9, -77.4, 0.6, "phone"), (-62.8, -77.8, math.pi, "smoke"), (-66.0, -77.6, math.pi / 2 - 0.3, "idle")):
+    stand(x, z, yaw, pose, B.G0)
+# At the ramp's foot: by the crossing to its walkway, on the west pavement
+# between its two files of walkers, people waiting to go up and come over.
+for z, yaw, pose in ((-224.6, math.pi / 2, "idle"), (-223.4, math.pi / 2 + 0.3, "phone"), (-222.2, math.pi / 2, "talk"),
+                     (-217.6, math.pi / 2 - 0.2, "talk"), (-216.4, math.pi / 2, "idle"), (-215.0, math.pi, "smoke")):
+    stand(-91.7 + life_rng.uniform(-0.15, 0.15), z, yaw, pose, B.G0)
+# Steam on the deck: more of its drains breathing, and two joints over the
+# bents where the warm air under the road gets out (named to sort after
+# every other vent: see above).
+for i, (x, z) in enumerate(((x_par - 0.36, -172.0), (x_par - 0.36, -104.0), (-62.0, z_par + 0.36), (72.0, z_par + 0.36), (88.0, z_par + 0.36))):
+    y = RY(z) if x < XE else DY(x)
+    empty(f"anchor_steam_zz_deck_drain_{4 + i}", (x, y + 0.03, z))
+for i, x in enumerate((-60.0, 56.0)):
+    empty(f"anchor_steam_zz_deck_joint_{i}", (x, DY(x) + 0.03, z_par + 0.5))
+
+# THE YARD (the plaza's gap under the deck coming down, x 52..64, behind its
+# fence): a van broken down and being worked on (XMaaEjT0LhU@87), off every
+# lane: LED barriers round it, a beacon, a warning triangle, a work lamp on
+# a stand and its light, a jack, a tool chest, two of the crew. (The van is
+# the site's: asked of the coordinator.)
+VAN = (57.6, plan.DECK_Z - 1.2)              # its middle; it lies along x, 5 m by 2
+for x, z, yaw in ((54.4, VAN[1] - 1.2, math.pi / 2), (54.4, VAN[1] + 1.2, math.pi / 2), (57.6, VAN[1] + 2.3, 0.0)):
+    P.place("barrier", x, B.G0, z, yaw, district=DK)
+    hx, hz = (0.12, 0.6) if abs(math.sin(yaw)) > 0.5 else (0.6, 0.12)
+    box((DK, "glow", 0), x - hx, x + hx, B.G0 + 1.02, B.G0 + 1.08, z - hz, z + hz, scale=0.5, col=glowc("ff3a1a", 0.6))
+    B.COLLISION.append(("box", x - hx - 0.15, x + hx + 0.15, 0.0, 1.1, z - hz - 0.15, z + hz + 0.15, DK))
+P.place("warning_tri", 53.6, B.G0, VAN[1] + 0.2, math.pi / 2, district=DK)
+LX, LZ = 61.0, VAN[1] + 2.0                   # the work lamp on its stand
+cylinder((DK, "steel", 0), LX, LZ, B.G0, B.G0 + 1.9, 0.03, segs=5, cap=False, col=STEEL_LT)
+for a in (0.0, 2.1, 4.2):
+    pipe((DK, "steel", 1), (LX, B.G0 + 0.9, LZ), (LX + 0.5 * math.sin(a), B.G0, LZ + 0.5 * math.cos(a)), 0.02, segs=3, col=STEEL_LT)
+box((DK, "trim", 0), LX - 0.2, LX + 0.2, B.G0 + 1.9, B.G0 + 2.15, LZ - 0.15, LZ + 0.15, scale=0.5, col=HOUSING)
+box((DK, "glow", 0), LX - 0.22, LX - 0.18, B.G0 + 1.93, B.G0 + 2.12, LZ - 0.12, LZ + 0.12, scale=0.5, col=glowc("eceae4", 0.7))
+light(DK, LX - 1.4, 1.6, VAN[1] + 0.9, "white", 2.4)
+cylinder((DK, "glow", 0), 54.2, VAN[1] - 2.2, B.G0 + 1.2, B.G0 + 1.35, 0.08, segs=6, cap=True, col=BEACON)
+cylinder((DK, "steel", 0), 54.2, VAN[1] - 2.2, B.G0, B.G0 + 1.2, 0.03, segs=5, cap=False, col=STEEL_LT)
+light(DK, 54.2, 1.4, VAN[1] - 2.2, "amber", 1.6)
+box((DK, "trim", 0), 61.2, 61.8, B.G0, B.G0 + 0.7, VAN[1] - 1.4, VAN[1] - 1.0, scale=0.5, col=(0.4, 0.04, 0.03, 1.0))      # the tool chest
+box((DK, "steel", 1), 57.4, 57.8, B.G0, B.G0 + 0.25, VAN[1] + 1.15, VAN[1] + 1.3, scale=0.5, col=(0.5, 0.36, 0.04, 1.0))      # the jack under its side
+stand(60.75, VAN[1] - 0.2, -math.pi / 2, "work", B.G0)
+stand(55.6, VAN[1] + 2.6, math.pi - 0.3, "phone", B.G0)
+stand(58.9, VAN[1] + 1.6, math.pi, "squat", B.G0)
