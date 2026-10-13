@@ -30,6 +30,14 @@ STYLE = dict(windows=(2, 3, 6), lit=(0.3, 0.7), warmth=(0.5, 1.0), tints=("rust"
 
 
 COOL = (0.7, 0.95, 1.0, 1.0)   # a cold store's sign
+# The yard's boxes: the show's reds and rusts most, then the rest.
+BOX_MIX = ("c40_red", "c40_red", "c40_red", "c40_rust", "c40_rust", "c40_blue", "c40_blue", "c40_green", "c40_grey", "c40_cream", "c40_teal", "c40_yellow")
+BOX_NAME = {"red": "c40_red", "rust": "c40_rust", "blue": "c40_blue", "green": "c40_green", "grey": "c40_grey"}
+
+
+def box40(x, z, yaw, col, ln=12.19):
+    """A lone container on the ground, an instance (seams, door end and all)."""
+    P.place("c20_grey" if ln < 7.0 else BOX_NAME.get(col, "c40_red"), x, GY, z, yaw, district=D)
 PALE = (1.0, 0.92, 0.8, 1.0)   # a fuel brand's letters
 
 
@@ -205,8 +213,8 @@ def works():
     K.stencil(fw_["-z"], 12.0, 4.0, "01", wall=K.CREAM)
     # Along the plaza street: a fence, and the yard strip behind it.
     K.fence(176.2, -167.8, 295.2, -167.8)
-    K.container(190.0, -164.2, 0.0, "grey", ln=6.06)
-    K.container(246.0, -164.2, PI, "rust")
+    box40(190.0, -164.2, 0.0, "grey", ln=6.06)
+    box40(246.0, -164.2, PI, "rust")
     scatter(r, 200.0, 236.0, -166.0, -162.0, 7)
     scatter(r, 256.0, 264.0, -166.0, -162.0, 2, kinds=("reel", "pallets"))
     for x in (212.0, 250.0):
@@ -697,7 +705,7 @@ def depot():
     scatter(r, 237.0, 245.0, -76.0, -40.0, 5, kinds=("dumpster", "crates", "bags", "drum_pallet", "tyres"))
     scatter(r, 182.0, 290.0, -83.0, -79.5, 8)
     for x in (200.0, 262.0):
-        K.container(x, -81.2, 0.0, "blue" if x < 230 else "red")
+        box40(x, -81.2, 0.0, "blue" if x < 230 else "red")
     stand(205.4, -79.6, 0.0, "sit", GY + 0.9)
     K.fence(290.0, -12.4, 295.2, -12.4)
 
@@ -921,25 +929,47 @@ def container_yard():
     grab (JtqIas3bYhg@80, x4ztgjvfU60@38)."""
     r = R(8662)
     K.asphalt(260.0, 340.0, 12.0, 45.0)
-    names = ("c40_red", "c40_red", "c40_rust", "c40_blue", "c40_green")
-    for i in range(6):
-        cx = 264.0 + 6.1 + i * 12.6
-        for j in range(8):
-            cz = 20.4 + j * 2.84
-            hi = (3 + (r.random() < 0.5)) if j >= 5 else (r.randrange(1, 4) if j >= 2 else r.randrange(0, 3))
-            if i in (2, 3):
-                hi = max(0, hi - 1) if j >= 2 else 0
-            for n in range(hi):
-                if r.random() < 0.12:
-                    for dx in (-3.07, 3.07):
-                        P.place("c20_grey", cx + dx, GY + n * 2.6, cz, 0.0, district=D)
-                else:
-                    name, yw = r.choice(names), 0.0 if r.random() < 0.8 else PI
-                    if n == 0 and j <= 2:
-                        # The row a walker passes is built in place, ribs and door bars and all.
-                        K.container(cx, cz, yw, name[4:])
-                    else:
-                        P.place(name, cx, GY + n * 2.6, cz, yw, district=D)
+
+    def pick():
+        return r.choice(BOX_MIX)
+
+    def stack(x, z, yaw, hi, twenty=0.1):
+        for n in range(hi):
+            if r.random() < twenty and abs(math.sin(yaw)) < 0.5:
+                for dx in (-3.07, 3.07):
+                    P.place("c20_grey", x + dx, GY + n * 2.6, z, yaw, district=D)
+            else:
+                P.place(pick(), x, GY + n * 2.6, z, yaw + (PI if r.random() < 0.2 else 0.0), district=D)
+
+    # The west block end-on to the street, its door ends over the fence;
+    # eight lanes two deep, two to four high.
+    for kx in range(7):
+        x = 263.8 + kx * 2.84
+        stack(x, 23.0, PI / 2, r.choice((2, 3, 3, 4, 4)))
+        stack(x, 35.4, PI / 2, r.choice((3, 3, 4, 4)))
+    # Under the gantry's span, its trolley's lane left open across the
+    # middle; the east block long side on, stepping up to the back wall.
+    for cx in (295.3, 307.9):
+        for j, cz in enumerate((19.6, 22.44, 25.28, 31.0, 33.84, 36.68, 39.52)):
+            stack(cx, cz, 0.0, r.choice((1, 2, 2)) if j in (2, 3) else r.choice((1, 2, 3, 3)))
+    for cx in (321.6, 333.9):
+        for j in range(9):
+            cz = 18.4 + j * 2.84
+            stack(cx, cz, 0.0, r.choice((1, 2, 2, 3)) if j < 3 else r.choice((3, 3, 4, 4)))
+    # The reach stacker in the lane between the blocks, its boom raised
+    # over the west block's front; drums on pallets along the fence.
+    P.place("reach_stacker", 285.0, GY, 30.0, PI / 2, district=D)
+    light(D, 285.0, 9.2, 21.4, "amber", 2.6)
+    stand(287.6, 21.0, PI, "idle")
+    place_row("drum_pallet", 264.5, 13.7, 286.0, 13.7, 9, 0.0, 0.5, r)
+    place_row("drum_pallet", 316.0, 13.7, 336.0, 13.7, 8, 0.0, 0.5, r)
+    # Tall masts in the front lane lighting the stacks' street faces.
+    for (mx, ln_) in ((287.0, 16.6), (314.7, 16.4)):
+        P.place("flood_mast", mx, GY, ln_, 0.0, sy=1.9, district=D)
+        for dx in (-1.05, -0.35, 0.35, 1.05):
+            rotated_quad(k("neon_amber"), mx + dx, GY + 11.53 * 1.9, ln_ + 0.12, 0.5, 0.32, 0.0)
+    for (x, y, z) in ((266.0, 6.5, 15.4), (273.0, 9.0, 15.4), (280.0, 6.5, 15.4), (318.0, 7.5, 16.0), (326.0, 9.5, 16.0), (334.0, 7.0, 16.0)):
+        K.sodium(x, y, z, 5.5, red=0.25)
     # The gantry: two legs a side on rails along the yard, twin girders
     # across it, the trolley and its cab, a box hanging in the grab.
     GX, Z0, Z1, TOP = 301.0, 15.4, 43.6, 16.0
@@ -1103,7 +1133,7 @@ def workshop():
     K.name_sign("CHAPAS", 395.0, GY, 14.2, PI, h=0.75, lift=3.6)
     scatter(r, 389.6, 399.0, 14.4, 27.0, 9, kinds=("tyres", "tyres", "drum_pallet", "reel", "crates", "drum", "pallets"))
     scatter(r, 409.0, 422.0, 14.4, 26.0, 7, kinds=("tyres", "drum_pallet", "reel", "crates", "drum"))
-    K.container(419.0, 21.0, PI / 2, "grey", ln=6.06)
+    box40(419.0, 21.0, PI / 2, "grey", ln=6.06)
     hook = K.crane(410.4, 18.6, -PI * 0.62, h=10.5, jib=14.0)
     P.place("tyres", hook[0], hook[1] - 1.7, hook[2], 0.0, district=D)
     K.wash(402.0, 414.0, 15.0, 24.0, level=0.6, step=5.0)
@@ -1112,7 +1142,7 @@ def workshop():
         px, pz = 405.0 + math.cos(byaw) * du - math.sin(byaw) * 0.2, 36.7 - math.sin(byaw) * du - math.cos(byaw) * 0.2
         box(k("metal", 1), px - 0.1, px + 0.1, 6.4, 8.2, pz - 0.1, pz + 0.1, scale=0.5)
     B.billboard(D, 405.0, 9.9, 36.7, 9.6, 3.4, byaw, r, depth=0.3)
-    K.container(390.4, 37.0, PI / 2, "rust")
+    box40(390.4, 37.0, PI / 2, "rust")
     strip(404.0, 26.6, PI, power=6.0)
     stand(397.4, 28.6, PI, "work")
     stand(399.0, 28.0, PI * 0.7, "idle")
@@ -1327,8 +1357,6 @@ def towers():
     K.chiller(449.0, 37.6, t7)
     K.tray(442.2, 39.3, 454.0, 39.3, t7)
     K.roof_lamp(453.6, 36.0, t7, power=4.0, hue="white")
-    for (x0, x1, z0, z1, q) in ((445.0, 448.2, 22.6, 23.8, 2), (452.0, 454.0, 24.6, 28.0, 1), (442.0, 443.4, 30.0, 34.0, 3)):
-        K.roof_patch(x0, x1, z0, z1, t7, K.FELT[q])
     # Lit from its foot on the street side too, where the hall's light is.
     K.wash(X0, X1, Z0 - 1.4, Z0 - 1.4, level=1.0, step=3.5)
     K.wash(X0 - 1.4, X0 - 1.4, Z0, Z1, level=0.7)
@@ -1579,9 +1607,9 @@ def yards():
     stand(394.9, -41.2, PI / 2, "talk")
     stand(396.0, -40.9, -PI / 2, "talk")
     # Built containers at ground level in three yards.
-    K.container(293.8, -150.0, PI / 2, "blue")
-    K.container(350.0, -164.5, 0.0, "rust")
-    K.container(482.0, 16.6, PI, "green", ln=6.06)
+    box40(293.8, -150.0, PI / 2, "blue")
+    box40(350.0, -164.5, 0.0, "rust")
+    box40(482.0, 16.6, PI, "green", ln=6.06)
     # Drums on pallets in rows, skips, blocks, a forklift at work.
     for i, z in enumerate((-138.0, -136.5, -135.0, -133.5)):
         P.place("drum_pallet", 294.4, GY, z, (0.0, PI / 2, PI, 0.0)[i], district=D)
@@ -1600,18 +1628,13 @@ def yards():
     # Barriers along the tank farm's edge of the estate road.
     K.jersey(304.7, -130.0, 304.7, -102.0)
     K.jersey(304.7, -160.0, 304.7, -138.0)
-    # Along the fences a walker passes: drums on pallets, crates, heaps,
-    # litter; the verges' concrete cracked, tarred and patched.
+    # Along the fences a walker passes: drums on pallets, totes, heaps,
+    # litter (the ground's own cracks and patches are the surface's).
     rk = R(8702)
     K.kerbside(rk, 178.0, -12.3, 203.0, -12.3, 0.0, 5)
     K.kerbside(rk, 223.5, -12.3, 245.0, -12.3, 0.0, 4)
     K.kerbside(rk, 425.9, -166.0, 425.9, -95.0, PI / 2, 12)
     K.kerbside(rk, 454.3, -124.0, 454.3, -97.0, -PI / 2, 4)
-    for (x0, x1, z0, z1, n) in ((176.5, 246.0, -12.2, -10.1, 30), (296.0, 388.0, -12.2, -10.1, 34), (425.9, 427.9, -167.0, -11.0, 60), (452.1, 454.3, -175.0, -38.0, 40),
-                                (108.5, 178.0, 12.2, 16.6, 16), (260.0, 340.0, 12.1, 12.4, 6), (296.0, 304.0, -80.0, -16.0, 26), (305.0, 424.0, -91.5, -84.5, 30),
-                                (178.0, 295.0, -91.5, -84.5, 30), (296.5, 303.5, -166.0, -94.0, 26), (268.5, 295.0, -160.0, -96.0, 30), (177.0, 241.0, -35.0, -13.0, 30),
-                                (406.0, 425.0, -167.0, -118.0, 26), (304.5, 312.5, -160.0, -100.0, 14)):
-        K.cracks(rk, x0, z0, x1, z1, n)
     # The apron between the spheres and the garage street's fence: drums
     # on pallets, a foam trolley, crates, a board with the plant's name
     # over the fence, a man on his round.
@@ -1664,6 +1687,155 @@ def yards():
     stand(386.0, -40.0, PI / 2, "carry")
 
 
+def arrow(x, z, yaw, ln=4.0, col=K.PAINT_WHITE):
+    """A painted lane arrow on a yard road, pointing along yaw (0 toward +z)."""
+    ux, uz = math.sin(yaw), math.cos(yaw)
+    rx, rz = uz, -ux
+    w, hw, hl = 0.09, 0.42, 1.2
+    a = ln / 2 - hl
+
+    def at(u, s):
+        return (x + ux * u + rx * s, GY + 0.015, z + uz * u + rz * s)
+    pts = (at(-ln / 2, -w), at(a, -w), at(a, -hw), at(ln / 2, 0.0), at(a, hw), at(a, w), at(-ln / 2, w))
+    # Face up whichever way the outline turns.
+    n = (pts[1][0] - pts[0][0]) * (pts[6][2] - pts[0][2]) - (pts[1][2] - pts[0][2]) * (pts[6][0] - pts[0][0])
+    pts = pts if n < 0 else pts[::-1]
+    poly(k("paint", 1), pts, [(0, 0)] * len(pts), col)
+
+
+def place_row(name, x0, z0, x1, z1, n, yaw=0.0, jitter=0.0, r=None, y=GY):
+    """n of one prop in a row from one point to the other."""
+    for i in range(n):
+        t = (i + 0.5) / n
+        j = r.uniform(-jitter, jitter) if r else 0.0
+        P.place(name, x0 + (x1 - x0) * t, y, z0 + (z1 - z0) * t, yaw + j, district=D)
+
+
+def dress():
+    """Round 4: the ground and roof planes the review found blank, filled.
+    The estate's cross: goods staged at its corners, a trailer laid up, a
+    road plate and an open manhole under cones, lane arrows, a mast over
+    it. The depot's forecourt: loads staged at the open doors, a trailer
+    on its legs along the fence, skips, lamps over the middle. The plant's
+    yard between its street wall and the frame: lying and standing
+    vessels, a pipe run on sleepers, totes and drums, pumps, lamps. The
+    fuel forecourt's mouth. The sawtooth roofs: ducts along the valleys,
+    vents on the slopes, air units on decks."""
+    r = R(8711)
+    # --- The estate's cross (300, -88).
+    place_row("ibc", 311.0, -93.4, 323.0, -93.4, 9, 0.0, 0.08, r)
+    place_row("ibc", 311.6, -94.7, 319.0, -94.7, 5, 0.0, 0.08, r)
+    P.place("skip", 329.0, GY, -94.2, 0.0, district=D)
+    place_row("drum_pallet", 345.0, -93.5, 352.0, -93.5, 5, 0.0, 0.3, r)
+    place_row("drum_pallet", 305.8, -80.6, 305.8, -76.0, 3, PI / 2, 0.3, r)
+    place_row("ibc", 307.0, -82.9, 316.0, -82.9, 7, 0.0, 0.1, r)
+    P.place("skip", 252.0, GY, -95.6, 0.0, district=D)
+    place_row("ibc", 240.4, -95.4, 246.0, -95.4, 4, 0.0, 0.1, r)
+    place_row("drum_pallet", 270.0, -82.6, 280.0, -82.6, 6, 0.0, 0.4, r)
+    P.place("trailer", 292.6, GY, -112.0, -PI / 2, district=D)
+    # Road works: a plate over a trench, cones and a barrier round it; a
+    # manhole open with its lid off, steam from it.
+    box(K.M("steel"), 298.6, 301.4, GY, GY + 0.03, -101.0, -99.4, scale=1.0, col=K.shade(K.GREY, 0.45))
+    for (cx, cz) in ((298.2, -101.6), (301.8, -101.6), (298.2, -98.8), (301.8, -98.8), (300.0, -102.2)):
+        P.place("cone", cx, GY, cz, r.uniform(0, 6.28), district=D)
+    P.place("barrier", 300.0, GY, -98.0, 0.0, district=D)
+    cylinder(k("dark"), 302.2, -78.4, GY + 0.004, GY + 0.012, 0.42, segs=10)
+    cylinder(K.M("steel", 1), 303.0, -77.6, GY, GY + 0.04, 0.4, segs=10, col=K.STEEL)
+    for (cx, cz) in ((301.4, -79.2), (303.0, -79.2), (301.4, -77.6)):
+        P.place("cone", cx, GY, cz, 0.0, district=D)
+    K.steam(302.2, GY + 0.2, -78.4, kind="street", lit=2.5)
+    for (x, z, yaw) in ((298.0, -104.0, PI), (302.0, -72.0, 0.0), (284.0, -90.0, -PI / 2), (316.0, -86.0, PI / 2)):
+        arrow(x, z, yaw)
+    mast(294.8, -79.6, PI * 0.75, level=0.7)
+    K.sodium(299.0, 1.0, -89.5, 4.5)
+    stand(299.0, -103.0, PI, "idle")
+    stand(310.0, -95.6, 0.4, "phone")
+    # --- The depot's forecourt (x 176..242, z -36..-10): loads staged at
+    # the open and half-open doors, a trailer laid up along the fence,
+    # skips by the east fence, lamps over the middle.
+    for dx in (-1.3, 0.0, 1.3):
+        for dz in (0.0, 1.5):
+            P.place(("pallets", "ibc", "crates")[int(dx + 1.3) % 3] if dz else "drum_pallet", 195.5 + dx, GY, -31.6 + dz, r.uniform(-0.2, 0.2), district=D)
+            P.place(("crates", "pallets", "ibc")[int(dx + 1.3) % 3], 216.5 + dx, GY, -31.4 + dz, r.uniform(-0.2, 0.2), district=D)
+    place_row("ibc", 207.6, -31.2, 211.4, -31.2, 3, 0.0, 0.1, r)
+    P.place("trailer", 186.6, GY, -14.8, 0.0, district=D)
+    P.place("skip", 236.6, GY, -16.4, PI / 2, district=D)
+    P.place("skip", 232.4, GY, -16.4, PI / 2, district=D)
+    for x in (197.0, 221.0):
+        strip(x, -13.4, PI, power=6.0)
+    for (x, z, yaw) in ((209.0, -20.0, PI), (198.0, -25.0, -PI / 2), (220.0, -25.0, PI / 2)):
+        arrow(x, z, yaw, ln=3.4)
+    stand(196.8, -27.8, 0.3, "idle")
+    stand(214.6, -27.9, -0.4, "phone")
+    stand(209.0, -15.0, PI, "idle")
+    # --- The plant's yard (x 340..386, z -46..-12.4).
+    P.place("hvessel_rust", 352.0, GY, -36.0, 0.0, district=D)
+    P.place("hvessel_grey", 352.0, GY, -29.6, 0.0, sxz=0.85, district=D)
+    for (x, z, name, s, h) in ((373.0, -37.0, "vessel_rust", 1.25, 1.35), (378.6, -38.8, "vessel_white", 0.9, 1.05), (368.4, -41.2, "vessel_rust", 0.75, 0.8),
+                               (380.8, -31.2, "vessel_white", 0.7, 0.62)):
+        P.place(name, x, GY, z, r.uniform(0, 6.28), sy=h, sxz=s, district=D)
+        K.sodium(x, 2.4, z + s * 1.6, 3.2, red=0.3)
+    K.run([(342.0, 0.55, -43.6), (384.0, 0.55, -43.6)], r=0.22, col=K.STEEL_BLUE, segs=10, flanges=8.0)
+    K.run([(342.0, 0.55, -44.3), (366.0, 0.55, -44.3), (366.0, 0.55, -41.0)], r=0.15, col=K.RUST_D, segs=8, flanges=8.0)
+    K.run([(342.0, 0.5, -42.9), (373.0, 0.5, -42.9), (373.0, 2.4, -39.0)], r=0.11, col=K.YELLOW, segs=6, flanges=99.0, detail=1)
+    for x in (345.0, 351.0, 357.0, 363.0, 369.0, 375.0, 381.0):
+        box(K.M("concrete", 1), x - 0.2, x + 0.2, GY, 0.32, -44.8, -42.4, scale=1.0, col=K.CONC)
+    place_row("ibc", 360.0, -22.0, 367.0, -22.0, 6, 0.0, 0.08, r)
+    place_row("ibc", 360.6, -23.3, 365.6, -23.3, 4, 0.0, 0.08, r)
+    place_row("drum_pallet", 344.0, -19.0, 344.0, -25.0, 4, 0.0, 0.5, r)
+    P.place("skip", 377.0, GY, -15.2, 0.0, district=D)
+    P.place("forklift", 371.0, GY, -26.0, 2.4, district=D)
+    for (x, z) in ((348.0, -14.8), (356.0, -14.8)):
+        P.place("cone", x, GY, z, 0.0, district=D)
+    strip(362.0, -33.0, PI / 2, power=6.0)
+    strip(347.0, -24.0, PI / 2, power=5.0, cone=False)
+    stand(357.6, -33.0, 0.3, "work")
+    stand(370.4, -33.0, PI, "idle")
+    stand(369.4, -32.6, 0.2, "talk")
+    stand(362.0, -24.8, PI, "carry")
+    # --- The fuel forecourt's mouth on the street.
+    K.totem(152.6, 14.0, PI * 0.9, n=3, scale=1.0, y0=1.6)
+    place_row("tyres", 168.4, 14.2, 172.4, 14.2, 3, 0.0, 0.0, r)
+    P.place("aframe", 140.4, GY, 13.8, PI * 0.9, district=D)
+    P.place("bin", 145.0, GY, 13.4, district=D)
+    for (x, z) in ((139.0, 15.2), (141.6, 15.4)):
+        P.place("cone", x, GY, z, 0.0, district=D)
+    for (x, z, yaw) in ((118.0, 20.0, 0.0), (172.0, 26.0, PI), (147.0, 14.6, PI / 2)):
+        arrow(x, z, yaw, ln=3.4)
+    stand(151.0, 15.2, PI, "phone")
+    stand(170.0, 15.6, PI * 0.8, "talk")
+    stand(171.2, 15.2, -PI * 0.3, "talk")
+
+
+def saw_plant(x0, x1, z0, z1, y, n, rise, r, skip=None):
+    """A sawtooth roof's plant (its ridges along x, its lights facing -z):
+    ducts lying up the slopes by the valleys, vents in groups on the
+    slopes, air units on small decks level with the ridges. `skip` a span
+    of x the walkway keeps clear."""
+    d = (z1 - z0) / n
+    for i in range(n):
+        za = z0 + i * d
+        if i % 2 == 1:
+            # A duct by the valley, its stands on the slope 1.4 m up it.
+            zc = za + d - 1.4
+            yc = y + rise * 1.4 / d - 0.2
+            a, b = x0 + 3.0, (skip[0] - 1.0) if skip else x1 - 3.0
+            if b - a > 8.0:
+                K.seg_run("rp_duct", a, zc, b, zc, yc)
+        for j in range(max(1, int((x1 - x0) / 26.0))):
+            vx = x0 + (x1 - x0) * (j + 0.5) / max(1, int((x1 - x0) / 26.0)) + r.uniform(-4.0, 4.0)
+            if skip and skip[0] - 2.0 < vx < skip[1] + 2.0:
+                continue
+            P.place("rp_vents", vx, y + rise * (1 - 2.2 / d) - 0.1, za + 2.2, r.uniform(0, 6.28), district=D)
+    # Air units on decks over the slopes, level with the ridges.
+    for (ax, ai) in ((x0 + (x1 - x0) * 0.25, 2), (x0 + (x1 - x0) * 0.85, n - 3)):
+        za = z0 + ai * d
+        K.deck(ax - 2.4, ax + 2.4, za + 0.4, za + 3.0, y + rise)
+        for (px, pz) in ((ax - 2.2, za + 0.6), (ax + 2.2, za + 0.6), (ax - 2.2, za + 2.8), (ax + 2.2, za + 2.8)):
+            K.column(px, pz, y, y + rise, t=0.12, detail=1)
+        P.place("rp_ahu", ax, y + rise + 0.08, za + 1.7, 0.0, district=D)
+
+
 def roofs():
     """The sawtooth roofs, worked: walkways, ducts, air units, rooflights."""
     r = R(8691)
@@ -1673,26 +1845,50 @@ def roofs():
     K.saw_dress(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, rise=2.4, walk=0.62, lit=False)
 
 
-roads()
-works()
-tank_farm()
-plant()
-depot()
-fuel()
-street_shed()
-container_yard()
-BUS = substation()
-workshop()
-towers()
-gasholder()
-east()
-lines(BUS)
-power_line()
-frontage_light()
-roofs()
-yards()
-street_cones()
 import os  # noqa: E402
+
+
+def _tris():
+    """This module's triangles so far, by level of detail (SANTO_PROF)."""
+    from ncw import kit as _kit
+    n = [0, 0]
+    for key, b in _kit.batches.items():
+        if key[0] == D:
+            n[1 if key[2] else 0] += sum(len(f) - 2 for f in b.faces)
+    return n
+
+
+def _step(fn, *a):
+    if not os.environ.get("SANTO_PROF"):
+        return fn(*a)
+    t0, i0 = _tris(), len(P.INSTANCES)
+    out = fn(*a)
+    t1 = _tris()
+    print(f"SANTO_PROF {fn.__name__}: {t1[0] - t0[0]} tris, {t1[1] - t0[1]} detail, {len(P.INSTANCES) - i0} props")
+    return out
+
+
+_step(roads)
+_step(works)
+_step(tank_farm)
+_step(plant)
+_step(depot)
+_step(fuel)
+_step(street_shed)
+_step(container_yard)
+BUS = _step(substation)
+_step(workshop)
+_step(towers)
+_step(gasholder)
+_step(east)
+_step(lines, BUS)
+_step(power_line)
+_step(frontage_light)
+_step(roofs)
+_step(saw_plant, 180.0, 264.0, -160.0, -100.0, 8.6, 10, 2.6, R(8712), (226.0, 230.0))
+_step(yards)
+_step(dress)
+_step(street_cones)
 if os.environ.get("SANTO_DUMP"):
     # What this module set down (props, collision boxes, people), for the
     # check that nothing of it stands in a street: agents/santo/r7/own.py.

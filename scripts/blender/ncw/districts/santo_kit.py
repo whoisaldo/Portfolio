@@ -949,7 +949,14 @@ def sawtooth(x0, x1, z0, z1, y, n, glaze, r, wall=CREAM, rise=2.6, lit=0.65, tin
         # Its sill and head, the slope behind, the gable ends, the gutter.
         for (ya, yb) in ((y, y + 0.25), (y + rise - 0.12, y + rise)):
             quad_n(k("metal"), (W(u0, ya, a), W(u1, ya, a), W(u1, yb, a), W(u0, yb, a)), gn)
-        quad_n(M("cladding"), (W(u0, y + rise, a), W(u1, y + rise, a), W(u1, y, b_), W(u0, y, b_)), (0, 1, 0), shade(SHEET, r.uniform(0.85, 1.1)))
+        # The slope pale under the ridge and dark down to the valley, where
+        # the next tooth stands over it; a galvanised flashing along the
+        # ridge: from above every tooth reads as a ridge and a fall.
+        tone, vm, ym = r.uniform(0.85, 1.1), a + d * 0.55, y + rise * 0.45
+        quad_n(M("cladding"), (W(u0, y + rise, a), W(u1, y + rise, a), W(u1, ym, vm), W(u0, ym, vm)), (0, 1, 0), shade(SHEET, tone * 1.15))
+        quad_n(M("cladding"), (W(u0, ym, vm), W(u1, ym, vm), W(u1, y, b_), W(u0, y, b_)), (0, 1, 0), shade(SHEET, tone * 0.6))
+        p_, q_ = W(u0, 0.0, a - 0.06), W(u1, 0.0, a + 0.34)
+        box(k("trim"), min(p_[0], q_[0]), max(p_[0], q_[0]), y + rise - 0.05, y + rise + 0.05, min(p_[2], q_[2]), max(p_[2], q_[2]), scale=1.0, col=c(0.6, 0.61, 0.6))
         for ue, s in ((u0, -1), (u1, 1)):
             en = (s, 0, 0) if ridge_x else (0, 0, s)
             tri_n(M("cladding"), (W(ue, y, a), W(ue, y + rise, a), W(ue, y, b_)), en, wall)
@@ -1359,44 +1366,71 @@ def roof_furnish(info, r, kinds=None, lamps=True):
     def pt(a_, c_):
         return L(a_, c_)
 
-    def run(fn, a_, c0, c1, **kw):
+    def run(name, a_, c0, c1):
         (xa, za), (xb, zb) = pt(a_, c0), pt(a_, c1)
         if clear(min(xa, xb) - 0.6, max(xa, xb) + 0.6, min(za, zb) - 0.6, max(za, zb) + 0.6):
-            fn(xa, za, xb, zb, y, **kw)
+            seg_run(name, xa, za, xb, zb, y)
 
+    # Across the bay the duct and tray run (the bays lie across `long_x`).
+    across = 0.0 if not long_x else math.pi / 2
     for g in range(1, n):
         ac = g * pitch
         if lamps:
             lx, lz = pt(ac + 1.5, span * (0.3 if g % 2 else 0.62))
             if clear(lx - 0.5, lx + 0.5, lz - 0.5, lz + 0.5):
                 roof_lamp(lx, lz, y, hue="amber" if g % 3 else "white")
-        for _ in range(2):
-            a_, c_ = ac + r.uniform(-2.2, 1.0), r.uniform(4.0, span - 8.0)
-            (xa, za), (xb, zb) = pt(a_, c_), pt(a_ + r.uniform(1.2, 2.4), c_ + r.uniform(2.0, 5.0))
-            if clear(min(xa, xb), max(xa, xb), min(za, zb), max(za, zb)):
-                roof_patch(min(xa, xb), max(xa, xb), min(za, zb), max(za, zb), y, r.choice(FELT))
+        # Small plant at the bay's two ends: vents, a hatch, a dish, a tank,
+        # condensers in a pair.
+        for (da, cf, pick) in ((1.6, 0.88, g % 4), (-1.6, 0.1, (g + 2) % 4)):
+            px, pz = pt(ac + da, max(2.6, span * cf))
+            if not clear(px - 1.2, px + 1.2, pz - 1.2, pz + 1.2):
+                continue
+            if pick == 0:
+                P.place("rp_vents", px, y, pz, r.uniform(0, 6.28), district=D)
+            elif pick == 1:
+                P.place("rp_hatch", px, y, pz, across, district=D)
+                P.place("dish", px + 0.9, y, pz - 0.9, r.uniform(0, 6.28), district=D)
+            elif pick == 2:
+                P.place("tank_roof", px, y, pz, r.uniform(0, 6.28), sxz=0.8, district=D)
+            else:
+                for s_ in (-1.2, 1.2):
+                    qx, qz = pt(ac + da, max(2.6, span * cf) + s_)
+                    P.place("rp_cond", qx, y, qz, across + math.pi / 2, district=D)
         if g == 1 or (g == n - 1 and span > 14.0 and n > 2):
             continue
         kind = (kinds or {}).get(g, ("ahu", "tray", "chiller")[g % 3])
         if kind == "ahu":
             x, z = pt(ac - 1.3, span * 0.26)
             if clear(x - 2.0, x + 2.0, z - 2.0, z + 2.0):
-                ahu(x, z, y, along_x=not long_x)
-                run(duct, ac - 1.3, span * 0.26 + 1.7, span * 0.74)
+                P.place("rp_ahu", x, y, z, across, district=D)
+                run("rp_duct", ac - 1.3, span * 0.26 + 2.4, span * 0.74)
         elif kind == "tray":
-            run(tray, ac - 1.6, 3.0, span * 0.8)
-            (xa, za), (xb, zb) = pt(ac + 1.4, span * 0.64), pt(ac + 1.4, span * 0.64 + 4.2)
-            if clear(min(xa, xb) - 1, max(xa, xb) + 1, min(za, zb) - 1, max(za, zb) + 1):
-                if long_x:
-                    # (A bullet lies along x: here it would cross the bay, so a unit stands in its place.)
-                    ahu((xa + xb) / 2, (za + zb) / 2, y, along_x=False, ln=3.0, wd=1.7, h=1.5)
-                else:
-                    bullet(min(xa, xb), max(xa, xb), za, 0.72, TANK_WHITE, y=y + 1.25, base=y)
+            run("rp_tray", ac - 1.6, 3.0, span * 0.8)
+            x, z = pt(ac + 1.4, span * 0.66)
+            if clear(x - 2.0, x + 2.0, z - 2.0, z + 2.0):
+                P.place("rp_ahu", x, y, z, across, district=D)
+                vx, vz = pt(ac + 1.4, span * 0.66 + 3.0)
+                P.place("rp_vents", vx, y, vz, 0.7, district=D)
         else:
-            x, z = pt(ac + 1.2, span * 0.3)
-            if clear(x - 3.0, x + 3.0, z - 3.0, z + 3.0):
-                chiller(x, z, y, along_x=not long_x)
-            run(duct, ac - 1.4, span * 0.42, span * 0.78, w=0.7, h=0.55)
+            for s_ in (-1.2, 1.2, 3.6):
+                x, z = pt(ac + 1.2, span * 0.3 + s_)
+                if clear(x - 1.2, x + 1.2, z - 1.2, z + 1.2):
+                    P.place("rp_cond", x, y, z, across + math.pi / 2, district=D)
+            run("rp_duct", ac - 1.4, span * 0.42, span * 0.78)
+
+
+def seg_run(name, x0, z0, x1, z1, y, step=4.0):
+    """A run of 4 m pieces (a duct, a tray: `rp_duct`, `rp_tray`) laid end
+    to end along x or z from one point to the other, at roof level y."""
+    along_x = abs(x1 - x0) >= abs(z1 - z0)
+    a0, a1 = (min(x0, x1), max(x0, x1)) if along_x else (min(z0, z1), max(z0, z1))
+    n = max(1, round((a1 - a0) / step))
+    for i in range(n):
+        a = a0 + (a1 - a0) * (i + 0.5) / n
+        if along_x:
+            P.place(name, a, y, z0, 0.0, district=D)
+        else:
+            P.place(name, x0, y, a, math.pi / 2, district=D)
 
 
 def roof_lane(x0, x1, z0, z1, y, r, lights=0.8):
@@ -1427,16 +1461,20 @@ def roof_lane(x0, x1, z0, z1, y, r, lights=0.8):
     edge = shade(SODIUM, 0.5) if int(x0 + z0) % 2 else c(0.07, 0.42, 0.48)
     walls(k("glow"), [(x0 - 0.04, z1 + 0.04), (x1 + 0.04, z1 + 0.04), (x1 + 0.04, z0 - 0.04), (x0 - 0.04, z0 - 0.04)], y + 0.86, y + 0.95, edge)
     (xa, za), (xb, zb) = L(2.0, span - 1.5), L(length * 0.62, span - 1.5)
-    duct(xa, za, xb, zb, y, w=0.7, h=0.55)
+    seg_run("rp_duct", xa, za, xb, zb, y)
     (xa, za), (xb, zb) = L(length * 0.5, span - 0.75), L(length - 1.5, span - 0.75)
-    tray(xa, za, xb, zb, y, w=0.4)
+    seg_run("rp_tray", xa, za, xb, zb, y)
     for a_ in (length * 0.3, length * 0.82):
         lx, lz = L(a_, span - 2.6)
         roof_lamp(lx, lz, y, power=5.5)
-    for _ in range(3):
-        a_, c_ = r.uniform(2.0, length - 6.0), r.uniform(1.0, span - 3.0)
-        (xa, za), (xb, zb) = L(a_, c_), L(a_ + r.uniform(2.0, 4.5), c_ + r.uniform(1.0, 2.0))
-        roof_patch(min(xa, xb), max(xa, xb), min(za, zb), max(za, zb), y, r.choice(FELT))
+    # Between the rooflights and the duct: an air unit, condensers, vents.
+    along = 0.0 if long_x else math.pi / 2
+    if span >= 9.0:
+        px, pz = L(length * 0.78, span * 0.55)
+        P.place("rp_ahu", px, y, pz, along, district=D)
+    for i, a_ in enumerate((length * 0.12, length * 0.45, length * 0.62)):
+        px, pz = L(a_, min(span - 3.2, 4.0))
+        P.place(("rp_cond", "rp_vents", "rp_hatch")[i], px, y, pz, along + (math.pi / 2 if i == 0 else 0.0), district=D)
 
 
 def av_pad(cx, cz, y, rad=6.0):
@@ -2081,7 +2119,7 @@ def kerbside(r, x0, z0, x1, z1, yaw, n, depth=0.9):
                 P.place("drum_pallet", bx + ux * j * 1.42, GY, bz + uz * j * 1.42, yaw + (math.pi / 2) * r.randrange(4), district=D)
         elif kind == 1:
             P.place("pallets", bx, GY, bz, yaw + r.uniform(-0.2, 0.2), district=D)
-            P.place("crates", bx + ux * 1.5, GY, bz + uz * 1.5, yaw + r.uniform(-0.3, 0.3), district=D)
+            P.place("ibc", bx + ux * 1.5, GY, bz + uz * 1.5, yaw + r.uniform(-0.3, 0.3), district=D)
         elif kind == 2:
             P.place("rubbish", bx - ox * depth * 0.1, GY, bz - oz * depth * 0.1, yaw, district=D)
         elif kind == 3:
@@ -2092,8 +2130,9 @@ def kerbside(r, x0, z0, x1, z1, yaw, n, depth=0.9):
                 P.place("barrel", bx + ux * j * 0.7, GY, bz + uz * j * 0.7 , r.uniform(0, 6.28), district=D)
             P.place("blocks", bx + ux * 2.4, GY, bz + uz * 2.4, r.uniform(0, 6.28), district=D)
         else:
-            P.place("crates", bx, GY, bz, yaw + r.uniform(-0.4, 0.4), district=D)
-            P.place("tyres", bx + ux * 1.3, GY, bz + uz * 1.3, 0.0, district=D)
+            for j in range(2):
+                P.place("ibc", bx + ux * j * 1.25, GY, bz + uz * j * 1.25, yaw + r.uniform(-0.1, 0.1), district=D)
+            P.place("tyres", bx + ux * 2.6, GY, bz + uz * 2.6, 0.0, district=D)
         if i % 3 == 1:
             # A lantern column by it, and its pool.
             lx, lz = bx - ux * 1.4 + ox * depth * 0.2, bz - uz * 1.4 + oz * depth * 0.2
@@ -2649,20 +2688,304 @@ def container(cx, cz, yaw=0.0, col="red", ln=12.19, y=GY, doors=1, solid=True):
 
 
 def _container(kk, col, ln=12.19):
+    """A stacked box: its body a hair inside dark corner posts and a dark
+    bottom rail, so a seam shows between every box and the one on it; the
+    door end at +x pale-edged, two leaves, four lock rods standing proud and
+    a code plate; the blind end at -x ribbed."""
     hx = ln / 2
     key = kk(MAT["container"])
-    box(key, -hx, hx, 0.0, 2.59, -1.22, 1.22, scale=1.0, col=col)
-    # Its corner posts and the doors' bars at one end.
-    for z in (-1.22, 1.14):
-        box(key, hx, hx + 0.03, 0.0, 2.59, z, z + 0.08, scale=1.0, col=shade(col, 0.5))
-    for z in (-0.62, -0.2, 0.2, 0.62):
-        box(key, hx, hx + 0.05, 0.15, 2.45, z - 0.025, z + 0.025, scale=1.0, col=shade(col, 0.45))
-    box(key, -hx, hx, 2.59, 2.6, -1.22, 1.22, scale=1.0, col=shade(col, 0.7))
+    t, td = kk("trim"), kk("trim", 1)
+    dark = c(0.025, 0.025, 0.03)
+    box(key, -hx + 0.06, hx - 0.06, 0.16, 2.54, -1.2, 1.2, scale=1.0, col=col)
+    box(t, -hx, hx, 0.0, 0.16, -1.22, 1.22, scale=1.0, col=dark)
+    box(t, -hx, hx, 2.54, 2.59, -1.22, 1.22, scale=1.0, col=shade(col, 0.55))
+    for x in (-hx, hx - 0.18):
+        for z in (-1.22, 1.04):
+            box(t, x, x + 0.18, 0.0, 2.59, z, z + 0.18, scale=1.0, col=dark)
+    # The door end: the leaves' frame lighter than the box, the seam
+    # between them, four rods with their keepers, the plate.
+    door = shade(col, 1.25)
+    box(t, hx - 0.06, hx - 0.01, 0.16, 2.54, -1.04, 1.04, scale=1.0, col=door)
+    box(td, hx - 0.01, hx + 0.005, 0.2, 2.5, -0.015, 0.015, scale=1.0, col=dark)
+    for z in (-0.78, -0.3, 0.3, 0.78):
+        box(td, hx - 0.01, hx + 0.05, 0.22, 2.48, z - 0.025, z + 0.025, scale=1.0, col=c(0.5, 0.5, 0.48))
+        box(td, hx - 0.01, hx + 0.07, 1.05, 1.12, z - 0.1, z + 0.06, scale=1.0, col=c(0.5, 0.5, 0.48))
+    box(td, hx - 0.01, hx + 0.01, 2.0, 2.3, -0.95, -0.4, scale=1.0, col=PAINT_WHITE)
+    # The blind end's ribs.
+    for z in (-0.75, -0.25, 0.25, 0.75):
+        box(td, -hx + 0.02, -hx + 0.06, 0.2, 2.5, z - 0.12, z + 0.12, scale=1.0, col=shade(col, 0.75))
 
 
-for _name, _col in (("c40_red", OXIDE), ("c40_rust", RUST), ("c40_blue", c(0.07, 0.15, 0.30)), ("c40_green", c(0.08, 0.22, 0.15))):
+BOX_TONES = (("c40_red", OXIDE), ("c40_rust", RUST), ("c40_blue", c(0.08, 0.17, 0.34)), ("c40_green", c(0.09, 0.25, 0.17)),
+             ("c40_grey", c(0.36, 0.37, 0.38)), ("c40_cream", c(0.62, 0.58, 0.48)), ("c40_teal", c(0.06, 0.3, 0.32)), ("c40_yellow", c(0.62, 0.44, 0.06)))
+for _name, _col in BOX_TONES:
     P.proto(_name, box=(6.1, 1.3, 1.22), reach=700)(lambda kk, _c=_col: _container(kk, _c))
 P.proto("c20_grey", box=(3.05, 1.3, 1.22), reach=700)(lambda kk: _container(kk, c(0.36, 0.2, 0.1), ln=6.06))
+
+
+# ---------------------------------------------------------------------------
+# Round 4: roof plant, yard pieces and process vessels as instances, so a
+# roof, a yard or the frame is full without the district's pack growing.
+# Each is one or two draws over the whole city.
+# ---------------------------------------------------------------------------
+def _slats(t, x0, x1, y0, y1, z, n, col, d=0.04):
+    for i in range(n):
+        ya = y0 + (y1 - y0) * i / n
+        box(t, x0, x1, ya, ya + (y1 - y0) / n * 0.55, z - d, z + d, scale=1.0, col=col)
+
+
+@P.proto("rp_ahu", box=(1.8, 1.25, 1.1), reach=650)
+def _rp_ahu(kk):
+    """An air handling unit on a roof: a panelled casing on a dark frame,
+    louvres at -x, an access door with its handles on +z, two fan cowls in
+    its lid, a duct stub rising at +x."""
+    t, td = kk("trim"), kk("trim", 1)
+    col = SHEET_PALE
+    dark = c(0.03, 0.03, 0.035)
+    box(t, -1.8, 1.8, 0.0, 0.25, -1.05, 1.05, scale=1.0, col=dark)
+    box(t, -1.7, 1.7, 0.25, 2.0, -1.0, 1.0, scale=1.0, col=col)
+    for x in (-0.85, 0.0, 0.85):
+        for z in (-1.0, 1.0):
+            box(td, x - 0.025, x + 0.025, 0.28, 1.97, z - 0.012, z + 0.012, scale=1.0, col=shade(col, 0.45))
+    box(t, -0.75, -0.1, 0.4, 1.8, 1.0, 1.02, scale=1.0, col=shade(col, 0.82))
+    for y in (0.7, 1.5):
+        box(td, -0.22, -0.14, y, y + 0.1, 1.02, 1.06, scale=1.0, col=dark)
+    for i in range(7):
+        y = 0.4 + i * 0.22
+        box(td, -1.74, -1.7, y, y + 0.11, -0.86, 0.86, scale=1.0, col=shade(col, 0.4))
+    box(t, -1.76, 1.76, 2.0, 2.09, -1.06, 1.06, scale=1.0, col=shade(col, 0.7))
+    for x in (-0.8, 0.8):
+        cylinder(t, x, 0.0, 2.09, 2.42, 0.62, segs=12, col=shade(col, 0.8), cap=False)
+        cylinder(t, x, 0.0, 2.3, 2.34, 0.6, segs=12, col=dark)
+        box(td, x - 0.6, x + 0.6, 2.36, 2.4, -0.025, 0.025, scale=1.0, col=shade(col, 0.6))
+    box(t, 1.2, 1.7, 2.09, 2.9, -0.45, 0.45, scale=1.0, col=shade(col, 0.9))
+    box(t, 1.15, 1.75, 2.9, 2.96, -0.5, 0.5, scale=1.0, col=shade(col, 0.55))
+
+
+@P.proto("rp_cond", box=(1.1, 0.7, 0.6), reach=420, detail=True)
+def _rp_cond(kk):
+    """A condenser on its stand: a coil box behind louvred sides and a fan
+    under a guard in its lid."""
+    t = kk("trim")
+    col = c(0.46, 0.47, 0.47)
+    dark = c(0.03, 0.03, 0.035)
+    for x in (-0.95, 0.85):
+        box(t, x, x + 0.1, 0.0, 0.3, -0.55, 0.55, scale=1.0, col=dark)
+    box(t, -1.05, 1.05, 0.3, 1.3, -0.55, 0.55, scale=1.0, col=col)
+    for z in (-0.56, 0.56):
+        _slats(t, -0.95, 0.95, 0.38, 1.22, z, 6, shade(col, 0.42), d=0.012)
+    cylinder(t, 0.0, 0.0, 1.3, 1.33, 0.46, segs=12, col=dark)
+    for a in (0.0, 1.0):
+        box(t, -0.46 if a else -0.02, 0.46 if a else 0.02, 1.33, 1.36, -0.02 if a else -0.46, 0.02 if a else 0.46, scale=1.0, col=shade(col, 0.7))
+
+
+@P.proto("rp_duct", box=(2.0, 0.55, 0.45), reach=600)
+def _rp_duct(kk):
+    """Four metres of galvanised duct on its stands (along x): flanged
+    joints at both ends and the middle, the stands' feet on the roof."""
+    t = kk("trim")
+    col = SHEET_PALE
+    box(t, -2.0, 2.0, 0.45, 1.05, -0.4, 0.4, scale=1.0, col=col, bottom=True)
+    for x in (-2.0, 0.0, 1.95):
+        box(t, x - 0.03, x + 0.08, 0.42, 1.08, -0.43, 0.43, scale=1.0, col=shade(col, 0.6), bottom=True)
+    for x in (-1.1, 1.1):
+        for z in (-0.32, 0.28):
+            box(t, x - 0.03, x + 0.03, 0.0, 0.45, z, z + 0.04, scale=1.0, col=c(0.08, 0.08, 0.09))
+        box(t, x - 0.15, x + 0.15, 0.0, 0.05, -0.42, 0.42, scale=1.0, col=c(0.3, 0.3, 0.29))
+
+
+@P.proto("rp_tray", box=(2.0, 0.25, 0.3), reach=320, detail=True)
+def _rp_tray(kk):
+    """Four metres of cable tray on concrete sleepers (along x), the
+    cables lying in it."""
+    t = kk("trim")
+    box(t, -2.0, 2.0, 0.3, 0.33, -0.25, 0.25, scale=1.0, col=SHEET_PALE)
+    for z in (-0.25, 0.22):
+        box(t, -2.0, 2.0, 0.3, 0.42, z, z + 0.03, scale=1.0, col=shade(SHEET_PALE, 0.8))
+    box(t, -2.0, 2.0, 0.33, 0.39, -0.16, 0.0, scale=1.0, col=c(0.02, 0.02, 0.025))
+    box(t, -2.0, 2.0, 0.33, 0.37, 0.03, 0.12, scale=1.0, col=c(0.45, 0.2, 0.05))
+    for x in (-1.3, 1.3):
+        box(t, x - 0.12, x + 0.12, 0.0, 0.3, -0.3, 0.3, scale=1.0, col=CONC)
+
+
+@P.proto("rp_vents", box=(0.8, 0.9, 0.8), reach=380, detail=True)
+def _rp_vents(kk):
+    """A roof's breathers in a group: a mushroom, a gooseneck, a stack
+    under a cowl."""
+    t = kk("trim")
+    col = c(0.36, 0.37, 0.38)
+    cylinder(t, -0.4, 0.2, 0.0, 0.5, 0.17, segs=8, col=shade(col, 0.8), cap=False)
+    cylinder(t, -0.4, 0.2, 0.5, 0.66, 0.38, segs=10, col=col)
+    pipe(t, (0.35, 0.0, 0.3), (0.35, 0.8, 0.3), 0.09, segs=6, col=shade(col, 0.7))
+    pipe(t, (0.35, 0.8, 0.3), (0.35, 0.95, 0.15), 0.09, segs=6, col=shade(col, 0.7))
+    pipe(t, (0.35, 0.95, 0.15), (0.35, 0.8, 0.0), 0.09, segs=6, col=shade(col, 0.7), caps=True)
+    cylinder(t, 0.1, -0.4, 0.0, 1.6, 0.11, segs=6, col=shade(col, 0.6), cap=False)
+    cylinder(t, 0.1, -0.4, 1.65, 1.75, 0.26, segs=8, col=shade(col, 0.5))
+    box(t, -0.65, 0.65, 0.0, 0.06, -0.65, 0.65, scale=1.0, col=c(0.12, 0.12, 0.13))
+
+
+@P.proto("rp_hatch", box=(0.6, 0.9, 0.6), reach=380, detail=True)
+def _rp_hatch(kk):
+    """A roof hatch on its kerb, the lid shut, the ladder's hoops standing
+    up through it to hold by."""
+    t = kk("trim")
+    box(t, -0.55, 0.55, 0.0, 0.55, -0.55, 0.55, scale=1.0, col=c(0.3, 0.31, 0.32))
+    box(t, -0.6, 0.6, 0.55, 0.62, -0.6, 0.6, scale=1.0, col=c(0.55, 0.42, 0.08))
+    for x in (-0.3, 0.3):
+        pipe(t, (x, 0.62, 0.62), (x, 1.7, 0.62), 0.025, segs=5, col=PAINT_YELLOW)
+    pipe(t, (-0.3, 1.7, 0.62), (0.3, 1.7, 0.62), 0.025, segs=5, col=PAINT_YELLOW)
+
+
+@P.proto("skip", box=(1.8, 0.75, 0.9), reach=320)
+def _skip(kk):
+    """A builder's skip: sloped ends, ribs down its sides, lifting lugs, a
+    heap of rubble and board in it, rust where the chains rub."""
+    t, td = kk("trim"), kk("trim", 1)
+    col = c(0.62, 0.4, 0.05)
+    inner = shade(col, 0.45)
+    lo = [(-1.45, 0.12, -0.78), (1.45, 0.12, -0.78), (1.45, 0.12, 0.78), (-1.45, 0.12, 0.78)]
+    hi = [(-1.85, 1.45, -0.88), (1.85, 1.45, -0.88), (1.85, 1.45, 0.88), (-1.85, 1.45, 0.88)]
+    for i in range(4):
+        j = (i + 1) % 4
+        quad(t, lo[j], lo[i], hi[i], hi[j], col=col)
+        quad(t, hi[j], hi[i], lo[i], lo[j], col=inner)
+    box(t, -1.9, 1.9, 1.38, 1.5, -0.93, -0.83, scale=1.0, col=shade(col, 0.8))
+    box(t, -1.9, 1.9, 1.38, 1.5, 0.83, 0.93, scale=1.0, col=shade(col, 0.8))
+    for x in (-0.9, 0.0, 0.9):
+        for s in (-1, 1):
+            a, b = x - 0.07 * s, x + 0.07 * s
+            quad(td, (a, 0.14, s * 0.8), (b, 0.14, s * 0.8), (b, 1.42, s * 0.91), (a, 1.42, s * 0.91), col=shade(col, 0.7))
+    for x in (-1.6, 1.6):
+        for z in (-0.86, 0.78):
+            box(td, x - 0.1, x + 0.1, 1.0, 1.25, z, z + 0.08, scale=1.0, col=RUST_D)
+    box(t, -1.4, 1.4, 0.0, 0.12, -0.6, 0.6, scale=1.0, col=c(0.05, 0.05, 0.05))
+    box(t, -1.5, 1.4, 1.0, 1.06, -0.7, 0.7, scale=1.0, col=c(0.16, 0.15, 0.13))
+    for (x, z, w, h, cc) in ((-0.8, -0.2, 0.7, 0.35, c(0.3, 0.29, 0.26)), (0.3, 0.25, 0.9, 0.25, WOOD), (0.9, -0.35, 0.5, 0.45, c(0.22, 0.2, 0.18))):
+        oriented_box(td, x, 1.06 + h / 2, z, w, h, 0.5, 0.4 * x, scale=1.0, col=cc)
+
+
+@P.proto("ibc", box=(0.6, 0.6, 0.5), reach=200, detail=True)
+def _ibc(kk):
+    """An IBC tote: the pale tank in its steel cage on a pallet, filled to
+    two thirds, its cap and outlet valve."""
+    t = kk("trim")
+    cage = c(0.3, 0.31, 0.32)
+    box(t, -0.6, 0.6, 0.0, 0.15, -0.5, 0.5, scale=1.0, col=c(0.12, 0.12, 0.13))
+    box(t, -0.55, 0.55, 0.15, 0.78, -0.45, 0.45, scale=1.0, col=c(0.55, 0.52, 0.44))
+    box(t, -0.55, 0.55, 0.78, 1.12, -0.45, 0.45, scale=1.0, col=c(0.72, 0.72, 0.68))
+    for s in (-1, 1):
+        for u in (-0.27, 0.0, 0.27):
+            box(t, u - 0.012, u + 0.012, 0.15, 1.14, s * 0.47 - 0.012, s * 0.47 + 0.012, scale=1.0, col=cage)
+        for u in (-0.22, 0.22):
+            box(t, s * 0.57 - 0.012, s * 0.57 + 0.012, 0.15, 1.14, u - 0.012, u + 0.012, scale=1.0, col=cage)
+    for y in (0.5, 0.82, 1.13):
+        for (a0, a1, b0, b1) in ((-0.58, 0.58, -0.485, -0.46), (-0.58, 0.58, 0.46, 0.485), (-0.585, -0.56, -0.47, 0.47), (0.56, 0.585, -0.47, 0.47)):
+            box(t, a0, a1, y - 0.015, y + 0.015, b0, b1, scale=1.0, col=cage)
+    cylinder(t, 0.0, 0.0, 1.12, 1.18, 0.12, segs=8, col=c(0.75, 0.74, 0.7))
+    box(t, -0.08, 0.08, 0.2, 0.32, 0.45, 0.6, scale=1.0, col=c(0.1, 0.1, 0.11))
+
+
+@P.proto("cone", box=(0.2, 0.38, 0.2), reach=110, detail=True)
+def _cone(kk):
+    """A traffic cone on its square foot, banded white."""
+    t = kk("trim")
+    box(t, -0.2, 0.2, 0.0, 0.04, -0.2, 0.2, scale=1.0, col=c(0.08, 0.08, 0.08))
+    P.lathe(t, 0.0, 0.0, ((0.04, 0.15), (0.3, 0.12), (0.5, 0.075), (0.75, 0.025)), segs=8, col=c(0.85, 0.3, 0.05))
+    P.lathe(t, 0.0, 0.0, ((0.3, 0.123), (0.42, 0.098)), segs=8, col=PAINT_WHITE, cap=False)
+
+
+def _vessel(kk, col):
+    """An upright process vessel, a metre in radius and 6.6 m to the top of
+    its head (instances stretch it): a dark skirt, the shell in plate with
+    girth seams, a dished head, nozzles and a manway with their flanges, a
+    name plate, a ladder up one side to a ring at its head."""
+    sh, t, td = kk(MAT["tank"]), kk("trim"), kk("trim", 1)
+    seam = shade(col, 0.5)
+    cylinder(t, 0.0, 0.0, 0.0, 1.0, 0.97, segs=16, col=c(0.06, 0.06, 0.07), cap=False)
+    cylinder(sh, 0.0, 0.0, 1.0, 6.0, 1.0, segs=18, col=col, cap=False)
+    P.lathe(sh, 0.0, 0.0, ((6.0, 1.0), (6.25, 0.94), (6.45, 0.72), (6.58, 0.36), (6.62, 0.05)), segs=18, col=shade(col, 0.92), cap=True)
+    for y in (2.25, 3.5, 4.75):
+        cylinder(td, 0.0, 0.0, y, y + 0.06, 1.022, segs=18, col=seam, cap=False)
+    cylinder(t, 0.0, 0.0, 0.94, 1.06, 1.04, segs=18, col=seam, cap=False)
+    cylinder(t, 0.0, 0.0, 6.58, 7.0, 0.15, segs=8, col=shade(col, 0.7), cap=False)
+    cylinder(t, 0.0, 0.0, 7.0, 7.07, 0.26, segs=8, col=STEEL)
+    for (a, b, f, r) in (((0.0, 1.7, 0.95), (0.0, 1.7, 1.4), (0.0, 1.7, 1.47), 0.15), ((0.95, 5.3, 0.0), (1.4, 5.3, 0.0), (1.47, 5.3, 0.0), 0.12),
+                         ((-0.67, 4.1, 0.67), (-0.98, 4.1, 0.98), (-1.03, 4.1, 1.03), 0.1)):
+        pipe(td, a, b, r, segs=6, col=shade(col, 0.75))
+        pipe(td, b, f, r * 1.7, segs=6, col=STEEL, caps=True)
+    pipe(t, (-0.95, 2.6, 0.0), (-1.3, 2.6, 0.0), 0.32, segs=10, col=shade(col, 0.8))
+    pipe(t, (-1.3, 2.6, 0.0), (-1.37, 2.6, 0.0), 0.4, segs=10, col=STEEL, caps=True)
+    box(td, -0.36, 0.36, 1.35, 1.62, 0.99, 1.03, scale=1.0, col=c(0.66, 0.64, 0.56))
+    box(td, -0.28, 0.2, 1.46, 1.5, 1.03, 1.035, scale=1.0, col=c(0.05, 0.05, 0.05))
+    # The ladder on the +x -z side, 0.15 off the shell, its rungs, its
+    # rails bent over at the top to hold by.
+    ax, az, tx, tz = 0.813, -0.813, 0.1414, 0.1414
+    yel = c(0.6, 0.45, 0.06)
+    for s in (-1, 1):
+        pipe(td, (ax + s * tx, 1.0, az + s * tz), (ax + s * tx, 6.6, az + s * tz), 0.022, segs=4, col=yel)
+        pipe(td, (ax + s * tx, 6.6, az + s * tz), (ax * 0.8 + s * tx, 6.9, az * 0.8 + s * tz), 0.022, segs=4, col=yel)
+    y = 1.3
+    while y < 6.5:
+        pipe(td, (ax - tx, y, az - tz), (ax + tx, y, az + tz), 0.016, segs=4, col=yel)
+        y += 0.6
+
+
+P.proto("vessel_rust", box=(1.0, 3.5, 1.0), reach=800)(lambda kk: _vessel(kk, RUST))
+P.proto("vessel_white", box=(1.0, 3.5, 1.0), reach=800)(lambda kk: _vessel(kk, TANK_WHITE))
+
+
+def _hvessel(kk, col):
+    """A vessel lying on two saddles (along x, 8.8 m over its heads, 1.1 m
+    in radius, its axis 1.9 m up): dished heads, girth seams, a manway and
+    two nozzles on top, a level gauge down one end, the saddles on their
+    plinths."""
+    sh, t, td = kk(MAT["tank"]), kk("trim"), kk("trim", 1)
+    y = 1.9
+    pts = [(-4.4, y, 0.0), (-4.25, y, 0.0), (-4.0, y, 0.0), (4.0, y, 0.0), (4.25, y, 0.0), (4.4, y, 0.0)]
+    P.tube(sh, pts, [0.06, 0.78, 1.1, 1.1, 0.78, 0.06], segs=18, col=col, cap=True)
+    for x in (-2.0, 0.0, 2.0):
+        pipe(td, (x - 0.03, y, 0.0), (x + 0.03, y, 0.0), 1.12, segs=18, col=shade(col, 0.55))
+    for x in (-2.8, 2.8):
+        box(t, x - 0.35, x + 0.35, 0.0, 0.5, -0.95, 0.95, scale=1.0, col=CONC)
+        box(t, x - 0.12, x + 0.12, 0.5, y - 0.6, -0.9, 0.9, scale=1.0, col=c(0.08, 0.08, 0.09))
+    pipe(t, (1.0, y + 1.05, 0.0), (1.0, y + 1.45, 0.0), 0.32, segs=10, col=shade(col, 0.8))
+    pipe(t, (1.0, y + 1.45, 0.0), (1.0, y + 1.52, 0.0), 0.4, segs=10, col=STEEL, caps=True)
+    for x in (-1.6, 3.0):
+        pipe(td, (x, y + 1.05, 0.0), (x, y + 1.6, 0.0), 0.11, segs=6, col=shade(col, 0.75))
+        pipe(td, (x, y + 1.6, 0.0), (x, y + 1.66, 0.0), 0.19, segs=6, col=STEEL, caps=True)
+    pipe(td, (-3.6, y - 0.9, 0.95), (-3.6, y + 0.9, 0.95), 0.04, segs=5, col=c(0.6, 0.6, 0.58))
+    box(td, -0.4, 0.3, y - 0.2, y + 0.1, 1.08, 1.12, scale=1.0, col=c(0.66, 0.64, 0.56))
+
+
+P.proto("hvessel_rust", box=(4.4, 1.6, 1.1), reach=800)(lambda kk: _hvessel(kk, RUST))
+P.proto("hvessel_grey", box=(4.4, 1.6, 1.1), reach=800)(lambda kk: _hvessel(kk, c(0.5, 0.52, 0.53)))
+
+
+@P.proto("reach_stacker", box=(5.5, 2.4, 2.0), reach=700)
+def _reach_stacker(kk):
+    """A reach stacker (front toward +x): its long body and cab, four big
+    wheels, the boom raked up over the cab to the spreader, beacons."""
+    t = kk("trim")
+    col = c(0.72, 0.5, 0.06)
+    dark = c(0.04, 0.04, 0.045)
+    box(t, -4.2, 3.0, 0.7, 2.0, -1.5, 1.5, scale=1.0, col=col, bottom=True)
+    box(t, -5.2, -3.6, 0.6, 2.6, -1.6, 1.6, scale=1.0, col=shade(col, 0.6))
+    for x, r in ((2.0, 0.85), (-3.0, 0.75)):
+        for z0, z1 in ((-1.95, -1.25), (1.25, 1.95)):
+            pipe(t, (x, r, z0), (x, r, z1), r, segs=10, col=TYRE, caps=True)
+            pipe(t, (x, r, z1 if z1 > 0 else z0), (x, r, (z1 + 0.03) if z1 > 0 else (z0 - 0.03)), r * 0.45, segs=6, col=c(0.4, 0.4, 0.4), caps=True)
+    box(t, -1.2, 0.6, 2.0, 4.3, 0.3, 1.5, scale=1.0, col=shade(col, 0.9))
+    for (a, b, c_, d) in (((0.62, 2.6, 0.4), (0.62, 2.6, 1.4), (0.62, 4.0, 1.4), (0.62, 4.0, 0.4)), ((-1.0, 2.6, 1.52), (0.4, 2.6, 1.52), (0.4, 4.0, 1.52), (-1.0, 4.0, 1.52))):
+        quad(t, a, b, c_, d, col=c(0.03, 0.045, 0.06))
+    box(t, -1.3, 0.7, 4.3, 4.42, 0.2, 1.6, scale=1.0, col=dark)
+    pipe(t, (-4.0, 2.6, -0.6), (4.6, 9.4, -0.6), 0.55, segs=8, col=col)
+    pipe(t, (-4.0, 2.6, -0.6), (-4.0, 2.0, -0.6), 0.5, segs=8, col=shade(col, 0.7))
+    pipe(t, (0.8, 2.0, -0.6), (1.6, 5.4, -0.6), 0.22, segs=6, col=c(0.55, 0.55, 0.55))
+    box(t, 4.3, 5.0, 8.6, 9.6, -1.0, -0.2, scale=1.0, col=dark)
+    box(t, 4.5, 4.8, 8.2, 8.6, -3.2, 2.0, scale=1.0, col=col, bottom=True)
+    for z in (-3.0, 1.8):
+        box(t, 4.4, 4.9, 7.6, 8.2, z - 0.15, z + 0.15, scale=1.0, col=shade(col, 0.6))
+    box(t, -0.4, -0.2, 4.42, 4.6, 0.8, 1.0, scale=1.0, col=c(0.95, 0.55, 0.05))
 
 
 @P.proto("fence_pal", box=(1.5, 1.2, 0.05), reach=300)
