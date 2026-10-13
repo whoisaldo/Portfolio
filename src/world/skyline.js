@@ -3072,8 +3072,15 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
   // its cloud, the searchlights, and below the horizon the far city's
   // ground, where no tower stands on it.
   const skyGeo = new THREE.SphereGeometry(2200, 32, 16);
+  // The moon's disc (moon.js) is added onto whatever the dome draws behind
+  // it, so the dome reads where it hangs and how big from the disc's own
+  // uniforms and lights the sky round it, never under it.
+  let moonAt = { uMoonC: { value: new THREE.Vector3() }, uMoonR: { value: 0 } };
+  scene.traverse((o) => {
+    for (const m of [].concat(o.material ?? [])) if (m.name === "moon" && m.uniforms?.uCenter) moonAt = { uMoonC: m.uniforms.uCenter, uMoonR: m.uniforms.uRadius };
+  });
   const sky = new THREE.Mesh(skyGeo, new THREE.ShaderMaterial({
-    uniforms: { ...shared, uMotion: { value: reduced ? 0 : 1 } },
+    uniforms: { ...shared, ...moonAt, uMotion: { value: reduced ? 0 : 1 } },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
       void main() {
@@ -3086,6 +3093,8 @@ ${solid.map(([x0, z0, x1, z1]) => `        k *= 1.0 - step(${g1(x0 - 1.1)}, p.x)
     fragmentShader: /* glsl */ `
       ${COMMON}
       uniform float uMotion;
+      uniform vec3 uMoonC;
+      uniform float uMoonR;
       varying vec3 vDir;
 
       float vnoise(vec2 p) {
@@ -3366,6 +3375,35 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
         // hologram: cityGlow's is violet toward downtown.)
         vec3 cg = cityGlow(dir, h * 900.0) * (0.85 + 0.2 * uLevel);
         col += mix(cg, mix(vec3(0.2, 0.62, 1.0) * dot(cg, vec3(0.45, 0.45, 0.3)), cg, nearHolo), lift);
+        // From the air the city's light stands over the skyline on every
+        // bearing and not only on the line itself: a lit blue haze up to
+        // thirty degrees and more, teal low down, and toward the core (the
+        // landmark towers north of the megabuilding) green and yellow in
+        // the last ten degrees, fading up into the night's navy.
+        vec2 toCore = vec2(0.0, -950.0) - uCam.xz;
+        float core = pow(max(dot(normalize(dir.xz + 1e-5), toCore * inversesqrt(dot(toCore, toCore) + 1.0)), 0.0), 3.0);
+        vec3 over = vec3(0.003, 0.026, 0.085) * exp(-h * 2.6) + vec3(0.004, 0.05, 0.07) * exp(-h * 7.0) + mix(vec3(0.0, 0.02, 0.03), vec3(0.08, 0.11, 0.016), core) * exp(-h * 9.0);
+        col += lift * uHaze * over * (1.0 - nearHolo * 0.5);
+        // The moon lights the wet air round it, blue and white: bright at
+        // its limb and lifting the sky for a few of its widths about it.
+        // Nothing changes over the disc itself, which is added onto this.
+        float moonOut = 1.0;
+        vec3 moonGlow = vec3(0.0);
+        if (uMoonR > 0.0) {
+          vec3 tm = uMoonC - uCam;
+          float dm = length(tm);
+          float rho = atan(uMoonR * 0.4, dm);
+          float th = acos(clamp(dot(dir, tm / dm), -1.0, 1.0));
+          moonOut = smoothstep(rho * 0.99, rho * 1.06, th);
+          float x = max(th - rho, 0.0) / rho;
+          moonGlow = vec3(0.34, 0.52, 1.0) * (0.05 * exp(-x * 1.6) + 0.032 * exp(-x * 0.42) + 0.012 * exp(-x * 0.14)) * moonOut;
+        }
+        // And from a low roof looking into the quarter Contact looks into,
+        // the night is the show's lit blue there too, lighter toward the
+        // horizon (not from the street nor from the page's other roofs,
+        // which look elsewhere).
+        col += moonOut * lowRoof * uHaze * (vec3(0.002, 0.009, 0.034) * exp(-h * 1.8) + vec3(0.002, 0.016, 0.03) * exp(-h * 6.0));
+        col += moonGlow;
 
         if (dir.y > 0.0) {
           // A broken deck of cloud, lit from under by the city: the glow's
@@ -3382,11 +3420,17 @@ ${[...KEEP_OUT, ...KEEP_OUT_SINCE].map(([x0, z0, x1, z1]) => `        k = max(k,
           vec3 cg0 = cityGlow(dir, 0.0);
           cg0 = mix(cg0, mix(vec3(0.2, 0.62, 1.0) * dot(cg0, vec3(0.45, 0.45, 0.3)), cg0, nearHolo), lift);
           vec3 under = (cg0 * 0.5 + uHazeColor * 0.25) * (0.3 + 0.9 * n);
+          // (From the air and from Contact's roof the deck is blue, its
+          // underside lit by the city below it, and where it passes near
+          // the moon its edges catch the moon's light.)
+          float blue = max(lift, lowRoof) * moonOut;
+          under = mix(under, vec3(0.012, 0.042, 0.12) * (0.25 + 1.1 * n) + vec3(0.01, 0.03, 0.035) * n * n, blue * 0.8);
           // East, where none of the page's own lenses looks (between Corpo
           // Row's frame and Contact's), the deck shows its shapes from the
           // street too: lit from under, where it was one flat black-teal.
           under += vec3(0.005, 0.016, 0.03) * (0.3 + 0.9 * n) * (1.0 - lift) * smoothstep(0.95, 0.995, dot(normalize(dir.xz + 1e-5), vec2(0.9816, -0.1908)));
           col = mix(col, col * 0.55, (1.0 - cover) * near) + under * cover * near * 0.8;
+          col += moonGlow * cover * (1.0 + 2.5 * n) * near;
           // Lightning inside the cloud: the deck lit from within round the
           // strike, brightest where it is thickest.
           float strike = exp(-length(p.xz - uFlashAt) / 420.0);
