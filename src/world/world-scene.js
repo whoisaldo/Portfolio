@@ -33,6 +33,7 @@ import { createKoi, preloadKoi } from "./koi.js";
 import { createPlazaKoi } from "./plaza-koi.js";
 import { createCrowd } from "./crowd.js";
 import { createSteam } from "./steam.js";
+import { createSearchlights } from "./searchlights.js";
 import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
 import { markLoaded } from "./progress.js";
 import { createMirror, deckShare, DECK_Y } from "./mirror.js";
@@ -687,6 +688,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
       bolt?.update();
       shafts?.update(shared.uHaze.value);
+      // Searchlights: off the page, or in a directed frame that asks.
+      searchlights?.update(directed ? !!directed.searchlights : stage.view !== "page", shared.uHaze.value);
       koi?.update(flow);
       plazaKoi?.update();
       traffic?.update(flow, env.traffic);
@@ -952,6 +955,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     running = null;
     check();
     streamPacks();
+    buildSearchlights();
   };
 
   // ---- the districts behind the core ------------------------------------------
@@ -989,6 +993,24 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
       }
     }
+  };
+
+  // ---- searchlights (src/world/searchlights.js) --------------------------------
+  // The beams over the districts' roofs, built and compiled once the city's
+  // first frame is drawn, when the page is idle; draw() shows them only off
+  // the page (Look, Cinema) or in a directed frame whose spec asks for them
+  // (`searchlights`), so the page's own shots are as they were.
+  let searchlights = null;
+  const buildSearchlights = async () => {
+    await idle();
+    if (disposed || !city) return;
+    searchlights = createSearchlights(scene, shared, city.anchors);
+    if (!searchlights || !renderer.compileAsync) return;
+    const target = renderer.getRenderTarget();
+    renderer.setRenderTarget(post.composer.inputBuffer);
+    const compiled = renderer.compileAsync(searchlights.mesh, camera, scene);
+    renderer.setRenderTarget(target);
+    await compiled;
   };
 
   // ---- the intro -------------------------------------------------------------------
@@ -1137,6 +1159,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       plazaKoi?.dispose();
       crowd?.dispose();
       steam?.dispose();
+      searchlights?.dispose();
       moon?.dispose();
     }).catch(() => {});
     mirror?.dispose();
