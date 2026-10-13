@@ -1662,9 +1662,12 @@ def lane_dress(D, f, rng, top, s0=0.0, s1=None, step=5.0, k0=0):
                 col = rng.choice(PANEL_PAINT)
                 if rng.random() < 0.45:
                     # (Ribbed sheet takes the lane's light far more than paint:
-                    # at the paint's own colour it stood as a lit slab.)
+                    # at the paint's own colour it stood as a lit slab, and
+                    # in orange or ochre as a blank colour panel at any
+                    # strength: galvanised, blue-grey, green or oxblood.)
+                    col = rng.choice(((0.1, 0.105, 0.11, 1), (0.05, 0.07, 0.1, 1), (0.05, 0.08, 0.06, 1), (0.1, 0.04, 0.035, 1)))
                     f.quad((D, "container", 0), a, b, y0, y1, 0.015, uvs=((0, 0), (b - a, 0), (b - a, y1 - y0), (0, y1 - y0)),
-                           col=tuple(c * 0.4 for c in col[:3]) + (1.0,))
+                           col=tuple(c * 0.35 for c in col[:3]) + (1.0,))
                 else:
                     f.quad((D, "trim", 1), a, b, y0, y1, 0.012, col=col)
                     for e in (a, b):
