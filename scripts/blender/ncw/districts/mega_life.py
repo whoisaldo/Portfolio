@@ -78,7 +78,7 @@ from ncw.districts.mega_face import dress  # noqa: E402
 from ncw.districts.mega_wings import AX0, ARM_TOP, WX0, WX1, PT  # noqa: E402
 from ncw.districts.mega_void import weather  # noqa: E402
 fCw = face("-x", AX0, ST_N, ST_S)
-dress(fCw, ARM_TOP, 4, 5651, [(9.0, 15.0)], [(15.6, 24.4, 16.0, 25.4)], people_rate=0.1, weights=(0.2, 0.5, 0.3))
+dress(fCw, ARM_TOP, 4, 5651, [(9.0, 15.0)], [(15.6, 24.4, 16.0, 25.4), (5.2, 18.8, 11.0, 19.4)], people_rate=0.1, weights=(0.2, 0.5, 0.3))
 numeral("H4", AX0 - 0.1, ARM_TOP - 2.6, -712.0, 3.6, -math.pi / 2, lit=0.9, pad=0.8)
 for (s, rr, col) in ((1.2, 0.12, RUST), (1.55, 0.07, STEEL), (22.4, 0.1, TEAL_PAINT)):
     x, _, z = fCw.p(fCw.at(s), 0.0, 0.2)
