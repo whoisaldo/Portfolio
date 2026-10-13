@@ -292,12 +292,14 @@ const ROOF_SIGN = 9;
 // (src/world/traffic-cars-near.js, traffic-cars-near-nc.js: the same six
 // cars with round wheels on spoked rims, lipped arches, smooth panels with
 // cut shut lines, lamp pockets with reflectors, framed glass, mirrors,
-// wipers, a grille, plates), the nearest eighteen of them at most; and
+// wipers, a grille, plates), the nearest eighteen of them at most (six on
+// a phone); and
 // behind its glass the shader draws its cabin and whoever drives it. (Out to
 // 26 m: the street's own views see cars from 8 to 25 m off, and the mid
 // model at that range read as a toy beside the S4.)
 const NEAR_TO = 26;
 const NEAR_MOST = 18;
+const NEAR_PHONE = 6;
 // Past this far a car is drawn as its coarser self (src/world/traffic-lod.js).
 const DETAIL_TO = 42;
 // Where the first car on each of the deck's two paths starts, as a share of
@@ -1493,9 +1495,14 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // for them; until a kind's is there, its cars are drawn as they were.
   // (Begun by the first update, the city's first frame: begun here, they
   // were built while the warm-up waited on its shaders, before that frame.)
+  // A phone has them too, fewer at a time (NEAR_PHONE), asked of the
+  // worker only once the city is drawing (its download is a phone's
+  // slowest time) and never made on the page: with no worker, a phone's
+  // close cars stay as they were.
   let alive = true;
   let startNear = null;
-  if (full) {
+  const nearMost = full ? NEAR_MOST : NEAR_PHONE;
+  {
     let next = 0;
     const build = async () => {
       if (alive === false || next >= kinds.length) return;
@@ -1505,16 +1512,19 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       // here.)
       const made = nearMade.get(K.kind);
       nearMade.delete(K.kind);
+      if (!full && !made) return void setTimeout(build, 0);
       const body = made ? await made : null;
       if (alive === false) return void body?.dispose();
+      if (!full && !body) return void setTimeout(build, 0);
       K.nearMaterial = new THREE.ShaderMaterial({ uniforms: K.uniforms, ...carShader, defines: { NEAR: "" } });
       K.nearMaterial.name = "traffic_near";
-      K.near = K.level(nearGeometry(K.kind, K.built.roofY, body ?? undefined), `traffic_${K.kind}_near`, K.nearMaterial, NEAR_MOST);
+      K.near = K.level(nearGeometry(K.kind, K.built.roofY, body ?? undefined), `traffic_${K.kind}_near`, K.nearMaterial, nearMost);
       K.levels.push(K.near);
       setTimeout(build, 0);
     };
     startNear = () => {
       startNear = null;
+      if (!full) prepareNearModels();
       setTimeout(build, 0);
     };
   }
@@ -2546,8 +2556,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       }
     }
     // The nearest eighteen as their close-up models; any more as they were.
-    const close = nearN > NEAR_MOST ? nearby.slice(0, nearN).sort((a, b) => a.off - b.off) : nearby;
-    for (let i = 0; i < nearN; i++) put(close[i].x, close[i].shown, close[i].braking, i < NEAR_MOST ? 2 : 0, close[i].p, close[i].q);
+    const close = nearN > nearMost ? nearby.slice(0, nearN).sort((a, b) => a.off - b.off) : nearby;
+    for (let i = 0; i < nearN; i++) put(close[i].x, close[i].shown, close[i].braking, i < nearMost ? 2 : 0, close[i].p, close[i].q);
     voices.train = null;
     for (const T of trains) {
       const at = T.at(clock);
