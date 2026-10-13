@@ -1491,6 +1491,21 @@ function nearFigure(close = false) {
  * The figure: `far` false for the one with a face, true for the cheap one;
  * `close` for the one with a face as it is within a few steps of the eye.
  */
+// (load) Each figure is made once for the page (geometry alone, the same
+// every time it is made): ahead, a figure a task while the city's files are
+// still coming (figuresAhead, src/world/world-scene.js preloadWorld), and
+// handed back here, where the crowd took them out of the city's build and
+// the closest one out of the first moment after live (30 to 45 ms).
+const figures = new Map();
 export function figureGeometry(far = false, close = false) {
-  return far ? farFigure() : nearFigure(close);
+  const key = far ? "far" : close ? "close" : "near";
+  if (!figures.has(key)) figures.set(key, far ? farFigure() : nearFigure(close));
+  return figures.get(key);
+}
+/** (load) The figures, a task each: a generator, a figure a step. */
+export function* figuresAhead() {
+  for (const [far, close] of [[false, false], [true, false], [false, true]]) {
+    figureGeometry(far, close);
+    yield;
+  }
 }

@@ -32,6 +32,7 @@ import { createCover } from "./cover.js";
 import { createKoi, preloadKoi } from "./koi.js";
 import { createPlazaKoi } from "./plaza-koi.js";
 import { createCrowd } from "./crowd.js";
+import { figuresAhead } from "./crowd-people.js";
 import { createSteam } from "./steam.js";
 import { createSearchlights } from "./searchlights.js";
 import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
@@ -77,7 +78,11 @@ export async function preloadWorld(tier) {
   // (load: and the traffic's models, a model a task while the files are
   // still coming; what is not made by then is made with the traffic, as
   // before. traffic.js makeTrafficAhead.)
-  const ahead = makeTrafficAhead();
+  // (and the people's figures after them, crowd-people.js figuresAhead.)
+  const ahead = (function* () {
+    yield* makeTrafficAhead();
+    yield* figuresAhead();
+  })();
   let filesIn = false;
   const more = () => {
     if (!filesIn && !ahead.next().done) setTimeout(more, 0);
