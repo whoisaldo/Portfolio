@@ -954,7 +954,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // the first frame then took 0.3 s more. Here only the next program in the
   // order they were made is asked after. A picture still on its way (the
   // adverts' atlas is asked for as the kit is made) is waited for, up to
-  // PICTURES_MS, so the first frame never shows a wall without it.
+  // PICTURES_MS, so the first frame never shows a wall without it; and so
+  // is anything `ready()` says is not.
   const PICTURES_MS = 4000;
   const compileFor = (roots, into) => {
     const before = renderer.info.programs.length;
@@ -965,7 +966,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     renderer.setRenderTarget(prev);
     return { kids: scene.children.length, materials, programs: renderer.info.programs.slice(before) };
   };
-  const prepare = (into) => {
+  const prepare = (into, ready = () => true) => {
     // What was added to the scene since the early compile (the koi), or all
     // of it.
     const late = compileFor(early ? scene.children.slice(early.kids) : [scene], into);
@@ -997,12 +998,24 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           renderer.initTexture(p);
           pictures.delete(p);
         }
-        if (pictures.size && performance.now() - t0 > PICTURES_MS) pictures.clear();
-        if (next < programs.length || pictures.size) setTimeout(tick, 4);
+        const late = performance.now() - t0 > PICTURES_MS;
+        if (late) pictures.clear();
+        if (next < programs.length || pictures.size || !(late || ready())) setTimeout(tick, 4);
         else resolve();
       };
       tick();
     });
+  };
+
+  // (load) Whether the people's light is in: until its first bake is done
+  // their shader's map of it (uSigns) is a single texel.
+  const crowdLit = () => {
+    let lit = true;
+    crowd?.mesh.traverse((o) => {
+      const map = o.material?.uniforms?.uSigns?.value;
+      if (map && !(map.image?.width > 1)) lit = false;
+    });
+    return lit;
   };
 
   // Build the city, compile every material before anyone is looking, and
@@ -1021,7 +1034,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // draw, and the warm-up's first draw was the moon's, before the hero's:
     // told now, so the hero's frame sorts and culls its people as it did.)
     crowd?.update(camera);
-    await prepare(post.composer.inputBuffer);
+    // (load: and the people's light, whose first bake that asks for and
+    // which now runs a step a task, crowd-light.js: waited for, so the first
+    // frame's people are lit the same on every load.)
+    await prepare(post.composer.inputBuffer, crowdLit);
     if (disposed) return;
     // Two real frames of the hero, under the door or the poster where
     // nobody sees them, with nothing culled. Compiling is not everything a
