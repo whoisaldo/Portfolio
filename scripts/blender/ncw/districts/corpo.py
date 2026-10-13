@@ -331,12 +331,8 @@ for i, (slug, height) in enumerate(TOWERS):
             skin(g, g, y0, y1, r, gseed, **LIGHT[slug], belts=belts)
             fin_rows(tx, tz, h_k, 0.6, y0, y1 + (0.9 if k_ < len(sections) - 1 else 0.0), 1.75, 0.34, (CO, "trim", 0), NAVY, notch)
             notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
-            if k_:
-                ring(h_k, y0 + 1.0)
-            # A line of its light up the inside corner of every notch.
-            c_ = h_k - notch
-            for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
-                lit_box(verts, faces, uvs, tx + sx * c_ - 0.12, tx + sx * c_ + 0.12, y0 + (1.0 if k_ else 0.5), y1, tz + sz * c_ - 0.12, tz + sz * c_ + 0.12, 2.0)
+            # (No line of light up its corners nor round its setbacks: a rim
+            # of neon on every tower's every edge was a game's.)
     elif kind == "facet":
         # Broad chamfers to the west, narrow to the east (the name stands on
         # the front's east end).
@@ -347,10 +343,6 @@ for i, (slug, height) in enumerate(TOWERS):
             flat(plan, y1)
             if k_:
                 ledge(chamfered(tx, tz, sections[k_ - 1][0], 5.5, 2.6), y0, 1.0)
-                ring(h_k, y0 + 1.0)
-            for a_, b_ in ((plan[7], plan[0]), (plan[5], plan[6])):
-                for e in (a_, b_):
-                    lit_box(verts, faces, uvs, e[0] - 0.1, e[0] + 0.1, y0 + (1.0 if k_ else 0.0), y1, e[1] - 0.1, e[1] + 0.1, 2.0)
         # A band of adverts up the south-west chamfer, each a different one.
         bx_, bz_ = tx - half + 2.75, tz + half - 2.75
         y, count = 15.0, [0, 0]
@@ -376,9 +368,6 @@ for i, (slug, height) in enumerate(TOWERS):
                     [(-sl, h_k - dp), (sl, h_k - dp), (sl, -h_k + dp), (-sl, -h_k + dp)]):
             flat([(tx + x, tz + z) for x, z in pts], y1)
         for sz in (-1, 1):
-            for sx in (-1, 1):
-                fx, fz = tx + sx * (sl - 0.12), tz + sz * (h_k - dp + 0.12)
-                lit_box(verts, faces, uvs, fx - 0.12, fx + 0.12, y0 + 0.3, y1, fz - 0.12, fz + 0.12, 2.0)
             # Bridges across the slot every seventh floor.
             y = FLOOR0 + FLOOR * 9
             while y < y1 - 8.0:
@@ -418,10 +407,6 @@ for i, (slug, height) in enumerate(TOWERS):
                 skin(g, g, ya, yb, r, gseed, **LIGHT[slug])
                 fin_rows(tx, tz, h_k, 0.55, ya, yb, 1.3, 0.42, (CO, "castconcrete", 0), CAST, notch)
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
-        # A line of its light up the inside corner of every notch.
-        c_ = h_k - notch
-        for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
-            lit_box(verts, faces, uvs, tx + sx * c_ - 0.12, tx + sx * c_ + 0.12, y0 + 0.5, y1, tz + sz * c_ - 0.12, tz + sz * c_ + 0.12, 2.0)
         # A blade of adverts out of its east flank, a line of the tower's
         # light up its outer edge.
         bz_, bx0, bx1 = tz + 6.0, tx + h_k, tx + h_k + 3.6
@@ -468,10 +453,6 @@ for i, (slug, height) in enumerate(TOWERS):
         plan = notched4(tx, tz, h_k, notch)
         skin(plan, plan, y0, y1, r, gseed, **LIGHT[slug], belts=belts)
         notched_roof((CO, "roof", 0), tx, tz, h_k, notch, y1)
-        ring(h_k, y0 + 1.0)
-        for sx in (-1, 1):
-            fx = tx + sx * (half + 0.05)
-            lit_box(verts, faces, uvs, fx - 0.1, fx + 0.1, sections[0][1] + 1.0, sections[0][2], tz - 0.1, tz + 0.1, 2.0)
     else:
         # Three drums, a rib at every corner of each, a ring of light at
         # the top of each.
@@ -483,12 +464,9 @@ for i, (slug, height) in enumerate(TOWERS):
             for j, (px, pz) in enumerate(plan):
                 th = (j - 0.5) * math.pi / 8
                 oriented_box((CO, "trim", 0), px - math.sin(th) * 0.3, (y0 + y1) / 2, pz - math.cos(th) * 0.3, 0.36, y1 - y0, 0.5, th, scale=2.0, col=NAVY)
-            for j in range(16):
-                lit_quad(verts, faces, uvs, plan[j], plan[(j + 1) % 16], y1 - 0.7, y1 - 0.4, 0.5)
-            # Its light up the four diagonal ribs.
-            for j in (2, 6, 10, 14):
-                px, pz = plan[j]
-                lit_box(verts, faces, uvs, px - 0.1, px + 0.1, y0 + 1.0, y1 - 0.7, pz - 0.1, pz + 0.1, 2.0)
+            if k_ == len(sections) - 1:
+                for j in range(16):
+                    lit_quad(verts, faces, uvs, plan[j], plan[(j + 1) % 16], y1 - 0.7, y1 - 0.4, 0.5)
             if k_:
                 ledge(ngon(tx, tz, aps[k_ - 1]), y0, 1.0)
         # A ring of screens round the lowest drum's front, five facets wide.
@@ -516,15 +494,30 @@ for i, (slug, height) in enumerate(TOWERS):
     lit_box(verts, faces, uvs, tx - cw - 0.08, tx + cw + 0.08, top - 0.55, top, tz - cw - 0.08, tz + cw + 0.08, 0.5)
     lit_box(verts, faces, uvs, tx - cw - 0.08, tx + cw + 0.08, height, height + 0.3, tz - cw - 0.08, tz + cw + 0.08, 0.5)
     if form["screen"]:
-        # Blades round the crown's roof, 1.9 m apart and 7 m tall.
+        # A coronet round the crown's roof: a pylon at each corner, 7 m,
+        # capped in light; between them blades 1.9 m apart rising from the
+        # pylons to the middle of each face; a ring of light round them all
+        # low down and another at the pylons' height on the middle blades.
+        # (Blades all of a height were a picket fence.)
         count = int((cw * 2) // 1.9)
-        for k in range(count + 1):
+        for k in range(1, count):
             v = -cw + k * (cw * 2) / count
+            bh = 3.4 + 3.6 * (1.0 - abs(v) / cw) ** 0.8
             for bx0, bx1, bz0, bz1 in ((tx + v - 0.12, tx + v + 0.12, tz + cw - 0.7, tz + cw),
                                        (tx + v - 0.12, tx + v + 0.12, tz - cw, tz - cw + 0.7),
                                        (tx + cw - 0.7, tx + cw, tz + v - 0.12, tz + v + 0.12),
                                        (tx - cw, tx - cw + 0.7, tz + v - 0.12, tz + v + 0.12)):
-                lit_box(verts, faces, uvs, bx0, bx1, top, top + 7.0, bz0, bz1, 1.0)
+                lit_box(verts, faces, uvs, bx0, bx1, top, top + bh, bz0, bz1, 1.0)
+        for sx, sz in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+            px, pz = tx + sx * (cw - 0.55), tz + sz * (cw - 0.55)
+            lit_box(verts, faces, uvs, px - 0.55, px + 0.55, top, top + 7.0, pz - 0.55, pz + 0.55, 1.0)
+            lit_box(verts, faces, uvs, px - 0.62, px + 0.62, top + 7.0, top + 7.35, pz - 0.62, pz + 0.62, 0.5)
+        lit_box(verts, faces, uvs, tx - cw - 0.06, tx + cw + 0.06, top + 2.2, top + 2.45, tz - cw - 0.06, tz + cw + 0.06, 0.5)
+        for sz in (-1, 1):
+            zf = tz + sz * cw
+            lit_box(verts, faces, uvs, tx - cw * 0.45, tx + cw * 0.45, top + 5.4, top + 5.6, min(zf, zf - sz * 0.76), max(zf, zf - sz * 0.76), 0.5)
+            xf = tx + sz * cw
+            lit_box(verts, faces, uvs, min(xf, xf - sz * 0.76), max(xf, xf - sz * 0.76), top + 5.4, top + 5.6, tz - cw * 0.45, tz + cw * 0.45, 0.5)
         # Inside the blades, a wall of the house's light rising from the
         # roof, so the crown glows behind them (BnnbP7pCIvQ@235).
         ci = cw - 1.1

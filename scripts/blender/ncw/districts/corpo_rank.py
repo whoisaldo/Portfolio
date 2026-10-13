@@ -18,10 +18,11 @@ BACK0, BACK1 = -419.5, -384.0
 F = K.floor_at
 
 
-def shaft(x0, x1, z0, z1, y0, y1, r, seed, hue=None, lit=(0.3, 0.6), hot=0.42, warm=(0.6, 1.0), belts=(), fin=0.0, band=True, strips=True):
-    """One stage of a tower: curtain wall on all four faces lit in runs of
-    floors, a roof, fins down its south face, a line of light under its
-    parapet and up its south corners."""
+def shaft(x0, x1, z0, z1, y0, y1, r, seed, hue=None, lit=(0.3, 0.6), hot=0.42, warm=(0.6, 1.0), belts=(), fin=0.0, band=False, strips=False):
+    """One stage of a tower: curtain wall on all four faces lit by the
+    floor, a roof, fins down its south face; on a tower's last stage (band)
+    a line of light under its parapet. (Lines up every stage's corners and
+    round every setback were a rim of neon on every edge.)"""
     K.skin(K.rect(x0, x1, z0, z1), K.rect(x0, x1, z0, z1), y0, y1, r, seed, lit=lit, hot=hot, warm=warm, belts=belts, sys=7 + int(seed * 1000) % 2)
     K.roof_quad(x0, x1, z0, z1, y1)
     B.ROOFS.append((CO, x0, x1, z0, z1, y1))
@@ -70,9 +71,9 @@ def stages(x0, x1, z0, z1, y0, steps, r, hue, seed, **kw):
     """Stages one on another, each ((inset -x, +x, -z, +z), top). Returns
     the last one's rectangle and top."""
     y = y0
-    for ins, top in steps:
+    for j, (ins, top) in enumerate(steps):
         x0, x1, z0, z1 = x0 + ins[0], x1 - ins[1], z0 + ins[2], z1 - ins[3]
-        shaft(x0, x1, z0, z1, y, top, r, seed, hue, fin=3.4, **kw)
+        shaft(x0, x1, z0, z1, y, top, r, seed, hue, fin=3.4, band=j == len(steps) - 1, **kw)
         y = top
     return x0, x1, z0, z1, y
 
@@ -115,7 +116,7 @@ r = random.Random(7901)
 # W: a blade on the west block's back wing (40 m), east of the x 120 road's
 # axis, to 146 m: windows and a line of light, no screen (it stands at the
 # Experience shot's left edge, where the page's words are).
-shaft(120.5, 130.0, -418.0, -399.0, 40.0, 146.0, r, 0.05, "amber", lit=(0.45, 0.75), hot=0.4, belts=((F(26), F(27)),), fin=3.1, warm=(0.8, 1.0))
+shaft(120.5, 130.0, -418.0, -399.0, 40.0, 146.0, r, 0.05, "amber", lit=(0.45, 0.75), hot=0.4, belts=((F(26), F(27)),), fin=3.1, warm=(0.8, 1.0), band=True)
 box(k("trim"), 120.3, 130.2, 146.0, 148.0, -418.2, -398.8, scale=2.0, col=K.BLACK)
 K.mast(125.2, -408.5, 148.0, 13.0, lamps=2)
 
@@ -173,7 +174,7 @@ for yy, xa in ((96.0, 248.8), (140.0, 247.8), (176.0, 246.8)):
 gx0, gx1, gz0, gz1, gy = stages(304.0, 338.0, BACK0, BACK1, 70.0, (((16.0, 0.0, 7.5, 5.0), 150.0), ((4.0, 0.0, 10.0, 0.0), 205.0)), r, "pink", 0.83,
                                 belts=((F(28), F(29)), (F(45), F(46))), warm=(0.6, 0.95), lit=(0.45, 0.75), hot=0.5)
 lantern(gx0, gx1, gz0, gz1, gy, "pink", 20.0)
-shaft(306.2, 318.0, -416.0, -389.2, 70.0, 122.0, r, 0.83, "amber", belts=((F(24), F(25)),), fin=3.4, warm=(0.2, 0.5))
+shaft(306.2, 318.0, -416.0, -389.2, 70.0, 122.0, r, 0.83, "amber", belts=((F(24), F(25)),), fin=3.4, warm=(0.2, 0.5), band=True)
 K.big_sign(304.0 - 0.4, 52.0, -402.6, "bl", 2.8, -math.pi / 2, 2, depth=0.3)
 K.roof_plant(307.0, 317.4, -414.0, -391.0, 122.0, r, cap=4.0)
 K.advert(329.0, 126.0, -389.0 + 0.3, 12.0, 7.0, 0.0, 4, seed=0.35, depth=0.2)
@@ -199,7 +200,7 @@ K.mast(hx, hz, 219.6, 18.0, lamps=2)
 iz1 = -386.6
 y = 62.0
 for j, top in enumerate((98.0, 122.0, 142.0, 156.0, 166.0)):
-    shaft(386.6, 405.4, -417.0, iz1, y, top, r, 0.47, "amber", belts=((F(20), F(21)),) if j == 0 else (), fin=3.6 if j < 2 else 0.0, strips=j == 0,
+    shaft(386.6, 405.4, -417.0, iz1, y, top, r, 0.47, "amber", belts=((F(20), F(21)),) if j == 0 else (), fin=3.6 if j < 2 else 0.0, band=j == 4,
           warm=(0.75, 1.0))
     if j:
         K.rail(386.8, iz1 + 3.8, 405.2, iz1 + 3.8, y, "amber", glow=True)

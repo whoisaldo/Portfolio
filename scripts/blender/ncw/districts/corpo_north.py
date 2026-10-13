@@ -259,15 +259,26 @@ def lane():
         f.ledge(k("trim"), 0.0, f.width, SHOP_H, 0.25, 0.2, K.STEEL)
         top1 = TOWER_H[i] * TOWER_STEP1[i] - (2.0 if TOWER_STEP1[i] < 1.0 else 6.0)
         box(k("trim"), tx - 2.2, tx + 2.2, 8.0, top1, T_BACK - 0.7, T_BACK, scale=2.0, col=K.BLACK)
-        K.glow_box(tx - 0.16, tx + 0.16, 9.0, top1 - 1.0, T_BACK - 0.74, T_BACK - 0.7, ACCENTS[i])
-        for sx in (-1, 1):
-            K.glow_box(tx + sx * 2.2 - 0.04, tx + sx * 2.2 + 0.04, 9.0, top1 - 1.0, T_BACK - 0.5, T_BACK - 0.4, "white", 1)
+        # The stair in it lit floor by floor through a slot of glass, now
+        # and then a landing dark. (A line of neon from its foot to its
+        # top was one more rim of light.)
+        yw = K.floor_at(1) + 1.1
+        while yw < top1 - 2.0:
+            if K._hash12(tx, yw) > 0.12:
+                K.glow_box(tx - 0.5, tx + 0.5, yw, yw + 1.5, T_BACK - 0.74, T_BACK - 0.7, "white" if K._hash12(yw, tx) > 0.3 else "amber")
+            yw += K.STOREY
         y = 30.0
         while y < top1 - 4.0:
             K.aviation(tx, y, T_BACK - 0.9)
             for sx in () if i in (1, 3, 6) else (-1, 1):       # (the faceted, leaning and round towers' backs carry none)
+                # A plant floor's louvres: slats in a dark frame, lit low
+                # from behind. (A plain black panel read as a hole.)
                 xa, xb = sorted((tx + sx * 3.2, tx + sx * 10.6))
-                box(k("dark", 1), xa, xb, y - 1.5, y + 1.5, T_BACK - 0.1, T_BACK, scale=1.0)
+                box(k("trim", 1), xa, xb, y - 1.5, y + 1.5, T_BACK - 0.1, T_BACK, scale=1.0, col=K.BLACK)
+                K.glow_box(xa + 0.2, xb - 0.2, y - 1.3, y + 1.3, T_BACK - 0.13, T_BACK - 0.1, "amber" if sx < 0 else "cyan", 1)
+                for j in range(7):
+                    yy = y - 1.3 + j * 0.4
+                    box(k("metal", 1), xa + 0.15, xb - 0.15, yy, yy + 0.16, T_BACK - 0.3, T_BACK - 0.12, scale=1.0)
             y += 26.0
         K.stripes(tx - 5.0, tx + 5.0, T_BACK - 3.4, T_BACK - 0.5, step=1.6, w=0.8, skew=0.8)
         if i % 2 == 0:

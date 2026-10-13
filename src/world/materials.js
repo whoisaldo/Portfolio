@@ -965,50 +965,63 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           if (vColor.a < 0.95) {
             // Corpo Row's own glass (its builder sets the alpha to one of
             // nine systems; everything else's is 1 and drawn as below). A
-            // tower of the row at night is a dark monolith: tinted glass
-            // giving back the sky, a warm window lit here and there, a
-            // room or a whole floor now and then, and lines of light along
-            // its floors, each tower its own way. (Every tower the same
-            // tenants' floors in threes, lit to the same pitch, was one
-            // beige checker the length of the row.)
+            // tower of the row at night is a dark monolith of tinted glass
+            // giving back the sky, lit by the floor and not by the pane: a
+            // tenant's floors lit through in a band round the tower, a line
+            // of light under some slabs, a run of windows along a floor
+            // here and there, warm or cool by the floor. Each tower its own
+            // wall: fins, ribbons, a dark wall with lit floors, punched
+            // windows. (Panes lit at random in blocks three floors by 9 m,
+            // the same on every tower, were a checker of beige and grey.)
             float sys = floor(vColor.a * 10.0);
-            float seedR = vColor.b * 97.0 + (floor(n.x * 1.5 + 1.5) * 3.0 + floor(n.z * 1.5 + 1.5)) * 13.0;
-            // The system: its module, its spandrel, a line of light every
-            // so many floors (how thick, how much of it on, its colour and
-            // pitch), how many windows lit and in runs of how many panes,
-            // how many of them warm, how often a whole floor, fins.
-            float MODR = 1.5, SILLR = 1.05, every = 1.0, sH = 0.15, sOn = 0.8, pWin = 0.12, runW = 1.0, sB = 1.8, warmP = 0.5, floorP = 0.025, finsR = 0.0;
+            float seedT = vColor.b * 97.0;
+            float seedR = seedT + (floor(n.x * 1.5 + 1.5) * 3.0 + floor(n.z * 1.5 + 1.5)) * 13.0;
+            // The system: its module and spandrel; its line of light (every
+            // so many floors, how thick, how much of it on, how bright, its
+            // colour); its floors lit through (in bands of how many, how
+            // often); its runs of windows (how many panes, how often); how
+            // warm; fins every third mullion; punched windows (the share of
+            // a module that is glass, 1 a curtain wall).
+            float MODR = 1.5, SILLR = 1.05, every = 1.0, sH = 0.12, sOn = 0.85, sB = 1.2, bandN = 2.0, bandP = 0.12, runW = 2.0, pWin = 0.035, warmP = 0.5, finsR = 0.0, glassW = 1.0;
             vec3 sCol = vec3(0.68, 0.85, 1.0);
             if (sys < 0.5) {
-              // Cool lines under every slab, few windows (BnnbP7pCIvQ@41).
+              // Steel fins (its builder's), cool lines under every slab, a
+              // pair of floors lit through now and then (BnnbP7pCIvQ@41).
+              bandN = 2.0; bandP = 0.11; pWin = 0.03; warmP = 0.2;
             } else if (sys < 1.5) {
-              // Warm and sparse: rooms lit here and there in pairs of
-              // panes, an amber line every fifth floor.
-              MODR = 1.2; every = 5.0; sH = 0.2; sOn = 0.7; pWin = 0.24; runW = 2.0; sB = 1.6; warmP = 0.92; floorP = 0.045; sCol = vec3(1.0, 0.7, 0.4);
+              // A dark wall, its tenants' floors lit warm through in threes,
+              // an amber line every sixth floor.
+              MODR = 1.2; every = 6.0; sH = 0.16; sOn = 0.75; sB = 1.4; bandN = 3.0; bandP = 0.2; runW = 1.0; pWin = 0.025; warmP = 0.9;
+              sCol = vec3(1.0, 0.68, 0.36);
             } else if (sys < 2.5) {
-              // The house's colour every third floor, fins.
-              MODR = 1.8; every = 3.0; sH = 0.22; sOn = 0.9; pWin = 0.14; sB = 1.9; warmP = 0.3; floorP = 0.025; finsR = 1.0;
-              sCol = mix(vec3(0.68, 0.85, 1.0), accent * 1.4, own);
+              // Ribbon windows under deep spandrels, lit in long runs along
+              // the floor, warm and cool; the house's colour on one floor
+              // in nine.
+              MODR = 1.8; SILLR = 1.5; every = 9.0; sH = 0.2; sOn = 1.0; sB = 1.6; bandN = 1.0; bandP = 0.15; runW = 6.0; pWin = 0.2; warmP = 0.55;
+              sCol = mix(vec3(0.68, 0.85, 1.0), accent * 1.2, own);
             } else if (sys < 3.5) {
-              // A dark monolith: a faint line every eighth floor, a warm
-              // window or two.
-              every = 8.0; sH = 0.12; sOn = 0.6; pWin = 0.05; sB = 0.7; warmP = 0.75; floorP = 0.012; sCol = vec3(0.85, 0.9, 1.0);
+              // A dark monolith: a faint line every eighth floor, two floors
+              // lit through once in a while, a warm window or two.
+              every = 8.0; sH = 0.12; sOn = 0.6; sB = 0.7; bandN = 2.0; bandP = 0.07; pWin = 0.02; warmP = 0.75; sCol = vec3(0.85, 0.9, 1.0);
             } else if (sys < 4.5) {
-              // Ribbon windows under deep spandrels, warm, a thin line
-              // every second floor.
-              MODR = 1.2; SILLR = 1.7; every = 2.0; sH = 0.1; sOn = 0.75; pWin = 0.2; runW = 3.0; sB = 0.8; warmP = 0.85; floorP = 0.035;
+              // Warm slits under deep spandrels, a thin line every second
+              // floor, runs of light along the floors.
+              MODR = 1.2; SILLR = 1.7; every = 2.0; sH = 0.1; sOn = 0.75; sB = 0.8; bandN = 1.0; bandP = 0.09; runW = 4.0; pWin = 0.1; warmP = 0.85;
               sCol = vec3(1.0, 0.8, 0.55);
             } else if (sys < 5.5) {
-              // A fine grid of cool points, a dim cyan line every second
-              // floor.
-              MODR = 1.2; every = 2.0; sH = 0.1; sOn = 0.85; pWin = 0.18; sB = 0.8; warmP = 0.15; sCol = vec3(0.45, 0.9, 1.0);
+              // Punched windows in a dark wall, cool and warm, a dim cyan
+              // line every second floor.
+              MODR = 1.5; SILLR = 1.25; every = 2.0; sH = 0.1; sOn = 0.85; sB = 0.8; bandN = 2.0; bandP = 0.1; runW = 1.0; pWin = 0.09; warmP = 0.35; glassW = 0.52;
+              sCol = vec3(0.45, 0.9, 1.0);
             } else if (sys < 6.5) {
-              // Bright warm-white lines every fourth floor, a few floors lit.
-              every = 4.0; sH = 0.3; sOn = 0.85; pWin = 0.12; sB = 1.9; floorP = 0.045; sCol = vec3(1.0, 0.9, 0.75); finsR = 1.0;
+              // Fins, bright warm-white lines every fourth floor, the four
+              // floors over a line lit through now and then.
+              every = 4.0; sH = 0.3; sOn = 0.85; sB = 1.9; bandN = 4.0; bandP = 0.1; pWin = 0.03; warmP = 0.5; sCol = vec3(1.0, 0.9, 0.75); finsR = 1.0;
             } else {
-              // The blocks round the towers: a cool line every third
-              // floor, sparse windows, warm or cool by the block.
-              MODR = sys < 7.5 ? 1.5 : 1.8; every = 3.0; sH = 0.14; sOn = 0.65; pWin = 0.3; sB = 1.1; warmP = sys < 7.5 ? 0.45 : 0.8; floorP = 0.035;
+              // The blocks round the towers and the second rank: a cool
+              // line every third floor, two floors lit through, sparse runs
+              // of windows, warm or cool by the block.
+              MODR = sys < 7.5 ? 1.5 : 1.8; every = 3.0; sH = 0.14; sOn = 0.65; sB = 1.1; bandN = 2.0; bandP = 0.1; runW = 3.0; pWin = 0.05; warmP = sys < 7.5 ? 0.45 : 0.8;
             }
             float fyR = (vWorld.y - BASE) / STOREY;
             float lv = floor(fyR);
@@ -1017,18 +1030,28 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             float md = uR / MODR;
             float pn = floor(md);
             float shareR = vColor.r;
-            // A sky lobby (a band its builder lit end to end) or now and
-            // then a tenant's floor lit through, dark in a zone or two.
+            // A sky lobby (a band its builder lit end to end, or a face it
+            // lit through) or a tenant's floors lit through: the same floors
+            // on every face, so a band goes round the tower; a 9 m zone of
+            // it dark here and there.
             float belt = step(0.985, shareR);
             float zoneR = floor(uR / 9.0);
-            float floorOn = max(belt, step(hash12(vec2(lv, seedR + 4.2)), floorP * (0.6 + 1.4 * shareR)));
-            floorOn *= step(0.22, hash12(vec2(zoneR, lv + seedR * 1.3)));
+            float blk = floor((lv + floor(hash12(vec2(seedT, 2.9)) * bandN)) / bandN);
+            float bandOn = step(hash12(vec2(blk, seedT + 4.2)), bandP * 1.25);
+            float floorOn = max(belt, bandOn * step(0.16, hash12(vec2(zoneR, blk + seedR * 1.3))));
+            // How busy a floor is: its runs of windows lit by the floor.
+            float occ = 0.3 + 1.4 * hash12(vec2(lv, seedT * 0.37 + 11.0));
             float grp = floor(md / runW);
-            float winOn = step(hash12(vec2(grp, lv + seedR * 1.7)), pWin * (0.4 + 1.5 * shareR));
+            float winOn = step(hash12(vec2(grp, lv + seedR * 1.7)), pWin * occ);
             float onR = max(winOn, floorOn);
-            float tone = hash12(vec2(mix(grp, zoneR + 500.0, floorOn), lv + seedR * 2.9));
+            // Warm or cool by the floor (a run of windows now and then the
+            // other), a floor lit through its own.
+            float tone = mix(hash12(vec2(lv, seedT * 2.9 + 5.0)), hash12(vec2(grp, lv + seedR * 2.9)), 0.3 * (1.0 - floorOn));
             vec3 LR = tone < mix(warmP, 1.0, belt * vColor.g) ? vec3(1.0, 0.74, 0.46) : vec3(0.78, 0.88, 1.0);
-            LR *= 1.0 + 1.0 * hash12(vec2(tone * 17.0, lv));
+            LR *= 1.5 + 1.0 * hash12(vec2(floor(tone * 17.0), lv));
+            // Punched windows: a module's glass only its middle, the rest dark wall.
+            float mx = fract(md);
+            float wallR = step(glassW, 0.99) * step(glassW * 0.5, abs(mx - 0.5));
 
             vec3 V = normalize(vWorld - uCam);
             float dist = length(vWorld - uCam);
@@ -1078,13 +1101,14 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             }
             room = room * onR + vec3(0.0022, 0.0028, 0.005);
 
-            // Its lines of light, a few centimetres under the slab: box
-            // filtered over the pixel's height, to their average far off.
+            // Its lines of light, a few centimetres under the slab, on the
+            // same floors all round: box filtered over the pixel's height,
+            // to their average far off.
             float fw = fwidth(fyR);
             float pix = max(fw * STOREY, 1e-4);
             float s1 = STOREY - 0.12;
             float cov = clamp((min(inF + pix * 0.5, s1) - max(inF - pix * 0.5, s1 - sH)) / pix, 0.0, 1.0);
-            float stripFloor = step(mod(lv + floor(hash12(vec2(seedR, 7.7)) * every), every), 0.5);
+            float stripFloor = step(mod(lv + floor(hash12(vec2(seedT, 7.7)) * every), every), 0.5);
             float seg = step(hash12(vec2(zoneR + 40.0, lv + seedR * 0.7)), sOn);
             float strip = mix(cov * stripFloor * seg, sH / STOREY / every * sOn, smoothstep(0.25, 0.7, fw));
 
@@ -1093,34 +1117,38 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
             vec3 nj = normalize(n + t * jit.x * 0.05 + vec3(0.0, jit.y * 0.03, 0.0));
             vec3 R = reflect(V, nj);
             float F = 0.06 + 0.55 * pow(1.0 - abs(dot(V, nj)), 5.0);
-            vec3 env = skyIn(R, nearR) * 0.85;
+            vec3 env = skyIn(R, nearR) * vec3(0.82, 1.0, 1.12);
             float fin = exp(-edge / 1.3);
             float up = exp(-max(vWorld.y - BASE, 0.0) / 9.0);
             float crown = exp(-max(top - vWorld.y, 0.0) / 6.0);
-            vec3 wash = accent * (fin * (0.03 + 0.6 * tlit) + up * (0.08 + 0.25 * tlit) + crown * (0.03 + 0.6 * tlit) + 0.05 * tlit) * own;
-            vec3 glass = room * vec3(0.75, 0.85, 0.92) * (1.0 - F) + env * F + wash * (0.05 + 0.45 * F) + vec3(0.002, 0.003, 0.007);
+            vec3 wash = accent * (fin * (0.02 + 0.3 * tlit) + up * (0.08 + 0.25 * tlit) + crown * (0.03 + 0.6 * tlit) + 0.03 * tlit) * own;
+            vec3 glass = room * vec3(0.75, 0.85, 0.92) * (1.0 - F) + env * F + wash * (0.05 + 0.45 * F) + vec3(0.002, 0.004, 0.007);
 
             vec3 street = spillGround(vWorld);
             vec3 frameCol = vec3(0.012, 0.013, 0.018) + env * 0.3 + wash * 0.5 + street * 0.25;
-            vec3 spand = vec3(0.008, 0.009, 0.013) + env * (0.12 + 0.5 * F) + wash * 0.35 + street * 0.18;
-            float mx = fract(md);
+            vec3 spand = vec3(0.008, 0.01, 0.013) + env * (0.12 + 0.5 * F) + wash * 0.35 + street * 0.18;
             float mw = fwidth(md);
             float mhw = max(0.03, 0.55 * mw * MODR);
             float thw = max(0.035, 0.55 * fw * STOREY);
             float mull = mix(step(min(mx, 1.0 - mx) * MODR, mhw) * clamp(0.03 / mhw + 0.35, 0.0, 1.0), 0.05, smoothstep(mix(0.02, 0.1, nearR), mix(0.06, 0.28, nearR), mw));
             float trans = mix((step(abs(inF - SILLR), thw) + step(STOREY - inF, thw)) * clamp(0.035 / thw + 0.35, 0.0, 1.0), 0.02, smoothstep(mix(0.01, 0.05, nearR), mix(0.03, 0.14, nearR), fw));
             float slab = mix(step(inF, SILLR), SILLR / STOREY, smoothstep(0.08, 0.3, fw));
+            float wallA = mix(wallR, 1.0 - glassW, smoothstep(0.15, 0.5, mw));
             float fm = fract(md / 3.0) * 3.0;
             float fin3 = finsR * step(min(fm, 3.0 - fm) * MODR, max(0.09, 0.8 * mw * MODR)) * (1.0 - smoothstep(0.3, 0.9, mw));
             vec3 col = mix(glass, frameCol, clamp(mull + trans, 0.0, 1.0));
-            col = mix(col, spand, slab);
+            col = mix(col, spand, max(slab, wallA * (1.0 - slab)));
             col = mix(col, frameCol * 1.5 + street * 0.12, fin3);
-            // Far off, a floor's average rather than a pattern that shimmers.
-            float litAvgR = min(pWin * (0.4 + 1.5 * shareR) + floorP * (0.6 + 1.4 * shareR) * 0.78 + belt * 0.78, 1.0);
-            vec3 avgRoom = mix(vec3(0.78, 0.88, 1.0), vec3(1.0, 0.74, 0.46), warmP) * 1.5 * litAvgR * 0.3 + 0.003;
-            vec3 avg = mix(avgRoom * (1.0 - F) + env * F + wash * 0.3, spand, SILLR / STOREY);
-            col = mix(col, avg, smoothstep(0.25, 0.6, fw));
-            col += sCol * sB * strip;
+            // Far off, a floor's average (and further, the wall's) rather
+            // than a pattern that shimmers: the bands stay bands.
+            float litF = max(floorOn * 0.84, pWin * occ);
+            float litAll = bandP * 1.25 * 0.84 + pWin;
+            float farF = smoothstep(0.7, 1.6, fw);
+            vec3 avgRoom = mix(LR * 0.42 * litF, mix(vec3(0.78, 0.88, 1.0), vec3(1.0, 0.74, 0.46), warmP) * 1.5 * litAll * 0.3, farF) + 0.003;
+            float glassShare = (1.0 - SILLR / STOREY) * glassW;
+            vec3 avg = mix(spand, avgRoom * (1.0 - F) + env * F + wash * 0.3, glassShare);
+            col = mix(col, avg, smoothstep(0.25, 0.6, max(fw, mw * 0.5)));
+            col += sCol * sB * 1.35 * strip;
             // The towers behind stand back in the wet air's blue.
             float lit = clamp(onR * (1.0 - slab) + strip * 3.0, 0.0, 1.0);
             col = mix(col, hazeAt(vWorld - uCam) * 1.8 + uGlowColor * 0.1, smoothstep(130.0, 430.0, dist) * 0.5 * freeEye() * (1.0 - 0.4 * lit));

@@ -944,7 +944,7 @@ def storey_line(y):
 
 
 def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, tiers=((1.0, 0.0),), fronts=None,
-               fin_step=0.0, fin_faces=("+z",), corners=None, edge="cyan", cap=6.0, podium=STONE, canopy=0.0,
+               fin_step=0.0, fin_faces=("+z",), corners=None, edge=None, cap=6.0, podium=STONE, canopy=0.0,
                colour="cyan", lit=(0.5, 0.86), warm=(0.0, 0.45), style=5, top_band=None, terrace_rail=True, crown=True, sys=None):
     """A corporate block: a stone podium to `base` with its fronts (see
     front()), a shaft in `tiers` ((fraction of the height it ends at, inset
@@ -994,7 +994,9 @@ def corp_block(x0, x1, z0, z1, h, seed, skin="glass", tint="navy", base=BASE, ti
             for name, f in B.faces_of(a0, a1, b0, b1).items():
                 if name in fin_faces:
                     fins(f, y, y1, fin_step, detail=0 if name == "+z" or name == "-z" else 1)
-        if corners:
+        if corners and ti == 0 and y1 - y < 30.0:
+            # (Up a low podium's corners only: lines up every block's
+            # corners to its roof were a rim of neon on every edge.)
             for cx, cz in ((a0, b0), (a0, b1), (a1, b0), (a1, b1)):
                 strip_v(cx, cz, y + 0.5, y1, corners)
         prev = (a0, a1, b0, b1)
