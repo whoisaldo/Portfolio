@@ -940,11 +940,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // 10 ms, a round trip each, 0.25 s of the page's time on a desktop, and
   // the first frame then took 0.3 s more. Here only the next program in the
   // order they were made is asked after. A picture still on its way (the
-  // adverts' atlas is asked for as the kit is made) is waited for, and so
-  // is anything `ready()` says is not, up to PICTURES_MS, so the first
-  // frame never shows a wall without its picture or a person unlit.
+  // adverts' atlas is asked for as the kit is made) is waited for, up to
+  // PICTURES_MS, so the first frame never shows a wall without it.
   const PICTURES_MS = 4000;
-  const prepare = (root, into, ready = () => true) => {
+  const prepare = (root, into) => {
     const before = renderer.info.programs.length;
     const prev = renderer.getRenderTarget();
     renderer.setRenderTarget(into);
@@ -976,24 +975,12 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           renderer.initTexture(p);
           pictures.delete(p);
         }
-        const late = performance.now() - t0 > PICTURES_MS;
-        if (late) pictures.clear();
-        if (next < programs.length || pictures.size || !(late || ready())) setTimeout(tick, 4);
+        if (pictures.size && performance.now() - t0 > PICTURES_MS) pictures.clear();
+        if (next < programs.length || pictures.size) setTimeout(tick, 4);
         else resolve();
       };
       tick();
     });
-  };
-
-  // (load) Whether the people's light is baked: until it is, their shader's
-  // map of it (uSigns) is a single texel.
-  const crowdLit = () => {
-    let lit = true;
-    crowd?.mesh.traverse((o) => {
-      const map = o.material?.uniforms?.uSigns?.value;
-      if (map && !(map.image?.width > 1)) lit = false;
-    });
-    return lit;
   };
 
   // Build the city, compile every material before anyone is looking, and
@@ -1010,12 +997,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // or the programs made here are not the ones the frames use.
     // (load: the crowd learns the camera it is seen through from its first
     // draw, and the warm-up's first draw was the moon's, before the hero's:
-    // told now, so the hero's frame sorts and culls its people as it did.
-    // That also asks for the people's light (crowd-light.js), baked a few
-    // milliseconds at a time in idle moments: it is waited for, so the
-    // first frame does not show them unlit and then lit, as it did.)
+    // told now, so the hero's frame sorts and culls its people as it did.)
     crowd?.update(camera);
-    await prepare(scene, post.composer.inputBuffer, crowdLit);
+    await prepare(scene, post.composer.inputBuffer);
     if (disposed) return;
     // Two real frames of the hero, under the door or the poster where
     // nobody sees them, with nothing culled. Compiling is not everything a
