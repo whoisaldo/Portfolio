@@ -2780,6 +2780,14 @@ def _container(kk, col, ln=12.19):
     # The blind end's ribs.
     for z in (-0.75, -0.25, 0.25, 0.75):
         box(td, -hx + 0.02, -hx + 0.06, 0.2, 2.5, z - 0.12, z + 0.12, scale=1.0, col=shade(col, 0.75))
+    # The sides' corrugation: a shadowed and a lit flank to every rib.
+    lo, hi_ = shade(col, 0.5), shade(col, 1.3)
+    x = -hx + 0.32
+    while x < hx - 0.3:
+        for (xa, xb, cc) in ((x - 0.05, x + 0.01, lo), (x + 0.07, x + 0.13, hi_)):
+            quad(td, (xa, 0.2, 1.212), (xb, 0.2, 1.212), (xb, 2.5, 1.212), (xa, 2.5, 1.212), col=cc)
+            quad(td, (xb, 0.2, -1.212), (xa, 0.2, -1.212), (xa, 2.5, -1.212), (xb, 2.5, -1.212), col=cc)
+        x += 0.42
 
 
 BOX_TONES = (("c40_red", OXIDE), ("c40_rust", RUST), ("c40_blue", c(0.08, 0.17, 0.34)), ("c40_green", c(0.09, 0.25, 0.17)),
@@ -2935,18 +2943,18 @@ def _ibc(kk):
     """An IBC tote: the pale tank in its steel cage on a pallet, filled to
     two thirds, its cap and outlet valve."""
     t = kk("trim")
-    cage = c(0.3, 0.31, 0.32)
+    cage = c(0.14, 0.145, 0.15)
     box(t, -0.6, 0.6, 0.0, 0.15, -0.5, 0.5, scale=1.0, col=c(0.12, 0.12, 0.13))
-    box(t, -0.55, 0.55, 0.15, 0.78, -0.45, 0.45, scale=1.0, col=c(0.55, 0.52, 0.44))
-    box(t, -0.55, 0.55, 0.78, 1.12, -0.45, 0.45, scale=1.0, col=c(0.72, 0.72, 0.68))
+    box(t, -0.55, 0.55, 0.15, 0.78, -0.45, 0.45, scale=1.0, col=c(0.36, 0.34, 0.27))
+    box(t, -0.55, 0.55, 0.78, 1.12, -0.45, 0.45, scale=1.0, col=c(0.5, 0.5, 0.47))
     for s in (-1, 1):
         for u in (-0.27, 0.0, 0.27):
-            box(t, u - 0.012, u + 0.012, 0.15, 1.14, s * 0.47 - 0.012, s * 0.47 + 0.012, scale=1.0, col=cage)
+            box(t, u - 0.025, u + 0.025, 0.15, 1.14, s * 0.47 - 0.02, s * 0.47 + 0.02, scale=1.0, col=cage)
         for u in (-0.22, 0.22):
-            box(t, s * 0.57 - 0.012, s * 0.57 + 0.012, 0.15, 1.14, u - 0.012, u + 0.012, scale=1.0, col=cage)
+            box(t, s * 0.57 - 0.02, s * 0.57 + 0.02, 0.15, 1.14, u - 0.025, u + 0.025, scale=1.0, col=cage)
     for y in (0.5, 0.82, 1.13):
         for (a0, a1, b0, b1) in ((-0.58, 0.58, -0.485, -0.46), (-0.58, 0.58, 0.46, 0.485), (-0.585, -0.56, -0.47, 0.47), (0.56, 0.585, -0.47, 0.47)):
-            box(t, a0, a1, y - 0.015, y + 0.015, b0, b1, scale=1.0, col=cage)
+            box(t, a0, a1, y - 0.025, y + 0.025, b0, b1, scale=1.0, col=cage)
     cylinder(t, 0.0, 0.0, 1.12, 1.18, 0.12, segs=8, col=c(0.75, 0.74, 0.7))
     box(t, -0.08, 0.08, 0.2, 0.32, 0.45, 0.6, scale=1.0, col=c(0.1, 0.1, 0.11))
 

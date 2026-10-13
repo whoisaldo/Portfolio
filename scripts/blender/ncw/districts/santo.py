@@ -205,6 +205,14 @@ def works():
     stand(X1 + 1.9, -121.8, -0.4, "talk", plat)
     stand(X1 + 1.2, -139.0, PI / 2, "smoke", plat)
     stand(281.6, -106.3, -PI / 2, "smoke")
+    # The court's aisle at work: a forklift with a load, pallets waiting,
+    # totes, the floods' light along it.
+    forklift(284.6, -131.6, PI / 2, load="pallets")
+    for (x, z, name) in ((287.6, -134.6, "pallets"), (287.6, -136.0, "pallets"), (288.9, -135.3, "ibc"), (283.0, -141.0, "drum_pallet"), (284.4, -141.2, "drum_pallet"),
+                         (286.8, -118.0, "ibc"), (288.1, -118.0, "ibc")):
+        P.place(name, x, GY, z, 0.1 * x, district=D)
+    stand(287.0, -129.4, -PI / 2, "idle")
+    K.wash(281.0, 289.0, -146.0, -114.0, level=0.55, step=5.0)
     stand(285.0, -125.4, PI, "talk")
     stand(285.2, -126.7, 0.0, "talk")
     K.name_sign("HELCASO", 250.0, 11.2, -103.0, PI * 0.12, h=2.0)
@@ -254,7 +262,7 @@ def spheres_dress(cx, zs, rad):
         K.run([(cx - 0.9, top + 0.45, cz), (cx - 0.9, top + 0.45, zo), (cx - 0.9, 0.75, zo)], r=0.15, col=K.TANK_WHITE, segs=8, flanges=99.0)
         K.run([(cx - 0.5, top, cz + 0.5), (cx - 0.5, top + 2.6, cz + 0.5)], r=0.13, col=K.TANK_WHITE, segs=8, flanges=99.0, detail=1)
         cylinder(K.M("steel", 1), cx - 0.5, cz + 0.5, top + 2.6, top + 2.75, 0.24, segs=8, col=K.STEEL)
-        for yaw in (PI / 2 - 0.6, -PI / 2 - 0.6):
+        for yaw in (PI / 2 + 0.5, -PI / 2 - 0.6):
             K.shell_text(cx, cz, rad + 0.03, cy + 1.7, f"S{i + 1}", 2.4, yaw, red)
         P.place("warn_board", cx + 3.2, GY + 1.55, cz + 5.6, PI / 2, district=D)
         box(k("metal"), cx + 3.17, cx + 3.23, GY, GY + 1.2, cz + 5.57, cz + 5.63, scale=0.5)
@@ -317,7 +325,7 @@ def tank_farm():
     # bunds, cyan lamps on every landing (in K.tank).
     K.fence(304.8, -167.8, 425.8, -167.8)
     K.fence(425.8, -167.8, 425.8, -92.8)
-    K.verge(r, 427.5, -166.0, 427.5, -94.0, step=4.6, kinds=("hydrant", "bollard", "bollard", "bin", "cctv", "barrier", "lamp_short", "bollard"))
+    K.verge(r, 427.3, -166.0, 427.3, -94.0, step=4.6, kinds=("hydrant", "bollard", "bollard", "bin", "cctv", "barrier", "lamp_short", "bollard"))
     K.run([(455.2, 7.35, -101.55), (457.2, 7.35, -101.55), (457.2, 0.7, -101.55)], r=0.3, col=K.STEEL_BLUE)
     mast(309.0, -164.5, PI * 0.2)
     mast(422.6, -164.2, -PI * 0.25)
@@ -656,7 +664,7 @@ def plant():
         K.sodium(427.0, 1.6, z, 5.0)
     K.low_wall(424.0, -10.8, 425.8, -10.8, lamps=0)
     K.verge(r, 314.0, -11.2, 386.0, -11.2, step=4.6, skip=((50.0, 55.6),))
-    K.verge(r, 426.9, -82.0, 426.9, -12.0, step=4.6, skip=((66.0, 70.0),))
+    K.verge(r, 426.7, -82.0, 426.7, -12.0, step=4.6, skip=((66.0, 70.0),))
     for x in (392.0, 404.0, 416.0):
         P.place("bench", x, GY, -10.3, 0.0, district=D)
     P.place("food_box", 398.4, GY, -10.3, 0.0, district=D)
@@ -1038,8 +1046,9 @@ def container_yard():
     # Under the gantry's span, its trolley's lane left open across the
     # middle; the east block long side on, stepping up to the back wall.
     for cx in (295.3, 307.9):
-        for j, cz in enumerate((19.6, 22.44, 25.28, 31.0, 33.84, 36.68, 39.52)):
-            stack(cx, cz, 0.0, r.choice((1, 2, 2)) if j in (2, 3) else r.choice((1, 2, 3, 3)))
+        # (The lane in from the gate under the gantry stays open to z 23.)
+        for j, cz in enumerate((24.4, 27.24, 30.08, 32.92, 35.76, 38.6)):
+            stack(cx, cz, 0.0, r.choice((1, 2, 2)) if j in (1, 2) else r.choice((1, 2, 3, 3)))
     for cx in (321.6, 333.9):
         for j in range(9):
             cz = 18.4 + j * 2.84
