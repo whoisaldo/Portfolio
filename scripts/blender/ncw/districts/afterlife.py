@@ -1193,7 +1193,7 @@ with own_ids(9641):
         # (Closer where the lane is narrow: the alley and the passage are four
         # metres across, and a walker turned to either wall sees four of it.)
         narrow = (name in ("-x", "+x") and plane < 410.0) or (plane in (-316.0, -312.0) and a0 >= EL)
-        K.lane_dress(D, f_, rd, top, step=3.8 if narrow else 4.6, k0=i * 3)
+        K.lane_dress(D, f_, rd, top, step=3.0 if narrow else 3.4, k0=i * 3)
 # (Its blades draw their designs from a stream of their own, and the
 # street's stream moves on by the two it gave them before, so every sign
 # built after the lanes keeps the design it had.)
@@ -1204,6 +1204,12 @@ with own_ids(9642):
         K.lane_wall(D, f_, rl, top, dens, bundle=(name, a1) != ("+z", 484.0), windows=0.2 if plane in (-316.0, -312.0) and a0 >= EL else 1.0)
 for _ in range(2):
     K.sid("bs")
+# (The sweep's darkest lane walls, where a walker turned to the wall saw
+# nothing lit: a caged lamp over each, clear of the pipes.)
+for (name, plane, a0, a1, sv, hue) in (("+x", 398.0, -300.0, -258.0, 22.0, "amber"), ("+x", 484.03, -300.0, -258.0, 27.0, "white"),
+                                       ("+x", 484.03, -300.0, -258.0, 31.2, "amber"), ("+z", -316.0, EL, 484.0, 16.2, "cyan"),
+                                       ("+z", -316.0, EL, 484.0, 19.6, "white")):
+    K.wall_lamp(D, B.Face(name, plane, a0, a1), sv, 3.0, hue, power=1.2, out=0.4)
 
 # More of the lanes' own people (the m8 review: "two to four per lane"): a
 # smoker at a door, someone on a phone, a pair talking, one crouched by a
