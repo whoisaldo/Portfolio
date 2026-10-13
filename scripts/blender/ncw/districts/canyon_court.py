@@ -277,6 +277,105 @@ def build(ax, az, occ, z_lo=-514.0, z_hi=-470.0):
     C.lane(CB, 46.0, 130.0, -530.0, -522.0, random.Random(4922), along="x", tubes=False, name="cy_service")
     for x in (60.0, 84.0, 108.0):
         P.place("lamp_short", x, G0, -522.6, district=CB)
+    _corporate(ax, az, z_lo, z_hi, px0, cz0, cz1, random.Random(4977))
+
+
+def _banner(x, z, yaw, h=9.0):
+    """A tall red banner on a pole, the court's emblem pale on it, read
+    from both sides."""
+    cylinder((CB, "metal", 0), x, z, COURT_Y, COURT_Y + h, 0.07, segs=6)
+    box((CB, "glow", 0), x - 0.1, x + 0.1, COURT_Y + h, COURT_Y + h + 0.2, z - 0.1, z + 0.1, scale=0.5, col=GLOW["red"])
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    yc = COURT_Y + h - 2.6
+    cx, cz = x + rx * 0.85, z + rz * 0.85
+    box((CB, "metal", 1), min(x, cx + rx * 0.75) - 0.03, max(x, cx + rx * 0.75) + 0.03, yc + 2.15, yc + 2.22, min(z, cz + rz * 0.75) - 0.03, max(z, cz + rz * 0.75) + 0.03,
+        scale=0.5)
+    for sg in (1, -1):
+        y_ = yaw if sg > 0 else yaw + math.pi
+        ox, oz = nx * 0.02 * sg, nz * 0.02 * sg
+        rotated_quad((CB, "glow", 0), cx + ox, yc, cz + oz, 1.5, 4.3, y_, col=C.dim("red", 0.32))
+        # (The emblem: a ring round three bars, the middle one tall.)
+        ex, ey, ez = cx + ox * 2, yc + 1.05, cz + oz * 2
+        C.ngon((CB, "glow", 0), (ex, ey, ez), 0.5, 0.09, 16, 0.0, "z" if abs(nz) > 0.5 else "x", C.dim("white", 0.75))
+        for u, hh in ((-0.2, 0.2), (0.0, 0.34), (0.2, 0.2)):
+            rotated_quad((CB, "glow", 0), ex + rx * u + ox, ey, ez + rz * u + oz, 0.08, hh * 2, y_, col=C.dim("white", 0.75))
+
+
+def _arch(x, z, w=1.3):
+    """A scanner gate on the approach: two posts, a lintel with a line of
+    light, a red lamp on each post."""
+    for zz in (z - w / 2, z + w / 2):
+        box((CB, "metal", 0), x - 0.12, x + 0.12, COURT_Y, COURT_Y + 2.3, zz - 0.08, zz + 0.08, scale=0.5)
+        box((CB, "glow", 0), x - 0.13, x + 0.13, COURT_Y + 1.0, COURT_Y + 1.6, zz - 0.02, zz + 0.02, scale=0.5, col=C.dim("cyan", 0.6))
+    box((CB, "metal", 0), x - 0.14, x + 0.14, COURT_Y + 2.3, COURT_Y + 2.55, z - w / 2 - 0.08, z + w / 2 + 0.08, scale=0.5)
+    box((CB, "glow", 0), x - 0.15, x + 0.15, COURT_Y + 2.32, COURT_Y + 2.4, z - w / 2, z + w / 2, scale=0.5, col=C.dim("red", 0.9), bottom=True)
+
+
+def _corporate(ax, az, z_lo, z_hi, px0, cz0, cz1, r):
+    """What makes the court a corporation's (YRL74JmhVgk@30, Fn9gKhU_2_Q@77):
+    tall red banners on the planter walls, scanner gates on the runner
+    with guards at them, a guard's booth on the apron, and people: staff
+    crossing in twos and threes, a knot at each bench, visitors on the
+    apron (their own dice, so the court's run on as they did)."""
+    for x in (26.0, 33.2, 40.2):
+        for z, yaw in ((cz0 + 0.35, 0.0), (cz1 - 0.35, math.pi)):
+            _banner(x, z, math.pi / 2 + (math.pi if yaw == 0.0 else 0.0))
+    for dz in (-0.75, 0.75):
+        _arch(24.6, az + dz, 1.3)
+    stand(24.6, az - 1.9, -math.pi / 2, "idle", COURT_Y)
+    stand(24.6, az + 1.9, -math.pi / 2, "idle", COURT_Y)
+    stand(25.4, az + 2.4, -math.pi / 2 + 0.6, "phone", COURT_Y)
+    # The booth: a dark cabin, its window lit, a guard in it and one at its door.
+    bx0, bx1, bz0, bz1 = 15.2, 17.4, z_hi - 4.6, z_hi - 2.4
+    box((CB, "trim", 0), bx0, bx1, G0, G0 + 2.5, bz0, bz1, scale=1.0, col=(0.03, 0.035, 0.05, 1))
+    box((CB, "trim", 0), bx0 - 0.15, bx1 + 0.15, G0 + 2.5, G0 + 2.7, bz0 - 0.15, bz1 + 0.15, scale=1.0, col=(0.05, 0.055, 0.07, 1))
+    f = B.Face("-x", bx0, bz0, bz1)
+    f.quad((CB, "glow", 0), 0.25, f.width - 0.25, G0 + 1.1, G0 + 2.1, 0.02, col=C.dim("cyan", 0.35))
+    B.Face("-x", bx0, bz0, bz1).quad((CB, "neon_red", 0), 0.1, f.width - 0.1, G0 + 2.52, G0 + 2.6, 0.17)
+    light(CB, bx0 - 0.8, 2.2, (bz0 + bz1) / 2, "white", 3.5)
+    stand(bx0 - 0.6, bz0 - 0.5, -math.pi / 2, "idle", G0)
+    # Staff and visitors on the court and the apron, clear of the palms,
+    # benches, kiosks, blocks, the tape and the runner's gates.
+    keep = [(24.5, az - 10.5, 1.6), (31.5, az - 10.5, 1.6), (38.5, az - 10.5, 1.6), (24.5, az + 10.5, 1.6), (31.5, az + 10.5, 1.6),
+            (38.5, az + 10.5, 1.6), (28.0, az - 10.5, 1.4), (35.0, az - 10.5, 1.4), (28.0, az + 10.5, 1.4), (35.0, az + 10.5, 1.4),
+            (31.5, az - 14.0, 3.2), (34.5, az, 4.0), (24.6, az, 2.6), (22.5, az, 6.0), (px0 - 1.0, az, 4.0)]
+    keep += [(x, z, 1.0) for x in (23.2, 35.4, 40.0) for z in (cz0 + 1.7, cz1 - 1.7)]
+    keep += [(x, z, 1.0) for x in (26.0, 33.2, 40.2) for z in (cz0 + 0.35, cz1 - 0.35)]
+    keep += [(27.6, az + dz, 1.2) for dz in (-9.0, -6.6, 6.6, 9.0)]
+
+    def free(x, z, rad=0.6):
+        return all((x - kx) ** 2 + (z - kz) ** 2 > (kr + rad) ** 2 for kx, kz, kr in keep)
+    placed = 0
+    for _ in range(80):
+        if placed >= 14:
+            break
+        x, z = r.uniform(22.5, px0 - 2.0), r.uniform(cz0 + 2.4, cz1 - 2.4)
+        n = r.choice((2, 2, 3))
+        if not free(x, z, 1.3):
+            continue
+        keep.append((x, z, 1.3))
+        if n == 2:
+            a = r.uniform(0, math.tau)
+            for sg in (1, -1):
+                stand(x + sg * 0.42 * math.cos(a), z + sg * 0.42 * math.sin(a), math.atan2(-sg * math.cos(a), -sg * math.sin(a)), "talk", COURT_Y)
+        else:
+            for k in range(3):
+                a = k * math.tau / 3 + r.uniform(-0.3, 0.3)
+                stand(x + 0.55 * math.cos(a), z + 0.55 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)), r.choice(("talk", "idle", "phone")), COURT_Y)
+        placed += 1
+    # Walkers on their way in or out, one at a time, along the runner's
+    # edges and the yellow lines.
+    for x in (27.0, 30.5, 36.5, 40.0):
+        for dz in (-2.6, 2.6, -7.8, 7.8):
+            if r.random() < 0.55 and free(x, az + dz, 0.5):
+                stand(x, az + dz + r.uniform(-0.3, 0.3), r.choice((math.pi / 2, -math.pi / 2)) + r.uniform(-0.2, 0.2), r.choice(("idle", "phone")), COURT_Y)
+    # Visitors on the apron below the steps.
+    for z in (z_lo + 3.5, z_lo + 15.0, z_hi - 15.0, z_hi - 9.0):
+        stand(17.6, z, r.choice((0.0, math.pi)) + r.uniform(-0.4, 0.4), r.choice(("idle", "phone", "smoke")), G0)
+        if r.random() < 0.6:
+            stand(18.2, z + 0.7, -math.pi / 2, "talk", G0)
+            stand(17.4, z + 0.7, math.pi / 2, "talk", G0)
 
 
 # ---------------------------------------------------------------------------

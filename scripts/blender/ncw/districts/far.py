@@ -524,7 +524,9 @@ def _lookout(U, top, plaza):
         a = i * math.tau / 3 + 0.5
         stand(tx + 0.85 * math.cos(a), zm - 0.9 + 0.85 * math.sin(a), math.atan2(-math.cos(a), -math.sin(a)), "sit", top + 0.53)
     stand(_x(side, u0 + 0.55), zm - 1.2, side * math.pi / 2, "lean", top + 0.03)
-    stand(_x(side, u0 + 0.6), zm + 0.9, -side * math.pi / 2, r.choice(("phone", "smoke", "idle")), top + 0.03)
+    # (At a balcony's rail over the avenue she leans on it and looks out.)
+    pose = r.choice(("phone", "smoke", "idle"))
+    stand(_x(side, u0 + 0.6), zm + 0.9, -side * math.pi / 2, "rail" if u0 < 0 else pose, top + 0.03)
     LOOKOUTS.add((side, round(zm)))
     print("CANYON lookout", side, L["i"], U["k"], "x", round(xa, 1), round(xb, 1), "z", z0, z1, "y", top)
     return (u0, z0, z1, sg)
