@@ -15,6 +15,18 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 
 const GET = ["getX", "getY", "getZ", "getW"];
 
+// What an attribute's getX gives for a stored integer, by its array's type
+// (three's own denormalize), written out so a whole array can be read in
+// one loop and not through four calls a vertex.
+const UNIT = new Map([
+  [Int8Array, (v) => Math.max(v / 127.0, -1.0)],
+  [Uint8Array, (v) => v / 255.0],
+  [Int16Array, (v) => Math.max(v / 32767.0, -1.0)],
+  [Uint16Array, (v) => v / 65535.0],
+  [Int32Array, (v) => Math.max(v / 2147483647.0, -1.0)],
+  [Uint32Array, (v) => v / 4294967295.0],
+]);
+
 /** A plain Float32, non-interleaved, Uint32-indexed copy of `geometry`,
  *  keeping only `names` if given. */
 export function toFloat(geometry, names = null) {
@@ -24,15 +36,35 @@ export function toFloat(geometry, names = null) {
     const n = attr.count;
     const size = attr.itemSize;
     const arr = new Float32Array(n * size);
-    for (let i = 0; i < n; i++) {
-      for (let k = 0; k < size; k++) arr[i * size + k] = attr[GET[k]](i);
+    // The stored values in order (an interleaved one's from its stride),
+    // made what getX makes of them.
+    const data = attr.isInterleavedBufferAttribute ? attr.data : null;
+    const src = data ? data.array : attr.array;
+    const stride = data ? data.stride : size;
+    const at = data ? attr.offset : 0;
+    const unit = attr.normalized ? UNIT.get(src.constructor) : null;
+    if (attr.normalized && !unit) {
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < size; k++) arr[i * size + k] = attr[GET[k]](i);
+      }
+    } else if (unit) {
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < size; k++) arr[i * size + k] = unit(src[i * stride + at + k]);
+      }
+    } else if (!data && src.length >= n * size) {
+      arr.set(src.subarray(0, n * size));
+    } else {
+      for (let i = 0; i < n; i++) {
+        for (let k = 0; k < size; k++) arr[i * size + k] = src[i * stride + at + k];
+      }
     }
     out.setAttribute(name, new THREE.BufferAttribute(arr, size));
   }
   const count = geometry.attributes.position.count;
   const index = geometry.index;
   const idx = new Uint32Array(index ? index.count : count);
-  for (let i = 0; i < idx.length; i++) idx[i] = index ? index.getX(i) : i;
+  if (index) idx.set(index.array.subarray(0, idx.length));
+  else for (let i = 0; i < idx.length; i++) idx[i] = i;
   out.setIndex(new THREE.BufferAttribute(idx, 1));
   return out;
 }
