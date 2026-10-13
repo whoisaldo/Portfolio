@@ -354,7 +354,7 @@ function populate({ phone, walks, standers, benches = [], rails = [], bare = fal
     if (garment !== GARMENTS.puffer && garment !== GARMENTS.coat && style.hivis(jacket)) mask += bits(TAG.hivis);
     const shirt = draw(r, style.shirt, (i) => (FAMILY.shirt[i] === NEUTRAL || FAMILY.shirt[i] !== hue) && apart(light(SHIRTS[i])));
     const trousers = draw(r, style.trousers, (i) => (FAMILY.trousers[i] !== NEUTRAL ? FAMILY.trousers[i] !== hue : hue !== NEUTRAL || suit || open || apart(light(TROUSERS[i]))));
-    const bag = pose === "vendor" || pose === "carry" ? 0 : draw(r, style.bag, (k) => !(k === 2 && (pose === "lean" || pose === "sit" || pose === "floor" || pose === "lie")) && !(k === 3 && (low || pose === "rail")));
+    const bag = pose === "vendor" || pose === "carry" ? 0 : draw(r, style.bag, (k) => !(k === 2 && (pose === "lean" || pose === "sit" || pose === "floor" || pose === "lie")) && !(k === 3 && (low || pose === "rail" || pose === "lean")));
     if (bag) mask += bits([TAG.hipbag, TAG.backpack, TAG.tote][bag - 1]);
     const bagColour = draw(r, style.bagColour, (i) => FAMILY.bag[i] === NEUTRAL || FAMILY.bag[i] !== hue);
     const free = pose === null || pose === "idle" || pose === "talk";
@@ -1343,7 +1343,7 @@ const VERTEX = /* glsl */ `
         // turn it is talks with a hand, or both; the other listens with
         // theirs at rest, and nods now and then.
         float say = smoothstep(0.1, 0.5, sin(t * 0.3 + aWalk.w * 6.2832));
-        float mine = say * (side > 0.0 ? step(idle, 4.5) : step(0.55, rnd(seed * 4.3)) * step(idle, 2.5));
+        float mine = say * (side > 0.0 ? step(idle, 4.5) : step(0.55, rnd(seed * 4.3)) * step(idle, 2.5) * (1.0 - bit(aLook.x, ${f(TAG.tote)})));
         if (umbrella > 0.5 && side > 0.0) mine = 0.0;
         sp = mix(sp, (side > 0.0 ? 0.38 : 0.26) + 0.12 * sin(tt * 1.3 + side), mine);
         sr = mix(sr, 0.14, mine);
