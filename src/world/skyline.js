@@ -2003,6 +2003,55 @@ export function createSkyline(scene, shared, { count = 2600, keepOut = [], reduc
         if (k % 2 === 0) box(BOX.steel, x, (y - 1.6) / 2, z, 2.6, y - 1.6, 2.6, turn, [0.1, 0, 0]);
       }
     }
+    // The skyways: three long decks across the middle distance from one
+    // tall tower to another (the front towers each view sees: behind them
+    // a deck was hidden), each two floors lit bay by bay in its truss
+    // and lit from under, a row of lit boards hung under it, each its own
+    // advert, as the show strings them across its far city. East, across
+    // what Contact's lens and far-low look at, left of and under the moon
+    // (moon-check); west, across the deck's and the avenue's looks from the
+    // air; south, across the avenue's look south and the south air. The
+    // west and south ones stand for a free eye only (the page's lenses keep
+    // their frames). No board hangs where a flying lane passes under.
+    // (Each end the tallest tower standing within 30 m of its point.)
+    const SKYWAYS = [
+      [855, -107, 713, 7, 90, 0, 6],
+      [-210, -178, -213, -44, 125, 2, 4],
+      [-213, -44, -210, 94, 125, 2, 4],
+      [-118, 186, 70, 188, 110, 2, 6],
+    ];
+    const towerAt = (x, z, over) => {
+      let best = -1;
+      lots.forEach((b, i) => {
+        if (!b.gone && b.h >= over && Math.hypot(b.x - x, b.z - z) < 30 && (best < 0 || b.h > lots[best].h)) best = i;
+      });
+      return best;
+    };
+    for (const [x0, z0, x1, z1, y, gate, count] of SKYWAYS) {
+      const [ia, ic] = [towerAt(x0, z0, y + 12), towerAt(x1, z1, y + 12)];
+      if (ia < 0 || ic < 0) continue;
+      const [a, c] = [lots[ia], lots[ic]];
+      const [dx, dz] = [c.x - a.x, c.z - a.z];
+      const dist = Math.hypot(dx, dz);
+      const [ux, uz] = [dx / dist, dz / dist];
+      const [ra, rc] = [0.25 * (a.w + a.d), 0.25 * (c.w + c.d)];
+      const length = dist - ra - rc + 8;
+      const t0 = ra - 4;
+      const [mx, mz] = [a.x + ux * (t0 + length / 2), a.z + uz * (t0 + length / 2)];
+      const turn = Math.atan2(-dz, dx);
+      const own = at(a) + at(c);
+      box(BOX.deck, mx, y, mz, length, 7.6, 12, turn, [hash11(own + 3.3), 0, 0, gate]);
+      for (let k = 0; k < count; k++) {
+        const s = t0 + length * (0.1 + (0.8 * (k + 0.5)) / count);
+        const [bx, bz] = [a.x + ux * s, a.z + uz * s];
+        const [bw, bh] = [14 + 8 * hash11(own + 5.1 + k), 8 + 4 * hash11(own + 7.3 + k)];
+        const by = y - 3.8 - 1.8 - bh / 2;
+        const [lo, hi] = lanesAt(bx, bz, bw / 2 + 2);
+        if (by + bh / 2 > lo && by - bh / 2 < hi) continue;
+        box(BOX.board, bx, by, bz, bw, bh, 0.8, turn, [hash11(own + 9.7 + k), 100 + ((k * 5 + ia + ic) % 24), 0, gate]);
+        for (const side of [-0.35, 0.35]) box(BOX.steel, bx + ux * bw * side, y - 3.8 - 0.9, bz + uz * bw * side, 0.3, 1.8, 0.3, turn, [0.2, 0, 0, gate]);
+      }
+    }
   }
 
   // The columns: each a solid stack of screens on its own ground, 0.72 of

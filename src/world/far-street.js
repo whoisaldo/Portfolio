@@ -65,6 +65,7 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
       attribute vec4 aSize;
       attribute vec4 aOwn;
       uniform vec3 uCam;
+      uniform float uFarFree;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       varying vec3 vLocal;
@@ -77,7 +78,11 @@ export function createFarStreet(scene, shared, boxes, { street, ads }) {
         // (A box whose fourth own number is 1 stands only for an eye above
         // the roofs: the stack of a column one of the page's roofs frames,
         // which from there is the hologram it was, sky-columns.js.)
-        if (aOwn.w > 0.5) l *= smoothstep(40.0, 62.0, uCam.y);
+        // (And one whose fourth number is 2 stands for a free eye only, the
+        // west and south skyways: from the page's own lenses their frames
+        // hold.)
+        if (aOwn.w > 1.5) l *= uFarFree;
+        else if (aOwn.w > 0.5) l *= smoothstep(40.0, 62.0, uCam.y);
         vec3 nl = normal;
         // (A strut leans: its third own number tips its length from the
         // vertical toward its own +z, before it is turned.)
