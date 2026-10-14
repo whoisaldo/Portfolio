@@ -12,9 +12,10 @@
 // the lit lens is put back to its colour and the others to dark glass, and
 // only those vertices go up again. Nothing is drawn that was not drawn.
 //
-// A crossing's signal box (props.py signal_box) at a junction with lights
+// A crossing's signal box (props.py signal_box) whose traffic has lights
 // shows the same: its walking figure while the traffic over its crossing is
 // held, a hand while it goes, the hand flashing for the red's last seconds.
+// (A way in with no stop line is never held: its boxes are left as built.)
 // Its face is drawn instanced, and what it shows is its own instance's deal
 // (src/world/prop-surfaces.js), set only when that changes: the bars over
 // the figure count the walk down to the hand. Whoever crosses there in the
@@ -75,13 +76,12 @@ export function createSignals(props, net) {
     }
   };
   read();
-  // Each box at a junction where some way in has its lights, with the way
-  // in over its crossing: the street it stands at the kerb of, on the arm
-  // it stands on. (Away from those, a box is left as it was built.)
+  // Each box over a crossing whose way in has its lights, with that way in:
+  // the street it stands at the kerb of, on the arm it stands on. (Away
+  // from those, a box is left as it was built.)
   const boxes = [];
   const dealt = props.dealt(BOX);
   const held = (shows) => !!shows && Array.from({ length: net.cycle }, (_, t) => shows(t)).includes(0);
-  const lights = (jx, jz) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([hx, hz]) => held(net.light(jx, jz, hx, hz)));
   // What a box over a crossing whose traffic shows `shows` shows at second
   // `clock`: the hand while it goes, flashing for the red's last seconds,
   // and before that the figure, its bars the walk's share left.
@@ -103,7 +103,7 @@ export function createSignals(props, net) {
       const [jx, jz] = S.axis === "z" ? [S.c, O.c] : [O.c, S.c];
       const q = -Math.sign(v - O.c);
       const shows = S.axis === "z" ? net.light(jx, jz, 0, q) : net.light(jx, jz, q, 0);
-      if (!shows || !lights(jx, jz)) continue;
+      if (!held(shows)) continue;
       boxes.push({ j, shows, shown: 0, x, z, jx, jz, hx: S.axis === "z" ? 0 : q, hz: S.axis === "z" ? q : 0 });
       break;
     }
@@ -149,11 +149,11 @@ export function createSignals(props, net) {
     /** For the crowd: whether the crossing on one arm ("n" toward -z, "s",
      *  "e", "w") of the junction at (x, z) shows the figure at a second of
      *  the traffic's clock, as its box does: (clock) => true or false. Null
-     *  at a junction without lights. */
+     *  where its way in has no lights. */
     crossing(x, z, arm) {
       const [ax, az] = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[arm];
-      const shows = lights(x, z) && net.light(x, z, -ax, -az);
-      return shows ? (clock) => dealOf(shows, clock) < 0 : null;
+      const shows = net.light(x, z, -ax, -az);
+      return held(shows) ? (clock) => dealOf(shows, clock) < 0 : null;
     },
     /** Dev: each head, where it stands, the way its traffic heads, and the
      *  lens its vertices have lit
