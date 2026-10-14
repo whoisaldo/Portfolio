@@ -365,5 +365,5 @@ for (lx, lz, hue, h, pw) in ((471.8, -270.0, "white", 0.5, 7.0), (470.8, -265.0,
     _R.lamp(RF, lx, lz, RH + 0.06, hue, h=h, power=pw)
 # Its people (none where either lens looks): one smoking by the north-east
 # plant, one on a phone at the north parapet, looking out at the boulevard.
-stand(477.0, -291.8, 0.4, "smoke", y=RH + 0.06)
+stand(476.8, -293.2, 0.4, "smoke", y=RH + 0.06)   # (north of the pipes on their sleepers, not astride them)
 stand(467.2, -294.6, -2.6, "phone", y=RH + 0.06)
