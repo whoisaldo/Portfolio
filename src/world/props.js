@@ -257,6 +257,20 @@ class Baked extends THREE.InstancedMesh {
   }
 }
 
+/** three's own order for opaque draws (painterSortStable), with a twin
+ *  (createProps) sorted by the material it copies: for the renderer's
+ *  setOpaqueSort. */
+export function opaqueOrder(a, b) {
+  if (a.groupOrder !== b.groupOrder) return a.groupOrder - b.groupOrder;
+  if (a.renderOrder !== b.renderOrder) return a.renderOrder - b.renderOrder;
+  const ma = a.material.userData.sortId ?? a.material.id;
+  const mb = b.material.userData.sortId ?? b.material.id;
+  if (ma !== mb) return ma - mb;
+  if (a.materialVariant !== b.materialVariant) return a.materialVariant - b.materialVariant;
+  if (a.z !== b.z) return a.z - b.z;
+  return a.id - b.id;
+}
+
 /**
  * `protoMeshes`: the GLB's proto_ meshes (already dressed in the kit's
  * materials); `buffer`: the props file. Returns { group, update(camera),
@@ -328,6 +342,25 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   const sets = [];
   const built = new Set();
   const owned = [];
+  // A kit material's own copy for each kind of mesh of the props that draws
+  // it (the small parts written out, the prototypes' instances): three keeps
+  // one program a material, and works it out again whenever the next draw
+  // of it is of another kind than the last (the kit's own meshes are a
+  // third), some forty times a frame. A twin shares its original's uniforms
+  // and is the same program, and it is drawn where its original is in the
+  // order (opaqueOrder), so it draws the same.
+  const twins = new Map();
+  const twin = (material, kind, geometry) => {
+    const alphas = material.vertexColors && geometry.attributes.color?.itemSize === 4;
+    const key = `${material.uuid}|${kind}|${alphas}`;
+    if (!twins.has(key)) {
+      const copy = material.clone();
+      copy.uniforms = material.uniforms;
+      copy.userData.sortId = material.id;
+      twins.set(key, copy);
+    }
+    return twins.get(key);
+  };
   // The small parts' meshes, by material and attributes.
   const baked = new Map();
   const unwritten = new Set();
@@ -369,7 +402,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
       if (!mine && !material.transparent && n * src.geometry.attributes.position.count <= BAKED) {
         const key = `${material.uuid}|${Object.entries(src.geometry.attributes).map(([name, a]) => name + a.itemSize).sort().join()}`;
         if (!baked.has(key)) {
-          const mesh = new Baked(material);
+          const mesh = new Baked(twin(material, "baked", src.geometry));
           // (load: one a streamed district brings is hidden until its parts
           // are written and put in: shown empty, a frame made its program.)
           if (hold) mesh.visible = false;
@@ -391,7 +424,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         geometry.setAttribute("aDeal", new THREE.InstancedBufferAttribute(new Float32Array(n), 1).setUsage(THREE.DynamicDrawUsage));
         owned.push(geometry);
       }
-      const im = new THREE.InstancedMesh(geometry, material, n);
+      const im = new THREE.InstancedMesh(geometry, mine ?? twin(material, "instanced", geometry), n);
       im.name = `props_${k.name}_${material.name}`;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.count = 0;
@@ -646,6 +679,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         mesh.dispose();
       }
       for (const geometry of owned) geometry.dispose();
+      for (const material of twins.values()) material.dispose();
       own.dispose();
       group.removeFromParent();
     },

@@ -15,7 +15,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { worldModelUrl, worldPackUrl, worldShopsUrl } from "../data/world-assets.js";
-import { createProps, preloadProps } from "./props.js";
+import { createProps, opaqueOrder, preloadProps } from "./props.js";
 import { bitmapTexture } from "./pictures.js";
 import { fetchUnpacked } from "./fetched.js";
 import { createMaterialKit, NEON } from "./materials.js";
@@ -297,6 +297,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   };
   dressProtos(protoMeshes);
   const props = createProps(protoMeshes, propsBuffer, { phone: tier === "phone", reflectLayer: REFLECT_LAYER });
+  renderer.setOpaqueSort(opaqueOrder);
   sources.push(...props.sources);
   root.add(props.group);
 
