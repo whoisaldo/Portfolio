@@ -242,6 +242,10 @@ balustrade(lobe_loop(RB, RAIL_Z[0], False), KY, colour="amber", close=True, k=0.
 S = 2.6
 VX, VZ = S / 2, S * math.sqrt(3) / 2
 BAR_D = 0.25
+# (The bars and beams are steel in board_frame's colour, not board_frame: that
+# is drawn into the wet ground's mirror as a black twin, and the panes over
+# them, which show that mirror, went black.)
+BAR_COL = (0.0103, 0.0109, 0.0137, 1.0)
 glass = disc_planes(HX, HZ, RP - 0.03, NSEG)
 inside = disc_planes(HX, HZ, RP - 0.35, NSEG)
 
@@ -264,7 +268,7 @@ def face3(key, pts, col=(1, 1, 1, 1), up=1.0):
     poly(key, pts, [(p[0] / 2.0, -p[2] / 2.0) for p in pts], col)
 
 
-def bar3(key, p, q, w, h):
+def bar3(key, p, q, w, h, col=(1, 1, 1, 1)):
     """A steel bar whose top runs from p to q (x, y, z), w wide, h deep:
     its top and both flanks."""
     dx, dz = q[0] - p[0], q[2] - p[2]
@@ -273,14 +277,14 @@ def bar3(key, p, q, w, h):
         return
     ox, oz = -dz / length * w / 2, dx / length * w / 2
     a, b, c, d = (p[0] - ox, p[1], p[2] - oz), (q[0] - ox, q[1], q[2] - oz), (q[0] + ox, q[1], q[2] + oz), (p[0] + ox, p[1], p[2] + oz)
-    face3(key, [a, b, c, d])
+    face3(key, [a, b, c, d], col)
     for (e, f), sx, sz in (((a, b), -ox, -oz), ((d, c), ox, oz)):
         pts = [e, f, (f[0], f[1] - h, f[2]), (e[0], e[1] - h, e[2])]
         nx = (pts[1][1] - pts[0][1]) * (pts[2][2] - pts[0][2]) - (pts[1][2] - pts[0][2]) * (pts[2][1] - pts[0][1])
         nz = (pts[1][0] - pts[0][0]) * (pts[2][1] - pts[0][1]) - (pts[1][1] - pts[0][1]) * (pts[2][0] - pts[0][0])
         if nx * sx + nz * sz < 0:
             pts.reverse()
-        poly(key, pts, [(0, 0), (length, 0), (length, h), (0, h)])
+        poly(key, pts, [(0, 0), (length, 0), (length, h), (0, h)], col)
 
 
 def on_plane(tri):
@@ -309,7 +313,7 @@ for lobe, edge in zip(LOBES, ((0.0, -1.0, -(CW[1] + 0.3)), (0.0, 1.0, CW[0] - 0.
             for p, q in ((p00, p10), (p00, p01), (p10, p01)):
                 s = seg_clip(p, q, planes)
                 if s:
-                    bar3((PL, "board_frame", 0), (s[0][0], gy(*s[0]) + 0.05, s[0][1]), (s[1][0], gy(*s[1]) + 0.05, s[1][1]), 0.1, BAR_D)
+                    bar3((PL, "steel", 0), (s[0][0], gy(*s[0]) + 0.05, s[0][1]), (s[1][0], gy(*s[1]) + 0.05, s[1][1]), 0.1, BAR_D, BAR_COL)
             # The joint: a steel disc proud of the bars (a phone goes without).
             if all(nx * p00[0] + nz * p00[1] <= d for nx, nz, d in inside + [edge]):
                 cylinder((PL, "metal", 1), p00[0], p00[1], gy(*p00) + 0.05, gy(*p00) + 0.1, 0.2, segs=6)
@@ -317,7 +321,7 @@ for lobe, edge in zip(LOBES, ((0.0, -1.0, -(CW[1] + 0.3)), (0.0, 1.0, CW[0] - 0.
         a = (i + 0.5) * math.tau / 16
         s = seg_clip(at(1.2, a), at(RP - 0.05, a), lobe)
         if s:
-            bar3((PL, "board_frame", 0), (s[0][0], gy(*s[0]) - 0.2, s[0][1]), (s[1][0], gy(*s[1]) - 0.2, s[1][1]), 0.3, 0.42)
+            bar3((PL, "steel", 0), (s[0][0], gy(*s[0]) - 0.2, s[0][1]), (s[1][0], gy(*s[1]) - 0.2, s[1][1]), 0.3, 0.42, BAR_COL)
 # Where the dome meets the causeway its edge stands over the kerb: a steel
 # upstand along each side, as high as the glass is there, a line of light
 # along its head.

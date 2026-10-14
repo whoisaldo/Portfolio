@@ -408,6 +408,10 @@ def build():
 # light shafts hang from): the avenue up to the plaza street, the garage
 # street's middle.
 OWN_LAMPS = {"avenue": (-172.0, 8.0), "garage": (-262.0, -186.0)}
+# The junction the hero's lens stands in: the mast for the lanes coming down
+# the avenue would stand in front of Kiroshi's screen, so their signal is
+# a head on a post, under the screen.
+HERO_JUNCTION = (0.0, 1.0)
 
 
 def _yaw(dx, dz):
@@ -442,7 +446,7 @@ def furniture():
         if _extends(Z, p[1], 1):
             P.place("traffic_light", p[0] + Z.half + 0.8, PAVE_Y, z1 + CORNER_R + 4.4, _yaw(-1, 0))
         if _extends(Z, p[1], -1):
-            P.place("traffic_light", p[0] - Z.half - 0.8, PAVE_Y, z0 - CORNER_R - 4.4, _yaw(1, 0))
+            P.place("traffic_light" if p != HERO_JUNCTION else "traffic_light_post", p[0] - Z.half - 0.8, PAVE_Y, z0 - CORNER_R - 4.4, _yaw(1, 0))
         if _extends(X, p[0], -1):
             P.place("traffic_light", x0 - CORNER_R - 4.4, PAVE_Y, p[1] + X.half + 0.8, _yaw(0, -1))
         if _extends(X, p[0], 1):

@@ -148,6 +148,9 @@ for side, lots in LOTS.items():
         crown = min(r.uniform(5, 14), 0.33 * (HERO_EYE_Z - z1) - height)
         crowned = height > 30 and crown > 3
         st = dict(STYLE, roof_cap=0.0 if crowned else 4.5)
+        # (The first lot on the left has Kiroshi's screen hung in front of it:
+        # from the hero's lens its fire escape stood over the screen's name.)
+        st["shown_fire_escape"] = not (s < 0 and i == 0)
         back_is(backf, xb if s > 0 else xa, height, "e" if s > 0 else "w")
         B.building(lot, height, r, style=st, defer_roof=HERO_ROOFS)
         back_is()

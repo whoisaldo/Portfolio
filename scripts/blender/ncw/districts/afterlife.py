@@ -1216,8 +1216,8 @@ for (name, plane, a0, a1, sv, hue) in (("+x", 398.0, -300.0, -258.0, 22.0, "ambe
 # heap, one leaning in the passage.
 for (x_, z_, yaw_, pose_) in ((401.1, -307.5, -math.pi / 2, "smoke"), (398.9, -289.5, math.pi / 2, "phone"), (401.0, -269.8, -math.pi / 2 - 0.3, "lean"),
                               (489.0, -299.5, -math.pi / 2, "smoke"), (485.2, -279.0, math.pi / 2 + 0.4, "squat"), (488.6, -269.2, -math.pi / 2 - 0.5, "talk"),
-                              (487.6, -270.3, math.pi / 2 - 0.9, "talk"), (462.0, -312.7, math.pi, "lean"), (476.5, -315.2, 0.2, "phone")):
-    stand(x_, z_, yaw_, pose_, y=G0)
+                              (487.6, -270.3, math.pi / 2 - 0.9, "talk"), (460.4, -312.7, math.pi, "lean"), (476.5, -315.2, 0.2, "phone")):
+    stand(x_, z_, yaw_, pose_, y=G0)   # (the one in the passage beside the heap of rubbish by the wall, not in it)
 
 # ---------------------------------------------------------------------------
 # MILITECH's forecourt on the plaza street (mH2wmyeiIpA@182): a walled court
@@ -1509,7 +1509,9 @@ for sv, yy, size, ang in ((9.6, 5.7, "bx", -0.3), (15.2, 6.6, "bs", 0.4), (24.8,
 # What stands on the pavement against it, and who.
 for name, sv, out_ in (("aframe", 1.6, 0.65), ("crates", 7.2, 0.6), ("charge_post", 15.6, 0.35), ("bags", 22.4, 0.5), ("aframe", 26.0, 0.65)):
     P.place(name, EL - out_, G0, CB.at(sv), CB.yaw, district=D)
-for sv, out_, yaw_, pose_ in ((3.4, 0.55, 0.0, "talk"), (4.3, 0.55, math.pi, "talk"), (8.6, 0.4, -math.pi / 2, "lean"), (13.6, -0.45, -math.pi / 2, "smoke"),
+# (The pair talking south of the corner forecourt's last bollard, on the
+# line of them: at 3.4 and 4.3 one stood in it.)
+for sv, out_, yaw_, pose_ in ((4.9, 0.55, 0.0, "talk"), (5.8, 0.55, math.pi, "talk"), (8.6, 0.4, -math.pi / 2, "lean"), (13.6, -0.45, -math.pi / 2, "smoke"),
                               (17.6, 0.5, -math.pi / 2 + 0.5, "phone"), (23.4, 0.45, -math.pi / 2, "squat"), (26.9, 0.5, math.pi / 2, "idle")):
     stand(EL - out_, CB.at(sv), yaw_, pose_, y=G0)
 

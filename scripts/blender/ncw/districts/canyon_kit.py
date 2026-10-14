@@ -1502,11 +1502,16 @@ def _cy_tank(k):
     box(T, -0.1, 0.1, 0.0, 0.9, -1.75, -1.55, scale=1.0, col=(0.3, 0.31, 0.33, 1))
 
 
-def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None, col=None):
+def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, col=None, out=0):
     """The largest thing a stretch of roof may carry where no lens of the
     page's sees it, tried in turn: a crane, a penthouse (a stepped top with
     its own lit floor and roof), a rank of tanks, a strip of skylight. Says
-    what it built (or None)."""
+    what it built (or None). Against a wall (`out`, the way along x away
+    from it) a crane's jib points away from the wall: run along it, it
+    crossed what hangs on that wall from the air. There the crane is no
+    bigger than leaves its weight 2.5 m off the wall and its jib's tip a
+    metre past the roof's edge, and it stands at the stretch's z0 end, as
+    far as it can be from what hangs on the wall over the rest of the roof."""
     w, d = x1 - x0, z1 - z0
     cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
     if min(w, d) < 4.0:
@@ -1515,11 +1520,20 @@ def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None, c
     def room(xa, xb, za, zb, want, least):
         return hidden_top(occ, xa, xb, za, zb, y, y + want, plaza=plaza, step=1.0, pad=0.3, least=least)
     if min(w, d) >= 5.0 and r.random() < crane:
-        j0, j1 = jib or (z0 - 6.0, z1 + 6.0)
-        for yaw, za, zb in ((0.0, cz - 5.5, cz + 13.5), (math.pi, cz - 13.5, cz + 5.5)):
-            if za > j0 and zb < j1 and room(cx - 1.0, cx + 1.0, za, zb, 15.0, 15.0):
-                P.place("cy_crane", cx, y, cz, yaw, district=key)
-                flat((key, "trim", 0), cx - 1.6, cx + 1.6, cz - 1.6, cz + 1.6, y + 0.04, PALE)
+        # (Each way: where it stands, its yaw, its size and the box its jib
+        # and counter-jib sweep. The prototype's weight ends 5.05 m behind
+        # the mast, its jib's tip 13.05 m ahead.)
+        ways = ((cx, cz, 0.0, 1.0, cx - 1.0, cx + 1.0, cz - 5.5, cz + 13.5), (cx, cz, math.pi, 1.0, cx - 1.0, cx + 1.0, cz - 13.5, cz + 5.5))
+        if out:
+            back, wall_ = (x1, x0) if out > 0 else (x0, x1)
+            near, far = wall_ + out * 1.9, back + out * 1.6
+            k = min(1.0, abs(far - near) / 18.1)
+            ax, az = near + out * 5.05 * k, z0 + 1.4
+            ways = ((ax, az, out * math.pi / 2, k, *sorted((near, far)), az - 1.0, az + 1.0),)
+        for ax, az, yaw, k, xa, xb, za, zb in ways:
+            if (out or (za > z0 - 6.0 and zb < z1 + 6.0)) and room(xa, xb, za, zb, 15.0 * k, 15.0 * k):
+                P.place("cy_crane", ax, y, az, yaw, sy=k, sxz=k, district=key)
+                flat((key, "trim", 0), ax - 1.6 * k, ax + 1.6 * k, az - 1.6 * k, az + 1.6 * k, y + 0.04, PALE)
                 return "crane"
     pw, pd = min(w - 2.0, 9.0), min(d - 2.0, 14.0)
     top = room(cx - pw / 2, cx + pw / 2, cz - pd / 2, cz + pd / 2, 7.4, 4.4) if pw >= 4.0 and pd >= 5.0 else None

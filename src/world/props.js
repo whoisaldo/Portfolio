@@ -137,9 +137,13 @@ class Baked extends THREE.InstancedMesh {
     let indices = 0;
     // Each instance of each part, by its cell and then by how far it is seen.
     const items = [];
-    for (const { set, src } of this.parts) {
+    // (Where each instance's vertices start, by part: for written() below.)
+    const at = new Map();
+    for (const part of this.parts) {
+      const { set, src } = part;
       const g = src.geometry;
-      for (const run of set.runs) for (let j = run.start; j < run.end; j++) items.push({ ci: run.ci, set, g, j });
+      at.set(part, new Int32Array(set.n));
+      for (const run of set.runs) for (let j = run.start; j < run.end; j++) items.push({ ci: run.ci, set, g, j, part });
       verts += set.n * g.attributes.position.count;
       indices += set.n * g.index.count;
     }
@@ -155,7 +159,7 @@ class Baked extends THREE.InstancedMesh {
     let v = 0;
     let i = 0;
     let since = 0;
-    for (const { ci: cell, set, g, j } of items) {
+    for (const { ci: cell, set, g, j, part } of items) {
       if (since > 8192) {
         since = 0;
         yield;
@@ -204,6 +208,7 @@ class Baked extends THREE.InstancedMesh {
       }
       const src = g.index.array;
       for (let k = 0; k < src.length; k++) index[i + k] = src[k] + v;
+      at.get(part)[j] = v;
       v += n;
       i += src.length;
       count[count.length - 1] += src.length;
@@ -219,6 +224,7 @@ class Baked extends THREE.InstancedMesh {
         this.geometry.dispose();
         this.geometry = geometry;
         this.cells = cells;
+        for (const [part, starts] of at) part.at = starts;
         if (MULTI_DRAW) {
           this._multiDrawStarts = new Int32Array(ci.length);
           this._multiDrawCounts = new Int32Array(ci.length);
@@ -662,6 +668,42 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         return [...instanced, ...written.written];
       };
       return hold ? { sources, commit, prepare } : sources;
+    },
+    /** Prototype `name`'s parts written out (src/world/signals.js colours a
+     *  signal's lenses on their vertices): each part's mesh, its own
+     *  geometry, its instances' matrices and where each one's vertices start
+     *  in the mesh's. A mesh is written again, a new geometry, when a
+     *  district's pack adds parts to it. */
+    written(name) {
+      return [...baked.values()].flatMap((mesh) => mesh.parts.filter((p) => p.set.name === name && p.at).map((p) => ({ mesh, geometry: mesh.geometry, src: p.src, matrices: p.set.matrices, at: p.at })));
+    },
+    /** Prototype `name`'s instances' deals (src/world/signals.js shows a
+     *  crossing's signal in its box's): its instances' matrices, and
+     *  deal(j, value), which gives instance j that deal and, if it is drawn
+     *  now, sends up only its own. Null if it has no dealt part. */
+    dealt(name) {
+      const set = sets.find((st) => st.name === name && st.aDeal.length);
+      if (!set) return null;
+      return {
+        matrices: set.matrices,
+        deal(j, value) {
+          set.deals[j] = value;
+          // Where it is in what is drawn: the runs in sight before its own.
+          let c = 0;
+          for (const run of set.runs) {
+            if (!cellVis[run.ci] || cellDist[run.ci] > set.reach) continue;
+            if (j < run.end && j >= run.start) {
+              for (const a of set.aDeal) {
+                a.array[c + j - run.start] = value;
+                a.addUpdateRange(c + j - run.start, 1);
+                a.needsUpdate = true;
+              }
+              return;
+            }
+            c += run.end - run.start;
+          }
+        },
+      };
     },
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {

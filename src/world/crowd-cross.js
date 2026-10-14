@@ -4,8 +4,10 @@
 // arm (scripts/blender/ncw/streets.py, _crossing: yellow and black bars from
 // 4.6 m out of the junction's square, 3.4 m wide, kerb to kerb). A few people
 // wait at each end of one, facing the road, and cross when the traffic says
-// that arm can be walked for long enough to get over (traffic.walk(x, z,
-// arm), from the traffic's own timetable and clock); on the far side they
+// they would get over it with no car near them (traffic.walk(x, z, arm,
+// from, pace), from the traffic's own timetable and clock), and where its
+// traffic has lights only while the box over it shows the figure
+// (traffic.sign(x, z, arm), src/world/signals.js); on the far side they
 // wait a while and come back. While they cross they are walkers on a
 // straight line of their own (crowd.js draws them as it draws everyone on a
 // walk, so their feet stay where they land); waiting, they stand.
@@ -20,6 +22,8 @@ const ZEBRA = 3.4;
 // ends, where a walk fades).
 const IN = 0.7;
 const LEAD = 10;
+// How often someone waiting asks the traffic again, in seconds.
+const ASK = 0.25;
 
 /**
  * The crossings, from the traffic's streets (traffic-net.js's STREETS: name,
@@ -68,20 +72,17 @@ export function crossingsOf(streets, skip = () => false) {
  * straight line (no offsets, room to either side).
  */
 export function createCrossers(list, row, PAVE_Y) {
-  // What the traffic said about each crossing, and when.
-  const asked = new Map();
-  const ask = (traffic, c, t) => {
-    const key = `${c.jx},${c.jz},${c.arm}`;
-    let a = asked.get(key);
-    if (!a || Math.abs(t - a.t) > 0.3) {
-      const mid = [(c.a[0] + c.b[0]) / 2, (c.a[1] + c.b[1]) / 2];
-      const w = traffic.walk(c.jx, c.jz, c.arm) ?? { walk: false, left: 1e3 };
-      // (The traffic's clock and the crowd's run apart: what is left is
-      // counted from now on the crowd's.)
-      a = { t, walk: w.walk, until: t + w.left, mid };
-      asked.set(key, a);
+  // Each crossing's box, if it has lights, from the traffic it was asked of.
+  const signs = new Map();
+  let signed = null;
+  const sign = (traffic, c) => {
+    if (traffic !== signed) {
+      signs.clear();
+      signed = traffic;
     }
-    return a;
+    const key = `${c.jx},${c.jz},${c.arm}`;
+    if (!signs.has(key)) signs.set(key, traffic.sign?.(c.jx, c.jz, c.arm) ?? null);
+    return signs.get(key);
   };
   const rnd = (seed, k) => {
     const x = Math.sin(seed * 91.17 + k * 12.9898) * 43758.5453;
@@ -92,6 +93,7 @@ export function createCrossers(list, row, PAVE_Y) {
     p.until = 0;
     p.from = p.end ? p.c.b : p.c.a;
     p.n = 0;
+    p.asked = -Infinity;
   }
   // Waiting: stood at their end, facing the road; crossing: a walker on a
   // straight line from LEAD metres behind their end.
@@ -157,9 +159,12 @@ export function createCrossers(list, row, PAVE_Y) {
           if (t < p.since) p.until = Math.min(p.until, t + p.wait);
           p.since = t;
           if (t < p.until || !traffic) continue;
-          const a = ask(traffic, p.c, t);
-          const need = (2 * (p.c.half + p.c.kerb)) / p.pace + 1.5;
-          if (!a.walk || a.until - t < need) continue;
+          // (Asked now, not kept: the box shows it on the traffic's clock.)
+          const shows = sign(traffic, p.c);
+          if (shows && !shows()) continue;
+          if (t > p.asked && t < p.asked + ASK) continue;
+          p.asked = t;
+          if (!traffic.walk(p.c.jx, p.c.jz, p.c.arm, (p.from === p.c.a ? -1 : 1) * (p.c.half + p.c.kerb), p.pace)) continue;
           p.state = 1;
           walk(p, data, stride, t);
           put(p.i);

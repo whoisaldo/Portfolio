@@ -226,6 +226,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       streetCars: tier === "phone" ? 16 : 44,
       elevated: c.anchors.get("anchor_traffic")?.extras?.paths ?? [],
       deckCars: tier === "phone" ? 1 : 2,
+      props: c.props,
     });
     // (load: the S4's model, if it is not in yet; see preloadWorld. When it
     // is, the city goes on being made in the same breath, as it did.)

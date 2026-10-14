@@ -1214,11 +1214,25 @@ def deck_towers():
                 s += (got[0] or 0.6) + r.uniform(0.5, 1.5)
 
 
-def lane_more(f, w, fixtures, free, r):
+def paste(f, name, s, x, y, z, ducts):
+    """A bill, or a fly-poster's run, at s along a lane's wall f, with any
+    bill whose own width overlaps a kitchen's duct or the grease under it
+    (`ducts`, the stretches of the wall they take) left off."""
+
+    def clear(u0, u1):
+        return not any(d0 < s + u1 and d1 > s + u0 for d0, d1 in ducts)
+    if name == "jt_bills":
+        J.bills(x, y, z, f.yaw, clear)
+    elif clear(*J.BILL_X):
+        J.put(name, x, y, z, f.yaw)
+
+
+def lane_more(f, w, fixtures, free, r, ducts=()):
     """Round 3, on its own stream: no stretch of a lane's wall goes four
     metres without a light (a bulkhead lamp on a short arm, warm or cold,
     its pool under it); the flat stretches by an alley's mouth, where
-    nothing may stand out from the wall, are pasted with bills."""
+    nothing may stand out from the wall, are pasted with bills (none over
+    a duct's grease, `ducts`)."""
     pts = sorted([0.0] + fixtures + [w])
     k = 0
     for a, b in zip(pts, pts[1:]):
@@ -1235,10 +1249,10 @@ def lane_more(f, w, fixtures, free, r):
             a, b = run[0], run[-1] + 0.6
             if b - a > 2.4 and r.random() < 0.7:
                 x, _, z = f.p(f.at(a + 0.98), G0, 0.0)   # (a prototype's +x runs the way s does)
-                J.put("jt_bills", x, G0 + r.uniform(0.95, 1.15), z, f.yaw)
+                paste(f, "jt_bills", a + 0.98, x, G0 + r.uniform(0.95, 1.15), z, ducts)
             elif b - a > 0.75 and r.random() < 0.75:
                 x, _, z = f.p(f.at((a + b) / 2), G0, 0.0)
-                J.put("jt_bill", x, G0 + r.uniform(1.0, 1.3), z, f.yaw)
+                paste(f, "jt_bill", (a + b) / 2, x, G0 + r.uniform(1.0, 1.3), z, ducts)
             run = []
         run.append(s)
 
@@ -1328,13 +1342,15 @@ def lane_high(f, w, r, high, h, base=G0, s0=0.0):
                 a = b
 
 
-def lane_mid(f, w, r, mid):
+def lane_mid(f, w, r, mid, ducts=()):
     """Between knee and head height on a lane's wall, on its own stream (the
     m8 review: "blank flat blue walls ... almost no pipes, units or
     lights"): every free stretch pasted, a fly-poster's run where there is
     room for one and another half over it, single bills where there is not,
     over them now a small sign, a fuse box, a strip of stickers, and a run
-    of trunking along the wall at head height."""
+    of trunking along the wall at head height. No bill goes under a duct's
+    elbow and the grease below it (`ducts`): its stream is thrown all the
+    same, so the rest of the wall is as it was."""
     occ = sorted((a, b) for a, b in mid)
     gaps, at = [], 0.9
     for a, b in occ:
@@ -1351,16 +1367,17 @@ def lane_mid(f, w, r, mid):
         if L >= 2.45:
             x, _, z = f.p(f.at(a + 0.98), G0, 0.0)
             y = G0 + r.uniform(0.95, 1.15)
-            J.put("jt_bills", x, y, z, f.yaw)
+            paste(f, "jt_bills", a + 0.98, x, y, z, ducts)
             if L >= 3.6 and r.random() < 0.7:
                 x, _, z = f.p(f.at(a + 2.0), G0, 0.012)
-                J.put("jt_bills", x, y + r.uniform(0.35, 0.55), z, f.yaw)
+                paste(f, "jt_bills", a + 2.0, x, y + r.uniform(0.35, 0.55), z, ducts)
             elif r.random() < 0.6:
-                x, _, z = f.p(f.at(a + r.uniform(0.6, L - 0.6)), G0, 0.012)
-                J.put("jt_bill", x, y + r.uniform(0.4, 0.6), z, f.yaw)
+                sb = a + r.uniform(0.6, L - 0.6)
+                x, _, z = f.p(f.at(sb), G0, 0.012)
+                paste(f, "jt_bill", sb, x, y + r.uniform(0.4, 0.6), z, ducts)
         else:
             x, _, z = f.p(f.at((a + b) / 2), G0, 0.0)
-            J.put("jt_bill", x, G0 + r.uniform(1.0, 1.35), z, f.yaw)
+            paste(f, "jt_bill", (a + b) / 2, x, G0 + r.uniform(1.0, 1.35), z, ducts)
         roll = r.random()
         sc = a + r.uniform(0.25, max(0.3, L - 0.45))
         if roll < 0.22:
@@ -1407,6 +1424,7 @@ def lane_face(rec, name, cap=None):
     fixtures, free = [], []
     high = []      # (s0, s1) of what reaches over head height (lane_high keeps off it)
     mid = []       # and what fills the wall between knee and head height (lane_mid)
+    ducts = []     # and the stretch a kitchen's duct and its grease take (no bill is pasted over one)
     while s < w - 0.7:
         room = w - 0.3 - s
         if s - lamp > 7.0:
@@ -1466,6 +1484,7 @@ def lane_face(rec, name, cap=None):
             J.put("jt_duct", *f.p(f.at(s + 0.35), G0, 0.0), f.yaw, min(1.0, (h - 1.2) / 5.85))
             breaks.append((s - 0.1, s + 0.8))
             high.append((s - 0.1, s + 0.8))
+            ducts.append((s + 0.35 - J.DUCT_HALF, s + 0.35 + J.DUCT_HALF))
             s += 0.7
         elif roll < 0.84 and room > 0.9:
             J.put("jt_pipes", *f.p(f.at(s + 0.4), G0, 0.0), f.yaw)
@@ -1488,10 +1507,10 @@ def lane_face(rec, name, cap=None):
             s += 0.6
         s += r.uniform(0.2, 0.9) * 0.55
     services(f, 0.3, w - 0.3, breaks, rx)
-    lane_more(f, w, fixtures, free, rng(rec, "more" + name))
+    lane_more(f, w, fixtures, free, rng(rec, "more" + name), ducts)
     high += [(-1.0, 1.1), (w - 0.8, w + 1.0)]
     lane_high(f, w, rng(rec, "high" + name), high, h)
-    lane_mid(f, w, rng(rec, "mid" + name), mid + [(-1.0, 0.9), (w - 0.9, w + 1.0)])
+    lane_mid(f, w, rng(rec, "mid" + name), mid + [(-1.0, 0.9), (w - 0.9, w + 1.0)], ducts)
     if r.random() < 0.5 and w > 4.0:
         a = r.uniform(0.5, w - 3.0)
         strip(f, r.choice(NEONS), a, a + r.uniform(1.6, 2.6), SHOP_H + 0.25, SHOP_H + 0.33, 0.08)

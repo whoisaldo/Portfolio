@@ -34,6 +34,7 @@ import { createNetwork, roadVents } from "./traffic-net.js";
 import { createStanding, wardrobe, KINDS as CAR_KINDS, BIKES, FIXED, TAG } from "./traffic-park.js";
 import { creased, coarse, drum, joined } from "./traffic-lod.js";
 import { createCraft, craftAt, padAt, PAD_STANDING, CRAFT } from "./traffic-sky.js";
+import { createSignals } from "./signals.js";
 
 const createCarModel = (kind) => (BASE_KINDS.includes(kind) ? createBaseCar(kind) : SHOW_KINDS.includes(kind) ? createShowCar(kind) : null);
 
@@ -661,7 +662,7 @@ const madeAhead = (key, make) => {
   return got ?? make();
 };
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0 } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0, props = null } = {}) {
   const avGeo = madeAhead("av", avGeometry);
   const full = cars >= 4;
   if (full) prepareNearModels();
@@ -1377,6 +1378,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   });
   const steam = roadVents(vents);
   const net = createNetwork({ perPlatoon: full ? 5 : 2, keep: steam });
+  // The signal heads, showing the network's lights (src/world/signals.js).
+  const signals = props && createSignals(props, net);
   // The lanes that leave the ground (the builder's "paths": the ramp, the
   // turn and the deck, each way, as points with their heights): cars on
   // each, riding the line by its length.
@@ -2288,6 +2291,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       return;
     }
     if (!reduced && !frozen) clock += dt;
+    signals?.update(clock);
     let li = 0;
     let ti = 0;
     for (const l of avLevels) l.n = 0;
@@ -2641,16 +2645,28 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     },
     /** Dev: the second of the traffic's own clock. */
     time: () => clock,
-    /** For the crowd: whether the crossing on one arm of a junction can be
-     *  walked now. The junction by its centre (x, z; the nearest within
-     *  30 m), the arm by the side of the junction it is on: "n" toward -z,
-     *  "s" toward +z, "e" toward +x, "w" toward -x. Returns { walk, left }:
-     *  walk true while no car is on that crossing, left the seconds until
-     *  the next one is; walk false, left the seconds until it is clear.
-     *  Null where there is no junction. (The timetable's own answer, not
-     *  the lights': a car turning right comes onto an arm while that arm's
-     *  own traffic is held.) */
-    walk: (x, z, arm) => net.walk(clock, x, z, arm, lateOf),
+    /** Dev: each signal head and the lens it has lit (src/world/signals.js). */
+    signals: () => signals?.lenses() ?? [],
+    /** Dev: each crossing's signal box with lights to show and what it
+     *  shows (src/world/signals.js). */
+    signalBoxes: () => signals?.boxes() ?? [],
+    /** For the crowd: whether someone who steps off now onto the crossing
+     *  on one arm of a junction gets over it with no car near them. The
+     *  junction by its centre (x, z; the nearest within 30 m), the arm by
+     *  the side of the junction it is on: "n" toward -z, "s" toward +z, "e"
+     *  toward +x, "w" toward -x; they start `from` metres off the road's
+     *  middle (below 0 toward the lower x or z) and walk over at `pace`
+     *  metres a second. True or false; null where there is no junction.
+     *  (The timetable's own answer, not the lights': a car turning right
+     *  comes onto an arm while that arm's own traffic is held.) */
+    walk: (x, z, arm, from, pace) => net.walk(clock, x, z, arm, from, pace, lateOf),
+    /** For the crowd: where the traffic over the crossing on one arm (as
+     *  walk()'s) has lights, whether the box over it shows the figure now,
+     *  on the traffic's clock: () => true or false. Null elsewhere. */
+    sign(x, z, arm) {
+      const shows = signals?.crossing(x, z, arm);
+      return shows ? () => shows(clock) : null;
+    },
     /** Dev: where every flying car on a lane is at this second of the clock
      *  (the sky checks count them from the street and from the air). */
     flying() {

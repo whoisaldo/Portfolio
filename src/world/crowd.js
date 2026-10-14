@@ -1884,6 +1884,9 @@ const VERTEX = /* glsl */ `
     else if (part == ${PART.hood}) albedo = shirt * 0.92;
     else if (part == ${PART.lapel}) albedo = jacket * 0.76 + 0.006;
     else if (part == ${PART.seam}) albedo = jacket * 0.4;
+    // (A coat's fastening is a placket of its own cloth: at a jacket's dark
+    // line it read on a pale coat as something blue showing through.)
+    else if (part == ${PART.fasten}) albedo = jacket * (garment > 0.5 && garment < 1.5 ? 0.82 : 0.4);
     else if (part == ${PART.shirt}) albedo = shirt;
     else if (part == ${PART.tie}) albedo = tint * 0.4 + 0.012;
     else if (part == ${PART.band}) { albedo = vec3(0.6, 0.62, 0.58); gloss = 1.1; }

@@ -371,12 +371,14 @@ def _hash(*v):
     return h - math.floor(h)
 
 
-def bills(x, y, z, yaw):
+def bills(x, y, z, yaw, clear=None):
     """A fly-poster's run (round 5: one jt_bills printed the same bill
     three times, "the same set of three triangle posters" in every lane):
     three or four bills side by side, each its own instance and so its own
     print, each a little off the line and its own size, every other one
-    pasted half a centimetre over its neighbour."""
+    pasted half a centimetre over its neighbour. `clear(u0, u1)`: whether
+    the wall is free from u0 to u1 along it (from x, z), for each bill's
+    own width; one that is not is left off."""
     c, s_ = math.cos(yaw), math.sin(yaw)
     n = 3 + (_hash(x, z) > 0.55)
     for i in range(n):
@@ -384,7 +386,8 @@ def bills(x, y, z, yaw):
         u = -0.68 + i * 0.66 + (h - 0.5) * 0.06
         sc = 0.86 + 0.18 * h
         out = 0.005 * (i % 2)
-        P.place("jt_bill", x + c * u + s_ * out, y + (h - 0.5) * 0.12, z - s_ * u + c * out, yaw, sc, sc, district=D)
+        if clear is None or clear(u + BILL_X[0] * sc, u + BILL_X[1] * sc):
+            P.place("jt_bill", x + c * u + s_ * out, y + (h - 0.5) * 0.12, z - s_ * u + c * out, yaw, sc, sc, district=D)
 
 
 def lantern_row(f, s0, s1, y, out, step, name="lantern", sy=1.0, sxz=1.0):
@@ -1252,6 +1255,11 @@ def _jt_vent(k):
         quad(T, (-0.26, y - 0.02, 0.045), (0.26, y - 0.02, 0.045), (0.26, y + 0.02, 0.045), (-0.26, y + 0.02, 0.045), col=GALV)
 
 
+# How far a kitchen's duct (its cowl, straps and grease) reaches either way
+# along its wall.
+DUCT_HALF = 0.27
+
+
 @P.proto("jt_duct", box=(0.3, 2.95, 0.32), reach=280, detail=True)
 def _jt_duct(k):
     """A kitchen's extract: out of the wall over head height, up it in a
@@ -1580,6 +1588,11 @@ def _bill(k, x, w=0.58, h=0.82, z=0.012, half=False):
     uv = ((0, 0), (1, 0), (1, 0.55), (0, 0.55)) if half else ((0, 0), (1, 0), (1, 1), (0, 1))
     hh = h * 0.55 if half else h
     rotated_quad(k("print"), x, 0.04 + hh / 2, z, w, hh, 0.0, uvs=uv, col=(0.5, 0.5, 0.5, P.BOARD))
+
+
+# How far one bill reaches either way along its wall, the older paper under
+# it and its lifting corner included (at its own scale 1).
+BILL_X = (-0.37, 0.32)
 
 
 @P.proto("jt_bill", box=(0.36, 0.45, 0.03), reach=170, detail=True)
