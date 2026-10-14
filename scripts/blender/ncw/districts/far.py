@@ -1068,7 +1068,7 @@ def _roofs(U):
     if dz0 - bz0 > 4.0:
         # (A terrace stands well under its slab: its plant end is where a
         # crane can be left standing.)
-        if dz0 - bz0 > 9.0 and C.roof_big(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz0 + 5.6, t, rb, OCC, plaza_, crane=1.0, jib=(bz0 - 3.0, bz1), col=U["back_col"]) == "crane":
+        if dz0 - bz0 > 9.0 and C.roof_big(CB, bx0 + 0.6, bx1 - 0.6, bz0 + 0.6, bz0 + 5.6, t, rb, OCC, plaza_, crane=1.0, jib=(bz0 - 3.0, bz1), col=U["back_col"], out=side) == "crane":
             print("CANYON crane", side, L["i"], U["k"])
         C.roof_plant(CB, bx0 + 0.6, bx1 - 0.6, bz0 + (6.0 if dz0 - bz0 > 9.0 else 0.6), dz0 - 1.0, t, r, 6.0, ())
         x = bx0 + 2.2

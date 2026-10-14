@@ -1502,11 +1502,13 @@ def _cy_tank(k):
     box(T, -0.1, 0.1, 0.0, 0.9, -1.75, -1.55, scale=1.0, col=(0.3, 0.31, 0.33, 1))
 
 
-def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None, col=None):
+def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None, col=None, out=0):
     """The largest thing a stretch of roof may carry where no lens of the
     page's sees it, tried in turn: a crane, a penthouse (a stepped top with
     its own lit floor and roof), a rank of tanks, a strip of skylight. Says
-    what it built (or None)."""
+    what it built (or None). Against a wall (`out`, the way along x away
+    from it) a crane's jib points away from the wall: run along it, it
+    crossed what hangs on that wall from the air."""
     w, d = x1 - x0, z1 - z0
     cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
     if min(w, d) < 4.0:
@@ -1516,8 +1518,12 @@ def roof_big(key, x0, x1, z0, z1, y, r, occ, plaza=False, crane=0.5, jib=None, c
         return hidden_top(occ, xa, xb, za, zb, y, y + want, plaza=plaza, step=1.0, pad=0.3, least=least)
     if min(w, d) >= 5.0 and r.random() < crane:
         j0, j1 = jib or (z0 - 6.0, z1 + 6.0)
-        for yaw, za, zb in ((0.0, cz - 5.5, cz + 13.5), (math.pi, cz - 13.5, cz + 5.5)):
-            if za > j0 and zb < j1 and room(cx - 1.0, cx + 1.0, za, zb, 15.0, 15.0):
+        # (Each way: its yaw and the box its jib and counter-jib sweep.)
+        ways = ((0.0, cx - 1.0, cx + 1.0, cz - 5.5, cz + 13.5), (math.pi, cx - 1.0, cx + 1.0, cz - 13.5, cz + 5.5))
+        if out:
+            ways = ((out * math.pi / 2, *sorted((cx - out * 5.5, cx + out * 13.5)), cz - 1.0, cz + 1.0),)
+        for yaw, xa, xb, za, zb in ways:
+            if (out or (za > j0 and zb < j1)) and room(xa, xb, za, zb, 15.0, 15.0):
                 P.place("cy_crane", cx, y, cz, yaw, district=key)
                 flat((key, "trim", 0), cx - 1.6, cx + 1.6, cz - 1.6, cz + 1.6, y + 0.04, PALE)
                 return "crane"
