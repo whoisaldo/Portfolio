@@ -101,6 +101,10 @@ const TICK = 0.25;
 // A car's middle stops this far short of the junction's square: its nose at
 // the stop line the builder paints 9 m out.
 const STOP = 11.6;
+// Whoever crosses keeps this far off the line a car keeps over a crossing
+// (its half width and a metre), and these seconds before and after.
+const CLEAR = 2;
+const SPARE = 0.75;
 // A dead end is turned round in this far short of it.
 const DEAD = 14;
 // Parked cars: the first stands this far from a junction's square (clear of
@@ -637,10 +641,11 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
   // For whoever walks: when a junction's arm can be crossed. Not the lights
   // alone (a car turning right comes onto an arm while that arm's own
   // traffic is held), but the timetable itself: an arm's crossing is the
-  // band from the junction's square out to the stop line, kerb to kerb, and
-  // every car's passes over every band are worked out once, the first time
-  // anyone asks, as the seconds of its route's period that it is on one (a
-  // car queued at its stop line is behind the band, not on it).
+  // band over its bars, kerb to kerb, and every car's passes over every
+  // band are worked out once, the first time anyone asks, as the seconds of
+  // its route's period that it is on one and the line it keeps across it
+  // (a car queued at its stop line is behind the band, not on it). Whoever
+  // crosses is in a car's way only while they are near that line.
   const ARMS = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
   let bands = null;
   const survey = () => {
@@ -652,13 +657,16 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
       const hx = STREETS.find((s) => s.axis === "z" && s.c === jx).half;
       const hz = STREETS.find((s) => s.axis === "x" && s.c === jz).half;
       for (const [arm, [ax, az]] of Object.entries(ARMS)) {
-        // Where a car's middle is while any of it is on the band.
-        const from = (ax ? hx : hz) - 1.5;
+        // Where a car's middle is while any of it is within a metre of the
+        // crossing's bars (4.6 to 8 m out of the square), short of where
+        // one held at the stop line stands.
+        const from = (ax ? hx : hz) + 1.2;
         const to = (ax ? hx : hz) + 11.1;
         const band = ax ? { x0: jx + ax * from, x1: jx + ax * to, z0: jz - hz - 1, z1: jz + hz + 1 } : { x0: jx - hx - 1, x1: jx + hx + 1, z0: jz + az * from, z1: jz + az * to };
         if (band.x0 > band.x1) [band.x0, band.x1] = [band.x1, band.x0];
         if (band.z0 > band.z1) [band.z0, band.z1] = [band.z1, band.z0];
         band.passes = new Map();
+        band.across = ax ? ["z", jz] : ["x", jx];
         bands.set(`${j.key},${arm}`, band);
         list.push(band);
       }
@@ -673,47 +681,40 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
           place(car, (r.t0 ?? 0) + t, o);
           for (const band of list) {
             const on = o.x > band.x0 && o.x < band.x1 && o.z > band.z0 && o.z < band.z1;
-            if (on && !open.has(band)) open.set(band, t - TICK);
-            else if (!on && open.has(band)) {
-              (band.passes.get(key) ?? band.passes.set(key, []).get(key)).push([open.get(band), t]);
+            const pass = open.get(band);
+            if (on) {
+              // (Where its middle is across the road, from the road's middle.)
+              const v = o[band.across[0]] - band.across[1];
+              if (!pass) open.set(band, [t - TICK, t, v, v]);
+              else [pass[2], pass[3]] = [Math.min(pass[2], v), Math.max(pass[3], v)];
+            } else if (pass) {
+              pass[1] = t;
+              (band.passes.get(key) ?? band.passes.set(key, []).get(key)).push(pass);
               open.delete(band);
             }
           }
         }
-        for (const [band, since] of open) (band.passes.get(key) ?? band.passes.set(key, []).get(key)).push([since, r.period + TICK]);
+        for (const [band, pass] of open) {
+          pass[1] = r.period + TICK;
+          (band.passes.get(key) ?? band.passes.set(key, []).get(key)).push(pass);
+        }
       }
     }
-  };
-  /** How long from second `clock` until a car is next on the band (0 if one
-   *  is on it now), and if one is, how long until that one is off it.
-   *  `late(car)`: the seconds free roam has made a car late, if any. */
-  const next = (band, clock, late) => {
-    let until = 1e9;
-    let busy = 0;
-    for (const car of cars) {
-      const r = car.route;
-      const passes = band.passes.get(routes.indexOf(r) * 64 + car.index);
-      if (!passes) continue;
-      const t = wrap(clock - (late ? late(car) : 0) - (r.t0 ?? 0) - car.delay, r.period);
-      for (const [a0, a1] of passes) {
-        if (t >= a0 && t < a1) busy = Math.max(busy, a1 - t);
-        else until = Math.min(until, wrap(a0 - t, r.period));
-      }
-    }
-    return busy > 0 ? -busy : until;
   };
   /**
-   * Whether the crossing on one arm of a junction can be walked at second
-   * `clock`: the junction by its centre (x, z; the nearest one is taken),
-   * the arm by the side of the junction it is on ("n" toward -z, "s" toward
-   * +z, "e" toward +x, "w" toward -x). Returns { walk, left }: walk is true
-   * while no car is on that crossing, and left is then the seconds until
-   * the next one is; walk false, left is the seconds until the crossing is
-   * clear again. Null where there is no such junction within 30 m.
-   * `late(car)`, where free roam has made cars wait: each one's seconds
-   * behind its timetable.
+   * Whether someone who steps off at second `clock` onto the crossing on
+   * one arm of a junction gets over it with no car near them: the junction
+   * by its centre (x, z; the nearest one is taken), the arm by the side of
+   * the junction it is on ("n" toward -z, "s" toward +z, "e" toward +x, "w"
+   * toward -x). They start `from` metres off the road's middle (below 0
+   * toward the lower x or z) and walk straight over to as far the other
+   * side at `pace` metres a second; a car on the band is in their way while
+   * they are within CLEAR of the line it keeps, and SPARE seconds either
+   * side of that. True or false; null where there is no such junction
+   * within 30 m. `late(car)`, where free roam has made cars wait: each
+   * one's seconds behind its timetable.
    */
-  const walk = (clock, x, z, arm, late = null) => {
+  const walk = (clock, x, z, arm, from, pace, late = null) => {
     if (!bands) survey();
     let best = null;
     let d = 30;
@@ -727,17 +728,21 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     }
     const band = best && bands.get(`${best},${arm}`);
     if (!band) return null;
-    const first = next(band, clock, late);
-    if (first >= 0) return { walk: true, left: Math.min(first, 600) };
-    // On it now: clear when this car and any that follow nose to tail are
-    // off it.
-    let wait = -first;
-    for (let k = 0; k < 8; k++) {
-      const then = next(band, clock + wait + 0.01, late);
-      if (then >= 0) break;
-      wait += -then + 0.01;
+    const way = from < 0 ? 1 : -1;
+    for (const car of cars) {
+      const r = car.route;
+      const passes = band.passes.get(routes.indexOf(r) * 64 + car.index);
+      if (!passes) continue;
+      const t = wrap(clock - (late ? late(car) : 0) - (r.t0 ?? 0) - car.delay, r.period);
+      for (const [a0, a1, lo, hi] of passes) {
+        // When they are near its line, and when it is on the band, from now.
+        const s0 = (way * (way > 0 ? lo : hi) - CLEAR - way * from) / pace - SPARE;
+        const s1 = (way * (way > 0 ? hi : lo) + CLEAR - way * from) / pace + SPARE;
+        const c0 = t >= a0 && t < a1 ? a0 - t : wrap(a0 - t, r.period);
+        if (c0 < s1 && c0 + a1 - a0 > s0) return false;
+      }
     }
-    return { walk: false, left: wait };
+    return true;
   };
   // What a signal head shows (src/world/signals.js): the lights of the
   // junction nearest (x, z) for the cars heading (hx, hz), at second `clock`:
