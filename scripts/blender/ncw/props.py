@@ -446,13 +446,15 @@ def _signal_box(k):
 def _traffic_light(k):
     """A signal mast: a cast base, a column, its arm out over the lanes
     (toward +z) and the head hung on it, three lenses to the traffic it
-    stops (which comes from +x), the red one lit."""
+    stops (which comes from +x), the red one lit (src/world/signals.js
+    relights them at run time, as the traffic's lights change)."""
     t = k("trim")
     lathe(t, 0.0, 0.0, ((0.0, 0.18), (0.5, 0.18), (0.6, 0.1), (6.0, 0.085)), segs=6, col=CAST)
     tube(t, ((0.0, 5.86, 0.0), (0.0, 5.86, 4.5)), (0.055, 0.045), segs=4, col=STEEL, cap=True)
     box(t, -0.13, 0.13, 4.85, 5.8, 4.1, 4.42, scale=0.5, col=BLACK)
     # The unlit lenses are dark glass with a trace of their colour: any
-    # more, and the glow's gain lights them beside the red.
+    # more, and the glow's gain lights them beside the red (and beside
+    # whichever lens src/world/signals.js lights at run time).
     for y, col in ((5.55, GLOW["red"]), (5.3, tuple(v * 0.008 for v in GLOW["amber"][:3]) + (1,)), (5.05, tuple(v * 0.008 for v in GLOW["green"][:3]) + (1,))):
         rotated_quad(k("glow"), 0.136, y, 4.26, 0.2, 0.2, math.pi / 2, col=col)
     # The head's backplate and the arm's brace.
@@ -464,8 +466,9 @@ def _traffic_light(k):
 def _traffic_light_post(k):
     """The same signal's head on a post of its own at the kerb, where a
     mast's arm would stand in front of something: its lenses to the
-    traffic it stops (from +x), the red one lit, over the heads of the
-    people on the pavement and under the screens."""
+    traffic it stops (from +x), the red one lit (src/world/signals.js
+    relights them at run time), over the heads of the people on the
+    pavement and under the screens."""
     t = k("trim")
     lathe(t, 0.0, 0.0, ((0.0, 0.18), (0.5, 0.18), (0.6, 0.1), (1.85, 0.085)), segs=6, col=CAST)
     box(t, -0.13, 0.13, 1.8, 2.75, -0.16, 0.16, scale=0.5, col=BLACK)
