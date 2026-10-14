@@ -17,7 +17,8 @@
 // held, a hand while it goes, the hand flashing for the red's last seconds.
 // Its face is drawn instanced, and what it shows is its own instance's deal
 // (src/world/prop-surfaces.js), set only when that changes: the bars over
-// the figure count the walk down to the hand.
+// the figure count the walk down to the hand. Whoever crosses there in the
+// crowd (src/world/crowd-cross.js) steps off only while it shows the figure.
 import * as THREE from "three";
 import { NEON } from "./materials.js";
 
@@ -41,8 +42,8 @@ const HAND = 0.5;
 const BARS = 6;
 
 /** `props`: the city's (src/world/props.js); `net`: the traffic's network.
- *  Returns { update(clock), lenses(), boxes() } or null if there are no
- *  heads and no boxes. */
+ *  Returns { update(clock), crossing(x, z, arm), lenses(), boxes() } or
+ *  null if there are no heads and no boxes. */
 export function createSignals(props, net) {
   const lit = ["red", "amber", "green"].map((name) => new THREE.Color(NEON[name]));
   let heads = [];
@@ -144,6 +145,15 @@ export function createSignals(props, net) {
         dealt.deal(b.j, deal);
         b.shown = deal;
       }
+    },
+    /** For the crowd: whether the crossing on one arm ("n" toward -z, "s",
+     *  "e", "w") of the junction at (x, z) shows the figure at a second of
+     *  the traffic's clock, as its box does: (clock) => true or false. Null
+     *  at a junction without lights. */
+    crossing(x, z, arm) {
+      const [ax, az] = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] }[arm];
+      const shows = lights(x, z) && net.light(x, z, -ax, -az);
+      return shows ? (clock) => dealOf(shows, clock) < 0 : null;
     },
     /** Dev: each head, where it stands, the way its traffic heads, and the
      *  lens its vertices have lit

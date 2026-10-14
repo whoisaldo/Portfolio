@@ -2660,6 +2660,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
      *  the lights': a car turning right comes onto an arm while that arm's
      *  own traffic is held.) */
     walk: (x, z, arm) => net.walk(clock, x, z, arm, lateOf),
+    /** For the crowd: at a junction with lights, whether the box over the
+     *  crossing on one arm (as walk()'s) shows the figure now, on the
+     *  traffic's clock: () => true or false. Null elsewhere. */
+    sign(x, z, arm) {
+      const shows = signals?.crossing(x, z, arm);
+      return shows ? () => shows(clock) : null;
+    },
     /** Dev: where every flying car on a lane is at this second of the clock
      *  (the sky checks count them from the street and from the air). */
     flying() {
