@@ -563,6 +563,7 @@ STYLE_DEFAULTS = dict(
     ledge_every=(1, 2), ledge_out=0.18, balcony=0.18, balcony_glass=0.3, ac=0.22, pipes=0.5, fire_escape=0.3,
     awning=0.55, shop_sign=0.6, signs=1.0, sign_colours=None, shop_colours=None, setback=0.3, setback_in=(2.5, 4.5),
     canopy=0.1, cornice=0.5, roof_cap=6.0, roof_sign=0.35, back_windows=True,
+    shown_fire_escape=True,
 )
 
 
@@ -694,7 +695,11 @@ def building(lot, height, r, style=None, hero=False, signs=True, setback=None, g
                     px_, py_, pz_ = f.p(f.at(s), max(y0, 0.0), 0.0)
                     P.place("pipe_v", px_, py_, pz_, f.yaw, sy=(y1 - max(y0, 0.0)), district=D)
                 if kind == "street" and ti == 0 and y1 > 14 and r.random() < st["fire_escape"] and f.width > 7:
-                    fire_escape(D, f, r.uniform(3.0, f.width - 3.0), SHOP_H + 0.5, min(y1 - 3.0, 40.0))
+                    # (Thrown for, and then left off where a style says so, so
+                    # the rest of the building is as its dice made it.)
+                    s = r.uniform(3.0, f.width - 3.0)
+                    if st["shown_fire_escape"]:
+                        fire_escape(D, f, s, SHOP_H + 0.5, min(y1 - 3.0, 40.0))
                 if signs and kind == "street":
                     face_signs(D, f, r, 0.5, f.width - 0.5, y1, st["signs"], st["sign_colours"])
         # Roofs: the top tier's, and the terrace a setback leaves.
