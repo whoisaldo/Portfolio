@@ -746,7 +746,8 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
   // platoon's tail may still be going over (the timetable has its last car
   // over by second 18 of the 20), and on the red nothing goes over. A way in
   // with no stop line, as at a corner, is never held: green. Null where no
-  // junction is within 30 m.
+  // junction is within 30 m. (Its `green`: the second of the cycle its green
+  // comes on, if it has one.)
   const lights = new Map();
   for (const r of routes) for (const s of r.stops) lights.set(s.seg, s.green);
   const light = (x, z, hx, hz) => {
@@ -762,11 +763,13 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     }
     if (!best) return null;
     const green = lights.get(best);
-    return (clock) => {
+    const shows = (clock) => {
       if (green === undefined) return 2;
       const w = wrap(clock - green, cycle);
       return w < cycle / 2 - AMBER ? 2 : w < cycle / 2 ? 1 : 0;
     };
+    shows.green = green;
+    return shows;
   };
   return { routes, cars, place, where, point, rows, cycle, streets: STREETS, walk, light };
 }

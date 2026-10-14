@@ -16,7 +16,8 @@
 // shows the same: its walking figure while the traffic over its crossing is
 // held, a hand while it goes, the hand flashing for the red's last seconds.
 // Its face is drawn instanced, and what it shows is its own instance's deal
-// (src/world/prop-surfaces.js), set only when that changes.
+// (src/world/prop-surfaces.js), set only when that changes: the bars over
+// the figure count the walk down to the hand.
 import * as THREE from "three";
 import { NEON } from "./materials.js";
 
@@ -32,10 +33,12 @@ const CROSSING = [4.6 - 1.5, 8.0 + 1.5];
 const KERB = 1.5;
 // The hand flashes for the red's last FLASH seconds, once a second.
 const FLASH = 5;
-// A box's deal for the figure, the hand dark (as it flashes) and the hand.
-const WALK = 0;
+// A box's deal for the hand dark (as it flashes) and the hand; for the
+// figure, minus the share of its BARS lit (a box left as built has 0: the
+// figure, its bars as its seed has them).
 const OFF = 0.25;
 const HAND = 0.5;
+const BARS = 6;
 
 /** `props`: the city's (src/world/props.js); `net`: the traffic's network.
  *  Returns { update(clock), lenses(), boxes() } or null if there are no
@@ -77,6 +80,16 @@ export function createSignals(props, net) {
   const boxes = [];
   const dealt = props.dealt(BOX);
   const held = (shows) => !!shows && Array.from({ length: net.cycle }, (_, t) => shows(t)).includes(0);
+  const lights = (jx, jz) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([hx, hz]) => held(net.light(jx, jz, hx, hz)));
+  // What a box over a crossing whose traffic shows `shows` shows at second
+  // `clock`: the hand while it goes, flashing for the red's last seconds,
+  // and before that the figure, its bars the walk's share left.
+  const dealOf = (shows, clock) => {
+    if (shows(clock) !== 0) return HAND;
+    if (shows(clock + FLASH) !== 0) return clock - Math.floor(clock) < 0.5 ? HAND : OFF;
+    const left = ((((shows.green - FLASH - clock) % net.cycle) + net.cycle) % net.cycle) / (net.cycle / 2 - FLASH);
+    return -Math.min(BARS, Math.max(1, Math.ceil(left * BARS))) / BARS;
+  };
   for (let j = 0; dealt && j < dealt.matrices.length / 16; j++) {
     const x = dealt.matrices[j * 16 + 12];
     const z = dealt.matrices[j * 16 + 14];
@@ -89,8 +102,8 @@ export function createSignals(props, net) {
       const [jx, jz] = S.axis === "z" ? [S.c, O.c] : [O.c, S.c];
       const q = -Math.sign(v - O.c);
       const shows = S.axis === "z" ? net.light(jx, jz, 0, q) : net.light(jx, jz, q, 0);
-      if (!shows || ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([hx, hz]) => held(net.light(jx, jz, hx, hz)))) continue;
-      boxes.push({ j, shows, shown: WALK, x, z, jx, jz, hx: S.axis === "z" ? 0 : q, hz: S.axis === "z" ? q : 0 });
+      if (!shows || !lights(jx, jz)) continue;
+      boxes.push({ j, shows, shown: 0, x, z, jx, jz, hx: S.axis === "z" ? 0 : q, hz: S.axis === "z" ? q : 0 });
       break;
     }
   }
@@ -126,7 +139,7 @@ export function createSignals(props, net) {
         if (state !== h.shown) paint(h, state);
       }
       for (const b of boxes) {
-        const deal = b.shows(clock) !== 0 ? HAND : b.shows(clock + FLASH) === 0 ? WALK : clock - Math.floor(clock) < 0.5 ? HAND : OFF;
+        const deal = dealOf(b.shows, clock);
         if (deal === b.shown) continue;
         dealt.deal(b.j, deal);
         b.shown = deal;
@@ -144,8 +157,9 @@ export function createSignals(props, net) {
       });
     },
     /** Dev: each box with lights to show, where it stands, its junction,
-     *  the way in over its crossing and what it shows now: 0 the figure,
-     *  0.25 the hand dark, 0.5 the hand. */
+     *  the way in over its crossing and what it shows now: below 0 the
+     *  figure (minus the share of its bars lit), 0.25 the hand dark, 0.5
+     *  the hand. */
     boxes() {
       return boxes.map((b) => ({ x: b.x, z: b.z, jx: b.jx, jz: b.jz, hx: b.hx, hz: b.hz, deal: b.shown }));
     },
