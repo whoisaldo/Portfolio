@@ -458,6 +458,20 @@ def _traffic_light(k):
     tube(t, ((0.0, 5.1, 0.07), (0.0, 5.8, 1.0)), (0.03, 0.03), segs=4, col=STEEL)
 
 
+@proto("traffic_light_post", box=(0.15, 1.38, 0.15))
+def _traffic_light_post(k):
+    """The same signal's head on a post of its own at the kerb, where a
+    mast's arm would stand in front of something: its lenses to the
+    traffic it stops (from +x), the red one lit, over the heads of the
+    people on the pavement and under the screens."""
+    t = k("trim")
+    lathe(t, 0.0, 0.0, ((0.0, 0.18), (0.5, 0.18), (0.6, 0.1), (1.85, 0.085)), segs=6, col=CAST)
+    box(t, -0.13, 0.13, 1.8, 2.75, -0.16, 0.16, scale=0.5, col=BLACK)
+    for y, col in ((2.5, GLOW["red"]), (2.25, tuple(v * 0.12 for v in GLOW["amber"][:3]) + (1,)), (2.0, tuple(v * 0.1 for v in GLOW["green"][:3]) + (1,))):
+        rotated_quad(k("glow"), 0.136, y, 0.0, 0.2, 0.2, math.pi / 2, col=col)
+    rotated_quad(t, -0.134, 2.27, 0.0, 0.46, 1.06, -math.pi / 2, col=CAST)
+
+
 @proto("planter_palm", box=(0.8, 1.5, 0.8))
 def _planter_palm(k):
     """A palm in a lit square planter (Fn9gKhU_2_Q@77, YRL74JmhVgk@30): a
