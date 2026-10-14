@@ -25,7 +25,9 @@ YEL_LIT = dim(GLOW["yellow"], 1.0)
 # ---------------------------------------------------------------------------
 BX0, BX1, BY0, BY1, BZ = -23.5, 23.5, 110.5, 140.5, TZ + 1.6
 tbox(BX0, BX1, BY0, BY1, BZ - 0.45, BZ, BLACK, scale=2.0)
-strokes((D, "glow", 0), "H4", 0.0, (BY0 + BY1) / 2, BZ, 24.0, 0.0, YEL_LIT, weight=0.17, gap=0.3, out=0.06)
+# (Its strokes stand 0.4 m off the board: at 6 cm the depth buffer could not
+# tell them from it 250 m and more down the canyon, and they broke into stripes.)
+strokes((D, "glow", 0), "H4", 0.0, (BY0 + BY1) / 2, BZ, 24.0, 0.0, YEL_LIT, weight=0.17, gap=0.3, out=0.4)
 # Its rim, a tube of light round the board.
 for (x0, x1, y0, y1) in ((BX0, BX1, BY1 - 0.4, BY1), (BX0, BX1, BY0, BY0 + 0.4), (BX0, BX0 + 0.4, BY0, BY1), (BX1 - 0.4, BX1, BY0, BY1)):
     box((D, "neon_amber", 0), x0, x1, y0, y1, BZ, BZ + 0.12, scale=1.0)
