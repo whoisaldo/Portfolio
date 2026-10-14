@@ -520,21 +520,37 @@ export function createPropSurfaces(dressed) {
             col = mix(plastic * (1.0 - 0.4 * smoothstep(0.8, 0.9, uv.y)), heap, vColor.b) * light + toward * 0.035 * crease * (1.0 - vColor.b);
           } else if (kind < 1.5) {
             // A crossing's signal: the walking figure lit, the seconds left
-            // in bars over it.
+            // in bars over it. At a junction with lights its deal says what
+            // the traffic over its crossing does (src/world/signals.js): 0
+            // held, the figure; 0.5 going, a hand lit in its place; 0.25 the
+            // hand dark, as it flashes before that traffic goes.
             vec2 s = uv * vec2(0.28, 0.4);
             float near = 1.0 - smoothstep(0.004, 0.014, fwidth(s.y));
             vec2 f = (s - vec2(0.14, 0.13)) / 0.1;
-            float d = length(f - vec2(0.08, 0.78)) - 0.14;
-            d = min(d, seg(f, vec2(0.05, 0.55), vec2(-0.02, 0.05)) - 0.09);
-            d = min(d, seg(f, vec2(-0.02, 0.05), vec2(0.32, -0.75)) - 0.07);
-            d = min(d, seg(f, vec2(-0.02, 0.05), vec2(-0.38, -0.72)) - 0.07);
-            d = min(d, seg(f, vec2(0.04, 0.48), vec2(0.36, 0.12)) - 0.055);
-            d = min(d, seg(f, vec2(0.04, 0.48), vec2(-0.3, 0.2)) - 0.055);
-            lit = mix(0.35, smoothstep(0.03, -0.01, d), near);
-            vec2 c = (s - vec2(0.05, 0.3)) / vec2(0.18, 0.06);
-            float count = rect(c, vec2(0.0), vec2(1.0)) * step(0.3, fract(c.x * 6.0)) * step(c.x, 0.34 + 0.66 * fract(vSeed * 3.1)) * near;
-            col = mix(vec3(0.008) + spill * 0.02, vColor.rgb * 2.2, lit);
-            col = mix(col, vec3(1.0, 0.3, 0.08) * 1.6, count);
+            if (vDeal > 0.1) {
+              // An open hand, the thumb out.
+              vec2 q = abs(f - vec2(0.03, -0.32)) - vec2(0.2, 0.26);
+              float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 0.08;
+              d = min(d, seg(f, vec2(-0.15, -0.1), vec2(-0.17, 0.5)) - 0.065);
+              d = min(d, seg(f, vec2(-0.02, -0.1), vec2(-0.03, 0.66)) - 0.065);
+              d = min(d, seg(f, vec2(0.11, -0.1), vec2(0.12, 0.62)) - 0.065);
+              d = min(d, seg(f, vec2(0.23, -0.1), vec2(0.26, 0.42)) - 0.06);
+              d = min(d, seg(f, vec2(-0.12, -0.42), vec2(-0.42, -0.02)) - 0.07);
+              lit = mix(0.35, smoothstep(0.03, -0.01, d), near) * step(0.4, vDeal);
+              col = mix(vec3(0.008) + spill * 0.02, vec3(1.0, 0.3, 0.05) * 2.8, lit);
+            } else {
+              float d = length(f - vec2(0.08, 0.78)) - 0.14;
+              d = min(d, seg(f, vec2(0.05, 0.55), vec2(-0.02, 0.05)) - 0.09);
+              d = min(d, seg(f, vec2(-0.02, 0.05), vec2(0.32, -0.75)) - 0.07);
+              d = min(d, seg(f, vec2(-0.02, 0.05), vec2(-0.38, -0.72)) - 0.07);
+              d = min(d, seg(f, vec2(0.04, 0.48), vec2(0.36, 0.12)) - 0.055);
+              d = min(d, seg(f, vec2(0.04, 0.48), vec2(-0.3, 0.2)) - 0.055);
+              lit = mix(0.35, smoothstep(0.03, -0.01, d), near);
+              vec2 c = (s - vec2(0.05, 0.3)) / vec2(0.18, 0.06);
+              float count = rect(c, vec2(0.0), vec2(1.0)) * step(0.3, fract(c.x * 6.0)) * step(c.x, 0.34 + 0.66 * fract(vSeed * 3.1)) * near;
+              col = mix(vec3(0.008) + spill * 0.02, vColor.rgb * 2.2, lit);
+              col = mix(col, vec3(1.0, 0.3, 0.08) * 1.6, count);
+            }
           } else if (kind < 2.5) {
             // A phone's or a charging post's panel: a screen with a handset
             // on it, keys, a reader.

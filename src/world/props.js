@@ -644,6 +644,34 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     written(name) {
       return [...baked.values()].flatMap((mesh) => mesh.parts.filter((p) => p.set.name === name && p.at).map((p) => ({ mesh, geometry: mesh.geometry, src: p.src, matrices: p.set.matrices, at: p.at })));
     },
+    /** Prototype `name`'s instances' deals (src/world/signals.js shows a
+     *  crossing's signal in its box's): its instances' matrices, and
+     *  deal(j, value), which gives instance j that deal and, if it is drawn
+     *  now, sends up only its own. Null if it has no dealt part. */
+    dealt(name) {
+      const set = sets.find((st) => st.name === name && st.aDeal.length);
+      if (!set) return null;
+      return {
+        matrices: set.matrices,
+        deal(j, value) {
+          set.deals[j] = value;
+          // Where it is in what is drawn: the runs in sight before its own.
+          let c = 0;
+          for (const run of set.runs) {
+            if (!cellVis[run.ci] || cellDist[run.ci] > set.reach) continue;
+            if (j < run.end && j >= run.start) {
+              for (const a of set.aDeal) {
+                a.array[c + j - run.start] = value;
+                a.addUpdateRange(c + j - run.start, 1);
+                a.needsUpdate = true;
+              }
+              return;
+            }
+            c += run.end - run.start;
+          }
+        },
+      };
+    },
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {
       return Object.fromEntries(sets.filter((st) => !st.near).map((st) => [st.name, `${st.count}/${st.n}`]));

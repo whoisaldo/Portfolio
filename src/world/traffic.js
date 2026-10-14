@@ -2647,6 +2647,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     time: () => clock,
     /** Dev: each signal head and the lens it has lit (src/world/signals.js). */
     signals: () => signals?.lenses() ?? [],
+    /** Dev: each crossing's signal box with lights to show and what it
+     *  shows (src/world/signals.js). */
+    signalBoxes: () => signals?.boxes() ?? [],
     /** For the crowd: whether the crossing on one arm of a junction can be
      *  walked now. The junction by its centre (x, z; the nearest within
      *  30 m), the arm by the side of the junction it is on: "n" toward -z,

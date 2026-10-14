@@ -11,6 +11,12 @@
 // timetable's own, for the junction it stands at and the way in it faces),
 // the lit lens is put back to its colour and the others to dark glass, and
 // only those vertices go up again. Nothing is drawn that was not drawn.
+//
+// A crossing's signal box (props.py signal_box) at a junction with lights
+// shows the same: its walking figure while the traffic over its crossing is
+// held, a hand while it goes, the hand flashing for the red's last seconds.
+// Its face is drawn instanced, and what it shows is its own instance's deal
+// (src/world/prop-surfaces.js), set only when that changes.
 import * as THREE from "three";
 import { NEON } from "./materials.js";
 
@@ -18,9 +24,22 @@ const HEADS = ["traffic_light", "traffic_light_post"];
 // An unlit lens: dark glass with a trace of its colour (as props.py has the
 // amber and the green: any more, and the glow's gain lights it).
 const DARK = 0.008;
+const BOX = "signal_box";
+// A crossing, metres past the junction square's edge (streets.py
+// _crossing): a box is the one by it at the kerb (streets.py furniture: at
+// its near edge, or a district's a little past its far one).
+const CROSSING = [4.6 - 1.5, 8.0 + 1.5];
+const KERB = 1.5;
+// The hand flashes for the red's last FLASH seconds, once a second.
+const FLASH = 5;
+// A box's deal for the figure, the hand dark (as it flashes) and the hand.
+const WALK = 0;
+const OFF = 0.25;
+const HAND = 0.5;
 
 /** `props`: the city's (src/world/props.js); `net`: the traffic's network.
- *  Returns { update(clock), lenses() } or null if there are no heads. */
+ *  Returns { update(clock), lenses(), boxes() } or null if there are no
+ *  heads and no boxes. */
 export function createSignals(props, net) {
   const lit = ["red", "amber", "green"].map((name) => new THREE.Color(NEON[name]));
   let heads = [];
@@ -52,7 +71,30 @@ export function createSignals(props, net) {
     }
   };
   read();
-  if (!heads.length) return null;
+  // Each box at a junction where some way in has its lights, with the way
+  // in over its crossing: the street it stands at the kerb of, on the arm
+  // it stands on. (Away from those, a box is left as it was built.)
+  const boxes = [];
+  const dealt = props.dealt(BOX);
+  const held = (shows) => !!shows && Array.from({ length: net.cycle }, (_, t) => shows(t)).includes(0);
+  for (let j = 0; dealt && j < dealt.matrices.length / 16; j++) {
+    const x = dealt.matrices[j * 16 + 12];
+    const z = dealt.matrices[j * 16 + 14];
+    for (const S of net.streets) {
+      const O = net.streets.find((o) => o.axis !== S.axis && o.c >= S.a - 1 && o.c <= S.b + 1 && S.c >= o.a - 1 && S.c <= o.b + 1 && Math.abs((S.axis === "z" ? z : x) - o.c) < 30);
+      if (!O) continue;
+      const [u, v] = S.axis === "z" ? [x, z] : [z, x];
+      const past = Math.abs(v - O.c) - O.half;
+      if (Math.abs(Math.abs(u - S.c) - S.half - KERB / 2) > KERB / 2 || past < CROSSING[0] || past > CROSSING[1] || v < S.a || v > S.b) continue;
+      const [jx, jz] = S.axis === "z" ? [S.c, O.c] : [O.c, S.c];
+      const q = -Math.sign(v - O.c);
+      const shows = S.axis === "z" ? net.light(jx, jz, 0, q) : net.light(jx, jz, q, 0);
+      if (!shows || ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([hx, hz]) => held(net.light(jx, jz, hx, hz)))) continue;
+      boxes.push({ j, shows, shown: WALK, x, z, jx, jz, hx: S.axis === "z" ? 0 : q, hz: S.axis === "z" ? q : 0 });
+      break;
+    }
+  }
+  if (!heads.length && !boxes.length) return null;
   const paint = (h, state) => {
     const color = h.geometry.attributes.color;
     const size = color.itemSize;
@@ -83,6 +125,12 @@ export function createSignals(props, net) {
         const state = h.shows(clock);
         if (state !== h.shown) paint(h, state);
       }
+      for (const b of boxes) {
+        const deal = b.shows(clock) !== 0 ? HAND : b.shows(clock + FLASH) === 0 ? WALK : clock - Math.floor(clock) < 0.5 ? HAND : OFF;
+        if (deal === b.shown) continue;
+        dealt.deal(b.j, deal);
+        b.shown = deal;
+      }
     },
     /** Dev: each head, where it stands, the way its traffic heads, and the
      *  lens its vertices have lit
@@ -94,6 +142,12 @@ export function createSignals(props, net) {
         for (let k = 0; k < h.lens.length; k++) sum[h.lens[k]] += color.getX(h.at + k) + color.getY(h.at + k) + color.getZ(h.at + k);
         return { x: +h.x.toFixed(1), z: +h.z.toFixed(1), hx: Math.round(h.hx), hz: Math.round(h.hz), lit: sum.indexOf(Math.max(...sum)) };
       });
+    },
+    /** Dev: each box with lights to show, where it stands, its junction,
+     *  the way in over its crossing and what it shows now: 0 the figure,
+     *  0.25 the hand dark, 0.5 the hand. */
+    boxes() {
+      return boxes.map((b) => ({ x: b.x, z: b.z, jx: b.jx, jz: b.jz, hx: b.hx, hz: b.hz, deal: b.shown }));
     },
   };
 }
