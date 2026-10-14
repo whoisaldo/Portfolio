@@ -330,9 +330,9 @@ line()
 def life():
     """More people on the boulevard's pavements, off the walkers' lines
     (against the lot lines: the south side's from x 140 to 376, the north
-    side's east of the braindance's views, x 280 to 450), in ones, twos and
-    threes, and a second blade sign off each south front, higher and
-    turned the other way."""
+    side's east of the braindance's views, x 280 to the corner block's
+    forecourt at 432, which has its own), in ones, twos and threes, and a
+    second blade sign off each south front, higher and turned the other way."""
     rl = random.Random(9311)
     poses = ("idle", "phone", "smoke", "lean", "phone", "idle")
     x = 141.0
@@ -346,13 +346,13 @@ def life():
                 K.talk(x, FACADE - 0.7, rl.uniform(0.0, math.tau), n)
         x += rl.uniform(9.0, 16.0)
     x = 281.0
-    while x < 449.0:
+    while x < 432.0:
         if not (288.0 < x < 290.0):
             n = rl.choice((1, 2, 2, 3))
             if n == 1:
                 stand(x, -343.45, rl.uniform(-0.6, 0.6), rl.choice(poses[:3]))
             else:
-                K.talk(x, -343.4, rl.uniform(0.0, math.tau), n)
+                K.talk(x, -342.9, rl.uniform(0.0, math.tau), n)   # (none of them in a shop's window, proud of the lot line)
         x += rl.uniform(10.0, 17.0)
     # A second blade off each south front, higher, turned the other way.
     from ncw.districts.corpo_south import S1, LOT_S

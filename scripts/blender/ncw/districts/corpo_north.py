@@ -1022,10 +1022,11 @@ def gaps():
                 K.neon_box(xa, xb, 3.3, 3.46, zz - 0.2, zz + 0.2, hue, 1)
                 light(CO, xw - sx * 0.9, 3.0, zz, hue, 4.0)
         if j >= 3:
-            # Somebody on a break in the way through, and a pair talking.
-            stand(gx - 4.6, -357.0, math.pi / 2, "smoke")
+            # Somebody on a break in the way through, and a pair talking
+            # (clear of the fourth's planters and the fifth's beds).
+            stand(gx - 2.9, -357.0, math.pi / 2, "smoke")
             stand(gx + 4.8, -363.5, -math.pi / 2, "phone")
-            K.talk(gx + 1.5, -355.0, 0.4 * j, 2)
+            K.talk(gx + 1.5, -356.2, 0.4 * j, 2)
 
     # 1: stairs up to a raised terrace with a glass rail, trees on it, a lit
     # lounge across its back (KvMY1uzSC1E@29, @43).
@@ -1046,7 +1047,7 @@ def gaps():
     stand(gx - 2.4, -360.6, 0.0, "sit", ty + 0.45)
     K.talk(gx + 1.0, -356.4, 0.6, 3, y=ty)
     stand(gx + 4.0, -354.6, 0.0, "lean", ty)
-    stand(gx - 3.0, -350.6, 0.0, "idle", G0 + (ty - G0) * 0.45)
+    stand(gx - 3.0, -350.75, 0.0, "idle", G0 + (ty - G0) * 0.5)   # (on the ninth tread)
     stand(gx - 1.0, -364.0, 0.0, "lean", top)
     stand(gx + 2.5, -363.6, 0.0, "phone", top)
 
