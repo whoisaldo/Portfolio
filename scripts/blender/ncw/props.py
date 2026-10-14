@@ -451,7 +451,9 @@ def _traffic_light(k):
     lathe(t, 0.0, 0.0, ((0.0, 0.18), (0.5, 0.18), (0.6, 0.1), (6.0, 0.085)), segs=6, col=CAST)
     tube(t, ((0.0, 5.86, 0.0), (0.0, 5.86, 4.5)), (0.055, 0.045), segs=4, col=STEEL, cap=True)
     box(t, -0.13, 0.13, 4.85, 5.8, 4.1, 4.42, scale=0.5, col=BLACK)
-    for y, col in ((5.55, GLOW["red"]), (5.3, tuple(v * 0.12 for v in GLOW["amber"][:3]) + (1,)), (5.05, tuple(v * 0.1 for v in GLOW["green"][:3]) + (1,))):
+    # The unlit lenses are dark glass with a trace of their colour: any
+    # more, and the glow's gain lights them beside the red.
+    for y, col in ((5.55, GLOW["red"]), (5.3, tuple(v * 0.008 for v in GLOW["amber"][:3]) + (1,)), (5.05, tuple(v * 0.008 for v in GLOW["green"][:3]) + (1,))):
         rotated_quad(k("glow"), 0.136, y, 4.26, 0.2, 0.2, math.pi / 2, col=col)
     # The head's backplate and the arm's brace.
     rotated_quad(t, -0.134, 5.32, 4.26, 0.46, 1.06, -math.pi / 2, col=CAST)
@@ -467,7 +469,7 @@ def _traffic_light_post(k):
     t = k("trim")
     lathe(t, 0.0, 0.0, ((0.0, 0.18), (0.5, 0.18), (0.6, 0.1), (1.85, 0.085)), segs=6, col=CAST)
     box(t, -0.13, 0.13, 1.8, 2.75, -0.16, 0.16, scale=0.5, col=BLACK)
-    for y, col in ((2.5, GLOW["red"]), (2.25, tuple(v * 0.12 for v in GLOW["amber"][:3]) + (1,)), (2.0, tuple(v * 0.1 for v in GLOW["green"][:3]) + (1,))):
+    for y, col in ((2.5, GLOW["red"]), (2.25, tuple(v * 0.008 for v in GLOW["amber"][:3]) + (1,)), (2.0, tuple(v * 0.008 for v in GLOW["green"][:3]) + (1,))):
         rotated_quad(k("glow"), 0.136, y, 0.0, 0.2, 0.2, math.pi / 2, col=col)
     rotated_quad(t, -0.134, 2.27, 0.0, 0.46, 1.06, -math.pi / 2, col=CAST)
 
