@@ -81,6 +81,7 @@ export const PART = {
   sole: 35,
   stitch: 36,
   crate: 37,
+  fasten: 38,
 };
 
 /** What only some people have: a bit each in a person's mask. */
@@ -719,8 +720,14 @@ function nearFigure(close = false) {
     for (const mid of [90 - 27, 90 + 27, 270 - 27, 270 + 27]) loft([1.232, 1.3, 1.375, 1.418].map((y) => [onTorso(y, mid - 4, 0.0058), onTorso(y, mid + 4, 0.0058)]), o, { open: true, ref: [0, 1.3, 0] });
   }
   // The fastening down the front, and the jacket's own low collar, open
-  // at the front.
-  loft([0.91, 0.99, 1.08, 1.19, 1.29, 1.375, 1.405].map((y) => [onTorso(y, 92.6, 0.003), onTorso(y, 87.4, 0.003)]), { part: PART.seam }, { open: true, ref: [0, 1.2, 0] });
+  // at the front. (The fastening has a row at each of the jacket's, and is
+  // shaded smooth as the jacket is: between fewer, its straight quads went
+  // under the chest's swell and each took the light its own way, so on a
+  // pale coat it was a dark strip in pieces.)
+  {
+    const rows = [0.91, ...TORSO.map(([y]) => y).filter((y) => y > 0.91 && y < 1.405), 1.405];
+    loft(rows.map((y) => [onTorso(y, 92.6, 0.003), onTorso(y, 87.4, 0.003)]), { part: PART.fasten, smooth: 78 }, { open: true, ref: [0, 1.2, 0] });
+  }
   {
     const rings = [ring(10, 1.46, 0, -0.004, 0.072, 0.07, torso), ring(10, 1.494, 0, -0.004, 0.066, 0.065, torso)];
     const open = (r, i) => i === 1 || i === 2;
