@@ -34,6 +34,7 @@ import { createNetwork, roadVents } from "./traffic-net.js";
 import { createStanding, wardrobe, KINDS as CAR_KINDS, BIKES, FIXED, TAG } from "./traffic-park.js";
 import { creased, coarse, drum, joined } from "./traffic-lod.js";
 import { createCraft, craftAt, padAt, PAD_STANDING, CRAFT } from "./traffic-sky.js";
+import { createSignals } from "./signals.js";
 
 const createCarModel = (kind) => (BASE_KINDS.includes(kind) ? createBaseCar(kind) : SHOW_KINDS.includes(kind) ? createShowCar(kind) : null);
 
@@ -661,7 +662,7 @@ const madeAhead = (key, make) => {
   return got ?? make();
 };
 
-export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0 } = {}) {
+export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, police = false, reduced = false, reflectLayer = 2, rail = null, elevated = [], deckCars = 0, props = null } = {}) {
   const avGeo = madeAhead("av", avGeometry);
   const full = cars >= 4;
   if (full) prepareNearModels();
@@ -1377,6 +1378,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   });
   const steam = roadVents(vents);
   const net = createNetwork({ perPlatoon: full ? 5 : 2, keep: steam });
+  // The signal heads, showing the network's lights (src/world/signals.js).
+  const signals = props && createSignals(props, net);
   // The lanes that leave the ground (the builder's "paths": the ramp, the
   // turn and the deck, each way, as points with their heights): cars on
   // each, riding the line by its length.
@@ -2288,6 +2291,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       return;
     }
     if (!reduced && !frozen) clock += dt;
+    signals?.update(clock);
     let li = 0;
     let ti = 0;
     for (const l of avLevels) l.n = 0;
@@ -2641,6 +2645,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
     },
     /** Dev: the second of the traffic's own clock. */
     time: () => clock,
+    /** Dev: each signal head and the lens it has lit (src/world/signals.js). */
+    signals: () => signals?.lenses() ?? [],
     /** For the crowd: whether the crossing on one arm of a junction can be
      *  walked now. The junction by its centre (x, z; the nearest within
      *  30 m), the arm by the side of the junction it is on: "n" toward -z,

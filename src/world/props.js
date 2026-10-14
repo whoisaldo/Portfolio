@@ -137,9 +137,13 @@ class Baked extends THREE.InstancedMesh {
     let indices = 0;
     // Each instance of each part, by its cell and then by how far it is seen.
     const items = [];
-    for (const { set, src } of this.parts) {
+    // (Where each instance's vertices start, by part: for written() below.)
+    const at = new Map();
+    for (const part of this.parts) {
+      const { set, src } = part;
       const g = src.geometry;
-      for (const run of set.runs) for (let j = run.start; j < run.end; j++) items.push({ ci: run.ci, set, g, j });
+      at.set(part, new Int32Array(set.n));
+      for (const run of set.runs) for (let j = run.start; j < run.end; j++) items.push({ ci: run.ci, set, g, j, part });
       verts += set.n * g.attributes.position.count;
       indices += set.n * g.index.count;
     }
@@ -155,7 +159,7 @@ class Baked extends THREE.InstancedMesh {
     let v = 0;
     let i = 0;
     let since = 0;
-    for (const { ci: cell, set, g, j } of items) {
+    for (const { ci: cell, set, g, j, part } of items) {
       if (since > 8192) {
         since = 0;
         yield;
@@ -204,6 +208,7 @@ class Baked extends THREE.InstancedMesh {
       }
       const src = g.index.array;
       for (let k = 0; k < src.length; k++) index[i + k] = src[k] + v;
+      at.get(part)[j] = v;
       v += n;
       i += src.length;
       count[count.length - 1] += src.length;
@@ -219,6 +224,7 @@ class Baked extends THREE.InstancedMesh {
         this.geometry.dispose();
         this.geometry = geometry;
         this.cells = cells;
+        for (const [part, starts] of at) part.at = starts;
         if (MULTI_DRAW) {
           this._multiDrawStarts = new Int32Array(ci.length);
           this._multiDrawCounts = new Int32Array(ci.length);
@@ -629,6 +635,14 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         return [...instanced, ...written.written];
       };
       return hold ? { sources, commit, prepare } : sources;
+    },
+    /** Prototype `name`'s parts written out (src/world/signals.js colours a
+     *  signal's lenses on their vertices): each part's mesh, its own
+     *  geometry, its instances' matrices and where each one's vertices start
+     *  in the mesh's. A mesh is written again, a new geometry, when a
+     *  district's pack adds parts to it. */
+    written(name) {
+      return [...baked.values()].flatMap((mesh) => mesh.parts.filter((p) => p.set.name === name && p.at).map((p) => ({ mesh, geometry: mesh.geometry, src: p.src, matrices: p.set.matrices, at: p.at })));
     },
     /** Instances drawn last update, by prototype, for the dev hooks. */
     stats() {

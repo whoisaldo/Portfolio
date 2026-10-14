@@ -90,6 +90,8 @@ const GATES = [
 ];
 
 const CRUISE = 11.5;
+// A signal's amber, the end of its green (see `light` below).
+const AMBER = 4.5;
 const TURN = 6.5;
 const ROUND = 4.2;
 const ACCEL = 2.0;
@@ -299,7 +301,7 @@ function timetable(lanes, { cycle, need, phase }) {
     // (A stop line is a run's: the way straight through a wide junction is
     // as long as a short run, and must not be given one in mid box.)
     else if (p.run && p.seg.lit && p.len > STOP + 6) {
-      stops.push({ i: Math.round((starts[k + 1] - STOP) / du) % N, green: p.seg.gate ?? (phase(p.seg.lit.key) + (p.seg.heading[0] ? cycle / 2 : 0)) % cycle, gate: p.seg.gate !== undefined });
+      stops.push({ i: Math.round((starts[k + 1] - STOP) / du) % N, green: p.seg.gate ?? (phase(p.seg.lit.key) + (p.seg.heading[0] ? cycle / 2 : 0)) % cycle, gate: p.seg.gate !== undefined, seg: p.seg });
     }
   });
   // A phase's green, less a second at its end. A platoon runs a light at
@@ -390,7 +392,7 @@ function timetable(lanes, { cycle, need, phase }) {
   }
   // (`stops`: for free roam, see `where` below. The stop lines, in metres
   // round the route as `where` counts them, and each one's green.)
-  return { table, period, length, offset: stops[anchor].i * du, t0, wasted: best.wasted, stops: stops.map((s) => ({ u: s.i * du, green: s.green })) };
+  return { table, period, length, offset: stops[anchor].i * du, t0, wasted: best.wasted, stops: stops.map((s) => ({ u: s.i * du, green: s.green, seg: s.seg })) };
 }
 
 // The lights' phases are drawn from this. Any seed is as good a city as
@@ -737,5 +739,34 @@ export function createNetwork({ perPlatoon = 5, cycle = 40, headway = 0.9, seed 
     }
     return { walk: false, left: wait };
   };
-  return { routes, cars, place, where, point, rows, cycle, streets: STREETS, walk };
+  // What a signal head shows (src/world/signals.js): the lights of the
+  // junction nearest (x, z) for the cars heading (hx, hz), at second `clock`:
+  // 0 red, 1 amber, 2 green. A green is half the cycle and its last AMBER
+  // seconds amber: a platoon that comes to the line then stops at it, a
+  // platoon's tail may still be going over (the timetable has its last car
+  // over by second 18 of the 20), and on the red nothing goes over. A way in
+  // with no stop line, as at a corner, is never held: green. Null where no
+  // junction is within 30 m.
+  const lights = new Map();
+  for (const r of routes) for (const s of r.stops) lights.set(s.seg, s.green);
+  const light = (x, z, hx, hz) => {
+    let best = null;
+    let d = 30;
+    for (const seg of segs) {
+      if (seg.into.dead || seg.heading[0] * hx + seg.heading[1] * hz < 0.9) continue;
+      const [jx, jz] = seg.into.key.split(",").map(Number);
+      if (Math.hypot(jx - x, jz - z) < d) {
+        d = Math.hypot(jx - x, jz - z);
+        best = seg;
+      }
+    }
+    if (!best) return null;
+    const green = lights.get(best);
+    return (clock) => {
+      if (green === undefined) return 2;
+      const w = wrap(clock - green, cycle);
+      return w < cycle / 2 - AMBER ? 2 : w < cycle / 2 ? 1 : 0;
+    };
+  };
+  return { routes, cars, place, where, point, rows, cycle, streets: STREETS, walk, light };
 }
