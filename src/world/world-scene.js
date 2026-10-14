@@ -728,6 +728,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // flicker). Smoothing everywhere else stays on the frame's dt.
   const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
+    let mirrored = false;
     clock += flow;
     shared.uTime.value = clock;
     shared.uCam.value.copy(camera.position);
@@ -776,6 +777,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         city.setOccluders(!!directed && (directed.occluders ?? 1) > 0);
         camera.updateMatrixWorld();
         const drew = mirror.render(scene, camera, mirrorY);
+        mirrored = drew;
         for (const r of city.roadMaterials) r.setReflection(drew ? mirror.texture : null, mirror.matrix, mirror.horizonV);
       } else if (city) {
         for (const r of city.roadMaterials) r.setReflection(null);
@@ -791,7 +793,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!shutter.fresh) shutter.has = false;
     shutter.fresh = false;
     post.view(moonView);
-    post.render(dt);
+    // The mirror's render has just brought every matrix in the scene up to
+    // date, and nothing moves between it and the city's own: that one need
+    // not walk the whole scene again.
+    scene.matrixWorldAutoUpdate = !mirrored;
+    try {
+      post.render(dt);
+    } finally {
+      scene.matrixWorldAutoUpdate = true;
+    }
     if (!firstFrame) {
       firstFrame = true;
       onFirstFrame?.();
