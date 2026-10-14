@@ -1788,6 +1788,10 @@ const VERTEX = /* glsl */ `
       p.xz *= mix(1.0, wide, 0.3);
     } else if ((tag < ${f(TAG.umbrella - 0.5)} || tag > ${f(TAG.umbrella + 0.5)}) && tag < ${f(CARRIED - 0.5)}) {
       if (garment > 1.5 && garment < 2.5 && part == ${PART.jacket}) p.xz += normalize(p.xz + 1e-5) * 0.024 * aux;
+      // A coat's fastening stands clear of its front (nothing of an open
+      // jacket's lies over it), so it is one line, not a strip that comes and
+      // goes through the cloth where the chest swells between its rows.
+      if (garment > 0.5 && garment < 1.5 && part == ${PART.seam}) p += n * 0.004;
       p.x *= wide * (1.0 + 0.1 * frame * (smoothstep(1.1, 1.35, p.y) - 1.0 + smoothstep(0.95, 1.15, p.y)));
       if (kid < 0.5) p.x *= 1.0 + 0.05 * smoothstep(1.25, 1.4, p.y) + 0.1 * smoothstep(1.4, 1.44, p.y) * (1.0 - smoothstep(1.455, 1.475, p.y)) - 0.075 * exp(-pow((p.y - 1.06) / 0.08, 2.0));
       p.z *= mix(1.0, wide, 0.85) * 0.93;
@@ -1883,7 +1887,9 @@ const VERTEX = /* glsl */ `
     // throat; a collar turned up and a lapel are the jacket's own.
     else if (part == ${PART.hood}) albedo = shirt * 0.92;
     else if (part == ${PART.lapel}) albedo = jacket * 0.76 + 0.006;
-    else if (part == ${PART.seam}) albedo = jacket * 0.4;
+    // (A coat's fastening is a fold of its own cloth: at a jacket's dark
+    // line it read on a pale coat as something blue showing through.)
+    else if (part == ${PART.seam}) albedo = jacket * (garment > 0.5 && garment < 1.5 ? 0.72 : 0.4);
     else if (part == ${PART.shirt}) albedo = shirt;
     else if (part == ${PART.tie}) albedo = tint * 0.4 + 0.012;
     else if (part == ${PART.band}) { albedo = vec3(0.6, 0.62, 0.58); gloss = 1.1; }
