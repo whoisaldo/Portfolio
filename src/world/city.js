@@ -599,6 +599,9 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
           prev.mesh.removeFromParent();
           prev.mesh.userData.twin?.removeFromParent();
           prev.whole.dispose();
+          // (The glass's instance matrix and vertex arrays; its material
+          // is the props' too.)
+          if (prev.mesh.isInstancedMesh) prev.mesh.dispose();
         }
         root.add(mesh);
         if (mesh.userData.twin) occluders.add(mesh.userData.twin);
