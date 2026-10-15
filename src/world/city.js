@@ -559,9 +559,13 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         yield;
       }
       // What blends is drawn whole, in the order it was built: its picture
-      // depends on that order.
+      // depends on that order. (As the one instance, where it stands, of
+      // an instanced mesh: the props' panes of its glass are instanced, and
+      // so it is their program and render pipeline, not one of its own;
+      // ANGLE's Metal backend keeps 96 a frame, see Baked in props.js. An
+      // instance's matrix of ones and noughts moves no vertex by a bit.)
       const material = list[0].material;
-      const mesh = material.transparent ? new THREE.Mesh(whole, material) : new Tiled(whole, material, cells, yield* cutSteps(whole, cells, CELL_MIN_TRIS));
+      const mesh = material.transparent ? new THREE.InstancedMesh(whole, material, 1) : new Tiled(whole, material, cells, yield* cutSteps(whole, cells, CELL_MIN_TRIS));
       mesh.name = `kit_${material.name}`;
       mesh.layers.mask = list[0].layers.mask;
       mesh.renderOrder = list[0].renderOrder;

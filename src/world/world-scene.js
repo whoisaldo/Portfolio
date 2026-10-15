@@ -190,7 +190,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       lightIn = true;
       if (running !== null) check();
     });
-    clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => o.isInstancedMesh || o.isBaked || /^(moon_disc|holo_figure)/.test(o.name));
+    // (The kit's glass is an instanced mesh of one, where it stands: city.js.)
+    clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => (o.isInstancedMesh && !o.name.startsWith("kit_")) || o.isBaked || /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
     const keepOut = [...c.anchors].filter(([n]) => n.startsWith("anchor_mega_")).map(([, a]) => {
       const r = (a.extras?.size ?? 50) / 2;
