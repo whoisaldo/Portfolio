@@ -158,6 +158,49 @@ function oneProgram(car) {
   }
 }
 
+/**
+ * The lamps' clear lenses, transparent and seen from both sides, are drawn
+ * by three in two passes, the far side's faces and then the near side's,
+ * each its own program (the far pass's normals turned round by a define):
+ * two of ANGLE Metal's 96 render pipelines a frame (see Baked in props.js).
+ * One draw of the near side's program instead, of the lens's faces turned
+ * round (each triangle's corners in the other order, its normals negated)
+ * and then the lens as it is. A draw's triangles go down in their order,
+ * so the far side's are drawn before the near side's as the two passes
+ * drew them, with the same normals (negated before the view's matrix and
+ * not after it: the same numbers), as plain floats (merge.js toFloat).
+ */
+function lensesOneDraw(car) {
+  const meshes = [];
+  car.traverse((o) => {
+    const m = o.material;
+    if (o.isMesh && m?.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass) meshes.push(o);
+  });
+  for (const o of meshes) {
+    const g = toFloat(o.geometry);
+    const n = g.attributes.position.count;
+    const both = new THREE.BufferGeometry();
+    for (const [name, a] of Object.entries(g.attributes)) {
+      const arr = new Float32Array(a.array.length * 2);
+      arr.set(a.array, 0);
+      arr.set(a.array, a.array.length);
+      if (name === "normal") for (let i = 0; i < a.array.length; i++) arr[i] = -arr[i];
+      both.setAttribute(name, new THREE.BufferAttribute(arr, a.itemSize));
+    }
+    const idx = g.index.array;
+    const tris = new Uint32Array(idx.length * 2);
+    for (let i = 0; i < idx.length; i += 3) {
+      tris[i] = idx[i];
+      tris[i + 1] = idx[i + 2];
+      tris[i + 2] = idx[i + 1];
+    }
+    for (let i = 0; i < idx.length; i++) tris[idx.length + i] = idx[i] + n;
+    both.setIndex(new THREE.BufferAttribute(tris, 1));
+    o.geometry = both;
+  }
+  for (const o of meshes) o.material.side = THREE.FrontSide;
+}
+
 function nightEnvironment() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x010102);
@@ -223,6 +266,7 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   const standIn = mirrorStandIn(car, rig);
   const slimmed = slim(car);
   oneProgram(car);
+  lensesOneDraw(car);
   const ready = tier === "phone"
     ? lighten(car).catch((err) => {
         if (import.meta.env.DEV) console.warn("[world] the phone's car keeps every triangle", err);
