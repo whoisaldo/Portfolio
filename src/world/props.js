@@ -451,6 +451,16 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         const deal = new THREE.InstancedBufferAttribute(new Float32Array(n), 1);
         geometry.setAttribute("aDeal", mine.userData.dealt ? deal.setUsage(THREE.DynamicDrawUsage) : deal);
         owned.push(geometry);
+      } else if (material.uniforms?.uKind && !src.geometry.attributes.color) {
+        // A surface that reads no colour (city.js unread) carries what it
+        // read with none, three's default of ones, as plain floats: the
+        // tinted surfaces' vertex layout, so that the instanced surfaces are
+        // one render pipeline and not two. Its own geometry, as above.
+        geometry = new THREE.BufferGeometry();
+        geometry.index = src.geometry.index;
+        for (const [key, attribute] of Object.entries(src.geometry.attributes)) geometry.setAttribute(key, attribute);
+        geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(src.geometry.attributes.position.count * 4).fill(1), 4));
+        owned.push(geometry);
       }
       const im = new THREE.InstancedMesh(geometry, mine ?? twin(material, "instanced", geometry), n);
       im.name = `props_${k.name}_${material.name}`;
