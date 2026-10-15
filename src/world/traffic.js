@@ -1346,6 +1346,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   // faces), so a frame only finds where in its round each drone is.
   const routes = DRONE_ROUTES.filter((x) => x.phone || drones > 5).slice(0, drones);
   const droneGeo = droneGeometry();
+  // (A drone has no livery and no fans' colour: their attributes as the
+  // material's defaults give them, zero, so that its draw has the AVs'
+  // vertex layout and is their render pipeline, not one of its own.)
+  droneGeo.setAttribute("aLivery", new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, routes.length) * 4), 4));
+  droneGeo.setAttribute("aGlow", new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, routes.length) * 4), 4));
   const droneMesh = new THREE.InstancedMesh(droneGeo, avMat, Math.max(1, routes.length));
   droneMesh.name = "drones";
   droneMesh.frustumCulled = false;
