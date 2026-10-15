@@ -728,6 +728,8 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       uniform vec2 uWheel;
       uniform vec4 uCab;
       uniform vec4 uCab2;
+      uniform float uVan;
+      uniform float uBus;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       varying vec3 vNormalL;
@@ -950,16 +952,20 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vec3 col;
         float glow = 0.0;
         float flank = step(0.7, abs(nl.x));
-        #ifdef VAN
+        #ifndef NEAR
         // The van's flanks and back: a row of cabin windows between pillars,
         // the rear doors' two lights and their split, a rubbing strip.
-        if (k == 0) {
-          float back = step(nl.z, -0.7);
-          float pil = step(0.05, abs(fract((vLocal.z + 2.35) / 0.95) - 0.5) * 0.95);
-          float win = flank * step(1.22, vLocal.y) * step(vLocal.y, 1.84) * step(-2.3, vLocal.z) * step(vLocal.z, 0.5) * pil;
-          win = max(win, back * step(1.18, vLocal.y) * step(vLocal.y, 1.9) * step(abs(vLocal.x), 0.82) * step(0.04, abs(vLocal.x)));
-          if (win > 0.5) k = 2;
-          else if (flank * step(abs(vLocal.y - 0.55), 0.045) > 0.5) k = 1;
+        // (uVan: a uniform, not a define, so that the van is the far cars'
+        // own program; the near models never drew it.)
+        if (uVan > 0.5) {
+          if (k == 0) {
+            float back = step(nl.z, -0.7);
+            float pil = step(0.05, abs(fract((vLocal.z + 2.35) / 0.95) - 0.5) * 0.95);
+            float win = flank * step(1.22, vLocal.y) * step(vLocal.y, 1.84) * step(-2.3, vLocal.z) * step(vLocal.z, 0.5) * pil;
+            win = max(win, back * step(1.18, vLocal.y) * step(vLocal.y, 1.9) * step(abs(vLocal.x), 0.82) * step(0.04, abs(vLocal.x)));
+            if (win > 0.5) k = 2;
+            else if (flank * step(abs(vLocal.y - 0.55), 0.045) > 0.5) k = 1;
+          }
         }
         #endif
         // Grounded: darker toward the sills and round each wheel, where the
@@ -1068,21 +1074,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           vec3 mirror = mix(uHazeColor * 0.05 + uGlowColor * 0.06 + min(spill, vec3(1.5)) * 0.2, uHazeColor * 0.32 * exp(-max(R.y, 0.0) * 3.0) + vec3(0.002, 0.003, 0.006), smoothstep(-0.06, 0.04, R.y));
           mirror += vec3(1.0, 0.4, 0.75) * band * 0.12 + (min(toward, vec3(1.5)) * 1.5 + uHazeColor * 0.35) * signs;
           float gives = 0.1 + 0.9 * F;
-          #ifdef BUS
-          // A bus at its stop is a lit room: the ceiling's light over rows
-          // of seat backs, a head over some of them, and at the wheel its
-          // driver.
-          float across = step(0.7, abs(nl.z));
-          float u = mix(vLocal.z, vLocal.x, across) / 0.82;
-          float who = hash12(vec2(floor(u), 5.0 + sign(vLocal.x) + 3.0 * across));
-          float cu = (fract(u) - 0.5) * 0.82;
-          float seat = step(vLocal.y, 1.6) * step(abs(cu), 0.3);
-          float rider = step(0.45, who) * max(step(length(vec2(cu, (vLocal.y - 1.84) / 1.15)), 0.105), step(abs(cu), 0.2) * step(vLocal.y, 1.72));
-          vec3 room = vec3(1.0, 0.9, 0.72) * (0.5 + 0.4 * smoothstep(1.3, 2.25, vLocal.y));
-          room = mix(room, vec3(0.1, 0.085, 0.07), max(seat * 0.8, rider));
-          col = room * mix(0.9, 1.6, far) * lit * (1.0 - 0.5 * F) + cabin * (1.0 - lit) + mirror * gives;
-          glow = 0.6 * lit;
-          #elif defined(NEAR)
+          #ifdef NEAR
           // Close to, the pane is seen through, darkly: the tint passes a
           // third of the light each way, so the cabin shows only where the
           // street's light falls into it (a driver under a lamp, the dash's
@@ -1093,7 +1085,23 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           vec3 through = seeCabin(vLocal, normalize(vViewL), min(spill * 0.8 + side * 0.3, vec3(1.1)), beyond, vLook.rgb, max(step(1.5, vState.w), vLook.a), fract(vBody.r * 97.0 + vBody.g * 31.0 + vBody.b * 57.0 + vLook.r * 13.0));
           col = through * (1.0 - F) * 0.36 + mirror * gives + given * 0.025 + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.05;
           #else
-          col = cabin * (1.0 - F) + mirror * gives + given * (0.04 + 0.04 * gy) + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.07;
+          if (uBus > 0.5) {
+            // A bus at its stop is a lit room: the ceiling's light over rows
+            // of seat backs, a head over some of them, and at the wheel its
+            // driver.
+            float across = step(0.7, abs(nl.z));
+            float u = mix(vLocal.z, vLocal.x, across) / 0.82;
+            float who = hash12(vec2(floor(u), 5.0 + sign(vLocal.x) + 3.0 * across));
+            float cu = (fract(u) - 0.5) * 0.82;
+            float seat = step(vLocal.y, 1.6) * step(abs(cu), 0.3);
+            float rider = step(0.45, who) * max(step(length(vec2(cu, (vLocal.y - 1.84) / 1.15)), 0.105), step(abs(cu), 0.2) * step(vLocal.y, 1.72));
+            vec3 room = vec3(1.0, 0.9, 0.72) * (0.5 + 0.4 * smoothstep(1.3, 2.25, vLocal.y));
+            room = mix(room, vec3(0.1, 0.085, 0.07), max(seat * 0.8, rider));
+            col = room * mix(0.9, 1.6, far) * lit * (1.0 - 0.5 * F) + cabin * (1.0 - lit) + mirror * gives;
+            glow = 0.6 * lit;
+          } else {
+            col = cabin * (1.0 - F) + mirror * gives + given * (0.04 + 0.04 * gy) + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.07;
+          }
           #endif
         }
         // A light bar is a lamp unit at each end and a thin running strip
@@ -1461,13 +1469,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   }
   // A material a kind over the same uniforms (a clone would copy them, and
   // stop the clock) with the kind's own box; the same source gives the same
-  // program, so the van is the only other one. Each kind is two draws: its
+  // program, the van's and the bus's too (uVan, uBus). Each kind is two draws: its
   // own model for the ones close by, the coarser one for the rest.
   const kinds = [...CAR_KINDS, ...BIKES, ...FIXED].map((kind, k) => {
     const built = madeAhead(kind, () => kindModel(kind));
     const detail = DETAIL[kind];
-    const uniforms = { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uWheel: { value: new THREE.Vector2(...detail.wheel) }, uCab: { value: new THREE.Vector4(...CABIN[kind].slice(0, 4)) }, uCab2: { value: new THREE.Vector4(...CABIN[kind].slice(4)) } };
-    const material = new THREE.ShaderMaterial({ uniforms, ...carShader, defines: kind === "van" ? { VAN: "" } : kind === "bus" ? { BUS: "" } : {} });
+    const uniforms = { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uWheel: { value: new THREE.Vector2(...detail.wheel) }, uCab: { value: new THREE.Vector4(...CABIN[kind].slice(0, 4)) }, uCab2: { value: new THREE.Vector4(...CABIN[kind].slice(4)) }, uVan: { value: kind === "van" ? 1 : 0 }, uBus: { value: kind === "bus" ? 1 : 0 } };
+    const material = new THREE.ShaderMaterial({ uniforms, ...carShader });
     material.name = kind === "van" ? "traffic_van" : kind === "bus" ? "traffic_bus" : "traffic";
     const mine = slots.filter((x) => x.kind === k);
     for (const x of mine) x.lamps = built;
