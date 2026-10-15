@@ -1181,8 +1181,10 @@ export function createPropSurfaces(dressed) {
   // A print is a face that is no light: the same drawing, kept out of the
   // bake.
   const makers = { plant, face, print: face, halo, paper, worn };
-  // The ones that read each instance's deal (the attribute aDeal).
+  // The ones that read each instance's deal (the attribute aDeal), and the
+  // ones whose shader reads it, dealt or not (a print is a face's shader).
   const DEALT = ["paper", "face"];
+  const READS = ["paper", "face", "print"];
   // How strongly a lit face of the props' own lights the street (the bake).
   const LIGHT = { face: 0.33, paper: 0.9 };
   const clean = (name) => name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
@@ -1190,7 +1192,7 @@ export function createPropSurfaces(dressed) {
     forName(name) {
       const n = clean(name);
       if (!makers[n]) return null;
-      if (!made.has(n)) made.set(n, Object.assign(makers[n](), { name: n, userData: { dealt: DEALT.includes(n) } }));
+      if (!made.has(n)) made.set(n, Object.assign(makers[n](), { name: n, userData: { dealt: DEALT.includes(n), reads: READS.includes(n) } }));
       return made.get(n);
     },
     /** The light a part of that material gives the street, or 0. */

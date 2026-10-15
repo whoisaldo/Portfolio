@@ -438,13 +438,18 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
         return { baked: baked.get(key), src };
       }
       let geometry = src.geometry;
-      if (mine?.userData.dealt) {
+      if (mine?.userData.reads) {
         // Its own geometry over the prototype's attributes (two prototypes
-        // may share one), for the deal each instance carries.
+        // may share one), for the deal each instance carries; or, where its
+        // material reads a deal it is not dealt (a print is a face that is
+        // no light), a deal of 0 for every instance, what it read with
+        // none (GL's default), so that it is the dealt ones' vertex layout
+        // and render pipeline.
         geometry = new THREE.BufferGeometry();
         geometry.index = src.geometry.index;
         for (const [key, attribute] of Object.entries(src.geometry.attributes)) geometry.setAttribute(key, attribute);
-        geometry.setAttribute("aDeal", new THREE.InstancedBufferAttribute(new Float32Array(n), 1).setUsage(THREE.DynamicDrawUsage));
+        const deal = new THREE.InstancedBufferAttribute(new Float32Array(n), 1);
+        geometry.setAttribute("aDeal", mine.userData.dealt ? deal.setUsage(THREE.DynamicDrawUsage) : deal);
         owned.push(geometry);
       }
       const im = new THREE.InstancedMesh(geometry, mine ?? twin(material, "instanced", geometry), n);
@@ -468,7 +473,7 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
     // out, the prototype's own mesh (`small`, for the light they give).
     const set = (extra, made) => {
       const instanced = made.filter((part) => !part.baked);
-      const one = { ...extra, matrices, deals: dealt, runs, instanced, small: made.filter((part) => part.baked).map((part) => part.src), aDeal: instanced.map((im) => im.geometry.attributes.aDeal).filter(Boolean), n, count: 0, sig: -1 };
+      const one = { ...extra, matrices, deals: dealt, runs, instanced, small: made.filter((part) => part.baked).map((part) => part.src), aDeal: instanced.filter((im) => im.material.userData.dealt).map((im) => im.geometry.attributes.aDeal), n, count: 0, sig: -1 };
       for (const part of made) if (part.baked) part.baked.parts.push({ set: one, src: part.src });
       return one;
     };
