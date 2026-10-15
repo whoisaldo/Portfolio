@@ -1396,6 +1396,10 @@ const HEAD = /* glsl */ `
 
 const VERTEX = /* glsl */ `
   attribute vec4 aRig;
+  // Which figure this draw is: 2 the closest, 1 the one with a face, 0 the
+  // far one (a uniform, not a define: the three are one program, see
+  // materials.js surface()).
+  uniform int uFigure;
   uniform vec4 uPose[${POSES.length * 5}];
   varying vec3 vColor;
   varying vec2 vFade;
@@ -1868,10 +1872,10 @@ const VERTEX = /* glsl */ `
       // Hair, a hat's dome, a shaved head's shadow; on the far figure, whose
       // head is one piece, a hood too, or nothing.
       albedo = bit(flags, 2.0) > 0.5 ? carried * 0.78 : bit(flags, 3.0) > 0.5 ? mix(skin, hair, 0.72) : hair;
-      #ifndef NEAR
-      if (bit(aLook.x, ${f(TAG.hardhat)}) > 0.5) albedo = uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)];
-      else if (bit(aLook.x, ${f(TAG.hair)}) < 0.5) albedo = bit(aLook.x, ${f(TAG.hood)}) > 0.5 ? shirt : mix(skin, hair, 0.72);
-      #endif
+      if (uFigure == 0) {
+        if (bit(aLook.x, ${f(TAG.hardhat)}) > 0.5) albedo = uPal[${PAL.helmet} + int(mod(floor(aLook.z / 4.0), 3.0) + 0.5)];
+        else if (bit(aLook.x, ${f(TAG.hair)}) < 0.5) albedo = bit(aLook.x, ${f(TAG.hood)}) > 0.5 ? shirt : mix(skin, hair, 0.72);
+      }
     }
     else if (part == ${PART.sleeve}) {
       // A vest's arms are bare, or a shirt's.
@@ -1958,9 +1962,7 @@ const VERTEX = /* glsl */ `
     if (machine) {
       // (The far figure's arm is three rings: its elbow is half of it.)
       bool joint = part == ${PART.cuff};
-      #ifdef NEAR
-      joint = joint || (part == ${PART.sleeve} && abs(position.y - ${f(RIG.elbowY)}) < 0.012);
-      #endif
+      if (uFigure > 0) joint = joint || (part == ${PART.sleeve} && abs(position.y - ${f(RIG.elbowY)}) < 0.012);
       if (joint) {
         lit = tint * 1.4;
         glow = 1.0;
@@ -2012,15 +2014,15 @@ const VERTEX = /* glsl */ `
     float g3 = pow(graze, 2.5);
     vec3 rim = key / max(peak, 1e-4) * source * 0.85 * g3 * smoothstep(-0.25, 0.35, toward) + EDGE * g3 * (0.45 + 0.55 * clamp(0.3 - toward, 0.0, 1.0)) * (0.6 + 0.4 * max(up, 0.0));
     vec3 shine = (key * clamp(toward, 0.0, 1.0) + sky * 0.9) * graze * graze * gloss * 0.5;
-    #ifdef NEAR
-    shine *= min(1.0, (0.006 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(shine.r, max(shine.g, shine.b)), 1e-4));
-    #else
-    // Far off a figure is a few flat faces, most of them seen edge on: the
-    // rim would be all of them, so it stays a part of what they are.
-    rim = (rim + shine) * 0.6;
-    shine = vec3(0.0);
-    rim *= min(1.0, (0.012 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(rim.r, max(rim.g, rim.b)), 1e-4));
-    #endif
+    if (uFigure > 0) {
+      shine *= min(1.0, (0.006 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(shine.r, max(shine.g, shine.b)), 1e-4));
+    } else {
+      // Far off a figure is a few flat faces, most of them seen edge on: the
+      // rim would be all of them, so it stays a part of what they are.
+      rim = (rim + shine) * 0.6;
+      shine = vec3(0.0);
+      rim *= min(1.0, (0.012 + (0.55 + 2.0 * gloss) * max(own.r, max(own.g, own.b))) / max(max(rim.r, max(rim.g, rim.b)), 1e-4));
+    }
     vec3 col = (own + rim + shine + NIGHT * 0.05 * (0.3 + graze * graze)) * shade;
     // A lit edge is on the cloth by it, and on the head and shoulders under it.
     if (part == ${PART.canopy}) col += (0.2 + albedo) * edge * 0.3 * aux * aux * aux * led;
@@ -2035,13 +2037,9 @@ const VERTEX = /* glsl */ `
     // The trades: the near figure keeps the pixels the far one has not
     // taken yet, and the far one those the card has not.
     float trade = smoothstep(uLod.x - uLod.y, uLod.x + uLod.y, eye);
-    #ifdef CLOSE
-    vFade = vec2(fade, smoothstep(uClose.x - uClose.y, uClose.x + uClose.y, eye));
-    #elif defined(NEAR)
-    vFade = vec2(min(fade, smoothstep(uClose.x - uClose.y, uClose.x + uClose.y, eye)), trade);
-    #else
-    vFade = vec2(min(fade, trade), smoothstep(uLod.z - uLod.w, uLod.z + uLod.w, eye));
-    #endif
+    if (uFigure == 2) vFade = vec2(fade, smoothstep(uClose.x - uClose.y, uClose.x + uClose.y, eye));
+    else if (uFigure == 1) vFade = vec2(min(fade, smoothstep(uClose.x - uClose.y, uClose.x + uClose.y, eye)), trade);
+    else vFade = vec2(min(fade, trade), smoothstep(uLod.z - uLod.w, uLod.z + uLod.w, eye));
     gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
   }
 `;
@@ -2326,8 +2324,8 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     uClose: { value: new THREE.Vector2(TRADES[2], TRADES[2] * BAND) },
     uAvoid: { value: new THREE.Vector4() },
   };
-  const material = (name, vertexShader, fragmentShader, defines = {}) => {
-    const m = new THREE.ShaderMaterial({ uniforms: { ...base, uPass: { value: new THREE.Vector2(0, 0.001) } }, vertexShader, fragmentShader, defines });
+  const material = (name, vertexShader, fragmentShader, figure = 0) => {
+    const m = new THREE.ShaderMaterial({ uniforms: { ...base, uPass: { value: new THREE.Vector2(0, 0.001) }, uFigure: { value: figure } }, vertexShader, fragmentShader });
     m.name = name;
     return m;
   };
@@ -2351,7 +2349,7 @@ export function createCrowd(scene, shared, { phone = false, reduced = false, ref
     for (const name of ["position", "normal", "aRig"]) d.geometry.setAttribute(name, g.attributes[name]);
     d.triangles = g.index.count / 3;
   };
-  const materials = [material("crowd_close", VERTEX, FRAGMENT, { NEAR: "", CLOSE: "" }), material("crowd", VERTEX, FRAGMENT, { NEAR: "" }), material("crowd_far", VERTEX, FRAGMENT), material("crowd_card", CARD_VERTEX, CARD_FRAGMENT), material("crowd_ground", GROUND_VERTEX, GROUND_FRAGMENT)];
+  const materials = [material("crowd_close", VERTEX, FRAGMENT, 2), material("crowd", VERTEX, FRAGMENT, 1), material("crowd_far", VERTEX, FRAGMENT, 0), material("crowd_card", CARD_VERTEX, CARD_FRAGMENT), material("crowd_ground", GROUND_VERTEX, GROUND_FRAGMENT)];
   Object.assign(materials[4], { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const group = new THREE.Group();
   group.name = "crowd";
