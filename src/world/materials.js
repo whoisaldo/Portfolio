@@ -2215,6 +2215,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           ${OUT}
         }
       `,
+      // A board's dark frame stands 2 cm behind its face (buildings.py
+      // billboard()): a step or two of the depth buffer a hundred and
+      // fifty metres off, where the frame came through the advert in dark
+      // bands. The face is drawn a few steps nearer, however far off.
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -4,
     }));
     // (Its faces are dealt their adverts the first time a mesh is drawn.)
     const boards = new WeakSet();
