@@ -24,23 +24,27 @@ import { stage, subscribeStage } from "./stage.js";
 import { createShots, makePose, copyPose, driftPose, clamp, easeInOut } from "./shots.js";
 import { TIERS, ADAPT } from "./quality.js";
 import { createSharedUniforms } from "./glsl.js";
-import { createCity, preloadCity, REFLECT_LAYER, MIRROR_LAYER } from "./city.js";
+import { createCity, preloadCity, preloadPack, PACKS, REFLECT_LAYER, MIRROR_LAYER } from "./city.js";
 import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
 import { preloadAds } from "./ads.js";
+import { createCover } from "./cover.js";
 import { createKoi, preloadKoi } from "./koi.js";
+import { createPlazaKoi } from "./plaza-koi.js";
 import { createCrowd } from "./crowd.js";
+import { figuresAhead } from "./crowd-people.js";
 import { createSteam } from "./steam.js";
+import { createSearchlights } from "./searchlights.js";
 import { createVoxelMoon, moonPhase, preloadVoxelMoon } from "./voxel-moon.js";
 import { markLoaded } from "./progress.js";
-import { createMirror } from "./mirror.js";
+import { createMirror, deckShare, DECK_Y } from "./mirror.js";
 import { createPost } from "./post.js";
 import { createGlass } from "./glass.js";
 import { createSkyline } from "./skyline.js";
 import { createRain } from "./rain.js";
 import { createBolt } from "./bolt.js";
 import { createSoundscape } from "./soundscape.js";
-import { createTraffic } from "./traffic.js";
+import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
@@ -51,6 +55,9 @@ import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
 import { boards as BOARDS, towers as TOWERS, SHOTS } from "../data/world.js";
 
+// (load: the S4's model is in; see preloadWorld.)
+let carLanded = false;
+
 /** Everything the scene needs before it can be built. */
 export async function preloadWorld(tier) {
   // Each marked as it lands, for the door's list (src/world/progress.js).
@@ -58,15 +65,36 @@ export async function preloadWorld(tier) {
   // The voxel moon is the one piece the city can do without: a missing
   // Earth picture leaves the intro on its painted moon, not the site on its
   // poster.
+  // (load: the S4's model and Earth's picture are asked for with the rest
+  // and marked as they land, but not waited for here: the city's build
+  // starts on its core and waits for the car where the car is made, in
+  // createWorldScene, and the moon for its picture in createVoxelMoon. On a
+  // phone the S4's 2 MB land 0.7 s after the core, and the core is built in
+  // that time. A car that fails fails the build there, as it failed this.
+  // With the tier, the moon's shapes are worked out while the core is still
+  // coming, not on the city's own time.)
+  step("car", preloadCar()).then(() => (carLanded = true), () => null);
+  step("voxel", preloadVoxelMoon(tier)).catch(() => null);
+  // (load: and the traffic's models, a model a task while the files are
+  // still coming; what is not made by then is made with the traffic, as
+  // before. traffic.js makeTrafficAhead.)
+  // (and the people's figures after them, crowd-people.js figuresAhead.)
+  const ahead = (function* () {
+    yield* makeTrafficAhead();
+    yield* figuresAhead();
+  })();
+  let filesIn = false;
+  const more = () => {
+    if (!filesIn && !ahead.next().done) setTimeout(more, 0);
+  };
+  setTimeout(more, 0);
   await Promise.all([
     step("city", preloadCity(tier)),
     step("holo", preloadHolo()),
     step("moon", preloadMoon()),
     step("ads", preloadAds()),
     step("koi", preloadKoi()),
-    step("car", preloadCar()),
-    step("voxel", preloadVoxelMoon()).catch(() => null),
-  ]);
+  ]).finally(() => (filesIn = true));
 }
 
 const DEG = Math.PI / 180;
@@ -136,10 +164,16 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let car = null;
   let shafts = null;
   let koi = null;
+  let plazaKoi = null;
+  let cover = null;
   let crowd = null;
   let steam = null;
   let moon = null;
-  let mirror = quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
+  // (load: the voxel moon on its way; `moon` once it is ready to draw.)
+  let moonMade = null;
+  // (load: what compileFor asked the GPU for as the city was finished.)
+  let early = null;
+  let mirror =quality.reflection ? createMirror(renderer, { size: quality.reflection, layers: [REFLECT_LAYER, MIRROR_LAYER] }) : null;
   const post = createPost(renderer, scene, camera, quality, { extra: effects });
   // The page's panes of smoked glass, frosted in the post chain.
   const glass = createGlass(post.glass);
@@ -148,9 +182,16 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // The garage, which it does not rain in.
   let shelterBox = null;
 
-  const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then((c) => {
+  let clearance = null;
+  let lightIn = false;
+  const setUp = (c) => {
     city = c;
-    const clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => /^(moon_disc|holo_figure)/.test(o.name));
+    c.light.ready.then(() => {
+      lightIn = true;
+      if (running !== null) check();
+    });
+    // (The kit's glass is an instanced mesh of one, where it stands: city.js.)
+    clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => (o.isInstancedMesh && !o.name.startsWith("kit_")) || o.isBaked || /^(moon_disc|holo_figure)/.test(o.name));
     shots = createShots(c.anchors, clearance);
     const keepOut = [...c.anchors].filter(([n]) => n.startsWith("anchor_mega_")).map(([, a]) => {
       const r = (a.extras?.size ?? 50) / 2;
@@ -163,6 +204,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       facades: [c.maps.facade_t0, c.maps.facade_t1, c.maps.facade_t2],
     });
     rain = createRain(scene, shared, { count: quality.rain, reduced });
+    cover = createCover(renderer, LIGHT_BOUNDS, { size: tier === "phone" ? 1024 : 2048 });
+    cover.render(c.root);
+    rain.setCover(cover);
     bolt = createBolt(scene, shared);
     const shelter = c.anchors.get("anchor_shelter_garage");
     const size = shelter?.extras?.size;
@@ -170,28 +214,61 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       shelterBox = new THREE.Box3(shelter.position.clone(), shelter.position.clone().add(new THREE.Vector3(...size)));
       rain.setShelter(shelterBox.min, shelterBox.max);
     }
-    traffic = createTraffic(scene, shared, { avs: quality.avs, cars: quality.cars, drones: tier === "phone" ? 5 : 8, police: true, reduced, reflectLayer: REFLECT_LAYER, rail: c.anchors.get("anchor_rail") });
+    traffic = createTraffic(scene, shared, {
+      avs: quality.avs + (tier === "phone" ? 1 : 2),
+      cars: quality.cars,
+      drones: tier === "phone" ? 5 : 8,
+      police: true,
+      reduced,
+      reflectLayer: REFLECT_LAYER,
+      rail: c.anchors.get("anchor_rail"),
+      streets: c.anchors.get("anchor_traffic")?.extras?.lanes ?? [],
+      parkedMore: c.anchors.get("anchor_parked")?.extras?.cars ?? [],
+      streetCars: tier === "phone" ? 16 : 44,
+      elevated: c.anchors.get("anchor_traffic")?.extras?.paths ?? [],
+      deckCars: tier === "phone" ? 1 : 2,
+      props: c.props,
+    });
+    // (load: the S4's model, if it is not in yet; see preloadWorld. When it
+    // is, the city goes on being made in the same breath, as it did.)
+    return carLanded ? withCar(c) : preloadCar().then(() => withCar(c));
+  };
+  const withCar = (c) => {
     car = createCar(scene, renderer, { road: c.road, anchors: c.anchors, light: c.light, layer: REFLECT_LAYER, mirrorLayer: MIRROR_LAYER, tier, reduced });
     shafts = createShafts(scene, c.anchors, shared);
-    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER });
+    crowd = createCrowd(scene, shared, { phone: tier === "phone", reduced, reflectLayer: REFLECT_LAYER, walks: c.anchors.get("anchor_crowd")?.extras?.walks ?? [], standers: c.anchors.get("anchor_people")?.extras?.stand ?? [], cover, traffic });
     steam = createSteam(scene, shared, c.anchors, { reduced });
     steam?.setLights(c.roofLights);
     resize();
-    return Promise.all([
-      createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER }),
-      car.ready,
-      createVoxelMoon(renderer, shared, { tier }).catch((err) => {
-        if (import.meta.env.DEV) console.warn("[world] no voxel moon; the intro keeps its painted one", err);
-        return null;
-      }),
-    ]).then(([k, , m]) => {
+    plazaKoi = createPlazaKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
+    // (load: the post chain's own programs first, while the GPU has nothing
+    // else to build: an empty frame through it, the city's pass held back,
+    // onto the canvas nobody sees yet. The first real frame built them, and
+    // waited for them behind the city's.)
+    post.view("only");
+    post.render(0);
+    post.view(null);
+    // (load: the GPU's process starts building the city's programs now,
+    // while the people are placed and the koi made; warm compiles what is
+    // added after this and waits for all of it.)
+    early = compileFor([scene], post.composer.inputBuffer);
+    early.programs.push(...glassPrograms());
+    const koiMade = createKoi(scene, shared, { reduced, reflectLayer: REFLECT_LAYER });
+    // (load: the voxel moon is made alongside, as it was, but the city's
+    // first frame does not wait for it: only the intro shows it, and warm
+    // finishes it after that frame, before the city is ready.)
+    moonMade = createVoxelMoon(renderer, shared, { tier }).catch((err) => {
+      if (import.meta.env.DEV) console.warn("[world] no voxel moon; the intro keeps its painted one", err);
+      return null;
+    });
+    // (load: and the city's light, baked on a worker meanwhile; city.js.)
+    return Promise.all([koiMade, car.ready, c.light.ready]).then(([k]) => {
       koi = k;
       fitKoi();
-      moon = m;
-      if (m) post.setMoon(m.scene, m.camera);
       return c;
     });
-  });
+  };
+  const building = createCity(scene, renderer, shared, { tier, quality, reduced, signs }).then(setUp);
 
   // The lens: its field of view, and a vertical shift (see makePose). The
   // shift moves the frustum, not the camera, so a level camera keeps its
@@ -212,10 +289,13 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   let pixelScale = 1;
   // The koi's loop for this screen, from the hero's own lens (koi.js).
   const heroFit = makePose();
+  const workFit = makePose();
   const fitKoi = () => {
-    if (!koi || !shots) return;
+    if (!shots) return;
     shots.poseOf("hero", 0, aspect, heroFit);
-    koi.fit(heroFit, aspect);
+    shots.poseOf("projects", 0, aspect, workFit);
+    plazaKoi?.quiet(workFit.position, heroFit.position);
+    koi?.fit(heroFit, aspect);
   };
   const resize = () => {
     width = Math.max(1, canvas.clientWidth || window.innerWidth);
@@ -650,6 +730,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // flicker). Smoothing everywhere else stays on the frame's dt.
   const draw = (dt, moonView = null, flow = dt) => {
     renderer.info.reset();
+    let mirrored = false;
     clock += flow;
     shared.uTime.value = clock;
     shared.uCam.value.copy(camera.position);
@@ -657,11 +738,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (moonView) moon.renderShadows();
     if (moonView !== "only") {
       skyline?.update(camera, renderer.getPixelRatio());
+      city?.props?.update(camera);
       rain?.update(flow, camera, env.wet);
       rain?.setCameraVelocity(shutter.fresh ? motion.vel : ZERO);
       bolt?.update();
       shafts?.update(shared.uHaze.value);
+      // Searchlights: off the page, or in a directed frame that asks.
+      searchlights?.update(directed ? !!directed.searchlights : stage.view !== "page", shared.uHaze.value);
       koi?.update(flow);
+      plazaKoi?.update();
       traffic?.update(flow, env.traffic);
       city?.boards.update(dt, activeBoard());
       city?.towers.update(dt, activeTowers());
@@ -678,16 +763,23 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       // in src/data/world.js): over a flight away it fades into the baked
       // streaks, as the adaptive pass's shed does, and once it has gone it
       // is not drawn. How far either has taken it is k.
-      const k = mirror ? Math.max(1 - roadShown(), adapt.reflectK) : 1;
+      // (And it is the deck's own while the eye is up on the deck, going
+      // out and coming back in round the change of plane: mirror.js.)
+      const deck = mirror ? deckShare(camera.position) : 0;
+      const k = mirror ? 1 - (1 - Math.max(1 - roadShown(), adapt.reflectK)) * Math.abs(2 * deck - 1) : 1;
+      const mirrorY = deck > 0.5 ? DECK_Y : 0;
       if (city) {
         for (const r of city.roadMaterials) {
           r.uniforms.uReflectGain.value = REFLECT_GAIN * (1 - k);
           r.uniforms.uStreakGain.value = 0.1 + k;
+          r.uniforms.uMirrorY.value = mirrorY;
         }
       }
       if (mirror && city && env.wet && k < 1) {
+        city.setOccluders(!!directed && (directed.occluders ?? 1) > 0);
         camera.updateMatrixWorld();
-        const drew = mirror.render(scene, camera);
+        const drew = mirror.render(scene, camera, mirrorY);
+        mirrored = drew;
         for (const r of city.roadMaterials) r.setReflection(drew ? mirror.texture : null, mirror.matrix, mirror.horizonV);
       } else if (city) {
         for (const r of city.roadMaterials) r.setReflection(null);
@@ -703,7 +795,15 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!shutter.fresh) shutter.has = false;
     shutter.fresh = false;
     post.view(moonView);
-    post.render(dt);
+    // The mirror's render has just brought every matrix in the scene up to
+    // date, and nothing moves between it and the city's own: that one need
+    // not walk the whole scene again.
+    scene.matrixWorldAutoUpdate = !mirrored;
+    try {
+      post.render(dt);
+    } finally {
+      scene.matrixWorldAutoUpdate = true;
+    }
     if (!firstFrame) {
       firstFrame = true;
       onFirstFrame?.();
@@ -808,6 +908,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       return;
     }
     raf = requestAnimationFrame(frame);
+    // (load: one piece of work that waits on the GPU's process, before this
+    // frame's draws; see `ask`.)
+    if (!adapt.sampling) asks.shift()?.run();
     const dt = last ? clamp((now - last) / 1000, 0, 1 / 20) : 0;
     if (last) {
       times[timeIndex % times.length] = now - last;
@@ -852,7 +955,9 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   // the intro's mode all land there.
   let running = null;
   const check = () => {
-    const next = !stage.paused && stage.mode !== "cinematic" && Boolean(city);
+    // (load: not before the city's light is in: city.js bakes it on a
+    // worker while the rest is built.)
+    const next = !stage.paused && stage.mode !== "cinematic" && Boolean(city) && lightIn;
     if (next === running) return;
     running = next;
     soundscape.setActive(running);
@@ -878,6 +983,97 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   canvas.addEventListener("webglcontextlost", onContextLost);
 
   // ---- warm-up -------------------------------------------------------------------
+  // (load) Every program `root` draws with compiled for `into`, and while
+  // the GPU's process builds them, what the first frame did after it: each
+  // program's uniforms read as it is done (a round trip each) and every
+  // picture the materials hold uploaded (the big ones decoded there and
+  // then). compileAsync asked after every program still building every
+  // 10 ms, a round trip each, 0.25 s of the page's time on a desktop, and
+  // the first frame then took 0.3 s more. Here only the next program in the
+  // order they were made is asked after. A picture still on its way (the
+  // adverts' atlas is asked for as the kit is made) is waited for, up to
+  // PICTURES_MS, so the first frame never shows a wall without it; and so
+  // is anything `ready()` says is not.
+  const PICTURES_MS = 4000;
+  const compileFor = (roots, into) => {
+    const before = renderer.info.programs.length;
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(into);
+    const materials = new Set();
+    for (const root of roots) for (const m of renderer.compile(root, camera, scene)) materials.add(m);
+    renderer.setRenderTarget(prev);
+    return { kids: scene.children.length, materials, programs: renderer.info.programs.slice(before) };
+  };
+  // (load) The glass's frost (post.js GlassEffect: a Kawase blur and a
+  // copy, at a quarter of the frame) runs only while one of the page's
+  // panes is on screen, so its two programs were made by the first frame
+  // with a pane in it, after the door: 25 to 45 ms. Made with the city's,
+  // for the targets they draw into, and waited for with them.
+  const glassPrograms = () => {
+    const pass = post.glass?.blurPass;
+    if (!pass) return [];
+    const before = renderer.info.programs.length;
+    const target = renderer.getRenderTarget();
+    renderer.setRenderTarget(pass.renderTargetA);
+    for (const m of [pass.blurMaterial, pass.copyMaterial]) {
+      pass.fullscreenMaterial = m;
+      renderer.compile(pass.scene, pass.camera);
+    }
+    renderer.setRenderTarget(target);
+    return renderer.info.programs.slice(before);
+  };
+  const prepare = (into, ready = () => true) => {
+    // What was added to the scene since the early compile (the koi), or all
+    // of it.
+    const late = compileFor(early ? scene.children.slice(early.kids) : [scene], into);
+    const materials = new Set([...(early?.materials ?? []), ...late.materials]);
+    const programs = [...(early?.programs ?? []), ...late.programs];
+    early = null;
+    const pictures = new Set();
+    const add = (v) => {
+      if (Array.isArray(v)) v.forEach(add);
+      else if (v?.isTexture && !v.isRenderTargetTexture) pictures.add(v);
+    };
+    for (const m of materials) {
+      for (const k of Object.keys(m)) add(m[k]);
+      for (const u of Object.values(m.uniforms ?? {})) add(u?.value);
+    }
+    const t0 = performance.now();
+    let next = 0;
+    return new Promise((resolve) => {
+      const tick = () => {
+        if (disposed) return resolve();
+        while (next < programs.length && (programs[next].program === undefined || programs[next].isReady())) {
+          if (programs[next].program !== undefined) programs[next].getUniforms();
+          next++;
+        }
+        const t = performance.now();
+        for (const p of pictures) {
+          if (performance.now() - t > 8) break;
+          if (!p.image || p.version === 0) continue;
+          renderer.initTexture(p);
+          pictures.delete(p);
+        }
+        const late = performance.now() - t0 > PICTURES_MS;
+        if (late) pictures.clear();
+        if (next < programs.length || pictures.size || !(late || ready())) setTimeout(tick, 4);
+        else resolve();
+      };
+      tick();
+    });
+  };
+
+  // (load) Whether the people's light is in: until its first bake is done
+  // their shader's map of it (uSigns) is a single texel.
+  const crowdLit = () => {
+    let lit = true;
+    crowd?.mesh.traverse((o) => {
+      const map = o.material?.uniforms?.uSigns?.value;
+      if (map && !(map.image?.width > 1)) lit = false;
+    });
+    return lit;
+  };
+
   // Build the city, compile every material before anyone is looking, and
   // draw one frame of the hero while the canvas is still invisible, so the
   // first frame that counts has nothing left to set up.
@@ -890,19 +1086,28 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     posed = true;
     // Compiled for the target they draw into (the composer's linear buffer),
     // or the programs made here are not the ones the frames use.
-    const target = renderer.getRenderTarget();
-    renderer.setRenderTarget(post.composer.inputBuffer);
-    if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
-    else renderer.compile(scene, camera);
-    renderer.setRenderTarget(target);
-    if (moon) await moon.compile(post.composer.inputBuffer);
+    // (load: the crowd learns the camera it is seen through from its first
+    // draw, and the warm-up's first draw was the moon's, before the hero's:
+    // told now, so the hero's frame sorts and culls its people as it did.)
+    crowd?.update(camera);
+    // (load: and the people's light, whose first bake that asks for and
+    // which runs a step a task, crowd-light.js: waited for, so the first
+    // frame's people are lit the same on every load, and once the programs
+    // and pictures are in, run out at once, crowd.js lightNow, rather than
+    // a step a task between everyone else's.)
+    await prepare(post.composer.inputBuffer, () => {
+      crowd?.lightNow?.();
+      return crowdLit();
+    });
     if (disposed) return;
-    // Two real frames, under the door or the poster where nobody sees them,
-    // with nothing culled: the moon's reveal over the street, then the hero.
-    // Compiling is not everything a first frame does (buffers and textures
-    // upload on first draw, and the drift's camera sees buildings the
-    // hero's does not), and the first frame anyone sees, the reveal or the
-    // page, should not stutter.
+    // Two real frames of the hero, under the door or the poster where
+    // nobody sees them, with nothing culled. Compiling is not everything a
+    // first frame does (buffers upload on first draw, and the drift's
+    // camera sees buildings the hero's does not), and the first frame
+    // anyone sees, the reveal or the page, should not stutter. A draw also
+    // tells the city things for the next one (the traffic's lamps learn the
+    // lens, a shop's panes are dealt their trades): the first frame here was
+    // the moon's over the street, and is now the hero's.
     const culled = [];
     scene.traverse((o) => {
       if (o.frustumCulled) {
@@ -910,14 +1115,398 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         o.frustumCulled = false;
       }
     });
-    if (moon) {
-      moon.update(29.2, { width, height, pixelRatio: renderer.getPixelRatio(), over: true });
-      draw(0, "over");
-    }
+    draw(0);
     draw(0);
     for (const o of culled) o.frustumCulled = true;
     running = null;
     check();
+    streamPacks();
+    buildSearchlights();
+    // (load) The voxel moon, after the city's first frame, a little at a
+    // time between the page's frames: its programs, and hidden frames of
+    // the strike and of the reveal over the street, where the warm-up drew
+    // them before that first frame (voxel-moon.js, prepare). The city is
+    // ready (WorldMount: this resolving) only once the moon is, so the
+    // door's last tick and an intro that can open on the moon come
+    // together, as they did.
+    const m = await moonMade;
+    if (!m || disposed) return;
+    post.setMoon(m.scene, m.camera);
+    await m.prepare(post.composer.inputBuffer, { width, height, pixelRatio: renderer.getPixelRatio() }, moonSlot);
+    if (!disposed) moon = m;
+  };
+
+  // (load) Work that waits on the GPU's process: a question it must answer
+  // before the page goes on (a program's uniforms, once it is built), or a
+  // buffer or picture big enough to wait for room on the way. One piece is
+  // run at the start of a frame, before that frame's draws, while the GPU's
+  // process has the last frame behind it; in a moment between frames it
+  // first waited for the GPU's process to take the whole of the frame just
+  // drawn, 5 to 12 ms on a desktop. A page drawing nothing runs it after a
+  // quarter of a second; none runs while the adaptive pass is timing.
+  const asks = [];
+  const ask = (job) => new Promise((resolve, reject) => {
+    const entry = {
+      run() {
+        if (entry.done) return;
+        entry.done = true;
+        clearTimeout(late);
+        try {
+          resolve(job());
+        } catch (err) {
+          reject(err);
+        }
+      },
+      done: false,
+    };
+    let late = 0;
+    const overdue = () => {
+      if (adapt.sampling) {
+        late = setTimeout(overdue, 250);
+        return;
+      }
+      const i = asks.indexOf(entry);
+      if (i >= 0) asks.splice(i, 1);
+      entry.run();
+    };
+    late = setTimeout(overdue, 250);
+    asks.push(entry);
+  });
+
+  // (load) Work spread over the page's frames: each frame gives up to
+  // WORK_MS of it, run just after that frame is drawn (the frame's own work
+  // is a few milliseconds, so the frame and its share stay inside the
+  // tier's budget). `between()` resolves at once while this frame's share
+  // lasts, else just after the next frame; a page drawing nothing (the tab
+  // hidden, a cover up) has no frames to follow, and waits a sixth of a
+  // second instead.
+  // (While the adaptive pass is timing the page's frames, none of it: what
+  // it times is the city's own frame, and a frame with a share of work in
+  // it misses a fast display's refresh where the city's alone does not, so
+  // the pass shed pixels a visitor's machine had to spare.)
+  const WORK_MS = tier === "phone" ? 6 : 4;
+  let workFrom = -Infinity;
+  // (`untimed`: the voxel moon's, which the intro may wait for, runs on.)
+  // One piece of work is let go a frame, so two at once (a district and the
+  // moon) do not take a share each: the moon's first, then in the order
+  // they asked.
+  const waiting = [];
+  let slotArmed = false;
+  const arm = () => {
+    slotArmed = true;
+    let next = 0;
+    let late = 0;
+    const go = () => {
+      cancelAnimationFrame(next);
+      clearTimeout(late);
+      const moonFirst = waiting.findIndex((w) => w.untimed);
+      const i = moonFirst >= 0 ? moonFirst : adapt.sampling ? -1 : 0;
+      if (i < 0) {
+        next = requestAnimationFrame(go);
+        late = setTimeout(go, 160);
+        return;
+      }
+      const [w] = waiting.splice(i, 1);
+      setTimeout(() => {
+        slotArmed = false;
+        workFrom = performance.now();
+        w.resolve();
+        if (waiting.length && !slotArmed) arm();
+      }, 0);
+    };
+    next = requestAnimationFrame(go);
+    late = setTimeout(go, 160);
+  };
+  const slot = (untimed) => {
+    if (!(adapt.sampling && !untimed) && performance.now() - workFrom < WORK_MS) return Promise.resolve();
+    return new Promise((resolve) => {
+      waiting.push({ resolve, untimed });
+      if (!slotArmed) arm();
+    });
+  };
+  const between = () => slot(false);
+  const moonSlot = () => slot(true);
+
+  // ---- the districts behind the core ------------------------------------------
+  // Once the hero can be drawn, the rest of the city: each pack fetched in
+  // turn (never alongside the core, which would slow the city going live),
+  // then built in when the page is idle, so its work never lands on a
+  // scroll. A flight into a district before its pack is in sees the city's
+  // far blocks there, as it did before the rebuild.
+  const idle = () => new Promise((resolve) => (window.requestIdleCallback ? window.requestIdleCallback(resolve, { timeout: 1500 }) : setTimeout(resolve, 50)));
+  const packsIn = [];
+  const streamPacks = async () => {
+    // All fetched at once, built in one at a time in the streaming order.
+    const loads = PACKS.map((name) => preloadPack(tier, name).then((s) => ({ s }), (err) => ({ err })));
+    for (const [i, name] of PACKS.entries()) {
+      try {
+        const { s: packScene, err } = await loads[i];
+        if (err) throw err;
+        if (disposed) return;
+        await idle();
+        if (disposed || !city) return;
+        // (load: built a few milliseconds at a time between the page's frames,
+        // and put in the city in one go, once what it draws is ready to be
+        // drawn; city.js, addPack, and readyToDraw below.)
+        await city.addPack(name, packScene, { beforeMerge: (part) => clearance?.add(part), between, ready: readyToDraw });
+        if (disposed) return;
+        // (load: the rain's cover a moment later, in a moment of its own.)
+        await between();
+        if (disposed) return;
+        cover?.render(city.root);
+        packsIn.push(name);
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
+      }
+    }
+    city?.releaseBake();
+    warmKit?.dispose();
+    warmKit = null;
+  };
+
+  // (load) What a district will draw, made ready out of sight before it is
+  // put in, a little between each of the page's frames: `drawn` is each
+  // { object, geometry, bytes, send? } (city.js addPack). Its programs,
+  // made as warm-up makes them (for the composer's buffer, with the
+  // scene's lights; each object with the geometry it will have), waited
+  // for in the order they were made and each first used once built, before
+  // a frame (`ask`); the pictures its materials hold; and its buffers, sent
+  // to the GPU by drawing nothing with them (a mesh of no triangles that
+  // shares their attributes and index, through one small program into a
+  // 1 px target), WARM_BYTES before a frame and a bigger one a PIECE a
+  // frame (makeWarmKit). The first frame that draws the district
+  // then has nothing to make or send but its share of the light maps. A
+  // material whose version moved meanwhile (something set needsUpdate)
+  // is made again before it goes in.
+  // (Its programs were made as the first frame that drew it made them, and
+  // the frames drawn meanwhile went on: one that met a program still being
+  // built waited for it, 40 to 60 ms, and one that met a new buffer sent
+  // it, 2 to 7 MB, 20 to 60 ms.)
+  const WARM_BYTES = tier === "phone" ? 0.75e6 : 1.5e6;
+  const PIECE = tier === "phone" ? 2 ** 19 : 2 ** 20;
+  let warmKit = null;
+  const makeWarmKit = () => {
+    const target = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
+    const warmScene = new THREE.Scene();
+    const material = new THREE.ShaderMaterial({
+      vertexShader: "void main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); }",
+      fragmentShader: "void main() { gl_FragColor = vec4(0.0); }",
+    });
+    const proxies = [];
+    // Every proxy draws with one small position of its own, and carries what
+    // it sends under names of its own: three's program key counts whether a
+    // geometry has a position and a normal, so the one program serves all.
+    const spot = new THREE.BufferAttribute(new Float32Array(3), 3);
+    const proxyGeometry = () => new THREE.BufferGeometry().setAttribute("position", spot);
+    // Its one program, made now (for the target it draws into) and waited
+    // for with the district's first programs.
+    const first = new THREE.Mesh(proxyGeometry(), material);
+    first.frustumCulled = false;
+    first.matrixAutoUpdate = false;
+    first.visible = false;
+    warmScene.add(first);
+    proxies.push(first);
+    const before = renderer.info.programs.length;
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(target);
+    renderer.compile(warmScene, camera);
+    renderer.setRenderTarget(prev);
+    return {
+      programs: renderer.info.programs.slice(before),
+      // The buffers of `list` (each { geometry, extra: [attributes] }) to
+      // the GPU in one call. A buffer over PIECE bytes is made its size
+      // there and empty, and its contents are returned as pieces, each a
+      // function that sends one (into a buffer nothing draws yet).
+      send(list) {
+        const pieces = [];
+        const gl = renderer.getContext();
+        const bufferData = gl.bufferData;
+        const bufferSubData = gl.bufferSubData;
+        const bound = (target) => gl.getParameter(target === gl.ELEMENT_ARRAY_BUFFER ? gl.ELEMENT_ARRAY_BUFFER_BINDING : gl.ARRAY_BUFFER_BINDING);
+        const later = (target, buffer, at, data, from, length) => {
+          const size = data.BYTES_PER_ELEMENT;
+          for (let k = 0; k < length; k += PIECE / size) {
+            const n = Math.min(PIECE / size, length - k);
+            pieces.push(() => {
+              // An index's binding is a vertex array's: none is bound while
+              // it is sent, and the one that was is bound again after.
+              const array = target === gl.ELEMENT_ARRAY_BUFFER ? gl.getParameter(gl.VERTEX_ARRAY_BINDING) : null;
+              if (target === gl.ELEMENT_ARRAY_BUFFER) gl.bindVertexArray(null);
+              const was = bound(target);
+              gl.bindBuffer(target, buffer);
+              bufferSubData.call(gl, target, at + k * size, data, from + k, n);
+              gl.bindBuffer(target, was);
+              if (target === gl.ELEMENT_ARRAY_BUFFER) gl.bindVertexArray(array);
+            });
+          }
+        };
+        gl.bufferData = function (target, data, usage, ...rest) {
+          if (!ArrayBuffer.isView(data) || data.byteLength <= PIECE) return bufferData.call(gl, target, data, usage, ...rest);
+          bufferData.call(gl, target, data.byteLength, usage);
+          later(target, bound(target), 0, data, 0, data.length);
+        };
+        gl.bufferSubData = function (target, at, data, from = 0, length = 0, ...rest) {
+          const n = length || data.length - from;
+          if (!ArrayBuffer.isView(data) || n * data.BYTES_PER_ELEMENT <= PIECE) return bufferSubData.call(gl, target, at, data, from, length, ...rest);
+          later(target, bound(target), at, data, from, n);
+        };
+        while (proxies.length < list.length) {
+          const proxy = new THREE.Mesh(proxyGeometry(), material);
+          proxy.frustumCulled = false;
+          proxy.matrixAutoUpdate = false;
+          warmScene.add(proxy);
+          proxies.push(proxy);
+        }
+        proxies.forEach((proxy, i) => {
+          proxy.visible = i < list.length;
+          if (!proxy.visible) return;
+          const g = proxy.geometry;
+          const { geometry: from, extra = [] } = list[i];
+          [...Object.values(from.attributes), ...extra].forEach((a, k) => g.setAttribute(`sent${k}`, a));
+          g.setIndex(from.index);
+          g.setDrawRange(0, 0);
+        });
+        const prev = renderer.getRenderTarget();
+        renderer.setRenderTarget(target);
+        try {
+          renderer.render(warmScene, camera);
+        } finally {
+          gl.bufferData = bufferData;
+          gl.bufferSubData = bufferSubData;
+        }
+        renderer.setRenderTarget(prev);
+        for (const proxy of proxies) {
+          const g = proxy.geometry;
+          for (const k of Object.keys(g.attributes)) if (k !== "position") g.deleteAttribute(k);
+          g.setIndex(null);
+        }
+        return pieces;
+      },
+      dispose() {
+        target.dispose();
+        material.dispose();
+        for (const proxy of proxies) proxy.geometry.dispose();
+      },
+    };
+  };
+  // compile() over a list, each object with the geometry it will draw.
+  class Listed extends THREE.Object3D {
+    constructor(drawn) {
+      super();
+      this.drawn = drawn;
+    }
+    traverse(fn) {
+      for (const { object, geometry } of this.drawn) {
+        const was = object.geometry;
+        object.geometry = geometry;
+        fn(object);
+        object.geometry = was;
+      }
+    }
+    traverseVisible() {}
+  }
+  const readyToDraw = async (drawn) => {
+    const programs = warmKit ? [] : (warmKit = makeWarmKit()).programs;
+    const versions = new Map();
+    // A few objects at a time: a new program is its shaders' text put
+    // together and handed over, a few milliseconds each.
+    const compileSome = async (list) => {
+      const made = [];
+      for (const d of list) {
+        await between();
+        if (disposed) return made;
+        const before = renderer.info.programs.length;
+        const target = renderer.getRenderTarget();
+        renderer.setRenderTarget(post.composer.inputBuffer);
+        for (const m of renderer.compile(new Listed([d]), camera, scene)) versions.set(m, m.version);
+        renderer.setRenderTarget(target);
+        made.push(...renderer.info.programs.slice(before));
+      }
+      return made;
+    };
+    programs.push(...(await compileSome(drawn)));
+    // And the rain's cover, which draws the kit from above in its own
+    // material (cover.js), as it will once the district is in.
+    await between();
+    if (disposed) return;
+    programs.push(...(cover?.compile(drawn) ?? []));
+    for (let round = 0; round < 3 && !disposed; round++) {
+      // Each program once it is built, first used before a frame.
+      for (const program of programs) {
+        while (!program.isReady()) {
+          await between();
+          if (disposed) return;
+        }
+        await ask(() => {
+          program.getUniforms();
+          program.getAttributes();
+        });
+        if (disposed) return;
+      }
+      const pictures = new Set();
+      const add = (v) => {
+        if (Array.isArray(v)) v.forEach(add);
+        else if (v?.isTexture && !v.isRenderTargetTexture && v.image && v.version > 0) pictures.add(v);
+      };
+      for (const m of versions.keys()) {
+        for (const k of Object.keys(m)) add(m[k]);
+        for (const u of Object.values(m.uniforms ?? {})) add(u?.value);
+      }
+      for (const p of pictures) {
+        if (renderer.properties.get(p).__version === p.version) continue;
+        await ask(() => renderer.initTexture(p));
+        if (disposed) return;
+      }
+      if (round === 0) {
+        const geometries = [...new Map(drawn.filter((d) => d.bytes > 0).map((d) => [d.extra?.length ? d.object : d.geometry, d])).values()];
+        let batch = [];
+        let bytes = 0;
+        for (let i = 0; i <= geometries.length; i++) {
+          const d = geometries[i];
+          if (batch.length && (!d || bytes + d.bytes > WARM_BYTES)) {
+            const list = batch;
+            const pieces = await ask(() => {
+              for (const b of list) b.send?.();
+              return warmKit.send(list);
+            });
+            if (disposed) return;
+            for (const piece of pieces) {
+              await ask(piece);
+              if (disposed) return;
+            }
+            batch = [];
+            bytes = 0;
+          }
+          if (d) {
+            batch.push(d);
+            bytes += d.bytes;
+          }
+        }
+      }
+      // Anything set needsUpdate meanwhile is made again.
+      const moved = drawn.filter(({ object }) => [].concat(object.material).some((m) => versions.get(m) !== m.version));
+      if (!moved.length) return;
+      programs.length = 0;
+      programs.push(...(await compileSome(moved)));
+    }
+  };
+
+  // ---- searchlights (src/world/searchlights.js) --------------------------------
+  // The beams over the districts' roofs, built and compiled once the city's
+  // first frame is drawn, when the page is idle; draw() shows them only off
+  // the page (Look, Cinema) or in a directed frame whose spec asks for them
+  // (`searchlights`), so the page's own shots are as they were.
+  let searchlights = null;
+  const buildSearchlights = async () => {
+    await idle();
+    if (disposed || !city) return;
+    searchlights = createSearchlights(scene, shared, city.anchors);
+    if (!searchlights || !renderer.compileAsync) return;
+    const target = renderer.getRenderTarget();
+    renderer.setRenderTarget(post.composer.inputBuffer);
+    const compiled = renderer.compileAsync(searchlights.mesh, camera, scene);
+    renderer.setRenderTarget(target);
+    await compiled;
   };
 
   // ---- the intro -------------------------------------------------------------------
@@ -1057,15 +1646,19 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       c.dispose();
       skyline?.dispose();
       rain?.dispose();
+      cover?.dispose();
       bolt?.dispose();
       traffic?.dispose();
       car?.dispose();
       shafts?.dispose();
       koi?.dispose();
+      plazaKoi?.dispose();
       crowd?.dispose();
       steam?.dispose();
-      moon?.dispose();
+      searchlights?.dispose();
     }).catch(() => {});
+    // (load: the moon may still be on its way: it goes when it comes.)
+    moonMade?.then((m) => m?.dispose());
     mirror?.dispose();
     mirror = null;
     glass.dispose();
@@ -1090,6 +1683,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       memory: { ...renderer.info.memory },
       pixelRatio: renderer.getPixelRatio(),
       adapt: { shed: [...adapt.shed], p95: adapt.p95, sampling: adapt.sampling },
+      packs: [...packsIn],
+      packsTotal: PACKS.length,
     };
   };
 
@@ -1121,6 +1716,11 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // `renderDirected` and `placeCamera` too, for fixed-camera review shots:
     // set `stage.mode = "cinematic"` to rest the loop, then draw any pose.
     window.__world = { renderer, scene, camera, stats, pose, want, stage, shared, get city() { return city; }, get car() { return car; }, get moon() { return moon; }, get traffic() { return traffic; }, get crowd() { return crowd; }, get skyline() { return skyline; }, post, soundscape, dumpMirror, setQuality, renderDirected, placeCamera, strike() { storm.t = storm.next; } };
+    // The free camera and the loop driven and walked (src/world/devcam.js),
+    // for the reviews; never in a production build.
+    building.then(() => import("./devcam.js")).then((m) => m.attachDevcam(window.__world)).then((d) => {
+      if (window.__world) window.__world.devcam = d;
+    }).catch((err) => console.warn("[world] no dev camera", err));
   }
 
   return {
@@ -1139,7 +1739,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     },
     /** The pieces the braindance draws over and reads from. */
     get parts() {
-      return { renderer, scene, camera, post, shared, city, car, traffic, crowd, koi, quality };
+      return { renderer, scene, camera, post, shared, city, car, traffic, crowd, koi, quality, mirrorLayer: MIRROR_LAYER };
     },
     /** Whether this city can draw the intro's voxel moon. */
     get hasMoon() {

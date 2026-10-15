@@ -1,0 +1,297 @@
+// src/world/sky-columns.js: the hologram columns over the far city.
+//
+// The show stands columns of advertising in the sky over its skyline, the
+// tallest things in it: bright stacks of dozens of adverts edged in cyan,
+// with a soft beam going on up out of each one's top into the cloud. The
+// stack is solid, a prism of screens the far city stands with its other
+// boxes (src/world/far-street.js). This module is the light round it: one
+// quad a column that turns about its own axis to face the lens, drawn
+// additively, a glow down both edges of the stack, the haze lit at its
+// foot, and over the stack the beam. One instanced draw for all of them. Where they stand is the far city's to say
+// (src/world/skyline.js): never up the hero's avenue, never under Contact's
+// moon.
+import * as THREE from "three";
+import { COMMON } from "./glsl.js";
+
+// (The first five are the columns' first tints; the group west of the kit
+// is dealt from them. The newer groups take any but the first.)
+const TONES = ["#3fe4ff", "#3fe4ff", "#52ffd0", "#3fe4ff", "#4fb4ff", "#ff7ad9"];
+
+// One of the city's twenty-four adverts (public/scenes/world/ads.webp, laid out
+// by scripts/pack-ads.mjs: eight wide ones in two rows of four, four tall
+// ones on their sides along the foot), as the kit's billboards sample it:
+// st is across and up the board, aspect its width over its height (a tall
+// board takes a tall advert), pick which. The art covers the board
+// uncropped one way and is never stretched.
+export const ADVERT = /* glsl */ `
+  uniform sampler2D uAds;
+  uniform float uHasAds;
+  vec3 advert(vec2 st, float aspect, float pick) {
+    bool tall = aspect < 0.85;
+    float cell = tall ? 0.6667 : 1.5;
+    if (aspect > cell) st.y = 0.5 + (st.y - 0.5) * cell / aspect;
+    else st.x = 0.5 + (st.x - 0.5) * aspect / cell;
+    st = clamp(st, 0.01, 0.99);
+    float rowH = 341.0 / 2048.0;
+    float i = mod(pick, 16.0);
+    float j = mod(pick, 8.0);
+    vec2 q = tall ? vec2((mod(j, 4.0) + st.y) * 0.25, 1.0 - (1365.0 + (floor(j / 4.0) + st.x) * 341.0) / 2048.0) : vec2((mod(i, 4.0) + st.x) * 0.25, 1.0 - (floor(i / 4.0) + 1.0 - st.y) * rowH);
+    return texture2D(uAds, q).rgb;
+  }
+  // The far city's words (src/world/sky-words.js): a mask of sixteen, one
+  // to a column of the texture, a character to a 64 px cell, the columns in
+  // order of length. A character of word w, f across and down its square.
+  uniform sampler2D uWords;
+  uniform float uHasWords;
+  float wordGlyph(float w, float idx, vec2 f) {
+    float inside = step(0.0, f.x) * step(f.x, 1.0) * step(0.0, f.y) * step(f.y, 1.0);
+    return texture2D(uWords, vec2((w + 0.05 + clamp(f.x, 0.0, 1.0) * 0.9) / 16.0, (idx + 0.05 + clamp(f.y, 0.0, 1.0) * 0.9) / 8.0)).r * inside;
+  }
+  float wordLen(float w) {
+    return w < 4.0 ? 2.0 : w < 8.0 ? 3.0 : w < 12.0 ? 4.0 : w < 14.0 ? 5.0 : 6.0;
+  }
+  // A word down a sign: s across and down it, tall its height over its
+  // width, pick (0..1) which of the words that fit. A sign long enough
+  // says its word again after a gap.
+  float wordDown(vec2 s, float tall, float pick) {
+    float cells = max(1.0, floor(tall / 1.08));
+    float many = cells < 3.0 ? 4.0 : cells < 4.0 ? 8.0 : cells < 5.0 ? 12.0 : cells < 6.0 ? 14.0 : 16.0;
+    float w = floor(fract(pick) * many);
+    float len = wordLen(w);
+    float reps = max(1.0, floor((cells + 1.0) / (len + 1.0)));
+    float rows = min(reps * (len + 1.0) - 1.0, cells);
+    float gy = s.y * rows;
+    float idx = mod(floor(gy), len + 1.0);
+    return wordGlyph(w, idx, vec2(s.x, (fract(gy) - 0.5) * tall / rows + 0.5)) * step(idx, len - 0.5);
+  }
+  // A word across a board: st across and up it, aspect its width over its
+  // height, pick which.
+  // (Any of the words that fit, not only those exactly as long as the
+  // board has room for: with two of six letters, every wide crown in a
+  // view said ARCADE or the ramen alley. A shorter one stands in the
+  // middle.)
+  float wordAcross(vec2 st, float aspect, float pick) {
+    float n = clamp(floor(aspect * 1.3), 2.0, 6.0);
+    float many = n < 2.5 ? 4.0 : n < 3.5 ? 8.0 : n < 4.5 ? 12.0 : n < 5.5 ? 14.0 : 16.0;
+    float w = floor(fract(pick) * many);
+    float len = wordLen(w);
+    float gx = st.x * n - (n - len) * 0.5;
+    float side = min(aspect / n, 0.76);
+    return wordGlyph(w, floor(gx), vec2((fract(gx) - 0.5) * (aspect / n) / side + 0.5, (0.5 - st.y) / side + 0.5)) * step(0.0, gx) * step(gx, len);
+  }
+  // A character that is nobody's: the strokes a kanji is built of (three
+  // or four bars, a stem, the sides of a box, two sweeps at its foot),
+  // each there or not by the hash, in a cell 0..1.
+  float kanji(vec2 f, float h1, float h2) {
+    float w = 0.065;
+    float k = step(abs(f.y - 0.86), w) * step(abs(f.x - 0.5), 0.36) * step(0.3, h1);
+    k += step(abs(f.y - 0.63), w) * step(abs(f.x - 0.5), 0.26 + 0.1 * h2) * step(0.2, fract(h1 * 3.7));
+    k += step(abs(f.y - 0.4), w) * step(abs(f.x - 0.5), 0.2 + 0.16 * step(0.5, h2)) * step(0.35, fract(h2 * 5.3));
+    k += step(abs(f.y - 0.14), w) * step(abs(f.x - 0.5), 0.38) * step(0.5, fract(h1 * 7.1));
+    k += step(abs(f.x - 0.5), w) * step(abs(f.y - 0.5), 0.38) * step(0.4, fract(h2 * 2.3));
+    k += step(abs(abs(f.x - 0.5) - 0.3), w) * step(abs(f.y - 0.63), 0.25) * step(0.55, fract(h1 * 9.1));
+    float foot = step(0.05, f.y) * step(f.y, 0.38) * step(0.5, fract(h2 * 11.3));
+    k += foot * step(abs(abs(f.x - 0.5) - (0.38 - f.y) * 0.9), w * 1.3);
+    return min(k, 1.0);
+  }
+  // The back of a sign: a dark sheet on its frame (a post either side of
+  // every bay, two rails, a brace crossing each bay) and the light of its
+  // tubes coming round the edge. st is across and up the board from behind,
+  // aspect its width over its height, tube the sign's own colour.
+  vec3 signBack(vec2 st, float aspect, vec3 tube) {
+    float bays = max(2.0, floor(aspect * 1.5 + 0.5));
+    float fx = fract(st.x * bays);
+    float fy = (st.y - 0.2) / 0.6;
+    float steel = step(min(fx, 1.0 - fx), 0.035) + step(abs(st.y - 0.2), 0.022) + step(abs(st.y - 0.8), 0.022);
+    steel += (step(abs(fx - fy), 0.035) + step(abs(fx - (1.0 - fy)), 0.035)) * step(0.0, fy) * step(fy, 1.0);
+    float edge = min(min(st.x, 1.0 - st.x) * aspect, min(st.y, 1.0 - st.y));
+    return mix(vec3(0.008, 0.009, 0.012), vec3(0.03, 0.032, 0.038), min(steel, 1.0)) + tube * 0.45 * exp(-edge * 40.0);
+  }
+  // What a board shows, by its own seed: seven in ten one of the adverts;
+  // the rest a word (a lightbox in one of the signs' colours with its
+  // characters dark on it, or the characters lit on a dark board, a line of
+  // the colour under them). Nobody's name on any, and none white enough to
+  // burn out.
+  vec3 boardFace(vec2 st, float aspect, float pick, float seed) {
+    float kind = hash12(vec2(seed, 61.7));
+    // (Each board turned on by its own seed across all of them: dealt from
+    // eight, one advert stood on tower after tower in a view from the air.)
+    if (kind < 0.7 || uHasWords < 0.5) return advert(st, aspect, pick + floor(hash12(vec2(seed, 71.3)) * 16.0));
+    float hc = hash12(vec2(seed, 63.9));
+    vec3 a = hc < 0.26 ? vec3(0.1, 0.85, 1.0) : hc < 0.48 ? vec3(1.0, 0.72, 0.16) : hc < 0.66 ? vec3(1.0, 0.16, 0.5) : hc < 0.8 ? vec3(1.0, 0.2, 0.14) : hc < 0.9 ? vec3(0.3, 1.0, 0.6) : vec3(1.0, 0.92, 0.3);
+    vec3 b = hc < 0.5 ? vec3(0.02, 0.03, 0.1) : vec3(0.07, 0.015, 0.05);
+    float pk = hash12(vec2(seed, 65.1));
+    float k = aspect >= 1.0 ? wordAcross(vec2(st.x, (st.y - 0.5) / 0.9 + 0.5), aspect, pk) : wordDown(vec2(st.x, 1.0 - st.y), 1.0 / aspect, pk);
+    float rule = step(abs(st.y - 0.07), 0.018) * step(abs(st.x - 0.5), 0.42) * step(1.0, aspect);
+    return hash12(vec2(seed, 69.5)) < 0.5 ? mix(a * 0.62, b * 0.5, k) : mix(b, a * 1.15, max(k, rule));
+  }
+`;
+
+/** `columns` is x, z, width, height, tone (an index into the tones) and a
+ *  seed, six numbers a column; `ads` the atlas's uniforms (uAds, uHasAds);
+ *  `held` says of a column (x, z) whether one of the page's own roofs
+ *  frames it: from under the roofs' height such a column is the hologram
+ *  it was (its seed is carried with 2 added). */
+export function createSkyColumns(scene, shared, columns, { reduced = false, ads, held = () => false } = {}) {
+  const n = columns.length / 6;
+  const quad = new THREE.PlaneGeometry(1, 1);
+  quad.translate(0, 0.5, 0);
+  const geometry = new THREE.InstancedBufferGeometry();
+  geometry.setAttribute("position", quad.attributes.position);
+  geometry.setAttribute("uv", quad.attributes.uv);
+  geometry.setIndex(quad.index);
+  const place = new Float32Array(n * 4);
+  const tone = new Float32Array(n * 4);
+  const c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    place.set(columns.slice(i * 6, i * 6 + 4), i * 4);
+    c.set(TONES[columns[i * 6 + 4] % TONES.length]);
+    tone.set([c.r, c.g, c.b, columns[i * 6 + 5] + (held(columns[i * 6], columns[i * 6 + 1]) ? 2 : 0)], i * 4);
+  }
+  geometry.setAttribute("aPlace", new THREE.InstancedBufferAttribute(place, 4));
+  geometry.setAttribute("aTone", new THREE.InstancedBufferAttribute(tone, 4));
+  geometry.instanceCount = n;
+  const material = new THREE.ShaderMaterial({
+    uniforms: { ...shared, ...ads, uMotion: { value: reduced ? 0 : 1 } },
+    vertexShader: /* glsl */ `
+      uniform vec3 uCam;
+      attribute vec4 aPlace;
+      attribute vec4 aTone;
+      varying vec2 vUv;
+      varying vec3 vWorld;
+      varying vec4 vTone;
+      varying vec2 vSize;
+      void main() {
+        vec2 to = normalize(uCam.xz - aPlace.xy + 1e-4);
+        // The quad is three columns wide: the column in its middle, and
+        // either side the air it lights.
+        vec3 w = vec3(aPlace.x + to.y * position.x * aPlace.z * 3.0, position.y * aPlace.w, aPlace.y - to.x * position.x * aPlace.z * 3.0);
+        vUv = vec2((uv.x - 0.5) * 3.0 + 0.5, uv.y);
+        vWorld = w;
+        vTone = aTone;
+        vSize = aPlace.zw;
+        gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      ${COMMON}
+      ${ADVERT}
+      uniform float uMotion;
+      uniform float uFarFree;
+      varying vec2 vUv;
+      varying vec3 vWorld;
+      varying vec4 vTone;
+      varying vec2 vSize;
+      void main() {
+        float t = uTime * uMotion;
+        float across = abs(vUv.x - 0.5) * 2.0;
+        float up = vUv.y;
+        // (Their halo, their white edges and their lit foot are for an eye
+        // above the roofs: from the page's own roofs a column is as it was.)
+        float lift = smoothstep(40.0, 62.0, uCam.y);
+        // (For a free eye its light is the column's cyan and no more of it
+        // than the air holds: white mixed in, a group of them summed to a
+        // flat pale grey over the sky. The page's lenses keep theirs.)
+        float free = freeEye() * uFarFree;
+        vec3 tone = mix(vTone.rgb, vTone.rgb * vec3(0.55, 0.95, 1.05), free);
+        // Outside the column: its halo, widest in the haze at its foot.
+        if (across > 1.0) {
+          float past = (across - 1.0) * 0.5;
+          vec3 halo = tone * (0.16 * exp(-past * 9.0) + mix(0.5, 0.3, free) * exp(-past * 3.0) * exp(-up * vSize.y / 70.0)) * (1.0 - smoothstep(0.7, 1.0, up));
+          // And all the way up it, a soft light in the wet air round it,
+          // widest and whitest close to its faces; from the streets too,
+          // fainter, but for the two the page's roofs frame (as they were).
+          vec3 air = mix(mix(vTone.rgb, vec3(0.8, 0.92, 1.0), 0.25), tone, free) * (mix(0.22, 0.12, free) * exp(-past * 6.0) + mix(0.07, 0.025, free) * exp(-past * 1.8)) * (1.0 - smoothstep(0.62, 0.86, up));
+          float street = (1.0 - lift) * (1.0 - step(1.5, vTone.a));
+          halo = halo * lift + air * (lift + 0.6 * street);
+          halo *= smoothstep(0.0, 0.004, up) * uHaze * exp(-length(vWorld - uCam) * uFogDensity * 0.3);
+          gl_FragColor = vec4(halo, 0.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+          return;
+        }
+        // The stack itself is solid (the far city stands it: a prism of
+        // screens, src/world/far-street.js, as high as 0.72 of the column).
+        // This is the light round it: a glow down both its edges, and over
+        // the stack the beam, thickest through its middle like a lit
+        // cylinder of air and gone by its top.
+        const float STACK = 0.72;
+        float inStack = step(up, STACK);
+        float body = sqrt(max(1.0 - across * across, 0.0));
+        float edge = smoothstep(0.7, 0.98, across);
+        float over = clamp((up - STACK) / (1.0 - STACK), 0.0, 1.0);
+        float beam = 1.0 - inStack;
+        vec3 rim = mix(vTone.rgb, vec3(0.82, 0.93, 1.0), mix(0.5, 0.2, free)) * 1.6;
+        vec3 col = rim * edge * 0.5 * inStack;
+        // (Its beam over the stack, for a free eye, two thirds as strong and
+        // gone sooner: a cyan shaft and not a grey one.)
+        col += (tone * (body * 0.34 + smoothstep(0.3, 0.0, across) * 0.3) + rim * edge * 0.3) * pow(1.0 - over, mix(1.7, 2.4, free)) * beam * mix(1.0, 0.66, free);
+        // A column one of the page's roofs frames is, from under the roofs'
+        // height, the hologram it was there (no solid stack stands for that
+        // eye: far-street.js): light, not paint, rows of two tall adverts
+        // or one wide one in the column's own colour, hairlines between
+        // them, scan lines drifting up.
+        float seed = vTone.a > 1.5 ? vTone.a - 2.0 : vTone.a;
+        float asWas = step(1.5, vTone.a) * (1.0 - lift);
+        if (asWas > 0.001) {
+          float rowH = vSize.x * 0.75;
+          float rows = floor(vSize.y * STACK / rowH);
+          float gy = up * vSize.y / rowH;
+          float row = floor(gy);
+          float wide = step(0.5, hash12(vec2(row, seed * 77.0)));
+          float gx = wide > 0.5 ? vUv.x : vUv.x * 2.0;
+          vec2 id = vec2(floor(gx), row);
+          vec2 f = vec2(fract(gx), fract(gy));
+          float h = hash12(id + seed * 91.0);
+          float slot = floor(t / (9.0 + 8.0 * h) + h * 7.0);
+          float pick = mod(floor(seed * 24.0) + (row * 2.0 + id.x) * 7.0 + slot * 5.0, 24.0);
+          float on = step(0.14, hash12(id * 1.3 + slot + seed * 5.0));
+          vec2 m = wide > 0.5 ? vec2(0.03, 0.04) : vec2(0.06, 0.04);
+          float inset = step(m.x, f.x) * step(f.x, 1.0 - m.x) * step(m.y, f.y) * step(f.y, 1.0 - m.y);
+          float rowIn = step(row, rows - 0.5);
+          vec3 drawn = advert((f - m) / (1.0 - 2.0 * m), wide > 0.5 ? 1.3333 : 0.6667, pick);
+          vec3 plain = mix(vTone.rgb, vec3(1.0, 0.3, 0.7), step(0.6, h)) * (0.3 + 0.4 * f.y);
+          vec3 art = mix(plain, mix(drawn, vTone.rgb * dot(drawn, vec3(0.35, 0.5, 0.15)) * 1.5, 0.5), uHasAds);
+          float lines = up * vSize.y * 1.4 - t * 2.4;
+          float scan = mix(0.84 + 0.16 * sin(lines * 6.2832), 0.84, clamp(fwidth(lines) * 2.0, 0.0, 1.0));
+          vec3 was = art * 0.55 * inset * on * rowIn * scan;
+          float edgeWas = smoothstep(0.82, 0.98, across);
+          vec3 rimWas = vTone.rgb * 1.1;
+          was += vTone.rgb * ((1.0 - inset) * 0.26 + body * 0.06) * rowIn + rimWas * edgeWas * rowIn;
+          was += (vTone.rgb * (body * 0.34 + smoothstep(0.3, 0.0, across) * 0.3) + rimWas * edgeWas * 0.45) * pow(1.0 - over, 1.7) * (1.0 - rowIn);
+          col = mix(col, was, asWas);
+        }
+        // And the haze at its foot is lit by it.
+        col += tone * mix(0.45, 0.3, free) * exp(-up * vSize.y / 55.0) * lift;
+        float breath = 0.88 + 0.12 * sin(t * 0.5 + seed * 40.0);
+        col *= smoothstep(0.0, 0.02, up) * breath * uHaze;
+        // Light in the air fades into the haze; it does not turn into it.
+        col *= exp(-length(vWorld - uCam) * uFogDensity * 0.3);
+        gl_FragColor = vec4(col, 0.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    premultipliedAlpha: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  material.name = "sky_columns";
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = "sky_columns";
+  // The vertex shader puts each where it stands.
+  mesh.frustumCulled = false;
+  mesh.visible = n > 0;
+  scene.add(mesh);
+  return {
+    mesh,
+    dispose() {
+      scene.remove(mesh);
+      quad.dispose();
+      geometry.dispose();
+      material.dispose();
+    },
+  };
+}

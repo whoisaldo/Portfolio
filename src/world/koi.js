@@ -12,6 +12,7 @@
 import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { worldKoiUrl } from "../data/world-assets.js";
+import { bitmapTexture } from "./pictures.js";
 
 // The loop: its centre, its half-width across the avenue and half-depth up
 // it, its height and how much that rises and falls, and a lap's seconds.
@@ -29,8 +30,7 @@ let pending = null;
 
 export function preloadKoi() {
   if (!pending) {
-    const loader = new THREE.TextureLoader();
-    pending = Promise.all(worldKoiUrl.map((url) => loader.loadAsync(url))).catch((err) => {
+    pending = Promise.all(worldKoiUrl.map((url) => bitmapTexture(url, true))).catch((err) => {
       pending = null;
       throw err;
     });

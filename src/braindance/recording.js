@@ -402,5 +402,12 @@ export function createRecording(anchors, road) {
     shot: 0,
   });
 
-  return { evaluate, frame, carAt: placeCar, towerPasses, copyPose };
+  // What free roam runs with no recording to time it: how long the board
+  // holds an entry and how many it has, and every tower on corpo row. Handed
+  // over on the recording itself (a new export from this module would be a
+  // new export of the braindance's chunk, which renames the one the entry
+  // chunk imports and so changes /recruiters' files).
+  const city = { boardSlot: BOARD_SLOT, boardCount: BOARDS.length, towers: TOWERS.map((tw) => tw.slug) };
+
+  return { evaluate, frame, carAt: placeCar, towerPasses, copyPose, city };
 }

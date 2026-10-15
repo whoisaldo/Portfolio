@@ -50,14 +50,18 @@ export function createWetFloor(shared, { kind = "roof", reduced = false } = {}) 
     // reflections and pools with them; wet off leaves the roof dry.
     uSigns: { value: 1 },
     uWet: { value: 1 },
+    // 1 on the roof (a uniform, not a define: the roof and the garage's
+    // floor are one program; see materials.js surface()).
+    uRoof: { value: kind === "roof" ? 1 : 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms,
-    defines: { ROOF: kind === "roof" ? 1 : 0, MAX_RECTS: MAX },
+    defines: { MAX_RECTS: MAX },
     vertexShader: VERT_WORLD,
     fragmentShader: /* glsl */ `
       ${COMMON}
       uniform sampler2D uAtlas;
+      uniform float uRoof;
       uniform int uRects;
       uniform vec3 uCorner[MAX_RECTS];
       uniform vec3 uAxisU[MAX_RECTS];
@@ -124,27 +128,32 @@ export function createWetFloor(shared, { kind = "roof", reduced = false } = {}) 
 
       void main() {
         vec3 V = normalize(vWorld - uCam);
-        #if ROOF == 1
-        // Standing water in the low spots, wet concrete between.
-        float broad = vnoise(vWorld.xz * 0.3) * 0.65 + vnoise(vWorld.xz * 0.95 + 3.1) * 0.35;
-        float water = smoothstep(0.5, 0.57, broad) * uWet;
-        vec2 rings = (ripple(vWorld.xz / 0.5, uTime) + ripple(vWorld.xz / 0.37 + 13.7, uTime * 1.13)) * water * uMotion;
-        float grain = vnoise(vWorld.xz * 5.0) * 0.6 + vnoise(vWorld.xz * 17.0) * 0.4;
-        vec3 albedo = vec3(0.1, 0.1, 0.11) * (0.7 + 0.6 * grain) * mix(1.0, 0.45, water);
-        float gloss = mix(0.4, 1.0, water) * mix(0.3, 1.0, uWet);
-        float rough = mix(1.0, 0.08, water);
-        float spillMul = 0.5;
-        #else
-        // Sealed concrete: dry, glossy, darker and duller where cars stood.
-        float stain = vnoise(vWorld.xz * 0.6) * 0.6 + vnoise(vWorld.xz * 2.3) * 0.4;
-        float grain = vnoise(vWorld.xz * 9.0);
-        vec2 rings = vec2(0.0);
-        float worn = smoothstep(0.5, 0.8, stain);
-        vec3 albedo = vec3(0.1, 0.1, 0.108) * (0.8 + 0.35 * grain) * mix(1.0, 0.6, worn);
-        float gloss = 0.8 - 0.35 * worn;
-        float rough = 0.3 + 0.5 * worn;
-        float spillMul = 1.6;
-        #endif
+        vec2 rings;
+        vec3 albedo;
+        float gloss;
+        float rough;
+        float spillMul;
+        if (uRoof > 0.5) {
+          // Standing water in the low spots, wet concrete between.
+          float broad = vnoise(vWorld.xz * 0.3) * 0.65 + vnoise(vWorld.xz * 0.95 + 3.1) * 0.35;
+          float water = smoothstep(0.5, 0.57, broad) * uWet;
+          rings = (ripple(vWorld.xz / 0.5, uTime) + ripple(vWorld.xz / 0.37 + 13.7, uTime * 1.13)) * water * uMotion;
+          float grain = vnoise(vWorld.xz * 5.0) * 0.6 + vnoise(vWorld.xz * 17.0) * 0.4;
+          albedo = vec3(0.1, 0.1, 0.11) * (0.7 + 0.6 * grain) * mix(1.0, 0.45, water);
+          gloss = mix(0.4, 1.0, water) * mix(0.3, 1.0, uWet);
+          rough = mix(1.0, 0.08, water);
+          spillMul = 0.5;
+        } else {
+          // Sealed concrete: dry, glossy, darker and duller where cars stood.
+          float stain = vnoise(vWorld.xz * 0.6) * 0.6 + vnoise(vWorld.xz * 2.3) * 0.4;
+          float grain = vnoise(vWorld.xz * 9.0);
+          rings = vec2(0.0);
+          float worn = smoothstep(0.5, 0.8, stain);
+          albedo = vec3(0.1, 0.1, 0.108) * (0.8 + 0.35 * grain) * mix(1.0, 0.6, worn);
+          gloss = 0.8 - 0.35 * worn;
+          rough = 0.3 + 0.5 * worn;
+          spillMul = 1.6;
+        }
         vec3 R = normalize(vec3(V.x + rings.x * 0.03, -V.y, V.z + rings.y * 0.03));
         // A little higher, for the direction the smear runs in.
         vec3 R2 = normalize(R + vec3(0.0, 0.02, 0.0));
@@ -157,15 +166,15 @@ export function createWetFloor(shared, { kind = "roof", reduced = false } = {}) 
           float on = litNow(uLit[i]);
           if (uCell[i].z > 0.0) on *= uSigns;
           bool oneSided = dot(uFacing[i], uFacing[i]) > 0.25;
-          #if ROOF == 1
-          // Its light on the roof, from its middle, the way it faces, most
-          // of it gone in twenty metres.
-          vec3 toL = uCorner[i] + 0.5 * (uAxisU[i] + uAxisV[i]) - vWorld;
-          float d2 = dot(toL, toL);
-          vec3 l = toL * inversesqrt(d2);
-          float front = oneSided ? max(dot(-l, uFacing[i]), 0.0) : 1.0;
-          light += uTint[i] * on * front * (0.25 + 0.75 * max(l.y, 0.0)) * 0.9 / (1.0 + d2 / 30.0);
-          #endif
+          if (uRoof > 0.5) {
+            // Its light on the roof, from its middle, the way it faces, most
+            // of it gone in twenty metres.
+            vec3 toL = uCorner[i] + 0.5 * (uAxisU[i] + uAxisV[i]) - vWorld;
+            float d2 = dot(toL, toL);
+            vec3 l = toL * inversesqrt(d2);
+            float front = oneSided ? max(dot(-l, uFacing[i]), 0.0) : 1.0;
+            light += uTint[i] * on * front * (0.25 + 0.75 * max(l.y, 0.0)) * 0.9 / (1.0 + d2 / 30.0);
+          }
           vec3 n = oneSided ? uFacing[i] : normalize(cross(uAxisU[i], uAxisV[i]));
           // A one-sided face shows only its front.
           if (oneSided && dot(R, n) > -1e-3) continue;
@@ -208,10 +217,10 @@ export function createWetFloor(shared, { kind = "roof", reduced = false } = {}) 
           refl += uLampColors[i] * glint * 1.6 * uWet;
         }
         // The sky's glow over the roofs, where the ray goes up into it.
-        #if ROOF == 1
-        float h = max(R.y, 0.0);
-        refl += (uHazeColor * 0.5 * exp(-h * 9.0) * uHaze + cityGlow(R, h * 900.0) * 0.8) * 0.5;
-        #endif
+        if (uRoof > 0.5) {
+          float h = max(R.y, 0.0);
+          refl += (uHazeColor * 0.5 * exp(-h * 9.0) * uHaze + cityGlow(R, h * 900.0) * 0.8) * 0.5;
+        }
         vec3 col = albedo * light + refl * fres * gloss * (1.0 + 0.3 * uBass);
         col = cityFog(col, vWorld, 0.0);
         gl_FragColor = vec4(col, 1.0);

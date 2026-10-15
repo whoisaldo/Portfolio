@@ -1,0 +1,2106 @@
+"""Santo Domingo: the city's industrial edge, along the south street and the garage street's south half.
+
+Low and wide under sodium light (BIBLE.md, "Santo Domingo"): between the
+plaza street and the south street an estate on a cross of private roads (a
+sawtooth works, a tank farm with two spheres, the plant with its braced
+frame, stacks and flare at the corner where the loop turns, warehouses
+behind dock forecourts); south of the south street a fuel station under its
+price pylon, a sawtooth shed, a container yard under an orange gantry, a
+substation, the numbered block that closes the garage street, a gasholder;
+east of the garage street, under Contact's lens, low sheds whose north
+lights face it, a small tank yard, a workshop and a lit corner of shops.
+Everything is keyed to "santo" so it streams in the district's pack.
+
+The pieces are in santo_kit.py. Heights east of the garage street and
+north of z -76 stay at 11 m or under: Contact's lens (10.4 m up on the
+garage's roof) skims that roofscape to the moon.
+"""
+from ncw.kit import *  # noqa: F401,F403
+from ncw import buildings as B
+from ncw import props as P
+from ncw import plan
+from ncw.districts import santo_kit as K
+from ncw.districts.santo_kit import D, GY, k
+
+PI = math.pi
+_OWN = (len(P.INSTANCES), len(B.COLLISION), len(PEOPLE))
+STYLE = dict(windows=(2, 3, 6), lit=(0.3, 0.7), warmth=(0.5, 1.0), tints=("rust", "brown", "concrete", "charcoal"),
+             balcony=0.03, ac=0.2, signs=0.9, awning=0.35, shop_sign=0.5, canopy=0.15, roof_cap=4.5,
+             setback=0.0, fire_escape=0.25, cornice=0.3, shop_colours=["amber", "red", "yellow", "white", "cyan"])
+
+
+COOL = (0.7, 0.95, 1.0, 1.0)   # a cold store's sign
+# The yard's boxes: the show's reds and rusts most, then the rest.
+BOX_MIX = ("c40_red", "c40_red", "c40_red", "c40_rust", "c40_rust", "c40_blue", "c40_blue", "c40_green", "c40_grey", "c40_cream", "c40_teal", "c40_yellow")
+BOX_NAME = {"red": "c40_red", "rust": "c40_rust", "blue": "c40_blue", "green": "c40_green", "grey": "c40_grey"}
+
+
+def box40(x, z, yaw, col, ln=12.19):
+    """A lone container on the ground, an instance (seams, door end and all)."""
+    P.place("c20_grey" if ln < 7.0 else BOX_NAME.get(col, "c40_red"), x, GY, z, yaw, district=D)
+PALE = (1.0, 0.92, 0.8, 1.0)   # a fuel brand's letters
+
+
+def R(seed):
+    return random.Random(seed)
+
+
+def mast(x, z, yaw, level=0.75, red=0.0, hue="amber", size=10.0):
+    """A flood mast and the patch of yard it lights in front of it."""
+    P.place("flood_mast", x, GY, z, yaw, district=D)
+    for dx in (-1.05, -0.35, 0.35, 1.05):
+        hx, hz = x + math.cos(yaw) * dx + math.sin(yaw) * 0.12, z - math.sin(yaw) * dx + math.cos(yaw) * 0.12
+        rotated_quad(k("neon_" + ("amber" if hue == "amber" else "white")), hx, GY + 11.53, hz, 0.5, 0.32, yaw)
+        K.lens(hx, GY + 11.36, hz - 0.0, 0.5, 0.18, yaw, key=k("neon_" + ("amber" if hue == "amber" else "white")), h=0.02)
+    for dist, pw in ((3.2, 8.0), (8.0, 4.5)):
+        K.sodium(x + math.sin(yaw) * dist, 1.0, z + math.cos(yaw) * dist, pw * level / 0.75, red=red, hue=hue)
+
+
+def strip(x, z, yaw, power=7.0, cone=True):
+    """A strip lamp on its pole, its pool under the tube, its cone in the
+    haze."""
+    P.place("lamp_strip", x, GY, z, yaw, district=D)
+    hx, hz = x + math.sin(yaw) * 1.45, z + math.cos(yaw) * 1.45
+    K.lens(hx, GY + 6.26, hz, 0.18, 1.7, yaw)
+    K.sodium(hx, 6.3, hz, power)
+    if cone:
+        K.cone(hx, GY + 6.26, hz)
+
+
+def truck(x, z, yaw, cab=None, firm="HELCASO", lit=False, reefer=False, no="27", tank=False):
+    """A trailer backed on a dock (its doors are at -x as yaw turns it) in
+    its firm's livery with every lamp it shows, and the tractor coupled to
+    its nose, if it has one (`lit`: somebody in the cab, its headlamps on).
+    `tank`: a road tanker instead of a box."""
+    if tank:
+        K.tanker(x, z, yaw, firm, legs=not cab)
+    else:
+        P.place("trailer", x, GY, z, yaw, district=D)
+        K.livery(x, z, yaw, firm, reefer=reefer, nose=not cab, no=no)
+    if cab:
+        cx, cz = x + math.cos(yaw) * 6.9, z - math.sin(yaw) * 6.9
+        P.place(cab, cx, GY, cz, yaw, district=D)
+        K.cab_dress(cx, cz, yaw, firm, lit=lit)
+
+
+def forklift(x, z, yaw, y=GY, load=None):
+    """A forklift at work (its forks point where a trailer's nose would at
+    the same yaw): the beacon's amber on the ground round it, two work
+    lamps lit on its cage and their pool ahead of the forks, a load on
+    them if it carries one."""
+    P.place("forklift", x, y, z, yaw, district=D)
+    fx, fz = math.cos(yaw), -math.sin(yaw)
+    sx, sz = math.sin(yaw), math.cos(yaw)
+    light(D, x - fx * 0.1, y + 2.2, z - fz * 0.1, "amber", 2.4)
+    for s in (-0.4, 0.4):
+        rotated_quad(k("glow", 1), x + fx * 0.36 + sx * s, y + 2.0, z + fz * 0.36 + sz * s, 0.18, 0.11, yaw + PI / 2, col=(0.9, 0.88, 0.8, 1.0))
+    light(D, x + fx * 3.4, y + 0.4, z + fz * 3.4, "white", 2.6)
+    if load:
+        P.place(load, x + fx * 1.4, y + 0.17, z + fz * 1.4, yaw, district=D)
+
+
+def scatter(r, x0, x1, z0, z1, n, kinds=("drum_pallet", "drum_pallet", "pallets", "crates", "reel", "tyres", "drum", "barrel", "blocks", "drum_pallet"), yaw=None):
+    """Yard clutter set down in a patch, in twos and threes."""
+    for _ in range(n):
+        cx, cz = r.uniform(x0, x1), r.uniform(z0, z1)
+        kind = r.choice(kinds)
+        for j in range(r.randrange(1, 4)):
+            px = min(x1, max(x0, cx + j * r.uniform(1.3, 1.7) * (1 if r.random() < 0.7 else 0)))
+            pz = min(z1, max(z0, cz + (0 if px != cx else j * 1.5)))
+            P.place(kind, px, GY, pz, r.uniform(0, 6.28) if yaw is None else yaw, district=D)
+
+
+# ---------------------------------------------------------------------------
+# The estate's roads: a cross of private asphalt, three gates.
+# ---------------------------------------------------------------------------
+def roads():
+    K.asphalt(296.0, 304.0, -168.0, -10.0)
+    K.asphalt(176.0, 296.0, -92.0, -84.0)
+    K.asphalt(304.0, 428.0, -92.0, -84.0)
+    K.paved(170.0, 176.0, -168.0, -10.0)
+    z = -162.0
+    while z < -16.0:
+        if not -93.0 < z < -86.0:
+            K.stripe(299.92, 300.08, z, z + 3.0)
+        z += 8.0
+    x = 180.0
+    while x < 424.0:
+        if not 294.0 < x < 303.0:
+            K.stripe(x, x + 3.0, -88.08, -87.92)
+        x += 8.0
+    # Lamps down both roads, alternate sides.
+    for i, z in enumerate(range(-156, -12, 24)):
+        if -96 < z < -80:
+            continue
+        s = 1 if i % 2 else -1
+        strip(300.0 + s * 4.6, float(z), -s * PI / 2)
+    for i, x in enumerate(range(190, 424, 26)):
+        if 290 < x < 310:
+            continue
+        # (East of the crossing the plant's rack stands on the south edge.)
+        s = 1 if (i % 2 and x < 296) else -1
+        strip(float(x), -88.0 + s * 4.6, 0.0 if s < 0 else PI)
+    # The plaza street's gate, shut; the south street's, open, its booth
+    # and guard; the garage street's, open, the same.
+    K.gate(295.6, -167.8, 304.4, -167.8, (0, 1), open_=False)
+    K.gate(295.6, -12.4, 304.4, -12.4, (0, -1), open_=True, booth=(292.6, -15.8, PI / 2))
+    K.gate(425.8, -92.4, 425.8, -83.6, (-1, 0), open_=True, booth=(423.4, -81.2, PI))
+    K.totem(424.0, -94.8, PI * 0.38)
+    K.totem(306.6, -14.4, PI * 0.14)
+    # A pair talking at the south gate, a driver waiting at the east one.
+    stand(303.3, -17.4, PI / 2, "talk")
+    stand(304.4, -17.1, -PI / 2, "talk")
+    stand(422.6, -86.2, PI / 2, "phone")
+    # The service lane on the west: lamps, bins, a skip.
+    for z in (-150.0, -112.0, -70.0, -30.0):
+        strip(175.4, z, -PI / 2, power=5.0, cone=False)
+    for z, kind in ((-140.0, "dumpster"), (-120.0, "bags"), (-60.0, "dumpster"), (-44.0, "crates"), (-22.0, "bags")):
+        P.place(kind, 174.8, GY, z, -PI / 2, district=D)
+
+
+# ---------------------------------------------------------------------------
+# North-west: the works, a sawtooth shed with a boiler house and chimney,
+# its docks on a truck court.
+# ---------------------------------------------------------------------------
+def works():
+    r = R(8611)
+    X0, X1, Z0, Z1, EAVE = 180.0, 264.0, -160.0, -100.0, 8.6
+    K.paved(176.0, 268.0, -168.0, -92.0)
+    K.asphalt(268.0, 296.0, -168.0, -92.0)
+    out = K.shed(X0, X1, Z0, Z1, EAVE, K.CREAM, r, faces={
+        "-z": dict(band=(5.6, 7.4), style=6, lit=(0.3, 0.6), posters=0.2),
+        "+z": dict(band=(5.6, 7.4), style=6, lit=(0.3, 0.6), office=(30.0, 56.0)),
+        "+x": dict(band=(6.6, 7.9), style=6, docks=dict(n=8, s0=5.0, s1=55.0, first=1, open=(2,), half=(5,))),
+        "-x": dict(band=(5.6, 7.4), style=6),
+    }, stripe_col=K.OXIDE)
+    K.sawtooth(X0, X1, Z0, Z1, EAVE, 10, "-z", r, wall=K.CREAM, rise=2.6, lit=0.72)
+    # The boiler house against its south wall, and the chimney beside it.
+    K.shed(186.0, 204.0, -100.0, -93.2, 11.6, K.BRICK, r, faces={"-z": dict(hidden=True), "+z": dict(band=(7.4, 9.4), style=3, lit=(0.5, 0.8))},
+           tint="rust")
+    K.flat_roof(186.0, 204.0, -100.0, -93.2, 11.6, r, wall=K.BRICK, lights=0.0, plant=False, breathe=2)
+    K.stack(182.6, -96.6, 31.0, 1.5, 1.0, K.BRICK, segs=8, bands=((0.9, 0.95),), band_col=K.CREAM, lit=5.0)
+    K.flue(199.4, -96.6, 11.6, 19.0, r=0.45, col=K.RUST_D)
+    box(K.M("tank"), 183.6, 186.0, 6.0, 7.6, -97.4, -95.8, scale=1.0, col=K.RUST_D)
+    # The court: trailers on four doors, bays painted out, floods.
+    plat = out.get("+x", GY)
+    for i in (0, 3, 4, 7):
+        z = Z1 - (5.0 + (i + 0.5) * 6.25)
+        truck(X1 + 2.6 + 6.5, z, 0.0, {0: "tractor_red"}.get(i), firm="LUPACO" if i == 4 else "HELCASO", lit=i == 0, no=("14", "", "", "31", "08", "", "", "22")[i])
+    for i in range(9):
+        z = Z1 - (5.0 + i * 6.25)
+        K.stripe(X1 + 2.8, X1 + 17.0, z - 0.06, z + 0.06, K.PAINT_WHITE)
+    K.hatch(284.0, 294.0, -166.0, -160.0)
+    strip(290.0, -140.0, -PI / 2)
+    strip(290.0, -112.0, -PI / 2)
+    mast(294.6, -164.0, -PI * 0.7)
+    mast(269.0, -96.0, PI * 0.25)
+    K.wash(X1 + 0.6, X1 + 3.4, Z0 + 4.0, Z1 - 4.0, level=0.8)
+    K.wash(X0, X1, Z0 - 1.2, Z0 - 1.2, level=0.45, step=6.0)
+    K.wash(208.0, 240.0, Z1 + 1.2, Z1 + 1.2, level=0.6)
+    K.wash(186.0, 204.0, -92.2, -92.2, level=0.6, red=0.3)
+    forklift(X1 + 1.3, -117.0, PI * 0.9, plat)
+    P.place("crates", X1 + 1.2, plat, -124.0, 0.3, district=D)
+    P.place("crates", X1 + 1.5, plat, -146.0, 1.2, district=D)
+    stand(X1 + 1.4, -120.6, PI / 2, "idle", plat)
+    stand(X1 + 1.9, -121.8, -0.4, "talk", plat)
+    stand(X1 + 1.2, -139.0, PI / 2, "smoke", plat)
+    stand(281.6, -106.3, -PI / 2, "smoke")
+    # The court's aisle at work: a forklift with a load, pallets waiting,
+    # totes, the floods' light along it.
+    forklift(284.6, -131.6, PI / 2, load="pallets")
+    for (x, z, name) in ((287.6, -134.6, "pallets"), (287.6, -136.0, "pallets"), (288.9, -135.3, "ibc"), (283.0, -141.0, "drum_pallet"), (284.4, -141.2, "drum_pallet"),
+                         (286.8, -118.0, "ibc"), (288.1, -118.0, "ibc")):
+        P.place(name, x, GY, z, 0.1 * x, district=D)
+    stand(287.0, -129.4, -PI / 2, "idle")
+    K.wash(281.0, 289.0, -146.0, -114.0, level=0.55, step=5.0)
+    stand(285.0, -125.4, PI, "talk")
+    stand(285.2, -126.7, 0.0, "talk")
+    K.name_sign("HELCASO", 250.0, 11.2, -103.0, PI * 0.12, h=2.0)
+    fw_ = B.faces_of(X0, X1, Z0, Z1)
+    K.stencil(fw_["+z"], 70.0, 4.0, "01", wall=K.CREAM)
+    K.stencil(fw_["-z"], 12.0, 4.0, "01", wall=K.CREAM)
+    # Along the plaza street: a fence, and the yard strip behind it.
+    K.fence(176.2, -167.8, 295.2, -167.8)
+    box40(190.0, -164.2, 0.0, "grey", ln=6.06)
+    box40(246.0, -164.2, PI, "rust")
+    scatter(r, 200.0, 236.0, -166.0, -162.0, 7)
+    scatter(r, 256.0, 264.0, -166.0, -162.0, 2, kinds=("reel", "pallets"))
+    for x in (212.0, 250.0):
+        strip(x, -166.6, 0.0)
+    stand(238.0, -163.0, 0.4, "sit", GY + 0.9)
+    # The south apron: parking for the office, a lamp, the doorway's pair.
+    K.bays(208.0, 238.0, -98.4, -93.6, 10, along="x")
+    door = out.get("+z_door")
+    if door:
+        stand(door[0] - 1.6, door[2] + 0.4, PI / 2, "smoke")
+    strip(222.0, -93.0, PI)
+    scatter(r, 206.0, 262.0, -99.2, -98.0, 3, kinds=("pallets", "drum_pallet"))
+
+
+# ---------------------------------------------------------------------------
+# North-east: the tank farm, at the corner of the plaza street and the
+# garage street (Fn9gKhU_2_Q@28).
+# ---------------------------------------------------------------------------
+def spheres_dress(cx, zs, rad):
+    """Round 4: the spheres worked. Plate seams north and south of the
+    belt, a fill line up the west side into the belly by its valve, a
+    vapour line off the crown out over the edge and down, a relief stack,
+    a bridge between the two crowns, each painted with its number, a plate
+    on a post at its foot."""
+    cy = GY + rad * 1.38
+    top = cy + rad
+    red = (0.5, 0.07, 0.05, 1.0)
+    for i, cz in enumerate(zs):
+        for lat in (-0.6, 0.6):
+            yy, rr = cy + rad * math.sin(lat), rad * math.cos(lat) + 0.025
+            pipe(K.M("steel", 1), (cx, yy - 0.035, cz), (cx, yy + 0.035, cz), rr, segs=28, col=K.shade(K.TANK_WHITE, 0.55))
+        ex = cx - math.sqrt(rad * rad - 1.6 * 1.6) + 0.05
+        K.run([(cx - rad - 2.2, 0.75, cz + 1.6), (cx - rad - 0.6, 0.75, cz + 1.6), (cx - rad - 0.6, cy, cz + 1.6), (ex, cy, cz + 1.6)], r=0.18, col=K.YELLOW, segs=8, flanges=99.0)
+        K.valve((cx - rad - 1.4, 0.75, cz + 1.6), (1, 0, 0), 0.18, col=K.YELLOW, detail=0)
+        sgn = -1 if i == 0 else 1
+        zo = cz + sgn * (rad + 0.8)
+        K.run([(cx - 0.9, top + 0.45, cz), (cx - 0.9, top + 0.45, zo), (cx - 0.9, 0.75, zo)], r=0.15, col=K.TANK_WHITE, segs=8, flanges=99.0)
+        K.run([(cx - 0.5, top, cz + 0.5), (cx - 0.5, top + 2.6, cz + 0.5)], r=0.13, col=K.TANK_WHITE, segs=8, flanges=99.0, detail=1)
+        cylinder(K.M("steel", 1), cx - 0.5, cz + 0.5, top + 2.6, top + 2.75, 0.24, segs=8, col=K.STEEL)
+        for yaw in (PI / 2 + 0.5, -PI / 2 - 0.6):
+            K.shell_text(cx, cz, rad + 0.03, cy + 1.7, f"S{i + 1}", 2.4, yaw, red)
+        P.place("warn_board", cx + 3.2, GY + 1.55, cz + 5.6, PI / 2, district=D)
+        box(k("metal"), cx + 3.17, cx + 3.23, GY, GY + 1.2, cz + 5.57, cz + 5.63, scale=0.5)
+    K.catwalk(cx, zs[0] + 1.3, cx, zs[1] - 1.3, top, w=1.0, lamps=K.SODIUM, detail=1)
+
+
+def tank_farm():
+    r = R(8621)
+    K.paved(304.0, 428.0, -168.0, -92.0)
+    # Two bunds, the big tanks in the north one, and a manifold between.
+    for (x0, x1, z0, z1) in ((313.0, 402.0, -161.0, -131.0), (313.0, 402.0, -127.0, -99.0)):
+        for (a0, a1, b0, b1) in ((x0, x1, z0, z0 + 0.3), (x0, x1, z1 - 0.3, z1), (x0, x0 + 0.3, z0, z1), (x1 - 0.3, x1, z0, z1)):
+            box(K.M("concrete"), a0, a1, 0.0, 1.15, b0, b1, scale=2.0, col=K.CONC)
+        box(k("hazard", 1), x0, x1, 1.15, 1.2, z1 - 0.3, z1, scale=1.0)
+        box(k("hazard", 1), x0, x1, 1.15, 1.2, z0, z0 + 0.3, scale=1.0)
+        K.piers(x0, z0 + 0.15, x1, z0 + 0.15)
+        K.piers(x0, z1 - 0.15, x1, z1 - 0.15)
+        K.piers(x1 - 0.15, z0 + 5.0, x1 - 0.15, z1 - 5.0)
+    # Stiles over the bunds from the pipe alley and the east lane, the
+    # fire main along the north bund's alley wall with its hydrants.
+    K.stile(401.85, -119.0, along_x=True)
+    K.stile(401.85, -150.0, along_x=True)
+    K.run([(314.0, 1.33, -131.15), (401.0, 1.33, -131.15)], r=0.09, col=(0.5, 0.06, 0.04, 1.0), detail=1, flanges=12.0)
+    for x in (320.0, 350.0, 364.0, 392.0):
+        cylinder(K.M("steel", 1), x, -131.15, 1.3, 1.85, 0.1, segs=6, col=(0.5, 0.06, 0.04, 1.0))
+    K.tank(328.0, -146.0, 10.5, 12.0, K.RUST, band=(0.78, 0.86), number="01", number_yaw=PI * 0.8, stair_at=PI * 0.75, r_=r, breathe=True)
+    K.tank(357.0, -146.0, 10.5, 12.6, K.TANK_WHITE, band=(0.78, 0.86), number="02", number_yaw=PI * 0.8, stair_at=PI * 0.7, r_=r)
+    K.tank(386.0, -146.0, 10.5, 11.2, K.RUST, band=(0.78, 0.86), number="03", number_yaw=PI * 0.72, stair_at=PI * 0.3, r_=r, breathe=True)
+    K.tank(324.0, -113.0, 7.0, 10.0, K.TANK_WHITE, segs=16, band=(0.1, 0.18), number="04", number_yaw=PI * 0.5, stair_at=-PI * 0.6, r_=r)
+    K.tank(345.0, -113.0, 7.0, 9.0, K.RUST, segs=16, number="05", number_yaw=PI * 0.4, stair_at=PI * 0.5, r_=r, breathe=True)
+    K.tank(366.0, -113.0, 7.0, 10.4, K.TANK_WHITE, segs=16, band=(0.1, 0.18), number="07", number_yaw=PI * 0.4, stair_at=PI * 0.5, r_=r)
+    K.tank(387.0, -113.0, 7.0, 8.6, K.RUST, segs=16, number="08", number_yaw=PI * 0.45, stair_at=PI * 0.25, r_=r, breathe=True)
+    K.shell_text(357.0, -146.0, 10.5, GY + 3.6, "SOLFUCA", 1.5, PI * 0.8, K.shade(K.TANK_WHITE, 0.3))
+    K.shell_text(386.0, -146.0, 10.5, GY + 3.4, "SOLFUCA", 1.5, PI * 0.5, K.TANK_WHITE)
+    K.sphere(414.0, -152.0, 6.4, K.TANK_WHITE)
+    K.sphere(414.0, -132.0, 6.4, K.TANK_WHITE)
+    spheres_dress(414.0, (-152.0, -132.0), 6.4)
+    for z, cols in ((-129.6, K.RUST), (-128.9, K.TANK_WHITE), (-128.3, K.YELLOW)):
+        K.run([(312.0, 0.75, z), (406.0, 0.75, z), (406.0, 0.75, -112.0)], r=0.2, col=cols)
+    for x, zt in ((328.0, -135.5), (357.0, -135.5), (386.0, -135.5), (324.0, -120.0), (345.0, -120.0), (366.0, -120.0), (387.0, -120.0)):
+        K.run([(x, 0.75, -129.6), (x, 0.75, zt), (x, 1.6, zt)], r=0.16, col=K.RUST_D, detail=1)
+    # The manifold's valves in the alley; drains along the bunds' floors.
+    for x in (322.0, 351.0, 380.0):
+        for z, col_ in ((-129.6, K.RUST), (-128.3, K.YELLOW)):
+            K.valve((x + (2.0 if z > -129 else 0.0), 0.75, z), (1, 0, 0), 0.2, col=col_)
+    for z in (-160.2, -131.8, -126.2, -99.8):
+        for x in range(320, 400, 13):
+            P.place("drain", float(x), GY + 0.01, z, 0.0, district=D)
+    stand(372.0, -128.6, PI / 2, "idle")
+    # The pump house by the gate, its doors on the yard.
+    out = K.shed(406.0, 422.0, -116.0, -104.0, 4.8, K.STEEL_BLUE, r, faces={
+        "-x": dict(docks=dict(n=2, s0=1.5, s1=10.5, raised=False, canopy=False, open=(0,), first=21)),
+        "+x": dict(band=(2.9, 4.0), style=3, lit=(0.6, 0.9))})
+    K.roof_furnish(K.flat_roof(406.0, 422.0, -116.0, -104.0, 4.8, r, wall=K.STEEL_BLUE, lights=0.5, breathe=1), R(8622))
+    # The rack along the yard's south edge, bridging the estate road twice.
+    K.rack(308.0, -96.4, 420.0, -96.4)
+    K.rack(340.0, -94.9, 340.0, -83.1, step=11.8, lamps=False, braced=False)
+    K.rack(404.0, -94.9, 404.0, -83.1, step=11.8, lamps=False, braced=False)
+    # Fences on both streets, floods at the corners, strip lamps round the
+    # bunds, cyan lamps on every landing (in K.tank).
+    K.fence(304.8, -167.8, 425.8, -167.8)
+    K.fence(425.8, -167.8, 425.8, -92.8)
+    K.verge(r, 427.3, -166.0, 427.3, -94.0, step=4.6, kinds=("hydrant", "bollard", "bollard", "bin", "cctv", "barrier", "lamp_short", "bollard"))
+    K.run([(455.2, 7.35, -101.55), (457.2, 7.35, -101.55), (457.2, 0.7, -101.55)], r=0.3, col=K.STEEL_BLUE)
+    mast(309.0, -164.5, PI * 0.2)
+    mast(422.6, -164.2, -PI * 0.25)
+    mast(404.5, -129.0, -PI * 0.5)
+    mast(309.0, -98.5, PI * 0.75)
+    for x in (334.0, 372.0):
+        strip(x, -163.0, 0.0)
+        strip(x, -129.0, PI)
+    for z in (-150.0, -116.0):
+        strip(311.4, z, PI / 2)
+    for x in (328.0, 357.0, 386.0):
+        K.ring_wash(x, -146.0, 12.0, PI * 0.95, PI * 1.9, level=0.8)
+        K.ring_wash(x, -146.0, 12.0, PI * 0.2, PI * 0.55, level=0.4)
+    for x in (324.0, 345.0, 366.0, 387.0):
+        K.ring_wash(x, -113.0, 8.4, -PI * 0.15, PI * 0.9, level=0.75)
+    for z in (-152.0, -132.0):
+        for ang in (-0.75, 0.75, PI - 0.6, PI + 0.6):
+            K.flood(414.0 + 9.2 * math.cos(ang), z + 9.2 * math.sin(ang), 414.0, z)
+    K.wash(406.0, 422.0, -103.0, -103.0, level=0.5)
+    scatter(r, 406.0, 424.0, -100.0, -94.0, 4, kinds=("drum_pallet", "pallets", "drum"))
+    # (Its trestles stand inside both yards' fences, clear of the pavements.)
+    K.bridge(421.4, -101.0, 455.2, -101.0, y=6.8)
+    K.run([(421.4, 7.35, -101.55), (420.6, 7.35, -101.55), (420.6, 7.35, -96.4)], r=0.3, col=K.STEEL_BLUE)
+    K.vent(427.0, -124.0)
+    # People: a man on a tank's landing, one walking the bund, two at the
+    # pump house door.
+    lx, lz = 357.0 + 11.0 * math.cos(PI * 0.7), -146.0 + 11.0 * math.sin(PI * 0.7)
+    stand(lx, lz, PI * 0.2, "lean", GY + 12.6)
+    stand(360.0, -129.0, PI / 2, "idle")
+    stand(404.4, -108.2, PI / 2, "talk")
+    stand(405.2, -109.4, -PI / 3, "talk")
+    stand(424.4, -141.0, PI / 2, "smoke")
+    # Three on the tanks' stairs, part way up (the stair winds at r + 0.5).
+    stand(396.89, -144.44, -0.14, "idle", GY + 5.6)
+    stand(326.91, -135.05, -1.67, "idle", GY + 7.2)
+    stand(371.84, -108.29, -0.68, "phone", GY + 6.24)
+
+
+# ---------------------------------------------------------------------------
+# South-east: the plant, where the loop turns. A braced process frame in
+# front of lit rust walls, stacks and a flare, cooling cells steaming on
+# the south street, the control building on the corner (mH2wmyeiIpA@60).
+# ---------------------------------------------------------------------------
+def frame(r):
+    X0, X1, Z0, Z1 = 344.0, 380.0, -70.0, -46.0
+    levels = (5.5, 11.0, 16.5)
+    xs = [X0 + 6.0 * i for i in range(7)]
+    zs = [Z0 + 6.0 * i for i in range(5)]
+    for x in xs:
+        for z in zs:
+            edge = x in (X0, X1) or z in (Z0, Z1)
+            K.column(x, z, GY, levels[-1] if edge or (x in (356.0, 368.0)) else levels[1], t=0.34)
+    for lv in levels:
+        for z in zs:
+            if lv < 16 or z in (Z0, Z1) or z == -58.0:
+                K.beam(X0, z, X1, z, lv, t=0.3)
+        for x in xs:
+            if lv < 16 or x in (X0, X1, 356.0, 368.0):
+                K.beam(x, Z0, x, Z1, lv, t=0.3)
+    # Decks: the south half at the first level, the north at the second, a
+    # crown platform at the third; rails with their row of small lamps.
+    # (Gratings round the edges and across, not floors: the lit hall
+    # behind has to show through every bay.)
+    for (ax, az, bx, bz, lv) in ((X0, Z1 - 0.8, X1, Z1 - 0.8, 0), (X0 + 0.8, -58.0, X0 + 0.8, Z1, 0), (X1 - 0.8, -58.0, X1 - 0.8, Z1, 0),
+                                 (X0, -57.2, X1, -57.2, 0), (362.0, -58.0, 362.0, Z1, 0),
+                                 (350.0, -52.8, X1, -52.8, 1), (350.0, Z0 + 0.8, X1, Z0 + 0.8, 1), (350.8, Z0, 350.8, -52.0, 1),
+                                 (X1 - 0.8, Z0, X1 - 0.8, -52.0, 1), (368.0, Z0, 368.0, -52.0, 1),
+                                 (356.0, -52.8, 374.0, -52.8, 2), (356.0, -63.2, 374.0, -63.2, 2), (356.8, -64.0, 356.8, -52.0, 2),
+                                 (373.2, -64.0, 373.2, -52.0, 2)):
+        if abs(bx - ax) > abs(bz - az):
+            K.deck(ax, bx, az - 0.8, az + 0.8, levels[lv])
+        else:
+            K.deck(ax - 0.8, ax + 0.8, az, bz, levels[lv])
+    for (a, b, lv) in (((X0, Z1), (X1, Z1), 0), ((X0, -58.0), (X0, Z1), 0), ((X1, -58.0), (X1, Z1), 0), ((X0, -58.0), (X1, -58.0), 0),
+                       ((350.0, -52.0), (X1, -52.0), 1), ((350.0, Z0), (X1, Z0), 1), ((350.0, Z0), (350.0, -52.0), 1), ((X1, Z0), (X1, -52.0), 1),
+                       ((356.0, -52.0), (374.0, -52.0), 2), ((356.0, -64.0), (374.0, -64.0), 2), ((356.0, -64.0), (356.0, -52.0), 2),
+                       ((374.0, -64.0), (374.0, -52.0), 2)):
+        y = levels[lv]
+        K.rail((a[0], y, a[1]), (b[0], y, b[1]), lamps=K.SODIUM, detail=0)
+    # X bracing round the outside, every bay of the lower two storeys on
+    # the faces the streets see, alternate bays above.
+    tiers = ((GY + 0.2, levels[0] - 0.3), (levels[0], levels[1] - 0.3), (levels[1], levels[2] - 0.3))
+    for ti, (ya, yb) in enumerate(tiers):
+        for i in range(6):
+            if ti == 2 and i % 2:
+                continue
+            for z in (Z0, Z1):
+                K.xbrace(xs[i], z, xs[i + 1], z, ya, yb, r=0.1)
+        for i in range(4):
+            if ti == 2 and i % 2 == 0:
+                continue
+            for x in (X0, X1):
+                K.xbrace(x, zs[i], x, zs[i + 1], ya, yb, r=0.1)
+    # Stairs between the levels on the east side, in a tower of their own.
+    for fx, fz in ((X1 + 0.6, -56.0), (X1 + 2.4, -56.0), (X1 + 0.6, -50.0), (X1 + 2.4, -50.0)):
+        K.column(fx, fz, GY, levels[2] + 1.0, t=0.16, detail=1)
+    y, flip = GY, 1
+    while y < levels[2] - 0.1:
+        y2 = min(levels[2], y + 2.75)
+        K.stair((X1 + 1.5, y, -53.0 - 2.4 * flip), (X1 + 1.5, y2, -53.0 + 2.4 * flip), w=1.3, detail=0)
+        y, flip = y2, -flip
+    # What stands in it: two reactors through the decks, a column with ring
+    # platforms taller than all of it, a drum on the first deck, exchangers
+    # on the ground, the heater with its row of burners.
+    for x, col, h in ((365.0, K.TANK_WHITE, 24.0), (359.0, K.RUST, 21.5)):
+        rz = -61.0
+        cylinder(K.M("tank"), x, rz, 2.4, h, 1.7, segs=20, col=col, cap=False)
+        ring = K.ring_pts(x, rz, 1.7, 20, h)
+        for i in range(20):
+            K.tri_n(K.M("tank"), ((x, h + 1.0, rz), ring[i], ring[(i + 1) % 20]), (0, 1, 0), K.shade(col, 0.8))
+        for gy in (8.0, 13.6, 19.0):
+            if gy < h - 1.0:
+                cylinder(K.M("steel", 1), x, rz, gy, gy + 0.14, 1.77, segs=20, col=K.shade(col, 0.5), cap=False)
+        K.nozzle(x, 4.0, rz + 1.7, 0.0, r=0.3, ln=0.5, col=col)
+        for (lx, lz) in ((x - 1.2, rz - 1.2), (x + 1.2, rz - 1.2), (x - 1.2, rz + 1.2), (x + 1.2, rz + 1.2)):
+            K.column(lx, lz, GY, 2.6, t=0.22)
+        box(k("glow"), x - 0.1, x + 0.1, h + 1.0, h + 1.25, rz - 0.1, rz + 0.1, scale=0.5, col=GLOW["red"])
+    cx, cz, ch = 375.0, -66.0, 30.0
+    cylinder(K.M("tank"), cx, cz, GY, ch, 1.15, segs=16, col=K.TANK_WHITE, cap=True)
+    for py in (13.0, 19.0, 25.0):
+        inner, outer = K.ring_pts(cx, cz, 1.15, 10, py), K.ring_pts(cx, cz, 2.2, 10, py)
+        for i in range(10):
+            i2 = (i + 1) % 10
+            K.both(k("metal"), (inner[i], inner[i2], outer[i2], outer[i]))
+            K.rail(outer[i], outer[i2], detail=1, posts=9.0, lamps=K.SODIUM if i % 3 == 0 else None)
+    K.ladder(cx + 1.17, cz, GY + 2.5, 25.0, PI / 2)
+    cylinder(k("metal"), cx, cz, ch, ch + 2.2, 0.25, segs=6)
+    box(k("glow"), cx - 0.12, cx + 0.12, ch + 2.2, ch + 2.5, cz - 0.12, cz + 0.12, scale=0.5, col=GLOW["red"])
+    K.plume(cx, ch + 2.6, cz, n=2)
+    K.bullet(346.5, 357.5, -52.0, 1.3, K.RUST, y=levels[0] + 1.75, base=levels[0])
+    # Steam leaking low in the frame, lit by its lamps: the plant's haze.
+    for vx, vz in ((347.0, -47.6), (360.0, -55.0), (371.0, -47.4), (377.6, -58.0), (352.0, -58.6)):
+        K.vent(vx, vz, lit=0.0)
+    for sx, sy, sz in ((362.6, levels[2] + 1.3, -57.0), (365.0, 25.4, -61.0), (353.0, levels[0] + 3.4, -52.0), (376.6, 19.4, -64.6)):
+        K.steam(sx, sy, sz, kind="stack", lit=0.0)
+    for z in (-49.0, -51.6):
+        K.bullet(361.0, 371.0, z, 0.75, K.STEEL_BLUE, y=GY + 1.7)
+    # The heater: a rust box on legs, burners glowing along its foot, its
+    # own stack up through the frame.
+    box(K.M("tank"), 345.2, 351.6, 1.6, 10.2, -69.0, -59.2, scale=1.0, col=K.RUST_D, bottom=True)
+    for z in (-67.8, -65.6, -63.4, -61.2):
+        quad(k("glow"), (351.63, 2.0, z + 0.7), (351.63, 2.0, z - 0.7), (351.63, 2.5, z - 0.7), (351.63, 2.5, z + 0.7), col=K.HOT)
+        quad(k("glow"), (345.17, 2.0, z - 0.7), (345.17, 2.0, z + 0.7), (345.17, 2.5, z + 0.7), (345.17, 2.5, z - 0.7), col=K.HOT)
+    quad(k("glow"), (345.6, 2.0, -59.17), (351.2, 2.0, -59.17), (351.2, 2.35, -59.17), (345.6, 2.35, -59.17), col=K.HOT)
+    for (lx, lz) in ((345.5, -68.7), (351.3, -68.7), (345.5, -59.5), (351.3, -59.5)):
+        K.column(lx, lz, GY, 1.7, t=0.3)
+    cylinder(K.M("tank"), 348.4, -64.0, 10.2, 22.0, 0.8, segs=14, col=K.RUST, cap=True)
+    K.steam(348.4, 22.4, -64.0)
+    K.wash(X0 + 1.0, X1 - 1.0, Z0 + 1.0, Z1 - 1.0, level=0.8, red=0.5, r=r)
+    for i in range(6):
+        K.tube(xs[i] + 3.0, levels[i % 2] - 0.36, Z1 - 0.3, 0.0, power=3.0 if i % 2 == 0 else 0.0, red=0.5)
+    for z in (-64.0, -52.0):
+        K.tube(X0 + 0.3, levels[0] - 0.36, z, PI / 2, power=3.0, red=0.5)
+    K.wash(343.0, 353.0, -69.0, -58.0, level=0.4, hue="red", r=r)
+    # The plant's name along the frame's top beam, over the street.
+    K.name_sign("SOLFUCA", 362.0, levels[2], Z1 + 0.2, 0.0, h=2.2, lift=0.2)
+    K.collide(X0, X1, Z0, Z1, levels[2])
+    frame_works(levels)
+    # Two men on the first deck, one at the rail of the second.
+    stand(366.0, -47.2, 0.0, "lean", levels[0])
+    stand(358.4, -50.0, PI / 2, "talk", levels[0])
+    stand(359.6, -49.6, -PI / 2, "talk", levels[0])
+    stand(372.0, -52.8, 0.0, "idle", levels[1])
+
+
+def frame_works(levels):
+    """Round 4: what the frame holds and carries (Fn9gKhU_2_Q@28,
+    mH2wmyeiIpA@60): riveted vessels standing up through the decks and
+    lying on them, risers up the street face's columns, pipe runs along
+    its faces and out to the boiler house, the hall's rack and the yard's
+    sleepers, caged ladders between the decks, a lamp on every column at
+    every level with its light on the steel, steam off the decks."""
+    X0, X1, Z0, Z1 = 344.0, 380.0, -70.0, -46.0
+    for (x, y, z, name, s, h, yaw) in ((350.0, GY, -48.4, "vessel_rust", 1.1, 1.15, 0.6), (375.0, GY, -49.6, "vessel_white", 1.0, 1.25, 2.2),
+                                       (377.0, levels[0], -57.2, "vessel_rust", 0.8, 0.8, 4.0), (350.8, levels[1], -64.0, "vessel_white", 0.75, 0.7, 1.1),
+                                       (373.2, levels[2], -58.0, "vessel_rust", 0.6, 0.55, 5.0)):
+        P.place(name, x, y, z, yaw, sy=h, sxz=s, district=D)
+    P.place("hvessel_grey", 365.0, levels[1], -53.0, 0.0, sxz=0.75, district=D)
+    P.place("hvessel_rust", 358.0, levels[0], -56.9, PI, sxz=0.8, district=D)
+    # Risers up the street face, two to a column.
+    for x in (344.0, 356.0, 362.0, 374.0):
+        for dx, top in ((0.4, levels[2]), (0.62, levels[1])):
+            P.place("pipe_v", x + dx, GY, Z1 - 0.15, PI, sy=top - GY, district=D)
+    # Runs: along the street face under the first deck, along the north
+    # face, out east to the boiler house and round to the hall's rack,
+    # down to the yard's sleepers.
+    K.run([(X0, 4.85, Z1 - 0.55), (X1 + 0.35, 4.85, Z1 - 0.55), (X1 + 0.35, 4.85, -60.0), (385.0, 4.85, -60.0)], r=0.24, col=K.STEEL_BLUE, segs=10, flanges=7.0)
+    K.run([(X0, 4.3, Z1 - 0.9), (X1, 4.3, Z1 - 0.9)], r=0.15, col=K.RUST_D, segs=8, flanges=9.0, detail=1)
+    K.run([(X0, 10.4, Z0 + 0.5), (X1 + 0.8, 10.4, Z0 + 0.5), (X1 + 0.8, 10.4, -64.0), (386.0, 10.4, -64.0)], r=0.3, col=K.RUST, segs=10, flanges=8.0)
+    K.run([(X1 + 3.4, 9.0, -60.0), (X1 + 3.4, 9.0, -79.4), (X1 + 3.4, 6.9, -81.0)], r=0.2, col=K.YELLOW, segs=8, flanges=99.0, detail=1)
+    K.run([(356.0, 4.3, Z1 - 0.9), (356.0, 4.3, -44.3), (356.0, 0.55, -44.3)], r=0.15, col=K.RUST_D, segs=8, flanges=99.0, detail=1)
+    K.run([(368.0, 4.85, Z1 - 0.55), (368.0, 0.55, Z1 - 0.55), (368.0, 0.55, -43.6)], r=0.24, col=K.STEEL_BLUE, segs=10, flanges=99.0)
+    # Between the vessels and the reactors on the decks.
+    K.run([(375.0, 7.6, -50.6), (375.0, 7.6, -55.0), (366.7, 7.6, -55.0), (366.7, 7.6, -60.0)], r=0.16, col=K.TANK_WHITE, segs=8, flanges=99.0, detail=1)
+    K.run([(351.6, 13.0, -64.0), (357.3, 13.0, -64.0), (357.3, 13.0, -61.5)], r=0.14, col=K.YELLOW, segs=6, flanges=99.0, detail=1)
+    K.run([(350.0, 7.9, -49.5), (350.0, 9.6, -49.5), (346.5, 9.6, -51.0)], r=0.14, col=K.RUST_D, segs=6, flanges=99.0, detail=1)
+    for vx, vz in ((370.0, Z1 - 0.55), (352.0, Z1 - 0.55)):
+        K.valve((vx, 4.85, vz), (1, 0, 0), 0.24, col=K.STEEL_BLUE)
+    # Caged ladders on the west face between the decks.
+    for (z, ya, yb) in ((-55.0, GY, levels[0]), (-61.0, levels[0], levels[1]), (-49.0, levels[1], levels[2])):
+        K.ladder(X0 - 0.15, z, ya, yb + 1.0, -PI / 2)
+    # A lamp on every street-face column at every level, its light on the
+    # steel round it; red working lamps on the north face.
+    for x in (X0, 350.0, 356.0, 362.0, 368.0, 374.0, X1):
+        for lv in levels:
+            box(k("glow"), x - 0.09, x + 0.09, lv + 0.95, lv + 1.13, Z1 + 0.18, Z1 + 0.32, scale=0.5, col=K.SODIUM)
+            light(D, x, lv + 0.6, Z1 + 0.6, "amber", 2.2)
+    for x in (350.0, 362.0, 374.0):
+        for lv in levels[:2]:
+            box(k("glow", 1), x - 0.08, x + 0.08, lv + 0.9, lv + 1.06, Z0 - 0.3, Z0 - 0.16, scale=0.5, col=GLOW["red"])
+            light(D, x, lv + 0.6, Z0 - 0.6, "red", 1.8)
+    for (sx, sy, sz) in ((354.0, levels[0] + 0.6, -47.0), (371.0, levels[1] + 0.6, -64.6), (378.6, levels[0] + 0.6, -50.0)):
+        K.steam(sx, sy, sz, lit=3.0, red=0.6, zz=True)
+
+
+def plant():
+    r = R(8631)
+    K.paved(304.0, 428.0, -84.0, -10.0)
+    K.rack(308.0, -81.6, 418.0, -81.6)
+    frame(r)
+    # Behind the frame, the reactor hall: a long rust wall the sodium lamps
+    # light, the frame's steel dark in front of it.
+    out = K.shed(344.0, 380.0, -78.4, -71.0, 18.0, K.CREAM, r, faces={
+        "+z": dict(band=(13.6, 15.8), style=3, lit=(0.5, 0.85), dress=False),
+        "-z": dict(band=(13.6, 15.8), style=3, lit=(0.4, 0.7)), "+x": dict(dress=False), "-x": dict(dress=False)}, tint="rust", stripe_col=K.OXIDE)
+    K.flat_roof(344.0, 380.0, -78.4, -71.0, 18.0, r, wall=K.CREAM, lights=0.0, plant=False, breathe=2)
+    K.wash(344.0, 380.0, -70.2, -70.2, level=1.0, red=0.3, step=3.5)
+    for x in (349.0, 356.0, 363.0, 370.0, 376.0):
+        box(k("neon_amber"), x - 0.7, x + 0.7, 10.3, 10.42, -70.9, -70.76, scale=0.5, bottom=True)
+    K.wash(346.0, 378.0, -79.6, -79.6, level=0.6, red=0.3)
+    # The boiler house east of it, a duct to the main stack, the second
+    # stack, the flare at the gate.
+    out = K.shed(386.0, 410.0, -76.0, -56.0, 13.6, K.SAND, r, faces={
+        "+z": dict(band=(9.6, 11.8), style=3, lit=(0.55, 0.9), docks=dict(n=2, s0=3.0, s1=15.0, raised=False, canopy=False, half=(0,), first=31)),
+        "+x": dict(band=(9.6, 11.8), style=3, lit=(0.4, 0.7)), "-z": dict(band=(9.6, 11.8), style=3), "-x": dict(dress=False)}, tint="rust")
+    K.roof_furnish(K.flat_roof(386.0, 410.0, -76.0, -56.0, 13.6, r, wall=K.SAND, lights=0.35, breathe=1), R(8632))
+    K.flue(389.6, -59.4, 13.6, 21.4, r=0.5, col=K.RUST)
+    K.flue(392.6, -59.4, 13.6, 20.2, r=0.4, col=K.TANK_WHITE)
+    K.stack(403.0, -49.0, 38.0, 2.3, 1.5, K.RUST, lit=7.0)
+    box(K.M("tank"), 402.0, 404.0, 8.0, 10.0, -56.0, -50.6, scale=1.0, col=K.RUST_D, bottom=True)
+    K.stack(416.5, -62.0, 29.0, 1.5, 1.0, K.TANK_WHITE, band_col=K.OXIDE, lit=6.0)
+    box(K.M("tank"), 410.0, 415.4, 6.0, 7.4, -62.7, -61.3, scale=1.0, col=K.RUST_D, bottom=True)
+    K.flare(420.4, -73.0, 31.0)
+    # Bullets in a bund on the west, the rack up to the cooling cells.
+    for (a0, a1, b0, b1) in ((308.0, 336.0, -78.0, -77.7), (308.0, 336.0, -54.3, -54.0), (308.0, 308.3, -78.0, -54.0), (335.7, 336.0, -78.0, -54.0)):
+        box(K.M("concrete"), a0, a1, 0.0, 1.0, b0, b1, scale=2.0, col=K.CONC)
+    for z, col in ((-73.6, K.TANK_WHITE), (-66.0, K.TANK_WHITE), (-58.4, K.RUST)):
+        K.bullet(311.0, 333.0, z, 2.1, col)
+        K.run([(333.0, 3.3, z), (338.4, 3.3, z), (338.4, 5.6, z)], r=0.14, col=K.YELLOW, detail=1)
+        box(k("glow"), 322.0 - 0.1, 322.0 + 0.1, 5.5, 5.75, z - 0.1, z + 0.1, scale=0.5, col=GLOW["cyan"])
+    K.catwalk(311.0, -62.2, 333.0, -62.2, 5.5, w=1.1, lamps=None, detail=1)
+    K.stair((309.2, GY, -62.2), (311.0, 5.5, -62.2), detail=1)
+    K.rack(340.0, -80.0, 340.0, -36.0, levels=(5.4,), width=2.4, pipes=((-0.7, 0, 0.3, K.STEEL_BLUE), (0.2, 0, 0.3, K.STEEL_BLUE), (0.9, 0, 0.12, K.YELLOW)))
+    # The cooling cells on the south street: three cells, a fan stack on
+    # each breathing steam into the sodium light.
+    for i in range(3):
+        x0 = 308.0 + i * 10.0
+        box(K.M("concrete"), x0, x0 + 10.0, 0.0, 2.2, -34.0, -16.0, scale=2.0, col=K.CONC)
+        for name, f in B.faces_of(x0 + 0.3, x0 + 9.7, -33.7, -16.3).items():
+            f.quad(k("dark"), 0.0, f.width, 2.2, 4.6, 0.0)
+            if name in ("+z", "-z") or (name == "-x" and i == 0) or (name == "+x" and i == 2):
+                # The air inlet: slats in the casing's paint, the wet fill lit behind them.
+                f.quad(k("glow"), 0.2, f.width - 0.2, 2.3, 4.5, 0.012, col=(0.15, 0.065, 0.018, 1.0))
+                for q in range(7):
+                    yy = 2.28 + q * 0.33
+                    f.box(K.M("steel", q % 2), 0.0, f.width, yy, yy + 0.17, 0.0, 0.22, col=K.shade(K.CREAM, 0.85))
+                for sp in (f.width / 3, f.width * 2 / 3):
+                    f.box(K.M("steel"), sp - 0.1, sp + 0.1, 2.2, 4.6, 0.0, 0.26, col=K.shade(K.CREAM, 0.6))
+            f.quad(K.M("cladding"), 0.0, f.width, 4.6, 8.4, 0.0, col=K.CREAM)
+            f.box(k("trim"), -0.1, f.width + 0.1, 4.5, 4.75, 0.0, 0.14, col=K.shade(K.CREAM, 0.6))
+        box(k("metal"), x0, x0 + 10.0, 8.4, 9.0, -34.0, -16.0, scale=1.0, bottom=True)
+        cx, cz = x0 + 5.0, -25.0
+        cylinder(K.M("tank"), cx, cz, 9.0, 11.8, 3.3, segs=24, col=K.GREY, cap=False)
+        cylinder(k("dark"), cx, cz, 11.2, 11.3, 3.2, segs=24)
+        K.plume(cx, 12.0, cz, n=3, lit=5.0)
+        K.steam(cx + 1.4, 12.0, cz + 1.0, lit=0.0)
+        box(k("neon_amber"), cx - 0.8, cx + 0.8, 7.6, 7.72, -16.02, -15.9, scale=0.5, bottom=True)
+    K.collide(308.0, 338.0, -34.0, -16.0, 9.0)
+    K.catwalk(308.0, -15.2, 338.0, -15.2, 4.7, w=1.3, rails=(False, True))
+    K.stair((306.6, GY, -15.2), (308.0, 4.7, -15.2), w=1.0, detail=0)
+    for i in range(3):
+        x0 = 308.0 + i * 10.0
+        K.digits(str(i + 1), x0 + 2.2, 6.6, -16.26, 2.0, 0.0, k("trim", 1), K.OXIDE, out=0.04)
+        K.run([(x0 + 7.2, 0.4, -15.4), (x0 + 7.2, 8.8, -15.4), (x0 + 7.2, 8.8, -17.0)], r=0.26, col=K.STEEL_BLUE)
+        K.run([(x0 + 8.2, 0.4, -15.5), (x0 + 8.2, 4.2, -15.5)], r=0.14, col=K.RUST, detail=1)
+        quad(k("door"), (x0 + 4.4, 4.7, -16.24), (x0 + 5.5, 4.7, -16.24), (x0 + 5.5, 6.8, -16.24), (x0 + 4.4, 6.8, -16.24))
+        box(k("neon_amber"), x0 + 4.5, x0 + 5.4, 6.95, 7.03, -16.2, -16.05, scale=0.5, bottom=True)
+        for xx in (x0 + 1.0, x0 + 9.0):
+            K.column(xx, -14.6, GY, 4.7, t=0.16, mat="metal")
+        box(k("hazard", 1), x0 + 0.3, x0 + 9.7, 2.2, 2.4, -16.28, -16.24, scale=1.0)
+    K.run([(307.3, 0.5, -33.2), (307.3, 5.2, -33.2), (307.3, 5.2, -17.0)], r=0.22, col=K.STEEL_BLUE)
+    for z in (-28.0, -22.0):
+        K.run([(307.3, 5.2, z), (307.3, 7.6, z), (308.0, 7.6, z)], r=0.14, col=K.STEEL_BLUE, detail=1)
+    K.ladder(307.98, -19.4, GY + 2.3, 9.0, -PI / 2)
+    box(k("metal"), 307.4, 308.0, GY, GY + 1.7, -31.6, -30.2, scale=1.0)
+    P.place("warning_tri", 307.38, GY + 1.0, -30.9, -PI / 2, district=D)
+    for z in (-30.0, -20.0):
+        P.place("wall_pack", 307.96, 5.9, z, -PI / 2, district=D)
+        K.sodium(306.6, 1.0, z, 5.0)
+    K.digits("1", 307.94, 6.9, -25.0, 1.6, -PI / 2, k("trim", 1), K.OXIDE, out=0.0)
+    K.verge(r, 305.3, -80.0, 305.3, -37.0, step=7.0, kinds=("bollard", "drum", "barrier", "pallets", "hydrant", "bin", "crates"))
+    K.verge(r, 305.3, -33.0, 305.3, -17.0, step=4.0, kinds=("bollard", "bollard", "barrier", "drum"))
+    stand(322.0, -15.0, 0.0, "lean", 4.7)
+    stand(312.4, -15.2, PI / 2, "idle", 4.7)
+    for (a, b) in (((308.0, -34.0), (338.0, -34.0)), ((308.0, -16.0), (338.0, -16.0)), ((308.0, -34.0), (308.0, -16.0)), ((338.0, -34.0), (338.0, -16.0))):
+        K.rail((a[0], 9.0, a[1]), (b[0], 9.0, b[1]), detail=1)
+    K.stair((339.0, GY, -30.0), (339.0, 9.0, -18.0), detail=1)
+    K.run([(340.0, 5.7, -36.0), (340.0, 5.7, -34.6), (340.0, 3.0, -34.6), (337.0, 3.0, -34.6)], r=0.3, col=K.STEEL_BLUE)
+    # Between the bullets and the cells: a switch room, drums, totes.
+    K.shed(312.0, 326.0, -50.0, -40.0, 4.4, K.GREY, r, faces={"+x": dict(docks=dict(n=1, s0=2.0, s1=7.0, raised=False, canopy=False, first=40))})
+    K.flat_roof(312.0, 326.0, -50.0, -40.0, 4.4, r, wall=K.GREY, lights=0.5)
+    scatter(r, 328.0, 336.0, -50.0, -38.0, 5)
+    # The control building on the corner: three storeys of lit office
+    # windows over a lobby, the generator's own.
+    lot = B.Lot(388.0, 424.0, -36.0, -10.8, "+z", {"+z": "street", "+x": "open", "-x": "open", "-z": "back"}, {}, D)
+    B.building(lot, 11.4, r, style=dict(STYLE, windows=(2, 5), lit=(0.55, 0.85), signs=1.2, fire_escape=0.0, awning=0.5, shop_sign=0.9),
+               ground="shops", tint="concrete")
+    K.roof_lane(388.0, 424.0, -36.0, -10.8, 11.4, R(8633))
+    stand(396.0, -9.4 - 0.9, 0.0, "smoke")
+    stand(410.6, -10.4, 0.4, "talk")
+    stand(411.6, -9.8 - 0.5, -2.2, "talk")
+    # Fences along both streets; the yard's lamps and floods.
+    # Along both streets: a yard wall the street has got at (the kit's
+    # pieces, tags and bills find poured concrete), wall packs over it,
+    # then a low one with a rail where the frame and the corner stand.
+    K.yard_wall(312.8, -12.4, 340.0, -12.4, h=2.7)
+    K.low_wall(340.0, -12.4, 384.0, -12.4)
+    K.yard_wall(384.0, -12.4, 388.0, -12.4, h=2.7, wire=False)
+    for x in (317.4, 326.6, 335.6):
+        P.place("wall_pack", x, 2.45, -12.28, 0.0, district=D)
+        K.sodium(x, 1.6, -11.2, 5.0)
+    K.yard_wall(425.8, -83.2, 425.8, -57.0, h=2.7)
+    K.low_wall(425.8, -57.0, 425.8, -10.8)
+    for z in (-78.6, -69.8, -61.0):
+        P.place("wall_pack", 425.92, 2.45, z, PI / 2, district=D)
+        K.sodium(427.0, 1.6, z, 5.0)
+    K.low_wall(424.0, -10.8, 425.8, -10.8, lamps=0)
+    K.verge(r, 314.0, -11.2, 386.0, -11.2, step=4.6, skip=((50.0, 55.6),))
+    K.verge(r, 426.7, -82.0, 426.7, -12.0, step=4.6, skip=((66.0, 70.0),))
+    for x in (392.0, 404.0, 416.0):
+        P.place("bench", x, GY, -10.3, 0.0, district=D)
+    P.place("food_box", 398.4, GY, -10.3, 0.0, district=D)
+    P.place("bin", 409.0, GY, -10.3, district=D)
+    K.run([(332.45, 7.2, 13.8), (332.45, 7.2, 15.4), (332.45, 0.5, 15.4)], r=0.3, col=K.STEEL_BLUE)
+    box(k("metal"), 331.4, 334.6, GY, GY + 1.1, 15.0, 17.0, scale=1.0)
+    mast(342.0, -43.0, PI * 0.9, red=0.3)
+    mast(383.0, -44.0, -PI * 0.85, red=0.3)
+    mast(424.5, -44.0, -PI * 0.5)
+    mast(306.5, -56.0, PI * 0.5)
+    for x in (342.6, 381.6):
+        strip(x, -14.4, PI)
+    for z in (-70.0, -52.0):
+        strip(424.6, z, -PI / 2)
+    K.wash(386.0, 410.0, -54.8, -54.8, level=0.75, red=0.4)
+    K.wash(411.2, 411.2, -76.0, -56.0, level=0.6, red=0.3)
+    K.ring_wash(403.0, -49.0, 4.0, 0.0, PI * 2, level=0.8, red=0.4)
+    K.ring_wash(416.5, -62.0, 3.2, 0.0, PI * 2, level=0.8, red=0.3)
+    K.wash(308.0, 338.0, -14.8, -14.8, level=0.95, step=3.5)
+    K.wash(308.0, 338.0, -35.4, -35.4, level=0.5, red=0.3)
+    K.wash(310.0, 334.0, -76.0, -56.0, level=0.55, step=6.0)
+    scatter(r, 384.0, 393.0, -46.0, -40.0, 3)
+    scatter(r, 412.0, 424.0, -56.0, -40.0, 4)
+    K.bridge(333.0, -13.8, 333.0, 13.8)
+    K.run([(332.45, 7.2, -13.8), (332.45, 7.2, -15.4), (332.45, 0.4, -15.4)], r=0.3, col=K.STEEL_BLUE)
+    K.vent(360.0, -11.3)
+    K.vent(427.0, -46.0)
+    # People: on the cells' deck, at the boiler house door, smokers at the
+    # control building's side door, one by the bullets.
+    stand(337.2, -24.0, PI / 2, "lean", 9.0)
+    stand(392.6, -54.4, 0.0, "idle")
+    # The huddle at the plant's corner, where the loop turns (Fn9gKhU_2_Q@28):
+    # six in a ring on the verge between the low wall and the pavement,
+    # one with her back to the wall, none on the walkers' line.
+    for i, pose in enumerate(("talk", "talk", "idle", "lean", "smoke", "phone")):
+        a = (20 + 60 * i) * PI / 180
+        hx, hz = 426.92 + 0.6 * math.cos(a), -13.9 + 0.95 * math.sin(a)
+        stand(hx, hz, math.atan2(426.92 - hx, -13.9 - hz), pose)
+    # And four of the shift against the wall under the frame.
+    stand(365.2, -11.85, 0.3, "lean")
+    stand(366.5, -11.9, -0.2, "lean")
+    stand(366.0, -10.75, PI, "talk")
+    stand(367.6, -10.9, PI + 0.6, "smoke")
+    stand(368.5, -11.7, -0.8, "squat")
+    stand(424.8, -30.0, PI / 2, "smoke")
+    stand(425.0, -31.4, 0.3, "talk")
+    stand(309.4, -52.4, 0.0, "phone")
+    stand(330.0, -44.0, PI, "sit", GY + 0.9)
+
+
+# ---------------------------------------------------------------------------
+# South-west: two warehouses on the south street, a cold store behind a
+# dock forecourt and a sawtooth shed with its office on the pavement.
+# ---------------------------------------------------------------------------
+def depot():
+    r = R(8641)
+    K.paved(176.0, 296.0, -84.0, -36.0)
+    K.asphalt(176.0, 242.0, -36.0, -10.0)
+    K.paved(242.0, 296.0, -36.0, -10.0)
+    # The cold store: pale green, a dark band of windows, docks on a
+    # forecourt, a steel stair up its east wall (mH2wmyeiIpA@43).
+    out = K.shed(180.0, 236.0, -78.0, -36.0, 9.4, K.PALE_GREEN, r, faces={
+        "+z": dict(band=(7.4, 8.6), style=5, lit=(0.35, 0.6), docks=dict(n=6, s0=5.0, s1=47.0, first=1, open=(1, 4), half=(3,))),
+        "-z": dict(band=(6.2, 8.2), style=5, lit=(0.3, 0.55)), "-x": dict(band=(6.2, 8.2), style=5), "+x": dict(band=(6.2, 8.2), style=5, doors=False)},
+        tint="teal")
+    K.roof_furnish(K.flat_roof(180.0, 236.0, -78.0, -36.0, 9.4, r, wall=K.PALE_GREEN, lights=0.7, breathe=2), R(8642))
+    K.flue(229.6, -74.4, 9.4, 15.6, r=0.42, col=K.TANK_WHITE)
+    plat = out.get("+z", GY)
+    K.stair((237.0, GY, -44.0), (237.0, 6.0, -56.0), w=1.1, detail=0)
+    K.deck(236.0, 238.0, -58.2, -56.0, 6.0)
+    K.rail((238.0, 6.0, -58.2), (238.0, 6.0, -56.0), detail=0)
+    quad(k("door"), (236.03, 6.0, -56.4), (236.03, 6.0, -57.6), (236.03, 8.1, -57.6), (236.03, 8.1, -56.4))
+    box(k("glow"), 236.05, 236.2, 8.25, 8.4, -57.2, -56.8, scale=0.5, col=GLOW["cyan"])
+    light(D, 237.0, 6.0, -57.0, "cyan", 2.4)
+    K.wash(185.0, 227.0, -34.6, -33.0, level=0.85)
+    for i in (0, 2, 5):
+        x = 180.0 + 5.0 + (i + 0.5) * 7.0
+        truck(x, -36.0 + 2.6 + 6.5, -PI / 2, {2: "tractor_red", 5: "tractor"}.get(i), firm="CAPULSA" if i == 0 else "FESCOL", lit=i == 2, reefer=i != 0,
+              no={0: "40", 2: "17", 5: "09"}[i])
+    for i in range(7):
+        x = 185.0 + i * 7.0
+        K.stripe(x - 0.06, x + 0.06, -33.0, -18.0, K.PAINT_WHITE)
+    forklift(199.0, -34.6, 0.4, plat)
+    P.place("crates", 213.0, plat, -34.8, 0.9, district=D)
+    P.place("crates", 195.0, plat, -34.9, 2.0, district=D)
+    stand(192.4, -34.7, 0.0, "idle", plat)
+    stand(214.4, -34.4, 0.3, "phone", plat)
+    stand(206.2, -34.6, PI / 2, "talk", plat)
+    stand(207.4, -34.5, -PI / 2, "talk", plat)
+    stand(230.6, -20.0, PI, "smoke")
+    stand(225.3, -18.9, 0.6, "phone")
+    K.name_sign("FESCOL", 208.0, 10.2, -38.4, PI * 0.06, h=1.8, col=COOL)
+    fc_ = B.faces_of(180.0, 236.0, -78.0, -36.0)
+    K.stencil(fc_["+z"], 52.0, 4.6, "02", h=2.6, wall=K.PALE_GREEN)
+    K.stencil(fc_["-z"], 8.0, 4.0, "02", wall=K.PALE_GREEN)
+    K.name_sign("FESCOL", 224.6, GY, -13.8, 0.0, h=0.7, lift=3.0, col=COOL)
+    # Its forecourt's fence on the street and its gate, open.
+    K.fence(176.2, -12.4, 204.0, -12.4)
+    K.gate(204.4, -12.4, 213.6, -12.4, (0, -1), open_=True)
+    K.fence(222.4, -12.4, 246.0, -12.4)
+    K.verge(r, 178.0, -10.7, 244.0, -10.7, step=4.6, kinds=("hydrant", "bollard", "bollard", "bin", "cctv", "barrier", "lamp_short", "bollard"))
+    mast(178.0, -14.6, PI * 0.75)
+    mast(240.0, -14.6, -PI * 0.75)
+    scatter(r, 228.0, 240.0, -32.0, -14.0, 4)
+    # The sawtooth shed: its office front on the pavement, its lights
+    # facing east so the street sees every tooth.
+    out = K.shed(246.0, 290.0, -78.0, -11.2, 8.0, K.GREY, r, faces={
+        "+z": dict(band=(5.4, 7.2), style=2, lit=(0.5, 0.8), office=(4.0, 36.0)),
+        "+x": dict(band=(5.6, 7.0), style=6, docks=dict(n=4, s0=10.0, s1=42.0, raised=False, canopy=False, first=11, open=(1,), half=(3,))),
+        "-z": dict(band=(5.6, 7.0), style=6, docks=dict(n=2, s0=8.0, s1=22.0, raised=False, canopy=False, first=15)),
+        "-x": dict(band=(5.6, 7.0), style=6)}, stripe_col=K.YELLOW)
+    K.sawtooth(246.0, 290.0, -78.0, -11.2, 8.0, 7, "+x", r, wall=K.GREY, rise=2.8, lit=0.75)
+    K.wash(250.0, 286.0, -10.0, -10.0, level=0.5)
+    fs2 = B.faces_of(246.0, 290.0, -78.0, -11.2)
+    K.blade(fs2["+z"], 1.2, 3.4, "bl", scale=0.9)
+    K.blade(fs2["+z"], 42.6, 4.4, "bm", scale=1.0)
+    K.stencil(fs2["+z"], 39.6, 3.2, "03", h=2.6, wall=K.GREY)
+    K.stencil(fs2["+x"], 5.0, 3.6, "03", wall=K.GREY)
+    K.wash(291.4, 291.4, -70.0, -20.0, level=0.6)
+    door = out.get("+z_door")
+    if door:
+        P.place("vending", door[0] + 3.4, GY, -10.75, 0.0, district=D)
+        P.place("vending_warm", door[0] + 4.5, GY, -10.75, 0.0, district=D)
+        stand(door[0] - 2.2, -10.6, 0.3, "lean")
+    forklift(293.0, -56.0, -PI / 2)
+    stand(293.4, -52.6, -PI / 2, "idle")
+    scatter(r, 291.0, 295.0, -44.0, -24.0, 3, kinds=("drum_pallet", "pallets", "crates"))
+    # The lane between the two, and the apron behind them on the estate
+    # road: lamps, skips, pallets, a pipe bridge from shed to shed.
+    for z in (-70.0, -44.0):
+        strip(241.0, z, PI / 2 if z < -50 else -PI / 2, power=6.0, cone=False)
+    K.run([(236.0, 7.0, -64.0), (246.0, 7.0, -64.0)], r=0.18, col=K.RUST)
+    K.run([(236.0, 7.5, -63.4), (246.0, 7.5, -63.4)], r=0.1, col=K.YELLOW)
+    scatter(r, 237.0, 245.0, -76.0, -40.0, 5, kinds=("dumpster", "crates", "bags", "drum_pallet", "tyres"))
+    scatter(r, 182.0, 290.0, -83.0, -79.5, 8)
+    for x in (200.0, 262.0):
+        box40(x, -81.2, 0.0, "blue" if x < 230 else "red")
+    stand(205.4, -79.6, 0.0, "sit", GY + 0.9)
+    K.fence(290.0, -12.4, 295.2, -12.4)
+
+
+# ---------------------------------------------------------------------------
+# The south street's south side, west to east.
+# ---------------------------------------------------------------------------
+def price_pylon(cx, cz, yaw, h=15.0, wd=4.8):
+    """The fuel price pylon (mH2wmyeiIpA@100, JtqIas3bYhg@69): a tall black
+    slab, the brand in light on a band at its head, then five rows each in
+    its own frame of amber line: the grade's name and its price in amber
+    numerals a metre tall, on both faces."""
+    nx, nz = math.sin(yaw), math.cos(yaw)
+    rx, rz = math.cos(yaw), -math.sin(yaw)
+    oriented_box(k("board_frame"), cx, h / 2, cz, wd, h, 0.8, yaw, scale=1.0)
+    oriented_box(k("metal"), cx, 0.45, cz, wd + 0.6, 0.9, 1.3, yaw, scale=1.0)
+    oriented_box(k("neon_amber"), cx, h + 0.12, cz, wd + 0.1, 0.2, 0.9, yaw, scale=1.0)
+    rows = (("ECO", "0980"), ("PLUS", "1040"), ("98", "1125"), ("100", "1190"), ("CH4", "0745"))
+    orange = (0.8, 0.36, 0.06, 1.0)
+    line = K.shade(K.SODIUM, 0.55)
+    for face, fy in ((1, yaw), (-1, yaw + PI)):
+        ox, oz = cx + nx * 0.41 * face, cz + nz * 0.41 * face
+
+        def at(u, out=0.0, ox=ox, oz=oz, face=face):
+            return ox + rx * u * face + nx * out * face, oz + rz * u * face + nz * out * face
+
+        px, pz = at(0.0)
+        rotated_quad(k("trim"), px, h - 1.5, pz, wd - 0.3, 2.0, fy, col=orange)
+        px, pz = at(0.0, 0.02)
+        K.digits("OPALO", px, h - 1.5, pz, 1.0, fy, k("glow"), PALE, out=0.0, gap=0.26)
+        for i, (name, price) in enumerate(rows):
+            y = h - 4.0 - i * 2.3
+            px, pz = at(0.86, 0.01)
+            K.digits(price, px, y, pz, 1.0, fy, k("glow"), K.SODIUM, out=0.0, gap=0.2)
+            px, pz = at(-1.5, 0.01)
+            K.digits(name, px, y + 0.1, pz, 0.46, fy, k("glow"), K.shade(PALE, 0.8), out=0.0, gap=0.3)
+            px, pz = at(-1.5, 0.01)
+            rotated_quad(k("glow", 1), px, y - 0.45, pz, 1.2, 0.05, fy, col=line)
+            # The row's frame: a line of amber over and under it, a post each side.
+            px, pz = at(0.0, 0.01)
+            for dy in (-0.95, 0.95):
+                rotated_quad(k("glow"), px, y + dy, pz, wd - 0.5, 0.05, fy, col=line)
+            for du in (-(wd / 2 - 0.25), wd / 2 - 0.25):
+                px, pz = at(du, 0.01)
+                rotated_quad(k("glow", 1), px, y, pz, 0.05, 1.9, fy, col=line)
+    box(k("glow"), cx - 0.12, cx + 0.12, h + 0.22, h + 0.5, cz - 0.12, cz + 0.12, scale=0.5, col=GLOW["red"])
+    K.wash(cx - 3.0, cx + 3.0, cz - 2.0, cz + 2.0, level=0.7, step=3.0)
+    K.collide(cx - 2.5, cx + 2.5, cz - 1.0, cz + 1.0, h)
+
+
+def pump(ix, z, y, no):
+    """What a pump carries over its cabinet (the instance): a lit head with
+    its number, the hoses looping down each side to their nozzles in the
+    holsters, grade tags, a pale kick plate, a card reader's lamp."""
+    box(k("glow"), ix - 0.36, ix + 0.36, y + 2.06, y + 2.34, z - 0.6, z + 0.6, scale=0.5, col=K.shade(PALE, 0.55), bottom=True)
+    box(k("trim"), ix - 0.37, ix + 0.37, y + 1.92, y + 2.06, z - 0.61, z + 0.61, scale=0.5, col=(0.8, 0.36, 0.06, 1.0))
+    grades = ((0.75, 0.1, 0.06, 1.0), (0.1, 0.5, 0.2, 1.0), (0.1, 0.3, 0.7, 1.0))
+    for sd in (1, -1):
+        xf = ix + 0.322 * sd
+        K.digits(str(no), ix + 0.365 * sd, y + 2.2, z, 0.2, PI / 2 * sd, k("trim", 1), (0.03, 0.03, 0.03, 1.0), out=0.0)
+        K.quad_n(k("trim", 1), ((xf, y + 0.06, z - 0.46), (xf, y + 0.06, z + 0.46), (xf, y + 0.46, z + 0.46), (xf, y + 0.46, z - 0.46)), (sd, 0, 0), (0.7, 0.7, 0.66, 1.0))
+        for q, g in enumerate(grades):
+            zq = z - 0.3 + q * 0.3
+            K.quad_n(k("trim", 1), ((xf, y + 0.56, zq - 0.1), (xf, y + 0.56, zq + 0.1), (xf, y + 0.7, zq + 0.1), (xf, y + 0.7, zq - 0.1)), (sd, 0, 0), g)
+        K.quad_n(k("glow", 1), ((xf, y + 0.86, z + 0.34), (xf, y + 0.86, z + 0.4), (xf, y + 0.9, z + 0.4), (xf, y + 0.9, z + 0.34)), (sd, 0, 0), GLOW["green"])
+        # Two hoses: out of the cabinet's shoulder, down in a loop, up to the nozzle hung at its side.
+        for zs in (-1, 1):
+            zh = z + zs * 0.53
+            pts = ((ix + 0.2 * sd, y + 1.82, zh), (ix + 0.42 * sd, y + 1.5, zh + zs * 0.06), (ix + 0.46 * sd, y + 0.62, zh + zs * 0.1), (ix + 0.38 * sd, y + 0.5, zh + zs * 0.05),
+                   (ix + 0.3 * sd, y + 0.95, zh + zs * 0.03), (ix + 0.24 * sd, y + 1.18, zh + zs * 0.03))
+            for pa, pb in zip(pts, pts[1:]):
+                pipe(K.M("steel", 1), pa, pb, 0.028, segs=5, col=(0.02, 0.02, 0.025, 1.0))
+            box(K.M("steel", 1), ix + 0.18 * sd - 0.05, ix + 0.18 * sd + 0.05, y + 1.12, y + 1.36, zh + zs * 0.03 - 0.04, zh + zs * 0.03 + 0.04, scale=0.5,
+                col=grades[0] if zs < 0 else grades[1])
+
+
+def fuel():
+    r = R(8651)
+    K.asphalt(108.0, 178.0, 12.0, 45.0)
+    # The canopy: a slab on six columns over three islands, its underside
+    # lit white, an amber line round its fascia.
+    CX0, CX1, CZ0, CZ1, CY = 128.0, 166.0, 17.0, 31.0, 5.5
+    box(K.M("steel"), CX0, CX1, CY, CY + 0.8, CZ0, CZ1, scale=1.0, col=K.TANK_WHITE, bottom=True)
+    # Its underside: panels with their joints, the lamps set into them.
+    K.quad_n(k("trim"), ((CX0 + 0.05, CY - 0.012, CZ0 + 0.05), (CX1 - 0.05, CY - 0.012, CZ0 + 0.05), (CX1 - 0.05, CY - 0.012, CZ1 - 0.05), (CX0 + 0.05, CY - 0.012, CZ1 - 0.05)),
+             (0, -1, 0), (0.36, 0.37, 0.38, 1.0))
+    x = CX0 + 1.9
+    while x < CX1 - 0.5:
+        K.quad_n(k("dark", 1), ((x - 0.02, CY - 0.02, CZ0), (x + 0.02, CY - 0.02, CZ0), (x + 0.02, CY - 0.02, CZ1), (x - 0.02, CY - 0.02, CZ1)), (0, -1, 0))
+        x += 1.9
+    z = CZ0 + 2.0
+    while z < CZ1 - 0.5:
+        K.quad_n(k("dark", 1), ((CX0, CY - 0.02, z - 0.02), (CX1, CY - 0.02, z - 0.02), (CX1, CY - 0.02, z + 0.02), (CX0, CY - 0.02, z + 0.02)), (0, -1, 0))
+        z += 2.0
+    walls(k("neon_amber"), [(CX0 - 0.05, CZ1 + 0.05), (CX1 + 0.05, CZ1 + 0.05), (CX1 + 0.05, CZ0 - 0.05), (CX0 - 0.05, CZ0 - 0.05)], CY + 0.56, CY + 0.7, (1, 1, 1, 1))
+    walls(k("trim"), [(CX0 - 0.04, CZ1 + 0.04), (CX1 + 0.04, CZ1 + 0.04), (CX1 + 0.04, CZ0 - 0.04), (CX0 - 0.04, CZ0 - 0.04)], CY + 0.1, CY + 0.42, K.OXIDE)
+    quad(k("roof"), (CX0, CY + 0.81, CZ1), (CX1, CY + 0.81, CZ1), (CX1, CY + 0.81, CZ0), (CX0, CY + 0.81, CZ0))
+    # The brand on the fascia, all four sides.
+    for (px, pz, fy) in ((147.0, CZ0 - 0.07, PI), (CX0 - 0.07, 24.0, -PI / 2), (CX1 + 0.07, 24.0, PI / 2), (147.0, CZ1 + 0.07, 0.0)):
+        K.digits("OPALO", px, CY + 0.3, pz, 0.44, fy, k("glow"), PALE, out=0.0, gap=0.3)
+    for ix in (134.0, 147.0, 160.0):
+        box(K.M("concrete"), ix - 0.7, ix + 0.7, GY, GY + 0.2, 19.0, 29.0, scale=1.0, col=K.CONC)
+        for z in (20.2, 27.8):
+            K.column(ix, z, GY, CY, t=0.42, mat=K.MAT["steel"], col=K.shade(K.TANK_WHITE, 0.6))
+            cylinder(k("hazard", 1), ix, z + (1.6 if z > 24 else -1.6), GY, GY + 1.1, 0.14, segs=8)
+        for z in (22.4, 25.6):
+            P.place("pump", ix, GY + 0.2, z, 0.0, district=D)
+            pump(ix, z, GY + 0.2, {134.0: 1, 147.0: 3, 160.0: 5}[ix] + (z > 24))
+            for sd in (1, -1):
+                xq = ix + 0.315 * sd
+                K.quad_n(k("glow"), ((xq, GY + 1.3, z - 0.4), (xq, GY + 1.3, z + 0.4), (xq, GY + 1.9, z + 0.4), (xq, GY + 1.9, z - 0.4)), (sd, 0, 0), K.shade(K.GLASS_COOL, 2.2))
+                K.quad_n(k("glow"), ((xq, GY + 0.95, z - 0.3), (xq, GY + 0.95, z + 0.3), (xq, GY + 1.15, z + 0.3), (xq, GY + 1.15, z - 0.3)), (sd, 0, 0), K.SODIUM)
+        for z in (21.0, 24.0, 27.0):
+            for lx in (ix - 2.0, ix + 2.0):
+                # A troffer: a dark bezel, its lens hard-edged in it, its light on the forecourt.
+                K.quad_n(k("dark"), ((lx - 0.75, CY - 0.03, z - 0.4), (lx + 0.75, CY - 0.03, z - 0.4), (lx + 0.75, CY - 0.03, z + 0.4), (lx - 0.75, CY - 0.03, z + 0.4)), (0, -1, 0))
+                K.quad_n(k("glow"), ((lx - 0.6, CY - 0.04, z - 0.26), (lx + 0.6, CY - 0.04, z - 0.26), (lx + 0.6, CY - 0.04, z + 0.26), (lx - 0.6, CY - 0.04, z + 0.26)), (0, -1, 0),
+                         (0.62, 0.62, 0.56, 1.0))
+                light(D, lx, 1.0, z, "white", 1.0)
+    K.wash(CX0 + 1.0, CX1 - 1.0, CZ0 + 1.0, CZ1 - 1.0, level=0.7, hue="white")
+    K.collide(CX0, CX1, CZ0, CZ1, CY + 0.8, y0=CY)
+    # The kiosk behind it: a shop the whole width, lit, a canopy over its
+    # door.
+    lot = B.Lot(138.0, 170.0, 36.0, 44.6, "-z", {"-z": "street", "+z": "back", "-x": "open", "+x": "open"}, {}, D)
+    B.building(lot, 5.6, r, style=dict(STYLE, awning=0.0, shop_sign=1.0, signs=0.0, canopy=1.0, roof_cap=2.4, pipes=0.0, cornice=1.0), ground="shops", tint="concrete")
+    # The pylon on the x 120 road's axis, turned to the street; a hoarding
+    # on a mast at the east end, turned to the cars coming from the plant.
+    price_pylon(121.2, 15.0, PI * 0.62)
+    cylinder(k("metal"), 173.4, 41.0, GY, 11.6, 0.4, segs=8)
+    B.billboard(D, 173.4 + 0.5, 14.2, 41.0 - 0.3, 10.0, 5.0, PI * 0.36, r, depth=0.5)
+    for dx in (-3.6, 3.6):
+        box(k("neon_white"), 173.4 + dx - 0.5, 173.4 + dx + 0.5, 11.3, 11.4, 39.6, 39.9, scale=0.5, bottom=True)
+    # The yard's back wall, pasted with boards; what a forecourt keeps.
+    K.yard_wall(108.4, 44.8, 138.0, 44.8, r=r, posters=0.8, face=-1)
+    K.yard_wall(170.0, 44.8, 178.0, 44.8, r=r, face=-1)
+    P.place("vending", 137.4, GY, 38.4, -PI / 2, district=D)
+    P.place("vending_warm", 137.4, GY, 39.6, -PI / 2, district=D)
+    P.place("phone_booth", 111.6, GY, 41.0, PI / 2, district=D)
+    P.place("tyres", 171.2, GY, 37.2, 0.0, district=D)
+    P.place("tyres", 172.1, GY, 37.6, 0.6, district=D)
+    P.place("pallets", 172.6, GY, 43.4, 0.0, district=D)
+    for x, z in ((121.0, 36.6), (168.0, 33.6), (146.4, 35.3)):
+        P.place("bin", x, GY, z, district=D)
+    # The delivery: a tanker in the lane between the canopy and the kiosk,
+    # its hose down to the fill point's lids, cones round them, the driver.
+    truck(129.6, 33.5, PI, "tractor", firm="OPALO", lit=True, tank=True)
+    for i, fx in enumerate((129.2, 130.2, 131.2)):
+        cylinder(K.M("steel"), fx, 30.9, GY, GY + 0.05, 0.34, segs=10, col=(K.OXIDE, K.GREY, K.GREY)[i])
+    K.run([(130.0, 0.95, 32.2), (130.0, 0.24, 31.7), (129.4, 0.2, 31.1), (129.2, 0.2, 30.9)], r=0.055, col=(0.03, 0.03, 0.035, 1.0), detail=1, flanges=99.0)
+    for cx_, cz_ in ((128.2, 30.2), (132.2, 30.2), (128.2, 31.9), (132.4, 31.6)):
+        cylinder(k("trim"), cx_, cz_, GY, GY + 0.5, 0.13, segs=6, col=(0.85, 0.3, 0.05, 1.0))
+        cylinder(k("trim", 1), cx_, cz_, GY + 0.28, GY + 0.36, 0.14, segs=6, col=K.PAINT_WHITE, cap=False)
+    stand(131.0, 31.6, -2.29, "work")
+    # The air and water post, its lamp.
+    box(k("metal"), 124.0, 124.8, GY, GY + 1.5, 36.0, 36.6, scale=0.6)
+    box(k("glow"), 124.1, 124.7, GY + 1.5, GY + 1.75, 36.05, 36.55, scale=0.5, col=GLOW["cyan"])
+    light(D, 124.4, 1.6, 35.0, "cyan", 2.6)
+    # A food counter at the west end, under a dyed awning with lanterns:
+    # where the drivers eat.
+    box(k("trim"), 112.0, 118.0, GY, GY + 1.05, 38.6, 39.4, scale=1.0, col=K.WOOD)
+    box(k("trim"), 112.0, 118.0, GY, GY + 2.6, 42.6, 43.0, scale=1.0, col=K.RUST_D)
+    for x in (112.1, 117.9):
+        K.column(x, 38.4, GY, 2.7, t=0.1, mat="metal")
+    dye = (1.0, 0.45, 0.12, 1.0)
+    pts = ((112.0, 2.9, 43.0), (118.0, 2.9, 43.0), (118.0, 2.5, 37.6), (112.0, 2.5, 37.6))
+    quad(k("awning", 1), pts[3], pts[2], pts[1], pts[0], col=dye)
+    quad(k("awning", 1), *pts, col=dye)
+    box(k("neon_amber"), 112.0, 118.0, 2.42, 2.5, 37.56, 37.62, scale=1.0)
+    for x in (113.0, 114.4, 115.8, 117.2):
+        P.place("lantern", x, 2.1, 37.9, district=D)
+    K.wash(112.0, 118.0, 37.0, 40.0, level=0.7, red=0.3, step=3.0)
+    for x in (113.2, 116.6):
+        P.place("crates", x, GY, 36.6, 0.3 * x, district=D)
+    # People: a vendor behind the counter and two eating, one at a pump on
+    # the phone, two at the kiosk door, one squatting by the air post.
+    stand(115.0, 40.6, PI, "vendor")
+    stand(113.6, 37.9, 0.0, "idle")
+    stand(116.6, 36.3, 0.0, "sit", GY + 1.1)
+    stand(132.6, 23.2, PI / 2, "idle")
+    stand(148.1, 24.4, 0.5, "idle")
+    stand(161.1, 21.0, PI / 2 + 0.4, "phone")
+    stand(158.4, 32.6, PI, "idle")
+    stand(153.6, 34.8, 0.6, "talk")
+    stand(154.8, 35.0, -1.9, "talk")
+    stand(125.6, 36.4, -PI / 2, "squat")
+    stand(169.0, 35.0, PI, "smoke")
+
+
+def street_shed():
+    """The sawtooth shed on the south side: roller doors straight on the
+    street's apron, its teeth in profile down the street."""
+    r = R(8661)
+    K.paved(178.0, 260.0, 12.0, 45.0)
+    out = K.shed(182.0, 256.0, 16.0, 44.0, 8.0, K.CREAM, r, faces={
+        "-z": dict(band=(5.6, 7.2), style=6, lit=(0.35, 0.65), office=(52.0, 70.0),
+                   docks=dict(n=5, s0=6.0, s1=46.0, raised=False, canopy=False, first=1, open=(1,), half=(3,))),
+        "+z": dict(dress=False), "-x": dict(band=(5.6, 7.2), style=6, posters=0.3), "+x": dict(band=(5.6, 7.2), style=6)}, stripe_col=K.STEEL_BLUE)
+    K.sawtooth(182.0, 256.0, 16.0, 44.0, 8.0, 8, "+x", r, wall=K.CREAM, rise=3.0, lit=0.8)
+    K.wash(184.0, 254.0, 14.4, 14.4, level=0.55)
+    fs1 = B.faces_of(182.0, 256.0, 16.0, 44.0)
+    K.blade(fs1["-z"], 0.8, 3.6, "bl", scale=0.9)
+    K.blade(fs1["-z"], 50.4, 4.2, "bm")
+    K.stencil(fs1["-z"], 3.4, 3.4, "05", h=2.8, wall=K.CREAM)
+    K.stencil(fs1["+x"], 14.0, 4.0, "05", wall=K.CREAM)
+    K.name_sign("LUPACO", 196.0, 9.6, 30.0, PI * 0.92, h=1.8, lift=2.2)
+    for x in (188.0, 212.0, 236.0):
+        cylinder(k("hazard", 1), x, 13.0, GY, GY + 1.1, 0.14, segs=8)
+    forklift(240.5, 14.2, PI, load="pallets")
+    stand(237.5, 14.9, PI, "idle")
+    stand(243.0, 14.9, PI * 0.8, "talk")
+    stand(244.0, 14.0, -PI * 0.3, "talk")
+    scatter(r, 216.0, 232.0, 13.2, 15.0, 3, kinds=("crates", "drum_pallet", "pallets"))
+    K.yard_wall(178.0, 44.8, 260.0, 44.8, r=r, face=-1)
+    for z in (20.0, 36.0):
+        strip(259.0, z, -PI / 2, power=6.0, cone=False)
+    scatter(r, 257.0, 259.6, 18.0, 36.4, 4, kinds=("dumpster", "crates", "tyres", "bags"))
+
+
+def container_yard():
+    """Stacks of containers under an orange portal gantry, a box in its
+    grab (JtqIas3bYhg@80, x4ztgjvfU60@38)."""
+    r = R(8662)
+    K.asphalt(260.0, 340.0, 12.0, 45.0)
+
+    def pick():
+        return r.choice(BOX_MIX)
+
+    def stack(x, z, yaw, hi, twenty=0.1):
+        for n in range(hi):
+            if r.random() < twenty and abs(math.sin(yaw)) < 0.5:
+                for dx in (-3.07, 3.07):
+                    P.place("c20_grey", x + dx, GY + n * 2.6, z, yaw, district=D)
+            else:
+                P.place(pick(), x, GY + n * 2.6, z, yaw + (PI if r.random() < 0.2 else 0.0), district=D)
+
+    # The west block end-on to the street, its door ends over the fence;
+    # eight lanes two deep, two to four high.
+    for kx in range(7):
+        x = 263.8 + kx * 2.84
+        stack(x, 23.0, PI / 2, r.choice((2, 3, 3, 4, 4)))
+        stack(x, 35.4, PI / 2, r.choice((3, 3, 4, 4)))
+    # Under the gantry's span, its trolley's lane left open across the
+    # middle; the east block long side on, stepping up to the back wall.
+    for cx in (295.3, 307.9):
+        # (The lane in from the gate under the gantry stays open to z 23.)
+        for j, cz in enumerate((24.4, 27.24, 30.08, 32.92, 35.76, 38.6)):
+            stack(cx, cz, 0.0, r.choice((1, 2, 2)) if j in (1, 2) else r.choice((1, 2, 3, 3)))
+    for cx in (321.6, 333.9):
+        for j in range(9):
+            cz = 18.4 + j * 2.84
+            stack(cx, cz, 0.0, r.choice((1, 2, 2, 3)) if j < 3 else r.choice((3, 3, 4, 4)))
+    # The reach stacker in the lane between the blocks, its boom raised
+    # over the west block's front; drums on pallets along the fence.
+    P.place("reach_stacker", 285.0, GY, 30.0, PI / 2, district=D)
+    light(D, 285.0, 9.2, 21.4, "amber", 2.6)
+    stand(287.6, 21.0, PI, "idle")
+    place_row("drum_pallet", 264.5, 13.7, 286.0, 13.7, 9, 0.0, 0.5, r)
+    place_row("drum_pallet", 316.0, 13.7, 336.0, 13.7, 8, 0.0, 0.5, r)
+    # Tall masts in the front lane lighting the stacks' street faces.
+    for (mx, ln_) in ((287.0, 16.6), (314.7, 16.4)):
+        P.place("flood_mast", mx, GY, ln_, 0.0, sy=1.9, district=D)
+        for dx in (-1.05, -0.35, 0.35, 1.05):
+            rotated_quad(k("neon_amber"), mx + dx, GY + 11.53 * 1.9, ln_ + 0.12, 0.5, 0.32, 0.0)
+    for (x, y, z) in ((266.0, 6.5, 15.4), (273.0, 9.0, 15.4), (280.0, 6.5, 15.4), (318.0, 7.5, 16.0), (326.0, 9.5, 16.0), (334.0, 7.0, 16.0)):
+        K.sodium(x, y, z, 5.5, red=0.25)
+    # The gantry: two legs a side on rails along the yard, twin girders
+    # across it, the trolley and its cab, a box hanging in the grab.
+    GX, Z0, Z1, TOP = 301.0, 15.4, 43.6, 16.0
+    for z in (Z0, Z1):
+        box(k("metal", 1), 262.0, 338.0, GY, GY + 0.12, z - 0.12, z + 0.12, scale=1.0)
+        for x in (GX - 4.0, GX + 4.0):
+            K.column(x, z, GY + 0.1, TOP - 1.4, t=0.7, mat=K.MAT["steel"], col=K.GANTRY)
+            box(K.M("steel"), x - 0.9, x + 0.9, GY + 0.1, GY + 0.9, z - 0.5, z + 0.5, scale=1.0, col=K.shade(K.GANTRY, 0.7))
+        box(K.M("steel"), GX - 4.6, GX + 4.6, TOP - 2.2, TOP - 1.4, z - 0.4, z + 0.4, scale=1.0, col=K.GANTRY, bottom=True)
+        K.brace((GX - 4.0, GY + 1.0, z), (GX, TOP - 2.2, z), r=0.18, mat=K.MAT["steel"], col=K.GANTRY)
+        K.brace((GX + 4.0, GY + 1.0, z), (GX, TOP - 2.2, z), r=0.18, mat=K.MAT["steel"], col=K.GANTRY)
+    for x in (GX - 2.6, GX + 2.6):
+        box(K.M("steel"), x - 0.5, x + 0.5, TOP - 1.4, TOP, Z0 - 2.2, Z1 + 1.2, scale=1.0, col=K.GANTRY, bottom=True)
+        K.rail((x - 0.5 if x < GX else x + 0.5, TOP, Z0 - 2.0), (x - 0.5 if x < GX else x + 0.5, TOP, Z1 + 1.0), detail=1)
+    for x in (GX - 2.6, GX + 2.6):
+        z = Z0 - 1.6
+        while z < Z1 + 1.0:
+            box(K.M("steel", 1), x - 0.56, x + 0.56, TOP - 1.36, TOP - 0.04, z - 0.04, z + 0.04, scale=1.0, col=K.shade(K.GANTRY, 0.6))
+            z += 2.4
+    for z in (Z0, Z1):
+        for x in (GX - 4.5, GX - 3.5, GX + 3.5, GX + 4.5):
+            pipe(K.M("steel", 1), (x, GY + 0.36, z - 0.3), (x, GY + 0.36, z + 0.3), 0.26, segs=8, col=K.STEEL, caps=True)
+    tz = 28.2
+    box(K.M("steel"), GX - 3.2, GX + 3.2, TOP, TOP + 1.6, tz - 2.2, tz + 2.2, scale=1.0, col=K.shade(K.GANTRY, 0.8))
+    # The driver's cab hung under the trolley on four hangers: the gantry's
+    # orange, glazed all round, a lamp under its floor.
+    cab = K.shade(K.GANTRY, 0.85)
+    box(K.M("steel"), GX + 1.0, GX + 3.4, TOP - 4.2, TOP - 1.6, tz + 2.4, tz + 4.6, scale=1.0, col=cab, bottom=True)
+    box(K.M("steel"), GX + 0.9, GX + 3.5, TOP - 1.64, TOP - 1.52, tz + 2.3, tz + 4.7, scale=1.0, col=K.shade(K.GANTRY, 0.5), bottom=True)
+    for hx_ in (GX + 1.1, GX + 3.3):
+        for hz_ in (tz + 2.5, tz + 4.5):
+            box(K.M("steel", 1), hx_ - 0.05, hx_ + 0.05, TOP - 1.52, TOP, hz_ - 0.05, hz_ + 0.05, scale=1.0, col=K.shade(K.GANTRY, 0.6))
+    glass = K.shade(K.GLASS_COOL, 1.6)
+    K.quad_n(k("glow"), ((GX + 0.98, TOP - 3.6, tz + 2.6), (GX + 0.98, TOP - 3.6, tz + 4.4), (GX + 0.98, TOP - 2.2, tz + 4.4), (GX + 0.98, TOP - 2.2, tz + 2.6)), (-1, 0, 0), glass)
+    K.quad_n(k("glow"), ((GX + 3.42, TOP - 3.6, tz + 2.6), (GX + 3.42, TOP - 3.6, tz + 4.4), (GX + 3.42, TOP - 2.2, tz + 4.4), (GX + 3.42, TOP - 2.2, tz + 2.6)), (1, 0, 0), glass)
+    K.quad_n(k("glow"), ((GX + 1.2, TOP - 3.6, tz + 2.38), (GX + 3.2, TOP - 3.6, tz + 2.38), (GX + 3.2, TOP - 2.2, tz + 2.38), (GX + 1.2, TOP - 2.2, tz + 2.38)), (0, 0, -1), glass)
+    K.quad_n(k("glow"), ((GX + 1.2, TOP - 3.6, tz + 4.62), (GX + 3.2, TOP - 3.6, tz + 4.62), (GX + 3.2, TOP - 2.2, tz + 4.62), (GX + 1.2, TOP - 2.2, tz + 4.62)), (0, 0, 1), glass)
+    for xq, nx_ in ((GX + 0.988, -1), (GX + 3.412, 1)):
+        # A white band along each side under the glass.
+        K.quad_n(k("trim", 1), ((xq, TOP - 4.0, tz + 2.4), (xq, TOP - 4.0, tz + 4.6), (xq, TOP - 3.8, tz + 4.6), (xq, TOP - 3.8, tz + 2.4)), (nx_, 0, 0), K.PAINT_WHITE)
+    box(k("neon_white"), GX + 1.9, GX + 2.5, TOP - 4.3, TOP - 4.22, tz + 3.2, tz + 3.8, scale=0.5, bottom=True)
+    # The load: a container in the spreader's grab, hung on four falls of
+    # rope from the trolley's sheaves, guides at the spreader's corners.
+    box(K.M("steel"), GX - 6.1, GX + 6.1, 9.2, 9.5, tz - 1.25, tz + 1.25, scale=1.0, col=K.YELLOW, bottom=True)
+    box(K.M("steel"), GX - 1.6, GX + 1.6, 9.5, 10.1, tz - 0.8, tz + 0.8, scale=1.0, col=K.shade(K.YELLOW, 0.7))
+    for sx in (-5.6, 5.6):
+        for sz in (-1.0, 1.0):
+            xa, xb = GX + sx * 0.3, GX + sx
+            K.both(k("dark"), ((xa - 0.05, TOP - 1.4, tz + sz), (xa + 0.05, TOP - 1.4, tz + sz), (xb + 0.05, 9.5, tz + sz), (xb - 0.05, 9.5, tz + sz)))
+            K.both(k("dark", 1), ((xa, TOP - 1.4, tz + sz - 0.05), (xa, TOP - 1.4, tz + sz + 0.05), (xb, 9.5, tz + sz + 0.05), (xb, 9.5, tz + sz - 0.05)))
+            box(K.M("steel", 1), xb - 0.22, xb + 0.22, 9.5, 9.86, tz + sz - 0.14, tz + sz + 0.14, scale=0.5, col=K.STEEL)
+            gx_ = GX + (6.2 if sx > 0 else -6.2)
+            box(K.M("steel", 1), gx_ - 0.07, gx_ + 0.07, 8.6, 9.2, tz + sz * 1.27 - 0.07, tz + sz * 1.27 + 0.07, scale=0.5, col=K.YELLOW)
+    for sx in (-6.0, 6.0):
+        box(k("glow"), GX + sx - 0.1, GX + sx + 0.1, 9.5, 9.66, tz - 0.1, tz + 0.1, scale=0.5, col=GLOW["amber"])
+    K.container(GX, tz, 0.0, "red", y=6.6, solid=False)
+    for z in (Z0 + 3.0, tz - 6.0, tz + 8.0, Z1 - 3.0):
+        for x in (GX - 2.6, GX + 2.6):
+            box(k("neon_white"), x - 0.4, x + 0.4, TOP - 1.52, TOP - 1.4, z - 0.3, z + 0.3, scale=0.5, bottom=True)
+    for x in (GX - 3.2, GX + 3.2):
+        box(k("glow"), x - 0.12, x + 0.12, TOP + 1.6, TOP + 1.9, tz - 0.12, tz + 0.12, scale=0.5, col=GLOW["red"])
+    for z in (Z0, Z1):
+        box(k("glow"), GX - 4.5, GX - 4.2, 2.2, 2.5, z - 0.16, z + 0.16, scale=0.5, col=K.SODIUM)
+    K.ladder(GX + 4.36, Z0, GY + 1.0, TOP - 1.4, PI / 2)
+    for z in (Z0 + 6.5, Z1 - 6.5):
+        for x in (GX - 2.6, GX + 2.6):
+            K.tube(x, TOP - 1.46, z, PI / 2, ln=2.2, power=5.0, red=0.1)
+    for z in (Z0, Z1):
+        for x in (GX - 4.0, GX + 4.0):
+            box(k("neon_amber"), x - 0.04, x + 0.04, 3.2, 4.8, z + (0.36 if z == Z0 else -0.42), z + (0.42 if z == Z0 else -0.36), scale=0.5)
+    K.wash(GX - 9.0, GX + 9.0, Z0 + 1.0, Z1 - 1.0, level=0.85, hue="white", step=5.0)
+    K.collide(GX - 4.4, GX - 3.6, Z0 - 0.4, Z0 + 0.4, TOP)
+    K.collide(GX + 3.6, GX + 4.4, Z0 - 0.4, Z0 + 0.4, TOP)
+    # Fence and gate on the street, floods at the corners, the back wall.
+    K.fence(260.2, 12.4, 295.6, 12.4)
+    K.gate(296.0, 12.4, 305.6, 12.4, (0, 1), open_=True)
+    K.fence(314.4, 12.4, 340.0, 12.4)
+    K.yard_wall(260.0, 44.8, 340.0, 44.8, r=r, face=-1)
+    K.name_sign("CAPULSA", 290.6, GY, 14.2, PI, h=0.75, lift=3.4)
+    mast(262.0, 14.2, PI * 0.25, hue="white", level=0.6)
+    mast(338.0, 14.2, -PI * 0.25, hue="white", level=0.6)
+    K.wash(264.0, 338.0, 17.6, 17.6, level=0.5, step=6.0)
+    forklift(309.0, 16.6, 1.2)
+    scatter(r, 290.0, 312.0, 14.0, 17.4, 3, kinds=("pallets", "drum_pallet", "tyres"))
+    stand(303.0, 17.4, PI, "talk")
+    stand(304.3, 16.8, -PI * 0.6, "talk")
+    stand(288.4, 18.4, PI, "lean")
+    stand(318.0, 15.6, PI, "smoke")
+
+
+def substation():
+    """A fenced compound: three transformers, two bus gantries strung with
+    insulators, the lines coming in off the street's poles."""
+    r = R(8663)
+    K.paved(340.0, 388.0, 12.0, 45.0)
+    for x in (352.0, 364.0, 376.0):
+        P.place("transformer", x, GY, 37.0, 0.0, district=D)
+        box(k("glow"), x - 0.08, x + 0.08, GY + 2.6, GY + 2.75, 37.82, 37.92, scale=0.5, col=GLOW["cyan"])
+        K.sodium(x, 1.0, 34.6, 3.0, hue="cyan")
+    for z in (19.0, 27.0):
+        for x in (346.0, 382.0):
+            K.column(x - 0.5, z, GY, 9.4, t=0.2, mat="metal")
+            K.column(x + 0.5, z, GY, 9.4, t=0.2, mat="metal")
+            for y in (0.4, 3.3, 6.2):
+                K.xbrace(x - 0.5, z, x + 0.5, z, y, y + 2.9, r=0.04, mat="metal", detail=1)
+        box(k("metal"), 345.4, 382.6, 9.0, 9.2, z - 0.25, z + 0.25, scale=1.0, bottom=True)
+        box(k("metal"), 345.4, 382.6, 9.9, 10.05, z - 0.12, z + 0.12, scale=1.0, bottom=True)
+        x = 346.0
+        while x < 382.0:
+            K.brace((x, 9.2, z), (x + 3.0, 9.9, z), r=0.035, mat="metal", detail=1)
+            K.brace((x + 3.0, 9.9, z), (x + 6.0, 9.2, z), r=0.035, mat="metal", detail=1)
+            x += 6.0
+        for x in (352.0, 364.0, 376.0):
+            for dx in (-0.8, 0.0, 0.8):
+                cylinder(k("trim", 1), x + dx, z, 8.0, 9.0, 0.09, segs=5, col=K.CREAM, cap=False)
+    for x in (352.0, 364.0, 376.0):
+        for dx in (-0.8, 0.0, 0.8):
+            K.cable((x + dx, 8.0, 19.0), (x + dx, 8.0, 27.0), sag=0.5, steps=5)
+            K.cable((x + dx, 8.0, 27.0), (x + dx, GY + 3.7, 37.0), sag=0.9, steps=5)
+    # The switch house, its door lamp; the fence, hung with warnings.
+    K.shed(378.0, 386.0, 39.0, 44.4, 3.6, K.GREY, r, faces={"-z": dict(dress=True), "+z": dict(hidden=True)}, plinth=0.4)
+    K.flat_roof(378.0, 386.0, 39.0, 44.4, 3.6, r, wall=K.GREY, lights=0.0, plant=False)
+    K.fence(342.4, 14.6, 386.4, 14.6, signs=0.3)
+    for i, x in enumerate((353.0, 376.0)):
+        byaw = PI + (0.3 if i % 2 else -0.24)
+        for du in (-2.0, 2.0):
+            px, pz = x + math.cos(byaw) * du, 13.5 - math.sin(byaw) * du
+            box(k("metal", 1), px - 0.09, px + 0.09, GY, 4.6, pz + 0.2, pz + 0.38, scale=0.5)
+        B.billboard(D, x, 6.1, 13.5, 5.8, 2.9, byaw, r, depth=0.3)
+        box(k("neon_amber"), x - 2.0, x + 2.0, 4.42, 4.5, 12.9, 13.05, scale=0.5, bottom=True)
+    K.fence(342.4, 14.6, 342.4, 44.6, signs=0.15)
+    K.fence(386.4, 14.6, 386.4, 39.0, signs=0.15)
+    K.yard_wall(340.0, 44.8, 388.0, 44.8, r=r, face=-1)
+    strip(344.0, 16.4, 0.0, power=6.0)
+    strip(384.6, 22.0, -PI / 2, power=6.0, cone=False)
+    K.wash(346.0, 382.0, 17.0, 34.0, level=0.6, hue="white", step=6.0)
+    for z in (19.0, 27.0):
+        for x in (355.0, 364.0, 373.0):
+            box(k("glow"), x - 0.1, x + 0.1, 9.2, 9.4, z - 0.1, z + 0.1, scale=0.5, col=GLOW["cyan"])
+    for x in (346.0, 382.0):
+        box(k("glow"), x - 0.1, x + 0.1, 10.05, 10.3, 18.9, 19.1, scale=0.5, col=GLOW["red"])
+    scatter(r, 388.5, 391.0, 14.0, 26.0, 2, kinds=("reel", "reel", "pallets"))
+    stand(380.4, 37.6, PI, "idle")
+    return [(352.0, 9.0, 19.0), (364.0, 9.0, 19.0), (376.0, 9.0, 19.0)]
+
+
+def workshop():
+    """A scrapper's workshop: two bays open on a yard of tyres, drums and
+    reels behind a wall pasted with boards."""
+    r = R(8664)
+    K.paved(388.0, 424.0, 12.0, 45.0)
+    out = K.shed(392.0, 420.0, 30.0, 44.4, 6.4, K.RUST_D, r, faces={
+        "-z": dict(docks=dict(n=3, s0=2.0, s1=26.0, raised=False, canopy=False, first=1, open=(0, 2), half=(1,))),
+        "+z": dict(hidden=True), "-x": dict(dress=False), "+x": dict(dress=False)}, plinth=0.6, tint="rust")
+    K.roof_furnish(K.flat_roof(392.0, 420.0, 30.0, 44.4, 6.4, r, wall=K.RUST_D, lights=0.6, breathe=1), R(8667))
+    K.flue(416.6, 41.0, 6.4, 12.0, r=0.38, col=K.RUST)
+    K.wash(394.0, 418.0, 27.4, 29.0, level=0.9)
+    K.fence(388.4, 12.5, 400.0, 12.5)
+    K.gate(400.6, 12.5, 407.4, 12.5, (0, 1), open_=True)
+    K.fence(414.0, 12.5, 423.6, 12.5)
+    K.name_sign("CHAPAS", 395.0, GY, 14.2, PI, h=0.75, lift=3.6)
+    scatter(r, 389.6, 399.0, 14.4, 27.0, 9, kinds=("tyres", "tyres", "drum_pallet", "reel", "crates", "drum", "pallets"))
+    scatter(r, 409.0, 422.0, 14.4, 26.0, 7, kinds=("tyres", "drum_pallet", "reel", "crates", "drum"))
+    box40(419.0, 21.0, PI / 2, "grey", ln=6.06)
+    hook = K.crane(410.4, 18.6, -PI * 0.62, h=10.5, jib=14.0)
+    P.place("tyres", hook[0], hook[1] - 1.7, hook[2], 0.0, district=D)
+    K.wash(402.0, 414.0, 15.0, 24.0, level=0.6, step=5.0)
+    byaw = PI - 0.5
+    for du in (-3.4, 3.4):
+        px, pz = 405.0 + math.cos(byaw) * du - math.sin(byaw) * 0.2, 36.7 - math.sin(byaw) * du - math.cos(byaw) * 0.2
+        box(k("metal", 1), px - 0.1, px + 0.1, 6.4, 8.2, pz - 0.1, pz + 0.1, scale=0.5)
+    B.billboard(D, 405.0, 9.9, 36.7, 9.6, 3.4, byaw, r, depth=0.3)
+    box40(390.4, 37.0, PI / 2, "rust")
+    strip(404.0, 26.6, PI, power=6.0)
+    stand(397.4, 28.6, PI, "work")
+    stand(399.0, 28.0, PI * 0.7, "idle")
+    stand(412.6, 27.8, PI, "smoke")
+    stand(415.6, 16.8, PI, "sit", GY + 1.0)
+    stand(408.6, 13.9, PI, "smoke")
+
+
+def hall(f, door):
+    """The loading hall in the podium under the two blocks: its door
+    standing open under a canopy, striped jambs and lintel, the shutter
+    part down, tube lights along the ceiling, racking at the back, a truck
+    nosing out, a forklift, pallets, and the shift inside."""
+    s0, s1, head = door
+    cx, _, cz = f.p((f.a0 + f.a1) / 2, 0.0, 0.0)
+    rx, rz = math.cos(f.yaw), -math.sin(f.yaw)
+
+    def u_of(s):
+        px, _, pz = f.p(f.at(s), 0.0, 0.0)
+        return (px - cx) * rx + (pz - cz) * rz
+
+    black = (0.02, 0.02, 0.022, 1.0)
+    # Jambs and lintel in yellow and black, the canopy and its tube.
+    for sj in (s0 - 0.45, s1):
+        f.box(k("hazard"), sj, sj + 0.45, 0.0, head, 0.0, 0.14)
+        for i in range(6):
+            f.box(k("dark", 1), sj - 0.01, sj + 0.46, 0.5 + i * 1.0, 1.0 + i * 1.0, 0.0, 0.15)
+    f.quad(k("hazard"), s0 - 0.45, s1 + 0.45, head, head + 0.7, 0.05)
+    ua, ub = sorted((u_of(s0 - 0.45), u_of(s1 + 0.45)))
+    u = ua + 0.1
+    while u < ub - 0.6:
+        K.band_quad(k("trim", 1), cx, cz, f.yaw, u, head + 0.02, u + 0.5, head + 0.68, 0.2, black, out=0.08)
+        u += 0.8
+    f.box(K.M("steel"), s0 - 1.0, s1 + 1.0, head + 0.9, head + 1.15, 0.0, 2.0, col=K.shade(K.OLIVE, 0.5))
+    f.box(k("neon_white"), s0 + 0.6, s1 - 0.6, head + 0.82, head + 0.9, 1.2, 1.36)
+    f.quad(k("door_panel"), s0, s1, head - 1.7, head, -0.12)
+    f.box(k("hazard", 1), s0, s1, head - 1.82, head - 1.7, -0.2, -0.06)
+    # The hall behind: walls, ceiling, back wall with racking, lights.
+    (xa, _, za), (xb, _, _) = f.p(f.at(s0), 0.0, 0.0), f.p(f.at(s1), 0.0, 0.0)
+    x0, x1, z0, z1 = min(xa, xb), max(xa, xb), za, za + 18.6
+    wall = K.shade(K.CREAM, 0.9)
+    K.quad_n(K.M("cladding"), ((x0, 0.0, z0), (x0, 0.0, z1), (x0, head, z1), (x0, head, z0)), (1, 0, 0), wall)
+    K.quad_n(K.M("cladding"), ((x1, 0.0, z0), (x1, 0.0, z1), (x1, head, z1), (x1, head, z0)), (-1, 0, 0), wall)
+    K.quad_n(K.M("cladding"), ((x0, 0.0, z1), (x1, 0.0, z1), (x1, head, z1), (x0, head, z1)), (0, 0, -1), wall)
+    K.quad_n(k("dark"), ((x0, head, z0), (x1, head, z0), (x1, head, z1), (x0, head, z1)), (0, -1, 0))
+    for z in (z0 + 3.0, z0 + 8.0, z0 + 13.0):
+        for x in (x0 + 2.4, x1 - 2.4):
+            box(k("neon_white"), x - 0.08, x + 0.08, head - 0.14, head - 0.06, z - 1.2, z + 1.2, scale=0.5, bottom=True)
+        light(D, (x0 + x1) / 2, 2.0, z, "white", 5.0)
+    for x in (x0 + 0.3, (x0 + x1) / 2 - 1.2, x1 - 4.4):
+        box(k("metal"), x, x + 0.14, GY, head - 0.6, z1 - 1.2, z1 - 0.05, scale=1.0)
+    for i, yy in enumerate((1.7, 3.3, 4.9)):
+        box(k("metal"), x0 + 0.3, x1 - 4.2, yy, yy + 0.12, z1 - 1.2, z1 - 0.05, scale=1.0)
+        for j, x in enumerate((x0 + 0.8, x0 + 2.3, x0 + 3.6)):
+            if (i + j) % 3:
+                box(k("trim", 1), x, x + 1.1, yy + 0.12, yy + 1.0, z1 - 1.1, z1 - 0.2, scale=1.0, col=(K.WOOD, K.GREY, K.SAND)[(i + j) % 3])
+    K.stripe(x0 + 4.6, x0 + 4.72, z0 + 0.5, z1 - 2.0)
+    truck(x1 - 2.1, z0 + 11.2, PI / 2, "tractor_red", firm="SOLFUCA", lit=True, no="06")
+    forklift(x0 + 2.6, z0 + 5.4, PI * 0.5, load="crates")
+    for x, z, kind in ((x0 + 0.9, z0 + 2.2, "drum_pallet"), (x0 + 0.9, z0 + 8.4, "pallets"), (x0 + 0.9, z0 + 9.9, "drum_pallet"), (x0 + 2.4, z0 + 13.6, "crates"),
+                       (x0 + 0.8, z0 + 14.4, "pallets")):
+        P.place(kind, x, GY, z, 0.2 * x, district=D)
+    stand(x0 + 0.5, z0 + 0.9, PI / 2, "lean")
+    stand(x0 + 3.6, z0 + 3.2, PI, "idle")
+    stand(x0 + 2.2, z0 + 8.6, PI / 2, "talk")
+    stand(x0 + 3.3, z0 + 8.9, -PI / 2, "talk")
+    stand(x1 - 4.6, z0 + 2.4, PI * 0.8, "phone")
+
+
+def setback(y0, top):
+    """Where a numbered block steps back: a whole storey near two thirds up."""
+    return y0 + 3.6 * round(0.62 * (top - 4.8 - y0) / 3.6)
+
+
+def tower(x0, x1, z0, z1, y0, top, no, pale, seed, numbers=("-z", "-x", "+x"), panel=None, upper=None):
+    """One of the numbered blocks (Zq4zTcIM0yQ@174), as Petrochem builds
+    them: panels of dark olive held in a pale frame of piers and
+    spandrels, a strip of lit windows under every spandrel, a panel here
+    and there crossed by one pale diagonal; the body set back above its
+    lower part onto a ledge with lamps, the upper part in a second tone; a
+    dark head carrying the number in light, floods round its foot.
+    Returns its roof's height."""
+    r = R(seed)
+    head = top - 4.8
+    ys = setback(y0, top)
+    inset = 1.4
+    dark = (0.055, 0.06, 0.065, 1.0)
+    frame = (0.5, 0.5, 0.33, 1.0)
+    tones = (panel or K.shade(K.OLIVE, 0.62), upper or K.shade(K.OLIVE, 0.85))
+    bodies = ((x0, x1, z0, z1, y0, ys), (x0 + inset, x1 - inset, z0 + inset, z1 - inset, ys, head))
+    for bi, (bx0, bx1, bz0, bz1, ya, yb) in enumerate(bodies):
+        for name, f in B.faces_of(bx0, bx1, bz0, bz1).items():
+            w = f.width
+            cx, _, cz = f.p(f.at(w / 2), 0.0, 0.0)
+            f.quad(K.M("cladding"), 0.0, w, ya, yb, 0.0, col=tones[bi])
+            n = max(2, round(w / 4.6))
+            piers = [w * i / n for i in range(n + 1)]
+            for s_ in piers:
+                f.box(k("trim"), s_ - 0.32, s_ + 0.32, ya, yb, 0.0, 0.3, col=frame)
+            # Spandrels every two storeys, the lit strip under each.
+            y = ya + 7.2
+            rows = [ya]
+            while y < yb - 2.0:
+                K.window_band(f, y - 1.5, y - 0.2, r, style=5, lit=(0.35, 0.7), warmth=(0.3, 0.8), tint="concrete")
+                f.box(k("trim"), 0.0, w, y - 0.2, y + 0.45, 0.0, 0.26, col=frame)
+                rows.append(y + 0.45)
+                y += 7.2
+            rows.append(yb)
+            # One panel in three crossed by a pale diagonal, the odd one
+            # the other way: the block's graphic.
+            for i in range(n):
+                for j in range(len(rows) - 1):
+                    if (i + 2 * j + bi + len(no)) % 3:
+                        continue
+                    u0 = piers[i] - w / 2 + 0.32
+                    u1 = piers[i + 1] - w / 2 - 0.32
+                    v0, v1 = rows[j] + 0.3, rows[j + 1] - (1.8 if j + 1 < len(rows) - 1 else 0.3)
+                    if v1 - v0 < 2.0:
+                        continue
+                    if (i + j) % 2:
+                        u0, u1 = u1, u0
+                    K.band_quad(k("trim"), cx, cz, f.yaw, u0, v0, u1, v1, 0.8, pale)
+            if bi == 0:
+                # The ledge where it steps back: its parapet, a lamp at
+                # each corner.
+                f.box(k("trim"), -0.1, w + 0.1, yb - 0.1, yb + 0.7, 0.0, 0.25, col=K.shade(frame, 0.7))
+        if bi == 0:
+            for (ax0, ax1, az0, az1) in ((x0, x1, z0, z0 + inset), (x0, x1, z1 - inset, z1), (x0, x0 + inset, z0 + inset, z1 - inset), (x1 - inset, x1, z0 + inset, z1 - inset)):
+                quad(k("roof"), (ax0, ys, az1), (ax1, ys, az1), (ax1, ys, az0), (ax0, ys, az0))
+            for (px, pz) in ((x0 + 0.5, z0 + 0.5), (x1 - 0.5, z0 + 0.5), (x0 + 0.5, z1 - 0.5), (x1 - 0.5, z1 - 0.5)):
+                box(k("neon_amber"), px - 0.12, px + 0.12, ys + 0.7, ys + 0.86, pz - 0.12, pz + 0.12, scale=0.5)
+                light(D, px, ys + 1.0, pz, "amber", 2.6)
+    # The head: dark, the number in light on the faces the streets see.
+    hx0, hx1, hz0, hz1 = bodies[1][:4]
+    for name, f in B.faces_of(hx0, hx1, hz0, hz1).items():
+        w = f.width
+        f.quad(K.M("steel"), 0.0, w, head, top, 0.0, col=dark)
+        f.box(k("metal"), -0.15, w + 0.15, top - 0.25, top + 0.55, 0.0, 0.25)
+        f.box(k("trim"), -0.1, w + 0.1, head - 0.2, head + 0.2, 0.0, 0.32, col=frame)
+        cx, _, cz = f.p(f.at(w / 2), 0.0, 0.0)
+        if name in numbers:
+            K.digits(no, cx, head + 2.35, cz, 3.2, f.yaw, k("glow"), K.shade(K.SODIUM, 0.85), out=0.07)
+        else:
+            K.digits(no, cx, head + 2.35, cz, 2.2, f.yaw, k("trim", 1), pale, out=0.06)
+    # Its floods on the podium.
+    for name, f in B.faces_of(x0, x1, z0, z1).items():
+        s_ = 1.6
+        while s_ < f.width:
+            lx, _, lz = f.p(f.at(s_), 0.0, 1.1)
+            K.sodium(lx, y0 + 0.4, lz, 6.5, red=0.15)
+            fx, _, fz = f.p(f.at(s_), 0.0, 0.9)
+            box(k("neon_amber"), fx - 0.2, fx + 0.2, y0, y0 + 0.14, fz - 0.12, fz + 0.12, scale=0.5)
+            s_ += 3.4
+    # The roof over the upper part: felt, red lamps at its corners.
+    quad(k("roof"), (hx0, top, hz1), (hx1, top, hz1), (hx1, top, hz0), (hx0, top, hz0), uvs=((0, 0), ((hx1 - hx0) / 4, 0), ((hx1 - hx0) / 4, (hz1 - hz0) / 4), (0, (hz1 - hz0) / 4)))
+    B.ROOFS.append((D, hx0, hx1, hz0, hz1, top))
+    for px, pz in ((hx0 + 0.3, hz0 + 0.3), (hx1 - 0.3, hz0 + 0.3), (hx0 + 0.3, hz1 - 0.3), (hx1 - 0.3, hz1 - 0.3)):
+        box(k("glow"), px - 0.14, px + 0.14, top + 0.55, top + 0.85, pz - 0.14, pz + 0.14, scale=0.5, col=GLOW["red"])
+    K.collide(x0, x1, z0, z1, ys, y0=y0)
+    K.collide(hx0, hx1, hz0, hz1, top, y0=ys)
+    return top
+
+
+def towers():
+    """The two numbered blocks that close the garage street (Zq4zTcIM0yQ@174):
+    06 and 07, towers of olive sheet crossed with pale chevrons, side by
+    side on a podium glazed dark blue with the firm's name along its
+    fascia and the loading hall open in its street face."""
+    r = R(8665)
+    rr = R(8668)
+    X0, X1, Z0, Z1, PH = 424.0, 456.0, 14.0, 44.0, 8.4
+    K.paved(424.0, 458.0, 12.0, 45.0)
+    fs = B.faces_of(X0, X1, Z0, Z1)
+    pale = (0.64, 0.62, 0.34, 1.0)
+    navy = (0.07, 0.09, 0.13, 1.0)
+    DOOR = (11.5, 20.5, 6.4)  # the hall door in the street face: from and to along it, and its head
+    for name, f in fs.items():
+        w = f.width
+        for a_, b_ in (((0.0, DOOR[0] - 0.45), (DOOR[1] + 0.45, w)) if name == "-z" else ((0.0, w),)):
+            f.quad(K.M("concrete"), a_, b_, 0.0, 3.0, 0.0, col=K.CONC)
+            K.window_band(f, 3.0, 7.1, rr, s0=a_, s1=b_, style=5, lit=(0.6, 0.9), warmth=(0.05, 0.45), tint="concrete")
+            f.box(K.M("steel", 1), a_, b_, 2.94, 3.08, 0.0, 0.14, col=navy)
+        f.quad(K.M("steel"), 0.0, w, 7.1, PH, 0.0, col=navy)
+        f.box(k("metal"), -0.15, w + 0.15, PH - 0.12, PH + 0.5, 0.0, 0.25)
+        n = max(2, round(w / 8.0))
+        for i in range(n + 1):
+            s_ = w * i / n
+            if name == "-z" and DOOR[0] - 1.0 < s_ < DOOR[1] + 1.0:
+                continue
+            f.box(K.M("steel"), s_ - 0.25, s_ + 0.25, 0.0, PH, 0.0, 0.2, col=K.shade(navy, 1.6))
+        if name != "+z":
+            # The firm's name in light along the fascia.
+            for sp in ((5.6, w - 5.6) if name == "-z" else (w / 2,)):
+                cx, _, cz = f.p(f.at(sp), 0.0, 0.0)
+                K.digits("SOLFUCA", cx, 7.76, cz, 0.72, f.yaw, k("glow"), PALE, out=0.05, gap=0.3)
+        if name in ("-x", "+x"):
+            for sp in (5.0, 15.0, 25.0):
+                K.wall_lamp(f, sp, 2.5)
+            lx, _, lz = f.p(f.at(w - 3.0), 0.0, 0.02)
+            K.ladder(lx, lz, GY + 2.4, PH, f.yaw)
+            for sp in (w * 0.25 + 0.5, w * 0.75 - 0.5):
+                px, py, pz = f.p(f.at(sp), GY, 0.0)
+                P.place("pipe_v", px, py, pz, f.yaw, sy=PH - GY, district=D)
+    f = fs["-z"]
+    f.quad(K.M("steel"), DOOR[0] - 0.45, DOOR[1] + 0.45, DOOR[2] + 0.7, 7.1, 0.0, col=navy)
+    K.dock(f, 5.6, r, no=6, sill=0.0, h=2.75, state="shut", eave=PH, lamp=False)
+    K.dock(f, 26.4, r, no=7, sill=0.0, h=2.75, state="half", eave=PH, lamp=False)
+    hall(f, DOOR)
+    # The podium's roof round the towers' feet, its parapet lamps.
+    quad(k("roof"), (X0, PH, Z1), (X1, PH, Z1), (X1, PH, Z0), (X0, PH, Z0), uvs=((0, 0), (8, 0), (8, 7.5), (0, 7.5)))
+    B.ROOFS.append((D, X0, X1, Z0, Z1, PH))
+    for x, z in ((X0 + 0.3, Z0 + 0.3), (X1 - 0.3, Z0 + 0.3), (X0 + 0.3, Z1 - 0.3), (X1 - 0.3, Z1 - 0.3)):
+        box(k("glow"), x - 0.14, x + 0.14, PH + 0.5, PH + 0.8, z - 0.14, z + 0.14, scale=0.5, col=GLOW["red"])
+    # 06 the taller, 07 beside it, a bridge and risers in the slot between.
+    t6 = tower(425.5, 439.0, 16.5, 41.5, PH, 47.0, "06", pale, 8669, numbers=("-z", "-x", "+z"))
+    t7 = tower(441.5, 454.5, 19.0, 40.0, PH, 39.0, "07", pale, 8670, numbers=("-z", "+x", "+z"),
+               panel=(0.16, 0.2, 0.17, 1.0), upper=(0.3, 0.33, 0.24, 1.0))
+    box(K.M("steel"), 439.0, 441.5, 18.6, 21.8, 26.0, 32.0, scale=1.0, col=K.shade(K.OLIVE, 0.7), bottom=True)
+    for zf, nz in ((25.98, -1), (32.02, 1)):
+        K.quad_n(k("glow"), ((439.2, 19.6, zf), (441.3, 19.6, zf), (441.3, 20.9, zf), (439.2, 20.9, zf)), (0, 0, nz), K.shade(K.GLASS_COOL, 1.3))
+    for x, col in ((439.5, K.STEEL_BLUE), (440.3, K.RUST), (441.0, K.YELLOW)):
+        K.run([(x, PH, 36.0), (x, 38.0, 36.0)], r=0.16 if x < 441 else 0.1, col=col, detail=1, flanges=9.0)
+    # 06's roof: a mast, a tank, plant; 07's: the landing pad.
+    P.place("antenna", 428.6, t6, 38.6, 0.4, sy=1.7, district=D)
+    P.place("tank_roof", 435.2, t6, 21.0, 0.6, district=D)
+    P.place("rp_ahu", 431.4, t6, 29.0, PI / 2, district=D)
+    K.seg_run("rp_duct", 431.4, 31.4, 431.4, 38.6, t6)
+    P.place("rp_vents", 435.4, t6, 35.0, 0.8, district=D)
+    P.place("rp_hatch", 428.4, t6, 22.6, 0.0, district=D)
+    P.place("dish", 435.6, t6, 38.4, 2.4, district=D)
+    K.roof_lamp(434.6, 30.0, t6, power=5.0)
+    K.roof_lamp(428.6, 20.0, t6, power=5.0, hue="white")
+    K.av_pad(448.0, 29.5, t7, rad=4.6)
+    K.roof_lamp(444.0, 37.6, t7, power=4.0)
+    # Round the pad: the stair's head with its door and lamp, an air unit
+    # and its duct along the north parapet, condensers and a cable tray
+    # along the south one.
+    box(K.M("concrete"), 443.2, 445.8, t7, t7 + 2.6, 20.8, 23.6, scale=1.5, col=K.CONC)
+    box(k("metal", 1), 443.1, 445.9, t7 + 2.6, t7 + 2.74, 20.7, 23.7, scale=1.0, bottom=True)
+    K.quad_n(k("door_panel"), ((445.82, t7, 21.6), (445.82, t7, 22.7), (445.82, t7 + 2.1, 22.7), (445.82, t7 + 2.1, 21.6)), (1, 0, 0))
+    box(k("neon_amber"), 445.82, 445.94, t7 + 2.2, t7 + 2.32, 21.9, 22.4, scale=0.5, bottom=True)
+    K.sodium(446.8, t7 + 0.3, 22.2, 4.0, red=0.2)
+    P.place("rp_ahu", 450.8, t7, 22.4, 0.0, district=D)
+    K.seg_run("rp_duct", 446.4, 24.6, 449.8, 24.6, t7)
+    for x in (447.0, 449.4, 451.8):
+        P.place("rp_cond", x, t7, 37.0, 0.0, district=D)
+    K.seg_run("rp_tray", 443.6, 38.0, 452.4, 38.0, t7)
+    K.roof_lamp(452.6, 35.0, t7, power=4.0, hue="white")
+    # On the ledges where they step back: condensers, vents, a hatch.
+    s6, s7 = setback(PH, 47.0), setback(PH, 39.0)
+    for (x, y, z, name, yaw) in ((426.2, s6, 30.0, "rp_cond", PI / 2), (426.2, s6, 34.0, "rp_vents", 0.0), (438.3, s6, 25.0, "rp_cond", PI / 2),
+                                 (453.8, s7, 28.0, "rp_cond", PI / 2), (448.0, s7, 39.3, "rp_vents", 0.0), (442.2, s7, 33.0, "rp_hatch", 0.0)):
+        P.place(name, x, y, z, yaw, district=D)
+    # Lit from its foot on the street side too, where the hall's light is.
+    K.wash(X0, X1, Z0 - 1.4, Z0 - 1.4, level=1.0, step=3.5)
+    K.wash(X0 - 1.4, X0 - 1.4, Z0, Z1, level=0.7)
+    K.wash(X1 + 1.4, X1 + 1.4, Z0, Z1, level=0.7)
+    for x in (428.0, 433.0, 447.0, 452.0):
+        box(k("neon_amber"), x - 0.4, x + 0.4, GY, GY + 0.16, Z0 - 1.5, Z0 - 1.2, scale=0.5)
+    K.collide(X0, X1, Z0, Z1, PH)
+    K.yard_wall(424.0, 44.8, 458.0, 44.8, r=r, face=-1)
+    for x in (426.0, 434.8, 445.2, 454.0):
+        cylinder(k("hazard", 1), x, 12.8, GY, GY + 1.1, 0.14, segs=8)
+    stand(441.6, 12.9, PI, "phone")
+    stand(430.0, 13.0, PI * 0.9, "lean")
+
+
+def gasholder():
+    """A gasholder in its guide frame at the east corner: the lift in two
+    tiers, twelve standards braced in crosses (KvMY1uzSC1E@177's dome)."""
+    r = R(8666)
+    CX, CZ, RT, RF = 474.0, 29.6, 11.6, 13.0
+    K.paved(458.0, 490.0, 12.0, 45.0)
+    for (ya, yb, rr, col) in ((GY, 7.0, RT, K.STEEL_BLUE), (7.0, 11.4, RT - 0.5, K.shade(K.STEEL_BLUE, 0.85))):
+        lo, hi = K.ring_pts(CX, CZ, rr, 40, ya), K.ring_pts(CX, CZ, rr, 40, yb)
+        for i in range(40):
+            i2 = (i + 1) % 40
+            mid = ((lo[i][0] + lo[i2][0]) / 2 - CX, 0, (lo[i][2] + lo[i2][2]) / 2 - CZ)
+            K.quad_n(K.M("tank"), (lo[i], lo[i2], hi[i2], hi[i]), mid, col)
+        cylinder(k("metal", 1), CX, CZ, yb - 0.3, yb, rr + 0.12, segs=40, cap=False)
+    top = K.ring_pts(CX, CZ, RT - 0.5, 40, 11.4)
+    for i in range(40):
+        K.tri_n(K.M("tank"), ((CX, 13.4, CZ), top[i], top[(i + 1) % 40]), (0, 1, 0), K.shade(K.STEEL_BLUE, 0.7))
+    quad(k("roof"), (CX - RT, 7.0, CZ + RT), (CX + RT, 7.0, CZ + RT), (CX + RT, 7.0, CZ - RT), (CX - RT, 7.0, CZ - RT))
+    cylinder(k("metal", 1), CX, CZ, 13.3, 14.1, 0.5, segs=6)
+    n = 12
+    std = [(CX + RF * math.cos(i * math.tau / n), CZ + RF * math.sin(i * math.tau / n)) for i in range(n)]
+    tiers = (GY, 7.0, 13.0, 19.0)
+    for i, (x, z) in enumerate(std):
+        K.column(x, z, GY, tiers[-1] + 0.4, t=0.34)
+        x2, z2 = std[(i + 1) % n]
+        for y in tiers[1:]:
+            K.brace((x, y, z), (x2, y, z2), r=0.13)
+        for ti in (1, 2):
+            K.xbrace(x, z, x2, z2, tiers[ti] + 0.2, tiers[ti + 1] - 0.2, r=0.06)
+        if i % 3 == 0:
+            box(k("glow"), x - 0.14, x + 0.14, tiers[-1] + 0.4, tiers[-1] + 0.7, z - 0.14, z + 0.14, scale=0.5, col=GLOW["red"])
+    # A stair up the frame on the street side, and its landing's lamp.
+    sx, sz = std[9]
+    y, flip = GY, 1
+    while y < 13.0 - 0.1:
+        y2 = min(13.0, y + 3.25)
+        K.stair((sx - 1.2, y, sz - 0.9 - 1.6 * flip), (sx - 1.2, y2, sz - 0.9 + 1.6 * flip), w=1.0)
+        y, flip = y2, -flip
+    box(k("glow"), sx - 1.3, sx - 1.1, 14.6, 14.85, sz - 1.0, sz - 0.8, scale=0.5, col=GLOW["cyan"])
+    K.ring_wash(CX, CZ, RF + 1.2, PI, PI * 2, level=0.8)
+    K.ring_wash(CX, CZ, RF + 1.2, 0.0, PI, level=0.35)
+    K.collide(CX - RT * 0.75, CX + RT * 0.75, CZ - RT * 0.75, CZ + RT * 0.75, 13.4)
+    K.fence(458.4, 12.4, 489.6, 12.4)
+    K.yard_wall(458.0, 44.8, 490.0, 44.8, r=r, face=-1)
+    scatter(r, 459.0, 463.0, 38.0, 43.0, 3)
+    stand(462.6, 14.2, PI, "idle")
+
+
+# ---------------------------------------------------------------------------
+# East of the garage street, under Contact's lens. North of z -76 nothing
+# stands over 11 m: the lens skims these roofs to the moon.
+# ---------------------------------------------------------------------------
+def east():
+    r = R(8671)
+    K.paved(452.0, 490.0, -176.0, 12.0)
+    # A sawtooth shed, its north lights facing the garage's roof.
+    out = K.shed(454.5, 488.0, -175.5, -127.0, 6.8, K.CREAM, r, faces={
+        "-x": dict(band=(4.9, 6.0), style=6, lit=(0.4, 0.7), office=(34.0, 46.0),
+                   docks=dict(n=4, s0=4.0, s1=30.0, raised=False, canopy=False, first=1, open=(2,), half=(0,))),
+        "+z": dict(band=(4.9, 6.0), style=6), "-z": dict(dress=False), "+x": dict(dress=False)}, stripe_col=K.OXIDE)
+    K.sawtooth(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, wall=K.CREAM, rise=2.4, lit=0.85, power=2.4, mullions=0)
+    K.wash(453.2, 453.2, -172.0, -130.0, level=0.6)
+    fe = B.faces_of(454.5, 488.0, -175.5, -127.0)
+    K.blade(fe["-x"], 47.6, 3.4, "bm")
+    K.stencil(fe["-x"], 32.0, 3.4, "09", h=2.4, wall=K.CREAM)
+    K.stencil(fe["+z"], 17.0, 3.2, "09", h=2.6, wall=K.CREAM)
+    stand(453.4, -159.0, -PI / 2, "idle")
+    stand(453.5, -147.4, -PI / 2, "smoke")
+    P.place("crates", 453.6, GY, -156.4, 0.4, district=D)
+    # A small tank yard: three tanks in a bund behind a fence, pipes, a
+    # vent stub steaming, strip lamps (no mast: nothing here over 11 m).
+    for (a0, a1, b0, b1) in ((456.0, 488.6, -124.6, -124.3), (456.0, 488.6, -96.3, -96.0), (456.0, 456.3, -124.6, -96.0), (488.3, 488.6, -124.6, -96.0)):
+        box(K.M("concrete"), a0, a1, 0.0, 1.0, b0, b1, scale=2.0, col=K.CONC)
+    K.tank(462.6, -116.6, 4.3, 7.2, K.RUST, segs=14, number="11", number_yaw=-PI / 2, stair_at=PI * 0.5, r_=r)
+    K.tank(473.6, -117.4, 4.3, 7.6, K.TANK_WHITE, segs=14, band=(0.1, 0.2), stair_at=PI * 0.4, r_=r)
+    K.tank(483.4, -110.0, 4.0, 6.8, K.RUST, segs=14, stair_at=PI * 0.9, r_=r)
+    K.tank(466.6, -103.6, 3.6, 6.4, K.TANK_WHITE, segs=14, number="12", number_yaw=-PI / 2, stair_at=-PI * 0.2, r_=r)
+    for x, z in ((462.6, -116.6), (473.6, -117.4), (483.4, -110.0), (466.6, -103.6)):
+        K.ring_wash(x, z, 5.6, 0.0, PI * 2, level=0.8)
+    K.run([(458.0, 0.7, -111.0), (486.0, 0.7, -111.0)], r=0.16, col=K.RUST_D)
+    K.run([(458.0, 0.7, -110.4), (478.0, 0.7, -110.4), (478.0, 0.7, -100.0), (474.0, 0.7, -100.0)], r=0.11, col=K.YELLOW)
+    cylinder(k("metal"), 477.0, -100.6, GY, 9.4, 0.3, segs=8)
+    K.steam(477.0, 9.6, -100.6)
+    K.fence(454.4, -126.6, 454.4, -113.6)
+    K.gate(454.4, -113.2, 454.4, -106.8, (1, 0), open_=False)
+    K.fence(454.4, -106.4, 454.4, -94.4)
+    K.verge(r, 452.6, -125.0, 452.6, -96.0, step=5.0, kinds=("hydrant", "bollard", "bin", "bollard", "barrier"))
+    strip(455.2, -122.0, PI / 2, cone=False)
+    strip(455.2, -97.4, PI / 2, cone=False)
+    strip(487.4, -124.0, -PI * 0.25, cone=False)
+    stand(470.0, -108.8, PI, "idle")
+    lx, lz = 473.6 + 4.8 * math.cos(PI * 0.4), -117.4 + 4.8 * math.sin(PI * 0.4)
+    stand(lx, lz, PI, "lean", GY + 7.6)
+    # A workshop: its office front on the street, rooflights and ducts.
+    out = K.shed(456.0, 488.0, -92.0, -40.0, 7.4, K.GREY, r, faces={
+        "-x": dict(band=(5.2, 6.6), style=2, lit=(0.5, 0.8), office=(4.0, 24.0),
+                   docks=dict(n=3, s0=28.0, s1=48.0, raised=False, canopy=False, first=5, open=(0,), half=(2,))),
+        "-z": dict(band=(5.2, 6.6), style=6), "+z": dict(band=(5.2, 6.6), style=6), "+x": dict(dress=False)}, stripe_col=K.YELLOW)
+    K.roof_furnish(K.flat_roof(456.0, 488.0, -92.0, -40.0, 7.4, r, wall=K.GREY, lights=0.75, breathe=1), R(8672), kinds={2: "ahu", 3: "tray", 4: "chiller"})
+    K.flue(485.2, -43.6, 7.4, 11.6, r=0.36, col=K.RUST_D)
+    # Its north bays, what the roof's own eye sees first (sd21): an air
+    # unit and its duct, a bank of condensers by a tray, vents, a hatch,
+    # lamps throwing pools across the felt (all under 11 m: Contact).
+    P.place("rp_ahu", 479.0, 7.4, -74.6, 0.0, district=D)
+    K.seg_run("rp_duct", 481.6, -74.6, 485.6, -74.6, 7.4)
+    for x in (469.6, 472.0, 474.4):
+        P.place("rp_cond", x, 7.4, -83.4, 0.0, district=D)
+    K.seg_run("rp_tray", 462.0, -82.0, 482.0, -82.0, 7.4)
+    for (x, z, name) in ((466.0, -83.2, "rp_vents"), (478.6, -84.0, "rp_vents"), (486.0, -76.0, "rp_hatch"), (461.0, -74.2, "rp_vents")):
+        P.place(name, x, 7.4, z, 0.6, district=D)
+    for (x, z, hue) in ((468.0, -73.6, "amber"), (482.0, -85.6, "white"), (461.6, -86.0, "amber"), (485.2, -88.6, "amber")):
+        K.roof_lamp(x, z, 7.4, hue=hue)
+    K.wash(454.6, 454.6, -90.0, -42.0, level=0.6)
+    fw = B.faces_of(456.0, 488.0, -92.0, -40.0)
+    K.blade(fw["-x"], 1.0, 3.2, "bl", scale=0.85)
+    K.blade(fw["-x"], 26.0, 3.8, "bs", scale=1.2)
+    K.stencil(fw["-x"], 50.0, 3.4, "10", h=2.6, wall=K.GREY)
+    forklift(454.4, -80.0, -PI / 2)
+    stand(454.2, -77.4, -PI / 2, "idle")
+    scatter(r, 453.0, 455.2, -94.0, -92.6, 1, kinds=("dumpster",), yaw=PI)
+    scatter(r, 453.2, 455.0, -39.4, -37.0, 2, kinds=("bags", "crates", "dumpster"))
+    # The corner at H: a short row of shops under flats, the workers' bars
+    # and counters, lit, where the loop turns.
+    hs = [11.4, 8.0, 14.8, 11.4]
+    lots = B.row(D, "-x", -36.0, 10.0, 34.0, 454.0, lambda i, a: hs[i % 4], lambda i: (12.8, 9.6, 12.8, 10.8)[i % 4], r,
+                 style=dict(STYLE, signs=1.6, awning=0.6, shop_sign=0.8, lit=(0.45, 0.85), balcony=0.1, fire_escape=0.4, windows=(0, 1, 3, 6)),
+                 ends=("open", "open"), back="back")
+    rr = R(8673)
+    for lot, h, _tiers in lots:
+        K.roof_lane(lot.x0, lot.x1, lot.z0, lot.z1, h, rr)
+    K.wash(452.6, 453.6, -34.0, 8.0, level=0.3, step=6.0)
+    P.place("vending", 453.4, GY, -12.2, -PI / 2, district=D)
+    P.place("vending_warm", 453.4, GY, 4.4, -PI / 2, district=D)
+    stand(453.2, -20.6, -PI / 2, "lean")
+    stand(453.1, -4.0, -PI / 2, "smoke")
+    stand(453.3, -27.0, -0.6, "talk")
+    stand(453.2, -28.2, PI * 0.8, "talk")
+    stand(453.3, 6.6, -PI / 2, "squat")
+    # The edge: a yard wall the far city stands behind.
+    K.yard_wall(489.8, -176.0, 489.8, 45.0, r=r, wire=True)
+
+
+# ---------------------------------------------------------------------------
+# Wires: utility poles down the south street's south side and up the
+# garage street's east side, conductors between them, drops to the sheds,
+# lines over the street to the plant (JtqIas3bYhg@80).
+# ---------------------------------------------------------------------------
+def lines(bus):
+    south = [(x, 12.75) for x in (177.0, 208.0, 240.0, 272.0, 311.0, 341.0, 368.0, 398.0, 422.6)]
+    K.poles(south, PI / 2)
+    garage = [(452.6, z) for z in (8.4, -38.0, -64.0, -94.0, -126.0, -158.0)]
+    K.poles(garage, 0.0)
+    K.wires((422.6, GY + 8.25, 12.75), (452.6, GY + 8.25, 8.4), PI / 4, sag=0.9)
+    # Into the substation's bus from the pole in front of it.
+    for i, b in enumerate(bus):
+        K.cable((368.0 + (i - 1) * 0.9, GY + 8.25, 12.75), b, sag=0.5, steps=5)
+    # Over the street to the plant and the depot.
+    for x, zt, yt in ((311.0, -11.6, 8.2), (368.0, -12.0, 8.6), (240.0, -11.4, 8.0), (177.0, -11.0, 8.2)):
+        K.column(x, zt, GY, yt + 0.5, t=0.2, mat="trim", col=(0.12, 0.09, 0.07, 1))
+        box(k("trim"), x - 1.0, x + 1.0, yt, yt + 0.12, zt - 0.06, zt + 0.06, scale=0.5, col=(0.12, 0.09, 0.07, 1))
+        for dx in (-0.8, 0.0, 0.8):
+            K.cable((x + dx, GY + 8.25, 12.75), (x + dx, yt + 0.12, zt), sag=1.1)
+    # Drops to the buildings they feed.
+    for a, b in (((208.0, GY + 7.4, 12.75), (208.0, 7.6, 16.0)), ((398.0, GY + 7.4, 12.75), (400.0, 6.2, 30.0)),
+                 ((452.6, GY + 7.4, -64.0), (456.0, 7.2, -66.0)), ((452.6, GY + 7.4, -158.0), (454.5, 6.6, -156.0)), ((452.6, GY + 7.4, -38.0), (454.0, 7.6, -34.0)),
+                 ((452.6, GY + 7.4, 8.4), (454.0, 7.8, 6.0))):
+        K.cable(a, b, sag=0.5, steps=5)
+
+
+def power_line():
+    """Lattice pylons along the back of the south side, behind the fuel
+    station, the shed and the container yard (JtqIas3bYhg@80), their line
+    coming down to the substation's bus at its east end and into the
+    ground at a sealing end by the fuel station."""
+    Z = 40.2
+    p0 = K.pylon(127.0, Z, h=34.0, base=3.8, arm=3.8)
+    p1 = K.pylon(180.0, Z, h=38.0, base=2.8, arm=3.8)
+    p2 = K.pylon(258.0, Z, h=41.0, base=3.2, arm=3.8)
+    p3 = K.pylon(346.5, Z, h=40.0, base=3.6, arm=3.8)
+    K.span(p0, p1, sag=1.6)
+    K.span(p1, p2, sag=2.2)
+    K.span(p2, p3, sag=2.4)
+    # Down to the bus from the last one; into the ground from the first.
+    for i, foot in enumerate(p3[1]):
+        K.conductor(foot, (345.8 + i * 0.55, 9.25, 27.0), sag=1.2, steps=6, t=0.05)
+    for i, dz in enumerate((-0.5, 0.0, 0.5)):
+        pipe(k("dark", 1), (127.0 + 0.3 * (i - 1), GY, Z + dz), (127.0 + 0.3 * (i - 1), 20.0, Z + dz), 0.06, segs=5)
+        K.conductor(p0[1][i * 2 + 1], (127.0 + 0.3 * (i - 1), 20.0, Z + dz), sag=0.4, steps=4, t=0.05)
+    box(k("metal"), 126.0, 128.0, GY, GY + 1.9, Z + 0.9, Z + 1.7, scale=1.0)
+    box(k("glow"), 126.2, 126.32, GY + 1.5, GY + 1.6, Z + 0.88, Z + 0.9, scale=0.5, col=GLOW["green"])
+
+
+def frontage_light():
+    """A little of the yards' light on the pavements along them, so a
+    walker's way is dim, not black, between the street's own lamps."""
+    r = R(8681)
+    K.wash(178.0, 296.0, -8.8, -8.8, level=0.32, step=6.0, r=r)
+    K.wash(304.0, 388.0, -8.8, -8.8, level=0.26, step=6.0, r=r)
+    K.wash(429.4, 429.4, -166.0, -12.0, level=0.3, step=6.0, r=r)
+    K.wash(450.6, 450.6, -174.0, -38.0, level=0.3, step=6.0, r=r)
+    K.wash(178.0, 424.0, 10.6, 10.6, level=0.3, step=6.0, r=r)
+    K.wash(176.0, 296.0, -170.6, -170.6, level=0.26, step=6.0, r=r)
+
+
+def street_cones():
+    """Sodium light hanging under the street lamps of this district's
+    stretches of the loop (the lamps are streets.py's, where it stands
+    them: the same rule, read from the plan)."""
+    for name, lo, hi in (("south", 108.0, 440.0), ("garage", -176.0, 12.0)):
+        s = plan.BY_NAME[name]
+        for a, b in plan.runs(s):
+            for side in (-1, 1):
+                v = a + 4.0 + 8.0 + (0.0 if side > 0 else 15.0)
+                while v < b - 4.0 - 4.0:
+                    if lo <= v <= hi:
+                        u = side * (s.half + 0.7 - 2.1)
+                        x, z = (s.c + u, v) if s.axis == "z" else (v, s.c + u)
+                        K.cone(x, 0.15 + 6.9, z)
+                    v += 30.0
+
+
+def yards():
+    """What the yards and kerbs keep: paint on the estate's cross, trucks
+    laid up beside it and backed on the plant's dock, drums on pallets in
+    rows, built containers, barriers, what collects at a fence's foot,
+    cracked and patched ground, cinder blocks, skips, weeds at every
+    fence's and wall's foot, and more of the shift at the docks and gates."""
+    r = R(8701)
+    # The cross: a keep-clear box, stop lines, edge lines down both roads.
+    K.hatch(296.4, 303.6, -91.6, -84.4)
+    for (a0, a1, b0, b1) in ((296.3, 303.7, -93.0, -92.6), (296.3, 303.7, -83.4, -83.0), (295.0, 295.4, -91.7, -84.3), (304.6, 305.0, -91.7, -84.3)):
+        K.stripe(a0, a1, b0, b1, K.PAINT_WHITE)
+    for x in (296.2, 303.68):
+        K.stripe(x, x + 0.12, -166.0, -93.4, K.PAINT_WHITE)
+        K.stripe(x, x + 0.12, -82.6, -14.0, K.PAINT_WHITE)
+    for z in (-91.8, -84.32):
+        K.stripe(178.0, 294.6, z, z + 0.12, K.PAINT_WHITE)
+        K.stripe(305.4, 424.0, z, z + 0.12, K.PAINT_WHITE)
+    K.hatch(400.0, 405.6, -114.0, -106.0)
+    # Trucks: one laid up on the works' apron, one on the road's edge by
+    # the rack, one backed on the boiler house, and their drivers.
+    truck(280.0, -95.6, 0.0, "tractor", firm="HELCASO", lit=True, no="19")
+    truck(330.0, -85.4, PI, "tractor_red", firm="SOLFUCA", lit=True, tank=True)
+    truck(398.0, -49.3, -PI / 2, "tractor", firm="SOLFUCA", no="52")
+    stand(291.4, -94.0, -PI / 2, "smoke")
+    stand(321.6, -87.7, 0.0, "phone")
+    stand(394.9, -41.2, PI / 2, "talk")
+    stand(396.0, -40.9, -PI / 2, "talk")
+    # Built containers at ground level in three yards.
+    box40(293.8, -150.0, PI / 2, "blue")
+    box40(350.0, -164.5, 0.0, "rust")
+    box40(482.0, 16.6, PI, "green", ln=6.06)
+    # Drums on pallets in rows, skips, blocks, a forklift at work.
+    for i, z in enumerate((-138.0, -136.5, -135.0, -133.5)):
+        P.place("drum_pallet", 294.4, GY, z, (0.0, PI / 2, PI, 0.0)[i], district=D)
+    P.place("pallets", 294.4, GY, -131.6, 0.2, district=D)
+    P.place("blocks", 294.3, GY, -129.9, 1.0, district=D)
+    forklift(279.0, -150.0, 0.7, load="pallets")
+    stand(281.5, -152.3, 0.7, "idle")
+    for x, z, kind, yaw in ((305.6, -94.9, "drum_pallet", 0.0), (305.6, -93.4, "drum_pallet", PI / 2), (306.9, -93.3, "barrel", 0.0), (306.8, -95.0, "blocks", 0.4),
+                            (294.2, -82.4, "dumpster", PI / 2), (294.3, -80.2, "pallets", 0.1), (292.6, -80.0, "blocks", 2.0),
+                            (426.6, 13.1, "drum_pallet", 0.0), (428.2, 13.2, "pallets", 0.3), (451.4, 13.2, "blocks", 0.2), (452.6, 13.0, "barrel", 0.0),
+                            (453.3, 13.4, "barrel", 0.0), (406.8, -118.6, "drum_pallet", 0.0), (408.3, -118.6, "drum_pallet", PI), (409.9, -118.5, "barrel", 0.0),
+                            (411.2, -118.4, "blocks", 0.9), (400.6, -10.42, "aframe", 0.2), (414.0, -10.42, "aframe", -0.2)):
+        P.place(kind, x, GY, z, yaw, district=D)
+    for x, z in ((453.0, 9.0), (453.0, -31.0)):
+        P.place("lightbox", x, GY, z, -PI / 2, district=D)
+    # Barriers along the tank farm's edge of the estate road.
+    K.jersey(304.7, -130.0, 304.7, -102.0)
+    K.jersey(304.7, -160.0, 304.7, -138.0)
+    # Along the fences a walker passes: drums on pallets, totes, heaps,
+    # litter (the ground's own cracks and patches are the surface's).
+    rk = R(8702)
+    K.kerbside(rk, 178.0, -12.3, 203.0, -12.3, 0.0, 5)
+    K.kerbside(rk, 223.5, -12.3, 245.0, -12.3, 0.0, 4)
+    K.kerbside(rk, 425.9, -166.0, 425.9, -95.0, PI / 2, 12)
+    K.kerbside(rk, 454.3, -124.0, 454.3, -97.0, -PI / 2, 4)
+    # The apron between the spheres and the garage street's fence: drums
+    # on pallets, a foam trolley, crates, a board with the plant's name
+    # over the fence, a man on his round.
+    for x, z, kind, yaw in ((423.6, -160.6, "drum_pallet", 0.0), (423.6, -159.1, "drum_pallet", PI / 2), (424.6, -147.2, "pallets", 0.2), (424.4, -136.0, "blocks", 0.5),
+                            (423.4, -124.6, "drum_pallet", 0.0), (424.7, -124.4, "barrel", 0.0), (424.8, -153.0, "barrel", 0.0), (424.3, -131.2, "crates", 0.4)):
+        P.place(kind, x, GY, z, yaw, district=D)
+    box(K.M("steel"), 423.2, 424.3, GY + 0.3, GY + 1.3, -143.4, -142.5, scale=1.0, col=(0.5, 0.06, 0.04, 1.0))
+    for z in (-143.3, -142.6):
+        pipe(K.M("steel", 1), (423.5, 0.32, z), (424.0, 0.32, z), 0.3, segs=8, col=K.TYRE, caps=True)
+    K.name_sign("SOLFUCA", 425.2, GY, -118.0, PI / 2, h=0.7, lift=3.2)
+    stand(422.4, -145.0, -PI / 2, "idle")
+    # Weeds at the feet of fences, walls and sheds.
+    for (x0, z0, x1, z1, n) in ((314.0, -12.1, 386.0, -12.1, 28), (426.1, -82.0, 426.1, -12.0, 26), (426.1, -166.0, 426.1, -94.0, 34),
+                                (178.0, -12.1, 244.0, -12.1, 24), (177.0, -167.5, 295.0, -167.5, 30), (305.0, -167.5, 425.0, -167.5, 30),
+                                (261.0, 12.1, 340.0, 12.1, 26), (343.0, 14.3, 386.0, 14.3, 14), (389.0, 12.2, 424.0, 12.2, 12), (459.0, 12.1, 489.0, 12.1, 10),
+                                (454.1, -126.0, 454.1, -95.0, 12), (110.0, 44.5, 178.0, 44.5, 16), (181.0, -78.3, 235.0, -78.3, 12),
+                                (181.0, -99.7, 263.0, -99.7, 14), (313.0, -98.7, 402.0, -98.7, 16), (308.0, -53.8, 336.0, -53.8, 8),
+                                (305.1, -130.0, 305.1, -102.0, 10), (425.4, -166.0, 425.4, -94.0, 20), (179.0, 44.5, 424.0, 44.5, 40)):
+        K.weeds(r, x0, z0, x1, z1, n)
+    # More of the shift: at the tank farm, on the estate road, by the
+    # depot's cabs, at the east yard's gate, by the gasholder.
+    stand(407.0, -140.6, PI / 2, "talk")
+    stand(408.2, -140.2, -PI / 2, "talk")
+    stand(303.0, -60.0, -PI / 2, "phone")
+    stand(297.2, -120.0, PI / 2, "idle")
+    # The estate road at work: a forklift carrying north up it behind its
+    # banksman, two walking down to the gate, a pair by the barriers, one
+    # smoking at the cross, one waiting by the rack.
+    forklift(298.3, -58.0, PI / 2, load="crates")
+    stand(297.0, -64.6, 0.0, "idle")
+    stand(301.7, -37.8, PI / 2, "talk")
+    stand(302.9, -37.5, -PI / 2, "talk")
+    stand(302.4, -112.0, PI / 2, "talk")
+    stand(303.5, -111.6, -PI / 2, "talk")
+    stand(305.6, -81.6, -PI / 2, "smoke")
+    stand(336.5, -90.6, 0.0, "idle")
+    stand(293.2, -165.6, 0.0, "smoke")
+    stand(204.6, -18.6, PI / 2, "talk")
+    stand(205.8, -18.3, -PI / 2, "talk")
+    stand(455.4, -110.0, -PI / 2, "idle")
+    stand(465.0, 15.6, PI / 2, "talk")
+    stand(466.2, 15.2, -PI / 2, "talk")
+    # Jobs in hand: a fitter down at the laid-up truck's wheel, and crates
+    # carried between two (the site sets down who holds the other end, a
+    # crate's length ahead) across the works' court, the depot's forecourt
+    # and the plant's yard.
+    stand(283.4, -93.6, PI, "work")
+    stand(276.0, -118.0, -PI / 2, "carry")
+    stand(218.0, -24.0, PI / 2, "carry")
+    stand(386.0, -38.6, PI / 2, "carry")
+
+
+def arrow(x, z, yaw, ln=4.0, col=K.PAINT_WHITE):
+    """A painted lane arrow on a yard road, pointing along yaw (0 toward +z)."""
+    ux, uz = math.sin(yaw), math.cos(yaw)
+    rx, rz = uz, -ux
+    w, hw, hl = 0.09, 0.42, 1.2
+    a = ln / 2 - hl
+
+    def at(u, s):
+        return (x + ux * u + rx * s, GY + 0.015, z + uz * u + rz * s)
+    pts = (at(-ln / 2, -w), at(a, -w), at(a, -hw), at(ln / 2, 0.0), at(a, hw), at(a, w), at(-ln / 2, w))
+    # Face up whichever way the outline turns.
+    n = (pts[1][0] - pts[0][0]) * (pts[6][2] - pts[0][2]) - (pts[1][2] - pts[0][2]) * (pts[6][0] - pts[0][0])
+    pts = pts if n < 0 else pts[::-1]
+    poly(k("paint", 1), pts, [(0, 0)] * len(pts), col)
+
+
+def place_row(name, x0, z0, x1, z1, n, yaw=0.0, jitter=0.0, r=None, y=GY):
+    """n of one prop in a row from one point to the other."""
+    for i in range(n):
+        t = (i + 0.5) / n
+        j = r.uniform(-jitter, jitter) if r else 0.0
+        P.place(name, x0 + (x1 - x0) * t, y, z0 + (z1 - z0) * t, yaw + j, district=D)
+
+
+def dress():
+    """Round 4: the ground and roof planes the review found blank, filled.
+    The estate's cross: goods staged at its corners, a trailer laid up, a
+    road plate and an open manhole under cones, lane arrows, a mast over
+    it. The depot's forecourt: loads staged at the open doors, a trailer
+    on its legs along the fence, skips, lamps over the middle. The plant's
+    yard between its street wall and the frame: lying and standing
+    vessels, a pipe run on sleepers, totes and drums, pumps, lamps. The
+    fuel forecourt's mouth. The sawtooth roofs: ducts along the valleys,
+    vents on the slopes, air units on decks."""
+    r = R(8711)
+    # --- The estate's cross (300, -88).
+    place_row("ibc", 311.0, -93.4, 323.0, -93.4, 9, 0.0, 0.08, r)
+    place_row("ibc", 311.6, -94.7, 319.0, -94.7, 5, 0.0, 0.08, r)
+    P.place("skip", 329.0, GY, -94.2, 0.0, district=D)
+    place_row("drum_pallet", 345.0, -93.5, 352.0, -93.5, 5, 0.0, 0.3, r)
+    place_row("drum_pallet", 305.8, -80.6, 305.8, -76.0, 3, PI / 2, 0.3, r)
+    place_row("ibc", 307.0, -82.9, 316.0, -82.9, 7, 0.0, 0.1, r)
+    P.place("skip", 252.0, GY, -95.6, 0.0, district=D)
+    place_row("ibc", 240.4, -95.4, 246.0, -95.4, 4, 0.0, 0.1, r)
+    place_row("drum_pallet", 270.0, -82.6, 280.0, -82.6, 6, 0.0, 0.4, r)
+    P.place("trailer", 292.6, GY, -112.0, -PI / 2, district=D)
+    # Road works: a plate over a trench, cones and a barrier round it; a
+    # manhole open with its lid off, steam from it.
+    box(K.M("steel"), 298.6, 301.4, GY, GY + 0.03, -101.0, -99.4, scale=1.0, col=K.shade(K.GREY, 0.45))
+    for (cx, cz) in ((298.2, -101.6), (301.8, -101.6), (298.2, -98.8), (301.8, -98.8), (300.0, -102.2)):
+        P.place("cone", cx, GY, cz, r.uniform(0, 6.28), district=D)
+    P.place("barrier", 300.0, GY, -98.0, 0.0, district=D)
+    cylinder(k("dark"), 302.2, -78.4, GY + 0.004, GY + 0.012, 0.42, segs=10)
+    cylinder(K.M("steel", 1), 303.0, -77.6, GY, GY + 0.04, 0.4, segs=10, col=K.STEEL)
+    for (cx, cz) in ((301.4, -79.2), (303.0, -79.2), (301.4, -77.6)):
+        P.place("cone", cx, GY, cz, 0.0, district=D)
+    K.steam(302.2, GY + 0.2, -78.4, kind="street", lit=2.5, zz=True)
+    for (x, z, yaw) in ((298.0, -104.0, PI), (302.0, -72.0, 0.0), (284.0, -90.0, -PI / 2), (316.0, -86.0, PI / 2)):
+        arrow(x, z, yaw)
+    mast(294.8, -79.6, PI * 0.75, level=0.7)
+    K.sodium(299.0, 1.0, -89.5, 4.5)
+    # In the cross itself: a forklift crossing with its load behind its
+    # banksman, a pallet of crates waiting, cones round a pothole.
+    forklift(303.6, -91.4, PI, load="pallets")
+    stand(302.4, -85.2, PI * 0.8, "idle")
+    P.place("pallets", 296.9, GY, -91.6, 0.3, district=D)
+    P.place("crates", 296.9, GY + 0.75, -91.6, 0.5, district=D)
+    for (cx, cz) in ((296.6, -85.0), (297.8, -84.6), (296.9, -86.2)):
+        P.place("cone", cx, GY, cz, cx, district=D)
+    box(k("dark", 1), 297.0, 297.9, GY + 0.004, GY + 0.01, -85.9, -85.2, scale=1.0)
+    stand(299.0, -103.0, PI, "idle")
+    stand(310.0, -95.6, 0.4, "phone")
+    # --- The depot's forecourt (x 176..242, z -36..-10): loads staged at
+    # the open and half-open doors, a trailer laid up along the fence,
+    # skips by the east fence, lamps over the middle.
+    for dx in (-1.3, 0.0, 1.3):
+        for dz in (0.0, 1.5):
+            P.place(("pallets", "ibc", "crates")[int(dx + 1.3) % 3] if dz else "drum_pallet", 195.5 + dx, GY, -31.6 + dz, r.uniform(-0.2, 0.2), district=D)
+            P.place(("crates", "pallets", "ibc")[int(dx + 1.3) % 3], 216.5 + dx, GY, -31.4 + dz, r.uniform(-0.2, 0.2), district=D)
+    place_row("ibc", 207.6, -31.2, 211.4, -31.2, 3, 0.0, 0.1, r)
+    P.place("trailer", 186.6, GY, -14.8, 0.0, district=D)
+    P.place("skip", 236.6, GY, -16.4, PI / 2, district=D)
+    P.place("skip", 232.4, GY, -16.4, PI / 2, district=D)
+    for x in (197.0, 221.0):
+        strip(x, -13.4, PI, power=6.0)
+    for (x, z, yaw) in ((209.0, -20.0, PI), (198.0, -25.0, -PI / 2), (220.0, -25.0, PI / 2)):
+        arrow(x, z, yaw, ln=3.4)
+    stand(196.8, -27.8, 0.3, "idle")
+    stand(214.6, -27.9, -0.4, "phone")
+    stand(209.0, -15.0, PI, "idle")
+    # --- The plant's yard (x 340..386, z -46..-12.4).
+    P.place("hvessel_rust", 352.0, GY, -36.0, 0.0, district=D)
+    P.place("hvessel_grey", 352.0, GY, -29.6, 0.0, sxz=0.85, district=D)
+    for (x, z, name, s, h) in ((373.0, -37.0, "vessel_rust", 1.25, 1.35), (378.6, -38.8, "vessel_white", 0.9, 1.05), (368.4, -41.2, "vessel_rust", 0.75, 0.8),
+                               (380.8, -31.2, "vessel_white", 0.7, 0.62)):
+        P.place(name, x, GY, z, r.uniform(0, 6.28), sy=h, sxz=s, district=D)
+        K.sodium(x, 2.4, z + s * 1.6, 3.2, red=0.3)
+    K.run([(342.0, 0.55, -43.6), (384.0, 0.55, -43.6)], r=0.22, col=K.STEEL_BLUE, segs=10, flanges=8.0)
+    K.run([(342.0, 0.55, -44.3), (366.0, 0.55, -44.3), (366.0, 0.55, -41.0)], r=0.15, col=K.RUST_D, segs=8, flanges=8.0)
+    K.run([(342.0, 0.5, -42.9), (373.0, 0.5, -42.9), (373.0, 2.4, -39.0)], r=0.11, col=K.YELLOW, segs=6, flanges=99.0, detail=1)
+    for x in (345.0, 351.0, 357.0, 363.0, 369.0, 375.0, 381.0):
+        box(K.M("concrete", 1), x - 0.2, x + 0.2, GY, 0.32, -44.8, -42.4, scale=1.0, col=K.CONC)
+    place_row("ibc", 360.0, -22.0, 367.0, -22.0, 6, 0.0, 0.08, r)
+    place_row("ibc", 360.6, -23.3, 365.6, -23.3, 4, 0.0, 0.08, r)
+    place_row("drum_pallet", 344.0, -19.0, 344.0, -25.0, 4, 0.0, 0.5, r)
+    P.place("skip", 377.0, GY, -15.2, 0.0, district=D)
+    P.place("forklift", 371.0, GY, -26.0, 2.4, district=D)
+    for (x, z) in ((348.0, -14.8), (356.0, -14.8)):
+        P.place("cone", x, GY, z, 0.0, district=D)
+    strip(362.0, -33.0, PI / 2, power=6.0)
+    strip(347.0, -24.0, PI / 2, power=5.0, cone=False)
+    stand(357.6, -33.0, 0.3, "work")
+    stand(370.4, -33.0, PI, "idle")
+    stand(369.4, -32.6, 0.2, "talk")
+    stand(362.0, -24.8, PI, "carry")
+    # --- The fuel forecourt's mouth on the street.
+    K.totem(152.6, 14.0, PI * 0.9, n=3, scale=1.0, y0=1.6)
+    place_row("tyres", 168.4, 14.2, 172.4, 14.2, 3, 0.0, 0.0, r)
+    P.place("aframe", 140.4, GY, 13.8, PI * 0.9, district=D)
+    P.place("bin", 145.0, GY, 13.4, district=D)
+    for (x, z) in ((139.0, 15.2), (141.6, 15.4)):
+        P.place("cone", x, GY, z, 0.0, district=D)
+    for (x, z, yaw) in ((118.0, 20.0, 0.0), (172.0, 26.0, PI), (147.0, 14.6, PI / 2)):
+        arrow(x, z, yaw, ln=3.4)
+    stand(151.0, 15.2, PI, "phone")
+    stand(170.0, 15.6, PI * 0.8, "talk")
+    stand(171.2, 15.2, -PI * 0.3, "talk")
+
+
+def crowd():
+    """Round 4: more of the night shift. Loiterers along the garage
+    street, four to eight to a block, on the verges just inside the lot
+    lines with a fence or a wall at their backs (the pavements' walkers
+    and the walk camera keep theirs); workers at the gates and the pumps;
+    shift groups inside the plant's street wall."""
+    # (x, z, yaw, pose): the garage street's west verge, then its east.
+    for (x, z, yaw, pose) in ((427.0, -160.6, PI / 2, "talk"), (427.6, -160.0, -PI / 2, "talk"), (426.9, -146.2, PI / 2, "smoke"), (426.8, -131.0, PI / 2, "lean"),
+                              (427.0, -117.4, PI / 2, "phone"), (427.0, -104.6, PI / 2, "talk"), (427.6, -104.0, -PI / 2 - 0.4, "talk"),
+                              (427.1, -72.4, PI / 2, "talk"), (427.7, -71.8, -PI / 2, "talk"), (426.9, -63.6, PI / 2, "squat"), (426.8, -49.8, PI / 2, "lean"),
+                              (427.0, -40.8, PI / 2, "smoke"), (427.6, -25.6, PI / 2, "phone"),
+                              (452.9, -168.6, -PI / 2, "talk"), (453.3, -167.9, PI / 2 + 0.4, "talk"), (452.9, -136.4, -PI / 2, "smoke"), (453.0, -129.0, -PI / 2, "lean"),
+                              (452.9, -101.2, -PI / 2, "talk"), (453.4, -100.4, PI / 2, "talk"), (453.0, -62.6, -PI / 2, "lean"), (452.9, -49.0, -PI / 2, "talk"),
+                              (453.4, -48.3, PI / 2, "talk"), (453.1, -44.0, -PI / 2, "phone"), (452.9, -15.6, -PI / 2, "idle"), (453.2, 1.8, -PI / 2, "smoke")):
+        stand(x, z, yaw, pose)
+    # At the gates: the estate's east gate, the container yard's, the scrapper's.
+    stand(423.0, -90.6, PI / 2, "talk")
+    stand(423.9, -90.2, -PI / 2, "talk")
+    stand(300.4, 15.2, PI, "talk")
+    stand(301.4, 15.6, -PI / 2, "talk")
+    stand(404.0, 15.0, PI, "idle")
+    # At the pumps, and the forecourt's attendant.
+    stand(135.2, 21.0, PI / 2, "idle")
+    stand(160.6, 27.4, -PI / 2, "phone")
+    stand(147.6, 30.2, PI, "idle")
+    # Shift groups inside the plant's street wall, waiting on the bus.
+    for (x, z, yaw, pose) in ((350.4, -13.6, 0.2, "talk"), (351.6, -13.4, -2.6, "talk"), (352.2, -14.6, -1.9, "smoke"), (349.8, -14.8, 0.9, "phone"),
+                              (372.0, -13.5, 0.4, "lean"), (373.4, -13.6, -0.3, "talk"), (372.8, -14.7, 2.8, "talk")):
+        stand(x, z, yaw, pose)
+
+
+def saw_plant(x0, x1, z0, z1, y, n, rise, r, skip=None, glaze="-z"):
+    """A sawtooth roof's plant: ducts lying up the slopes by the valleys,
+    vents in groups on the slopes, air units on small decks level with the
+    ridges. `glaze` "-z" (ridges along x, lights facing north) or "+x"
+    (ridges along z, lights facing east); `skip` a span along the ridges
+    the walkway keeps clear."""
+    if glaze == "-z":
+        u0, u1, d = x0, x1, (z1 - z0) / n
+
+        def W(u, v):
+            return u, z0 + v
+    else:
+        u0, u1, d = z0, z1, (x1 - x0) / n
+
+        def W(u, v):
+            return x1 - v, u
+    yaw = 0.0 if glaze == "-z" else PI / 2
+    for i in range(n):
+        va = i * d
+        if i % 2 == 1:
+            # A duct by the valley, its stands on the slope 1.4 m up it.
+            vc = va + d - 1.4
+            yc = y + rise * 1.4 / d - 0.2
+            a, b = u0 + 3.0, (skip[0] - 1.0) if skip else u1 - 3.0
+            if b - a > 5.0:
+                (xa, za), (xb, zb) = W(a, vc), W(b, vc)
+                K.seg_run("rp_duct", xa, za, xb, zb, yc)
+        m = max(1, int((u1 - u0) / 26.0))
+        for j in range(m):
+            uv = u0 + (u1 - u0) * (j + 0.5) / m + r.uniform(-4.0, 4.0)
+            if skip and skip[0] - 2.0 < uv < skip[1] + 2.0:
+                continue
+            vx, vz = W(uv, va + 2.2)
+            P.place("rp_vents", vx, y + rise * (1 - 2.2 / d) - 0.1, vz, r.uniform(0, 6.28), district=D)
+    # Air units on decks over the slopes, level with the ridges.
+    for (au, ai) in ((u0 + (u1 - u0) * 0.25, 2), (u0 + (u1 - u0) * 0.85, n - 3)):
+        va = ai * d
+        (xa, za), (xb, zb) = W(au - 2.4, va + 0.4), W(au + 2.4, va + 3.0)
+        K.deck(min(xa, xb), max(xa, xb), min(za, zb), max(za, zb), y + rise)
+        for (pu, pv) in ((au - 2.2, va + 0.6), (au + 2.2, va + 0.6), (au - 2.2, va + 2.8), (au + 2.2, va + 2.8)):
+            px, pz = W(pu, pv)
+            K.column(px, pz, y, y + rise, t=0.12, detail=1)
+        cx_, cz_ = W(au, va + 1.7)
+        P.place("rp_ahu", cx_, y + rise + 0.08, cz_, yaw, district=D)
+
+
+def roofs():
+    """The sawtooth roofs, worked: walkways, ducts, air units, rooflights."""
+    r = R(8691)
+    K.saw_dress(180.0, 264.0, -160.0, -100.0, 8.6, 10, "-z", r, rise=2.6, walk=0.57, lamps=K.SODIUM)
+    K.saw_dress(246.0, 290.0, -78.0, -11.2, 8.0, 7, "+x", r, rise=2.8, walk=0.4, lamps=K.SODIUM)
+    K.saw_dress(182.0, 256.0, 16.0, 44.0, 8.0, 8, "+x", r, rise=3.0, walk=0.5, lamps=K.SODIUM)
+    K.saw_dress(454.5, 488.0, -175.5, -127.0, 6.8, 8, "-z", r, rise=2.4, walk=0.62, lit=False)
+
+
+import os  # noqa: E402
+
+
+def _tris():
+    """This module's triangles so far, by level of detail (SANTO_PROF)."""
+    from ncw import kit as _kit
+    n = [0, 0]
+    for key, b in _kit.batches.items():
+        if key[0] == D:
+            n[1 if key[2] else 0] += sum(len(f) - 2 for f in b.faces)
+    return n
+
+
+def _step(fn, *a):
+    if not os.environ.get("SANTO_PROF"):
+        return fn(*a)
+    t0, i0 = _tris(), len(P.INSTANCES)
+    out = fn(*a)
+    t1 = _tris()
+    print(f"SANTO_PROF {fn.__name__}: {t1[0] - t0[0]} tris, {t1[1] - t0[1]} detail, {len(P.INSTANCES) - i0} props")
+    return out
+
+
+_step(roads)
+_step(works)
+_step(tank_farm)
+_step(plant)
+_step(depot)
+_step(fuel)
+_step(street_shed)
+_step(container_yard)
+BUS = _step(substation)
+_step(workshop)
+_step(towers)
+_step(gasholder)
+_step(east)
+_step(lines, BUS)
+_step(power_line)
+_step(frontage_light)
+_step(roofs)
+_step(saw_plant, 180.0, 264.0, -160.0, -100.0, 8.6, 10, 2.6, R(8712), (226.0, 230.0))
+_step(saw_plant, 246.0, 290.0, -78.0, -11.2, 8.0, 7, 2.8, R(8713), (-53.3, -49.3), "+x")
+_step(saw_plant, 182.0, 256.0, 16.0, 44.0, 8.0, 8, 3.0, R(8714), (28.0, 32.0), "+x")
+_step(yards)
+_step(dress)
+_step(crowd)
+_step(street_cones)
+if os.environ.get("SANTO_DUMP"):
+    # What this module set down (props, collision boxes, people), for the
+    # check that nothing of it stands in a street: agents/santo/r7/own.py.
+    import json
+    with open(os.environ["SANTO_DUMP"], "w") as _f:
+        json.dump({"props": P.INSTANCES[_OWN[0]:], "boxes": B.COLLISION[_OWN[1]:], "people": PEOPLE[_OWN[2]:],
+                   "protos": {n_: list(q["box"]) for n_, q in P.PROTOS.items()}}, _f)

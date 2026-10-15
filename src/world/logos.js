@@ -15,12 +15,13 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { COMMON } from "./glsl.js";
 import { worldLogos } from "../data/world-assets.js";
 import { towers as TOWERS } from "../data/world.js";
+import { bitmapTexture } from "./pictures.js";
 
 let pending = null;
 
 export function preloadLogos() {
   if (!pending) {
-    pending = new THREE.TextureLoader().loadAsync(worldLogos.url).catch((err) => {
+    pending = bitmapTexture(worldLogos.url, false).catch((err) => {
       pending = null;
       throw err;
     });

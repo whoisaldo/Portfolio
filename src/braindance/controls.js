@@ -5,6 +5,12 @@
 // own keys). The pointer on the city looks around while it plays and
 // orbits while the editor holds a moment; a click held on a clue scans it
 // (src/braindance/scanner.js owns that, and says so by claiming the press).
+//
+// G puts the recording down for free roam (src/braindance/roam) and takes
+// it up again. While roaming, the keys that move the recording move the
+// player instead: W A S D and the arrows, Space, Shift, F and R are roam's
+// (it is told of each by its code, down and up), and the rest (the layers,
+// the journal, photo mode, mute, the interface) stay as they are.
 import { useEffect } from "react";
 import { bd, set } from "./store";
 import { DURATION } from "./recording";
@@ -55,6 +61,26 @@ export function useControls(engineRef, on) {
           return;
         }
         if (key !== "Escape" && key !== "p" && key !== "P") return;
+      }
+      if (key === "g" || key === "G") {
+        handled();
+        if (!event.repeat && bd.mode !== "photo") {
+          // A button left in focus would take Space and Enter for itself.
+          document.activeElement?.blur?.();
+          e.setRoam();
+        }
+        return;
+      }
+      if (e.roam?.on) {
+        if (bd.mode !== "photo" && e.roam.key(event.code, true, event.repeat)) {
+          handled();
+          return;
+        }
+        // The transport is the recording's, and the recording is down.
+        if (key === " " || key === "q" || key === "Q" || key === "e" || key === "E" || key === "f" || key === "F" || key === "r" || key === "R" || key === "ArrowLeft" || key === "ArrowRight") {
+          handled();
+          return;
+        }
       }
       switch (key) {
         case " ":
@@ -133,8 +159,27 @@ export function useControls(engineRef, on) {
           break;
       }
     };
+    // Roam's keys are held, so it hears them let go as well, and all of
+    // them at once when the window loses the keyboard.
+    const onKeyUp = (event) => {
+      const roam = engine()?.roam;
+      if (roam?.on && roam.key(event.code, false)) event.preventDefault();
+    };
+    const onBlur = () => engine()?.roam?.release();
+    // On foot a click on the city holds the mouse (pointer lock); the
+    // browser lets it go on Esc, and the store is told either way.
+    const onLock = () => set({ locked: Boolean(document.pointerLockElement) });
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    document.addEventListener("keyup", onKeyUp);
+    document.addEventListener("pointerlockchange", onLock);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keyup", onKeyUp);
+      document.removeEventListener("pointerlockchange", onLock);
+      window.removeEventListener("blur", onBlur);
+      if (document.pointerLockElement) document.exitPointerLock?.();
+    };
   }, [engineRef, on]);
 }
 
@@ -152,13 +197,35 @@ export function pointerHandlers(engineRef) {
       const e = engineRef.current;
       // A press on a clue scans it; anywhere else it grabs the view.
       down = { x: event.clientX, y: event.clientY, scanning: Boolean(bd.hover) };
-      event.currentTarget.setPointerCapture?.(event.pointerId);
+      // On foot, a click that is not a scan holds the mouse for looking
+      // (Esc lets it go). Held, a click only scans.
+      if (bd.roam === "walk" && bd.mode !== "photo" && !document.pointerLockElement && !down.scanning) {
+        try {
+          const asked = event.currentTarget.requestPointerLock?.();
+          asked?.catch?.(() => {});
+        } catch {
+          // No lock here: a drag looks instead.
+        }
+      }
+      if (!document.pointerLockElement) event.currentTarget.setPointerCapture?.(event.pointerId);
       e?.press(true);
       if (!down.scanning) e?.hold(true);
     },
     onPointerMove(event) {
       const e = engineRef.current;
+      if (document.pointerLockElement) {
+        e?.look(event.movementX, event.movementY);
+        return;
+      }
       const [x, y] = toNdc(event);
+      // In free roam a press on a clue that then moves is a look, not a
+      // scan: up close a tower is a clue from edge to edge of the view, and
+      // there would be nowhere left to grab it by.
+      if (down?.scanning && bd.roam !== "off" && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 6) {
+        down.scanning = false;
+        e?.press(false);
+        e?.hold(true);
+      }
       if (!down || !down.scanning) e?.pointer(x, y, true);
       if (!down || down.scanning) return;
       const dx = event.clientX - down.x;
@@ -169,7 +236,7 @@ export function pointerHandlers(engineRef) {
     },
     onPointerUp(event) {
       down = null;
-      event.currentTarget.releasePointerCapture?.(event.pointerId);
+      if (!document.pointerLockElement) event.currentTarget.releasePointerCapture?.(event.pointerId);
       engineRef.current?.press(false);
       engineRef.current?.hold(false);
     },

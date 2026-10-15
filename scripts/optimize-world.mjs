@@ -26,7 +26,8 @@
 // brief are asserted here, so a build that outgrows them fails loudly.
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { NodeIO, PropertyType } from "@gltf-transform/core";
+import { gzipSync } from "node:zlib";
+import { NodeIO, Primitive, PropertyType } from "@gltf-transform/core";
 import { ALL_EXTENSIONS } from "@gltf-transform/extensions";
 import { dedup, weld, meshopt, prune, textureCompress } from "@gltf-transform/functions";
 import { MeshoptEncoder } from "meshoptimizer";
@@ -34,7 +35,17 @@ import sharp from "sharp";
 
 const SOURCE = "design/night-city-world/world-source.glb";
 const OUT = "public/scenes/world";
-const BUDGET = { high: 3.5e6, phone: 1.5e6 };
+// The core (what the hero needs, and every named piece) may weigh no more
+// than the whole city did before it grew, so the city goes live no later;
+// the packs that stream in behind it have their own.
+const BUDGET = { high: 2.6e6, phone: 1.2e6 };
+const PACK_BUDGET = { high: 2.2e6, phone: 1.0e6 };
+// Japantown is the densest district (its street, lanes, roofs and outer
+// row), so its pack may carry more.
+const PACK_BUDGET_OF = { japantown: { high: 2.6e6, phone: 1.2e6 } };
+// One pack per district (scripts/blender/ncw/finish.py, PACK_OF), in the
+// order the page streams them: nearest the shots the reader meets first.
+const PACK_ORDER = ["core", "south", "canyon", "plaza", "deck", "corpo", "afterlife", "santo", "japantown", "mega"];
 const TIERS = {
   high: { size: 1024, quality: 82, dropDetail: false },
   phone: { size: 512, quality: 76, dropDetail: true },
@@ -45,12 +56,154 @@ const io = new NodeIO()
   .registerExtensions(ALL_EXTENSIONS)
   .registerDependencies({ "meshopt.encoder": MeshoptEncoder });
 
+// The core's long lists and its named signs, out of the JSON. A GLB's JSON
+// is text nobody compresses on the way (it is inside the file), a node with
+// a mesh costs about a kilobyte and a half of it before its first triangle,
+// and a number in an extra about five bytes. So, in the core only, after
+// everything else has been done to it:
+//
+//   the named signs (sign_<name>, ninety-odd quads, a node and a mesh each)
+//   become one mesh, `signs_named`, each sign's place in the list in its
+//   vertices' colour as the street's batches have it, with `names` and `wh`
+//   (each sign's width and height, metres) on the node. Every vertex is
+//   written where the site would have put it from the sign's own node, to
+//   the bit, and the list is in the order the nodes had: a sign's turn is
+//   its place in the site's atlas and the beat it flickers on;
+//
+//   the street signs' ids (signs_index: `ids`, st_<size>_<n> with _b for a
+//   back) become three numbers each on a mesh of points: `_ID`, n's low 16
+//   bits, twice the size's place in `sizes` plus one for a back, and n's
+//   high 16 bits (the plaza's own ids start at 700000);
+//
+//   the people standing about (anchor_people: `stand`) become eight numbers
+//   each on a mesh of points: `_XZ`, x and then z in centimetres plus
+//   131072 as a low and a high 16 bits, and `_YAP`, y in centimetres, the
+//   yaw in thousandths of a radian, the pose and a zero.
+//
+// src/world/city.js reads them back (inflate, and the signs' unpack) into
+// what the builder wrote. A list that does not fit its numbers exactly is
+// left as it was, and the site reads either.
+async function compactCore(document) {
+  const root = document.getRoot();
+  const buffer = root.listBuffers()[0];
+  const accessor = (type, array, normalized = false) => document.createAccessor().setType(type).setArray(array).setNormalized(normalized).setBuffer(buffer);
+  const points = (node, attributes) => {
+    const prim = document.createPrimitive().setMode(Primitive.Mode.POINTS);
+    for (const [name, [type, array]] of Object.entries(attributes)) prim.setAttribute(name, accessor(type, array));
+    node.setMesh(document.createMesh(node.getName()).addPrimitive(prim));
+  };
+
+  const signs = root.listScenes()[0].listChildren().filter((n) => n.getName().startsWith("sign_") && n.getMesh());
+  if (signs.length) {
+    const first = signs[0].getMesh().listPrimitives()[0];
+    const like = (semantic) => first.getAttribute(semantic);
+    const position = [];
+    const color = [];
+    const index = [];
+    const normal = [];
+    const uv = [];
+    const wh = [];
+    signs.forEach((node, k) => {
+      const prim = node.getMesh().listPrimitives()[0];
+      for (const semantic of ["NORMAL", "TEXCOORD_0"]) {
+        const a = prim.getAttribute(semantic);
+        if (a.getComponentType() !== like(semantic).getComponentType() || a.getNormalized() !== like(semantic).getNormalized()) throw new Error(`${node.getName()}: its ${semantic} is not stored as the other signs' is`);
+      }
+      const m = node.getWorldMatrix();
+      const pos = prim.getAttribute("POSITION");
+      const base = position.length / 3;
+      for (let i = 0; i < pos.getCount(); i++) {
+        // As three.js puts a vertex through its node's matrix.
+        const [x, y, z] = pos.getElement(i, []);
+        position.push(m[0] * x + m[4] * y + m[8] * z + m[12], m[1] * x + m[5] * y + m[9] * z + m[13], m[2] * x + m[6] * y + m[10] * z + m[14]);
+        color.push(k % 256, Math.floor(k / 256), 0, 255);
+      }
+      normal.push(...prim.getAttribute("NORMAL").getArray());
+      uv.push(...prim.getAttribute("TEXCOORD_0").getArray());
+      index.push(...Array.from(prim.getIndices().getArray(), (i) => base + i));
+      wh.push(node.getExtras().w, node.getExtras().h);
+    });
+    const prim = document.createPrimitive()
+      .setMaterial(first.getMaterial())
+      .setIndices(accessor("SCALAR", new Uint16Array(index)))
+      .setAttribute("POSITION", accessor("VEC3", new Float32Array(position)))
+      .setAttribute("NORMAL", accessor(like("NORMAL").getType(), new (like("NORMAL").getArray().constructor)(normal), like("NORMAL").getNormalized()))
+      .setAttribute("TEXCOORD_0", accessor("VEC2", new (like("TEXCOORD_0").getArray().constructor)(uv), like("TEXCOORD_0").getNormalized()))
+      .setAttribute("COLOR_0", accessor("VEC4", new Uint8Array(color), true));
+    const batch = document.createNode("signs_named")
+      .setMesh(document.createMesh("signs_named").addPrimitive(prim))
+      .setExtras({ names: signs.map((n) => n.getName().slice(5)), wh });
+    root.listScenes()[0].addChild(batch);
+    for (const node of signs) node.dispose();
+  }
+
+  const signsIndex = root.listNodes().find((n) => n.getName() === "signs_index");
+  const ids = signsIndex?.getExtras().ids ?? [];
+  const sizes = [];
+  const codes = ids.map((id) => {
+    const m = /^st_([a-z]+)_(\d+)(_b)?$/.exec(id);
+    if (!m || +m[2] > 0xffffffff) return null;
+    if (!sizes.includes(m[1])) sizes.push(m[1]);
+    return [+m[2] % 65536, sizes.indexOf(m[1]) * 2 + (m[3] ? 1 : 0), Math.floor(+m[2] / 65536)];
+  });
+  if (ids.length && codes.every(Boolean)) {
+    points(signsIndex, { _ID: ["VEC3", new Uint16Array(codes.flat())] });
+    signsIndex.setExtras({ ...signsIndex.getExtras(), ids: undefined, sizes });
+  }
+
+  const people = root.listNodes().find((n) => n.getName() === "anchor_people");
+  const stand = people?.getExtras().stand ?? [];
+  const xz = [];
+  const yap = [];
+  let exact = stand.length > 0;
+  for (let i = 0; i + 4 < stand.length; i += 5) {
+    const [x, y, z, yaw, pose] = stand.slice(i, i + 5);
+    const X = Math.round(x * 100) + 131072;
+    const Z = Math.round(z * 100) + 131072;
+    const Y = Math.round(y * 100);
+    const A = Math.round(yaw * 1000);
+    exact &&= (X - 131072) / 100 === x && (Z - 131072) / 100 === z && Y / 100 === y && A / 1000 === yaw && Number.isInteger(pose)
+      && X >= 0 && X < 262144 && Z >= 0 && Z < 262144 && Math.abs(Y) < 32768 && Math.abs(A) < 32768 && Math.abs(pose) < 32768;
+    xz.push(X % 65536, Math.floor(X / 65536), Z % 65536, Math.floor(Z / 65536));
+    yap.push(Y, A, pose, 0);
+  }
+  if (exact) {
+    points(people, { _XZ: ["VEC4", new Uint16Array(xz)], _YAP: ["VEC4", new Int16Array(yap)] });
+    people.setExtras({ ...people.getExtras(), stand: undefined });
+  }
+  await document.transform(prune({ keepLeaves: true, keepExtras: true, keepAttributes: true }));
+}
+
 await mkdir(OUT, { recursive: true });
 const sizes = {};
+const tagged = new Set(["core"]);
+for (const node of (await io.read(SOURCE)).getRoot().listNodes()) {
+  const p = node.getExtras()?.pack;
+  if (p) tagged.add(p);
+}
+const PACKS = [...PACK_ORDER.filter((p) => tagged.has(p)), ...[...tagged].filter((p) => !PACK_ORDER.includes(p)).sort()];
 
-for (const [tier, opts] of Object.entries(TIERS)) {
+for (const [tier, opts] of Object.entries(TIERS)) for (const pack of PACKS) {
   const document = await io.read(SOURCE);
   const root = document.getRoot();
+
+  // This pack's nodes only. The core keeps everything not tagged for a
+  // pack (the named pieces, anchors, cameras, prototypes, the hero's
+  // districts); a pack keeps only its districts' meshes, and no textures:
+  // its materials are the core's, which the site already has.
+  for (const node of root.listNodes()) {
+    const p = node.getExtras()?.pack;
+    const mine = pack === "core" ? !p || p === "core" : p === pack;
+    if (!mine) node.dispose();
+  }
+  if (pack !== "core") {
+    for (const material of root.listMaterials()) {
+      material.setBaseColorTexture(null);
+      material.setEmissiveTexture(null);
+      material.setMetallicRoughnessTexture(null);
+      material.setNormalTexture(null);
+    }
+  }
 
   // Roughness and normal maps: the road's only. Its shader reads both (the
   // puddles, and the mirror bent by the asphalt); every other surface is lit
@@ -65,12 +218,15 @@ for (const [tier, opts] of Object.entries(TIERS)) {
   // What each surface reads from its vertices (src/world/materials.js and
   // road.js): UVs only where a picture, a window cell, a stripe or the
   // road's maps are drawn from them, colours only where a building's own
-  // numbers ride on them (and the glow's, its colour). Plain paint and the
+  // numbers ride on them (and the glow's and the road paint's, their
+  // colour). Plain paint and the
   // neon read neither, so theirs are bytes nobody reads, and without them a
   // box's corners weld.
   const PLAIN = ["metal", "dark", "roof", "kerb", "board_frame", "door", "hazard", "tool_red", "glass_dark"];
+  // Colour, no UVs: the trim's colour is its building's.
+  const COLOR_ONLY = ["trim"];
   const UV_ONLY = ["sidewalk", "concrete", "garage_wall", "facade_t0", "facade_t1", "facade_t2", "garage_wall_back",
-    "garage_wall_magenta", "garage_wall_cyan", "lantern", "asphalt", "paint"];
+    "garage_wall_magenta", "garage_wall_cyan", "lantern", "asphalt"];
   for (const mesh of root.listMeshes()) {
     for (const prim of mesh.listPrimitives()) {
       const n = (prim.getMaterial()?.getName() ?? "").replace(/^NCW_/, "").replace(/\.\d+$/, "");
@@ -82,7 +238,7 @@ for (const [tier, opts] of Object.entries(TIERS)) {
           if (!color.listParents().some((p) => p !== root)) color.dispose();
         }
       }
-      if (plain || n === "glow") {
+      if (plain || n === "glow" || COLOR_ONLY.includes(n)) {
         const uv = prim.getAttribute("TEXCOORD_0");
         if (uv) {
           prim.setAttribute("TEXCOORD_0", null);
@@ -113,17 +269,24 @@ for (const [tier, opts] of Object.entries(TIERS)) {
     textureCompress({ encoder: sharp, targetFormat: "webp", resize: [opts.size, opts.size], quality: opts.quality }),
     meshopt({ encoder: MeshoptEncoder, level: "high", quantizePosition: 16, quantizeNormal: 10, quantizeTexcoord: 14 }),
   );
-  const path = `${OUT}/world-${tier}.glb`;
+  if (pack === "core") await compactCore(document);
+  const path = pack === "core" ? `${OUT}/world-${tier}.glb` : `${OUT}/world-${tier}-${pack}.glb`;
   await io.write(path, document);
-  sizes[tier] = (await stat(path)).size;
+  // The core's model also gzipped beside it, which the page fetches
+  // (src/world/fetched.js): a third of it is JSON and quantised geometry.
+  if (pack === "core") await writeFile(`${path}.gz`, gzipSync(await readFile(path), { level: 9 }));
+  const size = (await stat(path)).size;
+  if (pack === "core") sizes[tier] = size;
+  sizes[`${tier}-${pack}`] = size;
   let triangles = 0;
   for (const mesh of root.listMeshes()) {
     for (const prim of mesh.listPrimitives()) triangles += (prim.getIndices()?.getCount() ?? 0) / 3;
   }
-  console.log(`world-${tier}.glb: ${(sizes[tier] / 1e6).toFixed(2)} MB, ${root.listMeshes().length} meshes, ` +
+  console.log(`${path.split("/").pop()}: ${(size / 1e6).toFixed(2)} MB, ${root.listMeshes().length} meshes, ` +
     `${triangles.toLocaleString()} triangles, ${root.listTextures().length} textures`);
-  if (sizes[tier] > BUDGET[tier]) {
-    throw new Error(`world-${tier}.glb is ${(sizes[tier] / 1e6).toFixed(2)} MB, over its ${BUDGET[tier] / 1e6} MB budget`);
+  const budget = pack === "core" ? BUDGET[tier] : (PACK_BUDGET_OF[pack] ?? PACK_BUDGET)[tier];
+  if (size > budget) {
+    throw new Error(`${path.split("/").pop()} is ${(size / 1e6).toFixed(2)} MB, over its ${budget / 1e6} MB budget`);
   }
 }
 
@@ -146,6 +309,8 @@ for (const [name, src, w, h, q] of [
   ["ad-nicola", "design/night-city-world/textures/ad-nicola.jpg", 768, 1152, 82],
   ["koi-magenta", "design/night-city-world/textures/holo-koi-magenta.jpg", 1024, 683, 80],
   ["koi-cyan", "design/night-city-world/textures/holo-koi-cyan.jpg", 1024, 683, 80],
+  ["koi-amber-side", "design/night-city-world/textures/holo-koi-amber-side.jpg", 1024, 683, 82],
+  ["koi-amber-top", "design/night-city-world/textures/holo-koi-amber-top.jpg", 1024, 683, 82],
 ]) {
   const path = `${OUT}/${name}.webp`;
   await sharp(src).resize(w, h, { fit: "cover" }).webp({ quality: q }).toFile(path);
@@ -248,12 +413,53 @@ await sharp({ create: { width: LOGO_W, height: LOGO_ATLAS_H, channels: 4, backgr
   .toFile(logosPath);
 console.log(`logos.webp: ${LOGO_W}x${LOGO_ATLAS_H}, ${Math.round((await stat(logosPath)).size / 1024)} KB`);
 
+// The props (scripts/blender/ncw/props.py): every instance as eight 16-bit
+// numbers (prototype, x and z to 5 cm, y to 2 cm, yaw, stretch up, scale
+// across, district) after a JSON header naming the prototypes and their
+// reach. A phone leaves out the prototypes tagged detail, as its GLB leaves
+// out the meshes.
+const props = JSON.parse(await readFile("design/night-city-world/props-source.json", "utf8"));
+const propPaths = {};
+for (const [tier, opts] of Object.entries(TIERS)) {
+  const keep = props.instances.filter((i) => !(opts.dropDetail && props.protos[i[0]].detail));
+  const header = Buffer.from(JSON.stringify({ protos: props.protos, districts: props.districts, count: keep.length }));
+  const pad = (4 - ((4 + header.length) % 4)) % 4;
+  const buf = Buffer.alloc(4 + header.length + pad + keep.length * 16);
+  buf.writeUInt32LE(header.length + pad, 0);
+  header.copy(buf, 4);
+  buf.fill(32, 4 + header.length, 4 + header.length + pad);
+  let o = 4 + header.length + pad;
+  const q = (v) => Math.max(-32767, Math.min(32767, Math.round(v)));
+  for (const [pi, x, y, z, yaw, sy, sxz, di] of keep) {
+    for (const v of [pi, x * 20, y * 50, z * 20, yaw * 10430.2, sy * 100, sxz * 1000, di]) {
+      buf.writeInt16LE(q(v), o);
+      o += 2;
+    }
+  }
+  propPaths[tier] = `${OUT}/props-${tier}.bin`;
+  await writeFile(propPaths[tier], buf);
+  // And gzipped beside it, which the page fetches: two thirds smaller.
+  await writeFile(`${propPaths[tier]}.gz`, gzipSync(buf, { level: 9 }));
+  console.log(`props-${tier}.bin: ${keep.length} props, ${Math.round(buf.length / 1024)} KB`);
+}
+// What the drive, the walk and a richer braindance will read later (README,
+// "Exports for later"); the page does not load them.
+for (const name of ["road-graph.json", "collision.json", "districts.json", "anchors.json"]) {
+  await writeFile(`${OUT}/${name}`, await readFile(`design/night-city-world/${name}`));
+}
+
 const revision = async (path) => createHash("sha256").update(await readFile(path)).digest("hex").slice(0, 12);
 const base = "/scenes/world/";
 const metadata = `// Generated by npm run world:assets (scripts/optimize-world.mjs). Do not edit.
 export const worldModelUrl = {
-  high: "${base}world-high.glb?v=${await revision(`${OUT}/world-high.glb`)}",
-  phone: "${base}world-phone.glb?v=${await revision(`${OUT}/world-phone.glb`)}",
+  high: "${base}world-high.glb.gz?v=${await revision(`${OUT}/world-high.glb.gz`)}",
+  phone: "${base}world-phone.glb.gz?v=${await revision(`${OUT}/world-phone.glb.gz`)}",
+};
+// The districts that stream in behind the core, in the order they load:
+// south first (behind the hero), then the districts the page's sections
+// look at, nearest first.
+export const worldPackUrl = {
+${(await Promise.all(Object.keys(TIERS).map(async (tier) => `  ${tier}: {\n${(await Promise.all(PACKS.filter((p) => p !== "core").map(async (p) => `    ${p}: "${base}world-${tier}-${p}.glb?v=${await revision(`${OUT}/world-${tier}-${p}.glb`)}",`))).join("\n")}\n  },`))).join("\n")}
 };
 export const worldMoonUrl = "${base}moon.webp?v=${await revision(moonPath)}";
 export const worldHoloUrl = "${base}holo.webp?v=${await revision(holoPath)}";
@@ -278,7 +484,12 @@ export const worldShopsUrl = {
   high: "${base}shops-high.webp?v=${await revision(shopPaths.high)}",
   phone: "${base}shops-phone.webp?v=${await revision(shopPaths.phone)}",
 };
+export const worldPropsUrl = {
+  high: "${base}props-high.bin.gz?v=${await revision(`${propPaths.high}.gz`)}",
+  phone: "${base}props-phone.bin.gz?v=${await revision(`${propPaths.phone}.gz`)}",
+};
 `;
 const metadataPath = "src/data/world-assets.js";
 if ((await readFile(metadataPath, "utf8").catch(() => "")) !== metadata) await writeFile(metadataPath, metadata);
-console.log(`budgets: high ${(sizes.high / 1e6).toFixed(2)} / 3.5 MB, phone ${(sizes.phone / 1e6).toFixed(2)} / 1.5 MB`);
+console.log(`budgets: core high ${(sizes.high / 1e6).toFixed(2)} / ${BUDGET.high / 1e6} MB, phone ${(sizes.phone / 1e6).toFixed(2)} / ${BUDGET.phone / 1e6} MB; ` +
+  `packs high ${(PACKS.slice(1).reduce((a, p) => a + sizes[`high-${p}`], 0) / 1e6).toFixed(2)} MB, phone ${(PACKS.slice(1).reduce((a, p) => a + sizes[`phone-${p}`], 0) / 1e6).toFixed(2)} MB`);

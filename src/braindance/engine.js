@@ -12,6 +12,11 @@
 // in bursts; see the long note in IntroCinematic.jsx), so the picture is
 // smooth and still lands on every beat. Without sound it runs on the frame
 // clock alone, at the same rates.
+//
+// Free roam (src/braindance/roam, its own chunk) is the recording put down:
+// the clock holds where it was, the song plays on as the car's radio, and
+// the car and the camera are the player's until the recording is taken up
+// again.
 import * as THREE from "three";
 import { loadWorld } from "../world/load.js";
 import { setStage } from "../world/stage.js";
@@ -53,6 +58,22 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     onLost: () => set({ status: "failed" }),
   });
+  // A braindance is a reconstruction, and the editor lights what it is
+  // looking at: a soft key from over the camera's shoulder onto the car,
+  // up close only. The city is lit by its own signs (src/world/glsl.js) and
+  // takes no three.js light, so this touches the car and nothing else.
+  // (In the scene before the warm-up, dark: three keys every program by
+  // the lights the camera drawing sees, lit material or not, so a city
+  // material first drawn after it came would be a program of its own
+  // beside its warmed twin. And a dark twin of it for the wet road's
+  // mirror, whose camera does not see it: there too a material first drawn
+  // would count a light fewer.)
+  const fill = new THREE.DirectionalLight(0xdfe8ff, 0);
+  fill.name = "bd_fill";
+  const fillMirror = new THREE.DirectionalLight(0xdfe8ff, 0);
+  fillMirror.name = "bd_fill_mirror";
+  fillMirror.layers.set(world.parts.mirrorLayer);
+  world.parts.scene.add(fill, fill.target, fillMirror);
   await world.warm();
   await trackLoading;
   onProgress?.(1);
@@ -63,13 +84,6 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   // The car's coloured stage rims are tuned for the page's distances.
   parts.car?.setRims(0.3);
 
-  // A braindance is a reconstruction, and the editor lights what it is
-  // looking at: a soft key from over the camera's shoulder onto the car,
-  // up close only. The city is lit by its own signs (src/world/glsl.js) and
-  // takes no three.js light, so this touches the car and nothing else.
-  const fill = new THREE.DirectionalLight(0xdfe8ff, 0);
-  fill.name = "bd_fill";
-  parts.scene.add(fill, fill.target);
   const spec = recording.frame();
   // The holocall over the garage roof at the end (the Contact clue).
   const holoMap = await holoLoading;
@@ -90,6 +104,9 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   // The minimap's ground, drawn from the city once.
   const heightMap = bakeHeights(parts);
   const map = { ...heightMap, canvas: drawMap(heightMap) };
+  // And the whole city's, for free roam (made the first time it is asked
+  // for: the recording's map stops where the recording does).
+  let wide = null;
 
   // ---- the clock ------------------------------------------------------------
   const clock = { t: 0, est: 0, live: false };
@@ -115,6 +132,23 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     const gap = raw - est;
     if (Math.abs(gap) > 0.12) return raw;
     return est + gap * 0.05;
+  };
+
+  // ---- free roam ------------------------------------------------------------
+  // `roam` is the module's player once it has loaded; `roamJob` counts the
+  // asks, so a second G while the first is still loading calls it off.
+  let roam = null;
+  let roamJob = 0;
+  let resumeAfter = false;
+  // Seconds the city's clock has run in free roam, past the recording's.
+  let roamed = 0;
+  // How many steps the player has taken on foot (for their sound).
+  let stride = 0;
+  // The glitch a switch into or out of free roam lands with.
+  let jolt = 0;
+  const radioOn = () => {
+    if (audio?.ready && !audio.playing) audio.play(clock.t >= DURATION - 0.5 ? 0 : clock.t, 1, 1);
+    clock.live = false;
   };
 
   // ---- the camera on top of the recording ---------------------------------
@@ -183,8 +217,11 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     last = now;
     if (document.hidden) return;
 
-    // Time.
-    let t = steer(dt);
+    // Time: the recording's, or held where it was while the player roams
+    // (the song then loops as the radio, on its own).
+    const free = Boolean(roam?.on);
+    let t = free ? clock.t : steer(dt);
+    if (free && (audio?.time() ?? 0) >= DURATION - 0.1) audio.play(0, 1, 1);
     if (t >= DURATION && dir > 0) {
       t = DURATION;
       if (playing) {
@@ -205,7 +242,10 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     }
     // The city's own clock follows the recording's: still while paused,
     // backwards while rewinding, a jump on a scrub.
-    spec.flow = t - flowT;
+    // (What it ran on by while the player roamed comes off as the recording
+    // is taken up again, so the recording's second is the city's once more.)
+    spec.flow = free ? (bd.mode === "photo" ? 0 : dt) : t - flowT - roamed;
+    roamed = free ? roamed + spec.flow : 0;
     flowT = t;
     clock.t = t;
     bd.time = t;
@@ -216,7 +256,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     // The camera: the recording's, the editor's, or the photo camera's,
     // eased between them so a switch is a move and not a cut.
     const mode = bd.mode;
-    const target = mode === "edit" || mode === "photo" ? 1 : 0;
+    const target = !free && (mode === "edit" || mode === "photo") ? 1 : 0;
     edit.k += (target - edit.k) * (1 - Math.exp(-dt * 5));
     if (target && !edit.ready) enterEdit();
     if (!target && edit.k < 1e-3) edit.ready = false;
@@ -248,13 +288,32 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       );
     }
     copyPose(shown, view);
+    // Free roam: the player's car and camera in place of the recording's.
+    jolt *= Math.exp(-dt * 7);
+    spec.free = free;
+    spec.roll = 0;
+    spec.afoot = false;
+    if (free) {
+      // On foot with the mouse held, the scanner looks where the eye does;
+      // a card, the journal or photo mode needs the mouse back.
+      if (bd.locked && (bd.open || bd.journal || bd.help || mode === "photo")) document.exitPointerLock?.();
+      if (bd.locked) scanner.move(0, 0, true);
+      roam.frame(dt, spec, shown);
+      if (roam.car.knock > 2.5 && bd.mode !== "photo") sounds?.thud(clamp(roam.car.knock / 16, 0, 1));
+      // On foot, a step's sound each time a foot comes down: every 0.74 m
+      // walking, every 1.15 m at a run.
+      const running = roam.walker.speed > 3.5;
+      const strides = Math.floor(roam.walker.walked / (running ? 1.15 : 0.74));
+      if (spec.afoot && strides !== stride && bd.mode !== "photo") sounds?.step(running ? 1 : 0);
+      stride = strides;
+    }
+    spec.glitch = Math.max(spec.glitch, jolt > 0.01 ? jolt : 0);
     // Photo mode's lens and roll.
     if (mode === "photo") {
       shown.fov = clamp(shown.fov + bd.photo.fov, 12, 90);
       spec.roll = (bd.photo.roll * Math.PI) / 180;
       layers.setFilter(bd.photo.filter);
     } else {
-      spec.roll = 0;
       layers.setFilter("off");
     }
     tag.setVisible(layers.layer === "thermal");
@@ -271,8 +330,9 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     // The reconstruction: the city builds out from the car over the
     // first fourteen seconds; scrubbed past it, it is simply there.
     waveT = t;
-    const waveR = waveT < 16 && !reduced ? 1.5 + Math.pow(clamp(waveT / 14, 0, 1), 1.7) * 900 : 5000;
-    layers.setWave(spec.carPosition, waveR, waveT < 16 && !reduced ? 1 : 0, LAYER_COLORS[layers.layer]);
+    const building = waveT < 16 && !reduced && !free;
+    const waveR = building ? 1.5 + Math.pow(clamp(waveT / 14, 0, 1), 1.7) * 900 : 5000;
+    layers.setWave(spec.carPosition, waveR, building ? 1 : 0, LAYER_COLORS[layers.layer]);
     // Reduced motion: cuts without the glitch.
     if (reduced) spec.glitch = 0;
 
@@ -286,8 +346,13 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     spec.levels = audio?.levels();
     layers.setOverdrive(bd.overdrive, spec.levels?.bass ?? 0);
     for (const fn of hooks) fn(dt, t, spec, shown);
-    layers.update(dt, { rewind: playing && dir < 0 ? 1 : 0, paused: playing ? 0 : 1 });
+    layers.update(dt, { rewind: playing && dir < 0 ? 1 : 0, paused: playing || free ? 0 : 1 });
+    // While the player has the car the world is not told where it is on
+    // the road: roam has put it where it is.
+    const carOnRoad = spec.car;
+    if (free) spec.car = null;
     world.renderDirected(dt, spec);
+    spec.car = carOnRoad;
     spec.pose = recordingPose;
     if (captureNext) {
       // Read in the same task as the draw: the drawing buffer is only
@@ -300,14 +365,14 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     if (sounds) {
       camera.getWorldDirection(_fwd);
       sounds.update(dt, {
-        car: { x: spec.carPosition.x, z: spec.carPosition.z, v: playing ? spec.car.v : 0 },
+        car: { x: spec.carPosition.x, y: spec.carPosition.y, z: spec.carPosition.z, v: playing || free ? spec.car.v : 0, slide: free ? roam.car.slide : 0 },
         cam: camera.position,
         fwd: _fwd,
-        playing,
-        rate,
+        playing: playing || free,
+        rate: free ? 1 : rate,
         beaconAt: roofBeacon,
       });
-      if (spec.shot !== lastShot && spec.glitch > 0.5 && playing) sounds.cut();
+      if (spec.shot !== lastShot && spec.glitch > 0.5 && playing && !free) sounds.cut();
     }
     lastShot = spec.shot;
 
@@ -343,7 +408,11 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     audio,
     spec,
     camera,
-    map,
+    /** The minimap's ground: the recording's part of the city, or all of
+     *  it while the player roams. */
+    get map() {
+      return roam?.on && wide ? wide : map;
+    },
     start,
     get time() {
       return clock.t;
@@ -357,7 +426,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     /** The context woke after the deck was asked to play: start it now. */
     resync() {
-      if (playing && audio && !audio.playing) deckPlay();
+      if (roam?.on) radioOn();
+      else if (playing && audio && !audio.playing) deckPlay();
     },
     /** Called every frame before the city draws: (dt, t, spec, pose). */
     onFrame(fn) {
@@ -365,6 +435,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       return () => hooks.delete(fn);
     },
     play() {
+      if (roam?.on) return;
       if (clock.t >= DURATION - 0.05) clock.t = 0;
       unlock("jackin");
       playing = true;
@@ -373,6 +444,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       set({ playing: true, ended: false });
     },
     pause() {
+      if (roam?.on) return;
       playing = false;
       deckPlay();
       set({ playing: false });
@@ -382,6 +454,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       else api.play();
     },
     seek(t) {
+      if (roam?.on) return;
       clock.t = clamp(t, 0, DURATION);
       bd.time = clock.t;
       deckPlay();
@@ -389,6 +462,7 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     /** 1, 2 or 4 times, forward or back. */
     setSpeed(r, d = 1) {
+      if (roam?.on) return;
       rate = r;
       dir = d;
       if (!playing) {
@@ -409,12 +483,15 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       if (seenLayers.size === 3) unlock("layers");
     },
     setMode(mode) {
+      // The editor orbits a held moment of the recording: not while roaming.
+      if (mode === "edit" && roam?.on) return;
       if (mode === "edit" && playing) api.pause();
       set({ mode });
     },
     /** Drag in edit mode: orbit. Drag while playing: look about. */
     drag(dx, dy) {
-      if (bd.mode === "edit" || bd.mode === "photo") {
+      if (roam?.on) roam.drag(dx, dy);
+      else if (bd.mode === "edit" || bd.mode === "photo") {
         edit.yaw -= dx * 0.005;
         edit.pitch += dy * 0.004;
         if (bd.mode === "edit" && Math.abs(dx) + Math.abs(dy) > 2) unlock("editor");
@@ -425,6 +502,11 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     hold(on) {
       look.held = on;
+      roam?.hold(on);
+    },
+    /** The held mouse's own movement (on foot in free roam). */
+    look(dx, dy) {
+      if (roam?.on) roam.look(dx, dy);
     },
     /** The pointer over the city, in normalised device coordinates. */
     pointer(x, y, inside = true) {
@@ -434,7 +516,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       scanner.press(on);
     },
     zoom(delta) {
-      edit.radius *= Math.exp(delta * 0.001);
+      if (roam?.on) roam.zoom(delta);
+      else edit.radius *= Math.exp(delta * 0.001);
     },
     get edit() {
       return edit;
@@ -476,6 +559,70 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
         };
       });
     },
+    /**
+     * Free roam: put the recording down and take the S4 (true), or take the
+     * recording up again where it was left (false). The first time, its
+     * chunk and the builder's exports are fetched, with `bd.roamLoading`
+     * saying how far that has got; asking again meanwhile calls it off.
+     */
+    async setRoam(want = !(roam?.on || bd.roamLoading !== null)) {
+      const job = ++roamJob;
+      if (!want) {
+        set({ roamLoading: null });
+        if (!roam?.on) return false;
+        roam.leave();
+        jolt = reduced ? 0 : 1;
+        sounds?.cut();
+        if (resumeAfter) api.play();
+        else deckPlay();
+        return false;
+      }
+      if (roam?.on) return true;
+      try {
+        if (!roam) {
+          set({ roamLoading: 0 });
+          const { createRoam } = await import("./roam/roam.js");
+          const made = await createRoam({
+            parts,
+            world,
+            reduced,
+            city: recording.city,
+            onProgress: (p) => job === roamJob && set({ roamLoading: p }),
+          });
+          if (disposed) {
+            made.dispose();
+            return false;
+          }
+          roam = made;
+          const all = bakeHeights(parts, made.bounds);
+          wide = { bounds: all.bounds, ppm: all.ppm, canvas: drawMap(all) };
+        }
+        if (job !== roamJob) return false;
+        // The tape stops where it is; the radio plays on.
+        resumeAfter = playing;
+        playing = false;
+        rate = 1;
+        dir = 1;
+        set({ roamLoading: null, playing: false, rate: 1, direction: 1, mode: "play", open: null, ended: false, help: false, journal: false });
+        roam.enter();
+        radioOn();
+        jolt = reduced ? 0 : 1;
+        sounds?.cut();
+        return true;
+      } catch (err) {
+        if (import.meta.env.DEV) console.warn("[braindance] no free roam", err);
+        if (job === roamJob) set({ roamLoading: null });
+        return false;
+      }
+    },
+    get roam() {
+      return roam;
+    },
+    /** The braindance's state (src/braindance/store.js), for whoever holds
+     *  the engine and not the module: the playtest harness. */
+    get state() {
+      return bd;
+    },
     setRadio(on) {
       audio?.setRadio(on);
       set({ radio: on });
@@ -489,6 +636,8 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
       if (raf) cancelAnimationFrame(raf);
       raf = 0;
       hooks.clear();
+      roamJob++;
+      roam?.dispose();
       unhook.forEach((u) => u());
       sounds?.dispose();
       tag.dispose();

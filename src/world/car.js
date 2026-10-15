@@ -27,6 +27,10 @@
 // the intro hands over while the car is still rolling, it finishes parking
 // on the page's clock, then takes the road.
 //
+// In the braindance's free roam (src/braindance/roam) the car belongs to
+// the player: `free` puts it wherever the simulation has it, off the road's
+// line and up the ramp, with the same wheels, lamps, shadow and light.
+//
 // The car is the only thing in the city lit by three.js lights: the lights
 // the drift used and a night street to reflect (nightEnvironment), with the
 // sky light tinted by the city's own light where the car is (the same spill
@@ -44,6 +48,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { SHOTS } from "../data/world.js";
 import { slim } from "../three/car/slim.js";
+import { toFloat } from "./merge.js";
 
 const FOLLOW = 4; // 1/s: how closely the car follows its goal
 const VMAX = 160; // m/s: the most a single frame may ask of it
@@ -116,6 +121,86 @@ function mirrorStandIn(car, rig) {
  * A studio (three's RoomEnvironment) gave it grey walls and white softboxes
  * to reflect, which blew its roof and hood out to white.
  */
+/**
+ * The S4's pictured parts that are the same physical program but for what
+ * one of them has and another lacks (a clearcoat, an emissive map) given
+ * it, so that they are one program: ANGLE's Metal backend keeps 96 render
+ * pipelines a frame and makes every one again past that (see Baked in
+ * props.js), and the car was seven of the city's. What each is given draws
+ * nothing it did not: a clearcoat of 1e-10 takes out of the light under it
+ * and adds of its own a ten-billionth, under float32's rounding of either;
+ * an emissive map under a black emissive is multiplied by that black (its
+ * own map stands in for one). And as one vertex layout, plain floats, as
+ * the merged parts are: a quantized part's numbers made what the GPU makes
+ * of them (merge.js toFloat), the same vertices. A normal map or
+ * transparency is a program of its own still.
+ */
+function oneProgram(car) {
+  const parts = new Set();
+  const meshes = [];
+  car.traverse((o) => {
+    const m = o.material;
+    if (o.isMesh && m?.isMeshPhysicalMaterial && m.map && !m.normalMap && !m.transparent && !m.onBeforeCompile.toString().includes("shader")) {
+      parts.add(m);
+      meshes.push(o);
+    }
+  });
+  if (parts.size < 2) return;
+  const coated = [...parts].some((m) => m.clearcoat > 0);
+  const lit = [...parts].some((m) => m.emissiveMap);
+  for (const m of parts) {
+    if (coated && !(m.clearcoat > 0)) m.clearcoat = 1e-10;
+    if (lit && !m.emissiveMap && m.emissive.getHex() === 0) m.emissiveMap = m.map;
+  }
+  for (const o of meshes) {
+    const plain = Object.values(o.geometry.attributes).every((a) => !a.isInterleavedBufferAttribute && a.array instanceof Float32Array);
+    if (!plain) o.geometry = toFloat(o.geometry);
+  }
+}
+
+/**
+ * The lamps' clear lenses, transparent and seen from both sides, are drawn
+ * by three in two passes, the far side's faces and then the near side's,
+ * each its own program (the far pass's normals turned round by a define):
+ * two of ANGLE Metal's 96 render pipelines a frame (see Baked in props.js).
+ * One draw of the near side's program instead, of the lens's faces turned
+ * round (each triangle's corners in the other order, its normals negated)
+ * and then the lens as it is. A draw's triangles go down in their order,
+ * so the far side's are drawn before the near side's as the two passes
+ * drew them, with the same normals (negated before the view's matrix and
+ * not after it: the same numbers), as plain floats (merge.js toFloat).
+ */
+function lensesOneDraw(car) {
+  const meshes = [];
+  car.traverse((o) => {
+    const m = o.material;
+    if (o.isMesh && m?.transparent && m.side === THREE.DoubleSide && !m.forceSinglePass) meshes.push(o);
+  });
+  for (const o of meshes) {
+    const g = toFloat(o.geometry);
+    const n = g.attributes.position.count;
+    const both = new THREE.BufferGeometry();
+    for (const [name, a] of Object.entries(g.attributes)) {
+      const arr = new Float32Array(a.array.length * 2);
+      arr.set(a.array, 0);
+      arr.set(a.array, a.array.length);
+      if (name === "normal") for (let i = 0; i < a.array.length; i++) arr[i] = -arr[i];
+      both.setAttribute(name, new THREE.BufferAttribute(arr, a.itemSize));
+    }
+    const idx = g.index.array;
+    const tris = new Uint32Array(idx.length * 2);
+    for (let i = 0; i < idx.length; i += 3) {
+      tris[i] = idx[i];
+      tris[i + 1] = idx[i + 2];
+      tris[i + 2] = idx[i + 1];
+    }
+    for (let i = 0; i < idx.length; i++) tris[idx.length + i] = idx[i] + n;
+    both.setIndex(new THREE.BufferAttribute(tris, 1));
+    o.geometry = both;
+  }
+  for (const o of meshes) o.material.side = THREE.FrontSide;
+}
+
 function nightEnvironment() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x010102);
@@ -180,6 +265,8 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // and added once they are merged; the real car is drawn once.
   const standIn = mirrorStandIn(car, rig);
   const slimmed = slim(car);
+  oneProgram(car);
+  lensesOneDraw(car);
   const ready = tier === "phone"
     ? lighten(car).catch((err) => {
         if (import.meta.env.DEV) console.warn("[world] the phone's car keeps every triangle", err);
@@ -195,6 +282,9 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   });
   scene.add(car);
   const shadow = createContactShadow(scene, car);
+  // The shadow's own group, the last thing it added: free roam (`free`)
+  // carries it up the ramp with the car.
+  const contact = scene.children[scene.children.length - 1];
   // The city is darker than the plate the drift was tuned over, and it has
   // real bloom: the beams, the pools and the smoke come down to match.
   const lamps = createLamps(car, { depthTest: true, lift: 0.5, layer, reverse: true, directional: true, glow: 0.55, near: [6, 16], beam: 0.028 });
@@ -313,6 +403,7 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // "road": on the road at u metres, v metres a second (negative backs up).
   // "drift": the intro has it, on the song clock.
   // "park": the intro let go while the car was still parking.
+  // "free": the braindance's free roam has it (see `free`).
   let mode = "road";
   let u = stops.curb;
   let v = 0;
@@ -403,11 +494,11 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   const finish = (now, dt) => {
     answer(dt);
     const k0 = 1 - Math.exp(-dt * 2);
-    stageLight += ((mode === "road" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
+    stageLight += ((mode === "road" || mode === "free" ? 0 : 1) - stageLight) * (dt > 0 ? k0 : 1);
     key.intensity = 0.55 + 0.15 * stageLight;
     rimM.intensity = (0.55 + 0.95 * stageLight) * rims;
     rimC.intensity = (0.35 + 0.65 * stageLight) * rims;
-    const bay = mode === "road" ? smoothstep(stops.bay - 12, stops.bay - 4, u) : 0;
+    const bay = mode === "road" ? smoothstep(stops.bay - 12, stops.bay - 4, u) : mode === "free" ? 1 - smoothstep(4, 12, Math.hypot(car.position.x - bayAt.x, car.position.z - bayAt.z)) : 0;
     for (const l of bayLights.children) l.intensity = l.userData.nits * bay;
     car.updateMatrixWorld(true);
     shadow.update();
@@ -557,6 +648,56 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
       setLamps();
       if (!cut && Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
       finish(clock, Math.abs(dt));
+    },
+
+    /**
+     * One frame of the braindance's free roam (src/braindance/roam): the
+     * car where the player's simulation has it, at `x, y, z` (its wheels'
+     * contact height), turned to `heading` (0 faces +z), tipped by `pitch`
+     * and `roll` on a slope, moving at `speed` metres a second along its
+     * nose (negative backs up), its front wheels at `steer` radians, having
+     * rolled `ds` metres since the last frame. `brake` and `reverse` are the
+     * lamps, 0..1. `cut` is a jump (a spawn, a reset): no wheel spin across
+     * it and the light trails start again. Call `endFree` on the way out.
+     */
+    free(dt, { x, y = 0, z, heading, pitch = 0, roll = 0, speed = 0, steer: toSteer = 0, ds = 0, brake: toBrake = 0, reverse: toReverse = 0, cut = false }) {
+      clock += dt;
+      if (mode !== "free" || cut || !placed) drift.reset();
+      mode = "free";
+      placed = true;
+      car.visible = true;
+      const before = v;
+      v = speed;
+      accel = cut || dt <= 0 ? 0 : (v - before) / dt;
+      car.position.set(x, y, z);
+      // Heading first, then the slope in the car's own frame.
+      car.rotation.set(pitch, heading, roll, "YXZ");
+      steer = cut ? toSteer : steer + (toSteer - steer) * (1 - Math.exp(-dt * 14));
+      for (const st of rig.steers) st.rotation.y = steer;
+      if (!cut) for (const w of rig.wheels) w.rotation.x += ds / rig.radius;
+      brake += (toBrake - brake) * (1 - Math.exp(-dt * 12));
+      reverse += (toReverse - reverse) * (1 - Math.exp(-dt * 8));
+      setLamps();
+      if (!cut && Math.abs(v) > 0.5) drift.pushTrails(lamps.tailL, lamps.tailR, Math.abs(v), clock);
+      finish(clock, dt);
+      // The shadow and the headlamps' pool lie on the ground the car is on.
+      contact.position.y = y;
+      contact.rotation.set(pitch, heading, roll, "YXZ");
+      ground.mesh.position.y = y + 0.03;
+    },
+
+    /** Free roam is over: the car is the road's again (`directed`, `drive`). */
+    endFree() {
+      if (mode !== "free") return;
+      mode = "road";
+      placed = false;
+      v = 0;
+      accel = 0;
+      car.rotation.set(0, car.rotation.y, 0, "XYZ");
+      contact.rotation.set(0, car.rotation.y, 0, "XYZ");
+      contact.position.y = 0;
+      ground.mesh.position.y = 0.03;
+      drift.reset();
     },
 
     setRims(k) {

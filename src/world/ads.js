@@ -14,6 +14,7 @@ import { COMMON } from "./glsl.js";
 import { FONT, tube } from "./signs.js";
 import { worldAdUrl } from "../data/world-assets.js";
 import { WORLD_SIGNS } from "../data/world.js";
+import { bitmapTexture } from "./pictures.js";
 
 const BRANDS = ["kiroshi", "nicola"];
 
@@ -21,8 +22,7 @@ let pending = null;
 
 export function preloadAds() {
   if (!pending) {
-    const loader = new THREE.TextureLoader();
-    pending = Promise.all(BRANDS.map((b) => loader.loadAsync(worldAdUrl[b]))).catch((err) => {
+    pending = Promise.all(BRANDS.map((b) => bitmapTexture(worldAdUrl[b], false))).catch((err) => {
       pending = null;
       throw err;
     });

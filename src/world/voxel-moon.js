@@ -118,15 +118,43 @@ const STRIKE = new THREE.Vector3(5.0, 0, -8.0);
 
 let pending = null;
 
-/** The Earth picture. Loaded with the rest of the world (preloadWorld). */
-export function preloadVoxelMoon() {
+/** The Earth picture. Loaded with the rest of the world (preloadWorld);
+ *  with a `tier`, the moon's shapes are then worked out too (shapesOf). */
+export function preloadVoxelMoon(tier = null) {
   if (!pending) {
     pending = new THREE.ImageLoader().loadAsync(worldEarthUrl).catch((err) => {
       pending = null;
       throw err;
     });
   }
+  if (tier && !shapes.has(tier)) {
+    // (Should this fail, createVoxelMoon works them out itself, as it did.)
+    shapes.set(tier, pending.then((image) => shapesOf(tier, image)).catch(() => null));
+  }
   return pending;
+}
+
+// The moon's shapes, which need no renderer: the ground and its island of
+// columns, the two figures in voxels, Earth in voxels from its picture.
+// Worked out as soon as the picture is in, while the city's core is still
+// on its way, so the moon is not built on the city's own time; the same
+// calls in the same order, the generator then handed on where it was, so
+// the moon is the same to the bit. In three pieces, as the builder took
+// them, so none holds the page for long. Taken once (a moon made again
+// after a lost context works them out afresh).
+const shapes = new Map();
+async function shapesOf(tier, image) {
+  const cfg = TIER[tier] ?? TIER.high;
+  const rand = rng(20260928);
+  const terrain = makeTerrain(rand);
+  const island = buildIsland(cfg, terrain, rand);
+  await breathe();
+  const voxels = [];
+  sculpt(david(), [SEATS[0][0], 0, 0], cfg.fig, voxels);
+  sculpt(lucy(), [SEATS[1][0], 0, SEATS[1][1]], cfg.fig, voxels, LUCY_SCALE);
+  await breathe();
+  const earth = buildEarth(image, cfg.earth + 0.35);
+  return { rand, terrain, island, voxels, earth };
 }
 
 // ---- small maths --------------------------------------------------------------
@@ -1530,8 +1558,9 @@ const breathe = () => new Promise((resolve) => setTimeout(resolve, 0));
 export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) {
   const cfg = TIER[tier] ?? TIER.high;
   const image = await preloadVoxelMoon();
-  const rand = rng(20260928);
-  const terrain = makeTerrain(rand);
+  const made = (await shapes.get(tier)) ?? (await shapesOf(tier, image));
+  shapes.delete(tier);
+  const { rand, terrain } = made;
   const strike = STRIKE.clone();
   strike.x *= cfg.wide;
   strike.y = Math.round(terrain(strike.x, strike.z).h / cfg.vox) * cfg.vox;
@@ -1698,7 +1727,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   };
 
   // ---- the island --------------------------------------------------------------------
-  const island = buildIsland(cfg, terrain, rand);
+  const { island } = made;
   const groundExtra = {
     uBuild: { value: new THREE.Vector3(T.ground, 0, 0) },
     uIsland: { value: new THREE.Vector3(ISLAND.x, ISLAND.z, cfg.island) },
@@ -1714,9 +1743,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   await breathe();
 
   // ---- the figures ---------------------------------------------------------------------
-  const voxels = [];
-  sculpt(david(), [SEATS[0][0], 0, 0], cfg.fig, voxels);
-  sculpt(lucy(), [SEATS[1][0], 0, SEATS[1][1]], cfg.fig, voxels, LUCY_SCALE);
+  const { voxels } = made;
   const figPos = new Float32Array(voxels.length * 3);
   const figColor = new Float32Array(voxels.length * 3);
   const figInfo = new Float32Array(voxels.length * 4);
@@ -1743,7 +1770,7 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
   await breathe();
 
   // ---- Earth -----------------------------------------------------------------------------
-  const earth = buildEarth(image, cfg.earth + 0.35);
+  const { earth } = made;
   const wave = new THREE.Vector3(0, 0.34, 2);
   const beats = new THREE.Vector3(...BEATS);
   const earthExtra = {
@@ -2097,34 +2124,78 @@ export async function createVoxelMoon(renderer, shared, { tier = "high" } = {}) 
       renderer.render(shadowScene, sunCamera);
       renderer.setRenderTarget(prev);
     },
-    /** Compile every material, for the target it draws into (`target`, the
-     *  composer's buffer; the shadow map for the depth ones). */
-    async compile(target = null) {
+    /**
+     * Everything the intro's moon needs before its first frame, a few
+     * milliseconds at a time: `between()` resolves when the page has a
+     * moment between its own frames (the city is live by now). Every
+     * material compiled for the target it draws into (`target`, the
+     * composer's buffer; the shadow map for the depth ones), each program
+     * read once the GPU has built it, and then hidden frames into the
+     * target nobody is looking at: a compiled program is not a drawn one,
+     * the strike's flash and debris draw for the first time on the track's
+     * onset, and a GPU that builds its pipelines at first draw stalled the
+     * whole intro there for most of a second. One frame of the strike and
+     * one of the reveal over the street (`view`: the screen's width,
+     * height and pixel ratio), each drawn a part at a time, as the city's
+     * warm-up drew them; the moon is left posed on the reveal, as it left it.
+     */
+    async prepare(target, view, between) {
+      const prev = renderer.getRenderTarget();
+      const SLICE = 3;
+      let t = performance.now();
+      const pace = async () => {
+        if (performance.now() - t < SLICE) return;
+        await between();
+        t = performance.now();
+      };
       shot(T.still, 16 / 9);
       backdrop.visible = true;
       flash.visible = true;
-      const prev = renderer.getRenderTarget();
-      const build = async (sceneToCompile, cameraToCompile, into) => {
-        renderer.setRenderTarget(into);
-        if (renderer.compileAsync) await renderer.compileAsync(sceneToCompile, cameraToCompile);
-        else renderer.compile(sceneToCompile, cameraToCompile);
-      };
-      await build(scene, camera, target);
-      await build(shadowScene, sunCamera, shadowTarget);
+      const before = renderer.info.programs.length;
+      await between();
+      t = performance.now();
+      for (const p of parts) {
+        renderer.setRenderTarget(target);
+        renderer.compile(p.mesh, camera, scene);
+        if (p.twin) {
+          renderer.setRenderTarget(shadowTarget);
+          renderer.compile(p.twin, sunCamera, shadowScene);
+        }
+        renderer.setRenderTarget(prev);
+        await pace();
+      }
       backdrop.visible = false;
       flash.visible = false;
-      // A compiled program is not a drawn one: the strike's flash and
-      // debris draw for the first time on the track's onset, and a GPU that
-      // builds its pipelines at first draw stalled the whole intro there
-      // for most of a second. One hidden frame of the strike, now, into the
-      // target nobody is looking at yet.
-      if (target) {
-        this.update(T.strike + 0.12, { width: target.width, height: target.height, pixelRatio: 1, over: false });
-        this.renderShadows();
-        renderer.setRenderTarget(target);
-        renderer.render(scene, camera);
+      // (A program let go meanwhile, a district's, has no answer to give.)
+      const gone = (program) => program.program === undefined;
+      for (const program of renderer.info.programs.slice(before)) {
+        while (!gone(program) && !program.isReady()) {
+          await between();
+          t = performance.now();
+        }
+        if (gone(program)) continue;
+        program.getUniforms();
+        await pace();
       }
-      renderer.setRenderTarget(prev);
+      // Drawn a part at a time: the rest hidden for each, as they were.
+      const frame = async () => {
+        const shown = parts.map((p) => p.mesh.visible);
+        for (let i = 0; i < parts.length; i++) {
+          if (!shown[i]) continue;
+          parts.forEach((p, k) => (p.mesh.visible = k === i));
+          renderer.setRenderTarget(target);
+          renderer.render(scene, camera);
+          renderer.setRenderTarget(prev);
+          parts.forEach((p, k) => (p.mesh.visible = shown[k]));
+          await pace();
+        }
+      };
+      this.update(T.strike + 0.12, { width: target.width, height: target.height, pixelRatio: 1, over: false });
+      this.renderShadows();
+      await pace();
+      await frame();
+      this.update(29.2, { ...view, over: true });
+      await frame();
     },
     get counts() {
       return counts;

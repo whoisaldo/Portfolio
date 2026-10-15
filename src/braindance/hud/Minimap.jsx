@@ -5,7 +5,10 @@
 // view points up, the road the car drives in the recording, the car, the
 // camera's cone, and a mark for every clue in this stretch of the
 // recording on any layer, in its layer's colour. Drawn on a canvas in an
-// animation frame of its own.
+// animation frame of its own. In free roam the map is the whole city's
+// (the engine's `map` is then), the recording's road is left off, the
+// arrow is the S4 wherever the player has left it and the middle of the
+// map is the player: the chase camera behind the car, or the eye on foot.
 import React, { useEffect, useRef } from "react";
 import { bd, set, useBd } from "../store";
 import { LAYER_COLORS } from "../layers";
@@ -28,13 +31,13 @@ export default function Minimap({ engineRef }) {
     canvas.width = SIZE * dpr;
     canvas.height = SIZE * dpr;
     const ctx = canvas.getContext("2d");
-    const map = e.map;
+    const recorded = e.map;
     const road = e.parts.city.road;
     const path = new Path2D();
     for (let u = 0; u <= road.length; u += 3) {
       const p = road.pointAt(u);
-      const x = (p.x - map.bounds.x0) * map.ppm;
-      const y = (p.z - map.bounds.z0) * map.ppm;
+      const x = (p.x - recorded.bounds.x0) * recorded.ppm;
+      const y = (p.z - recorded.bounds.z0) * recorded.ppm;
       if (u === 0) path.moveTo(x, y);
       else path.lineTo(x, y);
     }
@@ -43,6 +46,7 @@ export default function Minimap({ engineRef }) {
     const draw = () => {
       raf = requestAnimationFrame(draw);
       if (!bd.hud) return;
+      const map = e.map;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, SIZE, SIZE);
       ctx.save();
@@ -60,11 +64,13 @@ export default function Minimap({ engineRef }) {
       ctx.scale(SCALE, SCALE);
       ctx.translate(-cx, -cz);
       ctx.drawImage(map.canvas, 0, 0);
-      ctx.strokeStyle = "rgba(252,238,10,0.55)";
-      ctx.lineWidth = 3;
-      ctx.setLineDash([6, 6]);
-      ctx.stroke(path);
-      ctx.setLineDash([]);
+      if (map === recorded) {
+        ctx.strokeStyle = "rgba(252,238,10,0.55)";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.stroke(path);
+        ctx.setLineDash([]);
+      }
       // Clues in this stretch.
       for (const c of e.scanner.activeNow()) {
         const x = (c.at.x - map.bounds.x0) * map.ppm;

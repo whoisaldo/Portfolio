@@ -11,6 +11,7 @@ import { CHAPTERS as MARKS, DURATION } from "../recording";
 import { CHAPTERS, LAYER_NAMES } from "../../data/braindance";
 import { LAYERS } from "../layers";
 import { fmt } from "../format";
+import { RoamButton } from "./Roam";
 
 
 function Icon({ kind }) {
@@ -95,6 +96,7 @@ export default function Timeline({ engineRef, clues = [] }) {
         <span className="bd-chapter-name">
           <span className="bd-dim">{String(state.chapter).padStart(2, "0")} //</span> {CHAPTERS[state.chapter]?.title}
         </span>
+        <RoamButton engineRef={engineRef} />
       </div>
 
       <div className="bd-tracks">
