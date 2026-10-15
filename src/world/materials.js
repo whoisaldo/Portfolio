@@ -30,7 +30,7 @@
 import * as THREE from "three";
 import { COMMON, LAMPS, VERT_WORLD, VERT_WORLD_COLOR, WINDOWS } from "./glsl.js";
 import { GROUND, VNOISE } from "./ground.js";
-import { kindSource } from "./kinds.js";
+import { KIND, KIND_SOURCE } from "./kinds.js";
 import { SHOP_ROOM, HALL, PLAZA_ROOMS } from "./interiors.js";
 import { dealSteps, dealTrades } from "./trades.js";
 import { clearAdverts, dealAdvertSteps, dealAdverts, posterTexture } from "./adverts.js";
@@ -100,18 +100,11 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   const surface = (key, { color = "#444444", map = null, ambient = 0.03, spill = 1, rough = 1, detail = null, tinted = false, sky = 1, wall = null, door = false, shutter = false, paving = false, lane = false, kerb = false } = {}) => {
     if (made.has(key)) return made.get(key);
     const marks = wall !== null || shutter;
-    const ground = paving || kerb;
+    // (Each of those is a uniform, not a define: every surface is one
+    // program, so a frame's surfaces are one render pipeline a vertex
+    // layout and not one a material (ANGLE's Metal backend keeps 96 a frame
+    // and makes every one again past that: see Baked in props.js).)
     const m = keep(new THREE.ShaderMaterial({
-      defines: {
-        ...(detail ? { DETAIL: "" } : {}),
-        ...(tinted ? { TINTED: "" } : {}),
-        ...(wall !== null ? { WALL: "" } : {}),
-        ...(door ? { DOOR: "" } : {}),
-        ...(shutter ? { SHUTTER: "" } : {}),
-        ...(paving ? { PAVING: "" } : {}),
-        ...(lane ? { LANE: "" } : {}),
-        ...(kerb ? { KERB: "" } : {}),
-      },
       uniforms: {
         ...shared,
         uColor: { value: new THREE.Color(color) },
@@ -123,10 +116,19 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uSky: { value: sky },
         uSpray: { value: wall ?? 0.4 },
         uProp: { value: 0 },
-        ...(marks ? adverts() : {}),
+        uKind: { value: detail ? KIND[detail] : 0 },
+        uTinted: { value: tinted ? 1 : 0 },
+        uWall: { value: wall !== null ? 1 : 0 },
+        uDoor: { value: door ? 1 : 0 },
+        uShutter: { value: shutter ? 1 : 0 },
+        uPaving: { value: paving ? 1 : 0 },
+        uLane: { value: lane ? 1 : 0 },
+        uKerb: { value: kerb ? 1 : 0 },
+        ...(marks ? adverts() : { uAds: { value: null }, uHasAds: { value: 0 }, uPosters: { value: null } }),
       },
       vertexShader: /* glsl */ `
-        ${tinted ? "attribute vec4 color; varying vec4 vColor;" : ""}
+        attribute vec4 color;
+        varying vec4 vColor;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
@@ -147,15 +149,15 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vWorld = w.xyz;
           vNormalW = normalize(mat3(m) * normal);
           vUv = uv;
-          ${tinted ? "vColor = color;" : ""}
+          vColor = color;
           gl_Position = projectionMatrix * viewMatrix * w;
         }
       `,
       fragmentShader: /* glsl */ `
         ${COMMON}
-        ${detail || marks || ground ? VNOISE : ""}
-        ${ground || marks ? GROUND : ""}
-        ${marks ? MARKS : ""}
+        ${VNOISE}
+        ${GROUND}
+        ${MARKS}
         uniform vec3 uColor;
         uniform sampler2D uMap;
         uniform float uHasMap;
@@ -163,278 +165,276 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uniform float uSpillMul;
         uniform float uSky;
         uniform float uSpray;
+        uniform float uTinted;
+        uniform float uWall;
+        uniform float uDoor;
+        uniform float uShutter;
+        uniform float uPaving;
+        uniform float uLane;
+        uniform float uKerb;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
         varying float vProp;
-        #ifdef TINTED
         varying vec4 vColor;
-        #endif
-        ${detail ? kindSource(detail) : ""}
+        ${KIND_SOURCE}
         void main() {
           vec3 albedo = uColor;
-          #ifdef TINTED
-          albedo *= vColor.rgb;
-          #endif
+          if (uTinted > 0.5) albedo *= vColor.rgb;
           if (uHasMap > 0.5) albedo *= texture2D(uMap, vUv).rgb * 2.0;
           vec3 n = normalize(vNormalW);
           // Metres a pixel covers here.
           float px = max(fwidth(vWorld.x) + fwidth(vWorld.z), fwidth(vWorld.y));
           vec3 glowing = vec3(0.0);
-          #ifdef DETAIL
-          float wear;
-          albedo = dress(albedo, vWorld, n, px, wear);
-          #endif
-          #if defined(WALL) || defined(SHUTTER)
-          // An upright face a walker can reach: along it, up it, and the
-          // wall's own number (the plane it stands in, the way it faces).
-          vec3 nh = normalize(vec3(n.x, 0.0, n.z) + 1e-5);
-          vec2 q = vec2(dot(vWorld, vec3(nh.z, 0.0, -nh.x)), vWorld.y);
-          float id = floor(dot(vWorld, nh) * 0.37 + 0.123) + (floor(nh.x * 1.5 + 1.77) * 3.0 + floor(nh.z * 1.5 + 1.77)) * 7.0;
-          bool reach = vProp < 0.5 && abs(n.y) < 0.3 && vWorld.y < 4.6 && px < 0.15;
-          #endif
-          #ifdef WALL
-          if (reach) {
-            #ifdef DOOR
-            // A steel door: a scuffed kick plate, a push rail, a slot of
-            // wired glass over it, the leaf's top rail.
-            float kick = step(q.y, 0.48);
-            float rail = step(abs(q.y - 1.12), 0.035);
-            float slot = step(abs(q.y - 1.62), 0.11);
-            albedo = mix(albedo, vec3(0.2, 0.21, 0.23) * (0.6 + 0.6 * vnoise(q * vec2(3.0, 40.0))), kick);
-            albedo = mix(albedo, vec3(0.13, 0.135, 0.15), rail);
-            albedo = mix(albedo, vec3(0.012, 0.016, 0.02) + 0.02 * step(0.9, fract(q.x * 14.0)) + 0.02 * step(0.9, fract(q.y * 14.0)), slot);
-            albedo *= 1.0 - 0.5 * step(abs(q.y - 2.2), 0.012) - 0.3 * step(abs(q.y - 0.49), 0.01);
-            #endif
-            // Dirt to knee height, splashed up from the pavement; rain run
-            // down from the ledge overhead; what is fixed to it; what is
-            // pasted, stuck and sprayed on it.
-            float low = smoothstep(0.75, 0.25, q.y + 0.3 * vnoise(vec2(q.x * 2.7, id)));
-            float run = smoothstep(0.5, 0.8, vnoise(vec2(q.x * 8.0, q.y * 0.3 + id))) * smoothstep(1.6, 4.2, q.y);
-            albedo *= (1.0 - 0.5 * low) * (1.0 - 0.45 * run);
-            vec3 fit = wallFittings(q, id, px);
-            albedo = mix(albedo, vec3(0.2, 0.09, 0.04) * 0.5, fit.z * 0.7);
-            albedo = mix(albedo, vec3(0.15, 0.16, 0.18), fit.x * 0.8) * fit.y;
-            // (Not on a door's leaf: a piece sprayed across the wall ran on
-            // over the door as if the door were painted into it.)
-            #ifndef DOOR
-            vec4 mk = wallMarks(q, id, px, tidy(vWorld.xz) > 0.5 ? -1.0 : uSpray);
-            albedo = mix(albedo, mk.rgb * 0.5 * (1.0 - 0.4 * low), mk.a * (1.0 - fit.x));
-            #endif
-          } else if (vProp < 0.5 && n.y > 0.7 && vWorld.y < 0.4 && px < 0.06) {
-            // Flat on the pavement, in yellow: a tactile strip's studs, and
-            // the paint worn off it and off a painted kerb.
-            float yellow = step(albedo.b * 3.0, albedo.r);
-            vec2 stud = fract(vWorld.xz / 0.075) - 0.5;
-            float fine = 1.0 - smoothstep(0.015, 0.06, px);
-            albedo *= 1.0 + yellow * fine * (0.5 * smoothstep(0.34, 0.22, length(stud)) - 0.35 * smoothstep(0.3, 0.9, vnoise(vWorld.xz * 6.0) + vnoise(vWorld.xz * 31.0) * 0.5));
+          float wear = 0.0;
+          if (uKind > 0) albedo = dress(albedo, vWorld, n, px, wear);
+          vec3 nh = vec3(0.0);
+          vec2 q = vec2(0.0);
+          float id = 0.0;
+          bool reach = false;
+          if (uWall > 0.5 || uShutter > 0.5) {
+            // An upright face a walker can reach: along it, up it, and the
+            // wall's own number (the plane it stands in, the way it faces).
+            nh = normalize(vec3(n.x, 0.0, n.z) + 1e-5);
+            q = vec2(dot(vWorld, vec3(nh.z, 0.0, -nh.x)), vWorld.y);
+            id = floor(dot(vWorld, nh) * 0.37 + 0.123) + (floor(nh.x * 1.5 + 1.77) * 3.0 + floor(nh.z * 1.5 + 1.77)) * 7.0;
+            reach = vProp < 0.5 && abs(n.y) < 0.3 && vWorld.y < 4.6 && px < 0.15;
           }
-          #endif
-          #ifdef SHUTTER
-          if (vProp < 0.5 && abs(n.y) < 0.3) {
-            // A roller shutter, and at its foot a line of the light left on
-            // inside, warm or cold by the shutter.
-            // (A builder's shutter counts its own metres in its UVs: from
-            // its left edge, and down from 1 at its foot.)
-            float leak;
-            float mq = abs(dFdx(q.x)) + abs(dFdy(q.x));
-            float mu = abs(dFdx(vUv.x)) + abs(dFdy(vUv.x));
-            bool own = mu > 0.8 * mq && mu < 1.25 * mq;
-            albedo = shutterAt(albedo, q, id, px, tidy(vWorld.xz) > 0.5 ? -1.0 : uSpray, own ? q.y - 1.0 + vUv.y : 0.15, own ? vec2(vUv.x, 1.0 - vUv.y) : vec2(-1.0), leak);
-            glowing = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.9, 1.0), step(0.7, fract(id * 0.37))) * leak;
+          if (uWall > 0.5) {
+            if (reach) {
+              if (uDoor > 0.5) {
+                // A steel door: a scuffed kick plate, a push rail, a slot of
+                // wired glass over it, the leaf's top rail.
+                float kick = step(q.y, 0.48);
+                float rail = step(abs(q.y - 1.12), 0.035);
+                float slot = step(abs(q.y - 1.62), 0.11);
+                albedo = mix(albedo, vec3(0.2, 0.21, 0.23) * (0.6 + 0.6 * vnoise(q * vec2(3.0, 40.0))), kick);
+                albedo = mix(albedo, vec3(0.13, 0.135, 0.15), rail);
+                albedo = mix(albedo, vec3(0.012, 0.016, 0.02) + 0.02 * step(0.9, fract(q.x * 14.0)) + 0.02 * step(0.9, fract(q.y * 14.0)), slot);
+                albedo *= 1.0 - 0.5 * step(abs(q.y - 2.2), 0.012) - 0.3 * step(abs(q.y - 0.49), 0.01);
+              }
+              // Dirt to knee height, splashed up from the pavement; rain run
+              // down from the ledge overhead; what is fixed to it; what is
+              // pasted, stuck and sprayed on it.
+              float low = smoothstep(0.75, 0.25, q.y + 0.3 * vnoise(vec2(q.x * 2.7, id)));
+              float run = smoothstep(0.5, 0.8, vnoise(vec2(q.x * 8.0, q.y * 0.3 + id))) * smoothstep(1.6, 4.2, q.y);
+              albedo *= (1.0 - 0.5 * low) * (1.0 - 0.45 * run);
+              vec3 fit = wallFittings(q, id, px);
+              albedo = mix(albedo, vec3(0.2, 0.09, 0.04) * 0.5, fit.z * 0.7);
+              albedo = mix(albedo, vec3(0.15, 0.16, 0.18), fit.x * 0.8) * fit.y;
+              // (Not on a door's leaf: a piece sprayed across the wall ran on
+              // over the door as if the door were painted into it.)
+              if (uDoor < 0.5) {
+                vec4 mk = wallMarks(q, id, px, tidy(vWorld.xz) > 0.5 ? -1.0 : uSpray);
+                albedo = mix(albedo, mk.rgb * 0.5 * (1.0 - 0.4 * low), mk.a * (1.0 - fit.x));
+              }
+            } else if (vProp < 0.5 && n.y > 0.7 && vWorld.y < 0.4 && px < 0.06) {
+              // Flat on the pavement, in yellow: a tactile strip's studs, and
+              // the paint worn off it and off a painted kerb.
+              float yellow = step(albedo.b * 3.0, albedo.r);
+              vec2 stud = fract(vWorld.xz / 0.075) - 0.5;
+              float fine = 1.0 - smoothstep(0.015, 0.06, px);
+              albedo *= 1.0 + yellow * fine * (0.5 * smoothstep(0.34, 0.22, length(stud)) - 0.35 * smoothstep(0.3, 0.9, vnoise(vWorld.xz * 6.0) + vnoise(vWorld.xz * 31.0) * 0.5));
+            }
           }
-          #endif
+          if (uShutter > 0.5) {
+            if (vProp < 0.5 && abs(n.y) < 0.3) {
+              // A roller shutter, and at its foot a line of the light left on
+              // inside, warm or cold by the shutter.
+              // (A builder's shutter counts its own metres in its UVs: from
+              // its left edge, and down from 1 at its foot.)
+              float leak;
+              float mq = abs(dFdx(q.x)) + abs(dFdy(q.x));
+              float mu = abs(dFdx(vUv.x)) + abs(dFdy(vUv.x));
+              bool own = mu > 0.8 * mq && mu < 1.25 * mq;
+              albedo = shutterAt(albedo, q, id, px, tidy(vWorld.xz) > 0.5 ? -1.0 : uSpray, own ? q.y - 1.0 + vUv.y : 0.15, own ? vec2(vUv.x, 1.0 - vUv.y) : vec2(-1.0), leak);
+              glowing = mix(vec3(1.0, 0.72, 0.42), vec3(0.75, 0.9, 1.0), step(0.7, fract(id * 0.37))) * leak;
+            }
+          }
           float water = 0.0;
           float sheen = 0.0;
-          #ifdef PAVING
-          vec4 se = vec4(0.0);
-          vec4 sf = vec4(-99.0);
-          if (vProp < 0.5 && n.y > 0.7 && px < 0.6) {
-            vec2 p = vWorld.xz;
-            // (Noise on a turned grid: square to the street, its cells show.)
-            vec2 pr = mat2(0.8, -0.6, 0.6, 0.8) * p;
-            sf = streetAt(p, se);
-            // Metres back from the kerb's edge; past the lot line, or up off
-            // the street (a deck, a roof), it is a lane or a yard, poured,
-            // not paved.
-            float back = -max(sf.x, sf.y) - 0.3;
-            float yard = max(smoothstep(4.9, 5.6, back), step(0.6, vWorld.y));
-            float fine = 1.0 - smoothstep(0.012, 0.045, px);
-            float mid = 1.0 - smoothstep(0.04, 0.14, px);
-            // The paving: a strip of dark setts along the kerb, flags in
-            // the middle (each its own grey, some newer, some cracked),
-            // the small pavers the map carries against the buildings.
-            float band = smoothstep(0.55, 0.62, back) * (1.0 - smoothstep(2.5, 2.58, back + 1.5 * (hash12(floor(p / 24.0)) - 0.5))) * (1.0 - yard);
-            float sett = (1.0 - smoothstep(0.5, 0.58, back)) * (1.0 - yard);
-            vec2 size = band > 0.5 ? vec2(0.6) : vec2(0.2);
-            vec2 g = p / size;
-            float hs = hash12(floor(g));
-            vec2 f = fract(g);
-            float jd = min(min(f.x, 1.0 - f.x) * size.x, min(f.y, 1.0 - f.y) * size.y);
-            float joint = (1.0 - smoothstep(0.004, 0.008 + px, jd)) * mid * max(band, sett);
-            albedo = mix(albedo, vec3(0.088, 0.09, 0.096) * (0.75 + 0.5 * hs + 0.5 * step(0.94, hs)) * (0.8 + 0.4 * vnoise(p * 37.0) * fine), band);
-            albedo = mix(albedo, vec3(0.05, 0.052, 0.06) * (0.7 + 0.6 * hs), sett);
-            float cracked = step(hs, 0.07) * band * (1.0 - smoothstep(0.004, 0.008 + px, abs(f.x - 0.5 + (f.y - 0.5) * (fract(hs * 91.0) - 0.5) * 2.0) * 0.6)) * fine;
-            albedo *= 1.0 - 0.55 * max(joint, cracked);
-            #ifdef LANE
-            // A lane off the street (the pavement's own stone carried on
-            // round the back) is laid, not poured: fields of flags in
-            // running bond, 0.9 by 0.45 m, each its own grey, between bands
-            // of dark setts every 5.6 m one way and 7.2 m the other, which
-            // are its drains, with a cast grate where two of them cross.
-            vec2 fq = vec2(p.x / 0.9 + 0.5 * floor(p.y / 0.45), p.y / 0.45);
-            vec2 ff = fract(fq);
-            float fh = hash12(floor(fq) + 31.0);
-            float fjoint = (1.0 - smoothstep(0.005, 0.011 + px, min(min(ff.x, 1.0 - ff.x) * 0.9, min(ff.y, 1.0 - ff.y) * 0.45))) * mid;
-            vec3 flags = vec3(0.082, 0.083, 0.09) * (0.72 + 0.5 * fh + 0.35 * step(0.93, fh)) * (0.85 + 0.3 * vnoise(p * 31.0) * fine) * (1.0 - 0.6 * fjoint);
-            vec2 bd = abs(fract(p / vec2(5.6, 7.2)) - 0.5) * vec2(5.6, 7.2);
-            float drainBand = 1.0 - smoothstep(0.16, 0.18 + px, min(2.8 - bd.x, 3.6 - bd.y));
-            vec2 sq = fract(p / 0.11);
-            float sjoint = (1.0 - smoothstep(0.004, 0.009 + px, min(min(sq.x, 1.0 - sq.x), min(sq.y, 1.0 - sq.y)) * 0.11)) * fine;
-            vec3 laid = mix(flags, vec3(0.045, 0.046, 0.052) * (0.7 + 0.6 * hash12(floor(p / 0.11) + 7.0)) * (1.0 - 0.5 * sjoint), drainBand);
-            vec2 gcell = floor(p / vec2(5.6, 7.2) + 0.5);
-            vec2 gd = abs(p - gcell * vec2(5.6, 7.2));
-            float grate = step(max(gd.x, gd.y), 0.24) * step(0.5, hash12(gcell + 3.0)) * mid;
-            laid = mix(laid, vec3(0.02, 0.021, 0.024) * (0.6 + 0.8 * step(0.5, fract(gd.x / 0.06)) * fine), grate);
-            albedo = mix(albedo, laid, yard);
-            joint = max(joint, max(fjoint * (1.0 - drainBand), drainBand * 0.5) * yard);
-            float low = drainBand * yard;
-            #else
-            // A yard's concrete (a forecourt, a works' apron): poured in
-            // bays, each its own tone, the joints between them run with
-            // tar, a crack wandering across one bay in five, a slot drain
-            // every 13.8 m with the slab darker with damp toward it, and
-            // oil where things stand.
-            vec2 bay = abs(fract(p / vec2(3.2, 4.6)) - 0.5) * vec2(3.2, 4.6);
-            float bt = hash12(floor(p / vec2(3.2, 4.6)) + 17.0);
-            vec3 poured = vec3(0.075, 0.075, 0.08) * (0.82 + 0.3 * bt) * (0.9 + 0.12 * vnoise(p * 0.7) + 0.16 * vnoise(p * 9.0));
-            poured *= 1.0 - 0.72 * (1.0 - smoothstep(0.012, 0.022 + px, min(1.6 - bay.x, 2.3 - bay.y))) * mid;
-            poured *= 1.0 - 0.6 * (1.0 - smoothstep(0.004, 0.012 + px * 0.3, abs(vnoise(p * 0.55 + bt * 40.0) - 0.5))) * step(bt, 0.22) * fine;
-            float dd = abs(fract(p.x / 13.8 + 0.37) - 0.5) * 13.8;
-            float slot = (1.0 - smoothstep(0.07, 0.08 + px, dd)) * mid;
-            poured = mix(poured, vec3(0.015, 0.016, 0.018) * (0.5 + 1.2 * step(0.55, fract(p.y / 0.05)) * fine), slot);
-            poured *= (1.0 - 0.25 * smoothstep(0.9, 0.08, dd)) * (1.0 - 0.45 * smoothstep(0.68, 0.8, vnoise(pr * 1.7 + 9.0)));
-            albedo = mix(albedo, poured, yard);
-            float low = smoothstep(0.9, 0.08, dd) * yard * 0.6;
-            #endif
-            // Tarmac let into it where it was dug up; old stains; gum; litter
-            // against the kerb and the wall.
-            vec2 pc = p / vec2(4.2, 3.3);
-            float hp = hash12(floor(pc) + 13.0);
-            vec2 pe = min(fract(pc) - 0.1 - 0.3 * vec2(fract(hp * 7.0), fract(hp * 13.0)), 0.9 - 0.3 * vec2(fract(hp * 17.0), fract(hp * 23.0)) - fract(pc)) * vec2(4.2, 3.3);
-            float tar = step(hp, 0.08) * smoothstep(-px, px, min(pe.x, pe.y)) * (1.0 - sett);
-            albedo = mix(albedo, vec3(0.03, 0.03, 0.034) * (0.8 + 0.4 * vnoise(p * 17.0)), tar * 0.55);
-            float stain = smoothstep(0.5, 0.85, vnoise(pr * 0.8 + 4.0) * 0.6 + vnoise(pr.yx * 2.3) * 0.4);
-            albedo *= 1.0 - 0.22 * stain;
-            vec2 gc = p / 0.22;
-            float hg = hash12(floor(gc) + 5.0);
-            float gum = step(0.9, hg) * (1.0 - smoothstep(0.045, 0.07, length(fract(gc) - 0.5 - (vec2(fract(hg * 31.0), fract(hg * 57.0)) - 0.5) * 0.6))) * fine;
-            albedo *= 1.0 - 0.6 * gum;
-            vec2 lc = p / 0.9;
-            float hl = hash12(floor(lc) + 21.0);
-            float wallD = sf.x >= sf.y ? se.y - abs(se.x) : se.w - abs(se.z);
-            float edge = max(smoothstep(0.9, 0.2, back), smoothstep(0.9, 0.2, wallD));
-            vec2 lf = mat2(cos(hl * 6.28), -sin(hl * 6.28), sin(hl * 6.28), cos(hl * 6.28)) * (fract(lc) - 0.5 - (vec2(fract(hl * 13.0), fract(hl * 29.0)) - 0.5) * 0.5);
-            float scrap = step(0.9 - 0.25 * max(edge, yard * 0.6), hl) * step(abs(lf.x), 0.04 + 0.05 * fract(hl * 41.0)) * step(abs(lf.y), 0.03 + 0.03 * fract(hl * 53.0)) * fine;
-            albedo = mix(albedo, mix(vec3(0.24, 0.23, 0.2), fract(hl * 67.0) < 0.5 ? vec3(0.3, 0.1, 0.12) : vec3(0.1, 0.22, 0.28), 0.5 * step(0.5, fract(hl * 79.0))), scrap);
-            // A weed in the joint at a wall's foot and the kerb's edge, and
-            // in a yard's joints: a tuft of blades, more of them in Santo
-            // Domingo and none on corporate ground.
-            vec2 wc = p / 0.45;
-            float hw = hash12(floor(wc) + 83.0);
-            vec2 wd = (fract(wc) - 0.5 - (vec2(fract(hw * 13.0), fract(hw * 29.0)) - 0.5) * 0.5) * 0.45;
-            float blades = 0.5 + 0.5 * sin(atan(wd.y, wd.x) * 9.0 + hw * 20.0);
-            float verge = max(smoothstep(0.35, 0.05, min(back, wallD)), yard * 0.3);
-            float weed = step(1.0 - mix(0.22, 0.5, santoAt(p)) * verge * (1.0 - tidy(p)), hw) * (1.0 - smoothstep(0.03 + 0.05 * blades * fract(hw * 3.0 + 0.4), 0.06 + 0.07 * blades, length(wd))) * fine;
-            albedo = mix(albedo, vec3(0.035, 0.055, 0.02) * (0.7 + 0.6 * blades), weed);
-            scrap = max(scrap, weed);
-            // The wet: water standing in the low places, more of it in a
-            // yard or a lane than on laid flags, thinning to damp at its
-            // shore; damp everywhere else, evenly, as rain leaves it.
-            // (Pools a stride or two across with an edge to them, the stone
-            // damp and darker for a hand's width round each: not a smear.)
-            float pool = vnoise(pr * 0.47 + 2.0) * 0.5 + vnoise(pr.yx * 1.3) * 0.32 + vnoise(pr * 3.7) * 0.18;
-            #ifdef LANE
-            // (A lane's pools are small: its water is in its drains.)
-            float brim = 0.68 + 0.02 * yard;
-            #else
-            float brim = 0.68 - 0.06 * yard;
-            #endif
-            // (Its shore is a hand wide, shallow water thinning over the
-            // stone: a cut edge reads as a sticker laid on the flags.)
-            // (Water finds a yard's drain and a lane's setts, the low places.)
-            water = smoothstep(brim - 0.012, brim + 0.075 + px, pool + 0.04 * tar + 0.07 * low) * (1.0 - scrap);
-            sheen = (0.3 + 0.16 * smoothstep(0.3, 0.7, pool) + 0.15 * tar) * (1.0 - 0.6 * joint);
-            albedo *= mix(1.0, 0.45, water) * (1.0 - 0.22 * smoothstep(brim - 0.09, brim, pool));
+          if (uPaving > 0.5) {
+            vec4 se = vec4(0.0);
+            vec4 sf = vec4(-99.0);
+            if (vProp < 0.5 && n.y > 0.7 && px < 0.6) {
+              vec2 p = vWorld.xz;
+              // (Noise on a turned grid: square to the street, its cells show.)
+              vec2 pr = mat2(0.8, -0.6, 0.6, 0.8) * p;
+              sf = streetAt(p, se);
+              // Metres back from the kerb's edge; past the lot line, or up off
+              // the street (a deck, a roof), it is a lane or a yard, poured,
+              // not paved.
+              float back = -max(sf.x, sf.y) - 0.3;
+              float yard = max(smoothstep(4.9, 5.6, back), step(0.6, vWorld.y));
+              float fine = 1.0 - smoothstep(0.012, 0.045, px);
+              float mid = 1.0 - smoothstep(0.04, 0.14, px);
+              // The paving: a strip of dark setts along the kerb, flags in
+              // the middle (each its own grey, some newer, some cracked),
+              // the small pavers the map carries against the buildings.
+              float band = smoothstep(0.55, 0.62, back) * (1.0 - smoothstep(2.5, 2.58, back + 1.5 * (hash12(floor(p / 24.0)) - 0.5))) * (1.0 - yard);
+              float sett = (1.0 - smoothstep(0.5, 0.58, back)) * (1.0 - yard);
+              vec2 size = band > 0.5 ? vec2(0.6) : vec2(0.2);
+              vec2 g = p / size;
+              float hs = hash12(floor(g));
+              vec2 f = fract(g);
+              float jd = min(min(f.x, 1.0 - f.x) * size.x, min(f.y, 1.0 - f.y) * size.y);
+              float joint = (1.0 - smoothstep(0.004, 0.008 + px, jd)) * mid * max(band, sett);
+              albedo = mix(albedo, vec3(0.088, 0.09, 0.096) * (0.75 + 0.5 * hs + 0.5 * step(0.94, hs)) * (0.8 + 0.4 * vnoise(p * 37.0) * fine), band);
+              albedo = mix(albedo, vec3(0.05, 0.052, 0.06) * (0.7 + 0.6 * hs), sett);
+              float cracked = step(hs, 0.07) * band * (1.0 - smoothstep(0.004, 0.008 + px, abs(f.x - 0.5 + (f.y - 0.5) * (fract(hs * 91.0) - 0.5) * 2.0) * 0.6)) * fine;
+              albedo *= 1.0 - 0.55 * max(joint, cracked);
+              float low;
+              if (uLane > 0.5) {
+                // A lane off the street (the pavement's own stone carried on
+                // round the back) is laid, not poured: fields of flags in
+                // running bond, 0.9 by 0.45 m, each its own grey, between bands
+                // of dark setts every 5.6 m one way and 7.2 m the other, which
+                // are its drains, with a cast grate where two of them cross.
+                vec2 fq = vec2(p.x / 0.9 + 0.5 * floor(p.y / 0.45), p.y / 0.45);
+                vec2 ff = fract(fq);
+                float fh = hash12(floor(fq) + 31.0);
+                float fjoint = (1.0 - smoothstep(0.005, 0.011 + px, min(min(ff.x, 1.0 - ff.x) * 0.9, min(ff.y, 1.0 - ff.y) * 0.45))) * mid;
+                vec3 flags = vec3(0.082, 0.083, 0.09) * (0.72 + 0.5 * fh + 0.35 * step(0.93, fh)) * (0.85 + 0.3 * vnoise(p * 31.0) * fine) * (1.0 - 0.6 * fjoint);
+                vec2 bd = abs(fract(p / vec2(5.6, 7.2)) - 0.5) * vec2(5.6, 7.2);
+                float drainBand = 1.0 - smoothstep(0.16, 0.18 + px, min(2.8 - bd.x, 3.6 - bd.y));
+                vec2 sq = fract(p / 0.11);
+                float sjoint = (1.0 - smoothstep(0.004, 0.009 + px, min(min(sq.x, 1.0 - sq.x), min(sq.y, 1.0 - sq.y)) * 0.11)) * fine;
+                vec3 laid = mix(flags, vec3(0.045, 0.046, 0.052) * (0.7 + 0.6 * hash12(floor(p / 0.11) + 7.0)) * (1.0 - 0.5 * sjoint), drainBand);
+                vec2 gcell = floor(p / vec2(5.6, 7.2) + 0.5);
+                vec2 gd = abs(p - gcell * vec2(5.6, 7.2));
+                float grate = step(max(gd.x, gd.y), 0.24) * step(0.5, hash12(gcell + 3.0)) * mid;
+                laid = mix(laid, vec3(0.02, 0.021, 0.024) * (0.6 + 0.8 * step(0.5, fract(gd.x / 0.06)) * fine), grate);
+                albedo = mix(albedo, laid, yard);
+                joint = max(joint, max(fjoint * (1.0 - drainBand), drainBand * 0.5) * yard);
+                low = drainBand * yard;
+              } else {
+                // A yard's concrete (a forecourt, a works' apron): poured in
+                // bays, each its own tone, the joints between them run with
+                // tar, a crack wandering across one bay in five, a slot drain
+                // every 13.8 m with the slab darker with damp toward it, and
+                // oil where things stand.
+                vec2 bay = abs(fract(p / vec2(3.2, 4.6)) - 0.5) * vec2(3.2, 4.6);
+                float bt = hash12(floor(p / vec2(3.2, 4.6)) + 17.0);
+                vec3 poured = vec3(0.075, 0.075, 0.08) * (0.82 + 0.3 * bt) * (0.9 + 0.12 * vnoise(p * 0.7) + 0.16 * vnoise(p * 9.0));
+                poured *= 1.0 - 0.72 * (1.0 - smoothstep(0.012, 0.022 + px, min(1.6 - bay.x, 2.3 - bay.y))) * mid;
+                poured *= 1.0 - 0.6 * (1.0 - smoothstep(0.004, 0.012 + px * 0.3, abs(vnoise(p * 0.55 + bt * 40.0) - 0.5))) * step(bt, 0.22) * fine;
+                float dd = abs(fract(p.x / 13.8 + 0.37) - 0.5) * 13.8;
+                float slot = (1.0 - smoothstep(0.07, 0.08 + px, dd)) * mid;
+                poured = mix(poured, vec3(0.015, 0.016, 0.018) * (0.5 + 1.2 * step(0.55, fract(p.y / 0.05)) * fine), slot);
+                poured *= (1.0 - 0.25 * smoothstep(0.9, 0.08, dd)) * (1.0 - 0.45 * smoothstep(0.68, 0.8, vnoise(pr * 1.7 + 9.0)));
+                albedo = mix(albedo, poured, yard);
+                low = smoothstep(0.9, 0.08, dd) * yard * 0.6;
+              }
+              // Tarmac let into it where it was dug up; old stains; gum; litter
+              // against the kerb and the wall.
+              vec2 pc = p / vec2(4.2, 3.3);
+              float hp = hash12(floor(pc) + 13.0);
+              vec2 pe = min(fract(pc) - 0.1 - 0.3 * vec2(fract(hp * 7.0), fract(hp * 13.0)), 0.9 - 0.3 * vec2(fract(hp * 17.0), fract(hp * 23.0)) - fract(pc)) * vec2(4.2, 3.3);
+              float tar = step(hp, 0.08) * smoothstep(-px, px, min(pe.x, pe.y)) * (1.0 - sett);
+              albedo = mix(albedo, vec3(0.03, 0.03, 0.034) * (0.8 + 0.4 * vnoise(p * 17.0)), tar * 0.55);
+              float stain = smoothstep(0.5, 0.85, vnoise(pr * 0.8 + 4.0) * 0.6 + vnoise(pr.yx * 2.3) * 0.4);
+              albedo *= 1.0 - 0.22 * stain;
+              vec2 gc = p / 0.22;
+              float hg = hash12(floor(gc) + 5.0);
+              float gum = step(0.9, hg) * (1.0 - smoothstep(0.045, 0.07, length(fract(gc) - 0.5 - (vec2(fract(hg * 31.0), fract(hg * 57.0)) - 0.5) * 0.6))) * fine;
+              albedo *= 1.0 - 0.6 * gum;
+              vec2 lc = p / 0.9;
+              float hl = hash12(floor(lc) + 21.0);
+              float wallD = sf.x >= sf.y ? se.y - abs(se.x) : se.w - abs(se.z);
+              float edge = max(smoothstep(0.9, 0.2, back), smoothstep(0.9, 0.2, wallD));
+              vec2 lf = mat2(cos(hl * 6.28), -sin(hl * 6.28), sin(hl * 6.28), cos(hl * 6.28)) * (fract(lc) - 0.5 - (vec2(fract(hl * 13.0), fract(hl * 29.0)) - 0.5) * 0.5);
+              float scrap = step(0.9 - 0.25 * max(edge, yard * 0.6), hl) * step(abs(lf.x), 0.04 + 0.05 * fract(hl * 41.0)) * step(abs(lf.y), 0.03 + 0.03 * fract(hl * 53.0)) * fine;
+              albedo = mix(albedo, mix(vec3(0.24, 0.23, 0.2), fract(hl * 67.0) < 0.5 ? vec3(0.3, 0.1, 0.12) : vec3(0.1, 0.22, 0.28), 0.5 * step(0.5, fract(hl * 79.0))), scrap);
+              // A weed in the joint at a wall's foot and the kerb's edge, and
+              // in a yard's joints: a tuft of blades, more of them in Santo
+              // Domingo and none on corporate ground.
+              vec2 wc = p / 0.45;
+              float hw = hash12(floor(wc) + 83.0);
+              vec2 wd = (fract(wc) - 0.5 - (vec2(fract(hw * 13.0), fract(hw * 29.0)) - 0.5) * 0.5) * 0.45;
+              float blades = 0.5 + 0.5 * sin(atan(wd.y, wd.x) * 9.0 + hw * 20.0);
+              float verge = max(smoothstep(0.35, 0.05, min(back, wallD)), yard * 0.3);
+              float weed = step(1.0 - mix(0.22, 0.5, santoAt(p)) * verge * (1.0 - tidy(p)), hw) * (1.0 - smoothstep(0.03 + 0.05 * blades * fract(hw * 3.0 + 0.4), 0.06 + 0.07 * blades, length(wd))) * fine;
+              albedo = mix(albedo, vec3(0.035, 0.055, 0.02) * (0.7 + 0.6 * blades), weed);
+              scrap = max(scrap, weed);
+              // The wet: water standing in the low places, more of it in a
+              // yard or a lane than on laid flags, thinning to damp at its
+              // shore; damp everywhere else, evenly, as rain leaves it.
+              // (Pools a stride or two across with an edge to them, the stone
+              // damp and darker for a hand's width round each: not a smear.)
+              float pool = vnoise(pr * 0.47 + 2.0) * 0.5 + vnoise(pr.yx * 1.3) * 0.32 + vnoise(pr * 3.7) * 0.18;
+              // (A lane's pools are small: its water is in its drains.)
+              float brim = uLane > 0.5 ? 0.68 + 0.02 * yard : 0.68 - 0.06 * yard;
+              // (Its shore is a hand wide, shallow water thinning over the
+              // stone: a cut edge reads as a sticker laid on the flags.)
+              // (Water finds a yard's drain and a lane's setts, the low places.)
+              water = smoothstep(brim - 0.012, brim + 0.075 + px, pool + 0.04 * tar + 0.07 * low) * (1.0 - scrap);
+              sheen = (0.3 + 0.16 * smoothstep(0.3, 0.7, pool) + 0.15 * tar) * (1.0 - 0.6 * joint);
+              albedo *= mix(1.0, 0.45, water) * (1.0 - 0.22 * smoothstep(brim - 0.09, brim, pool));
+            }
           }
-          #endif
-          #ifdef KERB
-          if (vProp < 0.5 && px < 0.3) {
-            // Kerbstones, a joint between each, pale along the worn edge, the
-            // gutter's dirt up the face.
-            vec4 ke;
-            vec4 ks = streetAt(vWorld.xz, ke);
-            float along = ks.x >= ks.y ? vWorld.z : vWorld.x;
-            float stone = hash12(vec2(floor(along / 0.9), floor(vWorld.x * 0.11 + vWorld.z * 0.13)));
-            float fine = 1.0 - smoothstep(0.02, 0.08, px);
-            float joint = (1.0 - smoothstep(0.006, 0.012 + px, (0.5 - abs(fract(along / 0.9) - 0.5)) * 0.9)) * fine;
-            albedo *= (0.8 + 0.4 * stone) * (0.85 + 0.3 * vnoise(vWorld.xz * 40.0) * fine) * (1.0 - 0.6 * joint);
-            albedo *= 1.0 - 0.5 * (1.0 - step(0.7, n.y)) * smoothstep(0.13, 0.0, vWorld.y);
-            sheen = 0.6 * step(0.7, n.y);
+          if (uKerb > 0.5) {
+            if (vProp < 0.5 && px < 0.3) {
+              // Kerbstones, a joint between each, pale along the worn edge, the
+              // gutter's dirt up the face.
+              vec4 ke;
+              vec4 ks = streetAt(vWorld.xz, ke);
+              float along = ks.x >= ks.y ? vWorld.z : vWorld.x;
+              float stone = hash12(vec2(floor(along / 0.9), floor(vWorld.x * 0.11 + vWorld.z * 0.13)));
+              float fine = 1.0 - smoothstep(0.02, 0.08, px);
+              float joint = (1.0 - smoothstep(0.006, 0.012 + px, (0.5 - abs(fract(along / 0.9) - 0.5)) * 0.9)) * fine;
+              albedo *= (0.8 + 0.4 * stone) * (0.85 + 0.3 * vnoise(vWorld.xz * 40.0) * fine) * (1.0 - 0.6 * joint);
+              albedo *= 1.0 - 0.5 * (1.0 - step(0.7, n.y)) * smoothstep(0.13, 0.0, vWorld.y);
+              sheen = 0.6 * step(0.7, n.y);
+            }
           }
-          #endif
           float up = clamp(n.y, 0.0, 1.0);
           // (A floor reads the baked light through the smooth filter: seen
           // from over it, the map's cells would show.)
           // (And an upright face a walker can reach reads it as a wall does:
           // spillWall, glsl.js.)
           bool upright = abs(n.y) < 0.3 && vWorld.y < 7.0 && vProp < 0.5;
-          #if defined(PAVING) || defined(KERB)
-          vec3 spill = n.y > 0.7 ? spillGround(vWorld) : (upright ? spillWall(vWorld) : spillAt(vWorld));
-          #else
-          vec3 spill = upright ? spillWall(vWorld) : spillAt(vWorld);
-          #endif
+          vec3 spill = (uPaving > 0.5 || uKerb > 0.5) && n.y > 0.7 ? spillGround(vWorld) : (upright ? spillWall(vWorld) : spillAt(vWorld));
           float laneDim = 1.0;
-          #if defined(WALL) || defined(SHUTTER) || defined(LANE)
-          // A lane off the street is dark, and lit where its tubes and its
-          // caged lamps are. The bake holds every sign within reach of it
-          // as well, an even wash end to end (the avenue's west lane reads
-          // 130 to 205 of 255 along its whole length): so a lane's floor
-          // and the walls a walker can reach take what the map holds here
-          // over what it holds all round (four taps, 6 m off), which is
-          // the pools, and next to nothing of the rest. Not where a street
-          // front or a square is meant to be evenly lit: a lane is what
-          // lies 5 to 40 m behind a street's kerb, outside the corporate
-          // ground and Santo Domingo's yards.
-          if (vProp < 0.5 && vWorld.y < 7.0) {
-            vec4 le;
-            vec4 ls = streetAt(vWorld.xz, le);
-            float behind = -max(ls.x, ls.y) - 0.3;
-            float laneK = smoothstep(5.0, 5.8, behind) * (1.0 - smoothstep(40.0, 55.0, behind)) * (1.0 - tidy(vWorld.xz)) * (1.0 - smoothstep(0.0, 0.25, santoAt(vWorld.xz)));
-            if (laneK > 0.01) {
-              vec2 luv = (vWorld.xz - uSpillBounds.xy) * uSpillBounds.zw;
-              vec2 lo = 4.5 * uSpillBounds.zw;
-              vec3 la = texture2D(uSpill, luv).rgb;
-              vec3 lw = texture2D(uSpill, luv + lo).rgb + texture2D(uSpill, luv - lo).rgb + texture2D(uSpill, luv + vec2(lo.x, -lo.y)).rgb + texture2D(uSpill, luv - vec2(lo.x, -lo.y)).rgb;
-              float here = dot(la * la, vec3(0.333));
-              float round4 = dot(lw * lw, vec3(0.333)) / 16.0;
-              // (And only where the wash is there to take out: a dim
-              // forecourt or a megablock's unlit base keeps what it has.)
-              // (Between its pools a lane keeps a third of the wash, not a
-              // twentieth: taken to its pools alone, a lane, a megablock's
-              // passage and a back street's shopfronts were black holes.)
-              laneDim = mix(1.0, max(here - 0.6 * round4, 0.35 * here) / max(here, 1e-4) * 1.5, laneK * smoothstep(0.1, 0.28, round4));
-              spill *= laneDim;
+          if (uWall > 0.5 || uShutter > 0.5 || uLane > 0.5) {
+            // A lane off the street is dark, and lit where its tubes and its
+            // caged lamps are. The bake holds every sign within reach of it
+            // as well, an even wash end to end (the avenue's west lane reads
+            // 130 to 205 of 255 along its whole length): so a lane's floor
+            // and the walls a walker can reach take what the map holds here
+            // over what it holds all round (four taps, 6 m off), which is
+            // the pools, and next to nothing of the rest. Not where a street
+            // front or a square is meant to be evenly lit: a lane is what
+            // lies 5 to 40 m behind a street's kerb, outside the corporate
+            // ground and Santo Domingo's yards.
+            if (vProp < 0.5 && vWorld.y < 7.0) {
+              vec4 le;
+              vec4 ls = streetAt(vWorld.xz, le);
+              float behind = -max(ls.x, ls.y) - 0.3;
+              float laneK = smoothstep(5.0, 5.8, behind) * (1.0 - smoothstep(40.0, 55.0, behind)) * (1.0 - tidy(vWorld.xz)) * (1.0 - smoothstep(0.0, 0.25, santoAt(vWorld.xz)));
+              if (laneK > 0.01) {
+                vec2 luv = (vWorld.xz - uSpillBounds.xy) * uSpillBounds.zw;
+                vec2 lo = 4.5 * uSpillBounds.zw;
+                vec3 la = texture2D(uSpill, luv).rgb;
+                vec3 lw = texture2D(uSpill, luv + lo).rgb + texture2D(uSpill, luv - lo).rgb + texture2D(uSpill, luv + vec2(lo.x, -lo.y)).rgb + texture2D(uSpill, luv - vec2(lo.x, -lo.y)).rgb;
+                float here = dot(la * la, vec3(0.333));
+                float round4 = dot(lw * lw, vec3(0.333)) / 16.0;
+                // (And only where the wash is there to take out: a dim
+                // forecourt or a megablock's unlit base keeps what it has.)
+                // (Between its pools a lane keeps a third of the wash, not a
+                // twentieth: taken to its pools alone, a lane, a megablock's
+                // passage and a back street's shopfronts were black holes.)
+                laneDim = mix(1.0, max(here - 0.6 * round4, 0.35 * here) / max(here, 1e-4) * 1.5, laneK * smoothstep(0.1, 0.28, round4));
+                spill *= laneDim;
+              }
             }
           }
-          #endif
-          #ifdef PAVING
-          // (A floor seen from anywhere but the hero's lens takes more of a
-          // dim light than of a bright one: a forecourt, a passage or a lane
-          // under signs that hang high was a black floor, and a plaza under
-          // a dozen signs is no brighter than it was.)
-          if (n.y > 0.7) spill *= 1.0 + freeEye() / (1.0 + 3.0 * dot(spill, vec3(0.3, 0.5, 0.2)));
-          #endif
+          if (uPaving > 0.5) {
+            // (A floor seen from anywhere but the hero's lens takes more of a
+            // dim light than of a bright one: a forecourt, a passage or a lane
+            // under signs that hang high was a black floor, and a plaza under
+            // a dozen signs is no brighter than it was.)
+            if (n.y > 0.7) spill *= 1.0 + freeEye() / (1.0 + 3.0 * dot(spill, vec3(0.3, 0.5, 0.2)));
+          }
           // (Away from the hero's lens the signs' colour stays with them: a
           // dim wash of their light gives up some of its colour toward the
           // night's blue, a magenta one most, and a bright pool keeps its
@@ -485,59 +485,59 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // the lit cloud, a little from overhead and more at a glance.
           float top = up * smoothstep(2.5, 6.0, vWorld.y) * (1.0 - vProp) * (1.0 - onDeck);
           col += (skyLight * 4.0 + SODIUM * santo * 0.5) * top * (0.045 + 0.5 * rim);
-          #ifdef DETAIL
-          // Wet sheet metal: it gives back the lit sky at a glancing angle
-          // and a highlight of every lamp near it, both broken by the seams
-          // and the grime (the panel's wear), which is what shows it at night.
-          vec3 R = reflect(-V, n);
-          float F = 0.04 + 0.96 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
-          float shine = smoothstep(0.75, 1.1, wear);
-          vec3 skyR = (hazeV * 1.4 + glowV * 0.6) * smoothstep(-0.15, 0.35, R.y) * uHaze;
-          vec3 glint = vec3(0.0);
-          for (int i = 0; i < ${LAMPS}; i++) {
-            vec3 d = uLamps[i].xyz - vWorld;
-            float d2 = dot(d, d);
-            float r2 = uLamps[i].w * uLamps[i].w * 4.0;
-            if (d2 > r2) continue;
-            float hl = pow(max(dot(R, d * inversesqrt(d2)), 0.0), 40.0);
-            glint += uLampColors[i] * hl * (1.0 - d2 / r2);
+          if (uKind > 0) {
+            // Wet sheet metal: it gives back the lit sky at a glancing angle
+            // and a highlight of every lamp near it, both broken by the seams
+            // and the grime (the panel's wear), which is what shows it at night.
+            vec3 R = reflect(-V, n);
+            float F = 0.04 + 0.96 * pow(1.0 - max(dot(n, V), 0.0), 5.0);
+            float shine = smoothstep(0.75, 1.1, wear);
+            vec3 skyR = (hazeV * 1.4 + glowV * 0.6) * smoothstep(-0.15, 0.35, R.y) * uHaze;
+            vec3 glint = vec3(0.0);
+            for (int i = 0; i < ${LAMPS}; i++) {
+              vec3 d = uLamps[i].xyz - vWorld;
+              float d2 = dot(d, d);
+              float r2 = uLamps[i].w * uLamps[i].w * 4.0;
+              if (d2 > r2) continue;
+              float hl = pow(max(dot(R, d * inversesqrt(d2)), 0.0), 40.0);
+              glint += uLampColors[i] * hl * (1.0 - d2 / r2);
+            }
+            col += (skyR * F * 0.9 + glint * 0.9) * (0.35 + 0.65 * shine) * (1.0 - onDeck);
           }
-          col += (skyR * F * 0.9 + glint * 0.9) * (0.35 + 0.65 * shine) * (1.0 - onDeck);
-          #endif
-          #if defined(PAVING) || defined(KERB)
-          if (sheen + water > 0.0) {
-            // Wet stone gives the street back as the road does (road.js),
-            // with no mirror: the baked light along the ray on the damp,
-            // more of it and the sky in standing water.
-            vec3 Rw = vec3(-V.x, V.y, -V.z);
-            float graze = pow(1.0 - clamp(V.y, 0.0, 1.0), 3.0);
-            // (Under Santo Domingo's lamps the cloud over a yard is their
-            // orange, and a pool there holds that, not the city's blue.)
-            vec3 back = tame(spillReflect(vWorld, Rw) * 0.14, 0.5) * laneDim;
-            vec3 sky = mix((hazeV * 1.2 + glowV * 0.5) * 0.4, SODIUM * 0.9, 0.85 * santoAt(vWorld.xz)) * uHaze;
-            vec3 give = back * sheen * (0.15 + 0.85 * graze);
-            // (Away from the hero's lens, the cloud's light on the wet film
-            // too, more of it the more glancing the look: a wet floor with
-            // nothing lit over it is a dark blue sheen, not a black one.)
-            give += sky * sheen * (0.12 + 0.6 * graze) * freeEye();
-            #ifdef PAVING
-            // (A pool's face is never one flat tone: the rain keeps it moving.)
-            // (And it holds the street's light before the cloud's: lit by
-            // the cloud alone, a pool in a dark yard was a pale patch.)
-            // (And whole only where a light stands over it: the wash
-            // between, given back evenly, was a milky sheen on a lane's
-            // floor, fog or frost and not wet stone.)
-            float bl = dot(back, vec3(0.3, 0.5, 0.2));
-            // (And away from the hero's lens, nothing of a dim wash at all:
-            // given back as it was, the wash over a lit forecourt made every
-            // pool a pale shape on the stone, a decal, a paper cutout, a
-            // splash of paint. Water is dark, with the lights in it.)
-            float poolK = mix(1.0, smoothstep(0.06, 0.32, bl) * 1.5, freeEye());
-            if (water > 0.01) give = mix(give, (back * (bl / (0.5 * bl + 0.07)) * 1.3 * poolK + sky * mix(0.1, 0.55, santoAt(vWorld.xz))) * (0.25 + 0.75 * graze) * (0.9 + 0.2 * vnoise(vWorld.xz * 6.0 + uTime * 0.7)), water * water);
-            #endif
-            col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
+          if (uPaving > 0.5 || uKerb > 0.5) {
+            if (sheen + water > 0.0) {
+              // Wet stone gives the street back as the road does (road.js),
+              // with no mirror: the baked light along the ray on the damp,
+              // more of it and the sky in standing water.
+              vec3 Rw = vec3(-V.x, V.y, -V.z);
+              float graze = pow(1.0 - clamp(V.y, 0.0, 1.0), 3.0);
+              // (Under Santo Domingo's lamps the cloud over a yard is their
+              // orange, and a pool there holds that, not the city's blue.)
+              vec3 back = tame(spillReflect(vWorld, Rw) * 0.14, 0.5) * laneDim;
+              vec3 sky = mix((hazeV * 1.2 + glowV * 0.5) * 0.4, SODIUM * 0.9, 0.85 * santoAt(vWorld.xz)) * uHaze;
+              vec3 give = back * sheen * (0.15 + 0.85 * graze);
+              // (Away from the hero's lens, the cloud's light on the wet film
+              // too, more of it the more glancing the look: a wet floor with
+              // nothing lit over it is a dark blue sheen, not a black one.)
+              give += sky * sheen * (0.12 + 0.6 * graze) * freeEye();
+              if (uPaving > 0.5) {
+                // (A pool's face is never one flat tone: the rain keeps it moving.)
+                // (And it holds the street's light before the cloud's: lit by
+                // the cloud alone, a pool in a dark yard was a pale patch.)
+                // (And whole only where a light stands over it: the wash
+                // between, given back evenly, was a milky sheen on a lane's
+                // floor, fog or frost and not wet stone.)
+                float bl = dot(back, vec3(0.3, 0.5, 0.2));
+                // (And away from the hero's lens, nothing of a dim wash at all:
+                // given back as it was, the wash over a lit forecourt made every
+                // pool a pale shape on the stone, a decal, a paper cutout, a
+                // splash of paint. Water is dark, with the lights in it.)
+                float poolK = mix(1.0, smoothstep(0.06, 0.32, bl) * 1.5, freeEye());
+                if (water > 0.01) give = mix(give, (back * (bl / (0.5 * bl + 0.07)) * 1.3 * poolK + sky * mix(0.1, 0.55, santoAt(vWorld.xz))) * (0.25 + 0.75 * graze) * (0.9 + 0.2 * vnoise(vWorld.xz * 6.0 + uTime * 0.7)), water * water);
+              }
+              col += give / (1.0 + 0.35 * max(give.r, max(give.g, give.b)));
+            }
           }
-          #endif
           col = cityFog(col, vWorld, 0.0);
           gl_FragColor = vec4(col, 1.0);
           ${OUT}

@@ -8,10 +8,12 @@
 // looks, so it holds at arm's length, and every part fades by the metres a
 // pixel covers (px) into its own average before it could shimmer.
 //
-// kindSource(kind) gives the GLSL for one kind: a
+// KIND_SOURCE gives the GLSL for every kind at once (surface() is one
+// program for all its materials): a
 // `vec3 dress(vec3 c, vec3 p, vec3 n, float px, out float wear)` that takes
-// the paint's colour and gives it back dressed; wear is how clean the
-// sheet is there (the wet shine in surface() follows it).
+// the paint's colour and gives it back dressed as the kind uniform uKind
+// names (KIND's numbers); wear is how clean the sheet is there (the wet
+// shine in surface() follows it).
 //
 // Needs hash12 (glsl.js) and vnoise (ground.js) above it, and vProp.
 
@@ -26,6 +28,9 @@ const BASE = /* glsl */ `
   }
   const vec3 RUSTED = vec3(0.62, 0.34, 0.18);
 `;
+
+/** Each kind's number, for surface()'s uKind (0: none, no dress). */
+export const KIND = { sheet: 1, concrete: 2, tank: 3, steel: 4, corrugated: 5, container: 6, plaster: 7, trim: 8 };
 
 const KINDS = {
   // Sheet roofing and plant, as it has been: panels, their seams, grime.
@@ -76,7 +81,9 @@ const KINDS = {
         }
         tone *= 0.94 + 0.12 * fine * vnoise(q * 31.0);
       }
-      #ifdef RELIEF
+      // (Only what is keyed concrete carries it: trim is also every fascia,
+      // sill and bar, and a storey's joint is no line across those.)
+      if (uKind == ${KIND.concrete}) {
       // A wall of cast concrete as a megablock's base is built (and a
       // ramp's wall, a yard's): storeys 3.4 m apart, each a joint with the
       // lip of the pour over it and the damp that has run down from it; a
@@ -106,7 +113,7 @@ const KINDS = {
         tone *= mix(1.0, (1.0 - 0.55 * joint) * (1.0 + 0.5 * lip) * (1.0 - 0.3 * damp) * (1.0 - 0.25 * streak) * (1.0 + 0.22 * post) * (1.0 - 0.4 * shadow)
           * (1.0 - 0.5 * tray) * (1.0 + 1.6 * pipes) * (1.0 - 0.5 * bracket) * (1.0 - 0.45 * hair(abs(down - 0.17), 0.09, px)) * (1.0 + 0.9 * pipe) * (1.0 - 0.4 * foot), far);
       }
-      #endif
+      }
       wear = tone * 0.88;
       return c * tone * mix(vec3(1.0), RUSTED, drip * 0.8);
     }
@@ -213,15 +220,8 @@ const KINDS = {
   // A shipping container: deep ribs, a flat rail at the top and the foot of
   // every 2.6 m of it (boxes stack from the ground), and every six metres a
   // code in bars and a plate, or a door's four lock rods with their handles.
+  // (Its ribs are corrugated's, above.)
   container: /* glsl */ `
-    float ribs(float t, float w, vec4 lit) {
-      float f = fract(t);
-      float s = mix(lit.x, lit.y, smoothstep(0.35 - w, 0.35 + w, f));
-      s = mix(s, lit.z, smoothstep(0.5 - w, 0.5 + w, f));
-      s = mix(s, lit.w, smoothstep(0.85 - w, 0.85 + w, f));
-      s = mix(s, lit.x, smoothstep(1.0 - w, 1.0, f));
-      return mix(s, dot(lit, vec4(0.35, 0.15, 0.35, 0.15)), smoothstep(0.2, 0.55, w));
-    }
     vec3 kindContainer(vec3 c, vec3 p, vec3 n, float px, out float wear) {
       vec3 a = abs(n);
       vec2 q = faceOf(p, a);
@@ -302,16 +302,6 @@ const KINDS = {
   `,
 };
 
-const CALL = {
-  sheet: "kindSheet",
-  concrete: "kindConcrete",
-  tank: "kindTank",
-  steel: "kindSteel",
-  corrugated: "kindCorrugated",
-  container: "kindContainer",
-  plaster: "kindPlaster",
-};
-
 // A street's prop (instanced) is too small for joints laid out in the
 // world: its paint, a little uneven.
 const PROP = /* glsl */ `
@@ -322,29 +312,27 @@ const PROP = /* glsl */ `
 `;
 
 /**
- * `kind`: one of CALL's, or "trim": a building's trim is poured concrete,
- * but a face that looks along neither x nor z is no wall of this city (its
- * streets run square): it is the shell of a tank, a sphere, a stack or a
- * pipe, and is dressed as plate.
+ * Every kind, dressed as uKind says. "trim": a building's trim is poured
+ * concrete, but a face that looks along neither x nor z is no wall of this
+ * city (its streets run square): it is the shell of a tank, a sphere, a
+ * stack or a pipe, and is dressed as plate.
  */
-export function kindSource(kind) {
-  if (kind === "trim") {
-    return /* glsl */ `${BASE}${PROP}${KINDS.concrete}${KINDS.tank}
-      vec3 dress(vec3 c, vec3 p, vec3 n, float px, out float wear) {
-        if (vProp > 0.5) return kindProp(c, p, wear);
-        vec2 h = abs(n.xz) / max(length(n.xz), 1e-3);
-        if (min(h.x, h.y) > 0.1) return kindTank(c, p, n, px, wear);
-        return kindConcrete(c, p, n, px, wear);
-      }
-    `;
-  }
-  // (Only what is keyed concrete carries a megablock base's relief: trim
-  // is also every fascia, sill and bar, and a storey's joint is no line
-  // across those.)
-  return /* glsl */ `${kind === "concrete" ? "#define RELIEF\n" : ""}${BASE}${PROP}${KINDS[kind]}
-    vec3 dress(vec3 c, vec3 p, vec3 n, float px, out float wear) {
-      if (vProp > 0.5) return kindProp(c, p, wear);
-      return ${CALL[kind]}(c, p, n, px, wear);
+export const KIND_SOURCE = /* glsl */ `
+  uniform int uKind;
+  ${BASE}${PROP}${Object.values(KINDS).join("")}
+  vec3 dress(vec3 c, vec3 p, vec3 n, float px, out float wear) {
+    if (vProp > 0.5) return kindProp(c, p, wear);
+    if (uKind == ${KIND.trim}) {
+      vec2 h = abs(n.xz) / max(length(n.xz), 1e-3);
+      if (min(h.x, h.y) > 0.1) return kindTank(c, p, n, px, wear);
+      return kindConcrete(c, p, n, px, wear);
     }
-  `;
-}
+    if (uKind == ${KIND.sheet}) return kindSheet(c, p, n, px, wear);
+    if (uKind == ${KIND.concrete}) return kindConcrete(c, p, n, px, wear);
+    if (uKind == ${KIND.tank}) return kindTank(c, p, n, px, wear);
+    if (uKind == ${KIND.steel}) return kindSteel(c, p, n, px, wear);
+    if (uKind == ${KIND.corrugated}) return kindCorrugated(c, p, n, px, wear);
+    if (uKind == ${KIND.container}) return kindContainer(c, p, n, px, wear);
+    return kindPlaster(c, p, n, px, wear);
+  }
+`;
