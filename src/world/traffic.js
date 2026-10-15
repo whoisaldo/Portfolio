@@ -730,6 +730,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       uniform vec4 uCab2;
       uniform float uVan;
       uniform float uBus;
+      // 1 on a kind's close-up model, its uniforms read through to the
+      // kind's own (a uniform, not a define: near and far one program).
+      uniform float uNear;
       varying vec3 vWorld;
       varying vec3 vNormalW;
       varying vec3 vNormalL;
@@ -739,7 +742,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       varying vec4 vState;
       varying vec3 vLocal;
       varying vec3 vViewL;
-      #ifdef NEAR
+      // (The close-up model's, uNear: called on its branches only.)
       // The cabin behind the close-up model's glass, found by following the
       // lens' ray on through the pane (all in the car's own frame): the
       // nearest thing it meets, what that is and which way it faces.
@@ -895,7 +898,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         if (cabM < 1.5 && cabN.z < -0.5 && abs(at.x - dx) < 0.17 && at.y > yb - 0.17) seen += accent * 0.45;
         return seen;
       }
-      #endif
       // The far side of the street as a pane or a panel gives it back:
       // where the reflected ray meets a frontage about 14 m off, a row of
       // lit signs and windows with dark between them (1 lit, 0 dark),
@@ -952,12 +954,11 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         vec3 col;
         float glow = 0.0;
         float flank = step(0.7, abs(nl.x));
-        #ifndef NEAR
         // The van's flanks and back: a row of cabin windows between pillars,
         // the rear doors' two lights and their split, a rubbing strip.
         // (uVan: a uniform, not a define, so that the van is the far cars'
         // own program; the near models never drew it.)
-        if (uVan > 0.5) {
+        if (uVan > 0.5 && uNear < 0.5) {
           if (k == 0) {
             float back = step(nl.z, -0.7);
             float pil = step(0.05, abs(fract((vLocal.z + 2.35) / 0.95) - 0.5) * 0.95);
@@ -967,7 +968,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
             else if (flank * step(abs(vLocal.y - 0.55), 0.045) > 0.5) k = 1;
           }
         }
-        #endif
         // Grounded: darker toward the sills and round each wheel, where the
         // arch stands over its tyre; the roof and the bonnet lifted by the
         // glow overhead.
@@ -979,9 +979,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         float sky = max(n.y, 0.0);
         // A wheel's face has a rim in it (the far model's wheel is a plain
         // drum: its rim is drawn on it).
-        #ifndef NEAR
-        if (k == 6 && flank > 0.5 && wr < 0.7) k = 7;
-        #endif
+        if (uNear < 0.5 && k == 6 && flank > 0.5 && wr < 0.7) k = 7;
         if (k == 0) {
           // (A black car's paint is not a hole: its floor is lifted enough
           // for its shape to read under a street lamp.)
@@ -1013,13 +1011,13 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           vec2 hd = min(abs(vec2(vLocal.z - uDoor.x - 0.15, vLocal.y - uSeam.w + 0.1)), abs(vec2(vLocal.z - uDoor.y - 0.15, vLocal.y - uSeam.w + 0.1))) - vec2(0.085, 0.016);
           float handle = step(max(hd.x, hd.y), 0.0) * flank;
           float drawn = 1.0;
-          #ifdef NEAR
-          // (The close-up model's cuts, handles, cladding and waist strip
-          // are modelled: none is drawn on it.)
-          seam = 0.0;
-          handle = 0.0;
-          drawn = 0.0;
-          #endif
+          if (uNear > 0.5) {
+            // (The close-up model's cuts, handles, cladding and waist strip
+            // are modelled: none is drawn on it.)
+            seam = 0.0;
+            handle = 0.0;
+            drawn = 0.0;
+          }
           body *= 1.0 - 0.8 * max(seam, handle);
           // Below the doors' foot the flank is dark cladding, not paint.
           float clad = flank * (1.0 - smoothstep(uSeam.z - 0.035, uSeam.z + 0.005, vLocal.y)) * drawn;
@@ -1074,18 +1072,17 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           vec3 mirror = mix(uHazeColor * 0.05 + uGlowColor * 0.06 + min(spill, vec3(1.5)) * 0.2, uHazeColor * 0.32 * exp(-max(R.y, 0.0) * 3.0) + vec3(0.002, 0.003, 0.006), smoothstep(-0.06, 0.04, R.y));
           mirror += vec3(1.0, 0.4, 0.75) * band * 0.12 + (min(toward, vec3(1.5)) * 1.5 + uHazeColor * 0.35) * signs;
           float gives = 0.1 + 0.9 * F;
-          #ifdef NEAR
-          // Close to, the pane is seen through, darkly: the tint passes a
-          // third of the light each way, so the cabin shows only where the
-          // street's light falls into it (a driver under a lamp, the dash's
-          // glow on a face) and the far side's panes, through two layers
-          // of tint, are a dim smear of what is beyond, never a lit screen
-          // for the seats to stand black against.
-          vec3 beyond = (min(spillAt(vWorld + V * 7.0), vec3(1.2)) * 0.4 + uHazeColor * 0.2 + uGlowColor * 0.1) * 0.22;
-          vec3 through = seeCabin(vLocal, normalize(vViewL), min(spill * 0.8 + side * 0.3, vec3(1.1)), beyond, vLook.rgb, max(step(1.5, vState.w), vLook.a), fract(vBody.r * 97.0 + vBody.g * 31.0 + vBody.b * 57.0 + vLook.r * 13.0));
-          col = through * (1.0 - F) * 0.36 + mirror * gives + given * 0.025 + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.05;
-          #else
-          if (uBus > 0.5) {
+          if (uNear > 0.5) {
+            // Close to, the pane is seen through, darkly: the tint passes a
+            // third of the light each way, so the cabin shows only where the
+            // street's light falls into it (a driver under a lamp, the dash's
+            // glow on a face) and the far side's panes, through two layers
+            // of tint, are a dim smear of what is beyond, never a lit screen
+            // for the seats to stand black against.
+            vec3 beyond = (min(spillAt(vWorld + V * 7.0), vec3(1.2)) * 0.4 + uHazeColor * 0.2 + uGlowColor * 0.1) * 0.22;
+            vec3 through = seeCabin(vLocal, normalize(vViewL), min(spill * 0.8 + side * 0.3, vec3(1.1)), beyond, vLook.rgb, max(step(1.5, vState.w), vLook.a), fract(vBody.r * 97.0 + vBody.g * 31.0 + vBody.b * 57.0 + vLook.r * 13.0));
+            col = through * (1.0 - F) * 0.36 + mirror * gives + given * 0.025 + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.05;
+          } else if (uBus > 0.5) {
             // A bus at its stop is a lit room: the ceiling's light over rows
             // of seat backs, a head over some of them, and at the wheel its
             // driver.
@@ -1102,7 +1099,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           } else {
             col = cabin * (1.0 - F) + mirror * gives + given * (0.04 + 0.04 * gy) + (uHazeColor * 0.5 + min(side, vec3(1.0)) * 0.4) * bars * 0.07;
           }
-          #endif
         }
         // A light bar is a lamp unit at each end and a thin running strip
         // between them, behind a lens; lit, it is only as hot as it must be
@@ -1130,14 +1126,25 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         }
         else if (k == 5) { col = vLook.rgb * max(mix(0.6, mix(1.5, 3.0, far), lit), 1.7 * mod(vState.w, 2.0)); glow = 1.0; }
         else if (k == 6) col = vec3(0.007) + (spill * 0.05 + side * 0.04) + (uHazeColor * 0.4 + side * 0.5) * pow(1.0 - ndv, 3.0) * 0.14 + side * 0.05 * flank * smoothstep(0.78, 0.86, wr) * (1.0 - smoothstep(0.9, 0.98, wr));
-        #ifdef NEAR
         else if (k == 7) {
-          // The close-up rim is modelled: bright alloy, darker the deeper
-          // into the wheel it is dished.
-          float dish = smoothstep(uBoxMax.x - 0.2, uBoxMax.x - 0.03, abs(vLocal.x));
-          col = vec3(0.28, 0.3, 0.33) * (0.04 + side * 0.9 + spill * 0.35) * (0.3 + 0.7 * dish) + env * (0.1 + 0.45 * F) * (0.35 + 0.65 * dish) * (0.45 + 0.55 * smoothstep(0.05, 0.35, dot(side + spill, vec3(0.333))));
+          if (uNear > 0.5) {
+            // The close-up rim is modelled: bright alloy, darker the deeper
+            // into the wheel it is dished.
+            float dish = smoothstep(uBoxMax.x - 0.2, uBoxMax.x - 0.03, abs(vLocal.x));
+            col = vec3(0.28, 0.3, 0.33) * (0.04 + side * 0.9 + spill * 0.35) * (0.3 + 0.7 * dish) + env * (0.1 + 0.45 * F) * (0.35 + 0.65 * dish) * (0.45 + 0.55 * smoothstep(0.05, 0.35, dot(side + spill, vec3(0.333))));
+          } else {
+            // The rim: five spokes of bright alloy from a hub to the rim's
+            // edge, dark between them; turning, they run together.
+            float spoke = smoothstep(0.4, 0.56, abs(fract(atan(wv.y, wv.x) * 0.7958) - 0.5) * 2.0);
+            float metal = mix(spoke, 0.5, lit * (1.0 - vBrake) * 0.85);
+            metal = max(metal, smoothstep(0.55, 0.61, wr));
+            metal = max(metal, 1.0 - smoothstep(0.13, 0.17, wr));
+            metal *= 1.0 - smoothstep(0.68, 0.73, wr);
+            vec3 alloy = vec3(0.36, 0.38, 0.42) * (0.045 + side * 0.9 + spill * 0.35) + env * (0.12 + 0.4 * F) * (0.45 + 0.55 * smoothstep(0.05, 0.35, dot(side + spill, vec3(0.333))));
+            col = mix(vec3(0.008) + side * 0.02, alloy, metal * flank);
+          }
         }
-        else if (k == 10) {
+        else if (k == 10 && uNear > 0.5) {
           // Bright metal; in a lamp's pocket, the reflector behind it, lit
           // by its lamp through the ribs of a lens.
           col = vec3(0.5, 0.52, 0.56) * (0.04 + side * 0.5 + spill * 0.3) + env * (0.3 + 0.7 * F);
@@ -1147,19 +1154,6 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
           col += (vec3(0.92, 0.95, 1.0) * 1.3 * nose + vec3(1.0, 0.03, 0.05) * (0.7 + 0.9 * vBrake) * back) * lit * ribs;
           glow = max(nose, back) * lit * 0.6;
         }
-        #else
-        else if (k == 7) {
-          // The rim: five spokes of bright alloy from a hub to the rim's
-          // edge, dark between them; turning, they run together.
-          float spoke = smoothstep(0.4, 0.56, abs(fract(atan(wv.y, wv.x) * 0.7958) - 0.5) * 2.0);
-          float metal = mix(spoke, 0.5, lit * (1.0 - vBrake) * 0.85);
-          metal = max(metal, smoothstep(0.55, 0.61, wr));
-          metal = max(metal, 1.0 - smoothstep(0.13, 0.17, wr));
-          metal *= 1.0 - smoothstep(0.68, 0.73, wr);
-          vec3 alloy = vec3(0.36, 0.38, 0.42) * (0.045 + side * 0.9 + spill * 0.35) + env * (0.12 + 0.4 * F) * (0.45 + 0.55 * smoothstep(0.05, 0.35, dot(side + spill, vec3(0.333))));
-          col = mix(vec3(0.008) + side * 0.02, alloy, metal * flank);
-        }
-        #endif
         else if (k == 9) {
           // The taxi's sign: a lit amber box, its ends darker.
           col = vec3(1.0, 0.62, 0.12) * mix(1.3, 3.2, far) * (0.35 + 0.65 * step(abs(vLocal.x), 0.24));
@@ -1176,15 +1170,9 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
         else col = vec3(0.02, 0.022, 0.026) + env * 0.2 + side * 0.05;
         // A number plate on the nose and on the tail: a pale rectangle in a
         // dark frame with a row of dark marks, the tail's under its own lamp.
-        #ifdef NEAR
-        if (k == 11) {
-          float nose = step(0.0, vLocal.z);
-          float back = 1.0 - nose;
-        #else
-        if (k < 2) {
-          float nose = step(0.9, nl.z) * step(uBoxMax.z - 0.06, vLocal.z);
-          float back = step(0.9, -nl.z) * step(vLocal.z, uBoxMin.z + 0.06);
-        #endif
+        if (uNear > 0.5 ? k == 11 : k < 2) {
+          float nose = uNear > 0.5 ? step(0.0, vLocal.z) : step(0.9, nl.z) * step(uBoxMax.z - 0.06, vLocal.z);
+          float back = uNear > 0.5 ? 1.0 - nose : step(0.9, -nl.z) * step(vLocal.z, uBoxMin.z + 0.06);
           vec2 pd = abs(vec2(vLocal.x, vLocal.y - mix(uPlate.y, uPlate.x, nose))) - vec2(uPlate.z, 0.052);
           float edge = max(pd.x, pd.y);
           if ((nose + back) * step(edge, 0.0) > 0.5) {
@@ -1479,7 +1467,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
   const kinds = [...CAR_KINDS, ...BIKES, ...FIXED].map((kind, k) => {
     const built = madeAhead(kind, () => kindModel(kind));
     const detail = DETAIL[kind];
-    const uniforms = { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uWheel: { value: new THREE.Vector2(...detail.wheel) }, uCab: { value: new THREE.Vector4(...CABIN[kind].slice(0, 4)) }, uCab2: { value: new THREE.Vector4(...CABIN[kind].slice(4)) }, uVan: { value: kind === "van" ? 1 : 0 }, uBus: { value: kind === "bus" ? 1 : 0 } };
+    const uniforms = { ...carUniforms, uBoxMin: { value: built.box.min }, uBoxMax: { value: built.box.max }, uBars: { value: built.bars }, uSeam: { value: new THREE.Vector4(...detail.seam) }, uDoor: { value: new THREE.Vector4(...detail.door, 0, 0) }, uPlate: { value: new THREE.Vector3(...detail.plate) }, uWheel: { value: new THREE.Vector2(...detail.wheel) }, uCab: { value: new THREE.Vector4(...CABIN[kind].slice(0, 4)) }, uCab2: { value: new THREE.Vector4(...CABIN[kind].slice(4)) }, uVan: { value: kind === "van" ? 1 : 0 }, uBus: { value: kind === "bus" ? 1 : 0 }, uNear: { value: 0 } };
     const material = new THREE.ShaderMaterial({ uniforms, ...carShader });
     material.name = kind === "van" ? "traffic_van" : kind === "bus" ? "traffic_bus" : "traffic";
     const mine = slots.filter((x) => x.kind === k);
@@ -1532,7 +1520,7 @@ export function createTraffic(scene, shared, { avs = 10, cars = 4, drones = 0, p
       const body = made ? await made : null;
       if (alive === false) return void body?.dispose();
       if (!full && !body) return void setTimeout(build, 0);
-      K.nearMaterial = new THREE.ShaderMaterial({ uniforms: K.uniforms, ...carShader, defines: { NEAR: "" } });
+      K.nearMaterial = new THREE.ShaderMaterial({ uniforms: Object.create(K.uniforms, { uNear: { value: { value: 1 }, enumerable: true } }), ...carShader });
       K.nearMaterial.name = "traffic_near";
       K.near = K.level(nearGeometry(K.kind, K.built.roofY, body ?? undefined), `traffic_${K.kind}_near`, K.nearMaterial, nearMost);
       K.levels.push(K.near);
