@@ -329,6 +329,9 @@ export const SHOP_ROOM = /* glsl */ `
     }
     // Stools and who sits on them, backs to the street, the kitchen's light
     // on their shoulders.
+    // (Dressed, as the crowd on the pavement outside is: a jacket in one
+    // of the clothes' dyes, hair over it. In one shade of a neon they
+    // were cut-outs a step from the dressed figures passing the glass.)
     t = 1.4 / d.z;
     w = p + d * t;
     float sx = (fract(w.x / 0.7) - 0.5) * 0.7;
@@ -336,7 +339,8 @@ export const SHOP_ROOM = /* glsl */ `
     float who = hash12(vec2(floor(w.x / 0.7), seed * 53.0));
     float sat = step(0.45, who) * person(vec2(sx, w.y - 0.32), 0.0);
     if (t < tm && w.x > 0.3 && w.x < W - 0.3 && max(stool, sat) > 0.5) {
-      col = mix(vec3(0.02, 0.015, 0.012), neonOf(who * 7.0) * 0.12 + warm * 0.06, sat * smoothstep(0.9, 1.6, w.y - FLOOR_Y));
+      vec3 worn = w.y - FLOOR_Y > 1.82 ? vec3(0.05, 0.035, 0.025) * (1.0 + 3.0 * step(0.75, fract(who * 17.0))) : clothOf(who * 13.0);
+      col = mix(vec3(0.02, 0.015, 0.012), worn * warm * (0.06 + 0.34 * smoothstep(0.9, 1.6, w.y - FLOOR_Y)) + neonOf(who * 7.0) * 0.02, sat);
       tm = t;
     }
     // Lanterns.
