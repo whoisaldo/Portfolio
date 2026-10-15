@@ -638,16 +638,13 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
   const facade = (key = "facade", fog = 1) => {
     if (made.has(key)) return made.get(key);
     const m = keep(new THREE.ShaderMaterial({
-      uniforms: { ...shared, uWindows: { value: 1 }, uFogK: { value: fog }, uEnd: { value: key === "facade_end" ? 1 : 0 } },
+      uniforms: { ...shared, uWindows: { value: 1 }, uFogK: { value: fog } },
       vertexShader: VERT_WORLD_COLOR,
       fragmentShader: /* glsl */ `
         ${COMMON}
         ${WINDOWS}
         uniform float uWindows;
         uniform float uFogK;
-        // 1 on facade_end (a uniform, not a constant in the text: one
-        // program for both; see surface()).
-        uniform float uEnd;
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
@@ -660,7 +657,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           // floors with stair bays and plant floors, not room by room at
           // one rate, which from the air was one random-lit window texture
           // tiled over every tower.)
-          vec4 w = windowsK(vUv, vColor.rgb, vWorld, uWindows, vColor.a > 0.999 ? (uEnd > 0.5 ? 0.0 : -1.0) : vColor.a, vColor.a > 0.999 && uEnd < 0.5 ? 0.0 : 1.0, 1.0);
+          // (Written into its text: facade_end is a program of its own. As
+          // a uniform in one program with facade's, the same sums compiled
+          // otherwise and a far room came out dark that was lit.)
+          vec4 w = windowsK(vUv, vColor.rgb, vWorld, uWindows, vColor.a > 0.999 ? ${key === "facade_end" ? "0.0" : "-1.0"} : vColor.a, vColor.a > 0.999 && ${key === "facade_end" ? "false" : "true"} ? 0.0 : 1.0, 1.0);
           // Fog at uFogK of its density: the same curve from a point that
           // far nearer the lens along the same line.
           vec3 p = uCam + (vWorld - uCam) * uFogK;
