@@ -122,6 +122,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         uGloss: { value: rough },
         uSky: { value: sky },
         uSpray: { value: wall ?? 0.4 },
+        uProp: { value: 0 },
         ...(marks ? adverts() : {}),
       },
       vertexShader: /* glsl */ `
@@ -129,8 +130,10 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
         varying vec3 vWorld;
         varying vec3 vNormalW;
         varying vec2 vUv;
-        // A prop (src/world/props.js draws these materials instanced): its
-        // painted sides are not a wall.
+        // A prop (src/world/props.js draws these materials instanced, and
+        // its small parts written out with uProp 1): its painted sides are
+        // not a wall.
+        uniform float uProp;
         varying float vProp;
         void main() {
           #ifdef USE_INSTANCING
@@ -138,7 +141,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
           vProp = 1.0;
           #else
           mat4 m = modelMatrix;
-          vProp = 0.0;
+          vProp = uProp;
           #endif
           vec4 w = m * vec4(position, 1.0);
           vWorld = w.xyz;
@@ -851,7 +854,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     m.onBeforeRender = (_renderer, _scene, _camera, geometry, object) => {
       if (dealt.has(geometry)) return;
       dealt.add(geometry);
-      if (object.isInstancedMesh) return;
+      if (object.isInstancedMesh || object.isBaked) return;
       const got = dealTrades(geometry, object);
       trades.panes += got.panes;
       trades.signed += got.signed;
@@ -2216,7 +2219,7 @@ export function createMaterialKit(shared, { maps = {}, reduced = false } = {}) {
     m.onBeforeRender = (_renderer, _scene, _camera, geometry, object) => {
       if (boards.has(geometry)) return;
       boards.add(geometry);
-      if (!object.isInstancedMesh) dealAdverts(geometry, object);
+      if (!object.isInstancedMesh && !object.isBaked) dealAdverts(geometry, object);
     };
     // (load) The same, a step at a time, for a geometry the city deals out
     // of sight before it is first drawn (a streamed district's, city.js):

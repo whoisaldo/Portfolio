@@ -101,7 +101,7 @@ export function createStreetLight(scene, shared) {
     const lit = [];
     scene.traverse((o) => {
       const g = o.geometry;
-      if (o.isMesh && !o.isInstancedMesh && SOURCES[o.material?.name] && g.attributes.color && !g.attributes.position.isInterleavedBufferAttribute && !g.attributes.color.isInterleavedBufferAttribute) lit.push(o);
+      if (o.isMesh && !o.isInstancedMesh && !o.isBaked && SOURCES[o.material?.name] && g.attributes.color && !g.attributes.position.isInterleavedBufferAttribute && !g.attributes.color.isInterleavedBufferAttribute) lit.push(o);
     });
     yield;
     for (const o of lit) {

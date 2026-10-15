@@ -90,15 +90,23 @@ const _lastDir = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 
 /**
- * Small parts written out, one mesh a material: an instanced mesh of one
- * instance that stands where it is (so the materials' instanced shaders,
- * which know a prop from a wall by being instanced, draw it as they draw a
- * prop), drawn a run of cells at a time.
+ * Small parts written out, one mesh a material, drawn a run of cells at a
+ * time. A plain mesh, so that it is drawn with the very program of its
+ * material's kit meshes (a frame that needs more programs than ANGLE's
+ * Metal backend keeps pipelines for, 96, makes every one of them again
+ * every frame): its twin's uProp tells the materials it is a prop, as an
+ * instanced mesh's USE_INSTANCING does (materials.js surface()).
  */
-class Baked extends THREE.InstancedMesh {
+class Baked extends THREE.Mesh {
   constructor(material) {
-    super(new THREE.BufferGeometry(), material, 1);
-    this.setMatrixAt(0, _m.identity());
+    super(new THREE.BufferGeometry(), material);
+    // (A prop's, not the kit's own: what passes over the instanced meshes
+    // passes over it too.)
+    this.isBaked = true;
+    // Its place in three's opaque order as it had it as an instanced mesh
+    // of one instance where it stands: its own sphere, worked out once
+    // (opaqueOrder counts it an instanced mesh).
+    this.boundingSphere = null;
     // What it is made of: { set, src } for each part, and where in its index
     // the triangles are of each cell's parts that are seen equally far.
     this.parts = [];
@@ -116,6 +124,11 @@ class Baked extends THREE.InstancedMesh {
       this._multiDrawCount = 0;
       this._matricesTexture = this._indirectTexture = this._colorsTexture = null;
     }
+  }
+
+  computeBoundingSphere() {
+    if (this.geometry.boundingSphere === null) this.geometry.computeBoundingSphere();
+    this.boundingSphere = this.geometry.boundingSphere.clone();
   }
 
   /** Every instance of every part as triangles, a cell's together, the
@@ -264,15 +277,17 @@ class Baked extends THREE.InstancedMesh {
 }
 
 /** three's own order for opaque draws (painterSortStable), with a twin
- *  (createProps) sorted by the material it copies: for the renderer's
- *  setOpaqueSort. */
+ *  (createProps) sorted by the material it copies and a Baked mesh by the
+ *  instanced mesh it was: for the renderer's setOpaqueSort. */
 export function opaqueOrder(a, b) {
   if (a.groupOrder !== b.groupOrder) return a.groupOrder - b.groupOrder;
   if (a.renderOrder !== b.renderOrder) return a.renderOrder - b.renderOrder;
   const ma = a.material.userData.sortId ?? a.material.id;
   const mb = b.material.userData.sortId ?? b.material.id;
   if (ma !== mb) return ma - mb;
-  if (a.materialVariant !== b.materialVariant) return a.materialVariant - b.materialVariant;
+  const va = a.object.isBaked ? 2 : a.materialVariant;
+  const vb = b.object.isBaked ? 2 : b.materialVariant;
+  if (va !== vb) return va - vb;
   if (a.z !== b.z) return a.z - b.z;
   return a.id - b.id;
 }
@@ -354,14 +369,16 @@ export function createProps(protoMeshes, buffer, { phone = false, reflectLayer =
   // of it is of another kind than the last (the kit's own meshes are a
   // third), some forty times a frame. A twin shares its original's uniforms
   // and is the same program, and it is drawn where its original is in the
-  // order (opaqueOrder), so it draws the same.
+  // order (opaqueOrder), so it draws the same. (The written-out parts' twin
+  // is the kit meshes' own program: its uniforms are its original's, read
+  // through, with uProp 1 over them.)
   const twins = new Map();
   const twin = (material, kind, geometry) => {
     const alphas = material.vertexColors && geometry.attributes.color?.itemSize === 4;
     const key = `${material.uuid}|${kind}|${alphas}`;
     if (!twins.has(key)) {
       const copy = material.clone();
-      copy.uniforms = material.uniforms;
+      copy.uniforms = kind === "baked" ? Object.create(material.uniforms, { uProp: { value: { value: 1 }, enumerable: true } }) : material.uniforms;
       copy.userData.sortId = material.id;
       twins.set(key, copy);
     }
