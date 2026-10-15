@@ -32,7 +32,7 @@ import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
-import { appendMeshesSteps, attributeKey, mergeMeshes, mergeMeshesSteps, joinSteps, createCells, cutSteps, Tiled } from "./merge.js";
+import { appendMeshesSteps, asOneRun, attributeKey, mergeMeshes, mergeMeshesSteps, joinSteps, createCells, cutSteps, Tiled, toFloat } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
 /** Layers: 0 is everything, REFLECT is what the wet road mirrors, and
@@ -616,6 +616,15 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   const garage = await createGarage(named, shared, { reduced, reflectLayer: REFLECT_LAYER });
   root.add(garage.mesh);
   dressed.push(boards, floods, towers, logos, garage);
+  // (What no module dressed keeps its placeholder, a surface: its
+  // quantized numbers made the floats the GPU made of them, as the kit's
+  // are, and drawn as the kit's surfaces are, so as their program and
+  // render pipeline.)
+  for (const mesh of Object.values(named)) {
+    if (mesh.material.name !== "placeholder") continue;
+    mesh.geometry = toFloat(mesh.geometry);
+    asOneRun(mesh);
+  }
 
   scene.add(root);
   const packSigns = [];

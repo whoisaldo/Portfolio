@@ -469,3 +469,21 @@ export class Tiled extends THREE.Mesh {
     this._multiDrawCount = n;
   }
 }
+
+/**
+ * A plain mesh drawn as a Tiled mesh with nothing to cut is: its whole
+ * index as one run on three's multi-draw path. It draws what it drew, and
+ * with the very program its material has on the Tiled meshes: a plain
+ * mesh's is a program of its own, and every program a frame draws with is
+ * a render pipeline of ANGLE's Metal backend, which keeps 96 (see Baked in
+ * props.js).
+ */
+export function asOneRun(mesh) {
+  const index = mesh.geometry.index;
+  if (!MULTI_DRAW || !index) return;
+  mesh.isBatchedMesh = true;
+  mesh._multiDrawStarts = Int32Array.of(0);
+  mesh._multiDrawCounts = Int32Array.of(index.count);
+  mesh._multiDrawCount = 1;
+  mesh._matricesTexture = mesh._indirectTexture = mesh._colorsTexture = null;
+}
