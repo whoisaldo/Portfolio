@@ -78,11 +78,17 @@ export function createPlazaKoi(scene, shared, { reduced = false, reflectLayer = 
         uMotion: { value: reduced ? 0 : 1 },
         uTint: { value: new THREE.Vector3(...spec.tint) },
         uQuiet: { value: quiet },
+        // Its length and its wave's reach, as uniforms (the two fish are
+        // one program; see materials.js surface()).
+        uLength: { value: +spec.length.toFixed(1) },
+        uSway: { value: +(spec.length * 0.11).toFixed(2) },
       },
       vertexShader: /* glsl */ `
         uniform float uTime;
         uniform float uPhase;
         uniform float uMotion;
+        uniform float uLength;
+        uniform float uSway;
         attribute float which;
         varying vec2 vUv;
         varying vec3 vWorld;
@@ -93,8 +99,8 @@ export function createPlazaKoi(scene, shared, { reduced = false, reflectLayer = 
           vWhich = which;
           vec3 p = position;
           // 0 at the head, 1 at the tail.
-          float tail = clamp(0.5 - p.x / ${spec.length.toFixed(1)}, 0.0, 1.0);
-          float wave = sin(uTime * 1.9 * uMotion - tail * 5.0 + uPhase) * ${(spec.length * 0.11).toFixed(2)} * (0.06 + 0.94 * tail * tail);
+          float tail = clamp(0.5 - p.x / uLength, 0.0, 1.0);
+          float wave = sin(uTime * 1.9 * uMotion - tail * 5.0 + uPhase) * uSway * (0.06 + 0.94 * tail * tail);
           p.z += wave;
           vec4 w = modelMatrix * vec4(p, 1.0);
           vWorld = w.xyz;
