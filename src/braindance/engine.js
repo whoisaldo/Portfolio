@@ -58,6 +58,22 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
     },
     onLost: () => set({ status: "failed" }),
   });
+  // A braindance is a reconstruction, and the editor lights what it is
+  // looking at: a soft key from over the camera's shoulder onto the car,
+  // up close only. The city is lit by its own signs (src/world/glsl.js) and
+  // takes no three.js light, so this touches the car and nothing else.
+  // (In the scene before the warm-up, dark: three keys every program by
+  // the lights the camera drawing sees, lit material or not, so a city
+  // material first drawn after it came would be a program of its own
+  // beside its warmed twin. And a dark twin of it for the wet road's
+  // mirror, whose camera does not see it: there too a material first drawn
+  // would count a light fewer.)
+  const fill = new THREE.DirectionalLight(0xdfe8ff, 0);
+  fill.name = "bd_fill";
+  const fillMirror = new THREE.DirectionalLight(0xdfe8ff, 0);
+  fillMirror.name = "bd_fill_mirror";
+  fillMirror.layers.set(world.parts.mirrorLayer);
+  world.parts.scene.add(fill, fill.target, fillMirror);
   await world.warm();
   await trackLoading;
   onProgress?.(1);
@@ -68,13 +84,6 @@ export async function createBraindance(canvas, { onProgress, onFirstFrame, reduc
   // The car's coloured stage rims are tuned for the page's distances.
   parts.car?.setRims(0.3);
 
-  // A braindance is a reconstruction, and the editor lights what it is
-  // looking at: a soft key from over the camera's shoulder onto the car,
-  // up close only. The city is lit by its own signs (src/world/glsl.js) and
-  // takes no three.js light, so this touches the car and nothing else.
-  const fill = new THREE.DirectionalLight(0xdfe8ff, 0);
-  fill.name = "bd_fill";
-  parts.scene.add(fill, fill.target);
   const spec = recording.frame();
   // The holocall over the garage roof at the end (the Contact clue).
   const holoMap = await holoLoading;

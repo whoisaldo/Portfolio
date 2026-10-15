@@ -1738,7 +1738,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     },
     /** The pieces the braindance draws over and reads from. */
     get parts() {
-      return { renderer, scene, camera, post, shared, city, car, traffic, crowd, koi, quality };
+      return { renderer, scene, camera, post, shared, city, car, traffic, crowd, koi, quality, mirrorLayer: MIRROR_LAYER };
     },
     /** Whether this city can draw the intro's voxel moon. */
     get hasMoon() {
