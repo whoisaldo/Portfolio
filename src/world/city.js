@@ -240,6 +240,26 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     mesh.geometry.setAttribute("color", new THREE.BufferAttribute(arr, 4));
     return kit.neonAll();
   };
+  // A surface (materials.js surface()) reads its colours only if it is
+  // tinted and its UVs only for a map or a shutter: a mesh's colours or
+  // UVs its surface does not read are left off its geometry (what it reads
+  // in their place, three's defaults, goes nowhere), so that the surfaces
+  // are as few vertex layouts, and render pipelines, as can be (ANGLE's
+  // Metal backend keeps 96 a frame: see Baked in props.js).
+  const unread = (mesh) => {
+    const u = mesh.material.uniforms;
+    if (!u?.uKind) return;
+    const g = mesh.geometry;
+    const drop = [...(u.uTinted.value ? [] : ["color"]), ...(u.uHasMap.value || u.uShutter.value ? [] : ["uv"])].filter((name) => g.attributes[name]);
+    if (!drop.length) return;
+    // (A geometry of its own over the rest: a GLB's may be shared.)
+    const out = new THREE.BufferGeometry();
+    out.index = g.index;
+    for (const [name, attribute] of Object.entries(g.attributes)) if (!drop.includes(name)) out.setAttribute(name, attribute);
+    for (const group of g.groups) out.addGroup(group.start, group.count, group.materialIndex);
+    out.setDrawRange(g.drawRange.start, g.drawRange.count);
+    mesh.geometry = out;
+  };
   const dress = (meshes) => {
     const sources = [];
     for (const mesh of meshes) {
@@ -247,6 +267,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       oldMaterials.add(mesh.material);
       const mat = name === "asphalt" ? road.material : name === "paint" ? paint.material : name.startsWith("neon_") ? neonAs(mesh, name) : kit.forName(mesh.material.name);
       if (mat) mesh.material = mat;
+      unread(mesh);
       if (name.startsWith("neon_")) {
         sources.push({ mesh, color: new THREE.Color(NEON[name.slice(5)] || "#ffffff"), intensity: 1.0 });
         mesh.layers.enable(REFLECT_LAYER);
@@ -292,6 +313,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       mesh.geometry = mergeMeshes([mesh], null);
       mesh.userData.hue = pname.startsWith("neon_") ? pname.slice(5) : null;
       mesh.material = pname.startsWith("neon_") ? neonAs(mesh, pname) : kit.forName(mesh.material.name) ?? mesh.material;
+      unread(mesh);
       mesh.removeFromParent();
     }
   };
