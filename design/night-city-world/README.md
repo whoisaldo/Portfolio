@@ -44,8 +44,8 @@ procedural far city, drawn by vanilla three.js with one pmndrs
   tagged as detail dropped), served gzipped; a pack per district behind it,
   `world-<tier>-<pack>.glb` for `south` (what the hero cannot see of Kabuki
   Avenue), `canyon`, `plaza`, `deck`, `corpo`, `afterlife`, `santo`,
-  `japantown` and `mega` (16.33 MB in all on high, the largest Japantown's
-  2.56 MB and Corpo Row's 2.18 MB; 7.59 MB on a phone); `props-high.bin` and
+  `japantown` and `mega` (16.36 MB in all on high, the largest Japantown's
+  2.56 MB and Corpo Row's 2.18 MB; 7.63 MB on a phone); `props-high.bin` and
   `props-phone.bin` (where every instanced prop stands, gzipped to 0.23 and
   0.04 MB); `moon.webp`, `holo.webp`, the two screens'
   `ad-kiroshi.webp` and `ad-nicola.webp`, the koi's `koi-magenta.webp` and
@@ -123,7 +123,7 @@ procedural far city, drawn by vanilla three.js with one pmndrs
   parapet, bollards, tyres, a skip and two more sodium lamps; both walls of
   the street hung with signs, air conditioners and a fire escape, cables
   across it and a string of lights at its corner), and the moon
-  disc. The core is 60,667 triangles on high and 36,368 on a phone
+  disc. The core is 60,653 triangles on high and 36,426 on a phone
   (`npm run check:world`); the rest of every district streams in its pack.
 - Light high over the street (the rooftop signs, the huts' doorways) is
   `NCW_glow_<colour>`: the neon shader, but left out of the light the site
@@ -189,6 +189,36 @@ count (two to a lane on a desktop, one on a phone, evenly spaced at the
 lane's speed so none meet), fades them in and out with a dither where the
 loop ends, and parks a few more up the avenue's left kerb and down the
 garage street, one with its hazards blinking.
+
+## The lights
+
+The traffic keeps a timetable (`src/world/traffic-net.js`): at every
+junction the north-south street has half of a 40 s cycle and the east-west
+street the other half, the last 4.5 s of each green amber; a way in with no
+stop line, as at a corner, is never held. The signal heads show it
+(`src/world/signals.js`): each of the 34 heads, on its mast or, at the
+hero's junction, on a post at the kerb under Kiroshi's screen, lights the
+lens of the way in it faces, red while it is held, green while it goes,
+amber at the green's end, the others dark glass. A head's lenses are a
+dozen vertices of the small glow parts' one mesh (`src/world/props.js`), so
+a change sends up only those vertices and adds no draw. The crossings'
+signal boxes at the nine junctions with lights show the same: the walking
+figure while the traffic over their crossing is held, a hand while it
+goes, the hand flashing once a second for the red's last 5 s, and the six
+bars over the figure counting the 15 s walk down, one going every 2.5 s.
+A box's face is the props' instanced face and what it shows is its own
+instance's value, sent up only when it changes. 43 of those 45 boxes are
+driven this way; the two over a crossing whose way in is never held (x 120
+at z -330 east, x 440 at z -330 west), and every box away from a junction
+with lights, are drawn as built. The phone's GLB drops the boxes with the
+rest of the props tagged detail; its heads show the lights all the same.
+
+Whoever crosses in the crowd (`src/world/crowd-cross.js`) steps off at a
+crossing with lights only while its box shows the figure, and only when no
+car will come within 2 m of their line over the road while they cross;
+whoever is on the road when the hand comes finishes crossing. It asks the
+traffic's lights as the box does, so a phone, with no boxes, keeps the same
+rule. At the other crossings they go on the traffic's gaps.
 
 ## Drones and the police
 
@@ -505,21 +535,30 @@ replaced one box with the cars painted on.
   own lens sets their height (`fit`) so the loop's middle sits an eighth of
   the way down the frame whatever the screen's size; a phone has them under
   the name. People walk both pavements and the streets the other shots look
-  down (`src/world/crowd.js`, ninety-six on a desktop, thirty-six on a
-  phone: the avenue, the cross street, the plaza, corpo row's boulevard, the
-  garage street), and some stand (at the crossing's kerbs, by the vending
+  down, and every pavement of the network has its walkers
+  (`src/world/crowd.js`, as many as the builder's `streets.life` gives each
+  district: 7,035 people on a desktop and 3,342 on a phone, read off the
+  page), and some stand (at the crossing's kerbs, by the vending
   machines, at shop windows, a few on a lit phone, one of them holding the
-  braindance's hot phone where its clue is): dark silhouettes on upright
-  cards against the lit shops (most of the light where they stand is behind
-  them, so the side the street sees takes little of it, and only heads and
-  shoulders catch it), each their own build and outline (a hood, a cap, long
-  hair, a coat to the knee, a bag, a jacket trimmed in neon), alone and in pairs, some
-  under umbrellas whose lit rims double in the road, legs and arms tied to
-  the distance walked, faded in and out with a dither where a walk's loop
-  starts again, one draw. Steam breathes out of two
-  manholes and two rooftop stacks (`src/world/steam.js`, anchored in the
-  kit), lit by whatever light is where it is and brighter with a sign
-  behind it. The walls are painted elevations lit by the signs' spill.
+  braindance's hot phone where its clue is), and some cross at the
+  junctions on the lights (The lights, above). They are figures, not cards
+  (`src/world/crowd-people.js`): one low-poly body drawn instanced, each
+  their own height, build, hair, jacket, bag, skin and colours from a seeded
+  draw, posed in the vertex shader so a foot stays where it lands, alone and
+  in pairs, some under umbrellas whose lit rims double in the road, faded in
+  and out with a dither where a walk's loop starts again. They are lit by
+  the street: the city's baked spill where they stand and the crowd's own
+  map of the signs and shop windows (`src/world/crowd-light.js`), so the
+  side that faces a sign takes its colour and the other stays in shade.
+  Within 10.5 m of the eye the figure has a modelled face and fingers, to
+  22 m a face, then a figure of a few hundred triangles, and past 100 m a
+  card with their shape on it (6.5, 15 and 70 m on a phone), each change a
+  dither; the three figures are one program (which one a draw is, is a
+  uniform), and the wet road's mirror draws everyone as cards. Steam
+  breathes out of two manholes and two rooftop stacks (`src/world/steam.js`,
+  anchored in the kit), lit by whatever light is where it is and brighter
+  with a sign behind it. The walls are painted elevations lit by the signs'
+  spill.
   The shop windows look into rooms (interior mapping in
   `src/world/materials.js`: the eye's ray is traced into a room box per
   bay and the point it reaches projected back onto one of the eight
@@ -757,8 +796,23 @@ corners 0.9 m toward the building. The same module's `drive` pose rides
 - `npm run check:world` decodes both core GLBs, holds every pack to its
   budget, and checks the shots, the anchors, the towers, the boards, the road, the garage preset
   and the budgets; on this build: 7 shots, 7 towers, 8 boards, the road 837
-  points, the core 2.49 MB, 236 meshes and 60,667 triangles on high, 1.00
-  MB, 170 meshes and 36,368 triangles on a phone.
+  points, the core 2.49 MB, 238 meshes and 60,653 triangles on high, 1.00
+  MB, 172 meshes and 36,426 triangles on a phone.
+- Render pipelines a frame, distinct as ANGLE's Metal backend keys them
+  (the program, the formats of the attributes it reads, the target, blend
+  and colour mask), counted on devbox1 on 2026-10-15 at the draws that draw
+  something: 67 to 84 at the five heaviest poses (were 102 to 121), at most
+  84 along the drive's routes, 83 along the walk's, 79 in the page's scenes
+  and 80 in the braindance. ANGLE's cache holds about 96; past it every
+  pipeline is rebuilt every frame (about 4.8 ms of the GPU process's time),
+  which the rebuild's 101 to 121 did. Shader variants that differed by a
+  define are one program with a uniform branch, and meshes that share a
+  program share its vertex layout where that costs no memory (the kit's
+  surfaces keep three): programs linked at load went from 200 to 113, and
+  the shader work at load from about 1,000 ms to 80. Before a new
+  material or shader variant, count the pipelines again: the counter
+  (`proglist.mjs`, with the routes' and the page's) is kept out of the repo
+  on devbox1, in `~/Library/Caches/ncw/city/agents/drive/perf1/`.
 - The rebuilt city, measured 2026-10-12 on production builds of main and
   this branch in real Chrome windows on devbox1, the machine's load logged
   on every run: on high all twelve page shots and flights that show the

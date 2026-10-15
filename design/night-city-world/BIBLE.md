@@ -173,6 +173,15 @@ the corners (Zq4zTcIM0yQ@40). The ground is continuous: every square metre
 inside the city's footprint is road, pavement, plaza, a building's footprint
 or a yard, never the black plane.
 
+The lights are the traffic's own: each junction gives the north-south street
+half of a 40 s cycle and the east-west one the other half, and the 34 signal
+heads show the phase of the way in each faces (red held, green going, amber
+for the green's last 4.5 s). At the nine junctions with lights the signal
+boxes (on high; the phone drops them as detail) show the walking figure
+while their crossing's traffic is held, its six bars counting the 15 s walk
+down, then a hand, flashing for the red's last 5 s; the crowd crosses there
+on the figure, and elsewhere on the traffic's gaps (README, "The lights").
+
 ### The districts
 
 | district | territory | what it is |
@@ -495,17 +504,28 @@ texture over 1024 px. As built:
 | core (`world-<tier>.glb`) | 2.49 MB | 1.00 MB |
 | south (Kabuki Avenue behind the hero) | 1.88 MB | 0.76 MB |
 | canyon | 1.59 MB | 0.90 MB |
-| plaza | 1.45 MB | 0.93 MB |
+| plaza | 1.49 MB | 0.96 MB |
 | deck | 1.14 MB | 0.49 MB |
 | corpo | 2.18 MB | 0.97 MB |
 | afterlife | 1.40 MB | 0.49 MB |
 | santo | 2.03 MB | 0.96 MB |
 | japantown | 2.56 MB | 1.16 MB |
 | mega | 2.09 MB | 0.94 MB |
-| **packs in all** | **16.33 MB** | **7.59 MB** |
+| **packs in all** | **16.36 MB** | **7.63 MB** |
 
 Every held shot, flight, loop point and free roam lap measured on the
 rebuilt city is inside the tiers' frame budgets (README, "Verification").
+
+Render pipelines are a budget too: at most 85 distinct ones a frame. ANGLE's
+Metal backend, under Chrome on a Mac, keeps about 96 in its cache; past that
+it rebuilds pipelines every frame (about 4.8 ms of the GPU process's time
+on devbox1), a cliff rather than a cost per material. The rebuild drew 101
+to 121 a frame, and is now at most 84 (README, "Verification"). A new
+material, or a new define, attribute or blend on an old one, is a new
+shader variant and may be a new pipeline: count the pipelines at the poses
+before adding one (`proglist.mjs`, kept on devbox1 in
+`~/Library/Caches/ncw/city/agents/drive/perf1/`), and prefer a uniform
+branch in an existing program.
 
 How a district stays inside: its kit is merged per material and cut into
 ground cells, so frustum culling drops what is off screen; props are
