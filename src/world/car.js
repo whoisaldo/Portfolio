@@ -48,6 +48,7 @@ import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUniformsLib.js";
 import { SHOTS } from "../data/world.js";
 import { slim } from "../three/car/slim.js";
+import { toFloat } from "./merge.js";
 
 const FOLLOW = 4; // 1/s: how closely the car follows its goal
 const VMAX = 160; // m/s: the most a single frame may ask of it
@@ -120,6 +121,43 @@ function mirrorStandIn(car, rig) {
  * A studio (three's RoomEnvironment) gave it grey walls and white softboxes
  * to reflect, which blew its roof and hood out to white.
  */
+/**
+ * The S4's pictured parts that are the same physical program but for what
+ * one of them has and another lacks (a clearcoat, an emissive map) given
+ * it, so that they are one program: ANGLE's Metal backend keeps 96 render
+ * pipelines a frame and makes every one again past that (see Baked in
+ * props.js), and the car was seven of the city's. What each is given draws
+ * nothing it did not: a clearcoat of 1e-10 takes out of the light under it
+ * and adds of its own a ten-billionth, under float32's rounding of either;
+ * an emissive map under a black emissive is multiplied by that black (its
+ * own map stands in for one). And as one vertex layout, plain floats, as
+ * the merged parts are: a quantized part's numbers made what the GPU makes
+ * of them (merge.js toFloat), the same vertices. A normal map or
+ * transparency is a program of its own still.
+ */
+function oneProgram(car) {
+  const parts = new Set();
+  const meshes = [];
+  car.traverse((o) => {
+    const m = o.material;
+    if (o.isMesh && m?.isMeshPhysicalMaterial && m.map && !m.normalMap && !m.transparent && !m.onBeforeCompile.toString().includes("shader")) {
+      parts.add(m);
+      meshes.push(o);
+    }
+  });
+  if (parts.size < 2) return;
+  const coated = [...parts].some((m) => m.clearcoat > 0);
+  const lit = [...parts].some((m) => m.emissiveMap);
+  for (const m of parts) {
+    if (coated && !(m.clearcoat > 0)) m.clearcoat = 1e-10;
+    if (lit && !m.emissiveMap && m.emissive.getHex() === 0) m.emissiveMap = m.map;
+  }
+  for (const o of meshes) {
+    const plain = Object.values(o.geometry.attributes).every((a) => !a.isInterleavedBufferAttribute && a.array instanceof Float32Array);
+    if (!plain) o.geometry = toFloat(o.geometry);
+  }
+}
+
 function nightEnvironment() {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x010102);
@@ -184,6 +222,7 @@ export function createCar(scene, renderer, { road, anchors, light, layer, mirror
   // and added once they are merged; the real car is drawn once.
   const standIn = mirrorStandIn(car, rig);
   const slimmed = slim(car);
+  oneProgram(car);
   const ready = tier === "phone"
     ? lighten(car).catch((err) => {
         if (import.meta.env.DEV) console.warn("[world] the phone's car keeps every triangle", err);
