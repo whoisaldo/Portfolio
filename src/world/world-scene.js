@@ -24,7 +24,7 @@ import { stage, subscribeStage } from "./stage.js";
 import { createShots, makePose, copyPose, driftPose, clamp, easeInOut } from "./shots.js";
 import { TIERS, ADAPT } from "./quality.js";
 import { createSharedUniforms } from "./glsl.js";
-import { createCity, preloadCity, preloadPack, PACKS, REFLECT_LAYER, MIRROR_LAYER } from "./city.js";
+import { createCity, preloadCity, preloadPack, PACKS, GARAGE_PACK, hasGaragePack, REFLECT_LAYER, MIRROR_LAYER } from "./city.js";
 import { preloadHolo } from "./holo.js";
 import { preloadMoon } from "./moon.js";
 import { preloadAds } from "./ads.js";
@@ -1315,9 +1315,53 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         if (import.meta.env.DEV) console.warn(`[world] the ${name} districts did not load`, err);
       }
     }
+    streamed = true;
+    streamedNow?.();
+    // The light bake's working arrays and the warm-up kit go once the last
+    // pack is in: the garage's room, if there is one, comes after the
+    // districts and bakes its light into the same maps.
+    if (!hasGaragePack(tier)) releaseStreaming();
+  };
+  const releaseStreaming = () => {
     city?.releaseBake();
     warmKit?.dispose();
     warmKit = null;
+  };
+
+  // ---- the garage's room ------------------------------------------------------
+  // Not streamed with the districts: the garage asks for it (the adapter's
+  // prepare, from the section once the hero is up and sooner as the reader
+  // heads for it). Fetched at once when asked; built, like a district, in
+  // slices between the page's frames once the districts are in, since they
+  // share the light bake; and the bake let go after it. A failure lets a
+  // later ask try again.
+  let streamed = false;
+  let streamedNow = null;
+  const afterStreaming = new Promise((resolve) => (streamedNow = resolve));
+  let garageRoom = null;
+  const prepareGarage = () => {
+    if (!hasGaragePack(tier)) return Promise.resolve(false);
+    if (!garageRoom) {
+      const fetching = preloadPack(tier, GARAGE_PACK);
+      garageRoom = (async () => {
+        const packScene = await fetching;
+        if (!streamed) await afterStreaming;
+        if (disposed || !city) return false;
+        await idle();
+        await city.addPack(GARAGE_PACK, packScene, { beforeMerge: (part) => clearance?.add(part), between, ready: readyToDraw });
+        if (disposed) return false;
+        await between();
+        cover?.render(city.root);
+        packsIn.push(GARAGE_PACK);
+        releaseStreaming();
+        return true;
+      })().catch((err) => {
+        garageRoom = null;
+        if (import.meta.env.DEV) console.warn("[world] the garage's room did not load", err);
+        throw err;
+      });
+    }
+    return garageRoom;
   };
 
   // (load) What a district will draw, made ready out of sight before it is
@@ -1811,6 +1855,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
           const p = clamp(stage.garageProgress ?? 0, 0, 1);
           return { visiting: Boolean(visiting()), p, station: visit.stationAt(p), ...visit.stateAt(p, reduced) };
         },
+        /** The room's pack, built in (resolves false with none to build). */
+        prepare: prepareGarage,
         goStation(id) {
           const st = GARAGE_STATIONS.find((x) => x.id === id);
           const y = st ? garageScrollFor(st.p) : null;

@@ -146,7 +146,13 @@ export function preloadCity(tier) {
 /** The districts that stream in behind the core (BIBLE.md, "How it
  *  loads"): each pack's GLB, fetched once and kept like the core's. */
 const packCache = new Map();
-export const PACKS = Object.keys(worldPackUrl.high);
+// The garage's room is a pack too, but not one of these: it is not streamed
+// with the districts, it is asked for by the garage's own readiness
+// (world-scene.js, prepareGarage), after the hero is up and as the reader
+// heads for it.
+export const GARAGE_PACK = "garage";
+export const PACKS = Object.keys(worldPackUrl.high).filter((name) => name !== GARAGE_PACK);
+export const hasGaragePack = (tier) => Boolean(worldPackUrl[tier]?.[GARAGE_PACK]);
 export function preloadPack(tier, pack) {
   const key = `${tier}:${pack}`;
   if (!packCache.has(key)) {
@@ -519,7 +525,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     root.updateMatrixWorld(true);
     const groups = new Map();
     for (const mesh of meshes) {
-      const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}`;
+      // (The garage's room is cut into rooms of its own, visibility sectors
+      // the camera's portals choose between, so a piece of it never joins
+      // a batch of the city's or of another room's.)
+      const sector = mesh.userData.visibilitySector ?? "";
+      const key = `${mesh.material.uuid}|${attributeKey(mesh.geometry)}|${mesh.layers.mask}|${mesh.renderOrder}|${sector}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(mesh);
     }
@@ -570,6 +580,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
       mesh.layers.mask = list[0].layers.mask;
       mesh.renderOrder = list[0].renderOrder;
       mesh.matrixAutoUpdate = false;
+      // Which room it is, kept once the meshes it was made of are gone.
+      if (list[0].userData.visibilitySector) {
+        mesh.userData.sector = list[0].userData.visibilitySector;
+        mesh.name = `kit_${material.name}_${mesh.userData.sector}`;
+      }
       if (occluder && OCCLUDES.has(material.name) && !mesh.layers.isEnabled(REFLECT_LAYER)) {
         const twin = mesh.runs ? new Tiled(whole, occluder, cells, mesh.runs) : new THREE.Mesh(whole, occluder);
         twin.name = `occ_${material.name}`;

@@ -26,7 +26,7 @@ import Contact from "../sections/Contact";
 import Glitch from "../components/ui/Glitch";
 import { scrollToSection } from "../lib/scroll";
 import { loadGarageSection, prepareGarageSection, useGarageMode } from "../lib/garage3d";
-import { setStage, useStage } from "../world/stage";
+import { getWorld, setStage, useStage } from "../world/stage";
 
 // Sections after which a deep link lands: the garage's chunk changes their
 // position when it arrives, so a link to one of them asks for it at once.
@@ -87,6 +87,14 @@ function GarageShell({ onMounted }) {
     setStage({ garageVisit: cinematic });
     return () => setStage({ garageVisit: false });
   }, [cinematic]);
+  // The room's own pack, once the city is live and the page is idle (the
+  // world builds it after its districts; src/world/world-scene.js).
+  useEffect(() => {
+    if (status !== "ready") return undefined;
+    const go = () => getWorld()?.garage?.prepare().catch(() => {});
+    const id = window.requestIdleCallback ? window.requestIdleCallback(go, { timeout: 4000 }) : window.setTimeout(go, 1500);
+    return () => (window.cancelIdleCallback ? window.cancelIdleCallback(id) : window.clearTimeout(id));
+  }, [status]);
   const boundary = (
     <GarageBoundary onRetry={() => setAttempt((n) => n + 1)}>
       <Suspense
