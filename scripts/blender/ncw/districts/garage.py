@@ -22,9 +22,12 @@ box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, GH, DOOR_Z1, OFFICE_WIN[0], scale
 box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, GH, OFFICE_WIN[1], GZ1, scale=2.0)
 box((GA, "garage_wall", 0), GX0, GX0 + 0.5, 0, OFFICE_WIN[2], OFFICE_WIN[0], OFFICE_WIN[1], scale=2.0)
 box((GA, "garage_wall", 0), GX0, GX0 + 0.5, OFFICE_WIN[3], GH, OFFICE_WIN[0], OFFICE_WIN[1], scale=2.0)
-# Its glazing, flush with the street face, and a steel frame round it.
-quad((GA, "clearglass", 0), (GX0 + 0.06, OFFICE_WIN[2], OFFICE_WIN[1]), (GX0 + 0.06, OFFICE_WIN[2], OFFICE_WIN[0]),
-     (GX0 + 0.06, OFFICE_WIN[3], OFFICE_WIN[0]), (GX0 + 0.06, OFFICE_WIN[3], OFFICE_WIN[1]), col=(0.55, 0.62, 0.66, 1))
+# Its glazing near the street face, seen from both sides, and a steel frame
+# round it.
+_pane = [(GX0 + 0.06, OFFICE_WIN[2], OFFICE_WIN[1]), (GX0 + 0.06, OFFICE_WIN[2], OFFICE_WIN[0]),
+         (GX0 + 0.06, OFFICE_WIN[3], OFFICE_WIN[0]), (GX0 + 0.06, OFFICE_WIN[3], OFFICE_WIN[1])]
+quad((GA, "clearglass", 0), *_pane, col=(0.55, 0.62, 0.66, 1))
+quad((GA, "clearglass", 0), *_pane[::-1], col=(0.55, 0.62, 0.66, 1))
 for (y0, y1, z0, z1) in ((OFFICE_WIN[2] - 0.08, OFFICE_WIN[2], OFFICE_WIN[0] - 0.08, OFFICE_WIN[1] + 0.08),
                          (OFFICE_WIN[3], OFFICE_WIN[3] + 0.08, OFFICE_WIN[0] - 0.08, OFFICE_WIN[1] + 0.08),
                          (OFFICE_WIN[2], OFFICE_WIN[3], OFFICE_WIN[0] - 0.08, OFFICE_WIN[0]),
