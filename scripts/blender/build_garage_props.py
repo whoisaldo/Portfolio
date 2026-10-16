@@ -162,12 +162,15 @@ TILES = [
     ("Lifts and jacks", [
         ("lift2_down", "Two-post lift, arms down", lambda: shop.place_lift2(0, 0, district="garage"), {}),
         ("lift2_up", "Two-post lift, raised", lambda: shop.place_lift2(0, 0, raised=True, district="garage"), {}),
+        ("lift2_out", "Two-post lift, arms out", lambda: shop.place_lift2(0, 0, arms="out", district="garage"), {}),
         ("scissor_down", "Scissor lift down, power unit", lambda: shop.place_scissor(0, 0, district="garage"), {}),
         ("scissor_up", "Scissor lift up, power unit", lambda: shop.place_scissor(0, 0, raised=True, district="garage"), {}),
         ("jack_stands", "Jack stands (pair)", one("garage_jack_stand", ("garage_jack_stand", 0.45, 0, 0.1, 0.4)), {}),
         ("floor_jack", "Floor jack", one("garage_floor_jack"), {}),
         ("creeper", "Creeper", one("garage_creeper"), {}),
         ("chocks", "Wheel chocks", one("garage_wheel_chock", ("garage_wheel_chock", 0.3, 0, 0.05, 0.2)), {}),
+        ("service_pad", "Flush service pad (S6 bay)", one("garage_service_pad"), {"el": 50}),
+        ("bay_lines", "Bay lines", one("garage_bay_lines"), {"el": 55}),
     ]),
     ("Doors", [
         ("door_s_closed", "Roll-up door 3 x 3 m, closed", lambda: shop.place_door(0, 0, size="s", pose="closed", district="garage"), {"az": -145}),
@@ -179,6 +182,7 @@ TILES = [
         ("door_w_street", "Roll-up door 6 x 4.6 m, from the street", lambda: shop.place_door(0, 0, size="w", pose="closed", district="garage"), {"az": 30}),
         ("man_door", "Man door, outside", one("garage_man_door"), {"az": 30}),
         ("man_door_in", "Man door, inside", one("garage_man_door"), {"az": -150}),
+        ("shutter_w", "The city shutter's fittings, inside", one("garage_shutter_w"), {"az": -150}),
     ]),
     ("Benches and tools", [
         ("tool_cab", "Roll cab and top box", one("garage_tool_cab", ("garage_tool_top", 0, bench.TOP_ON_CAB, 0, 0)), {}),
@@ -190,6 +194,8 @@ TILES = [
         ("lamp_reel", "Lamp on a reel", one("garage_lamp_reel"), {"wall": True}),
         ("tune_cart", "Tune cart, laptop, OBD lead", one("garage_tune_cart"), {"az": 60}),
         ("parts_table", "Parts table", one("garage_parts_table"), {"el": 35}),
+        ("welder", "MIG welder on its cart", one("garage_welder"), {}),
+        ("drip_tray", "Drip tray", one("garage_drip_tray"), {"el": 40}),
     ]),
     ("Tyres", [
         ("tyre", "Tyre", one("garage_tyre"), {"az": 60}),
@@ -210,6 +216,8 @@ TILES = [
         ("conduit", "Conduit, drop, junction box", one("garage_conduit", ("garage_conduit_drop", 1.0, -1.5, 0, 0), ("garage_junction_box", -1.5, 0, 0, 0)), {"wall": True}),
         ("led_batten", "LED batten", one("garage_led_batten"), {"el": 8}),
         ("fluoro", "Twin-tube shop light", one("garage_fluoro"), {"el": 8}),
+        ("task_light", "Task light 4.5 x 0.35 m", one("garage_task_light"), {"el": -12}),
+        ("work_light", "Work light on a stand", one("garage_work_light"), {}),
     ]),
     ("Lounge and dressing", [
         ("couch", "Couch", one("garage_couch"), {}),
@@ -336,7 +344,7 @@ wall_obj.hide_render = True
 world = bpy.data.worlds.new("GP_night")
 world.use_nodes = True
 bg = next(n for n in world.node_tree.nodes if n.type == "BACKGROUND")
-bg.inputs["Color"].default_value = (0.008, 0.01, 0.018, 1)
+bg.inputs["Color"].default_value = (0.004, 0.005, 0.01, 1)
 bg.inputs["Strength"].default_value = 1.0
 scene.world = world
 
@@ -389,15 +397,16 @@ def frame(lo, hi, az=35.0, el=22.0, wall=False, aspect=4 / 3):
     s = max(r, 0.4)
     strip_a.location = Vector((c.x, c.y - s * 0.6, hi.z + s * 1.1))
     strip_b.location = Vector((c.x, c.y + s * 0.9, hi.z + s * 1.3))
-    for st, e_ in ((strip_a, 420), (strip_b, 220)):
+    for st, e_ in ((strip_a, 140), (strip_b, 70)):
         st.data.size = max(1.2, 2.4 * s)
         st.data.energy = e_ * s * s
         st.rotation_euler = (0, 0, 0)
     warm.location = Vector((c.x - s * 1.3, c.y - s * 0.9, lo.z + (hi.z - lo.z) * 0.45 + 0.2))
-    warm_data.energy = 90 * s * s
+    warm_data.energy = 45 * s * s
     wall_obj.hide_render = not wall
     if wall:
-        wall_obj.location = Vector((c.x, lo.y - 0.001, 0))
+        # (Blender +y is the kit's -z: the prop's back, on the wall.)
+        wall_obj.location = Vector((c.x, hi.y + 0.002, 0))
         wall_obj.scale = (max(1.0, (hi.x - lo.x) / 2.6 + 0.6), 1, max(1.0, hi.z / 3.0 + 0.2))
 
 

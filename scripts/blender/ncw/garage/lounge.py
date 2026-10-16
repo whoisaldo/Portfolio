@@ -21,7 +21,7 @@ from ncw.kit import GLOW, box, cylinder, pipe, poly, quad
 from ncw.props import BOARD, CARTON, POSTER, SHEET, carton, lathe, proto
 from ncw.garage.shapes import (
     BLACK_PAINT, CABLE, CHROME, GREEN, GRIME, GUN, GUN_DARK, OFFWHITE, RED, RUBBER, STEEL_MID, WHITE_PAINT,
-    WOOD_DARK, YELLOW, beam, cable, lin, obox, shade, stroke, words,
+    WOOD_DARK, YELLOW, beam, cable, flat, lin, obox, shade, stroke, words,
 )
 
 VINYL = lin("3b0a10")
@@ -244,8 +244,8 @@ def _tyre_marks(k):
                 continue
             a0, a1 = 0.04 * i, 0.04 * i + 0.035
             w = 0.09 * (0.6 + 0.4 * rr.random())
-            p = lambda a, rad: (-3.2 + rad * math.cos(a) * 0.5 + 1.6, 0.003, -1.2 + rad * math.sin(a))  # noqa: E731
-            quad(t, p(a0, R - w), p(a1, R - w), p(a1, R + w), p(a0, R + w), col=shade(OIL, 1.2 + 0.4 * rr.random()))
+            p = lambda a, rad: (-1.6 + rad * math.cos(a) * 0.5, -1.2 + rad * math.sin(a))  # noqa: E731
+            flat(t, [p(a0, R - w), p(a1, R - w), p(a1, R + w), p(a0, R + w)], 0.003, col=shade(OIL, 1.2 + 0.4 * rr.random()))
 
 
 def _floor_words(k, text, w, h, thick, col, mat="hazard"):

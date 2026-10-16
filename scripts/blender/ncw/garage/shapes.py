@@ -122,6 +122,20 @@ def revolve(key, c, axis, prof, segs=12, col=(1, 1, 1, 1), caps=""):
         poly(key, rings[-1], [(0.5, 0.5)] * segs, col)
 
 
+def flat(key, xz, y, col=(1, 1, 1, 1)):
+    """A flat polygon on the floor at height y through (x, z) points, in
+    either order: it always faces up."""
+    area = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(xz, xz[1:] + xz[:1]))
+    pts = xz if area < 0 else list(reversed(xz))
+    poly(key, [(x, y, z) for x, z in pts], [(x, -z) for x, z in pts], col)
+
+
+def flat_rect(key, x0, x1, z0, z1, y, col=(1, 1, 1, 1)):
+    xa, xb = sorted((x0, x1))
+    za, zb = sorted((z0, z1))
+    flat(key, [(xa, zb), (xb, zb), (xb, za), (xa, za)], y, col)
+
+
 def disc(key, c, axis, r, segs=12, col=(1, 1, 1, 1)):
     """A flat round face at c looking along `axis`."""
     revolve(key, c, axis, ((0.0, r), (0.0, 0.0)), segs=segs, col=col)

@@ -1,6 +1,6 @@
 {
  "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only (<name>__near, never on a phone), the kit materials each wears, its footprint (half sizes), whether a phone drops it",
- "total_triangles": 28857,
+ "total_triangles": 32037,
  "protos": {
   "garage_lift2": {
    "triangles": 750,
@@ -31,7 +31,22 @@
    ],
    "detail": false,
    "reach": null,
-   "about": "The two carriages that ride the posts and the four arms on them: each arm two telescoping stages of yellow box section, its pivot pin and the toothed restraint gear over it, and a round pad on a screw at its end. Placed on the lift's spot, up LIFT2_RISE when raised."
+   "about": "The two carriages that ride the posts and the four arms on them, swung in under a car's jacking points (LIFT2_PADS): each arm two telescoping stages of yellow box section, its pivot pin and the toothed restraint gear over it, and a round pad on a screw at its end. Placed on the lift's spot, up LIFT2_RISE when raised."
+  },
+  "garage_lift2_arms_out": {
+   "triangles": 548,
+   "near_triangles": 200,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.6,
+    0.42,
+    1.3
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The carriages with the arms swung out along the drive line, front ones forward and rear ones back, as they are left for a car to drive in between the posts."
   },
   "garage_scissor_down": {
    "triangles": 352,
@@ -292,6 +307,53 @@
    "reach": null,
    "about": "A steel man door, 0.95 by 2.15 m, its outside toward +z: frame, the leaf with its wired glass vision panel and kick plate, a lever outside, the push bar and the closer inside, and over it inside a lit EXIT sign."
   },
+  "garage_shutter_w": {
+   "triangles": 232,
+   "near_triangles": 236,
+   "materials": [
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    3.6,
+    0.3,
+    0.46
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The fittings of the city's 6 m by 4.6 m roller shutter, inside: its guide channels either side of the curtain, the fascia plate over the drum, the drive motor on the drum's right end with its hand chain looped down for a power cut, the rubber threshold seal, the up/stop/ down station on the wall."
+  },
+  "garage_service_pad": {
+   "triangles": 110,
+   "near_triangles": 310,
+   "materials": [
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    1.1,
+    0.01,
+    1.05
+   ],
+   "detail": true,
+   "reach": 220,
+   "about": "A flush in-ground lift's pad: its two runway plates level with the floor (an in-ground scissor, down) in their steel frames, a hinged access hatch between them, hazard chevrons on the plates' ends and the wheel stops' marks."
+  },
+  "garage_bay_lines": {
+   "triangles": 30,
+   "near_triangles": 0,
+   "materials": [
+    "hazard"
+   ],
+   "box": [
+    1.75,
+    0.01,
+    3.05
+   ],
+   "detail": true,
+   "reach": 260,
+   "about": "A bay painted out in yellow, 3.5 by 6.1 m: its outline in 60 mm lines broken at the corners, a centre tick at each end, a wheel stop bar across the front."
+  },
   "garage_tool_cab": {
    "triangles": 328,
    "near_triangles": 74,
@@ -417,8 +479,8 @@
    "about": "A cord reel on the wall at 2.3 m, its drum wound with yellow cord, the cord down to a warm hand lamp hanging at 1.3 m."
   },
   "garage_tyre": {
-   "triangles": 320,
-   "near_triangles": 80,
+   "triangles": 448,
+   "near_triangles": 112,
    "materials": [
     "trim"
    ],
@@ -432,8 +494,8 @@
    "about": "A tyre standing on its tread, its axle along x."
   },
   "garage_wheel": {
-   "triangles": 640,
-   "near_triangles": 200,
+   "triangles": 800,
+   "near_triangles": 232,
    "materials": [
     "trim"
    ],
@@ -722,6 +784,69 @@
    "detail": false,
    "reach": null,
    "about": "A steel parts table, 1.5 by 0.75 m: a brake disc and its caliper, a turbocharger, a coilover, a box of spark plugs and a rag laid out."
+  },
+  "garage_task_light": {
+   "triangles": 52,
+   "near_triangles": 64,
+   "materials": [
+    "trim",
+    "tube"
+   ],
+   "box": [
+    2.3,
+    0.45,
+    0.22
+   ],
+   "detail": false,
+   "reach": 700,
+   "about": "A broad linear task light over a bay: a 4.5 m by 0.35 m luminous face (TASK_FACE) in the garage's tube, in an aluminium body with its end caps and driver box, hung on three pairs of rods TASK_DROP under the ceiling or a truss. Its origin is the face's middle."
+  },
+  "garage_work_light": {
+   "triangles": 194,
+   "near_triangles": 124,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.42,
+    1.1,
+    0.42
+   ],
+   "detail": false,
+   "reach": 300,
+   "about": "A work light on a tripod stand: three splayed legs, a telescoping mast to 2.1 m, a yoke and an LED flood head looking toward +z and 35 degrees down (WORK_LIGHT_FACE), its cord down the mast to the floor. Set it at a car's nose, looking at the open bay."
+  },
+  "garage_welder": {
+   "triangles": 442,
+   "near_triangles": 274,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.32,
+    0.65,
+    0.45
+   ],
+   "detail": false,
+   "reach": 260,
+   "about": "A MIG welder on its cart: the machine with its panel and knobs, the gas bottle chained at the back with its regulator, the torch lead and the earth clamp coiled on their hooks."
+  },
+  "garage_drip_tray": {
+   "triangles": 12,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.42,
+    0.03,
+    0.32
+   ],
+   "detail": true,
+   "reach": 140,
+   "about": "A low drip tray slid under a car, dark with old oil."
   },
   "garage_couch": {
    "triangles": 172,
