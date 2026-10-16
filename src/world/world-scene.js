@@ -1354,6 +1354,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
         cover?.render(city.root);
         packsIn.push(GARAGE_PACK);
         releaseStreaming();
+        // A picture the room says it has and did not bring is a room not
+        // ready, never a plain wall standing in for it.
+        const missing = city.garageMaterials.missing;
+        if (missing.length) throw new Error(`the garage's room is missing ${missing.join(", ")}`);
         return true;
       })().catch((err) => {
         garageRoom = null;

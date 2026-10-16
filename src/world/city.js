@@ -32,6 +32,7 @@ import { createFloods } from "./floods.js";
 import { createTowers } from "./towers.js";
 import { createLogos, preloadLogos } from "./logos.js";
 import { createGarage, garageLights } from "./garage.js";
+import { createGarageMaterials } from "./garage-materials.js";
 import { appendMeshesSteps, asOneRun, attributeKey, mergeMeshes, mergeMeshesSteps, joinSteps, createCells, cutSteps, Tiled, toFloat } from "./merge.js";
 import { LAMPS } from "./glsl.js";
 
@@ -227,6 +228,10 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
   maps.shops.needsUpdate = true;
 
   const kit = createMaterialKit(shared, { maps, reduced });
+  // The workshop's own surfaces, from the garage pack's own pictures as it
+  // is dressed (src/world/garage-materials.js).
+  const garageMats = createGarageMaterials(shared, { kit, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
+  garageMats.setRects(garageLights());
   const road = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0, reduced });
   const paint = createRoadMaterial(shared, { maps, reflection: quality.reflection > 0, paint: true, reduced });
 
@@ -270,8 +275,11 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     const sources = [];
     for (const mesh of meshes) {
       const name = mesh.material.name.replace(/^NCW_/, "").replace(/\.\d+$/, "");
-      oldMaterials.add(mesh.material);
-      const mat = name === "asphalt" ? road.material : name === "paint" ? paint.material : name.startsWith("neon_") ? neonAs(mesh, name) : kit.forName(mesh.material.name);
+      // (A workshop material's pictures are the garage's now: not the
+      // pack's to dispose of with its material.)
+      const own = garageMats.owns(mesh.material.name);
+      if (!own) oldMaterials.add(mesh.material);
+      const mat = own ? garageMats.forName(mesh.material) : name === "asphalt" ? road.material : name === "paint" ? paint.material : name.startsWith("neon_") ? neonAs(mesh, name) : kit.forName(mesh.material.name);
       if (mat) mesh.material = mat;
       unread(mesh);
       if (name.startsWith("neon_")) {
@@ -688,6 +696,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
     towers,
     logos,
     garage,
+    garageMaterials: garageMats,
     moonDisc,
     kit,
     roadMaterial: road,
@@ -832,6 +841,7 @@ export async function createCity(scene, renderer, shared, { tier, quality, reduc
         m.dispose();
       });
       for (const m of Object.values(maps)) m?.dispose?.();
+      garageMats.dispose();
       kit.dispose();
       road.dispose();
       paint.dispose();
