@@ -1,0 +1,1068 @@
+{
+ "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only (<name>__near, never on a phone), the kit materials each wears, its footprint (half sizes), whether a phone drops it",
+ "total_triangles": 28857,
+ "protos": {
+  "garage_lift2": {
+   "triangles": 750,
+   "near_triangles": 566,
+   "materials": [
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    1.8,
+    1.88,
+    0.3
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A two-post overhead lift: each post a pressed C channel open toward the bay, its hydraulic cylinder and chrome rod inside with the chain sheave at its top, the lock ladder up its back; a base plate, hazard bands at the foot; across the top the beam with its padded shut-off bar, the equaliser cables and the hydraulic line; the power unit (motor, pump, reservoir, the up button and the lowering lever) on the left post."
+  },
+  "garage_lift2_arms": {
+   "triangles": 548,
+   "near_triangles": 200,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.6,
+    0.42,
+    1.12
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The two carriages that ride the posts and the four arms on them: each arm two telescoping stages of yellow box section, its pivot pin and the toothed restraint gear over it, and a round pad on a screw at its end. Placed on the lift's spot, up LIFT2_RISE when raised."
+  },
+  "garage_scissor_down": {
+   "triangles": 352,
+   "near_triangles": 352,
+   "materials": [
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    1.1,
+    0.06,
+    1.42
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The drive-on scissor lift down: its runways 0.12 m up, the legs folded flat inside them, the ramps down to the floor."
+  },
+  "garage_scissor_up": {
+   "triangles": 480,
+   "near_triangles": 352,
+   "materials": [
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    1.1,
+    0.6,
+    1.1
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The drive-on scissor lift up: runways at 1.2 m on their crossed legs and rams, the ramps flipped up as wheel stops."
+  },
+  "garage_scissor_power": {
+   "triangles": 202,
+   "near_triangles": 178,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.25,
+    0.55,
+    0.2
+   ],
+   "detail": false,
+   "reach": 200,
+   "about": "The scissor's power unit on castors: a cabinet, the motor on top, the control box with its buttons, the hoses coiled on their hook."
+  },
+  "garage_jack_stand": {
+   "triangles": 134,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.16,
+    0.26,
+    0.16
+   ],
+   "detail": true,
+   "reach": 160,
+   "about": "A three-tonne jack stand: four legs splayed from a square foot to the sleeve, the toothed column in it with its saddle, the ratchet lever."
+  },
+  "garage_floor_jack": {
+   "triangles": 332,
+   "near_triangles": 40,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.2,
+    0.15,
+    0.62
+   ],
+   "detail": false,
+   "reach": 200,
+   "about": "A low-profile trolley jack, saddle forward: the chassis on its two front wheels and rear castors, the lift arm down with its saddle at 0.1 m, the pump and its ram at the back, the handle up at forty-five degrees."
+  },
+  "garage_creeper": {
+   "triangles": 270,
+   "near_triangles": 96,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.24,
+    0.1,
+    0.52
+   ],
+   "detail": true,
+   "reach": 200,
+   "about": "A mechanic's creeper: a padded board on a tube frame with its headrest, on six castors."
+  },
+  "garage_wheel_chock": {
+   "triangles": 10,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.08,
+    0.06,
+    0.13
+   ],
+   "detail": true,
+   "reach": 120,
+   "about": "A rubber wheel chock: a wedge, its face to the tyre (+z), a grip rib across its slope."
+  },
+  "garage_door_s_frame": {
+   "triangles": 396,
+   "near_triangles": 368,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    1.62,
+    0.3,
+    0.06
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The 3 m by 3 m roll-up door's frame: tracks, hangers, torsion shaft and springs, the opener's rail and motor."
+  },
+  "garage_door_s_closed": {
+   "triangles": 334,
+   "near_triangles": 448,
+   "materials": [
+    "glass_dark",
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    1.5,
+    1.5,
+    0.03
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The 3 m by 3 m roll-up door's 4 sections, closed."
+  },
+  "garage_door_s_half": {
+   "triangles": 334,
+   "near_triangles": 448,
+   "materials": [
+    "glass_dark",
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    1.5,
+    1.5,
+    0.5
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The 3 m by 3 m roll-up door's 4 sections, half."
+  },
+  "garage_door_s_open": {
+   "triangles": 334,
+   "near_triangles": 448,
+   "materials": [
+    "glass_dark",
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    1.5,
+    0.1,
+    0.5
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The 3 m by 3 m roll-up door's 4 sections, open."
+  },
+  "garage_door_w_frame": {
+   "triangles": 396,
+   "near_triangles": 592,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    3.12,
+    0.3,
+    0.06
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The 6 m by 4.6 m roll-up door's frame: tracks, hangers, torsion shaft and springs, the opener's rail and motor."
+  },
+  "garage_door_w_closed": {
+   "triangles": 486,
+   "near_triangles": 672,
+   "materials": [
+    "glass_dark",
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    3.0,
+    2.3,
+    0.03
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The 6 m by 4.6 m roll-up door's 6 sections, closed."
+  },
+  "garage_door_w_half": {
+   "triangles": 486,
+   "near_triangles": 672,
+   "materials": [
+    "glass_dark",
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    3.0,
+    2.3,
+    0.5
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The 6 m by 4.6 m roll-up door's 6 sections, half."
+  },
+  "garage_door_w_open": {
+   "triangles": 486,
+   "near_triangles": 672,
+   "materials": [
+    "glass_dark",
+    "hazard",
+    "trim"
+   ],
+   "box": [
+    3.0,
+    0.1,
+    0.5
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The 6 m by 4.6 m roll-up door's 6 sections, open."
+  },
+  "garage_man_door": {
+   "triangles": 292,
+   "near_triangles": 0,
+   "materials": [
+    "door",
+    "glass_dark",
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.56,
+    1.12,
+    0.06
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A steel man door, 0.95 by 2.15 m, its outside toward +z: frame, the leaf with its wired glass vision panel and kick plate, a lever outside, the push bar and the closer inside, and over it inside a lit EXIT sign."
+  },
+  "garage_tool_cab": {
+   "triangles": 328,
+   "near_triangles": 74,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.56,
+    0.5,
+    0.25
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A 42-inch rolling tool cabinet in red: seven drawers with full-width pulls, chipped and scuffed at the edges, a rubber mat on top, a side handle and a lock, on four castors."
+  },
+  "garage_tool_top": {
+   "triangles": 192,
+   "near_triangles": 12,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.56,
+    0.27,
+    0.24
+   ],
+   "detail": false,
+   "reach": 260,
+   "about": "The top box that stands on the roll cabinet (at TOP_ON_CAB): six drawers under a lid that lifts on gas struts, a carry handle each side."
+  },
+  "garage_tool_cart": {
+   "triangles": 418,
+   "near_triangles": 168,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.4,
+    0.5,
+    0.25
+   ],
+   "detail": false,
+   "reach": 260,
+   "about": "A red three-tray utility cart with a few things on its top tray: a socket tray, a spray can, a rag."
+  },
+  "garage_bench": {
+   "triangles": 314,
+   "near_triangles": 208,
+   "materials": [
+    "print",
+    "trim"
+   ],
+   "box": [
+    1.2,
+    0.46,
+    0.38
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A 2.4 m workbench: a butcher-block top on a steel frame, a drawer unit, a lower shelf, a bench vise bolted at the left front corner, and on it a battery, a parts tray and a carton."
+  },
+  "garage_pegboard": {
+   "triangles": 1746,
+   "near_triangles": 134,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.25,
+    1.15,
+    0.06
+   ],
+   "detail": false,
+   "reach": 200,
+   "about": "A pegboard wall over a bench (from 1.0 to 2.25 m up), its tools hung on it and each one's outline painted behind it in yellow, as a shop that knows when a spanner has walked: ten combination spanners in a row, screwdrivers, a hammer, pliers, a torque wrench, a rail of sockets, a tape; along its foot a shelf of spray cans."
+  },
+  "garage_hood_light": {
+   "triangles": 198,
+   "near_triangles": 0,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.86,
+    0.06,
+    0.05
+   ],
+   "detail": false,
+   "reach": 200,
+   "about": "An under-hood work light: a telescoping bar 1.7 m across, a rubber hook at each end to hang it from a hood's edges, the LED strip along its underside (cool white) and its cord. Its origin is the hooks' grip: set it at the open hood's underside."
+  },
+  "garage_hand_lamp": {
+   "triangles": 96,
+   "near_triangles": 36,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.05,
+    0.25,
+    0.05
+   ],
+   "detail": true,
+   "reach": 160,
+   "about": "A hand lamp on its own, hung from its hook (at 0.5 m: set it at a hook's height less 0.5)."
+  },
+  "garage_lamp_reel": {
+   "triangles": 288,
+   "near_triangles": 36,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.2,
+    1.2,
+    0.22
+   ],
+   "detail": false,
+   "reach": 220,
+   "about": "A cord reel on the wall at 2.3 m, its drum wound with yellow cord, the cord down to a warm hand lamp hanging at 1.3 m."
+  },
+  "garage_tyre": {
+   "triangles": 320,
+   "near_triangles": 80,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.13,
+    0.33,
+    0.33
+   ],
+   "detail": true,
+   "reach": 220,
+   "about": "A tyre standing on its tread, its axle along x."
+  },
+  "garage_wheel": {
+   "triangles": 640,
+   "near_triangles": 200,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.13,
+    0.33,
+    0.33
+   ],
+   "detail": true,
+   "reach": 220,
+   "about": "A wheel on its tyre, standing, its face toward +x: silver five split spokes."
+  },
+  "garage_tyre_stack": {
+   "triangles": 1024,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.33,
+    0.51,
+    0.33
+   ],
+   "detail": true,
+   "reach": 220,
+   "about": "Four tyres lying flat in a stack, each a little off the last."
+  },
+  "garage_tyre_rack": {
+   "triangles": 334,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.22,
+    1.0,
+    0.25
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A two-tier tyre rack, 2.4 m long and 2 m high: three ladder frames of square tube, two rails a tier that the tyres stand in. Its tyres are placed by place_tyre_rack."
+  },
+  "garage_tyre_changer": {
+   "triangles": 376,
+   "near_triangles": 36,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.45,
+    0.95,
+    0.5
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A tyre changer: its cabinet with the turntable and four clamping jaws on top, the column at the back with the swing arm and the hex shaft down to the mount head, the bead breaker on its arm at the side with its pad, three pedals at the foot, the lube bucket, the inflation gauge."
+  },
+  "garage_balancer": {
+   "triangles": 284,
+   "near_triangles": 64,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.45,
+    0.7,
+    0.4
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A wheel balancer: its body with the weight tray on top, the shaft out of its right side with flange, cone and quick nut, the wheel guard raised over it, the display on its stalk."
+  },
+  "garage_compressor": {
+   "triangles": 440,
+   "near_triangles": 306,
+   "materials": [
+    "trim",
+    "worn"
+   ],
+   "box": [
+    0.35,
+    0.98,
+    0.32
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "An upright 300-litre compressor: the tank in worn paint on three feet, a plate on its dome with the motor, the twin-cylinder pump and its fins, the belt guard, the pressure switch and gauges, the copper discharge line, the drain cock at the foot."
+  },
+  "garage_hose_reel": {
+   "triangles": 270,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.2,
+    1.2,
+    0.25
+   ],
+   "detail": false,
+   "reach": 220,
+   "about": "An air hose reel on the wall at 2.2 m: bracket, drum wound with red hose, the guide arm, the hose down to its coupler and stop ball."
+  },
+  "garage_oil_drain": {
+   "triangles": 472,
+   "near_triangles": 90,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.3,
+    0.8,
+    0.32
+   ],
+   "detail": false,
+   "reach": 220,
+   "about": "A mobile oil drain: its tank on castors, the telescoping standpipe up to a wide funnel at 1.6 m (for a car on a lift), its screen, the push handle, the drain hose; old oil black in the funnel."
+  },
+  "garage_drum_pump": {
+   "triangles": 116,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.12,
+    0.25,
+    0.12
+   ],
+   "detail": true,
+   "reach": 160,
+   "about": "A rotary hand pump screwed into a drum's bung: its body, spout and crank (set it on the city's `drum` at DRUM_TOP, over the bung, with place_drum_pump)."
+  },
+  "garage_parts_washer": {
+   "triangles": 106,
+   "near_triangles": 62,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.46,
+    0.45,
+    0.3
+   ],
+   "detail": false,
+   "reach": 220,
+   "about": "A parts washer's sink, set on a drum of solvent (place_parts_washer): a red tub with its lid propped open at the back, the flex nozzle over it, a brush, the drain screen, solvent dark in the bottom."
+  },
+  "garage_shelving": {
+   "triangles": 750,
+   "near_triangles": 40,
+   "materials": [
+    "print",
+    "trim"
+   ],
+   "box": [
+    0.91,
+    1.0,
+    0.31
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "Steel shelving, 1.8 by 0.6 m and 2 m high: four angle posts, five shelves, and on them parts in their cartons, plastic bins, bottles of oil and coolant, a coil of hose."
+  },
+  "garage_cable_tray": {
+   "triangles": 240,
+   "near_triangles": 40,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.5,
+    0.35,
+    0.22
+   ],
+   "detail": true,
+   "reach": 240,
+   "about": "A 3 m length of ladder cable tray hung TRAY_DROP under a ceiling on two trapeze hangers, its cables laid in it. Its origin is the tray's underside; lengths butt end to end along x."
+  },
+  "garage_conduit": {
+   "triangles": 48,
+   "near_triangles": 40,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.5,
+    0.03,
+    0.04
+   ],
+   "detail": true,
+   "reach": 200,
+   "about": "A 3 m run of steel conduit along a wall (its back on z 0), with its couplings and its straps: lengths butt end to end along x, at the height it is placed at (its centre line at y 0)."
+  },
+  "garage_conduit_drop": {
+   "triangles": 62,
+   "near_triangles": 30,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.06,
+    1.5,
+    0.04
+   ],
+   "detail": true,
+   "reach": 200,
+   "about": "Conduit down a wall from 3 m to a switched outlet box at 1.2 m, a power strip plugged in under it."
+  },
+  "garage_junction_box": {
+   "triangles": 10,
+   "near_triangles": 40,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.08,
+    0.08,
+    0.04
+   ],
+   "detail": true,
+   "reach": 160,
+   "about": "A steel junction box where runs of conduit meet (centred at y 0)."
+  },
+  "garage_led_batten": {
+   "triangles": 22,
+   "near_triangles": 28,
+   "materials": [
+    "trim",
+    "tube"
+   ],
+   "box": [
+    1.22,
+    0.38,
+    0.06
+   ],
+   "detail": false,
+   "reach": 600,
+   "about": "A 2.4 m LED batten, its diffuser in the garage's tube (struck on as the room's are, src/world/garage.js): an aluminium body hung on two wires LED_DROP under the ceiling. Its origin is the diffuser's face."
+  },
+  "garage_fluoro": {
+   "triangles": 52,
+   "near_triangles": 220,
+   "materials": [
+    "trim",
+    "tube"
+   ],
+   "box": [
+    0.64,
+    0.25,
+    0.14
+   ],
+   "detail": false,
+   "reach": 500,
+   "about": "A twin-tube shop light, 1.2 m: its white reflector over two bare tubes (the garage's tube material), hung on two chains FLUORO_DROP under the ceiling. Its origin is the tubes' underside."
+  },
+  "garage_tune_cart": {
+   "triangles": 594,
+   "near_triangles": 112,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.4,
+    0.55,
+    0.25
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "The tune station: a black utility cart, a laptop open on it running a tuning tool (a header, a map grid, three traces), the vehicle interface beside it with its lights, the USB lead to it and the OBD lead from it to the plug at TUNE_PLUG; a notepad, a coffee cup."
+  },
+  "garage_parts_table": {
+   "triangles": 1212,
+   "near_triangles": 180,
+   "materials": [
+    "print",
+    "trim"
+   ],
+   "box": [
+    0.76,
+    0.5,
+    0.38
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A steel parts table, 1.5 by 0.75 m: a brake disc and its caliper, a turbocharger, a coilover, a box of spark plugs and a rag laid out."
+  },
+  "garage_couch": {
+   "triangles": 172,
+   "near_triangles": 6,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.06,
+    0.45,
+    0.46
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "A worn two-seat couch in oxblood vinyl: its base, two seat cushions sagged in the middle, two back cushions leaning, the arms, short legs; one cushion split and taped, a seam open on an arm."
+  },
+  "garage_fridge": {
+   "triangles": 94,
+   "near_triangles": 24,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.3,
+    0.73,
+    0.32
+   ],
+   "detail": false,
+   "reach": null,
+   "about": "An old shop fridge, 1.45 m: off-white, grubby round its handle, its freezer door over the main one, a grille at its foot, stickers, a small green light."
+  },
+  "garage_side_table": {
+   "triangles": 210,
+   "near_triangles": 0,
+   "materials": [
+    "print",
+    "trim"
+   ],
+   "box": [
+    0.32,
+    0.3,
+    0.32
+   ],
+   "detail": false,
+   "reach": 220,
+   "about": "A low table, its top marked with rings, and on it three cans, an ashtray, a pizza box and a magazine."
+  },
+  "garage_coffee": {
+   "triangles": 354,
+   "near_triangles": 34,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.42,
+    0.75,
+    0.27
+   ],
+   "detail": false,
+   "reach": 260,
+   "about": "The coffee: a low cabinet, a filter machine on it with its carafe on the hot plate and its red light, three mugs, a stack of paper cups, a jar of sugar."
+  },
+  "garage_extinguisher": {
+   "triangles": 210,
+   "near_triangles": 52,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.12,
+    0.85,
+    0.12
+   ],
+   "detail": true,
+   "reach": 200,
+   "about": "A 6 kg extinguisher on its wall bracket at 1 m, its hose clipped down its side, and the red plate over it with FIRE on it."
+  },
+  "garage_first_aid": {
+   "triangles": 42,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.18,
+    0.8,
+    0.07
+   ],
+   "detail": true,
+   "reach": 200,
+   "about": "A first aid box on the wall at 1.45 m: white, a green cross, its catch."
+  },
+  "garage_floor_drain": {
+   "triangles": 132,
+   "near_triangles": 10,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.2,
+    0.01,
+    0.2
+   ],
+   "detail": true,
+   "reach": 120,
+   "about": "A square floor drain, 0.36 m: its frame, the dark sump, the grate's bars."
+  },
+  "garage_trench_drain": {
+   "triangles": 122,
+   "near_triangles": 400,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.5,
+    0.01,
+    0.1
+   ],
+   "detail": true,
+   "reach": 160,
+   "about": "A 3 m trench drain across a bay's mouth: its edge angles, the dark channel and the grate's slots (near by)."
+  },
+  "garage_stain_a": {
+   "triangles": 28,
+   "near_triangles": 49,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.6,
+    0.01,
+    0.6
+   ],
+   "detail": true,
+   "reach": 160,
+   "about": "An old oil stain where an engine has stood, a metre across, drips round it (a pool, not a decal: see the module's note)."
+  },
+  "garage_stain_b": {
+   "triangles": 28,
+   "near_triangles": 28,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.35,
+    0.01,
+    0.35
+   ],
+   "detail": true,
+   "reach": 140,
+   "about": "A smaller oil stain, half a metre, a few drops."
+  },
+  "garage_stain_c": {
+   "triangles": 84,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.6,
+    0.01,
+    0.2
+   ],
+   "detail": true,
+   "reach": 140,
+   "about": "A smear of oil dragged out along x, as a drain pan leaves it."
+  },
+  "garage_tyre_marks": {
+   "triangles": 62,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    1.6,
+    0.01,
+    1.2
+   ],
+   "detail": true,
+   "reach": 160,
+   "about": "Two arcs of tyre rubber where a car has been turned in toward +z, broken where the tread lifted."
+  },
+  "garage_bay_01": {
+   "triangles": 54,
+   "near_triangles": 0,
+   "materials": [
+    "hazard"
+   ],
+   "box": [
+    0.9,
+    0.01,
+    0.45
+   ],
+   "detail": true,
+   "reach": 200,
+   "about": "BAY 01 stencilled on the floor in yellow, reading from +z."
+  },
+  "garage_bay_02": {
+   "triangles": 60,
+   "near_triangles": 0,
+   "materials": [
+    "hazard"
+   ],
+   "box": [
+    0.9,
+    0.01,
+    0.45
+   ],
+   "detail": true,
+   "reach": 200,
+   "about": "BAY 02 stencilled on the floor in yellow, reading from +z."
+  },
+  "garage_cable_ramp": {
+   "triangles": 14,
+   "near_triangles": 0,
+   "materials": [
+    "trim"
+   ],
+   "box": [
+    0.6,
+    0.03,
+    0.15
+   ],
+   "detail": true,
+   "reach": 140,
+   "about": "A cable protector across a walkway, 1.2 m, in black with its yellow lid."
+  },
+  "garage_shop_sign": {
+   "triangles": 192,
+   "near_triangles": 126,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    1.75,
+    0.5,
+    0.08
+   ],
+   "detail": false,
+   "reach": 900,
+   "about": "The shop's own sign: AFTERLIFE AUTO in neon tube (cyan over pink, the garage's two colours) on a black backer 3.4 m wide, a spanner in tube at its left, the transformer box under it, the standoffs and the tube's dark returns near by. Its back is on the wall (z 0), its foot at y 0: set it at the height it hangs."
+  },
+  "garage_neon_open": {
+   "triangles": 60,
+   "near_triangles": 120,
+   "materials": [
+    "clearglass",
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.45,
+    0.25,
+    0.04
+   ],
+   "detail": false,
+   "reach": 500,
+   "about": "OPEN in red neon in a rounded border, on clear acrylic hung on two chains: for a window or the wall by the door (its foot at y 0)."
+  },
+  "garage_neon_wrench": {
+   "triangles": 58,
+   "near_triangles": 0,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.4,
+    0.4,
+    0.04
+   ],
+   "detail": false,
+   "reach": 500,
+   "about": "Two spanners crossed in tube, cyan and pink, on a black panel: the shop's mark for a wall (its foot at y 0, back on the wall)."
+  },
+  "garage_poster_tall": {
+   "triangles": 12,
+   "near_triangles": 0,
+   "materials": [
+    "print",
+    "trim"
+   ],
+   "box": [
+    0.32,
+    0.46,
+    0.02
+   ],
+   "detail": true,
+   "reach": 260,
+   "about": "A framed poster, 0.6 by 0.9 m (its foot at y 0, back on the wall)."
+  },
+  "garage_poster_wide": {
+   "triangles": 12,
+   "near_triangles": 0,
+   "materials": [
+    "print",
+    "trim"
+   ],
+   "box": [
+    0.62,
+    0.42,
+    0.02
+   ],
+   "detail": true,
+   "reach": 260,
+   "about": "A framed poster, 1.2 by 0.8 m (its foot at y 0, back on the wall)."
+  },
+  "garage_poster_lit": {
+   "triangles": 32,
+   "near_triangles": 0,
+   "materials": [
+    "face",
+    "trim"
+   ],
+   "box": [
+    0.5,
+    0.75,
+    0.05
+   ],
+   "detail": false,
+   "reach": 400,
+   "about": "A lightbox advert, 0.9 by 1.4 m, its lead down the wall (its foot at y 0, back on the wall)."
+  },
+  "garage_monitor": {
+   "triangles": 52,
+   "near_triangles": 10,
+   "materials": [
+    "glow",
+    "trim"
+   ],
+   "box": [
+    0.76,
+    0.48,
+    0.07
+   ],
+   "detail": false,
+   "reach": 600,
+   "about": "A 65-inch monitor's bezel on its wall arm, its screen left for the layout's garage_screen (MONITOR_SCREEN); a cable down the wall."
+  }
+ }
+}
