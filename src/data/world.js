@@ -153,7 +153,15 @@ export const GARAGE_ROUTES = {
   exit: [[458.2, 3, -219], [455, 2.7, -216.5], [451.5, 2.4, -215.3], [446, 2.3, -216.5]],
 };
 
-/** The scroll, a stretch at a time: holding a pose, or on a path between
+/** A phone's own points where its poses make the landscape path wrong:
+ *  its shop pose faces the middle photo group from further down the aisle,
+ *  and the landscape path's last point is past it, so it would double
+ *  back. */
+export const GARAGE_ROUTES_PORTRAIT = {
+  s6bay_shop: [[469, 3, -222.6]],
+};
+
+/** The scroll, a stretch at a time:/** The scroll, a stretch at a time: holding a pose, or on a path between
  *  two. Each starts where the one before ends. */
 export const GARAGE_TIMELINE = [
   { to: 0.06, hold: "arrival" },

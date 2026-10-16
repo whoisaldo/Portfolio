@@ -54,7 +54,9 @@ import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
-import { boards as BOARDS, towers as TOWERS, SHOTS, GARAGE_STATIONS } from "../data/world.js";
+import { boards as BOARDS, towers as TOWERS, SHOTS, GARAGE_STATIONS, GARAGE_TIMELINE } from "../data/world.js";
+import { garageScrollFor } from "./scroll-stage.js";
+import { scrollToY } from "../lib/scroll.js";
 
 // (load: the S4's model is in; see preloadWorld.)
 let carLanded = false;
@@ -1794,6 +1796,36 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     /** The pieces the braindance draws over and reads from. */
     get parts() {
       return { renderer, scene, camera, post, shared, city, car, traffic, crowd, koi, quality, mirrorLayer: MIRROR_LAYER };
+    },
+    /**
+     * The garage's visit, for the section, the film, Look and the
+     * braindance (agents/B5/CONTRACT.md section 2): its stations, its poses
+     * and paths read-only, and a station asked for by scrolling to it.
+     * Null until the city is built.
+     */
+    get garage() {
+      if (!visit) return null;
+      return {
+        stations: GARAGE_STATIONS,
+        get state() {
+          const p = clamp(stage.garageProgress ?? 0, 0, 1);
+          return { visiting: Boolean(visiting()), p, station: visit.stationAt(p), ...visit.stateAt(p, reduced) };
+        },
+        goStation(id) {
+          const st = GARAGE_STATIONS.find((x) => x.id === id);
+          const y = st ? garageScrollFor(st.p) : null;
+          if (y !== null) scrollToY(y);
+        },
+        poses: {
+          timeline: GARAGE_TIMELINE,
+          at: (p, a = aspect, out = makePose()) => visit.at(p, a, out, reduced),
+          station: (id, a = aspect, out = makePose()) => visit.pose(GARAGE_STATIONS.find((x) => x.id === id)?.pose ?? id, a, out),
+          inspection: (name, a = aspect, out = makePose()) => visit.pose(name, a, out),
+          sample: (routeId, from, into, u, a = aspect, out = makePose()) => visit.sample(routeId, from, into, easeInOut(clamp(u, 0, 1)), a, out),
+          stateAt: (p) => visit.stateAt(p, reduced),
+        },
+        placeholders: visit.placeholders,
+      };
     },
     /** Whether this city can draw the intro's voxel moon. */
     get hasMoon() {

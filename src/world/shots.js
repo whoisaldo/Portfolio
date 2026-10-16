@@ -56,7 +56,7 @@ const _b2 = new THREE.Vector3();
 
 /** One segment of a centripetal Catmull-Rom curve (Barry and Goldman),
  *  from p1 to p2 at u in 0..1, written into `out`. */
-function catmullRom(p0, p1, p2, p3, u, out) {
+export function catmullRom(p0, p1, p2, p3, u, out) {
   const t0 = 0;
   const t1 = t0 + Math.max(1e-4, Math.sqrt(p0.distanceTo(p1)));
   const t2 = t1 + Math.max(1e-4, Math.sqrt(p1.distanceTo(p2)));

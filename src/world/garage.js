@@ -19,8 +19,8 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { NEON } from "./materials.js";
 import { preloadMoon } from "./moon.js";
-import { curveAt, easeInOut, makePose, copyPose, clamp } from "./shots.js";
-import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
+import { catmullRom, easeInOut, makePose, copyPose, clamp } from "./shots.js";
+import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_ROUTES_PORTRAIT, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
 
 // The door's travel, in shots before the garage's own (the flight in
 // starts a whole shot out, at the rooftop): up just before the car, which
@@ -355,8 +355,9 @@ export function createGarageVisit(anchors) {
       out.push(anchors.get(portrait && has(`${name}_portrait`) ? `${name}_portrait` : name).position.clone());
     }
     if (out.length) return out;
-    if (GARAGE_ROUTES[id]?.length) placeholders.add(`path:${id}`);
-    return (GARAGE_ROUTES[id] ?? []).map((a) => new THREE.Vector3().fromArray(a));
+    const plan = (portrait && GARAGE_ROUTES_PORTRAIT[id]) || GARAGE_ROUTES[id] || [];
+    if (plan.length) placeholders.add(`path:${id}`);
+    return plan.map((a) => new THREE.Vector3().fromArray(a));
   };
 
   // Where the gaze is held along a path: cam_garage_gaze_<route>_NN, each at
@@ -390,10 +391,65 @@ export function createGarageVisit(anchors) {
   }
   const tierOf = (aspect) => tiers[aspect < 1 ? "portrait" : "wide"];
 
-  const pts = [];
-  const cum = [];
   const _ahead = new THREE.Vector3();
   const _g = new THREE.Vector3();
+  const _end = new THREE.Vector3();
+
+  // Each path as a curve measured along itself: the Catmull-Rom curve
+  // through its poses and points, sampled finely once, so a distance along
+  // it gives the curve's own parameter. (Spacing a curve by its chords,
+  // as the open flights do, changes speed at every point it passes, and
+  // most at a short leg round a corner: a jolt the reader feels.)
+  const SAMPLES = 48;
+  const paths = new Map();
+  const pathOf = (id, from, into, aspect) => {
+    const key = `${aspect < 1 ? "p" : "w"}:${id}:${from}:${into}`;
+    let path = paths.get(key);
+    if (path) return path;
+    const t = tierOf(aspect);
+    const pts = [t.poses[from].position, ...t.routes[id], t.poses[into].position];
+    const n = pts.length;
+    const p0 = pts[0].clone().multiplyScalar(2).sub(pts[1]);
+    const p3 = pts[n - 1].clone().multiplyScalar(2).sub(pts[n - 2]);
+    const legs = [];
+    for (let k = 0; k < n - 1; k++) legs.push([k === 0 ? p0 : pts[k - 1], pts[k], pts[k + 1], k + 2 >= n ? p3 : pts[k + 2]]);
+    const s = [0];
+    const at = new THREE.Vector3();
+    const last = pts[0].clone();
+    for (const leg of legs) {
+      for (let j = 1; j <= SAMPLES; j++) {
+        catmullRom(...leg, j / SAMPLES, at);
+        s.push(s[s.length - 1] + at.distanceTo(last));
+        last.copy(at);
+      }
+    }
+    path = { pts, legs, s, length: s[s.length - 1] || 1 };
+    paths.set(key, path);
+    return path;
+  };
+  // The point `e` (0..1 of its length) along `path`; past either end, on
+  // along its end's own direction, so a heading read either side of the
+  // camera has no corner where one reading would stop at an end.
+  const reach = (path, e, out) => {
+    const { pts, legs, s, length } = path;
+    if (e < 0 || e > 1) {
+      const n = pts.length;
+      const [a, b] = e < 0 ? [pts[0], pts[1]] : [pts[n - 1], pts[n - 2]];
+      _end.subVectors(a, b).normalize();
+      return out.copy(a).addScaledVector(_end, (e < 0 ? -e : e - 1) * length);
+    }
+    const d = e * length;
+    let lo = 0;
+    let hi = s.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (s[mid] <= d) lo = mid;
+      else hi = mid;
+    }
+    const f = (lo + clamp((d - s[lo]) / Math.max(1e-9, s[hi] - s[lo]), 0, 1)) / SAMPLES;
+    const leg = Math.min(legs.length - 1, Math.floor(f));
+    return catmullRom(...legs[leg], f - leg, out);
+  };
 
   /** A pose on path `id` from pose `from` to pose `into`, `e` of the way by
    *  distance (already eased), into `out`. */
@@ -401,9 +457,8 @@ export function createGarageVisit(anchors) {
     const t = tierOf(aspect);
     const A = t.poses[from];
     const B = t.poses[into];
-    pts.length = 0;
-    pts.push(A.position, ...t.routes[id], B.position);
-    curveAt(pts, e, out.position, cum);
+    const path = pathOf(id, from, into, aspect);
+    reach(path, e, out.position);
     const gaze = t.gaze[id];
     if (gaze.length) {
       // From the first pose's target through each held gaze to the last's.
@@ -413,10 +468,14 @@ export function createGarageVisit(anchors) {
       const w = smooth01(clamp((e - stops[k].u) / Math.max(1e-6, stops[k + 1].u - stops[k].u), 0, 1));
       out.target.copy(stops[k].at).lerp(stops[k + 1].at, w);
     } else {
-      // Where it is going, a little further along its own path, between
-      // where it was looking and where it will.
-      curveAt(pts, Math.min(1, e + 0.12), _ahead, cum);
-      _g.subVectors(_ahead, out.position).normalize().multiplyScalar(4).add(out.position);
+      // Where it is going, between where it was looking and where it
+      // will: along the path's own heading, read across a stretch of it
+      // either side so it never turns on a point.
+      // (Past either end the path runs straight on, so the heading has no
+      // corner where one of the two readings would stop at an end.)
+      reach(path, e + 0.12, _ahead);
+      reach(path, e - 0.12, _g);
+      _g.subVectors(_ahead, _g).normalize().multiplyScalar(4).add(out.position);
       out.target.copy(A.target).lerp(_g, smooth01(clamp(e / 0.3, 0, 1))).lerp(B.target, smooth01(clamp((e - 0.55) / 0.45, 0, 1)));
     }
     out.fov = A.fov + (B.fov - A.fov) * e;
