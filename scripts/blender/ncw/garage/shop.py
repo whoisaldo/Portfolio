@@ -159,13 +159,15 @@ def _lift2_arms_out(k):
 LIFT2_PADS_OUT = (1.12, 1.24)
 
 
-def place_lift2(x, z, yaw=0.0, raised=False, arms="in", y=0.0, district=None):
+def place_lift2(x, z, yaw=0.0, raised=False, arms="in", pad_at=LIFT2_PAD, y=0.0, district=None):
     """A two-post lift and its arms, the car's line along the prop's z:
-    `arms` "in" under a car, "out" to drive in (never raised)."""
+    `arms` "in" under a car, "out" to drive in (never raised); `pad_at` the
+    pads' top with the arms down (a car's sill height: the carriages ride
+    up with them), LIFT2_RISE higher raised."""
     at = frame_of(x, y, z, yaw)
     place_in(at, yaw, "garage_lift2", 0, 0, 0, district=district)
     name = "garage_lift2_arms_out" if arms == "out" and not raised else "garage_lift2_arms"
-    place_in(at, yaw, name, 0, LIFT2_RISE if raised else 0.0, 0, district=district)
+    place_in(at, yaw, name, 0, pad_at - LIFT2_PAD + (LIFT2_RISE if raised else 0.0), 0, district=district)
 
 
 # ---------------------------------------------------------------------------

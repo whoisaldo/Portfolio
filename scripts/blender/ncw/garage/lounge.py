@@ -151,7 +151,8 @@ def _first_aid(k):
     t = k("trim")
     box(t, -0.18, 0.18, 1.45, 1.75, 0.0, 0.12, col=WHITE_PAINT, bottom=True)
     box(t, -0.035, 0.035, 1.52, 1.68, 0.12, 0.123, col=GREEN)
-    box(t, -0.08, 0.08, 1.565, 1.635, 0.12, 0.123, col=GREEN)
+    for x0, x1 in ((-0.08, -0.035), (0.035, 0.08)):
+        box(t, x0, x1, 1.565, 1.635, 0.12, 0.123, col=GREEN)
     box(t, -0.02, 0.02, 1.7, 1.73, 0.12, 0.13, col=STEEL_MID)
 
 

@@ -1,6 +1,6 @@
 {
  "note": "the garage's prototypes (scripts/blender/ncw/garage): triangles drawn always, triangles drawn near by only (<name>__near, never on a phone), the kit materials each wears, its footprint (half sizes), whether a phone drops it",
- "total_triangles": 31973,
+ "total_triangles": 31983,
  "protos": {
   "garage_lift2": {
    "triangles": 750,
@@ -927,7 +927,7 @@
    "about": "A 6 kg extinguisher on its wall bracket at 1 m, its hose clipped down its side, and the red plate over it with FIRE on it."
   },
   "garage_first_aid": {
-   "triangles": 42,
+   "triangles": 52,
    "near_triangles": 0,
    "materials": [
     "trim"
