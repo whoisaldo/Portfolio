@@ -14,7 +14,7 @@ const within = (node, ancestor) => {
 };
 
 // The same rig as the S4 (src/three/car/object.js), so one loader drives both.
-for (const name of ["ali_s6", "body", "steer_fl", "steer_fr", "wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "headlights", "taillights"]) {
+for (const name of ["ali_s6", "body", "steer_fl", "steer_fr", "axle_rl", "axle_rr", "wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr", "headlights", "taillights"]) {
   assert.ok(find(name), `Missing animation part: ${name}`);
 }
 for (const side of ["l", "r"]) {
@@ -32,8 +32,8 @@ assert.equal(root.listCameras().length, 0, "Studio camera leaked into the web as
 // Virtual Link lowers the body on its air suspension: the body must carry
 // the shell and the bay but not the wheels, so it can drop over them.
 const body = find("body");
-for (const name of ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"]) assert.ok(!within(find(name), body), "Wheels must not ride in the body.");
-for (const name of ["hood_hinge", "engine_bay", "RS_honeycomb_grille", "exhaust_tips", "mirror_left", "mirror_right", "head_unit_screen"]) {
+for (const name of ["steer_fl", "steer_fr", "axle_rl", "axle_rr", "wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"]) assert.ok(!within(find(name), body), "Wheels must not ride in the body.");
+for (const name of ["hood_hinge", "engine_bay", "RS_honeycomb_grille", "exhaust_tips", "headlights", "taillights", "mirror_left", "mirror_right", "mirror_cap_left", "mirror_cap_right", "head_unit_screen"]) {
   assert.ok(find(name) && within(find(name), body), `${name} must ride in the body.`);
 }
 for (const name of ["mod_ie_ecu_tune", "mod_ie_tcu_tune", "mod_virtual_link", "mod_rs_grille", "mod_rsnav_head_unit"]) {
@@ -50,8 +50,16 @@ hinge.setRotation([Math.sin(-0.55), 0, 0, Math.cos(-0.55)]);
 const open = getBounds(hinge);
 assert.ok(open.max[1] > 1.7 && open.max[1] - closed.max[1] > 0.6, "Hood does not open upward.");
 hinge.setRotation(rotation);
-for (const name of ["hood_strut_tube", "hood_strut_rod"]) {
-  assert.ok(find(name)?.listChildren().length, "Keep strut animation on a parent of the compressed mesh.");
+// Two struts, the second suffixed _r. The loader sets each tube and rod in
+// the body's frame from a base on the body and a mount on the hood.
+for (const suffix of ["", "_r"]) {
+  const strut = (part) => find(`hood_strut_${part}${suffix}`);
+  for (const part of ["tube", "rod"]) {
+    assert.ok(strut(part)?.listChildren().length, "Keep strut animation on a parent of the compressed mesh.");
+    assert.ok(body.listChildren().includes(strut(part)), `hood_strut_${part}${suffix} must be a child of the body.`);
+  }
+  assert.ok(strut("base") && within(strut("base"), body) && !within(strut("base"), hinge), `hood_strut_base${suffix} must sit on the body.`);
+  assert.ok(strut("mount") && within(strut("mount"), hinge), `hood_strut_mount${suffix} must ride on the hood.`);
 }
 for (const name of ["turbo_compressor_housing", "turbo_heat_wrap", "charge_pipe_silicone", "front_cast_box", "coolant_expansion_tank"]) {
   assert.ok(find(name) && within(find(name), find("engine_bay")), `Hot V part missing: ${name}`);
