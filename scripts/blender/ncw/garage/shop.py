@@ -22,7 +22,7 @@ from ncw.kit import box, cylinder, pipe, quad
 from ncw.props import proto
 from ncw.garage.shapes import (
     ALU, BLACK_PAINT, CABLE, CHROME, GUN, GUN_DARK, OFFWHITE, RED, RED_DARK, RUBBER, STEEL_MID, WHITE_PAINT, YELLOW,
-    beam, cable, frame_of, obox, place_in, revolve, shade, words,
+    beam, cable, flat, flat_rect, frame_of, obox, place_in, revolve, shade, soft, words,
 )
 
 # ---------------------------------------------------------------------------
@@ -112,14 +112,9 @@ def _lift2(k):
     revolve(n, (-2.1, 1.33, 0.22), (0, 0, 1), ((0.0, 0.02), (0.06, 0.02), (0.06, 0.0)), segs=6, col=RED_DARK)
 
 
-@proto("garage_lift2_arms", box=(1.6, 0.42, 1.12))
-def _lift2_arms(k):
-    """The two carriages that ride the posts and the four arms on them:
-    each arm two telescoping stages of yellow box section, its pivot pin and
-    the toothed restraint gear over it, and a round pad on a screw at its
-    end. Placed on the lift's spot, up LIFT2_RISE when raised."""
+def _lift2_carriages(k, pads):
     t, n = k("trim"), k("trim", 1)
-    px, pz = LIFT2_PADS
+    px, pz = pads
     for s in (-1, 1):
         x0, x1 = _sorted(s * 1.3, s * 1.46)
         box(t, x0, x1, 0.05, 0.8, -0.17, 0.17, col=GUN_DARK, bottom=True)
@@ -142,11 +137,37 @@ def _lift2_arms(k):
             cylinder(n, q.x, q.z, 0.08, 0.15, 0.02, segs=6, col=CHROME)
 
 
-def place_lift2(x, z, yaw=0.0, raised=False, y=0.0, district=None):
-    """A two-post lift and its arms, the car's line along the prop's z."""
+@proto("garage_lift2_arms", box=(1.6, 0.42, 1.12))
+def _lift2_arms(k):
+    """The two carriages that ride the posts and the four arms on them,
+    swung in under a car's jacking points (LIFT2_PADS): each arm two
+    telescoping stages of yellow box section, its pivot pin and the
+    toothed restraint gear over it, and a round pad on a screw at its end.
+    Placed on the lift's spot, up LIFT2_RISE when raised."""
+    _lift2_carriages(k, LIFT2_PADS)
+
+
+@proto("garage_lift2_arms_out", box=(1.6, 0.42, 1.3))
+def _lift2_arms_out(k):
+    """The carriages with the arms swung out along the drive line, front
+    ones forward and rear ones back, as they are left for a car to drive
+    in between the posts."""
+    _lift2_carriages(k, LIFT2_PADS_OUT)
+
+
+# The pads with the arms swung out of the way.
+LIFT2_PADS_OUT = (1.12, 1.24)
+
+
+def place_lift2(x, z, yaw=0.0, raised=False, arms="in", pad_at=LIFT2_PAD, y=0.0, district=None):
+    """A two-post lift and its arms, the car's line along the prop's z:
+    `arms` "in" under a car, "out" to drive in (never raised); `pad_at` the
+    pads' top with the arms down (a car's sill height: the carriages ride
+    up with them), LIFT2_RISE higher raised."""
     at = frame_of(x, y, z, yaw)
     place_in(at, yaw, "garage_lift2", 0, 0, 0, district=district)
-    place_in(at, yaw, "garage_lift2_arms", 0, LIFT2_RISE if raised else 0.0, 0, district=district)
+    name = "garage_lift2_arms_out" if arms == "out" and not raised else "garage_lift2_arms"
+    place_in(at, yaw, name, 0, pad_at - LIFT2_PAD + (LIFT2_RISE if raised else 0.0), 0, district=district)
 
 
 # ---------------------------------------------------------------------------
@@ -298,8 +319,8 @@ def _creeper(k):
     """A mechanic's creeper: a padded board on a tube frame with its
     headrest, on six castors."""
     t, n = k("trim"), k("trim", 1)
-    box(t, -0.2, 0.2, 0.08, 0.12, -0.5, 0.42, col=(0.012, 0.012, 0.014, 1), bottom=True)
-    box(t, -0.18, 0.18, 0.12, 0.175, 0.24, 0.46, col=(0.015, 0.015, 0.018, 1))
+    soft(t, (0.0, 0.1, -0.04), (1, 0, 0), (0, 1, 0), 0.2, 0.025, 0.46, 0.015, col=(0.012, 0.012, 0.014, 1))
+    soft(t, (0.0, 0.15, 0.35), (1, 0, 0), (0, 1, 0), 0.18, 0.03, 0.11, 0.018, col=(0.015, 0.015, 0.018, 1))
     for x in (-0.22, 0.22):
         pipe(t, (x, 0.08, -0.5), (x, 0.08, 0.46), 0.012, segs=6, col=RED, caps=True)
     for z in (-0.5, 0.46):
@@ -515,3 +536,101 @@ def _man_door(k):
     box(t, -0.2, 0.2, H + 0.12, H + 0.32, -0.12, -0.05, col=WHITE_PAINT)
     quad(k("glow"), (0.18, H + 0.14, -0.121), (-0.18, H + 0.14, -0.121), (-0.18, H + 0.3, -0.121), (0.18, H + 0.3, -0.121), col=(0.004, 0.06, 0.012, 1))
     words(k("glow"), "EXIT", (0.0, H + 0.22, -0.123), (-1, 0, 0), (0, 1, 0), 0.28, 0.1, 0.016, (0.05, 0.9, 0.2, 1))
+
+
+# ---------------------------------------------------------------------------
+# The city's own shutter. The garage's opening (6 m by 4.6 m) keeps the
+# roller shutter src/world/garage.js already rolls: the named quad
+# garage_door, SHUTTER_PLANE out from the wall's inside face, rising into
+# the drum box over the opening (districts/garage.py). This is what stands
+# round it inside: the guides in the reveal, the fascia over the drum, the
+# motor on the drum's end with its hand chain, the threshold seal and the
+# push-button station. Front (+z) toward the street, as the doors above.
+# ---------------------------------------------------------------------------
+SHUTTER = (6.0, 4.6)
+SHUTTER_PLANE = 0.38
+
+
+@proto("garage_shutter_w", box=(3.6, 0.3, 0.46))
+def _shutter_w(k):
+    """The fittings of the city's 6 m by 4.6 m roller shutter, inside: its
+    guide channels either side of the curtain, the fascia plate over the
+    drum, the drive motor on the drum's right end with its hand chain
+    looped down for a power cut, the rubber threshold seal, the up/stop/
+    down station on the wall."""
+    t, n = k("trim"), k("trim", 1)
+    W, H = SHUTTER
+    p = SHUTTER_PLANE
+    for s in (-1, 1):
+        x0, x1 = _sorted(s * (W / 2 - 0.07), s * W / 2)
+        for z0, z1 in ((p - 0.07, p - 0.035), (p + 0.035, p + 0.07)):
+            box(t, x0, x1, 0.0, H, z0, z1, col=GUN)
+        box(t, x0 + (0.0 if s > 0 else 0.04), x1 - (0.04 if s > 0 else 0.0), 0.0, H, p - 0.07, p + 0.07, col=GUN_DARK)
+        for i in range(6):
+            y = 0.4 + i * 0.75
+            box(n, x0 - 0.01, x1 + 0.01, y, y + 0.05, p - 0.08, p - 0.07, col=STEEL_MID)
+    box(t, -W / 2 - 0.2, W / 2 + 0.2, H, H + 0.6, -0.12, -0.1, col=GUN_DARK, bottom=True)
+    box(k("hazard"), -W / 2 - 0.2, W / 2 + 0.2, H + 0.02, H + 0.08, -0.124, -0.12)
+    box(t, -W / 2, W / 2, 0.0, 0.015, p - 0.04, p + 0.04, col=RUBBER)
+    # The motor, its gearbox and the hand chain, in the room in front of the
+    # drum's right end (the wall is solid beside the opening).
+    mx, mz = W / 2 + 0.35, -0.26
+    pipe(t, (W / 2, H + 0.3, mz), (mx + 0.2, H + 0.3, mz), 0.11, segs=12, col=GUN, caps=True)
+    box(t, mx + 0.2, mx + 0.42, H + 0.12, H + 0.48, mz - 0.16, mz + 0.16, col=BLACK_PAINT, bottom=True)
+    pipe(t, (mx + 0.42, H + 0.3, mz), (mx + 0.46, H + 0.3, mz), 0.13, segs=12, col=GUN_DARK, caps=True)
+    for zc in (mz - 0.08, mz + 0.08):
+        pts = [(mx + 0.44, H + 0.17, zc), (mx + 0.44, H - 1.4, zc), (mx + 0.44, 1.25, zc + (0.04 if zc < mz else -0.04))]
+        cable(n, pts, 0.005, col=STEEL_MID, segs=4)
+    cable(t, ((mx + 0.3, H + 0.12, mz), (mx + 0.3, H - 0.2, -0.03), (W / 2 + 0.3, H - 0.4, -0.02), (W / 2 + 0.3, 1.6, -0.02)), 0.008, col=CABLE)
+    # The station: up, stop, down.
+    box(t, W / 2 + 0.22, W / 2 + 0.38, 1.25, 1.6, -0.06, 0.0, col=YELLOW)
+    for i, col in enumerate(((0.05, 0.05, 0.05, 1), (0.6, 0.03, 0.02, 1), (0.05, 0.05, 0.05, 1))):
+        pipe(n, (W / 2 + 0.3, 1.52 - i * 0.1, -0.06), (W / 2 + 0.3, 1.52 - i * 0.1, -0.075), 0.022, segs=8, col=col, caps=True)
+
+
+# ---------------------------------------------------------------------------
+# The S6's bay: a flush service pad, no posts (nothing tall in front of its
+# mirrors and grille), and painted bay lines.
+# ---------------------------------------------------------------------------
+@proto("garage_service_pad", box=(1.1, 0.01, 1.05), reach=220)
+def _service_pad(k):
+    """A flush in-ground lift's pad: its two runway plates level with the
+    floor (an in-ground scissor, down) in their steel frames, a hinged
+    access hatch between them, hazard chevrons on the plates' ends and the
+    wheel stops' marks."""
+    t, n, hz = k("trim"), k("trim", 1), k("hazard")
+    for s in (-1, 1):
+        cx = s * 0.8
+        quad(t, (cx - 0.3, 0.004, 1.02), (cx + 0.3, 0.004, 1.02), (cx + 0.3, 0.004, -1.02), (cx - 0.3, 0.004, -1.02), col=STEEL_MID)
+        for (x0, x1, z0, z1) in ((cx - 0.33, cx + 0.33, 1.02, 1.05), (cx - 0.33, cx + 0.33, -1.05, -1.02), (cx - 0.33, cx - 0.3, -1.02, 1.02), (cx + 0.3, cx + 0.33, -1.02, 1.02)):
+            box(t, x0, x1, 0.0, 0.006, z0, z1, col=GUN_DARK)
+        for i in range(14):
+            z = -0.95 + i * 0.14
+            box(n, cx - 0.26, cx + 0.26, 0.004, 0.007, z, z + 0.04, col=shade(STEEL_MID, 1.2))
+        for e in (-1, 1):
+            for j in range(3):
+                x = cx - 0.24 + j * 0.2
+                flat(hz, [(x, e * 0.98), (x + 0.1, e * 0.98), (x + 0.16, e * 0.9), (x + 0.06, e * 0.9)], 0.005)
+    flat_rect(t, -0.42, 0.42, -0.4, 0.4, 0.003, col=GUN_DARK)
+    for x in (-0.42, 0.4):
+        box(n, x, x + 0.02, 0.0, 0.005, -0.4, 0.4, col=STEEL_MID)
+    box(n, -0.06, 0.06, 0.003, 0.008, 0.3, 0.34, col=CHROME)
+
+
+@proto("garage_bay_lines", box=(1.75, 0.01, 3.05), reach=260)
+def _bay_lines(k):
+    """A bay painted out in yellow, 3.5 by 6.1 m: its outline in 60 mm
+    lines broken at the corners, a centre tick at each end, a wheel stop
+    bar across the front."""
+    hz = k("hazard")
+    W, L, w = 1.75, 3.05, 0.03
+    for (x0, x1, z0, z1) in ((-W, -W + 2 * w, -L + 0.4, L - 0.4), (W - 2 * w, W, -L + 0.4, L - 0.4),
+                             (-W + 0.4, W - 0.4, L - 2 * w, L), (-W + 0.4, W - 0.4, -L, -L + 2 * w),
+                             (-0.03, 0.03, L - 0.5, L - 0.1), (-0.03, 0.03, -L + 0.1, -L + 0.5), (-0.7, 0.7, 2.25, 2.33)):
+        flat_rect(hz, x0, x1, z0, z1, 0.004)
+    # Each corner's two short arms, the outline broken before them.
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            x, z = sx * W, sz * L
+            flat_rect(hz, x, x - sx * 0.25, z, z - sz * 2 * w, 0.004)
+            flat_rect(hz, x, x - sx * 2 * w, z, z - sz * 0.25, 0.004)

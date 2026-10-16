@@ -196,23 +196,23 @@ def _pegboard(k):
         ln = 0.14 + i * 0.02
         outline(x - 0.018, x + 0.018, 2.12 - ln - 0.01, 2.13)
         _hanging(t, x, 2.12, ln, 0.016 + i * 0.0012, 0.003, CHROME)
-        pipe(t, (x, 2.11, 0.04), (x, 2.11, 0.05), 0.012 + i * 0.0008, segs=8, col=CHROME, caps=True)
-        pipe(t, (x, 2.12 - ln, 0.04), (x, 2.12 - ln, 0.05), 0.011 + i * 0.0008, segs=8, col=CHROME, caps=True)
+        pipe(n, (x, 2.11, 0.04), (x, 2.11, 0.05), 0.012 + i * 0.0008, segs=8, col=CHROME, caps=True)
+        pipe(n, (x, 2.12 - ln, 0.04), (x, 2.12 - ln, 0.05), 0.011 + i * 0.0008, segs=8, col=CHROME, caps=True)
         pipe(n, (x, 2.14, 0.03), (x, 2.14, 0.06), 0.003, segs=4, col=STEEL_MID)
     # Screwdrivers, handles up.
     for i, col in enumerate((RED, YELLOW, BLUE, RED, GREEN, BLACK_PAINT)):
         x = -0.28 + i * 0.06
         pipe(t, (x, 1.95, 0.05), (x, 2.08, 0.05), 0.014, segs=6, col=col, caps=True)
-        pipe(t, (x, 1.75 + i * 0.01, 0.05), (x, 1.95, 0.05), 0.0035, segs=4, col=CHROME)
+        pipe(n, (x, 1.75 + i * 0.01, 0.05), (x, 1.95, 0.05), 0.0035, segs=4, col=CHROME)
     # A hammer, a pair of pliers, side cutters.
     outline(0.18, 0.36, 1.62, 2.1)
     pipe(t, (0.27, 1.62, 0.05), (0.27, 1.98, 0.05), 0.014, segs=6, col=WOOD, caps=True)
     box(t, 0.2, 0.34, 1.98, 2.03, 0.03, 0.07, col=GUN_DARK)
     for i, col in enumerate((RED, BLUE)):
         x = 0.45 + i * 0.1
-        beam(t, (x - 0.01, 1.92, 0.045), (x - 0.025, 1.72, 0.045), 0.003, 0.009, col=col)
-        beam(t, (x + 0.01, 1.92, 0.045), (x + 0.025, 1.72, 0.045), 0.003, 0.009, col=col)
-        beam(t, (x, 1.92, 0.045), (x, 2.02, 0.045), 0.003, 0.012, col=CHROME)
+        beam(n, (x - 0.01, 1.92, 0.045), (x - 0.025, 1.72, 0.045), 0.003, 0.009, col=col)
+        beam(n, (x + 0.01, 1.92, 0.045), (x + 0.025, 1.72, 0.045), 0.003, 0.009, col=col)
+        beam(n, (x, 1.92, 0.045), (x, 2.02, 0.045), 0.003, 0.012, col=CHROME)
     # The torque wrench, long and level, and the rail of sockets under it.
     beam(t, (-1.0, 1.42, 0.05), (-0.25, 1.42, 0.05), 0.014, 0.014, col=CHROME)
     pipe(t, (-0.6, 1.42, 0.05), (-0.25, 1.42, 0.05), 0.019, segs=8, col=BLACK_PAINT, caps=True)
@@ -221,7 +221,7 @@ def _pegboard(k):
     for i in range(14):
         x = 0.14 + i * 0.065
         r = 0.011 + i * 0.0012
-        cylinder(t, x, 0.05, 1.26, 1.3 + i * 0.002, r, segs=8, col=CHROME)
+        cylinder(n, x, 0.05, 1.26, 1.3 + i * 0.002, r, segs=8, col=CHROME)
     box(t, -0.1, -0.02, 1.3, 1.38, 0.03, 0.06, col=YELLOW)
     # Hooks left empty.
     for x in (0.75, 0.85, 0.95, 1.05):
@@ -230,7 +230,7 @@ def _pegboard(k):
     box(t, -1.2, 1.2, y0 - 0.06, y0 - 0.04, 0.0, 0.14, col=GUN_DARK)
     for i, col in enumerate((RED, BLUE, YELLOW, BLACK_PAINT, WHITE_PAINT, RED, GREEN)):
         x = -1.1 + i * 0.09
-        lathe(t, x, 0.08, ((y0 - 0.04, 0.032), (y0 + 0.14, 0.032), (y0 + 0.16, 0.02), (y0 + 0.18, 0.012)), segs=8, col=col)
+        lathe(n, x, 0.08, ((y0 - 0.04, 0.032), (y0 + 0.14, 0.032), (y0 + 0.16, 0.02), (y0 + 0.18, 0.012)), segs=8, col=col)
 
 
 @proto("garage_hood_light", box=(0.86, 0.06, 0.05), reach=200)
@@ -294,7 +294,7 @@ TYRE_W = 0.255
 _RIM = 0.242
 
 
-def _tyre(k, c, axis=(1, 0, 0), segs=20, grooves=True):
+def _tyre(k, c, axis=(1, 0, 0), segs=24, grooves=True):
     w = TYRE_W / 2
     prof = ((-w, _RIM), (-w - 0.006, 0.28), (-w + 0.004, 0.316), (-w + 0.022, TYRE_R), (w - 0.022, TYRE_R),
             (w - 0.004, 0.316), (w + 0.006, 0.28), (w, _RIM), (-w, _RIM))
@@ -305,7 +305,7 @@ def _tyre(k, c, axis=(1, 0, 0), segs=20, grooves=True):
             revolve(k("trim", 1), tuple(C + A * g), axis, ((-0.006, TYRE_R + 0.0008), (0.006, TYRE_R + 0.0008)), segs=segs, col=GRIME)
 
 
-def _rim(k, c, axis=(1, 0, 0), col=ALU, spokes=5, segs=20):
+def _rim(k, c, axis=(1, 0, 0), col=ALU, spokes=5, segs=24):
     """A wheel on its tyre's axis: the outer lip, five split spokes, the
     hub and its nuts; inside, the dark barrel and the brake's shadow."""
     t, n = k("trim"), k("trim", 1)
@@ -331,13 +331,13 @@ def _rim(k, c, axis=(1, 0, 0), col=ALU, spokes=5, segs=20):
         revolve(n, tuple(C + A * face + d * 0.05), axis, ((0.0, 0.009), (0.012, 0.009), (0.012, 0.0)), segs=6, col=CHROME)
 
 
-@proto("garage_tyre", box=(0.13, 0.33, 0.33), reach=220, detail=True)
+@proto("garage_tyre", box=(0.13, 0.33, 0.33), reach=220)
 def _tyre_proto(k):
     """A tyre standing on its tread, its axle along x."""
     _tyre(k, (0.0, TYRE_R, 0.0))
 
 
-@proto("garage_wheel", box=(0.13, 0.33, 0.33), reach=220, detail=True)
+@proto("garage_wheel", box=(0.13, 0.33, 0.33), reach=220)
 def _wheel_proto(k):
     """A wheel on its tyre, standing, its face toward +x: silver five
     split spokes."""
@@ -345,11 +345,11 @@ def _wheel_proto(k):
     _rim(k, (0.0, TYRE_R, 0.0))
 
 
-@proto("garage_tyre_stack", box=(0.33, 0.51, 0.33), reach=220, detail=True)
+@proto("garage_tyre_stack", box=(0.33, 0.51, 0.33), reach=220)
 def _tyre_stack(k):
     """Four tyres lying flat in a stack, each a little off the last."""
     for i, (dx, dz) in enumerate(((0.0, 0.0), (0.02, -0.015), (-0.015, 0.01), (0.012, 0.02))):
-        _tyre(k, (dx, TYRE_W / 2 + i * TYRE_W, dz), axis=(0, 1, 0), segs=16, grooves=False)
+        _tyre(k, (dx, TYRE_W / 2 + i * TYRE_W, dz), axis=(0, 1, 0), segs=14, grooves=False)
 
 
 @proto("garage_tyre_rack", box=(1.22, 1.0, 0.25))
@@ -820,8 +820,111 @@ def _parts_table(k):
     # A coilover: its damper body and the spring round it, lying down.
     pipe(t, (0.3, top + 0.06, -0.2), (0.7, top + 0.06, -0.2), 0.025, segs=10, col=lin("c9c8c4"), caps=True)
     pts = [(0.36 + i * 0.006, top + 0.06 + 0.055 * math.sin(i * 0.5), -0.2 + 0.055 * math.cos(i * 0.5)) for i in range(51)]
-    cable(t, pts, 0.008, col=RED, segs=5)
+    cable(n, pts, 0.008, col=RED, segs=5)
     for x in (0.34, 0.68):
         pipe(t, (x, top + 0.06, -0.2), (x + 0.02, top + 0.06, -0.2), 0.07, segs=12, col=STEEL_MID, caps=True)
     carton(k, 0.45, 0.62, top, top + 0.06, 0.12, 0.3, 0.71)
     quad(t, (-0.7, top + 0.001, 0.32), (-0.48, top + 0.001, 0.3), (-0.5, top + 0.001, 0.15), (-0.72, top + 0.001, 0.18), col=lin("8f2a24"))
+
+
+# ---------------------------------------------------------------------------
+# The room's working light: the broad task strips over each bay and the
+# work lights on stands at the cars' noses. Each says where its luminous
+# face is (centre, size, the way it looks), in its own frame, for the
+# layout's light anchors (anchor_garage_light_<id>).
+# ---------------------------------------------------------------------------
+# Neutral, about 4400 K: the task light the room is lit by.
+TASK_WHITE = lin("ffe0c2")
+TASK_DROP = 0.8
+TASK_FACE = {"centre": (0.0, 0.0, 0.0), "size": (4.5, 0.35), "normal": (0.0, -1.0, 0.0)}
+
+
+@proto("garage_task_light", box=(2.3, 0.45, 0.22), reach=700)
+def _task_light(k):
+    """A broad linear task light over a bay: a 4.5 m by 0.35 m luminous
+    face (TASK_FACE) in the garage's tube, in an aluminium body with its
+    end caps and driver box, hung on three pairs of rods TASK_DROP under
+    the ceiling or a truss. Its origin is the face's middle."""
+    t, n = k("trim"), k("trim", 1)
+    w, d = 2.25, 0.175
+    box(t, -w - 0.02, w + 0.02, 0.004, 0.09, -d - 0.025, d + 0.025, col=ALU)
+    box(k("tube"), -w, w, 0.0, 0.004, -d, d, col=TASK_WHITE, bottom=True)
+    for x in (-w - 0.02, w):
+        box(t, x, x + 0.02, -0.004, 0.092, -d - 0.027, d + 0.027, col=GUN_DARK)
+    box(t, -0.4, 0.4, 0.09, 0.15, -0.06, 0.06, col=GUN_DARK)
+    for x in (-1.9, 0.0, 1.9):
+        for z in (-0.12, 0.12):
+            pipe(n, (x, 0.09, z), (x, TASK_DROP, z), 0.004, segs=4, col=STEEL_MID)
+    cable(n, ((0.4, 0.12, 0.0), (0.6, 0.4, 0.0), (0.7, TASK_DROP, 0.0)), 0.005, col=CABLE, segs=4)
+
+
+WORK_LIGHT_FACE = {"centre": (0.0, 2.1, 0.11), "size": (0.32, 0.2), "tilt_down_deg": 35.0}
+
+
+@proto("garage_work_light", box=(0.42, 1.1, 0.42), reach=300)
+def _work_light(k):
+    """A work light on a tripod stand: three splayed legs, a telescoping
+    mast to 2.1 m, a yoke and an LED flood head looking toward +z and 35
+    degrees down (WORK_LIGHT_FACE), its cord down the mast to the floor.
+    Set it at a car's nose, looking at the open bay."""
+    t, n = k("trim"), k("trim", 1)
+    for i in range(3):
+        a = i * math.tau / 3 + math.pi / 2
+        beam(t, (0.0, 0.7, 0.0), (0.42 * math.cos(a), 0.0, 0.42 * math.sin(a)), 0.012, 0.012, col=BLACK_PAINT)
+        cylinder(n, 0.42 * math.cos(a), 0.42 * math.sin(a), 0.0, 0.02, 0.022, segs=6, col=RUBBER)
+    pipe(t, (0.0, 0.62, 0.0), (0.0, 1.5, 0.0), 0.02, segs=8, col=BLACK_PAINT, caps=True)
+    pipe(t, (0.0, 1.5, 0.0), (0.0, 2.02, 0.0), 0.014, segs=8, col=ALU, caps=True)
+    pipe(n, (-0.03, 1.5, 0.0), (0.03, 1.5, 0.0), 0.028, segs=8, col=YELLOW, caps=True)
+    c = Vector(WORK_LIGHT_FACE["centre"])
+    tilt = math.radians(WORK_LIGHT_FACE["tilt_down_deg"])
+    fwd = Vector((0.0, -math.sin(tilt), math.cos(tilt)))
+    up = Vector((0.0, math.cos(tilt), math.sin(tilt)))
+    hc = c - fwd * 0.04
+    for s in (-1, 1):
+        beam(t, (0.0, 2.0, 0.0), (s * 0.2, 2.06, 0.0), 0.01, 0.01, col=BLACK_PAINT)
+        beam(t, (s * 0.2, 2.06, 0.0), tuple(hc + Vector((s * 0.2, 0, 0))), 0.01, 0.01, col=BLACK_PAINT)
+    obox(t, tuple(hc), (1, 0, 0), tuple(up), 0.18, 0.12, 0.04, col=YELLOW)
+    for i in range(6):
+        fc = hc - fwd * (0.045 + i * 0.008)
+        obox(n, tuple(fc), (1, 0, 0), tuple(up), 0.17, 0.11, 0.003, col=GUN_DARK, skip=("+w", "-w"))
+    sc = c + fwd * 0.001
+    w, h = WORK_LIGHT_FACE["size"]
+    R = Vector((1, 0, 0))
+    quad(k("glow"), tuple(sc - R * w / 2 - up * h / 2), tuple(sc + R * w / 2 - up * h / 2), tuple(sc + R * w / 2 + up * h / 2), tuple(sc - R * w / 2 + up * h / 2),
+         col=(*TASK_WHITE[:3], 1))
+    cable(t, ((0.0, 2.0, -0.05), (0.0, 1.6, -0.03), (0.0, 0.7, -0.03), (0.1, 0.3, -0.2), (0.3, 0.005, -0.5)), 0.005, col=CABLE)
+
+
+# ---------------------------------------------------------------------------
+# The welder on its cart, and a drip tray.
+# ---------------------------------------------------------------------------
+@proto("garage_welder", box=(0.32, 0.65, 0.45), reach=260)
+def _welder(k):
+    """A MIG welder on its cart: the machine with its panel and knobs, the
+    gas bottle chained at the back with its regulator, the torch lead and
+    the earth clamp coiled on their hooks."""
+    t, n = k("trim"), k("trim", 1)
+    box(t, -0.25, 0.25, 0.1, 0.16, -0.42, 0.3, col=BLACK_PAINT, bottom=True)
+    for x in (-0.27, 0.27):
+        pipe(t, (x, 0.12, -0.32), (x + (0.03 if x > 0 else -0.03), 0.12, -0.32), 0.12, segs=12, col=RUBBER, caps=True)
+    _castors(k, (-0.2, 0.2), (0.24,), 0.1, r=0.05)
+    box(t, -0.2, 0.2, 0.16, 0.6, -0.15, 0.3, col=BLUE)
+    box(t, -0.19, 0.19, 0.38, 0.58, 0.3, 0.305, col=GUN_DARK)
+    box(k("glow", 1), -0.12, -0.02, 0.5, 0.54, 0.305, 0.307, col=(0.9, 0.3, 0.05, 1))
+    for i in range(3):
+        pipe(n, (-0.12 + i * 0.1, 0.43, 0.305), (-0.12 + i * 0.1, 0.43, 0.33), 0.02, segs=8, col=BLACK_PAINT, caps=True)
+    lathe(t, 0.0, -0.32, ((0.16, 0.1), (1.12, 0.1), (1.2, 0.06), (1.24, 0.025)), segs=12, col=GREEN)
+    box(t, -0.03, 0.03, 1.24, 1.3, -0.35, -0.29, col=CHROME)
+    pipe(n, (0.03, 1.27, -0.32), (0.08, 1.27, -0.32), 0.03, segs=8, col=CHROME, caps=True)
+    for y in (0.5, 0.95):
+        cable(n, [(0.1 * math.cos(i * 0.6), y, -0.32 + 0.105 * math.sin(i * 0.6)) for i in range(12)], 0.004, col=STEEL_MID, segs=3)
+    cable(t, ((0.2, 0.3, 0.2), (0.32, 0.4, 0.1), (0.36, 0.6, 0.0), (0.3, 0.75, -0.1)), 0.012, col=BLACK_PAINT)
+    revolve(t, (0.3, 0.55, 0.05), (1, 0, 0), [(0.02 * math.sin(i * math.tau / 6), 0.12 - 0.02 * math.cos(i * math.tau / 6)) for i in range(7)], segs=12, col=BLACK_PAINT)
+
+
+@proto("garage_drip_tray", box=(0.42, 0.03, 0.32), reach=140, detail=True)
+def _drip_tray(k):
+    """A low drip tray slid under a car, dark with old oil."""
+    t = k("trim")
+    box(t, -0.42, 0.42, 0.0, 0.05, -0.32, 0.32, col=BLACK_PAINT)
+    quad(t, (-0.39, 0.051, 0.29), (0.39, 0.051, 0.29), (0.39, 0.051, -0.29), (-0.39, 0.051, -0.29), col=GRIME)

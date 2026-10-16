@@ -81,6 +81,15 @@ def obox(key, c, u, v, hu, hv, hw, col=(1, 1, 1, 1), skip=(), scale=1.0):
         quad(key, *pts, uvs=((0, 0), (fw * s, 0), (fw * s, fh * s), (0, fh * s)), col=col)
 
 
+def soft(key, c, u, v, hu, hv, hw, r, col=(1, 1, 1, 1), skip=()):
+    """A box with its edges taken off by r (a cushion, a moulded body):
+    three boxes through each other, each short by r on two axes, so every
+    edge reads as a chamfer from outside."""
+    obox(key, c, u, v, hu, hv - r, hw - r, col, skip=tuple(f for f in skip if f in ("+u", "-u")))
+    obox(key, c, u, v, hu - r, hv, hw - r, col, skip=tuple(f for f in skip if f in ("+v", "-v")))
+    obox(key, c, u, v, hu - r, hv - r, hw, col, skip=tuple(f for f in skip if f in ("+w", "-w")))
+
+
 def beam(key, a, b, hw, hh, col=(1, 1, 1, 1), up=(0, 1, 0), ends=True):
     """A rectangular bar from a to b, hw across and hh up (half sizes), its
     up as near `up` as its run allows."""
@@ -120,6 +129,20 @@ def revolve(key, c, axis, prof, segs=12, col=(1, 1, 1, 1), caps=""):
         poly(key, list(reversed(rings[0])), [(0.5, 0.5)] * segs, col)
     if "b" in caps:
         poly(key, rings[-1], [(0.5, 0.5)] * segs, col)
+
+
+def flat(key, xz, y, col=(1, 1, 1, 1)):
+    """A flat polygon on the floor at height y through (x, z) points, in
+    either order: it always faces up."""
+    area = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(xz, xz[1:] + xz[:1]))
+    pts = xz if area < 0 else list(reversed(xz))
+    poly(key, [(x, y, z) for x, z in pts], [(x, -z) for x, z in pts], col)
+
+
+def flat_rect(key, x0, x1, z0, z1, y, col=(1, 1, 1, 1)):
+    xa, xb = sorted((x0, x1))
+    za, zb = sorted((z0, z1))
+    flat(key, [(xa, zb), (xb, zb), (xb, za), (xa, za)], y, col)
 
 
 def disc(key, c, axis, r, segs=12, col=(1, 1, 1, 1)):

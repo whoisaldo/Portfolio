@@ -150,11 +150,13 @@ kit.principled(face).inputs["Emission Color"].default_value = (0.35, 0.4, 0.6, 1
 # ---------------------------------------------------------------------------
 
 
-def one(name, *more):
+def one(name, *more, y=0.0):
+    """One prototype (and any more beside it), `y` up off the floor: what
+    hangs from a ceiling or a hood is shown hanging."""
     def f():
-        NP.place(name, 0, 0, 0, 0, district="garage")
-        for m, x, y, z, yaw in more:
-            NP.place(m, x, y, z, yaw, district="garage")
+        NP.place(name, 0, y, 0, 0, district="garage")
+        for m, mx, my, mz, myaw in more:
+            NP.place(m, mx, my, mz, myaw, district="garage")
     return f
 
 
@@ -162,12 +164,15 @@ TILES = [
     ("Lifts and jacks", [
         ("lift2_down", "Two-post lift, arms down", lambda: shop.place_lift2(0, 0, district="garage"), {}),
         ("lift2_up", "Two-post lift, raised", lambda: shop.place_lift2(0, 0, raised=True, district="garage"), {}),
+        ("lift2_out", "Two-post lift, arms out", lambda: shop.place_lift2(0, 0, arms="out", district="garage"), {}),
         ("scissor_down", "Scissor lift down, power unit", lambda: shop.place_scissor(0, 0, district="garage"), {}),
         ("scissor_up", "Scissor lift up, power unit", lambda: shop.place_scissor(0, 0, raised=True, district="garage"), {}),
         ("jack_stands", "Jack stands (pair)", one("garage_jack_stand", ("garage_jack_stand", 0.45, 0, 0.1, 0.4)), {}),
         ("floor_jack", "Floor jack", one("garage_floor_jack"), {}),
         ("creeper", "Creeper", one("garage_creeper"), {}),
         ("chocks", "Wheel chocks", one("garage_wheel_chock", ("garage_wheel_chock", 0.3, 0, 0.05, 0.2)), {}),
+        ("service_pad", "Flush service pad (S6 bay)", one("garage_service_pad"), {"el": 50}),
+        ("bay_lines", "Bay lines", one("garage_bay_lines"), {"el": 55}),
     ]),
     ("Doors", [
         ("door_s_closed", "Roll-up door 3 x 3 m, closed", lambda: shop.place_door(0, 0, size="s", pose="closed", district="garage"), {"az": -145}),
@@ -179,17 +184,20 @@ TILES = [
         ("door_w_street", "Roll-up door 6 x 4.6 m, from the street", lambda: shop.place_door(0, 0, size="w", pose="closed", district="garage"), {"az": 30}),
         ("man_door", "Man door, outside", one("garage_man_door"), {"az": 30}),
         ("man_door_in", "Man door, inside", one("garage_man_door"), {"az": -150}),
+        ("shutter_w", "The city shutter's fittings, inside", one("garage_shutter_w"), {"az": -150}),
     ]),
     ("Benches and tools", [
         ("tool_cab", "Roll cab and top box", one("garage_tool_cab", ("garage_tool_top", 0, bench.TOP_ON_CAB, 0, 0)), {}),
         ("tool_cart", "Utility cart", one("garage_tool_cart"), {}),
         ("bench", "Workbench and vise", one("garage_bench"), {}),
         ("pegboard", "Pegboard and tools", one("garage_pegboard"), {"wall": True, "az": 20}),
-        ("hood_light", "Under-hood light", one("garage_hood_light"), {"el": 30}),
+        ("hood_light", "Under-hood light", one("garage_hood_light", y=1.2), {"el": 30}),
         ("hand_lamp", "Hand lamp", one("garage_hand_lamp"), {}),
         ("lamp_reel", "Lamp on a reel", one("garage_lamp_reel"), {"wall": True}),
         ("tune_cart", "Tune cart, laptop, OBD lead", one("garage_tune_cart"), {"az": 60}),
         ("parts_table", "Parts table", one("garage_parts_table"), {"el": 35}),
+        ("welder", "MIG welder on its cart", one("garage_welder"), {}),
+        ("drip_tray", "Drip tray", one("garage_drip_tray"), {"el": 40}),
     ]),
     ("Tyres", [
         ("tyre", "Tyre", one("garage_tyre"), {"az": 60}),
@@ -206,10 +214,12 @@ TILES = [
         ("drum_pump", "Drum (the city's) and pump", lambda: bench.place_drum_pump(0, 0, district="garage"), {}),
         ("parts_washer", "Parts washer on a drum", lambda: bench.place_parts_washer(0, 0, district="garage"), {}),
         ("shelving", "Shelving and parts", one("garage_shelving"), {}),
-        ("cable_tray", "Cable tray", one("garage_cable_tray"), {"el": 10}),
-        ("conduit", "Conduit, drop, junction box", one("garage_conduit", ("garage_conduit_drop", 1.0, -1.5, 0, 0), ("garage_junction_box", -1.5, 0, 0, 0)), {"wall": True}),
-        ("led_batten", "LED batten", one("garage_led_batten"), {"el": 8}),
-        ("fluoro", "Twin-tube shop light", one("garage_fluoro"), {"el": 8}),
+        ("cable_tray", "Cable tray", one("garage_cable_tray", y=2.4), {"el": 10}),
+        ("conduit", "Conduit, drop, junction box", one("garage_conduit", ("garage_conduit_drop", 1.0, 0, 0, 0), ("garage_junction_box", -1.5, 3.0, 0, 0), y=3.0), {"wall": True}),
+        ("led_batten", "LED batten", one("garage_led_batten", y=2.2), {"el": 8}),
+        ("fluoro", "Twin-tube shop light", one("garage_fluoro", y=2.2), {"el": 8}),
+        ("task_light", "Task light 4.5 x 0.35 m", one("garage_task_light", y=2.4), {"el": 8}),
+        ("work_light", "Work light on a stand", one("garage_work_light"), {}),
     ]),
     ("Lounge and dressing", [
         ("couch", "Couch", one("garage_couch"), {}),
@@ -234,10 +244,32 @@ TILES = [
 coll_root = bpy.data.collections.new("GP_props")
 scene.collection.children.link(coll_root)
 placed = []
+# Each kind starts a line of its own; a line wraps at LINE metres. Lines
+# run along +x and stack down the kit's -z (Blender +y), 1.5 m apart.
+LINE = 24.0
 row_z = 0.0
+line = []
+line_starts = []
+
+
+def close_line():
+    global row_z, line
+    if not line:
+        return
+    d = row_z - min(p["lo"].y for p in line)
+    for p in line:
+        for o in p["objects"]:
+            o.location.y += d
+        p["lo"].y += d
+        p["hi"].y += d
+    line_starts.append(line[0])
+    row_z = max(p["hi"].y for p in line) + 1.5
+    line = []
+
+
 for category, tiles in TILES:
+    close_line()
     x = 0.0
-    depth = 0.0
     for tile_name, label, build, opts in tiles:
         NP.INSTANCES.clear()
         build()
@@ -260,25 +292,18 @@ for category, tiles in TILES:
                 lo = Vector(map(min, lo, w))
                 hi = Vector(map(max, hi, w))
         size = hi - lo
-        # Lay it out: along +x in its category's row, the rows down -z
-        # (Blender +y), a metre between.
+        if x > 0 and x + size.x > LINE:
+            close_line()
+            x = 0.0
         shift = Vector((x - lo.x, 0, 0))
         for o in objs:
             o.location += shift
-        lo += shift
-        hi += shift
-        placed.append({"name": tile_name, "label": label, "category": category, "coll": coll, "lo": lo.copy(), "hi": hi.copy(), "opts": opts,
-                       "objects": objs})
+        rec = {"name": tile_name, "label": label, "category": category, "coll": coll, "lo": lo + shift, "hi": hi + shift, "opts": opts,
+               "objects": objs}
+        placed.append(rec)
+        line.append(rec)
         x += size.x + 1.0
-        depth = max(depth, size.y)
-    # Move the row back.
-    for p in placed:
-        if p["category"] == category:
-            for o in p["objects"]:
-                o.location.y += row_z
-            p["lo"].y += row_z
-            p["hi"].y += row_z
-    row_z += depth + 2.0
+close_line()
 
 # ---------------------------------------------------------------------------
 # The scale figure, at each row's start, and the room: a floor, a wall.
@@ -308,10 +333,9 @@ def figure_mesh():
 
 fig = figure_mesh()
 figures = []
-for category, _ in TILES:
-    row = [p for p in placed if p["category"] == category]
-    o = bpy.data.objects.new("GP_scale_figure_" + category.split()[0].lower(), fig)
-    o.location = (-1.2, (row[0]["lo"].y + row[0]["hi"].y) / 2, 0.0)
+for i, first in enumerate(line_starts):
+    o = bpy.data.objects.new(f"GP_scale_figure_{i}", fig)
+    o.location = (-1.2, (first["lo"].y + first["hi"].y) / 2, 0.0)
     scene.collection.objects.link(o)
     figures.append(o)
 
@@ -336,7 +360,7 @@ wall_obj.hide_render = True
 world = bpy.data.worlds.new("GP_night")
 world.use_nodes = True
 bg = next(n for n in world.node_tree.nodes if n.type == "BACKGROUND")
-bg.inputs["Color"].default_value = (0.008, 0.01, 0.018, 1)
+bg.inputs["Color"].default_value = (0.004, 0.005, 0.01, 1)
 bg.inputs["Strength"].default_value = 1.0
 scene.world = world
 
@@ -372,7 +396,7 @@ scene.collection.objects.link(cam)
 scene.camera = cam
 
 
-def frame(lo, hi, az=35.0, el=22.0, wall=False, aspect=4 / 3):
+def frame(lo, hi, az=35.0, el=22.0, wall=False, aspect=4 / 3, zoom=1.0):
     """Light and frame the box lo..hi (Blender coordinates): the camera at
     `az` degrees round from the front (+kit z, Blender -y) toward +x, `el`
     up, far enough for the whole box."""
@@ -381,7 +405,7 @@ def frame(lo, hi, az=35.0, el=22.0, wall=False, aspect=4 / 3):
     a, e = math.radians(az), math.radians(el)
     d = Vector((math.sin(a) * math.cos(e), -math.cos(a) * math.cos(e), math.sin(e)))
     fov = 2 * math.atan(18 / cam_data.lens / aspect)
-    dist = r / math.sin(fov / 2) * 1.02
+    dist = r / math.sin(fov / 2) * 1.02 * zoom
     cam.location = c + d * dist
     cam.rotation_euler = (-d).to_track_quat("-Z", "Y").to_euler()
     cam_data.clip_start = max(0.01, dist - r * 2)
@@ -389,15 +413,16 @@ def frame(lo, hi, az=35.0, el=22.0, wall=False, aspect=4 / 3):
     s = max(r, 0.4)
     strip_a.location = Vector((c.x, c.y - s * 0.6, hi.z + s * 1.1))
     strip_b.location = Vector((c.x, c.y + s * 0.9, hi.z + s * 1.3))
-    for st, e_ in ((strip_a, 420), (strip_b, 220)):
+    for st, e_ in ((strip_a, 140), (strip_b, 70)):
         st.data.size = max(1.2, 2.4 * s)
         st.data.energy = e_ * s * s
         st.rotation_euler = (0, 0, 0)
     warm.location = Vector((c.x - s * 1.3, c.y - s * 0.9, lo.z + (hi.z - lo.z) * 0.45 + 0.2))
-    warm_data.energy = 90 * s * s
+    warm_data.energy = 45 * s * s
     wall_obj.hide_render = not wall
     if wall:
-        wall_obj.location = Vector((c.x, lo.y - 0.001, 0))
+        # (Blender +y is the kit's -z: the prop's back, on the wall.)
+        wall_obj.location = Vector((c.x, hi.y + 0.002, 0))
         wall_obj.scale = (max(1.0, (hi.x - lo.x) / 2.6 + 0.6), 1, max(1.0, hi.z / 3.0 + 0.2))
 
 
@@ -436,8 +461,8 @@ if args.render:
         scene.render.filepath = str(path)
         bpy.ops.render.render(write_still=True, scene=scene.name)
         manifest.append({"file": path.name, "name": p["name"], "label": p["label"], "category": p["category"]})
-    (out / "tiles.json").write_text(json.dumps(manifest, indent=1))
     if not only:
+        (out / "tiles.json").write_text(json.dumps(manifest, indent=1))
         # The overview: every row, the scale figures, from high at the front.
         for q in placed:
             q["coll"].hide_render = False
@@ -445,13 +470,16 @@ if args.render:
             f.hide_render = False
         wall_obj.hide_render = True
         scene.render.resolution_x, scene.render.resolution_y = 1800, 1100
-        lo = Vector((-2.0, -1.0, 0.0))
-        hi = Vector((span_x, span_y, 4.0))
-        frame(lo, hi, az=12.0, el=38.0, aspect=1800 / 1100)
+        lo = Vector((-1.6, min(p["lo"].y for p in placed), 0.0))
+        hi = Vector((max(p["hi"].x for p in placed), max(p["hi"].y for p in placed), 3.0))
+        frame(lo, hi, az=8.0, el=52.0, aspect=1800 / 1100, zoom=0.8)
+        cam_data.lens = 40
         for st in (strip_a, strip_b):
-            st.data.size = span_x
-        strip_a.data.energy = strip_b.data.energy = 9000
-        warm_data.energy = 6000
+            st.data.size = hi.x - lo.x
+            st.data.size_y = 1.0
+            st.location.z = 9.0
+        strip_a.data.energy = strip_b.data.energy = 20000
+        warm_data.energy = 9000
         scene.render.filepath = str(out / "overview.png")
         bpy.ops.render.render(write_still=True, scene=scene.name)
 
