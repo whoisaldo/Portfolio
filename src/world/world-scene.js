@@ -48,12 +48,13 @@ import { createTraffic, makeTrafficAhead } from "./traffic.js";
 import { createCar } from "./car.js";
 import { createClearance } from "./clearance.js";
 import { createShafts } from "./shafts.js";
+import { createGarageVisit } from "./garage.js";
 import { LIGHT_BOUNDS } from "./spill.js";
 import { preloadCar } from "../three/car/object.js";
 import { getEnv } from "../lib/env.js";
 import { getLevels } from "../lib/ambient.js";
 import { DROP, HANDOFF, REVEAL } from "../lib/cues.js";
-import { boards as BOARDS, towers as TOWERS, SHOTS } from "../data/world.js";
+import { boards as BOARDS, towers as TOWERS, SHOTS, GARAGE_STATIONS } from "../data/world.js";
 
 // (load: the S4's model is in; see preloadWorld.)
 let carLanded = false;
@@ -157,6 +158,10 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
 
   let city = null;
   let shots = null;
+  // The visit inside the garage (src/world/garage.js), on while the Garage
+  // section is in its cinematic layout (stage.garageVisit).
+  let visit = null;
+  const visiting = () => (stage.garageVisit && visit ? visit : null);
   let skyline = null;
   let rain = null;
   let bolt = null;
@@ -192,7 +197,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     });
     // (The kit's glass is an instanced mesh of one, where it stands: city.js.)
     clearance = createClearance(c.root, LIGHT_BOUNDS, (o) => (o.isInstancedMesh && !o.name.startsWith("kit_")) || o.isBaked || /^(moon_disc|holo_figure)/.test(o.name));
-    shots = createShots(c.anchors, clearance);
+    visit = createGarageVisit(c.anchors);
+    shots = createShots(c.anchors, clearance, { visit: visiting, reduced });
     const keepOut = [...c.anchors].filter(([n]) => n.startsWith("anchor_mega_")).map(([, a]) => {
       const r = (a.extras?.size ?? 50) / 2;
       return [a.position.x - r, a.position.z - r, a.position.x + r, a.position.z + r];
@@ -433,12 +439,18 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
   const applyPose = (p, withTilt) => {
     camera.position.copy(p.position);
     camera.lookAt(p.target);
-    if (withTilt) {
+    // On the garage's route only Look's own turn: no lean to the pointer,
+    // no sway, no bank and no widening, which the route was not checked for.
+    const route = withTilt && inside.on;
+    if (route) {
+      camera.rotateY(-lookCam.yaw);
+      camera.rotateX(lookCam.pitch);
+    } else if (withTilt) {
       camera.rotateY(-tilt.x * 1.4 * DEG + hand.yaw - lookCam.yaw);
       camera.rotateX(-tilt.y * 0.9 * DEG + hand.pitch + lookCam.pitch);
       camera.rotateZ(hand.roll + motion.roll);
     }
-    const fov = p.fov + (withTilt ? motion.widen : 0);
+    const fov = p.fov + (withTilt && !route ? motion.widen : 0);
     if (Math.abs(camera.fov - fov) > 1e-4 || Math.abs(lensShift - p.shift) > 1e-5) {
       camera.fov = fov;
       lensShift = p.shift;
@@ -497,7 +509,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     if (!shots) driftPose(aspect, dest);
     else if (!home) shots.routePose(stage.route, aspect, dest);
     else if (!ids.length) shots.poseOf("hero", 0, aspect, dest);
-    else shots.goal(ids, stage.position, localsFor(ids, dt), aspect, dest, car?.car.position);
+    else if (inside.on) {
+      // In and around the garage: the route read at the smoothed numbers.
+      const locals = localsFor(ids, dt);
+      inside.locals.length = 0;
+      inside.locals.push(...locals);
+      inside.locals[inside.index] = inside.p;
+      shots.goal(ids, inside.position, inside.locals, aspect, dest, car?.car.position);
+    } else shots.goal(ids, stage.position, localsFor(ids, dt), aspect, dest, car?.car.position);
 
     const key = routeKey();
     if (lastRoute !== null && key !== lastRoute && shots && posed) {
@@ -576,7 +595,8 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // The hero in full; every other shot, while it holds, at a third of it.
     const f = stage.position - Math.round(stage.position);
     const held = clamp(1 - Math.abs(f) * 4, 0, 1);
-    const k = reduced || !home ? 0 : Math.max(clamp(1 - stage.position * 1.5, 0, 1), held * 0.35);
+    // (Never on the garage's route: a push is off the route.)
+    const k = reduced || !home || inside.on ? 0 : Math.max(clamp(1 - stage.position * 1.5, 0, 1), held * 0.35);
     handClock += dt;
     const t = handClock;
     hand.yaw = k * 0.2 * DEG * (Math.sin(t * 0.31) + 0.5 * Math.sin(t * 0.73 + 1.3)) / 1.5;
@@ -588,6 +608,35 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
       want.position.addScaledVector(_look, push);
       want.target.addScaledVector(_look, push);
     }
+  };
+
+  // In and around the garage with the visit on (from a shot before it to a
+  // shot after it), the stage's position and the section's progress are
+  // smoothed as numbers and the camera is put where the route has them, so
+  // it never leaves the route to cut a corner (src/world/garage.js). A jump
+  // in the progress that no glide makes (a far station, a deep link) cuts.
+  const inside = { on: false, index: -1, position: 0, p: 0, locals: [] };
+  const followInside = (dt, jumped) => {
+    const i = stage.shots.findIndex((x) => x.id === "garage");
+    const on = Boolean(visiting()) && stage.route.kind === "home" && i >= 0 && !flight && Math.abs(stage.position - i) < 1;
+    const p = clamp(stage.garageProgress ?? 0, 0, 1);
+    let cut = false;
+    if (!on) {
+      inside.on = false;
+      return false;
+    }
+    if (!inside.on || jumped || reduced || Math.abs(p - inside.p) > 0.25) {
+      cut = inside.on && !reduced && Math.abs(p - inside.p) > 0.25;
+      inside.position = stage.position;
+      inside.p = p;
+    } else {
+      const a = 1 - Math.exp(-dt * 4.5);
+      inside.position += (stage.position - inside.position) * a;
+      inside.p += (p - inside.p) * a;
+    }
+    inside.on = true;
+    inside.index = i;
+    return cut;
   };
 
   // A frame asked for from outside (renderDirected, the braindance): what it
@@ -623,6 +672,7 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // whole city in half a second. The car lands on its stop with it.
     const routeChanged = lastRoute !== null && routeKey() !== lastRoute;
     const jumped = !routeChanged && !flight && Math.abs(stage.position - lastPosition) > 1.2;
+    const cut = followInside(dt, jumped);
     driveCar(dt, !posed || jumped);
     aim(dt);
     aimTower(dt);
@@ -630,10 +680,14 @@ export function createWorldScene(canvas, { tier = "high", onFirstFrame, onLost, 
     // Crossing the middle of a flight fires the braindance glitch.
     if (Math.floor(stage.position + 0.5) !== Math.floor(lastPosition + 0.5)) glitch = 1;
     lastPosition = stage.position;
-    if (!posed || jumped) {
+    if (!posed || jumped || cut) {
       copyPose(pose, want);
       posed = true;
-      if (jumped) glitch = 1;
+      if (jumped || cut) glitch = 1;
+    } else if (inside.on) {
+      // On the garage's route the smoothing was in the numbers: the pose
+      // is the route's, as it stands, never a step toward it.
+      copyPose(pose, want);
     } else {
       const a = 1 - Math.exp(-dt * 4.5);
       pose.position.lerp(want.position, a);

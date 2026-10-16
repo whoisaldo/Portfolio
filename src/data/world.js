@@ -100,6 +100,90 @@ export const SHOTS = {
  */
 export const GARAGE_FRONT = { position: [3.6, 1.75, 5.8], target: [0, 1.4, -1], fov: 48 };
 
+/**
+ * The visit inside the garage: six stations the camera moves between as the
+ * reader scrolls through the section, and the order it takes them in. The
+ * section's own progress `p` (0 at the arrival, 1 at the shop wall) is the
+ * clock; every number below is a fraction of it (PLAN.md, "Progress, camera
+ * paths and interruption policy", is where they were decided).
+ *
+ * Poses are empties in the kit like every other shot (cam_garage_<key>,
+ * _target, _portrait and _target_portrait, the lens in the empty's `fov` and
+ * `fov_portrait`), and so are the paths between them
+ * (cam_garage_path_<route>_01 ...). Until the kit has them the camera
+ * stands where GARAGE_POSES and GARAGE_ROUTES put it: the plan's starting
+ * points, not checked against the finished room.
+ */
+export const GARAGE_STATIONS = [
+  { id: "arrival", p: 0, pose: "arrival", label: "Arrival" },
+  { id: "s4", p: 0.2, pose: "s4", label: "S4" },
+  { id: "s4-bay", p: 0.4, pose: "s4_bay", label: "S4 engine bay" },
+  { id: "s6", p: 0.6, pose: "s6", label: "S6" },
+  { id: "s6-bay", p: 0.8, pose: "s6_bay", label: "S6 engine bay" },
+  { id: "shop", p: 1, pose: "shop", label: "Also in the shop" },
+];
+
+/** The beats inside the S6's visit, where its rear and its stance hold. */
+export const GARAGE_BEATS = { "s6-rear": 0.515, "s6-front": 0.6, "stance-normal": 0.645, "stance-lowered": 0.695 };
+
+/** [position], [target], vertical fov; a phone's own where it has one. */
+export const GARAGE_POSES = {
+  arrival: { wide: [[454.0, 2.7, -222.8], [462, 0.4, -218.5], 58], portrait: [[454.0, 3.6, -228.6], [461.5, 0.8, -220], 84] },
+  s4: { wide: [[468.5, 1.8, -210.8], [462.8, 0.85, -215], 48], portrait: [[469.4, 2.3, -211.3], [462.5, 0.85, -215], 60] },
+  s4_bay: { wide: [[466.4, 3.15, -215.9], [463.3, 1.05, -215], 44], portrait: [[466.9, 3.45, -215.6], [463.25, 1.05, -215], 58] },
+  s6_rear: { wide: [[456, 1.6, -225.9], [460.3, 0.7, -222], 48], portrait: [[456, 1.6, -225.9], [460.3, 0.7, -222], 60] },
+  s6: { wide: [[467.8, 1.55, -225.6], [462.5, 0.8, -222], 48], portrait: [[470.0, 2.1, -226.0], [462.5, 0.8, -222], 60] },
+  s6_stance: { wide: [[465, 0.72, -225.4], [463.5, 0.45, -222.9], 46], portrait: [[465, 0.72, -225.8], [463.5, 0.45, -222.9], 52] },
+  s6_bay: { wide: [[466.7, 3.45, -222.8], [463.3, 1.05, -222], 44], portrait: [[467.2, 3.65, -222.5], [463.3, 1.05, -222], 58] },
+  shop: { wide: [[468.5, 2.2, -214.5], [475.1, 2.15, -215], 58], portrait: [[469.0, 2.5, -220.5], [475.1, 2.1, -220.5], 64] },
+  s4_rear: { wide: [[456.6, 1.5, -211.8], [460.2, 0.7, -215], 48], portrait: [[456.6, 1.5, -211.8], [460.2, 0.7, -215], 60] },
+};
+
+/** The points a path runs through between its two poses (not counting
+ *  them), where the plan has any. `entry` and `exit` cross the real door. */
+export const GARAGE_ROUTES = {
+  entry: [[451.5, 2.4, -215.3], [455, 2.8, -216.2]],
+  arrival_s4: [[455, 2.8, -210], [468, 2.6, -210]],
+  s4_s4bay: [],
+  s4bay_s6rear: [[470, 3, -215.9], [470, 2.8, -226.8], [456, 2, -226.8]],
+  s6rear_s6: [[456, 2, -226.8], [468, 2, -226.8]],
+  s6_stance: [],
+  stance_s6bay: [],
+  s6bay_shop: [[469, 3, -222.8], [469, 2.5, -214.5]],
+  exit: [[458.2, 3, -219], [455, 2.7, -216.5], [451.5, 2.4, -215.3], [446, 2.3, -216.5]],
+};
+
+/** The scroll, a stretch at a time: holding a pose, or on a path between
+ *  two. Each starts where the one before ends. */
+export const GARAGE_TIMELINE = [
+  { to: 0.06, hold: "arrival" },
+  { to: 0.14, route: "arrival_s4", from: "arrival", into: "s4" },
+  { to: 0.23, hold: "s4" },
+  { to: 0.3, route: "s4_s4bay", from: "s4", into: "s4_bay" },
+  { to: 0.42, hold: "s4_bay" },
+  { to: 0.49, route: "s4bay_s6rear", from: "s4_bay", into: "s6_rear" },
+  { to: 0.54, hold: "s6_rear" },
+  { to: 0.58, route: "s6rear_s6", from: "s6_rear", into: "s6" },
+  { to: 0.61, hold: "s6" },
+  { to: 0.635, route: "s6_stance", from: "s6", into: "s6_stance" },
+  { to: 0.705, hold: "s6_stance" },
+  { to: 0.77, route: "stance_s6bay", from: "s6_stance", into: "s6_bay" },
+  { to: 0.86, hold: "s6_bay" },
+  { to: 0.94, route: "s6bay_shop", from: "s6_bay", into: "shop" },
+  { to: 1, hold: "shop" },
+];
+
+/** What the cars do over the visit, as [from, to, at from, at to] ramps of
+ *  `p`: each hood opens as the camera rises over its bay and closes as it
+ *  leaves, and the S6 comes down once on Virtual Link while its stance
+ *  holds, and back up before its hood opens. With reduced motion a ramp is
+ *  a cut at `cut`. */
+export const GARAGE_STATES = {
+  hood_s4: [[0.26, 0.3, 0, 1], [0.42, 0.46, 1, 0]],
+  hood_s6: [[0.73, 0.77, 0, 1], [0.86, 0.9, 1, 0]],
+  lowering: [[0.655, 0.685, 0, 1, 0.67], [0.705, 0.73, 1, 0]],
+};
+
 /** Every section has a shot. check:world asserts the same thing against the
  *  anchors in the GLB. */
 export const shotIds = sections.map((s) => s.id);

@@ -10,6 +10,8 @@
 // Each promise is shared, so a second caller never fetches twice, and a
 // failed load resets, so a retry gets a second chance. The door's loading
 // screen waits for neither: the garage is never in the way of the hero.
+import { useSyncExternalStore } from "react";
+
 let section = null;
 
 export function loadGarageSection() {
@@ -30,6 +32,37 @@ export function prepareGarageSection({ idle = false } = {}) {
   if (!idle) return go();
   if (window.requestIdleCallback) window.requestIdleCallback(go, { timeout: 4000 });
   else window.setTimeout(go, 1500);
+}
+
+// The section's layout: "photos" (the page as it reads, at its natural
+// height) or "cinematic" (seven screens of scroll with the city's camera
+// making the visit inside the garage, src/world/garage.js). Photos until
+// the visit is ready to be the default; in a dev build `?garage=visit`
+// opts in.
+let mode =
+  import.meta.env.DEV && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("garage") === "visit"
+    ? "cinematic"
+    : "photos";
+const modeSubs = new Set();
+
+export function getGarageMode() {
+  return mode;
+}
+
+export function setGarageMode(next) {
+  if (next === mode) return;
+  mode = next;
+  modeSubs.forEach((fn) => fn());
+}
+
+const subscribeMode = (fn) => {
+  modeSubs.add(fn);
+  return () => modeSubs.delete(fn);
+};
+
+/** The section's layout, rerendering the caller when it changes. */
+export function useGarageMode() {
+  return useSyncExternalStore(subscribeMode, getGarageMode, getGarageMode);
 }
 
 let promise = null;

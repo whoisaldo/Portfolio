@@ -9,7 +9,11 @@
 //
 // One shot is not an anchor: the garage is GarageModel's `front` preset,
 // re-expressed in the car's bay, so the flight ends where the interactive
-// viewer begins. The hero is an anchor like the rest, a low camera looking
+// viewer begins. Or, with the visit inside the garage on (`visit`, src/world/
+// garage.js createGarageVisit), wherever the visit's own route stands at the
+// section's progress: the flight in ends on its arrival, crossing the real
+// door on the visit's entry path, and the flight out leaves from the shop
+// wall along its exit path, out of the door before it rises. The hero is an anchor like the rest, a low camera looking
 // up the avenue; the intro's drift has its own camera (driftPose, the
 // formula drift-scene.js always used) and glides into the hero's during the
 // handoff.
@@ -32,6 +36,10 @@ import { SHOTS, GARAGE_FRONT } from "../data/world.js";
 
 const DEG = Math.PI / 180;
 const APEX_Z = 5.6;
+// The flight into the visit keeps the street's waypoints as far as the door,
+// and the flight out the roof's after it.
+const VISIT_STREET = ["cam_garage_edge", "cam_garage_street", "cam_garage_across"];
+const VISIT_ROOF = ["cam_contact_via"];
 
 export const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 export const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
@@ -61,6 +69,31 @@ function catmullRom(p0, p1, p2, p3, u, out) {
   mix(_b1, _a1, _a2, t0, t2);
   mix(_b2, _a2, _a3, t1, t3);
   return mix(out, _b1, _b2, t1, t2);
+}
+
+const _g0 = new THREE.Vector3();
+const _g3 = new THREE.Vector3();
+
+/**
+ * A point `e` (0..1, by distance along the polyline) on the centripetal
+ * Catmull-Rom curve through `pts`, written into `out`. `cum` is scratch
+ * for the running distances. The curve's ends are mirrored so it leaves
+ * its first point and arrives at its last along their own segments.
+ */
+export function curveAt(pts, e, out, cum = []) {
+  const n = pts.length;
+  if (n === 1) return out.copy(pts[0]);
+  cum.length = n;
+  cum[0] = 0;
+  for (let k = 1; k < n; k++) cum[k] = cum[k - 1] + pts[k].distanceTo(pts[k - 1]);
+  const total = cum[n - 1] || 1;
+  const d = clamp(e, 0, 1) * total;
+  let k = 0;
+  while (k < n - 2 && cum[k + 1] < d) k++;
+  const u = clamp((d - cum[k]) / Math.max(1e-6, cum[k + 1] - cum[k]), 0, 1);
+  const p0 = k === 0 ? _g0.copy(pts[0]).multiplyScalar(2).sub(pts[1]) : pts[k - 1];
+  const p3 = k + 2 >= n ? _g3.copy(pts[n - 1]).multiplyScalar(2).sub(pts[n - 2]) : pts[k + 2];
+  return catmullRom(p0, pts[k], pts[k + 1], p3, u, out);
 }
 
 /** A camera pose: where it is, what it looks at, its lens, and how far the
@@ -123,9 +156,10 @@ export function garagePose(bay, aspect, out = makePose()) {
 /**
  * Shot poses from anchors. `anchors` maps a node name to
  * { position: Vector3, quaternion: Quaternion }; `clearance` is the city's
- * height field (optional).
+ * height field (optional); `visit()` the garage's visit while it is on, else
+ * null, and `reduced` whether it cuts rather than moves.
  */
-export function createShots(anchors, clearance = null) {
+export function createShots(anchors, clearance = null, { visit = () => null, reduced = false } = {}) {
   const has = (name) => anchors.has(name);
   const at = (name) => anchors.get(name).position;
 
@@ -168,7 +202,11 @@ export function createShots(anchors, clearance = null) {
   };
 
   const poseOf = (id, local, aspect, out) => {
-    if (id === "garage") return garagePose(anchors.get("anchor_garage_bay"), aspect, out);
+    if (id === "garage") {
+      const v = visit();
+      if (v) return v.at(local, aspect, out, reduced);
+      return garagePose(anchors.get("anchor_garage_bay"), aspect, out);
+    }
     return anchored(id, local, aspect, out);
   };
 
@@ -177,25 +215,10 @@ export function createShots(anchors, clearance = null) {
   const _c = new THREE.Vector3();
   const _end = new THREE.Vector3();
   const pts = [];
-  const ghostA = new THREE.Vector3();
-  const ghostB = new THREE.Vector3();
   const cum = [];
 
   // A point `e` (0..1, by distance) along the curve through `pts`.
-  const along = (e, out) => {
-    const n = pts.length;
-    cum.length = n;
-    cum[0] = 0;
-    for (let k = 1; k < n; k++) cum[k] = cum[k - 1] + pts[k].distanceTo(pts[k - 1]);
-    const total = cum[n - 1] || 1;
-    const d = clamp(e, 0, 1) * total;
-    let k = 0;
-    while (k < n - 2 && cum[k + 1] < d) k++;
-    const u = clamp((d - cum[k]) / Math.max(1e-6, cum[k + 1] - cum[k]), 0, 1);
-    const p0 = k === 0 ? ghostA.copy(pts[0]).multiplyScalar(2).sub(pts[1]) : pts[k - 1];
-    const p3 = k + 2 >= n ? ghostB.copy(pts[n - 1]).multiplyScalar(2).sub(pts[n - 2]) : pts[k + 2];
-    return catmullRom(p0, pts[k], pts[k + 1], p3, u, out);
-  };
+  const along = (e, out) => curveAt(pts, e, out, cum);
 
   /**
    * The camera's goal for a stage position. `ids` are the shot ids in page
@@ -227,10 +250,16 @@ export function createShots(anchors, clearance = null) {
     // left was looking is let go of early, or a far target drags the gaze
     // off the car for the whole of the way in.
     const into = SHOTS[ids[j]]?.via?.in;
-    const vias = (Array.isArray(into) ? into : into ? [into] : []).filter(has);
+    const v = visit();
+    let vias = (Array.isArray(into) ? into : into ? [into] : []).filter(has).map(at);
+    // With the visit on, the street's own waypoints up to the door, then
+    // the visit's path through it; out, the visit's path through the door
+    // and on to the roof's.
+    if (v && ids[j] === "garage") vias = [...VISIT_STREET.filter(has).map(at), ...v.entry(aspect)];
+    else if (v && ids[i] === "garage") vias = [...v.exit(aspect), ...VISIT_ROOF.filter(has).map(at)];
     if (vias.length) {
       pts.length = 0;
-      pts.push(A.position, ...vias.map(at), B.position);
+      pts.push(A.position, ...vias, B.position);
       along(e, out.position);
       along(Math.min(1, e + 0.1), _end);
       const follows = SHOTS[ids[j]]?.follow && focus;

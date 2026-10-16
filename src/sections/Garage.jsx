@@ -49,6 +49,10 @@ import { car, views, groups, mods, modsIn, pins, findMod, priceLabel, alsoOnTheL
 import { teardown } from "../data/life";
 import { ackGarageRequest, latestGarageRequest, subscribeGarageRequests } from "../lib/garage";
 import { useMediaQuery } from "../hooks";
+import { GARAGE_STATIONS } from "../data/world";
+import { garageScrollFor } from "../world/scroll-stage";
+import { stage } from "../world/stage";
+import { scrollToY } from "../lib/scroll";
 import CoverBox from "../components/ui/CoverBox";
 import GarageModel from "../components/GarageModel";
 import Picture from "../components/Picture";
@@ -84,7 +88,7 @@ function centred(p, k) {
   return Math.min(100, Math.max(0, ((k * p) / 100 - 0.5) / (k - 1) * 100));
 }
 
-export default function Garage({ ledeSlot = null }) {
+export default function Garage({ ledeSlot = null, cinematic = false }) {
   const [viewId, setViewId] = useState(views[0].id);
   const [mode, setMode] = useState(DEFAULT_BAY);
   const [selected, setSelected] = useState(null);
@@ -182,6 +186,8 @@ export default function Garage({ ledeSlot = null }) {
       backgroundPosition: `${centred(cropPin.x, kx).toFixed(2)}% ${centred(cropPin.y, ky).toFixed(2)}%`,
     };
   }, [cropPin, cropView]);
+
+  if (cinematic) return <VisitStations />;
 
   return (
     <>
@@ -493,6 +499,56 @@ export default function Garage({ ledeSlot = null }) {
       {/* ---- the rest of the shop ---------------------------------------- */}
       <Shop />
     </>
+  );
+}
+
+/**
+ * The visit's stations, low on the left of the stage: each scrolls the page
+ * to its place in the visit, and the camera follows the route there. A
+ * stand-in for the garage's own controls (src/components/garage/), which
+ * take its place when they land.
+ */
+function VisitStations() {
+  const go = (p) => {
+    const y = garageScrollFor(p);
+    if (y !== null) scrollToY(y);
+  };
+  const [at, setAt] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    let shown = -1;
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const p = stage.garageProgress;
+      let i = 0;
+      GARAGE_STATIONS.forEach((st, k) => {
+        if (p >= st.p - 0.07) i = k;
+      });
+      if (i !== shown) {
+        shown = i;
+        setAt(i);
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <nav aria-label="Garage stations" className="absolute left-0 bottom-0 gutter pb-8 rail-clear">
+      <ol className="flex flex-wrap gap-2">
+        {GARAGE_STATIONS.map((st, i) => (
+          <li key={st.id}>
+            <button
+              type="button"
+              onClick={() => go(st.p)}
+              aria-current={i === at ? "step" : undefined}
+              className={`mono-micro px-3 py-3 min-h-[44px] border ${i === at ? "border-volt text-volt" : "border-ink-line text-dim"} bg-ink/60`}
+            >
+              {pad(i + 1)} {st.label}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 

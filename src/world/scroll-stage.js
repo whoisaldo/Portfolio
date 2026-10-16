@@ -78,6 +78,27 @@ export function holdRange(shots, i, vh, maxScroll) {
   return [start, end];
 }
 
+/**
+ * The visit inside the garage, 0 to 1: how far `y` is through the Garage
+ * shot's hold (holdRange), so the arrival is where the flight in lands and
+ * the shop wall where the flight out begins. Buttons and the film scroll to
+ * garageScrollFor, its inverse.
+ */
+export function garageProgressAt(shots, y, vh, maxScroll) {
+  const i = shots.findIndex((s) => s.id === "garage");
+  if (i < 0) return 0;
+  const [a, b] = holdRange(shots, i, vh, maxScroll);
+  return b > a ? clamp((y - a) / (b - a), 0, 1) : 0;
+}
+
+/** The scroll position at visit progress `p` (garageProgressAt's inverse). */
+export function garageScrollFor(p, shots = stage.shots, vh = window.innerHeight, maxScroll = Math.max(0, document.documentElement.scrollHeight - vh)) {
+  const i = shots.findIndex((s) => s.id === "garage");
+  if (i < 0) return null;
+  const [a, b] = holdRange(shots, i, vh, maxScroll);
+  return a + clamp(p, 0, 1) * (b - a);
+}
+
 /** 0 to 1 per shot: how far the middle of the viewport is through it. */
 export function localsAt(shots, y, vh, out = []) {
   const mid = y + vh / 2;
@@ -196,6 +217,7 @@ export function startScrollStage({ scrim = null, chapter = null, smooth: useLeni
     const shots = stage.shots;
     stage.position = positionAt(shots, y, vh, maxScroll);
     localsAt(shots, y, vh, stage.locals);
+    stage.garageProgress = garageProgressAt(shots, y, vh, maxScroll);
 
     // The section under the middle of the viewport, for anything that wants
     // a name rather than a number.

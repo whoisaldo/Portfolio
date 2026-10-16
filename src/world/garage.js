@@ -19,6 +19,8 @@ import * as THREE from "three";
 import { COMMON } from "./glsl.js";
 import { NEON } from "./materials.js";
 import { preloadMoon } from "./moon.js";
+import { curveAt, easeInOut, makePose, copyPose, clamp } from "./shots.js";
+import { GARAGE_POSES, GARAGE_ROUTES, GARAGE_TIMELINE, GARAGE_STATES, GARAGE_STATIONS } from "../data/world.js";
 
 // The door's travel, in shots before the garage's own (the flight in
 // starts a whole shot out, at the rooftop): up just before the car, which
@@ -274,5 +276,194 @@ export async function createGarage(named, shared, { reduced = false, reflectLaye
         p.extra?.dispose();
       }
     },
+  };
+}
+
+// ---- the visit ------------------------------------------------------------------
+//
+// Inside, the camera does not fly the way it flies between sections. A
+// flight in the open is a curve from one shot to the next with the camera
+// eased after it, and an eased camera cuts corners; in a room with two
+// cars, lifts and a bench a corner cut is a camera inside a car. So the
+// visit is a fixed route: each stretch of the section's progress (src/data/
+// world.js GARAGE_TIMELINE) either holds a pose or runs a path between two,
+// and the whole pose is read off the route at one number. What is smoothed
+// is that number, never the position it gives (src/world/world-scene.js),
+// so the camera is always somewhere on the route.
+
+const smooth01 = (t) => t * t * (3 - 2 * t);
+
+/** A ramp's value at `p` (GARAGE_STATES): its first `from` before the first
+ *  ramp, eased across each, held between. With `cut`, each ramp is a cut at
+ *  its fifth number, or its middle. */
+export function rampAt(ramps, p, cut = false) {
+  let v = ramps[0]?.[2] ?? 0;
+  for (const [a, b, from, to, at] of ramps) {
+    if (p < a) return v;
+    if (p < b) {
+      if (cut) return p < (at ?? (a + b) / 2) ? from : to;
+      return from + (to - from) * smooth01((p - a) / (b - a));
+    }
+    v = to;
+  }
+  return v;
+}
+
+/** The stretch of GARAGE_TIMELINE `p` is in, with where it starts. */
+export function stretchAt(p) {
+  let start = 0;
+  for (const s of GARAGE_TIMELINE) {
+    if (p <= s.to || s === GARAGE_TIMELINE[GARAGE_TIMELINE.length - 1]) return { ...s, start };
+    start = s.to;
+  }
+  return null;
+}
+
+/**
+ * The visit's poses and paths, from the kit's anchors where it has them and
+ * the plan's numbers where it does not yet. `placeholder` says which: a
+ * pose not from the kit is a stand-in, never evidence of a framing.
+ */
+export function createGarageVisit(anchors) {
+  const has = (name) => anchors.has(name);
+  const placeholders = new Set();
+
+  const resolvePose = (key, portrait) => {
+    const cam = `cam_garage_${key}`;
+    const tgt = `${cam}_target`;
+    if (has(cam) && has(tgt)) {
+      const c = anchors.get(portrait && has(`${cam}_portrait`) ? `${cam}_portrait` : cam);
+      const t = anchors.get(portrait && has(`${tgt}_portrait`) ? `${tgt}_portrait` : tgt);
+      const extras = anchors.get(cam).extras ?? {};
+      const fov = Number((portrait ? extras.fov_portrait : null) ?? extras.fov) || GARAGE_POSES[key]?.[portrait ? "portrait" : "wide"]?.[2] || 48;
+      return { position: c.position.clone(), target: t.position.clone(), fov, shift: 0 };
+    }
+    const d = GARAGE_POSES[key];
+    if (!d) return null;
+    placeholders.add(key);
+    const [position, target, fov] = d[portrait ? "portrait" : "wide"] ?? d.wide;
+    return { position: new THREE.Vector3().fromArray(position), target: new THREE.Vector3().fromArray(target), fov, shift: 0 };
+  };
+
+  // A path's interior points: cam_garage_path_<route>_01 ... from the kit
+  // (a phone's _portrait where there is one), or the plan's.
+  const resolveRoute = (id, portrait) => {
+    const out = [];
+    for (let n = 1; n < 100; n++) {
+      const name = `cam_garage_path_${id}_${String(n).padStart(2, "0")}`;
+      if (!has(name)) break;
+      out.push(anchors.get(portrait && has(`${name}_portrait`) ? `${name}_portrait` : name).position.clone());
+    }
+    if (out.length) return out;
+    if (GARAGE_ROUTES[id]?.length) placeholders.add(`path:${id}`);
+    return (GARAGE_ROUTES[id] ?? []).map((a) => new THREE.Vector3().fromArray(a));
+  };
+
+  // Where the gaze is held along a path: cam_garage_gaze_<route>_NN, each at
+  // its `u`, a fraction of the path.
+  const resolveGaze = (id, portrait) => {
+    const out = [];
+    for (let n = 1; n < 100; n++) {
+      const name = `cam_garage_gaze_${id}_${String(n).padStart(2, "0")}`;
+      if (!has(name)) break;
+      const a = anchors.get(portrait && has(`${name}_portrait`) ? `${name}_portrait` : name);
+      out.push({ at: a.position.clone(), u: clamp(Number(a.extras?.u ?? n / 10), 0, 1) });
+    }
+    return out.sort((x, y) => x.u - y.u);
+  };
+
+  const keys = new Set([...Object.keys(GARAGE_POSES), "s4_cabin", "s6_cabin"]);
+  const tiers = {};
+  for (const portrait of [false, true]) {
+    const poses = {};
+    for (const k of keys) {
+      const pose = resolvePose(k, portrait);
+      if (pose) poses[k] = pose;
+    }
+    const routes = {};
+    const gaze = {};
+    for (const id of Object.keys(GARAGE_ROUTES)) {
+      routes[id] = resolveRoute(id, portrait);
+      gaze[id] = resolveGaze(id, portrait);
+    }
+    tiers[portrait ? "portrait" : "wide"] = { poses, routes, gaze };
+  }
+  const tierOf = (aspect) => tiers[aspect < 1 ? "portrait" : "wide"];
+
+  const pts = [];
+  const cum = [];
+  const _ahead = new THREE.Vector3();
+  const _g = new THREE.Vector3();
+
+  /** A pose on path `id` from pose `from` to pose `into`, `e` of the way by
+   *  distance (already eased), into `out`. */
+  const sample = (id, from, into, e, aspect, out) => {
+    const t = tierOf(aspect);
+    const A = t.poses[from];
+    const B = t.poses[into];
+    pts.length = 0;
+    pts.push(A.position, ...t.routes[id], B.position);
+    curveAt(pts, e, out.position, cum);
+    const gaze = t.gaze[id];
+    if (gaze.length) {
+      // From the first pose's target through each held gaze to the last's.
+      const stops = [{ at: A.target, u: 0 }, ...gaze, { at: B.target, u: 1 }];
+      let k = 0;
+      while (k < stops.length - 2 && stops[k + 1].u < e) k++;
+      const w = smooth01(clamp((e - stops[k].u) / Math.max(1e-6, stops[k + 1].u - stops[k].u), 0, 1));
+      out.target.copy(stops[k].at).lerp(stops[k + 1].at, w);
+    } else {
+      // Where it is going, a little further along its own path, between
+      // where it was looking and where it will.
+      curveAt(pts, Math.min(1, e + 0.12), _ahead, cum);
+      _g.subVectors(_ahead, out.position).normalize().multiplyScalar(4).add(out.position);
+      out.target.copy(A.target).lerp(_g, smooth01(clamp(e / 0.3, 0, 1))).lerp(B.target, smooth01(clamp((e - 0.55) / 0.45, 0, 1)));
+    }
+    out.fov = A.fov + (B.fov - A.fov) * e;
+    out.shift = 0;
+    return out;
+  };
+
+  /** The visit's pose at progress `p`. Reduced motion cuts at the middle of
+   *  each path, from one pose to the next, and never shows the way between. */
+  const at = (p, aspect, out = makePose(), reduced = false) => {
+    const s = stretchAt(clamp(p, 0, 1));
+    const t = tierOf(aspect);
+    if (s.hold) return copyPose(out, t.poses[s.hold]);
+    const u = clamp((p - s.start) / Math.max(1e-6, s.to - s.start), 0, 1);
+    if (reduced) return copyPose(out, t.poses[u < 0.5 ? s.from : s.into]);
+    return sample(s.route, s.from, s.into, easeInOut(u), aspect, out);
+  };
+
+  /** What the cars do at `p`: hood 0..1 for each, the S6's drop 0..1. */
+  const stateAt = (p, reduced = false) => ({
+    hood: { s4: rampAt(GARAGE_STATES.hood_s4, p, reduced), s6: rampAt(GARAGE_STATES.hood_s6, p, reduced) },
+    lowering: rampAt(GARAGE_STATES.lowering, p, reduced),
+  });
+
+  /** The station `p` is at or was last at. */
+  const stationAt = (p) => {
+    let id = GARAGE_STATIONS[0].id;
+    for (const st of GARAGE_STATIONS) if (p >= st.p - 0.07) id = st.id;
+    return id;
+  };
+
+  /** The points the flights in and out run through inside the door. */
+  const entry = (aspect) => tierOf(aspect).routes.entry;
+  const exit = (aspect) => tierOf(aspect).routes.exit;
+
+  return {
+    at,
+    sample,
+    stateAt,
+    stationAt,
+    entry,
+    exit,
+    pose: (key, aspect, out = makePose()) => {
+      const pose = tierOf(aspect).poses[key];
+      return pose ? copyPose(out, pose) : null;
+    },
+    /** The poses and paths still the plan's stand-ins, not the kit's. */
+    placeholders: [...placeholders],
   };
 }

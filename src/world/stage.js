@@ -12,7 +12,7 @@
 // function, and a useSyncExternalStore hook over it. Two kinds of field live
 // here and they are treated differently on purpose:
 //
-//   Per frame   position, locals, dim, pointer, ui, look. Written by the
+//   Per frame   position, locals, garageProgress, dim, pointer, ui, look. Written by the
 //               scroll stage and the modes sixty times a second and read by
 //               the world's own frame loop straight off `stage`. Changing
 //               them notifies nobody: a React render per scrolled frame is
@@ -36,6 +36,13 @@ export const stage = {
   position: 0,
   // Per shot, 0 to 1: how far the viewport's middle has travelled through it.
   locals: [],
+  // The visit inside the garage, 0 at its arrival to 1 at the shop wall:
+  // how far through the Garage shot's hold the scroll is (scroll-stage.js).
+  garageProgress: 0,
+  // Whether the Garage section is in its cinematic layout, so the camera
+  // makes the visit inside (src/world/garage.js) rather than holding on
+  // the old viewer's pose.
+  garageVisit: false,
   // The shot id under the middle of the viewport.
   section: "hero",
   // -1..1 on both axes; mouse only, never touch.

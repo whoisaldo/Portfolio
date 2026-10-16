@@ -25,7 +25,8 @@ import Stack from "../sections/Stack";
 import Contact from "../sections/Contact";
 import Glitch from "../components/ui/Glitch";
 import { scrollToSection } from "../lib/scroll";
-import { loadGarageSection, prepareGarageSection } from "../lib/garage3d";
+import { loadGarageSection, prepareGarageSection, useGarageMode } from "../lib/garage3d";
+import { setStage, useStage } from "../world/stage";
 
 // Sections after which a deep link lands: the garage's chunk changes their
 // position when it arrives, so a link to one of them asks for it at once.
@@ -69,10 +70,51 @@ class GarageBoundary extends Component {
 }
 
 /** The garage's section as the page's first paint has it; the rest of it
- *  (src/sections/Garage.jsx) fills it in when its chunk arrives. */
+ *  (src/sections/Garage.jsx) fills it in when its chunk arrives.
+ *
+ *  Cinematic, it is seven screens tall with a screen-high stage that stays
+ *  put while they scroll past, and the city's camera makes the visit
+ *  inside the garage over that scroll (src/world/garage.js); the heading
+ *  shrinks to a label in the stage's corner. Only with the city live:
+ *  otherwise, and until then, the section is the page as it reads. */
 function GarageShell({ onMounted }) {
   const [ledeSlot, setLedeSlot] = useState(null);
   const [, setAttempt] = useState(0);
+  const mode = useGarageMode();
+  const { status } = useStage();
+  const cinematic = mode === "cinematic" && status === "ready";
+  useEffect(() => {
+    setStage({ garageVisit: cinematic });
+    return () => setStage({ garageVisit: false });
+  }, [cinematic]);
+  const boundary = (
+    <GarageBoundary onRetry={() => setAttempt((n) => n + 1)}>
+      <Suspense
+        fallback={
+          <p className="mt-12 min-h-[40svh] prose-dark text-dim rail-clear" role="status">
+            Opening the garage.
+          </p>
+        }
+      >
+        <GarageMounted onMounted={onMounted}>
+          <GarageImpl ledeSlot={cinematic ? null : ledeSlot} cinematic={cinematic} />
+        </GarageMounted>
+      </Suspense>
+    </GarageBoundary>
+  );
+  if (cinematic) {
+    return (
+      <section id="garage" data-shot="garage" data-garage-mode="cinematic" className="relative world-clear" style={{ height: "700svh" }}>
+        <div className="sticky top-0 h-[100svh] overflow-hidden">
+          <div className="gutter pt-20 md:pt-24 rail-clear">
+            <p className="mono-label text-volt">05 // Garage</p>
+            <h2 className="sr-only">Garage</h2>
+          </div>
+          {boundary}
+        </div>
+      </section>
+    );
+  }
   return (
     <section id="garage" data-shot="garage" className="relative bg-ink border-t border-ink-line grain world-clear">
       <div className="gutter pt-24 md:pt-32 pb-24 md:pb-32">
@@ -94,19 +136,7 @@ function GarageShell({ onMounted }) {
           </div>
           <div className="edge-rule mt-10" aria-hidden="true" />
         </motion.div>
-        <GarageBoundary onRetry={() => setAttempt((n) => n + 1)}>
-          <Suspense
-            fallback={
-              <p className="mt-12 min-h-[40svh] prose-dark text-dim rail-clear" role="status">
-                Opening the garage.
-              </p>
-            }
-          >
-            <GarageMounted onMounted={onMounted}>
-              <GarageImpl ledeSlot={ledeSlot} />
-            </GarageMounted>
-          </Suspense>
-        </GarageBoundary>
+        {boundary}
       </div>
     </section>
   );
