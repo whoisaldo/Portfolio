@@ -4,7 +4,8 @@ from ncw.districts.garage import GX0, GX1, GZ0, GZ1, GH, DOOR_Z0, DOOR_Z1, DOOR_
 # The garage's prop kit (ncw/garage, its own builder's): importing it
 # registers its prototypes, which this layout places and nothing redraws.
 from ncw.garage import shop as GS, bench as GB, lounge as GL  # noqa: F401
-from ncw.garage.shapes import frame_of, place_in
+from mathutils import Matrix, Vector
+from ncw.garage.shapes import frame_of, place_in  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # THE GARAGE, INSIDE. The workshop the page's Garage section flies into: two
@@ -83,6 +84,58 @@ def sbox(mat, x0, x1, y0, y1, z0, z1, scale=1.0, col=(1, 1, 1, 1), detail=0, bot
     for xa, xb in zip(xs, xs[1:]):
         for za, zb in zip(zs, zs[1:]):
             box(key((xa + xb) / 2, (za + zb) / 2, mat, detail), xa, xb, y0, y1, za, zb, scale=scale, col=col, bottom=bottom)
+
+
+def conv(v):
+    return Vector((v[0], -v[2], v[1]))
+
+
+def oriented(name, pos, xaxis, yaxis, props=None):
+    """An empty whose glTF local axes are xaxis and yaxis (world frame),
+    its local z their cross product."""
+    x, y = Vector(xaxis).normalized(), Vector(yaxis).normalized()
+    z = x.cross(y)
+    ob = empty(name, pos, props=props)
+    m = Matrix((conv(x), -conv(z), conv(y))).transposed()
+    ob.matrix_world = Matrix.Translation(P(*pos)) @ m.to_4x4()
+    return ob
+
+
+def named_mesh(name, quads, mat_name=None, props=None, uvs=None):
+    """A mesh of its own, out of the batches (the site finds it by name):
+    quads in world metres, one UV set if given."""
+    mesh = bpy.data.meshes.new(PREFIX + name)
+    verts, faces = [], []
+    for q in quads:
+        faces.append(tuple(range(len(verts), len(verts) + len(q))))
+        verts.extend(P(*v) for v in q)
+    mesh.from_pydata(verts, [], faces)
+    if uvs is not None:
+        layer = mesh.uv_layers.new(name="UVMap")
+        flat = [uv for q in uvs for uv in q]
+        for i, uv in enumerate(flat):
+            layer.data[i].uv = uv
+    if mat_name:
+        mesh.materials.append(MATS[mat_name])
+    mesh.validate()
+    ob = bpy.data.objects.new(name, mesh)
+    for k_, v in (props or {}).items():
+        ob[k_] = v
+    return link(ob)
+
+
+def box_quads(lo, hi, yaw=0.0, centre=None):
+    """The six faces of a box (min, max in its own frame, turned yaw about
+    centre), wound outward."""
+    (x0, y0, z0), (x1, y1, z1) = lo, hi
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    cx, cz = centre if centre else (0.0, 0.0)
+
+    def t(x, y, z):
+        return (cx + x * c + z * s_, y, cz - x * s_ + z * c) if centre else (x, y, z)
+    v = [t(x, y, z) for x in (x0, x1) for y in (y0, y1) for z in (z0, z1)]
+    return [(v[0], v[1], v[3], v[2]), (v[4], v[6], v[7], v[5]), (v[0], v[4], v[5], v[1]),
+            (v[2], v[3], v[7], v[6]), (v[0], v[2], v[6], v[4]), (v[1], v[5], v[7], v[3])]
 
 
 # ---------------------------------------------------------------------------
@@ -259,13 +312,34 @@ def mapped(name, base, mr=None, normal=None, rough=0.8, emit=0.0):
     return mat
 
 
-mapped("garage_workshop_wall", MAPS["wall"], rough=0.82)
-mapped("garage_workshop_floor", MAPS["floor"], mr=MAPS["floor_mr"], normal=MAPS["floor_n"], rough=0.45)
-material("garage_threshold_wet", "1a1b1e", rough=0.12)
+# What the site needs to dress each, on the material itself (glTF extras):
+# its runtime, the map slots it must arrive with, its parameters, its wrap.
+MATERIAL_EXTRAS = {
+    "garage_workshop_wall": {"runtime": "painted_wall", "slots": ["baseColor"], "wrap": "repeat",
+                             "params": {"roughness": 0.82, "metalness": 0.0, "uv": "atlas", "uMetres": WALL_U, "bandMetres": WALL_V}},
+    "garage_workshop_floor": {"runtime": "satin_floor", "slots": ["baseColor", "metallicRoughness", "normal"], "wrap": "repeat",
+                              "params": {"roughness": [0.24, 0.68], "metalness": 0.0, "uvScale": [1 / FLOOR_M, 1 / FLOOR_M], "normalScale": 1.0}},
+    "garage_threshold_wet": {"runtime": "threshold_wet", "slots": [], "wrap": "repeat",
+                             "params": {"depth": 2.5, "baseTint": "#1a1b1e", "roughness": 0.12, "uvScale": [1 / FLOOR_M, 1 / FLOOR_M]}},
+    "garage_shop_photos": {"runtime": "photo_board", "slots": ["baseColor"], "wrap": "clamp",
+                           "params": {"source": "external", "url": "worldGarageBoardsUrl", "emissive": 0.35}},
+}
+
+
+def extras(mat):
+    import json as _json
+    for k_, v in MATERIAL_EXTRAS[mat.name[len(PREFIX):]].items():
+        mat[k_] = v if isinstance(v, str) else _json.dumps(v)
+    return mat
+
+
+extras(mapped("garage_workshop_wall", MAPS["wall"], rough=0.82))
+extras(mapped("garage_workshop_floor", MAPS["floor"], mr=MAPS["floor_mr"], normal=MAPS["floor_n"], rough=0.45))
+extras(material("garage_threshold_wet", "1a1b1e", rough=0.12))
 # The photo atlas is drawn by the optimizer (from src/assets/photos, the
 # pictures the Garage section already shows); the build only needs where
 # each lands on it, PHOTO_TILES, and a stand-in for Blender's own preview.
-material("garage_shop_photos", "c8c4ba", rough=0.6, emit=0.35)
+extras(material("garage_shop_photos", "c8c4ba", rough=0.6, emit=0.35))
 
 # ---------------------------------------------------------------------------
 # The floor: the satin concrete everywhere a car or a walker goes, the wet
@@ -291,24 +365,8 @@ for (x0, x1, z0, z1) in ((X0, THRESHOLD_X, Z0, DOOR_Z0), (X0, THRESHOLD_X, DOOR_
                          (MZ_X1, X1, Z0, Z1)):
     if x1 > x0 and z1 > z0:
         floor_rect("garage_workshop_floor", x0, x1, z0, z1, FLOOR_Y, FLOOR_M)
-# Bay 01's box painted round the S4 (the lift stands in it), bay 02's a
-# steel service pad under the S6, flush, its edge angle round it; down the
-# S6's north side a white stripe a hand's width off its tyres and a tick
-# across it at the front axle: what the stance view reads its drop against.
-for (a0, a1, b0, b1) in ((458.9, 465.1, -216.95, -216.8), (458.9, 465.1, -213.2, -213.05),
-                         (458.9, 459.05, -216.95, -213.05), (464.95, 465.1, -216.95, -213.05)):
-    box(key((a0 + a1) / 2, (b0 + b1) / 2, "hazard"), a0, a1, FLOOR_Y, MARK_Y, b0, b1, scale=1.0)
-PAD = (459.1, 465.0, -223.05, -220.95)
-box(key(462.0, -222.0, "dark"), PAD[0], PAD[1], FLOOR_Y, FLOOR_Y + 0.004, PAD[2], PAD[3], scale=1.0)
-for (a0, a1, b0, b1) in ((PAD[0], PAD[1], PAD[2] - 0.06, PAD[2]), (PAD[0], PAD[1], PAD[3], PAD[3] + 0.06),
-                         (PAD[0] - 0.06, PAD[0], PAD[2] - 0.06, PAD[3] + 0.06), (PAD[1], PAD[1] + 0.06, PAD[2] - 0.06, PAD[3] + 0.06)):
-    box(key((a0 + a1) / 2, (b0 + b1) / 2, "metal"), a0, a1, FLOOR_Y, FLOOR_Y + 0.006, b0, b1, scale=1.0)
-STANCE_STRIPE_Z = -223.34
-WHITE_LINE = (0.62, 0.62, 0.6, 1)
-box(key(462.5, STANCE_STRIPE_Z, "trim"), 459.4, 466.2, FLOOR_Y, MARK_Y, STANCE_STRIPE_Z - 0.04, STANCE_STRIPE_Z + 0.04, scale=1.0, col=WHITE_LINE)
-S6_FRONT_AXLE_X = S6_BAY[0] + 1.456
-box(key(S6_FRONT_AXLE_X, STANCE_STRIPE_Z, "trim"), S6_FRONT_AXLE_X - 0.02, S6_FRONT_AXLE_X + 0.02, FLOOR_Y, MARK_Y,
-    STANCE_STRIPE_Z - 0.3, STANCE_STRIPE_Z + 0.04, scale=1.0, col=WHITE_LINE)
+# The bays' marks are the kit's (garage_bay_lines round each car, the S6's
+# flush service pad under it), set down with the props below.
 # The apron's walk line from the door to the shop wall, along the south of
 # the second bay's door: yellow, as the bay's box is.
 for (a0, a1) in ((454.6, 458.4),):
@@ -373,12 +431,6 @@ wall("z", X1, -1, Z0, Z1, 0.0, CEIL)
 wall("x", Z0, 1, X0, X1, 0.0, CEIL)
 wall("x", Z1, -1, MZ_X1, X1, 0.0, CEIL)
 wall("x", Z1, -1, X0, MZ_X1, MZ_Y, CEIL, floor=MZ_Y)
-# The door's reveal and head inside, in the shell's concrete, and the
-# shutter's guides down each jamb.
-for z0, z1 in ((DOOR_Z0 - 0.09, DOOR_Z0), (DOOR_Z1, DOOR_Z1 + 0.09)):
-    sbox("metal", X0 - 0.02, X0 + 0.06, 0.0, DOOR_H, z0, z1)
-sbox("hazard", X0 - 0.01, X0 + 0.04, DOOR_H - 0.12, DOOR_H, DOOR_Z0 - 0.09, DOOR_Z1 + 0.09)
-
 # ---------------------------------------------------------------------------
 # The roof: a corrugated steel deck on purlins, carried by nine trusses
 # across the room's width. Their spacing puts one over each car's middle
@@ -525,59 +577,68 @@ for i in range(4):
 pipe(key(460.5, STAIR_Z0, "steel"), (STAIR_X1 + 0.1, 0.95, STAIR_Z0 + 0.025), (STAIR_X0, MZ_Y + 1.07, STAIR_Z0 + 0.025), 0.022, segs=6, col=RAIL)
 
 # ---------------------------------------------------------------------------
-# Light. Each car has a bank of four LED battens over its roof (two rows of
-# two, 4.8 m by 0.3 m of diffuser) hung from the truss over its middle, and
-# a single row over its outer flank for its wheels and its mirror; twin
-# fluorescents over the apron, the aisle and the shop wall; the bench's
-# amber strip, a cyan line along the north wall and a short magenta one
-# along the south: the city's colours kept to edges, the cars under a
-# neutral white. Every fixture is a kit prototype; LIGHTS records each one's
-# actual diffusers (its luminous faces), where it aims and its colour, as
-# anchor_garage_light_<id> for the site and in garage-layout.json.
+# Light. Each car has the kit's 4.5 m task light over its roof, hung from
+# the truss over its middle, and a row of two battens over its outer flank
+# for its wheels and its mirror; a work light on a tripod at each nose for
+# the open bay; twin fluorescents over the apron, the aisle, the shop wall
+# and in the office; the bench's amber strip, a cyan line along the north
+# wall and a short magenta one along the south: the city's colours kept to
+# edges, the cars under a neutral white. Every fixture is a kit prototype;
+# LIGHTS_G records each one's actual luminous faces, where it aims and its
+# colour, and each face is an anchor_garage_light_<id> in the pack.
 # ---------------------------------------------------------------------------
 LIGHTS_G = []
 BATTEN_Y = CHORD_LO - GB.LED_DROP
 FLUORO_Y = CHORD_LO - GB.FLUORO_DROP
+TASK_Y = CHORD_LO - GB.TASK_DROP
 
 
-def batten_bank(lid, kind, x0, zt, rows, aim, cct, sector_):
+def hexof(c):
+    """A linear colour as sRGB hex."""
+    return "".join(f"{round(255 * ((1.055 * v ** (1 / 2.4) - 0.055) if v > 0.0031308 else 12.92 * v)):02x}" for v in c[:3])
+
+
+def light(lid, kind, proto, faces, aim, color, bay, kelvin=None, intensity=1.0, sector_=None):
+    """One fixture: its luminous faces (centre, length along its local x,
+    width along its local z, the way it shines: its local -y) and where it
+    is aimed."""
+    LIGHTS_G.append({"id": lid, "kind": kind, "proto": proto, "faces": faces, "aim": list(aim), "color": color,
+                     "kelvin": kelvin, "intensity": intensity, "bay": bay, "sector": sector_ or sector(faces[0]["at"][0], faces[0]["at"][2])})
+
+
+DOWN = (0.0, -1.0, 0.0)
+# Over each car, the kit's task light: 4.5 by 0.35 m of diffuser along the
+# car, from the truss over its middle.
+for car, zt, sec in (("s4", BAY[2], S4), ("s6", S6_BAY[2], S6)):
+    NP.place("garage_task_light", 463.0, TASK_Y, zt, 0.0, district=sec)
+    w, d = GB.TASK_FACE["size"]
+    light(f"{car}_task", "strip", "garage_task_light", [{"at": [463.0, TASK_Y, zt], "length": w, "width": d, "normal": DOWN, "axis": [1, 0, 0]}],
+          (462.8, 0.9, zt), hexof(GB.TASK_WHITE), car, kelvin=4400, intensity=2.4, sector_=sec)
+# Over each bay's outer flank, a row of two battens for the wheels and the
+# mirror.
+for car, zt, sec, aimz in (("s4", -212.0, S4, -214.0), ("s6", -225.0, S6, -223.0)):
     faces = []
-    for dz in rows:
-        for xc in (x0 - 1.2, x0 + 1.2):
-            NP.place("garage_led_batten", xc, BATTEN_Y, zt + dz, 0.0, district=sector_)
-            faces.append([xc, BATTEN_Y, zt + dz, 2.36, 0.08])
-    LIGHTS_G.append({"id": lid, "kind": kind, "proto": "garage_led_batten", "faces": faces, "normal": [0, -1, 0],
-                     "aim": list(aim), "cct": cct, "sector": sector_})
-
-
-batten_bank("s4_task", "task", 462.0, -215.0, (-0.11, 0.11), (462.6, 0.9, -215.0), 4300, S4)
-batten_bank("s6_task", "task", 462.0, -222.0, (-0.11, 0.11), (462.6, 0.9, -222.0), 4300, S6)
-batten_bank("s4_flank", "flank", 462.4, -212.0, (0.0,), (462.6, 0.45, -214.0), 4300, S4)
-batten_bank("s6_flank", "flank", 462.4, -225.0, (0.0,), (462.6, 0.45, -223.0), 4300, S6)
-
-
-def fluoro(lid, x, zt, aim, sector_, cct=4000):
-    NP.place("garage_fluoro", x, FLUORO_Y, zt, 0.0, district=sector_)
-    LIGHTS_G.append({"id": lid, "kind": "fluoro", "proto": "garage_fluoro", "normal": [0, -1, 0], "aim": list(aim), "cct": cct,
-                     "faces": [[x, FLUORO_Y + 0.02, zt - 0.045, 1.2, 0.026], [x, FLUORO_Y + 0.02, zt + 0.045, 1.2, 0.026]],
-                     "sector": sector_})
-
-
-fluoro("apron_n", 455.6, -225.0, (455.6, 0.0, -225.0), APRON)
-fluoro("apron_s", 455.6, -212.0, (455.6, 0.0, -212.0), APRON)
-fluoro("aisle_n", 469.6, -222.0, (469.6, 0.0, -222.0), S6)
-fluoro("aisle_s", 469.6, -215.0, (469.6, 0.0, -215.0), S4)
-for zt, gid in ((-222.0, "shop_bmw"), (-218.5, "shop_n"), (-215.0, "shop_bench"), (-212.0, "shop_s"), (-208.5, "shop_comp")):
-    fluoro(gid, 473.4, zt, (475.3, 2.2, zt), SHOP)
+    for xc in (461.2, 463.6):
+        NP.place("garage_led_batten", xc, BATTEN_Y, zt, 0.0, district=sec)
+        faces.append({"at": [xc, BATTEN_Y, zt], "length": 2.36, "width": 0.08, "normal": DOWN, "axis": [1, 0, 0]})
+    light(f"{car}_flank", "strip", "garage_led_batten", faces, (462.6, 0.45, aimz), hexof(TUBE["white"]), car, kelvin=4300, intensity=1.0, sector_=sec)
+# Twin fluorescents over the apron, the aisle and the shop wall.
+FLUOROS = [("apron_n", 455.6, -225.0, "room"), ("apron_s", 455.6, -212.0, "room"), ("aisle_n", 469.6, -222.0, "room"),
+           ("aisle_s", 469.6, -215.0, "room"), ("shop_bmw", 473.4, -222.0, "shop"), ("shop_n", 473.4, -218.5, "shop"),
+           ("shop_bench", 473.4, -215.0, "shop"), ("shop_s", 473.4, -212.0, "shop"), ("shop_comp", 473.4, -208.5, "shop")]
+for fid, x, zt, bay in FLUOROS:
+    NP.place("garage_fluoro", x, FLUORO_Y, zt, 0.0, district=sector(x, zt))
+    light(fid, "tube", "garage_fluoro", [{"at": [x, FLUORO_Y + 0.02, zt + dz], "length": 1.2, "width": 0.026, "normal": DOWN, "axis": [1, 0, 0]}
+                                        for dz in (-0.045, 0.045)],
+          (475.3, 2.2, zt) if bay == "shop" else (x, 0.0, zt), hexof(TUBE["white"]), bay, kelvin=4000, intensity=0.6)
 # The office's own, on its ceiling.
-for zt in (-205.8, -202.6):
+for fid, zt in (("office_n", -205.8), ("office_s", -202.6)):
     NP.place("garage_fluoro", 454.8, OFFICE_TOP - 0.5, zt, 0.0, district=MEZ)
-    LIGHTS_G.append({"id": f"office_{'n' if zt < -204 else 's'}", "kind": "fluoro", "proto": "garage_fluoro", "normal": [0, -1, 0],
-                     "aim": [454.8, MZ_Y, zt], "cct": 4000, "sector": MEZ,
-                     "faces": [[454.8, OFFICE_TOP - 0.48, zt, 1.2, 0.12]]})
+    light(fid, "tube", "garage_fluoro", [{"at": [454.8, OFFICE_TOP - 0.48, zt + dz], "length": 1.2, "width": 0.026, "normal": DOWN, "axis": [1, 0, 0]}
+                                        for dz in (-0.045, 0.045)], (454.8, MZ_Y, zt), hexof(TUBE["white"]), "room", kelvin=4000, intensity=0.5)
 # The colour: tubes in the room's one tube material (struck on as the old
-# room's were), along the north wall, over the south wall's chests, and the
-# bench's amber over the pegboard.
+# room's were), along the north wall and over the south wall's chests, and
+# the bench's amber over the pegboard: kept to edges, the cars under white.
 ACCENTS = (
     ("north_cyan", "cyan", (454.0, 474.0), 2.95, Z0, 1),
     ("south_magenta", "pink", (464.0, 470.0), 3.05, Z1, -1),
@@ -586,19 +647,24 @@ for aid, hue, (xa, xb), y, zf, nz in ACCENTS:
     z0, z1 = sorted((zf + nz * 0.04, zf + nz * 0.12))
     sbox("tube", xa, xb, y, y + 0.08, z0, z1, col=TUBE[hue])
     sbox("metal", xa - 0.05, xb + 0.05, y + 0.08, y + 0.11, min(zf, zf + nz * 0.14), max(zf, zf + nz * 0.14))
-    LIGHTS_G.append({"id": aid, "kind": "accent", "proto": None, "faces": [[(xa + xb) / 2, y + 0.04, (z0 + z1) / 2, xb - xa, 0.08]],
-                     "normal": [0, 0, nz], "aim": [(xa + xb) / 2, 0.0, zf + nz * 2.5], "hue": hue, "sector": sector((xa + xb) / 2, zf + nz)})
+    light(aid, "tube", None, [{"at": [(xa + xb) / 2, y + 0.04, (z0 + z1) / 2], "length": xb - xa, "width": 0.08, "normal": (0, 0, nz), "axis": [1, 0, 0]}],
+          ((xa + xb) / 2, 0.0, zf + nz * 2.5), NEON[hue], "room", intensity=0.5)
 BENCH_Z = -215.5
 sbox("tube", X1 - 0.12, X1 - 0.05, 2.36, 2.42, BENCH_Z - 1.3, BENCH_Z + 1.3, col=TUBE["amber"])
-LIGHTS_G.append({"id": "bench_amber", "kind": "accent", "proto": None, "faces": [[X1 - 0.085, 2.39, BENCH_Z, 0.07, 2.6]],
-                 "normal": [-1, 0, 0], "aim": [X1 - 1.0, 0.9, BENCH_Z], "hue": "amber", "sector": SHOP})
-# Work lights on stands by each car's nose, for its open bay: the kit has
-# none yet (agents/G1/REQUESTS.md), so for now only where they stand and
-# aim, outside every camera's way, between the bays.
-for lid, at, aim, sec in (("s4_work", (465.3, 2.1, -217.55), (463.3, 0.95, -215.0), S4),
-                          ("s6_work", (465.3, 2.1, -219.45), (463.3, 0.95, -222.0), S6)):
-    LIGHTS_G.append({"id": lid, "kind": "work", "proto": None, "pending": "G1 stand work light", "at": list(at),
-                     "faces": [[at[0], at[1], at[2], 0.22, 0.16]], "normal": [0, 0, 0], "aim": list(aim), "cct": 4300, "sector": sec})
+light("bench_amber", "tube", None, [{"at": [X1 - 0.085, 2.39, BENCH_Z], "length": 2.6, "width": 0.07, "normal": (-1, 0, 0), "axis": [0, 0, 1]}],
+      (X1 - 1.0, 0.9, BENCH_Z), NEON["amber"], "shop", intensity=0.6)
+# Work lights on their tripods between the bays, by each car's nose, aimed
+# into its bay for the open engine.
+for car, at, aim, sec in (("s4", (465.3, -217.55), (463.3, 0.95, -215.0), S4), ("s6", (465.3, -219.45), (463.3, 0.95, -222.0), S6)):
+    yaw = math.atan2(aim[0] - at[0], aim[2] - at[1])
+    NP.place("garage_work_light", at[0], 0.0, at[1], yaw, district=sec)
+    cx, cy, cz = GB.WORK_LIGHT_FACE["centre"]
+    fx, fz = at[0] + cz * math.sin(yaw), at[1] + cz * math.cos(yaw)
+    tilt = math.radians(GB.WORK_LIGHT_FACE["tilt_down_deg"])
+    nrm = (math.sin(yaw) * math.cos(tilt), -math.sin(tilt), math.cos(yaw) * math.cos(tilt))
+    w, h = GB.WORK_LIGHT_FACE["size"]
+    light(f"{car}_work", "work", "garage_work_light", [{"at": [fx, cy, fz], "length": w, "width": h, "normal": nrm, "axis": [math.cos(yaw), 0, -math.sin(yaw)]}],
+          aim, hexof(GB.TASK_WHITE), car, kelvin=4400, intensity=1.2, sector_=sec)
 
 # ---------------------------------------------------------------------------
 # The shop wall: three photo boards over the bench and the chests, the
@@ -612,7 +678,7 @@ ATLAS_COLS, ATLAS_ROWS = 4, 2
 BOARDS = (
     ("bmw", -220.5, ("bmw-carplay-retrofit", "bmw-engine-bay", "bmw-tuning-module")),
     ("bench", BENCH_Z, ("iphone-teardown", "breadboard", "sumo-robot")),
-    ("competing", -210.5, ("wrestling", "rubiks-cube")),
+    ("competitions", -210.5, ("wrestling", "rubiks-cube")),
 )
 BOARD_Y0, BOARD_Y1, BOARD_W = 2.55, 3.65, 2.6
 PHOTO_W, PHOTO_H = 0.74, 0.555
@@ -626,7 +692,7 @@ for gid, zc, items in BOARDS:
                              (BOARD_Y0, BOARD_Y1, z0 - 0.04, z0), (BOARD_Y0, BOARD_Y1, z1, z1 + 0.04)):
         sbox("metal", xb_ - 0.06, xb_, y0, y1, za, zb)
     gap = (BOARD_W - len(items) * PHOTO_W) / (len(items) + 1)
-    photos = []
+    photos, quads, uvs = [], [], []
     for i, name in enumerate(items):
         pz1 = z1 - gap - i * (PHOTO_W + gap)
         pz0 = pz1 - PHOTO_W
@@ -636,24 +702,28 @@ for gid, zc, items in BOARDS:
         u1, v0 = u0 + 1 / ATLAS_COLS, v1 - 1 / ATLAS_ROWS
         xp = xb_ - 0.045
         # Facing -x (into the room): left to right as seen from it is +z to -z.
-        quad(key(xp, zc, "garage_shop_photos"), (xp, py0, pz1), (xp, py0, pz0), (xp, py0 + PHOTO_H, pz0), (xp, py0 + PHOTO_H, pz1),
-             uvs=((u0, v0), (u1, v0), (u1, v1), (u0, v1)))
+        quads.append(((xp, py0, pz1), (xp, py0, pz0), (xp, py0 + PHOTO_H, pz0), (xp, py0 + PHOTO_H, pz1)))
+        uvs.append(((u0, v0), (u1, v0), (u1, v1), (u0, v1)))
         sbox("trim", xp + 0.002, xp + 0.006, py0 - 0.02, py0 + PHOTO_H + 0.02, pz0 - 0.02, pz1 + 0.02, col=(0.85, 0.84, 0.8, 1))
+        # glTF's v runs down the image: the atlas rectangle as the site samples it.
         photos.append({"id": name, "center": [round(xp, 3), round(py0 + PHOTO_H / 2, 3), round((pz0 + pz1) / 2, 3)],
-                       "size": [PHOTO_W, PHOTO_H], "uv": [round(u0, 4), round(v0, 4), round(u1, 4), round(v1, 4)]})
+                       "size": [PHOTO_W, PHOTO_H], "uv": [round(u0, 4), round(1 - v1, 4), round(u1, 4), round(1 - v0, 4)]})
+    named_mesh(f"garage_board_{gid}", quads, "garage_shop_photos", uvs=uvs,
+               props={"pack": "garage", "visibilitySector": SHOP, "photos": ",".join(items)})
     BOARDS_OUT.append({"id": gid, "center": [round(xb_ - 0.04, 3), (BOARD_Y0 + BOARD_Y1) / 2, zc], "size": [BOARD_W, BOARD_Y1 - BOARD_Y0],
-                       "normal": [-1, 0, 0], "photos": photos})
-    empty(f"anchor_garage_board_{gid}", (xb_ - 0.05, (BOARD_Y0 + BOARD_Y1) / 2, zc), yaw=-math.pi / 2,
-          props={"w": BOARD_W, "h": BOARD_Y1 - BOARD_Y0, "sector": SHOP})
+                       "normal": [-1, 0, 0], "mesh": f"garage_board_{gid}", "photos": photos})
+    oriented(f"anchor_garage_board_{gid}", (xb_ - 0.05, (BOARD_Y0 + BOARD_Y1) / 2, zc), (0, 0, 1), (0, 1, 0),
+             props={"width": BOARD_W, "height": BOARD_Y1 - BOARD_Y0, "pack": "garage", "visibilitySector": SHOP})
 
 # ---------------------------------------------------------------------------
 # The props, the kit's, set down where a shop has them.
 # ---------------------------------------------------------------------------
 R = random.Random(2013)
 # Bay 01: the two-post lift, arms swung in under the S4's sills, its car on
-# the floor; posts either side of the car's middle, the power unit on the
-# south post, away from the gap between the bays.
-LIFT_X = 461.6
+# the floor; posts either side of the car's middle (its pads then under the
+# jacking points inside each wheel), the power unit on the south post, away
+# from the gap between the bays.
+LIFT_X = BAY[0]
 GS.place_lift2(LIFT_X, BAY[2], math.pi / 2, district=S4)
 # The S4's corner of work: a floor jack and two stands by its nose, a
 # creeper by its door, a drain cart and the oil it has dripped.
@@ -664,11 +734,15 @@ NP.place("garage_creeper", 462.6, 0.0, -213.05, math.pi / 2 + 0.08, district=S4)
 NP.place("garage_oil_drain", 466.2, 0.0, -217.3, 0.4, district=S4)
 NP.place("garage_stain_a", 463.4, 0.0, -215.1, 0.3, district=S4)
 NP.place("garage_stain_b", 466.1, 0.0, -217.0, 1.2, district=S4)
+NP.place("garage_bay_lines", BAY[0], 0.0, BAY[2], math.pi / 2, district=S4)
+NP.place("garage_drip_tray", 464.9, 0.0, -214.1, math.pi / 2 + 0.1, district=S4)
 NP.place("garage_tyre_marks", 456.2, 0.0, -215.0, math.pi / 2, district=APRON)
 NP.place("garage_bay_01", 457.3, 0.0, -215.0, -math.pi / 2, district=APRON)
 # Bay 02: chocks at the S6's rear wheels, the tune cart at its driver's
 # door, its OBD lead to the port under the dash (the kit's TUNE_PLUG).
 NP.place("garage_bay_02", 457.3, 0.0, -222.0, -math.pi / 2, district=APRON)
+NP.place("garage_bay_lines", S6_BAY[0], 0.0, S6_BAY[2], math.pi / 2, district=S6)
+NP.place("garage_service_pad", S6_BAY[0], 0.0, S6_BAY[2], math.pi / 2, district=S6)
 for z in (-222.82, -221.18):
     NP.place("garage_wheel_chock", S6_BAY[0] - 1.456 - 0.42, 0.0, z, math.pi / 2, district=S6)
 TUNE_AT = (461.8, -222.45 - GB.TUNE_PLUG[2])
@@ -676,6 +750,10 @@ NP.place("garage_tune_cart", TUNE_AT[0], 0.0, TUNE_AT[1], 0.0, district=S6)
 NP.place("garage_stain_c", 464.6, 0.0, -222.3, 0.1, district=S6)
 NP.place("garage_floor_drain", 469.6, 0.0, -218.5, 0.0, district=S6)
 NP.place("garage_trench_drain", THRESHOLD_X + 0.15, 0.0, (DOOR_Z0 + DOOR_Z1) / 2, math.pi / 2, sxz=1.95, district=APRON)
+# The city's shutter keeps its curtain (garage_door, which the site rolls
+# up); the kit's fittings round it inside: guides, the fascia over the
+# drum, the motor and its hand chain, the push station.
+NP.place("garage_shutter_w", X0, 0.0, (DOOR_Z0 + DOOR_Z1) / 2, -math.pi / 2, district=APRON)
 # The second bay's door, closed, on the front wall inside (the street sees
 # its painted sections, districts/garage.py), its tracks back under the
 # deck over the apron.
@@ -686,11 +764,12 @@ for i, x in enumerate((464.6, 465.75, 466.9, 468.05)):
     NP.place("garage_tool_cab", x, 0.0, Z1 - 0.27, math.pi, district=S4)
     if i % 2 == 0:
         NP.place("garage_tool_top", x, GB.TOP_ON_CAB, Z1 - 0.27, math.pi, district=S4)
-NP.place("garage_tool_cart", 469.4, 0.0, Z1 - 0.6, math.pi + 0.25, district=S4)
+NP.place("garage_tool_cart", 469.25, 0.0, Z1 - 0.6, math.pi + 0.25, district=S4)
+NP.place("garage_welder", 470.3, 0.0, Z1 - 0.55, math.pi - 0.2, district=S4)
 ON_WALL = PROUD + 0.003
-NP.place("garage_hose_reel", 470.9, 0.0, Z1 - ON_WALL, math.pi, district=S4)
+NP.place("garage_hose_reel", 471.3, 0.0, Z1 - ON_WALL, math.pi, district=S4)
 NP.place("garage_compressor", 474.6, 0.0, Z1 - 0.45, math.pi + 0.5, district=SHOP)
-NP.place("garage_extinguisher", 471.8, 0.0, Z1 - ON_WALL, math.pi, district=S4)
+NP.place("garage_extinguisher", 472.1, 0.0, Z1 - ON_WALL, math.pi, district=SHOP)
 # The shop wall, south to north: shelving, the bench under its pegboard,
 # chests under the BMW's board, the tyre changer and balancer, the tyre
 # rack in the north corner; the parts table and the washer in front of it.
@@ -742,25 +821,38 @@ NP.place("garage_neon_open", X0 + 0.06, MZ_Y + 2.05, -203.2, -math.pi / 2, distr
 # the street and the room see each other through, and the lights.
 # ---------------------------------------------------------------------------
 empty("anchor_garage_s6", S6_BAY, yaw=math.pi / 2)
+# The portals: rectangles, origin at the middle, local x across, y up and
+# z into the room.
 PORTALS = {
-    "door": {"plane": "x", "x": GX0, "z": [DOOR_Z0, DOOR_Z1], "y": [0.0, DOOR_H],
-             "corners": [[GX0, 0.0, DOOR_Z0], [GX0, 0.0, DOOR_Z1], [GX0, DOOR_H, DOOR_Z1], [GX0, DOOR_H, DOOR_Z0]],
-             "inside": APRON},
-    "office_window": {"plane": "x", "x": GX0, "z": [OFFICE_WIN[0], OFFICE_WIN[1]], "y": [OFFICE_WIN[2], OFFICE_WIN[3]],
-                      "corners": [[GX0, OFFICE_WIN[2], OFFICE_WIN[0]], [GX0, OFFICE_WIN[2], OFFICE_WIN[1]],
-                                  [GX0, OFFICE_WIN[3], OFFICE_WIN[1]], [GX0, OFFICE_WIN[3], OFFICE_WIN[0]]],
-                      "inside": MEZ},
+    "door": {"centre": [GX0, DOOR_H / 2, (DOOR_Z0 + DOOR_Z1) / 2], "width": DOOR_Z1 - DOOR_Z0, "height": DOOR_H, "inside": APRON},
+    "office": {"centre": [GX0, (OFFICE_WIN[2] + OFFICE_WIN[3]) / 2, (OFFICE_WIN[0] + OFFICE_WIN[1]) / 2],
+               "width": OFFICE_WIN[1] - OFFICE_WIN[0], "height": OFFICE_WIN[3] - OFFICE_WIN[2], "inside": MEZ},
 }
 for pid, p in PORTALS.items():
-    c = p["corners"]
-    empty(f"anchor_garage_portal_{pid}", tuple(sum(v[i] for v in c) / 4 for i in range(3)),
-          props={"w": p["z"][1] - p["z"][0], "h": p["y"][1] - p["y"][0], "inside": p["inside"]})
+    p["corners"] = [[GX0, p["centre"][1] + sy * p["height"] / 2, p["centre"][2] + sz * p["width"] / 2] for sy, sz in ((-1, 1), (-1, -1), (1, -1), (1, 1))]
+    oriented(f"anchor_garage_portal_{pid}", p["centre"], (0, 0, -1), (0, 1, 0), props={"width": p["width"], "height": p["height"], "inside": p["inside"]})
+# Each luminous face its own anchor, in the pack: local -y the way it
+# shines, its length along local x and its width along local z.
+LIGHT_KIND = {"strip": "strip", "work": "work", "tube": "tube"}
 for L in LIGHTS_G:
-    at = L.get("at") or [sum(f[i] for f in L["faces"]) / len(L["faces"]) for i in range(3)]
-    flat = [round(v, 3) for f in L["faces"] for v in f]
-    empty(f"anchor_garage_light_{L['id']}", tuple(at),
-          props={"kind": L["kind"], "faces": flat, "aim": [round(v, 3) for v in L["aim"]], "sector": L["sector"],
-                 **({"cct": L["cct"]} if "cct" in L else {}), **({"hue": L["hue"]} if "hue" in L else {})})
+    for n, f in enumerate(L["faces"]):
+        name = f"anchor_garage_light_{L['id']}" + (f"_{n + 1}" if len(L["faces"]) > 1 else "")
+        f["anchor"] = name
+        props = {"kind": L["kind"], "length": round(f["length"], 3), "width": round(f["width"], 3), "color": "#" + L["color"],
+                 "intensity": L["intensity"], "bay": L["bay"], "aim": [round(v, 3) for v in L["aim"]], "fixture": L["id"],
+                 "pack": "garage", "visibilitySector": L["sector"]}
+        if L["kelvin"]:
+            props["kelvin"] = L["kelvin"]
+        oriented(name, tuple(f["at"]), f["axis"], tuple(-v for v in f["normal"]), props=props)
+# The moon's monitor is a light in the room too.
+_screen = bpy.data.objects["garage_screen"]
+LIGHTS_G.append({"id": "screen", "kind": "screen", "proto": "garage_monitor", "aim": [X1 - 4.0, 1.6, SCREEN_Z], "color": "c8d2ff",
+                 "kelvin": None, "intensity": 0.4, "bay": "shop", "sector": SHOP,
+                 "faces": [{"at": [round(_screen.location.x, 3), round(_screen.location.z, 3), round(-_screen.location.y, 3)], "length": 1.43,
+                            "width": 0.8, "normal": (-1, 0, 0), "axis": (0, 0, 1), "anchor": "anchor_garage_light_screen"}]})
+oriented("anchor_garage_light_screen", tuple(LIGHTS_G[-1]["faces"][0]["at"]), (0, 0, 1), (1, 0, 0),
+         props={"kind": "screen", "length": 1.43, "width": 0.8, "color": "#c8d2ff", "intensity": 0.4, "bay": "shop",
+                "fixture": "screen", "mesh": "garage_screen", "pack": "garage", "visibilitySector": SHOP})
 
 # ---------------------------------------------------------------------------
 # Collision, independent of what is drawn: what a walker or a car meets
@@ -771,8 +863,15 @@ for L in LIGHTS_G:
 COLLIDE = []
 
 
-def solid(kind, x0, x1, y0, y1, z0, z1, nav=True, camera=True):
-    COLLIDE.append({"kind": kind, "min": [round(x0, 3), round(y0, 3), round(z0, 3)], "max": [round(x1, 3), round(y1, 3), round(z1, 3)],
+KIND_OF = (("wall", "wall"), ("roof", "ceiling"), ("door_drum", "wall"), ("parts_room", "wall"), ("office", "wall"),
+           ("landing_rail", "guard"), ("stair", "stair"), ("truss", "ceiling"), ("duct", "fixture"), ("cable_tray", "fixture"),
+           ("battens", "fixture"), ("task", "fixture"), ("bay2", "wall"), ("boards", "prop"), ("monitor", "fixture"),
+           ("sign", "fixture"), ("lift", "lift"), ("shutter", "fixture"))
+
+
+def solid(name, x0, x1, y0, y1, z0, z1, nav=True, camera=True):
+    kind = next(k_ for pre, k_ in KIND_OF if name.startswith(pre))
+    COLLIDE.append({"name": name, "kind": kind, "min": [round(x0, 3), round(y0, 3), round(z0, 3)], "max": [round(x1, 3), round(y1, 3), round(z1, 3)],
                     "nav": nav, "camera": camera})
 
 
@@ -793,8 +892,12 @@ for zt in TRUSS_Z:
     solid(f"truss_{zt:g}", X0, X1, CHORD_LO, CHORD_HI + 0.18, zt - 0.12, zt + 0.12, nav=False)
 solid("duct", 453.0, 475.0, DUCT_Y - DUCT_R - 0.26, DUCT_Y + DUCT_R, DUCT_Z - DUCT_R, DUCT_Z + DUCT_R, nav=False)
 solid("cable_tray", 454.0, 475.0, CHORD_LO - GB.TRAY_DROP - 0.05, CHORD_LO, -218.75, -218.25, nav=False)
-for zt in (-215.0, -222.0, -212.0, -225.0):
-    solid(f"battens_{zt:g}", 459.6, 464.4, BATTEN_Y - 0.02, CHORD_LO, zt - 0.2, zt + 0.2, nav=False)
+for zt in (BAY[2], S6_BAY[2]):
+    solid(f"task_{zt:g}", 463.0 - 2.32, 463.0 + 2.32, TASK_Y - 0.02, CHORD_LO, zt - 0.24, zt + 0.24, nav=False)
+for zt in (-212.0, -225.0):
+    solid(f"battens_{zt:g}", 459.9, 464.9, BATTEN_Y - 0.02, CHORD_LO, zt - 0.08, zt + 0.08, nav=False)
+# The shutter's motor and its hand chain, in the room beside the drum.
+solid("shutter_motor", X0, X0 + 0.45, 1.2, 5.15, DOOR_Z0 - 0.84, DOOR_Z0 + 0.02, nav=False)
 solid("bay2_door_tracks", X0, X0 + 5.8, 4.3, 5.75, -228.9, -222.3, nav=False)
 solid("bay2_door", X0, X0 + 0.12, 0.0, 4.86, -228.9, -222.3, nav=False)
 solid("boards", X1 - 0.08, X1, BOARD_Y0 - 0.05, BOARD_Y1 + 0.05, -221.85, -209.15, nav=False)
@@ -806,18 +909,60 @@ for zc_, zs in ((BAY[2] - GS.LIFT2_X, -1), (BAY[2] + GS.LIFT2_X, 1)):
           min(zc_ - zs * 0.16, zc_ + zs * (0.22 if zs < 0 else 0.42)), max(zc_ - zs * 0.16, zc_ + zs * (0.22 if zs < 0 else 0.42)))
 solid("lift_beam", LIFT_X - 0.08, LIFT_X + 0.08, GS.LIFT2_H - 0.4, GS.LIFT2_H + 0.08, BAY[2] - 1.84, BAY[2] + 1.84, nav=False)
 
+# The props' own: each one's box, turned as it stands (the kit's boxes are
+# its honest bounds). Assemblies that span a bay or an opening (the lift,
+# the shutter's fittings, the doors, the floor's marks and pads) are open
+# between their parts: the lift's posts and beam are above, the rest is
+# walked over or through.
+SPANNING = ("garage_lift2", "garage_scissor", "garage_shutter_w", "garage_door_", "garage_service_pad", "garage_bay_lines",
+            "garage_bay_0", "garage_stain_", "garage_tyre_marks", "garage_floor_drain", "garage_trench_drain", "garage_cable_ramp",
+            "garage_drip_tray")
+FIXTURE_PROTOS = ("garage_task_light", "garage_led_batten", "garage_fluoro", "garage_cable_tray", "garage_conduit", "garage_monitor",
+                  "garage_shop_sign", "garage_neon_", "garage_junction_box", "garage_work_light")
+PROP_SOLIDS = []
+for n_, x, y, z, yaw, sy, sxz, d in NP.INSTANCES:
+    if d not in SECTORS or n_.startswith(SPANNING):
+        continue
+    hx, hy, hz = NP.PROTOS[n_]["box"]
+    PROP_SOLIDS.append({"name": f"prop_{len(PROP_SOLIDS):03d}_{n_[7:]}", "proto": n_, "kind": "fixture" if n_.startswith(FIXTURE_PROTOS) else "prop",
+                        "at": [round(x, 3), round(y, 3), round(z, 3)], "yaw": round(yaw, 4),
+                        "half": [round(hx * sxz, 3), round(hy * sy, 3), round(hz * sxz, 3)],
+                        "nav": y < 1.0 and not n_.startswith(FIXTURE_PROTOS), "camera": True, "sector": d})
+# As meshes in the pack, never drawn: collide_garage_<name>, a closed box
+# each, with what it stops (camera, nav) and what it is (kind).
+for c in COLLIDE:
+    (x0, y0, z0), (x1, y1, z1) = c["min"], c["max"]
+    named_mesh(f"collide_garage_{c['name']}", box_quads((x0, y0, z0), (x1, y1, z1)),
+               props={"camera": int(c["camera"]), "nav": int(c["nav"]), "kind": c["kind"], "pack": "garage",
+                      "visibilitySector": sector(min(max((x0 + x1) / 2, X0), X1 - 0.01), min(max((z0 + z1) / 2, Z0), Z1 - 0.01))})
+for c in PROP_SOLIDS:
+    hx, hy, hz = c["half"]
+    x, y, z = c["at"]
+    named_mesh(f"collide_garage_{c['name']}", box_quads((-hx, y, -hz), (hx, y + 2 * hy, hz), c["yaw"], (x, z)),
+               props={"camera": 1, "nav": int(c["nav"]), "kind": c["kind"], "prop": c["proto"], "pack": "garage", "visibilitySector": c["sector"]})
+# What roam walks on above the floor: the mezzanine's deck and the stair.
+NAV = {
+    "mezzanine": [(X0, MZ_Y, Z1), (MZ_X1, MZ_Y, Z1), (MZ_X1, MZ_Y, MZ_Z0), (X0, MZ_Y, MZ_Z0)],
+    "stair": [(STAIR_X1 + 0.15, 0.0, Z1 - 0.03), (STAIR_X0, MZ_Y, Z1 - 0.03), (STAIR_X0, MZ_Y, STAIR_Z0 + 0.05), (STAIR_X1 + 0.15, 0.0, STAIR_Z0 + 0.05)],
+}
+for nid, q in NAV.items():
+    named_mesh(f"nav_garage_floor_{nid}", [q], props={"pack": "garage", "visibilitySector": MEZ, "kind": "floor" if nid != "stair" else "stair"})
+
 GARAGE = {
     "frame": "world metres, +x east, +y up, +z south",
     "room": {"min": [X0, 0.0, Z0], "max": [X1, CEIL, Z1], "shell": {"min": [GX0, 0.0, GZ0], "max": [GX1, GH, GZ1]}},
     "bays": {"s4": {"at": list(BAY), "yaw": round(math.pi / 2, 4), "anchor": "anchor_garage_bay"},
              "s6": {"at": list(S6_BAY), "yaw": round(math.pi / 2, 4), "anchor": "anchor_garage_s6",
-                    "stance": {"stripe_z": STANCE_STRIPE_Z, "front_axle_x": round(S6_FRONT_AXLE_X, 3), "pad": list(PAD)}}},
+                    "stance": {"floor_line_z": round(S6_BAY[2] - 1.75, 3), "front_axle_x": round(S6_BAY[0] + 1.456, 3),
+                               "note": "the bay lines' north edge (garage_bay_lines, 3.5 m wide) beside the front wheel"}}},
     "sectors": SECTOR_BOXES,
     "portals": PORTALS,
     "lights": LIGHTS_G,
     "boards": BOARDS_OUT,
     "photo_atlas": {"tiles": PHOTO_TILES, "cols": ATLAS_COLS, "rows": ATLAS_ROWS, "source": "src/assets/photos/<id>.jpg"},
     "collision": COLLIDE,
+    "prop_solids": PROP_SOLIDS,
+    "nav": {k_: [list(v) for v in q] for k_, q in NAV.items()},
     "mezzanine": {"floor_y": MZ_Y, "slab": [X0, MZ_Z0, MZ_X1, Z1], "office": [X0, MZ_Z0, OFFICE_X1, Z1],
                   "stair": {"x": [STAIR_X0, STAIR_X1], "z": [STAIR_Z0, Z1], "risers": RISERS, "rise": round(RISE, 4), "going": round(GOING, 4),
                             "foot_x": STAIR_X1, "head_x": STAIR_X0}},

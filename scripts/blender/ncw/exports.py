@@ -158,6 +158,8 @@ def write_all(out):
         hx, hy, hz = P.PROTOS[n]["box"]
         if y > 1.0:
             continue  # on a roof or a wall: nothing a car or a walker meets
+        if d in GI.SECTORS and n.startswith(GI.SPANNING):
+            continue  # a lift, a door's fittings, a mark on the floor: open between its parts
         c, s_ = abs(math.cos(yaw)), abs(math.sin(yaw))
         ex, ez = (hx * c + hz * s_) * sxz, (hx * s_ + hz * c) * sxz
         boxes.append({"min": [_r(x - ex), _r(y), _r(z - ez)], "max": [_r(x + ex), _r(y + 2 * hy * sy), _r(z + ez)], "district": d, "kind": n})
@@ -166,7 +168,7 @@ def write_all(out):
     for c in GI.COLLIDE:
         if c["nav"]:
             boxes.append({"min": c["min"], "max": c["max"], "district": GI.sector(*[(a + b) / 2 for a, b in zip(c["min"][::2], c["max"][::2])]),
-                          "kind": "garage_" + c["kind"]})
+                          "kind": "garage_" + c["name"]})
     (out / "collision.json").write_text(json.dumps({"frame": "world metres", "boxes": boxes}, separators=(",", ":")))
     layout = garage_layout(GI, inside)
     # The optimizer packs the workshop's props from here, as it does the
@@ -184,7 +186,8 @@ def write_all(out):
 def garage_layout(GI, inside):
     """The workshop for the site in one file: its sectors and portals, the
     cameras of its stations and poses (wide and portrait), the path graph
-    and the default visit over the scroll, its lights, its boards, and what
+    (its routes, controls and gaze) and the default visit over the scroll
+    (timeline), its lights, its boards, and what
     a camera and a walker must keep clear of (its own solids, and every
     placed prop's footprint as an oriented box)."""
     from ncw import cameras as C
@@ -197,11 +200,15 @@ def garage_layout(GI, inside):
                       **({"p": rest[0]} if rest[0] is not None else {}),
                       **({"cut_only": True} if gid.endswith("_cabin") else {})}
 
-    def gaze(g):
+    def pt(g):
         return g if isinstance(g, str) else [_r(v, 3) for v in g]
-    route = [{"p": [a, b], "from": f, "to": t, "via": via, "gaze": [gaze(g) for g in gz],
-              "hold": f == t and not via, "states": {k: [list(e) for e in v] for k, v in st.items()}}
-             for a, b, f, t, via, gz, st in C.GARAGE_ROUTE]
+    routes = {rid: {"from": a, "to": b, "controls": [pt(c) for c in ctrl],
+                    "portrait": {f"{k:02d}": pt(v) for k, v in portrait.items()},
+                    "gaze": [{"u": u, "at": pt(g)} for u, g in gaze],
+                    "anchors": [f"cam_garage_path_{rid}_{i:02d}" for i in range(1, len(ctrl) + 1)]}
+              for rid, (a, b, ctrl, portrait, gaze) in C.GARAGE_ROUTES.items()}
+    timeline = [{"p": [a, b], "route": r, "hold": at, "states": {k: [list(e) for e in v] for k, v in st.items()}}
+                for a, b, r, at, st in C.GARAGE_ROUTE]
     props = []
     for n, x, y, z, yaw, sy, sxz, d in inside:
         hx, hy, hz = P.PROTOS[n]["box"]
@@ -212,12 +219,9 @@ def garage_layout(GI, inside):
         "note": "scripts/blender/ncw/districts/garage_interior.py and ncw/cameras.py write this; the site's own files are its readers",
         "stations": [g for g, *_ in C.GARAGE_STATIONS],
         "poses": poses,
-        "nodes": {k: {"wide": list(v), **({"portrait": list(C.GARAGE_NODES_PORTRAIT[k])} if k in C.GARAGE_NODES_PORTRAIT else {})}
-                  for k, v in C.GARAGE_NODES.items()},
-        "edges": [{"a": a, "b": b, "via": via} for a, b, via in C.GARAGE_EDGES],
-        "route": route,
-        "entry": C.GARAGE_ENTRY,
-        "exit": C.GARAGE_EXIT,
+        "nodes": {k: {"at": list(v), "anchor": f"anchor_garage_node_{k}"} for k, v in C.GARAGE_NODES.items()},
+        "routes": routes,
+        "timeline": timeline,
         "clearance": {"eye": 0.45, "near_plane": 0.15, "near": 0.1},
         "props": props,
     }

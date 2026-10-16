@@ -19,7 +19,21 @@ tri_count = 0
 proto_tris = 0
 
 
-def _mesh(name, verts, faces, uvs, cols, mat_name):
+def _smooth(mesh, angle=math.radians(35.0)):
+    """Round where it is round: the batches give every face its own
+    vertices, so weld them, shade smooth and keep the edges sharper than
+    `angle` sharp (a tyre's tread is smooth, a box's corners are not)."""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.shade_smooth()
+    mesh.set_sharp_from_angle(angle=angle)
+
+
+def _mesh(name, verts, faces, uvs, cols, mat_name, smooth=False):
     mesh = bpy.data.meshes.new(PREFIX + name)
     mesh.from_pydata(verts, [], faces)
     uv_layer = mesh.uv_layers.new(name="UVMap")
@@ -34,6 +48,8 @@ def _mesh(name, verts, faces, uvs, cols, mat_name):
             li += 1
     mesh.materials.append(MATS[mat_name])
     mesh.validate()
+    if smooth:
+        _smooth(mesh)
     return mesh
 
 
@@ -85,7 +101,9 @@ for (district, mat_name, detail), b in batches.items():
         name = district[6:]
         if _unplaced_garage(name):
             continue
-        mesh = _mesh(f"proto_{name}_{mat_name}", b.verts, b.faces, b.uvs, b.cols, mat_name)
+        # The garage's kit is turned and rounded (tyres, drums, a tank, the
+        # lift's rams): smooth-shaded, its edges kept.
+        mesh = _mesh(f"proto_{name}_{mat_name}", b.verts, b.faces, b.uvs, b.cols, mat_name, smooth=name.startswith("garage_"))
         obj = bpy.data.objects.new(f"proto_{name}_{mat_name}", mesh)
         obj["proto"] = name
         obj["detail"] = 1 if _props.PROTOS[name]["detail"] else 0
@@ -93,7 +111,7 @@ for (district, mat_name, detail), b in batches.items():
         link(obj)
         proto_tris += sum(len(p.vertices) - 2 for p in mesh.polygons)
         continue
-    mesh = _mesh(f"{district}_{mat_name}_{detail}", b.verts, b.faces, b.uvs, b.cols, mat_name)
+    mesh = _mesh(f"{district}_{mat_name}_{detail}", b.verts, b.faces, b.uvs, b.cols, mat_name, smooth=district in _garage_in.SECTORS)
     obj = bpy.data.objects.new(f"{district}_{mat_name}" + ("_detail" if detail else ""), mesh)
     obj["district"] = district
     obj["detail"] = detail

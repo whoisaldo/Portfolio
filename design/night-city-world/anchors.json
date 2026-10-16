@@ -85,9 +85,10 @@
    "yaw": -1.5708,
    "district": "afterlife",
    "extras": {
-    "w": 2.6,
-    "h": 1.1,
-    "sector": "garage_shop"
+    "width": 2.6,
+    "height": 1.1,
+    "pack": "garage",
+    "visibilitySector": "garage_shop"
    }
   },
   {
@@ -101,13 +102,14 @@
    "yaw": -1.5708,
    "district": "afterlife",
    "extras": {
-    "w": 2.6,
-    "h": 1.1,
-    "sector": "garage_shop"
+    "width": 2.6,
+    "height": 1.1,
+    "pack": "garage",
+    "visibilitySector": "garage_shop"
    }
   },
   {
-   "name": "anchor_garage_board_competing",
+   "name": "anchor_garage_board_competitions",
    "kind": "anchor",
    "at": [
     475.43,
@@ -117,93 +119,234 @@
    "yaw": -1.5708,
    "district": "afterlife",
    "extras": {
-    "w": 2.6,
-    "h": 1.1,
-    "sector": "garage_shop"
+    "width": 2.6,
+    "height": 1.1,
+    "pack": "garage",
+    "visibilitySector": "garage_shop"
    }
   },
   {
-   "name": "anchor_garage_light_aisle_n",
+   "name": "anchor_garage_light_aisle_n_1",
    "kind": "anchor",
    "at": [
     469.6,
     5.82,
-    -222.0
+    -222.04
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "room",
     "aim": [
      469.6,
      0.0,
      -222.0
     ],
-    "sector": "garage_s6",
-    "cct": 4000
+    "fixture": "aisle_n",
+    "pack": "garage",
+    "visibilitySector": "garage_s6",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_aisle_s",
+   "name": "anchor_garage_light_aisle_n_2",
    "kind": "anchor",
    "at": [
     469.6,
     5.82,
-    -215.0
+    -221.96
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "room",
+    "aim": [
+     469.6,
+     0.0,
+     -222.0
+    ],
+    "fixture": "aisle_n",
+    "pack": "garage",
+    "visibilitySector": "garage_s6",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_aisle_s_1",
+   "kind": "anchor",
+   "at": [
+    469.6,
+    5.82,
+    -215.04
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "room",
     "aim": [
      469.6,
      0.0,
      -215.0
     ],
-    "sector": "garage_s4",
-    "cct": 4000
+    "fixture": "aisle_s",
+    "pack": "garage",
+    "visibilitySector": "garage_s4",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_apron_n",
+   "name": "anchor_garage_light_aisle_s_2",
    "kind": "anchor",
    "at": [
-    455.6,
+    469.6,
     5.82,
-    -225.0
+    -214.96
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "room",
+    "aim": [
+     469.6,
+     0.0,
+     -215.0
+    ],
+    "fixture": "aisle_s",
+    "pack": "garage",
+    "visibilitySector": "garage_s4",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_apron_n_1",
+   "kind": "anchor",
+   "at": [
+    455.6,
+    5.82,
+    -225.04
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "room",
     "aim": [
      455.6,
      0.0,
      -225.0
     ],
-    "sector": "garage_apron",
-    "cct": 4000
+    "fixture": "apron_n",
+    "pack": "garage",
+    "visibilitySector": "garage_apron",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_apron_s",
+   "name": "anchor_garage_light_apron_n_2",
    "kind": "anchor",
    "at": [
     455.6,
     5.82,
-    -212.0
+    -224.96
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "room",
+    "aim": [
+     455.6,
+     0.0,
+     -225.0
+    ],
+    "fixture": "apron_n",
+    "pack": "garage",
+    "visibilitySector": "garage_apron",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_apron_s_1",
+   "kind": "anchor",
+   "at": [
+    455.6,
+    5.82,
+    -212.04
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "room",
     "aim": [
      455.6,
      0.0,
      -212.0
     ],
-    "sector": "garage_apron",
-    "cct": 4000
+    "fixture": "apron_s",
+    "pack": "garage",
+    "visibilitySector": "garage_apron",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_apron_s_2",
+   "kind": "anchor",
+   "at": [
+    455.6,
+    5.82,
+    -211.96
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "room",
+    "aim": [
+     455.6,
+     0.0,
+     -212.0
+    ],
+    "fixture": "apron_s",
+    "pack": "garage",
+    "visibilitySector": "garage_apron",
+    "kelvin": 4000
    }
   },
   {
@@ -214,17 +357,23 @@
     2.39,
     -215.5
    ],
-   "yaw": 0.0,
+   "yaw": -1.5708,
    "district": "afterlife",
    "extras": {
-    "kind": "accent",
+    "kind": "tube",
+    "length": 2.6,
+    "width": 0.07,
+    "color": "#ffb254",
+    "intensity": 0.6,
+    "bay": "shop",
     "aim": [
      474.5,
      0.9,
      -215.5
     ],
-    "sector": "garage_shop",
-    "hue": "amber"
+    "fixture": "bench_amber",
+    "pack": "garage",
+    "visibilitySector": "garage_shop"
    }
   },
   {
@@ -238,287 +387,659 @@
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "accent",
+    "kind": "tube",
+    "length": 20.0,
+    "width": 0.08,
+    "color": "#27dcf2",
+    "intensity": 0.5,
+    "bay": "room",
     "aim": [
      464.0,
      0.0,
      -227.0
     ],
-    "sector": "garage_s6",
-    "hue": "cyan"
+    "fixture": "north_cyan",
+    "pack": "garage",
+    "visibilitySector": "garage_s6"
    }
   },
   {
-   "name": "anchor_garage_light_office_n",
+   "name": "anchor_garage_light_office_n_1",
    "kind": "anchor",
    "at": [
     454.8,
     5.32,
-    -205.8
+    -205.85
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.5,
+    "bay": "room",
     "aim": [
      454.8,
      3.2,
      -205.8
     ],
-    "sector": "garage_mezzanine",
-    "cct": 4000
+    "fixture": "office_n",
+    "pack": "garage",
+    "visibilitySector": "garage_mezzanine",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_office_s",
+   "name": "anchor_garage_light_office_n_2",
    "kind": "anchor",
    "at": [
     454.8,
     5.32,
-    -202.6
+    -205.76
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.5,
+    "bay": "room",
+    "aim": [
+     454.8,
+     3.2,
+     -205.8
+    ],
+    "fixture": "office_n",
+    "pack": "garage",
+    "visibilitySector": "garage_mezzanine",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_office_s_1",
+   "kind": "anchor",
+   "at": [
+    454.8,
+    5.32,
+    -202.65
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.5,
+    "bay": "room",
     "aim": [
      454.8,
      3.2,
      -202.6
     ],
-    "sector": "garage_mezzanine",
-    "cct": 4000
+    "fixture": "office_s",
+    "pack": "garage",
+    "visibilitySector": "garage_mezzanine",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_s4_flank",
+   "name": "anchor_garage_light_office_s_2",
    "kind": "anchor",
    "at": [
-    462.4,
+    454.8,
+    5.32,
+    -202.55
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.5,
+    "bay": "room",
+    "aim": [
+     454.8,
+     3.2,
+     -202.6
+    ],
+    "fixture": "office_s",
+    "pack": "garage",
+    "visibilitySector": "garage_mezzanine",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_s4_flank_1",
+   "kind": "anchor",
+   "at": [
+    461.2,
     5.55,
     -212.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "flank",
+    "kind": "strip",
+    "length": 2.36,
+    "width": 0.08,
+    "color": "#eceae4",
+    "intensity": 1.0,
+    "bay": "s4",
     "aim": [
      462.6,
      0.45,
      -214.0
     ],
-    "sector": "garage_s4",
-    "cct": 4300
+    "fixture": "s4_flank",
+    "pack": "garage",
+    "visibilitySector": "garage_s4",
+    "kelvin": 4300
+   }
+  },
+  {
+   "name": "anchor_garage_light_s4_flank_2",
+   "kind": "anchor",
+   "at": [
+    463.6,
+    5.55,
+    -212.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "strip",
+    "length": 2.36,
+    "width": 0.08,
+    "color": "#eceae4",
+    "intensity": 1.0,
+    "bay": "s4",
+    "aim": [
+     462.6,
+     0.45,
+     -214.0
+    ],
+    "fixture": "s4_flank",
+    "pack": "garage",
+    "visibilitySector": "garage_s4",
+    "kelvin": 4300
    }
   },
   {
    "name": "anchor_garage_light_s4_task",
    "kind": "anchor",
    "at": [
-    462.0,
-    5.55,
+    463.0,
+    5.45,
     -215.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "task",
+    "kind": "strip",
+    "length": 4.5,
+    "width": 0.35,
+    "color": "#ffe0c2",
+    "intensity": 2.4,
+    "bay": "s4",
     "aim": [
-     462.6,
+     462.8,
      0.9,
      -215.0
     ],
-    "sector": "garage_s4",
-    "cct": 4300
+    "fixture": "s4_task",
+    "pack": "garage",
+    "visibilitySector": "garage_s4",
+    "kelvin": 4400
    }
   },
   {
    "name": "anchor_garage_light_s4_work",
    "kind": "anchor",
    "at": [
-    465.3,
+    465.23,
     2.1,
-    -217.55
+    -217.46
    ],
-   "yaw": 0.0,
+   "yaw": -0.6651,
    "district": "afterlife",
    "extras": {
     "kind": "work",
+    "length": 0.32,
+    "width": 0.2,
+    "color": "#ffe0c2",
+    "intensity": 1.2,
+    "bay": "s4",
     "aim": [
      463.3,
      0.95,
      -215.0
     ],
-    "sector": "garage_s4",
-    "cct": 4300
+    "fixture": "s4_work",
+    "pack": "garage",
+    "visibilitySector": "garage_s4",
+    "kelvin": 4400
    }
   },
   {
-   "name": "anchor_garage_light_s6_flank",
+   "name": "anchor_garage_light_s6_flank_1",
    "kind": "anchor",
    "at": [
-    462.4,
+    461.2,
     5.55,
     -225.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "flank",
+    "kind": "strip",
+    "length": 2.36,
+    "width": 0.08,
+    "color": "#eceae4",
+    "intensity": 1.0,
+    "bay": "s6",
     "aim": [
      462.6,
      0.45,
      -223.0
     ],
-    "sector": "garage_s6",
-    "cct": 4300
+    "fixture": "s6_flank",
+    "pack": "garage",
+    "visibilitySector": "garage_s6",
+    "kelvin": 4300
+   }
+  },
+  {
+   "name": "anchor_garage_light_s6_flank_2",
+   "kind": "anchor",
+   "at": [
+    463.6,
+    5.55,
+    -225.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "strip",
+    "length": 2.36,
+    "width": 0.08,
+    "color": "#eceae4",
+    "intensity": 1.0,
+    "bay": "s6",
+    "aim": [
+     462.6,
+     0.45,
+     -223.0
+    ],
+    "fixture": "s6_flank",
+    "pack": "garage",
+    "visibilitySector": "garage_s6",
+    "kelvin": 4300
    }
   },
   {
    "name": "anchor_garage_light_s6_task",
    "kind": "anchor",
    "at": [
-    462.0,
-    5.55,
+    463.0,
+    5.45,
     -222.0
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "task",
+    "kind": "strip",
+    "length": 4.5,
+    "width": 0.35,
+    "color": "#ffe0c2",
+    "intensity": 2.4,
+    "bay": "s6",
     "aim": [
-     462.6,
+     462.8,
      0.9,
      -222.0
     ],
-    "sector": "garage_s6",
-    "cct": 4300
+    "fixture": "s6_task",
+    "pack": "garage",
+    "visibilitySector": "garage_s6",
+    "kelvin": 4400
    }
   },
   {
    "name": "anchor_garage_light_s6_work",
    "kind": "anchor",
    "at": [
-    465.3,
+    465.23,
     2.1,
-    -219.45
+    -219.54
    ],
-   "yaw": 0.0,
+   "yaw": -2.4765,
    "district": "afterlife",
    "extras": {
     "kind": "work",
+    "length": 0.32,
+    "width": 0.2,
+    "color": "#ffe0c2",
+    "intensity": 1.2,
+    "bay": "s6",
     "aim": [
      463.3,
      0.95,
      -222.0
     ],
-    "sector": "garage_s6",
-    "cct": 4300
+    "fixture": "s6_work",
+    "pack": "garage",
+    "visibilitySector": "garage_s6",
+    "kelvin": 4400
    }
   },
   {
-   "name": "anchor_garage_light_shop_bench",
+   "name": "anchor_garage_light_screen",
+   "kind": "anchor",
+   "at": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "yaw": -1.5708,
+   "district": "avenue",
+   "extras": {
+    "kind": "screen",
+    "length": 1.43,
+    "width": 0.8,
+    "color": "#c8d2ff",
+    "intensity": 0.4,
+    "bay": "shop",
+    "fixture": "screen",
+    "mesh": "garage_screen",
+    "pack": "garage",
+    "visibilitySector": "garage_shop"
+   }
+  },
+  {
+   "name": "anchor_garage_light_shop_bench_1",
    "kind": "anchor",
    "at": [
     473.4,
     5.82,
-    -215.0
+    -215.04
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
     "aim": [
      475.3,
      2.2,
      -215.0
     ],
-    "sector": "garage_shop",
-    "cct": 4000
+    "fixture": "shop_bench",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_shop_bmw",
+   "name": "anchor_garage_light_shop_bench_2",
    "kind": "anchor",
    "at": [
     473.4,
     5.82,
-    -222.0
+    -214.96
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
+    "aim": [
+     475.3,
+     2.2,
+     -215.0
+    ],
+    "fixture": "shop_bench",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_shop_bmw_1",
+   "kind": "anchor",
+   "at": [
+    473.4,
+    5.82,
+    -222.04
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
     "aim": [
      475.3,
      2.2,
      -222.0
     ],
-    "sector": "garage_shop",
-    "cct": 4000
+    "fixture": "shop_bmw",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_shop_comp",
+   "name": "anchor_garage_light_shop_bmw_2",
    "kind": "anchor",
    "at": [
     473.4,
     5.82,
-    -208.5
+    -221.96
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
+    "aim": [
+     475.3,
+     2.2,
+     -222.0
+    ],
+    "fixture": "shop_bmw",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_shop_comp_1",
+   "kind": "anchor",
+   "at": [
+    473.4,
+    5.82,
+    -208.54
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
     "aim": [
      475.3,
      2.2,
      -208.5
     ],
-    "sector": "garage_shop",
-    "cct": 4000
+    "fixture": "shop_comp",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_shop_n",
+   "name": "anchor_garage_light_shop_comp_2",
    "kind": "anchor",
    "at": [
     473.4,
     5.82,
-    -218.5
+    -208.46
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
+    "aim": [
+     475.3,
+     2.2,
+     -208.5
+    ],
+    "fixture": "shop_comp",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_shop_n_1",
+   "kind": "anchor",
+   "at": [
+    473.4,
+    5.82,
+    -218.54
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
     "aim": [
      475.3,
      2.2,
      -218.5
     ],
-    "sector": "garage_shop",
-    "cct": 4000
+    "fixture": "shop_n",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
    }
   },
   {
-   "name": "anchor_garage_light_shop_s",
+   "name": "anchor_garage_light_shop_n_2",
    "kind": "anchor",
    "at": [
     473.4,
     5.82,
-    -212.0
+    -218.46
    ],
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "fluoro",
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
+    "aim": [
+     475.3,
+     2.2,
+     -218.5
+    ],
+    "fixture": "shop_n",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_shop_s_1",
+   "kind": "anchor",
+   "at": [
+    473.4,
+    5.82,
+    -212.04
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
     "aim": [
      475.3,
      2.2,
      -212.0
     ],
-    "sector": "garage_shop",
-    "cct": 4000
+    "fixture": "shop_s",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
+   }
+  },
+  {
+   "name": "anchor_garage_light_shop_s_2",
+   "kind": "anchor",
+   "at": [
+    473.4,
+    5.82,
+    -211.96
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "kind": "tube",
+    "length": 1.2,
+    "width": 0.026,
+    "color": "#eceae4",
+    "intensity": 0.6,
+    "bay": "shop",
+    "aim": [
+     475.3,
+     2.2,
+     -212.0
+    ],
+    "fixture": "shop_s",
+    "pack": "garage",
+    "visibilitySector": "garage_shop",
+    "kelvin": 4000
    }
   },
   {
@@ -532,14 +1053,104 @@
    "yaw": 0.0,
    "district": "afterlife",
    "extras": {
-    "kind": "accent",
+    "kind": "tube",
+    "length": 6.0,
+    "width": 0.08,
+    "color": "#ff2e88",
+    "intensity": 0.5,
+    "bay": "room",
     "aim": [
      467.0,
      0.0,
      -203.0
     ],
-    "sector": "garage_s4",
-    "hue": "pink"
+    "fixture": "south_magenta",
+    "pack": "garage",
+    "visibilitySector": "garage_s4"
+   }
+  },
+  {
+   "name": "anchor_garage_node_aisle",
+   "kind": "anchor",
+   "at": [
+    470.0,
+    2.6,
+    -218.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "links": ""
+   }
+  },
+  {
+   "name": "anchor_garage_node_apron",
+   "kind": "anchor",
+   "at": [
+    455.0,
+    2.8,
+    -216.2
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "links": "apron_s4rear,apron_s6rear"
+   }
+  },
+  {
+   "name": "anchor_garage_node_door",
+   "kind": "anchor",
+   "at": [
+    452.0,
+    2.4,
+    -215.2
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "links": ""
+   }
+  },
+  {
+   "name": "anchor_garage_node_outside",
+   "kind": "anchor",
+   "at": [
+    446.0,
+    2.3,
+    -216.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "links": "entry,exit"
+   }
+  },
+  {
+   "name": "anchor_garage_node_s4_flank",
+   "kind": "anchor",
+   "at": [
+    462.0,
+    2.6,
+    -210.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "links": ""
+   }
+  },
+  {
+   "name": "anchor_garage_node_s6_flank",
+   "kind": "anchor",
+   "at": [
+    462.0,
+    2.0,
+    -226.8
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "links": ""
    }
   },
   {
@@ -550,27 +1161,27 @@
     2.3,
     -215.0
    ],
-   "yaw": 0.0,
+   "yaw": 1.5708,
    "district": "afterlife",
    "extras": {
-    "w": 6.0,
-    "h": 4.6,
+    "width": 6.0,
+    "height": 4.6,
     "inside": "garage_apron"
    }
   },
   {
-   "name": "anchor_garage_portal_office_window",
+   "name": "anchor_garage_portal_office",
    "kind": "anchor",
    "at": [
     452.0,
     5.1,
     -204.5
    ],
-   "yaw": 0.0,
+   "yaw": 1.5708,
    "district": "afterlife",
    "extras": {
-    "w": 4.600000000000023,
-    "h": 1.6000000000000005,
+    "width": 4.600000000000023,
+    "height": 1.6000000000000005,
     "inside": "garage_mezzanine"
    }
   },
@@ -8021,6 +8632,546 @@
    "district": "afterlife"
   },
   {
+   "name": "cam_garage_gaze_apron_s4rear_01",
+   "kind": "cam",
+   "at": [
+    460.2,
+    0.7,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "apron_s4rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_apron_s4rear_01_portrait",
+   "kind": "cam",
+   "at": [
+    460.2,
+    0.75,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "apron_s4rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_apron_s6rear_01",
+   "kind": "cam",
+   "at": [
+    460.3,
+    0.7,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "apron_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_apron_s6rear_01_portrait",
+   "kind": "cam",
+   "at": [
+    460.3,
+    0.75,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "apron_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_arrival_s4_01",
+   "kind": "cam",
+   "at": [
+    462.0,
+    0.4,
+    -218.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "arrival_s4"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_arrival_s4_01_portrait",
+   "kind": "cam",
+   "at": [
+    461.5,
+    0.8,
+    -220.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "arrival_s4"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_arrival_s4_02",
+   "kind": "cam",
+   "at": [
+    460.2,
+    0.7,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.3,
+    "route": "arrival_s4"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_arrival_s4_02_portrait",
+   "kind": "cam",
+   "at": [
+    460.2,
+    0.75,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.3,
+    "route": "arrival_s4"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_arrival_s4_03",
+   "kind": "cam",
+   "at": [
+    461.2,
+    0.8,
+    -213.6
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.7,
+    "route": "arrival_s4"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_arrival_s4_04",
+   "kind": "cam",
+   "at": [
+    462.8,
+    0.85,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "arrival_s4"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_arrival_s4_04_portrait",
+   "kind": "cam",
+   "at": [
+    462.5,
+    0.85,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "arrival_s4"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_entry_01",
+   "kind": "cam",
+   "at": [
+    458.0,
+    1.4,
+    -215.2
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "entry"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_entry_02",
+   "kind": "cam",
+   "at": [
+    460.5,
+    0.9,
+    -217.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.55,
+    "route": "entry"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_entry_03",
+   "kind": "cam",
+   "at": [
+    462.0,
+    0.4,
+    -218.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "entry"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_entry_03_portrait",
+   "kind": "cam",
+   "at": [
+    461.5,
+    0.8,
+    -220.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "entry"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_exit_01",
+   "kind": "cam",
+   "at": [
+    475.1,
+    2.2,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "exit"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_exit_01_portrait",
+   "kind": "cam",
+   "at": [
+    475.1,
+    2.6,
+    -220.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "exit"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_exit_02",
+   "kind": "cam",
+   "at": [
+    460.0,
+    1.6,
+    -218.6
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.4,
+    "route": "exit"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_exit_03",
+   "kind": "cam",
+   "at": [
+    447.0,
+    2.2,
+    -216.4
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.8,
+    "route": "exit"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_exit_04",
+   "kind": "cam",
+   "at": [
+    440.0,
+    2.6,
+    -217.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "exit"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s4bay_s6rear_01",
+   "kind": "cam",
+   "at": [
+    463.3,
+    1.05,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "s4bay_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s4bay_s6rear_01_portrait",
+   "kind": "cam",
+   "at": [
+    463.25,
+    1.05,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "s4bay_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s4bay_s6rear_02",
+   "kind": "cam",
+   "at": [
+    470.0,
+    1.6,
+    -221.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.3,
+    "route": "s4bay_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s4bay_s6rear_03",
+   "kind": "cam",
+   "at": [
+    466.0,
+    1.0,
+    -226.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.62,
+    "route": "s4bay_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s4bay_s6rear_04",
+   "kind": "cam",
+   "at": [
+    460.3,
+    0.7,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "s4bay_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s4bay_s6rear_04_portrait",
+   "kind": "cam",
+   "at": [
+    460.3,
+    0.75,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "s4bay_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s6bay_shop_01",
+   "kind": "cam",
+   "at": [
+    463.3,
+    1.05,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "s6bay_shop"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s6bay_shop_02",
+   "kind": "cam",
+   "at": [
+    473.5,
+    1.2,
+    -219.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.5,
+    "route": "s6bay_shop"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s6bay_shop_03",
+   "kind": "cam",
+   "at": [
+    475.1,
+    2.2,
+    -215.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "s6bay_shop"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s6bay_shop_03_portrait",
+   "kind": "cam",
+   "at": [
+    475.1,
+    2.6,
+    -220.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "s6bay_shop"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s6rear_s6_01",
+   "kind": "cam",
+   "at": [
+    460.3,
+    0.7,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "s6rear_s6"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s6rear_s6_01_portrait",
+   "kind": "cam",
+   "at": [
+    460.3,
+    0.75,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "s6rear_s6"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s6rear_s6_02",
+   "kind": "cam",
+   "at": [
+    461.6,
+    0.8,
+    -223.4
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.45,
+    "route": "s6rear_s6"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_s6rear_s6_03",
+   "kind": "cam",
+   "at": [
+    462.5,
+    0.8,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "s6rear_s6"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_stance_s6bay_01",
+   "kind": "cam",
+   "at": [
+    463.5,
+    0.45,
+    -222.9
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 0.0,
+    "route": "stance_s6bay"
+   }
+  },
+  {
+   "name": "cam_garage_gaze_stance_s6bay_02",
+   "kind": "cam",
+   "at": [
+    463.3,
+    1.05,
+    -222.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "u": 1.0,
+    "route": "stance_s6bay"
+   }
+  },
+  {
    "name": "cam_garage_in",
    "kind": "cam",
    "at": [
@@ -8030,6 +9181,396 @@
    ],
    "yaw": 0.0,
    "district": "afterlife"
+  },
+  {
+   "name": "cam_garage_path_apron_s4rear_01",
+   "kind": "cam",
+   "at": [
+    455.6,
+    2.2,
+    -213.4
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "apron_s4rear",
+    "from": "apron",
+    "to": "s4_rear"
+   }
+  },
+  {
+   "name": "cam_garage_path_apron_s6rear_01",
+   "kind": "cam",
+   "at": [
+    455.4,
+    2.3,
+    -222.6
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "apron_s6rear",
+    "from": "apron",
+    "to": "s6_rear"
+   }
+  },
+  {
+   "name": "cam_garage_path_arrival_s4_01",
+   "kind": "cam",
+   "at": [
+    455.0,
+    2.8,
+    -210.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "arrival_s4",
+    "from": "arrival",
+    "to": "s4"
+   }
+  },
+  {
+   "name": "cam_garage_path_arrival_s4_01_portrait",
+   "kind": "cam",
+   "at": [
+    455.2,
+    3.0,
+    -210.4
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "arrival_s4"
+   }
+  },
+  {
+   "name": "cam_garage_path_arrival_s4_02",
+   "kind": "cam",
+   "at": [
+    468.0,
+    2.6,
+    -210.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "arrival_s4",
+    "from": "arrival",
+    "to": "s4"
+   }
+  },
+  {
+   "name": "cam_garage_path_entry_01",
+   "kind": "cam",
+   "at": [
+    451.5,
+    2.4,
+    -215.3
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "entry",
+    "from": "outside",
+    "to": "arrival"
+   }
+  },
+  {
+   "name": "cam_garage_path_entry_02",
+   "kind": "cam",
+   "at": [
+    455.0,
+    2.8,
+    -216.2
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "entry",
+    "from": "outside",
+    "to": "arrival"
+   }
+  },
+  {
+   "name": "cam_garage_path_entry_03",
+   "kind": "cam",
+   "at": [
+    455.2,
+    2.8,
+    -219.6
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "entry",
+    "from": "outside",
+    "to": "arrival"
+   }
+  },
+  {
+   "name": "cam_garage_path_entry_03_portrait",
+   "kind": "cam",
+   "at": [
+    455.0,
+    3.2,
+    -220.4
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "entry"
+   }
+  },
+  {
+   "name": "cam_garage_path_exit_01",
+   "kind": "cam",
+   "at": [
+    470.0,
+    2.6,
+    -218.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "exit",
+    "from": "shop",
+    "to": "outside"
+   }
+  },
+  {
+   "name": "cam_garage_path_exit_02",
+   "kind": "cam",
+   "at": [
+    458.2,
+    3.0,
+    -219.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "exit",
+    "from": "shop",
+    "to": "outside"
+   }
+  },
+  {
+   "name": "cam_garage_path_exit_03",
+   "kind": "cam",
+   "at": [
+    455.0,
+    2.7,
+    -216.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "exit",
+    "from": "shop",
+    "to": "outside"
+   }
+  },
+  {
+   "name": "cam_garage_path_exit_04",
+   "kind": "cam",
+   "at": [
+    451.5,
+    2.4,
+    -215.3
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "exit",
+    "from": "shop",
+    "to": "outside"
+   }
+  },
+  {
+   "name": "cam_garage_path_s4_s4bay_01",
+   "kind": "cam",
+   "at": [
+    467.8,
+    2.4,
+    -212.6
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s4_s4bay",
+    "from": "s4",
+    "to": "s4_bay"
+   }
+  },
+  {
+   "name": "cam_garage_path_s4bay_s6rear_01",
+   "kind": "cam",
+   "at": [
+    470.0,
+    3.0,
+    -215.9
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s4bay_s6rear",
+    "from": "s4_bay",
+    "to": "s6_rear"
+   }
+  },
+  {
+   "name": "cam_garage_path_s4bay_s6rear_02",
+   "kind": "cam",
+   "at": [
+    470.0,
+    2.8,
+    -226.8
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s4bay_s6rear",
+    "from": "s4_bay",
+    "to": "s6_rear"
+   }
+  },
+  {
+   "name": "cam_garage_path_s4bay_s6rear_03",
+   "kind": "cam",
+   "at": [
+    456.0,
+    2.0,
+    -226.8
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s4bay_s6rear",
+    "from": "s4_bay",
+    "to": "s6_rear"
+   }
+  },
+  {
+   "name": "cam_garage_path_s4bay_s6rear_03_portrait",
+   "kind": "cam",
+   "at": [
+    456.0,
+    2.3,
+    -227.2
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s4bay_s6rear"
+   }
+  },
+  {
+   "name": "cam_garage_path_s6bay_shop_01",
+   "kind": "cam",
+   "at": [
+    469.0,
+    3.0,
+    -222.8
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s6bay_shop",
+    "from": "s6_bay",
+    "to": "shop"
+   }
+  },
+  {
+   "name": "cam_garage_path_s6bay_shop_02",
+   "kind": "cam",
+   "at": [
+    469.0,
+    2.5,
+    -214.5
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s6bay_shop",
+    "from": "s6_bay",
+    "to": "shop"
+   }
+  },
+  {
+   "name": "cam_garage_path_s6bay_shop_02_portrait",
+   "kind": "cam",
+   "at": [
+    469.0,
+    2.5,
+    -219.0
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s6bay_shop"
+   }
+  },
+  {
+   "name": "cam_garage_path_s6rear_s6_01",
+   "kind": "cam",
+   "at": [
+    456.0,
+    2.0,
+    -226.8
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s6rear_s6",
+    "from": "s6_rear",
+    "to": "s6"
+   }
+  },
+  {
+   "name": "cam_garage_path_s6rear_s6_01_portrait",
+   "kind": "cam",
+   "at": [
+    456.0,
+    2.3,
+    -227.2
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s6rear_s6"
+   }
+  },
+  {
+   "name": "cam_garage_path_s6rear_s6_02",
+   "kind": "cam",
+   "at": [
+    468.0,
+    2.0,
+    -226.8
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "s6rear_s6",
+    "from": "s6_rear",
+    "to": "s6"
+   }
+  },
+  {
+   "name": "cam_garage_path_stance_s6bay_01",
+   "kind": "cam",
+   "at": [
+    466.4,
+    1.8,
+    -224.8
+   ],
+   "yaw": 0.0,
+   "district": "afterlife",
+   "extras": {
+    "route": "stance_s6bay",
+    "from": "s6_stance",
+    "to": "s6_bay"
+   }
   },
   {
    "name": "cam_garage_portrait",
@@ -9136,193 +10677,6 @@
     "w": 20.0,
     "h": 13.0
    }
-  },
-  {
-   "name": "path_garage_aisle_mid",
-   "kind": "path",
-   "at": [
-    470.0,
-    2.6,
-    -218.5
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_aisle_n",
-   "kind": "path",
-   "at": [
-    470.0,
-    2.8,
-    -226.8
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_aisle_s",
-   "kind": "path",
-   "at": [
-    470.0,
-    3.0,
-    -215.9
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_apron_in",
-   "kind": "path",
-   "at": [
-    455.0,
-    2.8,
-    -216.2
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_apron_in_portrait",
-   "kind": "path",
-   "at": [
-    455.0,
-    3.2,
-    -216.2
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_apron_out",
-   "kind": "path",
-   "at": [
-    455.0,
-    2.7,
-    -216.5
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_apron_s",
-   "kind": "path",
-   "at": [
-    455.0,
-    2.8,
-    -210.0
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_apron_s_portrait",
-   "kind": "path",
-   "at": [
-    455.2,
-    3.0,
-    -210.4
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_door_in",
-   "kind": "path",
-   "at": [
-    451.5,
-    2.4,
-    -215.3
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_gap_w",
-   "kind": "path",
-   "at": [
-    458.2,
-    3.0,
-    -219.0
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_north_e",
-   "kind": "path",
-   "at": [
-    468.0,
-    2.0,
-    -226.8
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_north_w",
-   "kind": "path",
-   "at": [
-    456.0,
-    2.0,
-    -226.8
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_north_w_portrait",
-   "kind": "path",
-   "at": [
-    456.0,
-    2.3,
-    -227.2
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_s4_flank",
-   "kind": "path",
-   "at": [
-    468.0,
-    2.6,
-    -210.0
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_s6_aisle",
-   "kind": "path",
-   "at": [
-    469.0,
-    3.0,
-    -222.8
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_shop_s",
-   "kind": "path",
-   "at": [
-    469.0,
-    2.5,
-    -214.5
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
-  },
-  {
-   "name": "path_garage_street_door",
-   "kind": "path",
-   "at": [
-    446.0,
-    2.3,
-    -216.5
-   ],
-   "yaw": 0.0,
-   "district": "afterlife"
   },
   {
    "name": "road_spline",

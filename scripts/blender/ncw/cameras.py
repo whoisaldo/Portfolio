@@ -97,77 +97,92 @@ for gid, *rest in GARAGE_STATIONS + [(g, None, *r) for g, *r in GARAGE_POSES]:
     empty(name + "_portrait", ppos)
     empty(name + "_target_portrait", ptgt)
 
-# The path graph: nodes the camera may pass (wide and portrait where they
-# differ), and the edges of the visit between them, each a polyline of
-# controls for the page's centripetal Catmull-Rom with the points it looks
-# at on the way (gaze, in order). The default visit is GARAGE_ROUTE: the
-# scroll's p from 0 to 1, the station holds, the flights between, and what
-# the cars do over them (hood: 0 shut, 1 open; drop: 0 normal, 1 lowered).
+# The paths between them. Each route (its id fixed by the site's contract)
+# runs from one pose to another through its controls, the interior points
+# of the page's centripetal Catmull-Rom (cam_garage_path_<route>_<NN>; a
+# portrait control of the same NN replaces the wide one on a phone), and
+# looks at its gaze anchors on the way (cam_garage_gaze_<route>_<NN>, each
+# fully weighted at arc fraction `u`; none: along the path, then the
+# destination's target). The graph's junctions are anchor_garage_node_<id>:
+# the camera leaves the room only by apron, door, outside.
 GARAGE_NODES = {
-    "street_door": (446.0, 2.3, -216.5),
-    "door_in": (451.5, 2.4, -215.3),
-    "apron_in": (455.0, 2.8, -216.2),
-    "apron_s": (455.0, 2.8, -210.0),
-    "s4_flank": (468.0, 2.6, -210.0),
-    "aisle_s": (470.0, 3.0, -215.9),
-    "aisle_n": (470.0, 2.8, -226.8),
-    "north_w": (456.0, 2.0, -226.8),
-    "north_e": (468.0, 2.0, -226.8),
-    "s6_aisle": (469.0, 3.0, -222.8),
-    "shop_s": (469.0, 2.5, -214.5),
-    "aisle_mid": (470.0, 2.6, -218.5),
-    "gap_w": (458.2, 3.0, -219.0),
-    "apron_out": (455.0, 2.7, -216.5),
+    "outside": (446.0, 2.3, -216.5),
+    "door": (452.0, 2.4, -215.2),
+    "apron": (455.0, 2.8, -216.2),
+    "s4_flank": (462.0, 2.6, -210.0),
+    "s6_flank": (462.0, 2.0, -226.8),
+    "aisle": (470.0, 2.6, -218.5),
 }
-GARAGE_NODES_PORTRAIT = {
-    "apron_in": (455.0, 3.2, -216.2),
-    "apron_s": (455.2, 3.0, -210.4),
-    "north_w": (456.0, 2.3, -227.2),
+GARAGE_ROUTES = {
+    # id: (from, to, wide controls, {NN: portrait control}, gaze [(u, point or pose target)])
+    "entry": ("outside", "arrival", [(451.5, 2.4, -215.3), (455.0, 2.8, -216.2), (455.2, 2.8, -219.6)],
+              {3: (455.0, 3.2, -220.4)}, [(0.0, (458.0, 1.4, -215.2)), (0.55, (460.5, 0.9, -217.5)), (1.0, "arrival")]),
+    "arrival_s4": ("arrival", "s4", [(455.0, 2.8, -210.0), (468.0, 2.6, -210.0)], {1: (455.2, 3.0, -210.4)},
+                   [(0.0, "arrival"), (0.3, "s4_rear"), (0.7, (461.2, 0.8, -213.6)), (1.0, "s4")]),
+    "s4_s4bay": ("s4", "s4_bay", [(467.8, 2.4, -212.6)], {}, []),
+    "s4bay_s6rear": ("s4_bay", "s6_rear", [(470.0, 3.0, -215.9), (470.0, 2.8, -226.8), (456.0, 2.0, -226.8)],
+                     {3: (456.0, 2.3, -227.2)}, [(0.0, "s4_bay"), (0.3, (470.0, 1.6, -221.0)), (0.62, (466.0, 1.0, -226.0)), (1.0, "s6_rear")]),
+    "s6rear_s6": ("s6_rear", "s6", [(456.0, 2.0, -226.8), (468.0, 2.0, -226.8)], {1: (456.0, 2.3, -227.2)},
+                  [(0.0, "s6_rear"), (0.45, (461.6, 0.8, -223.4)), (1.0, "s6")]),
+    "s6_stance": ("s6", "s6_stance", [], {}, []),
+    "stance_s6bay": ("s6_stance", "s6_bay", [(466.4, 1.8, -224.8)], {}, [(0.0, "s6_stance"), (1.0, "s6_bay")]),
+    "s6bay_shop": ("s6_bay", "shop", [(469.0, 3.0, -222.8), (469.0, 2.5, -214.5)], {2: (469.0, 2.5, -219.0)},
+                   [(0.0, "s6_bay"), (0.5, (473.5, 1.2, -219.0)), (1.0, "shop")]),
+    "exit": ("shop", "outside", [(470.0, 2.6, -218.5), (458.2, 3.0, -219.0), (455.0, 2.7, -216.5), (451.5, 2.4, -215.3)], {},
+             [(0.0, "shop"), (0.4, (460.0, 1.6, -218.6)), (0.8, (447.0, 2.2, -216.4)), (1.0, (440.0, 2.6, -217.0))]),
+    "apron_s4rear": ("apron", "s4_rear", [(455.6, 2.2, -213.4)], {}, [(1.0, "s4_rear")]),
+    "apron_s6rear": ("apron", "s6_rear", [(455.4, 2.3, -222.6)], {}, [(1.0, "s6_rear")]),
 }
+# The default visit over the section's scroll, p 0 to 1: the station holds,
+# the routes between, and what the cars do (hood: 0 shut, 1 open; drop: 0
+# normal, 1 lowered), as (p, value) keys; PLAN.md's table.
 GARAGE_ROUTE = [
-    # p0, p1, from, to, via (node ids), gaze (points or pose ids), what moves
-    (0.0, 0.06, "arrival", "arrival", [], [], {}),
-    (0.06, 0.14, "arrival", "s4", ["apron_s", "s4_flank"], ["s4_rear_target", (460.2, 0.8, -213.6), "s4_target"], {}),
-    (0.14, 0.23, "s4", "s4", [], [], {}),
-    (0.23, 0.30, "s4", "s4_bay", [], ["s4_target", "s4_bay_target"], {"s4_hood": [(0.26, 0.0), (0.30, 1.0)]}),
-    (0.30, 0.42, "s4_bay", "s4_bay", [], [], {"s4_hood": [(0.30, 1.0)]}),
-    (0.42, 0.49, "s4_bay", "s6_rear", ["aisle_s", "aisle_n", "north_w"],
-     [(470.0, 1.6, -221.0), (466.0, 1.0, -226.0), "s6_rear_target"], {"s4_hood": [(0.42, 1.0), (0.46, 0.0)]}),
-    (0.49, 0.54, "s6_rear", "s6_rear", [], [], {}),
-    (0.54, 0.58, "s6_rear", "s6", ["north_w", "north_e"], ["s6_rear_target", (461.6, 0.8, -223.4), "s6_target"], {}),
-    (0.58, 0.61, "s6", "s6", [], [], {}),
-    (0.61, 0.635, "s6", "s6_stance", [], ["s6_target", "s6_stance_target"], {}),
-    (0.635, 0.655, "s6_stance", "s6_stance", [], [], {"s6_drop": [(0.635, 0.0)]}),
-    (0.655, 0.685, "s6_stance", "s6_stance", [], [], {"s6_drop": [(0.655, 0.0), (0.685, 1.0)]}),
-    (0.685, 0.705, "s6_stance", "s6_stance", [], [], {"s6_drop": [(0.685, 1.0)]}),
-    (0.705, 0.77, "s6_stance", "s6_bay", [], ["s6_stance_target", "s6_bay_target"],
-     {"s6_drop": [(0.705, 1.0), (0.73, 0.0)], "s6_hood": [(0.73, 0.0), (0.77, 1.0)]}),
-    (0.77, 0.86, "s6_bay", "s6_bay", [], [], {"s6_hood": [(0.77, 1.0)]}),
-    (0.86, 0.94, "s6_bay", "shop", ["s6_aisle", "shop_s"], ["s6_bay_target", (473.5, 1.2, -219.0), "shop_target"],
-     {"s6_hood": [(0.86, 1.0), (0.90, 0.0)]}),
-    (0.94, 1.0, "shop", "shop", [], [], {}),
+    # p0, p1, route id (None: a hold at `at`), at, states
+    (0.0, 0.06, None, "arrival", {}),
+    (0.06, 0.14, "arrival_s4", None, {}),
+    (0.14, 0.23, None, "s4", {}),
+    (0.23, 0.30, "s4_s4bay", None, {"s4_hood": [(0.26, 0.0), (0.30, 1.0)]}),
+    (0.30, 0.42, None, "s4_bay", {}),
+    (0.42, 0.49, "s4bay_s6rear", None, {"s4_hood": [(0.42, 1.0), (0.46, 0.0)]}),
+    (0.49, 0.54, None, "s6_rear", {}),
+    (0.54, 0.58, "s6rear_s6", None, {}),
+    (0.58, 0.61, None, "s6", {}),
+    (0.61, 0.635, "s6_stance", None, {}),
+    (0.635, 0.655, None, "s6_stance", {}),
+    (0.655, 0.685, None, "s6_stance", {"s6_drop": [(0.655, 0.0), (0.685, 1.0)]}),
+    (0.685, 0.705, None, "s6_stance", {}),
+    (0.705, 0.77, "stance_s6bay", None, {"s6_drop": [(0.705, 1.0), (0.73, 0.0)], "s6_hood": [(0.73, 0.0), (0.77, 1.0)]}),
+    (0.77, 0.86, None, "s6_bay", {}),
+    (0.86, 0.94, "s6bay_shop", None, {"s6_hood": [(0.86, 1.0), (0.90, 0.0)]}),
+    (0.94, 1.0, None, "shop", {}),
 ]
-# The ways in and out, the outdoor flight's ends at street_door: in from
-# Stack (the existing street anchors, then the door, behind the cars along
-# the apron), and out from the shop wall to Contact (the aisle, the gap
-# between the bays, the door). And the graph's other edges, which a part or
-# a station asked for out of order takes: none crosses a car.
-GARAGE_ENTRY = ["cam_garage_edge", "cam_garage_street", "cam_garage_across", "street_door", "door_in", "apron_in", "arrival"]
-GARAGE_EXIT = ["shop", "aisle_mid", "gap_w", "apron_out", "door_in", "street_door", "cam_contact_via", "cam_contact"]
-GARAGE_EDGES = [
-    ("arrival", "apron_in", []), ("apron_in", "door_in", []), ("door_in", "street_door", []),
-    ("arrival", "s4", ["apron_s", "s4_flank"]), ("apron_s", "s4_rear", []), ("s4", "s4_bay", []),
-    ("s4_bay", "aisle_s", []), ("aisle_s", "aisle_mid", []), ("aisle_mid", "aisle_n", []),
-    ("aisle_n", "north_e", []), ("north_e", "north_w", []), ("north_w", "s6_rear", []), ("north_w", "arrival", []),
-    ("north_e", "s6", []), ("s6", "s6_stance", []), ("s6_stance", "s6_bay", []), ("s6_bay", "s6_aisle", []),
-    ("s6_aisle", "aisle_mid", []), ("s6_aisle", "shop_s", []), ("shop_s", "shop", []), ("s4", "shop_s", []),
-    ("shop", "aisle_mid", []), ("aisle_mid", "gap_w", []), ("gap_w", "apron_out", []), ("apron_out", "door_in", []),
-    ("apron_out", "arrival", []),
-]
+_POSE = {g: (r[-2], r[-1]) for g, *r in GARAGE_STATIONS + [(g, None, *r) for g, *r in GARAGE_POSES]}
+
+
+def garage_point(ref, portrait=False):
+    """A route's end or gaze: a node, a pose's camera, a pose's target (as
+    a gaze), or a point."""
+    if not isinstance(ref, str):
+        return ref
+    if ref in GARAGE_NODES:
+        return GARAGE_NODES[ref]
+    return _POSE[ref][1 if portrait else 0][0]
+
+
 for nid, pos in GARAGE_NODES.items():
-    empty(f"path_garage_{nid}", pos)
-    if nid in GARAGE_NODES_PORTRAIT:
-        empty(f"path_garage_{nid}_portrait", GARAGE_NODES_PORTRAIT[nid])
+    links = ",".join(r for r, (a, b, *_) in GARAGE_ROUTES.items() if nid in (a, b))
+    empty(f"anchor_garage_node_{nid}", pos, props={"links": links})
+for rid, (a, b, ctrl, portrait, gaze) in GARAGE_ROUTES.items():
+    for i, c in enumerate(ctrl, 1):
+        empty(f"cam_garage_path_{rid}_{i:02d}", c, props={"route": rid, "from": a, "to": b})
+        if i in portrait:
+            empty(f"cam_garage_path_{rid}_{i:02d}_portrait", portrait[i], props={"route": rid})
+    for i, (u, g) in enumerate(gaze, 1):
+        wide = g if not isinstance(g, str) else _POSE[g][0][1] if g in _POSE else GARAGE_NODES[g]
+        tall = g if not isinstance(g, str) else _POSE[g][1][1] if g in _POSE else GARAGE_NODES[g]
+        empty(f"cam_garage_gaze_{rid}_{i:02d}", wide, props={"u": float(u), "route": rid})
+        if tall != wide:
+            empty(f"cam_garage_gaze_{rid}_{i:02d}_portrait", tall, props={"u": float(u), "route": rid})
 
 empty("cam_garage_edge", (441.0, 35.5, -266.0))
 empty("cam_garage_street", (437.0, 4.5, -248.0))
